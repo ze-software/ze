@@ -1,4 +1,5 @@
-# golangci-lint configuration for ZeBGP
+# golangci-lint configuration for ZeBGP (v2 format)
+version: "2"
 
 run:
   timeout: 5m
@@ -6,16 +7,13 @@ run:
 
 linters:
   enable:
-    # Default linters
+    # Core linters
     - errcheck
-    - gosimple
     - govet
     - ineffassign
     - staticcheck
     - unused
     # Additional linters
-    - gofmt
-    - goimports
     - gocritic
     - gosec
     - misspell
@@ -23,7 +21,6 @@ linters:
     - unparam
     - nakedret
     - prealloc
-    - exportloopref
     - noctx
     - bodyclose
     - dupl
@@ -34,9 +31,13 @@ linters:
     - godot
     - nilerr
     - nilnil
-    - tenv
     - tparallel
     - wastedassign
+
+formatters:
+  enable:
+    - gofmt
+    - goimports
 
 linters-settings:
   errcheck:
@@ -46,11 +47,9 @@ linters-settings:
   govet:
     enable-all: true
 
-  gofmt:
-    simplify: true
-
   goimports:
-    local-prefixes: github.com/exa-networks/zebgp
+    local-prefixes:
+      - github.com/exa-networks/zebgp
 
   gocritic:
     enabled-tags:
@@ -60,7 +59,7 @@ linters-settings:
 
   gosec:
     excludes:
-      - G104  # Audit errors not checked (we use errcheck)
+      - G104
 
   misspell:
     locale: US
@@ -84,13 +83,11 @@ linters-settings:
 
 issues:
   exclude-rules:
-    # Test files can have longer functions
     - path: _test\.go
       linters:
         - dupl
         - goconst
 
-    # Allow fmt.Print in cmd/
     - path: cmd/
       linters:
         - forbidigo
@@ -99,6 +96,5 @@ issues:
   max-same-issues: 10
 
 output:
-  formats:
-    - format: colored-line-number
+  format: colored-line-number
   sort-results: true
