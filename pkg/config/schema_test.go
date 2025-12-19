@@ -169,7 +169,7 @@ func TestSchemaValidateValue(t *testing.T) {
 		{TypeIP, "2001:db8::1", true},
 		{TypeString, "anything", true},
 		{TypePrefix, "10.0.0.0/8", true},
-		{TypePrefix, "10.0.0.0", false},
+		{TypePrefix, "10.0.0.0", true}, // plain IP allowed as /32
 	}
 
 	for _, tc := range tests {

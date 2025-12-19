@@ -231,8 +231,15 @@ func serializeFreeform(b *strings.Builder, tree *Tree, indent int) {
 	sort.Strings(keys)
 
 	for _, k := range keys {
+		v := tree.values[k]
 		b.WriteString(prefix)
 		b.WriteString(k)
+		if v != "true" {
+			// Has a value - always output as "key [ value ];" to preserve roundtrip
+			b.WriteString(" [ ")
+			b.WriteString(v)
+			b.WriteString(" ]")
+		}
 		b.WriteString(";\n")
 	}
 }

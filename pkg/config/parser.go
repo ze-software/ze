@@ -329,9 +329,17 @@ func (p *Parser) parseArrayLeaf(tree *Tree, name string, _ *ArrayLeafNode) error
 }
 
 // parseFreeform parses a freeform block: `name { word word; word word; }`
+// Also handles: `name subname { ... }` (skips subname)
 // Stores each "word word" line as key -> "true".
 func (p *Parser) parseFreeform(tree *Tree, name string) error {
 	tok := p.tok.Peek()
+
+	// Skip optional words before the block (e.g., "api services { }")
+	for tok.Type == TokenWord || tok.Type == TokenString {
+		p.tok.Next()
+		tok = p.tok.Peek()
+	}
+
 	if tok.Type != TokenLBrace {
 		return p.errorf(tok, "expected '{' after %s, got %s", name, tok.Type)
 	}
@@ -349,16 +357,34 @@ func (p *Parser) parseFreeform(tree *Tree, name string) error {
 			return p.errorf(tok, "unexpected EOF in %s block", name)
 		}
 
-		// Collect words until semicolon
+		// Collect words until semicolon or nested block
 		var words []string
+		hadArray := false
 		for {
 			tok = p.tok.Peek()
 			if tok.Type == TokenSemicolon {
 				p.tok.Next()
 				break
 			}
+			if tok.Type == TokenLBrace {
+				// Skip nested block
+				if err := p.skipBlock(); err != nil {
+					return err
+				}
+				break
+			}
+			if tok.Type == TokenLBracket {
+				// Capture array [ ... ] values
+				arrayVals, err := p.collectArray()
+				if err != nil {
+					return err
+				}
+				words = append(words, arrayVals...)
+				hadArray = true
+				continue
+			}
 			if tok.Type == TokenRBrace || tok.Type == TokenEOF {
-				return p.errorf(tok, "expected ';' in %s block", name)
+				break
 			}
 			if tok.Type == TokenWord || tok.Type == TokenString {
 				words = append(words, tok.Value)
@@ -369,14 +395,28 @@ func (p *Parser) parseFreeform(tree *Tree, name string) error {
 		}
 
 		if len(words) > 0 {
-			key := ""
-			for i, w := range words {
-				if i > 0 {
-					key += " "
+			if hadArray && len(words) > 1 {
+				// Array present: "processes [ watcher ];" -> key="processes", value="watcher"
+				key := words[0]
+				value := ""
+				for i, w := range words[1:] {
+					if i > 0 {
+						value += " "
+					}
+					value += w
 				}
-				key += w
+				child.Set(key, value)
+			} else {
+				// No array: "ipv4 unicast;" -> key="ipv4 unicast", value="true"
+				key := ""
+				for i, w := range words {
+					if i > 0 {
+						key += " "
+					}
+					key += w
+				}
+				child.Set(key, "true")
 			}
-			child.Set(key, "true")
 		}
 	}
 
@@ -541,6 +581,110 @@ func (p *Parser) parseInlineList(tree *Tree, name string, node *InlineListNode) 
 
 	tree.AddListEntry(name, key, entry)
 	return nil
+}
+
+// skipBlock skips a nested block { ... }, including nested blocks.
+func (p *Parser) skipBlock() error {
+	tok := p.tok.Peek()
+	if tok.Type != TokenLBrace {
+		return p.errorf(tok, "expected '{', got %s", tok.Type)
+	}
+	p.tok.Next()
+
+	depth := 1
+	for depth > 0 {
+		tok = p.tok.Next()
+		switch tok.Type {
+		case TokenLBrace:
+			depth++
+		case TokenRBrace:
+			depth--
+		case TokenEOF:
+			return p.errorf(tok, "unexpected EOF in nested block")
+		}
+	}
+	return nil
+}
+
+// skipArray skips an array [ ... ], including nested arrays/blocks.
+func (p *Parser) skipArray() error {
+	tok := p.tok.Peek()
+	if tok.Type != TokenLBracket {
+		return p.errorf(tok, "expected '[', got %s", tok.Type)
+	}
+	p.tok.Next()
+
+	depth := 1
+	for depth > 0 {
+		tok = p.tok.Next()
+		switch tok.Type {
+		case TokenLBracket:
+			depth++
+		case TokenRBracket:
+			depth--
+		case TokenEOF:
+			return p.errorf(tok, "unexpected EOF in array")
+		}
+	}
+	return nil
+}
+
+// collectArray collects array values [ item item ... ] and returns them.
+// Handles nested brackets by including them as literal text.
+func (p *Parser) collectArray() ([]string, error) {
+	tok := p.tok.Peek()
+	if tok.Type != TokenLBracket {
+		return nil, p.errorf(tok, "expected '[', got %s", tok.Type)
+	}
+	p.tok.Next() // consume [
+
+	var items []string
+	depth := 1
+	var nested string
+
+	for depth > 0 {
+		tok = p.tok.Peek()
+		switch tok.Type {
+		case TokenRBracket:
+			depth--
+			if depth > 0 {
+				nested += "]"
+			}
+			p.tok.Next()
+		case TokenLBracket:
+			depth++
+			nested += "["
+			p.tok.Next()
+		case TokenWord, TokenString:
+			if depth > 1 {
+				if nested != "" && nested[len(nested)-1] != '[' {
+					nested += " "
+				}
+				nested += tok.Value
+			} else {
+				if nested != "" {
+					items = append(items, nested)
+					nested = ""
+				}
+				items = append(items, tok.Value)
+			}
+			p.tok.Next()
+		case TokenEOF:
+			return nil, p.errorf(tok, "unexpected EOF in array")
+		default:
+			// Include other tokens (parens, commas) in nested content
+			if depth > 1 {
+				nested += tok.Value
+			}
+			p.tok.Next()
+		}
+	}
+
+	if nested != "" {
+		items = append(items, nested)
+	}
+
+	return items, nil
 }
 
 // errorf creates a formatted error with line info.

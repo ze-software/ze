@@ -389,9 +389,14 @@ func ValidateValue(typ ValueType, value string) error {
 		return nil
 
 	case TypePrefix:
+		// Try as prefix first
 		_, err := netip.ParsePrefix(value)
 		if err != nil {
-			return fmt.Errorf("invalid prefix: %q", value)
+			// Try as plain IP (host route /32 or /128)
+			_, err2 := netip.ParseAddr(value)
+			if err2 != nil {
+				return fmt.Errorf("invalid prefix: %q", value)
+			}
 		}
 		return nil
 

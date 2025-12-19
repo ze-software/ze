@@ -18,8 +18,9 @@ func BGPSchema() *Schema {
 
 	// Process definitions (API)
 	schema.Define("process", List(TypeString,
-		Field("run", Leaf(TypeString)),
-		Field("encoder", Leaf(TypeString)), // json, text
+		Field("run", MultiLeaf(TypeString)), // command with args
+		Field("encoder", Leaf(TypeString)),  // json, text
+		Field("respawn", Leaf(TypeBool)),    // respawn on exit
 	))
 
 	// Neighbor definitions
@@ -32,6 +33,20 @@ func BGPSchema() *Schema {
 		Field("hold-time", LeafWithDefault(TypeUint16, "90")),
 		Field("passive", LeafWithDefault(TypeBool, "false")),
 		Field("group-updates", LeafWithDefault(TypeBool, "true")),
+		Field("host-name", Leaf(TypeString)),
+		Field("domain-name", Leaf(TypeString)),
+		Field("md5-password", Leaf(TypeString)),
+		Field("md5-ip", Leaf(TypeIP)),
+		Field("ttl-security", Leaf(TypeUint16)),
+		Field("outgoing-ttl", Leaf(TypeUint16)),
+		Field("incoming-ttl", Leaf(TypeUint16)),
+		Field("multi-session", LeafWithDefault(TypeBool, "false")),
+		Field("inherit", Leaf(TypeString)),  // template name
+		Field("nexthop", Freeform()),        // nexthop configuration
+		Field("manual-eor", Leaf(TypeBool)), // manual end-of-RIB
+		Field("auto-flush", Leaf(TypeBool)), // auto-flush routes
+		Field("adj-rib-out", Leaf(TypeBool)),
+		Field("adj-rib-in", Leaf(TypeBool)),
 
 		// Address families: "ipv4 unicast", "ipv6 unicast", etc.
 		Field("family", Freeform()), // { ipv4 unicast; ipv6 unicast; }
@@ -47,26 +62,34 @@ func BGPSchema() *Schema {
 				Field("send", LeafWithDefault(TypeBool, "false")),
 				Field("receive", LeafWithDefault(TypeBool, "false")),
 			)),
+			Field("nexthop", Flex()),
+			Field("multi-session", Flex()),
+			Field("operational", Flex()),
+			Field("aigp", Flex()),
+			Field("software-version", Flex()),
 		)),
 
-		// Static routes
-		Field("static", Container(
-			Field("route", InlineList(TypePrefix, // supports inline or block
-				Field("next-hop", Leaf(TypeString)), // IP or "self"
-				Field("local-preference", Leaf(TypeUint32)),
-				Field("med", Leaf(TypeUint32)),
-				Field("community", Leaf(TypeString)),
-				Field("as-path", Leaf(TypeString)),
-			)),
-		)),
+		// Announce routes (dynamic)
+		Field("announce", Freeform()),
 
-		// API configuration
-		Field("api", Container(
-			Field("processes", ArrayLeaf(TypeString)), // [ process-name ]
-			Field("send", Freeform()),
-			Field("receive", Freeform()),
-		)),
+		// Static routes - use Freeform due to complex inline syntax with arrays
+		Field("static", Freeform()),
+
+		// Flow routes
+		Field("flow", Freeform()),
+
+		// L2VPN (VPLS, EVPN)
+		Field("l2vpn", Freeform()),
+
+		// Add-path per-family configuration
+		Field("add-path", Freeform()),
+
+		// API configuration - can be named or anonymous
+		Field("api", Freeform()),
 	))
+
+	// Template definitions (inheritance) - container with nested neighbor templates
+	schema.Define("template", Freeform())
 
 	return schema
 }
