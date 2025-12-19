@@ -345,3 +345,43 @@ neighbor 192.0.2.1 {
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "line 4")
 }
+
+// TestParserArray verifies array syntax parsing.
+//
+// VALIDATES: [ item1 item2 ] arrays are parsed.
+//
+// PREVENTS: Broken API process lists.
+func TestParserArray(t *testing.T) {
+	schema := NewSchema()
+	schema.Define("items", ArrayLeaf(TypeString))
+
+	input := `items [ foo bar baz ];`
+
+	p := NewParser(schema)
+	tree, err := p.Parse(input)
+	require.NoError(t, err)
+
+	val, ok := tree.Get("items")
+	require.True(t, ok)
+	require.Equal(t, "foo bar baz", val) // stored space-separated
+}
+
+// TestParserArraySingle verifies single-item array.
+//
+// VALIDATES: Single item arrays work.
+//
+// PREVENTS: Edge case failures.
+func TestParserArraySingle(t *testing.T) {
+	schema := NewSchema()
+	schema.Define("items", ArrayLeaf(TypeString))
+
+	input := `items [ single ];`
+
+	p := NewParser(schema)
+	tree, err := p.Parse(input)
+	require.NoError(t, err)
+
+	val, ok := tree.Get("items")
+	require.True(t, ok)
+	require.Equal(t, "single", val)
+}

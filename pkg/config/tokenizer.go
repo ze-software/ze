@@ -9,6 +9,8 @@ const (
 	TokenString
 	TokenLBrace
 	TokenRBrace
+	TokenLBracket
+	TokenRBracket
 	TokenSemicolon
 )
 
@@ -24,6 +26,10 @@ func (t TokenType) String() string {
 		return "LBRACE"
 	case TokenRBrace:
 		return "RBRACE"
+	case TokenLBracket:
+		return "LBRACKET"
+	case TokenRBracket:
+		return "RBRACKET"
 	case TokenSemicolon:
 		return "SEMICOLON"
 	default:
@@ -92,6 +98,12 @@ func (t *Tokenizer) Next() Token {
 	case '}':
 		t.advance()
 		return Token{Type: TokenRBrace, Value: "}", Line: startLine, Col: startCol}
+	case '[':
+		t.advance()
+		return Token{Type: TokenLBracket, Value: "[", Line: startLine, Col: startCol}
+	case ']':
+		t.advance()
+		return Token{Type: TokenRBracket, Value: "]", Line: startLine, Col: startCol}
 	case ';':
 		t.advance()
 		return Token{Type: TokenSemicolon, Value: ";", Line: startLine, Col: startCol}
@@ -196,7 +208,7 @@ func (t *Tokenizer) readWord(startLine, startCol int) Token {
 	for t.pos < len(t.input) {
 		ch := t.input[t.pos]
 		if ch == ' ' || ch == '\t' || ch == '\n' || ch == '\r' ||
-			ch == '{' || ch == '}' || ch == ';' ||
+			ch == '{' || ch == '}' || ch == '[' || ch == ']' || ch == ';' ||
 			ch == '"' || ch == '\'' || ch == '#' {
 			break
 		}

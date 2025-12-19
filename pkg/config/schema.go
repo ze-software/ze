@@ -55,7 +55,9 @@ const (
 	NodeLeaf NodeKind = iota
 	NodeContainer
 	NodeList
-	NodeFreeform // accepts "word word;" entries as key->true
+	NodeFreeform   // accepts "word word;" entries as key->true
+	NodeFlex       // can be flag (;), value (word;), or block ({})
+	NodeInlineList // list that supports inline: "route PREFIX attr val;"
 )
 
 // Node is the interface for all schema nodes.
@@ -248,6 +250,94 @@ func MultiLeaf(typ ValueType) *MultiLeafNode {
 	return &MultiLeafNode{Type: typ}
 }
 
+// ArrayLeafNode accepts [ item item ... ] syntax.
+type ArrayLeafNode struct {
+	Type ValueType
+}
+
+func (n *ArrayLeafNode) Kind() NodeKind { return NodeLeaf }
+
+// ArrayLeaf creates an array leaf node.
+func ArrayLeaf(typ ValueType) *ArrayLeafNode {
+	return &ArrayLeafNode{Type: typ}
+}
+
+// FlexNode can be a flag (;), value (word;), or block ({}).
+// Used for capabilities like graceful-restart which support all three forms.
+type FlexNode struct {
+	children map[string]Node
+	order    []string
+}
+
+func (n *FlexNode) Kind() NodeKind { return NodeFlex }
+
+// Has returns true if the flex node has a child with the given name.
+func (n *FlexNode) Has(name string) bool {
+	_, ok := n.children[name]
+	return ok
+}
+
+// Get returns a child node by name.
+func (n *FlexNode) Get(name string) Node {
+	return n.children[name]
+}
+
+// Children returns all child names in definition order.
+func (n *FlexNode) Children() []string {
+	return n.order
+}
+
+// Flex creates a flex node with optional children for block mode.
+func Flex(fields ...FieldDef) *FlexNode {
+	f := &FlexNode{
+		children: make(map[string]Node),
+	}
+	for _, field := range fields {
+		f.children[field.Name] = field.Node
+		f.order = append(f.order, field.Name)
+	}
+	return f
+}
+
+// InlineListNode is a list that supports inline attribute syntax.
+// e.g., "route 10.0.0.0/8 next-hop 1.1.1.1;" or "route 10.0.0.0/8 { next-hop 1.1.1.1; }"
+type InlineListNode struct {
+	KeyType  ValueType
+	children map[string]Node
+	order    []string
+}
+
+func (n *InlineListNode) Kind() NodeKind { return NodeInlineList }
+
+// Has returns true if the list entry has a child with the given name.
+func (n *InlineListNode) Has(name string) bool {
+	_, ok := n.children[name]
+	return ok
+}
+
+// Get returns a child node by name.
+func (n *InlineListNode) Get(name string) Node {
+	return n.children[name]
+}
+
+// Children returns all child names in definition order.
+func (n *InlineListNode) Children() []string {
+	return n.order
+}
+
+// InlineList creates an inline list node.
+func InlineList(keyType ValueType, fields ...FieldDef) *InlineListNode {
+	l := &InlineListNode{
+		KeyType:  keyType,
+		children: make(map[string]Node),
+	}
+	for _, f := range fields {
+		l.children[f.Name] = f.Node
+		l.order = append(l.order, f.Name)
+	}
+	return l
+}
+
 // ValidateValue validates a string value against a type.
 func ValidateValue(typ ValueType, value string) error {
 	switch typ {
@@ -255,8 +345,8 @@ func ValidateValue(typ ValueType, value string) error {
 		return nil
 
 	case TypeBool:
-		if value != "true" && value != "false" {
-			return fmt.Errorf("invalid bool: %q (expected true/false)", value)
+		if value != "true" && value != "false" && value != "enable" && value != "disable" {
+			return fmt.Errorf("invalid bool: %q (expected true/false/enable/disable)", value)
 		}
 		return nil
 
@@ -307,5 +397,17 @@ func ValidateValue(typ ValueType, value string) error {
 
 	default:
 		return fmt.Errorf("unknown type: %v", typ)
+	}
+}
+
+// NormalizeBool converts enable/disable to true/false.
+func NormalizeBool(value string) string {
+	switch value {
+	case "enable":
+		return "true"
+	case "disable":
+		return "false"
+	default:
+		return value
 	}
 }

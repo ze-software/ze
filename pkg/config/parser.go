@@ -108,12 +108,18 @@ func (p *Parser) parseNode(tree *Tree, name string, node Node) error {
 		return p.parseLeaf(tree, name, n)
 	case *MultiLeafNode:
 		return p.parseMultiLeaf(tree, name, n)
+	case *ArrayLeafNode:
+		return p.parseArrayLeaf(tree, name, n)
 	case *ContainerNode:
 		return p.parseContainer(tree, name, n)
 	case *ListNode:
 		return p.parseList(tree, name, n)
 	case *FreeformNode:
 		return p.parseFreeform(tree, name)
+	case *FlexNode:
+		return p.parseFlex(tree, name, n)
+	case *InlineListNode:
+		return p.parseInlineList(tree, name, n)
 	default:
 		return fmt.Errorf("unknown node type for %s", name)
 	}
@@ -134,6 +140,11 @@ func (p *Parser) parseLeaf(tree *Tree, name string, node *LeafNode) error {
 	// Validate value type
 	if err := ValidateValue(node.Type, value); err != nil {
 		return p.errorf(tok, "invalid value for %s: %v", name, err)
+	}
+
+	// Normalize bool values (enable->true, disable->false)
+	if node.Type == TypeBool {
+		value = NormalizeBool(value)
 	}
 
 	// Expect semicolon
@@ -273,6 +284,50 @@ func (p *Parser) parseMultiLeaf(tree *Tree, name string, _ *MultiLeafNode) error
 	return nil
 }
 
+// parseArrayLeaf parses an array: `name [ item item ... ];`
+func (p *Parser) parseArrayLeaf(tree *Tree, name string, _ *ArrayLeafNode) error {
+	tok := p.tok.Peek()
+	if tok.Type != TokenLBracket {
+		return p.errorf(tok, "expected '[' after %s, got %s", name, tok.Type)
+	}
+	p.tok.Next() // consume [
+
+	var items []string
+
+	for {
+		tok = p.tok.Peek()
+		if tok.Type == TokenRBracket {
+			p.tok.Next() // consume ]
+			break
+		}
+		if tok.Type == TokenWord || tok.Type == TokenString {
+			items = append(items, tok.Value)
+			p.tok.Next()
+		} else {
+			return p.errorf(tok, "expected item or ']' in array %s, got %s", name, tok.Type)
+		}
+	}
+
+	// Expect semicolon
+	tok = p.tok.Peek()
+	if tok.Type != TokenSemicolon {
+		return p.errorf(tok, "expected ';' after %s array, got %s", name, tok.Type)
+	}
+	p.tok.Next()
+
+	// Store as space-separated string
+	value := ""
+	for i, item := range items {
+		if i > 0 {
+			value += " "
+		}
+		value += item
+	}
+
+	tree.Set(name, value)
+	return nil
+}
+
 // parseFreeform parses a freeform block: `name { word word; word word; }`
 // Stores each "word word" line as key -> "true".
 func (p *Parser) parseFreeform(tree *Tree, name string) error {
@@ -326,6 +381,165 @@ func (p *Parser) parseFreeform(tree *Tree, name string) error {
 	}
 
 	tree.SetContainer(name, child)
+	return nil
+}
+
+// parseFlex parses a flex node: flag (;), value (word;), or block ({}).
+func (p *Parser) parseFlex(tree *Tree, name string, node *FlexNode) error {
+	tok := p.tok.Peek()
+
+	switch tok.Type {
+	case TokenSemicolon:
+		// Flag mode: just the name with semicolon = true
+		p.tok.Next()
+		tree.Set(name, "true")
+		return nil
+
+	case TokenLBrace:
+		// Block mode: parse as container
+		p.tok.Next()
+		child := NewTree()
+
+		for {
+			tok = p.tok.Peek()
+			if tok.Type == TokenRBrace {
+				p.tok.Next()
+				break
+			}
+			if tok.Type == TokenEOF {
+				return p.errorf(tok, "unexpected EOF in %s block", name)
+			}
+			if tok.Type != TokenWord {
+				return p.errorf(tok, "expected keyword in %s block, got %s", name, tok.Type)
+			}
+
+			fieldName := tok.Value
+			p.tok.Next()
+
+			fieldNode := node.Get(fieldName)
+			if fieldNode == nil {
+				return p.errorf(tok, "unknown field in %s: %s (line %d)", name, fieldName, tok.Line)
+			}
+
+			if err := p.parseNode(child, fieldName, fieldNode); err != nil {
+				return err
+			}
+		}
+
+		tree.SetContainer(name, child)
+		return nil
+
+	case TokenWord, TokenString:
+		// Value mode: parse value and semicolon
+		value := tok.Value
+		p.tok.Next()
+
+		tok = p.tok.Peek()
+		if tok.Type != TokenSemicolon {
+			return p.errorf(tok, "expected ';' after %s value, got %s", name, tok.Type)
+		}
+		p.tok.Next()
+
+		tree.Set(name, value)
+		return nil
+
+	default:
+		return p.errorf(tok, "expected ';', value, or '{' for %s, got %s", name, tok.Type)
+	}
+}
+
+// parseInlineList parses a list with inline or block syntax.
+// Inline: "route 10.0.0.0/8 next-hop 1.1.1.1;"
+// Block: "route 10.0.0.0/8 { next-hop 1.1.1.1; }"
+func (p *Parser) parseInlineList(tree *Tree, name string, node *InlineListNode) error {
+	// Get key
+	tok := p.tok.Peek()
+	var key string
+	if tok.Type == TokenWord || tok.Type == TokenString {
+		key = tok.Value
+		p.tok.Next()
+	} else {
+		return p.errorf(tok, "expected key for %s, got %s", name, tok.Type)
+	}
+
+	// Validate key type
+	if err := ValidateValue(node.KeyType, key); err != nil {
+		return p.errorf(tok, "invalid key for %s: %v", name, err)
+	}
+
+	entry := NewTree()
+
+	// Check for block or inline
+	tok = p.tok.Peek()
+	if tok.Type == TokenLBrace {
+		// Block mode
+		p.tok.Next()
+
+		for {
+			tok = p.tok.Peek()
+			if tok.Type == TokenRBrace {
+				p.tok.Next()
+				break
+			}
+			if tok.Type == TokenEOF {
+				return p.errorf(tok, "unexpected EOF in %s block", name)
+			}
+			if tok.Type != TokenWord {
+				return p.errorf(tok, "expected keyword in %s block, got %s", name, tok.Type)
+			}
+
+			fieldName := tok.Value
+			p.tok.Next()
+
+			fieldNode := node.Get(fieldName)
+			if fieldNode == nil {
+				return p.errorf(tok, "unknown field in %s: %s (line %d)", name, fieldName, tok.Line)
+			}
+
+			if err := p.parseNode(entry, fieldName, fieldNode); err != nil {
+				return err
+			}
+		}
+	} else {
+		// Inline mode: parse "attr value attr value ... ;"
+		for {
+			tok = p.tok.Peek()
+			if tok.Type == TokenSemicolon {
+				p.tok.Next()
+				break
+			}
+			if tok.Type == TokenEOF || tok.Type == TokenRBrace {
+				return p.errorf(tok, "expected ';' in inline %s", name)
+			}
+			if tok.Type != TokenWord {
+				return p.errorf(tok, "expected attribute name in inline %s, got %s", name, tok.Type)
+			}
+
+			attrName := tok.Value
+			p.tok.Next()
+
+			// Get value
+			tok = p.tok.Peek()
+			if tok.Type != TokenWord && tok.Type != TokenString {
+				return p.errorf(tok, "expected value for %s.%s, got %s", name, attrName, tok.Type)
+			}
+			attrValue := tok.Value
+			p.tok.Next()
+
+			// Validate if we know this attribute
+			if fieldNode := node.Get(attrName); fieldNode != nil {
+				if leaf, ok := fieldNode.(*LeafNode); ok {
+					if err := ValidateValue(leaf.Type, attrValue); err != nil {
+						return p.errorf(tok, "invalid value for %s.%s: %v", name, attrName, err)
+					}
+				}
+			}
+
+			entry.Set(attrName, attrValue)
+		}
+	}
+
+	tree.AddListEntry(name, key, entry)
 	return nil
 }
 

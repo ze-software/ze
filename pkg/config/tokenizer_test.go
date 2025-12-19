@@ -208,3 +208,27 @@ func TestTokenizerWhitespaceOnly(t *testing.T) {
 	token := tok.Next()
 	require.Equal(t, TokenEOF, token.Type)
 }
+
+// TestTokenizerArray verifies array bracket tokenization.
+//
+// VALIDATES: [ and ] are tokenized correctly.
+//
+// PREVENTS: Broken array syntax parsing.
+func TestTokenizerArray(t *testing.T) {
+	input := `processes [ foo bar ];`
+
+	tok := NewTokenizer(input)
+	tokens := tok.All()
+
+	require.Equal(t, TokenWord, tokens[0].Type)
+	require.Equal(t, "processes", tokens[0].Value)
+	require.Equal(t, TokenLBracket, tokens[1].Type)
+	require.Equal(t, "[", tokens[1].Value)
+	require.Equal(t, TokenWord, tokens[2].Type)
+	require.Equal(t, "foo", tokens[2].Value)
+	require.Equal(t, TokenWord, tokens[3].Type)
+	require.Equal(t, "bar", tokens[3].Value)
+	require.Equal(t, TokenRBracket, tokens[4].Type)
+	require.Equal(t, "]", tokens[4].Value)
+	require.Equal(t, TokenSemicolon, tokens[5].Type)
+}

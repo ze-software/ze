@@ -31,6 +31,7 @@ func BGPSchema() *Schema {
 		Field("peer-as", Leaf(TypeUint32)),
 		Field("hold-time", LeafWithDefault(TypeUint16, "90")),
 		Field("passive", LeafWithDefault(TypeBool, "false")),
+		Field("group-updates", LeafWithDefault(TypeBool, "true")),
 
 		// Address families: "ipv4 unicast", "ipv6 unicast", etc.
 		Field("family", Freeform()), // { ipv4 unicast; ipv6 unicast; }
@@ -38,11 +39,11 @@ func BGPSchema() *Schema {
 		// Capabilities
 		Field("capability", Container(
 			Field("asn4", LeafWithDefault(TypeBool, "true")),
-			Field("route-refresh", LeafWithDefault(TypeBool, "true")),
-			Field("graceful-restart", Container(
+			Field("route-refresh", Flex()), // flag, value, or block
+			Field("graceful-restart", Flex( // flag, value, or block
 				Field("restart-time", LeafWithDefault(TypeUint16, "120")),
 			)),
-			Field("add-path", Container(
+			Field("add-path", Flex( // flag, value (send/receive), or block
 				Field("send", LeafWithDefault(TypeBool, "false")),
 				Field("receive", LeafWithDefault(TypeBool, "false")),
 			)),
@@ -50,13 +51,20 @@ func BGPSchema() *Schema {
 
 		// Static routes
 		Field("static", Container(
-			Field("route", List(TypePrefix,
+			Field("route", InlineList(TypePrefix, // supports inline or block
 				Field("next-hop", Leaf(TypeString)), // IP or "self"
 				Field("local-preference", Leaf(TypeUint32)),
 				Field("med", Leaf(TypeUint32)),
 				Field("community", Leaf(TypeString)),
 				Field("as-path", Leaf(TypeString)),
 			)),
+		)),
+
+		// API configuration
+		Field("api", Container(
+			Field("processes", ArrayLeaf(TypeString)), // [ process-name ]
+			Field("send", Freeform()),
+			Field("receive", Freeform()),
 		)),
 	))
 
