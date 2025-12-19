@@ -1,4 +1,4 @@
-// Command zebgp-functional runs ZeBGP functional tests.
+// Command self-check runs ZeBGP functional tests.
 //
 // It orchestrates tests by:
 //  1. Starting zebgp-peer as the BGP test server
@@ -7,9 +7,9 @@
 //
 // Usage:
 //
-//	zebgp-functional --list
-//	zebgp-functional 0
-//	zebgp-functional --all
+//	self-check --list
+//	self-check 0
+//	self-check --all
 package main
 
 import (

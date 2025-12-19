@@ -186,4 +186,45 @@ make build       # go build ./...
 
 ---
 
+## Functional Testing Tools
+
+| Tool | Purpose | Usage |
+|------|---------|-------|
+| `zebgp-peer` | BGP test peer (ExaBGP bgp port) | `zebgp-peer --sink --port 1790` |
+| `pkg/testpeer` | Testpeer as library | `peer := testpeer.New(&Config{...})` |
+| `self-check` | Functional test runner | `self-check --all` |
+
+**See CI_TESTING.md for full documentation.**
+
+### Quick Examples
+
+```bash
+# Run BGP test peer in sink mode
+zebgp-peer --sink --port 1790
+
+# Run test peer with expected messages
+zebgp-peer --port 1790 qa/encoding/test.msg
+
+# Run all functional tests
+self-check --all
+
+# List available functional tests
+self-check --list
+```
+
+### Using testpeer in Go tests
+
+```go
+import "github.com/exa-networks/zebgp/pkg/testpeer"
+
+peer := testpeer.New(&testpeer.Config{
+    Port: 1790,
+    Sink: true,
+    Output: &bytes.Buffer{},
+})
+result := peer.Run(ctx)
+```
+
+---
+
 **Last Updated:** 2025-12-19
