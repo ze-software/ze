@@ -1,0 +1,347 @@
+package config
+
+import (
+	"testing"
+
+	"github.com/stretchr/testify/require"
+)
+
+// testSchema returns a schema for testing.
+func testSchema() *Schema {
+	schema := NewSchema()
+
+	schema.Define("router-id", Leaf(TypeIPv4))
+	schema.Define("local-as", Leaf(TypeUint32))
+
+	schema.Define("neighbor", List(TypeIP,
+		Field("description", Leaf(TypeString)),
+		Field("router-id", Leaf(TypeIPv4)),
+		Field("local-address", Leaf(TypeIP)),
+		Field("local-as", Leaf(TypeUint32)),
+		Field("peer-as", Leaf(TypeUint32)),
+		Field("hold-time", LeafWithDefault(TypeUint16, "90")),
+		Field("passive", LeafWithDefault(TypeBool, "false")),
+		Field("family", Container(
+			Field("ipv4", Container(
+				Field("unicast", Leaf(TypeBool)),
+				Field("multicast", Leaf(TypeBool)),
+			)),
+			Field("ipv6", Container(
+				Field("unicast", Leaf(TypeBool)),
+			)),
+		)),
+		Field("static", Container(
+			Field("route", List(TypePrefix,
+				Field("next-hop", Leaf(TypeIP)),
+				Field("community", Leaf(TypeString)),
+			)),
+		)),
+	))
+
+	schema.Define("process", List(TypeString,
+		Field("run", Leaf(TypeString)),
+		Field("encoder", Leaf(TypeString)),
+	))
+
+	return schema
+}
+
+// TestParserSimpleLeaf verifies parsing a simple leaf value.
+//
+// VALIDATES: Top-level leaves are parsed correctly.
+//
+// PREVENTS: Lost simple configuration values.
+func TestParserSimpleLeaf(t *testing.T) {
+	input := `router-id 1.2.3.4;`
+
+	p := NewParser(testSchema())
+	tree, err := p.Parse(input)
+
+	require.NoError(t, err)
+	require.NotNil(t, tree)
+
+	val, ok := tree.Get("router-id")
+	require.True(t, ok)
+	require.Equal(t, "1.2.3.4", val)
+}
+
+// TestParserNeighborBlock verifies parsing a neighbor block.
+//
+// VALIDATES: List entries with children are parsed.
+//
+// PREVENTS: Lost neighbor configuration.
+func TestParserNeighborBlock(t *testing.T) {
+	input := `
+neighbor 192.0.2.1 {
+    local-as 65000;
+    peer-as 65001;
+    router-id 1.2.3.4;
+}
+`
+
+	p := NewParser(testSchema())
+	tree, err := p.Parse(input)
+
+	require.NoError(t, err)
+
+	// Access neighbor
+	neighbors := tree.GetList("neighbor")
+	require.Len(t, neighbors, 1)
+
+	n := neighbors["192.0.2.1"]
+	require.NotNil(t, n)
+
+	val, _ := n.Get("local-as")
+	require.Equal(t, "65000", val)
+
+	val, _ = n.Get("peer-as")
+	require.Equal(t, "65001", val)
+}
+
+// TestParserMultipleNeighbors verifies multiple list entries.
+//
+// VALIDATES: Multiple neighbors are parsed independently.
+//
+// PREVENTS: Overwritten neighbor configs.
+func TestParserMultipleNeighbors(t *testing.T) {
+	input := `
+neighbor 192.0.2.1 {
+    local-as 65000;
+    peer-as 65001;
+}
+
+neighbor 192.0.2.2 {
+    local-as 65000;
+    peer-as 65002;
+}
+`
+
+	p := NewParser(testSchema())
+	tree, err := p.Parse(input)
+
+	require.NoError(t, err)
+
+	neighbors := tree.GetList("neighbor")
+	require.Len(t, neighbors, 2)
+
+	n1 := neighbors["192.0.2.1"]
+	val, _ := n1.Get("peer-as")
+	require.Equal(t, "65001", val)
+
+	n2 := neighbors["192.0.2.2"]
+	val, _ = n2.Get("peer-as")
+	require.Equal(t, "65002", val)
+}
+
+// TestParserNestedContainer verifies nested containers.
+//
+// VALIDATES: Nested containers are parsed correctly.
+//
+// PREVENTS: Flattened nested config.
+func TestParserNestedContainer(t *testing.T) {
+	input := `
+neighbor 192.0.2.1 {
+    local-as 65000;
+    peer-as 65001;
+    family {
+        ipv4 {
+            unicast true;
+        }
+        ipv6 {
+            unicast true;
+        }
+    }
+}
+`
+
+	p := NewParser(testSchema())
+	tree, err := p.Parse(input)
+
+	require.NoError(t, err)
+
+	neighbors := tree.GetList("neighbor")
+	n := neighbors["192.0.2.1"]
+
+	family := n.GetContainer("family")
+	require.NotNil(t, family)
+
+	ipv4 := family.GetContainer("ipv4")
+	require.NotNil(t, ipv4)
+
+	val, _ := ipv4.Get("unicast")
+	require.Equal(t, "true", val)
+}
+
+// TestParserNestedList verifies list inside container.
+//
+// VALIDATES: Lists can be nested inside containers.
+//
+// PREVENTS: Lost nested list entries.
+func TestParserNestedList(t *testing.T) {
+	input := `
+neighbor 192.0.2.1 {
+    local-as 65000;
+    peer-as 65001;
+    static {
+        route 10.0.0.0/8 {
+            next-hop 192.0.2.1;
+        }
+        route 172.16.0.0/12 {
+            next-hop 192.0.2.1;
+        }
+    }
+}
+`
+
+	p := NewParser(testSchema())
+	tree, err := p.Parse(input)
+
+	require.NoError(t, err)
+
+	neighbors := tree.GetList("neighbor")
+	n := neighbors["192.0.2.1"]
+
+	static := n.GetContainer("static")
+	require.NotNil(t, static)
+
+	routes := static.GetList("route")
+	require.Len(t, routes, 2)
+
+	r1 := routes["10.0.0.0/8"]
+	val, _ := r1.Get("next-hop")
+	require.Equal(t, "192.0.2.1", val)
+}
+
+// TestParserProcess verifies process block (string-keyed list).
+//
+// VALIDATES: String-keyed lists work.
+//
+// PREVENTS: Only IP-keyed lists working.
+func TestParserProcess(t *testing.T) {
+	input := `
+process announce-routes {
+    run "/usr/bin/exabgp-announce";
+    encoder json;
+}
+`
+
+	p := NewParser(testSchema())
+	tree, err := p.Parse(input)
+
+	require.NoError(t, err)
+
+	procs := tree.GetList("process")
+	require.Len(t, procs, 1)
+
+	proc := procs["announce-routes"]
+	require.NotNil(t, proc)
+
+	val, _ := proc.Get("run")
+	require.Equal(t, "/usr/bin/exabgp-announce", val)
+
+	val, _ = proc.Get("encoder")
+	require.Equal(t, "json", val)
+}
+
+// TestParserValidationError verifies type validation.
+//
+// VALIDATES: Invalid values are rejected.
+//
+// PREVENTS: Invalid config being accepted.
+func TestParserValidationError(t *testing.T) {
+	input := `
+neighbor 192.0.2.1 {
+    local-as not-a-number;
+}
+`
+
+	p := NewParser(testSchema())
+	_, err := p.Parse(input)
+
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "invalid")
+}
+
+// TestParserUnknownField verifies unknown field rejection.
+//
+// VALIDATES: Unknown fields are rejected.
+//
+// PREVENTS: Silent config typos.
+func TestParserUnknownField(t *testing.T) {
+	input := `
+neighbor 192.0.2.1 {
+    unknown-field value;
+}
+`
+
+	p := NewParser(testSchema())
+	_, err := p.Parse(input)
+
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "unknown")
+}
+
+// TestParserUnknownTopLevel verifies unknown top-level rejection.
+//
+// VALIDATES: Unknown top-level blocks are rejected.
+//
+// PREVENTS: Ignored config sections.
+func TestParserUnknownTopLevel(t *testing.T) {
+	input := `
+unknown-block {
+    something value;
+}
+`
+
+	p := NewParser(testSchema())
+	_, err := p.Parse(input)
+
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "unknown")
+}
+
+// TestParserQuotedValues verifies quoted string handling.
+//
+// VALIDATES: Quoted strings preserve spaces.
+//
+// PREVENTS: Broken paths or descriptions.
+func TestParserQuotedValues(t *testing.T) {
+	input := `
+neighbor 192.0.2.1 {
+    local-as 65000;
+    peer-as 65001;
+    description "My BGP Peer";
+}
+`
+
+	p := NewParser(testSchema())
+	tree, err := p.Parse(input)
+
+	require.NoError(t, err)
+
+	neighbors := tree.GetList("neighbor")
+	n := neighbors["192.0.2.1"]
+
+	val, _ := n.Get("description")
+	require.Equal(t, "My BGP Peer", val)
+}
+
+// TestParserLineNumbers verifies error line reporting.
+//
+// VALIDATES: Errors include line numbers.
+//
+// PREVENTS: Hard-to-find config errors.
+func TestParserLineNumbers(t *testing.T) {
+	input := `
+neighbor 192.0.2.1 {
+    local-as 65000;
+    unknown-field value;
+}
+`
+
+	p := NewParser(testSchema())
+	_, err := p.Parse(input)
+
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "line 4")
+}
