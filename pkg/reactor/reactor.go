@@ -216,7 +216,7 @@ func (r *Reactor) AddNeighbor(neighbor *Neighbor) error {
 	r.peers[key] = peer
 
 	// If reactor is running, start the peer
-	if r.running && !neighbor.Passive {
+	if r.running {
 		peer.StartWithContext(r.ctx)
 	}
 
@@ -299,11 +299,9 @@ func (r *Reactor) StartWithContext(ctx context.Context) error {
 	})
 	r.signals.StartWithContext(r.ctx)
 
-	// Start all non-passive peers
+	// Start all peers (passive peers wait for incoming connections).
 	for _, peer := range r.peers {
-		if !peer.Neighbor().Passive {
-			peer.StartWithContext(r.ctx)
-		}
+		peer.StartWithContext(r.ctx)
 	}
 
 	r.running = true
@@ -425,8 +423,9 @@ func (r *Reactor) handleConnection(conn net.Conn) {
 		return
 	}
 
-	// Default: accept connection on peer's session
-	// For passive peers, this triggers the session
-	// TODO: integrate with peer/session for full handshake
-	_ = conn.Close()
+	// Accept connection on peer's session.
+	// For passive peers, this triggers the BGP handshake.
+	if err := peer.AcceptConnection(conn); err != nil {
+		_ = conn.Close()
+	}
 }

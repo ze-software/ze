@@ -2,6 +2,7 @@ package reactor
 
 import (
 	"context"
+	"net"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -256,6 +257,20 @@ func (p *Peer) runOnce() error {
 
 	// Run session loop
 	return session.Run(p.ctx)
+}
+
+// AcceptConnection accepts an incoming TCP connection for this peer.
+// Used by the reactor to hand incoming connections to passive peers.
+func (p *Peer) AcceptConnection(conn net.Conn) error {
+	p.mu.RLock()
+	session := p.session
+	p.mu.RUnlock()
+
+	if session == nil {
+		return ErrNotConnected
+	}
+
+	return session.Accept(conn)
 }
 
 // cleanup runs when peer stops.
