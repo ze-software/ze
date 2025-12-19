@@ -9,6 +9,8 @@ import (
 	"net/netip"
 	"sync"
 	"time"
+
+	"github.com/exa-networks/zebgp/pkg/api"
 )
 
 // Reactor errors.
@@ -29,6 +31,21 @@ type Config struct {
 
 	// LocalAS is the local AS number.
 	LocalAS uint32
+
+	// APISocketPath is the path to the Unix socket for API communication.
+	// If empty, API server is not started.
+	APISocketPath string
+
+	// APIProcesses defines external processes for API communication.
+	APIProcesses []APIProcessConfig
+}
+
+// APIProcessConfig holds external process configuration for the API.
+type APIProcessConfig struct {
+	Name    string
+	Run     string
+	Encoder string
+	Respawn bool
 }
 
 // Stats holds reactor statistics.
@@ -48,12 +65,14 @@ type ConnectionCallback func(conn net.Conn, neighbor *Neighbor)
 //   - Listener for incoming connections
 //   - Signal handling
 //   - Graceful shutdown
+//   - API server for external communication
 type Reactor struct {
 	config *Config
 
 	peers    map[string]*Peer // keyed by neighbor address
 	listener *Listener
 	signals  *SignalHandler
+	api      *api.Server // API server for CLI and external processes
 
 	connCallback ConnectionCallback
 
@@ -65,6 +84,62 @@ type Reactor struct {
 	wg     sync.WaitGroup
 
 	mu sync.RWMutex
+}
+
+// reactorAPIAdapter implements api.ReactorInterface for the Reactor.
+type reactorAPIAdapter struct {
+	r *Reactor
+}
+
+// Peers returns peer information for the API.
+func (a *reactorAPIAdapter) Peers() []api.PeerInfo {
+	a.r.mu.RLock()
+	defer a.r.mu.RUnlock()
+
+	result := make([]api.PeerInfo, 0, len(a.r.peers))
+	for _, p := range a.r.peers {
+		n := p.Neighbor()
+		info := api.PeerInfo{
+			Address:      n.Address,
+			LocalAddress: netip.Addr{}, // TODO: get from session
+			LocalAS:      n.LocalAS,
+			PeerAS:       n.PeerAS,
+			RouterID:     n.RouterID,
+			State:        p.State().String(),
+		}
+		if p.State() == PeerStateEstablished {
+			info.Uptime = time.Since(a.r.startTime) // TODO: track per-peer
+		}
+		result = append(result, info)
+	}
+	return result
+}
+
+// Stats returns reactor statistics for the API.
+func (a *reactorAPIAdapter) Stats() api.ReactorStats {
+	stats := a.r.Stats()
+	return api.ReactorStats{
+		StartTime: stats.StartTime,
+		Uptime:    stats.Uptime,
+		PeerCount: stats.PeerCount,
+	}
+}
+
+// Stop signals the reactor to stop.
+func (a *reactorAPIAdapter) Stop() {
+	a.r.Stop()
+}
+
+// AnnounceRoute announces a route to matching peers.
+// TODO: Implement when RIB integration is complete.
+func (a *reactorAPIAdapter) AnnounceRoute(_ string, _ api.RouteSpec) error {
+	return errors.New("not implemented")
+}
+
+// WithdrawRoute withdraws a route from matching peers.
+// TODO: Implement when RIB integration is complete.
+func (a *reactorAPIAdapter) WithdrawRoute(_ string, _ netip.Prefix) error {
+	return errors.New("not implemented")
 }
 
 // New creates a new reactor with the given configuration.
@@ -193,6 +268,30 @@ func (r *Reactor) StartWithContext(ctx context.Context) error {
 		}
 	}
 
+	// Start API server if configured
+	if r.config.APISocketPath != "" {
+		apiConfig := &api.ServerConfig{
+			SocketPath: r.config.APISocketPath,
+		}
+		// Convert process configs
+		for _, pc := range r.config.APIProcesses {
+			apiConfig.Processes = append(apiConfig.Processes, api.ProcessConfig{
+				Name:    pc.Name,
+				Run:     pc.Run,
+				Encoder: pc.Encoder,
+				Respawn: pc.Respawn,
+			})
+		}
+		r.api = api.NewServer(apiConfig, &reactorAPIAdapter{r})
+		if err := r.api.StartWithContext(r.ctx); err != nil {
+			if r.listener != nil {
+				r.listener.Stop()
+			}
+			r.cancel()
+			return err
+		}
+	}
+
 	// Start signal handler
 	r.signals = NewSignalHandler()
 	r.signals.OnShutdown(func() {
@@ -256,6 +355,14 @@ func (r *Reactor) monitor() {
 func (r *Reactor) cleanup() {
 	r.mu.Lock()
 	defer r.mu.Unlock()
+
+	// Stop API server
+	if r.api != nil {
+		r.api.Stop()
+		waitCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		_ = r.api.Wait(waitCtx)
+		cancel()
+	}
 
 	// Stop listener
 	if r.listener != nil {
