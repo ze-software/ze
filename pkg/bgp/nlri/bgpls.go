@@ -60,7 +60,7 @@ const (
 
 // String returns a human-readable protocol name.
 func (p BGPLSProtocolID) String() string {
-	switch p {
+	switch p { //nolint:exhaustive // Unknown protocols formatted in default
 	case ProtoISISL1:
 		return "isis-l1"
 	case ProtoISISL2:
@@ -85,7 +85,7 @@ const (
 	TLVLocalNodeDesc  uint16 = 256 // Local Node Descriptors
 	TLVRemoteNodeDesc uint16 = 257 // Remote Node Descriptors
 
-	// Node Descriptor Sub-TLVs
+	// Node Descriptor Sub-TLVs.
 	TLVAutonomousSystem uint16 = 512 // Autonomous System
 	TLVBGPLSIdentifier  uint16 = 513 // BGP-LS Identifier
 	TLVOSPFAreaID       uint16 = 514 // OSPF Area ID
@@ -206,7 +206,7 @@ func (pd *PrefixDescriptor) Bytes() []byte {
 	return data
 }
 
-// BGP-LS SAFI
+// BGP-LS SAFI.
 const SAFIBGPLinkState SAFI = 71
 
 // bgplsBase contains common fields for all BGP-LS NLRI types.
@@ -264,7 +264,7 @@ func (n *BGPLSNode) Bytes() []byte {
 	// Build full NLRI with type and length
 	n.cached = make([]byte, 4+len(body))
 	binary.BigEndian.PutUint16(n.cached[0:2], uint16(n.nlriType))
-	binary.BigEndian.PutUint16(n.cached[2:4], uint16(len(body)))
+	binary.BigEndian.PutUint16(n.cached[2:4], uint16(len(body))) //nolint:gosec // BGP-LS TLV max 65535
 	copy(n.cached[4:], body)
 
 	return n.cached
@@ -323,7 +323,7 @@ func (l *BGPLSLink) Bytes() []byte {
 
 	l.cached = make([]byte, 4+len(body))
 	binary.BigEndian.PutUint16(l.cached[0:2], uint16(l.nlriType))
-	binary.BigEndian.PutUint16(l.cached[2:4], uint16(len(body)))
+	binary.BigEndian.PutUint16(l.cached[2:4], uint16(len(body))) //nolint:gosec // BGP-LS TLV max 65535
 	copy(l.cached[4:], body)
 
 	return l.cached
@@ -390,7 +390,7 @@ func (p *BGPLSPrefix) Bytes() []byte {
 
 	p.cached = make([]byte, 4+len(body))
 	binary.BigEndian.PutUint16(p.cached[0:2], uint16(p.nlriType))
-	binary.BigEndian.PutUint16(p.cached[2:4], uint16(len(body)))
+	binary.BigEndian.PutUint16(p.cached[2:4], uint16(len(body))) //nolint:gosec // BGP-LS TLV max 65535
 	copy(p.cached[4:], body)
 
 	return p.cached
@@ -425,7 +425,7 @@ func ParseBGPLS(data []byte) (BGPLSNLRI, error) {
 	proto := BGPLSProtocolID(body[0])
 	identifier := binary.BigEndian.Uint64(body[1:9])
 
-	switch nlriType {
+	switch nlriType { //nolint:exhaustive // Unsupported types handled in default
 	case BGPLSNodeNLRI:
 		node := &BGPLSNode{
 			bgplsBase: bgplsBase{
@@ -514,7 +514,7 @@ func parseNodeDescriptorTLVs(data []byte, nd *NodeDescriptor) error {
 func tlv(t uint16, v []byte) []byte {
 	data := make([]byte, 4+len(v))
 	binary.BigEndian.PutUint16(data[0:2], t)
-	binary.BigEndian.PutUint16(data[2:4], uint16(len(v)))
+	binary.BigEndian.PutUint16(data[2:4], uint16(len(v))) //nolint:gosec // TLV max 65535
 	copy(data[4:], v)
 	return data
 }

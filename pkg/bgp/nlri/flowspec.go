@@ -403,7 +403,7 @@ func (c *numericComponent) Bytes() []byte {
 			data = append(data, byte(v>>8), byte(v))
 		case 4:
 			var buf [4]byte
-			binary.BigEndian.PutUint32(buf[:], uint32(v))
+			binary.BigEndian.PutUint32(buf[:], uint32(v)) //nolint:gosec // Flowspec value size validated
 			data = append(data, buf[:]...)
 		}
 	}

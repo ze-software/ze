@@ -78,6 +78,7 @@ func (p *ASPath) PathLength() int {
 			if len(seg.ASNs) > 0 {
 				length++ // Set counts as 1
 			}
+		case ASConfedSequence, ASConfedSet:
 			// Confederation segments don't count
 		}
 	}
@@ -125,8 +126,8 @@ func ParseASPath(data []byte, fourByte bool) (*ASPath, error) {
 			return nil, ErrShortData
 		}
 
-		segType := ASPathSegmentType(data[offset])
-		count := int(data[offset+1])
+		segType := ASPathSegmentType(data[offset]) //nolint:gosec // Bounds checked above
+		count := int(data[offset+1])               //nolint:gosec // Bounds checked above
 		offset += 2
 
 		// Check we have enough data for ASNs

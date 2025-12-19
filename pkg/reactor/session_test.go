@@ -2,7 +2,6 @@ package reactor
 
 import (
 	"context"
-	"io"
 	"net"
 	"net/netip"
 	"sync"
@@ -92,8 +91,8 @@ func TestSessionAcceptConnection(t *testing.T) {
 	_ = session.Start()
 
 	client, server := net.Pipe()
-	defer client.Close()
-	defer server.Close()
+	defer func() { _ = client.Close() }()
+	defer func() { _ = server.Close() }()
 
 	_ = acceptWithReader(t, session, server, client)
 
@@ -117,8 +116,8 @@ func TestSessionSendOpen(t *testing.T) {
 	_ = session.Start()
 
 	client, server := net.Pipe()
-	defer client.Close()
-	defer server.Close()
+	defer func() { _ = client.Close() }()
+	defer func() { _ = server.Close() }()
 
 	buf := acceptWithReader(t, session, server, client)
 	require.Greater(t, len(buf), message.HeaderLen)
@@ -148,8 +147,8 @@ func TestSessionReceiveOpen(t *testing.T) {
 	_ = session.Start()
 
 	client, server := net.Pipe()
-	defer client.Close()
-	defer server.Close()
+	defer func() { _ = client.Close() }()
+	defer func() { _ = server.Close() }()
 
 	// Accept (reads our OPEN)
 	_ = acceptWithReader(t, session, server, client)
@@ -192,8 +191,8 @@ func TestSessionKeepaliveExchange(t *testing.T) {
 	_ = session.Start()
 
 	client, server := net.Pipe()
-	defer client.Close()
-	defer server.Close()
+	defer func() { _ = client.Close() }()
+	defer func() { _ = server.Close() }()
 
 	_ = acceptWithReader(t, session, server, client)
 
@@ -239,8 +238,8 @@ func TestSessionHoldTimerExpiry(t *testing.T) {
 	_ = session.Start()
 
 	client, server := net.Pipe()
-	defer client.Close()
-	defer server.Close()
+	defer func() { _ = client.Close() }()
+	defer func() { _ = server.Close() }()
 
 	_ = acceptWithReader(t, session, server, client)
 
@@ -285,8 +284,8 @@ func TestSessionNotification(t *testing.T) {
 	_ = session.Start()
 
 	client, server := net.Pipe()
-	defer client.Close()
-	defer server.Close()
+	defer func() { _ = client.Close() }()
+	defer func() { _ = server.Close() }()
 
 	_ = acceptWithReader(t, session, server, client)
 
@@ -318,7 +317,7 @@ func TestSessionGracefulClose(t *testing.T) {
 	_ = session.Start()
 
 	client, server := net.Pipe()
-	defer client.Close()
+	defer func() { _ = client.Close() }()
 
 	_ = acceptWithReader(t, session, server, client)
 
@@ -368,8 +367,8 @@ func TestSessionCapabilityNegotiation(t *testing.T) {
 	_ = session.Start()
 
 	client, server := net.Pipe()
-	defer client.Close()
-	defer server.Close()
+	defer func() { _ = client.Close() }()
+	defer func() { _ = server.Close() }()
 
 	_ = acceptWithReader(t, session, server, client)
 
@@ -393,39 +392,3 @@ func TestSessionCapabilityNegotiation(t *testing.T) {
 	require.True(t, neg.ASN4)
 	require.False(t, neg.RouteRefresh)
 }
-
-// mockConn for testing edge cases
-type mockConn struct {
-	readData  []byte
-	readErr   error
-	writeData []byte
-	writeErr  error
-	closed    bool
-}
-
-func (m *mockConn) Read(b []byte) (n int, err error) {
-	if m.readErr != nil {
-		return 0, m.readErr
-	}
-	if len(m.readData) == 0 {
-		return 0, io.EOF
-	}
-	n = copy(b, m.readData)
-	m.readData = m.readData[n:]
-	return n, nil
-}
-
-func (m *mockConn) Write(b []byte) (n int, err error) {
-	if m.writeErr != nil {
-		return 0, m.writeErr
-	}
-	m.writeData = append(m.writeData, b...)
-	return len(b), nil
-}
-
-func (m *mockConn) Close() error                       { m.closed = true; return nil }
-func (m *mockConn) LocalAddr() net.Addr                { return &net.TCPAddr{} }
-func (m *mockConn) RemoteAddr() net.Addr               { return &net.TCPAddr{} }
-func (m *mockConn) SetDeadline(t time.Time) error      { return nil }
-func (m *mockConn) SetReadDeadline(t time.Time) error  { return nil }
-func (m *mockConn) SetWriteDeadline(t time.Time) error { return nil }

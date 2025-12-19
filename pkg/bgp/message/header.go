@@ -6,7 +6,7 @@ import (
 	"fmt"
 )
 
-// BGP message header constants (RFC 4271)
+// BGP message header constants (RFC 4271).
 const (
 	MarkerLen = 16 // All 0xFF bytes
 	HeaderLen = 19 // Marker(16) + Length(2) + Type(1)
@@ -23,7 +23,7 @@ var Marker = [MarkerLen]byte{
 // MessageType represents the BGP message type.
 type MessageType uint8
 
-// BGP message types (RFC 4271)
+// BGP message types (RFC 4271).
 const (
 	TypeOPEN         MessageType = 1
 	TypeUPDATE       MessageType = 2

@@ -68,7 +68,7 @@ func (c Communities) Contains(comm Community) bool {
 }
 
 // ExtendedCommunity represents an extended community (RFC 4360).
-// 8 bytes: type(2) + value(6)
+// 8 bytes: type(2) + value(6).
 type ExtendedCommunity [8]byte
 
 // ExtendedCommunities represents the EXTENDED_COMMUNITIES attribute.
@@ -98,7 +98,7 @@ func ParseExtendedCommunities(data []byte) (ExtendedCommunities, error) {
 }
 
 // LargeCommunity represents a large community (RFC 8092).
-// 12 bytes: global(4) + local1(4) + local2(4)
+// 12 bytes: global(4) + local1(4) + local2(4).
 type LargeCommunity struct {
 	GlobalAdmin uint32
 	LocalData1  uint32

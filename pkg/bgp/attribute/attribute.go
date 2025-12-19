@@ -7,7 +7,7 @@ import (
 	"fmt"
 )
 
-// Errors
+// Errors.
 var (
 	ErrShortData      = errors.New("attribute: short data")
 	ErrInvalidLength  = errors.New("attribute: invalid length")

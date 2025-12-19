@@ -40,7 +40,7 @@ func LoadReactorWithConfig(input string) (*BGPConfig, *reactor.Reactor, error) {
 
 // LoadReactorFile loads config from file and creates Reactor.
 func LoadReactorFile(path string) (*reactor.Reactor, error) {
-	data, err := os.ReadFile(path)
+	data, err := os.ReadFile(path) //nolint:gosec // Config file path from user
 	if err != nil {
 		return nil, fmt.Errorf("read config: %w", err)
 	}
@@ -59,10 +59,10 @@ func CreateReactor(cfg *BGPConfig) (*reactor.Reactor, error) {
 	r := reactor.New(reactorCfg)
 
 	// Add neighbors
-	for _, nc := range cfg.Neighbors {
-		neighbor := configToNeighbor(&nc, cfg)
+	for i := range cfg.Neighbors {
+		neighbor := configToNeighbor(&cfg.Neighbors[i], cfg)
 		if err := r.AddNeighbor(neighbor); err != nil {
-			return nil, fmt.Errorf("add neighbor %s: %w", nc.Address, err)
+			return nil, fmt.Errorf("add neighbor %s: %w", cfg.Neighbors[i].Address, err)
 		}
 	}
 

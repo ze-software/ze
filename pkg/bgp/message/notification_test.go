@@ -39,8 +39,8 @@ func TestNotificationPack(t *testing.T) {
 
 	// Verify body
 	body := data[HeaderLen:]
-	assert.Equal(t, byte(NotifyUpdateMessage), body[0])
-	assert.Equal(t, byte(NotifyUpdateMalformedAttr), body[1])
+	assert.Equal(t, NotifyUpdateMessage, NotifyErrorCode(body[0]))
+	assert.Equal(t, NotifyUpdateMalformedAttr, body[1])
 	assert.Equal(t, []byte{0x01, 0x02, 0x03}, body[2:])
 }
 
@@ -61,9 +61,9 @@ func TestNotificationPackNoData(t *testing.T) {
 // TestNotificationUnpack verifies NOTIFICATION unpacking.
 func TestNotificationUnpack(t *testing.T) {
 	body := []byte{
-		byte(NotifyOpenMessage),
-		byte(NotifyOpenUnsupportedVersion),
-		0x04, // Supported version = 4
+		byte(NotifyOpenMessage),            //nolint:unconvert // Required for typed constant in slice literal
+		byte(NotifyOpenUnsupportedVersion), //nolint:unconvert // Required for typed constant in slice literal
+		0x04,                               // Supported version = 4
 	}
 
 	msg, err := UnpackNotification(body)

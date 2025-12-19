@@ -47,7 +47,8 @@ func TestINETIPv4Basic(t *testing.T) {
 			require.NoError(t, err)
 			require.Empty(t, remaining)
 
-			inet := nlri.(*INET)
+			inet, ok := nlri.(*INET)
+			require.True(t, ok, "expected INET")
 			assert.Equal(t, tt.expected, inet.Prefix())
 			assert.Equal(t, IPv4Unicast, inet.Family())
 			assert.False(t, inet.HasPathID())
@@ -89,7 +90,8 @@ func TestINETIPv6Basic(t *testing.T) {
 			require.NoError(t, err)
 			require.Empty(t, remaining)
 
-			inet := nlri.(*INET)
+			inet, ok := nlri.(*INET)
+			require.True(t, ok, "expected INET")
 			assert.Equal(t, tt.expected, inet.Prefix())
 			assert.Equal(t, IPv6Unicast, inet.Family())
 		})
@@ -110,7 +112,8 @@ func TestINETWithAddPath(t *testing.T) {
 	require.NoError(t, err)
 	require.Empty(t, remaining)
 
-	inet := nlri.(*INET)
+	inet, ok := nlri.(*INET)
+	require.True(t, ok, "expected INET")
 	assert.True(t, inet.HasPathID())
 	assert.Equal(t, uint32(1), inet.PathID())
 	assert.Equal(t, netip.MustParsePrefix("10.0.0.0/8"), inet.Prefix())
@@ -127,12 +130,16 @@ func TestINETMultiplePrefixes(t *testing.T) {
 
 	nlri1, remaining, err := ParseINET(AFIIPv4, SAFIUnicast, data, false)
 	require.NoError(t, err)
-	assert.Equal(t, netip.MustParsePrefix("10.0.0.0/8"), nlri1.(*INET).Prefix())
+	inet1, ok := nlri1.(*INET)
+	require.True(t, ok, "expected INET")
+	assert.Equal(t, netip.MustParsePrefix("10.0.0.0/8"), inet1.Prefix())
 
 	nlri2, remaining, err := ParseINET(AFIIPv4, SAFIUnicast, remaining, false)
 	require.NoError(t, err)
 	require.Empty(t, remaining)
-	assert.Equal(t, netip.MustParsePrefix("192.168.0.0/16"), nlri2.(*INET).Prefix())
+	inet2, ok := nlri2.(*INET)
+	require.True(t, ok, "expected INET")
+	assert.Equal(t, netip.MustParsePrefix("192.168.0.0/16"), inet2.Prefix())
 }
 
 // TestINETBytes verifies wire format encoding.

@@ -1,0 +1,22 @@
+{
+  "instructions": [
+    "Before any git commit:",
+    "1. Run `golangci-lint run --timeout 5m`",
+    "2. Fix ALL linter issues found",
+    "3. Re-run linter to confirm clean",
+    "4. Only then proceed with commit"
+  ],
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash(git commit:*)",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "golangci-lint run --timeout 5m"
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -2,7 +2,7 @@ package message
 
 import "errors"
 
-// Wire format errors
+// Wire format errors.
 var (
 	// ErrShortRead indicates insufficient data for parsing.
 	ErrShortRead = errors.New("short read: insufficient data")

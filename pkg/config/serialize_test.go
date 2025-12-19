@@ -214,7 +214,7 @@ func TestRoundtripConfigFiles(t *testing.T) {
 	for _, file := range files {
 		name := filepath.Base(file)
 		t.Run(name, func(t *testing.T) {
-			data, err := os.ReadFile(file)
+			data, err := os.ReadFile(file) //nolint:gosec // Test file from known directory
 			if err != nil {
 				t.Skip("cannot read file")
 				skipped++

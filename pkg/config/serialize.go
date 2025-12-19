@@ -123,7 +123,7 @@ func serializeNode(b *strings.Builder, tree *Tree, name string, node Node, inden
 		if v, ok := tree.values[name]; ok {
 			b.WriteString(prefix)
 			b.WriteString(name)
-			if v != "true" {
+			if v != configTrue {
 				b.WriteString(" ")
 				b.WriteString(quoteIfNeeded(v))
 			}
@@ -224,7 +224,7 @@ func serializeFreeform(b *strings.Builder, tree *Tree, indent int) {
 	prefix := strings.Repeat("\t", indent)
 
 	// Sort keys for deterministic output
-	var keys []string
+	keys := make([]string, 0, len(tree.values))
 	for k := range tree.values {
 		keys = append(keys, k)
 	}

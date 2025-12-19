@@ -61,7 +61,7 @@ func TestPeerStartStop(t *testing.T) {
 	// Wait for stop
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
-	peer.Wait(ctx)
+	_ = peer.Wait(ctx)
 
 	require.Equal(t, PeerStateStopped, peer.State(), "state must be Stopped after Stop")
 }
@@ -74,11 +74,12 @@ func TestPeerStartStop(t *testing.T) {
 // connection attempts without backoff.
 func TestPeerReconnect(t *testing.T) {
 	// Use a listener that immediately closes connections
-	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	listener, err := net.Listen("tcp", "127.0.0.1:0") //nolint:noctx // Test code
 	require.NoError(t, err)
-	defer listener.Close()
+	defer func() { _ = listener.Close() }()
 
-	addr := listener.Addr().(*net.TCPAddr)
+	addr, ok := listener.Addr().(*net.TCPAddr)
+	require.True(t, ok, "expected TCPAddr")
 
 	var connectCount atomic.Int32
 	go func() {
@@ -88,7 +89,7 @@ func TestPeerReconnect(t *testing.T) {
 				return
 			}
 			connectCount.Add(1)
-			conn.Close() // Immediately close to trigger reconnect
+			_ = conn.Close() // Immediately close to trigger reconnect
 		}
 	}()
 
@@ -96,7 +97,7 @@ func TestPeerReconnect(t *testing.T) {
 		mustParseAddr("127.0.0.1"),
 		65000, 65001, 0x01010101,
 	)
-	neighbor.Port = uint16(addr.Port)
+	neighbor.Port = uint16(addr.Port) //nolint:gosec // Port fits in uint16
 
 	peer := NewPeer(neighbor)
 	peer.SetReconnectDelay(10*time.Millisecond, 50*time.Millisecond)
@@ -110,7 +111,7 @@ func TestPeerReconnect(t *testing.T) {
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
-	peer.Wait(ctx)
+	_ = peer.Wait(ctx)
 
 	count := connectCount.Load()
 	require.GreaterOrEqual(t, count, int32(2), "peer should reconnect at least twice, got %d", count)
@@ -154,11 +155,12 @@ func TestPeerContextCancellation(t *testing.T) {
 //
 // PREVENTS: Incorrect state reporting to callers.
 func TestPeerStateTransitions(t *testing.T) {
-	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	listener, err := net.Listen("tcp", "127.0.0.1:0") //nolint:noctx // Test code
 	require.NoError(t, err)
-	defer listener.Close()
+	defer func() { _ = listener.Close() }()
 
-	addr := listener.Addr().(*net.TCPAddr)
+	addr, ok := listener.Addr().(*net.TCPAddr)
+	require.True(t, ok, "expected TCPAddr")
 
 	// Accept connections but don't respond (peer stays connecting)
 	go func() {
@@ -169,7 +171,7 @@ func TestPeerStateTransitions(t *testing.T) {
 			}
 			// Hold connection open without BGP handshake
 			time.Sleep(time.Second)
-			conn.Close()
+			_ = conn.Close()
 		}
 	}()
 
@@ -177,7 +179,7 @@ func TestPeerStateTransitions(t *testing.T) {
 		mustParseAddr("127.0.0.1"),
 		65000, 65001, 0x01010101,
 	)
-	neighbor.Port = uint16(addr.Port)
+	neighbor.Port = uint16(addr.Port) //nolint:gosec // Port fits in uint16
 
 	peer := NewPeer(neighbor)
 	peer.Start()
@@ -192,7 +194,7 @@ func TestPeerStateTransitions(t *testing.T) {
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
-	peer.Wait(ctx)
+	_ = peer.Wait(ctx)
 }
 
 // TestPeerCallback verifies state change callbacks are invoked.
@@ -220,7 +222,7 @@ func TestPeerCallback(t *testing.T) {
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
-	peer.Wait(ctx)
+	_ = peer.Wait(ctx)
 
 	require.NotEmpty(t, transitions, "callback should be invoked at least once")
 }

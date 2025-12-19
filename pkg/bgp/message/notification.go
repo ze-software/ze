@@ -5,7 +5,7 @@ import "fmt"
 // NotifyErrorCode represents NOTIFICATION error codes (RFC 4271).
 type NotifyErrorCode uint8
 
-// NOTIFICATION error codes (RFC 4271 Section 4.5)
+// NOTIFICATION error codes (RFC 4271 Section 4.5).
 const (
 	NotifyMessageHeader    NotifyErrorCode = 1
 	NotifyOpenMessage      NotifyErrorCode = 2
@@ -16,14 +16,14 @@ const (
 	NotifyRouteRefresh     NotifyErrorCode = 7 // RFC 7313
 )
 
-// Message Header Error subcodes
+// Message Header Error subcodes.
 const (
 	NotifyHeaderConnectionNotSync uint8 = 1
 	NotifyHeaderBadLength         uint8 = 2
 	NotifyHeaderBadType           uint8 = 3
 )
 
-// OPEN Message Error subcodes
+// OPEN Message Error subcodes.
 const (
 	NotifyOpenUnsupportedVersion    uint8 = 1
 	NotifyOpenBadPeerAS             uint8 = 2
@@ -33,7 +33,7 @@ const (
 	NotifyOpenUnsupportedCapability uint8 = 7
 )
 
-// UPDATE Message Error subcodes
+// UPDATE Message Error subcodes.
 const (
 	NotifyUpdateMalformedAttr    uint8 = 1
 	NotifyUpdateUnrecognizedAttr uint8 = 2
@@ -47,7 +47,7 @@ const (
 	NotifyUpdateMalformedASPath  uint8 = 11
 )
 
-// Cease subcodes (RFC 4486)
+// Cease subcodes (RFC 4486).
 const (
 	NotifyCeaseMaxPrefixes         uint8 = 1
 	NotifyCeaseAdminShutdown       uint8 = 2
@@ -126,7 +126,7 @@ func (n *Notification) String() string {
 
 // subcodeString returns a human-readable subcode name.
 func (n *Notification) subcodeString() string {
-	switch n.ErrorCode {
+	switch n.ErrorCode { //nolint:exhaustive // Only some codes have specific subcode strings
 	case NotifyCease:
 		return ceaseSubcodeString(n.ErrorSubcode)
 	case NotifyOpenMessage:

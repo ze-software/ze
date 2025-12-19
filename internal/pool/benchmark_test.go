@@ -6,7 +6,7 @@ import (
 )
 
 // BenchmarkInternExisting measures performance of interning existing data.
-// Target: < 100ns per operation
+// Target: < 100ns per operation.
 func BenchmarkInternExisting(b *testing.B) {
 	p := New(1024 * 1024)
 	p.Intern([]byte("benchmark-data"))
@@ -18,7 +18,7 @@ func BenchmarkInternExisting(b *testing.B) {
 }
 
 // BenchmarkInternNew measures performance of interning new unique data.
-// Target: < 500ns per operation
+// Target: < 500ns per operation.
 func BenchmarkInternNew(b *testing.B) {
 	p := New(1024 * 1024 * 100) // 100MB to avoid reallocation
 
@@ -29,7 +29,7 @@ func BenchmarkInternNew(b *testing.B) {
 }
 
 // BenchmarkGet measures performance of retrieving data.
-// Target: < 50ns per operation
+// Target: < 50ns per operation.
 func BenchmarkGet(b *testing.B) {
 	p := New(1024)
 	h := p.Intern([]byte("benchmark-data"))
@@ -41,7 +41,7 @@ func BenchmarkGet(b *testing.B) {
 }
 
 // BenchmarkRelease measures performance of releasing handles.
-// Target: < 100ns per operation
+// Target: < 100ns per operation.
 func BenchmarkRelease(b *testing.B) {
 	p := New(1024 * 1024 * 100) // 100MB
 	handles := make([]Handle, b.N)

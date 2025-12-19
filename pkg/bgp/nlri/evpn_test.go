@@ -77,7 +77,8 @@ func TestEVPNType2MACIPv4(t *testing.T) {
 	nlri, _, err := ParseEVPN(data, false)
 	require.NoError(t, err)
 
-	evpn := nlri.(*EVPNType2)
+	evpn, ok := nlri.(*EVPNType2)
+	require.True(t, ok, "expected EVPNType2")
 	assert.Equal(t, netip.MustParseAddr("10.0.0.1"), evpn.IP())
 }
 
@@ -110,7 +111,8 @@ func TestEVPNType2MACIPv6(t *testing.T) {
 	nlri, _, err := ParseEVPN(data, false)
 	require.NoError(t, err)
 
-	evpn := nlri.(*EVPNType2)
+	evpn, ok := nlri.(*EVPNType2)
+	require.True(t, ok, "expected EVPNType2")
 	assert.Equal(t, netip.MustParseAddr("2001:db8::1"), evpn.IP())
 }
 

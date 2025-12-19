@@ -114,11 +114,12 @@ func Negotiate(local, remote []Capability, localASN, peerASN uint32) *Negotiated
 			canReceive := (lm == AddPathReceive || lm == AddPathBoth) &&
 				(rm == AddPathSend || rm == AddPathBoth)
 
-			if canSend && canReceive {
+			switch {
+			case canSend && canReceive:
 				mode = AddPathBoth
-			} else if canSend {
+			case canSend:
 				mode = AddPathSend
-			} else if canReceive {
+			case canReceive:
 				mode = AddPathReceive
 			}
 

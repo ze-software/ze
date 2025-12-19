@@ -168,11 +168,11 @@ func TestSignalHandlerMultipleSignals(t *testing.T) {
 	defer handler.Stop()
 
 	// Send multiple signals
-	syscall.Kill(os.Getpid(), syscall.SIGHUP)
+	_ = syscall.Kill(os.Getpid(), syscall.SIGHUP)
 	time.Sleep(20 * time.Millisecond)
-	syscall.Kill(os.Getpid(), syscall.SIGUSR1)
+	_ = syscall.Kill(os.Getpid(), syscall.SIGUSR1)
 	time.Sleep(20 * time.Millisecond)
-	syscall.Kill(os.Getpid(), syscall.SIGHUP)
+	_ = syscall.Kill(os.Getpid(), syscall.SIGHUP)
 	time.Sleep(20 * time.Millisecond)
 
 	require.Equal(t, int32(2), reloadCount.Load(), "reload should be called twice")

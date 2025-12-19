@@ -117,7 +117,7 @@ func (p *SetParser) tokenizeLine(line string) []string {
 	return tokens
 }
 
-// parseSet handles: set <path...> <value>
+// parseSet handles: set <path...> <value>.
 func (p *SetParser) parseSet(tree *Tree, tokens []string, lineNum int) error {
 	if len(tokens) < 2 {
 		return fmt.Errorf("line %d: set requires path and value", lineNum)
@@ -164,7 +164,7 @@ func (p *SetParser) walkAndSet(tree *Tree, parent Node, tokens []string, lineNum
 		value := tokens[0]
 
 		if err := ValidateValue(n.Type, value); err != nil {
-			return fmt.Errorf("line %d: invalid value for %s: %v", lineNum, name, err)
+			return fmt.Errorf("line %d: invalid value for %s: %w", lineNum, name, err)
 		}
 
 		tree.Set(name, value)
@@ -189,7 +189,7 @@ func (p *SetParser) walkAndSet(tree *Tree, parent Node, tokens []string, lineNum
 		tokens = tokens[1:]
 
 		if err := ValidateValue(n.KeyType, key); err != nil {
-			return fmt.Errorf("line %d: invalid key for %s: %v", lineNum, name, err)
+			return fmt.Errorf("line %d: invalid key for %s: %w", lineNum, name, err)
 		}
 
 		// Get or create the list entry
@@ -210,7 +210,7 @@ func (p *SetParser) walkAndSet(tree *Tree, parent Node, tokens []string, lineNum
 	}
 }
 
-// parseDelete handles: delete <path...>
+// parseDelete handles: delete <path...>.
 func (p *SetParser) parseDelete(tree *Tree, tokens []string, lineNum int) error {
 	if len(tokens) < 1 {
 		return fmt.Errorf("line %d: delete requires path", lineNum)

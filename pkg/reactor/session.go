@@ -301,7 +301,7 @@ func (s *Session) readAndProcessMessage(conn net.Conn) error {
 
 // processMessage handles a received BGP message.
 func (s *Session) processMessage(hdr *message.Header, body []byte) error {
-	switch hdr.Type {
+	switch hdr.Type { //nolint:exhaustive // Unknown types handled in default
 	case message.TypeOPEN:
 		return s.handleOpen(body)
 	case message.TypeKEEPALIVE:
@@ -450,7 +450,7 @@ func (s *Session) negotiate() {
 		}
 	}
 
-	s.negotiated.HoldTime = uint16(negotiatedHold / time.Second)
+	s.negotiated.HoldTime = uint16(negotiatedHold / time.Second) //nolint:gosec // Hold time max 65535s
 	s.timers.SetHoldTime(negotiatedHold)
 }
 
@@ -469,7 +469,7 @@ func (s *Session) sendOpen(conn net.Conn) error {
 	optParams := buildOptionalParams(caps)
 
 	// Determine AS to put in header (AS_TRANS if > 65535).
-	myAS := uint16(s.neighbor.LocalAS)
+	myAS := uint16(s.neighbor.LocalAS) //nolint:gosec // Truncation intended for AS_TRANS
 	if s.neighbor.LocalAS > 65535 {
 		myAS = 23456 // AS_TRANS
 	}
@@ -477,7 +477,7 @@ func (s *Session) sendOpen(conn net.Conn) error {
 	open := &message.Open{
 		Version:        4,
 		MyAS:           myAS,
-		HoldTime:       uint16(s.neighbor.HoldTime / time.Second),
+		HoldTime:       uint16(s.neighbor.HoldTime / time.Second), //nolint:gosec // Hold time max 65535s
 		BGPIdentifier:  s.neighbor.RouterID,
 		ASN4:           s.neighbor.LocalAS,
 		OptionalParams: optParams,

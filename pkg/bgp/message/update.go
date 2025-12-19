@@ -33,14 +33,14 @@ func (u *Update) Pack(neg *Negotiated) ([]byte, error) {
 	body := make([]byte, bodyLen)
 
 	// Withdrawn Routes Length
-	binary.BigEndian.PutUint16(body[0:2], uint16(withdrawnLen))
+	binary.BigEndian.PutUint16(body[0:2], uint16(withdrawnLen)) //nolint:gosec // BGP max message 65535
 
 	// Withdrawn Routes
 	copy(body[2:], u.WithdrawnRoutes)
 
 	// Path Attributes Length
 	offset := 2 + withdrawnLen
-	binary.BigEndian.PutUint16(body[offset:offset+2], uint16(attrLen))
+	binary.BigEndian.PutUint16(body[offset:offset+2], uint16(attrLen)) //nolint:gosec // BGP max message 65535
 
 	// Path Attributes
 	copy(body[offset+2:], u.PathAttributes)

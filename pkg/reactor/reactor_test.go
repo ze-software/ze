@@ -138,7 +138,7 @@ func TestReactorPeersStartOnRun(t *testing.T) {
 
 	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 	defer cancel()
-	reactor.Wait(ctx)
+	_ = reactor.Wait(ctx)
 }
 
 // TestReactorListenerAcceptsConnections verifies listener is active.
@@ -161,9 +161,9 @@ func TestReactorListenerAcceptsConnections(t *testing.T) {
 	require.NotNil(t, addr)
 
 	// Connect to listener
-	conn, err := net.DialTimeout("tcp", addr.String(), time.Second)
+	conn, err := net.DialTimeout("tcp", addr.String(), time.Second) //nolint:noctx // Test code
 	require.NoError(t, err)
-	conn.Close()
+	_ = conn.Close()
 }
 
 // TestReactorIncomingConnectionMatchesPeer verifies peer matching.
@@ -191,7 +191,7 @@ func TestReactorIncomingConnectionMatchesPeer(t *testing.T) {
 	var accepted atomic.Bool
 	reactor.SetConnectionCallback(func(conn net.Conn, n *Neighbor) {
 		accepted.Store(true)
-		conn.Close()
+		_ = conn.Close()
 	})
 
 	err = reactor.Start()
@@ -201,9 +201,9 @@ func TestReactorIncomingConnectionMatchesPeer(t *testing.T) {
 	addr := reactor.ListenAddr()
 
 	// Connect
-	conn, err := net.Dial("tcp", addr.String())
+	conn, err := net.Dial("tcp", addr.String()) //nolint:noctx // Test code
 	require.NoError(t, err)
-	defer conn.Close()
+	defer func() { _ = conn.Close() }()
 
 	time.Sleep(50 * time.Millisecond)
 
@@ -256,7 +256,7 @@ func TestReactorGracefulShutdown(t *testing.T) {
 	)
 	neighbor.Port = 0
 
-	reactor.AddNeighbor(neighbor)
+	_ = reactor.AddNeighbor(neighbor)
 
 	err := reactor.Start()
 	require.NoError(t, err)

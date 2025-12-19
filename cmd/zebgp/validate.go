@@ -49,7 +49,7 @@ Examples:
 	configPath := fs.Arg(0)
 
 	// Read file
-	data, err := os.ReadFile(configPath)
+	data, err := os.ReadFile(configPath) //nolint:gosec // Config path from CLI args
 	if err != nil {
 		if !*quiet {
 			fmt.Fprintf(os.Stderr, "error: %v\n", err)
@@ -311,7 +311,7 @@ func extractLine(errMsg string) int {
 	// Extract line number from "line N:" format
 	if idx := strings.Index(errMsg, "line "); idx >= 0 {
 		var line int
-		fmt.Sscanf(errMsg[idx:], "line %d", &line)
+		_, _ = fmt.Sscanf(errMsg[idx:], "line %d", &line)
 		return line
 	}
 	return 0

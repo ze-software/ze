@@ -7,7 +7,7 @@ import (
 	"fmt"
 )
 
-// Errors
+// Errors.
 var (
 	ErrShortRead = errors.New("capability: short read")
 )
@@ -104,8 +104,8 @@ func Parse(data []byte) ([]Capability, error) {
 			return nil, ErrShortRead
 		}
 
-		code := Code(data[offset])
-		length := int(data[offset+1])
+		code := Code(data[offset])    //nolint:gosec // Bounds checked above
+		length := int(data[offset+1]) //nolint:gosec // Bounds checked above
 		offset += 2
 
 		if offset+length > len(data) {
@@ -127,7 +127,7 @@ func Parse(data []byte) ([]Capability, error) {
 
 // parseCapability parses a single capability by code.
 func parseCapability(code Code, data []byte) (Capability, error) {
-	switch code {
+	switch code { //nolint:exhaustive // Unknown capabilities handled in default
 	case CodeMultiprotocol:
 		return parseMultiprotocol(data)
 	case CodeASN4:

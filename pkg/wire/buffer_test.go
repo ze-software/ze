@@ -108,10 +108,10 @@ func TestBufferRemaining(t *testing.T) {
 
 	assert.Equal(t, 5, b.Remaining())
 
-	b.ReadBytes(2)
+	_, _ = b.ReadBytes(2)
 	assert.Equal(t, 3, b.Remaining())
 
-	b.ReadBytes(3)
+	_, _ = b.ReadBytes(3)
 	assert.Equal(t, 0, b.Remaining())
 }
 
@@ -123,7 +123,7 @@ func TestBufferRemaining(t *testing.T) {
 func TestBufferRemainingBytes(t *testing.T) {
 	b := NewBuffer([]byte{0x01, 0x02, 0x03, 0x04, 0x05})
 
-	b.ReadBytes(2)
+	_, _ = b.ReadBytes(2)
 	rem := b.RemainingBytes()
 	assert.Equal(t, []byte{0x03, 0x04, 0x05}, rem)
 }
@@ -209,7 +209,7 @@ func TestBufferOffset(t *testing.T) {
 
 	assert.Equal(t, 0, b.Offset())
 
-	b.ReadBytes(3)
+	_, _ = b.ReadBytes(3)
 	assert.Equal(t, 3, b.Offset())
 }
 
@@ -235,7 +235,7 @@ func TestBufferSlice(t *testing.T) {
 	b := NewBuffer([]byte{0x01, 0x02, 0x03, 0x04, 0x05})
 
 	// Read length prefix
-	b.ReadByte()
+	_, _ = b.ReadByte()
 
 	// Create sub-buffer for next 3 bytes
 	sub, err := b.Slice(3)

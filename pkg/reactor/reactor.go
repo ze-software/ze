@@ -261,7 +261,7 @@ func (r *Reactor) cleanup() {
 	if r.listener != nil {
 		r.listener.Stop()
 		waitCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		r.listener.Wait(waitCtx)
+		_ = r.listener.Wait(waitCtx)
 		cancel()
 	}
 
@@ -269,7 +269,7 @@ func (r *Reactor) cleanup() {
 	if r.signals != nil {
 		r.signals.Stop()
 		waitCtx, cancel := context.WithTimeout(context.Background(), time.Second)
-		r.signals.Wait(waitCtx)
+		_ = r.signals.Wait(waitCtx)
 		cancel()
 	}
 
@@ -281,7 +281,7 @@ func (r *Reactor) cleanup() {
 	// Wait for all peers
 	for _, peer := range r.peers {
 		waitCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		peer.Wait(waitCtx)
+		_ = peer.Wait(waitCtx)
 		cancel()
 	}
 
@@ -291,7 +291,11 @@ func (r *Reactor) cleanup() {
 
 // handleConnection handles an incoming TCP connection.
 func (r *Reactor) handleConnection(conn net.Conn) {
-	remoteAddr := conn.RemoteAddr().(*net.TCPAddr)
+	remoteAddr, ok := conn.RemoteAddr().(*net.TCPAddr)
+	if !ok {
+		_ = conn.Close()
+		return
+	}
 	peerIP, _ := netip.AddrFromSlice(remoteAddr.IP)
 	peerIP = peerIP.Unmap() // Handle IPv4-mapped IPv6
 
@@ -302,7 +306,7 @@ func (r *Reactor) handleConnection(conn net.Conn) {
 
 	if !exists {
 		// Unknown peer, close connection
-		conn.Close()
+		_ = conn.Close()
 		return
 	}
 
@@ -317,5 +321,5 @@ func (r *Reactor) handleConnection(conn net.Conn) {
 	// Default: accept connection on peer's session
 	// For passive peers, this triggers the session
 	// TODO: integrate with peer/session for full handshake
-	conn.Close()
+	_ = conn.Close()
 }

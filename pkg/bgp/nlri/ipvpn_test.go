@@ -125,7 +125,8 @@ func TestIPVPNv4Basic(t *testing.T) {
 	require.NoError(t, err)
 	require.Empty(t, remaining)
 
-	vpn := nlri.(*IPVPN)
+	vpn, ok := nlri.(*IPVPN)
+	require.True(t, ok, "expected IPVPN")
 	assert.Equal(t, IPv4VPN, vpn.Family())
 	assert.Equal(t, netip.MustParsePrefix("10.0.0.0/8"), vpn.Prefix())
 	assert.Equal(t, "65000:100", vpn.RD().String())
@@ -154,7 +155,8 @@ func TestIPVPNv6Basic(t *testing.T) {
 	require.NoError(t, err)
 	require.Empty(t, remaining)
 
-	vpn := nlri.(*IPVPN)
+	vpn, ok := nlri.(*IPVPN)
+	require.True(t, ok, "expected IPVPN")
 	assert.Equal(t, IPv6VPN, vpn.Family())
 	assert.Equal(t, netip.MustParsePrefix("2001:db8::/32"), vpn.Prefix())
 }
@@ -171,7 +173,9 @@ func TestIPVPNWithPathID(t *testing.T) {
 	rd := []byte{0x00, 0x00, 0xFD, 0xE8, 0x00, 0x00, 0x00, 0x64}
 	prefix := []byte{10}
 
-	data := append(pathID, 96) // prefix length
+	var data []byte
+	data = append(data, pathID...)
+	data = append(data, 96) // prefix length
 	data = append(data, label...)
 	data = append(data, rd...)
 	data = append(data, prefix...)
@@ -179,7 +183,8 @@ func TestIPVPNWithPathID(t *testing.T) {
 	nlri, _, err := ParseIPVPN(AFIIPv4, SAFIVPN, data, true)
 	require.NoError(t, err)
 
-	vpn := nlri.(*IPVPN)
+	vpn, ok := nlri.(*IPVPN)
+	require.True(t, ok, "expected IPVPN")
 	assert.True(t, vpn.HasPathID())
 	assert.Equal(t, uint32(42), vpn.PathID())
 }
@@ -214,7 +219,8 @@ func TestIPVPNBytes(t *testing.T) {
 	nlri, _, err := ParseIPVPN(AFIIPv4, SAFIVPN, data, false)
 	require.NoError(t, err)
 
-	parsed := nlri.(*IPVPN)
+	parsed, ok := nlri.(*IPVPN)
+	require.True(t, ok, "expected IPVPN")
 	assert.Equal(t, vpn.Prefix(), parsed.Prefix())
 	assert.Equal(t, vpn.RD().String(), parsed.RD().String())
 }

@@ -197,7 +197,7 @@ func (p *Peer) run() {
 			}
 
 			// Exponential backoff
-			delay = delay * 2
+			delay *= 2
 			p.mu.RLock()
 			maxDelay := p.reconnectMax
 			p.mu.RUnlock()

@@ -58,7 +58,7 @@ func TestListenerAcceptConnection(t *testing.T) {
 	var accepted atomic.Int32
 	listener.SetHandler(func(conn net.Conn) {
 		accepted.Add(1)
-		conn.Close()
+		_ = conn.Close()
 	})
 
 	err := listener.Start()
@@ -68,9 +68,9 @@ func TestListenerAcceptConnection(t *testing.T) {
 	addr := listener.Addr()
 
 	// Connect
-	conn, err := net.Dial("tcp", addr.String())
+	conn, err := net.Dial("tcp", addr.String()) //nolint:noctx // Test code
 	require.NoError(t, err)
-	conn.Close()
+	_ = conn.Close()
 
 	// Wait for handler
 	time.Sleep(50 * time.Millisecond)
@@ -90,7 +90,7 @@ func TestListenerMultipleConnections(t *testing.T) {
 	listener.SetHandler(func(conn net.Conn) {
 		accepted.Add(1)
 		time.Sleep(10 * time.Millisecond) // Simulate work
-		conn.Close()
+		_ = conn.Close()
 	})
 
 	err := listener.Start()
@@ -103,10 +103,10 @@ func TestListenerMultipleConnections(t *testing.T) {
 	const numConns = 5
 	for i := 0; i < numConns; i++ {
 		go func() {
-			conn, err := net.Dial("tcp", addr.String())
+			conn, err := net.Dial("tcp", addr.String()) //nolint:noctx // Test code
 			if err == nil {
 				time.Sleep(5 * time.Millisecond)
-				conn.Close()
+				_ = conn.Close()
 			}
 		}()
 	}
@@ -183,7 +183,7 @@ func TestListenerCallback(t *testing.T) {
 	done := make(chan struct{})
 	listener.SetHandler(func(conn net.Conn) {
 		remoteAddr = conn.RemoteAddr().String()
-		conn.Close()
+		_ = conn.Close()
 		close(done)
 	})
 
@@ -193,10 +193,10 @@ func TestListenerCallback(t *testing.T) {
 
 	addr := listener.Addr()
 
-	conn, err := net.Dial("tcp", addr.String())
+	conn, err := net.Dial("tcp", addr.String()) //nolint:noctx // Test code
 	require.NoError(t, err)
 	localAddr := conn.LocalAddr().String()
-	conn.Close()
+	_ = conn.Close()
 
 	select {
 	case <-done:

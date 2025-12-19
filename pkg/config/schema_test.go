@@ -28,7 +28,9 @@ func TestSchemaLeaf(t *testing.T) {
 	node := schema.Get("router-id")
 	require.NotNil(t, node)
 	require.Equal(t, NodeLeaf, node.Kind())
-	require.Equal(t, TypeIPv4, node.(*LeafNode).Type)
+	leaf, ok := node.(*LeafNode)
+	require.True(t, ok, "expected LeafNode")
+	require.Equal(t, TypeIPv4, leaf.Type)
 }
 
 // TestSchemaContainer verifies container node with children.
@@ -51,7 +53,8 @@ func TestSchemaContainer(t *testing.T) {
 	require.NotNil(t, node)
 	require.Equal(t, NodeContainer, node.Kind())
 
-	container := node.(*ContainerNode)
+	container, ok := node.(*ContainerNode)
+	require.True(t, ok, "expected ContainerNode")
 	require.True(t, container.Has("run"))
 	require.True(t, container.Has("encoder"))
 }
@@ -79,7 +82,8 @@ func TestSchemaList(t *testing.T) {
 	require.NotNil(t, node)
 	require.Equal(t, NodeList, node.Kind())
 
-	list := node.(*ListNode)
+	list, ok := node.(*ListNode)
+	require.True(t, ok, "expected ListNode")
 	require.Equal(t, TypeIPv4, list.KeyType)
 	require.True(t, list.Has("local-as"))
 	require.True(t, list.Has("peer-as"))
@@ -106,12 +110,17 @@ func TestSchemaNestedContainers(t *testing.T) {
 	))
 
 	node := schema.Get("neighbor")
-	list := node.(*ListNode)
+	list, ok := node.(*ListNode)
+	require.True(t, ok, "expected ListNode")
 
-	family := list.Get("family").(*ContainerNode)
+	familyNode := list.Get("family")
+	family, ok := familyNode.(*ContainerNode)
+	require.True(t, ok, "expected ContainerNode")
 	require.NotNil(t, family)
 
-	ipv4 := family.Get("ipv4").(*ContainerNode)
+	ipv4Node := family.Get("ipv4")
+	ipv4, ok := ipv4Node.(*ContainerNode)
+	require.True(t, ok, "expected ContainerNode")
 	require.NotNil(t, ipv4)
 	require.True(t, ipv4.Has("unicast"))
 	require.True(t, ipv4.Has("multicast"))
@@ -193,9 +202,11 @@ func TestSchemaDefault(t *testing.T) {
 	schema.Define("hold-time", LeafWithDefault(TypeUint16, "90"))
 	schema.Define("passive", LeafWithDefault(TypeBool, "false"))
 
-	node := schema.Get("hold-time").(*LeafNode)
-	require.Equal(t, "90", node.Default)
+	holdTimeNode, ok := schema.Get("hold-time").(*LeafNode)
+	require.True(t, ok, "expected LeafNode")
+	require.Equal(t, "90", holdTimeNode.Default)
 
-	node = schema.Get("passive").(*LeafNode)
-	require.Equal(t, "false", node.Default)
+	passiveNode, ok := schema.Get("passive").(*LeafNode)
+	require.True(t, ok, "expected LeafNode")
+	require.Equal(t, "false", passiveNode.Default)
 }

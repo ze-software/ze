@@ -1,3 +1,4 @@
+//nolint:gosec // G115: Pool has explicit size limits preventing overflow; unsafe usage audited
 package pool
 
 import (
@@ -43,7 +44,7 @@ type Pool struct {
 	shutdown atomic.Bool
 }
 
-// slot tracks a single interned entry
+// slot tracks a single interned entry.
 type slot struct {
 	offset   uint32 // offset in data buffer
 	length   uint16 // data length

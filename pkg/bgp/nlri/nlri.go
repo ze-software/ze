@@ -53,7 +53,7 @@ const (
 
 // String returns a human-readable SAFI name.
 func (s SAFI) String() string {
-	switch s {
+	switch s { //nolint:exhaustive // Unknown SAFIs formatted in default
 	case SAFIUnicast:
 		return "unicast"
 	case SAFIMulticast:

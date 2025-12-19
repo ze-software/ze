@@ -81,7 +81,7 @@ func (l *Listener) StartWithContext(ctx context.Context) error {
 		return ErrAlreadyListening
 	}
 
-	ln, err := net.Listen("tcp", l.addr)
+	ln, err := net.Listen("tcp", l.addr) //nolint:noctx // Context managed via stopCh
 	if err != nil {
 		return err
 	}
@@ -107,7 +107,7 @@ func (l *Listener) Stop() {
 		cancel()
 	}
 	if ln != nil {
-		ln.Close()
+		_ = ln.Close()
 	}
 }
 
@@ -160,7 +160,7 @@ func (l *Listener) acceptLoop() {
 		if handler != nil {
 			go handler(conn)
 		} else {
-			conn.Close()
+			_ = conn.Close()
 		}
 	}
 }
@@ -171,7 +171,7 @@ func (l *Listener) cleanup() {
 	defer l.mu.Unlock()
 
 	if l.listener != nil {
-		l.listener.Close()
+		_ = l.listener.Close()
 		l.listener = nil
 	}
 	l.running = false

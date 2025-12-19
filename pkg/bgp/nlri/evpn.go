@@ -97,7 +97,7 @@ func ParseEVPN(data []byte, addpath bool) (NLRI, []byte, error) {
 	var nlri NLRI
 	var err error
 
-	switch routeType {
+	switch routeType { //nolint:exhaustive // Unsupported types handled as EVPNGeneric
 	case EVPNRouteType2:
 		nlri, err = parseEVPNType2(nlriData, pathID, addpath)
 	case EVPNRouteType3:

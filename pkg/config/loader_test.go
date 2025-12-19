@@ -163,7 +163,7 @@ func TestParseAllConfigFiles(t *testing.T) {
 
 	for _, file := range files {
 		t.Run(filepath.Base(file), func(t *testing.T) {
-			data, err := os.ReadFile(file)
+			data, err := os.ReadFile(file) //nolint:gosec // Test file from known directory
 			require.NoError(t, err)
 
 			_, err = p.Parse(string(data))

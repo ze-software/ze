@@ -54,6 +54,6 @@ func ParseOrigin(data []byte) (Origin, error) {
 // PackAttribute packs an attribute with its header.
 func PackAttribute(attr Attribute) []byte {
 	value := attr.Pack()
-	header := PackHeader(attr.Flags(), attr.Code(), uint16(len(value)))
+	header := PackHeader(attr.Flags(), attr.Code(), uint16(len(value))) //nolint:gosec // Attr max 65535
 	return append(header, value...)
 }

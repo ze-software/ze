@@ -123,9 +123,10 @@ func TestTokenizerNestedBraces(t *testing.T) {
 
 	braceCount := 0
 	for _, tok := range tokens {
-		if tok.Type == TokenLBrace {
+		switch tok.Type { //nolint:exhaustive // Only tracking braces
+		case TokenLBrace:
 			braceCount++
-		} else if tok.Type == TokenRBrace {
+		case TokenRBrace:
 			braceCount--
 		}
 	}

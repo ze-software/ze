@@ -7,6 +7,8 @@ import (
 	"time"
 )
 
+const configTrue = "true" // Config value for boolean true
+
 // BGPSchema returns the schema for ZeBGP configuration.
 func BGPSchema() *Schema {
 	schema := NewSchema()
@@ -32,7 +34,7 @@ func BGPSchema() *Schema {
 		Field("peer-as", Leaf(TypeUint32)),
 		Field("hold-time", LeafWithDefault(TypeUint16, "90")),
 		Field("passive", LeafWithDefault(TypeBool, "false")),
-		Field("group-updates", LeafWithDefault(TypeBool, "true")),
+		Field("group-updates", LeafWithDefault(TypeBool, configTrue)),
 		Field("host-name", Leaf(TypeString)),
 		Field("domain-name", Leaf(TypeString)),
 		Field("md5-password", Leaf(TypeString)),
@@ -53,7 +55,7 @@ func BGPSchema() *Schema {
 
 		// Capabilities
 		Field("capability", Container(
-			Field("asn4", LeafWithDefault(TypeBool, "true")),
+			Field("asn4", LeafWithDefault(TypeBool, configTrue)),
 			Field("route-refresh", Flex()), // flag, value, or block
 			Field("graceful-restart", Flex( // flag, value, or block
 				Field("restart-time", LeafWithDefault(TypeUint16, "120")),
@@ -250,7 +252,7 @@ func parseNeighborConfig(addr string, tree *Tree) (NeighborConfig, error) {
 	}
 
 	if v, ok := tree.Get("passive"); ok {
-		nc.Passive = v == "true"
+		nc.Passive = v == configTrue
 	}
 
 	// Families
@@ -261,10 +263,10 @@ func parseNeighborConfig(addr string, tree *Tree) (NeighborConfig, error) {
 	// Capabilities
 	if cap := tree.GetContainer("capability"); cap != nil {
 		if v, ok := cap.Get("asn4"); ok {
-			nc.Capabilities.ASN4 = v == "true"
+			nc.Capabilities.ASN4 = v == configTrue
 		}
 		if v, ok := cap.Get("route-refresh"); ok {
-			nc.Capabilities.RouteRefresh = v == "true"
+			nc.Capabilities.RouteRefresh = v == configTrue
 		}
 		if gr := cap.GetContainer("graceful-restart"); gr != nil {
 			nc.Capabilities.GracefulRestart = true
@@ -275,10 +277,10 @@ func parseNeighborConfig(addr string, tree *Tree) (NeighborConfig, error) {
 		}
 		if ap := cap.GetContainer("add-path"); ap != nil {
 			if v, ok := ap.Get("send"); ok {
-				nc.Capabilities.AddPathSend = v == "true"
+				nc.Capabilities.AddPathSend = v == configTrue
 			}
 			if v, ok := ap.Get("receive"); ok {
-				nc.Capabilities.AddPathReceive = v == "true"
+				nc.Capabilities.AddPathReceive = v == configTrue
 			}
 		}
 	}
@@ -330,7 +332,7 @@ func ipToUint32(ip netip.Addr) uint32 {
 
 // ToReactorConfig converts BGPConfig to reactor configuration.
 func (c *BGPConfig) ToReactorNeighbors() []*NeighborReactor {
-	var neighbors []*NeighborReactor
+	neighbors := make([]*NeighborReactor, 0, len(c.Neighbors))
 
 	for _, nc := range c.Neighbors {
 		n := &NeighborReactor{

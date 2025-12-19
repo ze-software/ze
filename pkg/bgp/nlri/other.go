@@ -138,7 +138,7 @@ func (v *VPLS) Bytes() []byte {
 	// NLRI length (2 bytes) + RD (8 bytes) + VE ID (2 bytes) + VE Block Offset (2 bytes) +
 	// VE Block Size (2 bytes) + Label Base (3 bytes)
 	data := make([]byte, 2+8+2+2+2+len(v.labelBase))
-	binary.BigEndian.PutUint16(data[0:2], uint16(len(data)-2))
+	binary.BigEndian.PutUint16(data[0:2], uint16(len(data)-2)) //nolint:gosec // Fixed size struct
 
 	// RD
 	rdBytes := v.rd.Bytes()

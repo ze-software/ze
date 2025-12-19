@@ -300,7 +300,7 @@ func Flex(fields ...FieldDef) *FlexNode {
 }
 
 // InlineListNode is a list that supports inline attribute syntax.
-// e.g., "route 10.0.0.0/8 next-hop 1.1.1.1;" or "route 10.0.0.0/8 { next-hop 1.1.1.1; }"
+// e.g., "route 10.0.0.0/8 next-hop 1.1.1.1;" or "route 10.0.0.0/8 { next-hop 1.1.1.1; }".
 type InlineListNode struct {
 	KeyType  ValueType
 	children map[string]Node
@@ -345,7 +345,7 @@ func ValidateValue(typ ValueType, value string) error {
 		return nil
 
 	case TypeBool:
-		if value != "true" && value != "false" && value != "enable" && value != "disable" {
+		if value != configTrue && value != "false" && value != "enable" && value != "disable" {
 			return fmt.Errorf("invalid bool: %q (expected true/false/enable/disable)", value)
 		}
 		return nil
@@ -409,7 +409,7 @@ func ValidateValue(typ ValueType, value string) error {
 func NormalizeBool(value string) string {
 	switch value {
 	case "enable":
-		return "true"
+		return configTrue
 	case "disable":
 		return "false"
 	default:

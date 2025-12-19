@@ -125,7 +125,7 @@ func (p *Parser) parseNode(tree *Tree, name string, node Node) error {
 	}
 }
 
-// parseLeaf parses a leaf value: `name value;`
+// parseLeaf parses a leaf value: `name value;`.
 func (p *Parser) parseLeaf(tree *Tree, name string, node *LeafNode) error {
 	tok := p.tok.Peek()
 
@@ -158,7 +158,7 @@ func (p *Parser) parseLeaf(tree *Tree, name string, node *LeafNode) error {
 	return nil
 }
 
-// parseContainer parses a container block: `name { ... }`
+// parseContainer parses a container block: `name { ... }`.
 func (p *Parser) parseContainer(tree *Tree, name string, node *ContainerNode) error {
 	tok := p.tok.Peek()
 	if tok.Type != TokenLBrace {
@@ -198,7 +198,7 @@ func (p *Parser) parseContainer(tree *Tree, name string, node *ContainerNode) er
 	return nil
 }
 
-// parseList parses a list entry: `name key { ... }`
+// parseList parses a list entry: `name key { ... }`.
 func (p *Parser) parseList(tree *Tree, name string, node *ListNode) error {
 	// Get key
 	tok := p.tok.Peek()
@@ -254,7 +254,7 @@ func (p *Parser) parseList(tree *Tree, name string, node *ListNode) error {
 	return nil
 }
 
-// parseMultiLeaf parses multiple words until semicolon: `name word word;`
+// parseMultiLeaf parses multiple words until semicolon: `name word word;`.
 func (p *Parser) parseMultiLeaf(tree *Tree, name string, _ *MultiLeafNode) error {
 	var words []string
 
@@ -284,7 +284,7 @@ func (p *Parser) parseMultiLeaf(tree *Tree, name string, _ *MultiLeafNode) error
 	return nil
 }
 
-// parseArrayLeaf parses an array: `name [ item item ... ];`
+// parseArrayLeaf parses an array: `name [ item item ... ];`.
 func (p *Parser) parseArrayLeaf(tree *Tree, name string, _ *ArrayLeafNode) error {
 	tok := p.tok.Peek()
 	if tok.Type != TokenLBracket {
@@ -428,7 +428,7 @@ func (p *Parser) parseFreeform(tree *Tree, name string) error {
 func (p *Parser) parseFlex(tree *Tree, name string, node *FlexNode) error {
 	tok := p.tok.Peek()
 
-	switch tok.Type {
+	switch tok.Type { //nolint:exhaustive // Only specific tokens valid here, others handled in default
 	case TokenSemicolon:
 		// Flag mode: just the name with semicolon = true
 		p.tok.Next()
@@ -490,7 +490,7 @@ func (p *Parser) parseFlex(tree *Tree, name string, node *FlexNode) error {
 
 // parseInlineList parses a list with inline or block syntax.
 // Inline: "route 10.0.0.0/8 next-hop 1.1.1.1;"
-// Block: "route 10.0.0.0/8 { next-hop 1.1.1.1; }"
+// Block: "route 10.0.0.0/8 { next-hop 1.1.1.1; }".
 func (p *Parser) parseInlineList(tree *Tree, name string, node *InlineListNode) error {
 	// Get key
 	tok := p.tok.Peek()
@@ -594,36 +594,13 @@ func (p *Parser) skipBlock() error {
 	depth := 1
 	for depth > 0 {
 		tok = p.tok.Next()
-		switch tok.Type {
+		switch tok.Type { //nolint:exhaustive // Only tracking braces and EOF
 		case TokenLBrace:
 			depth++
 		case TokenRBrace:
 			depth--
 		case TokenEOF:
 			return p.errorf(tok, "unexpected EOF in nested block")
-		}
-	}
-	return nil
-}
-
-// skipArray skips an array [ ... ], including nested arrays/blocks.
-func (p *Parser) skipArray() error {
-	tok := p.tok.Peek()
-	if tok.Type != TokenLBracket {
-		return p.errorf(tok, "expected '[', got %s", tok.Type)
-	}
-	p.tok.Next()
-
-	depth := 1
-	for depth > 0 {
-		tok = p.tok.Next()
-		switch tok.Type {
-		case TokenLBracket:
-			depth++
-		case TokenRBracket:
-			depth--
-		case TokenEOF:
-			return p.errorf(tok, "unexpected EOF in array")
 		}
 	}
 	return nil
@@ -644,7 +621,7 @@ func (p *Parser) collectArray() ([]string, error) {
 
 	for depth > 0 {
 		tok = p.tok.Peek()
-		switch tok.Type {
+		switch tok.Type { //nolint:exhaustive // Only specific tokens handled, others pass through
 		case TokenRBracket:
 			depth--
 			if depth > 0 {
