@@ -55,6 +55,7 @@ const (
 	NodeLeaf NodeKind = iota
 	NodeContainer
 	NodeList
+	NodeFreeform // accepts "word word;" entries as key->true
 )
 
 // Node is the interface for all schema nodes.
@@ -222,6 +223,29 @@ func List(keyType ValueType, fields ...FieldDef) *ListNode {
 		l.order = append(l.order, f.Name)
 	}
 	return l
+}
+
+// FreeformNode accepts "word word ...;" entries, storing as "word word" -> true.
+// Used for family { ipv4 unicast; ipv6 unicast; }.
+type FreeformNode struct{}
+
+func (n *FreeformNode) Kind() NodeKind { return NodeFreeform }
+
+// Freeform creates a freeform node.
+func Freeform() *FreeformNode {
+	return &FreeformNode{}
+}
+
+// MultiLeafNode accepts multiple words until semicolon: "word word word;".
+type MultiLeafNode struct {
+	Type ValueType
+}
+
+func (n *MultiLeafNode) Kind() NodeKind { return NodeLeaf }
+
+// MultiLeaf creates a multi-word leaf node.
+func MultiLeaf(typ ValueType) *MultiLeafNode {
+	return &MultiLeafNode{Type: typ}
 }
 
 // ValidateValue validates a string value against a type.

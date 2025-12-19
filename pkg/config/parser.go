@@ -106,10 +106,14 @@ func (p *Parser) parseNode(tree *Tree, name string, node Node) error {
 	switch n := node.(type) {
 	case *LeafNode:
 		return p.parseLeaf(tree, name, n)
+	case *MultiLeafNode:
+		return p.parseMultiLeaf(tree, name, n)
 	case *ContainerNode:
 		return p.parseContainer(tree, name, n)
 	case *ListNode:
 		return p.parseList(tree, name, n)
+	case *FreeformNode:
+		return p.parseFreeform(tree, name)
 	default:
 		return fmt.Errorf("unknown node type for %s", name)
 	}
@@ -236,6 +240,92 @@ func (p *Parser) parseList(tree *Tree, name string, node *ListNode) error {
 	}
 
 	tree.AddListEntry(name, key, entry)
+	return nil
+}
+
+// parseMultiLeaf parses multiple words until semicolon: `name word word;`
+func (p *Parser) parseMultiLeaf(tree *Tree, name string, _ *MultiLeafNode) error {
+	var words []string
+
+	for {
+		tok := p.tok.Peek()
+		if tok.Type == TokenSemicolon {
+			p.tok.Next()
+			break
+		}
+		if tok.Type == TokenWord || tok.Type == TokenString {
+			words = append(words, tok.Value)
+			p.tok.Next()
+		} else {
+			return p.errorf(tok, "expected value or ';' for %s, got %s", name, tok.Type)
+		}
+	}
+
+	value := ""
+	for i, w := range words {
+		if i > 0 {
+			value += " "
+		}
+		value += w
+	}
+
+	tree.Set(name, value)
+	return nil
+}
+
+// parseFreeform parses a freeform block: `name { word word; word word; }`
+// Stores each "word word" line as key -> "true".
+func (p *Parser) parseFreeform(tree *Tree, name string) error {
+	tok := p.tok.Peek()
+	if tok.Type != TokenLBrace {
+		return p.errorf(tok, "expected '{' after %s, got %s", name, tok.Type)
+	}
+	p.tok.Next()
+
+	child := NewTree()
+
+	for {
+		tok = p.tok.Peek()
+		if tok.Type == TokenRBrace {
+			p.tok.Next()
+			break
+		}
+		if tok.Type == TokenEOF {
+			return p.errorf(tok, "unexpected EOF in %s block", name)
+		}
+
+		// Collect words until semicolon
+		var words []string
+		for {
+			tok = p.tok.Peek()
+			if tok.Type == TokenSemicolon {
+				p.tok.Next()
+				break
+			}
+			if tok.Type == TokenRBrace || tok.Type == TokenEOF {
+				return p.errorf(tok, "expected ';' in %s block", name)
+			}
+			if tok.Type == TokenWord || tok.Type == TokenString {
+				words = append(words, tok.Value)
+				p.tok.Next()
+			} else {
+				return p.errorf(tok, "unexpected token in %s block: %s", name, tok.Type)
+			}
+		}
+
+		if len(words) > 0 {
+			key := ""
+			for i, w := range words {
+				if i > 0 {
+					key += " "
+				}
+				key += w
+			}
+			child.Set(key, "true")
+		}
+	}
+
+	tree.SetContainer(name, child)
 	return nil
 }
 
