@@ -379,15 +379,21 @@ neighbor 127.0.0.1 {
 	// Should have 2 routes from announce block
 	require.Len(t, n.StaticRoutes, 2, "expected 2 routes from announce block")
 
+	// Find routes by prefix (order not guaranteed)
+	routeMap := make(map[string]StaticRouteConfig)
+	for _, r := range n.StaticRoutes {
+		routeMap[r.Prefix.String()] = r
+	}
+
 	// Check first route
-	r1 := n.StaticRoutes[0]
-	require.Equal(t, "10.0.0.0/24", r1.Prefix.String())
+	r1, ok := routeMap["10.0.0.0/24"]
+	require.True(t, ok, "missing route 10.0.0.0/24")
 	require.Equal(t, "10.0.1.254", r1.NextHop)
 	require.Equal(t, uint32(200), r1.LocalPreference)
 
 	// Check second route
-	r2 := n.StaticRoutes[1]
-	require.Equal(t, "10.0.1.0/24", r2.Prefix.String())
+	r2, ok := routeMap["10.0.1.0/24"]
+	require.True(t, ok, "missing route 10.0.1.0/24")
 	require.Equal(t, "10.0.1.254", r2.NextHop)
 	require.Equal(t, uint32(100), r2.MED)
 }
@@ -433,4 +439,74 @@ neighbor 127.0.0.1 {
 	require.Equal(t, "2a02:b80:0:2::1", r.NextHop)
 	require.Equal(t, "30740:0 30740:30740", r.Community)
 	require.Equal(t, uint32(200), r.LocalPreference)
+}
+
+// TestBGPSchemaTemplateInherit verifies template inheritance.
+//
+// VALIDATES: Routes from inherited templates are merged into neighbor config.
+//
+// PREVENTS: Missing routes when using template inheritance.
+func TestBGPSchemaTemplateInherit(t *testing.T) {
+	input := `
+template {
+    neighbor base-routes {
+        announce {
+            ipv4 {
+                unicast 10.0.1.0/24 next-hop 10.0.255.254 community 30740:0;
+                unicast 10.0.2.0/24 next-hop 10.0.255.254 local-preference 100;
+            }
+        }
+    }
+}
+
+neighbor 127.0.0.1 {
+    inherit base-routes;
+    router-id 10.0.0.2;
+    local-address 127.0.0.1;
+    local-as 65533;
+    peer-as 65533;
+
+    family {
+        ipv4 unicast;
+    }
+
+    announce {
+        ipv4 {
+            unicast 10.0.3.0/24 next-hop 10.0.255.254 local-preference 200;
+        }
+    }
+}
+`
+	p := NewParser(BGPSchema())
+	tree, err := p.Parse(input)
+	require.NoError(t, err)
+
+	cfg, err := TreeToConfig(tree)
+	require.NoError(t, err)
+
+	require.Len(t, cfg.Neighbors, 1)
+	n := cfg.Neighbors[0]
+
+	// Should have 3 routes: 2 from template + 1 from neighbor
+	require.Len(t, n.StaticRoutes, 3, "expected 3 routes (2 from template + 1 from neighbor)")
+
+	// Find routes by prefix
+	routeMap := make(map[string]StaticRouteConfig)
+	for _, r := range n.StaticRoutes {
+		routeMap[r.Prefix.String()] = r
+	}
+
+	// Check template routes
+	r1, ok := routeMap["10.0.1.0/24"]
+	require.True(t, ok, "missing route 10.0.1.0/24 from template")
+	require.Equal(t, "30740:0", r1.Community)
+
+	r2, ok := routeMap["10.0.2.0/24"]
+	require.True(t, ok, "missing route 10.0.2.0/24 from template")
+	require.Equal(t, uint32(100), r2.LocalPreference)
+
+	// Check neighbor route
+	r3, ok := routeMap["10.0.3.0/24"]
+	require.True(t, ok, "missing route 10.0.3.0/24 from neighbor")
+	require.Equal(t, uint32(200), r3.LocalPreference)
 }

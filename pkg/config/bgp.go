@@ -59,24 +59,9 @@ func routeAttributes() []FieldDef {
 	}
 }
 
-// BGPSchema returns the schema for ZeBGP configuration.
-func BGPSchema() *Schema {
-	schema := NewSchema()
-
-	// Global settings
-	schema.Define("router-id", Leaf(TypeIPv4))
-	schema.Define("local-as", Leaf(TypeUint32))
-	schema.Define("listen", MultiLeaf(TypeString)) // "address port"
-
-	// Process definitions (API)
-	schema.Define("process", List(TypeString,
-		Field("run", MultiLeaf(TypeString)), // command with args
-		Field("encoder", Leaf(TypeString)),  // json, text
-		Field("respawn", Leaf(TypeBool)),    // respawn on exit
-	))
-
-	// Neighbor definitions
-	schema.Define("neighbor", List(TypeIP,
+// neighborFields returns the common field definitions for neighbor and template schemas.
+func neighborFields() []FieldDef {
+	return []FieldDef{
 		Field("description", Leaf(TypeString)),
 		Field("router-id", Leaf(TypeIPv4)),
 		Field("local-address", Leaf(TypeIP)),
@@ -162,10 +147,33 @@ func BGPSchema() *Schema {
 
 		// API configuration - can be named or anonymous
 		Field("api", Freeform()),
+	}
+}
+
+// BGPSchema returns the schema for ZeBGP configuration.
+func BGPSchema() *Schema {
+	schema := NewSchema()
+
+	// Global settings
+	schema.Define("router-id", Leaf(TypeIPv4))
+	schema.Define("local-as", Leaf(TypeUint32))
+	schema.Define("listen", MultiLeaf(TypeString)) // "address port"
+
+	// Process definitions (API)
+	schema.Define("process", List(TypeString,
+		Field("run", MultiLeaf(TypeString)), // command with args
+		Field("encoder", Leaf(TypeString)),  // json, text
+		Field("respawn", Leaf(TypeBool)),    // respawn on exit
 	))
 
-	// Template definitions (inheritance) - container with nested neighbor templates
-	schema.Define("template", Freeform())
+	// Neighbor definitions - uses shared neighborFields
+	schema.Define("neighbor", List(TypeIP, neighborFields()...))
+
+	// Template definitions - contains named neighbor templates
+	// template { neighbor <name> { ... } }
+	schema.Define("template", Container(
+		Field("neighbor", List(TypeString, neighborFields()...)),
+	))
 
 	return schema
 }
@@ -267,9 +275,17 @@ func TreeToConfig(tree *Tree) (*BGPConfig, error) {
 		cfg.Processes = append(cfg.Processes, pc)
 	}
 
+	// Parse templates first (for inheritance)
+	templates := make(map[string]*Tree)
+	if tmpl := tree.GetContainer("template"); tmpl != nil {
+		for name, neighborTree := range tmpl.GetList("neighbor") {
+			templates[name] = neighborTree
+		}
+	}
+
 	// Neighbors
 	for addr, n := range tree.GetList("neighbor") {
-		nc, err := parseNeighborConfig(addr, n)
+		nc, err := parseNeighborConfig(addr, n, templates)
 		if err != nil {
 			return nil, fmt.Errorf("neighbor %s: %w", addr, err)
 		}
@@ -279,7 +295,7 @@ func TreeToConfig(tree *Tree) (*BGPConfig, error) {
 	return cfg, nil
 }
 
-func parseNeighborConfig(addr string, tree *Tree) (NeighborConfig, error) {
+func parseNeighborConfig(addr string, tree *Tree, templates map[string]*Tree) (NeighborConfig, error) {
 	nc := NeighborConfig{}
 
 	// Address
@@ -288,6 +304,17 @@ func parseNeighborConfig(addr string, tree *Tree) (NeighborConfig, error) {
 		return nc, fmt.Errorf("invalid address: %w", err)
 	}
 	nc.Address = ip
+
+	// Handle template inheritance - extract routes from template FIRST
+	if inheritName, ok := tree.Get("inherit"); ok {
+		if tmpl, exists := templates[inheritName]; exists {
+			routes, err := extractRoutesFromTree(tmpl)
+			if err != nil {
+				return nc, fmt.Errorf("template %s: %w", inheritName, err)
+			}
+			nc.StaticRoutes = append(nc.StaticRoutes, routes...)
+		}
+	}
 
 	// Simple fields
 	if v, ok := tree.Get("description"); ok {
@@ -379,14 +406,29 @@ func parseNeighborConfig(addr string, tree *Tree) (NeighborConfig, error) {
 		}
 	}
 
+	// Extract routes from this neighbor's static and announce blocks
+	routes, err := extractRoutesFromTree(tree)
+	if err != nil {
+		return nc, err
+	}
+	nc.StaticRoutes = append(nc.StaticRoutes, routes...)
+
+	return nc, nil
+}
+
+// extractRoutesFromTree extracts all routes from a neighbor or template tree.
+// Handles both static { route ... } and announce { ipv4/ipv6 { unicast/multicast ... } } blocks.
+func extractRoutesFromTree(tree *Tree) ([]StaticRouteConfig, error) {
+	var routes []StaticRouteConfig
+
 	// Static routes
 	if static := tree.GetContainer("static"); static != nil {
 		for prefix, route := range static.GetList("route") {
 			sr, err := parseRouteConfig(prefix, route)
 			if err != nil {
-				return nc, err
+				return nil, err
 			}
-			nc.StaticRoutes = append(nc.StaticRoutes, sr)
+			routes = append(routes, sr)
 		}
 	}
 
@@ -397,16 +439,16 @@ func parseNeighborConfig(addr string, tree *Tree) (NeighborConfig, error) {
 			for prefix, route := range ipv4.GetList("unicast") {
 				sr, err := parseRouteConfig(prefix, route)
 				if err != nil {
-					return nc, err
+					return nil, err
 				}
-				nc.StaticRoutes = append(nc.StaticRoutes, sr)
+				routes = append(routes, sr)
 			}
 			for prefix, route := range ipv4.GetList("multicast") {
 				sr, err := parseRouteConfig(prefix, route)
 				if err != nil {
-					return nc, err
+					return nil, err
 				}
-				nc.StaticRoutes = append(nc.StaticRoutes, sr)
+				routes = append(routes, sr)
 			}
 		}
 		// Parse IPv6 routes
@@ -414,21 +456,21 @@ func parseNeighborConfig(addr string, tree *Tree) (NeighborConfig, error) {
 			for prefix, route := range ipv6.GetList("unicast") {
 				sr, err := parseRouteConfig(prefix, route)
 				if err != nil {
-					return nc, err
+					return nil, err
 				}
-				nc.StaticRoutes = append(nc.StaticRoutes, sr)
+				routes = append(routes, sr)
 			}
 			for prefix, route := range ipv6.GetList("multicast") {
 				sr, err := parseRouteConfig(prefix, route)
 				if err != nil {
-					return nc, err
+					return nil, err
 				}
-				nc.StaticRoutes = append(nc.StaticRoutes, sr)
+				routes = append(routes, sr)
 			}
 		}
 	}
 
-	return nc, nil
+	return routes, nil
 }
 
 // parseRouteConfig extracts a StaticRouteConfig from a parsed route tree.
