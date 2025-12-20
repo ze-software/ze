@@ -3,6 +3,7 @@ package config
 import (
 	"fmt"
 	"os"
+	"strconv"
 	"time"
 
 	"github.com/exa-networks/zebgp/pkg/reactor"
@@ -92,6 +93,13 @@ func configToNeighbor(nc *NeighborConfig, global *BGPConfig) *reactor.Neighbor {
 	n := reactor.NewNeighbor(nc.Address, localAS, nc.PeerAS, routerID)
 	n.HoldTime = holdTime
 	n.Passive = nc.Passive
+
+	// Override port from environment (for testing).
+	if p := os.Getenv("exabgp_tcp_port"); p != "" {
+		if v, err := strconv.ParseUint(p, 10, 16); err == nil {
+			n.Port = uint16(v) //nolint:gosec // Validated above
+		}
+	}
 
 	return n
 }

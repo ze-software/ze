@@ -1,4 +1,4 @@
-.PHONY: all build test lint clean fmt vet tidy help
+.PHONY: all build test lint clean fmt vet tidy self-check help
 
 # Default target
 all: lint test build
@@ -59,6 +59,11 @@ test-decoding:
 	@echo "Running decoding tests..."
 	go test -v ./testdata/decoding/...
 
+# Run self-check functional tests
+self-check:
+	@echo "Running self-check tests..."
+	go run ./cmd/self-check --all
+
 # Quick check (fast feedback during development)
 check: fmt vet
 	@echo "Quick check passed"
@@ -80,6 +85,7 @@ help:
 	@echo "  vet          - Run go vet"
 	@echo "  tidy         - Tidy go.mod dependencies"
 	@echo "  clean        - Remove build artifacts"
+	@echo "  self-check   - Run functional tests (ExaBGP compatibility)"
 	@echo "  check        - Quick check (fmt + vet)"
 	@echo "  ci           - Full CI check (lint + test + build)"
 	@echo "  help         - Show this help"
