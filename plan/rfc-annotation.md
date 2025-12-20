@@ -166,7 +166,13 @@ bgpls.go:440,521 - RFC 7752 Section 3.2 violation
 ```
 
 ### FSM
-(to be filled during annotation)
+
+```
+fsm.go:291-298 - RFC 4271 Section 8.2.2 deviation
+  Current: OpenSent + TcpConnectionFails → Idle
+  Required: OpenSent + TcpConnectionFails → Active (with timer restart)
+  Severity: LOW (simplification, functionally equivalent)
+```
 
 ---
 

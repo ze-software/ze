@@ -5,21 +5,50 @@ import (
 	"time"
 )
 
-// Default timer values per RFC 4271.
+// Default timer values per RFC 4271 Section 10.
+//
+// RFC 4271 Section 10:
+//
+//	"ConnectRetryTime is a mandatory FSM attribute that stores the initial
+//	 value for the ConnectRetryTimer. The suggested default value for the
+//	 ConnectRetryTime is 120 seconds."
+//
+//	"HoldTime is a mandatory FSM attribute that stores the initial value
+//	 for the HoldTimer. The suggested default value for the HoldTime is
+//	 90 seconds."
 const (
-	DefaultHoldTime         = 90 * time.Second  // Default hold time
-	DefaultConnectRetryTime = 120 * time.Second // Default connect retry time
+	DefaultHoldTime         = 90 * time.Second  // RFC 4271 Section 10: suggested default 90s
+	DefaultConnectRetryTime = 120 * time.Second // RFC 4271 Section 10: suggested default 120s
 )
 
 // TimerCallback is called when a timer expires.
 type TimerCallback func()
 
-// Timers manages the BGP FSM timers per RFC 4271 Section 8.
+// Timers manages the BGP FSM timers per RFC 4271 Sections 8 and 10.
 //
-// Three timers are used:
-// - HoldTimer: Detects dead peers (default 90s, negotiated in OPEN).
-// - KeepaliveTimer: Sends periodic KEEPALIVEs (hold_time/3).
-// - ConnectRetryTimer: Delays between connection attempts (default 120s).
+// RFC 4271 Section 10 defines five mandatory timers for BGP:
+//   - ConnectRetryTimer (Section 8.1.3, Event 9)
+//   - HoldTimer (Section 8.1.3, Event 10)
+//   - KeepaliveTimer (Section 8.1.3, Event 11)
+//   - MinASOriginationIntervalTimer (Section 9.2.1.2) - not implemented here
+//   - MinRouteAdvertisementIntervalTimer (Section 9.2.1.1) - not implemented here
+//
+// Two optional timers (DelayOpenTimer, IdleHoldTimer) are described in
+// Section 8.1.3 Events 12-13, but are not implemented.
+//
+// Timer behaviors:
+//   - HoldTimer: Detects dead peers. Restarted on KEEPALIVE/UPDATE receipt
+//     (Section 8.2.2 Established state). Value negotiated per Section 4.2.
+//   - KeepaliveTimer: Triggers periodic KEEPALIVE transmission.
+//     RFC 4271 Section 10: "suggested default is 1/3 of the HoldTime"
+//   - ConnectRetryTimer: Delays between connection attempts.
+//
+// NOTE: RFC 4271 Section 10 SHOULD requirement not implemented:
+//
+//	"To minimize the likelihood that the distribution of BGP messages by a
+//	 given BGP speaker will contain peaks, jitter SHOULD be applied to the
+//	 timers associated with MinASOriginationIntervalTimer, KeepaliveTimer,
+//	 MinRouteAdvertisementIntervalTimer, and ConnectRetryTimer."
 type Timers struct {
 	mu sync.Mutex
 
@@ -52,8 +81,11 @@ func NewTimers() *Timers {
 }
 
 // SetHoldTime sets the hold time duration.
-// Keepalive timer will be hold_time/3.
-// Setting to 0 disables both hold and keepalive timers.
+// Keepalive timer will be hold_time/3 per RFC 4271 Section 10.
+// Setting to 0 disables both hold and keepalive timers per RFC 4271 Section 4.4:
+//
+//	"If the negotiated Hold Time interval is zero, then periodic KEEPALIVE
+//	 messages MUST NOT be sent."
 func (t *Timers) SetHoldTime(d time.Duration) {
 	t.mu.Lock()
 	defer t.mu.Unlock()
@@ -97,6 +129,15 @@ func (t *Timers) OnConnectRetryTimerExpires(cb TimerCallback) {
 
 // StartHoldTimer starts the hold timer.
 // Does nothing if hold time is 0.
+//
+// RFC 4271 Section 8.2.2 (OpenSent state):
+//
+//	"sets the HoldTimer to a large value" (suggested 4 minutes per Section 10)
+//
+// RFC 4271 Section 8.2.2 (OpenConfirm/Established states):
+//
+//	"If the negotiated hold time value is zero, then the HoldTimer and
+//	 KeepaliveTimer are not started."
 func (t *Timers) StartHoldTimer() {
 	t.mu.Lock()
 	defer t.mu.Unlock()
@@ -122,6 +163,17 @@ func (t *Timers) StartHoldTimer() {
 
 // ResetHoldTimer resets the hold timer to its full duration.
 // Should be called when KEEPALIVE or UPDATE is received.
+//
+// RFC 4271 Section 8.2.2 (Established state):
+//
+//	"If the local system receives a KEEPALIVE message (Event 26), the
+//	 local system:
+//	   - restarts its HoldTimer, if the negotiated HoldTime value is
+//	     non-zero"
+//	"If the local system receives an UPDATE message (Event 27), the
+//	 local system:
+//	   - restarts its HoldTimer, if the negotiated HoldTime value is
+//	     non-zero"
 func (t *Timers) ResetHoldTimer() {
 	t.mu.Lock()
 	defer t.mu.Unlock()
@@ -170,6 +222,24 @@ func (t *Timers) IsHoldTimerRunning() bool {
 
 // StartKeepaliveTimer starts the keepalive timer (hold_time/3).
 // Does nothing if hold time is 0.
+//
+// RFC 4271 Section 4.4:
+//
+//	"KEEPALIVE messages are exchanged between peers often enough not to
+//	 cause the Hold Timer to expire. A reasonable maximum time between
+//	 KEEPALIVE messages would be one third of the Hold Time interval."
+//
+// RFC 4271 Section 10:
+//
+//	"The KeepaliveTime is a mandatory FSM attribute that stores the
+//	 initial value for the KeepaliveTimer. The suggested default value
+//	 for the KeepaliveTime is 1/3 of the HoldTime."
+//
+// RFC 4271 Section 8.2.2 (Established state):
+//
+//	"Each time the local system sends a KEEPALIVE or UPDATE message, it
+//	 restarts its KeepaliveTimer, unless the negotiated HoldTime value
+//	 is zero."
 func (t *Timers) StartKeepaliveTimer() {
 	t.mu.Lock()
 	defer t.mu.Unlock()
@@ -228,6 +298,18 @@ func (t *Timers) IsKeepaliveTimerRunning() bool {
 }
 
 // StartConnectRetryTimer starts the connect retry timer.
+//
+// RFC 4271 Section 8.1.3:
+//
+//	"Event 9: ConnectRetryTimer_Expires
+//	 Definition: An event generated when the ConnectRetryTimer expires.
+//	 Status: Mandatory"
+//
+// RFC 4271 Section 10:
+//
+//	"ConnectRetryTime is a mandatory FSM attribute that stores the initial
+//	 value for the ConnectRetryTimer. The suggested default value for the
+//	 ConnectRetryTime is 120 seconds."
 func (t *Timers) StartConnectRetryTimer() {
 	t.mu.Lock()
 	defer t.mu.Unlock()
