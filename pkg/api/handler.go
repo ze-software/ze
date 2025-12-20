@@ -17,6 +17,7 @@ func RegisterDefaultHandlers(d *Dispatcher) {
 	// Peer operations
 	d.Register("peer list", handlePeerList, "List all peers (brief)")
 	d.Register("peer show", handlePeerShow, "Show peer details")
+	d.Register("peer teardown", handlePeerTeardown, "Teardown a peer session")
 
 	// System commands
 	d.Register("system help", handleSystemHelp, "Show available commands")
@@ -25,6 +26,9 @@ func RegisterDefaultHandlers(d *Dispatcher) {
 	// RIB operations (placeholder - needs RIB integration)
 	d.Register("rib show in", handleRIBShowIn, "Show Adj-RIB-In")
 	d.Register("rib show out", handleRIBShowOut, "Show Adj-RIB-Out")
+
+	// Route operations
+	RegisterRouteHandlers(d)
 }
 
 // handleDaemonShutdown signals the reactor to stop.
@@ -127,6 +131,45 @@ func handleSystemVersion(_ *CommandContext, _ []string) (*Response, error) {
 		Data: map[string]any{
 			"version": Version,
 			"api":     "v6",
+		},
+	}, nil
+}
+
+// handlePeerTeardown closes a peer session.
+func handlePeerTeardown(ctx *CommandContext, args []string) (*Response, error) {
+	if len(args) < 1 {
+		return &Response{
+			Status: "error",
+			Error:  "usage: peer teardown <ip> [reason]",
+		}, fmt.Errorf("missing peer address")
+	}
+
+	addr, err := netip.ParseAddr(args[0])
+	if err != nil {
+		return &Response{
+			Status: "error",
+			Error:  fmt.Sprintf("invalid IP address: %s", args[0]),
+		}, err
+	}
+
+	// Optional reason
+	reason := ""
+	if len(args) > 1 {
+		reason = args[1]
+	}
+
+	if err := ctx.Reactor.TeardownPeer(addr, reason); err != nil {
+		return &Response{
+			Status: "error",
+			Error:  fmt.Sprintf("teardown failed: %v", err),
+		}, err
+	}
+
+	return &Response{
+		Status: "done",
+		Data: map[string]any{
+			"peer":   addr.String(),
+			"reason": reason,
 		},
 	}, nil
 }

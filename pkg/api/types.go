@@ -61,6 +61,10 @@ type ReactorInterface interface {
 
 	// WithdrawRoute withdraws a route from peers matching the selector.
 	WithdrawRoute(peerSelector string, prefix netip.Prefix) error
+
+	// TeardownPeer gracefully closes a peer session.
+	// If reason is provided, it's sent in the NOTIFICATION message.
+	TeardownPeer(addr netip.Addr, reason string) error
 }
 
 // Response represents an API command response.

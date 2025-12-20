@@ -136,10 +136,16 @@ func parseCapability(code Code, data []byte) (Capability, error) {
 		return &RouteRefresh{}, nil
 	case CodeExtendedMessage:
 		return &ExtendedMessage{}, nil
+	case CodeExtendedNextHop:
+		return parseExtendedNextHop(data)
 	case CodeAddPath:
 		return parseAddPath(data)
 	case CodeGracefulRestart:
 		return parseGracefulRestart(data)
+	case CodeFQDN:
+		return parseFQDN(data)
+	case CodeSoftwareVersion:
+		return parseSoftwareVersion(data)
 	default:
 		// Unknown capability - preserve raw data
 		return &Unknown{code: code, Data: append([]byte{}, data...)}, nil
@@ -349,4 +355,143 @@ func parseGracefulRestart(data []byte) (*GracefulRestart, error) {
 	}
 
 	return gr, nil
+}
+
+// ExtendedNextHopFamily describes extended next-hop support for one AFI/SAFI.
+type ExtendedNextHopFamily struct {
+	NLRIAFI    AFI  // AFI of NLRI
+	NLRISAFI   SAFI // SAFI of NLRI
+	NextHopAFI AFI  // AFI of next-hop (typically IPv6 for IPv4 NLRI)
+}
+
+// ExtendedNextHop represents Extended Next Hop capability (RFC 8950).
+//
+// This capability allows advertising IPv4 NLRI with IPv6 next-hops,
+// enabling IPv4 routing over IPv6-only infrastructure.
+type ExtendedNextHop struct {
+	Families []ExtendedNextHopFamily
+}
+
+func (e *ExtendedNextHop) Code() Code { return CodeExtendedNextHop }
+
+func (e *ExtendedNextHop) Pack() []byte {
+	data := make([]byte, len(e.Families)*6)
+	for i, f := range e.Families {
+		offset := i * 6
+		binary.BigEndian.PutUint16(data[offset:], uint16(f.NLRIAFI))
+		binary.BigEndian.PutUint16(data[offset+2:], uint16(f.NLRISAFI))
+		binary.BigEndian.PutUint16(data[offset+4:], uint16(f.NextHopAFI))
+	}
+	return packCapability(CodeExtendedNextHop, data)
+}
+
+func parseExtendedNextHop(data []byte) (*ExtendedNextHop, error) {
+	if len(data)%6 != 0 {
+		return nil, ErrShortRead
+	}
+
+	families := make([]ExtendedNextHopFamily, len(data)/6)
+	for i := range families {
+		offset := i * 6
+		families[i] = ExtendedNextHopFamily{
+			NLRIAFI:    AFI(binary.BigEndian.Uint16(data[offset:])),
+			NLRISAFI:   SAFI(binary.BigEndian.Uint16(data[offset+2:])),
+			NextHopAFI: AFI(binary.BigEndian.Uint16(data[offset+4:])),
+		}
+	}
+	return &ExtendedNextHop{Families: families}, nil
+}
+
+// FQDN represents FQDN capability (RFC 8516).
+//
+// This capability advertises the fully qualified domain name (hostname
+// and domain name) of the BGP speaker.
+type FQDN struct {
+	Hostname   string
+	DomainName string
+}
+
+func (f *FQDN) Code() Code { return CodeFQDN }
+
+func (f *FQDN) Pack() []byte {
+	hostLen := len(f.Hostname)
+	domainLen := len(f.DomainName)
+
+	// Truncate if necessary (max 255 bytes each)
+	if hostLen > 255 {
+		hostLen = 255
+	}
+	if domainLen > 255 {
+		domainLen = 255
+	}
+
+	data := make([]byte, 1+hostLen+1+domainLen)
+	data[0] = byte(hostLen)
+	copy(data[1:1+hostLen], f.Hostname[:hostLen])
+	data[1+hostLen] = byte(domainLen)
+	copy(data[2+hostLen:], f.DomainName[:domainLen])
+
+	return packCapability(CodeFQDN, data)
+}
+
+func parseFQDN(data []byte) (*FQDN, error) {
+	if len(data) < 2 {
+		return nil, ErrShortRead
+	}
+
+	hostLen := int(data[0])
+	if len(data) < 1+hostLen+1 {
+		return nil, ErrShortRead
+	}
+
+	hostname := string(data[1 : 1+hostLen])
+
+	domainLen := int(data[1+hostLen])
+	if len(data) < 2+hostLen+domainLen {
+		return nil, ErrShortRead
+	}
+
+	domainName := string(data[2+hostLen : 2+hostLen+domainLen])
+
+	return &FQDN{
+		Hostname:   hostname,
+		DomainName: domainName,
+	}, nil
+}
+
+// SoftwareVersion represents Software Version capability (draft-ietf-idr-software-version).
+//
+// This capability advertises the software version of the BGP implementation.
+type SoftwareVersion struct {
+	Version string
+}
+
+func (s *SoftwareVersion) Code() Code { return CodeSoftwareVersion }
+
+func (s *SoftwareVersion) Pack() []byte {
+	verLen := len(s.Version)
+	if verLen > 255 {
+		verLen = 255
+	}
+
+	data := make([]byte, 1+verLen)
+	data[0] = byte(verLen)
+	copy(data[1:], s.Version[:verLen])
+
+	return packCapability(CodeSoftwareVersion, data)
+}
+
+func parseSoftwareVersion(data []byte) (*SoftwareVersion, error) {
+	if len(data) < 1 {
+		return nil, ErrShortRead
+	}
+
+	verLen := int(data[0])
+	if len(data) < 1+verLen {
+		return nil, ErrShortRead
+	}
+
+	return &SoftwareVersion{
+		Version: string(data[1 : 1+verLen]),
+	}, nil
 }

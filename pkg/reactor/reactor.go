@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/exa-networks/zebgp/pkg/api"
+	"github.com/exa-networks/zebgp/pkg/rib"
 )
 
 // Reactor errors.
@@ -66,6 +67,7 @@ type ConnectionCallback func(conn net.Conn, neighbor *Neighbor)
 //   - Signal handling
 //   - Graceful shutdown
 //   - API server for external communication
+//   - RIB (Routing Information Base) for route storage
 type Reactor struct {
 	config *Config
 
@@ -73,6 +75,11 @@ type Reactor struct {
 	listener *Listener
 	signals  *SignalHandler
 	api      *api.Server // API server for CLI and external processes
+
+	// RIB components
+	ribIn    *rib.IncomingRIB // Adj-RIB-In
+	ribOut   *rib.OutgoingRIB // Adj-RIB-Out
+	ribStore *rib.RouteStore  // Global deduplication store
 
 	connCallback ConnectionCallback
 
@@ -142,11 +149,29 @@ func (a *reactorAPIAdapter) WithdrawRoute(_ string, _ netip.Prefix) error {
 	return errors.New("not implemented")
 }
 
+// TeardownPeer gracefully closes a peer session.
+func (a *reactorAPIAdapter) TeardownPeer(addr netip.Addr, _ string) error {
+	a.r.mu.RLock()
+	peer, exists := a.r.peers[addr.String()]
+	a.r.mu.RUnlock()
+
+	if !exists {
+		return ErrNeighborNotFound
+	}
+
+	// TODO: Send NOTIFICATION with reason before stopping
+	peer.Stop()
+	return nil
+}
+
 // New creates a new reactor with the given configuration.
 func New(config *Config) *Reactor {
 	return &Reactor{
-		config: config,
-		peers:  make(map[string]*Peer),
+		config:   config,
+		peers:    make(map[string]*Peer),
+		ribIn:    rib.NewIncomingRIB(),
+		ribOut:   rib.NewOutgoingRIB(),
+		ribStore: rib.NewRouteStore(100), // Buffer size for dedup workers
 	}
 }
 
@@ -388,6 +413,11 @@ func (r *Reactor) cleanup() {
 		waitCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		_ = peer.Wait(waitCtx)
 		cancel()
+	}
+
+	// Stop RIB store workers
+	if r.ribStore != nil {
+		r.ribStore.Stop()
 	}
 
 	r.running = false

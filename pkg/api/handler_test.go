@@ -52,6 +52,10 @@ func (m *mockReactor) WithdrawRoute(selector string, prefix netip.Prefix) error 
 	return nil
 }
 
+func (m *mockReactor) TeardownPeer(_ netip.Addr, _ string) error {
+	return nil
+}
+
 // TestHandlerPeerList verifies peer list output.
 //
 // VALIDATES: All peers returned with state info.

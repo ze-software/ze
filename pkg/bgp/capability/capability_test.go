@@ -237,6 +237,11 @@ func TestCapabilityRoundTrip(t *testing.T) {
 		{"AddPath", &AddPath{Families: []AddPathFamily{
 			{AFI: AFIIPv4, SAFI: SAFIUnicast, Mode: AddPathBoth},
 		}}},
+		{"ExtendedNextHop", &ExtendedNextHop{Families: []ExtendedNextHopFamily{
+			{NLRIAFI: AFIIPv4, NLRISAFI: SAFIUnicast, NextHopAFI: AFIIPv6},
+		}}},
+		{"FQDN", &FQDN{Hostname: "router1", DomainName: "example.com"}},
+		{"SoftwareVersion", &SoftwareVersion{Version: "ZeBGP/0.1.0"}},
 	}
 
 	for _, tt := range tests {
@@ -248,4 +253,154 @@ func TestCapabilityRoundTrip(t *testing.T) {
 			assert.Equal(t, tt.cap.Code(), parsed[0].Code())
 		})
 	}
+}
+
+// TestExtendedNextHopCapability verifies Extended Next Hop parsing (RFC 8950).
+//
+// VALIDATES: IPv4 NLRI with IPv6 next-hop capability.
+//
+// PREVENTS: Routing failures on IPv6-only networks.
+func TestExtendedNextHopCapability(t *testing.T) {
+	data := []byte{
+		0x05,       // Code = Extended Next Hop (5)
+		0x06,       // Length = 6
+		0x00, 0x01, // NLRI AFI = IPv4
+		0x00, 0x01, // NLRI SAFI = Unicast
+		0x00, 0x02, // Next Hop AFI = IPv6
+	}
+
+	caps, err := Parse(data)
+	require.NoError(t, err)
+	require.Len(t, caps, 1)
+
+	enh, ok := caps[0].(*ExtendedNextHop)
+	require.True(t, ok)
+	require.Len(t, enh.Families, 1)
+	assert.Equal(t, AFIIPv4, enh.Families[0].NLRIAFI)
+	assert.Equal(t, SAFIUnicast, SAFI(enh.Families[0].NLRISAFI))
+	assert.Equal(t, AFIIPv6, enh.Families[0].NextHopAFI)
+}
+
+// TestExtendedNextHopRoundTrip verifies Extended Next Hop pack/parse.
+func TestExtendedNextHopRoundTrip(t *testing.T) {
+	original := &ExtendedNextHop{
+		Families: []ExtendedNextHopFamily{
+			{NLRIAFI: AFIIPv4, NLRISAFI: SAFIUnicast, NextHopAFI: AFIIPv6},
+			{NLRIAFI: AFIIPv4, NLRISAFI: SAFIVPN, NextHopAFI: AFIIPv6},
+		},
+	}
+
+	packed := original.Pack()
+	parsed, err := Parse(packed)
+	require.NoError(t, err)
+	require.Len(t, parsed, 1)
+
+	enh, ok := parsed[0].(*ExtendedNextHop)
+	require.True(t, ok)
+	require.Len(t, enh.Families, 2)
+
+	assert.Equal(t, original.Families[0].NLRIAFI, enh.Families[0].NLRIAFI)
+	assert.Equal(t, original.Families[0].NextHopAFI, enh.Families[0].NextHopAFI)
+	assert.Equal(t, original.Families[1].NLRIAFI, enh.Families[1].NLRIAFI)
+	assert.Equal(t, original.Families[1].NLRISAFI, enh.Families[1].NLRISAFI)
+}
+
+// TestFQDNCapability verifies FQDN parsing (RFC 8516).
+//
+// VALIDATES: FQDN capability for hostname advertisement.
+//
+// PREVENTS: Missing hostname in BGP sessions.
+func TestFQDNCapability(t *testing.T) {
+	// FQDN: hostname="router1", domain="example.com"
+	data := []byte{
+		0x49,                              // Code = FQDN (73)
+		0x14,                              // Length = 20
+		0x07,                              // Hostname length = 7
+		'r', 'o', 'u', 't', 'e', 'r', '1', // Hostname
+		0x0b,                                                  // Domain length = 11
+		'e', 'x', 'a', 'm', 'p', 'l', 'e', '.', 'c', 'o', 'm', // Domain
+	}
+
+	caps, err := Parse(data)
+	require.NoError(t, err)
+	require.Len(t, caps, 1)
+
+	fqdn, ok := caps[0].(*FQDN)
+	require.True(t, ok)
+	assert.Equal(t, "router1", fqdn.Hostname)
+	assert.Equal(t, "example.com", fqdn.DomainName)
+}
+
+// TestFQDNRoundTrip verifies FQDN pack/parse.
+func TestFQDNRoundTrip(t *testing.T) {
+	original := &FQDN{
+		Hostname:   "bgp-speaker-01",
+		DomainName: "datacenter.internal",
+	}
+
+	packed := original.Pack()
+	parsed, err := Parse(packed)
+	require.NoError(t, err)
+	require.Len(t, parsed, 1)
+
+	fqdn, ok := parsed[0].(*FQDN)
+	require.True(t, ok)
+	assert.Equal(t, original.Hostname, fqdn.Hostname)
+	assert.Equal(t, original.DomainName, fqdn.DomainName)
+}
+
+// TestFQDNEmpty verifies FQDN with empty fields.
+func TestFQDNEmpty(t *testing.T) {
+	original := &FQDN{
+		Hostname:   "",
+		DomainName: "",
+	}
+
+	packed := original.Pack()
+	parsed, err := Parse(packed)
+	require.NoError(t, err)
+	require.Len(t, parsed, 1)
+
+	fqdn, ok := parsed[0].(*FQDN)
+	require.True(t, ok)
+	assert.Equal(t, "", fqdn.Hostname)
+	assert.Equal(t, "", fqdn.DomainName)
+}
+
+// TestSoftwareVersionCapability verifies Software Version parsing.
+//
+// VALIDATES: Software version capability for debugging.
+//
+// PREVENTS: Missing version info in troubleshooting.
+func TestSoftwareVersionCapability(t *testing.T) {
+	data := []byte{
+		0x4b,                                                  // Code = Software Version (75)
+		0x0c,                                                  // Length = 12
+		0x0b,                                                  // Version length = 11
+		'Z', 'e', 'B', 'G', 'P', '/', '0', '.', '1', '.', '0', // Version
+	}
+
+	caps, err := Parse(data)
+	require.NoError(t, err)
+	require.Len(t, caps, 1)
+
+	sv, ok := caps[0].(*SoftwareVersion)
+	require.True(t, ok)
+	assert.Equal(t, "ZeBGP/0.1.0", sv.Version)
+}
+
+// TestSoftwareVersionRoundTrip verifies Software Version pack/parse.
+func TestSoftwareVersionRoundTrip(t *testing.T) {
+	original := &SoftwareVersion{
+		Version: "ExaBGP/5.0.0-pre1",
+	}
+
+	packed := original.Pack()
+	parsed, err := Parse(packed)
+	require.NoError(t, err)
+	require.Len(t, parsed, 1)
+
+	sv, ok := parsed[0].(*SoftwareVersion)
+	require.True(t, ok)
+	assert.Equal(t, original.Version, sv.Version)
 }

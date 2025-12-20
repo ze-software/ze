@@ -2,6 +2,7 @@ package api
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"sync"
 	"time"
@@ -117,6 +118,117 @@ func (e *JSONEncoder) StateConnected(peer PeerInfo) string {
 	return e.marshal(msg)
 }
 
+// RouteAnnounce returns JSON for a route announcement.
+// Format matches ExaBGP v6 "update" message.
+func (e *JSONEncoder) RouteAnnounce(peer PeerInfo, routes []RouteUpdate) string {
+	msg := e.message(peer, "update")
+	neighbor := e.neighborSection(peer)
+
+	// Build announce section
+	announce := make(map[string]any)
+	for _, r := range routes {
+		family := r.Family()
+		if announce[family] == nil {
+			announce[family] = make(map[string]any)
+		}
+		familyMap := announce[family].(map[string]any)
+
+		nhStr := r.NextHop
+		if familyMap[nhStr] == nil {
+			familyMap[nhStr] = make(map[string]any)
+		}
+		nhMap := familyMap[nhStr].(map[string]any)
+		nhMap[r.Prefix] = r.Attributes()
+	}
+
+	neighbor["message"] = map[string]any{
+		"update": map[string]any{
+			"announce": announce,
+		},
+	}
+	msg["neighbor"] = neighbor
+	return e.marshal(msg)
+}
+
+// RouteWithdraw returns JSON for a route withdrawal.
+// Format matches ExaBGP v6 "update" message with withdraw section.
+func (e *JSONEncoder) RouteWithdraw(peer PeerInfo, routes []RouteUpdate) string {
+	msg := e.message(peer, "update")
+	neighbor := e.neighborSection(peer)
+
+	// Build withdraw section
+	withdraw := make(map[string]any)
+	for _, r := range routes {
+		family := r.Family()
+		if withdraw[family] == nil {
+			withdraw[family] = []string{}
+		}
+		prefixes := withdraw[family].([]string)
+		withdraw[family] = append(prefixes, r.Prefix)
+	}
+
+	neighbor["message"] = map[string]any{
+		"update": map[string]any{
+			"withdraw": withdraw,
+		},
+	}
+	msg["neighbor"] = neighbor
+	return e.marshal(msg)
+}
+
+// EOR returns JSON for an End-of-RIB marker.
+func (e *JSONEncoder) EOR(peer PeerInfo, family string) string {
+	msg := e.message(peer, "update")
+	neighbor := e.neighborSection(peer)
+
+	neighbor["message"] = map[string]any{
+		"eor": map[string]any{
+			"afi":  family,
+			"safi": "unicast",
+		},
+	}
+	msg["neighbor"] = neighbor
+	return e.marshal(msg)
+}
+
+// Notification returns JSON for a NOTIFICATION message.
+func (e *JSONEncoder) Notification(peer PeerInfo, code, subcode uint8, data string) string {
+	msg := e.message(peer, "notification")
+	neighbor := e.neighborSection(peer)
+
+	neighbor["notification"] = map[string]any{
+		"code":    code,
+		"subcode": subcode,
+		"data":    data,
+	}
+	msg["neighbor"] = neighbor
+	return e.marshal(msg)
+}
+
+// Open returns JSON for an OPEN message received.
+func (e *JSONEncoder) Open(peer PeerInfo, capabilities []string) string {
+	msg := e.message(peer, "open")
+	neighbor := e.neighborSection(peer)
+
+	neighbor["open"] = map[string]any{
+		"version":      4,
+		"asn":          peer.PeerAS,
+		"router-id":    uint32ToIP(peer.RouterID),
+		"capabilities": capabilities,
+	}
+	msg["neighbor"] = neighbor
+	return e.marshal(msg)
+}
+
+// uint32ToIP converts a uint32 router ID to dotted decimal.
+func uint32ToIP(id uint32) string {
+	return fmt.Sprintf("%d.%d.%d.%d",
+		byte(id>>24),
+		byte(id>>16),
+		byte(id>>8),
+		byte(id))
+}
+
 // marshal converts a message to JSON string.
 func (e *JSONEncoder) marshal(msg map[string]any) string {
 	data, err := json.Marshal(msg)
@@ -125,4 +237,69 @@ func (e *JSONEncoder) marshal(msg map[string]any) string {
 		return `{"error":"json marshal failed"}`
 	}
 	return string(data)
+}
+
+// RouteUpdate represents a route for JSON encoding.
+type RouteUpdate struct {
+	Prefix  string // e.g., "10.0.0.0/24"
+	NextHop string // e.g., "192.168.1.1"
+	AFI     string // "ipv4" or "ipv6"
+	SAFI    string // "unicast", "multicast", "flowspec", etc.
+
+	// Optional attributes
+	Origin          string   // "igp", "egp", "incomplete"
+	ASPath          []uint32 // AS path sequence
+	LocalPref       uint32
+	MED             uint32
+	Communities     []string // e.g., ["65000:100", "no-export"]
+	LargeCommunity  []string // e.g., ["65000:1:1"]
+	ExtCommunity    []string // Extended communities
+	AtomicAggregate bool
+}
+
+// Family returns the address family string for JSON.
+func (r *RouteUpdate) Family() string {
+	if r.AFI == "" {
+		r.AFI = "ipv4"
+	}
+	if r.SAFI == "" {
+		r.SAFI = "unicast"
+	}
+	return r.AFI + " " + r.SAFI
+}
+
+// Attributes returns the attribute map for JSON.
+func (r *RouteUpdate) Attributes() map[string]any {
+	attrs := make(map[string]any)
+
+	if r.Origin != "" {
+		attrs["origin"] = r.Origin
+	}
+	if len(r.ASPath) > 0 {
+		attrs["as-path"] = r.ASPath
+	}
+	if r.LocalPref > 0 {
+		attrs["local-preference"] = r.LocalPref
+	}
+	if r.MED > 0 {
+		attrs["med"] = r.MED
+	}
+	if len(r.Communities) > 0 {
+		attrs["community"] = r.Communities
+	}
+	if len(r.LargeCommunity) > 0 {
+		attrs["large-community"] = r.LargeCommunity
+	}
+	if len(r.ExtCommunity) > 0 {
+		attrs["extended-community"] = r.ExtCommunity
+	}
+	if r.AtomicAggregate {
+		attrs["atomic-aggregate"] = true
+	}
+
+	// If empty, return empty object (ExaBGP style)
+	if len(attrs) == 0 {
+		return map[string]any{}
+	}
+	return attrs
 }
