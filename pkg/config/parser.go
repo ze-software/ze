@@ -41,6 +41,34 @@ func (t *Tree) SetContainer(name string, child *Tree) {
 	t.containers[name] = child
 }
 
+// MergeContainer merges a container into existing one (or creates if not exists).
+// This handles the case of multiple same-named blocks in config (e.g., multiple announce blocks).
+func (t *Tree) MergeContainer(name string, child *Tree) {
+	existing := t.containers[name]
+	if existing == nil {
+		t.containers[name] = child
+		return
+	}
+	// Merge values.
+	for k, v := range child.values {
+		existing.values[k] = v
+	}
+	// Merge containers (recursively).
+	for k, v := range child.containers {
+		existing.MergeContainer(k, v)
+	}
+	// Merge lists.
+	for k, v := range child.lists {
+		if existing.lists[k] == nil {
+			existing.lists[k] = v
+		} else {
+			for key, entry := range v {
+				existing.lists[k][key] = entry
+			}
+		}
+	}
+}
+
 // GetList returns a list (keyed map of trees).
 func (t *Tree) GetList(name string) map[string]*Tree {
 	return t.lists[name]
@@ -230,7 +258,7 @@ func (p *Parser) parseContainer(tree *Tree, name string, node *ContainerNode) er
 		}
 	}
 
-	tree.SetContainer(name, child)
+	tree.MergeContainer(name, child)
 	return nil
 }
 
@@ -537,7 +565,7 @@ func (p *Parser) parseFreeform(tree *Tree, name string) error {
 		}
 	}
 
-	tree.SetContainer(name, child)
+	tree.MergeContainer(name, child)
 	return nil
 }
 
@@ -583,7 +611,7 @@ func (p *Parser) parseFlex(tree *Tree, name string, node *FlexNode) error {
 			}
 		}
 
-		tree.SetContainer(name, child)
+		tree.MergeContainer(name, child)
 		return nil
 
 	case TokenLParen:

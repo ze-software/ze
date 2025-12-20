@@ -2,8 +2,11 @@ package reactor
 
 import (
 	"context"
+	"encoding/hex"
+	"fmt"
 	"net"
 	"net/netip"
+	"sort"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -314,18 +317,23 @@ func (p *Peer) cleanup() {
 }
 
 // sendInitialRoutes sends static routes configured for this neighbor.
+// Routes with identical attributes are grouped into a single UPDATE message.
 func (p *Peer) sendInitialRoutes() {
 	addr := p.neighbor.Address.String()
 	trace.Log(trace.Routes, "neighbor %s: sending %d static routes", addr, len(p.neighbor.StaticRoutes))
 
-	for _, route := range p.neighbor.StaticRoutes {
-		update := buildStaticRouteUpdate(route, p.neighbor.LocalAS, p.neighbor.IsIBGP())
+	// Group routes by attributes (same attributes = same UPDATE).
+	groups := groupRoutesByAttributes(p.neighbor.StaticRoutes)
+
+	for _, routes := range groups {
+		update := buildGroupedUpdate(routes, p.neighbor.LocalAS, p.neighbor.IsIBGP())
 		if err := p.SendUpdate(update); err != nil {
 			trace.Log(trace.Routes, "neighbor %s: send error: %v", addr, err)
-			// Log error but continue - connection may have closed.
 			break
 		}
-		trace.RouteSent(addr, route.Prefix.String(), route.NextHop.String())
+		for _, route := range routes {
+			trace.RouteSent(addr, route.Prefix.String(), route.NextHop.String())
+		}
 	}
 
 	// Send End-of-RIB marker for IPv4 unicast.
@@ -382,10 +390,14 @@ func buildStaticRouteUpdate(route StaticRoute, localAS uint32, isIBGP bool) *mes
 		attrBytes = append(attrBytes, attribute.PackAttribute(med)...)
 	}
 
-	// 6. COMMUNITIES (RFC 1997) - if set
+	// 6. COMMUNITIES (RFC 1997) - sorted per RFC.
 	if len(route.Communities) > 0 {
-		comms := make(attribute.Communities, len(route.Communities))
-		for i, c := range route.Communities {
+		sorted := make([]uint32, len(route.Communities))
+		copy(sorted, route.Communities)
+		sort.Slice(sorted, func(i, j int) bool { return sorted[i] < sorted[j] })
+
+		comms := make(attribute.Communities, len(sorted))
+		for i, c := range sorted {
 			comms[i] = attribute.Community(c)
 		}
 		attrBytes = append(attrBytes, attribute.PackAttribute(comms)...)
@@ -426,6 +438,184 @@ func buildStaticRouteUpdate(route StaticRoute, localAS uint32, isIBGP bool) *mes
 	default:
 		// IPv6 unicast: use MP_REACH_NLRI attribute (RFC 4760)
 		attrBytes = append(attrBytes, buildMPReachNLRIUnicast(route)...)
+	}
+
+	return &message.Update{
+		PathAttributes: attrBytes,
+		NLRI:           nlriBytes,
+	}
+}
+
+// routeGroupKey generates a string key for grouping routes by attributes.
+// Routes with the same key can be combined into a single UPDATE.
+func routeGroupKey(r StaticRoute) string {
+	// Sort communities for consistent key.
+	comms := make([]uint32, len(r.Communities))
+	copy(comms, r.Communities)
+	sort.Slice(comms, func(i, j int) bool { return comms[i] < comms[j] })
+
+	// Sort large communities.
+	lcs := make([][3]uint32, len(r.LargeCommunities))
+	copy(lcs, r.LargeCommunities)
+	sort.Slice(lcs, func(i, j int) bool {
+		if lcs[i][0] != lcs[j][0] {
+			return lcs[i][0] < lcs[j][0]
+		}
+		if lcs[i][1] != lcs[j][1] {
+			return lcs[i][1] < lcs[j][1]
+		}
+		return lcs[i][2] < lcs[j][2]
+	})
+
+	// Key includes: nexthop, origin, localpref, med, communities, large-communities, ext-communities, vpn, ipv4/ipv6.
+	return fmt.Sprintf("%s|%d|%d|%d|%v|%v|%s|%s|%v",
+		r.NextHop.String(),
+		r.Origin,
+		r.LocalPreference,
+		r.MED,
+		comms,
+		lcs,
+		hex.EncodeToString(r.ExtCommunityBytes),
+		r.RD,
+		r.Prefix.Addr().Is4(),
+	)
+}
+
+// groupRoutesByAttributes groups routes by their attribute key.
+// Returns groups sorted: multi-route groups first (by first prefix), then singletons (by prefix).
+// This matches ExaBGP's behavior for UPDATE grouping.
+func groupRoutesByAttributes(routes []StaticRoute) [][]StaticRoute {
+	groups := make(map[string][]StaticRoute)
+
+	for _, r := range routes {
+		key := routeGroupKey(r)
+		groups[key] = append(groups[key], r)
+	}
+
+	// Collect groups into slice.
+	result := make([][]StaticRoute, 0, len(groups))
+	for _, g := range groups {
+		// Sort routes within group by prefix.
+		sort.Slice(g, func(i, j int) bool {
+			return g[i].Prefix.Addr().Compare(g[j].Prefix.Addr()) < 0
+		})
+		result = append(result, g)
+	}
+
+	// Sort groups: multi-route first, then singletons, each ordered by first prefix.
+	sort.Slice(result, func(i, j int) bool {
+		// Multi-route groups come before singletons.
+		if len(result[i]) > 1 && len(result[j]) == 1 {
+			return true
+		}
+		if len(result[i]) == 1 && len(result[j]) > 1 {
+			return false
+		}
+		// Same category: sort by first prefix.
+		return result[i][0].Prefix.Addr().Compare(result[j][0].Prefix.Addr()) < 0
+	})
+
+	return result
+}
+
+// buildGroupedUpdate builds an UPDATE message for multiple routes with same attributes.
+func buildGroupedUpdate(routes []StaticRoute, localAS uint32, isIBGP bool) *message.Update {
+	if len(routes) == 0 {
+		return &message.Update{}
+	}
+
+	// Use first route as representative for attributes.
+	route := routes[0]
+	var attrBytes []byte
+
+	// 1. ORIGIN.
+	origin := attribute.Origin(route.Origin)
+	attrBytes = append(attrBytes, attribute.PackAttribute(origin)...)
+
+	// 2. AS_PATH.
+	var asPath *attribute.ASPath
+	if isIBGP {
+		asPath = &attribute.ASPath{Segments: nil}
+	} else {
+		asPath = &attribute.ASPath{
+			Segments: []attribute.ASPathSegment{
+				{Type: attribute.ASSequence, ASNs: []uint32{localAS}},
+			},
+		}
+	}
+	attrBytes = append(attrBytes, attribute.PackAttribute(asPath)...)
+
+	// 3. NEXT_HOP (for IPv4 routes).
+	if route.NextHop.Is4() {
+		nextHop := &attribute.NextHop{Addr: route.NextHop}
+		attrBytes = append(attrBytes, attribute.PackAttribute(nextHop)...)
+	}
+
+	// 4. LOCAL_PREF (for iBGP).
+	if isIBGP {
+		localPref := route.LocalPreference
+		if localPref == 0 {
+			localPref = 100
+		}
+		attrBytes = append(attrBytes, attribute.PackAttribute(attribute.LocalPref(localPref))...)
+	}
+
+	// 5. MED (if set).
+	if route.MED > 0 {
+		med := attribute.MED(route.MED)
+		attrBytes = append(attrBytes, attribute.PackAttribute(med)...)
+	}
+
+	// 6. COMMUNITIES (RFC 1997) - sorted per RFC 1997.
+	if len(route.Communities) > 0 {
+		// Copy and sort communities.
+		sorted := make([]uint32, len(route.Communities))
+		copy(sorted, route.Communities)
+		sort.Slice(sorted, func(i, j int) bool { return sorted[i] < sorted[j] })
+
+		comms := make(attribute.Communities, len(sorted))
+		for i, c := range sorted {
+			comms[i] = attribute.Community(c)
+		}
+		attrBytes = append(attrBytes, attribute.PackAttribute(comms)...)
+	}
+
+	// 7. EXTENDED_COMMUNITY.
+	if len(route.ExtCommunityBytes) > 0 {
+		ecAttr := make([]byte, 0, 3+len(route.ExtCommunityBytes))
+		ecAttr = append(ecAttr, 0xC0, 0x10, byte(len(route.ExtCommunityBytes)))
+		ecAttr = append(ecAttr, route.ExtCommunityBytes...)
+		attrBytes = append(attrBytes, ecAttr...)
+	}
+
+	// 8. LARGE_COMMUNITIES (RFC 8092).
+	if len(route.LargeCommunities) > 0 {
+		lcs := make(attribute.LargeCommunities, len(route.LargeCommunities))
+		for i, lc := range route.LargeCommunities {
+			lcs[i] = attribute.LargeCommunity{
+				GlobalAdmin: lc[0],
+				LocalData1:  lc[1],
+				LocalData2:  lc[2],
+			}
+		}
+		attrBytes = append(attrBytes, attribute.PackAttribute(lcs)...)
+	}
+
+	// Build NLRI for all routes in group.
+	var nlriBytes []byte
+	for _, r := range routes {
+		switch {
+		case r.IsVPN():
+			// VPN routes need separate handling - for now, just use first.
+			attrBytes = append(attrBytes, buildMPReachNLRI(r)...)
+		case r.Prefix.Addr().Is4():
+			// IPv4 unicast: append to NLRI.
+			inet := nlri.NewINET(nlri.Family{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast}, r.Prefix, r.PathID)
+			nlriBytes = append(nlriBytes, inet.Bytes()...)
+		default:
+			// IPv6 unicast: use MP_REACH_NLRI (handle separately).
+			attrBytes = append(attrBytes, buildMPReachNLRIUnicast(r)...)
+		}
 	}
 
 	return &message.Update{

@@ -6,167 +6,130 @@
 
 ## Current Test Status
 
-### Tests Exist But Most Fail
+### Progress Made This Session
 
-**Tests ARE copied from ExaBGP** - infrastructure works. Failures are due to **missing protocol implementation**.
+| Test | Before | After | Notes |
+|------|--------|-------|-------|
+| 0 (addpath) | Pass | Pass | - |
+| 3 (conf-asn4) | Pass | Pass | - |
+| 4 (ebgp) | Pass | Pass | announce block parsing works |
+| C (hostname) | Pass | Pass | - |
+| F | Pass | Pass | - |
+| M | Pass | Pass | - |
+| N (new-v4) | Fail | **Pass** | UPDATE grouping fixed |
+| O (new-v6) | Fail | Fail | IPv6 routes not sent |
 
-```bash
-# Run all tests
-go run ./cmd/self-check --timeout=10s --all
+### Key Accomplishments
 
-# Current status (2025-12-20):
-# ~6 pass, ~31 fail out of 37 encoding tests
-```
-
-**Test locations:**
-```
-testdata/encode/   # 37 .ci files + 38 .conf files
-testdata/decode/   # 18 .test files
-testdata/api/      # 89 files
-testdata/parse/    # Config parsing tests
-testdata/scripts/  # Helper scripts
-```
-
-### What's Missing in ZeBGP (Causes Test Failures)
-
-| Feature | Status | Blocks Tests |
-|---------|--------|--------------|
-| MP_REACH_NLRI / MP_UNREACH_NLRI | Not implemented | Most IPv6, VPN tests |
-| Communities | Not implemented | community tests |
-| Extended Communities | Not implemented | ext-community tests |
-| Large Communities | Not implemented | large-community tests |
-| FlowSpec NLRI | Not implemented | flow-* tests |
-| VPN NLRI (VPNv4/v6) | Not implemented | vpn tests |
-| EVPN NLRI | Not implemented | l2vpn tests |
-| BGP-LS NLRI | Not implemented | bgp-ls-* decode tests |
+1. **UPDATE grouping** - Routes with same attributes now grouped into single UPDATE
+2. **Container merging** - Multiple same-named blocks (e.g., `announce`) now merge
+3. **Community sorting** - Communities sorted per RFC 1997
+4. **Template inheritance** - `template { neighbor <name> { ... } }` and `inherit` work
 
 ---
 
 ## What Remains To Be Done
 
-### Priority 1: Implement Missing Protocol Features
+### Priority 1: Fix IPv6 Route Sending (new-v6)
 
-**To pass existing tests, implement in this order:**
+**Problem**: IPv6 routes not being sent at all. UPDATE is empty.
 
-1. **MP_REACH_NLRI / MP_UNREACH_NLRI** (RFC 4760)
-   - Required for: IPv6, VPN, FlowSpec, EVPN, all multi-protocol
-   - Files: `pkg/bgp/attribute/mp_reach.go`, `pkg/bgp/attribute/mp_unreach.go`
+**Evidence** (test O - new-v6):
+```
+Received: UPDATE (len=23)   # Empty UPDATE (23 = header only)
 
-2. **Communities** (RFC 1997)
-   - Required for: community tests
-   - Files: `pkg/bgp/attribute/communities.go`
-
-3. **Extended Communities** (RFC 4360)
-   - Required for: VPN, FlowSpec redirect
-   - Files: `pkg/bgp/attribute/extended_communities.go`
-
-4. **Large Communities** (RFC 8092)
-   - Required for: large community tests
-   - Files: `pkg/bgp/attribute/large_communities.go`
-
-### Priority 2: Config-Based Route Announcements
-
-The infrastructure is in place but **Freeform parsing doesn't extract nested route data**.
-
-**Current Limitation:**
-```go
-// In pkg/config/bgp.go:77-78
-Field("static", Freeform()),  // Stores "route 10.0.0.0/24" as key, loses nested data
+Differences:
+  - MP_REACH_NLRI: ... (missing)
+  - ORIGIN: IGP (missing)
+  - AS_PATH: [] (missing)
+  - LOCAL_PREF: 200 (missing)
+  - COMMUNITIES: 30740:0 30740:30740 (missing)
 ```
 
-**Solutions (pick one):**
-1. Parse Freeform data manually in `parseNeighborConfig()` - complex regex/tokenizing
-2. Create custom schema type that handles both block and inline syntax
-3. Only support block syntax - change to `List(TypePrefix, ...)` schema
+**Possible Causes**:
 
-### Priority 3: Improve Test Coverage
+1. **Routes not extracted from config** - Check if IPv6 prefixes parse correctly
+   - Location: `pkg/config/bgp.go:455-468` - `extractRoutesFromTree()` IPv6 branch
+   - Test: Add debug logging to verify routes are extracted
 
-Current coverage:
-- `pkg/api` - 42.4%
-- `pkg/editor` - 27.4%
-- `pkg/reactor` - 64.6%
-- `pkg/config` - 70.6%
+2. **EOR sent for wrong AFI/SAFI** - Currently hardcoded to IPv4:
+   ```go
+   // pkg/reactor/peer.go:332-334
+   eor := buildEORUpdate(1, 1) // IPv4 unicast - should be IPv6 for IPv6 routes!
+   ```
+
+3. **Family mismatch** - May not recognize IPv6 family from config
+
+**Test config** (`testdata/encode/new-v6.conf`):
+```
+family {
+    ipv6 unicast;
+}
+announce {
+    ipv6 {
+        unicast 2A02:B80:0:1::1/128 next-hop 2A02:B80:0:2::1 community [30740:0 30740:30740];
+    }
+}
+```
+
+**Debugging steps**:
+1. Add trace logging in `sendInitialRoutes()` to see if routes exist
+2. Check if `route.Prefix.Addr().Is6()` returns true
+3. Verify `buildMPReachNLRIUnicast()` is being called
 
 ---
 
-## What Was Accomplished (Previous Sessions)
+### Priority 2: Fix Remaining Schema Issues (Optional)
 
-### 1. Fixed Self-Check Test Infrastructure
+Some config files fail to parse due to exotic syntax. These don't block core functionality.
 
-The `self-check` command works correctly for running ExaBGP-style integration tests.
-
-**Bugs Fixed:**
-- `cmd/self-check/main.go:410` - Changed `"run"` to `"server"` (zebgp command)
-- `cmd/self-check/main.go:434-438` - Read server pipes asynchronously before `Wait()` returns
-- `cmd/self-check/main.go:448-449` - Kill client before reading its output
-- `pkg/testpeer/peer.go:476-479` - Removed KEEPALIVE bypass so expected messages are matched
-
-### 2. Added Static Route Support Infrastructure
-
-Routes can now be configured per-neighbor and sent when session is established.
-
-**New Types:**
-- `pkg/reactor/neighbor.go:18-25` - `StaticRoute` struct
-
-**New Functions:**
-- `pkg/reactor/peer.go:309-323` - `sendInitialRoutes()`
-- `pkg/reactor/peer.go:326-369` - `buildStaticRouteUpdate()`
-
-### 3. Copied ExaBGP Tests
-
-All tests from `../main/qa/encoding/` and `../main/qa/decoding/` copied to `testdata/`.
+**Failing configs** (from `TestParseAllConfigFiles`):
+- `api-watchdog.conf` - `withdraw;` flag (no value)
+- `conf-aggregator.conf` - `atomic-aggregate aggregator` combo
+- `conf-l2vpn.conf` - `vpls` inline syntax
+- `conf-mvpn.conf` - `mcast-vpn` inline syntax
+- `conf-srv6-mup.conf` - `mup` inline syntax
 
 ---
 
 ## Key File Locations
 
-| Purpose | File |
-|---------|------|
-| Self-check runner | `cmd/self-check/main.go` |
-| Test peer | `cmd/zebgp-peer/main.go`, `pkg/testpeer/peer.go` |
-| BGP session | `pkg/reactor/session.go` |
-| Peer with reconnection | `pkg/reactor/peer.go` |
-| Neighbor config | `pkg/reactor/neighbor.go` |
-| Config schema | `pkg/config/bgp.go` |
-| Config loading | `pkg/config/loader.go` |
-| Test data | `testdata/encode/*.ci`, `testdata/decode/*.test` |
+| Purpose | File | Lines |
+|---------|------|-------|
+| Route sending | `pkg/reactor/peer.go` | 319-345 |
+| Route grouping | `pkg/reactor/peer.go` | 480-515 |
+| Grouped UPDATE builder | `pkg/reactor/peer.go` | 517-615 |
+| Container merging | `pkg/config/parser.go` | 44-70 |
+| Route extraction | `pkg/config/bgp.go` | 419-474 |
 
 ---
 
-## Useful Commands
+## Useful Debug Commands
 
 ```bash
-# Run all unit tests
-go test ./... -count=1
+# Run specific tests
+go run ./cmd/self-check --timeout=15s N   # new-v4 (UPDATE grouping) - PASSES
+go run ./cmd/self-check --timeout=15s O   # new-v6 (IPv6 routes)
 
-# Run self-check integration tests
+# Run all tests
 go run ./cmd/self-check --timeout=15s --all
 
-# Run specific self-check test by index
-go run ./cmd/self-check --timeout=15s 0
+# Run all BGPSchema tests
+go test ./pkg/config/... -run "TestBGPSchema" -v
 
-# List available self-check tests
-go run ./cmd/self-check --list
-
-# View expected messages in a test file
-go run ./cmd/zebgp-peer --view testdata/encode/ebgp.ci
-
-# Run zebgp-peer in sink mode
-go run ./cmd/zebgp-peer --port 1790 --sink
+# View test expectations
+cat testdata/encode/new-v4.ci
+cat testdata/encode/new-v6.ci
 ```
 
 ---
 
-## Known Issues
+## Recent Commits
 
-1. **Freeform schema**: Doesn't preserve nested structure. `GetList("route")` returns empty for Freeform containers.
-
-2. **Test failures**: Most self-check tests fail due to missing protocol features (MP_REACH, Communities, etc.), not infrastructure issues.
-
----
-
-## Implementation Plan Reference
-
-See `ZE_IMPLEMENTATION_PLAN.md` for the full implementation plan.
-
-Branch: `main`
+```
+<pending> Implement UPDATE grouping for routes with same attributes
+00ae35c Add template inheritance support for config parsing
+43f3869 Update session documentation and continuation state
+8f0529a Fix all lint issues: godot, goconst, gocritic
+a967d6c Fix schema issues for exotic syntaxes and flag attributes
+```
