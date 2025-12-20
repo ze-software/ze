@@ -78,6 +78,33 @@ ls -la plan/ 2>/dev/null || echo "No plan directory"
 - Error handling per Section 6
 - Path attribute handling per Appendix F
 
+**RFC Reference Folder:** `rfc/`
+
+All BGP RFCs that are fully or partially implemented MUST have their text
+version in the `rfc/` folder. See `rfc/README.md` for the index.
+
+**MANDATORY: RFC References in Code**
+
+Code implementing RFC functionality MUST include a comment referencing
+the RFC number and section:
+
+```go
+// parseOpenMessage parses a BGP OPEN message.
+// RFC 4271 Section 4.2 - OPEN Message Format
+func parseOpenMessage(data []byte) (*OpenMessage, error) {
+    // ...
+}
+
+// validateHoldTime checks hold time per RFC 4271.
+// RFC 4271 Section 4.2: "Hold Time MUST be either zero or at least three seconds"
+func validateHoldTime(holdTime uint16) error {
+    // ...
+}
+```
+
+**Why:** Direct RFC references enable verification of implementation correctness
+and make it easy to cross-check behavior against specifications.
+
 ---
 
 ### 0.1 ExaBGP Reference Implementation (MUST CHECK BEFORE CODING)
