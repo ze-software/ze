@@ -1,0 +1,4 @@
+# Build artifacts
+bin/
+coverage.out
+coverage.html
