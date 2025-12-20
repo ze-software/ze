@@ -149,6 +149,54 @@ func (a *reactorAPIAdapter) WithdrawRoute(_ string, _ netip.Prefix) error {
 	return errors.New("not implemented")
 }
 
+// Reload reloads the configuration.
+// TODO: Implement full configuration reload.
+func (a *reactorAPIAdapter) Reload() error {
+	// For now, just return success.
+	// Full implementation would:
+	// 1. Parse new config file
+	// 2. Diff with current config
+	// 3. Add/remove neighbors
+	// 4. Update neighbor settings
+	return nil
+}
+
+// AnnounceFlowSpec announces a FlowSpec route to matching peers.
+// TODO: Implement when FlowSpec RIB integration is complete.
+func (a *reactorAPIAdapter) AnnounceFlowSpec(_ string, _ api.FlowSpecRoute) error {
+	return errors.New("flowspec: not implemented")
+}
+
+// WithdrawFlowSpec withdraws a FlowSpec route from matching peers.
+// TODO: Implement when FlowSpec RIB integration is complete.
+func (a *reactorAPIAdapter) WithdrawFlowSpec(_ string, _ api.FlowSpecRoute) error {
+	return errors.New("flowspec: not implemented")
+}
+
+// AnnounceVPLS announces a VPLS route to matching peers.
+// TODO: Implement when VPLS RIB integration is complete.
+func (a *reactorAPIAdapter) AnnounceVPLS(_ string, _ api.VPLSRoute) error {
+	return errors.New("vpls: not implemented")
+}
+
+// WithdrawVPLS withdraws a VPLS route from matching peers.
+// TODO: Implement when VPLS RIB integration is complete.
+func (a *reactorAPIAdapter) WithdrawVPLS(_ string, _ api.VPLSRoute) error {
+	return errors.New("vpls: not implemented")
+}
+
+// AnnounceL2VPN announces an L2VPN/EVPN route to matching peers.
+// TODO: Implement when L2VPN/EVPN RIB integration is complete.
+func (a *reactorAPIAdapter) AnnounceL2VPN(_ string, _ api.L2VPNRoute) error {
+	return errors.New("l2vpn: not implemented")
+}
+
+// WithdrawL2VPN withdraws an L2VPN/EVPN route from matching peers.
+// TODO: Implement when L2VPN/EVPN RIB integration is complete.
+func (a *reactorAPIAdapter) WithdrawL2VPN(_ string, _ api.L2VPNRoute) error {
+	return errors.New("l2vpn: not implemented")
+}
+
 // TeardownPeer gracefully closes a peer session.
 func (a *reactorAPIAdapter) TeardownPeer(addr netip.Addr, _ string) error {
 	a.r.mu.RLock()

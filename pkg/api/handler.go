@@ -8,11 +8,12 @@ import (
 // Version is the ZeBGP version string.
 const Version = "0.1.0"
 
-// RegisterDefaultHandlers registers all P0 command handlers.
+// RegisterDefaultHandlers registers all command handlers.
 func RegisterDefaultHandlers(d *Dispatcher) {
 	// Daemon control
 	d.Register("daemon shutdown", handleDaemonShutdown, "Gracefully shutdown the daemon")
 	d.Register("daemon status", handleDaemonStatus, "Show daemon status")
+	d.Register("daemon reload", handleDaemonReload, "Reload the configuration")
 
 	// Peer operations
 	d.Register("peer list", handlePeerList, "List all peers (brief)")
@@ -51,6 +52,22 @@ func handleDaemonStatus(ctx *CommandContext, _ []string) (*Response, error) {
 			"uptime":     stats.Uptime.String(),
 			"peer_count": stats.PeerCount,
 			"start_time": stats.StartTime.Format("2006-01-02T15:04:05Z07:00"),
+		},
+	}, nil
+}
+
+// handleDaemonReload reloads the configuration.
+func handleDaemonReload(ctx *CommandContext, _ []string) (*Response, error) {
+	if err := ctx.Reactor.Reload(); err != nil {
+		return &Response{
+			Status: "error",
+			Error:  fmt.Sprintf("reload failed: %v", err),
+		}, err
+	}
+	return &Response{
+		Status: "done",
+		Data: map[string]any{
+			"message": "configuration reloaded",
 		},
 	}, nil
 }
@@ -102,16 +119,27 @@ func handlePeerShow(ctx *CommandContext, args []string) (*Response, error) {
 }
 
 // handleSystemHelp returns list of available commands.
-func handleSystemHelp(ctx *CommandContext, _ []string) (*Response, error) {
+func handleSystemHelp(_ *CommandContext, _ []string) (*Response, error) {
 	// We need access to the dispatcher to list commands
 	// For now, return a static list
 	commands := []string{
 		"daemon shutdown - Gracefully shutdown the daemon",
 		"daemon status - Show daemon status",
+		"daemon reload - Reload the configuration",
 		"peer list - List all peers (brief)",
 		"peer show [<ip>] - Show peer details",
+		"peer teardown <ip> [reason] - Teardown a peer session",
 		"rib show in - Show Adj-RIB-In",
 		"rib show out - Show Adj-RIB-Out",
+		"announce route <prefix> next-hop <addr> - Announce a route",
+		"announce eor [<afi> <safi>] - Send End-of-RIB marker",
+		"announce flow match <spec> then <action> - Announce a FlowSpec route",
+		"announce vpls rd <rd> ... - Announce a VPLS route",
+		"announce l2vpn <type> rd <rd> ... - Announce an L2VPN/EVPN route",
+		"withdraw route <prefix> - Withdraw a route",
+		"withdraw flow match <spec> - Withdraw a FlowSpec route",
+		"withdraw vpls rd <rd> - Withdraw a VPLS route",
+		"withdraw l2vpn <type> rd <rd> ... - Withdraw an L2VPN/EVPN route",
 		"system help - Show available commands",
 		"system version - Show version",
 	}

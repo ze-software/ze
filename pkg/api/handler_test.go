@@ -56,6 +56,34 @@ func (m *mockReactor) TeardownPeer(_ netip.Addr, _ string) error {
 	return nil
 }
 
+func (m *mockReactor) Reload() error {
+	return nil
+}
+
+func (m *mockReactor) AnnounceFlowSpec(_ string, _ FlowSpecRoute) error {
+	return nil
+}
+
+func (m *mockReactor) WithdrawFlowSpec(_ string, _ FlowSpecRoute) error {
+	return nil
+}
+
+func (m *mockReactor) AnnounceVPLS(_ string, _ VPLSRoute) error {
+	return nil
+}
+
+func (m *mockReactor) WithdrawVPLS(_ string, _ VPLSRoute) error {
+	return nil
+}
+
+func (m *mockReactor) AnnounceL2VPN(_ string, _ L2VPNRoute) error {
+	return nil
+}
+
+func (m *mockReactor) WithdrawL2VPN(_ string, _ L2VPNRoute) error {
+	return nil
+}
+
 // TestHandlerPeerList verifies peer list output.
 //
 // VALIDATES: All peers returned with state info.
