@@ -9,88 +9,63 @@
 
 ---
 
-## Phase 1: Message Layer (`pkg/bgp/message/`)
-
-### 1.1 Header (`header.go`)
-- [ ] Add RFC 4271 Section 4.1 references
-- [ ] Document violations: ___
-
-### 1.2 OPEN (`open.go`)
-- [ ] Add RFC 4271 Section 4.2 references
-- [ ] Document violations: ___
-
-### 1.3 UPDATE (`update.go`)
-- [ ] Add RFC 4271 Section 4.3 references
-- [ ] Document violations: ___
-
-### 1.4 NOTIFICATION (`notification.go`)
-- [ ] Add RFC 4271 Section 4.5 references
-- [ ] Document violations: ___
-
-### 1.5 KEEPALIVE (`keepalive.go`)
-- [ ] Add RFC 4271 Section 4.4 references
-- [ ] Document violations: ___
-
-### 1.6 ROUTE-REFRESH (`routerefresh.go`)
-- [ ] Add RFC 2918 references
-- [ ] Document violations: ___
-
----
-
-## Phase 2: Capabilities (`pkg/bgp/capability/`)
+## Phase 1: Message Layer (`pkg/bgp/message/`) ✅
 
 | File | RFC | Status |
 |------|-----|--------|
-| capability.go | RFC 5492 | [ ] |
-| multiprotocol.go | RFC 4760 | [ ] |
-| asn4.go | RFC 6793 | [ ] |
-| addpath.go | RFC 7911 | [ ] |
-| routerefresh.go | RFC 2918 | [ ] |
-| gracefulrestart.go | RFC 4724 | [ ] |
-| extendedmessage.go | RFC 8654 | [ ] |
+| header.go | RFC 4271 Section 4.1 | ✅ |
+| open.go | RFC 4271 Section 4.2 | ✅ |
+| update.go | RFC 4271 Section 4.3 | ✅ |
+| notification.go | RFC 4271 Section 4.5 | ✅ |
+| keepalive.go | RFC 4271 Section 4.4 | ✅ |
+| routerefresh.go | RFC 2918 | ✅ |
 
 ---
 
-## Phase 3: Path Attributes (`pkg/bgp/attribute/`)
+## Phase 2: Capabilities (`pkg/bgp/capability/`) ✅
 
 | File | RFC | Status |
 |------|-----|--------|
-| origin.go | RFC 4271 Section 5.1.1 | [ ] |
-| aspath.go | RFC 4271 Section 5.1.2, RFC 6793 | [ ] |
-| nexthop.go | RFC 4271 Section 5.1.3 | [ ] |
-| med.go | RFC 4271 Section 5.1.4 | [ ] |
-| localpref.go | RFC 4271 Section 5.1.5 | [ ] |
-| atomicaggregate.go | RFC 4271 Section 5.1.6 | [ ] |
-| aggregator.go | RFC 4271 Section 5.1.7 | [ ] |
-| community.go | RFC 1997 | [ ] |
-| extcommunity.go | RFC 4360 | [ ] |
-| largecommunity.go | RFC 8092 | [ ] |
-| mpreach.go | RFC 4760 Section 3 | [ ] |
-| mpunreach.go | RFC 4760 Section 4 | [ ] |
+| capability.go | RFC 5492, 4760, 6793, 7911, 4724, 8654, 8950 | ✅ |
+| negotiated.go | RFC 5492, 4760, 6793, 7911, 8654 | ✅ |
 
 ---
 
-## Phase 4: NLRI Types (`pkg/bgp/nlri/`)
+## Phase 3: Path Attributes (`pkg/bgp/attribute/`) ✅
 
 | File | RFC | Status |
 |------|-----|--------|
-| ipv4.go | RFC 4271 Section 4.3 | [ ] |
-| ipv6.go | RFC 4760 | [ ] |
-| vpnv4.go | RFC 4364 | [ ] |
-| vpnv6.go | RFC 4659 | [ ] |
-| evpn.go | RFC 7432 | [ ] |
-| flowspec.go | RFC 8955 | [ ] |
+| attribute.go | RFC 4271 Section 4.3, 5 | ✅ |
+| aspath.go | RFC 4271 Section 5.1.2, RFC 6793 | ✅ |
+| as4.go | RFC 6793 | ✅ |
+| origin.go | RFC 4271 Section 5.1.1 | ✅ |
+| community.go | RFC 1997, 4360, 8092 | ✅ |
+| simple.go | RFC 4271 Sections 5.1.3-5.1.7 | ✅ |
+| mpnlri.go | RFC 4760 Sections 3-4 | ✅ |
 
 ---
 
-## Phase 5: FSM (`pkg/bgp/fsm/`)
+## Phase 4: NLRI Types (`pkg/bgp/nlri/`) ✅
 
 | File | RFC | Status |
 |------|-----|--------|
-| fsm.go | RFC 4271 Section 8 | [ ] |
-| states.go | RFC 4271 Section 8.2.2 | [ ] |
-| events.go | RFC 4271 Section 8.1.2 | [ ] |
-| timers.go | RFC 4271 Section 8.1.3 | [ ] |
+| nlri.go | RFC 4271, 4760, 7911 | ✅ |
+| inet.go | RFC 4271 Section 4.3 | ✅ |
+| ipvpn.go | RFC 4364, 4659, 3107 | ✅ |
+| evpn.go | RFC 7432, 9136 | ✅ |
+| flowspec.go | RFC 8955 | ✅ |
+| bgpls.go | RFC 7752, 9514 | ✅ |
+| other.go | RFC 6514, 4761, 4684 | ✅ |
+
+---
+
+## Phase 5: FSM (`pkg/bgp/fsm/`) ✅
+
+| File | RFC | Status |
+|------|-----|--------|
+| fsm.go | RFC 4271 Section 8 | ✅ |
+| state.go | RFC 4271 Section 8.2.2 | ✅ |
+| timer.go | RFC 4271 Section 8.1.3, 10 | ✅ |
 
 ---
 
