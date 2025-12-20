@@ -2,6 +2,8 @@
 
 Run ALL tests before declaring code ready.
 
+**Current test status:** See `CLAUDE_CONTINUATION.md` in project root.
+
 ---
 
 ## Required Test Sequence

@@ -8,17 +8,20 @@ Documentation and protocols for Claude Code interactions with ZeBGP.
 
 **You have NO memory between sessions**
 
-### MANDATORY FIRST ACTION
+### MANDATORY FIRST ACTIONS
 
-**Read `ESSENTIAL_PROTOCOLS.md` (~5 KB)**
+1. **Read `CLAUDE_CONTINUATION.md`** (project root)
+   - Current development state and priorities
+   - Test status (what passes/fails and why)
+   - What was accomplished in previous sessions
+   - Key file locations
 
-This single file contains core rules that apply to ALL interactions:
-- Verification before claiming success
-- Communication style (terse, emoji-prefixed)
-- Testing requirements (make test)
-- Coding standards essentials (Go 1.21+, golangci-lint)
-- Session start workflow
-- Contextual protocol loading guide
+2. **Read `ESSENTIAL_PROTOCOLS.md`** (~5 KB)
+   - Core rules for ALL interactions
+   - Verification before claiming success
+   - Communication style (terse, emoji-prefixed)
+   - Testing requirements (make test)
+   - Coding standards essentials
 
 ### Then Check Git State
 
@@ -30,7 +33,7 @@ If ANY files modified/staged: ASK user how to handle before starting work.
 
 ### Load Contextual Protocols Based on Task
 
-**Most tasks are covered by ESSENTIAL_PROTOCOLS.md alone.** Only load additional protocols when explicitly needed.
+**Most tasks are covered by the above.** Only load additional protocols when explicitly needed.
 
 ---
 
