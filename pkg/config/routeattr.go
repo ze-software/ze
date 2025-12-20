@@ -44,6 +44,138 @@ func (o Origin) String() string {
 	}
 }
 
+// Community represents standard BGP communities (RFC 1997).
+// Each community is 4 bytes: high 16 bits = ASN, low 16 bits = value.
+type Community struct {
+	Raw    string   // Original string (e.g., "30740:30740")
+	Values []uint32 // Parsed values (each is ASN<<16 | value)
+}
+
+// ParseCommunity parses community string(s) to wire format values.
+// Formats: ASN:Value, list in brackets [ASN:Value ASN:Value], well-known names
+func ParseCommunity(s string) (Community, error) {
+	if s == "" {
+		return Community{}, nil
+	}
+
+	// Remove brackets if present: [30740:0 30740:30740] -> 30740:0 30740:30740
+	s = strings.TrimSpace(s)
+	if strings.HasPrefix(s, "[") && strings.HasSuffix(s, "]") {
+		s = strings.TrimPrefix(s, "[")
+		s = strings.TrimSuffix(s, "]")
+		s = strings.TrimSpace(s)
+	}
+
+	parts := strings.Fields(s)
+	var values []uint32
+
+	for _, p := range parts {
+		v, err := parseOneCommunity(p)
+		if err != nil {
+			return Community{}, err
+		}
+		values = append(values, v)
+	}
+
+	return Community{Raw: s, Values: values}, nil
+}
+
+// parseOneCommunity parses a single community string to uint32.
+func parseOneCommunity(s string) (uint32, error) {
+	// Check for well-known communities
+	switch strings.ToLower(s) {
+	case "no_export", "no-export":
+		return 0xFFFFFF01, nil
+	case "no_advertise", "no-advertise":
+		return 0xFFFFFF02, nil
+	case "no_export_subconfed", "no-export-subconfed":
+		return 0xFFFFFF03, nil
+	case "nopeer", "no-peer":
+		return 0xFFFFFF04, nil
+	}
+
+	// Parse ASN:Value format
+	parts := strings.Split(s, ":")
+	if len(parts) != 2 {
+		// Try as single integer
+		n, err := strconv.ParseUint(s, 10, 32)
+		if err != nil {
+			return 0, fmt.Errorf("invalid community %q: expected ASN:Value format", s)
+		}
+		return uint32(n), nil
+	}
+
+	asn, err := strconv.ParseUint(parts[0], 10, 16)
+	if err != nil {
+		return 0, fmt.Errorf("invalid community ASN %q", parts[0])
+	}
+	val, err := strconv.ParseUint(parts[1], 10, 16)
+	if err != nil {
+		return 0, fmt.Errorf("invalid community value %q", parts[1])
+	}
+
+	return uint32(asn)<<16 | uint32(val), nil
+}
+
+// LargeCommunity represents large BGP communities (RFC 8092).
+// Each community is 12 bytes: GlobalAdmin(4) + LocalData1(4) + LocalData2(4).
+type LargeCommunity struct {
+	Raw    string      // Original string
+	Values [][3]uint32 // Parsed values (each is [GA, LD1, LD2])
+}
+
+// ParseLargeCommunity parses large community string(s).
+// Format: GA:LD1:LD2, list in brackets [GA:LD1:LD2 GA:LD1:LD2]
+func ParseLargeCommunity(s string) (LargeCommunity, error) {
+	if s == "" {
+		return LargeCommunity{}, nil
+	}
+
+	// Remove brackets if present
+	s = strings.TrimSpace(s)
+	if strings.HasPrefix(s, "[") && strings.HasSuffix(s, "]") {
+		s = strings.TrimPrefix(s, "[")
+		s = strings.TrimSuffix(s, "]")
+		s = strings.TrimSpace(s)
+	}
+
+	parts := strings.Fields(s)
+	var values [][3]uint32
+
+	for _, p := range parts {
+		v, err := parseOneLargeCommunity(p)
+		if err != nil {
+			return LargeCommunity{}, err
+		}
+		values = append(values, v)
+	}
+
+	return LargeCommunity{Raw: s, Values: values}, nil
+}
+
+// parseOneLargeCommunity parses a single large community to [3]uint32.
+func parseOneLargeCommunity(s string) ([3]uint32, error) {
+	parts := strings.Split(s, ":")
+	if len(parts) != 3 {
+		return [3]uint32{}, fmt.Errorf("invalid large-community %q: expected GA:LD1:LD2 format", s)
+	}
+
+	ga, err := strconv.ParseUint(parts[0], 10, 32)
+	if err != nil {
+		return [3]uint32{}, fmt.Errorf("invalid large-community global-admin %q", parts[0])
+	}
+	ld1, err := strconv.ParseUint(parts[1], 10, 32)
+	if err != nil {
+		return [3]uint32{}, fmt.Errorf("invalid large-community local-data1 %q", parts[1])
+	}
+	ld2, err := strconv.ParseUint(parts[2], 10, 32)
+	if err != nil {
+		return [3]uint32{}, fmt.Errorf("invalid large-community local-data2 %q", parts[2])
+	}
+
+	return [3]uint32{uint32(ga), uint32(ld1), uint32(ld2)}, nil
+}
+
 // ExtendedCommunity represents one or more extended communities (RFC 4360).
 // Formats: target:ASN:NN, origin:ASN:NN, N:IP:NN, ASN:IP (type-0 generic)
 type ExtendedCommunity struct {
@@ -377,7 +509,9 @@ type ParsedRouteAttributes struct {
 	Origin            Origin
 	LocalPreference   uint32
 	MED               uint32
+	Community         Community
 	ExtendedCommunity ExtendedCommunity
+	LargeCommunity    LargeCommunity
 	PathID            PathID
 	Label             MPLSLabel
 	RD                RouteDistinguisher
@@ -407,12 +541,26 @@ func ParseRouteAttributes(src StaticRouteConfig) (*ParsedRouteAttributes, error)
 	}
 	attrs.Origin = origin
 
+	// Community (RFC 1997)
+	comm, err := ParseCommunity(src.Community)
+	if err != nil {
+		return nil, err
+	}
+	attrs.Community = comm
+
 	// Extended Community
 	ec, err := ParseExtendedCommunity(src.ExtendedCommunity)
 	if err != nil {
 		return nil, err
 	}
 	attrs.ExtendedCommunity = ec
+
+	// Large Community (RFC 8092)
+	lc, err := ParseLargeCommunity(src.LargeCommunity)
+	if err != nil {
+		return nil, err
+	}
+	attrs.LargeCommunity = lc
 
 	// Path ID
 	pid, err := ParsePathID(src.PathInformation)

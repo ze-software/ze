@@ -24,6 +24,12 @@ type StaticRoute struct {
 	LocalPreference uint32 // For iBGP
 	MED             uint32 // Multi-Exit Discriminator
 
+	// Communities (RFC 1997) - each uint32 is ASN:value (high 16 bits : low 16 bits)
+	Communities []uint32
+
+	// Large communities (RFC 8092) - each is [3]uint32: GlobalAdmin:LocalData1:LocalData2
+	LargeCommunities [][3]uint32
+
 	// Extended communities - both forms for serialization and wire encoding
 	ExtCommunity      string // Original string (e.g., "target:72:1")
 	ExtCommunityBytes []byte // Wire-format (8 bytes each, sorted)

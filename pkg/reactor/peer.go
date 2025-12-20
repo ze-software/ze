@@ -3,6 +3,7 @@ package reactor
 import (
 	"context"
 	"net"
+	"net/netip"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -381,7 +382,16 @@ func buildStaticRouteUpdate(route StaticRoute, localAS uint32, isIBGP bool) *mes
 		attrBytes = append(attrBytes, attribute.PackAttribute(med)...)
 	}
 
-	// 6. EXTENDED_COMMUNITY (if set)
+	// 6. COMMUNITIES (RFC 1997) - if set
+	if len(route.Communities) > 0 {
+		comms := make(attribute.Communities, len(route.Communities))
+		for i, c := range route.Communities {
+			comms[i] = attribute.Community(c)
+		}
+		attrBytes = append(attrBytes, attribute.PackAttribute(comms)...)
+	}
+
+	// 7. EXTENDED_COMMUNITY (if set)
 	if len(route.ExtCommunityBytes) > 0 {
 		// Pack as attribute: flags=0xC0 (optional, transitive), type=16, len, value
 		ecAttr := make([]byte, 0, 3+len(route.ExtCommunityBytes))
@@ -390,7 +400,20 @@ func buildStaticRouteUpdate(route StaticRoute, localAS uint32, isIBGP bool) *mes
 		attrBytes = append(attrBytes, ecAttr...)
 	}
 
-	// Build NLRI - use MP_REACH_NLRI for VPN routes, inline NLRI for unicast
+	// 8. LARGE_COMMUNITIES (RFC 8092) - if set
+	if len(route.LargeCommunities) > 0 {
+		lcs := make(attribute.LargeCommunities, len(route.LargeCommunities))
+		for i, lc := range route.LargeCommunities {
+			lcs[i] = attribute.LargeCommunity{
+				GlobalAdmin: lc[0],
+				LocalData1:  lc[1],
+				LocalData2:  lc[2],
+			}
+		}
+		attrBytes = append(attrBytes, attribute.PackAttribute(lcs)...)
+	}
+
+	// Build NLRI - use MP_REACH_NLRI for VPN/IPv6, inline NLRI for IPv4 unicast
 	var nlriBytes []byte
 	if route.IsVPN() {
 		// VPN route: use MP_REACH_NLRI attribute (returns raw bytes)
@@ -399,6 +422,9 @@ func buildStaticRouteUpdate(route StaticRoute, localAS uint32, isIBGP bool) *mes
 		// IPv4 unicast: inline NLRI with optional path-id
 		inet := nlri.NewINET(nlri.Family{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast}, route.Prefix, route.PathID)
 		nlriBytes = inet.Bytes()
+	} else {
+		// IPv6 unicast: use MP_REACH_NLRI attribute (RFC 4760)
+		attrBytes = append(attrBytes, buildMPReachNLRIUnicast(route)...)
 	}
 
 	return &message.Update{
@@ -502,4 +528,60 @@ func buildVPNNLRIBytes(route StaticRoute) []byte {
 	}
 
 	return buf
+}
+
+// buildMPReachNLRIUnicast builds MP_REACH_NLRI for IPv6 unicast routes.
+// Returns raw attribute bytes (flags + type + length + value).
+func buildMPReachNLRIUnicast(route StaticRoute) []byte {
+	// Build NLRI bytes for the prefix
+	prefixBits := route.Prefix.Bits()
+	prefixBytes := (prefixBits + 7) / 8
+	nlriData := make([]byte, 1+prefixBytes)
+	nlriData[0] = byte(prefixBits)
+	copy(nlriData[1:], route.Prefix.Addr().AsSlice()[:prefixBytes])
+
+	// Determine AFI based on address family
+	var afi attribute.AFI
+	var nhLen int
+	if route.Prefix.Addr().Is6() {
+		afi = attribute.AFIIPv6
+		nhLen = 16
+	} else {
+		afi = attribute.AFIIPv4
+		nhLen = 4
+	}
+
+	mpReach := &attribute.MPReachNLRI{
+		AFI:      afi,
+		SAFI:     attribute.SAFIUnicast,
+		NextHops: []netip.Addr{route.NextHop},
+		NLRI:     nlriData,
+	}
+
+	// Pack the attribute with header
+	value := mpReach.Pack()
+	valueLen := len(value)
+
+	// Build attribute: flags + type + length + value
+	// Flags: 0x80 = optional, 0x90 = optional + extended length
+	var attr []byte
+	if valueLen > 255 {
+		attr = make([]byte, 4+valueLen)
+		attr[0] = 0x90 // optional + extended length
+		attr[1] = byte(attribute.AttrMPReachNLRI)
+		attr[2] = byte(valueLen >> 8)
+		attr[3] = byte(valueLen)
+		copy(attr[4:], value)
+	} else {
+		attr = make([]byte, 3+valueLen)
+		attr[0] = 0x80 // optional
+		attr[1] = byte(attribute.AttrMPReachNLRI)
+		attr[2] = byte(valueLen)
+		copy(attr[3:], value)
+	}
+
+	// Silence unused variable
+	_ = nhLen
+
+	return attr
 }

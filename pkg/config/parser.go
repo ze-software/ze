@@ -144,6 +144,8 @@ func (p *Parser) parseNode(tree *Tree, name string, node Node) error {
 		return p.parseMultiLeaf(tree, name, n)
 	case *ArrayLeafNode:
 		return p.parseArrayLeaf(tree, name, n)
+	case *ValueOrArrayNode:
+		return p.parseValueOrArray(tree, name, n)
 	case *ContainerNode:
 		return p.parseContainer(tree, name, n)
 	case *ListNode:
@@ -358,6 +360,77 @@ func (p *Parser) parseArrayLeaf(tree *Tree, name string, _ *ArrayLeafNode) error
 		value += item
 	}
 
+	tree.Set(name, value)
+	return nil
+}
+
+// parseValueOrArray parses either "value;" or "[ item item ... ];".
+// Stores result as space-separated string in both cases.
+func (p *Parser) parseValueOrArray(tree *Tree, name string, _ *ValueOrArrayNode) error {
+	tok := p.tok.Peek()
+
+	// Check if it's an array (starts with [)
+	if tok.Type == TokenLBracket {
+		p.tok.Next() // consume [
+
+		var items []string
+		for {
+			tok = p.tok.Peek()
+			if tok.Type == TokenRBracket {
+				p.tok.Next() // consume ]
+				break
+			}
+			if tok.Type == TokenWord || tok.Type == TokenString {
+				items = append(items, tok.Value)
+				p.tok.Next()
+			} else {
+				return p.errorf(tok, "expected item or ']' in %s, got %s", name, tok.Type)
+			}
+		}
+
+		// Expect semicolon
+		tok = p.tok.Peek()
+		if tok.Type != TokenSemicolon {
+			return p.errorf(tok, "expected ';' after %s, got %s", name, tok.Type)
+		}
+		p.tok.Next()
+
+		// Store as space-separated string
+		value := ""
+		for i, item := range items {
+			if i > 0 {
+				value += " "
+			}
+			value += item
+		}
+		tree.Set(name, value)
+		return nil
+	}
+
+	// Otherwise, parse as a single value (or multiple space-separated values)
+	var items []string
+	for {
+		tok = p.tok.Peek()
+		if tok.Type == TokenSemicolon {
+			p.tok.Next() // consume ;
+			break
+		}
+		if tok.Type == TokenWord || tok.Type == TokenString {
+			items = append(items, tok.Value)
+			p.tok.Next()
+		} else {
+			return p.errorf(tok, "expected value or ';' in %s, got %s", name, tok.Type)
+		}
+	}
+
+	// Store as space-separated string
+	value := ""
+	for i, item := range items {
+		if i > 0 {
+			value += " "
+		}
+		value += item
+	}
 	tree.Set(name, value)
 	return nil
 }

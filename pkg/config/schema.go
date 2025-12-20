@@ -262,6 +262,19 @@ func ArrayLeaf(typ ValueType) *ArrayLeafNode {
 	return &ArrayLeafNode{Type: typ}
 }
 
+// ValueOrArrayNode accepts either "value;" or "[ item item ... ];" syntax.
+// Stores result as space-separated string in both cases.
+type ValueOrArrayNode struct {
+	Type ValueType
+}
+
+func (n *ValueOrArrayNode) Kind() NodeKind { return NodeLeaf }
+
+// ValueOrArray creates a node that accepts either a single value or bracketed list.
+func ValueOrArray(typ ValueType) *ValueOrArrayNode {
+	return &ValueOrArrayNode{Type: typ}
+}
+
 // FlexNode can be a flag (;), value (word;), or block ({}).
 // Used for capabilities like graceful-restart which support all three forms.
 type FlexNode struct {
