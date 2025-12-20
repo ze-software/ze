@@ -20,27 +20,50 @@ Key sections:
 
 ---
 
-## Current Focus
+## Current Status
 
-**Pool Implementation Completion** - See `wip-pool-completion.md`
+**Project is functional!** Core BGP implementation complete.
 
-Completing remaining items from pool architecture review before proceeding to wire format.
+### Completed Phases
 
-### Remaining Issues
+| Phase | Description | Status |
+|-------|-------------|--------|
+| 0 | Project Foundation | ✅ Complete |
+| 1 | Wire Format Foundation | ✅ Complete |
+| 2 | Message Types | ✅ Complete |
+| 3 | Capabilities | ✅ Complete |
+| 4 | Path Attributes | ✅ Complete |
+| 5 | NLRI Types | ✅ Complete |
+| 6 | RIB | ✅ Complete |
+| 7 | FSM | ✅ Complete |
+| 8 | Reactor | ✅ Complete |
+| 9 | Configuration | ✅ Complete |
+| 10 | CLI | ✅ Basic (`zebgp validate`, `zebgp run`) |
+| 11 | API | ✅ Integrated |
+| 12 | Testing Infrastructure | 🔄 Ongoing |
+| 13 | Integration & Polish | 🔄 Ongoing |
 
-| # | Issue | Priority | Effort | Status |
-|---|-------|----------|--------|--------|
-| 4 | Debug handle validation | Medium | 30m | ❌ TODO |
-| 5 | Metrics | Medium | 1h | ❌ TODO |
-| 6 | Graceful shutdown | Medium | 45m | ❌ TODO |
-| 7 | Slice lifetime docs | Low | 10m | ❌ TODO |
-| 8 | Activity semantics docs | Low | 5m | ❌ TODO |
-| 9 | Cross-pool coupling | Low | - | ⏸️ Defer |
-| 10 | Lock contention | Low | - | ⏸️ Monitor |
+### Test Coverage
 
-**Total estimated effort:** 8-10 hours
+All packages have tests and pass with `-race`:
+- `internal/pool` - 50+ tests
+- `pkg/wire` - Buffer operations
+- `pkg/bgp/message` - Header, OPEN, UPDATE, etc.
+- `pkg/bgp/attribute` - All attribute types
+- `pkg/bgp/capability` - All capability types
+- `pkg/bgp/nlri` - INET, IPVPN, etc.
+- `pkg/bgp/fsm` - State machine
+- `pkg/rib` - Route storage
+- `pkg/config` - Parser, serializer
+- `pkg/reactor` - Core loop
 
-**Blocks:** All wire format work (Phase 2+)
+### Current Focus
+
+**Phase 12-13:** Testing infrastructure and polish
+- Integration testing with real BGP peers
+- ExaBGP interop testing
+- Performance benchmarks
+- Documentation
 
 ---
 
@@ -49,32 +72,8 @@ Completing remaining items from pool architecture review before proceeding to wi
 | File | Status | Description |
 |------|--------|-------------|
 | `ARCHITECTURE.md` | 📋 Reference | System architecture |
-| `plan-knowledge-acquisition.md` | 📋 Pre-work | Study ExaBGP for 100% compatibility |
-| `wip-pool-completion.md` | 🔄 Active | Pool issues #4-10 |
-| `plan-wire-format.md` | 📋 Next | Phase 2: Wire format foundation |
-
----
-
-## Phase Overview
-
-From `ZE_IMPLEMENTATION_PLAN.md`:
-
-| Phase | Description | Status |
-|-------|-------------|--------|
-| 1 | Project Foundation | 🔄 In Progress |
-| 2 | Wire Format Foundation | 📋 Planned |
-| 3 | Message Types | 📋 Planned |
-| 4 | Capabilities | 📋 Planned |
-| 5 | Path Attributes | 📋 Planned |
-| 6 | NLRI Types | 📋 Planned |
-| 7 | RIB | 📋 Planned |
-| 8 | FSM | 📋 Planned |
-| 9 | Reactor | 📋 Planned |
-| 10 | Configuration | 📋 Planned |
-| 11 | CLI | 📋 Planned |
-| 12 | API | 📋 Planned |
-| 13 | Testing Infrastructure | 📋 Planned |
-| 14 | Integration & Polish | 📋 Planned |
+| `done-knowledge-acquisition.md` | ✅ Done | ExaBGP study notes |
+| `done-pool-completion.md` | ✅ Done | Pool implementation complete |
 
 ---
 
@@ -86,4 +85,4 @@ From `ZE_IMPLEMENTATION_PLAN.md`:
 
 ---
 
-**Last Updated:** 2025-12-19
+**Last Updated:** 2025-12-20

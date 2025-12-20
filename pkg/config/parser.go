@@ -54,6 +54,19 @@ func (t *Tree) AddListEntry(name, key string, entry *Tree) {
 	t.lists[name][key] = entry
 }
 
+// ListKeys returns the keys for a list (e.g., neighbor IPs).
+func (t *Tree) ListKeys(name string) []string {
+	list := t.lists[name]
+	if list == nil {
+		return nil
+	}
+	keys := make([]string, 0, len(list))
+	for k := range list {
+		keys = append(keys, k)
+	}
+	return keys
+}
+
 // Parser parses ExaBGP-style configuration.
 type Parser struct {
 	schema *Schema
