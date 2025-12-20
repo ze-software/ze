@@ -492,15 +492,9 @@ func (c *Checker) Expected(msg *Message) bool {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	// Always accept KEEPALIVE messages - they're part of normal BGP operation
-	// and shouldn't fail tests that expect UPDATE/other messages
-	if msg.IsKeepalive() {
-		return true
-	}
-
-	// If no expectations, also accept EOR
+	// If no expectations, accept KEEPALIVE or EOR.
 	if len(c.sequences) == 0 && len(c.messages) == 0 {
-		return msg.IsEOR()
+		return msg.IsKeepalive() || msg.IsEOR()
 	}
 
 	stream := msg.Stream()
@@ -518,7 +512,12 @@ func (c *Checker) Expected(msg *Message) bool {
 		}
 	}
 
-	// Store mismatch details for diff output
+	// No match - accept KEEPALIVE anyway (normal BGP operation).
+	if msg.IsKeepalive() {
+		return true
+	}
+
+	// Store mismatch details for diff output.
 	c.lastReceived = stream
 	if len(c.messages) > 0 {
 		c.lastExpected = c.messages[0]

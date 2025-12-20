@@ -311,8 +311,28 @@ func (s *Session) processMessage(hdr *message.Header, body []byte) error {
 	case message.TypeNOTIFICATION:
 		return s.handleNotification(body)
 	default:
-		return fmt.Errorf("%w: unknown type %d", ErrInvalidMessage, hdr.Type)
+		return s.handleUnknownType(hdr.Type)
 	}
+}
+
+// handleUnknownType handles unknown message types (exabgp-compatible).
+func (s *Session) handleUnknownType(msgType message.MessageType) error {
+	s.mu.RLock()
+	conn := s.conn
+	neg := s.negotiated
+	s.mu.RUnlock()
+
+	// ExaBGP format: Message Header Error (1), subcode 0, text message.
+	errMsg := fmt.Sprintf("can not decode update message of type \"%d\"", msgType)
+	_ = s.sendNotification(conn, neg,
+		message.NotifyMessageHeader,
+		0, // ExaBGP uses subcode 0
+		[]byte(errMsg),
+	)
+	_ = s.fsm.Event(fsm.EventBGPHeaderErr)
+	s.closeConn()
+
+	return fmt.Errorf("%w: unknown type %d", ErrInvalidMessage, msgType)
 }
 
 // handleOpen processes a received OPEN message.

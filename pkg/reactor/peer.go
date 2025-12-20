@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/exa-networks/zebgp/pkg/bgp/attribute"
+	"github.com/exa-networks/zebgp/pkg/bgp/capability"
 	"github.com/exa-networks/zebgp/pkg/bgp/fsm"
 	"github.com/exa-networks/zebgp/pkg/bgp/message"
 	"github.com/exa-networks/zebgp/pkg/bgp/nlri"
@@ -322,12 +323,22 @@ func (p *Peer) sendInitialRoutes() {
 	addr := p.neighbor.Address.String()
 	trace.Log(trace.Routes, "neighbor %s: sending %d static routes", addr, len(p.neighbor.StaticRoutes))
 
+	// Determine which address families are configured from capabilities.
+	hasIPv4Family := false
+	hasIPv6Family := false
+	for _, cap := range p.neighbor.Capabilities {
+		if mp, ok := cap.(*capability.Multiprotocol); ok {
+			if mp.AFI == 1 && mp.SAFI == 1 { // IPv4 unicast
+				hasIPv4Family = true
+			}
+			if mp.AFI == 2 && mp.SAFI == 1 { // IPv6 unicast
+				hasIPv6Family = true
+			}
+		}
+	}
+
 	// Group routes by attributes (same attributes = same UPDATE).
 	groups := groupRoutesByAttributes(p.neighbor.StaticRoutes)
-
-	// Track which address families have routes.
-	hasIPv4 := false
-	hasIPv6 := false
 
 	for _, routes := range groups {
 		update := buildGroupedUpdate(routes, p.neighbor.LocalAS, p.neighbor.IsIBGP())
@@ -337,21 +348,16 @@ func (p *Peer) sendInitialRoutes() {
 		}
 		for _, route := range routes {
 			trace.RouteSent(addr, route.Prefix.String(), route.NextHop.String())
-			if route.Prefix.Addr().Is4() {
-				hasIPv4 = true
-			} else {
-				hasIPv6 = true
-			}
 		}
 	}
 
-	// Send End-of-RIB marker for each address family with routes.
-	if hasIPv4 {
+	// Send End-of-RIB marker for each configured address family.
+	if hasIPv4Family {
 		eor := buildEORUpdate(1, 1) // IPv4 unicast
 		_ = p.SendUpdate(eor)
 		trace.Log(trace.Routes, "neighbor %s: sent IPv4 unicast EOR marker", addr)
 	}
-	if hasIPv6 {
+	if hasIPv6Family {
 		eor := buildEORUpdate(2, 1) // IPv6 unicast
 		_ = p.SendUpdate(eor)
 		trace.Log(trace.Routes, "neighbor %s: sent IPv6 unicast EOR marker", addr)
