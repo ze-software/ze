@@ -390,30 +390,39 @@
 
 ## Implementation Priority
 
-### P0: Core Protocol (Must work first)
+### P0: Core Protocol ✅ COMPLETE
 1. `bgp/message/` - All message types
 2. `bgp/message/open/capability/` - All capabilities
-3. `bgp/message/update/attribute/` - Common attributes
+3. `bgp/message/update/attribute/` - Common attributes (MP-REACH/UNREACH, AS4)
 4. `bgp/message/update/nlri/inet.py` - IPv4/IPv6 unicast
 5. `bgp/fsm.py` - State machine
 6. `reactor/` - Event loop, peer management
+7. `rib/` - Adj-RIB-In, Adj-RIB-Out, RouteStore
 
-### P1: Common NLRI
-1. `bgp/message/update/nlri/label.py` - MPLS
-2. `bgp/message/update/nlri/ipvpn.py` - VPN
-3. `bgp/message/update/nlri/evpn/` - EVPN
+### P1: Common NLRI ✅ COMPLETE
+1. `bgp/message/update/nlri/label.py` - MPLS labels
+2. `bgp/message/update/nlri/ipvpn.py` - VPNv4/VPNv6
+3. `bgp/message/update/nlri/evpn/` - EVPN types 1-5
+4. FlowSpec API commands
+5. VPLS/L2VPN API commands
 
-### P2: Advanced Features
+### P2: Advanced NLRI ✅ COMPLETE
 1. `bgp/message/update/nlri/flow.py` - FlowSpec
-2. `bgp/message/update/nlri/bgpls/` - BGP-LS
+2. `bgp/message/update/nlri/bgpls/` - BGP-LS (incl. SRv6)
 3. `bgp/message/update/nlri/mup/` - MUP
+4. `bgp/message/update/nlri/vpls.py` - VPLS
+5. `bgp/message/update/nlri/mvpn/` - MVPN
+6. `bgp/message/update/nlri/rtc.py` - Route Target Constraint
 
-### P3: Operational
+### P3: Operational ✅ COMPLETE
 1. `configuration/` - Config parsing
-2. `reactor/api/` - API server
-3. `application/` - CLI tools
+2. `environment/` - ExaBGP-compatible env var configuration
+3. `reactor/api/` - API server with route announce/withdraw
+4. `application/` - CLI tools (zebgp, zebgp-cli)
+5. RIB show handlers (adj-rib in/out)
+6. End-of-RIB (EOR) support
 
 ---
 
 **Created:** 2025-12-19
-**Last Updated:** 2025-12-19
+**Last Updated:** 2025-12-20
