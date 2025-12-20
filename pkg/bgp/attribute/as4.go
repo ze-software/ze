@@ -5,11 +5,26 @@ import (
 	"net/netip"
 )
 
-// AS4Path represents the AS4_PATH attribute (RFC 6793).
+// AS4Path represents the AS4_PATH attribute for 4-byte AS number support.
 //
-// This attribute is used for backward compatibility when a BGP speaker
-// that supports 4-byte AS numbers communicates with one that doesn't.
-// It carries the actual 4-byte AS path when AS_PATH contains AS_TRANS.
+// RFC 6793 Section 3:
+//
+//	"This document defines a new BGP path attribute called AS4_PATH.
+//	 This is an optional transitive attribute that contains the AS path
+//	 encoded with four-octet AS numbers. The AS4_PATH attribute has the
+//	 same semantics and the same encoding as the AS_PATH attribute,
+//	 except that it is "optional transitive", and it carries four-octet
+//	 AS numbers."
+//
+// RFC 6793 Section 9 (IANA): AS4_PATH attribute type code = 17
+//
+// RFC 6793 Section 3:
+//
+//	"To prevent the possible propagation of Confederation-related path
+//	 segments outside of a Confederation, the path segment types
+//	 AS_CONFED_SEQUENCE and AS_CONFED_SET [RFC5065] are declared invalid
+//	 for the AS4_PATH attribute and MUST NOT be included in the AS4_PATH
+//	 attribute of an UPDATE message."
 type AS4Path struct {
 	Segments []ASPathSegment
 }
@@ -18,9 +33,13 @@ type AS4Path struct {
 func (p *AS4Path) Code() AttributeCode { return AttrAS4Path }
 
 // Flags returns FlagOptional | FlagTransitive (AS4_PATH is optional transitive).
+//
+// RFC 6793 Section 3: AS4_PATH is "optional transitive".
 func (p *AS4Path) Flags() AttributeFlags { return FlagOptional | FlagTransitive }
 
 // Len returns the packed length in bytes (always 4-byte ASN format).
+//
+// RFC 6793 Section 3: AS4_PATH "carries four-octet AS numbers" (4 bytes each).
 func (p *AS4Path) Len() int {
 	length := 0
 	for _, seg := range p.Segments {
@@ -31,6 +50,10 @@ func (p *AS4Path) Len() int {
 }
 
 // Pack serializes the AS4 path (always 4-byte ASN format).
+//
+// RFC 6793 Section 3: "The AS4_PATH attribute has the same semantics and
+// the same encoding as the AS_PATH attribute, except that it is 'optional
+// transitive', and it carries four-octet AS numbers."
 func (p *AS4Path) Pack() []byte {
 	if len(p.Segments) == 0 {
 		return []byte{}
@@ -54,6 +77,10 @@ func (p *AS4Path) Pack() []byte {
 }
 
 // PathLength returns the AS path length for BGP path selection.
+//
+// RFC 6793 Section 4.2.3: "it is necessary to first calculate the number
+// of AS numbers in the AS_PATH and AS4_PATH attributes using the method
+// specified in Section 9.1.2.2 of [RFC4271]"
 func (p *AS4Path) PathLength() int {
 	length := 0
 	for _, seg := range p.Segments {
@@ -73,6 +100,18 @@ func (p *AS4Path) PathLength() int {
 
 // ParseAS4Path parses an AS4_PATH attribute value.
 // AS4_PATH always uses 4-byte AS numbers.
+//
+// RFC 6793 Section 6: The AS4_PATH attribute SHALL be considered malformed if:
+//   - "the attribute length is not a multiple of two or is too small
+//     (i.e., less than 6) for the attribute to carry at least one AS number"
+//   - "the path segment length in the attribute is either zero or is
+//     inconsistent with the attribute length"
+//   - "the path segment type in the attribute is not one of the types
+//     defined: AS_SEQUENCE, AS_SET, AS_CONFED_SEQUENCE, and AS_CONFED_SET"
+//
+// RFC 6793 Section 6: "A NEW BGP speaker that receives a malformed AS4_PATH
+// attribute in an UPDATE message from an OLD BGP speaker MUST discard the
+// attribute and continue processing the UPDATE message."
 func ParseAS4Path(data []byte) (*AS4Path, error) {
 	path := &AS4Path{}
 
@@ -107,17 +146,33 @@ func ParseAS4Path(data []byte) (*AS4Path, error) {
 }
 
 // ToASPath converts AS4Path to a regular ASPath.
-// Used when merging AS4_PATH with AS_PATH per RFC 6793.
+//
+// RFC 6793 Section 4.2.3: Used when reconstructing the AS path from
+// AS_PATH and AS4_PATH attributes received from an OLD BGP speaker.
 func (p *AS4Path) ToASPath() *ASPath {
 	return &ASPath{
 		Segments: p.Segments,
 	}
 }
 
-// AS4Aggregator represents the AS4_AGGREGATOR attribute (RFC 6793).
+// AS4Aggregator represents the AS4_AGGREGATOR attribute for 4-byte AS support.
 //
-// This attribute is used for backward compatibility when AGGREGATOR
-// contains AS_TRANS (23456). It carries the actual 4-byte aggregator AS.
+// RFC 6793 Section 3:
+//
+//	"This document defines a new BGP path attribute called AS4_AGGREGATOR,
+//	 which is optional transitive. The AS4_AGGREGATOR attribute has the
+//	 same semantics and the same encoding as the AGGREGATOR attribute,
+//	 except that it carries a four-octet AS number."
+//
+// RFC 6793 Section 9 (IANA): AS4_AGGREGATOR attribute type code = 18
+//
+// RFC 6793 Section 4.2.2:
+//
+//	"if the NEW BGP speaker has to send the AGGREGATOR attribute, and if
+//	 the aggregating Autonomous System's AS number is a non-mappable
+//	 four-octet AS number, then the speaker MUST use the AS4_AGGREGATOR
+//	 attribute and set the AS number field in the existing AGGREGATOR
+//	 attribute to the reserved AS number, AS_TRANS."
 type AS4Aggregator struct {
 	ASN     uint32
 	Address netip.Addr
@@ -127,12 +182,21 @@ type AS4Aggregator struct {
 func (a *AS4Aggregator) Code() AttributeCode { return AttrAS4Aggregator }
 
 // Flags returns FlagOptional | FlagTransitive (AS4_AGGREGATOR is optional transitive).
+//
+// RFC 6793 Section 3: AS4_AGGREGATOR is "optional transitive".
 func (a *AS4Aggregator) Flags() AttributeFlags { return FlagOptional | FlagTransitive }
 
 // Len returns 8 (4-byte AS + 4-byte IPv4 address).
+//
+// RFC 6793 Section 6: "The AS4_AGGREGATOR attribute in an UPDATE message
+// SHALL be considered malformed if the attribute length is not 8."
 func (a *AS4Aggregator) Len() int { return 8 }
 
 // Pack serializes the AS4_AGGREGATOR attribute.
+//
+// RFC 6793 Section 3: "The AS4_AGGREGATOR attribute has the same semantics
+// and the same encoding as the AGGREGATOR attribute, except that it carries
+// a four-octet AS number."
 func (a *AS4Aggregator) Pack() []byte {
 	buf := make([]byte, 8)
 	binary.BigEndian.PutUint32(buf[0:4], a.ASN)
@@ -141,6 +205,13 @@ func (a *AS4Aggregator) Pack() []byte {
 }
 
 // ParseAS4Aggregator parses an AS4_AGGREGATOR attribute value.
+//
+// RFC 6793 Section 6: "The AS4_AGGREGATOR attribute in an UPDATE message
+// SHALL be considered malformed if the attribute length is not 8."
+//
+// RFC 6793 Section 6: "A NEW BGP speaker that receives a malformed
+// AS4_AGGREGATOR attribute in an UPDATE message from an OLD BGP speaker
+// MUST discard the attribute and continue processing the UPDATE message."
 func ParseAS4Aggregator(data []byte) (*AS4Aggregator, error) {
 	if len(data) != 8 {
 		return nil, ErrInvalidLength
@@ -158,6 +229,9 @@ func ParseAS4Aggregator(data []byte) (*AS4Aggregator, error) {
 }
 
 // ToAggregator converts AS4Aggregator to a regular Aggregator.
+//
+// RFC 6793 Section 4.2.3: When AGGREGATOR contains AS_TRANS, use
+// AS4_AGGREGATOR as "the information about the aggregating node".
 func (a *AS4Aggregator) ToAggregator() *Aggregator {
 	return &Aggregator{
 		ASN:     a.ASN,
@@ -165,15 +239,34 @@ func (a *AS4Aggregator) ToAggregator() *Aggregator {
 	}
 }
 
-// ASTrans is the special AS number used for 4-byte/2-byte interop.
+// ASTrans is the reserved AS number for 4-byte/2-byte AS interoperability.
+//
+// RFC 6793 Section 3:
+//
+//	"This document reserves a two-octet AS number called 'AS_TRANS'.
+//	 AS_TRANS can be used to represent non-mappable four-octet AS numbers
+//	 as two-octet AS numbers in AS path information that is encoded with
+//	 two-octet AS numbers."
+//
+// RFC 6793 Section 9 (IANA): AS_TRANS = 23456
 const ASTrans uint32 = 23456
 
-// MergeAS4Path merges AS_PATH and AS4_PATH per RFC 6793.
+// MergeAS4Path merges AS_PATH and AS4_PATH per RFC 6793 Section 4.2.3.
 //
-// If the AS_PATH contains AS_TRANS, it replaces those entries with
-// the corresponding entries from AS4_PATH. This reconstructs the
-// original 4-byte AS path from a speaker that went through 2-byte
-// AS speakers.
+// RFC 6793 Section 4.2.3:
+//
+//	"If the number of AS numbers in the AS_PATH attribute is less than the
+//	 number of AS numbers in the AS4_PATH attribute, then the AS4_PATH
+//	 attribute SHALL be ignored, and the AS_PATH attribute SHALL be taken
+//	 as the AS path information."
+//
+//	"If the number of AS numbers in the AS_PATH attribute is larger than
+//	 or equal to the number of AS numbers in the AS4_PATH attribute, then
+//	 the AS path information SHALL be constructed by taking as many AS
+//	 numbers and path segments as necessary from the leading part of the
+//	 AS_PATH attribute, and then prepending them to the AS4_PATH attribute
+//	 so that the AS path information has a number of AS numbers identical
+//	 to that of the AS_PATH attribute."
 func MergeAS4Path(asPath *ASPath, as4Path *AS4Path) *ASPath {
 	if as4Path == nil || len(as4Path.Segments) == 0 {
 		return asPath
@@ -223,6 +316,10 @@ func MergeAS4Path(asPath *ASPath, as4Path *AS4Path) *ASPath {
 }
 
 // countASNs counts total ASNs in path segments.
+//
+// RFC 6793 Section 4.2.3: "it is necessary to first calculate the number
+// of AS numbers in the AS_PATH and AS4_PATH attributes using the method
+// specified in Section 9.1.2.2 of [RFC4271] and in [RFC5065]"
 func countASNs(segments []ASPathSegment) int {
 	count := 0
 	for _, seg := range segments {

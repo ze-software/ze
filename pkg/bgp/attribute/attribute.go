@@ -1,4 +1,15 @@
-// Package attribute implements BGP path attributes (RFC 4271, RFC 4760).
+// Package attribute implements BGP path attributes.
+//
+// RFC 4271 Section 4.3 defines the path attribute format:
+//   - Attribute Type: 2 octets (flags + type code)
+//   - Attribute Length: 1 or 2 octets (based on Extended Length flag)
+//   - Attribute Value: variable
+//
+// RFC 4271 Section 5 defines path attribute semantics and categories:
+//   - Well-known mandatory
+//   - Well-known discretionary
+//   - Optional transitive
+//   - Optional non-transitive
 package attribute
 
 import (
@@ -7,7 +18,8 @@ import (
 	"fmt"
 )
 
-// Errors.
+// Errors for attribute parsing and validation.
+// RFC 4271 Section 6.3 specifies UPDATE message error handling.
 var (
 	ErrShortData      = errors.New("attribute: short data")
 	ErrInvalidLength  = errors.New("attribute: invalid length")
@@ -19,14 +31,16 @@ var (
 type AttributeCode uint8
 
 // Path attribute type codes.
+// RFC 4271 Section 4.3 defines type codes 1-7.
+// RFC 4271 Section 5 defines attribute semantics.
 const (
-	AttrOrigin          AttributeCode = 1  // RFC 4271
-	AttrASPath          AttributeCode = 2  // RFC 4271
-	AttrNextHop         AttributeCode = 3  // RFC 4271
-	AttrMED             AttributeCode = 4  // RFC 4271 (MULTI_EXIT_DISC)
-	AttrLocalPref       AttributeCode = 5  // RFC 4271
-	AttrAtomicAggregate AttributeCode = 6  // RFC 4271
-	AttrAggregator      AttributeCode = 7  // RFC 4271
+	AttrOrigin          AttributeCode = 1  // RFC 4271 Section 4.3a, 5.1.1 - well-known mandatory
+	AttrASPath          AttributeCode = 2  // RFC 4271 Section 4.3b, 5.1.2 - well-known mandatory
+	AttrNextHop         AttributeCode = 3  // RFC 4271 Section 4.3c, 5.1.3 - well-known mandatory
+	AttrMED             AttributeCode = 4  // RFC 4271 Section 4.3d, 5.1.4 - optional non-transitive
+	AttrLocalPref       AttributeCode = 5  // RFC 4271 Section 4.3e, 5.1.5 - well-known (IBGP only)
+	AttrAtomicAggregate AttributeCode = 6  // RFC 4271 Section 4.3f, 5.1.6 - well-known discretionary
+	AttrAggregator      AttributeCode = 7  // RFC 4271 Section 4.3g, 5.1.7 - optional transitive
 	AttrCommunity       AttributeCode = 8  // RFC 1997
 	AttrOriginatorID    AttributeCode = 9  // RFC 4456
 	AttrClusterList     AttributeCode = 10 // RFC 4456
@@ -76,30 +90,61 @@ func (c AttributeCode) String() string {
 }
 
 // AttributeFlags are the attribute flags (RFC 4271 Section 4.3).
+//
+// RFC 4271 Section 4.3 defines the Attribute Flags octet:
+//   - Bit 0 (0x80): Optional bit - 1=optional, 0=well-known
+//   - Bit 1 (0x40): Transitive bit - 1=transitive, 0=non-transitive
+//   - Bit 2 (0x20): Partial bit - 1=partial, 0=complete
+//   - Bit 3 (0x10): Extended Length bit - 1=2-octet length, 0=1-octet length
+//   - Bits 4-7: Unused, MUST be zero when sent, MUST be ignored when received
 type AttributeFlags uint8
 
-// Attribute flag bits.
+// Attribute flag bits per RFC 4271 Section 4.3.
 const (
-	FlagOptional   AttributeFlags = 0x80 // Bit 0: Optional (1) vs Well-known (0)
-	FlagTransitive AttributeFlags = 0x40 // Bit 1: Transitive (1) vs Non-transitive (0)
-	FlagPartial    AttributeFlags = 0x20 // Bit 2: Partial (1) vs Complete (0)
-	FlagExtLength  AttributeFlags = 0x10 // Bit 3: Extended Length (1) = 2 bytes
+	// FlagOptional: RFC 4271 Section 4.3 - "defines whether the attribute is
+	// optional (if set to 1) or well-known (if set to 0)"
+	FlagOptional AttributeFlags = 0x80
+
+	// FlagTransitive: RFC 4271 Section 4.3 - "defines whether an optional
+	// attribute is transitive (if set to 1) or non-transitive (if set to 0).
+	// For well-known attributes, the Transitive bit MUST be set to 1."
+	FlagTransitive AttributeFlags = 0x40
+
+	// FlagPartial: RFC 4271 Section 4.3 - "defines whether the information
+	// contained in the optional transitive attribute is partial (if set to 1)
+	// or complete (if set to 0). For well-known attributes and for optional
+	// non-transitive attributes, the Partial bit MUST be set to 0."
+	FlagPartial AttributeFlags = 0x20
+
+	// FlagExtLength: RFC 4271 Section 4.3 - "defines whether the Attribute
+	// Length is one octet (if set to 0) or two octets (if set to 1)"
+	FlagExtLength AttributeFlags = 0x10
 )
 
-// IsOptional returns true if the optional flag is set.
+// IsOptional returns true if the optional flag is set (RFC 4271 Section 4.3 bit 0).
 func (f AttributeFlags) IsOptional() bool { return f&FlagOptional != 0 }
 
-// IsTransitive returns true if the transitive flag is set.
+// IsTransitive returns true if the transitive flag is set (RFC 4271 Section 4.3 bit 1).
 func (f AttributeFlags) IsTransitive() bool { return f&FlagTransitive != 0 }
 
-// IsPartial returns true if the partial flag is set.
+// IsPartial returns true if the partial flag is set (RFC 4271 Section 4.3 bit 2).
 func (f AttributeFlags) IsPartial() bool { return f&FlagPartial != 0 }
 
-// IsExtLength returns true if extended length is used.
+// IsExtLength returns true if extended length is used (RFC 4271 Section 4.3 bit 3).
 func (f AttributeFlags) IsExtLength() bool { return f&FlagExtLength != 0 }
 
 // ParseHeader parses an attribute header and returns flags, code, length, header length.
-// The header length is 3 for standard length, 4 for extended length.
+//
+// RFC 4271 Section 4.3 defines the path attribute header format:
+//
+//	 0                   1
+//	 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5
+//	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//	|  Attr. Flags  |Attr. Type Code|
+//	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//
+// If Extended Length bit is 0: third octet contains 1-octet length (header=3)
+// If Extended Length bit is 1: third/fourth octets contain 2-octet length (header=4)
 func ParseHeader(data []byte) (flags AttributeFlags, code AttributeCode, length uint16, hdrLen int, err error) {
 	if len(data) < 3 {
 		return 0, 0, 0, 0, ErrShortData
@@ -108,6 +153,7 @@ func ParseHeader(data []byte) (flags AttributeFlags, code AttributeCode, length 
 	flags = AttributeFlags(data[0])
 	code = AttributeCode(data[1])
 
+	// RFC 4271 Section 4.3: Extended Length bit determines length field size
 	if flags.IsExtLength() {
 		if len(data) < 4 {
 			return 0, 0, 0, 0, ErrShortData
@@ -122,8 +168,12 @@ func ParseHeader(data []byte) (flags AttributeFlags, code AttributeCode, length 
 	return flags, code, length, hdrLen, nil
 }
 
-// PackHeader packs an attribute header.
-// Automatically sets FlagExtLength if length > 255.
+// PackHeader packs an attribute header per RFC 4271 Section 4.3.
+//
+// Automatically sets FlagExtLength if length > 255, per RFC 4271 Section 4.3:
+// "If the Extended Length bit of the Attribute Flags octet is set to 1,
+// the third and fourth octets of the path attribute contain the length
+// of the attribute data in octets."
 func PackHeader(flags AttributeFlags, code AttributeCode, length uint16) []byte {
 	if length > 255 {
 		flags |= FlagExtLength
@@ -146,14 +196,19 @@ func PackHeader(flags AttributeFlags, code AttributeCode, length uint16) []byte 
 }
 
 // Attribute is the interface for all BGP path attributes.
+//
+// RFC 4271 Section 4.3 defines path attributes as triples:
+// <attribute type, attribute length, attribute value>
+//
+// RFC 4271 Section 5 defines attribute categories and processing rules.
 type Attribute interface {
-	// Code returns the attribute type code.
+	// Code returns the attribute type code (RFC 4271 Section 4.3).
 	Code() AttributeCode
 
-	// Flags returns the attribute flags.
+	// Flags returns the attribute flags (RFC 4271 Section 4.3).
 	Flags() AttributeFlags
 
-	// Len returns the attribute value length (excluding header).
+	// Len returns the attribute value length in octets (excluding header).
 	Len() int
 
 	// Pack serializes the attribute value (excluding header).

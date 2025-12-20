@@ -118,7 +118,28 @@ header.go:92 - RFC 4271 Section 4.1 violation
 (to be filled during annotation)
 
 ### Attributes
-(to be filled during annotation)
+
+```
+aspath.go:197 - RFC 4271 Section 5.1.2 violation (SHOULD)
+  Current: Prepend() doesn't handle segment overflow (>255 ASes)
+  Required: "it SHOULD prepend a new segment" when overflow would occur
+  Severity: LOW (SHOULD requirement)
+
+as4.go:115-146 - RFC 6793 Section 6 violation
+  Current: ParseAS4Path missing validation
+  Required: Validate min length (6), length multiple of 2, segment type, non-zero count
+  Severity: MEDIUM
+
+as4.go:115-146 - RFC 6793 Section 6 violation
+  Current: AS_CONFED_* segments not discarded from OLD speakers
+  Required: "MUST discard" confed segments in AS4_PATH from OLD speakers
+  Severity: MEDIUM
+
+as4.go:323-329 - RFC 6793 Section 4.2.3 violation
+  Current: countASNs counts all ASNs literally
+  Required: AS_SET=1, confederation=0 for path length calculation
+  Severity: MEDIUM
+```
 
 ### NLRI
 (to be filled during annotation)
