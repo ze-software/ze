@@ -131,13 +131,13 @@ func (e *JSONEncoder) RouteAnnounce(peer PeerInfo, routes []RouteUpdate) string 
 		if announce[family] == nil {
 			announce[family] = make(map[string]any)
 		}
-		familyMap := announce[family].(map[string]any)
+		familyMap := announce[family].(map[string]any) //nolint:forcetypeassert // Type guaranteed by construction above
 
 		nhStr := r.NextHop
 		if familyMap[nhStr] == nil {
 			familyMap[nhStr] = make(map[string]any)
 		}
-		nhMap := familyMap[nhStr].(map[string]any)
+		nhMap := familyMap[nhStr].(map[string]any) //nolint:forcetypeassert // Type guaranteed by construction above
 		nhMap[r.Prefix] = r.Attributes()
 	}
 
@@ -163,7 +163,7 @@ func (e *JSONEncoder) RouteWithdraw(peer PeerInfo, routes []RouteUpdate) string 
 		if withdraw[family] == nil {
 			withdraw[family] = []string{}
 		}
-		prefixes := withdraw[family].([]string)
+		prefixes := withdraw[family].([]string) //nolint:forcetypeassert // Type guaranteed by construction above
 		withdraw[family] = append(prefixes, r.Prefix)
 	}
 
@@ -260,7 +260,7 @@ type RouteUpdate struct {
 // Family returns the address family string for JSON.
 func (r *RouteUpdate) Family() string {
 	if r.AFI == "" {
-		r.AFI = "ipv4"
+		r.AFI = "ipv4" //nolint:goconst // Default value
 	}
 	if r.SAFI == "" {
 		r.SAFI = "unicast"

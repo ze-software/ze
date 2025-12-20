@@ -125,9 +125,9 @@ func TestRouteStore_Stats(t *testing.T) {
 	for i := 0; i < 5; i++ {
 		prefix := netip.MustParsePrefix("10.0.0.0/24")
 		nextHop := netip.MustParseAddr("192.168.1.1")
-		n := nlri.NewINET(nlri.Family{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast}, prefix, uint32(i))
+		n := nlri.NewINET(nlri.Family{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast}, prefix, uint32(i)) //nolint:gosec // Test data
 		attrs := []attribute.Attribute{
-			attribute.LocalPref(uint32(100 + i)),
+			attribute.LocalPref(uint32(100 + i)), //nolint:gosec // Test data
 		}
 		r := NewRoute(n, nextHop, attrs)
 		store.InternRoute(r)

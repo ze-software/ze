@@ -71,7 +71,7 @@ Examples:
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		return 1
 	}
-	defer ed.Close()
+	defer ed.Close() //nolint:errcheck // Best effort cleanup
 
 	// Create model
 	m := editor.NewModel(ed)

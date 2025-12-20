@@ -103,10 +103,10 @@ func NewTests(baseDir string) *Tests {
 	}
 }
 
-// Load discovers tests from the testdata directory.
+// Load discovers tests from the testdata/encode directory.
 func (ts *Tests) Load() error {
-	testdataDir := filepath.Join(ts.baseDir, "testdata")
-	pattern := filepath.Join(testdataDir, "*.ci")
+	encodeDir := filepath.Join(ts.baseDir, "testdata", "encode")
+	pattern := filepath.Join(encodeDir, "*.ci")
 
 	files, err := filepath.Glob(pattern)
 	if err != nil {
@@ -162,7 +162,8 @@ func (ts *Tests) parseCIFile(ciFile, name, nick string, port int) (*Test, error)
 		switch {
 		case strings.HasPrefix(line, "option:file:"):
 			configName := strings.TrimPrefix(line, "option:file:")
-			test.Config = filepath.Join(ts.baseDir, "testdata", configName)
+			// Config is in same directory as CI file
+			test.Config = filepath.Join(filepath.Dir(ciFile), configName)
 			test.Files = append(test.Files, test.Config)
 
 		case strings.HasPrefix(line, "option:"):

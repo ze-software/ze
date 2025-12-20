@@ -1,0 +1,21 @@
+#!/usr/bin/env python3
+
+import os
+import time
+
+from exabgp_api import send
+
+
+def main() -> None:
+    while os.getppid() != 1:
+        send('announce watchdog dnsr')
+        time.sleep(0.2)
+
+        send('withdraw watchdog dnsr')
+        time.sleep(0.2)
+
+    time.sleep(1)  # time for configuration routes to pass
+
+
+if __name__ == '__main__':
+    main()

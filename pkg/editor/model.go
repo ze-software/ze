@@ -13,15 +13,12 @@ import (
 
 // Styles for the editor UI.
 var (
-	promptStyle     = lipgloss.NewStyle().Foreground(lipgloss.Color("205"))
-	ghostStyle      = lipgloss.NewStyle().Foreground(lipgloss.Color("241"))
-	suggestionStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("241"))
-	selectedStyle   = lipgloss.NewStyle().Foreground(lipgloss.Color("170")).Bold(true)
-	errorStyle      = lipgloss.NewStyle().Foreground(lipgloss.Color("196"))
-	successStyle    = lipgloss.NewStyle().Foreground(lipgloss.Color("82"))
-	dimStyle        = lipgloss.NewStyle().Foreground(lipgloss.Color("241"))
-	contextStyle    = lipgloss.NewStyle().Foreground(lipgloss.Color("33"))
-	overlayStyle    = lipgloss.NewStyle().
+	promptStyle  = lipgloss.NewStyle().Foreground(lipgloss.Color("205"))
+	ghostStyle   = lipgloss.NewStyle().Foreground(lipgloss.Color("241"))
+	errorStyle   = lipgloss.NewStyle().Foreground(lipgloss.Color("196"))
+	dimStyle     = lipgloss.NewStyle().Foreground(lipgloss.Color("241"))
+	contextStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("33"))
+	overlayStyle = lipgloss.NewStyle().
 			Border(lipgloss.RoundedBorder()).
 			BorderForeground(lipgloss.Color("62")).
 			Padding(1, 2).
@@ -60,7 +57,7 @@ type (
 		err    error
 	}
 	contextChangedMsg struct{}
-	successMsg        struct{ message string }
+	successMsg        struct{}
 	errorMsg          struct{ err error }
 	outputMsg         struct{ text string }
 )
@@ -457,7 +454,7 @@ func placeOverlay(x, y int, fg, bg string) string {
 		y = 0
 	}
 
-	var result []string
+	result := make([]string, 0, len(bgLines))
 	for i, bgLine := range bgLines {
 		if i < y || i >= y+fgHeight {
 			result = append(result, bgLine)

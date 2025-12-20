@@ -217,7 +217,7 @@ func (c *Completer) listKeyCompletions(listName, prefix string) []Completion {
 	var completions []Completion
 
 	// Add wildcard template option
-	if prefix == "" || strings.HasPrefix("*", prefix) {
+	if prefix == "" || prefix == "*" {
 		completions = append(completions, Completion{
 			Text:        "*",
 			Description: "Template for all entries",

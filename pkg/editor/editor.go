@@ -34,7 +34,7 @@ type BackupInfo struct {
 // NewEditor creates a new editor for the given configuration file.
 func NewEditor(configPath string) (*Editor, error) {
 	// Read original file
-	data, err := os.ReadFile(configPath)
+	data, err := os.ReadFile(configPath) //nolint:gosec // Config path is user-provided
 	if err != nil {
 		return nil, fmt.Errorf("cannot read config file: %w", err)
 	}
@@ -125,7 +125,7 @@ func (e *Editor) Save() error {
 	}
 
 	// Write working content to original path
-	if err := os.WriteFile(e.originalPath, []byte(e.workingContent), 0644); err != nil {
+	if err := os.WriteFile(e.originalPath, []byte(e.workingContent), 0600); err != nil {
 		return fmt.Errorf("failed to write config: %w", err)
 	}
 
@@ -204,7 +204,7 @@ func (e *Editor) createBackup() (string, error) {
 	backupPath := filepath.Join(dir, fmt.Sprintf("%s-%s-%d.conf", name, today, num))
 
 	// Copy original content to backup
-	if err := os.WriteFile(backupPath, []byte(e.originalContent), 0644); err != nil {
+	if err := os.WriteFile(backupPath, []byte(e.originalContent), 0600); err != nil {
 		return "", err
 	}
 
@@ -244,7 +244,7 @@ func (e *Editor) ListBackups() ([]BackupInfo, error) {
 		return nil, err
 	}
 
-	var backups []BackupInfo
+	backups := make([]BackupInfo, 0, len(matches))
 	re := regexp.MustCompile(`-(\d{4}-\d{2}-\d{2})-(\d+)\.conf$`)
 
 	for _, path := range matches {
@@ -287,13 +287,13 @@ func (e *Editor) ListBackups() ([]BackupInfo, error) {
 // Rollback restores the configuration from a backup file.
 func (e *Editor) Rollback(backupPath string) error {
 	// Read backup content
-	data, err := os.ReadFile(backupPath)
+	data, err := os.ReadFile(backupPath) //nolint:gosec // Backup path from ListBackups
 	if err != nil {
 		return fmt.Errorf("cannot read backup: %w", err)
 	}
 
 	// Write to original path
-	if err := os.WriteFile(e.originalPath, data, 0644); err != nil {
+	if err := os.WriteFile(e.originalPath, data, 0600); err != nil {
 		return fmt.Errorf("cannot write config: %w", err)
 	}
 

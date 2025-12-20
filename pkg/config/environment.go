@@ -12,7 +12,7 @@ import (
 // This provides ExaBGP-compatible environment variable support.
 //
 // Variable format: exabgp.<section>.<option> or exabgp_<section>_<option>
-// Priority: exabgp.x.y > exabgp_x_y > default
+// Priority: exabgp.x.y > exabgp_x_y > default.
 type Environment struct {
 	Daemon  DaemonEnv
 	Log     LogEnv
@@ -146,8 +146,8 @@ func (e *Environment) loadDefaults() {
 	e.API.Encoder = "json"
 	e.API.Respawn = true
 	e.API.CLI = true
-	e.API.PipeName = "zebgp"
-	e.API.SocketName = "zebgp"
+	e.API.PipeName = "zebgp"   //nolint:goconst // Default name, not worth a constant
+	e.API.SocketName = "zebgp" //nolint:goconst // Default name, not worth a constant
 
 	// Reactor defaults
 	e.Reactor.Speed = 1.0
@@ -270,7 +270,7 @@ func getEnvBool(section, option string, def bool) bool {
 		return def
 	}
 	v = strings.ToLower(v)
-	return v == "1" || v == "true" || v == "yes" || v == "on" || v == "enable"
+	return v == "1" || v == "true" || v == "yes" || v == "on" || v == "enable" //nolint:goconst // Truthy values
 }
 
 // getEnvInt returns an integer value from environment.

@@ -49,15 +49,9 @@ clean:
 	rm -rf bin/
 	rm -f coverage.out coverage.html
 
-# Run encoding tests (ExaBGP compatibility)
-test-encoding:
-	@echo "Running encoding tests..."
-	go test -v ./testdata/encoding/...
-
-# Run decoding tests (ExaBGP compatibility)
-test-decoding:
-	@echo "Running decoding tests..."
-	go test -v ./testdata/decoding/...
+# Run all tests including self-check
+test-all: test self-check
+	@echo "All tests passed"
 
 # Run self-check functional tests
 self-check:
@@ -78,14 +72,15 @@ help:
 	@echo ""
 	@echo "  all          - lint, test, build (default)"
 	@echo "  build        - Build all binaries"
-	@echo "  test         - Run tests with race detector"
+	@echo "  test         - Run unit tests with race detector"
+	@echo "  test-all     - Run unit tests + self-check functional tests"
 	@echo "  test-cover   - Run tests with coverage report"
+	@echo "  self-check   - Run functional tests (ExaBGP compatibility)"
 	@echo "  lint         - Run golangci-lint"
 	@echo "  fmt          - Format code (gofmt + goimports)"
 	@echo "  vet          - Run go vet"
 	@echo "  tidy         - Tidy go.mod dependencies"
 	@echo "  clean        - Remove build artifacts"
-	@echo "  self-check   - Run functional tests (ExaBGP compatibility)"
 	@echo "  check        - Quick check (fmt + vet)"
 	@echo "  ci           - Full CI check (lint + test + build)"
 	@echo "  help         - Show this help"

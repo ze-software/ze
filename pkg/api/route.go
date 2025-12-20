@@ -1,3 +1,4 @@
+//nolint:goconst // Many string literals are intentional for BGP protocol keywords
 package api
 
 import (
@@ -166,7 +167,7 @@ func handleAnnounceEOR(ctx *CommandContext, args []string) (*Response, error) {
 		afiStr := strings.ToLower(args[0])
 		safiStr := strings.ToLower(args[1])
 
-		switch afiStr {
+		switch afiStr { //nolint:goconst // String literals are clearer here
 		case "ipv4":
 			afi = 1
 		case "ipv6":
@@ -180,7 +181,7 @@ func handleAnnounceEOR(ctx *CommandContext, args []string) (*Response, error) {
 			}, ErrInvalidFamily
 		}
 
-		switch safiStr {
+		switch safiStr { //nolint:goconst // String literals are clearer here
 		case "unicast":
 			safi = 1
 		case "multicast":
@@ -237,7 +238,7 @@ func ParseRouteArgs(args []string) (RouteSpec, error) {
 		key := strings.ToLower(args[i])
 		value := args[i+1]
 
-		switch key {
+		switch key { //nolint:goconst,gocritic // String literals are clearer; switch for future cases
 		case "next-hop":
 			if strings.EqualFold(value, "self") {
 				// next-hop self is handled by the reactor
@@ -661,11 +662,11 @@ func parseL2VPNArgs(args []string) (L2VPNRoute, error) {
 
 	// First argument is route type
 	routeType := strings.ToLower(args[0])
-	switch routeType {
+	switch routeType { //nolint:goconst // String literals are clearer here
 	case "mac-ip", "macip", "type2":
-		route.RouteType = "mac-ip"
+		route.RouteType = "mac-ip" //nolint:goconst // String literal is assignment value
 	case "ip-prefix", "ipprefix", "type5":
-		route.RouteType = "ip-prefix"
+		route.RouteType = "ip-prefix" //nolint:goconst // String literal is assignment value
 	case "multicast", "inclusive-multicast", "type3":
 		route.RouteType = "multicast"
 	case "ethernet-segment", "es", "type4":

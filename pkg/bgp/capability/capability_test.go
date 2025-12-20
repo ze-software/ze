@@ -277,7 +277,7 @@ func TestExtendedNextHopCapability(t *testing.T) {
 	require.True(t, ok)
 	require.Len(t, enh.Families, 1)
 	assert.Equal(t, AFIIPv4, enh.Families[0].NLRIAFI)
-	assert.Equal(t, SAFIUnicast, SAFI(enh.Families[0].NLRISAFI))
+	assert.Equal(t, SAFIUnicast, enh.Families[0].NLRISAFI)
 	assert.Equal(t, AFIIPv6, enh.Families[0].NextHopAFI)
 }
 

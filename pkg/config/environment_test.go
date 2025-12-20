@@ -1,7 +1,6 @@
 package config
 
 import (
-	"os"
 	"testing"
 )
 
@@ -128,11 +127,7 @@ func TestLoadEnvironmentBooleanValues(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.value, func(t *testing.T) {
-			// Save and restore environment
-			oldVal := os.Getenv("exabgp.bgp.passive")
-			defer os.Setenv("exabgp.bgp.passive", oldVal)
-
-			os.Setenv("exabgp.bgp.passive", tt.value)
+			t.Setenv("exabgp.bgp.passive", tt.value)
 			env := LoadEnvironment()
 
 			if env.BGP.Passive != tt.want {
@@ -179,19 +174,4 @@ func TestSocketPath(t *testing.T) {
 			t.Errorf("SocketPath() = %q, want %q", env.SocketPath(), "/var/run/custom.sock")
 		}
 	})
-}
-
-// splitFirst splits a string on the first occurrence of sep.
-func splitFirst(s, sep string) []string {
-	idx := 0
-	for i := range s {
-		if string(s[i]) == sep {
-			idx = i
-			break
-		}
-	}
-	if idx == 0 {
-		return []string{s, ""}
-	}
-	return []string{s[:idx], s[idx+1:]}
 }

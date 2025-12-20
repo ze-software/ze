@@ -1,0 +1,31 @@
+#!/usr/bin/env python3
+
+import time
+
+from exabgp_api import send, wait_for_ack, wait_for_shutdown
+
+
+def main() -> None:
+    messages = [
+        ('announce route 1.1.0.0/16 next-hop 1.1.1.1', 1),
+        ('neighbor 127.0.0.1 teardown 4', 2.5),
+        ('announce route 2.2.0.0/16 next-hop 2.2.2.2', 1),
+        ('neighbor 127.0.0.1 teardown 4', 2.5),
+        ('announce route 3.3.0.0/16 next-hop 3.3.3.3', 1),
+    ]
+
+    # Send all messages with timing delays
+    message_count = len(messages)
+    for message, sleep_duration in messages:
+        send(message)
+        time.sleep(sleep_duration)
+
+    # Wait for all ACKs at once
+    if message_count > 0:
+        wait_for_ack(expected_count=message_count)
+
+    wait_for_shutdown()
+
+
+if __name__ == '__main__':
+    main()

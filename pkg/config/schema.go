@@ -345,7 +345,7 @@ func ValidateValue(typ ValueType, value string) error {
 		return nil
 
 	case TypeBool:
-		if value != configTrue && value != "false" && value != "enable" && value != "disable" {
+		if value != configTrue && value != "false" && value != "enable" && value != "disable" { //nolint:goconst // String literals for validation
 			return fmt.Errorf("invalid bool: %q (expected true/false/enable/disable)", value)
 		}
 		return nil

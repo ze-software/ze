@@ -19,13 +19,13 @@ func TestNewEditor(t *testing.T) {
 	initial := `router-id 1.2.3.4;
 local-as 65000;
 `
-	err := os.WriteFile(configPath, []byte(initial), 0644)
+	err := os.WriteFile(configPath, []byte(initial), 0600)
 	require.NoError(t, err)
 
 	// Create editor
 	ed, err := NewEditor(configPath)
 	require.NoError(t, err)
-	defer ed.Close()
+	defer ed.Close() //nolint:errcheck // Best effort cleanup
 
 	assert.Equal(t, configPath, ed.OriginalPath())
 	assert.False(t, ed.Dirty())
@@ -42,13 +42,13 @@ func TestEditorSaveCreatesBackup(t *testing.T) {
 
 	// Write initial config
 	initial := `router-id 1.2.3.4;`
-	err := os.WriteFile(configPath, []byte(initial), 0644)
+	err := os.WriteFile(configPath, []byte(initial), 0600)
 	require.NoError(t, err)
 
 	// Create editor and modify
 	ed, err := NewEditor(configPath)
 	require.NoError(t, err)
-	defer ed.Close()
+	defer ed.Close() //nolint:errcheck // Best effort cleanup
 
 	// Mark as dirty (simulating a change)
 	ed.MarkDirty()
@@ -73,7 +73,7 @@ func TestEditorBackupNaming(t *testing.T) {
 	configPath := filepath.Join(tmpDir, "myconfig.conf")
 
 	// Write initial config
-	err := os.WriteFile(configPath, []byte("test"), 0644)
+	err := os.WriteFile(configPath, []byte("test"), 0600)
 	require.NoError(t, err)
 
 	// Create multiple backups
@@ -83,13 +83,13 @@ func TestEditorBackupNaming(t *testing.T) {
 		ed.MarkDirty()
 		err = ed.Save()
 		require.NoError(t, err)
-		ed.Close()
+		ed.Close() //nolint:errcheck,gosec // Best effort cleanup
 	}
 
 	// Check backup naming
 	ed, err := NewEditor(configPath)
 	require.NoError(t, err)
-	defer ed.Close()
+	defer ed.Close() //nolint:errcheck // Best effort cleanup
 
 	backups, err := ed.ListBackups()
 	require.NoError(t, err)
@@ -111,12 +111,12 @@ func TestEditorDiscard(t *testing.T) {
 	configPath := filepath.Join(tmpDir, "test.conf")
 
 	initial := `router-id 1.2.3.4;`
-	err := os.WriteFile(configPath, []byte(initial), 0644)
+	err := os.WriteFile(configPath, []byte(initial), 0600)
 	require.NoError(t, err)
 
 	ed, err := NewEditor(configPath)
 	require.NoError(t, err)
-	defer ed.Close()
+	defer ed.Close() //nolint:errcheck // Best effort cleanup
 
 	// Mark dirty
 	ed.MarkDirty()
@@ -134,7 +134,7 @@ func TestEditorRollback(t *testing.T) {
 
 	// Write initial config
 	version1 := `router-id 1.1.1.1;`
-	err := os.WriteFile(configPath, []byte(version1), 0644)
+	err := os.WriteFile(configPath, []byte(version1), 0600)
 	require.NoError(t, err)
 
 	// Create first backup
@@ -143,17 +143,17 @@ func TestEditorRollback(t *testing.T) {
 	ed.MarkDirty()
 	err = ed.Save()
 	require.NoError(t, err)
-	ed.Close()
+	_ = ed.Close()
 
 	// Write version 2
 	version2 := `router-id 2.2.2.2;`
-	err = os.WriteFile(configPath, []byte(version2), 0644)
+	err = os.WriteFile(configPath, []byte(version2), 0600)
 	require.NoError(t, err)
 
 	// Rollback to first backup
 	ed, err = NewEditor(configPath)
 	require.NoError(t, err)
-	defer ed.Close()
+	defer ed.Close() //nolint:errcheck // Best effort cleanup
 
 	backups, err := ed.ListBackups()
 	require.NoError(t, err)
@@ -163,7 +163,7 @@ func TestEditorRollback(t *testing.T) {
 	require.NoError(t, err)
 
 	// Verify content was restored
-	data, err := os.ReadFile(configPath)
+	data, err := os.ReadFile(configPath) //nolint:gosec // Test file path
 	require.NoError(t, err)
 	assert.Equal(t, version1, string(data))
 }
@@ -172,12 +172,12 @@ func TestEditorListBackupsEmpty(t *testing.T) {
 	tmpDir := t.TempDir()
 	configPath := filepath.Join(tmpDir, "test.conf")
 
-	err := os.WriteFile(configPath, []byte("test"), 0644)
+	err := os.WriteFile(configPath, []byte("test"), 0600)
 	require.NoError(t, err)
 
 	ed, err := NewEditor(configPath)
 	require.NoError(t, err)
-	defer ed.Close()
+	defer ed.Close() //nolint:errcheck // Best effort cleanup
 
 	backups, err := ed.ListBackups()
 	require.NoError(t, err)
@@ -191,12 +191,12 @@ func TestEditorDiff(t *testing.T) {
 	initial := `router-id 1.2.3.4;
 local-as 65000;
 `
-	err := os.WriteFile(configPath, []byte(initial), 0644)
+	err := os.WriteFile(configPath, []byte(initial), 0600)
 	require.NoError(t, err)
 
 	ed, err := NewEditor(configPath)
 	require.NoError(t, err)
-	defer ed.Close()
+	defer ed.Close() //nolint:errcheck // Best effort cleanup
 
 	// No changes yet
 	diff := ed.Diff()

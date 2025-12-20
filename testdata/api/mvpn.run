@@ -1,0 +1,37 @@
+#!/usr/bin/env python3
+
+import time
+
+from exabgp_api import send, wait_for_ack, wait_for_shutdown
+
+
+def main() -> None:
+    routes = [
+        'ipv4 mcast-vpn shared-join rp 10.99.199.1 group 239.251.255.228 rd 65000:99999 source-as 65000 next-hop 10.10.6.3 extended-community [ target:192.168.94.12:5 ]',
+        'ipv4 mcast-vpn source-join source 10.99.12.2 group 239.251.255.228 rd 65000:99999 source-as 65000 next-hop 10.10.6.3 extended-community [ target:192.168.94.12:5 ]',
+        'ipv6 mcast-vpn shared-join rp fd00::1 group ff0e::1 rd 65000:99999 source-as 65000 next-hop 10.10.6.3 extended-community [ target:192.168.94.12:5 ]',
+        'ipv6 mcast-vpn source-join source fd12::2 group ff0e::1 rd 65000:99999 source-as 65000 next-hop 10.10.6.3 extended-community [ target:192.168.94.12:5 ]',
+        'ipv6 mcast-vpn source-ad source fd12::4 group ff0e::1 rd 65000:99999 next-hop 10.10.6.4 extended-community [ target:65000:99999 ]',
+        'ipv4 mcast-vpn source-ad source 10.99.12.4 group 239.251.255.228 rd 65000:99999 next-hop 10.10.6.4 extended-community [ target:65000:99999 ]',
+    ]
+
+    for r in routes:
+        send('announce ' + r)
+        time.sleep(0.1)
+
+    wait_for_ack(expected_count=6)
+
+    time.sleep(2)
+
+    for r in routes:
+        send('withdraw ' + r)
+        time.sleep(0.1)
+
+    wait_for_ack(expected_count=6)
+
+    wait_for_shutdown(timeout=15.0)
+    time.sleep(2)  # let the EOR pass
+
+
+if __name__ == '__main__':
+    main()

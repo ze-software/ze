@@ -395,7 +395,7 @@ func parseExtendedNextHop(data []byte) (*ExtendedNextHop, error) {
 		offset := i * 6
 		families[i] = ExtendedNextHopFamily{
 			NLRIAFI:    AFI(binary.BigEndian.Uint16(data[offset:])),
-			NLRISAFI:   SAFI(binary.BigEndian.Uint16(data[offset+2:])),
+			NLRISAFI:   SAFI(binary.BigEndian.Uint16(data[offset+2:])), //nolint:gosec // BGP encodes SAFI as 16-bit in extended next-hop
 			NextHopAFI: AFI(binary.BigEndian.Uint16(data[offset+4:])),
 		}
 	}

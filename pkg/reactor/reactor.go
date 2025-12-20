@@ -271,7 +271,7 @@ func buildEORUpdate(afi uint16, safi uint8) *message.Update {
 	attrBytes := attribute.PackHeader(
 		attribute.FlagOptional,
 		attribute.AttrMPUnreachNLRI,
-		uint16(len(mpUnreachValue)),
+		uint16(len(mpUnreachValue)), //nolint:gosec // Length is bounded by BGP message size
 	)
 	attrBytes = append(attrBytes, mpUnreachValue...)
 
@@ -468,6 +468,14 @@ func formatASPath(asPath *attribute.ASPath) string {
 			}
 			result += "}"
 		case attribute.ASSequence:
+			for j, asn := range seg.ASNs {
+				if j > 0 {
+					result += " "
+				}
+				result += fmt.Sprintf("%d", asn)
+			}
+		case attribute.ASConfedSet, attribute.ASConfedSequence:
+			// Confederation segments - format similar to regular segments
 			for j, asn := range seg.ASNs {
 				if j > 0 {
 					result += " "
