@@ -1,0 +1,379 @@
+package config
+
+import (
+	"fmt"
+	"net/netip"
+	"strconv"
+	"strings"
+)
+
+// Origin represents the ORIGIN path attribute.
+// RFC 4271: 0=IGP, 1=EGP, 2=INCOMPLETE
+type Origin uint8
+
+const (
+	OriginIGP        Origin = 0
+	OriginEGP        Origin = 1
+	OriginIncomplete Origin = 2
+)
+
+// ParseOrigin parses an origin string (igp, egp, incomplete).
+func ParseOrigin(s string) (Origin, error) {
+	switch strings.ToLower(s) {
+	case "", "igp":
+		return OriginIGP, nil
+	case "egp":
+		return OriginEGP, nil
+	case "incomplete":
+		return OriginIncomplete, nil
+	default:
+		return 0, fmt.Errorf("invalid origin %q: valid values are igp, egp, incomplete", s)
+	}
+}
+
+func (o Origin) String() string {
+	switch o {
+	case OriginIGP:
+		return "igp"
+	case OriginEGP:
+		return "egp"
+	case OriginIncomplete:
+		return "incomplete"
+	default:
+		return fmt.Sprintf("unknown(%d)", o)
+	}
+}
+
+// ExtendedCommunity represents one or more extended communities (RFC 4360).
+// Formats: target:ASN:NN, origin:ASN:NN, N:IP:NN, ASN:IP (type-0 generic)
+type ExtendedCommunity struct {
+	Raw   string // Original string for encoding
+	Bytes []byte // Wire-format bytes (8 bytes per community)
+}
+
+// Extended community types and subtypes (RFC 4360, RFC 7153)
+const (
+	// Type high byte (transitive = 0x00, non-transitive = 0x40)
+	ecTypeTransitive2ByteAS = 0x00 // 2-byte AS, transitive
+	ecTypeTransitiveIPv4    = 0x01 // IPv4 address, transitive
+	ecTypeTransitive4ByteAS = 0x02 // 4-byte AS, transitive
+
+	// Subtypes
+	ecSubtypeRouteTarget = 0x02 // Route Target (RFC 4360)
+	ecSubtypeRouteOrigin = 0x03 // Route Origin (RFC 4360)
+)
+
+// ParseExtendedCommunity parses extended community string(s).
+// Formats: target:ASN:NN, origin:ASN:NN, ASN:IP (generic type-0)
+func ParseExtendedCommunity(s string) (ExtendedCommunity, error) {
+	if s == "" {
+		return ExtendedCommunity{}, nil
+	}
+
+	parts := strings.Fields(s)
+	var allBytes []byte
+
+	for _, p := range parts {
+		b, err := parseOneExtCommunity(p)
+		if err != nil {
+			return ExtendedCommunity{}, err
+		}
+		allBytes = append(allBytes, b...)
+	}
+
+	return ExtendedCommunity{Raw: s, Bytes: allBytes}, nil
+}
+
+// parseOneExtCommunity parses a single extended community string to 8 bytes.
+func parseOneExtCommunity(s string) ([]byte, error) {
+	// Format: [type:]value1:value2
+	parts := strings.Split(s, ":")
+
+	if len(parts) == 2 {
+		// Generic format: ASN:NN or ASN:IP
+		return parseGenericExtCommunity(parts[0], parts[1])
+	}
+
+	if len(parts) == 3 {
+		// Named format: target:ASN:NN or origin:ASN:NN
+		switch parts[0] {
+		case "target":
+			return parseRouteTargetOrOrigin(ecSubtypeRouteTarget, parts[1], parts[2])
+		case "origin":
+			return parseRouteTargetOrOrigin(ecSubtypeRouteOrigin, parts[1], parts[2])
+		default:
+			return nil, fmt.Errorf("unknown extended-community type %q", parts[0])
+		}
+	}
+
+	return nil, fmt.Errorf("invalid extended-community %q: expected format like target:ASN:NN", s)
+}
+
+// parseGenericExtCommunity parses ASN:Value format (type 0x00, subtype from context).
+// Supports formats: ASN:NN, IP:NN, ASN:IP (where IP is converted to uint32)
+func parseGenericExtCommunity(asnStr, valStr string) ([]byte, error) {
+	// Check if first part is an IP address (format: IP:NN)
+	if ip, err := netip.ParseAddr(asnStr); err == nil && ip.Is4() {
+		num, err := strconv.ParseUint(valStr, 10, 16)
+		if err != nil {
+			return nil, fmt.Errorf("invalid extended-community number %q", valStr)
+		}
+		b := ip.As4()
+		return []byte{
+			ecTypeTransitiveIPv4, ecSubtypeRouteTarget,
+			b[0], b[1], b[2], b[3],
+			byte(num >> 8), byte(num),
+		}, nil
+	}
+
+	// Parse ASN part
+	asn, err := strconv.ParseUint(asnStr, 10, 32)
+	if err != nil {
+		return nil, fmt.Errorf("invalid extended-community ASN %q", asnStr)
+	}
+
+	// Check if value is an IP address (format: ASN:IP, IP converted to uint32)
+	if ip, err := netip.ParseAddr(valStr); err == nil && ip.Is4() {
+		b := ip.As4()
+		num := uint32(b[0])<<24 | uint32(b[1])<<16 | uint32(b[2])<<8 | uint32(b[3])
+		if asn <= 0xFFFF {
+			// 2-byte ASN, 4-byte number (from IP)
+			return []byte{
+				ecTypeTransitive2ByteAS, ecSubtypeRouteTarget,
+				byte(asn >> 8), byte(asn),
+				byte(num >> 24), byte(num >> 16), byte(num >> 8), byte(num),
+			}, nil
+		}
+		// 4-byte ASN, 2-byte number (truncate IP to 16 bits)
+		return []byte{
+			ecTypeTransitive4ByteAS, ecSubtypeRouteTarget,
+			byte(asn >> 24), byte(asn >> 16), byte(asn >> 8), byte(asn),
+			byte(num >> 8), byte(num),
+		}, nil
+	}
+
+	// Format: ASN:NN (both numeric)
+	num, err := strconv.ParseUint(valStr, 10, 32)
+	if err != nil {
+		return nil, fmt.Errorf("invalid extended-community number %q", valStr)
+	}
+
+	if asn <= 0xFFFF {
+		// 2-byte ASN, 4-byte number
+		return []byte{
+			ecTypeTransitive2ByteAS, ecSubtypeRouteTarget,
+			byte(asn >> 8), byte(asn),
+			byte(num >> 24), byte(num >> 16), byte(num >> 8), byte(num),
+		}, nil
+	}
+	// 4-byte ASN, 2-byte number
+	return []byte{
+		ecTypeTransitive4ByteAS, ecSubtypeRouteTarget,
+		byte(asn >> 24), byte(asn >> 16), byte(asn >> 8), byte(asn),
+		byte(num >> 8), byte(num),
+	}, nil
+}
+
+// parseRouteTargetOrOrigin parses target:ASN:NN or origin:ASN:NN format.
+func parseRouteTargetOrOrigin(subtype byte, asnStr, numStr string) ([]byte, error) {
+	// Check if ASN part is an IP address
+	if ip, err := netip.ParseAddr(asnStr); err == nil && ip.Is4() {
+		// Type 1: IPv4 address
+		num, err := strconv.ParseUint(numStr, 10, 16)
+		if err != nil {
+			return nil, fmt.Errorf("invalid extended-community number %q", numStr)
+		}
+		b := ip.As4()
+		return []byte{
+			ecTypeTransitiveIPv4, subtype,
+			b[0], b[1], b[2], b[3],
+			byte(num >> 8), byte(num),
+		}, nil
+	}
+
+	asn, err := strconv.ParseUint(asnStr, 10, 32)
+	if err != nil {
+		return nil, fmt.Errorf("invalid extended-community ASN %q", asnStr)
+	}
+	num, err := strconv.ParseUint(numStr, 10, 32)
+	if err != nil {
+		return nil, fmt.Errorf("invalid extended-community number %q", numStr)
+	}
+
+	if asn <= 0xFFFF {
+		// Type 0: 2-byte ASN, 4-byte number
+		return []byte{
+			ecTypeTransitive2ByteAS, subtype,
+			byte(asn >> 8), byte(asn),
+			byte(num >> 24), byte(num >> 16), byte(num >> 8), byte(num),
+		}, nil
+	}
+	// Type 2: 4-byte ASN, 2-byte number
+	return []byte{
+		ecTypeTransitive4ByteAS, subtype,
+		byte(asn >> 24), byte(asn >> 16), byte(asn >> 8), byte(asn),
+		byte(num >> 8), byte(num),
+	}, nil
+}
+
+func (ec ExtendedCommunity) String() string {
+	return ec.Raw
+}
+
+// Values returns individual community values.
+func (ec ExtendedCommunity) Values() []string {
+	if ec.Raw == "" {
+		return nil
+	}
+	return strings.Fields(ec.Raw)
+}
+
+// PathID represents an ADD-PATH path identifier.
+// Valid range: 0-4294967295 (0 means not set)
+type PathID uint32
+
+// ParsePathID parses a path-information value.
+// Can be a uint32 or an IPv4 address (converted to uint32).
+func ParsePathID(s string) (PathID, error) {
+	if s == "" {
+		return 0, nil
+	}
+	// Try as integer first
+	if n, err := strconv.ParseUint(s, 10, 32); err == nil {
+		return PathID(n), nil
+	}
+	// Try as IPv4 address (ExaBGP format)
+	if ip, err := netip.ParseAddr(s); err == nil && ip.Is4() {
+		b := ip.As4()
+		return PathID(uint32(b[0])<<24 | uint32(b[1])<<16 | uint32(b[2])<<8 | uint32(b[3])), nil
+	}
+	return 0, fmt.Errorf("invalid path-information %q: expected integer or IPv4 address", s)
+}
+
+func (p PathID) String() string {
+	if p == 0 {
+		return ""
+	}
+	return strconv.FormatUint(uint64(p), 10)
+}
+
+// MPLSLabel represents an MPLS label stack entry.
+// Valid range: 0-1048575 (20 bits)
+const (
+	MPLSLabelMin = 0
+	MPLSLabelMax = 1048575 // 2^20 - 1
+)
+
+type MPLSLabel uint32
+
+// ParseMPLSLabel parses an MPLS label value.
+func ParseMPLSLabel(s string) (MPLSLabel, error) {
+	if s == "" {
+		return 0, nil
+	}
+	n, err := strconv.ParseUint(s, 10, 32)
+	if err != nil {
+		return 0, fmt.Errorf("invalid label %q: %w", s, err)
+	}
+	if n > MPLSLabelMax {
+		return 0, fmt.Errorf("invalid label %d: must be 0-%d", n, MPLSLabelMax)
+	}
+	return MPLSLabel(n), nil
+}
+
+func (l MPLSLabel) String() string {
+	if l == 0 {
+		return ""
+	}
+	return strconv.FormatUint(uint64(l), 10)
+}
+
+// RouteDistinguisher represents an RD (RFC 4364).
+// Formats: Type0 (ASN:NN), Type1 (IP:NN), Type2 (4-byte-ASN:NN)
+type RouteDistinguisher struct {
+	Raw string
+}
+
+// ParseRouteDistinguisher parses an RD string.
+func ParseRouteDistinguisher(s string) (RouteDistinguisher, error) {
+	if s == "" {
+		return RouteDistinguisher{}, nil
+	}
+	// Basic validation: should have colon
+	if !strings.Contains(s, ":") {
+		return RouteDistinguisher{}, fmt.Errorf("invalid rd %q: expected format ASN:NN or IP:NN", s)
+	}
+	return RouteDistinguisher{Raw: s}, nil
+}
+
+func (rd RouteDistinguisher) String() string {
+	return rd.Raw
+}
+
+// ParsedRouteAttributes holds all parsed route attributes.
+type ParsedRouteAttributes struct {
+	Prefix            netip.Prefix
+	NextHop           netip.Addr
+	Origin            Origin
+	LocalPreference   uint32
+	MED               uint32
+	ExtendedCommunity ExtendedCommunity
+	PathID            PathID
+	Label             MPLSLabel
+	RD                RouteDistinguisher
+}
+
+// ParseRouteAttributes parses all attributes from a StaticRouteConfig.
+func ParseRouteAttributes(src StaticRouteConfig) (*ParsedRouteAttributes, error) {
+	attrs := &ParsedRouteAttributes{
+		Prefix:          src.Prefix,
+		LocalPreference: src.LocalPreference,
+		MED:             src.MED,
+	}
+
+	// NextHop
+	if src.NextHop != "" && src.NextHop != "self" {
+		ip, err := netip.ParseAddr(src.NextHop)
+		if err != nil {
+			return nil, fmt.Errorf("invalid next-hop %q: %w", src.NextHop, err)
+		}
+		attrs.NextHop = ip
+	}
+
+	// Origin
+	origin, err := ParseOrigin(src.Origin)
+	if err != nil {
+		return nil, err
+	}
+	attrs.Origin = origin
+
+	// Extended Community
+	ec, err := ParseExtendedCommunity(src.ExtendedCommunity)
+	if err != nil {
+		return nil, err
+	}
+	attrs.ExtendedCommunity = ec
+
+	// Path ID
+	pid, err := ParsePathID(src.PathInformation)
+	if err != nil {
+		return nil, err
+	}
+	attrs.PathID = pid
+
+	// Label
+	label, err := ParseMPLSLabel(src.Label)
+	if err != nil {
+		return nil, err
+	}
+	attrs.Label = label
+
+	// RD
+	rd, err := ParseRouteDistinguisher(src.RD)
+	if err != nil {
+		return nil, err
+	}
+	attrs.RD = rd
+
+	return attrs, nil
+}

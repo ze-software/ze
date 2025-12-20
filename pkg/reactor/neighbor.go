@@ -16,12 +16,21 @@ const DefaultBGPPort = 179
 const DefaultHoldTime = 90 * time.Second
 
 // StaticRoute represents a route to announce when session is established.
+// Fields are stored in both serializable (string/uint) and wire-ready formats.
 type StaticRoute struct {
 	Prefix          netip.Prefix
 	NextHop         netip.Addr
 	Origin          uint8  // 0=IGP, 1=EGP, 2=INCOMPLETE
 	LocalPreference uint32 // For iBGP
 	MED             uint32 // Multi-Exit Discriminator
+
+	// Extended communities - both forms for serialization and wire encoding
+	ExtCommunity      string // Original string (e.g., "target:72:1")
+	ExtCommunityBytes []byte // Wire-format (8 bytes each, sorted)
+
+	PathID uint32 // ADD-PATH path identifier
+	Label  uint32 // MPLS label (20-bit value)
+	RD     string // Route Distinguisher (e.g., "100:100")
 }
 
 // Neighbor represents a configured BGP neighbor.

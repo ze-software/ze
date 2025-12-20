@@ -343,11 +343,20 @@ func buildStaticRouteUpdate(route StaticRoute, localAS uint32, isIBGP bool) *mes
 	origin := attribute.Origin(route.Origin)
 	attrBytes = append(attrBytes, attribute.PackAttribute(origin)...)
 
-	// 2. AS_PATH (prepend local AS for eBGP, empty for iBGP routes we originate)
-	asPath := &attribute.ASPath{
-		Segments: []attribute.ASPathSegment{
-			{Type: attribute.ASSequence, ASNs: []uint32{localAS}},
-		},
+	// 2. AS_PATH
+	// - For iBGP self-originated routes: empty AS_PATH
+	// - For eBGP: prepend local AS
+	var asPath *attribute.ASPath
+	if isIBGP {
+		// Empty AS_PATH for iBGP self-originated routes
+		asPath = &attribute.ASPath{Segments: nil}
+	} else {
+		// Prepend local AS for eBGP
+		asPath = &attribute.ASPath{
+			Segments: []attribute.ASPathSegment{
+				{Type: attribute.ASSequence, ASNs: []uint32{localAS}},
+			},
+		}
 	}
 	attrBytes = append(attrBytes, attribute.PackAttribute(asPath)...)
 
@@ -355,10 +364,13 @@ func buildStaticRouteUpdate(route StaticRoute, localAS uint32, isIBGP bool) *mes
 	nextHop := &attribute.NextHop{Addr: route.NextHop}
 	attrBytes = append(attrBytes, attribute.PackAttribute(nextHop)...)
 
-	// 4. LOCAL_PREF (for iBGP)
-	if isIBGP && route.LocalPreference > 0 {
-		localPref := attribute.LocalPref(route.LocalPreference)
-		attrBytes = append(attrBytes, attribute.PackAttribute(localPref)...)
+	// 4. LOCAL_PREF (for iBGP, default 100 if not set)
+	if isIBGP {
+		localPref := route.LocalPreference
+		if localPref == 0 {
+			localPref = 100 // Default LOCAL_PREF
+		}
+		attrBytes = append(attrBytes, attribute.PackAttribute(attribute.LocalPref(localPref))...)
 	}
 
 	// 5. MED (if set)
@@ -367,10 +379,19 @@ func buildStaticRouteUpdate(route StaticRoute, localAS uint32, isIBGP bool) *mes
 		attrBytes = append(attrBytes, attribute.PackAttribute(med)...)
 	}
 
-	// Build NLRI
+	// 6. EXTENDED_COMMUNITY (if set)
+	if len(route.ExtCommunityBytes) > 0 {
+		// Pack as attribute: flags=0xC0 (optional, transitive), type=16, len, value
+		ecAttr := make([]byte, 0, 3+len(route.ExtCommunityBytes))
+		ecAttr = append(ecAttr, 0xC0, 0x10, byte(len(route.ExtCommunityBytes)))
+		ecAttr = append(ecAttr, route.ExtCommunityBytes...)
+		attrBytes = append(attrBytes, ecAttr...)
+	}
+
+	// Build NLRI with optional path-id for ADD-PATH
 	var nlriBytes []byte
 	if route.Prefix.Addr().Is4() {
-		inet := nlri.NewINET(nlri.Family{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast}, route.Prefix, 0)
+		inet := nlri.NewINET(nlri.Family{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast}, route.Prefix, route.PathID)
 		nlriBytes = inet.Bytes()
 	}
 

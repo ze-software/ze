@@ -2,7 +2,6 @@ package config
 
 import (
 	"fmt"
-	"net/netip"
 	"os"
 	"strconv"
 	"time"
@@ -69,7 +68,10 @@ func CreateReactor(cfg *BGPConfig) (*reactor.Reactor, error) {
 
 	// Add neighbors
 	for i := range cfg.Neighbors {
-		neighbor := configToNeighbor(&cfg.Neighbors[i], cfg)
+		neighbor, err := configToNeighbor(&cfg.Neighbors[i], cfg)
+		if err != nil {
+			return nil, fmt.Errorf("convert neighbor %s: %w", cfg.Neighbors[i].Address, err)
+		}
 		if err := r.AddNeighbor(neighbor); err != nil {
 			return nil, fmt.Errorf("add neighbor %s: %w", cfg.Neighbors[i].Address, err)
 		}
@@ -79,7 +81,7 @@ func CreateReactor(cfg *BGPConfig) (*reactor.Reactor, error) {
 }
 
 // configToNeighbor converts NeighborConfig to reactor.Neighbor.
-func configToNeighbor(nc *NeighborConfig, global *BGPConfig) *reactor.Neighbor {
+func configToNeighbor(nc *NeighborConfig, global *BGPConfig) (*reactor.Neighbor, error) {
 	// Determine local AS (inherit from global if not set)
 	localAS := nc.LocalAS
 	if localAS == 0 {
@@ -149,19 +151,24 @@ func configToNeighbor(nc *NeighborConfig, global *BGPConfig) *reactor.Neighbor {
 		}
 	}
 
-	// Convert static routes.
+	// Convert static routes with typed attribute parsing.
 	for _, sr := range nc.StaticRoutes {
-		route := reactor.StaticRoute{
-			Prefix:          sr.Prefix,
-			LocalPreference: sr.LocalPreference,
-			MED:             sr.MED,
+		attrs, err := ParseRouteAttributes(sr)
+		if err != nil {
+			return nil, fmt.Errorf("static route %s: %w", sr.Prefix, err)
 		}
 
-		// Parse next-hop (can be "self" or an IP address).
-		if sr.NextHop != "" && sr.NextHop != "self" {
-			if ip, err := netip.ParseAddr(sr.NextHop); err == nil {
-				route.NextHop = ip
-			}
+		route := reactor.StaticRoute{
+			Prefix:            attrs.Prefix,
+			NextHop:           attrs.NextHop,
+			Origin:            uint8(attrs.Origin),
+			LocalPreference:   attrs.LocalPreference,
+			MED:               attrs.MED,
+			ExtCommunity:      attrs.ExtendedCommunity.Raw,
+			ExtCommunityBytes: attrs.ExtendedCommunity.Bytes,
+			PathID:            uint32(attrs.PathID),
+			Label:             uint32(attrs.Label),
+			RD:                attrs.RD.Raw,
 		}
 
 		n.StaticRoutes = append(n.StaticRoutes, route)
@@ -172,5 +179,5 @@ func configToNeighbor(nc *NeighborConfig, global *BGPConfig) *reactor.Neighbor {
 		trace.NeighborRoutes(nc.Address.String(), len(n.StaticRoutes))
 	}
 
-	return n
+	return n, nil
 }

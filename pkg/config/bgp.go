@@ -156,12 +156,18 @@ type CapabilityConfig struct {
 
 // StaticRouteConfig holds a static route.
 type StaticRouteConfig struct {
-	Prefix          netip.Prefix
-	NextHop         string
-	LocalPreference uint32
-	MED             uint32
-	Community       string
-	ASPath          string
+	Prefix            netip.Prefix
+	NextHop           string
+	Origin            string // igp, egp, incomplete
+	LocalPreference   uint32
+	MED               uint32
+	Community         string
+	ExtendedCommunity string
+	LargeCommunity    string
+	ASPath            string
+	PathInformation   string // path-id for add-path
+	Label             string // MPLS label
+	RD                string // Route Distinguisher
 }
 
 // ProcessConfig holds process configuration.
@@ -357,8 +363,26 @@ func parseNeighborConfig(addr string, tree *Tree) (NeighborConfig, error) {
 			if v, ok := route.Get("community"); ok {
 				sr.Community = v
 			}
+			if v, ok := route.Get("extended-community"); ok {
+				sr.ExtendedCommunity = v
+			}
+			if v, ok := route.Get("large-community"); ok {
+				sr.LargeCommunity = v
+			}
 			if v, ok := route.Get("as-path"); ok {
 				sr.ASPath = v
+			}
+			if v, ok := route.Get("origin"); ok {
+				sr.Origin = v
+			}
+			if v, ok := route.Get("path-information"); ok {
+				sr.PathInformation = v
+			}
+			if v, ok := route.Get("label"); ok {
+				sr.Label = v
+			}
+			if v, ok := route.Get("rd"); ok {
+				sr.RD = v
 			}
 
 			nc.StaticRoutes = append(nc.StaticRoutes, sr)
