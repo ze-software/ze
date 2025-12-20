@@ -49,8 +49,9 @@ func TestLoadEnvironmentDefaults(t *testing.T) {
 	if env.API.Encoder != "json" {
 		t.Errorf("API.Encoder = %q, want %q", env.API.Encoder, "json")
 	}
-	if env.API.SocketName != "zebgp" {
-		t.Errorf("API.SocketName = %q, want %q", env.API.SocketName, "zebgp")
+	const defaultSocketName = "zebgp"
+	if env.API.SocketName != defaultSocketName {
+		t.Errorf("API.SocketName = %q, want %q", env.API.SocketName, defaultSocketName)
 	}
 }
 

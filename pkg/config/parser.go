@@ -532,7 +532,7 @@ func (p *Parser) parseFreeform(tree *Tree, name string) error {
 					}
 					key += w
 				}
-				child.Set(key, "true")
+				child.Set(key, configTrue)
 			}
 		}
 	}
@@ -549,7 +549,7 @@ func (p *Parser) parseFlex(tree *Tree, name string, node *FlexNode) error {
 	case TokenSemicolon:
 		// Flag mode: just the name with semicolon = true
 		p.tok.Next()
-		tree.Set(name, "true")
+		tree.Set(name, configTrue)
 		return nil
 
 	case TokenLBrace:
@@ -613,21 +613,22 @@ func (p *Parser) parseFlex(tree *Tree, name string, node *FlexNode) error {
 		// Value mode: parse multiple words until semicolon or block delimiter
 		var values []string
 		for tok.Type == TokenWord || tok.Type == TokenString || tok.Type == TokenLBracket || tok.Type == TokenLParen {
-			if tok.Type == TokenLBracket {
+			switch tok.Type { //nolint:exhaustive // Only handling specific types in loop condition
+			case TokenLBracket:
 				// Array: collect [ ... ]
 				arrayVals, err := p.collectArray()
 				if err != nil {
 					return err
 				}
 				values = append(values, "["+joinStrings(arrayVals, " ")+"]")
-			} else if tok.Type == TokenLParen {
+			case TokenLParen:
 				// Parenthesized: collect ( ... )
 				parenVals, err := p.collectParenthesized()
 				if err != nil {
 					return err
 				}
 				values = append(values, "("+joinStrings(parenVals, " ")+")")
-			} else {
+			default:
 				values = append(values, tok.Value)
 				p.tok.Next()
 			}
@@ -720,7 +721,8 @@ func (p *Parser) parseInlineList(tree *Tree, name string, node *InlineListNode) 
 			// Get value - can be word, string, array [ ... ], parenthesized ( ... ), or flag
 			tok = p.tok.Peek()
 			var attrValue string
-			if tok.Type == TokenLBracket {
+			switch tok.Type { //nolint:exhaustive // Other types handled in default
+			case TokenLBracket:
 				// Array value: [ item item ... ]
 				arrayVals, err := p.collectArray()
 				if err != nil {
@@ -733,7 +735,7 @@ func (p *Parser) parseInlineList(tree *Tree, name string, node *InlineListNode) 
 					}
 					attrValue += v
 				}
-			} else if tok.Type == TokenLParen {
+			case TokenLParen:
 				// Parenthesized value: ( item item ... )
 				parenVals, err := p.collectParenthesized()
 				if err != nil {
@@ -746,19 +748,19 @@ func (p *Parser) parseInlineList(tree *Tree, name string, node *InlineListNode) 
 					}
 					attrValue += v
 				}
-			} else if tok.Type == TokenWord || tok.Type == TokenString {
+			case TokenWord, TokenString:
 				// Check if this word is a known attribute name - if so, current attr is a flag
 				if node.Get(tok.Value) != nil {
-					attrValue = "true"
+					attrValue = configTrue
 					// Don't consume - it's the next attribute name
 				} else {
 					attrValue = tok.Value
 					p.tok.Next()
 				}
-			} else if tok.Type == TokenSemicolon {
+			case TokenSemicolon:
 				// Flag without value - the attribute itself is the value (like "withdraw;")
-				attrValue = "true"
-			} else {
+				attrValue = configTrue
+			default:
 				return p.errorf(tok, "expected value for %s.%s, got %s", name, attrName, tok.Type)
 			}
 

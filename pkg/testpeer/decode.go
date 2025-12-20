@@ -435,13 +435,14 @@ func Diff(expected, received string) string {
 			expVal, hasExp := expAttrs[key]
 			rcvVal, hasRcv := rcvAttrs[key]
 
-			if !hasExp {
+			switch {
+			case !hasExp:
 				sb.WriteString(fmt.Sprintf("  + %s: %s (unexpected)\n", key, rcvVal))
 				hasDiff = true
-			} else if !hasRcv {
+			case !hasRcv:
 				sb.WriteString(fmt.Sprintf("  - %s: %s (missing)\n", key, expVal))
 				hasDiff = true
-			} else if expVal != rcvVal {
+			case expVal != rcvVal:
 				sb.WriteString(fmt.Sprintf("  ~ %s: expected=%s, got=%s\n", key, expVal, rcvVal))
 				hasDiff = true
 			}

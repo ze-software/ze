@@ -300,7 +300,9 @@ func (p *Peer) printPayload(prefix string, header, body []byte) {
 
 	// Show decoded output if enabled
 	if p.config.Decode {
-		fullMsg := append(header, body...)
+		fullMsg := make([]byte, len(header)+len(body))
+		copy(fullMsg, header)
+		copy(fullMsg[len(header):], body)
 		if decoded, err := DecodeMessageBytes(fullMsg); err == nil {
 			for _, line := range strings.Split(decoded.String(), "\n") {
 				if line != "" {

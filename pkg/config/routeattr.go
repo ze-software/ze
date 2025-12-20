@@ -8,7 +8,7 @@ import (
 )
 
 // Origin represents the ORIGIN path attribute.
-// RFC 4271: 0=IGP, 1=EGP, 2=INCOMPLETE
+// RFC 4271: 0=IGP, 1=EGP, 2=INCOMPLETE.
 type Origin uint8
 
 const (
@@ -52,7 +52,7 @@ type Community struct {
 }
 
 // ParseCommunity parses community string(s) to wire format values.
-// Formats: ASN:Value, list in brackets [ASN:Value ASN:Value], well-known names
+// Formats: ASN:Value, list in brackets [ASN:Value ASN:Value], well-known names.
 func ParseCommunity(s string) (Community, error) {
 	if s == "" {
 		return Community{}, nil
@@ -125,7 +125,7 @@ type LargeCommunity struct {
 }
 
 // ParseLargeCommunity parses large community string(s).
-// Format: GA:LD1:LD2, list in brackets [GA:LD1:LD2 GA:LD1:LD2]
+// Format: GA:LD1:LD2, list in brackets [GA:LD1:LD2 GA:LD1:LD2].
 func ParseLargeCommunity(s string) (LargeCommunity, error) {
 	if s == "" {
 		return LargeCommunity{}, nil
@@ -177,26 +177,26 @@ func parseOneLargeCommunity(s string) ([3]uint32, error) {
 }
 
 // ExtendedCommunity represents one or more extended communities (RFC 4360).
-// Formats: target:ASN:NN, origin:ASN:NN, N:IP:NN, ASN:IP (type-0 generic)
+// Formats: target:ASN:NN, origin:ASN:NN, N:IP:NN, ASN:IP (type-0 generic).
 type ExtendedCommunity struct {
 	Raw   string // Original string for encoding
 	Bytes []byte // Wire-format bytes (8 bytes per community)
 }
 
-// Extended community types and subtypes (RFC 4360, RFC 7153)
+// Extended community types and subtypes (RFC 4360, RFC 7153).
 const (
-	// Type high byte (transitive = 0x00, non-transitive = 0x40)
+	// Type high byte (transitive = 0x00, non-transitive = 0x40).
 	ecTypeTransitive2ByteAS = 0x00 // 2-byte AS, transitive
 	ecTypeTransitiveIPv4    = 0x01 // IPv4 address, transitive
 	ecTypeTransitive4ByteAS = 0x02 // 4-byte AS, transitive
 
-	// Subtypes
+	// Subtypes.
 	ecSubtypeRouteTarget = 0x02 // Route Target (RFC 4360)
 	ecSubtypeRouteOrigin = 0x03 // Route Origin (RFC 4360)
 )
 
 // ParseExtendedCommunity parses extended community string(s).
-// Formats: target:ASN:NN, origin:ASN:NN, ASN:IP (generic type-0)
+// Formats: target:ASN:NN, origin:ASN:NN, ASN:IP (generic type-0).
 func ParseExtendedCommunity(s string) (ExtendedCommunity, error) {
 	if s == "" {
 		return ExtendedCommunity{}, nil
@@ -242,7 +242,7 @@ func parseOneExtCommunity(s string) ([]byte, error) {
 }
 
 // parseGenericExtCommunity parses ASN:Value format (type 0x00, subtype from context).
-// Supports formats: ASN:NN, IP:NN, ASN:IP (where IP is converted to uint32)
+// Supports formats: ASN:NN, IP:NN, ASN:IP (where IP is converted to uint32).
 func parseGenericExtCommunity(asnStr, valStr string) ([]byte, error) {
 	// Check if first part is an IP address (format: IP:NN)
 	if ip, err := netip.ParseAddr(asnStr); err == nil && ip.Is4() {
@@ -361,7 +361,7 @@ func (ec ExtendedCommunity) Values() []string {
 }
 
 // PathID represents an ADD-PATH path identifier.
-// Valid range: 0-4294967295 (0 means not set)
+// Valid range: 0-4294967295 (0 means not set).
 type PathID uint32
 
 // ParsePathID parses a path-information value.
@@ -390,7 +390,7 @@ func (p PathID) String() string {
 }
 
 // MPLSLabel represents an MPLS label stack entry.
-// Valid range: 0-1048575 (20 bits)
+// Valid range: 0-1048575 (20 bits).
 const (
 	MPLSLabelMin = 0
 	MPLSLabelMax = 1048575 // 2^20 - 1
@@ -421,13 +421,13 @@ func (l MPLSLabel) String() string {
 }
 
 // RouteDistinguisher represents an RD (RFC 4364).
-// Formats: Type0 (ASN2:NN4), Type1 (IP:NN2), Type2 (ASN4:NN2)
+// Formats: Type0 (ASN2:NN4), Type1 (IP:NN2), Type2 (ASN4:NN2).
 type RouteDistinguisher struct {
 	Raw   string  // Original string
 	Bytes [8]byte // Wire-format (2-byte type + 6-byte value)
 }
 
-// RD types
+// RD types.
 const (
 	rdType0 = 0 // 2-byte ASN : 4-byte assigned
 	rdType1 = 1 // 4-byte IP : 2-byte assigned

@@ -415,14 +415,15 @@ func buildStaticRouteUpdate(route StaticRoute, localAS uint32, isIBGP bool) *mes
 
 	// Build NLRI - use MP_REACH_NLRI for VPN/IPv6, inline NLRI for IPv4 unicast
 	var nlriBytes []byte
-	if route.IsVPN() {
+	switch {
+	case route.IsVPN():
 		// VPN route: use MP_REACH_NLRI attribute (returns raw bytes)
 		attrBytes = append(attrBytes, buildMPReachNLRI(route)...)
-	} else if route.Prefix.Addr().Is4() {
+	case route.Prefix.Addr().Is4():
 		// IPv4 unicast: inline NLRI with optional path-id
 		inet := nlri.NewINET(nlri.Family{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast}, route.Prefix, route.PathID)
 		nlriBytes = inet.Bytes()
-	} else {
+	default:
 		// IPv6 unicast: use MP_REACH_NLRI attribute (RFC 4760)
 		attrBytes = append(attrBytes, buildMPReachNLRIUnicast(route)...)
 	}

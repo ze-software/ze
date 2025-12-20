@@ -7,7 +7,10 @@ import (
 	"time"
 )
 
-const configTrue = "true" // Config value for boolean true
+const (
+	configTrue   = "true"   // Config value for boolean true
+	configEnable = "enable" // Config value for enabled state
+)
 
 // mcastVpnAttributes returns field definitions for MCAST-VPN routes.
 // Format: mcast-vpn <type> rp <ip> group <ip> rd <rd> source-as <asn> next-hop <ip> ...
@@ -372,7 +375,7 @@ func parseNeighborConfig(addr string, tree *Tree) (NeighborConfig, error) {
 			}
 		}
 		if v, ok := cap.Get("software-version"); ok {
-			nc.Capabilities.SoftwareVersion = v == configTrue || v == "enable"
+			nc.Capabilities.SoftwareVersion = v == configTrue || v == configEnable
 		}
 	}
 
