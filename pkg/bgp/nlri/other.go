@@ -8,20 +8,23 @@ import (
 
 // Additional SAFI values for specialized NLRI types.
 const (
-	SAFIMVPN SAFI = 5   // Multicast VPN
-	SAFIVPLS SAFI = 65  // VPLS
-	SAFIMUP  SAFI = 85  // Mobile User Plane
-	SAFIRTC  SAFI = 132 // Route Target Constraint
+	SAFIMVPN        SAFI = 5   // Multicast VPN
+	SAFIVPLS        SAFI = 65  // VPLS
+	SAFIMUP         SAFI = 85  // Mobile User Plane
+	SAFIRTC         SAFI = 132 // Route Target Constraint
+	SAFIFlowSpecVPN SAFI = 134 // FlowSpec VPN (RFC 5575 Section 6)
 )
 
 // Common address families for P2 NLRI types.
 var (
-	IPv4MVPN  = Family{AFI: AFIIPv4, SAFI: SAFIMVPN}
-	IPv6MVPN  = Family{AFI: AFIIPv6, SAFI: SAFIMVPN}
-	L2VPNVPLS = Family{AFI: AFIL2VPN, SAFI: SAFIVPLS}
-	IPv4RTC   = Family{AFI: AFIIPv4, SAFI: SAFIRTC}
-	IPv4MUP   = Family{AFI: AFIIPv4, SAFI: SAFIMUP}
-	IPv6MUP   = Family{AFI: AFIIPv6, SAFI: SAFIMUP}
+	IPv4MVPN        = Family{AFI: AFIIPv4, SAFI: SAFIMVPN}
+	IPv6MVPN        = Family{AFI: AFIIPv6, SAFI: SAFIMVPN}
+	L2VPNVPLS       = Family{AFI: AFIL2VPN, SAFI: SAFIVPLS}
+	IPv4RTC         = Family{AFI: AFIIPv4, SAFI: SAFIRTC}
+	IPv4MUP         = Family{AFI: AFIIPv4, SAFI: SAFIMUP}
+	IPv6MUP         = Family{AFI: AFIIPv6, SAFI: SAFIMUP}
+	IPv4FlowSpecVPN = Family{AFI: AFIIPv4, SAFI: SAFIFlowSpecVPN}
+	IPv6FlowSpecVPN = Family{AFI: AFIIPv6, SAFI: SAFIFlowSpecVPN}
 )
 
 // Errors for P2 NLRI parsing.

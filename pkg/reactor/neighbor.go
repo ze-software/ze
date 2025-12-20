@@ -88,6 +88,7 @@ type FlowSpecRoute struct {
 	RD                [8]byte // For flow-vpn
 	NLRI              []byte  // Pre-built FlowSpec NLRI
 	NextHop           netip.Addr
+	CommunityBytes    []byte // Standard communities
 	ExtCommunityBytes []byte
 }
 

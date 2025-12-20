@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/netip"
+	"slices"
 	"strings"
 )
 
@@ -32,6 +33,7 @@ const (
 	FlowPacketLength FlowComponentType = 10 // Packet Length
 	FlowDSCP         FlowComponentType = 11 // DSCP
 	FlowFragment     FlowComponentType = 12 // Fragment
+	FlowFlowLabel    FlowComponentType = 13 // Flow Label (IPv6)
 )
 
 // String returns a human-readable component type name.
@@ -61,6 +63,8 @@ func (t FlowComponentType) String() string {
 		return "dscp"
 	case FlowFragment:
 		return "fragment"
+	case FlowFlowLabel:
+		return "flow-label"
 	default:
 		return fmt.Sprintf("type(%d)", t)
 	}
@@ -129,17 +133,32 @@ func (f *FlowSpec) AddComponent(c FlowComponent) {
 	f.cached = nil // Invalidate cache
 }
 
-// Bytes returns the wire-format encoding.
+// ComponentBytes returns the wire-format encoding of components without length prefix.
+// This is used for FlowSpec VPN where the VPN wrapper provides its own length.
+// Components are sorted by type per RFC 5575 Section 4.
+func (f *FlowSpec) ComponentBytes() []byte {
+	// Sort components by type (RFC 5575 requires ordering)
+	sorted := make([]FlowComponent, len(f.components))
+	copy(sorted, f.components)
+	slices.SortFunc(sorted, func(a, b FlowComponent) int {
+		return int(a.Type()) - int(b.Type())
+	})
+
+	var data []byte
+	for _, c := range sorted {
+		data = append(data, c.Bytes()...)
+	}
+	return data
+}
+
+// Bytes returns the wire-format encoding (with length prefix).
 func (f *FlowSpec) Bytes() []byte {
 	if f.cached != nil {
 		return f.cached
 	}
 
 	// Encode components
-	var data []byte
-	for _, c := range f.components {
-		data = append(data, c.Bytes()...)
-	}
+	data := f.ComponentBytes()
 
 	// Add NLRI length prefix
 	if len(data) < 240 {
@@ -228,7 +247,7 @@ func parseFlowComponent(data []byte, family Family) (FlowComponent, []byte, erro
 		return parsePrefixComponent(compType, data[1:], family)
 	case FlowIPProtocol, FlowPort, FlowDestPort, FlowSourcePort,
 		FlowICMPType, FlowICMPCode, FlowTCPFlags, FlowPacketLength,
-		FlowDSCP, FlowFragment:
+		FlowDSCP, FlowFragment, FlowFlowLabel:
 		return parseNumericComponent(compType, data[1:])
 	default:
 		return nil, nil, ErrFlowSpecInvalidType
@@ -323,6 +342,7 @@ func parseNumericComponent(t FlowComponentType, data []byte) (FlowComponent, []b
 type prefixComponent struct {
 	compType FlowComponentType
 	prefix   netip.Prefix
+	offset   uint8 // IPv6 offset (0 for IPv4)
 }
 
 // NewFlowDestPrefixComponent creates a destination prefix component.
@@ -335,26 +355,46 @@ func NewFlowSourcePrefixComponent(prefix netip.Prefix) FlowComponent {
 	return &prefixComponent{compType: FlowSourcePrefix, prefix: prefix}
 }
 
+// NewFlowDestPrefixComponentWithOffset creates an IPv6 destination prefix with offset.
+func NewFlowDestPrefixComponentWithOffset(prefix netip.Prefix, offset uint8) FlowComponent {
+	return &prefixComponent{compType: FlowDestPrefix, prefix: prefix, offset: offset}
+}
+
+// NewFlowSourcePrefixComponentWithOffset creates an IPv6 source prefix with offset.
+func NewFlowSourcePrefixComponentWithOffset(prefix netip.Prefix, offset uint8) FlowComponent {
+	return &prefixComponent{compType: FlowSourcePrefix, prefix: prefix, offset: offset}
+}
+
 func (c *prefixComponent) Type() FlowComponentType { return c.compType }
 func (c *prefixComponent) Prefix() netip.Prefix    { return c.prefix }
 
 func (c *prefixComponent) Bytes() []byte {
 	bits := c.prefix.Bits()
-	prefixBytes := (bits + 7) / 8
+	addr := c.prefix.Addr()
 
+	// IPv6 FlowSpec prefixes include an offset byte
+	if addr.Is6() {
+		// Calculate bytes needed for the prefix data (from offset to prefix length)
+		// The prefix length field includes offset
+		prefixBytes := (bits + 7) / 8
+		data := make([]byte, 3+prefixBytes)
+		data[0] = byte(c.compType)
+		data[1] = byte(bits)
+		data[2] = c.offset
+
+		ip6 := addr.As16()
+		copy(data[3:], ip6[:prefixBytes])
+		return data
+	}
+
+	// IPv4: no offset
+	prefixBytes := (bits + 7) / 8
 	data := make([]byte, 2+prefixBytes)
 	data[0] = byte(c.compType)
 	data[1] = byte(bits)
 
-	addr := c.prefix.Addr()
-	if addr.Is4() {
-		ip4 := addr.As4()
-		copy(data[2:], ip4[:prefixBytes])
-	} else {
-		ip6 := addr.As16()
-		copy(data[2:], ip6[:prefixBytes])
-	}
-
+	ip4 := addr.As4()
+	copy(data[2:], ip4[:prefixBytes])
 	return data
 }
 
@@ -375,6 +415,9 @@ func (c *numericComponent) Values() []uint64        { return c.values }
 func (c *numericComponent) Bytes() []byte {
 	data := []byte{byte(c.compType)}
 
+	// Fragment and TCP flags use bitmask matching (no equal bit)
+	isBitmask := c.compType == FlowFragment || c.compType == FlowTCPFlags
+
 	for i, v := range c.values {
 		// Determine value length
 		var lenCode, valueLen byte
@@ -391,7 +434,9 @@ func (c *numericComponent) Bytes() []byte {
 		if i == len(c.values)-1 {
 			op |= byte(FlowOpEnd)
 		}
-		op |= byte(FlowOpEqual) // Default to equality
+		if !isBitmask {
+			op |= byte(FlowOpEqual) // Numeric types default to equality
+		}
 
 		data = append(data, op)
 
@@ -509,4 +554,166 @@ func NewFlowFragmentComponent(flags ...FlowFragmentFlag) FlowComponent {
 		values[i] = uint64(f)
 	}
 	return &numericComponent{compType: FlowFragment, values: values}
+}
+
+// NewFlowFlowLabelComponent creates a flow-label component (IPv6 only).
+// Flow-label is a 20-bit field encoded as uint32.
+func NewFlowFlowLabelComponent(labels ...uint32) FlowComponent {
+	vals := make([]uint64, len(labels))
+	for i, v := range labels {
+		vals[i] = uint64(v)
+	}
+	return &numericComponent{compType: FlowFlowLabel, values: vals}
+}
+
+// ============================================================================
+// FlowSpec VPN (RFC 5575 Section 6, SAFI 134)
+// ============================================================================
+
+// FlowSpecVPN wraps FlowSpec with a Route Distinguisher for VPN use.
+type FlowSpecVPN struct {
+	rd       RouteDistinguisher
+	flowSpec *FlowSpec
+	cached   []byte
+}
+
+// NewFlowSpecVPN creates a new FlowSpec VPN NLRI.
+func NewFlowSpecVPN(family Family, rd RouteDistinguisher) *FlowSpecVPN {
+	// Convert SAFI to FlowSpecVPN if needed
+	fsFamily := family
+	if family.SAFI == SAFIFlowSpecVPN {
+		fsFamily = Family{AFI: family.AFI, SAFI: SAFIFlowSpec}
+	}
+	return &FlowSpecVPN{
+		rd:       rd,
+		flowSpec: NewFlowSpec(fsFamily),
+	}
+}
+
+// Family returns the address family (with SAFI 134).
+func (f *FlowSpecVPN) Family() Family {
+	return Family{AFI: f.flowSpec.family.AFI, SAFI: SAFIFlowSpecVPN}
+}
+
+// RD returns the Route Distinguisher.
+func (f *FlowSpecVPN) RD() RouteDistinguisher {
+	return f.rd
+}
+
+// FlowSpec returns the underlying FlowSpec.
+func (f *FlowSpecVPN) FlowSpec() *FlowSpec {
+	return f.flowSpec
+}
+
+// AddComponent adds a component to the FlowSpec.
+func (f *FlowSpecVPN) AddComponent(c FlowComponent) {
+	f.flowSpec.AddComponent(c)
+	f.cached = nil
+}
+
+// Components returns the FlowSpec components.
+func (f *FlowSpecVPN) Components() []FlowComponent {
+	return f.flowSpec.Components()
+}
+
+// Bytes returns the wire-format encoding.
+// Format: Length (1-2 bytes) + RD (8 bytes) + FlowSpec components.
+func (f *FlowSpecVPN) Bytes() []byte {
+	if f.cached != nil {
+		return f.cached
+	}
+
+	// Get component bytes (without FlowSpec length prefix)
+	compBytes := f.flowSpec.ComponentBytes()
+
+	// Total payload = RD (8) + components
+	payloadLen := 8 + len(compBytes)
+
+	// Build with length prefix
+	if payloadLen < 240 {
+		f.cached = make([]byte, 1+payloadLen)
+		f.cached[0] = byte(payloadLen)
+		copy(f.cached[1:9], f.rd.Bytes())
+		copy(f.cached[9:], compBytes)
+	} else {
+		f.cached = make([]byte, 2+payloadLen)
+		f.cached[0] = 0xF0 | byte(payloadLen>>8)
+		f.cached[1] = byte(payloadLen)
+		copy(f.cached[2:10], f.rd.Bytes())
+		copy(f.cached[10:], compBytes)
+	}
+
+	return f.cached
+}
+
+// Len returns the length in bytes.
+func (f *FlowSpecVPN) Len() int {
+	return len(f.Bytes())
+}
+
+// PathID returns 0 (FlowSpecVPN doesn't use ADD-PATH).
+func (f *FlowSpecVPN) PathID() uint32 {
+	return 0
+}
+
+// HasPathID returns false.
+func (f *FlowSpecVPN) HasPathID() bool {
+	return false
+}
+
+// String returns a human-readable representation.
+func (f *FlowSpecVPN) String() string {
+	return fmt.Sprintf("flowspec-vpn(rd:%s %s)", f.rd, f.flowSpec)
+}
+
+// ParseFlowSpecVPN parses a FlowSpec VPN from wire format.
+func ParseFlowSpecVPN(family Family, data []byte) (*FlowSpecVPN, error) {
+	if len(data) == 0 {
+		return nil, ErrFlowSpecTruncated
+	}
+
+	// Parse length
+	nlriLen := int(data[0])
+	offset := 1
+	if nlriLen >= 240 {
+		if len(data) < 2 {
+			return nil, ErrFlowSpecTruncated
+		}
+		nlriLen = int(data[0]&0x0F)<<8 | int(data[1])
+		offset = 2
+	}
+
+	if len(data) < offset+nlriLen {
+		return nil, ErrFlowSpecTruncated
+	}
+
+	// Need at least 8 bytes for RD
+	if nlriLen < 8 {
+		return nil, ErrFlowSpecTruncated
+	}
+
+	// Parse RD
+	rd, err := ParseRouteDistinguisher(data[offset : offset+8])
+	if err != nil {
+		return nil, err
+	}
+
+	// Parse FlowSpec components (remaining data after RD)
+	fsFamily := Family{AFI: family.AFI, SAFI: SAFIFlowSpec}
+	fs := NewFlowSpec(fsFamily)
+
+	remaining := data[offset+8 : offset+nlriLen]
+	for len(remaining) > 0 {
+		comp, rest, err := parseFlowComponent(remaining, fsFamily)
+		if err != nil {
+			return nil, err
+		}
+		fs.components = append(fs.components, comp)
+		remaining = rest
+	}
+
+	return &FlowSpecVPN{
+		rd:       rd,
+		flowSpec: fs,
+	}, nil
 }

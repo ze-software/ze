@@ -77,6 +77,8 @@ func (s SAFI) String() string {
 		return "rtc"
 	case SAFIFlowSpec:
 		return "flowspec"
+	case SAFIFlowSpecVPN:
+		return "flowspec-vpn"
 	case SAFIBGPLinkState:
 		return familyBGPLS
 	default:
@@ -120,21 +122,23 @@ func (f Family) String() string {
 
 // familyStrings maps string representations to Family values.
 var familyStrings = map[string]Family{
-	"ipv4-unicast":   IPv4Unicast,
-	"ipv6-unicast":   IPv6Unicast,
-	"ipv4-multicast": IPv4Multicast,
-	"ipv6-multicast": IPv6Multicast,
-	"ipv4-vpn":       IPv4VPN,
-	"ipv6-vpn":       IPv6VPN,
-	"l2vpn-evpn":     L2VPNEVPN,
-	"ipv4-flowspec":  IPv4FlowSpec,
-	"ipv6-flowspec":  IPv6FlowSpec,
-	"ipv4-mvpn":      IPv4MVPN,
-	"ipv6-mvpn":      IPv6MVPN,
-	"l2vpn-vpls":     L2VPNVPLS,
-	"ipv4-rtc":       IPv4RTC,
-	"ipv4-mup":       IPv4MUP,
-	"ipv6-mup":       IPv6MUP,
+	"ipv4-unicast":      IPv4Unicast,
+	"ipv6-unicast":      IPv6Unicast,
+	"ipv4-multicast":    IPv4Multicast,
+	"ipv6-multicast":    IPv6Multicast,
+	"ipv4-vpn":          IPv4VPN,
+	"ipv6-vpn":          IPv6VPN,
+	"l2vpn-evpn":        L2VPNEVPN,
+	"ipv4-flowspec":     IPv4FlowSpec,
+	"ipv6-flowspec":     IPv6FlowSpec,
+	"ipv4-flowspec-vpn": IPv4FlowSpecVPN,
+	"ipv6-flowspec-vpn": IPv6FlowSpecVPN,
+	"ipv4-mvpn":         IPv4MVPN,
+	"ipv6-mvpn":         IPv6MVPN,
+	"l2vpn-vpls":        L2VPNVPLS,
+	"ipv4-rtc":          IPv4RTC,
+	"ipv4-mup":          IPv4MUP,
+	"ipv6-mup":          IPv6MUP,
 }
 
 // ParseFamily parses a family string like "ipv4-unicast".

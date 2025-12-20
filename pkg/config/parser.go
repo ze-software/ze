@@ -6,17 +6,21 @@ import (
 
 // Tree represents parsed configuration data.
 type Tree struct {
-	values     map[string]string
-	containers map[string]*Tree
-	lists      map[string]map[string]*Tree
+	values      map[string]string
+	multiValues map[string][]string // For multiple inline values (e.g., multiple mup entries)
+	containers  map[string]*Tree
+	lists       map[string]map[string]*Tree
+	listOrder   map[string][]string // Preserves insertion order for list keys
 }
 
 // NewTree creates an empty config tree.
 func NewTree() *Tree {
 	return &Tree{
-		values:     make(map[string]string),
-		containers: make(map[string]*Tree),
-		lists:      make(map[string]map[string]*Tree),
+		values:      make(map[string]string),
+		multiValues: make(map[string][]string),
+		containers:  make(map[string]*Tree),
+		lists:       make(map[string]map[string]*Tree),
+		listOrder:   make(map[string][]string),
 	}
 }
 
@@ -29,6 +33,16 @@ func (t *Tree) Get(name string) (string, bool) {
 // Set sets a leaf value.
 func (t *Tree) Set(name, value string) {
 	t.values[name] = value
+}
+
+// AppendValue appends a value to the multi-values list (for Flex nodes with multiple entries).
+func (t *Tree) AppendValue(name, value string) {
+	t.multiValues[name] = append(t.multiValues[name], value)
+}
+
+// GetMultiValues returns all values for a multi-value field.
+func (t *Tree) GetMultiValues(name string) []string {
+	return t.multiValues[name]
 }
 
 // GetContainer returns a nested container.
@@ -53,17 +67,26 @@ func (t *Tree) MergeContainer(name string, child *Tree) {
 	for k, v := range child.values {
 		existing.values[k] = v
 	}
+	// Merge multiValues (append).
+	for k, v := range child.multiValues {
+		existing.multiValues[k] = append(existing.multiValues[k], v...)
+	}
 	// Merge containers (recursively).
 	for k, v := range child.containers {
 		existing.MergeContainer(k, v)
 	}
-	// Merge lists.
+	// Merge lists (preserving order).
 	for k, v := range child.lists {
 		if existing.lists[k] == nil {
 			existing.lists[k] = v
+			existing.listOrder[k] = child.listOrder[k]
 		} else {
-			for key, entry := range v {
-				existing.lists[k][key] = entry
+			// Append new keys in child's order.
+			for _, key := range child.listOrder[k] {
+				if _, exists := existing.lists[k][key]; !exists {
+					existing.listOrder[k] = append(existing.listOrder[k], key)
+				}
+				existing.lists[k][key] = v[key]
 			}
 		}
 	}
@@ -79,7 +102,36 @@ func (t *Tree) AddListEntry(name, key string, entry *Tree) {
 	if t.lists[name] == nil {
 		t.lists[name] = make(map[string]*Tree)
 	}
+	// Track insertion order (only add if new key).
+	if _, exists := t.lists[name][key]; !exists {
+		t.listOrder[name] = append(t.listOrder[name], key)
+	}
 	t.lists[name][key] = entry
+}
+
+// GetListOrdered returns list entries in insertion order.
+func (t *Tree) GetListOrdered(name string) []struct {
+	Key   string
+	Value *Tree
+} {
+	order := t.listOrder[name]
+	list := t.lists[name]
+	if list == nil {
+		return nil
+	}
+	result := make([]struct {
+		Key   string
+		Value *Tree
+	}, 0, len(order))
+	for _, key := range order {
+		if entry, ok := list[key]; ok {
+			result = append(result, struct {
+				Key   string
+				Value *Tree
+			}{key, entry})
+		}
+	}
+	return result
 }
 
 // ListKeys returns the keys for a list (e.g., neighbor IPs).
@@ -663,12 +715,59 @@ func (p *Parser) parseFlex(tree *Tree, name string, node *FlexNode) error {
 			tok = p.tok.Peek()
 		}
 
+		// Check if this is a named block (e.g., "vpls site5 { ... }")
+		if tok.Type == TokenLBrace && len(values) == 1 {
+			// Named block: the first value is the key
+			key := values[0]
+			p.tok.Next() // consume {
+
+			child := NewTree()
+			for {
+				tok = p.tok.Peek()
+				if tok.Type == TokenRBrace {
+					p.tok.Next()
+					break
+				}
+				if tok.Type == TokenEOF {
+					return p.errorf(tok, "unexpected EOF in %s block", name)
+				}
+				if tok.Type != TokenWord {
+					return p.errorf(tok, "expected keyword in %s block, got %s", name, tok.Type)
+				}
+
+				fieldName := tok.Value
+				p.tok.Next()
+
+				fieldNode := node.Get(fieldName)
+				if fieldNode == nil {
+					// Unknown field - store as value
+					p.warnings = append(p.warnings, fmt.Sprintf("unknown field in %s.%s: %s", name, key, fieldName))
+					// Consume until semicolon
+					for p.tok.Peek().Type != TokenSemicolon && p.tok.Peek().Type != TokenEOF {
+						p.tok.Next()
+					}
+					if p.tok.Peek().Type == TokenSemicolon {
+						p.tok.Next()
+					}
+					continue
+				}
+
+				if err := p.parseNode(child, fieldName, fieldNode); err != nil {
+					return err
+				}
+			}
+
+			tree.AddListEntry(name, key, child)
+			return nil
+		}
+
 		if tok.Type != TokenSemicolon {
 			return p.errorf(tok, "expected ';' after %s value, got %s", name, tok.Type)
 		}
 		p.tok.Next()
 
-		tree.Set(name, joinStrings(values, " "))
+		// Use AppendValue to support multiple inline entries (e.g., multiple mup routes)
+		tree.AppendValue(name, joinStrings(values, " "))
 		return nil
 
 	default:

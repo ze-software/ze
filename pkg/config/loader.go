@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"math"
 	"net/netip"
 	"os"
 	"strconv"
@@ -9,6 +10,7 @@ import (
 	"time"
 
 	"github.com/exa-networks/zebgp/pkg/bgp/capability"
+	"github.com/exa-networks/zebgp/pkg/bgp/nlri"
 	"github.com/exa-networks/zebgp/pkg/reactor"
 	"github.com/exa-networks/zebgp/pkg/trace"
 )
@@ -416,28 +418,401 @@ func convertFlowSpecRoute(fr FlowSpecRouteConfig) (reactor.FlowSpecRoute, error)
 	}
 
 	// Build FlowSpec NLRI from match criteria
-	// TODO: Build actual NLRI bytes from match map
-	// For now, store as placeholder - needs flowspec encoding logic
-	route.NLRI = buildFlowSpecNLRI(fr.Match, fr.IsIPv6)
+	// For VPN routes, use component bytes (no length prefix - VPN adds its own)
+	isVPN := fr.RD != ""
+	route.NLRI = buildFlowSpecNLRI(fr.Match, fr.IsIPv6, isVPN)
 
-	// Parse extended communities from "then" actions
+	// Build communities from "then" actions
+	route.CommunityBytes = buildFlowSpecCommunities(fr.Then)
+
+	// Build extended communities from "then" actions
+	route.ExtCommunityBytes = buildFlowSpecExtCommunities(fr.Then)
+
+	// Also parse explicit extended-community if present
 	if ec := fr.ExtendedCommunity; ec != "" {
 		extComm, err := ParseExtendedCommunity(ec)
 		if err != nil {
 			return route, fmt.Errorf("parse extended-community: %w", err)
 		}
-		route.ExtCommunityBytes = extComm.Bytes
+		route.ExtCommunityBytes = append(route.ExtCommunityBytes, extComm.Bytes...)
 	}
 
 	return route, nil
 }
 
+// buildFlowSpecCommunities builds standard community bytes from FlowSpec "then" actions.
+func buildFlowSpecCommunities(then map[string]string) []byte {
+	var result []byte
+
+	for action, value := range then {
+		if action == "community" {
+			// Parse community list like [30740:0 30740:30740]
+			value = strings.Trim(value, "[]")
+			parts := strings.Fields(value)
+			for _, part := range parts {
+				asn, val, ok := strings.Cut(part, ":")
+				if !ok {
+					continue
+				}
+				a, _ := strconv.ParseUint(asn, 10, 16)
+				v, _ := strconv.ParseUint(val, 10, 16)
+				result = append(result, byte(a>>8), byte(a), byte(v>>8), byte(v))
+			}
+		}
+	}
+
+	return result
+}
+
+// buildFlowSpecExtCommunities builds extended community bytes from FlowSpec "then" actions.
+func buildFlowSpecExtCommunities(then map[string]string) []byte {
+	var result []byte
+
+	for action, value := range then {
+		switch action {
+		case "discard":
+			// Traffic rate 0 = discard - type 0x8006
+			result = append(result, 0x80, 0x06, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00)
+
+		case "rate-limit":
+			// Traffic rate with value - type 0x8006
+			rate := parseFlowRate(value)
+			result = append(result, 0x80, 0x06)
+			result = append(result, 0x00, 0x00) // 2 bytes padding
+			// IEEE 754 float32 for rate
+			rateBytes := encodeFloat32(rate)
+			result = append(result, rateBytes...)
+
+		case "redirect":
+			// Redirect to AS:NN or IP - type 0x8008
+			ec := parseRedirectExtCommunity(value)
+			result = append(result, ec...)
+
+		case "redirect-to-nexthop":
+			// Redirect to next-hop - type 0x0800, subtype 0x00
+			result = append(result, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00)
+
+		case "copy":
+			// Copy to IP - type 0x0800, subtype 0x01
+			result = append(result, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01)
+
+		case "mark":
+			// DSCP marking - type 0x8009
+			dscp := parseFlowOctet(value)
+			result = append(result, 0x80, 0x09, 0x00, 0x00, 0x00, 0x00, 0x00, dscp)
+
+		case "action":
+			// Traffic action - type 0x8007
+			flags := parseActionFlags(value)
+			result = append(result, 0x80, 0x07, 0x00, 0x00, 0x00, 0x00, 0x00, flags)
+		}
+	}
+
+	return result
+}
+
 // buildFlowSpecNLRI builds FlowSpec NLRI bytes from match criteria.
-// This is a placeholder - full implementation requires flowspec component encoding.
-func buildFlowSpecNLRI(match map[string]string, isIPv6 bool) []byte {
-	// TODO: Implement proper FlowSpec NLRI encoding
-	// Each match component needs to be encoded per RFC 5575
-	return nil
+// If forVPN is true, returns component bytes without length prefix (VPN adds its own).
+func buildFlowSpecNLRI(match map[string]string, isIPv6 bool, forVPN bool) []byte {
+	family := nlri.IPv4FlowSpec
+	if isIPv6 {
+		family = nlri.IPv6FlowSpec
+	}
+
+	fs := nlri.NewFlowSpec(family)
+
+	// Add destination prefix
+	if dst, ok := match["destination"]; ok {
+		prefix, offset := parseFlowPrefixWithOffset(dst)
+		if prefix.IsValid() {
+			if prefix.Addr().Is6() && offset > 0 {
+				fs.AddComponent(nlri.NewFlowDestPrefixComponentWithOffset(prefix, offset))
+			} else {
+				fs.AddComponent(nlri.NewFlowDestPrefixComponent(prefix))
+			}
+		}
+	}
+
+	// Add source prefix
+	if src, ok := match["source"]; ok {
+		prefix, offset := parseFlowPrefixWithOffset(src)
+		if prefix.IsValid() {
+			if prefix.Addr().Is6() && offset > 0 {
+				fs.AddComponent(nlri.NewFlowSourcePrefixComponentWithOffset(prefix, offset))
+			} else {
+				fs.AddComponent(nlri.NewFlowSourcePrefixComponent(prefix))
+			}
+		}
+	}
+
+	// Add protocol
+	if proto, ok := match["protocol"]; ok {
+		protos := parseFlowProtocols(proto)
+		if len(protos) > 0 {
+			fs.AddComponent(nlri.NewFlowIPProtocolComponent(protos...))
+		}
+	}
+
+	// Add next-header (IPv6 equivalent of protocol)
+	if nh, ok := match["next-header"]; ok {
+		protos := parseFlowProtocols(nh)
+		if len(protos) > 0 {
+			fs.AddComponent(nlri.NewFlowIPProtocolComponent(protos...))
+		}
+	}
+
+	// Add port (matches either source or destination)
+	if port, ok := match["port"]; ok {
+		ports := parseFlowPorts(port)
+		if len(ports) > 0 {
+			fs.AddComponent(nlri.NewFlowPortComponent(ports...))
+		}
+	}
+
+	// Add destination port
+	if dp, ok := match["destination-port"]; ok {
+		ports := parseFlowPorts(dp)
+		if len(ports) > 0 {
+			fs.AddComponent(nlri.NewFlowDestPortComponent(ports...))
+		}
+	}
+
+	// Add source port
+	if sp, ok := match["source-port"]; ok {
+		ports := parseFlowPorts(sp)
+		if len(ports) > 0 {
+			fs.AddComponent(nlri.NewFlowSourcePortComponent(ports...))
+		}
+	}
+
+	// Add packet length
+	if pl, ok := match["packet-length"]; ok {
+		lengths := parseFlowPorts(pl) // Same format as ports
+		if len(lengths) > 0 {
+			fs.AddComponent(nlri.NewFlowPacketLengthComponent(lengths...))
+		}
+	}
+
+	// Add DSCP
+	if dscp, ok := match["dscp"]; ok {
+		vals := parseFlowOctets(dscp)
+		if len(vals) > 0 {
+			fs.AddComponent(nlri.NewFlowDSCPComponent(vals...))
+		}
+	}
+
+	// Add traffic-class (IPv6)
+	if tc, ok := match["traffic-class"]; ok {
+		vals := parseFlowOctets(tc)
+		if len(vals) > 0 {
+			fs.AddComponent(nlri.NewFlowDSCPComponent(vals...))
+		}
+	}
+
+	// Add flow-label (IPv6)
+	if fl, ok := match["flow-label"]; ok {
+		values := parseFlowLabels(fl)
+		if len(values) > 0 {
+			fs.AddComponent(nlri.NewFlowFlowLabelComponent(values...))
+		}
+	}
+
+	// Add fragment
+	if frag, ok := match["fragment"]; ok {
+		flags := parseFlowFragment(frag)
+		if len(flags) > 0 {
+			fs.AddComponent(nlri.NewFlowFragmentComponent(flags...))
+		}
+	}
+
+	// Add TCP flags
+	if tcpf, ok := match["tcp-flags"]; ok {
+		flags := parseFlowTCPFlags(tcpf)
+		if len(flags) > 0 {
+			fs.AddComponent(nlri.NewFlowTCPFlagsComponent(flags...))
+		}
+	}
+
+	// Add ICMP type
+	if it, ok := match["icmp-type"]; ok {
+		types := parseFlowOctets(it)
+		if len(types) > 0 {
+			fs.AddComponent(nlri.NewFlowICMPTypeComponent(types...))
+		}
+	}
+
+	// Add ICMP code
+	if ic, ok := match["icmp-code"]; ok {
+		codes := parseFlowOctets(ic)
+		if len(codes) > 0 {
+			fs.AddComponent(nlri.NewFlowICMPCodeComponent(codes...))
+		}
+	}
+
+	// For VPN, return component bytes without length prefix
+	if forVPN {
+		return fs.ComponentBytes()
+	}
+	return fs.Bytes()
+}
+
+// parseFlowPrefixWithOffset parses a FlowSpec prefix like "10.0.0.1/32" or "::1/128/120".
+// Returns the prefix and offset (0 if no offset).
+func parseFlowPrefixWithOffset(s string) (netip.Prefix, uint8) {
+	// Handle IPv6 offset format: addr/len/offset
+	parts := strings.Split(s, "/")
+	if len(parts) >= 2 {
+		addrStr := parts[0]
+		lenStr := parts[1]
+		var offset uint8
+		if len(parts) >= 3 {
+			if off, err := strconv.Atoi(parts[2]); err == nil {
+				offset = uint8(off)
+			}
+		}
+
+		addr, err := netip.ParseAddr(addrStr)
+		if err != nil {
+			return netip.Prefix{}, 0
+		}
+		prefixLen, err := strconv.Atoi(lenStr)
+		if err != nil {
+			return netip.Prefix{}, 0
+		}
+		return netip.PrefixFrom(addr, prefixLen), offset
+	}
+
+	// Try parsing as simple prefix
+	prefix, err := netip.ParsePrefix(s)
+	if err != nil {
+		return netip.Prefix{}, 0
+	}
+	return prefix, 0
+}
+
+// parseFlowProtocols parses protocol values like "tcp", "=udp", "[ tcp udp ]".
+func parseFlowProtocols(s string) []uint8 {
+	s = strings.Trim(s, "[]")
+	parts := strings.Fields(s)
+	var result []uint8
+
+	protoMap := map[string]uint8{
+		"icmp": 1, "igmp": 2, "tcp": 6, "udp": 17, "gre": 47, "esp": 50, "ah": 51,
+		"=icmp": 1, "=igmp": 2, "=tcp": 6, "=udp": 17, "=gre": 47, "=esp": 50, "=ah": 51,
+	}
+
+	for _, p := range parts {
+		p = strings.TrimPrefix(p, "=")
+		p = strings.TrimPrefix(p, "!=") // Handle not-equal (simplified)
+		if v, ok := protoMap[strings.ToLower(p)]; ok {
+			result = append(result, v)
+		} else if n, err := strconv.ParseUint(p, 10, 8); err == nil {
+			result = append(result, uint8(n))
+		}
+	}
+	return result
+}
+
+// parseFlowPorts parses port values like "=80", ">1024", "[ =80 =8080 ]", ">8080&<8088".
+func parseFlowPorts(s string) []uint16 {
+	s = strings.Trim(s, "[]")
+	parts := strings.Fields(s)
+	var result []uint16
+
+	for _, p := range parts {
+		// Handle range operators like ">8080&<8088" by splitting
+		rangeParts := strings.Split(p, "&")
+		for _, rp := range rangeParts {
+			// Remove operators (simplified - just extract number)
+			rp = strings.TrimPrefix(rp, "=")
+			rp = strings.TrimPrefix(rp, ">")
+			rp = strings.TrimPrefix(rp, "<")
+			rp = strings.TrimPrefix(rp, "!=")
+			rp = strings.TrimPrefix(rp, ">=")
+			rp = strings.TrimPrefix(rp, "<=")
+
+			if n, err := strconv.ParseUint(rp, 10, 16); err == nil && n > 0 {
+				result = append(result, uint16(n))
+			}
+		}
+	}
+	return result
+}
+
+// parseFlowOctets parses octet values (DSCP, ICMP type/code, traffic-class).
+func parseFlowOctets(s string) []uint8 {
+	s = strings.Trim(s, "[]")
+	parts := strings.Fields(s)
+	var result []uint8
+
+	for _, p := range parts {
+		p = strings.TrimPrefix(p, "=")
+		if n, err := strconv.ParseUint(p, 10, 8); err == nil {
+			result = append(result, uint8(n))
+		}
+	}
+	return result
+}
+
+// parseFlowFragment parses fragment flags like "[ first-fragment last-fragment ]".
+func parseFlowFragment(s string) []nlri.FlowFragmentFlag {
+	s = strings.Trim(s, "[]")
+	parts := strings.Fields(s)
+	var result []nlri.FlowFragmentFlag
+
+	flagMap := map[string]nlri.FlowFragmentFlag{
+		"dont-fragment":  nlri.FlowFragDontFragment,
+		"is-fragment":    nlri.FlowFragIsFragment,
+		"first-fragment": nlri.FlowFragFirstFragment,
+		"last-fragment":  nlri.FlowFragLastFragment,
+	}
+
+	for _, p := range parts {
+		if f, ok := flagMap[p]; ok {
+			result = append(result, f)
+		}
+	}
+	return result
+}
+
+// parseFlowTCPFlags parses TCP flags like "[SYN RST&FIN&!=push]".
+func parseFlowTCPFlags(s string) []uint8 {
+	s = strings.Trim(s, "[]")
+	parts := strings.Fields(s)
+	var result []uint8
+
+	flagMap := map[string]uint8{
+		"fin": 0x01, "syn": 0x02, "rst": 0x04, "psh": 0x08, "push": 0x08,
+		"ack": 0x10, "urg": 0x20, "ece": 0x40, "cwr": 0x80,
+	}
+
+	for _, p := range parts {
+		// Handle combined flags like "RST&FIN&!=push"
+		flagParts := strings.Split(p, "&")
+		for _, fp := range flagParts {
+			fp = strings.TrimPrefix(fp, "!=")
+			fp = strings.ToLower(fp)
+			if f, ok := flagMap[fp]; ok {
+				result = append(result, f)
+			}
+		}
+	}
+	return result
+}
+
+// parseFlowLabels parses flow-label values like "2013" or "=2013".
+func parseFlowLabels(s string) []uint32 {
+	var result []uint32
+	s = strings.Trim(s, "[]")
+	parts := strings.Fields(s)
+	for _, p := range parts {
+		p = strings.TrimPrefix(p, "=")
+		val, err := strconv.ParseUint(p, 10, 32)
+		if err == nil {
+			result = append(result, uint32(val))
+		}
+	}
+	return result
 }
 
 // convertMUPRoute converts config MUP route to reactor MUP route.
@@ -486,10 +861,150 @@ func convertMUPRoute(mr MUPRouteConfig) (reactor.MUPRoute, error) {
 }
 
 // buildMUPNLRI builds MUP NLRI bytes from route config.
-// This is a placeholder - full implementation requires MUP NLRI encoding.
 func buildMUPNLRI(mr MUPRouteConfig) []byte {
-	// TODO: Implement proper MUP NLRI encoding
-	return nil
+	// Determine route type code
+	var routeType nlri.MUPRouteType
+	switch mr.RouteType {
+	case "mup-isd":
+		routeType = nlri.MUPISD
+	case "mup-dsd":
+		routeType = nlri.MUPDSD
+	case "mup-t1st":
+		routeType = nlri.MUPT1ST
+	case "mup-t2st":
+		routeType = nlri.MUPT2ST
+	default:
+		return nil
+	}
+
+	// Parse RD
+	var rd nlri.RouteDistinguisher
+	if mr.RD != "" {
+		parsed, err := ParseRouteDistinguisher(mr.RD)
+		if err == nil {
+			// Convert config.RouteDistinguisher to nlri.RouteDistinguisher
+			// Bytes[0:2] is the type, Bytes[2:8] is the value
+			rdType := uint16(parsed.Bytes[0])<<8 | uint16(parsed.Bytes[1])
+			rd.Type = nlri.RDType(rdType)
+			copy(rd.Value[:], parsed.Bytes[2:8])
+		}
+	}
+
+	// Build route-type-specific data
+	var data []byte
+	switch routeType {
+	case nlri.MUPISD:
+		// ISD: prefix-len (1 byte) + prefix (variable)
+		if mr.Prefix != "" {
+			prefix, err := netip.ParsePrefix(mr.Prefix)
+			if err == nil {
+				data = buildMUPPrefix(prefix)
+			}
+		}
+	case nlri.MUPDSD:
+		// DSD: address (4 or 16 bytes)
+		if mr.Address != "" {
+			addr, err := netip.ParseAddr(mr.Address)
+			if err == nil {
+				data = addr.AsSlice()
+			}
+		}
+	case nlri.MUPT1ST:
+		// T1ST: prefix + TEID (4) + QFI (1) + endpoint-len + endpoint
+		if mr.Prefix != "" {
+			prefix, err := netip.ParsePrefix(mr.Prefix)
+			if err == nil {
+				data = buildMUPPrefix(prefix)
+				// Add TEID (4 bytes)
+				teid := parseTEID(mr.TEID)
+				data = append(data, byte(teid>>24), byte(teid>>16), byte(teid>>8), byte(teid))
+				// Add QFI (1 byte)
+				data = append(data, mr.QFI)
+				// Add endpoint
+				if mr.Endpoint != "" {
+					if ep, err := netip.ParseAddr(mr.Endpoint); err == nil {
+						epBytes := ep.AsSlice()
+						data = append(data, byte(len(epBytes)*8)) // endpoint length in bits
+						data = append(data, epBytes...)
+					}
+				}
+			}
+		}
+	case nlri.MUPT2ST:
+		// T2ST: endpoint-len + endpoint + TEID (variable based on teid/bits)
+		if mr.Address != "" {
+			if ep, err := netip.ParseAddr(mr.Address); err == nil {
+				epBytes := ep.AsSlice()
+				data = append(data, byte(len(epBytes)*8)) // endpoint length in bits
+				data = append(data, epBytes...)
+				// Add TEID with bit-encoded length
+				teid, bits := parseTEIDWithBits(mr.TEID)
+				teidBytes := encodeTEIDWithBits(teid, bits)
+				data = append(data, teidBytes...)
+			}
+		}
+	}
+
+	// Determine AFI
+	afi := nlri.AFIIPv4
+	if mr.IsIPv6 {
+		afi = nlri.AFIIPv6
+	}
+
+	mup := nlri.NewMUPFull(afi, nlri.MUPArch3GPP5G, routeType, rd, data)
+	return mup.Bytes()
+}
+
+// buildMUPPrefix encodes a prefix for MUP NLRI.
+func buildMUPPrefix(prefix netip.Prefix) []byte {
+	bits := prefix.Bits()
+	addr := prefix.Addr()
+	addrBytes := addr.AsSlice()
+	prefixBytes := (bits + 7) / 8
+	result := make([]byte, 1+prefixBytes)
+	result[0] = byte(bits)
+	copy(result[1:], addrBytes[:prefixBytes])
+	return result
+}
+
+// parseTEID parses TEID from string, handling "12345" format.
+func parseTEID(s string) uint32 {
+	// Handle "12345/32" format - just get the value part
+	if idx := strings.Index(s, "/"); idx > 0 {
+		s = s[:idx]
+	}
+	if n, err := strconv.ParseUint(s, 10, 32); err == nil {
+		return uint32(n)
+	}
+	return 0
+}
+
+// parseTEIDWithBits parses TEID with bit length from "12345/32" format.
+func parseTEIDWithBits(s string) (uint32, int) {
+	parts := strings.Split(s, "/")
+	if len(parts) != 2 {
+		return parseTEID(s), 32
+	}
+	teid := parseTEID(parts[0])
+	bits, err := strconv.Atoi(parts[1])
+	if err != nil {
+		bits = 32
+	}
+	return teid, bits
+}
+
+// encodeTEIDWithBits encodes TEID with the specified bit length.
+func encodeTEIDWithBits(teid uint32, bits int) []byte {
+	if bits <= 0 {
+		return nil
+	}
+	byteLen := (bits + 7) / 8
+	result := make([]byte, byteLen)
+	for i := 0; i < byteLen; i++ {
+		shift := (byteLen - 1 - i) * 8
+		result[i] = byte(teid >> shift)
+	}
+	return result
 }
 
 // parseOrigin converts origin string to code.
@@ -521,4 +1036,96 @@ func parseASPathSimple(s string) ([]uint32, error) {
 		result = append(result, uint32(n))
 	}
 	return result, nil
+}
+
+// parseFlowRate parses a rate value for FlowSpec rate-limit action.
+func parseFlowRate(s string) float32 {
+	if s == "" {
+		return 0
+	}
+	n, err := strconv.ParseFloat(s, 32)
+	if err != nil {
+		return 0
+	}
+	return float32(n)
+}
+
+// encodeFloat32 encodes a float32 as 4 bytes (IEEE 754).
+func encodeFloat32(f float32) []byte {
+	bits := math.Float32bits(f)
+	return []byte{
+		byte(bits >> 24),
+		byte(bits >> 16),
+		byte(bits >> 8),
+		byte(bits),
+	}
+}
+
+// parseRedirectExtCommunity parses redirect action value to extended community bytes.
+// Formats: AS:NN (type 0x8008) or IP (redirect-to-nexthop)
+func parseRedirectExtCommunity(s string) []byte {
+	if s == "" {
+		return nil
+	}
+
+	// Check if it's an IP address (redirect to IP)
+	if ip, err := netip.ParseAddr(s); err == nil {
+		if ip.Is4() {
+			// Redirect to IPv4: type 0x8008, subtype 0x08
+			b := ip.As4()
+			return []byte{0x80, 0x08, b[0], b[1], b[2], b[3], 0x00, 0x00}
+		}
+		// IPv6 not commonly used for redirect
+		return nil
+	}
+
+	// Parse AS:NN format
+	parts := strings.Split(s, ":")
+	if len(parts) == 2 {
+		asn, err1 := strconv.ParseUint(parts[0], 10, 32)
+		nn, err2 := strconv.ParseUint(parts[1], 10, 32)
+		if err1 == nil && err2 == nil {
+			if asn <= 0xFFFF {
+				// 2-byte AS format: type 0x80, subtype 0x08
+				return []byte{
+					0x80, 0x08,
+					byte(asn >> 8), byte(asn),
+					byte(nn >> 24), byte(nn >> 16), byte(nn >> 8), byte(nn),
+				}
+			}
+			// 4-byte AS format: type 0x82, subtype 0x08
+			return []byte{
+				0x82, 0x08,
+				byte(asn >> 24), byte(asn >> 16), byte(asn >> 8), byte(asn),
+				byte(nn >> 8), byte(nn),
+			}
+		}
+	}
+
+	return nil
+}
+
+// parseFlowOctet parses a single octet value.
+func parseFlowOctet(s string) byte {
+	if s == "" {
+		return 0
+	}
+	n, err := strconv.ParseUint(s, 10, 8)
+	if err != nil {
+		return 0
+	}
+	return byte(n)
+}
+
+// parseActionFlags parses traffic action flags.
+func parseActionFlags(s string) byte {
+	var flags byte
+	s = strings.ToLower(s)
+	if strings.Contains(s, "terminal") {
+		flags |= 0x01
+	}
+	if strings.Contains(s, "sample") {
+		flags |= 0x02
+	}
+	return flags
 }

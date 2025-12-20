@@ -271,3 +271,86 @@ func TestFlowSpecRoundTrip(t *testing.T) {
 		})
 	}
 }
+
+// ============================================================================
+// FlowSpec VPN Tests (SAFI 134)
+// ============================================================================
+
+// TestFlowSpecVPNSAFI verifies SAFI 134 constant.
+func TestFlowSpecVPNSAFI(t *testing.T) {
+	assert.Equal(t, SAFI(134), SAFIFlowSpecVPN)
+	assert.Equal(t, "flowspec-vpn", SAFIFlowSpecVPN.String())
+}
+
+// TestFlowSpecVPNFamily verifies FlowSpec VPN family constants.
+func TestFlowSpecVPNFamily(t *testing.T) {
+	assert.Equal(t, AFIIPv4, IPv4FlowSpecVPN.AFI)
+	assert.Equal(t, SAFIFlowSpecVPN, IPv4FlowSpecVPN.SAFI)
+	assert.Equal(t, AFIIPv6, IPv6FlowSpecVPN.AFI)
+	assert.Equal(t, SAFIFlowSpecVPN, IPv6FlowSpecVPN.SAFI)
+}
+
+// TestFlowSpecVPNBasic verifies basic FlowSpec VPN creation.
+func TestFlowSpecVPNBasic(t *testing.T) {
+	rd := RouteDistinguisher{Type: RDType0, Value: [6]byte{0x00, 0x64, 0x00, 0x00, 0x00, 0x64}} // 100:100
+
+	fsv := NewFlowSpecVPN(IPv4FlowSpecVPN, rd)
+	fsv.AddComponent(NewFlowDestPrefixComponent(netip.MustParsePrefix("10.0.0.0/24")))
+	fsv.AddComponent(NewFlowDestPortComponent(80))
+
+	assert.Equal(t, IPv4FlowSpecVPN, fsv.Family())
+	assert.Equal(t, rd, fsv.RD())
+	assert.Len(t, fsv.Components(), 2)
+}
+
+// TestFlowSpecVPNBytes verifies wire-format encoding.
+func TestFlowSpecVPNBytes(t *testing.T) {
+	rd := RouteDistinguisher{Type: RDType0, Value: [6]byte{0x00, 0x64, 0x00, 0x00, 0x00, 0x64}}
+
+	fsv := NewFlowSpecVPN(IPv4FlowSpecVPN, rd)
+	fsv.AddComponent(NewFlowDestPortComponent(80))
+
+	data := fsv.Bytes()
+
+	// Verify structure: length (1 byte) + RD (8 bytes) + component
+	require.True(t, len(data) > 9, "data too short")
+
+	// Length should cover RD + component
+	nlriLen := int(data[0])
+	assert.Equal(t, nlriLen, len(data)-1)
+
+	// First 8 bytes after length should be RD
+	rdBytes := data[1:9]
+	assert.Equal(t, rd.Bytes(), rdBytes)
+}
+
+// TestFlowSpecVPNRoundTrip verifies encode/decode cycle.
+func TestFlowSpecVPNRoundTrip(t *testing.T) {
+	rd := RouteDistinguisher{Type: RDType0, Value: [6]byte{0xFD, 0xE8, 0x00, 0x00, 0x00, 0x64}} // 65000:100
+
+	original := NewFlowSpecVPN(IPv4FlowSpecVPN, rd)
+	original.AddComponent(NewFlowDestPrefixComponent(netip.MustParsePrefix("192.168.0.0/16")))
+	original.AddComponent(NewFlowIPProtocolComponent(6)) // TCP
+	original.AddComponent(NewFlowDestPortComponent(443))
+
+	data := original.Bytes()
+
+	parsed, err := ParseFlowSpecVPN(IPv4FlowSpecVPN, data)
+	require.NoError(t, err)
+
+	assert.Equal(t, rd, parsed.RD())
+	assert.Equal(t, IPv4FlowSpecVPN, parsed.Family())
+	assert.Len(t, parsed.Components(), 3)
+}
+
+// TestFlowSpecVPNString verifies string representation.
+func TestFlowSpecVPNString(t *testing.T) {
+	rd := RouteDistinguisher{Type: RDType0, Value: [6]byte{0x00, 0x64, 0x00, 0x00, 0x00, 0x64}}
+
+	fsv := NewFlowSpecVPN(IPv4FlowSpecVPN, rd)
+	fsv.AddComponent(NewFlowDestPortComponent(80))
+
+	s := fsv.String()
+	assert.Contains(t, s, "flowspec-vpn")
+	assert.Contains(t, s, "100:100") // RD string
+}

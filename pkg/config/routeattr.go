@@ -202,6 +202,12 @@ func ParseExtendedCommunity(s string) (ExtendedCommunity, error) {
 		return ExtendedCommunity{}, nil
 	}
 
+	// Strip brackets if present: "[ target:X:Y origin:A:B ]" -> "target:X:Y origin:A:B"
+	s = strings.TrimSpace(s)
+	s = strings.TrimPrefix(s, "[")
+	s = strings.TrimSuffix(s, "]")
+	s = strings.TrimSpace(s)
+
 	parts := strings.Fields(s)
 	var allBytes []byte
 
@@ -233,9 +239,39 @@ func parseOneExtCommunity(s string) ([]byte, error) {
 			return parseRouteTargetOrOrigin(ecSubtypeRouteTarget, parts[1], parts[2])
 		case "origin":
 			return parseRouteTargetOrOrigin(ecSubtypeRouteOrigin, parts[1], parts[2])
+		case "mup":
+			// MUP extended community: mup:ASN:NN
+			return parseRouteTargetOrOrigin(0x0B, parts[1], parts[2]) // MUP subtype
 		default:
 			return nil, fmt.Errorf("unknown extended-community type %q", parts[0])
 		}
+	}
+
+	if len(parts) == 5 && parts[0] == "l2info" {
+		// Layer 2 Info Extended Community (RFC 4761): l2info:encaps:control:mtu:preference
+		// Type 0x800A
+		encaps, err := strconv.ParseUint(parts[1], 10, 8)
+		if err != nil {
+			return nil, fmt.Errorf("invalid l2info encaps %q", parts[1])
+		}
+		control, err := strconv.ParseUint(parts[2], 10, 8)
+		if err != nil {
+			return nil, fmt.Errorf("invalid l2info control %q", parts[2])
+		}
+		mtu, err := strconv.ParseUint(parts[3], 10, 16)
+		if err != nil {
+			return nil, fmt.Errorf("invalid l2info mtu %q", parts[3])
+		}
+		preference, err := strconv.ParseUint(parts[4], 10, 8)
+		if err != nil {
+			return nil, fmt.Errorf("invalid l2info preference %q", parts[4])
+		}
+		return []byte{
+			0x80, 0x0A, // Type: Layer 2 Info
+			byte(encaps), byte(control),
+			byte(mtu >> 8), byte(mtu),
+			0x00, byte(preference),
+		}, nil
 	}
 
 	return nil, fmt.Errorf("invalid extended-community %q: expected format like target:ASN:NN", s)

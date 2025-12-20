@@ -13,6 +13,18 @@ const (
 	configEnable = "enable" // Config value for enabled state
 )
 
+// flowRouteAttributes returns field definitions for FlowSpec routes.
+// Format: route NAME { rd VALUE; match { ... } then { ... } }
+func flowRouteAttributes() []FieldDef {
+	return []FieldDef{
+		Field("rd", Leaf(TypeString)),
+		Field("next-hop", Leaf(TypeString)),
+		Field("extended-community", ValueOrArray(TypeString)),
+		Field("match", Freeform()), // Match criteria
+		Field("then", Freeform()),  // Actions
+	}
+}
+
 // mcastVpnAttributes returns field definitions for MCAST-VPN routes.
 // Format: mcast-vpn <type> rp <ip> group <ip> rd <rd> source-as <asn> next-hop <ip> ...
 func mcastVpnAttributes() []FieldDef {
@@ -28,6 +40,26 @@ func mcastVpnAttributes() []FieldDef {
 		Field("origin", Leaf(TypeString)),
 		Field("local-preference", Leaf(TypeUint32)),
 		Field("med", Leaf(TypeUint32)),
+	}
+}
+
+// vplsAttributes returns field definitions for VPLS routes.
+func vplsAttributes() []FieldDef {
+	return []FieldDef{
+		Field("rd", Leaf(TypeString)),
+		Field("endpoint", Leaf(TypeUint16)),
+		Field("base", Leaf(TypeUint32)),
+		Field("offset", Leaf(TypeUint16)),
+		Field("size", Leaf(TypeUint16)),
+		Field("next-hop", Leaf(TypeString)),
+		Field("origin", Leaf(TypeString)),
+		Field("local-preference", Leaf(TypeUint32)),
+		Field("med", Leaf(TypeUint32)),
+		Field("as-path", ValueOrArray(TypeString)),
+		Field("community", ValueOrArray(TypeString)),
+		Field("extended-community", ValueOrArray(TypeString)),
+		Field("originator-id", Leaf(TypeIPv4)),
+		Field("cluster-list", ValueOrArray(TypeString)),
 	}
 }
 
@@ -127,7 +159,7 @@ func neighborFields() []FieldDef {
 				Field("flow", Freeform()), // FlowSpec - complex format
 			)),
 			Field("l2vpn", Container(
-				Field("vpls", Flex()),     // VPLS - complex inline format
+				Field("vpls", Flex(vplsAttributes()...)),
 				Field("evpn", Freeform()), // EVPN - complex format
 			)),
 		)),
@@ -137,11 +169,16 @@ func neighborFields() []FieldDef {
 			Field("route", InlineList(TypePrefix, routeAttributes()...)),
 		)),
 
-		// Flow routes
-		Field("flow", Freeform()),
+		// Flow routes - named list with match/then sub-blocks
+		Field("flow", Container(
+			Field("route", List(TypeString, flowRouteAttributes()...)),
+		)),
 
 		// L2VPN (VPLS, EVPN)
-		Field("l2vpn", Freeform()),
+		Field("l2vpn", Container(
+			Field("vpls", Flex(vplsAttributes()...)),
+			Field("evpn", Freeform()), // EVPN - complex format
+		)),
 
 		// Add-path per-family configuration
 		Field("add-path", Freeform()),
@@ -677,23 +714,197 @@ func parseMVPNRoute(routeType string, route *Tree, isIPv6 bool) MVPNRouteConfig 
 	return r
 }
 
+// parseInlineKeyValues parses an inline "key value key value ..." string into a map.
+// Handles arrays like "[ a b c ]" and parenthesized content like "( ... )".
+func parseInlineKeyValues(inline string) map[string]string {
+	result := make(map[string]string)
+	tokens := tokenizeInline(inline)
+
+	i := 0
+	for i < len(tokens) {
+		key := tokens[i]
+		i++
+		if i >= len(tokens) {
+			break
+		}
+
+		// Collect value (might be array or parenthesized)
+		if tokens[i] == "[" {
+			// Array: collect until ]
+			var arr []string
+			i++ // skip [
+			for i < len(tokens) && tokens[i] != "]" {
+				arr = append(arr, tokens[i])
+				i++
+			}
+			if i < len(tokens) {
+				i++ // skip ]
+			}
+			result[key] = "[" + strings.Join(arr, " ") + "]"
+		} else if tokens[i] == "(" {
+			// Parenthesized: collect until )
+			depth := 1
+			var paren []string
+			i++ // skip (
+			for i < len(tokens) && depth > 0 {
+				if tokens[i] == "(" {
+					depth++
+				} else if tokens[i] == ")" {
+					depth--
+					if depth == 0 {
+						break
+					}
+				}
+				paren = append(paren, tokens[i])
+				i++
+			}
+			if i < len(tokens) {
+				i++ // skip )
+			}
+			result[key] = "(" + strings.Join(paren, " ") + ")"
+		} else {
+			// Simple value
+			result[key] = tokens[i]
+			i++
+		}
+	}
+
+	return result
+}
+
+// tokenizeInline splits an inline string into tokens, preserving brackets and parens.
+func tokenizeInline(s string) []string {
+	var tokens []string
+	var current strings.Builder
+
+	for i := 0; i < len(s); i++ {
+		c := s[i]
+		switch c {
+		case ' ', '\t', '\n', '\r':
+			if current.Len() > 0 {
+				tokens = append(tokens, current.String())
+				current.Reset()
+			}
+		case '[', ']', '(', ')':
+			if current.Len() > 0 {
+				tokens = append(tokens, current.String())
+				current.Reset()
+			}
+			tokens = append(tokens, string(c))
+		case '\\':
+			// Skip backslash continuations - they're artifacts from multiline parsing
+			if current.Len() > 0 {
+				tokens = append(tokens, current.String())
+				current.Reset()
+			}
+		default:
+			current.WriteByte(c)
+		}
+	}
+	if current.Len() > 0 {
+		tokens = append(tokens, current.String())
+	}
+
+	return tokens
+}
+
+// parseVPLSFromInline creates a VPLSRouteConfig from an inline string.
+func parseVPLSFromInline(inline string) VPLSRouteConfig {
+	kv := parseInlineKeyValues(inline)
+	r := VPLSRouteConfig{}
+
+	if v, ok := kv["rd"]; ok {
+		r.RD = v
+	}
+	if v, ok := kv["endpoint"]; ok {
+		if n, err := strconv.ParseUint(v, 10, 16); err == nil {
+			r.Endpoint = uint16(n)
+		}
+	}
+	if v, ok := kv["base"]; ok {
+		if n, err := strconv.ParseUint(v, 10, 32); err == nil {
+			r.Base = uint32(n)
+		}
+	}
+	if v, ok := kv["offset"]; ok {
+		if n, err := strconv.ParseUint(v, 10, 16); err == nil {
+			r.Offset = uint16(n)
+		}
+	}
+	if v, ok := kv["size"]; ok {
+		if n, err := strconv.ParseUint(v, 10, 16); err == nil {
+			r.Size = uint16(n)
+		}
+	}
+	if v, ok := kv["next-hop"]; ok {
+		r.NextHop = v
+	}
+	if v, ok := kv["origin"]; ok {
+		r.Origin = v
+	}
+	if v, ok := kv["local-preference"]; ok {
+		if n, err := strconv.ParseUint(v, 10, 32); err == nil {
+			r.LocalPreference = uint32(n)
+		}
+	}
+	if v, ok := kv["med"]; ok {
+		if n, err := strconv.ParseUint(v, 10, 32); err == nil {
+			r.MED = uint32(n)
+		}
+	}
+	if v, ok := kv["as-path"]; ok {
+		r.ASPath = v
+	}
+	if v, ok := kv["community"]; ok {
+		r.Community = v
+	}
+	if v, ok := kv["extended-community"]; ok {
+		r.ExtendedCommunity = v
+	}
+	if v, ok := kv["originator-id"]; ok {
+		r.OriginatorID = v
+	}
+	if v, ok := kv["cluster-list"]; ok {
+		r.ClusterList = v
+	}
+
+	return r
+}
+
 // extractVPLSRoutes extracts VPLS routes from l2vpn { vpls ... } and announce { l2vpn { vpls ... } }.
+// Order: announce inline first, then l2vpn named, then l2vpn inline (to match ExaBGP behavior).
 func extractVPLSRoutes(tree *Tree) []VPLSRouteConfig {
 	var routes []VPLSRouteConfig
 
-	// From l2vpn block
+	// From announce { l2vpn { vpls ... } } - inline routes first
+	if announce := tree.GetContainer("announce"); announce != nil {
+		if l2vpn := announce.GetContainer("l2vpn"); l2vpn != nil {
+			// Inline first
+			for _, inline := range l2vpn.GetMultiValues("vpls") {
+				if inline != "" && inline != configTrue {
+					r := parseVPLSFromInline(inline)
+					routes = append(routes, r)
+				}
+			}
+			// Named blocks from announce
+			for name, route := range l2vpn.GetList("vpls") {
+				r := parseVPLSRoute(name, route)
+				routes = append(routes, r)
+			}
+		}
+	}
+
+	// From l2vpn block - named blocks then inline
 	if l2vpn := tree.GetContainer("l2vpn"); l2vpn != nil {
+		// Named blocks: vpls site5 { ... }
 		for name, route := range l2vpn.GetList("vpls") {
 			r := parseVPLSRoute(name, route)
 			routes = append(routes, r)
 		}
-	}
-
-	// From announce { l2vpn { vpls ... } }
-	if announce := tree.GetContainer("announce"); announce != nil {
-		if l2vpn := announce.GetContainer("l2vpn"); l2vpn != nil {
-			for name, route := range l2vpn.GetList("vpls") {
-				r := parseVPLSRoute(name, route)
+		// Inline: vpls rd X endpoint Y ...;
+		for _, inline := range l2vpn.GetMultiValues("vpls") {
+			if inline != "" && inline != configTrue {
+				r := parseVPLSFromInline(inline)
 				routes = append(routes, r)
 			}
 		}
@@ -772,8 +983,9 @@ func extractFlowSpecRoutes(tree *Tree) []FlowSpecRouteConfig {
 		return routes
 	}
 
-	for name, route := range flow.GetList("route") {
-		r := parseFlowSpecRoute(name, route)
+	// Use ordered iteration to preserve config order.
+	for _, entry := range flow.GetListOrdered("route") {
+		r := parseFlowSpecRoute(entry.Key, entry.Value)
 		routes = append(routes, r)
 	}
 
@@ -794,33 +1006,157 @@ func parseFlowSpecRoute(name string, route *Tree) FlowSpecRouteConfig {
 		r.NextHop = v
 	}
 
-	// Parse match block
+	// Parse match block - Freeform stores:
+	// - "keyword value" -> "true" for simple values like "source 10.0.0.1/32"
+	// - "keyword" -> "value" for arrays like "fragment [ last-fragment ]"
 	if match := route.GetContainer("match"); match != nil {
 		for _, key := range match.Values() {
-			if v, ok := match.Get(key); ok {
-				r.Match[key] = v
+			val, _ := match.Get(key)
+			if val == "true" || val == "" {
+				// Legacy format: key might be "keyword value"
+				parts := strings.SplitN(key, " ", 2)
+				if len(parts) == 2 {
+					r.Match[parts[0]] = parts[1]
+				} else {
+					r.Match[key] = ""
+				}
+			} else {
+				// Array format: key is keyword, val has the values
+				r.Match[key] = val
 			}
 		}
 	}
 
-	// Parse then block
+	// Parse then block - Freeform stores:
+	// - "keyword" -> "true" for flags like "discard"
+	// - "keyword" -> "value" for arrays like "community [30740:0 30740:30740]"
+	// - "keyword value" -> "true" for simple key-value (older format)
 	if then := route.GetContainer("then"); then != nil {
 		for _, key := range then.Values() {
-			if v, ok := then.Get(key); ok {
-				r.Then[key] = v
+			val, _ := then.Get(key)
+			if val == "true" || val == "" {
+				// Flag or legacy format: key might be "keyword value"
+				parts := strings.SplitN(key, " ", 2)
+				if len(parts) == 2 {
+					r.Then[parts[0]] = parts[1]
+				} else {
+					r.Then[key] = ""
+				}
 			} else {
-				// Flag without value (e.g., "discard;")
-				r.Then[key] = ""
+				// Array format: key is keyword, val has the values
+				r.Then[key] = val
 			}
 		}
 	}
 
 	// Determine if IPv6 based on match criteria
-	if src, ok := r.Match["source"]; ok && strings.Contains(src, ":") {
-		r.IsIPv6 = true
+	for key, val := range r.Match {
+		if key == "source" || key == "destination" {
+			if strings.Contains(val, ":") {
+				r.IsIPv6 = true
+				break
+			}
+		}
 	}
-	if dst, ok := r.Match["destination"]; ok && strings.Contains(dst, ":") {
-		r.IsIPv6 = true
+
+	return r
+}
+
+// parseMUPFromInline creates a MUPRouteConfig from an inline string.
+// Format: "mup-isd PREFIX rd RD next-hop NH ..." or "mup-dsd ADDR rd RD ..."
+func parseMUPFromInline(inline string, isIPv6 bool) MUPRouteConfig {
+	tokens := tokenizeInline(inline)
+	if len(tokens) == 0 {
+		return MUPRouteConfig{}
+	}
+
+	r := MUPRouteConfig{
+		IsIPv6: isIPv6,
+	}
+
+	// First token is route type
+	r.RouteType = tokens[0]
+
+	// Second token is prefix or address
+	if len(tokens) > 1 {
+		if r.RouteType == "mup-isd" || r.RouteType == "mup-t1st" {
+			r.Prefix = tokens[1]
+		} else {
+			r.Address = tokens[1]
+		}
+	}
+
+	// Parse remaining as key-value pairs starting from index 2
+	kv := make(map[string]string)
+	i := 2
+	for i < len(tokens) {
+		key := tokens[i]
+		i++
+		if i >= len(tokens) {
+			break
+		}
+
+		if tokens[i] == "[" {
+			// Array
+			var arr []string
+			i++
+			for i < len(tokens) && tokens[i] != "]" {
+				arr = append(arr, tokens[i])
+				i++
+			}
+			if i < len(tokens) {
+				i++
+			}
+			kv[key] = "[" + strings.Join(arr, " ") + "]"
+		} else if tokens[i] == "(" {
+			// Parenthesized
+			depth := 1
+			var paren []string
+			i++
+			for i < len(tokens) && depth > 0 {
+				if tokens[i] == "(" {
+					depth++
+				} else if tokens[i] == ")" {
+					depth--
+					if depth == 0 {
+						break
+					}
+				}
+				paren = append(paren, tokens[i])
+				i++
+			}
+			if i < len(tokens) {
+				i++
+			}
+			kv[key] = "(" + strings.Join(paren, " ") + ")"
+		} else {
+			kv[key] = tokens[i]
+			i++
+		}
+	}
+
+	if v, ok := kv["rd"]; ok {
+		r.RD = v
+	}
+	if v, ok := kv["teid"]; ok {
+		r.TEID = v
+	}
+	if v, ok := kv["qfi"]; ok {
+		if n, err := strconv.ParseUint(v, 10, 8); err == nil {
+			r.QFI = uint8(n)
+		}
+	}
+	if v, ok := kv["endpoint"]; ok {
+		r.Endpoint = v
+	}
+	if v, ok := kv["next-hop"]; ok {
+		r.NextHop = v
+	}
+	if v, ok := kv["extended-community"]; ok {
+		r.ExtendedCommunity = v
+	}
+	if v, ok := kv["bgp-prefix-sid-srv6"]; ok {
+		r.PrefixSID = v
 	}
 
 	return r
@@ -837,17 +1173,33 @@ func extractMUPRoutes(tree *Tree) []MUPRouteConfig {
 
 	// IPv4 MUP
 	if ipv4 := announce.GetContainer("ipv4"); ipv4 != nil {
+		// Named blocks (if any)
 		for routeType, route := range ipv4.GetList("mup") {
 			r := parseMUPRoute(routeType, route, false)
 			routes = append(routes, r)
+		}
+		// Inline: mup mup-isd PREFIX rd RD ...;
+		for _, inline := range ipv4.GetMultiValues("mup") {
+			if inline != "" && inline != configTrue {
+				r := parseMUPFromInline(inline, false)
+				routes = append(routes, r)
+			}
 		}
 	}
 
 	// IPv6 MUP
 	if ipv6 := announce.GetContainer("ipv6"); ipv6 != nil {
+		// Named blocks (if any)
 		for routeType, route := range ipv6.GetList("mup") {
 			r := parseMUPRoute(routeType, route, true)
 			routes = append(routes, r)
+		}
+		// Inline
+		for _, inline := range ipv6.GetMultiValues("mup") {
+			if inline != "" && inline != configTrue {
+				r := parseMUPFromInline(inline, true)
+				routes = append(routes, r)
+			}
 		}
 	}
 
