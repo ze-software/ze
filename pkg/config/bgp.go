@@ -9,6 +9,35 @@ import (
 
 const configTrue = "true" // Config value for boolean true
 
+// routeAttributes returns the common route attribute field definitions.
+// Used by both static and announce route schemas.
+func routeAttributes() []FieldDef {
+	return []FieldDef{
+		Field("next-hop", Leaf(TypeString)),
+		Field("origin", Leaf(TypeString)),
+		Field("local-preference", Leaf(TypeUint32)),
+		Field("med", Leaf(TypeUint32)),
+		Field("community", ValueOrArray(TypeString)),
+		Field("extended-community", ValueOrArray(TypeString)),
+		Field("large-community", ValueOrArray(TypeString)),
+		Field("as-path", ValueOrArray(TypeString)),
+		Field("path-information", Leaf(TypeString)),
+		Field("label", Leaf(TypeString)),
+		Field("rd", Leaf(TypeString)),
+		Field("aggregator", Leaf(TypeString)),
+		Field("atomic-aggregate", Flex()), // Can be standalone or followed by aggregator
+		Field("originator-id", Leaf(TypeIPv4)),
+		Field("cluster-list", Leaf(TypeString)),
+		Field("name", Leaf(TypeString)),
+		Field("split", Leaf(TypeString)),
+		Field("watchdog", Leaf(TypeString)),
+		Field("withdraw", Leaf(TypeBool)),            // Withdraw route
+		Field("attribute", ValueOrArray(TypeString)), // Generic attributes
+		Field("bgp-prefix-sid", Freeform()),          // Prefix SID
+		Field("bgp-prefix-sid-srv6", Freeform()),     // SRv6 Prefix SID
+	}
+}
+
 // BGPSchema returns the schema for ZeBGP configuration.
 func BGPSchema() *Schema {
 	schema := NewSchema()
@@ -71,31 +100,34 @@ func BGPSchema() *Schema {
 			Field("software-version", Flex()),
 		)),
 
-		// Announce routes (dynamic)
-		Field("announce", Freeform()),
+		// Announce routes - structured by AFI/SAFI
+		// announce { ipv4 { unicast <prefix> <attrs>; } ipv6 { unicast <prefix> <attrs>; } }
+		Field("announce", Container(
+			Field("ipv4", Container(
+				Field("unicast", InlineList(TypePrefix, routeAttributes()...)),
+				Field("multicast", InlineList(TypePrefix, routeAttributes()...)),
+				Field("mpls-vpn", InlineList(TypePrefix, routeAttributes()...)),
+				Field("mcast-vpn", Freeform()), // MVPN - complex format
+				Field("mup", Freeform()),       // MUP - complex format
+				Field("flow", Freeform()),      // FlowSpec
+			)),
+			Field("ipv6", Container(
+				Field("unicast", InlineList(TypePrefix, routeAttributes()...)),
+				Field("multicast", InlineList(TypePrefix, routeAttributes()...)),
+				Field("mpls-vpn", InlineList(TypePrefix, routeAttributes()...)),
+				Field("mcast-vpn", Freeform()), // MVPN - complex format
+				Field("mup", Freeform()),       // MUP - complex format
+				Field("flow", Freeform()),      // FlowSpec
+			)),
+			Field("l2vpn", Container(
+				Field("vpls", Freeform()), // VPLS - complex format
+				Field("evpn", Freeform()), // EVPN - complex format
+			)),
+		)),
 
 		// Static routes - InlineList supports "route PREFIX attr val attr val;"
 		Field("static", Container(
-			Field("route", InlineList(TypePrefix,
-				Field("next-hop", Leaf(TypeString)),
-				Field("origin", Leaf(TypeString)),
-				Field("local-preference", Leaf(TypeUint32)),
-				Field("med", Leaf(TypeUint32)),
-				Field("community", ValueOrArray(TypeString)),
-				Field("extended-community", ValueOrArray(TypeString)),
-				Field("large-community", ValueOrArray(TypeString)),
-				Field("as-path", ValueOrArray(TypeString)),
-				Field("path-information", Leaf(TypeString)),
-				Field("label", Leaf(TypeString)),
-				Field("rd", Leaf(TypeString)),
-				Field("aggregator", Leaf(TypeString)),
-				Field("atomic-aggregate", Leaf(TypeBool)),
-				Field("originator-id", Leaf(TypeIPv4)),
-				Field("cluster-list", Leaf(TypeString)),
-				Field("name", Leaf(TypeString)),
-				Field("split", Leaf(TypeString)),
-				Field("watchdog", Leaf(TypeString)),
-			)),
+			Field("route", InlineList(TypePrefix, routeAttributes()...)),
 		)),
 
 		// Flow routes
@@ -331,65 +363,112 @@ func parseNeighborConfig(addr string, tree *Tree) (NeighborConfig, error) {
 	// Static routes
 	if static := tree.GetContainer("static"); static != nil {
 		for prefix, route := range static.GetList("route") {
-			sr := StaticRouteConfig{}
-
-			// Try as prefix first, then as bare IP (host route)
-			p, err := netip.ParsePrefix(prefix)
+			sr, err := parseRouteConfig(prefix, route)
 			if err != nil {
-				// Try as bare IP, convert to /32 or /128
-				ip, err2 := netip.ParseAddr(prefix)
-				if err2 != nil {
-					return nc, fmt.Errorf("invalid prefix %s: %w", prefix, err)
-				}
-				bits := 32
-				if ip.Is6() {
-					bits = 128
-				}
-				p = netip.PrefixFrom(ip, bits)
+				return nc, err
 			}
-			sr.Prefix = p
-
-			if v, ok := route.Get("next-hop"); ok {
-				sr.NextHop = v
-			}
-			if v, ok := route.Get("local-preference"); ok {
-				n, _ := strconv.ParseUint(v, 10, 32)
-				sr.LocalPreference = uint32(n)
-			}
-			if v, ok := route.Get("med"); ok {
-				n, _ := strconv.ParseUint(v, 10, 32)
-				sr.MED = uint32(n)
-			}
-			if v, ok := route.Get("community"); ok {
-				sr.Community = v
-			}
-			if v, ok := route.Get("extended-community"); ok {
-				sr.ExtendedCommunity = v
-			}
-			if v, ok := route.Get("large-community"); ok {
-				sr.LargeCommunity = v
-			}
-			if v, ok := route.Get("as-path"); ok {
-				sr.ASPath = v
-			}
-			if v, ok := route.Get("origin"); ok {
-				sr.Origin = v
-			}
-			if v, ok := route.Get("path-information"); ok {
-				sr.PathInformation = v
-			}
-			if v, ok := route.Get("label"); ok {
-				sr.Label = v
-			}
-			if v, ok := route.Get("rd"); ok {
-				sr.RD = v
-			}
-
 			nc.StaticRoutes = append(nc.StaticRoutes, sr)
 		}
 	}
 
+	// Announce routes - parse from announce { ipv4 { unicast ... } } structure
+	if announce := tree.GetContainer("announce"); announce != nil {
+		// Parse IPv4 routes
+		if ipv4 := announce.GetContainer("ipv4"); ipv4 != nil {
+			for prefix, route := range ipv4.GetList("unicast") {
+				sr, err := parseRouteConfig(prefix, route)
+				if err != nil {
+					return nc, err
+				}
+				nc.StaticRoutes = append(nc.StaticRoutes, sr)
+			}
+			for prefix, route := range ipv4.GetList("multicast") {
+				sr, err := parseRouteConfig(prefix, route)
+				if err != nil {
+					return nc, err
+				}
+				nc.StaticRoutes = append(nc.StaticRoutes, sr)
+			}
+		}
+		// Parse IPv6 routes
+		if ipv6 := announce.GetContainer("ipv6"); ipv6 != nil {
+			for prefix, route := range ipv6.GetList("unicast") {
+				sr, err := parseRouteConfig(prefix, route)
+				if err != nil {
+					return nc, err
+				}
+				nc.StaticRoutes = append(nc.StaticRoutes, sr)
+			}
+			for prefix, route := range ipv6.GetList("multicast") {
+				sr, err := parseRouteConfig(prefix, route)
+				if err != nil {
+					return nc, err
+				}
+				nc.StaticRoutes = append(nc.StaticRoutes, sr)
+			}
+		}
+	}
+
 	return nc, nil
+}
+
+// parseRouteConfig extracts a StaticRouteConfig from a parsed route tree.
+func parseRouteConfig(prefix string, route *Tree) (StaticRouteConfig, error) {
+	sr := StaticRouteConfig{}
+
+	// Try as prefix first, then as bare IP (host route)
+	p, err := netip.ParsePrefix(prefix)
+	if err != nil {
+		// Try as bare IP, convert to /32 or /128
+		ip, err2 := netip.ParseAddr(prefix)
+		if err2 != nil {
+			return sr, fmt.Errorf("invalid prefix %s: %w", prefix, err)
+		}
+		bits := 32
+		if ip.Is6() {
+			bits = 128
+		}
+		p = netip.PrefixFrom(ip, bits)
+	}
+	sr.Prefix = p
+
+	if v, ok := route.Get("next-hop"); ok {
+		sr.NextHop = v
+	}
+	if v, ok := route.Get("local-preference"); ok {
+		n, _ := strconv.ParseUint(v, 10, 32)
+		sr.LocalPreference = uint32(n)
+	}
+	if v, ok := route.Get("med"); ok {
+		n, _ := strconv.ParseUint(v, 10, 32)
+		sr.MED = uint32(n)
+	}
+	if v, ok := route.Get("community"); ok {
+		sr.Community = v
+	}
+	if v, ok := route.Get("extended-community"); ok {
+		sr.ExtendedCommunity = v
+	}
+	if v, ok := route.Get("large-community"); ok {
+		sr.LargeCommunity = v
+	}
+	if v, ok := route.Get("as-path"); ok {
+		sr.ASPath = v
+	}
+	if v, ok := route.Get("origin"); ok {
+		sr.Origin = v
+	}
+	if v, ok := route.Get("path-information"); ok {
+		sr.PathInformation = v
+	}
+	if v, ok := route.Get("label"); ok {
+		sr.Label = v
+	}
+	if v, ok := route.Get("rd"); ok {
+		sr.RD = v
+	}
+
+	return sr, nil
 }
 
 // ipToUint32 converts an IPv4 address to uint32.

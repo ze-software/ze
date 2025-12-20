@@ -339,3 +339,98 @@ neighbor 192.0.2.1 {
 	require.Equal(t, uint32(65001), n.PeerAS)
 	require.Equal(t, uint16(90), n.HoldTime)
 }
+
+// TestBGPSchemaAnnounce verifies announce block parsing and route extraction.
+//
+// VALIDATES: Routes in announce { ipv4 { unicast ... } } syntax are parsed
+// and converted to StaticRouteConfig entries.
+//
+// PREVENTS: Missing routes when using announce syntax instead of static syntax.
+func TestBGPSchemaAnnounce(t *testing.T) {
+	input := `
+neighbor 127.0.0.1 {
+    router-id 10.0.0.2;
+    local-address 127.0.0.1;
+    local-as 65533;
+    peer-as 65000;
+
+    family {
+        ipv4 unicast;
+    }
+
+    announce {
+        ipv4 {
+            unicast 10.0.0.0/24 next-hop 10.0.1.254 local-preference 200;
+            unicast 10.0.1.0/24 next-hop 10.0.1.254 med 100;
+        }
+    }
+}
+`
+	p := NewParser(BGPSchema())
+	tree, err := p.Parse(input)
+	require.NoError(t, err)
+
+	cfg, err := TreeToConfig(tree)
+	require.NoError(t, err)
+
+	require.Len(t, cfg.Neighbors, 1)
+	n := cfg.Neighbors[0]
+
+	// Should have 2 routes from announce block
+	require.Len(t, n.StaticRoutes, 2, "expected 2 routes from announce block")
+
+	// Check first route
+	r1 := n.StaticRoutes[0]
+	require.Equal(t, "10.0.0.0/24", r1.Prefix.String())
+	require.Equal(t, "10.0.1.254", r1.NextHop)
+	require.Equal(t, uint32(200), r1.LocalPreference)
+
+	// Check second route
+	r2 := n.StaticRoutes[1]
+	require.Equal(t, "10.0.1.0/24", r2.Prefix.String())
+	require.Equal(t, "10.0.1.254", r2.NextHop)
+	require.Equal(t, uint32(100), r2.MED)
+}
+
+// TestBGPSchemaAnnounceIPv6 verifies IPv6 announce block parsing.
+//
+// VALIDATES: IPv6 routes with communities parse correctly.
+//
+// PREVENTS: Missing IPv6 routes or community parsing failures.
+func TestBGPSchemaAnnounceIPv6(t *testing.T) {
+	input := `
+neighbor 127.0.0.1 {
+    router-id 10.0.0.2;
+    local-address 127.0.0.1;
+    local-as 65533;
+    peer-as 65533;
+
+    family {
+        ipv6 unicast;
+    }
+
+    announce {
+        ipv6 {
+            unicast 2a02:b80:0:1::1/128 next-hop 2a02:b80:0:2::1 community [30740:0 30740:30740] local-preference 200;
+        }
+    }
+}
+`
+	p := NewParser(BGPSchema())
+	tree, err := p.Parse(input)
+	require.NoError(t, err)
+
+	cfg, err := TreeToConfig(tree)
+	require.NoError(t, err)
+
+	require.Len(t, cfg.Neighbors, 1)
+	n := cfg.Neighbors[0]
+
+	require.Len(t, n.StaticRoutes, 1, "expected 1 IPv6 route from announce block")
+
+	r := n.StaticRoutes[0]
+	require.Equal(t, "2a02:b80:0:1::1/128", r.Prefix.String())
+	require.Equal(t, "2a02:b80:0:2::1", r.NextHop)
+	require.Equal(t, "30740:0 30740:30740", r.Community)
+	require.Equal(t, uint32(200), r.LocalPreference)
+}
