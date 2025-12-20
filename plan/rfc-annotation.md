@@ -105,7 +105,14 @@ FILE:LINE - RFC XXXX Section Y.Z violation
 ```
 
 ### Message Layer
-(to be filled during annotation)
+
+```
+header.go:92 - RFC 4271 Section 4.1 violation
+  Current: Only validates Length >= 19, not <= 4096
+  Required: "Length field MUST always be at least 19 and no greater than 4096"
+  Severity: MEDIUM (may be intentional for RFC 8654 Extended Message)
+  Note: Need to validate against negotiated max (4096 or 65535)
+```
 
 ### Capabilities
 (to be filled during annotation)

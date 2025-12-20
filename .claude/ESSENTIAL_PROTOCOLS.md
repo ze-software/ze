@@ -107,7 +107,60 @@ and make it easy to cross-check behavior against specifications.
 
 ---
 
-### 0.1 ExaBGP Reference Implementation (MUST CHECK BEFORE CODING)
+### 0.2 Use Agents for Multi-File Work (CONTEXT MANAGEMENT)
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│  MUST use Task tool agents for multi-file operations to keep   │
+│  main conversation context low.                                 │
+│                                                                 │
+│  Launch parallel agents when tasks are independent.            │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+**When to use agents:**
+- Annotating multiple files with RFC references
+- Searching across codebase for patterns
+- Implementing features spanning multiple files
+- Any task touching 3+ files
+
+**Agent types:**
+- `Explore` - codebase search and understanding
+- `Plan` - implementation design
+- `general-purpose` - complex multi-step tasks
+
+---
+
+### 0.3 Use Programs for Large Refactoring (EFFICIENCY)
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│  MUST use sed, perl, or python for large search/replace ops.   │
+│  Do NOT manually edit many files with repetitive changes.      │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+**Examples:**
+```bash
+# Rename function across codebase
+sed -i '' 's/OldFunc/NewFunc/g' pkg/**/*.go
+
+# Add import to multiple files
+perl -i -pe 's/(package \w+)/\1\n\nimport "new\/pkg"/' file1.go file2.go
+
+# Complex refactoring
+python3 scripts/refactor.py --pattern 'old' --replace 'new'
+```
+
+**When to use:**
+- Renaming symbols across 3+ files
+- Adding/removing imports in bulk
+- Consistent formatting changes
+- Any repetitive edit pattern
+
+---
+
+### 0.4 ExaBGP Reference Implementation (MUST CHECK BEFORE CODING)
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
