@@ -325,6 +325,10 @@ func (p *Peer) sendInitialRoutes() {
 	// Group routes by attributes (same attributes = same UPDATE).
 	groups := groupRoutesByAttributes(p.neighbor.StaticRoutes)
 
+	// Track which address families have routes.
+	hasIPv4 := false
+	hasIPv6 := false
+
 	for _, routes := range groups {
 		update := buildGroupedUpdate(routes, p.neighbor.LocalAS, p.neighbor.IsIBGP())
 		if err := p.SendUpdate(update); err != nil {
@@ -333,14 +337,24 @@ func (p *Peer) sendInitialRoutes() {
 		}
 		for _, route := range routes {
 			trace.RouteSent(addr, route.Prefix.String(), route.NextHop.String())
+			if route.Prefix.Addr().Is4() {
+				hasIPv4 = true
+			} else {
+				hasIPv6 = true
+			}
 		}
 	}
 
-	// Send End-of-RIB marker for IPv4 unicast.
-	if len(p.neighbor.StaticRoutes) > 0 {
+	// Send End-of-RIB marker for each address family with routes.
+	if hasIPv4 {
 		eor := buildEORUpdate(1, 1) // IPv4 unicast
 		_ = p.SendUpdate(eor)
-		trace.Log(trace.Routes, "neighbor %s: sent EOR marker", addr)
+		trace.Log(trace.Routes, "neighbor %s: sent IPv4 unicast EOR marker", addr)
+	}
+	if hasIPv6 {
+		eor := buildEORUpdate(2, 1) // IPv6 unicast
+		_ = p.SendUpdate(eor)
+		trace.Log(trace.Routes, "neighbor %s: sent IPv6 unicast EOR marker", addr)
 	}
 }
 
@@ -468,7 +482,13 @@ func routeGroupKey(r StaticRoute) string {
 	})
 
 	// Key includes: nexthop, origin, localpref, med, communities, large-communities, ext-communities, vpn, ipv4/ipv6.
-	return fmt.Sprintf("%s|%d|%d|%d|%v|%v|%s|%s|%v",
+	// For IPv6 routes, include prefix in key to prevent grouping (each needs separate MP_REACH_NLRI UPDATE).
+	// IPv4 routes can be grouped since multiple NLRIs can be in one UPDATE.
+	prefixKey := ""
+	if !r.Prefix.Addr().Is4() {
+		prefixKey = r.Prefix.String()
+	}
+	return fmt.Sprintf("%s|%d|%d|%d|%v|%v|%s|%s|%v|%s",
 		r.NextHop.String(),
 		r.Origin,
 		r.LocalPreference,
@@ -478,6 +498,7 @@ func routeGroupKey(r StaticRoute) string {
 		hex.EncodeToString(r.ExtCommunityBytes),
 		r.RD,
 		r.Prefix.Addr().Is4(),
+		prefixKey,
 	)
 }
 

@@ -269,7 +269,7 @@ func buildEORUpdate(afi uint16, safi uint8) *message.Update {
 	}
 
 	attrBytes := attribute.PackHeader(
-		attribute.FlagOptional,
+		attribute.FlagOptional|attribute.FlagExtLength,
 		attribute.AttrMPUnreachNLRI,
 		uint16(len(mpUnreachValue)), //nolint:gosec // Length is bounded by BGP message size
 	)
