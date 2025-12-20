@@ -9,6 +9,24 @@ import (
 
 const configTrue = "true" // Config value for boolean true
 
+// mcastVpnAttributes returns field definitions for MCAST-VPN routes.
+// Format: mcast-vpn <type> rp <ip> group <ip> rd <rd> source-as <asn> next-hop <ip> ...
+func mcastVpnAttributes() []FieldDef {
+	return []FieldDef{
+		Field("rp", Leaf(TypeString)),
+		Field("group", Leaf(TypeString)),
+		Field("source", Leaf(TypeString)),
+		Field("rd", Leaf(TypeString)),
+		Field("source-as", Leaf(TypeUint32)),
+		Field("next-hop", Leaf(TypeString)),
+		Field("extended-community", ValueOrArray(TypeString)),
+		Field("community", ValueOrArray(TypeString)),
+		Field("origin", Leaf(TypeString)),
+		Field("local-preference", Leaf(TypeUint32)),
+		Field("med", Leaf(TypeUint32)),
+	}
+}
+
 // routeAttributes returns the common route attribute field definitions.
 // Used by both static and announce route schemas.
 func routeAttributes() []FieldDef {
@@ -31,10 +49,10 @@ func routeAttributes() []FieldDef {
 		Field("name", Leaf(TypeString)),
 		Field("split", Leaf(TypeString)),
 		Field("watchdog", Leaf(TypeString)),
-		Field("withdraw", Leaf(TypeBool)),            // Withdraw route
+		Field("withdraw", Flex()),                    // Withdraw route (flag)
 		Field("attribute", ValueOrArray(TypeString)), // Generic attributes
-		Field("bgp-prefix-sid", Freeform()),          // Prefix SID
-		Field("bgp-prefix-sid-srv6", Freeform()),     // SRv6 Prefix SID
+		Field("bgp-prefix-sid", Flex()),              // Prefix SID - can use ( ... ) syntax
+		Field("bgp-prefix-sid-srv6", Flex()),         // SRv6 Prefix SID - can use ( ... ) syntax
 	}
 }
 
@@ -107,20 +125,20 @@ func BGPSchema() *Schema {
 				Field("unicast", InlineList(TypePrefix, routeAttributes()...)),
 				Field("multicast", InlineList(TypePrefix, routeAttributes()...)),
 				Field("mpls-vpn", InlineList(TypePrefix, routeAttributes()...)),
-				Field("mcast-vpn", Freeform()), // MVPN - complex format
-				Field("mup", Freeform()),       // MUP - complex format
-				Field("flow", Freeform()),      // FlowSpec
+				Field("mcast-vpn", InlineList(TypeString, mcastVpnAttributes()...)),
+				Field("mup", Flex()),      // MUP - complex inline format with nested parens
+				Field("flow", Freeform()), // FlowSpec - complex format
 			)),
 			Field("ipv6", Container(
 				Field("unicast", InlineList(TypePrefix, routeAttributes()...)),
 				Field("multicast", InlineList(TypePrefix, routeAttributes()...)),
 				Field("mpls-vpn", InlineList(TypePrefix, routeAttributes()...)),
-				Field("mcast-vpn", Freeform()), // MVPN - complex format
-				Field("mup", Freeform()),       // MUP - complex format
-				Field("flow", Freeform()),      // FlowSpec
+				Field("mcast-vpn", InlineList(TypeString, mcastVpnAttributes()...)),
+				Field("mup", Flex()),      // MUP - complex inline format with nested parens
+				Field("flow", Freeform()), // FlowSpec - complex format
 			)),
 			Field("l2vpn", Container(
-				Field("vpls", Freeform()), // VPLS - complex format
+				Field("vpls", Flex()),     // VPLS - complex inline format
 				Field("evpn", Freeform()), // EVPN - complex format
 			)),
 		)),

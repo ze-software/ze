@@ -586,18 +586,60 @@ func (p *Parser) parseFlex(tree *Tree, name string, node *FlexNode) error {
 		tree.SetContainer(name, child)
 		return nil
 
-	case TokenWord, TokenString:
-		// Value mode: parse value and semicolon
-		value := tok.Value
-		p.tok.Next()
+	case TokenLParen:
+		// Parenthesized mode: parse ( ... ) and optional semicolon
+		parenVals, err := p.collectParenthesized()
+		if err != nil {
+			return err
+		}
+		value := ""
+		for i, v := range parenVals {
+			if i > 0 {
+				value += " "
+			}
+			value += v
+		}
 
+		// Optional semicolon after parenthesized content
 		tok = p.tok.Peek()
+		if tok.Type == TokenSemicolon {
+			p.tok.Next()
+		}
+
+		tree.Set(name, value)
+		return nil
+
+	case TokenWord, TokenString:
+		// Value mode: parse multiple words until semicolon or block delimiter
+		var values []string
+		for tok.Type == TokenWord || tok.Type == TokenString || tok.Type == TokenLBracket || tok.Type == TokenLParen {
+			if tok.Type == TokenLBracket {
+				// Array: collect [ ... ]
+				arrayVals, err := p.collectArray()
+				if err != nil {
+					return err
+				}
+				values = append(values, "["+joinStrings(arrayVals, " ")+"]")
+			} else if tok.Type == TokenLParen {
+				// Parenthesized: collect ( ... )
+				parenVals, err := p.collectParenthesized()
+				if err != nil {
+					return err
+				}
+				values = append(values, "("+joinStrings(parenVals, " ")+")")
+			} else {
+				values = append(values, tok.Value)
+				p.tok.Next()
+			}
+			tok = p.tok.Peek()
+		}
+
 		if tok.Type != TokenSemicolon {
 			return p.errorf(tok, "expected ';' after %s value, got %s", name, tok.Type)
 		}
 		p.tok.Next()
 
-		tree.Set(name, value)
+		tree.Set(name, joinStrings(values, " "))
 		return nil
 
 	default:
@@ -675,7 +717,7 @@ func (p *Parser) parseInlineList(tree *Tree, name string, node *InlineListNode) 
 			attrName := tok.Value
 			p.tok.Next()
 
-			// Get value - can be word, string, or array [ ... ]
+			// Get value - can be word, string, array [ ... ], parenthesized ( ... ), or flag
 			tok = p.tok.Peek()
 			var attrValue string
 			if tok.Type == TokenLBracket {
@@ -691,9 +733,31 @@ func (p *Parser) parseInlineList(tree *Tree, name string, node *InlineListNode) 
 					}
 					attrValue += v
 				}
+			} else if tok.Type == TokenLParen {
+				// Parenthesized value: ( item item ... )
+				parenVals, err := p.collectParenthesized()
+				if err != nil {
+					return err
+				}
+				// Join items with space
+				for i, v := range parenVals {
+					if i > 0 {
+						attrValue += " "
+					}
+					attrValue += v
+				}
 			} else if tok.Type == TokenWord || tok.Type == TokenString {
-				attrValue = tok.Value
-				p.tok.Next()
+				// Check if this word is a known attribute name - if so, current attr is a flag
+				if node.Get(tok.Value) != nil {
+					attrValue = "true"
+					// Don't consume - it's the next attribute name
+				} else {
+					attrValue = tok.Value
+					p.tok.Next()
+				}
+			} else if tok.Type == TokenSemicolon {
+				// Flag without value - the attribute itself is the value (like "withdraw;")
+				attrValue = "true"
 			} else {
 				return p.errorf(tok, "expected value for %s.%s, got %s", name, attrName, tok.Type)
 			}
@@ -797,6 +861,71 @@ func (p *Parser) collectArray() ([]string, error) {
 	}
 
 	return items, nil
+}
+
+// collectParenthesized collects parenthesized values ( item item ... ) and returns them.
+// Handles nested content including brackets.
+func (p *Parser) collectParenthesized() ([]string, error) {
+	tok := p.tok.Peek()
+	if tok.Type != TokenLParen {
+		return nil, p.errorf(tok, "expected '(', got %s", tok.Type)
+	}
+	p.tok.Next() // consume (
+
+	var items []string
+	depth := 1
+	var current string
+
+	for depth > 0 {
+		tok = p.tok.Peek()
+		switch tok.Type { //nolint:exhaustive // Only specific tokens handled
+		case TokenRParen:
+			depth--
+			if depth > 0 {
+				current += ")"
+			}
+			p.tok.Next()
+		case TokenLParen:
+			depth++
+			current += "("
+			p.tok.Next()
+		case TokenLBracket:
+			current += "["
+			p.tok.Next()
+		case TokenRBracket:
+			current += "]"
+			p.tok.Next()
+		case TokenWord, TokenString:
+			if current != "" && current[len(current)-1] != '(' && current[len(current)-1] != '[' {
+				current += " "
+			}
+			current += tok.Value
+			p.tok.Next()
+		case TokenEOF:
+			return nil, p.errorf(tok, "unexpected EOF in parenthesized expression")
+		default:
+			current += tok.Value
+			p.tok.Next()
+		}
+	}
+
+	if current != "" {
+		items = append(items, current)
+	}
+
+	return items, nil
+}
+
+// joinStrings joins strings with a separator.
+func joinStrings(strs []string, sep string) string {
+	result := ""
+	for i, s := range strs {
+		if i > 0 {
+			result += sep
+		}
+		result += s
+	}
+	return result
 }
 
 // errorf creates a formatted error with line info.

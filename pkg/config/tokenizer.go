@@ -11,6 +11,8 @@ const (
 	TokenRBrace
 	TokenLBracket
 	TokenRBracket
+	TokenLParen
+	TokenRParen
 	TokenSemicolon
 )
 
@@ -30,6 +32,10 @@ func (t TokenType) String() string {
 		return "LBRACKET"
 	case TokenRBracket:
 		return "RBRACKET"
+	case TokenLParen:
+		return "LPAREN"
+	case TokenRParen:
+		return "RPAREN"
 	case TokenSemicolon:
 		return "SEMICOLON"
 	default:
@@ -104,6 +110,12 @@ func (t *Tokenizer) Next() Token {
 	case ']':
 		t.advance()
 		return Token{Type: TokenRBracket, Value: "]", Line: startLine, Col: startCol}
+	case '(':
+		t.advance()
+		return Token{Type: TokenLParen, Value: "(", Line: startLine, Col: startCol}
+	case ')':
+		t.advance()
+		return Token{Type: TokenRParen, Value: ")", Line: startLine, Col: startCol}
 	case ';':
 		t.advance()
 		return Token{Type: TokenSemicolon, Value: ";", Line: startLine, Col: startCol}
