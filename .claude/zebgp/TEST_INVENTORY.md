@@ -4,8 +4,6 @@
 **Source:** `../main/qa/`
 **Total tests:** ~92 test files
 
-**Current status:** See `CLAUDE_CONTINUATION.md` in project root.
-
 ---
 
 ## Test Categories

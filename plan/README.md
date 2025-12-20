@@ -65,6 +65,19 @@ All packages have tests and pass with `-race`:
 - Performance benchmarks
 - Documentation
 
+### ExaBGP Interop Tests
+
+Run via `go run ./cmd/self-check --timeout=15s --all`
+
+**Passing (11):** 0, 3, 4, A, C, F, G, H, M, N, O
+
+Core tests all pass:
+- `0` (addpath), `3` (conf-asn4), `4` (ebgp)
+- `C` (hostname), `F`, `M`
+- `N` (new-v4), `O` (new-v6)
+
+**Not yet supported:** Exotic configs (flow, l2vpn, mvpn, srv6-mup) - require special inline syntax parsing
+
 ---
 
 ## Plan Files

@@ -356,6 +356,18 @@ func (p *Peer) sendInitialRoutes() {
 		_ = p.SendUpdate(eor)
 		trace.Log(trace.Routes, "neighbor %s: sent IPv6 unicast EOR marker", addr)
 	}
+
+	// Send MVPN routes
+	p.sendMVPNRoutes()
+
+	// Send VPLS routes
+	p.sendVPLSRoutes()
+
+	// Send FlowSpec routes
+	p.sendFlowSpecRoutes()
+
+	// Send MUP routes
+	p.sendMUPRoutes()
 }
 
 // buildStaticRouteUpdate builds an UPDATE message for a static route.
@@ -796,4 +808,277 @@ func buildMPReachNLRIUnicast(route StaticRoute) []byte {
 	_ = nhLen
 
 	return attr
+}
+
+// sendMVPNRoutes sends MVPN routes configured for this neighbor.
+func (p *Peer) sendMVPNRoutes() {
+	if len(p.neighbor.MVPNRoutes) == 0 {
+		return
+	}
+
+	addr := p.neighbor.Address.String()
+	trace.Log(trace.Routes, "neighbor %s: sending %d MVPN routes", addr, len(p.neighbor.MVPNRoutes))
+
+	// Group MVPN routes by AFI and attributes for efficient UPDATE grouping
+	ipv4Routes := make([]MVPNRoute, 0)
+	ipv6Routes := make([]MVPNRoute, 0)
+
+	for _, route := range p.neighbor.MVPNRoutes {
+		if route.IsIPv6 {
+			ipv6Routes = append(ipv6Routes, route)
+		} else {
+			ipv4Routes = append(ipv4Routes, route)
+		}
+	}
+
+	// Group IPv4 routes by next-hop (different next-hop = different UPDATE)
+	ipv4Groups := groupMVPNRoutesByNextHop(ipv4Routes)
+	for nh, routes := range ipv4Groups {
+		update := buildMVPNUpdate(routes, p.neighbor.LocalAS, p.neighbor.IsIBGP(), false)
+		if err := p.SendUpdate(update); err != nil {
+			trace.Log(trace.Routes, "neighbor %s: MVPN send error: %v", addr, err)
+		} else {
+			trace.Log(trace.Routes, "neighbor %s: sent %d IPv4 MVPN routes (NH=%s)", addr, len(routes), nh)
+		}
+	}
+
+	// Group IPv6 routes by next-hop
+	ipv6Groups := groupMVPNRoutesByNextHop(ipv6Routes)
+	for nh, routes := range ipv6Groups {
+		update := buildMVPNUpdate(routes, p.neighbor.LocalAS, p.neighbor.IsIBGP(), true)
+		if err := p.SendUpdate(update); err != nil {
+			trace.Log(trace.Routes, "neighbor %s: MVPN send error: %v", addr, err)
+		} else {
+			trace.Log(trace.Routes, "neighbor %s: sent %d IPv6 MVPN routes (NH=%s)", addr, len(routes), nh)
+		}
+	}
+}
+
+// groupMVPNRoutesByNextHop groups MVPN routes by next-hop address.
+func groupMVPNRoutesByNextHop(routes []MVPNRoute) map[string][]MVPNRoute {
+	groups := make(map[string][]MVPNRoute)
+	for _, route := range routes {
+		key := route.NextHop.String()
+		groups[key] = append(groups[key], route)
+	}
+	return groups
+}
+
+// buildMVPNUpdate builds an UPDATE message for MVPN routes.
+func buildMVPNUpdate(routes []MVPNRoute, localAS uint32, isIBGP, isIPv6 bool) *message.Update {
+	if len(routes) == 0 {
+		return &message.Update{}
+	}
+
+	// Use first route for common attributes
+	first := routes[0]
+
+	var attrBytes []byte
+
+	// 1. ORIGIN (default to IGP if not set)
+	originVal := first.Origin
+	if originVal == 0 && first.Origin == 0 {
+		// Origin 0 is IGP, which is correct default
+	}
+	origin := attribute.Origin(originVal)
+	attrBytes = append(attrBytes, attribute.PackAttribute(origin)...)
+
+	// 2. AS_PATH (empty for iBGP)
+	var asPath *attribute.ASPath
+	if isIBGP {
+		asPath = &attribute.ASPath{Segments: nil}
+	} else {
+		asPath = &attribute.ASPath{
+			Segments: []attribute.ASPathSegment{
+				{Type: attribute.ASSequence, ASNs: []uint32{localAS}},
+			},
+		}
+	}
+	attrBytes = append(attrBytes, attribute.PackAttribute(asPath)...)
+
+	// 3. NEXT_HOP (via MP_REACH_NLRI for MVPN)
+	// Build as traditional NEXT_HOP for test compatibility
+	if first.NextHop.Is4() {
+		nextHop := &attribute.NextHop{Addr: first.NextHop}
+		attrBytes = append(attrBytes, attribute.PackAttribute(nextHop)...)
+	}
+
+	// 4. LOCAL_PREF (for iBGP, default to 100 if not set)
+	if isIBGP {
+		lp := first.LocalPreference
+		if lp == 0 {
+			lp = 100 // Default LOCAL_PREF for iBGP
+		}
+		attrBytes = append(attrBytes, attribute.PackAttribute(attribute.LocalPref(lp))...)
+	}
+
+	// 5. Extended Communities (manually build attribute)
+	if len(first.ExtCommunityBytes) > 0 {
+		ecAttr := make([]byte, 0, 3+len(first.ExtCommunityBytes))
+		ecAttr = append(ecAttr, 0xC0, 0x10, byte(len(first.ExtCommunityBytes)))
+		ecAttr = append(ecAttr, first.ExtCommunityBytes...)
+		attrBytes = append(attrBytes, ecAttr...)
+	}
+
+	// 6. MP_REACH_NLRI with MVPN NLRIs
+	mpReach := buildMVPNMPReachNLRI(routes, isIPv6)
+	attrBytes = append(attrBytes, mpReach...)
+
+	return &message.Update{
+		PathAttributes: attrBytes,
+	}
+}
+
+// buildMVPNMPReachNLRI builds MP_REACH_NLRI for MVPN routes.
+func buildMVPNMPReachNLRI(routes []MVPNRoute, isIPv6 bool) []byte {
+	if len(routes) == 0 {
+		return nil
+	}
+
+	first := routes[0]
+
+	// Build NLRI data for all routes
+	var nlriData []byte
+	for _, route := range routes {
+		nlri := buildMVPNNLRI(route)
+		nlriData = append(nlriData, nlri...)
+	}
+
+	// AFI/SAFI
+	var afi uint16 = 1 // IPv4
+	if isIPv6 {
+		afi = 2 // IPv6
+	}
+	const safiMVPN uint8 = 5
+
+	// Next-hop
+	nhBytes := first.NextHop.AsSlice()
+	nhLen := len(nhBytes)
+
+	// Build MP_REACH_NLRI value
+	// AFI (2) + SAFI (1) + NH Len (1) + NH + Reserved (1) + NLRI
+	valueLen := 2 + 1 + 1 + nhLen + 1 + len(nlriData)
+	value := make([]byte, valueLen)
+	value[0] = byte(afi >> 8)
+	value[1] = byte(afi)
+	value[2] = safiMVPN
+	value[3] = byte(nhLen)
+	copy(value[4:4+nhLen], nhBytes)
+	value[4+nhLen] = 0 // reserved
+	copy(value[5+nhLen:], nlriData)
+
+	// Build attribute header
+	var attr []byte
+	if valueLen > 255 {
+		attr = make([]byte, 4+valueLen)
+		attr[0] = 0x90 // optional + extended length
+		attr[1] = byte(attribute.AttrMPReachNLRI)
+		attr[2] = byte(valueLen >> 8)
+		attr[3] = byte(valueLen)
+		copy(attr[4:], value)
+	} else {
+		attr = make([]byte, 3+valueLen)
+		attr[0] = 0x80 // optional
+		attr[1] = byte(attribute.AttrMPReachNLRI)
+		attr[2] = byte(valueLen)
+		copy(attr[3:], value)
+	}
+
+	return attr
+}
+
+// buildMVPNNLRI builds a single MVPN NLRI.
+func buildMVPNNLRI(route MVPNRoute) []byte {
+	// MVPN NLRI format:
+	// Route Type (1) + Length (1) + Route Type Specific Data
+
+	var data []byte
+
+	switch route.RouteType {
+	case 5: // Source Active A-D
+		// RD (8) + Source (4/16) + Group (4/16)
+		data = append(data, route.RD[:]...)
+		if route.Source.Is4() {
+			// Encoded as /32 prefix
+			data = append(data, 32) // prefix len
+			src4 := route.Source.As4()
+			data = append(data, src4[:]...)
+		} else {
+			data = append(data, 128) // prefix len
+			src16 := route.Source.As16()
+			data = append(data, src16[:]...)
+		}
+		if route.Group.Is4() {
+			data = append(data, 32) // prefix len
+			grp4 := route.Group.As4()
+			data = append(data, grp4[:]...)
+		} else {
+			data = append(data, 128) // prefix len
+			grp16 := route.Group.As16()
+			data = append(data, grp16[:]...)
+		}
+
+	case 6, 7: // Shared Tree Join (6) or Source Tree Join (7)
+		// RD (8) + Source-AS (4) + Source/RP (4/16) + Group (4/16)
+		data = append(data, route.RD[:]...)
+		// Source-AS as 4 bytes
+		data = append(data, byte(route.SourceAS>>24), byte(route.SourceAS>>16),
+			byte(route.SourceAS>>8), byte(route.SourceAS))
+		if route.Source.Is4() {
+			data = append(data, 32) // prefix len
+			src4 := route.Source.As4()
+			data = append(data, src4[:]...)
+		} else {
+			data = append(data, 128) // prefix len
+			src16 := route.Source.As16()
+			data = append(data, src16[:]...)
+		}
+		if route.Group.Is4() {
+			data = append(data, 32) // prefix len
+			grp4 := route.Group.As4()
+			data = append(data, grp4[:]...)
+		} else {
+			data = append(data, 128) // prefix len
+			grp16 := route.Group.As16()
+			data = append(data, grp16[:]...)
+		}
+	}
+
+	// Build NLRI: Route Type (1) + Length (1) + Data
+	nlri := make([]byte, 2+len(data))
+	nlri[0] = route.RouteType
+	nlri[1] = byte(len(data))
+	copy(nlri[2:], data)
+
+	return nlri
+}
+
+// sendVPLSRoutes sends VPLS routes configured for this neighbor.
+func (p *Peer) sendVPLSRoutes() {
+	if len(p.neighbor.VPLSRoutes) == 0 {
+		return
+	}
+	// TODO: Implement VPLS route sending
+	trace.Log(trace.Routes, "neighbor %s: VPLS routes not yet implemented (%d routes)",
+		p.neighbor.Address.String(), len(p.neighbor.VPLSRoutes))
+}
+
+// sendFlowSpecRoutes sends FlowSpec routes configured for this neighbor.
+func (p *Peer) sendFlowSpecRoutes() {
+	if len(p.neighbor.FlowSpecRoutes) == 0 {
+		return
+	}
+	// TODO: Implement FlowSpec route sending
+	trace.Log(trace.Routes, "neighbor %s: FlowSpec routes not yet implemented (%d routes)",
+		p.neighbor.Address.String(), len(p.neighbor.FlowSpecRoutes))
+}
+
+// sendMUPRoutes sends MUP routes configured for this neighbor.
+func (p *Peer) sendMUPRoutes() {
+	if len(p.neighbor.MUPRoutes) == 0 {
+		return
+	}
+	// TODO: Implement MUP route sending
+	trace.Log(trace.Routes, "neighbor %s: MUP routes not yet implemented (%d routes)",
+		p.neighbor.Address.String(), len(p.neighbor.MUPRoutes))
 }

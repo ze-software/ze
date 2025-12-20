@@ -47,6 +47,60 @@ func (r StaticRoute) IsVPN() bool {
 	return r.RD != ""
 }
 
+// MVPNRoute represents an MVPN route (RFC 6514).
+type MVPNRoute struct {
+	RouteType         uint8      // 5=source-ad, 6=shared-join, 7=source-join
+	IsIPv6            bool       // IPv4 or IPv6 MVPN
+	RD                [8]byte    // Route Distinguisher
+	SourceAS          uint32     // Source AS
+	Source            netip.Addr // Source IP or RP
+	Group             netip.Addr // Multicast group
+	NextHop           netip.Addr
+	Origin            uint8
+	LocalPreference   uint32
+	MED               uint32
+	ExtCommunityBytes []byte
+}
+
+// VPLSRoute represents a VPLS route.
+type VPLSRoute struct {
+	Name              string
+	RD                [8]byte
+	Endpoint          uint16
+	Base              uint32
+	Offset            uint16
+	Size              uint16
+	NextHop           netip.Addr
+	Origin            uint8
+	LocalPreference   uint32
+	MED               uint32
+	ASPath            []uint32
+	Communities       []uint32
+	ExtCommunityBytes []byte
+	OriginatorID      uint32
+	ClusterList       []uint32
+}
+
+// FlowSpecRoute represents a FlowSpec route (RFC 5575).
+type FlowSpecRoute struct {
+	Name              string
+	IsIPv6            bool
+	RD                [8]byte // For flow-vpn
+	NLRI              []byte  // Pre-built FlowSpec NLRI
+	NextHop           netip.Addr
+	ExtCommunityBytes []byte
+}
+
+// MUPRoute represents a MUP route.
+type MUPRoute struct {
+	RouteType         uint8 // Route subtype
+	IsIPv6            bool
+	NLRI              []byte // Pre-built MUP NLRI
+	NextHop           netip.Addr
+	ExtCommunityBytes []byte
+	PrefixSID         []byte
+}
+
 // Neighbor represents a configured BGP neighbor.
 type Neighbor struct {
 	// Address is the peer's IP address.
@@ -75,6 +129,12 @@ type Neighbor struct {
 
 	// StaticRoutes are announced when session is established.
 	StaticRoutes []StaticRoute
+
+	// Exotic route types
+	MVPNRoutes     []MVPNRoute
+	VPLSRoutes     []VPLSRoute
+	FlowSpecRoutes []FlowSpecRoute
+	MUPRoutes      []MUPRoute
 }
 
 // NewNeighbor creates a neighbor with default values.

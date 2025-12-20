@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/netip"
 	"strconv"
+	"strings"
 	"time"
 )
 
@@ -189,19 +190,23 @@ type BGPConfig struct {
 
 // NeighborConfig holds neighbor configuration.
 type NeighborConfig struct {
-	Address      netip.Addr
-	Description  string
-	RouterID     uint32
-	LocalAddress netip.Addr
-	LocalAS      uint32
-	PeerAS       uint32
-	HoldTime     uint16
-	Passive      bool
-	Families     []string
-	Hostname     string
-	DomainName   string
-	Capabilities CapabilityConfig
-	StaticRoutes []StaticRouteConfig
+	Address        netip.Addr
+	Description    string
+	RouterID       uint32
+	LocalAddress   netip.Addr
+	LocalAS        uint32
+	PeerAS         uint32
+	HoldTime       uint16
+	Passive        bool
+	Families       []string
+	Hostname       string
+	DomainName     string
+	Capabilities   CapabilityConfig
+	StaticRoutes   []StaticRouteConfig
+	MVPNRoutes     []MVPNRouteConfig
+	VPLSRoutes     []VPLSRouteConfig
+	FlowSpecRoutes []FlowSpecRouteConfig
+	MUPRoutes      []MUPRouteConfig
 }
 
 // CapabilityConfig holds capability settings.
@@ -229,6 +234,66 @@ type StaticRouteConfig struct {
 	PathInformation   string // path-id for add-path
 	Label             string // MPLS label
 	RD                string // Route Distinguisher
+}
+
+// MVPNRouteConfig holds an MVPN route configuration.
+type MVPNRouteConfig struct {
+	RouteType         string // shared-join, source-join, source-ad
+	IsIPv6            bool
+	RD                string
+	SourceAS          uint32
+	Source            string // source IP or RP IP
+	Group             string // multicast group
+	NextHop           string
+	Origin            string
+	LocalPreference   uint32
+	MED               uint32
+	ExtendedCommunity string
+}
+
+// VPLSRouteConfig holds a VPLS route configuration.
+type VPLSRouteConfig struct {
+	Name              string
+	RD                string
+	Endpoint          uint16
+	Base              uint32
+	Offset            uint16
+	Size              uint16
+	NextHop           string
+	Origin            string
+	LocalPreference   uint32
+	MED               uint32
+	ASPath            string
+	Community         string
+	ExtendedCommunity string
+	OriginatorID      string
+	ClusterList       string
+}
+
+// FlowSpecRouteConfig holds a FlowSpec route configuration.
+type FlowSpecRouteConfig struct {
+	Name              string
+	IsIPv6            bool
+	RD                string // for flow-vpn
+	Match             map[string]string
+	Then              map[string]string
+	NextHop           string
+	ExtendedCommunity string
+}
+
+// MUPRouteConfig holds a MUP route configuration.
+type MUPRouteConfig struct {
+	RouteType         string // mup-isd, mup-dsd, mup-t1st, mup-t2st
+	IsIPv6            bool
+	Prefix            string
+	Address           string
+	RD                string
+	TEID              string
+	QFI               uint8
+	Endpoint          string
+	NextHop           string
+	ExtendedCommunity string
+	PrefixSID         string
 }
 
 // ProcessConfig holds process configuration.
@@ -413,6 +478,12 @@ func parseNeighborConfig(addr string, tree *Tree, templates map[string]*Tree) (N
 	}
 	nc.StaticRoutes = append(nc.StaticRoutes, routes...)
 
+	// Extract exotic routes
+	nc.MVPNRoutes = extractMVPNRoutes(tree)
+	nc.VPLSRoutes = extractVPLSRoutes(tree)
+	nc.FlowSpecRoutes = extractFlowSpecRoutes(tree)
+	nc.MUPRoutes = extractMUPRoutes(tree)
+
 	return nc, nil
 }
 
@@ -530,6 +601,309 @@ func parseRouteConfig(prefix string, route *Tree) (StaticRouteConfig, error) {
 	}
 
 	return sr, nil
+}
+
+// extractMVPNRoutes extracts MVPN routes from announce { ipv4/ipv6 { mcast-vpn ... } }.
+func extractMVPNRoutes(tree *Tree) []MVPNRouteConfig {
+	var routes []MVPNRouteConfig
+
+	announce := tree.GetContainer("announce")
+	if announce == nil {
+		return routes
+	}
+
+	// IPv4 MVPN
+	if ipv4 := announce.GetContainer("ipv4"); ipv4 != nil {
+		for routeType, route := range ipv4.GetList("mcast-vpn") {
+			r := parseMVPNRoute(routeType, route, false)
+			routes = append(routes, r)
+		}
+	}
+
+	// IPv6 MVPN
+	if ipv6 := announce.GetContainer("ipv6"); ipv6 != nil {
+		for routeType, route := range ipv6.GetList("mcast-vpn") {
+			r := parseMVPNRoute(routeType, route, true)
+			routes = append(routes, r)
+		}
+	}
+
+	return routes
+}
+
+func parseMVPNRoute(routeType string, route *Tree, isIPv6 bool) MVPNRouteConfig {
+	r := MVPNRouteConfig{
+		RouteType: routeType,
+		IsIPv6:    isIPv6,
+	}
+
+	if v, ok := route.Get("rd"); ok {
+		r.RD = v
+	}
+	if v, ok := route.Get("source-as"); ok {
+		if n, err := strconv.ParseUint(v, 10, 32); err == nil {
+			r.SourceAS = uint32(n)
+		}
+	}
+	// Source can be "source" or "rp" depending on route type
+	if v, ok := route.Get("source"); ok {
+		r.Source = v
+	} else if v, ok := route.Get("rp"); ok {
+		r.Source = v
+	}
+	if v, ok := route.Get("group"); ok {
+		r.Group = v
+	}
+	if v, ok := route.Get("next-hop"); ok {
+		r.NextHop = v
+	}
+	if v, ok := route.Get("origin"); ok {
+		r.Origin = v
+	}
+	if v, ok := route.Get("local-preference"); ok {
+		if n, err := strconv.ParseUint(v, 10, 32); err == nil {
+			r.LocalPreference = uint32(n)
+		}
+	}
+	if v, ok := route.Get("med"); ok {
+		if n, err := strconv.ParseUint(v, 10, 32); err == nil {
+			r.MED = uint32(n)
+		}
+	}
+	if v, ok := route.Get("extended-community"); ok {
+		r.ExtendedCommunity = v
+	}
+
+	return r
+}
+
+// extractVPLSRoutes extracts VPLS routes from l2vpn { vpls ... } and announce { l2vpn { vpls ... } }.
+func extractVPLSRoutes(tree *Tree) []VPLSRouteConfig {
+	var routes []VPLSRouteConfig
+
+	// From l2vpn block
+	if l2vpn := tree.GetContainer("l2vpn"); l2vpn != nil {
+		for name, route := range l2vpn.GetList("vpls") {
+			r := parseVPLSRoute(name, route)
+			routes = append(routes, r)
+		}
+	}
+
+	// From announce { l2vpn { vpls ... } }
+	if announce := tree.GetContainer("announce"); announce != nil {
+		if l2vpn := announce.GetContainer("l2vpn"); l2vpn != nil {
+			for name, route := range l2vpn.GetList("vpls") {
+				r := parseVPLSRoute(name, route)
+				routes = append(routes, r)
+			}
+		}
+	}
+
+	return routes
+}
+
+func parseVPLSRoute(name string, route *Tree) VPLSRouteConfig {
+	r := VPLSRouteConfig{Name: name}
+
+	if v, ok := route.Get("rd"); ok {
+		r.RD = v
+	}
+	if v, ok := route.Get("endpoint"); ok {
+		if n, err := strconv.ParseUint(v, 10, 16); err == nil {
+			r.Endpoint = uint16(n)
+		}
+	}
+	if v, ok := route.Get("base"); ok {
+		if n, err := strconv.ParseUint(v, 10, 32); err == nil {
+			r.Base = uint32(n)
+		}
+	}
+	if v, ok := route.Get("offset"); ok {
+		if n, err := strconv.ParseUint(v, 10, 16); err == nil {
+			r.Offset = uint16(n)
+		}
+	}
+	if v, ok := route.Get("size"); ok {
+		if n, err := strconv.ParseUint(v, 10, 16); err == nil {
+			r.Size = uint16(n)
+		}
+	}
+	if v, ok := route.Get("next-hop"); ok {
+		r.NextHop = v
+	}
+	if v, ok := route.Get("origin"); ok {
+		r.Origin = v
+	}
+	if v, ok := route.Get("local-preference"); ok {
+		if n, err := strconv.ParseUint(v, 10, 32); err == nil {
+			r.LocalPreference = uint32(n)
+		}
+	}
+	if v, ok := route.Get("med"); ok {
+		if n, err := strconv.ParseUint(v, 10, 32); err == nil {
+			r.MED = uint32(n)
+		}
+	}
+	if v, ok := route.Get("as-path"); ok {
+		r.ASPath = v
+	}
+	if v, ok := route.Get("community"); ok {
+		r.Community = v
+	}
+	if v, ok := route.Get("extended-community"); ok {
+		r.ExtendedCommunity = v
+	}
+	if v, ok := route.Get("originator-id"); ok {
+		r.OriginatorID = v
+	}
+	if v, ok := route.Get("cluster-list"); ok {
+		r.ClusterList = v
+	}
+
+	return r
+}
+
+// extractFlowSpecRoutes extracts FlowSpec routes from flow { route ... }.
+func extractFlowSpecRoutes(tree *Tree) []FlowSpecRouteConfig {
+	var routes []FlowSpecRouteConfig
+
+	flow := tree.GetContainer("flow")
+	if flow == nil {
+		return routes
+	}
+
+	for name, route := range flow.GetList("route") {
+		r := parseFlowSpecRoute(name, route)
+		routes = append(routes, r)
+	}
+
+	return routes
+}
+
+func parseFlowSpecRoute(name string, route *Tree) FlowSpecRouteConfig {
+	r := FlowSpecRouteConfig{
+		Name:  name,
+		Match: make(map[string]string),
+		Then:  make(map[string]string),
+	}
+
+	if v, ok := route.Get("rd"); ok {
+		r.RD = v
+	}
+	if v, ok := route.Get("next-hop"); ok {
+		r.NextHop = v
+	}
+
+	// Parse match block
+	if match := route.GetContainer("match"); match != nil {
+		for _, key := range match.Values() {
+			if v, ok := match.Get(key); ok {
+				r.Match[key] = v
+			}
+		}
+	}
+
+	// Parse then block
+	if then := route.GetContainer("then"); then != nil {
+		for _, key := range then.Values() {
+			if v, ok := then.Get(key); ok {
+				r.Then[key] = v
+			} else {
+				// Flag without value (e.g., "discard;")
+				r.Then[key] = ""
+			}
+		}
+	}
+
+	// Determine if IPv6 based on match criteria
+	if src, ok := r.Match["source"]; ok && strings.Contains(src, ":") {
+		r.IsIPv6 = true
+	}
+	if dst, ok := r.Match["destination"]; ok && strings.Contains(dst, ":") {
+		r.IsIPv6 = true
+	}
+
+	return r
+}
+
+// extractMUPRoutes extracts MUP routes from announce { ipv4/ipv6 { mup ... } }.
+func extractMUPRoutes(tree *Tree) []MUPRouteConfig {
+	var routes []MUPRouteConfig
+
+	announce := tree.GetContainer("announce")
+	if announce == nil {
+		return routes
+	}
+
+	// IPv4 MUP
+	if ipv4 := announce.GetContainer("ipv4"); ipv4 != nil {
+		for routeType, route := range ipv4.GetList("mup") {
+			r := parseMUPRoute(routeType, route, false)
+			routes = append(routes, r)
+		}
+	}
+
+	// IPv6 MUP
+	if ipv6 := announce.GetContainer("ipv6"); ipv6 != nil {
+		for routeType, route := range ipv6.GetList("mup") {
+			r := parseMUPRoute(routeType, route, true)
+			routes = append(routes, r)
+		}
+	}
+
+	return routes
+}
+
+func parseMUPRoute(routeType string, route *Tree, isIPv6 bool) MUPRouteConfig {
+	r := MUPRouteConfig{
+		RouteType: routeType,
+		IsIPv6:    isIPv6,
+	}
+
+	// Route type determines which field to use for prefix/address
+	if strings.HasSuffix(routeType, "-isd") || strings.HasSuffix(routeType, "-t1st") {
+		// These have prefix
+		for _, key := range route.Values() {
+			if strings.Contains(key, "/") || strings.Contains(key, ":") {
+				r.Prefix = key
+				break
+			}
+		}
+	} else {
+		// mup-dsd, mup-t2st have address
+		for _, key := range route.Values() {
+			if !strings.Contains(key, "/") && (strings.Contains(key, ".") || strings.Contains(key, ":")) {
+				r.Address = key
+				break
+			}
+		}
+	}
+
+	if v, ok := route.Get("rd"); ok {
+		r.RD = v
+	}
+	if v, ok := route.Get("teid"); ok {
+		r.TEID = v
+	}
+	if v, ok := route.Get("qfi"); ok {
+		if n, err := strconv.ParseUint(v, 10, 8); err == nil {
+			r.QFI = uint8(n)
+		}
+	}
+	if v, ok := route.Get("endpoint"); ok {
+		r.Endpoint = v
+	}
+	if v, ok := route.Get("next-hop"); ok {
+		r.NextHop = v
+	}
+	if v, ok := route.Get("extended-community"); ok {
+		r.ExtendedCommunity = v
+	}
+	if v, ok := route.Get("bgp-prefix-sid-srv6"); ok {
+		r.PrefixSID = v
+	}
+
+	return r
 }
 
 // ipToUint32 converts an IPv4 address to uint32.
