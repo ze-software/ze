@@ -345,9 +345,7 @@ func parseNeighborConfig(addr string, tree *Tree) (NeighborConfig, error) {
 
 	// Families - Freeform stores "ipv4 unicast" as key with value "true"
 	if familyTree := tree.GetContainer("family"); familyTree != nil {
-		for _, family := range familyTree.Values() {
-			nc.Families = append(nc.Families, family)
-		}
+		nc.Families = append(nc.Families, familyTree.Values()...)
 	}
 
 	// Capabilities

@@ -67,7 +67,7 @@ func ParseCommunity(s string) (Community, error) {
 	}
 
 	parts := strings.Fields(s)
-	var values []uint32
+	values := make([]uint32, 0, len(parts))
 
 	for _, p := range parts {
 		v, err := parseOneCommunity(p)
@@ -140,7 +140,7 @@ func ParseLargeCommunity(s string) (LargeCommunity, error) {
 	}
 
 	parts := strings.Fields(s)
-	var values [][3]uint32
+	values := make([][3]uint32, 0, len(parts))
 
 	for _, p := range parts {
 		v, err := parseOneLargeCommunity(p)

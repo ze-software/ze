@@ -185,6 +185,36 @@ make lint  # golangci-lint run
 
 ---
 
+### 6. Fix All Issues You Notice (No Broken Windows)
+
+**Core principle:** If you see something wrong, fix it or document it for later.
+
+**MANDATORY:**
+- If you notice ANY issue (lint, bug, missing test), even if unrelated to current task:
+  - **If quick to fix:** Fix it immediately with a test to prevent regression
+  - **If not quick:** Add to `CLAUDE_CONTINUATION.md` or `plan/` for later
+
+**Rationale:** Issues left unfixed accumulate. Tests prevent regressions.
+
+**Examples:**
+```
+# You notice a lint warning while working on something else
+→ Fix it now if <5 min, or add to plan/TODO.md
+
+# You see code that could break under edge cases
+→ Write a test for it, even if not your current task
+
+# You find a pre-existing bug
+→ Document in CLAUDE_CONTINUATION.md: "BUG: [description] in [file:line]"
+```
+
+**Never:**
+- Ignore issues because "not my change"
+- Leave lint warnings unfixed without documenting
+- Skip writing tests for edge cases you discover
+
+---
+
 ## Session Start Workflow
 
 ### 1. Read this file (you just did)
