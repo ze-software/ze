@@ -337,16 +337,29 @@ func (p *Peer) sendInitialRoutes() {
 		}
 	}
 
-	// Group routes by attributes (same attributes = same UPDATE).
-	groups := groupRoutesByAttributes(p.neighbor.StaticRoutes)
+	// Send routes - either grouped or individually based on config.
+	if p.neighbor.GroupUpdates {
+		// Group routes by attributes (same attributes = same UPDATE).
+		groups := groupRoutesByAttributes(p.neighbor.StaticRoutes)
 
-	for _, routes := range groups {
-		update := buildGroupedUpdate(routes, p.neighbor.LocalAS, p.neighbor.IsIBGP())
-		if err := p.SendUpdate(update); err != nil {
-			trace.Log(trace.Routes, "neighbor %s: send error: %v", addr, err)
-			break
+		for _, routes := range groups {
+			update := buildGroupedUpdate(routes, p.neighbor.LocalAS, p.neighbor.IsIBGP())
+			if err := p.SendUpdate(update); err != nil {
+				trace.Log(trace.Routes, "neighbor %s: send error: %v", addr, err)
+				break
+			}
+			for _, route := range routes {
+				trace.RouteSent(addr, route.Prefix.String(), route.NextHop.String())
+			}
 		}
-		for _, route := range routes {
+	} else {
+		// Send each route in its own UPDATE.
+		for _, route := range p.neighbor.StaticRoutes {
+			update := buildStaticRouteUpdate(route, p.neighbor.LocalAS, p.neighbor.IsIBGP())
+			if err := p.SendUpdate(update); err != nil {
+				trace.Log(trace.Routes, "neighbor %s: send error: %v", addr, err)
+				break
+			}
 			trace.RouteSent(addr, route.Prefix.String(), route.NextHop.String())
 		}
 	}
@@ -385,10 +398,22 @@ func buildStaticRouteUpdate(route StaticRoute, localAS uint32, isIBGP bool) *mes
 	attrBytes = append(attrBytes, attribute.PackAttribute(origin)...)
 
 	// 2. AS_PATH
-	// - For iBGP self-originated routes: empty AS_PATH
-	// - For eBGP: prepend local AS
+	// - For iBGP: use configured AS_PATH or empty
+	// - For eBGP: prepend local AS to configured AS_PATH
 	var asPath *attribute.ASPath
-	if isIBGP {
+	if len(route.ASPath) > 0 {
+		// Use configured AS_PATH, prepend local AS for eBGP
+		asns := make([]uint32, 0, len(route.ASPath)+1)
+		if !isIBGP {
+			asns = append(asns, localAS)
+		}
+		asns = append(asns, route.ASPath...)
+		asPath = &attribute.ASPath{
+			Segments: []attribute.ASPathSegment{
+				{Type: attribute.ASSequence, ASNs: asns},
+			},
+		}
+	} else if isIBGP {
 		// Empty AS_PATH for iBGP self-originated routes
 		asPath = &attribute.ASPath{Segments: nil}
 	} else {
@@ -407,7 +432,13 @@ func buildStaticRouteUpdate(route StaticRoute, localAS uint32, isIBGP bool) *mes
 		attrBytes = append(attrBytes, attribute.PackAttribute(nextHop)...)
 	}
 
-	// 4. LOCAL_PREF (for iBGP, default 100 if not set)
+	// 4. MED (if set) - must come before LOCAL_PREF per RFC 4271 attribute ordering
+	if route.MED > 0 {
+		med := attribute.MED(route.MED)
+		attrBytes = append(attrBytes, attribute.PackAttribute(med)...)
+	}
+
+	// 5. LOCAL_PREF (for iBGP, default 100 if not set)
 	if isIBGP {
 		localPref := route.LocalPreference
 		if localPref == 0 {
@@ -416,13 +447,21 @@ func buildStaticRouteUpdate(route StaticRoute, localAS uint32, isIBGP bool) *mes
 		attrBytes = append(attrBytes, attribute.PackAttribute(attribute.LocalPref(localPref))...)
 	}
 
-	// 5. MED (if set)
-	if route.MED > 0 {
-		med := attribute.MED(route.MED)
-		attrBytes = append(attrBytes, attribute.PackAttribute(med)...)
+	// 6. ATOMIC_AGGREGATE (if set)
+	if route.AtomicAggregate {
+		attrBytes = append(attrBytes, attribute.PackAttribute(attribute.AtomicAggregate{})...)
 	}
 
-	// 6. COMMUNITIES (RFC 1997) - sorted per RFC.
+	// 7. AGGREGATOR (if set)
+	if route.HasAggregator {
+		agg := &attribute.Aggregator{
+			ASN:     route.AggregatorASN,
+			Address: netip.AddrFrom4(route.AggregatorIP),
+		}
+		attrBytes = append(attrBytes, attribute.PackAttribute(agg)...)
+	}
+
+	// 8. COMMUNITIES (RFC 1997) - sorted per RFC.
 	if len(route.Communities) > 0 {
 		sorted := make([]uint32, len(route.Communities))
 		copy(sorted, route.Communities)
@@ -457,6 +496,11 @@ func buildStaticRouteUpdate(route StaticRoute, localAS uint32, isIBGP bool) *mes
 		attrBytes = append(attrBytes, attribute.PackAttribute(lcs)...)
 	}
 
+	// 9. RAW ATTRIBUTES - pass through as-is from config
+	for _, ra := range route.RawAttributes {
+		attrBytes = append(attrBytes, packRawAttribute(ra)...)
+	}
+
 	// Build NLRI - use MP_REACH_NLRI for VPN/IPv6, inline NLRI for IPv4 unicast
 	var nlriBytes []byte
 	switch {
@@ -476,6 +520,32 @@ func buildStaticRouteUpdate(route StaticRoute, localAS uint32, isIBGP bool) *mes
 		PathAttributes: attrBytes,
 		NLRI:           nlriBytes,
 	}
+}
+
+// packRawAttribute packs a raw attribute into wire format.
+// Format: flags (1 byte) + code (1 byte) + length (1 or 2 bytes) + value.
+func packRawAttribute(ra RawAttribute) []byte {
+	flags := ra.Flags
+	valueLen := len(ra.Value)
+
+	// Use extended length if value > 255 bytes OR if extended length flag is set
+	if valueLen > 255 || (flags&0x10) != 0 {
+		flags |= 0x10 // Ensure extended length flag is set
+		buf := make([]byte, 4+valueLen)
+		buf[0] = flags
+		buf[1] = ra.Code
+		buf[2] = byte(valueLen >> 8)
+		buf[3] = byte(valueLen)
+		copy(buf[4:], ra.Value)
+		return buf
+	}
+
+	buf := make([]byte, 3+valueLen)
+	buf[0] = flags
+	buf[1] = ra.Code
+	buf[2] = byte(valueLen)
+	copy(buf[3:], ra.Value)
+	return buf
 }
 
 // routeGroupKey generates a string key for grouping routes by attributes.
@@ -499,14 +569,15 @@ func routeGroupKey(r StaticRoute) string {
 		return lcs[i][2] < lcs[j][2]
 	})
 
-	// Key includes: nexthop, origin, localpref, med, communities, large-communities, ext-communities, vpn, ipv4/ipv6.
+	// Key includes: nexthop, origin, localpref, med, communities, large-communities, ext-communities, vpn, ipv4/ipv6,
+	// as-path, atomic-aggregate, aggregator.
 	// For IPv6 routes, include prefix in key to prevent grouping (each needs separate MP_REACH_NLRI UPDATE).
 	// IPv4 routes can be grouped since multiple NLRIs can be in one UPDATE.
 	prefixKey := ""
 	if !r.Prefix.Addr().Is4() {
 		prefixKey = r.Prefix.String()
 	}
-	return fmt.Sprintf("%s|%d|%d|%d|%v|%v|%s|%s|%v|%s",
+	return fmt.Sprintf("%s|%d|%d|%d|%v|%v|%s|%s|%v|%s|%v|%v|%d|%v",
 		r.NextHop.String(),
 		r.Origin,
 		r.LocalPreference,
@@ -517,6 +588,10 @@ func routeGroupKey(r StaticRoute) string {
 		r.RD,
 		r.Prefix.Addr().Is4(),
 		prefixKey,
+		r.ASPath,
+		r.AtomicAggregate,
+		r.AggregatorASN,
+		r.AggregatorIP,
 	)
 }
 
@@ -573,7 +648,18 @@ func buildGroupedUpdate(routes []StaticRoute, localAS uint32, isIBGP bool) *mess
 
 	// 2. AS_PATH.
 	var asPath *attribute.ASPath
-	if isIBGP {
+	if len(route.ASPath) > 0 {
+		asns := make([]uint32, 0, len(route.ASPath)+1)
+		if !isIBGP {
+			asns = append(asns, localAS)
+		}
+		asns = append(asns, route.ASPath...)
+		asPath = &attribute.ASPath{
+			Segments: []attribute.ASPathSegment{
+				{Type: attribute.ASSequence, ASNs: asns},
+			},
+		}
+	} else if isIBGP {
 		asPath = &attribute.ASPath{Segments: nil}
 	} else {
 		asPath = &attribute.ASPath{
@@ -599,7 +685,21 @@ func buildGroupedUpdate(routes []StaticRoute, localAS uint32, isIBGP bool) *mess
 		attrBytes = append(attrBytes, attribute.PackAttribute(attribute.LocalPref(localPref))...)
 	}
 
-	// 5. MED (if set).
+	// 5. ATOMIC_AGGREGATE (if set).
+	if route.AtomicAggregate {
+		attrBytes = append(attrBytes, attribute.PackAttribute(attribute.AtomicAggregate{})...)
+	}
+
+	// 6. AGGREGATOR (if set).
+	if route.HasAggregator {
+		agg := &attribute.Aggregator{
+			ASN:     route.AggregatorASN,
+			Address: netip.AddrFrom4(route.AggregatorIP),
+		}
+		attrBytes = append(attrBytes, attribute.PackAttribute(agg)...)
+	}
+
+	// 7. MED (if set).
 	if route.MED > 0 {
 		med := attribute.MED(route.MED)
 		attrBytes = append(attrBytes, attribute.PackAttribute(med)...)

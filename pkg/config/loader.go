@@ -107,6 +107,8 @@ func configToNeighbor(nc *NeighborConfig, global *BGPConfig) (*reactor.Neighbor,
 	n := reactor.NewNeighbor(nc.Address, localAS, nc.PeerAS, routerID)
 	n.HoldTime = holdTime
 	n.Passive = nc.Passive
+	n.GroupUpdates = nc.GroupUpdates
+	n.LocalAddress = nc.LocalAddress
 
 	// Build capabilities.
 	// Add Multiprotocol capabilities from configured families.
@@ -162,9 +164,25 @@ func configToNeighbor(nc *NeighborConfig, global *BGPConfig) (*reactor.Neighbor,
 			return nil, fmt.Errorf("static route %s: %w", sr.Prefix, err)
 		}
 
+		// Resolve next-hop self to local address
+		nextHop := attrs.NextHop
+		if sr.NextHopSelf && nc.LocalAddress.IsValid() {
+			nextHop = nc.LocalAddress
+		}
+
+		// Convert raw attributes
+		var rawAttrs []reactor.RawAttribute
+		for _, ra := range attrs.RawAttributes {
+			rawAttrs = append(rawAttrs, reactor.RawAttribute{
+				Code:  ra.Code,
+				Flags: ra.Flags,
+				Value: ra.Value,
+			})
+		}
+
 		route := reactor.StaticRoute{
 			Prefix:            attrs.Prefix,
-			NextHop:           attrs.NextHop,
+			NextHop:           nextHop,
 			Origin:            uint8(attrs.Origin),
 			LocalPreference:   attrs.LocalPreference,
 			MED:               attrs.MED,
@@ -176,6 +194,12 @@ func configToNeighbor(nc *NeighborConfig, global *BGPConfig) (*reactor.Neighbor,
 			Label:             uint32(attrs.Label),
 			RD:                attrs.RD.Raw,
 			RDBytes:           attrs.RD.Bytes,
+			ASPath:            attrs.ASPath.Values,
+			AggregatorASN:     attrs.Aggregator.ASN,
+			AggregatorIP:      attrs.Aggregator.IP,
+			HasAggregator:     attrs.Aggregator.Valid,
+			AtomicAggregate:   attrs.AtomicAggregate,
+			RawAttributes:     rawAttrs,
 		}
 
 		n.StaticRoutes = append(n.StaticRoutes, route)
@@ -426,7 +450,7 @@ func convertFlowSpecRoute(fr FlowSpecRouteConfig) (reactor.FlowSpecRoute, error)
 	route.CommunityBytes = buildFlowSpecCommunities(fr.Then)
 
 	// Build extended communities from "then" actions
-	route.ExtCommunityBytes = buildFlowSpecExtCommunities(fr.Then)
+	route.ExtCommunityBytes = buildFlowSpecExtCommunities(fr.Then, route.NextHop)
 
 	// Also parse explicit extended-community if present
 	if ec := fr.ExtendedCommunity; ec != "" {
@@ -465,7 +489,7 @@ func buildFlowSpecCommunities(then map[string]string) []byte {
 }
 
 // buildFlowSpecExtCommunities builds extended community bytes from FlowSpec "then" actions.
-func buildFlowSpecExtCommunities(then map[string]string) []byte {
+func buildFlowSpecExtCommunities(then map[string]string, nextHop netip.Addr) []byte {
 	var result []byte
 
 	for action, value := range then {
@@ -484,9 +508,15 @@ func buildFlowSpecExtCommunities(then map[string]string) []byte {
 			result = append(result, rateBytes...)
 
 		case "redirect":
-			// Redirect to AS:NN or IP - type 0x8008
-			ec := parseRedirectExtCommunity(value)
-			result = append(result, ec...)
+			// Check if redirect IP matches next-hop - use redirect-to-nexthop
+			if ip, err := netip.ParseAddr(value); err == nil && ip == nextHop && nextHop.IsValid() {
+				// Redirect to next-hop - type 0x0800, subtype 0x00
+				result = append(result, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00)
+			} else {
+				// Redirect to AS:NN or IP - type 0x8008
+				ec := parseRedirectExtCommunity(value)
+				result = append(result, ec...)
+			}
 
 		case "redirect-to-nexthop":
 			// Redirect to next-hop - type 0x0800, subtype 0x00
@@ -547,49 +577,49 @@ func buildFlowSpecNLRI(match map[string]string, isIPv6 bool, forVPN bool) []byte
 
 	// Add protocol
 	if proto, ok := match["protocol"]; ok {
-		protos := parseFlowProtocols(proto)
-		if len(protos) > 0 {
-			fs.AddComponent(nlri.NewFlowIPProtocolComponent(protos...))
+		matches := parseFlowProtocolMatches(proto)
+		if len(matches) > 0 {
+			fs.AddComponent(nlri.NewFlowNumericComponent(nlri.FlowIPProtocol, matches))
 		}
 	}
 
 	// Add next-header (IPv6 equivalent of protocol)
 	if nh, ok := match["next-header"]; ok {
-		protos := parseFlowProtocols(nh)
-		if len(protos) > 0 {
-			fs.AddComponent(nlri.NewFlowIPProtocolComponent(protos...))
+		matches := parseFlowProtocolMatches(nh)
+		if len(matches) > 0 {
+			fs.AddComponent(nlri.NewFlowNumericComponent(nlri.FlowIPProtocol, matches))
 		}
 	}
 
 	// Add port (matches either source or destination)
 	if port, ok := match["port"]; ok {
-		ports := parseFlowPorts(port)
-		if len(ports) > 0 {
-			fs.AddComponent(nlri.NewFlowPortComponent(ports...))
+		matches := parseFlowMatches(port)
+		if len(matches) > 0 {
+			fs.AddComponent(nlri.NewFlowNumericComponent(nlri.FlowPort, matches))
 		}
 	}
 
 	// Add destination port
 	if dp, ok := match["destination-port"]; ok {
-		ports := parseFlowPorts(dp)
-		if len(ports) > 0 {
-			fs.AddComponent(nlri.NewFlowDestPortComponent(ports...))
+		matches := parseFlowMatches(dp)
+		if len(matches) > 0 {
+			fs.AddComponent(nlri.NewFlowNumericComponent(nlri.FlowDestPort, matches))
 		}
 	}
 
 	// Add source port
 	if sp, ok := match["source-port"]; ok {
-		ports := parseFlowPorts(sp)
-		if len(ports) > 0 {
-			fs.AddComponent(nlri.NewFlowSourcePortComponent(ports...))
+		matches := parseFlowMatches(sp)
+		if len(matches) > 0 {
+			fs.AddComponent(nlri.NewFlowNumericComponent(nlri.FlowSourcePort, matches))
 		}
 	}
 
 	// Add packet length
 	if pl, ok := match["packet-length"]; ok {
-		lengths := parseFlowPorts(pl) // Same format as ports
-		if len(lengths) > 0 {
-			fs.AddComponent(nlri.NewFlowPacketLengthComponent(lengths...))
+		matches := parseFlowMatches(pl)
+		if len(matches) > 0 {
+			fs.AddComponent(nlri.NewFlowNumericComponent(nlri.FlowPacketLength, matches))
 		}
 	}
 
@@ -627,9 +657,9 @@ func buildFlowSpecNLRI(match map[string]string, isIPv6 bool, forVPN bool) []byte
 
 	// Add TCP flags
 	if tcpf, ok := match["tcp-flags"]; ok {
-		flags := parseFlowTCPFlags(tcpf)
-		if len(flags) > 0 {
-			fs.AddComponent(nlri.NewFlowTCPFlagsComponent(flags...))
+		matches := parseFlowTCPFlagMatches(tcpf)
+		if len(matches) > 0 {
+			fs.AddComponent(nlri.NewFlowNumericComponent(nlri.FlowTCPFlags, matches))
 		}
 	}
 
@@ -692,22 +722,44 @@ func parseFlowPrefixWithOffset(s string) (netip.Prefix, uint8) {
 
 // parseFlowProtocols parses protocol values like "tcp", "=udp", "[ tcp udp ]".
 func parseFlowProtocols(s string) []uint8 {
+	matches := parseFlowProtocolMatches(s)
+	result := make([]uint8, len(matches))
+	for i, m := range matches {
+		result[i] = uint8(m.Value)
+	}
+	return result
+}
+
+// parseFlowProtocolMatches parses protocol values with operators.
+func parseFlowProtocolMatches(s string) []nlri.FlowMatch {
 	s = strings.Trim(s, "[]")
 	parts := strings.Fields(s)
-	var result []uint8
+	var result []nlri.FlowMatch
 
 	protoMap := map[string]uint8{
 		"icmp": 1, "igmp": 2, "tcp": 6, "udp": 17, "gre": 47, "esp": 50, "ah": 51,
-		"=icmp": 1, "=igmp": 2, "=tcp": 6, "=udp": 17, "=gre": 47, "=esp": 50, "=ah": 51,
 	}
 
 	for _, p := range parts {
-		p = strings.TrimPrefix(p, "=")
-		p = strings.TrimPrefix(p, "!=") // Handle not-equal (simplified)
-		if v, ok := protoMap[strings.ToLower(p)]; ok {
-			result = append(result, v)
+		var op nlri.FlowOperator
+
+		// Parse operator prefix
+		switch {
+		case strings.HasPrefix(p, "!="):
+			op = nlri.FlowOpNotEq
+			p = strings.TrimPrefix(p, "!=")
+		case strings.HasPrefix(p, "="):
+			op = nlri.FlowOpEqual
+			p = strings.TrimPrefix(p, "=")
+		default:
+			op = nlri.FlowOpEqual
+		}
+
+		p = strings.ToLower(p)
+		if v, ok := protoMap[p]; ok {
+			result = append(result, nlri.FlowMatch{Op: op, Value: uint64(v)})
 		} else if n, err := strconv.ParseUint(p, 10, 8); err == nil {
-			result = append(result, uint8(n))
+			result = append(result, nlri.FlowMatch{Op: op, Value: n})
 		}
 	}
 	return result
@@ -715,24 +767,58 @@ func parseFlowProtocols(s string) []uint8 {
 
 // parseFlowPorts parses port values like "=80", ">1024", "[ =80 =8080 ]", ">8080&<8088".
 func parseFlowPorts(s string) []uint16 {
+	matches := parseFlowMatches(s)
+	result := make([]uint16, len(matches))
+	for i, m := range matches {
+		result[i] = uint16(m.Value) //nolint:gosec // Value range validated by caller
+	}
+	return result
+}
+
+// parseFlowMatches parses FlowSpec match expressions with operators.
+// Formats: "=80", ">1024", "[ =80 =8080 ]", ">8080&<8088", "!=443".
+func parseFlowMatches(s string) []nlri.FlowMatch {
 	s = strings.Trim(s, "[]")
 	parts := strings.Fields(s)
-	var result []uint16
+	var result []nlri.FlowMatch
 
 	for _, p := range parts {
-		// Handle range operators like ">8080&<8088" by splitting
+		// Handle range operators like ">8080&<8088" by splitting on &
 		rangeParts := strings.Split(p, "&")
-		for _, rp := range rangeParts {
-			// Remove operators (simplified - just extract number)
-			rp = strings.TrimPrefix(rp, "=")
-			rp = strings.TrimPrefix(rp, ">")
-			rp = strings.TrimPrefix(rp, "<")
-			rp = strings.TrimPrefix(rp, "!=")
-			rp = strings.TrimPrefix(rp, ">=")
-			rp = strings.TrimPrefix(rp, "<=")
+		for i, rp := range rangeParts {
+			var op nlri.FlowOperator
+			isAnd := i > 0 // Parts after & are AND-ed with previous
 
-			if n, err := strconv.ParseUint(rp, 10, 16); err == nil && n > 0 {
-				result = append(result, uint16(n))
+			// Parse operator prefix
+			switch {
+			case strings.HasPrefix(rp, "!="):
+				op = nlri.FlowOpNotEq
+				rp = strings.TrimPrefix(rp, "!=")
+			case strings.HasPrefix(rp, ">="):
+				op = nlri.FlowOpGreater | nlri.FlowOpEqual
+				rp = strings.TrimPrefix(rp, ">=")
+			case strings.HasPrefix(rp, "<="):
+				op = nlri.FlowOpLess | nlri.FlowOpEqual
+				rp = strings.TrimPrefix(rp, "<=")
+			case strings.HasPrefix(rp, ">"):
+				op = nlri.FlowOpGreater
+				rp = strings.TrimPrefix(rp, ">")
+			case strings.HasPrefix(rp, "<"):
+				op = nlri.FlowOpLess
+				rp = strings.TrimPrefix(rp, "<")
+			case strings.HasPrefix(rp, "="):
+				op = nlri.FlowOpEqual
+				rp = strings.TrimPrefix(rp, "=")
+			default:
+				op = nlri.FlowOpEqual // Default to equality
+			}
+
+			if n, err := strconv.ParseUint(rp, 10, 32); err == nil {
+				result = append(result, nlri.FlowMatch{
+					Op:    op,
+					And:   isAnd,
+					Value: n,
+				})
 			}
 		}
 	}
@@ -776,10 +862,25 @@ func parseFlowFragment(s string) []nlri.FlowFragmentFlag {
 }
 
 // parseFlowTCPFlags parses TCP flags like "[SYN RST&FIN&!=push]".
+// Returns simple flag values (for backwards compatibility).
 func parseFlowTCPFlags(s string) []uint8 {
+	matches := parseFlowTCPFlagMatches(s)
+	result := make([]uint8, len(matches))
+	for i, m := range matches {
+		result[i] = uint8(m.Value)
+	}
+	return result
+}
+
+// parseFlowTCPFlagMatches parses TCP flags with AND and NOT operators.
+// TCP flags use bitmask matching:
+//   - 0x01 = MATCH (exact match)
+//   - 0x02 = NOT (negate)
+//   - 0x40 = AND (AND with previous)
+func parseFlowTCPFlagMatches(s string) []nlri.FlowMatch {
 	s = strings.Trim(s, "[]")
 	parts := strings.Fields(s)
-	var result []uint8
+	var result []nlri.FlowMatch
 
 	flagMap := map[string]uint8{
 		"fin": 0x01, "syn": 0x02, "rst": 0x04, "psh": 0x08, "push": 0x08,
@@ -789,11 +890,24 @@ func parseFlowTCPFlags(s string) []uint8 {
 	for _, p := range parts {
 		// Handle combined flags like "RST&FIN&!=push"
 		flagParts := strings.Split(p, "&")
-		for _, fp := range flagParts {
-			fp = strings.TrimPrefix(fp, "!=")
+		for i, fp := range flagParts {
+			var op nlri.FlowOperator
+			isAnd := i > 0 // Parts after & are AND-ed
+
+			// Check for != (NOT+MATCH)
+			if strings.HasPrefix(fp, "!=") {
+				op = 0x02 | 0x01 // NOT | MATCH
+				fp = strings.TrimPrefix(fp, "!=")
+			}
+			// For simple flags, use no operator (INCLUDE)
+
+			if isAnd {
+				op |= 0x40 // AND
+			}
+
 			fp = strings.ToLower(fp)
 			if f, ok := flagMap[fp]; ok {
-				result = append(result, f)
+				result = append(result, nlri.FlowMatch{Op: op, And: isAnd, Value: uint64(f)})
 			}
 		}
 	}

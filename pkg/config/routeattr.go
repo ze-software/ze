@@ -1,6 +1,7 @@
 package config
 
 import (
+	"encoding/hex"
 	"fmt"
 	"net/netip"
 	"strconv"
@@ -126,6 +127,7 @@ type LargeCommunity struct {
 
 // ParseLargeCommunity parses large community string(s).
 // Format: GA:LD1:LD2, list in brackets [GA:LD1:LD2 GA:LD1:LD2].
+// Duplicates are removed (per RFC 8092).
 func ParseLargeCommunity(s string) (LargeCommunity, error) {
 	if s == "" {
 		return LargeCommunity{}, nil
@@ -141,13 +143,18 @@ func ParseLargeCommunity(s string) (LargeCommunity, error) {
 
 	parts := strings.Fields(s)
 	values := make([][3]uint32, 0, len(parts))
+	seen := make(map[[3]uint32]bool)
 
 	for _, p := range parts {
 		v, err := parseOneLargeCommunity(p)
 		if err != nil {
 			return LargeCommunity{}, err
 		}
-		values = append(values, v)
+		// Deduplicate
+		if !seen[v] {
+			seen[v] = true
+			values = append(values, v)
+		}
 	}
 
 	return LargeCommunity{Raw: s, Values: values}, nil
@@ -538,6 +545,165 @@ func (rd RouteDistinguisher) IsZero() bool {
 	return rd.Raw == ""
 }
 
+// ASPath represents the AS_PATH attribute (RFC 4271).
+type ASPath struct {
+	Raw    string   // Original string (e.g., "[ 57821 6939 ]")
+	Values []uint32 // Parsed AS numbers
+}
+
+// ParseASPath parses an AS_PATH from ExaBGP format: "[ ASN1 ASN2 ... ]".
+func ParseASPath(s string) (ASPath, error) {
+	asp := ASPath{Raw: s}
+	if s == "" {
+		return asp, nil
+	}
+
+	// Remove brackets and trim whitespace
+	s = strings.TrimSpace(s)
+	s = strings.TrimPrefix(s, "[")
+	s = strings.TrimSuffix(s, "]")
+	s = strings.TrimSpace(s)
+
+	if s == "" {
+		return asp, nil
+	}
+
+	// Split by whitespace
+	parts := strings.Fields(s)
+	asp.Values = make([]uint32, 0, len(parts))
+
+	for _, p := range parts {
+		n, err := strconv.ParseUint(p, 10, 32)
+		if err != nil {
+			return asp, fmt.Errorf("invalid AS number %q: %w", p, err)
+		}
+		asp.Values = append(asp.Values, uint32(n))
+	}
+
+	return asp, nil
+}
+
+// IsZero returns true if AS_PATH is empty/unset.
+func (asp ASPath) IsZero() bool {
+	return len(asp.Values) == 0
+}
+
+// Aggregator represents the AGGREGATOR attribute (RFC 4271).
+// Format: ( ASN:IP ) e.g., ( 18144:219.118.225.189 )
+type Aggregator struct {
+	Raw   string  // Original string
+	ASN   uint32  // Aggregator AS
+	IP    [4]byte // Aggregator IP (IPv4 only per RFC)
+	Valid bool    // Whether aggregator is set
+}
+
+// ParseAggregator parses an AGGREGATOR from ExaBGP format: "( ASN:IP )".
+func ParseAggregator(s string) (Aggregator, error) {
+	agg := Aggregator{Raw: s}
+	if s == "" {
+		return agg, nil
+	}
+
+	// Remove parentheses and trim whitespace
+	s = strings.TrimSpace(s)
+	s = strings.TrimPrefix(s, "(")
+	s = strings.TrimSuffix(s, ")")
+	s = strings.TrimSpace(s)
+
+	if s == "" {
+		return agg, nil
+	}
+
+	// Split by colon - format is ASN:IP
+	parts := strings.SplitN(s, ":", 2)
+	if len(parts) != 2 {
+		return agg, fmt.Errorf("invalid aggregator format %q: expected ASN:IP", s)
+	}
+
+	// Parse ASN
+	asn, err := strconv.ParseUint(strings.TrimSpace(parts[0]), 10, 32)
+	if err != nil {
+		return agg, fmt.Errorf("invalid aggregator ASN %q: %w", parts[0], err)
+	}
+	agg.ASN = uint32(asn)
+
+	// Parse IP
+	ip, err := netip.ParseAddr(strings.TrimSpace(parts[1]))
+	if err != nil {
+		return agg, fmt.Errorf("invalid aggregator IP %q: %w", parts[1], err)
+	}
+	if !ip.Is4() {
+		return agg, fmt.Errorf("aggregator IP must be IPv4: %s", ip)
+	}
+	agg.IP = ip.As4()
+	agg.Valid = true
+
+	return agg, nil
+}
+
+// IsZero returns true if aggregator is not set.
+func (agg Aggregator) IsZero() bool {
+	return !agg.Valid
+}
+
+// RawAttribute represents a raw BGP path attribute from config.
+// Format: [ code flags value_hex ]
+type RawAttribute struct {
+	Code  uint8
+	Flags uint8
+	Value []byte
+}
+
+// ParseRawAttribute parses attribute syntax: "0xNN 0xNN 0xHEXVALUE".
+func ParseRawAttribute(s string) (RawAttribute, error) {
+	parts := strings.Fields(s)
+	if len(parts) < 2 {
+		return RawAttribute{}, fmt.Errorf("raw attribute needs at least code and flags")
+	}
+
+	// Parse attribute type code
+	code, err := parseHexByte(parts[0])
+	if err != nil {
+		return RawAttribute{}, fmt.Errorf("invalid attribute code %q: %w", parts[0], err)
+	}
+
+	// Parse flags
+	flags, err := parseHexByte(parts[1])
+	if err != nil {
+		return RawAttribute{}, fmt.Errorf("invalid attribute flags %q: %w", parts[1], err)
+	}
+
+	// Parse value (optional, may be empty)
+	var value []byte
+	if len(parts) > 2 {
+		value, err = parseHexBytes(parts[2])
+		if err != nil {
+			return RawAttribute{}, fmt.Errorf("invalid attribute value %q: %w", parts[2], err)
+		}
+	}
+
+	return RawAttribute{
+		Code:  code,
+		Flags: flags,
+		Value: value,
+	}, nil
+}
+
+// parseHexByte parses "0xNN" format to a byte.
+func parseHexByte(s string) (uint8, error) {
+	s = strings.TrimPrefix(s, "0x")
+	s = strings.TrimPrefix(s, "0X")
+	v, err := strconv.ParseUint(s, 16, 8)
+	return uint8(v), err
+}
+
+// parseHexBytes parses "0xHEXHEXHEX..." format to bytes.
+func parseHexBytes(s string) ([]byte, error) {
+	s = strings.TrimPrefix(s, "0x")
+	s = strings.TrimPrefix(s, "0X")
+	return hex.DecodeString(s)
+}
+
 // ParsedRouteAttributes holds all parsed route attributes.
 type ParsedRouteAttributes struct {
 	Prefix            netip.Prefix
@@ -551,6 +717,10 @@ type ParsedRouteAttributes struct {
 	PathID            PathID
 	Label             MPLSLabel
 	RD                RouteDistinguisher
+	ASPath            ASPath
+	Aggregator        Aggregator
+	AtomicAggregate   bool
+	RawAttributes     []RawAttribute
 }
 
 // ParseRouteAttributes parses all attributes from a StaticRouteConfig.
@@ -618,6 +788,62 @@ func ParseRouteAttributes(src StaticRouteConfig) (*ParsedRouteAttributes, error)
 		return nil, err
 	}
 	attrs.RD = rd
+
+	// AS_PATH
+	asp, err := ParseASPath(src.ASPath)
+	if err != nil {
+		return nil, err
+	}
+	attrs.ASPath = asp
+
+	// Aggregator
+	agg, err := ParseAggregator(src.Aggregator)
+	if err != nil {
+		return nil, err
+	}
+	attrs.Aggregator = agg
+
+	// Atomic Aggregate
+	attrs.AtomicAggregate = src.AtomicAggregate
+
+	// Raw Attributes (hex format: "0xNN 0xNN 0xVALUE")
+	// Known attribute codes are converted to typed fields.
+	if src.Attribute != "" {
+		raw, err := ParseRawAttribute(src.Attribute)
+		if err != nil {
+			return nil, fmt.Errorf("invalid raw attribute: %w", err)
+		}
+
+		// Convert known attribute types to proper fields
+		switch raw.Code {
+		case 4: // MED
+			if len(raw.Value) >= 4 {
+				attrs.MED = uint32(raw.Value[0])<<24 | uint32(raw.Value[1])<<16 |
+					uint32(raw.Value[2])<<8 | uint32(raw.Value[3])
+			}
+		case 5: // LOCAL_PREF
+			if len(raw.Value) >= 4 {
+				attrs.LocalPreference = uint32(raw.Value[0])<<24 | uint32(raw.Value[1])<<16 |
+					uint32(raw.Value[2])<<8 | uint32(raw.Value[3])
+			}
+		case 32: // LARGE_COMMUNITY
+			// Parse 12-byte tuples
+			for i := 0; i+12 <= len(raw.Value); i += 12 {
+				lc := [3]uint32{
+					uint32(raw.Value[i])<<24 | uint32(raw.Value[i+1])<<16 |
+						uint32(raw.Value[i+2])<<8 | uint32(raw.Value[i+3]),
+					uint32(raw.Value[i+4])<<24 | uint32(raw.Value[i+5])<<16 |
+						uint32(raw.Value[i+6])<<8 | uint32(raw.Value[i+7]),
+					uint32(raw.Value[i+8])<<24 | uint32(raw.Value[i+9])<<16 |
+						uint32(raw.Value[i+10])<<8 | uint32(raw.Value[i+11]),
+				}
+				attrs.LargeCommunity.Values = append(attrs.LargeCommunity.Values, lc)
+			}
+		default:
+			// Unknown attribute - keep as raw
+			attrs.RawAttributes = append(attrs.RawAttributes, raw)
+		}
+	}
 
 	return attrs, nil
 }

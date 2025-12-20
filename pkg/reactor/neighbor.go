@@ -40,6 +40,27 @@ type StaticRoute struct {
 	// Route Distinguisher - both forms for serialization and wire encoding
 	RD      string  // Original string (e.g., "100:100")
 	RDBytes [8]byte // Wire-format (8 bytes)
+
+	// AS_PATH - list of AS numbers in AS_SEQUENCE
+	ASPath []uint32
+
+	// Aggregator (RFC 4271) - 4-byte ASN + 4-byte IP
+	AggregatorASN uint32
+	AggregatorIP  [4]byte
+	HasAggregator bool
+
+	// ATOMIC_AGGREGATE flag
+	AtomicAggregate bool
+
+	// Raw attributes (code, flags, value bytes)
+	RawAttributes []RawAttribute
+}
+
+// RawAttribute represents a raw BGP path attribute.
+type RawAttribute struct {
+	Code  uint8
+	Flags uint8
+	Value []byte
 }
 
 // IsVPN returns true if this is a VPN route (has RD).
@@ -107,6 +128,9 @@ type Neighbor struct {
 	// Address is the peer's IP address.
 	Address netip.Addr
 
+	// LocalAddress is our local IP for this session.
+	LocalAddress netip.Addr
+
 	// Port is the peer's BGP port (default 179).
 	Port uint16
 
@@ -124,6 +148,9 @@ type Neighbor struct {
 
 	// Passive indicates listen-only mode (no outgoing connections).
 	Passive bool
+
+	// GroupUpdates indicates whether to group compatible routes in single UPDATE.
+	GroupUpdates bool
 
 	// Capabilities to advertise in OPEN message.
 	Capabilities []capability.Capability

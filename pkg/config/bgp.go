@@ -235,6 +235,7 @@ type NeighborConfig struct {
 	PeerAS         uint32
 	HoldTime       uint16
 	Passive        bool
+	GroupUpdates   bool // Group compatible routes in single UPDATE
 	Families       []string
 	Hostname       string
 	DomainName     string
@@ -261,6 +262,7 @@ type CapabilityConfig struct {
 type StaticRouteConfig struct {
 	Prefix            netip.Prefix
 	NextHop           string
+	NextHopSelf       bool   // Use local address as next-hop
 	Origin            string // igp, egp, incomplete
 	LocalPreference   uint32
 	MED               uint32
@@ -271,6 +273,9 @@ type StaticRouteConfig struct {
 	PathInformation   string // path-id for add-path
 	Label             string // MPLS label
 	RD                string // Route Distinguisher
+	Aggregator        string // ASN:IP format
+	AtomicAggregate   bool   // ATOMIC_AGGREGATE attribute
+	Attribute         string // Raw attribute hex: [ code flags value ]
 }
 
 // MVPNRouteConfig holds an MVPN route configuration.
@@ -407,9 +412,11 @@ func parseNeighborConfig(addr string, tree *Tree, templates map[string]*Tree) (N
 	}
 	nc.Address = ip
 
-	// Handle template inheritance - extract routes from template FIRST
+	// Handle template inheritance - extract routes and settings from template FIRST
+	var tmpl *Tree
 	if inheritName, ok := tree.Get("inherit"); ok {
-		if tmpl, exists := templates[inheritName]; exists {
+		if t, exists := templates[inheritName]; exists {
+			tmpl = t
 			routes, err := extractRoutesFromTree(tmpl)
 			if err != nil {
 				return nc, fmt.Errorf("template %s: %w", inheritName, err)
@@ -465,6 +472,17 @@ func parseNeighborConfig(addr string, tree *Tree, templates map[string]*Tree) (N
 
 	if v, ok := tree.Get("passive"); ok {
 		nc.Passive = v == configTrue
+	}
+
+	// group-updates defaults to true, check template first then neighbor
+	nc.GroupUpdates = true
+	if tmpl != nil {
+		if v, ok := tmpl.Get("group-updates"); ok {
+			nc.GroupUpdates = v == configTrue
+		}
+	}
+	if v, ok := tree.Get("group-updates"); ok {
+		nc.GroupUpdates = v == configTrue
 	}
 
 	if v, ok := tree.Get("host-name"); ok {
@@ -602,7 +620,11 @@ func parseRouteConfig(prefix string, route *Tree) (StaticRouteConfig, error) {
 	sr.Prefix = p
 
 	if v, ok := route.Get("next-hop"); ok {
-		sr.NextHop = v
+		if v == "self" {
+			sr.NextHopSelf = true
+		} else {
+			sr.NextHop = v
+		}
 	}
 	if v, ok := route.Get("local-preference"); ok {
 		n, _ := strconv.ParseUint(v, 10, 32)
@@ -635,6 +657,16 @@ func parseRouteConfig(prefix string, route *Tree) (StaticRouteConfig, error) {
 	}
 	if v, ok := route.Get("rd"); ok {
 		sr.RD = v
+	}
+	if v, ok := route.Get("aggregator"); ok {
+		sr.Aggregator = v
+	}
+	// atomic-aggregate can be a standalone flag or have a value
+	if _, ok := route.Get("atomic-aggregate"); ok {
+		sr.AtomicAggregate = true
+	}
+	if v, ok := route.Get("attribute"); ok {
+		sr.Attribute = v
 	}
 
 	return sr, nil
