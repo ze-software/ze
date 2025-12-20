@@ -226,3 +226,59 @@ func TestBGPLSRoundTrip(t *testing.T) {
 		})
 	}
 }
+
+// TestBGPLSSRv6SID verifies SRv6 SID NLRI creation.
+func TestBGPLSSRv6SID(t *testing.T) {
+	node := NodeDescriptor{
+		ASN:         65001,
+		IGPRouterID: []byte{1, 1, 1, 1},
+	}
+	sid := SRv6SIDDescriptor{
+		SRv6SID: []byte{0x20, 0x01, 0x0d, 0xb8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
+	}
+
+	srv6 := NewBGPLSSRv6SID(ProtoSegment, 0x200, node, sid)
+
+	assert.Equal(t, BGPLSSRv6SIDNLRI, srv6.NLRIType())
+	assert.Equal(t, ProtoSegment, srv6.ProtocolID())
+	assert.Equal(t, uint64(0x200), srv6.Identifier())
+}
+
+// TestBGPLSSRv6SIDBytes verifies SRv6 SID wire format.
+func TestBGPLSSRv6SIDBytes(t *testing.T) {
+	node := NodeDescriptor{
+		ASN:         65001,
+		IGPRouterID: []byte{1, 1, 1, 1},
+	}
+	sid := SRv6SIDDescriptor{
+		SRv6SID: []byte{0x20, 0x01, 0x0d, 0xb8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
+	}
+
+	srv6 := NewBGPLSSRv6SID(ProtoSegment, 0x200, node, sid)
+	data := srv6.Bytes()
+
+	require.NotEmpty(t, data)
+	assert.GreaterOrEqual(t, len(data), 13) // Minimum header size
+}
+
+// TestBGPLSSRv6SIDRoundTrip verifies SRv6 SID encode/decode cycle.
+func TestBGPLSSRv6SIDRoundTrip(t *testing.T) {
+	node := NodeDescriptor{
+		ASN:         65001,
+		IGPRouterID: []byte{1, 1, 1, 1},
+	}
+	sid := SRv6SIDDescriptor{
+		SRv6SID: []byte{0x20, 0x01, 0x0d, 0xb8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
+	}
+
+	original := NewBGPLSSRv6SID(ProtoSegment, 0x200, node, sid)
+	data := original.Bytes()
+
+	parsed, err := ParseBGPLS(data)
+	require.NoError(t, err)
+	require.NotNil(t, parsed)
+
+	assert.Equal(t, BGPLSSRv6SIDNLRI, parsed.NLRIType())
+	assert.Equal(t, original.ProtocolID(), parsed.ProtocolID())
+	assert.Equal(t, original.Identifier(), parsed.Identifier())
+}

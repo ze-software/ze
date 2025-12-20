@@ -1,6 +1,7 @@
 package nlri
 
 import (
+	"encoding/binary"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -35,6 +36,53 @@ func TestMVPNFamily(t *testing.T) {
 	assert.Equal(t, SAFIMVPN, mvpn.Family().SAFI)
 }
 
+// TestMVPNWithRD verifies MVPN with Route Distinguisher.
+func TestMVPNWithRD(t *testing.T) {
+	rd := RouteDistinguisher{Type: RDType0}
+	binary.BigEndian.PutUint16(rd.Value[:2], 65001)
+	binary.BigEndian.PutUint32(rd.Value[2:6], 100)
+
+	mvpn := NewMVPNWithRD(AFIIPv6, MVPNIntraASIPMSIAD, rd, []byte{1, 2, 3, 4})
+
+	assert.Equal(t, AFIIPv6, mvpn.Family().AFI)
+	assert.Equal(t, rd, mvpn.RD())
+}
+
+// TestMVPNRoundTrip verifies encode/decode cycle.
+func TestMVPNRoundTrip(t *testing.T) {
+	rd := RouteDistinguisher{Type: RDType0}
+	binary.BigEndian.PutUint16(rd.Value[:2], 65001)
+	binary.BigEndian.PutUint32(rd.Value[2:6], 100)
+
+	original := NewMVPNWithRD(AFIIPv4, MVPNIntraASIPMSIAD, rd, []byte{10, 0, 0, 1})
+	data := original.Bytes()
+
+	parsed, remaining, err := ParseMVPN(AFIIPv4, data)
+	require.NoError(t, err)
+	assert.Empty(t, remaining)
+	assert.Equal(t, original.RouteType(), parsed.RouteType())
+	assert.Equal(t, original.RD(), parsed.RD())
+}
+
+// TestMVPNParseErrors verifies error handling.
+func TestMVPNParseErrors(t *testing.T) {
+	tests := []struct {
+		name string
+		data []byte
+	}{
+		{"empty", []byte{}},
+		{"truncated header", []byte{0x01}},
+		{"truncated body", []byte{0x01, 0x10}}, // claims 16 bytes but none
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, _, err := ParseMVPN(AFIIPv4, tt.data)
+			assert.Error(t, err)
+		})
+	}
+}
+
 // TestVPLSBasic verifies basic VPLS NLRI creation.
 func TestVPLSBasic(t *testing.T) {
 	vpls := NewVPLS(RouteDistinguisher{Type: 1}, 100, 200, []byte{1, 2, 3})
@@ -58,13 +106,69 @@ func TestVPLSBytes(t *testing.T) {
 
 	data := vpls.Bytes()
 	require.NotEmpty(t, data)
+	// VPLS NLRI is 19 bytes: 2 len + 8 RD + 2 VE ID + 2 offset + 2 size + 3 label
+	assert.Equal(t, 19, len(data))
+}
+
+// TestVPLSFull verifies full VPLS NLRI creation.
+func TestVPLSFull(t *testing.T) {
+	rd := RouteDistinguisher{Type: RDType0}
+	binary.BigEndian.PutUint16(rd.Value[:2], 65001)
+	binary.BigEndian.PutUint32(rd.Value[2:6], 100)
+
+	vpls := NewVPLSFull(rd, 1, 10, 20, 16000)
+
+	assert.Equal(t, rd, vpls.RD())
+	assert.Equal(t, uint16(1), vpls.VEID())
+	assert.Equal(t, uint16(10), vpls.VEBlockOffset())
+	assert.Equal(t, uint16(20), vpls.VEBlockSize())
+	assert.Equal(t, uint32(16000), vpls.LabelBase())
+}
+
+// TestVPLSRoundTrip verifies encode/decode cycle.
+func TestVPLSRoundTrip(t *testing.T) {
+	rd := RouteDistinguisher{Type: RDType0}
+	binary.BigEndian.PutUint16(rd.Value[:2], 65001)
+	binary.BigEndian.PutUint32(rd.Value[2:6], 100)
+
+	original := NewVPLSFull(rd, 5, 100, 200, 16000)
+	data := original.Bytes()
+
+	parsed, remaining, err := ParseVPLS(data)
+	require.NoError(t, err)
+	assert.Empty(t, remaining)
+	assert.Equal(t, original.RD(), parsed.RD())
+	assert.Equal(t, original.VEID(), parsed.VEID())
+	assert.Equal(t, original.VEBlockOffset(), parsed.VEBlockOffset())
+	assert.Equal(t, original.VEBlockSize(), parsed.VEBlockSize())
+	assert.Equal(t, original.LabelBase(), parsed.LabelBase())
+}
+
+// TestVPLSParseErrors verifies error handling.
+func TestVPLSParseErrors(t *testing.T) {
+	tests := []struct {
+		name string
+		data []byte
+	}{
+		{"empty", []byte{}},
+		{"truncated length", []byte{0x00}},
+		{"short length", []byte{0x00, 0x02}},                // claims 2 bytes
+		{"too short", []byte{0x00, 0x11, 0, 0, 0, 0, 0, 0}}, // claims 17 but only 6
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, _, err := ParseVPLS(tt.data)
+			assert.Error(t, err)
+		})
+	}
 }
 
 // TestRTCBasic verifies basic RTC NLRI creation.
 func TestRTCBasic(t *testing.T) {
 	rt := RouteTarget{
-		Type:  0,                                // 2-byte ASN
-		Value: []byte{0xFD, 0xE9, 0, 0, 0, 100}, // AS 65001 : 100
+		Type:  0,                                 // 2-byte ASN
+		Value: [6]byte{0xFD, 0xE9, 0, 0, 0, 100}, // AS 65001 : 100
 	}
 	rtc := NewRTC(65001, rt)
 
@@ -84,13 +188,94 @@ func TestRTCFamily(t *testing.T) {
 func TestRTCBytes(t *testing.T) {
 	rtc := NewRTC(65001, RouteTarget{
 		Type:  0,
-		Value: []byte{0xFD, 0xE9, 0, 0, 0, 100},
+		Value: [6]byte{0xFD, 0xE9, 0, 0, 0, 100},
 	})
 
 	data := rtc.Bytes()
 	require.NotEmpty(t, data)
-	// RTC NLRI: 4 bytes origin AS + 8 bytes RT
-	assert.GreaterOrEqual(t, len(data), 4)
+	// Full RTC NLRI: 1 prefix-len + 4 origin AS + 8 RT = 13 bytes
+	assert.Equal(t, 13, len(data))
+}
+
+// TestRTCDefault verifies default RTC (matches all RTs).
+func TestRTCDefault(t *testing.T) {
+	rtc := NewRTC(0, RouteTarget{})
+
+	assert.True(t, rtc.IsDefault())
+	assert.Equal(t, []byte{0}, rtc.Bytes())
+}
+
+// TestRTCRoundTrip verifies encode/decode cycle.
+func TestRTCRoundTrip(t *testing.T) {
+	rt := RouteTarget{
+		Type:  0x0002,                            // 4-byte ASN
+		Value: [6]byte{0, 0, 0xFD, 0xE9, 0, 100}, // AS 65001 : 100
+	}
+	original := NewRTC(65001, rt)
+	data := original.Bytes()
+
+	parsed, remaining, err := ParseRTC(data)
+	require.NoError(t, err)
+	assert.Empty(t, remaining)
+	assert.Equal(t, original.OriginAS(), parsed.OriginAS())
+	assert.Equal(t, original.RouteTarget().Type, parsed.RouteTarget().Type)
+}
+
+// TestRTCParseDefault verifies parsing default RTC.
+func TestRTCParseDefault(t *testing.T) {
+	data := []byte{0} // prefix-length = 0
+
+	parsed, remaining, err := ParseRTC(data)
+	require.NoError(t, err)
+	assert.Empty(t, remaining)
+	assert.True(t, parsed.IsDefault())
+}
+
+// TestRTCParseErrors verifies error handling.
+func TestRTCParseErrors(t *testing.T) {
+	tests := []struct {
+		name string
+		data []byte
+	}{
+		{"empty", []byte{}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, _, err := ParseRTC(tt.data)
+			assert.Error(t, err)
+		})
+	}
+}
+
+// TestRouteTargetString verifies RT string formatting.
+func TestRouteTargetString(t *testing.T) {
+	tests := []struct {
+		name     string
+		rt       RouteTarget
+		expected string
+	}{
+		{
+			name: "2-byte ASN",
+			// Type 0x0002 has high byte 0x00 = 2-byte ASN format
+			// Value: 2-byte ASN (65001 = 0xFDE9) + 4-byte assigned (100 = 0x00000064)
+			rt:       RouteTarget{Type: 0x0002, Value: [6]byte{0xFD, 0xE9, 0, 0, 0, 100}},
+			expected: "65001:100",
+		},
+		{
+			name: "4-byte ASN",
+			// Type 0x0200 has high byte 0x02 = 4-byte ASN format
+			// Value: 4-byte ASN (65001 = 0x0000FDE9) + 2-byte assigned (100 = 0x0064)
+			rt:       RouteTarget{Type: 0x0200, Value: [6]byte{0, 0, 0xFD, 0xE9, 0, 100}},
+			expected: "65001:100",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.expected, tt.rt.String())
+		})
+	}
 }
 
 // TestMUPTypes verifies MUP route types.
@@ -106,6 +291,7 @@ func TestMUPBasic(t *testing.T) {
 	mup := NewMUP(MUPISD, []byte{1, 2, 3, 4})
 
 	assert.Equal(t, MUPISD, mup.RouteType())
+	assert.Equal(t, MUPArch3GPP5G, mup.ArchType())
 }
 
 // TestMUPFamily verifies MUP address family.
@@ -117,10 +303,128 @@ func TestMUPFamily(t *testing.T) {
 	assert.Equal(t, SAFIMUP, mup.Family().SAFI)
 }
 
+// TestMUPFull verifies full MUP NLRI creation.
+func TestMUPFull(t *testing.T) {
+	rd := RouteDistinguisher{Type: RDType0}
+	binary.BigEndian.PutUint16(rd.Value[:2], 65001)
+	binary.BigEndian.PutUint32(rd.Value[2:6], 100)
+
+	mup := NewMUPFull(AFIIPv6, MUPArch3GPP5G, MUPT1ST, rd, []byte{1, 2, 3, 4})
+
+	assert.Equal(t, AFIIPv6, mup.Family().AFI)
+	assert.Equal(t, MUPArch3GPP5G, mup.ArchType())
+	assert.Equal(t, MUPT1ST, mup.RouteType())
+	assert.Equal(t, rd, mup.RD())
+}
+
+// TestMUPRoundTrip verifies encode/decode cycle.
+func TestMUPRoundTrip(t *testing.T) {
+	rd := RouteDistinguisher{Type: RDType0}
+	binary.BigEndian.PutUint16(rd.Value[:2], 65001)
+	binary.BigEndian.PutUint32(rd.Value[2:6], 100)
+
+	original := NewMUPFull(AFIIPv4, MUPArch3GPP5G, MUPISD, rd, []byte{10, 0, 0, 1})
+	data := original.Bytes()
+
+	parsed, remaining, err := ParseMUP(AFIIPv4, data)
+	require.NoError(t, err)
+	assert.Empty(t, remaining)
+	assert.Equal(t, original.ArchType(), parsed.ArchType())
+	assert.Equal(t, original.RouteType(), parsed.RouteType())
+	assert.Equal(t, original.RD(), parsed.RD())
+}
+
+// TestMUPParseErrors verifies error handling.
+func TestMUPParseErrors(t *testing.T) {
+	tests := []struct {
+		name string
+		data []byte
+	}{
+		{"empty", []byte{}},
+		{"truncated header", []byte{0x01}},
+		{"truncated body", []byte{0x01, 0x00, 0x01, 0x10}}, // claims 16 bytes but none
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, _, err := ParseMUP(AFIIPv4, tt.data)
+			assert.Error(t, err)
+		})
+	}
+}
+
 // TestSAFIConstants verifies additional SAFI constants exist.
 func TestSAFIConstants(t *testing.T) {
 	assert.Equal(t, SAFI(5), SAFIMVPN)
 	assert.Equal(t, SAFI(65), SAFIVPLS)
 	assert.Equal(t, SAFI(85), SAFIMUP)
 	assert.Equal(t, SAFI(132), SAFIRTC)
+}
+
+// TestFamilyVariables verifies P2 family variables.
+func TestFamilyVariables(t *testing.T) {
+	assert.Equal(t, AFIIPv4, IPv4MVPN.AFI)
+	assert.Equal(t, SAFIMVPN, IPv4MVPN.SAFI)
+
+	assert.Equal(t, AFIIPv6, IPv6MVPN.AFI)
+	assert.Equal(t, SAFIMVPN, IPv6MVPN.SAFI)
+
+	assert.Equal(t, AFIL2VPN, L2VPNVPLS.AFI)
+	assert.Equal(t, SAFIVPLS, L2VPNVPLS.SAFI)
+
+	assert.Equal(t, AFIIPv4, IPv4RTC.AFI)
+	assert.Equal(t, SAFIRTC, IPv4RTC.SAFI)
+
+	assert.Equal(t, AFIIPv4, IPv4MUP.AFI)
+	assert.Equal(t, SAFIMUP, IPv4MUP.SAFI)
+
+	assert.Equal(t, AFIIPv6, IPv6MUP.AFI)
+	assert.Equal(t, SAFIMUP, IPv6MUP.SAFI)
+}
+
+// TestSAFIStrings verifies SAFI String() method.
+func TestSAFIStrings(t *testing.T) {
+	tests := []struct {
+		safi     SAFI
+		expected string
+	}{
+		{SAFIMVPN, "mvpn"},
+		{SAFIVPLS, "vpls"},
+		{SAFIMUP, "mup"},
+		{SAFIRTC, "rtc"},
+		{SAFIBGPLinkState, "bgp-ls"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.expected, func(t *testing.T) {
+			assert.Equal(t, tt.expected, tt.safi.String())
+		})
+	}
+}
+
+// TestFamilyParsing verifies family string parsing.
+func TestFamilyParsing(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected Family
+		ok       bool
+	}{
+		{"ipv4-mvpn", IPv4MVPN, true},
+		{"ipv6-mvpn", IPv6MVPN, true},
+		{"l2vpn-vpls", L2VPNVPLS, true},
+		{"ipv4-rtc", IPv4RTC, true},
+		{"ipv4-mup", IPv4MUP, true},
+		{"ipv6-mup", IPv6MUP, true},
+		{"unknown", Family{}, false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.input, func(t *testing.T) {
+			family, ok := ParseFamily(tt.input)
+			assert.Equal(t, tt.ok, ok)
+			if ok {
+				assert.Equal(t, tt.expected, family)
+			}
+		})
+	}
 }

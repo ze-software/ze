@@ -11,6 +11,9 @@ package nlri
 
 import "fmt"
 
+// String constants for family names.
+const familyBGPLS = "bgp-ls"
+
 // AFI represents Address Family Identifier (RFC 4760).
 type AFI uint16
 
@@ -32,7 +35,7 @@ func (a AFI) String() string {
 	case AFIL2VPN:
 		return "l2vpn"
 	case AFIBGPLS:
-		return "bgp-ls"
+		return familyBGPLS
 	default:
 		return fmt.Sprintf("afi(%d)", a)
 	}
@@ -60,12 +63,22 @@ func (s SAFI) String() string {
 		return "multicast"
 	case SAFIMPLSLabel:
 		return "mpls-label"
+	case SAFIMVPN:
+		return "mvpn"
 	case SAFIEVPN:
 		return "evpn"
+	case SAFIVPLS:
+		return "vpls"
+	case SAFIMUP:
+		return "mup"
 	case SAFIVPN:
 		return "vpn"
+	case SAFIRTC:
+		return "rtc"
 	case SAFIFlowSpec:
 		return "flowspec"
+	case SAFIBGPLinkState:
+		return familyBGPLS
 	default:
 		return fmt.Sprintf("safi(%d)", s)
 	}
@@ -96,6 +109,10 @@ func (f Family) String() string {
 	switch {
 	case f.AFI == AFIL2VPN && f.SAFI == SAFIEVPN:
 		return "l2vpn-evpn"
+	case f.AFI == AFIL2VPN && f.SAFI == SAFIVPLS:
+		return "l2vpn-vpls"
+	case f.AFI == AFIBGPLS && f.SAFI == SAFIBGPLinkState:
+		return familyBGPLS
 	default:
 		return fmt.Sprintf("%s-%s", f.AFI.String(), f.SAFI.String())
 	}
@@ -112,6 +129,12 @@ var familyStrings = map[string]Family{
 	"l2vpn-evpn":     L2VPNEVPN,
 	"ipv4-flowspec":  IPv4FlowSpec,
 	"ipv6-flowspec":  IPv6FlowSpec,
+	"ipv4-mvpn":      IPv4MVPN,
+	"ipv6-mvpn":      IPv6MVPN,
+	"l2vpn-vpls":     L2VPNVPLS,
+	"ipv4-rtc":       IPv4RTC,
+	"ipv4-mup":       IPv4MUP,
+	"ipv6-mup":       IPv6MUP,
 }
 
 // ParseFamily parses a family string like "ipv4-unicast".

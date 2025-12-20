@@ -463,6 +463,21 @@ func ParseBGPLS(data []byte) (BGPLSNLRI, error) {
 		prefix.cached = data[:4+nlriLen]
 		return prefix, nil
 
+	case BGPLSSRv6SIDNLRI:
+		srv6 := &BGPLSSRv6SID{
+			bgplsBase: bgplsBase{
+				nlriType:   nlriType,
+				protocolID: proto,
+				identifier: identifier,
+			},
+		}
+		// Parse local node descriptor TLVs
+		if err := parseNodeDescriptorTLVs(body[9:], &srv6.LocalNode); err != nil {
+			return nil, err
+		}
+		srv6.cached = data[:4+nlriLen]
+		return srv6, nil
+
 	default:
 		return nil, ErrBGPLSInvalidType
 	}
@@ -523,4 +538,84 @@ func uint32ToBytes(v uint32) []byte {
 	b := make([]byte, 4)
 	binary.BigEndian.PutUint32(b, v)
 	return b
+}
+
+// ============================================================================
+// SRv6 SID NLRI (RFC 9514)
+// ============================================================================
+
+// SRv6SIDDescriptor contains SRv6 SID identification information.
+type SRv6SIDDescriptor struct {
+	MultiTopologyID uint16
+	SRv6SID         []byte // 16 bytes IPv6 address
+}
+
+// Bytes encodes the SRv6 SID descriptor as TLVs.
+func (sd *SRv6SIDDescriptor) Bytes() []byte {
+	var data []byte
+
+	if len(sd.SRv6SID) > 0 {
+		data = append(data, tlv(TLVSRv6SID, sd.SRv6SID)...)
+	}
+
+	return data
+}
+
+// TLV types for SRv6.
+const (
+	TLVSRv6SID uint16 = 518 // SRv6 SID (RFC 9514)
+)
+
+// BGPLSSRv6SID represents an SRv6 SID NLRI.
+type BGPLSSRv6SID struct {
+	bgplsBase
+	LocalNode NodeDescriptor
+	SRv6SID   SRv6SIDDescriptor
+}
+
+// NewBGPLSSRv6SID creates a new SRv6 SID NLRI.
+func NewBGPLSSRv6SID(proto BGPLSProtocolID, id uint64, node NodeDescriptor, sid SRv6SIDDescriptor) *BGPLSSRv6SID {
+	return &BGPLSSRv6SID{
+		bgplsBase: bgplsBase{
+			nlriType:   BGPLSSRv6SIDNLRI,
+			protocolID: proto,
+			identifier: id,
+		},
+		LocalNode: node,
+		SRv6SID:   sid,
+	}
+}
+
+// Bytes returns the wire-format encoding.
+func (s *BGPLSSRv6SID) Bytes() []byte {
+	if s.cached != nil {
+		return s.cached
+	}
+
+	localNodeTLV := tlv(TLVLocalNodeDesc, s.LocalNode.Bytes())
+	sidTLV := s.SRv6SID.Bytes()
+
+	bodyLen := 9 + len(localNodeTLV) + len(sidTLV)
+	body := make([]byte, bodyLen)
+	body[0] = byte(s.protocolID)
+	binary.BigEndian.PutUint64(body[1:9], s.identifier)
+	offset := 9
+	copy(body[offset:], localNodeTLV)
+	offset += len(localNodeTLV)
+	copy(body[offset:], sidTLV)
+
+	s.cached = make([]byte, 4+len(body))
+	binary.BigEndian.PutUint16(s.cached[0:2], uint16(s.nlriType))
+	binary.BigEndian.PutUint16(s.cached[2:4], uint16(len(body))) //nolint:gosec // BGP-LS TLV max 65535
+	copy(s.cached[4:], body)
+
+	return s.cached
+}
+
+// Len returns the length in bytes.
+func (s *BGPLSSRv6SID) Len() int { return len(s.Bytes()) }
+
+// String returns a human-readable representation.
+func (s *BGPLSSRv6SID) String() string {
+	return fmt.Sprintf("bgp-ls:srv6-sid(asn=%d)", s.LocalNode.ASN)
 }
