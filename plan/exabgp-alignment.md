@@ -19,25 +19,25 @@ For each item, decide:
 **Current:** ZeBGP ignores NOTIFICATION data field for Cease/Admin Shutdown
 **ExaBGP:** Parses length-prefixed UTF-8 shutdown message
 **Impact:** Cannot display graceful shutdown reasons from peers
-**Decision:** [ ] ALIGN / [ ] KEEP / [ ] SKIP
+**Decision:** [x] ALIGN / [ ] KEEP / [ ] SKIP
 
 ### 1.2 Per-Message-Type Length Validation
 **Current:** ZeBGP only checks >= 19 bytes
 **ExaBGP:** OPEN>=29, UPDATE>=23, KEEPALIVE==19, ROUTE_REFRESH==23
 **Impact:** May accept malformed messages
-**Decision:** [ ] ALIGN / [ ] KEEP / [ ] SKIP
+**Decision:** [x] ALIGN / [ ] KEEP / [ ] SKIP
 
 ### 1.3 Extended Message Size Integration
 **Current:** Constants defined (65535) but not applied after negotiation
 **ExaBGP:** Sets msg_size immediately when capability negotiated
 **Impact:** May fail to send/receive large UPDATE messages
-**Decision:** [ ] ALIGN / [ ] KEEP / [ ] SKIP
+**Decision:** [x] ALIGN / [ ] KEEP / [ ] SKIP
 
 ### 1.4 KEEPALIVE Payload Validation
 **Current:** ZeBGP silently ignores extra data in KEEPALIVE
 **ExaBGP:** Raises error if KEEPALIVE contains any payload
 **Impact:** Accepts non-compliant peers
-**Decision:** [ ] ALIGN / [ ] KEEP / [ ] SKIP
+**Decision:** [x] ALIGN / [ ] KEEP / [ ] SKIP
 
 ---
 
@@ -47,31 +47,31 @@ For each item, decide:
 **Current:** Not implemented
 **ExaBGP:** Supports marker 0xFF 0xFF + 2-byte length for large capability sets
 **Impact:** Cannot handle peers with many capabilities (>255 bytes total)
-**Decision:** [ ] ALIGN / [ ] KEEP / [ ] SKIP
+**Decision:** [x] ALIGN / [ ] KEEP / [ ] SKIP
 
 ### 2.2 Enhanced Route Refresh (RFC 7313)
 **Current:** Not implemented (only basic RFC 2918)
 **ExaBGP:** Full support with Begin-of-RR/End-of-RR markers
 **Impact:** Cannot do ORF-based route refresh
-**Decision:** [ ] ALIGN / [ ] KEEP / [ ] SKIP
+**Decision:** [x] ALIGN / [ ] KEEP / [ ] SKIP
 
 ### 2.3 Multi-Session BGP (Code 68)
 **Current:** Not implemented
 **ExaBGP:** Full support including Cisco variant (0x83)
 **Impact:** Cannot establish multi-session with supporting peers
-**Decision:** [ ] ALIGN / [ ] KEEP / [ ] SKIP
+**Decision:** [ ] ALIGN / [ ] KEEP / [x] SKIP
 
 ### 2.4 Dynamic Capability (Code 67)
 **Current:** Not implemented
 **ExaBGP:** Code defined (not fully implemented either)
 **Impact:** Cannot dynamically change capabilities
-**Decision:** [ ] ALIGN / [ ] KEEP / [ ] SKIP
+**Decision:** [ ] ALIGN / [ ] KEEP / [x] SKIP *(defer)*
 
 ### 2.5 Capability Conflict Detection
 **Current:** Silent intersection (no error reporting)
 **ExaBGP:** Active detection with mismatch list and RFC error codes
 **Impact:** No visibility into negotiation mismatches
-**Decision:** [ ] ALIGN / [ ] KEEP / [ ] SKIP
+**Decision:** [x] ALIGN / [ ] KEEP / [ ] SKIP
 
 ---
 
@@ -81,13 +81,13 @@ For each item, decide:
 **Current:** ZeBGP uses 90 seconds
 **ExaBGP:** Uses 180 seconds
 **RFC 4271:** Suggests 90 seconds
-**Decision:** [ ] ALIGN (180s) / [ ] KEEP (90s) / [ ] SKIP
+**Decision:** [ ] ALIGN (180s) / [x] KEEP (90s) / [ ] SKIP
 
 ### 3.2 Hold Time Validation
 **Current:** ZeBGP accepts 0-65535
 **ExaBGP:** Validates 0 or >= 3 seconds per RFC 4271
 **Impact:** May accept invalid hold times (1-2 seconds)
-**Decision:** [ ] ALIGN / [ ] KEEP / [ ] SKIP
+**Decision:** [x] ALIGN / [ ] KEEP / [ ] SKIP
 
 ---
 
@@ -96,37 +96,43 @@ For each item, decide:
 ### 4.1 ORIGIN Validation
 **Current:** ZeBGP rejects invalid values (>2)
 **ExaBGP:** Accepts any value
-**Decision:** [ ] ALIGN (permissive) / [ ] KEEP (strict) / [ ] SKIP
+**Decision:** [ ] ALIGN (permissive) / [x] KEEP (strict) / [ ] SKIP
 
 ### 4.2 AS_PATH Segment Auto-Split
 **Current:** Caller must handle segment limits
 **ExaBGP:** Auto-splits segments at 255 ASNs
 **Impact:** May create non-compliant AS_PATH if caller doesn't split
-**Decision:** [ ] ALIGN / [ ] KEEP / [ ] SKIP
+**Decision:** [x] ALIGN / [ ] KEEP / [ ] SKIP
 
 ### 4.3 Extended Communities IPv6 (RFC 5701)
 **Current:** Not implemented (only 8-byte)
 **ExaBGP:** Full 20-byte IPv6 extended community support
 **Impact:** Cannot handle IPv6 extended communities
-**Decision:** [ ] ALIGN / [ ] KEEP / [ ] SKIP
+**Decision:** [x] ALIGN / [ ] KEEP / [ ] SKIP
 
 ### 4.4 Large Community Deduplication
 **Current:** No deduplication
 **ExaBGP:** Filters duplicates during unpack
 **Impact:** May have duplicate large communities
-**Decision:** [ ] ALIGN / [ ] KEEP / [ ] SKIP
+**Decision:** [x] ALIGN / [ ] KEEP / [ ] SKIP *(RFC 8092 MUST remove duplicates)*
 
 ### 4.5 Community Sorting
 **Current:** No sorting
 **ExaBGP:** Auto-sorts communities
 **Impact:** Order may differ from ExaBGP
-**Decision:** [ ] ALIGN / [ ] KEEP / [ ] SKIP
+**Decision:** [ ] ALIGN / [x] KEEP / [ ] SKIP *(RFC allows any order)*
 
 ### 4.6 Attribute Caching
 **Current:** No caching
 **ExaBGP:** Extensive caching (ORIGIN, communities, etc.)
 **Impact:** Higher memory usage, no deduplication
-**Decision:** [ ] ALIGN / [ ] KEEP / [ ] SKIP
+**Decision:** [ ] ALIGN / [x] KEEP / [ ] SKIP *(pool/store already exists)*
+
+### 4.7 Attribute Ordering on Send
+**Current:** Not enforced
+**ExaBGP:** Orders by type code per RFC 4271 Appendix F.3
+**Impact:** Ensures MP attributes sent after others are known
+**Decision:** [x] ALIGN / [ ] KEEP / [ ] SKIP *(RFC recommended)*
 
 ---
 
@@ -136,25 +142,25 @@ For each item, decide:
 **Current:** Not checked
 **ExaBGP:** Strict validation against negotiated families
 **Impact:** May process NLRI for non-negotiated families
-**Decision:** [ ] ALIGN / [ ] KEEP / [ ] SKIP
+**Decision:** [x] ALIGN / [ ] KEEP / [ ] SKIP *(RFC 4271 Section 9)*
 
 ### 5.2 Extended Next-Hop Support
 **Current:** Not implemented
 **ExaBGP:** Via negotiated.nexthop flag
 **Impact:** Cannot handle IPv6 next-hops for IPv4 prefixes
-**Decision:** [ ] ALIGN / [ ] KEEP / [ ] SKIP
+**Decision:** [x] ALIGN / [ ] KEEP / [ ] SKIP
 
 ### 5.3 MP-NLRI Chunking
 **Current:** No chunking
 **ExaBGP:** Respects attribute size limits, splits across UPDATEs
 **Impact:** May fail with large NLRI sets
-**Decision:** [ ] ALIGN / [ ] KEEP / [ ] SKIP
+**Decision:** [x] ALIGN / [ ] KEEP / [ ] SKIP
 
 ### 5.4 Route Distinguisher in Next-Hop
 **Current:** Not handled
 **ExaBGP:** Full VPN RD support in MP_REACH next-hop
 **Impact:** VPN next-hop parsing may fail
-**Decision:** [ ] ALIGN / [ ] KEEP / [ ] SKIP
+**Decision:** [x] ALIGN / [ ] KEEP / [ ] SKIP
 
 ---
 
@@ -163,27 +169,27 @@ For each item, decide:
 ### 6.1 EVPN Type 1 (Ethernet Auto-Discovery)
 **Current:** Generic wrapper (EVPNGeneric)
 **ExaBGP:** Full parsing
-**Decision:** [ ] ALIGN / [ ] KEEP / [ ] SKIP
+**Decision:** [x] ALIGN / [ ] KEEP / [ ] SKIP
 
 ### 6.2 EVPN Type 4 (Ethernet Segment)
 **Current:** Generic wrapper (EVPNGeneric)
 **ExaBGP:** Full parsing
-**Decision:** [ ] ALIGN / [ ] KEEP / [ ] SKIP
+**Decision:** [x] ALIGN / [ ] KEEP / [ ] SKIP
 
 ### 6.3 FlowSpec VPN Variant
 **Current:** Not implemented
 **ExaBGP:** Full support
-**Decision:** [ ] ALIGN / [ ] KEEP / [ ] SKIP
+**Decision:** [x] ALIGN / [ ] KEEP / [ ] SKIP
 
 ### 6.4 VPLS NLRI
 **Current:** Not implemented
 **ExaBGP:** Full support
-**Decision:** [ ] ALIGN / [ ] KEEP / [ ] SKIP
+**Decision:** [x] ALIGN / [ ] KEEP / [ ] SKIP
 
 ### 6.5 RTC (Route Target Constraint)
 **Current:** Not implemented
 **ExaBGP:** Full support
-**Decision:** [ ] ALIGN / [ ] KEEP / [ ] SKIP
+**Decision:** [x] ALIGN / [ ] KEEP / [ ] SKIP
 
 ---
 
@@ -192,17 +198,17 @@ For each item, decide:
 ### 7.1 FSM Architecture
 **Current:** Event-driven with explicit Event() calls
 **ExaBGP:** Procedural with direct state changes
-**Decision:** [ ] ALIGN / [ ] KEEP / [ ] SKIP
+**Decision:** [ ] ALIGN / [x] KEEP / [ ] SKIP *(Go idiomatic)*
 
 ### 7.2 Timer Implementation
 **Current:** Go time.Timer objects with callbacks
 **ExaBGP:** Polling-based with timestamps
-**Decision:** [ ] ALIGN / [ ] KEEP / [ ] SKIP
+**Decision:** [ ] ALIGN / [x] KEEP / [ ] SKIP *(Go idiomatic)*
 
 ### 7.3 Reconnect Backoff
 **Current:** Exponential 5s-60s in Peer loop
 **ExaBGP:** Delay class with increase/reset
-**Decision:** [ ] ALIGN / [ ] KEEP / [ ] SKIP
+**Decision:** [ ] ALIGN / [x] KEEP / [ ] SKIP *(similar behavior)*
 
 ---
 
@@ -212,12 +218,12 @@ For each item, decide:
 **Current:** 12 subcodes defined
 **ExaBGP:** 48+ subcodes with descriptions
 **Impact:** Less detailed error messages
-**Decision:** [ ] ALIGN / [ ] KEEP / [ ] SKIP
+**Decision:** [x] ALIGN / [ ] KEEP / [ ] SKIP
 
 ### 8.2 Error Recovery in MP-NLRI
 **Current:** Strict fail on invalid data
 **ExaBGP:** Fallback tactics (e.g., zeros for invalid next-hop)
-**Decision:** [ ] ALIGN / [ ] KEEP / [ ] SKIP
+**Decision:** [ ] ALIGN / [x] KEEP / [ ] SKIP *(strict = RFC compliant)*
 
 ---
 
@@ -226,22 +232,22 @@ For each item, decide:
 ### 9.1 Hold Time RFC Validation
 **Current:** Accepts 1-2 seconds
 **ExaBGP:** Rejects 1-2 seconds per RFC 4271
-**Decision:** [ ] ALIGN / [ ] KEEP / [ ] SKIP
+**Decision:** [x] ALIGN / [ ] KEEP / [ ] SKIP *(duplicate of 3.2)*
 
 ### 9.2 Local Address 'auto' Keyword
 **Current:** Requires explicit IP
 **ExaBGP:** Supports 'auto' for dynamic binding
-**Decision:** [ ] ALIGN / [ ] KEEP / [ ] SKIP
+**Decision:** [x] ALIGN / [ ] KEEP / [ ] SKIP
 
 ### 9.3 Extended-Message Capability Config
 **Current:** Not in config schema
 **ExaBGP:** Explicit leaf with default=true
-**Decision:** [ ] ALIGN / [ ] KEEP / [ ] SKIP
+**Decision:** [x] ALIGN / [ ] KEEP / [ ] SKIP
 
 ### 9.4 Per-Family Add-Path Config
 **Current:** Global only
 **ExaBGP:** Can configure per address family
-**Decision:** [ ] ALIGN / [ ] KEEP / [ ] SKIP
+**Decision:** [x] ALIGN / [ ] KEEP / [ ] SKIP
 
 ---
 
@@ -249,16 +255,16 @@ For each item, decide:
 
 | Phase | Total Items | ALIGN | KEEP | SKIP |
 |-------|-------------|-------|------|------|
-| 1. Critical | 4 | | | |
-| 2. Capabilities | 5 | | | |
-| 3. Timers | 2 | | | |
-| 4. Attributes | 6 | | | |
-| 5. MP-NLRI | 4 | | | |
-| 6. NLRI Types | 5 | | | |
-| 7. FSM | 3 | | | |
-| 8. Errors | 2 | | | |
-| 9. Config | 4 | | | |
-| **Total** | **35** | | | |
+| 1. Critical | 4 | 4 | 0 | 0 |
+| 2. Capabilities | 5 | 3 | 0 | 2 |
+| 3. Timers | 2 | 1 | 1 | 0 |
+| 4. Attributes | 7 | 4 | 3 | 0 |
+| 5. MP-NLRI | 4 | 4 | 0 | 0 |
+| 6. NLRI Types | 5 | 5 | 0 | 0 |
+| 7. FSM | 3 | 0 | 3 | 0 |
+| 8. Errors | 2 | 1 | 1 | 0 |
+| 9. Config | 4 | 4 | 0 | 0 |
+| **Total** | **36** | **26** | **8** | **2** |
 
 ---
 

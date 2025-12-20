@@ -58,7 +58,29 @@ ls -la plan/ 2>/dev/null || echo "No plan directory"
 
 ## CRITICAL RULES
 
-### 0. ExaBGP Reference Implementation (MUST CHECK BEFORE CODING)
+### 0. RFC 4271 Compliance (NON-NEGOTIABLE)
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│  ZeBGP MUST be a fully RFC 4271 compliant BGP speaker.         │
+│                                                                 │
+│  ALL implementation decisions MUST follow RFC 4271 and its     │
+│  updates. When in doubt, the RFC is authoritative.             │
+│                                                                 │
+│  Reference: https://datatracker.ietf.org/doc/html/rfc4271      │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+**Key RFC compliance requirements:**
+- Message format validation per Section 4
+- FSM behavior per Section 8
+- UPDATE processing per Section 9
+- Error handling per Section 6
+- Path attribute handling per Appendix F
+
+---
+
+### 0.1 ExaBGP Reference Implementation (MUST CHECK BEFORE CODING)
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
