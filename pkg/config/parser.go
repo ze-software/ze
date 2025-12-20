@@ -67,6 +67,15 @@ func (t *Tree) ListKeys(name string) []string {
 	return keys
 }
 
+// Values returns all value keys (for iterating Freeform entries).
+func (t *Tree) Values() []string {
+	keys := make([]string, 0, len(t.values))
+	for k := range t.values {
+		keys = append(keys, k)
+	}
+	return keys
+}
+
 // Parser parses ExaBGP-style configuration.
 type Parser struct {
 	schema *Schema

@@ -116,6 +116,8 @@ type NeighborConfig struct {
 	HoldTime     uint16
 	Passive      bool
 	Families     []string
+	Hostname     string
+	DomainName   string
 	Capabilities CapabilityConfig
 	StaticRoutes []StaticRouteConfig
 }
@@ -128,6 +130,7 @@ type CapabilityConfig struct {
 	RestartTime     uint16
 	AddPathSend     bool
 	AddPathReceive  bool
+	SoftwareVersion bool
 }
 
 // StaticRouteConfig holds a static route.
@@ -255,9 +258,19 @@ func parseNeighborConfig(addr string, tree *Tree) (NeighborConfig, error) {
 		nc.Passive = v == configTrue
 	}
 
-	// Families
-	for family := range tree.GetList("family") {
-		nc.Families = append(nc.Families, family)
+	if v, ok := tree.Get("host-name"); ok {
+		nc.Hostname = v
+	}
+
+	if v, ok := tree.Get("domain-name"); ok {
+		nc.DomainName = v
+	}
+
+	// Families - Freeform stores "ipv4 unicast" as key with value "true"
+	if familyTree := tree.GetContainer("family"); familyTree != nil {
+		for _, family := range familyTree.Values() {
+			nc.Families = append(nc.Families, family)
+		}
 	}
 
 	// Capabilities
@@ -282,6 +295,9 @@ func parseNeighborConfig(addr string, tree *Tree) (NeighborConfig, error) {
 			if v, ok := ap.Get("receive"); ok {
 				nc.Capabilities.AddPathReceive = v == configTrue
 			}
+		}
+		if v, ok := cap.Get("software-version"); ok {
+			nc.Capabilities.SoftwareVersion = v == configTrue || v == "enable"
 		}
 	}
 

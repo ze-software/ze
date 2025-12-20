@@ -7,6 +7,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/exa-networks/zebgp/pkg/bgp/capability"
 	"github.com/exa-networks/zebgp/pkg/reactor"
 )
 
@@ -94,6 +95,46 @@ func configToNeighbor(nc *NeighborConfig, global *BGPConfig) *reactor.Neighbor {
 	n := reactor.NewNeighbor(nc.Address, localAS, nc.PeerAS, routerID)
 	n.HoldTime = holdTime
 	n.Passive = nc.Passive
+
+	// Build capabilities.
+	// Add Multiprotocol capabilities from configured families.
+	for _, family := range nc.Families {
+		switch family {
+		case "ipv4 unicast":
+			n.Capabilities = append(n.Capabilities, &capability.Multiprotocol{
+				AFI:  capability.AFIIPv4,
+				SAFI: capability.SAFIUnicast,
+			})
+		case "ipv6 unicast":
+			n.Capabilities = append(n.Capabilities, &capability.Multiprotocol{
+				AFI:  capability.AFIIPv6,
+				SAFI: capability.SAFIUnicast,
+			})
+		case "ipv4 multicast":
+			n.Capabilities = append(n.Capabilities, &capability.Multiprotocol{
+				AFI:  capability.AFIIPv4,
+				SAFI: capability.SAFIMulticast,
+			})
+		case "ipv6 multicast":
+			n.Capabilities = append(n.Capabilities, &capability.Multiprotocol{
+				AFI:  capability.AFIIPv6,
+				SAFI: capability.SAFIMulticast,
+			})
+		}
+	}
+
+	// Add FQDN capability if hostname or domain is set.
+	if nc.Hostname != "" || nc.DomainName != "" {
+		n.Capabilities = append(n.Capabilities, &capability.FQDN{
+			Hostname:   nc.Hostname,
+			DomainName: nc.DomainName,
+		})
+	}
+	if nc.Capabilities.SoftwareVersion {
+		n.Capabilities = append(n.Capabilities, &capability.SoftwareVersion{
+			Version: "ExaBGP/5.0.0-0+test",
+		})
+	}
 
 	// Override port from environment (for testing).
 	if p := os.Getenv("exabgp_tcp_port"); p != "" {

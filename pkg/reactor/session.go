@@ -132,7 +132,7 @@ func (s *Session) Connect(ctx context.Context) error {
 	}
 	s.mu.Unlock()
 
-	addr := fmt.Sprintf("%s:%d", s.neighbor.Address, s.neighbor.Port)
+	addr := net.JoinHostPort(s.neighbor.Address.String(), fmt.Sprintf("%d", s.neighbor.Port))
 
 	var d net.Dialer
 	conn, err := d.DialContext(ctx, "tcp", addr)
@@ -456,14 +456,27 @@ func (s *Session) negotiate() {
 
 // sendOpen sends an OPEN message.
 func (s *Session) sendOpen(conn net.Conn) error {
-	// Build capabilities.
+	// Build capabilities in RFC-expected order:
+	// 1. Multiprotocol (from neighbor.Capabilities)
+	// 2. ASN4
+	// 3. Other capabilities (FQDN, SoftwareVersion, etc.)
 	var caps []capability.Capability
+	var otherCaps []capability.Capability
 
-	// Always add ASN4 if AS > 65535 or if configured.
+	// Separate Multiprotocol capabilities from others.
+	for _, c := range s.neighbor.Capabilities {
+		if c.Code() == capability.CodeMultiprotocol {
+			caps = append(caps, c)
+		} else {
+			otherCaps = append(otherCaps, c)
+		}
+	}
+
+	// Add ASN4.
 	caps = append(caps, &capability.ASN4{ASN: s.neighbor.LocalAS})
 
-	// Add configured capabilities.
-	caps = append(caps, s.neighbor.Capabilities...)
+	// Add remaining capabilities.
+	caps = append(caps, otherCaps...)
 
 	// Build optional parameters (capabilities).
 	optParams := buildOptionalParams(caps)
@@ -571,22 +584,22 @@ func parseCapabilities(optParams []byte) []capability.Capability {
 }
 
 // buildOptionalParams builds optional parameters from capabilities.
+// Each capability is wrapped in its own parameter (type 2) per RFC 5492.
 func buildOptionalParams(caps []capability.Capability) []byte {
 	if len(caps) == 0 {
 		return nil
 	}
 
-	// Pack all capabilities.
-	var capBytes []byte
+	var optParams []byte
 	for _, c := range caps {
-		capBytes = append(capBytes, c.Pack()...)
+		capBytes := c.Pack()
+		// Wrap each capability in its own parameter type 2.
+		param := make([]byte, 2+len(capBytes))
+		param[0] = 2 // Parameter type: Capabilities
+		param[1] = byte(len(capBytes))
+		copy(param[2:], capBytes)
+		optParams = append(optParams, param...)
 	}
-
-	// Wrap in optional parameter type 2 (capabilities).
-	optParams := make([]byte, 2+len(capBytes))
-	optParams[0] = 2 // Parameter type: Capabilities
-	optParams[1] = byte(len(capBytes))
-	copy(optParams[2:], capBytes)
 
 	return optParams
 }

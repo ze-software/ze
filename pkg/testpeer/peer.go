@@ -87,7 +87,7 @@ func (p *Peer) Run(ctx context.Context) Result {
 	if p.config.IPv6 {
 		host = "::1"
 	}
-	addr := fmt.Sprintf("%s:%d", host, p.config.Port)
+	addr := net.JoinHostPort(host, fmt.Sprintf("%d", p.config.Port))
 
 	var lc net.ListenConfig
 	ln, err := lc.Listen(ctx, "tcp", addr)
