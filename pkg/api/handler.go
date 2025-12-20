@@ -203,25 +203,38 @@ func handlePeerTeardown(ctx *CommandContext, args []string) (*Response, error) {
 }
 
 // handleRIBShowIn returns Adj-RIB-In contents.
-// TODO: Implement when RIB is integrated.
-func handleRIBShowIn(ctx *CommandContext, _ []string) (*Response, error) {
+func handleRIBShowIn(ctx *CommandContext, args []string) (*Response, error) {
+	// Optional peer filter
+	peerID := ""
+	if len(args) > 0 {
+		peerID = args[0]
+	}
+
+	routes := ctx.Reactor.RIBInRoutes(peerID)
+	stats := ctx.Reactor.RIBStats()
+
 	return &Response{
 		Status: "done",
 		Data: map[string]any{
-			"routes": []any{},
-			"note":   "RIB integration pending",
+			"routes":      routes,
+			"route_count": len(routes),
+			"peer_count":  stats.InPeerCount,
 		},
 	}, nil
 }
 
 // handleRIBShowOut returns Adj-RIB-Out contents.
-// TODO: Implement when RIB is integrated.
 func handleRIBShowOut(ctx *CommandContext, _ []string) (*Response, error) {
+	routes := ctx.Reactor.RIBOutRoutes()
+	stats := ctx.Reactor.RIBStats()
+
 	return &Response{
 		Status: "done",
 		Data: map[string]any{
-			"routes": []any{},
-			"note":   "RIB integration pending",
+			"routes":              routes,
+			"route_count":         len(routes),
+			"pending_withdrawals": stats.OutWithdrawls,
+			"sent_routes":         stats.OutSent,
 		},
 	}, nil
 }

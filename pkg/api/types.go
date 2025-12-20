@@ -139,6 +139,36 @@ type ReactorInterface interface {
 	// TeardownPeer gracefully closes a peer session.
 	// If reason is provided, it's sent in the NOTIFICATION message.
 	TeardownPeer(addr netip.Addr, reason string) error
+
+	// AnnounceEOR sends an End-of-RIB marker for the given address family.
+	AnnounceEOR(peerSelector string, afi uint16, safi uint8) error
+
+	// RIBInRoutes returns routes from Adj-RIB-In for the given peer.
+	// If peerID is empty, returns routes from all peers.
+	RIBInRoutes(peerID string) []RIBRoute
+
+	// RIBOutRoutes returns routes from Adj-RIB-Out.
+	RIBOutRoutes() []RIBRoute
+
+	// RIBStats returns RIB statistics.
+	RIBStats() RIBStatsInfo
+}
+
+// RIBRoute is an API-friendly representation of a route.
+type RIBRoute struct {
+	Peer    string `json:"peer,omitempty"`
+	Prefix  string `json:"prefix"`
+	NextHop string `json:"next_hop"`
+	ASPath  string `json:"as_path,omitempty"`
+}
+
+// RIBStatsInfo holds RIB statistics.
+type RIBStatsInfo struct {
+	InPeerCount   int `json:"in_peer_count"`
+	InRouteCount  int `json:"in_route_count"`
+	OutPending    int `json:"out_pending"`
+	OutWithdrawls int `json:"out_withdrawals"`
+	OutSent       int `json:"out_sent"`
 }
 
 // Response represents an API command response.

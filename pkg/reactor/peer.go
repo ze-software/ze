@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/exa-networks/zebgp/pkg/bgp/fsm"
+	"github.com/exa-networks/zebgp/pkg/bgp/message"
 )
 
 // PeerState represents the high-level state of a peer.
@@ -271,6 +272,21 @@ func (p *Peer) AcceptConnection(conn net.Conn) error {
 	}
 
 	return session.Accept(conn)
+}
+
+// SendUpdate sends a BGP UPDATE message to this peer.
+// Returns ErrNotConnected if no session is active.
+// Returns an error if the session is not in ESTABLISHED state.
+func (p *Peer) SendUpdate(update *message.Update) error {
+	p.mu.RLock()
+	session := p.session
+	p.mu.RUnlock()
+
+	if session == nil {
+		return ErrNotConnected
+	}
+
+	return session.SendUpdate(update)
 }
 
 // cleanup runs when peer stops.

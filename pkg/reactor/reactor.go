@@ -5,12 +5,16 @@ package reactor
 import (
 	"context"
 	"errors"
+	"fmt"
 	"net"
 	"net/netip"
 	"sync"
 	"time"
 
 	"github.com/exa-networks/zebgp/pkg/api"
+	"github.com/exa-networks/zebgp/pkg/bgp/attribute"
+	"github.com/exa-networks/zebgp/pkg/bgp/message"
+	"github.com/exa-networks/zebgp/pkg/bgp/nlri"
 	"github.com/exa-networks/zebgp/pkg/rib"
 )
 
@@ -138,15 +142,142 @@ func (a *reactorAPIAdapter) Stop() {
 }
 
 // AnnounceRoute announces a route to matching peers.
-// TODO: Implement when RIB integration is complete.
-func (a *reactorAPIAdapter) AnnounceRoute(_ string, _ api.RouteSpec) error {
-	return errors.New("not implemented")
+func (a *reactorAPIAdapter) AnnounceRoute(peerSelector string, route api.RouteSpec) error {
+	// Build UPDATE message
+	update := buildAnnounceUpdate(route, a.r.config.LocalAS)
+
+	// Send to matching peers
+	return a.sendToMatchingPeers(peerSelector, update)
 }
 
 // WithdrawRoute withdraws a route from matching peers.
-// TODO: Implement when RIB integration is complete.
-func (a *reactorAPIAdapter) WithdrawRoute(_ string, _ netip.Prefix) error {
-	return errors.New("not implemented")
+func (a *reactorAPIAdapter) WithdrawRoute(peerSelector string, prefix netip.Prefix) error {
+	// Build UPDATE message with withdrawn route
+	update := buildWithdrawUpdate(prefix)
+
+	// Send to matching peers
+	return a.sendToMatchingPeers(peerSelector, update)
+}
+
+// sendToMatchingPeers sends an UPDATE to peers matching the selector.
+func (a *reactorAPIAdapter) sendToMatchingPeers(selector string, update *message.Update) error {
+	a.r.mu.RLock()
+	defer a.r.mu.RUnlock()
+
+	var lastErr error
+	sentCount := 0
+
+	for addrStr, peer := range a.r.peers {
+		// Check if this peer matches the selector
+		if selector != "*" && addrStr != selector {
+			continue
+		}
+
+		// Only send to established peers
+		if peer.State() != PeerStateEstablished {
+			continue
+		}
+
+		if err := peer.SendUpdate(update); err != nil {
+			lastErr = err
+		} else {
+			sentCount++
+		}
+	}
+
+	if sentCount == 0 && lastErr == nil {
+		// No peers matched or were established
+		return errors.New("no established peers to send to")
+	}
+
+	return lastErr
+}
+
+// buildAnnounceUpdate builds an UPDATE message for announcing a route.
+func buildAnnounceUpdate(route api.RouteSpec, localAS uint32) *message.Update {
+	// Build path attributes
+	var attrBytes []byte
+
+	// 1. ORIGIN (IGP)
+	attrBytes = append(attrBytes, attribute.PackAttribute(attribute.OriginIGP)...)
+
+	// 2. AS_PATH (prepend local AS for eBGP, empty for iBGP routes we originate)
+	asPath := &attribute.ASPath{
+		Segments: []attribute.ASPathSegment{
+			{Type: attribute.ASSequence, ASNs: []uint32{localAS}},
+		},
+	}
+	attrBytes = append(attrBytes, attribute.PackAttribute(asPath)...)
+
+	// 3. NEXT_HOP
+	nextHop := &attribute.NextHop{Addr: route.NextHop}
+	attrBytes = append(attrBytes, attribute.PackAttribute(nextHop)...)
+
+	// Build NLRI
+	var nlriBytes []byte
+	if route.Prefix.Addr().Is4() {
+		inet := nlri.NewINET(nlri.Family{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast}, route.Prefix, 0)
+		nlriBytes = inet.Bytes()
+	} else {
+		// IPv6 requires MP_REACH_NLRI (attribute 14) instead of NLRI field
+		// For now, only support IPv4 in the simple path
+		inet := nlri.NewINET(nlri.Family{AFI: nlri.AFIIPv6, SAFI: nlri.SAFIUnicast}, route.Prefix, 0)
+		nlriBytes = inet.Bytes()
+	}
+
+	return &message.Update{
+		PathAttributes: attrBytes,
+		NLRI:           nlriBytes,
+	}
+}
+
+// buildWithdrawUpdate builds an UPDATE message for withdrawing a route.
+func buildWithdrawUpdate(prefix netip.Prefix) *message.Update {
+	var withdrawnBytes []byte
+
+	if prefix.Addr().Is4() {
+		inet := nlri.NewINET(nlri.Family{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast}, prefix, 0)
+		withdrawnBytes = inet.Bytes()
+	} else {
+		// IPv6 requires MP_UNREACH_NLRI (attribute 15) instead of withdrawn field
+		// For now, only support IPv4 in the simple path
+		inet := nlri.NewINET(nlri.Family{AFI: nlri.AFIIPv6, SAFI: nlri.SAFIUnicast}, prefix, 0)
+		withdrawnBytes = inet.Bytes()
+	}
+
+	return &message.Update{
+		WithdrawnRoutes: withdrawnBytes,
+	}
+}
+
+// buildEORUpdate builds an End-of-RIB marker UPDATE.
+// For IPv4 unicast: UPDATE with empty withdrawn, empty attributes, empty NLRI.
+// For other families: UPDATE with MP_UNREACH_NLRI containing just AFI/SAFI.
+func buildEORUpdate(afi uint16, safi uint8) *message.Update {
+	if afi == 1 && safi == 1 {
+		// IPv4 unicast: empty UPDATE
+		return &message.Update{}
+	}
+
+	// Other families: MP_UNREACH_NLRI with AFI/SAFI only
+	// Attribute 15: MP_UNREACH_NLRI
+	// Format: AFI(2) + SAFI(1) + Withdrawn NLRI (empty)
+	mpUnreachValue := []byte{
+		byte(afi >> 8), byte(afi), // AFI
+		safi, // SAFI
+		// No withdrawn NLRI
+	}
+
+	attrBytes := attribute.PackHeader(
+		attribute.FlagOptional,
+		attribute.AttrMPUnreachNLRI,
+		uint16(len(mpUnreachValue)),
+	)
+	attrBytes = append(attrBytes, mpUnreachValue...)
+
+	return &message.Update{
+		PathAttributes: attrBytes,
+	}
 }
 
 // Reload reloads the configuration.
@@ -210,6 +341,142 @@ func (a *reactorAPIAdapter) TeardownPeer(addr netip.Addr, _ string) error {
 	// TODO: Send NOTIFICATION with reason before stopping
 	peer.Stop()
 	return nil
+}
+
+// AnnounceEOR sends an End-of-RIB marker for the given address family.
+func (a *reactorAPIAdapter) AnnounceEOR(peerSelector string, afi uint16, safi uint8) error {
+	update := buildEORUpdate(afi, safi)
+	return a.sendToMatchingPeers(peerSelector, update)
+}
+
+// RIBInRoutes returns routes from Adj-RIB-In.
+func (a *reactorAPIAdapter) RIBInRoutes(peerID string) []api.RIBRoute {
+	if a.r.ribIn == nil {
+		return nil
+	}
+
+	var routes []api.RIBRoute
+
+	// If peerID specified, get routes for that peer only
+	if peerID != "" {
+		for _, route := range a.r.ribIn.GetPeerRoutes(peerID) {
+			routes = append(routes, routeToAPIRoute(peerID, route))
+		}
+		return routes
+	}
+
+	// Get routes from all peers
+	a.r.mu.RLock()
+	peerIDs := make([]string, 0, len(a.r.peers))
+	for id := range a.r.peers {
+		peerIDs = append(peerIDs, id)
+	}
+	a.r.mu.RUnlock()
+
+	for _, id := range peerIDs {
+		for _, route := range a.r.ribIn.GetPeerRoutes(id) {
+			routes = append(routes, routeToAPIRoute(id, route))
+		}
+	}
+
+	return routes
+}
+
+// RIBOutRoutes returns routes from Adj-RIB-Out.
+func (a *reactorAPIAdapter) RIBOutRoutes() []api.RIBRoute {
+	if a.r.ribOut == nil {
+		return nil
+	}
+
+	var routes []api.RIBRoute
+
+	// Get pending routes for common families
+	families := []nlri.Family{
+		{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast},
+		{AFI: nlri.AFIIPv6, SAFI: nlri.SAFIUnicast},
+	}
+
+	for _, family := range families {
+		for _, route := range a.r.ribOut.GetPending(family) {
+			routes = append(routes, routeToAPIRoute("", route))
+		}
+	}
+
+	return routes
+}
+
+// RIBStats returns RIB statistics.
+func (a *reactorAPIAdapter) RIBStats() api.RIBStatsInfo {
+	stats := api.RIBStatsInfo{}
+
+	if a.r.ribIn != nil {
+		inStats := a.r.ribIn.Stats()
+		stats.InPeerCount = inStats.PeerCount
+		stats.InRouteCount = inStats.RouteCount
+	}
+
+	if a.r.ribOut != nil {
+		outStats := a.r.ribOut.Stats()
+		stats.OutPending = outStats.PendingAnnouncements
+		stats.OutWithdrawls = outStats.PendingWithdrawals
+		stats.OutSent = outStats.SentRoutes
+	}
+
+	return stats
+}
+
+// routeToAPIRoute converts a RIB route to an API route.
+func routeToAPIRoute(peerID string, route *rib.Route) api.RIBRoute {
+	apiRoute := api.RIBRoute{
+		Peer: peerID,
+	}
+
+	if route.NLRI() != nil {
+		apiRoute.Prefix = route.NLRI().String()
+	}
+
+	if route.NextHop().IsValid() {
+		apiRoute.NextHop = route.NextHop().String()
+	}
+
+	if asPath := route.ASPath(); asPath != nil {
+		apiRoute.ASPath = formatASPath(asPath)
+	}
+
+	return apiRoute
+}
+
+// formatASPath formats an AS path for display.
+func formatASPath(asPath *attribute.ASPath) string {
+	if asPath == nil || len(asPath.Segments) == 0 {
+		return ""
+	}
+
+	var result string
+	for i, seg := range asPath.Segments {
+		if i > 0 {
+			result += " "
+		}
+		switch seg.Type {
+		case attribute.ASSet:
+			result += "{"
+			for j, asn := range seg.ASNs {
+				if j > 0 {
+					result += ","
+				}
+				result += fmt.Sprintf("%d", asn)
+			}
+			result += "}"
+		case attribute.ASSequence:
+			for j, asn := range seg.ASNs {
+				if j > 0 {
+					result += " "
+				}
+				result += fmt.Sprintf("%d", asn)
+			}
+		}
+	}
+	return result
 }
 
 // New creates a new reactor with the given configuration.

@@ -591,6 +591,44 @@ func buildOptionalParams(caps []capability.Capability) []byte {
 	return optParams
 }
 
+// SendUpdate sends a BGP UPDATE message.
+// Returns ErrInvalidState if the session is not established.
+func (s *Session) SendUpdate(update *message.Update) error {
+	s.mu.RLock()
+	conn := s.conn
+	neg := s.negotiated
+	state := s.fsm.State()
+	s.mu.RUnlock()
+
+	if state != fsm.StateEstablished {
+		return ErrInvalidState
+	}
+
+	if conn == nil {
+		return ErrNotConnected
+	}
+
+	// Convert capability.Negotiated to message.Negotiated for packing.
+	var msgNeg *message.Negotiated
+	if neg != nil {
+		msgNeg = &message.Negotiated{
+			ASN4:            neg.ASN4,
+			ExtendedMessage: neg.ExtendedMessage,
+			LocalAS:         neg.LocalASN,
+			PeerAS:          neg.PeerASN,
+			HoldTime:        neg.HoldTime,
+		}
+	}
+
+	data, err := update.Pack(msgNeg)
+	if err != nil {
+		return fmt.Errorf("pack UPDATE: %w", err)
+	}
+
+	_, err = conn.Write(data)
+	return err
+}
+
 // isTimeout checks if an error is a timeout.
 func isTimeout(err error) bool {
 	if err == nil {

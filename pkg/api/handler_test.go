@@ -80,6 +80,22 @@ func (m *mockReactor) AnnounceL2VPN(_ string, _ L2VPNRoute) error {
 	return nil
 }
 
+func (m *mockReactor) AnnounceEOR(_ string, _ uint16, _ uint8) error {
+	return nil
+}
+
+func (m *mockReactor) RIBInRoutes(_ string) []RIBRoute {
+	return nil
+}
+
+func (m *mockReactor) RIBOutRoutes() []RIBRoute {
+	return nil
+}
+
+func (m *mockReactor) RIBStats() RIBStatsInfo {
+	return RIBStatsInfo{}
+}
+
 func (m *mockReactor) WithdrawL2VPN(_ string, _ L2VPNRoute) error {
 	return nil
 }

@@ -201,16 +201,18 @@ func handleAnnounceEOR(ctx *CommandContext, args []string) (*Response, error) {
 		family = afiStr + " " + safiStr
 	}
 
-	// TODO: Send EOR to reactor when RIB integration is complete
-	// For now, return success with the family info
-	_ = afi
-	_ = safi
+	// Send EOR to all established peers
+	if err := ctx.Reactor.AnnounceEOR("*", afi, safi); err != nil {
+		return &Response{
+			Status: "error",
+			Error:  fmt.Sprintf("failed to send EOR: %v", err),
+		}, err
+	}
 
 	return &Response{
 		Status: "done",
 		Data: map[string]any{
 			"family": family,
-			"note":   "EOR queued for transmission",
 		},
 	}, nil
 }
