@@ -289,25 +289,85 @@ func (l MPLSLabel) String() string {
 }
 
 // RouteDistinguisher represents an RD (RFC 4364).
-// Formats: Type0 (ASN:NN), Type1 (IP:NN), Type2 (4-byte-ASN:NN)
+// Formats: Type0 (ASN2:NN4), Type1 (IP:NN2), Type2 (ASN4:NN2)
 type RouteDistinguisher struct {
-	Raw string
+	Raw   string  // Original string
+	Bytes [8]byte // Wire-format (2-byte type + 6-byte value)
 }
 
-// ParseRouteDistinguisher parses an RD string.
+// RD types
+const (
+	rdType0 = 0 // 2-byte ASN : 4-byte assigned
+	rdType1 = 1 // 4-byte IP : 2-byte assigned
+	rdType2 = 2 // 4-byte ASN : 2-byte assigned
+)
+
+// ParseRouteDistinguisher parses an RD string to wire format.
 func ParseRouteDistinguisher(s string) (RouteDistinguisher, error) {
 	if s == "" {
 		return RouteDistinguisher{}, nil
 	}
-	// Basic validation: should have colon
-	if !strings.Contains(s, ":") {
+
+	parts := strings.Split(s, ":")
+	if len(parts) != 2 {
 		return RouteDistinguisher{}, fmt.Errorf("invalid rd %q: expected format ASN:NN or IP:NN", s)
 	}
-	return RouteDistinguisher{Raw: s}, nil
+
+	var rd RouteDistinguisher
+	rd.Raw = s
+
+	// Check if first part is an IP address
+	if ip, err := netip.ParseAddr(parts[0]); err == nil && ip.Is4() {
+		// Type 1: IP:NN
+		num, err := strconv.ParseUint(parts[1], 10, 16)
+		if err != nil {
+			return RouteDistinguisher{}, fmt.Errorf("invalid rd number %q", parts[1])
+		}
+		b := ip.As4()
+		rd.Bytes[0], rd.Bytes[1] = 0, rdType1
+		copy(rd.Bytes[2:6], b[:])
+		rd.Bytes[6], rd.Bytes[7] = byte(num>>8), byte(num)
+		return rd, nil
+	}
+
+	// Parse as ASN:NN
+	asn, err := strconv.ParseUint(parts[0], 10, 32)
+	if err != nil {
+		return RouteDistinguisher{}, fmt.Errorf("invalid rd ASN %q", parts[0])
+	}
+	num, err := strconv.ParseUint(parts[1], 10, 32)
+	if err != nil {
+		return RouteDistinguisher{}, fmt.Errorf("invalid rd number %q", parts[1])
+	}
+
+	if asn <= 0xFFFF {
+		// Type 0: 2-byte ASN, 4-byte number
+		rd.Bytes[0], rd.Bytes[1] = 0, rdType0
+		rd.Bytes[2], rd.Bytes[3] = byte(asn>>8), byte(asn)
+		rd.Bytes[4] = byte(num >> 24)
+		rd.Bytes[5] = byte(num >> 16)
+		rd.Bytes[6] = byte(num >> 8)
+		rd.Bytes[7] = byte(num)
+	} else {
+		// Type 2: 4-byte ASN, 2-byte number
+		rd.Bytes[0], rd.Bytes[1] = 0, rdType2
+		rd.Bytes[2] = byte(asn >> 24)
+		rd.Bytes[3] = byte(asn >> 16)
+		rd.Bytes[4] = byte(asn >> 8)
+		rd.Bytes[5] = byte(asn)
+		rd.Bytes[6], rd.Bytes[7] = byte(num>>8), byte(num)
+	}
+
+	return rd, nil
 }
 
 func (rd RouteDistinguisher) String() string {
 	return rd.Raw
+}
+
+// IsZero returns true if the RD is empty/unset.
+func (rd RouteDistinguisher) IsZero() bool {
+	return rd.Raw == ""
 }
 
 // ParsedRouteAttributes holds all parsed route attributes.

@@ -30,7 +30,15 @@ type StaticRoute struct {
 
 	PathID uint32 // ADD-PATH path identifier
 	Label  uint32 // MPLS label (20-bit value)
-	RD     string // Route Distinguisher (e.g., "100:100")
+
+	// Route Distinguisher - both forms for serialization and wire encoding
+	RD      string  // Original string (e.g., "100:100")
+	RDBytes [8]byte // Wire-format (8 bytes)
+}
+
+// IsVPN returns true if this is a VPN route (has RD).
+func (r StaticRoute) IsVPN() bool {
+	return r.RD != ""
 }
 
 // Neighbor represents a configured BGP neighbor.

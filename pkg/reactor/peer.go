@@ -360,9 +360,11 @@ func buildStaticRouteUpdate(route StaticRoute, localAS uint32, isIBGP bool) *mes
 	}
 	attrBytes = append(attrBytes, attribute.PackAttribute(asPath)...)
 
-	// 3. NEXT_HOP
-	nextHop := &attribute.NextHop{Addr: route.NextHop}
-	attrBytes = append(attrBytes, attribute.PackAttribute(nextHop)...)
+	// 3. NEXT_HOP (always include for IPv4 routes, even VPN - for compatibility)
+	if route.NextHop.Is4() {
+		nextHop := &attribute.NextHop{Addr: route.NextHop}
+		attrBytes = append(attrBytes, attribute.PackAttribute(nextHop)...)
+	}
 
 	// 4. LOCAL_PREF (for iBGP, default 100 if not set)
 	if isIBGP {
@@ -388,9 +390,13 @@ func buildStaticRouteUpdate(route StaticRoute, localAS uint32, isIBGP bool) *mes
 		attrBytes = append(attrBytes, ecAttr...)
 	}
 
-	// Build NLRI with optional path-id for ADD-PATH
+	// Build NLRI - use MP_REACH_NLRI for VPN routes, inline NLRI for unicast
 	var nlriBytes []byte
-	if route.Prefix.Addr().Is4() {
+	if route.IsVPN() {
+		// VPN route: use MP_REACH_NLRI attribute (returns raw bytes)
+		attrBytes = append(attrBytes, buildMPReachNLRI(route)...)
+	} else if route.Prefix.Addr().Is4() {
+		// IPv4 unicast: inline NLRI with optional path-id
 		inet := nlri.NewINET(nlri.Family{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast}, route.Prefix, route.PathID)
 		nlriBytes = inet.Bytes()
 	}
@@ -399,4 +405,101 @@ func buildStaticRouteUpdate(route StaticRoute, localAS uint32, isIBGP bool) *mes
 		PathAttributes: attrBytes,
 		NLRI:           nlriBytes,
 	}
+}
+
+// buildMPReachNLRI builds MP_REACH_NLRI for VPN routes.
+// Returns raw attribute bytes (flags + type + length + value).
+func buildMPReachNLRI(route StaticRoute) []byte {
+	// Determine AFI/SAFI
+	afi := uint16(1) // IPv4
+	if route.Prefix.Addr().Is6() {
+		afi = 2 // IPv6
+	}
+	safi := byte(128) // MPLS VPN
+
+	// Build next-hop: RD (all zeros) + IP address
+	var nhBytes []byte
+	if route.NextHop.Is4() {
+		nhBytes = make([]byte, 12) // 8-byte RD + 4-byte IPv4
+		copy(nhBytes[8:], route.NextHop.AsSlice())
+	} else {
+		nhBytes = make([]byte, 24) // 8-byte RD + 16-byte IPv6
+		copy(nhBytes[8:], route.NextHop.AsSlice())
+	}
+
+	// Build VPN NLRI
+	vpnNLRI := buildVPNNLRIBytes(route)
+
+	// MP_REACH_NLRI value: AFI(2) + SAFI(1) + NH_Len(1) + NextHop + Reserved(1) + NLRI
+	valueLen := 2 + 1 + 1 + len(nhBytes) + 1 + len(vpnNLRI)
+	value := make([]byte, valueLen)
+	value[0] = byte(afi >> 8)
+	value[1] = byte(afi)
+	value[2] = safi
+	value[3] = byte(len(nhBytes))
+	copy(value[4:], nhBytes)
+	value[4+len(nhBytes)] = 0 // Reserved
+	copy(value[4+len(nhBytes)+1:], vpnNLRI)
+
+	// Build attribute header: flags + type + length + value
+	// Flags: 0x80 = optional, 0x90 = optional + extended length
+	var attr []byte
+	if valueLen > 255 {
+		attr = make([]byte, 4+valueLen)
+		attr[0] = 0x90 // optional + extended length
+		attr[1] = 14   // MP_REACH_NLRI
+		attr[2] = byte(valueLen >> 8)
+		attr[3] = byte(valueLen)
+		copy(attr[4:], value)
+	} else {
+		attr = make([]byte, 3+valueLen)
+		attr[0] = 0x80 // optional
+		attr[1] = 14   // MP_REACH_NLRI
+		attr[2] = byte(valueLen)
+		copy(attr[3:], value)
+	}
+
+	return attr
+}
+
+// buildVPNNLRIBytes builds the raw VPN NLRI bytes (for MP_REACH_NLRI).
+func buildVPNNLRIBytes(route StaticRoute) []byte {
+	// Label encoding: 20-bit label, 3-bit TC, 1-bit BOS (bottom of stack)
+	// Label is in upper 20 bits: label << 4, BOS in bit 0
+	label := route.Label
+	labelBytes := []byte{
+		byte(label >> 12),
+		byte(label >> 4),
+		byte(label<<4) | 0x01, // BOS = 1
+	}
+
+	// Prefix bytes
+	prefixBits := route.Prefix.Bits()
+	prefixBytes := (prefixBits + 7) / 8
+	prefixData := route.Prefix.Addr().AsSlice()[:prefixBytes]
+
+	// Total bits: 24 (label) + 64 (RD) + prefix bits
+	totalBits := 24 + 64 + prefixBits
+
+	// Build: [path-id] + length + label + RD + prefix
+	var buf []byte
+	if route.PathID != 0 {
+		buf = make([]byte, 4+1+3+8+prefixBytes)
+		buf[0] = byte(route.PathID >> 24)
+		buf[1] = byte(route.PathID >> 16)
+		buf[2] = byte(route.PathID >> 8)
+		buf[3] = byte(route.PathID)
+		buf[4] = byte(totalBits)
+		copy(buf[5:8], labelBytes)
+		copy(buf[8:16], route.RDBytes[:])
+		copy(buf[16:], prefixData)
+	} else {
+		buf = make([]byte, 1+3+8+prefixBytes)
+		buf[0] = byte(totalBits)
+		copy(buf[1:4], labelBytes)
+		copy(buf[4:12], route.RDBytes[:])
+		copy(buf[12:], prefixData)
+	}
+
+	return buf
 }

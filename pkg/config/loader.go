@@ -169,6 +169,7 @@ func configToNeighbor(nc *NeighborConfig, global *BGPConfig) (*reactor.Neighbor,
 			PathID:            uint32(attrs.PathID),
 			Label:             uint32(attrs.Label),
 			RD:                attrs.RD.Raw,
+			RDBytes:           attrs.RD.Bytes,
 		}
 
 		n.StaticRoutes = append(n.StaticRoutes, route)
