@@ -162,6 +162,13 @@ func (p *Process) ReadCommand(ctx context.Context) (string, error) {
 	case r := <-ch:
 		return r.line, r.err
 	case <-ctx.Done():
+		// Close stdout to unblock the goroutine waiting on ReadString.
+		// This prevents goroutine leaks when context times out.
+		p.mu.Lock()
+		if p.stdout != nil {
+			_ = p.stdout.Close()
+		}
+		p.mu.Unlock()
 		return "", ctx.Err()
 	}
 }

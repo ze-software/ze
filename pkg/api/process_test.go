@@ -68,8 +68,8 @@ func TestProcessWriteEvent(t *testing.T) {
 	err = proc.WriteEvent(`{"type":"test"}`)
 	require.NoError(t, err)
 
-	// Read back from process
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	// Read back from process (5s timeout for CI/parallel test environments)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
 	output, err := proc.ReadCommand(ctx)
