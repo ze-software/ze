@@ -492,8 +492,10 @@ func (s *Session) sendOpen(conn net.Conn) error {
 		}
 	}
 
-	// Add ASN4.
-	caps = append(caps, &capability.ASN4{ASN: s.neighbor.LocalAS})
+	// Add ASN4 unless disabled in config.
+	if !s.neighbor.DisableASN4 {
+		caps = append(caps, &capability.ASN4{ASN: s.neighbor.LocalAS})
+	}
 
 	// Add remaining capabilities.
 	caps = append(caps, otherCaps...)

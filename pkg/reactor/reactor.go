@@ -202,12 +202,13 @@ func buildAnnounceUpdate(route api.RouteSpec, localAS uint32) *message.Update {
 	attrBytes = append(attrBytes, attribute.PackAttribute(attribute.OriginIGP)...)
 
 	// 2. AS_PATH (prepend local AS for eBGP, empty for iBGP routes we originate)
+	// Always use 4-byte ASN for API-announced routes (modern standard)
 	asPath := &attribute.ASPath{
 		Segments: []attribute.ASPathSegment{
 			{Type: attribute.ASSequence, ASNs: []uint32{localAS}},
 		},
 	}
-	attrBytes = append(attrBytes, attribute.PackAttribute(asPath)...)
+	attrBytes = append(attrBytes, attribute.PackASPathAttribute(asPath, true)...)
 
 	// 3. NEXT_HOP
 	nextHop := &attribute.NextHop{Addr: route.NextHop}

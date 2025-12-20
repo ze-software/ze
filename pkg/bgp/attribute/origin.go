@@ -57,3 +57,10 @@ func PackAttribute(attr Attribute) []byte {
 	header := PackHeader(attr.Flags(), attr.Code(), uint16(len(value))) //nolint:gosec // Attr max 65535
 	return append(header, value...)
 }
+
+// PackASPathAttribute packs an AS_PATH attribute with optional 4-byte ASN support.
+func PackASPathAttribute(asPath *ASPath, asn4 bool) []byte {
+	value := asPath.PackWithASN4(asn4)
+	header := PackHeader(asPath.Flags(), asPath.Code(), uint16(len(value))) //nolint:gosec // Attr max 65535
+	return append(header, value...)
+}

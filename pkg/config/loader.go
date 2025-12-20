@@ -150,6 +150,9 @@ func configToNeighbor(nc *NeighborConfig, global *BGPConfig) (*reactor.Neighbor,
 		})
 	}
 
+	// ASN4 is enabled by default, disable if explicitly set to false in config.
+	n.DisableASN4 = !nc.Capabilities.ASN4
+
 	// Override port from environment (for testing).
 	if p := os.Getenv("exabgp_tcp_port"); p != "" {
 		if v, err := strconv.ParseUint(p, 10, 16); err == nil {

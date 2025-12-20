@@ -152,6 +152,9 @@ type Neighbor struct {
 	// GroupUpdates indicates whether to group compatible routes in single UPDATE.
 	GroupUpdates bool
 
+	// DisableASN4 prevents advertising 4-byte ASN capability.
+	DisableASN4 bool
+
 	// Capabilities to advertise in OPEN message.
 	Capabilities []capability.Capability
 

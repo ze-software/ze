@@ -34,21 +34,37 @@ func (p *ASPath) Flags() AttributeFlags { return FlagTransitive }
 
 // Len returns the packed length in bytes (4-byte ASN format).
 func (p *ASPath) Len() int {
+	return p.LenWithASN4(true)
+}
+
+// LenWithASN4 returns the packed length in bytes.
+// If asn4 is true, uses 4-byte ASN format, otherwise 2-byte.
+func (p *ASPath) LenWithASN4(asn4 bool) int {
 	length := 0
+	asnSize := 2
+	if asn4 {
+		asnSize = 4
+	}
 	for _, seg := range p.Segments {
-		// type(1) + count(1) + ASNs(4 each)
-		length += 2 + len(seg.ASNs)*4
+		// type(1) + count(1) + ASNs
+		length += 2 + len(seg.ASNs)*asnSize
 	}
 	return length
 }
 
 // Pack serializes the AS path (4-byte ASN format).
 func (p *ASPath) Pack() []byte {
+	return p.PackWithASN4(true)
+}
+
+// PackWithASN4 serializes the AS path.
+// If asn4 is true, uses 4-byte ASN format, otherwise 2-byte.
+func (p *ASPath) PackWithASN4(asn4 bool) []byte {
 	if len(p.Segments) == 0 {
 		return []byte{}
 	}
 
-	buf := make([]byte, p.Len())
+	buf := make([]byte, p.LenWithASN4(asn4))
 	offset := 0
 
 	for _, seg := range p.Segments {
@@ -57,8 +73,18 @@ func (p *ASPath) Pack() []byte {
 		offset += 2
 
 		for _, asn := range seg.ASNs {
-			binary.BigEndian.PutUint32(buf[offset:], asn)
-			offset += 4
+			if asn4 {
+				binary.BigEndian.PutUint32(buf[offset:], asn)
+				offset += 4
+			} else {
+				// 2-byte format: truncate to 16 bits (AS_TRANS if > 65535)
+				as16 := uint16(asn)
+				if asn > 65535 {
+					as16 = 23456 // AS_TRANS
+				}
+				binary.BigEndian.PutUint16(buf[offset:], as16)
+				offset += 2
+			}
 		}
 	}
 

@@ -323,6 +323,18 @@ func (p *Peer) sendInitialRoutes() {
 	addr := p.neighbor.Address.String()
 	trace.Log(trace.Routes, "neighbor %s: sending %d static routes", addr, len(p.neighbor.StaticRoutes))
 
+	// Get negotiated capabilities for AS_PATH encoding.
+	p.mu.RLock()
+	session := p.session
+	p.mu.RUnlock()
+
+	asn4 := true // Default to 4-byte if no session (shouldn't happen)
+	if session != nil {
+		if neg := session.Negotiated(); neg != nil {
+			asn4 = neg.ASN4
+		}
+	}
+
 	// Determine which address families are configured from capabilities.
 	hasIPv4Family := false
 	hasIPv6Family := false
@@ -343,7 +355,7 @@ func (p *Peer) sendInitialRoutes() {
 		groups := groupRoutesByAttributes(p.neighbor.StaticRoutes)
 
 		for _, routes := range groups {
-			update := buildGroupedUpdate(routes, p.neighbor.LocalAS, p.neighbor.IsIBGP())
+			update := buildGroupedUpdate(routes, p.neighbor.LocalAS, p.neighbor.IsIBGP(), asn4)
 			if err := p.SendUpdate(update); err != nil {
 				trace.Log(trace.Routes, "neighbor %s: send error: %v", addr, err)
 				break
@@ -355,7 +367,7 @@ func (p *Peer) sendInitialRoutes() {
 	} else {
 		// Send each route in its own UPDATE.
 		for _, route := range p.neighbor.StaticRoutes {
-			update := buildStaticRouteUpdate(route, p.neighbor.LocalAS, p.neighbor.IsIBGP())
+			update := buildStaticRouteUpdate(route, p.neighbor.LocalAS, p.neighbor.IsIBGP(), asn4)
 			if err := p.SendUpdate(update); err != nil {
 				trace.Log(trace.Routes, "neighbor %s: send error: %v", addr, err)
 				break
@@ -390,7 +402,8 @@ func (p *Peer) sendInitialRoutes() {
 }
 
 // buildStaticRouteUpdate builds an UPDATE message for a static route.
-func buildStaticRouteUpdate(route StaticRoute, localAS uint32, isIBGP bool) *message.Update {
+// asn4 indicates whether to use 4-byte AS numbers in AS_PATH.
+func buildStaticRouteUpdate(route StaticRoute, localAS uint32, isIBGP, asn4 bool) *message.Update {
 	var attrBytes []byte
 
 	// 1. ORIGIN (IGP by default, use configured value if set)
@@ -424,7 +437,7 @@ func buildStaticRouteUpdate(route StaticRoute, localAS uint32, isIBGP bool) *mes
 			},
 		}
 	}
-	attrBytes = append(attrBytes, attribute.PackAttribute(asPath)...)
+	attrBytes = append(attrBytes, attribute.PackASPathAttribute(asPath, asn4)...)
 
 	// 3. NEXT_HOP (always include for IPv4 routes, even VPN - for compatibility)
 	if route.NextHop.Is4() {
@@ -633,7 +646,8 @@ func groupRoutesByAttributes(routes []StaticRoute) [][]StaticRoute {
 }
 
 // buildGroupedUpdate builds an UPDATE message for multiple routes with same attributes.
-func buildGroupedUpdate(routes []StaticRoute, localAS uint32, isIBGP bool) *message.Update {
+// asn4 indicates whether to use 4-byte AS numbers in AS_PATH.
+func buildGroupedUpdate(routes []StaticRoute, localAS uint32, isIBGP, asn4 bool) *message.Update {
 	if len(routes) == 0 {
 		return &message.Update{}
 	}
@@ -668,7 +682,7 @@ func buildGroupedUpdate(routes []StaticRoute, localAS uint32, isIBGP bool) *mess
 			},
 		}
 	}
-	attrBytes = append(attrBytes, attribute.PackAttribute(asPath)...)
+	attrBytes = append(attrBytes, attribute.PackASPathAttribute(asPath, asn4)...)
 
 	// 3. NEXT_HOP (for IPv4 routes).
 	if route.NextHop.Is4() {
@@ -925,6 +939,18 @@ func (p *Peer) sendMVPNRoutes() {
 	addr := p.neighbor.Address.String()
 	trace.Log(trace.Routes, "neighbor %s: sending %d MVPN routes", addr, len(p.neighbor.MVPNRoutes))
 
+	// Get negotiated capabilities for AS_PATH encoding.
+	p.mu.RLock()
+	session := p.session
+	p.mu.RUnlock()
+
+	asn4 := true // Default to 4-byte if no session
+	if session != nil {
+		if neg := session.Negotiated(); neg != nil {
+			asn4 = neg.ASN4
+		}
+	}
+
 	// Group MVPN routes by AFI and attributes for efficient UPDATE grouping
 	ipv4Routes := make([]MVPNRoute, 0)
 	ipv6Routes := make([]MVPNRoute, 0)
@@ -940,7 +966,7 @@ func (p *Peer) sendMVPNRoutes() {
 	// Group IPv4 routes by next-hop (different next-hop = different UPDATE)
 	ipv4Groups := groupMVPNRoutesByNextHop(ipv4Routes)
 	for nh, routes := range ipv4Groups {
-		update := buildMVPNUpdate(routes, p.neighbor.LocalAS, p.neighbor.IsIBGP(), false)
+		update := buildMVPNUpdate(routes, p.neighbor.LocalAS, p.neighbor.IsIBGP(), false, asn4)
 		if err := p.SendUpdate(update); err != nil {
 			trace.Log(trace.Routes, "neighbor %s: MVPN send error: %v", addr, err)
 		} else {
@@ -951,7 +977,7 @@ func (p *Peer) sendMVPNRoutes() {
 	// Group IPv6 routes by next-hop
 	ipv6Groups := groupMVPNRoutesByNextHop(ipv6Routes)
 	for nh, routes := range ipv6Groups {
-		update := buildMVPNUpdate(routes, p.neighbor.LocalAS, p.neighbor.IsIBGP(), true)
+		update := buildMVPNUpdate(routes, p.neighbor.LocalAS, p.neighbor.IsIBGP(), true, asn4)
 		if err := p.SendUpdate(update); err != nil {
 			trace.Log(trace.Routes, "neighbor %s: MVPN send error: %v", addr, err)
 		} else {
@@ -971,7 +997,7 @@ func groupMVPNRoutesByNextHop(routes []MVPNRoute) map[string][]MVPNRoute {
 }
 
 // buildMVPNUpdate builds an UPDATE message for MVPN routes.
-func buildMVPNUpdate(routes []MVPNRoute, localAS uint32, isIBGP, isIPv6 bool) *message.Update {
+func buildMVPNUpdate(routes []MVPNRoute, localAS uint32, isIBGP, isIPv6, asn4 bool) *message.Update {
 	if len(routes) == 0 {
 		return &message.Update{}
 	}
@@ -1000,7 +1026,7 @@ func buildMVPNUpdate(routes []MVPNRoute, localAS uint32, isIBGP, isIPv6 bool) *m
 			},
 		}
 	}
-	attrBytes = append(attrBytes, attribute.PackAttribute(asPath)...)
+	attrBytes = append(attrBytes, attribute.PackASPathAttribute(asPath, asn4)...)
 
 	// 3. NEXT_HOP (via MP_REACH_NLRI for MVPN)
 	// Build as traditional NEXT_HOP for test compatibility
@@ -1168,8 +1194,20 @@ func (p *Peer) sendVPLSRoutes() {
 	addr := p.neighbor.Address.String()
 	trace.Log(trace.Routes, "neighbor %s: sending %d VPLS routes", addr, len(p.neighbor.VPLSRoutes))
 
+	// Get negotiated capabilities for AS_PATH encoding.
+	p.mu.RLock()
+	session := p.session
+	p.mu.RUnlock()
+
+	asn4 := true // Default to 4-byte if no session
+	if session != nil {
+		if neg := session.Negotiated(); neg != nil {
+			asn4 = neg.ASN4
+		}
+	}
+
 	for _, route := range p.neighbor.VPLSRoutes {
-		update := buildVPLSUpdate(route, p.neighbor.LocalAS, p.neighbor.IsIBGP())
+		update := buildVPLSUpdate(route, p.neighbor.LocalAS, p.neighbor.IsIBGP(), asn4)
 		if err := p.SendUpdate(update); err != nil {
 			trace.Log(trace.Routes, "neighbor %s: VPLS send error: %v", addr, err)
 		}
@@ -1181,7 +1219,8 @@ func (p *Peer) sendVPLSRoutes() {
 }
 
 // buildVPLSUpdate builds an UPDATE message for a VPLS route.
-func buildVPLSUpdate(route VPLSRoute, localAS uint32, isIBGP bool) *message.Update {
+// asn4 indicates whether to use 4-byte AS numbers in AS_PATH.
+func buildVPLSUpdate(route VPLSRoute, localAS uint32, isIBGP, asn4 bool) *message.Update {
 	var attrBytes []byte
 
 	// 1. ORIGIN
@@ -1205,7 +1244,7 @@ func buildVPLSUpdate(route VPLSRoute, localAS uint32, isIBGP bool) *message.Upda
 			},
 		}
 	}
-	attrBytes = append(attrBytes, attribute.PackAttribute(asPath)...)
+	attrBytes = append(attrBytes, attribute.PackASPathAttribute(asPath, asn4)...)
 
 	// Note: NEXT_HOP is in MP_REACH_NLRI for VPLS, not as separate attribute
 
@@ -1324,12 +1363,24 @@ func (p *Peer) sendFlowSpecRoutes() {
 	addr := p.neighbor.Address.String()
 	trace.Log(trace.Routes, "neighbor %s: sending %d FlowSpec routes", addr, len(p.neighbor.FlowSpecRoutes))
 
+	// Get negotiated capabilities for AS_PATH encoding.
+	p.mu.RLock()
+	session := p.session
+	p.mu.RUnlock()
+
+	asn4 := true // Default to 4-byte if no session
+	if session != nil {
+		if neg := session.Negotiated(); neg != nil {
+			asn4 = neg.ASN4
+		}
+	}
+
 	// Track which AFI/SAFIs we've sent for EOR
 	var hasIPv4, hasIPv6, hasIPv4VPN bool
 
 	// Send routes in config order
 	for _, route := range p.neighbor.FlowSpecRoutes {
-		update := buildFlowSpecUpdate(route, p.neighbor.LocalAS, p.neighbor.IsIBGP())
+		update := buildFlowSpecUpdate(route, p.neighbor.LocalAS, p.neighbor.IsIBGP(), asn4)
 		if err := p.SendUpdate(update); err != nil {
 			trace.Log(trace.Routes, "neighbor %s: FlowSpec send error: %v", addr, err)
 		}
@@ -1359,7 +1410,8 @@ func (p *Peer) sendFlowSpecRoutes() {
 }
 
 // buildFlowSpecUpdate builds an UPDATE message for a FlowSpec route.
-func buildFlowSpecUpdate(route FlowSpecRoute, localAS uint32, isIBGP bool) *message.Update {
+// asn4 indicates whether to use 4-byte AS numbers in AS_PATH.
+func buildFlowSpecUpdate(route FlowSpecRoute, localAS uint32, isIBGP, asn4 bool) *message.Update {
 	var attrBytes []byte
 
 	// 1. ORIGIN (IGP)
@@ -1377,7 +1429,7 @@ func buildFlowSpecUpdate(route FlowSpecRoute, localAS uint32, isIBGP bool) *mess
 			},
 		}
 	}
-	attrBytes = append(attrBytes, attribute.PackAttribute(asPath)...)
+	attrBytes = append(attrBytes, attribute.PackASPathAttribute(asPath, asn4)...)
 
 	// 3. LOCAL_PREF
 	if isIBGP {
@@ -1496,6 +1548,18 @@ func (p *Peer) sendMUPRoutes() {
 	addr := p.neighbor.Address.String()
 	trace.Log(trace.Routes, "neighbor %s: sending %d MUP routes", addr, len(p.neighbor.MUPRoutes))
 
+	// Get negotiated capabilities for AS_PATH encoding.
+	p.mu.RLock()
+	session := p.session
+	p.mu.RUnlock()
+
+	asn4 := true // Default to 4-byte if no session
+	if session != nil {
+		if neg := session.Negotiated(); neg != nil {
+			asn4 = neg.ASN4
+		}
+	}
+
 	// Separate IPv4 and IPv6 routes
 	var ipv4Routes, ipv6Routes []MUPRoute
 	for _, route := range p.neighbor.MUPRoutes {
@@ -1508,7 +1572,7 @@ func (p *Peer) sendMUPRoutes() {
 
 	// Send IPv4 MUP routes
 	for _, route := range ipv4Routes {
-		update := buildMUPUpdate(route, p.neighbor.LocalAS, p.neighbor.IsIBGP())
+		update := buildMUPUpdate(route, p.neighbor.LocalAS, p.neighbor.IsIBGP(), asn4)
 		if err := p.SendUpdate(update); err != nil {
 			trace.Log(trace.Routes, "neighbor %s: MUP send error: %v", addr, err)
 		}
@@ -1516,7 +1580,7 @@ func (p *Peer) sendMUPRoutes() {
 
 	// Send IPv6 MUP routes
 	for _, route := range ipv6Routes {
-		update := buildMUPUpdate(route, p.neighbor.LocalAS, p.neighbor.IsIBGP())
+		update := buildMUPUpdate(route, p.neighbor.LocalAS, p.neighbor.IsIBGP(), asn4)
 		if err := p.SendUpdate(update); err != nil {
 			trace.Log(trace.Routes, "neighbor %s: MUP send error: %v", addr, err)
 		}
@@ -1534,7 +1598,8 @@ func (p *Peer) sendMUPRoutes() {
 }
 
 // buildMUPUpdate builds an UPDATE message for a MUP route.
-func buildMUPUpdate(route MUPRoute, localAS uint32, isIBGP bool) *message.Update {
+// asn4 indicates whether to use 4-byte AS numbers in AS_PATH.
+func buildMUPUpdate(route MUPRoute, localAS uint32, isIBGP, asn4 bool) *message.Update {
 	var attrBytes []byte
 
 	// 1. ORIGIN (IGP)
@@ -1552,7 +1617,7 @@ func buildMUPUpdate(route MUPRoute, localAS uint32, isIBGP bool) *message.Update
 			},
 		}
 	}
-	attrBytes = append(attrBytes, attribute.PackAttribute(asPath)...)
+	attrBytes = append(attrBytes, attribute.PackASPathAttribute(asPath, asn4)...)
 
 	// 3. LOCAL_PREF
 	if isIBGP {
