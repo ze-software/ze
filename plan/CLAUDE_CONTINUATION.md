@@ -6,12 +6,13 @@
 
 ## CURRENT PRIORITY
 
-**Review ExaBGP alignment plan with user.**
+**1. Annotate existing code with RFC references**
+   - Plan: `plan/rfc-annotation.md`
+   - Document any RFC violations found
 
-Plan file: `plan/exabgp-alignment.md`
-
-35 items across 9 phases comparing ZeBGP vs ExaBGP implementations.
-User needs to decide ALIGN/KEEP/SKIP for each item.
+**2. Create implementation tasks from 26 ALIGN items**
+   - Source: `plan/exabgp-alignment.md`
+   - Merge with RFC violations from step 1
 
 ---
 
