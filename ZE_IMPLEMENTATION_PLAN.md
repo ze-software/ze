@@ -2183,5 +2183,48 @@ func BenchmarkRIBInsert(b *testing.B) {
 
 ---
 
-**Document Version:** 1.0
-**Last Updated:** 2025-12-19
+## Appendix D: Testing Infrastructure Status (2025-12-20)
+
+### Self-Check Framework
+The `self-check` command runs ExaBGP-style integration tests.
+
+| Component | Status | Notes |
+|-----------|--------|-------|
+| Test runner | ✅ Working | `cmd/self-check/main.go` |
+| Test peer | ✅ Working | `cmd/zebgp-peer/main.go` |
+| Expect file parsing | ✅ Working | Supports `option:`, `N:raw:`, `N:cmd:` |
+| KEEPALIVE matching | ✅ Fixed | Was bypassing expected message list |
+| Pipe capture | ✅ Fixed | Now reads asynchronously before Wait() |
+| Test config | ⚠️ Basic | Only tests session establishment |
+
+### Config-Based Routes
+Routes can be configured per-neighbor and sent on session establishment.
+
+| Component | Status | Notes |
+|-----------|--------|-------|
+| StaticRoute type | ✅ Done | `pkg/reactor/neighbor.go` |
+| sendInitialRoutes | ✅ Done | `pkg/reactor/peer.go` |
+| Config loader | ✅ Done | `pkg/config/loader.go` |
+| Freeform parsing | ❌ Broken | Doesn't extract nested data |
+| Block syntax | ⚠️ Needs schema change | Would require `List(TypePrefix, ...)` |
+| Inline syntax | ❌ Not supported | Complex ExaBGP syntax |
+
+### ExaBGP Test Migration
+Tests from `main/qa/` need to be migrated.
+
+| Category | Count | Migrated | Notes |
+|----------|-------|----------|-------|
+| Encoding | 39 | 0 | In `main/qa/encoding/` |
+| Decoding | 19 | 0 | In `main/qa/decoding/` |
+| Basic session | 1 | 1 | `testdata/conf-ebgp.ci` |
+
+### Next Steps for Testing
+1. Fix Freeform parsing or change schema to support static routes
+2. Update test config to include UPDATE message expectations
+3. Copy ExaBGP tests and adapt for zebgp
+4. Add round-trip tests (pack → unpack → pack)
+
+---
+
+**Document Version:** 1.1
+**Last Updated:** 2025-12-20
