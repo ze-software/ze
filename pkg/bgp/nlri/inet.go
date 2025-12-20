@@ -1,3 +1,20 @@
+// Package nlri implements BGP Network Layer Reachability Information encoding.
+//
+// RFC 4271 Section 4.3 - UPDATE Message Format:
+// NLRI is encoded as one or more 2-tuples of the form <length, prefix>:
+//
+//	+---------------------------+
+//	|   Length (1 octet)        |
+//	+---------------------------+
+//	|   Prefix (variable)       |
+//	+---------------------------+
+//
+// RFC 4760 Section 5 - NLRI Encoding:
+// Extends RFC 4271 NLRI encoding for multiprotocol (IPv6, VPN, etc.).
+// Same <length, prefix> format applies to all address families.
+//
+// RFC 7911 Section 3 - Extended NLRI Encodings:
+// ADD-PATH extends NLRI by prepending a 4-octet Path Identifier.
 package nlri
 
 import (
@@ -16,8 +33,12 @@ var (
 
 // INET represents an IPv4 or IPv6 unicast/multicast NLRI.
 //
-// This is the most common NLRI type, representing a simple IP prefix.
-// Supports ADD-PATH (RFC 7911) with optional path ID.
+// RFC 4271 Section 4.3 - Network Layer Reachability Information:
+// Each prefix is encoded as <length, prefix> where length is in bits
+// and prefix contains the minimum octets needed for the prefix.
+//
+// RFC 7911 Section 3 - Extended NLRI Encodings:
+// When ADD-PATH is negotiated, a 4-octet Path Identifier precedes the NLRI.
 type INET struct {
 	family  Family
 	prefix  netip.Prefix
@@ -38,6 +59,18 @@ func NewINET(family Family, prefix netip.Prefix, pathID uint32) *INET {
 }
 
 // ParseINET parses an INET NLRI from wire format.
+//
+// RFC 4271 Section 4.3 - UPDATE Message Format:
+// Parses the <length, prefix> encoding where:
+//   - Length (1 octet): prefix length in bits (0-32 for IPv4, 0-128 for IPv6)
+//   - Prefix (variable): minimum octets to contain the prefix bits
+//
+// RFC 4760 Section 5 - NLRI Encoding:
+// Same encoding applies for IPv6 (AFI=2) with 128-bit maximum prefix length.
+//
+// RFC 7911 Section 3 - Extended NLRI Encodings:
+// When addpath=true, a 4-octet Path Identifier precedes the <length, prefix>.
+//
 // Returns the parsed NLRI, remaining bytes, and any error.
 func ParseINET(afi AFI, safi SAFI, data []byte, addpath bool) (NLRI, []byte, error) {
 	if len(data) == 0 {
@@ -47,7 +80,7 @@ func ParseINET(afi AFI, safi SAFI, data []byte, addpath bool) (NLRI, []byte, err
 	offset := 0
 	var pathID uint32
 
-	// Parse optional path ID (ADD-PATH)
+	// RFC 7911 Section 3: Parse optional 4-octet Path Identifier (ADD-PATH)
 	if addpath {
 		if len(data) < 4 {
 			return nil, nil, ErrShortRead
@@ -56,14 +89,16 @@ func ParseINET(afi AFI, safi SAFI, data []byte, addpath bool) (NLRI, []byte, err
 		offset = 4
 	}
 
-	// Parse prefix length (in bits)
+	// RFC 4271 Section 4.3: Parse prefix length (1 octet, value in bits)
+	// "The Length field indicates the length in bits of the IP address prefix."
 	if offset >= len(data) {
 		return nil, nil, ErrShortRead
 	}
 	prefixLen := int(data[offset])
 	offset++
 
-	// Validate prefix length
+	// RFC 4271 Section 4.3: IPv4 prefix length is 0-32 bits
+	// RFC 4760 Section 5: IPv6 prefix length is 0-128 bits
 	maxLen := 32
 	if afi == AFIIPv6 {
 		maxLen = 128
@@ -72,7 +107,9 @@ func ParseINET(afi AFI, safi SAFI, data []byte, addpath bool) (NLRI, []byte, err
 		return nil, nil, ErrInvalidPrefix
 	}
 
-	// Calculate prefix bytes
+	// RFC 4271 Section 4.3: Calculate minimum octets for prefix
+	// "The Prefix field contains an IP address prefix, followed by enough
+	// trailing bits to make the end of the field fall on an octet boundary."
 	prefixBytes := (prefixLen + 7) / 8
 
 	if offset+prefixBytes > len(data) {
@@ -127,6 +164,12 @@ func (i *INET) HasPathID() bool {
 }
 
 // Bytes returns the wire-format encoding.
+//
+// RFC 4271 Section 4.3 - UPDATE Message Format:
+// Encodes as <length, prefix> where length is prefix bits and prefix is
+// the minimum octets needed (trailing bits are zero-padded to octet boundary).
+//
+// RFC 7911 Section 3: When HasPathID() is true, prepends 4-octet Path Identifier.
 func (i *INET) Bytes() []byte {
 	prefixLen := i.prefix.Bits()
 	prefixBytes := (prefixLen + 7) / 8

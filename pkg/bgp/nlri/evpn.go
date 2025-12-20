@@ -1,3 +1,14 @@
+// Package nlri provides EVPN NLRI parsing and encoding.
+//
+// EVPN is defined in RFC 7432 (BGP MPLS-Based Ethernet VPN).
+// EVPN Type 5 (IP Prefix) is defined in RFC 9136.
+//
+// RFC 7432 Section 7: BGP EVPN Routes
+// RFC 7432 Section 7.1: Ethernet Auto-discovery Route (Type 1)
+// RFC 7432 Section 7.2: MAC/IP Advertisement Route (Type 2)
+// RFC 7432 Section 7.3: Inclusive Multicast Ethernet Tag Route (Type 3)
+// RFC 7432 Section 7.4: Ethernet Segment Route (Type 4)
+// RFC 9136 Section 3: IP Prefix Route (Type 5)
 package nlri
 
 import (
@@ -7,15 +18,29 @@ import (
 )
 
 // EVPNRouteType identifies the EVPN route type.
+// RFC 7432 Section 7 defines the EVPN NLRI format:
+//
+//	+-----------------------------------+
+//	|    Route Type (1 octet)           |
+//	+-----------------------------------+
+//	|     Length (1 octet)              |
+//	+-----------------------------------+
+//	| Route Type specific (variable)    |
+//	+-----------------------------------+
 type EVPNRouteType uint8
 
-// EVPN Route Types (RFC 7432).
+// EVPN Route Types per RFC 7432 Section 7 and RFC 9136.
 const (
-	EVPNRouteType1 EVPNRouteType = 1 // Ethernet Auto-Discovery
-	EVPNRouteType2 EVPNRouteType = 2 // MAC/IP Advertisement
-	EVPNRouteType3 EVPNRouteType = 3 // Inclusive Multicast Ethernet Tag
-	EVPNRouteType4 EVPNRouteType = 4 // Ethernet Segment
-	EVPNRouteType5 EVPNRouteType = 5 // IP Prefix
+	// EVPNRouteType1 is Ethernet Auto-Discovery (RFC 7432 Section 7.1).
+	EVPNRouteType1 EVPNRouteType = 1
+	// EVPNRouteType2 is MAC/IP Advertisement (RFC 7432 Section 7.2).
+	EVPNRouteType2 EVPNRouteType = 2
+	// EVPNRouteType3 is Inclusive Multicast Ethernet Tag (RFC 7432 Section 7.3).
+	EVPNRouteType3 EVPNRouteType = 3
+	// EVPNRouteType4 is Ethernet Segment (RFC 7432 Section 7.4).
+	EVPNRouteType4 EVPNRouteType = 4
+	// EVPNRouteType5 is IP Prefix (RFC 9136 Section 3).
+	EVPNRouteType5 EVPNRouteType = 5
 )
 
 // String returns the route type name.
@@ -37,6 +62,7 @@ func (t EVPNRouteType) String() string {
 }
 
 // ESI represents a 10-byte Ethernet Segment Identifier.
+// RFC 7432 Section 5 defines the ESI format and types.
 type ESI [10]byte
 
 // IsZero returns true if ESI is all zeros.
@@ -51,6 +77,7 @@ func (e ESI) String() string {
 }
 
 // EVPN is the interface for all EVPN route types.
+// All EVPN routes carry a Route Distinguisher (RFC 7432 Section 7).
 type EVPN interface {
 	NLRI
 	RouteType() EVPNRouteType
@@ -58,6 +85,8 @@ type EVPN interface {
 }
 
 // ParseEVPN parses an EVPN NLRI from wire format.
+// RFC 7432 Section 7: The EVPN NLRI is carried in BGP using BGP Multiprotocol
+// Extensions with AFI 25 (L2VPN) and SAFI 70 (EVPN).
 func ParseEVPN(data []byte, addpath bool) (NLRI, []byte, error) {
 	if len(data) < 2 {
 		return nil, nil, ErrShortRead
@@ -122,6 +151,31 @@ func ParseEVPN(data []byte, addpath bool) (NLRI, []byte, error) {
 }
 
 // EVPNType2 represents a MAC/IP Advertisement route.
+// RFC 7432 Section 7.2 defines the wire format:
+//
+//	+---------------------------------------+
+//	|  RD (8 octets)                        |
+//	+---------------------------------------+
+//	|Ethernet Segment Identifier (10 octets)|
+//	+---------------------------------------+
+//	|  Ethernet Tag ID (4 octets)           |
+//	+---------------------------------------+
+//	|  MAC Address Length (1 octet)         |
+//	+---------------------------------------+
+//	|  MAC Address (6 octets)               |
+//	+---------------------------------------+
+//	|  IP Address Length (1 octet)          |
+//	+---------------------------------------+
+//	|  IP Address (0, 4, or 16 octets)      |
+//	+---------------------------------------+
+//	|  MPLS Label1 (3 octets)               |
+//	+---------------------------------------+
+//	|  MPLS Label2 (0 or 3 octets)          |
+//	+---------------------------------------+
+//
+// Both MAC and IP address lengths are in bits (RFC 7432 Section 7.2).
+// MAC Address Length MUST be 48 for Ethernet MACs.
+// IP Address Length is 0 (none), 32 (IPv4), or 128 (IPv6).
 type EVPNType2 struct {
 	rd          RouteDistinguisher
 	esi         ESI
@@ -133,8 +187,9 @@ type EVPNType2 struct {
 	hasPath     bool
 }
 
+// parseEVPNType2 parses a MAC/IP Advertisement route per RFC 7432 Section 7.2.
 func parseEVPNType2(data []byte, pathID uint32, hasPath bool) (*EVPNType2, error) {
-	// RD (8) + ESI (10) + EthTag (4) + MACLen (1) + MAC (6) + IPLen (1) + [IP] + Labels
+	// RFC 7432 Section 7.2: RD (8) + ESI (10) + EthTag (4) + MACLen (1) + MAC (6) + IPLen (1)
 	if len(data) < 8+10+4+1+6+1 {
 		return nil, ErrShortRead
 	}
@@ -159,7 +214,7 @@ func parseEVPNType2(data []byte, pathID uint32, hasPath bool) (*EVPNType2, error
 	e.ethernetTag = binary.BigEndian.Uint32(data[offset : offset+4])
 	offset += 4
 
-	// MAC Length (should be 48)
+	// MAC Length in bits (RFC 7432 Section 7.2: MUST be 48 for Ethernet)
 	macLen := data[offset]
 	offset++
 	if macLen != 48 {
@@ -170,11 +225,11 @@ func parseEVPNType2(data []byte, pathID uint32, hasPath bool) (*EVPNType2, error
 	copy(e.mac[:], data[offset:offset+6])
 	offset += 6
 
-	// IP Length
+	// IP Length in bits (RFC 7432 Section 7.2: 0, 32, or 128)
 	ipLen := data[offset]
 	offset++
 
-	// IP (optional)
+	// IP (optional per RFC 7432 Section 10)
 	switch ipLen {
 	case 0:
 		// No IP
@@ -245,6 +300,20 @@ func (e *EVPNType2) String() string {
 }
 
 // EVPNType3 represents an Inclusive Multicast Ethernet Tag route.
+// RFC 7432 Section 7.3 defines the wire format:
+//
+//	+---------------------------------------+
+//	|  RD (8 octets)                        |
+//	+---------------------------------------+
+//	|  Ethernet Tag ID (4 octets)           |
+//	+---------------------------------------+
+//	|  IP Address Length (1 octet)          |
+//	+---------------------------------------+
+//	|  Originating Router's IP Address      |
+//	|          (4 or 16 octets)             |
+//	+---------------------------------------+
+//
+// IP Address Length is in bits (32 or 128 per RFC 7432 Section 7.3).
 type EVPNType3 struct {
 	rd           RouteDistinguisher
 	ethernetTag  uint32
@@ -253,8 +322,9 @@ type EVPNType3 struct {
 	hasPath      bool
 }
 
+// parseEVPNType3 parses an Inclusive Multicast Ethernet Tag route per RFC 7432 Section 7.3.
 func parseEVPNType3(data []byte, pathID uint32, hasPath bool) (*EVPNType3, error) {
-	// RD (8) + EthTag (4) + IPLen (1) + IP
+	// RFC 7432 Section 7.3: RD (8) + EthTag (4) + IPLen (1) + IP
 	if len(data) < 8+4+1 {
 		return nil, ErrShortRead
 	}
@@ -309,6 +379,26 @@ func (e *EVPNType3) String() string {
 }
 
 // EVPNType5 represents an IP Prefix route.
+// RFC 9136 Section 3 defines the wire format:
+//
+//	+---------------------------------------+
+//	|      RD (8 octets)                    |
+//	+---------------------------------------+
+//	|Ethernet Segment Identifier (10 octets)|
+//	+---------------------------------------+
+//	|  Ethernet Tag ID (4 octets)           |
+//	+---------------------------------------+
+//	|  IP Prefix Length (1 octet)           |
+//	+---------------------------------------+
+//	|  IP Prefix (4 or 16 octets)           |
+//	+---------------------------------------+
+//	|  GW IP Address (4 or 16 octets)       |
+//	+---------------------------------------+
+//	|  MPLS Label (3 octets)                |
+//	+---------------------------------------+
+//
+// RFC 9136: IP Prefix Length is 0-32 for IPv4, 0-128 for IPv6.
+// Total length is 34 octets for IPv4 or 58 octets for IPv6.
 type EVPNType5 struct {
 	rd          RouteDistinguisher
 	esi         ESI
@@ -320,8 +410,9 @@ type EVPNType5 struct {
 	hasPath     bool
 }
 
+// parseEVPNType5 parses an IP Prefix route per RFC 9136 Section 3.
 func parseEVPNType5(data []byte, pathID uint32, hasPath bool) (*EVPNType5, error) {
-	// RD (8) + ESI (10) + EthTag (4) + IPLen (1) + IP + GW + Label
+	// RFC 9136: RD (8) + ESI (10) + EthTag (4) + IPLen (1) + IP + GW + Label
 	if len(data) < 8+10+4+1 {
 		return nil, ErrShortRead
 	}
@@ -351,7 +442,7 @@ func parseEVPNType5(data []byte, pathID uint32, hasPath bool) (*EVPNType5, error
 		return nil, ErrShortRead
 	}
 
-	// Determine if IPv4 or IPv6 based on prefix length
+	// RFC 9136: Determine IPv4 or IPv6 based on prefix length (0-32 = IPv4, >32 = IPv6)
 	var addr netip.Addr
 	if ipLen <= 32 {
 		var ip [4]byte
@@ -370,7 +461,7 @@ func parseEVPNType5(data []byte, pathID uint32, hasPath bool) (*EVPNType5, error
 	}
 	e.prefix = prefix
 
-	// Gateway (same size as prefix address family)
+	// RFC 9136: Gateway IP (same address family as prefix)
 	gwBytes := 4
 	if ipLen > 32 {
 		gwBytes = 16
@@ -415,6 +506,9 @@ func (e *EVPNType5) String() string {
 }
 
 // EVPNGeneric holds unparsed EVPN routes.
+// Used for route types not yet implemented (e.g., Type 1, Type 4).
+// RFC 7432 Section 7.1: Type 1 - Ethernet Auto-discovery
+// RFC 7432 Section 7.4: Type 4 - Ethernet Segment
 type EVPNGeneric struct {
 	routeType EVPNRouteType
 	data      []byte

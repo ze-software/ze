@@ -1,3 +1,9 @@
+// Package nlri provides BGP NLRI (Network Layer Reachability Information) types.
+//
+// BGP-LS (Link-State) NLRI encoding is defined in RFC 7752:
+// "North-Bound Distribution of Link-State and Traffic Engineering (TE)
+// Information Using BGP"
+// https://datatracker.ietf.org/doc/html/rfc7752
 package nlri
 
 import (
@@ -12,16 +18,29 @@ var (
 	ErrBGPLSInvalidType = errors.New("bgp-ls: invalid NLRI type")
 )
 
-// BGPLSNLRIType identifies the type of BGP-LS NLRI (RFC 7752).
+// BGPLSNLRIType identifies the type of BGP-LS NLRI.
+// RFC 7752 Section 3.2, Table 1 - NLRI Types
 type BGPLSNLRIType uint16
 
-// BGP-LS NLRI types (RFC 7752 Section 3.2).
+// BGP-LS NLRI types.
+// RFC 7752 Section 3.2, Table 1:
+//
+//	+------+---------------------------+
+//	| Type | NLRI Type                 |
+//	+------+---------------------------+
+//	|   1  | Node NLRI                 |
+//	|   2  | Link NLRI                 |
+//	|   3  | IPv4 Topology Prefix NLRI |
+//	|   4  | IPv6 Topology Prefix NLRI |
+//	+------+---------------------------+
+//
+// Note: Type 6 (SRv6 SID NLRI) is defined in RFC 9514, not RFC 7752.
 const (
-	BGPLSNodeNLRI     BGPLSNLRIType = 1 // Node NLRI
-	BGPLSLinkNLRI     BGPLSNLRIType = 2 // Link NLRI
-	BGPLSPrefixV4NLRI BGPLSNLRIType = 3 // IPv4 Topology Prefix NLRI
-	BGPLSPrefixV6NLRI BGPLSNLRIType = 4 // IPv6 Topology Prefix NLRI
-	BGPLSSRv6SIDNLRI  BGPLSNLRIType = 6 // SRv6 SID NLRI
+	BGPLSNodeNLRI     BGPLSNLRIType = 1 // Node NLRI (RFC 7752 Section 3.2)
+	BGPLSLinkNLRI     BGPLSNLRIType = 2 // Link NLRI (RFC 7752 Section 3.2)
+	BGPLSPrefixV4NLRI BGPLSNLRIType = 3 // IPv4 Topology Prefix NLRI (RFC 7752 Section 3.2)
+	BGPLSPrefixV6NLRI BGPLSNLRIType = 4 // IPv6 Topology Prefix NLRI (RFC 7752 Section 3.2)
+	BGPLSSRv6SIDNLRI  BGPLSNLRIType = 6 // SRv6 SID NLRI (RFC 9514)
 )
 
 // String returns a human-readable NLRI type name.
@@ -42,20 +61,35 @@ func (t BGPLSNLRIType) String() string {
 	}
 }
 
-// BGPLSProtocolID identifies the IGP protocol (RFC 7752 Section 3.2).
+// BGPLSProtocolID identifies the IGP protocol source of link-state information.
+// RFC 7752 Section 3.2, Table 2 - Protocol Identifiers
 type BGPLSProtocolID uint8
 
 // Protocol IDs.
+// RFC 7752 Section 3.2, Table 2:
+//
+//	+-------------+----------------------------------+
+//	| Protocol-ID | NLRI information source protocol |
+//	+-------------+----------------------------------+
+//	|      1      | IS-IS Level 1                    |
+//	|      2      | IS-IS Level 2                    |
+//	|      3      | OSPFv2                           |
+//	|      4      | Direct                           |
+//	|      5      | Static configuration             |
+//	|      6      | OSPFv3                           |
+//	+-------------+----------------------------------+
+//
+// Note: Protocol IDs 7-9 are not defined in RFC 7752 but are used by implementations.
 const (
-	ProtoISISL1  BGPLSProtocolID = 1 // IS-IS Level 1
-	ProtoISISL2  BGPLSProtocolID = 2 // IS-IS Level 2
-	ProtoOSPFv2  BGPLSProtocolID = 3 // OSPFv2
-	ProtoDirect  BGPLSProtocolID = 4 // Direct
-	ProtoStatic  BGPLSProtocolID = 5 // Static
-	ProtoOSPFv3  BGPLSProtocolID = 6 // OSPFv3
-	ProtoBGP     BGPLSProtocolID = 7 // BGP
-	ProtoRSVPTE  BGPLSProtocolID = 8 // RSVP-TE
-	ProtoSegment BGPLSProtocolID = 9 // Segment Routing
+	ProtoISISL1  BGPLSProtocolID = 1 // IS-IS Level 1 (RFC 7752 Section 3.2)
+	ProtoISISL2  BGPLSProtocolID = 2 // IS-IS Level 2 (RFC 7752 Section 3.2)
+	ProtoOSPFv2  BGPLSProtocolID = 3 // OSPFv2 (RFC 7752 Section 3.2)
+	ProtoDirect  BGPLSProtocolID = 4 // Direct (RFC 7752 Section 3.2)
+	ProtoStatic  BGPLSProtocolID = 5 // Static configuration (RFC 7752 Section 3.2)
+	ProtoOSPFv3  BGPLSProtocolID = 6 // OSPFv3 (RFC 7752 Section 3.2)
+	ProtoBGP     BGPLSProtocolID = 7 // BGP (implementation extension)
+	ProtoRSVPTE  BGPLSProtocolID = 8 // RSVP-TE (implementation extension)
+	ProtoSegment BGPLSProtocolID = 9 // Segment Routing (implementation extension)
 )
 
 // String returns a human-readable protocol name.
@@ -81,71 +115,125 @@ func (p BGPLSProtocolID) String() string {
 }
 
 // BGP-LS TLV types for node descriptors.
+// RFC 7752 Section 3.2.1, Table 3 - Node Descriptor TLVs:
+//
+//	+------------+---------------------+
+//	| TLV Code   | Description         |
+//	+------------+---------------------+
+//	|    256     | Local Node Desc     |
+//	|    257     | Remote Node Desc    |
+//	+------------+---------------------+
 const (
-	TLVLocalNodeDesc  uint16 = 256 // Local Node Descriptors
-	TLVRemoteNodeDesc uint16 = 257 // Remote Node Descriptors
+	TLVLocalNodeDesc  uint16 = 256 // Local Node Descriptors (RFC 7752 Section 3.2.1.2)
+	TLVRemoteNodeDesc uint16 = 257 // Remote Node Descriptors (RFC 7752 Section 3.2.1.3)
+)
 
-	// Node Descriptor Sub-TLVs.
-	TLVAutonomousSystem uint16 = 512 // Autonomous System
-	TLVBGPLSIdentifier  uint16 = 513 // BGP-LS Identifier
-	TLVOSPFAreaID       uint16 = 514 // OSPF Area ID
-	TLVIGPRouterID      uint16 = 515 // IGP Router ID
+// Node Descriptor Sub-TLVs.
+// RFC 7752 Section 3.2.1.4, Table 4:
+//
+//	+------------+----------------------+----------+
+//	| TLV Code   | Description          | Length   |
+//	+------------+----------------------+----------+
+//	|    512     | Autonomous System    | 4 bytes  |
+//	|    513     | BGP-LS Identifier    | 4 bytes  |
+//	|    514     | OSPF Area-ID         | 4 bytes  |
+//	|    515     | IGP Router-ID        | Variable |
+//	+------------+----------------------+----------+
+const (
+	TLVAutonomousSystem uint16 = 512 // Autonomous System (RFC 7752 Section 3.2.1.4)
+	TLVBGPLSIdentifier  uint16 = 513 // BGP-LS Identifier (RFC 7752 Section 3.2.1.4)
+	TLVOSPFAreaID       uint16 = 514 // OSPF Area-ID (RFC 7752 Section 3.2.1.4)
+	TLVIGPRouterID      uint16 = 515 // IGP Router-ID (RFC 7752 Section 3.2.1.4)
 )
 
 // BGP-LS TLV types for link descriptors.
+// RFC 7752 Section 3.2.2, Table 5:
+//
+//	+------------+----------------------------+----------+
+//	| TLV Code   | Description                | Length   |
+//	+------------+----------------------------+----------+
+//	|    258     | Link Local/Remote ID       | 8 bytes  |
+//	|    259     | IPv4 interface address     | 4 bytes  |
+//	|    260     | IPv4 neighbor address      | 4 bytes  |
+//	|    261     | IPv6 interface address     | 16 bytes |
+//	|    262     | IPv6 neighbor address      | 16 bytes |
+//	|    263     | Multi-Topology Identifier  | 2 bytes  |
+//	+------------+----------------------------+----------+
+//
+// NOTE: TLVLinkDescriptors (258) is a VIOLATION - RFC 7752 does not define
+// a "Link Descriptors" container TLV at 258. The code incorrectly treats
+// Link Local/Remote ID (258) as a container. Per RFC 7752 Section 3.2.2,
+// link descriptor TLVs appear directly in the Link NLRI, not wrapped.
 const (
-	TLVLinkDescriptors   uint16 = 258 // Link Descriptors
-	TLVLinkLocalRemoteID uint16 = 258 // Link Local/Remote Identifiers
-	TLVIPv4InterfaceAddr uint16 = 259 // IPv4 Interface Address
-	TLVIPv4NeighborAddr  uint16 = 260 // IPv4 Neighbor Address
-	TLVIPv6InterfaceAddr uint16 = 261 // IPv6 Interface Address
-	TLVIPv6NeighborAddr  uint16 = 262 // IPv6 Neighbor Address
-	TLVMultiTopologyID   uint16 = 263 // Multi-Topology ID
+	TLVLinkDescriptors   uint16 = 258 // VIOLATION: Not in RFC 7752 - should not be used as container
+	TLVLinkLocalRemoteID uint16 = 258 // Link Local/Remote Identifiers (RFC 7752 Section 3.2.2)
+	TLVIPv4InterfaceAddr uint16 = 259 // IPv4 interface address (RFC 7752 Section 3.2.2)
+	TLVIPv4NeighborAddr  uint16 = 260 // IPv4 neighbor address (RFC 7752 Section 3.2.2)
+	TLVIPv6InterfaceAddr uint16 = 261 // IPv6 interface address (RFC 7752 Section 3.2.2)
+	TLVIPv6NeighborAddr  uint16 = 262 // IPv6 neighbor address (RFC 7752 Section 3.2.2)
+	TLVMultiTopologyID   uint16 = 263 // Multi-Topology Identifier (RFC 7752 Section 3.2.2)
 )
 
 // BGP-LS TLV types for prefix descriptors.
+// RFC 7752 Section 3.2.3, Table 6:
+//
+//	+------------+----------------------------+----------+
+//	| TLV Code   | Description                | Length   |
+//	+------------+----------------------------+----------+
+//	|    263     | Multi-Topology Identifier  | 2 bytes  |
+//	|    264     | OSPF Route Type            | 1 byte   |
+//	|    265     | IP Reachability Information| Variable |
+//	+------------+----------------------------+----------+
+//
+// NOTE: TLVPrefixDescriptors (264) is a VIOLATION - RFC 7752 does not define
+// a "Prefix Descriptors" container TLV at 264. The code incorrectly reuses
+// OSPF Route Type (264) as a container. Per RFC 7752 Section 3.2.3,
+// prefix descriptor TLVs appear directly in the Prefix NLRI, not wrapped.
 const (
-	TLVPrefixDescriptors  uint16 = 264 // Prefix Descriptors
-	TLVOSPFRouteType      uint16 = 264 // OSPF Route Type
-	TLVIPReachabilityInfo uint16 = 265 // IP Reachability Information
+	TLVPrefixDescriptors  uint16 = 264 // VIOLATION: Not in RFC 7752 - should not be used as container
+	TLVOSPFRouteType      uint16 = 264 // OSPF Route Type (RFC 7752 Section 3.2.3)
+	TLVIPReachabilityInfo uint16 = 265 // IP Reachability Information (RFC 7752 Section 3.2.3)
 )
 
 // BGPLSNLRI is the interface for BGP-LS NLRI types.
+// RFC 7752 Section 3.2 defines the common NLRI header format.
 type BGPLSNLRI interface {
 	NLRI
-	NLRIType() BGPLSNLRIType
-	ProtocolID() BGPLSProtocolID
-	Identifier() uint64
+	NLRIType() BGPLSNLRIType     // RFC 7752 Section 3.2 - NLRI Type (2 bytes)
+	ProtocolID() BGPLSProtocolID // RFC 7752 Section 3.2 - Protocol-ID (1 byte)
+	Identifier() uint64          // RFC 7752 Section 3.2 - Identifier (8 bytes)
 }
 
 // NodeDescriptor contains node identification information.
+// RFC 7752 Section 3.2.1.4 defines the node descriptor sub-TLVs.
 type NodeDescriptor struct {
-	ASN             uint32 // Autonomous System Number
-	BGPLSIdentifier uint32 // BGP-LS Identifier (Domain ID)
-	OSPFAreaID      uint32 // OSPF Area ID
-	IGPRouterID     []byte // IGP Router ID (4 or 6 bytes)
+	ASN             uint32 // Autonomous System (TLV 512, RFC 7752 Section 3.2.1.4)
+	BGPLSIdentifier uint32 // BGP-LS Identifier (TLV 513, RFC 7752 Section 3.2.1.4)
+	OSPFAreaID      uint32 // OSPF Area-ID (TLV 514, RFC 7752 Section 3.2.1.4)
+	IGPRouterID     []byte // IGP Router-ID (TLV 515, RFC 7752 Section 3.2.1.4)
 }
 
 // Bytes encodes the node descriptor as TLVs.
+// RFC 7752 Section 3.2.1.4 specifies the encoding of node descriptor sub-TLVs.
 func (nd *NodeDescriptor) Bytes() []byte {
 	var data []byte
 
-	// ASN TLV
+	// ASN TLV (512) - RFC 7752 Section 3.2.1.4
 	if nd.ASN != 0 {
 		data = append(data, tlv(TLVAutonomousSystem, uint32ToBytes(nd.ASN))...)
 	}
 
-	// BGP-LS Identifier TLV
+	// BGP-LS Identifier TLV (513) - RFC 7752 Section 3.2.1.4
 	if nd.BGPLSIdentifier != 0 {
 		data = append(data, tlv(TLVBGPLSIdentifier, uint32ToBytes(nd.BGPLSIdentifier))...)
 	}
 
-	// OSPF Area ID TLV
+	// OSPF Area-ID TLV (514) - RFC 7752 Section 3.2.1.4
 	if nd.OSPFAreaID != 0 {
 		data = append(data, tlv(TLVOSPFAreaID, uint32ToBytes(nd.OSPFAreaID))...)
 	}
 
-	// IGP Router ID TLV
+	// IGP Router-ID TLV (515) - RFC 7752 Section 3.2.1.4
 	if len(nd.IGPRouterID) > 0 {
 		data = append(data, tlv(TLVIGPRouterID, nd.IGPRouterID)...)
 	}
@@ -154,18 +242,22 @@ func (nd *NodeDescriptor) Bytes() []byte {
 }
 
 // LinkDescriptor contains link identification information.
+// RFC 7752 Section 3.2.2 defines the link descriptor TLVs.
 type LinkDescriptor struct {
-	LinkLocalID        uint32 // Link Local Identifier
-	LinkRemoteID       uint32 // Link Remote Identifier
-	LocalInterfaceAddr []byte // IPv4/IPv6 Interface Address
-	NeighborAddr       []byte // IPv4/IPv6 Neighbor Address
-	MultiTopologyID    uint16 // Multi-Topology ID
+	LinkLocalID        uint32 // Link Local ID (TLV 258, RFC 7752 Section 3.2.2)
+	LinkRemoteID       uint32 // Link Remote ID (TLV 258, RFC 7752 Section 3.2.2)
+	LocalInterfaceAddr []byte // IPv4 (TLV 259) or IPv6 (TLV 261) Interface Address
+	NeighborAddr       []byte // IPv4 (TLV 260) or IPv6 (TLV 262) Neighbor Address
+	MultiTopologyID    uint16 // Multi-Topology ID (TLV 263, RFC 7752 Section 3.2.2)
 }
 
 // Bytes encodes the link descriptor as TLVs.
+// RFC 7752 Section 3.2.2 specifies the encoding of link descriptor TLVs.
 func (ld *LinkDescriptor) Bytes() []byte {
 	var data []byte
 
+	// Link Local/Remote Identifiers (TLV 258) - RFC 7752 Section 3.2.2
+	// Format: 4-byte Local ID + 4-byte Remote ID = 8 bytes total
 	if ld.LinkLocalID != 0 || ld.LinkRemoteID != 0 {
 		val := make([]byte, 8)
 		binary.BigEndian.PutUint32(val[0:4], ld.LinkLocalID)
@@ -173,12 +265,16 @@ func (ld *LinkDescriptor) Bytes() []byte {
 		data = append(data, tlv(TLVLinkLocalRemoteID, val)...)
 	}
 
+	// IPv4 Interface Address (TLV 259) or IPv6 Interface Address (TLV 261)
+	// RFC 7752 Section 3.2.2
 	if len(ld.LocalInterfaceAddr) == 4 {
 		data = append(data, tlv(TLVIPv4InterfaceAddr, ld.LocalInterfaceAddr)...)
 	} else if len(ld.LocalInterfaceAddr) == 16 {
 		data = append(data, tlv(TLVIPv6InterfaceAddr, ld.LocalInterfaceAddr)...)
 	}
 
+	// IPv4 Neighbor Address (TLV 260) or IPv6 Neighbor Address (TLV 262)
+	// RFC 7752 Section 3.2.2
 	if len(ld.NeighborAddr) == 4 {
 		data = append(data, tlv(TLVIPv4NeighborAddr, ld.NeighborAddr)...)
 	} else if len(ld.NeighborAddr) == 16 {
@@ -189,16 +285,19 @@ func (ld *LinkDescriptor) Bytes() []byte {
 }
 
 // PrefixDescriptor contains prefix identification information.
+// RFC 7752 Section 3.2.3 defines the prefix descriptor TLVs.
 type PrefixDescriptor struct {
-	MultiTopologyID    uint16 // Multi-Topology ID
-	OSPFRouteType      uint8  // OSPF Route Type
-	IPReachabilityInfo []byte // IP Reachability Information
+	MultiTopologyID    uint16 // Multi-Topology ID (TLV 263, RFC 7752 Section 3.2.3)
+	OSPFRouteType      uint8  // OSPF Route Type (TLV 264, RFC 7752 Section 3.2.3)
+	IPReachabilityInfo []byte // IP Reachability Information (TLV 265, RFC 7752 Section 3.2.3)
 }
 
 // Bytes encodes the prefix descriptor as TLVs.
+// RFC 7752 Section 3.2.3 specifies the encoding of prefix descriptor TLVs.
 func (pd *PrefixDescriptor) Bytes() []byte {
 	var data []byte
 
+	// IP Reachability Information (TLV 265) - RFC 7752 Section 3.2.3
 	if len(pd.IPReachabilityInfo) > 0 {
 		data = append(data, tlv(TLVIPReachabilityInfo, pd.IPReachabilityInfo)...)
 	}
@@ -207,16 +306,32 @@ func (pd *PrefixDescriptor) Bytes() []byte {
 }
 
 // BGP-LS SAFI.
+// RFC 7752 Section 3.1: AFI 16388 with SAFI 71 carries non-VPN link-state information.
 const SAFIBGPLinkState SAFI = 71
 
 // bgplsBase contains common fields for all BGP-LS NLRI types.
+// RFC 7752 Section 3.2 defines the common NLRI header:
+//
+//	+------------------+
+//	| NLRI Type (2)    |  2 bytes - NLRI type (Table 1)
+//	+------------------+
+//	| Total NLRI Len   |  2 bytes - length of NLRI body
+//	+------------------+
+//	| Protocol-ID (1)  |  1 byte - source protocol (Table 2)
+//	+------------------+
+//	| Identifier (8)   |  8 bytes - routing universe ID
+//	+------------------+
+//	| Descriptors      |  Variable - TLV encoded descriptors
+//	+------------------+
 type bgplsBase struct {
-	nlriType   BGPLSNLRIType
-	protocolID BGPLSProtocolID
-	identifier uint64
+	nlriType   BGPLSNLRIType   // RFC 7752 Section 3.2 - NLRI Type
+	protocolID BGPLSProtocolID // RFC 7752 Section 3.2 - Protocol-ID
+	identifier uint64          // RFC 7752 Section 3.2 - Identifier
 	cached     []byte
 }
 
+// Family returns the AFI/SAFI for BGP-LS.
+// RFC 7752 Section 3.1: AFI 16388 (BGP-LS), SAFI 71 (Link-State).
 func (b *bgplsBase) Family() Family {
 	return Family{AFI: AFIBGPLS, SAFI: SAFIBGPLinkState}
 }
@@ -228,12 +343,14 @@ func (b *bgplsBase) PathID() uint32              { return 0 }
 func (b *bgplsBase) HasPathID() bool             { return false }
 
 // BGPLSNode represents a Node NLRI.
+// RFC 7752 Section 3.2.1 defines the Node NLRI format (NLRI Type 1).
 type BGPLSNode struct {
 	bgplsBase
-	LocalNode NodeDescriptor
+	LocalNode NodeDescriptor // RFC 7752 Section 3.2.1.2 - Local Node Descriptors
 }
 
 // NewBGPLSNode creates a new Node NLRI.
+// RFC 7752 Section 3.2.1 - Node NLRI (Type 1).
 func NewBGPLSNode(proto BGPLSProtocolID, id uint64, localNode NodeDescriptor) *BGPLSNode {
 	return &BGPLSNode{
 		bgplsBase: bgplsBase{
@@ -246,25 +363,27 @@ func NewBGPLSNode(proto BGPLSProtocolID, id uint64, localNode NodeDescriptor) *B
 }
 
 // Bytes returns the wire-format encoding.
+// RFC 7752 Section 3.2 - NLRI encoding format:
+//   - Type (2 bytes) + Length (2 bytes) + Protocol-ID (1 byte) + Identifier (8 bytes) + Descriptors
 func (n *BGPLSNode) Bytes() []byte {
 	if n.cached != nil {
 		return n.cached
 	}
 
-	// Encode local node descriptors
+	// RFC 7752 Section 3.2.1.2 - Local Node Descriptors (TLV 256)
 	localNodeData := n.LocalNode.Bytes()
 	localNodeTLV := tlv(TLVLocalNodeDesc, localNodeData)
 
-	// Build NLRI body
+	// Build NLRI body per RFC 7752 Section 3.2
 	body := make([]byte, 9+len(localNodeTLV))
-	body[0] = byte(n.protocolID)
-	binary.BigEndian.PutUint64(body[1:9], n.identifier)
+	body[0] = byte(n.protocolID)                        // Protocol-ID (1 byte)
+	binary.BigEndian.PutUint64(body[1:9], n.identifier) // Identifier (8 bytes)
 	copy(body[9:], localNodeTLV)
 
-	// Build full NLRI with type and length
+	// Build full NLRI with type and length per RFC 7752 Section 3.2
 	n.cached = make([]byte, 4+len(body))
-	binary.BigEndian.PutUint16(n.cached[0:2], uint16(n.nlriType))
-	binary.BigEndian.PutUint16(n.cached[2:4], uint16(len(body))) //nolint:gosec // BGP-LS TLV max 65535
+	binary.BigEndian.PutUint16(n.cached[0:2], uint16(n.nlriType)) // NLRI Type (2 bytes)
+	binary.BigEndian.PutUint16(n.cached[2:4], uint16(len(body)))  //nolint:gosec // Total NLRI Length (2 bytes)
 	copy(n.cached[4:], body)
 
 	return n.cached
@@ -279,14 +398,16 @@ func (n *BGPLSNode) String() string {
 }
 
 // BGPLSLink represents a Link NLRI.
+// RFC 7752 Section 3.2.2 defines the Link NLRI format (NLRI Type 2).
 type BGPLSLink struct {
 	bgplsBase
-	LocalNode  NodeDescriptor
-	RemoteNode NodeDescriptor
-	LinkDesc   LinkDescriptor
+	LocalNode  NodeDescriptor // RFC 7752 Section 3.2.1.2 - Local Node Descriptors
+	RemoteNode NodeDescriptor // RFC 7752 Section 3.2.1.3 - Remote Node Descriptors
+	LinkDesc   LinkDescriptor // RFC 7752 Section 3.2.2 - Link Descriptors
 }
 
 // NewBGPLSLink creates a new Link NLRI.
+// RFC 7752 Section 3.2.2 - Link NLRI (Type 2).
 func NewBGPLSLink(proto BGPLSProtocolID, id uint64, local, remote NodeDescriptor, link LinkDescriptor) *BGPLSLink {
 	return &BGPLSLink{
 		bgplsBase: bgplsBase{
@@ -301,19 +422,28 @@ func NewBGPLSLink(proto BGPLSProtocolID, id uint64, local, remote NodeDescriptor
 }
 
 // Bytes returns the wire-format encoding.
+// RFC 7752 Section 3.2 - NLRI encoding format.
+//
+// NOTE: This uses TLVLinkDescriptors (258) as a container TLV wrapping the
+// link descriptor sub-TLVs. RFC 7752 Section 3.2.2 does NOT define a container
+// TLV for link descriptors - they should appear directly in the NLRI body.
+// This is a POTENTIAL VIOLATION but may be intentional for compatibility.
 func (l *BGPLSLink) Bytes() []byte {
 	if l.cached != nil {
 		return l.cached
 	}
 
+	// RFC 7752 Section 3.2.1.2 - Local Node Descriptors (TLV 256)
 	localNodeTLV := tlv(TLVLocalNodeDesc, l.LocalNode.Bytes())
+	// RFC 7752 Section 3.2.1.3 - Remote Node Descriptors (TLV 257)
 	remoteNodeTLV := tlv(TLVRemoteNodeDesc, l.RemoteNode.Bytes())
+	// VIOLATION: TLVLinkDescriptors (258) is not a container in RFC 7752
 	linkDescTLV := tlv(TLVLinkDescriptors, l.LinkDesc.Bytes())
 
 	bodyLen := 9 + len(localNodeTLV) + len(remoteNodeTLV) + len(linkDescTLV)
 	body := make([]byte, bodyLen)
-	body[0] = byte(l.protocolID)
-	binary.BigEndian.PutUint64(body[1:9], l.identifier)
+	body[0] = byte(l.protocolID)                        // Protocol-ID (1 byte)
+	binary.BigEndian.PutUint64(body[1:9], l.identifier) // Identifier (8 bytes)
 	offset := 9
 	copy(body[offset:], localNodeTLV)
 	offset += len(localNodeTLV)
@@ -321,9 +451,10 @@ func (l *BGPLSLink) Bytes() []byte {
 	offset += len(remoteNodeTLV)
 	copy(body[offset:], linkDescTLV)
 
+	// RFC 7752 Section 3.2 - NLRI header
 	l.cached = make([]byte, 4+len(body))
-	binary.BigEndian.PutUint16(l.cached[0:2], uint16(l.nlriType))
-	binary.BigEndian.PutUint16(l.cached[2:4], uint16(len(body))) //nolint:gosec // BGP-LS TLV max 65535
+	binary.BigEndian.PutUint16(l.cached[0:2], uint16(l.nlriType)) // NLRI Type (2 bytes)
+	binary.BigEndian.PutUint16(l.cached[2:4], uint16(len(body)))  //nolint:gosec // Total NLRI Length (2 bytes)
 	copy(l.cached[4:], body)
 
 	return l.cached
@@ -338,13 +469,15 @@ func (l *BGPLSLink) String() string {
 }
 
 // BGPLSPrefix represents a Prefix NLRI (v4 or v6).
+// RFC 7752 Section 3.2.3 defines the Prefix NLRI format (NLRI Types 3 and 4).
 type BGPLSPrefix struct {
 	bgplsBase
-	LocalNode  NodeDescriptor
-	PrefixDesc PrefixDescriptor
+	LocalNode  NodeDescriptor   // RFC 7752 Section 3.2.1.2 - Local Node Descriptors
+	PrefixDesc PrefixDescriptor // RFC 7752 Section 3.2.3 - Prefix Descriptors
 }
 
 // NewBGPLSPrefixV4 creates a new IPv4 Prefix NLRI.
+// RFC 7752 Section 3.2.3 - IPv4 Topology Prefix NLRI (Type 3).
 func NewBGPLSPrefixV4(proto BGPLSProtocolID, id uint64, node NodeDescriptor, prefix PrefixDescriptor) *BGPLSPrefix {
 	return &BGPLSPrefix{
 		bgplsBase: bgplsBase{
@@ -358,6 +491,7 @@ func NewBGPLSPrefixV4(proto BGPLSProtocolID, id uint64, node NodeDescriptor, pre
 }
 
 // NewBGPLSPrefixV6 creates a new IPv6 Prefix NLRI.
+// RFC 7752 Section 3.2.3 - IPv6 Topology Prefix NLRI (Type 4).
 func NewBGPLSPrefixV6(proto BGPLSProtocolID, id uint64, node NodeDescriptor, prefix PrefixDescriptor) *BGPLSPrefix {
 	return &BGPLSPrefix{
 		bgplsBase: bgplsBase{
@@ -371,26 +505,35 @@ func NewBGPLSPrefixV6(proto BGPLSProtocolID, id uint64, node NodeDescriptor, pre
 }
 
 // Bytes returns the wire-format encoding.
+// RFC 7752 Section 3.2 - NLRI encoding format.
+//
+// NOTE: This uses TLVPrefixDescriptors (264) as a container TLV wrapping the
+// prefix descriptor sub-TLVs. RFC 7752 Section 3.2.3 does NOT define a container
+// TLV for prefix descriptors - they should appear directly in the NLRI body.
+// This is a POTENTIAL VIOLATION but may be intentional for compatibility.
 func (p *BGPLSPrefix) Bytes() []byte {
 	if p.cached != nil {
 		return p.cached
 	}
 
+	// RFC 7752 Section 3.2.1.2 - Local Node Descriptors (TLV 256)
 	localNodeTLV := tlv(TLVLocalNodeDesc, p.LocalNode.Bytes())
+	// VIOLATION: TLVPrefixDescriptors (264) is not a container in RFC 7752
 	prefixDescTLV := tlv(TLVPrefixDescriptors, p.PrefixDesc.Bytes())
 
 	bodyLen := 9 + len(localNodeTLV) + len(prefixDescTLV)
 	body := make([]byte, bodyLen)
-	body[0] = byte(p.protocolID)
-	binary.BigEndian.PutUint64(body[1:9], p.identifier)
+	body[0] = byte(p.protocolID)                        // Protocol-ID (1 byte)
+	binary.BigEndian.PutUint64(body[1:9], p.identifier) // Identifier (8 bytes)
 	offset := 9
 	copy(body[offset:], localNodeTLV)
 	offset += len(localNodeTLV)
 	copy(body[offset:], prefixDescTLV)
 
+	// RFC 7752 Section 3.2 - NLRI header
 	p.cached = make([]byte, 4+len(body))
-	binary.BigEndian.PutUint16(p.cached[0:2], uint16(p.nlriType))
-	binary.BigEndian.PutUint16(p.cached[2:4], uint16(len(body))) //nolint:gosec // BGP-LS TLV max 65535
+	binary.BigEndian.PutUint16(p.cached[0:2], uint16(p.nlriType)) // NLRI Type (2 bytes)
+	binary.BigEndian.PutUint16(p.cached[2:4], uint16(len(body)))  //nolint:gosec // Total NLRI Length (2 bytes)
 	copy(p.cached[4:], body)
 
 	return p.cached
@@ -405,28 +548,46 @@ func (p *BGPLSPrefix) String() string {
 }
 
 // ParseBGPLS parses a BGP-LS NLRI from wire format.
+// RFC 7752 Section 3.2 defines the NLRI encoding:
+//
+//	+------------------+
+//	| NLRI Type (2)    |  <- data[0:2]
+//	+------------------+
+//	| Total NLRI Len   |  <- data[2:4]
+//	+------------------+
+//	| Protocol-ID (1)  |  <- body[0]
+//	+------------------+
+//	| Identifier (8)   |  <- body[1:9]
+//	+------------------+
+//	| Descriptors      |  <- body[9:]
+//	+------------------+
 func ParseBGPLS(data []byte) (BGPLSNLRI, error) {
+	// RFC 7752 Section 3.2 - minimum 4 bytes for Type + Length header
 	if len(data) < 4 {
 		return nil, ErrBGPLSTruncated
 	}
 
+	// RFC 7752 Section 3.2 - NLRI Type (2 bytes)
 	nlriType := BGPLSNLRIType(binary.BigEndian.Uint16(data[0:2]))
+	// RFC 7752 Section 3.2 - Total NLRI Length (2 bytes)
 	nlriLen := int(binary.BigEndian.Uint16(data[2:4]))
 
 	if len(data) < 4+nlriLen {
 		return nil, ErrBGPLSTruncated
 	}
 
+	// RFC 7752 Section 3.2 - minimum 9 bytes for Protocol-ID + Identifier
 	if nlriLen < 9 {
 		return nil, ErrBGPLSTruncated
 	}
 
 	body := data[4 : 4+nlriLen]
-	proto := BGPLSProtocolID(body[0])
-	identifier := binary.BigEndian.Uint64(body[1:9])
+	proto := BGPLSProtocolID(body[0])                // Protocol-ID (1 byte)
+	identifier := binary.BigEndian.Uint64(body[1:9]) // Identifier (8 bytes)
 
 	switch nlriType { //nolint:exhaustive // Unsupported types handled in default
 	case BGPLSNodeNLRI:
+		// RFC 7752 Section 3.2.1 - Node NLRI (Type 1)
 		node := &BGPLSNode{
 			bgplsBase: bgplsBase{
 				nlriType:   nlriType,
@@ -434,7 +595,7 @@ func ParseBGPLS(data []byte) (BGPLSNLRI, error) {
 				identifier: identifier,
 			},
 		}
-		// Parse local node descriptor TLVs
+		// RFC 7752 Section 3.2.1.2 - Parse Local Node Descriptors
 		if err := parseNodeDescriptorTLVs(body[9:], &node.LocalNode); err != nil {
 			return nil, err
 		}
@@ -442,6 +603,7 @@ func ParseBGPLS(data []byte) (BGPLSNLRI, error) {
 		return node, nil
 
 	case BGPLSLinkNLRI:
+		// RFC 7752 Section 3.2.2 - Link NLRI (Type 2)
 		link := &BGPLSLink{
 			bgplsBase: bgplsBase{
 				nlriType:   nlriType,
@@ -453,6 +615,7 @@ func ParseBGPLS(data []byte) (BGPLSNLRI, error) {
 		return link, nil
 
 	case BGPLSPrefixV4NLRI, BGPLSPrefixV6NLRI:
+		// RFC 7752 Section 3.2.3 - Prefix NLRI (Types 3 and 4)
 		prefix := &BGPLSPrefix{
 			bgplsBase: bgplsBase{
 				nlriType:   nlriType,
@@ -464,6 +627,7 @@ func ParseBGPLS(data []byte) (BGPLSNLRI, error) {
 		return prefix, nil
 
 	case BGPLSSRv6SIDNLRI:
+		// RFC 9514 - SRv6 SID NLRI (Type 6)
 		srv6 := &BGPLSSRv6SID{
 			bgplsBase: bgplsBase{
 				nlriType:   nlriType,
@@ -471,7 +635,7 @@ func ParseBGPLS(data []byte) (BGPLSNLRI, error) {
 				identifier: identifier,
 			},
 		}
-		// Parse local node descriptor TLVs
+		// Parse Local Node Descriptors (same format as RFC 7752)
 		if err := parseNodeDescriptorTLVs(body[9:], &srv6.LocalNode); err != nil {
 			return nil, err
 		}
@@ -484,10 +648,19 @@ func ParseBGPLS(data []byte) (BGPLSNLRI, error) {
 }
 
 // parseNodeDescriptorTLVs parses TLVs into a NodeDescriptor.
+// RFC 7752 Section 3.2.1.4 defines the node descriptor sub-TLV format:
+//
+//	+------------------+
+//	| Type (2 bytes)   |
+//	+------------------+
+//	| Length (2 bytes) |
+//	+------------------+
+//	| Value (variable) |
+//	+------------------+
 func parseNodeDescriptorTLVs(data []byte, nd *NodeDescriptor) error {
 	for len(data) >= 4 {
-		tlvType := binary.BigEndian.Uint16(data[0:2])
-		tlvLen := int(binary.BigEndian.Uint16(data[2:4]))
+		tlvType := binary.BigEndian.Uint16(data[0:2])     // TLV Type (2 bytes)
+		tlvLen := int(binary.BigEndian.Uint16(data[2:4])) // TLV Length (2 bytes)
 
 		if len(data) < 4+tlvLen {
 			return ErrBGPLSTruncated
@@ -495,25 +668,26 @@ func parseNodeDescriptorTLVs(data []byte, nd *NodeDescriptor) error {
 
 		value := data[4 : 4+tlvLen]
 
-		// Check if this is the Local Node Descriptor container
+		// RFC 7752 Section 3.2.1.2 - Local Node Descriptor container (TLV 256)
 		if tlvType == TLVLocalNodeDesc {
 			return parseNodeDescriptorTLVs(value, nd)
 		}
 
+		// RFC 7752 Section 3.2.1.4 - Node Descriptor Sub-TLVs
 		switch tlvType {
-		case TLVAutonomousSystem:
+		case TLVAutonomousSystem: // TLV 512 - 4 bytes
 			if len(value) >= 4 {
 				nd.ASN = binary.BigEndian.Uint32(value)
 			}
-		case TLVBGPLSIdentifier:
+		case TLVBGPLSIdentifier: // TLV 513 - 4 bytes
 			if len(value) >= 4 {
 				nd.BGPLSIdentifier = binary.BigEndian.Uint32(value)
 			}
-		case TLVOSPFAreaID:
+		case TLVOSPFAreaID: // TLV 514 - 4 bytes
 			if len(value) >= 4 {
 				nd.OSPFAreaID = binary.BigEndian.Uint32(value)
 			}
-		case TLVIGPRouterID:
+		case TLVIGPRouterID: // TLV 515 - variable length
 			nd.IGPRouterID = make([]byte, len(value))
 			copy(nd.IGPRouterID, value)
 		}
@@ -526,11 +700,21 @@ func parseNodeDescriptorTLVs(data []byte, nd *NodeDescriptor) error {
 
 // Helper functions
 
+// tlv encodes a Type-Length-Value structure.
+// RFC 7752 uses TLV encoding throughout:
+//
+//	+------------------+
+//	| Type (2 bytes)   |
+//	+------------------+
+//	| Length (2 bytes) |
+//	+------------------+
+//	| Value (variable) |
+//	+------------------+
 func tlv(t uint16, v []byte) []byte {
 	data := make([]byte, 4+len(v))
-	binary.BigEndian.PutUint16(data[0:2], t)
-	binary.BigEndian.PutUint16(data[2:4], uint16(len(v))) //nolint:gosec // TLV max 65535
-	copy(data[4:], v)
+	binary.BigEndian.PutUint16(data[0:2], t)              // Type (2 bytes)
+	binary.BigEndian.PutUint16(data[2:4], uint16(len(v))) //nolint:gosec // Length (2 bytes)
+	copy(data[4:], v)                                     // Value
 	return data
 }
 
@@ -542,18 +726,22 @@ func uint32ToBytes(v uint32) []byte {
 
 // ============================================================================
 // SRv6 SID NLRI (RFC 9514)
+// Note: This is NOT part of RFC 7752 but extends BGP-LS for Segment Routing v6.
 // ============================================================================
 
 // SRv6SIDDescriptor contains SRv6 SID identification information.
+// RFC 9514 defines the SRv6 SID NLRI extension to BGP-LS.
 type SRv6SIDDescriptor struct {
-	MultiTopologyID uint16
-	SRv6SID         []byte // 16 bytes IPv6 address
+	MultiTopologyID uint16 // Multi-Topology ID (TLV 263)
+	SRv6SID         []byte // 16 bytes IPv6 address (TLV 518)
 }
 
 // Bytes encodes the SRv6 SID descriptor as TLVs.
+// RFC 9514 defines the SRv6 SID TLV encoding.
 func (sd *SRv6SIDDescriptor) Bytes() []byte {
 	var data []byte
 
+	// RFC 9514 - SRv6 SID TLV (518)
 	if len(sd.SRv6SID) > 0 {
 		data = append(data, tlv(TLVSRv6SID, sd.SRv6SID)...)
 	}
@@ -562,18 +750,21 @@ func (sd *SRv6SIDDescriptor) Bytes() []byte {
 }
 
 // TLV types for SRv6.
+// Note: These are defined in RFC 9514, not RFC 7752.
 const (
-	TLVSRv6SID uint16 = 518 // SRv6 SID (RFC 9514)
+	TLVSRv6SID uint16 = 518 // SRv6 SID (RFC 9514, not RFC 7752)
 )
 
 // BGPLSSRv6SID represents an SRv6 SID NLRI.
+// RFC 9514 - SRv6 SID NLRI (Type 6).
 type BGPLSSRv6SID struct {
 	bgplsBase
-	LocalNode NodeDescriptor
-	SRv6SID   SRv6SIDDescriptor
+	LocalNode NodeDescriptor    // RFC 7752 Section 3.2.1.2 - Local Node Descriptors
+	SRv6SID   SRv6SIDDescriptor // RFC 9514 - SRv6 SID Descriptor
 }
 
 // NewBGPLSSRv6SID creates a new SRv6 SID NLRI.
+// RFC 9514 - SRv6 SID NLRI (Type 6).
 func NewBGPLSSRv6SID(proto BGPLSProtocolID, id uint64, node NodeDescriptor, sid SRv6SIDDescriptor) *BGPLSSRv6SID {
 	return &BGPLSSRv6SID{
 		bgplsBase: bgplsBase{
@@ -587,26 +778,30 @@ func NewBGPLSSRv6SID(proto BGPLSProtocolID, id uint64, node NodeDescriptor, sid 
 }
 
 // Bytes returns the wire-format encoding.
+// Uses RFC 7752 NLRI header format with RFC 9514 SRv6 SID descriptor.
 func (s *BGPLSSRv6SID) Bytes() []byte {
 	if s.cached != nil {
 		return s.cached
 	}
 
+	// RFC 7752 Section 3.2.1.2 - Local Node Descriptors (TLV 256)
 	localNodeTLV := tlv(TLVLocalNodeDesc, s.LocalNode.Bytes())
+	// RFC 9514 - SRv6 SID descriptor TLVs
 	sidTLV := s.SRv6SID.Bytes()
 
 	bodyLen := 9 + len(localNodeTLV) + len(sidTLV)
 	body := make([]byte, bodyLen)
-	body[0] = byte(s.protocolID)
-	binary.BigEndian.PutUint64(body[1:9], s.identifier)
+	body[0] = byte(s.protocolID)                        // Protocol-ID (1 byte)
+	binary.BigEndian.PutUint64(body[1:9], s.identifier) // Identifier (8 bytes)
 	offset := 9
 	copy(body[offset:], localNodeTLV)
 	offset += len(localNodeTLV)
 	copy(body[offset:], sidTLV)
 
+	// RFC 7752 Section 3.2 - NLRI header format
 	s.cached = make([]byte, 4+len(body))
-	binary.BigEndian.PutUint16(s.cached[0:2], uint16(s.nlriType))
-	binary.BigEndian.PutUint16(s.cached[2:4], uint16(len(body))) //nolint:gosec // BGP-LS TLV max 65535
+	binary.BigEndian.PutUint16(s.cached[0:2], uint16(s.nlriType)) // NLRI Type (2 bytes)
+	binary.BigEndian.PutUint16(s.cached[2:4], uint16(len(body)))  //nolint:gosec // Total NLRI Length (2 bytes)
 	copy(s.cached[4:], body)
 
 	return s.cached

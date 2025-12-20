@@ -1,3 +1,11 @@
+// Package nlri provides NLRI (Network Layer Reachability Information) types.
+//
+// This file implements specialized NLRI types for various BGP extensions:
+//   - MVPN: Multicast VPN (RFC 6514)
+//   - VPLS: Virtual Private LAN Service (RFC 4761)
+//   - RTC: Route Target Constraint (RFC 4684)
+//   - MUP: Mobile User Plane (draft-mpmz-bess-mup-safi)
+//   - FlowSpec VPN: Flow Specification for VPN (RFC 8955)
 package nlri
 
 import (
@@ -7,15 +15,29 @@ import (
 )
 
 // Additional SAFI values for specialized NLRI types.
+//
+// RFC 4760 Section 3 defines the SAFI (Subsequent Address Family Identifier)
+// as a one-octet field that provides additional information about the type
+// of NLRI being carried.
+//
+// SAFI allocations are maintained by IANA in the "Subsequent Address Family
+// Identifiers (SAFI) Parameters" registry.
 const (
-	SAFIMVPN        SAFI = 5   // Multicast VPN
-	SAFIVPLS        SAFI = 65  // VPLS
-	SAFIMUP         SAFI = 85  // Mobile User Plane
-	SAFIRTC         SAFI = 132 // Route Target Constraint
-	SAFIFlowSpecVPN SAFI = 134 // FlowSpec VPN (RFC 5575 Section 6)
+	SAFIMVPN        SAFI = 5   // Multicast VPN - RFC 6514
+	SAFIVPLS        SAFI = 65  // VPLS - RFC 4761 Section 3.2.2
+	SAFIMUP         SAFI = 85  // Mobile User Plane - draft-mpmz-bess-mup-safi
+	SAFIRTC         SAFI = 132 // Route Target Constraint - RFC 4684 Section 4
+	SAFIFlowSpecVPN SAFI = 134 // FlowSpec VPN - RFC 8955 (obsoletes RFC 5575)
 )
 
-// Common address families for P2 NLRI types.
+// Common address families for specialized NLRI types.
+//
+// These combine AFI and SAFI values to identify specific BGP address families:
+//   - MVPN uses AFI 1 (IPv4) or 2 (IPv6) with SAFI 5 (RFC 6514)
+//   - VPLS uses AFI 25 (L2VPN) with SAFI 65 (RFC 4761)
+//   - RTC uses AFI 1 (IPv4) with SAFI 132 (RFC 4684)
+//   - MUP uses AFI 1 or 2 with SAFI 85 (draft-mpmz-bess-mup-safi)
+//   - FlowSpec VPN uses AFI 1 or 2 with SAFI 134 (RFC 8955)
 var (
 	IPv4MVPN        = Family{AFI: AFIIPv4, SAFI: SAFIMVPN}
 	IPv6MVPN        = Family{AFI: AFIIPv6, SAFI: SAFIMVPN}
@@ -27,7 +49,7 @@ var (
 	IPv6FlowSpecVPN = Family{AFI: AFIIPv6, SAFI: SAFIFlowSpecVPN}
 )
 
-// Errors for P2 NLRI parsing.
+// Errors for specialized NLRI parsing.
 var (
 	ErrMVPNTruncated  = errors.New("mvpn: truncated data")
 	ErrVPLSTruncated  = errors.New("vpls: truncated data")
@@ -39,19 +61,45 @@ var (
 // ============================================================================
 // MVPN - Multicast VPN (RFC 6514)
 // ============================================================================
+//
+// RFC 6514 defines BGP encodings and procedures for Multicast in MPLS/BGP
+// IP VPNs. It introduces the MCAST-VPN NLRI for exchanging multicast VPN
+// routing information.
+//
+// MCAST-VPN NLRI Format (RFC 6514 Section 4):
+//
+//	+-----------------------------------+
+//	| Route Type (1 octet)              |
+//	+-----------------------------------+
+//	| Length (1 octet)                  |
+//	+-----------------------------------+
+//	| Route Type specific (variable)    |
+//	+-----------------------------------+
+//
+// The Route Type field determines the encoding of the rest of the NLRI.
+// Most route types include a Route Distinguisher (RD) as the first 8 bytes.
+// ============================================================================
 
 // MVPNRouteType identifies the type of MVPN route.
+// RFC 6514 Section 4 defines the route types for MCAST-VPN NLRI.
 type MVPNRouteType uint8
 
-// MVPN route types (RFC 6514 Section 4).
+// MVPN route types per RFC 6514 Section 4.
+//
+// A-D routes (Auto-Discovery) are used for MVPN autodiscovery and
+// binding MVPN to P-Multicast Service Interface (PMSI) tunnels.
+// C-multicast routes carry customer multicast routing information.
 const (
-	MVPNIntraASIPMSIAD MVPNRouteType = 1 // Intra-AS I-PMSI A-D
-	MVPNInterASIPMSIAD MVPNRouteType = 2 // Inter-AS I-PMSI A-D
-	MVPNSPMSIAD        MVPNRouteType = 3 // S-PMSI A-D
-	MVPNLeafAD         MVPNRouteType = 4 // Leaf A-D
-	MVPNSourceActive   MVPNRouteType = 5 // Source Active A-D
-	MVPNSharedTreeJoin MVPNRouteType = 6 // Shared Tree Join
-	MVPNSourceTreeJoin MVPNRouteType = 7 // Source Tree Join
+	// A-D (Auto-Discovery) route types - RFC 6514 Section 4.1-4.5
+	MVPNIntraASIPMSIAD MVPNRouteType = 1 // Intra-AS I-PMSI A-D route
+	MVPNInterASIPMSIAD MVPNRouteType = 2 // Inter-AS I-PMSI A-D route
+	MVPNSPMSIAD        MVPNRouteType = 3 // S-PMSI A-D route
+	MVPNLeafAD         MVPNRouteType = 4 // Leaf A-D route
+	MVPNSourceActive   MVPNRouteType = 5 // Source Active A-D route
+
+	// C-multicast route types - RFC 6514 Section 4.6-4.7
+	MVPNSharedTreeJoin MVPNRouteType = 6 // Shared Tree Join route (C-*,C-G)
+	MVPNSourceTreeJoin MVPNRouteType = 7 // Source Tree Join route (C-S,C-G)
 )
 
 // String returns a human-readable route type name.
@@ -77,6 +125,9 @@ func (t MVPNRouteType) String() string {
 }
 
 // MVPN represents a Multicast VPN NLRI (RFC 6514).
+//
+// RFC 6514 Section 4 defines the MCAST-VPN NLRI structure. Each route type
+// has its own specific format, but most include a Route Distinguisher.
 type MVPN struct {
 	afi       AFI
 	routeType MVPNRouteType
@@ -105,7 +156,20 @@ func NewMVPNWithRD(afi AFI, routeType MVPNRouteType, rd RouteDistinguisher, data
 }
 
 // ParseMVPN parses an MVPN NLRI from wire format.
-// MVPN format: route-type (1) + length (1) + route-type-specific data.
+//
+// RFC 6514 Section 4 defines the MCAST-VPN NLRI format:
+//
+//	+-----------------------------------+
+//	| Route Type (1 octet)              |
+//	+-----------------------------------+
+//	| Length (1 octet)                  |
+//	+-----------------------------------+
+//	| Route Type specific (variable)    |
+//	+-----------------------------------+
+//
+// The Length field indicates the length in octets of the Route Type
+// specific field. Most route types include an 8-byte Route Distinguisher
+// as the first part of the route-type-specific data.
 func ParseMVPN(afi AFI, data []byte) (*MVPN, []byte, error) {
 	if len(data) < 2 {
 		return nil, nil, ErrMVPNTruncated
@@ -198,14 +262,42 @@ func (m *MVPN) String() string {
 // ============================================================================
 // VPLS - Virtual Private LAN Service (RFC 4761)
 // ============================================================================
+//
+// RFC 4761 defines Virtual Private LAN Service (VPLS) using BGP for
+// Auto-Discovery and Signaling. VPLS provides a multipoint Layer 2 VPN
+// service that appears as an Ethernet LAN to customers.
+//
+// VPLS BGP NLRI Format (RFC 4761 Section 3.2.2):
+//
+//	+------------------------------------+
+//	|  Length (2 octets)                 |
+//	+------------------------------------+
+//	|  Route Distinguisher  (8 octets)   |
+//	+------------------------------------+
+//	|  VE ID (2 octets)                  |
+//	+------------------------------------+
+//	|  VE Block Offset (2 octets)        |
+//	+------------------------------------+
+//	|  VE Block Size (2 octets)          |
+//	+------------------------------------+
+//	|  Label Base (3 octets)             |
+//	+------------------------------------+
+//
+// The AFI is L2VPN (25), and the SAFI is VPLS (65).
+// ============================================================================
 
-// VPLS represents a VPLS NLRI (RFC 4761).
+// VPLS represents a VPLS NLRI (RFC 4761 Section 3.2.2).
+//
+// A VPLS BGP NLRI contains information for establishing pseudowires
+// between VPLS Edge (VE) devices. The label block mechanism allows a PE
+// to send a single Update message that contains demultiplexors for all
+// remote PEs, reducing control plane load.
 type VPLS struct {
 	rd            RouteDistinguisher
-	veID          uint16 // VE ID
-	veBlockOffset uint16
-	veBlockSize   uint16
-	labelBase     uint32 // 20-bit label
+	veID          uint16 // VE ID - unique identifier within a VPLS
+	veBlockOffset uint16 // Starting VE ID for the label block
+	veBlockSize   uint16 // Number of labels in the block
+	labelBase     uint32 // 20-bit MPLS label base
 	cached        []byte
 }
 
@@ -235,7 +327,24 @@ func NewVPLSFull(rd RouteDistinguisher, veID, veBlockOffset, veBlockSize uint16,
 }
 
 // ParseVPLS parses a VPLS NLRI from wire format.
-// VPLS format: length (2) + RD (8) + VE ID (2) + VE Block Offset (2) + VE Block Size (2) + Label Base (3).
+//
+// RFC 4761 Section 3.2.2 defines the VPLS NLRI format:
+//
+//	+------------------------------------+
+//	|  Length (2 octets)                 |  <- Length of remaining fields
+//	+------------------------------------+
+//	|  Route Distinguisher (8 octets)    |
+//	+------------------------------------+
+//	|  VE ID (2 octets)                  |
+//	+------------------------------------+
+//	|  VE Block Offset (2 octets)        |
+//	+------------------------------------+
+//	|  VE Block Size (2 octets)          |
+//	+------------------------------------+
+//	|  Label Base (3 octets)             |  <- 20-bit label + BOS bit
+//	+------------------------------------+
+//
+// The minimum NLRI length is 17 bytes (8+2+2+2+3).
 func ParseVPLS(data []byte) (*VPLS, []byte, error) {
 	if len(data) < 2 {
 		return nil, nil, ErrVPLSTruncated
@@ -295,32 +404,38 @@ func (v *VPLS) VEBlockSize() uint16 { return v.veBlockSize }
 func (v *VPLS) LabelBase() uint32 { return v.labelBase }
 
 // Bytes returns the wire-format encoding.
+//
+// RFC 4761 Section 3.2.2: The Label Base is encoded as a 3-octet MPLS label
+// with the Bottom of Stack (BOS) bit set to 1.
 func (v *VPLS) Bytes() []byte {
 	if v.cached != nil {
 		return v.cached
 	}
 
+	// RFC 4761 Section 3.2.2:
 	// NLRI length (2 bytes) + RD (8 bytes) + VE ID (2 bytes) + VE Block Offset (2 bytes) +
 	// VE Block Size (2 bytes) + Label Base (3 bytes) = 19 bytes total
 	v.cached = make([]byte, 19)
 	binary.BigEndian.PutUint16(v.cached[0:2], 17) // length excludes length field
 
-	// RD
+	// Route Distinguisher (RFC 4364)
 	copy(v.cached[2:10], v.rd.Bytes())
 
-	// VE ID
+	// VE ID - unique identifier for this VE within the VPLS
 	binary.BigEndian.PutUint16(v.cached[10:12], v.veID)
 
-	// VE Block Offset
+	// VE Block Offset - starting VE ID for label block
 	binary.BigEndian.PutUint16(v.cached[12:14], v.veBlockOffset)
 
-	// VE Block Size
+	// VE Block Size - number of labels in block
 	binary.BigEndian.PutUint16(v.cached[14:16], v.veBlockSize)
 
-	// Label Base (3 bytes, 20-bit label with BOS)
+	// Label Base (3 bytes, 20-bit label with BOS bit)
+	// RFC 3032: MPLS label format is 20-bit label + 3-bit TC + 1-bit BOS + 8-bit TTL
+	// For signaling, only label and BOS are used
 	v.cached[16] = byte(v.labelBase >> 12)
 	v.cached[17] = byte(v.labelBase >> 4)
-	v.cached[18] = byte(v.labelBase<<4) | 0x01 // BOS bit
+	v.cached[18] = byte(v.labelBase<<4) | 0x01 // BOS bit set to 1
 
 	return v.cached
 }
@@ -342,10 +457,35 @@ func (v *VPLS) String() string {
 // ============================================================================
 // RTC - Route Target Constraint (RFC 4684)
 // ============================================================================
+//
+// RFC 4684 defines Route Target Membership NLRI for constrained distribution
+// of VPN routing information. This allows BGP speakers to advertise which
+// Route Targets they are interested in, enabling efficient VPN route
+// distribution.
+//
+// Route Target Membership NLRI Format (RFC 4684 Section 4):
+//
+//	+-------------------------------+
+//	| origin as        (4 octets)   |
+//	+-------------------------------+
+//	| route target     (8 octets)   |
+//	+                               +
+//	|                               |
+//	+-------------------------------+
+//
+// The NLRI is encoded as a prefix of 0 to 96 bits. A zero-length prefix
+// represents the default route target, indicating willingness to receive
+// all VPN route advertisements.
+//
+// The AFI is IPv4 (1), and the SAFI is RTC (132).
+// ============================================================================
 
 // RouteTarget represents a Route Target extended community.
+//
+// RFC 4360 defines extended communities as 8-octet values. Route Targets
+// are a type of extended community used to control VPN route distribution.
 type RouteTarget struct {
-	Type  uint16
+	Type  uint16  // Extended community type (2 bytes)
 	Value [6]byte // Extended community value (6 bytes)
 }
 
@@ -358,17 +498,23 @@ func (rt RouteTarget) Bytes() []byte {
 }
 
 // String returns a human-readable route target.
+//
+// RFC 4360 Section 3 defines extended community types. The high-order octet
+// of the Type field determines the format:
+//   - 0x00: Two-octet AS specific (2-byte ASN + 4-byte local admin)
+//   - 0x01: IPv4 address specific (4-byte IP + 2-byte local admin)
+//   - 0x02: Four-octet AS specific (4-byte ASN + 2-byte local admin)
 func (rt RouteTarget) String() string {
 	switch rt.Type >> 8 { // High byte indicates type
-	case 0x00: // 2-byte ASN
+	case 0x00: // 2-byte ASN (RFC 4360 Section 3.1)
 		asn := binary.BigEndian.Uint16(rt.Value[:2])
 		assigned := binary.BigEndian.Uint32(rt.Value[2:6])
 		return fmt.Sprintf("%d:%d", asn, assigned)
-	case 0x01: // 4-byte IP
+	case 0x01: // IPv4 address (RFC 4360 Section 3.2)
 		ip := fmt.Sprintf("%d.%d.%d.%d", rt.Value[0], rt.Value[1], rt.Value[2], rt.Value[3])
 		assigned := binary.BigEndian.Uint16(rt.Value[4:6])
 		return fmt.Sprintf("%s:%d", ip, assigned)
-	case 0x02: // 4-byte ASN
+	case 0x02: // 4-byte ASN (RFC 5668)
 		asn := binary.BigEndian.Uint32(rt.Value[:4])
 		assigned := binary.BigEndian.Uint16(rt.Value[4:6])
 		return fmt.Sprintf("%d:%d", asn, assigned)
@@ -377,10 +523,15 @@ func (rt RouteTarget) String() string {
 	}
 }
 
-// RTC represents a Route Target Constraint NLRI (RFC 4684).
+// RTC represents a Route Target Constraint NLRI (RFC 4684 Section 4).
+//
+// The RTC NLRI is used to advertise interest in receiving VPN routes
+// with specific Route Targets. This enables constrained route distribution,
+// reducing the amount of VPN routing information that needs to be
+// maintained by route reflectors and ASBRs.
 type RTC struct {
-	originAS    uint32
-	routeTarget RouteTarget
+	originAS    uint32      // Origin AS number (4 bytes)
+	routeTarget RouteTarget // Route Target extended community (8 bytes)
 	cached      []byte
 }
 
@@ -393,7 +544,22 @@ func NewRTC(originAS uint32, rt RouteTarget) *RTC {
 }
 
 // ParseRTC parses an RTC NLRI from wire format.
-// RTC format: prefix-length (1 byte) + [origin-as (4 bytes) + route-target (8 bytes)].
+//
+// RFC 4684 Section 4 defines the RTC NLRI format as a prefix of 0 to 96 bits:
+//
+//	+-------------------------------+
+//	| prefix-length (1 octet)       |
+//	+-------------------------------+
+//	| origin as      (4 octets)     |  <- if prefix-length >= 32
+//	+-------------------------------+
+//	| route target   (8 octets)     |  <- if prefix-length > 32
+//	+                               +
+//	|                               |
+//	+-------------------------------+
+//
+// A prefix-length of 0 represents the default route target, indicating
+// willingness to receive all VPN route advertisements.
+// The minimum prefix-length (except for default) is 32 bits.
 func ParseRTC(data []byte) (*RTC, []byte, error) {
 	if len(data) < 1 {
 		return nil, nil, ErrRTCTruncated
@@ -445,25 +611,33 @@ func (r *RTC) OriginAS() uint32 { return r.originAS }
 func (r *RTC) RouteTarget() RouteTarget { return r.routeTarget }
 
 // IsDefault returns true if this is the default RTC (matches all RTs).
+//
+// RFC 4684 Section 4: A zero-length prefix (prefix-length = 0) represents
+// the default route target, indicating willingness to receive all VPN
+// route advertisements, such as from a route reflector to its PE clients.
 func (r *RTC) IsDefault() bool {
 	return r.originAS == 0 && r.routeTarget.Type == 0 && r.routeTarget.Value == [6]byte{}
 }
 
 // Bytes returns the wire-format encoding.
+//
+// RFC 4684 Section 4: The NLRI is encoded as a prefix per RFC 4760 Section 5.
+// The prefix-length is in bits: 96 bits = 12 bytes (4 origin-as + 8 route-target).
 func (r *RTC) Bytes() []byte {
 	if r.cached != nil {
 		return r.cached
 	}
 
-	// Default route (matches all RTs)
+	// Default route (matches all RTs) - RFC 4684 Section 4
 	if r.IsDefault() {
 		r.cached = []byte{0}
 		return r.cached
 	}
 
 	// Full RTC: prefix-length + origin-as (4) + route-target (8) = 13 bytes
+	// RFC 4684 Section 4: prefix is 96 bits (12 bytes * 8 bits/byte)
 	r.cached = make([]byte, 13)
-	r.cached[0] = 96 // 12 bytes * 8 bits
+	r.cached[0] = 96 // prefix-length in bits
 
 	binary.BigEndian.PutUint32(r.cached[1:5], r.originAS)
 	binary.BigEndian.PutUint16(r.cached[5:7], r.routeTarget.Type)
@@ -490,18 +664,38 @@ func (r *RTC) String() string {
 }
 
 // ============================================================================
-// MUP - Mobile User Plane (draft-ietf-bess-bgp-mup-safi)
+// MUP - Mobile User Plane (draft-mpmz-bess-mup-safi)
+// ============================================================================
+//
+// The BGP-MUP SAFI enables BGP-based signaling for Mobile User Plane (MUP)
+// architectures, particularly for 5G mobile networks using SRv6.
+//
+// BGP-MUP NLRI Format (draft-mpmz-bess-mup-safi):
+//
+//	+-----------------------------------+
+//	| Architecture Type (1 octet)       |
+//	+-----------------------------------+
+//	| Route Type (2 octets)             |
+//	+-----------------------------------+
+//	| Length (1 octet)                  |
+//	+-----------------------------------+
+//	| Route Type specific (variable)    |
+//	+-----------------------------------+
+//
+// The Architecture Type field determines the mobile network architecture.
+// Currently defined: 1 = 3GPP 5G.
 // ============================================================================
 
 // MUPRouteType identifies the type of MUP route.
+// draft-mpmz-bess-mup-safi defines route types for different MUP functions.
 type MUPRouteType uint16
 
-// MUP route types.
+// MUP route types per draft-mpmz-bess-mup-safi.
 const (
-	MUPISD  MUPRouteType = 1 // Interwork Segment Discovery
-	MUPDSD  MUPRouteType = 2 // Direct Segment Discovery
-	MUPT1ST MUPRouteType = 3 // Type 1 Session Transformed
-	MUPT2ST MUPRouteType = 4 // Type 2 Session Transformed
+	MUPISD  MUPRouteType = 1 // Interwork Segment Discovery route
+	MUPDSD  MUPRouteType = 2 // Direct Segment Discovery route
+	MUPT1ST MUPRouteType = 3 // Type 1 Session Transformed route
+	MUPT2ST MUPRouteType = 4 // Type 2 Session Transformed route
 )
 
 // String returns a human-readable route type name.
@@ -521,20 +715,24 @@ func (t MUPRouteType) String() string {
 }
 
 // MUPArchType identifies the MUP architecture type.
+// draft-mpmz-bess-mup-safi defines architecture types for different mobile networks.
 type MUPArchType uint8
 
-// MUP architecture types.
+// MUP architecture types per draft-mpmz-bess-mup-safi.
 const (
-	MUPArch3GPP5G MUPArchType = 1 // 3GPP 5G
+	MUPArch3GPP5G MUPArchType = 1 // 3GPP 5G architecture
 )
 
-// MUP represents a Mobile User Plane NLRI.
+// MUP represents a Mobile User Plane NLRI (draft-mpmz-bess-mup-safi).
+//
+// MUP enables SRv6-based mobile user plane signaling through BGP.
+// Each route type carries specific information for mobile network functions.
 type MUP struct {
 	afi       AFI
 	archType  MUPArchType
 	routeType MUPRouteType
 	rd        RouteDistinguisher
-	data      []byte
+	data      []byte // Route-type specific data after RD
 	cached    []byte
 }
 
@@ -560,7 +758,21 @@ func NewMUPFull(afi AFI, archType MUPArchType, routeType MUPRouteType, rd RouteD
 }
 
 // ParseMUP parses a MUP NLRI from wire format.
-// MUP format: arch-type (1) + route-type (2) + length (1) + route-type-specific data.
+//
+// draft-mpmz-bess-mup-safi defines the BGP-MUP NLRI format:
+//
+//	+-----------------------------------+
+//	| Architecture Type (1 octet)       |
+//	+-----------------------------------+
+//	| Route Type (2 octets)             |
+//	+-----------------------------------+
+//	| Length (1 octet)                  |
+//	+-----------------------------------+
+//	| Route Type specific (variable)    |
+//	+-----------------------------------+
+//
+// Most route types include an 8-byte Route Distinguisher as the first
+// part of the route-type-specific data.
 func ParseMUP(afi AFI, data []byte) (*MUP, []byte, error) {
 	if len(data) < 4 {
 		return nil, nil, ErrMUPTruncated

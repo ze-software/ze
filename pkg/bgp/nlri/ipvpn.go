@@ -1,3 +1,4 @@
+// Package nlri implements BGP Network Layer Reachability Information types.
 package nlri
 
 import (
@@ -7,23 +8,50 @@ import (
 )
 
 // RDType represents Route Distinguisher type.
+//
+// RFC 4364 Section 4.2 defines the Route Distinguisher encoding:
+//   - Type Field: 2 bytes
+//   - Value Field: 6 bytes
+//
+// The interpretation of the Value field depends on the type field value.
 type RDType uint16
 
-// Route Distinguisher types (RFC 4364).
+// Route Distinguisher types per RFC 4364 Section 4.2.
+//
+// RFC 4364 Section 4.2 specifies three RD type values:
+//   - Type 0: Administrator=2-byte ASN, Assigned Number=4 bytes
+//   - Type 1: Administrator=4-byte IP, Assigned Number=2 bytes
+//   - Type 2: Administrator=4-byte ASN, Assigned Number=2 bytes
 const (
-	RDType0 RDType = 0 // 2-byte ASN : 4-byte assigned
-	RDType1 RDType = 1 // 4-byte IP : 2-byte assigned
-	RDType2 RDType = 2 // 4-byte ASN : 2-byte assigned
+	RDType0 RDType = 0 // RFC 4364 Section 4.2: 2-byte ASN : 4-byte assigned number
+	RDType1 RDType = 1 // RFC 4364 Section 4.2: 4-byte IP address : 2-byte assigned number
+	RDType2 RDType = 2 // RFC 4364 Section 4.2: 4-byte ASN : 2-byte assigned number
 )
 
 // RouteDistinguisher uniquely identifies a VPN route.
-// 8 bytes: 2-byte type + 6-byte value.
+//
+// RFC 4364 Section 4.1 defines VPN-IPv4 addresses as 12-byte quantities:
+//   - 8-byte Route Distinguisher (RD)
+//   - 4-byte IPv4 address
+//
+// RFC 4659 Section 2 extends this for VPN-IPv6 as 24-byte quantities:
+//   - 8-byte Route Distinguisher (RD)
+//   - 16-byte IPv6 address
+//
+// The RD itself is 8 bytes: 2-byte type field + 6-byte value field.
+// Per RFC 4364 Section 4.1, the RD's purpose is solely to allow creation
+// of distinct routes to a common IP address prefix across different VPNs.
 type RouteDistinguisher struct {
-	Type  RDType
-	Value [6]byte
+	Type  RDType  // RFC 4364 Section 4.2: Type field (2 bytes)
+	Value [6]byte // RFC 4364 Section 4.2: Value field (6 bytes)
 }
 
 // ParseRouteDistinguisher parses an RD from 8 bytes.
+//
+// RFC 4364 Section 4.2 encoding:
+//
+//	Bytes 0-1: Type field (big-endian)
+//	Bytes 2-7: Value field (interpretation depends on Type)
 func ParseRouteDistinguisher(data []byte) (RouteDistinguisher, error) {
 	if len(data) < 8 {
 		return RouteDistinguisher{}, ErrShortRead
@@ -36,7 +64,7 @@ func ParseRouteDistinguisher(data []byte) (RouteDistinguisher, error) {
 	return rd, nil
 }
 
-// Bytes returns the wire format.
+// Bytes returns the wire format per RFC 4364 Section 4.2.
 func (rd RouteDistinguisher) Bytes() []byte {
 	buf := make([]byte, 8)
 	binary.BigEndian.PutUint16(buf[:2], uint16(rd.Type))
@@ -45,20 +73,25 @@ func (rd RouteDistinguisher) Bytes() []byte {
 }
 
 // String returns a human-readable representation.
+//
+// Per RFC 4364 Section 4.2, the string format depends on RD type:
+//   - Type 0: "ASN:assigned" (e.g., "65000:100")
+//   - Type 1: "IP:assigned" (e.g., "192.0.2.1:100")
+//   - Type 2: "ASN:assigned" (e.g., "65000:100", 4-byte ASN)
 func (rd RouteDistinguisher) String() string {
 	switch rd.Type {
 	case RDType0:
-		// 2-byte ASN : 4-byte assigned
+		// RFC 4364 Section 4.2 Type 0: 2-byte ASN : 4-byte assigned
 		asn := binary.BigEndian.Uint16(rd.Value[:2])
 		assigned := binary.BigEndian.Uint32(rd.Value[2:6])
 		return fmt.Sprintf("%d:%d", asn, assigned)
 	case RDType1:
-		// 4-byte IP : 2-byte assigned
+		// RFC 4364 Section 4.2 Type 1: 4-byte IP : 2-byte assigned
 		ip := netip.AddrFrom4([4]byte(rd.Value[:4]))
 		assigned := binary.BigEndian.Uint16(rd.Value[4:6])
 		return fmt.Sprintf("%s:%d", ip, assigned)
 	case RDType2:
-		// 4-byte ASN : 2-byte assigned
+		// RFC 4364 Section 4.2 Type 2: 4-byte ASN : 2-byte assigned
 		asn := binary.BigEndian.Uint32(rd.Value[:4])
 		assigned := binary.BigEndian.Uint16(rd.Value[4:6])
 		return fmt.Sprintf("%d:%d", asn, assigned)
@@ -68,7 +101,14 @@ func (rd RouteDistinguisher) String() string {
 }
 
 // ParseLabelStack parses MPLS labels from wire format.
-// Each label is 3 bytes: 20-bit label, 3-bit TC, 1-bit BOS, 8-bit TTL.
+//
+// RFC 3107 (MPLS-BGP) specifies label encoding for BGP NLRI:
+//
+//	Each label is 3 bytes: 20-bit label value, 3-bit EXP/TC, 1-bit S (BOS)
+//
+// RFC 4364 Section 4.3.2 states PE routers distribute labeled VPN-IPv4 routes.
+// RFC 4659 Section 3.2 extends this for labeled VPN-IPv6 routes.
+//
 // Returns the label values and remaining bytes.
 func ParseLabelStack(data []byte) ([]uint32, []byte, error) {
 	var labels []uint32
@@ -78,10 +118,10 @@ func ParseLabelStack(data []byte) ([]uint32, []byte, error) {
 			return nil, nil, ErrShortRead
 		}
 
-		// Label is in upper 20 bits of 3 bytes
+		// RFC 3107: Label is in upper 20 bits of 3 bytes
 		// Byte 0: label[19:12]
 		// Byte 1: label[11:4]
-		// Byte 2: label[3:0], TC[2:0], BOS
+		// Byte 2: label[3:0], EXP[2:0], S (bottom-of-stack)
 		labelVal := uint32(data[0])<<12 | uint32(data[1])<<4 | uint32(data[2]>>4)
 		bos := data[2]&0x01 != 0
 
@@ -96,7 +136,15 @@ func ParseLabelStack(data []byte) ([]uint32, []byte, error) {
 	return labels, data, nil
 }
 
-// EncodeLabelStack encodes labels to wire format.
+// EncodeLabelStack encodes labels to wire format per RFC 3107.
+//
+// RFC 3107 label encoding (3 bytes per label):
+//
+//	Byte 0: label[19:12]
+//	Byte 1: label[11:4]
+//	Byte 2: label[3:0] | EXP[2:0] | S
+//
+// The S (bottom-of-stack) bit is set on the last label only.
 func EncodeLabelStack(labels []uint32) []byte {
 	buf := make([]byte, len(labels)*3)
 	for i, label := range labels {
@@ -105,20 +153,30 @@ func EncodeLabelStack(labels []uint32) []byte {
 		buf[off+1] = byte(label >> 4)
 		buf[off+2] = byte(label<<4) & 0xF0
 		if i == len(labels)-1 {
-			buf[off+2] |= 0x01 // BOS
+			buf[off+2] |= 0x01 // RFC 3107: S (bottom-of-stack) bit
 		}
 	}
 	return buf
 }
 
 // IPVPN represents a VPNv4 or VPNv6 NLRI.
+//
+// RFC 4364 Section 4.3.4 defines VPNv4 NLRI encoding:
+//   - AFI=1 (IPv4), SAFI=128 (MPLS-labeled VPN)
+//   - Prefix = MPLS label(s) + 8-byte RD + IPv4 prefix
+//
+// RFC 4659 Section 3.2 defines VPNv6 NLRI encoding:
+//   - AFI=2 (IPv6), SAFI=128 (MPLS-labeled VPN)
+//   - Prefix = MPLS label(s) + 8-byte RD + IPv6 prefix
+//
+// The NLRI is encoded per RFC 3107 (Carrying Label Information in BGP-4).
 type IPVPN struct {
-	family  Family
-	rd      RouteDistinguisher
-	labels  []uint32
-	prefix  netip.Prefix
-	pathID  uint32
-	hasPath bool
+	family  Family             // RFC 4364/4659: AFI + SAFI
+	rd      RouteDistinguisher // RFC 4364 Section 4.1: 8-byte RD
+	labels  []uint32           // RFC 3107: MPLS label stack
+	prefix  netip.Prefix       // IPv4 (RFC 4364) or IPv6 (RFC 4659) prefix
+	pathID  uint32             // RFC 7911: ADD-PATH path identifier
+	hasPath bool               // True if ADD-PATH is enabled
 }
 
 // NewIPVPN creates a new IPVPN NLRI.
@@ -134,6 +192,24 @@ func NewIPVPN(family Family, rd RouteDistinguisher, labels []uint32, prefix neti
 }
 
 // ParseIPVPN parses a VPN NLRI from wire format.
+//
+// RFC 4364 Section 4.3.4 and RFC 4659 Section 3.2 define the NLRI encoding.
+// Per RFC 3107, the labeled VPN NLRI format is:
+//
+//	+---------------------------+
+//	|   Length (1 octet)        |  Total bits: labels + RD + prefix
+//	+---------------------------+
+//	|   MPLS Label (3+ octets)  |  One or more 3-byte labels
+//	+---------------------------+
+//	|   Route Distinguisher     |  8 octets (RFC 4364 Section 4.2)
+//	|   (8 octets)              |
+//	+---------------------------+
+//	|   IP Prefix               |  Variable length
+//	|   (variable)              |
+//	+---------------------------+
+//
+// For VPNv4 (RFC 4364): AFI=1, SAFI=128
+// For VPNv6 (RFC 4659): AFI=2, SAFI=128
 func ParseIPVPN(afi AFI, safi SAFI, data []byte, addpath bool) (NLRI, []byte, error) {
 	if len(data) == 0 {
 		return nil, nil, ErrShortRead
@@ -142,7 +218,7 @@ func ParseIPVPN(afi AFI, safi SAFI, data []byte, addpath bool) (NLRI, []byte, er
 	offset := 0
 	var pathID uint32
 
-	// Parse optional path ID
+	// RFC 7911: Parse optional ADD-PATH path identifier
 	if addpath {
 		if len(data) < 4 {
 			return nil, nil, ErrShortRead
@@ -151,7 +227,7 @@ func ParseIPVPN(afi AFI, safi SAFI, data []byte, addpath bool) (NLRI, []byte, er
 		offset = 4
 	}
 
-	// Parse prefix length (in bits, includes labels + RD + prefix)
+	// RFC 3107: Parse prefix length (in bits, includes labels + RD + prefix)
 	if offset >= len(data) {
 		return nil, nil, ErrShortRead
 	}
@@ -166,7 +242,7 @@ func ParseIPVPN(afi AFI, safi SAFI, data []byte, addpath bool) (NLRI, []byte, er
 
 	nlriData := data[offset : offset+totalBytes]
 
-	// Parse label stack (minimum 3 bytes)
+	// RFC 3107: Parse MPLS label stack (minimum 3 bytes per label)
 	if len(nlriData) < 3 {
 		return nil, nil, ErrShortRead
 	}
@@ -176,7 +252,7 @@ func ParseIPVPN(afi AFI, safi SAFI, data []byte, addpath bool) (NLRI, []byte, er
 	}
 	labelBits := len(labels) * 24
 
-	// Parse RD (8 bytes = 64 bits)
+	// RFC 4364 Section 4.1/4.2: Parse RD (8 bytes = 64 bits)
 	if len(nlriData) < 8 {
 		return nil, nil, ErrShortRead
 	}
@@ -187,7 +263,7 @@ func ParseIPVPN(afi AFI, safi SAFI, data []byte, addpath bool) (NLRI, []byte, er
 	nlriData = nlriData[8:]
 	rdBits := 64
 
-	// Remaining bits are prefix
+	// Remaining bits are IP prefix (IPv4 per RFC 4364, IPv6 per RFC 4659)
 	prefixBits := totalBits - labelBits - rdBits
 	if prefixBits < 0 {
 		return nil, nil, ErrInvalidPrefix
@@ -198,13 +274,15 @@ func ParseIPVPN(afi AFI, safi SAFI, data []byte, addpath bool) (NLRI, []byte, er
 		return nil, nil, ErrShortRead
 	}
 
-	// Build address
+	// Build address based on AFI
 	var addr netip.Addr
 	if afi == AFIIPv4 {
+		// RFC 4364: VPN-IPv4 (12-byte: 8-byte RD + 4-byte IPv4)
 		var ip [4]byte
 		copy(ip[:], nlriData[:prefixBytes])
 		addr = netip.AddrFrom4(ip)
 	} else {
+		// RFC 4659: VPN-IPv6 (24-byte: 8-byte RD + 16-byte IPv6)
 		var ip [16]byte
 		copy(ip[:], nlriData[:prefixBytes])
 		addr = netip.AddrFrom16(ip)
@@ -228,24 +306,34 @@ func ParseIPVPN(afi AFI, safi SAFI, data []byte, addpath bool) (NLRI, []byte, er
 }
 
 // Family returns the AFI/SAFI.
+// RFC 4364: AFI=1, SAFI=128 for VPNv4
+// RFC 4659: AFI=2, SAFI=128 for VPNv6
 func (v *IPVPN) Family() Family { return v.family }
 
-// RD returns the Route Distinguisher.
+// RD returns the Route Distinguisher per RFC 4364 Section 4.1.
 func (v *IPVPN) RD() RouteDistinguisher { return v.rd }
 
-// Labels returns the MPLS label stack.
+// Labels returns the MPLS label stack per RFC 3107.
 func (v *IPVPN) Labels() []uint32 { return v.labels }
 
-// Prefix returns the IP prefix.
+// Prefix returns the IP prefix (IPv4 per RFC 4364, IPv6 per RFC 4659).
 func (v *IPVPN) Prefix() netip.Prefix { return v.prefix }
 
-// PathID returns the ADD-PATH path identifier.
+// PathID returns the ADD-PATH path identifier per RFC 7911.
 func (v *IPVPN) PathID() uint32 { return v.pathID }
 
-// HasPathID returns true if this NLRI has a path ID.
+// HasPathID returns true if this NLRI has a path ID (RFC 7911 ADD-PATH).
 func (v *IPVPN) HasPathID() bool { return v.hasPath }
 
-// Bytes returns the wire format.
+// Bytes returns the wire format per RFC 3107, RFC 4364, and RFC 4659.
+//
+// Wire format:
+//
+//	[Path ID (4 bytes, optional)]  RFC 7911 ADD-PATH
+//	[Length (1 byte)]              Total bits of labels + RD + prefix
+//	[MPLS Labels (3+ bytes)]       RFC 3107 label stack
+//	[Route Distinguisher (8 bytes)] RFC 4364 Section 4.2
+//	[IP Prefix (variable)]         IPv4 (RFC 4364) or IPv6 (RFC 4659)
 func (v *IPVPN) Bytes() []byte {
 	labelBytes := EncodeLabelStack(v.labels)
 	rdBytes := v.rd.Bytes()
@@ -253,10 +341,12 @@ func (v *IPVPN) Bytes() []byte {
 	prefixBits := v.prefix.Bits()
 	prefixBytes := (prefixBits + 7) / 8
 
+	// RFC 3107: Length field = label bits + RD bits (64) + prefix bits
 	totalBits := len(labelBytes)*8 + 64 + prefixBits
 
 	var buf []byte
 	if v.hasPath {
+		// RFC 7911: Include 4-byte path identifier
 		buf = make([]byte, 4+1+len(labelBytes)+8+prefixBytes)
 		binary.BigEndian.PutUint32(buf[:4], v.pathID)
 		buf[4] = byte(totalBits)
@@ -275,11 +365,14 @@ func (v *IPVPN) Bytes() []byte {
 }
 
 // Len returns the wire format length.
+//
+// Length = [Path ID (4)] + Length (1) + Labels (3*n) + RD (8) + Prefix (variable)
 func (v *IPVPN) Len() int {
 	prefixBytes := (v.prefix.Bits() + 7) / 8
+	// 1 byte length + 3 bytes per label + 8 byte RD + prefix bytes
 	n := 1 + len(v.labels)*3 + 8 + prefixBytes
 	if v.hasPath {
-		n += 4
+		n += 4 // RFC 7911: ADD-PATH path identifier
 	}
 	return n
 }

@@ -142,7 +142,28 @@ as4.go:323-329 - RFC 6793 Section 4.2.3 violation
 ```
 
 ### NLRI
-(to be filled during annotation)
+
+```
+evpn.go:440 - RFC 9136 Section 3 violation
+  Current: Type 5 IP prefix uses variable-length encoding
+  Required: Fixed 4-octet (IPv4) or 16-octet (IPv6) fields
+  Severity: MEDIUM
+
+bgpls.go:168 - RFC 7752 Section 3.2.2 violation
+  Current: TLV 258 used as container for link descriptors
+  Required: 258 is "Link Local/Remote Identifiers", not container
+  Severity: MEDIUM
+
+bgpls.go:193 - RFC 7752 Section 3.2.3 violation
+  Current: TLV 264 used as container for prefix descriptors
+  Required: 264 is "OSPF Route Type", not container
+  Severity: MEDIUM
+
+bgpls.go:440,521 - RFC 7752 Section 3.2 violation
+  Current: Bytes() wraps descriptors in container TLVs
+  Required: Descriptors appear directly in NLRI body
+  Severity: MEDIUM
+```
 
 ### FSM
 (to be filled during annotation)
