@@ -246,6 +246,15 @@ func parseOneExtCommunity(s string) ([]byte, error) {
 			return parseRouteTargetOrOrigin(ecSubtypeRouteTarget, parts[1], parts[2])
 		case "origin":
 			return parseRouteTargetOrOrigin(ecSubtypeRouteOrigin, parts[1], parts[2])
+		case "target4":
+			// Explicit 4-byte AS route target
+			return parseRouteTargetOrOrigin4(ecSubtypeRouteTarget, parts[1], parts[2])
+		case "origin4":
+			// Explicit 4-byte AS route origin
+			return parseRouteTargetOrOrigin4(ecSubtypeRouteOrigin, parts[1], parts[2])
+		case "redirect":
+			// FlowSpec redirect (RFC 5575): type 0x80, subtype 0x08
+			return parseFlowSpecRedirect(parts[1], parts[2])
 		case "mup":
 			// MUP extended community: mup:ASN:NN
 			return parseRouteTargetOrOrigin(0x0B, parts[1], parts[2]) // MUP subtype
@@ -256,7 +265,7 @@ func parseOneExtCommunity(s string) ([]byte, error) {
 
 	if len(parts) == 5 && parts[0] == "l2info" {
 		// Layer 2 Info Extended Community (RFC 4761): l2info:encaps:control:mtu:preference
-		// Type 0x800A
+		// Wire format: 0x800A | encaps(1) | control(1) | mtu(2) | preference(2)
 		encaps, err := strconv.ParseUint(parts[1], 10, 8)
 		if err != nil {
 			return nil, fmt.Errorf("invalid l2info encaps %q", parts[1])
@@ -269,7 +278,7 @@ func parseOneExtCommunity(s string) ([]byte, error) {
 		if err != nil {
 			return nil, fmt.Errorf("invalid l2info mtu %q", parts[3])
 		}
-		preference, err := strconv.ParseUint(parts[4], 10, 8)
+		preference, err := strconv.ParseUint(parts[4], 10, 16)
 		if err != nil {
 			return nil, fmt.Errorf("invalid l2info preference %q", parts[4])
 		}
@@ -277,7 +286,7 @@ func parseOneExtCommunity(s string) ([]byte, error) {
 			0x80, 0x0A, // Type: Layer 2 Info
 			byte(encaps), byte(control),
 			byte(mtu >> 8), byte(mtu),
-			0x00, byte(preference),
+			byte(preference >> 8), byte(preference),
 		}, nil
 	}
 
@@ -350,8 +359,9 @@ func parseGenericExtCommunity(asnStr, valStr string) ([]byte, error) {
 }
 
 // parseRouteTargetOrOrigin parses target:ASN:NN or origin:ASN:NN format.
+// Also supports target:IP:NN and target:ASN:IP formats.
 func parseRouteTargetOrOrigin(subtype byte, asnStr, numStr string) ([]byte, error) {
-	// Check if ASN part is an IP address
+	// Check if ASN part is an IP address (format: IP:NN)
 	if ip, err := netip.ParseAddr(asnStr); err == nil && ip.Is4() {
 		// Type 1: IPv4 address
 		num, err := strconv.ParseUint(numStr, 10, 16)
@@ -370,6 +380,23 @@ func parseRouteTargetOrOrigin(subtype byte, asnStr, numStr string) ([]byte, erro
 	if err != nil {
 		return nil, fmt.Errorf("invalid extended-community ASN %q", asnStr)
 	}
+
+	// Check if number part is an IP address (format: ASN:IP -> convert IP to uint32)
+	if ip, err := netip.ParseAddr(numStr); err == nil && ip.Is4() {
+		b := ip.As4()
+		num := uint32(b[0])<<24 | uint32(b[1])<<16 | uint32(b[2])<<8 | uint32(b[3])
+		if asn <= 0xFFFF {
+			// Type 0: 2-byte ASN, 4-byte number (from IP)
+			return []byte{
+				ecTypeTransitive2ByteAS, subtype,
+				byte(asn >> 8), byte(asn),
+				byte(num >> 24), byte(num >> 16), byte(num >> 8), byte(num),
+			}, nil
+		}
+		// 4-byte ASN not valid with 4-byte IP
+		return nil, fmt.Errorf("4-byte ASN with IP value not supported")
+	}
+
 	num, err := strconv.ParseUint(numStr, 10, 32)
 	if err != nil {
 		return nil, fmt.Errorf("invalid extended-community number %q", numStr)
@@ -383,9 +410,68 @@ func parseRouteTargetOrOrigin(subtype byte, asnStr, numStr string) ([]byte, erro
 			byte(num >> 24), byte(num >> 16), byte(num >> 8), byte(num),
 		}, nil
 	}
-	// Type 2: 4-byte ASN, 2-byte number
+
+	// ASN > 65535: Use Type 1 (IPv4) format if number fits in 16 bits.
+	// This matches exabgp behavior which converts large ASNs to IP representation.
+	if num <= 0xFFFF {
+		return []byte{
+			ecTypeTransitiveIPv4, subtype,
+			byte(asn >> 24), byte(asn >> 16), byte(asn >> 8), byte(asn),
+			byte(num >> 8), byte(num),
+		}, nil
+	}
+
+	// Type 2: 4-byte ASN, 2-byte number (only when number > 65535)
 	return []byte{
 		ecTypeTransitive4ByteAS, subtype,
+		byte(asn >> 24), byte(asn >> 16), byte(asn >> 8), byte(asn),
+		byte(num >> 8), byte(num),
+	}, nil
+}
+
+// parseRouteTargetOrOrigin4 parses target4:ASN:NN or origin4:ASN:NN format.
+// Uses 4-byte representation for ASN, with Type 1 (IPv4) format preferred.
+func parseRouteTargetOrOrigin4(subtype byte, asnStr, numStr string) ([]byte, error) {
+	asn, err := strconv.ParseUint(asnStr, 10, 32)
+	if err != nil {
+		return nil, fmt.Errorf("invalid extended-community ASN %q", asnStr)
+	}
+	num, err := strconv.ParseUint(numStr, 10, 16)
+	if err != nil {
+		return nil, fmt.Errorf("invalid extended-community number %q", numStr)
+	}
+
+	// Use Type 1 (IPv4) format: 4-byte "IP" (really ASN), 2-byte number
+	// This matches exabgp behavior which prefers IPv4 format for 4-byte representations
+	return []byte{
+		ecTypeTransitiveIPv4, subtype,
+		byte(asn >> 24), byte(asn >> 16), byte(asn >> 8), byte(asn),
+		byte(num >> 8), byte(num),
+	}, nil
+}
+
+// parseFlowSpecRedirect parses redirect:ASN:NN format for FlowSpec (RFC 5575).
+func parseFlowSpecRedirect(asnStr, numStr string) ([]byte, error) {
+	asn, err := strconv.ParseUint(asnStr, 10, 32)
+	if err != nil {
+		return nil, fmt.Errorf("invalid redirect ASN %q", asnStr)
+	}
+	num, err := strconv.ParseUint(numStr, 10, 32)
+	if err != nil {
+		return nil, fmt.Errorf("invalid redirect number %q", numStr)
+	}
+
+	if asn <= 0xFFFF {
+		// Type 0x80 (non-transitive), subtype 0x08: 2-byte ASN, 4-byte value
+		return []byte{
+			0x80, 0x08,
+			byte(asn >> 8), byte(asn),
+			byte(num >> 24), byte(num >> 16), byte(num >> 8), byte(num),
+		}, nil
+	}
+	// Type 0x82 (non-transitive 4-byte AS), subtype 0x08: 4-byte ASN, 2-byte value
+	return []byte{
+		0x82, 0x08,
 		byte(asn >> 24), byte(asn >> 16), byte(asn >> 8), byte(asn),
 		byte(num >> 8), byte(num),
 	}, nil

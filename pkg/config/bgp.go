@@ -544,13 +544,14 @@ func parseNeighborConfig(addr string, tree *Tree, templates map[string]*Tree) (N
 
 // extractRoutesFromTree extracts all routes from a neighbor or template tree.
 // Handles both static { route ... } and announce { ipv4/ipv6 { unicast/multicast ... } } blocks.
+// Uses GetListOrdered to preserve config order.
 func extractRoutesFromTree(tree *Tree) ([]StaticRouteConfig, error) {
 	var routes []StaticRouteConfig
 
-	// Static routes
+	// Static routes - use ordered iteration to preserve config order
 	if static := tree.GetContainer("static"); static != nil {
-		for prefix, route := range static.GetList("route") {
-			sr, err := parseRouteConfig(prefix, route)
+		for _, entry := range static.GetListOrdered("route") {
+			sr, err := parseRouteConfig(entry.Key, entry.Value)
 			if err != nil {
 				return nil, err
 			}
@@ -562,15 +563,15 @@ func extractRoutesFromTree(tree *Tree) ([]StaticRouteConfig, error) {
 	if announce := tree.GetContainer("announce"); announce != nil {
 		// Parse IPv4 routes
 		if ipv4 := announce.GetContainer("ipv4"); ipv4 != nil {
-			for prefix, route := range ipv4.GetList("unicast") {
-				sr, err := parseRouteConfig(prefix, route)
+			for _, entry := range ipv4.GetListOrdered("unicast") {
+				sr, err := parseRouteConfig(entry.Key, entry.Value)
 				if err != nil {
 					return nil, err
 				}
 				routes = append(routes, sr)
 			}
-			for prefix, route := range ipv4.GetList("multicast") {
-				sr, err := parseRouteConfig(prefix, route)
+			for _, entry := range ipv4.GetListOrdered("multicast") {
+				sr, err := parseRouteConfig(entry.Key, entry.Value)
 				if err != nil {
 					return nil, err
 				}
@@ -579,15 +580,15 @@ func extractRoutesFromTree(tree *Tree) ([]StaticRouteConfig, error) {
 		}
 		// Parse IPv6 routes
 		if ipv6 := announce.GetContainer("ipv6"); ipv6 != nil {
-			for prefix, route := range ipv6.GetList("unicast") {
-				sr, err := parseRouteConfig(prefix, route)
+			for _, entry := range ipv6.GetListOrdered("unicast") {
+				sr, err := parseRouteConfig(entry.Key, entry.Value)
 				if err != nil {
 					return nil, err
 				}
 				routes = append(routes, sr)
 			}
-			for prefix, route := range ipv6.GetList("multicast") {
-				sr, err := parseRouteConfig(prefix, route)
+			for _, entry := range ipv6.GetListOrdered("multicast") {
+				sr, err := parseRouteConfig(entry.Key, entry.Value)
 				if err != nil {
 					return nil, err
 				}
