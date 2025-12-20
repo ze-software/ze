@@ -45,6 +45,18 @@ func (t *Tree) GetMultiValues(name string) []string {
 	return t.multiValues[name]
 }
 
+// GetFlex returns a value from either leaf values or the first multiValue.
+// Used for Flex nodes that can be parsed as either Set() or AppendValue().
+func (t *Tree) GetFlex(name string) (string, bool) {
+	if v, ok := t.values[name]; ok {
+		return v, true
+	}
+	if mv := t.multiValues[name]; len(mv) > 0 {
+		return mv[0], true
+	}
+	return "", false
+}
+
 // GetContainer returns a nested container.
 func (t *Tree) GetContainer(name string) *Tree {
 	return t.containers[name]

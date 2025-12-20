@@ -503,7 +503,7 @@ func parseNeighborConfig(addr string, tree *Tree, templates map[string]*Tree) (N
 				nc.Capabilities.AddPathReceive = v == configTrue
 			}
 		}
-		if v, ok := cap.Get("software-version"); ok {
+		if v, ok := cap.GetFlex("software-version"); ok {
 			nc.Capabilities.SoftwareVersion = v == configTrue || v == configEnable
 		}
 	}
