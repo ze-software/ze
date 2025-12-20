@@ -10,7 +10,7 @@ Documentation and protocols for Claude Code interactions with ZeBGP.
 
 ### MANDATORY FIRST ACTIONS
 
-1. **Read `CLAUDE_CONTINUATION.md`** (project root)
+1. **Read `plan/CLAUDE_CONTINUATION.md`**
    - Current development state and priorities
    - Test status (what passes/fails and why)
    - What was accomplished in previous sessions

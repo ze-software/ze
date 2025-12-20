@@ -1,18 +1,97 @@
 # Essential Protocols (READ EVERY SESSION)
 
-**Purpose:** Core rules that apply to ALL interactions
-**Size:** ~5 KB
-**Read time:** <1 minute
+```
+╔═══════════════════════════════════════════════════════════════════════════════╗
+║                                                                               ║
+║   STOP. DO NOT PROCEED UNTIL YOU COMPLETE THE SESSION START CHECKLIST BELOW  ║
+║                                                                               ║
+╚═══════════════════════════════════════════════════════════════════════════════╝
+```
+
+---
+
+## SESSION START CHECKLIST (MANDATORY - DO THIS FIRST)
+
+### Step 1: Check Git State IMMEDIATELY
+
+```bash
+git status && git diff --stat
+```
+
+**IF ANY MODIFIED/STAGED FILES EXIST:**
+- STOP all other work
+- ASK user: "There are N modified files. How should I handle them before proceeding?"
+- WAIT for user response
+- Do NOT proceed with any other task until resolved
+
+### Step 2: Read plan/CLAUDE_CONTINUATION.md
+
+```bash
+cat plan/CLAUDE_CONTINUATION.md 2>/dev/null || echo "No continuation file"
+```
+
+Contains: Current state, priorities, what previous sessions accomplished.
+
+### Step 3: Check Plan State
+
+```bash
+ls -la plan/ 2>/dev/null || echo "No plan directory"
+```
+
+### Step 4: Only THEN Proceed With User's Request
+
+---
+
+## FILE LOCATIONS (MANDATORY)
+
+| File Type | Location | NOT Here |
+|-----------|----------|----------|
+| Session continuation | `plan/CLAUDE_CONTINUATION.md` | project root |
+| Plans, TODOs, tasks | `plan/` | `.claude/` |
+| Claude protocols | `.claude/` | `plan/` |
+| Reference docs about codebase | `.claude/zebgp/` | `plan/` |
+| Backups/patches | `.claude/backups/` | anywhere else |
+
+**VIOLATION:** Putting plans in `.claude/` or protocols in `plan/`
 
 ---
 
 ## CRITICAL RULES
 
-### 0. Work Preservation (NEVER LOSE CODE)
+### 0. ExaBGP Reference Implementation (MUST CHECK BEFORE CODING)
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│  BEFORE implementing ANY BGP feature, ALWAYS check how         │
+│  ExaBGP does it in ../src/exabgp/                               │
+│                                                                 │
+│  ZeBGP MUST match ExaBGP's behavior for compatibility.         │
+│  This is NON-NEGOTIABLE.                                        │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+**MANDATORY before writing/fixing BGP code:**
+1. Find the equivalent code in `../src/exabgp/bgp/`
+2. Understand how ExaBGP implements the feature
+3. Match the logic, data structures, and edge case handling
+4. Only then implement in ZeBGP
+
+**Key ExaBGP directories:**
+- `../src/exabgp/bgp/message/` - Message encoding/decoding
+- `../src/exabgp/bgp/message/open/capability/` - Capability negotiation
+- `../src/exabgp/bgp/message/update/attribute/` - Path attributes
+- `../src/exabgp/bgp/message/update/nlri/` - NLRI types
+
+**Why:** ExaBGP is the reference. Tests validate against ExaBGP output.
+Deviating from ExaBGP = failing tests = broken compatibility.
+
+---
+
+### 1. Work Preservation (NEVER LOSE CODE)
 
 **Core principle:** NEVER discard uncommitted work. ALWAYS ask first.
 
-## FORBIDDEN without EXPLICIT user permission:
+**FORBIDDEN without EXPLICIT user permission:**
 
 - `git reset` (any form)
 - `git revert`
@@ -23,7 +102,7 @@
 
 **NO EXCEPTIONS. ALWAYS ASK FIRST.**
 
-## MANDATORY WORKFLOW when you want to revert/change approach:
+**MANDATORY WORKFLOW when you want to revert/change approach:**
 
 **STEP 1: ALWAYS save first**
 ```bash
@@ -38,7 +117,7 @@ git diff > .claude/backups/work-$(date +%Y%m%d-%H%M%S).patch
 
 ---
 
-### 1. Verification Before Claiming
+### 2. Verification Before Claiming
 
 **Core principle:** Never claim success without proof
 
@@ -61,7 +140,7 @@ make test
 
 ---
 
-### 2. Communication Style
+### 3. Communication Style
 
 **Core principle:** Terse, direct, emoji-prefixed status lines
 
@@ -76,14 +155,14 @@ make test
 - Multi-paragraph responses for simple tasks
 
 **Examples:**
-- "Tests pass (go test: 42 passed)"
-- "Build failed: missing import in fsm.go:45"
+- "✅ Tests pass (go test: 42 passed)"
+- "❌ Build failed: missing import in fsm.go:45"
 
 **See:** `output-styles/zebgp.md` for full guidelines
 
 ---
 
-### 3. Test-Driven Development (TDD) - BLOCKING RULE
+### 4. Test-Driven Development (TDD) - BLOCKING RULE
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
@@ -95,7 +174,7 @@ make test
 
 **See:** `TDD_ENFORCEMENT.md` for complete workflow.
 
-## TDD Cycle (MANDATORY - NO EXCEPTIONS)
+**TDD Cycle (MANDATORY - NO EXCEPTIONS):**
 
 ```
 1. WRITE TEST (with documentation)
@@ -109,7 +188,7 @@ make test
 5. REFACTOR (keep tests green)
 ```
 
-## Test Documentation Required
+**Test Documentation Required:**
 
 Every test MUST document:
 ```go
@@ -121,7 +200,7 @@ Every test MUST document:
 func TestFeatureName(t *testing.T) { ... }
 ```
 
-## Forbidden Actions
+**Forbidden Actions:**
 
 | Action | Violation | Correction |
 |--------|-----------|------------|
@@ -129,22 +208,20 @@ func TestFeatureName(t *testing.T) { ... }
 | Test passes immediately | Invalid test | Add failing assertion |
 | Skip failure verification | No proof test works | Show failure first |
 
-## During Development
-
+**During Development:**
 ```bash
 # Run tests for current package (fast feedback)
-go test -race ./internal/pool/... -v
+go test -race ./pkg/bgp/message/... -v
 ```
 
-## Before Claiming Done
-
+**Before Claiming Done:**
 ```bash
 make test  # Full suite - ALL must pass
 ```
 
 ---
 
-### 4. Coding Standards
+### 5. Coding Standards
 
 **Core principle:** Go 1.21+, idiomatic Go, strict linting
 
@@ -169,7 +246,7 @@ make lint  # golangci-lint run
 
 ---
 
-### 5. Solution Quality (Right Solution, Not Easy Solution)
+### 6. Solution Quality (Right Solution, Not Easy Solution)
 
 **Core principle:** Always implement the RIGHT solution, not the easiest.
 
@@ -185,28 +262,16 @@ make lint  # golangci-lint run
 
 ---
 
-### 6. Fix All Issues You Notice (No Broken Windows)
+### 7. Fix All Issues You Notice (No Broken Windows)
 
 **Core principle:** If you see something wrong, fix it or document it for later.
 
 **MANDATORY:**
 - If you notice ANY issue (lint, bug, missing test), even if unrelated to current task:
   - **If quick to fix:** Fix it immediately with a test to prevent regression
-  - **If not quick:** Add to `CLAUDE_CONTINUATION.md` or `plan/` for later
+  - **If not quick:** Add to `plan/CLAUDE_CONTINUATION.md` for later
 
 **Rationale:** Issues left unfixed accumulate. Tests prevent regressions.
-
-**Examples:**
-```
-# You notice a lint warning while working on something else
-→ Fix it now if <5 min, or add to plan/TODO.md
-
-# You see code that could break under edge cases
-→ Write a test for it, even if not your current task
-
-# You find a pre-existing bug
-→ Document in CLAUDE_CONTINUATION.md: "BUG: [description] in [file:line]"
-```
 
 **Never:**
 - Ignore issues because "not my change"
@@ -215,25 +280,7 @@ make lint  # golangci-lint run
 
 ---
 
-## Session Start Workflow
-
-### 1. Read this file (you just did)
-
-### 2. Check git state
-
-```bash
-git status && git diff && git diff --staged
-```
-
-If ANY modified/staged files: ASK user how to handle before starting work.
-
-### 3. Check plan state
-
-```bash
-ls -la plan/ 2>/dev/null || echo "No plan directory"
-```
-
-### 4. Load contextual protocols based on task
+## Load Contextual Protocols Based on Task
 
 | Activity | Load Protocol |
 |----------|---------------|
@@ -272,6 +319,7 @@ zebgp/
 ├── internal/
 │   ├── store/           # Deduplication stores
 │   └── pool/            # Buffer pools
+├── plan/                # Plans, TODOs, tasks
 └── testdata/            # Test fixtures
 ```
 
@@ -326,4 +374,17 @@ git status && git log --oneline -5
 
 ---
 
-**Updated:** 2025-12-19
+## Self-Check Before Responding
+
+Before EVERY response, verify:
+
+- [ ] Did I check git status at session start?
+- [ ] Did I ask about modified files before proceeding?
+- [ ] Am I putting files in the correct location?
+- [ ] Am I following TDD (test first, show failure, then implement)?
+- [ ] Am I being terse and emoji-prefixed?
+- [ ] Am I running commands and pasting output as proof?
+
+---
+
+**Updated:** 2025-12-20
