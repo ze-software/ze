@@ -78,11 +78,18 @@ const (
 	FlowOpEnd     FlowOperator = 0x80 // End of list
 	FlowOpAnd     FlowOperator = 0x40 // AND (vs OR)
 	FlowOpLenMask FlowOperator = 0x30 // Length mask (0=1byte, 1=2bytes, 2=4bytes)
-	FlowOpNegate  FlowOperator = 0x02 // Negate
 	FlowOpLess    FlowOperator = 0x04 // Less than
 	FlowOpGreater FlowOperator = 0x02 // Greater than
 	FlowOpEqual   FlowOperator = 0x01 // Equal
+	FlowOpNotEq   FlowOperator = 0x06 // Not equal (LT | GT)
 )
+
+// FlowMatch represents a single match condition with operator and value.
+type FlowMatch struct {
+	Op    FlowOperator // Comparison operator (GT, LT, EQ, etc.)
+	And   bool         // AND with previous match (vs OR)
+	Value uint64       // The value to match
+}
 
 // Fragment flags for FlowFragment component.
 const (
@@ -297,7 +304,7 @@ func parseNumericComponent(t FlowComponentType, data []byte) (FlowComponent, []b
 		return nil, nil, ErrFlowSpecTruncated
 	}
 
-	var values []uint64
+	var matches []FlowMatch
 	offset := 0
 
 	for offset < len(data) {
@@ -320,7 +327,15 @@ func parseNumericComponent(t FlowComponentType, data []byte) (FlowComponent, []b
 		for i := 0; i < valueLen; i++ {
 			value = value<<8 | uint64(data[offset+i])
 		}
-		values = append(values, value)
+
+		// Extract comparison operator (mask out EOL, AND, LEN bits)
+		compOp := op &^ (FlowOpEnd | FlowOpAnd | FlowOpLenMask)
+
+		matches = append(matches, FlowMatch{
+			Op:    compOp,
+			And:   op&FlowOpAnd != 0,
+			Value: value,
+		})
 		offset += valueLen
 
 		// Check for end of list
@@ -331,7 +346,7 @@ func parseNumericComponent(t FlowComponentType, data []byte) (FlowComponent, []b
 
 	comp := &numericComponent{
 		compType: t,
-		values:   values,
+		matches:  matches,
 	}
 
 	return comp, data[offset:], nil
@@ -406,49 +421,59 @@ func (c *prefixComponent) String() string {
 
 type numericComponent struct {
 	compType FlowComponentType
-	values   []uint64
+	matches  []FlowMatch
 }
 
 func (c *numericComponent) Type() FlowComponentType { return c.compType }
-func (c *numericComponent) Values() []uint64        { return c.values }
+
+// Matches returns the match conditions.
+func (c *numericComponent) Matches() []FlowMatch { return c.matches }
+
+// Values returns just the values (for backwards compatibility).
+func (c *numericComponent) Values() []uint64 {
+	vals := make([]uint64, len(c.matches))
+	for i, m := range c.matches {
+		vals[i] = m.Value
+	}
+	return vals
+}
 
 func (c *numericComponent) Bytes() []byte {
 	data := []byte{byte(c.compType)}
 
-	// Fragment and TCP flags use bitmask matching (no equal bit)
-	isBitmask := c.compType == FlowFragment || c.compType == FlowTCPFlags
-
-	for i, v := range c.values {
+	for i, m := range c.matches {
 		// Determine value length
 		var lenCode, valueLen byte
 		switch {
-		case v <= 0xFF:
+		case m.Value <= 0xFF:
 			lenCode, valueLen = 0, 1
-		case v <= 0xFFFF:
+		case m.Value <= 0xFFFF:
 			lenCode, valueLen = 1, 2
 		default:
 			lenCode, valueLen = 2, 4
 		}
 
+		// Build operator byte
 		op := lenCode << 4
-		if i == len(c.values)-1 {
+		if m.And {
+			op |= byte(FlowOpAnd)
+		}
+		if i == len(c.matches)-1 {
 			op |= byte(FlowOpEnd)
 		}
-		if !isBitmask {
-			op |= byte(FlowOpEqual) // Numeric types default to equality
-		}
+		op |= byte(m.Op) // Add comparison operator (GT, LT, EQ, etc.)
 
 		data = append(data, op)
 
 		// Encode value
 		switch valueLen {
 		case 1:
-			data = append(data, byte(v))
+			data = append(data, byte(m.Value))
 		case 2:
-			data = append(data, byte(v>>8), byte(v))
+			data = append(data, byte(m.Value>>8), byte(m.Value))
 		case 4:
 			var buf [4]byte
-			binary.BigEndian.PutUint32(buf[:], uint32(v)) //nolint:gosec // Flowspec value size validated
+			binary.BigEndian.PutUint32(buf[:], uint32(m.Value)) //nolint:gosec // Flowspec value size validated
 			data = append(data, buf[:]...)
 		}
 	}
@@ -457,113 +482,158 @@ func (c *numericComponent) Bytes() []byte {
 }
 
 func (c *numericComponent) String() string {
-	parts := make([]string, len(c.values))
-	for i, v := range c.values {
-		parts[i] = fmt.Sprintf("%d", v)
+	parts := make([]string, len(c.matches))
+	for i, m := range c.matches {
+		var prefix string
+		if m.And && i > 0 {
+			prefix = "&"
+		}
+		switch m.Op {
+		case FlowOpGreater:
+			parts[i] = fmt.Sprintf("%s>%d", prefix, m.Value)
+		case FlowOpLess:
+			parts[i] = fmt.Sprintf("%s<%d", prefix, m.Value)
+		case FlowOpEqual:
+			parts[i] = fmt.Sprintf("%s=%d", prefix, m.Value)
+		case FlowOpNotEq:
+			parts[i] = fmt.Sprintf("%s!=%d", prefix, m.Value)
+		case FlowOpGreater | FlowOpEqual:
+			parts[i] = fmt.Sprintf("%s>=%d", prefix, m.Value)
+		case FlowOpLess | FlowOpEqual:
+			parts[i] = fmt.Sprintf("%s<=%d", prefix, m.Value)
+		default:
+			parts[i] = fmt.Sprintf("%s%d", prefix, m.Value)
+		}
 	}
-	return fmt.Sprintf("%s=%s", c.compType, strings.Join(parts, ","))
+	return fmt.Sprintf("%s[%s]", c.compType, strings.Join(parts, " "))
 }
 
 // Component constructors
 
+// NewFlowNumericComponent creates a numeric component with explicit matches.
+func NewFlowNumericComponent(compType FlowComponentType, matches []FlowMatch) FlowComponent {
+	return &numericComponent{compType: compType, matches: matches}
+}
+
+// Helper to convert simple values to FlowMatch with equality operator.
+func valuesToMatches(values []uint64, op FlowOperator) []FlowMatch {
+	matches := make([]FlowMatch, len(values))
+	for i, v := range values {
+		matches[i] = FlowMatch{Op: op, Value: v}
+	}
+	return matches
+}
+
 // NewFlowIPProtocolComponent creates an IP protocol component.
 func NewFlowIPProtocolComponent(protocols ...uint8) FlowComponent {
-	values := make([]uint64, len(protocols))
+	matches := make([]FlowMatch, len(protocols))
 	for i, p := range protocols {
-		values[i] = uint64(p)
+		matches[i] = FlowMatch{Op: FlowOpEqual, Value: uint64(p)}
 	}
-	return &numericComponent{compType: FlowIPProtocol, values: values}
+	return &numericComponent{compType: FlowIPProtocol, matches: matches}
 }
 
 // NewFlowPortComponent creates a port component (src or dst).
 func NewFlowPortComponent(ports ...uint16) FlowComponent {
-	values := make([]uint64, len(ports))
+	matches := make([]FlowMatch, len(ports))
 	for i, p := range ports {
-		values[i] = uint64(p)
+		matches[i] = FlowMatch{Op: FlowOpEqual, Value: uint64(p)}
 	}
-	return &numericComponent{compType: FlowPort, values: values}
+	return &numericComponent{compType: FlowPort, matches: matches}
 }
 
 // NewFlowDestPortComponent creates a destination port component.
 func NewFlowDestPortComponent(ports ...uint16) FlowComponent {
-	values := make([]uint64, len(ports))
+	matches := make([]FlowMatch, len(ports))
 	for i, p := range ports {
-		values[i] = uint64(p)
+		matches[i] = FlowMatch{Op: FlowOpEqual, Value: uint64(p)}
 	}
-	return &numericComponent{compType: FlowDestPort, values: values}
+	return &numericComponent{compType: FlowDestPort, matches: matches}
 }
 
 // NewFlowSourcePortComponent creates a source port component.
 func NewFlowSourcePortComponent(ports ...uint16) FlowComponent {
-	values := make([]uint64, len(ports))
+	matches := make([]FlowMatch, len(ports))
 	for i, p := range ports {
-		values[i] = uint64(p)
+		matches[i] = FlowMatch{Op: FlowOpEqual, Value: uint64(p)}
 	}
-	return &numericComponent{compType: FlowSourcePort, values: values}
+	return &numericComponent{compType: FlowSourcePort, matches: matches}
 }
 
 // NewFlowICMPTypeComponent creates an ICMP type component.
 func NewFlowICMPTypeComponent(types ...uint8) FlowComponent {
-	values := make([]uint64, len(types))
+	matches := make([]FlowMatch, len(types))
 	for i, t := range types {
-		values[i] = uint64(t)
+		matches[i] = FlowMatch{Op: FlowOpEqual, Value: uint64(t)}
 	}
-	return &numericComponent{compType: FlowICMPType, values: values}
+	return &numericComponent{compType: FlowICMPType, matches: matches}
 }
 
 // NewFlowICMPCodeComponent creates an ICMP code component.
 func NewFlowICMPCodeComponent(codes ...uint8) FlowComponent {
-	values := make([]uint64, len(codes))
+	matches := make([]FlowMatch, len(codes))
 	for i, c := range codes {
-		values[i] = uint64(c)
+		matches[i] = FlowMatch{Op: FlowOpEqual, Value: uint64(c)}
 	}
-	return &numericComponent{compType: FlowICMPCode, values: values}
+	return &numericComponent{compType: FlowICMPCode, matches: matches}
 }
 
 // NewFlowTCPFlagsComponent creates a TCP flags component.
+// TCP flags use bitmask matching (no comparison operator).
 func NewFlowTCPFlagsComponent(flags ...uint8) FlowComponent {
-	values := make([]uint64, len(flags))
+	matches := make([]FlowMatch, len(flags))
 	for i, f := range flags {
-		values[i] = uint64(f)
+		matches[i] = FlowMatch{Op: 0, Value: uint64(f)} // No operator for bitmask
 	}
-	return &numericComponent{compType: FlowTCPFlags, values: values}
+	return &numericComponent{compType: FlowTCPFlags, matches: matches}
+}
+
+// NewFlowTCPFlagsMatchComponent creates a TCP flags component with explicit matches.
+func NewFlowTCPFlagsMatchComponent(matchList []FlowMatch) FlowComponent {
+	return &numericComponent{compType: FlowTCPFlags, matches: matchList}
 }
 
 // NewFlowPacketLengthComponent creates a packet length component.
 func NewFlowPacketLengthComponent(lengths ...uint16) FlowComponent {
-	values := make([]uint64, len(lengths))
+	matches := make([]FlowMatch, len(lengths))
 	for i, l := range lengths {
-		values[i] = uint64(l)
+		matches[i] = FlowMatch{Op: FlowOpEqual, Value: uint64(l)}
 	}
-	return &numericComponent{compType: FlowPacketLength, values: values}
+	return &numericComponent{compType: FlowPacketLength, matches: matches}
+}
+
+// NewFlowPacketLengthMatchComponent creates a packet length component with explicit matches.
+func NewFlowPacketLengthMatchComponent(matchList []FlowMatch) FlowComponent {
+	return &numericComponent{compType: FlowPacketLength, matches: matchList}
 }
 
 // NewFlowDSCPComponent creates a DSCP component.
 func NewFlowDSCPComponent(values ...uint8) FlowComponent {
-	vals := make([]uint64, len(values))
+	matches := make([]FlowMatch, len(values))
 	for i, v := range values {
-		vals[i] = uint64(v)
+		matches[i] = FlowMatch{Op: FlowOpEqual, Value: uint64(v)}
 	}
-	return &numericComponent{compType: FlowDSCP, values: vals}
+	return &numericComponent{compType: FlowDSCP, matches: matches}
 }
 
 // NewFlowFragmentComponent creates a fragment component.
+// Fragment uses bitmask matching (no comparison operator).
 func NewFlowFragmentComponent(flags ...FlowFragmentFlag) FlowComponent {
-	values := make([]uint64, len(flags))
+	matches := make([]FlowMatch, len(flags))
 	for i, f := range flags {
-		values[i] = uint64(f)
+		matches[i] = FlowMatch{Op: 0, Value: uint64(f)} // No operator for bitmask
 	}
-	return &numericComponent{compType: FlowFragment, values: values}
+	return &numericComponent{compType: FlowFragment, matches: matches}
 }
 
 // NewFlowFlowLabelComponent creates a flow-label component (IPv6 only).
 // Flow-label is a 20-bit field encoded as uint32.
 func NewFlowFlowLabelComponent(labels ...uint32) FlowComponent {
-	vals := make([]uint64, len(labels))
+	matches := make([]FlowMatch, len(labels))
 	for i, v := range labels {
-		vals[i] = uint64(v)
+		matches[i] = FlowMatch{Op: FlowOpEqual, Value: uint64(v)}
 	}
-	return &numericComponent{compType: FlowFlowLabel, values: vals}
+	return &numericComponent{compType: FlowFlowLabel, matches: matches}
 }
 
 // ============================================================================
