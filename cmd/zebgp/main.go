@@ -4,6 +4,7 @@ package main
 import (
 	"fmt"
 	"os"
+	"strings"
 )
 
 const version = "0.1.0"
@@ -14,38 +15,76 @@ func main() {
 		os.Exit(1)
 	}
 
-	switch os.Args[1] {
-	case "validate":
-		os.Exit(cmdValidate(os.Args[2:]))
+	arg := os.Args[1]
+
+	// Check for known commands first
+	switch arg {
+	case "server":
+		os.Exit(cmdServer(os.Args[2:]))
 	case "run":
 		os.Exit(cmdRun(os.Args[2:]))
+	case "validate":
+		os.Exit(cmdValidate(os.Args[2:]))
 	case "version":
 		fmt.Printf("zebgp %s\n", version)
 		os.Exit(0)
 	case "help", "-h", "--help":
 		usage()
 		os.Exit(0)
-	default:
-		fmt.Fprintf(os.Stderr, "unknown command: %s\n", os.Args[1])
-		usage()
-		os.Exit(1)
 	}
+
+	// If arg looks like a config file, start daemon
+	if looksLikeConfig(arg) {
+		os.Exit(cmdServer(os.Args[1:]))
+	}
+
+	// Unknown command
+	fmt.Fprintf(os.Stderr, "unknown command: %s\n", arg)
+	usage()
+	os.Exit(1)
+}
+
+// looksLikeConfig returns true if the argument looks like a config file path.
+func looksLikeConfig(arg string) bool {
+	// Check for common config extensions
+	if strings.HasSuffix(arg, ".conf") ||
+		strings.HasSuffix(arg, ".cfg") ||
+		strings.HasSuffix(arg, ".yaml") ||
+		strings.HasSuffix(arg, ".yml") ||
+		strings.HasSuffix(arg, ".json") {
+		return true
+	}
+
+	// Check if it's a path (contains / or starts with .)
+	if strings.Contains(arg, "/") || strings.HasPrefix(arg, ".") {
+		// Check if file exists
+		if _, err := os.Stat(arg); err == nil {
+			return true
+		}
+	}
+
+	return false
 }
 
 func usage() {
 	fmt.Fprintf(os.Stderr, `zebgp - BGP daemon
 
 Usage:
-  zebgp <command> [options]
+  zebgp <config>              Start daemon with config file
+  zebgp <command> [options]   Execute command
 
 Commands:
+  server <config>     Start the BGP daemon (same as zebgp <config>)
+  run <command>       Execute API command on running daemon
   validate <config>   Validate configuration file
-  run <config>        Run the BGP daemon
   version             Show version
   help                Show this help
 
 Examples:
+  zebgp /etc/zebgp/config.conf
+  zebgp server /etc/zebgp/config.conf
+  zebgp run peer list
+  zebgp run daemon status
   zebgp validate /etc/zebgp/config.conf
-  zebgp run /etc/zebgp/config.conf
 `)
 }

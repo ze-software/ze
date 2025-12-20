@@ -1,4 +1,6 @@
 // Package main provides the ZeBGP CLI client entry point.
+//
+// This tool is deprecated. Use "zebgp run" instead.
 package main
 
 import (
@@ -7,7 +9,9 @@ import (
 )
 
 func main() {
-	fmt.Println("ZeBGP CLI - Interactive client")
-	fmt.Println("Status: Not yet implemented")
-	os.Exit(0)
+	fmt.Fprintln(os.Stderr, "zebgp-cli is deprecated. Use 'zebgp run <command>' instead.")
+	fmt.Fprintln(os.Stderr, "Examples:")
+	fmt.Fprintln(os.Stderr, "  zebgp run peer list")
+	fmt.Fprintln(os.Stderr, "  zebgp run -i          # interactive mode")
+	os.Exit(1)
 }
