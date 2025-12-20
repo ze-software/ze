@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"net/netip"
 	"os"
 	"strconv"
 	"time"
@@ -99,6 +100,24 @@ func configToNeighbor(nc *NeighborConfig, global *BGPConfig) *reactor.Neighbor {
 		if v, err := strconv.ParseUint(p, 10, 16); err == nil {
 			n.Port = uint16(v) //nolint:gosec // Validated above
 		}
+	}
+
+	// Convert static routes.
+	for _, sr := range nc.StaticRoutes {
+		route := reactor.StaticRoute{
+			Prefix:          sr.Prefix,
+			LocalPreference: sr.LocalPreference,
+			MED:             sr.MED,
+		}
+
+		// Parse next-hop (can be "self" or an IP address).
+		if sr.NextHop != "" && sr.NextHop != "self" {
+			if ip, err := netip.ParseAddr(sr.NextHop); err == nil {
+				route.NextHop = ip
+			}
+		}
+
+		n.StaticRoutes = append(n.StaticRoutes, route)
 	}
 
 	return n

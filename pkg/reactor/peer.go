@@ -7,8 +7,10 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/exa-networks/zebgp/pkg/bgp/attribute"
 	"github.com/exa-networks/zebgp/pkg/bgp/fsm"
 	"github.com/exa-networks/zebgp/pkg/bgp/message"
+	"github.com/exa-networks/zebgp/pkg/bgp/nlri"
 )
 
 // PeerState represents the high-level state of a peer.
@@ -251,6 +253,8 @@ func (p *Peer) runOnce() error {
 	session.fsm.SetCallback(func(from, to fsm.State) {
 		if to == fsm.StateEstablished {
 			p.setState(PeerStateEstablished)
+			// Send static routes from config.
+			go p.sendInitialRoutes()
 		} else if from == fsm.StateEstablished {
 			p.setState(PeerStateConnecting)
 		}
@@ -300,4 +304,66 @@ func (p *Peer) cleanup() {
 	p.mu.Unlock()
 
 	p.setState(PeerStateStopped)
+}
+
+// sendInitialRoutes sends static routes configured for this neighbor.
+func (p *Peer) sendInitialRoutes() {
+	for _, route := range p.neighbor.StaticRoutes {
+		update := buildStaticRouteUpdate(route, p.neighbor.LocalAS, p.neighbor.IsIBGP())
+		if err := p.SendUpdate(update); err != nil {
+			// Log error but continue - connection may have closed.
+			break
+		}
+	}
+
+	// Send End-of-RIB marker for IPv4 unicast.
+	if len(p.neighbor.StaticRoutes) > 0 {
+		eor := buildEORUpdate(1, 1) // IPv4 unicast
+		_ = p.SendUpdate(eor)
+	}
+}
+
+// buildStaticRouteUpdate builds an UPDATE message for a static route.
+func buildStaticRouteUpdate(route StaticRoute, localAS uint32, isIBGP bool) *message.Update {
+	var attrBytes []byte
+
+	// 1. ORIGIN (IGP by default, use configured value if set)
+	origin := attribute.Origin(route.Origin)
+	attrBytes = append(attrBytes, attribute.PackAttribute(origin)...)
+
+	// 2. AS_PATH (prepend local AS for eBGP, empty for iBGP routes we originate)
+	asPath := &attribute.ASPath{
+		Segments: []attribute.ASPathSegment{
+			{Type: attribute.ASSequence, ASNs: []uint32{localAS}},
+		},
+	}
+	attrBytes = append(attrBytes, attribute.PackAttribute(asPath)...)
+
+	// 3. NEXT_HOP
+	nextHop := &attribute.NextHop{Addr: route.NextHop}
+	attrBytes = append(attrBytes, attribute.PackAttribute(nextHop)...)
+
+	// 4. LOCAL_PREF (for iBGP)
+	if isIBGP && route.LocalPreference > 0 {
+		localPref := attribute.LocalPref(route.LocalPreference)
+		attrBytes = append(attrBytes, attribute.PackAttribute(localPref)...)
+	}
+
+	// 5. MED (if set)
+	if route.MED > 0 {
+		med := attribute.MED(route.MED)
+		attrBytes = append(attrBytes, attribute.PackAttribute(med)...)
+	}
+
+	// Build NLRI
+	var nlriBytes []byte
+	if route.Prefix.Addr().Is4() {
+		inet := nlri.NewINET(nlri.Family{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast}, route.Prefix, 0)
+		nlriBytes = inet.Bytes()
+	}
+
+	return &message.Update{
+		PathAttributes: attrBytes,
+		NLRI:           nlriBytes,
+	}
 }

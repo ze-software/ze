@@ -407,7 +407,7 @@ func (r *Runner) runTest(ctx context.Context, test *Test) (bool, string) {
 	r.tests.Display()
 
 	// Start zebgp (client).
-	clientCmd := exec.CommandContext(testCtx, r.zebgpPath, "run", test.Config) //nolint:gosec // Paths from known base dir
+	clientCmd := exec.CommandContext(testCtx, r.zebgpPath, "server", test.Config) //nolint:gosec // Paths from known base dir
 	clientCmd.Env = append(os.Environ(),
 		fmt.Sprintf("exabgp_tcp_port=%d", test.Port),
 		"exabgp_tcp_bind=",
@@ -424,6 +424,12 @@ func (r *Runner) runTest(ctx context.Context, test *Test) (bool, string) {
 		_ = clientCmd.Wait()
 	}()
 
+	// Read outputs concurrently (must read before Wait returns).
+	serverOutCh := make(chan []byte, 1)
+	serverErrCh := make(chan []byte, 1)
+	go func() { serverOutCh <- readAll(serverOut) }()
+	go func() { serverErrCh <- readAll(serverErr) }()
+
 	// Wait for test to complete.
 	done := make(chan error, 1)
 	go func() {
@@ -432,12 +438,17 @@ func (r *Runner) runTest(ctx context.Context, test *Test) (bool, string) {
 
 	select {
 	case err := <-done:
+		// Server finished - kill client so we can read its pipes.
+		_ = clientCmd.Process.Kill()
+
 		// Server finished - check if successful.
 		var output strings.Builder
 
-		// Read outputs.
-		serverOutBytes := readAll(serverOut)
-		serverErrBytes := readAll(serverErr)
+		// Get server output (already read concurrently).
+		serverOutBytes := <-serverOutCh
+		serverErrBytes := <-serverErrCh
+
+		// Read client output after killing.
 		clientOutBytes := readAll(clientOut)
 		clientErrBytes := readAll(clientErr)
 

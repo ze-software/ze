@@ -15,6 +15,15 @@ const DefaultBGPPort = 179
 // DefaultHoldTime is the default hold time per RFC 4271.
 const DefaultHoldTime = 90 * time.Second
 
+// StaticRoute represents a route to announce when session is established.
+type StaticRoute struct {
+	Prefix          netip.Prefix
+	NextHop         netip.Addr
+	Origin          uint8  // 0=IGP, 1=EGP, 2=INCOMPLETE
+	LocalPreference uint32 // For iBGP
+	MED             uint32 // Multi-Exit Discriminator
+}
+
 // Neighbor represents a configured BGP neighbor.
 type Neighbor struct {
 	// Address is the peer's IP address.
@@ -40,6 +49,9 @@ type Neighbor struct {
 
 	// Capabilities to advertise in OPEN message.
 	Capabilities []capability.Capability
+
+	// StaticRoutes are announced when session is established.
+	StaticRoutes []StaticRoute
 }
 
 // NewNeighbor creates a neighbor with default values.

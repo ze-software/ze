@@ -473,12 +473,9 @@ func (c *Checker) Expected(msg *Message) bool {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	if msg.IsKeepalive() {
-		return true
-	}
-
+	// If no expectations, accept keepalives and EOR
 	if len(c.sequences) == 0 && len(c.messages) == 0 {
-		return msg.IsEOR()
+		return msg.IsKeepalive() || msg.IsEOR()
 	}
 
 	stream := msg.Stream()
