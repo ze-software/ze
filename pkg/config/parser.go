@@ -78,8 +78,9 @@ func (t *Tree) Values() []string {
 
 // Parser parses ExaBGP-style configuration.
 type Parser struct {
-	schema *Schema
-	tok    *Tokenizer
+	schema   *Schema
+	tok      *Tokenizer
+	warnings []string
 }
 
 // NewParser creates a new parser with the given schema.
@@ -90,7 +91,18 @@ func NewParser(schema *Schema) *Parser {
 // Parse parses the input string into a config tree.
 func (p *Parser) Parse(input string) (*Tree, error) {
 	p.tok = NewTokenizer(input)
+	p.warnings = nil
 	return p.parseRoot()
+}
+
+// Warnings returns any warnings generated during parsing.
+func (p *Parser) Warnings() []string {
+	return p.warnings
+}
+
+func (p *Parser) warn(line int, format string, args ...any) {
+	msg := fmt.Sprintf(format, args...)
+	p.warnings = append(p.warnings, fmt.Sprintf("line %d: %s", line, msg))
 }
 
 // parseRoot parses the top level of the config.
@@ -382,6 +394,7 @@ func (p *Parser) parseFreeform(tree *Tree, name string) error {
 		// Collect words until semicolon or nested block
 		var words []string
 		hadArray := false
+		startLine := p.tok.Peek().Line
 		for {
 			tok = p.tok.Peek()
 			if tok.Type == TokenSemicolon {
@@ -389,6 +402,15 @@ func (p *Parser) parseFreeform(tree *Tree, name string) error {
 				break
 			}
 			if tok.Type == TokenLBrace {
+				// Warn about nested block being skipped
+				key := ""
+				for i, w := range words {
+					if i > 0 {
+						key += " "
+					}
+					key += w
+				}
+				p.warn(startLine, "freeform '%s' contains nested block '%s' - data may be lost", name, key)
 				// Skip nested block
 				if err := p.skipBlock(); err != nil {
 					return err
@@ -580,19 +602,37 @@ func (p *Parser) parseInlineList(tree *Tree, name string, node *InlineListNode) 
 			attrName := tok.Value
 			p.tok.Next()
 
-			// Get value
+			// Get value - can be word, string, or array [ ... ]
 			tok = p.tok.Peek()
-			if tok.Type != TokenWord && tok.Type != TokenString {
+			var attrValue string
+			if tok.Type == TokenLBracket {
+				// Array value: [ item item ... ]
+				arrayVals, err := p.collectArray()
+				if err != nil {
+					return err
+				}
+				// Join array items with space
+				for i, v := range arrayVals {
+					if i > 0 {
+						attrValue += " "
+					}
+					attrValue += v
+				}
+			} else if tok.Type == TokenWord || tok.Type == TokenString {
+				attrValue = tok.Value
+				p.tok.Next()
+			} else {
 				return p.errorf(tok, "expected value for %s.%s, got %s", name, attrName, tok.Type)
 			}
-			attrValue := tok.Value
-			p.tok.Next()
 
-			// Validate if we know this attribute
+			// Validate if we know this attribute (skip for arrays since values are joined)
 			if fieldNode := node.Get(attrName); fieldNode != nil {
 				if leaf, ok := fieldNode.(*LeafNode); ok {
-					if err := ValidateValue(leaf.Type, attrValue); err != nil {
-						return p.errorf(tok, "invalid value for %s.%s: %v", name, attrName, err)
+					// Only validate non-array simple values
+					if tok.Type != TokenLBracket {
+						if err := ValidateValue(leaf.Type, attrValue); err != nil {
+							return p.errorf(tok, "invalid value for %s.%s: %v", name, attrName, err)
+						}
 					}
 				}
 			}

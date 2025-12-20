@@ -29,6 +29,8 @@ func main() {
 		os.Exit(cmdValidate(os.Args[2:]))
 	case "edit":
 		os.Exit(cmdEdit(os.Args[2:]))
+	case "config-dump":
+		os.Exit(cmdConfigDump(os.Args[2:]))
 	case "version":
 		fmt.Printf("zebgp %s\n", version)
 		os.Exit(0)
@@ -78,13 +80,14 @@ Usage:
   zebgp <command> [options]   Execute command
 
 Commands:
-  server <config>     Start the BGP daemon (same as zebgp <config>)
-  run <command>       Execute API command on running daemon
-  cli                 Interactive CLI with autocomplete
-  edit <config>       Interactive configuration editor
-  validate <config>   Validate configuration file
-  version             Show version
-  help                Show this help
+  server <config>      Start the BGP daemon (same as zebgp <config>)
+  run <command>        Execute API command on running daemon
+  cli                  Interactive CLI with autocomplete
+  edit <config>        Interactive configuration editor
+  validate <config>    Validate configuration file
+  config-dump <config> Dump parsed config (debug tool)
+  version              Show version
+  help                 Show this help
 
 Examples:
   zebgp /etc/zebgp/config.conf
@@ -93,5 +96,6 @@ Examples:
   zebgp cli
   zebgp edit /etc/zebgp/config.conf
   zebgp validate /etc/zebgp/config.conf
+  zebgp config-dump --json config.conf
 `)
 }

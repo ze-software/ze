@@ -74,8 +74,29 @@ func BGPSchema() *Schema {
 		// Announce routes (dynamic)
 		Field("announce", Freeform()),
 
-		// Static routes - use Freeform due to complex inline syntax with arrays
-		Field("static", Freeform()),
+		// Static routes - InlineList supports "route PREFIX attr val attr val;"
+		Field("static", Container(
+			Field("route", InlineList(TypePrefix,
+				Field("next-hop", Leaf(TypeString)),
+				Field("origin", Leaf(TypeString)),
+				Field("local-preference", Leaf(TypeUint32)),
+				Field("med", Leaf(TypeUint32)),
+				Field("community", Leaf(TypeString)),
+				Field("extended-community", Leaf(TypeString)),
+				Field("large-community", Leaf(TypeString)),
+				Field("as-path", Leaf(TypeString)),
+				Field("path-information", Leaf(TypeString)),
+				Field("label", Leaf(TypeString)),
+				Field("rd", Leaf(TypeString)),
+				Field("aggregator", Leaf(TypeString)),
+				Field("atomic-aggregate", Leaf(TypeBool)),
+				Field("originator-id", Leaf(TypeIPv4)),
+				Field("cluster-list", Leaf(TypeString)),
+				Field("name", Leaf(TypeString)),
+				Field("split", Leaf(TypeString)),
+				Field("watchdog", Leaf(TypeString)),
+			)),
+		)),
 
 		// Flow routes
 		Field("flow", Freeform()),
@@ -306,9 +327,19 @@ func parseNeighborConfig(addr string, tree *Tree) (NeighborConfig, error) {
 		for prefix, route := range static.GetList("route") {
 			sr := StaticRouteConfig{}
 
+			// Try as prefix first, then as bare IP (host route)
 			p, err := netip.ParsePrefix(prefix)
 			if err != nil {
-				return nc, fmt.Errorf("invalid prefix %s: %w", prefix, err)
+				// Try as bare IP, convert to /32 or /128
+				ip, err2 := netip.ParseAddr(prefix)
+				if err2 != nil {
+					return nc, fmt.Errorf("invalid prefix %s: %w", prefix, err)
+				}
+				bits := 32
+				if ip.Is6() {
+					bits = 128
+				}
+				p = netip.PrefixFrom(ip, bits)
 			}
 			sr.Prefix = p
 

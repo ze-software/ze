@@ -11,6 +11,7 @@ import (
 	"github.com/exa-networks/zebgp/pkg/bgp/fsm"
 	"github.com/exa-networks/zebgp/pkg/bgp/message"
 	"github.com/exa-networks/zebgp/pkg/bgp/nlri"
+	"github.com/exa-networks/zebgp/pkg/trace"
 )
 
 // PeerState represents the high-level state of a peer.
@@ -251,12 +252,17 @@ func (p *Peer) runOnce() error {
 
 	// Monitor FSM state
 	session.fsm.SetCallback(func(from, to fsm.State) {
+		addr := p.neighbor.Address.String()
+		trace.FSMTransition(addr, from.String(), to.String())
+
 		if to == fsm.StateEstablished {
 			p.setState(PeerStateEstablished)
+			trace.SessionEstablished(addr, p.neighbor.LocalAS, p.neighbor.PeerAS)
 			// Send static routes from config.
 			go p.sendInitialRoutes()
 		} else if from == fsm.StateEstablished {
 			p.setState(PeerStateConnecting)
+			trace.SessionClosed(addr, "FSM left Established state")
 		}
 	})
 
@@ -308,18 +314,24 @@ func (p *Peer) cleanup() {
 
 // sendInitialRoutes sends static routes configured for this neighbor.
 func (p *Peer) sendInitialRoutes() {
+	addr := p.neighbor.Address.String()
+	trace.Log(trace.Routes, "neighbor %s: sending %d static routes", addr, len(p.neighbor.StaticRoutes))
+
 	for _, route := range p.neighbor.StaticRoutes {
 		update := buildStaticRouteUpdate(route, p.neighbor.LocalAS, p.neighbor.IsIBGP())
 		if err := p.SendUpdate(update); err != nil {
+			trace.Log(trace.Routes, "neighbor %s: send error: %v", addr, err)
 			// Log error but continue - connection may have closed.
 			break
 		}
+		trace.RouteSent(addr, route.Prefix.String(), route.NextHop.String())
 	}
 
 	// Send End-of-RIB marker for IPv4 unicast.
 	if len(p.neighbor.StaticRoutes) > 0 {
 		eor := buildEORUpdate(1, 1) // IPv4 unicast
 		_ = p.SendUpdate(eor)
+		trace.Log(trace.Routes, "neighbor %s: sent EOR marker", addr)
 	}
 }
 

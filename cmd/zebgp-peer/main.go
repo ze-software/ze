@@ -86,6 +86,7 @@ func parseFlags() *testpeer.Config {
 	flag.BoolVar(&config.Sink, "sink", false, "accept any BGP messages, reply with keepalive")
 	flag.BoolVar(&config.Echo, "echo", false, "accept any BGP messages, echo them back")
 	flag.BoolVar(&config.IPv6, "ipv6", false, "bind using IPv6")
+	flag.BoolVar(&config.Decode, "decode", false, "decode messages to human-readable format")
 	flag.BoolVar(&view, "view", false, "show expected packets and exit")
 	flag.Parse()
 

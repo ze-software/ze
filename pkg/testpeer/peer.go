@@ -47,6 +47,7 @@ type Config struct {
 	Sink                  bool
 	Echo                  bool
 	IPv6                  bool
+	Decode                bool // Decode messages to human-readable format
 	SendUnknownCapability bool
 	SendDefaultRoute      bool
 	InspectOpenMessage    bool
@@ -245,7 +246,9 @@ func (p *Peer) handleConnection(ctx context.Context, conn net.Conn) Result {
 		_, _ = conn.Write(KeepaliveMsg())
 
 		if !p.checker.Expected(msg) {
-			return Result{Success: false, Error: errors.New("message mismatch")}
+			expected, received := p.checker.LastMismatch()
+			diff := Diff(expected, received)
+			return Result{Success: false, Error: fmt.Errorf("message mismatch%s", diff)}
 		}
 
 		if p.checker.Completed() {
@@ -293,6 +296,18 @@ func (p *Peer) printPayload(prefix string, header, body []byte) {
 		p.printf("%-12s%s:%s:%s:%s\n", prefix, h[:32], h[32:36], h[36:38], b)
 	} else {
 		p.printf("%-12s%s%s\n", prefix, h, b)
+	}
+
+	// Show decoded output if enabled
+	if p.config.Decode {
+		fullMsg := append(header, body...)
+		if decoded, err := DecodeMessageBytes(fullMsg); err == nil {
+			for _, line := range strings.Split(decoded.String(), "\n") {
+				if line != "" {
+					p.printf("             %s\n", line)
+				}
+			}
+		}
 	}
 }
 
@@ -385,9 +400,11 @@ func (m *Message) Stream() string {
 
 // Checker validates received messages against expected patterns.
 type Checker struct {
-	messages  []string
-	sequences [][]string
-	mu        sync.Mutex
+	messages     []string
+	sequences    [][]string
+	lastExpected string // For diff output on mismatch
+	lastReceived string // For diff output on mismatch
+	mu           sync.Mutex
 }
 
 // NewChecker creates a new checker from expected messages.
@@ -493,7 +510,20 @@ func (c *Checker) Expected(msg *Message) bool {
 		}
 	}
 
+	// Store mismatch details for diff output
+	c.lastReceived = stream
+	if len(c.messages) > 0 {
+		c.lastExpected = c.messages[0]
+	}
+
 	return false
+}
+
+// LastMismatch returns the expected and received values from the last mismatch.
+func (c *Checker) LastMismatch() (expected, received string) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.lastExpected, c.lastReceived
 }
 
 func (c *Checker) updateMessagesIfRequired() {

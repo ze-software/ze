@@ -9,6 +9,7 @@ import (
 
 	"github.com/exa-networks/zebgp/pkg/bgp/capability"
 	"github.com/exa-networks/zebgp/pkg/reactor"
+	"github.com/exa-networks/zebgp/pkg/trace"
 )
 
 // LoadReactor parses config and creates a configured Reactor.
@@ -26,11 +27,16 @@ func LoadReactorWithConfig(input string) (*BGPConfig, *reactor.Reactor, error) {
 		return nil, nil, fmt.Errorf("parse config: %w", err)
 	}
 
+	// Log parse warnings
+	trace.ConfigParsed("(input)", 0, p.Warnings())
+
 	// Convert to typed config
 	cfg, err := TreeToConfig(tree)
 	if err != nil {
 		return nil, nil, fmt.Errorf("convert config: %w", err)
 	}
+
+	trace.ConfigLoaded(len(cfg.Neighbors))
 
 	// Create reactor
 	r, err := CreateReactor(cfg)
@@ -159,6 +165,11 @@ func configToNeighbor(nc *NeighborConfig, global *BGPConfig) *reactor.Neighbor {
 		}
 
 		n.StaticRoutes = append(n.StaticRoutes, route)
+	}
+
+	// Log static routes
+	if len(n.StaticRoutes) > 0 {
+		trace.NeighborRoutes(nc.Address.String(), len(n.StaticRoutes))
 	}
 
 	return n
