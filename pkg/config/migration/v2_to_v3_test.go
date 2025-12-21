@@ -1,3 +1,4 @@
+//nolint:goconst // Test file uses inline strings for readability
 package migration
 
 import (

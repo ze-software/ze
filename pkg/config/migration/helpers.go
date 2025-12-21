@@ -12,8 +12,8 @@ func isIPv6Prefix(prefix string) bool {
 }
 
 // isMulticastPrefix returns true if the prefix is in the multicast range.
-// IPv4: 224.0.0.0/4 (224.0.0.0 - 239.255.255.255)
-// IPv6: ff00::/8
+// IPv4: 224.0.0.0/4 (224.0.0.0 - 239.255.255.255).
+// IPv6: ff00::/8.
 func isMulticastPrefix(prefix string) bool {
 	// Parse the prefix
 	p, err := netip.ParsePrefix(prefix)
@@ -25,8 +25,8 @@ func isMulticastPrefix(prefix string) bool {
 
 	if addr.Is4() {
 		// IPv4 multicast: 224.0.0.0/4 (first octet 224-239)
-		bytes := addr.As4()
-		return bytes[0] >= 224 && bytes[0] <= 239
+		bytes := addr.As4()                       // As4() returns [4]byte, index 0 is always valid
+		return bytes[0] >= 224 && bytes[0] <= 239 //nolint:gosec // As4 returns fixed [4]byte
 	}
 
 	if addr.Is6() {

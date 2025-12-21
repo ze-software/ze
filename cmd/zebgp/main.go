@@ -29,6 +29,8 @@ func main() {
 		os.Exit(cmdValidate(os.Args[2:]))
 	case "edit":
 		os.Exit(cmdEdit(os.Args[2:]))
+	case "config":
+		os.Exit(cmdConfig(os.Args[2:]))
 	case "config-dump":
 		os.Exit(cmdConfigDump(os.Args[2:]))
 	case "version":
@@ -85,9 +87,16 @@ Commands:
   cli                  Interactive CLI with autocomplete
   edit <config>        Interactive configuration editor
   validate <config>    Validate configuration file
+  config <subcommand>  Configuration management (check, migrate)
   config-dump <config> Dump parsed config (debug tool)
   version              Show version
   help                 Show this help
+
+Config Subcommands:
+  config check <file>         Show version and what needs migration
+  config migrate <file>       Convert config to current format
+  config migrate <file> -o <output>    Write to file
+  config migrate <file> --in-place     Convert in place (with backup)
 
 Examples:
   zebgp /etc/zebgp/config.conf
@@ -96,6 +105,7 @@ Examples:
   zebgp cli
   zebgp edit /etc/zebgp/config.conf
   zebgp validate /etc/zebgp/config.conf
-  zebgp config-dump --json config.conf
+  zebgp config check config.conf
+  zebgp config migrate old.conf -o new.conf
 `)
 }
