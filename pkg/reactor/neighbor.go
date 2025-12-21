@@ -167,6 +167,10 @@ type Neighbor struct {
 	// Session will be rejected with NOTIFICATION if peer doesn't support these.
 	RequiredFamilies []capability.Family
 
+	// IgnoreFamilies are address families with lenient UPDATE validation.
+	// NLRI for these families will be skipped (not error) if not negotiated.
+	IgnoreFamilies []capability.Family
+
 	// StaticRoutes are announced when session is established.
 	StaticRoutes []StaticRoute
 

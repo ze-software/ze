@@ -334,15 +334,16 @@ level=info msg="all required families negotiated"
 1. **ExaBGP compatibility:** Does ExaBGP support `require` mode?
    - Check `main/src/exabgp/configuration/neighbor/family.py`
    - If not, this is a ZeBGP extension
+   - **Answer:** `require` and `ignore` are ZeBGP extensions
 
-2. **Per-family ignore-mismatch:** Should we add `ignore` as fourth mode?
-   - `enable` = advertise, fail on mismatch (current default)
-   - `ignore` = advertise, ignore mismatch (current ignore-mismatch)
-   - `require` = advertise, send NOTIFICATION on mismatch
+2. ~~**Per-family ignore-mismatch:** Should we add `ignore` as fourth mode?~~
+   - ✅ **Implemented!** Four modes now available:
+   - `enable` = advertise, strict on UPDATE (error if mismatch)
+   - `ignore` = advertise, lenient on UPDATE (skip if mismatch)
+   - `require` = advertise, refuse session if not negotiated
    - `disable` = don't advertise
 
-3. **Block syntax necessity:** Is `ipv4 { unicast require; }` needed, or is
-   `ipv4 unicast require;` sufficient for all use cases?
+3. ~~**Block syntax necessity:**~~ ✅ Both syntaxes kept and working.
 
 ---
 
@@ -368,3 +369,5 @@ level=info msg="all required families negotiated"
 9. ✅ All tests pass, lint clean
 10. ✅ Integration test for session rejection
 11. ✅ Human-readable family names (AFI.String(), SAFI.String(), Family.String())
+12. ✅ Add FamilyModeIgnore (4th mode) for per-family UPDATE leniency
+13. ✅ Add IgnoreFamilies to Neighbor, update session validation

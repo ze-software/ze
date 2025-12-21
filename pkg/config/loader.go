@@ -186,6 +186,14 @@ func configToNeighbor(nc *NeighborConfig, global *BGPConfig) (*reactor.Neighbor,
 				SAFI: safi,
 			})
 		}
+
+		// Track ignore families (lenient UPDATE validation)
+		if fc.Mode == FamilyModeIgnore {
+			n.IgnoreFamilies = append(n.IgnoreFamilies, capability.Family{
+				AFI:  afi,
+				SAFI: safi,
+			})
+		}
 	}
 
 	// Add FQDN capability if hostname or domain is set.

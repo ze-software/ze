@@ -25,11 +25,15 @@ type FamilyMode int
 
 const (
 	// FamilyModeEnable advertises the family, accepts if peer doesn't support.
+	// Strict on UPDATE: error if peer sends NLRI for non-negotiated family.
 	FamilyModeEnable FamilyMode = iota
 	// FamilyModeDisable does not advertise the family.
 	FamilyModeDisable
 	// FamilyModeRequire advertises the family, refuses session if peer doesn't support.
 	FamilyModeRequire
+	// FamilyModeIgnore advertises the family, accepts if peer doesn't support.
+	// Lenient on UPDATE: skip NLRI for non-negotiated family instead of error.
+	FamilyModeIgnore
 )
 
 // String returns the string representation of FamilyMode.
@@ -41,6 +45,8 @@ func (m FamilyMode) String() string {
 		return "disable"
 	case FamilyModeRequire:
 		return "require"
+	case FamilyModeIgnore:
+		return "ignore"
 	default:
 		return "unknown"
 	}
@@ -56,6 +62,8 @@ func ParseFamilyMode(s string) FamilyMode {
 		return FamilyModeDisable
 	case configRequire:
 		return FamilyModeRequire
+	case "ignore":
+		return FamilyModeIgnore
 	default:
 		return FamilyModeEnable
 	}

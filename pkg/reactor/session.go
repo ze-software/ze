@@ -508,14 +508,15 @@ func (s *Session) validateUpdateFamilies(body []byte) error {
 
 			neg := s.Negotiated()
 			if neg != nil && !neg.SupportsFamily(family) {
-				// Family not negotiated
-				if s.neighbor.IgnoreFamilyMismatch {
+				// Family not negotiated - check if we should ignore
+				shouldIgnore := s.neighbor.IgnoreFamilyMismatch || s.shouldIgnoreFamily(family)
+				if shouldIgnore {
 					// Lenient mode: log warning and skip
 					trace.UpdateFamilyMismatch(uint16(afi), uint8(safi), true)
 				} else {
 					// Strict mode: return error
 					trace.UpdateFamilyMismatch(uint16(afi), uint8(safi), false)
-					return fmt.Errorf("%w: AFI=%d SAFI=%d", ErrFamilyNotNegotiated, afi, safi)
+					return fmt.Errorf("%w: %s", ErrFamilyNotNegotiated, family)
 				}
 			}
 		}
@@ -787,6 +788,17 @@ func isTimeout(err error) bool {
 	var netErr net.Error
 	if errors.As(err, &netErr) {
 		return netErr.Timeout()
+	}
+	return false
+}
+
+// shouldIgnoreFamily checks if UPDATE validation should be lenient for a family.
+// Returns true if the family was configured with "ignore" mode.
+func (s *Session) shouldIgnoreFamily(family capability.Family) bool {
+	for _, f := range s.neighbor.IgnoreFamilies {
+		if f.AFI == family.AFI && f.SAFI == family.SAFI {
+			return true
+		}
 	}
 	return false
 }

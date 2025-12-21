@@ -183,7 +183,9 @@ func TestFamilyModeTypes(t *testing.T) {
 		{"require", FamilyModeRequire},
 		{"REQUIRE", FamilyModeRequire}, // case insensitive
 		{"Enable", FamilyModeEnable},   // case insensitive
-		{"unknown", FamilyModeEnable},  // unknown defaults to enable
+		{"ignore", FamilyModeIgnore},
+		{"IGNORE", FamilyModeIgnore},  // case insensitive
+		{"unknown", FamilyModeEnable}, // unknown defaults to enable
 	}
 
 	for _, tt := range tests {
@@ -203,6 +205,7 @@ func TestFamilyModeString(t *testing.T) {
 	require.Equal(t, "enable", FamilyModeEnable.String())
 	require.Equal(t, "disable", FamilyModeDisable.String())
 	require.Equal(t, "require", FamilyModeRequire.String())
+	require.Equal(t, "ignore", FamilyModeIgnore.String())
 	require.Equal(t, "unknown", FamilyMode(99).String())
 }
 
@@ -261,6 +264,22 @@ neighbor 192.0.2.1 {
 				{AFI: "ipv4", SAFI: "unicast", Mode: FamilyModeEnable},
 				{AFI: "ipv4", SAFI: "multicast", Mode: FamilyModeRequire},
 				{AFI: "ipv6", SAFI: "unicast", Mode: FamilyModeDisable},
+			},
+		},
+		{
+			name: "ignore mode",
+			input: `
+neighbor 192.0.2.1 {
+    local-as 65000;
+    peer-as 65001;
+    family {
+        ipv4 unicast ignore;
+        ipv6 unicast;
+    }
+}`,
+			expected: []FamilyConfig{
+				{AFI: "ipv4", SAFI: "unicast", Mode: FamilyModeIgnore},
+				{AFI: "ipv6", SAFI: "unicast", Mode: FamilyModeEnable},
 			},
 		},
 	}
