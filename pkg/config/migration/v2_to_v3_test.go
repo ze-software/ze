@@ -277,6 +277,45 @@ peer 192.0.2.1 {
 	require.True(t, hasIP)
 }
 
+// TestMigrateV2ToV3IPv6GlobPattern verifies IPv6 glob patterns migrate correctly.
+//
+// VALIDATES: "peer 2001:db8::* { }" becomes "template { match 2001:db8::* { } }".
+//
+// PREVENTS: IPv6 glob patterns being lost during migration.
+func TestMigrateV2ToV3IPv6GlobPattern(t *testing.T) {
+	input := `
+peer 2001:db8::* {
+    hold-time 90;
+}
+peer 2001:db8::1 {
+    local-as 65000;
+}
+`
+	tree := parseWithBGPSchema(t, input)
+	require.Equal(t, Version2, DetectVersion(tree))
+
+	result, err := MigrateV2ToV3(tree)
+	require.NoError(t, err)
+
+	// IPv6 glob pattern should move to template.match
+	tmpl := result.GetContainer("template")
+	require.NotNil(t, tmpl)
+
+	matches := tmpl.GetList("match")
+	require.Len(t, matches, 1)
+
+	ipv6Match := matches["2001:db8::*"]
+	require.NotNil(t, ipv6Match)
+	val, _ := ipv6Match.Get("hold-time")
+	require.Equal(t, "90", val)
+
+	// Non-glob IPv6 peer should remain
+	peers := result.GetList("peer")
+	require.Len(t, peers, 1)
+	_, hasIP := peers["2001:db8::1"]
+	require.True(t, hasIP)
+}
+
 // TestMigrateV2ToV3MixedConfig verifies partially-migrated configs work.
 //
 // VALIDATES: Config with both v3 and v2 syntax migrates correctly.

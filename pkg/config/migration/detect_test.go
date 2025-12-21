@@ -176,6 +176,25 @@ peer 192.0.2.1 {
 	require.Equal(t, Version2, version, "CIDR pattern at root should be v2")
 }
 
+// TestDetectIPv6GlobPatternAtRootIsV2 verifies IPv6 glob patterns at root are v2.
+//
+// VALIDATES: "peer 2001:db8::* { }" at root is v2 (needs migration to template.match).
+//
+// PREVENTS: IPv6 glob patterns at root being treated as v3.
+func TestDetectIPv6GlobPatternAtRootIsV2(t *testing.T) {
+	input := `
+peer 2001:db8::* {
+    hold-time 90;
+}
+peer 2001:db8::1 {
+    local-as 65000;
+}
+`
+	tree := parseWithBGPSchema(t, input)
+	version := DetectVersion(tree)
+	require.Equal(t, Version2, version, "IPv6 glob pattern at root should be v2")
+}
+
 // parseWithBGPSchema is a helper that parses config using BGPSchema.
 func parseWithBGPSchema(t *testing.T, input string) *config.Tree {
 	t.Helper()

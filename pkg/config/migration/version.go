@@ -10,6 +10,7 @@ const (
 
 	// Version1 is ExaBGP main (2025-12) format.
 	// RIB options at neighbor level: group-updates, auto-flush, adj-rib-*.
+	// Note: v1 detection not implemented - v1→v2 migration is separate scope.
 	Version1 ConfigVersion = 1
 
 	// Version2 is ZeBGP intermediate format.
