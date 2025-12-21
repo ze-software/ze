@@ -406,7 +406,7 @@ go test -race ./pkg/bgp/message/... -v
 
 **Before Claiming Done:**
 ```bash
-make test  # Full suite - ALL must pass
+make test && make lint  # Full suite + lint - ALL must pass
 ```
 
 **When `make test` Fails (MANDATORY):**
@@ -534,19 +534,19 @@ zebgp/
 
 **User must say:** "commit" / "make a commit" / "push"
 
-**MANDATORY: Run `make test` Before Commit**
+**MANDATORY: Run `make test && make lint` Before Commit**
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│  ALWAYS run `make test` BEFORE committing.                      │
+│  ALWAYS run `make test && make lint` BEFORE committing.         │
 │                                                                 │
 │  WHY: To find issues and FIX THEM, not to document and bypass.  │
 │                                                                 │
-│  If `make test` fails:                                          │
+│  If `make test` or `make lint` fails:                           │
 │  1. FIX the failures - this is the whole point of testing       │
-│  2. Re-run `make test` until ALL pass                           │
+│  2. Re-run until ALL pass                                       │
 │  3. Only then proceed with commit                               │
 │                                                                 │
-│  DO NOT commit with failing tests. FIX THEM FIRST.              │
+│  DO NOT commit with failing tests or lint. FIX THEM FIRST.      │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
@@ -571,7 +571,7 @@ git status && git log --oneline -5
 - "All tests pass" / "Tests pass"
 - Checkmarks without proof
 
-**Without running `make test`:**
+**Without running `make test && make lint`:**
 - "Done" / "Finished" / "Complete"
 - Any claim code works
 
