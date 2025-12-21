@@ -1,6 +1,9 @@
 package message
 
-import "fmt"
+import (
+	"fmt"
+	"unicode/utf8"
+)
 
 // RFC 4271 Section 4.5 - Error Code is a 1-octet unsigned integer indicating the type of NOTIFICATION.
 // NotifyErrorCode represents NOTIFICATION error codes.
@@ -169,6 +172,55 @@ func (n *Notification) String() string {
 		return fmt.Sprintf("%s/%s (data: %x)", n.ErrorCode, subcodeStr, n.Data)
 	}
 	return fmt.Sprintf("%s/%s", n.ErrorCode, subcodeStr)
+}
+
+// Error implements the error interface, allowing *Notification to be returned
+// as an error from parsing functions. This enables proper BGP error handling
+// where the notification can be sent to the peer before closing the connection.
+// RFC 4271 Section 4.5 - NOTIFICATION messages indicate protocol errors.
+func (n *Notification) Error() string {
+	return n.String()
+}
+
+// ShutdownMessage extracts the shutdown communication from a Cease NOTIFICATION.
+// RFC 9003 Section 2 - For Cease/Admin Shutdown (6,2) or Cease/Admin Reset (6,4):
+// - Data field contains: 1-byte length + UTF-8 message (up to 255 bytes)
+// - If length is 0 or no data, returns empty string
+// - Returns error if length exceeds buffer or UTF-8 is invalid
+//
+// For non-shutdown notifications, returns empty string and no error.
+func (n *Notification) ShutdownMessage() (string, error) {
+	// RFC 9003 only applies to Cease with Admin Shutdown (2) or Admin Reset (4)
+	if n.ErrorCode != NotifyCease {
+		return "", nil
+	}
+	if n.ErrorSubcode != NotifyCeaseAdminShutdown && n.ErrorSubcode != NotifyCeaseAdminReset {
+		return "", nil
+	}
+
+	// No data = old-style shutdown without message
+	if len(n.Data) == 0 {
+		return "", nil
+	}
+
+	// RFC 9003 Section 2: First byte is length
+	msgLen := int(n.Data[0])
+	if msgLen == 0 {
+		return "", nil
+	}
+
+	payload := n.Data[1:]
+	if len(payload) < msgLen {
+		return "", fmt.Errorf("shutdown message length %d exceeds available data %d", msgLen, len(payload))
+	}
+
+	// RFC 9003 Section 2: Message MUST be UTF-8 encoded
+	msg := payload[:msgLen]
+	if !utf8.Valid(msg) {
+		return "", fmt.Errorf("shutdown message contains invalid UTF-8")
+	}
+
+	return string(msg), nil
 }
 
 // RFC 4271 Section 4.5 - subcodeString returns a human-readable subcode name.

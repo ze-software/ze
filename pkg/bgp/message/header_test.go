@@ -202,3 +202,172 @@ func makeHeader(length uint16, msgType byte) []byte {
 	data[18] = msgType
 	return data
 }
+
+// TestValidateLengthWithMax verifies length validation with extended message support.
+//
+// RFC 8654 Section 4: "The BGP Extended Message Capability applies to all
+// messages except for OPEN and KEEPALIVE messages."
+//
+// Upper bounds:
+// - OPEN, KEEPALIVE: always 4096
+// - UPDATE, NOTIFICATION, ROUTE-REFRESH: 4096 or 65535 if extended
+//
+// VALIDATES: Upper bound correctly enforced based on message type and extended capability.
+//
+// PREVENTS: Buffer overflow from maliciously large messages.
+func TestValidateLengthWithMax(t *testing.T) {
+	tests := []struct {
+		name     string
+		msgType  MessageType
+		length   uint16
+		extended bool
+		wantErr  bool
+	}{
+		// OPEN: always 4096 max, regardless of extended
+		{"OPEN at 4096", TypeOPEN, 4096, false, false},
+		{"OPEN at 4096 with extended", TypeOPEN, 4096, true, false},
+		{"OPEN over 4096", TypeOPEN, 4097, false, true},
+		{"OPEN over 4096 with extended", TypeOPEN, 4097, true, true},
+
+		// KEEPALIVE: exactly 19
+		{"KEEPALIVE exact", TypeKEEPALIVE, 19, false, false},
+		{"KEEPALIVE too long", TypeKEEPALIVE, 20, false, true},
+
+		// UPDATE: 4096 or 65535
+		{"UPDATE at 4096", TypeUPDATE, 4096, false, false},
+		{"UPDATE over 4096 without extended", TypeUPDATE, 4097, false, true},
+		{"UPDATE over 4096 with extended", TypeUPDATE, 4097, true, false},
+		{"UPDATE at 65535 with extended", TypeUPDATE, 65535, true, false},
+
+		// NOTIFICATION: 4096 or 65535
+		{"NOTIFICATION at 4096", TypeNOTIFICATION, 4096, false, false},
+		{"NOTIFICATION over 4096 without extended", TypeNOTIFICATION, 4097, false, true},
+		{"NOTIFICATION at 65535 with extended", TypeNOTIFICATION, 65535, true, false},
+
+		// ROUTE-REFRESH: 4096 or 65535
+		{"ROUTE-REFRESH at 4096", TypeROUTEREFRESH, 4096, false, false},
+		{"ROUTE-REFRESH over 4096 without extended", TypeROUTEREFRESH, 4097, false, true},
+		{"ROUTE-REFRESH at 65535 with extended", TypeROUTEREFRESH, 65535, true, false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			h := Header{Length: tt.length, Type: tt.msgType}
+			err := h.ValidateLengthWithMax(tt.extended)
+			if tt.wantErr {
+				require.Error(t, err)
+				var notif *Notification
+				require.ErrorAs(t, err, &notif)
+				assert.Equal(t, NotifyMessageHeader, notif.ErrorCode)
+				assert.Equal(t, NotifyHeaderBadLength, notif.ErrorSubcode)
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
+}
+
+// TestMaxMessageLength verifies MaxMessageLength helper function.
+//
+// RFC 8654 Section 4: OPEN and KEEPALIVE always 4096, others depend on extended capability.
+//
+// VALIDATES: Correct max length returned for each message type.
+//
+// PREVENTS: Using wrong buffer sizes for message reading.
+func TestMaxMessageLength(t *testing.T) {
+	tests := []struct {
+		name     string
+		msgType  MessageType
+		extended bool
+		want     uint16
+	}{
+		{"OPEN without extended", TypeOPEN, false, 4096},
+		{"OPEN with extended", TypeOPEN, true, 4096},
+		{"KEEPALIVE without extended", TypeKEEPALIVE, false, 4096},
+		{"KEEPALIVE with extended", TypeKEEPALIVE, true, 4096},
+		{"UPDATE without extended", TypeUPDATE, false, 4096},
+		{"UPDATE with extended", TypeUPDATE, true, 65535},
+		{"NOTIFICATION without extended", TypeNOTIFICATION, false, 4096},
+		{"NOTIFICATION with extended", TypeNOTIFICATION, true, 65535},
+		{"ROUTE-REFRESH without extended", TypeROUTEREFRESH, false, 4096},
+		{"ROUTE-REFRESH with extended", TypeROUTEREFRESH, true, 65535},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := MaxMessageLength(tt.msgType, tt.extended)
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
+// TestValidateMessageLength verifies per-message-type length validation.
+//
+// RFC 4271 Section 6.1: "if the Length field of an OPEN message is less than
+// the minimum length of the OPEN message" -> Bad Message Length error.
+//
+// Minimum lengths per RFC 4271:
+// - OPEN: 29 octets (Section 4.2)
+// - UPDATE: 23 octets (Section 4.3)
+// - NOTIFICATION: 21 octets (Section 4.5)
+// - KEEPALIVE: exactly 19 octets (Section 4.4)
+//
+// VALIDATES: Messages with invalid lengths for their type are rejected.
+//
+// PREVENTS: Processing truncated messages that could cause parsing errors.
+func TestValidateMessageLength(t *testing.T) {
+	tests := []struct {
+		name    string
+		msgType MessageType
+		length  uint16
+		wantErr bool
+	}{
+		// OPEN: minimum 29
+		{"OPEN at minimum", TypeOPEN, 29, false},
+		{"OPEN above minimum", TypeOPEN, 100, false},
+		{"OPEN below minimum", TypeOPEN, 28, true},
+		{"OPEN at header only", TypeOPEN, 19, true},
+
+		// UPDATE: minimum 23
+		{"UPDATE at minimum", TypeUPDATE, 23, false},
+		{"UPDATE above minimum", TypeUPDATE, 500, false},
+		{"UPDATE below minimum", TypeUPDATE, 22, true},
+		{"UPDATE at header only", TypeUPDATE, 19, true},
+
+		// NOTIFICATION: minimum 21
+		{"NOTIFICATION at minimum", TypeNOTIFICATION, 21, false},
+		{"NOTIFICATION above minimum", TypeNOTIFICATION, 50, false},
+		{"NOTIFICATION below minimum", TypeNOTIFICATION, 20, true},
+		{"NOTIFICATION at header only", TypeNOTIFICATION, 19, true},
+
+		// KEEPALIVE: exactly 19
+		{"KEEPALIVE exact", TypeKEEPALIVE, 19, false},
+		{"KEEPALIVE too long", TypeKEEPALIVE, 20, true},
+		{"KEEPALIVE way too long", TypeKEEPALIVE, 100, true},
+
+		// ROUTE-REFRESH: minimum 23 (RFC 2918: 4 bytes after header)
+		{"ROUTE-REFRESH at minimum", TypeROUTEREFRESH, 23, false},
+		{"ROUTE-REFRESH above minimum", TypeROUTEREFRESH, 30, false},
+		{"ROUTE-REFRESH below minimum", TypeROUTEREFRESH, 22, true},
+
+		// Unknown type: only basic length check
+		{"Unknown type", MessageType(99), 19, false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			h := Header{Length: tt.length, Type: tt.msgType}
+			err := h.ValidateLength()
+			if tt.wantErr {
+				require.Error(t, err, "expected error for %s", tt.name)
+				// Error should be a *Notification with code 1 (Message Header Error), subcode 2 (Bad Message Length)
+				var notif *Notification
+				require.ErrorAs(t, err, &notif)
+				assert.Equal(t, NotifyMessageHeader, notif.ErrorCode)
+				assert.Equal(t, NotifyHeaderBadLength, notif.ErrorSubcode)
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
+}

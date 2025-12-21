@@ -36,9 +36,21 @@ func (k *Keepalive) Pack(neg *Negotiated) ([]byte, error) {
 
 // UnpackKeepalive parses a KEEPALIVE message body.
 // RFC 4271 Section 4.4 - KEEPALIVE has no body; the message is header-only.
-// Note: Any extra data is ignored per implementation choice (RFC does not
-// specify error handling for malformed KEEPALIVE with unexpected data).
+// RFC 4271 Section 4.4: "A KEEPALIVE message consists of only the message
+// header and has a length of 19 octets."
+// RFC 4271 Section 6.1: "if the Length field of a KEEPALIVE message is not
+// equal to 19, then the Error Subcode MUST be set to Bad Message Length"
 func UnpackKeepalive(data []byte) (*Keepalive, error) {
-	// RFC 4271 Section 4.4 - KEEPALIVE has no body, return singleton
+	// RFC 4271 Section 4.4 - KEEPALIVE MUST have no body
+	if len(data) > 0 {
+		// RFC 4271 Section 6.1 - Return Message Header Error / Bad Message Length
+		return nil, &Notification{
+			ErrorCode:    NotifyMessageHeader,
+			ErrorSubcode: NotifyHeaderBadLength,
+			// RFC 4271 Section 6.1: "Data field MUST contain the erroneous Length field"
+			// The actual length is HeaderLen + len(data)
+			Data: []byte{byte((HeaderLen + len(data)) >> 8), byte(HeaderLen + len(data))},
+		}
+	}
 	return keepaliveSingleton, nil
 }

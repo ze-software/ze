@@ -158,3 +158,165 @@ func beUint16(b []byte) uint16 {
 func beUint32(b []byte) uint32 {
 	return uint32(b[0])<<24 | uint32(b[1])<<16 | uint32(b[2])<<8 | uint32(b[3])
 }
+
+// TestOpenUnpackExtendedParams verifies RFC 9072 extended optional parameters parsing.
+//
+// RFC 9072 Section 2: "If the value of the 'Non-Ext OP Type' field is 255,
+// then the encoding described above is used for the Optional Parameters length."
+//
+// Extended format:
+//   - Non-Ext OP Len: 1 byte (SHOULD be 255)
+//   - Non-Ext OP Type: 1 byte (MUST be 255 to indicate extended)
+//   - Extended Opt Parm Length: 2 bytes
+//   - Optional Parameters: variable
+//
+// VALIDATES: Extended format correctly parsed.
+//
+// PREVENTS: Failure to parse OPEN with large capability sets.
+func TestOpenUnpackExtendedParams(t *testing.T) {
+	tests := []struct {
+		name         string
+		data         []byte
+		wantOptLen   int
+		wantErr      bool
+		wantExtended bool
+	}{
+		{
+			name: "standard format - no params",
+			data: []byte{
+				0x04,       // Version
+				0xFD, 0xE9, // AS
+				0x00, 0xB4, // Hold Time
+				0xC0, 0xA8, 0x01, 0x01, // BGP ID
+				0x00, // Opt Params Len = 0
+			},
+			wantOptLen: 0,
+		},
+		{
+			name: "standard format - with params",
+			data: []byte{
+				0x04,       // Version
+				0xFD, 0xE9, // AS
+				0x00, 0xB4, // Hold Time
+				0xC0, 0xA8, 0x01, 0x01, // BGP ID
+				0x04,                   // Opt Params Len = 4
+				0x02, 0x02, 0x01, 0x02, // Capability param
+			},
+			wantOptLen: 4,
+		},
+		{
+			name: "extended format - empty params",
+			data: []byte{
+				0x04,       // Version
+				0xFD, 0xE9, // AS
+				0x00, 0xB4, // Hold Time
+				0xC0, 0xA8, 0x01, 0x01, // BGP ID
+				0xFF,       // Non-Ext OP Len = 255 (marker)
+				0xFF,       // Non-Ext OP Type = 255 (extended format)
+				0x00, 0x00, // Extended Opt Params Len = 0
+			},
+			wantOptLen:   0,
+			wantExtended: true,
+		},
+		{
+			name: "extended format - with params",
+			data: []byte{
+				0x04,       // Version
+				0xFD, 0xE9, // AS
+				0x00, 0xB4, // Hold Time
+				0xC0, 0xA8, 0x01, 0x01, // BGP ID
+				0xFF,       // Non-Ext OP Len = 255 (marker)
+				0xFF,       // Non-Ext OP Type = 255 (extended format)
+				0x00, 0x06, // Extended Opt Params Len = 6
+				0x02, 0x00, 0x02, 0x01, 0x02, 0x00, // Param with 2-byte length
+			},
+			wantOptLen:   6,
+			wantExtended: true,
+		},
+		{
+			name: "extended format - 255 length marker but not extended type",
+			data: []byte{
+				0x04,       // Version
+				0xFD, 0xE9, // AS
+				0x00, 0xB4, // Hold Time
+				0xC0, 0xA8, 0x01, 0x01, // BGP ID
+				0xFF,             // Opt Params Len = 255 (not extended, just long)
+				0x02,             // Param type (not 0xFF)
+				0x02, 0x01, 0x02, // Param: type=2, len=2, value=0x0102
+			},
+			// This should be treated as standard format with opt_len=255
+			// but we don't have 255 bytes, so it should fail
+			wantErr: true,
+		},
+		{
+			name: "extended format - truncated",
+			data: []byte{
+				0x04,       // Version
+				0xFD, 0xE9, // AS
+				0x00, 0xB4, // Hold Time
+				0xC0, 0xA8, 0x01, 0x01, // BGP ID
+				0xFF,       // Non-Ext OP Len
+				0xFF,       // Non-Ext OP Type
+				0x00, 0x10, // Extended len = 16, but no data follows
+			},
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			msg, err := UnpackOpen(tt.data)
+			if tt.wantErr {
+				require.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
+			assert.Len(t, msg.OptionalParams, tt.wantOptLen)
+		})
+	}
+}
+
+// TestOpenPackExtendedParams verifies RFC 9072 extended format packing.
+//
+// RFC 9072 Section 2: "if the length of the Optional Parameters in the BGP
+// OPEN message does exceed 255, the OPEN message MUST be encoded according
+// to the procedure below."
+//
+// VALIDATES: Large param sets use extended format.
+//
+// PREVENTS: Truncation of large capability sets.
+func TestOpenPackExtendedParams(t *testing.T) {
+	// Create params > 255 bytes
+	largeParams := make([]byte, 300)
+	for i := range largeParams {
+		largeParams[i] = byte(i % 256)
+	}
+
+	o := &Open{
+		Version:        4,
+		MyAS:           65001,
+		HoldTime:       180,
+		BGPIdentifier:  0xC0A80101,
+		OptionalParams: largeParams,
+	}
+
+	data, err := o.Pack(nil)
+	require.NoError(t, err)
+
+	body := data[HeaderLen:]
+
+	// Should use extended format
+	// Body: Ver(1) + AS(2) + Hold(2) + ID(4) + NonExtLen(1) + NonExtType(1) + ExtLen(2) + Params(300)
+	assert.GreaterOrEqual(t, len(body), 10+4+len(largeParams))
+
+	// Check extended format markers
+	assert.Equal(t, byte(0xFF), body[9], "Non-Ext OP Len should be 0xFF")
+	assert.Equal(t, byte(0xFF), body[10], "Non-Ext OP Type should be 0xFF")
+
+	// Check extended length
+	extLen := beUint16(body[11:13])
+	assert.Equal(t, uint16(len(largeParams)), extLen)
+
+	// Verify params are present
+	assert.Equal(t, largeParams, body[13:13+len(largeParams)])
+}

@@ -1,10 +1,41 @@
 package capability
 
+import "fmt"
+
 // RFC 5492: Capabilities Advertisement with BGP-4
 // This file implements the capability negotiation process described in RFC 5492 Section 4.
 // When a BGP speaker receives an OPEN message that contains the Capabilities Optional
 // Parameter, the speaker MUST use the capabilities it recognizes to determine the
 // features supported by both peers.
+
+// Mismatch represents a capability that was not negotiated.
+// RFC 5492 Section 3: When a required capability is not supported by peer,
+// the speaker MAY send NOTIFICATION and terminate.
+type Mismatch struct {
+	// Code is the capability code
+	Code Code
+	// LocalSupported is true if local advertises this capability
+	LocalSupported bool
+	// PeerSupported is true if peer advertises this capability
+	PeerSupported bool
+	// Family is set for Multiprotocol mismatches
+	Family *Family
+}
+
+// String returns a human-readable description of the mismatch.
+func (m Mismatch) String() string {
+	if m.Family != nil {
+		familyStr := fmt.Sprintf("AFI=%d/SAFI=%d", m.Family.AFI, m.Family.SAFI)
+		if m.LocalSupported && !m.PeerSupported {
+			return "local supports " + familyStr + ", peer does not"
+		}
+		return "peer supports " + familyStr + ", local does not"
+	}
+	if m.LocalSupported && !m.PeerSupported {
+		return "local supports " + m.Code.String() + ", peer does not"
+	}
+	return "peer supports " + m.Code.String() + ", local does not"
+}
 
 // Negotiated holds the result of capability negotiation between two BGP peers.
 // Per RFC 5492 Section 4, a capability is considered negotiated when both peers
@@ -21,6 +52,8 @@ type Negotiated struct {
 	ExtendedMessage bool
 	// RFC 2918: Route Refresh Capability for BGP-4
 	RouteRefresh bool
+	// RFC 7313: Enhanced Route Refresh Capability for BGP
+	EnhancedRouteRefresh bool
 	// RFC 4271 Section 4.2: Hold Time is the minimum of the two Hold Time values
 	HoldTime uint16
 
@@ -34,6 +67,10 @@ type Negotiated struct {
 
 	// RFC 4724: Graceful Restart Mechanism for BGP
 	GracefulRestart *GracefulRestart
+
+	// Mismatches contains capabilities that were not negotiated.
+	// RFC 5492 Section 3: For logging/reporting purposes.
+	Mismatches []Mismatch
 
 	// Cached family slice
 	familySlice []Family
@@ -69,6 +106,8 @@ func Negotiate(local, remote []Capability, localASN, peerASN uint32) *Negotiated
 	remoteExtMsg := false
 	localRR := false
 	remoteRR := false
+	localERR := false
+	remoteERR := false
 
 	for _, c := range local {
 		switch cap := c.(type) {
@@ -82,6 +121,8 @@ func Negotiate(local, remote []Capability, localASN, peerASN uint32) *Negotiated
 			localExtMsg = true
 		case *RouteRefresh:
 			localRR = true
+		case *EnhancedRouteRefresh:
+			localERR = true
 		}
 	}
 
@@ -97,6 +138,8 @@ func Negotiate(local, remote []Capability, localASN, peerASN uint32) *Negotiated
 			remoteExtMsg = true
 		case *RouteRefresh:
 			remoteRR = true
+		case *EnhancedRouteRefresh:
+			remoteERR = true
 		case *GracefulRestart:
 			neg.GracefulRestart = cap
 		}
@@ -109,12 +152,65 @@ func Negotiate(local, remote []Capability, localASN, peerASN uint32) *Negotiated
 	neg.ExtendedMessage = localExtMsg && remoteExtMsg
 	// RFC 2918 Section 3: Route Refresh capability negotiation
 	neg.RouteRefresh = localRR && remoteRR
+	// RFC 7313 Section 3.1: Enhanced Route Refresh capability negotiation
+	neg.EnhancedRouteRefresh = localERR && remoteERR
+
+	// RFC 5492 Section 3: Track mismatches for reporting
+	if localASN4 != remoteASN4 {
+		neg.Mismatches = append(neg.Mismatches, Mismatch{
+			Code:           CodeASN4,
+			LocalSupported: localASN4,
+			PeerSupported:  remoteASN4,
+		})
+	}
+	if localExtMsg != remoteExtMsg {
+		neg.Mismatches = append(neg.Mismatches, Mismatch{
+			Code:           CodeExtendedMessage,
+			LocalSupported: localExtMsg,
+			PeerSupported:  remoteExtMsg,
+		})
+	}
+	if localRR != remoteRR {
+		neg.Mismatches = append(neg.Mismatches, Mismatch{
+			Code:           CodeRouteRefresh,
+			LocalSupported: localRR,
+			PeerSupported:  remoteRR,
+		})
+	}
+	if localERR != remoteERR {
+		neg.Mismatches = append(neg.Mismatches, Mismatch{
+			Code:           CodeEnhancedRouteRefresh,
+			LocalSupported: localERR,
+			PeerSupported:  remoteERR,
+		})
+	}
 
 	// RFC 4760 Section 8: Multiprotocol capability negotiation
 	// Address families are usable only if both peers advertise support.
 	for f := range localFamilies {
 		if remoteFamilies[f] {
 			neg.families[f] = true
+		} else {
+			// RFC 5492 Section 3: Track family mismatches
+			fCopy := f
+			neg.Mismatches = append(neg.Mismatches, Mismatch{
+				Code:           CodeMultiprotocol,
+				LocalSupported: true,
+				PeerSupported:  false,
+				Family:         &fCopy,
+			})
+		}
+	}
+	// Also track families peer supports but we don't
+	for f := range remoteFamilies {
+		if !localFamilies[f] {
+			fCopy := f
+			neg.Mismatches = append(neg.Mismatches, Mismatch{
+				Code:           CodeMultiprotocol,
+				LocalSupported: false,
+				PeerSupported:  true,
+				Family:         &fCopy,
+			})
 		}
 	}
 

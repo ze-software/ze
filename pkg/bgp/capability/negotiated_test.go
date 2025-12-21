@@ -122,3 +122,96 @@ func TestNegotiateEmpty(t *testing.T) {
 	assert.False(t, neg.ExtendedMessage)
 	assert.Len(t, neg.Families(), 0)
 }
+
+// TestNegotiateMismatches verifies capability mismatch detection.
+//
+// RFC 5492 Section 3: "If a BGP speaker that supports a certain capability
+// determines that its peer doesn't support this capability, the speaker MAY
+// send a NOTIFICATION message to the peer and terminate peering."
+//
+// VALIDATES: Mismatches are tracked for logging/reporting.
+//
+// PREVENTS: Silent capability incompatibilities that affect routing.
+func TestNegotiateMismatches(t *testing.T) {
+	local := []Capability{
+		&Multiprotocol{AFI: AFIIPv4, SAFI: SAFIUnicast},
+		&Multiprotocol{AFI: AFIIPv6, SAFI: SAFIUnicast}, // Only local
+		&ASN4{ASN: 65001},
+		&ExtendedMessage{},      // Only local
+		&RouteRefresh{},         // Both
+		&EnhancedRouteRefresh{}, // Only local
+	}
+
+	remote := []Capability{
+		&Multiprotocol{AFI: AFIIPv4, SAFI: SAFIUnicast},
+		&Multiprotocol{AFI: AFIL2VPN, SAFI: SAFIEVPN}, // Only remote
+		&ASN4{ASN: 65002},
+		&RouteRefresh{}, // Both
+	}
+
+	neg := Negotiate(local, remote, 65001, 65002)
+
+	// Verify negotiated capabilities
+	assert.True(t, neg.ASN4)
+	assert.True(t, neg.RouteRefresh)
+	assert.False(t, neg.ExtendedMessage)
+	assert.False(t, neg.EnhancedRouteRefresh)
+	assert.True(t, neg.SupportsFamily(Family{AFI: AFIIPv4, SAFI: SAFIUnicast}))
+	assert.False(t, neg.SupportsFamily(Family{AFI: AFIIPv6, SAFI: SAFIUnicast}))
+
+	// Verify mismatches were tracked
+	require.NotEmpty(t, neg.Mismatches, "should have mismatches")
+
+	// Count mismatches by type
+	var extMsgMismatch, errMismatch, ipv6Mismatch, evpnMismatch bool
+	for _, m := range neg.Mismatches {
+		switch m.Code {
+		case CodeExtendedMessage:
+			extMsgMismatch = true
+			assert.True(t, m.LocalSupported)
+			assert.False(t, m.PeerSupported)
+		case CodeEnhancedRouteRefresh:
+			errMismatch = true
+			assert.True(t, m.LocalSupported)
+			assert.False(t, m.PeerSupported)
+		case CodeMultiprotocol:
+			if m.Family != nil {
+				if m.Family.AFI == AFIIPv6 {
+					ipv6Mismatch = true
+					assert.True(t, m.LocalSupported)
+					assert.False(t, m.PeerSupported)
+				}
+				if m.Family.AFI == AFIL2VPN {
+					evpnMismatch = true
+					assert.False(t, m.LocalSupported)
+					assert.True(t, m.PeerSupported)
+				}
+			}
+		}
+	}
+
+	assert.True(t, extMsgMismatch, "should detect Extended Message mismatch")
+	assert.True(t, errMismatch, "should detect Enhanced Route Refresh mismatch")
+	assert.True(t, ipv6Mismatch, "should detect IPv6 family mismatch")
+	assert.True(t, evpnMismatch, "should detect L2VPN/EVPN family mismatch")
+}
+
+// TestMismatchString verifies mismatch string representation.
+func TestMismatchString(t *testing.T) {
+	m := Mismatch{
+		Code:           CodeExtendedMessage,
+		LocalSupported: true,
+		PeerSupported:  false,
+	}
+	assert.Contains(t, m.String(), "Extended Message")
+	assert.Contains(t, m.String(), "local supports")
+
+	f := Family{AFI: AFIIPv6, SAFI: SAFIUnicast}
+	m2 := Mismatch{
+		Code:           CodeMultiprotocol,
+		LocalSupported: false,
+		PeerSupported:  true,
+		Family:         &f,
+	}
+	assert.Contains(t, m2.String(), "peer supports")
+}

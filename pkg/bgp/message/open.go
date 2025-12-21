@@ -8,6 +8,13 @@ import (
 // AS_TRANS is the 2-byte AS used when the real AS is 4 bytes (RFC 6793).
 const AS_TRANS = 23456
 
+// RFC 9072 - Extended Optional Parameters constants.
+const (
+	// ExtendedParamMarker is the marker value indicating extended format.
+	// RFC 9072 Section 2: "Type code 255 as the 'Extended Length'"
+	ExtendedParamMarker = 0xFF
+)
+
 // Open represents a BGP OPEN message.
 // RFC 4271 Section 4.2 - OPEN Message Format
 //
@@ -59,11 +66,24 @@ func (o *Open) Type() MessageType {
 //	+--------+--------+--------+--------+--------+--------+--------+--------+--------+--------+
 //	|                      Optional Parameters (variable)                                    |
 //	+----------------------------------------------------------------------------------------+
+//
+// RFC 9072 Section 2 - If Optional Parameters exceed 255 bytes, use extended format:
+//
+//	+--------+--------+--------+--------+--------+--------+--------+--------+--------+--------+
+//	|Version |    My AS (2)    |   Hold Time (2) |       BGP Identifier (4)        |Non-Ext |
+//	+--------+--------+--------+--------+--------+--------+--------+--------+--------+--------+
+//	|Non-Ext |   Extended Opt. Parm. Length (2)  |      Optional Parameters (var)            |
+//	+--------+--------+--------+--------+--------+--------+--------+--------+--------+--------+
 func (o *Open) Pack(neg *Negotiated) ([]byte, error) {
-	// Calculate body size: Version(1) + AS(2) + Hold(2) + ID(4) + OptLen(1) + Opt
 	optLen := len(o.OptionalParams)
-	bodyLen := 10 + optLen
 
+	// RFC 9072 Section 2: Use extended format if params exceed 255 bytes
+	if optLen > 255 {
+		return o.packExtended()
+	}
+
+	// Standard format: Version(1) + AS(2) + Hold(2) + ID(4) + OptLen(1) + Opt
+	bodyLen := 10 + optLen
 	body := make([]byte, bodyLen)
 
 	// RFC 4271 Section 4.2 - Version: 1-octet, current BGP version is 4
@@ -92,19 +112,54 @@ func (o *Open) Pack(neg *Negotiated) ([]byte, error) {
 	return packWithHeader(TypeOPEN, body), nil
 }
 
+// packExtended creates an OPEN with RFC 9072 extended optional parameters.
+func (o *Open) packExtended() ([]byte, error) {
+	optLen := len(o.OptionalParams)
+
+	// Extended format: Version(1) + AS(2) + Hold(2) + ID(4) + NonExtLen(1) + NonExtType(1) + ExtLen(2) + Opt
+	bodyLen := 10 + 4 + optLen
+	body := make([]byte, bodyLen)
+
+	// RFC 4271 Section 4.2 - Version
+	body[0] = o.Version
+
+	// RFC 4271 Section 4.2 - My Autonomous System
+	myAS := o.MyAS
+	if o.ASN4 > 0 && o.ASN4 > 65535 {
+		myAS = AS_TRANS
+	}
+	binary.BigEndian.PutUint16(body[1:3], myAS)
+
+	// RFC 4271 Section 4.2 - Hold Time
+	binary.BigEndian.PutUint16(body[3:5], o.HoldTime)
+
+	// RFC 4271 Section 4.2 - BGP Identifier
+	binary.BigEndian.PutUint32(body[5:9], o.BGPIdentifier)
+
+	// RFC 9072 Section 2 - Extended format markers
+	// "Non-Ext OP Len SHOULD be set to 255"
+	body[9] = ExtendedParamMarker
+	// "Non-Ext OP Type MUST be set to 255"
+	body[10] = ExtendedParamMarker
+	// Extended Optional Parameters Length (2 octets)
+	binary.BigEndian.PutUint16(body[11:13], uint16(optLen))
+
+	// Optional Parameters
+	copy(body[13:], o.OptionalParams)
+
+	return packWithHeader(TypeOPEN, body), nil
+}
+
 // UnpackOpen parses an OPEN message body.
 // RFC 4271 Section 4.2 - Decodes the OPEN message wire format fields:
 // Version (1) + My AS (2) + Hold Time (2) + BGP Identifier (4) + Opt Parm Len (1) = 10 octets minimum
+//
+// RFC 9072 Section 2 - Also handles extended optional parameters format:
+// If the first Optional Parameter type is 255, use extended format with 2-byte length.
 func UnpackOpen(data []byte) (*Open, error) {
 	// RFC 4271 Section 4.2 - Minimum OPEN body is 10 octets (excluding header)
 	// Full message minimum is 29 octets (19-byte header + 10-byte body)
 	if len(data) < 10 {
-		return nil, ErrShortRead
-	}
-
-	// RFC 4271 Section 4.2 - Optional Parameters Length field
-	optLen := int(data[9])
-	if len(data) < 10+optLen {
 		return nil, ErrShortRead
 	}
 
@@ -119,10 +174,39 @@ func UnpackOpen(data []byte) (*Open, error) {
 		BGPIdentifier: binary.BigEndian.Uint32(data[5:9]),
 	}
 
-	// RFC 4271 Section 4.2 - Optional Parameters: variable length, starts at offset 10
-	if optLen > 0 {
-		o.OptionalParams = make([]byte, optLen)
-		copy(o.OptionalParams, data[10:10+optLen])
+	// RFC 4271 Section 4.2 - Optional Parameters Length field
+	optLen := int(data[9])
+
+	// RFC 9072 Section 2 - Check for extended format
+	// "If the value of the 'Non-Ext OP Type' field is 255, then the encoding
+	// described above is used for the Optional Parameters length."
+	if optLen != 0 && len(data) > 10 && data[10] == ExtendedParamMarker {
+		// Extended format: need at least 4 bytes after fixed fields
+		// (Non-Ext OP Len + Non-Ext OP Type + Extended Length)
+		if len(data) < 13 {
+			return nil, ErrShortRead
+		}
+
+		// RFC 9072 Section 2 - Extended Optional Parameters Length is 2 octets
+		extOptLen := int(binary.BigEndian.Uint16(data[11:13]))
+		if len(data) < 13+extOptLen {
+			return nil, ErrShortRead
+		}
+
+		if extOptLen > 0 {
+			o.OptionalParams = make([]byte, extOptLen)
+			copy(o.OptionalParams, data[13:13+extOptLen])
+		}
+	} else {
+		// Standard format
+		if len(data) < 10+optLen {
+			return nil, ErrShortRead
+		}
+
+		if optLen > 0 {
+			o.OptionalParams = make([]byte, optLen)
+			copy(o.OptionalParams, data[10:10+optLen])
+		}
 	}
 
 	return o, nil

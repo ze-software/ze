@@ -110,3 +110,53 @@ func TestRouteRefreshCommonFamilies(t *testing.T) {
 		})
 	}
 }
+
+// TestRouteRefreshSubtypes verifies RFC 7313 enhanced route refresh subtypes.
+//
+// RFC 7313 Section 3.2:
+//   - 0: Normal route refresh (RFC 2918)
+//   - 1: BoRR (Beginning of Route Refresh)
+//   - 2: EoRR (Ending of Route Refresh)
+//
+// VALIDATES: Subtype correctly serialized and parsed.
+//
+// PREVENTS: Failure to handle enhanced route refresh markers.
+func TestRouteRefreshSubtypes(t *testing.T) {
+	tests := []struct {
+		name    string
+		subtype RouteRefreshSubtype
+	}{
+		{"Normal", RouteRefreshNormal},
+		{"BoRR", RouteRefreshBoRR},
+		{"EoRR", RouteRefreshEoRR},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			r := &RouteRefresh{
+				AFI:     AFIIPv4,
+				SAFI:    SAFIUnicast,
+				Subtype: tt.subtype,
+			}
+
+			data, err := r.Pack(nil)
+			require.NoError(t, err)
+
+			// Verify subtype in wire format (offset 2 in body, which is the Reserved/Subtype field)
+			body := data[HeaderLen:]
+			assert.Equal(t, byte(tt.subtype), body[2])
+
+			// Verify round trip
+			parsed, err := UnpackRouteRefresh(body)
+			require.NoError(t, err)
+			assert.Equal(t, tt.subtype, parsed.Subtype)
+		})
+	}
+}
+
+// TestRouteRefreshSubtypeConstants verifies subtype constant values per RFC 7313.
+func TestRouteRefreshSubtypeConstants(t *testing.T) {
+	assert.Equal(t, RouteRefreshSubtype(0), RouteRefreshNormal)
+	assert.Equal(t, RouteRefreshSubtype(1), RouteRefreshBoRR)
+	assert.Equal(t, RouteRefreshSubtype(2), RouteRefreshEoRR)
+}

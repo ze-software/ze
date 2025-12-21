@@ -138,6 +138,68 @@ func TestParseAS4Path(t *testing.T) {
 	}
 }
 
+// TestParseAS4PathValidation verifies RFC 6793 Section 6 AS4_PATH validation.
+//
+// RFC 6793 Section 6: "The AS4_PATH attribute in an UPDATE message SHALL be
+// considered malformed under the following conditions:"
+//   - "the attribute length is not a multiple of two or is too small
+//     (i.e., less than 6) for the attribute to carry at least one AS number"
+//   - "the path segment length in the attribute is either zero or is
+//     inconsistent with the attribute length"
+//   - "the path segment type in the attribute is not one of the types
+//     defined: AS_SEQUENCE, AS_SET, AS_CONFED_SEQUENCE, and AS_CONFED_SET"
+//
+// VALIDATES: Malformed AS4_PATH is properly rejected.
+//
+// PREVENTS: Processing corrupt path attributes that could affect routing.
+func TestParseAS4PathValidation(t *testing.T) {
+	tests := []struct {
+		name    string
+		data    []byte
+		wantErr error
+	}{
+		{
+			name:    "length too small (1 byte, odd)",
+			data:    []byte{0x02},
+			wantErr: ErrInvalidLength, // RFC 6793: length must be multiple of 2
+		},
+		{
+			name:    "length too small (5 bytes, odd)",
+			data:    []byte{0x02, 0x01, 0x00, 0x00, 0xfd},
+			wantErr: ErrInvalidLength, // RFC 6793: length must be multiple of 2
+		},
+		{
+			name:    "truncated ASN (4 bytes even)",
+			data:    []byte{0x02, 0x01, 0x00, 0x00}, // count=1 but only 2 bytes for ASN
+			wantErr: ErrShortData,                   // truncated ASN data
+		},
+		{
+			name:    "segment count zero",
+			data:    []byte{0x02, 0x00}, // AS_SEQUENCE with 0 ASNs
+			wantErr: ErrInvalidLength,
+		},
+		{
+			name:    "invalid segment type",
+			data:    []byte{0x05, 0x01, 0x00, 0x00, 0xfd, 0xe9}, // type 5 is invalid
+			wantErr: ErrMalformedValue,
+		},
+		{
+			name:    "odd length (7 bytes)",
+			data:    []byte{0x02, 0x01, 0x00, 0x00, 0xfd, 0xe9, 0x00},
+			wantErr: ErrInvalidLength,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := ParseAS4Path(tt.data)
+			if err != tt.wantErr {
+				t.Errorf("ParseAS4Path() error = %v, want %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
 func TestAS4Path_RoundTrip(t *testing.T) {
 	original := &AS4Path{
 		Segments: []ASPathSegment{

@@ -156,3 +156,120 @@ func TestNotificationCeaseSubcodes(t *testing.T) {
 		assert.Contains(t, n.String(), tt.expected)
 	}
 }
+
+// TestShutdownCommunication verifies RFC 8203/9003 shutdown message parsing.
+//
+// RFC 9003 Section 2: "If a BGP speaker decides to terminate its session
+// with a BGP neighbor, and it sends a NOTIFICATION message with the Error
+// Code 'Cease' and Error Subcode 'Administrative Shutdown' or
+// 'Administrative Reset', it MAY include a UTF-8-encoded string."
+//
+// Data format: 1-byte length + UTF-8 message (up to 255 bytes)
+//
+// VALIDATES: Shutdown communication correctly parsed from NOTIFICATION data.
+//
+// PREVENTS: Losing operator context when peer shuts down session.
+func TestShutdownCommunication(t *testing.T) {
+	tests := []struct {
+		name    string
+		subcode uint8
+		data    []byte
+		wantMsg string
+		wantErr bool
+	}{
+		{
+			name:    "valid Admin Shutdown with message",
+			subcode: NotifyCeaseAdminShutdown,
+			data:    append([]byte{11}, []byte("maintenance")...), // 11 bytes
+			wantMsg: "maintenance",
+		},
+		{
+			name:    "valid Admin Reset with message",
+			subcode: NotifyCeaseAdminReset,
+			data:    append([]byte{13}, []byte("config change")...), // 13 bytes
+			wantMsg: "config change",
+		},
+		{
+			name:    "empty message (length 0)",
+			subcode: NotifyCeaseAdminShutdown,
+			data:    []byte{0},
+			wantMsg: "",
+		},
+		{
+			name:    "no data (old style)",
+			subcode: NotifyCeaseAdminShutdown,
+			data:    nil,
+			wantMsg: "",
+		},
+		{
+			name:    "UTF-8 multibyte characters",
+			subcode: NotifyCeaseAdminShutdown,
+			data:    append([]byte{9}, []byte("日本語")...), // 9 bytes for 3 Japanese chars (3 bytes each)
+			wantMsg: "日本語",
+		},
+		{
+			name:    "max length 255",
+			subcode: NotifyCeaseAdminShutdown,
+			data: func() []byte {
+				msg := make([]byte, 256)
+				msg[0] = 255
+				for i := 1; i <= 255; i++ {
+					msg[i] = 'x'
+				}
+				return msg
+			}(),
+			wantMsg: string(make([]byte, 255)),
+		},
+		{
+			name:    "length exceeds buffer",
+			subcode: NotifyCeaseAdminShutdown,
+			data:    []byte{100, 'a', 'b', 'c'}, // claims 100 bytes, only 3
+			wantErr: true,
+		},
+		{
+			name:    "invalid UTF-8",
+			subcode: NotifyCeaseAdminShutdown,
+			data:    []byte{3, 0xff, 0xfe, 0xfd}, // invalid UTF-8 sequence
+			wantErr: true,
+		},
+		{
+			name:    "non-cease error code ignored",
+			subcode: 0,
+			data:    []byte{0x01, 0x02, 0x03},
+			wantMsg: "", // not a shutdown, no message
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			n := &Notification{
+				ErrorCode:    NotifyCease,
+				ErrorSubcode: tt.subcode,
+				Data:         tt.data,
+			}
+
+			// For non-cease test, use different error code
+			if tt.name == "non-cease error code ignored" {
+				n.ErrorCode = NotifyUpdateMessage
+			}
+
+			msg, err := n.ShutdownMessage()
+			if tt.wantErr {
+				require.Error(t, err, "expected error for %s", tt.name)
+				return
+			}
+			require.NoError(t, err)
+
+			// For max length test, check it's all 'x' chars
+			if tt.name == "max length 255" {
+				assert.Len(t, msg, 255)
+				for _, c := range msg {
+					assert.Equal(t, 'x', c)
+				}
+				return
+			}
+
+			assert.Equal(t, tt.wantMsg, msg)
+		})
+	}
+}

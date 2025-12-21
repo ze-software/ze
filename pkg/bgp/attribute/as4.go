@@ -113,8 +113,18 @@ func (p *AS4Path) PathLength() int {
 // attribute in an UPDATE message from an OLD BGP speaker MUST discard the
 // attribute and continue processing the UPDATE message."
 func ParseAS4Path(data []byte) (*AS4Path, error) {
-	path := &AS4Path{}
+	// RFC 6793 Section 6: Empty AS4_PATH is valid (no segments)
+	if len(data) == 0 {
+		return &AS4Path{}, nil
+	}
 
+	// RFC 6793 Section 6: "the attribute length is not a multiple of two"
+	// Each segment is: type(1) + count(1) + count*4 bytes = always even
+	if len(data)%2 != 0 {
+		return nil, ErrInvalidLength
+	}
+
+	path := &AS4Path{}
 	offset := 0
 	for offset < len(data) {
 		if offset+2 > len(data) {
@@ -124,6 +134,17 @@ func ParseAS4Path(data []byte) (*AS4Path, error) {
 		segType := ASPathSegmentType(data[offset])
 		count := int(data[offset+1])
 		offset += 2
+
+		// RFC 6793 Section 6: "the path segment length in the attribute is either zero"
+		if count == 0 {
+			return nil, ErrInvalidLength
+		}
+
+		// RFC 6793 Section 6: "the path segment type in the attribute is not one of
+		// the types defined: AS_SEQUENCE, AS_SET, AS_CONFED_SEQUENCE, and AS_CONFED_SET"
+		if !isValidSegmentType(segType) {
+			return nil, ErrMalformedValue
+		}
 
 		needed := count * 4 // Always 4 bytes per ASN
 		if offset+needed > len(data) {
@@ -143,6 +164,17 @@ func ParseAS4Path(data []byte) (*AS4Path, error) {
 	}
 
 	return path, nil
+}
+
+// isValidSegmentType checks if segment type is defined per RFC 4271 and RFC 5065.
+// RFC 6793 Section 6: Valid types are AS_SEQUENCE, AS_SET, AS_CONFED_SEQUENCE, AS_CONFED_SET.
+func isValidSegmentType(t ASPathSegmentType) bool {
+	switch t {
+	case ASSet, ASSequence, ASConfedSequence, ASConfedSet:
+		return true
+	default:
+		return false
+	}
 }
 
 // ToASPath converts AS4Path to a regular ASPath.

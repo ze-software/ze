@@ -39,15 +39,16 @@ type Code uint8
 // RFC 5492 Section 6: IANA maintains the registry for Capability Code values.
 // Capability Code value 0 is reserved.
 const (
-	CodeMultiprotocol   Code = 1  // RFC 4760 Section 8
-	CodeRouteRefresh    Code = 2  // RFC 2918 Section 2
-	CodeExtendedNextHop Code = 5  // RFC 8950
-	CodeExtendedMessage Code = 6  // RFC 8654 Section 3
-	CodeGracefulRestart Code = 64 // RFC 4724 Section 3
-	CodeASN4            Code = 65 // RFC 6793 Section 3
-	CodeAddPath         Code = 69 // RFC 7911 Section 4
-	CodeFQDN            Code = 73 // RFC 8516
-	CodeSoftwareVersion Code = 75 // draft-ietf-idr-software-version
+	CodeMultiprotocol        Code = 1  // RFC 4760 Section 8
+	CodeRouteRefresh         Code = 2  // RFC 2918 Section 2
+	CodeExtendedNextHop      Code = 5  // RFC 8950
+	CodeExtendedMessage      Code = 6  // RFC 8654 Section 3
+	CodeGracefulRestart      Code = 64 // RFC 4724 Section 3
+	CodeASN4                 Code = 65 // RFC 6793 Section 3
+	CodeAddPath              Code = 69 // RFC 7911 Section 4
+	CodeEnhancedRouteRefresh Code = 70 // RFC 7313 Section 3.1
+	CodeFQDN                 Code = 73 // RFC 8516
+	CodeSoftwareVersion      Code = 75 // draft-ietf-idr-software-version
 )
 
 // String returns human-readable capability code name.
@@ -67,6 +68,8 @@ func (c Code) String() string {
 		return "ASN4(65)"
 	case CodeAddPath:
 		return "ADD-PATH(69)"
+	case CodeEnhancedRouteRefresh:
+		return "Enhanced Route Refresh(70)"
 	case CodeFQDN:
 		return "FQDN(73)"
 	case CodeSoftwareVersion:
@@ -183,6 +186,8 @@ func parseCapability(code Code, data []byte) (Capability, error) {
 		return &RouteRefresh{}, nil
 	case CodeExtendedMessage:
 		return &ExtendedMessage{}, nil
+	case CodeEnhancedRouteRefresh:
+		return &EnhancedRouteRefresh{}, nil
 	case CodeExtendedNextHop:
 		return parseExtendedNextHop(data)
 	case CodeAddPath:
@@ -333,6 +338,21 @@ func (e *ExtendedMessage) Code() Code { return CodeExtendedMessage }
 // RFC 8654 Section 3: Capability length is 0 (no value field).
 func (e *ExtendedMessage) Pack() []byte {
 	return packCapability(CodeExtendedMessage, nil)
+}
+
+// EnhancedRouteRefresh represents Enhanced Route Refresh capability (RFC 7313).
+//
+// RFC 7313 Section 3.1: Capability Code 70 with Capability Length 0.
+// Enables BoRR/EoRR markers for route refresh demarcation.
+type EnhancedRouteRefresh struct{}
+
+func (e *EnhancedRouteRefresh) Code() Code { return CodeEnhancedRouteRefresh }
+
+// Pack encodes the Enhanced Route Refresh capability.
+//
+// RFC 7313 Section 3.1: Capability length is 0 (no value field).
+func (e *EnhancedRouteRefresh) Pack() []byte {
+	return packCapability(CodeEnhancedRouteRefresh, nil)
 }
 
 // AddPathMode indicates send/receive capability for ADD-PATH.

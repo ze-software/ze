@@ -83,6 +83,34 @@ ls -la plan/ 2>/dev/null || echo "No plan directory"
 All BGP RFCs that are fully or partially implemented MUST have their text
 version in the `rfc/` folder. See `rfc/README.md` for the index.
 
+**MANDATORY: Read RFC Before Implementation**
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│  BEFORE implementing ANY RFC-related code, MUST read the        │
+│  relevant sections from `rfc/rfcNNNN.txt` to ensure full        │
+│  understanding of requirements, edge cases, and MUST/SHOULD.    │
+│                                                                 │
+│  Do NOT rely on memory or summaries. READ THE ACTUAL RFC TEXT.  │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+**MANDATORY: Download Missing RFCs**
+
+If an RFC is needed but not present in `rfc/`:
+1. Check if RFC exists: `ls rfc/rfcNNNN.txt`
+2. If missing, download it: `curl -o rfc/rfcNNNN.txt https://www.rfc-editor.org/rfc/rfcNNNN.txt`
+3. Update `rfc/README.md` with the new RFC entry
+4. Then proceed with reading and implementation
+
+**Workflow:**
+1. Identify which RFC sections apply to the code being written
+2. Verify RFC exists in `rfc/` folder, download if missing
+3. Read those sections from `rfc/rfcNNNN.txt` (use Read tool)
+4. Note all MUST/SHOULD/MAY requirements
+5. Implement according to RFC text
+6. Add RFC reference comments in code
+
 **MANDATORY: RFC References in Code**
 
 Code implementing RFC functionality MUST include a comment referencing

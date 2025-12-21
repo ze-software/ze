@@ -17,6 +17,18 @@ const (
 	MaxMsgLen = 4096
 	// RFC 8654 - Extended Message capability allows messages up to 65535 octets.
 	ExtMsgLen = 65535
+
+	// Minimum message lengths per RFC 4271:
+	// RFC 4271 Section 4.2: "The minimum length of the OPEN message is 29 octets"
+	MinOpenLen = 29
+	// RFC 4271 Section 4.3: "The minimum length of the UPDATE message is 23 octets"
+	MinUpdateLen = 23
+	// RFC 4271 Section 4.5: "The minimum length of the NOTIFICATION message is 21 octets"
+	MinNotificationLen = 21
+	// RFC 4271 Section 4.4: "A KEEPALIVE message consists of only the message header and has a length of 19 octets"
+	KeepaliveLen = 19
+	// RFC 2918: ROUTE-REFRESH has AFI(2) + Reserved(1) + SAFI(1) = 4 bytes after header
+	MinRouteRefreshLen = 23
 )
 
 // RFC 4271 Section 4.1 - Marker field MUST be set to all ones for compatibility.
@@ -98,6 +110,118 @@ func ParseHeader(data []byte) (Header, error) {
 		Length: length,
 		Type:   MessageType(data[18]),
 	}, nil
+}
+
+// ValidateLength checks if the message length is valid for the message type.
+// RFC 4271 Section 6.1 - Returns Message Header Error / Bad Message Length if invalid.
+//
+// Per-type requirements:
+// - OPEN: >= 29 octets (RFC 4271 Section 4.2)
+// - UPDATE: >= 23 octets (RFC 4271 Section 4.3)
+// - NOTIFICATION: >= 21 octets (RFC 4271 Section 4.5)
+// - KEEPALIVE: == 19 octets exactly (RFC 4271 Section 4.4)
+// - ROUTE-REFRESH: >= 23 octets (RFC 2918)
+//
+// Note: For upper bound validation, use ValidateLengthWithMax after capability negotiation.
+func (h Header) ValidateLength() error {
+	var minLen uint16
+	var exactLen bool
+
+	switch h.Type {
+	case TypeOPEN:
+		minLen = MinOpenLen
+	case TypeUPDATE:
+		minLen = MinUpdateLen
+	case TypeNOTIFICATION:
+		minLen = MinNotificationLen
+	case TypeKEEPALIVE:
+		minLen = KeepaliveLen
+		exactLen = true // KEEPALIVE must be exactly 19 octets
+	case TypeROUTEREFRESH:
+		minLen = MinRouteRefreshLen
+	default:
+		// Unknown message type - only basic length check (>= 19)
+		minLen = HeaderLen
+	}
+
+	// RFC 4271 Section 6.1 - Check per-type length requirements
+	if exactLen {
+		if h.Length != minLen {
+			return &Notification{
+				ErrorCode:    NotifyMessageHeader,
+				ErrorSubcode: NotifyHeaderBadLength,
+				Data:         []byte{byte(h.Length >> 8), byte(h.Length)},
+			}
+		}
+	} else {
+		if h.Length < minLen {
+			return &Notification{
+				ErrorCode:    NotifyMessageHeader,
+				ErrorSubcode: NotifyHeaderBadLength,
+				Data:         []byte{byte(h.Length >> 8), byte(h.Length)},
+			}
+		}
+	}
+
+	return nil
+}
+
+// ValidateLengthWithMax checks message length against per-type minimums AND upper bound.
+// RFC 4271 Section 6.1 - Returns Message Header Error / Bad Message Length if invalid.
+// RFC 8654 - Extended Message capability changes upper bound for UPDATE, NOTIFICATION, ROUTE-REFRESH.
+//
+// Parameters:
+//   - extendedMessage: true if Extended Message capability was negotiated
+//
+// Upper bounds per RFC 4271 + RFC 8654:
+//   - OPEN: always 4096 (RFC 8654 Section 4)
+//   - KEEPALIVE: always 19 (no extension)
+//   - UPDATE, NOTIFICATION, ROUTE-REFRESH: 4096 or 65535 depending on Extended Message
+func (h Header) ValidateLengthWithMax(extendedMessage bool) error {
+	// First check per-type minimums
+	if err := h.ValidateLength(); err != nil {
+		return err
+	}
+
+	// RFC 8654 Section 4: "The BGP Extended Message Capability applies to all
+	// messages except for OPEN and KEEPALIVE messages."
+	maxLen := uint16(MaxMsgLen)
+	switch h.Type {
+	case TypeOPEN, TypeKEEPALIVE:
+		// Always 4096 max for OPEN and KEEPALIVE (RFC 8654 Section 4)
+		maxLen = MaxMsgLen
+	default:
+		// UPDATE, NOTIFICATION, ROUTE-REFRESH: extended if negotiated
+		if extendedMessage {
+			maxLen = ExtMsgLen
+		}
+	}
+
+	if h.Length > maxLen {
+		return &Notification{
+			ErrorCode:    NotifyMessageHeader,
+			ErrorSubcode: NotifyHeaderBadLength,
+			Data:         []byte{byte(h.Length >> 8), byte(h.Length)},
+		}
+	}
+
+	return nil
+}
+
+// MaxMessageLength returns the maximum message length for a given type.
+// RFC 4271: Default max is 4096.
+// RFC 8654: Extended Message capability raises limit to 65535 for UPDATE, NOTIFICATION, ROUTE-REFRESH.
+// OPEN and KEEPALIVE are always limited to 4096 (RFC 8654 Section 4).
+func MaxMessageLength(msgType MessageType, extendedMessage bool) uint16 {
+	switch msgType {
+	case TypeOPEN, TypeKEEPALIVE:
+		return MaxMsgLen
+	default:
+		if extendedMessage {
+			return ExtMsgLen
+		}
+		return MaxMsgLen
+	}
 }
 
 // Pack serializes the header to wire format.
