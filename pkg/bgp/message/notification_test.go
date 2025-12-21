@@ -273,3 +273,77 @@ func TestShutdownCommunication(t *testing.T) {
 		})
 	}
 }
+
+// TestNotificationFSMSubcodes verifies FSM Error subcodes per RFC 6608.
+//
+// RFC 6608 Section 3 defines subcodes for FSM errors:
+//   - 0: Unspecified Error
+//   - 1: Receive Unexpected Message in OpenSent State
+//   - 2: Receive Unexpected Message in OpenConfirm State
+//   - 3: Receive Unexpected Message in Established State
+//
+// VALIDATES: FSM subcodes defined and have correct string representation.
+//
+// PREVENTS: Missing FSM error context when debugging state machine issues.
+func TestNotificationFSMSubcodes(t *testing.T) {
+	tests := []struct {
+		subcode  uint8
+		expected string
+	}{
+		{NotifyFSMUnspecified, "Unspecified Error"},
+		{NotifyFSMUnexpectedOpenSent, "Receive Unexpected Message in OpenSent State"},
+		{NotifyFSMUnexpectedOpenConfirm, "Receive Unexpected Message in OpenConfirm State"},
+		{NotifyFSMUnexpectedEstablished, "Receive Unexpected Message in Established State"},
+	}
+
+	for _, tt := range tests {
+		n := &Notification{ErrorCode: NotifyFSMError, ErrorSubcode: tt.subcode}
+		assert.Contains(t, n.String(), tt.expected, "subcode %d", tt.subcode)
+	}
+}
+
+// TestNotificationRouteRefreshSubcodes verifies Route Refresh Error subcodes per RFC 7313.
+//
+// RFC 7313 Section 5 defines Error Code 7 (Route-Refresh Message Error) with:
+//   - 1: Invalid Message Length
+//
+// VALIDATES: Route Refresh subcodes defined and have correct string representation.
+//
+// PREVENTS: Missing context when enhanced route refresh errors occur.
+func TestNotificationRouteRefreshSubcodes(t *testing.T) {
+	tests := []struct {
+		subcode  uint8
+		expected string
+	}{
+		{NotifyRouteRefreshInvalidLength, "Invalid Message Length"},
+	}
+
+	for _, tt := range tests {
+		n := &Notification{ErrorCode: NotifyRouteRefresh, ErrorSubcode: tt.subcode}
+		assert.Contains(t, n.String(), tt.expected, "subcode %d", tt.subcode)
+	}
+}
+
+// TestNotificationOpenRoleMismatch verifies OPEN Role Mismatch subcode per RFC 9234.
+//
+// RFC 9234 Section 4.2 defines subcode 11 for role mismatch errors.
+//
+// VALIDATES: Role Mismatch subcode defined for BGP role capability negotiation failures.
+//
+// PREVENTS: Ambiguous OPEN error when roles don't match.
+func TestNotificationOpenRoleMismatch(t *testing.T) {
+	n := &Notification{ErrorCode: NotifyOpenMessage, ErrorSubcode: NotifyOpenRoleMismatch}
+	assert.Contains(t, n.String(), "Role Mismatch")
+}
+
+// TestNotificationCeaseBFDDown verifies Cease BFD Down subcode per RFC 9384.
+//
+// RFC 9384 defines subcode 10 for session termination due to BFD down.
+//
+// VALIDATES: BFD Down subcode defined for BFD-triggered session termination.
+//
+// PREVENTS: Ambiguous Cease notification when BFD triggers shutdown.
+func TestNotificationCeaseBFDDown(t *testing.T) {
+	n := &Notification{ErrorCode: NotifyCease, ErrorSubcode: NotifyCeaseBFDDown}
+	assert.Contains(t, n.String(), "BFD Down")
+}

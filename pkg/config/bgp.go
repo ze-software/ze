@@ -98,7 +98,7 @@ func neighborFields() []FieldDef {
 	return []FieldDef{
 		Field("description", Leaf(TypeString)),
 		Field("router-id", Leaf(TypeIPv4)),
-		Field("local-address", Leaf(TypeIP)),
+		Field("local-address", Leaf(TypeString)), // IP address or "auto"
 		Field("local-as", Leaf(TypeUint32)),
 		Field("peer-as", Leaf(TypeUint32)),
 		Field("hold-time", LeafWithDefault(TypeUint16, "90")),
@@ -133,6 +133,7 @@ func neighborFields() []FieldDef {
 				Field("send", LeafWithDefault(TypeBool, "false")),
 				Field("receive", LeafWithDefault(TypeBool, "false")),
 			)),
+			Field("extended-message", Flex()), // RFC 8654 Extended Message
 			Field("nexthop", Flex()),
 			Field("multi-session", Flex()),
 			Field("operational", Flex()),
@@ -232,6 +233,7 @@ type NeighborConfig struct {
 	Description          string
 	RouterID             uint32
 	LocalAddress         netip.Addr
+	LocalAddressAuto     bool // true when local-address is "auto"
 	LocalAS              uint32
 	PeerAS               uint32
 	HoldTime             uint16
@@ -242,11 +244,19 @@ type NeighborConfig struct {
 	Hostname             string
 	DomainName           string
 	Capabilities         CapabilityConfig
+	AddPathFamilies      []AddPathFamilyConfig // Per-family add-path settings (RFC 7911)
 	StaticRoutes         []StaticRouteConfig
 	MVPNRoutes           []MVPNRouteConfig
 	VPLSRoutes           []VPLSRouteConfig
 	FlowSpecRoutes       []FlowSpecRouteConfig
 	MUPRoutes            []MUPRouteConfig
+}
+
+// AddPathFamilyConfig holds per-family add-path settings per RFC 7911.
+type AddPathFamilyConfig struct {
+	Family  string // e.g., "ipv4 unicast"
+	Send    bool   // Send additional paths
+	Receive bool   // Receive additional paths
 }
 
 // CapabilityConfig holds capability settings.
@@ -257,6 +267,7 @@ type CapabilityConfig struct {
 	RestartTime     uint16
 	AddPathSend     bool
 	AddPathReceive  bool
+	ExtendedMessage bool // RFC 8654 Extended Message Support
 	SoftwareVersion bool
 }
 
@@ -441,11 +452,15 @@ func parseNeighborConfig(addr string, tree *Tree, templates map[string]*Tree) (N
 	}
 
 	if v, ok := tree.Get("local-address"); ok {
-		ip, err := netip.ParseAddr(v)
-		if err != nil {
-			return nc, fmt.Errorf("invalid local-address: %w", err)
+		if v == "auto" {
+			nc.LocalAddressAuto = true
+		} else {
+			ip, err := netip.ParseAddr(v)
+			if err != nil {
+				return nc, fmt.Errorf("invalid local-address: %w", err)
+			}
+			nc.LocalAddress = ip
 		}
-		nc.LocalAddress = ip
 	}
 
 	if v, ok := tree.Get("local-as"); ok {
@@ -468,6 +483,10 @@ func parseNeighborConfig(addr string, tree *Tree, templates map[string]*Tree) (N
 		n, err := strconv.ParseUint(v, 10, 16)
 		if err != nil {
 			return nc, fmt.Errorf("invalid hold-time: %w", err)
+		}
+		// RFC 4271 Section 4.2: Hold Time MUST be either zero or at least three seconds
+		if n >= 1 && n <= 2 {
+			return nc, fmt.Errorf("invalid hold-time %d: RFC 4271 requires 0 or >= 3 seconds", n)
 		}
 		nc.HoldTime = uint16(n)
 	}
@@ -540,8 +559,23 @@ func parseNeighborConfig(addr string, tree *Tree, templates map[string]*Tree) (N
 				nc.Capabilities.AddPathReceive = v == configTrue
 			}
 		}
+		// RFC 8654 Extended Message capability
+		if v, ok := cap.GetFlex("extended-message"); ok {
+			nc.Capabilities.ExtendedMessage = v == configTrue || v == configEnable
+		}
 		if v, ok := cap.GetFlex("software-version"); ok {
 			nc.Capabilities.SoftwareVersion = v == configTrue || v == configEnable
+		}
+	}
+
+	// Per-family add-path configuration (RFC 7911)
+	// Format: add-path { ipv4 unicast send; ipv6 unicast receive; ipv4 multicast send/receive; }
+	if addPath := tree.GetContainer("add-path"); addPath != nil {
+		for _, key := range addPath.Values() {
+			apf := parseAddPathFamily(key)
+			if apf.Family != "" {
+				nc.AddPathFamilies = append(nc.AddPathFamilies, apf)
+			}
 		}
 	}
 
@@ -1271,6 +1305,34 @@ func parseMUPRoute(routeType string, route *Tree, isIPv6 bool) MUPRouteConfig {
 	}
 
 	return r
+}
+
+// parseAddPathFamily parses a per-family add-path configuration string.
+// Format: "ipv4 unicast send" or "ipv6 unicast receive" or "ipv4 multicast send/receive"
+// Returns AddPathFamilyConfig with Family, Send, and Receive populated.
+func parseAddPathFamily(s string) AddPathFamilyConfig {
+	parts := strings.Fields(s)
+	if len(parts) < 3 {
+		return AddPathFamilyConfig{}
+	}
+
+	// Family is first two tokens (e.g., "ipv4 unicast")
+	family := parts[0] + " " + parts[1]
+	mode := parts[2]
+
+	apf := AddPathFamilyConfig{Family: family}
+
+	switch mode {
+	case "send":
+		apf.Send = true
+	case "receive":
+		apf.Receive = true
+	case "send/receive", "receive/send":
+		apf.Send = true
+		apf.Receive = true
+	}
+
+	return apf
 }
 
 // ipToUint32 converts an IPv4 address to uint32.

@@ -588,3 +588,186 @@ neighbor 127.0.0.1 {
 	require.True(t, ok, "missing route 10.0.3.0/24 from neighbor")
 	require.Equal(t, uint32(200), r3.LocalPreference)
 }
+
+// TestHoldTimeRFCValidation verifies that hold-time 1-2 seconds is rejected.
+//
+// RFC 4271 Section 4.2: "Hold Time MUST be either zero or at least three seconds."
+//
+// VALIDATES: Config rejects invalid hold times (1-2 seconds) per RFC 4271.
+//
+// PREVENTS: Configuration of non-compliant hold times.
+func TestHoldTimeRFCValidation(t *testing.T) {
+	tests := []struct {
+		name      string
+		holdTime  string
+		wantError bool
+	}{
+		{"zero is valid", "0", false},
+		{"one is invalid", "1", true},
+		{"two is invalid", "2", true},
+		{"three is valid", "3", false},
+		{"ninety is valid", "90", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			input := `
+neighbor 192.0.2.1 {
+    local-as 65000;
+    peer-as 65001;
+    hold-time ` + tt.holdTime + `;
+}
+`
+			p := NewParser(BGPSchema())
+			tree, err := p.Parse(input)
+			require.NoError(t, err)
+
+			_, err = TreeToConfig(tree)
+			if tt.wantError {
+				require.Error(t, err, "hold-time %s should be rejected", tt.holdTime)
+				require.Contains(t, err.Error(), "hold-time")
+			} else {
+				require.NoError(t, err, "hold-time %s should be valid", tt.holdTime)
+			}
+		})
+	}
+}
+
+// TestLocalAddressAuto verifies 'auto' keyword for local-address.
+//
+// VALIDATES: local-address 'auto' is parsed as special value for auto-binding.
+//
+// PREVENTS: Unable to configure automatic local address selection.
+func TestLocalAddressAuto(t *testing.T) {
+	input := `
+neighbor 192.0.2.1 {
+    local-as 65000;
+    peer-as 65001;
+    local-address auto;
+}
+`
+	p := NewParser(BGPSchema())
+	tree, err := p.Parse(input)
+	require.NoError(t, err)
+
+	cfg, err := TreeToConfig(tree)
+	require.NoError(t, err)
+
+	require.Len(t, cfg.Neighbors, 1)
+	n := cfg.Neighbors[0]
+	require.True(t, n.LocalAddressAuto, "local-address auto should set LocalAddressAuto=true")
+	require.False(t, n.LocalAddress.IsValid(), "local-address auto should leave LocalAddress unset")
+}
+
+// TestExtendedMessageCapabilityConfig verifies extended-message capability config.
+//
+// RFC 8654 Extended Message Support for BGP.
+//
+// VALIDATES: extended-message capability can be enabled/disabled in config.
+//
+// PREVENTS: Unable to control extended message negotiation.
+func TestExtendedMessageCapabilityConfig(t *testing.T) {
+	tests := []struct {
+		name     string
+		config   string
+		expected bool
+	}{
+		{
+			"explicit enable",
+			`capability { extended-message enable; }`,
+			true,
+		},
+		{
+			"explicit disable",
+			`capability { extended-message disable; }`,
+			false,
+		},
+		{
+			"true value",
+			`capability { extended-message true; }`,
+			true,
+		},
+		{
+			"false value",
+			`capability { extended-message false; }`,
+			false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			input := `
+neighbor 192.0.2.1 {
+    local-as 65000;
+    peer-as 65001;
+    ` + tt.config + `
+}
+`
+			p := NewParser(BGPSchema())
+			tree, err := p.Parse(input)
+			require.NoError(t, err)
+
+			cfg, err := TreeToConfig(tree)
+			require.NoError(t, err)
+
+			require.Len(t, cfg.Neighbors, 1)
+			n := cfg.Neighbors[0]
+			require.Equal(t, tt.expected, n.Capabilities.ExtendedMessage,
+				"extended-message capability mismatch")
+		})
+	}
+}
+
+// TestPerFamilyAddPathConfig verifies per-family add-path configuration.
+//
+// RFC 7911 ADD-PATH capability per AFI/SAFI.
+//
+// VALIDATES: add-path can be configured per address family.
+//
+// PREVENTS: Global add-path setting applying to all families.
+func TestPerFamilyAddPathConfig(t *testing.T) {
+	input := `
+neighbor 192.0.2.1 {
+    local-as 65000;
+    peer-as 65001;
+    add-path {
+        ipv4 unicast send;
+        ipv6 unicast receive;
+        ipv4 multicast send/receive;
+    }
+}
+`
+	p := NewParser(BGPSchema())
+	tree, err := p.Parse(input)
+	require.NoError(t, err)
+
+	cfg, err := TreeToConfig(tree)
+	require.NoError(t, err)
+
+	require.Len(t, cfg.Neighbors, 1)
+	n := cfg.Neighbors[0]
+
+	// Check per-family add-path settings
+	require.Len(t, n.AddPathFamilies, 3, "expected 3 family add-path configs")
+
+	// Find configs by family
+	familyMap := make(map[string]AddPathFamilyConfig)
+	for _, f := range n.AddPathFamilies {
+		familyMap[f.Family] = f
+	}
+
+	ipv4Uni, ok := familyMap["ipv4 unicast"]
+	require.True(t, ok, "missing ipv4 unicast add-path config")
+	require.True(t, ipv4Uni.Send, "ipv4 unicast should have send")
+	require.False(t, ipv4Uni.Receive, "ipv4 unicast should not have receive")
+
+	ipv6Uni, ok := familyMap["ipv6 unicast"]
+	require.True(t, ok, "missing ipv6 unicast add-path config")
+	require.False(t, ipv6Uni.Send, "ipv6 unicast should not have send")
+	require.True(t, ipv6Uni.Receive, "ipv6 unicast should have receive")
+
+	ipv4Multi, ok := familyMap["ipv4 multicast"]
+	require.True(t, ok, "missing ipv4 multicast add-path config")
+	require.True(t, ipv4Multi.Send, "ipv4 multicast should have send")
+	require.True(t, ipv4Multi.Receive, "ipv4 multicast should have receive")
+}

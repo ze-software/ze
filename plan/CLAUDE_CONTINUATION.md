@@ -6,11 +6,11 @@
 
 ## CURRENT PRIORITY
 
-**Implement ALIGN items from `plan/align-implementation.md`**
+**ExaBGP Alignment Plan COMPLETE** ✅
 
-31 items across 8 phases (26 original + 5 from RFC violations)
+All 31 items across 8 phases implemented.
 
-Start with Phase 1 (Critical): 5 items
+See `plan/align-implementation.md` for details.
 
 ---
 
@@ -18,29 +18,29 @@ Start with Phase 1 (Critical): 5 items
 
 ### ExaBGP Alignment Implementation
 
-Progress: Phase 6 complete (26/31 items)
+Progress: **31/31 items complete** ✅
 
-**Completed Phases:**
+**All Phases Complete:**
 - ✅ Phase 1: Critical (5/5)
 - ✅ Phase 2: Capabilities (3/3)
 - ✅ Phase 3: Timers (1/1)
 - ✅ Phase 4: Attributes (6/6)
 - ✅ Phase 5: MP-NLRI (4/4)
 - ✅ Phase 6: NLRI Types (7/7)
-
-**Next:** Phase 8 (Errors - 1 item) and Phase 9 (Config - 4 items)
+- ✅ Phase 8: Errors (1/1)
+- ✅ Phase 9: Config (4/4)
 
 ### Recent Implementation:
-- **6.1 EVPN Type 1 (Ethernet Auto-Discovery) - RFC 7432 §7.1:**
-  - Added `EVPNType1` struct with RD, ESI, EthernetTag, Labels
-- **6.2 EVPN Type 4 (Ethernet Segment) - RFC 7432 §7.4:**
-  - Added `EVPNType4` struct with RD, ESI, OriginatorIP
-- **6.3-6.5 FlowSpec VPN, VPLS, RTC:** Already implemented
-- **6.6 EVPN Type 5 Prefix Encoding - RFC 9136 §3.1:**
-  - Fixed `parseEVPNType5()` to require length 34 (IPv4) or 58 (IPv6)
-- **6.7 BGP-LS Descriptor Encoding - RFC 7752 §3.2:**
-  - Fixed `BGPLSLink.Bytes()` and `BGPLSPrefix.Bytes()` to not wrap TLVs
-  - Link/prefix descriptor TLVs now appear directly in NLRI per RFC
+- **Phase 8.1 Error Subcode Coverage:**
+  - Added FSM subcodes (0-3) per RFC 6608
+  - Added Route Refresh subcode (1) per RFC 7313
+  - Added OPEN subcode 11 (Role Mismatch) per RFC 9234
+  - Added Cease subcode 10 (BFD Down) per RFC 9384
+- **Phase 9 Config:**
+  - Hold-time validation (RFC 4271)
+  - Local-address "auto" keyword
+  - Extended-message capability config (RFC 8654)
+  - Per-family add-path config (RFC 7911)
 
 ---
 

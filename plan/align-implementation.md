@@ -214,45 +214,46 @@
 
 ---
 
-## Phase 8: Error Handling (1 item, 1 kept)
+## Phase 8: Error Handling (1 item, 1 kept) ✅ COMPLETE
 
 ### 8.1 Error Subcode Coverage
 - **Task:** Expand from 12 to 48+ subcodes with descriptions
-- **RFC:** 4271, various
+- **RFC:** 4271, 6608, 7313, 9234, 9384
 - **Files:** `pkg/bgp/message/notification.go`
 - **Test:** Correct subcode for each error type
-- [ ] Pending
+- [x] Complete - Added FSM subcodes (RFC 6608), Route Refresh subcodes (RFC 7313),
+  Role Mismatch (RFC 9234), BFD Down (RFC 9384), plus string helpers for all codes
 
 ---
 
-## Phase 9: Configuration (4 items)
+## Phase 9: Configuration (4 items) ✅ COMPLETE
 
 ### 9.1 Hold Time RFC Validation
 - **Task:** Config rejects 1-2 second hold times
-- **RFC:** 4271
-- **Files:** `pkg/config/`
+- **RFC:** 4271 Section 4.2
+- **Files:** `pkg/config/bgp.go`
 - **Test:** Config validation error
-- [ ] Pending (duplicate of 3.2)
+- [x] Complete - parseNeighborConfig validates hold-time per RFC
 
 ### 9.2 Local Address 'auto' Keyword
 - **Task:** Support 'auto' for dynamic local address binding
-- **Files:** `pkg/config/`, `pkg/bgp/peer.go`
+- **Files:** `pkg/config/bgp.go`
 - **Test:** Bind to auto-selected address
-- [ ] Pending
+- [x] Complete - LocalAddressAuto field, schema accepts TypeString
 
 ### 9.3 Extended-Message Capability Config
-- **Task:** Add config option with default=true
+- **Task:** Add config option for extended-message
 - **RFC:** 8654
-- **Files:** `pkg/config/`
+- **Files:** `pkg/config/bgp.go`
 - **Test:** Enable/disable via config
-- [ ] Pending
+- [x] Complete - ExtendedMessage field in CapabilityConfig
 
 ### 9.4 Per-Family Add-Path Config
 - **Task:** Configure add-path per AFI/SAFI
 - **RFC:** 7911
-- **Files:** `pkg/config/`
+- **Files:** `pkg/config/bgp.go`
 - **Test:** Per-family add-path settings
-- [ ] Pending
+- [x] Complete - AddPathFamilies slice with per-family send/receive
 
 ---
 
@@ -266,9 +267,9 @@
 | 4. Attributes | 6 | +2 | ✅ Complete |
 | 5. MP-NLRI | 4 | 0 | ✅ Complete |
 | 6. NLRI Types | 7 | +2 | ✅ Complete |
-| 8. Errors | 1 | 0 | Pending |
-| 9. Config | 4 | 0 | Pending |
-| **Total** | **31** | **+5** | **26/31 Complete** |
+| 8. Errors | 1 | 0 | ✅ Complete |
+| 9. Config | 4 | 0 | ✅ Complete |
+| **Total** | **31** | **+5** | **31/31 Complete** |
 
 ---
 

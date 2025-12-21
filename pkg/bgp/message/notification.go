@@ -46,15 +46,16 @@ const (
 //	4 - Unsupported Optional Parameter
 //	5 - [Deprecated - see Appendix A]
 //	6 - Unacceptable Hold Time
-//
-// Note: Subcode 7 (Unsupported Capability) is from RFC 5492.
+//	7 - Unsupported Capability (RFC 5492)
+//	11 - Role Mismatch (RFC 9234)
 const (
 	NotifyOpenUnsupportedVersion    uint8 = 1
 	NotifyOpenBadPeerAS             uint8 = 2
 	NotifyOpenBadBGPID              uint8 = 3
 	NotifyOpenUnsupportedOptParam   uint8 = 4
 	NotifyOpenUnacceptableHoldTime  uint8 = 6
-	NotifyOpenUnsupportedCapability uint8 = 7 // RFC 5492
+	NotifyOpenUnsupportedCapability uint8 = 7  // RFC 5492
+	NotifyOpenRoleMismatch          uint8 = 11 // RFC 9234
 )
 
 // RFC 4271 Section 4.5 - UPDATE Message Error subcodes:
@@ -83,19 +84,43 @@ const (
 	NotifyUpdateMalformedASPath  uint8 = 11
 )
 
+// RFC 6608 - BGP Finite State Machine Error Subcodes:
+//
+//	0 - Unspecified Error
+//	1 - Receive Unexpected Message in OpenSent State
+//	2 - Receive Unexpected Message in OpenConfirm State
+//	3 - Receive Unexpected Message in Established State
+const (
+	NotifyFSMUnspecified           uint8 = 0 // RFC 6608
+	NotifyFSMUnexpectedOpenSent    uint8 = 1 // RFC 6608
+	NotifyFSMUnexpectedOpenConfirm uint8 = 2 // RFC 6608
+	NotifyFSMUnexpectedEstablished uint8 = 3 // RFC 6608
+)
+
 // RFC 4271 Section 4.5 - Cease is Error Code 6, subcodes defined in RFC 4486.
 // RFC 4271 Section 6.7 - Cease NOTIFICATION is used for non-fatal connection termination.
 const (
-	NotifyCeaseMaxPrefixes         uint8 = 1 // RFC 4486
-	NotifyCeaseAdminShutdown       uint8 = 2 // RFC 4486
-	NotifyCeasePeerDeconfigured    uint8 = 3 // RFC 4486
-	NotifyCeaseAdminReset          uint8 = 4 // RFC 4486
-	NotifyCeaseConnectionRejected  uint8 = 5 // RFC 4486
-	NotifyCeaseOtherConfigChange   uint8 = 6 // RFC 4486
-	NotifyCeaseConnectionCollision uint8 = 7 // RFC 4486
-	NotifyCeaseOutOfResources      uint8 = 8 // RFC 4486
-	NotifyCeaseHardReset           uint8 = 9 // RFC 8538
+	NotifyCeaseMaxPrefixes         uint8 = 1  // RFC 4486
+	NotifyCeaseAdminShutdown       uint8 = 2  // RFC 4486
+	NotifyCeasePeerDeconfigured    uint8 = 3  // RFC 4486
+	NotifyCeaseAdminReset          uint8 = 4  // RFC 4486
+	NotifyCeaseConnectionRejected  uint8 = 5  // RFC 4486
+	NotifyCeaseOtherConfigChange   uint8 = 6  // RFC 4486
+	NotifyCeaseConnectionCollision uint8 = 7  // RFC 4486
+	NotifyCeaseOutOfResources      uint8 = 8  // RFC 4486
+	NotifyCeaseHardReset           uint8 = 9  // RFC 8538
+	NotifyCeaseBFDDown             uint8 = 10 // RFC 9384
 )
+
+// RFC 7313 Section 5 - ROUTE-REFRESH Message Error subcodes (Error Code 7):
+//
+//	1 - Invalid Message Length
+const (
+	NotifyRouteRefreshInvalidLength uint8 = 1 // RFC 7313
+)
+
+// subcodeUnspecific is the string for unspecific/unspecified subcodes.
+const subcodeUnspecific = "Unspecific"
 
 // String returns a human-readable name for the error code.
 func (c NotifyErrorCode) String() string {
@@ -227,22 +252,77 @@ func (n *Notification) ShutdownMessage() (string, error) {
 // If no appropriate Error Subcode is defined, a zero (Unspecific) value is used.
 func (n *Notification) subcodeString() string {
 	switch n.ErrorCode { //nolint:exhaustive // Only some codes have specific subcode strings
-	case NotifyCease:
-		return ceaseSubcodeString(n.ErrorSubcode)
+	case NotifyMessageHeader:
+		return headerSubcodeString(n.ErrorSubcode)
 	case NotifyOpenMessage:
 		return openSubcodeString(n.ErrorSubcode)
 	case NotifyUpdateMessage:
 		return updateSubcodeString(n.ErrorSubcode)
+	case NotifyFSMError:
+		return fsmSubcodeString(n.ErrorSubcode)
+	case NotifyCease:
+		return ceaseSubcodeString(n.ErrorSubcode)
+	case NotifyRouteRefresh:
+		return routeRefreshSubcodeString(n.ErrorSubcode)
 	default:
 		if n.ErrorSubcode == 0 {
-			return "Unspecific"
+			return subcodeUnspecific
 		}
 		return fmt.Sprintf("Subcode(%d)", n.ErrorSubcode)
 	}
 }
 
+// headerSubcodeString returns the string for Message Header Error subcodes.
+// RFC 4271 Section 6.1
+func headerSubcodeString(subcode uint8) string {
+	switch subcode {
+	case 0:
+		return subcodeUnspecific
+	case NotifyHeaderConnectionNotSync:
+		return "Connection Not Synchronized"
+	case NotifyHeaderBadLength:
+		return "Bad Message Length"
+	case NotifyHeaderBadType:
+		return "Bad Message Type"
+	default:
+		return fmt.Sprintf("Subcode(%d)", subcode)
+	}
+}
+
+// fsmSubcodeString returns the string for FSM Error subcodes.
+// RFC 6608 Section 3
+func fsmSubcodeString(subcode uint8) string {
+	switch subcode {
+	case NotifyFSMUnspecified:
+		return "Unspecified Error"
+	case NotifyFSMUnexpectedOpenSent:
+		return "Receive Unexpected Message in OpenSent State"
+	case NotifyFSMUnexpectedOpenConfirm:
+		return "Receive Unexpected Message in OpenConfirm State"
+	case NotifyFSMUnexpectedEstablished:
+		return "Receive Unexpected Message in Established State"
+	default:
+		return fmt.Sprintf("Subcode(%d)", subcode)
+	}
+}
+
+// routeRefreshSubcodeString returns the string for Route-Refresh Error subcodes.
+// RFC 7313 Section 5
+func routeRefreshSubcodeString(subcode uint8) string {
+	switch subcode {
+	case 0:
+		return "Reserved"
+	case NotifyRouteRefreshInvalidLength:
+		return "Invalid Message Length"
+	default:
+		return fmt.Sprintf("Subcode(%d)", subcode)
+	}
+}
+
 func ceaseSubcodeString(subcode uint8) string {
 	switch subcode {
+	case 0:
+		return subcodeUnspecific
 	case NotifyCeaseMaxPrefixes:
 		return "Maximum Number of Prefixes Reached"
 	case NotifyCeaseAdminShutdown:
@@ -261,6 +341,8 @@ func ceaseSubcodeString(subcode uint8) string {
 		return "Out of Resources"
 	case NotifyCeaseHardReset:
 		return "Hard Reset"
+	case NotifyCeaseBFDDown:
+		return "BFD Down"
 	default:
 		return fmt.Sprintf("Subcode(%d)", subcode)
 	}
@@ -268,6 +350,8 @@ func ceaseSubcodeString(subcode uint8) string {
 
 func openSubcodeString(subcode uint8) string {
 	switch subcode {
+	case 0:
+		return subcodeUnspecific
 	case NotifyOpenUnsupportedVersion:
 		return "Unsupported Version Number"
 	case NotifyOpenBadPeerAS:
@@ -280,6 +364,8 @@ func openSubcodeString(subcode uint8) string {
 		return "Unacceptable Hold Time"
 	case NotifyOpenUnsupportedCapability:
 		return "Unsupported Capability"
+	case NotifyOpenRoleMismatch:
+		return "Role Mismatch"
 	default:
 		return fmt.Sprintf("Subcode(%d)", subcode)
 	}
@@ -287,6 +373,8 @@ func openSubcodeString(subcode uint8) string {
 
 func updateSubcodeString(subcode uint8) string {
 	switch subcode {
+	case 0:
+		return subcodeUnspecific
 	case NotifyUpdateMalformedAttr:
 		return "Malformed Attribute List"
 	case NotifyUpdateUnrecognizedAttr:
