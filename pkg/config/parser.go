@@ -45,6 +45,50 @@ func (t *Tree) GetMultiValues(name string) []string {
 	return t.multiValues[name]
 }
 
+// Clone creates a deep copy of the Tree.
+// Used by migrations to safely transform config without affecting original.
+func (t *Tree) Clone() *Tree {
+	if t == nil {
+		return nil
+	}
+
+	clone := NewTree()
+
+	// Clone values
+	for k, v := range t.values {
+		clone.values[k] = v
+	}
+
+	// Clone multiValues
+	for k, v := range t.multiValues {
+		copied := make([]string, len(v))
+		copy(copied, v)
+		clone.multiValues[k] = copied
+	}
+
+	// Clone containers (deep)
+	for k, v := range t.containers {
+		clone.containers[k] = v.Clone()
+	}
+
+	// Clone lists (deep)
+	for listName, entries := range t.lists {
+		clone.lists[listName] = make(map[string]*Tree)
+		for entryKey, entryTree := range entries {
+			clone.lists[listName][entryKey] = entryTree.Clone()
+		}
+	}
+
+	// Clone listOrder
+	for k, v := range t.listOrder {
+		copied := make([]string, len(v))
+		copy(copied, v)
+		clone.listOrder[k] = copied
+	}
+
+	return clone
+}
+
 // GetFlex returns a value from either leaf values or the first multiValue.
 // Used for Flex nodes that can be parsed as either Set() or AppendValue().
 func (t *Tree) GetFlex(name string) (string, bool) {
@@ -166,6 +210,49 @@ func (t *Tree) Values() []string {
 		keys = append(keys, k)
 	}
 	return keys
+}
+
+// GetOrCreateContainer returns an existing container or creates a new one.
+// Used by migrations to ensure a container exists before adding to it.
+func (t *Tree) GetOrCreateContainer(name string) *Tree {
+	if c := t.containers[name]; c != nil {
+		return c
+	}
+	c := NewTree()
+	t.containers[name] = c
+	return c
+}
+
+// RemoveListEntry removes and returns a specific list entry.
+// Returns nil if the entry doesn't exist.
+func (t *Tree) RemoveListEntry(listName, key string) *Tree {
+	list := t.lists[listName]
+	if list == nil {
+		return nil
+	}
+	entry, exists := list[key]
+	if !exists {
+		return nil
+	}
+	delete(list, key)
+
+	// Remove from order
+	newOrder := make([]string, 0, len(t.listOrder[listName]))
+	for _, k := range t.listOrder[listName] {
+		if k != key {
+			newOrder = append(newOrder, k)
+		}
+	}
+	t.listOrder[listName] = newOrder
+
+	return entry
+}
+
+// ClearList removes all entries from a list.
+// Used by migrations to clear a list before repopulating.
+func (t *Tree) ClearList(name string) {
+	delete(t.lists, name)
+	delete(t.listOrder, name)
 }
 
 // Parser parses ExaBGP-style configuration.

@@ -1,6 +1,6 @@
 # Neighbor→Peer Rename + Template Restructuring
 
-**Status:** Phase 1 Complete ✅
+**Status:** Phase 2 Complete ✅
 **Created:** 2025-12-21
 **Updated:** 2025-12-21
 **Depends on:** `config-migration-system.md` (migration infrastructure)
@@ -10,7 +10,7 @@
 | Phase | Status | Commit |
 |-------|--------|--------|
 | Phase 1: Add New Syntax | ✅ Complete | `e0eb357` |
-| Phase 2: Migration Infrastructure | ⏳ Pending | - |
+| Phase 2: Migration Infrastructure | ✅ Complete | - |
 | Phase 3: Internal Refactoring | ⏳ Pending | - |
 | Phase 4: Deprecate Old Syntax | ⏳ Pending | - |
 | Phase 5: Update Config Files | ⏳ Pending | - |
@@ -22,6 +22,19 @@
 - V2 backward compatibility preserved
 - **Known limitation:** Multiple `inherit` not yet supported (single only)
 - Key fix: v3 `template.match` uses config order, NOT specificity
+
+### Phase 2 Notes
+
+- Created `pkg/config/migration/` package
+- Added `Tree.Clone()` for safe mutation during migration
+- Added `Tree.GetOrCreateContainer()`, `RemoveListEntry()`, `ClearList()` helpers
+- Implemented version detection: `DetectVersion()` with `hasV2Patterns()`, `hasV3Patterns()`
+- Implemented `MigrateV2ToV3()` with order-preserving transforms:
+  - `neighbor <IP>` → `peer <IP>`
+  - `peer <glob>` (root) → `template { match <glob> }`
+  - `template { neighbor <name> }` → `template { group <name> }`
+- 12 tests covering detection and migration (all pass)
+- Migration is idempotent and doesn't mutate original tree
 
 ---
 
@@ -357,14 +370,14 @@ template { match * { }; group mytmpl { } }
 peer 192.0.2.1 { }
 ```
 
-### Phase 2: Migration Infrastructure
+### Phase 2: Migration Infrastructure ✅
 
-| # | Task | Files |
-|---|------|-------|
-| 2.1 | Add Version3 constant | `pkg/config/migration/version.go` |
-| 2.2 | Add v2 detection heuristics | `pkg/config/migration/detect.go` |
-| 2.3 | Implement v2→v3 migration | `pkg/config/migration/v2_to_v3.go` |
-| 2.4 | Tests for migration | `pkg/config/migration/v2_to_v3_test.go` |
+| # | Task | Files | Status |
+|---|------|-------|--------|
+| 2.1 | Add Version3 constant | `pkg/config/migration/version.go` | ✅ |
+| 2.2 | Add v2 detection heuristics | `pkg/config/migration/detect.go` | ✅ |
+| 2.3 | Implement v2→v3 migration | `pkg/config/migration/v2_to_v3.go` | ✅ |
+| 2.4 | Tests for migration | `pkg/config/migration/v2_to_v3_test.go` | ✅ |
 
 ### Phase 3: Internal Refactoring
 

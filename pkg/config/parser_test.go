@@ -385,3 +385,44 @@ func TestParserArraySingle(t *testing.T) {
 	require.True(t, ok)
 	require.Equal(t, "single", val)
 }
+
+// TestTreeClone verifies deep cloning of Tree.
+//
+// VALIDATES: Clone creates independent copy with all data.
+//
+// PREVENTS: Mutations affecting original during migration.
+func TestTreeClone(t *testing.T) {
+	input := `
+neighbor 192.0.2.1 {
+    local-as 65000;
+    peer-as 65001;
+}
+`
+	p := NewParser(testSchema())
+	original, err := p.Parse(input)
+	require.NoError(t, err)
+
+	// Clone the tree
+	cloned := original.Clone()
+	require.NotNil(t, cloned)
+
+	// Verify data is preserved
+	neighbors := cloned.GetList("neighbor")
+	require.Len(t, neighbors, 1)
+	n := neighbors["192.0.2.1"]
+	require.NotNil(t, n)
+	val, _ := n.Get("local-as")
+	require.Equal(t, "65000", val)
+
+	// Verify independence: modify clone, original unchanged
+	cloned.Set("router-id", "9.9.9.9")
+	_, ok := original.Get("router-id")
+	require.False(t, ok, "original should not have router-id after clone modification")
+
+	// Verify independence: modify cloned neighbor
+	n.Set("hold-time", "30")
+	origNeighbors := original.GetList("neighbor")
+	origN := origNeighbors["192.0.2.1"]
+	_, ok = origN.Get("hold-time")
+	require.False(t, ok, "original neighbor should not have hold-time after clone modification")
+}
