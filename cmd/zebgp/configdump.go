@@ -88,8 +88,8 @@ func printConfig(cfg *config.BGPConfig) {
 	}
 	fmt.Println()
 
-	for _, n := range cfg.Neighbors {
-		fmt.Printf("neighbor %s:\n", n.Address)
+	for _, n := range cfg.Peers {
+		fmt.Printf("peer %s:\n", n.Address)
 		if n.Description != "" {
 			fmt.Printf("  description: %s\n", n.Description)
 		}

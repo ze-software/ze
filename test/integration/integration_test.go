@@ -81,10 +81,10 @@ func setupPeers(t *testing.T, ctx context.Context, cfg1, cfg2 peerConfig) (*reac
 		Passive:  cfg2.passive,
 	}
 
-	if err := r1.AddNeighbor(neighbor1); err != nil {
+	if err := r1.AddPeer(neighbor1); err != nil {
 		t.Fatalf("add neighbor to r1: %v", err)
 	}
-	if err := r2.AddNeighbor(neighbor2); err != nil {
+	if err := r2.AddPeer(neighbor2); err != nil {
 		t.Fatalf("add neighbor to r2: %v", err)
 	}
 
@@ -228,10 +228,10 @@ func TestSessionReconnect(t *testing.T) {
 		Passive:  true,
 	}
 
-	if err := r1.AddNeighbor(neighbor1); err != nil {
+	if err := r1.AddPeer(neighbor1); err != nil {
 		t.Fatalf("add neighbor to r1: %v", err)
 	}
-	if err := r2.AddNeighbor(neighbor2); err != nil {
+	if err := r2.AddPeer(neighbor2); err != nil {
 		t.Fatalf("add neighbor to r2: %v", err)
 	}
 

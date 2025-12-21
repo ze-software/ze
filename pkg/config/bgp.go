@@ -156,8 +156,8 @@ func routeAttributes() []FieldDef {
 	}
 }
 
-// neighborFields returns the common field definitions for neighbor and template schemas.
-func neighborFields() []FieldDef {
+// peerFields returns the common field definitions for neighbor and template schemas.
+func peerFields() []FieldDef {
 	return []FieldDef{
 		Field("description", Leaf(TypeString)),
 		Field("router-id", Leaf(TypeIPv4)),
@@ -278,21 +278,21 @@ func BGPSchema() *Schema {
 		Field("respawn", Leaf(TypeBool)),    // respawn on exit
 	))
 
-	// Neighbor definitions - uses shared neighborFields
-	schema.Define("neighbor", List(TypeIP, neighborFields()...))
+	// Neighbor definitions - uses shared peerFields
+	schema.Define("neighbor", List(TypeIP, peerFields()...))
 
 	// Peer glob patterns - apply settings to matching neighbors
 	// peer * { ... }           - all peers
 	// peer 192.168.*.* { ... } - pattern matching
-	schema.Define("peer", List(TypeString, neighborFields()...))
+	schema.Define("peer", List(TypeString, peerFields()...))
 
 	// Template definitions - contains named neighbor templates
 	// V2: template { neighbor <name> { ... } }
 	// V3: template { group <name> { ... }; match <pattern> { ... } }
 	schema.Define("template", Container(
-		Field("neighbor", List(TypeString, neighborFields()...)), // V2: named templates
-		Field("group", List(TypeString, neighborFields()...)),    // V3: named templates (replaces neighbor)
-		Field("match", List(TypeString, neighborFields()...)),    // V3: glob patterns
+		Field("neighbor", List(TypeString, peerFields()...)), // V2: named templates
+		Field("group", List(TypeString, peerFields()...)),    // V3: named templates (replaces neighbor)
+		Field("match", List(TypeString, peerFields()...)),    // V3: glob patterns
 	))
 
 	return schema
@@ -319,12 +319,12 @@ type BGPConfig struct {
 	RouterID  uint32
 	LocalAS   uint32
 	Listen    string
-	Neighbors []NeighborConfig
+	Peers     []PeerConfig
 	Processes []ProcessConfig
 }
 
-// NeighborConfig holds neighbor configuration.
-type NeighborConfig struct {
+// PeerConfig holds neighbor configuration.
+type PeerConfig struct {
 	Address              netip.Addr
 	Description          string
 	RouterID             uint32
@@ -565,22 +565,22 @@ func TreeToConfig(tree *Tree) (*BGPConfig, error) {
 
 	// Neighbors from "neighbor" (v2) and "peer" with IP address (v3)
 	for addr, n := range tree.GetList("neighbor") {
-		nc, err := parseNeighborConfig(addr, n, templates, peerGlobs)
+		nc, err := parsePeerConfig(addr, n, templates, peerGlobs)
 		if err != nil {
 			return nil, fmt.Errorf("neighbor %s: %w", addr, err)
 		}
-		cfg.Neighbors = append(cfg.Neighbors, nc)
+		cfg.Peers = append(cfg.Peers, nc)
 	}
 
 	// V3: peer <IP> { ... } - parse IPs as neighbors
 	for addr, n := range tree.GetList("peer") {
 		if !isGlobPattern(addr) {
 			// It's an IP address, treat as neighbor
-			nc, err := parseNeighborConfig(addr, n, templates, peerGlobs)
+			nc, err := parsePeerConfig(addr, n, templates, peerGlobs)
 			if err != nil {
 				return nil, fmt.Errorf("peer %s: %w", addr, err)
 			}
-			cfg.Neighbors = append(cfg.Neighbors, nc)
+			cfg.Peers = append(cfg.Peers, nc)
 		}
 	}
 
@@ -600,8 +600,8 @@ func sortPeerGlobs(globs []PeerGlob) {
 }
 
 // applyTreeSettings applies settings from a tree (match block, template, or peer glob)
-// to a NeighborConfig. Only explicitly set values are applied.
-func applyTreeSettings(nc *NeighborConfig, tree *Tree) error {
+// to a PeerConfig. Only explicitly set values are applied.
+func applyTreeSettings(nc *PeerConfig, tree *Tree) error {
 	// Hold time
 	if v, ok := tree.Get("hold-time"); ok {
 		n, err := strconv.ParseUint(v, 10, 16)
@@ -713,8 +713,8 @@ func applyTreeSettings(nc *NeighborConfig, tree *Tree) error {
 	return nil
 }
 
-func parseNeighborConfig(addr string, tree *Tree, templates map[string]*Tree, peerGlobs []PeerGlob) (NeighborConfig, error) {
-	nc := NeighborConfig{}
+func parsePeerConfig(addr string, tree *Tree, templates map[string]*Tree, peerGlobs []PeerGlob) (PeerConfig, error) {
+	nc := PeerConfig{}
 
 	// Set default capability values (ASN4 enabled by default per RFC 6793).
 	nc.Capabilities.ASN4 = true
@@ -1819,11 +1819,11 @@ func ipToUint32(ip netip.Addr) uint32 {
 }
 
 // ToReactorConfig converts BGPConfig to reactor configuration.
-func (c *BGPConfig) ToReactorNeighbors() []*NeighborReactor {
-	neighbors := make([]*NeighborReactor, 0, len(c.Neighbors))
+func (c *BGPConfig) ToReactorPeers() []*PeerReactor {
+	neighbors := make([]*PeerReactor, 0, len(c.Peers))
 
-	for _, nc := range c.Neighbors {
-		n := &NeighborReactor{
+	for _, nc := range c.Peers {
+		n := &PeerReactor{
 			Address:  nc.Address,
 			Port:     179,
 			LocalAS:  nc.LocalAS,
@@ -1849,8 +1849,8 @@ func (c *BGPConfig) ToReactorNeighbors() []*NeighborReactor {
 	return neighbors
 }
 
-// NeighborReactor is the reactor-compatible neighbor config.
-type NeighborReactor struct {
+// PeerReactor is the reactor-compatible neighbor config.
+type PeerReactor struct {
 	Address  netip.Addr
 	Port     uint16
 	LocalAS  uint32

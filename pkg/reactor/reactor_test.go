@@ -69,7 +69,7 @@ func TestReactorAddPeer(t *testing.T) {
 		65000, 65001, 0x01010101,
 	)
 
-	err := reactor.AddNeighbor(neighbor)
+	err := reactor.AddPeer(neighbor)
 	require.NoError(t, err)
 
 	peers := reactor.Peers()
@@ -93,10 +93,10 @@ func TestReactorRemovePeer(t *testing.T) {
 		65000, 65001, 0x01010101,
 	)
 
-	err := reactor.AddNeighbor(neighbor)
+	err := reactor.AddPeer(neighbor)
 	require.NoError(t, err)
 
-	err = reactor.RemoveNeighbor(neighbor.Address)
+	err = reactor.RemovePeer(neighbor.Address)
 	require.NoError(t, err)
 
 	peers := reactor.Peers()
@@ -121,7 +121,7 @@ func TestReactorPeersStartOnRun(t *testing.T) {
 	)
 	neighbor.Port = 0 // Invalid port to prevent actual connection
 
-	err := reactor.AddNeighbor(neighbor)
+	err := reactor.AddPeer(neighbor)
 	require.NoError(t, err)
 
 	err = reactor.Start()
@@ -185,7 +185,7 @@ func TestReactorIncomingConnectionMatchesPeer(t *testing.T) {
 	)
 	neighbor.Passive = true
 
-	err := reactor.AddNeighbor(neighbor)
+	err := reactor.AddPeer(neighbor)
 	require.NoError(t, err)
 
 	var accepted atomic.Bool
@@ -256,7 +256,7 @@ func TestReactorGracefulShutdown(t *testing.T) {
 	)
 	neighbor.Port = 0
 
-	_ = reactor.AddNeighbor(neighbor)
+	_ = reactor.AddPeer(neighbor)
 
 	err := reactor.Start()
 	require.NoError(t, err)

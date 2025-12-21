@@ -67,12 +67,12 @@ func main() {
 
 func parseFlags() *testpeer.Config {
 	port := 179
-	if p := os.Getenv("exabgp.tcp.port"); p != "" {
+	if p := os.Getenv("zebgp.tcp.port"); p != "" {
 		if v, err := strconv.Atoi(p); err == nil {
 			port = v
 		}
 	}
-	if p := os.Getenv("exabgp_tcp_port"); p != "" {
+	if p := os.Getenv("zebgp_tcp_port"); p != "" {
 		if v, err := strconv.Atoi(p); err == nil {
 			port = v
 		}

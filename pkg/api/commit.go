@@ -17,7 +17,7 @@ func handleCommitStart(ctx *CommandContext, args []string) (*Response, error) {
 		label = args[0]
 	}
 
-	peerSelector := ctx.NeighborSelector()
+	peerSelector := ctx.PeerSelector()
 
 	if err := ctx.Reactor.BeginTransaction(peerSelector, label); err != nil {
 		return &Response{
@@ -29,7 +29,7 @@ func handleCommitStart(ctx *CommandContext, args []string) (*Response, error) {
 	return &Response{
 		Status: "done",
 		Data: map[string]any{
-			"neighbor":    peerSelector,
+			"peer":        peerSelector,
 			"transaction": label,
 			"message":     "transaction started",
 		},
@@ -42,7 +42,7 @@ func handleCommitEnd(ctx *CommandContext, args []string) (*Response, error) {
 	var result TransactionResult
 	var err error
 
-	peerSelector := ctx.NeighborSelector()
+	peerSelector := ctx.PeerSelector()
 
 	if len(args) > 0 {
 		result, err = ctx.Reactor.CommitTransactionWithLabel(peerSelector, args[0])
@@ -60,7 +60,7 @@ func handleCommitEnd(ctx *CommandContext, args []string) (*Response, error) {
 	return &Response{
 		Status: "done",
 		Data: map[string]any{
-			"neighbor":         peerSelector,
+			"peer":             peerSelector,
 			"routes_announced": result.RoutesAnnounced,
 			"routes_withdrawn": result.RoutesWithdrawn,
 			"updates_sent":     result.UpdatesSent,
@@ -73,7 +73,7 @@ func handleCommitEnd(ctx *CommandContext, args []string) (*Response, error) {
 // handleCommitRollback discards all queued routes in the current transaction.
 // Usage: commit rollback [label].
 func handleCommitRollback(ctx *CommandContext, args []string) (*Response, error) {
-	peerSelector := ctx.NeighborSelector()
+	peerSelector := ctx.PeerSelector()
 
 	result, err := ctx.Reactor.RollbackTransaction(peerSelector)
 	if err != nil {
@@ -91,7 +91,7 @@ func handleCommitRollback(ctx *CommandContext, args []string) (*Response, error)
 	return &Response{
 		Status: "done",
 		Data: map[string]any{
-			"neighbor":         peerSelector,
+			"peer":             peerSelector,
 			"routes_discarded": result.RoutesDiscarded,
 			"transaction":      txLabel,
 		},

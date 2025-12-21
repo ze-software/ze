@@ -11,8 +11,8 @@ import (
 // Environment holds all environment-based configuration.
 // This provides ExaBGP-compatible environment variable support.
 //
-// Variable format: exabgp.<section>.<option> or exabgp_<section>_<option>
-// Priority: exabgp.x.y > exabgp_x_y > default.
+// Variable format: zebgp.<section>.<option> or zebgp_<section>_<option>
+// Priority: zebgp.x.y > zebgp_x_y > default.
 type Environment struct {
 	Daemon  DaemonEnv
 	Log     LogEnv
@@ -242,10 +242,10 @@ func (e *Environment) SocketPath() string {
 }
 
 // getEnv returns the environment variable value with ExaBGP naming.
-// Checks both dot notation (exabgp.section.option) and underscore (exabgp_section_option).
+// Checks both dot notation (zebgp.section.option) and underscore (zebgp_section_option).
 func getEnv(section, option string) string {
 	// Dot notation first (higher priority)
-	dotKey := "exabgp." + section + "." + option
+	dotKey := "zebgp." + section + "." + option
 	if v := os.Getenv(dotKey); v != "" {
 		return v
 	}

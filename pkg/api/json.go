@@ -66,7 +66,7 @@ func (e *JSONEncoder) counter(peer PeerInfo) int {
 func (e *JSONEncoder) message(peer PeerInfo, msgType string) map[string]any {
 	now := e.timeFunc()
 	return map[string]any{
-		"exabgp":  e.version,
+		"zebgp":   e.version,
 		"time":    float64(now.UnixNano()) / 1e9,
 		"host":    e.hostname,
 		"pid":     e.pid,
@@ -95,7 +95,7 @@ func (e *JSONEncoder) StateUp(peer PeerInfo) string {
 	msg := e.message(peer, "state")
 	neighbor := e.neighborSection(peer)
 	neighbor["state"] = "up"
-	msg["neighbor"] = neighbor
+	msg["peer"] = neighbor
 	return e.marshal(msg)
 }
 
@@ -105,7 +105,7 @@ func (e *JSONEncoder) StateDown(peer PeerInfo, reason string) string {
 	neighbor := e.neighborSection(peer)
 	neighbor["state"] = "down"
 	neighbor["reason"] = reason
-	msg["neighbor"] = neighbor
+	msg["peer"] = neighbor
 	return e.marshal(msg)
 }
 
@@ -114,7 +114,7 @@ func (e *JSONEncoder) StateConnected(peer PeerInfo) string {
 	msg := e.message(peer, "state")
 	neighbor := e.neighborSection(peer)
 	neighbor["state"] = "connected"
-	msg["neighbor"] = neighbor
+	msg["peer"] = neighbor
 	return e.marshal(msg)
 }
 
@@ -146,7 +146,7 @@ func (e *JSONEncoder) RouteAnnounce(peer PeerInfo, routes []RouteUpdate) string 
 			"announce": announce,
 		},
 	}
-	msg["neighbor"] = neighbor
+	msg["peer"] = neighbor
 	return e.marshal(msg)
 }
 
@@ -172,7 +172,7 @@ func (e *JSONEncoder) RouteWithdraw(peer PeerInfo, routes []RouteUpdate) string 
 			"withdraw": withdraw,
 		},
 	}
-	msg["neighbor"] = neighbor
+	msg["peer"] = neighbor
 	return e.marshal(msg)
 }
 
@@ -187,7 +187,7 @@ func (e *JSONEncoder) EOR(peer PeerInfo, family string) string {
 			"safi": "unicast",
 		},
 	}
-	msg["neighbor"] = neighbor
+	msg["peer"] = neighbor
 	return e.marshal(msg)
 }
 
@@ -201,7 +201,7 @@ func (e *JSONEncoder) Notification(peer PeerInfo, code, subcode uint8, data stri
 		"subcode": subcode,
 		"data":    data,
 	}
-	msg["neighbor"] = neighbor
+	msg["peer"] = neighbor
 	return e.marshal(msg)
 }
 
@@ -216,7 +216,7 @@ func (e *JSONEncoder) Open(peer PeerInfo, capabilities []string) string {
 		"router-id":    uint32ToIP(peer.RouterID),
 		"capabilities": capabilities,
 	}
-	msg["neighbor"] = neighbor
+	msg["peer"] = neighbor
 	return e.marshal(msg)
 }
 

@@ -17,18 +17,18 @@ type Handler func(ctx *CommandContext, args []string) (*Response, error)
 
 // CommandContext provides access to reactor and session state.
 type CommandContext struct {
-	Reactor  ReactorInterface
-	Encoder  *JSONEncoder
-	Neighbor string // Neighbor selector: "*" for all, or specific IP. Empty = "*"
+	Reactor ReactorInterface
+	Encoder *JSONEncoder
+	Peer    string // Peer selector: "*" for all, or specific IP. Empty = "*"
 }
 
-// NeighborSelector returns the effective neighbor selector.
+// PeerSelector returns the effective neighbor selector.
 // Returns "*" if no neighbor was specified.
-func (c *CommandContext) NeighborSelector() string {
-	if c.Neighbor == "" {
+func (c *CommandContext) PeerSelector() string {
+	if c.Peer == "" {
 		return "*"
 	}
-	return c.Neighbor
+	return c.Peer
 }
 
 // Command represents a registered command with metadata.
@@ -106,7 +106,7 @@ func (d *Dispatcher) Dispatch(ctx *CommandContext, input string) (*Response, err
 		// Check if second token looks like IP/glob (contains dots or is "*")
 		if looksLikeIPOrGlob(tokens[1]) {
 			if ctx != nil {
-				ctx.Neighbor = tokens[1]
+				ctx.Peer = tokens[1]
 			}
 			// Rebuild input without neighbor/peer prefix
 			input = strings.Join(tokens[2:], " ")

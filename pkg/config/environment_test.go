@@ -57,10 +57,10 @@ func TestLoadEnvironmentDefaults(t *testing.T) {
 
 func TestLoadEnvironmentFromEnv(t *testing.T) {
 	// Use t.Setenv for test-scoped env vars
-	t.Setenv("exabgp.log.level", "DEBUG")
-	t.Setenv("exabgp.tcp.port", "1179")
-	t.Setenv("exabgp.bgp.passive", "true")
-	t.Setenv("exabgp.api.socketname", "test-socket")
+	t.Setenv("zebgp.log.level", "DEBUG")
+	t.Setenv("zebgp.tcp.port", "1179")
+	t.Setenv("zebgp.bgp.passive", "true")
+	t.Setenv("zebgp.api.socketname", "test-socket")
 
 	env := LoadEnvironment()
 
@@ -80,8 +80,8 @@ func TestLoadEnvironmentFromEnv(t *testing.T) {
 
 func TestLoadEnvironmentUnderscoreNotation(t *testing.T) {
 	// Use t.Setenv for test-scoped env vars
-	t.Setenv("exabgp_log_level", "WARNING")
-	t.Setenv("exabgp_tcp_port", "2179")
+	t.Setenv("zebgp_log_level", "WARNING")
+	t.Setenv("zebgp_tcp_port", "2179")
 
 	env := LoadEnvironment()
 
@@ -95,8 +95,8 @@ func TestLoadEnvironmentUnderscoreNotation(t *testing.T) {
 
 func TestLoadEnvironmentDotPriority(t *testing.T) {
 	// Set both notations - dot should take priority
-	t.Setenv("exabgp.log.level", "DEBUG")
-	t.Setenv("exabgp_log_level", "WARNING")
+	t.Setenv("zebgp.log.level", "DEBUG")
+	t.Setenv("zebgp_log_level", "WARNING")
 
 	env := LoadEnvironment()
 
@@ -128,7 +128,7 @@ func TestLoadEnvironmentBooleanValues(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.value, func(t *testing.T) {
-			t.Setenv("exabgp.bgp.passive", tt.value)
+			t.Setenv("zebgp.bgp.passive", tt.value)
 			env := LoadEnvironment()
 
 			if env.BGP.Passive != tt.want {
@@ -140,7 +140,7 @@ func TestLoadEnvironmentBooleanValues(t *testing.T) {
 
 func TestLoadEnvironmentTCPOnceBackwardCompat(t *testing.T) {
 	// tcp.once should set tcp.attempts to 1
-	t.Setenv("exabgp.tcp.once", "true")
+	t.Setenv("zebgp.tcp.once", "true")
 
 	env := LoadEnvironment()
 
@@ -169,7 +169,7 @@ func TestSocketPath(t *testing.T) {
 	})
 
 	t.Run("custom", func(t *testing.T) {
-		t.Setenv("exabgp.api.socketname", "custom")
+		t.Setenv("zebgp.api.socketname", "custom")
 		env := LoadEnvironment()
 		if env.SocketPath() != "/var/run/custom.sock" {
 			t.Errorf("SocketPath() = %q, want %q", env.SocketPath(), "/var/run/custom.sock")

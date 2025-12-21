@@ -386,7 +386,7 @@ func (c *Completer) getChildren(node config.Node) []string {
 	case *schemaRootWrapper:
 		// Get top-level schema children
 		var children []string
-		for _, name := range []string{"router-id", "local-as", "neighbor", "process"} {
+		for _, name := range []string{"router-id", "local-as", "neighbor", "peer", "process"} {
 			if n.schema.Has(name) {
 				children = append(children, name)
 			}

@@ -90,16 +90,16 @@ type ValidationWarning struct {
 
 // ValidationSummary shows what was parsed.
 type ValidationSummary struct {
-	RouterID        string
-	LocalAS         uint32
-	Listen          string
-	Neighbors       int
-	Processes       int
-	NeighborDetails []NeighborSummary
+	RouterID    string
+	LocalAS     uint32
+	Listen      string
+	Peers       int
+	Processes   int
+	PeerDetails []PeerSummary
 }
 
-// NeighborSummary shows neighbor details.
-type NeighborSummary struct {
+// PeerSummary shows peer details.
+type PeerSummary struct {
 	Address string
 	PeerAS  uint32
 	Passive bool
@@ -137,7 +137,7 @@ func validateConfig(input, path string) *ValidationResult {
 	result.Config = &ValidationSummary{
 		LocalAS:   cfg.LocalAS,
 		Listen:    cfg.Listen,
-		Neighbors: len(cfg.Neighbors),
+		Peers:     len(cfg.Peers),
 		Processes: len(cfg.Processes),
 	}
 
@@ -145,8 +145,8 @@ func validateConfig(input, path string) *ValidationResult {
 		result.Config.RouterID = uint32ToIP(cfg.RouterID)
 	}
 
-	for _, n := range cfg.Neighbors {
-		result.Config.NeighborDetails = append(result.Config.NeighborDetails, NeighborSummary{
+	for _, n := range cfg.Peers {
+		result.Config.PeerDetails = append(result.Config.PeerDetails, PeerSummary{
 			Address: n.Address.String(),
 			PeerAS:  n.PeerAS,
 			Passive: n.Passive,
@@ -176,21 +176,21 @@ func semanticValidation(cfg *config.BGPConfig) []ValidationWarning {
 		})
 	}
 
-	// Check each neighbor
-	for _, n := range cfg.Neighbors {
+	// Check each peer
+	for _, n := range cfg.Peers {
 		if n.LocalAS == 0 && cfg.LocalAS == 0 {
 			warnings = append(warnings, ValidationWarning{
-				Message: fmt.Sprintf("neighbor %s: local-as not configured", n.Address),
+				Message: fmt.Sprintf("peer %s: local-as not configured", n.Address),
 			})
 		}
 		if n.PeerAS == 0 {
 			warnings = append(warnings, ValidationWarning{
-				Message: fmt.Sprintf("neighbor %s: peer-as not configured", n.Address),
+				Message: fmt.Sprintf("peer %s: peer-as not configured", n.Address),
 			})
 		}
 		if n.HoldTime > 0 && n.HoldTime < 3 {
 			warnings = append(warnings, ValidationWarning{
-				Message: fmt.Sprintf("neighbor %s: hold-time %d too low (minimum 3)", n.Address, n.HoldTime),
+				Message: fmt.Sprintf("peer %s: hold-time %d too low (minimum 3)", n.Address, n.HoldTime),
 			})
 		}
 	}
@@ -221,13 +221,13 @@ func outputText(result *ValidationResult, verbose, quiet bool) int {
 			if result.Config.Listen != "" {
 				fmt.Printf("  listen:    %s\n", result.Config.Listen)
 			}
-			fmt.Printf("  neighbors: %d\n", result.Config.Neighbors)
+			fmt.Printf("  peers: %d\n", result.Config.Peers)
 			fmt.Printf("  processes: %d\n", result.Config.Processes)
 
-			if len(result.Config.NeighborDetails) > 0 {
+			if len(result.Config.PeerDetails) > 0 {
 				fmt.Println()
-				fmt.Println("Neighbors:")
-				for _, n := range result.Config.NeighborDetails {
+				fmt.Println("Peers:")
+				for _, n := range result.Config.PeerDetails {
 					mode := "active"
 					if n.Passive {
 						mode = "passive"
@@ -295,8 +295,8 @@ func outputJSON(result *ValidationResult, quiet bool) int {
 	}
 
 	if result.Config != nil {
-		fmt.Printf(`,"config":{"router_id":%q,"local_as":%d,"neighbors":%d}`,
-			result.Config.RouterID, result.Config.LocalAS, result.Config.Neighbors)
+		fmt.Printf(`,"config":{"router_id":%q,"local_as":%d,"peers":%d}`,
+			result.Config.RouterID, result.Config.LocalAS, result.Config.Peers)
 	}
 
 	fmt.Println("}")

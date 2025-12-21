@@ -101,7 +101,7 @@ func handleAnnounceRoute(ctx *CommandContext, args []string) (*Response, error) 
 	}
 
 	// Announce to matching peers (default "*" for all)
-	peerSelector := ctx.NeighborSelector()
+	peerSelector := ctx.PeerSelector()
 	if err := ctx.Reactor.AnnounceRoute(peerSelector, route); err != nil {
 		return &Response{
 			Status: "error",
@@ -112,7 +112,7 @@ func handleAnnounceRoute(ctx *CommandContext, args []string) (*Response, error) 
 	return &Response{
 		Status: "done",
 		Data: map[string]any{
-			"neighbor": peerSelector,
+			"peer":     peerSelector,
 			"prefix":   prefix.String(),
 			"next_hop": nextHop.String(),
 		},
@@ -138,7 +138,7 @@ func handleWithdrawRoute(ctx *CommandContext, args []string) (*Response, error) 
 	}
 
 	// Withdraw from matching peers (default "*" for all)
-	peerSelector := ctx.NeighborSelector()
+	peerSelector := ctx.PeerSelector()
 	if err := ctx.Reactor.WithdrawRoute(peerSelector, prefix); err != nil {
 		return &Response{
 			Status: "error",
@@ -149,8 +149,8 @@ func handleWithdrawRoute(ctx *CommandContext, args []string) (*Response, error) 
 	return &Response{
 		Status: "done",
 		Data: map[string]any{
-			"neighbor": peerSelector,
-			"prefix":   prefix.String(),
+			"peer":   peerSelector,
+			"prefix": prefix.String(),
 		},
 	}, nil
 }

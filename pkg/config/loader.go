@@ -45,7 +45,7 @@ func LoadReactorWithConfig(input string) (*BGPConfig, *reactor.Reactor, error) {
 		return nil, nil, fmt.Errorf("convert config: %w", err)
 	}
 
-	trace.ConfigLoaded(len(cfg.Neighbors))
+	trace.ConfigLoaded(len(cfg.Peers))
 
 	// Create reactor
 	r, err := CreateReactor(cfg)
@@ -77,21 +77,21 @@ func CreateReactor(cfg *BGPConfig) (*reactor.Reactor, error) {
 	r := reactor.New(reactorCfg)
 
 	// Add neighbors
-	for i := range cfg.Neighbors {
-		neighbor, err := configToNeighbor(&cfg.Neighbors[i], cfg)
+	for i := range cfg.Peers {
+		neighbor, err := configToPeer(&cfg.Peers[i], cfg)
 		if err != nil {
-			return nil, fmt.Errorf("convert neighbor %s: %w", cfg.Neighbors[i].Address, err)
+			return nil, fmt.Errorf("convert neighbor %s: %w", cfg.Peers[i].Address, err)
 		}
-		if err := r.AddNeighbor(neighbor); err != nil {
-			return nil, fmt.Errorf("add neighbor %s: %w", cfg.Neighbors[i].Address, err)
+		if err := r.AddPeer(neighbor); err != nil {
+			return nil, fmt.Errorf("add neighbor %s: %w", cfg.Peers[i].Address, err)
 		}
 	}
 
 	return r, nil
 }
 
-// configToNeighbor converts NeighborConfig to reactor.Neighbor.
-func configToNeighbor(nc *NeighborConfig, global *BGPConfig) (*reactor.Neighbor, error) {
+// configToPeer converts PeerConfig to reactor.Neighbor.
+func configToPeer(nc *PeerConfig, global *BGPConfig) (*reactor.Neighbor, error) {
 	// Determine local AS (inherit from global if not set)
 	localAS := nc.LocalAS
 	if localAS == 0 {
@@ -213,7 +213,7 @@ func configToNeighbor(nc *NeighborConfig, global *BGPConfig) (*reactor.Neighbor,
 	n.DisableASN4 = !nc.Capabilities.ASN4
 
 	// Override port from environment (for testing).
-	if p := os.Getenv("exabgp_tcp_port"); p != "" {
+	if p := os.Getenv("zebgp_tcp_port"); p != "" {
 		if v, err := strconv.ParseUint(p, 10, 16); err == nil {
 			n.Port = uint16(v) //nolint:gosec // Validated above
 		}
@@ -305,7 +305,7 @@ func configToNeighbor(nc *NeighborConfig, global *BGPConfig) (*reactor.Neighbor,
 
 	// Log static routes
 	if len(n.StaticRoutes) > 0 {
-		trace.NeighborRoutes(nc.Address.String(), len(n.StaticRoutes))
+		trace.PeerRoutes(nc.Address.String(), len(n.StaticRoutes))
 	}
 
 	return n, nil

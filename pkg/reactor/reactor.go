@@ -21,10 +21,10 @@ import (
 
 // Reactor errors.
 var (
-	ErrAlreadyRunning   = errors.New("reactor already running")
-	ErrNotRunning       = errors.New("reactor not running")
-	ErrNeighborExists   = errors.New("neighbor already exists")
-	ErrNeighborNotFound = errors.New("neighbor not found")
+	ErrAlreadyRunning = errors.New("reactor already running")
+	ErrNotRunning     = errors.New("reactor not running")
+	ErrPeerExists     = errors.New("peer already exists")
+	ErrPeerNotFound   = errors.New("peer not found")
 )
 
 // Config holds reactor configuration.
@@ -398,7 +398,7 @@ func (a *reactorAPIAdapter) TeardownPeer(addr netip.Addr, _ string) error {
 	a.r.mu.RUnlock()
 
 	if !exists {
-		return ErrNeighborNotFound
+		return ErrPeerNotFound
 	}
 
 	// TODO: Send NOTIFICATION with reason before stopping
@@ -846,14 +846,14 @@ func (r *Reactor) SetConnectionCallback(cb ConnectionCallback) {
 	r.connCallback = cb
 }
 
-// AddNeighbor adds a neighbor to the reactor.
-func (r *Reactor) AddNeighbor(neighbor *Neighbor) error {
+// AddPeer adds a neighbor to the reactor.
+func (r *Reactor) AddPeer(neighbor *Neighbor) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
 	key := neighbor.Address.String()
 	if _, exists := r.peers[key]; exists {
-		return ErrNeighborExists
+		return ErrPeerExists
 	}
 
 	peer := NewPeer(neighbor)
@@ -867,15 +867,15 @@ func (r *Reactor) AddNeighbor(neighbor *Neighbor) error {
 	return nil
 }
 
-// RemoveNeighbor removes a neighbor from the reactor.
-func (r *Reactor) RemoveNeighbor(addr netip.Addr) error {
+// RemovePeer removes a neighbor from the reactor.
+func (r *Reactor) RemovePeer(addr netip.Addr) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
 	key := addr.String()
 	peer, exists := r.peers[key]
 	if !exists {
-		return ErrNeighborNotFound
+		return ErrPeerNotFound
 	}
 
 	// Stop peer if running

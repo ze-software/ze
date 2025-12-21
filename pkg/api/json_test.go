@@ -37,14 +37,14 @@ func TestJSONEncoderStateUp(t *testing.T) {
 	require.NoError(t, err, "JSON must be valid")
 
 	// Check required fields
-	assert.Equal(t, "6.0.0", result["exabgp"])
+	assert.Equal(t, "6.0.0", result["zebgp"])
 	assert.Equal(t, "testhost", result["host"])
 	assert.Equal(t, float64(12345), result["pid"])
 	assert.Equal(t, float64(1), result["ppid"])
 	assert.Equal(t, "state", result["type"])
 
 	// Check neighbor structure
-	neighbor, ok := result["neighbor"].(map[string]any)
+	neighbor, ok := result["peer"].(map[string]any)
 	require.True(t, ok, "neighbor must be object")
 
 	address, ok := neighbor["address"].(map[string]any)
@@ -81,7 +81,7 @@ func TestJSONEncoderStateDown(t *testing.T) {
 	err := json.Unmarshal([]byte(msg), &result)
 	require.NoError(t, err)
 
-	neighbor, ok := result["neighbor"].(map[string]any)
+	neighbor, ok := result["peer"].(map[string]any)
 	require.True(t, ok)
 	assert.Equal(t, "down", neighbor["state"])
 	assert.Equal(t, "hold timer expired", neighbor["reason"])
@@ -108,7 +108,7 @@ func TestJSONEncoderStateConnected(t *testing.T) {
 	err := json.Unmarshal([]byte(msg), &result)
 	require.NoError(t, err)
 
-	neighbor, ok := result["neighbor"].(map[string]any)
+	neighbor, ok := result["peer"].(map[string]any)
 	require.True(t, ok)
 	assert.Equal(t, "connected", neighbor["state"])
 }
@@ -272,7 +272,7 @@ func TestJSONEncoderSpecialCharacters(t *testing.T) {
 	err := json.Unmarshal([]byte(msg), &result)
 	require.NoError(t, err, "JSON with special chars must be valid")
 
-	neighbor, ok := result["neighbor"].(map[string]any)
+	neighbor, ok := result["peer"].(map[string]any)
 	require.True(t, ok)
 	// The reason should be properly escaped in JSON but decoded back
 	assert.Contains(t, neighbor["reason"], "peer closed")
@@ -298,7 +298,7 @@ func TestJSONEncoderIPv6(t *testing.T) {
 	var result map[string]any
 	require.NoError(t, json.Unmarshal([]byte(msg), &result))
 
-	neighbor, ok := result["neighbor"].(map[string]any)
+	neighbor, ok := result["peer"].(map[string]any)
 	require.True(t, ok)
 	address, ok := neighbor["address"].(map[string]any)
 	require.True(t, ok)

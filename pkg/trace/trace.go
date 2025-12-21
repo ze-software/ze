@@ -1,8 +1,12 @@
 // Package trace provides debug tracing for ZeBGP.
 //
-// Enable tracing with the ZEBGP_TRACE environment variable:
+// Enable tracing with the zebgp.debug.trace environment variable:
 //
-//	ZEBGP_TRACE=config,routes,session zebgp server config.conf
+//	zebgp_debug_trace=config,routes,session zebgp server config.conf
+//
+// Or with dot notation:
+//
+//	zebgp.debug.trace=all zebgp server config.conf
 //
 // Available trace categories:
 //   - config: Configuration parsing and loading
@@ -46,7 +50,12 @@ func init() {
 func initialize() {
 	enabled = make(map[Category]bool)
 
-	env := os.Getenv("ZEBGP_TRACE")
+	// Check dot notation first (higher priority)
+	env := os.Getenv("zebgp.debug.trace")
+	if env == "" {
+		// Fall back to underscore notation
+		env = os.Getenv("zebgp_debug_trace")
+	}
 	if env == "" {
 		return
 	}
@@ -83,29 +92,29 @@ func Log(cat Category, format string, args ...any) {
 }
 
 // ConfigParsed logs when config is parsed.
-func ConfigParsed(path string, neighborCount int, warnings []string) {
+func ConfigParsed(path string, peerCount int, warnings []string) {
 	if !Enabled(Config) {
 		return
 	}
-	Log(Config, "parsed %s: %d neighbors", path, neighborCount)
+	Log(Config, "parsed %s: %d peers", path, peerCount)
 	for _, w := range warnings {
 		Log(Config, "  warning: %s", w)
 	}
 }
 
 // ConfigLoaded logs when config is converted to reactor format.
-func ConfigLoaded(neighborCount int) {
-	Log(Config, "loaded config with %d neighbors", neighborCount)
+func ConfigLoaded(peerCount int) {
+	Log(Config, "loaded config with %d peers", peerCount)
 }
 
-// NeighborRoutes logs static routes for a neighbor.
-func NeighborRoutes(addr string, routeCount int) {
-	Log(Routes, "neighbor %s: %d static routes configured", addr, routeCount)
+// PeerRoutes logs static routes for a peer.
+func PeerRoutes(addr string, routeCount int) {
+	Log(Routes, "peer %s: %d static routes configured", addr, routeCount)
 }
 
 // RouteSent logs when a route is sent.
 func RouteSent(addr string, prefix string, nextHop string) {
-	Log(Routes, "neighbor %s: sent route %s via %s", addr, prefix, nextHop)
+	Log(Routes, "peer %s: sent route %s via %s", addr, prefix, nextHop)
 }
 
 // SessionConnected logs when a session connects.
@@ -125,7 +134,7 @@ func SessionClosed(addr string, reason string) {
 
 // FSMTransition logs FSM state changes.
 func FSMTransition(addr string, from, to string) {
-	Log(FSM, "neighbor %s: %s -> %s", addr, from, to)
+	Log(FSM, "peer %s: %s -> %s", addr, from, to)
 }
 
 // UpdateFamilyMismatch logs when UPDATE contains non-negotiated AFI/SAFI.

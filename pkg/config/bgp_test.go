@@ -160,8 +160,8 @@ neighbor 192.0.2.1 {
 
 			cfg, err := TreeToConfig(tree)
 			require.NoError(t, err)
-			require.Len(t, cfg.Neighbors, 1)
-			require.Equal(t, tt.expected, cfg.Neighbors[0].IgnoreFamilyMismatch)
+			require.Len(t, cfg.Peers, 1)
+			require.Equal(t, tt.expected, cfg.Peers[0].IgnoreFamilyMismatch)
 		})
 	}
 }
@@ -293,8 +293,8 @@ neighbor 192.0.2.1 {
 
 			cfg, err := TreeToConfig(tree)
 			require.NoError(t, err)
-			require.Len(t, cfg.Neighbors, 1)
-			require.ElementsMatch(t, tt.expected, cfg.Neighbors[0].FamilyConfigs)
+			require.Len(t, cfg.Peers, 1)
+			require.ElementsMatch(t, tt.expected, cfg.Peers[0].FamilyConfigs)
 		})
 	}
 }
@@ -384,8 +384,8 @@ neighbor 192.0.2.1 {
 
 			cfg, err := TreeToConfig(tree)
 			require.NoError(t, err)
-			require.Len(t, cfg.Neighbors, 1)
-			require.ElementsMatch(t, tt.expected, cfg.Neighbors[0].FamilyConfigs)
+			require.Len(t, cfg.Peers, 1)
+			require.ElementsMatch(t, tt.expected, cfg.Peers[0].FamilyConfigs)
 		})
 	}
 }
@@ -422,8 +422,8 @@ neighbor 192.0.2.1 {
 
 	cfg, err := TreeToConfig(tree)
 	require.NoError(t, err)
-	require.Len(t, cfg.Neighbors, 1)
-	require.ElementsMatch(t, expected, cfg.Neighbors[0].FamilyConfigs)
+	require.Len(t, cfg.Peers, 1)
+	require.ElementsMatch(t, expected, cfg.Peers[0].FamilyConfigs)
 }
 
 // TestBGPSchemaCapability verifies capability configuration.
@@ -672,8 +672,8 @@ neighbor 192.0.2.1 {
 	require.Equal(t, uint32(0x0a000001), cfg.RouterID) // 10.0.0.1
 	require.Equal(t, uint32(65000), cfg.LocalAS)
 
-	require.Len(t, cfg.Neighbors, 1)
-	n := cfg.Neighbors[0]
+	require.Len(t, cfg.Peers, 1)
+	n := cfg.Peers[0]
 	require.Equal(t, "192.0.2.1", n.Address.String())
 	require.Equal(t, uint32(65001), n.PeerAS)
 	require.Equal(t, uint16(90), n.HoldTime)
@@ -712,8 +712,8 @@ neighbor 127.0.0.1 {
 	cfg, err := TreeToConfig(tree)
 	require.NoError(t, err)
 
-	require.Len(t, cfg.Neighbors, 1)
-	n := cfg.Neighbors[0]
+	require.Len(t, cfg.Peers, 1)
+	n := cfg.Peers[0]
 
 	// Should have 2 routes from announce block
 	require.Len(t, n.StaticRoutes, 2, "expected 2 routes from announce block")
@@ -768,8 +768,8 @@ neighbor 127.0.0.1 {
 	cfg, err := TreeToConfig(tree)
 	require.NoError(t, err)
 
-	require.Len(t, cfg.Neighbors, 1)
-	n := cfg.Neighbors[0]
+	require.Len(t, cfg.Peers, 1)
+	n := cfg.Peers[0]
 
 	require.Len(t, n.StaticRoutes, 1, "expected 1 IPv6 route from announce block")
 
@@ -823,8 +823,8 @@ neighbor 127.0.0.1 {
 	cfg, err := TreeToConfig(tree)
 	require.NoError(t, err)
 
-	require.Len(t, cfg.Neighbors, 1)
-	n := cfg.Neighbors[0]
+	require.Len(t, cfg.Peers, 1)
+	n := cfg.Peers[0]
 
 	// Should have 3 routes: 2 from template + 1 from neighbor
 	require.Len(t, n.StaticRoutes, 3, "expected 3 routes (2 from template + 1 from neighbor)")
@@ -914,8 +914,8 @@ neighbor 192.0.2.1 {
 	cfg, err := TreeToConfig(tree)
 	require.NoError(t, err)
 
-	require.Len(t, cfg.Neighbors, 1)
-	n := cfg.Neighbors[0]
+	require.Len(t, cfg.Peers, 1)
+	n := cfg.Peers[0]
 	require.True(t, n.LocalAddressAuto, "local-address auto should set LocalAddressAuto=true")
 	require.False(t, n.LocalAddress.IsValid(), "local-address auto should leave LocalAddress unset")
 }
@@ -971,8 +971,8 @@ neighbor 192.0.2.1 {
 			cfg, err := TreeToConfig(tree)
 			require.NoError(t, err)
 
-			require.Len(t, cfg.Neighbors, 1)
-			n := cfg.Neighbors[0]
+			require.Len(t, cfg.Peers, 1)
+			n := cfg.Peers[0]
 			require.Equal(t, tt.expected, n.Capabilities.ExtendedMessage,
 				"extended-message capability mismatch")
 		})
@@ -1005,8 +1005,8 @@ neighbor 192.0.2.1 {
 	cfg, err := TreeToConfig(tree)
 	require.NoError(t, err)
 
-	require.Len(t, cfg.Neighbors, 1)
-	n := cfg.Neighbors[0]
+	require.Len(t, cfg.Peers, 1)
+	n := cfg.Peers[0]
 
 	// Check per-family add-path settings
 	require.Len(t, n.AddPathFamilies, 3, "expected 3 family add-path configs")
@@ -1053,8 +1053,8 @@ neighbor 192.0.2.1 {
 	cfg, err := TreeToConfig(tree)
 	require.NoError(t, err)
 
-	require.Len(t, cfg.Neighbors, 1)
-	require.True(t, cfg.Neighbors[0].Capabilities.ASN4, "ASN4 should be enabled by default")
+	require.Len(t, cfg.Peers, 1)
+	require.True(t, cfg.Peers[0].Capabilities.ASN4, "ASN4 should be enabled by default")
 }
 
 // TestASN4ExplicitlyDisabled verifies ASN4 can be disabled.
@@ -1079,8 +1079,8 @@ neighbor 192.0.2.1 {
 	cfg, err := TreeToConfig(tree)
 	require.NoError(t, err)
 
-	require.Len(t, cfg.Neighbors, 1)
-	require.False(t, cfg.Neighbors[0].Capabilities.ASN4, "ASN4 should be disabled when explicitly set to false")
+	require.Len(t, cfg.Peers, 1)
+	require.False(t, cfg.Peers[0].Capabilities.ASN4, "ASN4 should be disabled when explicitly set to false")
 }
 
 // TestRIBOutConfigAutoCommitDelayFormats verifies duration parsing in per-neighbor rib.
@@ -1121,8 +1121,8 @@ neighbor 192.0.2.1 {
 			cfg, err := TreeToConfig(tree)
 			require.NoError(t, err)
 
-			require.Len(t, cfg.Neighbors, 1)
-			require.Equal(t, tt.expected, cfg.Neighbors[0].RIBOut.AutoCommitDelay)
+			require.Len(t, cfg.Peers, 1)
+			require.Equal(t, tt.expected, cfg.Peers[0].RIBOut.AutoCommitDelay)
 		})
 	}
 }
@@ -1147,8 +1147,8 @@ neighbor 192.0.2.2 {
 }
 `
 		cfg := parseConfig(t, input)
-		require.Len(t, cfg.Neighbors, 2)
-		m := neighborsByAddr(cfg.Neighbors)
+		require.Len(t, cfg.Peers, 2)
+		m := peersByAddr(cfg.Peers)
 
 		require.True(t, m["192.0.2.1"].RIBOut.GroupUpdates)
 		require.Equal(t, 100*time.Millisecond, m["192.0.2.1"].RIBOut.AutoCommitDelay)
@@ -1162,8 +1162,8 @@ neighbor 192.0.2.2 {
 	t.Run("defaults", func(t *testing.T) {
 		input := `neighbor 192.0.2.1 { local-as 65000; peer-as 65001; }`
 		cfg := parseConfig(t, input)
-		require.Len(t, cfg.Neighbors, 1)
-		n := cfg.Neighbors[0]
+		require.Len(t, cfg.Peers, 1)
+		n := cfg.Peers[0]
 		require.True(t, n.RIBOut.GroupUpdates)
 		require.Equal(t, time.Duration(0), n.RIBOut.AutoCommitDelay)
 		require.Equal(t, 0, n.RIBOut.MaxBatchSize)
@@ -1176,8 +1176,8 @@ neighbor 192.0.2.1 { inherit rib-tmpl; local-as 65000; peer-as 65001; }
 neighbor 192.0.2.2 { inherit rib-tmpl; local-as 65000; peer-as 65002; rib { out { auto-commit-delay 50ms; } } }
 `
 		cfg := parseConfig(t, input)
-		require.Len(t, cfg.Neighbors, 2)
-		m := neighborsByAddr(cfg.Neighbors)
+		require.Len(t, cfg.Peers, 2)
+		m := peersByAddr(cfg.Peers)
 
 		// n1: full template inheritance
 		require.True(t, m["192.0.2.1"].RIBOut.GroupUpdates)
@@ -1193,8 +1193,8 @@ neighbor 192.0.2.2 { inherit rib-tmpl; local-as 65000; peer-as 65002; rib { out 
 	t.Run("legacy group-updates", func(t *testing.T) {
 		input := `neighbor 192.0.2.1 { local-as 65000; peer-as 65001; group-updates false; }`
 		cfg := parseConfig(t, input)
-		require.Len(t, cfg.Neighbors, 1)
-		n := cfg.Neighbors[0]
+		require.Len(t, cfg.Peers, 1)
+		n := cfg.Peers[0]
 		require.False(t, n.GroupUpdates)
 		require.False(t, n.RIBOut.GroupUpdates)
 	})
@@ -1211,9 +1211,9 @@ func parseConfig(t *testing.T, input string) *BGPConfig {
 	return cfg
 }
 
-// neighborsByAddr returns a map of neighbors keyed by IP address string.
-func neighborsByAddr(neighbors []NeighborConfig) map[string]NeighborConfig {
-	m := make(map[string]NeighborConfig)
+// peersByAddr returns a map of neighbors keyed by IP address string.
+func peersByAddr(neighbors []PeerConfig) map[string]PeerConfig {
+	m := make(map[string]PeerConfig)
 	for _, n := range neighbors {
 		m[n.Address.String()] = n
 	}
@@ -1298,8 +1298,8 @@ peer 192.0.2.1 {
 }
 `
 	cfg := parseConfig(t, input)
-	require.Len(t, cfg.Neighbors, 1)
-	n := cfg.Neighbors[0]
+	require.Len(t, cfg.Peers, 1)
+	n := cfg.Peers[0]
 	require.Equal(t, uint32(65000), n.PeerAS)
 	require.Equal(t, uint16(60), n.HoldTime)
 	require.True(t, n.Capabilities.RouteRefresh)
@@ -1322,9 +1322,9 @@ peer 192.0.2.1 { local-as 65000; peer-as 65001; }
 peer 192.0.2.2 { local-as 65000; peer-as 65002; }
 `
 	cfg := parseConfig(t, input)
-	require.Len(t, cfg.Neighbors, 2)
+	require.Len(t, cfg.Peers, 2)
 
-	for _, n := range cfg.Neighbors {
+	for _, n := range cfg.Peers {
 		require.False(t, n.RIBOut.GroupUpdates, "match * should apply to %s", n.Address)
 		require.Equal(t, 100*time.Millisecond, n.RIBOut.AutoCommitDelay)
 	}
@@ -1353,8 +1353,8 @@ peer 192.0.2.1 { local-as 65000; peer-as 65001; }
 peer 10.0.0.1 { local-as 65000; peer-as 65002; }
 `
 	cfg := parseConfig(t, input)
-	require.Len(t, cfg.Neighbors, 2)
-	m := neighborsByAddr(cfg.Neighbors)
+	require.Len(t, cfg.Peers, 2)
+	m := peersByAddr(cfg.Peers)
 
 	// 192.0.2.1: match * first, then match 192.0.2.* overrides hold-time
 	require.Equal(t, uint16(60), m["192.0.2.1"].HoldTime)
@@ -1390,8 +1390,8 @@ peer 10.0.0.1 { local-as 65000; peer-as 65001; }
 peer 192.168.1.1 { local-as 65000; peer-as 65002; }
 `
 	cfg := parseConfig(t, input)
-	require.Len(t, cfg.Neighbors, 2)
-	m := neighborsByAddr(cfg.Neighbors)
+	require.Len(t, cfg.Peers, 2)
+	m := peersByAddr(cfg.Peers)
 
 	// 10.0.0.1: match 10.0.0.0/8 first (hold-time=60), then match * (hold-time=90 overrides)
 	// Config order means later match wins, regardless of specificity!
@@ -1424,8 +1424,8 @@ peer 192.0.2.1 {
 }
 `
 	cfg := parseConfig(t, input)
-	require.Len(t, cfg.Neighbors, 1)
-	n := cfg.Neighbors[0]
+	require.Len(t, cfg.Peers, 1)
+	n := cfg.Peers[0]
 
 	require.Len(t, n.StaticRoutes, 2)
 	routeMap := make(map[string]StaticRouteConfig)
@@ -1460,8 +1460,8 @@ peer 192.0.2.1 { local-as 65000; peer-as 65001; }
 peer 10.0.0.1 { local-as 65000; peer-as 65002; }
 `
 	cfg := parseConfig(t, input)
-	require.Len(t, cfg.Neighbors, 2)
-	m := neighborsByAddr(cfg.Neighbors)
+	require.Len(t, cfg.Peers, 2)
+	m := peersByAddr(cfg.Peers)
 
 	// 192.0.2.1: both matches apply, gets both routes
 	require.Len(t, m["192.0.2.1"].StaticRoutes, 2)
@@ -1501,8 +1501,8 @@ peer 10.0.0.1 {
 }
 `
 	cfg := parseConfig(t, input)
-	require.Len(t, cfg.Neighbors, 2)
-	m := neighborsByAddr(cfg.Neighbors)
+	require.Len(t, cfg.Peers, 2)
+	m := peersByAddr(cfg.Peers)
 
 	// 192.0.2.1: match * (hold-time 90), match 192.0.2.* (hold-time 60), inherit high-preference
 	require.Equal(t, uint16(60), m["192.0.2.1"].HoldTime)
@@ -1527,8 +1527,8 @@ peer 192.0.2.1 {
 }
 `
 	cfg := parseConfig(t, input)
-	require.Len(t, cfg.Neighbors, 1)
-	n := cfg.Neighbors[0]
+	require.Len(t, cfg.Peers, 1)
+	n := cfg.Peers[0]
 	require.Equal(t, "192.0.2.1", n.Address.String())
 	require.Equal(t, uint32(65000), n.LocalAS)
 	require.Equal(t, uint32(65001), n.PeerAS)
@@ -1556,8 +1556,8 @@ peer 192.0.2.1 {
 }
 `
 	cfg := parseConfig(t, input)
-	require.Len(t, cfg.Neighbors, 1)
-	n := cfg.Neighbors[0]
+	require.Len(t, cfg.Peers, 1)
+	n := cfg.Peers[0]
 
 	// Template settings applied
 	require.Equal(t, uint16(60), n.HoldTime)
@@ -1769,8 +1769,8 @@ peer 192.168.1.1 { local-as 65000; peer-as 65002; }
 peer 172.16.0.1 { local-as 65000; peer-as 65003; }
 `
 	cfg := parseConfig(t, input)
-	require.Len(t, cfg.Neighbors, 3)
-	m := neighborsByAddr(cfg.Neighbors)
+	require.Len(t, cfg.Peers, 3)
+	m := peersByAddr(cfg.Peers)
 
 	require.Equal(t, uint16(60), m["10.0.0.1"].HoldTime)
 	require.Equal(t, uint16(90), m["192.168.1.1"].HoldTime)
@@ -1796,9 +1796,9 @@ neighbor 192.0.2.1 { local-as 65000; peer-as 65001; }
 neighbor 192.0.2.2 { local-as 65000; peer-as 65002; }
 `
 		cfg := parseConfig(t, input)
-		require.Len(t, cfg.Neighbors, 2)
+		require.Len(t, cfg.Peers, 2)
 
-		for _, n := range cfg.Neighbors {
+		for _, n := range cfg.Peers {
 			require.False(t, n.RIBOut.GroupUpdates, "peer * should apply to %s", n.Address)
 			require.Equal(t, 100*time.Millisecond, n.RIBOut.AutoCommitDelay)
 		}
@@ -1814,8 +1814,8 @@ neighbor 192.0.2.2 { local-as 65000; peer-as 65002; }
 neighbor 10.0.0.1 { local-as 65000; peer-as 65003; }
 `
 		cfg := parseConfig(t, input)
-		require.Len(t, cfg.Neighbors, 3)
-		m := neighborsByAddr(cfg.Neighbors)
+		require.Len(t, cfg.Peers, 3)
+		m := peersByAddr(cfg.Peers)
 
 		// Matching peers get the glob settings
 		require.False(t, m["192.0.2.1"].RIBOut.GroupUpdates)
@@ -1838,8 +1838,8 @@ neighbor 192.0.2.2 {
 }
 `
 		cfg := parseConfig(t, input)
-		require.Len(t, cfg.Neighbors, 2)
-		m := neighborsByAddr(cfg.Neighbors)
+		require.Len(t, cfg.Peers, 2)
+		m := peersByAddr(cfg.Peers)
 
 		// First neighbor: peer * settings
 		require.False(t, m["192.0.2.1"].RIBOut.GroupUpdates)
@@ -1862,8 +1862,8 @@ neighbor 192.0.2.1 { local-as 65000; peer-as 65001; }
 neighbor 10.0.0.1 { local-as 65000; peer-as 65002; }
 `
 		cfg := parseConfig(t, input)
-		require.Len(t, cfg.Neighbors, 2)
-		m := neighborsByAddr(cfg.Neighbors)
+		require.Len(t, cfg.Peers, 2)
+		m := peersByAddr(cfg.Peers)
 
 		// 192.0.2.1 matches both, more specific wins
 		require.Equal(t, 50*time.Millisecond, m["192.0.2.1"].RIBOut.AutoCommitDelay)

@@ -394,7 +394,7 @@ func (r *Runner) runTest(ctx context.Context, test *Test) (bool, string) {
 
 	// Start zebgp-peer (server).
 	serverCmd := exec.CommandContext(testCtx, r.peerPath, peerArgs...) //nolint:gosec // Args from known test files
-	serverCmd.Env = append(os.Environ(), fmt.Sprintf("exabgp_tcp_port=%d", test.Port))
+	serverCmd.Env = append(os.Environ(), fmt.Sprintf("zebgp_tcp_port=%d", test.Port))
 	serverCmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 
 	serverOut, _ := serverCmd.StdoutPipe()
@@ -420,8 +420,8 @@ func (r *Runner) runTest(ctx context.Context, test *Test) (bool, string) {
 	// Start zebgp (client).
 	clientCmd := exec.CommandContext(testCtx, r.zebgpPath, "server", test.Config) //nolint:gosec // Paths from known base dir
 	clientCmd.Env = append(os.Environ(),
-		fmt.Sprintf("exabgp_tcp_port=%d", test.Port),
-		"exabgp_tcp_bind=",
+		fmt.Sprintf("zebgp_tcp_port=%d", test.Port),
+		"zebgp_tcp_bind=",
 	)
 	clientCmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 
