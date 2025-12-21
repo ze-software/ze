@@ -178,44 +178,39 @@
 - [x] Complete - EVPNType4 struct with ESI, OriginatorIP; parseEVPNType4()
 
 ### 6.3 FlowSpec VPN Variant
-- **Task:** Implement FlowSpec VPN (AFI/SAFI 1/133, 2/133)
-- **RFC:** 8955
+- **Task:** Implement FlowSpec VPN (AFI/SAFI 1/134, 2/134)
+- **RFC:** 8955 Section 8
 - **Files:** `pkg/bgp/nlri/flowspec.go`
 - **Test:** Parse/encode FlowSpec VPN NLRI
-- [ ] Pending
+- [x] Complete - FlowSpecVPN struct, ParseFlowSpecVPN(), tests exist
 
 ### 6.4 VPLS NLRI
 - **Task:** Implement VPLS NLRI type
 - **RFC:** 4761
-- **Files:** `pkg/bgp/nlri/vpls.go` (new)
+- **Files:** `pkg/bgp/nlri/other.go`
 - **Test:** Parse/encode VPLS NLRI
-- [ ] Pending
+- [x] Complete - VPLS struct, ParseVPLS(), NewVPLSFull() already implemented
 
 ### 6.5 RTC (Route Target Constraint)
 - **Task:** Implement RTC NLRI type
 - **RFC:** 4684
-- **Files:** `pkg/bgp/nlri/rtc.go` (new)
+- **Files:** `pkg/bgp/nlri/other.go`
 - **Test:** Parse/encode RTC NLRI
-- [ ] Pending
+- [x] Complete - RTC struct, ParseRTC(), NewRTC() already implemented
 
-### 6.6 EVPN Type 5 Prefix Encoding ⚠️ NEW (from annotation)
+### 6.6 EVPN Type 5 Prefix Encoding ⚠️ FIXED
 - **Task:** Fix IP prefix to use fixed 4/16 octet fields
-- **RFC:** 9136 Section 3
+- **RFC:** 9136 Section 3.1
 - **Files:** `pkg/bgp/nlri/evpn.go`
-- **Violation:** `evpn.go:440` - Uses variable-length, should be fixed size
 - **Test:** Verify Type 5 uses fixed 4/16 byte prefix field
-- [ ] Pending
+- [x] Complete - Fixed parseEVPNType5() to require length 34/58, use fixed-size fields
 
-### 6.7 BGP-LS Descriptor Encoding ⚠️ NEW (from annotation)
+### 6.7 BGP-LS Descriptor Encoding ⚠️ FIXED
 - **Task:** Fix link/prefix descriptor TLV encoding
 - **RFC:** 7752 Section 3.2
 - **Files:** `pkg/bgp/nlri/bgpls.go`
-- **Violations:**
-  - `bgpls.go:168` - TLV 258 is Link Local/Remote ID, not container
-  - `bgpls.go:193` - TLV 264 is OSPF Route Type, not container
-  - `bgpls.go:440,521` - Bytes() wraps incorrectly
 - **Test:** Verify descriptor TLVs appear directly in NLRI
-- [ ] Pending
+- [x] Complete - Removed container wrapping; TLVs now appear directly per RFC
 
 ---
 
@@ -270,10 +265,10 @@
 | 3. Timers | 1 | 0 | ✅ Complete |
 | 4. Attributes | 6 | +2 | ✅ Complete |
 | 5. MP-NLRI | 4 | 0 | ✅ Complete |
-| 6. NLRI Types | 7 | +2 | 2/7 Complete |
+| 6. NLRI Types | 7 | +2 | ✅ Complete |
 | 8. Errors | 1 | 0 | Pending |
 | 9. Config | 4 | 0 | Pending |
-| **Total** | **31** | **+5** | **21/31 Complete** |
+| **Total** | **31** | **+5** | **26/31 Complete** |
 
 ---
 

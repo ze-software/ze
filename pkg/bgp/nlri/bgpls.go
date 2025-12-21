@@ -421,13 +421,9 @@ func NewBGPLSLink(proto BGPLSProtocolID, id uint64, local, remote NodeDescriptor
 	}
 }
 
-// Bytes returns the wire-format encoding.
-// RFC 7752 Section 3.2 - NLRI encoding format.
-//
-// NOTE: This uses TLVLinkDescriptors (258) as a container TLV wrapping the
-// link descriptor sub-TLVs. RFC 7752 Section 3.2.2 does NOT define a container
-// TLV for link descriptors - they should appear directly in the NLRI body.
-// This is a POTENTIAL VIOLATION but may be intentional for compatibility.
+// Bytes returns the wire-format encoding per RFC 7752 Section 3.2.2.
+// Link descriptor TLVs (258-263) appear directly in the NLRI body after
+// the Remote Node Descriptors, NOT wrapped in a container TLV.
 func (l *BGPLSLink) Bytes() []byte {
 	if l.cached != nil {
 		return l.cached
@@ -437,10 +433,10 @@ func (l *BGPLSLink) Bytes() []byte {
 	localNodeTLV := tlv(TLVLocalNodeDesc, l.LocalNode.Bytes())
 	// RFC 7752 Section 3.2.1.3 - Remote Node Descriptors (TLV 257)
 	remoteNodeTLV := tlv(TLVRemoteNodeDesc, l.RemoteNode.Bytes())
-	// VIOLATION: TLVLinkDescriptors (258) is not a container in RFC 7752
-	linkDescTLV := tlv(TLVLinkDescriptors, l.LinkDesc.Bytes())
+	// RFC 7752 Section 3.2.2 - Link descriptor TLVs appear directly (not wrapped)
+	linkDescBytes := l.LinkDesc.Bytes()
 
-	bodyLen := 9 + len(localNodeTLV) + len(remoteNodeTLV) + len(linkDescTLV)
+	bodyLen := 9 + len(localNodeTLV) + len(remoteNodeTLV) + len(linkDescBytes)
 	body := make([]byte, bodyLen)
 	body[0] = byte(l.protocolID)                        // Protocol-ID (1 byte)
 	binary.BigEndian.PutUint64(body[1:9], l.identifier) // Identifier (8 bytes)
@@ -449,7 +445,7 @@ func (l *BGPLSLink) Bytes() []byte {
 	offset += len(localNodeTLV)
 	copy(body[offset:], remoteNodeTLV)
 	offset += len(remoteNodeTLV)
-	copy(body[offset:], linkDescTLV)
+	copy(body[offset:], linkDescBytes)
 
 	// RFC 7752 Section 3.2 - NLRI header
 	l.cached = make([]byte, 4+len(body))
@@ -504,13 +500,11 @@ func NewBGPLSPrefixV6(proto BGPLSProtocolID, id uint64, node NodeDescriptor, pre
 	}
 }
 
-// Bytes returns the wire-format encoding.
-// RFC 7752 Section 3.2 - NLRI encoding format.
+// Bytes returns the wire-format encoding per RFC 7752 Section 3.2.3.
+// Prefix descriptor TLVs (263-265) appear directly in the NLRI body after
+// the Local Node Descriptors, NOT wrapped in a container TLV.
 //
-// NOTE: This uses TLVPrefixDescriptors (264) as a container TLV wrapping the
-// prefix descriptor sub-TLVs. RFC 7752 Section 3.2.3 does NOT define a container
-// TLV for prefix descriptors - they should appear directly in the NLRI body.
-// This is a POTENTIAL VIOLATION but may be intentional for compatibility.
+//nolint:dupl // Similar structure to BGPLSSRv6SID.Bytes() is intentional
 func (p *BGPLSPrefix) Bytes() []byte {
 	if p.cached != nil {
 		return p.cached
@@ -518,17 +512,17 @@ func (p *BGPLSPrefix) Bytes() []byte {
 
 	// RFC 7752 Section 3.2.1.2 - Local Node Descriptors (TLV 256)
 	localNodeTLV := tlv(TLVLocalNodeDesc, p.LocalNode.Bytes())
-	// VIOLATION: TLVPrefixDescriptors (264) is not a container in RFC 7752
-	prefixDescTLV := tlv(TLVPrefixDescriptors, p.PrefixDesc.Bytes())
+	// RFC 7752 Section 3.2.3 - Prefix descriptor TLVs appear directly (not wrapped)
+	prefixDescBytes := p.PrefixDesc.Bytes()
 
-	bodyLen := 9 + len(localNodeTLV) + len(prefixDescTLV)
+	bodyLen := 9 + len(localNodeTLV) + len(prefixDescBytes)
 	body := make([]byte, bodyLen)
 	body[0] = byte(p.protocolID)                        // Protocol-ID (1 byte)
 	binary.BigEndian.PutUint64(body[1:9], p.identifier) // Identifier (8 bytes)
 	offset := 9
 	copy(body[offset:], localNodeTLV)
 	offset += len(localNodeTLV)
-	copy(body[offset:], prefixDescTLV)
+	copy(body[offset:], prefixDescBytes)
 
 	// RFC 7752 Section 3.2 - NLRI header
 	p.cached = make([]byte, 4+len(body))
@@ -779,6 +773,8 @@ func NewBGPLSSRv6SID(proto BGPLSProtocolID, id uint64, node NodeDescriptor, sid 
 
 // Bytes returns the wire-format encoding.
 // Uses RFC 7752 NLRI header format with RFC 9514 SRv6 SID descriptor.
+//
+//nolint:dupl // Similar structure to BGPLSPrefix.Bytes() is intentional
 func (s *BGPLSSRv6SID) Bytes() []byte {
 	if s.cached != nil {
 		return s.cached

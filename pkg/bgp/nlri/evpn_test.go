@@ -146,24 +146,67 @@ func TestEVPNType3(t *testing.T) {
 	assert.Equal(t, netip.MustParseAddr("10.0.0.1"), evpn.OriginatorIP())
 }
 
-// TestEVPNType5 verifies Type 5 IP Prefix route parsing.
+// TestEVPNType5IPv4 verifies Type 5 IP Prefix route parsing for IPv4.
 //
-// VALIDATES: IP Prefix route (used for L3VPN over EVPN).
+// VALIDATES: RFC 9136 Section 3.1 - IPv4 IP Prefix route with fixed 4-byte
+// prefix field and 4-byte gateway field. Total NLRI length = 34 bytes.
 //
-// PREVENTS: IP Prefix route parsing failures.
-func TestEVPNType5(t *testing.T) {
-	// Type 5: IP Prefix
-	// RD (8) + ESI (10) + EthTag (4) + IPLen (1) + IP (prefix) + GW (IP) + Label (3)
+// PREVENTS: Incorrect variable-length prefix parsing that violates RFC 9136.
+func TestEVPNType5IPv4(t *testing.T) {
+	// Type 5: IP Prefix per RFC 9136 Section 3.1
+	// RD (8) + ESI (10) + EthTag (4) + IPLen (1) + IP (4 fixed) + GW (4 fixed) + Label (3) = 34
+	rd := []byte{0x00, 0x00, 0xFD, 0xE8, 0x00, 0x00, 0x00, 0x64} // 65000:100
+	esi := make([]byte, 10)
+	ethTag := []byte{0x00, 0x00, 0x00, 0x00}
+	ipLen := byte(24)                 // /24 prefix
+	ip := []byte{10, 1, 2, 0}         // 10.1.2.0/24 - FIXED 4 bytes per RFC 9136
+	gw := []byte{0, 0, 0, 0}          // No gateway - FIXED 4 bytes
+	label := []byte{0x00, 0x01, 0x01} // Label 16
+
+	data := []byte{byte(EVPNRouteType5)}
+	data = append(data, byte(34)) // Length = 34 per RFC 9136 for IPv4
+	data = append(data, rd...)
+	data = append(data, esi...)
+	data = append(data, ethTag...)
+	data = append(data, ipLen)
+	data = append(data, ip...)
+	data = append(data, gw...)
+	data = append(data, label...)
+
+	nlri, remaining, err := ParseEVPN(data, false)
+	require.NoError(t, err)
+	require.Empty(t, remaining)
+
+	evpn, ok := nlri.(*EVPNType5)
+	require.True(t, ok, "expected EVPNType5, got %T", nlri)
+
+	assert.Equal(t, EVPNRouteType5, evpn.RouteType())
+	assert.Equal(t, "65000:100", evpn.RD().String())
+	assert.Equal(t, netip.MustParsePrefix("10.1.2.0/24"), evpn.Prefix())
+	assert.Equal(t, netip.MustParseAddr("0.0.0.0"), evpn.Gateway())
+	assert.Equal(t, L2VPNEVPN, evpn.Family())
+}
+
+// TestEVPNType5IPv6 verifies Type 5 IP Prefix route parsing for IPv6.
+//
+// VALIDATES: RFC 9136 Section 3.1 - IPv6 IP Prefix route with fixed 16-byte
+// prefix field and 16-byte gateway field. Total NLRI length = 58 bytes.
+//
+// PREVENTS: Incorrect variable-length prefix parsing for IPv6.
+func TestEVPNType5IPv6(t *testing.T) {
+	// Type 5: IP Prefix per RFC 9136 Section 3.1
+	// RD (8) + ESI (10) + EthTag (4) + IPLen (1) + IP (16 fixed) + GW (16 fixed) + Label (3) = 58
 	rd := []byte{0x00, 0x00, 0xFD, 0xE8, 0x00, 0x00, 0x00, 0x64}
 	esi := make([]byte, 10)
 	ethTag := []byte{0x00, 0x00, 0x00, 0x00}
-	ipLen := byte(24)        // /24 prefix
-	ip := []byte{10, 1, 2}   // 10.1.2.0/24
-	gw := []byte{0, 0, 0, 0} // No gateway
+	ipLen := byte(64) // /64 prefix
+	// 2001:db8::/64 - FIXED 16 bytes per RFC 9136
+	ip := []byte{0x20, 0x01, 0x0d, 0xb8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
+	gw := make([]byte, 16) // No gateway - FIXED 16 bytes
 	label := []byte{0x00, 0x01, 0x01}
 
 	data := []byte{byte(EVPNRouteType5)}
-	data = append(data, byte(8+10+4+1+3+4+3)) // Length
+	data = append(data, byte(58)) // Length = 58 per RFC 9136 for IPv6
 	data = append(data, rd...)
 	data = append(data, esi...)
 	data = append(data, ethTag...)
@@ -176,10 +219,38 @@ func TestEVPNType5(t *testing.T) {
 	require.NoError(t, err)
 
 	evpn, ok := nlri.(*EVPNType5)
-	require.True(t, ok)
+	require.True(t, ok, "expected EVPNType5")
 
-	assert.Equal(t, EVPNRouteType5, evpn.RouteType())
-	assert.Equal(t, netip.MustParsePrefix("10.1.2.0/24"), evpn.Prefix())
+	assert.Equal(t, netip.MustParsePrefix("2001:db8::/64"), evpn.Prefix())
+}
+
+// TestEVPNType5InvalidLength verifies rejection of invalid NLRI lengths.
+//
+// VALIDATES: RFC 9136 requirement that length MUST be 34 (IPv4) or 58 (IPv6).
+//
+// PREVENTS: Accepting malformed Type 5 routes with incorrect lengths.
+func TestEVPNType5InvalidLength(t *testing.T) {
+	rd := []byte{0x00, 0x00, 0xFD, 0xE8, 0x00, 0x00, 0x00, 0x64}
+	esi := make([]byte, 10)
+	ethTag := []byte{0x00, 0x00, 0x00, 0x00}
+	ipLen := byte(24)
+	// Variable-length prefix (3 bytes) - WRONG per RFC 9136
+	ip := []byte{10, 1, 2}
+	gw := []byte{0, 0, 0, 0}
+	label := []byte{0x00, 0x01, 0x01}
+
+	data := []byte{byte(EVPNRouteType5)}
+	data = append(data, byte(8+10+4+1+3+4+3)) // Length = 33, not 34
+	data = append(data, rd...)
+	data = append(data, esi...)
+	data = append(data, ethTag...)
+	data = append(data, ipLen)
+	data = append(data, ip...)
+	data = append(data, gw...)
+	data = append(data, label...)
+
+	_, _, err := ParseEVPN(data, false)
+	require.Error(t, err, "should reject non-standard Type 5 length")
 }
 
 // TestEVPNRouteTypeString verifies route type string representation.

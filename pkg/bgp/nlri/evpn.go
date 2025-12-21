@@ -598,11 +598,19 @@ type EVPNType5 struct {
 	hasPath     bool
 }
 
-// parseEVPNType5 parses an IP Prefix route per RFC 9136 Section 3.
+// parseEVPNType5 parses an IP Prefix route per RFC 9136 Section 3.1.
+// RFC 9136 specifies fixed-size NLRI:
+//   - IPv4: Length = 34 bytes (RD:8 + ESI:10 + ETag:4 + IPLen:1 + IP:4 + GW:4 + Label:3)
+//   - IPv6: Length = 58 bytes (RD:8 + ESI:10 + ETag:4 + IPLen:1 + IP:16 + GW:16 + Label:3)
 func parseEVPNType5(data []byte, pathID uint32, hasPath bool) (*EVPNType5, error) {
-	// RFC 9136: RD (8) + ESI (10) + EthTag (4) + IPLen (1) + IP + GW + Label
-	if len(data) < 8+10+4+1 {
-		return nil, ErrShortRead
+	// RFC 9136 Section 3.1: Length MUST be 34 (IPv4) or 58 (IPv6)
+	switch len(data) {
+	case 34:
+		// IPv4 Type 5
+	case 58:
+		// IPv6 Type 5
+	default:
+		return nil, ErrInvalidAddress
 	}
 
 	e := &EVPNType5{pathID: pathID, hasPath: hasPath}
@@ -625,23 +633,36 @@ func parseEVPNType5(data []byte, pathID uint32, hasPath bool) (*EVPNType5, error
 	ipLen := int(data[offset])
 	offset++
 
-	prefixBytes := (ipLen + 7) / 8
-	if offset+prefixBytes > len(data) {
-		return nil, ErrShortRead
-	}
-
-	// RFC 9136: Determine IPv4 or IPv6 based on prefix length (0-32 = IPv4, >32 = IPv6)
+	// RFC 9136 Section 3.1: IP Prefix is FIXED 4 octets (IPv4) or 16 octets (IPv6)
+	// Determined by total NLRI length, not prefix length
 	var addr netip.Addr
-	if ipLen <= 32 {
+	if len(data) == 34 {
+		// IPv4: Fixed 4-byte prefix field
+		if ipLen > 32 {
+			return nil, ErrInvalidPrefix
+		}
 		var ip [4]byte
-		copy(ip[:], data[offset:offset+prefixBytes])
+		copy(ip[:], data[offset:offset+4])
 		addr = netip.AddrFrom4(ip)
+		offset += 4
+
+		// Gateway: Fixed 4 bytes
+		e.gateway = netip.AddrFrom4([4]byte(data[offset : offset+4]))
+		offset += 4
 	} else {
+		// IPv6: Fixed 16-byte prefix field
+		if ipLen > 128 {
+			return nil, ErrInvalidPrefix
+		}
 		var ip [16]byte
-		copy(ip[:], data[offset:offset+prefixBytes])
+		copy(ip[:], data[offset:offset+16])
 		addr = netip.AddrFrom16(ip)
+		offset += 16
+
+		// Gateway: Fixed 16 bytes
+		e.gateway = netip.AddrFrom16([16]byte(data[offset : offset+16]))
+		offset += 16
 	}
-	offset += prefixBytes
 
 	prefix, err := addr.Prefix(ipLen)
 	if err != nil {
@@ -649,22 +670,7 @@ func parseEVPNType5(data []byte, pathID uint32, hasPath bool) (*EVPNType5, error
 	}
 	e.prefix = prefix
 
-	// RFC 9136: Gateway IP (same address family as prefix)
-	gwBytes := 4
-	if ipLen > 32 {
-		gwBytes = 16
-	}
-	if offset+gwBytes > len(data) {
-		return nil, ErrShortRead
-	}
-	if gwBytes == 4 {
-		e.gateway = netip.AddrFrom4([4]byte(data[offset : offset+4]))
-	} else {
-		e.gateway = netip.AddrFrom16([16]byte(data[offset : offset+16]))
-	}
-	offset += gwBytes
-
-	// Labels
+	// Labels (remaining 3 bytes)
 	if offset < len(data) {
 		labels, _, err := ParseLabelStack(data[offset:])
 		if err != nil {

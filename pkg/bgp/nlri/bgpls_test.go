@@ -157,6 +157,99 @@ func TestBGPLSLinkBytes(t *testing.T) {
 	require.NotEmpty(t, data)
 }
 
+// TestBGPLSLinkDescriptorNotWrapped verifies link descriptors appear directly in NLRI.
+//
+// VALIDATES: RFC 7752 Section 3.2.2 - Link descriptor TLVs (258-263) appear
+// directly in the Link NLRI body after Remote Node Descriptors, NOT wrapped
+// in a container TLV.
+//
+// PREVENTS: Encoding violation where link descriptors are wrapped in TLV 258.
+func TestBGPLSLinkDescriptorNotWrapped(t *testing.T) {
+	link := NewBGPLSLink(
+		ProtoOSPFv2, 0x100,
+		NodeDescriptor{ASN: 65001, IGPRouterID: []byte{1, 1, 1, 1}},
+		NodeDescriptor{ASN: 65002, IGPRouterID: []byte{2, 2, 2, 2}},
+		LinkDescriptor{
+			LocalInterfaceAddr: []byte{10, 0, 0, 1}, // Should produce TLV 259 directly
+		},
+	)
+
+	data := link.Bytes()
+	require.NotEmpty(t, data)
+
+	// Scan TLVs after header (4 bytes) and protocol/identifier (9 bytes)
+	// Format: type(2) + length(2) + proto(1) + id(8) + TLVs
+	offset := 4 + 9 // Start of TLVs
+	require.Greater(t, len(data), offset)
+
+	// Scan for TLV types - we should see 256, 257, then 259 directly (not 258 as container)
+	foundTLVTypes := []uint16{}
+	for offset+4 <= len(data) {
+		tlvType := uint16(data[offset])<<8 | uint16(data[offset+1])
+		tlvLen := int(uint16(data[offset+2])<<8 | uint16(data[offset+3]))
+		foundTLVTypes = append(foundTLVTypes, tlvType)
+		offset += 4 + tlvLen
+	}
+
+	// RFC 7752: TLV 259 (IPv4 Interface Address) should appear directly
+	// NOT wrapped inside a container TLV 258
+	assert.Contains(t, foundTLVTypes, uint16(256), "should have Local Node Descriptor TLV")
+	assert.Contains(t, foundTLVTypes, uint16(257), "should have Remote Node Descriptor TLV")
+	assert.Contains(t, foundTLVTypes, uint16(259), "should have IPv4 Interface Address TLV directly")
+
+	// Verify no duplicate TLV 258 used as container (258 may appear for Link Local/Remote ID, but not as wrapper)
+	count258 := 0
+	for _, tlvType := range foundTLVTypes {
+		if tlvType == 258 {
+			count258++
+		}
+	}
+	// If there's a TLV 258, it should only be for actual Link Local/Remote ID, not as container
+	// Since our test doesn't set LinkLocalID/LinkRemoteID, there should be no TLV 258
+	assert.Equal(t, 0, count258, "TLV 258 should not appear as container wrapper")
+}
+
+// TestBGPLSPrefixDescriptorNotWrapped verifies prefix descriptors appear directly in NLRI.
+//
+// VALIDATES: RFC 7752 Section 3.2.3 - Prefix descriptor TLVs (263-265) appear
+// directly in the Prefix NLRI body, NOT wrapped in a container TLV.
+//
+// PREVENTS: Encoding violation where prefix descriptors are wrapped in TLV 264.
+func TestBGPLSPrefixDescriptorNotWrapped(t *testing.T) {
+	prefix := NewBGPLSPrefixV4(
+		ProtoOSPFv2, 0x100,
+		NodeDescriptor{ASN: 65001, IGPRouterID: []byte{1, 1, 1, 1}},
+		PrefixDescriptor{
+			IPReachabilityInfo: []byte{24, 10, 0, 0}, // Should produce TLV 265 directly
+		},
+	)
+
+	data := prefix.Bytes()
+	require.NotEmpty(t, data)
+
+	// Scan TLVs after header and protocol/identifier
+	offset := 4 + 9
+	require.Greater(t, len(data), offset)
+
+	foundTLVTypes := []uint16{}
+	for offset+4 <= len(data) {
+		tlvType := uint16(data[offset])<<8 | uint16(data[offset+1])
+		tlvLen := int(uint16(data[offset+2])<<8 | uint16(data[offset+3]))
+		foundTLVTypes = append(foundTLVTypes, tlvType)
+		offset += 4 + tlvLen
+	}
+
+	// RFC 7752: TLV 265 (IP Reachability Info) should appear directly
+	// NOT wrapped inside a container TLV 264
+	assert.Contains(t, foundTLVTypes, uint16(256), "should have Local Node Descriptor TLV")
+	assert.Contains(t, foundTLVTypes, uint16(265), "should have IP Reachability Info TLV directly")
+
+	// Verify TLV 264 is not used as container wrapper
+	for _, tlvType := range foundTLVTypes {
+		assert.NotEqual(t, uint16(264), tlvType, "TLV 264 should not appear as container wrapper")
+	}
+}
+
 // TestParseBGPLSNode verifies parsing node NLRI.
 func TestParseBGPLSNode(t *testing.T) {
 	original := NewBGPLSNode(ProtoOSPFv2, 0x100, NodeDescriptor{
