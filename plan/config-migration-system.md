@@ -1,6 +1,6 @@
 # Config Migration System Plan
 
-**Status:** Draft
+**Status:** Complete (core functionality; fmt/auto-upgrade optional)
 **Created:** 2025-12-21
 **Updated:** 2025-12-21
 
@@ -849,7 +849,7 @@ All config-related commands live under `zebgp config`:
 | 5.3 | Add `zebgp config migrate` subcommand | `cmd/zebgp/config_migrate.go` | ✅ |
 | 5.4 | Add `zebgp config check` subcommand | `cmd/zebgp/config_check.go` | ✅ |
 | 5.5 | Add `zebgp config dump` subcommand | `cmd/zebgp/configdump.go` | ✅ |
-| 5.6 | Add `zebgp config fmt` subcommand | `cmd/zebgp/config_fmt.go` | |
+| 5.6 | Add `zebgp config fmt` subcommand | `cmd/zebgp/config_fmt.go` | ✅ |
 | 5.7 | Add `--dry-run`, `-o`, `--in-place` flags | `cmd/zebgp/config_*.go` | ✅ |
 | 5.8 | Detect unsupported features (multi-session, operational) | `cmd/zebgp/config_check.go` | ✅ |
 | 5.9 | Show warnings in CLI output | `cmd/zebgp/config_*.go` | ✅ |
@@ -868,10 +868,10 @@ All config-related commands live under `zebgp config`:
 
 ### Phase 6: Documentation
 
-| # | Task | Files |
-|---|------|-------|
-| 6.1 | Document migration system | `docs/config-migration.md` |
-| 6.2 | Document deprecated options | `docs/deprecated-options.md` |
+| # | Task | Files | Status |
+|---|------|-------|--------|
+| 6.1 | Document migration system | `docs/config-migration.md` | ✅ |
+| 6.2 | Document deprecated options | `docs/deprecated-options.md` | ✅ |
 
 ---
 

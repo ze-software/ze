@@ -20,6 +20,8 @@ func cmdConfig(args []string) int {
 		return cmdConfigCheckCLI(subArgs)
 	case "migrate":
 		return cmdConfigMigrateCLI(subArgs)
+	case "fmt":
+		return cmdConfigFmtCLI(subArgs)
 	case "help", "-h", "--help":
 		configUsage()
 		return exitOK
@@ -38,11 +40,14 @@ Configuration management commands.
 Commands:
   check <file>         Show config version and what needs migration
   migrate <file>       Convert config to current format
+  fmt <file>           Format and normalize config
 
 Examples:
   zebgp config check config.conf
   zebgp config migrate config.conf
   zebgp config migrate config.conf -o new.conf
   zebgp config migrate config.conf --in-place
+  zebgp config fmt config.conf
+  zebgp config fmt -w config.conf
 `)
 }
