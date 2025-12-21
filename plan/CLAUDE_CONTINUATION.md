@@ -65,3 +65,4 @@ Run `make test` to verify current state.
 - All code changes require TDD (test first, show failure, implement, show pass)
 - Plans go in `plan/`, protocols go in `.claude/`
 - Check ExaBGP reference before implementing BGP features
+- **ALWAYS run `make test` at the end of work BEFORE requesting a commit**

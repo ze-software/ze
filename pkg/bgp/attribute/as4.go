@@ -40,9 +40,14 @@ func (p *AS4Path) Flags() AttributeFlags { return FlagOptional | FlagTransitive 
 // Len returns the packed length in bytes (always 4-byte ASN format).
 //
 // RFC 6793 Section 3: AS4_PATH "carries four-octet AS numbers" (4 bytes each).
+// Note: Confed segments are excluded per RFC 6793 Section 3.
 func (p *AS4Path) Len() int {
 	length := 0
 	for _, seg := range p.Segments {
+		// RFC 6793 Section 3: confed segments MUST NOT be included
+		if seg.Type == ASConfedSequence || seg.Type == ASConfedSet {
+			continue
+		}
 		// type(1) + count(1) + ASNs(4 each)
 		length += 2 + len(seg.ASNs)*4
 	}
@@ -54,6 +59,10 @@ func (p *AS4Path) Len() int {
 // RFC 6793 Section 3: "The AS4_PATH attribute has the same semantics and
 // the same encoding as the AS_PATH attribute, except that it is 'optional
 // transitive', and it carries four-octet AS numbers."
+//
+// RFC 6793 Section 3: "the path segment types AS_CONFED_SEQUENCE and
+// AS_CONFED_SET are declared invalid for the AS4_PATH attribute and
+// MUST NOT be included in the AS4_PATH attribute of an UPDATE message."
 func (p *AS4Path) Pack() []byte {
 	if len(p.Segments) == 0 {
 		return []byte{}
@@ -63,6 +72,11 @@ func (p *AS4Path) Pack() []byte {
 	offset := 0
 
 	for _, seg := range p.Segments {
+		// RFC 6793 Section 3: confed segments MUST NOT be included
+		if seg.Type == ASConfedSequence || seg.Type == ASConfedSet {
+			continue
+		}
+
 		buf[offset] = byte(seg.Type)
 		buf[offset+1] = byte(len(seg.ASNs))
 		offset += 2
@@ -74,6 +88,30 @@ func (p *AS4Path) Pack() []byte {
 	}
 
 	return buf
+}
+
+// FilterConfedSegments returns a new AS4Path with confederation segments removed.
+//
+// RFC 6793 Section 4.2.2:
+//
+//	"Whenever the AS path information contains the AS_CONFED_SEQUENCE or
+//	 AS_CONFED_SET path segment, the NEW BGP speaker MUST exclude such
+//	 path segments from the AS4_PATH attribute being constructed."
+//
+// This is useful when receiving AS4_PATH that may contain confed segments
+// (allowed per RFC 6793 Section 6 validation) but need to be filtered.
+func (p *AS4Path) FilterConfedSegments() *AS4Path {
+	if p == nil {
+		return nil
+	}
+
+	filtered := &AS4Path{}
+	for _, seg := range p.Segments {
+		if seg.Type != ASConfedSequence && seg.Type != ASConfedSet {
+			filtered.Segments = append(filtered.Segments, seg)
+		}
+	}
+	return filtered
 }
 
 // PathLength returns the AS path length for BGP path selection.

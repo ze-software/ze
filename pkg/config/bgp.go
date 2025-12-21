@@ -750,10 +750,16 @@ func parseMVPNRoute(routeType string, route *Tree, isIPv6 bool) MVPNRouteConfig 
 // parseInlineKeyValues parses an inline "key value key value ..." string into a map.
 // Handles arrays like "[ a b c ]" and parenthesized content like "( ... )".
 func parseInlineKeyValues(inline string) map[string]string {
-	result := make(map[string]string)
 	tokens := tokenizeInline(inline)
+	return parseKeyValuesFromTokens(tokens, 0)
+}
 
-	i := 0
+// parseKeyValuesFromTokens parses "key value key value ..." from a token slice.
+// Handles arrays like "[ a b c ]" and parenthesized content like "( ... )".
+// Start specifies the index to begin parsing from.
+func parseKeyValuesFromTokens(tokens []string, start int) map[string]string {
+	result := make(map[string]string)
+	i := start
 	for i < len(tokens) {
 		key := tokens[i]
 		i++
@@ -762,7 +768,8 @@ func parseInlineKeyValues(inline string) map[string]string {
 		}
 
 		// Collect value (might be array or parenthesized)
-		if tokens[i] == "[" {
+		switch tokens[i] {
+		case "[":
 			// Array: collect until ]
 			var arr []string
 			i++ // skip [
@@ -774,18 +781,20 @@ func parseInlineKeyValues(inline string) map[string]string {
 				i++ // skip ]
 			}
 			result[key] = "[" + strings.Join(arr, " ") + "]"
-		} else if tokens[i] == "(" {
+		case "(":
 			// Parenthesized: collect until )
 			depth := 1
 			var paren []string
 			i++ // skip (
+		parenLoop:
 			for i < len(tokens) && depth > 0 {
-				if tokens[i] == "(" {
+				switch tokens[i] {
+				case "(":
 					depth++
-				} else if tokens[i] == ")" {
+				case ")":
 					depth--
 					if depth == 0 {
-						break
+						break parenLoop
 					}
 				}
 				paren = append(paren, tokens[i])
@@ -795,7 +804,7 @@ func parseInlineKeyValues(inline string) map[string]string {
 				i++ // skip )
 			}
 			result[key] = "(" + strings.Join(paren, " ") + ")"
-		} else {
+		default:
 			// Simple value
 			result[key] = tokens[i]
 			i++
@@ -1120,53 +1129,7 @@ func parseMUPFromInline(inline string, isIPv6 bool) MUPRouteConfig {
 	}
 
 	// Parse remaining as key-value pairs starting from index 2
-	kv := make(map[string]string)
-	i := 2
-	for i < len(tokens) {
-		key := tokens[i]
-		i++
-		if i >= len(tokens) {
-			break
-		}
-
-		if tokens[i] == "[" {
-			// Array
-			var arr []string
-			i++
-			for i < len(tokens) && tokens[i] != "]" {
-				arr = append(arr, tokens[i])
-				i++
-			}
-			if i < len(tokens) {
-				i++
-			}
-			kv[key] = "[" + strings.Join(arr, " ") + "]"
-		} else if tokens[i] == "(" {
-			// Parenthesized
-			depth := 1
-			var paren []string
-			i++
-			for i < len(tokens) && depth > 0 {
-				if tokens[i] == "(" {
-					depth++
-				} else if tokens[i] == ")" {
-					depth--
-					if depth == 0 {
-						break
-					}
-				}
-				paren = append(paren, tokens[i])
-				i++
-			}
-			if i < len(tokens) {
-				i++
-			}
-			kv[key] = "(" + strings.Join(paren, " ") + ")"
-		} else {
-			kv[key] = tokens[i]
-			i++
-		}
-	}
+	kv := parseKeyValuesFromTokens(tokens, 2)
 
 	if v, ok := kv["rd"]; ok {
 		r.RD = v

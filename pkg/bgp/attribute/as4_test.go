@@ -2,6 +2,7 @@ package attribute
 
 import (
 	"bytes"
+	"errors"
 	"net/netip"
 	"testing"
 )
@@ -193,7 +194,7 @@ func TestParseAS4PathValidation(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			_, err := ParseAS4Path(tt.data)
-			if err != tt.wantErr {
+			if !errors.Is(err, tt.wantErr) {
 				t.Errorf("ParseAS4Path() error = %v, want %v", err, tt.wantErr)
 			}
 		})
@@ -454,6 +455,132 @@ func TestMergeAS4PathWithConfed(t *testing.T) {
 		if gotASNs[i] != asn {
 			t.Errorf("ASN[%d] = %d, want %d", i, gotASNs[i], asn)
 		}
+	}
+}
+
+// TestAS4PathPackExcludesConfed verifies RFC 6793 Section 3 confed handling.
+//
+// RFC 6793 Section 3:
+//
+//	"To prevent the possible propagation of Confederation-related path
+//	 segments outside of a Confederation, the path segment types
+//	 AS_CONFED_SEQUENCE and AS_CONFED_SET are declared invalid for the
+//	 AS4_PATH attribute and MUST NOT be included in the AS4_PATH attribute
+//	 of an UPDATE message."
+//
+// VALIDATES: Pack() excludes confed segments from output.
+//
+// PREVENTS: Leaking confederation segments in AS4_PATH to peers.
+func TestAS4PathPackExcludesConfed(t *testing.T) {
+	// AS4_PATH with confed segments that should be filtered
+	path := &AS4Path{
+		Segments: []ASPathSegment{
+			{Type: ASConfedSequence, ASNs: []uint32{64512, 64513}}, // Should be excluded
+			{Type: ASSequence, ASNs: []uint32{65001, 65002}},
+			{Type: ASConfedSet, ASNs: []uint32{64514}}, // Should be excluded
+			{Type: ASSet, ASNs: []uint32{65003}},
+		},
+	}
+
+	packed := path.Pack()
+
+	// Parse back to verify confed segments are gone
+	parsed, err := ParseAS4Path(packed)
+	if err != nil {
+		t.Fatalf("ParseAS4Path() error = %v", err)
+	}
+
+	// Should only have 2 segments (SEQ and SET), not 4
+	if len(parsed.Segments) != 2 {
+		t.Errorf("expected 2 segments after filtering confed, got %d", len(parsed.Segments))
+		for i, seg := range parsed.Segments {
+			t.Logf("segment[%d]: type=%d, ASNs=%v", i, seg.Type, seg.ASNs)
+		}
+		return
+	}
+
+	// First should be AS_SEQUENCE
+	if parsed.Segments[0].Type != ASSequence {
+		t.Errorf("segment[0].Type = %d, want AS_SEQUENCE (%d)", parsed.Segments[0].Type, ASSequence)
+	}
+	if len(parsed.Segments[0].ASNs) != 2 {
+		t.Errorf("segment[0].ASNs len = %d, want 2", len(parsed.Segments[0].ASNs))
+	}
+
+	// Second should be AS_SET
+	if parsed.Segments[1].Type != ASSet {
+		t.Errorf("segment[1].Type = %d, want AS_SET (%d)", parsed.Segments[1].Type, ASSet)
+	}
+}
+
+// TestAS4PathFilterConfedSegments verifies the helper method.
+//
+// RFC 6793 Section 4.2.2:
+//
+//	"Whenever the AS path information contains the AS_CONFED_SEQUENCE or
+//	 AS_CONFED_SET path segment, the NEW BGP speaker MUST exclude such
+//	 path segments from the AS4_PATH attribute being constructed."
+//
+// VALIDATES: FilterConfedSegments removes all confed segments.
+//
+// PREVENTS: Confed segments in AS4_PATH to OLD speakers.
+func TestAS4PathFilterConfedSegments(t *testing.T) {
+	path := &AS4Path{
+		Segments: []ASPathSegment{
+			{Type: ASConfedSequence, ASNs: []uint32{64512}},
+			{Type: ASSequence, ASNs: []uint32{65001}},
+			{Type: ASConfedSet, ASNs: []uint32{64513, 64514}},
+		},
+	}
+
+	filtered := path.FilterConfedSegments()
+
+	if len(filtered.Segments) != 1 {
+		t.Errorf("expected 1 segment after filter, got %d", len(filtered.Segments))
+		return
+	}
+
+	if filtered.Segments[0].Type != ASSequence {
+		t.Errorf("segment type = %d, want AS_SEQUENCE", filtered.Segments[0].Type)
+	}
+
+	if len(filtered.Segments[0].ASNs) != 1 || filtered.Segments[0].ASNs[0] != 65001 {
+		t.Errorf("segment ASNs = %v, want [65001]", filtered.Segments[0].ASNs)
+	}
+}
+
+// TestAS4PathParseAcceptsConfed verifies RFC 6793 Section 6 validation.
+//
+// RFC 6793 Section 6: "the path segment type in the attribute is not one
+// of the types defined: AS_SEQUENCE, AS_SET, AS_CONFED_SEQUENCE, and
+// AS_CONFED_SET" (listed as condition for malformed)
+//
+// This means confed types are VALID during parsing (not malformed).
+// They should be accepted and can be filtered later.
+//
+// VALIDATES: Parse accepts confed segments without error.
+//
+// PREVENTS: Incorrectly rejecting AS4_PATH with confed segments.
+func TestAS4PathParseAcceptsConfed(t *testing.T) {
+	// AS4_PATH with AS_CONFED_SEQUENCE (type 4 per RFC 5065)
+	data := []byte{
+		0x04, 0x02, // AS_CONFED_SEQUENCE (4), 2 ASNs
+		0x00, 0x00, 0xFC, 0x00, // 64512
+		0x00, 0x00, 0xFC, 0x01, // 64513
+	}
+
+	path, err := ParseAS4Path(data)
+	if err != nil {
+		t.Fatalf("ParseAS4Path() should accept confed, got error = %v", err)
+	}
+
+	if len(path.Segments) != 1 {
+		t.Errorf("expected 1 segment, got %d", len(path.Segments))
+		return
+	}
+
+	if path.Segments[0].Type != ASConfedSequence {
+		t.Errorf("segment type = %d, want AS_CONFED_SEQUENCE (%d)", path.Segments[0].Type, ASConfedSequence)
 	}
 }
 

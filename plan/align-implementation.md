@@ -121,11 +121,11 @@
 
 ### 4.9 AS_CONFED Segment Handling ⚠️ NEW (from annotation)
 - **Task:** Discard confed segments in AS4_PATH from OLD speakers
-- **RFC:** 6793 Section 6
+- **RFC:** 6793 Section 3, 6
 - **Files:** `pkg/bgp/attribute/as4.go`
 - **Violation:** `as4.go:115-146` - MUST discard AS_CONFED_* from OLD
 - **Test:** Verify confed segments filtered on receive
-- [ ] Pending
+- [x] Complete - Pack()/Len() exclude confed, FilterConfedSegments() helper added
 
 ---
 

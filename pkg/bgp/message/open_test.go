@@ -1,6 +1,7 @@
 package message
 
 import (
+	"errors"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -313,8 +314,8 @@ func TestOpenValidateHoldTime(t *testing.T) {
 			if tt.wantErr {
 				require.Error(t, err)
 				// Should return a NOTIFICATION with Unacceptable Hold Time (error 2, subcode 6)
-				notif, ok := err.(*Notification)
-				require.True(t, ok, "expected *Notification error")
+				var notif *Notification
+				require.True(t, errors.As(err, &notif), "expected *Notification error")
 				assert.Equal(t, NotifyOpenMessage, notif.ErrorCode)
 				assert.Equal(t, NotifyOpenUnacceptableHoldTime, notif.ErrorSubcode)
 			} else {
