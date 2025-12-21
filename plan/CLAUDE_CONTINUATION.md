@@ -6,66 +6,48 @@
 
 ## CURRENT PRIORITY
 
-**ExaBGP Alignment Plan COMPLETE** ✅
-
-All 31 items across 8 phases implemented.
-
-See `plan/align-implementation.md` for details.
+**ExaBGP Interop Testing** - Investigating remaining test failures
 
 ---
 
 ## ACTIVE WORK
 
-### ExaBGP Alignment Implementation
+### Self-Check Tests
 
-Progress: **31/31 items complete** ✅
+**Status:** ~27/37 passing
 
-**All Phases Complete:**
-- ✅ Phase 1: Critical (5/5)
-- ✅ Phase 2: Capabilities (3/3)
-- ✅ Phase 3: Timers (1/1)
-- ✅ Phase 4: Attributes (6/6)
-- ✅ Phase 5: MP-NLRI (4/4)
-- ✅ Phase 6: NLRI Types (7/7)
-- ✅ Phase 8: Errors (1/1)
-- ✅ Phase 9: Config (4/4)
+**Recent Fixes:**
+1. ASN4 capability default → `true` (was `false`)
+2. Template inheritance for local-as, peer-as, hold-time, family, capability
+3. Process group killing with `syscall.Kill(-pid, SIGKILL)`
+4. Concurrency limit (4 workers) to prevent resource exhaustion
 
-### Recent Implementation:
-- **Phase 8.1 Error Subcode Coverage:**
-  - Added FSM subcodes (0-3) per RFC 6608
-  - Added Route Refresh subcode (1) per RFC 7313
-  - Added OPEN subcode 11 (Role Mismatch) per RFC 9234
-  - Added Cease subcode 10 (BFD Down) per RFC 9384
-- **Phase 9 Config:**
-  - Hold-time validation (RFC 4271)
-  - Local-address "auto" keyword
-  - Extended-message capability config (RFC 8654)
-  - Per-family add-path config (RFC 7911)
+**Remaining Failures (message mismatch):**
+- `flow-redirect` - Redirect action encoding
+- `extended-nexthop` - Extended next-hop handling
+- `prefix-sid` - Prefix-SID attribute (code 40)
+- `parity` - Unknown
+- `srv6-mup-v3` - SRv6 MUP encoding
+- `srv6-mup` - SRv6 MUP encoding
+- `watchdog` - Watchdog feature
+- `path-information` - Path-ID/add-path
+- `split` - Message splitting
+- `vpn` - VPN routes
 
 ---
 
 ## RECENT COMMITS
 
-- `4503f2b` Add ExaBGP comparison report and improve session protocols
-- `73c8a8d` Add ASN4-aware AS_PATH encoding based on capability negotiation
+- `ee3a8c8` Fix all 42 golangci-lint issues
+- `d209e49` Add RFC 9136 and update commit protocol to include lint
+- `8c7173b` Complete ExaBGP alignment: Phase 8-9 (error subcodes, config)
 
 ---
 
 ## TEST STATUS
 
-✅ **All 1048 tests pass** (`make test`)
-
-### Lint Issues (40 pre-existing)
-
-- `exhaustive` - missing switch cases
-- `goconst` - repeated string literals
-- `gocritic` - ifElseChain patterns
-- `godot` - comment formatting
-- `gosec` - integer overflow warnings
-- `prealloc` - slice pre-allocation
-- `unused` - unused functions
-
-These are pre-existing and not blocking.
+✅ **All unit tests pass** (`make test`)
+✅ **Lint clean** (`make lint` - 0 issues)
 
 ---
 
@@ -73,11 +55,10 @@ These are pre-existing and not blocking.
 
 | Purpose | File |
 |---------|------|
-| Alignment plan | `plan/exabgp-alignment.md` |
-| Comparison report | `.claude/zebgp/EXABGP_COMPARISON_REPORT.md` |
+| Self-check tool | `cmd/self-check/main.go` |
+| Config parser | `pkg/config/bgp.go` |
 | This file | `plan/CLAUDE_CONTINUATION.md` |
 | Protocols | `.claude/ESSENTIAL_PROTOCOLS.md` |
-| TDD rules | `.claude/TDD_ENFORCEMENT.md` |
 
 ---
 
@@ -86,4 +67,4 @@ These are pre-existing and not blocking.
 - All code changes require TDD (test first, show failure, implement, show pass)
 - Plans go in `plan/`, protocols go in `.claude/`
 - Check ExaBGP reference before implementing BGP features
-- **ALWAYS run `make test` at the end of work BEFORE requesting a commit**
+- **ALWAYS run `make test && make lint` before requesting a commit**

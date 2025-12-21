@@ -422,6 +422,9 @@ func TreeToConfig(tree *Tree) (*BGPConfig, error) {
 func parseNeighborConfig(addr string, tree *Tree, templates map[string]*Tree) (NeighborConfig, error) {
 	nc := NeighborConfig{}
 
+	// Set default capability values (ASN4 enabled by default per RFC 6793).
+	nc.Capabilities.ASN4 = true
+
 	// Address
 	ip, err := netip.ParseAddr(addr)
 	if err != nil {
@@ -442,12 +445,23 @@ func parseNeighborConfig(addr string, tree *Tree, templates map[string]*Tree) (N
 		}
 	}
 
-	// Simple fields
-	if v, ok := tree.Get("description"); ok {
+	// Helper to get value from neighbor tree, falling back to template.
+	getValue := func(key string) (string, bool) {
+		if v, ok := tree.Get(key); ok {
+			return v, true
+		}
+		if tmpl != nil {
+			return tmpl.Get(key)
+		}
+		return "", false
+	}
+
+	// Simple fields (check template fallback for each)
+	if v, ok := getValue("description"); ok {
 		nc.Description = v
 	}
 
-	if v, ok := tree.Get("router-id"); ok {
+	if v, ok := getValue("router-id"); ok {
 		ip, err := netip.ParseAddr(v)
 		if err != nil {
 			return nc, fmt.Errorf("invalid router-id: %w", err)
@@ -455,7 +469,7 @@ func parseNeighborConfig(addr string, tree *Tree, templates map[string]*Tree) (N
 		nc.RouterID = ipToUint32(ip)
 	}
 
-	if v, ok := tree.Get("local-address"); ok {
+	if v, ok := getValue("local-address"); ok {
 		if v == "auto" {
 			nc.LocalAddressAuto = true
 		} else {
@@ -467,7 +481,7 @@ func parseNeighborConfig(addr string, tree *Tree, templates map[string]*Tree) (N
 		}
 	}
 
-	if v, ok := tree.Get("local-as"); ok {
+	if v, ok := getValue("local-as"); ok {
 		n, err := strconv.ParseUint(v, 10, 32)
 		if err != nil {
 			return nc, fmt.Errorf("invalid local-as: %w", err)
@@ -475,7 +489,7 @@ func parseNeighborConfig(addr string, tree *Tree, templates map[string]*Tree) (N
 		nc.LocalAS = uint32(n)
 	}
 
-	if v, ok := tree.Get("peer-as"); ok {
+	if v, ok := getValue("peer-as"); ok {
 		n, err := strconv.ParseUint(v, 10, 32)
 		if err != nil {
 			return nc, fmt.Errorf("invalid peer-as: %w", err)
@@ -483,7 +497,7 @@ func parseNeighborConfig(addr string, tree *Tree, templates map[string]*Tree) (N
 		nc.PeerAS = uint32(n)
 	}
 
-	if v, ok := tree.Get("hold-time"); ok {
+	if v, ok := getValue("hold-time"); ok {
 		n, err := strconv.ParseUint(v, 10, 16)
 		if err != nil {
 			return nc, fmt.Errorf("invalid hold-time: %w", err)
@@ -495,7 +509,7 @@ func parseNeighborConfig(addr string, tree *Tree, templates map[string]*Tree) (N
 		nc.HoldTime = uint16(n)
 	}
 
-	if v, ok := tree.Get("passive"); ok {
+	if v, ok := getValue("passive"); ok {
 		nc.Passive = v == configTrue
 	}
 
@@ -521,7 +535,12 @@ func parseNeighborConfig(addr string, tree *Tree, templates map[string]*Tree) (N
 	// Families - Freeform stores "ipv4 unicast" as key with value "true"
 	// Also parse ignore-mismatch option from family block
 	// Note: "ignore-mismatch enable" is stored as key "ignore-mismatch enable" with value "true"
-	if familyTree := tree.GetContainer("family"); familyTree != nil {
+	// Check template first, then override with neighbor values
+	familyTree := tree.GetContainer("family")
+	if familyTree == nil && tmpl != nil {
+		familyTree = tmpl.GetContainer("family")
+	}
+	if familyTree != nil {
 		for _, key := range familyTree.Values() {
 			if strings.HasPrefix(key, "ignore-mismatch") {
 				// Parse ignore-mismatch option (not a family)
@@ -540,8 +559,12 @@ func parseNeighborConfig(addr string, tree *Tree, templates map[string]*Tree) (N
 		}
 	}
 
-	// Capabilities
-	if cap := tree.GetContainer("capability"); cap != nil {
+	// Capabilities - check template first, then override with neighbor values
+	cap := tree.GetContainer("capability")
+	if cap == nil && tmpl != nil {
+		cap = tmpl.GetContainer("capability")
+	}
+	if cap != nil {
 		if v, ok := cap.Get("asn4"); ok {
 			nc.Capabilities.ASN4 = v == configTrue
 		}

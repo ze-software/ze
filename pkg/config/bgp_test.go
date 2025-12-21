@@ -771,3 +771,53 @@ neighbor 192.0.2.1 {
 	require.True(t, ipv4Multi.Send, "ipv4 multicast should have send")
 	require.True(t, ipv4Multi.Receive, "ipv4 multicast should have receive")
 }
+
+// TestASN4DefaultEnabled verifies ASN4 capability is enabled by default.
+//
+// VALIDATES: Configs without explicit asn4 setting get ASN4 enabled.
+//
+// PREVENTS: Missing 4-byte AS capability in OPEN messages.
+func TestASN4DefaultEnabled(t *testing.T) {
+	// Config without capability block
+	input := `
+neighbor 192.0.2.1 {
+    local-as 65000;
+    peer-as 65001;
+}
+`
+	p := NewParser(BGPSchema())
+	tree, err := p.Parse(input)
+	require.NoError(t, err)
+
+	cfg, err := TreeToConfig(tree)
+	require.NoError(t, err)
+
+	require.Len(t, cfg.Neighbors, 1)
+	require.True(t, cfg.Neighbors[0].Capabilities.ASN4, "ASN4 should be enabled by default")
+}
+
+// TestASN4ExplicitlyDisabled verifies ASN4 can be disabled.
+//
+// VALIDATES: Explicit asn4 false disables the capability.
+//
+// PREVENTS: Unable to connect to peers that don't support 4-byte AS.
+func TestASN4ExplicitlyDisabled(t *testing.T) {
+	input := `
+neighbor 192.0.2.1 {
+    local-as 65000;
+    peer-as 65001;
+    capability {
+        asn4 false;
+    }
+}
+`
+	p := NewParser(BGPSchema())
+	tree, err := p.Parse(input)
+	require.NoError(t, err)
+
+	cfg, err := TreeToConfig(tree)
+	require.NoError(t, err)
+
+	require.Len(t, cfg.Neighbors, 1)
+	require.False(t, cfg.Neighbors[0].Capabilities.ASN4, "ASN4 should be disabled when explicitly set to false")
+}

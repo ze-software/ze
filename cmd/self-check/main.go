@@ -309,7 +309,7 @@ func (r *Runner) Cleanup() {
 	}
 }
 
-// Run executes selected tests.
+// Run executes selected tests with limited concurrency.
 func (r *Runner) Run(ctx context.Context) bool {
 	selected := r.tests.Selected()
 	if len(selected) == 0 {
@@ -320,10 +320,16 @@ func (r *Runner) Run(ctx context.Context) bool {
 	results := make(chan *RunResult, len(selected))
 	var wg sync.WaitGroup
 
+	// Limit concurrency to avoid resource exhaustion.
+	const maxConcurrent = 4
+	semaphore := make(chan struct{}, maxConcurrent)
+
 	for _, test := range selected {
 		wg.Add(1)
 		go func(t *Test) {
 			defer wg.Done()
+			semaphore <- struct{}{}        // Acquire
+			defer func() { <-semaphore }() // Release
 			success, output := r.runTest(ctx, t)
 			results <- &RunResult{Test: t, Success: success, Output: output}
 		}(test)
@@ -389,6 +395,7 @@ func (r *Runner) runTest(ctx context.Context, test *Test) (bool, string) {
 	// Start zebgp-peer (server).
 	serverCmd := exec.CommandContext(testCtx, r.peerPath, peerArgs...) //nolint:gosec // Args from known test files
 	serverCmd.Env = append(os.Environ(), fmt.Sprintf("exabgp_tcp_port=%d", test.Port))
+	serverCmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 
 	serverOut, _ := serverCmd.StdoutPipe()
 	serverErr, _ := serverCmd.StderrPipe()
@@ -397,7 +404,10 @@ func (r *Runner) runTest(ctx context.Context, test *Test) (bool, string) {
 		return false, fmt.Sprintf("failed to start server: %v", err)
 	}
 	defer func() {
-		_ = serverCmd.Process.Kill()
+		// Kill process group to ensure all children are terminated.
+		if serverCmd.Process != nil {
+			_ = syscall.Kill(-serverCmd.Process.Pid, syscall.SIGKILL)
+		}
 		_ = serverCmd.Wait()
 	}()
 
@@ -413,6 +423,7 @@ func (r *Runner) runTest(ctx context.Context, test *Test) (bool, string) {
 		fmt.Sprintf("exabgp_tcp_port=%d", test.Port),
 		"exabgp_tcp_bind=",
 	)
+	clientCmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 
 	clientOut, _ := clientCmd.StdoutPipe()
 	clientErr, _ := clientCmd.StderrPipe()
@@ -421,7 +432,10 @@ func (r *Runner) runTest(ctx context.Context, test *Test) (bool, string) {
 		return false, fmt.Sprintf("failed to start client: %v", err)
 	}
 	defer func() {
-		_ = clientCmd.Process.Kill()
+		// Kill process group to ensure all children are terminated.
+		if clientCmd.Process != nil {
+			_ = syscall.Kill(-clientCmd.Process.Pid, syscall.SIGKILL)
+		}
 		_ = clientCmd.Wait()
 	}()
 
