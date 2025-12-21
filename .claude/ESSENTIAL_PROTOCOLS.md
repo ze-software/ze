@@ -195,16 +195,32 @@ python3 scripts/refactor.py --pattern 'old' --replace 'new'
 │  BEFORE implementing ANY BGP feature, ALWAYS check how         │
 │  ExaBGP does it in ../src/exabgp/                               │
 │                                                                 │
-│  ZeBGP MUST match ExaBGP's behavior for compatibility.         │
-│  This is NON-NEGOTIABLE.                                        │
+│  ZeBGP MUST match ExaBGP's API and behavior for compatibility. │
+│                                                                 │
+│  HOWEVER: If ExaBGP is NOT RFC-compliant, the RFC TAKES        │
+│  PRECEDENCE. RFC compliance is NON-NEGOTIABLE.                  │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
+**Priority Order (STRICT):**
+1. **RFC compliance** - Always follow the RFC specification
+2. **ExaBGP API compatibility** - Match ExaBGP's interface/behavior
+3. **ExaBGP implementation** - Follow ExaBGP's approach when RFC-compliant
+
 **MANDATORY before writing/fixing BGP code:**
-1. Find the equivalent code in `../src/exabgp/bgp/`
-2. Understand how ExaBGP implements the feature
-3. Match the logic, data structures, and edge case handling
-4. Only then implement in ZeBGP
+1. Read the relevant RFC sections from `rfc/rfcNNNN.txt`
+2. Find the equivalent code in `../src/exabgp/bgp/`
+3. Check if ExaBGP's implementation matches the RFC
+4. If ExaBGP matches RFC: follow ExaBGP's approach
+5. If ExaBGP deviates from RFC: implement per RFC, document deviation
+
+**When ExaBGP Differs from RFC:**
+```go
+// parseFeature implements RFC NNNN Section X.Y.
+// NOTE: ExaBGP does [X] differently, but RFC requires [Y].
+// We follow RFC here for compliance.
+func parseFeature(...) { ... }
+```
 
 **Key ExaBGP directories:**
 - `../src/exabgp/bgp/message/` - Message encoding/decoding
@@ -212,8 +228,9 @@ python3 scripts/refactor.py --pattern 'old' --replace 'new'
 - `../src/exabgp/bgp/message/update/attribute/` - Path attributes
 - `../src/exabgp/bgp/message/update/nlri/` - NLRI types
 
-**Why:** ExaBGP is the reference. Tests validate against ExaBGP output.
-Deviating from ExaBGP = failing tests = broken compatibility.
+**Why:** ExaBGP is the reference for API compatibility and tests validate
+against ExaBGP output. But RFC compliance ensures interoperability with
+all BGP implementations, not just ExaBGP.
 
 ---
 
@@ -517,4 +534,4 @@ Before EVERY response, verify:
 
 ---
 
-**Updated:** 2025-12-20
+**Updated:** 2025-12-21
