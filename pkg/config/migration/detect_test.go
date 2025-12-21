@@ -157,6 +157,16 @@ func TestDetectEmptyConfigReturnsV3(t *testing.T) {
 	require.Equal(t, Version3, version, "empty config should be v3 (current)")
 }
 
+// TestDetectNilTreeReturnsUnknown verifies nil tree handling.
+//
+// VALIDATES: Nil tree returns VersionUnknown without panic.
+//
+// PREVENTS: Nil pointer dereference.
+func TestDetectNilTreeReturnsUnknown(t *testing.T) {
+	version := DetectVersion(nil)
+	require.Equal(t, VersionUnknown, version, "nil tree should be unknown")
+}
+
 // TestDetectCIDRPatternAtRootIsV2 verifies CIDR patterns at root are v2.
 //
 // VALIDATES: "peer 10.0.0.0/8 { }" at root is v2 (needs migration to template.match).

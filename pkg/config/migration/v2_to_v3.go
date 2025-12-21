@@ -1,8 +1,13 @@
 package migration
 
 import (
+	"errors"
+
 	"github.com/exa-networks/zebgp/pkg/config"
 )
+
+// ErrNilTree is returned when migration is called with a nil tree.
+var ErrNilTree = errors.New("cannot migrate nil tree")
 
 // MigrateV2ToV3 transforms a v2 config tree to v3 format.
 //
@@ -12,7 +17,12 @@ import (
 //   - template { neighbor <name> } → template { group <name> }
 //
 // Returns a new tree; original is not modified.
+// Returns ErrNilTree for nil input.
 func MigrateV2ToV3(tree *config.Tree) (*config.Tree, error) {
+	if tree == nil {
+		return nil, ErrNilTree
+	}
+
 	// Already v3? Return clone without changes
 	if DetectVersion(tree) == Version3 {
 		return tree.Clone(), nil

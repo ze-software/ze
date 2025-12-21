@@ -12,6 +12,10 @@ import (
 // Priority: Any deprecated (v2) syntax means config needs migration,
 // even if it also contains some v3 syntax. Check v2 FIRST.
 func DetectVersion(tree *config.Tree) ConfigVersion {
+	if tree == nil {
+		return VersionUnknown
+	}
+
 	// Check oldest to newest - any deprecated syntax = needs migration
 
 	// v2: Has neighbor at root, template.neighbor, or peer glob at root

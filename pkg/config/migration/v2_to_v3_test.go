@@ -144,12 +144,12 @@ neighbor 192.0.2.1 {
 	require.Equal(t, "65001", val)
 }
 
-// TestMigrateV2ToV3PreservesOrder verifies match blocks preserve config order.
+// TestMigrateV2ToV3PreservesMatchOrder verifies match blocks preserve config order.
 //
 // VALIDATES: Migration preserves order of peer globs for match blocks.
 //
 // PREVENTS: Match order being scrambled (important for precedence).
-func TestMigrateV2ToV3PreservesOrder(t *testing.T) {
+func TestMigrateV2ToV3PreservesMatchOrder(t *testing.T) {
 	input := `
 peer * {
     hold-time 90;
@@ -180,6 +180,38 @@ neighbor 192.0.2.1 {
 	require.Equal(t, "*", matches[0].Key)
 	require.Equal(t, "10.*.*.*", matches[1].Key)
 	require.Equal(t, "192.168.*.*", matches[2].Key)
+}
+
+// TestMigrateV2ToV3PreservesPeerOrder verifies neighbor→peer preserves order.
+//
+// VALIDATES: Multiple neighbors become peers in same order.
+//
+// PREVENTS: Peer order being scrambled.
+func TestMigrateV2ToV3PreservesPeerOrder(t *testing.T) {
+	input := `
+neighbor 192.0.2.1 {
+    local-as 65000;
+}
+neighbor 10.0.0.1 {
+    local-as 65001;
+}
+neighbor 172.16.0.1 {
+    local-as 65002;
+}
+`
+	tree := parseWithBGPSchema(t, input)
+
+	result, err := MigrateV2ToV3(tree)
+	require.NoError(t, err)
+
+	// Get ordered peers
+	peers := result.GetListOrdered("peer")
+	require.Len(t, peers, 3)
+
+	// Verify order is preserved
+	require.Equal(t, "192.0.2.1", peers[0].Key)
+	require.Equal(t, "10.0.0.1", peers[1].Key)
+	require.Equal(t, "172.16.0.1", peers[2].Key)
 }
 
 // TestMigrateV2ToV3Idempotent verifies migration is idempotent.
@@ -236,6 +268,17 @@ neighbor 192.0.2.1 {
 	// Original should still have neighbor
 	neighbors := tree.GetList("neighbor")
 	require.Len(t, neighbors, 1, "original should be unchanged")
+}
+
+// TestMigrateV2ToV3NilTree verifies nil tree handling.
+//
+// VALIDATES: Nil tree returns ErrNilTree without panic.
+//
+// PREVENTS: Nil pointer dereference.
+func TestMigrateV2ToV3NilTree(t *testing.T) {
+	result, err := MigrateV2ToV3(nil)
+	require.ErrorIs(t, err, ErrNilTree)
+	require.Nil(t, result, "nil input should return nil result")
 }
 
 // TestMigrateV2ToV3CIDRPattern verifies CIDR patterns migrate correctly.
