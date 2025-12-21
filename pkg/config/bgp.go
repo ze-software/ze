@@ -40,11 +40,11 @@ const (
 func (m FamilyMode) String() string {
 	switch m {
 	case FamilyModeEnable:
-		return "enable"
+		return configEnable
 	case FamilyModeDisable:
-		return "disable"
+		return configDisable
 	case FamilyModeRequire:
-		return "require"
+		return configRequire
 	case FamilyModeIgnore:
 		return "ignore"
 	default:
@@ -250,6 +250,15 @@ func neighborFields() []FieldDef {
 
 		// API configuration - can be named or anonymous
 		Field("api", Freeform()),
+
+		// RIB configuration (per-neighbor)
+		Field("rib", Container(
+			Field("out", Container(
+				Field("group-updates", LeafWithDefault(TypeBool, configTrue)),
+				Field("auto-commit-delay", LeafWithDefault(TypeDuration, "0")),
+				Field("max-batch-size", LeafWithDefault(TypeInt, "0")),
+			)),
+		)),
 	}
 }
 
@@ -272,6 +281,11 @@ func BGPSchema() *Schema {
 	// Neighbor definitions - uses shared neighborFields
 	schema.Define("neighbor", List(TypeIP, neighborFields()...))
 
+	// Peer glob patterns - apply settings to matching neighbors
+	// peer * { ... }           - all peers
+	// peer 192.168.*.* { ... } - pattern matching
+	schema.Define("peer", List(TypeString, neighborFields()...))
+
 	// Template definitions - contains named neighbor templates
 	// template { neighbor <name> { ... } }
 	schema.Define("template", Container(
@@ -279,6 +293,22 @@ func BGPSchema() *Schema {
 	))
 
 	return schema
+}
+
+// RIBOutConfig holds outgoing RIB configuration for route batching.
+type RIBOutConfig struct {
+	GroupUpdates    bool          // Group compatible routes in single UPDATE (default: true)
+	AutoCommitDelay time.Duration // Delay before auto-flushing routes (default: 0 = immediate)
+	MaxBatchSize    int           // Maximum routes per batch (default: 0 = unlimited)
+}
+
+// DefaultRIBOutConfig returns a RIBOutConfig with default values.
+func DefaultRIBOutConfig() RIBOutConfig {
+	return RIBOutConfig{
+		GroupUpdates:    true,
+		AutoCommitDelay: 0,
+		MaxBatchSize:    0,
+	}
 }
 
 // BGPConfig is the typed configuration structure.
@@ -301,7 +331,8 @@ type NeighborConfig struct {
 	PeerAS               uint32
 	HoldTime             uint16
 	Passive              bool
-	GroupUpdates         bool           // Group compatible routes in single UPDATE
+	GroupUpdates         bool           // DEPRECATED: Use RIBOut.GroupUpdates
+	RIBOut               RIBOutConfig   // Per-neighbor outgoing RIB config
 	Families             []string       // Legacy: "ipv4 unicast", "ipv6 unicast" etc.
 	FamilyConfigs        []FamilyConfig // New: structured family config with mode
 	IgnoreFamilyMismatch bool           // Ignore NLRI for non-negotiated AFI/SAFI instead of error
@@ -467,9 +498,22 @@ func TreeToConfig(tree *Tree) (*BGPConfig, error) {
 		}
 	}
 
+	// Parse peer globs and sort by specificity (least specific first)
+	peerList := tree.GetList("peer")
+	peerGlobs := make([]PeerGlob, 0, len(peerList))
+	for pattern, peerTree := range peerList {
+		peerGlobs = append(peerGlobs, PeerGlob{
+			Pattern:     pattern,
+			Specificity: peerGlobSpecificity(pattern),
+			Tree:        peerTree,
+		})
+	}
+	// Sort by specificity: least specific first, so more specific can override
+	sortPeerGlobs(peerGlobs)
+
 	// Neighbors
 	for addr, n := range tree.GetList("neighbor") {
-		nc, err := parseNeighborConfig(addr, n, templates)
+		nc, err := parseNeighborConfig(addr, n, templates, peerGlobs)
 		if err != nil {
 			return nil, fmt.Errorf("neighbor %s: %w", addr, err)
 		}
@@ -479,11 +523,26 @@ func TreeToConfig(tree *Tree) (*BGPConfig, error) {
 	return cfg, nil
 }
 
-func parseNeighborConfig(addr string, tree *Tree, templates map[string]*Tree) (NeighborConfig, error) {
+// sortPeerGlobs sorts peer globs by specificity (ascending).
+// Least specific first so more specific patterns override later.
+func sortPeerGlobs(globs []PeerGlob) {
+	for i := 0; i < len(globs)-1; i++ {
+		for j := i + 1; j < len(globs); j++ {
+			if globs[i].Specificity > globs[j].Specificity {
+				globs[i], globs[j] = globs[j], globs[i]
+			}
+		}
+	}
+}
+
+func parseNeighborConfig(addr string, tree *Tree, templates map[string]*Tree, peerGlobs []PeerGlob) (NeighborConfig, error) {
 	nc := NeighborConfig{}
 
 	// Set default capability values (ASN4 enabled by default per RFC 6793).
 	nc.Capabilities.ASN4 = true
+
+	// RIBOut defaults - set early so peer globs can override
+	nc.RIBOut = DefaultRIBOutConfig()
 
 	// Address
 	ip, err := netip.ParseAddr(addr)
@@ -491,6 +550,19 @@ func parseNeighborConfig(addr string, tree *Tree, templates map[string]*Tree) (N
 		return nc, fmt.Errorf("invalid address: %w", err)
 	}
 	nc.Address = ip
+
+	// Apply matching peer globs (in order: least to most specific)
+	// This sets defaults that can be overridden by templates and neighbor config
+	for _, glob := range peerGlobs {
+		if IPGlobMatch(glob.Pattern, addr) {
+			// Apply RIBOut from peer glob
+			if ribOut, err := parseRIBOutConfig(glob.Tree); err != nil {
+				return nc, fmt.Errorf("peer %s rib: %w", glob.Pattern, err)
+			} else {
+				applyRIBOutParseResult(&nc.RIBOut, ribOut)
+			}
+		}
+	}
 
 	// Handle template inheritance - extract routes and settings from template FIRST
 	var tmpl *Tree
@@ -696,7 +768,96 @@ func parseNeighborConfig(addr string, tree *Tree, templates map[string]*Tree) (N
 	nc.FlowSpecRoutes = extractFlowSpecRoutes(tree)
 	nc.MUPRoutes = extractMUPRoutes(tree)
 
+	// Apply template rib.out if present (peer globs already applied above)
+	if tmpl != nil {
+		if ribOut, err := parseRIBOutConfig(tmpl); err != nil {
+			return nc, fmt.Errorf("template rib: %w", err)
+		} else {
+			applyRIBOutParseResult(&nc.RIBOut, ribOut)
+		}
+	}
+
+	// Apply neighbor rib.out (overrides template)
+	if ribOut, err := parseRIBOutConfig(tree); err != nil {
+		return nc, fmt.Errorf("rib: %w", err)
+	} else {
+		applyRIBOutParseResult(&nc.RIBOut, ribOut)
+	}
+
+	// Sync legacy group-updates to RIBOut (if explicit)
+	// Legacy neighbor group-updates takes final precedence for backward compat
+	if v, ok := tree.Get("group-updates"); ok {
+		nc.RIBOut.GroupUpdates = v == configTrue
+	} else if tmpl != nil {
+		if v, ok := tmpl.Get("group-updates"); ok {
+			nc.RIBOut.GroupUpdates = v == configTrue
+		}
+	}
+
 	return nc, nil
+}
+
+// ribOutParseResult holds parsed values with explicit "was set" tracking.
+type ribOutParseResult struct {
+	GroupUpdates       bool
+	GroupUpdatesSet    bool
+	AutoCommitDelay    time.Duration
+	AutoCommitDelaySet bool
+	MaxBatchSize       int
+	MaxBatchSizeSet    bool
+}
+
+// parseRIBOutConfig extracts RIBOut settings from a tree's rib.out block.
+// Returns a parse result that tracks which fields were explicitly set.
+func parseRIBOutConfig(tree *Tree) (ribOutParseResult, error) {
+	result := ribOutParseResult{}
+
+	rib := tree.GetContainer("rib")
+	if rib == nil {
+		return result, nil
+	}
+
+	ribOut := rib.GetContainer("out")
+	if ribOut == nil {
+		return result, nil
+	}
+
+	if v, ok := ribOut.Get("group-updates"); ok {
+		result.GroupUpdates = v == configTrue
+		result.GroupUpdatesSet = true
+	}
+	if v, ok := ribOut.Get("auto-commit-delay"); ok {
+		d, err := parseDurationValue(v)
+		if err != nil {
+			return result, fmt.Errorf("auto-commit-delay: %w", err)
+		}
+		result.AutoCommitDelay = d
+		result.AutoCommitDelaySet = true
+	}
+	if v, ok := ribOut.Get("max-batch-size"); ok {
+		n, err := strconv.Atoi(v)
+		if err != nil {
+			return result, fmt.Errorf("max-batch-size: %w", err)
+		}
+		result.MaxBatchSize = n
+		result.MaxBatchSizeSet = true
+	}
+
+	return result, nil
+}
+
+// applyRIBOutParseResult applies parsed values to a config, only overriding
+// fields that were explicitly set.
+func applyRIBOutParseResult(cfg *RIBOutConfig, parsed ribOutParseResult) {
+	if parsed.GroupUpdatesSet {
+		cfg.GroupUpdates = parsed.GroupUpdates
+	}
+	if parsed.AutoCommitDelaySet {
+		cfg.AutoCommitDelay = parsed.AutoCommitDelay
+	}
+	if parsed.MaxBatchSizeSet {
+		cfg.MaxBatchSize = parsed.MaxBatchSize
+	}
 }
 
 // extractRoutesFromTree extracts all routes from a neighbor or template tree.
@@ -1488,4 +1649,79 @@ type NeighborReactor struct {
 	RouterID uint32
 	HoldTime time.Duration
 	Passive  bool
+}
+
+// parseDurationValue parses a duration string like "100ms", "5s", "0.5s".
+func parseDurationValue(s string) (time.Duration, error) {
+	s = strings.TrimSpace(s)
+	if s == "0" {
+		return 0, nil
+	}
+	return time.ParseDuration(s)
+}
+
+// IPGlobMatch checks if an IP address matches a glob pattern.
+// Pattern "*" matches any IP (IPv4 or IPv6).
+// For IPv4, each octet can be "*" to match any value 0-255.
+// Examples: "192.168.*.*", "10.*.0.1", "*.*.*.1".
+func IPGlobMatch(pattern, ip string) bool {
+	// "*" matches everything
+	if pattern == "*" {
+		return true
+	}
+
+	// Check if pattern looks like IPv4 glob (contains dots)
+	if strings.Contains(pattern, ".") && strings.Contains(ip, ".") {
+		return ipv4GlobMatch(pattern, ip)
+	}
+
+	// For IPv6 or exact match, just compare strings
+	return pattern == ip
+}
+
+// ipv4GlobMatch matches IPv4 addresses against glob patterns.
+func ipv4GlobMatch(pattern, ip string) bool {
+	patternParts := strings.Split(pattern, ".")
+	ipParts := strings.Split(ip, ".")
+
+	if len(patternParts) != 4 || len(ipParts) != 4 {
+		return false
+	}
+
+	for i := 0; i < 4; i++ {
+		if patternParts[i] == "*" {
+			continue // wildcard matches any octet
+		}
+		if patternParts[i] != ipParts[i] {
+			return false
+		}
+	}
+	return true
+}
+
+// peerGlobSpecificity returns how specific a peer glob pattern is.
+// More specific patterns have higher scores. Used for ordering.
+// "*" = 0, "192.*.*.*" = 1, "192.168.*.*" = 2, etc.
+func peerGlobSpecificity(pattern string) int {
+	if pattern == "*" {
+		return 0
+	}
+	if !strings.Contains(pattern, ".") {
+		return 4 // exact IPv6 or exact match
+	}
+	parts := strings.Split(pattern, ".")
+	count := 0
+	for _, p := range parts {
+		if p != "*" {
+			count++
+		}
+	}
+	return count
+}
+
+// PeerGlob holds a parsed peer glob pattern and its settings.
+type PeerGlob struct {
+	Pattern     string
+	Specificity int
+	Tree        *Tree
 }

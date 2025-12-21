@@ -21,8 +21,10 @@ const (
 	TypeUint32
 	TypeIPv4
 	TypeIPv6
-	TypeIP     // IPv4 or IPv6
-	TypePrefix // CIDR prefix
+	TypeIP       // IPv4 or IPv6
+	TypePrefix   // CIDR prefix
+	TypeDuration // time.Duration (e.g., "100ms", "5s")
+	TypeInt      // signed integer
 )
 
 func (t ValueType) String() string {
@@ -43,6 +45,10 @@ func (t ValueType) String() string {
 		return "ip"
 	case TypePrefix:
 		return "prefix"
+	case TypeDuration:
+		return "duration"
+	case TypeInt:
+		return "int"
 	default:
 		return "unknown"
 	}
@@ -429,9 +435,77 @@ func ValidateValue(typ ValueType, value string) error {
 		}
 		return nil
 
+	case TypeDuration:
+		// Accept "0" as valid (means 0 duration)
+		if value == "0" {
+			return nil
+		}
+		// Validate Go duration format (e.g., "100ms", "5s", "1m30s")
+		_, err := parseDuration(value)
+		if err != nil {
+			return fmt.Errorf("invalid duration: %q (expected format like 100ms, 5s)", value)
+		}
+		return nil
+
+	case TypeInt:
+		_, err := strconv.Atoi(value)
+		if err != nil {
+			return fmt.Errorf("invalid int: %q", value)
+		}
+		return nil
+
 	default:
 		return fmt.Errorf("unknown type: %v", typ)
 	}
+}
+
+// parseDuration parses a duration string like "100ms", "5s", "0.5s".
+// Returns the duration in nanoseconds for validation purposes.
+func parseDuration(s string) (int64, error) {
+	// Handle simple cases manually to avoid importing time in schema
+	s = strings.TrimSpace(s)
+	if s == "" {
+		return 0, fmt.Errorf("empty duration")
+	}
+
+	// Find where the number ends and unit begins
+	i := 0
+	for i < len(s) && (s[i] == '.' || (s[i] >= '0' && s[i] <= '9')) {
+		i++
+	}
+	if i == 0 {
+		return 0, fmt.Errorf("no number in duration")
+	}
+
+	numStr := s[:i]
+	unit := s[i:]
+
+	// Parse number (can be float)
+	num, err := strconv.ParseFloat(numStr, 64)
+	if err != nil {
+		return 0, err
+	}
+
+	// Convert based on unit
+	var multiplier float64
+	switch unit {
+	case "", "ns":
+		multiplier = 1
+	case "us", "µs":
+		multiplier = 1000
+	case "ms":
+		multiplier = 1000000
+	case "s":
+		multiplier = 1000000000
+	case "m":
+		multiplier = 60 * 1000000000
+	case "h":
+		multiplier = 3600 * 1000000000
+	default:
+		return 0, fmt.Errorf("unknown unit: %s", unit)
+	}
+
+	return int64(num * multiplier), nil
 }
 
 // NormalizeBool converts enable/disable to true/false.

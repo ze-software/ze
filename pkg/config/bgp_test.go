@@ -2,6 +2,7 @@ package config
 
 import (
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 )
@@ -1080,4 +1081,286 @@ neighbor 192.0.2.1 {
 
 	require.Len(t, cfg.Neighbors, 1)
 	require.False(t, cfg.Neighbors[0].Capabilities.ASN4, "ASN4 should be disabled when explicitly set to false")
+}
+
+// TestRIBOutConfigAutoCommitDelayFormats verifies duration parsing in per-neighbor rib.
+//
+// VALIDATES: Auto-commit-delay accepts various duration formats.
+//
+// PREVENTS: Configuration errors from different duration syntaxes.
+func TestRIBOutConfigAutoCommitDelayFormats(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected time.Duration
+	}{
+		{"milliseconds", "100ms", 100 * time.Millisecond},
+		{"seconds", "5s", 5 * time.Second},
+		{"fractional seconds", "0.5s", 500 * time.Millisecond},
+		{"zero", "0", 0},
+		{"zero ms", "0ms", 0},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			input := `
+neighbor 192.0.2.1 {
+    local-as 65000;
+    peer-as 65001;
+    rib {
+        out {
+            auto-commit-delay ` + tt.input + `;
+        }
+    }
+}
+`
+			p := NewParser(BGPSchema())
+			tree, err := p.Parse(input)
+			require.NoError(t, err)
+
+			cfg, err := TreeToConfig(tree)
+			require.NoError(t, err)
+
+			require.Len(t, cfg.Neighbors, 1)
+			require.Equal(t, tt.expected, cfg.Neighbors[0].RIBOut.AutoCommitDelay)
+		})
+	}
+}
+
+// TestPerNeighborRIBOut verifies per-neighbor rib { out { ... } } configuration.
+//
+// VALIDATES: Per-neighbor RIBOut config, template inheritance, defaults, legacy group-updates.
+//
+// PREVENTS: Unable to configure batching per-peer or broken backward compatibility.
+func TestPerNeighborRIBOut(t *testing.T) {
+	t.Run("explicit config", func(t *testing.T) {
+		input := `
+neighbor 192.0.2.1 {
+    local-as 65000;
+    peer-as 65001;
+    rib { out { group-updates true; auto-commit-delay 100ms; max-batch-size 500; } }
+}
+neighbor 192.0.2.2 {
+    local-as 65000;
+    peer-as 65002;
+    rib { out { group-updates false; auto-commit-delay 50ms; } }
+}
+`
+		cfg := parseConfig(t, input)
+		require.Len(t, cfg.Neighbors, 2)
+		m := neighborsByAddr(cfg.Neighbors)
+
+		require.True(t, m["192.0.2.1"].RIBOut.GroupUpdates)
+		require.Equal(t, 100*time.Millisecond, m["192.0.2.1"].RIBOut.AutoCommitDelay)
+		require.Equal(t, 500, m["192.0.2.1"].RIBOut.MaxBatchSize)
+
+		require.False(t, m["192.0.2.2"].RIBOut.GroupUpdates)
+		require.Equal(t, 50*time.Millisecond, m["192.0.2.2"].RIBOut.AutoCommitDelay)
+		require.Equal(t, 0, m["192.0.2.2"].RIBOut.MaxBatchSize)
+	})
+
+	t.Run("defaults", func(t *testing.T) {
+		input := `neighbor 192.0.2.1 { local-as 65000; peer-as 65001; }`
+		cfg := parseConfig(t, input)
+		require.Len(t, cfg.Neighbors, 1)
+		n := cfg.Neighbors[0]
+		require.True(t, n.RIBOut.GroupUpdates)
+		require.Equal(t, time.Duration(0), n.RIBOut.AutoCommitDelay)
+		require.Equal(t, 0, n.RIBOut.MaxBatchSize)
+	})
+
+	t.Run("template inheritance", func(t *testing.T) {
+		input := `
+template { neighbor rib-tmpl { rib { out { group-updates true; auto-commit-delay 200ms; max-batch-size 1000; } } } }
+neighbor 192.0.2.1 { inherit rib-tmpl; local-as 65000; peer-as 65001; }
+neighbor 192.0.2.2 { inherit rib-tmpl; local-as 65000; peer-as 65002; rib { out { auto-commit-delay 50ms; } } }
+`
+		cfg := parseConfig(t, input)
+		require.Len(t, cfg.Neighbors, 2)
+		m := neighborsByAddr(cfg.Neighbors)
+
+		// n1: full template inheritance
+		require.True(t, m["192.0.2.1"].RIBOut.GroupUpdates)
+		require.Equal(t, 200*time.Millisecond, m["192.0.2.1"].RIBOut.AutoCommitDelay)
+		require.Equal(t, 1000, m["192.0.2.1"].RIBOut.MaxBatchSize)
+
+		// n2: template with override
+		require.True(t, m["192.0.2.2"].RIBOut.GroupUpdates)
+		require.Equal(t, 50*time.Millisecond, m["192.0.2.2"].RIBOut.AutoCommitDelay)
+		require.Equal(t, 1000, m["192.0.2.2"].RIBOut.MaxBatchSize)
+	})
+
+	t.Run("legacy group-updates", func(t *testing.T) {
+		input := `neighbor 192.0.2.1 { local-as 65000; peer-as 65001; group-updates false; }`
+		cfg := parseConfig(t, input)
+		require.Len(t, cfg.Neighbors, 1)
+		n := cfg.Neighbors[0]
+		require.False(t, n.GroupUpdates)
+		require.False(t, n.RIBOut.GroupUpdates)
+	})
+}
+
+// parseConfig is a test helper that parses BGP config and returns the result.
+func parseConfig(t *testing.T, input string) *BGPConfig {
+	t.Helper()
+	p := NewParser(BGPSchema())
+	tree, err := p.Parse(input)
+	require.NoError(t, err)
+	cfg, err := TreeToConfig(tree)
+	require.NoError(t, err)
+	return cfg
+}
+
+// neighborsByAddr returns a map of neighbors keyed by IP address string.
+func neighborsByAddr(neighbors []NeighborConfig) map[string]NeighborConfig {
+	m := make(map[string]NeighborConfig)
+	for _, n := range neighbors {
+		m[n.Address.String()] = n
+	}
+	return m
+}
+
+// TestIPGlobMatch verifies IP glob pattern matching.
+//
+// VALIDATES: IP glob patterns correctly match IP addresses.
+//
+// PREVENTS: Incorrect peer glob matching behavior.
+func TestIPGlobMatch(t *testing.T) {
+	tests := []struct {
+		pattern string
+		ip      string
+		match   bool
+	}{
+		// Wildcard all
+		{"*", "192.168.1.1", true},
+		{"*", "10.0.0.1", true},
+		{"*", "2001:db8::1", true},
+
+		// Exact match
+		{"192.168.1.1", "192.168.1.1", true},
+		{"192.168.1.1", "192.168.1.2", false},
+
+		// Single octet wildcard
+		{"192.168.1.*", "192.168.1.1", true},
+		{"192.168.1.*", "192.168.1.255", true},
+		{"192.168.1.*", "192.168.2.1", false},
+
+		// Middle octet wildcard
+		{"192.168.*.1", "192.168.0.1", true},
+		{"192.168.*.1", "192.168.255.1", true},
+		{"192.168.*.1", "192.168.1.2", false},
+
+		// Multiple wildcards
+		{"192.*.*.*", "192.0.0.1", true},
+		{"192.*.*.*", "192.255.255.255", true},
+		{"192.*.*.*", "10.0.0.1", false},
+
+		// First octet wildcard
+		{"*.168.1.1", "192.168.1.1", true},
+		{"*.168.1.1", "10.168.1.1", true},
+		{"*.168.1.1", "192.169.1.1", false},
+
+		// IPv6 - just exact and wildcard all
+		{"2001:db8::1", "2001:db8::1", true},
+		{"2001:db8::1", "2001:db8::2", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.pattern+"_"+tt.ip, func(t *testing.T) {
+			result := IPGlobMatch(tt.pattern, tt.ip)
+			require.Equal(t, tt.match, result)
+		})
+	}
+}
+
+// TestPeerGlobConfig verifies peer glob pattern applies to neighbors.
+//
+// VALIDATES: peer * { ... } applies settings to all matching neighbors.
+//
+// PREVENTS: Unable to set defaults using peer glob patterns.
+func TestPeerGlobConfig(t *testing.T) {
+	t.Run("peer * applies to all", func(t *testing.T) {
+		input := `
+peer * {
+    rib { out { group-updates false; auto-commit-delay 100ms; } }
+}
+neighbor 192.0.2.1 { local-as 65000; peer-as 65001; }
+neighbor 192.0.2.2 { local-as 65000; peer-as 65002; }
+`
+		cfg := parseConfig(t, input)
+		require.Len(t, cfg.Neighbors, 2)
+
+		for _, n := range cfg.Neighbors {
+			require.False(t, n.RIBOut.GroupUpdates, "peer * should apply to %s", n.Address)
+			require.Equal(t, 100*time.Millisecond, n.RIBOut.AutoCommitDelay)
+		}
+	})
+
+	t.Run("peer pattern applies to matching", func(t *testing.T) {
+		input := `
+peer 192.0.2.* {
+    rib { out { group-updates false; } }
+}
+neighbor 192.0.2.1 { local-as 65000; peer-as 65001; }
+neighbor 192.0.2.2 { local-as 65000; peer-as 65002; }
+neighbor 10.0.0.1 { local-as 65000; peer-as 65003; }
+`
+		cfg := parseConfig(t, input)
+		require.Len(t, cfg.Neighbors, 3)
+		m := neighborsByAddr(cfg.Neighbors)
+
+		// Matching peers get the glob settings
+		require.False(t, m["192.0.2.1"].RIBOut.GroupUpdates)
+		require.False(t, m["192.0.2.2"].RIBOut.GroupUpdates)
+
+		// Non-matching peer gets defaults
+		require.True(t, m["10.0.0.1"].RIBOut.GroupUpdates)
+	})
+
+	t.Run("neighbor overrides peer glob", func(t *testing.T) {
+		input := `
+peer * {
+    rib { out { group-updates false; auto-commit-delay 100ms; } }
+}
+neighbor 192.0.2.1 { local-as 65000; peer-as 65001; }
+neighbor 192.0.2.2 {
+    local-as 65000;
+    peer-as 65002;
+    rib { out { group-updates true; } }
+}
+`
+		cfg := parseConfig(t, input)
+		require.Len(t, cfg.Neighbors, 2)
+		m := neighborsByAddr(cfg.Neighbors)
+
+		// First neighbor: peer * settings
+		require.False(t, m["192.0.2.1"].RIBOut.GroupUpdates)
+		require.Equal(t, 100*time.Millisecond, m["192.0.2.1"].RIBOut.AutoCommitDelay)
+
+		// Second neighbor: explicit override for group-updates, inherits delay
+		require.True(t, m["192.0.2.2"].RIBOut.GroupUpdates)
+		require.Equal(t, 100*time.Millisecond, m["192.0.2.2"].RIBOut.AutoCommitDelay)
+	})
+
+	t.Run("more specific peer glob wins", func(t *testing.T) {
+		input := `
+peer * {
+    rib { out { auto-commit-delay 100ms; } }
+}
+peer 192.0.2.* {
+    rib { out { auto-commit-delay 50ms; } }
+}
+neighbor 192.0.2.1 { local-as 65000; peer-as 65001; }
+neighbor 10.0.0.1 { local-as 65000; peer-as 65002; }
+`
+		cfg := parseConfig(t, input)
+		require.Len(t, cfg.Neighbors, 2)
+		m := neighborsByAddr(cfg.Neighbors)
+
+		// 192.0.2.1 matches both, more specific wins
+		require.Equal(t, 50*time.Millisecond, m["192.0.2.1"].RIBOut.AutoCommitDelay)
+
+		// 10.0.0.1 only matches *
+		require.Equal(t, 100*time.Millisecond, m["10.0.0.1"].RIBOut.AutoCommitDelay)
+	})
 }

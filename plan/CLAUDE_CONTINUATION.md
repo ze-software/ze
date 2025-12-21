@@ -6,41 +6,31 @@
 
 ## CURRENT PRIORITY
 
-**ExaBGP Interop Testing** - Investigating remaining test failures
+**Config Migration System** - See `plan/config-migration-system.md`
 
 ---
 
-## ACTIVE WORK
+## RECENTLY COMPLETED
 
-### Self-Check Tests
+### Per-Neighbor RIB Config + Peer Globs (Done)
 
-**Status:** ~27/37 passing
+**Plan:** `plan/rib-config-design.md`
 
-**Recent Fixes:**
-1. ASN4 capability default → `true` (was `false`)
-2. Template inheritance for local-as, peer-as, hold-time, family, capability
-3. Process group killing with `syscall.Kill(-pid, SIGKILL)`
-4. Concurrency limit (4 workers) to prevent resource exhaustion
-
-**Remaining Failures (message mismatch):**
-- `flow-redirect` - Redirect action encoding
-- `extended-nexthop` - Extended next-hop handling
-- `prefix-sid` - Prefix-SID attribute (code 40)
-- `parity` - Unknown
-- `srv6-mup-v3` - SRv6 MUP encoding
-- `srv6-mup` - SRv6 MUP encoding
-- `watchdog` - Watchdog feature
-- `path-information` - Path-ID/add-path
-- `split` - Message splitting
-- `vpn` - VPN routes
+**Implemented:**
+- Per-neighbor `rib { out { group-updates; auto-commit-delay; max-batch-size; } }`
+- Peer glob patterns in config: `peer * { ... }`, `peer 192.168.*.* { ... }`
+- API peer glob support: `peer * announce route ...`
+- Template inheritance for RIB config
+- Legacy `group-updates` backward compatibility
 
 ---
 
-## RECENT COMMITS
+## PENDING PLANS
 
-- `ee3a8c8` Fix all 42 golangci-lint issues
-- `d209e49` Add RFC 9136 and update commit protocol to include lint
-- `8c7173b` Complete ExaBGP alignment: Phase 8-9 (error subcodes, config)
+| Plan | Status | Description |
+|------|--------|-------------|
+| `config-migration-system.md` | Draft | Version detection, migrations, `zebgp config upgrade/fmt` |
+| `neighbor-to-peer-rename.md` | Draft | Rename `neighbor` → `peer` in config syntax |
 
 ---
 
@@ -55,8 +45,10 @@
 
 | Purpose | File |
 |---------|------|
-| Self-check tool | `cmd/self-check/main.go` |
 | Config parser | `pkg/config/bgp.go` |
+| Peer glob matching | `pkg/config/bgp.go` (IPGlobMatch) |
+| API commands | `pkg/api/command.go` |
+| Reactor peer matching | `pkg/reactor/reactor.go` (ipGlobMatch) |
 | This file | `plan/CLAUDE_CONTINUATION.md` |
 | Protocols | `.claude/ESSENTIAL_PROTOCOLS.md` |
 

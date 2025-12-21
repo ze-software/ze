@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"net"
 	"net/netip"
+	"strings"
 	"sync"
 	"time"
 
@@ -220,6 +221,7 @@ func (a *reactorAPIAdapter) WithdrawRoute(peerSelector string, prefix netip.Pref
 }
 
 // sendToMatchingPeers sends an UPDATE to peers matching the selector.
+// Supports: "*" (all peers), exact IP, or glob patterns (e.g., "192.168.*.*").
 func (a *reactorAPIAdapter) sendToMatchingPeers(selector string, update *message.Update) error {
 	a.r.mu.RLock()
 	defer a.r.mu.RUnlock()
@@ -228,8 +230,8 @@ func (a *reactorAPIAdapter) sendToMatchingPeers(selector string, update *message
 	sentCount := 0
 
 	for addrStr, peer := range a.r.peers {
-		// Check if this peer matches the selector
-		if selector != "*" && addrStr != selector {
+		// Check if this peer matches the selector using glob matching
+		if !ipGlobMatch(selector, addrStr) {
 			continue
 		}
 
@@ -622,11 +624,12 @@ func (a *reactorAPIAdapter) RollbackTransaction(peerSelector string) (api.Transa
 }
 
 // getMatchingPeers returns peers matching the selector.
-// "*" returns all peers, otherwise matches by address string.
+// Supports: "*" (all peers), exact IP, or glob patterns (e.g., "192.168.*.*").
 func (a *reactorAPIAdapter) getMatchingPeers(selector string) []*Peer {
 	a.r.mu.RLock()
 	defer a.r.mu.RUnlock()
 
+	// Fast path: all peers
 	if selector == "*" || selector == "" {
 		peers := make([]*Peer, 0, len(a.r.peers))
 		for _, peer := range a.r.peers {
@@ -635,10 +638,53 @@ func (a *reactorAPIAdapter) getMatchingPeers(selector string) []*Peer {
 		return peers
 	}
 
+	// Fast path: exact match (no wildcards)
 	if peer, ok := a.r.peers[selector]; ok {
 		return []*Peer{peer}
 	}
-	return nil
+
+	// Glob pattern match
+	var peers []*Peer
+	for addr, peer := range a.r.peers {
+		if ipGlobMatch(selector, addr) {
+			peers = append(peers, peer)
+		}
+	}
+	return peers
+}
+
+// ipGlobMatch checks if an IP address matches a glob pattern.
+// Pattern "*" matches any IP (IPv4 or IPv6).
+// For IPv4, each octet can be "*" to match any value 0-255.
+// Examples: "192.168.*.*", "10.*.0.1", "*.*.*.1".
+func ipGlobMatch(pattern, ip string) bool {
+	// "*" or empty matches everything
+	if pattern == "*" || pattern == "" {
+		return true
+	}
+
+	// Check if pattern looks like IPv4 glob (contains dots)
+	if strings.Contains(pattern, ".") && strings.Contains(ip, ".") {
+		patternParts := strings.Split(pattern, ".")
+		ipParts := strings.Split(ip, ".")
+
+		if len(patternParts) != 4 || len(ipParts) != 4 {
+			return false
+		}
+
+		for i := 0; i < 4; i++ {
+			if patternParts[i] == "*" {
+				continue // wildcard matches any octet
+			}
+			if patternParts[i] != ipParts[i] {
+				return false
+			}
+		}
+		return true
+	}
+
+	// For IPv6 or exact match, just compare strings
+	return pattern == ip
 }
 
 // InTransaction returns true if any matching peer has an active transaction.

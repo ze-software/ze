@@ -99,17 +99,18 @@ func (d *Dispatcher) Dispatch(ctx *CommandContext, input string) (*Response, err
 		return nil, ErrEmptyCommand
 	}
 
-	// Check for neighbor prefix
-	if strings.ToLower(tokens[0]) == "neighbor" {
-		if len(tokens) < 3 {
-			return &Response{
-				Status: "error",
-				Error:  "usage: neighbor <addr|*> <command>",
-			}, errors.New("missing neighbor address or command")
+	// Check for neighbor/peer prefix (peer is alias for neighbor)
+	// Only applies when second token looks like an IP address or glob pattern
+	prefix := strings.ToLower(tokens[0])
+	if (prefix == "neighbor" || prefix == "peer") && len(tokens) >= 3 {
+		// Check if second token looks like IP/glob (contains dots or is "*")
+		if looksLikeIPOrGlob(tokens[1]) {
+			if ctx != nil {
+				ctx.Neighbor = tokens[1]
+			}
+			// Rebuild input without neighbor/peer prefix
+			input = strings.Join(tokens[2:], " ")
 		}
-		ctx.Neighbor = tokens[1]
-		// Rebuild input without neighbor prefix
-		input = strings.Join(tokens[2:], " ")
 	}
 
 	// Build lowercase input for matching
@@ -157,4 +158,22 @@ func tokenize(input string) []string {
 		return nil
 	}
 	return strings.Fields(input)
+}
+
+// looksLikeIPOrGlob returns true if s looks like an IP address or glob pattern.
+// Examples: "*", "192.168.1.1", "192.168.*.*", "2001:db8::1".
+func looksLikeIPOrGlob(s string) bool {
+	// Wildcard all
+	if s == "*" {
+		return true
+	}
+	// Contains dots (IPv4 or IPv4 glob)
+	if strings.Contains(s, ".") {
+		return true
+	}
+	// Contains colons (IPv6)
+	if strings.Contains(s, ":") {
+		return true
+	}
+	return false
 }
