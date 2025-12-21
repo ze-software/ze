@@ -366,3 +366,5 @@ level=info msg="all required families negotiated"
 7. ✅ Implement session require validation
 8. ✅ Add NOTIFICATION data builder
 9. ✅ All tests pass, lint clean
+10. ✅ Integration test for session rejection
+11. ✅ Human-readable family names (AFI.String(), SAFI.String(), Family.String())

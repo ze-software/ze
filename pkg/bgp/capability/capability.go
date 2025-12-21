@@ -135,6 +135,57 @@ type Family struct {
 	SAFI SAFI
 }
 
+// String returns human-readable family name (e.g., "ipv6/unicast").
+func (f Family) String() string {
+	return f.AFI.String() + "/" + f.SAFI.String()
+}
+
+// String returns human-readable AFI name.
+func (a AFI) String() string {
+	switch a {
+	case AFIIPv4:
+		return "ipv4"
+	case AFIIPv6:
+		return "ipv6"
+	case AFIL2VPN:
+		return "l2vpn"
+	case AFIBGPLS:
+		return "bgp-ls"
+	default:
+		return fmt.Sprintf("afi-%d", a)
+	}
+}
+
+// String returns human-readable SAFI name.
+func (s SAFI) String() string {
+	switch s {
+	case SAFIUnicast:
+		return "unicast"
+	case SAFIMulticast:
+		return "multicast"
+	case SAFIMPLSLabel:
+		return "mpls-label"
+	case SAFIMcastVPN:
+		return "mcast-vpn"
+	case SAFIVPLS:
+		return "vpls"
+	case SAFIEVPN:
+		return "evpn"
+	case SAFIBGPLS:
+		return "bgp-ls"
+	case SAFIBGPLSVPN:
+		return "bgp-ls-vpn"
+	case SAFIMPLS:
+		return "mpls-vpn"
+	case SAFIFlowSpec:
+		return "flowspec"
+	case SAFIFlowSpecVPN:
+		return "flowspec-vpn"
+	default:
+		return fmt.Sprintf("safi-%d", s)
+	}
+}
+
 // Parse parses capability TLVs from optional parameters.
 //
 // RFC 5492 Section 4: The Capabilities Optional Parameter contains one or more
