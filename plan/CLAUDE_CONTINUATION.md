@@ -18,7 +18,7 @@ Start with Phase 1 (Critical): 5 items
 
 ### ExaBGP Alignment Implementation
 
-Progress: Phase 5 complete (19/31 items)
+Progress: Phase 6 in progress (21/31 items)
 
 **Completed Phases:**
 - ✅ Phase 1: Critical (5/5)
@@ -26,14 +26,17 @@ Progress: Phase 5 complete (19/31 items)
 - ✅ Phase 3: Timers (1/1)
 - ✅ Phase 4: Attributes (6/6)
 - ✅ Phase 5: MP-NLRI (4/4)
+- ⏳ Phase 6: NLRI Types (2/7)
 
-**Next:** Phase 6 - NLRI Types (EVPN Type 1/4, etc.)
+**Next:** Phase 6 - Remaining NLRI Types (FlowSpec VPN, VPLS, RTC, EVPN Type 5 fix, BGP-LS fix)
 
 ### Recent Implementation:
-- **5.4 Route Distinguisher in Next-Hop (RFC 4364/4659):**
-  - Added `parseVPNNextHops()` for VPN SAFI (128)
-  - Handles RD prefix: 12-byte (RD+IPv4), 24-byte (RD+IPv6), 40-byte (dual)
-  - Also handles Extended Next Hop for VPN (16/32 bytes, no RD)
+- **6.1 EVPN Type 1 (Ethernet Auto-Discovery) - RFC 7432 §7.1:**
+  - Added `EVPNType1` struct with RD, ESI, EthernetTag, Labels
+  - `parseEVPNType1()` replaces EVPNGeneric for Type 1
+- **6.2 EVPN Type 4 (Ethernet Segment) - RFC 7432 §7.4:**
+  - Added `EVPNType4` struct with RD, ESI, OriginatorIP
+  - `parseEVPNType4()` with IPv4/IPv6 support, IP length validation
 
 ---
 

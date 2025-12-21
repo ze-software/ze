@@ -191,6 +191,157 @@ func TestEVPNRouteTypeString(t *testing.T) {
 	assert.Equal(t, "ip-prefix", EVPNRouteType5.String())
 }
 
+// TestEVPNType1 verifies Type 1 Ethernet Auto-Discovery route parsing.
+//
+// VALIDATES: RFC 7432 Section 7.1 - Ethernet A-D route format with
+// RD (8) + ESI (10) + EthernetTag (4) + Label (3) = 25 bytes.
+//
+// PREVENTS: Parsing failures for Ethernet Auto-Discovery routes used
+// in multihoming scenarios for fast convergence and aliasing.
+func TestEVPNType1(t *testing.T) {
+	// Type 1: Ethernet Auto-Discovery
+	// RFC 7432 Section 7.1: RD (8) + ESI (10) + EthTag (4) + Label (3)
+	rd := []byte{0x00, 0x00, 0xFD, 0xE8, 0x00, 0x00, 0x00, 0x64} // 65000:100
+	esi := []byte{0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09}
+	ethTag := []byte{0x00, 0x00, 0x00, 0x0A} // Tag 10
+	label := []byte{0x00, 0x01, 0x01}        // Label 16
+
+	data := []byte{byte(EVPNRouteType1)}
+	data = append(data, byte(8+10+4+3)) // Length = 25
+	data = append(data, rd...)
+	data = append(data, esi...)
+	data = append(data, ethTag...)
+	data = append(data, label...)
+
+	nlri, remaining, err := ParseEVPN(data, false)
+	require.NoError(t, err)
+	require.Empty(t, remaining)
+
+	evpn, ok := nlri.(*EVPNType1)
+	require.True(t, ok, "expected EVPNType1, got %T", nlri)
+
+	assert.Equal(t, EVPNRouteType1, evpn.RouteType())
+	assert.Equal(t, "65000:100", evpn.RD().String())
+	assert.Equal(t, ESI{0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09}, evpn.ESI())
+	assert.Equal(t, uint32(10), evpn.EthernetTag())
+	assert.Equal(t, []uint32{16}, evpn.Labels())
+	assert.Equal(t, L2VPNEVPN, evpn.Family())
+}
+
+// TestEVPNType1WithAddPath verifies Type 1 with Add-Path ID.
+//
+// VALIDATES: Ethernet Auto-Discovery with path ID (RFC 7911 support).
+//
+// PREVENTS: Add-path parsing errors for Type 1 routes.
+func TestEVPNType1WithAddPath(t *testing.T) {
+	pathID := []byte{0x00, 0x00, 0x00, 0x05} // Path ID 5
+	rd := []byte{0x00, 0x00, 0xFD, 0xE8, 0x00, 0x00, 0x00, 0x64}
+	esi := make([]byte, 10)
+	ethTag := []byte{0x00, 0x00, 0x00, 0x00}
+	label := []byte{0x00, 0x01, 0x01}
+
+	data := pathID
+	data = append(data, byte(EVPNRouteType1))
+	data = append(data, byte(8+10+4+3))
+	data = append(data, rd...)
+	data = append(data, esi...)
+	data = append(data, ethTag...)
+	data = append(data, label...)
+
+	nlri, _, err := ParseEVPN(data, true)
+	require.NoError(t, err)
+
+	evpn, ok := nlri.(*EVPNType1)
+	require.True(t, ok, "expected EVPNType1")
+	assert.True(t, evpn.HasPathID())
+	assert.Equal(t, uint32(5), evpn.PathID())
+}
+
+// TestEVPNType4IPv4 verifies Type 4 Ethernet Segment route with IPv4.
+//
+// VALIDATES: RFC 7432 Section 7.4 - Ethernet Segment route format with
+// RD (8) + ESI (10) + IPLen (1) + IP (4) = 23 bytes for IPv4.
+//
+// PREVENTS: Parsing failures for Ethernet Segment routes used in
+// Designated Forwarder election.
+func TestEVPNType4IPv4(t *testing.T) {
+	// Type 4: Ethernet Segment
+	// RFC 7432 Section 7.4: RD (8) + ESI (10) + IPLen (1) + IP (4/16)
+	rd := []byte{0x00, 0x00, 0xFD, 0xE8, 0x00, 0x00, 0x00, 0x64} // 65000:100
+	esi := []byte{0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09}
+	ipLen := byte(32) // IPv4 = 32 bits
+	ip := []byte{10, 0, 0, 1}
+
+	data := []byte{byte(EVPNRouteType4)}
+	data = append(data, byte(8+10+1+4)) // Length = 23
+	data = append(data, rd...)
+	data = append(data, esi...)
+	data = append(data, ipLen)
+	data = append(data, ip...)
+
+	nlri, remaining, err := ParseEVPN(data, false)
+	require.NoError(t, err)
+	require.Empty(t, remaining)
+
+	evpn, ok := nlri.(*EVPNType4)
+	require.True(t, ok, "expected EVPNType4, got %T", nlri)
+
+	assert.Equal(t, EVPNRouteType4, evpn.RouteType())
+	assert.Equal(t, "65000:100", evpn.RD().String())
+	assert.Equal(t, ESI{0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09}, evpn.ESI())
+	assert.Equal(t, netip.MustParseAddr("10.0.0.1"), evpn.OriginatorIP())
+	assert.Equal(t, L2VPNEVPN, evpn.Family())
+}
+
+// TestEVPNType4IPv6 verifies Type 4 Ethernet Segment route with IPv6.
+//
+// VALIDATES: RFC 7432 Section 7.4 - Ethernet Segment route with IPv6
+// originator address (35 bytes total).
+//
+// PREVENTS: IPv6 parsing errors in Ethernet Segment routes.
+func TestEVPNType4IPv6(t *testing.T) {
+	rd := []byte{0x00, 0x00, 0xFD, 0xE8, 0x00, 0x00, 0x00, 0x64}
+	esi := []byte{0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09}
+	ipLen := byte(128)                                                       // IPv6 = 128 bits
+	ip := []byte{0x20, 0x01, 0x0d, 0xb8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1} // 2001:db8::1
+
+	data := []byte{byte(EVPNRouteType4)}
+	data = append(data, byte(8+10+1+16)) // Length = 35
+	data = append(data, rd...)
+	data = append(data, esi...)
+	data = append(data, ipLen)
+	data = append(data, ip...)
+
+	nlri, _, err := ParseEVPN(data, false)
+	require.NoError(t, err)
+
+	evpn, ok := nlri.(*EVPNType4)
+	require.True(t, ok, "expected EVPNType4")
+	assert.Equal(t, netip.MustParseAddr("2001:db8::1"), evpn.OriginatorIP())
+}
+
+// TestEVPNType4InvalidIPLen verifies error handling for invalid IP length.
+//
+// VALIDATES: Rejection of invalid IP address lengths per RFC 7432 Section 7.4.
+//
+// PREVENTS: Accepting malformed Ethernet Segment routes.
+func TestEVPNType4InvalidIPLen(t *testing.T) {
+	rd := []byte{0x00, 0x00, 0xFD, 0xE8, 0x00, 0x00, 0x00, 0x64}
+	esi := make([]byte, 10)
+	ipLen := byte(64) // Invalid: must be 32 or 128
+	ip := make([]byte, 8)
+
+	data := []byte{byte(EVPNRouteType4)}
+	data = append(data, byte(8+10+1+8))
+	data = append(data, rd...)
+	data = append(data, esi...)
+	data = append(data, ipLen)
+	data = append(data, ip...)
+
+	_, _, err := ParseEVPN(data, false)
+	require.Error(t, err, "should reject invalid IP length")
+}
+
 // TestEVPNErrors verifies error handling.
 func TestEVPNErrors(t *testing.T) {
 	tests := []struct {

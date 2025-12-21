@@ -127,10 +127,14 @@ func ParseEVPN(data []byte, addpath bool) (NLRI, []byte, error) {
 	var err error
 
 	switch routeType { //nolint:exhaustive // Unsupported types handled as EVPNGeneric
+	case EVPNRouteType1:
+		nlri, err = parseEVPNType1(nlriData, pathID, addpath)
 	case EVPNRouteType2:
 		nlri, err = parseEVPNType2(nlriData, pathID, addpath)
 	case EVPNRouteType3:
 		nlri, err = parseEVPNType3(nlriData, pathID, addpath)
+	case EVPNRouteType4:
+		nlri, err = parseEVPNType4(nlriData, pathID, addpath)
 	case EVPNRouteType5:
 		nlri, err = parseEVPNType5(nlriData, pathID, addpath)
 	default:
@@ -148,6 +152,94 @@ func ParseEVPN(data []byte, addpath bool) (NLRI, []byte, error) {
 	}
 
 	return nlri, data[offset+length:], nil
+}
+
+// EVPNType1 represents an Ethernet Auto-Discovery route.
+// RFC 7432 Section 7.1 defines the wire format:
+//
+//	+---------------------------------------+
+//	|  Route Distinguisher (RD) (8 octets)  |
+//	+---------------------------------------+
+//	|Ethernet Segment Identifier (10 octets)|
+//	+---------------------------------------+
+//	|  Ethernet Tag ID (4 octets)           |
+//	+---------------------------------------+
+//	|  MPLS Label (3 octets)                |
+//	+---------------------------------------+
+//
+// This route is used for multihoming fast convergence and aliasing.
+// Per RFC 7432, only ESI and Ethernet Tag are part of the route key;
+// the MPLS Label is a route attribute.
+type EVPNType1 struct {
+	rd          RouteDistinguisher
+	esi         ESI
+	ethernetTag uint32
+	labels      []uint32
+	pathID      uint32
+	hasPath     bool
+}
+
+// parseEVPNType1 parses an Ethernet Auto-Discovery route per RFC 7432 Section 7.1.
+func parseEVPNType1(data []byte, pathID uint32, hasPath bool) (*EVPNType1, error) {
+	// RFC 7432 Section 7.1: RD (8) + ESI (10) + EthTag (4) + Label (3+)
+	if len(data) < 8+10+4 {
+		return nil, ErrShortRead
+	}
+
+	e := &EVPNType1{pathID: pathID, hasPath: hasPath}
+
+	offset := 0
+
+	// RD
+	rd, err := ParseRouteDistinguisher(data[offset : offset+8])
+	if err != nil {
+		return nil, err
+	}
+	e.rd = rd
+	offset += 8
+
+	// ESI
+	copy(e.esi[:], data[offset:offset+10])
+	offset += 10
+
+	// Ethernet Tag
+	e.ethernetTag = binary.BigEndian.Uint32(data[offset : offset+4])
+	offset += 4
+
+	// Labels (remaining bytes)
+	if offset < len(data) {
+		labels, _, err := ParseLabelStack(data[offset:])
+		if err != nil {
+			return nil, err
+		}
+		e.labels = labels
+	}
+
+	return e, nil
+}
+
+func (e *EVPNType1) Family() Family           { return L2VPNEVPN }
+func (e *EVPNType1) RouteType() EVPNRouteType { return EVPNRouteType1 }
+func (e *EVPNType1) RD() RouteDistinguisher   { return e.rd }
+func (e *EVPNType1) ESI() ESI                 { return e.esi }
+func (e *EVPNType1) EthernetTag() uint32      { return e.ethernetTag }
+func (e *EVPNType1) Labels() []uint32         { return e.labels }
+func (e *EVPNType1) PathID() uint32           { return e.pathID }
+func (e *EVPNType1) HasPathID() bool          { return e.hasPath }
+
+func (e *EVPNType1) Bytes() []byte {
+	// TODO: implement encoding
+	return nil
+}
+
+func (e *EVPNType1) Len() int {
+	n := 8 + 10 + 4
+	n += len(e.labels) * 3
+	return n + 2 // +2 for type and length
+}
+
+func (e *EVPNType1) String() string {
+	return fmt.Sprintf("type1 RD:%s ESI:%s tag:%d", e.rd, e.esi, e.ethernetTag)
 }
 
 // EVPNType2 represents a MAC/IP Advertisement route.
@@ -376,6 +468,102 @@ func (e *EVPNType3) Len() int                 { return 0 }
 
 func (e *EVPNType3) String() string {
 	return fmt.Sprintf("type3 RD:%s originator:%s", e.rd, e.originatorIP)
+}
+
+// EVPNType4 represents an Ethernet Segment route.
+// RFC 7432 Section 7.4 defines the wire format:
+//
+//	+---------------------------------------+
+//	|  RD (8 octets)                        |
+//	+---------------------------------------+
+//	|Ethernet Segment Identifier (10 octets)|
+//	+---------------------------------------+
+//	|  IP Address Length (1 octet)          |
+//	+---------------------------------------+
+//	|  Originating Router's IP Address      |
+//	|          (4 or 16 octets)             |
+//	+---------------------------------------+
+//
+// This route is used for Designated Forwarder (DF) election in multihoming.
+// IP Address Length is in bits (32 for IPv4, 128 for IPv6).
+type EVPNType4 struct {
+	rd           RouteDistinguisher
+	esi          ESI
+	originatorIP netip.Addr
+	pathID       uint32
+	hasPath      bool
+}
+
+// parseEVPNType4 parses an Ethernet Segment route per RFC 7432 Section 7.4.
+func parseEVPNType4(data []byte, pathID uint32, hasPath bool) (*EVPNType4, error) {
+	// RFC 7432 Section 7.4: RD (8) + ESI (10) + IPLen (1) + IP (4/16)
+	if len(data) < 8+10+1 {
+		return nil, ErrShortRead
+	}
+
+	e := &EVPNType4{pathID: pathID, hasPath: hasPath}
+
+	offset := 0
+
+	// RD
+	rd, err := ParseRouteDistinguisher(data[offset : offset+8])
+	if err != nil {
+		return nil, err
+	}
+	e.rd = rd
+	offset += 8
+
+	// ESI
+	copy(e.esi[:], data[offset:offset+10])
+	offset += 10
+
+	// IP Address Length in bits (RFC 7432 Section 7.4: 32 or 128)
+	ipLen := data[offset]
+	offset++
+
+	switch ipLen {
+	case 32:
+		if offset+4 > len(data) {
+			return nil, ErrShortRead
+		}
+		e.originatorIP = netip.AddrFrom4([4]byte(data[offset : offset+4]))
+	case 128:
+		if offset+16 > len(data) {
+			return nil, ErrShortRead
+		}
+		e.originatorIP = netip.AddrFrom16([16]byte(data[offset : offset+16]))
+	default:
+		return nil, ErrInvalidAddress
+	}
+
+	return e, nil
+}
+
+func (e *EVPNType4) Family() Family           { return L2VPNEVPN }
+func (e *EVPNType4) RouteType() EVPNRouteType { return EVPNRouteType4 }
+func (e *EVPNType4) RD() RouteDistinguisher   { return e.rd }
+func (e *EVPNType4) ESI() ESI                 { return e.esi }
+func (e *EVPNType4) OriginatorIP() netip.Addr { return e.originatorIP }
+func (e *EVPNType4) PathID() uint32           { return e.pathID }
+func (e *EVPNType4) HasPathID() bool          { return e.hasPath }
+
+func (e *EVPNType4) Bytes() []byte {
+	// TODO: implement encoding
+	return nil
+}
+
+func (e *EVPNType4) Len() int {
+	n := 8 + 10 + 1
+	if e.originatorIP.Is4() {
+		n += 4
+	} else {
+		n += 16
+	}
+	return n + 2 // +2 for type and length
+}
+
+func (e *EVPNType4) String() string {
+	return fmt.Sprintf("type4 RD:%s ESI:%s originator:%s", e.rd, e.esi, e.originatorIP)
 }
 
 // EVPNType5 represents an IP Prefix route.

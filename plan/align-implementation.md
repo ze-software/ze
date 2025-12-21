@@ -168,14 +168,14 @@
 - **RFC:** 7432 Section 7.1
 - **Files:** `pkg/bgp/nlri/evpn.go`
 - **Test:** Parse/encode Type 1 EVPN
-- [ ] Pending
+- [x] Complete - EVPNType1 struct with ESI, EthernetTag, Labels; parseEVPNType1()
 
 ### 6.2 EVPN Type 4 (Ethernet Segment)
 - **Task:** Full parsing (replace EVPNGeneric)
 - **RFC:** 7432 Section 7.4
 - **Files:** `pkg/bgp/nlri/evpn.go`
 - **Test:** Parse/encode Type 4 EVPN
-- [ ] Pending
+- [x] Complete - EVPNType4 struct with ESI, OriginatorIP; parseEVPNType4()
 
 ### 6.3 FlowSpec VPN Variant
 - **Task:** Implement FlowSpec VPN (AFI/SAFI 1/133, 2/133)
@@ -270,10 +270,10 @@
 | 3. Timers | 1 | 0 | ✅ Complete |
 | 4. Attributes | 6 | +2 | ✅ Complete |
 | 5. MP-NLRI | 4 | 0 | ✅ Complete |
-| 6. NLRI Types | 7 | +2 | Pending |
+| 6. NLRI Types | 7 | +2 | 2/7 Complete |
 | 8. Errors | 1 | 0 | Pending |
 | 9. Config | 4 | 0 | Pending |
-| **Total** | **31** | **+5** | **19/31 Complete** |
+| **Total** | **31** | **+5** | **21/31 Complete** |
 
 ---
 
