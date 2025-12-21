@@ -364,7 +364,7 @@ func TestOpenPackExtendedParams(t *testing.T) {
 
 	// Check extended length
 	extLen := beUint16(body[11:13])
-	assert.Equal(t, uint16(len(largeParams)), extLen)
+	assert.Equal(t, uint16(len(largeParams)), extLen) // #nosec G115 -- test values in range
 
 	// Verify params are present
 	assert.Equal(t, largeParams, body[13:13+len(largeParams)])

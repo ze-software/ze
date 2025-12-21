@@ -87,24 +87,17 @@ type MPReachNLRI struct {
 // RFC 4760 Section 3: MP_REACH_NLRI has Type Code 14.
 func (m *MPReachNLRI) Code() AttributeCode { return AttrMPReachNLRI }
 
-// Flags returns FlagOptional.
-// RFC 4760 Section 3: "This is an optional non-transitive attribute"
+// Flags returns FlagOptional (non-transitive) per RFC 4760 Section 3.
 func (m *MPReachNLRI) Flags() AttributeFlags { return FlagOptional }
 
 // Len returns the packed length in bytes.
-//
-// RFC 4760 Section 3 wire format:
-// AFI(2) + SAFI(1) + NH_Len(1) + NextHops(variable) + Reserved(1) + NLRI(variable)
+// RFC 4760 Section 3 wire format: AFI(2) + SAFI(1) + NH_Len(1) + NextHops + Reserved(1) + NLRI.
 func (m *MPReachNLRI) Len() int {
 	nhLen := m.nextHopLen()
 	return 2 + 1 + 1 + nhLen + 1 + len(m.NLRI)
 }
 
-// nextHopLen calculates the total next-hop length in bytes.
-//
-// RFC 4760 Section 3: "Length of Next Hop Network Address: A 1-octet field
-// whose value expresses the length of the 'Network Address of Next Hop' field,
-// measured in octets."
+// nextHopLen calculates the total next-hop length in bytes per RFC 4760 Section 3.
 func (m *MPReachNLRI) nextHopLen() int {
 	total := 0
 	for _, nh := range m.NextHops {
@@ -150,8 +143,7 @@ func (m *MPReachNLRI) Pack() []byte {
 }
 
 // ParseMPReachNLRI parses an MP_REACH_NLRI attribute value per RFC 4760 Section 3.
-//
-// RFC 4760 Section 3: The Reserved octet "SHOULD be ignored upon receipt."
+// The Reserved octet is ignored per RFC 4760.
 func ParseMPReachNLRI(data []byte) (*MPReachNLRI, error) {
 	// Minimum: AFI(2) + SAFI(1) + NH_Len(1) + Reserved(1) = 5 octets
 	if len(data) < 5 {
@@ -302,6 +294,7 @@ func parseNextHops(afi AFI, safi SAFI, data []byte) ([]netip.Addr, error) {
 //   - 16 bytes: IPv6(16) - Extended Next Hop for VPN
 //   - 32 bytes: IPv6(16) + IPv6(16) - global+link-local
 func parseVPNNextHops(afi AFI, data []byte) ([]netip.Addr, error) {
+	_ = afi // Reserved for future AFI-specific validation
 	var hops []netip.Addr
 
 	switch len(data) {
@@ -364,7 +357,7 @@ func parseVPNNextHops(afi AFI, data []byte) ([]netip.Addr, error) {
 //	+---------------------------------------------------------+
 //
 // RFC 4760 Section 4: "An UPDATE message that contains the MP_UNREACH_NLRI
-// is not required to carry any other path attributes."
+// is not required to carry any other path attributes.".
 type MPUnreachNLRI struct {
 	AFI  AFI    // RFC 4760 Section 4: Address Family Identifier (2 octets)
 	SAFI SAFI   // RFC 4760 Section 4: Subsequent Address Family Identifier (1 octet)
@@ -375,13 +368,10 @@ type MPUnreachNLRI struct {
 // RFC 4760 Section 4: MP_UNREACH_NLRI has Type Code 15.
 func (m *MPUnreachNLRI) Code() AttributeCode { return AttrMPUnreachNLRI }
 
-// Flags returns FlagOptional.
-// RFC 4760 Section 4: "This is an optional non-transitive attribute"
+// Flags returns FlagOptional (non-transitive) per RFC 4760 Section 4.
 func (m *MPUnreachNLRI) Flags() AttributeFlags { return FlagOptional }
 
-// Len returns the packed length in bytes.
-//
-// RFC 4760 Section 4 wire format: AFI(2) + SAFI(1) + Withdrawn Routes(variable)
+// Len returns the packed length in bytes (AFI + SAFI + NLRI).
 func (m *MPUnreachNLRI) Len() int {
 	return 2 + 1 + len(m.NLRI)
 }

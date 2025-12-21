@@ -54,6 +54,7 @@ type FSM struct {
 
 // New creates a new FSM in the IDLE state.
 // RFC 4271 Section 8.2.2: "Initially, the BGP peer FSM is in the Idle state."
+// Returns a new FSM ready for BGP session establishment.
 func New() *FSM {
 	return &FSM{
 		state: StateIdle,
@@ -118,6 +119,7 @@ func (f *FSM) change(to State) {
 // configured peer. Each BGP peer paired in a potential connection will
 // attempt to connect to the other, unless configured to remain in the
 // idle state, or configured to remain passive."
+// Returns nil on success, or an error if the event was not handled.
 func (f *FSM) Event(event Event) error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
@@ -145,6 +147,7 @@ func (f *FSM) Event(event Event) error {
 // RFC 4271 Section 8.2.2 (Idle state):
 // "In this state, BGP FSM refuses all incoming BGP connections for this peer.
 // No resources are allocated to the peer."
+// Handles ManualStart event to transition to Connect state.
 func (f *FSM) handleIdle(event Event) {
 	switch event { //nolint:exhaustive // Only specific events are handled in IDLE state per RFC 4271.
 	case EventManualStart:
@@ -174,6 +177,7 @@ func (f *FSM) handleIdle(event Event) {
 //
 // RFC 4271 Section 8.2.2 (Connect state):
 // "In this state, BGP FSM is waiting for the TCP connection to be completed."
+// Handles connection events to transition to OpenSent or Idle state.
 func (f *FSM) handleConnect(event Event) {
 	switch event { //nolint:exhaustive // Only specific events are handled in CONNECT state per RFC 4271.
 	case EventManualStop:
@@ -219,6 +223,7 @@ func (f *FSM) handleConnect(event Event) {
 // RFC 4271 Section 8.2.2 (Active state):
 // "In this state, BGP FSM is trying to acquire a peer by listening for,
 // and accepting, a TCP connection."
+// Handles connection events for passive mode peers.
 func (f *FSM) handleActive(event Event) {
 	switch event { //nolint:exhaustive // Only specific events are handled in ACTIVE state per RFC 4271.
 	case EventManualStop:
@@ -258,6 +263,7 @@ func (f *FSM) handleActive(event Event) {
 //
 // RFC 4271 Section 8.2.2 (OpenSent state):
 // "In this state, BGP FSM waits for an OPEN message from its peer."
+// Handles OPEN message reception to transition to OpenConfirm or errors to Idle.
 func (f *FSM) handleOpenSent(event Event) {
 	switch event { //nolint:exhaustive // Only specific events are handled in OPENSENT state per RFC 4271.
 	case EventManualStop:
@@ -307,6 +313,7 @@ func (f *FSM) handleOpenSent(event Event) {
 //
 // RFC 4271 Section 8.2.2 (OpenConfirm state):
 // "In this state, BGP waits for a KEEPALIVE or NOTIFICATION message."
+// Handles KEEPALIVE to transition to Established or errors to Idle.
 func (f *FSM) handleOpenConfirm(event Event) {
 	switch event { //nolint:exhaustive // Only specific events are handled in OPENCONFIRM state per RFC 4271.
 	case EventManualStop:
@@ -362,6 +369,7 @@ func (f *FSM) handleOpenConfirm(event Event) {
 // RFC 4271 Section 8.2.2 (Established state):
 // "In the Established state, the BGP FSM can exchange UPDATE, NOTIFICATION,
 // and KEEPALIVE messages with its peer."
+// Handles ongoing session events and transitions to Idle on errors.
 func (f *FSM) handleEstablished(event Event) {
 	switch event { //nolint:exhaustive // Only specific events are handled in ESTABLISHED state per RFC 4271.
 	case EventManualStop:

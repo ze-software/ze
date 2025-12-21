@@ -38,8 +38,7 @@ func (k *Keepalive) Pack(neg *Negotiated) ([]byte, error) {
 // RFC 4271 Section 4.4 - KEEPALIVE has no body; the message is header-only.
 // RFC 4271 Section 4.4: "A KEEPALIVE message consists of only the message
 // header and has a length of 19 octets."
-// RFC 4271 Section 6.1: "if the Length field of a KEEPALIVE message is not
-// equal to 19, then the Error Subcode MUST be set to Bad Message Length"
+// RFC 4271 Section 6.1: If length is not 19, send Bad Message Length error.
 func UnpackKeepalive(data []byte) (*Keepalive, error) {
 	// RFC 4271 Section 4.4 - KEEPALIVE MUST have no body
 	if len(data) > 0 {

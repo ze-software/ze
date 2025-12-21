@@ -498,7 +498,7 @@ func TestSessionFamilyValidation(t *testing.T) {
 	for i := 0; i < 16; i++ {
 		hdr[i] = 0xff // Marker
 	}
-	msgLen := uint16(19 + len(update))
+	msgLen := uint16(19 + len(update)) // #nosec G115 -- test message size is small
 	hdr[16] = byte(msgLen >> 8)
 	hdr[17] = byte(msgLen)
 	hdr[18] = byte(message.TypeUPDATE)
@@ -600,7 +600,7 @@ func TestSessionFamilyValidationIgnoreMismatch(t *testing.T) {
 	for i := 0; i < 16; i++ {
 		hdr[i] = 0xff
 	}
-	msgLen := uint16(19 + len(update))
+	msgLen := uint16(19 + len(update)) // #nosec G115 -- test message size is small
 	hdr[16] = byte(msgLen >> 8)
 	hdr[17] = byte(msgLen)
 	hdr[18] = byte(message.TypeUPDATE)

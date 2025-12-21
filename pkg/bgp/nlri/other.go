@@ -90,16 +90,16 @@ type MVPNRouteType uint8
 // binding MVPN to P-Multicast Service Interface (PMSI) tunnels.
 // C-multicast routes carry customer multicast routing information.
 const (
-	// A-D (Auto-Discovery) route types - RFC 6514 Section 4.1-4.5
-	MVPNIntraASIPMSIAD MVPNRouteType = 1 // Intra-AS I-PMSI A-D route
-	MVPNInterASIPMSIAD MVPNRouteType = 2 // Inter-AS I-PMSI A-D route
-	MVPNSPMSIAD        MVPNRouteType = 3 // S-PMSI A-D route
-	MVPNLeafAD         MVPNRouteType = 4 // Leaf A-D route
-	MVPNSourceActive   MVPNRouteType = 5 // Source Active A-D route
+	// A-D (Auto-Discovery) route types per RFC 6514 Section 4.1-4.5.
+	MVPNIntraASIPMSIAD MVPNRouteType = 1 // Intra-AS I-PMSI A-D route.
+	MVPNInterASIPMSIAD MVPNRouteType = 2 // Inter-AS I-PMSI A-D route.
+	MVPNSPMSIAD        MVPNRouteType = 3 // S-PMSI A-D route.
+	MVPNLeafAD         MVPNRouteType = 4 // Leaf A-D route.
+	MVPNSourceActive   MVPNRouteType = 5 // Source Active A-D route.
 
-	// C-multicast route types - RFC 6514 Section 4.6-4.7
-	MVPNSharedTreeJoin MVPNRouteType = 6 // Shared Tree Join route (C-*,C-G)
-	MVPNSourceTreeJoin MVPNRouteType = 7 // Source Tree Join route (C-S,C-G)
+	// C-multicast route types per RFC 6514 Section 4.6-4.7.
+	MVPNSharedTreeJoin MVPNRouteType = 6 // Shared Tree Join route (C-*,C-G).
+	MVPNSourceTreeJoin MVPNRouteType = 7 // Source Tree Join route (C-S,C-G).
 )
 
 // String returns a human-readable route type name.

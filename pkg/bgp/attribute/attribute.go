@@ -104,22 +104,22 @@ type AttributeFlags uint8
 // Attribute flag bits per RFC 4271 Section 4.3.
 const (
 	// FlagOptional: RFC 4271 Section 4.3 - "defines whether the attribute is
-	// optional (if set to 1) or well-known (if set to 0)"
+	// optional (if set to 1) or well-known (if set to 0).".
 	FlagOptional AttributeFlags = 0x80
 
 	// FlagTransitive: RFC 4271 Section 4.3 - "defines whether an optional
 	// attribute is transitive (if set to 1) or non-transitive (if set to 0).
-	// For well-known attributes, the Transitive bit MUST be set to 1."
+	// For well-known attributes, the Transitive bit MUST be set to 1.".
 	FlagTransitive AttributeFlags = 0x40
 
 	// FlagPartial: RFC 4271 Section 4.3 - "defines whether the information
 	// contained in the optional transitive attribute is partial (if set to 1)
 	// or complete (if set to 0). For well-known attributes and for optional
-	// non-transitive attributes, the Partial bit MUST be set to 0."
+	// non-transitive attributes, the Partial bit MUST be set to 0.".
 	FlagPartial AttributeFlags = 0x20
 
 	// FlagExtLength: RFC 4271 Section 4.3 - "defines whether the Attribute
-	// Length is one octet (if set to 0) or two octets (if set to 1)"
+	// Length is one octet (if set to 0) or two octets (if set to 1).".
 	FlagExtLength AttributeFlags = 0x10
 )
 
@@ -145,8 +145,8 @@ func (f AttributeFlags) IsExtLength() bool { return f&FlagExtLength != 0 }
 //	|  Attr. Flags  |Attr. Type Code|
 //	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
 //
-// If Extended Length bit is 0: third octet contains 1-octet length (header=3)
-// If Extended Length bit is 1: third/fourth octets contain 2-octet length (header=4)
+// If Extended Length bit is 0: third octet contains 1-octet length (header=3).
+// If Extended Length bit is 1: third/fourth octets contain 2-octet length (header=4).
 func ParseHeader(data []byte) (flags AttributeFlags, code AttributeCode, length uint16, hdrLen int, err error) {
 	if len(data) < 3 {
 		return 0, 0, 0, 0, ErrShortData
@@ -175,7 +175,7 @@ func ParseHeader(data []byte) (flags AttributeFlags, code AttributeCode, length 
 // Automatically sets FlagExtLength if length > 255, per RFC 4271 Section 4.3:
 // "If the Extended Length bit of the Attribute Flags octet is set to 1,
 // the third and fourth octets of the path attribute contain the length
-// of the attribute data in octets."
+// of the attribute data in octets.".
 func PackHeader(flags AttributeFlags, code AttributeCode, length uint16) []byte {
 	if length > 255 {
 		flags |= FlagExtLength

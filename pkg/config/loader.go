@@ -15,6 +15,12 @@ import (
 	"github.com/exa-networks/zebgp/pkg/trace"
 )
 
+// Origin attribute values.
+const (
+	originIGP = "igp"
+	originEGP = "egp"
+)
+
 // LoadReactor parses config and creates a configured Reactor.
 func LoadReactor(input string) (*reactor.Reactor, error) {
 	_, r, err := LoadReactorWithConfig(input)
@@ -700,8 +706,8 @@ func parseFlowPrefixWithOffset(s string) (netip.Prefix, uint8) {
 		lenStr := parts[1]
 		var offset uint8
 		if len(parts) >= 3 {
-			if off, err := strconv.Atoi(parts[2]); err == nil {
-				offset = uint8(off)
+			if off, err := strconv.Atoi(parts[2]); err == nil && off >= 0 && off <= 255 {
+				offset = uint8(off) // #nosec G115 -- bounds checked
 			}
 		}
 
@@ -725,11 +731,13 @@ func parseFlowPrefixWithOffset(s string) (netip.Prefix, uint8) {
 }
 
 // parseFlowProtocols parses protocol values like "tcp", "=udp", "[ tcp udp ]".
+//
+//nolint:unused // Prepared for FlowSpec inline syntax parsing (not yet implemented)
 func parseFlowProtocols(s string) []uint8 {
 	matches := parseFlowProtocolMatches(s)
 	result := make([]uint8, len(matches))
 	for i, m := range matches {
-		result[i] = uint8(m.Value)
+		result[i] = uint8(m.Value) // #nosec G115 -- protocol is uint8
 	}
 	return result
 }
@@ -770,6 +778,8 @@ func parseFlowProtocolMatches(s string) []nlri.FlowMatch {
 }
 
 // parseFlowPorts parses port values like "=80", ">1024", "[ =80 =8080 ]", ">8080&<8088".
+//
+//nolint:unused // Prepared for FlowSpec inline syntax parsing (not yet implemented)
 func parseFlowPorts(s string) []uint16 {
 	matches := parseFlowMatches(s)
 	result := make([]uint16, len(matches))
@@ -867,11 +877,13 @@ func parseFlowFragment(s string) []nlri.FlowFragmentFlag {
 
 // parseFlowTCPFlags parses TCP flags like "[SYN RST&FIN&!=push]".
 // Returns simple flag values (for backwards compatibility).
+//
+//nolint:unused // Prepared for FlowSpec inline syntax parsing (not yet implemented)
 func parseFlowTCPFlags(s string) []uint8 {
 	matches := parseFlowTCPFlagMatches(s)
 	result := make([]uint8, len(matches))
 	for i, m := range matches {
-		result[i] = uint8(m.Value)
+		result[i] = uint8(m.Value) // #nosec G115 -- TCP flags fit in uint8
 	}
 	return result
 }
@@ -1129,9 +1141,9 @@ func encodeTEIDWithBits(teid uint32, bits int) []byte {
 // Empty or unset defaults to IGP (0).
 func parseOrigin(s string) uint8 {
 	switch strings.ToLower(s) {
-	case "", "igp":
+	case "", originIGP:
 		return 0 // IGP is default
-	case "egp":
+	case originEGP:
 		return 1
 	default:
 		return 2 // incomplete
@@ -1142,7 +1154,7 @@ func parseOrigin(s string) uint8 {
 func parseASPathSimple(s string) ([]uint32, error) {
 	s = strings.Trim(s, "[]")
 	parts := strings.Fields(s)
-	var result []uint32
+	result := make([]uint32, 0, len(parts))
 	for _, p := range parts {
 		if p == "" {
 			continue
@@ -1180,7 +1192,7 @@ func encodeFloat32(f float32) []byte {
 }
 
 // parseRedirectExtCommunity parses redirect action value to extended community bytes.
-// Formats: AS:NN (type 0x8008) or IP (redirect-to-nexthop)
+// Formats: AS:NN (type 0x8008) or IP (redirect-to-nexthop).
 func parseRedirectExtCommunity(s string) []byte {
 	if s == "" {
 		return nil

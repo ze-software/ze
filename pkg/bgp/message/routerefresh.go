@@ -7,16 +7,13 @@ import "encoding/binary"
 type RouteRefreshSubtype uint8
 
 const (
-	// RouteRefreshNormal is the normal route refresh request (RFC 2918).
-	// RFC 7313 Section 3.2: "0 - Normal route refresh request"
+	// RouteRefreshNormal is the normal route refresh request (RFC 2918, RFC 7313 Section 3.2).
 	RouteRefreshNormal RouteRefreshSubtype = 0
 
-	// RouteRefreshBoRR marks the beginning of a route refresh operation.
-	// RFC 7313 Section 3.2: "1 - Demarcation of the beginning of a route refresh (BoRR)"
+	// RouteRefreshBoRR marks the beginning of a route refresh operation (RFC 7313 Section 3.2).
 	RouteRefreshBoRR RouteRefreshSubtype = 1
 
-	// RouteRefreshEoRR marks the ending of a route refresh operation.
-	// RFC 7313 Section 3.2: "2 - Demarcation of the ending of a route refresh (EoRR)"
+	// RouteRefreshEoRR marks the ending of a route refresh operation (RFC 7313 Section 3.2).
 	RouteRefreshEoRR RouteRefreshSubtype = 2
 )
 

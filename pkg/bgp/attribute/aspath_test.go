@@ -172,7 +172,7 @@ func TestASPathPrependOverflow(t *testing.T) {
 	// Create a segment with 255 ASNs (max)
 	asns := make([]uint32, MaxASPathSegmentLength)
 	for i := range asns {
-		asns[i] = uint32(i + 1)
+		asns[i] = uint32(i + 1) // #nosec G115 -- test values in range
 	}
 
 	path := &ASPath{
@@ -202,7 +202,7 @@ func TestASPathPackAutoSplit(t *testing.T) {
 	// Create a segment with 300 ASNs (exceeds 255)
 	asns := make([]uint32, 300)
 	for i := range asns {
-		asns[i] = uint32(i + 1)
+		asns[i] = uint32(i + 1) // #nosec G115 -- test values in range
 	}
 
 	path := &ASPath{
@@ -234,7 +234,7 @@ func TestASPathPackAutoSplitLarge(t *testing.T) {
 	// Create a segment with 600 ASNs (needs 3 segments: 255+255+90)
 	asns := make([]uint32, 600)
 	for i := range asns {
-		asns[i] = uint32(i + 1)
+		asns[i] = uint32(i + 1) // #nosec G115 -- test values in range
 	}
 
 	path := &ASPath{

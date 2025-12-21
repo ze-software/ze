@@ -70,12 +70,10 @@ func (c Community) String() string {
 // four octet values.
 type Communities []Community
 
-// Code returns the attribute type code (8).
-// RFC 1997: "The COMMUNITIES attribute has Type Code 8."
+// Code returns the attribute type code (8) per RFC 1997.
 func (c Communities) Code() AttributeCode { return AttrCommunity }
 
-// Flags returns the attribute flags.
-// RFC 1997: "The COMMUNITIES path attribute is an optional transitive attribute."
+// Flags returns the attribute flags (optional transitive) per RFC 1997.
 func (c Communities) Flags() AttributeFlags { return FlagOptional | FlagTransitive }
 
 // Len returns the length in bytes (4 bytes per community).
@@ -139,12 +137,10 @@ type ExtendedCommunity [8]byte
 // with the Type Code 16. The attribute consists of a set of "extended communities".
 type ExtendedCommunities []ExtendedCommunity
 
-// Code returns the attribute type code (16).
-// RFC 4360 Section 2: "The Extended Communities Attribute... with the Type Code 16."
+// Code returns the attribute type code (16) per RFC 4360 Section 2.
 func (e ExtendedCommunities) Code() AttributeCode { return AttrExtCommunity }
 
-// Flags returns the attribute flags.
-// RFC 4360 Section 2: "The Extended Communities Attribute is a transitive optional BGP attribute."
+// Flags returns the attribute flags (transitive optional) per RFC 4360 Section 2.
 func (e ExtendedCommunities) Flags() AttributeFlags { return FlagOptional | FlagTransitive }
 
 // Len returns the length in bytes (8 bytes per extended community).
@@ -221,12 +217,10 @@ func (l LargeCommunity) String() string {
 // subregistry.
 type LargeCommunities []LargeCommunity
 
-// Code returns the attribute type code (32).
-// RFC 8092 Section 8: "IANA has assigned the value 32 (LARGE_COMMUNITY)."
+// Code returns the attribute type code (32) per RFC 8092 Section 8.
 func (l LargeCommunities) Code() AttributeCode { return AttrLargeCommunity }
 
-// Flags returns the attribute flags.
-// RFC 8092 Section 3: "optional transitive path attribute"
+// Flags returns the attribute flags (optional transitive) per RFC 8092 Section 3.
 func (l LargeCommunities) Flags() AttributeFlags { return FlagOptional | FlagTransitive }
 
 // Len returns the length in bytes (12 bytes per large community).
@@ -234,9 +228,8 @@ func (l LargeCommunities) Flags() AttributeFlags { return FlagOptional | FlagTra
 func (l LargeCommunities) Len() int { return len(l.deduplicate()) * 12 }
 
 // Pack encodes the large communities attribute.
-//
 // RFC 8092 Section 3: Each value is encoded as a 12-octet quantity.
-// RFC 8092 Section 5: "Duplicate BGP Large Community values MUST NOT be transmitted."
+// Per RFC 8092 Section 5, duplicate values are removed before transmission.
 func (l LargeCommunities) Pack() []byte {
 	unique := l.deduplicate()
 	buf := make([]byte, len(unique)*12)
@@ -339,12 +332,10 @@ type IPv6ExtendedCommunity [20]byte
 // "IPv6 Address Specific extended communities".
 type IPv6ExtendedCommunities []IPv6ExtendedCommunity
 
-// Code returns the attribute type code (25).
-// RFC 5701 Section 3: "This document defines a new BGP attribute... (value 25)."
+// Code returns the attribute type code (25) per RFC 5701 Section 3.
 func (e IPv6ExtendedCommunities) Code() AttributeCode { return AttrIPv6ExtCommunity }
 
-// Flags returns the attribute flags.
-// RFC 5701 Section 2: "transitive, optional BGP attribute"
+// Flags returns the attribute flags (transitive optional) per RFC 5701 Section 2.
 func (e IPv6ExtendedCommunities) Flags() AttributeFlags { return FlagOptional | FlagTransitive }
 
 // Len returns the length in bytes (20 bytes per IPv6 extended community).

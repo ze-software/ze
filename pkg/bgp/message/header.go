@@ -18,16 +18,12 @@ const (
 	// RFC 8654 - Extended Message capability allows messages up to 65535 octets.
 	ExtMsgLen = 65535
 
-	// Minimum message lengths per RFC 4271:
-	// RFC 4271 Section 4.2: "The minimum length of the OPEN message is 29 octets"
-	MinOpenLen = 29
-	// RFC 4271 Section 4.3: "The minimum length of the UPDATE message is 23 octets"
-	MinUpdateLen = 23
-	// RFC 4271 Section 4.5: "The minimum length of the NOTIFICATION message is 21 octets"
-	MinNotificationLen = 21
-	// RFC 4271 Section 4.4: "A KEEPALIVE message consists of only the message header and has a length of 19 octets"
-	KeepaliveLen = 19
-	// RFC 2918: ROUTE-REFRESH has AFI(2) + Reserved(1) + SAFI(1) = 4 bytes after header
+	// Minimum message lengths per RFC 4271.
+	MinOpenLen         = 29 // RFC 4271 Section 4.2: "The minimum length of the OPEN message is 29 octets."
+	MinUpdateLen       = 23 // RFC 4271 Section 4.3: "The minimum length of the UPDATE message is 23 octets."
+	MinNotificationLen = 21 // RFC 4271 Section 4.5: "The minimum length of the NOTIFICATION message is 21 octets."
+	KeepaliveLen       = 19 // RFC 4271 Section 4.4: KEEPALIVE is header-only (19 octets).
+	// RFC 2918: ROUTE-REFRESH has AFI(2) + Reserved(1) + SAFI(1) = 4 bytes after header.
 	MinRouteRefreshLen = 23
 )
 
@@ -190,7 +186,7 @@ func (h Header) ValidateLengthWithMax(extendedMessage bool) error {
 	case TypeOPEN, TypeKEEPALIVE:
 		// Always 4096 max for OPEN and KEEPALIVE (RFC 8654 Section 4)
 		maxLen = MaxMsgLen
-	default:
+	case TypeUPDATE, TypeNOTIFICATION, TypeROUTEREFRESH:
 		// UPDATE, NOTIFICATION, ROUTE-REFRESH: extended if negotiated
 		if extendedMessage {
 			maxLen = ExtMsgLen
@@ -216,10 +212,12 @@ func MaxMessageLength(msgType MessageType, extendedMessage bool) uint16 {
 	switch msgType {
 	case TypeOPEN, TypeKEEPALIVE:
 		return MaxMsgLen
-	default:
+	case TypeUPDATE, TypeNOTIFICATION, TypeROUTEREFRESH:
 		if extendedMessage {
 			return ExtMsgLen
 		}
+		return MaxMsgLen
+	default:
 		return MaxMsgLen
 	}
 }

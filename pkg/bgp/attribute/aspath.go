@@ -158,9 +158,11 @@ func packSegmentWithSplit(buf []byte, offset int, segType ASPathSegmentType, asn
 			offset += 4
 		} else {
 			// RFC 6793 Section 4.2.2: Use AS_TRANS for non-mappable ASNs
-			as16 := uint16(asns[i])
+			var as16 uint16
 			if asns[i] > 65535 {
 				as16 = 23456 // AS_TRANS per RFC 6793 Section 9
+			} else {
+				as16 = uint16(asns[i]) // #nosec G115 -- bounds checked above
 			}
 			binary.BigEndian.PutUint16(buf[offset:], as16)
 			offset += 2

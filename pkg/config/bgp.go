@@ -11,10 +11,14 @@ import (
 const (
 	configTrue   = "true"   // Config value for boolean true
 	configEnable = "enable" // Config value for enabled state
+
+	// MUP route types for SRv6 Mobile User Plane.
+	routeTypeMUPISD  = "mup-isd"
+	routeTypeMUPT1ST = "mup-t1st"
 )
 
 // flowRouteAttributes returns field definitions for FlowSpec routes.
-// Format: route NAME { rd VALUE; match { ... } then { ... } }
+// Format: route NAME { rd VALUE; match { ... } then { ... } }.
 func flowRouteAttributes() []FieldDef {
 	return []FieldDef{
 		Field("rd", Leaf(TypeString)),
@@ -1071,15 +1075,15 @@ func parseVPLSRoute(name string, route *Tree) VPLSRouteConfig {
 
 // extractFlowSpecRoutes extracts FlowSpec routes from flow { route ... }.
 func extractFlowSpecRoutes(tree *Tree) []FlowSpecRouteConfig {
-	var routes []FlowSpecRouteConfig
-
 	flow := tree.GetContainer("flow")
 	if flow == nil {
-		return routes
+		return nil
 	}
 
 	// Use ordered iteration to preserve config order.
-	for _, entry := range flow.GetListOrdered("route") {
+	entries := flow.GetListOrdered("route")
+	routes := make([]FlowSpecRouteConfig, 0, len(entries))
+	for _, entry := range entries {
 		r := parseFlowSpecRoute(entry.Key, entry.Value)
 		routes = append(routes, r)
 	}
@@ -1107,7 +1111,7 @@ func parseFlowSpecRoute(name string, route *Tree) FlowSpecRouteConfig {
 	if match := route.GetContainer("match"); match != nil {
 		for _, key := range match.Values() {
 			val, _ := match.Get(key)
-			if val == "true" || val == "" {
+			if val == configTrue || val == "" {
 				// Legacy format: key might be "keyword value"
 				parts := strings.SplitN(key, " ", 2)
 				if len(parts) == 2 {
@@ -1158,7 +1162,7 @@ func parseFlowSpecRoute(name string, route *Tree) FlowSpecRouteConfig {
 }
 
 // parseMUPFromInline creates a MUPRouteConfig from an inline string.
-// Format: "mup-isd PREFIX rd RD next-hop NH ..." or "mup-dsd ADDR rd RD ..."
+// Format: "mup-isd PREFIX rd RD next-hop NH ..." or "mup-dsd ADDR rd RD ...".
 func parseMUPFromInline(inline string, isIPv6 bool) MUPRouteConfig {
 	tokens := tokenizeInline(inline)
 	if len(tokens) == 0 {
@@ -1174,7 +1178,7 @@ func parseMUPFromInline(inline string, isIPv6 bool) MUPRouteConfig {
 
 	// Second token is prefix or address
 	if len(tokens) > 1 {
-		if r.RouteType == "mup-isd" || r.RouteType == "mup-t1st" {
+		if r.RouteType == routeTypeMUPISD || r.RouteType == routeTypeMUPT1ST {
 			r.Prefix = tokens[1]
 		} else {
 			r.Address = tokens[1]

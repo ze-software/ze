@@ -264,7 +264,7 @@ func serializeFreeform(b *strings.Builder, tree *Tree, indent int) {
 		v := tree.values[k]
 		b.WriteString(prefix)
 		b.WriteString(k)
-		if v != "true" {
+		if v != configTrue {
 			// Has a value - always output as "key [ value ];" to preserve roundtrip
 			b.WriteString(" [ ")
 			b.WriteString(v)

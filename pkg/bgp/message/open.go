@@ -10,8 +10,7 @@ const AS_TRANS = 23456
 
 // RFC 9072 - Extended Optional Parameters constants.
 const (
-	// ExtendedParamMarker is the marker value indicating extended format.
-	// RFC 9072 Section 2: "Type code 255 as the 'Extended Length'"
+	// ExtendedParamMarker is the marker value (0xFF) for extended format.
 	ExtendedParamMarker = 0xFF
 )
 
@@ -142,6 +141,7 @@ func (o *Open) packExtended() ([]byte, error) {
 	// "Non-Ext OP Type MUST be set to 255"
 	body[10] = ExtendedParamMarker
 	// Extended Optional Parameters Length (2 octets)
+	// #nosec G115 -- optLen is bounded by MaxMsgLen (65535)
 	binary.BigEndian.PutUint16(body[11:13], uint16(optLen))
 
 	// Optional Parameters

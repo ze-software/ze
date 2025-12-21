@@ -165,7 +165,7 @@ func TestNegotiateMismatches(t *testing.T) {
 	// Count mismatches by type
 	var extMsgMismatch, errMismatch, ipv6Mismatch, evpnMismatch bool
 	for _, m := range neg.Mismatches {
-		switch m.Code {
+		switch m.Code { //nolint:exhaustive // Test only checks specific codes
 		case CodeExtendedMessage:
 			extMsgMismatch = true
 			assert.True(t, m.LocalSupported)
@@ -187,6 +187,8 @@ func TestNegotiateMismatches(t *testing.T) {
 					assert.True(t, m.PeerSupported)
 				}
 			}
+		default:
+			// Other capability codes not relevant for this test
 		}
 	}
 

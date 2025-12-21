@@ -675,7 +675,7 @@ func (asp ASPath) IsZero() bool {
 }
 
 // Aggregator represents the AGGREGATOR attribute (RFC 4271).
-// Format: ( ASN:IP ) e.g., ( 18144:219.118.225.189 )
+// Format: ( ASN:IP ) e.g., ( 18144:219.118.225.189 ).
 type Aggregator struct {
 	Raw   string  // Original string
 	ASN   uint32  // Aggregator AS
@@ -733,7 +733,7 @@ func (agg Aggregator) IsZero() bool {
 }
 
 // RawAttribute represents a raw BGP path attribute from config.
-// Format: [ code flags value_hex ]
+// Format: [ code flags value_hex ].
 type RawAttribute struct {
 	Code  uint8
 	Flags uint8

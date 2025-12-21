@@ -577,7 +577,7 @@ func parseExtendedNextHop(data []byte) (*ExtendedNextHop, error) {
 // This capability advertises the fully qualified domain name (hostname
 // and domain name) of the BGP speaker.
 //
-// Format: Hostname Length (1) + Hostname (variable) + Domain Length (1) + Domain (variable)
+// Format: Hostname Length (1) + Hostname (variable) + Domain Length (1) + Domain (variable).
 type FQDN struct {
 	Hostname   string
 	DomainName string
@@ -643,7 +643,7 @@ func parseFQDN(data []byte) (*FQDN, error) {
 // draft-ietf-idr-software-version: Capability Code 75, variable length.
 // This capability advertises the software version of the BGP implementation.
 //
-// Format: Version Length (1) + Version String (variable)
+// Format: Version Length (1) + Version String (variable).
 type SoftwareVersion struct {
 	Version string
 }

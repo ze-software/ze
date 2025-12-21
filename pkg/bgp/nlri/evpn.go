@@ -701,8 +701,8 @@ func (e *EVPNType5) String() string {
 
 // EVPNGeneric holds unparsed EVPN routes.
 // Used for route types not yet implemented (e.g., Type 1, Type 4).
-// RFC 7432 Section 7.1: Type 1 - Ethernet Auto-discovery
-// RFC 7432 Section 7.4: Type 4 - Ethernet Segment
+// RFC 7432 Section 7.1: Type 1 - Ethernet Auto-discovery per-ES and per-EVI.
+// RFC 7432 Section 7.4: Type 4 - Ethernet Segment route for DF election.
 type EVPNGeneric struct {
 	routeType EVPNRouteType
 	data      []byte

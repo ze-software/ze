@@ -19,7 +19,7 @@ var (
 )
 
 // BGPLSNLRIType identifies the type of BGP-LS NLRI.
-// RFC 7752 Section 3.2, Table 1 - NLRI Types
+// RFC 7752 Section 3.2, Table 1 - NLRI Types defines Node, Link, and Prefix types.
 type BGPLSNLRIType uint16
 
 // BGP-LS NLRI types.
@@ -62,7 +62,7 @@ func (t BGPLSNLRIType) String() string {
 }
 
 // BGPLSProtocolID identifies the IGP protocol source of link-state information.
-// RFC 7752 Section 3.2, Table 2 - Protocol Identifiers
+// RFC 7752 Section 3.2, Table 2 - Protocol Identifiers for IS-IS, OSPF, etc.
 type BGPLSProtocolID uint8
 
 // Protocol IDs.

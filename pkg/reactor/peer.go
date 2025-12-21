@@ -414,7 +414,8 @@ func buildStaticRouteUpdate(route StaticRoute, localAS uint32, isIBGP, asn4 bool
 	// - For iBGP: use configured AS_PATH or empty
 	// - For eBGP: prepend local AS to configured AS_PATH
 	var asPath *attribute.ASPath
-	if len(route.ASPath) > 0 {
+	switch {
+	case len(route.ASPath) > 0:
 		// Use configured AS_PATH, prepend local AS for eBGP
 		asns := make([]uint32, 0, len(route.ASPath)+1)
 		if !isIBGP {
@@ -426,10 +427,10 @@ func buildStaticRouteUpdate(route StaticRoute, localAS uint32, isIBGP, asn4 bool
 				{Type: attribute.ASSequence, ASNs: asns},
 			},
 		}
-	} else if isIBGP {
+	case isIBGP:
 		// Empty AS_PATH for iBGP self-originated routes
 		asPath = &attribute.ASPath{Segments: nil}
-	} else {
+	default:
 		// Prepend local AS for eBGP
 		asPath = &attribute.ASPath{
 			Segments: []attribute.ASPathSegment{
@@ -662,7 +663,8 @@ func buildGroupedUpdate(routes []StaticRoute, localAS uint32, isIBGP, asn4 bool)
 
 	// 2. AS_PATH.
 	var asPath *attribute.ASPath
-	if len(route.ASPath) > 0 {
+	switch {
+	case len(route.ASPath) > 0:
 		asns := make([]uint32, 0, len(route.ASPath)+1)
 		if !isIBGP {
 			asns = append(asns, localAS)
@@ -673,9 +675,9 @@ func buildGroupedUpdate(routes []StaticRoute, localAS uint32, isIBGP, asn4 bool)
 				{Type: attribute.ASSequence, ASNs: asns},
 			},
 		}
-	} else if isIBGP {
+	case isIBGP:
 		asPath = &attribute.ASPath{Segments: nil}
-	} else {
+	default:
 		asPath = &attribute.ASPath{
 			Segments: []attribute.ASPathSegment{
 				{Type: attribute.ASSequence, ASNs: []uint32{localAS}},
@@ -1007,12 +1009,8 @@ func buildMVPNUpdate(routes []MVPNRoute, localAS uint32, isIBGP, isIPv6, asn4 bo
 
 	var attrBytes []byte
 
-	// 1. ORIGIN (default to IGP if not set)
-	originVal := first.Origin
-	if originVal == 0 && first.Origin == 0 {
-		// Origin 0 is IGP, which is correct default
-	}
-	origin := attribute.Origin(originVal)
+	// 1. ORIGIN (default to IGP if not set; Origin 0 is IGP, which is correct default)
+	origin := attribute.Origin(first.Origin)
 	attrBytes = append(attrBytes, attribute.PackAttribute(origin)...)
 
 	// 2. AS_PATH (empty for iBGP)
@@ -1229,15 +1227,16 @@ func buildVPLSUpdate(route VPLSRoute, localAS uint32, isIBGP, asn4 bool) *messag
 
 	// 2. AS_PATH
 	var asPath *attribute.ASPath
-	if isIBGP && len(route.ASPath) == 0 {
+	switch {
+	case isIBGP && len(route.ASPath) == 0:
 		asPath = &attribute.ASPath{Segments: nil}
-	} else if len(route.ASPath) > 0 {
+	case len(route.ASPath) > 0:
 		asPath = &attribute.ASPath{
 			Segments: []attribute.ASPathSegment{
 				{Type: attribute.ASSequence, ASNs: route.ASPath},
 			},
 		}
-	} else {
+	default:
 		asPath = &attribute.ASPath{
 			Segments: []attribute.ASPathSegment{
 				{Type: attribute.ASSequence, ASNs: []uint32{localAS}},
@@ -1385,11 +1384,12 @@ func (p *Peer) sendFlowSpecRoutes() {
 			trace.Log(trace.Routes, "neighbor %s: FlowSpec send error: %v", addr, err)
 		}
 		// Track AFI/SAFI
-		if route.IsIPv6 {
+		switch {
+		case route.IsIPv6:
 			hasIPv6 = true
-		} else if route.RD != [8]byte{} {
+		case route.RD != [8]byte{}:
 			hasIPv4VPN = true
-		} else {
+		default:
 			hasIPv4 = true
 		}
 	}

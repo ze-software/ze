@@ -195,6 +195,7 @@ func ChunkNLRI(nlri []byte, maxSize int) [][]byte {
 
 	for offset < len(nlri) {
 		// Read prefix length (in bits)
+		// #nosec G602 -- offset bounds checked by loop condition
 		prefixLen := int(nlri[offset])
 
 		// Calculate prefix size in bytes: 1 (length byte) + ceil(prefixLen/8)

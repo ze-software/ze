@@ -208,8 +208,8 @@ func NewIPVPN(family Family, rd RouteDistinguisher, labels []uint32, prefix neti
 //	|   (variable)              |
 //	+---------------------------+
 //
-// For VPNv4 (RFC 4364): AFI=1, SAFI=128
-// For VPNv6 (RFC 4659): AFI=2, SAFI=128
+// For VPNv4 (RFC 4364): AFI=1, SAFI=128.
+// For VPNv6 (RFC 4659): AFI=2, SAFI=128.
 func ParseIPVPN(afi AFI, safi SAFI, data []byte, addpath bool) (NLRI, []byte, error) {
 	if len(data) == 0 {
 		return nil, nil, ErrShortRead
@@ -306,8 +306,8 @@ func ParseIPVPN(afi AFI, safi SAFI, data []byte, addpath bool) (NLRI, []byte, er
 }
 
 // Family returns the AFI/SAFI.
-// RFC 4364: AFI=1, SAFI=128 for VPNv4
-// RFC 4659: AFI=2, SAFI=128 for VPNv6
+// RFC 4364: AFI=1, SAFI=128 for VPNv4.
+// RFC 4659: AFI=2, SAFI=128 for VPNv6.
 func (v *IPVPN) Family() Family { return v.family }
 
 // RD returns the Route Distinguisher per RFC 4364 Section 4.1.
@@ -366,7 +366,7 @@ func (v *IPVPN) Bytes() []byte {
 
 // Len returns the wire format length.
 //
-// Length = [Path ID (4)] + Length (1) + Labels (3*n) + RD (8) + Prefix (variable)
+// Length = [Path ID (4)] + Length (1) + Labels (3*n) + RD (8) + Prefix (variable).
 func (v *IPVPN) Len() int {
 	prefixBytes := (v.prefix.Bits() + 7) / 8
 	// 1 byte length + 3 bytes per label + 8 byte RD + prefix bytes

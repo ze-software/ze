@@ -63,6 +63,8 @@ func (p *AS4Path) Len() int {
 // RFC 6793 Section 3: "the path segment types AS_CONFED_SEQUENCE and
 // AS_CONFED_SET are declared invalid for the AS4_PATH attribute and
 // MUST NOT be included in the AS4_PATH attribute of an UPDATE message."
+//
+// Returns the packed AS4_PATH attribute bytes.
 func (p *AS4Path) Pack() []byte {
 	if len(p.Segments) == 0 {
 		return []byte{}
@@ -118,7 +120,7 @@ func (p *AS4Path) FilterConfedSegments() *AS4Path {
 //
 // RFC 6793 Section 4.2.3: "it is necessary to first calculate the number
 // of AS numbers in the AS_PATH and AS4_PATH attributes using the method
-// specified in Section 9.1.2.2 of [RFC4271]"
+// specified in Section 9.1.2.2 of [RFC4271].".
 func (p *AS4Path) PathLength() int {
 	length := 0
 	for _, seg := range p.Segments {
@@ -149,7 +151,7 @@ func (p *AS4Path) PathLength() int {
 //
 // RFC 6793 Section 6: "A NEW BGP speaker that receives a malformed AS4_PATH
 // attribute in an UPDATE message from an OLD BGP speaker MUST discard the
-// attribute and continue processing the UPDATE message."
+// attribute and continue processing the UPDATE message.".
 func ParseAS4Path(data []byte) (*AS4Path, error) {
 	// RFC 6793 Section 6: Empty AS4_PATH is valid (no segments)
 	if len(data) == 0 {
@@ -259,14 +261,14 @@ func (a *AS4Aggregator) Flags() AttributeFlags { return FlagOptional | FlagTrans
 // Len returns 8 (4-byte AS + 4-byte IPv4 address).
 //
 // RFC 6793 Section 6: "The AS4_AGGREGATOR attribute in an UPDATE message
-// SHALL be considered malformed if the attribute length is not 8."
+// SHALL be considered malformed if the attribute length is not 8.".
 func (a *AS4Aggregator) Len() int { return 8 }
 
 // Pack serializes the AS4_AGGREGATOR attribute.
 //
 // RFC 6793 Section 3: "The AS4_AGGREGATOR attribute has the same semantics
 // and the same encoding as the AGGREGATOR attribute, except that it carries
-// a four-octet AS number."
+// a four-octet AS number.".
 func (a *AS4Aggregator) Pack() []byte {
 	buf := make([]byte, 8)
 	binary.BigEndian.PutUint32(buf[0:4], a.ASN)
@@ -281,7 +283,7 @@ func (a *AS4Aggregator) Pack() []byte {
 //
 // RFC 6793 Section 6: "A NEW BGP speaker that receives a malformed
 // AS4_AGGREGATOR attribute in an UPDATE message from an OLD BGP speaker
-// MUST discard the attribute and continue processing the UPDATE message."
+// MUST discard the attribute and continue processing the UPDATE message.".
 func ParseAS4Aggregator(data []byte) (*AS4Aggregator, error) {
 	if len(data) != 8 {
 		return nil, ErrInvalidLength
@@ -318,7 +320,7 @@ func (a *AS4Aggregator) ToAggregator() *Aggregator {
 //	 as two-octet AS numbers in AS path information that is encoded with
 //	 two-octet AS numbers."
 //
-// RFC 6793 Section 9 (IANA): AS_TRANS = 23456
+// RFC 6793 Section 9 (IANA): AS_TRANS = 23456.
 const ASTrans uint32 = 23456
 
 // MergeAS4Path merges AS_PATH and AS4_PATH per RFC 6793 Section 4.2.3.

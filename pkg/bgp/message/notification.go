@@ -167,7 +167,7 @@ func (n *Notification) Type() MessageType {
 
 // RFC 4271 Section 4.5 - Pack serializes the NOTIFICATION to wire format.
 // The minimum NOTIFICATION message length is 21 octets (including the 19-octet header).
-// Message Length = 21 + Data Length
+// Message Length = 21 + Data Length.
 func (n *Notification) Pack(neg *Negotiated) ([]byte, error) {
 	body := make([]byte, 2+len(n.Data))
 	body[0] = byte(n.ErrorCode)
@@ -178,7 +178,7 @@ func (n *Notification) Pack(neg *Negotiated) ([]byte, error) {
 
 // RFC 4271 Section 4.5 - UnpackNotification parses a NOTIFICATION message body.
 // The minimum body length is 2 octets (Error Code + Error Subcode).
-// Data field length can be determined from: Message Length - 21
+// Data field length can be determined from: Message Length - 21.
 func UnpackNotification(data []byte) (*Notification, error) {
 	if len(data) < 2 {
 		return nil, ErrShortRead
@@ -273,7 +273,7 @@ func (n *Notification) subcodeString() string {
 }
 
 // headerSubcodeString returns the string for Message Header Error subcodes.
-// RFC 4271 Section 6.1
+// Defined in RFC 4271 Section 6.1.
 func headerSubcodeString(subcode uint8) string {
 	switch subcode {
 	case 0:
@@ -290,7 +290,7 @@ func headerSubcodeString(subcode uint8) string {
 }
 
 // fsmSubcodeString returns the string for FSM Error subcodes.
-// RFC 6608 Section 3
+// Defined in RFC 6608 Section 3.
 func fsmSubcodeString(subcode uint8) string {
 	switch subcode {
 	case NotifyFSMUnspecified:
@@ -307,7 +307,7 @@ func fsmSubcodeString(subcode uint8) string {
 }
 
 // routeRefreshSubcodeString returns the string for Route-Refresh Error subcodes.
-// RFC 7313 Section 5
+// Defined in RFC 7313 Section 5.
 func routeRefreshSubcodeString(subcode uint8) string {
 	switch subcode {
 	case 0:

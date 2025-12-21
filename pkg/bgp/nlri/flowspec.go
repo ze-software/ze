@@ -88,9 +88,9 @@ func (t FlowComponentType) String() string {
 // a (bit 1): AND bit - if unset, OR with previous; if set, AND with previous
 // len (bits 2-3): value length as (1 << len): 1, 2, 4, or 8 octets
 // bit 4: reserved, MUST be 0
-// lt (bit 5): less-than comparison
-// gt (bit 6): greater-than comparison
-// eq (bit 7): equality comparison
+// lt (bit 5): less-than comparison.
+// gt (bit 6): greater-than comparison.
+// eq (bit 7): equality comparison.
 type FlowOperator byte
 
 // Numeric operator flags per RFC 8955 Section 4.2.1.1.
@@ -132,10 +132,10 @@ type FlowMatch struct {
 //	| 0 | 0 | 0 | 0 |LF |FF |IsF|DF |
 //	+---+---+---+---+---+---+---+---+
 //
-// DF (bit 0): Don't Fragment - match if IP Header Flags Bit-1 (DF) is 1
-// IsF (bit 1): Is a Fragment - match if Fragment Offset is not 0
-// FF (bit 2): First Fragment - match if Fragment Offset is 0 AND MF is 1
-// LF (bit 3): Last Fragment - match if Fragment Offset is not 0 AND MF is 0
+// DF (bit 0): Don't Fragment - match if IP Header Flags Bit-1 (DF) is 1.
+// IsF (bit 1): Is a Fragment - match if Fragment Offset is not 0.
+// FF (bit 2): First Fragment - match if Fragment Offset is 0 AND MF is 1.
+// LF (bit 3): Last Fragment - match if Fragment Offset is not 0 AND MF is 0.
 const (
 	FlowFragDontFragment  FlowFragmentFlag = 0x01 // DF: Don't Fragment flag set
 	FlowFragIsFragment    FlowFragmentFlag = 0x02 // IsF: Is a fragment (offset != 0)
@@ -199,7 +199,7 @@ func (f *FlowSpec) AddComponent(c FlowComponent) {
 // ComponentBytes returns the wire-format encoding of components without length prefix.
 // This is used for FlowSpec VPN where the VPN wrapper provides its own length.
 // Components are sorted by type per RFC 8955 Section 4.2:
-// "Components MUST follow strict type ordering by increasing numerical order."
+// "Components MUST follow strict type ordering by increasing numerical order.".
 func (f *FlowSpec) ComponentBytes() []byte {
 	// Sort components by type (RFC 8955 Section 4.2 requires strict ordering)
 	sorted := make([]FlowComponent, len(f.components))
@@ -217,10 +217,10 @@ func (f *FlowSpec) ComponentBytes() []byte {
 
 // Bytes returns the wire-format encoding (with length prefix).
 // RFC 8955 Section 4.1 defines the length encoding:
-// - If length < 240 (0xf0): single octet length
-// - If length >= 240: 2-octet extended length with high nibble 0xf
+// - If length < 240 (0xf0): single octet length.
+// - If length >= 240: 2-octet extended length with high nibble 0xf.
 //
-// Example from RFC 8955: 239 -> 0xef (1 octet), 240 -> 0xf0f0 (2 octets)
+// Example from RFC 8955: 239 -> 0xef (1 octet), 240 -> 0xf0f0 (2 octets).
 func (f *FlowSpec) Bytes() []byte {
 	if f.cached != nil {
 		return f.cached
@@ -272,8 +272,8 @@ func (f *FlowSpec) String() string {
 // ParseFlowSpec parses a FlowSpec from wire format per RFC 8955 Section 4.
 // The NLRI consists of a length field followed by component data.
 // RFC 8955 Section 4.1 defines length encoding:
-// - Single octet if < 240
-// - Two octets (0xfnnn format) if >= 240
+// - Single octet if < 240.
+// - Two octets (0xfnnn format) if >= 240.
 func ParseFlowSpec(family Family, data []byte) (*FlowSpec, error) {
 	if len(data) == 0 {
 		return nil, ErrFlowSpecTruncated
@@ -315,7 +315,7 @@ func ParseFlowSpec(family Family, data []byte) (*FlowSpec, error) {
 
 // parseFlowComponent parses a single FlowSpec component.
 // RFC 8955 Section 4.2.2: "The encoding of each of the components begins
-// with a type field (1 octet) followed by a variable length parameter."
+// with a type field (1 octet) followed by a variable length parameter.".
 func parseFlowComponent(data []byte, family Family) (FlowComponent, []byte, error) {
 	if len(data) == 0 {
 		return nil, nil, ErrFlowSpecTruncated
@@ -383,7 +383,7 @@ func parsePrefixComponent(t FlowComponentType, data []byte, family Family) (Flow
 // parseNumericComponent parses a numeric-type component (Types 3-12).
 // RFC 8955 Section 4.2.1.1 defines the numeric operator format.
 // The component consists of a list of {operator, value} pairs.
-// Encoding: <type (1 octet), [numeric_op, value]+>
+// Encoding: <type (1 octet), [numeric_op, value]+>.
 func parseNumericComponent(t FlowComponentType, data []byte) (FlowComponent, []byte, error) {
 	if len(data) == 0 {
 		return nil, nil, ErrFlowSpecTruncated
@@ -477,8 +477,8 @@ func (c *prefixComponent) Type() FlowComponentType { return c.compType }
 func (c *prefixComponent) Prefix() netip.Prefix    { return c.prefix }
 
 // Bytes returns the wire encoding per RFC 8955 Section 4.2.2.1-2.
-// IPv4: <type (1), length (1), prefix (variable)>
-// IPv6: <type (1), length (1), offset (1), prefix (variable)> per RFC 8956
+// IPv4: <type (1), length (1), prefix (variable)>.
+// IPv6: <type (1), length (1), offset (1), prefix (variable)> per RFC 8956.
 func (c *prefixComponent) Bytes() []byte {
 	bits := c.prefix.Bits()
 	addr := c.prefix.Addr()
@@ -537,7 +537,7 @@ func (c *numericComponent) Values() []uint64 {
 }
 
 // Bytes returns the wire encoding per RFC 8955 Section 4.2.1.1.
-// Format: <type (1 octet), [numeric_op, value]+>
+// Format: <type (1 octet), [numeric_op, value]+>.
 func (c *numericComponent) Bytes() []byte {
 	data := []byte{byte(c.compType)}
 
@@ -590,7 +590,7 @@ func (c *numericComponent) String() string {
 		if m.And && i > 0 {
 			prefix = "&"
 		}
-		switch m.Op {
+		switch m.Op &^ (FlowOpEnd | FlowOpAnd | FlowOpLenMask) { //nolint:exhaustive // Mask out non-comparison bits
 		case FlowOpGreater:
 			parts[i] = fmt.Sprintf("%s>%d", prefix, m.Value)
 		case FlowOpLess:
@@ -621,6 +621,8 @@ func NewFlowNumericComponent(compType FlowComponentType, matches []FlowMatch) Fl
 }
 
 // Helper to convert simple values to FlowMatch with equality operator.
+//
+//nolint:unused // Prepared for FlowSpec config parsing (not yet implemented)
 func valuesToMatches(values []uint64, op FlowOperator) []FlowMatch {
 	matches := make([]FlowMatch, len(values))
 	for i, v := range values {
@@ -791,7 +793,7 @@ type FlowSpecVPN struct {
 // NewFlowSpecVPN creates a new FlowSpec VPN NLRI (SAFI 134).
 // RFC 8955 Section 8: "This document defines an additional BGP NLRI type
 // (AFI=1, SAFI=134) value, which can be used to propagate Flow Specification
-// in a BGP/MPLS VPN environment."
+// in a BGP/MPLS VPN environment.".
 func NewFlowSpecVPN(family Family, rd RouteDistinguisher) *FlowSpecVPN {
 	// Convert SAFI to FlowSpecVPN if needed
 	fsFamily := family
@@ -834,7 +836,7 @@ func (f *FlowSpecVPN) Components() []FlowComponent {
 // Format: Length (1-2 bytes) + RD (8 bytes) + FlowSpec components.
 // RFC 8955 Section 8: "The NLRI length field shall include both the
 // 8 octets of the Route Distinguisher as well as the subsequent
-// Flow Specification NLRI value."
+// Flow Specification NLRI value.".
 func (f *FlowSpecVPN) Bytes() []byte {
 	if f.cached != nil {
 		return f.cached

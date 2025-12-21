@@ -422,7 +422,7 @@ func (s *Session) handleUpdate(body []byte) error {
 // validateUpdateFamilies checks that AFI/SAFI in MP_REACH/MP_UNREACH were negotiated.
 // RFC 4760 Section 6: "If a BGP speaker receives an UPDATE with MP_REACH_NLRI or
 // MP_UNREACH_NLRI where the AFI/SAFI do not match those negotiated in OPEN,
-// the speaker MAY treat this as an error."
+// the speaker MAY treat this as an error.".
 func (s *Session) validateUpdateFamilies(body []byte) error {
 	// Need at least 4 bytes: withdrawn len (2) + attrs len (2)
 	if len(body) < 4 {
