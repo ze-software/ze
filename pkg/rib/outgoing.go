@@ -226,6 +226,31 @@ func (r *OutgoingRIB) GetWithdrawals(family nlri.Family) []nlri.NLRI {
 	return nlris
 }
 
+// FlushAllPending returns and clears all pending routes across all families.
+func (r *OutgoingRIB) FlushAllPending() []*Route {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	var routes []*Route
+
+	for family, familyPending := range r.pending {
+		for idx, route := range familyPending {
+			routes = append(routes, route)
+
+			// Add to sent cache
+			if r.sent[family] == nil {
+				r.sent[family] = make(map[string]*Route)
+			}
+			r.sent[family][idx] = route
+		}
+	}
+
+	// Clear all pending
+	r.pending = make(map[nlri.Family]map[string]*Route)
+
+	return routes
+}
+
 // FlushWithdrawals returns and clears pending withdrawals for a family.
 func (r *OutgoingRIB) FlushWithdrawals(family nlri.Family) []nlri.NLRI {
 	r.mu.Lock()

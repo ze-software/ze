@@ -437,24 +437,32 @@ func (a *reactorAPIAdapter) BeginTransaction(label string) error {
 }
 
 // CommitTransaction commits the current transaction.
+// After committing, flushes pending routes, groups them, and sends to peers.
 func (a *reactorAPIAdapter) CommitTransaction() (api.TransactionResult, error) {
 	if a.r.ribOut == nil {
 		return api.TransactionResult{}, api.ErrNoTransaction
 	}
+
+	txID := a.r.ribOut.TransactionID()
 
 	stats, err := a.r.ribOut.CommitTransaction()
 	if err != nil {
 		return api.TransactionResult{}, convertRIBError(err)
 	}
 
+	// Flush pending routes and send grouped UPDATEs
+	updatesSent := a.flushAndSendGrouped()
+
 	return api.TransactionResult{
 		RoutesAnnounced: stats.RoutesAnnounced,
 		RoutesWithdrawn: stats.RoutesWithdrawn,
-		TransactionID:   a.r.ribOut.TransactionID(),
+		UpdatesSent:     updatesSent,
+		TransactionID:   txID,
 	}, nil
 }
 
 // CommitTransactionWithLabel commits, verifying the label matches.
+// After committing, flushes pending routes, groups them, and sends to peers.
 func (a *reactorAPIAdapter) CommitTransactionWithLabel(label string) (api.TransactionResult, error) {
 	if a.r.ribOut == nil {
 		return api.TransactionResult{}, api.ErrNoTransaction
@@ -466,11 +474,57 @@ func (a *reactorAPIAdapter) CommitTransactionWithLabel(label string) (api.Transa
 		return api.TransactionResult{}, convertRIBError(err)
 	}
 
+	// Flush pending routes and send grouped UPDATEs
+	updatesSent := a.flushAndSendGrouped()
+
 	return api.TransactionResult{
 		RoutesAnnounced: stats.RoutesAnnounced,
 		RoutesWithdrawn: stats.RoutesWithdrawn,
+		UpdatesSent:     updatesSent,
 		TransactionID:   txID,
 	}, nil
+}
+
+// flushAndSendGrouped flushes pending routes, groups them, and sends to peers.
+// Returns the number of UPDATE messages sent.
+func (a *reactorAPIAdapter) flushAndSendGrouped() int {
+	if a.r.ribOut == nil {
+		return 0
+	}
+
+	// Flush all pending routes
+	routes := a.r.ribOut.FlushAllPending()
+	if len(routes) == 0 {
+		return 0
+	}
+
+	// Group by attributes
+	groups := rib.GroupByAttributes(routes)
+	if len(groups) == 0 {
+		return 0
+	}
+
+	// Build and send UPDATEs
+	updatesSent := 0
+	for i := range groups {
+		update, err := rib.BuildGroupedUpdate(&groups[i])
+		if err != nil {
+			continue
+		}
+
+		// Send to all established peers
+		a.r.mu.RLock()
+		for _, peer := range a.r.peers {
+			if peer.State() == PeerStateEstablished {
+				if err := peer.SendUpdate(update); err == nil {
+					updatesSent++
+				}
+			}
+		}
+		a.r.mu.RUnlock()
+	}
+
+	return updatesSent
 }
 
 // RollbackTransaction discards all queued routes in the transaction.
