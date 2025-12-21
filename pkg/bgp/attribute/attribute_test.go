@@ -151,3 +151,67 @@ func TestAttributeCodeString(t *testing.T) {
 	assert.Equal(t, "MP_REACH_NLRI", AttrMPReachNLRI.String())
 	assert.Equal(t, "UNKNOWN(99)", AttributeCode(99).String())
 }
+
+// TestOrderAttributes verifies RFC 4271 Appendix F.3 attribute ordering.
+//
+// RFC 4271 Appendix F.3 - Path Attribute Ordering:
+//
+//	"It is a useful optimization to order the path attributes according
+//	 to type code. This optimization is entirely optional."
+//
+// VALIDATES: Attributes are sorted by type code.
+//
+// PREVENTS: Non-deterministic attribute order in UPDATE messages.
+func TestOrderAttributes(t *testing.T) {
+	// Create attributes out of order: COMMUNITY(8), ORIGIN(1), AS_PATH(2)
+	community := Communities{Community(0xFDE90064)}
+	origin := OriginIGP
+	aspath := &ASPath{Segments: []ASPathSegment{{Type: ASSequence, ASNs: []uint32{65001}}}}
+
+	attrs := []Attribute{community, origin, aspath}
+
+	ordered := OrderAttributes(attrs)
+
+	require.Len(t, ordered, 3)
+	assert.Equal(t, AttrOrigin, ordered[0].Code())    // 1
+	assert.Equal(t, AttrASPath, ordered[1].Code())    // 2
+	assert.Equal(t, AttrCommunity, ordered[2].Code()) // 8
+}
+
+// TestOrderAttributesEmpty verifies empty/nil handling.
+func TestOrderAttributesEmpty(t *testing.T) {
+	assert.Nil(t, OrderAttributes(nil))
+	assert.Equal(t, []Attribute{}, OrderAttributes([]Attribute{}))
+}
+
+// TestOrderAttributesSingle verifies single attribute.
+func TestOrderAttributesSingle(t *testing.T) {
+	origin := OriginIGP
+	attrs := []Attribute{origin}
+
+	ordered := OrderAttributes(attrs)
+
+	require.Len(t, ordered, 1)
+	assert.Equal(t, AttrOrigin, ordered[0].Code())
+}
+
+// TestPackAttributesOrdered verifies packing with ordering.
+//
+// RFC 4271 Appendix F.3: Order by type code for efficient comparison.
+//
+// VALIDATES: PackAttributesOrdered produces correctly ordered output.
+func TestPackAttributesOrdered(t *testing.T) {
+	// Create attributes out of order: COMMUNITY(8), ORIGIN(1)
+	community := Communities{Community(0xFDE90064)}
+	origin := OriginIGP
+
+	attrs := []Attribute{community, origin}
+
+	packed := PackAttributesOrdered(attrs)
+
+	// Parse the packed data to verify order
+	// First attribute should be ORIGIN (code 1)
+	_, code1, _, _, err := ParseHeader(packed)
+	require.NoError(t, err)
+	assert.Equal(t, AttrOrigin, code1, "first attribute should be ORIGIN")
+}

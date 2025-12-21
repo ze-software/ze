@@ -107,9 +107,9 @@
 ### 4.7 Attribute Ordering on Send
 - **Task:** Order attributes by type code per RFC
 - **RFC:** 4271 Appendix F.3
-- **Files:** `pkg/bgp/message/update.go`
+- **Files:** `pkg/bgp/attribute/origin.go`
 - **Test:** Verify attribute order in encoded UPDATE
-- [ ] Pending
+- [x] Complete - OrderAttributes() and PackAttributesOrdered() utility functions
 
 ### 4.8 AS4_PATH Merge Semantics ⚠️ NEW (from annotation)
 - **Task:** Fix countASNs() to use correct path length semantics

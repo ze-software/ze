@@ -96,3 +96,74 @@ func PackASPathAttribute(asPath *ASPath, asn4 bool) []byte {
 	header := PackHeader(asPath.Flags(), asPath.Code(), uint16(len(value))) //nolint:gosec // Attr max 65535
 	return append(header, value...)
 }
+
+// OrderAttributes sorts attributes by type code per RFC 4271 Appendix F.3.
+//
+// RFC 4271 Appendix F.3 - Path Attribute Ordering:
+//
+//	"It is a useful optimization to order the path attributes according
+//	 to type code. This optimization is entirely optional."
+//
+// The function returns a new slice; the original is not modified.
+// If the input is nil, nil is returned.
+// If the input is empty, an empty slice is returned.
+func OrderAttributes(attrs []Attribute) []Attribute {
+	if attrs == nil {
+		return nil
+	}
+	if len(attrs) == 0 {
+		return []Attribute{}
+	}
+	if len(attrs) == 1 {
+		return attrs
+	}
+
+	// Create a copy to avoid modifying the original
+	sorted := make([]Attribute, len(attrs))
+	copy(sorted, attrs)
+
+	// Sort by type code using insertion sort (stable, good for small slices)
+	for i := 1; i < len(sorted); i++ {
+		key := sorted[i]
+		j := i - 1
+		for j >= 0 && sorted[j].Code() > key.Code() {
+			sorted[j+1] = sorted[j]
+			j--
+		}
+		sorted[j+1] = key
+	}
+
+	return sorted
+}
+
+// PackAttributesOrdered packs a slice of attributes ordered by type code.
+//
+// RFC 4271 Appendix F.3: Order by type code for efficient comparison.
+// This combines OrderAttributes and PackAttribute for convenience.
+func PackAttributesOrdered(attrs []Attribute) []byte {
+	if len(attrs) == 0 {
+		return nil
+	}
+
+	ordered := OrderAttributes(attrs)
+
+	// Calculate total size
+	totalLen := 0
+	for _, attr := range ordered {
+		// Header (3 or 4 bytes) + value
+		attrLen := attr.Len()
+		if attrLen > 255 {
+			totalLen += 4 + attrLen // Extended length header
+		} else {
+			totalLen += 3 + attrLen // Normal header
+		}
+	}
+
+	// Pack all attributes
+	buf := make([]byte, 0, totalLen)
+	for _, attr := range ordered {
+		buf = append(buf, PackAttribute(attr)...)
+	}
+
+	return buf
+}
