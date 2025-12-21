@@ -388,12 +388,12 @@ func (p *Peer) sendInitialRoutes() {
 
 	// Send End-of-RIB marker for each configured address family.
 	if hasIPv4Family {
-		eor := buildEORUpdate(1, 1) // IPv4 unicast
+		eor := message.BuildEOR(nlri.IPv4Unicast)
 		_ = p.SendUpdate(eor)
 		trace.Log(trace.Routes, "neighbor %s: sent IPv4 unicast EOR marker", addr)
 	}
 	if hasIPv6Family {
-		eor := buildEORUpdate(2, 1) // IPv6 unicast
+		eor := message.BuildEOR(nlri.IPv6Unicast)
 		_ = p.SendUpdate(eor)
 		trace.Log(trace.Routes, "neighbor %s: sent IPv6 unicast EOR marker", addr)
 	}
@@ -1222,7 +1222,7 @@ func (p *Peer) sendVPLSRoutes() {
 	}
 
 	// Send EOR for L2VPN VPLS (AFI=25, SAFI=65)
-	eor := buildEORUpdate(25, 65)
+	eor := message.BuildEOR(nlri.Family{AFI: 25, SAFI: 65})
 	_ = p.SendUpdate(eor)
 }
 
@@ -1406,15 +1406,15 @@ func (p *Peer) sendFlowSpecRoutes() {
 
 	// Send EORs
 	if hasIPv4 {
-		eor := buildEORUpdate(1, 133) // IPv4 FlowSpec
+		eor := message.BuildEOR(nlri.Family{AFI: 1, SAFI: 133}) // IPv4 FlowSpec
 		_ = p.SendUpdate(eor)
 	}
 	if hasIPv4VPN {
-		eor := buildEORUpdate(1, 134) // IPv4 FlowSpec VPN
+		eor := message.BuildEOR(nlri.Family{AFI: 1, SAFI: 134}) // IPv4 FlowSpec VPN
 		_ = p.SendUpdate(eor)
 	}
 	if hasIPv6 {
-		eor := buildEORUpdate(2, 133) // IPv6 FlowSpec
+		eor := message.BuildEOR(nlri.Family{AFI: 2, SAFI: 133}) // IPv6 FlowSpec
 		_ = p.SendUpdate(eor)
 	}
 }
@@ -1598,11 +1598,11 @@ func (p *Peer) sendMUPRoutes() {
 
 	// Send EORs
 	if len(ipv4Routes) > 0 {
-		eor := buildEORUpdate(1, 85) // IPv4 MUP
+		eor := message.BuildEOR(nlri.Family{AFI: 1, SAFI: 85}) // IPv4 MUP
 		_ = p.SendUpdate(eor)
 	}
 	if len(ipv6Routes) > 0 {
-		eor := buildEORUpdate(2, 85) // IPv6 MUP
+		eor := message.BuildEOR(nlri.Family{AFI: 2, SAFI: 85}) // IPv6 MUP
 		_ = p.SendUpdate(eor)
 	}
 }

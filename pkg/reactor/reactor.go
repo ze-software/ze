@@ -313,36 +313,6 @@ func buildWithdrawUpdate(prefix netip.Prefix) *message.Update {
 	}
 }
 
-// buildEORUpdate builds an End-of-RIB marker UPDATE.
-// For IPv4 unicast: UPDATE with empty withdrawn, empty attributes, empty NLRI.
-// For other families: UPDATE with MP_UNREACH_NLRI containing just AFI/SAFI.
-func buildEORUpdate(afi uint16, safi uint8) *message.Update {
-	if afi == 1 && safi == 1 {
-		// IPv4 unicast: empty UPDATE
-		return &message.Update{}
-	}
-
-	// Other families: MP_UNREACH_NLRI with AFI/SAFI only
-	// Attribute 15: MP_UNREACH_NLRI
-	// Format: AFI(2) + SAFI(1) + Withdrawn NLRI (empty)
-	mpUnreachValue := []byte{
-		byte(afi >> 8), byte(afi), // AFI
-		safi, // SAFI
-		// No withdrawn NLRI
-	}
-
-	attrBytes := attribute.PackHeader(
-		attribute.FlagOptional|attribute.FlagExtLength,
-		attribute.AttrMPUnreachNLRI,
-		uint16(len(mpUnreachValue)), //nolint:gosec // Length is bounded by BGP message size
-	)
-	attrBytes = append(attrBytes, mpUnreachValue...)
-
-	return &message.Update{
-		PathAttributes: attrBytes,
-	}
-}
-
 // Reload reloads the configuration.
 // TODO: Implement full configuration reload.
 func (a *reactorAPIAdapter) Reload() error {
@@ -408,7 +378,7 @@ func (a *reactorAPIAdapter) TeardownPeer(addr netip.Addr, _ string) error {
 
 // AnnounceEOR sends an End-of-RIB marker for the given address family.
 func (a *reactorAPIAdapter) AnnounceEOR(peerSelector string, afi uint16, safi uint8) error {
-	update := buildEORUpdate(afi, safi)
+	update := message.BuildEOR(nlri.Family{AFI: nlri.AFI(afi), SAFI: nlri.SAFI(safi)})
 	return a.sendToMatchingPeers(peerSelector, update)
 }
 
