@@ -17,7 +17,9 @@ func handleCommitStart(ctx *CommandContext, args []string) (*Response, error) {
 		label = args[0]
 	}
 
-	if err := ctx.Reactor.BeginTransaction(label); err != nil {
+	peerSelector := ctx.NeighborSelector()
+
+	if err := ctx.Reactor.BeginTransaction(peerSelector, label); err != nil {
 		return &Response{
 			Status: "error",
 			Error:  fmt.Sprintf("failed to start transaction: %v", err),
@@ -27,6 +29,7 @@ func handleCommitStart(ctx *CommandContext, args []string) (*Response, error) {
 	return &Response{
 		Status: "done",
 		Data: map[string]any{
+			"neighbor":    peerSelector,
 			"transaction": label,
 			"message":     "transaction started",
 		},
@@ -39,10 +42,12 @@ func handleCommitEnd(ctx *CommandContext, args []string) (*Response, error) {
 	var result TransactionResult
 	var err error
 
+	peerSelector := ctx.NeighborSelector()
+
 	if len(args) > 0 {
-		result, err = ctx.Reactor.CommitTransactionWithLabel(args[0])
+		result, err = ctx.Reactor.CommitTransactionWithLabel(peerSelector, args[0])
 	} else {
-		result, err = ctx.Reactor.CommitTransaction()
+		result, err = ctx.Reactor.CommitTransaction(peerSelector)
 	}
 
 	if err != nil {
@@ -55,6 +60,7 @@ func handleCommitEnd(ctx *CommandContext, args []string) (*Response, error) {
 	return &Response{
 		Status: "done",
 		Data: map[string]any{
+			"neighbor":         peerSelector,
 			"routes_announced": result.RoutesAnnounced,
 			"routes_withdrawn": result.RoutesWithdrawn,
 			"updates_sent":     result.UpdatesSent,
@@ -67,7 +73,9 @@ func handleCommitEnd(ctx *CommandContext, args []string) (*Response, error) {
 // handleCommitRollback discards all queued routes in the current transaction.
 // Usage: commit rollback [label].
 func handleCommitRollback(ctx *CommandContext, args []string) (*Response, error) {
-	result, err := ctx.Reactor.RollbackTransaction()
+	peerSelector := ctx.NeighborSelector()
+
+	result, err := ctx.Reactor.RollbackTransaction(peerSelector)
 	if err != nil {
 		return &Response{
 			Status: "error",
@@ -83,6 +91,7 @@ func handleCommitRollback(ctx *CommandContext, args []string) (*Response, error)
 	return &Response{
 		Status: "done",
 		Data: map[string]any{
+			"neighbor":         peerSelector,
 			"routes_discarded": result.RoutesDiscarded,
 			"transaction":      txLabel,
 		},

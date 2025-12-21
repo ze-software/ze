@@ -17,8 +17,18 @@ type Handler func(ctx *CommandContext, args []string) (*Response, error)
 
 // CommandContext provides access to reactor and session state.
 type CommandContext struct {
-	Reactor ReactorInterface
-	Encoder *JSONEncoder
+	Reactor  ReactorInterface
+	Encoder  *JSONEncoder
+	Neighbor string // Neighbor selector: "*" for all, or specific IP. Empty = "*"
+}
+
+// NeighborSelector returns the effective neighbor selector.
+// Returns "*" if no neighbor was specified.
+func (c *CommandContext) NeighborSelector() string {
+	if c.Neighbor == "" {
+		return "*"
+	}
+	return c.Neighbor
 }
 
 // Command represents a registered command with metadata.
@@ -81,10 +91,25 @@ func (d *Dispatcher) Commands() []*Command {
 }
 
 // Dispatch parses and executes a command.
+// Supports neighbor prefix: "neighbor <addr> <command>" or "neighbor * <command>".
+// If no neighbor prefix, defaults to all peers ("*").
 func (d *Dispatcher) Dispatch(ctx *CommandContext, input string) (*Response, error) {
 	tokens := tokenize(input)
 	if len(tokens) == 0 {
 		return nil, ErrEmptyCommand
+	}
+
+	// Check for neighbor prefix
+	if strings.ToLower(tokens[0]) == "neighbor" {
+		if len(tokens) < 3 {
+			return &Response{
+				Status: "error",
+				Error:  "usage: neighbor <addr|*> <command>",
+			}, errors.New("missing neighbor address or command")
+		}
+		ctx.Neighbor = tokens[1]
+		// Rebuild input without neighbor prefix
+		input = strings.Join(tokens[2:], " ")
 	}
 
 	// Build lowercase input for matching

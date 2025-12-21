@@ -16,6 +16,7 @@ import (
 	"github.com/exa-networks/zebgp/pkg/bgp/fsm"
 	"github.com/exa-networks/zebgp/pkg/bgp/message"
 	"github.com/exa-networks/zebgp/pkg/bgp/nlri"
+	"github.com/exa-networks/zebgp/pkg/rib"
 	"github.com/exa-networks/zebgp/pkg/trace"
 )
 
@@ -72,6 +73,9 @@ type Peer struct {
 	reconnectMin time.Duration
 	reconnectMax time.Duration
 
+	// Adj-RIB-Out: routes pending announcement to this peer
+	adjRIBOut *rib.OutgoingRIB
+
 	// Goroutine control
 	ctx    context.Context
 	cancel context.CancelFunc
@@ -86,12 +90,18 @@ func NewPeer(neighbor *Neighbor) *Peer {
 		neighbor:     neighbor,
 		reconnectMin: DefaultReconnectMin,
 		reconnectMax: DefaultReconnectMax,
+		adjRIBOut:    rib.NewOutgoingRIB(),
 	}
 }
 
 // Neighbor returns the configured neighbor.
 func (p *Peer) Neighbor() *Neighbor {
 	return p.neighbor
+}
+
+// AdjRIBOut returns the peer's Adj-RIB-Out.
+func (p *Peer) AdjRIBOut() *rib.OutgoingRIB {
+	return p.adjRIBOut
 }
 
 // State returns the current peer state.

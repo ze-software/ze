@@ -16,7 +16,7 @@ type mockTransactionReactor struct {
 	txError       error // Error to return from transaction operations
 }
 
-func (m *mockTransactionReactor) BeginTransaction(label string) error {
+func (m *mockTransactionReactor) BeginTransaction(_ string, label string) error {
 	if m.txError != nil {
 		return m.txError
 	}
@@ -28,11 +28,11 @@ func (m *mockTransactionReactor) BeginTransaction(label string) error {
 	return nil
 }
 
-func (m *mockTransactionReactor) CommitTransaction() (TransactionResult, error) {
-	return m.CommitTransactionWithLabel("")
+func (m *mockTransactionReactor) CommitTransaction(_ string) (TransactionResult, error) {
+	return m.CommitTransactionWithLabel("", "")
 }
 
-func (m *mockTransactionReactor) CommitTransactionWithLabel(label string) (TransactionResult, error) {
+func (m *mockTransactionReactor) CommitTransactionWithLabel(_ string, label string) (TransactionResult, error) {
 	if m.txError != nil {
 		return TransactionResult{}, m.txError
 	}
@@ -59,7 +59,7 @@ func (m *mockTransactionReactor) CommitTransactionWithLabel(label string) (Trans
 	return result, nil
 }
 
-func (m *mockTransactionReactor) RollbackTransaction() (TransactionResult, error) {
+func (m *mockTransactionReactor) RollbackTransaction(_ string) (TransactionResult, error) {
 	if m.txError != nil {
 		return TransactionResult{}, m.txError
 	}
@@ -81,11 +81,11 @@ func (m *mockTransactionReactor) RollbackTransaction() (TransactionResult, error
 	return result, nil
 }
 
-func (m *mockTransactionReactor) InTransaction() bool {
+func (m *mockTransactionReactor) InTransaction(_ string) bool {
 	return m.inTransaction
 }
 
-func (m *mockTransactionReactor) TransactionID() string {
+func (m *mockTransactionReactor) TransactionID(_ string) string {
 	return m.transactionID
 }
 

@@ -101,27 +101,27 @@ func (m *mockReactor) WithdrawL2VPN(_ string, _ L2VPNRoute) error {
 }
 
 // Transaction stubs (base mock doesn't support transactions).
-func (m *mockReactor) BeginTransaction(_ string) error {
+func (m *mockReactor) BeginTransaction(_, _ string) error {
 	return ErrNoTransaction
 }
 
-func (m *mockReactor) CommitTransaction() (TransactionResult, error) {
+func (m *mockReactor) CommitTransaction(_ string) (TransactionResult, error) {
 	return TransactionResult{}, ErrNoTransaction
 }
 
-func (m *mockReactor) CommitTransactionWithLabel(_ string) (TransactionResult, error) {
+func (m *mockReactor) CommitTransactionWithLabel(_, _ string) (TransactionResult, error) {
 	return TransactionResult{}, ErrNoTransaction
 }
 
-func (m *mockReactor) RollbackTransaction() (TransactionResult, error) {
+func (m *mockReactor) RollbackTransaction(_ string) (TransactionResult, error) {
 	return TransactionResult{}, ErrNoTransaction
 }
 
-func (m *mockReactor) InTransaction() bool {
+func (m *mockReactor) InTransaction(_ string) bool {
 	return false
 }
 
-func (m *mockReactor) TransactionID() string {
+func (m *mockReactor) TransactionID(_ string) string {
 	return ""
 }
 

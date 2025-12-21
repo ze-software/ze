@@ -429,71 +429,81 @@ func (a *reactorAPIAdapter) RIBStats() api.RIBStatsInfo {
 // Transaction support for commit-based batching.
 
 // BeginTransaction starts a new transaction for batched route updates.
-func (a *reactorAPIAdapter) BeginTransaction(label string) error {
-	if a.r.ribOut == nil {
+// peerSelector is "*" for all peers or a specific peer address.
+func (a *reactorAPIAdapter) BeginTransaction(peerSelector, label string) error {
+	peers := a.getMatchingPeers(peerSelector)
+	if len(peers) == 0 {
 		return api.ErrNoTransaction
 	}
-	return a.r.ribOut.BeginTransaction(label)
+
+	var lastErr error
+	for _, peer := range peers {
+		if err := peer.AdjRIBOut().BeginTransaction(label); err != nil {
+			lastErr = convertRIBError(err)
+		}
+	}
+	return lastErr
 }
 
 // CommitTransaction commits the current transaction.
 // After committing, flushes pending routes, groups them, and sends to peers.
-func (a *reactorAPIAdapter) CommitTransaction() (api.TransactionResult, error) {
-	if a.r.ribOut == nil {
-		return api.TransactionResult{}, api.ErrNoTransaction
-	}
-
-	txID := a.r.ribOut.TransactionID()
-
-	stats, err := a.r.ribOut.CommitTransaction()
-	if err != nil {
-		return api.TransactionResult{}, convertRIBError(err)
-	}
-
-	// Flush pending routes and send grouped UPDATEs
-	updatesSent := a.flushAndSendGrouped()
-
-	return api.TransactionResult{
-		RoutesAnnounced: stats.RoutesAnnounced,
-		RoutesWithdrawn: stats.RoutesWithdrawn,
-		UpdatesSent:     updatesSent,
-		TransactionID:   txID,
-	}, nil
+func (a *reactorAPIAdapter) CommitTransaction(peerSelector string) (api.TransactionResult, error) {
+	return a.CommitTransactionWithLabel(peerSelector, "")
 }
 
 // CommitTransactionWithLabel commits, verifying the label matches.
 // After committing, flushes pending routes, groups them, and sends to peers.
-func (a *reactorAPIAdapter) CommitTransactionWithLabel(label string) (api.TransactionResult, error) {
-	if a.r.ribOut == nil {
+func (a *reactorAPIAdapter) CommitTransactionWithLabel(peerSelector, label string) (api.TransactionResult, error) {
+	peers := a.getMatchingPeers(peerSelector)
+	if len(peers) == 0 {
 		return api.TransactionResult{}, api.ErrNoTransaction
 	}
 
-	txID := a.r.ribOut.TransactionID()
-	stats, err := a.r.ribOut.CommitTransactionWithLabel(label)
-	if err != nil {
-		return api.TransactionResult{}, convertRIBError(err)
+	var totalResult api.TransactionResult
+	var lastErr error
+
+	for _, peer := range peers {
+		ribOut := peer.AdjRIBOut()
+
+		var stats rib.CommitStats
+		var err error
+
+		if label != "" {
+			stats, err = ribOut.CommitTransactionWithLabel(label)
+		} else {
+			stats, err = ribOut.CommitTransaction()
+		}
+
+		if err != nil {
+			lastErr = convertRIBError(err)
+			continue
+		}
+
+		// Flush and send for this peer
+		updatesSent := a.flushAndSendForPeer(peer)
+
+		totalResult.RoutesAnnounced += stats.RoutesAnnounced
+		totalResult.RoutesWithdrawn += stats.RoutesWithdrawn
+		totalResult.UpdatesSent += updatesSent
+		totalResult.TransactionID = ribOut.TransactionID()
 	}
 
-	// Flush pending routes and send grouped UPDATEs
-	updatesSent := a.flushAndSendGrouped()
-
-	return api.TransactionResult{
-		RoutesAnnounced: stats.RoutesAnnounced,
-		RoutesWithdrawn: stats.RoutesWithdrawn,
-		UpdatesSent:     updatesSent,
-		TransactionID:   txID,
-	}, nil
+	if lastErr != nil {
+		return totalResult, lastErr
+	}
+	return totalResult, nil
 }
 
-// flushAndSendGrouped flushes pending routes, groups them, and sends to peers.
+// flushAndSendForPeer flushes pending routes for a peer, groups them, and sends.
 // Returns the number of UPDATE messages sent.
-func (a *reactorAPIAdapter) flushAndSendGrouped() int {
-	if a.r.ribOut == nil {
+func (a *reactorAPIAdapter) flushAndSendForPeer(peer *Peer) int {
+	ribOut := peer.AdjRIBOut()
+	if ribOut == nil {
 		return 0
 	}
 
 	// Flush all pending routes
-	routes := a.r.ribOut.FlushAllPending()
+	routes := ribOut.FlushAllPending()
 	if len(routes) == 0 {
 		return 0
 	}
@@ -504,7 +514,7 @@ func (a *reactorAPIAdapter) flushAndSendGrouped() int {
 		return 0
 	}
 
-	// Build and send UPDATEs
+	// Build and send UPDATEs to this peer only
 	updatesSent := 0
 	for i := range groups {
 		update, err := rib.BuildGroupedUpdate(&groups[i])
@@ -512,53 +522,83 @@ func (a *reactorAPIAdapter) flushAndSendGrouped() int {
 			continue
 		}
 
-		// Send to all established peers
-		a.r.mu.RLock()
-		for _, peer := range a.r.peers {
-			if peer.State() == PeerStateEstablished {
-				if err := peer.SendUpdate(update); err == nil {
-					updatesSent++
-				}
+		if peer.State() == PeerStateEstablished {
+			if err := peer.SendUpdate(update); err == nil {
+				updatesSent++
 			}
 		}
-		a.r.mu.RUnlock()
 	}
 
 	return updatesSent
 }
 
 // RollbackTransaction discards all queued routes in the transaction.
-func (a *reactorAPIAdapter) RollbackTransaction() (api.TransactionResult, error) {
-	if a.r.ribOut == nil {
+func (a *reactorAPIAdapter) RollbackTransaction(peerSelector string) (api.TransactionResult, error) {
+	peers := a.getMatchingPeers(peerSelector)
+	if len(peers) == 0 {
 		return api.TransactionResult{}, api.ErrNoTransaction
 	}
 
-	txID := a.r.ribOut.TransactionID()
-	stats, err := a.r.ribOut.RollbackTransaction()
-	if err != nil {
-		return api.TransactionResult{}, convertRIBError(err)
+	var totalResult api.TransactionResult
+	var lastErr error
+
+	for _, peer := range peers {
+		ribOut := peer.AdjRIBOut()
+		txID := ribOut.TransactionID()
+		stats, err := ribOut.RollbackTransaction()
+		if err != nil {
+			lastErr = convertRIBError(err)
+			continue
+		}
+
+		totalResult.RoutesDiscarded += stats.RoutesDiscarded
+		totalResult.TransactionID = txID
 	}
 
-	return api.TransactionResult{
-		RoutesDiscarded: stats.RoutesDiscarded,
-		TransactionID:   txID,
-	}, nil
-}
-
-// InTransaction returns true if a transaction is active.
-func (a *reactorAPIAdapter) InTransaction() bool {
-	if a.r.ribOut == nil {
-		return false
+	if lastErr != nil {
+		return totalResult, lastErr
 	}
-	return a.r.ribOut.InTransaction()
+	return totalResult, nil
 }
 
-// TransactionID returns the current transaction label.
-func (a *reactorAPIAdapter) TransactionID() string {
-	if a.r.ribOut == nil {
+// getMatchingPeers returns peers matching the selector.
+// "*" returns all peers, otherwise matches by address string.
+func (a *reactorAPIAdapter) getMatchingPeers(selector string) []*Peer {
+	a.r.mu.RLock()
+	defer a.r.mu.RUnlock()
+
+	if selector == "*" || selector == "" {
+		peers := make([]*Peer, 0, len(a.r.peers))
+		for _, peer := range a.r.peers {
+			peers = append(peers, peer)
+		}
+		return peers
+	}
+
+	if peer, ok := a.r.peers[selector]; ok {
+		return []*Peer{peer}
+	}
+	return nil
+}
+
+// InTransaction returns true if any matching peer has an active transaction.
+func (a *reactorAPIAdapter) InTransaction(peerSelector string) bool {
+	peers := a.getMatchingPeers(peerSelector)
+	for _, peer := range peers {
+		if peer.AdjRIBOut().InTransaction() {
+			return true
+		}
+	}
+	return false
+}
+
+// TransactionID returns the transaction label for the first matching peer.
+func (a *reactorAPIAdapter) TransactionID(peerSelector string) string {
+	peers := a.getMatchingPeers(peerSelector)
+	if len(peers) == 0 {
 		return ""
 	}
-	return a.r.ribOut.TransactionID()
+	return peers[0].AdjRIBOut().TransactionID()
 }
 
 // convertRIBError converts RIB errors to API errors.

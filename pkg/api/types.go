@@ -172,24 +172,25 @@ type ReactorInterface interface {
 	RIBStats() RIBStatsInfo
 
 	// Transaction support for commit-based batching.
+	// peerSelector is "*" for all peers or a specific peer address.
 
 	// BeginTransaction starts a new transaction with optional label.
-	BeginTransaction(label string) error
+	BeginTransaction(peerSelector, label string) error
 
 	// CommitTransaction commits the current transaction.
-	CommitTransaction() (TransactionResult, error)
+	CommitTransaction(peerSelector string) (TransactionResult, error)
 
 	// CommitTransactionWithLabel commits, verifying the label matches.
-	CommitTransactionWithLabel(label string) (TransactionResult, error)
+	CommitTransactionWithLabel(peerSelector, label string) (TransactionResult, error)
 
 	// RollbackTransaction discards all queued routes in the transaction.
-	RollbackTransaction() (TransactionResult, error)
+	RollbackTransaction(peerSelector string) (TransactionResult, error)
 
 	// InTransaction returns true if a transaction is active.
-	InTransaction() bool
+	InTransaction(peerSelector string) bool
 
 	// TransactionID returns the current transaction label.
-	TransactionID() string
+	TransactionID(peerSelector string) string
 }
 
 // RIBRoute is an API-friendly representation of a route.
