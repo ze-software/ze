@@ -18,22 +18,22 @@ Start with Phase 1 (Critical): 5 items
 
 ### ExaBGP Alignment Implementation
 
-Progress: Phase 5.2 complete (10/31 items)
+Progress: Phase 5.3 complete (18/31 items)
 
 **Completed Phases:**
 - ✅ Phase 1: Critical (5/5)
 - ✅ Phase 2: Capabilities (3/3)
 - ✅ Phase 3: Timers (1/1) - 3.2 Hold Time Validation
 - ✅ Phase 4: Attributes (6/6)
-- ⏳ Phase 5: MP-NLRI (2/4) - 5.1 Family Validation, 5.2 Extended Next-Hop
+- ⏳ Phase 5: MP-NLRI (3/4) - 5.1 Family Validation, 5.2 Extended Next-Hop, 5.3 Chunking
 
-**Next:** Phase 5.3 - MP-NLRI Chunking
+**Next:** Phase 5.4 - Route Distinguisher in Next-Hop
 
 ### Recent Implementation:
-- **5.2 Extended Next-Hop (RFC 5549/8950):**
-  - Fixed `parseNextHops()` to use length-based detection
-  - 16/32-byte next-hops are IPv6, regardless of NLRI AFI
-  - Enables IPv4 routes over IPv6-only infrastructure
+- **5.3 MP-NLRI Chunking (RFC 4271 Section 4.3):**
+  - Added `ChunkNLRI()` utility function
+  - Splits large NLRI sets respecting prefix boundaries
+  - Prevents oversized UPDATE messages (>4096 bytes)
 
 ---
 

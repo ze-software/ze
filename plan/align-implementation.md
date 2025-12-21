@@ -147,10 +147,10 @@
 
 ### 5.3 MP-NLRI Chunking
 - **Task:** Split large NLRI across multiple UPDATEs
-- **RFC:** 4271, 4760
+- **RFC:** 4271 Section 4.3
 - **Files:** `pkg/bgp/message/update.go`
-- **Test:** Chunk >4096 byte NLRI sets
-- [ ] Pending
+- **Test:** ChunkNLRI() splits NLRI respecting prefix boundaries
+- [x] Complete - ChunkNLRI() utility function for splitting oversized NLRI
 
 ### 5.4 Route Distinguisher in Next-Hop
 - **Task:** Parse RD in MP_REACH next-hop for VPN
@@ -269,11 +269,11 @@
 | 2. Capabilities | 3 | 0 | ✅ Complete |
 | 3. Timers | 1 | 0 | ✅ Complete |
 | 4. Attributes | 6 | +2 | ✅ Complete |
-| 5. MP-NLRI | 4 | 0 | ⏳ 2/4 |
+| 5. MP-NLRI | 4 | 0 | ⏳ 3/4 |
 | 6. NLRI Types | 7 | +2 | Pending |
 | 8. Errors | 1 | 0 | Pending |
 | 9. Config | 4 | 0 | Pending |
-| **Total** | **31** | **+5** | **17/31 Complete** |
+| **Total** | **31** | **+5** | **18/31 Complete** |
 
 ---
 
