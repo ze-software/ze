@@ -20,7 +20,7 @@ Next steps:
 
 | Plan | Status | Description |
 |------|--------|-------------|
-| `neighbor-to-peer-rename.md` | **Phase 1 ✅** | Phase 2+ pending: migration, refactor, deprecate |
+| `neighbor-to-peer-rename.md` | **Phase 5 ✅** | Config files migrated; Phase 3-4, 6 pending |
 | `config-migration-system.md` | Draft | v1→v2→v3 migrations, `zebgp config upgrade/fmt` |
 | `api-commit-batching.md` | Planning | Commit-based route batching, `commit start/end` API |
 | `config-routes-eor.md` | Planning | EOR after config routes, implicit commit |

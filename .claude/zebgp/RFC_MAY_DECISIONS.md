@@ -24,7 +24,7 @@ This file documents decisions made for RFC "MAY" clauses (optional behavior).
 
 **Config Example:**
 ```
-neighbor 192.0.2.1 {
+peer 192.0.2.1 {
     family {
         ipv4 unicast;
         ipv6 unicast;

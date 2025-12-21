@@ -209,7 +209,7 @@ def pack_nlri(self, negotiated: Negotiated) -> Buffer:
 ### ExaBGP Config
 
 ```
-neighbor 192.168.1.2 {
+peer 192.168.1.2 {
     capability {
         add-path receive;       # Receive only
         add-path send;          # Send only

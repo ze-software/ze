@@ -45,7 +45,7 @@ ExaBGP uses a custom tokenizer for configuration files. The format is similar to
 Lines ending with `\` continue to the next line:
 
 ```
-neighbor 192.168.1.2 { \
+peer 192.168.1.2 { \
     router-id 1.1.1.1; \
 }
 ```
@@ -229,7 +229,7 @@ class Parser:
 ### Input
 
 ```
-neighbor 192.168.1.2 {
+peer 192.168.1.2 {
     router-id 1.1.1.1;
     local-as 65001;
     family {

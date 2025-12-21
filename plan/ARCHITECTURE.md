@@ -1038,7 +1038,7 @@ process announce-routes {
     encoder json;
 }
 
-neighbor 192.168.1.2 {
+peer 192.168.1.2 {
     router-id 192.168.1.1;
     local-address 192.168.1.1;
     local-as 65001;

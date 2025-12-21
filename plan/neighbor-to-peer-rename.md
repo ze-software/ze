@@ -1,6 +1,6 @@
 # Neighbor→Peer Rename + Template Restructuring
 
-**Status:** Phase 2 Complete ✅
+**Status:** Phase 5 Complete ✅
 **Created:** 2025-12-21
 **Updated:** 2025-12-21
 **Depends on:** `config-migration-system.md` (migration infrastructure)
@@ -13,7 +13,7 @@
 | Phase 2: Migration Infrastructure | ✅ Complete | - |
 | Phase 3: Internal Refactoring | ⏳ Pending | - |
 | Phase 4: Deprecate Old Syntax | ⏳ Pending | - |
-| Phase 5: Update Config Files | ⏳ Pending | - |
+| Phase 5: Update Config Files | ✅ Complete | - |
 | Phase 6: Remove Old Syntax | ⏳ Future | - |
 
 ### Phase 1 Notes

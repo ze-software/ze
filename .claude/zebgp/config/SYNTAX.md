@@ -400,7 +400,7 @@ template mytemplate neighbor myneighbor {
     }
 }
 
-neighbor 192.168.1.2 {
+peer 192.168.1.2 {
     inherit myneighbor;
     local-as 65001;
     peer-as 65002;

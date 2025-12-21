@@ -38,7 +38,7 @@ Warnings:
 router-id: 1.2.3.4
 local-as: 65000
 
-neighbor 10.0.0.1:
+peer 10.0.0.1:
   local-as: 65000
   peer-as: 65001
   static-routes:

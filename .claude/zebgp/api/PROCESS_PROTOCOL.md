@@ -21,7 +21,7 @@ process announce-routes {
     encoder json;
 }
 
-neighbor 192.168.1.2 {
+peer 192.168.1.2 {
     api {
         processes [ announce-routes ];
         receive {
