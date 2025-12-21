@@ -100,9 +100,9 @@ func handleAnnounceRoute(ctx *CommandContext, args []string) (*Response, error) 
 		NextHop: nextHop,
 	}
 
-	// Announce to all peers (selector "*")
-	// TODO: Support peer-specific announcements
-	if err := ctx.Reactor.AnnounceRoute("*", route); err != nil {
+	// Announce to matching peers (default "*" for all)
+	peerSelector := ctx.NeighborSelector()
+	if err := ctx.Reactor.AnnounceRoute(peerSelector, route); err != nil {
 		return &Response{
 			Status: "error",
 			Error:  fmt.Sprintf("failed to announce: %v", err),
@@ -112,6 +112,7 @@ func handleAnnounceRoute(ctx *CommandContext, args []string) (*Response, error) 
 	return &Response{
 		Status: "done",
 		Data: map[string]any{
+			"neighbor": peerSelector,
 			"prefix":   prefix.String(),
 			"next_hop": nextHop.String(),
 		},
@@ -136,8 +137,9 @@ func handleWithdrawRoute(ctx *CommandContext, args []string) (*Response, error) 
 		}, ErrInvalidPrefix
 	}
 
-	// Withdraw from all peers
-	if err := ctx.Reactor.WithdrawRoute("*", prefix); err != nil {
+	// Withdraw from matching peers (default "*" for all)
+	peerSelector := ctx.NeighborSelector()
+	if err := ctx.Reactor.WithdrawRoute(peerSelector, prefix); err != nil {
 		return &Response{
 			Status: "error",
 			Error:  fmt.Sprintf("failed to withdraw: %v", err),
@@ -147,7 +149,8 @@ func handleWithdrawRoute(ctx *CommandContext, args []string) (*Response, error) 
 	return &Response{
 		Status: "done",
 		Data: map[string]any{
-			"prefix": prefix.String(),
+			"neighbor": peerSelector,
+			"prefix":   prefix.String(),
 		},
 	}, nil
 }

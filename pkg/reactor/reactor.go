@@ -142,21 +142,81 @@ func (a *reactorAPIAdapter) Stop() {
 }
 
 // AnnounceRoute announces a route to matching peers.
+// If a peer is in transaction, queues to its Adj-RIB-Out; otherwise sends immediately.
 func (a *reactorAPIAdapter) AnnounceRoute(peerSelector string, route api.RouteSpec) error {
-	// Build UPDATE message
-	update := buildAnnounceUpdate(route, a.r.config.LocalAS)
+	peers := a.getMatchingPeers(peerSelector)
+	if len(peers) == 0 {
+		return errors.New("no peers match selector")
+	}
 
-	// Send to matching peers
-	return a.sendToMatchingPeers(peerSelector, update)
+	// Build route object for queueing
+	var n nlri.NLRI
+	if route.Prefix.Addr().Is4() {
+		n = nlri.NewINET(nlri.Family{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast}, route.Prefix, 0)
+	} else {
+		n = nlri.NewINET(nlri.Family{AFI: nlri.AFIIPv6, SAFI: nlri.SAFIUnicast}, route.Prefix, 0)
+	}
+
+	// Build attributes
+	asPath := &attribute.ASPath{
+		Segments: []attribute.ASPathSegment{
+			{Type: attribute.ASSequence, ASNs: []uint32{a.r.config.LocalAS}},
+		},
+	}
+	attrs := []attribute.Attribute{attribute.OriginIGP}
+
+	ribRoute := rib.NewRouteWithASPath(n, route.NextHop, attrs, asPath)
+
+	var lastErr error
+	for _, peer := range peers {
+		if peer.AdjRIBOut().InTransaction() {
+			// Queue to Adj-RIB-Out (will be sent on commit)
+			peer.AdjRIBOut().QueueAnnounce(ribRoute)
+		} else {
+			// Send immediately
+			update := buildAnnounceUpdate(route, a.r.config.LocalAS)
+			if peer.State() == PeerStateEstablished {
+				if err := peer.SendUpdate(update); err != nil {
+					lastErr = err
+				}
+			}
+		}
+	}
+	return lastErr
 }
 
 // WithdrawRoute withdraws a route from matching peers.
+// If a peer is in transaction, queues to its Adj-RIB-Out; otherwise sends immediately.
 func (a *reactorAPIAdapter) WithdrawRoute(peerSelector string, prefix netip.Prefix) error {
-	// Build UPDATE message with withdrawn route
-	update := buildWithdrawUpdate(prefix)
+	peers := a.getMatchingPeers(peerSelector)
+	if len(peers) == 0 {
+		return errors.New("no peers match selector")
+	}
 
-	// Send to matching peers
-	return a.sendToMatchingPeers(peerSelector, update)
+	// Build NLRI for queueing
+	var n nlri.NLRI
+	if prefix.Addr().Is4() {
+		n = nlri.NewINET(nlri.Family{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast}, prefix, 0)
+	} else {
+		n = nlri.NewINET(nlri.Family{AFI: nlri.AFIIPv6, SAFI: nlri.SAFIUnicast}, prefix, 0)
+	}
+
+	var lastErr error
+	for _, peer := range peers {
+		if peer.AdjRIBOut().InTransaction() {
+			// Queue withdrawal to Adj-RIB-Out (will be sent on commit)
+			peer.AdjRIBOut().QueueWithdraw(n)
+		} else {
+			// Send immediately
+			update := buildWithdrawUpdate(prefix)
+			if peer.State() == PeerStateEstablished {
+				if err := peer.SendUpdate(update); err != nil {
+					lastErr = err
+				}
+			}
+		}
+	}
+	return lastErr
 }
 
 // sendToMatchingPeers sends an UPDATE to peers matching the selector.
