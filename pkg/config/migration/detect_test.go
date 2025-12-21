@@ -205,6 +205,48 @@ peer 2001:db8::1 {
 	require.Equal(t, Version2, version, "IPv6 glob pattern at root should be v2")
 }
 
+// TestDetectPeerWithStaticIsV2 verifies peer with static block is v2.
+//
+// VALIDATES: "peer { static { } }" is v2 (needs migration to announce).
+//
+// PREVENTS: v3-style peer with deprecated static block being skipped.
+func TestDetectPeerWithStaticIsV2(t *testing.T) {
+	input := `
+peer 192.0.2.1 {
+    local-as 65000;
+    static {
+        route 10.0.0.0/8 next-hop self;
+    }
+}
+`
+	tree := parseWithBGPSchema(t, input)
+	version := DetectVersion(tree)
+	require.Equal(t, Version2, version, "peer with static block should be v2")
+}
+
+// TestDetectTemplateGroupWithStaticIsV2 verifies template.group with static is v2.
+//
+// VALIDATES: "template { group { static { } } }" is v2.
+//
+// PREVENTS: Template static blocks being skipped.
+func TestDetectTemplateGroupWithStaticIsV2(t *testing.T) {
+	input := `
+template {
+    group vpn-customers {
+        static {
+            route 10.0.0.0/8 next-hop self;
+        }
+    }
+}
+peer 192.0.2.1 {
+    inherit vpn-customers;
+}
+`
+	tree := parseWithBGPSchema(t, input)
+	version := DetectVersion(tree)
+	require.Equal(t, Version2, version, "template.group with static should be v2")
+}
+
 // parseWithBGPSchema is a helper that parses config using BGPSchema.
 func parseWithBGPSchema(t *testing.T, input string) *config.Tree {
 	t.Helper()

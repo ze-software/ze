@@ -75,6 +75,46 @@ func hasV2Patterns(tree *config.Tree) bool {
 		}
 	}
 
+	// v2: any peer/neighbor/template.group has static block (should use announce)
+	if hasStaticBlocks(tree) {
+		return true
+	}
+
+	return false
+}
+
+// hasStaticBlocks returns true if any peer, neighbor, template.group, or template.match has a static block.
+// Note: peer+static and template.match+static are defensive checks for scenarios that don't exist in practice.
+func hasStaticBlocks(tree *config.Tree) bool {
+	// Check neighbor blocks
+	for _, entry := range tree.GetList("neighbor") {
+		if entry.GetContainer("static") != nil {
+			return true
+		}
+	}
+
+	// Check peer blocks (defensive)
+	for _, entry := range tree.GetList("peer") {
+		if entry.GetContainer("static") != nil {
+			return true
+		}
+	}
+
+	// Check template.group and template.match blocks
+	if tmpl := tree.GetContainer("template"); tmpl != nil {
+		for _, entry := range tmpl.GetList("group") {
+			if entry.GetContainer("static") != nil {
+				return true
+			}
+		}
+		// template.match+static is defensive
+		for _, entry := range tmpl.GetList("match") {
+			if entry.GetContainer("static") != nil {
+				return true
+			}
+		}
+	}
+
 	return false
 }
 

@@ -1,0 +1,59 @@
+package migration
+
+import (
+	"net/netip"
+	"strings"
+)
+
+// isIPv6Prefix returns true if the prefix is IPv6.
+// Detection: contains ":" (IPv4-mapped IPv6 like ::ffff:x.x.x.x is IPv6).
+func isIPv6Prefix(prefix string) bool {
+	return strings.Contains(prefix, ":")
+}
+
+// isMulticastPrefix returns true if the prefix is in the multicast range.
+// IPv4: 224.0.0.0/4 (224.0.0.0 - 239.255.255.255)
+// IPv6: ff00::/8
+func isMulticastPrefix(prefix string) bool {
+	// Parse the prefix
+	p, err := netip.ParsePrefix(prefix)
+	if err != nil {
+		return false
+	}
+
+	addr := p.Addr()
+
+	if addr.Is4() {
+		// IPv4 multicast: 224.0.0.0/4 (first octet 224-239)
+		bytes := addr.As4()
+		return bytes[0] >= 224 && bytes[0] <= 239
+	}
+
+	if addr.Is6() {
+		// IPv6 multicast: ff00::/8 (first byte is 0xff)
+		bytes := addr.As16()
+		return bytes[0] == 0xff
+	}
+
+	return false
+}
+
+// detectSAFI determines the SAFI for a route based on prefix and attributes.
+//
+// Detection order:
+//  1. Multicast range → "multicast"
+//  2. Has rd or label → "mpls-vpn"
+//  3. Default → "unicast"
+func detectSAFI(prefix string, hasRD, hasLabel bool) string {
+	// Check multicast first (takes precedence)
+	if isMulticastPrefix(prefix) {
+		return "multicast"
+	}
+
+	// Check VPN indicators
+	if hasRD || hasLabel {
+		return "mpls-vpn"
+	}
+
+	return "unicast"
+}

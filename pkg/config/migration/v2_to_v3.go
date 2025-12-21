@@ -15,6 +15,7 @@ var ErrNilTree = errors.New("cannot migrate nil tree")
 //   - neighbor <IP> → peer <IP>
 //   - peer <glob> (root) → template { match <glob> }
 //   - template { neighbor <name> } → template { group <name> }
+//   - peer.static → peer.announce.<afi>.<safi>
 //
 // Returns a new tree; original is not modified.
 // Returns ErrNilTree for nil input.
@@ -60,6 +61,22 @@ func MigrateV2ToV3(tree *config.Tree) (*config.Tree, error) {
 
 			// Add to template.group
 			tmpl.AddListEntry("group", entry.Key, entry.Value)
+		}
+	}
+
+	// Step 4: Extract static routes → announce.<afi>.<safi>
+	for _, entry := range result.GetListOrdered("peer") {
+		extractStaticFromPeer(entry.Value)
+	}
+
+	// Also process template.group and template.match blocks
+	// (template.match+static is defensive; doesn't exist in practice)
+	if tmpl := result.GetContainer("template"); tmpl != nil {
+		for _, entry := range tmpl.GetListOrdered("group") {
+			extractStaticFromPeer(entry.Value)
+		}
+		for _, entry := range tmpl.GetListOrdered("match") {
+			extractStaticFromPeer(entry.Value)
 		}
 	}
 

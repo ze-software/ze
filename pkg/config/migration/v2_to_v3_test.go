@@ -410,3 +410,204 @@ neighbor 192.0.2.1 {
 	peers := result.GetList("peer")
 	require.Len(t, peers, 1)
 }
+
+// TestMigrateV2ToV3StaticToAnnounce verifies static→announce extraction.
+//
+// VALIDATES: neighbor.static routes become peer.announce.<afi>.<safi>.
+//
+// PREVENTS: Static routes being lost during migration.
+func TestMigrateV2ToV3StaticToAnnounce(t *testing.T) {
+	input := `
+neighbor 192.0.2.1 {
+    local-as 65000;
+    peer-as 65001;
+    static {
+        route 10.0.0.0/8 next-hop self;
+        route 2001:db8::/32 next-hop self;
+        route 224.0.0.0/4 next-hop self;
+    }
+}
+`
+	tree := parseWithBGPSchema(t, input)
+	require.Equal(t, Version2, DetectVersion(tree))
+
+	result, err := MigrateV2ToV3(tree)
+	require.NoError(t, err)
+
+	// Should be peer now (neighbor→peer)
+	peers := result.GetList("peer")
+	require.Len(t, peers, 1)
+
+	peer := peers["192.0.2.1"]
+	require.NotNil(t, peer)
+
+	// static should be gone
+	require.Nil(t, peer.GetContainer("static"))
+
+	// announce should exist with routes
+	announce := peer.GetContainer("announce")
+	require.NotNil(t, announce)
+
+	// IPv4 unicast
+	ipv4 := announce.GetContainer("ipv4")
+	require.NotNil(t, ipv4)
+	ipv4Unicast := ipv4.GetList("unicast")
+	require.Len(t, ipv4Unicast, 1)
+	require.NotNil(t, ipv4Unicast["10.0.0.0/8"])
+
+	// IPv4 multicast
+	ipv4Mcast := ipv4.GetList("multicast")
+	require.Len(t, ipv4Mcast, 1)
+	require.NotNil(t, ipv4Mcast["224.0.0.0/4"])
+
+	// IPv6 unicast
+	ipv6 := announce.GetContainer("ipv6")
+	require.NotNil(t, ipv6)
+	ipv6Unicast := ipv6.GetList("unicast")
+	require.Len(t, ipv6Unicast, 1)
+	require.NotNil(t, ipv6Unicast["2001:db8::/32"])
+}
+
+// TestMigrateV2ToV3PeerWithStatic verifies peer+static is migrated.
+//
+// VALIDATES: v3-style peer with deprecated static block is still migrated.
+//
+// PREVENTS: Configs using peer (not neighbor) with static being skipped.
+func TestMigrateV2ToV3PeerWithStatic(t *testing.T) {
+	input := `
+peer 192.0.2.1 {
+    local-as 65000;
+    static {
+        route 10.0.0.0/8 next-hop self;
+    }
+}
+`
+	tree := parseWithBGPSchema(t, input)
+
+	// Should detect as v2 because of static block
+	require.Equal(t, Version2, DetectVersion(tree))
+
+	result, err := MigrateV2ToV3(tree)
+	require.NoError(t, err)
+
+	peer := result.GetList("peer")["192.0.2.1"]
+	require.NotNil(t, peer)
+
+	// static should be gone
+	require.Nil(t, peer.GetContainer("static"))
+
+	// announce should exist
+	announce := peer.GetContainer("announce")
+	require.NotNil(t, announce)
+
+	ipv4 := announce.GetContainer("ipv4")
+	require.NotNil(t, ipv4)
+	require.Len(t, ipv4.GetList("unicast"), 1)
+}
+
+// TestMigrateV2ToV3TemplateNeighborWithStatic verifies template.neighbor with static migration.
+//
+// VALIDATES: template.neighbor.static becomes template.group.announce.
+//
+// PREVENTS: Static routes in template.neighbor being lost during rename.
+func TestMigrateV2ToV3TemplateNeighborWithStatic(t *testing.T) {
+	input := `
+template {
+    neighbor ibgp {
+        peer-as 65000;
+        static {
+            route 10.0.0.0/8 next-hop self;
+            route 2001:db8::/32 next-hop self;
+        }
+    }
+}
+neighbor 192.0.2.1 {
+    inherit ibgp;
+    local-as 65000;
+}
+`
+	tree := parseWithBGPSchema(t, input)
+	require.Equal(t, Version2, DetectVersion(tree))
+
+	result, err := MigrateV2ToV3(tree)
+	require.NoError(t, err)
+
+	// template.neighbor should become template.group
+	tmpl := result.GetContainer("template")
+	require.NotNil(t, tmpl)
+
+	oldNeighbors := tmpl.GetList("neighbor")
+	require.Empty(t, oldNeighbors)
+
+	groups := tmpl.GetList("group")
+	require.Len(t, groups, 1)
+
+	group := groups["ibgp"]
+	require.NotNil(t, group)
+
+	// static should be gone
+	require.Nil(t, group.GetContainer("static"))
+
+	// announce should exist with routes
+	announce := group.GetContainer("announce")
+	require.NotNil(t, announce)
+
+	// IPv4
+	ipv4 := announce.GetContainer("ipv4")
+	require.NotNil(t, ipv4)
+	require.Len(t, ipv4.GetList("unicast"), 1)
+
+	// IPv6
+	ipv6 := announce.GetContainer("ipv6")
+	require.NotNil(t, ipv6)
+	require.Len(t, ipv6.GetList("unicast"), 1)
+
+	// peer-as should still be there
+	peerAs, ok := group.Get("peer-as")
+	require.True(t, ok)
+	require.Equal(t, "65000", peerAs)
+}
+
+// TestMigrateV2ToV3TemplateGroupStatic verifies template.group static migration.
+//
+// VALIDATES: template.group.static becomes template.group.announce.
+//
+// PREVENTS: Template static routes being skipped.
+func TestMigrateV2ToV3TemplateGroupStatic(t *testing.T) {
+	input := `
+template {
+    group vpn-customers {
+        static {
+            route 10.0.0.0/8 next-hop self;
+        }
+    }
+}
+peer 192.0.2.1 {
+    inherit vpn-customers;
+}
+`
+	tree := parseWithBGPSchema(t, input)
+
+	// Should detect as v2 because of static in template.group
+	require.Equal(t, Version2, DetectVersion(tree))
+
+	result, err := MigrateV2ToV3(tree)
+	require.NoError(t, err)
+
+	tmpl := result.GetContainer("template")
+	require.NotNil(t, tmpl)
+
+	group := tmpl.GetList("group")["vpn-customers"]
+	require.NotNil(t, group)
+
+	// static should be gone
+	require.Nil(t, group.GetContainer("static"))
+
+	// announce should exist
+	announce := group.GetContainer("announce")
+	require.NotNil(t, announce)
+
+	ipv4 := announce.GetContainer("ipv4")
+	require.NotNil(t, ipv4)
+	require.Len(t, ipv4.GetList("unicast"), 1)
+}

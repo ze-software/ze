@@ -111,6 +111,14 @@ func (t *Tree) SetContainer(name string, child *Tree) {
 	t.containers[name] = child
 }
 
+// RemoveContainer removes a nested container and returns it.
+// Returns nil if the container doesn't exist.
+func (t *Tree) RemoveContainer(name string) *Tree {
+	c := t.containers[name]
+	delete(t.containers, name)
+	return c
+}
+
 // MergeContainer merges a container into existing one (or creates if not exists).
 // This handles the case of multiple same-named blocks in config (e.g., multiple announce blocks).
 func (t *Tree) MergeContainer(name string, child *Tree) {
