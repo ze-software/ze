@@ -156,3 +156,100 @@ func TestASPathPrepend(t *testing.T) {
 	require.Len(t, path.Segments, 1)
 	assert.Equal(t, []uint32{65001, 65002, 65003}, path.Segments[0].ASNs)
 }
+
+// TestASPathPrependOverflow verifies RFC 4271 segment overflow handling.
+//
+// RFC 4271 Section 5.1.2:
+//
+//	"If the act of prepending will cause an overflow in the AS_PATH segment
+//	 (i.e., more than 255 ASes), it SHOULD prepend a new segment of type
+//	 AS_SEQUENCE and prepend its own AS number to this new segment."
+//
+// VALIDATES: Prepending to a full segment creates a new segment.
+//
+// PREVENTS: Segment length overflow causing malformed AS_PATH.
+func TestASPathPrependOverflow(t *testing.T) {
+	// Create a segment with 255 ASNs (max)
+	asns := make([]uint32, MaxASPathSegmentLength)
+	for i := range asns {
+		asns[i] = uint32(i + 1)
+	}
+
+	path := &ASPath{
+		Segments: []ASPathSegment{
+			{Type: ASSequence, ASNs: asns},
+		},
+	}
+
+	// Prepend should create a new segment
+	path.Prepend(65001)
+
+	require.Len(t, path.Segments, 2, "should have 2 segments after prepend overflow")
+	assert.Len(t, path.Segments[0].ASNs, 1, "new segment should have 1 ASN")
+	assert.Equal(t, uint32(65001), path.Segments[0].ASNs[0])
+	assert.Equal(t, ASSequence, path.Segments[0].Type)
+	assert.Len(t, path.Segments[1].ASNs, MaxASPathSegmentLength, "original segment unchanged")
+}
+
+// TestASPathPackAutoSplit verifies segments are split during encoding.
+//
+// RFC 4271 Section 4.3: Segment length is a 1-octet field, meaning max 255 ASNs.
+//
+// VALIDATES: Segments with >255 ASNs are split during Pack.
+//
+// PREVENTS: Encoding invalid segments with length > 255.
+func TestASPathPackAutoSplit(t *testing.T) {
+	// Create a segment with 300 ASNs (exceeds 255)
+	asns := make([]uint32, 300)
+	for i := range asns {
+		asns[i] = uint32(i + 1)
+	}
+
+	path := &ASPath{
+		Segments: []ASPathSegment{
+			{Type: ASSequence, ASNs: asns},
+		},
+	}
+
+	packed := path.Pack()
+
+	// Parse it back - should have 2 segments now
+	parsed, err := ParseASPath(packed, true)
+	require.NoError(t, err)
+	require.Len(t, parsed.Segments, 2, "should split into 2 segments")
+	assert.Len(t, parsed.Segments[0].ASNs, 255, "first segment should have 255 ASNs")
+	assert.Len(t, parsed.Segments[1].ASNs, 45, "second segment should have 45 ASNs")
+
+	// Verify total ASNs preserved
+	total := len(parsed.Segments[0].ASNs) + len(parsed.Segments[1].ASNs)
+	assert.Equal(t, 300, total)
+}
+
+// TestASPathPackAutoSplitLarge verifies multiple splits for very large segments.
+//
+// VALIDATES: Segments that need 3+ splits work correctly.
+//
+// PREVENTS: Edge case bugs in recursive/iterative splitting.
+func TestASPathPackAutoSplitLarge(t *testing.T) {
+	// Create a segment with 600 ASNs (needs 3 segments: 255+255+90)
+	asns := make([]uint32, 600)
+	for i := range asns {
+		asns[i] = uint32(i + 1)
+	}
+
+	path := &ASPath{
+		Segments: []ASPathSegment{
+			{Type: ASSequence, ASNs: asns},
+		},
+	}
+
+	packed := path.Pack()
+
+	// Parse it back
+	parsed, err := ParseASPath(packed, true)
+	require.NoError(t, err)
+	require.Len(t, parsed.Segments, 3, "should split into 3 segments")
+	assert.Len(t, parsed.Segments[0].ASNs, 255)
+	assert.Len(t, parsed.Segments[1].ASNs, 255)
+	assert.Len(t, parsed.Segments[2].ASNs, 90)
+}

@@ -26,6 +26,11 @@ const (
 	ASConfedSequence ASPathSegmentType = 4 // RFC 5065: Confederation sequence
 )
 
+// MaxASPathSegmentLength is the maximum number of ASNs in a single segment.
+// RFC 4271 Section 4.3: "The path segment length is a 1-octet length field"
+// This means max value is 255.
+const MaxASPathSegmentLength = 255
+
 // ASPathSegment represents a segment in an AS path.
 //
 // RFC 4271 Section 4.3:
@@ -77,6 +82,8 @@ func (p *ASPath) Len() int {
 // RFC 4271 Section 4.3: Each segment is encoded as type(1) + count(1) + ASNs.
 // RFC 6793 Section 4.1: Between NEW speakers, AS numbers are 4-octet entities.
 // RFC 6793 Section 4.2: Between NEW and OLD speakers, AS numbers are 2-octet.
+//
+// Accounts for segment splitting when segments exceed MaxASPathSegmentLength (255).
 func (p *ASPath) LenWithASN4(asn4 bool) int {
 	length := 0
 	asnSize := 2
@@ -84,8 +91,14 @@ func (p *ASPath) LenWithASN4(asn4 bool) int {
 		asnSize = 4
 	}
 	for _, seg := range p.Segments {
-		// type(1) + count(1) + ASNs
-		length += 2 + len(seg.ASNs)*asnSize
+		numASNs := len(seg.ASNs)
+		if numASNs == 0 {
+			continue
+		}
+		// Calculate number of segments needed after splitting
+		numSegments := (numASNs + MaxASPathSegmentLength - 1) / MaxASPathSegmentLength
+		// Each segment: type(1) + count(1) + ASNs
+		length += numSegments*2 + numASNs*asnSize
 	}
 	return length
 }
@@ -104,6 +117,9 @@ func (p *ASPath) Pack() []byte {
 // RFC 6793 Section 3: "AS_TRANS can be used to represent non-mappable
 // four-octet AS numbers as two-octet AS numbers in AS path information
 // that is encoded with two-octet AS numbers."
+//
+// RFC 4271 Section 4.3: Segments with >255 ASNs are split into multiple
+// segments of the same type.
 func (p *ASPath) PackWithASN4(asn4 bool) []byte {
 	if len(p.Segments) == 0 {
 		return []byte{}
@@ -113,27 +129,50 @@ func (p *ASPath) PackWithASN4(asn4 bool) []byte {
 	offset := 0
 
 	for _, seg := range p.Segments {
-		buf[offset] = byte(seg.Type)
-		buf[offset+1] = byte(len(seg.ASNs))
-		offset += 2
+		// RFC 4271: Split segments that exceed 255 ASNs
+		offset = packSegmentWithSplit(buf, offset, seg.Type, seg.ASNs, asn4)
+	}
 
-		for _, asn := range seg.ASNs {
-			if asn4 {
-				binary.BigEndian.PutUint32(buf[offset:], asn)
-				offset += 4
-			} else {
-				// RFC 6793 Section 4.2.2: Use AS_TRANS for non-mappable ASNs
-				as16 := uint16(asn)
-				if asn > 65535 {
-					as16 = 23456 // AS_TRANS per RFC 6793 Section 9
-				}
-				binary.BigEndian.PutUint16(buf[offset:], as16)
-				offset += 2
+	return buf[:offset]
+}
+
+// packSegmentWithSplit encodes a segment, splitting if it exceeds MaxASPathSegmentLength.
+func packSegmentWithSplit(buf []byte, offset int, segType ASPathSegmentType, asns []uint32, asn4 bool) int {
+	if len(asns) == 0 {
+		return offset
+	}
+
+	// Determine how many ASNs fit in this segment
+	count := len(asns)
+	if count > MaxASPathSegmentLength {
+		count = MaxASPathSegmentLength
+	}
+
+	buf[offset] = byte(segType)
+	buf[offset+1] = byte(count)
+	offset += 2
+
+	for i := 0; i < count; i++ {
+		if asn4 {
+			binary.BigEndian.PutUint32(buf[offset:], asns[i])
+			offset += 4
+		} else {
+			// RFC 6793 Section 4.2.2: Use AS_TRANS for non-mappable ASNs
+			as16 := uint16(asns[i])
+			if asns[i] > 65535 {
+				as16 = 23456 // AS_TRANS per RFC 6793 Section 9
 			}
+			binary.BigEndian.PutUint16(buf[offset:], as16)
+			offset += 2
 		}
 	}
 
-	return buf
+	// Recursively encode remaining ASNs if segment was split
+	if len(asns) > MaxASPathSegmentLength {
+		return packSegmentWithSplit(buf, offset, segType, asns[MaxASPathSegmentLength:], asn4)
+	}
+
+	return offset
 }
 
 // PathLength returns the AS path length for BGP path selection.
@@ -193,12 +232,22 @@ func (p *ASPath) Contains(asn uint32) bool {
 //	    of type AS_SEQUENCE, places its own AS into that segment, and
 //	    places that segment into the AS_PATH."
 //
-// Note: RFC 4271 specifies max 255 ASes per segment; overflow handling
-// (creating new segment) is not implemented here.
+// RFC 4271 Section 5.1.2 (overflow handling):
+//
+//	"If the act of prepending will cause an overflow in the AS_PATH segment
+//	 (i.e., more than 255 ASes), it SHOULD prepend a new segment of type
+//	 AS_SEQUENCE and prepend its own AS number to this new segment."
 func (p *ASPath) Prepend(asn uint32) {
 	if len(p.Segments) > 0 && p.Segments[0].Type == ASSequence {
-		// Case 1: Prepend to existing AS_SEQUENCE
-		p.Segments[0].ASNs = append([]uint32{asn}, p.Segments[0].ASNs...)
+		// Check if prepending would overflow the segment
+		if len(p.Segments[0].ASNs) >= MaxASPathSegmentLength {
+			// RFC 4271: Create new segment to avoid overflow
+			seg := ASPathSegment{Type: ASSequence, ASNs: []uint32{asn}}
+			p.Segments = append([]ASPathSegment{seg}, p.Segments...)
+		} else {
+			// Case 1: Prepend to existing AS_SEQUENCE
+			p.Segments[0].ASNs = append([]uint32{asn}, p.Segments[0].ASNs...)
+		}
 	} else {
 		// Case 2 & 3: Create new AS_SEQUENCE segment
 		seg := ASPathSegment{Type: ASSequence, ASNs: []uint32{asn}}

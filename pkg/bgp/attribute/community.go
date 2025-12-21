@@ -230,13 +230,17 @@ func (l LargeCommunities) Code() AttributeCode { return AttrLargeCommunity }
 func (l LargeCommunities) Flags() AttributeFlags { return FlagOptional | FlagTransitive }
 
 // Len returns the length in bytes (12 bytes per large community).
-func (l LargeCommunities) Len() int { return len(l) * 12 }
+// Note: If duplicates exist, actual packed length may be smaller.
+func (l LargeCommunities) Len() int { return len(l.deduplicate()) * 12 }
 
 // Pack encodes the large communities attribute.
+//
 // RFC 8092 Section 3: Each value is encoded as a 12-octet quantity.
+// RFC 8092 Section 5: "Duplicate BGP Large Community values MUST NOT be transmitted."
 func (l LargeCommunities) Pack() []byte {
-	buf := make([]byte, len(l)*12)
-	for i, lc := range l {
+	unique := l.deduplicate()
+	buf := make([]byte, len(unique)*12)
+	for i, lc := range unique {
 		offset := i * 12
 		binary.BigEndian.PutUint32(buf[offset:], lc.GlobalAdmin)
 		binary.BigEndian.PutUint32(buf[offset+4:], lc.LocalData1)
@@ -245,7 +249,32 @@ func (l LargeCommunities) Pack() []byte {
 	return buf
 }
 
+// deduplicate returns a new slice with duplicate communities removed.
+// Preserves order of first occurrence.
+func (l LargeCommunities) deduplicate() LargeCommunities {
+	if len(l) <= 1 {
+		return l
+	}
+
+	seen := make(map[LargeCommunity]struct{}, len(l))
+	result := make(LargeCommunities, 0, len(l))
+
+	for _, lc := range l {
+		if _, exists := seen[lc]; !exists {
+			seen[lc] = struct{}{}
+			result = append(result, lc)
+		}
+	}
+
+	return result
+}
+
 // ParseLargeCommunities parses a LARGE_COMMUNITIES attribute.
+//
+// RFC 8092 Section 5:
+//
+//	"A receiving speaker MUST silently remove redundant BGP Large Community
+//	 values from a BGP Large Community attribute."
 //
 // RFC 8092 Section 6 - Error Handling:
 // A BGP Large Communities attribute SHALL be considered malformed if the
@@ -257,7 +286,14 @@ func ParseLargeCommunities(data []byte) (LargeCommunities, error) {
 	if len(data)%12 != 0 {
 		return nil, ErrInvalidLength
 	}
-	comms := make(LargeCommunities, len(data)/12)
+
+	count := len(data) / 12
+	if count == 0 {
+		return LargeCommunities{}, nil
+	}
+
+	// Parse all communities first
+	comms := make(LargeCommunities, count)
 	for i := range comms {
 		offset := i * 12
 		comms[i] = LargeCommunity{
@@ -265,6 +301,76 @@ func ParseLargeCommunities(data []byte) (LargeCommunities, error) {
 			LocalData1:  binary.BigEndian.Uint32(data[offset+4:]),
 			LocalData2:  binary.BigEndian.Uint32(data[offset+8:]),
 		}
+	}
+
+	// RFC 8092 Section 5: MUST silently remove redundant values
+	return comms.deduplicate(), nil
+}
+
+// IPv6ExtendedCommunity represents an IPv6 Address Specific Extended Community.
+//
+// RFC 5701 Section 2 - IPv6 Address Specific BGP Extended Community Attribute:
+// Each IPv6 Address Specific extended community is encoded as a 20-octet quantity:
+//
+//	 0                   1                   2                   3
+//	 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+//	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//	| 0x00 or 0x40  |    Sub-Type   |    Global Administrator       |
+//	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//	|          Global Administrator (cont.)                         |
+//	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//	|          Global Administrator (cont.)                         |
+//	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//	|          Global Administrator (cont.)                         |
+//	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//	| Global Administrator (cont.)  |    Local Administrator        |
+//	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+//
+// RFC 5701 Section 2:
+// The first high-order octet indicates whether the community is transitive (0x00)
+// or non-transitive (0x40).
+type IPv6ExtendedCommunity [20]byte
+
+// IPv6ExtendedCommunities represents the IPV6_EXTENDED_COMMUNITIES attribute.
+//
+// RFC 5701 Section 2:
+// The IPv6 Address Specific Extended Community Attribute is a transitive,
+// optional BGP attribute. The attribute consists of a set of
+// "IPv6 Address Specific extended communities".
+type IPv6ExtendedCommunities []IPv6ExtendedCommunity
+
+// Code returns the attribute type code (25).
+// RFC 5701 Section 3: "This document defines a new BGP attribute... (value 25)."
+func (e IPv6ExtendedCommunities) Code() AttributeCode { return AttrIPv6ExtCommunity }
+
+// Flags returns the attribute flags.
+// RFC 5701 Section 2: "transitive, optional BGP attribute"
+func (e IPv6ExtendedCommunities) Flags() AttributeFlags { return FlagOptional | FlagTransitive }
+
+// Len returns the length in bytes (20 bytes per IPv6 extended community).
+func (e IPv6ExtendedCommunities) Len() int { return len(e) * 20 }
+
+// Pack encodes the IPv6 extended communities attribute.
+// RFC 5701 Section 2: Each community is encoded as a 20-octet quantity.
+func (e IPv6ExtendedCommunities) Pack() []byte {
+	buf := make([]byte, len(e)*20)
+	for i, ec := range e {
+		copy(buf[i*20:], ec[:])
+	}
+	return buf
+}
+
+// ParseIPv6ExtendedCommunities parses an IPV6_EXTENDED_COMMUNITIES attribute.
+//
+// RFC 5701 Section 2: Each IPv6 Extended Community is encoded as a 20-octet quantity.
+// Length must be a multiple of 20 bytes.
+func ParseIPv6ExtendedCommunities(data []byte) (IPv6ExtendedCommunities, error) {
+	if len(data)%20 != 0 {
+		return nil, ErrInvalidLength
+	}
+	comms := make(IPv6ExtendedCommunities, len(data)/20)
+	for i := range comms {
+		copy(comms[i][:], data[i*20:])
 	}
 	return comms, nil
 }

@@ -69,14 +69,14 @@
 
 ---
 
-## Phase 3: Timers (1 item, 1 kept)
+## Phase 3: Timers (1 item) ✅ COMPLETE
 
 ### 3.2 Hold Time Validation
 - **Task:** Reject hold times 1-2 seconds (must be 0 or ≥3)
 - **RFC:** 4271 Section 4.2
 - **Files:** `pkg/bgp/message/open.go`, `pkg/config/`
 - **Test:** NOTIFICATION on invalid hold time
-- [ ] Pending
+- [x] Complete - ValidateHoldTime() returns Notification for hold times 1-2
 
 ---
 
@@ -88,21 +88,21 @@
 - **Files:** `pkg/bgp/attribute/aspath.go`
 - **Test:** Encode AS_PATH with >255 ASNs
 - **Violation:** `aspath.go:197` - Prepend() doesn't handle overflow (SHOULD)
-- [ ] Pending
+- [x] Complete - Prepend() handles overflow, PackWithASN4() splits during encoding
 
 ### 4.3 Extended Communities IPv6 (RFC 5701)
 - **Task:** Support 20-byte IPv6 extended communities
 - **RFC:** 5701
-- **Files:** `pkg/bgp/attribute/extcommunity.go`
+- **Files:** `pkg/bgp/attribute/community.go`
 - **Test:** Parse/encode IPv6 extended community
-- [ ] Pending
+- [x] Complete - IPv6ExtendedCommunity[20]byte type, AttrIPv6ExtCommunity code 25
 
 ### 4.4 Large Community Deduplication
 - **Task:** Remove duplicate large communities on receive
 - **RFC:** 8092
-- **Files:** `pkg/bgp/attribute/largecommunity.go`
+- **Files:** `pkg/bgp/attribute/community.go`
 - **Test:** Deduplicate on unpack
-- [ ] Pending
+- [x] Complete - Parse and Pack both deduplicate per RFC 8092 Section 5
 
 ### 4.7 Attribute Ordering on Send
 - **Task:** Order attributes by type code per RFC

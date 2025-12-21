@@ -224,6 +224,23 @@ func (o *Open) RouterID() string {
 	)
 }
 
+// ValidateHoldTime checks the Hold Time value per RFC 4271.
+// RFC 4271 Section 4.2: "Hold Time MUST be either zero or at least three seconds."
+// RFC 4271 Section 6.2: "An implementation MUST reject Hold Time values of one or two seconds."
+//
+// Returns nil if valid, or a *Notification with Unacceptable Hold Time if invalid.
+func (o *Open) ValidateHoldTime() error {
+	// RFC 4271: Hold Time must be 0 or >= 3
+	if o.HoldTime != 0 && o.HoldTime < 3 {
+		return &Notification{
+			ErrorCode:    NotifyOpenMessage,
+			ErrorSubcode: NotifyOpenUnacceptableHoldTime,
+			Data:         []byte{byte(o.HoldTime >> 8), byte(o.HoldTime)},
+		}
+	}
+	return nil
+}
+
 // String returns a human-readable representation.
 func (o *Open) String() string {
 	as := uint32(o.MyAS)

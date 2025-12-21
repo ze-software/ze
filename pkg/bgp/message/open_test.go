@@ -276,6 +276,54 @@ func TestOpenUnpackExtendedParams(t *testing.T) {
 	}
 }
 
+// TestOpenValidateHoldTime verifies RFC 4271 hold time validation.
+//
+// RFC 4271 Section 6.2: "An implementation MUST reject Hold Time values of
+// one or two seconds."
+// RFC 4271 Section 4.2: "Hold Time MUST be either zero or at least three seconds."
+//
+// VALIDATES: Hold times 0 and ≥3 are valid; 1 and 2 are rejected.
+//
+// PREVENTS: Session establishment with invalid hold time leading to timer issues.
+func TestOpenValidateHoldTime(t *testing.T) {
+	tests := []struct {
+		name     string
+		holdTime uint16
+		wantErr  bool
+	}{
+		{"zero valid", 0, false},
+		{"one invalid", 1, true},
+		{"two invalid", 2, true},
+		{"three valid", 3, false},
+		{"90 valid", 90, false},
+		{"180 valid", 180, false},
+		{"max valid", 65535, false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			o := &Open{
+				Version:       4,
+				MyAS:          65001,
+				HoldTime:      tt.holdTime,
+				BGPIdentifier: 0xC0A80101,
+			}
+
+			err := o.ValidateHoldTime()
+			if tt.wantErr {
+				require.Error(t, err)
+				// Should return a NOTIFICATION with Unacceptable Hold Time (error 2, subcode 6)
+				notif, ok := err.(*Notification)
+				require.True(t, ok, "expected *Notification error")
+				assert.Equal(t, NotifyOpenMessage, notif.ErrorCode)
+				assert.Equal(t, NotifyOpenUnacceptableHoldTime, notif.ErrorSubcode)
+			} else {
+				require.NoError(t, err)
+			}
+		})
+	}
+}
+
 // TestOpenPackExtendedParams verifies RFC 9072 extended format packing.
 //
 // RFC 9072 Section 2: "if the length of the Optional Parameters in the BGP

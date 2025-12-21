@@ -34,51 +34,53 @@ type AttributeCode uint8
 // RFC 4271 Section 4.3 defines type codes 1-7.
 // RFC 4271 Section 5 defines attribute semantics.
 const (
-	AttrOrigin          AttributeCode = 1  // RFC 4271 Section 4.3a, 5.1.1 - well-known mandatory
-	AttrASPath          AttributeCode = 2  // RFC 4271 Section 4.3b, 5.1.2 - well-known mandatory
-	AttrNextHop         AttributeCode = 3  // RFC 4271 Section 4.3c, 5.1.3 - well-known mandatory
-	AttrMED             AttributeCode = 4  // RFC 4271 Section 4.3d, 5.1.4 - optional non-transitive
-	AttrLocalPref       AttributeCode = 5  // RFC 4271 Section 4.3e, 5.1.5 - well-known (IBGP only)
-	AttrAtomicAggregate AttributeCode = 6  // RFC 4271 Section 4.3f, 5.1.6 - well-known discretionary
-	AttrAggregator      AttributeCode = 7  // RFC 4271 Section 4.3g, 5.1.7 - optional transitive
-	AttrCommunity       AttributeCode = 8  // RFC 1997
-	AttrOriginatorID    AttributeCode = 9  // RFC 4456
-	AttrClusterList     AttributeCode = 10 // RFC 4456
-	AttrMPReachNLRI     AttributeCode = 14 // RFC 4760
-	AttrMPUnreachNLRI   AttributeCode = 15 // RFC 4760
-	AttrExtCommunity    AttributeCode = 16 // RFC 4360
-	AttrAS4Path         AttributeCode = 17 // RFC 6793
-	AttrAS4Aggregator   AttributeCode = 18 // RFC 6793
-	AttrPMSI            AttributeCode = 22 // RFC 6514
-	AttrTunnelEncap     AttributeCode = 23 // RFC 5512
-	AttrAIGP            AttributeCode = 26 // RFC 7311
-	AttrBGPLS           AttributeCode = 29 // RFC 7752
-	AttrLargeCommunity  AttributeCode = 32 // RFC 8092
-	AttrPrefixSID       AttributeCode = 40 // RFC 8669
+	AttrOrigin           AttributeCode = 1  // RFC 4271 Section 4.3a, 5.1.1 - well-known mandatory
+	AttrASPath           AttributeCode = 2  // RFC 4271 Section 4.3b, 5.1.2 - well-known mandatory
+	AttrNextHop          AttributeCode = 3  // RFC 4271 Section 4.3c, 5.1.3 - well-known mandatory
+	AttrMED              AttributeCode = 4  // RFC 4271 Section 4.3d, 5.1.4 - optional non-transitive
+	AttrLocalPref        AttributeCode = 5  // RFC 4271 Section 4.3e, 5.1.5 - well-known (IBGP only)
+	AttrAtomicAggregate  AttributeCode = 6  // RFC 4271 Section 4.3f, 5.1.6 - well-known discretionary
+	AttrAggregator       AttributeCode = 7  // RFC 4271 Section 4.3g, 5.1.7 - optional transitive
+	AttrCommunity        AttributeCode = 8  // RFC 1997
+	AttrOriginatorID     AttributeCode = 9  // RFC 4456
+	AttrClusterList      AttributeCode = 10 // RFC 4456
+	AttrMPReachNLRI      AttributeCode = 14 // RFC 4760
+	AttrMPUnreachNLRI    AttributeCode = 15 // RFC 4760
+	AttrExtCommunity     AttributeCode = 16 // RFC 4360
+	AttrAS4Path          AttributeCode = 17 // RFC 6793
+	AttrAS4Aggregator    AttributeCode = 18 // RFC 6793
+	AttrPMSI             AttributeCode = 22 // RFC 6514
+	AttrTunnelEncap      AttributeCode = 23 // RFC 5512
+	AttrIPv6ExtCommunity AttributeCode = 25 // RFC 5701
+	AttrAIGP             AttributeCode = 26 // RFC 7311
+	AttrBGPLS            AttributeCode = 29 // RFC 7752
+	AttrLargeCommunity   AttributeCode = 32 // RFC 8092
+	AttrPrefixSID        AttributeCode = 40 // RFC 8669
 )
 
 var attrCodeNames = map[AttributeCode]string{
-	AttrOrigin:          "ORIGIN",
-	AttrASPath:          "AS_PATH",
-	AttrNextHop:         "NEXT_HOP",
-	AttrMED:             "MULTI_EXIT_DISC",
-	AttrLocalPref:       "LOCAL_PREF",
-	AttrAtomicAggregate: "ATOMIC_AGGREGATE",
-	AttrAggregator:      "AGGREGATOR",
-	AttrCommunity:       "COMMUNITIES",
-	AttrOriginatorID:    "ORIGINATOR_ID",
-	AttrClusterList:     "CLUSTER_LIST",
-	AttrMPReachNLRI:     "MP_REACH_NLRI",
-	AttrMPUnreachNLRI:   "MP_UNREACH_NLRI",
-	AttrExtCommunity:    "EXTENDED_COMMUNITIES",
-	AttrAS4Path:         "AS4_PATH",
-	AttrAS4Aggregator:   "AS4_AGGREGATOR",
-	AttrPMSI:            "PMSI_TUNNEL",
-	AttrTunnelEncap:     "TUNNEL_ENCAPSULATION",
-	AttrAIGP:            "AIGP",
-	AttrBGPLS:           "BGP_LS",
-	AttrLargeCommunity:  "LARGE_COMMUNITIES",
-	AttrPrefixSID:       "PREFIX_SID",
+	AttrOrigin:           "ORIGIN",
+	AttrASPath:           "AS_PATH",
+	AttrNextHop:          "NEXT_HOP",
+	AttrMED:              "MULTI_EXIT_DISC",
+	AttrLocalPref:        "LOCAL_PREF",
+	AttrAtomicAggregate:  "ATOMIC_AGGREGATE",
+	AttrAggregator:       "AGGREGATOR",
+	AttrCommunity:        "COMMUNITIES",
+	AttrOriginatorID:     "ORIGINATOR_ID",
+	AttrClusterList:      "CLUSTER_LIST",
+	AttrMPReachNLRI:      "MP_REACH_NLRI",
+	AttrMPUnreachNLRI:    "MP_UNREACH_NLRI",
+	AttrExtCommunity:     "EXTENDED_COMMUNITIES",
+	AttrAS4Path:          "AS4_PATH",
+	AttrAS4Aggregator:    "AS4_AGGREGATOR",
+	AttrPMSI:             "PMSI_TUNNEL",
+	AttrTunnelEncap:      "TUNNEL_ENCAPSULATION",
+	AttrIPv6ExtCommunity: "IPV6_EXTENDED_COMMUNITIES",
+	AttrAIGP:             "AIGP",
+	AttrBGPLS:            "BGP_LS",
+	AttrLargeCommunity:   "LARGE_COMMUNITIES",
+	AttrPrefixSID:        "PREFIX_SID",
 }
 
 // String returns the attribute name.
