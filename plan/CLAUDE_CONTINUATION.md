@@ -10,27 +10,22 @@
 
 ---
 
-## RECENTLY COMPLETED
-
-### Per-Neighbor RIB Config + Peer Globs (Done)
-
-**Plan:** `plan/rib-config-design.md`
-
-**Implemented:**
-- Per-neighbor `rib { out { group-updates; auto-commit-delay; max-batch-size; } }`
-- Peer glob patterns in config: `peer * { ... }`, `peer 192.168.*.* { ... }`
-- API peer glob support: `peer * announce route ...`
-- Template inheritance for RIB config
-- Legacy `group-updates` backward compatibility
-
----
-
 ## PENDING PLANS
 
 | Plan | Status | Description |
 |------|--------|-------------|
 | `config-migration-system.md` | Draft | Version detection, migrations, `zebgp config upgrade/fmt` |
-| `neighbor-to-peer-rename.md` | Draft | Rename `neighbor` → `peer` in config syntax |
+| `api-commit-batching.md` | Planning | Commit-based route batching, `commit start/end` API |
+| `config-routes-eor.md` | Planning | EOR after config routes, implicit commit |
+
+---
+
+## REFERENCE DOCS
+
+| Doc | Purpose |
+|-----|---------|
+| `exabgp-alignment.md` | Review decisions (26 ALIGN, 8 KEEP, 2 SKIP) |
+| `ARCHITECTURE.md` | Codebase architecture overview |
 
 ---
 
