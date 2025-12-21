@@ -540,28 +540,20 @@ func (a *reactorAPIAdapter) flushAndSendForPeer(peer *Peer) int {
 		return 0
 	}
 
-	// Group by attributes
-	groups := rib.GroupByAttributes(routes)
-	if len(groups) == 0 {
+	// Get negotiated parameters for CommitService
+	neg := peer.messageNegotiated()
+	if neg == nil {
 		return 0
 	}
 
-	// Build and send UPDATEs to this peer only
-	updatesSent := 0
-	for i := range groups {
-		update, err := rib.BuildGroupedUpdate(&groups[i])
-		if err != nil {
-			continue
-		}
-
-		if peer.State() == PeerStateEstablished {
-			if err := peer.SendUpdate(update); err == nil {
-				updatesSent++
-			}
-		}
+	// Use CommitService with two-level grouping for proper AS_PATH handling
+	cs := rib.NewCommitService(peer, neg, true)
+	stats, err := cs.Commit(routes, rib.CommitOptions{SendEOR: false})
+	if err != nil {
+		return 0
 	}
 
-	return updatesSent
+	return stats.UpdatesSent
 }
 
 // RollbackTransaction discards all queued routes in the transaction.

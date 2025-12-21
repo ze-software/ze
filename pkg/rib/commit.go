@@ -78,17 +78,20 @@ func (c *CommitService) Commit(routes []*Route, opts CommitOptions) (CommitServi
 	familySeen := make(map[nlri.Family]bool)
 
 	if c.groupUpdates {
-		// Group routes by attributes for fewer UPDATEs
-		groups := GroupByAttributes(routes)
+		// Two-level grouping: first by attributes, then by AS_PATH
+		// Each ASPathGroup produces one UPDATE (RFC 4271: same attrs per UPDATE)
+		attrGroups := GroupByAttributesTwoLevel(routes)
 
-		for _, group := range groups {
-			update := c.buildGroupedUpdate(&group)
-			if err := c.sender.SendUpdate(update); err != nil {
-				return stats, err
+		for _, attrGroup := range attrGroups {
+			for _, aspGroup := range attrGroup.ByASPath {
+				update := c.buildGroupedUpdateTwoLevel(&attrGroup, &aspGroup)
+				if err := c.sender.SendUpdate(update); err != nil {
+					return stats, err
+				}
+				stats.UpdatesSent++
+				stats.RoutesAnnounced += len(aspGroup.Routes)
+				familySeen[attrGroup.Family] = true
 			}
-			stats.UpdatesSent++
-			stats.RoutesAnnounced += len(group.Routes)
-			familySeen[group.Family] = true
 		}
 	} else {
 		// One UPDATE per route
@@ -123,19 +126,20 @@ func (c *CommitService) Commit(routes []*Route, opts CommitOptions) (CommitServi
 	return stats, nil
 }
 
-// buildGroupedUpdate builds an UPDATE message for a route group.
-func (c *CommitService) buildGroupedUpdate(group *RouteGroup) *message.Update {
-	family := group.Family
-	nextHop := bytesToAddr(group.NextHop)
+// buildGroupedUpdateTwoLevel builds an UPDATE message for a two-level group.
+// Uses explicit AS_PATH from ASPathGroup instead of searching in attributes.
+func (c *CommitService) buildGroupedUpdateTwoLevel(attrGroup *AttributeGroup, aspGroup *ASPathGroup) *message.Update {
+	family := attrGroup.Family
+	nextHop := bytesToAddr(attrGroup.NextHop)
 
-	// Collect all NLRIs
+	// Collect all NLRIs from the ASPathGroup
 	var nlriBytes []byte
-	for _, route := range group.Routes {
+	for _, route := range aspGroup.Routes {
 		nlriBytes = append(nlriBytes, route.NLRI().Bytes()...)
 	}
 
-	// Build path attributes
-	attrBytes := c.packAttributes(group.Attributes, nextHop, family, nlriBytes)
+	// Build path attributes with explicit AS_PATH
+	attrBytes := c.packAttributesWithASPath(attrGroup.Attributes, aspGroup.ASPath, nextHop, family, nlriBytes)
 
 	// Determine if NLRI goes in UPDATE.NLRI or MP_REACH_NLRI
 	if c.useTraditionalNLRI(family, nextHop) {
@@ -157,7 +161,9 @@ func (c *CommitService) buildSingleUpdate(route *Route) *message.Update {
 	nextHop := route.NextHop()
 	nlriBytes := route.NLRI().Bytes()
 
-	attrBytes := c.packAttributes(route.Attributes(), nextHop, family, nlriBytes)
+	// Use getRouteASPath to get AS_PATH (explicit field or from attrs)
+	asPath := getRouteASPath(route)
+	attrBytes := c.packAttributesWithASPath(route.Attributes(), asPath, nextHop, family, nlriBytes)
 
 	if c.useTraditionalNLRI(family, nextHop) {
 		return &message.Update{
@@ -180,8 +186,9 @@ func (c *CommitService) useTraditionalNLRI(family nlri.Family, nextHop netip.Add
 	return family.AFI == 1 && family.SAFI == 1 && nextHop.Is4()
 }
 
-// packAttributes packs path attributes into wire format.
-func (c *CommitService) packAttributes(attrs []attribute.Attribute, nextHop netip.Addr, family nlri.Family, nlriBytes []byte) []byte {
+// packAttributesWithASPath packs path attributes with an explicit AS_PATH.
+// This is the preferred method for two-level grouping.
+func (c *CommitService) packAttributesWithASPath(attrs []attribute.Attribute, asPath *attribute.ASPath, nextHop netip.Addr, family nlri.Family, nlriBytes []byte) []byte {
 	var result []byte
 
 	// 1. ORIGIN (from provided attributes or default to IGP)
@@ -198,8 +205,8 @@ func (c *CommitService) packAttributes(attrs []attribute.Attribute, nextHop neti
 		result = append(result, attribute.PackAttribute(attribute.Origin(0))...)
 	}
 
-	// 2. AS_PATH (preserve existing if present, prepend local AS for eBGP)
-	result = append(result, c.buildASPath(attrs)...)
+	// 2. AS_PATH (use explicit AS_PATH, apply eBGP/iBGP rules)
+	result = append(result, c.buildASPathFromExplicit(asPath)...)
 
 	// 3. NEXT_HOP or MP_REACH_NLRI
 	if c.useTraditionalNLRI(family, nextHop) {
@@ -241,34 +248,22 @@ func (c *CommitService) packAttributes(attrs []attribute.Attribute, nextHop neti
 	return result
 }
 
-// buildASPath builds the AS_PATH attribute.
-// If an existing AS_PATH is provided, prepends local AS for eBGP.
-// For iBGP, preserves the existing AS_PATH as-is.
-func (c *CommitService) buildASPath(attrs []attribute.Attribute) []byte {
-	// Find existing AS_PATH if any
-	var existingASPath *attribute.ASPath
-	for _, attr := range attrs {
-		if attr.Code() == attribute.AttrASPath {
-			if asp, ok := attr.(*attribute.ASPath); ok {
-				existingASPath = asp
-			}
-			break
-		}
-	}
-
+// buildASPathFromExplicit builds AS_PATH from an explicit AS_PATH parameter.
+// For eBGP: prepends local AS. For iBGP: preserves as-is.
+func (c *CommitService) buildASPathFromExplicit(asPath *attribute.ASPath) []byte {
 	if c.isIBGP() {
 		// iBGP: preserve existing AS_PATH or use empty
-		if existingASPath != nil {
-			return attribute.PackASPathAttribute(existingASPath, c.negotiated.ASN4)
+		if asPath != nil {
+			return attribute.PackASPathAttribute(asPath, c.negotiated.ASN4)
 		}
 		return attribute.PackASPathAttribute(&attribute.ASPath{Segments: nil}, c.negotiated.ASN4)
 	}
 
 	// eBGP: prepend local AS to existing path
-	if existingASPath != nil && len(existingASPath.Segments) > 0 {
+	if asPath != nil && len(asPath.Segments) > 0 {
 		// Prepend local AS to first segment if it's AS_SEQUENCE
-		newSegments := make([]attribute.ASPathSegment, len(existingASPath.Segments))
-		copy(newSegments, existingASPath.Segments)
+		newSegments := make([]attribute.ASPathSegment, len(asPath.Segments))
+		copy(newSegments, asPath.Segments)
 
 		if len(newSegments) > 0 && newSegments[0].Type == attribute.ASSequence {
 			// Prepend to first AS_SEQUENCE segment
@@ -286,12 +281,12 @@ func (c *CommitService) buildASPath(attrs []attribute.Attribute) []byte {
 	}
 
 	// No existing AS_PATH: create new with just local AS
-	asPath := &attribute.ASPath{
+	newPath := &attribute.ASPath{
 		Segments: []attribute.ASPathSegment{
 			{Type: attribute.ASSequence, ASNs: []uint32{c.negotiated.LocalAS}},
 		},
 	}
-	return attribute.PackASPathAttribute(asPath, c.negotiated.ASN4)
+	return attribute.PackASPathAttribute(newPath, c.negotiated.ASN4)
 }
 
 // buildMPReachNLRI builds an MP_REACH_NLRI attribute.

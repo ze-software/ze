@@ -314,6 +314,29 @@ func (p *Peer) SendUpdate(update *message.Update) error {
 	return session.SendUpdate(update)
 }
 
+// messageNegotiated returns message.Negotiated for use with CommitService.
+// Returns nil if session is not established.
+func (p *Peer) messageNegotiated() *message.Negotiated {
+	p.mu.RLock()
+	session := p.session
+	p.mu.RUnlock()
+
+	if session == nil {
+		return nil
+	}
+
+	neg := session.Negotiated()
+	if neg == nil {
+		return nil
+	}
+
+	return &message.Negotiated{
+		ASN4:    neg.ASN4,
+		LocalAS: neg.LocalASN,
+		PeerAS:  neg.PeerASN,
+	}
+}
+
 // cleanup runs when peer stops.
 func (p *Peer) cleanup() {
 	p.mu.Lock()

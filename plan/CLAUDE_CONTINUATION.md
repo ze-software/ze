@@ -6,32 +6,36 @@
 
 ## CURRENT STATUS
 
-**Unified Commit System** - `plan/unified-commit-system.md` **COMPLETE ✅**
+**Two-Level Route Grouping** - `plan/two-level-grouping.md` **COMPLETE ✅**
 
-All phases implemented:
-- ✅ Phase 1: `message.BuildEOR()` for EOR markers
-- ✅ Phase 2: `CommitService` with full UPDATE building
-- ✅ Phase 3: eBGP/iBGP AS_PATH handling
-- ✅ Phase 4: VPN next-hop with RD, extended next-hop (RFC 5549)
+All phases implemented + critical review fixes:
+- ✅ Phase 1-6: Core two-level grouping implementation
+- ✅ Critical fix: `buildSingleUpdate` uses `getRouteASPath` (not just attrs)
+- ✅ Critical fix: Reactor uses CommitService with two-level grouping
+- ✅ Regression test: `TestCommitService_NoGrouping_PreservesExplicitASPath`
+- ✅ Bug fix: `buildGroupKey` excludes AS_PATH from level-1 key
+- ✅ Added tests: AS_SET first segment, different pointer same content, mixed locations
 
-Key files:
+Key changes:
 | File | Description |
 |------|-------------|
-| `pkg/bgp/message/eor.go` | BuildEOR() function |
-| `pkg/rib/commit.go` | CommitService with full BGP UPDATE building |
-| `pkg/rib/commit_test.go` | Basic tests |
-| `pkg/rib/commit_edge_test.go` | Edge case tests |
-| `pkg/rib/commit_wire_test.go` | Wire format tests |
+| `pkg/rib/grouping.go` | AttributeGroup, ASPathGroup, GroupByAttributesTwoLevel, getRouteASPath; AS_PATH excluded from key |
+| `pkg/rib/grouping_test.go` | Bug fix tests for AS_PATH in attrs vs field |
+| `pkg/rib/commit.go` | Two-level grouping, buildSingleUpdate fixed, removed unused packAttributes |
+| `pkg/rib/commit_wire_test.go` | AS_SET first segment test |
+| `pkg/reactor/reactor.go` | flushAndSendForPeer uses CommitService |
+| `pkg/reactor/peer.go` | Added messageNegotiated() helper |
 
 ---
 
-## PENDING PLANS
+## COMPLETED PLANS
 
 | Plan | Status | Description |
 |------|--------|-------------|
+| `two-level-grouping.md` | **Complete ✅** | Two-level route grouping for UPDATE generation |
+| `unified-commit-system.md` | **Complete ✅** | Full CommitService with wire format |
 | `neighbor-to-peer-rename.md` | **Complete ✅** | All 6 phases done, v2 syntax removed |
 | `config-migration-system.md` | **Complete ✅** | v2→v3 migration, CLI commands, docs |
-| `unified-commit-system.md` | **Complete ✅** | Full CommitService with wire format |
 | `api-commit-batching.md` | Superseded | → merged into unified-commit-system.md |
 | `config-routes-eor.md` | Superseded | → merged into unified-commit-system.md |
 
@@ -57,9 +61,9 @@ Key files:
 
 | Purpose | File |
 |---------|------|
-| EOR building | `pkg/bgp/message/eor.go` |
+| Two-level grouping | `pkg/rib/grouping.go` |
 | CommitService | `pkg/rib/commit.go` |
-| Config parser | `pkg/config/bgp.go` |
+| Reactor | `pkg/reactor/reactor.go` |
 | This file | `plan/CLAUDE_CONTINUATION.md` |
 | Protocols | `.claude/ESSENTIAL_PROTOCOLS.md` |
 

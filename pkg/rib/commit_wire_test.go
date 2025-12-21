@@ -476,3 +476,310 @@ func (m *mockEVPNNLRI) Len() int            { return 2 }
 func (m *mockEVPNNLRI) String() string      { return "evpn-type2" }
 func (m *mockEVPNNLRI) PathID() uint32      { return 0 }
 func (m *mockEVPNNLRI) HasPathID() bool     { return false }
+
+// ==============================================================
+// Two-Level Grouping Wire Format Tests
+// ==============================================================
+
+// TestCommitService_TwoLevel_WireFormat_DiffASPaths verifies different AS_PATHs produce separate UPDATEs.
+//
+// VALIDATES: Routes with different AS_PATHs → separate UPDATEs with correct AS_PATH bytes
+//
+// PREVENTS: Routes with different AS_PATHs sharing UPDATE (RFC 4271 violation).
+func TestCommitService_TwoLevel_WireFormat_DiffASPaths(t *testing.T) {
+	sender := &mockUpdateSender{}
+	neg := &message.Negotiated{ASN4: true, LocalAS: 65000, PeerAS: 65000} // iBGP (no prepend)
+	cs := NewCommitService(sender, neg, true)
+
+	nh := netip.MustParseAddr("10.0.0.1")
+	attrs := []attribute.Attribute{attribute.Origin(0)}
+
+	// Two routes with same attrs but different AS_PATHs
+	asPath1 := &attribute.ASPath{
+		Segments: []attribute.ASPathSegment{
+			{Type: attribute.ASSequence, ASNs: []uint32{65001}},
+		},
+	}
+	asPath2 := &attribute.ASPath{
+		Segments: []attribute.ASPathSegment{
+			{Type: attribute.ASSequence, ASNs: []uint32{65001, 65002}},
+		},
+	}
+
+	routes := []*Route{
+		NewRouteWithASPath(newIPv4NLRI("192.168.1.0/24"), nh, attrs, asPath1),
+		NewRouteWithASPath(newIPv4NLRI("192.168.2.0/24"), nh, attrs, asPath2),
+	}
+
+	_, err := cs.Commit(routes, CommitOptions{})
+	if err != nil {
+		t.Fatalf("Commit failed: %v", err)
+	}
+
+	if len(sender.updates) != 2 {
+		t.Fatalf("expected 2 updates (different AS_PATHs), got %d", len(sender.updates))
+	}
+
+	// Extract AS_PATH lengths from both updates
+	asPathLens := make([]int, 0, len(sender.updates))
+	for _, update := range sender.updates {
+		asPathLen := extractASPathLength(update.PathAttributes)
+		asPathLens = append(asPathLens, asPathLen)
+	}
+
+	// One should have 1 ASN (6 bytes: type+count+4byte), other should have 2 ASNs (10 bytes)
+	// Sort to check: {6, 10}
+	if len(asPathLens) != 2 {
+		t.Fatalf("expected 2 AS_PATH lengths")
+	}
+
+	// Check that we have two different AS_PATH lengths
+	if asPathLens[0] == asPathLens[1] {
+		t.Errorf("expected different AS_PATH lengths, got both %d", asPathLens[0])
+	}
+}
+
+// TestCommitService_TwoLevel_WireFormat_SameASPath verifies same AS_PATH routes grouped.
+//
+// VALIDATES: Routes with same AS_PATH → single UPDATE with multiple NLRIs
+//
+// PREVENTS: Unnecessary UPDATE fragmentation.
+func TestCommitService_TwoLevel_WireFormat_SameASPath(t *testing.T) {
+	sender := &mockUpdateSender{}
+	neg := &message.Negotiated{ASN4: true, LocalAS: 65000, PeerAS: 65000}
+	cs := NewCommitService(sender, neg, true)
+
+	nh := netip.MustParseAddr("10.0.0.1")
+	attrs := []attribute.Attribute{attribute.Origin(0)}
+
+	asPath := &attribute.ASPath{
+		Segments: []attribute.ASPathSegment{
+			{Type: attribute.ASSequence, ASNs: []uint32{65001}},
+		},
+	}
+
+	routes := []*Route{
+		NewRouteWithASPath(newIPv4NLRI("192.168.1.0/24"), nh, attrs, asPath),
+		NewRouteWithASPath(newIPv4NLRI("192.168.2.0/24"), nh, attrs, asPath),
+	}
+
+	_, err := cs.Commit(routes, CommitOptions{})
+	if err != nil {
+		t.Fatalf("Commit failed: %v", err)
+	}
+
+	if len(sender.updates) != 1 {
+		t.Fatalf("expected 1 update (same AS_PATH), got %d", len(sender.updates))
+	}
+
+	// Verify UPDATE has 2 NLRIs (two /24 prefixes = 2 * 4 bytes)
+	update := sender.updates[0]
+	expectedNLRILen := 8 // 2 prefixes * (1 byte prefix len + 3 bytes for /24)
+	if len(update.NLRI) != expectedNLRILen {
+		t.Errorf("expected NLRI length %d, got %d", expectedNLRILen, len(update.NLRI))
+	}
+}
+
+// TestCommitService_TwoLevel_WireFormat_eBGP_Prepends verifies eBGP prepends local AS.
+//
+// VALIDATES: eBGP with explicit AS_PATH → local AS prepended in wire format
+//
+// PREVENTS: Missing local AS in eBGP announcements.
+func TestCommitService_TwoLevel_WireFormat_eBGP_Prepends(t *testing.T) {
+	sender := &mockUpdateSender{}
+	neg := &message.Negotiated{ASN4: true, LocalAS: 65000, PeerAS: 65001} // eBGP
+	cs := NewCommitService(sender, neg, true)
+
+	nh := netip.MustParseAddr("10.0.0.1")
+	attrs := []attribute.Attribute{attribute.Origin(0)}
+
+	asPath := &attribute.ASPath{
+		Segments: []attribute.ASPathSegment{
+			{Type: attribute.ASSequence, ASNs: []uint32{65002}},
+		},
+	}
+
+	routes := []*Route{
+		NewRouteWithASPath(newIPv4NLRI("192.168.1.0/24"), nh, attrs, asPath),
+	}
+
+	_, err := cs.Commit(routes, CommitOptions{})
+	if err != nil {
+		t.Fatalf("Commit failed: %v", err)
+	}
+
+	if len(sender.updates) != 1 {
+		t.Fatalf("expected 1 update, got %d", len(sender.updates))
+	}
+
+	// Extract first ASN from AS_PATH
+	firstASN := extractFirstASN(sender.updates[0].PathAttributes)
+	if firstASN != 65000 {
+		t.Errorf("expected first ASN 65000 (local AS), got %d", firstASN)
+	}
+
+	// Verify we have 2 ASNs total (65000, 65002)
+	asPathLen := extractASPathLength(sender.updates[0].PathAttributes)
+	expectedLen := 10 // type(1) + count(1) + 2*ASN(8) = 10 bytes
+	if asPathLen != expectedLen {
+		t.Errorf("expected AS_PATH length %d (2 ASNs), got %d", expectedLen, asPathLen)
+	}
+}
+
+// extractASPathLength returns the length of the AS_PATH attribute value.
+func extractASPathLength(attrs []byte) int {
+	offset := 0
+	for offset < len(attrs) {
+		if offset+2 > len(attrs) {
+			break
+		}
+		flags := attrs[offset]
+		code := attrs[offset+1]
+		var attrLen, hdrLen int
+		if flags&0x10 != 0 {
+			if offset+4 > len(attrs) {
+				break
+			}
+			attrLen = int(attrs[offset+2])<<8 | int(attrs[offset+3])
+			hdrLen = 4
+		} else {
+			if offset+3 > len(attrs) {
+				break
+			}
+			attrLen = int(attrs[offset+2])
+			hdrLen = 3
+		}
+
+		if code == 2 { // AS_PATH
+			return attrLen
+		}
+		offset += hdrLen + attrLen
+	}
+	return 0
+}
+
+// extractFirstASN returns the first ASN in the AS_PATH.
+func extractFirstASN(attrs []byte) uint32 {
+	offset := 0
+	for offset < len(attrs) {
+		if offset+2 > len(attrs) {
+			break
+		}
+		flags := attrs[offset]
+		code := attrs[offset+1]
+		var attrLen, hdrLen int
+		if flags&0x10 != 0 {
+			if offset+4 > len(attrs) {
+				break
+			}
+			attrLen = int(attrs[offset+2])<<8 | int(attrs[offset+3])
+			hdrLen = 4
+		} else {
+			if offset+3 > len(attrs) {
+				break
+			}
+			attrLen = int(attrs[offset+2])
+			hdrLen = 3
+		}
+
+		if code == 2 { // AS_PATH
+			valueStart := offset + hdrLen
+			// Skip segment type (1) and count (1) to get first ASN
+			if valueStart+6 <= len(attrs) {
+				return uint32(attrs[valueStart+2])<<24 |
+					uint32(attrs[valueStart+3])<<16 |
+					uint32(attrs[valueStart+4])<<8 |
+					uint32(attrs[valueStart+5])
+			}
+		}
+		offset += hdrLen + attrLen
+	}
+	return 0
+}
+
+// TestCommitService_TwoLevel_WireFormat_eBGP_ASSetFirst verifies eBGP creates new AS_SEQUENCE
+// when first segment is AS_SET.
+//
+// VALIDATES: eBGP with AS_SET first segment → new AS_SEQUENCE inserted
+//
+// PREVENTS: Incorrect AS_PATH when first segment is not AS_SEQUENCE.
+func TestCommitService_TwoLevel_WireFormat_eBGP_ASSetFirst(t *testing.T) {
+	sender := &mockUpdateSender{}
+	neg := &message.Negotiated{ASN4: true, LocalAS: 65000, PeerAS: 65001} // eBGP
+	cs := NewCommitService(sender, neg, true)
+
+	nh := netip.MustParseAddr("10.0.0.1")
+	attrs := []attribute.Attribute{attribute.Origin(0)}
+
+	// AS_PATH with AS_SET as first segment
+	asPath := &attribute.ASPath{
+		Segments: []attribute.ASPathSegment{
+			{Type: attribute.ASSet, ASNs: []uint32{65002, 65003}}, // AS_SET, not AS_SEQUENCE
+		},
+	}
+
+	routes := []*Route{
+		NewRouteWithASPath(newIPv4NLRI("192.168.1.0/24"), nh, attrs, asPath),
+	}
+
+	_, err := cs.Commit(routes, CommitOptions{})
+	if err != nil {
+		t.Fatalf("Commit failed: %v", err)
+	}
+
+	if len(sender.updates) != 1 {
+		t.Fatalf("expected 1 update, got %d", len(sender.updates))
+	}
+
+	// Extract first segment type from AS_PATH
+	segType, segCount := extractFirstSegment(sender.updates[0].PathAttributes)
+
+	// First segment should be AS_SEQUENCE (type 2) with just local AS
+	if segType != byte(attribute.ASSequence) {
+		t.Errorf("expected first segment AS_SEQUENCE (2), got %d", segType)
+	}
+	if segCount != 1 {
+		t.Errorf("expected first segment with 1 ASN (local AS), got %d", segCount)
+	}
+
+	// Verify first ASN is local AS
+	firstASN := extractFirstASN(sender.updates[0].PathAttributes)
+	if firstASN != 65000 {
+		t.Errorf("expected first ASN 65000 (local AS), got %d", firstASN)
+	}
+}
+
+// extractFirstSegment returns the type and count of the first AS_PATH segment.
+func extractFirstSegment(attrs []byte) (segType byte, segCount byte) {
+	offset := 0
+	for offset < len(attrs) {
+		if offset+2 > len(attrs) {
+			break
+		}
+		flags := attrs[offset]
+		code := attrs[offset+1]
+		var attrLen, hdrLen int
+		if flags&0x10 != 0 {
+			if offset+4 > len(attrs) {
+				break
+			}
+			attrLen = int(attrs[offset+2])<<8 | int(attrs[offset+3])
+			hdrLen = 4
+		} else {
+			if offset+3 > len(attrs) {
+				break
+			}
+			attrLen = int(attrs[offset+2])
+			hdrLen = 3
+		}
+
+		if code == 2 { // AS_PATH
+			valueStart := offset + hdrLen
+			if valueStart+2 <= len(attrs) {
+				return attrs[valueStart], attrs[valueStart+1]
+			}
+		}
+		offset += hdrLen + attrLen
+	}
+	return 0, 0
+}
