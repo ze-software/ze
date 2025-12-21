@@ -347,15 +347,31 @@ func MergeAS4Path(asPath *ASPath, as4Path *AS4Path) *ASPath {
 	return merged
 }
 
-// countASNs counts total ASNs in path segments.
+// countASNs counts AS path length per RFC 4271 Section 9.1.2.2.
 //
 // RFC 6793 Section 4.2.3: "it is necessary to first calculate the number
 // of AS numbers in the AS_PATH and AS4_PATH attributes using the method
 // specified in Section 9.1.2.2 of [RFC4271] and in [RFC5065]"
+//
+// RFC 4271 Section 9.1.2.2: "an AS_SET counts as 1, no matter how many
+// ASes are in the set"
+//
+// RFC 5065: Confederation segments (AS_CONFED_SEQUENCE, AS_CONFED_SET)
+// are not counted in path length calculation.
 func countASNs(segments []ASPathSegment) int {
 	count := 0
 	for _, seg := range segments {
-		count += len(seg.ASNs)
+		switch seg.Type {
+		case ASSequence:
+			count += len(seg.ASNs)
+		case ASSet:
+			// RFC 4271 Section 9.1.2.2: AS_SET counts as 1
+			if len(seg.ASNs) > 0 {
+				count++
+			}
+		case ASConfedSequence, ASConfedSet:
+			// RFC 5065: Confederation segments don't count
+		}
 	}
 	return count
 }

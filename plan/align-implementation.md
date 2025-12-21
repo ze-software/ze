@@ -117,7 +117,7 @@
 - **Files:** `pkg/bgp/attribute/as4.go`
 - **Violation:** `as4.go:323-329` - Must count AS_SET=1, confederation=0
 - **Test:** Verify merge algorithm uses correct length calculation
-- [ ] Pending
+- [x] Complete - countASNs() now counts AS_SET=1, confed=0 per RFC 4271 Section 9.1.2.2
 
 ### 4.9 AS_CONFED Segment Handling ⚠️ NEW (from annotation)
 - **Task:** Discard confed segments in AS4_PATH from OLD speakers

@@ -358,6 +358,105 @@ func TestMergeAS4Path(t *testing.T) {
 	}
 }
 
+// TestMergeAS4PathWithASSet verifies RFC 4271 Section 9.1.2.2 path counting.
+//
+// RFC 6793 Section 4.2.3: "it is necessary to first calculate the number
+// of AS numbers in the AS_PATH and AS4_PATH attributes using the method
+// specified in Section 9.1.2.2 of [RFC4271]"
+//
+// RFC 4271 Section 9.1.2.2: "an AS_SET counts as 1, no matter how many
+// ASes are in the set"
+//
+// VALIDATES: AS_SET is counted as 1 during merge, not as number of ASNs.
+//
+// PREVENTS: Incorrect path length causing wrong merge behavior.
+func TestMergeAS4PathWithASSet(t *testing.T) {
+	// AS_PATH: [SEQ: 65001] [SET: 65002, 65003, 65004]
+	// Path length should be: 1 (seq) + 1 (set=1) = 2
+	asPath := &ASPath{Segments: []ASPathSegment{
+		{Type: ASSequence, ASNs: []uint32{65001}},
+		{Type: ASSet, ASNs: []uint32{65002, 65003, 65004}},
+	}}
+
+	// AS4_PATH: [SEQ: 4200000001, 4200000002]
+	// Path length should be: 2
+	as4Path := &AS4Path{Segments: []ASPathSegment{
+		{Type: ASSequence, ASNs: []uint32{4200000001, 4200000002}},
+	}}
+
+	// Both paths have length 2, so merged should be all of AS4_PATH
+	merged := MergeAS4Path(asPath, as4Path)
+
+	// Flatten result
+	var gotASNs []uint32
+	for _, seg := range merged.Segments {
+		gotASNs = append(gotASNs, seg.ASNs...)
+	}
+
+	// Should be exactly the AS4_PATH since lengths are equal
+	wantASNs := []uint32{4200000001, 4200000002}
+
+	if len(gotASNs) != len(wantASNs) {
+		t.Errorf("merged ASNs len = %d, want %d (got: %v)", len(gotASNs), len(wantASNs), gotASNs)
+		return
+	}
+
+	for i, asn := range wantASNs {
+		if gotASNs[i] != asn {
+			t.Errorf("ASN[%d] = %d, want %d", i, gotASNs[i], asn)
+		}
+	}
+}
+
+// TestMergeAS4PathWithConfed verifies confederation segments are not counted.
+//
+// RFC 5065: Confederation segments (AS_CONFED_SEQUENCE, AS_CONFED_SET) are
+// not counted in path length calculation.
+//
+// RFC 6793 Section 4.2.3: uses "the method specified in Section 9.1.2.2
+// of [RFC4271] and in [RFC5065]"
+//
+// VALIDATES: Confed segments don't affect merge path length calculation.
+//
+// PREVENTS: Confed segments incorrectly inflating path length.
+func TestMergeAS4PathWithConfed(t *testing.T) {
+	// AS_PATH: [CONFED_SEQ: 64512, 64513] [SEQ: 65001]
+	// Path length should be: 0 (confed) + 1 (seq) = 1
+	asPath := &ASPath{Segments: []ASPathSegment{
+		{Type: ASConfedSequence, ASNs: []uint32{64512, 64513}},
+		{Type: ASSequence, ASNs: []uint32{65001}},
+	}}
+
+	// AS4_PATH: [SEQ: 4200000001]
+	// Path length should be: 1
+	as4Path := &AS4Path{Segments: []ASPathSegment{
+		{Type: ASSequence, ASNs: []uint32{4200000001}},
+	}}
+
+	// Both paths have length 1, so merged should be all of AS4_PATH
+	merged := MergeAS4Path(asPath, as4Path)
+
+	// Flatten result
+	var gotASNs []uint32
+	for _, seg := range merged.Segments {
+		gotASNs = append(gotASNs, seg.ASNs...)
+	}
+
+	// Should be exactly the AS4_PATH since lengths are equal
+	wantASNs := []uint32{4200000001}
+
+	if len(gotASNs) != len(wantASNs) {
+		t.Errorf("merged ASNs len = %d, want %d (got: %v)", len(gotASNs), len(wantASNs), gotASNs)
+		return
+	}
+
+	for i, asn := range wantASNs {
+		if gotASNs[i] != asn {
+			t.Errorf("ASN[%d] = %d, want %d", i, gotASNs[i], asn)
+		}
+	}
+}
+
 func TestAS4Path_PathLength(t *testing.T) {
 	tests := []struct {
 		name string
