@@ -18,22 +18,22 @@ Start with Phase 1 (Critical): 5 items
 
 ### ExaBGP Alignment Implementation
 
-Progress: Phase 5.3 complete (18/31 items)
+Progress: Phase 5 complete (19/31 items)
 
 **Completed Phases:**
 - ✅ Phase 1: Critical (5/5)
 - ✅ Phase 2: Capabilities (3/3)
-- ✅ Phase 3: Timers (1/1) - 3.2 Hold Time Validation
+- ✅ Phase 3: Timers (1/1)
 - ✅ Phase 4: Attributes (6/6)
-- ⏳ Phase 5: MP-NLRI (3/4) - 5.1 Family Validation, 5.2 Extended Next-Hop, 5.3 Chunking
+- ✅ Phase 5: MP-NLRI (4/4)
 
-**Next:** Phase 5.4 - Route Distinguisher in Next-Hop
+**Next:** Phase 6 - NLRI Types (EVPN Type 1/4, etc.)
 
 ### Recent Implementation:
-- **5.3 MP-NLRI Chunking (RFC 4271 Section 4.3):**
-  - Added `ChunkNLRI()` utility function
-  - Splits large NLRI sets respecting prefix boundaries
-  - Prevents oversized UPDATE messages (>4096 bytes)
+- **5.4 Route Distinguisher in Next-Hop (RFC 4364/4659):**
+  - Added `parseVPNNextHops()` for VPN SAFI (128)
+  - Handles RD prefix: 12-byte (RD+IPv4), 24-byte (RD+IPv6), 40-byte (dual)
+  - Also handles Extended Next Hop for VPN (16/32 bytes, no RD)
 
 ---
 

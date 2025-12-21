@@ -154,10 +154,10 @@
 
 ### 5.4 Route Distinguisher in Next-Hop
 - **Task:** Parse RD in MP_REACH next-hop for VPN
-- **RFC:** 4364, 4659
-- **Files:** `pkg/bgp/attribute/mpreach.go`
-- **Test:** Parse VPN next-hop with RD
-- [ ] Pending
+- **RFC:** 4364 Section 4.3.4, 4659, 5549 Section 6
+- **Files:** `pkg/bgp/attribute/mpnlri.go`
+- **Test:** Parse VPN-IPv4 (12-byte) and VPN-IPv6 (24-byte) next-hops with RD
+- [x] Complete - parseVPNNextHops() handles RD prefix and Extended Next Hop
 
 ---
 
@@ -269,11 +269,11 @@
 | 2. Capabilities | 3 | 0 | ✅ Complete |
 | 3. Timers | 1 | 0 | ✅ Complete |
 | 4. Attributes | 6 | +2 | ✅ Complete |
-| 5. MP-NLRI | 4 | 0 | ⏳ 3/4 |
+| 5. MP-NLRI | 4 | 0 | ✅ Complete |
 | 6. NLRI Types | 7 | +2 | Pending |
 | 8. Errors | 1 | 0 | Pending |
 | 9. Config | 4 | 0 | Pending |
-| **Total** | **31** | **+5** | **18/31 Complete** |
+| **Total** | **31** | **+5** | **19/31 Complete** |
 
 ---
 
