@@ -273,6 +273,133 @@ func TestParseMPUnreachNLRI(t *testing.T) {
 	}
 }
 
+// TestParseMPReachNLRI_ExtendedNextHop tests RFC 5549/8950 support.
+//
+// VALIDATES: IPv4 NLRI with IPv6 next-hop parses correctly when the
+// Extended Next Hop capability is negotiated.
+//
+// PREVENTS: Parsing failures when receiving IPv4 routes with IPv6 next-hops
+// over IPv6-only infrastructure.
+func TestParseMPReachNLRI_ExtendedNextHop(t *testing.T) {
+	// RFC 5549 Section 3: IPv4 NLRI with 16-byte (IPv6) next-hop
+	// This is used when advertising IPv4 routes over IPv6-only networks.
+	//
+	// RFC 5549 Section 3: "The BGP speaker receiving the advertisement MUST
+	// use the Length of Next Hop Address field to determine which network-layer
+	// protocol the next hop address belongs to."
+	data := []byte{
+		0x00, 0x01, // AFI IPv4
+		0x01, // SAFI unicast
+		0x10, // NH len = 16 (IPv6)
+		0x20, 0x01, 0x0d, 0xb8, 0x00, 0x00, 0x00, 0x00,
+		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, // 2001:db8::1
+		0x00,                   // reserved
+		0x18, 0x0a, 0x00, 0x01, // 10.0.1.0/24
+	}
+
+	m, err := ParseMPReachNLRI(data)
+	if err != nil {
+		t.Fatalf("ParseMPReachNLRI() error = %v", err)
+	}
+
+	// Verify AFI/SAFI (NLRI family)
+	if m.AFI != AFIIPv4 {
+		t.Errorf("AFI = %d, want %d (IPv4)", m.AFI, AFIIPv4)
+	}
+	if m.SAFI != SAFIUnicast {
+		t.Errorf("SAFI = %d, want %d (Unicast)", m.SAFI, SAFIUnicast)
+	}
+
+	// Verify IPv6 next-hop was parsed correctly
+	if len(m.NextHops) != 1 {
+		t.Fatalf("NextHops len = %d, want 1", len(m.NextHops))
+	}
+	if !m.NextHops[0].Is6() {
+		t.Errorf("NextHops[0] is not IPv6: %v", m.NextHops[0])
+	}
+	expected := netip.MustParseAddr("2001:db8::1")
+	if m.NextHops[0] != expected {
+		t.Errorf("NextHops[0] = %v, want %v", m.NextHops[0], expected)
+	}
+
+	// Verify NLRI
+	if len(m.NLRI) != 4 {
+		t.Errorf("NLRI len = %d, want 4", len(m.NLRI))
+	}
+}
+
+// TestParseMPReachNLRI_ExtendedNextHop_VPN tests RFC 5549 with VPN SAFI.
+//
+// VALIDATES: VPN-IPv4 NLRI with IPv6 next-hop parses correctly.
+//
+// PREVENTS: Parsing failures for VPN routes over IPv6 infrastructure.
+func TestParseMPReachNLRI_ExtendedNextHop_VPN(t *testing.T) {
+	// RFC 5549 Section 6.2: VPN-IPv4 NLRI with IPv6 next-hop
+	data := []byte{
+		0x00, 0x01, // AFI IPv4
+		0x80, // SAFI VPN (128)
+		0x10, // NH len = 16 (IPv6)
+		0x20, 0x01, 0x0d, 0xb8, 0x00, 0x00, 0x00, 0x00,
+		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x02, // 2001:db8::2
+		0x00,             // reserved
+		0x01, 0x02, 0x03, // VPN NLRI (simplified)
+	}
+
+	m, err := ParseMPReachNLRI(data)
+	if err != nil {
+		t.Fatalf("ParseMPReachNLRI() error = %v", err)
+	}
+
+	if m.AFI != AFIIPv4 {
+		t.Errorf("AFI = %d, want %d", m.AFI, AFIIPv4)
+	}
+	if m.SAFI != SAFIVPN {
+		t.Errorf("SAFI = %d, want %d", m.SAFI, SAFIVPN)
+	}
+	if len(m.NextHops) != 1 {
+		t.Fatalf("NextHops len = %d, want 1", len(m.NextHops))
+	}
+	if !m.NextHops[0].Is6() {
+		t.Errorf("NextHops[0] is not IPv6: %v", m.NextHops[0])
+	}
+}
+
+// TestParseMPReachNLRI_ExtendedNextHop_DualStack tests IPv4 NLRI with
+// global+link-local IPv6 next-hop per RFC 2545.
+//
+// VALIDATES: 32-byte next-hop (global+link-local) parses as two IPv6 addresses.
+//
+// PREVENTS: Incorrect parsing of dual-stack next-hop announcements.
+func TestParseMPReachNLRI_ExtendedNextHop_DualStack(t *testing.T) {
+	// RFC 5549 Section 3 + RFC 2545: 32-byte next-hop = global + link-local
+	data := []byte{
+		0x00, 0x01, // AFI IPv4
+		0x01, // SAFI unicast
+		0x20, // NH len = 32 (global + link-local)
+		0x20, 0x01, 0x0d, 0xb8, 0x00, 0x00, 0x00, 0x00,
+		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, // global 2001:db8::1
+		0xfe, 0x80, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, // link-local fe80::1
+		0x00,                   // reserved
+		0x18, 0xc0, 0xa8, 0x01, // 192.168.1.0/24
+	}
+
+	m, err := ParseMPReachNLRI(data)
+	if err != nil {
+		t.Fatalf("ParseMPReachNLRI() error = %v", err)
+	}
+
+	if len(m.NextHops) != 2 {
+		t.Fatalf("NextHops len = %d, want 2", len(m.NextHops))
+	}
+	if !m.NextHops[0].Is6() {
+		t.Errorf("NextHops[0] is not IPv6: %v", m.NextHops[0])
+	}
+	if !m.NextHops[1].Is6() {
+		t.Errorf("NextHops[1] is not IPv6: %v", m.NextHops[1])
+	}
+}
+
 func TestMPReachNLRI_RoundTrip(t *testing.T) {
 	original := &MPReachNLRI{
 		AFI:      AFIIPv6,

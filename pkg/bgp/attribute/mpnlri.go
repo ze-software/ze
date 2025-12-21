@@ -190,7 +190,7 @@ func ParseMPReachNLRI(data []byte) (*MPReachNLRI, error) {
 	return m, nil
 }
 
-// parseNextHops parses next-hop address(es) based on AFI.
+// parseNextHops parses next-hop address(es) based on AFI and length.
 //
 // RFC 4760 Section 3: "Network Address of Next Hop: A variable-length field
 // that contains the Network Address of the next router on the path to the
@@ -198,7 +198,15 @@ func ParseMPReachNLRI(data []byte) (*MPReachNLRI, error) {
 // Address of the Next Hop is identified by a combination of <AFI, SAFI>
 // carried in the attribute."
 //
-// For IPv6 (AFI=2), RFC 2545 specifies that the next-hop can be either:
+// RFC 5549/8950 Section 3: "The BGP speaker receiving the advertisement MUST
+// use the Length of Next Hop Address field to determine which network-layer
+// protocol the next hop address belongs to. When the Length of Next Hop
+// Address field is equal to 16 or 32, the next hop address is of type IPv6."
+//
+// This allows advertising IPv4 NLRI with IPv6 next-hops, enabling IPv4 routing
+// over IPv6-only infrastructure.
+//
+// For IPv6 next-hops, RFC 2545 specifies:
 //   - 16 octets: global IPv6 address only
 //   - 32 octets: global IPv6 address followed by link-local address
 func parseNextHops(afi AFI, data []byte) ([]netip.Addr, error) {
@@ -208,6 +216,28 @@ func parseNextHops(afi AFI, data []byte) ([]netip.Addr, error) {
 
 	var hops []netip.Addr
 
+	// RFC 5549/8950: Use length to determine next-hop address family.
+	// Length 16 or 32 indicates IPv6 next-hop, regardless of NLRI AFI.
+	switch len(data) {
+	case 16:
+		// Single IPv6 next-hop (global address only)
+		// Used for both IPv6 NLRI and IPv4 NLRI with Extended Next Hop (RFC 5549)
+		var ip [16]byte
+		copy(ip[:], data)
+		hops = append(hops, netip.AddrFrom16(ip))
+		return hops, nil
+
+	case 32:
+		// Dual IPv6 next-hop: global + link-local (RFC 2545 Section 3)
+		// Used for both IPv6 NLRI and IPv4 NLRI with Extended Next Hop
+		var ip1, ip2 [16]byte
+		copy(ip1[:], data[0:16])
+		copy(ip2[:], data[16:32])
+		hops = append(hops, netip.AddrFrom16(ip1), netip.AddrFrom16(ip2))
+		return hops, nil
+	}
+
+	// For other lengths, use AFI to determine address type
 	switch afi {
 	case AFIIPv4:
 		// IPv4: 4 bytes per next-hop
@@ -221,33 +251,17 @@ func parseNextHops(afi AFI, data []byte) ([]netip.Addr, error) {
 		}
 
 	case AFIIPv6:
-		// IPv6: 16 bytes per next-hop, or 32 bytes for global+link-local (RFC 2545)
-		switch len(data) {
-		case 16:
-			var ip [16]byte
-			copy(ip[:], data)
-			hops = append(hops, netip.AddrFrom16(ip))
-		case 32:
-			// Global + link-local (RFC 2545 Section 3)
-			var ip1, ip2 [16]byte
-			copy(ip1[:], data[0:16])
-			copy(ip2[:], data[16:32])
-			hops = append(hops, netip.AddrFrom16(ip1), netip.AddrFrom16(ip2))
-		default:
-			return nil, ErrInvalidNextHopLen
-		}
+		// Other IPv6 lengths are invalid per RFC 2545
+		return nil, ErrInvalidNextHopLen
 
 	case AFIL2VPN:
 		// L2VPN (EVPN, RFC 7432): typically 4 or 16 bytes
+		// Note: 16-byte case already handled above
 		switch len(data) {
 		case 4:
 			var ip [4]byte
 			copy(ip[:], data)
 			hops = append(hops, netip.AddrFrom4(ip))
-		case 16:
-			var ip [16]byte
-			copy(ip[:], data)
-			hops = append(hops, netip.AddrFrom16(ip))
 		default:
 			return nil, ErrInvalidNextHopLen
 		}

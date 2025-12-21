@@ -16,22 +16,24 @@ Start with Phase 1 (Critical): 5 items
 
 ## ACTIVE WORK
 
-### ExaBGP Alignment Review
+### ExaBGP Alignment Implementation
 
-1. **Comparison report created:** `.claude/zebgp/EXABGP_COMPARISON_REPORT.md`
-   - Comprehensive analysis of ZeBGP vs ExaBGP
-   - Covers: messages, capabilities, attributes, NLRI, FSM, reactor, config
+Progress: Phase 5.2 complete (10/31 items)
 
-2. **Alignment plan created:** `plan/exabgp-alignment.md`
-   - 35 decision items organized in 9 phases
-   - Each item: ALIGN (change ZeBGP) / KEEP (keep ZeBGP) / SKIP (defer)
-   - **User must review and mark decisions**
+**Completed Phases:**
+- ✅ Phase 1: Critical (5/5)
+- ✅ Phase 2: Capabilities (3/3)
+- ✅ Phase 3: Timers (1/1) - 3.2 Hold Time Validation
+- ✅ Phase 4: Attributes (6/6)
+- ⏳ Phase 5: MP-NLRI (2/4) - 5.1 Family Validation, 5.2 Extended Next-Hop
 
-### Phase 1 (Critical) Items:
-- RFC 8203/9003 shutdown communication
-- Per-message-type length validation
-- Extended message size integration
-- KEEPALIVE payload validation
+**Next:** Phase 5.3 - MP-NLRI Chunking
+
+### Recent Implementation:
+- **5.2 Extended Next-Hop (RFC 5549/8950):**
+  - Fixed `parseNextHops()` to use length-based detection
+  - 16/32-byte next-hops are IPv6, regardless of NLRI AFI
+  - Enables IPv4 routes over IPv6-only infrastructure
 
 ---
 

@@ -133,17 +133,17 @@
 
 ### 5.1 Family Validation Against Negotiated
 - **Task:** Reject NLRI for non-negotiated families
-- **RFC:** 4271 Section 9
-- **Files:** `pkg/bgp/fsm/`, `pkg/bgp/message/update.go`
+- **RFC:** 4760 Section 6
+- **Files:** `pkg/reactor/session.go`, `pkg/config/bgp.go`
 - **Test:** Ignore/error on non-negotiated AFI/SAFI
-- [ ] Pending
+- [x] Complete - validateUpdateFamilies() in session.go, config option for buggy peers
 
 ### 5.2 Extended Next-Hop Support
 - **Task:** Handle IPv6 next-hops for IPv4 prefixes
-- **RFC:** 5549
-- **Files:** `pkg/bgp/attribute/mpreach.go`, `pkg/bgp/capability/`
+- **RFC:** 5549/8950
+- **Files:** `pkg/bgp/attribute/mpnlri.go`, `pkg/bgp/capability/capability.go`
 - **Test:** Parse IPv6 NH for IPv4 NLRI
-- [ ] Pending
+- [x] Complete - parseNextHops() uses length-based detection per RFC 5549 Section 3
 
 ### 5.3 MP-NLRI Chunking
 - **Task:** Split large NLRI across multiple UPDATEs
@@ -267,13 +267,13 @@
 |-------|-------|-----|--------|
 | 1. Critical | 5 | +1 | ✅ Complete |
 | 2. Capabilities | 3 | 0 | ✅ Complete |
-| 3. Timers | 1 | 0 | Pending |
-| 4. Attributes | 6 | +2 | Pending |
-| 5. MP-NLRI | 4 | 0 | Pending |
+| 3. Timers | 1 | 0 | ✅ Complete |
+| 4. Attributes | 6 | +2 | ✅ Complete |
+| 5. MP-NLRI | 4 | 0 | ⏳ 2/4 |
 | 6. NLRI Types | 7 | +2 | Pending |
 | 8. Errors | 1 | 0 | Pending |
 | 9. Config | 4 | 0 | Pending |
-| **Total** | **31** | **+5** | **8/31 Complete** |
+| **Total** | **31** | **+5** | **17/31 Complete** |
 
 ---
 
