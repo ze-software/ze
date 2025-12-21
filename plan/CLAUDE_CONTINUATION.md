@@ -1,18 +1,16 @@
 # Claude Continuation State
 
-**Last Updated:** 2025-12-20
+**Last Updated:** 2025-12-21
 
 ---
 
 ## CURRENT PRIORITY
 
-**1. Annotate existing code with RFC references**
-   - Plan: `plan/rfc-annotation.md`
-   - Document any RFC violations found
+**Implement ALIGN items from `plan/align-implementation.md`**
 
-**2. Create implementation tasks from 26 ALIGN items**
-   - Source: `plan/exabgp-alignment.md`
-   - Merge with RFC violations from step 1
+31 items across 8 phases (26 original + 5 from RFC violations)
+
+Start with Phase 1 (Critical): 5 items
 
 ---
 
