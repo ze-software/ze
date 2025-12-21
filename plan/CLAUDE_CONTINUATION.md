@@ -6,7 +6,13 @@
 
 ## CURRENT PRIORITY
 
-**Config Migration System** - See `plan/config-migration-system.md`
+**Neighbor→Peer Rename - Phase 2+ (requires migration system)**
+
+✅ Phase 1 complete: v3 syntax (`template.group`, `template.match`, `peer <IP>`)
+
+Next steps:
+- `plan/config-migration-system.md` - Migration infrastructure (v1→v2→v3)
+- `plan/neighbor-to-peer-rename.md` - Phase 2: migration, Phase 3: refactor
 
 ---
 
@@ -14,7 +20,8 @@
 
 | Plan | Status | Description |
 |------|--------|-------------|
-| `config-migration-system.md` | Draft | Version detection, migrations, `zebgp config upgrade/fmt` |
+| `neighbor-to-peer-rename.md` | **Phase 1 ✅** | Phase 2+ pending: migration, refactor, deprecate |
+| `config-migration-system.md` | Draft | v1→v2→v3 migrations, `zebgp config upgrade/fmt` |
 | `api-commit-batching.md` | Planning | Commit-based route batching, `commit start/end` API |
 | `config-routes-eor.md` | Planning | EOR after config routes, implicit commit |
 

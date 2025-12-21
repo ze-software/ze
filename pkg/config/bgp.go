@@ -287,9 +287,12 @@ func BGPSchema() *Schema {
 	schema.Define("peer", List(TypeString, neighborFields()...))
 
 	// Template definitions - contains named neighbor templates
-	// template { neighbor <name> { ... } }
+	// V2: template { neighbor <name> { ... } }
+	// V3: template { group <name> { ... }; match <pattern> { ... } }
 	schema.Define("template", Container(
-		Field("neighbor", List(TypeString, neighborFields()...)),
+		Field("neighbor", List(TypeString, neighborFields()...)), // V2: named templates
+		Field("group", List(TypeString, neighborFields()...)),    // V3: named templates (replaces neighbor)
+		Field("match", List(TypeString, neighborFields()...)),    // V3: glob patterns
 	))
 
 	return schema
@@ -491,33 +494,94 @@ func TreeToConfig(tree *Tree) (*BGPConfig, error) {
 	}
 
 	// Parse templates first (for inheritance)
+	// Support both v2 (template.neighbor) and v3 (template.group) syntax
 	templates := make(map[string]*Tree)
 	if tmpl := tree.GetContainer("template"); tmpl != nil {
+		// V2: template { neighbor <name> { ... } }
 		for name, neighborTree := range tmpl.GetList("neighbor") {
+			// Validate: inherit not allowed inside template
+			if _, hasInherit := neighborTree.Get("inherit"); hasInherit {
+				return nil, fmt.Errorf("inherit only valid inside peer { }, not in template.neighbor %s", name)
+			}
 			templates[name] = neighborTree
+		}
+		// V3: template { group <name> { ... } }
+		for name, groupTree := range tmpl.GetList("group") {
+			// Validate group name: must start with letter, contain letters/numbers/hyphens, not end with hyphen
+			if !isValidGroupName(name) {
+				return nil, fmt.Errorf("invalid group name %q: must start with letter, end with letter/number, contain only letters/numbers/hyphens", name)
+			}
+			// Validate: inherit not allowed inside template
+			if _, hasInherit := groupTree.Get("inherit"); hasInherit {
+				return nil, fmt.Errorf("inherit only valid inside peer { }, not in template.group %s", name)
+			}
+			templates[name] = groupTree
+		}
+		// Validate: inherit not allowed inside template.match
+		for _, entry := range tmpl.GetListOrdered("match") {
+			if _, hasInherit := entry.Value.Get("inherit"); hasInherit {
+				return nil, fmt.Errorf("inherit only valid inside peer { }, not in template.match %s", entry.Key)
+			}
 		}
 	}
 
-	// Parse peer globs and sort by specificity (least specific first)
-	peerList := tree.GetList("peer")
-	peerGlobs := make([]PeerGlob, 0, len(peerList))
-	for pattern, peerTree := range peerList {
-		peerGlobs = append(peerGlobs, PeerGlob{
-			Pattern:     pattern,
-			Specificity: peerGlobSpecificity(pattern),
-			Tree:        peerTree,
-		})
-	}
-	// Sort by specificity: least specific first, so more specific can override
-	sortPeerGlobs(peerGlobs)
+	// Parse peer globs from root level (v2: peer *) and template.match (v3)
+	// V2: peer * { ... } at root - sorted by specificity (backward compat)
+	// V3: template { match * { ... } } - applied in CONFIG ORDER (not specificity!)
+	//
+	// Application order: v2 globs (sorted) → v3 matches (config order)
 
-	// Neighbors
+	// V2: Root-level peer globs (patterns only, not IPs) - SORTED by specificity
+	v2PeerGlobs := make([]PeerGlob, 0)
+	peerList := tree.GetList("peer")
+	for pattern, peerTree := range peerList {
+		if isGlobPattern(pattern) {
+			v2PeerGlobs = append(v2PeerGlobs, PeerGlob{
+				Pattern:     pattern,
+				Specificity: peerGlobSpecificity(pattern),
+				Tree:        peerTree,
+			})
+		}
+	}
+	// Sort v2 globs by specificity (least specific first)
+	sortPeerGlobs(v2PeerGlobs)
+
+	// V3: template { match ... } - CONFIG ORDER (not sorted!)
+	v3MatchBlocks := make([]PeerGlob, 0)
+	if tmpl := tree.GetContainer("template"); tmpl != nil {
+		for _, entry := range tmpl.GetListOrdered("match") {
+			v3MatchBlocks = append(v3MatchBlocks, PeerGlob{
+				Pattern:     entry.Key,
+				Specificity: 0, // Not used for v3
+				Tree:        entry.Value,
+			})
+		}
+	}
+
+	// Combined: v2 globs first (sorted), then v3 matches (config order)
+	peerGlobs := make([]PeerGlob, 0, len(v2PeerGlobs)+len(v3MatchBlocks))
+	peerGlobs = append(peerGlobs, v2PeerGlobs...)
+	peerGlobs = append(peerGlobs, v3MatchBlocks...)
+
+	// Neighbors from "neighbor" (v2) and "peer" with IP address (v3)
 	for addr, n := range tree.GetList("neighbor") {
 		nc, err := parseNeighborConfig(addr, n, templates, peerGlobs)
 		if err != nil {
 			return nil, fmt.Errorf("neighbor %s: %w", addr, err)
 		}
 		cfg.Neighbors = append(cfg.Neighbors, nc)
+	}
+
+	// V3: peer <IP> { ... } - parse IPs as neighbors
+	for addr, n := range tree.GetList("peer") {
+		if !isGlobPattern(addr) {
+			// It's an IP address, treat as neighbor
+			nc, err := parseNeighborConfig(addr, n, templates, peerGlobs)
+			if err != nil {
+				return nil, fmt.Errorf("peer %s: %w", addr, err)
+			}
+			cfg.Neighbors = append(cfg.Neighbors, nc)
+		}
 	}
 
 	return cfg, nil
@@ -533,6 +597,120 @@ func sortPeerGlobs(globs []PeerGlob) {
 			}
 		}
 	}
+}
+
+// applyTreeSettings applies settings from a tree (match block, template, or peer glob)
+// to a NeighborConfig. Only explicitly set values are applied.
+func applyTreeSettings(nc *NeighborConfig, tree *Tree) error {
+	// Hold time
+	if v, ok := tree.Get("hold-time"); ok {
+		n, err := strconv.ParseUint(v, 10, 16)
+		if err != nil {
+			return fmt.Errorf("invalid hold-time: %w", err)
+		}
+		// RFC 4271 Section 4.2: Hold Time MUST be either zero or at least three seconds
+		if n >= 1 && n <= 2 {
+			return fmt.Errorf("invalid hold-time %d: RFC 4271 requires 0 or >= 3 seconds", n)
+		}
+		nc.HoldTime = uint16(n)
+	}
+
+	// Peer AS
+	if v, ok := tree.Get("peer-as"); ok {
+		n, err := strconv.ParseUint(v, 10, 32)
+		if err != nil {
+			return fmt.Errorf("invalid peer-as: %w", err)
+		}
+		nc.PeerAS = uint32(n)
+	}
+
+	// Local AS
+	if v, ok := tree.Get("local-as"); ok {
+		n, err := strconv.ParseUint(v, 10, 32)
+		if err != nil {
+			return fmt.Errorf("invalid local-as: %w", err)
+		}
+		nc.LocalAS = uint32(n)
+	}
+
+	// Description
+	if v, ok := tree.Get("description"); ok {
+		nc.Description = v
+	}
+
+	// Router ID
+	if v, ok := tree.Get("router-id"); ok {
+		ip, err := netip.ParseAddr(v)
+		if err != nil {
+			return fmt.Errorf("invalid router-id: %w", err)
+		}
+		nc.RouterID = ipToUint32(ip)
+	}
+
+	// Local address
+	if v, ok := tree.Get("local-address"); ok {
+		if v == "auto" {
+			nc.LocalAddressAuto = true
+		} else {
+			ip, err := netip.ParseAddr(v)
+			if err != nil {
+				return fmt.Errorf("invalid local-address: %w", err)
+			}
+			nc.LocalAddress = ip
+		}
+	}
+
+	// Passive
+	if v, ok := tree.Get("passive"); ok {
+		nc.Passive = v == configTrue
+	}
+
+	// Group updates
+	if v, ok := tree.Get("group-updates"); ok {
+		nc.GroupUpdates = v == configTrue
+		nc.RIBOut.GroupUpdates = v == configTrue
+	}
+
+	// RIBOut config
+	if ribOut, err := parseRIBOutConfig(tree); err != nil {
+		return fmt.Errorf("rib: %w", err)
+	} else {
+		applyRIBOutParseResult(&nc.RIBOut, ribOut)
+	}
+
+	// Capabilities
+	if cap := tree.GetContainer("capability"); cap != nil {
+		if v, ok := cap.Get("asn4"); ok {
+			nc.Capabilities.ASN4 = v == configTrue
+		}
+		// route-refresh is Flex type, use GetFlex
+		if v, ok := cap.GetFlex("route-refresh"); ok {
+			nc.Capabilities.RouteRefresh = v == configTrue || v == configEnable
+		}
+		if gr := cap.GetContainer("graceful-restart"); gr != nil {
+			nc.Capabilities.GracefulRestart = true
+			if v, ok := gr.Get("restart-time"); ok {
+				n, _ := strconv.ParseUint(v, 10, 16)
+				nc.Capabilities.RestartTime = uint16(n)
+			}
+		}
+		if ap := cap.GetContainer("add-path"); ap != nil {
+			if v, ok := ap.Get("send"); ok {
+				nc.Capabilities.AddPathSend = v == configTrue
+			}
+			if v, ok := ap.Get("receive"); ok {
+				nc.Capabilities.AddPathReceive = v == configTrue
+			}
+		}
+		if v, ok := cap.GetFlex("extended-message"); ok {
+			nc.Capabilities.ExtendedMessage = v == configTrue || v == configEnable
+		}
+		if v, ok := cap.GetFlex("software-version"); ok {
+			nc.Capabilities.SoftwareVersion = v == configTrue || v == configEnable
+		}
+	}
+
+	return nil
 }
 
 func parseNeighborConfig(addr string, tree *Tree, templates map[string]*Tree, peerGlobs []PeerGlob) (NeighborConfig, error) {
@@ -551,30 +729,61 @@ func parseNeighborConfig(addr string, tree *Tree, templates map[string]*Tree, pe
 	}
 	nc.Address = ip
 
-	// Apply matching peer globs (in order: least to most specific)
+	// Build precedence chain: [match blocks] -> [inherited templates] -> [peer config]
+	// Each layer can override settings from previous layers
+
+	// Layer 1: Apply matching peer globs / template.match blocks (in order)
 	// This sets defaults that can be overridden by templates and neighbor config
 	for _, glob := range peerGlobs {
 		if IPGlobMatch(glob.Pattern, addr) {
-			// Apply RIBOut from peer glob
-			if ribOut, err := parseRIBOutConfig(glob.Tree); err != nil {
-				return nc, fmt.Errorf("peer %s rib: %w", glob.Pattern, err)
-			} else {
-				applyRIBOutParseResult(&nc.RIBOut, ribOut)
+			// Apply all settings from this match block
+			if err := applyTreeSettings(&nc, glob.Tree); err != nil {
+				return nc, fmt.Errorf("match %s: %w", glob.Pattern, err)
+			}
+			// Extract routes from match block
+			routes, err := extractRoutesFromTree(glob.Tree)
+			if err != nil {
+				return nc, fmt.Errorf("match %s routes: %w", glob.Pattern, err)
+			}
+			nc.StaticRoutes = append(nc.StaticRoutes, routes...)
+		}
+	}
+
+	// Layer 2: Handle template inheritance (multiple inherit supported)
+	// V3 supports multiple inherit statements, applied in order
+	inheritedTemplates := make([]*Tree, 0)
+	for _, entry := range tree.GetListOrdered("inherit") {
+		// inherit is stored as a leaf value, key is the template name
+		inheritName := entry.Key
+		if t, exists := templates[inheritName]; exists {
+			inheritedTemplates = append(inheritedTemplates, t)
+		}
+	}
+	// Also check single inherit value (v2 compatibility)
+	if len(inheritedTemplates) == 0 {
+		if inheritName, ok := tree.Get("inherit"); ok {
+			if t, exists := templates[inheritName]; exists {
+				inheritedTemplates = append(inheritedTemplates, t)
 			}
 		}
 	}
 
-	// Handle template inheritance - extract routes and settings from template FIRST
-	var tmpl *Tree
-	if inheritName, ok := tree.Get("inherit"); ok {
-		if t, exists := templates[inheritName]; exists {
-			tmpl = t
-			routes, err := extractRoutesFromTree(tmpl)
-			if err != nil {
-				return nc, fmt.Errorf("template %s: %w", inheritName, err)
-			}
-			nc.StaticRoutes = append(nc.StaticRoutes, routes...)
+	// Apply inherited templates in order
+	for _, tmpl := range inheritedTemplates {
+		if err := applyTreeSettings(&nc, tmpl); err != nil {
+			return nc, fmt.Errorf("template: %w", err)
 		}
+		routes, err := extractRoutesFromTree(tmpl)
+		if err != nil {
+			return nc, fmt.Errorf("template routes: %w", err)
+		}
+		nc.StaticRoutes = append(nc.StaticRoutes, routes...)
+	}
+
+	// Get last inherited template for getValue fallback (backward compat)
+	var tmpl *Tree
+	if len(inheritedTemplates) > 0 {
+		tmpl = inheritedTemplates[len(inheritedTemplates)-1]
 	}
 
 	// Helper to get value from neighbor tree, falling back to template.
@@ -1660,23 +1869,194 @@ func parseDurationValue(s string) (time.Duration, error) {
 	return time.ParseDuration(s)
 }
 
+// isValidGroupName validates group names per naming rules:
+// - Must start with a letter (a-z, A-Z).
+// - May contain letters, numbers, hyphens.
+// - Must NOT end with a hyphen.
+// - Minimum length: 1 character.
+func isValidGroupName(name string) bool {
+	if len(name) == 0 {
+		return false
+	}
+
+	// Must start with letter.
+	first := name[0]
+	isLetter := (first >= 'a' && first <= 'z') || (first >= 'A' && first <= 'Z')
+	if !isLetter {
+		return false
+	}
+
+	// Single character is valid.
+	if len(name) == 1 {
+		return true
+	}
+
+	// Must not end with hyphen.
+	last := name[len(name)-1]
+	if last == '-' {
+		return false
+	}
+
+	// Middle characters: letters, numbers, hyphens only.
+	for i := 1; i < len(name); i++ {
+		c := name[i]
+		isAlphaNum := (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9')
+		if !isAlphaNum && c != '-' {
+			return false
+		}
+	}
+
+	return true
+}
+
+// isGlobPattern returns true if the pattern is a glob (contains * or /) rather than an IP.
+func isGlobPattern(pattern string) bool {
+	// Contains wildcard
+	if strings.Contains(pattern, "*") {
+		return true
+	}
+	// Contains CIDR notation
+	if strings.Contains(pattern, "/") {
+		return true
+	}
+	// Try to parse as IP - if it fails, it might be a pattern
+	_, err := netip.ParseAddr(pattern)
+	return err != nil
+}
+
 // IPGlobMatch checks if an IP address matches a glob pattern.
 // Pattern "*" matches any IP (IPv4 or IPv6).
 // For IPv4, each octet can be "*" to match any value 0-255.
-// Examples: "192.168.*.*", "10.*.0.1", "*.*.*.1".
+// For IPv6, supports trailing wildcard (2001:db8::*).
+// CIDR notation is also supported (10.0.0.0/8, 2001:db8::/32).
+// Examples: "192.168.*.*", "10.*.0.1", "*.*.*.1", "2001:db8::*", "10.0.0.0/8".
 func IPGlobMatch(pattern, ip string) bool {
 	// "*" matches everything
 	if pattern == "*" {
 		return true
 	}
 
-	// Check if pattern looks like IPv4 glob (contains dots)
-	if strings.Contains(pattern, ".") && strings.Contains(ip, ".") {
-		return ipv4GlobMatch(pattern, ip)
+	// CIDR notation
+	if strings.Contains(pattern, "/") {
+		return cidrMatch(pattern, ip)
 	}
 
-	// For IPv6 or exact match, just compare strings
+	// IPv4 glob pattern (contains dots and wildcard)
+	if strings.Contains(pattern, ".") && strings.Contains(ip, ".") {
+		if strings.Contains(pattern, "*") {
+			return ipv4GlobMatch(pattern, ip)
+		}
+		return pattern == ip
+	}
+
+	// IPv6 glob pattern (contains colons and wildcard)
+	if strings.Contains(pattern, ":") && strings.Contains(ip, ":") {
+		if strings.Contains(pattern, "*") {
+			return ipv6GlobMatch(pattern, ip)
+		}
+		return pattern == ip
+	}
+
+	// Exact match fallback
 	return pattern == ip
+}
+
+// cidrMatch checks if an IP is within a CIDR range.
+func cidrMatch(cidr, ip string) bool {
+	prefix, err := netip.ParsePrefix(cidr)
+	if err != nil {
+		return false
+	}
+	addr, err := netip.ParseAddr(ip)
+	if err != nil {
+		return false
+	}
+	return prefix.Contains(addr)
+}
+
+// ipv6GlobMatch matches IPv6 addresses against trailing wildcard patterns.
+// Supports patterns like "2001:db8::*" matching "2001:db8::1".
+func ipv6GlobMatch(pattern, ip string) bool {
+	// Handle trailing wildcard: 2001:db8::*
+	if strings.HasSuffix(pattern, "::*") {
+		prefix := strings.TrimSuffix(pattern, "::*")
+		// The IP should start with the prefix followed by ::
+		if strings.HasPrefix(ip, prefix+"::") {
+			return true
+		}
+		// Or it could be an expanded form
+		if strings.HasPrefix(ip, prefix+":") {
+			return true
+		}
+		return false
+	}
+
+	// Handle mid-pattern wildcards (less common but supported)
+	if strings.Contains(pattern, "*") {
+		// Split on :: and handle each part
+		patternParts := strings.Split(pattern, ":")
+		ipParts := strings.Split(ip, ":")
+
+		// Normalize both to full 8 groups for comparison
+		patternParts = normalizeIPv6Parts(patternParts)
+		ipParts = normalizeIPv6Parts(ipParts)
+
+		if len(patternParts) != len(ipParts) {
+			return false
+		}
+
+		for i := range patternParts {
+			if patternParts[i] == "*" {
+				continue
+			}
+			if patternParts[i] != ipParts[i] {
+				return false
+			}
+		}
+		return true
+	}
+
+	return pattern == ip
+}
+
+// normalizeIPv6Parts expands :: notation to full 8 groups.
+func normalizeIPv6Parts(parts []string) []string {
+	// Count empty strings (from :: split).
+	emptyCount := 0
+	for _, p := range parts {
+		if p == "" {
+			emptyCount++
+		}
+	}
+
+	if emptyCount == 0 && len(parts) == 8 {
+		return parts
+	}
+
+	// Need to expand :: to fill 8 groups.
+	result := make([]string, 0, 8)
+	for i, p := range parts {
+		switch {
+		case p == "" && i > 0 && i < len(parts)-1:
+			// This is the :: expansion point.
+			zerosNeeded := 8 - len(parts) + emptyCount
+			for j := 0; j < zerosNeeded; j++ {
+				result = append(result, "0")
+			}
+		case p != "":
+			result = append(result, p)
+		case i == 0 || i == len(parts)-1:
+			// Leading or trailing empty from :: at start/end.
+			result = append(result, "0")
+		}
+	}
+
+	// Pad to 8 if needed.
+	for len(result) < 8 {
+		result = append(result, "0")
+	}
+
+	return result[:8]
 }
 
 // ipv4GlobMatch matches IPv4 addresses against glob patterns.

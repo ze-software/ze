@@ -1273,6 +1273,514 @@ func TestIPGlobMatch(t *testing.T) {
 	}
 }
 
+// =============================================================================
+// V3 SYNTAX TESTS: template { group ... } and template { match ... }
+// =============================================================================
+
+// TestTemplateGroupBasic verifies template { group <name> { } } syntax.
+//
+// VALIDATES: Named templates can be defined using "group" instead of "neighbor".
+//
+// PREVENTS: Unable to use v3 group syntax for named templates.
+func TestTemplateGroupBasic(t *testing.T) {
+	input := `
+template {
+    group ibgp-rr {
+        peer-as 65000;
+        hold-time 60;
+        capability { route-refresh; }
+    }
+}
+
+peer 192.0.2.1 {
+    inherit ibgp-rr;
+    local-as 65000;
+}
+`
+	cfg := parseConfig(t, input)
+	require.Len(t, cfg.Neighbors, 1)
+	n := cfg.Neighbors[0]
+	require.Equal(t, uint32(65000), n.PeerAS)
+	require.Equal(t, uint16(60), n.HoldTime)
+	require.True(t, n.Capabilities.RouteRefresh)
+}
+
+// TestTemplateMatchBasic verifies template { match <pattern> { } } syntax.
+//
+// VALIDATES: Glob patterns can be defined using "match" inside template block.
+//
+// PREVENTS: Unable to use v3 match syntax for glob patterns.
+func TestTemplateMatchBasic(t *testing.T) {
+	input := `
+template {
+    match * {
+        rib { out { group-updates false; auto-commit-delay 100ms; } }
+    }
+}
+
+peer 192.0.2.1 { local-as 65000; peer-as 65001; }
+peer 192.0.2.2 { local-as 65000; peer-as 65002; }
+`
+	cfg := parseConfig(t, input)
+	require.Len(t, cfg.Neighbors, 2)
+
+	for _, n := range cfg.Neighbors {
+		require.False(t, n.RIBOut.GroupUpdates, "match * should apply to %s", n.Address)
+		require.Equal(t, 100*time.Millisecond, n.RIBOut.AutoCommitDelay)
+	}
+}
+
+// TestTemplateMatchOrder verifies match blocks are applied in config order.
+//
+// VALIDATES: match blocks are applied in the order they appear in the config,
+// allowing later matches to override earlier ones.
+//
+// PREVENTS: Unexpected behavior from specificity-based ordering.
+func TestTemplateMatchOrder(t *testing.T) {
+	input := `
+template {
+    match * {
+        hold-time 90;
+        rib { out { group-updates true; } }
+    }
+    match 192.0.2.* {
+        hold-time 60;
+        rib { out { auto-commit-delay 50ms; } }
+    }
+}
+
+peer 192.0.2.1 { local-as 65000; peer-as 65001; }
+peer 10.0.0.1 { local-as 65000; peer-as 65002; }
+`
+	cfg := parseConfig(t, input)
+	require.Len(t, cfg.Neighbors, 2)
+	m := neighborsByAddr(cfg.Neighbors)
+
+	// 192.0.2.1: match * first, then match 192.0.2.* overrides hold-time
+	require.Equal(t, uint16(60), m["192.0.2.1"].HoldTime)
+	require.True(t, m["192.0.2.1"].RIBOut.GroupUpdates)
+	require.Equal(t, 50*time.Millisecond, m["192.0.2.1"].RIBOut.AutoCommitDelay)
+
+	// 10.0.0.1: only match * applies
+	require.Equal(t, uint16(90), m["10.0.0.1"].HoldTime)
+	require.True(t, m["10.0.0.1"].RIBOut.GroupUpdates)
+	require.Equal(t, time.Duration(0), m["10.0.0.1"].RIBOut.AutoCommitDelay)
+}
+
+// TestTemplateMatchConfigOrderNotSpecificity verifies config order, NOT specificity.
+//
+// VALIDATES: More specific match appearing BEFORE less specific is applied first,
+// and less specific (appearing later) OVERRIDES it. Config order, not specificity!
+//
+// PREVENTS: Specificity-based ordering instead of config-file ordering.
+func TestTemplateMatchConfigOrderNotSpecificity(t *testing.T) {
+	// Critical: specific match BEFORE general match
+	// Per plan: config order, so 10.0.0.0/8 applies first, then * overrides
+	input := `
+template {
+    match 10.0.0.0/8 {
+        hold-time 60;
+    }
+    match * {
+        hold-time 90;
+    }
+}
+
+peer 10.0.0.1 { local-as 65000; peer-as 65001; }
+peer 192.168.1.1 { local-as 65000; peer-as 65002; }
+`
+	cfg := parseConfig(t, input)
+	require.Len(t, cfg.Neighbors, 2)
+	m := neighborsByAddr(cfg.Neighbors)
+
+	// 10.0.0.1: match 10.0.0.0/8 first (hold-time=60), then match * (hold-time=90 overrides)
+	// Config order means later match wins, regardless of specificity!
+	require.Equal(t, uint16(90), m["10.0.0.1"].HoldTime, "config order: * should override 10.0.0.0/8")
+
+	// 192.168.1.1: only match * applies
+	require.Equal(t, uint16(90), m["192.168.1.1"].HoldTime)
+}
+
+// TestTemplateGroupWithStaticRoutes verifies static routes in group templates.
+//
+// VALIDATES: group templates can contain static routes.
+//
+// PREVENTS: Missing routes when using v3 group syntax.
+func TestTemplateGroupWithStaticRoutes(t *testing.T) {
+	input := `
+template {
+    group customer-routes {
+        static {
+            route 10.0.0.0/8 next-hop self;
+            route 172.16.0.0/12 next-hop self;
+        }
+    }
+}
+
+peer 192.0.2.1 {
+    inherit customer-routes;
+    local-as 65000;
+    peer-as 65001;
+}
+`
+	cfg := parseConfig(t, input)
+	require.Len(t, cfg.Neighbors, 1)
+	n := cfg.Neighbors[0]
+
+	require.Len(t, n.StaticRoutes, 2)
+	routeMap := make(map[string]StaticRouteConfig)
+	for _, r := range n.StaticRoutes {
+		routeMap[r.Prefix.String()] = r
+	}
+	require.Contains(t, routeMap, "10.0.0.0/8")
+	require.Contains(t, routeMap, "172.16.0.0/12")
+}
+
+// TestTemplateMatchWithStaticRoutes verifies static routes in match blocks.
+//
+// VALIDATES: match blocks can contain static routes.
+//
+// PREVENTS: Missing routes when using match patterns.
+func TestTemplateMatchWithStaticRoutes(t *testing.T) {
+	input := `
+template {
+    match * {
+        static {
+            route 10.0.0.0/8 next-hop self;
+        }
+    }
+    match 192.0.2.* {
+        static {
+            route 172.16.0.0/12 next-hop self;
+        }
+    }
+}
+
+peer 192.0.2.1 { local-as 65000; peer-as 65001; }
+peer 10.0.0.1 { local-as 65000; peer-as 65002; }
+`
+	cfg := parseConfig(t, input)
+	require.Len(t, cfg.Neighbors, 2)
+	m := neighborsByAddr(cfg.Neighbors)
+
+	// 192.0.2.1: both matches apply, gets both routes
+	require.Len(t, m["192.0.2.1"].StaticRoutes, 2)
+
+	// 10.0.0.1: only match * applies, gets one route
+	require.Len(t, m["10.0.0.1"].StaticRoutes, 1)
+}
+
+// TestTemplateGroupAndMatchCombined verifies combined group and match usage.
+//
+// VALIDATES: Both group and match can be used together with proper precedence.
+// Order: match (config order) → group (inherit order) → peer
+//
+// PREVENTS: Incorrect precedence when mixing group and match.
+func TestTemplateGroupAndMatchCombined(t *testing.T) {
+	input := `
+template {
+    match * {
+        hold-time 90;
+    }
+    match 192.0.2.* {
+        hold-time 60;
+    }
+    group high-preference {
+        rib { out { auto-commit-delay 100ms; } }
+    }
+}
+
+peer 192.0.2.1 {
+    inherit high-preference;
+    local-as 65000;
+    peer-as 65001;
+}
+peer 10.0.0.1 {
+    local-as 65000;
+    peer-as 65002;
+}
+`
+	cfg := parseConfig(t, input)
+	require.Len(t, cfg.Neighbors, 2)
+	m := neighborsByAddr(cfg.Neighbors)
+
+	// 192.0.2.1: match * (hold-time 90), match 192.0.2.* (hold-time 60), inherit high-preference
+	require.Equal(t, uint16(60), m["192.0.2.1"].HoldTime)
+	require.Equal(t, 100*time.Millisecond, m["192.0.2.1"].RIBOut.AutoCommitDelay)
+
+	// 10.0.0.1: only match * applies, no inherit
+	require.Equal(t, uint16(90), m["10.0.0.1"].HoldTime)
+	require.Equal(t, time.Duration(0), m["10.0.0.1"].RIBOut.AutoCommitDelay)
+}
+
+// TestPeerKeywordForSessions verifies "peer" keyword works for BGP sessions.
+//
+// VALIDATES: "peer <IP> { }" syntax works as alias for "neighbor <IP> { }".
+//
+// PREVENTS: Unable to use v3 peer syntax for BGP sessions.
+func TestPeerKeywordForSessions(t *testing.T) {
+	input := `
+peer 192.0.2.1 {
+    local-as 65000;
+    peer-as 65001;
+    hold-time 90;
+}
+`
+	cfg := parseConfig(t, input)
+	require.Len(t, cfg.Neighbors, 1)
+	n := cfg.Neighbors[0]
+	require.Equal(t, "192.0.2.1", n.Address.String())
+	require.Equal(t, uint32(65000), n.LocalAS)
+	require.Equal(t, uint32(65001), n.PeerAS)
+	require.Equal(t, uint16(90), n.HoldTime)
+}
+
+// TestSingleInheritance verifies single inherit statement works.
+//
+// VALIDATES: inherit statement applies template settings to peer.
+//
+// PREVENTS: Template inheritance not working.
+func TestSingleInheritance(t *testing.T) {
+	input := `
+template {
+    group ibgp-defaults {
+        hold-time 60;
+        peer-as 65000;
+        capability { route-refresh true; }
+    }
+}
+
+peer 192.0.2.1 {
+    inherit ibgp-defaults;
+    local-as 65000;
+}
+`
+	cfg := parseConfig(t, input)
+	require.Len(t, cfg.Neighbors, 1)
+	n := cfg.Neighbors[0]
+
+	// Template settings applied
+	require.Equal(t, uint16(60), n.HoldTime)
+	require.Equal(t, uint32(65000), n.PeerAS)
+	require.True(t, n.Capabilities.RouteRefresh)
+	// Peer settings
+	require.Equal(t, uint32(65000), n.LocalAS)
+}
+
+// =============================================================================
+// V3 ERROR CASE TESTS
+// =============================================================================
+
+// TestInheritRejectedInTemplate verifies inherit is rejected inside template.
+//
+// VALIDATES: inherit statements inside template { group/match } are rejected.
+//
+// PREVENTS: Confusing nested inheritance in templates.
+func TestInheritRejectedInTemplate(t *testing.T) {
+	input := `
+template {
+    group base {
+        hold-time 90;
+    }
+    group derived {
+        inherit base;
+        hold-time 60;
+    }
+}
+`
+	p := NewParser(BGPSchema())
+	tree, err := p.Parse(input)
+	require.NoError(t, err) // Parse succeeds
+
+	// Validation happens in TreeToConfig
+	_, err = TreeToConfig(tree)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "inherit")
+}
+
+// TestMatchRejectedAtRoot verifies match is rejected at root level.
+//
+// VALIDATES: match blocks are only valid inside template { }.
+//
+// PREVENTS: Confusion between root-level peer globs and template matches.
+func TestMatchRejectedAtRoot(t *testing.T) {
+	input := `
+match * {
+    hold-time 90;
+}
+`
+	p := NewParser(BGPSchema())
+	_, err := p.Parse(input)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "match")
+}
+
+// TestMatchRejectedInPeer verifies match is rejected inside peer blocks.
+//
+// VALIDATES: match blocks cannot appear inside peer { }.
+//
+// PREVENTS: Invalid nested match syntax.
+func TestMatchRejectedInPeer(t *testing.T) {
+	input := `
+peer 192.0.2.1 {
+    local-as 65000;
+    peer-as 65001;
+    match * {
+        hold-time 90;
+    }
+}
+`
+	p := NewParser(BGPSchema())
+	_, err := p.Parse(input)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "match")
+}
+
+// TestGroupNameValidation verifies group name validation rules.
+//
+// VALIDATES: Group names must follow naming rules:
+// - Start with letter
+// - Contain letters, numbers, hyphens
+// - Not end with hyphen
+//
+// PREVENTS: Invalid group names causing issues.
+func TestGroupNameValidation(t *testing.T) {
+	validNames := []string{"a", "ibgp", "ibgp-rr", "rr-client-v4", "Route-Reflector-1"}
+	invalidNames := []string{"123", "-ibgp", "ibgp-", "ibgp_rr"}
+
+	for _, name := range validNames {
+		t.Run("valid:"+name, func(t *testing.T) {
+			input := `template { group ` + name + ` { hold-time 90; } }`
+			p := NewParser(BGPSchema())
+			tree, err := p.Parse(input)
+			require.NoError(t, err, "group name %q should parse", name)
+
+			// Validation happens in TreeToConfig
+			_, err = TreeToConfig(tree)
+			require.NoError(t, err, "group name %q should be valid", name)
+		})
+	}
+
+	for _, name := range invalidNames {
+		t.Run("invalid:"+name, func(t *testing.T) {
+			input := `template { group ` + name + ` { hold-time 90; } }`
+			p := NewParser(BGPSchema())
+			tree, err := p.Parse(input)
+			require.NoError(t, err, "group name %q should parse", name)
+
+			// Validation happens in TreeToConfig
+			_, err = TreeToConfig(tree)
+			require.Error(t, err, "group name %q should be invalid", name)
+		})
+	}
+}
+
+// =============================================================================
+// IPV6 AND CIDR PATTERN MATCHING TESTS
+// =============================================================================
+
+// TestIPv6GlobMatch verifies IPv6 glob pattern matching.
+//
+// VALIDATES: IPv6 glob patterns correctly match IPv6 addresses.
+//
+// PREVENTS: Unable to use glob patterns with IPv6 peers.
+func TestIPv6GlobMatch(t *testing.T) {
+	tests := []struct {
+		pattern string
+		ip      string
+		match   bool
+	}{
+		// Wildcard all
+		{"*", "2001:db8::1", true},
+
+		// Exact match
+		{"2001:db8::1", "2001:db8::1", true},
+		{"2001:db8::1", "2001:db8::2", false},
+
+		// Trailing wildcard
+		{"2001:db8::*", "2001:db8::1", true},
+		{"2001:db8::*", "2001:db8::ffff", true},
+		{"2001:db8::*", "2001:db9::1", false},
+
+		// Prefix wildcard
+		{"2001:db8:abcd::*", "2001:db8:abcd::1", true},
+		{"2001:db8:abcd::*", "2001:db8:abcd::ffff:1", true},
+		{"2001:db8:abcd::*", "2001:db8:abce::1", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.pattern+"_"+tt.ip, func(t *testing.T) {
+			result := IPGlobMatch(tt.pattern, tt.ip)
+			require.Equal(t, tt.match, result)
+		})
+	}
+}
+
+// TestCIDRPatternMatch verifies CIDR notation pattern matching.
+//
+// VALIDATES: CIDR patterns correctly match IP addresses.
+//
+// PREVENTS: Unable to use CIDR notation for peer matching.
+func TestCIDRPatternMatch(t *testing.T) {
+	tests := []struct {
+		pattern string
+		ip      string
+		match   bool
+	}{
+		// IPv4 CIDR
+		{"10.0.0.0/8", "10.0.0.1", true},
+		{"10.0.0.0/8", "10.255.255.255", true},
+		{"10.0.0.0/8", "11.0.0.1", false},
+		{"192.168.1.0/24", "192.168.1.1", true},
+		{"192.168.1.0/24", "192.168.2.1", false},
+
+		// IPv6 CIDR
+		{"2001:db8::/32", "2001:db8::1", true},
+		{"2001:db8::/32", "2001:db8:ffff::1", true},
+		{"2001:db8::/32", "2001:db9::1", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.pattern+"_"+tt.ip, func(t *testing.T) {
+			result := IPGlobMatch(tt.pattern, tt.ip)
+			require.Equal(t, tt.match, result)
+		})
+	}
+}
+
+// TestTemplateCIDRMatch verifies CIDR patterns work in template { match }.
+//
+// VALIDATES: CIDR patterns can be used in match blocks.
+//
+// PREVENTS: Unable to use CIDR notation in template matches.
+func TestTemplateCIDRMatch(t *testing.T) {
+	input := `
+template {
+    match 10.0.0.0/8 {
+        hold-time 60;
+    }
+    match 192.168.0.0/16 {
+        hold-time 90;
+    }
+}
+
+peer 10.0.0.1 { local-as 65000; peer-as 65001; }
+peer 192.168.1.1 { local-as 65000; peer-as 65002; }
+peer 172.16.0.1 { local-as 65000; peer-as 65003; }
+`
+	cfg := parseConfig(t, input)
+	require.Len(t, cfg.Neighbors, 3)
+	m := neighborsByAddr(cfg.Neighbors)
+
+	require.Equal(t, uint16(60), m["10.0.0.1"].HoldTime)
+	require.Equal(t, uint16(90), m["192.168.1.1"].HoldTime)
+	require.Equal(t, uint16(0), m["172.16.0.1"].HoldTime) // default
+}
+
+// =============================================================================
+// ORIGINAL TESTS (peer glob at root level - v2 syntax)
+// =============================================================================
+
 // TestPeerGlobConfig verifies peer glob pattern applies to neighbors.
 //
 // VALIDATES: peer * { ... } applies settings to all matching neighbors.
