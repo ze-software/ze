@@ -163,6 +163,10 @@ type Neighbor struct {
 	// Capabilities to advertise in OPEN message.
 	Capabilities []capability.Capability
 
+	// RequiredFamilies are address families that must be negotiated.
+	// Session will be rejected with NOTIFICATION if peer doesn't support these.
+	RequiredFamilies []capability.Family
+
 	// StaticRoutes are announced when session is established.
 	StaticRoutes []StaticRoute
 

@@ -165,6 +165,247 @@ neighbor 192.0.2.1 {
 	}
 }
 
+// TestFamilyModeTypes verifies FamilyMode type parsing.
+//
+// VALIDATES: FamilyMode parses enable/disable/require correctly.
+//
+// PREVENTS: Wrong mode assignment for family configuration.
+func TestFamilyModeTypes(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected FamilyMode
+	}{
+		{"", FamilyModeEnable},
+		{"true", FamilyModeEnable},
+		{"enable", FamilyModeEnable},
+		{"false", FamilyModeDisable},
+		{"disable", FamilyModeDisable},
+		{"require", FamilyModeRequire},
+		{"REQUIRE", FamilyModeRequire}, // case insensitive
+		{"Enable", FamilyModeEnable},   // case insensitive
+		{"unknown", FamilyModeEnable},  // unknown defaults to enable
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.input, func(t *testing.T) {
+			result := ParseFamilyMode(tt.input)
+			require.Equal(t, tt.expected, result)
+		})
+	}
+}
+
+// TestFamilyModeString verifies FamilyMode.String().
+//
+// VALIDATES: FamilyMode converts to string correctly.
+//
+// PREVENTS: Broken logging/serialization of family modes.
+func TestFamilyModeString(t *testing.T) {
+	require.Equal(t, "enable", FamilyModeEnable.String())
+	require.Equal(t, "disable", FamilyModeDisable.String())
+	require.Equal(t, "require", FamilyModeRequire.String())
+	require.Equal(t, "unknown", FamilyMode(99).String())
+}
+
+// TestFamilyConfigInlineWithMode verifies inline family syntax with mode.
+//
+// VALIDATES: "ipv4 unicast require;" parses to FamilyConfig with Mode=Require.
+//
+// PREVENTS: Unable to require specific address families.
+func TestFamilyConfigInlineWithMode(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected []FamilyConfig
+	}{
+		{
+			name: "ipv4 unicast require",
+			input: `
+neighbor 192.0.2.1 {
+    local-as 65000;
+    peer-as 65001;
+    family {
+        ipv4 unicast require;
+    }
+}`,
+			expected: []FamilyConfig{
+				{AFI: "ipv4", SAFI: "unicast", Mode: FamilyModeRequire},
+			},
+		},
+		{
+			name: "ipv6 unicast disable",
+			input: `
+neighbor 192.0.2.1 {
+    local-as 65000;
+    peer-as 65001;
+    family {
+        ipv6 unicast disable;
+    }
+}`,
+			expected: []FamilyConfig{
+				{AFI: "ipv6", SAFI: "unicast", Mode: FamilyModeDisable},
+			},
+		},
+		{
+			name: "mixed modes inline",
+			input: `
+neighbor 192.0.2.1 {
+    local-as 65000;
+    peer-as 65001;
+    family {
+        ipv4 unicast;
+        ipv4 multicast require;
+        ipv6 unicast disable;
+    }
+}`,
+			expected: []FamilyConfig{
+				{AFI: "ipv4", SAFI: "unicast", Mode: FamilyModeEnable},
+				{AFI: "ipv4", SAFI: "multicast", Mode: FamilyModeRequire},
+				{AFI: "ipv6", SAFI: "unicast", Mode: FamilyModeDisable},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			p := NewParser(BGPSchema())
+			tree, err := p.Parse(tt.input)
+			require.NoError(t, err)
+
+			cfg, err := TreeToConfig(tree)
+			require.NoError(t, err)
+			require.Len(t, cfg.Neighbors, 1)
+			require.ElementsMatch(t, tt.expected, cfg.Neighbors[0].FamilyConfigs)
+		})
+	}
+}
+
+// TestFamilyConfigBlockSyntax verifies block family syntax.
+//
+// VALIDATES: "ipv4 { unicast; multicast require; }" parses correctly.
+//
+// PREVENTS: Unable to group SAFIs under single AFI block.
+func TestFamilyConfigBlockSyntax(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected []FamilyConfig
+	}{
+		{
+			name: "single SAFI block",
+			input: `
+neighbor 192.0.2.1 {
+    local-as 65000;
+    peer-as 65001;
+    family {
+        ipv4 {
+            unicast;
+        }
+    }
+}`,
+			expected: []FamilyConfig{
+				{AFI: "ipv4", SAFI: "unicast", Mode: FamilyModeEnable},
+			},
+		},
+		{
+			name: "multiple SAFIs block",
+			input: `
+neighbor 192.0.2.1 {
+    local-as 65000;
+    peer-as 65001;
+    family {
+        ipv4 {
+            unicast;
+            multicast require;
+        }
+    }
+}`,
+			expected: []FamilyConfig{
+				{AFI: "ipv4", SAFI: "unicast", Mode: FamilyModeEnable},
+				{AFI: "ipv4", SAFI: "multicast", Mode: FamilyModeRequire},
+			},
+		},
+		{
+			name:  "one-liner block",
+			input: `neighbor 192.0.2.1 { local-as 65000; peer-as 65001; family { ipv6 { unicast require; mpls-vpn } } }`,
+			expected: []FamilyConfig{
+				{AFI: "ipv6", SAFI: "unicast", Mode: FamilyModeRequire},
+				{AFI: "ipv6", SAFI: "mpls-vpn", Mode: FamilyModeEnable},
+			},
+		},
+		{
+			name: "multiple AFI blocks",
+			input: `
+neighbor 192.0.2.1 {
+    local-as 65000;
+    peer-as 65001;
+    family {
+        ipv4 {
+            unicast require;
+        }
+        ipv6 {
+            unicast;
+            mpls-vpn require;
+        }
+    }
+}`,
+			expected: []FamilyConfig{
+				{AFI: "ipv4", SAFI: "unicast", Mode: FamilyModeRequire},
+				{AFI: "ipv6", SAFI: "unicast", Mode: FamilyModeEnable},
+				{AFI: "ipv6", SAFI: "mpls-vpn", Mode: FamilyModeRequire},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			p := NewParser(BGPSchema())
+			tree, err := p.Parse(tt.input)
+			require.NoError(t, err)
+
+			cfg, err := TreeToConfig(tree)
+			require.NoError(t, err)
+			require.Len(t, cfg.Neighbors, 1)
+			require.ElementsMatch(t, tt.expected, cfg.Neighbors[0].FamilyConfigs)
+		})
+	}
+}
+
+// TestFamilyConfigMixedSyntax verifies mixed inline and block syntax.
+//
+// VALIDATES: Inline and block family syntax can coexist.
+//
+// PREVENTS: Parser confusion when mixing syntax styles.
+func TestFamilyConfigMixedSyntax(t *testing.T) {
+	input := `
+neighbor 192.0.2.1 {
+    local-as 65000;
+    peer-as 65001;
+    family {
+        ipv4 unicast;
+        ipv6 {
+            unicast require;
+            mpls-vpn;
+        }
+        l2vpn evpn require;
+    }
+}`
+	expected := []FamilyConfig{
+		{AFI: "ipv4", SAFI: "unicast", Mode: FamilyModeEnable},
+		{AFI: "ipv6", SAFI: "unicast", Mode: FamilyModeRequire},
+		{AFI: "ipv6", SAFI: "mpls-vpn", Mode: FamilyModeEnable},
+		{AFI: "l2vpn", SAFI: "evpn", Mode: FamilyModeRequire},
+	}
+
+	p := NewParser(BGPSchema())
+	tree, err := p.Parse(input)
+	require.NoError(t, err)
+
+	cfg, err := TreeToConfig(tree)
+	require.NoError(t, err)
+	require.Len(t, cfg.Neighbors, 1)
+	require.ElementsMatch(t, expected, cfg.Neighbors[0].FamilyConfigs)
+}
+
 // TestBGPSchemaCapability verifies capability configuration.
 //
 // VALIDATES: BGP capabilities are parsed.

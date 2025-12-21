@@ -55,9 +55,10 @@ const (
 	NodeLeaf NodeKind = iota
 	NodeContainer
 	NodeList
-	NodeFreeform   // accepts "word word;" entries as key->true
-	NodeFlex       // can be flag (;), value (word;), or block ({})
-	NodeInlineList // list that supports inline: "route PREFIX attr val;"
+	NodeFreeform    // accepts "word word;" entries as key->true
+	NodeFlex        // can be flag (;), value (word;), or block ({})
+	NodeInlineList  // list that supports inline: "route PREFIX attr val;"
+	NodeFamilyBlock // family block: inline or AFI { SAFI; SAFI mode; }
 )
 
 // Node is the interface for all schema nodes.
@@ -236,6 +237,21 @@ func (n *FreeformNode) Kind() NodeKind { return NodeFreeform }
 // Freeform creates a freeform node.
 func Freeform() *FreeformNode {
 	return &FreeformNode{}
+}
+
+// FamilyBlockNode handles address family configuration with optional modes.
+// Supports:
+//   - Inline: "ipv4 unicast;" or "ipv4 unicast require;"
+//   - Block: "ipv4 { unicast; multicast require; }"
+//
+// Stores entries as FamilyEntry structs with AFI, SAFI, and Mode.
+type FamilyBlockNode struct{}
+
+func (n *FamilyBlockNode) Kind() NodeKind { return NodeFamilyBlock }
+
+// FamilyBlock creates a family block node.
+func FamilyBlock() *FamilyBlockNode {
+	return &FamilyBlockNode{}
 }
 
 // MultiLeafNode accepts multiple words until semicolon: "word word word;".

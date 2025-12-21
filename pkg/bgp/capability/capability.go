@@ -112,12 +112,18 @@ type SAFI uint8
 //
 // RFC 4760 Section 6: SAFI values 1-2 defined in RFC 4760.
 const (
-	SAFIUnicast   SAFI = 1   // RFC 4760 Section 6
-	SAFIMulticast SAFI = 2   // RFC 4760 Section 6
-	SAFIMPLSLabel SAFI = 4   // RFC 8277
-	SAFIEVPN      SAFI = 70  // RFC 7432
-	SAFIVPN       SAFI = 128 // RFC 4364
-	SAFIFlowSpec  SAFI = 133 // RFC 8955
+	SAFIUnicast     SAFI = 1   // RFC 4760 Section 6
+	SAFIMulticast   SAFI = 2   // RFC 4760 Section 6
+	SAFIMPLSLabel   SAFI = 4   // RFC 8277 (labeled unicast)
+	SAFIMcastVPN    SAFI = 5   // RFC 6514 (multicast VPN)
+	SAFIVPLS        SAFI = 65  // RFC 4761 (VPLS)
+	SAFIEVPN        SAFI = 70  // RFC 7432
+	SAFIBGPLS       SAFI = 71  // RFC 7752 (BGP-LS)
+	SAFIBGPLSVPN    SAFI = 72  // RFC 7752 (BGP-LS VPN)
+	SAFIMPLS        SAFI = 128 // RFC 4364 (MPLS-labeled VPN, aka mpls-vpn)
+	SAFIVPN         SAFI = 128 // RFC 4364 (alias for SAFIMPLS)
+	SAFIFlowSpec    SAFI = 133 // RFC 8955
+	SAFIFlowSpecVPN SAFI = 134 // RFC 8955 (FlowSpec VPN)
 )
 
 // Family combines AFI and SAFI.

@@ -9,13 +9,64 @@ import (
 )
 
 const (
-	configTrue   = "true"   // Config value for boolean true
-	configEnable = "enable" // Config value for enabled state
+	configTrue    = "true"    // Config value for boolean true
+	configFalse   = "false"   // Config value for boolean false
+	configEnable  = "enable"  // Config value for enabled state
+	configDisable = "disable" // Config value for disabled state
+	configRequire = "require" // Config value for required state
 
 	// MUP route types for SRv6 Mobile User Plane.
 	routeTypeMUPISD  = "mup-isd"
 	routeTypeMUPT1ST = "mup-t1st"
 )
+
+// FamilyMode represents the negotiation mode for an address family.
+type FamilyMode int
+
+const (
+	// FamilyModeEnable advertises the family, accepts if peer doesn't support.
+	FamilyModeEnable FamilyMode = iota
+	// FamilyModeDisable does not advertise the family.
+	FamilyModeDisable
+	// FamilyModeRequire advertises the family, refuses session if peer doesn't support.
+	FamilyModeRequire
+)
+
+// String returns the string representation of FamilyMode.
+func (m FamilyMode) String() string {
+	switch m {
+	case FamilyModeEnable:
+		return "enable"
+	case FamilyModeDisable:
+		return "disable"
+	case FamilyModeRequire:
+		return "require"
+	default:
+		return "unknown"
+	}
+}
+
+// ParseFamilyMode parses a string into a FamilyMode.
+// Returns FamilyModeEnable for empty string or "true"/"enable".
+func ParseFamilyMode(s string) FamilyMode {
+	switch strings.ToLower(s) {
+	case "", configTrue, configEnable:
+		return FamilyModeEnable
+	case configFalse, configDisable:
+		return FamilyModeDisable
+	case configRequire:
+		return FamilyModeRequire
+	default:
+		return FamilyModeEnable
+	}
+}
+
+// FamilyConfig holds configuration for a single address family.
+type FamilyConfig struct {
+	AFI  string     // "ipv4", "ipv6", "l2vpn", "bgp-ls"
+	SAFI string     // "unicast", "multicast", "mpls-vpn", etc.
+	Mode FamilyMode // enable, disable, require
+}
 
 // flowRouteAttributes returns field definitions for FlowSpec routes.
 // Format: route NAME { rd VALUE; match { ... } then { ... } }.
@@ -124,7 +175,7 @@ func neighborFields() []FieldDef {
 		Field("adj-rib-in", Leaf(TypeBool)),
 
 		// Address families: "ipv4 unicast", "ipv6 unicast", etc.
-		Field("family", Freeform()), // { ipv4 unicast; ipv6 unicast; }
+		Field("family", FamilyBlock()), // { ipv4 unicast; ipv4 { unicast require; } }
 
 		// Capabilities
 		Field("capability", Container(
@@ -242,9 +293,10 @@ type NeighborConfig struct {
 	PeerAS               uint32
 	HoldTime             uint16
 	Passive              bool
-	GroupUpdates         bool // Group compatible routes in single UPDATE
-	Families             []string
-	IgnoreFamilyMismatch bool // Ignore NLRI for non-negotiated AFI/SAFI instead of error
+	GroupUpdates         bool           // Group compatible routes in single UPDATE
+	Families             []string       // Legacy: "ipv4 unicast", "ipv6 unicast" etc.
+	FamilyConfigs        []FamilyConfig // New: structured family config with mode
+	IgnoreFamilyMismatch bool           // Ignore NLRI for non-negotiated AFI/SAFI instead of error
 	Hostname             string
 	DomainName           string
 	Capabilities         CapabilityConfig
@@ -532,9 +584,8 @@ func parseNeighborConfig(addr string, tree *Tree, templates map[string]*Tree) (N
 		nc.DomainName = v
 	}
 
-	// Families - Freeform stores "ipv4 unicast" as key with value "true"
+	// Families - FamilyBlock stores "ipv4 unicast" as key with mode as value
 	// Also parse ignore-mismatch option from family block
-	// Note: "ignore-mismatch enable" is stored as key "ignore-mismatch enable" with value "true"
 	// Check template first, then override with neighbor values
 	familyTree := tree.GetContainer("family")
 	if familyTree == nil && tmpl != nil {
@@ -553,8 +604,26 @@ func parseNeighborConfig(addr string, tree *Tree, templates map[string]*Tree) (N
 					nc.IgnoreFamilyMismatch = true
 				}
 			} else {
-				// Regular address family
-				nc.Families = append(nc.Families, key)
+				// Regular address family - key is "AFI SAFI", value is mode
+				modeStr, _ := familyTree.Get(key)
+				mode := ParseFamilyMode(modeStr)
+
+				// Parse AFI and SAFI from key
+				parts := strings.SplitN(key, " ", 2)
+				if len(parts) == 2 {
+					fc := FamilyConfig{
+						AFI:  parts[0],
+						SAFI: parts[1],
+						Mode: mode,
+					}
+					nc.FamilyConfigs = append(nc.FamilyConfigs, fc)
+
+					// Also populate legacy Families for backward compatibility
+					// (only for enabled families)
+					if mode != FamilyModeDisable {
+						nc.Families = append(nc.Families, key)
+					}
+				}
 			}
 		}
 	}

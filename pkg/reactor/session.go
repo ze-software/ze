@@ -370,17 +370,35 @@ func (s *Session) handleOpen(body []byte) error {
 	// Negotiate capabilities.
 	s.negotiate()
 
+	// Validate required families are negotiated.
+	s.mu.RLock()
+	conn := s.conn
+	neg := s.negotiated
+	requiredFamilies := s.neighbor.RequiredFamilies
+	s.mu.RUnlock()
+
+	if len(requiredFamilies) > 0 && neg != nil {
+		if missing := neg.CheckRequired(requiredFamilies); len(missing) > 0 {
+			// Required families not negotiated - send NOTIFICATION and reject.
+			// RFC 5492 Section 3: Use Unsupported Capability subcode.
+			capData := buildUnsupportedCapabilityData(missing)
+			_ = s.sendNotification(conn, neg,
+				message.NotifyOpenMessage,
+				message.NotifyOpenUnsupportedCapability,
+				capData,
+			)
+			_ = s.fsm.Event(fsm.EventBGPOpenMsgErr)
+			s.closeConn()
+			return fmt.Errorf("%w: required families not negotiated: %v", ErrInvalidState, missing)
+		}
+	}
+
 	// Update FSM.
 	if err := s.fsm.Event(fsm.EventBGPOpen); err != nil {
 		return err
 	}
 
 	// Send KEEPALIVE to confirm.
-	s.mu.RLock()
-	conn := s.conn
-	neg := s.negotiated
-	s.mu.RUnlock()
-
 	if err := s.sendKeepalive(conn, neg); err != nil {
 		return err
 	}
@@ -771,4 +789,23 @@ func isTimeout(err error) bool {
 		return netErr.Timeout()
 	}
 	return false
+}
+
+// buildUnsupportedCapabilityData builds NOTIFICATION data for Unsupported Capability.
+//
+// RFC 5492 Section 3: The Data field contains one or more capability tuples.
+// For Multiprotocol (code 1): AFI (2 bytes) + Reserved (1 byte) + SAFI (1 byte).
+func buildUnsupportedCapabilityData(families []capability.Family) []byte {
+	// Each Multiprotocol capability: code (1) + length (1) + AFI (2) + Reserved (1) + SAFI (1) = 6 bytes
+	data := make([]byte, len(families)*6)
+	offset := 0
+	for _, f := range families {
+		data[offset] = byte(capability.CodeMultiprotocol) // Capability code
+		data[offset+1] = 4                                // Capability length
+		binary.BigEndian.PutUint16(data[offset+2:], uint16(f.AFI))
+		data[offset+4] = 0 // Reserved
+		data[offset+5] = byte(f.SAFI)
+		offset += 6
+	}
+	return data
 }

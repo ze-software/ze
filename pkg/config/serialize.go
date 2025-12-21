@@ -118,6 +118,18 @@ func serializeNode(b *strings.Builder, tree *Tree, name string, node Node, inden
 			b.WriteString("}\n")
 		}
 
+	case *FamilyBlockNode:
+		// FamilyBlockNode stores families as "AFI SAFI" -> "mode"
+		// Serialize using inline syntax for simplicity
+		if child := tree.containers[name]; child != nil {
+			b.WriteString(prefix)
+			b.WriteString(name)
+			b.WriteString(" {\n")
+			serializeFamilyBlock(b, child, indent+1)
+			b.WriteString(prefix)
+			b.WriteString("}\n")
+		}
+
 	case *FlexNode:
 		// Check if it's a simple value, multiValue, container, or list
 		if v, ok := tree.values[name]; ok {
@@ -269,6 +281,31 @@ func serializeFreeform(b *strings.Builder, tree *Tree, indent int) {
 			b.WriteString(" [ ")
 			b.WriteString(v)
 			b.WriteString(" ]")
+		}
+		b.WriteString(";\n")
+	}
+}
+
+// serializeFamilyBlock serializes family entries in inline syntax.
+// Output format: "AFI SAFI;" for enable, "AFI SAFI mode;" for other modes.
+func serializeFamilyBlock(b *strings.Builder, tree *Tree, indent int) {
+	prefix := strings.Repeat("\t", indent)
+
+	// Sort keys for deterministic output
+	keys := make([]string, 0, len(tree.values))
+	for k := range tree.values {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+
+	for _, k := range keys {
+		v := tree.values[k]
+		b.WriteString(prefix)
+		b.WriteString(k)
+		// Only output mode if not "true" (default enable)
+		if v != configTrue && v != configEnable {
+			b.WriteString(" ")
+			b.WriteString(v)
 		}
 		b.WriteString(";\n")
 	}

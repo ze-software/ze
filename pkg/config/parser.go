@@ -248,6 +248,8 @@ func (p *Parser) parseNode(tree *Tree, name string, node Node) error {
 		return p.parseFlex(tree, name, n)
 	case *InlineListNode:
 		return p.parseInlineList(tree, name, n)
+	case *FamilyBlockNode:
+		return p.parseFamilyBlock(tree, name)
 	default:
 		return fmt.Errorf("unknown node type for %s", name)
 	}
@@ -626,6 +628,137 @@ func (p *Parser) parseFreeform(tree *Tree, name string) error {
 				}
 				child.Set(key, configTrue)
 			}
+		}
+	}
+
+	tree.MergeContainer(name, child)
+	return nil
+}
+
+// parseFamilyBlock parses a family block with inline and block syntax.
+//
+// Supports:
+//   - Inline: "ipv4 unicast;" or "ipv4 unicast require;"
+//   - Block: "ipv4 { unicast; multicast require; }"
+//   - Mixed: both in same block
+//
+// Stores entries as "AFI SAFI" -> "MODE" where MODE is:
+//   - "true" or "" for enable (default)
+//   - "disable" for disable
+//   - "require" for require
+//
+// Also handles "ignore-mismatch enable/disable" as special case.
+func (p *Parser) parseFamilyBlock(tree *Tree, name string) error {
+	tok := p.tok.Peek()
+
+	if tok.Type != TokenLBrace {
+		return p.errorf(tok, "expected '{' after %s, got %s", name, tok.Type)
+	}
+	p.tok.Next()
+
+	child := NewTree()
+
+	for {
+		tok = p.tok.Peek()
+		if tok.Type == TokenRBrace {
+			p.tok.Next()
+			break
+		}
+		if tok.Type == TokenEOF {
+			return p.errorf(tok, "unexpected EOF in %s block", name)
+		}
+		if tok.Type != TokenWord {
+			return p.errorf(tok, "expected AFI or keyword in %s block, got %s", name, tok.Type)
+		}
+
+		// First word is AFI or special keyword (ignore-mismatch)
+		afi := tok.Value
+		p.tok.Next()
+
+		tok = p.tok.Peek()
+
+		// Check for block syntax: "ipv4 { ... }"
+		if tok.Type == TokenLBrace {
+			p.tok.Next()
+			// Parse SAFI entries inside block
+			for {
+				tok = p.tok.Peek()
+				if tok.Type == TokenRBrace {
+					p.tok.Next()
+					break
+				}
+				if tok.Type == TokenEOF {
+					return p.errorf(tok, "unexpected EOF in %s %s block", name, afi)
+				}
+				if tok.Type != TokenWord {
+					return p.errorf(tok, "expected SAFI in %s %s block, got %s", name, afi, tok.Type)
+				}
+
+				safi := tok.Value
+				p.tok.Next()
+
+				// Check for mode or terminator
+				mode := configTrue // default to enable
+				tok = p.tok.Peek()
+				if tok.Type == TokenWord {
+					// Mode specified: require, disable, enable, true, false
+					mode = tok.Value
+					p.tok.Next()
+					tok = p.tok.Peek()
+				}
+
+				// Expect semicolon or rbrace
+				if tok.Type == TokenSemicolon {
+					p.tok.Next()
+				}
+				// rbrace without semicolon is also valid (end of block)
+
+				// Store as "AFI SAFI" -> mode
+				key := afi + " " + safi
+				child.Set(key, mode)
+			}
+		} else {
+			// Inline syntax: "ipv4 unicast;" or "ipv4 unicast require;"
+			// Second word is SAFI
+			if tok.Type != TokenWord {
+				// Could be "ignore-mismatch" followed by value
+				if afi == "ignore-mismatch" {
+					mode := configTrue
+					if tok.Type == TokenWord {
+						mode = tok.Value
+						p.tok.Next()
+						tok = p.tok.Peek()
+					}
+					if tok.Type == TokenSemicolon {
+						p.tok.Next()
+					}
+					child.Set("ignore-mismatch "+mode, configTrue)
+					continue
+				}
+				return p.errorf(tok, "expected SAFI after %s in %s, got %s", afi, name, tok.Type)
+			}
+
+			safi := tok.Value
+			p.tok.Next()
+
+			// Check for mode or terminator
+			mode := configTrue // default to enable
+			tok = p.tok.Peek()
+			if tok.Type == TokenWord {
+				// Mode specified
+				mode = tok.Value
+				p.tok.Next()
+				tok = p.tok.Peek()
+			}
+
+			// Expect semicolon or rbrace
+			if tok.Type == TokenSemicolon {
+				p.tok.Next()
+			}
+
+			// Store as "AFI SAFI" -> mode
+			key := afi + " " + safi
+			child.Set(key, mode)
 		}
 	}
 

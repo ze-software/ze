@@ -119,27 +119,71 @@ func configToNeighbor(nc *NeighborConfig, global *BGPConfig) (*reactor.Neighbor,
 
 	// Build capabilities.
 	// Add Multiprotocol capabilities from configured families.
-	for _, family := range nc.Families {
-		switch family {
+	// Skip disabled families, track required families.
+	for _, fc := range nc.FamilyConfigs {
+		// Skip disabled families
+		if fc.Mode == FamilyModeDisable {
+			continue
+		}
+
+		// Map AFI/SAFI strings to capability types
+		var afi capability.AFI
+		var safi capability.SAFI
+		familyKey := fc.AFI + " " + fc.SAFI
+
+		switch familyKey {
 		case "ipv4 unicast":
-			n.Capabilities = append(n.Capabilities, &capability.Multiprotocol{
-				AFI:  capability.AFIIPv4,
-				SAFI: capability.SAFIUnicast,
-			})
+			afi, safi = capability.AFIIPv4, capability.SAFIUnicast
 		case "ipv6 unicast":
-			n.Capabilities = append(n.Capabilities, &capability.Multiprotocol{
-				AFI:  capability.AFIIPv6,
-				SAFI: capability.SAFIUnicast,
-			})
+			afi, safi = capability.AFIIPv6, capability.SAFIUnicast
 		case "ipv4 multicast":
-			n.Capabilities = append(n.Capabilities, &capability.Multiprotocol{
-				AFI:  capability.AFIIPv4,
-				SAFI: capability.SAFIMulticast,
-			})
+			afi, safi = capability.AFIIPv4, capability.SAFIMulticast
 		case "ipv6 multicast":
-			n.Capabilities = append(n.Capabilities, &capability.Multiprotocol{
-				AFI:  capability.AFIIPv6,
-				SAFI: capability.SAFIMulticast,
+			afi, safi = capability.AFIIPv6, capability.SAFIMulticast
+		case "ipv4 mpls-vpn":
+			afi, safi = capability.AFIIPv4, capability.SAFIMPLS
+		case "ipv6 mpls-vpn":
+			afi, safi = capability.AFIIPv6, capability.SAFIMPLS
+		case "ipv4 nlri-mpls":
+			afi, safi = capability.AFIIPv4, capability.SAFIMPLSLabel
+		case "ipv6 nlri-mpls":
+			afi, safi = capability.AFIIPv6, capability.SAFIMPLSLabel
+		case "ipv4 flow":
+			afi, safi = capability.AFIIPv4, capability.SAFIFlowSpec
+		case "ipv6 flow":
+			afi, safi = capability.AFIIPv6, capability.SAFIFlowSpec
+		case "ipv4 flow-vpn":
+			afi, safi = capability.AFIIPv4, capability.SAFIFlowSpecVPN
+		case "ipv6 flow-vpn":
+			afi, safi = capability.AFIIPv6, capability.SAFIFlowSpecVPN
+		case "ipv4 mcast-vpn":
+			afi, safi = capability.AFIIPv4, capability.SAFIMcastVPN
+		case "ipv6 mcast-vpn":
+			afi, safi = capability.AFIIPv6, capability.SAFIMcastVPN
+		case "l2vpn vpls":
+			afi, safi = capability.AFIL2VPN, capability.SAFIVPLS
+		case "l2vpn evpn":
+			afi, safi = capability.AFIL2VPN, capability.SAFIEVPN
+		case "bgp-ls bgp-ls":
+			afi, safi = capability.AFIBGPLS, capability.SAFIBGPLS
+		case "bgp-ls bgp-ls-vpn":
+			afi, safi = capability.AFIBGPLS, capability.SAFIBGPLSVPN
+		default:
+			// Unknown family, skip
+			continue
+		}
+
+		// Add capability
+		n.Capabilities = append(n.Capabilities, &capability.Multiprotocol{
+			AFI:  afi,
+			SAFI: safi,
+		})
+
+		// Track required families
+		if fc.Mode == FamilyModeRequire {
+			n.RequiredFamilies = append(n.RequiredFamilies, capability.Family{
+				AFI:  afi,
+				SAFI: safi,
 			})
 		}
 	}

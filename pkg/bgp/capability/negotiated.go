@@ -284,3 +284,19 @@ func (n *Negotiated) Families() []Family {
 	}
 	return n.familySlice
 }
+
+// CheckRequired returns families that were required but not negotiated.
+// Returns nil if all required families were successfully negotiated.
+func (n *Negotiated) CheckRequired(required []Family) []Family {
+	if len(required) == 0 {
+		return nil
+	}
+
+	var missing []Family
+	for _, f := range required {
+		if !n.families[f] {
+			missing = append(missing, f)
+		}
+	}
+	return missing
+}
