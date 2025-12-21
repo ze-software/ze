@@ -42,7 +42,7 @@ neighbor 192.0.2.1 {
 }
 ```
 
-### Version 2 (v2) = ZeBGP target format
+### Version 2 (v2) = ZeBGP intermediate format
 
 RIB-related options move to structured `rib { }` block:
 
@@ -64,7 +64,46 @@ neighbor 192.0.2.1 {
 }
 ```
 
-**Note:** Final v2 structure TBD - depends on RIB code changes in progress.
+### Version 3 (v3) = ZeBGP target format
+
+**See:** `plan/neighbor-to-peer-rename.md` for full details.
+
+Renames `neighbor` to `peer`, restructures templates:
+
+```
+template {
+    # Glob patterns - applied in config order to matching peers
+    match * {
+        rib { out { group-updates true; } }
+    }
+    match 192.168.*.* {
+        rib { out { auto-commit-delay 50ms; } }
+    }
+
+    # Named templates - applied via explicit inherit
+    group ibgp-rr {
+        peer-as 65000;
+        capability { route-refresh; }
+    }
+}
+
+peer 192.0.2.1 {
+    inherit ibgp-rr;
+    local-as 65000;
+}
+```
+
+**Key changes v2→v3:**
+| v2 Syntax | v3 Syntax |
+|-----------|-----------|
+| `neighbor <IP> { }` | `peer <IP> { }` |
+| `peer * { }` (root) | `template { match * { } }` |
+| `template { neighbor <name> { } }` | `template { group <name> { } }` |
+
+**Configuration Syntax Rules (v3):**
+1. **Match order is config order** - `match` blocks apply in file order, not by specificity
+2. **Multiple inheritance with last-wins** - Multiple `inherit` allowed, later overrides earlier
+3. **Match only in template** - `match` blocks only valid inside `template { }`
 
 ---
 
@@ -124,8 +163,9 @@ type ConfigVersion int
 const (
     VersionUnknown ConfigVersion = 0
     Version1       ConfigVersion = 1  // ExaBGP main (2025-12) - RIB opts at neighbor level
-    Version2       ConfigVersion = 2  // ZeBGP - RIB opts in rib { } block
-    VersionCurrent               = Version2
+    Version2       ConfigVersion = 2  // ZeBGP intermediate - RIB opts in rib { } block
+    Version3       ConfigVersion = 3  // ZeBGP target - neighbor→peer, template restructure
+    VersionCurrent               = Version3
 )
 
 // VersionName returns human-readable version name
@@ -134,7 +174,9 @@ func (v ConfigVersion) String() string {
     case Version1:
         return "v1 (ExaBGP main 2025-12)"
     case Version2:
-        return "v2 (ZeBGP current)"
+        return "v2 (ZeBGP intermediate)"
+    case Version3:
+        return "v3 (ZeBGP current)"
     default:
         return "unknown"
     }
@@ -179,8 +221,13 @@ type Change struct {
 func DetectVersion(tree *Tree) ConfigVersion {
     // Check newest to oldest
 
-    // v2: Has rib { } block under neighbor
-    if hasRibBlock(tree) {
+    // v3: Has peer (not glob) at root, template.group, template.match
+    if hasV3Patterns(tree) {
+        return Version3
+    }
+
+    // v2: Has neighbor at root, template.neighbor, or peer glob at root
+    if hasV2Patterns(tree) {
         return Version2
     }
 
@@ -191,6 +238,44 @@ func DetectVersion(tree *Tree) ConfigVersion {
 
     // No deprecated patterns found = assume current
     return VersionCurrent
+}
+
+// hasV3Patterns checks for v3 config structure
+func hasV3Patterns(tree *Tree) bool {
+    // v3: template.group or template.match exist
+    if tmpl := tree.GetContainer("template"); tmpl != nil {
+        if len(tmpl.FindAll("group")) > 0 || len(tmpl.FindAll("match")) > 0 {
+            return true
+        }
+    }
+    // v3: has peer at root that is NOT a glob pattern
+    for _, p := range tree.FindAll("peer") {
+        if !isGlobPattern(p.Key()) {
+            return true
+        }
+    }
+    return false
+}
+
+// hasV2Patterns checks for v2 config structure
+func hasV2Patterns(tree *Tree) bool {
+    // v2: has "neighbor" at root level
+    if len(tree.FindAll("neighbor")) > 0 {
+        return true
+    }
+    // v2: has peer glob at root level
+    for _, p := range tree.FindAll("peer") {
+        if isGlobPattern(p.Key()) {
+            return true
+        }
+    }
+    // v2: template.neighbor exists
+    if tmpl := tree.GetContainer("template"); tmpl != nil {
+        if len(tmpl.FindAll("neighbor")) > 0 {
+            return true
+        }
+    }
+    return false
 }
 
 // hasRibBlock checks if any neighbor has rib { } sub-block
@@ -267,7 +352,7 @@ type Registry struct {
 func NewRegistry() *Registry {
     r := &Registry{}
     r.Register(migrateV1ToV2)
-    // Add future migrations here
+    r.Register(migrateV2ToV3)  // neighbor→peer, template restructure
     return r
 }
 
@@ -541,7 +626,7 @@ $ zebgp config upgrade exabgp.conf && zebgp config fmt exabgp.conf
 
 ## Known Migrations
 
-### Migration: v1 → v2 (ExaBGP main → ZeBGP)
+### Migration: v1 → v2 (ExaBGP main → ZeBGP intermediate)
 
 | Field | v1 Location | v2 Location |
 |-------|-------------|-------------|
@@ -552,6 +637,27 @@ $ zebgp config upgrade exabgp.conf && zebgp config fmt exabgp.conf
 | `manual-eor` | `neighbor { manual-eor }` | TBD (stays or moves?) |
 
 **Detection heuristic:** If neighbor has `group-updates`, `auto-flush`, `adj-rib-in`, or `adj-rib-out` directly → v1
+
+### Migration: v2 → v3 (ZeBGP intermediate → ZeBGP target)
+
+**See:** `plan/neighbor-to-peer-rename.md` for full implementation details.
+
+| v2 Syntax | v3 Syntax |
+|-----------|-----------|
+| `neighbor <IP> { }` | `peer <IP> { }` |
+| `peer * { }` (root glob) | `template { match * { } }` |
+| `peer 192.*.*.* { }` (root glob) | `template { match 192.*.*.* { } }` |
+| `template { neighbor <name> { } }` | `template { group <name> { } }` |
+
+**Detection heuristic:**
+- Has `neighbor` at root level → v2
+- Has `peer` glob at root level → v2
+- Has `template { neighbor }` → v2
+
+**Configuration Syntax Rules (v3):**
+1. `match` blocks apply in config file order (not specificity)
+2. Multiple `inherit` allowed with last-wins semantics
+3. `match` only valid inside `template { }`
 
 ### Example Migration Implementation
 
@@ -615,6 +721,53 @@ func doV1ToV2(tree *Tree) (*Tree, error) {
 }
 ```
 
+### Example v2→v3 Migration Implementation
+
+```go
+// pkg/config/migration/v2_to_v3.go
+
+var migrateV2ToV3 = Migration{
+    From:        Version2,
+    To:          Version3,
+    Name:        "neighbor-to-peer",
+    Description: "Rename neighbor→peer, move peer globs to template.match",
+    Migrate:     doV2ToV3,
+}
+
+func doV2ToV3(tree *Tree) (*Tree, error) {
+    result := tree.Clone()
+
+    // 1. Move root "peer" globs → template.match (preserve order)
+    template := result.GetOrCreate("template")
+    for _, peerGlob := range result.RemoveAllOrdered("peer") {
+        key := peerGlob.Key()
+        if isGlobPattern(key) {
+            // Glob pattern → template.match
+            template.AddOrdered("match", key, peerGlob)
+        }
+    }
+
+    // 2. Rename "neighbor" → "peer" at root level
+    for _, neighbor := range result.RemoveAllOrdered("neighbor") {
+        result.AddOrdered("peer", neighbor.Key(), neighbor)
+    }
+
+    // 3. Rename template.neighbor → template.group
+    if tmpl := result.GetContainer("template"); tmpl != nil {
+        for _, named := range tmpl.RemoveAllOrdered("neighbor") {
+            tmpl.AddOrdered("group", named.Key(), named)
+        }
+    }
+
+    return result, nil
+}
+
+// isGlobPattern returns true if s contains wildcard characters
+func isGlobPattern(s string) bool {
+    return strings.Contains(s, "*")
+}
+```
+
 ---
 
 ## Backup Strategy
@@ -671,7 +824,9 @@ Default: Keep last 5 backups per config file (configurable via `--backup-keep`).
 | 3.1 | Implement Registry and MigrateTo() | `migration/registry.go` |
 | 3.2 | Implement v1→v2 migration | `migration/v1_to_v2.go` |
 | 3.3 | Tests for v1→v2 migration | `migration/v1_to_v2_test.go` |
-| 3.4 | Implement DeprecatedConfigError | `migration/errors.go` |
+| 3.4 | Implement v2→v3 migration (see `neighbor-to-peer-rename.md`) | `migration/v2_to_v3.go` |
+| 3.5 | Tests for v2→v3 migration | `migration/v2_to_v3_test.go` |
+| 3.6 | Implement DeprecatedConfigError | `migration/errors.go` |
 
 ### Phase 4: Loader Integration
 
@@ -687,15 +842,17 @@ Default: Keep last 5 backups per config file (configurable via `--backup-keep`).
 
 All config-related commands live under `zebgp config`:
 
-| # | Task | Files |
-|---|------|-------|
-| 5.1 | Add `--auto-upgrade` flag to main command | `cmd/zebgp/main.go` |
-| 5.2 | Add `zebgp config` parent command | `cmd/zebgp/config.go` |
-| 5.3 | Add `zebgp config upgrade` subcommand | `cmd/zebgp/config_upgrade.go` |
-| 5.4 | Add `zebgp config check` subcommand | `cmd/zebgp/config_check.go` |
-| 5.5 | Add `zebgp config dump` subcommand (was `dump-config`) | `cmd/zebgp/config_dump.go` |
-| 5.6 | Add `zebgp config fmt` subcommand | `cmd/zebgp/config_fmt.go` |
-| 5.7 | Add `--dry-run`, `-o`, `--backup-dir`, `--stdout` flags | `cmd/zebgp/config_*.go` |
+| # | Task | Files | Status |
+|---|------|-------|--------|
+| 5.1 | Add `--auto-upgrade` flag to main command | `cmd/zebgp/main.go` | |
+| 5.2 | Add `zebgp config` parent command | `cmd/zebgp/config.go` | ✅ |
+| 5.3 | Add `zebgp config migrate` subcommand | `cmd/zebgp/config_migrate.go` | ✅ |
+| 5.4 | Add `zebgp config check` subcommand | `cmd/zebgp/config_check.go` | ✅ |
+| 5.5 | Add `zebgp config dump` subcommand | `cmd/zebgp/configdump.go` | ✅ |
+| 5.6 | Add `zebgp config fmt` subcommand | `cmd/zebgp/config_fmt.go` | |
+| 5.7 | Add `--dry-run`, `-o`, `--in-place` flags | `cmd/zebgp/config_*.go` | ✅ |
+| 5.8 | Detect unsupported features (multi-session, operational) | `cmd/zebgp/config_check.go` | ✅ |
+| 5.9 | Show warnings in CLI output | `cmd/zebgp/config_*.go` | ✅ |
 
 ### Phase 5b: Config Formatter (formatting only, no migrations)
 
@@ -778,6 +935,23 @@ testdata/configs/migration/
 5. ✅ `zebgp config check old.conf` shows version and deprecated fields
 6. ✅ All migrations are idempotent
 7. ✅ Zero data loss through migration
+
+---
+
+## Unsupported Features
+
+These ExaBGP features are detected and warned about, but not implemented in ZeBGP:
+
+| Feature | Location | Reason |
+|---------|----------|--------|
+| `multi-session` | `capability { multi-session; }` | ExaBGP-specific, non-standard BGP extension |
+| `operational` | `capability { operational; }` | ExaBGP-specific messaging capability |
+| `operational` block | `peer { operational { ... } }` | ExaBGP-specific operational messages (ASM, ADM, queries) |
+
+**CLI Behavior:**
+- `zebgp config check` shows warnings for unsupported features
+- `zebgp config migrate` shows warnings after migration
+- Features are parsed but ignored at runtime
 
 ---
 

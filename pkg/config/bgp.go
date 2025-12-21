@@ -251,6 +251,10 @@ func peerFields() []FieldDef {
 		// API configuration - can be named or anonymous
 		Field("api", Freeform()),
 
+		// Operational messages (ExaBGP-specific, not supported in ZeBGP)
+		// We parse it to detect and warn, but don't process it
+		Field("operational", Freeform()),
+
 		// RIB configuration (per-neighbor)
 		Field("rib", Container(
 			Field("out", Container(

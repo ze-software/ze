@@ -66,10 +66,11 @@ Exit codes:
 
 // checkResult holds results from config check.
 type checkResult struct {
-	version    string
-	isCurrent  bool
-	deprecated []string
-	err        error
+	version     string
+	isCurrent   bool
+	deprecated  []string
+	unsupported []string // Features ZeBGP doesn't support (e.g., multi-session, operational)
+	err         error
 }
 
 // configCheck analyzes a config file and returns version/deprecation info.
@@ -93,10 +94,14 @@ func configCheck(path string) checkResult {
 	// Find deprecated patterns
 	deprecated := findDeprecatedPatterns(tree)
 
+	// Find unsupported features
+	unsupported := findUnsupportedFeatures(tree)
+
 	return checkResult{
-		version:    version.String(),
-		isCurrent:  version == migration.VersionCurrent,
-		deprecated: deprecated,
+		version:     version.String(),
+		isCurrent:   version == migration.VersionCurrent,
+		deprecated:  deprecated,
+		unsupported: unsupported,
 	}
 }
 
@@ -155,6 +160,62 @@ func findDeprecatedPatterns(tree *config.Tree) []string {
 	return deprecated
 }
 
+// findUnsupportedFeatures returns warnings for features ZeBGP doesn't support.
+// These are ExaBGP-specific features that won't be implemented in ZeBGP.
+func findUnsupportedFeatures(tree *config.Tree) []string {
+	var warnings []string
+
+	// Check all peer blocks
+	for _, entry := range tree.GetListOrdered("peer") {
+		warnings = append(warnings, checkUnsupportedInPeerTree(entry.Key, entry.Value)...)
+	}
+
+	// Check all neighbor blocks (v2 syntax, still need to warn)
+	for _, entry := range tree.GetListOrdered("neighbor") {
+		warnings = append(warnings, checkUnsupportedInPeerTree(entry.Key, entry.Value)...)
+	}
+
+	// Check template.group blocks
+	if tmpl := tree.GetContainer("template"); tmpl != nil {
+		for _, entry := range tmpl.GetListOrdered("group") {
+			warnings = append(warnings, checkUnsupportedInPeerTree("template.group."+entry.Key, entry.Value)...)
+		}
+		for _, entry := range tmpl.GetListOrdered("match") {
+			warnings = append(warnings, checkUnsupportedInPeerTree("template.match."+entry.Key, entry.Value)...)
+		}
+		// Also check template.neighbor (v2 syntax)
+		for _, entry := range tmpl.GetListOrdered("neighbor") {
+			warnings = append(warnings, checkUnsupportedInPeerTree("template.neighbor."+entry.Key, entry.Value)...)
+		}
+	}
+
+	return warnings
+}
+
+// checkUnsupportedInPeerTree checks a peer/neighbor tree for unsupported features.
+func checkUnsupportedInPeerTree(path string, tree *config.Tree) []string {
+	var warnings []string
+
+	// Check capability block for unsupported capabilities
+	if cap := tree.GetContainer("capability"); cap != nil {
+		// multi-session capability (Flex node - use GetFlex)
+		if _, ok := cap.GetFlex("multi-session"); ok {
+			warnings = append(warnings, fmt.Sprintf("%s: capability.multi-session not supported (ExaBGP-specific)", path))
+		}
+		// operational capability (Flex node - use GetFlex)
+		if _, ok := cap.GetFlex("operational"); ok {
+			warnings = append(warnings, fmt.Sprintf("%s: capability.operational not supported (ExaBGP-specific)", path))
+		}
+	}
+
+	// Check for operational block (ExaBGP-specific messaging)
+	if tree.GetContainer("operational") != nil {
+		warnings = append(warnings, fmt.Sprintf("%s: operational block not supported (ExaBGP-specific)", path))
+	}
+
+	return warnings
+}
+
 // hasListEntries returns true if tree has entries for the given list name.
 func hasListEntries(tree *config.Tree, name string) bool {
 	return len(tree.GetListOrdered(name)) > 0
@@ -169,22 +230,33 @@ func outputCheckText(result checkResult) int {
 	if result.isCurrent {
 		fmt.Printf("✅ Config version: %s (current)\n", result.version)
 		fmt.Println("   No migration needed.")
-		return exitOK
+	} else {
+		fmt.Printf("⚠️  Config version: %s\n", result.version)
+		fmt.Printf("   Current version: %s\n", migration.VersionCurrent.String())
+		fmt.Println()
+		fmt.Println("Deprecated patterns found:")
+		for _, d := range result.deprecated {
+			fmt.Printf("  • %s\n", d)
+		}
+		fmt.Println()
+		fmt.Println("To migrate, run:")
+		fmt.Println("  zebgp config migrate <file> -o <output>")
+		fmt.Println("  zebgp config migrate <file> --in-place")
 	}
 
-	fmt.Printf("⚠️  Config version: %s\n", result.version)
-	fmt.Printf("   Current version: %s\n", migration.VersionCurrent.String())
-	fmt.Println()
-	fmt.Println("Deprecated patterns found:")
-	for _, d := range result.deprecated {
-		fmt.Printf("  • %s\n", d)
+	// Show unsupported feature warnings (always, even for current configs)
+	if len(result.unsupported) > 0 {
+		fmt.Println()
+		fmt.Println("⚠️  Unsupported features detected (will be ignored):")
+		for _, w := range result.unsupported {
+			fmt.Printf("  • %s\n", w)
+		}
 	}
-	fmt.Println()
-	fmt.Println("To migrate, run:")
-	fmt.Println("  zebgp config migrate <file> -o <output>")
-	fmt.Println("  zebgp config migrate <file> --in-place")
 
-	return exitMigrationNeeded
+	if !result.isCurrent {
+		return exitMigrationNeeded
+	}
+	return exitOK
 }
 
 func outputCheckJSON(result checkResult) int {
@@ -202,6 +274,13 @@ func outputCheckJSON(result checkResult) int {
 			fmt.Print(",")
 		}
 		fmt.Printf("%q", d)
+	}
+	fmt.Print(`],"unsupported":[`)
+	for i, w := range result.unsupported {
+		if i > 0 {
+			fmt.Print(",")
+		}
+		fmt.Printf("%q", w)
 	}
 	fmt.Println("]}")
 

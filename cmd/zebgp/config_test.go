@@ -325,6 +325,257 @@ func runConfigMigrateInPlace(path string) (string, error) {
 	return configMigrateInPlace(path)
 }
 
+// TestCmdConfigCheckUnsupported tests unsupported feature warnings.
+//
+// VALIDATES: config check shows warnings for unsupported ExaBGP features.
+//
+// PREVENTS: Silent failure when importing configs that use features ZeBGP doesn't support.
+func TestCmdConfigCheckUnsupported(t *testing.T) {
+	tests := []struct {
+		name         string
+		config       string
+		wantWarnings []string // Substrings that must appear in warnings
+	}{
+		{
+			name: "multi-session capability unsupported",
+			config: `
+peer 192.0.2.1 {
+	peer-as 65001;
+	capability {
+		multi-session true;
+	}
+}
+`,
+			wantWarnings: []string{"multi-session"},
+		},
+		{
+			name: "operational capability unsupported",
+			config: `
+peer 192.0.2.1 {
+	peer-as 65001;
+	capability {
+		operational true;
+	}
+}
+`,
+			wantWarnings: []string{"operational"},
+		},
+		{
+			name: "operational block unsupported",
+			config: `
+peer 192.0.2.1 {
+	peer-as 65001;
+	operational {
+		asm ipv4 unicast "test";
+	}
+}
+`,
+			wantWarnings: []string{"operational"},
+		},
+		{
+			name: "multiple unsupported features",
+			config: `
+peer 192.0.2.1 {
+	peer-as 65001;
+	capability {
+		multi-session true;
+		operational true;
+	}
+}
+`,
+			wantWarnings: []string{"multi-session", "operational"},
+		},
+		{
+			name: "unsupported in template.group",
+			config: `
+template {
+	group rr {
+		capability {
+			multi-session true;
+		}
+	}
+}
+peer 192.0.2.1 {
+	inherit rr;
+}
+`,
+			wantWarnings: []string{"multi-session"},
+		},
+		{
+			name: "no warnings for supported features",
+			config: `
+peer 192.0.2.1 {
+	peer-as 65001;
+	capability {
+		route-refresh true;
+		graceful-restart 120;
+	}
+}
+`,
+			wantWarnings: nil,
+		},
+		{
+			name: "unsupported in v2 neighbor block",
+			config: `
+neighbor 192.0.2.1 {
+	peer-as 65001;
+	capability {
+		operational true;
+	}
+}
+`,
+			wantWarnings: []string{"operational"},
+		},
+		{
+			name: "unsupported in template.match",
+			config: `
+template {
+	match * {
+		capability {
+			multi-session true;
+		}
+	}
+}
+peer 192.0.2.1 {
+	peer-as 65001;
+}
+`,
+			wantWarnings: []string{"multi-session"},
+		},
+		{
+			name: "unsupported in template.neighbor (v2)",
+			config: `
+template {
+	neighbor rr {
+		capability {
+			operational true;
+		}
+	}
+}
+peer 192.0.2.1 {
+	inherit rr;
+}
+`,
+			wantWarnings: []string{"operational"},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Write config to temp file
+			tmpDir := t.TempDir()
+			configPath := filepath.Join(tmpDir, "test.conf")
+			if err := os.WriteFile(configPath, []byte(tt.config), 0o600); err != nil {
+				t.Fatalf("write config: %v", err)
+			}
+
+			// Run check command
+			result := runConfigCheck(configPath)
+			if result.err != nil {
+				t.Fatalf("runConfigCheck: %v", result.err)
+			}
+
+			// Verify warnings
+			for _, want := range tt.wantWarnings {
+				found := false
+				for _, w := range result.unsupported {
+					if strings.Contains(w, want) {
+						found = true
+						break
+					}
+				}
+				if !found {
+					t.Errorf("unsupported = %v, want contains %q", result.unsupported, want)
+				}
+			}
+
+			// If no warnings expected, verify list is empty
+			if tt.wantWarnings == nil && len(result.unsupported) > 0 {
+				t.Errorf("expected no unsupported warnings, got: %v", result.unsupported)
+			}
+		})
+	}
+}
+
+// TestCmdConfigMigrateWarnings tests unsupported feature warnings from migrate.
+//
+// VALIDATES: config migrate returns warnings for unsupported features.
+//
+// PREVENTS: Silent migration of configs with unsupported features.
+func TestCmdConfigMigrateWarnings(t *testing.T) {
+	tests := []struct {
+		name         string
+		config       string
+		wantWarnings []string
+	}{
+		{
+			name: "v2 config with unsupported features",
+			config: `
+neighbor 192.0.2.1 {
+	peer-as 65001;
+	capability {
+		multi-session true;
+	}
+}
+`,
+			wantWarnings: []string{"multi-session"},
+		},
+		{
+			name: "v3 config with unsupported features",
+			config: `
+peer 192.0.2.1 {
+	peer-as 65001;
+	operational {
+		asm ipv4 unicast "test";
+	}
+}
+`,
+			wantWarnings: []string{"operational"},
+		},
+		{
+			name: "no warnings for clean config",
+			config: `
+peer 192.0.2.1 {
+	peer-as 65001;
+}
+`,
+			wantWarnings: nil,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tmpDir := t.TempDir()
+			configPath := filepath.Join(tmpDir, "test.conf")
+			if err := os.WriteFile(configPath, []byte(tt.config), 0o600); err != nil {
+				t.Fatalf("write config: %v", err)
+			}
+
+			_, warnings, err := configMigrateWithWarnings(configPath, "")
+			if err != nil {
+				t.Fatalf("configMigrateWithWarnings: %v", err)
+			}
+
+			for _, want := range tt.wantWarnings {
+				found := false
+				for _, w := range warnings {
+					if strings.Contains(w, want) {
+						found = true
+						break
+					}
+				}
+				if !found {
+					t.Errorf("warnings = %v, want contains %q", warnings, want)
+				}
+			}
+
+			if tt.wantWarnings == nil && len(warnings) > 0 {
+				t.Errorf("expected no warnings, got: %v", warnings)
+			}
+		})
+	}
+}
+
 // TestCmdConfigCheckErrors tests error handling in config check.
 //
 // VALIDATES: config check returns errors for invalid input.
