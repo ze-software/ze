@@ -109,6 +109,7 @@ func configToNeighbor(nc *NeighborConfig, global *BGPConfig) (*reactor.Neighbor,
 	n.Passive = nc.Passive
 	n.GroupUpdates = nc.GroupUpdates
 	n.LocalAddress = nc.LocalAddress
+	n.IgnoreFamilyMismatch = nc.IgnoreFamilyMismatch
 
 	// Build capabilities.
 	// Add Multiprotocol capabilities from configured families.

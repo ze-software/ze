@@ -127,3 +127,13 @@ func SessionClosed(addr string, reason string) {
 func FSMTransition(addr string, from, to string) {
 	Log(FSM, "neighbor %s: %s -> %s", addr, from, to)
 }
+
+// UpdateFamilyMismatch logs when UPDATE contains non-negotiated AFI/SAFI.
+// RFC 4760 Section 6: speaker MAY treat this as error.
+func UpdateFamilyMismatch(afi uint16, safi uint8, ignored bool) {
+	action := "rejected"
+	if ignored {
+		action = "ignored (ignore-mismatch enabled)"
+	}
+	Log(Session, "UPDATE with non-negotiated family AFI=%d SAFI=%d: %s", afi, safi, action)
+}

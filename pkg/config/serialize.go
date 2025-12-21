@@ -119,7 +119,7 @@ func serializeNode(b *strings.Builder, tree *Tree, name string, node Node, inden
 		}
 
 	case *FlexNode:
-		// Check if it's a simple value or a container
+		// Check if it's a simple value, multiValue, container, or list
 		if v, ok := tree.values[name]; ok {
 			b.WriteString(prefix)
 			b.WriteString(name)
@@ -128,13 +128,43 @@ func serializeNode(b *strings.Builder, tree *Tree, name string, node Node, inden
 				b.WriteString(quoteIfNeeded(v))
 			}
 			b.WriteString(";\n")
-		} else if child := tree.containers[name]; child != nil {
+		} else if mv := tree.multiValues[name]; len(mv) > 0 {
+			// Inline values (e.g., vpls rd X endpoint Y ...;)
+			for _, v := range mv {
+				b.WriteString(prefix)
+				b.WriteString(name)
+				b.WriteString(" ")
+				b.WriteString(v)
+				b.WriteString(";\n")
+			}
+		}
+		// Also serialize container form
+		if child := tree.containers[name]; child != nil {
 			b.WriteString(prefix)
 			b.WriteString(name)
 			b.WriteString(" {\n")
 			serializeFlexContainer(b, child, n, indent+1)
 			b.WriteString(prefix)
 			b.WriteString("}\n")
+		}
+		// Also serialize list entries (e.g., vpls site5 { ... })
+		if entries := tree.lists[name]; entries != nil {
+			var keys []string
+			for k := range entries {
+				keys = append(keys, k)
+			}
+			sort.Strings(keys)
+			for _, key := range keys {
+				entry := entries[key]
+				b.WriteString(prefix)
+				b.WriteString(name)
+				b.WriteString(" ")
+				b.WriteString(quoteIfNeeded(key))
+				b.WriteString(" {\n")
+				serializeFlexContainer(b, entry, n, indent+1)
+				b.WriteString(prefix)
+				b.WriteString("}\n")
+			}
 		}
 
 	case *InlineListNode:

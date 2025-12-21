@@ -2,6 +2,7 @@ package reactor
 
 import (
 	"context"
+	"encoding/binary"
 	"errors"
 	"fmt"
 	"io"
@@ -9,21 +10,24 @@ import (
 	"sync"
 	"time"
 
+	"github.com/exa-networks/zebgp/pkg/bgp/attribute"
 	"github.com/exa-networks/zebgp/pkg/bgp/capability"
 	"github.com/exa-networks/zebgp/pkg/bgp/fsm"
 	"github.com/exa-networks/zebgp/pkg/bgp/message"
+	"github.com/exa-networks/zebgp/pkg/trace"
 )
 
 // Session errors.
 var (
-	ErrNotConnected       = errors.New("not connected")
-	ErrAlreadyConnected   = errors.New("already connected")
-	ErrInvalidState       = errors.New("invalid FSM state")
-	ErrNotificationRecv   = errors.New("notification received")
-	ErrConnectionClosed   = errors.New("connection closed")
-	ErrHoldTimerExpired   = errors.New("hold timer expired")
-	ErrInvalidMessage     = errors.New("invalid message")
-	ErrUnsupportedVersion = errors.New("unsupported BGP version")
+	ErrNotConnected        = errors.New("not connected")
+	ErrAlreadyConnected    = errors.New("already connected")
+	ErrInvalidState        = errors.New("invalid FSM state")
+	ErrNotificationRecv    = errors.New("notification received")
+	ErrConnectionClosed    = errors.New("connection closed")
+	ErrHoldTimerExpired    = errors.New("hold timer expired")
+	ErrInvalidMessage      = errors.New("invalid message")
+	ErrUnsupportedVersion  = errors.New("unsupported BGP version")
+	ErrFamilyNotNegotiated = errors.New("address family not negotiated")
 )
 
 // Session manages a single BGP peer connection.
@@ -402,11 +406,104 @@ func (s *Session) handleKeepalive() error {
 }
 
 // handleUpdate processes a received UPDATE message.
-func (s *Session) handleUpdate(_ []byte) error {
+// RFC 4760 Section 6: validates AFI/SAFI in MP_REACH/MP_UNREACH against negotiated.
+func (s *Session) handleUpdate(body []byte) error {
 	// Reset hold timer.
 	s.timers.ResetHoldTimer()
 
+	// Validate address families in UPDATE.
+	if err := s.validateUpdateFamilies(body); err != nil {
+		return err
+	}
+
 	return s.fsm.Event(fsm.EventUpdateMsg)
+}
+
+// validateUpdateFamilies checks that AFI/SAFI in MP_REACH/MP_UNREACH were negotiated.
+// RFC 4760 Section 6: "If a BGP speaker receives an UPDATE with MP_REACH_NLRI or
+// MP_UNREACH_NLRI where the AFI/SAFI do not match those negotiated in OPEN,
+// the speaker MAY treat this as an error."
+func (s *Session) validateUpdateFamilies(body []byte) error {
+	// Need at least 4 bytes: withdrawn len (2) + attrs len (2)
+	if len(body) < 4 {
+		return nil // Let message parsing handle malformed
+	}
+
+	// Skip withdrawn routes
+	withdrawnLen := binary.BigEndian.Uint16(body[0:2])
+	offset := 2 + int(withdrawnLen)
+	if offset+2 > len(body) {
+		return nil
+	}
+
+	// Get path attributes
+	attrLen := binary.BigEndian.Uint16(body[offset : offset+2])
+	offset += 2
+	if offset+int(attrLen) > len(body) {
+		return nil
+	}
+	pathAttrs := body[offset : offset+int(attrLen)]
+
+	// Parse path attributes looking for MP_REACH_NLRI (14) and MP_UNREACH_NLRI (15)
+	pos := 0
+	for pos < len(pathAttrs) {
+		if pos+2 > len(pathAttrs) {
+			break
+		}
+
+		flags := pathAttrs[pos]
+		code := attribute.AttributeCode(pathAttrs[pos+1])
+		pos += 2
+
+		// Determine length (1 or 2 bytes based on extended length flag)
+		var attrDataLen int
+		if flags&0x10 != 0 { // Extended length
+			if pos+2 > len(pathAttrs) {
+				break
+			}
+			attrDataLen = int(binary.BigEndian.Uint16(pathAttrs[pos : pos+2]))
+			pos += 2
+		} else {
+			if pos+1 > len(pathAttrs) {
+				break
+			}
+			attrDataLen = int(pathAttrs[pos])
+			pos++
+		}
+
+		if pos+attrDataLen > len(pathAttrs) {
+			break
+		}
+
+		attrData := pathAttrs[pos : pos+attrDataLen]
+		pos += attrDataLen
+
+		// Check MP_REACH_NLRI (14) and MP_UNREACH_NLRI (15)
+		if code == attribute.AttrMPReachNLRI || code == attribute.AttrMPUnreachNLRI {
+			if len(attrData) < 3 {
+				continue // Malformed, let other validation catch it
+			}
+
+			afi := capability.AFI(binary.BigEndian.Uint16(attrData[0:2]))
+			safi := capability.SAFI(attrData[2])
+			family := capability.Family{AFI: afi, SAFI: safi}
+
+			neg := s.Negotiated()
+			if neg != nil && !neg.SupportsFamily(family) {
+				// Family not negotiated
+				if s.neighbor.IgnoreFamilyMismatch {
+					// Lenient mode: log warning and skip
+					trace.UpdateFamilyMismatch(uint16(afi), uint8(safi), true)
+				} else {
+					// Strict mode: return error
+					trace.UpdateFamilyMismatch(uint16(afi), uint8(safi), false)
+					return fmt.Errorf("%w: AFI=%d SAFI=%d", ErrFamilyNotNegotiated, afi, safi)
+				}
+			}
+		}
+	}
+
+	return nil
 }
 
 // handleNotification processes a received NOTIFICATION message.

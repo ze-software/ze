@@ -392,3 +392,228 @@ func TestSessionCapabilityNegotiation(t *testing.T) {
 	require.True(t, neg.ASN4)
 	require.False(t, neg.RouteRefresh)
 }
+
+// TestSessionFamilyValidation verifies non-negotiated AFI/SAFI rejection.
+//
+// RFC 4760 Section 6: "If a BGP speaker receives an UPDATE with
+// MP_REACH_NLRI or MP_UNREACH_NLRI where the AFI/SAFI do not match
+// those negotiated in OPEN, the speaker MAY treat this as an error."
+//
+// VALIDATES: UPDATE with non-negotiated family returns error (default).
+//
+// PREVENTS: Processing NLRI for address families peer didn't negotiate.
+func TestSessionFamilyValidation(t *testing.T) {
+	// Setup: session with only IPv4 unicast negotiated
+	neighbor := NewNeighbor(
+		netip.MustParseAddr("192.0.2.1"),
+		65001, 65002, 0x01020301,
+	)
+	neighbor.Passive = true
+	neighbor.Capabilities = []capability.Capability{
+		&capability.ASN4{ASN: 65001},
+		&capability.Multiprotocol{AFI: capability.AFIIPv4, SAFI: capability.SAFIUnicast},
+	}
+
+	session := NewSession(neighbor)
+	_ = session.Start()
+
+	client, server := net.Pipe()
+	defer func() { _ = client.Close() }()
+	defer func() { _ = server.Close() }()
+
+	// Accept connection
+	_ = acceptWithReader(t, session, server, client)
+
+	// Peer's OPEN with same IPv4 unicast capability
+	peerOpen := &message.Open{
+		Version: 4, MyAS: 65002, HoldTime: 90, BGPIdentifier: 0x01020302,
+		OptionalParams: []byte{
+			2, 12, // Capability param, length 12
+			65, 4, 0, 0, 0xFD, 0xEA, // ASN4 = 65002 (code=65, len=4, data=4 bytes)
+			1, 4, 0, 1, 0, 1, // Multiprotocol IPv4/Unicast (code=1, len=4, AFI=1, res=0, SAFI=1)
+		},
+	}
+	openBytes, _ := peerOpen.Pack(nil)
+
+	go func() {
+		_, _ = client.Write(openBytes)
+		buf := make([]byte, 4096)
+		_, _ = client.Read(buf) // Drain KEEPALIVE
+	}()
+
+	err := session.ReadAndProcess()
+	require.NoError(t, err)
+	require.Equal(t, fsm.StateOpenConfirm, session.State())
+
+	// Verify only IPv4 unicast is negotiated
+	neg := session.Negotiated()
+	require.True(t, neg.SupportsFamily(capability.Family{AFI: capability.AFIIPv4, SAFI: capability.SAFIUnicast}))
+	require.False(t, neg.SupportsFamily(capability.Family{AFI: capability.AFIIPv6, SAFI: capability.SAFIUnicast}))
+
+	// Exchange KEEPALIVE to reach Established
+	keepalive := message.NewKeepalive()
+	keepaliveBytes, _ := keepalive.Pack(nil)
+
+	go func() {
+		_, _ = client.Write(keepaliveBytes)
+	}()
+
+	err = session.ReadAndProcess()
+	require.NoError(t, err)
+	require.Equal(t, fsm.StateEstablished, session.State())
+
+	// Build UPDATE with MP_REACH_NLRI for IPv6 unicast (NOT negotiated)
+	// MP_REACH_NLRI: AFI=2 (IPv6), SAFI=1 (Unicast), NH=::1, NLRI=2001:db8::/32
+	mpReach := []byte{
+		0x00, 0x02, // AFI = 2 (IPv6)
+		0x01, // SAFI = 1 (Unicast)
+		0x10, // Next-hop length = 16
+		// Next-hop: ::1
+		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01,
+		0x00, // Reserved
+		// NLRI: 2001:db8::/32
+		0x20, // Prefix length = 32
+		0x20, 0x01, 0x0d, 0xb8,
+	}
+
+	// Path attributes: ORIGIN IGP (required), MP_REACH_NLRI
+	pathAttrs := []byte{
+		// ORIGIN = IGP
+		0x40, 0x01, 0x01, 0x00,
+		// MP_REACH_NLRI (optional non-transitive)
+		0x80, 0x0e, byte(len(mpReach)),
+	}
+	pathAttrs = append(pathAttrs, mpReach...)
+
+	// Build UPDATE message
+	update := make([]byte, 0, 100)
+	update = append(update, 0x00, 0x00)                                    // Withdrawn routes length = 0
+	update = append(update, byte(len(pathAttrs)>>8), byte(len(pathAttrs))) // Path attrs length
+	update = append(update, pathAttrs...)
+	// No IPv4 NLRI
+
+	// Pack as BGP message
+	hdr := make([]byte, 19)
+	for i := 0; i < 16; i++ {
+		hdr[i] = 0xff // Marker
+	}
+	msgLen := uint16(19 + len(update))
+	hdr[16] = byte(msgLen >> 8)
+	hdr[17] = byte(msgLen)
+	hdr[18] = byte(message.TypeUPDATE)
+
+	updateMsg := hdr
+	updateMsg = append(updateMsg, update...)
+
+	go func() {
+		_, _ = client.Write(updateMsg)
+	}()
+
+	// This should return an error because IPv6 unicast is not negotiated
+	err = session.ReadAndProcess()
+	require.Error(t, err, "should reject UPDATE with non-negotiated AFI/SAFI")
+	require.Contains(t, err.Error(), "family", "error should mention family mismatch")
+}
+
+// TestSessionFamilyValidationIgnoreMismatch verifies ignore-mismatch mode.
+//
+// RFC 4760 Section 6: speaker MAY treat non-negotiated AFI/SAFI as error.
+// With ignore-mismatch enabled, we log a warning but don't return error.
+//
+// VALIDATES: ignore-mismatch=true skips non-negotiated NLRI without error.
+//
+// PREVENTS: Connection drops with buggy peers that send extra families.
+func TestSessionFamilyValidationIgnoreMismatch(t *testing.T) {
+	// Setup: session with ignore-mismatch enabled
+	neighbor := NewNeighbor(
+		netip.MustParseAddr("192.0.2.1"),
+		65001, 65002, 0x01020301,
+	)
+	neighbor.Passive = true
+	neighbor.IgnoreFamilyMismatch = true // Enable lenient mode
+	neighbor.Capabilities = []capability.Capability{
+		&capability.ASN4{ASN: 65001},
+		&capability.Multiprotocol{AFI: capability.AFIIPv4, SAFI: capability.SAFIUnicast},
+	}
+
+	session := NewSession(neighbor)
+	_ = session.Start()
+
+	client, server := net.Pipe()
+	defer func() { _ = client.Close() }()
+	defer func() { _ = server.Close() }()
+
+	// Accept connection
+	_ = acceptWithReader(t, session, server, client)
+
+	// Peer's OPEN with IPv4 unicast capability
+	peerOpen := &message.Open{
+		Version: 4, MyAS: 65002, HoldTime: 90, BGPIdentifier: 0x01020302,
+		OptionalParams: []byte{
+			2, 12,
+			65, 4, 0, 0, 0xFD, 0xEA,
+			1, 4, 0, 1, 0, 1,
+		},
+	}
+	openBytes, _ := peerOpen.Pack(nil)
+
+	go func() {
+		_, _ = client.Write(openBytes)
+		buf := make([]byte, 4096)
+		_, _ = client.Read(buf)
+	}()
+
+	err := session.ReadAndProcess()
+	require.NoError(t, err)
+	require.Equal(t, fsm.StateOpenConfirm, session.State())
+
+	// Exchange KEEPALIVE to reach Established
+	keepalive := message.NewKeepalive()
+	keepaliveBytes, _ := keepalive.Pack(nil)
+
+	go func() {
+		_, _ = client.Write(keepaliveBytes)
+	}()
+
+	err = session.ReadAndProcess()
+	require.NoError(t, err)
+	require.Equal(t, fsm.StateEstablished, session.State())
+
+	// Build same UPDATE with non-negotiated IPv6 unicast
+	mpReach := []byte{
+		0x00, 0x02, 0x01, 0x10,
+		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01,
+		0x00, 0x20, 0x20, 0x01, 0x0d, 0xb8,
+	}
+
+	pathAttrs := []byte{0x40, 0x01, 0x01, 0x00, 0x80, 0x0e, byte(len(mpReach))}
+	pathAttrs = append(pathAttrs, mpReach...)
+
+	update := make([]byte, 0, 100)
+	update = append(update, 0x00, 0x00)
+	update = append(update, byte(len(pathAttrs)>>8), byte(len(pathAttrs)))
+	update = append(update, pathAttrs...)
+
+	hdr := make([]byte, 19)
+	for i := 0; i < 16; i++ {
+		hdr[i] = 0xff
+	}
+	msgLen := uint16(19 + len(update))
+	hdr[16] = byte(msgLen >> 8)
+	hdr[17] = byte(msgLen)
+	hdr[18] = byte(message.TypeUPDATE)
+
+	updateMsg := hdr
+	updateMsg = append(updateMsg, update...)
+
+	go func() {
+		_, _ = client.Write(updateMsg)
+	}()
+
+	// With ignore-mismatch, this should NOT return an error
+	err = session.ReadAndProcess()
+	require.NoError(t, err, "ignore-mismatch should skip non-negotiated family without error")
+	require.Equal(t, fsm.StateEstablished, session.State(), "session should remain Established")
+}

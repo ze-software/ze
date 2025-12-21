@@ -67,7 +67,7 @@ neighbor 192.0.2.1 {
 	n := neighbors["192.0.2.1"]
 
 	cap := n.GetContainer("capability")
-	val, ok := cap.Get("graceful-restart")
+	val, ok := cap.GetFlex("graceful-restart")
 	require.True(t, ok)
 	require.Equal(t, "120", val)
 }

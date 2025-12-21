@@ -87,6 +87,84 @@ neighbor 192.0.2.1 {
 	require.Equal(t, "true", val)
 }
 
+// TestBGPSchemaFamilyIgnoreMismatch verifies ignore-mismatch parsing in family block.
+//
+// VALIDATES: ignore-mismatch option is parsed from family config.
+//
+// PREVENTS: Unable to configure lenient mode for buggy peers.
+func TestBGPSchemaFamilyIgnoreMismatch(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		expected bool
+	}{
+		{
+			name: "ignore-mismatch enabled",
+			input: `
+neighbor 192.0.2.1 {
+    local-as 65000;
+    peer-as 65001;
+    family {
+        ipv4 unicast;
+        ignore-mismatch enable;
+    }
+}`,
+			expected: true,
+		},
+		{
+			name: "ignore-mismatch true",
+			input: `
+neighbor 192.0.2.1 {
+    local-as 65000;
+    peer-as 65001;
+    family {
+        ipv4 unicast;
+        ignore-mismatch true;
+    }
+}`,
+			expected: true,
+		},
+		{
+			name: "ignore-mismatch disabled",
+			input: `
+neighbor 192.0.2.1 {
+    local-as 65000;
+    peer-as 65001;
+    family {
+        ipv4 unicast;
+        ignore-mismatch disable;
+    }
+}`,
+			expected: false,
+		},
+		{
+			name: "ignore-mismatch not specified (default false)",
+			input: `
+neighbor 192.0.2.1 {
+    local-as 65000;
+    peer-as 65001;
+    family {
+        ipv4 unicast;
+    }
+}`,
+			expected: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			p := NewParser(BGPSchema())
+			tree, err := p.Parse(tt.input)
+			require.NoError(t, err)
+
+			cfg, err := TreeToConfig(tree)
+			require.NoError(t, err)
+			require.Len(t, cfg.Neighbors, 1)
+			require.Equal(t, tt.expected, cfg.Neighbors[0].IgnoreFamilyMismatch)
+		})
+	}
+}
+
 // TestBGPSchemaCapability verifies capability configuration.
 //
 // VALIDATES: BGP capabilities are parsed.

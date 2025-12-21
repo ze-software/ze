@@ -103,13 +103,32 @@ If an RFC is needed but not present in `rfc/`:
 3. Update `rfc/README.md` with the new RFC entry
 4. Then proceed with reading and implementation
 
+**MANDATORY: Check RFC Supersession**
+
+Some RFCs supersede or update others. ALWAYS check for the latest RFC:
+1. Check `rfc/README.md` for "Obsoletes" and "Updates" information
+2. When implementing, start from the LATEST RFC in a chain
+3. Example: RFC 4271 is updated by RFC 6286, 6608, 6793, 7606, 7607, 8212, 8654, etc.
+4. The `rfc/README.md` MUST track which RFCs update/obsolete which
+
 **Workflow:**
 1. Identify which RFC sections apply to the code being written
-2. Verify RFC exists in `rfc/` folder, download if missing
-3. Read those sections from `rfc/rfcNNNN.txt` (use Read tool)
-4. Note all MUST/SHOULD/MAY requirements
-5. Implement according to RFC text
-6. Add RFC reference comments in code
+2. Check if RFC is superseded by a newer one - use the LATEST
+3. Verify RFC exists in `rfc/` folder, download if missing
+4. Read those sections from `rfc/rfcNNNN.txt` (use Read tool)
+5. Note all MUST/SHOULD/MAY requirements
+6. Implement according to RFC text
+7. Add RFC reference comments in code
+
+**MANDATORY: Handle RFC MAY Clauses**
+
+When encountering RFC "MAY" clauses (optional behavior), ASK user:
+1. Should we implement this behavior?
+2. Should we skip it?
+3. Should we add a configuration option?
+
+Example: "RFC 4760 says speaker MAY treat non-negotiated AFI/SAFI as error.
+Options: (1) Always error, (2) Always ignore, (3) Config option?"
 
 **MANDATORY: RFC References in Code**
 
@@ -309,7 +328,31 @@ make test
 
 ---
 
-### 4. Test-Driven Development (TDD) - BLOCKING RULE
+### 4. Understand Before Implementing (BLOCKING RULE)
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│  FULLY UNDERSTAND what needs to be implemented BEFORE writing  │
+│  any code or tests. Explore the codebase to understand:        │
+│                                                                 │
+│  - Where the implementation should go                          │
+│  - How existing code handles similar cases                     │
+│  - What the call chain looks like                              │
+│  - What data structures are involved                           │
+│                                                                 │
+│  If unsure, ASK the user for clarification before proceeding.  │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+**Mandatory Before Implementation:**
+1. Explore relevant code paths using Explore agent or grep/read
+2. Understand where new code should be added
+3. Identify what functions/methods need to be modified
+4. If ambiguous, ask user for direction
+
+---
+
+### 5. Test-Driven Development (TDD) - BLOCKING RULE
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
@@ -366,9 +409,17 @@ go test -race ./pkg/bgp/message/... -v
 make test  # Full suite - ALL must pass
 ```
 
+**When `make test` Fails (MANDATORY):**
+1. Identify if failures are from YOUR changes or pre-existing
+2. If YOUR changes caused failures: FIX THEM before commit
+3. If pre-existing failures:
+   - Document them in `plan/CLAUDE_CONTINUATION.md` under TEST STATUS
+   - Include: test name, file:line, brief description
+   - These block commit until fixed or user explicitly approves
+
 ---
 
-### 5. Coding Standards
+### 6. Coding Standards
 
 **Core principle:** Go 1.21+, idiomatic Go, strict linting
 
@@ -393,7 +444,7 @@ make lint  # golangci-lint run
 
 ---
 
-### 6. Solution Quality (Right Solution, Not Easy Solution)
+### 7. Solution Quality (Right Solution, Not Easy Solution)
 
 **Core principle:** Always implement the RIGHT solution, not the easiest.
 
@@ -409,7 +460,7 @@ make lint  # golangci-lint run
 
 ---
 
-### 7. Fix All Issues You Notice (No Broken Windows)
+### 8. Fix All Issues You Notice (No Broken Windows)
 
 **Core principle:** If you see something wrong, fix it or document it for later.
 
@@ -483,6 +534,22 @@ zebgp/
 
 **User must say:** "commit" / "make a commit" / "push"
 
+**MANDATORY: Run `make test` Before Commit**
+```
+┌─────────────────────────────────────────────────────────────────┐
+│  ALWAYS run `make test` BEFORE committing.                      │
+│                                                                 │
+│  WHY: To find issues and FIX THEM, not to document and bypass.  │
+│                                                                 │
+│  If `make test` fails:                                          │
+│  1. FIX the failures - this is the whole point of testing       │
+│  2. Re-run `make test` until ALL pass                           │
+│  3. Only then proceed with commit                               │
+│                                                                 │
+│  DO NOT commit with failing tests. FIX THEM FIRST.              │
+└─────────────────────────────────────────────────────────────────┘
+```
+
 **Before ANY git operation:**
 ```bash
 git status && git log --oneline -5
@@ -490,9 +557,10 @@ git status && git log --oneline -5
 
 **Workflow:**
 1. Complete work
-2. STOP and report what was done
-3. WAIT for user instruction
-4. Only commit/push if explicitly asked
+2. Run `make test` - verify ALL pass or document failures
+3. STOP and report what was done
+4. WAIT for user instruction
+5. Only commit/push if explicitly asked
 
 ---
 

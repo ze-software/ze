@@ -21,6 +21,7 @@ func flowRouteAttributes() []FieldDef {
 		Field("next-hop", Leaf(TypeString)),
 		Field("extended-community", ValueOrArray(TypeString)),
 		Field("match", Freeform()), // Match criteria
+		Field("scope", Freeform()), // Scope criteria (interface-set, etc.)
 		Field("then", Freeform()),  // Actions
 	}
 }
@@ -227,24 +228,25 @@ type BGPConfig struct {
 
 // NeighborConfig holds neighbor configuration.
 type NeighborConfig struct {
-	Address        netip.Addr
-	Description    string
-	RouterID       uint32
-	LocalAddress   netip.Addr
-	LocalAS        uint32
-	PeerAS         uint32
-	HoldTime       uint16
-	Passive        bool
-	GroupUpdates   bool // Group compatible routes in single UPDATE
-	Families       []string
-	Hostname       string
-	DomainName     string
-	Capabilities   CapabilityConfig
-	StaticRoutes   []StaticRouteConfig
-	MVPNRoutes     []MVPNRouteConfig
-	VPLSRoutes     []VPLSRouteConfig
-	FlowSpecRoutes []FlowSpecRouteConfig
-	MUPRoutes      []MUPRouteConfig
+	Address              netip.Addr
+	Description          string
+	RouterID             uint32
+	LocalAddress         netip.Addr
+	LocalAS              uint32
+	PeerAS               uint32
+	HoldTime             uint16
+	Passive              bool
+	GroupUpdates         bool // Group compatible routes in single UPDATE
+	Families             []string
+	IgnoreFamilyMismatch bool // Ignore NLRI for non-negotiated AFI/SAFI instead of error
+	Hostname             string
+	DomainName           string
+	Capabilities         CapabilityConfig
+	StaticRoutes         []StaticRouteConfig
+	MVPNRoutes           []MVPNRouteConfig
+	VPLSRoutes           []VPLSRouteConfig
+	FlowSpecRoutes       []FlowSpecRouteConfig
+	MUPRoutes            []MUPRouteConfig
 }
 
 // CapabilityConfig holds capability settings.
@@ -494,8 +496,25 @@ func parseNeighborConfig(addr string, tree *Tree, templates map[string]*Tree) (N
 	}
 
 	// Families - Freeform stores "ipv4 unicast" as key with value "true"
+	// Also parse ignore-mismatch option from family block
+	// Note: "ignore-mismatch enable" is stored as key "ignore-mismatch enable" with value "true"
 	if familyTree := tree.GetContainer("family"); familyTree != nil {
-		nc.Families = append(nc.Families, familyTree.Values()...)
+		for _, key := range familyTree.Values() {
+			if strings.HasPrefix(key, "ignore-mismatch") {
+				// Parse ignore-mismatch option (not a family)
+				// Format: "ignore-mismatch [enable|true|disable|false]"
+				parts := strings.Fields(key)
+				if len(parts) == 2 {
+					nc.IgnoreFamilyMismatch = parts[1] == configTrue || parts[1] == configEnable
+				} else if len(parts) == 1 {
+					// Just "ignore-mismatch" alone means enable
+					nc.IgnoreFamilyMismatch = true
+				}
+			} else {
+				// Regular address family
+				nc.Families = append(nc.Families, key)
+			}
+		}
 	}
 
 	// Capabilities

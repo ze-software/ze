@@ -152,6 +152,11 @@ type Neighbor struct {
 	// GroupUpdates indicates whether to group compatible routes in single UPDATE.
 	GroupUpdates bool
 
+	// IgnoreFamilyMismatch ignores NLRI for non-negotiated AFI/SAFI instead of error.
+	// RFC 4760 Section 6: speaker MAY treat non-negotiated AFI/SAFI as error.
+	// Default false = error (RFC-correct), true = log warning and skip.
+	IgnoreFamilyMismatch bool
+
 	// DisableASN4 prevents advertising 4-byte ASN capability.
 	DisableASN4 bool
 
