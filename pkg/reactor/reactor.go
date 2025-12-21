@@ -426,6 +426,101 @@ func (a *reactorAPIAdapter) RIBStats() api.RIBStatsInfo {
 	return stats
 }
 
+// Transaction support for commit-based batching.
+
+// BeginTransaction starts a new transaction for batched route updates.
+func (a *reactorAPIAdapter) BeginTransaction(label string) error {
+	if a.r.ribOut == nil {
+		return api.ErrNoTransaction
+	}
+	return a.r.ribOut.BeginTransaction(label)
+}
+
+// CommitTransaction commits the current transaction.
+func (a *reactorAPIAdapter) CommitTransaction() (api.TransactionResult, error) {
+	if a.r.ribOut == nil {
+		return api.TransactionResult{}, api.ErrNoTransaction
+	}
+
+	stats, err := a.r.ribOut.CommitTransaction()
+	if err != nil {
+		return api.TransactionResult{}, convertRIBError(err)
+	}
+
+	return api.TransactionResult{
+		RoutesAnnounced: stats.RoutesAnnounced,
+		RoutesWithdrawn: stats.RoutesWithdrawn,
+		TransactionID:   a.r.ribOut.TransactionID(),
+	}, nil
+}
+
+// CommitTransactionWithLabel commits, verifying the label matches.
+func (a *reactorAPIAdapter) CommitTransactionWithLabel(label string) (api.TransactionResult, error) {
+	if a.r.ribOut == nil {
+		return api.TransactionResult{}, api.ErrNoTransaction
+	}
+
+	txID := a.r.ribOut.TransactionID()
+	stats, err := a.r.ribOut.CommitTransactionWithLabel(label)
+	if err != nil {
+		return api.TransactionResult{}, convertRIBError(err)
+	}
+
+	return api.TransactionResult{
+		RoutesAnnounced: stats.RoutesAnnounced,
+		RoutesWithdrawn: stats.RoutesWithdrawn,
+		TransactionID:   txID,
+	}, nil
+}
+
+// RollbackTransaction discards all queued routes in the transaction.
+func (a *reactorAPIAdapter) RollbackTransaction() (api.TransactionResult, error) {
+	if a.r.ribOut == nil {
+		return api.TransactionResult{}, api.ErrNoTransaction
+	}
+
+	txID := a.r.ribOut.TransactionID()
+	stats, err := a.r.ribOut.RollbackTransaction()
+	if err != nil {
+		return api.TransactionResult{}, convertRIBError(err)
+	}
+
+	return api.TransactionResult{
+		RoutesDiscarded: stats.RoutesDiscarded,
+		TransactionID:   txID,
+	}, nil
+}
+
+// InTransaction returns true if a transaction is active.
+func (a *reactorAPIAdapter) InTransaction() bool {
+	if a.r.ribOut == nil {
+		return false
+	}
+	return a.r.ribOut.InTransaction()
+}
+
+// TransactionID returns the current transaction label.
+func (a *reactorAPIAdapter) TransactionID() string {
+	if a.r.ribOut == nil {
+		return ""
+	}
+	return a.r.ribOut.TransactionID()
+}
+
+// convertRIBError converts RIB errors to API errors.
+func convertRIBError(err error) error {
+	switch {
+	case errors.Is(err, rib.ErrAlreadyInTransaction):
+		return api.ErrAlreadyInTransaction
+	case errors.Is(err, rib.ErrNoTransaction):
+		return api.ErrNoTransaction
+	case errors.Is(err, rib.ErrLabelMismatch):
+		return api.ErrLabelMismatch
+	default:
+		return err
+	}
+}
+
 // routeToAPIRoute converts a RIB route to an API route.
 func routeToAPIRoute(peerID string, route *rib.Route) api.RIBRoute {
 	apiRoute := api.RIBRoute{

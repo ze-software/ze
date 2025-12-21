@@ -30,6 +30,9 @@ func RegisterDefaultHandlers(d *Dispatcher) {
 
 	// Route operations
 	RegisterRouteHandlers(d)
+
+	// Commit operations (transaction-based batching)
+	RegisterCommitHandlers(d)
 }
 
 // handleDaemonShutdown signals the reactor to stop.

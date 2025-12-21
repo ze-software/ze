@@ -8,9 +8,27 @@
 package api
 
 import (
+	"errors"
 	"net/netip"
 	"time"
 )
+
+// Transaction errors.
+var (
+	ErrAlreadyInTransaction = errors.New("already in transaction")
+	ErrNoTransaction        = errors.New("no transaction in progress")
+	ErrLabelMismatch        = errors.New("transaction label mismatch")
+)
+
+// TransactionResult holds the result of a commit or rollback operation.
+type TransactionResult struct {
+	RoutesAnnounced int      // Routes announced (on commit)
+	RoutesWithdrawn int      // Routes withdrawn (on commit)
+	RoutesDiscarded int      // Routes discarded (on rollback)
+	UpdatesSent     int      // Number of UPDATE messages sent
+	Families        []string // Address families with EOR sent
+	TransactionID   string   // Transaction label
+}
 
 // PeerInfo is a snapshot of peer state for API output.
 type PeerInfo struct {
@@ -152,6 +170,26 @@ type ReactorInterface interface {
 
 	// RIBStats returns RIB statistics.
 	RIBStats() RIBStatsInfo
+
+	// Transaction support for commit-based batching.
+
+	// BeginTransaction starts a new transaction with optional label.
+	BeginTransaction(label string) error
+
+	// CommitTransaction commits the current transaction.
+	CommitTransaction() (TransactionResult, error)
+
+	// CommitTransactionWithLabel commits, verifying the label matches.
+	CommitTransactionWithLabel(label string) (TransactionResult, error)
+
+	// RollbackTransaction discards all queued routes in the transaction.
+	RollbackTransaction() (TransactionResult, error)
+
+	// InTransaction returns true if a transaction is active.
+	InTransaction() bool
+
+	// TransactionID returns the current transaction label.
+	TransactionID() string
 }
 
 // RIBRoute is an API-friendly representation of a route.

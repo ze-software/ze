@@ -100,6 +100,31 @@ func (m *mockReactor) WithdrawL2VPN(_ string, _ L2VPNRoute) error {
 	return nil
 }
 
+// Transaction stubs (base mock doesn't support transactions).
+func (m *mockReactor) BeginTransaction(_ string) error {
+	return ErrNoTransaction
+}
+
+func (m *mockReactor) CommitTransaction() (TransactionResult, error) {
+	return TransactionResult{}, ErrNoTransaction
+}
+
+func (m *mockReactor) CommitTransactionWithLabel(_ string) (TransactionResult, error) {
+	return TransactionResult{}, ErrNoTransaction
+}
+
+func (m *mockReactor) RollbackTransaction() (TransactionResult, error) {
+	return TransactionResult{}, ErrNoTransaction
+}
+
+func (m *mockReactor) InTransaction() bool {
+	return false
+}
+
+func (m *mockReactor) TransactionID() string {
+	return ""
+}
+
 // TestHandlerPeerList verifies peer list output.
 //
 // VALIDATES: All peers returned with state info.
