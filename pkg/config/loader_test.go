@@ -19,12 +19,12 @@ router-id 10.0.0.1;
 local-as 65000;
 listen 127.0.0.1:1179;
 
-neighbor 192.0.2.1 {
+peer 192.0.2.1 {
     peer-as 65001;
     hold-time 90;
 }
 
-neighbor 192.0.2.2 {
+peer 192.0.2.2 {
     peer-as 65002;
     passive true;
 }
@@ -48,7 +48,7 @@ func TestLoadReactorInheritance(t *testing.T) {
 router-id 10.0.0.1;
 local-as 65000;
 
-neighbor 192.0.2.1 {
+peer 192.0.2.1 {
     peer-as 65001;
 }
 `
@@ -75,7 +75,7 @@ func TestLoadReactorPassive(t *testing.T) {
 router-id 10.0.0.1;
 local-as 65000;
 
-neighbor 192.0.2.1 {
+peer 192.0.2.1 {
     peer-as 65001;
     passive true;
 }
@@ -102,7 +102,7 @@ router-id 10.0.0.1;
 local-as 65000;
 listen 0.0.0.0:179;
 
-neighbor 192.0.2.1 {
+peer 192.0.2.1 {
     peer-as 65001;
 }
 `
@@ -123,7 +123,7 @@ neighbor 192.0.2.1 {
 // PREVENTS: Silent config failures.
 func TestLoadReactorError(t *testing.T) {
 	input := `
-neighbor 192.0.2.1 {
+peer 192.0.2.1 {
     peer-as not-a-number;
 }
 `
@@ -170,4 +170,34 @@ func TestParseAllConfigFiles(t *testing.T) {
 			require.NoError(t, err, "failed to parse %s", file)
 		})
 	}
+}
+
+// TestV2SyntaxHint verifies that v2 syntax errors include migration hint.
+//
+// VALIDATES: Users get helpful error message with migration instructions.
+//
+// PREVENTS: Confusing "unknown keyword" errors without guidance.
+func TestV2SyntaxHint(t *testing.T) {
+	t.Run("neighbor keyword triggers hint", func(t *testing.T) {
+		input := `neighbor 192.0.2.1 { local-as 65000; peer-as 65001; }`
+		_, err := LoadReactor(input)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "unknown top-level keyword: neighbor")
+		require.Contains(t, err.Error(), "zebgp config migrate")
+	})
+
+	t.Run("template.neighbor triggers hint", func(t *testing.T) {
+		input := `template { neighbor test { local-as 65000; } }`
+		_, err := LoadReactor(input)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "unknown field in template: neighbor")
+		require.Contains(t, err.Error(), "zebgp config migrate")
+	})
+
+	t.Run("v3 syntax no hint", func(t *testing.T) {
+		// Valid v3 config should parse without error (no hint needed)
+		input := `peer 192.0.2.1 { local-as 65000; peer-as 65001; }`
+		_, err := LoadReactor(input)
+		require.NoError(t, err)
+	})
 }

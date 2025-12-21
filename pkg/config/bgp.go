@@ -266,7 +266,8 @@ func peerFields() []FieldDef {
 	}
 }
 
-// BGPSchema returns the schema for ZeBGP configuration.
+// BGPSchema returns the schema for ZeBGP configuration (v3 only).
+// Use LegacyBGPSchema for migration from v2 configs.
 func BGPSchema() *Schema {
 	schema := NewSchema()
 
@@ -282,21 +283,47 @@ func BGPSchema() *Schema {
 		Field("respawn", Leaf(TypeBool)),    // respawn on exit
 	))
 
-	// Neighbor definitions - uses shared peerFields
+	// Peer definitions - actual BGP sessions (v3: requires IP address)
+	schema.Define("peer", List(TypeIP, peerFields()...))
+
+	// Template definitions - named templates and glob patterns (v3)
+	// template { group <name> { ... }; match <pattern> { ... } }
+	schema.Define("template", Container(
+		Field("group", List(TypeString, peerFields()...)), // Named templates (inherit <name>)
+		Field("match", List(TypeString, peerFields()...)), // Glob patterns (auto-apply by IP)
+	))
+
+	return schema
+}
+
+// LegacyBGPSchema returns a schema that accepts both v2 and v3 syntax.
+// Used by the migration tool to parse v2 configs before transformation.
+func LegacyBGPSchema() *Schema {
+	schema := NewSchema()
+
+	// Global settings
+	schema.Define("router-id", Leaf(TypeIPv4))
+	schema.Define("local-as", Leaf(TypeUint32))
+	schema.Define("listen", MultiLeaf(TypeString))
+
+	// Process definitions (API)
+	schema.Define("process", List(TypeString,
+		Field("run", MultiLeaf(TypeString)),
+		Field("encoder", Leaf(TypeString)),
+		Field("respawn", Leaf(TypeBool)),
+	))
+
+	// v2: neighbor <IP> { ... } - deprecated
 	schema.Define("neighbor", List(TypeIP, peerFields()...))
 
-	// Peer glob patterns - apply settings to matching neighbors
-	// peer * { ... }           - all peers
-	// peer 192.168.*.* { ... } - pattern matching
+	// v2/v3: peer - accepts both IP (v3) and glob patterns (v2)
 	schema.Define("peer", List(TypeString, peerFields()...))
 
-	// Template definitions - contains named neighbor templates
-	// V2: template { neighbor <name> { ... } }
-	// V3: template { group <name> { ... }; match <pattern> { ... } }
+	// Template definitions - accepts both v2 and v3 syntax
 	schema.Define("template", Container(
-		Field("neighbor", List(TypeString, peerFields()...)), // V2: named templates
-		Field("group", List(TypeString, peerFields()...)),    // V3: named templates (replaces neighbor)
-		Field("match", List(TypeString, peerFields()...)),    // V3: glob patterns
+		Field("neighbor", List(TypeString, peerFields()...)), // v2: named templates
+		Field("group", List(TypeString, peerFields()...)),    // v3: named templates
+		Field("match", List(TypeString, peerFields()...)),    // v3: glob patterns
 	))
 
 	return schema

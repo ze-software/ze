@@ -13,7 +13,7 @@ import (
 // PREVENTS: Requiring block for simple flags.
 func TestFlagSyntax(t *testing.T) {
 	input := `
-neighbor 192.0.2.1 {
+peer 192.0.2.1 {
     local-as 65000;
     peer-as 65001;
     capability {
@@ -27,7 +27,7 @@ neighbor 192.0.2.1 {
 	tree, err := p.Parse(input)
 	require.NoError(t, err)
 
-	neighbors := tree.GetList("neighbor")
+	neighbors := tree.GetList("peer")
 	n := neighbors["192.0.2.1"]
 
 	cap := n.GetContainer("capability")
@@ -50,7 +50,7 @@ neighbor 192.0.2.1 {
 // PREVENTS: Breaking existing value syntax.
 func TestFlagWithValue(t *testing.T) {
 	input := `
-neighbor 192.0.2.1 {
+peer 192.0.2.1 {
     local-as 65000;
     peer-as 65001;
     capability {
@@ -63,7 +63,7 @@ neighbor 192.0.2.1 {
 	tree, err := p.Parse(input)
 	require.NoError(t, err)
 
-	neighbors := tree.GetList("neighbor")
+	neighbors := tree.GetList("peer")
 	n := neighbors["192.0.2.1"]
 
 	cap := n.GetContainer("capability")
@@ -79,7 +79,7 @@ neighbor 192.0.2.1 {
 // PREVENTS: Breaking block syntax.
 func TestFlagWithBlock(t *testing.T) {
 	input := `
-neighbor 192.0.2.1 {
+peer 192.0.2.1 {
     local-as 65000;
     peer-as 65001;
     capability {
@@ -94,7 +94,7 @@ neighbor 192.0.2.1 {
 	tree, err := p.Parse(input)
 	require.NoError(t, err)
 
-	neighbors := tree.GetList("neighbor")
+	neighbors := tree.GetList("peer")
 	n := neighbors["192.0.2.1"]
 
 	cap := n.GetContainer("capability")
@@ -113,7 +113,7 @@ neighbor 192.0.2.1 {
 // PREVENTS: Requiring block for simple routes.
 func TestInlineRoute(t *testing.T) {
 	input := `
-neighbor 192.0.2.1 {
+peer 192.0.2.1 {
     local-as 65000;
     peer-as 65001;
     static {
@@ -127,7 +127,7 @@ neighbor 192.0.2.1 {
 	tree, err := p.Parse(input)
 	require.NoError(t, err)
 
-	neighbors := tree.GetList("neighbor")
+	neighbors := tree.GetList("peer")
 	n := neighbors["192.0.2.1"]
 
 	// Static is Freeform - just verify it parses
@@ -142,7 +142,7 @@ neighbor 192.0.2.1 {
 // PREVENTS: Breaking existing block syntax.
 func TestInlineRouteWithBlock(t *testing.T) {
 	input := `
-neighbor 192.0.2.1 {
+peer 192.0.2.1 {
     local-as 65000;
     peer-as 65001;
     static {
@@ -158,7 +158,7 @@ neighbor 192.0.2.1 {
 	tree, err := p.Parse(input)
 	require.NoError(t, err)
 
-	neighbors := tree.GetList("neighbor")
+	neighbors := tree.GetList("peer")
 	n := neighbors["192.0.2.1"]
 
 	// Static is Freeform - just verify it parses
@@ -173,7 +173,7 @@ neighbor 192.0.2.1 {
 // PREVENTS: Syntax mixing issues.
 func TestMixedRouteSyntax(t *testing.T) {
 	input := `
-neighbor 192.0.2.1 {
+peer 192.0.2.1 {
     local-as 65000;
     peer-as 65001;
     static {
@@ -191,7 +191,7 @@ neighbor 192.0.2.1 {
 	tree, err := p.Parse(input)
 	require.NoError(t, err)
 
-	neighbors := tree.GetList("neighbor")
+	neighbors := tree.GetList("peer")
 	n := neighbors["192.0.2.1"]
 
 	// Static is Freeform - just verify it parses
@@ -206,7 +206,7 @@ neighbor 192.0.2.1 {
 // PREVENTS: Only accepting true/false.
 func TestEnableDisable(t *testing.T) {
 	input := `
-neighbor 192.0.2.1 {
+peer 192.0.2.1 {
     local-as 65000;
     peer-as 65001;
     capability {
@@ -219,7 +219,7 @@ neighbor 192.0.2.1 {
 	tree, err := p.Parse(input)
 	require.NoError(t, err)
 
-	neighbors := tree.GetList("neighbor")
+	neighbors := tree.GetList("peer")
 	n := neighbors["192.0.2.1"]
 
 	cap := n.GetContainer("capability")
@@ -240,7 +240,7 @@ process watcher {
     encoder json;
 }
 
-neighbor 192.0.2.1 {
+peer 192.0.2.1 {
     local-as 65000;
     peer-as 65001;
     api {
@@ -253,7 +253,7 @@ neighbor 192.0.2.1 {
 	tree, err := p.Parse(input)
 	require.NoError(t, err)
 
-	neighbors := tree.GetList("neighbor")
+	neighbors := tree.GetList("peer")
 	n := neighbors["192.0.2.1"]
 
 	api := n.GetContainer("api")
@@ -271,7 +271,7 @@ neighbor 192.0.2.1 {
 // PREVENTS: Lost array elements.
 func TestArrayMultipleValues(t *testing.T) {
 	input := `
-neighbor 192.0.2.1 {
+peer 192.0.2.1 {
     local-as 65000;
     peer-as 65001;
     api {
@@ -284,7 +284,7 @@ neighbor 192.0.2.1 {
 	tree, err := p.Parse(input)
 	require.NoError(t, err)
 
-	neighbors := tree.GetList("neighbor")
+	neighbors := tree.GetList("peer")
 	n := neighbors["192.0.2.1"]
 
 	api := n.GetContainer("api")
@@ -300,7 +300,7 @@ neighbor 192.0.2.1 {
 // PREVENTS: Lost array syntax.
 func TestArrayRoundtrip(t *testing.T) {
 	input := `
-neighbor 192.0.2.1 {
+peer 192.0.2.1 {
     local-as 65000;
     peer-as 65001;
     api {

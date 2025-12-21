@@ -247,10 +247,11 @@ peer 192.0.2.1 {
 	require.Equal(t, Version2, version, "template.group with static should be v2")
 }
 
-// parseWithBGPSchema is a helper that parses config using BGPSchema.
+// parseWithBGPSchema is a helper that parses config using LegacyBGPSchema.
+// Migration tests need to parse v2 syntax, so we use the legacy schema.
 func parseWithBGPSchema(t *testing.T, input string) *config.Tree {
 	t.Helper()
-	p := config.NewParser(config.BGPSchema())
+	p := config.NewParser(config.LegacyBGPSchema())
 	tree, err := p.Parse(input)
 	require.NoError(t, err)
 	return tree

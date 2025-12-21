@@ -33,6 +33,10 @@ func LoadReactorWithConfig(input string) (*BGPConfig, *reactor.Reactor, error) {
 	p := NewParser(BGPSchema())
 	tree, err := p.Parse(input)
 	if err != nil {
+		// Check if this looks like v2 syntax and provide migration hint
+		if hint := detectV2SyntaxHint(input, err); hint != "" {
+			return nil, nil, fmt.Errorf("parse config: %w\n\n%s", err, hint)
+		}
 		return nil, nil, fmt.Errorf("parse config: %w", err)
 	}
 
@@ -1310,4 +1314,33 @@ func parseActionFlags(s string) byte {
 		flags |= 0x02
 	}
 	return flags
+}
+
+// detectV2SyntaxHint checks if a parse error is likely due to v2 syntax
+// and returns a helpful hint for migration.
+func detectV2SyntaxHint(input string, parseErr error) string {
+	errMsg := parseErr.Error()
+
+	// Check for common v2 patterns
+	hasNeighborKeyword := strings.Contains(errMsg, "unknown top-level keyword: neighbor")
+	hasTemplateNeighbor := strings.Contains(errMsg, "unknown field in template: neighbor")
+	hasPeerGlobError := strings.Contains(errMsg, "invalid key for peer") && strings.Contains(errMsg, "invalid IP")
+
+	// Also check input for v2 patterns
+	lines := strings.Split(input, "\n")
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if strings.HasPrefix(trimmed, "neighbor ") {
+			hasNeighborKeyword = true
+			break
+		}
+	}
+
+	if hasNeighborKeyword || hasTemplateNeighbor || hasPeerGlobError {
+		return "Hint: This config appears to use deprecated v2 syntax.\n" +
+			"Run 'zebgp config check <file>' to verify, then\n" +
+			"Run 'zebgp config migrate <file>' to upgrade to v3 syntax."
+	}
+
+	return ""
 }

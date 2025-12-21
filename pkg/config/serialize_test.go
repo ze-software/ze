@@ -40,7 +40,7 @@ local-as 65000;
 //
 // PREVENTS: Lost neighbor settings.
 func TestSerializeNeighbor(t *testing.T) {
-	input := `neighbor 192.0.2.1 {
+	input := `peer 192.0.2.1 {
     local-as 65000;
     peer-as 65001;
     router-id 1.2.3.4;
@@ -67,7 +67,7 @@ func TestSerializeNeighbor(t *testing.T) {
 //
 // PREVENTS: Lost address families.
 func TestSerializeFamily(t *testing.T) {
-	input := `neighbor 192.0.2.1 {
+	input := `peer 192.0.2.1 {
     local-as 65000;
     peer-as 65001;
     family {
@@ -119,7 +119,7 @@ func TestSerializeProcess(t *testing.T) {
 //
 // PREVENTS: Lost route configurations.
 func TestSerializeStatic(t *testing.T) {
-	input := `neighbor 192.0.2.1 {
+	input := `peer 192.0.2.1 {
     local-as 65000;
     peer-as 65001;
     static {
@@ -149,7 +149,7 @@ func TestSerializeStatic(t *testing.T) {
 //
 // PREVENTS: Lost capability settings.
 func TestSerializeCapability(t *testing.T) {
-	input := `neighbor 192.0.2.1 {
+	input := `peer 192.0.2.1 {
     local-as 65000;
     peer-as 65001;
     capability {
@@ -360,7 +360,7 @@ func TestSerializeArray(t *testing.T) {
 //
 // PREVENTS: Broken serialization of descriptions.
 func TestSerializeQuotedStrings(t *testing.T) {
-	input := `neighbor 192.0.2.1 {
+	input := `peer 192.0.2.1 {
     local-as 65000;
     peer-as 65001;
     description "My BGP Peer";

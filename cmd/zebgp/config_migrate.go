@@ -112,7 +112,7 @@ func configMigrateWithWarnings(inputPath, outputPath string) (string, []string, 
 	}
 
 	// Parse with schema
-	p := config.NewParser(config.BGPSchema())
+	p := config.NewParser(config.LegacyBGPSchema())
 	tree, err := p.Parse(string(data))
 	if err != nil {
 		return "", nil, fmt.Errorf("parse error: %w", err)

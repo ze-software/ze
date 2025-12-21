@@ -82,7 +82,7 @@ func configCheck(path string) checkResult {
 	}
 
 	// Parse with schema
-	p := config.NewParser(config.BGPSchema())
+	p := config.NewParser(config.LegacyBGPSchema())
 	tree, err := p.Parse(string(data))
 	if err != nil {
 		return checkResult{err: fmt.Errorf("parse error: %w", err)}

@@ -7,14 +7,14 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// TestBGPSchemaNeighbor verifies neighbor configuration parsing.
+// TestBGPSchemaNeighbor verifies group configuration parsing.
 //
-// VALIDATES: Full neighbor config parses correctly.
+// VALIDATES: Full group config parses correctly.
 //
-// PREVENTS: Missing or broken neighbor fields.
+// PREVENTS: Missing or broken group fields.
 func TestBGPSchemaNeighbor(t *testing.T) {
 	input := `
-neighbor 192.0.2.1 {
+peer 192.0.2.1 {
     description "Transit Provider";
     router-id 1.2.3.4;
     local-address 192.0.2.2;
@@ -28,7 +28,7 @@ neighbor 192.0.2.1 {
 	tree, err := p.Parse(input)
 	require.NoError(t, err)
 
-	neighbors := tree.GetList("neighbor")
+	neighbors := tree.GetList("peer")
 	require.Len(t, neighbors, 1)
 
 	n := neighbors["192.0.2.1"]
@@ -54,7 +54,7 @@ neighbor 192.0.2.1 {
 // PREVENTS: Broken multiprotocol support.
 func TestBGPSchemaFamily(t *testing.T) {
 	input := `
-neighbor 192.0.2.1 {
+peer 192.0.2.1 {
     local-as 65000;
     peer-as 65001;
     family {
@@ -68,7 +68,7 @@ neighbor 192.0.2.1 {
 	tree, err := p.Parse(input)
 	require.NoError(t, err)
 
-	neighbors := tree.GetList("neighbor")
+	neighbors := tree.GetList("peer")
 	n := neighbors["192.0.2.1"]
 
 	family := n.GetContainer("family")
@@ -102,7 +102,7 @@ func TestBGPSchemaFamilyIgnoreMismatch(t *testing.T) {
 		{
 			name: "ignore-mismatch enabled",
 			input: `
-neighbor 192.0.2.1 {
+peer 192.0.2.1 {
     local-as 65000;
     peer-as 65001;
     family {
@@ -115,7 +115,7 @@ neighbor 192.0.2.1 {
 		{
 			name: "ignore-mismatch true",
 			input: `
-neighbor 192.0.2.1 {
+peer 192.0.2.1 {
     local-as 65000;
     peer-as 65001;
     family {
@@ -128,7 +128,7 @@ neighbor 192.0.2.1 {
 		{
 			name: "ignore-mismatch disabled",
 			input: `
-neighbor 192.0.2.1 {
+peer 192.0.2.1 {
     local-as 65000;
     peer-as 65001;
     family {
@@ -141,7 +141,7 @@ neighbor 192.0.2.1 {
 		{
 			name: "ignore-mismatch not specified (default false)",
 			input: `
-neighbor 192.0.2.1 {
+peer 192.0.2.1 {
     local-as 65000;
     peer-as 65001;
     family {
@@ -224,7 +224,7 @@ func TestFamilyConfigInlineWithMode(t *testing.T) {
 		{
 			name: "ipv4 unicast require",
 			input: `
-neighbor 192.0.2.1 {
+peer 192.0.2.1 {
     local-as 65000;
     peer-as 65001;
     family {
@@ -238,7 +238,7 @@ neighbor 192.0.2.1 {
 		{
 			name: "ipv6 unicast disable",
 			input: `
-neighbor 192.0.2.1 {
+peer 192.0.2.1 {
     local-as 65000;
     peer-as 65001;
     family {
@@ -252,7 +252,7 @@ neighbor 192.0.2.1 {
 		{
 			name: "mixed modes inline",
 			input: `
-neighbor 192.0.2.1 {
+peer 192.0.2.1 {
     local-as 65000;
     peer-as 65001;
     family {
@@ -270,7 +270,7 @@ neighbor 192.0.2.1 {
 		{
 			name: "ignore mode",
 			input: `
-neighbor 192.0.2.1 {
+peer 192.0.2.1 {
     local-as 65000;
     peer-as 65001;
     family {
@@ -313,7 +313,7 @@ func TestFamilyConfigBlockSyntax(t *testing.T) {
 		{
 			name: "single SAFI block",
 			input: `
-neighbor 192.0.2.1 {
+peer 192.0.2.1 {
     local-as 65000;
     peer-as 65001;
     family {
@@ -329,7 +329,7 @@ neighbor 192.0.2.1 {
 		{
 			name: "multiple SAFIs block",
 			input: `
-neighbor 192.0.2.1 {
+peer 192.0.2.1 {
     local-as 65000;
     peer-as 65001;
     family {
@@ -346,7 +346,7 @@ neighbor 192.0.2.1 {
 		},
 		{
 			name:  "one-liner block",
-			input: `neighbor 192.0.2.1 { local-as 65000; peer-as 65001; family { ipv6 { unicast require; mpls-vpn } } }`,
+			input: `peer 192.0.2.1 { local-as 65000; peer-as 65001; family { ipv6 { unicast require; mpls-vpn } } }`,
 			expected: []FamilyConfig{
 				{AFI: "ipv6", SAFI: "unicast", Mode: FamilyModeRequire},
 				{AFI: "ipv6", SAFI: "mpls-vpn", Mode: FamilyModeEnable},
@@ -355,7 +355,7 @@ neighbor 192.0.2.1 {
 		{
 			name: "multiple AFI blocks",
 			input: `
-neighbor 192.0.2.1 {
+peer 192.0.2.1 {
     local-as 65000;
     peer-as 65001;
     family {
@@ -397,7 +397,7 @@ neighbor 192.0.2.1 {
 // PREVENTS: Parser confusion when mixing syntax styles.
 func TestFamilyConfigMixedSyntax(t *testing.T) {
 	input := `
-neighbor 192.0.2.1 {
+peer 192.0.2.1 {
     local-as 65000;
     peer-as 65001;
     family {
@@ -433,7 +433,7 @@ neighbor 192.0.2.1 {
 // PREVENTS: Missing capability negotiation config.
 func TestBGPSchemaCapability(t *testing.T) {
 	input := `
-neighbor 192.0.2.1 {
+peer 192.0.2.1 {
     local-as 65000;
     peer-as 65001;
     capability {
@@ -453,7 +453,7 @@ neighbor 192.0.2.1 {
 	tree, err := p.Parse(input)
 	require.NoError(t, err)
 
-	neighbors := tree.GetList("neighbor")
+	neighbors := tree.GetList("peer")
 	n := neighbors["192.0.2.1"]
 
 	cap := n.GetContainer("capability")
@@ -482,7 +482,7 @@ neighbor 192.0.2.1 {
 // PREVENTS: Broken route injection.
 func TestBGPSchemaStatic(t *testing.T) {
 	input := `
-neighbor 192.0.2.1 {
+peer 192.0.2.1 {
     local-as 65000;
     peer-as 65001;
     static {
@@ -502,7 +502,7 @@ neighbor 192.0.2.1 {
 	tree, err := p.Parse(input)
 	require.NoError(t, err)
 
-	neighbors := tree.GetList("neighbor")
+	neighbors := tree.GetList("peer")
 	n := neighbors["192.0.2.1"]
 	require.NotNil(t, n)
 
@@ -589,7 +589,7 @@ process watcher {
 }
 
 # Transit provider
-neighbor 192.0.2.1 {
+peer 192.0.2.1 {
     description "Transit AS65001";
     local-address 192.0.2.2;
     peer-as 65001;
@@ -605,7 +605,7 @@ neighbor 192.0.2.1 {
 }
 
 # Peer
-neighbor 192.0.2.10 {
+peer 192.0.2.10 {
     description "Peer AS65010";
     local-address 192.0.2.2;
     peer-as 65010;
@@ -634,7 +634,7 @@ neighbor 192.0.2.10 {
 	require.Len(t, procs, 1)
 
 	// Check neighbors
-	neighbors := tree.GetList("neighbor")
+	neighbors := tree.GetList("peer")
 	require.Len(t, neighbors, 2)
 
 	n1 := neighbors["192.0.2.1"]
@@ -656,7 +656,7 @@ func TestBGPSchemaToConfig(t *testing.T) {
 router-id 10.0.0.1;
 local-as 65000;
 
-neighbor 192.0.2.1 {
+peer 192.0.2.1 {
     local-address 192.0.2.2;
     peer-as 65001;
     hold-time 90;
@@ -687,7 +687,7 @@ neighbor 192.0.2.1 {
 // PREVENTS: Missing routes when using announce syntax instead of static syntax.
 func TestBGPSchemaAnnounce(t *testing.T) {
 	input := `
-neighbor 127.0.0.1 {
+peer 127.0.0.1 {
     router-id 10.0.0.2;
     local-address 127.0.0.1;
     local-as 65533;
@@ -744,7 +744,7 @@ neighbor 127.0.0.1 {
 // PREVENTS: Missing IPv6 routes or community parsing failures.
 func TestBGPSchemaAnnounceIPv6(t *testing.T) {
 	input := `
-neighbor 127.0.0.1 {
+peer 127.0.0.1 {
     router-id 10.0.0.2;
     local-address 127.0.0.1;
     local-as 65533;
@@ -782,13 +782,13 @@ neighbor 127.0.0.1 {
 
 // TestBGPSchemaTemplateInherit verifies template inheritance.
 //
-// VALIDATES: Routes from inherited templates are merged into neighbor config.
+// VALIDATES: Routes from inherited templates are merged into group config.
 //
 // PREVENTS: Missing routes when using template inheritance.
 func TestBGPSchemaTemplateInherit(t *testing.T) {
 	input := `
 template {
-    neighbor base-routes {
+    group base-routes {
         announce {
             ipv4 {
                 unicast 10.0.1.0/24 next-hop 10.0.255.254 community 30740:0;
@@ -798,7 +798,7 @@ template {
     }
 }
 
-neighbor 127.0.0.1 {
+peer 127.0.0.1 {
     inherit base-routes;
     router-id 10.0.0.2;
     local-address 127.0.0.1;
@@ -844,7 +844,7 @@ neighbor 127.0.0.1 {
 	require.True(t, ok, "missing route 10.0.2.0/24 from template")
 	require.Equal(t, uint32(100), r2.LocalPreference)
 
-	// Check neighbor route
+	// Check group route
 	r3, ok := routeMap["10.0.3.0/24"]
 	require.True(t, ok, "missing route 10.0.3.0/24 from neighbor")
 	require.Equal(t, uint32(200), r3.LocalPreference)
@@ -873,7 +873,7 @@ func TestHoldTimeRFCValidation(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			input := `
-neighbor 192.0.2.1 {
+peer 192.0.2.1 {
     local-as 65000;
     peer-as 65001;
     hold-time ` + tt.holdTime + `;
@@ -901,7 +901,7 @@ neighbor 192.0.2.1 {
 // PREVENTS: Unable to configure automatic local address selection.
 func TestLocalAddressAuto(t *testing.T) {
 	input := `
-neighbor 192.0.2.1 {
+peer 192.0.2.1 {
     local-as 65000;
     peer-as 65001;
     local-address auto;
@@ -958,7 +958,7 @@ func TestExtendedMessageCapabilityConfig(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			input := `
-neighbor 192.0.2.1 {
+peer 192.0.2.1 {
     local-as 65000;
     peer-as 65001;
     ` + tt.config + `
@@ -988,7 +988,7 @@ neighbor 192.0.2.1 {
 // PREVENTS: Global add-path setting applying to all families.
 func TestPerFamilyAddPathConfig(t *testing.T) {
 	input := `
-neighbor 192.0.2.1 {
+peer 192.0.2.1 {
     local-as 65000;
     peer-as 65001;
     add-path {
@@ -1041,7 +1041,7 @@ neighbor 192.0.2.1 {
 func TestASN4DefaultEnabled(t *testing.T) {
 	// Config without capability block
 	input := `
-neighbor 192.0.2.1 {
+peer 192.0.2.1 {
     local-as 65000;
     peer-as 65001;
 }
@@ -1064,7 +1064,7 @@ neighbor 192.0.2.1 {
 // PREVENTS: Unable to connect to peers that don't support 4-byte AS.
 func TestASN4ExplicitlyDisabled(t *testing.T) {
 	input := `
-neighbor 192.0.2.1 {
+peer 192.0.2.1 {
     local-as 65000;
     peer-as 65001;
     capability {
@@ -1083,7 +1083,7 @@ neighbor 192.0.2.1 {
 	require.False(t, cfg.Peers[0].Capabilities.ASN4, "ASN4 should be disabled when explicitly set to false")
 }
 
-// TestRIBOutConfigAutoCommitDelayFormats verifies duration parsing in per-neighbor rib.
+// TestRIBOutConfigAutoCommitDelayFormats verifies duration parsing in per-group rib.
 //
 // VALIDATES: Auto-commit-delay accepts various duration formats.
 //
@@ -1104,7 +1104,7 @@ func TestRIBOutConfigAutoCommitDelayFormats(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			input := `
-neighbor 192.0.2.1 {
+peer 192.0.2.1 {
     local-as 65000;
     peer-as 65001;
     rib {
@@ -1127,20 +1127,20 @@ neighbor 192.0.2.1 {
 	}
 }
 
-// TestPerNeighborRIBOut verifies per-neighbor rib { out { ... } } configuration.
+// TestPerNeighborRIBOut verifies per-group rib { out { ... } } configuration.
 //
-// VALIDATES: Per-neighbor RIBOut config, template inheritance, defaults, legacy group-updates.
+// VALIDATES: Per-group RIBOut config, template inheritance, defaults, legacy group-updates.
 //
 // PREVENTS: Unable to configure batching per-peer or broken backward compatibility.
 func TestPerNeighborRIBOut(t *testing.T) {
 	t.Run("explicit config", func(t *testing.T) {
 		input := `
-neighbor 192.0.2.1 {
+peer 192.0.2.1 {
     local-as 65000;
     peer-as 65001;
     rib { out { group-updates true; auto-commit-delay 100ms; max-batch-size 500; } }
 }
-neighbor 192.0.2.2 {
+peer 192.0.2.2 {
     local-as 65000;
     peer-as 65002;
     rib { out { group-updates false; auto-commit-delay 50ms; } }
@@ -1160,7 +1160,7 @@ neighbor 192.0.2.2 {
 	})
 
 	t.Run("defaults", func(t *testing.T) {
-		input := `neighbor 192.0.2.1 { local-as 65000; peer-as 65001; }`
+		input := `peer 192.0.2.1 { local-as 65000; peer-as 65001; }`
 		cfg := parseConfig(t, input)
 		require.Len(t, cfg.Peers, 1)
 		n := cfg.Peers[0]
@@ -1171,9 +1171,9 @@ neighbor 192.0.2.2 {
 
 	t.Run("template inheritance", func(t *testing.T) {
 		input := `
-template { neighbor rib-tmpl { rib { out { group-updates true; auto-commit-delay 200ms; max-batch-size 1000; } } } }
-neighbor 192.0.2.1 { inherit rib-tmpl; local-as 65000; peer-as 65001; }
-neighbor 192.0.2.2 { inherit rib-tmpl; local-as 65000; peer-as 65002; rib { out { auto-commit-delay 50ms; } } }
+template { group rib-tmpl { rib { out { group-updates true; auto-commit-delay 200ms; max-batch-size 1000; } } } }
+peer 192.0.2.1 { inherit rib-tmpl; local-as 65000; peer-as 65001; }
+peer 192.0.2.2 { inherit rib-tmpl; local-as 65000; peer-as 65002; rib { out { auto-commit-delay 50ms; } } }
 `
 		cfg := parseConfig(t, input)
 		require.Len(t, cfg.Peers, 2)
@@ -1191,7 +1191,7 @@ neighbor 192.0.2.2 { inherit rib-tmpl; local-as 65000; peer-as 65002; rib { out 
 	})
 
 	t.Run("legacy group-updates", func(t *testing.T) {
-		input := `neighbor 192.0.2.1 { local-as 65000; peer-as 65001; group-updates false; }`
+		input := `peer 192.0.2.1 { local-as 65000; peer-as 65001; group-updates false; }`
 		cfg := parseConfig(t, input)
 		require.Len(t, cfg.Peers, 1)
 		n := cfg.Peers[0]
@@ -1778,46 +1778,50 @@ peer 172.16.0.1 { local-as 65000; peer-as 65003; }
 }
 
 // =============================================================================
-// ORIGINAL TESTS (peer glob at root level - v2 syntax)
+// TEMPLATE MATCH TESTS (v3 syntax)
 // =============================================================================
 
-// TestPeerGlobConfig verifies peer glob pattern applies to neighbors.
+// TestTemplateMatchConfig verifies template match patterns apply to peers.
 //
-// VALIDATES: peer * { ... } applies settings to all matching neighbors.
+// VALIDATES: template { match * { ... } } applies settings to all matching peers.
 //
-// PREVENTS: Unable to set defaults using peer glob patterns.
+// PREVENTS: Unable to set defaults using template match patterns.
 func TestPeerGlobConfig(t *testing.T) {
-	t.Run("peer * applies to all", func(t *testing.T) {
+	t.Run("match * applies to all", func(t *testing.T) {
 		input := `
-peer * {
-    rib { out { group-updates false; auto-commit-delay 100ms; } }
+template {
+    match * {
+        rib { out { group-updates false; auto-commit-delay 100ms; } }
+    }
 }
-neighbor 192.0.2.1 { local-as 65000; peer-as 65001; }
-neighbor 192.0.2.2 { local-as 65000; peer-as 65002; }
+peer 192.0.2.1 { local-as 65000; peer-as 65001; }
+peer 192.0.2.2 { local-as 65000; peer-as 65002; }
 `
 		cfg := parseConfig(t, input)
 		require.Len(t, cfg.Peers, 2)
 
 		for _, n := range cfg.Peers {
-			require.False(t, n.RIBOut.GroupUpdates, "peer * should apply to %s", n.Address)
+			require.False(t, n.RIBOut.GroupUpdates, "match * should apply to %s", n.Address)
 			require.Equal(t, 100*time.Millisecond, n.RIBOut.AutoCommitDelay)
 		}
 	})
 
-	t.Run("peer pattern applies to matching", func(t *testing.T) {
+	t.Run("match pattern applies to matching", func(t *testing.T) {
 		input := `
-peer 192.0.2.* {
-    rib { out { group-updates false; } }
+template {
+    match 192.0.2.* {
+        rib { out { group-updates false; } }
+    }
 }
-neighbor 192.0.2.1 { local-as 65000; peer-as 65001; }
-neighbor 192.0.2.2 { local-as 65000; peer-as 65002; }
-neighbor 10.0.0.1 { local-as 65000; peer-as 65003; }
+peer 192.0.2.1 { local-as 65000; peer-as 65001; }
+peer 192.0.2.2 { local-as 65000; peer-as 65002; }
+peer 10.0.0.1 { local-as 65000; peer-as 65003; }
 `
 		cfg := parseConfig(t, input)
 		require.Len(t, cfg.Peers, 3)
 		m := peersByAddr(cfg.Peers)
 
-		// Matching peers get the glob settings
+		// Matching peers get the match settings
 		require.False(t, m["192.0.2.1"].RIBOut.GroupUpdates)
 		require.False(t, m["192.0.2.2"].RIBOut.GroupUpdates)
 
@@ -1825,13 +1829,15 @@ neighbor 10.0.0.1 { local-as 65000; peer-as 65003; }
 		require.True(t, m["10.0.0.1"].RIBOut.GroupUpdates)
 	})
 
-	t.Run("neighbor overrides peer glob", func(t *testing.T) {
+	t.Run("peer overrides match", func(t *testing.T) {
 		input := `
-peer * {
-    rib { out { group-updates false; auto-commit-delay 100ms; } }
+template {
+    match * {
+        rib { out { group-updates false; auto-commit-delay 100ms; } }
+    }
 }
-neighbor 192.0.2.1 { local-as 65000; peer-as 65001; }
-neighbor 192.0.2.2 {
+peer 192.0.2.1 { local-as 65000; peer-as 65001; }
+peer 192.0.2.2 {
     local-as 65000;
     peer-as 65002;
     rib { out { group-updates true; } }
@@ -1841,34 +1847,119 @@ neighbor 192.0.2.2 {
 		require.Len(t, cfg.Peers, 2)
 		m := peersByAddr(cfg.Peers)
 
-		// First neighbor: peer * settings
+		// First peer: match * settings
 		require.False(t, m["192.0.2.1"].RIBOut.GroupUpdates)
 		require.Equal(t, 100*time.Millisecond, m["192.0.2.1"].RIBOut.AutoCommitDelay)
 
-		// Second neighbor: explicit override for group-updates, inherits delay
+		// Second peer: explicit override for group-updates, inherits delay
 		require.True(t, m["192.0.2.2"].RIBOut.GroupUpdates)
 		require.Equal(t, 100*time.Millisecond, m["192.0.2.2"].RIBOut.AutoCommitDelay)
 	})
 
-	t.Run("more specific peer glob wins", func(t *testing.T) {
+	t.Run("later match overrides earlier (config order)", func(t *testing.T) {
 		input := `
-peer * {
-    rib { out { auto-commit-delay 100ms; } }
+template {
+    match * {
+        rib { out { auto-commit-delay 100ms; } }
+    }
+    match 192.0.2.* {
+        rib { out { auto-commit-delay 50ms; } }
+    }
 }
-peer 192.0.2.* {
-    rib { out { auto-commit-delay 50ms; } }
-}
-neighbor 192.0.2.1 { local-as 65000; peer-as 65001; }
-neighbor 10.0.0.1 { local-as 65000; peer-as 65002; }
+peer 192.0.2.1 { local-as 65000; peer-as 65001; }
+peer 10.0.0.1 { local-as 65000; peer-as 65002; }
 `
 		cfg := parseConfig(t, input)
 		require.Len(t, cfg.Peers, 2)
 		m := peersByAddr(cfg.Peers)
 
-		// 192.0.2.1 matches both, more specific wins
+		// 192.0.2.1 matches both, later match wins (config order)
 		require.Equal(t, 50*time.Millisecond, m["192.0.2.1"].RIBOut.AutoCommitDelay)
 
 		// 10.0.0.1 only matches *
 		require.Equal(t, 100*time.Millisecond, m["10.0.0.1"].RIBOut.AutoCommitDelay)
+	})
+}
+
+// =============================================================================
+// V2 SYNTAX REJECTION TESTS
+// =============================================================================
+
+// TestV2SyntaxRejected verifies that v2 syntax is rejected by BGPSchema.
+//
+// VALIDATES: BGPSchema() only accepts v3 syntax.
+//
+// PREVENTS: Accidentally accepting deprecated v2 configs.
+func TestV2SyntaxRejected(t *testing.T) {
+	t.Run("neighbor at root rejected", func(t *testing.T) {
+		input := `
+neighbor 192.0.2.1 {
+    local-as 65000;
+    peer-as 65001;
+}
+`
+		p := NewParser(BGPSchema())
+		_, err := p.Parse(input)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "unknown top-level keyword: neighbor")
+	})
+
+	t.Run("peer glob at root rejected", func(t *testing.T) {
+		input := `
+peer * {
+    local-as 65000;
+}
+`
+		p := NewParser(BGPSchema())
+		_, err := p.Parse(input)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "invalid")
+	})
+
+	t.Run("peer CIDR pattern at root rejected", func(t *testing.T) {
+		input := `
+peer 192.0.2.0/24 {
+    local-as 65000;
+}
+`
+		p := NewParser(BGPSchema())
+		_, err := p.Parse(input)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "invalid")
+	})
+
+	t.Run("template.neighbor rejected", func(t *testing.T) {
+		input := `
+template {
+    neighbor mytemplate {
+        local-as 65000;
+    }
+}
+`
+		p := NewParser(BGPSchema())
+		_, err := p.Parse(input)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "unknown field in template: neighbor")
+	})
+
+	t.Run("v3 syntax accepted", func(t *testing.T) {
+		input := `
+peer 192.0.2.1 {
+    local-as 65000;
+    peer-as 65001;
+}
+template {
+    group mytemplate {
+        local-as 65000;
+    }
+    match * {
+        hold-time 90;
+    }
+}
+`
+		p := NewParser(BGPSchema())
+		tree, err := p.Parse(input)
+		require.NoError(t, err)
+		require.NotNil(t, tree)
 	})
 }
