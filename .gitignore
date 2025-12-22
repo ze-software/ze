@@ -1,4 +1,8 @@
 # Build artifacts
 bin/
+# MRT data files (large, downloaded)
+test/internet/*.gz
+test/internet/*.bz2
+test/internet/*.tmp
 coverage.out
 coverage.html
