@@ -179,7 +179,10 @@ func (a *reactorAPIAdapter) AnnounceRoute(peerSelector string, route api.RouteSp
 			peer.AdjRIBOut().QueueAnnounce(ribRoute)
 		} else {
 			// Send immediately
-			update := buildAnnounceUpdate(route, a.r.config.LocalAS)
+			isIBGP := peer.Settings().IsIBGP()
+			// Default to 4-byte ASN (modern standard) for API-announced routes
+			asn4 := true
+			update := buildAnnounceUpdate(route, a.r.config.LocalAS, isIBGP, asn4)
 			if peer.State() == PeerStateEstablished {
 				if err := peer.SendUpdate(update); err != nil {
 					lastErr = err
@@ -260,25 +263,36 @@ func (a *reactorAPIAdapter) sendToMatchingPeers(selector string, update *message
 }
 
 // buildAnnounceUpdate builds an UPDATE message for announcing a route.
-func buildAnnounceUpdate(route api.RouteSpec, localAS uint32) *message.Update {
+func buildAnnounceUpdate(route api.RouteSpec, localAS uint32, isIBGP, asn4 bool) *message.Update {
 	// Build path attributes
 	var attrBytes []byte
 
 	// 1. ORIGIN (IGP)
 	attrBytes = append(attrBytes, attribute.PackAttribute(attribute.OriginIGP)...)
 
-	// 2. AS_PATH (prepend local AS for eBGP, empty for iBGP routes we originate)
-	// Always use 4-byte ASN for API-announced routes (modern standard)
-	asPath := &attribute.ASPath{
-		Segments: []attribute.ASPathSegment{
-			{Type: attribute.ASSequence, ASNs: []uint32{localAS}},
-		},
+	// 2. AS_PATH
+	var asPath *attribute.ASPath
+	if isIBGP {
+		// Empty AS_PATH for iBGP self-originated routes
+		asPath = &attribute.ASPath{Segments: nil}
+	} else {
+		// Prepend local AS for eBGP
+		asPath = &attribute.ASPath{
+			Segments: []attribute.ASPathSegment{
+				{Type: attribute.ASSequence, ASNs: []uint32{localAS}},
+			},
+		}
 	}
-	attrBytes = append(attrBytes, attribute.PackASPathAttribute(asPath, true)...)
+	attrBytes = append(attrBytes, attribute.PackASPathAttribute(asPath, asn4)...)
 
 	// 3. NEXT_HOP
 	nextHop := &attribute.NextHop{Addr: route.NextHop}
 	attrBytes = append(attrBytes, attribute.PackAttribute(nextHop)...)
+
+	// 4. LOCAL_PREF (for iBGP, default 100)
+	if isIBGP {
+		attrBytes = append(attrBytes, attribute.PackAttribute(attribute.LocalPref(100))...)
+	}
 
 	// Build NLRI
 	var nlriBytes []byte
