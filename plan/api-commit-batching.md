@@ -419,7 +419,7 @@ Total: ~2-3 focused sessions
 
 ### Current State
 
-The self-check system (`cmd/self-check/`) currently only supports **static route tests**:
+The self-check system (`test/cmd/self-check/`) currently only supports **static route tests**:
 - Tests in `test/data/encode/` use `.ci` + `.conf` files
 - Routes are defined statically in config, sent at session establishment
 - No support for dynamic API-driven tests
@@ -616,7 +616,7 @@ def wait_for_shutdown() -> None:
 **6.1 Detect API tests**
 
 ```go
-// cmd/self-check/main.go
+// test/cmd/self-check/main.go
 func (t *Test) IsAPITest() bool {
     // Has .run file alongside .ci
     runFile := strings.TrimSuffix(t.CIFile, ".ci") + ".run"
@@ -703,7 +703,7 @@ ZeBGP's process manager (`pkg/api/process.go`) handles:
 5. **Test locally**
    ```bash
    # Terminal 1
-   go run ./cmd/zebgp-peer --port 1790 test/data/api/fast.ci
+   go run ./test/cmd/zebgp-peer --port 1790 test/data/api/fast.ci
 
    # Terminal 2
    env exabgp_tcp_port=1790 go run ./cmd/zebgp server test/data/api/fast.conf
@@ -711,7 +711,7 @@ ZeBGP's process manager (`pkg/api/process.go`) handles:
 
 6. **Verify with self-check**
    ```bash
-   go run ./cmd/self-check api-fast
+   go run ./test/cmd/self-check api-fast
    ```
 
 ### Batch Conversion Script
@@ -1002,6 +1002,6 @@ With commit batching:
 - ExaBGP test runner: `../main/qa/bin/functional`
 - ZeBGP OutgoingRIB: `pkg/rib/outgoing.go`
 - ZeBGP config schema: `pkg/config/bgp.go`
-- ZeBGP self-check: `cmd/self-check/main.go`
+- ZeBGP self-check: `test/cmd/self-check/main.go`
 - ZeBGP process manager: `pkg/api/process.go`
 - Self-check system docs: `.claude/zebgp/SELF_CHECK_SYSTEM.md`

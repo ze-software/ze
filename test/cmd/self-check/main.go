@@ -285,7 +285,7 @@ func NewRunner(tests *Tests, baseDir string, timeout time.Duration) (*Runner, er
 	}
 
 	// Build zebgp-peer.
-	cmd = exec.CommandContext(ctx, "go", "build", "-o", peerPath, "./cmd/zebgp-peer") //nolint:gosec // Build path is constructed safely
+	cmd = exec.CommandContext(ctx, "go", "build", "-o", peerPath, "./test/cmd/zebgp-peer") //nolint:gosec // Build path is constructed safely
 	cmd.Dir = baseDir
 	if out, err := cmd.CombinedOutput(); err != nil {
 		_ = os.RemoveAll(tmpDir)

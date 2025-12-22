@@ -422,7 +422,7 @@ withdraw route ...                 # IMMEDIATE send (no batching, no commit)
 
 | # | Task | Files |
 |---|------|-------|
-| 5.1 | Enable .run script execution in self-check | `cmd/self-check/` |
+| 5.1 | Enable .run script execution in self-check | `test/cmd/self-check/` |
 | 5.2 | Convert .run scripts to use commit commands | `test/data/api/*.run` |
 | 5.3 | Remove sleep-based timing from tests | `test/data/api/*.run` |
 

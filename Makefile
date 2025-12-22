@@ -56,7 +56,7 @@ test-all: test self-check
 # Run self-check functional tests
 self-check:
 	@echo "Running self-check tests..."
-	go run ./cmd/self-check --all
+	go run ./test/cmd/self-check --all
 
 # Quick check (fast feedback during development)
 check: fmt vet

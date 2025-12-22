@@ -1,6 +1,6 @@
 # Self-Check Test System
 
-**Location:** `cmd/self-check/main.go`
+**Location:** `test/cmd/self-check/main.go`
 **Test Data:** `test/data/encode/`
 
 ---
@@ -85,7 +85,7 @@ N:raw:MARKER:LENGTH:TYPE:PAYLOAD
 Tests are discovered by scanning `test/data/encode/` for `.ci` files:
 
 ```go
-// cmd/self-check/main.go
+// test/cmd/self-check/main.go
 func (ts *Tests) Load() error {
     pattern := filepath.Join(ts.baseDir, "test", "data", "encode", "*.ci")
     files, _ := filepath.Glob(pattern)
@@ -105,19 +105,19 @@ func (ts *Tests) Load() error {
 
 ```bash
 # List all tests
-go run ./cmd/self-check --list
+go run ./test/cmd/self-check --list
 
 # Run all tests
-go run ./cmd/self-check --all
+go run ./test/cmd/self-check --all
 
 # Run specific test by nick
-go run ./cmd/self-check 0
+go run ./test/cmd/self-check 0
 
 # Run multiple tests
-go run ./cmd/self-check 0 1 5
+go run ./test/cmd/self-check 0 1 5
 
 # Custom timeout
-go run ./cmd/self-check --timeout 60s --all
+go run ./test/cmd/self-check --timeout 60s --all
 ```
 
 ---
@@ -192,14 +192,14 @@ See `plan/CLAUDE_CONTINUATION.md` for current pass/fail status.
 
 ```bash
 # Run single test with verbose output
-go run ./cmd/self-check 0 2>&1 | tee /tmp/test.log
+go run ./test/cmd/self-check 0 2>&1 | tee /tmp/test.log
 ```
 
 ### Manual test execution
 
 ```bash
 # Terminal 1: Start peer
-go run ./cmd/zebgp-peer --port 1790 test/data/encode/attributes.ci
+go run ./test/cmd/zebgp-peer --port 1790 test/data/encode/attributes.ci
 
 # Terminal 2: Run zebgp
 env exabgp_tcp_port=1790 go run ./cmd/zebgp server test/data/encode/attributes.conf
@@ -261,7 +261,7 @@ ZeBGP uses the same `.ci` format as ExaBGP for test portability:
 |-----------------|----------------|---------|
 | `qa/encoding/*.ci` | `test/data/encode/*.ci` | Static route encoding |
 | `qa/api/*.ci` | `test/data/api/*.ci` | API command encoding |
-| `qa/sbin/bgp` | `cmd/zebgp-peer` | Test peer implementation |
+| `qa/sbin/bgp` | `test/cmd/zebgp-peer` | Test peer implementation |
 
 **Copying tests from ExaBGP:**
 ```bash
@@ -276,7 +276,7 @@ cp ../main/qa/encoding/conf-newtest.ci test/data/encode/newtest.ci
 
 ## Architecture: zebgp-peer
 
-The test peer (`cmd/zebgp-peer`) validates received messages:
+The test peer (`test/cmd/zebgp-peer`) validates received messages:
 
 ```go
 // Simplified flow

@@ -2190,8 +2190,8 @@ The `self-check` command runs ExaBGP-style integration tests.
 
 | Component | Status | Notes |
 |-----------|--------|-------|
-| Test runner | ✅ Working | `cmd/self-check/main.go` |
-| Test peer | ✅ Working | `cmd/zebgp-peer/main.go` |
+| Test runner | ✅ Working | `test/cmd/self-check/main.go` |
+| Test peer | ✅ Working | `test/cmd/zebgp-peer/main.go` |
 | Expect file parsing | ✅ Working | Supports `option:`, `N:raw:`, `N:cmd:` |
 | KEEPALIVE matching | ✅ Fixed | Was bypassing expected message list |
 | Pipe capture | ✅ Fixed | Now reads asynchronously before Wait() |

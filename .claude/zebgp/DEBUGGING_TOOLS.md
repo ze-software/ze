@@ -246,7 +246,7 @@ ZEBGP_TRACE=session,fsm zebgp server config.conf
 
 ```bash
 # Run single test
-go run ./cmd/self-check 0
+go run ./test/cmd/self-check 0
 
 # Output now includes decoded diff automatically
 # Look at "Differences:" section to see what's wrong
@@ -279,7 +279,7 @@ trace.Log(trace.Routes, "custom message: %s", value)
 | `pkg/testpeer/peer.go` | Test peer with decode support |
 | `pkg/trace/trace.go` | Tracing infrastructure |
 | `cmd/zebgp/configdump.go` | config-dump command |
-| `cmd/zebgp-peer/main.go` | --decode flag |
+| `test/cmd/zebgp-peer/main.go` | --decode flag |
 | `pkg/config/parser.go` | Parser warnings |
 | `pkg/config/loader.go` | Config trace points |
 | `pkg/reactor/peer.go` | Session/route trace points |
