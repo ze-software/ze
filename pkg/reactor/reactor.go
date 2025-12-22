@@ -44,6 +44,10 @@ type Config struct {
 
 	// APIProcesses defines external processes for API communication.
 	APIProcesses []APIProcessConfig
+
+	// ConfigDir is the directory containing the config file.
+	// Used as working directory for process execution.
+	ConfigDir string
 }
 
 // APIProcessConfig holds external process configuration for the API.
@@ -1014,6 +1018,7 @@ func (r *Reactor) StartWithContext(ctx context.Context) error {
 				Run:     pc.Run,
 				Encoder: pc.Encoder,
 				Respawn: pc.Respawn,
+				WorkDir: r.config.ConfigDir,
 			})
 		}
 		r.api = api.NewServer(apiConfig, &reactorAPIAdapter{r})

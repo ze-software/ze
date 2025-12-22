@@ -237,7 +237,11 @@ func (e *Environment) OpenWaitDuration() time.Duration {
 }
 
 // SocketPath returns the full path to the API socket.
+// Can be overridden with zebgp.api.socketpath or zebgp_api_socketpath env var.
 func (e *Environment) SocketPath() string {
+	if path := getEnv("api", "socketpath"); path != "" {
+		return path
+	}
 	return "/var/run/" + e.API.SocketName + ".sock"
 }
 

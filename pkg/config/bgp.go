@@ -352,6 +352,7 @@ type BGPConfig struct {
 	Listen    string
 	Peers     []PeerConfig
 	Processes []ProcessConfig
+	ConfigDir string // Directory containing config file (set by LoadReactorFile)
 }
 
 // PeerConfig holds neighbor configuration.

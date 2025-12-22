@@ -580,6 +580,12 @@ func LoadExpectFile(path string) ([]string, *Config, error) {
 			if v, err := strconv.Atoi(strings.TrimPrefix(line, "option:asn:")); err == nil {
 				config.ASN = v
 			}
+		case strings.HasPrefix(line, "option:file:"):
+			// Ignore - this is handled by self-check, not testpeer
+		case strings.Contains(line, ":cmd:"):
+			// Ignore - documentation of command sent
+		case strings.Contains(line, ":json:"):
+			// Ignore - JSON representation for verification
 		default:
 			expect = append(expect, line)
 		}

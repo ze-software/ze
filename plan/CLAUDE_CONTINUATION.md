@@ -6,7 +6,27 @@
 
 ## CURRENT STATUS
 
-Ready for next task. Critical review completed.
+🔴 **Active Priority:** API Commit-Based Route Batching
+
+See: `plan/api-commit-batching.md`
+
+**Why:** Converting ALL 45 `.run` scripts to use commit-based batching is REQUIRED for `.ci` tests to pass. Without explicit commit semantics, ZeBGP cannot reproduce ExaBGP's UPDATE message grouping.
+
+### Progress (2025-12-22)
+
+**Infrastructure completed:**
+- ✅ Process spawning with working directory
+- ✅ API server process integration
+- ✅ self-check loads API tests from `test/data/api/`
+- ✅ Socket path env var (`zebgp_api_socketpath`)
+- ✅ testpeer ignores non-raw `.ci` lines
+
+**Current state:**
+- API test `fast` runs and sends routes
+- Message mismatch: missing LOCAL_PREF, wrong AS_PATH
+- Need to convert `.run` scripts to produce correct attributes
+
+**Next:** Convert `fast.run` to match `.ci` expected output.
 
 ---
 
@@ -29,6 +49,12 @@ Ready for next task. Critical review completed.
 | 8.2 | RFC 7606 Error Recovery | `message/rfc7606.go`, `session.go:validateUpdateRFC7606()` |
 
 ---
+
+## HIGH PRIORITY (Test Compatibility)
+
+| Item | Description | Plan |
+|------|-------------|------|
+| **API Commit System** | Required for all 45 `.run` tests to pass | `api-commit-batching.md` |
 
 ## MEDIUM PRIORITY (Functionality)
 

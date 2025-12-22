@@ -1,8 +1,8 @@
 # API Commit-Based Route Batching
 
-**Status:** ⏭️ Superseded
+**Status:** 🔴 Active - Required for test compatibility
 **Created:** 2025-12-21
-**Superseded by:** `unified-commit-system.md`
+**Updated:** 2025-12-22
 
 ---
 
@@ -20,11 +20,18 @@
 - No timer-based accumulation - routes sent when RIB flushed
 - Test scripts still use `sleep()` because there's no "commit" acknowledgment
 
-### Goal
-Replace sleep-based timing with explicit commit semantics:
-- Deterministic packet generation for tests
-- Efficient batching for bulk operations
-- Backwards compatibility with existing API
+### Critical Requirement
+
+**Converting ALL `.run` scripts to use commit-based batching is REQUIRED for `.ci` tests to pass.**
+
+The ExaBGP test suite relies on specific packet batching patterns. Without explicit commit semantics, ZeBGP cannot reproduce the exact UPDATE message grouping that ExaBGP produces, causing `.ci` validation failures.
+
+### Goals
+
+1. **Primary:** Convert ALL ExaBGP `.run` tests to pass with ZeBGP
+2. **Method:** Replace sleep-based timing with explicit commit semantics
+3. **Result:** Deterministic, reproducible packet generation
+4. **Bonus:** Efficient batching for bulk operations in production
 
 ---
 
@@ -99,6 +106,20 @@ zebgp fmt --diff config.bgp       # Show what would change
 1. `neighbor { group-updates X }` → `rib { group-updates X }` + deprecation comment
 2. Normalize indentation, ordering
 3. Remove redundant defaults
+
+---
+
+## Phase Status
+
+| Phase | Description | Status |
+|-------|-------------|--------|
+| 1 | Core Infrastructure (transactions) | ✅ Already implemented |
+| 2 | Route Grouping | ✅ Already implemented |
+| 3 | RIB Configuration | ⬜ Not started |
+| 4 | Config Formatter | ⬜ Not started |
+| 5 | Test Infrastructure | ⬜ Not started |
+| 6 | Self-Check API Support | ✅ **Completed 2025-12-22** |
+| 7 | Test Conversion | 🔄 In progress (0/45) |
 
 ---
 
@@ -407,11 +428,121 @@ Total: ~2-3 focused sessions
 
 ## Success Criteria
 
-1. Test scripts use `commit start/end` instead of `sleep()`
-2. All existing tests pass with new infrastructure
-3. `zebgp fmt` correctly migrates old configs
-4. Deprecation warnings for old `group-updates` location
-5. Documentation updated
+1. **ALL 45 `.run` test scripts converted** to use `commit start/end`
+2. **ALL `.ci` tests pass** with ZeBGP
+3. Test output matches ExaBGP byte-for-byte
+4. `zebgp fmt` correctly migrates old configs
+5. Deprecation warnings for old `group-updates` location
+6. Documentation updated
+
+---
+
+## Implementation Progress
+
+### Completed (2025-12-22)
+
+1. ✅ **Process spawning infrastructure** - `pkg/api/process.go` updated to set working directory
+2. ✅ **API server process integration** - Server now starts ProcessManager and handles commands
+3. ✅ **Config loader** - Passes processes and config directory to reactor
+4. ✅ **Socket path configuration** - `zebgp_api_socketpath` env var for testing
+5. ✅ **self-check API test support** - Loads tests from `test/data/api/`, sets socket path
+6. ✅ **testpeer .ci parsing** - Ignores `option:file:`, `:cmd:`, `:json:` lines
+7. ✅ **Process symlink** - `test/data/api/exabgp_api.py` → `../scripts/exabgp_api.py`
+
+### Current State
+
+- API tests run through self-check
+- Processes spawn and send commands
+- Routes are announced to peers
+- Message validation works
+
+**Remaining issue:** Message content mismatch - `.run` scripts need conversion to produce correct attributes.
+
+### Next Steps
+
+1. **Fix attribute handling in announce route**
+   - Add `origin igp` default for iBGP
+   - Add `local-preference 100` default for iBGP
+   - Fix AS_PATH to be empty for iBGP (currently sends [0])
+
+2. **Copy remaining .ci files from ExaBGP**
+   - Source: `../main/qa/api/api-*.ci`
+   - Target: `test/data/api/*.ci`
+   - Update `option:file:` references
+
+3. **Convert fast.run as template**
+   - Update to use commit-based batching
+   - Add correct attributes to match .ci expectations
+   - Document conversion pattern for other tests
+
+4. **Batch convert remaining tests**
+   - 34 tests have matching .ci files in ExaBGP
+   - 11 tests are ZeBGP-specific or need investigation
+
+---
+
+## Test Conversion Tracking
+
+**Total:** 45 `.run` files in `test/data/api/`
+
+### Conversion Status
+
+| Status | Test | Notes |
+|--------|------|-------|
+| 🔄 | fast.run | Infrastructure works, needs attribute fixes |
+| ⬜ | ack-control.run | |
+| ⬜ | add-remove.run | |
+| ⬜ | announce-star.run | |
+| ⬜ | announce.run | |
+| ⬜ | announcement.run | |
+| ⬜ | api.nothing.run | |
+| ⬜ | api.receive.run | |
+| ⬜ | attributes-path.run | |
+| ⬜ | attributes-vpn.run | |
+| ⬜ | attributes.run | |
+| ⬜ | blocklist.run | |
+| ⬜ | broken-flow.run | |
+| ⬜ | check.run | |
+| ⬜ | eor.run | |
+| ⬜ | fast.run | |
+| ⬜ | flow-merge.run | |
+| ⬜ | flow.run | |
+| ⬜ | health.run | |
+| ⬜ | ipv4.run | |
+| ⬜ | ipv6.run | |
+| ⬜ | manual-eor.run | |
+| ⬜ | multi-neighbor.run | |
+| ⬜ | multiple-private.run | |
+| ⬜ | multiple-public.run | |
+| ⬜ | multisession.run | |
+| ⬜ | mvpn.run | |
+| ⬜ | nexthop-self.run | |
+| ⬜ | nexthop.run | |
+| ⬜ | no-neighbor.run | |
+| ⬜ | no-respawn-1.run | |
+| ⬜ | no-respawn-2.run | |
+| ⬜ | notification.run | |
+| ⬜ | open.run | |
+| ⬜ | peer-lifecycle.run | |
+| ⬜ | reload.run | |
+| ⬜ | rib.run | |
+| ⬜ | rr-rib.run | |
+| ⬜ | rr.run | |
+| ⬜ | silence-ack.run | |
+| ⬜ | simple.run | |
+| ⬜ | teardown.run | |
+| ⬜ | v6-comprehensive.run | |
+| ⬜ | vpls.run | |
+| ⬜ | vpnv4.run | |
+| ⬜ | watchdog.run | |
+
+**Legend:** ⬜ Not started | 🔄 In progress | ✅ Converted & passing | ⏭️ Skipped (N/A)
+
+### Conversion Progress
+
+- **Converted:** 0/45
+- **Passing:** 0/45
+- **Skipped:** 0/45
 
 ---
 

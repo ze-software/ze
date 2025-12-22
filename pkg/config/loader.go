@@ -5,6 +5,7 @@ import (
 	"math"
 	"net/netip"
 	"os"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"time"
@@ -66,16 +67,52 @@ func LoadReactorFile(path string) (*reactor.Reactor, error) {
 	if err != nil {
 		return nil, fmt.Errorf("read config: %w", err)
 	}
-	return LoadReactor(string(data))
+
+	cfg, _, err := LoadReactorWithConfig(string(data))
+	if err != nil {
+		return nil, err
+	}
+
+	// Set config directory for process execution
+	absPath, err := filepath.Abs(path)
+	if err != nil {
+		return nil, fmt.Errorf("resolve config path: %w", err)
+	}
+	cfg.ConfigDir = filepath.Dir(absPath)
+
+	// Recreate reactor with config dir set
+	return CreateReactorWithDir(cfg, cfg.ConfigDir)
 }
 
 // CreateReactor creates a Reactor from typed BGPConfig.
 func CreateReactor(cfg *BGPConfig) (*reactor.Reactor, error) {
+	return CreateReactorWithDir(cfg, "")
+}
+
+// CreateReactorWithDir creates a Reactor with a specific config directory.
+// The configDir is used as the working directory for spawned processes.
+func CreateReactorWithDir(cfg *BGPConfig, configDir string) (*reactor.Reactor, error) {
 	// Build reactor config
 	reactorCfg := &reactor.Config{
 		ListenAddr: cfg.Listen,
 		RouterID:   cfg.RouterID,
 		LocalAS:    cfg.LocalAS,
+		ConfigDir:  configDir,
+	}
+
+	// Set API socket path if processes are configured
+	if len(cfg.Processes) > 0 {
+		env := LoadEnvironment()
+		reactorCfg.APISocketPath = env.SocketPath()
+
+		// Convert process configs
+		for _, pc := range cfg.Processes {
+			reactorCfg.APIProcesses = append(reactorCfg.APIProcesses, reactor.APIProcessConfig{
+				Name:    pc.Name,
+				Run:     pc.Run,
+				Encoder: pc.Encoder,
+			})
+		}
 	}
 
 	r := reactor.New(reactorCfg)

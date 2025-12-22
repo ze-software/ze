@@ -19,6 +19,7 @@ type Server struct {
 	dispatcher    *Dispatcher
 	encoder       *JSONEncoder
 	commitManager *CommitManager
+	procManager   *ProcessManager
 
 	listener net.Listener
 	clients  map[string]*Client
@@ -78,25 +79,43 @@ func (s *Server) Start() error {
 
 // StartWithContext begins accepting connections with the given context.
 func (s *Server) StartWithContext(ctx context.Context) error {
-	// Remove existing socket if present
-	if err := os.Remove(s.config.SocketPath); err != nil && !os.IsNotExist(err) {
-		return err
-	}
-
-	// Create listener
-	var lc net.ListenConfig
-	listener, err := lc.Listen(ctx, "unix", s.config.SocketPath)
-	if err != nil {
-		return err
-	}
-
 	s.ctx, s.cancel = context.WithCancel(ctx)
-	s.listener = listener
-	s.running.Store(true)
 
-	// Start accept loop
-	s.wg.Add(1)
-	go s.acceptLoop()
+	// Start external processes if configured
+	if len(s.config.Processes) > 0 {
+		s.procManager = NewProcessManager(s.config.Processes)
+		if err := s.procManager.StartWithContext(s.ctx); err != nil {
+			return err
+		}
+
+		// Start command handlers for each process
+		s.wg.Add(1)
+		go s.handleProcessCommands()
+	}
+
+	// Only start socket listener if socket path is configured
+	if s.config.SocketPath != "" {
+		// Remove existing socket if present
+		if err := os.Remove(s.config.SocketPath); err != nil && !os.IsNotExist(err) {
+			return err
+		}
+
+		// Create listener
+		var lc net.ListenConfig
+		listener, err := lc.Listen(ctx, "unix", s.config.SocketPath)
+		if err != nil {
+			return err
+		}
+
+		s.listener = listener
+		s.running.Store(true)
+
+		// Start accept loop
+		s.wg.Add(1)
+		go s.acceptLoop()
+	} else {
+		s.running.Store(true)
+	}
 
 	return nil
 }
@@ -163,6 +182,11 @@ func (s *Server) acceptLoop() {
 func (s *Server) cleanup() {
 	s.running.Store(false)
 
+	// Stop processes
+	if s.procManager != nil {
+		s.procManager.Stop()
+	}
+
 	// Close listener
 	if s.listener != nil {
 		_ = s.listener.Close()
@@ -178,7 +202,81 @@ func (s *Server) cleanup() {
 	s.mu.Unlock()
 
 	// Remove socket file
-	_ = os.Remove(s.config.SocketPath)
+	if s.config.SocketPath != "" {
+		_ = os.Remove(s.config.SocketPath)
+	}
+}
+
+// handleProcessCommands reads and handles commands from all spawned processes.
+func (s *Server) handleProcessCommands() {
+	defer s.wg.Done()
+
+	// Get all processes from the manager
+	s.procManager.mu.RLock()
+	processes := make([]*Process, 0, len(s.procManager.processes))
+	for _, p := range s.procManager.processes {
+		processes = append(processes, p)
+	}
+	s.procManager.mu.RUnlock()
+
+	// Start a goroutine to handle each process
+	var procWg sync.WaitGroup
+	for _, proc := range processes {
+		procWg.Add(1)
+		go func(p *Process) {
+			defer procWg.Done()
+			s.handleSingleProcessCommands(p)
+		}(proc)
+	}
+
+	procWg.Wait()
+}
+
+// handleSingleProcessCommands handles commands from a single process.
+func (s *Server) handleSingleProcessCommands(proc *Process) {
+	cmdCtx := &CommandContext{
+		Reactor:       s.reactor,
+		Encoder:       s.encoder,
+		CommitManager: s.commitManager,
+		Peer:          "*", // Default to all peers
+	}
+
+	for proc.Running() {
+		// Check for shutdown
+		select {
+		case <-s.ctx.Done():
+			return
+		default:
+		}
+
+		// Read command from process stdout with timeout
+		readCtx, cancel := context.WithTimeout(s.ctx, 100*time.Millisecond)
+		line, err := proc.ReadCommand(readCtx)
+		cancel()
+
+		if err != nil {
+			if err == context.DeadlineExceeded {
+				// Timeout, check if process is still running and try again
+				continue
+			}
+			// Process probably exited
+			return
+		}
+
+		if line == "" {
+			continue
+		}
+
+		// Dispatch command
+		resp, err := s.dispatcher.Dispatch(cmdCtx, line)
+		if err != nil {
+			resp = &Response{Status: "error", Error: err.Error()}
+		}
+
+		// Send response back to process stdin
+		respJSON, _ := json.Marshal(resp)
+		_ = proc.WriteEvent(strings.TrimSuffix(string(respJSON), "\n"))
+	}
 }
 
 // handleClient creates and manages a client connection.

@@ -230,6 +230,7 @@ type ProcessConfig struct {
 	Run     string // Command to execute
 	Encoder string // "json" (only v6 supported)
 	Respawn bool   // Respawn on exit
+	WorkDir string // Working directory for process execution
 }
 
 // ServerConfig holds API server configuration.

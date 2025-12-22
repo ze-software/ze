@@ -67,6 +67,7 @@ type Test struct {
 	Expects []string // Expected messages (N:raw:...)
 	Files   []string // All files related to this test
 	State   State
+	IsAPI   bool // True for API tests (have .run script)
 }
 
 // Colored returns the test nick with ANSI color based on state.
@@ -103,29 +104,58 @@ func NewTests(baseDir string) *Tests {
 	}
 }
 
-// Load discovers tests from the test/data/encode directory.
+// Load discovers tests from test/data/encode and test/data/api directories.
 func (ts *Tests) Load() error {
-	encodeDir := filepath.Join(ts.baseDir, "test", "data", "encode")
-	pattern := filepath.Join(encodeDir, "*.ci")
+	nicks := "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
+	port := 1790
+	nickIdx := 0
 
-	files, err := filepath.Glob(pattern)
+	// Load encode tests (static routes).
+	encodeDir := filepath.Join(ts.baseDir, "test", "data", "encode")
+	encodePattern := filepath.Join(encodeDir, "*.ci")
+
+	encodeFiles, err := filepath.Glob(encodePattern)
 	if err != nil {
 		return err
 	}
+	sort.Strings(encodeFiles)
 
-	sort.Strings(files)
-
-	nicks := "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"
-	port := 1790
-
-	for i, ciFile := range files {
+	for _, ciFile := range encodeFiles {
 		name := strings.TrimSuffix(filepath.Base(ciFile), ".ci")
-		nick := string(nicks[i%len(nicks)])
+		nick := string(nicks[nickIdx%len(nicks)])
+		nickIdx++
 
 		test, err := ts.parseCIFile(ciFile, name, nick, port)
 		if err != nil {
 			continue
 		}
+
+		ts.tests = append(ts.tests, test)
+		ts.byNick[nick] = test
+		port++
+	}
+
+	// Load API tests (dynamic routes via .run scripts).
+	apiDir := filepath.Join(ts.baseDir, "test", "data", "api")
+	apiPattern := filepath.Join(apiDir, "*.ci")
+
+	apiFiles, err := filepath.Glob(apiPattern)
+	if err != nil {
+		return err
+	}
+	sort.Strings(apiFiles)
+
+	for _, ciFile := range apiFiles {
+		name := strings.TrimSuffix(filepath.Base(ciFile), ".ci")
+		// Use "a:" prefix for API tests to distinguish in nick.
+		nick := "a" + string(nicks[nickIdx%len(nicks)])
+		nickIdx++
+
+		test, err := ts.parseCIFile(ciFile, name, nick, port)
+		if err != nil {
+			continue
+		}
+		test.IsAPI = true
 
 		ts.tests = append(ts.tests, test)
 		ts.byNick[nick] = test
@@ -231,10 +261,36 @@ func (ts *Tests) Selected() []*Test {
 func (ts *Tests) List() {
 	fmt.Println("\nAvailable tests:")
 	fmt.Println()
+
+	// Count by type.
+	var encodeCount, apiCount int
 	for _, t := range ts.tests {
-		fmt.Printf("  %s  %s\n", t.Nick, t.Name)
+		if t.IsAPI {
+			apiCount++
+		} else {
+			encodeCount++
+		}
 	}
-	fmt.Println()
+
+	if encodeCount > 0 {
+		fmt.Printf("  Encode tests (%d):\n", encodeCount)
+		for _, t := range ts.tests {
+			if !t.IsAPI {
+				fmt.Printf("    %s  %s\n", t.Nick, t.Name)
+			}
+		}
+		fmt.Println()
+	}
+
+	if apiCount > 0 {
+		fmt.Printf("  API tests (%d):\n", apiCount)
+		for _, t := range ts.tests {
+			if t.IsAPI {
+				fmt.Printf("    %s  %s\n", t.Nick, t.Name)
+			}
+		}
+		fmt.Println()
+	}
 }
 
 // Display shows current test status.
@@ -423,6 +479,11 @@ func (r *Runner) runTest(ctx context.Context, test *Test) (bool, string) {
 		fmt.Sprintf("zebgp_tcp_port=%d", test.Port),
 		"zebgp_tcp_bind=",
 	)
+	// For API tests, set a unique socket path in temp directory
+	if test.IsAPI {
+		socketPath := filepath.Join(os.TempDir(), fmt.Sprintf("zebgp-test-%d.sock", test.Port))
+		clientCmd.Env = append(clientCmd.Env, fmt.Sprintf("zebgp_api_socketpath=%s", socketPath))
+	}
 	clientCmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 
 	clientOut, _ := clientCmd.StdoutPipe()

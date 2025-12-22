@@ -59,6 +59,11 @@ func (p *Process) StartWithContext(ctx context.Context) error {
 	// #nosec G204 - Run command is from trusted configuration, not user input
 	p.cmd = exec.CommandContext(p.ctx, "/bin/sh", "-c", p.config.Run)
 
+	// Set working directory if specified
+	if p.config.WorkDir != "" {
+		p.cmd.Dir = p.config.WorkDir
+	}
+
 	// Set up pipes
 	var err error
 	p.stdin, err = p.cmd.StdinPipe()
@@ -137,6 +142,7 @@ func (p *Process) WriteEvent(event string) error {
 }
 
 // ReadCommand reads a command from the process stdout.
+// Returns context.DeadlineExceeded on timeout without closing the pipe.
 func (p *Process) ReadCommand(ctx context.Context) (string, error) {
 	// Use a goroutine to allow context cancellation
 	type result struct {
@@ -162,13 +168,8 @@ func (p *Process) ReadCommand(ctx context.Context) (string, error) {
 	case r := <-ch:
 		return r.line, r.err
 	case <-ctx.Done():
-		// Close stdout to unblock the goroutine waiting on ReadString.
-		// This prevents goroutine leaks when context times out.
-		p.mu.Lock()
-		if p.stdout != nil {
-			_ = p.stdout.Close()
-		}
-		p.mu.Unlock()
+		// Don't close stdout on timeout - we want to keep reading.
+		// The goroutine will block until data arrives or process exits.
 		return "", ctx.Err()
 	}
 }
