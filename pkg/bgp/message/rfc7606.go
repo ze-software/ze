@@ -59,6 +59,57 @@ const (
 	attrCodeLargeCommunity uint8 = 32
 )
 
+// Attribute flags bits (RFC 4271 Section 4.3).
+const (
+	attrFlagOptional   uint8 = 0x80 // Bit 0: Optional (1) vs Well-known (0)
+	attrFlagTransitive uint8 = 0x40 // Bit 1: Transitive (1) vs Non-transitive (0)
+)
+
+// wellKnownAttrs lists attributes that are well-known (not optional).
+// Well-known attributes must NOT have the Optional bit set.
+// Well-known attributes MUST have the Transitive bit set.
+var wellKnownAttrs = map[uint8]bool{
+	attrCodeOrigin:    true,
+	attrCodeASPath:    true,
+	attrCodeNextHop:   true,
+	attrCodeLocalPref: true, // Well-known for IBGP
+	attrCodeAtomicAgg: true,
+}
+
+// validateAttributeFlags validates attribute flags per RFC 7606 Section 3.c.
+//
+// Well-known attributes must:
+// - NOT have the Optional bit set (they are mandatory)
+// - MUST have the Transitive bit set
+//
+// Returns nil if valid, or RFC7606ValidationResult with treat-as-withdraw action.
+func validateAttributeFlags(code uint8, flags uint8) *RFC7606ValidationResult {
+	if !wellKnownAttrs[code] {
+		// Optional attribute - flags not restricted
+		return nil
+	}
+
+	// Well-known attribute: must NOT be optional
+	if flags&attrFlagOptional != 0 {
+		return &RFC7606ValidationResult{
+			Action:      RFC7606ActionTreatAsWithdraw,
+			AttrCode:    code,
+			Description: fmt.Sprintf("RFC 7606 Section 3.c: well-known attribute %d marked as optional", code),
+		}
+	}
+
+	// Well-known attribute: must be transitive
+	if flags&attrFlagTransitive == 0 {
+		return &RFC7606ValidationResult{
+			Action:      RFC7606ActionTreatAsWithdraw,
+			AttrCode:    code,
+			Description: fmt.Sprintf("RFC 7606 Section 3.c: well-known attribute %d not transitive", code),
+		}
+	}
+
+	return nil
+}
+
 // ValidateUpdateRFC7606 validates an UPDATE message per RFC 7606.
 //
 // RFC 7606 revises error handling for UPDATE messages to minimize session resets.
@@ -69,10 +120,11 @@ const (
 //   - pathAttrs: Raw path attributes bytes from UPDATE message
 //   - hasNLRI: Whether the UPDATE has NLRI (for mandatory attribute checking)
 //   - isIBGP: Whether this is an IBGP session (affects LOCAL_PREF, ORIGINATOR_ID, CLUSTER_LIST)
+//   - asn4: Whether 4-octet AS capability is negotiated (affects AS_PATH, AGGREGATOR length)
 //
 // Returns:
 //   - ValidationResult with action to take and error details
-func ValidateUpdateRFC7606(pathAttrs []byte, hasNLRI bool, isIBGP bool) *RFC7606ValidationResult {
+func ValidateUpdateRFC7606(pathAttrs []byte, hasNLRI bool, isIBGP bool, asn4 bool) *RFC7606ValidationResult {
 	if len(pathAttrs) == 0 {
 		// Empty path attributes with NLRI = missing mandatory attributes
 		if hasNLRI {
@@ -87,6 +139,9 @@ func ValidateUpdateRFC7606(pathAttrs []byte, hasNLRI bool, isIBGP bool) *RFC7606
 	// Track which mandatory attributes are present
 	var hasOrigin, hasASPath, hasNextHop bool
 	var mpReachCount, mpUnreachCount int
+
+	// RFC 7606 Section 3.g: Track seen attribute codes to detect duplicates
+	seenCodes := make(map[uint8]bool)
 
 	// Parse attributes
 	pos := 0
@@ -138,8 +193,22 @@ func ValidateUpdateRFC7606(pathAttrs []byte, hasNLRI bool, isIBGP bool) *RFC7606
 		attrData := pathAttrs[pos : pos+attrLen]
 		pos += attrLen
 
+		// RFC 7606 Section 3.c: Validate attribute flags
+		if flagsResult := validateAttributeFlags(attrCode, flags); flagsResult != nil {
+			return flagsResult
+		}
+
+		// RFC 7606 Section 3.g: Handle duplicate attributes
+		// MP_REACH/MP_UNREACH duplicates are handled below with session-reset
+		// Other duplicates: discard all but first (skip validation/tracking)
+		if seenCodes[attrCode] && attrCode != attrCodeMPReachNLRI && attrCode != attrCodeMPUnreachNLRI {
+			// Skip duplicate - already processed first occurrence
+			continue
+		}
+		seenCodes[attrCode] = true
+
 		// Validate specific attributes per RFC 7606 Section 7
-		result := validateAttribute(attrCode, attrLen, attrData, isIBGP)
+		result := validateAttribute(attrCode, attrLen, attrData, isIBGP, asn4)
 		if result != nil && result.Action != RFC7606ActionNone {
 			return result
 		}
@@ -218,8 +287,7 @@ func ValidateUpdateRFC7606(pathAttrs []byte, hasNLRI bool, isIBGP bool) *RFC7606
 }
 
 // validateAttribute checks a single attribute per RFC 7606 Section 7.
-// TODO: Add asn4 parameter when ValidateUpdateRFC7606 signature is updated (Phase 3).
-func validateAttribute(code uint8, length int, attrData []byte, isIBGP bool) *RFC7606ValidationResult {
+func validateAttribute(code uint8, length int, attrData []byte, isIBGP bool, asn4 bool) *RFC7606ValidationResult {
 	switch code {
 	case attrCodeOrigin:
 		// RFC 7606 Section 7.1: ORIGIN must be length 1
@@ -241,8 +309,7 @@ func validateAttribute(code uint8, length int, attrData []byte, isIBGP bool) *RF
 
 	case attrCodeASPath:
 		// RFC 7606 Section 7.2: Validate AS_PATH segment structure
-		// Note: Using 2-byte ASN size. Will be parameterized in Phase 3.
-		if result := validateASPath(attrData, false); result != nil {
+		if result := validateASPath(attrData, asn4); result != nil {
 			return result
 		}
 
@@ -296,13 +363,19 @@ func validateAttribute(code uint8, length int, attrData []byte, isIBGP bool) *RF
 		}
 
 	case attrCodeAggregator:
-		// RFC 7606 Section 7.7: AGGREGATOR must be 6 (2-byte AS) or 8 (4-byte AS)
-		// Action is attribute-discard
-		if length != 6 && length != 8 {
+		// RFC 7606 Section 7.7: AGGREGATOR length depends on 4-octet AS capability
+		// - asn4=false: length must be 6 (2-byte AS + 4-byte Router ID)
+		// - asn4=true: length must be 8 (4-byte AS + 4-byte Router ID)
+		// Action is attribute-discard for wrong length
+		expectedLen := 6
+		if asn4 {
+			expectedLen = 8
+		}
+		if length != expectedLen {
 			return &RFC7606ValidationResult{
 				Action:      RFC7606ActionAttributeDiscard,
 				AttrCode:    code,
-				Description: fmt.Sprintf("RFC 7606 Section 7.7: AGGREGATOR length %d not 6 or 8", length),
+				Description: fmt.Sprintf("RFC 7606 Section 7.7: AGGREGATOR length %d, expected %d (asn4=%t)", length, expectedLen, asn4),
 			}
 		}
 

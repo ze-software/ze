@@ -13,7 +13,7 @@ func TestRFC7606MalformedOriginLength(t *testing.T) {
 		0x40, 0x01, 0x02, 0x00, 0x00, // ORIGIN len=2 (invalid)
 	}
 
-	result := ValidateUpdateRFC7606(pathAttrs, true, false)
+	result := ValidateUpdateRFC7606(pathAttrs, true, false, false)
 	require.Equal(t, RFC7606ActionTreatAsWithdraw, result.Action)
 	require.Equal(t, uint8(1), result.AttrCode)
 	require.Contains(t, result.Description, "7.1")
@@ -33,7 +33,7 @@ func TestRFC7606MalformedCommunityLength(t *testing.T) {
 		0xc0, 0x08, 0x05, 0x00, 0x01, 0x00, 0x02, 0x03,
 	}
 
-	result := ValidateUpdateRFC7606(pathAttrs, true, false)
+	result := ValidateUpdateRFC7606(pathAttrs, true, false, false)
 	require.Equal(t, RFC7606ActionTreatAsWithdraw, result.Action)
 	require.Equal(t, uint8(8), result.AttrCode)
 	require.Contains(t, result.Description, "7.8")
@@ -49,7 +49,7 @@ func TestRFC7606MissingOrigin(t *testing.T) {
 		0x40, 0x03, 0x04, 0xc0, 0x00, 0x02, 0x01,
 	}
 
-	result := ValidateUpdateRFC7606(pathAttrs, true, false)
+	result := ValidateUpdateRFC7606(pathAttrs, true, false, false)
 	require.Equal(t, RFC7606ActionTreatAsWithdraw, result.Action)
 	require.Equal(t, uint8(1), result.AttrCode)
 	require.Contains(t, result.Description, "ORIGIN")
@@ -65,7 +65,7 @@ func TestRFC7606MissingASPath(t *testing.T) {
 		0x40, 0x03, 0x04, 0xc0, 0x00, 0x02, 0x01,
 	}
 
-	result := ValidateUpdateRFC7606(pathAttrs, true, false)
+	result := ValidateUpdateRFC7606(pathAttrs, true, false, false)
 	require.Equal(t, RFC7606ActionTreatAsWithdraw, result.Action)
 	require.Equal(t, uint8(2), result.AttrCode)
 	require.Contains(t, result.Description, "AS_PATH")
@@ -81,7 +81,7 @@ func TestRFC7606MalformedAtomicAggregate(t *testing.T) {
 		0x40, 0x06, 0x01, 0x00, // ATOMIC_AGGREGATE len=1 (invalid)
 	}
 
-	result := ValidateUpdateRFC7606(pathAttrs, true, false)
+	result := ValidateUpdateRFC7606(pathAttrs, true, false, false)
 	require.Equal(t, RFC7606ActionAttributeDiscard, result.Action)
 	require.Equal(t, uint8(6), result.AttrCode)
 	require.Contains(t, result.Description, "7.6")
@@ -95,14 +95,14 @@ func TestRFC7606ValidUpdate(t *testing.T) {
 		0x40, 0x03, 0x04, 0xc0, 0x00, 0x02, 0x01, // NEXT_HOP = 192.0.2.1
 	}
 
-	result := ValidateUpdateRFC7606(pathAttrs, true, false)
+	result := ValidateUpdateRFC7606(pathAttrs, true, false, false)
 	require.Equal(t, RFC7606ActionNone, result.Action)
 }
 
 // TestRFC7606EmptyWithdrawal verifies withdraw-only UPDATE is valid.
 func TestRFC7606EmptyWithdrawal(t *testing.T) {
 	// No path attributes, no NLRI = withdrawal only (valid)
-	result := ValidateUpdateRFC7606(nil, false, false)
+	result := ValidateUpdateRFC7606(nil, false, false, false)
 	require.Equal(t, RFC7606ActionNone, result.Action)
 }
 
@@ -128,7 +128,7 @@ func TestRFC7606MultipleMPReach(t *testing.T) {
 		0x00, // Reserved
 	}
 
-	result := ValidateUpdateRFC7606(pathAttrs, false, false)
+	result := ValidateUpdateRFC7606(pathAttrs, false, false, false)
 	require.Equal(t, RFC7606ActionSessionReset, result.Action)
 	require.Contains(t, result.Description, "3.g")
 }
@@ -143,7 +143,7 @@ func TestRFC7606ExtendedCommunityLength(t *testing.T) {
 		0xc0, 0x10, 0x05, 0x00, 0x01, 0x00, 0x02, 0x03,
 	}
 
-	result := ValidateUpdateRFC7606(pathAttrs, true, false)
+	result := ValidateUpdateRFC7606(pathAttrs, true, false, false)
 	require.Equal(t, RFC7606ActionTreatAsWithdraw, result.Action)
 	require.Equal(t, uint8(16), result.AttrCode)
 	require.Contains(t, result.Description, "7.14")
@@ -159,7 +159,7 @@ func TestRFC7606LargeCommunityLength(t *testing.T) {
 		0xc0, 0x20, 0x0a, 0x00, 0x01, 0x00, 0x02, 0x00, 0x03, 0x00, 0x04, 0x00, 0x05,
 	}
 
-	result := ValidateUpdateRFC7606(pathAttrs, true, false)
+	result := ValidateUpdateRFC7606(pathAttrs, true, false, false)
 	require.Equal(t, RFC7606ActionTreatAsWithdraw, result.Action)
 	require.Equal(t, uint8(32), result.AttrCode)
 	require.Contains(t, result.Description, "8092")
@@ -185,7 +185,7 @@ func TestRFC7606ASPathValidSequence(t *testing.T) {
 		0x40, 0x03, 0x04, 0xc0, 0x00, 0x02, 0x01, // NEXT_HOP
 	}
 
-	result := ValidateUpdateRFC7606(pathAttrs, true, false)
+	result := ValidateUpdateRFC7606(pathAttrs, true, false, false)
 	require.Equal(t, RFC7606ActionNone, result.Action)
 }
 
@@ -204,7 +204,7 @@ func TestRFC7606ASPathValidSet(t *testing.T) {
 		0x40, 0x03, 0x04, 0xc0, 0x00, 0x02, 0x01, // NEXT_HOP
 	}
 
-	result := ValidateUpdateRFC7606(pathAttrs, true, false)
+	result := ValidateUpdateRFC7606(pathAttrs, true, false, false)
 	require.Equal(t, RFC7606ActionNone, result.Action)
 }
 
@@ -222,7 +222,7 @@ func TestRFC7606ASPathUnrecognizedSegmentType(t *testing.T) {
 		0x40, 0x03, 0x04, 0xc0, 0x00, 0x02, 0x01, // NEXT_HOP
 	}
 
-	result := ValidateUpdateRFC7606(pathAttrs, true, false)
+	result := ValidateUpdateRFC7606(pathAttrs, true, false, false)
 	require.Equal(t, RFC7606ActionTreatAsWithdraw, result.Action)
 	require.Equal(t, uint8(2), result.AttrCode)
 	require.Contains(t, result.Description, "segment type")
@@ -242,7 +242,7 @@ func TestRFC7606ASPathSegmentOverrun(t *testing.T) {
 		0x40, 0x03, 0x04, 0xc0, 0x00, 0x02, 0x01, // NEXT_HOP
 	}
 
-	result := ValidateUpdateRFC7606(pathAttrs, true, false)
+	result := ValidateUpdateRFC7606(pathAttrs, true, false, false)
 	require.Equal(t, RFC7606ActionTreatAsWithdraw, result.Action)
 	require.Equal(t, uint8(2), result.AttrCode)
 	require.Contains(t, result.Description, "overrun")
@@ -263,7 +263,7 @@ func TestRFC7606ASPathSegmentUnderrun(t *testing.T) {
 		0x40, 0x03, 0x04, 0xc0, 0x00, 0x02, 0x01, // NEXT_HOP
 	}
 
-	result := ValidateUpdateRFC7606(pathAttrs, true, false)
+	result := ValidateUpdateRFC7606(pathAttrs, true, false, false)
 	require.Equal(t, RFC7606ActionTreatAsWithdraw, result.Action)
 	require.Equal(t, uint8(2), result.AttrCode)
 	require.Contains(t, result.Description, "underrun")
@@ -282,7 +282,7 @@ func TestRFC7606ASPathZeroSegmentLength(t *testing.T) {
 		0x40, 0x03, 0x04, 0xc0, 0x00, 0x02, 0x01, // NEXT_HOP
 	}
 
-	result := ValidateUpdateRFC7606(pathAttrs, true, false)
+	result := ValidateUpdateRFC7606(pathAttrs, true, false, false)
 	require.Equal(t, RFC7606ActionTreatAsWithdraw, result.Action)
 	require.Equal(t, uint8(2), result.AttrCode)
 	require.Contains(t, result.Description, "zero")
@@ -303,7 +303,7 @@ func TestRFC7606OriginValueIGP(t *testing.T) {
 		0x40, 0x03, 0x04, 0xc0, 0x00, 0x02, 0x01, // NEXT_HOP
 	}
 
-	result := ValidateUpdateRFC7606(pathAttrs, true, false)
+	result := ValidateUpdateRFC7606(pathAttrs, true, false, false)
 	require.Equal(t, RFC7606ActionNone, result.Action)
 }
 
@@ -318,7 +318,7 @@ func TestRFC7606OriginValueEGP(t *testing.T) {
 		0x40, 0x03, 0x04, 0xc0, 0x00, 0x02, 0x01, // NEXT_HOP
 	}
 
-	result := ValidateUpdateRFC7606(pathAttrs, true, false)
+	result := ValidateUpdateRFC7606(pathAttrs, true, false, false)
 	require.Equal(t, RFC7606ActionNone, result.Action)
 }
 
@@ -333,7 +333,7 @@ func TestRFC7606OriginValueIncomplete(t *testing.T) {
 		0x40, 0x03, 0x04, 0xc0, 0x00, 0x02, 0x01, // NEXT_HOP
 	}
 
-	result := ValidateUpdateRFC7606(pathAttrs, true, false)
+	result := ValidateUpdateRFC7606(pathAttrs, true, false, false)
 	require.Equal(t, RFC7606ActionNone, result.Action)
 }
 
@@ -348,7 +348,7 @@ func TestRFC7606OriginValueInvalid(t *testing.T) {
 		0x40, 0x03, 0x04, 0xc0, 0x00, 0x02, 0x01, // NEXT_HOP
 	}
 
-	result := ValidateUpdateRFC7606(pathAttrs, true, false)
+	result := ValidateUpdateRFC7606(pathAttrs, true, false, false)
 	require.Equal(t, RFC7606ActionTreatAsWithdraw, result.Action)
 	require.Equal(t, uint8(1), result.AttrCode)
 	require.Contains(t, result.Description, "7.1")
@@ -377,7 +377,7 @@ func TestRFC7606MPReachIPv6NextHopValid(t *testing.T) {
 		0x00, // Reserved (SNPA)
 	}
 
-	result := ValidateUpdateRFC7606(pathAttrs, false, false)
+	result := ValidateUpdateRFC7606(pathAttrs, false, false, false)
 	require.Equal(t, RFC7606ActionNone, result.Action)
 }
 
@@ -403,7 +403,7 @@ func TestRFC7606MPReachIPv6NextHopDualValid(t *testing.T) {
 		0x00, // Reserved (SNPA)
 	}
 
-	result := ValidateUpdateRFC7606(pathAttrs, false, false)
+	result := ValidateUpdateRFC7606(pathAttrs, false, false, false)
 	require.Equal(t, RFC7606ActionNone, result.Action)
 }
 
@@ -424,7 +424,7 @@ func TestRFC7606MPReachIPv6NextHopInvalid(t *testing.T) {
 		0x00, // Reserved (SNPA)
 	}
 
-	result := ValidateUpdateRFC7606(pathAttrs, false, false)
+	result := ValidateUpdateRFC7606(pathAttrs, false, false, false)
 	require.Equal(t, RFC7606ActionSessionReset, result.Action)
 	require.Equal(t, uint8(14), result.AttrCode)
 	require.Contains(t, result.Description, "7.11")
@@ -447,7 +447,7 @@ func TestRFC7606MPReachIPv4NextHopValid(t *testing.T) {
 		0x00, // Reserved (SNPA)
 	}
 
-	result := ValidateUpdateRFC7606(pathAttrs, false, false)
+	result := ValidateUpdateRFC7606(pathAttrs, false, false, false)
 	require.Equal(t, RFC7606ActionNone, result.Action)
 }
 
@@ -468,7 +468,7 @@ func TestRFC7606MPReachIPv4NextHopInvalid(t *testing.T) {
 		0x00, // Reserved (SNPA)
 	}
 
-	result := ValidateUpdateRFC7606(pathAttrs, false, false)
+	result := ValidateUpdateRFC7606(pathAttrs, false, false, false)
 	require.Equal(t, RFC7606ActionSessionReset, result.Action)
 	require.Equal(t, uint8(14), result.AttrCode)
 	require.Contains(t, result.Description, "7.11")
@@ -494,7 +494,7 @@ func TestRFC7606MPReachVPNv4NextHopValid(t *testing.T) {
 		0x00, // Reserved (SNPA)
 	}
 
-	result := ValidateUpdateRFC7606(pathAttrs, false, false)
+	result := ValidateUpdateRFC7606(pathAttrs, false, false, false)
 	require.Equal(t, RFC7606ActionNone, result.Action)
 }
 
@@ -515,7 +515,7 @@ func TestRFC7606MPReachVPNv4NextHopInvalid(t *testing.T) {
 		0x00, // Reserved (SNPA)
 	}
 
-	result := ValidateUpdateRFC7606(pathAttrs, false, false)
+	result := ValidateUpdateRFC7606(pathAttrs, false, false, false)
 	require.Equal(t, RFC7606ActionSessionReset, result.Action)
 	require.Equal(t, uint8(14), result.AttrCode)
 	require.Contains(t, result.Description, "7.11")
@@ -536,7 +536,7 @@ func TestRFC7606MPReachTooShort(t *testing.T) {
 		0x00, // NH_LEN (incomplete, no reserved byte)
 	}
 
-	result := ValidateUpdateRFC7606(pathAttrs, false, false)
+	result := ValidateUpdateRFC7606(pathAttrs, false, false, false)
 	require.Equal(t, RFC7606ActionSessionReset, result.Action)
 	require.Equal(t, uint8(14), result.AttrCode)
 }
@@ -667,7 +667,7 @@ func TestRFC7606LocalPrefEBGPDiscard(t *testing.T) {
 	}
 
 	// EBGP session (isIBGP=false)
-	result := ValidateUpdateRFC7606(pathAttrs, true, false)
+	result := ValidateUpdateRFC7606(pathAttrs, true, false, false)
 	require.Equal(t, RFC7606ActionAttributeDiscard, result.Action)
 	require.Equal(t, uint8(5), result.AttrCode)
 	require.Contains(t, result.Description, "7.5")
@@ -686,7 +686,7 @@ func TestRFC7606LocalPrefIBGPValid(t *testing.T) {
 	}
 
 	// IBGP session (isIBGP=true)
-	result := ValidateUpdateRFC7606(pathAttrs, true, true)
+	result := ValidateUpdateRFC7606(pathAttrs, true, true, false)
 	require.Equal(t, RFC7606ActionNone, result.Action)
 }
 
@@ -703,7 +703,7 @@ func TestRFC7606LocalPrefIBGPInvalid(t *testing.T) {
 	}
 
 	// IBGP session (isIBGP=true)
-	result := ValidateUpdateRFC7606(pathAttrs, true, true)
+	result := ValidateUpdateRFC7606(pathAttrs, true, true, false)
 	require.Equal(t, RFC7606ActionTreatAsWithdraw, result.Action)
 	require.Equal(t, uint8(5), result.AttrCode)
 	require.Contains(t, result.Description, "7.5")
@@ -726,7 +726,7 @@ func TestRFC7606OriginatorIDEBGPDiscard(t *testing.T) {
 	}
 
 	// EBGP session (isIBGP=false)
-	result := ValidateUpdateRFC7606(pathAttrs, true, false)
+	result := ValidateUpdateRFC7606(pathAttrs, true, false, false)
 	require.Equal(t, RFC7606ActionAttributeDiscard, result.Action)
 	require.Equal(t, uint8(9), result.AttrCode)
 	require.Contains(t, result.Description, "7.9")
@@ -745,7 +745,7 @@ func TestRFC7606OriginatorIDIBGPValid(t *testing.T) {
 	}
 
 	// IBGP session (isIBGP=true)
-	result := ValidateUpdateRFC7606(pathAttrs, true, true)
+	result := ValidateUpdateRFC7606(pathAttrs, true, true, false)
 	require.Equal(t, RFC7606ActionNone, result.Action)
 }
 
@@ -762,7 +762,7 @@ func TestRFC7606OriginatorIDIBGPInvalid(t *testing.T) {
 	}
 
 	// IBGP session (isIBGP=true)
-	result := ValidateUpdateRFC7606(pathAttrs, true, true)
+	result := ValidateUpdateRFC7606(pathAttrs, true, true, false)
 	require.Equal(t, RFC7606ActionTreatAsWithdraw, result.Action)
 	require.Equal(t, uint8(9), result.AttrCode)
 	require.Contains(t, result.Description, "7.9")
@@ -785,7 +785,7 @@ func TestRFC7606ClusterListEBGPDiscard(t *testing.T) {
 	}
 
 	// EBGP session (isIBGP=false)
-	result := ValidateUpdateRFC7606(pathAttrs, true, false)
+	result := ValidateUpdateRFC7606(pathAttrs, true, false, false)
 	require.Equal(t, RFC7606ActionAttributeDiscard, result.Action)
 	require.Equal(t, uint8(10), result.AttrCode)
 	require.Contains(t, result.Description, "7.10")
@@ -807,7 +807,7 @@ func TestRFC7606ClusterListIBGPValid(t *testing.T) {
 	}
 
 	// IBGP session (isIBGP=true)
-	result := ValidateUpdateRFC7606(pathAttrs, true, true)
+	result := ValidateUpdateRFC7606(pathAttrs, true, true, false)
 	require.Equal(t, RFC7606ActionNone, result.Action)
 }
 
@@ -824,8 +824,234 @@ func TestRFC7606ClusterListIBGPInvalid(t *testing.T) {
 	}
 
 	// IBGP session (isIBGP=true)
-	result := ValidateUpdateRFC7606(pathAttrs, true, true)
+	result := ValidateUpdateRFC7606(pathAttrs, true, true, false)
 	require.Equal(t, RFC7606ActionTreatAsWithdraw, result.Action)
 	require.Equal(t, uint8(10), result.AttrCode)
 	require.Contains(t, result.Description, "7.10")
+}
+
+// =============================================================================
+// RFC 7606 Section 3.c - Attribute Flags Validation Tests
+// =============================================================================
+
+// TestRFC7606FlagsWellKnownMarkedOptional verifies RFC 7606 Section 3.c.
+//
+// VALIDATES: Well-known attribute with Optional bit set triggers treat-as-withdraw.
+// PREVENTS: Accepting well-known attributes incorrectly marked as optional.
+func TestRFC7606FlagsWellKnownMarkedOptional(t *testing.T) {
+	pathAttrs := []byte{
+		// ORIGIN with Optional bit set (0xc0 = optional + transitive)
+		// Should be 0x40 (transitive only, not optional)
+		0xc0, 0x01, 0x01, 0x00, // ORIGIN with Optional=1 (invalid)
+		0x40, 0x02, 0x00, // AS_PATH (empty)
+		0x40, 0x03, 0x04, 0xc0, 0x00, 0x02, 0x01, // NEXT_HOP
+	}
+
+	result := ValidateUpdateRFC7606(pathAttrs, true, false, false)
+	require.Equal(t, RFC7606ActionTreatAsWithdraw, result.Action)
+	require.Equal(t, uint8(1), result.AttrCode)
+	require.Contains(t, result.Description, "3.c")
+}
+
+// TestRFC7606FlagsWellKnownNotTransitive verifies RFC 7606 Section 3.c.
+//
+// VALIDATES: Well-known attribute without Transitive bit triggers treat-as-withdraw.
+// PREVENTS: Accepting well-known attributes incorrectly marked as non-transitive.
+func TestRFC7606FlagsWellKnownNotTransitive(t *testing.T) {
+	pathAttrs := []byte{
+		0x40, 0x01, 0x01, 0x00, // ORIGIN (valid)
+		// AS_PATH without Transitive bit (0x00 instead of 0x40)
+		0x00, 0x02, 0x00, // AS_PATH with Transitive=0 (invalid)
+		0x40, 0x03, 0x04, 0xc0, 0x00, 0x02, 0x01, // NEXT_HOP
+	}
+
+	result := ValidateUpdateRFC7606(pathAttrs, true, false, false)
+	require.Equal(t, RFC7606ActionTreatAsWithdraw, result.Action)
+	require.Equal(t, uint8(2), result.AttrCode)
+	require.Contains(t, result.Description, "3.c")
+}
+
+// TestRFC7606FlagsOptionalAttributeValid verifies optional attributes pass.
+//
+// VALIDATES: Optional attribute with Optional bit set is accepted.
+// PREVENTS: False positives on correctly flagged optional attributes.
+func TestRFC7606FlagsOptionalAttributeValid(t *testing.T) {
+	pathAttrs := []byte{
+		0x40, 0x01, 0x01, 0x00, // ORIGIN = IGP
+		0x40, 0x02, 0x00, // AS_PATH (empty)
+		0x40, 0x03, 0x04, 0xc0, 0x00, 0x02, 0x01, // NEXT_HOP
+		// MED (code=4) is optional non-transitive: 0x80 (optional, not transitive)
+		0x80, 0x04, 0x04, 0x00, 0x00, 0x00, 0x64, // MED=100
+	}
+
+	result := ValidateUpdateRFC7606(pathAttrs, true, false, false)
+	require.Equal(t, RFC7606ActionNone, result.Action)
+}
+
+// =============================================================================
+// RFC 7606 Section 3.g - Duplicate Attribute Tests
+// =============================================================================
+
+// TestRFC7606DuplicateOrigin verifies RFC 7606 Section 3.g.
+//
+// VALIDATES: Duplicate well-known attribute discards all but first.
+// PREVENTS: Processing conflicting attribute values.
+func TestRFC7606DuplicateOrigin(t *testing.T) {
+	pathAttrs := []byte{
+		0x40, 0x01, 0x01, 0x00, // ORIGIN = IGP (first)
+		0x40, 0x02, 0x00, // AS_PATH (empty)
+		0x40, 0x03, 0x04, 0xc0, 0x00, 0x02, 0x01, // NEXT_HOP
+		0x40, 0x01, 0x01, 0x02, // ORIGIN = INCOMPLETE (duplicate - should be discarded)
+	}
+
+	// Per RFC 7606 3.g: discard all but first, no error
+	result := ValidateUpdateRFC7606(pathAttrs, true, false, false)
+	require.Equal(t, RFC7606ActionNone, result.Action)
+}
+
+// TestRFC7606DuplicateMED verifies RFC 7606 Section 3.g for optional attrs.
+//
+// VALIDATES: Duplicate optional attribute discards all but first.
+// PREVENTS: Processing conflicting attribute values.
+func TestRFC7606DuplicateMED(t *testing.T) {
+	pathAttrs := []byte{
+		0x40, 0x01, 0x01, 0x00, // ORIGIN = IGP
+		0x40, 0x02, 0x00, // AS_PATH (empty)
+		0x40, 0x03, 0x04, 0xc0, 0x00, 0x02, 0x01, // NEXT_HOP
+		0x80, 0x04, 0x04, 0x00, 0x00, 0x00, 0x64, // MED=100 (first)
+		0x80, 0x04, 0x04, 0x00, 0x00, 0x00, 0xc8, // MED=200 (duplicate)
+	}
+
+	// Per RFC 7606 3.g: discard all but first, no error
+	result := ValidateUpdateRFC7606(pathAttrs, true, false, false)
+	require.Equal(t, RFC7606ActionNone, result.Action)
+}
+
+// =============================================================================
+// RFC 7606 Section 7.7 - AGGREGATOR with 4-Octet AS Context Tests
+// =============================================================================
+
+// TestRFC7606AggregatorLen6NoASN4 verifies valid AGGREGATOR without 4-octet AS.
+//
+// VALIDATES: AGGREGATOR with length 6 is valid when asn4=false.
+// PREVENTS: False positives for correctly sized AGGREGATOR.
+func TestRFC7606AggregatorLen6NoASN4(t *testing.T) {
+	pathAttrs := []byte{
+		0x40, 0x01, 0x01, 0x00, // ORIGIN = IGP
+		0x40, 0x02, 0x00, // AS_PATH (empty)
+		0x40, 0x03, 0x04, 0xc0, 0x00, 0x02, 0x01, // NEXT_HOP
+		// AGGREGATOR: flags=0xc0 (optional transitive), code=7, len=6
+		0xc0, 0x07, 0x06,
+		0xfd, 0xe9, // AS 65001 (2 bytes)
+		0xc0, 0x00, 0x02, 0x01, // Router ID 192.0.2.1
+	}
+
+	// asn4=false, so length 6 is correct
+	result := ValidateUpdateRFC7606(pathAttrs, true, false, false)
+	require.Equal(t, RFC7606ActionNone, result.Action)
+}
+
+// TestRFC7606AggregatorLen8WithASN4 verifies valid AGGREGATOR with 4-octet AS.
+//
+// VALIDATES: AGGREGATOR with length 8 is valid when asn4=true.
+// PREVENTS: False positives for correctly sized AGGREGATOR.
+func TestRFC7606AggregatorLen8WithASN4(t *testing.T) {
+	pathAttrs := []byte{
+		0x40, 0x01, 0x01, 0x00, // ORIGIN = IGP
+		0x40, 0x02, 0x00, // AS_PATH (empty)
+		0x40, 0x03, 0x04, 0xc0, 0x00, 0x02, 0x01, // NEXT_HOP
+		// AGGREGATOR: flags=0xc0 (optional transitive), code=7, len=8
+		0xc0, 0x07, 0x08,
+		0x00, 0x00, 0xfd, 0xe9, // AS 65001 (4 bytes)
+		0xc0, 0x00, 0x02, 0x01, // Router ID 192.0.2.1
+	}
+
+	// asn4=true, so length 8 is correct
+	result := ValidateUpdateRFC7606(pathAttrs, true, false, true)
+	require.Equal(t, RFC7606ActionNone, result.Action)
+}
+
+// TestRFC7606AggregatorLen8NoASN4Invalid verifies RFC 7606 Section 7.7.
+//
+// VALIDATES: AGGREGATOR with length 8 when asn4=false triggers attribute-discard.
+// PREVENTS: Accepting AGGREGATOR with wrong size for capability.
+func TestRFC7606AggregatorLen8NoASN4Invalid(t *testing.T) {
+	pathAttrs := []byte{
+		0x40, 0x01, 0x01, 0x00, // ORIGIN = IGP
+		0x40, 0x02, 0x00, // AS_PATH (empty)
+		0x40, 0x03, 0x04, 0xc0, 0x00, 0x02, 0x01, // NEXT_HOP
+		// AGGREGATOR: len=8 but asn4=false (expects 6)
+		0xc0, 0x07, 0x08,
+		0x00, 0x00, 0xfd, 0xe9, // AS (4 bytes - wrong)
+		0xc0, 0x00, 0x02, 0x01, // Router ID
+	}
+
+	// asn4=false but length is 8 (should be 6) - attribute-discard
+	result := ValidateUpdateRFC7606(pathAttrs, true, false, false)
+	require.Equal(t, RFC7606ActionAttributeDiscard, result.Action)
+	require.Equal(t, uint8(7), result.AttrCode)
+	require.Contains(t, result.Description, "7.7")
+}
+
+// TestRFC7606AggregatorLen6WithASN4Invalid verifies RFC 7606 Section 7.7.
+//
+// VALIDATES: AGGREGATOR with length 6 when asn4=true triggers attribute-discard.
+// PREVENTS: Accepting AGGREGATOR with wrong size for capability.
+func TestRFC7606AggregatorLen6WithASN4Invalid(t *testing.T) {
+	pathAttrs := []byte{
+		0x40, 0x01, 0x01, 0x00, // ORIGIN = IGP
+		0x40, 0x02, 0x00, // AS_PATH (empty)
+		0x40, 0x03, 0x04, 0xc0, 0x00, 0x02, 0x01, // NEXT_HOP
+		// AGGREGATOR: len=6 but asn4=true (expects 8)
+		0xc0, 0x07, 0x06,
+		0xfd, 0xe9, // AS (2 bytes - wrong)
+		0xc0, 0x00, 0x02, 0x01, // Router ID
+	}
+
+	// asn4=true but length is 6 (should be 8) - attribute-discard
+	result := ValidateUpdateRFC7606(pathAttrs, true, false, true)
+	require.Equal(t, RFC7606ActionAttributeDiscard, result.Action)
+	require.Equal(t, uint8(7), result.AttrCode)
+	require.Contains(t, result.Description, "7.7")
+}
+
+// TestRFC7606ASPath4ByteASN verifies AS_PATH validation with 4-byte ASNs.
+//
+// VALIDATES: AS_PATH segment validation works correctly with asn4=true.
+// PREVENTS: AS_PATH validation errors with 4-byte ASN sessions.
+func TestRFC7606ASPath4ByteASN(t *testing.T) {
+	pathAttrs := []byte{
+		0x40, 0x01, 0x01, 0x00, // ORIGIN = IGP
+		// AS_PATH with 4-byte ASNs: type=2, len=2, AS 65001, AS 65002
+		0x40, 0x02, 0x0a, // AS_PATH, len=10 (2+4+4)
+		0x02, 0x02, // AS_SEQUENCE, 2 ASes
+		0x00, 0x00, 0xfd, 0xe9, // AS 65001 (4 bytes)
+		0x00, 0x00, 0xfd, 0xea, // AS 65002 (4 bytes)
+		0x40, 0x03, 0x04, 0xc0, 0x00, 0x02, 0x01, // NEXT_HOP
+	}
+
+	// asn4=true - should validate correctly
+	result := ValidateUpdateRFC7606(pathAttrs, true, false, true)
+	require.Equal(t, RFC7606ActionNone, result.Action)
+}
+
+// TestRFC7606ASPath4ByteASNOverrun verifies AS_PATH overrun with 4-byte ASNs.
+//
+// VALIDATES: AS_PATH segment overrun detected with asn4=true.
+// PREVENTS: Buffer overflow from malformed AS_PATH with 4-byte ASNs.
+func TestRFC7606ASPath4ByteASNOverrun(t *testing.T) {
+	pathAttrs := []byte{
+		0x40, 0x01, 0x01, 0x00, // ORIGIN = IGP
+		// AS_PATH claims 3 ASes but only room for 1 (4 bytes)
+		0x40, 0x02, 0x06, // AS_PATH, len=6
+		0x02, 0x03, // AS_SEQUENCE, 3 ASes (would need 12 bytes)
+		0x00, 0x00, 0xfd, 0xe9, // AS 65001 (only 1 AS fits)
+		0x40, 0x03, 0x04, 0xc0, 0x00, 0x02, 0x01, // NEXT_HOP
+	}
+
+	// asn4=true - should detect overrun
+	result := ValidateUpdateRFC7606(pathAttrs, true, false, true)
+	require.Equal(t, RFC7606ActionTreatAsWithdraw, result.Action)
+	require.Equal(t, uint8(2), result.AttrCode)
+	require.Contains(t, result.Description, "overrun")
 }
