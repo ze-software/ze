@@ -938,3 +938,312 @@ func TestSessionRejectsInvalidHoldTime(t *testing.T) {
 		})
 	}
 }
+
+// =============================================================================
+// RFC 7606 - Revised Error Handling for BGP UPDATE Messages
+// =============================================================================
+
+// TestSessionRFC7606MalformedOriginTreatAsWithdraw verifies RFC 7606 Section 7.1.
+//
+// RFC 7606 Section 7.1: "The [ORIGIN] attribute is considered malformed if its
+// length is not 1 or if it has an undefined value. An UPDATE message with a
+// malformed ORIGIN attribute SHALL be handled using the approach of 'treat-as-withdraw'."
+//
+// VALIDATES: Malformed ORIGIN (wrong length) triggers treat-as-withdraw, session stays up.
+//
+// PREVENTS: Session reset from recoverable attribute errors.
+func TestSessionRFC7606MalformedOriginTreatAsWithdraw(t *testing.T) {
+	// Setup: established session
+	settings := NewPeerSettings(
+		netip.MustParseAddr("192.0.2.1"),
+		65001, 65002, 0x01020301,
+	)
+	settings.Passive = true
+	settings.Capabilities = []capability.Capability{
+		&capability.ASN4{ASN: 65001},
+		&capability.Multiprotocol{AFI: capability.AFIIPv4, SAFI: capability.SAFIUnicast},
+	}
+
+	session := NewSession(settings)
+	_ = session.Start()
+
+	client, server := net.Pipe()
+	defer func() { _ = client.Close() }()
+	defer func() { _ = server.Close() }()
+
+	_ = acceptWithReader(t, session, server, client)
+
+	// Peer's OPEN with ASN4 + IPv4 unicast capabilities
+	peerOpen := &message.Open{
+		Version:       4,
+		MyAS:          65002,
+		HoldTime:      90,
+		BGPIdentifier: 0x02020302,
+		OptionalParams: []byte{
+			2, 12, // Capability param, length 12
+			65, 4, 0, 0, 0xFD, 0xEA, // ASN4 = 65002
+			1, 4, 0, 1, 0, 1, // Multiprotocol IPv4/Unicast
+		},
+	}
+	openBytes, _ := peerOpen.Pack(nil)
+
+	go func() {
+		_, _ = client.Write(openBytes)
+		buf := make([]byte, 4096)
+		_, _ = client.Read(buf) // Drain KEEPALIVE
+	}()
+
+	err := session.ReadAndProcess()
+	require.NoError(t, err)
+	require.Equal(t, fsm.StateOpenConfirm, session.State())
+
+	// Send KEEPALIVE to reach Established
+	keepalive := message.NewKeepalive()
+	keepaliveBytes, _ := keepalive.Pack(nil)
+
+	go func() {
+		_, _ = client.Write(keepaliveBytes)
+	}()
+
+	err = session.ReadAndProcess()
+	require.NoError(t, err)
+	require.Equal(t, fsm.StateEstablished, session.State())
+
+	// Build UPDATE with MALFORMED ORIGIN (length=2 instead of 1)
+	// RFC 7606: ORIGIN must be length 1
+	pathAttrs := []byte{
+		// ORIGIN with wrong length (2 bytes instead of 1)
+		0x40, 0x01, 0x02, 0x00, 0x00, // Flags, Code=1, Len=2, Value=0x0000
+		// AS_PATH (empty, valid for iBGP or originating router)
+		0x40, 0x02, 0x00,
+		// NEXT_HOP = 192.0.2.1
+		0x40, 0x03, 0x04, 0xc0, 0x00, 0x02, 0x01,
+	}
+
+	// Build UPDATE with IPv4 NLRI: 10.0.0.0/8
+	update := make([]byte, 0, 50)
+	update = append(update, 0x00, 0x00) // Withdrawn routes length = 0
+	update = append(update, byte(len(pathAttrs)>>8), byte(len(pathAttrs)))
+	update = append(update, pathAttrs...)
+	update = append(update, 0x08, 0x0a) // NLRI: 10.0.0.0/8
+
+	// Pack as BGP message
+	hdr := make([]byte, 19)
+	for i := 0; i < 16; i++ {
+		hdr[i] = 0xff
+	}
+	msgLen := uint16(19 + len(update)) // #nosec G115 -- test message size is small
+	hdr[16] = byte(msgLen >> 8)
+	hdr[17] = byte(msgLen)
+	hdr[18] = byte(message.TypeUPDATE)
+
+	hdr = append(hdr, update...) //nolint:gocritic // test code
+
+	go func() {
+		_, _ = client.Write(hdr)
+		// Drain any potential NOTIFICATION response
+		buf := make([]byte, 4096)
+		_, _ = client.Read(buf)
+	}()
+
+	// RFC 7606: treat-as-withdraw should NOT cause session reset
+	err = session.ReadAndProcess()
+	require.NoError(t, err, "RFC 7606: malformed ORIGIN should trigger treat-as-withdraw, not session reset")
+	require.Equal(t, fsm.StateEstablished, session.State(), "session should remain Established")
+}
+
+// TestSessionRFC7606MalformedCommunityTreatAsWithdraw verifies RFC 7606 Section 7.8.
+//
+// RFC 7606 Section 7.8: "The Community attribute SHALL be considered malformed
+// if its length is not a non-zero multiple of 4. An UPDATE message with a
+// malformed Community attribute SHALL be handled using the approach of 'treat-as-withdraw'."
+//
+// VALIDATES: Malformed Community (wrong length) triggers treat-as-withdraw.
+//
+// PREVENTS: Session reset from Community attribute parsing errors.
+func TestSessionRFC7606MalformedCommunityTreatAsWithdraw(t *testing.T) {
+	settings := NewPeerSettings(
+		netip.MustParseAddr("192.0.2.1"),
+		65001, 65002, 0x01020301,
+	)
+	settings.Passive = true
+	settings.Capabilities = []capability.Capability{
+		&capability.ASN4{ASN: 65001},
+		&capability.Multiprotocol{AFI: capability.AFIIPv4, SAFI: capability.SAFIUnicast},
+	}
+
+	session := NewSession(settings)
+	_ = session.Start()
+
+	client, server := net.Pipe()
+	defer func() { _ = client.Close() }()
+	defer func() { _ = server.Close() }()
+
+	_ = acceptWithReader(t, session, server, client)
+
+	// Complete handshake
+	peerOpen := &message.Open{
+		Version:       4,
+		MyAS:          65002,
+		HoldTime:      90,
+		BGPIdentifier: 0x02020302,
+		OptionalParams: []byte{
+			2, 12,
+			65, 4, 0, 0, 0xFD, 0xEA, // ASN4 = 65002
+			1, 4, 0, 1, 0, 1, // Multiprotocol IPv4/Unicast
+		},
+	}
+	openBytes, _ := peerOpen.Pack(nil)
+
+	go func() {
+		_, _ = client.Write(openBytes)
+		buf := make([]byte, 4096)
+		_, _ = client.Read(buf) // Drain KEEPALIVE
+	}()
+	_ = session.ReadAndProcess()
+
+	keepalive := message.NewKeepalive()
+	keepaliveBytes, _ := keepalive.Pack(nil)
+
+	go func() {
+		_, _ = client.Write(keepaliveBytes)
+	}()
+	_ = session.ReadAndProcess()
+	require.Equal(t, fsm.StateEstablished, session.State())
+
+	// Build UPDATE with MALFORMED COMMUNITY (length=5, not multiple of 4)
+	pathAttrs := []byte{
+		// ORIGIN = IGP
+		0x40, 0x01, 0x01, 0x00,
+		// AS_PATH (empty)
+		0x40, 0x02, 0x00,
+		// NEXT_HOP = 192.0.2.1
+		0x40, 0x03, 0x04, 0xc0, 0x00, 0x02, 0x01,
+		// COMMUNITY with wrong length (5 bytes, should be multiple of 4)
+		0xc0, 0x08, 0x05, 0x00, 0x01, 0x00, 0x02, 0x03, // Optional transitive, Code=8, Len=5
+	}
+
+	update := make([]byte, 0, 50)
+	update = append(update, 0x00, 0x00)
+	update = append(update, byte(len(pathAttrs)>>8), byte(len(pathAttrs)))
+	update = append(update, pathAttrs...)
+	update = append(update, 0x08, 0x0a) // NLRI: 10.0.0.0/8
+
+	hdr := make([]byte, 19)
+	for i := 0; i < 16; i++ {
+		hdr[i] = 0xff
+	}
+	msgLen := uint16(19 + len(update)) // #nosec G115 -- test message size is small
+	hdr[16] = byte(msgLen >> 8)
+	hdr[17] = byte(msgLen)
+	hdr[18] = byte(message.TypeUPDATE)
+
+	hdr = append(hdr, update...) //nolint:gocritic // test code
+
+	go func() {
+		_, _ = client.Write(hdr)
+		// Drain any potential NOTIFICATION response
+		buf := make([]byte, 4096)
+		_, _ = client.Read(buf)
+	}()
+
+	err := session.ReadAndProcess()
+	require.NoError(t, err, "RFC 7606: malformed Community should trigger treat-as-withdraw, not session reset")
+	require.Equal(t, fsm.StateEstablished, session.State())
+}
+
+// TestSessionRFC7606MissingMandatoryTreatAsWithdraw verifies RFC 7606 Section 3.d.
+//
+// RFC 7606 Section 3.d: "If any of the well-known mandatory attributes are not
+// present in an UPDATE message, then 'treat-as-withdraw' MUST be used."
+//
+// VALIDATES: Missing ORIGIN attribute triggers treat-as-withdraw.
+//
+// PREVENTS: Session reset when mandatory attributes are missing.
+func TestSessionRFC7606MissingMandatoryTreatAsWithdraw(t *testing.T) {
+	settings := NewPeerSettings(
+		netip.MustParseAddr("192.0.2.1"),
+		65001, 65002, 0x01020301,
+	)
+	settings.Passive = true
+	settings.Capabilities = []capability.Capability{
+		&capability.ASN4{ASN: 65001},
+		&capability.Multiprotocol{AFI: capability.AFIIPv4, SAFI: capability.SAFIUnicast},
+	}
+
+	session := NewSession(settings)
+	_ = session.Start()
+
+	client, server := net.Pipe()
+	defer func() { _ = client.Close() }()
+	defer func() { _ = server.Close() }()
+
+	_ = acceptWithReader(t, session, server, client)
+
+	// Complete handshake
+	peerOpen := &message.Open{
+		Version:       4,
+		MyAS:          65002,
+		HoldTime:      90,
+		BGPIdentifier: 0x02020302,
+		OptionalParams: []byte{
+			2, 12,
+			65, 4, 0, 0, 0xFD, 0xEA, // ASN4 = 65002
+			1, 4, 0, 1, 0, 1, // Multiprotocol IPv4/Unicast
+		},
+	}
+	openBytes, _ := peerOpen.Pack(nil)
+
+	go func() {
+		_, _ = client.Write(openBytes)
+		buf := make([]byte, 4096)
+		_, _ = client.Read(buf) // Drain KEEPALIVE
+	}()
+	_ = session.ReadAndProcess()
+
+	keepalive := message.NewKeepalive()
+	keepaliveBytes, _ := keepalive.Pack(nil)
+
+	go func() {
+		_, _ = client.Write(keepaliveBytes)
+	}()
+	_ = session.ReadAndProcess()
+	require.Equal(t, fsm.StateEstablished, session.State())
+
+	// Build UPDATE MISSING ORIGIN (well-known mandatory)
+	// Only has AS_PATH and NEXT_HOP, no ORIGIN
+	pathAttrs := []byte{
+		// AS_PATH (empty) - NO ORIGIN!
+		0x40, 0x02, 0x00,
+		// NEXT_HOP = 192.0.2.1
+		0x40, 0x03, 0x04, 0xc0, 0x00, 0x02, 0x01,
+	}
+
+	update := make([]byte, 0, 50)
+	update = append(update, 0x00, 0x00)
+	update = append(update, byte(len(pathAttrs)>>8), byte(len(pathAttrs)))
+	update = append(update, pathAttrs...)
+	update = append(update, 0x08, 0x0a) // NLRI: 10.0.0.0/8
+
+	hdr := make([]byte, 19)
+	for i := 0; i < 16; i++ {
+		hdr[i] = 0xff
+	}
+	msgLen := uint16(19 + len(update)) // #nosec G115 -- test message size is small
+	hdr[16] = byte(msgLen >> 8)
+	hdr[17] = byte(msgLen)
+	hdr[18] = byte(message.TypeUPDATE)
+
+	hdr = append(hdr, update...) //nolint:gocritic // test code
+
+	go func() {
+		_, _ = client.Write(hdr)
+		// Drain any potential NOTIFICATION response
+		buf := make([]byte, 4096)
+		_, _ = client.Read(buf)
+	}()
+
+	err := session.ReadAndProcess()
+	require.NoError(t, err, "RFC 7606: missing mandatory attribute should trigger treat-as-withdraw, not session reset")
+	require.Equal(t, fsm.StateEstablished, session.State())
+}

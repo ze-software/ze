@@ -14,7 +14,7 @@ Text versions of RFCs relevant to ZeBGP implementation.
 
 | RFC | Title | Status | Notes |
 |-----|-------|--------|-------|
-| [7606](rfc7606.txt) | Revised Error Handling for BGP UPDATE Messages | **Planned** | **Supersedes RFC 4271 §6 for error handling** |
+| [7606](rfc7606.txt) | Revised Error Handling for BGP UPDATE Messages | Implemented | **Supersedes RFC 4271 §6 for error handling** |
 
 > ⚠️ **Important:** RFC 7606 updates RFC 4271's strict "session reset" error handling with recovery tactics: treat-as-withdraw, attribute discard, AFI/SAFI disable. New implementations SHOULD follow RFC 7606.
 

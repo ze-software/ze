@@ -146,3 +146,21 @@ func UpdateFamilyMismatch(afi uint16, safi uint8, ignored bool) {
 	}
 	Log(Session, "UPDATE with non-negotiated family AFI=%d SAFI=%d: %s", afi, safi, action)
 }
+
+// RFC7606TreatAsWithdraw logs when RFC 7606 treat-as-withdraw is applied.
+// RFC 7606 Section 2: Routes in UPDATE treated as withdrawn.
+func RFC7606TreatAsWithdraw(attrCode uint8, description string) {
+	Log(Session, "RFC 7606 treat-as-withdraw: attr=%d %s", attrCode, description)
+}
+
+// RFC7606AttributeDiscard logs when RFC 7606 attribute-discard is applied.
+// RFC 7606 Section 2: Malformed attribute discarded, UPDATE continues.
+func RFC7606AttributeDiscard(attrCode uint8, description string) {
+	Log(Session, "RFC 7606 attribute-discard: attr=%d %s", attrCode, description)
+}
+
+// RFC7606SessionReset logs when RFC 7606 requires session reset.
+// RFC 7606 Section 3.g: Multiple MP_REACH/MP_UNREACH requires reset.
+func RFC7606SessionReset(description string) {
+	Log(Session, "RFC 7606 session-reset: %s", description)
+}

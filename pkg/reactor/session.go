@@ -463,6 +463,7 @@ func (s *Session) handleKeepalive() error {
 
 // handleUpdate processes a received UPDATE message.
 // RFC 4760 Section 6: validates AFI/SAFI in MP_REACH/MP_UNREACH against negotiated.
+// RFC 7606: validates path attributes with revised error handling.
 func (s *Session) handleUpdate(body []byte) error {
 	// Reset hold timer.
 	s.timers.ResetHoldTimer()
@@ -472,7 +473,63 @@ func (s *Session) handleUpdate(body []byte) error {
 		return err
 	}
 
+	// RFC 7606: Validate path attributes with revised error handling.
+	if err := s.validateUpdateRFC7606(body); err != nil {
+		return err
+	}
+
 	return s.fsm.Event(fsm.EventUpdateMsg)
+}
+
+// validateUpdateRFC7606 performs RFC 7606 attribute validation.
+// Returns nil for treat-as-withdraw (session stays up), error for session reset.
+func (s *Session) validateUpdateRFC7606(body []byte) error {
+	// Parse UPDATE structure
+	if len(body) < 4 {
+		return nil // Let other validation handle
+	}
+
+	withdrawnLen := int(binary.BigEndian.Uint16(body[0:2]))
+	offset := 2 + withdrawnLen
+	if offset+2 > len(body) {
+		return nil
+	}
+
+	attrLen := int(binary.BigEndian.Uint16(body[offset : offset+2]))
+	offset += 2
+	if offset+attrLen > len(body) {
+		return nil
+	}
+
+	pathAttrs := body[offset : offset+attrLen]
+	nlriLen := len(body) - (offset + attrLen)
+	hasNLRI := nlriLen > 0
+
+	// Validate per RFC 7606
+	result := message.ValidateUpdateRFC7606(pathAttrs, hasNLRI)
+
+	switch result.Action {
+	case message.RFC7606ActionNone:
+		// No error, continue normally
+		return nil
+
+	case message.RFC7606ActionTreatAsWithdraw:
+		// RFC 7606: Log and continue (routes treated as withdrawn)
+		trace.RFC7606TreatAsWithdraw(result.AttrCode, result.Description)
+		return nil // Session stays up
+
+	case message.RFC7606ActionAttributeDiscard:
+		// RFC 7606: Log and continue (malformed attribute discarded)
+		trace.RFC7606AttributeDiscard(result.AttrCode, result.Description)
+		return nil // Session stays up
+
+	case message.RFC7606ActionSessionReset:
+		// RFC 7606: Session reset required (e.g., multiple MP_REACH)
+		trace.RFC7606SessionReset(result.Description)
+		return fmt.Errorf("RFC 7606 session reset: %s", result.Description)
+	}
+
+	return nil
 }
 
 // validateUpdateFamilies checks that AFI/SAFI in MP_REACH/MP_UNREACH were negotiated.

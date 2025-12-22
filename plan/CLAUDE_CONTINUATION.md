@@ -26,18 +26,9 @@ Ready for next task. Critical review completed.
 | 4.7 | Attribute ordering on send | `origin.go:100-137`, `commit.go` |
 | 5.1 | Family validation against negotiated | `session.go:440-526` |
 | 3.2 | Hold Time Validation (0 or >=3s) | `session.go:385-401` |
-
-### Corrected KEEP Decision
-- 8.2 was "KEEP strict" → now "ALIGN to RFC 7606"
-- RFC 7606 supersedes RFC 4271 §6 for error handling
+| 8.2 | RFC 7606 Error Recovery | `message/rfc7606.go`, `session.go:validateUpdateRFC7606()` |
 
 ---
-
-## HIGH PRIORITY (RFC Compliance)
-
-| Item | Description | Work |
-|------|-------------|------|
-| 8.2 | RFC 7606 Error Recovery | Implement treat-as-withdraw tactics |
 
 ## MEDIUM PRIORITY (Functionality)
 
@@ -78,7 +69,7 @@ Phase 3 API commit commands fully implemented.
 
 | Doc | Purpose |
 |-----|---------|
-| `exabgp-alignment.md` | Review decisions (20 ALIGN, 7 KEEP, 2 SKIP, 7 DONE) |
+| `exabgp-alignment.md` | Review decisions (18 ALIGN, 7 KEEP, 2 SKIP, 9 DONE) |
 | `ARCHITECTURE.md` | Codebase architecture overview |
 
 ---
@@ -95,6 +86,7 @@ Phase 3 API commit commands fully implemented.
 | Purpose | File |
 |---------|------|
 | Extended msg validation | `pkg/bgp/message/header.go` |
+| RFC 7606 validation | `pkg/bgp/message/rfc7606.go` |
 | Session receive path | `pkg/reactor/session.go` |
 | RFC 7606 | `rfc/rfc7606.txt` |
 | Alignment plan | `plan/exabgp-alignment.md` |
@@ -108,5 +100,5 @@ Phase 3 API commit commands fully implemented.
 - All code changes require TDD (test first, show failure, implement, show pass)
 - Plans go in `plan/`, protocols go in `.claude/`
 - Check ExaBGP reference before implementing BGP features
-- **RFC 7606 supersedes RFC 4271 §6** - use recovery tactics, not just session reset
+- **RFC 7606 implemented** - treat-as-withdraw, attribute-discard, session-reset tactics
 - **ALWAYS run `make test && make lint` before requesting a commit**

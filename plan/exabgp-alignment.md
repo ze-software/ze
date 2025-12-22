@@ -220,11 +220,9 @@
 **Decision:** [x] ALIGN / [ ] KEEP / [ ] SKIP
 
 ### 8.2 RFC 7606 Error Recovery
-**Current:** Strict fail (RFC 4271 approach)
+**Current:** Implements treat-as-withdraw, attribute-discard, session-reset per RFC 7606
 **ExaBGP:** Some RFC 7606 recovery tactics
-**RFC 7606:** Defines treat-as-withdraw, attribute discard, AFI/SAFI disable
-**Decision:** [x] ALIGN / [ ] KEEP / [ ] SKIP
-**Note:** RFC 7606 supersedes RFC 4271 §6 for error handling. Previous "KEEP" was incorrect.
+**Status:** ✅ **DONE** - `message/rfc7606.go`, `session.go:validateUpdateRFC7606()`. Previous "KEEP" was incorrect.
 
 ---
 
@@ -263,7 +261,7 @@
 | 5. MP-NLRI | 4 | 3 | 0 | 0 | 1 |
 | 6. NLRI Types | 5 | 5 | 0 | 0 | 0 |
 | 7. FSM | 3 | 0 | 3 | 0 | 0 |
-| 8. Errors | 2 | 2 | 0 | 0 | 0 |
+| 8. Errors | 2 | 1 | 0 | 0 | 1 |
 | 9. Config | 4 | 4 | 0 | 0 | 0 |
 | **Total** | **36** | **18** | **7** | **2** | **9** |
 
@@ -275,7 +273,7 @@
 
 | Item | Description | Work |
 |------|-------------|------|
-| 8.2 | RFC 7606 Error Recovery | Implement treat-as-withdraw tactics |
+| 3.2 | Hold Time Validation | Reject 1-2 second values |
 
 ### Medium Priority (Functionality)
 
