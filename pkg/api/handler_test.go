@@ -5,6 +5,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/exa-networks/zebgp/pkg/bgp/nlri"
+	"github.com/exa-networks/zebgp/pkg/rib"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -123,6 +125,14 @@ func (m *mockReactor) InTransaction(_ string) bool {
 
 func (m *mockReactor) TransactionID(_ string) string {
 	return ""
+}
+
+func (m *mockReactor) SendRoutes(_ string, routes []*rib.Route, withdrawals []nlri.NLRI, _ bool) (TransactionResult, error) {
+	return TransactionResult{
+		RoutesAnnounced: len(routes),
+		RoutesWithdrawn: len(withdrawals),
+		UpdatesSent:     1,
+	}, nil
 }
 
 // TestHandlerPeerList verifies peer list output.

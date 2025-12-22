@@ -8,94 +8,55 @@
 
 **Read first:** `ARCHITECTURE.md` - Comprehensive system design
 
-Key sections:
-- System overview and component diagram
-- Core design decisions (AS-PATH as NLRI, zero-copy, pools)
-- Data flow diagrams
-- Memory management and concurrency model
-- Interface contracts
-- Dependency graph and build order
-- ExaBGP compatibility requirements
-- Implementation phases
-
 ---
 
-## Current Status
+## Plan Status
 
-**Project is functional!** Core BGP implementation complete.
+### ✅ Complete
 
-### Completed Phases
+| Plan | Description |
+|------|-------------|
+| `two-level-grouping.md` | Two-level route grouping for UPDATE generation |
+| `unified-commit-system.md` | Full CommitService with wire format |
+| `neighbor-to-peer-rename.md` | All 6 phases done, v2 syntax removed |
+| `config-migration-system.md` | v2→v3 migration, CLI commands, docs |
+| `done-knowledge-acquisition.md` | ExaBGP study notes |
+| `done-pool-completion.md` | Pool implementation complete |
+| `done-family-negotiation.md` | Family negotiation implementation |
+| `done-align-implementation.md` | ExaBGP alignment implementation |
+| `done-rfc-annotation.md` | RFC annotation work |
+| `done-rib-config-design.md` | RIB configuration design |
+| `done-edit-command.md` | Edit command implementation |
 
-| Phase | Description | Status |
-|-------|-------------|--------|
-| 0 | Project Foundation | ✅ Complete |
-| 1 | Wire Format Foundation | ✅ Complete |
-| 2 | Message Types | ✅ Complete |
-| 3 | Capabilities | ✅ Complete |
-| 4 | Path Attributes | ✅ Complete |
-| 5 | NLRI Types | ✅ Complete |
-| 6 | RIB | ✅ Complete |
-| 7 | FSM | ✅ Complete |
-| 8 | Reactor | ✅ Complete |
-| 9 | Configuration | ✅ Complete |
-| 10 | CLI | ✅ Basic (`zebgp validate`, `zebgp run`) |
-| 11 | API | ✅ Integrated |
-| 12 | Testing Infrastructure | 🔄 Ongoing |
-| 13 | Integration & Polish | 🔄 Ongoing |
+### ⏭️ Superseded
 
-### Test Coverage
+| Plan | Superseded By |
+|------|---------------|
+| `api-commit-batching.md` | `unified-commit-system.md` |
+| `config-routes-eor.md` | `unified-commit-system.md` |
 
-All packages have tests and pass with `-race`:
-- `internal/pool` - 50+ tests
-- `pkg/wire` - Buffer operations
-- `pkg/bgp/message` - Header, OPEN, UPDATE, etc.
-- `pkg/bgp/attribute` - All attribute types
-- `pkg/bgp/capability` - All capability types
-- `pkg/bgp/nlri` - INET, IPVPN, etc.
-- `pkg/bgp/fsm` - State machine
-- `pkg/rib` - Route storage
-- `pkg/config` - Parser, serializer
-- `pkg/reactor` - Core loop
+### 📋 Planned / In Progress
 
-### Current Focus
+| Plan | Description |
+|------|-------------|
+| `exabgp-migration-tool.md` | CLI tool to convert ExaBGP configs |
+| `plugin-system.md` | Plugin system design (CoreBGP-inspired) |
 
-**Phase 12-13:** Testing infrastructure and polish
-- Integration testing with real BGP peers
-- ExaBGP interop testing
-- Performance benchmarks
-- Documentation
+### 📖 Reference
 
-### ExaBGP Interop Tests
-
-Run via `go run ./cmd/self-check --timeout=15s --all`
-
-**Passing (11):** 0, 3, 4, A, C, F, G, H, M, N, O
-
-Core tests all pass:
-- `0` (addpath), `3` (conf-asn4), `4` (ebgp)
-- `C` (hostname), `F`, `M`
-- `N` (new-v4), `O` (new-v6)
-
-**Not yet supported:** Exotic configs (flow, l2vpn, mvpn, srv6-mup) - require special inline syntax parsing
-
----
-
-## Plan Files
-
-| File | Status | Description |
-|------|--------|-------------|
-| `ARCHITECTURE.md` | 📋 Reference | System architecture |
-| `done-knowledge-acquisition.md` | ✅ Done | ExaBGP study notes |
-| `done-pool-completion.md` | ✅ Done | Pool implementation complete |
+| Plan | Description |
+|------|-------------|
+| `ARCHITECTURE.md` | System architecture |
+| `exabgp-alignment.md` | Review decisions (26 ALIGN, 8 KEEP, 2 SKIP) |
+| `CLAUDE_CONTINUATION.md` | Session state and priorities |
 
 ---
 
 ## Naming Convention
 
-- `plan-<name>.md` - Planned work
-- `wip-<name>.md` - Active work in progress
 - `done-<name>.md` - Completed work
+- Others - Active plans or reference docs
 
 ---
 
-**Last Updated:** 2025-12-20
+**Last Updated:** 2025-12-21

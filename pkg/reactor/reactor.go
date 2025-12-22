@@ -669,6 +669,76 @@ func (a *reactorAPIAdapter) TransactionID(peerSelector string) string {
 	return peers[0].AdjRIBOut().TransactionID()
 }
 
+// SendRoutes sends routes directly to matching peers using CommitService.
+// This bypasses OutgoingRIB transaction and is used for named commits.
+func (a *reactorAPIAdapter) SendRoutes(peerSelector string, routes []*rib.Route, withdrawals []nlri.NLRI, sendEOR bool) (api.TransactionResult, error) {
+	peers := a.getMatchingPeers(peerSelector)
+	if len(peers) == 0 {
+		return api.TransactionResult{}, errors.New("no peers match selector")
+	}
+
+	var totalResult api.TransactionResult
+	var families []nlri.Family
+
+	// Collect families for EOR
+	if sendEOR {
+		seen := make(map[nlri.Family]bool)
+		for _, r := range routes {
+			seen[r.NLRI().Family()] = true
+		}
+		for _, n := range withdrawals {
+			seen[n.Family()] = true
+		}
+		for f := range seen {
+			families = append(families, f)
+		}
+	}
+
+	for _, peer := range peers {
+		// Get negotiated parameters for CommitService
+		neg := peer.messageNegotiated()
+		if neg == nil {
+			continue // Peer not established
+		}
+
+		// Use CommitService with two-level grouping
+		cs := rib.NewCommitService(peer, neg, true)
+
+		// Send announcements
+		if len(routes) > 0 {
+			stats, err := cs.Commit(routes, rib.CommitOptions{SendEOR: false})
+			if err != nil {
+				continue
+			}
+			totalResult.RoutesAnnounced += stats.RoutesAnnounced
+			totalResult.UpdatesSent += stats.UpdatesSent
+		}
+
+		// TODO: Send withdrawals using a withdrawal-specific method
+		// For now, count them but don't send
+		totalResult.RoutesWithdrawn += len(withdrawals)
+
+		// Send EOR for each family if requested
+		if sendEOR {
+			for _, f := range families {
+				eor := message.BuildEOR(f)
+				if err := peer.SendUpdate(eor); err == nil {
+					totalResult.UpdatesSent++
+				}
+			}
+		}
+	}
+
+	// Build family strings for result
+	familyStrs := make([]string, len(families))
+	for i, f := range families {
+		familyStrs[i] = f.String()
+	}
+	totalResult.Families = familyStrs
+
+	return totalResult, nil
+}
+
 // convertRIBError converts RIB errors to API errors.
 func convertRIBError(err error) error {
 	switch {

@@ -1,7 +1,8 @@
 # API Commit-Based Route Batching
 
-**Status:** Planning
+**Status:** ⏭️ Superseded
 **Created:** 2025-12-21
+**Superseded by:** `unified-commit-system.md`
 
 ---
 

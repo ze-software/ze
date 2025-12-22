@@ -17,9 +17,10 @@ type Handler func(ctx *CommandContext, args []string) (*Response, error)
 
 // CommandContext provides access to reactor and session state.
 type CommandContext struct {
-	Reactor ReactorInterface
-	Encoder *JSONEncoder
-	Peer    string // Peer selector: "*" for all, or specific IP. Empty = "*"
+	Reactor       ReactorInterface
+	Encoder       *JSONEncoder
+	CommitManager *CommitManager
+	Peer          string // Peer selector: "*" for all, or specific IP. Empty = "*"
 }
 
 // PeerSelector returns the effective neighbor selector.

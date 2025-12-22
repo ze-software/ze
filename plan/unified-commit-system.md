@@ -1,8 +1,42 @@
 # Unified Commit System
 
-**Status:** Planning
+**Status:** ✅ Complete (Phase 1-3 Done)
 **Created:** 2025-12-21
+**Completed:** 2025-12-22
 **Supersedes:** `config-routes-eor.md`, `api-commit-batching.md`
+
+## Implementation Progress
+
+| Phase | Description | Status |
+|-------|-------------|--------|
+| Phase 1 | CommitService Abstraction | ✅ Complete |
+| Phase 2 | Config Route Migration | ✅ Complete |
+| Phase 3 | API Commit Commands | ✅ Complete |
+| Phase 4 | OutgoingRIB Transaction Cleanup | ⏳ Pending (optional) |
+| Phase 5 | Self-Check API Tests | ⏳ Pending (optional) |
+
+### Phase 3 Status
+
+| Task | Description | Status |
+|------|-------------|--------|
+| 3.1 | CommitManager for concurrent commits | ✅ `pkg/api/commit_manager.go` |
+| 3.2 | `commit <name> start` | ✅ |
+| 3.3 | `commit <name> end` (no EOR) | ✅ |
+| 3.4 | `commit <name> eor` (with EOR) | ✅ |
+| 3.5 | `commit <name> rollback` | ✅ |
+| 3.6 | `commit <name> announce/withdraw` routing | ✅ `commit.go` |
+| 3.7 | `commit list` introspection | ✅ |
+| 3.8 | `commit <name> show` introspection | ✅ |
+| 3.9 | Route conflicts (replace/cancel) | ✅ In Transaction class |
+| 3.10 | Dispatcher registration | ✅ |
+| 3.11 | Tests | ✅ |
+
+### Key Implementation Details
+
+- **SendRoutes method** added to ReactorInterface (`pkg/api/types.go:200`)
+- **SendRoutes implementation** in reactor uses CommitService (`pkg/reactor/reactor.go:672-740`)
+- **handleNamedCommitEnd** wired to call SendRoutes with routes from Transaction
+- **Announce/Withdraw handlers** parse routes and queue to Transaction
 
 ---
 

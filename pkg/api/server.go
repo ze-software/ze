@@ -14,10 +14,11 @@ import (
 
 // Server manages API connections and command dispatch.
 type Server struct {
-	config     *ServerConfig
-	reactor    ReactorInterface
-	dispatcher *Dispatcher
-	encoder    *JSONEncoder
+	config        *ServerConfig
+	reactor       ReactorInterface
+	dispatcher    *Dispatcher
+	encoder       *JSONEncoder
+	commitManager *CommitManager
 
 	listener net.Listener
 	clients  map[string]*Client
@@ -44,11 +45,12 @@ type Client struct {
 // NewServer creates a new API server.
 func NewServer(config *ServerConfig, reactor ReactorInterface) *Server {
 	s := &Server{
-		config:     config,
-		reactor:    reactor,
-		dispatcher: NewDispatcher(),
-		encoder:    NewJSONEncoder("6.0.0"),
-		clients:    make(map[string]*Client),
+		config:        config,
+		reactor:       reactor,
+		dispatcher:    NewDispatcher(),
+		encoder:       NewJSONEncoder("6.0.0"),
+		commitManager: NewCommitManager(),
+		clients:       make(map[string]*Client),
 	}
 
 	// Register default handlers
@@ -243,8 +245,9 @@ func (s *Server) clientLoop(client *Client) {
 // processCommand dispatches a command and sends response.
 func (s *Server) processCommand(client *Client, command string) {
 	ctx := &CommandContext{
-		Reactor: s.reactor,
-		Encoder: s.encoder,
+		Reactor:       s.reactor,
+		Encoder:       s.encoder,
+		CommitManager: s.commitManager,
 	}
 
 	resp, err := s.dispatcher.Dispatch(ctx, command)

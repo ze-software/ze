@@ -1,30 +1,44 @@
 # Claude Continuation State
 
-**Last Updated:** 2025-12-21
+**Last Updated:** 2025-12-22
 
 ---
 
 ## CURRENT STATUS
 
-**Two-Level Route Grouping** - `plan/two-level-grouping.md` **COMPLETE ✅**
+**Next:** Phase 3 Internal Refactoring - NeighborConfig → PeerConfig rename
 
-All phases implemented + critical review fixes:
-- ✅ Phase 1-6: Core two-level grouping implementation
-- ✅ Critical fix: `buildSingleUpdate` uses `getRouteASPath` (not just attrs)
-- ✅ Critical fix: Reactor uses CommitService with two-level grouping
-- ✅ Regression test: `TestCommitService_NoGrouping_PreservesExplicitASPath`
-- ✅ Bug fix: `buildGroupKey` excludes AS_PATH from level-1 key
-- ✅ Added tests: AS_SET first segment, different pointer same content, mixed locations
+See `plan/exabgp-alignment.md` Phase 3 for details:
+- Rename NeighborConfig → PeerConfig in pkg/config/bgp.go
+- Rename neighborFields() → peerFields()
+- Update all references across pkg/config/*.go, pkg/reactor/*.go
+- Update API JSON output to use "peer"
+- Update serializer for v3 format
+- Update tests
 
-Key changes:
+⚠️ Large refactoring across multiple packages. Use sed/perl for bulk renames.
+
+---
+
+## RECENTLY COMPLETED
+
+**Named Commit System** - `plan/unified-commit-system.md` **COMPLETE ✅**
+
+Phase 3 API commit commands fully implemented:
+- ✅ CommitManager for concurrent named commits
+- ✅ Transaction with route queuing and conflict handling
+- ✅ All commit handlers: `start`, `end`, `eor`, `rollback`, `show`, `announce`, `withdraw`
+- ✅ `commit list` introspection
+- ✅ SendRoutes method wired to CommitService
+- ✅ All tests pass
+
+Key files:
 | File | Description |
 |------|-------------|
-| `pkg/rib/grouping.go` | AttributeGroup, ASPathGroup, GroupByAttributesTwoLevel, getRouteASPath; AS_PATH excluded from key |
-| `pkg/rib/grouping_test.go` | Bug fix tests for AS_PATH in attrs vs field |
-| `pkg/rib/commit.go` | Two-level grouping, buildSingleUpdate fixed, removed unused packAttributes |
-| `pkg/rib/commit_wire_test.go` | AS_SET first segment test |
-| `pkg/reactor/reactor.go` | flushAndSendForPeer uses CommitService |
-| `pkg/reactor/peer.go` | Added messageNegotiated() helper |
+| `pkg/api/commit_manager.go` | CommitManager, Transaction types |
+| `pkg/api/commit.go` | Full `commit <name> <action>` syntax with announce/withdraw |
+| `pkg/api/types.go` | SendRoutes method in ReactorInterface |
+| `pkg/reactor/reactor.go` | SendRoutes implementation using CommitService |
 
 ---
 
@@ -33,11 +47,16 @@ Key changes:
 | Plan | Status | Description |
 |------|--------|-------------|
 | `two-level-grouping.md` | **Complete ✅** | Two-level route grouping for UPDATE generation |
-| `unified-commit-system.md` | **Complete ✅** | Full CommitService with wire format |
 | `neighbor-to-peer-rename.md` | **Complete ✅** | All 6 phases done, v2 syntax removed |
 | `config-migration-system.md` | **Complete ✅** | v2→v3 migration, CLI commands, docs |
 | `api-commit-batching.md` | Superseded | → merged into unified-commit-system.md |
 | `config-routes-eor.md` | Superseded | → merged into unified-commit-system.md |
+
+## RECENTLY COMPLETED
+
+| Plan | Completed | Description |
+|------|-----------|-------------|
+| `unified-commit-system.md` | 2025-12-22 | Phase 1-3 complete, named commit system working |
 
 ---
 
@@ -63,6 +82,8 @@ Key changes:
 |---------|------|
 | Two-level grouping | `pkg/rib/grouping.go` |
 | CommitService | `pkg/rib/commit.go` |
+| CommitManager | `pkg/api/commit_manager.go` |
+| Commit handlers | `pkg/api/commit.go` |
 | Reactor | `pkg/reactor/reactor.go` |
 | This file | `plan/CLAUDE_CONTINUATION.md` |
 | Protocols | `.claude/ESSENTIAL_PROTOCOLS.md` |

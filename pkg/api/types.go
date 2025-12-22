@@ -11,6 +11,9 @@ import (
 	"errors"
 	"net/netip"
 	"time"
+
+	"github.com/exa-networks/zebgp/pkg/bgp/nlri"
+	"github.com/exa-networks/zebgp/pkg/rib"
 )
 
 // Transaction errors.
@@ -191,6 +194,10 @@ type ReactorInterface interface {
 
 	// TransactionID returns the current transaction label.
 	TransactionID(peerSelector string) string
+
+	// SendRoutes sends routes directly to matching peers using CommitService.
+	// Used by named commits to bypass OutgoingRIB transaction.
+	SendRoutes(peerSelector string, routes []*rib.Route, withdrawals []nlri.NLRI, sendEOR bool) (TransactionResult, error)
 }
 
 // RIBRoute is an API-friendly representation of a route.

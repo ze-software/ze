@@ -7,98 +7,22 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// mockTransactionReactor extends mockReactor with transaction support.
-type mockTransactionReactor struct {
-	mockReactor // Embed base mock
-
-	inTransaction bool
-	transactionID string
-	txError       error // Error to return from transaction operations
-}
-
-func (m *mockTransactionReactor) BeginTransaction(_ string, label string) error {
-	if m.txError != nil {
-		return m.txError
+// testCommitContext creates a CommandContext with CommitManager for tests.
+func testCommitContext() *CommandContext {
+	return &CommandContext{
+		Reactor:       &mockReactor{},
+		CommitManager: NewCommitManager(),
 	}
-	if m.inTransaction {
-		return ErrAlreadyInTransaction
-	}
-	m.inTransaction = true
-	m.transactionID = label
-	return nil
-}
-
-func (m *mockTransactionReactor) CommitTransaction(_ string) (TransactionResult, error) {
-	return m.CommitTransactionWithLabel("", "")
-}
-
-func (m *mockTransactionReactor) CommitTransactionWithLabel(_ string, label string) (TransactionResult, error) {
-	if m.txError != nil {
-		return TransactionResult{}, m.txError
-	}
-	if !m.inTransaction {
-		return TransactionResult{}, ErrNoTransaction
-	}
-	if label != "" && m.transactionID != label {
-		return TransactionResult{}, ErrLabelMismatch
-	}
-
-	result := TransactionResult{
-		RoutesAnnounced: len(m.announcedRoutes),
-		RoutesWithdrawn: len(m.withdrawnRoutes),
-		UpdatesSent:     1,
-		Families:        []string{"ipv4 unicast"},
-		TransactionID:   m.transactionID,
-	}
-
-	m.inTransaction = false
-	m.transactionID = ""
-	m.announcedRoutes = nil
-	m.withdrawnRoutes = nil
-
-	return result, nil
-}
-
-func (m *mockTransactionReactor) RollbackTransaction(_ string) (TransactionResult, error) {
-	if m.txError != nil {
-		return TransactionResult{}, m.txError
-	}
-	if !m.inTransaction {
-		return TransactionResult{}, ErrNoTransaction
-	}
-
-	discarded := len(m.announcedRoutes) + len(m.withdrawnRoutes)
-	result := TransactionResult{
-		RoutesDiscarded: discarded,
-		TransactionID:   m.transactionID,
-	}
-
-	m.inTransaction = false
-	m.transactionID = ""
-	m.announcedRoutes = nil
-	m.withdrawnRoutes = nil
-
-	return result, nil
-}
-
-func (m *mockTransactionReactor) InTransaction(_ string) bool {
-	return m.inTransaction
-}
-
-func (m *mockTransactionReactor) TransactionID(_ string) string {
-	return m.transactionID
 }
 
 // TestCommitStart verifies commit start command.
 //
-// VALIDATES: BeginTransaction called with label.
-//
+// VALIDATES: Named commit is created with peer selector.
 // PREVENTS: Transaction not starting.
 func TestCommitStart(t *testing.T) {
-	reactor := &mockTransactionReactor{}
-	ctx := &CommandContext{Reactor: reactor}
+	ctx := testCommitContext()
 
-	resp, err := handleCommitStart(ctx, []string{"batch1"})
+	resp, err := handleCommit(ctx, []string{"batch1", "start"})
 
 	require.NoError(t, err)
 	require.NotNil(t, resp)
@@ -106,65 +30,42 @@ func TestCommitStart(t *testing.T) {
 
 	data, ok := resp.Data.(map[string]any)
 	require.True(t, ok)
-	assert.Equal(t, "batch1", data["transaction"])
+	assert.Equal(t, "batch1", data["commit"])
 
-	assert.True(t, reactor.inTransaction)
-	assert.Equal(t, "batch1", reactor.transactionID)
-}
-
-// TestCommitStartNoLabel verifies commit start without label.
-//
-// VALIDATES: Empty label allowed.
-//
-// PREVENTS: Error on missing optional label.
-func TestCommitStartNoLabel(t *testing.T) {
-	reactor := &mockTransactionReactor{}
-	ctx := &CommandContext{Reactor: reactor}
-
-	resp, err := handleCommitStart(ctx, nil)
-
+	// Verify commit exists
+	tx, err := ctx.CommitManager.Get("batch1")
 	require.NoError(t, err)
-	require.NotNil(t, resp)
-	assert.Equal(t, "done", resp.Status)
-	assert.True(t, reactor.inTransaction)
+	assert.Equal(t, "batch1", tx.Name())
 }
 
-// TestCommitStartNested verifies nested transaction error.
+// TestCommitStartDuplicate verifies duplicate name rejection.
 //
-// VALIDATES: Error returned if already in transaction.
-//
-// PREVENTS: Undefined nested transaction behavior.
-func TestCommitStartNested(t *testing.T) {
-	reactor := &mockTransactionReactor{inTransaction: true, transactionID: "first"}
-	ctx := &CommandContext{Reactor: reactor}
+// VALIDATES: Error returned if commit already exists.
+// PREVENTS: Overwriting active commits.
+func TestCommitStartDuplicate(t *testing.T) {
+	ctx := testCommitContext()
 
-	resp, err := handleCommitStart(ctx, []string{"second"})
+	_, err := handleCommit(ctx, []string{"batch1", "start"})
+	require.NoError(t, err)
+
+	resp, err := handleCommit(ctx, []string{"batch1", "start"})
 
 	require.Error(t, err)
-	assert.Equal(t, ErrAlreadyInTransaction, err)
 	assert.Equal(t, "error", resp.Status)
-	assert.Contains(t, resp.Error, "already")
+	assert.Contains(t, resp.Error, "exists")
 }
 
 // TestCommitEnd verifies commit end command.
 //
-// VALIDATES: CommitTransaction called, stats returned.
-//
-// PREVENTS: Routes not being sent on commit.
+// VALIDATES: End removes commit and returns stats.
+// PREVENTS: Routes not being processed on commit.
 func TestCommitEnd(t *testing.T) {
-	reactor := &mockTransactionReactor{
-		inTransaction: true,
-		transactionID: "batch1",
-	}
-	// Simulate queued routes
-	reactor.announcedRoutes = make([]struct {
-		selector string
-		route    RouteSpec
-	}, 3)
+	ctx := testCommitContext()
 
-	ctx := &CommandContext{Reactor: reactor}
+	_, err := handleCommit(ctx, []string{"batch1", "start"})
+	require.NoError(t, err)
 
-	resp, err := handleCommitEnd(ctx, []string{"batch1"})
+	resp, err := handleCommit(ctx, []string{"batch1", "end"})
 
 	require.NoError(t, err)
 	require.NotNil(t, resp)
@@ -172,67 +73,61 @@ func TestCommitEnd(t *testing.T) {
 
 	data, ok := resp.Data.(map[string]any)
 	require.True(t, ok)
-	assert.Equal(t, 3, data["routes_announced"])
-	assert.Equal(t, "batch1", data["transaction"])
+	assert.Equal(t, "batch1", data["commit"])
+	assert.Equal(t, "end", data["action"])
 
-	assert.False(t, reactor.inTransaction)
+	// Verify commit removed
+	_, err = ctx.CommitManager.Get("batch1")
+	require.Error(t, err)
 }
 
-// TestCommitEndNoTransaction verifies error when not in transaction.
+// TestCommitEOR verifies commit eor command.
 //
-// VALIDATES: Error returned if no transaction active.
+// VALIDATES: EOR flag is set when using eor action.
+// PREVENTS: EOR not being requested.
+func TestCommitEOR(t *testing.T) {
+	ctx := testCommitContext()
+
+	_, err := handleCommit(ctx, []string{"batch1", "start"})
+	require.NoError(t, err)
+
+	resp, err := handleCommit(ctx, []string{"batch1", "eor"})
+
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	assert.Equal(t, "done", resp.Status)
+
+	data, ok := resp.Data.(map[string]any)
+	require.True(t, ok)
+	assert.Equal(t, "batch1", data["commit"])
+	assert.Equal(t, "eor", data["action"])
+}
+
+// TestCommitEndNotFound verifies error for non-existent commit.
 //
+// VALIDATES: Error returned if commit doesn't exist.
 // PREVENTS: Commit outside transaction context.
-func TestCommitEndNoTransaction(t *testing.T) {
-	reactor := &mockTransactionReactor{}
-	ctx := &CommandContext{Reactor: reactor}
+func TestCommitEndNotFound(t *testing.T) {
+	ctx := testCommitContext()
 
-	resp, err := handleCommitEnd(ctx, nil)
-
-	require.Error(t, err)
-	assert.Equal(t, ErrNoTransaction, err)
-	assert.Equal(t, "error", resp.Status)
-}
-
-// TestCommitEndLabelMismatch verifies label matching.
-//
-// VALIDATES: Error if commit label doesn't match start label.
-//
-// PREVENTS: Committing wrong transaction.
-func TestCommitEndLabelMismatch(t *testing.T) {
-	reactor := &mockTransactionReactor{inTransaction: true, transactionID: "batch1"}
-	ctx := &CommandContext{Reactor: reactor}
-
-	resp, err := handleCommitEnd(ctx, []string{"batch2"})
+	resp, err := handleCommit(ctx, []string{"nonexistent", "end"})
 
 	require.Error(t, err)
-	assert.Equal(t, ErrLabelMismatch, err)
 	assert.Equal(t, "error", resp.Status)
-	assert.Contains(t, resp.Error, "mismatch")
-
-	// Still in transaction
-	assert.True(t, reactor.inTransaction)
+	assert.Contains(t, resp.Error, "not found")
 }
 
 // TestCommitRollback verifies rollback command.
 //
-// VALIDATES: RollbackTransaction called, discarded count returned.
-//
+// VALIDATES: Rollback removes commit and returns discard count.
 // PREVENTS: Rollback not discarding routes.
 func TestCommitRollback(t *testing.T) {
-	reactor := &mockTransactionReactor{
-		inTransaction: true,
-		transactionID: "batch1",
-	}
-	// Simulate queued routes
-	reactor.announcedRoutes = make([]struct {
-		selector string
-		route    RouteSpec
-	}, 5)
+	ctx := testCommitContext()
 
-	ctx := &CommandContext{Reactor: reactor}
+	_, err := handleCommit(ctx, []string{"batch1", "start"})
+	require.NoError(t, err)
 
-	resp, err := handleCommitRollback(ctx, nil)
+	resp, err := handleCommit(ctx, []string{"batch1", "rollback"})
 
 	require.NoError(t, err)
 	require.NotNil(t, resp)
@@ -240,44 +135,262 @@ func TestCommitRollback(t *testing.T) {
 
 	data, ok := resp.Data.(map[string]any)
 	require.True(t, ok)
-	assert.Equal(t, 5, data["routes_discarded"])
+	assert.Equal(t, "batch1", data["commit"])
+	assert.Equal(t, 0, data["routes_discarded"]) // Empty commit
 
-	assert.False(t, reactor.inTransaction)
+	// Verify commit removed
+	_, err = ctx.CommitManager.Get("batch1")
+	require.Error(t, err)
 }
 
-// TestCommitRollbackNoTransaction verifies error when not in transaction.
+// TestCommitRollbackNotFound verifies error for non-existent commit.
 //
-// VALIDATES: Error returned if no transaction active.
-//
+// VALIDATES: Error returned if commit doesn't exist.
 // PREVENTS: Rollback outside transaction context.
-func TestCommitRollbackNoTransaction(t *testing.T) {
-	reactor := &mockTransactionReactor{}
-	ctx := &CommandContext{Reactor: reactor}
+func TestCommitRollbackNotFound(t *testing.T) {
+	ctx := testCommitContext()
 
-	resp, err := handleCommitRollback(ctx, nil)
+	resp, err := handleCommit(ctx, []string{"nonexistent", "rollback"})
 
 	require.Error(t, err)
-	assert.Equal(t, ErrNoTransaction, err)
 	assert.Equal(t, "error", resp.Status)
+	assert.Contains(t, resp.Error, "not found")
 }
 
-// TestCommitCommandsRegistered verifies commit commands are registered.
+// TestCommitShow verifies show command.
 //
-// VALIDATES: All commit commands available.
+// VALIDATES: Show returns commit info.
+// PREVENTS: Missing introspection.
+func TestCommitShow(t *testing.T) {
+	ctx := testCommitContext()
+
+	_, err := handleCommit(ctx, []string{"batch1", "start"})
+	require.NoError(t, err)
+
+	resp, err := handleCommit(ctx, []string{"batch1", "show"})
+
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	assert.Equal(t, "done", resp.Status)
+
+	data, ok := resp.Data.(map[string]any)
+	require.True(t, ok)
+	assert.Equal(t, "batch1", data["commit"])
+	assert.Equal(t, 0, data["queued"])
+}
+
+// TestCommitList verifies list command.
 //
-// PREVENTS: Missing commit commands.
-func TestCommitCommandsRegistered(t *testing.T) {
+// VALIDATES: List returns all active commits.
+// PREVENTS: Missing commits in list.
+func TestCommitList(t *testing.T) {
+	ctx := testCommitContext()
+
+	_, _ = handleCommit(ctx, []string{"batch1", "start"})
+	_, _ = handleCommit(ctx, []string{"batch2", "start"})
+
+	resp, err := handleCommit(ctx, []string{"list"})
+
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	assert.Equal(t, "done", resp.Status)
+
+	data, ok := resp.Data.(map[string]any)
+	require.True(t, ok)
+	assert.Equal(t, 2, data["count"])
+}
+
+// TestCommitMissingArgs verifies error for missing arguments.
+//
+// VALIDATES: Error returned if no arguments.
+// PREVENTS: Undefined behavior on empty input.
+func TestCommitMissingArgs(t *testing.T) {
+	ctx := testCommitContext()
+
+	resp, err := handleCommit(ctx, nil)
+
+	require.Error(t, err)
+	assert.Equal(t, "error", resp.Status)
+	assert.Contains(t, resp.Error, "usage")
+}
+
+// TestCommitMissingAction verifies error for missing action.
+//
+// VALIDATES: Error returned if action missing.
+// PREVENTS: Undefined behavior on incomplete input.
+func TestCommitMissingAction(t *testing.T) {
+	ctx := testCommitContext()
+
+	resp, err := handleCommit(ctx, []string{"batch1"})
+
+	require.Error(t, err)
+	assert.Equal(t, "error", resp.Status)
+	assert.Contains(t, resp.Error, "usage")
+}
+
+// TestCommitUnknownAction verifies error for unknown action.
+//
+// VALIDATES: Error returned for invalid action.
+// PREVENTS: Undefined behavior on bad action.
+func TestCommitUnknownAction(t *testing.T) {
+	ctx := testCommitContext()
+
+	resp, err := handleCommit(ctx, []string{"batch1", "invalid"})
+
+	require.Error(t, err)
+	assert.Equal(t, "error", resp.Status)
+	assert.Contains(t, resp.Error, "unknown")
+}
+
+// TestCommitCommandRegistered verifies commit command is registered.
+//
+// VALIDATES: Commit command available.
+// PREVENTS: Missing commit command.
+func TestCommitCommandRegistered(t *testing.T) {
 	d := NewDispatcher()
 	RegisterCommitHandlers(d)
 
-	commands := []string{
-		"commit start",
-		"commit end",
-		"commit rollback",
-	}
+	c := d.Lookup("commit")
+	assert.NotNil(t, c, "commit command must be registered")
+}
 
-	for _, cmd := range commands {
-		c := d.Lookup(cmd)
-		assert.NotNil(t, c, "command %q must be registered", cmd)
-	}
+// TestCommitConcurrent verifies multiple concurrent commits.
+//
+// VALIDATES: Multiple commits can be active simultaneously.
+// PREVENTS: Commits interfering with each other.
+func TestCommitConcurrent(t *testing.T) {
+	ctx := testCommitContext()
+
+	_, err := handleCommit(ctx, []string{"batch1", "start"})
+	require.NoError(t, err)
+
+	_, err = handleCommit(ctx, []string{"batch2", "start"})
+	require.NoError(t, err)
+
+	// Both should be accessible
+	tx1, err := ctx.CommitManager.Get("batch1")
+	require.NoError(t, err)
+	assert.Equal(t, "batch1", tx1.Name())
+
+	tx2, err := ctx.CommitManager.Get("batch2")
+	require.NoError(t, err)
+	assert.Equal(t, "batch2", tx2.Name())
+
+	// End one, other still exists
+	_, err = handleCommit(ctx, []string{"batch1", "end"})
+	require.NoError(t, err)
+
+	_, err = ctx.CommitManager.Get("batch1")
+	require.Error(t, err)
+
+	_, err = ctx.CommitManager.Get("batch2")
+	require.NoError(t, err)
+}
+
+// TestCommitAnnounceRoute verifies queuing routes to a commit.
+//
+// VALIDATES: Route is queued to transaction.
+// PREVENTS: Routes being lost or sent prematurely.
+func TestCommitAnnounceRoute(t *testing.T) {
+	ctx := testCommitContext()
+
+	_, err := handleCommit(ctx, []string{"batch1", "start"})
+	require.NoError(t, err)
+
+	resp, err := handleCommit(ctx, []string{"batch1", "announce", "route", "10.0.0.0/24", "next-hop", "192.168.1.1"})
+	require.NoError(t, err)
+	assert.Equal(t, "done", resp.Status)
+
+	// Verify route queued
+	tx, _ := ctx.CommitManager.Get("batch1")
+	assert.Equal(t, 1, tx.Count())
+}
+
+// TestCommitAnnounceMultipleRoutes verifies multiple routes can be queued.
+//
+// VALIDATES: Multiple routes accumulate in transaction.
+// PREVENTS: Routes overwriting each other incorrectly.
+func TestCommitAnnounceMultipleRoutes(t *testing.T) {
+	ctx := testCommitContext()
+
+	_, _ = handleCommit(ctx, []string{"batch1", "start"})
+	_, _ = handleCommit(ctx, []string{"batch1", "announce", "route", "10.0.0.0/24", "next-hop", "192.168.1.1"})
+	_, _ = handleCommit(ctx, []string{"batch1", "announce", "route", "10.1.0.0/24", "next-hop", "192.168.1.1"})
+	_, _ = handleCommit(ctx, []string{"batch1", "announce", "route", "10.2.0.0/24", "next-hop", "192.168.1.1"})
+
+	tx, _ := ctx.CommitManager.Get("batch1")
+	assert.Equal(t, 3, tx.Count())
+}
+
+// TestCommitWithdrawRoute verifies queuing withdrawals to a commit.
+//
+// VALIDATES: Withdrawal is queued to transaction.
+// PREVENTS: Withdrawals being lost.
+func TestCommitWithdrawRoute(t *testing.T) {
+	ctx := testCommitContext()
+
+	_, err := handleCommit(ctx, []string{"batch1", "start"})
+	require.NoError(t, err)
+
+	resp, err := handleCommit(ctx, []string{"batch1", "withdraw", "route", "10.0.0.0/24"})
+	require.NoError(t, err)
+	assert.Equal(t, "done", resp.Status)
+
+	// Verify withdrawal queued
+	tx, _ := ctx.CommitManager.Get("batch1")
+	assert.Equal(t, 1, tx.WithdrawalCount())
+}
+
+// TestCommitAnnounceNoCommit verifies error when commit doesn't exist.
+//
+// VALIDATES: Error returned for non-existent commit.
+// PREVENTS: Routes being lost silently.
+func TestCommitAnnounceNoCommit(t *testing.T) {
+	ctx := testCommitContext()
+
+	resp, err := handleCommit(ctx, []string{"nonexistent", "announce", "route", "10.0.0.0/24", "next-hop", "192.168.1.1"})
+
+	require.Error(t, err)
+	assert.Equal(t, "error", resp.Status)
+	assert.Contains(t, resp.Error, "not found")
+}
+
+// TestCommitAnnounceMissingNextHop verifies error when next-hop is missing.
+//
+// VALIDATES: Error returned for missing next-hop.
+// PREVENTS: Invalid routes being queued.
+func TestCommitAnnounceMissingNextHop(t *testing.T) {
+	ctx := testCommitContext()
+
+	_, _ = handleCommit(ctx, []string{"batch1", "start"})
+
+	resp, err := handleCommit(ctx, []string{"batch1", "announce", "route", "10.0.0.0/24"})
+
+	require.Error(t, err)
+	assert.Equal(t, "error", resp.Status)
+}
+
+// TestCommitEndWithRoutes verifies routes are sent on commit end.
+//
+// VALIDATES: Routes sent via SendRoutes on commit end.
+// PREVENTS: Routes being queued but never sent.
+func TestCommitEndWithRoutes(t *testing.T) {
+	ctx := testCommitContext()
+
+	_, _ = handleCommit(ctx, []string{"batch1", "start"})
+	_, _ = handleCommit(ctx, []string{"batch1", "announce", "route", "10.0.0.0/24", "next-hop", "192.168.1.1"})
+	_, _ = handleCommit(ctx, []string{"batch1", "announce", "route", "10.1.0.0/24", "next-hop", "192.168.1.1"})
+
+	resp, err := handleCommit(ctx, []string{"batch1", "end"})
+
+	require.NoError(t, err)
+	assert.Equal(t, "done", resp.Status)
+
+	data, ok := resp.Data.(map[string]any)
+	require.True(t, ok)
+	assert.Equal(t, 2, data["routes_announced"])
+
+	// Commit should be removed
+	_, err = ctx.CommitManager.Get("batch1")
+	require.Error(t, err)
 }

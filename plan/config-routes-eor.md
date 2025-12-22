@@ -1,8 +1,8 @@
 # Configuration Routes and End-of-RIB
 
-**Status:** Planning
+**Status:** ⏭️ Superseded
 **Created:** 2025-12-21
-**Related:** `plan/api-commit-batching.md`
+**Superseded by:** `unified-commit-system.md`
 
 ---
 
