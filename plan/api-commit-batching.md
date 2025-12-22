@@ -420,11 +420,11 @@ Total: ~2-3 focused sessions
 ### Current State
 
 The self-check system (`cmd/self-check/`) currently only supports **static route tests**:
-- Tests in `testdata/encode/` use `.ci` + `.conf` files
+- Tests in `test/data/encode/` use `.ci` + `.conf` files
 - Routes are defined statically in config, sent at session establishment
 - No support for dynamic API-driven tests
 
-The `.run` scripts in `testdata/api/` are **not currently used** by ZeBGP.
+The `.run` scripts in `test/data/api/` are **not currently used** by ZeBGP.
 
 ### Goal
 
@@ -468,7 +468,7 @@ Enable self-check to run API tests that:
 ### Test File Structure
 
 ```
-testdata/api/
+test/data/api/
 ├── fast.ci              # Expected messages
 ├── fast.conf            # ZeBGP config (with API enabled)
 ├── fast.run             # Python script to drive API
@@ -480,9 +480,9 @@ testdata/api/
 API tests need a config that enables the API socket:
 
 ```
-# testdata/api/fast.conf
+# test/data/api/fast.conf
 process api-driver {
-    run ./testdata/api/fast.run;
+    run ./test/data/api/fast.run;
     encoder text;
 }
 
@@ -678,13 +678,13 @@ ZeBGP's process manager (`pkg/api/process.go`) handles:
 
 1. **Identify the test**
    ```bash
-   ls testdata/api/*.run
+   ls test/data/api/*.run
    # Pick: fast.run
    ```
 
 2. **Check corresponding .ci file**
    ```bash
-   cat testdata/api/fast.ci
+   cat test/data/api/fast.ci
    # Note expected messages
    ```
 
@@ -703,10 +703,10 @@ ZeBGP's process manager (`pkg/api/process.go`) handles:
 5. **Test locally**
    ```bash
    # Terminal 1
-   go run ./cmd/zebgp-peer --port 1790 testdata/api/fast.ci
+   go run ./cmd/zebgp-peer --port 1790 test/data/api/fast.ci
 
    # Terminal 2
-   env exabgp_tcp_port=1790 go run ./cmd/zebgp server testdata/api/fast.conf
+   env exabgp_tcp_port=1790 go run ./cmd/zebgp server test/data/api/fast.conf
    ```
 
 6. **Verify with self-check**
@@ -720,10 +720,10 @@ ZeBGP's process manager (`pkg/api/process.go`) handles:
 #!/bin/bash
 # convert-api-tests.sh
 
-for run in testdata/api/*.run; do
+for run in test/data/api/*.run; do
     name=$(basename "$run" .run)
-    ci="testdata/api/${name}.ci"
-    conf="testdata/api/${name}.conf"
+    ci="test/data/api/${name}.ci"
+    conf="test/data/api/${name}.conf"
 
     if [[ ! -f "$ci" ]]; then
         echo "SKIP: $name (no .ci file)"

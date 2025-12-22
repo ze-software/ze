@@ -126,7 +126,7 @@ pkg/bgp/message/
 ├── header_test.go      # Tests for header.go
 ├── open.go
 ├── open_test.go
-└── testdata/           # Test fixtures
+└── test/data/           # Test fixtures
     ├── valid_open.bin
     └── truncated_open.bin
 ```
@@ -292,10 +292,10 @@ go test -fuzz=. -fuzztime=10s ./...
 
 ### Fuzz Corpus
 
-Store interesting inputs in `testdata/fuzz/<FuzzName>/`:
+Store interesting inputs in `test/data/fuzz/<FuzzName>/`:
 
 ```
-testdata/fuzz/
+test/data/fuzz/
 ├── FuzzParseHeader/
 ├── FuzzParseUpdate/
 └── FuzzParseNLRI/

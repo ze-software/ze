@@ -370,7 +370,7 @@ func handleCommit(ctx *APIContext, args []string) Response {
 | 2.1 | Refactor sendInitialRoutes() to use CommitService | `pkg/reactor/peer.go` |
 | 2.2 | Remove duplicate grouping logic from peer.go | `pkg/reactor/peer.go` |
 | 2.3 | Verify existing tests still pass | `make test` |
-| 2.4 | Update .ci files if EOR format changes | `testdata/encode/*.ci` |
+| 2.4 | Update .ci files if EOR format changes | `test/data/encode/*.ci` |
 
 ### Phase 3: API Commit Commands
 
@@ -423,8 +423,8 @@ withdraw route ...                 # IMMEDIATE send (no batching, no commit)
 | # | Task | Files |
 |---|------|-------|
 | 5.1 | Enable .run script execution in self-check | `cmd/self-check/` |
-| 5.2 | Convert .run scripts to use commit commands | `testdata/api/*.run` |
-| 5.3 | Remove sleep-based timing from tests | `testdata/api/*.run` |
+| 5.2 | Convert .run scripts to use commit commands | `test/data/api/*.run` |
+| 5.3 | Remove sleep-based timing from tests | `test/data/api/*.run` |
 
 ---
 

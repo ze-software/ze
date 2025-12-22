@@ -53,7 +53,7 @@ zebgp/
 ├── internal/
 │   ├── store/           # Attribute/NLRI deduplication stores
 │   └── pool/            # Buffer pools
-├── testdata/            # Test fixtures from ExaBGP
+├── test/data/            # Test fixtures from ExaBGP
 └── doc/                 # Documentation
 ```
 
@@ -1870,7 +1870,7 @@ func (p *Process) ReadCommands() <-chan string {
 Convert ExaBGP's Python tests to Go:
 
 ```go
-// testdata/encoding/conf_ebgp_test.go
+// test/data/encoding/conf_ebgp_test.go
 
 func TestConfEBGP(t *testing.T) {
     tests := []struct {
@@ -1908,10 +1908,10 @@ func TestConfEBGP(t *testing.T) {
 ### 13.2 Functional Test Runner
 
 ```go
-// testdata/functional_test.go
+// test/data/functional_test.go
 
 func TestFunctionalEncoding(t *testing.T) {
-    tests := loadTestCases("testdata/encoding/*.ci")
+    tests := loadTestCases("test/data/encoding/*.ci")
 
     for _, tc := range tests {
         t.Run(tc.Name, func(t *testing.T) {
@@ -1942,11 +1942,11 @@ func TestFunctionalEncoding(t *testing.T) {
 ### 13.3 Round-Trip Tests
 
 ```go
-// testdata/roundtrip_test.go
+// test/data/roundtrip_test.go
 
 func TestRoundTrip(t *testing.T) {
     // Test that pack(unpack(data)) == data
-    messages := loadTestMessages("testdata/messages/*.hex")
+    messages := loadTestMessages("test/data/messages/*.hex")
 
     for _, msg := range messages {
         t.Run(msg.Name, func(t *testing.T) {
@@ -1975,7 +1975,7 @@ func TestRoundTrip(t *testing.T) {
 
 for ci_file in ../qa/encoding/*.ci; do
     name=$(basename "$ci_file" .ci)
-    go_file="testdata/encoding/${name}_test.go"
+    go_file="test/data/encoding/${name}_test.go"
 
     python3 scripts/ci_to_go.py "$ci_file" > "$go_file"
 done
@@ -2029,7 +2029,7 @@ func TestE2EIBGP(t *testing.T) {
 // benchmark_test.go
 
 func BenchmarkUpdateParsing(b *testing.B) {
-    data := loadUpdateMessage("testdata/large_update.bin")
+    data := loadUpdateMessage("test/data/large_update.bin")
 
     b.ResetTimer()
     for i := 0; i < b.N; i++ {
@@ -2216,7 +2216,7 @@ Tests from `main/qa/` need to be migrated.
 |----------|-------|----------|-------|
 | Encoding | 39 | 0 | In `main/qa/encoding/` |
 | Decoding | 19 | 0 | In `main/qa/decoding/` |
-| Basic session | 1 | 1 | `testdata/conf-ebgp.ci` |
+| Basic session | 1 | 1 | `test/data/conf-ebgp.ci` |
 
 ### Next Steps for Testing
 1. Fix Freeform parsing or change schema to support static routes

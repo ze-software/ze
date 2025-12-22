@@ -87,7 +87,7 @@ go test -list='Fuzz.*' ./...
 ### Fuzz Corpus Location
 
 ```
-testdata/fuzz/
+test/data/fuzz/
 ├── FuzzParseHeader/
 ├── FuzzParseUpdate/
 └── FuzzParseNLRI/

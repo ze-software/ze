@@ -103,9 +103,9 @@ func NewTests(baseDir string) *Tests {
 	}
 }
 
-// Load discovers tests from the testdata/encode directory.
+// Load discovers tests from the test/data/encode directory.
 func (ts *Tests) Load() error {
-	encodeDir := filepath.Join(ts.baseDir, "testdata", "encode")
+	encodeDir := filepath.Join(ts.baseDir, "test", "data", "encode")
 	pattern := filepath.Join(encodeDir, "*.ci")
 
 	files, err := filepath.Glob(pattern)

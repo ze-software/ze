@@ -392,12 +392,12 @@ func TestPeer_NoEORWhenDisabled(t *testing.T) {
 Add `.ci` test cases for EOR:
 
 ```
-# testdata/encode/eor-ipv4.ci
+# test/data/encode/eor-ipv4.ci
 option:file:eor-ipv4.conf
 1:cmd:announce eor ipv4 unicast
 1:raw:FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF:0017:02:00000000
 
-# testdata/encode/eor-ipv6.ci
+# test/data/encode/eor-ipv6.ci
 option:file:eor-ipv6.conf
 1:cmd:announce eor ipv6 unicast
 1:raw:FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF:001E:02:00000007900F0003000201
@@ -410,7 +410,7 @@ option:file:eor-ipv6.conf
 Existing tests need EOR expectations added:
 
 ```
-# testdata/encode/attributes.ci (updated)
+# test/data/encode/attributes.ci (updated)
 option:file:attributes.conf
 1:cmd:announce route 10.0.0.7/32 next-hop 255.255.255.255 ...
 1:raw:FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF:004C:02:...
@@ -483,7 +483,7 @@ UPDATE (EOR IPv6 Unicast)   ← EOR for families in commit
 - `pkg/reactor/neighbor.go` - Add `SendEOR`, `EORDelay` fields
 - `pkg/config/bgp.go` - Add `send-eor`, `eor-delay` to schema
 - `pkg/config/loader.go` - Load EOR config
-- `testdata/encode/*.ci` - Add EOR expectations
+- `test/data/encode/*.ci` - Add EOR expectations
 
 ---
 

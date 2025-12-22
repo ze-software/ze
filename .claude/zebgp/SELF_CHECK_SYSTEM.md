@@ -1,7 +1,7 @@
 # Self-Check Test System
 
 **Location:** `cmd/self-check/main.go`
-**Test Data:** `testdata/encode/`
+**Test Data:** `test/data/encode/`
 
 ---
 
@@ -82,12 +82,12 @@ N:raw:MARKER:LENGTH:TYPE:PAYLOAD
 
 ## Test Discovery
 
-Tests are discovered by scanning `testdata/encode/` for `.ci` files:
+Tests are discovered by scanning `test/data/encode/` for `.ci` files:
 
 ```go
 // cmd/self-check/main.go
 func (ts *Tests) Load() error {
-    pattern := filepath.Join(ts.baseDir, "testdata", "encode", "*.ci")
+    pattern := filepath.Join(ts.baseDir, "test", "data", "encode", "*.ci")
     files, _ := filepath.Glob(pattern)
     for _, f := range files {
         // Create test from .ci file
@@ -138,7 +138,7 @@ go run ./cmd/self-check --timeout 60s --all
 ### 1. Create config file
 
 ```
-# testdata/encode/mytest.conf
+# test/data/encode/mytest.conf
 peer 127.0.0.1 {
     router-id 1.2.3.4;
     local-address 127.0.0.1;
@@ -154,7 +154,7 @@ peer 127.0.0.1 {
 ### 2. Create .ci file
 
 ```
-# testdata/encode/mytest.ci
+# test/data/encode/mytest.ci
 option:file:mytest.conf
 1:cmd:announce route 10.0.0.0/24 next-hop 1.2.3.4
 1:raw:FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF:002D:02:0000001540010100400200400304010203044005040000006418
@@ -199,10 +199,10 @@ go run ./cmd/self-check 0 2>&1 | tee /tmp/test.log
 
 ```bash
 # Terminal 1: Start peer
-go run ./cmd/zebgp-peer --port 1790 testdata/encode/attributes.ci
+go run ./cmd/zebgp-peer --port 1790 test/data/encode/attributes.ci
 
 # Terminal 2: Run zebgp
-env exabgp_tcp_port=1790 go run ./cmd/zebgp server testdata/encode/attributes.conf
+env exabgp_tcp_port=1790 go run ./cmd/zebgp server test/data/encode/attributes.conf
 ```
 
 ### Decode message bytes
@@ -217,9 +217,9 @@ go run ./cmd/zebgp-decode raw FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002D02000000154001
 
 ---
 
-## API Tests (testdata/api/)
+## API Tests (test/data/api/)
 
-The `testdata/api/` directory contains Python `.run` scripts from ExaBGP. These are **not currently used** by self-check but are intended for future API testing.
+The `test/data/api/` directory contains Python `.run` scripts from ExaBGP. These are **not currently used** by self-check but are intended for future API testing.
 
 ### .run Script Structure
 
@@ -259,14 +259,14 @@ ZeBGP uses the same `.ci` format as ExaBGP for test portability:
 
 | ExaBGP Location | ZeBGP Location | Purpose |
 |-----------------|----------------|---------|
-| `qa/encoding/*.ci` | `testdata/encode/*.ci` | Static route encoding |
-| `qa/api/*.ci` | `testdata/api/*.ci` | API command encoding |
+| `qa/encoding/*.ci` | `test/data/encode/*.ci` | Static route encoding |
+| `qa/api/*.ci` | `test/data/api/*.ci` | API command encoding |
 | `qa/sbin/bgp` | `cmd/zebgp-peer` | Test peer implementation |
 
 **Copying tests from ExaBGP:**
 ```bash
 # Copy encoding test
-cp ../main/qa/encoding/conf-newtest.ci testdata/encode/newtest.ci
+cp ../main/qa/encoding/conf-newtest.ci test/data/encode/newtest.ci
 
 # May need to adjust config file path
 # option:file:newtest.conf → create matching .conf

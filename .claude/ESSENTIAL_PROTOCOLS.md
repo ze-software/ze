@@ -518,7 +518,7 @@ zebgp/
 │   ├── store/           # Deduplication stores
 │   └── pool/            # Buffer pools
 ├── plan/                # Plans, TODOs, tasks
-└── testdata/            # Test fixtures
+└── test/data/            # Test fixtures
 ```
 
 **Design patterns:**

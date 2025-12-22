@@ -405,7 +405,7 @@ peer 192.0.2.1 { }
 | # | Task | Files |
 |---|------|-------|
 | 5.1 | Migrate etc/zebgp/*.conf | `etc/zebgp/` |
-| 5.2 | Migrate testdata/**/*.conf | `testdata/` |
+| 5.2 | Migrate test/data/**/*.conf | `test/data/` |
 | 5.3 | Update documentation examples | `docs/`, `.claude/` |
 
 ### Phase 6: Remove Old Syntax (Future Release)

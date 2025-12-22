@@ -895,7 +895,7 @@ All config-related commands live under `zebgp config`:
 ### Test Fixtures
 
 ```
-testdata/configs/migration/
+test/data/configs/migration/
 ├── v1/
 │   ├── basic.conf           # Simple v1 config
 │   ├── all-rib-opts.conf    # All RIB options set

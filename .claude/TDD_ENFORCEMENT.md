@@ -492,10 +492,10 @@ func FuzzParseUpdate(f *testing.F) {
 
 ### Corpus Management
 
-Store interesting test cases in `testdata/fuzz/`:
+Store interesting test cases in `test/data/fuzz/`:
 
 ```
-testdata/
+test/data/
 └── fuzz/
     ├── FuzzParseHeader/
     │   ├── valid_keepalive
