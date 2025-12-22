@@ -19,11 +19,13 @@ Ready for next task. Critical review completed.
 |------|---------|----------|
 | 1.1 | RFC 9003 Shutdown Communication | `notification.go:210-249` |
 | 1.2 | Per-message-type length validation | `header.go:111-163` |
+| 1.3 | RFC 8654 Extended Message validation | `session.go:294-311`, `session.go:590-594` |
 | 1.4 | KEEPALIVE payload rejection | `keepalive.go:42-55` |
 | 4.2 | AS_PATH auto-split at 255 | `aspath.go:139-178` |
 | 4.4 | Large community deduplication | `community.go:228-301` |
 | 4.7 | Attribute ordering on send | `origin.go:100-137`, `commit.go` |
 | 5.1 | Family validation against negotiated | `session.go:440-526` |
+| 3.2 | Hold Time Validation (0 or >=3s) | `session.go:385-401` |
 
 ### Corrected KEEP Decision
 - 8.2 was "KEEP strict" → now "ALIGN to RFC 7606"
@@ -35,9 +37,7 @@ Ready for next task. Critical review completed.
 
 | Item | Description | Work |
 |------|-------------|------|
-| 1.3 | Extended Message Integration | Wire `ValidateLengthWithMax()` in session recv |
 | 8.2 | RFC 7606 Error Recovery | Implement treat-as-withdraw tactics |
-| 3.2 | Hold Time Validation | Reject 1-2 second values |
 
 ## MEDIUM PRIORITY (Functionality)
 

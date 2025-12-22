@@ -244,8 +244,9 @@ func TestSessionHoldTimerExpiry(t *testing.T) {
 	_ = acceptWithReader(t, session, server, client)
 
 	// Send peer's OPEN and drain KEEPALIVE
+	// Note: HoldTime must be 0 or >= 3 per RFC 4271
 	peerOpen := &message.Open{
-		Version: 4, MyAS: 65002, HoldTime: 1, BGPIdentifier: 0x01020302,
+		Version: 4, MyAS: 65002, HoldTime: 3, BGPIdentifier: 0x01020302,
 	}
 	openBytes, _ := peerOpen.Pack(nil)
 
@@ -859,4 +860,81 @@ func TestSessionFamilyValidationIgnoreMismatch(t *testing.T) {
 	err = session.ReadAndProcess()
 	require.NoError(t, err, "ignore-mismatch should skip non-negotiated family without error")
 	require.Equal(t, fsm.StateEstablished, session.State(), "session should remain Established")
+}
+
+// TestSessionRejectsInvalidHoldTime verifies RFC 4271 hold time validation.
+//
+// RFC 4271 Section 6.2: "An implementation MUST reject Hold Time values of
+// one or two seconds."
+//
+// VALIDATES: OPEN with HoldTime 1 or 2 triggers NOTIFICATION (Unacceptable Hold Time).
+//
+// PREVENTS: Accepting invalid hold times that violate RFC 4271.
+func TestSessionRejectsInvalidHoldTime(t *testing.T) {
+	tests := []struct {
+		name     string
+		holdTime uint16
+		wantErr  bool
+	}{
+		{"holdtime_0_valid", 0, false},
+		{"holdtime_1_invalid", 1, true},
+		{"holdtime_2_invalid", 2, true},
+		{"holdtime_3_valid", 3, false},
+		{"holdtime_90_valid", 90, false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			settings := NewPeerSettings(
+				netip.MustParseAddr("192.0.2.1"),
+				65001, 65002, 0x01020301,
+			)
+			settings.Passive = true
+			settings.Capabilities = []capability.Capability{
+				&capability.ASN4{ASN: 65001},
+				&capability.Multiprotocol{AFI: capability.AFIIPv4, SAFI: capability.SAFIUnicast},
+			}
+
+			session := NewSession(settings)
+			_ = session.Start()
+
+			client, server := net.Pipe()
+			defer func() { _ = client.Close() }()
+			defer func() { _ = server.Close() }()
+
+			// Accept connection (sends our OPEN)
+			_ = acceptWithReader(t, session, server, client)
+
+			// Peer's OPEN with test hold time
+			peerOpen := &message.Open{
+				Version:       4,
+				MyAS:          65002,
+				HoldTime:      tt.holdTime,
+				BGPIdentifier: 0x01020302,
+				OptionalParams: []byte{
+					2, 12,
+					65, 4, 0, 0, 0xFD, 0xEA, // ASN4
+					1, 4, 0, 1, 0, 1, // Multiprotocol IPv4/Unicast
+				},
+			}
+			openBytes, _ := peerOpen.Pack(nil)
+
+			go func() {
+				_, _ = client.Write(openBytes)
+				// Drain any response (KEEPALIVE or NOTIFICATION)
+				buf := make([]byte, 4096)
+				_, _ = client.Read(buf)
+			}()
+
+			err := session.ReadAndProcess()
+
+			if tt.wantErr {
+				require.Error(t, err, "should reject OPEN with HoldTime=%d", tt.holdTime)
+				require.Contains(t, err.Error(), "hold time", "error should mention hold time")
+			} else {
+				require.NoError(t, err, "should accept OPEN with HoldTime=%d", tt.holdTime)
+				require.Equal(t, fsm.StateOpenConfirm, session.State())
+			}
+		})
+	}
 }

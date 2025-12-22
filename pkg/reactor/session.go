@@ -382,6 +382,24 @@ func (s *Session) handleOpen(body []byte) error {
 		return ErrUnsupportedVersion
 	}
 
+	// RFC 4271 Section 6.2: "An implementation MUST reject Hold Time values
+	// of one or two seconds."
+	if err := open.ValidateHoldTime(); err != nil {
+		s.mu.RLock()
+		conn := s.conn
+		neg := s.negotiated
+		s.mu.RUnlock()
+
+		// Send NOTIFICATION with the error (already a *Notification).
+		var notif *message.Notification
+		if errors.As(err, &notif) {
+			_ = s.sendNotification(conn, neg, notif.ErrorCode, notif.ErrorSubcode, notif.Data)
+		}
+		_ = s.fsm.Event(fsm.EventBGPOpenMsgErr)
+		s.closeConn()
+		return fmt.Errorf("invalid hold time %d: %w", open.HoldTime, err)
+	}
+
 	s.mu.Lock()
 	s.peerOpen = open
 	s.mu.Unlock()

@@ -81,10 +81,9 @@
 **Rationale:** RFC explicitly suggests 90s
 
 ### 3.2 Hold Time Validation
-**Current:** ZeBGP accepts 0-65535
-**ExaBGP:** Validates 0 or >= 3 seconds per RFC 4271
-**Impact:** May accept invalid hold times (1-2 seconds)
-**Decision:** [x] ALIGN / [ ] KEEP / [ ] SKIP
+**Current:** ZeBGP validates 0 or >= 3 seconds per RFC 4271
+**ExaBGP:** Same validation
+**Status:** ✅ **DONE** - `session.go:385-401` calls `open.ValidateHoldTime()`
 
 ---
 
@@ -259,14 +258,14 @@
 |-------|-------------|-------|------|------|------|
 | 1. Critical | 4 | 0 | 0 | 0 | 4 |
 | 2. Capabilities | 5 | 3 | 0 | 2 | 0 |
-| 3. Timers | 2 | 1 | 1 | 0 | 0 |
+| 3. Timers | 2 | 0 | 1 | 0 | 1 |
 | 4. Attributes | 7 | 1 | 3 | 0 | 3 |
 | 5. MP-NLRI | 4 | 3 | 0 | 0 | 1 |
 | 6. NLRI Types | 5 | 5 | 0 | 0 | 0 |
 | 7. FSM | 3 | 0 | 3 | 0 | 0 |
 | 8. Errors | 2 | 2 | 0 | 0 | 0 |
 | 9. Config | 4 | 4 | 0 | 0 | 0 |
-| **Total** | **36** | **19** | **7** | **2** | **8** |
+| **Total** | **36** | **18** | **7** | **2** | **9** |
 
 ---
 
@@ -277,7 +276,6 @@
 | Item | Description | Work |
 |------|-------------|------|
 | 8.2 | RFC 7606 Error Recovery | Implement treat-as-withdraw tactics |
-| 3.2 | Hold Time Validation | Reject 1-2 second values |
 
 ### Medium Priority (Functionality)
 
