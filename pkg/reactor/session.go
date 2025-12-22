@@ -495,6 +495,15 @@ func (s *Session) validateUpdateRFC7606(body []byte) error {
 		return nil
 	}
 
+	// RFC 7606 Section 5.3: Validate withdrawn routes NLRI syntax (IPv4)
+	if withdrawnLen > 0 {
+		withdrawn := body[2 : 2+withdrawnLen]
+		if result := message.ValidateNLRISyntax(withdrawn, false); result != nil {
+			trace.RFC7606TreatAsWithdraw(0, result.Description)
+			return nil // treat-as-withdraw
+		}
+	}
+
 	attrLen := int(binary.BigEndian.Uint16(body[offset : offset+2]))
 	offset += 2
 	if offset+attrLen > len(body) {
@@ -505,7 +514,16 @@ func (s *Session) validateUpdateRFC7606(body []byte) error {
 	nlriLen := len(body) - (offset + attrLen)
 	hasNLRI := nlriLen > 0
 
-	// Validate per RFC 7606
+	// RFC 7606 Section 5.3: Validate NLRI syntax (IPv4)
+	if nlriLen > 0 {
+		nlri := body[offset+attrLen:]
+		if result := message.ValidateNLRISyntax(nlri, false); result != nil {
+			trace.RFC7606TreatAsWithdraw(0, result.Description)
+			return nil // treat-as-withdraw
+		}
+	}
+
+	// Validate path attributes per RFC 7606
 	result := message.ValidateUpdateRFC7606(pathAttrs, hasNLRI)
 
 	switch result.Action {

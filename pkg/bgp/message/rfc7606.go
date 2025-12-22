@@ -217,7 +217,8 @@ func ValidateUpdateRFC7606(pathAttrs []byte, hasNLRI bool) *RFC7606ValidationRes
 }
 
 // validateAttribute checks a single attribute per RFC 7606 Section 7.
-func validateAttribute(code uint8, length int, _ []byte) *RFC7606ValidationResult {
+// TODO: Add asn4 parameter when ValidateUpdateRFC7606 signature is updated (Phase 3).
+func validateAttribute(code uint8, length int, attrData []byte) *RFC7606ValidationResult {
 	switch code {
 	case attrCodeOrigin:
 		// RFC 7606 Section 7.1: ORIGIN must be length 1
@@ -228,7 +229,21 @@ func validateAttribute(code uint8, length int, _ []byte) *RFC7606ValidationResul
 				Description: fmt.Sprintf("RFC 7606 Section 7.1: ORIGIN length %d != 1", length),
 			}
 		}
-		// Value validation (0, 1, 2) is handled by attribute parser
+		// RFC 7606 Section 7.1: ORIGIN value must be 0 (IGP), 1 (EGP), or 2 (INCOMPLETE)
+		if len(attrData) > 0 && attrData[0] > 2 {
+			return &RFC7606ValidationResult{
+				Action:      RFC7606ActionTreatAsWithdraw,
+				AttrCode:    code,
+				Description: fmt.Sprintf("RFC 7606 Section 7.1: ORIGIN undefined value %d", attrData[0]),
+			}
+		}
+
+	case attrCodeASPath:
+		// RFC 7606 Section 7.2: Validate AS_PATH segment structure
+		// Note: Using 2-byte ASN size. Will be parameterized in Phase 3.
+		if result := validateASPath(attrData, false); result != nil {
+			return result
+		}
 
 	case attrCodeNextHop:
 		// RFC 7606 Section 7.3: NEXT_HOP must be length 4
@@ -331,6 +346,249 @@ func validateAttribute(code uint8, length int, _ []byte) *RFC7606ValidationResul
 				Description: fmt.Sprintf("RFC 8092 Section 5: Large Community length %d not multiple of 12", length),
 			}
 		}
+
+	case attrCodeMPReachNLRI:
+		// RFC 7606 Section 5.3: MP_REACH_NLRI must be at least 5 bytes
+		// (AFI=2 + SAFI=1 + NH_LEN=1 + Reserved=1 minimum)
+		if length < 5 {
+			return &RFC7606ValidationResult{
+				Action:      RFC7606ActionSessionReset,
+				AttrCode:    code,
+				Description: fmt.Sprintf("RFC 7606 Section 5.3: MP_REACH_NLRI length %d < 5", length),
+			}
+		}
+		// RFC 7606 Section 7.11: Validate next-hop length per AFI/SAFI
+		if result := validateMPReachNextHop(attrData); result != nil {
+			return result
+		}
+	}
+
+	return nil
+}
+
+// AS_PATH segment type constants (RFC 4271 Section 4.3).
+const (
+	asPathTypeASSet      = 1 // AS_SET: unordered set of ASes
+	asPathTypeASSequence = 2 // AS_SEQUENCE: ordered set of ASes
+	asPathTypeConfedSeq  = 3 // AS_CONFED_SEQUENCE (RFC 5065)
+	asPathTypeConfedSet  = 4 // AS_CONFED_SET (RFC 5065)
+)
+
+// validateASPath validates AS_PATH segment structure per RFC 7606 Section 7.2.
+//
+// An AS_PATH is considered malformed if:
+// - Unrecognized segment type is encountered
+// - Segment overrun: segment length exceeds remaining data
+// - Segment underrun: only 1 byte remaining after last segment
+// - Zero segment length
+//
+// Parameters:
+//   - data: Raw AS_PATH attribute value bytes
+//   - asn4: True if ASNs are 4 bytes, false for 2 bytes
+//
+// Returns nil if valid, or RFC7606ValidationResult with treat-as-withdraw action.
+func validateASPath(data []byte, asn4 bool) *RFC7606ValidationResult {
+	// Empty AS_PATH is valid per RFC 7606 Section 5 (AS_PATH may have length zero)
+	if len(data) == 0 {
+		return nil
+	}
+
+	asSize := 2
+	if asn4 {
+		asSize = 4
+	}
+
+	pos := 0
+	for pos < len(data) {
+		// Need at least 2 bytes for segment header (type + length)
+		if pos+2 > len(data) {
+			// RFC 7606 Section 7.2: underrun - not enough for segment header
+			return &RFC7606ValidationResult{
+				Action:      RFC7606ActionTreatAsWithdraw,
+				AttrCode:    attrCodeASPath,
+				Description: "RFC 7606 Section 7.2: AS_PATH segment underrun (incomplete header)",
+			}
+		}
+
+		segType := data[pos]
+		segLen := int(data[pos+1])
+		pos += 2
+
+		// RFC 7606 Section 7.2: Validate segment type (1-4 are valid)
+		if segType < asPathTypeASSet || segType > asPathTypeConfedSet {
+			return &RFC7606ValidationResult{
+				Action:      RFC7606ActionTreatAsWithdraw,
+				AttrCode:    attrCodeASPath,
+				Description: fmt.Sprintf("RFC 7606 Section 7.2: unrecognized AS_PATH segment type %d", segType),
+			}
+		}
+
+		// RFC 7606 Section 7.2: Zero segment length is malformed
+		if segLen == 0 {
+			return &RFC7606ValidationResult{
+				Action:      RFC7606ActionTreatAsWithdraw,
+				AttrCode:    attrCodeASPath,
+				Description: "RFC 7606 Section 7.2: AS_PATH segment with zero length",
+			}
+		}
+
+		// RFC 7606 Section 7.2: Check for overrun
+		segDataLen := segLen * asSize
+		if pos+segDataLen > len(data) {
+			return &RFC7606ValidationResult{
+				Action:      RFC7606ActionTreatAsWithdraw,
+				AttrCode:    attrCodeASPath,
+				Description: fmt.Sprintf("RFC 7606 Section 7.2: AS_PATH segment overrun (need %d bytes, have %d)", segDataLen, len(data)-pos),
+			}
+		}
+		pos += segDataLen
+	}
+
+	// RFC 7606 Section 7.2: Check for underrun (trailing partial data)
+	// This is already handled above - if we exit the loop with pos < len(data),
+	// the next iteration would catch it. But if pos == len(data) exactly, we're good.
+
+	return nil
+}
+
+// AFI constants (RFC 4760).
+const (
+	afiIPv4 uint16 = 1
+	afiIPv6 uint16 = 2
+)
+
+// SAFI constants (RFC 4760).
+const (
+	safiUnicast   uint8 = 1
+	safiMulticast uint8 = 2
+	safiMPLS      uint8 = 4   // RFC 3107
+	safiVPN       uint8 = 128 // RFC 4364
+)
+
+// validateMPReachNextHop validates MP_REACH_NLRI next-hop length per RFC 7606 Section 7.11.
+//
+// The next-hop length must be consistent with the AFI/SAFI. Invalid lengths make it
+// impossible to reliably locate the NLRI, so session-reset is required.
+//
+// Expected lengths:
+//   - IPv4 unicast/multicast: 4 bytes
+//   - IPv4 unicast/multicast with RFC 5549: 16 bytes (IPv6 next-hop)
+//   - IPv6 unicast/multicast: 16 bytes (global) or 32 bytes (global + link-local)
+//   - VPNv4: 12 bytes (8-byte RD + 4-byte IPv4)
+//   - VPNv6: 24 bytes (8-byte RD + 16-byte IPv6)
+func validateMPReachNextHop(data []byte) *RFC7606ValidationResult {
+	// Need at least AFI (2) + SAFI (1) + NH_LEN (1) = 4 bytes
+	if len(data) < 4 {
+		return &RFC7606ValidationResult{
+			Action:      RFC7606ActionSessionReset,
+			AttrCode:    attrCodeMPReachNLRI,
+			Description: "RFC 7606 Section 7.11: MP_REACH_NLRI too short to parse next-hop",
+		}
+	}
+
+	afi := binary.BigEndian.Uint16(data[0:2])
+	safi := data[2]
+	nhLen := int(data[3])
+
+	// Validate next-hop length based on AFI/SAFI
+	var valid bool
+	switch afi {
+	case afiIPv4:
+		switch safi {
+		case safiUnicast, safiMulticast:
+			// RFC 4760: 4 bytes for IPv4
+			// RFC 5549: 16 bytes for IPv6 next-hop over IPv4 NLRI
+			valid = nhLen == 4 || nhLen == 16
+		case safiMPLS:
+			// RFC 3107: 4 bytes for IPv4
+			valid = nhLen == 4
+		case safiVPN:
+			// RFC 4364: 12 bytes (8-byte RD + 4-byte IPv4)
+			// Also allow 24 bytes for RFC 5549 (8-byte RD + 16-byte IPv6)
+			valid = nhLen == 12 || nhLen == 24
+		default:
+			// Unknown SAFI - accept any length to be permissive
+			valid = true
+		}
+	case afiIPv6:
+		switch safi {
+		case safiUnicast, safiMulticast:
+			// RFC 4760: 16 bytes (global) or 32 bytes (global + link-local)
+			valid = nhLen == 16 || nhLen == 32
+		case safiMPLS:
+			// RFC 3107: 16 bytes (global) or 32 bytes (global + link-local)
+			valid = nhLen == 16 || nhLen == 32
+		case safiVPN:
+			// RFC 4659: 24 bytes (8-byte RD + 16-byte IPv6)
+			// Also 48 bytes for dual next-hop
+			valid = nhLen == 24 || nhLen == 48
+		default:
+			// Unknown SAFI - accept any length to be permissive
+			valid = true
+		}
+	default:
+		// Unknown AFI - accept any length to be permissive
+		valid = true
+	}
+
+	if !valid {
+		return &RFC7606ValidationResult{
+			Action:      RFC7606ActionSessionReset,
+			AttrCode:    attrCodeMPReachNLRI,
+			Description: fmt.Sprintf("RFC 7606 Section 7.11: invalid next-hop length %d for AFI=%d SAFI=%d", nhLen, afi, safi),
+		}
+	}
+
+	return nil
+}
+
+// ValidateNLRISyntax validates NLRI field structure per RFC 7606 Section 5.3.
+//
+// An NLRI field is considered syntactically incorrect if:
+// - Any prefix length exceeds the maximum for the address family (32 for IPv4, 128 for IPv6)
+// - Any prefix's byte count exceeds the remaining data in the field (overrun)
+//
+// Parameters:
+//   - nlri: Raw NLRI bytes (prefix-length + prefix-bytes for each prefix)
+//   - isIPv6: True for IPv6 NLRI (max prefix length 128), false for IPv4 (max 32)
+//
+// Returns nil if valid, or RFC7606ValidationResult with treat-as-withdraw action.
+func ValidateNLRISyntax(nlri []byte, isIPv6 bool) *RFC7606ValidationResult {
+	if len(nlri) == 0 {
+		return nil
+	}
+
+	maxLen := 32
+	if isIPv6 {
+		maxLen = 128
+	}
+
+	pos := 0
+	for pos < len(nlri) {
+		// Each NLRI starts with 1-byte prefix length
+		prefixLen := int(nlri[pos]) //nolint:gosec // pos < len(nlri) guaranteed by loop
+		pos++
+
+		// RFC 7606 Section 5.3: Prefix length must not exceed max for address family
+		if prefixLen > maxLen {
+			return &RFC7606ValidationResult{
+				Action:      RFC7606ActionTreatAsWithdraw,
+				Description: fmt.Sprintf("RFC 7606 Section 5.3: prefix length %d > %d", prefixLen, maxLen),
+			}
+		}
+
+		// Calculate bytes needed for this prefix: ceiling(prefixLen / 8)
+		prefixBytes := (prefixLen + 7) / 8
+
+		// RFC 7606 Section 5.3: Check for overrun
+		if pos+prefixBytes > len(nlri) {
+			return &RFC7606ValidationResult{
+				Action:      RFC7606ActionTreatAsWithdraw,
+				Description: fmt.Sprintf("RFC 7606 Section 5.3: NLRI overrun (need %d bytes, have %d)", prefixBytes, len(nlri)-pos),
+			}
+		}
+
+		pos += prefixBytes
 	}
 
 	return nil
