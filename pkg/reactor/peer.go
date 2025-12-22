@@ -479,7 +479,7 @@ func buildStaticRouteUpdate(route StaticRoute, localAS uint32, isIBGP, asn4 bool
 		attrBytes = append(attrBytes, attribute.PackAttribute(nextHop)...)
 	}
 
-	// 4. MED (if set) - must come before LOCAL_PREF per RFC 4271 attribute ordering
+	// 4. MED (if set).
 	if route.MED > 0 {
 		med := attribute.MED(route.MED)
 		attrBytes = append(attrBytes, attribute.PackAttribute(med)...)
@@ -725,7 +725,13 @@ func buildGroupedUpdate(routes []StaticRoute, localAS uint32, isIBGP, asn4 bool)
 		attrBytes = append(attrBytes, attribute.PackAttribute(nextHop)...)
 	}
 
-	// 4. LOCAL_PREF (for iBGP).
+	// 4. MED (if set).
+	if route.MED > 0 {
+		med := attribute.MED(route.MED)
+		attrBytes = append(attrBytes, attribute.PackAttribute(med)...)
+	}
+
+	// 5. LOCAL_PREF (for iBGP).
 	if isIBGP {
 		localPref := route.LocalPreference
 		if localPref == 0 {
@@ -734,12 +740,12 @@ func buildGroupedUpdate(routes []StaticRoute, localAS uint32, isIBGP, asn4 bool)
 		attrBytes = append(attrBytes, attribute.PackAttribute(attribute.LocalPref(localPref))...)
 	}
 
-	// 5. ATOMIC_AGGREGATE (if set).
+	// 6. ATOMIC_AGGREGATE (if set).
 	if route.AtomicAggregate {
 		attrBytes = append(attrBytes, attribute.PackAttribute(attribute.AtomicAggregate{})...)
 	}
 
-	// 6. AGGREGATOR (if set).
+	// 7. AGGREGATOR (if set).
 	if route.HasAggregator {
 		agg := &attribute.Aggregator{
 			ASN:     route.AggregatorASN,
@@ -748,13 +754,7 @@ func buildGroupedUpdate(routes []StaticRoute, localAS uint32, isIBGP, asn4 bool)
 		attrBytes = append(attrBytes, attribute.PackAttribute(agg)...)
 	}
 
-	// 7. MED (if set).
-	if route.MED > 0 {
-		med := attribute.MED(route.MED)
-		attrBytes = append(attrBytes, attribute.PackAttribute(med)...)
-	}
-
-	// 6. COMMUNITIES (RFC 1997) - sorted per RFC 1997.
+	// 8. COMMUNITIES (RFC 1997) - sorted per RFC 1997.
 	if len(route.Communities) > 0 {
 		// Copy and sort communities.
 		sorted := make([]uint32, len(route.Communities))
@@ -768,7 +768,7 @@ func buildGroupedUpdate(routes []StaticRoute, localAS uint32, isIBGP, asn4 bool)
 		attrBytes = append(attrBytes, attribute.PackAttribute(comms)...)
 	}
 
-	// 7. EXTENDED_COMMUNITY.
+	// 9. EXTENDED_COMMUNITY.
 	if len(route.ExtCommunityBytes) > 0 {
 		ecAttr := make([]byte, 0, 3+len(route.ExtCommunityBytes))
 		ecAttr = append(ecAttr, 0xC0, 0x10, byte(len(route.ExtCommunityBytes)))
@@ -776,7 +776,7 @@ func buildGroupedUpdate(routes []StaticRoute, localAS uint32, isIBGP, asn4 bool)
 		attrBytes = append(attrBytes, ecAttr...)
 	}
 
-	// 8. LARGE_COMMUNITIES (RFC 8092).
+	// 10. LARGE_COMMUNITIES (RFC 8092).
 	if len(route.LargeCommunities) > 0 {
 		lcs := make(attribute.LargeCommunities, len(route.LargeCommunities))
 		for i, lc := range route.LargeCommunities {
