@@ -49,9 +49,9 @@ ze/
 ├── plan/                              # Implementation plans (project root)
 │   ├── README.md
 │   ├── ARCHITECTURE.md
-│   ├── wip-*.md                       # Active work
-│   ├── plan-*.md                      # Future plans
-│   └── done-*.md                      # Completed
+│   ├── <name>.md                      # Active/planned work
+│   └── done/                          # Completed plans
+│       └── <name>.md
 │
 ├── .claude/
 │   ├── # PROTOCOLS (how we work)
@@ -127,7 +127,8 @@ ze/
 | Edge cases | `.claude/zebgp/edge-cases/` | AS4.md |
 | API reference | `.claude/zebgp/api/` | COMMANDS.md |
 | Config reference | `.claude/zebgp/config/` | SYNTAX.md |
-| Implementation plans | `plan/` | wip-pool-completion.md |
+| Implementation plans | `plan/` | pool-integration.md |
+| Completed plans | `plan/done/` | unified-commit-system.md |
 | Completed work | `.claude/docs/projects/` | pool-implementation/ |
 
 ---
@@ -144,13 +145,13 @@ ze/
 
 **Decision:**
 - Implementation plan? YES
-- **Location:** `plan/plan-<feature-name>.md`
+- **Location:** `plan/<feature-name>.md`
 
-### "I want to document a session's work"
+### "I completed a plan"
 
 **Decision:**
-- Implementation plan? YES (update existing)
-- **Location:** Update `plan/wip-<name>.md`
+- Move to done folder
+- **Location:** `git mv plan/<name>.md plan/done/<name>.md`
 
 ### "I want to document git workflow rules"
 

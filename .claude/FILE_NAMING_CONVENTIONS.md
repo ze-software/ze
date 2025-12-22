@@ -130,11 +130,13 @@ internal/
 
 ```
 plan/
-├── README.md                          # Special
+├── README.md                          # Index
 ├── ARCHITECTURE.md                    # Reference (UPPERCASE)
-├── wip-pool-completion.md             # Active work (lowercase)
-├── plan-wire-format.md                # Future plan (lowercase)
-└── done-project-setup.md              # Completed (lowercase)
+├── pool-integration.md                # Active/planned (lowercase)
+├── peer-encoding-extraction.md        # Active/planned (lowercase)
+└── done/                              # Completed plans folder
+    ├── unified-commit-system.md
+    └── rfc7606-extension.md
 ```
 
 ---
