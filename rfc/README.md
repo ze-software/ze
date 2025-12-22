@@ -39,6 +39,7 @@ Text versions of RFCs relevant to ZeBGP implementation.
 | [5701](rfc5701.txt) | IPv6 Address Specific Extended Community | Planned |
 | [8092](rfc8092.txt) | BGP Large Communities Attribute | Implemented |
 | [8195](rfc8195.txt) | Use of BGP Large Communities | Reference |
+| [9234](rfc9234.txt) | Route Leak Prevention (OTC Attribute) | Reference |
 
 ## NLRI Types
 
