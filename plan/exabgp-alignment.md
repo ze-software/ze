@@ -28,11 +28,9 @@
 **Status:** ✅ **DONE** - `ValidateLength()` in `header.go:111-163`
 
 ### 1.3 Extended Message Size Integration
-**Current:** Constants defined, `ValidateLengthWithMax()` exists but NOT wired in receive path
+**Current:** `ValidateLengthWithMax()` called in receive path, buffer resized after negotiation
 **ExaBGP:** Sets msg_size immediately when capability negotiated
-**Impact:** May fail to send/receive large UPDATE messages
-**Decision:** [x] ALIGN / [ ] KEEP / [ ] SKIP
-**Work:** Wire `ValidateLengthWithMax(extendedMessage)` in `session.go` receive path
+**Status:** ✅ **DONE** - `session.go:294-311` (validation), `session.go:590-594` (buffer resize)
 
 ### 1.4 KEEPALIVE Payload Validation
 **Current:** ZeBGP rejects KEEPALIVE with payload via NOTIFICATION error
@@ -259,7 +257,7 @@
 
 | Phase | Total Items | ALIGN | KEEP | SKIP | DONE |
 |-------|-------------|-------|------|------|------|
-| 1. Critical | 4 | 1 | 0 | 0 | 3 |
+| 1. Critical | 4 | 0 | 0 | 0 | 4 |
 | 2. Capabilities | 5 | 3 | 0 | 2 | 0 |
 | 3. Timers | 2 | 1 | 1 | 0 | 0 |
 | 4. Attributes | 7 | 1 | 3 | 0 | 3 |
@@ -268,7 +266,7 @@
 | 7. FSM | 3 | 0 | 3 | 0 | 0 |
 | 8. Errors | 2 | 2 | 0 | 0 | 0 |
 | 9. Config | 4 | 4 | 0 | 0 | 0 |
-| **Total** | **36** | **20** | **7** | **2** | **7** |
+| **Total** | **36** | **19** | **7** | **2** | **8** |
 
 ---
 
@@ -278,7 +276,6 @@
 
 | Item | Description | Work |
 |------|-------------|------|
-| 1.3 | Extended Message Integration | Wire `ValidateLengthWithMax()` in session recv |
 | 8.2 | RFC 7606 Error Recovery | Implement treat-as-withdraw tactics |
 | 3.2 | Hold Time Validation | Reject 1-2 second values |
 
@@ -305,5 +302,7 @@
 ## Notes
 
 - Items marked **DONE** were verified by code review on 2025-12-22
+- Item 1.3 implemented 2025-12-22: extended message validation + buffer resize
 - RFC 7606 supersedes RFC 4271 §6 - ZeBGP should implement recovery tactics
 - ExaBGP claims verified accurate against source code
+- **Phase 1 Complete** - all critical RFC compliance items done

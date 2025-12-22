@@ -516,6 +516,249 @@ func TestSessionFamilyValidation(t *testing.T) {
 	require.Contains(t, err.Error(), "family", "error should mention family mismatch")
 }
 
+// TestSessionExtendedMessageValidation verifies RFC 8654 extended message validation.
+//
+// RFC 8654 Section 4: "The BGP Extended Message Capability applies to all
+// messages except for OPEN and KEEPALIVE messages."
+// RFC 8654 Section 5: "A BGP speaker that has not advertised the BGP Extended
+// Message Capability... MUST NOT accept a BGP Extended Message."
+//
+// VALIDATES: UPDATE >4096 bytes rejected without extended message capability.
+//
+// PREVENTS: Buffer overflow from oversized messages without negotiation.
+func TestSessionExtendedMessageValidation(t *testing.T) {
+	// Setup: session WITHOUT extended message capability
+	settings := NewPeerSettings(
+		netip.MustParseAddr("192.0.2.1"),
+		65001, 65002, 0x01020301,
+	)
+	settings.Passive = true
+	settings.Capabilities = []capability.Capability{
+		&capability.ASN4{ASN: 65001},
+		&capability.Multiprotocol{AFI: capability.AFIIPv4, SAFI: capability.SAFIUnicast},
+		// NOTE: No ExtendedMessage capability
+	}
+
+	session := NewSession(settings)
+	_ = session.Start()
+
+	client, server := net.Pipe()
+	defer func() { _ = client.Close() }()
+	defer func() { _ = server.Close() }()
+
+	// Accept connection
+	_ = acceptWithReader(t, session, server, client)
+
+	// Peer's OPEN without extended message capability
+	peerOpen := &message.Open{
+		Version: 4, MyAS: 65002, HoldTime: 90, BGPIdentifier: 0x01020302,
+		OptionalParams: []byte{
+			2, 12,
+			65, 4, 0, 0, 0xFD, 0xEA, // ASN4
+			1, 4, 0, 1, 0, 1, // Multiprotocol IPv4/Unicast
+		},
+	}
+	openBytes, _ := peerOpen.Pack(nil)
+
+	go func() {
+		_, _ = client.Write(openBytes)
+		buf := make([]byte, 4096)
+		_, _ = client.Read(buf) // Drain KEEPALIVE
+	}()
+
+	err := session.ReadAndProcess()
+	require.NoError(t, err)
+	require.Equal(t, fsm.StateOpenConfirm, session.State())
+
+	// Verify extended message is NOT negotiated
+	neg := session.Negotiated()
+	require.False(t, neg.ExtendedMessage, "extended message should not be negotiated")
+
+	// Exchange KEEPALIVE to reach Established
+	keepalive := message.NewKeepalive()
+	keepaliveBytes, _ := keepalive.Pack(nil)
+
+	go func() {
+		_, _ = client.Write(keepaliveBytes)
+	}()
+
+	err = session.ReadAndProcess()
+	require.NoError(t, err)
+	require.Equal(t, fsm.StateEstablished, session.State())
+
+	// Build UPDATE header with length > 4096 (e.g., 4100)
+	// RFC 8654: Without extended message, this MUST be rejected
+	hdr := make([]byte, 19)
+	for i := 0; i < 16; i++ {
+		hdr[i] = 0xff // Marker
+	}
+	// Length = 4100 (> 4096 max without extended message)
+	hdr[16] = 0x10 // 4100 >> 8 = 16
+	hdr[17] = 0x04 // 4100 & 0xFF = 4
+	hdr[18] = byte(message.TypeUPDATE)
+
+	go func() {
+		_, _ = client.Write(hdr)
+		// Drain any NOTIFICATION response
+		buf := make([]byte, 4096)
+		_, _ = client.Read(buf)
+	}()
+
+	// This should return an error because message > 4096 without extended message
+	err = session.ReadAndProcess()
+	require.Error(t, err, "should reject UPDATE >4096 without extended message capability")
+}
+
+// TestSessionExtendedMessageAccepted verifies RFC 8654 extended message acceptance.
+//
+// RFC 8654 Section 4: "A BGP speaker MAY send BGP Extended Messages to a peer
+// only if the BGP Extended Message Capability was received from that peer."
+//
+// VALIDATES: UPDATE >4096 bytes accepted WITH extended message capability.
+//
+// PREVENTS: Rejection of valid large UPDATE messages when capability is negotiated.
+func TestSessionExtendedMessageAccepted(t *testing.T) {
+	// Setup: session WITH extended message capability
+	settings := NewPeerSettings(
+		netip.MustParseAddr("192.0.2.1"),
+		65001, 65002, 0x01020301,
+	)
+	settings.Passive = true
+	settings.Capabilities = []capability.Capability{
+		&capability.ASN4{ASN: 65001},
+		&capability.Multiprotocol{AFI: capability.AFIIPv4, SAFI: capability.SAFIUnicast},
+		&capability.ExtendedMessage{}, // Enable extended message
+	}
+
+	session := NewSession(settings)
+	_ = session.Start()
+
+	client, server := net.Pipe()
+	defer func() { _ = client.Close() }()
+	defer func() { _ = server.Close() }()
+
+	// Accept connection
+	_ = acceptWithReader(t, session, server, client)
+
+	// Peer's OPEN WITH extended message capability
+	// Capability code 6 (ExtendedMessage), length 0
+	peerOpen := &message.Open{
+		Version: 4, MyAS: 65002, HoldTime: 90, BGPIdentifier: 0x01020302,
+		OptionalParams: []byte{
+			2, 14, // Capability param, length 14
+			65, 4, 0, 0, 0xFD, 0xEA, // ASN4
+			1, 4, 0, 1, 0, 1, // Multiprotocol IPv4/Unicast
+			6, 0, // ExtendedMessage capability (code=6, len=0)
+		},
+	}
+	openBytes, _ := peerOpen.Pack(nil)
+
+	go func() {
+		_, _ = client.Write(openBytes)
+		buf := make([]byte, 4096)
+		_, _ = client.Read(buf) // Drain KEEPALIVE
+	}()
+
+	err := session.ReadAndProcess()
+	require.NoError(t, err)
+	require.Equal(t, fsm.StateOpenConfirm, session.State())
+
+	// Verify extended message IS negotiated
+	neg := session.Negotiated()
+	require.True(t, neg.ExtendedMessage, "extended message should be negotiated")
+
+	// Exchange KEEPALIVE to reach Established
+	keepalive := message.NewKeepalive()
+	keepaliveBytes, _ := keepalive.Pack(nil)
+
+	go func() {
+		_, _ = client.Write(keepaliveBytes)
+	}()
+
+	err = session.ReadAndProcess()
+	require.NoError(t, err)
+	require.Equal(t, fsm.StateEstablished, session.State())
+
+	// Build valid UPDATE with length > 4096 (e.g., 5000)
+	// RFC 8654: With extended message, this SHOULD be accepted
+	updateMsg := make([]byte, 5000)
+	for i := 0; i < 16; i++ {
+		updateMsg[i] = 0xff // Marker
+	}
+	// Length = 5000 (> 4096, allowed with extended message)
+	updateMsg[16] = 0x13 // 5000 >> 8 = 19
+	updateMsg[17] = 0x88 // 5000 & 0xFF = 136
+	updateMsg[18] = byte(message.TypeUPDATE)
+	// Body starts at offset 19
+	updateMsg[19] = 0x00 // Withdrawn routes length high
+	updateMsg[20] = 0x00 // Withdrawn routes length low
+	updateMsg[21] = 0x00 // Path attrs length high
+	updateMsg[22] = 0x00 // Path attrs length low
+	// Rest is padding (no NLRI)
+
+	go func() {
+		_, _ = client.Write(updateMsg)
+	}()
+
+	// This should NOT return an error because extended message is negotiated
+	err = session.ReadAndProcess()
+	require.NoError(t, err, "should accept UPDATE >4096 with extended message capability")
+	require.Equal(t, fsm.StateEstablished, session.State(), "session should remain Established")
+}
+
+// TestSessionOpenAlwaysBounded verifies OPEN messages are always bounded.
+//
+// RFC 8654 Section 4: "The BGP Extended Message Capability applies to all
+// messages except for OPEN and KEEPALIVE messages."
+//
+// VALIDATES: OPEN >4096 rejected even if extended message would be negotiated.
+//
+// PREVENTS: Oversized OPEN messages bypassing RFC 4271 limits.
+func TestSessionOpenAlwaysBounded(t *testing.T) {
+	// Setup: session that would accept extended message
+	settings := NewPeerSettings(
+		netip.MustParseAddr("192.0.2.1"),
+		65001, 65002, 0x01020301,
+	)
+	settings.Passive = true
+	settings.Capabilities = []capability.Capability{
+		&capability.ASN4{ASN: 65001},
+		&capability.ExtendedMessage{},
+	}
+
+	session := NewSession(settings)
+	_ = session.Start()
+
+	client, server := net.Pipe()
+	defer func() { _ = client.Close() }()
+	defer func() { _ = server.Close() }()
+
+	// Accept connection (sends our OPEN)
+	_ = acceptWithReader(t, session, server, client)
+
+	// Build OPEN header with length > 4096 (e.g., 4100)
+	// Even though peer might support extended message, OPEN is always bounded
+	hdr := make([]byte, 19)
+	for i := 0; i < 16; i++ {
+		hdr[i] = 0xff // Marker
+	}
+	// Length = 4100 (> 4096 - invalid for OPEN regardless of extended message)
+	hdr[16] = 0x10 // 4100 >> 8 = 16
+	hdr[17] = 0x04 // 4100 & 0xFF = 4
+	hdr[18] = byte(message.TypeOPEN)
+
+	go func() {
+		_, _ = client.Write(hdr)
+		// Drain any NOTIFICATION response
+		buf := make([]byte, 4096)
+		_, _ = client.Read(buf)
+	}()
+
+	// This should return an error - OPEN is always bounded to 4096
+	err := session.ReadAndProcess()
+	require.Error(t, err, "should reject OPEN >4096 even before extended message negotiation")
+}
+
 // TestSessionFamilyValidationIgnoreMismatch verifies ignore-mismatch mode.
 //
 // RFC 4760 Section 6: speaker MAY treat non-negotiated AFI/SAFI as error.

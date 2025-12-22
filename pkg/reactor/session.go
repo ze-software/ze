@@ -291,6 +291,25 @@ func (s *Session) readAndProcessMessage(conn net.Conn) error {
 		return fmt.Errorf("parse header: %w", err)
 	}
 
+	// RFC 8654: Validate message length against max (4096 or 65535 if extended).
+	// Get negotiated state to check if extended message is enabled.
+	s.mu.RLock()
+	neg := s.negotiated
+	s.mu.RUnlock()
+
+	extendedMessage := neg != nil && neg.ExtendedMessage
+	if err := hdr.ValidateLengthWithMax(extendedMessage); err != nil {
+		// RFC 8654 Section 5: Send NOTIFICATION with Bad Message Length.
+		_ = s.sendNotification(conn, neg,
+			message.NotifyMessageHeader,
+			message.NotifyHeaderBadLength,
+			[]byte{byte(hdr.Length >> 8), byte(hdr.Length)},
+		)
+		_ = s.fsm.Event(fsm.EventBGPHeaderErr)
+		s.closeConn()
+		return fmt.Errorf("message length %d exceeds max for %s: %w", hdr.Length, hdr.Type, err)
+	}
+
 	// Read body.
 	bodyLen := int(hdr.Length) - message.HeaderLen
 	if bodyLen > 0 {
@@ -567,6 +586,12 @@ func (s *Session) negotiate() {
 		s.settings.LocalAS,
 		s.peerOpen.ASN4,
 	)
+
+	// RFC 8654: If extended message is negotiated, resize read buffer.
+	// MUST be capable of receiving messages up to 65535 octets.
+	if s.negotiated.ExtendedMessage && len(s.readBuf) < message.ExtMsgLen {
+		s.readBuf = make([]byte, message.ExtMsgLen)
+	}
 
 	// Negotiate hold time (minimum of both, but at least 3s if non-zero).
 	localHold := s.settings.HoldTime
