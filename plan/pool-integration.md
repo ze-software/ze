@@ -149,3 +149,46 @@ grep -rn "&attribute\." pkg/ --include="*_test.go"
 - **MPReachNLRI/MPUnreachNLRI**: ✅ Intern for consistency
 - **All attributes**: ✅ Intern everything through pool
 - **Test files**: ✅ Update all 50+ locations for consistency
+
+---
+
+## Future Optimization: Policy-Set Attribute Defaults
+
+**Observation:** Some attributes are set via route-map/policy and are identical for ALL routes from a peer. Examples:
+- `LOCAL_PREF` - often set to same value for all routes from an EBGP peer
+- `MED` - may be set uniformly by policy
+- `COMMUNITY` - policy may add same communities to all routes
+
+**Current behavior:** Each route stores its own copy of these attributes, even when identical.
+
+**Potential optimization:** Store policy-default attributes at session/peer level, not per-route.
+
+```go
+// PeerDefaults holds attributes that apply to all routes from this peer
+// unless explicitly overridden.
+type PeerDefaults struct {
+    LocalPref   *uint32           // nil = not set, use route's value
+    Communities []uint32          // added to all routes
+    // ... other policy-set attributes
+}
+
+// Route stores only non-default attributes
+type Route struct {
+    // If LocalPref is nil, use peer's default
+    LocalPref *attribute.LocalPref // nil = use PeerDefaults.LocalPref
+    // ...
+}
+```
+
+**Memory savings example:**
+- 800k routes from one EBGP peer
+- All have LOCAL_PREF=100 (set by policy)
+- Current: 800k × 8 bytes = 6.4 MB
+- Optimized: 1 × 8 bytes = 8 bytes
+
+**Implementation notes:**
+- Requires tracking which attributes came from policy vs. received in UPDATE
+- May complicate route serialization (need to merge defaults)
+- Consider: is complexity worth the memory savings?
+
+**Status:** 💭 Idea for future consideration (not planned)
