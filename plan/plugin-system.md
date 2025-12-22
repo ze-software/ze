@@ -1,14 +1,87 @@
 # ZeBGP Plugin System Design
 
-**Status:** Proposed
+**Status:** Proposed (Under Review)
 **Date:** 2025-12-21
-**Updated:** 2025-12-22 (v3)
+**Updated:** 2025-12-22 (v5)
+
+> **⚠️ BLOCKING PREREQUISITE:** This design requires RIB implementation. See `plan/rib-design.md` (TODO).
+
+> **📄 Document Structure:** This is the full specification. For phased implementation, see Phased Implementation section below.
+
+---
+
+## Change Log
+
+**v5 Changes (Review):**
+- Added Prerequisites section
+- Added Decision Log
+- Added Risk Register
+- Fixed topological sort algorithm (was computing in-degree backwards)
+- Added `OnUpdateSend` hook for final UPDATE modification
+- Added Phased Implementation with MVP definition
+- Added document structure recommendations
+- Marked sections as MVP vs POST-MVP
+- Added missing Clone() return types
+
+**v4 Changes:**
+- Added full Clone() implementation with deep-copy semantics
+- Added Cloner interface for attributes
+- Added dependency cycle detection using Tarjan's algorithm
+- Added topological sort for plugin init order
+- Added test cases for cycle detection and ordering
 
 **v3 Changes:**
 - Removed Go native plugin support (gRPC/JSON-RPC only)
 - Added ConfigSchema for config validation (JSON Schema draft-07)
+- Added GetConfigSchema RPC (called before Init for validation)
 - Fixed CustomCapability code range to 239-254 per RFC 5492 §4
-- Added Outbound UPDATE Flow documentation with ExportPlugin interface
+- Fixed CustomAttribute code range to 241-254 (safe experimental)
+- Added Outbound UPDATE Flow with ExportPlugin interface
+- Added OnExport RPC to gRPC/JSON-RPC protocols
+- Added Route message type for export policy
+
+---
+
+## Prerequisites
+
+| Prerequisite | Status | Why Needed |
+|--------------|--------|------------|
+| RFC 4271 core compliance | 🟡 In Progress | Plugin interfaces must match stable core |
+| RIB implementation | 🔴 Not Started | Export policy, route storage require RIB |
+| Reactor refactor | 🟡 Partial | ReactorAPI interface needs clear boundaries |
+
+**Do NOT begin plugin implementation until:**
+1. `make test && make lint` passes consistently
+2. RIB design is approved
+3. Core FSM is stable
+
+---
+
+## Decision Log
+
+| Date | Decision | Rationale | Alternatives Considered |
+|------|----------|-----------|------------------------|
+| 2025-12-21 | No Go native plugins | CGO issues, Go version coupling, no Windows | Native .so, Wasm |
+| 2025-12-21 | gRPC as primary transport | Type safety, streaming, wide language support | JSON-RPC only |
+| 2025-12-21 | JSON-RPC for simplicity | Zero deps, easy debugging, ExaBGP compat | gRPC only |
+| 2025-12-21 | stdio for ExaBGP compat | Migration path from ExaBGP processes | Drop compat |
+| 2025-12-22 | Validation layer mandatory | RFC compliance non-negotiable | Trust plugins |
+| 2025-12-22 | Circuit breaker for external | Prevent cascade failures | Fail-fast only |
+| 2025-12-22 | Priority-based ordering | Explicit control, predictable | Alphabetical |
+| 2025-12-22 | Clone() for async safety | Pooled UPDATEs need explicit copy | Always copy |
+
+---
+
+## Risk Register
+
+| Risk | Impact | Likelihood | Mitigation |
+|------|--------|------------|------------|
+| Plugin corrupts UPDATE | 🔴 High | Medium | Validation layer, immutable option |
+| External plugin latency | 🟡 Medium | High | Timeouts, circuit breaker, backpressure |
+| Dependency version drift | 🟡 Medium | Medium | Version negotiation, compatibility matrix |
+| Core API churn | 🔴 High | High (now) | Wait for core stability, minimal MVP |
+| Memory leaks from pooling | 🟡 Medium | Medium | Clone() semantics, linter checks |
+| Plugin blocks shutdown | 🟡 Medium | Medium | Close timeout, force-terminate |
 
 ---
 
@@ -292,6 +365,13 @@ type PeerPlugin interface {
     // Return nil to use original notification, or modified notification.
     // OnNotificationSend(peer PeerInfo, notif *message.Notification) *message.Notification
 
+    // OnUpdateSend is called before sending UPDATE to peer (after export policy).
+    // Allows final modification of composed UPDATE before wire encoding.
+    // Called per-UPDATE, not per-route (unlike OnExport which is per-route).
+    // Use for: final attribute adjustments, logging, metrics.
+    // Return nil to use original UPDATE, or modified UPDATE.
+    // OnUpdateSend(peer PeerInfo, update *message.Update) *message.Update
+
     // OnError is called for non-fatal errors (parse errors, validation warnings).
     // Useful for logging, alerting, and debugging interop issues.
     // OnError(peer PeerInfo, err error, context string)
@@ -343,9 +423,84 @@ type UpdateHandler func(peer PeerInfo, update *message.Update) HandlerResult
 // Clone creates a deep copy of the UPDATE message.
 // Use this when you need to retain the UPDATE beyond handler return,
 // such as for async processing or queueing.
+//
+// GUARANTEES:
+// - All slices, maps, and nested structures are deep copied
+// - The returned Update shares NO memory with the original
+// - Modifications to clone do not affect original (and vice versa)
+//
+// WARNING: Retaining UPDATE references after handler returns (without Clone) causes:
+// - Data races (UPDATE may be concurrently modified by pool)
+// - Corrupted data (buffer reused for next UPDATE)
+// - Unpredictable crashes
 func (u *Update) Clone() *Update {
-    // Implementation: deep copies all slices and nested structures
+    if u == nil {
+        return nil
+    }
+
+    clone := &Update{
+        PathID: u.PathID, // Value type, safe to copy
+    }
+
+    // Deep copy withdrawn prefixes
+    if len(u.Withdrawn) > 0 {
+        clone.Withdrawn = make([]netip.Prefix, len(u.Withdrawn))
+        copy(clone.Withdrawn, u.Withdrawn)
+    }
+
+    // Deep copy NLRI
+    if len(u.NLRI) > 0 {
+        clone.NLRI = make([]netip.Prefix, len(u.NLRI))
+        copy(clone.NLRI, u.NLRI)
+    }
+
+    // Deep copy attributes (each attribute implements Cloner)
+    if len(u.Attributes) > 0 {
+        clone.Attributes = make([]attribute.Attribute, len(u.Attributes))
+        for i, attr := range u.Attributes {
+            clone.Attributes[i] = attr.Clone()
+        }
+    }
+
+    // Deep copy MP_REACH_NLRI (contains NextHop + NLRI slice)
+    if u.MPReachNLRI != nil {
+        clone.MPReachNLRI = u.MPReachNLRI.Clone()
+    }
+
+    // Deep copy MP_UNREACH_NLRI
+    if u.MPUnreachNLRI != nil {
+        clone.MPUnreachNLRI = u.MPUnreachNLRI.Clone()
+    }
+
+    return clone
 }
+
+// Cloner interface for deep copying attributes.
+// All attribute types must implement this.
+type Cloner interface {
+    Clone() Attribute
+}
+
+// Example implementations:
+//
+// func (a *ASPath) Clone() Attribute {
+//     clone := &ASPath{Segments: make([]ASPathSegment, len(a.Segments))}
+//     for i, seg := range a.Segments {
+//         clone.Segments[i] = ASPathSegment{
+//             Type: seg.Type,
+//             ASNs: slices.Clone(seg.ASNs),
+//         }
+//     }
+//     return clone
+// }
+//
+// func (c *Communities) Clone() Attribute {
+//     return &Communities{Values: slices.Clone(c.Values)}
+// }
+//
+// func (lc *LargeCommunities) Clone() Attribute {
+//     return &LargeCommunities{Values: slices.Clone(lc.Values)}
+// }
 
 // HandlerResult specifies handler outcome with granular control.
 type HandlerResult struct {
@@ -487,19 +642,23 @@ func (c *CustomCapability) Validate() error {
 // --- Custom/Experimental Path Attributes ---
 
 // CustomAttribute allows plugins to add experimental path attributes.
-// Standard attribute codes (0-39) are validated to prevent accidental misuse.
+// Standard attribute codes (0-40) are validated to prevent accidental misuse.
+//
+// IANA BGP Path Attributes registry (unlike capabilities) has no explicit
+// "experimental" range. Codes 128-254 are First Come First Served with some
+// already allocated (e.g., 128=ATTR_SET per RFC 6368). Use codes 241-254.
 //
 // VALIDATION: CustomAttribute.Validate() is called by the validation layer
 // before wire encoding, along with all other RFC compliance checks.
 type CustomAttribute struct {
     Flags uint8  // Attribute flags (optional, transitive, partial, extended)
-    Code  uint8  // Attribute type code (SHOULD use 128-255 for experimental)
+    Code  uint8  // Attribute type code (use 241-254 for experimental)
     Value []byte // Raw attribute value
 }
 
 // Validate checks the attribute code and warns about standard code usage.
 // Returns error for well-known mandatory attributes that plugins should not override.
-// Logs warning for other standard attributes.
+// Logs warning for codes that may conflict with IANA assignments.
 func (a *CustomAttribute) Validate() error {
     // Block well-known mandatory attributes (plugins must not forge these)
     switch a.Code {
@@ -512,10 +671,10 @@ func (a *CustomAttribute) Validate() error {
     case 5: // LOCAL_PREF
         return errors.New("CustomAttribute cannot use LOCAL_PREF (code 5)")
     }
-    // Warn about other standard attributes
-    if a.Code < 40 {
-        slog.Warn("CustomAttribute using standard code range",
-            "code", a.Code, "recommended", "128-255")
+    // Warn about codes outside safe experimental range
+    if a.Code < 241 {
+        slog.Warn("CustomAttribute code may conflict with IANA assignments",
+            "code", a.Code, "recommended", "241-254")
     }
     return nil
 }
@@ -524,7 +683,7 @@ func (a *CustomAttribute) Validate() error {
 // update := &message.Update{
 //     Attributes: []attribute.Attribute{
 //         attribute.Origin(attribute.OriginIGP),
-//         &CustomAttribute{Flags: 0xC0, Code: 200, Value: experimentalData},
+//         &CustomAttribute{Flags: 0xC0, Code: 241, Value: experimentalData},
 //     },
 // }
 
@@ -759,6 +918,219 @@ func (r *Registry) PeerPlugins() []PeerPlugin
 
 // APIPlugins returns all registered API plugins.
 func (r *Registry) APIPlugins() []APIPlugin
+
+// ResolveDependencies validates and orders plugins for initialization.
+// Returns error if dependency cycle detected or required dependency missing.
+func (r *Registry) ResolveDependencies() ([]Plugin, error)
+```
+
+### Dependency Cycle Detection
+
+The registry uses Tarjan's algorithm to detect cycles before initialization.
+Plugins are initialized in topological order (dependencies before dependents).
+
+```go
+// resolveDependencies validates dependency graph and returns init order.
+func (r *Registry) resolveDependencies() ([]Plugin, error) {
+    // Build dependency graph
+    graph := make(map[string][]string)
+    plugins := make(map[string]Plugin)
+
+    for name, p := range r.plugins {
+        plugins[name] = p
+        for _, dep := range p.Dependencies() {
+            graph[name] = append(graph[name], dep.Name)
+        }
+    }
+
+    // Detect cycles using DFS with state tracking
+    if cycle := detectCycle(graph); cycle != nil {
+        return nil, fmt.Errorf("dependency cycle: %s", strings.Join(cycle, " → "))
+    }
+
+    // Topological sort for init order
+    return topologicalSort(plugins, graph)
+}
+
+func detectCycle(graph map[string][]string) []string {
+    const (
+        unvisited = 0
+        visiting  = 1
+        visited   = 2
+    )
+
+    state := make(map[string]int)
+    var cycle []string
+
+    var dfs func(node string, path []string) bool
+    dfs = func(node string, path []string) bool {
+        if state[node] == visiting {
+            // Found cycle - extract it
+            for i, n := range path {
+                if n == node {
+                    cycle = append(path[i:], node)
+                    return true
+                }
+            }
+        }
+        if state[node] == visited {
+            return false
+        }
+
+        state[node] = visiting
+        path = append(path, node)
+
+        for _, dep := range graph[node] {
+            if dfs(dep, path) {
+                return true
+            }
+        }
+
+        state[node] = visited
+        return false
+    }
+
+    for node := range graph {
+        if state[node] == unvisited {
+            if dfs(node, nil) {
+                return cycle
+            }
+        }
+    }
+    return nil
+}
+
+func topologicalSort(plugins map[string]Plugin, graph map[string][]string) ([]Plugin, error) {
+    // Kahn's algorithm for topological sort
+    // graph[X] = list of plugins that X depends on
+    // inDegree[X] = number of unresolved dependencies for X
+    // dependents[Y] = list of plugins that depend on Y (need Y to init first)
+
+    inDegree := make(map[string]int)
+    dependents := make(map[string][]string)
+
+    for name := range plugins {
+        inDegree[name] = len(graph[name])
+        for _, dep := range graph[name] {
+            dependents[dep] = append(dependents[dep], name)
+        }
+    }
+
+    // Start with plugins that have no dependencies (inDegree == 0)
+    var queue []string
+    for name, degree := range inDegree {
+        if degree == 0 {
+            queue = append(queue, name)
+        }
+    }
+
+    var result []Plugin
+    for len(queue) > 0 {
+        // Sort for deterministic order
+        sort.Strings(queue)
+        name := queue[0]
+        queue = queue[1:]
+
+        if p, ok := plugins[name]; ok {
+            result = append(result, p)
+        }
+
+        // This plugin is now initialized - decrement inDegree of its dependents
+        for _, dependent := range dependents[name] {
+            inDegree[dependent]--
+            if inDegree[dependent] == 0 {
+                queue = append(queue, dependent)
+            }
+        }
+    }
+
+    // Check for unresolved dependencies (cycle or missing plugin)
+    if len(result) != len(plugins) {
+        var unresolved []string
+        for name, degree := range inDegree {
+            if degree > 0 {
+                unresolved = append(unresolved, name)
+            }
+        }
+        return nil, fmt.Errorf("unresolved dependencies: %v", unresolved)
+    }
+
+    return result, nil
+}
+```
+
+**Startup behavior:**
+
+```
+INFO: Loading plugins...
+INFO: Plugin "rib" registered (priority 0, no dependencies)
+INFO: Plugin "policy" registered (priority 50, depends on: rib)
+INFO: Plugin "logging" registered (priority 900, no dependencies)
+INFO: Resolving dependencies...
+INFO: Init order: rib → policy → logging
+
+# Or if cycle detected:
+ERROR: Dependency cycle detected: filter → validator → filter
+FATAL: Cannot start - fix plugin dependencies in configuration
+```
+
+**Test case:**
+
+```go
+func TestDependencyCycleDetection(t *testing.T) {
+    r := NewRegistry()
+
+    // A depends on B, B depends on C, C depends on A
+    r.Register(&mockPlugin{name: "A", deps: []Dependency{{Name: "B"}}})
+    r.Register(&mockPlugin{name: "B", deps: []Dependency{{Name: "C"}}})
+    r.Register(&mockPlugin{name: "C", deps: []Dependency{{Name: "A"}}})
+
+    _, err := r.ResolveDependencies()
+    if err == nil {
+        t.Fatal("expected cycle error")
+    }
+    if !strings.Contains(err.Error(), "dependency cycle") {
+        t.Errorf("unexpected error: %v", err)
+    }
+    if !strings.Contains(err.Error(), "A → B → C → A") {
+        t.Errorf("cycle path not shown: %v", err)
+    }
+}
+
+func TestTopologicalOrder(t *testing.T) {
+    r := NewRegistry()
+
+    // D has no deps, C depends on D, B depends on C, A depends on B
+    r.Register(&mockPlugin{name: "A", deps: []Dependency{{Name: "B"}}})
+    r.Register(&mockPlugin{name: "B", deps: []Dependency{{Name: "C"}}})
+    r.Register(&mockPlugin{name: "C", deps: []Dependency{{Name: "D"}}})
+    r.Register(&mockPlugin{name: "D", deps: nil})
+
+    order, err := r.ResolveDependencies()
+    if err != nil {
+        t.Fatalf("unexpected error: %v", err)
+    }
+
+    // D must come before C, C before B, B before A
+    indexOf := func(name string) int {
+        for i, p := range order {
+            if p.Name() == name {
+                return i
+            }
+        }
+        return -1
+    }
+
+    if indexOf("D") > indexOf("C") {
+        t.Error("D should init before C")
+    }
+    if indexOf("C") > indexOf("B") {
+        t.Error("C should init before B")
+    }
+    if indexOf("B") > indexOf("A") {
+        t.Error("B should init before A")
+    }
+}
 ```
 
 ### Plugin Lifecycle
@@ -841,7 +1213,7 @@ type CapabilityMerger interface {
 | Extended Message | OR | Any plugin requests → enabled |
 | Graceful Restart | Complex | See below |
 | Hold Time | Minimum non-zero | A: 90s, B: 180s → 90s |
-| Custom (128-255) | Last plugin wins | Warning logged |
+| Custom (239-254) | Last plugin wins | Warning logged |
 
 **Graceful Restart merging:**
 - Restart Time: minimum of all requested values
@@ -1565,7 +1937,7 @@ socket-name = "zebgp"
 External plugins get their own TOML section based on plugin name:
 
 ```toml
-# Plugin loaded from /usr/lib/zebgp/custom.so
+# External plugin connected via gRPC at /var/run/zebgp/custom-filter.sock
 # Plugin.Name() returns "custom-filter"
 
 [zebgp.custom-filter]
@@ -2053,6 +2425,7 @@ package zebgp.plugin.v1;
 // ZeBGP connects to plugins as a gRPC client.
 service PluginService {
     // Lifecycle
+    rpc GetConfigSchema(GetConfigSchemaRequest) returns (GetConfigSchemaResponse);
     rpc Init(InitRequest) returns (InitResponse);
     rpc Close(CloseRequest) returns (CloseResponse);
     rpc HealthCheck(HealthCheckRequest) returns (HealthCheckResponse);
@@ -2067,6 +2440,12 @@ service PluginService {
     // UPDATE processing - bidirectional stream for efficiency
     rpc ProcessUpdates(stream UpdateRequest) returns (stream UpdateResponse);
 
+    // Export policy - called before sending routes to peers (optional)
+    rpc OnExport(OnExportRequest) returns (OnExportResponse);
+
+    // Final UPDATE modification - called after export policy, before wire (optional)
+    rpc OnUpdateSend(OnUpdateSendRequest) returns (OnUpdateSendResponse);
+
     // Optional extended hooks
     rpc OnStateChange(StateChangeRequest) returns (StateChangeResponse);
     rpc OnKeepalive(KeepaliveRequest) returns (KeepaliveResponse);
@@ -2080,8 +2459,26 @@ service PluginService {
 
 // --- Lifecycle ---
 
+// VALIDATION FLOW:
+// 1. ZeBGP calls GetConfigSchema() to retrieve plugin's schema
+// 2. ZeBGP validates config against schema BEFORE calling Init()
+// 3. If valid, ZeBGP calls Init() with validated config
+// 4. Plugin can assume config matches schema (defensive validation still recommended)
+
+message GetConfigSchemaRequest {}
+
+message GetConfigSchemaResponse {
+    ConfigSchema schema = 1;  // nil = no validation
+}
+
+message ConfigSchema {
+    bytes schema = 1;                      // JSON Schema (draft-07) as raw JSON
+    repeated string required = 2;          // Required configuration keys
+    map<string, string> defaults = 3;      // Default values for optional keys
+}
+
 message InitRequest {
-    map<string, string> config = 1;  // Plugin configuration
+    map<string, string> config = 1;  // Plugin configuration (validated against schema)
     string api_version = 2;          // ZeBGP plugin API version (e.g., "1.0")
 }
 
@@ -2094,13 +2491,6 @@ message InitResponse {
     string supported_api_version = 6;      // Plugin's max supported API version
     repeated string required_apis = 7;     // Required APIs (see Plugin Authorization)
     repeated PluginDependency dependencies = 8;  // Service dependencies
-    ConfigSchema config_schema = 9;        // JSON Schema for config validation
-}
-
-message ConfigSchema {
-    bytes schema = 1;                      // JSON Schema (draft-07) as raw JSON
-    repeated string required = 2;          // Required configuration keys
-    map<string, string> defaults = 3;      // Default values for optional keys
 }
 
 message PluginDependency {
@@ -2244,6 +2634,41 @@ message OutboundUpdate {
     string peer_selector = 1;  // "*" for all, or specific peer address
     Update update = 2;
     bytes raw = 3;  // Raw bytes for protocol development
+}
+
+// --- Export Policy ---
+
+message OnExportRequest {
+    PeerInfo source = 1;       // Peer that advertised the route (nil for local)
+    PeerInfo target = 2;       // Peer we're sending to
+    Route route = 3;
+}
+
+message Route {
+    bytes prefix = 1;                      // NLRI prefix (encoded)
+    repeated Attribute attributes = 2;     // Path attributes
+    uint32 path_id = 3;                    // Add-Path ID (0 if not used)
+}
+
+message OnExportResponse {
+    enum Action {
+        CONTINUE = 0;  // Send to peer (possibly modified)
+        DROP = 1;      // Don't send to this peer
+        MODIFY = 2;    // Use modified route
+    }
+    Action action = 1;
+    Route modified = 2;  // If action = MODIFY
+}
+
+// --- UPDATE Send (final modification before wire) ---
+
+message OnUpdateSendRequest {
+    PeerInfo peer = 1;       // Target peer
+    Update update = 2;       // Composed UPDATE (after export policy)
+}
+
+message OnUpdateSendResponse {
+    Update modified = 1;     // nil = use original, else use this UPDATE
 }
 
 // --- Close ---
@@ -2467,7 +2892,8 @@ For simpler implementations or languages without good gRPC support.
 
 | Method | Request | Response |
 |--------|---------|----------|
-| `init` | `{config: {...}, api_version: "1.0"}` | `{name, version, supported_api_version, config_schema?}` |
+| `get_config_schema` | `{}` | `{schema?}` |
+| `init` | `{config: {...}, api_version: "1.0"}` | `{name, version, supported_api_version}` |
 | `close` | `{}` | `{}` |
 | `health_check` | `{}` | `{healthy, message?}` |
 | `get_capabilities` | `{peer: {...}}` | `{capabilities: [...]}` |
@@ -2475,6 +2901,8 @@ For simpler implementations or languages without good gRPC support.
 | `on_open_message` | `{peer, router_id, capabilities}` | `{accept, notification?}` |
 | `on_established` | `{peer}` | `{success}` |
 | `on_update` | `{peer, update, raw?}` | `{action, notification?, modified?, send?}` |
+| `on_export` | `{source?, target, route}` | `{action, modified?}` |
+| `on_update_send` | `{peer, update}` | `{modified?}` |
 | `on_close` | `{peer}` | `{}` |
 | `on_state_change` | `{peer, from, to}` | `{}` |
 | `on_keepalive` | `{peer}` | `{}` |
@@ -2760,14 +3188,14 @@ type DraftRFCPlugin struct{}
 func (p *DraftRFCPlugin) Name() string    { return "draft-new-feature" }
 func (p *DraftRFCPlugin) Version() string { return "0.0.1" }
 
-// Advertise experimental capability (code 200)
+// Advertise experimental capability (code 239, per RFC 5492 §4)
 func (p *DraftRFCPlugin) GetCapabilities(peer plugin.PeerInfo) []capability.Capability {
     return []capability.Capability{
         // Standard capabilities
         capability.FourOctetAS(peer.LocalAS),
         // Experimental capability for draft
         &plugin.CustomCapability{
-            Code:  200,                    // Experimental range
+            Code:  239,                    // RFC 5492 experimental range (239-254)
             Value: []byte{0x01, 0x00, 0x04}, // Draft-specific encoding
         },
     }
@@ -2776,7 +3204,7 @@ func (p *DraftRFCPlugin) GetCapabilities(peer plugin.PeerInfo) []capability.Capa
 // Check if peer supports our experimental capability
 func (p *DraftRFCPlugin) OnOpenMessage(peer plugin.PeerInfo, routerID netip.Addr, caps []capability.Capability) *message.Notification {
     for _, cap := range caps {
-        if custom, ok := cap.(*plugin.CustomCapability); ok && custom.Code == 200 {
+        if custom, ok := cap.(*plugin.CustomCapability); ok && custom.Code == 239 {
             // Peer supports draft feature
             return nil
         }
@@ -2792,10 +3220,10 @@ func (p *DraftRFCPlugin) OnEstablishedRaw(peer plugin.PeerInfo, writer plugin.Up
         Attributes: []attribute.Attribute{
             attribute.Origin(attribute.OriginIGP),
             attribute.ASPath([]uint32{peer.LocalAS}),
-            // Experimental path attribute (code 250)
+            // Experimental path attribute (code 241, safe experimental range)
             &plugin.CustomAttribute{
                 Flags: 0xC0,                      // Optional, Transitive
-                Code:  250,                       // Experimental range
+                Code:  241,                       // Safe experimental range (241-254)
                 Value: []byte{0xDE, 0xAD, 0xBE, 0xEF}, // Draft-specific data
             },
         },
@@ -2813,7 +3241,7 @@ func (p *DraftRFCPlugin) OnEstablishedRaw(peer plugin.PeerInfo, writer plugin.Up
     return func(peer plugin.PeerInfo, update *message.Update) plugin.HandlerResult {
         // Process incoming UPDATEs, look for experimental attributes
         for _, attr := range update.Attributes {
-            if custom, ok := attr.(*plugin.CustomAttribute); ok && custom.Code == 250 {
+            if custom, ok := attr.(*plugin.CustomAttribute); ok && custom.Code == 241 {
                 // Handle draft-specific attribute
             }
         }
@@ -2851,43 +3279,147 @@ Protocol:
 
 ---
 
-## Migration Path
+## Phased Implementation
 
-### Phase 1: Interface & Protocol Definition
-- Define `Plugin`, `PeerPlugin`, `APIPlugin` interfaces in `pkg/plugin/`
-- Define `ReactorAPI` interface
-- Create `plugin.proto` with gRPC service definition
-- Define JSON-RPC message format
-- No behavior changes
+### MVP Scope (What to Build First)
 
-### Phase 2: Registry & Transport Implementation
-- Implement `Registry` with registration and lifecycle
-- Implement gRPC client (`pkg/plugin/grpc/`)
-- Implement JSON-RPC client (`pkg/plugin/jsonrpc/`)
-- Implement stdio transport for ExaBGP compatibility
-- Add config parsing for external plugins
+```
+┌─────────────────────────────────────────────────────────────────┐
+│  MVP = Minimum to enable in-process plugins with UPDATE hooks  │
+│                                                                 │
+│  DO NOT build gRPC, JSON-RPC, capability merging, export       │
+│  policy, or external plugins until MVP is stable and tested.    │
+└─────────────────────────────────────────────────────────────────┘
+```
 
-### Phase 3: API Plugin Extraction
-- Wrap current `pkg/api` as `ExaBGPAPIPlugin` (in-process)
-- Reactor creates plugin via registry instead of directly
-- Zero functional change, just indirection
+| Feature | MVP | Post-MVP | Notes |
+|---------|-----|----------|-------|
+| `Plugin` base interface | ✅ | | Name, Version, Init, Close |
+| `PeerPlugin` interface | ✅ | | OnEstablished → UpdateHandler |
+| `UpdateHandler` chain | ✅ | | Continue, Drop only (no Modify) |
+| In-process plugins only | ✅ | | No external transport |
+| Registry (simple) | ✅ | | Register, list, init order |
+| Priority ordering | ✅ | | Lower priority runs first |
+| Wrap existing API | ✅ | | ExaBGPAPIPlugin in-process |
+| Basic ReactorAPI | ✅ | | Peers(), Logger() only |
+| Handler Modify action | | ✅ | After basic chain works |
+| gRPC transport | | ✅ | External plugins |
+| JSON-RPC transport | | ✅ | Simple external plugins |
+| stdio transport | | ✅ | ExaBGP compat |
+| Capability merging | | ✅ | Complex, defer |
+| GetCapabilities hook | | ✅ | After capability merging |
+| Export policy (OnExport) | | ✅ | Requires RIB |
+| OnUpdateSend hook | | ✅ | After export policy |
+| Config schema validation | | ✅ | Nice to have |
+| Circuit breaker | | ✅ | External plugins only |
+| State persistence | | ✅ | Graceful restart |
+| Graceful Restart handler | | ✅ | Requires RIB |
+| Backpressure | | ✅ | Optimize later |
+| Plugin discovery | | ✅ | Convenience feature |
 
-### Phase 4: Peer Plugin Integration
-- Wire peer plugins into FSM callbacks
-- Capability merging from plugins
-- UPDATE handler chain with modify support
-- Support external plugins via gRPC/JSON-RPC proxy
+### Phase 1: MVP (In-Process Only)
 
-### Phase 5: RIB Plugin Extraction
-- Wrap RIB handling as `RIBPlugin` (in-process)
-- Move UPDATE processing to plugin chain
-- Reactor becomes thinner
+**Goal:** Prove the plugin architecture with minimal changes.
+
+```
+Week 1-2:
+├── Define Plugin, PeerPlugin interfaces (minimal)
+├── Implement simple Registry (no deps, no ordering)
+├── Wrap pkg/api as ExaBGPAPIPlugin
+└── Wire OnEstablished → UpdateHandler into reactor
+
+Week 3:
+├── Add priority-based ordering
+├── Add Continue/Drop handler results
+└── Tests for plugin lifecycle
+```
+
+**Exit Criteria:**
+- [ ] `make test && make lint` passes
+- [ ] ExaBGP API works as plugin (no behavior change)
+- [ ] Can add logging plugin that sees UPDATEs
+- [ ] Handler chain executes in priority order
+
+### Phase 2: Handler Chain Complete
+
+**Goal:** Full inbound UPDATE processing.
+
+```
+├── Add Modify action to HandlerResult
+├── Add CloseSession action
+├── Implement validation layer (outbound)
+├── Add OnClose, OnOpenMessage hooks
+└── Add dependency ordering
+```
+
+**Exit Criteria:**
+- [ ] Plugin can modify UPDATE in-place
+- [ ] Plugin can reject session with NOTIFICATION
+- [ ] Plugins init in dependency order
+
+### Phase 3: External Plugins (gRPC)
+
+**Goal:** Support out-of-process plugins.
+
+```
+├── Define plugin.proto
+├── Implement gRPC proxy
+├── Add timeout handling
+├── Add circuit breaker
+└── Add health checks
+```
+
+**Exit Criteria:**
+- [ ] Go plugin runs as separate process
+- [ ] Timeout triggers configured action
+- [ ] Circuit breaker opens after failures
+
+### Phase 4: RIB & Export (Requires RIB)
+
+**Goal:** Outbound route policy.
+
+```
+├── Design RIB (separate plan)
+├── Implement RIBPlugin
+├── Add OnExport hook
+├── Add OnUpdateSend hook
+└── Implement capability merging
+```
+
+### Phase 5: Production Hardening
+
+```
+├── JSON-RPC transport
+├── stdio transport (ExaBGP compat)
+├── State persistence
+├── Graceful restart support
+├── Plugin discovery
+├── Full metrics/observability
+```
 
 ### Phase 6: Documentation & Examples
-- Plugin developer guide
-- Example plugins (Go, Python, Rust)
-- Testing utilities
-- Performance benchmarks
+
+```
+├── Plugin developer guide
+├── Example plugins (Go, Python, Rust)
+├── Testing utilities
+├── Performance benchmarks
+```
+
+---
+
+## Legacy Migration Path Reference
+
+The original phased approach (for reference):
+
+| Original Phase | New Mapping |
+|---------------|-------------|
+| Phase 1: Interface Definition | MVP |
+| Phase 2: Registry & Transport | MVP + Phase 3 |
+| Phase 3: API Plugin Extraction | MVP |
+| Phase 4: Peer Plugin Integration | Phase 2 |
+| Phase 5: RIB Plugin Extraction | Phase 4 |
+| Phase 6: Documentation | Phase 6 |
 
 ---
 
@@ -3332,11 +3864,41 @@ zebgp-cli plugin health-check my-filter
 5. ~~**Graceful Restart Protocol** - How do plugins participate in RFC 4724 GR?~~
    - ✅ Resolved: GracefulRestartHandler interface added
 
-6. **Binary Attribute Encoding in JSON-RPC** - Base64 is verbose. Consider human-readable mode?
+6. ~~**Dependency Cycle Detection** - How to prevent deadlock from circular dependencies?~~
+   - ✅ Resolved: Tarjan's algorithm + topological sort in Registry
+
+7. **Binary Attribute Encoding in JSON-RPC** - Base64 is verbose. Consider human-readable mode?
    - Proposal: Add optional `decoded` field for debugging
 
-7. **Plugin SDK** - Should we provide a `pkg/plugin/sdk/` with base implementations?
+8. **Plugin SDK** - Should we provide a `pkg/plugin/sdk/` with base implementations?
    - Proposal: Yes, to reduce boilerplate for plugin authors
+
+9. **ReactorAPI Size** - Current interface has 17+ methods. Too much coupling?
+   - Proposal: Split into focused interfaces (PeerRegistry, EventBus, ServiceLocator)
+
+---
+
+## Document Structure Recommendation
+
+This document is 3900+ lines. Consider splitting for maintainability:
+
+| Document | Content | Est. Lines |
+|----------|---------|------------|
+| `plugin-system-overview.md` | Goals, architecture, prerequisites, decisions | 500 |
+| `plugin-interface.md` | Go interfaces, handler chain, lifecycle | 1000 |
+| `plugin-grpc-protocol.md` | proto definitions, gRPC examples | 500 |
+| `plugin-jsonrpc-protocol.md` | JSON-RPC spec, examples | 400 |
+| `plugin-security.md` | Security model, subprocess, TLS | 500 |
+| `plugin-testing.md` | Test harness, mock reactor, CLI | 400 |
+| `plugin-examples/` | Actual code files (Go, Python, Rust) | N/A |
+
+**Benefits:**
+- Easier to review changes
+- Parallel editing without conflicts
+- Focused documents for specific audiences
+- Code examples as runnable files
+
+**Migration:** Not urgent. Can split when implementing.
 
 ---
 
@@ -3346,12 +3908,13 @@ zebgp-cli plugin health-check my-filter
 pkg/
 └── plugin/
     ├── plugin.go          # Core interfaces (Plugin, PeerPlugin, APIPlugin)
-    ├── handler.go         # UpdateHandler, HandlerResult, Clone()
+    ├── handler.go         # UpdateHandler, HandlerResult
+    ├── clone.go           # Clone() for UPDATE, Cloner interface for attributes
     ├── export.go          # ExportHandler, ExportResult for outbound
     ├── graceful.go        # GracefulRestartHandler interface
     ├── registry.go        # Plugin registry and lifecycle
     ├── reactor_api.go     # ReactorAPI implementation
-    ├── dependency.go      # Dependency and version handling
+    ├── dependency.go      # Dependency, cycle detection, topological sort
     ├── errors.go          # Standard error codes
     ├── config/
     │   ├── config.go      # Type-safe config helpers
@@ -3429,13 +3992,18 @@ This design:
 | **RFC validation layer** | Ensures outgoing messages comply with RFC 4271 |
 | **Raw message access** | Send any BGP message for protocol development (opt-in) |
 | **Extended hooks** | OnStateChange, OnKeepalive, OnRouteRefresh, OnNotification, OnError |
-| **Outgoing hooks** | OnNotificationSend for intercepting outbound messages |
+| **Export policy** | OnExport hook for outbound route filtering/modification |
+| **Outgoing hooks** | OnNotificationSend, OnUpdateSend for intercepting outbound messages |
+| **Config validation** | JSON Schema (draft-07) validation before plugin Init() |
 | **Graceful Restart** | GracefulRestartHandler for RFC 4724 support |
 | **Per-peer config** | Different plugin behavior per peer |
 | **Event subscription** | Async notification of peer/route changes |
 | **Metrics interface** | Built-in observability with automatic namespacing |
 | **State persistence** | Optional StateProvider for crash recovery |
 | **Dependency versioning** | Service dependencies with version constraints |
+| **Cycle detection** | Tarjan's algorithm prevents init deadlocks |
+| **Topological init** | Plugins init in dependency order |
+| **Deep clone** | Safe async UPDATE processing via Clone() |
 | **TOML + env config** | Standard config with env overrides |
 | **Plugin discovery** | Auto-load from directories and sockets |
 | **Circuit breaker** | Automatic failure handling for external plugins |
