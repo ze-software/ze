@@ -379,6 +379,7 @@ func (s *Session) handleOpen(body []byte) error {
 			[]byte{4}, // We support version 4
 		)
 		_ = s.fsm.Event(fsm.EventBGPOpenMsgErr)
+		s.closeConn()
 		return ErrUnsupportedVersion
 	}
 
