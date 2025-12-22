@@ -4,5 +4,10 @@ bin/
 test/internet/*.gz
 test/internet/*.bz2
 test/internet/*.tmp
+# local development research
+research/
 coverage.out
 coverage.html
+research/cmd/*/attribute-analyser
+research/cmd/*/community-defaults
+research/cmd/*/mrt-dump
