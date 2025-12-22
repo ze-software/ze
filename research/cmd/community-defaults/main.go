@@ -23,6 +23,8 @@ import (
 // MRT types (RFC 6396)
 const (
 	MRT_TABLE_DUMP_V2 = 13
+	MRT_BGP4MP        = 16
+	MRT_BGP4MP_ET     = 17
 )
 
 // TABLE_DUMP_V2 subtypes
@@ -33,6 +35,16 @@ const (
 	RIB_IPV6_UNICAST   = 4
 	RIB_IPV6_MULTICAST = 5
 	RIB_GENERIC        = 6
+)
+
+// BGP4MP subtypes
+const (
+	BGP4MP_STATE_CHANGE      = 0
+	BGP4MP_MESSAGE           = 1
+	BGP4MP_MESSAGE_AS4       = 4
+	BGP4MP_STATE_CHANGE_AS4  = 5
+	BGP4MP_MESSAGE_LOCAL     = 6
+	BGP4MP_MESSAGE_AS4_LOCAL = 7
 )
 
 // BGP attribute types
@@ -107,7 +119,9 @@ func main() {
 
 	if flag.NArg() < 1 {
 		fmt.Fprintf(os.Stderr, "Usage: %s [options] <file.gz> [file2.gz ...]\n", os.Args[0])
-		fmt.Fprintf(os.Stderr, "\nGenerates per-ASN community defaults from MRT RIB dumps.\n")
+		fmt.Fprintf(os.Stderr, "\nGenerates per-ASN community defaults from MRT files.\n")
+		fmt.Fprintf(os.Stderr, "Supports both TABLE_DUMP_V2 (RIB dumps) and BGP4MP (updates) formats.\n")
+		fmt.Fprintf(os.Stderr, "Format is auto-detected from file contents.\n")
 		fmt.Fprintf(os.Stderr, "\nOptions:\n")
 		flag.PrintDefaults()
 		os.Exit(1)
@@ -175,7 +189,8 @@ func processMRT(filename string, stats *Stats) error {
 			return fmt.Errorf("reading data: %w", err)
 		}
 
-		if mrtType == MRT_TABLE_DUMP_V2 {
+		switch mrtType {
+		case MRT_TABLE_DUMP_V2:
 			switch subtype {
 			case PEER_INDEX_TABLE:
 				parsePeerIndexTable(data, stats)
@@ -186,6 +201,12 @@ func processMRT(filename string, stats *Stats) error {
 			case RIB_GENERIC:
 				processRIBGeneric(data, stats)
 			}
+		case MRT_BGP4MP, MRT_BGP4MP_ET:
+			offset := 0
+			if mrtType == MRT_BGP4MP_ET {
+				offset = 4 // skip microseconds
+			}
+			processBGP4MP(subtype, data[offset:], stats)
 		}
 	}
 	return nil
@@ -356,6 +377,93 @@ func processRIBGeneric(data []byte, stats *Stats) {
 
 		analyzeRoute(attrs, asn, peerIndex, stats)
 	}
+}
+
+func processBGP4MP(subtype uint16, data []byte, stats *Stats) {
+	var asSize int
+
+	switch subtype {
+	case BGP4MP_MESSAGE, BGP4MP_MESSAGE_LOCAL:
+		asSize = 2
+	case BGP4MP_MESSAGE_AS4, BGP4MP_MESSAGE_AS4_LOCAL:
+		asSize = 4
+	default:
+		return // Skip state changes
+	}
+
+	// BGP4MP header: peer_as(2/4) + local_as(2/4) + iface(2) + afi(2)
+	minLen := asSize*2 + 4
+	if len(data) < minLen {
+		return
+	}
+
+	// Extract peer ASN
+	var peerASN uint32
+	if asSize == 4 {
+		peerASN = binary.BigEndian.Uint32(data[0:4])
+	} else {
+		peerASN = uint32(binary.BigEndian.Uint16(data[0:2]))
+	}
+
+	afi := binary.BigEndian.Uint16(data[asSize*2+2 : asSize*2+4])
+
+	// peer_ip + local_ip
+	ipSize := 4
+	if afi == 2 { // IPv6
+		ipSize = 16
+	}
+	offset := minLen + ipSize*2
+
+	if offset+19 > len(data) {
+		return
+	}
+
+	// BGP message: marker(16) + length(2) + type(1) + body
+	offset += 16 // skip marker
+	msgLen := binary.BigEndian.Uint16(data[offset : offset+2])
+	msgType := data[offset+2]
+	offset += 3
+
+	// Only process UPDATE messages (type 2)
+	if msgType != 2 {
+		return
+	}
+
+	bodyLen := int(msgLen) - 19 // subtract header
+	if offset+bodyLen > len(data) {
+		return
+	}
+
+	// Extract attributes from UPDATE body
+	updateBody := data[offset : offset+bodyLen]
+	attrs := extractAttrsFromUpdate(updateBody)
+	if attrs == nil {
+		return
+	}
+
+	// Use peer ASN directly, use 0xFFFF as fake peer index
+	analyzeRoute(attrs, peerASN, 0xFFFF, stats)
+}
+
+func extractAttrsFromUpdate(update []byte) []byte {
+	if len(update) < 4 {
+		return nil
+	}
+
+	// UPDATE: withdrawn_len(2) + withdrawn + attrs_len(2) + attrs + nlri
+	wdLen := binary.BigEndian.Uint16(update[0:2])
+	offset := 2 + int(wdLen)
+	if offset+2 > len(update) {
+		return nil
+	}
+
+	attrLen := binary.BigEndian.Uint16(update[offset : offset+2])
+	offset += 2
+	if offset+int(attrLen) > len(update) {
+		return nil
+	}
+
+	return update[offset : offset+int(attrLen)]
 }
 
 func analyzeRoute(attrs []byte, asn uint32, peerIndex uint16, stats *Stats) {

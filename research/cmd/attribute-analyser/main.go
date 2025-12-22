@@ -97,6 +97,12 @@ type Stats struct {
 	// Bundle stats (including AS_PATH)
 	BundlesWithASPath *BundleStats
 
+	// Bundle stats (excluding AS_PATH + communities + MP_REACH/UNREACH)
+	BundlesNoComm *BundleStats
+
+	// Bundle stats (minimal: only ORIGIN + NEXT_HOP + LOCAL_PREF)
+	BundlesMinimal *BundleStats
+
 	// Per-peer stats
 	Peers map[uint16]*PeerStats
 
@@ -106,6 +112,16 @@ type Stats struct {
 	prevBundleHash        uint64 // previous bundle hash (excl AS_PATH)
 	prevBundleHashWithAS  uint64 // previous bundle hash (incl AS_PATH)
 	hasPrev               bool   // whether we have a previous to compare
+
+	// Extended consecutive hit tracking (excluding more attributes)
+	ConsecutiveHitsNoComm  uint64 // excl AS_PATH + COMMUNITY + LARGE_COMMUNITY + EXT_COMMUNITY
+	ConsecutiveHitsMinimal uint64 // only ORIGIN + NEXT_HOP + LOCAL_PREF
+	prevBundleHashNoComm   uint64
+	prevBundleHashMinimal  uint64
+
+	// Run length tracking for minimal bundle
+	currentRunLength uint64            // current consecutive hit run
+	RunLengths       map[string]uint64 // "1", "2", "3", "4", "5", "6-10", "11-20", "21+" -> count
 
 	// Global individual community tracking
 	GlobalCommunities         map[uint32]uint64 // community -> count across ALL updates
@@ -213,11 +229,14 @@ func newStats() *Stats {
 		Attributes:             make(map[uint8]*AttrStats),
 		Bundles:                &BundleStats{Values: make(map[uint64]uint64)},
 		BundlesWithASPath:      &BundleStats{Values: make(map[uint64]uint64)},
+		BundlesNoComm:          &BundleStats{Values: make(map[uint64]uint64)},
+		BundlesMinimal:         &BundleStats{Values: make(map[uint64]uint64)},
 		Peers:                  make(map[uint16]*PeerStats),
 		GlobalCommunities:      make(map[uint32]uint64),
 		GlobalLargeCommunities: make(map[string]uint64),
 		GlobalExtCommunities:   make(map[uint64]uint64),
 		PeerTable:              make(map[uint16]*PeerInfo),
+		RunLengths:             make(map[string]uint64),
 	}
 }
 
@@ -589,6 +608,10 @@ func analyzeAttributes(attrs []byte, peerIndex uint16, stats *Stats) {
 	bundleHasher := fnv.New64a()
 	// Hash for bundle (including AS_PATH)
 	bundleHasherWithAS := fnv.New64a()
+	// Hash for bundle (excluding AS_PATH + all communities)
+	bundleHasherNoComm := fnv.New64a()
+	// Hash for bundle (only ORIGIN + NEXT_HOP + LOCAL_PREF)
+	bundleHasherMinimal := fnv.New64a()
 
 	offset := 0
 	for offset < len(attrs) {
@@ -637,14 +660,33 @@ func analyzeAttributes(attrs []byte, peerIndex uint16, stats *Stats) {
 		hash := h.Sum64()
 		attrStats.Values[hash]++
 
-		// Add to bundle hash WITH AS_PATH (all attributes)
-		bundleHasherWithAS.Write([]byte{typeCode})
-		bundleHasherWithAS.Write(attrValue)
+		// Add to bundle hash WITH AS_PATH (all real attributes, excluding MP_REACH/UNREACH)
+		// MP_REACH/UNREACH are NLRI encoded as attributes (RFC 4760 hack), not real attributes
+		if typeCode != ATTR_MP_REACH_NLRI && typeCode != ATTR_MP_UNREACH_NLRI {
+			bundleHasherWithAS.Write([]byte{typeCode})
+			bundleHasherWithAS.Write(attrValue)
+		}
 
-		// Add to bundle hash (excluding AS_PATH and AS4_PATH)
-		if typeCode != ATTR_AS_PATH && typeCode != ATTR_AS4_PATH {
+		// Add to bundle hash (excluding AS_PATH, AS4_PATH, MP_REACH, MP_UNREACH)
+		// MP_REACH/UNREACH contain NLRI prefixes - unique per UPDATE
+		if typeCode != ATTR_AS_PATH && typeCode != ATTR_AS4_PATH &&
+			typeCode != ATTR_MP_REACH_NLRI && typeCode != ATTR_MP_UNREACH_NLRI {
 			bundleHasher.Write([]byte{typeCode})
 			bundleHasher.Write(attrValue)
+		}
+
+		// Add to bundle hash (excluding AS_PATH + all communities + MP_REACH/UNREACH)
+		if typeCode != ATTR_AS_PATH && typeCode != ATTR_AS4_PATH &&
+			typeCode != ATTR_MP_REACH_NLRI && typeCode != ATTR_MP_UNREACH_NLRI &&
+			typeCode != ATTR_COMMUNITY && typeCode != ATTR_LARGE_COMMUNITY && typeCode != ATTR_EXT_COMMUNITY {
+			bundleHasherNoComm.Write([]byte{typeCode})
+			bundleHasherNoComm.Write(attrValue)
+		}
+
+		// Add to minimal bundle hash (only ORIGIN + NEXT_HOP + LOCAL_PREF)
+		if typeCode == ATTR_ORIGIN || typeCode == ATTR_NEXT_HOP || typeCode == ATTR_LOCAL_PREF {
+			bundleHasherMinimal.Write([]byte{typeCode})
+			bundleHasherMinimal.Write(attrValue)
 		}
 
 		// Extract per-peer community data
@@ -654,11 +696,17 @@ func analyzeAttributes(attrs []byte, peerIndex uint16, stats *Stats) {
 	// Track bundles
 	bundleHash := bundleHasher.Sum64()
 	bundleHashWithAS := bundleHasherWithAS.Sum64()
+	bundleHashNoComm := bundleHasherNoComm.Sum64()
+	bundleHashMinimal := bundleHasherMinimal.Sum64()
 
 	stats.Bundles.Total++
 	stats.Bundles.Values[bundleHash]++
 	stats.BundlesWithASPath.Total++
 	stats.BundlesWithASPath.Values[bundleHashWithAS]++
+	stats.BundlesNoComm.Total++
+	stats.BundlesNoComm.Values[bundleHashNoComm]++
+	stats.BundlesMinimal.Total++
+	stats.BundlesMinimal.Values[bundleHashMinimal]++
 	peer.Bundles[bundleHash]++
 
 	// Track consecutive hits (temporal locality)
@@ -669,10 +717,47 @@ func analyzeAttributes(attrs []byte, peerIndex uint16, stats *Stats) {
 		if bundleHashWithAS == stats.prevBundleHashWithAS {
 			stats.ConsecutiveHitsWithAS++
 		}
+		if bundleHashNoComm == stats.prevBundleHashNoComm {
+			stats.ConsecutiveHitsNoComm++
+		}
+		if bundleHashMinimal == stats.prevBundleHashMinimal {
+			stats.ConsecutiveHitsMinimal++
+			stats.currentRunLength++
+		} else {
+			// Run ended, record the length
+			if stats.currentRunLength > 0 {
+				bucket := runLengthBucket(stats.currentRunLength)
+				stats.RunLengths[bucket]++
+			}
+			stats.currentRunLength = 0
+		}
 	}
 	stats.prevBundleHash = bundleHash
 	stats.prevBundleHashWithAS = bundleHashWithAS
+	stats.prevBundleHashNoComm = bundleHashNoComm
+	stats.prevBundleHashMinimal = bundleHashMinimal
 	stats.hasPrev = true
+}
+
+func runLengthBucket(length uint64) string {
+	switch {
+	case length == 1:
+		return "1"
+	case length == 2:
+		return "2"
+	case length == 3:
+		return "3"
+	case length == 4:
+		return "4"
+	case length == 5:
+		return "5"
+	case length >= 6 && length <= 10:
+		return "6-10"
+	case length >= 11 && length <= 20:
+		return "11-20"
+	default:
+		return "21+"
+	}
 }
 
 func extractCommunityData(typeCode uint8, value []byte, peer *PeerStats, stats *Stats) {
@@ -955,16 +1040,58 @@ func printHumanSummary(w io.Writer, stats *Stats) {
 	fmt.Fprintf(w, "\nCONSECUTIVE HIT ANALYSIS (temporal locality):\n")
 	fmt.Fprintf(w, "  If we cache just the LAST bundle seen, what's the hit rate?\n")
 	comparisons := stats.TotalUpdates - 1
-	consRateWithout := 0.0
 	consRateWith := 0.0
+	consRateWithout := 0.0
+	consRateNoComm := 0.0
+	consRateMinimal := 0.0
 	if comparisons > 0 {
-		consRateWithout = float64(stats.ConsecutiveHits) / float64(comparisons) * 100
 		consRateWith = float64(stats.ConsecutiveHitsWithAS) / float64(comparisons) * 100
+		consRateWithout = float64(stats.ConsecutiveHits) / float64(comparisons) * 100
+		consRateNoComm = float64(stats.ConsecutiveHitsNoComm) / float64(comparisons) * 100
+		consRateMinimal = float64(stats.ConsecutiveHitsMinimal) / float64(comparisons) * 100
 	}
-	fmt.Fprintf(w, "  Without AS_PATH: %s / %s (%.2f%%)\n",
-		formatNumber(stats.ConsecutiveHits), formatNumber(comparisons), consRateWithout)
-	fmt.Fprintf(w, "  With AS_PATH:    %s / %s (%.2f%%)\n",
-		formatNumber(stats.ConsecutiveHitsWithAS), formatNumber(comparisons), consRateWith)
+	// Get unique bundle counts for each strategy (reuse uniqueWithAS from above)
+	uniqueNoAS := uint64(len(stats.Bundles.Values))
+	uniqueNoComm := uint64(len(stats.BundlesNoComm.Values))
+	uniqueMinimal := uint64(len(stats.BundlesMinimal.Values))
+
+	fmt.Fprintf(w, "\n  Note: MP_REACH/UNREACH always excluded (NLRI, not real attributes)\n")
+	fmt.Fprintf(w, "\n  %-45s %12s %12s %8s\n", "Exclusion Strategy", "Unique", "Consec Hits", "Rate")
+	fmt.Fprintf(w, "  %s\n", strings.Repeat("─", 80))
+	fmt.Fprintf(w, "  %-45s %12s %12s %7.2f%%\n",
+		"All real attributes (incl AS_PATH)",
+		formatNumber(uniqueWithAS),
+		formatNumber(stats.ConsecutiveHitsWithAS), consRateWith)
+	fmt.Fprintf(w, "  %-45s %12s %12s %7.2f%%\n",
+		"Exclude AS_PATH",
+		formatNumber(uniqueNoAS),
+		formatNumber(stats.ConsecutiveHits), consRateWithout)
+	fmt.Fprintf(w, "  %-45s %12s %12s %7.2f%%\n",
+		"Exclude AS_PATH + Communities",
+		formatNumber(uniqueNoComm),
+		formatNumber(stats.ConsecutiveHitsNoComm), consRateNoComm)
+	fmt.Fprintf(w, "  %-45s %12s %12s %7.2f%%\n",
+		"Minimal (only ORIGIN + NEXT_HOP + LOCAL_PREF)",
+		formatNumber(uniqueMinimal),
+		formatNumber(stats.ConsecutiveHitsMinimal), consRateMinimal)
+
+	// Run length distribution for minimal bundle
+	// Record final run if any
+	if stats.currentRunLength > 0 {
+		bucket := runLengthBucket(stats.currentRunLength)
+		stats.RunLengths[bucket]++
+	}
+
+	fmt.Fprintf(w, "\n  Run length distribution (minimal bundle consecutive hits):\n")
+	fmt.Fprintf(w, "  %-12s %12s\n", "Run Length", "Count")
+	fmt.Fprintf(w, "  %s\n", strings.Repeat("─", 26))
+	buckets := []string{"1", "2", "3", "4", "5", "6-10", "11-20", "21+"}
+	for _, b := range buckets {
+		count := stats.RunLengths[b]
+		if count > 0 {
+			fmt.Fprintf(w, "  %-12s %12s\n", b, formatNumber(count))
+		}
+	}
 
 	/*
 	   Diagram: consecutive updates often share same attributes
@@ -1262,7 +1389,9 @@ func printHumanSummary(w io.Writer, stats *Stats) {
 	fmt.Fprintf(w, "               → Cache individual values + reconstruct sets\n")
 
 	fmt.Fprintf(w, "\n3. BUNDLE CACHING TIERS:\n")
-	fmt.Fprintf(w, "   Tier 1 (size=1):   Last-seen bundle         → %.2f%% hit rate\n", consRateWithout)
+	fmt.Fprintf(w, "   Tier 1 (size=1):   Last-seen (excl AS_PATH) → %.2f%% hit rate\n", consRateWithout)
+	fmt.Fprintf(w, "   Tier 1a:           Last-seen (excl AS+COMM) → %.2f%% hit rate\n", consRateNoComm)
+	fmt.Fprintf(w, "   Tier 1b:           Last-seen (minimal)      → %.2f%% hit rate\n", consRateMinimal)
 	fmt.Fprintf(w, "   Tier 2 (size=N):   Per-peer LRU cache       → ~%.1f%% hit rate\n", avgHitRate)
 	fmt.Fprintf(w, "   Tier 3 (global):   All unique bundles       → %.2f%% hit rate\n", hitRate)
 	fmt.Fprintf(w, "   Recommendation:    Tier 2 (per-peer) with size ~1000\n")
