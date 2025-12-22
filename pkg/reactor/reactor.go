@@ -678,21 +678,23 @@ func (a *reactorAPIAdapter) SendRoutes(peerSelector string, routes []*rib.Route,
 	}
 
 	var totalResult api.TransactionResult
-	var families []nlri.Family
 
-	// Collect families for EOR
-	if sendEOR {
-		seen := make(map[nlri.Family]bool)
-		for _, r := range routes {
-			seen[r.NLRI().Family()] = true
-		}
-		for _, n := range withdrawals {
-			seen[n.Family()] = true
-		}
-		for f := range seen {
-			families = append(families, f)
-		}
+	// Collect families for EOR (from both routes and withdrawals)
+	seen := make(map[nlri.Family]bool)
+	for _, r := range routes {
+		seen[r.NLRI().Family()] = true
 	}
+	for _, n := range withdrawals {
+		seen[n.Family()] = true
+	}
+	families := make([]nlri.Family, 0, len(seen))
+	for f := range seen {
+		families = append(families, f)
+	}
+
+	// Track stats once (not per-peer)
+	totalResult.RoutesAnnounced = len(routes)
+	totalResult.RoutesWithdrawn = len(withdrawals)
 
 	for _, peer := range peers {
 		// Get negotiated parameters for CommitService
@@ -701,7 +703,7 @@ func (a *reactorAPIAdapter) SendRoutes(peerSelector string, routes []*rib.Route,
 			continue // Peer not established
 		}
 
-		// Use CommitService with two-level grouping
+		// Use CommitService with two-level grouping for announcements
 		cs := rib.NewCommitService(peer, neg, true)
 
 		// Send announcements
@@ -710,13 +712,14 @@ func (a *reactorAPIAdapter) SendRoutes(peerSelector string, routes []*rib.Route,
 			if err != nil {
 				continue
 			}
-			totalResult.RoutesAnnounced += stats.RoutesAnnounced
 			totalResult.UpdatesSent += stats.UpdatesSent
 		}
 
-		// TODO: Send withdrawals using a withdrawal-specific method
-		// For now, count them but don't send
-		totalResult.RoutesWithdrawn += len(withdrawals)
+		// Send withdrawals
+		if len(withdrawals) > 0 {
+			updatesSent := a.sendWithdrawals(peer, withdrawals)
+			totalResult.UpdatesSent += updatesSent
+		}
 
 		// Send EOR for each family if requested
 		if sendEOR {
@@ -737,6 +740,61 @@ func (a *reactorAPIAdapter) SendRoutes(peerSelector string, routes []*rib.Route,
 	totalResult.Families = familyStrs
 
 	return totalResult, nil
+}
+
+// sendWithdrawals sends withdrawal UPDATE messages to a peer.
+// Groups withdrawals by family: IPv4 unicast uses WithdrawnRoutes field,
+// other families use MP_UNREACH_NLRI attribute.
+// Returns number of UPDATE messages sent.
+func (a *reactorAPIAdapter) sendWithdrawals(peer *Peer, withdrawals []nlri.NLRI) int {
+	if len(withdrawals) == 0 {
+		return 0
+	}
+
+	// Group withdrawals by family
+	byFamily := make(map[nlri.Family][]nlri.NLRI)
+	for _, n := range withdrawals {
+		f := n.Family()
+		byFamily[f] = append(byFamily[f], n)
+	}
+
+	updatesSent := 0
+	ipv4Unicast := nlri.Family{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast}
+
+	for family, nlris := range byFamily {
+		var update *message.Update
+
+		if family == ipv4Unicast {
+			// IPv4 unicast: use WithdrawnRoutes field
+			var withdrawnBytes []byte
+			for _, n := range nlris {
+				withdrawnBytes = append(withdrawnBytes, n.Bytes()...)
+			}
+			update = &message.Update{
+				WithdrawnRoutes: withdrawnBytes,
+			}
+		} else {
+			// Other families: use MP_UNREACH_NLRI attribute
+			var nlriBytes []byte
+			for _, n := range nlris {
+				nlriBytes = append(nlriBytes, n.Bytes()...)
+			}
+			mpUnreach := &attribute.MPUnreachNLRI{
+				AFI:  attribute.AFI(family.AFI),
+				SAFI: attribute.SAFI(family.SAFI),
+				NLRI: nlriBytes,
+			}
+			update = &message.Update{
+				PathAttributes: attribute.PackAttribute(mpUnreach),
+			}
+		}
+
+		if err := peer.SendUpdate(update); err == nil {
+			updatesSent++
+		}
+	}
+
+	return updatesSent
 }
 
 // convertRIBError converts RIB errors to API errors.
