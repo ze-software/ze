@@ -10,6 +10,14 @@ Text versions of RFCs relevant to ZeBGP implementation.
 | [4760](rfc4760.txt) | Multiprotocol Extensions for BGP-4 | Core |
 | [6793](rfc6793.txt) | BGP Support for Four-Octet AS Numbers | Core |
 
+## Error Handling
+
+| RFC | Title | Status | Notes |
+|-----|-------|--------|-------|
+| [7606](rfc7606.txt) | Revised Error Handling for BGP UPDATE Messages | **Planned** | **Supersedes RFC 4271 §6 for error handling** |
+
+> ⚠️ **Important:** RFC 7606 updates RFC 4271's strict "session reset" error handling with recovery tactics: treat-as-withdraw, attribute discard, AFI/SAFI disable. New implementations SHOULD follow RFC 7606.
+
 ## Capabilities
 
 | RFC | Title | Status |
@@ -47,8 +55,8 @@ Text versions of RFCs relevant to ZeBGP implementation.
 
 | RFC | Title | Status |
 |-----|-------|--------|
-| [8203](rfc8203.txt) | BGP Administrative Shutdown Communication | Planned |
-| [9003](rfc9003.txt) | Extended BGP Administrative Shutdown Communication | Planned |
+| [8203](rfc8203.txt) | BGP Administrative Shutdown Communication | Implemented |
+| [9003](rfc9003.txt) | Extended BGP Administrative Shutdown Communication | Implemented |
 
 ---
 

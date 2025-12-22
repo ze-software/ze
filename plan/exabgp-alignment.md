@@ -2,42 +2,42 @@
 
 **Purpose:** Systematically review each difference and decide: align with ExaBGP, keep ZeBGP approach, or skip.
 
+**Last Review:** 2025-12-22 (Critical review completed - many items already implemented)
+
 ---
 
-## Review Process
+## Review Status Legend
 
-For each item, decide:
 - **ALIGN** - Change ZeBGP to match ExaBGP behavior
 - **KEEP** - Keep ZeBGP's current approach (document why)
 - **SKIP** - Not relevant / defer to later
+- **DONE** - Already implemented in ZeBGP
 
 ---
 
 ## Phase 1: Critical Compatibility Issues
 
 ### 1.1 RFC 8203/9003 Shutdown Communication
-**Current:** ZeBGP ignores NOTIFICATION data field for Cease/Admin Shutdown
+**Current:** ZeBGP implements `ShutdownMessage()` with RFC 9003 parsing
 **ExaBGP:** Parses length-prefixed UTF-8 shutdown message
-**Impact:** Cannot display graceful shutdown reasons from peers
-**Decision:** [x] ALIGN / [ ] KEEP / [ ] SKIP
+**Status:** ✅ **DONE** - Full implementation in `notification.go:210-249` with UTF-8 validation
 
 ### 1.2 Per-Message-Type Length Validation
-**Current:** ZeBGP only checks >= 19 bytes
-**ExaBGP:** OPEN>=29, UPDATE>=23, KEEPALIVE==19, ROUTE_REFRESH==23
-**Impact:** May accept malformed messages
-**Decision:** [x] ALIGN / [ ] KEEP / [ ] SKIP
+**Current:** ZeBGP validates OPEN>=29, UPDATE>=23, KEEPALIVE==19, NOTIFICATION>=21, ROUTE_REFRESH>=23
+**ExaBGP:** Same validation
+**Status:** ✅ **DONE** - `ValidateLength()` in `header.go:111-163`
 
 ### 1.3 Extended Message Size Integration
-**Current:** Constants defined (65535) but not applied after negotiation
+**Current:** Constants defined, `ValidateLengthWithMax()` exists but NOT wired in receive path
 **ExaBGP:** Sets msg_size immediately when capability negotiated
 **Impact:** May fail to send/receive large UPDATE messages
 **Decision:** [x] ALIGN / [ ] KEEP / [ ] SKIP
+**Work:** Wire `ValidateLengthWithMax(extendedMessage)` in `session.go` receive path
 
 ### 1.4 KEEPALIVE Payload Validation
-**Current:** ZeBGP silently ignores extra data in KEEPALIVE
-**ExaBGP:** Raises error if KEEPALIVE contains any payload
-**Impact:** Accepts non-compliant peers
-**Decision:** [x] ALIGN / [ ] KEEP / [ ] SKIP
+**Current:** ZeBGP rejects KEEPALIVE with payload via NOTIFICATION error
+**ExaBGP:** Same behavior
+**Status:** ✅ **DONE** - `keepalive.go:42-55` returns `NotifyHeaderBadLength`
 
 ---
 
@@ -58,13 +58,11 @@ For each item, decide:
 ### 2.3 Multi-Session BGP (Code 68)
 **Current:** Not implemented
 **ExaBGP:** Full support including Cisco variant (0x83)
-**Impact:** Cannot establish multi-session with supporting peers
 **Decision:** [ ] ALIGN / [ ] KEEP / [x] SKIP
 
 ### 2.4 Dynamic Capability (Code 67)
 **Current:** Not implemented
 **ExaBGP:** Code defined (not fully implemented either)
-**Impact:** Cannot dynamically change capabilities
 **Decision:** [ ] ALIGN / [ ] KEEP / [x] SKIP *(defer)*
 
 ### 2.5 Capability Conflict Detection
@@ -80,8 +78,9 @@ For each item, decide:
 ### 3.1 Default Hold Time
 **Current:** ZeBGP uses 90 seconds
 **ExaBGP:** Uses 180 seconds
-**RFC 4271:** Suggests 90 seconds
+**RFC 4271 Section 10:** "suggested default value for the HoldTime is 90 seconds"
 **Decision:** [ ] ALIGN (180s) / [x] KEEP (90s) / [ ] SKIP
+**Rationale:** RFC explicitly suggests 90s
 
 ### 3.2 Hold Time Validation
 **Current:** ZeBGP accepts 0-65535
@@ -96,13 +95,14 @@ For each item, decide:
 ### 4.1 ORIGIN Validation
 **Current:** ZeBGP rejects invalid values (>2)
 **ExaBGP:** Accepts any value
+**RFC 4271 Section 6.3:** "MUST be set to Invalid Origin Attribute" for undefined values
 **Decision:** [ ] ALIGN (permissive) / [x] KEEP (strict) / [ ] SKIP
+**Rationale:** RFC 4271 REQUIRES rejection - this is mandatory, not optional
 
 ### 4.2 AS_PATH Segment Auto-Split
-**Current:** Caller must handle segment limits
-**ExaBGP:** Auto-splits segments at 255 ASNs
-**Impact:** May create non-compliant AS_PATH if caller doesn't split
-**Decision:** [x] ALIGN / [ ] KEEP / [ ] SKIP
+**Current:** ZeBGP auto-splits via `packSegmentWithSplit()` at 255 ASNs
+**ExaBGP:** Same behavior
+**Status:** ✅ **DONE** - `aspath.go:139-178`
 
 ### 4.3 Extended Communities IPv6 (RFC 5701)
 **Current:** Not implemented (only 8-byte)
@@ -111,38 +111,37 @@ For each item, decide:
 **Decision:** [x] ALIGN / [ ] KEEP / [ ] SKIP
 
 ### 4.4 Large Community Deduplication
-**Current:** No deduplication
-**ExaBGP:** Filters duplicates during unpack
-**Impact:** May have duplicate large communities
-**Decision:** [x] ALIGN / [ ] KEEP / [ ] SKIP *(RFC 8092 MUST remove duplicates)*
+**Current:** ZeBGP deduplicates on send (`Pack()`) and receive (`ParseLargeCommunities()`)
+**ExaBGP:** Same behavior
+**RFC 8092 Section 5:** "MUST silently remove redundant values"
+**Status:** ✅ **DONE** - `community.go:228-301`
 
 ### 4.5 Community Sorting
 **Current:** No sorting
 **ExaBGP:** Auto-sorts communities
-**Impact:** Order may differ from ExaBGP
-**Decision:** [ ] ALIGN / [x] KEEP / [ ] SKIP *(RFC allows any order)*
+**RFC 1997:** Uses "set" terminology (unordered)
+**Decision:** [ ] ALIGN / [x] KEEP / [ ] SKIP
+**Rationale:** RFC allows any order, sorting is unnecessary computation
 
 ### 4.6 Attribute Caching
-**Current:** No caching
+**Current:** Pool (`internal/pool/`) and Store (`internal/store/`) for deduplication
 **ExaBGP:** Extensive caching (ORIGIN, communities, etc.)
-**Impact:** Higher memory usage, no deduplication
-**Decision:** [ ] ALIGN / [x] KEEP / [ ] SKIP *(pool/store already exists)*
+**Decision:** [ ] ALIGN / [x] KEEP / [ ] SKIP
+**Rationale:** ZeBGP has equivalent functionality via Store/Pool architecture
 
 ### 4.7 Attribute Ordering on Send
-**Current:** Not enforced
+**Current:** ZeBGP orders via `PackAttributesOrdered()` and manual ordering in commit path
 **ExaBGP:** Orders by type code per RFC 4271 Appendix F.3
-**Impact:** Ensures MP attributes sent after others are known
-**Decision:** [x] ALIGN / [ ] KEEP / [ ] SKIP *(RFC recommended)*
+**Status:** ✅ **DONE** - `origin.go:100-137`, `update.go:58`, `commit.go:189-249`
 
 ---
 
 ## Phase 5: MP-NLRI Handling
 
 ### 5.1 Family Validation Against Negotiated
-**Current:** Not checked
+**Current:** ZeBGP validates via `validateUpdateFamilies()` with strict/lenient modes
 **ExaBGP:** Strict validation against negotiated families
-**Impact:** May process NLRI for non-negotiated families
-**Decision:** [x] ALIGN / [ ] KEEP / [ ] SKIP *(RFC 4271 Section 9)*
+**Status:** ✅ **DONE** - `session.go:440-526`
 
 ### 5.2 Extended Next-Hop Support
 **Current:** Not implemented
@@ -198,17 +197,20 @@ For each item, decide:
 ### 7.1 FSM Architecture
 **Current:** Event-driven with explicit Event() calls
 **ExaBGP:** Procedural with direct state changes
-**Decision:** [ ] ALIGN / [x] KEEP / [ ] SKIP *(Go idiomatic)*
+**Decision:** [ ] ALIGN / [x] KEEP / [ ] SKIP
+**Rationale:** Event-driven is Go idiomatic, more testable
 
 ### 7.2 Timer Implementation
 **Current:** Go time.Timer objects with callbacks
 **ExaBGP:** Polling-based with timestamps
-**Decision:** [ ] ALIGN / [x] KEEP / [ ] SKIP *(Go idiomatic)*
+**Decision:** [ ] ALIGN / [x] KEEP / [ ] SKIP
+**Rationale:** Go idiomatic, leverages runtime scheduler
 
 ### 7.3 Reconnect Backoff
 **Current:** Exponential 5s-60s in Peer loop
 **ExaBGP:** Delay class with increase/reset
-**Decision:** [ ] ALIGN / [x] KEEP / [ ] SKIP *(similar behavior)*
+**Decision:** [ ] ALIGN / [x] KEEP / [ ] SKIP
+**Rationale:** Equivalent behavior, Go idiomatic implementation
 
 ---
 
@@ -220,10 +222,12 @@ For each item, decide:
 **Impact:** Less detailed error messages
 **Decision:** [x] ALIGN / [ ] KEEP / [ ] SKIP
 
-### 8.2 Error Recovery in MP-NLRI
-**Current:** Strict fail on invalid data
-**ExaBGP:** Fallback tactics (e.g., zeros for invalid next-hop)
-**Decision:** [ ] ALIGN / [x] KEEP / [ ] SKIP *(strict = RFC compliant)*
+### 8.2 RFC 7606 Error Recovery
+**Current:** Strict fail (RFC 4271 approach)
+**ExaBGP:** Some RFC 7606 recovery tactics
+**RFC 7606:** Defines treat-as-withdraw, attribute discard, AFI/SAFI disable
+**Decision:** [x] ALIGN / [ ] KEEP / [ ] SKIP
+**Note:** RFC 7606 supersedes RFC 4271 §6 for error handling. Previous "KEEP" was incorrect.
 
 ---
 
@@ -253,24 +257,53 @@ For each item, decide:
 
 ## Summary Tracking
 
-| Phase | Total Items | ALIGN | KEEP | SKIP |
-|-------|-------------|-------|------|------|
-| 1. Critical | 4 | 4 | 0 | 0 |
-| 2. Capabilities | 5 | 3 | 0 | 2 |
-| 3. Timers | 2 | 1 | 1 | 0 |
-| 4. Attributes | 7 | 4 | 3 | 0 |
-| 5. MP-NLRI | 4 | 4 | 0 | 0 |
-| 6. NLRI Types | 5 | 5 | 0 | 0 |
-| 7. FSM | 3 | 0 | 3 | 0 |
-| 8. Errors | 2 | 1 | 1 | 0 |
-| 9. Config | 4 | 4 | 0 | 0 |
-| **Total** | **36** | **26** | **8** | **2** |
+| Phase | Total Items | ALIGN | KEEP | SKIP | DONE |
+|-------|-------------|-------|------|------|------|
+| 1. Critical | 4 | 1 | 0 | 0 | 3 |
+| 2. Capabilities | 5 | 3 | 0 | 2 | 0 |
+| 3. Timers | 2 | 1 | 1 | 0 | 0 |
+| 4. Attributes | 7 | 1 | 3 | 0 | 3 |
+| 5. MP-NLRI | 4 | 3 | 0 | 0 | 1 |
+| 6. NLRI Types | 5 | 5 | 0 | 0 | 0 |
+| 7. FSM | 3 | 0 | 3 | 0 | 0 |
+| 8. Errors | 2 | 2 | 0 | 0 | 0 |
+| 9. Config | 4 | 4 | 0 | 0 | 0 |
+| **Total** | **36** | **20** | **7** | **2** | **7** |
 
 ---
 
-## Next Steps
+## Priority Implementation Order
 
-After review:
-1. Create implementation tasks for ALIGN items
-2. Document rationale for KEEP items
-3. Archive SKIP items for future consideration
+### High Priority (RFC Compliance)
+
+| Item | Description | Work |
+|------|-------------|------|
+| 1.3 | Extended Message Integration | Wire `ValidateLengthWithMax()` in session recv |
+| 8.2 | RFC 7606 Error Recovery | Implement treat-as-withdraw tactics |
+| 3.2 | Hold Time Validation | Reject 1-2 second values |
+
+### Medium Priority (Functionality)
+
+| Item | Description |
+|------|-------------|
+| 2.1 | RFC 9072 Extended Optional Parameters |
+| 2.2 | Enhanced Route Refresh (RFC 7313) |
+| 5.2 | Extended Next-Hop Support |
+| 5.3 | MP-NLRI Chunking |
+
+### Lower Priority (Features)
+
+| Item | Description |
+|------|-------------|
+| 4.3 | IPv6 Extended Communities |
+| 6.1-6.5 | EVPN/VPLS/RTC NLRI types |
+| 8.1 | Additional error subcodes |
+| 9.2-9.4 | Config enhancements |
+
+---
+
+## Notes
+
+- Items marked **DONE** were verified by code review on 2025-12-22
+- RFC 7606 supersedes RFC 4271 §6 - ZeBGP should implement recovery tactics
+- ExaBGP claims verified accurate against source code

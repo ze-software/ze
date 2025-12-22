@@ -6,61 +6,71 @@
 
 ## CURRENT STATUS
 
-Ready for next task. Recent work complete.
+Ready for next task. Critical review completed.
+
+---
+
+## CRITICAL REVIEW FINDINGS (2025-12-22)
+
+**Major discovery:** Alignment plan was outdated. 7 of 36 items already implemented.
+
+### Items Already Done (No Work Needed)
+| Item | Feature | Evidence |
+|------|---------|----------|
+| 1.1 | RFC 9003 Shutdown Communication | `notification.go:210-249` |
+| 1.2 | Per-message-type length validation | `header.go:111-163` |
+| 1.4 | KEEPALIVE payload rejection | `keepalive.go:42-55` |
+| 4.2 | AS_PATH auto-split at 255 | `aspath.go:139-178` |
+| 4.4 | Large community deduplication | `community.go:228-301` |
+| 4.7 | Attribute ordering on send | `origin.go:100-137`, `commit.go` |
+| 5.1 | Family validation against negotiated | `session.go:440-526` |
+
+### Corrected KEEP Decision
+- 8.2 was "KEEP strict" → now "ALIGN to RFC 7606"
+- RFC 7606 supersedes RFC 4271 §6 for error handling
+
+---
+
+## HIGH PRIORITY (RFC Compliance)
+
+| Item | Description | Work |
+|------|-------------|------|
+| 1.3 | Extended Message Integration | Wire `ValidateLengthWithMax()` in session recv |
+| 8.2 | RFC 7606 Error Recovery | Implement treat-as-withdraw tactics |
+| 3.2 | Hold Time Validation | Reject 1-2 second values |
+
+## MEDIUM PRIORITY (Functionality)
+
+| Item | Description |
+|------|-------------|
+| 2.1 | RFC 9072 Extended Optional Parameters |
+| 2.2 | Enhanced Route Refresh (RFC 7313) |
+| 5.2 | Extended Next-Hop Support |
+| 5.3 | MP-NLRI Chunking |
 
 ---
 
 ## RECENTLY COMPLETED
+
+**Critical Review** - 2025-12-22
+- ✅ Verified all Phase 1 claims against code
+- ✅ Verified Phase 4-5 claims against code
+- ✅ Reviewed KEEP decision rationales
+- ✅ Verified ExaBGP claims against source
+- ✅ Downloaded RFC 7606
+- ✅ Updated `rfc/README.md`
+- ✅ Updated `plan/exabgp-alignment.md`
 
 **Phase 3 Internal Refactoring** - **COMPLETE ✅**
 
 Full neighbor→peer terminology unification:
 - ✅ config.PeerConfig (was NeighborConfig)
-- ✅ config.peerFields() (was neighborFields())
 - ✅ reactor.PeerSettings (was Neighbor)
-- ✅ reactor.NewPeerSettings() (was NewNeighbor())
-- ✅ Peer.Settings() method (was Neighbor())
-- ✅ p.settings field (was p.neighbor)
-- ✅ API JSON internals (peerSection, peerObj)
-- ✅ Trace logs say "peer" not "neighbor"
-- ✅ neighbor.go renamed to peersettings.go
 - ✅ All tests updated and passing
 
-**Named Commit System** - `plan/unified-commit-system.md` **COMPLETE ✅**
+**Named Commit System** - **COMPLETE ✅**
 
-Phase 3 API commit commands fully implemented:
-- ✅ CommitManager for concurrent named commits
-- ✅ Transaction with route queuing and conflict handling
-- ✅ All commit handlers: `start`, `end`, `eor`, `rollback`, `show`, `announce`, `withdraw`
-- ✅ `commit list` introspection
-- ✅ SendRoutes method wired to CommitService
-- ✅ All tests pass
-
-Key files:
-| File | Description |
-|------|-------------|
-| `pkg/api/commit_manager.go` | CommitManager, Transaction types |
-| `pkg/api/commit.go` | Full `commit <name> <action>` syntax with announce/withdraw |
-| `pkg/api/types.go` | SendRoutes method in ReactorInterface |
-| `pkg/reactor/reactor.go` | SendRoutes implementation using CommitService |
-
----
-
-## COMPLETED PLANS
-
-| Plan | Status | Description |
-|------|--------|-------------|
-| `two-level-grouping.md` | **Complete ✅** | Two-level route grouping for UPDATE generation |
-| `neighbor-to-peer-rename.md` | **Complete ✅** | All 6 phases done, v2 syntax removed |
-| `config-migration-system.md` | **Complete ✅** | v2→v3 migration, CLI commands, docs |
-| `api-commit-batching.md` | Superseded | → merged into unified-commit-system.md |
-| `config-routes-eor.md` | Superseded | → merged into unified-commit-system.md |
-
-## RECENTLY COMPLETED
-
-| Plan | Completed | Description |
-|------|-----------|-------------|
-| `unified-commit-system.md` | 2025-12-22 | Phase 1-3 complete, named commit system working |
+Phase 3 API commit commands fully implemented.
 
 ---
 
@@ -68,7 +78,7 @@ Key files:
 
 | Doc | Purpose |
 |-----|---------|
-| `exabgp-alignment.md` | Review decisions (26 ALIGN, 8 KEEP, 2 SKIP) |
+| `exabgp-alignment.md` | Review decisions (20 ALIGN, 7 KEEP, 2 SKIP, 7 DONE) |
 | `ARCHITECTURE.md` | Codebase architecture overview |
 
 ---
@@ -84,11 +94,10 @@ Key files:
 
 | Purpose | File |
 |---------|------|
-| Two-level grouping | `pkg/rib/grouping.go` |
-| CommitService | `pkg/rib/commit.go` |
-| CommitManager | `pkg/api/commit_manager.go` |
-| Commit handlers | `pkg/api/commit.go` |
-| Reactor | `pkg/reactor/reactor.go` |
+| Extended msg validation | `pkg/bgp/message/header.go` |
+| Session receive path | `pkg/reactor/session.go` |
+| RFC 7606 | `rfc/rfc7606.txt` |
+| Alignment plan | `plan/exabgp-alignment.md` |
 | This file | `plan/CLAUDE_CONTINUATION.md` |
 | Protocols | `.claude/ESSENTIAL_PROTOCOLS.md` |
 
@@ -99,4 +108,5 @@ Key files:
 - All code changes require TDD (test first, show failure, implement, show pass)
 - Plans go in `plan/`, protocols go in `.claude/`
 - Check ExaBGP reference before implementing BGP features
+- **RFC 7606 supersedes RFC 4271 §6** - use recovery tactics, not just session reset
 - **ALWAYS run `make test && make lint` before requesting a commit**
