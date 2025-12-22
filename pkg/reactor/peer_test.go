@@ -23,16 +23,16 @@ func mustParseAddr(s string) netip.Addr {
 //
 // PREVENTS: Peer starting automatically or with invalid state.
 func TestPeerNew(t *testing.T) {
-	neighbor := NewNeighbor(
+	settings := NewPeerSettings(
 		mustParseAddr("192.0.2.1"),
 		65000, 65001, 0x01010101,
 	)
 
-	peer := NewPeer(neighbor)
+	peer := NewPeer(settings)
 
 	require.NotNil(t, peer, "NewPeer must return non-nil")
 	require.Equal(t, PeerStateStopped, peer.State(), "initial state must be Stopped")
-	require.Equal(t, neighbor, peer.Neighbor(), "Neighbor() must return configured neighbor")
+	require.Equal(t, settings, peer.Settings(), "Settings() must return peer settings")
 }
 
 // TestPeerStartStop verifies basic start/stop lifecycle.
@@ -41,13 +41,13 @@ func TestPeerNew(t *testing.T) {
 //
 // PREVENTS: Resource leaks or goroutine leaks on stop.
 func TestPeerStartStop(t *testing.T) {
-	neighbor := NewNeighbor(
+	settings := NewPeerSettings(
 		mustParseAddr("192.0.2.1"),
 		65000, 65001, 0x01010101,
 	)
-	neighbor.Port = 0 // Invalid port to prevent actual connection
+	settings.Port = 0 // Invalid port to prevent actual connection
 
-	peer := NewPeer(neighbor)
+	peer := NewPeer(settings)
 
 	// Start peer
 	peer.Start()
@@ -95,13 +95,13 @@ func TestPeerReconnect(t *testing.T) {
 		}
 	}()
 
-	neighbor := NewNeighbor(
+	settings := NewPeerSettings(
 		mustParseAddr("127.0.0.1"),
 		65000, 65001, 0x01010101,
 	)
-	neighbor.Port = uint16(addr.Port) //nolint:gosec // Port fits in uint16
+	settings.Port = uint16(addr.Port) //nolint:gosec // Port fits in uint16
 
-	peer := NewPeer(neighbor)
+	peer := NewPeer(settings)
 	peer.SetReconnectDelay(10*time.Millisecond, 50*time.Millisecond)
 
 	peer.Start()
@@ -125,13 +125,13 @@ func TestPeerReconnect(t *testing.T) {
 //
 // PREVENTS: Orphaned goroutines when parent context is cancelled.
 func TestPeerContextCancellation(t *testing.T) {
-	neighbor := NewNeighbor(
+	settings := NewPeerSettings(
 		mustParseAddr("192.0.2.1"),
 		65000, 65001, 0x01010101,
 	)
-	neighbor.Port = 0 // Invalid port
+	settings.Port = 0 // Invalid port
 
-	peer := NewPeer(neighbor)
+	peer := NewPeer(settings)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	peer.StartWithContext(ctx)
@@ -177,13 +177,13 @@ func TestPeerStateTransitions(t *testing.T) {
 		}
 	}()
 
-	neighbor := NewNeighbor(
+	settings := NewPeerSettings(
 		mustParseAddr("127.0.0.1"),
 		65000, 65001, 0x01010101,
 	)
-	neighbor.Port = uint16(addr.Port) //nolint:gosec // Port fits in uint16
+	settings.Port = uint16(addr.Port) //nolint:gosec // Port fits in uint16
 
-	peer := NewPeer(neighbor)
+	peer := NewPeer(settings)
 	peer.Start()
 
 	// Should transition to Connecting
@@ -205,13 +205,13 @@ func TestPeerStateTransitions(t *testing.T) {
 //
 // PREVENTS: Missing notifications to observers.
 func TestPeerCallback(t *testing.T) {
-	neighbor := NewNeighbor(
+	settings := NewPeerSettings(
 		mustParseAddr("192.0.2.1"),
 		65000, 65001, 0x01010101,
 	)
-	neighbor.Port = 0
+	settings.Port = 0
 
-	peer := NewPeer(neighbor)
+	peer := NewPeer(settings)
 
 	var transitions []PeerState
 	peer.SetCallback(func(from, to PeerState) {

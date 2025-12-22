@@ -6,21 +6,25 @@
 
 ## CURRENT STATUS
 
-**Next:** Phase 3 Internal Refactoring - NeighborConfig → PeerConfig rename
-
-See `plan/exabgp-alignment.md` Phase 3 for details:
-- Rename NeighborConfig → PeerConfig in pkg/config/bgp.go
-- Rename neighborFields() → peerFields()
-- Update all references across pkg/config/*.go, pkg/reactor/*.go
-- Update API JSON output to use "peer"
-- Update serializer for v3 format
-- Update tests
-
-⚠️ Large refactoring across multiple packages. Use sed/perl for bulk renames.
+Ready for next task. Recent work complete.
 
 ---
 
 ## RECENTLY COMPLETED
+
+**Phase 3 Internal Refactoring** - **COMPLETE ✅**
+
+Full neighbor→peer terminology unification:
+- ✅ config.PeerConfig (was NeighborConfig)
+- ✅ config.peerFields() (was neighborFields())
+- ✅ reactor.PeerSettings (was Neighbor)
+- ✅ reactor.NewPeerSettings() (was NewNeighbor())
+- ✅ Peer.Settings() method (was Neighbor())
+- ✅ p.settings field (was p.neighbor)
+- ✅ API JSON internals (peerSection, peerObj)
+- ✅ Trace logs say "peer" not "neighbor"
+- ✅ neighbor.go renamed to peersettings.go
+- ✅ All tests updated and passing
 
 **Named Commit System** - `plan/unified-commit-system.md` **COMPLETE ✅**
 

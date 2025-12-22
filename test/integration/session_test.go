@@ -34,7 +34,7 @@ func TestDirectSession(t *testing.T) {
 	t.Logf("Listening on port %d", port)
 
 	// Neighbor configs.
-	neighbor1 := &reactor.Neighbor{
+	neighbor1 := &reactor.PeerSettings{
 		Address:  netip.MustParseAddr("127.0.0.1"),
 		Port:     port,
 		LocalAS:  65001,
@@ -44,7 +44,7 @@ func TestDirectSession(t *testing.T) {
 		Passive:  false,
 	}
 
-	neighbor2 := &reactor.Neighbor{
+	neighbor2 := &reactor.PeerSettings{
 		Address:  netip.MustParseAddr("127.0.0.1"),
 		Port:     0, // Not used for passive
 		LocalAS:  65002,
@@ -166,7 +166,7 @@ func TestRequiredFamilyRejection(t *testing.T) {
 	t.Logf("Listening on port %d", port)
 
 	// Session1: requires ipv6/unicast (will be the one rejecting)
-	neighbor1 := &reactor.Neighbor{
+	neighbor1 := &reactor.PeerSettings{
 		Address:  netip.MustParseAddr("127.0.0.1"),
 		Port:     port,
 		LocalAS:  65001,
@@ -183,7 +183,7 @@ func TestRequiredFamilyRejection(t *testing.T) {
 	}
 
 	// Session2: only advertises ipv4/unicast (doesn't have what session1 requires)
-	neighbor2 := &reactor.Neighbor{
+	neighbor2 := &reactor.PeerSettings{
 		Address:  netip.MustParseAddr("127.0.0.1"),
 		Port:     0,
 		LocalAS:  65002,

@@ -63,7 +63,7 @@ type PeerCallback func(from, to PeerState)
 // It manages the connection lifecycle in its own goroutine,
 // automatically reconnecting on failure with exponential backoff.
 type Peer struct {
-	neighbor *Neighbor
+	settings *PeerSettings
 	session  *Session
 
 	state    atomic.Int32
@@ -84,19 +84,19 @@ type Peer struct {
 	mu sync.RWMutex
 }
 
-// NewPeer creates a new peer for the given neighbor.
-func NewPeer(neighbor *Neighbor) *Peer {
+// NewPeer creates a new peer for the given settings.
+func NewPeer(settings *PeerSettings) *Peer {
 	return &Peer{
-		neighbor:     neighbor,
+		settings:     settings,
 		reconnectMin: DefaultReconnectMin,
 		reconnectMax: DefaultReconnectMax,
 		adjRIBOut:    rib.NewOutgoingRIB(),
 	}
 }
 
-// Neighbor returns the configured neighbor.
-func (p *Peer) Neighbor() *Neighbor {
-	return p.neighbor
+// Settings returns the configured peer settings.
+func (p *Peer) Settings() *PeerSettings {
+	return p.settings
 }
 
 // AdjRIBOut returns the peer's Adj-RIB-Out.
@@ -234,7 +234,7 @@ func (p *Peer) run() {
 // runOnce attempts a single connection cycle.
 func (p *Peer) runOnce() error {
 	// Create session
-	session := NewSession(p.neighbor)
+	session := NewSession(p.settings)
 
 	p.mu.Lock()
 	p.session = session
@@ -247,7 +247,7 @@ func (p *Peer) runOnce() error {
 	}()
 
 	// Update state based on FSM mode
-	if p.neighbor.Passive {
+	if p.settings.Passive {
 		p.setState(PeerStateActive)
 	} else {
 		p.setState(PeerStateConnecting)
@@ -259,7 +259,7 @@ func (p *Peer) runOnce() error {
 	}
 
 	// Connect (for active mode)
-	if !p.neighbor.Passive {
+	if !p.settings.Passive {
 		if err := session.Connect(p.ctx); err != nil {
 			return err
 		}
@@ -267,12 +267,12 @@ func (p *Peer) runOnce() error {
 
 	// Monitor FSM state
 	session.fsm.SetCallback(func(from, to fsm.State) {
-		addr := p.neighbor.Address.String()
+		addr := p.settings.Address.String()
 		trace.FSMTransition(addr, from.String(), to.String())
 
 		if to == fsm.StateEstablished {
 			p.setState(PeerStateEstablished)
-			trace.SessionEstablished(addr, p.neighbor.LocalAS, p.neighbor.PeerAS)
+			trace.SessionEstablished(addr, p.settings.LocalAS, p.settings.PeerAS)
 			// Send static routes from config.
 			go p.sendInitialRoutes()
 		} else if from == fsm.StateEstablished {
@@ -350,11 +350,11 @@ func (p *Peer) cleanup() {
 	p.setState(PeerStateStopped)
 }
 
-// sendInitialRoutes sends static routes configured for this neighbor.
+// sendInitialRoutes sends static routes configured for this peer.
 // Routes with identical attributes are grouped into a single UPDATE message.
 func (p *Peer) sendInitialRoutes() {
-	addr := p.neighbor.Address.String()
-	trace.Log(trace.Routes, "neighbor %s: sending %d static routes", addr, len(p.neighbor.StaticRoutes))
+	addr := p.settings.Address.String()
+	trace.Log(trace.Routes, "peer %s: sending %d static routes", addr, len(p.settings.StaticRoutes))
 
 	// Get negotiated capabilities for AS_PATH encoding.
 	p.mu.RLock()
@@ -371,7 +371,7 @@ func (p *Peer) sendInitialRoutes() {
 	// Determine which address families are configured from capabilities.
 	hasIPv4Family := false
 	hasIPv6Family := false
-	for _, cap := range p.neighbor.Capabilities {
+	for _, cap := range p.settings.Capabilities {
 		if mp, ok := cap.(*capability.Multiprotocol); ok {
 			if mp.AFI == 1 && mp.SAFI == 1 { // IPv4 unicast
 				hasIPv4Family = true
@@ -383,14 +383,14 @@ func (p *Peer) sendInitialRoutes() {
 	}
 
 	// Send routes - either grouped or individually based on config.
-	if p.neighbor.GroupUpdates {
+	if p.settings.GroupUpdates {
 		// Group routes by attributes (same attributes = same UPDATE).
-		groups := groupRoutesByAttributes(p.neighbor.StaticRoutes)
+		groups := groupRoutesByAttributes(p.settings.StaticRoutes)
 
 		for _, routes := range groups {
-			update := buildGroupedUpdate(routes, p.neighbor.LocalAS, p.neighbor.IsIBGP(), asn4)
+			update := buildGroupedUpdate(routes, p.settings.LocalAS, p.settings.IsIBGP(), asn4)
 			if err := p.SendUpdate(update); err != nil {
-				trace.Log(trace.Routes, "neighbor %s: send error: %v", addr, err)
+				trace.Log(trace.Routes, "peer %s: send error: %v", addr, err)
 				break
 			}
 			for _, route := range routes {
@@ -399,10 +399,10 @@ func (p *Peer) sendInitialRoutes() {
 		}
 	} else {
 		// Send each route in its own UPDATE.
-		for _, route := range p.neighbor.StaticRoutes {
-			update := buildStaticRouteUpdate(route, p.neighbor.LocalAS, p.neighbor.IsIBGP(), asn4)
+		for _, route := range p.settings.StaticRoutes {
+			update := buildStaticRouteUpdate(route, p.settings.LocalAS, p.settings.IsIBGP(), asn4)
 			if err := p.SendUpdate(update); err != nil {
-				trace.Log(trace.Routes, "neighbor %s: send error: %v", addr, err)
+				trace.Log(trace.Routes, "peer %s: send error: %v", addr, err)
 				break
 			}
 			trace.RouteSent(addr, route.Prefix.String(), route.NextHop.String())
@@ -413,12 +413,12 @@ func (p *Peer) sendInitialRoutes() {
 	if hasIPv4Family {
 		eor := message.BuildEOR(nlri.IPv4Unicast)
 		_ = p.SendUpdate(eor)
-		trace.Log(trace.Routes, "neighbor %s: sent IPv4 unicast EOR marker", addr)
+		trace.Log(trace.Routes, "peer %s: sent IPv4 unicast EOR marker", addr)
 	}
 	if hasIPv6Family {
 		eor := message.BuildEOR(nlri.IPv6Unicast)
 		_ = p.SendUpdate(eor)
-		trace.Log(trace.Routes, "neighbor %s: sent IPv6 unicast EOR marker", addr)
+		trace.Log(trace.Routes, "peer %s: sent IPv6 unicast EOR marker", addr)
 	}
 
 	// Send MVPN routes
@@ -965,14 +965,14 @@ func buildMPReachNLRIUnicast(route StaticRoute) []byte {
 	return attr
 }
 
-// sendMVPNRoutes sends MVPN routes configured for this neighbor.
+// sendMVPNRoutes sends MVPN routes configured for this peer.
 func (p *Peer) sendMVPNRoutes() {
-	if len(p.neighbor.MVPNRoutes) == 0 {
+	if len(p.settings.MVPNRoutes) == 0 {
 		return
 	}
 
-	addr := p.neighbor.Address.String()
-	trace.Log(trace.Routes, "neighbor %s: sending %d MVPN routes", addr, len(p.neighbor.MVPNRoutes))
+	addr := p.settings.Address.String()
+	trace.Log(trace.Routes, "peer %s: sending %d MVPN routes", addr, len(p.settings.MVPNRoutes))
 
 	// Get negotiated capabilities for AS_PATH encoding.
 	p.mu.RLock()
@@ -990,7 +990,7 @@ func (p *Peer) sendMVPNRoutes() {
 	ipv4Routes := make([]MVPNRoute, 0)
 	ipv6Routes := make([]MVPNRoute, 0)
 
-	for _, route := range p.neighbor.MVPNRoutes {
+	for _, route := range p.settings.MVPNRoutes {
 		if route.IsIPv6 {
 			ipv6Routes = append(ipv6Routes, route)
 		} else {
@@ -1001,22 +1001,22 @@ func (p *Peer) sendMVPNRoutes() {
 	// Group IPv4 routes by next-hop (different next-hop = different UPDATE)
 	ipv4Groups := groupMVPNRoutesByNextHop(ipv4Routes)
 	for nh, routes := range ipv4Groups {
-		update := buildMVPNUpdate(routes, p.neighbor.LocalAS, p.neighbor.IsIBGP(), false, asn4)
+		update := buildMVPNUpdate(routes, p.settings.LocalAS, p.settings.IsIBGP(), false, asn4)
 		if err := p.SendUpdate(update); err != nil {
-			trace.Log(trace.Routes, "neighbor %s: MVPN send error: %v", addr, err)
+			trace.Log(trace.Routes, "peer %s: MVPN send error: %v", addr, err)
 		} else {
-			trace.Log(trace.Routes, "neighbor %s: sent %d IPv4 MVPN routes (NH=%s)", addr, len(routes), nh)
+			trace.Log(trace.Routes, "peer %s: sent %d IPv4 MVPN routes (NH=%s)", addr, len(routes), nh)
 		}
 	}
 
 	// Group IPv6 routes by next-hop
 	ipv6Groups := groupMVPNRoutesByNextHop(ipv6Routes)
 	for nh, routes := range ipv6Groups {
-		update := buildMVPNUpdate(routes, p.neighbor.LocalAS, p.neighbor.IsIBGP(), true, asn4)
+		update := buildMVPNUpdate(routes, p.settings.LocalAS, p.settings.IsIBGP(), true, asn4)
 		if err := p.SendUpdate(update); err != nil {
-			trace.Log(trace.Routes, "neighbor %s: MVPN send error: %v", addr, err)
+			trace.Log(trace.Routes, "peer %s: MVPN send error: %v", addr, err)
 		} else {
-			trace.Log(trace.Routes, "neighbor %s: sent %d IPv6 MVPN routes (NH=%s)", addr, len(routes), nh)
+			trace.Log(trace.Routes, "peer %s: sent %d IPv6 MVPN routes (NH=%s)", addr, len(routes), nh)
 		}
 	}
 }
@@ -1216,14 +1216,14 @@ func buildMVPNNLRI(route MVPNRoute) []byte {
 	return nlri
 }
 
-// sendVPLSRoutes sends VPLS routes configured for this neighbor.
+// sendVPLSRoutes sends VPLS routes configured for this peer.
 func (p *Peer) sendVPLSRoutes() {
-	if len(p.neighbor.VPLSRoutes) == 0 {
+	if len(p.settings.VPLSRoutes) == 0 {
 		return
 	}
 
-	addr := p.neighbor.Address.String()
-	trace.Log(trace.Routes, "neighbor %s: sending %d VPLS routes", addr, len(p.neighbor.VPLSRoutes))
+	addr := p.settings.Address.String()
+	trace.Log(trace.Routes, "peer %s: sending %d VPLS routes", addr, len(p.settings.VPLSRoutes))
 
 	// Get negotiated capabilities for AS_PATH encoding.
 	p.mu.RLock()
@@ -1237,10 +1237,10 @@ func (p *Peer) sendVPLSRoutes() {
 		}
 	}
 
-	for _, route := range p.neighbor.VPLSRoutes {
-		update := buildVPLSUpdate(route, p.neighbor.LocalAS, p.neighbor.IsIBGP(), asn4)
+	for _, route := range p.settings.VPLSRoutes {
+		update := buildVPLSUpdate(route, p.settings.LocalAS, p.settings.IsIBGP(), asn4)
 		if err := p.SendUpdate(update); err != nil {
-			trace.Log(trace.Routes, "neighbor %s: VPLS send error: %v", addr, err)
+			trace.Log(trace.Routes, "peer %s: VPLS send error: %v", addr, err)
 		}
 	}
 
@@ -1386,14 +1386,14 @@ func buildVPLSMPReachNLRI(route VPLSRoute) []byte {
 	return attr
 }
 
-// sendFlowSpecRoutes sends FlowSpec routes configured for this neighbor.
+// sendFlowSpecRoutes sends FlowSpec routes configured for this peer.
 func (p *Peer) sendFlowSpecRoutes() {
-	if len(p.neighbor.FlowSpecRoutes) == 0 {
+	if len(p.settings.FlowSpecRoutes) == 0 {
 		return
 	}
 
-	addr := p.neighbor.Address.String()
-	trace.Log(trace.Routes, "neighbor %s: sending %d FlowSpec routes", addr, len(p.neighbor.FlowSpecRoutes))
+	addr := p.settings.Address.String()
+	trace.Log(trace.Routes, "peer %s: sending %d FlowSpec routes", addr, len(p.settings.FlowSpecRoutes))
 
 	// Get negotiated capabilities for AS_PATH encoding.
 	p.mu.RLock()
@@ -1411,10 +1411,10 @@ func (p *Peer) sendFlowSpecRoutes() {
 	var hasIPv4, hasIPv6, hasIPv4VPN bool
 
 	// Send routes in config order
-	for _, route := range p.neighbor.FlowSpecRoutes {
-		update := buildFlowSpecUpdate(route, p.neighbor.LocalAS, p.neighbor.IsIBGP(), asn4)
+	for _, route := range p.settings.FlowSpecRoutes {
+		update := buildFlowSpecUpdate(route, p.settings.LocalAS, p.settings.IsIBGP(), asn4)
 		if err := p.SendUpdate(update); err != nil {
-			trace.Log(trace.Routes, "neighbor %s: FlowSpec send error: %v", addr, err)
+			trace.Log(trace.Routes, "peer %s: FlowSpec send error: %v", addr, err)
 		}
 		// Track AFI/SAFI
 		switch {
@@ -1572,14 +1572,14 @@ func buildFlowSpecMPReachNLRI(route FlowSpecRoute) []byte {
 	return attr
 }
 
-// sendMUPRoutes sends MUP routes configured for this neighbor.
+// sendMUPRoutes sends MUP routes configured for this peer.
 func (p *Peer) sendMUPRoutes() {
-	if len(p.neighbor.MUPRoutes) == 0 {
+	if len(p.settings.MUPRoutes) == 0 {
 		return
 	}
 
-	addr := p.neighbor.Address.String()
-	trace.Log(trace.Routes, "neighbor %s: sending %d MUP routes", addr, len(p.neighbor.MUPRoutes))
+	addr := p.settings.Address.String()
+	trace.Log(trace.Routes, "peer %s: sending %d MUP routes", addr, len(p.settings.MUPRoutes))
 
 	// Get negotiated capabilities for AS_PATH encoding.
 	p.mu.RLock()
@@ -1595,7 +1595,7 @@ func (p *Peer) sendMUPRoutes() {
 
 	// Separate IPv4 and IPv6 routes
 	var ipv4Routes, ipv6Routes []MUPRoute
-	for _, route := range p.neighbor.MUPRoutes {
+	for _, route := range p.settings.MUPRoutes {
 		if route.IsIPv6 {
 			ipv6Routes = append(ipv6Routes, route)
 		} else {
@@ -1605,17 +1605,17 @@ func (p *Peer) sendMUPRoutes() {
 
 	// Send IPv4 MUP routes
 	for _, route := range ipv4Routes {
-		update := buildMUPUpdate(route, p.neighbor.LocalAS, p.neighbor.IsIBGP(), asn4)
+		update := buildMUPUpdate(route, p.settings.LocalAS, p.settings.IsIBGP(), asn4)
 		if err := p.SendUpdate(update); err != nil {
-			trace.Log(trace.Routes, "neighbor %s: MUP send error: %v", addr, err)
+			trace.Log(trace.Routes, "peer %s: MUP send error: %v", addr, err)
 		}
 	}
 
 	// Send IPv6 MUP routes
 	for _, route := range ipv6Routes {
-		update := buildMUPUpdate(route, p.neighbor.LocalAS, p.neighbor.IsIBGP(), asn4)
+		update := buildMUPUpdate(route, p.settings.LocalAS, p.settings.IsIBGP(), asn4)
 		if err := p.SendUpdate(update); err != nil {
-			trace.Log(trace.Routes, "neighbor %s: MUP send error: %v", addr, err)
+			trace.Log(trace.Routes, "peer %s: MUP send error: %v", addr, err)
 		}
 	}
 

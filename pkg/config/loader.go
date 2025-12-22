@@ -80,22 +80,22 @@ func CreateReactor(cfg *BGPConfig) (*reactor.Reactor, error) {
 
 	r := reactor.New(reactorCfg)
 
-	// Add neighbors
+	// Add peers
 	for i := range cfg.Peers {
-		neighbor, err := configToPeer(&cfg.Peers[i], cfg)
+		settings, err := configToPeer(&cfg.Peers[i], cfg)
 		if err != nil {
-			return nil, fmt.Errorf("convert neighbor %s: %w", cfg.Peers[i].Address, err)
+			return nil, fmt.Errorf("convert peer %s: %w", cfg.Peers[i].Address, err)
 		}
-		if err := r.AddPeer(neighbor); err != nil {
-			return nil, fmt.Errorf("add neighbor %s: %w", cfg.Peers[i].Address, err)
+		if err := r.AddPeer(settings); err != nil {
+			return nil, fmt.Errorf("add peer %s: %w", cfg.Peers[i].Address, err)
 		}
 	}
 
 	return r, nil
 }
 
-// configToPeer converts PeerConfig to reactor.Neighbor.
-func configToPeer(nc *PeerConfig, global *BGPConfig) (*reactor.Neighbor, error) {
+// configToPeer converts PeerConfig to reactor.PeerSettings.
+func configToPeer(nc *PeerConfig, global *BGPConfig) (*reactor.PeerSettings, error) {
 	// Determine local AS (inherit from global if not set)
 	localAS := nc.LocalAS
 	if localAS == 0 {
@@ -114,7 +114,7 @@ func configToPeer(nc *PeerConfig, global *BGPConfig) (*reactor.Neighbor, error) 
 		holdTime = 90 * time.Second
 	}
 
-	n := reactor.NewNeighbor(nc.Address, localAS, nc.PeerAS, routerID)
+	n := reactor.NewPeerSettings(nc.Address, localAS, nc.PeerAS, routerID)
 	n.HoldTime = holdTime
 	n.Passive = nc.Passive
 	n.GroupUpdates = nc.GroupUpdates

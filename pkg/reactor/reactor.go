@@ -61,8 +61,8 @@ type Stats struct {
 	PeerCount int
 }
 
-// ConnectionCallback is called when a connection is matched to a neighbor.
-type ConnectionCallback func(conn net.Conn, neighbor *Neighbor)
+// ConnectionCallback is called when a connection is matched to a peer.
+type ConnectionCallback func(conn net.Conn, settings *PeerSettings)
 
 // Reactor is the main BGP orchestrator.
 //
@@ -76,7 +76,7 @@ type ConnectionCallback func(conn net.Conn, neighbor *Neighbor)
 type Reactor struct {
 	config *Config
 
-	peers    map[string]*Peer // keyed by neighbor address
+	peers    map[string]*Peer // keyed by peer address
 	listener *Listener
 	signals  *SignalHandler
 	api      *api.Server // API server for CLI and external processes
@@ -110,13 +110,13 @@ func (a *reactorAPIAdapter) Peers() []api.PeerInfo {
 
 	result := make([]api.PeerInfo, 0, len(a.r.peers))
 	for _, p := range a.r.peers {
-		n := p.Neighbor()
+		s := p.Settings()
 		info := api.PeerInfo{
-			Address:      n.Address,
+			Address:      s.Address,
 			LocalAddress: netip.Addr{}, // TODO: get from session
-			LocalAS:      n.LocalAS,
-			PeerAS:       n.PeerAS,
-			RouterID:     n.RouterID,
+			LocalAS:      s.LocalAS,
+			PeerAS:       s.PeerAS,
+			RouterID:     s.RouterID,
 			State:        p.State().String(),
 		}
 		if p.State() == PeerStateEstablished {
@@ -320,8 +320,8 @@ func (a *reactorAPIAdapter) Reload() error {
 	// Full implementation would:
 	// 1. Parse new config file
 	// 2. Diff with current config
-	// 3. Add/remove neighbors
-	// 4. Update neighbor settings
+	// 3. Add/remove peers
+	// 4. Update peer settings
 	return nil
 }
 
@@ -878,17 +878,17 @@ func (r *Reactor) SetConnectionCallback(cb ConnectionCallback) {
 	r.connCallback = cb
 }
 
-// AddPeer adds a neighbor to the reactor.
-func (r *Reactor) AddPeer(neighbor *Neighbor) error {
+// AddPeer adds a peer to the reactor.
+func (r *Reactor) AddPeer(settings *PeerSettings) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	key := neighbor.Address.String()
+	key := settings.Address.String()
 	if _, exists := r.peers[key]; exists {
 		return ErrPeerExists
 	}
 
-	peer := NewPeer(neighbor)
+	peer := NewPeer(settings)
 	r.peers[key] = peer
 
 	// If reactor is running, start the peer
@@ -899,7 +899,7 @@ func (r *Reactor) AddPeer(neighbor *Neighbor) error {
 	return nil
 }
 
-// RemovePeer removes a neighbor from the reactor.
+// RemovePeer removes a peer from the reactor.
 func (r *Reactor) RemovePeer(addr netip.Addr) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -1096,11 +1096,11 @@ func (r *Reactor) handleConnection(conn net.Conn) {
 		return
 	}
 
-	neighbor := peer.Neighbor()
+	settings := peer.Settings()
 
 	// Call callback if set
 	if cb != nil {
-		cb(conn, neighbor)
+		cb(conn, settings)
 		return
 	}
 

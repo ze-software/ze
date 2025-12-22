@@ -20,7 +20,7 @@ type ConnectionHandler func(conn net.Conn)
 //
 // It listens on a TCP address and calls the handler for each
 // accepted connection. The handler is responsible for determining
-// if the connection is from a configured neighbor.
+// if the connection is from a configured peer.
 type Listener struct {
 	addr    string
 	handler ConnectionHandler

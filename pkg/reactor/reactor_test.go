@@ -64,12 +64,12 @@ func TestReactorAddPeer(t *testing.T) {
 
 	reactor := New(cfg)
 
-	neighbor := NewNeighbor(
+	settings := NewPeerSettings(
 		mustParseAddr("192.0.2.1"),
 		65000, 65001, 0x01010101,
 	)
 
-	err := reactor.AddPeer(neighbor)
+	err := reactor.AddPeer(settings)
 	require.NoError(t, err)
 
 	peers := reactor.Peers()
@@ -88,15 +88,15 @@ func TestReactorRemovePeer(t *testing.T) {
 
 	reactor := New(cfg)
 
-	neighbor := NewNeighbor(
+	settings := NewPeerSettings(
 		mustParseAddr("192.0.2.1"),
 		65000, 65001, 0x01010101,
 	)
 
-	err := reactor.AddPeer(neighbor)
+	err := reactor.AddPeer(settings)
 	require.NoError(t, err)
 
-	err = reactor.RemovePeer(neighbor.Address)
+	err = reactor.RemovePeer(settings.Address)
 	require.NoError(t, err)
 
 	peers := reactor.Peers()
@@ -115,13 +115,13 @@ func TestReactorPeersStartOnRun(t *testing.T) {
 
 	reactor := New(cfg)
 
-	neighbor := NewNeighbor(
+	settings := NewPeerSettings(
 		mustParseAddr("192.0.2.1"),
 		65000, 65001, 0x01010101,
 	)
-	neighbor.Port = 0 // Invalid port to prevent actual connection
+	settings.Port = 0 // Invalid port to prevent actual connection
 
-	err := reactor.AddPeer(neighbor)
+	err := reactor.AddPeer(settings)
 	require.NoError(t, err)
 
 	err = reactor.Start()
@@ -178,18 +178,18 @@ func TestReactorIncomingConnectionMatchesPeer(t *testing.T) {
 
 	reactor := New(cfg)
 
-	// Add passive neighbor expecting connection from localhost
-	neighbor := NewNeighbor(
+	// Add passive peer expecting connection from localhost
+	settings := NewPeerSettings(
 		mustParseAddr("127.0.0.1"),
 		65000, 65001, 0x01010101,
 	)
-	neighbor.Passive = true
+	settings.Passive = true
 
-	err := reactor.AddPeer(neighbor)
+	err := reactor.AddPeer(settings)
 	require.NoError(t, err)
 
 	var accepted atomic.Bool
-	reactor.SetConnectionCallback(func(conn net.Conn, n *Neighbor) {
+	reactor.SetConnectionCallback(func(conn net.Conn, n *PeerSettings) {
 		accepted.Store(true)
 		_ = conn.Close()
 	})
@@ -207,7 +207,7 @@ func TestReactorIncomingConnectionMatchesPeer(t *testing.T) {
 
 	time.Sleep(50 * time.Millisecond)
 
-	require.True(t, accepted.Load(), "connection should be matched to neighbor")
+	require.True(t, accepted.Load(), "connection should be matched to peer")
 }
 
 // TestReactorContextCancellation verifies reactor stops on context cancel.
@@ -250,13 +250,13 @@ func TestReactorGracefulShutdown(t *testing.T) {
 
 	reactor := New(cfg)
 
-	neighbor := NewNeighbor(
+	settings := NewPeerSettings(
 		mustParseAddr("192.0.2.1"),
 		65000, 65001, 0x01010101,
 	)
-	neighbor.Port = 0
+	settings.Port = 0
 
-	_ = reactor.AddPeer(neighbor)
+	_ = reactor.AddPeer(settings)
 
 	err := reactor.Start()
 	require.NoError(t, err)

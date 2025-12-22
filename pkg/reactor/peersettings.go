@@ -123,8 +123,8 @@ type MUPRoute struct {
 	PrefixSID         []byte
 }
 
-// Neighbor represents a configured BGP neighbor.
-type Neighbor struct {
+// PeerSettings contains configuration for a BGP peer.
+type PeerSettings struct {
 	// Address is the peer's IP address.
 	Address netip.Addr
 
@@ -181,9 +181,9 @@ type Neighbor struct {
 	MUPRoutes      []MUPRoute
 }
 
-// NewNeighbor creates a neighbor with default values.
-func NewNeighbor(address netip.Addr, localAS, peerAS, routerID uint32) *Neighbor {
-	return &Neighbor{
+// NewPeerSettings creates a peer settings with default values.
+func NewPeerSettings(address netip.Addr, localAS, peerAS, routerID uint32) *PeerSettings {
+	return &PeerSettings{
 		Address:  address,
 		Port:     DefaultBGPPort,
 		LocalAS:  localAS,
@@ -194,11 +194,11 @@ func NewNeighbor(address netip.Addr, localAS, peerAS, routerID uint32) *Neighbor
 }
 
 // IsIBGP returns true if this is an internal BGP session (same AS).
-func (n *Neighbor) IsIBGP() bool {
+func (n *PeerSettings) IsIBGP() bool {
 	return n.LocalAS == n.PeerAS
 }
 
 // IsEBGP returns true if this is an external BGP session (different AS).
-func (n *Neighbor) IsEBGP() bool {
+func (n *PeerSettings) IsEBGP() bool {
 	return n.LocalAS != n.PeerAS
 }

@@ -36,12 +36,12 @@ func acceptWithReader(t *testing.T, session *Session, server, client net.Conn) [
 
 // TestSessionCreation verifies Session initialization.
 func TestSessionCreation(t *testing.T) {
-	neighbor := NewNeighbor(
+	settings := NewPeerSettings(
 		netip.MustParseAddr("192.0.2.1"),
 		65001, 65002, 0x01020301,
 	)
 
-	session := NewSession(neighbor)
+	session := NewSession(settings)
 
 	require.NotNil(t, session)
 	require.Equal(t, fsm.StateIdle, session.State())
@@ -51,13 +51,13 @@ func TestSessionCreation(t *testing.T) {
 
 // TestSessionPassiveMode verifies passive mode.
 func TestSessionPassiveMode(t *testing.T) {
-	neighbor := NewNeighbor(
+	settings := NewPeerSettings(
 		netip.MustParseAddr("192.0.2.1"),
 		65001, 65002, 0x01020301,
 	)
-	neighbor.Passive = true
+	settings.Passive = true
 
-	session := NewSession(neighbor)
+	session := NewSession(settings)
 
 	err := session.Start()
 	require.NoError(t, err)
@@ -66,13 +66,13 @@ func TestSessionPassiveMode(t *testing.T) {
 
 // TestSessionActiveMode verifies active mode.
 func TestSessionActiveMode(t *testing.T) {
-	neighbor := NewNeighbor(
+	settings := NewPeerSettings(
 		netip.MustParseAddr("192.0.2.1"),
 		65001, 65002, 0x01020301,
 	)
-	neighbor.Passive = false
+	settings.Passive = false
 
-	session := NewSession(neighbor)
+	session := NewSession(settings)
 
 	err := session.Start()
 	require.NoError(t, err)
@@ -81,13 +81,13 @@ func TestSessionActiveMode(t *testing.T) {
 
 // TestSessionAcceptConnection verifies accepting incoming TCP connection.
 func TestSessionAcceptConnection(t *testing.T) {
-	neighbor := NewNeighbor(
+	settings := NewPeerSettings(
 		netip.MustParseAddr("192.0.2.1"),
 		65001, 65002, 0x01020301,
 	)
-	neighbor.Passive = true
+	settings.Passive = true
 
-	session := NewSession(neighbor)
+	session := NewSession(settings)
 	_ = session.Start()
 
 	client, server := net.Pipe()
@@ -102,17 +102,17 @@ func TestSessionAcceptConnection(t *testing.T) {
 
 // TestSessionSendOpen verifies OPEN message is sent correctly.
 func TestSessionSendOpen(t *testing.T) {
-	neighbor := NewNeighbor(
+	settings := NewPeerSettings(
 		netip.MustParseAddr("192.0.2.1"),
 		65001, 65002, 0x01020301,
 	)
-	neighbor.HoldTime = 90 * time.Second
-	neighbor.Capabilities = []capability.Capability{
+	settings.HoldTime = 90 * time.Second
+	settings.Capabilities = []capability.Capability{
 		&capability.ASN4{ASN: 65001},
 	}
-	neighbor.Passive = true
+	settings.Passive = true
 
-	session := NewSession(neighbor)
+	session := NewSession(settings)
 	_ = session.Start()
 
 	client, server := net.Pipe()
@@ -137,13 +137,13 @@ func TestSessionSendOpen(t *testing.T) {
 
 // TestSessionReceiveOpen verifies processing of received OPEN message.
 func TestSessionReceiveOpen(t *testing.T) {
-	neighbor := NewNeighbor(
+	settings := NewPeerSettings(
 		netip.MustParseAddr("192.0.2.1"),
 		65001, 65002, 0x01020301,
 	)
-	neighbor.Passive = true
+	settings.Passive = true
 
-	session := NewSession(neighbor)
+	session := NewSession(settings)
 	_ = session.Start()
 
 	client, server := net.Pipe()
@@ -181,13 +181,13 @@ func TestSessionReceiveOpen(t *testing.T) {
 
 // TestSessionKeepaliveExchange verifies KEEPALIVE handling.
 func TestSessionKeepaliveExchange(t *testing.T) {
-	neighbor := NewNeighbor(
+	settings := NewPeerSettings(
 		netip.MustParseAddr("192.0.2.1"),
 		65001, 65002, 0x01020301,
 	)
-	neighbor.Passive = true
+	settings.Passive = true
 
-	session := NewSession(neighbor)
+	session := NewSession(settings)
 	_ = session.Start()
 
 	client, server := net.Pipe()
@@ -227,14 +227,14 @@ func TestSessionKeepaliveExchange(t *testing.T) {
 
 // TestSessionHoldTimerExpiry verifies dead peer detection.
 func TestSessionHoldTimerExpiry(t *testing.T) {
-	neighbor := NewNeighbor(
+	settings := NewPeerSettings(
 		netip.MustParseAddr("192.0.2.1"),
 		65001, 65002, 0x01020301,
 	)
-	neighbor.Passive = true
-	neighbor.HoldTime = 50 * time.Millisecond
+	settings.Passive = true
+	settings.HoldTime = 50 * time.Millisecond
 
-	session := NewSession(neighbor)
+	session := NewSession(settings)
 	_ = session.Start()
 
 	client, server := net.Pipe()
@@ -274,13 +274,13 @@ func TestSessionHoldTimerExpiry(t *testing.T) {
 
 // TestSessionNotification verifies NOTIFICATION handling.
 func TestSessionNotification(t *testing.T) {
-	neighbor := NewNeighbor(
+	settings := NewPeerSettings(
 		netip.MustParseAddr("192.0.2.1"),
 		65001, 65002, 0x01020301,
 	)
-	neighbor.Passive = true
+	settings.Passive = true
 
-	session := NewSession(neighbor)
+	session := NewSession(settings)
 	_ = session.Start()
 
 	client, server := net.Pipe()
@@ -307,13 +307,13 @@ func TestSessionNotification(t *testing.T) {
 
 // TestSessionGracefulClose verifies clean shutdown.
 func TestSessionGracefulClose(t *testing.T) {
-	neighbor := NewNeighbor(
+	settings := NewPeerSettings(
 		netip.MustParseAddr("192.0.2.1"),
 		65001, 65002, 0x01020301,
 	)
-	neighbor.Passive = true
+	settings.Passive = true
 
-	session := NewSession(neighbor)
+	session := NewSession(settings)
 	_ = session.Start()
 
 	client, server := net.Pipe()
@@ -334,14 +334,14 @@ func TestSessionGracefulClose(t *testing.T) {
 
 // TestSessionConnectContext verifies context cancellation during connect.
 func TestSessionConnectContext(t *testing.T) {
-	neighbor := NewNeighbor(
+	settings := NewPeerSettings(
 		netip.MustParseAddr("192.0.2.1"),
 		65001, 65002, 0x01020301,
 	)
-	neighbor.Address = netip.MustParseAddr("10.255.255.1")
-	neighbor.Port = 17900
+	settings.Address = netip.MustParseAddr("10.255.255.1")
+	settings.Port = 17900
 
-	session := NewSession(neighbor)
+	session := NewSession(settings)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 50*time.Millisecond)
 	defer cancel()
@@ -352,18 +352,18 @@ func TestSessionConnectContext(t *testing.T) {
 
 // TestSessionCapabilityNegotiation verifies capability intersection.
 func TestSessionCapabilityNegotiation(t *testing.T) {
-	neighbor := NewNeighbor(
+	settings := NewPeerSettings(
 		netip.MustParseAddr("192.0.2.1"),
 		65001, 65002, 0x01020301,
 	)
-	neighbor.Passive = true
-	neighbor.Capabilities = []capability.Capability{
+	settings.Passive = true
+	settings.Capabilities = []capability.Capability{
 		&capability.ASN4{ASN: 65001},
 		&capability.RouteRefresh{},
 		&capability.Multiprotocol{AFI: capability.AFIIPv4, SAFI: capability.SAFIUnicast},
 	}
 
-	session := NewSession(neighbor)
+	session := NewSession(settings)
 	_ = session.Start()
 
 	client, server := net.Pipe()
@@ -404,17 +404,17 @@ func TestSessionCapabilityNegotiation(t *testing.T) {
 // PREVENTS: Processing NLRI for address families peer didn't negotiate.
 func TestSessionFamilyValidation(t *testing.T) {
 	// Setup: session with only IPv4 unicast negotiated
-	neighbor := NewNeighbor(
+	settings := NewPeerSettings(
 		netip.MustParseAddr("192.0.2.1"),
 		65001, 65002, 0x01020301,
 	)
-	neighbor.Passive = true
-	neighbor.Capabilities = []capability.Capability{
+	settings.Passive = true
+	settings.Capabilities = []capability.Capability{
 		&capability.ASN4{ASN: 65001},
 		&capability.Multiprotocol{AFI: capability.AFIIPv4, SAFI: capability.SAFIUnicast},
 	}
 
-	session := NewSession(neighbor)
+	session := NewSession(settings)
 	_ = session.Start()
 
 	client, server := net.Pipe()
@@ -526,18 +526,18 @@ func TestSessionFamilyValidation(t *testing.T) {
 // PREVENTS: Connection drops with buggy peers that send extra families.
 func TestSessionFamilyValidationIgnoreMismatch(t *testing.T) {
 	// Setup: session with ignore-mismatch enabled
-	neighbor := NewNeighbor(
+	settings := NewPeerSettings(
 		netip.MustParseAddr("192.0.2.1"),
 		65001, 65002, 0x01020301,
 	)
-	neighbor.Passive = true
-	neighbor.IgnoreFamilyMismatch = true // Enable lenient mode
-	neighbor.Capabilities = []capability.Capability{
+	settings.Passive = true
+	settings.IgnoreFamilyMismatch = true // Enable lenient mode
+	settings.Capabilities = []capability.Capability{
 		&capability.ASN4{ASN: 65001},
 		&capability.Multiprotocol{AFI: capability.AFIIPv4, SAFI: capability.SAFIUnicast},
 	}
 
-	session := NewSession(neighbor)
+	session := NewSession(settings)
 	_ = session.Start()
 
 	client, server := net.Pipe()

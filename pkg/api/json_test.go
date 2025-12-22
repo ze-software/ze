@@ -44,20 +44,20 @@ func TestJSONEncoderStateUp(t *testing.T) {
 	assert.Equal(t, "state", result["type"])
 
 	// Check neighbor structure
-	neighbor, ok := result["peer"].(map[string]any)
+	peerMap, ok := result["peer"].(map[string]any)
 	require.True(t, ok, "neighbor must be object")
 
-	address, ok := neighbor["address"].(map[string]any)
+	address, ok := peerMap["address"].(map[string]any)
 	require.True(t, ok, "address must be object")
 	assert.Equal(t, "192.168.1.1", address["local"])
 	assert.Equal(t, "192.168.1.2", address["peer"])
 
-	asn, ok := neighbor["asn"].(map[string]any)
+	asn, ok := peerMap["asn"].(map[string]any)
 	require.True(t, ok, "asn must be object")
 	assert.Equal(t, float64(65001), asn["local"])
 	assert.Equal(t, float64(65002), asn["peer"])
 
-	assert.Equal(t, "up", neighbor["state"])
+	assert.Equal(t, "up", peerMap["state"])
 }
 
 // TestJSONEncoderStateDown verifies JSON output for peer state "down".
@@ -81,10 +81,10 @@ func TestJSONEncoderStateDown(t *testing.T) {
 	err := json.Unmarshal([]byte(msg), &result)
 	require.NoError(t, err)
 
-	neighbor, ok := result["peer"].(map[string]any)
+	peerMap, ok := result["peer"].(map[string]any)
 	require.True(t, ok)
-	assert.Equal(t, "down", neighbor["state"])
-	assert.Equal(t, "hold timer expired", neighbor["reason"])
+	assert.Equal(t, "down", peerMap["state"])
+	assert.Equal(t, "hold timer expired", peerMap["reason"])
 }
 
 // TestJSONEncoderStateConnected verifies JSON output for "connected" state.
@@ -108,14 +108,14 @@ func TestJSONEncoderStateConnected(t *testing.T) {
 	err := json.Unmarshal([]byte(msg), &result)
 	require.NoError(t, err)
 
-	neighbor, ok := result["peer"].(map[string]any)
+	peerMap, ok := result["peer"].(map[string]any)
 	require.True(t, ok)
-	assert.Equal(t, "connected", neighbor["state"])
+	assert.Equal(t, "connected", peerMap["state"])
 }
 
 // TestJSONEncoderCounter verifies per-neighbor message counter.
 //
-// VALIDATES: Counter increments for each message to same neighbor.
+// VALIDATES: Counter increments for each message to same peer.
 //
 // PREVENTS: Incorrect message ordering detection by consumers.
 func TestJSONEncoderCounter(t *testing.T) {
@@ -272,10 +272,10 @@ func TestJSONEncoderSpecialCharacters(t *testing.T) {
 	err := json.Unmarshal([]byte(msg), &result)
 	require.NoError(t, err, "JSON with special chars must be valid")
 
-	neighbor, ok := result["peer"].(map[string]any)
+	peerMap, ok := result["peer"].(map[string]any)
 	require.True(t, ok)
 	// The reason should be properly escaped in JSON but decoded back
-	assert.Contains(t, neighbor["reason"], "peer closed")
+	assert.Contains(t, peerMap["reason"], "peer closed")
 }
 
 // TestJSONEncoderIPv6 verifies IPv6 address formatting.
@@ -298,9 +298,9 @@ func TestJSONEncoderIPv6(t *testing.T) {
 	var result map[string]any
 	require.NoError(t, json.Unmarshal([]byte(msg), &result))
 
-	neighbor, ok := result["peer"].(map[string]any)
+	peerMap, ok := result["peer"].(map[string]any)
 	require.True(t, ok)
-	address, ok := neighbor["address"].(map[string]any)
+	address, ok := peerMap["address"].(map[string]any)
 	require.True(t, ok)
 
 	// IPv6 addresses should be in standard format

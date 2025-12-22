@@ -60,7 +60,7 @@ peer 192.0.2.1 {
 	require.Len(t, peers, 1)
 
 	// Neighbor should inherit local-as from global
-	n := peers[0].Neighbor()
+	n := peers[0].Settings()
 	require.Equal(t, uint32(65000), n.LocalAS)
 	require.Equal(t, uint32(65001), n.PeerAS)
 }
@@ -87,7 +87,7 @@ peer 192.0.2.1 {
 	peers := r.Peers()
 	require.Len(t, peers, 1)
 
-	n := peers[0].Neighbor()
+	n := peers[0].Settings()
 	require.True(t, n.Passive)
 }
 

@@ -37,7 +37,7 @@ var (
 type Session struct {
 	mu sync.RWMutex
 
-	neighbor   *Neighbor
+	settings   *PeerSettings
 	fsm        *fsm.FSM
 	timers     *fsm.Timers
 	conn       net.Conn
@@ -56,10 +56,10 @@ type Session struct {
 	errChan chan error
 }
 
-// NewSession creates a new BGP session for a neighbor.
-func NewSession(neighbor *Neighbor) *Session {
+// NewSession creates a new BGP session for a peer.
+func NewSession(settings *PeerSettings) *Session {
 	s := &Session{
-		neighbor: neighbor,
+		settings: settings,
 		fsm:      fsm.New(),
 		timers:   fsm.NewTimers(),
 		readBuf:  make([]byte, message.MaxMsgLen),
@@ -67,10 +67,10 @@ func NewSession(neighbor *Neighbor) *Session {
 	}
 
 	// Configure FSM passive mode.
-	s.fsm.SetPassive(neighbor.Passive)
+	s.fsm.SetPassive(settings.Passive)
 
 	// Configure timers.
-	s.timers.SetHoldTime(neighbor.HoldTime)
+	s.timers.SetHoldTime(settings.HoldTime)
 
 	// Wire up timer callbacks.
 	s.timers.OnHoldTimerExpires(func() {
@@ -136,7 +136,7 @@ func (s *Session) Connect(ctx context.Context) error {
 	}
 	s.mu.Unlock()
 
-	addr := net.JoinHostPort(s.neighbor.Address.String(), fmt.Sprintf("%d", s.neighbor.Port))
+	addr := net.JoinHostPort(s.settings.Address.String(), fmt.Sprintf("%d", s.settings.Port))
 
 	var d net.Dialer
 	conn, err := d.DialContext(ctx, "tcp", addr)
@@ -374,7 +374,7 @@ func (s *Session) handleOpen(body []byte) error {
 	s.mu.RLock()
 	conn := s.conn
 	neg := s.negotiated
-	requiredFamilies := s.neighbor.RequiredFamilies
+	requiredFamilies := s.settings.RequiredFamilies
 	s.mu.RUnlock()
 
 	if len(requiredFamilies) > 0 && neg != nil {
@@ -509,7 +509,7 @@ func (s *Session) validateUpdateFamilies(body []byte) error {
 			neg := s.Negotiated()
 			if neg != nil && !neg.SupportsFamily(family) {
 				// Family not negotiated - check if we should ignore
-				shouldIgnore := s.neighbor.IgnoreFamilyMismatch || s.shouldIgnoreFamily(family)
+				shouldIgnore := s.settings.IgnoreFamilyMismatch || s.shouldIgnoreFamily(family)
 				if shouldIgnore {
 					// Lenient mode: log warning and skip
 					trace.UpdateFamilyMismatch(uint16(afi), uint8(safi), true)
@@ -564,12 +564,12 @@ func (s *Session) negotiate() {
 	s.negotiated = capability.Negotiate(
 		localCaps,
 		peerCaps,
-		s.neighbor.LocalAS,
+		s.settings.LocalAS,
 		s.peerOpen.ASN4,
 	)
 
 	// Negotiate hold time (minimum of both, but at least 3s if non-zero).
-	localHold := s.neighbor.HoldTime
+	localHold := s.settings.HoldTime
 	peerHold := time.Duration(s.peerOpen.HoldTime) * time.Second
 
 	var negotiatedHold time.Duration
@@ -593,14 +593,14 @@ func (s *Session) negotiate() {
 // sendOpen sends an OPEN message.
 func (s *Session) sendOpen(conn net.Conn) error {
 	// Build capabilities in RFC-expected order:
-	// 1. Multiprotocol (from neighbor.Capabilities)
+	// 1. Multiprotocol (from settings.Capabilities)
 	// 2. ASN4
 	// 3. Other capabilities (FQDN, SoftwareVersion, etc.)
 	var caps []capability.Capability
 	var otherCaps []capability.Capability
 
 	// Separate Multiprotocol capabilities from others.
-	for _, c := range s.neighbor.Capabilities {
+	for _, c := range s.settings.Capabilities {
 		if c.Code() == capability.CodeMultiprotocol {
 			caps = append(caps, c)
 		} else {
@@ -609,8 +609,8 @@ func (s *Session) sendOpen(conn net.Conn) error {
 	}
 
 	// Add ASN4 unless disabled in config.
-	if !s.neighbor.DisableASN4 {
-		caps = append(caps, &capability.ASN4{ASN: s.neighbor.LocalAS})
+	if !s.settings.DisableASN4 {
+		caps = append(caps, &capability.ASN4{ASN: s.settings.LocalAS})
 	}
 
 	// Add remaining capabilities.
@@ -620,17 +620,17 @@ func (s *Session) sendOpen(conn net.Conn) error {
 	optParams := buildOptionalParams(caps)
 
 	// Determine AS to put in header (AS_TRANS if > 65535).
-	myAS := uint16(s.neighbor.LocalAS) //nolint:gosec // Truncation intended for AS_TRANS
-	if s.neighbor.LocalAS > 65535 {
+	myAS := uint16(s.settings.LocalAS) //nolint:gosec // Truncation intended for AS_TRANS
+	if s.settings.LocalAS > 65535 {
 		myAS = 23456 // AS_TRANS
 	}
 
 	open := &message.Open{
 		Version:        4,
 		MyAS:           myAS,
-		HoldTime:       uint16(s.neighbor.HoldTime / time.Second), //nolint:gosec // Hold time max 65535s
-		BGPIdentifier:  s.neighbor.RouterID,
-		ASN4:           s.neighbor.LocalAS,
+		HoldTime:       uint16(s.settings.HoldTime / time.Second), //nolint:gosec // Hold time max 65535s
+		BGPIdentifier:  s.settings.RouterID,
+		ASN4:           s.settings.LocalAS,
 		OptionalParams: optParams,
 	}
 
@@ -795,7 +795,7 @@ func isTimeout(err error) bool {
 // shouldIgnoreFamily checks if UPDATE validation should be lenient for a family.
 // Returns true if the family was configured with "ignore" mode.
 func (s *Session) shouldIgnoreFamily(family capability.Family) bool {
-	for _, f := range s.neighbor.IgnoreFamilies {
+	for _, f := range s.settings.IgnoreFamilies {
 		if f.AFI == family.AFI && f.SAFI == family.SAFI {
 			return true
 		}

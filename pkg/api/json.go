@@ -15,7 +15,7 @@ type JSONEncoder struct {
 	pid      int
 	ppid     int
 
-	// Per-neighbor message counters
+	// Per-peer message counters
 	counters map[string]int
 	mu       sync.Mutex
 
@@ -76,8 +76,8 @@ func (e *JSONEncoder) message(peer PeerInfo, msgType string) map[string]any {
 	}
 }
 
-// neighborSection creates the neighbor section of the message.
-func (e *JSONEncoder) neighborSection(peer PeerInfo) map[string]any {
+// peerSection creates the neighbor section of the message.
+func (e *JSONEncoder) peerSection(peer PeerInfo) map[string]any {
 	return map[string]any{
 		"address": map[string]any{
 			"local": peer.LocalAddress.String(),
@@ -93,28 +93,28 @@ func (e *JSONEncoder) neighborSection(peer PeerInfo) map[string]any {
 // StateUp returns JSON for a peer state "up" event.
 func (e *JSONEncoder) StateUp(peer PeerInfo) string {
 	msg := e.message(peer, "state")
-	neighbor := e.neighborSection(peer)
-	neighbor["state"] = "up"
-	msg["peer"] = neighbor
+	peerObj := e.peerSection(peer)
+	peerObj["state"] = "up"
+	msg["peer"] = peerObj
 	return e.marshal(msg)
 }
 
 // StateDown returns JSON for a peer state "down" event.
 func (e *JSONEncoder) StateDown(peer PeerInfo, reason string) string {
 	msg := e.message(peer, "state")
-	neighbor := e.neighborSection(peer)
-	neighbor["state"] = "down"
-	neighbor["reason"] = reason
-	msg["peer"] = neighbor
+	peerObj := e.peerSection(peer)
+	peerObj["state"] = "down"
+	peerObj["reason"] = reason
+	msg["peer"] = peerObj
 	return e.marshal(msg)
 }
 
 // StateConnected returns JSON for a peer "connected" event.
 func (e *JSONEncoder) StateConnected(peer PeerInfo) string {
 	msg := e.message(peer, "state")
-	neighbor := e.neighborSection(peer)
-	neighbor["state"] = "connected"
-	msg["peer"] = neighbor
+	peerObj := e.peerSection(peer)
+	peerObj["state"] = "connected"
+	msg["peer"] = peerObj
 	return e.marshal(msg)
 }
 
@@ -122,7 +122,7 @@ func (e *JSONEncoder) StateConnected(peer PeerInfo) string {
 // Format matches ExaBGP v6 "update" message.
 func (e *JSONEncoder) RouteAnnounce(peer PeerInfo, routes []RouteUpdate) string {
 	msg := e.message(peer, "update")
-	neighbor := e.neighborSection(peer)
+	peerObj := e.peerSection(peer)
 
 	// Build announce section
 	announce := make(map[string]any)
@@ -141,12 +141,12 @@ func (e *JSONEncoder) RouteAnnounce(peer PeerInfo, routes []RouteUpdate) string 
 		nhMap[r.Prefix] = r.Attributes()
 	}
 
-	neighbor["message"] = map[string]any{
+	peerObj["message"] = map[string]any{
 		"update": map[string]any{
 			"announce": announce,
 		},
 	}
-	msg["peer"] = neighbor
+	msg["peer"] = peerObj
 	return e.marshal(msg)
 }
 
@@ -154,7 +154,7 @@ func (e *JSONEncoder) RouteAnnounce(peer PeerInfo, routes []RouteUpdate) string 
 // Format matches ExaBGP v6 "update" message with withdraw section.
 func (e *JSONEncoder) RouteWithdraw(peer PeerInfo, routes []RouteUpdate) string {
 	msg := e.message(peer, "update")
-	neighbor := e.neighborSection(peer)
+	peerObj := e.peerSection(peer)
 
 	// Build withdraw section
 	withdraw := make(map[string]any)
@@ -167,56 +167,56 @@ func (e *JSONEncoder) RouteWithdraw(peer PeerInfo, routes []RouteUpdate) string 
 		withdraw[family] = append(prefixes, r.Prefix)
 	}
 
-	neighbor["message"] = map[string]any{
+	peerObj["message"] = map[string]any{
 		"update": map[string]any{
 			"withdraw": withdraw,
 		},
 	}
-	msg["peer"] = neighbor
+	msg["peer"] = peerObj
 	return e.marshal(msg)
 }
 
 // EOR returns JSON for an End-of-RIB marker.
 func (e *JSONEncoder) EOR(peer PeerInfo, family string) string {
 	msg := e.message(peer, "update")
-	neighbor := e.neighborSection(peer)
+	peerObj := e.peerSection(peer)
 
-	neighbor["message"] = map[string]any{
+	peerObj["message"] = map[string]any{
 		"eor": map[string]any{
 			"afi":  family,
 			"safi": "unicast",
 		},
 	}
-	msg["peer"] = neighbor
+	msg["peer"] = peerObj
 	return e.marshal(msg)
 }
 
 // Notification returns JSON for a NOTIFICATION message.
 func (e *JSONEncoder) Notification(peer PeerInfo, code, subcode uint8, data string) string {
 	msg := e.message(peer, "notification")
-	neighbor := e.neighborSection(peer)
+	peerObj := e.peerSection(peer)
 
-	neighbor["notification"] = map[string]any{
+	peerObj["notification"] = map[string]any{
 		"code":    code,
 		"subcode": subcode,
 		"data":    data,
 	}
-	msg["peer"] = neighbor
+	msg["peer"] = peerObj
 	return e.marshal(msg)
 }
 
 // Open returns JSON for an OPEN message received.
 func (e *JSONEncoder) Open(peer PeerInfo, capabilities []string) string {
 	msg := e.message(peer, "open")
-	neighbor := e.neighborSection(peer)
+	peerObj := e.peerSection(peer)
 
-	neighbor["open"] = map[string]any{
+	peerObj["open"] = map[string]any{
 		"version":      4,
 		"asn":          peer.PeerAS,
 		"router-id":    uint32ToIP(peer.RouterID),
 		"capabilities": capabilities,
 	}
-	msg["peer"] = neighbor
+	msg["peer"] = peerObj
 	return e.marshal(msg)
 }
 

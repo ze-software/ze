@@ -61,7 +61,7 @@ func setupPeers(t *testing.T, ctx context.Context, cfg1, cfg2 peerConfig) (*reac
 		LocalAS:    cfg2.localAS,
 	})
 
-	neighbor1 := &reactor.Neighbor{
+	neighbor1 := &reactor.PeerSettings{
 		Address:  netip.MustParseAddr("127.0.0.1"),
 		Port:     port2,
 		LocalAS:  cfg1.localAS,
@@ -71,7 +71,7 @@ func setupPeers(t *testing.T, ctx context.Context, cfg1, cfg2 peerConfig) (*reac
 		Passive:  cfg1.passive,
 	}
 
-	neighbor2 := &reactor.Neighbor{
+	neighbor2 := &reactor.PeerSettings{
 		Address:  netip.MustParseAddr("127.0.0.1"),
 		Port:     port1,
 		LocalAS:  cfg2.localAS,
@@ -82,10 +82,10 @@ func setupPeers(t *testing.T, ctx context.Context, cfg1, cfg2 peerConfig) (*reac
 	}
 
 	if err := r1.AddPeer(neighbor1); err != nil {
-		t.Fatalf("add neighbor to r1: %v", err)
+		t.Fatalf("add peer to r1: %v", err)
 	}
 	if err := r2.AddPeer(neighbor2); err != nil {
-		t.Fatalf("add neighbor to r2: %v", err)
+		t.Fatalf("add peer to r2: %v", err)
 	}
 
 	if err := r1.StartWithContext(ctx); err != nil {
@@ -209,7 +209,7 @@ func TestSessionReconnect(t *testing.T) {
 		LocalAS:    65002,
 	})
 
-	neighbor1 := &reactor.Neighbor{
+	neighbor1 := &reactor.PeerSettings{
 		Address:  netip.MustParseAddr("127.0.0.1"),
 		Port:     port2,
 		LocalAS:  65001,
@@ -218,7 +218,7 @@ func TestSessionReconnect(t *testing.T) {
 		HoldTime: 30 * time.Second,
 	}
 
-	neighbor2 := &reactor.Neighbor{
+	neighbor2 := &reactor.PeerSettings{
 		Address:  netip.MustParseAddr("127.0.0.1"),
 		Port:     port1,
 		LocalAS:  65002,
@@ -229,10 +229,10 @@ func TestSessionReconnect(t *testing.T) {
 	}
 
 	if err := r1.AddPeer(neighbor1); err != nil {
-		t.Fatalf("add neighbor to r1: %v", err)
+		t.Fatalf("add peer to r1: %v", err)
 	}
 	if err := r2.AddPeer(neighbor2); err != nil {
-		t.Fatalf("add neighbor to r2: %v", err)
+		t.Fatalf("add peer to r2: %v", err)
 	}
 
 	// Start r1 first.
