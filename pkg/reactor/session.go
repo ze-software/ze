@@ -524,7 +524,9 @@ func (s *Session) validateUpdateRFC7606(body []byte) error {
 	}
 
 	// Validate path attributes per RFC 7606
-	result := message.ValidateUpdateRFC7606(pathAttrs, hasNLRI)
+	// IBGP is determined by comparing local and peer AS numbers
+	isIBGP := s.settings.LocalAS == s.settings.PeerAS
+	result := message.ValidateUpdateRFC7606(pathAttrs, hasNLRI, isIBGP)
 
 	switch result.Action {
 	case message.RFC7606ActionNone:

@@ -68,10 +68,11 @@ const (
 // Parameters:
 //   - pathAttrs: Raw path attributes bytes from UPDATE message
 //   - hasNLRI: Whether the UPDATE has NLRI (for mandatory attribute checking)
+//   - isIBGP: Whether this is an IBGP session (affects LOCAL_PREF, ORIGINATOR_ID, CLUSTER_LIST)
 //
 // Returns:
 //   - ValidationResult with action to take and error details
-func ValidateUpdateRFC7606(pathAttrs []byte, hasNLRI bool) *RFC7606ValidationResult {
+func ValidateUpdateRFC7606(pathAttrs []byte, hasNLRI bool, isIBGP bool) *RFC7606ValidationResult {
 	if len(pathAttrs) == 0 {
 		// Empty path attributes with NLRI = missing mandatory attributes
 		if hasNLRI {
@@ -138,7 +139,7 @@ func ValidateUpdateRFC7606(pathAttrs []byte, hasNLRI bool) *RFC7606ValidationRes
 		pos += attrLen
 
 		// Validate specific attributes per RFC 7606 Section 7
-		result := validateAttribute(attrCode, attrLen, attrData)
+		result := validateAttribute(attrCode, attrLen, attrData, isIBGP)
 		if result != nil && result.Action != RFC7606ActionNone {
 			return result
 		}
@@ -218,7 +219,7 @@ func ValidateUpdateRFC7606(pathAttrs []byte, hasNLRI bool) *RFC7606ValidationRes
 
 // validateAttribute checks a single attribute per RFC 7606 Section 7.
 // TODO: Add asn4 parameter when ValidateUpdateRFC7606 signature is updated (Phase 3).
-func validateAttribute(code uint8, length int, attrData []byte) *RFC7606ValidationResult {
+func validateAttribute(code uint8, length int, attrData []byte, isIBGP bool) *RFC7606ValidationResult {
 	switch code {
 	case attrCodeOrigin:
 		// RFC 7606 Section 7.1: ORIGIN must be length 1
@@ -266,6 +267,14 @@ func validateAttribute(code uint8, length int, attrData []byte) *RFC7606Validati
 		}
 
 	case attrCodeLocalPref:
+		// RFC 7606 Section 7.5: LOCAL_PREF from EBGP must be discarded
+		if !isIBGP {
+			return &RFC7606ValidationResult{
+				Action:      RFC7606ActionAttributeDiscard,
+				AttrCode:    code,
+				Description: "RFC 7606 Section 7.5: LOCAL_PREF from external neighbor must be discarded",
+			}
+		}
 		// RFC 7606 Section 7.5: LOCAL_PREF must be length 4
 		if length != 4 {
 			return &RFC7606ValidationResult{
@@ -308,6 +317,14 @@ func validateAttribute(code uint8, length int, attrData []byte) *RFC7606Validati
 		}
 
 	case attrCodeOriginatorID:
+		// RFC 7606 Section 7.9: ORIGINATOR_ID from EBGP must be discarded
+		if !isIBGP {
+			return &RFC7606ValidationResult{
+				Action:      RFC7606ActionAttributeDiscard,
+				AttrCode:    code,
+				Description: "RFC 7606 Section 7.9: ORIGINATOR_ID from external neighbor must be discarded",
+			}
+		}
 		// RFC 7606 Section 7.9: ORIGINATOR_ID must be length 4
 		if length != 4 {
 			return &RFC7606ValidationResult{
@@ -318,6 +335,14 @@ func validateAttribute(code uint8, length int, attrData []byte) *RFC7606Validati
 		}
 
 	case attrCodeClusterList:
+		// RFC 7606 Section 7.10: CLUSTER_LIST from EBGP must be discarded
+		if !isIBGP {
+			return &RFC7606ValidationResult{
+				Action:      RFC7606ActionAttributeDiscard,
+				AttrCode:    code,
+				Description: "RFC 7606 Section 7.10: CLUSTER_LIST from external neighbor must be discarded",
+			}
+		}
 		// RFC 7606 Section 7.10: CLUSTER_LIST must be non-zero multiple of 4
 		if length == 0 || length%4 != 0 {
 			return &RFC7606ValidationResult{
