@@ -46,6 +46,7 @@ func RegisterRouteHandlers(d *Dispatcher) {
 // handleAnnounceRoute handles: announce route <prefix> next-hop <addr> [attributes...].
 // Example: announce route 10.0.0.0/24 next-hop 192.168.1.1.
 // Example: announce route 10.0.0.0/24 next-hop self.
+// Example: announce route 10.0.0.0/24 next-hop 1.2.3.4 origin igp local-preference 100 med 200 community [2:1].
 func handleAnnounceRoute(ctx *CommandContext, args []string) (*Response, error) {
 	if len(args) < 3 {
 		return &Response{
@@ -63,41 +64,110 @@ func handleAnnounceRoute(ctx *CommandContext, args []string) (*Response, error) 
 		}, ErrInvalidPrefix
 	}
 
-	// Parse next-hop (after "next-hop" keyword)
-	var nextHop netip.Addr
-	nextHopSelf := false
+	route := RouteSpec{
+		Prefix: prefix,
+	}
 
-	for i := 1; i < len(args)-1; i++ {
-		if strings.EqualFold(args[i], "next-hop") {
+	// Parse remaining args as key-value pairs
+	nextHopSelf := false
+	for i := 1; i < len(args); i++ {
+		key := strings.ToLower(args[i])
+
+		switch key {
+		case "next-hop":
+			if i+1 >= len(args) {
+				return &Response{Status: "error", Error: "missing next-hop value"}, ErrMissingNextHop
+			}
 			nhStr := args[i+1]
 			if strings.EqualFold(nhStr, "self") {
 				nextHopSelf = true
 			} else {
-				nextHop, err = netip.ParseAddr(nhStr)
+				nh, err := netip.ParseAddr(nhStr)
 				if err != nil {
-					return &Response{
-						Status: "error",
-						Error:  fmt.Sprintf("invalid next-hop: %s", nhStr),
-					}, ErrInvalidNextHop
+					return &Response{Status: "error", Error: fmt.Sprintf("invalid next-hop: %s", nhStr)}, ErrInvalidNextHop
 				}
+				route.NextHop = nh
 			}
-			break
+			i++
+
+		case "origin":
+			if i+1 >= len(args) {
+				return &Response{Status: "error", Error: "missing origin value"}, fmt.Errorf("missing origin value")
+			}
+			origin, err := parseOrigin(args[i+1])
+			if err != nil {
+				return &Response{Status: "error", Error: err.Error()}, err
+			}
+			route.Origin = &origin
+			i++
+
+		case "local-preference":
+			if i+1 >= len(args) {
+				return &Response{Status: "error", Error: "missing local-preference value"}, fmt.Errorf("missing local-preference value")
+			}
+			lp, err := strconv.ParseUint(args[i+1], 10, 32)
+			if err != nil {
+				return &Response{Status: "error", Error: fmt.Sprintf("invalid local-preference: %s", args[i+1])}, err
+			}
+			lpVal := uint32(lp)
+			route.LocalPreference = &lpVal
+			i++
+
+		case "med":
+			if i+1 >= len(args) {
+				return &Response{Status: "error", Error: "missing med value"}, fmt.Errorf("missing med value")
+			}
+			med, err := strconv.ParseUint(args[i+1], 10, 32)
+			if err != nil {
+				return &Response{Status: "error", Error: fmt.Sprintf("invalid med: %s", args[i+1])}, err
+			}
+			medVal := uint32(med)
+			route.MED = &medVal
+			i++
+
+		case "as-path":
+			// Parse as-path [ ASN1 ASN2 ... ] or as-path [ASN1,ASN2,...]
+			if i+1 >= len(args) {
+				return &Response{Status: "error", Error: "missing as-path value"}, fmt.Errorf("missing as-path value")
+			}
+			asPath, consumed, err := parseASPath(args[i+1:])
+			if err != nil {
+				return &Response{Status: "error", Error: err.Error()}, err
+			}
+			route.ASPath = asPath
+			i += consumed
+
+		case "community":
+			// Parse community [ASN:VAL ASN:VAL ...] or community [ASN:VAL,ASN:VAL]
+			if i+1 >= len(args) {
+				return &Response{Status: "error", Error: "missing community value"}, fmt.Errorf("missing community value")
+			}
+			comms, consumed, err := parseCommunities(args[i+1:])
+			if err != nil {
+				return &Response{Status: "error", Error: err.Error()}, err
+			}
+			route.Communities = comms
+			i += consumed
+
+		case "large-community":
+			// Parse large-community [GA:LD1:LD2 ...]
+			if i+1 >= len(args) {
+				return &Response{Status: "error", Error: "missing large-community value"}, fmt.Errorf("missing large-community value")
+			}
+			lcomms, consumed, err := parseLargeCommunities(args[i+1:])
+			if err != nil {
+				return &Response{Status: "error", Error: err.Error()}, err
+			}
+			route.LargeCommunities = lcomms
+			i += consumed
 		}
 	}
 
-	if !nextHopSelf && !nextHop.IsValid() {
+	if !nextHopSelf && !route.NextHop.IsValid() {
 		return &Response{
 			Status: "error",
 			Error:  "missing next-hop",
 		}, ErrMissingNextHop
-	}
-
-	// TODO: Parse additional attributes (origin, as-path, communities, etc.)
-	// For now, we support basic routes with prefix + next-hop
-
-	route := RouteSpec{
-		Prefix:  prefix,
-		NextHop: nextHop,
 	}
 
 	// Announce to matching peers (default "*" for all)
@@ -114,8 +184,221 @@ func handleAnnounceRoute(ctx *CommandContext, args []string) (*Response, error) 
 		Data: map[string]any{
 			"peer":     peerSelector,
 			"prefix":   prefix.String(),
-			"next_hop": nextHop.String(),
+			"next_hop": route.NextHop.String(),
 		},
+	}, nil
+}
+
+// parseOrigin parses origin value: igp, egp, or incomplete.
+func parseOrigin(s string) (uint8, error) {
+	switch strings.ToLower(s) {
+	case "igp":
+		return 0, nil
+	case "egp":
+		return 1, nil
+	case "incomplete", "?":
+		return 2, nil
+	default:
+		return 0, fmt.Errorf("invalid origin: %s (expected igp, egp, or incomplete)", s)
+	}
+}
+
+// parseASPath parses AS_PATH in format [ ASN1 ASN2 ... ] or [ASN1,ASN2,...].
+// Returns the parsed AS numbers and how many tokens were consumed.
+func parseASPath(args []string) ([]uint32, int, error) {
+	if len(args) == 0 {
+		return nil, 0, fmt.Errorf("missing as-path value")
+	}
+
+	tokens, consumed := parseBracketedList(args)
+	asPath := make([]uint32, 0, len(tokens))
+	for _, tok := range tokens {
+		asn, err := strconv.ParseUint(tok, 10, 32)
+		if err != nil {
+			return nil, consumed, fmt.Errorf("invalid ASN in as-path: %s", tok)
+		}
+		asPath = append(asPath, uint32(asn))
+	}
+
+	return asPath, consumed, nil
+}
+
+// parseBracketedList parses a list of tokens.
+// Supports:
+//   - Bracketed: [token1 token2 ...] or [token1,token2,...]
+//   - Single value: token (no brackets, returns single-element list)
+//
+// Returns the individual tokens and how many args were consumed.
+func parseBracketedList(args []string) ([]string, int) {
+	if len(args) == 0 {
+		return nil, 0
+	}
+
+	// Check if bracketed
+	if strings.HasPrefix(args[0], "[") {
+		var tokens []string
+		consumed := 0
+
+		for i, arg := range args {
+			consumed++
+			if i == 0 {
+				arg = strings.TrimPrefix(arg, "[")
+			}
+			if strings.HasSuffix(arg, "]") {
+				arg = strings.TrimSuffix(arg, "]")
+				if arg != "" {
+					tokens = append(tokens, arg)
+				}
+				break
+			}
+			if arg != "" {
+				tokens = append(tokens, arg)
+			}
+		}
+
+		// Expand comma-separated values
+		var expanded []string
+		for _, tok := range tokens {
+			parts := strings.Split(tok, ",")
+			for _, p := range parts {
+				p = strings.TrimSpace(p)
+				if p != "" {
+					expanded = append(expanded, p)
+				}
+			}
+		}
+
+		return expanded, consumed
+	}
+
+	// Single value without brackets (like ExaBGP: community 2914:666)
+	// Expand comma-separated if present
+	parts := strings.Split(args[0], ",")
+	var expanded []string
+	for _, p := range parts {
+		p = strings.TrimSpace(p)
+		if p != "" {
+			expanded = append(expanded, p)
+		}
+	}
+	return expanded, 1
+}
+
+// parseCommunities parses communities in format [ASN:VAL ASN:VAL ...].
+// Returns the parsed communities and how many tokens were consumed.
+func parseCommunities(args []string) ([]uint32, int, error) {
+	if len(args) == 0 {
+		return nil, 0, fmt.Errorf("missing community value")
+	}
+
+	tokens, consumed := parseBracketedList(args)
+	comms := make([]uint32, 0, len(tokens))
+	for _, tok := range tokens {
+		comm, err := parseCommunity(tok)
+		if err != nil {
+			return nil, consumed, err
+		}
+		comms = append(comms, comm)
+	}
+
+	return comms, consumed, nil
+}
+
+// Well-known community values per RFC 1997 and RFC 3765.
+const (
+	// CommunityNoExport - RFC 1997: Do not advertise outside confederation.
+	CommunityNoExport uint32 = 0xFFFFFF01
+	// CommunityNoAdvertise - RFC 1997: Do not advertise to any peer.
+	CommunityNoAdvertise uint32 = 0xFFFFFF02
+	// CommunityNoExportSubconfed - RFC 1997: Do not advertise to external peers.
+	CommunityNoExportSubconfed uint32 = 0xFFFFFF03
+	// CommunityNoPeer - RFC 3765: Do not advertise to peers.
+	CommunityNoPeer uint32 = 0xFFFFFF04
+	// CommunityBlackhole - RFC 7999: Trigger remote blackholing.
+	CommunityBlackhole uint32 = 0xFFFF029A
+)
+
+// parseCommunity parses a single community value.
+// Supports:
+//   - ASN:VAL format per RFC 1997
+//   - Well-known names: no-export, no-advertise, no-export-subconfed, nopeer, blackhole
+func parseCommunity(s string) (uint32, error) {
+	if s == "" {
+		return 0, fmt.Errorf("empty community value")
+	}
+
+	// Check for well-known community names (case-insensitive)
+	lower := strings.ToLower(s)
+	switch lower {
+	case "no-export", "no_export":
+		return CommunityNoExport, nil
+	case "no-advertise", "no_advertise":
+		return CommunityNoAdvertise, nil
+	case "no-export-subconfed", "no_export_subconfed":
+		return CommunityNoExportSubconfed, nil
+	case "nopeer", "no-peer", "no_peer":
+		return CommunityNoPeer, nil
+	case "blackhole":
+		return CommunityBlackhole, nil
+	}
+
+	// Parse ASN:VAL format
+	parts := strings.SplitN(s, ":", 2)
+	if len(parts) != 2 {
+		return 0, fmt.Errorf("invalid community format: %s (expected ASN:VAL or well-known name)", s)
+	}
+	asn, err := strconv.ParseUint(parts[0], 10, 16)
+	if err != nil {
+		return 0, fmt.Errorf("invalid community ASN: %s", parts[0])
+	}
+	val, err := strconv.ParseUint(parts[1], 10, 16)
+	if err != nil {
+		return 0, fmt.Errorf("invalid community value: %s", parts[1])
+	}
+	return uint32(asn)<<16 | uint32(val), nil
+}
+
+// parseLargeCommunities parses large communities in format [GA:LD1:LD2 ...].
+func parseLargeCommunities(args []string) ([]LargeCommunity, int, error) {
+	if len(args) == 0 {
+		return nil, 0, fmt.Errorf("missing large-community value")
+	}
+
+	tokens, consumed := parseBracketedList(args)
+	lcomms := make([]LargeCommunity, 0, len(tokens))
+	for _, tok := range tokens {
+		lc, err := parseLargeCommunity(tok)
+		if err != nil {
+			return nil, consumed, err
+		}
+		lcomms = append(lcomms, lc)
+	}
+
+	return lcomms, consumed, nil
+}
+
+// parseLargeCommunity parses a single large community GA:LD1:LD2.
+func parseLargeCommunity(s string) (LargeCommunity, error) {
+	parts := strings.SplitN(s, ":", 3)
+	if len(parts) != 3 {
+		return LargeCommunity{}, fmt.Errorf("invalid large-community format: %s (expected GA:LD1:LD2)", s)
+	}
+	ga, err := strconv.ParseUint(parts[0], 10, 32)
+	if err != nil {
+		return LargeCommunity{}, fmt.Errorf("invalid large-community global-admin: %s", parts[0])
+	}
+	ld1, err := strconv.ParseUint(parts[1], 10, 32)
+	if err != nil {
+		return LargeCommunity{}, fmt.Errorf("invalid large-community local-data1: %s", parts[1])
+	}
+	ld2, err := strconv.ParseUint(parts[2], 10, 32)
+	if err != nil {
+		return LargeCommunity{}, fmt.Errorf("invalid large-community local-data2: %s", parts[2])
+	}
+	return LargeCommunity{
+		GlobalAdmin: uint32(ga),
+		LocalData1:  uint32(ld1),
+		LocalData2:  uint32(ld2),
 	}, nil
 }
 

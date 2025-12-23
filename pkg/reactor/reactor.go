@@ -263,20 +263,46 @@ func (a *reactorAPIAdapter) sendToMatchingPeers(selector string, update *message
 }
 
 // buildAnnounceUpdate builds an UPDATE message for announcing a route.
+// Uses attributes from RouteSpec if provided, otherwise uses sensible defaults.
+//
+// Attribute ordering follows RFC 4271 Section 5 (sorted by type code):
+//
+//  1. ORIGIN (type 1) - RFC 4271 §5.1.1
+//  2. AS_PATH (type 2) - RFC 4271 §5.1.2
+//  3. NEXT_HOP (type 3) - RFC 4271 §5.1.3
+//  4. MED (type 4) - RFC 4271 §5.1.4
+//  5. LOCAL_PREF (type 5) - RFC 4271 §5.1.5
+//  6. COMMUNITY (type 8) - RFC 1997
+//  7. LARGE_COMMUNITY (type 32) - RFC 8092
 func buildAnnounceUpdate(route api.RouteSpec, localAS uint32, isIBGP, asn4 bool) *message.Update {
 	// Build path attributes
 	var attrBytes []byte
 
-	// 1. ORIGIN (IGP)
-	attrBytes = append(attrBytes, attribute.PackAttribute(attribute.OriginIGP)...)
+	// 1. ORIGIN - RFC 4271 §5.1.1: Well-known mandatory attribute.
+	// Default to IGP (0) for locally originated routes.
+	if route.Origin != nil {
+		attrBytes = append(attrBytes, attribute.PackAttribute(attribute.Origin(*route.Origin))...)
+	} else {
+		attrBytes = append(attrBytes, attribute.PackAttribute(attribute.OriginIGP)...)
+	}
 
-	// 2. AS_PATH
+	// 2. AS_PATH - RFC 4271 §5.1.2: Well-known mandatory attribute.
+	// RFC 4271 §5.1.2(a): "When a given BGP speaker advertises the route to an
+	// internal peer, the advertising speaker SHALL NOT modify the AS_PATH".
 	var asPath *attribute.ASPath
-	if isIBGP {
+	switch {
+	case len(route.ASPath) > 0:
+		// Use explicit AS_PATH from route
+		asPath = &attribute.ASPath{
+			Segments: []attribute.ASPathSegment{
+				{Type: attribute.ASSequence, ASNs: route.ASPath},
+			},
+		}
+	case isIBGP:
 		// Empty AS_PATH for iBGP self-originated routes
 		asPath = &attribute.ASPath{Segments: nil}
-	} else {
-		// Prepend local AS for eBGP
+	default:
+		// RFC 4271 §5.1.2(b): Prepend local AS for eBGP
 		asPath = &attribute.ASPath{
 			Segments: []attribute.ASPathSegment{
 				{Type: attribute.ASSequence, ASNs: []uint32{localAS}},
@@ -285,13 +311,41 @@ func buildAnnounceUpdate(route api.RouteSpec, localAS uint32, isIBGP, asn4 bool)
 	}
 	attrBytes = append(attrBytes, attribute.PackASPathAttribute(asPath, asn4)...)
 
-	// 3. NEXT_HOP
+	// 3. NEXT_HOP - RFC 4271 §5.1.3: Well-known mandatory attribute.
 	nextHop := &attribute.NextHop{Addr: route.NextHop}
 	attrBytes = append(attrBytes, attribute.PackAttribute(nextHop)...)
 
-	// 4. LOCAL_PREF (for iBGP, default 100)
+	// 4. MED - RFC 4271 §5.1.4: Optional non-transitive attribute.
+	// Only include if explicitly specified.
+	if route.MED != nil {
+		attrBytes = append(attrBytes, attribute.PackAttribute(attribute.MED(*route.MED))...)
+	}
+
+	// 5. LOCAL_PREF - RFC 4271 §5.1.5: Well-known attribute for iBGP only.
+	// RFC 4271: "A BGP speaker MUST NOT include this attribute in UPDATE
+	// messages it sends to external peers". User-specified LOCAL_PREF for
+	// eBGP sessions is silently ignored per RFC.
 	if isIBGP {
-		attrBytes = append(attrBytes, attribute.PackAttribute(attribute.LocalPref(100))...)
+		if route.LocalPreference != nil {
+			attrBytes = append(attrBytes, attribute.PackAttribute(attribute.LocalPref(*route.LocalPreference))...)
+		} else {
+			attrBytes = append(attrBytes, attribute.PackAttribute(attribute.LocalPref(100))...)
+		}
+	}
+
+	// 6. COMMUNITY - RFC 1997: Optional transitive attribute.
+	if len(route.Communities) > 0 {
+		comms := make(attribute.Communities, len(route.Communities))
+		for i, c := range route.Communities {
+			comms[i] = attribute.Community(c)
+		}
+		attrBytes = append(attrBytes, attribute.PackAttribute(comms)...)
+	}
+
+	// 7. LARGE_COMMUNITY - RFC 8092: Optional transitive attribute.
+	if len(route.LargeCommunities) > 0 {
+		lcomms := attribute.LargeCommunities(route.LargeCommunities)
+		attrBytes = append(attrBytes, attribute.PackAttribute(lcomms)...)
 	}
 
 	// Build NLRI

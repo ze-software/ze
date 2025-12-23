@@ -1,6 +1,6 @@
 # Claude Continuation State
 
-**Last Updated:** 2025-12-22
+**Last Updated:** 2025-12-23
 
 ---
 
@@ -12,7 +12,7 @@ See: `plan/api-commit-batching.md`
 
 **Why:** Converting ALL 45 `.run` scripts to use commit-based batching is REQUIRED for `.ci` tests to pass. Without explicit commit semantics, ZeBGP cannot reproduce ExaBGP's UPDATE message grouping.
 
-### Progress (2025-12-22)
+### Progress (2025-12-23)
 
 **Infrastructure completed:**
 - ✅ Process spawning with working directory
@@ -22,13 +22,26 @@ See: `plan/api-commit-batching.md`
 - ✅ testpeer ignores non-raw `.ci` lines
 - ✅ iBGP attribute fix (LOCAL_PREF 100, empty AS_PATH)
 - ✅ Process I/O race condition fix (single reader goroutine)
+- ✅ **Attribute parsing for API commands** (2025-12-23)
+  - RouteSpec fields: Origin, LocalPreference, MED, ASPath, Communities, LargeCommunities
+  - Well-known communities: no-export, no-advertise, no-export-subconfed, nopeer, blackhole
+  - Single value without brackets (ExaBGP compatible)
+  - LargeCommunity type aliased to attribute.LargeCommunity (no duplication)
+  - RFC reference comments in buildAnnounceUpdate
+  - Unit tests for all parsing functions (TDD)
 
 **Current state:**
 - 4 API tests pass: `add-remove`, `announce`, `eor`, `fast`
-- 8 tests fail (message mismatch, timeout)
+- 8 tests fail (IPv6 needs MP_REACH_NLRI, neighbor qualifiers not implemented)
 - 28 tests missing .ci files
 
-**Next:** Fix failing tests or copy more .ci files from ExaBGP.
+**Remaining work for failing tests:**
+- IPv6 routes require MP_REACH_NLRI instead of NEXT_HOP+NLRI
+- `split /N` syntax (route splitting)
+- `announce attributes ... nlri` syntax
+- `neighbor X teardown` command
+
+**Next:** Either implement MP_REACH_NLRI for IPv6 or copy more .ci files from ExaBGP.
 
 ---
 

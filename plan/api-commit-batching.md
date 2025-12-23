@@ -120,6 +120,7 @@ zebgp fmt --diff config.bgp       # Show what would change
 | 5 | Test Infrastructure | ⬜ Not started |
 | 6 | Self-Check API Support | ✅ Completed |
 | 7 | Test Conversion | 🔄 In progress (4/12 passing) |
+| 8 | Attribute Parsing | ✅ Completed (2025-12-23) |
 
 ---
 
@@ -467,6 +468,14 @@ Total: ~2-3 focused sessions
    - ~~Add `origin igp` default for iBGP~~
    - ~~Add `local-preference 100` default for iBGP~~
    - ~~Fix AS_PATH to be empty for iBGP~~
+
+10. ✅ **Attribute parsing in API commands** (2025-12-23)
+   - Added attribute fields to RouteSpec: Origin, LocalPreference, MED, ASPath, Communities, LargeCommunities
+   - Implemented parsing for `origin`, `local-preference`, `med`, `as-path`, `community`, `large-community`
+   - Updated buildAnnounceUpdate to use parsed attributes
+   - Refactored bracket parsing to eliminate code duplication
+
+### Remaining Work
 
 2. **Copy remaining .ci files from ExaBGP**
    - Source: `../main/qa/api/api-*.ci`

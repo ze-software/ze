@@ -12,6 +12,7 @@ import (
 	"net/netip"
 	"time"
 
+	"github.com/exa-networks/zebgp/pkg/bgp/attribute"
 	"github.com/exa-networks/zebgp/pkg/bgp/nlri"
 	"github.com/exa-networks/zebgp/pkg/rib"
 )
@@ -58,11 +59,23 @@ type ReactorStats struct {
 }
 
 // RouteSpec specifies a route for announcement.
+// Supports optional BGP path attributes that override iBGP defaults.
 type RouteSpec struct {
 	Prefix  netip.Prefix
 	NextHop netip.Addr
-	// TODO: Add attributes (origin, as-path, communities, etc.)
+
+	// Path attributes (optional - defaults applied if not set)
+	Origin           *uint8           // 0=IGP, 1=EGP, 2=INCOMPLETE (nil = use default)
+	LocalPreference  *uint32          // LOCAL_PREF (nil = use default 100 for iBGP)
+	MED              *uint32          // MULTI_EXIT_DISC (nil = not sent)
+	ASPath           []uint32         // AS_PATH segments (nil = empty for iBGP)
+	Communities      []uint32         // Standard communities (2-byte ASN:2-byte value)
+	LargeCommunities []LargeCommunity // RFC 8092 large communities
 }
+
+// LargeCommunity is an alias for attribute.LargeCommunity (RFC 8092).
+// Using alias to avoid duplication between api and attribute packages.
+type LargeCommunity = attribute.LargeCommunity
 
 // FlowSpecRoute specifies a FlowSpec route for announcement.
 type FlowSpecRoute struct {
