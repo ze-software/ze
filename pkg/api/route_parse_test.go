@@ -1,8 +1,165 @@
 package api
 
 import (
+	"net/netip"
 	"testing"
 )
+
+// TestSplitPrefix tests prefix splitting for the 'split /N' syntax.
+//
+// VALIDATES: A prefix is correctly split into more-specific prefixes.
+// For example, 10.0.0.0/21 split /23 produces 4 /23 prefixes.
+//
+// PREVENTS: Incorrect splitting that would cause route announcement mismatches.
+func TestSplitPrefix(t *testing.T) {
+	tests := []struct {
+		name         string
+		prefix       string
+		targetLen    int
+		wantPrefixes []string
+		wantErr      bool
+	}{
+		// Valid IPv4 splits
+		{
+			name:      "/21 to /23 (4 prefixes)",
+			prefix:    "1.0.0.0/21",
+			targetLen: 23,
+			wantPrefixes: []string{
+				"1.0.0.0/23",
+				"1.0.2.0/23",
+				"1.0.4.0/23",
+				"1.0.6.0/23",
+			},
+			wantErr: false,
+		},
+		{
+			name:      "/24 to /25 (2 prefixes)",
+			prefix:    "10.0.0.0/24",
+			targetLen: 25,
+			wantPrefixes: []string{
+				"10.0.0.0/25",
+				"10.0.0.128/25",
+			},
+			wantErr: false,
+		},
+		{
+			name:         "/16 to /24 (256 prefixes)",
+			prefix:       "192.168.0.0/16",
+			targetLen:    24,
+			wantPrefixes: nil, // too many to list, just check count
+			wantErr:      false,
+		},
+		{
+			name:         "same length (1 prefix)",
+			prefix:       "10.0.0.0/24",
+			targetLen:    24,
+			wantPrefixes: []string{"10.0.0.0/24"},
+			wantErr:      false,
+		},
+
+		// Valid IPv6 splits
+		{
+			name:      "/48 to /49 (2 prefixes)",
+			prefix:    "2001:db8::/48",
+			targetLen: 49,
+			wantPrefixes: []string{
+				"2001:db8::/49",
+				"2001:db8:0:8000::/49",
+			},
+			wantErr: false,
+		},
+
+		// Invalid cases
+		{
+			name:         "target smaller than source",
+			prefix:       "10.0.0.0/24",
+			targetLen:    16,
+			wantPrefixes: nil,
+			wantErr:      true,
+		},
+		{
+			name:         "target too large for IPv4",
+			prefix:       "10.0.0.0/24",
+			targetLen:    33,
+			wantPrefixes: nil,
+			wantErr:      true,
+		},
+		{
+			name:         "target too large for IPv6",
+			prefix:       "2001:db8::/48",
+			targetLen:    129,
+			wantPrefixes: nil,
+			wantErr:      true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			prefix := netip.MustParsePrefix(tt.prefix)
+			got, err := splitPrefix(prefix, tt.targetLen)
+
+			if (err != nil) != tt.wantErr {
+				t.Errorf("splitPrefix(%s, %d) error = %v, wantErr %v", tt.prefix, tt.targetLen, err, tt.wantErr)
+				return
+			}
+
+			if tt.wantErr {
+				return
+			}
+
+			// For /16 to /24, just check count
+			if tt.wantPrefixes == nil {
+				expectedCount := 1 << (tt.targetLen - prefix.Bits())
+				if len(got) != expectedCount {
+					t.Errorf("splitPrefix(%s, %d) got %d prefixes, want %d", tt.prefix, tt.targetLen, len(got), expectedCount)
+				}
+				return
+			}
+
+			if len(got) != len(tt.wantPrefixes) {
+				t.Errorf("splitPrefix(%s, %d) got %d prefixes, want %d", tt.prefix, tt.targetLen, len(got), len(tt.wantPrefixes))
+				return
+			}
+
+			for i, p := range got {
+				if p.String() != tt.wantPrefixes[i] {
+					t.Errorf("splitPrefix(%s, %d)[%d] = %s, want %s", tt.prefix, tt.targetLen, i, p.String(), tt.wantPrefixes[i])
+				}
+			}
+		})
+	}
+}
+
+// TestParseSplitArg tests parsing of 'split /N' argument.
+//
+// VALIDATES: Split argument is correctly extracted from command args.
+//
+// PREVENTS: Incorrect parsing of split target length.
+func TestParseSplitArg(t *testing.T) {
+	tests := []struct {
+		name      string
+		args      []string
+		wantLen   int
+		wantFound bool
+	}{
+		{"split /23", []string{"split", "/23"}, 23, true},
+		{"split /24", []string{"split", "/24"}, 24, true},
+		{"no split", []string{"next-hop", "1.2.3.4"}, 0, false},
+		{"split at end", []string{"med", "100", "split", "/25"}, 25, true},
+		{"split without value", []string{"split"}, 0, false},
+		{"invalid split value", []string{"split", "23"}, 0, false}, // missing /
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			gotLen, gotFound := parseSplitArg(tt.args)
+			if gotLen != tt.wantLen || gotFound != tt.wantFound {
+				t.Errorf("parseSplitArg(%v) = (%d, %v), want (%d, %v)",
+					tt.args, gotLen, gotFound, tt.wantLen, tt.wantFound)
+			}
+		})
+	}
+}
 
 // TestParseOrigin tests origin parsing per RFC 4271 Section 5.1.1.
 // RFC 4271: ORIGIN is a well-known mandatory attribute with values:

@@ -25,7 +25,136 @@ var (
 	ErrInvalidMAC         = errors.New("invalid mac address")
 	ErrInvalidProtocol    = errors.New("invalid protocol")
 	ErrInvalidPort        = errors.New("invalid port")
+	ErrInvalidSplit       = errors.New("invalid split length")
 )
+
+// splitPrefix splits a prefix into more-specific prefixes with the given length.
+// For example, 10.0.0.0/21 split to /23 produces 4 prefixes.
+// Returns error if targetLen is less than prefix length or exceeds address size.
+func splitPrefix(prefix netip.Prefix, targetLen int) ([]netip.Prefix, error) {
+	sourceBits := prefix.Bits()
+
+	// Validate target length
+	maxBits := 32
+	if prefix.Addr().Is6() {
+		maxBits = 128
+	}
+
+	if targetLen < sourceBits {
+		return nil, fmt.Errorf("%w: target /%d is smaller than source /%d", ErrInvalidSplit, targetLen, sourceBits)
+	}
+	if targetLen > maxBits {
+		return nil, fmt.Errorf("%w: target /%d exceeds maximum /%d", ErrInvalidSplit, targetLen, maxBits)
+	}
+
+	// Calculate number of resulting prefixes: 2^(targetLen - sourceBits)
+	numPrefixes := 1 << (targetLen - sourceBits)
+	result := make([]netip.Prefix, 0, numPrefixes)
+
+	// Get base address as bytes
+	baseAddr := prefix.Addr()
+
+	for i := 0; i < numPrefixes; i++ {
+		// Calculate the new address by adding i * (size of each sub-prefix)
+		newAddr := addToAddr(baseAddr, i, targetLen)
+		newPrefix := netip.PrefixFrom(newAddr, targetLen)
+		result = append(result, newPrefix)
+	}
+
+	return result, nil
+}
+
+// addToAddr adds an offset to an address at the given prefix boundary.
+// For example, for a /23 prefix, offset 1 means +512 addresses (2^(32-23) = 512).
+func addToAddr(addr netip.Addr, offset int, prefixLen int) netip.Addr {
+	if offset == 0 {
+		return addr
+	}
+
+	// Calculate bits to add: offset << (maxBits - prefixLen)
+	maxBits := 32
+	if addr.Is6() {
+		maxBits = 128
+	}
+
+	shift := maxBits - prefixLen
+
+	if addr.Is4() {
+		// IPv4: simple uint32 arithmetic
+		v4 := addr.As4()
+		val := uint32(v4[0])<<24 | uint32(v4[1])<<16 | uint32(v4[2])<<8 | uint32(v4[3])
+		//nolint:gosec // offset is bounded by number of prefixes (max 2^32)
+		val += uint32(offset) << shift
+		return netip.AddrFrom4([4]byte{
+			byte(val >> 24),
+			byte(val >> 16),
+			byte(val >> 8),
+			byte(val),
+		})
+	}
+
+	// IPv6: use big-endian byte arithmetic
+	v6 := addr.As16()
+	// Convert to two uint64s for easier arithmetic
+	hi := uint64(v6[0])<<56 | uint64(v6[1])<<48 | uint64(v6[2])<<40 | uint64(v6[3])<<32 |
+		uint64(v6[4])<<24 | uint64(v6[5])<<16 | uint64(v6[6])<<8 | uint64(v6[7])
+	lo := uint64(v6[8])<<56 | uint64(v6[9])<<48 | uint64(v6[10])<<40 | uint64(v6[11])<<32 |
+		uint64(v6[12])<<24 | uint64(v6[13])<<16 | uint64(v6[14])<<8 | uint64(v6[15])
+
+	// Add the offset at the right position
+	//nolint:gosec // offset is bounded by number of prefixes (max 2^128 for IPv6)
+	if shift >= 64 {
+		// Shift affects high 64 bits
+		hi += uint64(offset) << (shift - 64)
+	} else {
+		// Shift affects low 64 bits, may carry to high
+		addLo := uint64(offset) << shift
+		newLo := lo + addLo
+		if newLo < lo {
+			hi++ // carry
+		}
+		lo = newLo
+	}
+
+	var result [16]byte
+	result[0] = byte(hi >> 56)
+	result[1] = byte(hi >> 48)
+	result[2] = byte(hi >> 40)
+	result[3] = byte(hi >> 32)
+	result[4] = byte(hi >> 24)
+	result[5] = byte(hi >> 16)
+	result[6] = byte(hi >> 8)
+	result[7] = byte(hi)
+	result[8] = byte(lo >> 56)
+	result[9] = byte(lo >> 48)
+	result[10] = byte(lo >> 40)
+	result[11] = byte(lo >> 32)
+	result[12] = byte(lo >> 24)
+	result[13] = byte(lo >> 16)
+	result[14] = byte(lo >> 8)
+	result[15] = byte(lo)
+
+	return netip.AddrFrom16(result)
+}
+
+// parseSplitArg looks for "split /N" in args and returns the target prefix length.
+// Returns (0, false) if not found or invalid.
+func parseSplitArg(args []string) (int, bool) {
+	for i := 0; i < len(args)-1; i++ {
+		if strings.EqualFold(args[i], "split") {
+			val := args[i+1]
+			if !strings.HasPrefix(val, "/") {
+				return 0, false
+			}
+			length, err := strconv.Atoi(val[1:])
+			if err != nil {
+				return 0, false
+			}
+			return length, true
+		}
+	}
+	return 0, false
+}
 
 // RegisterRouteHandlers registers route-related command handlers.
 func RegisterRouteHandlers(d *Dispatcher) {
@@ -43,10 +172,11 @@ func RegisterRouteHandlers(d *Dispatcher) {
 	d.Register("withdraw l2vpn", handleWithdrawL2VPN, "Withdraw an L2VPN/EVPN route")
 }
 
-// handleAnnounceRoute handles: announce route <prefix> next-hop <addr> [attributes...].
+// handleAnnounceRoute handles: announce route <prefix> next-hop <addr> [attributes...] [split /N].
 // Example: announce route 10.0.0.0/24 next-hop 192.168.1.1.
 // Example: announce route 10.0.0.0/24 next-hop self.
 // Example: announce route 10.0.0.0/24 next-hop 1.2.3.4 origin igp local-preference 100 med 200 community [2:1].
+// Example: announce route 10.0.0.0/21 next-hop 1.2.3.4 split /23 (announces 4 /23 prefixes).
 func handleAnnounceRoute(ctx *CommandContext, args []string) (*Response, error) {
 	if len(args) < 3 {
 		return &Response{
@@ -67,6 +197,9 @@ func handleAnnounceRoute(ctx *CommandContext, args []string) (*Response, error) 
 	route := RouteSpec{
 		Prefix: prefix,
 	}
+
+	// Check for split argument
+	splitLen, hasSplit := parseSplitArg(args)
 
 	// Parse remaining args as key-value pairs
 	nextHopSelf := false
@@ -160,6 +293,10 @@ func handleAnnounceRoute(ctx *CommandContext, args []string) (*Response, error) 
 			}
 			route.LargeCommunities = lcomms
 			i += consumed
+
+		case "split":
+			// Already parsed above, just skip the value
+			i++
 		}
 	}
 
@@ -170,8 +307,42 @@ func handleAnnounceRoute(ctx *CommandContext, args []string) (*Response, error) 
 		}, ErrMissingNextHop
 	}
 
-	// Announce to matching peers (default "*" for all)
 	peerSelector := ctx.PeerSelector()
+
+	// Handle split: announce multiple prefixes
+	if hasSplit {
+		prefixes, err := splitPrefix(prefix, splitLen)
+		if err != nil {
+			return &Response{
+				Status: "error",
+				Error:  err.Error(),
+			}, err
+		}
+
+		// Announce each split prefix separately
+		for _, p := range prefixes {
+			splitRoute := route
+			splitRoute.Prefix = p
+			if err := ctx.Reactor.AnnounceRoute(peerSelector, splitRoute); err != nil {
+				return &Response{
+					Status: "error",
+					Error:  fmt.Sprintf("failed to announce %s: %v", p.String(), err),
+				}, err
+			}
+		}
+
+		return &Response{
+			Status: "done",
+			Data: map[string]any{
+				"peer":           peerSelector,
+				"prefix":         prefix.String(),
+				"split":          splitLen,
+				"prefixes_count": len(prefixes),
+			},
+		}, nil
+	}
+
+	// Announce single route
 	if err := ctx.Reactor.AnnounceRoute(peerSelector, route); err != nil {
 		return &Response{
 			Status: "error",

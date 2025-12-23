@@ -40,14 +40,18 @@ See: `plan/api-commit-batching.md`
 - ✅ MP_UNREACH_NLRI for IPv6 withdrawals in buildWithdrawUpdate
 - ✅ nexthop test now passes
 - ✅ Documented attribute ordering difference vs ExaBGP (`.claude/zebgp/EXABGP_DIFFERENCES.md`)
+- ✅ **`split /N` syntax for route splitting** (pkg/api/route.go)
+  - `splitPrefix()` function splits prefix into more-specific prefixes
+  - `parseSplitArg()` parses `split /N` from command args
+  - `handleAnnounceRoute()` announces each split prefix separately
+  - Unit tests with IPv4 and IPv6 coverage
 
 **Remaining work for failing tests:**
-- `split /N` syntax (route splitting) - needed for `announcement` test
+- Neighbor qualifiers: `local-as`, `peer-as`, `local-ip`, `router-id` (for `announcement` test)
 - `announce ipv6 unicast` syntax (different from `announce route`)
-- `wait_for_ack` mechanism (daemon→script acknowledgment)
 - `neighbor X teardown` command
 
-**Next:** Implement `split /N` syntax or `announce ipv6 unicast` command parsing.
+**Next:** Implement neighbor qualifiers for peer matching.
 
 ---
 

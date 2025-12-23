@@ -46,6 +46,44 @@ ZeBGP:   ORIGIN, AS_PATH, LOCAL_PREF, LARGE_COMMUNITY, MP_REACH_NLRI
 
 ---
 
+## Neighbor Qualifier Syntax (Multi-Session)
+
+**ExaBGP behavior:**
+- Supports neighbor qualifiers for multi-session matching:
+  - `neighbor <IP> local-as <ASN> announce route ...`
+  - `neighbor <IP> peer-as <ASN> announce route ...`
+  - `neighbor <IP> local-ip <IP> announce route ...`
+  - `neighbor <IP> router-id <IP> announce route ...`
+- Commands only apply to sessions matching ALL specified qualifiers
+- Enables targeting specific sessions when multiple sessions exist to same peer
+
+**ZeBGP behavior:**
+- Only supports basic neighbor selector: `neighbor <IP> announce route ...`
+- Does NOT support multi-session qualifier syntax
+- Commands apply to all sessions matching the neighbor IP
+
+**RFC compliance:**
+- N/A - This is API syntax, not BGP protocol
+
+**Impact:**
+- API tests using `local-as`, `peer-as`, `local-ip`, `router-id` qualifiers will NOT work
+- Test scripts must be simplified to use basic `neighbor <IP>` syntax
+- Tests requiring multi-session discrimination are NOT SUPPORTED
+
+**Tests affected:**
+- `announcement.run` - Uses all qualifier types
+- Any test requiring multi-session targeting
+
+**Decision rationale:**
+1. Multi-session to same peer is a rare use case
+2. Simpler API implementation
+3. Most use cases only need single session per peer
+4. Can be added later if needed
+
+**Date:** 2025-12-23
+
+---
+
 ## Template for Future Differences
 
 ### Feature Name

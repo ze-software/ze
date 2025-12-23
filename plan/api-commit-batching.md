@@ -505,7 +505,7 @@ Total: ~2-3 focused sessions
 | ⬜ | ack-control.run | No .ci file |
 | ⬜ | announce-star.run | No .ci file |
 | ✅ | announce.run | Passing |
-| ❌ | announcement.run | Message mismatch |
+| ❌ | announcement.run | Needs neighbor qualifiers (local-as, peer-as, etc.) |
 | ⬜ | api.nothing.run | No .ci file |
 | ⬜ | api.receive.run | No .ci file |
 | ⬜ | attributes-path.run | No .ci file |
