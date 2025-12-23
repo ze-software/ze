@@ -311,9 +311,14 @@ func buildAnnounceUpdate(route api.RouteSpec, localAS uint32, isIBGP, asn4 bool)
 	}
 	attrBytes = append(attrBytes, attribute.PackASPathAttribute(asPath, asn4)...)
 
+	isIPv6 := route.Prefix.Addr().Is6()
+
 	// 3. NEXT_HOP - RFC 4271 §5.1.3: Well-known mandatory attribute.
-	nextHop := &attribute.NextHop{Addr: route.NextHop}
-	attrBytes = append(attrBytes, attribute.PackAttribute(nextHop)...)
+	// RFC 4760: For non-IPv4 unicast, next-hop is carried in MP_REACH_NLRI.
+	if !isIPv6 {
+		nextHop := &attribute.NextHop{Addr: route.NextHop}
+		attrBytes = append(attrBytes, attribute.PackAttribute(nextHop)...)
+	}
 
 	// 4. MED - RFC 4271 §5.1.4: Optional non-transitive attribute.
 	// Only include if explicitly specified.
@@ -350,14 +355,21 @@ func buildAnnounceUpdate(route api.RouteSpec, localAS uint32, isIBGP, asn4 bool)
 
 	// Build NLRI
 	var nlriBytes []byte
-	if route.Prefix.Addr().Is4() {
+	if !isIPv6 {
+		// IPv4: Use regular NLRI field
 		inet := nlri.NewINET(nlri.Family{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast}, route.Prefix, 0)
 		nlriBytes = inet.Bytes()
 	} else {
-		// IPv6 requires MP_REACH_NLRI (attribute 14) instead of NLRI field
-		// For now, only support IPv4 in the simple path
+		// IPv6: Use MP_REACH_NLRI attribute (RFC 4760)
+		// Build NLRI bytes for the prefix
 		inet := nlri.NewINET(nlri.Family{AFI: nlri.AFIIPv6, SAFI: nlri.SAFIUnicast}, route.Prefix, 0)
-		nlriBytes = inet.Bytes()
+		mpReach := &attribute.MPReachNLRI{
+			AFI:      attribute.AFIIPv6,
+			SAFI:     attribute.SAFIUnicast,
+			NextHops: []netip.Addr{route.NextHop},
+			NLRI:     inet.Bytes(),
+		}
+		attrBytes = append(attrBytes, attribute.PackAttribute(mpReach)...)
 	}
 
 	return &message.Update{
@@ -367,21 +379,26 @@ func buildAnnounceUpdate(route api.RouteSpec, localAS uint32, isIBGP, asn4 bool)
 }
 
 // buildWithdrawUpdate builds an UPDATE message for withdrawing a route.
+// RFC 4760 Section 4: IPv6 withdrawals use MP_UNREACH_NLRI attribute.
 func buildWithdrawUpdate(prefix netip.Prefix) *message.Update {
-	var withdrawnBytes []byte
-
 	if prefix.Addr().Is4() {
+		// IPv4: Use WithdrawnRoutes field
 		inet := nlri.NewINET(nlri.Family{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast}, prefix, 0)
-		withdrawnBytes = inet.Bytes()
-	} else {
-		// IPv6 requires MP_UNREACH_NLRI (attribute 15) instead of withdrawn field
-		// For now, only support IPv4 in the simple path
-		inet := nlri.NewINET(nlri.Family{AFI: nlri.AFIIPv6, SAFI: nlri.SAFIUnicast}, prefix, 0)
-		withdrawnBytes = inet.Bytes()
+		return &message.Update{
+			WithdrawnRoutes: inet.Bytes(),
+		}
+	}
+
+	// IPv6: Use MP_UNREACH_NLRI attribute (RFC 4760 Section 4)
+	inet := nlri.NewINET(nlri.Family{AFI: nlri.AFIIPv6, SAFI: nlri.SAFIUnicast}, prefix, 0)
+	mpUnreach := &attribute.MPUnreachNLRI{
+		AFI:  attribute.AFIIPv6,
+		SAFI: attribute.SAFIUnicast,
+		NLRI: inet.Bytes(),
 	}
 
 	return &message.Update{
-		WithdrawnRoutes: withdrawnBytes,
+		PathAttributes: attribute.PackAttribute(mpUnreach),
 	}
 }
 

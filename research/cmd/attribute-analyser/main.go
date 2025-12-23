@@ -1349,9 +1349,9 @@ func printHumanSummary(w io.Writer, stats *Stats) {
 	}
 
 	// Caching strategy recommendations
-	fmt.Fprintf(w, "\n"+strings.Repeat("═", 70)+"\n")
+	fmt.Fprintf(w, "\n%s\n", strings.Repeat("═", 70))
 	fmt.Fprintf(w, "CACHING STRATEGY RECOMMENDATIONS:\n")
-	fmt.Fprintf(w, strings.Repeat("═", 70)+"\n")
+	fmt.Fprintf(w, "%s\n", strings.Repeat("═", 70))
 
 	fmt.Fprintf(w, "\n1. TRIAL-RUN APPROACH (per-session defaults):\n")
 	fmt.Fprintf(w, "   After receiving first ~100 routes from a peer, analyze patterns:\n")

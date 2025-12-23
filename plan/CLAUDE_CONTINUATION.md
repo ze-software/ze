@@ -31,17 +31,23 @@ See: `plan/api-commit-batching.md`
   - Unit tests for all parsing functions (TDD)
 
 **Current state:**
-- 4 API tests pass: `add-remove`, `announce`, `eor`, `fast`
-- 8 tests fail (IPv6 needs MP_REACH_NLRI, neighbor qualifiers not implemented)
+- 5 API tests pass: `add-remove`, `announce`, `eor`, `fast`, `nexthop`
+- 7 tests fail
 - 28 tests missing .ci files
 
+**Recently fixed (2025-12-23):**
+- ✅ MP_REACH_NLRI for IPv6 routes in buildAnnounceUpdate
+- ✅ MP_UNREACH_NLRI for IPv6 withdrawals in buildWithdrawUpdate
+- ✅ nexthop test now passes
+- ✅ Documented attribute ordering difference vs ExaBGP (`.claude/zebgp/EXABGP_DIFFERENCES.md`)
+
 **Remaining work for failing tests:**
-- IPv6 routes require MP_REACH_NLRI instead of NEXT_HOP+NLRI
-- `split /N` syntax (route splitting)
-- `announce attributes ... nlri` syntax
+- `split /N` syntax (route splitting) - needed for `announcement` test
+- `announce ipv6 unicast` syntax (different from `announce route`)
+- `wait_for_ack` mechanism (daemon→script acknowledgment)
 - `neighbor X teardown` command
 
-**Next:** Either implement MP_REACH_NLRI for IPv6 or copy more .ci files from ExaBGP.
+**Next:** Implement `split /N` syntax or `announce ipv6 unicast` command parsing.
 
 ---
 

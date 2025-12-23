@@ -528,7 +528,7 @@ Total: ~2-3 focused sessions
 | ⬜ | multisession.run | No .ci file |
 | ⬜ | mvpn.run | No .ci file |
 | ⬜ | nexthop-self.run | No .ci file |
-| ❌ | nexthop.run | Message mismatch |
+| ✅ | nexthop.run | Passing |
 | ⬜ | no-neighbor.run | No .ci file |
 | ⬜ | no-respawn-1.run | No .ci file |
 | ⬜ | no-respawn-2.run | No .ci file |
@@ -551,8 +551,8 @@ Total: ~2-3 focused sessions
 
 ### Conversion Progress
 
-- **Passing:** 4/12 with .ci files (add-remove, announce, eor, fast)
-- **Failing:** 8/12 with .ci files
+- **Passing:** 5/12 with .ci files (add-remove, announce, eor, fast, nexthop)
+- **Failing:** 7/12 with .ci files
 - **No .ci:** 28 tests (need to copy from ExaBGP or skip)
 
 ---

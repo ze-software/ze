@@ -3,10 +3,13 @@ package reactor
 import (
 	"context"
 	"net"
+	"net/netip"
 	"sync/atomic"
 	"testing"
 	"time"
 
+	"github.com/exa-networks/zebgp/pkg/api"
+	"github.com/exa-networks/zebgp/pkg/bgp/attribute"
 	"github.com/stretchr/testify/require"
 )
 
@@ -296,4 +299,115 @@ func TestReactorStats(t *testing.T) {
 	stats := reactor.Stats()
 	require.NotNil(t, stats)
 	require.GreaterOrEqual(t, stats.Uptime, time.Duration(0))
+}
+
+// TestBuildAnnounceUpdateIPv6UsesMPReachNLRI verifies IPv6 routes use MP_REACH_NLRI.
+//
+// VALIDATES: IPv6 routes are encoded with MP_REACH_NLRI (attr 14) instead of
+// NEXT_HOP (attr 3) and NLRI field.
+//
+// PREVENTS: IPv6 routes being sent with IPv4-style encoding which violates RFC 4760.
+func TestBuildAnnounceUpdateIPv6UsesMPReachNLRI(t *testing.T) {
+	route := api.RouteSpec{
+		Prefix:  netip.MustParsePrefix("2605::2/128"),
+		NextHop: netip.MustParseAddr("2001::1"),
+	}
+
+	update := buildAnnounceUpdate(route, 65000, true, true)
+
+	// IPv6 routes MUST NOT have regular NLRI field
+	require.Empty(t, update.NLRI, "IPv6 routes must not use NLRI field")
+
+	// Scan path attributes for type codes
+	// Attribute format: flags(1) + code(1) + length(1 or 2) + value
+	foundMPReach := false
+	foundNextHop := false
+	data := update.PathAttributes
+	for len(data) >= 3 {
+		flags := data[0]
+		code := attribute.AttributeCode(data[1])
+		var length int
+		var hdrLen int
+		if flags&0x10 != 0 { // Extended length
+			if len(data) < 4 {
+				break
+			}
+			length = int(data[2])<<8 | int(data[3])
+			hdrLen = 4
+		} else {
+			length = int(data[2])
+			hdrLen = 3
+		}
+
+		switch code { //nolint:exhaustive // Only checking for two specific attributes
+		case attribute.AttrMPReachNLRI:
+			foundMPReach = true
+		case attribute.AttrNextHop:
+			foundNextHop = true
+		}
+
+		if len(data) < hdrLen+length {
+			break
+		}
+		data = data[hdrLen+length:]
+	}
+
+	require.True(t, foundMPReach, "IPv6 routes must have MP_REACH_NLRI attribute")
+	require.False(t, foundNextHop, "IPv6 routes must not have NEXT_HOP attribute")
+}
+
+// TestBuildWithdrawUpdateIPv6UsesMPUnreachNLRI verifies IPv6 withdrawals use MP_UNREACH_NLRI.
+//
+// VALIDATES: IPv6 withdrawals are encoded with MP_UNREACH_NLRI (attr 15) instead of
+// the WithdrawnRoutes field.
+//
+// PREVENTS: IPv6 withdrawals being sent with IPv4-style encoding which violates RFC 4760.
+func TestBuildWithdrawUpdateIPv6UsesMPUnreachNLRI(t *testing.T) {
+	prefix := netip.MustParsePrefix("2605::2/128")
+
+	update := buildWithdrawUpdate(prefix)
+
+	// IPv6 withdrawals MUST NOT have WithdrawnRoutes field
+	require.Empty(t, update.WithdrawnRoutes, "IPv6 withdrawals must not use WithdrawnRoutes field")
+
+	// Must have MP_UNREACH_NLRI in path attributes
+	require.NotEmpty(t, update.PathAttributes, "IPv6 withdrawals must have PathAttributes with MP_UNREACH_NLRI")
+
+	// Scan path attributes for MP_UNREACH_NLRI (type 15)
+	foundMPUnreach := false
+	data := update.PathAttributes
+	for len(data) >= 3 {
+		flags := data[0]
+		code := attribute.AttributeCode(data[1])
+		var length int
+		var hdrLen int
+		if flags&0x10 != 0 { // Extended length
+			if len(data) < 4 {
+				break
+			}
+			length = int(data[2])<<8 | int(data[3])
+			hdrLen = 4
+		} else {
+			length = int(data[2])
+			hdrLen = 3
+		}
+
+		if code == attribute.AttrMPUnreachNLRI {
+			foundMPUnreach = true
+			// Verify AFI=2 (IPv6), SAFI=1 (Unicast)
+			if len(data) >= hdrLen+3 {
+				afi := uint16(data[hdrLen])<<8 | uint16(data[hdrLen+1])
+				safi := data[hdrLen+2]
+				require.Equal(t, uint16(2), afi, "MP_UNREACH_NLRI AFI must be 2 (IPv6)")
+				require.Equal(t, uint8(1), safi, "MP_UNREACH_NLRI SAFI must be 1 (Unicast)")
+			}
+		}
+
+		if len(data) < hdrLen+length {
+			break
+		}
+		data = data[hdrLen+length:]
+	}
+
+	require.True(t, foundMPUnreach, "IPv6 withdrawals must have MP_UNREACH_NLRI attribute")
 }
