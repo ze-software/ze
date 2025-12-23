@@ -590,10 +590,9 @@ func TestParseLabeledUnicastAttributes(t *testing.T) {
 			errMsg:  "rt",
 		},
 		{
-			name:    "invalid: split not valid for labeled-unicast",
+			name:    "valid: split supported for labeled-unicast",
 			args:    []string{"10.0.0.0/23", "label", "100", "next-hop", "1.2.3.4", "split", "/24"},
-			wantErr: true,
-			errMsg:  "split",
+			wantErr: false,
 		},
 	}
 

@@ -1009,7 +1009,7 @@ func withdrawL3VPNImpl(ctx *CommandContext, args []string) (*Response, error) {
 }
 
 // announceLabeledUnicastImpl handles MPLS labeled unicast route announcements (SAFI 4).
-// Args format: <prefix> label <labels> next-hop <addr> [attributes...].
+// Args format: <prefix> label <labels> next-hop <addr> [attributes...] [split /N].
 func announceLabeledUnicastImpl(ctx *CommandContext, args []string) (*Response, error) {
 	if len(args) < 1 {
 		return &Response{Status: "error", Error: "missing prefix"}, ErrMissingPrefix
@@ -1029,6 +1029,45 @@ func announceLabeledUnicastImpl(ctx *CommandContext, args []string) (*Response, 
 	}
 
 	peerSelector := ctx.PeerSelector()
+
+	// Check for split argument
+	splitLen, hasSplit := parseSplitArg(args)
+
+	// Handle split: announce multiple prefixes with same label
+	if hasSplit {
+		prefixes, err := splitPrefix(route.Prefix, splitLen)
+		if err != nil {
+			return &Response{
+				Status: "error",
+				Error:  err.Error(),
+			}, err
+		}
+
+		// Announce each split prefix separately with same labels
+		for _, p := range prefixes {
+			splitRoute := route
+			splitRoute.Prefix = p
+			if err := ctx.Reactor.AnnounceLabeledUnicast(peerSelector, splitRoute); err != nil {
+				return &Response{
+					Status: "error",
+					Error:  fmt.Sprintf("failed to announce %s: %v", p.String(), err),
+				}, err
+			}
+		}
+
+		return &Response{
+			Status: "done",
+			Data: map[string]any{
+				"peer":           peerSelector,
+				"prefix":         route.Prefix.String(),
+				"labels":         route.Labels,
+				"split":          splitLen,
+				"prefixes_count": len(prefixes),
+			},
+		}, nil
+	}
+
+	// Single prefix announcement
 	if err := ctx.Reactor.AnnounceLabeledUnicast(peerSelector, route); err != nil {
 		return &Response{
 			Status: "error",
@@ -1135,6 +1174,12 @@ func parseLabeledUnicastAttributes(args []string) (LabeledUnicastRoute, error) {
 			}
 			route.NextHop = nh
 			i++
+
+		case "split":
+			// Just skip - split is handled by caller (announceLabeledUnicastImpl)
+			if i+1 < len(args) {
+				i++
+			}
 		}
 	}
 
