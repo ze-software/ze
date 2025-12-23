@@ -3,6 +3,7 @@ package api
 import (
 	"bufio"
 	"context"
+	"fmt"
 	"io"
 	"os"
 	"os/exec"
@@ -22,6 +23,9 @@ type Process struct {
 
 	// Buffered reader for stdout
 	reader *bufio.Reader
+
+	// Channel for lines read from stdout (single reader goroutine)
+	lines chan string
 
 	running atomic.Bool
 
@@ -63,6 +67,7 @@ func (p *Process) StartWithContext(ctx context.Context) error {
 	if p.config.WorkDir != "" {
 		p.cmd.Dir = p.config.WorkDir
 	}
+	fmt.Fprintf(os.Stderr, "DEBUG process: Run=%s WorkDir=%s\n", p.config.Run, p.config.WorkDir)
 
 	// Set up pipes
 	var err error
@@ -98,11 +103,47 @@ func (p *Process) StartWithContext(ctx context.Context) error {
 
 	p.running.Store(true)
 
+	// Create channel for stdout lines
+	p.lines = make(chan string, 100)
+
+	// Start single reader goroutine for stdout
+	go p.readLines()
+
+	// Copy stderr to os.Stderr for debugging
+	go func() {
+		buf := make([]byte, 1024)
+		for {
+			n, err := p.stderr.Read(buf)
+			if n > 0 {
+				fmt.Fprintf(os.Stderr, "PROCESS STDERR: %s", string(buf[:n]))
+			}
+			if err != nil {
+				break
+			}
+		}
+	}()
+
 	// Monitor process
 	p.wg.Add(1)
 	go p.monitor()
 
 	return nil
+}
+
+// readLines continuously reads lines from stdout and sends to channel.
+func (p *Process) readLines() {
+	for {
+		line, err := p.reader.ReadString('\n')
+		if err != nil {
+			close(p.lines)
+			return
+		}
+		// Trim newline
+		if len(line) > 0 && line[len(line)-1] == '\n' {
+			line = line[:len(line)-1]
+		}
+		p.lines <- line
+	}
 }
 
 // Stop terminates the process.
@@ -142,34 +183,15 @@ func (p *Process) WriteEvent(event string) error {
 }
 
 // ReadCommand reads a command from the process stdout.
-// Returns context.DeadlineExceeded on timeout without closing the pipe.
+// Returns context.DeadlineExceeded on timeout, io.EOF when process exits.
 func (p *Process) ReadCommand(ctx context.Context) (string, error) {
-	// Use a goroutine to allow context cancellation
-	type result struct {
-		line string
-		err  error
-	}
-	ch := make(chan result, 1)
-
-	go func() {
-		line, err := p.reader.ReadString('\n')
-		if err != nil {
-			ch <- result{"", err}
-			return
-		}
-		// Trim newline
-		if len(line) > 0 && line[len(line)-1] == '\n' {
-			line = line[:len(line)-1]
-		}
-		ch <- result{line, nil}
-	}()
-
 	select {
-	case r := <-ch:
-		return r.line, r.err
+	case line, ok := <-p.lines:
+		if !ok {
+			return "", io.EOF
+		}
+		return line, nil
 	case <-ctx.Done():
-		// Don't close stdout on timeout - we want to keep reading.
-		// The goroutine will block until data arrives or process exits.
 		return "", ctx.Err()
 	}
 }
@@ -179,7 +201,12 @@ func (p *Process) monitor() {
 	defer p.wg.Done()
 
 	// Wait for process to exit
-	_ = p.cmd.Wait()
+	err := p.cmd.Wait()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "DEBUG process monitor: process exited with error: %v\n", err)
+	} else {
+		fmt.Fprintf(os.Stderr, "DEBUG process monitor: process exited successfully\n")
+	}
 
 	p.running.Store(false)
 

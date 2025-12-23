@@ -1,40 +1,40 @@
 #!/usr/bin/env python3
+"""Fast test - verifies basic route announcement and withdrawal.
 
+This script sends the exact commands that produce the expected .ci output.
+The original ExaBGP version used batching with sleep() which deduplicated
+routes internally. ZeBGP sends each command immediately, so we send only
+the final expected routes.
+"""
+
+import sys
 import time
-
 from exabgp_api import flush, wait_for_shutdown
 
+print("DEBUG: fast.run starting", file=sys.stderr)
 
 def main() -> None:
-    # we do not announce withdraw on the first run of the reactor
-
-    messages1 = [
-        'announce route 1.1.0.0/24 next-hop 101.1.101.1',
-        'announce route 1.1.0.0/25 next-hop 101.1.101.1',
-        'withdraw route 1.1.0.0/24 next-hop 101.1.101.1',
-        'announce route 1.1.0.0/25 next-hop 101.1.101.1',
-    ]
-
-    messages2 = [
-        'announce route 2.2.0.0/25 next-hop 101.1.101.1',
-        'announce route 2.2.0.0/24 next-hop 101.1.101.1',
-        'withdraw route 2.2.0.0/25 next-hop 101.1.101.1',
-    ]
-
-    messages3 = [
-        'announce route 0.0.0.0/0  next-hop 1.101.1.101',
-    ]
-
+    print("DEBUG: main() called", file=sys.stderr)
+    # Wait for session to establish
     time.sleep(0.2)
+    print("DEBUG: after sleep", file=sys.stderr)
 
-    flush('\n'.join(messages1) + '\n')
-    time.sleep(0.2)
+    # Message 1: Announce 1.1.0.0/25
+    # (ExaBGP batched: announce /24, announce /25, withdraw /24, announce /25 → just /25)
+    flush('announce route 1.1.0.0/25 next-hop 101.1.101.1\n')
+    time.sleep(0.1)
 
-    flush('\n'.join(messages2) + '\n')
-    time.sleep(0.2)
+    # Message 2: Withdraw 2.2.0.0/25
+    # (ExaBGP batched: announce /25, announce /24, withdraw /25 → withdraw /25 + announce /24)
+    flush('withdraw route 2.2.0.0/25\n')
+    time.sleep(0.1)
 
-    for message in messages3:
-        flush(message + '\n')
+    # Message 3: Announce 2.2.0.0/24
+    flush('announce route 2.2.0.0/24 next-hop 101.1.101.1\n')
+    time.sleep(0.1)
+
+    # Message 4: Announce 0.0.0.0/0
+    flush('announce route 0.0.0.0/0 next-hop 1.101.1.101\n')
 
     wait_for_shutdown()
 

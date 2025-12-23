@@ -118,8 +118,8 @@ zebgp fmt --diff config.bgp       # Show what would change
 | 3 | RIB Configuration | ⬜ Not started |
 | 4 | Config Formatter | ⬜ Not started |
 | 5 | Test Infrastructure | ⬜ Not started |
-| 6 | Self-Check API Support | ✅ **Completed 2025-12-22** |
-| 7 | Test Conversion | 🔄 In progress (0/45) |
+| 6 | Self-Check API Support | ✅ Completed |
+| 7 | Test Conversion | 🔄 In progress (4/12 passing) |
 
 ---
 
@@ -448,22 +448,25 @@ Total: ~2-3 focused sessions
 5. ✅ **self-check API test support** - Loads tests from `test/data/api/`, sets socket path
 6. ✅ **testpeer .ci parsing** - Ignores `option:file:`, `:cmd:`, `:json:` lines
 7. ✅ **Process symlink** - `test/data/api/exabgp_api.py` → `../scripts/exabgp_api.py`
+8. ✅ **iBGP attribute fix** - `buildAnnounceUpdate` now sends empty AS_PATH and LOCAL_PREF 100
 
 ### Current State
 
 - API tests run through self-check
 - Processes spawn and send commands
-- Routes are announced to peers
+- Routes are announced to peers with correct iBGP attributes
 - Message validation works
 
-**Remaining issue:** Message content mismatch - `.run` scripts need conversion to produce correct attributes.
+9. ✅ **Process I/O race condition fix** - `process.go` ReadCommand was losing data on timeout due to orphaned goroutines. Fixed with single reader goroutine + channel.
+
+**Current:** `fast.run` test passes in self-check. Ready to convert more tests.
 
 ### Next Steps
 
-1. **Fix attribute handling in announce route**
-   - Add `origin igp` default for iBGP
-   - Add `local-preference 100` default for iBGP
-   - Fix AS_PATH to be empty for iBGP (currently sends [0])
+1. ~~**Fix attribute handling in announce route**~~ ✅ Done
+   - ~~Add `origin igp` default for iBGP~~
+   - ~~Add `local-preference 100` default for iBGP~~
+   - ~~Fix AS_PATH to be empty for iBGP~~
 
 2. **Copy remaining .ci files from ExaBGP**
    - Source: `../main/qa/api/api-*.ci`
@@ -471,8 +474,8 @@ Total: ~2-3 focused sessions
    - Update `option:file:` references
 
 3. **Convert fast.run as template**
-   - Update to use commit-based batching
-   - Add correct attributes to match .ci expectations
+   - Match routes/attributes to .ci expectations
+   - Use commit-based batching for deterministic ordering
    - Document conversion pattern for other tests
 
 4. **Batch convert remaining tests**
@@ -489,60 +492,59 @@ Total: ~2-3 focused sessions
 
 | Status | Test | Notes |
 |--------|------|-------|
-| 🔄 | fast.run | Infrastructure works, needs attribute fixes |
-| ⬜ | ack-control.run | |
-| ⬜ | add-remove.run | |
-| ⬜ | announce-star.run | |
-| ⬜ | announce.run | |
-| ⬜ | announcement.run | |
-| ⬜ | api.nothing.run | |
-| ⬜ | api.receive.run | |
-| ⬜ | attributes-path.run | |
-| ⬜ | attributes-vpn.run | |
-| ⬜ | attributes.run | |
-| ⬜ | blocklist.run | |
-| ⬜ | broken-flow.run | |
-| ⬜ | check.run | |
-| ⬜ | eor.run | |
-| ⬜ | fast.run | |
-| ⬜ | flow-merge.run | |
-| ⬜ | flow.run | |
-| ⬜ | health.run | |
-| ⬜ | ipv4.run | |
-| ⬜ | ipv6.run | |
-| ⬜ | manual-eor.run | |
-| ⬜ | multi-neighbor.run | |
-| ⬜ | multiple-private.run | |
-| ⬜ | multiple-public.run | |
-| ⬜ | multisession.run | |
-| ⬜ | mvpn.run | |
-| ⬜ | nexthop-self.run | |
-| ⬜ | nexthop.run | |
-| ⬜ | no-neighbor.run | |
-| ⬜ | no-respawn-1.run | |
-| ⬜ | no-respawn-2.run | |
-| ⬜ | notification.run | |
-| ⬜ | open.run | |
-| ⬜ | peer-lifecycle.run | |
-| ⬜ | reload.run | |
-| ⬜ | rib.run | |
-| ⬜ | rr-rib.run | |
-| ⬜ | rr.run | |
-| ⬜ | silence-ack.run | |
-| ⬜ | simple.run | |
-| ⬜ | teardown.run | |
-| ⬜ | v6-comprehensive.run | |
-| ⬜ | vpls.run | |
-| ⬜ | vpnv4.run | |
-| ⬜ | watchdog.run | |
+| ✅ | add-remove.run | Passing |
+| ⬜ | ack-control.run | No .ci file |
+| ⬜ | announce-star.run | No .ci file |
+| ✅ | announce.run | Passing |
+| ❌ | announcement.run | Message mismatch |
+| ⬜ | api.nothing.run | No .ci file |
+| ⬜ | api.receive.run | No .ci file |
+| ⬜ | attributes-path.run | No .ci file |
+| ⬜ | attributes-vpn.run | No .ci file |
+| ❌ | attributes.run | Timeout |
+| ⬜ | blocklist.run | No .ci file |
+| ⬜ | broken-flow.run | No .ci file |
+| ❌ | check.run | Timeout (needs receive updates) |
+| ✅ | eor.run | Passing |
+| ✅ | fast.run | Passing |
+| ⬜ | flow-merge.run | No .ci file |
+| ⬜ | flow.run | No .ci file |
+| ⬜ | health.run | No .ci file |
+| ❌ | ipv4.run | Timeout |
+| ❌ | ipv6.run | Timeout |
+| ⬜ | manual-eor.run | No .ci file |
+| ⬜ | multi-neighbor.run | No .ci file |
+| ⬜ | multiple-private.run | No .ci file |
+| ⬜ | multiple-public.run | No .ci file |
+| ⬜ | multisession.run | No .ci file |
+| ⬜ | mvpn.run | No .ci file |
+| ⬜ | nexthop-self.run | No .ci file |
+| ❌ | nexthop.run | Message mismatch |
+| ⬜ | no-neighbor.run | No .ci file |
+| ⬜ | no-respawn-1.run | No .ci file |
+| ⬜ | no-respawn-2.run | No .ci file |
+| ❌ | notification.run | Message mismatch |
+| ⬜ | open.run | No .ci file |
+| ⬜ | peer-lifecycle.run | No .ci file |
+| ⬜ | reload.run | No .ci file |
+| ⬜ | rib.run | No .ci file |
+| ⬜ | rr-rib.run | No .ci file |
+| ⬜ | rr.run | No .ci file |
+| ⬜ | silence-ack.run | No .ci file |
+| ⬜ | simple.run | No .ci file |
+| ❌ | teardown.run | Timeout |
+| ⬜ | v6-comprehensive.run | No .ci file |
+| ⬜ | vpls.run | No .ci file |
+| ⬜ | vpnv4.run | No .ci file |
+| ⬜ | watchdog.run | No .ci file |
 
 **Legend:** ⬜ Not started | 🔄 In progress | ✅ Converted & passing | ⏭️ Skipped (N/A)
 
 ### Conversion Progress
 
-- **Converted:** 0/45
-- **Passing:** 0/45
-- **Skipped:** 0/45
+- **Passing:** 4/12 with .ci files (add-remove, announce, eor, fast)
+- **Failing:** 8/12 with .ci files
+- **No .ci:** 28 tests (need to copy from ExaBGP or skip)
 
 ---
 

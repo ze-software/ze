@@ -20,13 +20,15 @@ See: `plan/api-commit-batching.md`
 - ✅ self-check loads API tests from `test/data/api/`
 - ✅ Socket path env var (`zebgp_api_socketpath`)
 - ✅ testpeer ignores non-raw `.ci` lines
+- ✅ iBGP attribute fix (LOCAL_PREF 100, empty AS_PATH)
+- ✅ Process I/O race condition fix (single reader goroutine)
 
 **Current state:**
-- API test `fast` runs and sends routes
-- Message mismatch: missing LOCAL_PREF, wrong AS_PATH
-- Need to convert `.run` scripts to produce correct attributes
+- 4 API tests pass: `add-remove`, `announce`, `eor`, `fast`
+- 8 tests fail (message mismatch, timeout)
+- 28 tests missing .ci files
 
-**Next:** Convert `fast.run` to match `.ci` expected output.
+**Next:** Fix failing tests or copy more .ci files from ExaBGP.
 
 ---
 

@@ -4,6 +4,8 @@ import (
 	"bufio"
 	"context"
 	"encoding/json"
+	"errors"
+	"fmt"
 	"net"
 	"os"
 	"strings"
@@ -234,6 +236,8 @@ func (s *Server) handleProcessCommands() {
 
 // handleSingleProcessCommands handles commands from a single process.
 func (s *Server) handleSingleProcessCommands(proc *Process) {
+	fmt.Fprintf(os.Stderr, "DEBUG: handleSingleProcessCommands started for process\n")
+
 	cmdCtx := &CommandContext{
 		Reactor:       s.reactor,
 		Encoder:       s.encoder,
@@ -245,6 +249,7 @@ func (s *Server) handleSingleProcessCommands(proc *Process) {
 		// Check for shutdown
 		select {
 		case <-s.ctx.Done():
+			fmt.Fprintf(os.Stderr, "DEBUG: context done, exiting\n")
 			return
 		default:
 		}
@@ -255,11 +260,12 @@ func (s *Server) handleSingleProcessCommands(proc *Process) {
 		cancel()
 
 		if err != nil {
-			if err == context.DeadlineExceeded {
+			if errors.Is(err, context.DeadlineExceeded) {
 				// Timeout, check if process is still running and try again
 				continue
 			}
 			// Process probably exited
+			fmt.Fprintf(os.Stderr, "DEBUG: read error: %v\n", err)
 			return
 		}
 
@@ -267,9 +273,12 @@ func (s *Server) handleSingleProcessCommands(proc *Process) {
 			continue
 		}
 
+		fmt.Fprintf(os.Stderr, "DEBUG: got command: %s\n", line)
+
 		// Dispatch command
 		resp, err := s.dispatcher.Dispatch(cmdCtx, line)
 		if err != nil {
+			fmt.Fprintf(os.Stderr, "DEBUG: dispatch error: %v\n", err)
 			resp = &Response{Status: "error", Error: err.Error()}
 		}
 
@@ -277,6 +286,7 @@ func (s *Server) handleSingleProcessCommands(proc *Process) {
 		respJSON, _ := json.Marshal(resp)
 		_ = proc.WriteEvent(strings.TrimSuffix(string(respJSON), "\n"))
 	}
+	fmt.Fprintf(os.Stderr, "DEBUG: process no longer running\n")
 }
 
 // handleClient creates and manages a client connection.
