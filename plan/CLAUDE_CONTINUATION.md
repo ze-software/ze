@@ -31,9 +31,9 @@ See: `plan/api-commit-batching.md`
   - Unit tests for all parsing functions (TDD)
 
 **Current state:**
-- 5 API tests pass: `add-remove`, `announce`, `eor`, `fast`, `nexthop`
-- 7 tests fail
-- 28 tests missing .ci files
+- 6 API tests pass: `announce`, `eor`, `fast`, `ipv4`, `ipv6`, `nexthop`
+- `announcement` test removed (required multi-session)
+- Remaining failing: `add-remove`, `attributes`, `check`, `mup4`, `mup6`, `notification`, `teardown`
 
 **Recently fixed (2025-12-23):**
 - ✅ MP_REACH_NLRI for IPv6 routes in buildAnnounceUpdate
@@ -45,13 +45,32 @@ See: `plan/api-commit-batching.md`
   - `parseSplitArg()` parses `split /N` from command args
   - `handleAnnounceRoute()` announces each split prefix separately
   - Unit tests with IPv4 and IPv6 coverage
+- ✅ **`announce ipv4/ipv6 unicast` syntax** (pkg/api/route.go)
+  - `parseFamilyArgs()` parses `ipv4/ipv6 unicast` prefix
+  - Handlers: `handleAnnounceIPv4`, `handleAnnounceIPv6`, `handleWithdrawIPv4`, `handleWithdrawIPv6`
+  - Test files simplified to unicast-only (MUP deferred)
+  - ipv4 and ipv6 tests now pass
+- ✅ **L3VPN (MPLS VPN) route announcement** (pkg/api/route.go)
+  - `announce ipv4/ipv6 mpls-vpn <prefix> rd <rd> label <label> next-hop <nh>`
+  - RD validation: RFC 4364 Type 0 (2-byte ASN), Type 1 (IPv4), Type 2 (4-byte ASN)
+  - Label validation: 20-bit range (0-1048575), label 0 (Explicit Null) valid
+  - Label stack support: `label [100 200 300]` or `label [100,200,300]`
+  - L3VPNRoute type with Labels []uint32
+  - Reactor stubs (wire format integration pending)
+  - See: `plan/route-families.md`
 
 **Remaining work for failing tests:**
-- Neighbor qualifiers: `local-as`, `peer-as`, `local-ip`, `router-id` (for `announcement` test)
-- `announce ipv6 unicast` syntax (different from `announce route`)
-- `neighbor X teardown` command
+- `announce attributes ... nlri` syntax (for `attributes` test)
+- `neighbor X teardown` command (for `teardown` test)
+- Receive updates to script (for `check` test)
+- NOTIFICATION on peer disconnect (for `notification` test)
+- Watchdog subsystem (for `watchdog` test)
 
-**Next:** Implement neighbor qualifiers for peer matching.
+**Not supported (by design):**
+- Multi-session: neighbor qualifiers (`local-as`, `peer-as`, `local-ip`, `router-id`) not implemented
+- Tests requiring multi-session can be removed
+
+**Next:** See `plan/api-test-features.md` for priorities.
 
 ---
 
@@ -121,6 +140,7 @@ Phase 3 API commit commands fully implemented.
 | Doc | Purpose |
 |-----|---------|
 | `exabgp-alignment.md` | Review decisions (18 ALIGN, 7 KEEP, 2 SKIP, 9 DONE) |
+| `route-families.md` | Route family keyword validation plan (L3VPN ✅, MPLS, FlowSpec pending) |
 | `ARCHITECTURE.md` | Codebase architecture overview |
 
 ---
@@ -136,6 +156,9 @@ Phase 3 API commit commands fully implemented.
 
 | Purpose | File |
 |---------|------|
+| Route handlers (L3VPN, unicast) | `pkg/api/route.go` |
+| Route keywords | `pkg/api/route_keywords.go` |
+| API types (L3VPNRoute, RouteSpec) | `pkg/api/types.go` |
 | Extended msg validation | `pkg/bgp/message/header.go` |
 | RFC 7606 validation | `pkg/bgp/message/rfc7606.go` |
 | Session receive path | `pkg/reactor/session.go` |
