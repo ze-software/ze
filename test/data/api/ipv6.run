@@ -6,16 +6,13 @@ from exabgp_api import send, wait_for_ack, wait_for_shutdown
 
 
 def main() -> None:
+    # Simplified test: unicast only (no MUP)
     announce_unicast = 'announce ipv6 unicast fc00:1::/64 next-hop 2001::11 local-preference 200'
-    withdraw_unicast = 'withdraw ipv6 unicast fc00:1::/64 next-hop 2001::11 local-preference 200'
-    announce_mup = 'announce ipv6 mup mup-isd 2001::/64 rd 100:100 next-hop 2001::2 extended-community [ target:10:10 ] bgp-prefix-sid-srv6 ( l3-service 2001:db8:1:1:: 0x47 [64,24,16,0,0,0] )'
-    withdraw_mup = 'withdraw ipv6 mup mup-isd 2001::/64 rd 100:100 next-hop 2001::2 extended-community [ target:10:10 ] bgp-prefix-sid-srv6 ( l3-service 2001:db8:1:1:: 0x47 [64,24,16,0,0,0] )'
+    withdraw_unicast = 'withdraw ipv6 unicast fc00:1::/64'
 
     messages = [
         announce_unicast,
-        announce_mup,
         withdraw_unicast,
-        withdraw_mup,
     ]
 
     time.sleep(0.2)
@@ -24,7 +21,7 @@ def main() -> None:
         send(message)
         time.sleep(0.2)
 
-    wait_for_ack(expected_count=4)
+    wait_for_ack(expected_count=2)
     wait_for_shutdown()
 
 

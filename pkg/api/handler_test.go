@@ -352,3 +352,135 @@ func TestRegisterDefaultHandlers(t *testing.T) {
 		assert.NotNil(t, c, "command %q must be registered", cmd)
 	}
 }
+
+// TestHandleAnnounceIPv4_RejectsVPNKeywords verifies that VPN-only keywords are rejected for unicast.
+//
+// VALIDATES: Keywords like 'rd', 'rt', 'label' return error for IPv4 unicast.
+//
+// PREVENTS: VPN keywords being silently ignored (the original bug).
+func TestHandleAnnounceIPv4_RejectsVPNKeywords(t *testing.T) {
+	tests := []struct {
+		name   string
+		args   []string
+		errMsg string
+	}{
+		{
+			name:   "rd not valid for unicast",
+			args:   []string{"unicast", "10.0.0.0/24", "next-hop", "1.2.3.4", "rd", "100:100"},
+			errMsg: "rd",
+		},
+		{
+			name:   "rt not valid for unicast",
+			args:   []string{"unicast", "10.0.0.0/24", "next-hop", "1.2.3.4", "rt", "100:100"},
+			errMsg: "rt",
+		},
+		{
+			name:   "label not valid for unicast",
+			args:   []string{"unicast", "10.0.0.0/24", "next-hop", "1.2.3.4", "label", "100"},
+			errMsg: "label",
+		},
+		{
+			name:   "unknown keyword rejected",
+			args:   []string{"unicast", "10.0.0.0/24", "next-hop", "1.2.3.4", "foo", "bar"},
+			errMsg: "foo",
+		},
+	}
+
+	reactor := &mockReactor{}
+	ctx := &CommandContext{Reactor: reactor}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			resp, err := handleAnnounceIPv4(ctx, tt.args)
+
+			require.Error(t, err, "expected error for invalid keyword")
+			require.NotNil(t, resp)
+			assert.Equal(t, "error", resp.Status)
+			assert.Contains(t, resp.Error, tt.errMsg)
+		})
+	}
+}
+
+// TestHandleAnnounceIPv6_RejectsVPNKeywords verifies that VPN-only keywords are rejected for IPv6 unicast.
+//
+// VALIDATES: Keywords like 'rd', 'rt', 'label' return error for IPv6 unicast.
+//
+// PREVENTS: VPN keywords being silently ignored.
+func TestHandleAnnounceIPv6_RejectsVPNKeywords(t *testing.T) {
+	tests := []struct {
+		name   string
+		args   []string
+		errMsg string
+	}{
+		{
+			name:   "rd not valid for unicast",
+			args:   []string{"unicast", "2001:db8::/32", "next-hop", "2001::1", "rd", "100:100"},
+			errMsg: "rd",
+		},
+		{
+			name:   "unknown keyword rejected",
+			args:   []string{"unicast", "2001:db8::/32", "next-hop", "2001::1", "unknown", "value"},
+			errMsg: "unknown",
+		},
+	}
+
+	reactor := &mockReactor{}
+	ctx := &CommandContext{Reactor: reactor}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			resp, err := handleAnnounceIPv6(ctx, tt.args)
+
+			require.Error(t, err, "expected error for invalid keyword")
+			require.NotNil(t, resp)
+			assert.Equal(t, "error", resp.Status)
+			assert.Contains(t, resp.Error, tt.errMsg)
+		})
+	}
+}
+
+// TestHandleAnnounceRoute_RejectsVPNKeywords verifies that VPN-only keywords are rejected.
+//
+// VALIDATES: Auto-detect route handler also validates keywords.
+//
+// PREVENTS: Bypassing validation by using 'announce route' instead of 'announce ipv4'.
+func TestHandleAnnounceRoute_RejectsVPNKeywords(t *testing.T) {
+	reactor := &mockReactor{}
+	ctx := &CommandContext{Reactor: reactor}
+
+	// rd should be rejected
+	resp, err := handleAnnounceRoute(ctx, []string{"10.0.0.0/24", "next-hop", "1.2.3.4", "rd", "100:100"})
+
+	require.Error(t, err)
+	require.NotNil(t, resp)
+	assert.Equal(t, "error", resp.Status)
+	assert.Contains(t, resp.Error, "rd")
+}
+
+// TestHandleAnnounceIPv4_ValidKeywords verifies valid unicast keywords work.
+//
+// VALIDATES: All unicast keywords are accepted.
+//
+// PREVENTS: Keyword validation being too strict.
+func TestHandleAnnounceIPv4_ValidKeywords(t *testing.T) {
+	reactor := &mockReactor{}
+	ctx := &CommandContext{Reactor: reactor}
+
+	args := []string{
+		"unicast", "10.0.0.0/24",
+		"next-hop", "1.2.3.4",
+		"origin", "igp",
+		"med", "100",
+		"local-preference", "200",
+		"as-path", "[65001]",
+		"community", "[2914:666]",
+		"large-community", "[2914:1:2]",
+	}
+
+	resp, err := handleAnnounceIPv4(ctx, args)
+
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	assert.Equal(t, "done", resp.Status)
+	assert.Len(t, reactor.announcedRoutes, 1)
+}

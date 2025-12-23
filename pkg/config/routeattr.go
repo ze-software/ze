@@ -6,6 +6,8 @@ import (
 	"net/netip"
 	"strconv"
 	"strings"
+
+	"github.com/exa-networks/zebgp/pkg/parse"
 )
 
 // Origin represents the ORIGIN path attribute.
@@ -82,40 +84,9 @@ func ParseCommunity(s string) (Community, error) {
 }
 
 // parseOneCommunity parses a single community string to uint32.
+// Delegates to parse.Community for shared logic.
 func parseOneCommunity(s string) (uint32, error) {
-	// Check for well-known communities
-	switch strings.ToLower(s) {
-	case "no_export", "no-export":
-		return 0xFFFFFF01, nil
-	case "no_advertise", "no-advertise":
-		return 0xFFFFFF02, nil
-	case "no_export_subconfed", "no-export-subconfed":
-		return 0xFFFFFF03, nil
-	case "nopeer", "no-peer":
-		return 0xFFFFFF04, nil
-	}
-
-	// Parse ASN:Value format
-	parts := strings.Split(s, ":")
-	if len(parts) != 2 {
-		// Try as single integer
-		n, err := strconv.ParseUint(s, 10, 32)
-		if err != nil {
-			return 0, fmt.Errorf("invalid community %q: expected ASN:Value format", s)
-		}
-		return uint32(n), nil
-	}
-
-	asn, err := strconv.ParseUint(parts[0], 10, 16)
-	if err != nil {
-		return 0, fmt.Errorf("invalid community ASN %q", parts[0])
-	}
-	val, err := strconv.ParseUint(parts[1], 10, 16)
-	if err != nil {
-		return 0, fmt.Errorf("invalid community value %q", parts[1])
-	}
-
-	return uint32(asn)<<16 | uint32(val), nil
+	return parse.Community(s)
 }
 
 // LargeCommunity represents large BGP communities (RFC 8092).
@@ -161,26 +132,9 @@ func ParseLargeCommunity(s string) (LargeCommunity, error) {
 }
 
 // parseOneLargeCommunity parses a single large community to [3]uint32.
+// Delegates to parse.LargeCommunity for shared logic.
 func parseOneLargeCommunity(s string) ([3]uint32, error) {
-	parts := strings.Split(s, ":")
-	if len(parts) != 3 {
-		return [3]uint32{}, fmt.Errorf("invalid large-community %q: expected GA:LD1:LD2 format", s)
-	}
-
-	ga, err := strconv.ParseUint(parts[0], 10, 32)
-	if err != nil {
-		return [3]uint32{}, fmt.Errorf("invalid large-community global-admin %q", parts[0])
-	}
-	ld1, err := strconv.ParseUint(parts[1], 10, 32)
-	if err != nil {
-		return [3]uint32{}, fmt.Errorf("invalid large-community local-data1 %q", parts[1])
-	}
-	ld2, err := strconv.ParseUint(parts[2], 10, 32)
-	if err != nil {
-		return [3]uint32{}, fmt.Errorf("invalid large-community local-data2 %q", parts[2])
-	}
-
-	return [3]uint32{uint32(ga), uint32(ld1), uint32(ld2)}, nil
+	return parse.LargeCommunity(s)
 }
 
 // ExtendedCommunity represents one or more extended communities (RFC 4360).

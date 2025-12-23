@@ -7,6 +7,8 @@ import (
 	"net/netip"
 	"strconv"
 	"strings"
+
+	"github.com/exa-networks/zebgp/pkg/parse"
 )
 
 // Errors for route parsing.
@@ -156,6 +158,18 @@ func parseSplitArg(args []string) (int, bool) {
 	return 0, false
 }
 
+// parseSAFI validates SAFI and returns remaining args.
+// Currently only 'unicast' is supported.
+func parseSAFI(args []string) ([]string, error) {
+	if len(args) < 1 {
+		return nil, fmt.Errorf("missing SAFI (expected: unicast)")
+	}
+	if !strings.EqualFold(args[0], "unicast") {
+		return nil, fmt.Errorf("unsupported SAFI: %s (expected: unicast)", args[0])
+	}
+	return args[1:], nil
+}
+
 // RegisterRouteHandlers registers route-related command handlers.
 func RegisterRouteHandlers(d *Dispatcher) {
 	// Announce commands
@@ -165,19 +179,45 @@ func RegisterRouteHandlers(d *Dispatcher) {
 	d.Register("announce vpls", handleAnnounceVPLS, "Announce a VPLS route")
 	d.Register("announce l2vpn", handleAnnounceL2VPN, "Announce an L2VPN/EVPN route")
 
+	// Family-explicit announce commands (ExaBGP compatibility)
+	d.Register("announce ipv4", handleAnnounceIPv4, "Announce IPv4 route (family-explicit)")
+	d.Register("announce ipv6", handleAnnounceIPv6, "Announce IPv6 route (family-explicit)")
+
 	// Withdraw commands
 	d.Register("withdraw route", handleWithdrawRoute, "Withdraw a route from peers")
 	d.Register("withdraw flow", handleWithdrawFlow, "Withdraw a FlowSpec route")
 	d.Register("withdraw vpls", handleWithdrawVPLS, "Withdraw a VPLS route")
 	d.Register("withdraw l2vpn", handleWithdrawL2VPN, "Withdraw an L2VPN/EVPN route")
+
+	// Family-explicit withdraw commands (ExaBGP compatibility)
+	d.Register("withdraw ipv4", handleWithdrawIPv4, "Withdraw IPv4 route (family-explicit)")
+	d.Register("withdraw ipv6", handleWithdrawIPv6, "Withdraw IPv6 route (family-explicit)")
 }
 
 // handleAnnounceRoute handles: announce route <prefix> next-hop <addr> [attributes...] [split /N].
+// This is a convenience command that auto-detects the address family from the prefix.
 // Example: announce route 10.0.0.0/24 next-hop 192.168.1.1.
-// Example: announce route 10.0.0.0/24 next-hop self.
-// Example: announce route 10.0.0.0/24 next-hop 1.2.3.4 origin igp local-preference 100 med 200 community [2:1].
-// Example: announce route 10.0.0.0/21 next-hop 1.2.3.4 split /23 (announces 4 /23 prefixes).
+// Example: announce route 2001:db8::/32 next-hop 2001::1.
 func handleAnnounceRoute(ctx *CommandContext, args []string) (*Response, error) {
+	// Auto-detect family from prefix and delegate to shared implementation
+	if len(args) < 1 {
+		return &Response{Status: "error", Error: "missing prefix"}, ErrMissingPrefix
+	}
+	if _, err := netip.ParsePrefix(args[0]); err != nil {
+		return &Response{Status: "error", Error: fmt.Sprintf("invalid prefix: %s", args[0])}, ErrInvalidPrefix
+	}
+
+	// Delegate to shared implementation (wire encoding is determined by prefix in reactor)
+	return announceRouteImpl(ctx, args)
+}
+
+// announceRouteImpl is the shared implementation for route announcements.
+// Handles: <prefix> next-hop <addr> [attributes...] [split /N].
+// Example: 10.0.0.0/24 next-hop 192.168.1.1.
+// Example: 10.0.0.0/24 next-hop self.
+// Example: 10.0.0.0/24 next-hop 1.2.3.4 origin igp local-preference 100 med 200 community [2:1].
+// Example: 10.0.0.0/21 next-hop 1.2.3.4 split /23 (announces 4 /23 prefixes).
+func announceRouteImpl(ctx *CommandContext, args []string) (*Response, error) {
 	if len(args) < 3 {
 		return &Response{
 			Status: "error",
@@ -185,122 +225,16 @@ func handleAnnounceRoute(ctx *CommandContext, args []string) (*Response, error) 
 		}, ErrMissingPrefix
 	}
 
-	// Parse prefix (first arg)
-	prefix, err := netip.ParsePrefix(args[0])
+	// Parse route with unicast keyword validation
+	parsed, err := parseRouteAttributes(args, UnicastKeywords)
 	if err != nil {
 		return &Response{
 			Status: "error",
-			Error:  fmt.Sprintf("invalid prefix: %s", args[0]),
-		}, ErrInvalidPrefix
+			Error:  err.Error(),
+		}, err
 	}
 
-	route := RouteSpec{
-		Prefix: prefix,
-	}
-
-	// Check for split argument
-	splitLen, hasSplit := parseSplitArg(args)
-
-	// Parse remaining args as key-value pairs
-	nextHopSelf := false
-	for i := 1; i < len(args); i++ {
-		key := strings.ToLower(args[i])
-
-		switch key {
-		case "next-hop":
-			if i+1 >= len(args) {
-				return &Response{Status: "error", Error: "missing next-hop value"}, ErrMissingNextHop
-			}
-			nhStr := args[i+1]
-			if strings.EqualFold(nhStr, "self") {
-				nextHopSelf = true
-			} else {
-				nh, err := netip.ParseAddr(nhStr)
-				if err != nil {
-					return &Response{Status: "error", Error: fmt.Sprintf("invalid next-hop: %s", nhStr)}, ErrInvalidNextHop
-				}
-				route.NextHop = nh
-			}
-			i++
-
-		case "origin":
-			if i+1 >= len(args) {
-				return &Response{Status: "error", Error: "missing origin value"}, fmt.Errorf("missing origin value")
-			}
-			origin, err := parseOrigin(args[i+1])
-			if err != nil {
-				return &Response{Status: "error", Error: err.Error()}, err
-			}
-			route.Origin = &origin
-			i++
-
-		case "local-preference":
-			if i+1 >= len(args) {
-				return &Response{Status: "error", Error: "missing local-preference value"}, fmt.Errorf("missing local-preference value")
-			}
-			lp, err := strconv.ParseUint(args[i+1], 10, 32)
-			if err != nil {
-				return &Response{Status: "error", Error: fmt.Sprintf("invalid local-preference: %s", args[i+1])}, err
-			}
-			lpVal := uint32(lp)
-			route.LocalPreference = &lpVal
-			i++
-
-		case "med":
-			if i+1 >= len(args) {
-				return &Response{Status: "error", Error: "missing med value"}, fmt.Errorf("missing med value")
-			}
-			med, err := strconv.ParseUint(args[i+1], 10, 32)
-			if err != nil {
-				return &Response{Status: "error", Error: fmt.Sprintf("invalid med: %s", args[i+1])}, err
-			}
-			medVal := uint32(med)
-			route.MED = &medVal
-			i++
-
-		case "as-path":
-			// Parse as-path [ ASN1 ASN2 ... ] or as-path [ASN1,ASN2,...]
-			if i+1 >= len(args) {
-				return &Response{Status: "error", Error: "missing as-path value"}, fmt.Errorf("missing as-path value")
-			}
-			asPath, consumed, err := parseASPath(args[i+1:])
-			if err != nil {
-				return &Response{Status: "error", Error: err.Error()}, err
-			}
-			route.ASPath = asPath
-			i += consumed
-
-		case "community":
-			// Parse community [ASN:VAL ASN:VAL ...] or community [ASN:VAL,ASN:VAL]
-			if i+1 >= len(args) {
-				return &Response{Status: "error", Error: "missing community value"}, fmt.Errorf("missing community value")
-			}
-			comms, consumed, err := parseCommunities(args[i+1:])
-			if err != nil {
-				return &Response{Status: "error", Error: err.Error()}, err
-			}
-			route.Communities = comms
-			i += consumed
-
-		case "large-community":
-			// Parse large-community [GA:LD1:LD2 ...]
-			if i+1 >= len(args) {
-				return &Response{Status: "error", Error: "missing large-community value"}, fmt.Errorf("missing large-community value")
-			}
-			lcomms, consumed, err := parseLargeCommunities(args[i+1:])
-			if err != nil {
-				return &Response{Status: "error", Error: err.Error()}, err
-			}
-			route.LargeCommunities = lcomms
-			i += consumed
-
-		case "split":
-			// Already parsed above, just skip the value
-			i++
-		}
-	}
-
-	if !nextHopSelf && !route.NextHop.IsValid() {
+	if !parsed.NextHopSelf && !parsed.Route.NextHop.IsValid() {
 		return &Response{
 			Status: "error",
 			Error:  "missing next-hop",
@@ -309,9 +243,12 @@ func handleAnnounceRoute(ctx *CommandContext, args []string) (*Response, error) 
 
 	peerSelector := ctx.PeerSelector()
 
+	// Check for split argument
+	splitLen, hasSplit := parseSplitArg(args)
+
 	// Handle split: announce multiple prefixes
 	if hasSplit {
-		prefixes, err := splitPrefix(prefix, splitLen)
+		prefixes, err := splitPrefix(parsed.Route.Prefix, splitLen)
 		if err != nil {
 			return &Response{
 				Status: "error",
@@ -321,7 +258,7 @@ func handleAnnounceRoute(ctx *CommandContext, args []string) (*Response, error) 
 
 		// Announce each split prefix separately
 		for _, p := range prefixes {
-			splitRoute := route
+			splitRoute := parsed.Route
 			splitRoute.Prefix = p
 			if err := ctx.Reactor.AnnounceRoute(peerSelector, splitRoute); err != nil {
 				return &Response{
@@ -335,7 +272,7 @@ func handleAnnounceRoute(ctx *CommandContext, args []string) (*Response, error) 
 			Status: "done",
 			Data: map[string]any{
 				"peer":           peerSelector,
-				"prefix":         prefix.String(),
+				"prefix":         parsed.Route.Prefix.String(),
 				"split":          splitLen,
 				"prefixes_count": len(prefixes),
 			},
@@ -343,7 +280,7 @@ func handleAnnounceRoute(ctx *CommandContext, args []string) (*Response, error) 
 	}
 
 	// Announce single route
-	if err := ctx.Reactor.AnnounceRoute(peerSelector, route); err != nil {
+	if err := ctx.Reactor.AnnounceRoute(peerSelector, parsed.Route); err != nil {
 		return &Response{
 			Status: "error",
 			Error:  fmt.Sprintf("failed to announce: %v", err),
@@ -354,8 +291,8 @@ func handleAnnounceRoute(ctx *CommandContext, args []string) (*Response, error) 
 		Status: "done",
 		Data: map[string]any{
 			"peer":     peerSelector,
-			"prefix":   prefix.String(),
-			"next_hop": route.NextHop.String(),
+			"prefix":   parsed.Route.Prefix.String(),
+			"next_hop": parsed.Route.NextHop.String(),
 		},
 	}, nil
 }
@@ -372,6 +309,143 @@ func parseOrigin(s string) (uint8, error) {
 	default:
 		return 0, fmt.Errorf("invalid origin: %s (expected igp, egp, or incomplete)", s)
 	}
+}
+
+// ErrInvalidKeyword is returned when a keyword is not valid for the route family.
+var ErrInvalidKeyword = errors.New("invalid keyword for route family")
+
+// ParsedRoute holds the result of parsing route attributes.
+type ParsedRoute struct {
+	Route       RouteSpec
+	NextHopSelf bool // true if "next-hop self" was specified
+}
+
+// parseRouteAttributes parses route attributes from args with keyword validation.
+// The allowedKeywords set defines which keywords are valid for the route family.
+// Returns error for unknown or invalid keywords.
+//
+// Args format: <prefix> [keyword value]...
+// Example: 10.0.0.0/24 next-hop 1.2.3.4 origin igp.
+func parseRouteAttributes(args []string, allowedKeywords KeywordSet) (ParsedRoute, error) {
+	if len(args) < 1 {
+		return ParsedRoute{}, ErrMissingPrefix
+	}
+
+	// Parse prefix (first arg)
+	prefix, err := netip.ParsePrefix(args[0])
+	if err != nil {
+		return ParsedRoute{}, fmt.Errorf("%w: %s", ErrInvalidPrefix, args[0])
+	}
+
+	result := ParsedRoute{
+		Route: RouteSpec{
+			Prefix: prefix,
+		},
+	}
+
+	// Parse remaining args as key-value pairs
+	for i := 1; i < len(args); i++ {
+		key := strings.ToLower(args[i])
+
+		// Validate keyword against allowed set
+		if !allowedKeywords[key] {
+			return ParsedRoute{}, fmt.Errorf("%w: '%s' not valid for this route family", ErrInvalidKeyword, key)
+		}
+
+		switch key {
+		case "next-hop":
+			if i+1 >= len(args) {
+				return ParsedRoute{}, ErrMissingNextHop
+			}
+			nhStr := args[i+1]
+			if strings.EqualFold(nhStr, "self") {
+				result.NextHopSelf = true
+			} else {
+				nh, err := netip.ParseAddr(nhStr)
+				if err != nil {
+					return ParsedRoute{}, fmt.Errorf("%w: %s", ErrInvalidNextHop, nhStr)
+				}
+				result.Route.NextHop = nh
+			}
+			i++
+
+		case "origin":
+			if i+1 >= len(args) {
+				return ParsedRoute{}, fmt.Errorf("missing origin value")
+			}
+			origin, err := parseOrigin(args[i+1])
+			if err != nil {
+				return ParsedRoute{}, err
+			}
+			result.Route.Origin = &origin
+			i++
+
+		case "local-preference":
+			if i+1 >= len(args) {
+				return ParsedRoute{}, fmt.Errorf("missing local-preference value")
+			}
+			lp, err := strconv.ParseUint(args[i+1], 10, 32)
+			if err != nil {
+				return ParsedRoute{}, fmt.Errorf("invalid local-preference: %s", args[i+1])
+			}
+			lpVal := uint32(lp)
+			result.Route.LocalPreference = &lpVal
+			i++
+
+		case "med":
+			if i+1 >= len(args) {
+				return ParsedRoute{}, fmt.Errorf("missing med value")
+			}
+			med, err := strconv.ParseUint(args[i+1], 10, 32)
+			if err != nil {
+				return ParsedRoute{}, fmt.Errorf("invalid med: %s", args[i+1])
+			}
+			medVal := uint32(med)
+			result.Route.MED = &medVal
+			i++
+
+		case "as-path":
+			if i+1 >= len(args) {
+				return ParsedRoute{}, fmt.Errorf("missing as-path value")
+			}
+			asPath, consumed, err := parseASPath(args[i+1:])
+			if err != nil {
+				return ParsedRoute{}, err
+			}
+			result.Route.ASPath = asPath
+			i += consumed
+
+		case "community":
+			if i+1 >= len(args) {
+				return ParsedRoute{}, fmt.Errorf("missing community value")
+			}
+			comms, consumed, err := parseCommunities(args[i+1:])
+			if err != nil {
+				return ParsedRoute{}, err
+			}
+			result.Route.Communities = comms
+			i += consumed
+
+		case "large-community":
+			if i+1 >= len(args) {
+				return ParsedRoute{}, fmt.Errorf("missing large-community value")
+			}
+			lcomms, consumed, err := parseLargeCommunities(args[i+1:])
+			if err != nil {
+				return ParsedRoute{}, err
+			}
+			result.Route.LargeCommunities = lcomms
+			i += consumed
+
+		case "split":
+			// Just skip - split is handled by caller
+			if i+1 < len(args) {
+				i++
+			}
+		}
+	}
+
+	return result, nil
 }
 
 // parseASPath parses AS_PATH in format [ ASN1 ASN2 ... ] or [ASN1,ASN2,...].
@@ -475,58 +549,10 @@ func parseCommunities(args []string) ([]uint32, int, error) {
 	return comms, consumed, nil
 }
 
-// Well-known community values per RFC 1997 and RFC 3765.
-const (
-	// CommunityNoExport - RFC 1997: Do not advertise outside confederation.
-	CommunityNoExport uint32 = 0xFFFFFF01
-	// CommunityNoAdvertise - RFC 1997: Do not advertise to any peer.
-	CommunityNoAdvertise uint32 = 0xFFFFFF02
-	// CommunityNoExportSubconfed - RFC 1997: Do not advertise to external peers.
-	CommunityNoExportSubconfed uint32 = 0xFFFFFF03
-	// CommunityNoPeer - RFC 3765: Do not advertise to peers.
-	CommunityNoPeer uint32 = 0xFFFFFF04
-	// CommunityBlackhole - RFC 7999: Trigger remote blackholing.
-	CommunityBlackhole uint32 = 0xFFFF029A
-)
-
 // parseCommunity parses a single community value.
-// Supports:
-//   - ASN:VAL format per RFC 1997
-//   - Well-known names: no-export, no-advertise, no-export-subconfed, nopeer, blackhole
+// Delegates to parse.Community for shared parsing logic.
 func parseCommunity(s string) (uint32, error) {
-	if s == "" {
-		return 0, fmt.Errorf("empty community value")
-	}
-
-	// Check for well-known community names (case-insensitive)
-	lower := strings.ToLower(s)
-	switch lower {
-	case "no-export", "no_export":
-		return CommunityNoExport, nil
-	case "no-advertise", "no_advertise":
-		return CommunityNoAdvertise, nil
-	case "no-export-subconfed", "no_export_subconfed":
-		return CommunityNoExportSubconfed, nil
-	case "nopeer", "no-peer", "no_peer":
-		return CommunityNoPeer, nil
-	case "blackhole":
-		return CommunityBlackhole, nil
-	}
-
-	// Parse ASN:VAL format
-	parts := strings.SplitN(s, ":", 2)
-	if len(parts) != 2 {
-		return 0, fmt.Errorf("invalid community format: %s (expected ASN:VAL or well-known name)", s)
-	}
-	asn, err := strconv.ParseUint(parts[0], 10, 16)
-	if err != nil {
-		return 0, fmt.Errorf("invalid community ASN: %s", parts[0])
-	}
-	val, err := strconv.ParseUint(parts[1], 10, 16)
-	if err != nil {
-		return 0, fmt.Errorf("invalid community value: %s", parts[1])
-	}
-	return uint32(asn)<<16 | uint32(val), nil
+	return parse.Community(s)
 }
 
 // parseLargeCommunities parses large communities in format [GA:LD1:LD2 ...].
@@ -549,33 +575,41 @@ func parseLargeCommunities(args []string) ([]LargeCommunity, int, error) {
 }
 
 // parseLargeCommunity parses a single large community GA:LD1:LD2.
+// Delegates to parse.LargeCommunity for shared parsing logic.
 func parseLargeCommunity(s string) (LargeCommunity, error) {
-	parts := strings.SplitN(s, ":", 3)
-	if len(parts) != 3 {
-		return LargeCommunity{}, fmt.Errorf("invalid large-community format: %s (expected GA:LD1:LD2)", s)
-	}
-	ga, err := strconv.ParseUint(parts[0], 10, 32)
+	vals, err := parse.LargeCommunity(s)
 	if err != nil {
-		return LargeCommunity{}, fmt.Errorf("invalid large-community global-admin: %s", parts[0])
-	}
-	ld1, err := strconv.ParseUint(parts[1], 10, 32)
-	if err != nil {
-		return LargeCommunity{}, fmt.Errorf("invalid large-community local-data1: %s", parts[1])
-	}
-	ld2, err := strconv.ParseUint(parts[2], 10, 32)
-	if err != nil {
-		return LargeCommunity{}, fmt.Errorf("invalid large-community local-data2: %s", parts[2])
+		return LargeCommunity{}, err
 	}
 	return LargeCommunity{
-		GlobalAdmin: uint32(ga),
-		LocalData1:  uint32(ld1),
-		LocalData2:  uint32(ld2),
+		GlobalAdmin: vals[0],
+		LocalData1:  vals[1],
+		LocalData2:  vals[2],
 	}, nil
 }
 
 // handleWithdrawRoute handles: withdraw route <prefix>.
+// This is a convenience command that auto-detects the address family from the prefix.
 // Example: withdraw route 10.0.0.0/24.
+// Example: withdraw route 2001:db8::/32.
 func handleWithdrawRoute(ctx *CommandContext, args []string) (*Response, error) {
+	// Auto-detect family from prefix and delegate
+	if len(args) < 1 {
+		return &Response{Status: "error", Error: "missing prefix"}, ErrMissingPrefix
+	}
+	_, err := netip.ParsePrefix(args[0])
+	if err != nil {
+		return &Response{Status: "error", Error: fmt.Sprintf("invalid prefix: %s", args[0])}, ErrInvalidPrefix
+	}
+
+	// Delegate to shared implementation
+	return withdrawRouteImpl(ctx, args)
+}
+
+// withdrawRouteImpl is the shared implementation for route withdrawals.
+// Handles: <prefix>.
+// Example: 10.0.0.0/24.
+func withdrawRouteImpl(ctx *CommandContext, args []string) (*Response, error) {
 	if len(args) < 1 {
 		return &Response{
 			Status: "error",
@@ -607,6 +641,126 @@ func handleWithdrawRoute(ctx *CommandContext, args []string) (*Response, error) 
 			"prefix": prefix.String(),
 		},
 	}, nil
+}
+
+// handleAnnounceIPv4 handles: announce ipv4 unicast <prefix> next-hop <addr> [attributes...].
+// This is the canonical handler for IPv4 unicast routes.
+// Example: announce ipv4 unicast 10.0.0.0/24 next-hop 192.168.1.1.
+// Example: announce ipv4 unicast 10.0.0.0/24 next-hop 1.2.3.4 local-preference 200.
+func handleAnnounceIPv4(ctx *CommandContext, args []string) (*Response, error) {
+	// Validate SAFI (must be 'unicast')
+	rest, err := parseSAFI(args)
+	if err != nil {
+		return &Response{Status: "error", Error: err.Error()}, err
+	}
+
+	// Validate prefix is IPv4
+	if len(rest) < 1 {
+		return &Response{Status: "error", Error: "missing prefix"}, ErrMissingPrefix
+	}
+	prefix, err := netip.ParsePrefix(rest[0])
+	if err != nil {
+		return &Response{Status: "error", Error: fmt.Sprintf("invalid prefix: %s", rest[0])}, ErrInvalidPrefix
+	}
+	if !prefix.Addr().Is4() {
+		return &Response{
+			Status: "error",
+			Error:  fmt.Sprintf("expected IPv4 prefix for 'announce ipv4', got: %s", rest[0]),
+		}, ErrInvalidPrefix
+	}
+
+	// Delegate to shared implementation
+	return announceRouteImpl(ctx, rest)
+}
+
+// handleAnnounceIPv6 handles: announce ipv6 unicast <prefix> next-hop <addr> [attributes...].
+// This is the canonical handler for IPv6 unicast routes.
+// Example: announce ipv6 unicast 2001:db8::/32 next-hop 2001::1.
+// Example: announce ipv6 unicast fc00::/64 next-hop 2001::1 local-preference 200.
+func handleAnnounceIPv6(ctx *CommandContext, args []string) (*Response, error) {
+	// Validate SAFI (must be 'unicast')
+	rest, err := parseSAFI(args)
+	if err != nil {
+		return &Response{Status: "error", Error: err.Error()}, err
+	}
+
+	// Validate prefix is IPv6
+	if len(rest) < 1 {
+		return &Response{Status: "error", Error: "missing prefix"}, ErrMissingPrefix
+	}
+	prefix, err := netip.ParsePrefix(rest[0])
+	if err != nil {
+		return &Response{Status: "error", Error: fmt.Sprintf("invalid prefix: %s", rest[0])}, ErrInvalidPrefix
+	}
+	if !prefix.Addr().Is6() {
+		return &Response{
+			Status: "error",
+			Error:  fmt.Sprintf("expected IPv6 prefix for 'announce ipv6', got: %s", rest[0]),
+		}, ErrInvalidPrefix
+	}
+
+	// Delegate to shared implementation
+	return announceRouteImpl(ctx, rest)
+}
+
+// handleWithdrawIPv4 handles: withdraw ipv4 unicast <prefix> [next-hop <addr>] [attributes...].
+// This is the canonical handler for IPv4 unicast withdrawals.
+// Example: withdraw ipv4 unicast 10.0.0.0/24.
+// Example: withdraw ipv4 unicast 10.0.0.0/24 next-hop 192.168.1.1.
+func handleWithdrawIPv4(ctx *CommandContext, args []string) (*Response, error) {
+	// Validate SAFI (must be 'unicast')
+	rest, err := parseSAFI(args)
+	if err != nil {
+		return &Response{Status: "error", Error: err.Error()}, err
+	}
+
+	// Validate prefix is IPv4
+	if len(rest) < 1 {
+		return &Response{Status: "error", Error: "missing prefix"}, ErrMissingPrefix
+	}
+	prefix, err := netip.ParsePrefix(rest[0])
+	if err != nil {
+		return &Response{Status: "error", Error: fmt.Sprintf("invalid prefix: %s", rest[0])}, ErrInvalidPrefix
+	}
+	if !prefix.Addr().Is4() {
+		return &Response{
+			Status: "error",
+			Error:  fmt.Sprintf("expected IPv4 prefix for 'withdraw ipv4', got: %s", rest[0]),
+		}, ErrInvalidPrefix
+	}
+
+	// Delegate to shared implementation
+	return withdrawRouteImpl(ctx, rest)
+}
+
+// handleWithdrawIPv6 handles: withdraw ipv6 unicast <prefix> [next-hop <addr>] [attributes...].
+// This is the canonical handler for IPv6 unicast withdrawals.
+// Example: withdraw ipv6 unicast 2001:db8::/32.
+// Example: withdraw ipv6 unicast fc00::/64 next-hop 2001::1.
+func handleWithdrawIPv6(ctx *CommandContext, args []string) (*Response, error) {
+	// Validate SAFI (must be 'unicast')
+	rest, err := parseSAFI(args)
+	if err != nil {
+		return &Response{Status: "error", Error: err.Error()}, err
+	}
+
+	// Validate prefix is IPv6
+	if len(rest) < 1 {
+		return &Response{Status: "error", Error: "missing prefix"}, ErrMissingPrefix
+	}
+	prefix, err := netip.ParsePrefix(rest[0])
+	if err != nil {
+		return &Response{Status: "error", Error: fmt.Sprintf("invalid prefix: %s", rest[0])}, ErrInvalidPrefix
+	}
+	if !prefix.Addr().Is6() {
+		return &Response{
+			Status: "error",
+			Error:  fmt.Sprintf("expected IPv6 prefix for 'withdraw ipv6', got: %s", rest[0]),
+		}, ErrInvalidPrefix
+	}
+
+	// Delegate to shared implementation
+	return withdrawRouteImpl(ctx, rest)
 }
 
 // handleAnnounceEOR handles: announce eor [family].

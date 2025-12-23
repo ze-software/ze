@@ -2,6 +2,7 @@ package api
 
 import (
 	"net/netip"
+	"strings"
 	"testing"
 )
 
@@ -418,6 +419,125 @@ func TestParseLargeCommunity(t *testing.T) {
 			}
 			if !tt.wantErr && got != tt.want {
 				t.Errorf("parseLargeCommunity(%q) = %+v, want %+v", tt.input, got, tt.want)
+			}
+		})
+	}
+}
+
+// TestParseSAFI tests parsing of SAFI from command args.
+//
+// VALIDATES: SAFI is correctly extracted and validated.
+//
+// PREVENTS: Invalid SAFI values being accepted.
+func TestParseSAFI(t *testing.T) {
+	tests := []struct {
+		name     string
+		args     []string
+		wantRest []string
+		wantErr  bool
+	}{
+		// Valid SAFI
+		{"unicast lowercase", []string{"unicast", "10.0.0.0/24", "next-hop", "1.2.3.4"}, []string{"10.0.0.0/24", "next-hop", "1.2.3.4"}, false},
+		{"Unicast mixed case", []string{"Unicast", "10.0.0.0/24"}, []string{"10.0.0.0/24"}, false},
+		{"UNICAST uppercase", []string{"UNICAST", "2001::/64"}, []string{"2001::/64"}, false},
+
+		// Invalid
+		{"empty", []string{}, nil, true},
+		{"invalid safi", []string{"multipath", "10.0.0.0/24"}, nil, true},
+		{"multicast unsupported", []string{"multicast", "10.0.0.0/24"}, nil, true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			rest, err := parseSAFI(tt.args)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("parseSAFI(%v) error = %v, wantErr %v", tt.args, err, tt.wantErr)
+				return
+			}
+			if tt.wantErr {
+				return
+			}
+			if len(rest) != len(tt.wantRest) {
+				t.Errorf("parseSAFI(%v) rest = %v, want %v", tt.args, rest, tt.wantRest)
+				return
+			}
+			for i, r := range rest {
+				if r != tt.wantRest[i] {
+					t.Errorf("parseSAFI(%v) rest[%d] = %q, want %q", tt.args, i, r, tt.wantRest[i])
+				}
+			}
+		})
+	}
+}
+
+// TestParseRouteAttributes_UnicastKeywords tests that only valid keywords are accepted for unicast.
+//
+// VALIDATES: Unicast routes accept only valid unicast keywords.
+//
+// PREVENTS: VPN-only keywords (rd, rt, label) being silently ignored for unicast routes.
+func TestParseRouteAttributes_UnicastKeywords(t *testing.T) {
+	tests := []struct {
+		name    string
+		args    []string
+		wantErr bool
+		errMsg  string // substring expected in error message
+	}{
+		// Valid unicast keywords
+		{
+			name:    "valid: next-hop only",
+			args:    []string{"10.0.0.0/24", "next-hop", "1.2.3.4"},
+			wantErr: false,
+		},
+		{
+			name:    "valid: all unicast keywords",
+			args:    []string{"10.0.0.0/24", "next-hop", "1.2.3.4", "origin", "igp", "med", "100", "local-preference", "200", "as-path", "[65001]", "community", "[2914:666]", "large-community", "[2914:1:2]", "split", "/25"},
+			wantErr: false,
+		},
+
+		// Invalid: VPN-only keywords should error for unicast
+		{
+			name:    "invalid: rd not valid for unicast",
+			args:    []string{"10.0.0.0/24", "next-hop", "1.2.3.4", "rd", "100:100"},
+			wantErr: true,
+			errMsg:  "rd",
+		},
+		{
+			name:    "invalid: rt not valid for unicast",
+			args:    []string{"10.0.0.0/24", "next-hop", "1.2.3.4", "rt", "100:100"},
+			wantErr: true,
+			errMsg:  "rt",
+		},
+		{
+			name:    "invalid: label not valid for unicast",
+			args:    []string{"10.0.0.0/24", "next-hop", "1.2.3.4", "label", "100"},
+			wantErr: true,
+			errMsg:  "label",
+		},
+
+		// Invalid: unknown keywords should error
+		{
+			name:    "invalid: unknown keyword",
+			args:    []string{"10.0.0.0/24", "next-hop", "1.2.3.4", "foo", "bar"},
+			wantErr: true,
+			errMsg:  "foo",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			parsed, err := parseRouteAttributes(tt.args, UnicastKeywords)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("parseRouteAttributes(%v, UnicastKeywords) error = %v, wantErr %v", tt.args, err, tt.wantErr)
+				return
+			}
+			if tt.wantErr && tt.errMsg != "" {
+				if err == nil || !strings.Contains(err.Error(), tt.errMsg) {
+					t.Errorf("parseRouteAttributes(%v) error = %v, want error containing %q", tt.args, err, tt.errMsg)
+				}
+			}
+			// Verify parsed result has valid route spec for success cases
+			if !tt.wantErr && !parsed.Route.Prefix.IsValid() {
+				t.Errorf("parseRouteAttributes(%v) returned invalid prefix", tt.args)
 			}
 		})
 	}
