@@ -32,6 +32,14 @@ type mockReactor struct {
 		selector string
 		route    L3VPNRoute
 	}
+	announcedLabeledUnicastRoutes []struct {
+		selector string
+		route    LabeledUnicastRoute
+	}
+	withdrawnLabeledUnicastRoutes []struct {
+		selector string
+		route    LabeledUnicastRoute
+	}
 }
 
 func (m *mockReactor) Peers() []PeerInfo {
@@ -102,6 +110,22 @@ func (m *mockReactor) WithdrawL3VPN(selector string, route L3VPNRoute) error {
 	m.withdrawnL3VPNRoutes = append(m.withdrawnL3VPNRoutes, struct {
 		selector string
 		route    L3VPNRoute
+	}{selector, route})
+	return nil
+}
+
+func (m *mockReactor) AnnounceLabeledUnicast(selector string, route LabeledUnicastRoute) error {
+	m.announcedLabeledUnicastRoutes = append(m.announcedLabeledUnicastRoutes, struct {
+		selector string
+		route    LabeledUnicastRoute
+	}{selector, route})
+	return nil
+}
+
+func (m *mockReactor) WithdrawLabeledUnicast(selector string, route LabeledUnicastRoute) error {
+	m.withdrawnLabeledUnicastRoutes = append(m.withdrawnLabeledUnicastRoutes, struct {
+		selector string
+		route    LabeledUnicastRoute
 	}{selector, route})
 	return nil
 }
@@ -852,4 +876,310 @@ func TestHandleWithdrawL3VPN_IPv4(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 	assert.Equal(t, "done", resp.Status)
+}
+
+// =============================================================================
+// MPLS Labeled Unicast Tests (SAFI 4)
+// =============================================================================
+
+// TestHandleAnnounceLabeledUnicast_IPv4 verifies labeled unicast IPv4 route announcement.
+//
+// VALIDATES: Labeled unicast routes with label stack are announced correctly.
+//
+// PREVENTS: SAFI 4 routes not being recognized.
+func TestHandleAnnounceLabeledUnicast_IPv4(t *testing.T) {
+	reactor := &mockReactor{}
+	ctx := &CommandContext{Reactor: reactor}
+
+	// announce ipv4 labeled-unicast 10.0.0.0/24 label 100 next-hop 1.2.3.4
+	args := []string{"labeled-unicast", "10.0.0.0/24", "label", "100", "next-hop", "1.2.3.4"}
+	resp, err := handleAnnounceIPv4(ctx, args)
+
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	assert.Equal(t, "done", resp.Status)
+	require.Len(t, reactor.announcedLabeledUnicastRoutes, 1)
+
+	route := reactor.announcedLabeledUnicastRoutes[0].route
+	require.Len(t, route.Labels, 1)
+	assert.Equal(t, uint32(100), route.Labels[0])
+	assert.Equal(t, netip.MustParseAddr("1.2.3.4"), route.NextHop)
+	assert.Equal(t, netip.MustParsePrefix("10.0.0.0/24"), route.Prefix)
+}
+
+// TestHandleAnnounceLabeledUnicast_IPv6 verifies labeled unicast IPv6 route announcement.
+//
+// VALIDATES: Labeled unicast IPv6 routes work correctly.
+//
+// PREVENTS: IPv6 SAFI 4 routes not working.
+func TestHandleAnnounceLabeledUnicast_IPv6(t *testing.T) {
+	reactor := &mockReactor{}
+	ctx := &CommandContext{Reactor: reactor}
+
+	// announce ipv6 labeled-unicast 2001:db8::/32 label 100 next-hop 2001::1
+	args := []string{"labeled-unicast", "2001:db8::/32", "label", "100", "next-hop", "2001::1"}
+	resp, err := handleAnnounceIPv6(ctx, args)
+
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	assert.Equal(t, "done", resp.Status)
+	require.Len(t, reactor.announcedLabeledUnicastRoutes, 1)
+
+	route := reactor.announcedLabeledUnicastRoutes[0].route
+	require.Len(t, route.Labels, 1)
+	assert.Equal(t, uint32(100), route.Labels[0])
+	assert.Equal(t, netip.MustParseAddr("2001::1"), route.NextHop)
+	assert.Equal(t, netip.MustParsePrefix("2001:db8::/32"), route.Prefix)
+}
+
+// TestHandleAnnounceLabeledUnicast_LabelStack verifies label stack support.
+//
+// VALIDATES: Multiple labels can be specified as [label1, label2, ...].
+//
+// PREVENTS: Label stacks being rejected for labeled-unicast.
+func TestHandleAnnounceLabeledUnicast_LabelStack(t *testing.T) {
+	reactor := &mockReactor{}
+	ctx := &CommandContext{Reactor: reactor}
+
+	args := []string{"labeled-unicast", "10.0.0.0/24", "label", "[100", "200", "300]", "next-hop", "1.2.3.4"}
+	resp, err := handleAnnounceIPv4(ctx, args)
+
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	assert.Equal(t, "done", resp.Status)
+	require.Len(t, reactor.announcedLabeledUnicastRoutes, 1)
+
+	labels := reactor.announcedLabeledUnicastRoutes[0].route.Labels
+	require.Len(t, labels, 3)
+	assert.Equal(t, uint32(100), labels[0])
+	assert.Equal(t, uint32(200), labels[1])
+	assert.Equal(t, uint32(300), labels[2])
+}
+
+// TestHandleAnnounceLabeledUnicast_RequiresLabel verifies label is required.
+//
+// VALIDATES: Missing label returns error.
+//
+// PREVENTS: Routes without label being accepted for labeled-unicast.
+func TestHandleAnnounceLabeledUnicast_RequiresLabel(t *testing.T) {
+	reactor := &mockReactor{}
+	ctx := &CommandContext{Reactor: reactor}
+
+	// Missing label should fail
+	args := []string{"labeled-unicast", "10.0.0.0/24", "next-hop", "1.2.3.4"}
+	resp, err := handleAnnounceIPv4(ctx, args)
+
+	require.Error(t, err)
+	require.NotNil(t, resp)
+	assert.Equal(t, "error", resp.Status)
+	assert.Contains(t, resp.Error, "label")
+}
+
+// TestHandleAnnounceLabeledUnicast_RejectsRD verifies RD is rejected.
+//
+// VALIDATES: RD keyword returns error for labeled-unicast.
+//
+// PREVENTS: VPN-only keywords being accepted for labeled-unicast.
+func TestHandleAnnounceLabeledUnicast_RejectsRD(t *testing.T) {
+	reactor := &mockReactor{}
+	ctx := &CommandContext{Reactor: reactor}
+
+	// RD should not be valid for labeled-unicast
+	args := []string{"labeled-unicast", "10.0.0.0/24", "label", "100", "next-hop", "1.2.3.4", "rd", "100:100"}
+	resp, err := handleAnnounceIPv4(ctx, args)
+
+	require.Error(t, err)
+	require.NotNil(t, resp)
+	assert.Equal(t, "error", resp.Status)
+	assert.Contains(t, resp.Error, "rd")
+}
+
+// TestHandleAnnounceLabeledUnicast_WithAttributes verifies standard attributes work.
+//
+// VALIDATES: Origin, local-pref, MED, AS-path, communities work with labeled-unicast.
+//
+// PREVENTS: Standard attributes being rejected for labeled-unicast.
+func TestHandleAnnounceLabeledUnicast_WithAttributes(t *testing.T) {
+	reactor := &mockReactor{}
+	ctx := &CommandContext{Reactor: reactor}
+
+	args := []string{
+		"labeled-unicast", "10.0.0.0/24",
+		"label", "100",
+		"next-hop", "1.2.3.4",
+		"origin", "igp",
+		"local-preference", "200",
+		"community", "[65000:100]",
+	}
+	resp, err := handleAnnounceIPv4(ctx, args)
+
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	assert.Equal(t, "done", resp.Status)
+	require.Len(t, reactor.announcedLabeledUnicastRoutes, 1)
+
+	route := reactor.announcedLabeledUnicastRoutes[0].route
+	require.NotNil(t, route.Origin)
+	assert.Equal(t, uint8(0), *route.Origin) // IGP
+	require.NotNil(t, route.LocalPreference)
+	assert.Equal(t, uint32(200), *route.LocalPreference)
+}
+
+// TestHandleWithdrawLabeledUnicast_IPv4 verifies labeled unicast IPv4 route withdrawal.
+//
+// VALIDATES: Labeled unicast routes can be withdrawn.
+//
+// PREVENTS: Inability to withdraw labeled-unicast routes.
+func TestHandleWithdrawLabeledUnicast_IPv4(t *testing.T) {
+	reactor := &mockReactor{}
+	ctx := &CommandContext{Reactor: reactor}
+
+	// withdraw ipv4 labeled-unicast 10.0.0.0/24 label 100
+	args := []string{"labeled-unicast", "10.0.0.0/24", "label", "100"}
+	resp, err := handleWithdrawIPv4(ctx, args)
+
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	assert.Equal(t, "done", resp.Status)
+}
+
+// TestHandleWithdrawLabeledUnicast_IPv6 verifies labeled unicast IPv6 route withdrawal.
+//
+// VALIDATES: IPv6 labeled unicast routes can be withdrawn.
+//
+// PREVENTS: IPv6 withdraw not working.
+func TestHandleWithdrawLabeledUnicast_IPv6(t *testing.T) {
+	reactor := &mockReactor{}
+	ctx := &CommandContext{Reactor: reactor}
+
+	args := []string{"labeled-unicast", "2001:db8::/32", "label", "100"}
+	resp, err := handleWithdrawIPv6(ctx, args)
+
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	assert.Equal(t, "done", resp.Status)
+}
+
+// TestHandleAnnounceLabeledUnicast_LabelZero verifies label=0 (Explicit Null) is valid.
+//
+// VALIDATES: MPLS label 0 is accepted per RFC 3032.
+//
+// PREVENTS: Label 0 being rejected as "missing".
+func TestHandleAnnounceLabeledUnicast_LabelZero(t *testing.T) {
+	reactor := &mockReactor{}
+	ctx := &CommandContext{Reactor: reactor}
+
+	// Label 0 = IPv4 Explicit Null per RFC 3032
+	args := []string{"labeled-unicast", "10.0.0.0/24", "label", "0", "next-hop", "1.2.3.4"}
+	resp, err := handleAnnounceIPv4(ctx, args)
+
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	assert.Equal(t, "done", resp.Status)
+	require.Len(t, reactor.announcedLabeledUnicastRoutes, 1)
+	require.Len(t, reactor.announcedLabeledUnicastRoutes[0].route.Labels, 1)
+	assert.Equal(t, uint32(0), reactor.announcedLabeledUnicastRoutes[0].route.Labels[0])
+}
+
+// TestHandleAnnounceLabeledUnicast_LabelBoundary verifies label boundary values.
+//
+// VALIDATES: Max label (1048575) accepted, overflow (1048576) rejected.
+//
+// PREVENTS: Boundary errors in label validation.
+func TestHandleAnnounceLabeledUnicast_LabelBoundary(t *testing.T) {
+	tests := []struct {
+		name    string
+		label   string
+		wantErr bool
+	}{
+		{"max valid", "1048575", false},
+		{"overflow", "1048576", true},
+		{"special label 3 (implicit null)", "3", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			reactor := &mockReactor{}
+			ctx := &CommandContext{Reactor: reactor}
+
+			args := []string{"labeled-unicast", "10.0.0.0/24", "label", tt.label, "next-hop", "1.2.3.4"}
+			resp, err := handleAnnounceIPv4(ctx, args)
+
+			if tt.wantErr {
+				require.Error(t, err)
+				assert.Equal(t, "error", resp.Status)
+			} else {
+				require.NoError(t, err)
+				assert.Equal(t, "done", resp.Status)
+			}
+		})
+	}
+}
+
+// TestHandleAnnounceLabeledUnicast_NlriMplsAlias verifies ExaBGP-compatible nlri-mpls SAFI.
+//
+// VALIDATES: "nlri-mpls" works as alias for "labeled-unicast".
+//
+// PREVENTS: ExaBGP compatibility issues.
+func TestHandleAnnounceLabeledUnicast_NlriMplsAlias(t *testing.T) {
+	reactor := &mockReactor{}
+	ctx := &CommandContext{Reactor: reactor}
+
+	// ExaBGP uses "nlri-mpls" as the SAFI name
+	args := []string{"nlri-mpls", "10.0.0.0/24", "label", "100", "next-hop", "1.2.3.4"}
+	resp, err := handleAnnounceIPv4(ctx, args)
+
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	assert.Equal(t, "done", resp.Status)
+	require.Len(t, reactor.announcedLabeledUnicastRoutes, 1)
+}
+
+// TestHandleAnnounceLabeledUnicast_AttributeValues verifies attribute values are parsed correctly.
+//
+// VALIDATES: MED, AS-path, and other attributes have correct values.
+//
+// PREVENTS: Attributes being accepted but values ignored.
+func TestHandleAnnounceLabeledUnicast_AttributeValues(t *testing.T) {
+	reactor := &mockReactor{}
+	ctx := &CommandContext{Reactor: reactor}
+
+	args := []string{
+		"labeled-unicast", "10.0.0.0/24",
+		"label", "100",
+		"next-hop", "1.2.3.4",
+		"origin", "egp",
+		"med", "500",
+		"local-preference", "150",
+		"as-path", "[65001", "65002]",
+		"community", "[65000:100", "65000:200]",
+		"large-community", "[65000:1:2]",
+	}
+	resp, err := handleAnnounceIPv4(ctx, args)
+
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	assert.Equal(t, "done", resp.Status)
+	require.Len(t, reactor.announcedLabeledUnicastRoutes, 1)
+
+	route := reactor.announcedLabeledUnicastRoutes[0].route
+
+	// Verify all attribute values
+	require.NotNil(t, route.Origin)
+	assert.Equal(t, uint8(1), *route.Origin) // EGP = 1
+
+	require.NotNil(t, route.MED)
+	assert.Equal(t, uint32(500), *route.MED)
+
+	require.NotNil(t, route.LocalPreference)
+	assert.Equal(t, uint32(150), *route.LocalPreference)
+
+	require.Len(t, route.ASPath, 2)
+	assert.Equal(t, uint32(65001), route.ASPath[0])
+	assert.Equal(t, uint32(65002), route.ASPath[1])
+
+	require.Len(t, route.Communities, 2)
+
+	require.Len(t, route.LargeCommunities, 1)
+	assert.Equal(t, uint32(65000), route.LargeCommunities[0].GlobalAdmin)
 }

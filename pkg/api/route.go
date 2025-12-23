@@ -158,18 +158,24 @@ func parseSplitArg(args []string) (int, bool) {
 	return 0, false
 }
 
-// parseSAFI validates SAFI and returns remaining args with the SAFI name.
-// Supported SAFIs: unicast, mpls-vpn.
+// parseSAFI validates SAFI and returns remaining args with the normalized SAFI name.
+// Supported SAFIs: unicast, nlri-mpls (or labeled-unicast), mpls-vpn.
+// Note: "labeled-unicast" is normalized to "nlri-mpls" for ExaBGP compatibility.
 func parseSAFI(args []string) (safi string, rest []string, err error) {
 	if len(args) < 1 {
-		return "", nil, fmt.Errorf("missing SAFI (expected: unicast or mpls-vpn)")
+		return "", nil, fmt.Errorf("missing SAFI (expected: %s, %s, or %s)",
+			SAFINameUnicast, SAFINameNLRIMPLS, SAFINameMPLSVPN)
 	}
 	safi = strings.ToLower(args[0])
 	switch safi {
-	case "unicast", "mpls-vpn":
+	case SAFINameUnicast, SAFINameMPLSVPN:
 		return safi, args[1:], nil
+	case SAFINameNLRIMPLS, "labeled-unicast":
+		// Normalize to nlri-mpls for ExaBGP compatibility
+		return SAFINameNLRIMPLS, args[1:], nil
 	default:
-		return "", nil, fmt.Errorf("unsupported SAFI: %s (expected: unicast or mpls-vpn)", args[0])
+		return "", nil, fmt.Errorf("unsupported SAFI: %s (expected: %s, %s, or %s)",
+			args[0], SAFINameUnicast, SAFINameNLRIMPLS, SAFINameMPLSVPN)
 	}
 }
 
@@ -323,6 +329,85 @@ type ParsedRoute struct {
 	NextHopSelf bool // true if "next-hop self" was specified
 }
 
+// parseCommonAttribute parses a common BGP attribute by keyword.
+// Returns the number of args consumed (0 if keyword not handled), or error.
+// This centralizes parsing logic for origin, med, local-preference, as-path,
+// community, and large-community to avoid duplication across route types.
+func parseCommonAttribute(key string, args []string, idx int, attrs *PathAttributes) (int, error) {
+	switch key {
+	case "origin":
+		if idx+1 >= len(args) {
+			return 0, fmt.Errorf("missing origin value")
+		}
+		origin, err := parseOrigin(args[idx+1])
+		if err != nil {
+			return 0, err
+		}
+		attrs.Origin = &origin
+		return 1, nil
+
+	case "local-preference":
+		if idx+1 >= len(args) {
+			return 0, fmt.Errorf("missing local-preference value")
+		}
+		lp, err := strconv.ParseUint(args[idx+1], 10, 32)
+		if err != nil {
+			return 0, fmt.Errorf("invalid local-preference: %s", args[idx+1])
+		}
+		lpVal := uint32(lp)
+		attrs.LocalPreference = &lpVal
+		return 1, nil
+
+	case "med":
+		if idx+1 >= len(args) {
+			return 0, fmt.Errorf("missing med value")
+		}
+		med, err := strconv.ParseUint(args[idx+1], 10, 32)
+		if err != nil {
+			return 0, fmt.Errorf("invalid med: %s", args[idx+1])
+		}
+		medVal := uint32(med)
+		attrs.MED = &medVal
+		return 1, nil
+
+	case "as-path":
+		if idx+1 >= len(args) {
+			return 0, fmt.Errorf("missing as-path value")
+		}
+		asPath, consumed, err := parseASPath(args[idx+1:])
+		if err != nil {
+			return 0, err
+		}
+		attrs.ASPath = asPath
+		return consumed, nil
+
+	case "community":
+		if idx+1 >= len(args) {
+			return 0, fmt.Errorf("missing community value")
+		}
+		comms, consumed, err := parseCommunities(args[idx+1:])
+		if err != nil {
+			return 0, err
+		}
+		attrs.Communities = comms
+		return consumed, nil
+
+	case "large-community":
+		if idx+1 >= len(args) {
+			return 0, fmt.Errorf("missing large-community value")
+		}
+		lcomms, consumed, err := parseLargeCommunities(args[idx+1:])
+		if err != nil {
+			return 0, err
+		}
+		attrs.LargeCommunities = lcomms
+		return consumed, nil
+	}
+
+	// Not a common attribute
+	return 0, nil
+}
+
 // parseRouteAttributes parses route attributes from args with keyword validation.
 // The allowedKeywords set defines which keywords are valid for the route family.
 // Returns error for unknown or invalid keywords.
@@ -355,6 +440,17 @@ func parseRouteAttributes(args []string, allowedKeywords KeywordSet) (ParsedRout
 			return ParsedRoute{}, fmt.Errorf("%w: '%s' not valid for this route family", ErrInvalidKeyword, key)
 		}
 
+		// Try common attribute parsing first
+		consumed, err := parseCommonAttribute(key, args, i, &result.Route.PathAttributes)
+		if err != nil {
+			return ParsedRoute{}, err
+		}
+		if consumed > 0 {
+			i += consumed
+			continue
+		}
+
+		// Handle route-specific keywords
 		switch key {
 		case "next-hop":
 			if i+1 >= len(args) {
@@ -371,74 +467,6 @@ func parseRouteAttributes(args []string, allowedKeywords KeywordSet) (ParsedRout
 				result.Route.NextHop = nh
 			}
 			i++
-
-		case "origin":
-			if i+1 >= len(args) {
-				return ParsedRoute{}, fmt.Errorf("missing origin value")
-			}
-			origin, err := parseOrigin(args[i+1])
-			if err != nil {
-				return ParsedRoute{}, err
-			}
-			result.Route.Origin = &origin
-			i++
-
-		case "local-preference":
-			if i+1 >= len(args) {
-				return ParsedRoute{}, fmt.Errorf("missing local-preference value")
-			}
-			lp, err := strconv.ParseUint(args[i+1], 10, 32)
-			if err != nil {
-				return ParsedRoute{}, fmt.Errorf("invalid local-preference: %s", args[i+1])
-			}
-			lpVal := uint32(lp)
-			result.Route.LocalPreference = &lpVal
-			i++
-
-		case "med":
-			if i+1 >= len(args) {
-				return ParsedRoute{}, fmt.Errorf("missing med value")
-			}
-			med, err := strconv.ParseUint(args[i+1], 10, 32)
-			if err != nil {
-				return ParsedRoute{}, fmt.Errorf("invalid med: %s", args[i+1])
-			}
-			medVal := uint32(med)
-			result.Route.MED = &medVal
-			i++
-
-		case "as-path":
-			if i+1 >= len(args) {
-				return ParsedRoute{}, fmt.Errorf("missing as-path value")
-			}
-			asPath, consumed, err := parseASPath(args[i+1:])
-			if err != nil {
-				return ParsedRoute{}, err
-			}
-			result.Route.ASPath = asPath
-			i += consumed
-
-		case "community":
-			if i+1 >= len(args) {
-				return ParsedRoute{}, fmt.Errorf("missing community value")
-			}
-			comms, consumed, err := parseCommunities(args[i+1:])
-			if err != nil {
-				return ParsedRoute{}, err
-			}
-			result.Route.Communities = comms
-			i += consumed
-
-		case "large-community":
-			if i+1 >= len(args) {
-				return ParsedRoute{}, fmt.Errorf("missing large-community value")
-			}
-			lcomms, consumed, err := parseLargeCommunities(args[i+1:])
-			if err != nil {
-				return ParsedRoute{}, err
-			}
-			result.Route.LargeCommunities = lcomms
-			i += consumed
 
 		case "split":
 			// Just skip - split is handled by caller
@@ -647,8 +675,9 @@ func withdrawRouteImpl(ctx *CommandContext, args []string) (*Response, error) {
 }
 
 // handleAnnounceIPv4 handles: announce ipv4 <safi> <prefix> [attributes...].
-// Supported SAFIs: unicast, mpls-vpn.
+// Supported SAFIs: unicast, nlri-mpls (or labeled-unicast), mpls-vpn.
 // Example: announce ipv4 unicast 10.0.0.0/24 next-hop 192.168.1.1.
+// Example: announce ipv4 nlri-mpls 10.0.0.0/24 label 100 next-hop 1.2.3.4.
 // Example: announce ipv4 mpls-vpn 10.0.0.0/24 rd 100:100 label 100 next-hop 1.2.3.4.
 func handleAnnounceIPv4(ctx *CommandContext, args []string) (*Response, error) {
 	// Parse SAFI
@@ -673,17 +702,21 @@ func handleAnnounceIPv4(ctx *CommandContext, args []string) (*Response, error) {
 	}
 
 	// Route to appropriate handler based on SAFI
-	if safi == "mpls-vpn" {
+	switch safi {
+	case SAFINameMPLSVPN:
 		return announceL3VPNImpl(ctx, rest)
+	case SAFINameNLRIMPLS:
+		return announceLabeledUnicastImpl(ctx, rest)
+	default:
+		// Delegate unicast to shared implementation
+		return announceRouteImpl(ctx, rest)
 	}
-
-	// Delegate unicast to shared implementation
-	return announceRouteImpl(ctx, rest)
 }
 
 // handleAnnounceIPv6 handles: announce ipv6 <safi> <prefix> [attributes...].
-// Supported SAFIs: unicast, mpls-vpn.
+// Supported SAFIs: unicast, nlri-mpls (or labeled-unicast), mpls-vpn.
 // Example: announce ipv6 unicast 2001:db8::/32 next-hop 2001::1.
+// Example: announce ipv6 nlri-mpls 2001:db8::/32 label 100 next-hop 2001::1.
 // Example: announce ipv6 mpls-vpn 2001:db8::/32 rd 100:100 label 100 next-hop 2001::1.
 func handleAnnounceIPv6(ctx *CommandContext, args []string) (*Response, error) {
 	// Parse SAFI
@@ -708,17 +741,21 @@ func handleAnnounceIPv6(ctx *CommandContext, args []string) (*Response, error) {
 	}
 
 	// Route to appropriate handler based on SAFI
-	if safi == "mpls-vpn" {
+	switch safi {
+	case SAFINameMPLSVPN:
 		return announceL3VPNImpl(ctx, rest)
+	case SAFINameNLRIMPLS:
+		return announceLabeledUnicastImpl(ctx, rest)
+	default:
+		// Delegate unicast to shared implementation
+		return announceRouteImpl(ctx, rest)
 	}
-
-	// Delegate unicast to shared implementation
-	return announceRouteImpl(ctx, rest)
 }
 
 // handleWithdrawIPv4 handles: withdraw ipv4 <safi> <prefix> [attributes...].
-// Supported SAFIs: unicast, mpls-vpn.
+// Supported SAFIs: unicast, nlri-mpls (or labeled-unicast), mpls-vpn.
 // Example: withdraw ipv4 unicast 10.0.0.0/24.
+// Example: withdraw ipv4 nlri-mpls 10.0.0.0/24 label 100.
 // Example: withdraw ipv4 mpls-vpn 10.0.0.0/24 rd 100:100.
 func handleWithdrawIPv4(ctx *CommandContext, args []string) (*Response, error) {
 	// Parse SAFI
@@ -743,17 +780,21 @@ func handleWithdrawIPv4(ctx *CommandContext, args []string) (*Response, error) {
 	}
 
 	// Route to appropriate handler based on SAFI
-	if safi == "mpls-vpn" {
+	switch safi {
+	case SAFINameMPLSVPN:
 		return withdrawL3VPNImpl(ctx, rest)
+	case SAFINameNLRIMPLS:
+		return withdrawLabeledUnicastImpl(ctx, rest)
+	default:
+		// Delegate unicast to shared implementation
+		return withdrawRouteImpl(ctx, rest)
 	}
-
-	// Delegate unicast to shared implementation
-	return withdrawRouteImpl(ctx, rest)
 }
 
 // handleWithdrawIPv6 handles: withdraw ipv6 <safi> <prefix> [attributes...].
-// Supported SAFIs: unicast, mpls-vpn.
+// Supported SAFIs: unicast, nlri-mpls (or labeled-unicast), mpls-vpn.
 // Example: withdraw ipv6 unicast 2001:db8::/32.
+// Example: withdraw ipv6 nlri-mpls 2001:db8::/32 label 100.
 // Example: withdraw ipv6 mpls-vpn 2001:db8::/32 rd 100:100.
 func handleWithdrawIPv6(ctx *CommandContext, args []string) (*Response, error) {
 	// Parse SAFI
@@ -778,12 +819,15 @@ func handleWithdrawIPv6(ctx *CommandContext, args []string) (*Response, error) {
 	}
 
 	// Route to appropriate handler based on SAFI
-	if safi == "mpls-vpn" {
+	switch safi {
+	case SAFINameMPLSVPN:
 		return withdrawL3VPNImpl(ctx, rest)
+	case SAFINameNLRIMPLS:
+		return withdrawLabeledUnicastImpl(ctx, rest)
+	default:
+		// Delegate unicast to shared implementation
+		return withdrawRouteImpl(ctx, rest)
 	}
-
-	// Delegate unicast to shared implementation
-	return withdrawRouteImpl(ctx, rest)
 }
 
 // ErrMissingLabel is returned when label is required but not provided.
@@ -964,6 +1008,139 @@ func withdrawL3VPNImpl(ctx *CommandContext, args []string) (*Response, error) {
 	}, nil
 }
 
+// announceLabeledUnicastImpl handles MPLS labeled unicast route announcements (SAFI 4).
+// Args format: <prefix> label <labels> next-hop <addr> [attributes...].
+func announceLabeledUnicastImpl(ctx *CommandContext, args []string) (*Response, error) {
+	if len(args) < 1 {
+		return &Response{Status: "error", Error: "missing prefix"}, ErrMissingPrefix
+	}
+
+	route, err := parseLabeledUnicastAttributes(args)
+	if err != nil {
+		return &Response{Status: "error", Error: err.Error()}, err
+	}
+
+	// Validate required fields
+	if len(route.Labels) == 0 {
+		return &Response{Status: "error", Error: "missing label"}, ErrMissingLabel
+	}
+	if !route.NextHop.IsValid() {
+		return &Response{Status: "error", Error: "missing next-hop"}, ErrMissingNextHop
+	}
+
+	peerSelector := ctx.PeerSelector()
+	if err := ctx.Reactor.AnnounceLabeledUnicast(peerSelector, route); err != nil {
+		return &Response{
+			Status: "error",
+			Error:  fmt.Sprintf("failed to announce labeled-unicast: %v", err),
+		}, err
+	}
+
+	return &Response{
+		Status: "done",
+		Data: map[string]any{
+			"peer":   peerSelector,
+			"prefix": route.Prefix.String(),
+			"labels": route.Labels,
+		},
+	}, nil
+}
+
+// withdrawLabeledUnicastImpl handles MPLS labeled unicast route withdrawals.
+// Args format: <prefix> label <labels>.
+func withdrawLabeledUnicastImpl(ctx *CommandContext, args []string) (*Response, error) {
+	if len(args) < 1 {
+		return &Response{Status: "error", Error: "missing prefix"}, ErrMissingPrefix
+	}
+
+	route, err := parseLabeledUnicastAttributes(args)
+	if err != nil {
+		return &Response{Status: "error", Error: err.Error()}, err
+	}
+
+	peerSelector := ctx.PeerSelector()
+	if err := ctx.Reactor.WithdrawLabeledUnicast(peerSelector, route); err != nil {
+		return &Response{
+			Status: "error",
+			Error:  fmt.Sprintf("failed to withdraw labeled-unicast: %v", err),
+		}, err
+	}
+
+	return &Response{
+		Status: "done",
+		Data: map[string]any{
+			"peer":   peerSelector,
+			"prefix": route.Prefix.String(),
+		},
+	}, nil
+}
+
+// parseLabeledUnicastAttributes parses MPLS labeled unicast route attributes.
+// Args format: <prefix> [keyword value]...
+// Supports MPLSKeywords: label plus all unicast keywords (no RD/RT).
+func parseLabeledUnicastAttributes(args []string) (LabeledUnicastRoute, error) {
+	if len(args) < 1 {
+		return LabeledUnicastRoute{}, ErrMissingPrefix
+	}
+
+	// Parse prefix (first arg)
+	prefix, err := netip.ParsePrefix(args[0])
+	if err != nil {
+		return LabeledUnicastRoute{}, fmt.Errorf("%w: %s", ErrInvalidPrefix, args[0])
+	}
+
+	route := LabeledUnicastRoute{
+		Prefix: prefix,
+	}
+
+	// Parse remaining args as key-value pairs
+	for i := 1; i < len(args); i++ {
+		key := strings.ToLower(args[i])
+
+		// Validate keyword against MPLS keywords (not VPN - no RD/RT)
+		if !MPLSKeywords[key] {
+			return LabeledUnicastRoute{}, fmt.Errorf("%w: '%s' not valid for labeled-unicast", ErrInvalidKeyword, key)
+		}
+
+		// Try common attribute parsing first (writes directly to embedded PathAttributes)
+		consumed, err := parseCommonAttribute(key, args, i, &route.PathAttributes)
+		if err != nil {
+			return LabeledUnicastRoute{}, err
+		}
+		if consumed > 0 {
+			i += consumed
+			continue
+		}
+
+		// Handle MPLS-specific keywords
+		switch key {
+		case "label":
+			if i+1 >= len(args) {
+				return LabeledUnicastRoute{}, ErrMissingLabel
+			}
+			labels, consumed, err := parseLabels(args[i+1:])
+			if err != nil {
+				return LabeledUnicastRoute{}, err
+			}
+			route.Labels = labels
+			i += consumed
+
+		case "next-hop":
+			if i+1 >= len(args) {
+				return LabeledUnicastRoute{}, ErrMissingNextHop
+			}
+			nh, err := netip.ParseAddr(args[i+1])
+			if err != nil {
+				return LabeledUnicastRoute{}, fmt.Errorf("%w: %s", ErrInvalidNextHop, args[i+1])
+			}
+			route.NextHop = nh
+			i++
+		}
+	}
+
+	return route, nil
+}
+
 // parseL3VPNAttributes parses L3VPN route attributes from args.
 // Args format: <prefix> [keyword value]...
 // Supports VPNKeywords: rd, rt, label, plus all unicast keywords.
@@ -991,6 +1168,17 @@ func parseL3VPNAttributes(args []string) (L3VPNRoute, error) {
 			return L3VPNRoute{}, fmt.Errorf("%w: '%s' not valid for L3VPN", ErrInvalidKeyword, key)
 		}
 
+		// Try common attribute parsing first (writes directly to embedded PathAttributes)
+		consumed, err := parseCommonAttribute(key, args, i, &route.PathAttributes)
+		if err != nil {
+			return L3VPNRoute{}, err
+		}
+		if consumed > 0 {
+			i += consumed
+			continue
+		}
+
+		// Handle VPN-specific keywords
 		switch key {
 		case "rd":
 			if i+1 >= len(args) {
@@ -1027,80 +1215,6 @@ func parseL3VPNAttributes(args []string) (L3VPNRoute, error) {
 			}
 			route.NextHop = nh
 			i++
-
-		case "origin":
-			if i+1 >= len(args) {
-				return L3VPNRoute{}, fmt.Errorf("missing origin value")
-			}
-			origin, err := parseOrigin(args[i+1])
-			if err != nil {
-				return L3VPNRoute{}, err
-			}
-			route.Origin = &origin
-			i++
-
-		case "local-preference":
-			if i+1 >= len(args) {
-				return L3VPNRoute{}, fmt.Errorf("missing local-preference value")
-			}
-			lp, err := strconv.ParseUint(args[i+1], 10, 32)
-			if err != nil {
-				return L3VPNRoute{}, fmt.Errorf("invalid local-preference: %s", args[i+1])
-			}
-			lpVal := uint32(lp)
-			route.LocalPreference = &lpVal
-			i++
-
-		case "med":
-			if i+1 >= len(args) {
-				return L3VPNRoute{}, fmt.Errorf("missing med value")
-			}
-			med, err := strconv.ParseUint(args[i+1], 10, 32)
-			if err != nil {
-				return L3VPNRoute{}, fmt.Errorf("invalid med: %s", args[i+1])
-			}
-			medVal := uint32(med)
-			route.MED = &medVal
-			i++
-
-		case "as-path":
-			if i+1 >= len(args) {
-				return L3VPNRoute{}, fmt.Errorf("missing as-path value")
-			}
-			asPath, consumed, err := parseASPath(args[i+1:])
-			if err != nil {
-				return L3VPNRoute{}, err
-			}
-			route.ASPath = asPath
-			i += consumed
-
-		case "community":
-			if i+1 >= len(args) {
-				return L3VPNRoute{}, fmt.Errorf("missing community value")
-			}
-			comms, consumed, err := parseCommunities(args[i+1:])
-			if err != nil {
-				return L3VPNRoute{}, err
-			}
-			route.Communities = comms
-			i += consumed
-
-		case "large-community":
-			if i+1 >= len(args) {
-				return L3VPNRoute{}, fmt.Errorf("missing large-community value")
-			}
-			lcomms, consumed, err := parseLargeCommunities(args[i+1:])
-			if err != nil {
-				return L3VPNRoute{}, err
-			}
-			route.LargeCommunities = lcomms
-			i += consumed
-
-		case "split":
-			// Skip split - not supported for L3VPN
-			if i+1 < len(args) {
-				i++
-			}
 		}
 	}
 
@@ -1115,19 +1229,19 @@ func handleAnnounceEOR(ctx *CommandContext, args []string) (*Response, error) {
 	// Default to IPv4 unicast
 	afi := uint16(1) // IPv4
 	safi := uint8(1) // Unicast
-	family := "ipv4 unicast"
+	family := AFINameIPv4 + " " + SAFINameUnicast
 
 	// Parse optional family
 	if len(args) >= 2 {
 		afiStr := strings.ToLower(args[0])
 		safiStr := strings.ToLower(args[1])
 
-		switch afiStr { //nolint:goconst // String literals are clearer here
-		case "ipv4":
+		switch afiStr {
+		case AFINameIPv4:
 			afi = 1
-		case "ipv6":
+		case AFINameIPv6:
 			afi = 2
-		case "l2vpn":
+		case AFINameL2VPN:
 			afi = 25
 		default:
 			return &Response{
@@ -1136,16 +1250,16 @@ func handleAnnounceEOR(ctx *CommandContext, args []string) (*Response, error) {
 			}, ErrInvalidFamily
 		}
 
-		switch safiStr { //nolint:goconst // String literals are clearer here
-		case "unicast":
+		switch safiStr {
+		case SAFINameUnicast:
 			safi = 1
-		case "multicast":
+		case SAFINameMulticast:
 			safi = 2
-		case "evpn":
+		case SAFINameEVPN:
 			safi = 70
-		case "vpn", "mpls-vpn":
+		case "vpn", SAFINameMPLSVPN:
 			safi = 128
-		case "flowspec":
+		case SAFINameFlowSpec:
 			safi = 133
 		default:
 			return &Response{
@@ -1288,7 +1402,7 @@ func handleWithdrawFlow(ctx *CommandContext, args []string) (*Response, error) {
 // parseFlowSpecArgs parses FlowSpec command arguments.
 func parseFlowSpecArgs(args []string) (FlowSpecRoute, error) {
 	var route FlowSpecRoute
-	route.Family = "ipv4" // default
+	route.Family = AFINameIPv4 // default
 
 	inMatch := false
 	inThen := false
@@ -1321,7 +1435,7 @@ func parseFlowSpecArgs(args []string) (FlowSpecRoute, error) {
 				}
 				route.DestPrefix = &prefix
 				if prefix.Addr().Is6() {
-					route.Family = "ipv6"
+					route.Family = AFINameIPv6
 				}
 				i++
 
@@ -1332,7 +1446,7 @@ func parseFlowSpecArgs(args []string) (FlowSpecRoute, error) {
 				}
 				route.SourcePrefix = &prefix
 				if prefix.Addr().Is6() {
-					route.Family = "ipv6"
+					route.Family = AFINameIPv6
 				}
 				i++
 
@@ -1566,7 +1680,7 @@ func handleAnnounceL2VPN(ctx *CommandContext, args []string) (*Response, error) 
 	return &Response{
 		Status: "done",
 		Data: map[string]any{
-			"type":       "l2vpn",
+			"type":       AFINameL2VPN,
 			"route_type": route.RouteType,
 			"rd":         route.RD,
 		},
@@ -1600,7 +1714,7 @@ func handleWithdrawL2VPN(ctx *CommandContext, args []string) (*Response, error) 
 	return &Response{
 		Status: "done",
 		Data: map[string]any{
-			"type":       "l2vpn",
+			"type":       AFINameL2VPN,
 			"route_type": route.RouteType,
 			"rd":         route.RD,
 		},

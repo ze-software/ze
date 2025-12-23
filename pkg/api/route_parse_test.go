@@ -552,6 +552,71 @@ func TestParseRouteAttributes_UnicastKeywords(t *testing.T) {
 	}
 }
 
+// TestParseLabeledUnicastAttributes tests that labeled-unicast routes accept valid keywords.
+//
+// VALIDATES: Labeled-unicast routes accept unicast keywords plus label.
+//
+// PREVENTS: VPN-only keywords (rd, rt) being accepted for labeled-unicast.
+func TestParseLabeledUnicastAttributes(t *testing.T) {
+	tests := []struct {
+		name    string
+		args    []string
+		wantErr bool
+		errMsg  string // substring expected in error message
+	}{
+		// Valid MPLS keywords (unicast + label)
+		{
+			name:    "valid: label and next-hop",
+			args:    []string{"10.0.0.0/24", "label", "100", "next-hop", "1.2.3.4"},
+			wantErr: false,
+		},
+		{
+			name:    "valid: all MPLS keywords",
+			args:    []string{"10.0.0.0/24", "label", "100", "next-hop", "1.2.3.4", "origin", "igp", "med", "100", "local-preference", "200", "as-path", "[65001]", "community", "[2914:666]"},
+			wantErr: false,
+		},
+
+		// Invalid: VPN-only keywords should error for MPLS labeled-unicast
+		{
+			name:    "invalid: rd not valid for labeled-unicast",
+			args:    []string{"10.0.0.0/24", "label", "100", "next-hop", "1.2.3.4", "rd", "100:100"},
+			wantErr: true,
+			errMsg:  "rd",
+		},
+		{
+			name:    "invalid: rt not valid for labeled-unicast",
+			args:    []string{"10.0.0.0/24", "label", "100", "next-hop", "1.2.3.4", "rt", "100:100"},
+			wantErr: true,
+			errMsg:  "rt",
+		},
+		{
+			name:    "invalid: split not valid for labeled-unicast",
+			args:    []string{"10.0.0.0/23", "label", "100", "next-hop", "1.2.3.4", "split", "/24"},
+			wantErr: true,
+			errMsg:  "split",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			route, err := parseLabeledUnicastAttributes(tt.args)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("parseLabeledUnicastAttributes(%v) error = %v, wantErr %v", tt.args, err, tt.wantErr)
+				return
+			}
+			if tt.wantErr && tt.errMsg != "" {
+				if err == nil || !strings.Contains(err.Error(), tt.errMsg) {
+					t.Errorf("parseLabeledUnicastAttributes(%v) error = %v, want error containing %q", tt.args, err, tt.errMsg)
+				}
+			}
+			// Verify parsed result has valid prefix for success cases
+			if !tt.wantErr && !route.Prefix.IsValid() {
+				t.Errorf("parseLabeledUnicastAttributes(%v) returned invalid prefix", tt.args)
+			}
+		})
+	}
+}
+
 // TestParseLargeCommunities tests multiple large community parsing.
 func TestParseLargeCommunities(t *testing.T) {
 	tests := []struct {

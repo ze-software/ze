@@ -184,7 +184,7 @@ func (e *JSONEncoder) EOR(peer PeerInfo, family string) string {
 	peerObj["message"] = map[string]any{
 		"eor": map[string]any{
 			"afi":  family,
-			"safi": "unicast",
+			"safi": SAFINameUnicast,
 		},
 	}
 	msg["peer"] = peerObj
@@ -260,10 +260,10 @@ type RouteUpdate struct {
 // Family returns the address family string for JSON.
 func (r *RouteUpdate) Family() string {
 	if r.AFI == "" {
-		r.AFI = "ipv4" //nolint:goconst // Default value
+		r.AFI = AFINameIPv4
 	}
 	if r.SAFI == "" {
-		r.SAFI = "unicast"
+		r.SAFI = SAFINameUnicast
 	}
 	return r.AFI + " " + r.SAFI
 }

@@ -462,6 +462,18 @@ func (a *reactorAPIAdapter) WithdrawL3VPN(_ string, _ api.L3VPNRoute) error {
 	return errors.New("l3vpn: not implemented")
 }
 
+// AnnounceLabeledUnicast announces an MPLS labeled unicast route (SAFI 4).
+// TODO: Implement when labeled-unicast RIB integration is complete.
+func (a *reactorAPIAdapter) AnnounceLabeledUnicast(_ string, _ api.LabeledUnicastRoute) error {
+	return errors.New("labeled-unicast: not implemented")
+}
+
+// WithdrawLabeledUnicast withdraws an MPLS labeled unicast route.
+// TODO: Implement when labeled-unicast RIB integration is complete.
+func (a *reactorAPIAdapter) WithdrawLabeledUnicast(_ string, _ api.LabeledUnicastRoute) error {
+	return errors.New("labeled-unicast: not implemented")
+}
+
 // TeardownPeer gracefully closes a peer session.
 func (a *reactorAPIAdapter) TeardownPeer(addr netip.Addr, _ string) error {
 	a.r.mu.RLock()

@@ -17,6 +17,25 @@ import (
 	"github.com/exa-networks/zebgp/pkg/rib"
 )
 
+// AFI name constants for API use.
+// These match the string representations used in commands and JSON output.
+const (
+	AFINameIPv4  = "ipv4"
+	AFINameIPv6  = "ipv6"
+	AFINameL2VPN = "l2vpn"
+)
+
+// SAFI name constants for API use.
+// These match the string representations used in commands and JSON output.
+const (
+	SAFINameUnicast   = "unicast"
+	SAFINameMulticast = "multicast"
+	SAFINameMPLSVPN   = "mpls-vpn"
+	SAFINameNLRIMPLS  = "nlri-mpls" // ExaBGP name for labeled-unicast
+	SAFINameFlowSpec  = "flowspec"
+	SAFINameEVPN      = "evpn"
+)
+
 // Transaction errors.
 var (
 	ErrAlreadyInTransaction = errors.New("already in transaction")
@@ -58,19 +77,24 @@ type ReactorStats struct {
 	PeerCount int
 }
 
-// RouteSpec specifies a route for announcement.
-// Supports optional BGP path attributes that override iBGP defaults.
-type RouteSpec struct {
-	Prefix  netip.Prefix
-	NextHop netip.Addr
-
-	// Path attributes (optional - defaults applied if not set)
+// PathAttributes holds BGP path attributes common to all route types.
+// These attributes are optional - nil values use protocol defaults.
+// Embedding this struct in route types ensures consistency and reduces duplication.
+type PathAttributes struct {
 	Origin           *uint8           // 0=IGP, 1=EGP, 2=INCOMPLETE (nil = use default)
 	LocalPreference  *uint32          // LOCAL_PREF (nil = use default 100 for iBGP)
 	MED              *uint32          // MULTI_EXIT_DISC (nil = not sent)
 	ASPath           []uint32         // AS_PATH segments (nil = empty for iBGP)
 	Communities      []uint32         // Standard communities (2-byte ASN:2-byte value)
 	LargeCommunities []LargeCommunity // RFC 8092 large communities
+}
+
+// RouteSpec specifies a route for announcement.
+// Supports optional BGP path attributes that override iBGP defaults.
+type RouteSpec struct {
+	Prefix  netip.Prefix
+	NextHop netip.Addr
+	PathAttributes
 }
 
 // LargeCommunity is an alias for attribute.LargeCommunity (RFC 8092).
@@ -138,14 +162,17 @@ type L3VPNRoute struct {
 	RD      string       // Route Distinguisher (e.g., "100:100" or "1.2.3.4:100")
 	Labels  []uint32     // MPLS label stack (supports multiple labels per RFC 3032)
 	RT      string       // Route Target (extended community, optional)
+	PathAttributes
+}
 
-	// Standard path attributes (same as unicast)
-	Origin           *uint8           // 0=IGP, 1=EGP, 2=INCOMPLETE
-	LocalPreference  *uint32          // LOCAL_PREF
-	MED              *uint32          // MULTI_EXIT_DISC
-	ASPath           []uint32         // AS_PATH segments
-	Communities      []uint32         // Standard communities
-	LargeCommunities []LargeCommunity // RFC 8092 large communities
+// LabeledUnicastRoute specifies an MPLS labeled unicast route (SAFI 4).
+// This is unicast routing with MPLS labels but without VPN semantics (no RD/RT).
+// RFC 8277: Using BGP to Bind MPLS Labels to Address Prefixes.
+type LabeledUnicastRoute struct {
+	Prefix  netip.Prefix // IP prefix
+	NextHop netip.Addr   // Next-hop address
+	Labels  []uint32     // MPLS label stack
+	PathAttributes
 }
 
 // ReactorInterface defines what the API needs from the reactor.
@@ -193,6 +220,12 @@ type ReactorInterface interface {
 
 	// WithdrawL3VPN withdraws an L3VPN route from peers.
 	WithdrawL3VPN(peerSelector string, route L3VPNRoute) error
+
+	// AnnounceLabeledUnicast announces an MPLS labeled unicast route (SAFI 4).
+	AnnounceLabeledUnicast(peerSelector string, route LabeledUnicastRoute) error
+
+	// WithdrawLabeledUnicast withdraws an MPLS labeled unicast route.
+	WithdrawLabeledUnicast(peerSelector string, route LabeledUnicastRoute) error
 
 	// TeardownPeer gracefully closes a peer session.
 	// If reason is provided, it's sent in the NOTIFICATION message.

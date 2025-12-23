@@ -190,7 +190,56 @@ path-information <id>            # ADD-PATH path ID
 atomic-aggregate                 # Atomic aggregate flag
 aggregator <asn> <ip>            # Aggregator
 aigp <value>                     # AIGP
+split /<len>                     # ZeBGP: prefix expansion (see below)
 ```
+
+---
+
+## Split Keyword (ZeBGP Extension)
+
+The `split` keyword expands a prefix into smaller prefixes. All attributes apply to each generated prefix.
+
+### Syntax
+
+```
+split /<target-length>
+```
+
+### Example
+
+```
+# Announce 2 prefixes with one command
+announce route 10.0.0.0/23 next-hop 1.2.3.4 split /24
+# → 10.0.0.0/24 next-hop 1.2.3.4
+# → 10.0.1.0/24 next-hop 1.2.3.4
+
+# With MPLS label - label applies to each prefix
+announce ipv4 nlri-mpls 10.0.0.0/22 label 100 next-hop 1.2.3.4 split /24
+# → 10.0.0.0/24 label 100
+# → 10.0.1.0/24 label 100
+# → 10.0.2.0/24 label 100
+# → 10.0.3.0/24 label 100
+
+# With L3VPN - RD and label apply to each prefix
+announce ipv4 mpls-vpn 10.0.0.0/23 rd 100:1 label 200 next-hop 1.2.3.4 split /24
+# → 10.0.0.0/24 rd 100:1 label 200
+# → 10.0.1.0/24 rd 100:1 label 200
+```
+
+### Supported Families
+
+| Family | Split Support | Notes |
+|--------|---------------|-------|
+| IPv4/IPv6 unicast | ✅ | Standard prefix expansion |
+| IPv4/IPv6 nlri-mpls | ✅ | Label copied to each prefix |
+| IPv4/IPv6 mpls-vpn | ✅ | RD + label copied to each prefix |
+| FlowSpec | ❌ | N/A - uses match rules, not prefixes |
+| VPLS/EVPN | ❌ | Different NLRI structure |
+
+### Constraints
+
+- Target length must be longer than source prefix (e.g., /23 → /24, not /24 → /23)
+- Maximum expansion: implementation-dependent (avoid /8 → /32)
 
 ---
 
@@ -382,4 +431,4 @@ var Commands = []CommandInfo{
 
 ---
 
-**Last Updated:** 2025-12-19
+**Last Updated:** 2025-12-23
