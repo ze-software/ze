@@ -24,6 +24,14 @@ type mockReactor struct {
 		selector string
 		prefix   netip.Prefix
 	}
+	announcedL3VPNRoutes []struct {
+		selector string
+		route    L3VPNRoute
+	}
+	withdrawnL3VPNRoutes []struct {
+		selector string
+		route    L3VPNRoute
+	}
 }
 
 func (m *mockReactor) Peers() []PeerInfo {
@@ -79,6 +87,22 @@ func (m *mockReactor) WithdrawVPLS(_ string, _ VPLSRoute) error {
 }
 
 func (m *mockReactor) AnnounceL2VPN(_ string, _ L2VPNRoute) error {
+	return nil
+}
+
+func (m *mockReactor) AnnounceL3VPN(selector string, route L3VPNRoute) error {
+	m.announcedL3VPNRoutes = append(m.announcedL3VPNRoutes, struct {
+		selector string
+		route    L3VPNRoute
+	}{selector, route})
+	return nil
+}
+
+func (m *mockReactor) WithdrawL3VPN(selector string, route L3VPNRoute) error {
+	m.withdrawnL3VPNRoutes = append(m.withdrawnL3VPNRoutes, struct {
+		selector string
+		route    L3VPNRoute
+	}{selector, route})
 	return nil
 }
 
@@ -483,4 +507,349 @@ func TestHandleAnnounceIPv4_ValidKeywords(t *testing.T) {
 	require.NotNil(t, resp)
 	assert.Equal(t, "done", resp.Status)
 	assert.Len(t, reactor.announcedRoutes, 1)
+}
+
+// TestHandleAnnounceL3VPN_IPv4 verifies L3VPN IPv4 route announcement.
+//
+// VALIDATES: L3VPN routes with RD, label, next-hop are announced correctly.
+//
+// PREVENTS: L3VPN routes not being announced to reactor.
+func TestHandleAnnounceL3VPN_IPv4(t *testing.T) {
+	reactor := &mockReactor{}
+	ctx := &CommandContext{Reactor: reactor}
+
+	// announce ipv4 mpls-vpn 10.0.0.0/24 rd 100:100 label 100 next-hop 1.2.3.4
+	args := []string{"mpls-vpn", "10.0.0.0/24", "rd", "100:100", "label", "100", "next-hop", "1.2.3.4"}
+	resp, err := handleAnnounceIPv4(ctx, args)
+
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	assert.Equal(t, "done", resp.Status)
+	require.Len(t, reactor.announcedL3VPNRoutes, 1)
+
+	route := reactor.announcedL3VPNRoutes[0].route
+	assert.Equal(t, "100:100", route.RD)
+	require.Len(t, route.Labels, 1)
+	assert.Equal(t, uint32(100), route.Labels[0])
+	assert.Equal(t, netip.MustParseAddr("1.2.3.4"), route.NextHop)
+	assert.Equal(t, netip.MustParsePrefix("10.0.0.0/24"), route.Prefix)
+}
+
+// TestHandleAnnounceL3VPN_IPv6 verifies L3VPN IPv6 route announcement.
+//
+// VALIDATES: L3VPN IPv6 routes with RD, label, next-hop are announced correctly.
+//
+// PREVENTS: IPv6 VPN routes not working.
+func TestHandleAnnounceL3VPN_IPv6(t *testing.T) {
+	reactor := &mockReactor{}
+	ctx := &CommandContext{Reactor: reactor}
+
+	// announce ipv6 mpls-vpn 2001:db8::/32 rd 100:100 label 100 next-hop 2001::1
+	args := []string{"mpls-vpn", "2001:db8::/32", "rd", "100:100", "label", "100", "next-hop", "2001::1"}
+	resp, err := handleAnnounceIPv6(ctx, args)
+
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	assert.Equal(t, "done", resp.Status)
+	require.Len(t, reactor.announcedL3VPNRoutes, 1)
+
+	route := reactor.announcedL3VPNRoutes[0].route
+	assert.Equal(t, "100:100", route.RD)
+	require.Len(t, route.Labels, 1)
+	assert.Equal(t, uint32(100), route.Labels[0])
+	assert.Equal(t, netip.MustParseAddr("2001::1"), route.NextHop)
+	assert.Equal(t, netip.MustParsePrefix("2001:db8::/32"), route.Prefix)
+}
+
+// TestHandleAnnounceL3VPN_LabelZero verifies label=0 (Explicit Null) is valid.
+//
+// VALIDATES: MPLS label 0 is accepted per RFC 3032.
+//
+// PREVENTS: Label 0 being rejected as "missing".
+func TestHandleAnnounceL3VPN_LabelZero(t *testing.T) {
+	reactor := &mockReactor{}
+	ctx := &CommandContext{Reactor: reactor}
+
+	// Label 0 = IPv4 Explicit Null per RFC 3032
+	args := []string{"mpls-vpn", "10.0.0.0/24", "rd", "100:100", "label", "0", "next-hop", "1.2.3.4"}
+	resp, err := handleAnnounceIPv4(ctx, args)
+
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	assert.Equal(t, "done", resp.Status)
+	require.Len(t, reactor.announcedL3VPNRoutes, 1)
+	require.Len(t, reactor.announcedL3VPNRoutes[0].route.Labels, 1)
+	assert.Equal(t, uint32(0), reactor.announcedL3VPNRoutes[0].route.Labels[0])
+}
+
+// TestHandleAnnounceL3VPN_LabelStack verifies label stack support.
+//
+// VALIDATES: Multiple labels can be specified as [label1, label2, ...].
+//
+// PREVENTS: Label stacks being rejected.
+func TestHandleAnnounceL3VPN_LabelStack(t *testing.T) {
+	reactor := &mockReactor{}
+	ctx := &CommandContext{Reactor: reactor}
+
+	args := []string{"mpls-vpn", "10.0.0.0/24", "rd", "100:100", "label", "[100", "200", "300]", "next-hop", "1.2.3.4"}
+	resp, err := handleAnnounceIPv4(ctx, args)
+
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	assert.Equal(t, "done", resp.Status)
+	require.Len(t, reactor.announcedL3VPNRoutes, 1)
+
+	labels := reactor.announcedL3VPNRoutes[0].route.Labels
+	require.Len(t, labels, 3)
+	assert.Equal(t, uint32(100), labels[0])
+	assert.Equal(t, uint32(200), labels[1])
+	assert.Equal(t, uint32(300), labels[2])
+}
+
+// TestHandleAnnounceL3VPN_LabelBoundary verifies label boundary values.
+//
+// VALIDATES: Max label (1048575) accepted, overflow (1048576) rejected.
+//
+// PREVENTS: Boundary errors in label validation.
+func TestHandleAnnounceL3VPN_LabelBoundary(t *testing.T) {
+	tests := []struct {
+		name    string
+		label   string
+		wantErr bool
+	}{
+		{"max valid", "1048575", false},
+		{"overflow", "1048576", true},
+		{"special label 3 (implicit null)", "3", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			reactor := &mockReactor{}
+			ctx := &CommandContext{Reactor: reactor}
+
+			args := []string{"mpls-vpn", "10.0.0.0/24", "rd", "100:100", "label", tt.label, "next-hop", "1.2.3.4"}
+			resp, err := handleAnnounceIPv4(ctx, args)
+
+			if tt.wantErr {
+				require.Error(t, err)
+				assert.Equal(t, "error", resp.Status)
+			} else {
+				require.NoError(t, err)
+				assert.Equal(t, "done", resp.Status)
+			}
+		})
+	}
+}
+
+// TestHandleAnnounceL3VPN_LabelStackFormats verifies different label stack formats.
+//
+// VALIDATES: Space-separated and comma-separated label stacks work.
+//
+// PREVENTS: Label stack parsing failures.
+func TestHandleAnnounceL3VPN_LabelStackFormats(t *testing.T) {
+	tests := []struct {
+		name   string
+		args   []string
+		labels []uint32
+	}{
+		{"comma separated", []string{"mpls-vpn", "10.0.0.0/24", "rd", "100:100", "label", "[100,200,300]", "next-hop", "1.2.3.4"}, []uint32{100, 200, 300}},
+		{"space separated", []string{"mpls-vpn", "10.0.0.0/24", "rd", "100:100", "label", "[100", "200", "300]", "next-hop", "1.2.3.4"}, []uint32{100, 200, 300}},
+		{"single in brackets", []string{"mpls-vpn", "10.0.0.0/24", "rd", "100:100", "label", "[100]", "next-hop", "1.2.3.4"}, []uint32{100}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			reactor := &mockReactor{}
+			ctx := &CommandContext{Reactor: reactor}
+
+			resp, err := handleAnnounceIPv4(ctx, tt.args)
+
+			require.NoError(t, err)
+			require.NotNil(t, resp)
+			assert.Equal(t, "done", resp.Status)
+			require.Len(t, reactor.announcedL3VPNRoutes, 1)
+			assert.Equal(t, tt.labels, reactor.announcedL3VPNRoutes[0].route.Labels)
+		})
+	}
+}
+
+// TestHandleAnnounceL3VPN_InvalidRDFormat verifies RD format validation.
+//
+// VALIDATES: Invalid RD formats are rejected.
+//
+// PREVENTS: Malformed RDs being accepted.
+func TestHandleAnnounceL3VPN_InvalidRDFormat(t *testing.T) {
+	tests := []struct {
+		name string
+		rd   string
+	}{
+		{"no colon", "100100"},
+		{"invalid IP", "999.999.999.999:100"},
+		{"empty prefix", ":100"},
+		{"empty suffix", "100:"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			reactor := &mockReactor{}
+			ctx := &CommandContext{Reactor: reactor}
+
+			args := []string{"mpls-vpn", "10.0.0.0/24", "rd", tt.rd, "label", "100", "next-hop", "1.2.3.4"}
+			resp, err := handleAnnounceIPv4(ctx, args)
+
+			require.Error(t, err)
+			require.NotNil(t, resp)
+			assert.Equal(t, "error", resp.Status)
+		})
+	}
+}
+
+// TestHandleAnnounceL3VPN_ValidRDFormats verifies all valid RD formats work.
+//
+// VALIDATES: Type 0, 1, and 2 RD formats are accepted, including boundary values.
+//
+// PREVENTS: Valid RDs being rejected.
+func TestHandleAnnounceL3VPN_ValidRDFormats(t *testing.T) {
+	tests := []struct {
+		name string
+		rd   string
+	}{
+		// Type 0: 2-byte ASN : 4-byte value
+		{"Type 0: basic", "65000:100"},
+		{"Type 0: min", "0:0"},
+		{"Type 0: max ASN", "65535:100"},
+		{"Type 0: max value", "65535:4294967295"},
+
+		// Type 1: IPv4 : 2-byte value
+		{"Type 1: basic", "1.2.3.4:100"},
+		{"Type 1: max IP", "255.255.255.255:100"},
+		{"Type 1: zero IP", "0.0.0.0:100"},
+		{"Type 1: max value", "1.2.3.4:65535"},
+
+		// Type 2: 4-byte ASN : 2-byte value
+		{"Type 2: basic", "4200000000:100"},
+		{"Type 2: max ASN", "4294967295:100"},
+		{"Type 2: max value", "4294967295:65535"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			reactor := &mockReactor{}
+			ctx := &CommandContext{Reactor: reactor}
+
+			args := []string{"mpls-vpn", "10.0.0.0/24", "rd", tt.rd, "label", "100", "next-hop", "1.2.3.4"}
+			resp, err := handleAnnounceIPv4(ctx, args)
+
+			require.NoError(t, err)
+			require.NotNil(t, resp)
+			assert.Equal(t, "done", resp.Status)
+		})
+	}
+}
+
+// TestHandleAnnounceL3VPN_RequiresRD verifies RD is required for L3VPN.
+//
+// VALIDATES: Missing RD returns error.
+//
+// PREVENTS: Routes without RD being accepted.
+func TestHandleAnnounceL3VPN_RequiresRD(t *testing.T) {
+	reactor := &mockReactor{}
+	ctx := &CommandContext{Reactor: reactor}
+
+	// Missing RD should fail
+	args := []string{"mpls-vpn", "10.0.0.0/24", "label", "100", "next-hop", "1.2.3.4"}
+	resp, err := handleAnnounceIPv4(ctx, args)
+
+	require.Error(t, err)
+	require.NotNil(t, resp)
+	assert.Equal(t, "error", resp.Status)
+	assert.Contains(t, resp.Error, "rd")
+}
+
+// TestHandleAnnounceL3VPN_RequiresLabel verifies label is required for L3VPN.
+//
+// VALIDATES: Missing label returns error.
+//
+// PREVENTS: Routes without label being accepted.
+func TestHandleAnnounceL3VPN_RequiresLabel(t *testing.T) {
+	reactor := &mockReactor{}
+	ctx := &CommandContext{Reactor: reactor}
+
+	// Missing label should fail
+	args := []string{"mpls-vpn", "10.0.0.0/24", "rd", "100:100", "next-hop", "1.2.3.4"}
+	resp, err := handleAnnounceIPv4(ctx, args)
+
+	require.Error(t, err)
+	require.NotNil(t, resp)
+	assert.Equal(t, "error", resp.Status)
+	assert.Contains(t, resp.Error, "label")
+}
+
+// TestHandleAnnounceL3VPN_WithRT verifies Route Target support.
+//
+// VALIDATES: Route target (extended community) is parsed.
+//
+// PREVENTS: RT being ignored.
+func TestHandleAnnounceL3VPN_WithRT(t *testing.T) {
+	reactor := &mockReactor{}
+	ctx := &CommandContext{Reactor: reactor}
+
+	args := []string{"mpls-vpn", "10.0.0.0/24", "rd", "100:100", "label", "100", "next-hop", "1.2.3.4", "rt", "100:200"}
+	resp, err := handleAnnounceIPv4(ctx, args)
+
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	assert.Equal(t, "done", resp.Status)
+	require.Len(t, reactor.announcedL3VPNRoutes, 1)
+	assert.Equal(t, "100:200", reactor.announcedL3VPNRoutes[0].route.RT)
+}
+
+// TestHandleAnnounceL3VPN_WithAttributes verifies standard attributes work.
+//
+// VALIDATES: Origin, local-pref, MED, AS-path, communities work with L3VPN.
+//
+// PREVENTS: Standard attributes being rejected for L3VPN.
+func TestHandleAnnounceL3VPN_WithAttributes(t *testing.T) {
+	reactor := &mockReactor{}
+	ctx := &CommandContext{Reactor: reactor}
+
+	args := []string{
+		"mpls-vpn", "10.0.0.0/24",
+		"rd", "100:100",
+		"label", "100",
+		"next-hop", "1.2.3.4",
+		"origin", "igp",
+		"local-preference", "200",
+		"community", "[65000:100]",
+	}
+	resp, err := handleAnnounceIPv4(ctx, args)
+
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	assert.Equal(t, "done", resp.Status)
+	require.Len(t, reactor.announcedL3VPNRoutes, 1)
+
+	route := reactor.announcedL3VPNRoutes[0].route
+	require.NotNil(t, route.Origin)
+	assert.Equal(t, uint8(0), *route.Origin) // IGP
+	require.NotNil(t, route.LocalPreference)
+	assert.Equal(t, uint32(200), *route.LocalPreference)
+}
+
+// TestHandleWithdrawL3VPN_IPv4 verifies L3VPN IPv4 route withdrawal.
+//
+// VALIDATES: L3VPN routes can be withdrawn.
+//
+// PREVENTS: Inability to withdraw L3VPN routes.
+func TestHandleWithdrawL3VPN_IPv4(t *testing.T) {
+	reactor := &mockReactor{}
+	ctx := &CommandContext{Reactor: reactor}
+
+	// withdraw ipv4 mpls-vpn 10.0.0.0/24 rd 100:100
+	args := []string{"mpls-vpn", "10.0.0.0/24", "rd", "100:100"}
+	resp, err := handleWithdrawIPv4(ctx, args)
+
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	assert.Equal(t, "done", resp.Status)
 }

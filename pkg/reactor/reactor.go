@@ -450,6 +450,18 @@ func (a *reactorAPIAdapter) WithdrawL2VPN(_ string, _ api.L2VPNRoute) error {
 	return errors.New("l2vpn: not implemented")
 }
 
+// AnnounceL3VPN announces an L3VPN (MPLS VPN) route to matching peers.
+// TODO: Implement when L3VPN RIB integration is complete.
+func (a *reactorAPIAdapter) AnnounceL3VPN(_ string, _ api.L3VPNRoute) error {
+	return errors.New("l3vpn: not implemented")
+}
+
+// WithdrawL3VPN withdraws an L3VPN route from matching peers.
+// TODO: Implement when L3VPN RIB integration is complete.
+func (a *reactorAPIAdapter) WithdrawL3VPN(_ string, _ api.L3VPNRoute) error {
+	return errors.New("l3vpn: not implemented")
+}
+
 // TeardownPeer gracefully closes a peer session.
 func (a *reactorAPIAdapter) TeardownPeer(addr netip.Addr, _ string) error {
 	a.r.mu.RLock()

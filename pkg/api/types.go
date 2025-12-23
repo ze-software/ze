@@ -130,6 +130,24 @@ type L2VPNRoute struct {
 	NextHop netip.Addr
 }
 
+// L3VPNRoute specifies an L3VPN (MPLS VPN) route for announcement.
+// Supports VPNv4 (AFI=1, SAFI=128) and VPNv6 (AFI=2, SAFI=128) per RFC 4364.
+type L3VPNRoute struct {
+	Prefix  netip.Prefix // IP prefix
+	NextHop netip.Addr   // Next-hop address
+	RD      string       // Route Distinguisher (e.g., "100:100" or "1.2.3.4:100")
+	Labels  []uint32     // MPLS label stack (supports multiple labels per RFC 3032)
+	RT      string       // Route Target (extended community, optional)
+
+	// Standard path attributes (same as unicast)
+	Origin           *uint8           // 0=IGP, 1=EGP, 2=INCOMPLETE
+	LocalPreference  *uint32          // LOCAL_PREF
+	MED              *uint32          // MULTI_EXIT_DISC
+	ASPath           []uint32         // AS_PATH segments
+	Communities      []uint32         // Standard communities
+	LargeCommunities []LargeCommunity // RFC 8092 large communities
+}
+
 // ReactorInterface defines what the API needs from the reactor.
 // This interface avoids import cycles between pkg/api and pkg/reactor.
 type ReactorInterface interface {
@@ -169,6 +187,12 @@ type ReactorInterface interface {
 
 	// WithdrawL2VPN withdraws an L2VPN/EVPN route from peers.
 	WithdrawL2VPN(peerSelector string, route L2VPNRoute) error
+
+	// AnnounceL3VPN announces an L3VPN (MPLS VPN) route to peers.
+	AnnounceL3VPN(peerSelector string, route L3VPNRoute) error
+
+	// WithdrawL3VPN withdraws an L3VPN route from peers.
+	WithdrawL3VPN(peerSelector string, route L3VPNRoute) error
 
 	// TeardownPeer gracefully closes a peer session.
 	// If reason is provided, it's sent in the NOTIFICATION message.

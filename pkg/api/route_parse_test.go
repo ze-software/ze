@@ -433,28 +433,37 @@ func TestParseSAFI(t *testing.T) {
 	tests := []struct {
 		name     string
 		args     []string
+		wantSAFI string
 		wantRest []string
 		wantErr  bool
 	}{
-		// Valid SAFI
-		{"unicast lowercase", []string{"unicast", "10.0.0.0/24", "next-hop", "1.2.3.4"}, []string{"10.0.0.0/24", "next-hop", "1.2.3.4"}, false},
-		{"Unicast mixed case", []string{"Unicast", "10.0.0.0/24"}, []string{"10.0.0.0/24"}, false},
-		{"UNICAST uppercase", []string{"UNICAST", "2001::/64"}, []string{"2001::/64"}, false},
+		// Valid unicast SAFI
+		{"unicast lowercase", []string{"unicast", "10.0.0.0/24", "next-hop", "1.2.3.4"}, "unicast", []string{"10.0.0.0/24", "next-hop", "1.2.3.4"}, false},
+		{"Unicast mixed case", []string{"Unicast", "10.0.0.0/24"}, "unicast", []string{"10.0.0.0/24"}, false},
+		{"UNICAST uppercase", []string{"UNICAST", "2001::/64"}, "unicast", []string{"2001::/64"}, false},
+
+		// Valid mpls-vpn SAFI
+		{"mpls-vpn lowercase", []string{"mpls-vpn", "10.0.0.0/24", "rd", "100:100"}, "mpls-vpn", []string{"10.0.0.0/24", "rd", "100:100"}, false},
+		{"MPLS-VPN uppercase", []string{"MPLS-VPN", "10.0.0.0/24"}, "mpls-vpn", []string{"10.0.0.0/24"}, false},
 
 		// Invalid
-		{"empty", []string{}, nil, true},
-		{"invalid safi", []string{"multipath", "10.0.0.0/24"}, nil, true},
-		{"multicast unsupported", []string{"multicast", "10.0.0.0/24"}, nil, true},
+		{"empty", []string{}, "", nil, true},
+		{"invalid safi", []string{"multipath", "10.0.0.0/24"}, "", nil, true},
+		{"multicast unsupported", []string{"multicast", "10.0.0.0/24"}, "", nil, true},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			rest, err := parseSAFI(tt.args)
+			safi, rest, err := parseSAFI(tt.args)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("parseSAFI(%v) error = %v, wantErr %v", tt.args, err, tt.wantErr)
 				return
 			}
 			if tt.wantErr {
+				return
+			}
+			if safi != tt.wantSAFI {
+				t.Errorf("parseSAFI(%v) safi = %q, want %q", tt.args, safi, tt.wantSAFI)
 				return
 			}
 			if len(rest) != len(tt.wantRest) {
