@@ -494,6 +494,18 @@ make lint  # golangci-lint run
 
 ---
 
+## Functional Test System
+
+**See:** `.claude/zebgp/FUNCTIONAL_TESTS.md` for complete documentation.
+
+**Quick reference:**
+- Encode tests: `test/data/encode/*.ci` + `.conf`
+- API tests: `test/data/api/*.ci` + `.conf` + `.run`
+- Run single test: `./self-check <nick>` (e.g., `./self-check ah`)
+- List tests: `./self-check -list`
+
+---
+
 ## Codebase Architecture Quick Reference
 
 **Directory structure:**
