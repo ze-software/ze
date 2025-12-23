@@ -17,14 +17,14 @@ import (
 	"strings"
 )
 
-// MRT types (RFC 6396)
+// MRT types (RFC 6396).
 const (
 	MRT_TABLE_DUMP_V2 = 13
 	MRT_BGP4MP        = 16
 	MRT_BGP4MP_ET     = 17
 )
 
-// TABLE_DUMP_V2 subtypes
+// TABLE_DUMP_V2 subtypes.
 const (
 	PEER_INDEX_TABLE   = 1
 	RIB_IPV4_UNICAST   = 2
@@ -34,7 +34,7 @@ const (
 	RIB_GENERIC        = 6
 )
 
-// BGP4MP subtypes
+// BGP4MP subtypes.
 const (
 	BGP4MP_MESSAGE           = 1
 	BGP4MP_MESSAGE_AS4       = 4
@@ -42,7 +42,7 @@ const (
 	BGP4MP_MESSAGE_AS4_LOCAL = 7
 )
 
-// BGP Path Attribute Type Codes
+// BGP Path Attribute Type Codes.
 const (
 	ATTR_ORIGIN           = 1
 	ATTR_AS_PATH          = 2
@@ -83,7 +83,7 @@ var attrNames = map[uint8]string{
 	ATTR_OTC:              "OTC",
 }
 
-// Stats holds all analysis statistics
+// Stats holds all analysis statistics.
 type Stats struct {
 	Files        []string
 	TotalUpdates uint64
@@ -134,7 +134,7 @@ type Stats struct {
 	PeerTable map[uint16]*PeerInfo
 }
 
-// AttrStats tracks statistics for a single attribute type
+// AttrStats tracks statistics for a single attribute type.
 type AttrStats struct {
 	Code   uint8
 	Name   string
@@ -143,13 +143,13 @@ type AttrStats struct {
 	Values map[uint64]uint64 // hash -> count
 }
 
-// BundleStats tracks unique attribute bundles (excluding AS_PATH)
+// BundleStats tracks unique attribute bundles (excluding AS_PATH).
 type BundleStats struct {
 	Total  uint64
 	Values map[uint64]uint64 // hash -> count
 }
 
-// PeerInfo holds info from PEER_INDEX_TABLE
+// PeerInfo holds info from PEER_INDEX_TABLE.
 type PeerInfo struct {
 	Index  uint16
 	IP     string
@@ -157,7 +157,7 @@ type PeerInfo struct {
 	IsIPv6 bool
 }
 
-// PeerStats tracks per-peer statistics
+// PeerStats tracks per-peer statistics.
 type PeerStats struct {
 	Info             *PeerInfo // peer info from PEER_INDEX_TABLE
 	Updates          uint64
@@ -169,14 +169,14 @@ type PeerStats struct {
 	ExtCommunities   map[uint64]uint64 // ext community -> count
 }
 
-// CommunityFreq for JSON output
+// CommunityFreq for JSON output.
 type CommunityFreq struct {
 	Community string  `json:"community"`
 	Count     uint64  `json:"count"`
 	Frequency float64 `json:"frequency"`
 }
 
-// JSONOutput is the JSON output format
+// JSONOutput is the JSON output format.
 type JSONOutput struct {
 	Files               []string                            `json:"files"`
 	TotalUpdates        uint64                              `json:"total_updates"`
@@ -295,11 +295,11 @@ func main() {
 }
 
 func processMRT(filename string, stats *Stats) error {
-	f, err := os.Open(filename)
+	f, err := os.Open(filename) // #nosec G304 -- filename from CLI args
 	if err != nil {
 		return err
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	var reader io.Reader = f
 
@@ -309,7 +309,7 @@ func processMRT(filename string, stats *Stats) error {
 		if err != nil {
 			return err
 		}
-		defer gz.Close()
+		defer func() { _ = gz.Close() }()
 		reader = gz
 	}
 
@@ -442,7 +442,7 @@ func parsePeerIndexTable(data []byte, stats *Stats) {
 	}
 }
 
-func processRIBEntry(data []byte, afi int, stats *Stats) error {
+func processRIBEntry(data []byte, _ int, stats *Stats) error {
 	if len(data) < 7 {
 		return nil
 	}
@@ -516,7 +516,7 @@ func processRIBGeneric(data []byte, stats *Stats) error {
 	return nil
 }
 
-func processBGP4MP(subtype uint16, data []byte, stats *Stats) error {
+func processBGP4MP(subtype uint16, data []byte, stats *Stats) error { //nolint:unparam
 	var asSize int
 
 	switch subtype {
@@ -652,41 +652,41 @@ func analyzeAttributes(attrs []byte, peerIndex uint16, stats *Stats) {
 			stats.Attributes[typeCode] = attrStats
 		}
 		attrStats.Total++
-		attrStats.Bytes += uint64(attrLen)
+		attrStats.Bytes += uint64(attrLen) // #nosec G115 -- attrLen is small
 
 		// Hash attribute value
 		h := fnv.New64a()
-		h.Write(attrValue)
+		_, _ = h.Write(attrValue) // fnv hash never fails
 		hash := h.Sum64()
 		attrStats.Values[hash]++
 
 		// Add to bundle hash WITH AS_PATH (all real attributes, excluding MP_REACH/UNREACH)
 		// MP_REACH/UNREACH are NLRI encoded as attributes (RFC 4760 hack), not real attributes
 		if typeCode != ATTR_MP_REACH_NLRI && typeCode != ATTR_MP_UNREACH_NLRI {
-			bundleHasherWithAS.Write([]byte{typeCode})
-			bundleHasherWithAS.Write(attrValue)
+			_, _ = bundleHasherWithAS.Write([]byte{typeCode})
+			_, _ = bundleHasherWithAS.Write(attrValue)
 		}
 
 		// Add to bundle hash (excluding AS_PATH, AS4_PATH, MP_REACH, MP_UNREACH)
 		// MP_REACH/UNREACH contain NLRI prefixes - unique per UPDATE
 		if typeCode != ATTR_AS_PATH && typeCode != ATTR_AS4_PATH &&
 			typeCode != ATTR_MP_REACH_NLRI && typeCode != ATTR_MP_UNREACH_NLRI {
-			bundleHasher.Write([]byte{typeCode})
-			bundleHasher.Write(attrValue)
+			_, _ = bundleHasher.Write([]byte{typeCode})
+			_, _ = bundleHasher.Write(attrValue)
 		}
 
 		// Add to bundle hash (excluding AS_PATH + all communities + MP_REACH/UNREACH)
 		if typeCode != ATTR_AS_PATH && typeCode != ATTR_AS4_PATH &&
 			typeCode != ATTR_MP_REACH_NLRI && typeCode != ATTR_MP_UNREACH_NLRI &&
 			typeCode != ATTR_COMMUNITY && typeCode != ATTR_LARGE_COMMUNITY && typeCode != ATTR_EXT_COMMUNITY {
-			bundleHasherNoComm.Write([]byte{typeCode})
-			bundleHasherNoComm.Write(attrValue)
+			_, _ = bundleHasherNoComm.Write([]byte{typeCode})
+			_, _ = bundleHasherNoComm.Write(attrValue)
 		}
 
 		// Add to minimal bundle hash (only ORIGIN + NEXT_HOP + LOCAL_PREF)
 		if typeCode == ATTR_ORIGIN || typeCode == ATTR_NEXT_HOP || typeCode == ATTR_LOCAL_PREF {
-			bundleHasherMinimal.Write([]byte{typeCode})
-			bundleHasherMinimal.Write(attrValue)
+			_, _ = bundleHasherMinimal.Write([]byte{typeCode})
+			_, _ = bundleHasherMinimal.Write(attrValue)
 		}
 
 		// Extract per-peer community data
@@ -957,9 +957,9 @@ func formatCommunity(comm uint32) string {
 }
 
 func printHumanSummary(w io.Writer, stats *Stats) {
-	fmt.Fprintf(w, "\n=== MRT Attribute Analysis ===\n")
-	fmt.Fprintf(w, "Files: %s\n", strings.Join(stats.Files, ", "))
-	fmt.Fprintf(w, "Total UPDATEs: %s\n\n", formatNumber(stats.TotalUpdates))
+	_, _ = fmt.Fprintf(w, "\n=== MRT Attribute Analysis ===\n")
+	_, _ = fmt.Fprintf(w, "Files: %s\n", strings.Join(stats.Files, ", "))
+	_, _ = fmt.Fprintf(w, "Total UPDATEs: %s\n\n", formatNumber(stats.TotalUpdates))
 
 	// Sort attributes by cache hit rate
 	type attrSort struct {
@@ -970,7 +970,7 @@ func printHumanSummary(w io.Writer, stats *Stats) {
 		bytes   uint64
 		hitRate float64
 	}
-	var sorted []attrSort
+	sorted := make([]attrSort, 0, len(stats.Attributes))
 	for code, attr := range stats.Attributes {
 		unique := uint64(len(attr.Values))
 		hitRate := 0.0
@@ -983,21 +983,21 @@ func printHumanSummary(w io.Writer, stats *Stats) {
 		return sorted[i].hitRate > sorted[j].hitRate
 	})
 
-	fmt.Fprintf(w, "ATTRIBUTE REPETITION (sorted by cache hit rate):\n")
-	fmt.Fprintf(w, "  %-18s %12s %12s %9s %12s\n", "Attr", "Unique", "Total", "Hit Rate", "Bytes")
-	fmt.Fprintf(w, "  %s\n", strings.Repeat("─", 67))
+	_, _ = fmt.Fprintf(w, "ATTRIBUTE REPETITION (sorted by cache hit rate):\n")
+	_, _ = fmt.Fprintf(w, "  %-18s %12s %12s %9s %12s\n", "Attr", "Unique", "Total", "Hit Rate", "Bytes")
+	_, _ = fmt.Fprintf(w, "  %s\n", strings.Repeat("─", 67))
 	for _, a := range sorted {
 		marker := ""
 		if a.code == ATTR_AS_PATH {
 			marker = " ← verify"
 		}
-		fmt.Fprintf(w, "  %-18s %12s %12s %8.3f%% %12s%s\n",
+		_, _ = fmt.Fprintf(w, "  %-18s %12s %12s %8.3f%% %12s%s\n",
 			a.name, formatNumber(a.unique), formatNumber(a.total),
 			a.hitRate, formatBytes(a.bytes), marker)
 	}
 
 	// Bytes distribution
-	fmt.Fprintf(w, "\nBYTES DISTRIBUTION:\n")
+	_, _ = fmt.Fprintf(w, "\nBYTES DISTRIBUTION:\n")
 	var totalBytes uint64
 	for _, attr := range stats.Attributes {
 		totalBytes += attr.Bytes
@@ -1010,11 +1010,11 @@ func printHumanSummary(w io.Writer, stats *Stats) {
 			continue
 		}
 		pct := float64(a.bytes) / float64(totalBytes) * 100
-		fmt.Fprintf(w, "  %-18s %12s (%5.1f%%)\n", a.name, formatBytes(a.bytes), pct)
+		_, _ = fmt.Fprintf(w, "  %-18s %12s (%5.1f%%)\n", a.name, formatBytes(a.bytes), pct)
 	}
 
 	// Bundle analysis
-	fmt.Fprintf(w, "\nBUNDLE ANALYSIS:\n")
+	_, _ = fmt.Fprintf(w, "\nBUNDLE ANALYSIS:\n")
 
 	// Without AS_PATH
 	unique := uint64(len(stats.Bundles.Values))
@@ -1022,9 +1022,9 @@ func printHumanSummary(w io.Writer, stats *Stats) {
 	if stats.Bundles.Total > 0 {
 		hitRate = float64(stats.Bundles.Total-unique) / float64(stats.Bundles.Total) * 100
 	}
-	fmt.Fprintf(w, "  Without AS_PATH:\n")
-	fmt.Fprintf(w, "    Unique bundles: %s / %s total\n", formatNumber(unique), formatNumber(stats.Bundles.Total))
-	fmt.Fprintf(w, "    Cache hit rate: %.2f%%\n", hitRate)
+	_, _ = fmt.Fprintf(w, "  Without AS_PATH:\n")
+	_, _ = fmt.Fprintf(w, "    Unique bundles: %s / %s total\n", formatNumber(unique), formatNumber(stats.Bundles.Total))
+	_, _ = fmt.Fprintf(w, "    Cache hit rate: %.2f%%\n", hitRate)
 
 	// With AS_PATH
 	uniqueWithAS := uint64(len(stats.BundlesWithASPath.Values))
@@ -1032,13 +1032,13 @@ func printHumanSummary(w io.Writer, stats *Stats) {
 	if stats.BundlesWithASPath.Total > 0 {
 		hitRateWithAS = float64(stats.BundlesWithASPath.Total-uniqueWithAS) / float64(stats.BundlesWithASPath.Total) * 100
 	}
-	fmt.Fprintf(w, "  With AS_PATH:\n")
-	fmt.Fprintf(w, "    Unique bundles: %s / %s total\n", formatNumber(uniqueWithAS), formatNumber(stats.BundlesWithASPath.Total))
-	fmt.Fprintf(w, "    Cache hit rate: %.2f%%\n", hitRateWithAS)
+	_, _ = fmt.Fprintf(w, "  With AS_PATH:\n")
+	_, _ = fmt.Fprintf(w, "    Unique bundles: %s / %s total\n", formatNumber(uniqueWithAS), formatNumber(stats.BundlesWithASPath.Total))
+	_, _ = fmt.Fprintf(w, "    Cache hit rate: %.2f%%\n", hitRateWithAS)
 
 	// Consecutive hit analysis (temporal locality)
-	fmt.Fprintf(w, "\nCONSECUTIVE HIT ANALYSIS (temporal locality):\n")
-	fmt.Fprintf(w, "  If we cache just the LAST bundle seen, what's the hit rate?\n")
+	_, _ = fmt.Fprintf(w, "\nCONSECUTIVE HIT ANALYSIS (temporal locality):\n")
+	_, _ = fmt.Fprintf(w, "  If we cache just the LAST bundle seen, what's the hit rate?\n")
 	comparisons := stats.TotalUpdates - 1
 	consRateWith := 0.0
 	consRateWithout := 0.0
@@ -1055,22 +1055,22 @@ func printHumanSummary(w io.Writer, stats *Stats) {
 	uniqueNoComm := uint64(len(stats.BundlesNoComm.Values))
 	uniqueMinimal := uint64(len(stats.BundlesMinimal.Values))
 
-	fmt.Fprintf(w, "\n  Note: MP_REACH/UNREACH always excluded (NLRI, not real attributes)\n")
-	fmt.Fprintf(w, "\n  %-45s %12s %12s %8s\n", "Exclusion Strategy", "Unique", "Consec Hits", "Rate")
-	fmt.Fprintf(w, "  %s\n", strings.Repeat("─", 80))
-	fmt.Fprintf(w, "  %-45s %12s %12s %7.2f%%\n",
+	_, _ = fmt.Fprintf(w, "\n  Note: MP_REACH/UNREACH always excluded (NLRI, not real attributes)\n")
+	_, _ = fmt.Fprintf(w, "\n  %-45s %12s %12s %8s\n", "Exclusion Strategy", "Unique", "Consec Hits", "Rate")
+	_, _ = fmt.Fprintf(w, "  %s\n", strings.Repeat("─", 80))
+	_, _ = fmt.Fprintf(w, "  %-45s %12s %12s %7.2f%%\n",
 		"All real attributes (incl AS_PATH)",
 		formatNumber(uniqueWithAS),
 		formatNumber(stats.ConsecutiveHitsWithAS), consRateWith)
-	fmt.Fprintf(w, "  %-45s %12s %12s %7.2f%%\n",
+	_, _ = fmt.Fprintf(w, "  %-45s %12s %12s %7.2f%%\n",
 		"Exclude AS_PATH",
 		formatNumber(uniqueNoAS),
 		formatNumber(stats.ConsecutiveHits), consRateWithout)
-	fmt.Fprintf(w, "  %-45s %12s %12s %7.2f%%\n",
+	_, _ = fmt.Fprintf(w, "  %-45s %12s %12s %7.2f%%\n",
 		"Exclude AS_PATH + Communities",
 		formatNumber(uniqueNoComm),
 		formatNumber(stats.ConsecutiveHitsNoComm), consRateNoComm)
-	fmt.Fprintf(w, "  %-45s %12s %12s %7.2f%%\n",
+	_, _ = fmt.Fprintf(w, "  %-45s %12s %12s %7.2f%%\n",
 		"Minimal (only ORIGIN + NEXT_HOP + LOCAL_PREF)",
 		formatNumber(uniqueMinimal),
 		formatNumber(stats.ConsecutiveHitsMinimal), consRateMinimal)
@@ -1082,14 +1082,14 @@ func printHumanSummary(w io.Writer, stats *Stats) {
 		stats.RunLengths[bucket]++
 	}
 
-	fmt.Fprintf(w, "\n  Run length distribution (minimal bundle consecutive hits):\n")
-	fmt.Fprintf(w, "  %-12s %12s\n", "Run Length", "Count")
-	fmt.Fprintf(w, "  %s\n", strings.Repeat("─", 26))
+	_, _ = fmt.Fprintf(w, "\n  Run length distribution (minimal bundle consecutive hits):\n")
+	_, _ = fmt.Fprintf(w, "  %-12s %12s\n", "Run Length", "Count")
+	_, _ = fmt.Fprintf(w, "  %s\n", strings.Repeat("─", 26))
 	buckets := []string{"1", "2", "3", "4", "5", "6-10", "11-20", "21+"}
 	for _, b := range buckets {
 		count := stats.RunLengths[b]
 		if count > 0 {
-			fmt.Fprintf(w, "  %-12s %12s\n", b, formatNumber(count))
+			_, _ = fmt.Fprintf(w, "  %-12s %12s\n", b, formatNumber(count))
 		}
 	}
 
@@ -1112,8 +1112,8 @@ func printHumanSummary(w io.Writer, stats *Stats) {
 	*/
 
 	// Per-peer summary with ASN info
-	fmt.Fprintf(w, "\nPER-PEER ANALYSIS (top 10 by volume):\n")
-	fmt.Fprintf(w, "%s\n", strings.Repeat("═", 90))
+	_, _ = fmt.Fprintf(w, "\nPER-PEER ANALYSIS (top 10 by volume):\n")
+	_, _ = fmt.Fprintf(w, "%s\n", strings.Repeat("═", 90))
 
 	type peerAnalysis struct {
 		idx           uint16
@@ -1128,7 +1128,7 @@ func printHumanSummary(w io.Writer, stats *Stats) {
 		defaultComms  []string // communities >90% frequency
 	}
 
-	var peers []peerAnalysis
+	peers := make([]peerAnalysis, 0, len(stats.Peers))
 	for idx, peer := range stats.Peers {
 		pa := peerAnalysis{
 			idx:           idx,
@@ -1184,52 +1184,55 @@ func printHumanSummary(w io.Writer, stats *Stats) {
 		if p.asn != 0 {
 			asnStr = fmt.Sprintf("AS%d", p.asn)
 		}
-		fmt.Fprintf(w, "\n  Peer %d: %s (%s)\n", p.idx, asnStr, p.ip)
-		fmt.Fprintf(w, "  %s\n", strings.Repeat("─", 60))
-		fmt.Fprintf(w, "    Routes: %s | Bundle hit rate: %.1f%%\n",
+		_, _ = fmt.Fprintf(w, "\n  Peer %d: %s (%s)\n", p.idx, asnStr, p.ip)
+		_, _ = fmt.Fprintf(w, "  %s\n", strings.Repeat("─", 60))
+		_, _ = fmt.Fprintf(w, "    Routes: %s | Bundle hit rate: %.1f%%\n",
 			formatNumber(p.updates), p.hitRate)
-		fmt.Fprintf(w, "    Communities: %d unique | %d owned (%s:xxx) = %.0f%%\n",
+		_, _ = fmt.Fprintf(w, "    Communities: %d unique | %d owned (%s:xxx) = %.0f%%\n",
 			p.totalComms, p.ownedComms, asnStr, p.ownedPct)
 
 		// Show default communities
 		if len(p.defaultComms) > 0 {
-			fmt.Fprintf(w, "    Defaults (>90%%): ")
+			_, _ = fmt.Fprintf(w, "    Defaults (>90%%): ")
 			maxShow := 5
 			if len(p.defaultComms) < maxShow {
 				maxShow = len(p.defaultComms)
 			}
 			for j := 0; j < maxShow; j++ {
 				if j > 0 {
-					fmt.Fprintf(w, ", ")
+					_, _ = fmt.Fprintf(w, ", ")
 				}
-				fmt.Fprintf(w, "%s", p.defaultComms[j])
+				_, _ = fmt.Fprintf(w, "%s", p.defaultComms[j])
 			}
 			if len(p.defaultComms) > maxShow {
-				fmt.Fprintf(w, " (+%d more)", len(p.defaultComms)-maxShow)
+				_, _ = fmt.Fprintf(w, " (+%d more)", len(p.defaultComms)-maxShow)
 			}
-			fmt.Fprintf(w, "\n")
+			_, _ = fmt.Fprintf(w, "\n")
 		}
 
 		// Infer relationship type
-		relType := "Unknown"
-		if p.ownedPct >= 80 {
+		var relType string
+		switch {
+		case p.ownedPct >= 80:
 			relType = "Transit/Provider (adds own communities to all routes)"
-		} else if p.ownedPct >= 40 {
+		case p.ownedPct >= 40:
 			relType = "Peer (adds some own communities)"
-		} else if p.ownedPct < 10 && p.totalComms > 0 {
+		case p.ownedPct < 10 && p.totalComms > 0:
 			relType = "Route Server/Collector (passes through communities)"
+		default:
+			relType = "Unknown"
 		}
-		fmt.Fprintf(w, "    Inferred type: %s\n", relType)
+		_, _ = fmt.Fprintf(w, "    Inferred type: %s\n", relType)
 	}
 
 	if limit > 0 {
 		avgHitRate /= float64(limit)
 	}
 
-	fmt.Fprintf(w, "\n%s\n", strings.Repeat("═", 90))
+	_, _ = fmt.Fprintf(w, "\n%s\n", strings.Repeat("═", 90))
 
 	// Community extraction summary
-	fmt.Fprintf(w, "\nCOMMUNITY EXTRACTION ANALYSIS:\n")
+	_, _ = fmt.Fprintf(w, "\nCOMMUNITY EXTRACTION ANALYSIS:\n")
 	var totalSessionConstant, totalVariable int
 	var totalSavings uint64
 	for _, peer := range stats.Peers {
@@ -1252,9 +1255,9 @@ func printHumanSummary(w io.Writer, stats *Stats) {
 			}
 		}
 	}
-	fmt.Fprintf(w, "  Session-constant communities (>90%%): %d\n", totalSessionConstant)
-	fmt.Fprintf(w, "  Variable communities (<90%%): %d\n", totalVariable)
-	fmt.Fprintf(w, "  Potential savings from extraction: %s\n", formatBytes(totalSavings))
+	_, _ = fmt.Fprintf(w, "  Session-constant communities (>90%%): %d\n", totalSessionConstant)
+	_, _ = fmt.Fprintf(w, "  Variable communities (<90%%): %d\n", totalVariable)
+	_, _ = fmt.Fprintf(w, "  Potential savings from extraction: %s\n", formatBytes(totalSavings))
 
 	// LOCAL_PREF and MED analysis
 	var totalLPUnique, totalMEDUnique int
@@ -1262,38 +1265,39 @@ func printHumanSummary(w io.Writer, stats *Stats) {
 		totalLPUnique += len(peer.LocalPrefs)
 		totalMEDUnique += len(peer.MEDs)
 	}
-	fmt.Fprintf(w, "  Unique LOCAL_PREF values across all peers: %d\n", totalLPUnique)
-	fmt.Fprintf(w, "  Unique MED values across all peers: %d\n", totalMEDUnique)
+	_, _ = fmt.Fprintf(w, "  Unique LOCAL_PREF values across all peers: %d\n", totalLPUnique)
+	_, _ = fmt.Fprintf(w, "  Unique MED values across all peers: %d\n", totalMEDUnique)
 
 	// Insights
-	fmt.Fprintf(w, "\nINSIGHTS:\n")
+	_, _ = fmt.Fprintf(w, "\nINSIGHTS:\n")
 	for _, a := range sorted {
 		if a.code == ATTR_AS_PATH {
-			if a.hitRate >= 80 {
-				fmt.Fprintf(w, "  - AS_PATH: %.1f%% cache hit (better than expected, worth caching!)\n", a.hitRate)
-			} else if a.hitRate >= 50 {
-				fmt.Fprintf(w, "  - AS_PATH: %.1f%% cache hit (moderate, consider caching)\n", a.hitRate)
-			} else {
-				fmt.Fprintf(w, "  - AS_PATH: %.1f%% cache hit (volatile as expected)\n", a.hitRate)
+			switch {
+			case a.hitRate >= 80:
+				_, _ = fmt.Fprintf(w, "  - AS_PATH: %.1f%% cache hit (better than expected, worth caching!)\n", a.hitRate)
+			case a.hitRate >= 50:
+				_, _ = fmt.Fprintf(w, "  - AS_PATH: %.1f%% cache hit (moderate, consider caching)\n", a.hitRate)
+			default:
+				_, _ = fmt.Fprintf(w, "  - AS_PATH: %.1f%% cache hit (volatile as expected)\n", a.hitRate)
 			}
 			break
 		}
 	}
-	fmt.Fprintf(w, "  - Per-peer avg hit rate: %.1f%% vs global %.1f%%\n", avgHitRate, hitRate)
+	_, _ = fmt.Fprintf(w, "  - Per-peer avg hit rate: %.1f%% vs global %.1f%%\n", avgHitRate, hitRate)
 	if avgHitRate > hitRate+1 {
-		fmt.Fprintf(w, "    → Session-specific caching provides benefit\n")
+		_, _ = fmt.Fprintf(w, "    → Session-specific caching provides benefit\n")
 	} else {
-		fmt.Fprintf(w, "    → Global caching sufficient\n")
+		_, _ = fmt.Fprintf(w, "    → Global caching sufficient\n")
 	}
 
 	// Individual community breakdown
-	fmt.Fprintf(w, "\nINDIVIDUAL COMMUNITY BREAKDOWN:\n")
-	fmt.Fprintf(w, "  Total unique communities: %s\n", formatNumber(uint64(len(stats.GlobalCommunities))))
-	fmt.Fprintf(w, "  Total unique large communities: %s\n", formatNumber(uint64(len(stats.GlobalLargeCommunities))))
-	fmt.Fprintf(w, "  Updates with COMMUNITY attr: %s (%.1f%%)\n",
+	_, _ = fmt.Fprintf(w, "\nINDIVIDUAL COMMUNITY BREAKDOWN:\n")
+	_, _ = fmt.Fprintf(w, "  Total unique communities: %s\n", formatNumber(uint64(len(stats.GlobalCommunities))))
+	_, _ = fmt.Fprintf(w, "  Total unique large communities: %s\n", formatNumber(uint64(len(stats.GlobalLargeCommunities))))
+	_, _ = fmt.Fprintf(w, "  Updates with COMMUNITY attr: %s (%.1f%%)\n",
 		formatNumber(stats.UpdatesWithCommunity),
 		float64(stats.UpdatesWithCommunity)/float64(stats.TotalUpdates)*100)
-	fmt.Fprintf(w, "  Updates with LARGE_COMMUNITY attr: %s (%.1f%%)\n",
+	_, _ = fmt.Fprintf(w, "  Updates with LARGE_COMMUNITY attr: %s (%.1f%%)\n",
 		formatNumber(stats.UpdatesWithLargeCommunity),
 		float64(stats.UpdatesWithLargeCommunity)/float64(stats.TotalUpdates)*100)
 
@@ -1303,7 +1307,7 @@ func printHumanSummary(w io.Writer, stats *Stats) {
 		count uint64
 		pct   float64
 	}
-	var topComms []commCount
+	topComms := make([]commCount, 0, len(stats.GlobalCommunities))
 	for comm, count := range stats.GlobalCommunities {
 		pct := float64(count) / float64(stats.UpdatesWithCommunity) * 100
 		topComms = append(topComms, commCount{formatCommunity(comm), count, pct})
@@ -1312,20 +1316,20 @@ func printHumanSummary(w io.Writer, stats *Stats) {
 		return topComms[i].count > topComms[j].count
 	})
 
-	fmt.Fprintf(w, "\n  Top 20 COMMUNITY values (by occurrence):\n")
-	fmt.Fprintf(w, "    %-20s %12s %8s\n", "Community", "Count", "% of updates")
-	fmt.Fprintf(w, "    %s\n", strings.Repeat("─", 44))
+	_, _ = fmt.Fprintf(w, "\n  Top 20 COMMUNITY values (by occurrence):\n")
+	_, _ = fmt.Fprintf(w, "    %-20s %12s %8s\n", "Community", "Count", "% of updates")
+	_, _ = fmt.Fprintf(w, "    %s\n", strings.Repeat("─", 44))
 	topLimit := 20
 	if len(topComms) < topLimit {
 		topLimit = len(topComms)
 	}
 	for i := 0; i < topLimit; i++ {
 		c := topComms[i]
-		fmt.Fprintf(w, "    %-20s %12s %7.2f%%\n", c.comm, formatNumber(c.count), c.pct)
+		_, _ = fmt.Fprintf(w, "    %-20s %12s %7.2f%%\n", c.comm, formatNumber(c.count), c.pct)
 	}
 
 	// Top 20 large communities
-	var topLargeComms []commCount
+	topLargeComms := make([]commCount, 0, len(stats.GlobalLargeCommunities))
 	for comm, count := range stats.GlobalLargeCommunities {
 		pct := float64(count) / float64(stats.UpdatesWithLargeCommunity) * 100
 		topLargeComms = append(topLargeComms, commCount{comm, count, pct})
@@ -1335,33 +1339,33 @@ func printHumanSummary(w io.Writer, stats *Stats) {
 	})
 
 	if len(topLargeComms) > 0 {
-		fmt.Fprintf(w, "\n  Top 20 LARGE_COMMUNITY values (by occurrence):\n")
-		fmt.Fprintf(w, "    %-30s %12s %8s\n", "Large Community", "Count", "% of updates")
-		fmt.Fprintf(w, "    %s\n", strings.Repeat("─", 54))
+		_, _ = fmt.Fprintf(w, "\n  Top 20 LARGE_COMMUNITY values (by occurrence):\n")
+		_, _ = fmt.Fprintf(w, "    %-30s %12s %8s\n", "Large Community", "Count", "% of updates")
+		_, _ = fmt.Fprintf(w, "    %s\n", strings.Repeat("─", 54))
 		topLimit = 20
 		if len(topLargeComms) < topLimit {
 			topLimit = len(topLargeComms)
 		}
 		for i := 0; i < topLimit; i++ {
 			c := topLargeComms[i]
-			fmt.Fprintf(w, "    %-30s %12s %7.2f%%\n", c.comm, formatNumber(c.count), c.pct)
+			_, _ = fmt.Fprintf(w, "    %-30s %12s %7.2f%%\n", c.comm, formatNumber(c.count), c.pct)
 		}
 	}
 
 	// Caching strategy recommendations
-	fmt.Fprintf(w, "\n%s\n", strings.Repeat("═", 70))
-	fmt.Fprintf(w, "CACHING STRATEGY RECOMMENDATIONS:\n")
-	fmt.Fprintf(w, "%s\n", strings.Repeat("═", 70))
+	_, _ = fmt.Fprintf(w, "\n%s\n", strings.Repeat("═", 70))
+	_, _ = fmt.Fprintf(w, "CACHING STRATEGY RECOMMENDATIONS:\n")
+	_, _ = fmt.Fprintf(w, "%s\n", strings.Repeat("═", 70))
 
-	fmt.Fprintf(w, "\n1. TRIAL-RUN APPROACH (per-session defaults):\n")
-	fmt.Fprintf(w, "   After receiving first ~100 routes from a peer, analyze patterns:\n")
-	fmt.Fprintf(w, "   - Identify communities present in >90%% of routes\n")
-	fmt.Fprintf(w, "   - Set these as 'session defaults' (assumed present)\n")
-	fmt.Fprintf(w, "   - Only encode ABSENCE (negative marker) for the exceptions\n")
-	fmt.Fprintf(w, "   - On NOTIFICATION: cache resets, but learned defaults persist\n")
-	fmt.Fprintf(w, "     (can be reused on reconnect to same peer)\n")
+	_, _ = fmt.Fprintf(w, "\n1. TRIAL-RUN APPROACH (per-session defaults):\n")
+	_, _ = fmt.Fprintf(w, "   After receiving first ~100 routes from a peer, analyze patterns:\n")
+	_, _ = fmt.Fprintf(w, "   - Identify communities present in >90%% of routes\n")
+	_, _ = fmt.Fprintf(w, "   - Set these as 'session defaults' (assumed present)\n")
+	_, _ = fmt.Fprintf(w, "   - Only encode ABSENCE (negative marker) for the exceptions\n")
+	_, _ = fmt.Fprintf(w, "   - On NOTIFICATION: cache resets, but learned defaults persist\n")
+	_, _ = fmt.Fprintf(w, "     (can be reused on reconnect to same peer)\n")
 
-	fmt.Fprintf(w, "\n2. ATTRIBUTE-SPECIFIC STRATEGIES:\n")
+	_, _ = fmt.Fprintf(w, "\n2. ATTRIBUTE-SPECIFIC STRATEGIES:\n")
 	// Count unique LOCAL_PREFs properly
 	lpSet := make(map[uint32]bool)
 	medSet := make(map[uint32]bool)
@@ -1373,38 +1377,38 @@ func printHumanSummary(w io.Writer, stats *Stats) {
 			medSet[med] = true
 		}
 	}
-	fmt.Fprintf(w, "   LOCAL_PREF:  Only %d unique values → small lookup table\n", len(lpSet))
-	fmt.Fprintf(w, "   MED:         Only %d unique values → cache per session\n", len(medSet))
+	_, _ = fmt.Fprintf(w, "   LOCAL_PREF:  Only %d unique values → small lookup table\n", len(lpSet))
+	_, _ = fmt.Fprintf(w, "   MED:         Only %d unique values → cache per session\n", len(medSet))
 	nhUnique := 0
 	if nh := stats.Attributes[ATTR_NEXT_HOP]; nh != nil {
 		nhUnique = len(nh.Values)
 	}
-	fmt.Fprintf(w, "   NEXT_HOP:    Only %d unique → global cache with high hit rate\n", nhUnique)
+	_, _ = fmt.Fprintf(w, "   NEXT_HOP:    Only %d unique → global cache with high hit rate\n", nhUnique)
 	commSets := 0
 	if cs := stats.Attributes[ATTR_COMMUNITY]; cs != nil {
 		commSets = len(cs.Values)
 	}
-	fmt.Fprintf(w, "   COMMUNITY:   %d unique sets, but %d unique values\n",
+	_, _ = fmt.Fprintf(w, "   COMMUNITY:   %d unique sets, but %d unique values\n",
 		commSets, len(stats.GlobalCommunities))
-	fmt.Fprintf(w, "               → Cache individual values + reconstruct sets\n")
+	_, _ = fmt.Fprintf(w, "               → Cache individual values + reconstruct sets\n")
 
-	fmt.Fprintf(w, "\n3. BUNDLE CACHING TIERS:\n")
-	fmt.Fprintf(w, "   Tier 1 (size=1):   Last-seen (excl AS_PATH) → %.2f%% hit rate\n", consRateWithout)
-	fmt.Fprintf(w, "   Tier 1a:           Last-seen (excl AS+COMM) → %.2f%% hit rate\n", consRateNoComm)
-	fmt.Fprintf(w, "   Tier 1b:           Last-seen (minimal)      → %.2f%% hit rate\n", consRateMinimal)
-	fmt.Fprintf(w, "   Tier 2 (size=N):   Per-peer LRU cache       → ~%.1f%% hit rate\n", avgHitRate)
-	fmt.Fprintf(w, "   Tier 3 (global):   All unique bundles       → %.2f%% hit rate\n", hitRate)
-	fmt.Fprintf(w, "   Recommendation:    Tier 2 (per-peer) with size ~1000\n")
+	_, _ = fmt.Fprintf(w, "\n3. BUNDLE CACHING TIERS:\n")
+	_, _ = fmt.Fprintf(w, "   Tier 1 (size=1):   Last-seen (excl AS_PATH) → %.2f%% hit rate\n", consRateWithout)
+	_, _ = fmt.Fprintf(w, "   Tier 1a:           Last-seen (excl AS+COMM) → %.2f%% hit rate\n", consRateNoComm)
+	_, _ = fmt.Fprintf(w, "   Tier 1b:           Last-seen (minimal)      → %.2f%% hit rate\n", consRateMinimal)
+	_, _ = fmt.Fprintf(w, "   Tier 2 (size=N):   Per-peer LRU cache       → ~%.1f%% hit rate\n", avgHitRate)
+	_, _ = fmt.Fprintf(w, "   Tier 3 (global):   All unique bundles       → %.2f%% hit rate\n", hitRate)
+	_, _ = fmt.Fprintf(w, "   Recommendation:    Tier 2 (per-peer) with size ~1000\n")
 
-	fmt.Fprintf(w, "\n4. MEMORY vs PARSE TRADE-OFF:\n")
+	_, _ = fmt.Fprintf(w, "\n4. MEMORY vs PARSE TRADE-OFF:\n")
 	bundleMemory := uint64(len(stats.Bundles.Values)) * 64 // rough estimate: 64 bytes per cached bundle
 	savedParses := stats.Bundles.Total - uint64(len(stats.Bundles.Values))
-	fmt.Fprintf(w, "   Cache memory (est): %s for %s bundles\n",
+	_, _ = fmt.Fprintf(w, "   Cache memory (est): %s for %s bundles\n",
 		formatBytes(bundleMemory), formatNumber(uint64(len(stats.Bundles.Values))))
-	fmt.Fprintf(w, "   Saved parses:       %s (%.1f%% of total)\n",
+	_, _ = fmt.Fprintf(w, "   Saved parses:       %s (%.1f%% of total)\n",
 		formatNumber(savedParses), float64(savedParses)/float64(stats.Bundles.Total)*100)
 
-	fmt.Fprintf(w, "\n")
+	_, _ = fmt.Fprintf(w, "\n")
 }
 
 func formatNumber(n uint64) string {

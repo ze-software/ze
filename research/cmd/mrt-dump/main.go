@@ -10,14 +10,14 @@ import (
 	"os"
 )
 
-// MRT types (RFC 6396)
+// MRT types (RFC 6396).
 const (
 	MRT_TABLE_DUMP_V2 = 13
 	MRT_BGP4MP        = 16
 	MRT_BGP4MP_ET     = 17
 )
 
-// TABLE_DUMP_V2 subtypes
+// TABLE_DUMP_V2 subtypes.
 const (
 	PEER_INDEX_TABLE   = 1
 	RIB_IPV4_UNICAST   = 2
@@ -27,7 +27,7 @@ const (
 	RIB_GENERIC        = 6
 )
 
-// BGP4MP subtypes
+// BGP4MP subtypes.
 const (
 	BGP4MP_MESSAGE           = 1
 	BGP4MP_MESSAGE_AS4       = 4
@@ -51,17 +51,17 @@ func main() {
 }
 
 func processMRT(filename string) error {
-	f, err := os.Open(filename)
+	f, err := os.Open(filename) // #nosec G304 -- filename from CLI args
 	if err != nil {
 		return err
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	gz, err := gzip.NewReader(f)
 	if err != nil {
 		return err
 	}
-	defer gz.Close()
+	defer func() { _ = gz.Close() }()
 
 	header := make([]byte, 12)
 	for {
@@ -117,7 +117,7 @@ func processTableDumpV2(subtype uint16, data []byte) error {
 	return nil
 }
 
-func processRIBEntry(data []byte, afi int) error {
+func processRIBEntry(data []byte, _ int) error {
 	if len(data) < 7 {
 		return nil
 	}
@@ -211,7 +211,7 @@ func processRIBGeneric(data []byte) error {
 	return nil
 }
 
-func processBGP4MP(subtype uint16, data []byte) error {
+func processBGP4MP(subtype uint16, data []byte) error { //nolint:unparam
 	// BGP4MP contains actual BGP messages - extract UPDATE messages
 	var offset int
 	var asSize int
@@ -277,10 +277,10 @@ func buildUpdate(withdrawn, attrs, nlri []byte) []byte {
 
 	update := make([]byte, 2+wdLen+2+attrLen+len(nlri))
 
-	binary.BigEndian.PutUint16(update[0:2], uint16(wdLen))
+	binary.BigEndian.PutUint16(update[0:2], uint16(wdLen)) //nolint:gosec // wdLen < 4096
 	copy(update[2:], withdrawn)
 
-	binary.BigEndian.PutUint16(update[2+wdLen:], uint16(attrLen))
+	binary.BigEndian.PutUint16(update[2+wdLen:], uint16(attrLen)) //nolint:gosec // attrLen < 4096
 	copy(update[4+wdLen:], attrs)
 	copy(update[4+wdLen+attrLen:], nlri)
 

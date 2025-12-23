@@ -20,14 +20,14 @@ import (
 	"strings"
 )
 
-// MRT types (RFC 6396)
+// MRT types (RFC 6396).
 const (
 	MRT_TABLE_DUMP_V2 = 13
 	MRT_BGP4MP        = 16
 	MRT_BGP4MP_ET     = 17
 )
 
-// TABLE_DUMP_V2 subtypes
+// TABLE_DUMP_V2 subtypes.
 const (
 	PEER_INDEX_TABLE   = 1
 	RIB_IPV4_UNICAST   = 2
@@ -37,7 +37,7 @@ const (
 	RIB_GENERIC        = 6
 )
 
-// BGP4MP subtypes
+// BGP4MP subtypes.
 const (
 	BGP4MP_STATE_CHANGE      = 0
 	BGP4MP_MESSAGE           = 1
@@ -47,14 +47,14 @@ const (
 	BGP4MP_MESSAGE_AS4_LOCAL = 7
 )
 
-// BGP attribute types
+// BGP attribute types.
 const (
 	ATTR_LOCAL_PREF      = 5
 	ATTR_COMMUNITY       = 8
 	ATTR_LARGE_COMMUNITY = 32
 )
 
-// PeerInfo holds info from PEER_INDEX_TABLE
+// PeerInfo holds info from PEER_INDEX_TABLE.
 type PeerInfo struct {
 	Index  uint16
 	BGP_ID net.IP
@@ -64,7 +64,7 @@ type PeerInfo struct {
 	IsAS4  bool
 }
 
-// ASNStats holds per-ASN statistics
+// ASNStats holds per-ASN statistics.
 type ASNStats struct {
 	ASN              uint32
 	Routes           uint64
@@ -76,7 +76,7 @@ type ASNStats struct {
 	TotalLCommBytes  uint64            // total bytes in LARGE_COMMUNITY attrs
 }
 
-// Stats holds all analysis data
+// Stats holds all analysis data.
 type Stats struct {
 	Files       []string
 	PeerTable   map[uint16]*PeerInfo // peer_index -> PeerInfo
@@ -84,7 +84,7 @@ type Stats struct {
 	TotalRoutes uint64
 }
 
-// Config options
+// Config options.
 var (
 	threshold  = flag.Float64("threshold", 0.95, "Minimum frequency to be considered default (0.0-1.0)")
 	minRoutes  = flag.Int("min-routes", 1000, "Minimum routes from ASN to generate defaults")
@@ -153,11 +153,11 @@ func main() {
 }
 
 func processMRT(filename string, stats *Stats) error {
-	f, err := os.Open(filename)
+	f, err := os.Open(filename) // #nosec G304 -- filename from CLI args
 	if err != nil {
 		return err
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	var reader io.Reader = f
 	if strings.HasSuffix(filename, ".gz") {
@@ -165,7 +165,7 @@ func processMRT(filename string, stats *Stats) error {
 		if err != nil {
 			return err
 		}
-		defer gz.Close()
+		defer func() { _ = gz.Close() }()
 		reader = gz
 	}
 
@@ -546,7 +546,7 @@ func analyzeRoute(attrs []byte, asn uint32, peerIndex uint16, stats *Stats) {
 			}
 
 		case ATTR_LARGE_COMMUNITY:
-			asnStats.TotalLCommBytes += uint64(attrLen)
+			asnStats.TotalLCommBytes += uint64(attrLen) // #nosec G115 -- attrLen is small
 			for i := 0; i+12 <= len(attrValue); i += 12 {
 				global := binary.BigEndian.Uint32(attrValue[i : i+4])
 				local1 := binary.BigEndian.Uint32(attrValue[i+4 : i+8])
@@ -590,7 +590,7 @@ func printYAML(stats *Stats) {
 	}
 	var sorted []asnSort
 	for asn, s := range stats.ASNData {
-		if s.Routes >= uint64(*minRoutes) {
+		if s.Routes >= uint64(*minRoutes) { //nolint:gosec // minRoutes from CLI flag
 			sorted = append(sorted, asnSort{asn, s})
 		}
 	}
@@ -799,7 +799,7 @@ func printJSON(stats *Stats) {
 	}
 	var sorted []asnSort
 	for asn, s := range stats.ASNData {
-		if s.Routes >= uint64(*minRoutes) {
+		if s.Routes >= uint64(*minRoutes) { //nolint:gosec // minRoutes from CLI flag
 			sorted = append(sorted, asnSort{asn, s})
 		}
 	}

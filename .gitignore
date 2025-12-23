@@ -1,13 +1,17 @@
 # Build artifacts
 bin/
+
 # MRT data files (large, downloaded)
 test/internet/*.gz
 test/internet/*.bz2
 test/internet/*.tmp
-# local development research
-research/
+
+# Research output (large generated files)
+research/output/
+
+# Coverage reports
 coverage.out
 coverage.html
-research/cmd/*/attribute-analyser
-research/cmd/*/community-defaults
-research/cmd/*/mrt-dump
+
+# macOS
+.DS_Store
