@@ -7,8 +7,12 @@ import (
 	"net/netip"
 	"strconv"
 	"strings"
+	"time"
 
+	"github.com/exa-networks/zebgp/pkg/bgp/attribute"
+	"github.com/exa-networks/zebgp/pkg/bgp/nlri"
 	"github.com/exa-networks/zebgp/pkg/parse"
+	"github.com/exa-networks/zebgp/pkg/rib"
 )
 
 // Errors for route parsing.
@@ -191,6 +195,11 @@ func RegisterRouteHandlers(d *Dispatcher) {
 	// Family-explicit announce commands (ExaBGP compatibility)
 	d.Register("announce ipv4", handleAnnounceIPv4, "Announce IPv4 route (family-explicit)")
 	d.Register("announce ipv6", handleAnnounceIPv6, "Announce IPv6 route (family-explicit)")
+
+	// Batch announce commands (multiple NLRIs per UPDATE)
+	d.Register("announce attributes", handleAnnounceAttributes, "Announce routes with shared attributes (ExaBGP compat)")
+	d.Register("announce nlri", handleAnnounceNLRI, "Queue routes to active commit with explicit AFI/SAFI")
+	d.Register("announce update", handleAnnounceUpdate, "Auto-commit wrapper: announce routes with explicit AFI/SAFI")
 
 	// Withdraw commands
 	d.Register("withdraw route", handleWithdrawRoute, "Withdraw a route from peers")
@@ -828,6 +837,483 @@ func handleWithdrawIPv6(ctx *CommandContext, args []string) (*Response, error) {
 		// Delegate unicast to shared implementation
 		return withdrawRouteImpl(ctx, rest)
 	}
+}
+
+// ErrMissingNLRI is returned when nlri keyword or prefixes are missing.
+var ErrMissingNLRI = errors.New("missing nlri")
+
+// handleAnnounceAttributes handles: announce attributes <attrs>... nlri <prefix>...
+// This is the ExaBGP-compatible syntax for announcing multiple NLRIs with shared attributes.
+// Example: announce attributes next-hop 10.11.12.13 origin igp nlri 16.17.18.19/32 20.21.22.23/32
+// Example: announce attributes med 100 next-hop 10.0.0.1 nlri 1.0.0.0/24 2.0.0.0/24.
+func handleAnnounceAttributes(ctx *CommandContext, args []string) (*Response, error) {
+	if len(args) < 3 {
+		return &Response{
+			Status: "error",
+			Error:  "usage: announce attributes <attrs>... nlri <prefix>...",
+		}, ErrMissingNLRI
+	}
+
+	// Parse attributes and NLRIs
+	attrs, prefixes, err := parseAttributesNLRI(args)
+	if err != nil {
+		return &Response{Status: "error", Error: err.Error()}, err
+	}
+
+	if len(prefixes) == 0 {
+		return &Response{Status: "error", Error: "no prefixes after nlri keyword"}, ErrMissingNLRI
+	}
+
+	// Validate next-hop is present
+	if !attrs.NextHop.IsValid() {
+		return &Response{Status: "error", Error: "missing next-hop"}, ErrMissingNextHop
+	}
+
+	peerSelector := ctx.PeerSelector()
+
+	// Announce each prefix with shared attributes
+	for _, prefix := range prefixes {
+		route := RouteSpec{
+			Prefix:         prefix,
+			NextHop:        attrs.NextHop,
+			PathAttributes: attrs.PathAttributes,
+		}
+		if err := ctx.Reactor.AnnounceRoute(peerSelector, route); err != nil {
+			return &Response{
+				Status: "error",
+				Error:  fmt.Sprintf("failed to announce %s: %v", prefix.String(), err),
+			}, err
+		}
+	}
+
+	return &Response{
+		Status: "done",
+		Data: map[string]any{
+			"peer":     peerSelector,
+			"prefixes": len(prefixes),
+			"next_hop": attrs.NextHop.String(),
+		},
+	}, nil
+}
+
+// handleAnnounceNLRI handles: announce nlri <attrs>... <afi> <safi> [nlri] <prefix>...
+// Queues routes to an active commit. Requires commit to be started first.
+// Example: announce nlri next-hop 10.0.0.1 origin igp ipv4 unicast 1.0.0.0/24 2.0.0.0/24.
+func handleAnnounceNLRI(ctx *CommandContext, args []string) (*Response, error) {
+	if len(args) < 4 {
+		return &Response{
+			Status: "error",
+			Error:  "usage: announce nlri <attrs>... <afi> <safi> [nlri] <prefix>...",
+		}, ErrMissingNLRI
+	}
+
+	// Parse attributes, AFI/SAFI, and NLRIs
+	attrs, afi, safi, prefixes, err := parseUpdateCommand(args)
+	if err != nil {
+		return &Response{Status: "error", Error: err.Error()}, err
+	}
+
+	if len(prefixes) == 0 {
+		return &Response{Status: "error", Error: "no prefixes specified"}, ErrMissingNLRI
+	}
+
+	// Validate next-hop is present
+	if !attrs.NextHop.IsValid() {
+		return &Response{Status: "error", Error: "missing next-hop"}, ErrMissingNextHop
+	}
+
+	// Validate prefix families match AFI
+	for _, prefix := range prefixes {
+		isIPv4 := prefix.Addr().Is4()
+		if afi == AFINameIPv4 && !isIPv4 {
+			return &Response{
+				Status: "error",
+				Error:  fmt.Sprintf("prefix %s is not IPv4", prefix.String()),
+			}, ErrInvalidPrefix
+		}
+		if afi == AFINameIPv6 && isIPv4 {
+			return &Response{
+				Status: "error",
+				Error:  fmt.Sprintf("prefix %s is not IPv6", prefix.String()),
+			}, ErrInvalidPrefix
+		}
+	}
+
+	// Queue routes to active commit
+	return queueRoutesToCommit(ctx, attrs, afi, safi, prefixes)
+}
+
+// handleAnnounceUpdate handles: announce update <attrs>... <afi> <safi> [nlri] <prefix>...
+// This is an auto-commit wrapper: starts commit, queues routes, ends with EOR.
+// Equivalent to: commit <auto> start; announce nlri ...; commit <auto> eor
+// Example: announce update next-hop 10.0.0.1 origin igp ipv4 unicast 1.0.0.0/24 2.0.0.0/24.
+func handleAnnounceUpdate(ctx *CommandContext, args []string) (*Response, error) {
+	if len(args) < 4 {
+		return &Response{
+			Status: "error",
+			Error:  "usage: announce update <attrs>... <afi> <safi> [nlri] <prefix>...",
+		}, ErrMissingNLRI
+	}
+
+	// Parse attributes, AFI/SAFI, and NLRIs
+	attrs, afi, safi, prefixes, err := parseUpdateCommand(args)
+	if err != nil {
+		return &Response{Status: "error", Error: err.Error()}, err
+	}
+
+	if len(prefixes) == 0 {
+		return &Response{Status: "error", Error: "no prefixes specified"}, ErrMissingNLRI
+	}
+
+	// Validate next-hop is present
+	if !attrs.NextHop.IsValid() {
+		return &Response{Status: "error", Error: "missing next-hop"}, ErrMissingNextHop
+	}
+
+	// Validate prefix families match AFI
+	for _, prefix := range prefixes {
+		isIPv4 := prefix.Addr().Is4()
+		if afi == AFINameIPv4 && !isIPv4 {
+			return &Response{
+				Status: "error",
+				Error:  fmt.Sprintf("prefix %s is not IPv4", prefix.String()),
+			}, ErrInvalidPrefix
+		}
+		if afi == AFINameIPv6 && isIPv4 {
+			return &Response{
+				Status: "error",
+				Error:  fmt.Sprintf("prefix %s is not IPv6", prefix.String()),
+			}, ErrInvalidPrefix
+		}
+	}
+
+	peerSelector := ctx.PeerSelector()
+
+	// Auto-commit: start, queue routes, end with EOR
+	commitName := fmt.Sprintf("_auto_update_%d", time.Now().UnixNano())
+
+	// Start commit
+	if err := ctx.CommitManager.Start(commitName, peerSelector); err != nil {
+		return &Response{
+			Status: "error",
+			Error:  fmt.Sprintf("failed to start auto-commit: %v", err),
+		}, err
+	}
+
+	// Queue routes
+	tx, err := ctx.CommitManager.Get(commitName)
+	if err != nil {
+		return &Response{Status: "error", Error: err.Error()}, err
+	}
+
+	for _, prefix := range prefixes {
+		route := buildRoute(prefix, attrs, afi, safi)
+		tx.QueueAnnounce(route)
+	}
+
+	// End commit with EOR
+	tx, err = ctx.CommitManager.End(commitName)
+	if err != nil {
+		return &Response{
+			Status: "error",
+			Error:  fmt.Sprintf("failed to end auto-commit: %v", err),
+		}, err
+	}
+
+	// Send routes
+	routes := tx.Routes()
+	result, err := ctx.Reactor.SendRoutes(peerSelector, routes, nil, true)
+	if err != nil {
+		return &Response{
+			Status: "error",
+			Error:  fmt.Sprintf("failed to send routes: %v", err),
+		}, err
+	}
+
+	return &Response{
+		Status: "done",
+		Data: map[string]any{
+			"peer":             peerSelector,
+			"family":           afi + " " + safi,
+			"prefixes":         len(prefixes),
+			"routes_announced": result.RoutesAnnounced,
+			"updates_sent":     result.UpdatesSent,
+			"eor_sent":         true,
+		},
+	}, nil
+}
+
+// BatchAttributes holds parsed attributes for batch announcements.
+type BatchAttributes struct {
+	NextHop netip.Addr
+	PathAttributes
+}
+
+// parseAttributesNLRI parses: <attrs>... nlri <prefix>...
+// Returns the parsed attributes and list of prefixes.
+func parseAttributesNLRI(args []string) (BatchAttributes, []netip.Prefix, error) {
+	var attrs BatchAttributes
+	var prefixes []netip.Prefix
+	nlriIndex := -1
+
+	// Find "nlri" keyword
+	for i, arg := range args {
+		if strings.EqualFold(arg, "nlri") {
+			nlriIndex = i
+			break
+		}
+	}
+
+	if nlriIndex < 0 {
+		return attrs, nil, fmt.Errorf("%w: 'nlri' keyword not found", ErrMissingNLRI)
+	}
+
+	// Parse attributes before "nlri"
+	for i := 0; i < nlriIndex; i++ {
+		key := strings.ToLower(args[i])
+
+		// Handle next-hop
+		if key == "next-hop" {
+			if i+1 >= nlriIndex {
+				return attrs, nil, ErrMissingNextHop
+			}
+			nh, err := netip.ParseAddr(args[i+1])
+			if err != nil {
+				return attrs, nil, fmt.Errorf("%w: %s", ErrInvalidNextHop, args[i+1])
+			}
+			attrs.NextHop = nh
+			i++
+			continue
+		}
+
+		// Try common attribute parsing
+		consumed, err := parseCommonAttribute(key, args, i, &attrs.PathAttributes)
+		if err != nil {
+			return attrs, nil, err
+		}
+		if consumed > 0 {
+			i += consumed
+			continue
+		}
+
+		// Unknown attribute - allow it for forward compatibility
+		// (ExaBGP might have attributes we don't know about)
+		if i+1 < nlriIndex {
+			i++ // Skip value
+		}
+	}
+
+	// Parse prefixes after "nlri"
+	for i := nlriIndex + 1; i < len(args); i++ {
+		prefix, err := netip.ParsePrefix(args[i])
+		if err != nil {
+			return attrs, nil, fmt.Errorf("%w: %s", ErrInvalidPrefix, args[i])
+		}
+		prefixes = append(prefixes, prefix)
+	}
+
+	return attrs, prefixes, nil
+}
+
+// parseUpdateCommand parses: <attrs>... <afi> <safi> [nlri] <prefix>...
+// Returns attributes, AFI, SAFI, and list of prefixes.
+func parseUpdateCommand(args []string) (BatchAttributes, string, string, []netip.Prefix, error) {
+	var attrs BatchAttributes
+	var prefixes []netip.Prefix
+	var afi, safi string
+
+	// Find AFI keyword (ipv4 or ipv6)
+	afiIndex := -1
+	for i, arg := range args {
+		lower := strings.ToLower(arg)
+		if lower == AFINameIPv4 || lower == AFINameIPv6 {
+			afiIndex = i
+			afi = lower
+			break
+		}
+	}
+
+	if afiIndex < 0 {
+		return attrs, "", "", nil, fmt.Errorf("%w: AFI (ipv4/ipv6) not found", ErrInvalidFamily)
+	}
+
+	// SAFI must follow AFI
+	if afiIndex+1 >= len(args) {
+		return attrs, "", "", nil, fmt.Errorf("%w: missing SAFI after %s", ErrInvalidFamily, afi)
+	}
+	safi = strings.ToLower(args[afiIndex+1])
+
+	// Validate SAFI
+	switch safi {
+	case SAFINameUnicast, SAFINameMulticast:
+		// OK
+	default:
+		return attrs, "", "", nil, fmt.Errorf("%w: unsupported SAFI '%s'", ErrInvalidFamily, safi)
+	}
+
+	// Parse attributes before AFI
+	for i := 0; i < afiIndex; i++ {
+		key := strings.ToLower(args[i])
+
+		// Handle next-hop
+		if key == "next-hop" {
+			if i+1 >= afiIndex {
+				return attrs, "", "", nil, ErrMissingNextHop
+			}
+			nh, err := netip.ParseAddr(args[i+1])
+			if err != nil {
+				return attrs, "", "", nil, fmt.Errorf("%w: %s", ErrInvalidNextHop, args[i+1])
+			}
+			attrs.NextHop = nh
+			i++
+			continue
+		}
+
+		// Try common attribute parsing
+		consumed, err := parseCommonAttribute(key, args, i, &attrs.PathAttributes)
+		if err != nil {
+			return attrs, "", "", nil, err
+		}
+		if consumed > 0 {
+			i += consumed
+			continue
+		}
+
+		// Unknown attribute - skip with value
+		if i+1 < afiIndex {
+			i++
+		}
+	}
+
+	// Parse prefixes after AFI SAFI [nlri]
+	startIdx := afiIndex + 2
+	if startIdx < len(args) && strings.EqualFold(args[startIdx], "nlri") {
+		startIdx++ // Skip optional "nlri" keyword
+	}
+
+	for i := startIdx; i < len(args); i++ {
+		prefix, err := netip.ParsePrefix(args[i])
+		if err != nil {
+			return attrs, "", "", nil, fmt.Errorf("%w: %s", ErrInvalidPrefix, args[i])
+		}
+		prefixes = append(prefixes, prefix)
+	}
+
+	return attrs, afi, safi, prefixes, nil
+}
+
+// buildRoute creates a rib.Route from prefix and attributes.
+func buildRoute(prefix netip.Prefix, attrs BatchAttributes, afiStr, safiStr string) *rib.Route {
+	// Determine AFI/SAFI
+	var afi nlri.AFI
+	var safi nlri.SAFI
+
+	switch afiStr {
+	case AFINameIPv4:
+		afi = nlri.AFIIPv4
+	case AFINameIPv6:
+		afi = nlri.AFIIPv6
+	default:
+		if prefix.Addr().Is4() {
+			afi = nlri.AFIIPv4
+		} else {
+			afi = nlri.AFIIPv6
+		}
+	}
+
+	switch safiStr {
+	case SAFINameMulticast:
+		safi = nlri.SAFIMulticast
+	default:
+		safi = nlri.SAFIUnicast
+	}
+
+	// Build NLRI
+	n := nlri.NewINET(nlri.Family{AFI: afi, SAFI: safi}, prefix, 0)
+
+	// Build attributes - start with default Origin IGP
+	var pathAttrs []attribute.Attribute
+
+	// Add Origin - use specified or default to IGP
+	if attrs.Origin != nil {
+		pathAttrs = append(pathAttrs, attribute.Origin(*attrs.Origin))
+	} else {
+		pathAttrs = append(pathAttrs, attribute.OriginIGP)
+	}
+
+	// Add optional attributes
+	if attrs.LocalPreference != nil {
+		pathAttrs = append(pathAttrs, attribute.LocalPref(*attrs.LocalPreference))
+	}
+	if attrs.MED != nil {
+		pathAttrs = append(pathAttrs, attribute.MED(*attrs.MED))
+	}
+	if len(attrs.ASPath) > 0 {
+		pathAttrs = append(pathAttrs, &attribute.ASPath{
+			Segments: []attribute.ASPathSegment{{
+				Type: attribute.ASSequence,
+				ASNs: attrs.ASPath,
+			}},
+		})
+	}
+	if len(attrs.Communities) > 0 {
+		comms := make(attribute.Communities, len(attrs.Communities))
+		for i, c := range attrs.Communities {
+			comms[i] = attribute.Community(c)
+		}
+		pathAttrs = append(pathAttrs, comms)
+	}
+	if len(attrs.LargeCommunities) > 0 {
+		lc := make(attribute.LargeCommunities, len(attrs.LargeCommunities))
+		copy(lc, attrs.LargeCommunities)
+		pathAttrs = append(pathAttrs, lc)
+	}
+
+	return rib.NewRoute(n, attrs.NextHop, pathAttrs)
+}
+
+// queueRoutesToCommit queues routes to the active commit for the peer.
+// Returns error if no commit is active.
+func queueRoutesToCommit(ctx *CommandContext, attrs BatchAttributes, afi, safi string, prefixes []netip.Prefix) (*Response, error) {
+	// Get active commit for this peer
+	peerSelector := ctx.PeerSelector()
+
+	// Find active commit - look for any commit with matching peer
+	commits := ctx.CommitManager.List()
+	if len(commits) == 0 {
+		return &Response{
+			Status: "error",
+			Error:  "no active commit - use 'commit <name> start' first",
+		}, fmt.Errorf("no active commit")
+	}
+
+	// Use the first (most recent) commit
+	// TODO: Support explicit commit name in command
+	commitName := commits[0]
+	tx, err := ctx.CommitManager.Get(commitName)
+	if err != nil {
+		return &Response{
+			Status: "error",
+			Error:  fmt.Sprintf("commit not found: %v", err),
+		}, err
+	}
+
+	// Queue each route
+	for _, prefix := range prefixes {
+		route := buildRoute(prefix, attrs, afi, safi)
+		tx.QueueAnnounce(route)
+	}
+
+	return &Response{
+		Status: "done",
+		Data: map[string]any{
+			"commit":   commitName,
+			"peer":     peerSelector,
+			"family":   afi + " " + safi,
+			"prefixes": len(prefixes),
+			"queued":   tx.Count(),
+		},
+	}, nil
 }
 
 // ErrMissingLabel is returned when label is required but not provided.

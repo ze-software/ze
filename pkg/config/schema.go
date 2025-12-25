@@ -511,10 +511,10 @@ func parseDuration(s string) (int64, error) {
 // NormalizeBool converts enable/disable to true/false.
 func NormalizeBool(value string) string {
 	switch value {
-	case "enable":
+	case configEnable:
 		return configTrue
-	case "disable":
-		return "false"
+	case configDisable:
+		return configFalse
 	default:
 		return value
 	}

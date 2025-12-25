@@ -660,3 +660,283 @@ func TestParseLargeCommunities(t *testing.T) {
 		})
 	}
 }
+
+// TestParseAttributesNLRI tests the ExaBGP-compatible attributes...nlri syntax.
+//
+// VALIDATES: Attributes are parsed correctly before the nlri keyword.
+// PREVENTS: Missing nlri keyword or invalid prefix parsing.
+func TestParseAttributesNLRI(t *testing.T) {
+	tests := []struct {
+		name                 string
+		args                 []string
+		wantPrefixes         int
+		wantNextHop          string
+		wantOrigin           *uint8
+		wantLP               *uint32
+		wantMED              *uint32
+		wantASPath           []uint32
+		wantCommunities      int
+		wantLargeCommunities int
+		wantErr              bool
+		errContains          string
+	}{
+		// Valid cases
+		{
+			name:         "basic next-hop and nlri",
+			args:         strings.Fields("next-hop 10.0.0.1 nlri 1.0.0.0/24"),
+			wantPrefixes: 1,
+			wantNextHop:  "10.0.0.1",
+			wantErr:      false,
+		},
+		{
+			name:         "multiple prefixes",
+			args:         strings.Fields("next-hop 10.0.0.1 nlri 1.0.0.0/24 2.0.0.0/24 3.0.0.0/24"),
+			wantPrefixes: 3,
+			wantNextHop:  "10.0.0.1",
+			wantErr:      false,
+		},
+		{
+			name:         "with origin and local-preference",
+			args:         strings.Fields("next-hop 10.0.0.1 origin igp local-preference 100 nlri 1.0.0.0/24"),
+			wantPrefixes: 1,
+			wantNextHop:  "10.0.0.1",
+			wantOrigin:   ptr(uint8(0)),
+			wantLP:       ptr(uint32(100)),
+			wantErr:      false,
+		},
+		{
+			name:         "with MED",
+			args:         strings.Fields("next-hop 10.0.0.1 med 500 nlri 1.0.0.0/24"),
+			wantPrefixes: 1,
+			wantNextHop:  "10.0.0.1",
+			wantMED:      ptr(uint32(500)),
+			wantErr:      false,
+		},
+		{
+			name:         "with AS-PATH",
+			args:         strings.Fields("next-hop 10.0.0.1 as-path [ 100 200 300 ] nlri 1.0.0.0/24"),
+			wantPrefixes: 1,
+			wantNextHop:  "10.0.0.1",
+			wantASPath:   []uint32{100, 200, 300},
+			wantErr:      false,
+		},
+		{
+			name:            "with community",
+			args:            strings.Fields("next-hop 10.0.0.1 community [2914:666] nlri 1.0.0.0/24"),
+			wantPrefixes:    1,
+			wantNextHop:     "10.0.0.1",
+			wantCommunities: 1,
+			wantErr:         false,
+		},
+		{
+			name:                 "with large-community",
+			args:                 strings.Fields("next-hop 10.0.0.1 large-community [65000:1:2] nlri 1.0.0.0/24"),
+			wantPrefixes:         1,
+			wantNextHop:          "10.0.0.1",
+			wantLargeCommunities: 1,
+			wantErr:              false,
+		},
+		{
+			name:                 "with multiple large-communities",
+			args:                 strings.Fields("next-hop 10.0.0.1 large-community [65000:1:2 65001:3:4] nlri 1.0.0.0/24"),
+			wantPrefixes:         1,
+			wantNextHop:          "10.0.0.1",
+			wantLargeCommunities: 2,
+			wantErr:              false,
+		},
+		{
+			name:                 "all attributes combined",
+			args:                 strings.Fields("next-hop 10.0.0.1 origin egp local-preference 200 med 100 as-path [ 1 2 ] community [2914:666] large-community [65000:1:2] nlri 1.0.0.0/24"),
+			wantPrefixes:         1,
+			wantNextHop:          "10.0.0.1",
+			wantOrigin:           ptr(uint8(1)), // EGP
+			wantLP:               ptr(uint32(200)),
+			wantMED:              ptr(uint32(100)),
+			wantASPath:           []uint32{1, 2},
+			wantCommunities:      1,
+			wantLargeCommunities: 1,
+			wantErr:              false,
+		},
+
+		// Invalid cases
+		{
+			name:        "missing nlri keyword",
+			args:        strings.Fields("next-hop 10.0.0.1 1.0.0.0/24"),
+			wantErr:     true,
+			errContains: "nlri",
+		},
+		{
+			name:         "no prefixes after nlri",
+			args:         strings.Fields("next-hop 10.0.0.1 nlri"),
+			wantErr:      false, // parsing succeeds, but returns 0 prefixes
+			wantPrefixes: 0,
+			wantNextHop:  "10.0.0.1",
+		},
+		{
+			name:        "invalid prefix after nlri",
+			args:        strings.Fields("next-hop 10.0.0.1 nlri invalid"),
+			wantErr:     true,
+			errContains: "invalid prefix",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			attrs, prefixes, err := parseAttributesNLRI(tt.args)
+			if tt.wantErr {
+				if err == nil {
+					t.Errorf("parseAttributesNLRI(%v) expected error containing %q", tt.args, tt.errContains)
+				} else if tt.errContains != "" && !strings.Contains(err.Error(), tt.errContains) {
+					t.Errorf("parseAttributesNLRI(%v) error = %v, want containing %q", tt.args, err, tt.errContains)
+				}
+				return
+			}
+			if err != nil {
+				t.Errorf("parseAttributesNLRI(%v) unexpected error = %v", tt.args, err)
+				return
+			}
+			if len(prefixes) != tt.wantPrefixes {
+				t.Errorf("parseAttributesNLRI(%v) prefixes = %d, want %d", tt.args, len(prefixes), tt.wantPrefixes)
+			}
+			if tt.wantNextHop != "" && attrs.NextHop.String() != tt.wantNextHop {
+				t.Errorf("parseAttributesNLRI(%v) NextHop = %v, want %v", tt.args, attrs.NextHop, tt.wantNextHop)
+			}
+			if tt.wantOrigin != nil && (attrs.Origin == nil || *attrs.Origin != *tt.wantOrigin) {
+				t.Errorf("parseAttributesNLRI(%v) Origin = %v, want %v", tt.args, attrs.Origin, tt.wantOrigin)
+			}
+			if tt.wantLP != nil && (attrs.LocalPreference == nil || *attrs.LocalPreference != *tt.wantLP) {
+				t.Errorf("parseAttributesNLRI(%v) LocalPreference = %v, want %v", tt.args, attrs.LocalPreference, tt.wantLP)
+			}
+			if tt.wantMED != nil && (attrs.MED == nil || *attrs.MED != *tt.wantMED) {
+				t.Errorf("parseAttributesNLRI(%v) MED = %v, want %v", tt.args, attrs.MED, tt.wantMED)
+			}
+			if tt.wantASPath != nil {
+				if len(attrs.ASPath) != len(tt.wantASPath) {
+					t.Errorf("parseAttributesNLRI(%v) ASPath len = %d, want %d", tt.args, len(attrs.ASPath), len(tt.wantASPath))
+				} else {
+					for i, asn := range tt.wantASPath {
+						if attrs.ASPath[i] != asn {
+							t.Errorf("parseAttributesNLRI(%v) ASPath[%d] = %d, want %d", tt.args, i, attrs.ASPath[i], asn)
+						}
+					}
+				}
+			}
+			if tt.wantCommunities > 0 && len(attrs.Communities) != tt.wantCommunities {
+				t.Errorf("parseAttributesNLRI(%v) Communities = %d, want %d", tt.args, len(attrs.Communities), tt.wantCommunities)
+			}
+			if tt.wantLargeCommunities > 0 && len(attrs.LargeCommunities) != tt.wantLargeCommunities {
+				t.Errorf("parseAttributesNLRI(%v) LargeCommunities = %d, want %d", tt.args, len(attrs.LargeCommunities), tt.wantLargeCommunities)
+			}
+		})
+	}
+}
+
+// TestParseUpdateCommand tests the ZeBGP announce update syntax.
+//
+// VALIDATES: AFI/SAFI is correctly parsed from the command.
+// PREVENTS: Invalid AFI/SAFI or missing family specification.
+func TestParseUpdateCommand(t *testing.T) {
+	tests := []struct {
+		name         string
+		args         []string
+		wantAFI      string
+		wantSAFI     string
+		wantPrefixes int
+		wantNextHop  string
+		wantErr      bool
+		errContains  string
+	}{
+		// Valid cases
+		{
+			name:         "ipv4 unicast",
+			args:         strings.Fields("next-hop 10.0.0.1 ipv4 unicast 1.0.0.0/24"),
+			wantAFI:      "ipv4",
+			wantSAFI:     "unicast",
+			wantPrefixes: 1,
+			wantNextHop:  "10.0.0.1",
+			wantErr:      false,
+		},
+		{
+			name:         "ipv6 unicast",
+			args:         strings.Fields("next-hop 2001::1 ipv6 unicast 2001:db8::/32"),
+			wantAFI:      "ipv6",
+			wantSAFI:     "unicast",
+			wantPrefixes: 1,
+			wantNextHop:  "2001::1",
+			wantErr:      false,
+		},
+		{
+			name:         "with optional nlri keyword",
+			args:         strings.Fields("next-hop 10.0.0.1 ipv4 unicast nlri 1.0.0.0/24 2.0.0.0/24"),
+			wantAFI:      "ipv4",
+			wantSAFI:     "unicast",
+			wantPrefixes: 2,
+			wantNextHop:  "10.0.0.1",
+			wantErr:      false,
+		},
+		{
+			name:         "with attributes before afi",
+			args:         strings.Fields("next-hop 10.0.0.1 origin igp local-preference 100 ipv4 unicast 1.0.0.0/24"),
+			wantAFI:      "ipv4",
+			wantSAFI:     "unicast",
+			wantPrefixes: 1,
+			wantNextHop:  "10.0.0.1",
+			wantErr:      false,
+		},
+
+		// Invalid cases
+		{
+			name:        "missing AFI",
+			args:        strings.Fields("next-hop 10.0.0.1 1.0.0.0/24"),
+			wantErr:     true,
+			errContains: "AFI",
+		},
+		{
+			name:        "missing SAFI",
+			args:        strings.Fields("next-hop 10.0.0.1 ipv4"),
+			wantErr:     true,
+			errContains: "SAFI",
+		},
+		{
+			name:        "invalid SAFI",
+			args:        strings.Fields("next-hop 10.0.0.1 ipv4 vpn 1.0.0.0/24"),
+			wantErr:     true,
+			errContains: "SAFI",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			attrs, afi, safi, prefixes, err := parseUpdateCommand(tt.args)
+			if tt.wantErr {
+				if err == nil {
+					t.Errorf("parseUpdateCommand(%v) expected error containing %q", tt.args, tt.errContains)
+				} else if tt.errContains != "" && !strings.Contains(err.Error(), tt.errContains) {
+					t.Errorf("parseUpdateCommand(%v) error = %v, want containing %q", tt.args, err, tt.errContains)
+				}
+				return
+			}
+			if err != nil {
+				t.Errorf("parseUpdateCommand(%v) unexpected error = %v", tt.args, err)
+				return
+			}
+			if afi != tt.wantAFI {
+				t.Errorf("parseUpdateCommand(%v) AFI = %v, want %v", tt.args, afi, tt.wantAFI)
+			}
+			if safi != tt.wantSAFI {
+				t.Errorf("parseUpdateCommand(%v) SAFI = %v, want %v", tt.args, safi, tt.wantSAFI)
+			}
+			if len(prefixes) != tt.wantPrefixes {
+				t.Errorf("parseUpdateCommand(%v) prefixes = %d, want %d", tt.args, len(prefixes), tt.wantPrefixes)
+			}
+			if tt.wantNextHop != "" && attrs.NextHop.String() != tt.wantNextHop {
+				t.Errorf("parseUpdateCommand(%v) NextHop = %v, want %v", tt.args, attrs.NextHop, tt.wantNextHop)
+			}
+		})
+	}
+}
+
+// ptr returns a pointer to the value. Helper for test cases.
+func ptr[T any](v T) *T {
+	return &v
+}
