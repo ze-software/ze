@@ -102,6 +102,48 @@ func TestNotificationWithColons(t *testing.T) {
 	}
 }
 
+// TestModeStringAndParse verifies Mode String() and ParseMode().
+func TestModeStringAndParse(t *testing.T) {
+	// Test String()
+	if ModeCheck.String() != "check" {
+		t.Errorf("ModeCheck.String() = %q, want %q", ModeCheck.String(), "check")
+	}
+	if ModeSink.String() != "sink" {
+		t.Errorf("ModeSink.String() = %q, want %q", ModeSink.String(), "sink")
+	}
+	if ModeEcho.String() != "echo" {
+		t.Errorf("ModeEcho.String() = %q, want %q", ModeEcho.String(), "echo")
+	}
+	if Mode(99).String() != "unknown" {
+		t.Errorf("Mode(99).String() = %q, want %q", Mode(99).String(), "unknown")
+	}
+
+	// Test ParseMode (case-insensitive)
+	tests := []struct {
+		input string
+		want  Mode
+		valid bool
+	}{
+		{"check", ModeCheck, true},
+		{"CHECK", ModeCheck, true},
+		{"Check", ModeCheck, true},
+		{"sink", ModeSink, true},
+		{"SINK", ModeSink, true},
+		{"echo", ModeEcho, true},
+		{"ECHO", ModeEcho, true},
+		{"invalid", ModeCheck, false},
+		{"", ModeCheck, false},
+	}
+
+	for _, tt := range tests {
+		got, valid := ParseMode(tt.input)
+		if got != tt.want || valid != tt.valid {
+			t.Errorf("ParseMode(%q) = (%v, %v), want (%v, %v)",
+				tt.input, got, valid, tt.want, tt.valid)
+		}
+	}
+}
+
 // TestNotificationSequence tests notification at non-first position.
 func TestNotificationSequence(t *testing.T) {
 	inputs := []string{

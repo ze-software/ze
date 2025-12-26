@@ -65,7 +65,7 @@ func TestPeerSinkMode(t *testing.T) {
 
 	result := runPeerTest(t, &testpeer.Config{
 		Port:   int(port),
-		Sink:   true,
+		Mode:   testpeer.ModeSink,
 		Output: &bytes.Buffer{},
 	})
 
@@ -100,7 +100,7 @@ func TestPeerEchoMode(t *testing.T) {
 
 	result := runPeerTest(t, &testpeer.Config{
 		Port:   int(port),
-		Echo:   true,
+		Mode:   testpeer.ModeEcho,
 		Output: &bytes.Buffer{},
 	})
 

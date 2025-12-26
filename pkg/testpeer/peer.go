@@ -32,6 +32,44 @@ const (
 	MsgROUTEREFRESH = 5
 )
 
+// Mode specifies testpeer operation mode.
+type Mode int
+
+const (
+	ModeCheck Mode = iota // Validate received messages against expectations (default)
+	ModeSink              // Accept any BGP messages, reply with keepalive
+	ModeEcho              // Accept any BGP messages, echo them back
+)
+
+// String returns the mode name.
+func (m Mode) String() string {
+	switch m {
+	case ModeCheck:
+		return "check"
+	case ModeSink:
+		return "sink"
+	case ModeEcho:
+		return "echo"
+	default:
+		return "unknown"
+	}
+}
+
+// ParseMode parses a mode string (case-insensitive).
+// Returns the mode and true if valid, or ModeCheck and false if invalid.
+func ParseMode(s string) (Mode, bool) {
+	switch strings.ToLower(s) {
+	case "check":
+		return ModeCheck, true
+	case "sink":
+		return ModeSink, true
+	case "echo":
+		return ModeEcho, true
+	default:
+		return ModeCheck, false
+	}
+}
+
 // BGP header length.
 const HeaderLen = 19
 
@@ -50,10 +88,8 @@ type Config struct {
 	// TCPConnections is the number of TCP connections to accept for multi-connection tests.
 	// Used with option:tcp_connections:N in .ci files. Default 1.
 	TCPConnections int
-	// Sink mode: accept any BGP messages, reply with keepalive
-	Sink bool
-	// Echo mode: accept any BGP messages, echo them back
-	Echo bool
+	// Mode: operation mode (check, sink, echo). Default ModeCheck.
+	Mode Mode
 	// IPv6: bind to IPv6 instead of IPv4
 	IPv6 bool
 	// Decode: decode messages to human-readable format in output
@@ -154,8 +190,8 @@ func (p *Peer) Run(ctx context.Context) Result {
 			}
 		}(conn)
 
-		// In sink/echo mode, don't wait
-		if p.config.Sink || p.config.Echo {
+		// In sink/echo mode, don't wait for completion
+		if p.config.Mode != ModeCheck {
 			continue
 		}
 
@@ -282,13 +318,13 @@ func (p *Peer) handleConnection(ctx context.Context, conn net.Conn) Result {
 		msg := &Message{Header: header, Body: body}
 		p.printPayload("msg  recv", header, body)
 
-		if p.config.Sink {
+		if p.config.Mode == ModeSink {
 			p.printPayload(fmt.Sprintf("sank    #%d", counter), header, body)
 			_, _ = conn.Write(KeepaliveMsg())
 			continue
 		}
 
-		if p.config.Echo {
+		if p.config.Mode == ModeEcho {
 			p.printPayload(fmt.Sprintf("echo'd  #%d", counter), header, body)
 			_, _ = conn.Write(append(header, body...))
 			continue

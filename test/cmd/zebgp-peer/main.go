@@ -27,14 +27,16 @@ func main() {
 		return
 	}
 
-	switch {
-	case config.Sink:
+	switch config.Mode {
+	case testpeer.ModeSink:
 		fmt.Print("\nsink mode - send us whatever, we can take it! :p\n\n")
-	case config.Echo:
+	case testpeer.ModeEcho:
 		fmt.Print("\necho mode - send us whatever, we can parrot it! :p\n\n")
-	case len(config.Expect) == 0:
-		fmt.Println("no test data available to test against")
-		os.Exit(1)
+	case testpeer.ModeCheck:
+		if len(config.Expect) == 0 {
+			fmt.Println("no test data available to test against")
+			os.Exit(1)
+		}
 	}
 
 	ctx, cancel := context.WithCancel(context.Background())
@@ -81,14 +83,21 @@ func parseFlags() *testpeer.Config {
 	config := &testpeer.Config{Output: os.Stdout}
 
 	var view bool
+	var mode string
 	flag.IntVar(&config.Port, "port", port, "port to bind to")
 	flag.IntVar(&config.ASN, "asn", 0, "ASN to use (0 = extract from peer OPEN)")
-	flag.BoolVar(&config.Sink, "sink", false, "accept any BGP messages, reply with keepalive")
-	flag.BoolVar(&config.Echo, "echo", false, "accept any BGP messages, echo them back")
+	flag.StringVar(&mode, "mode", "check", "operation mode: check, sink, echo")
 	flag.BoolVar(&config.IPv6, "ipv6", false, "bind using IPv6")
 	flag.BoolVar(&config.Decode, "decode", false, "decode messages to human-readable format")
 	flag.BoolVar(&view, "view", false, "show expected packets and exit")
 	flag.Parse()
+
+	// Parse mode (case-insensitive, warns on invalid)
+	var valid bool
+	config.Mode, valid = testpeer.ParseMode(mode)
+	if !valid {
+		fmt.Fprintf(os.Stderr, "warning: unknown mode %q, using %q\n", mode, config.Mode)
+	}
 
 	// Load check file if provided.
 	if flag.NArg() > 0 {
@@ -116,6 +125,9 @@ func parseFlags() *testpeer.Config {
 		}
 		if fileConfig.ASN != 0 {
 			config.ASN = fileConfig.ASN
+		}
+		if fileConfig.TCPConnections > 0 {
+			config.TCPConnections = fileConfig.TCPConnections
 		}
 	}
 
