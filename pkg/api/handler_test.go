@@ -191,6 +191,14 @@ func (m *mockReactor) SendRoutes(_ string, routes []*rib.Route, withdrawals []nl
 	}, nil
 }
 
+func (m *mockReactor) AnnounceWatchdog(_, _ string) error {
+	return nil
+}
+
+func (m *mockReactor) WithdrawWatchdog(_, _ string) error {
+	return nil
+}
+
 // TestHandlerPeerList verifies peer list output.
 //
 // VALIDATES: All peers returned with state info.

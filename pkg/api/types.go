@@ -269,6 +269,14 @@ type ReactorInterface interface {
 	// SendRoutes sends routes directly to matching peers using CommitService.
 	// Used by named commits to bypass OutgoingRIB transaction.
 	SendRoutes(peerSelector string, routes []*rib.Route, withdrawals []nlri.NLRI, sendEOR bool) (TransactionResult, error)
+
+	// AnnounceWatchdog announces all routes in the named watchdog group.
+	// Routes are moved from withdrawn (-) to announced (+) state.
+	AnnounceWatchdog(peerSelector, name string) error
+
+	// WithdrawWatchdog withdraws all routes in the named watchdog group.
+	// Routes are moved from announced (+) to withdrawn (-) state.
+	WithdrawWatchdog(peerSelector, name string) error
 }
 
 // RIBRoute is an API-friendly representation of a route.

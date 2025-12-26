@@ -137,6 +137,11 @@ type Peer struct {
 	wg     sync.WaitGroup
 
 	mu sync.RWMutex
+
+	// Watchdog runtime state: tracks current announced/withdrawn state per route.
+	// Key: watchdog name, Value: map of route key (prefix string) → isAnnounced.
+	// Initialized from WatchdogGroups on session establishment.
+	watchdogState map[string]map[string]bool
 }
 
 // NewPeer creates a new peer for the given settings.
@@ -542,6 +547,59 @@ func (p *Peer) sendInitialRoutes() {
 		}
 	}
 
+	// Handle watchdog routes (routes controlled via "announce/withdraw watchdog" API).
+	// State persists across reconnects: routes keep their announced/withdrawn status.
+	// On first connect, InitiallyWithdrawn determines initial state.
+	if len(p.settings.WatchdogGroups) > 0 {
+		p.mu.Lock()
+		// Initialize watchdogState only if nil (preserves state across reconnects)
+		if p.watchdogState == nil {
+			p.watchdogState = make(map[string]map[string]bool)
+		}
+
+		// Initialize any missing group maps and set initial state for new routes
+		for name, routes := range p.settings.WatchdogGroups {
+			if p.watchdogState[name] == nil {
+				p.watchdogState[name] = make(map[string]bool)
+			}
+			for i := range routes {
+				wr := &routes[i]
+				routeKey := wr.RouteKey()
+				// Only set initial state if route not already tracked
+				if _, exists := p.watchdogState[name][routeKey]; !exists {
+					p.watchdogState[name][routeKey] = !wr.InitiallyWithdrawn
+				}
+			}
+		}
+		p.mu.Unlock()
+
+		// Send routes based on current state (not InitiallyWithdrawn)
+		for name, routes := range p.settings.WatchdogGroups {
+			for i := range routes {
+				wr := &routes[i]
+				routeKey := wr.RouteKey()
+
+				p.mu.RLock()
+				isAnnounced := p.watchdogState[name][routeKey]
+				p.mu.RUnlock()
+
+				if !isAnnounced {
+					trace.Log(trace.Routes, "peer %s: watchdog %s: holding route %s", addr, name, routeKey)
+					continue
+				}
+
+				// Send the route
+				update := buildStaticRouteUpdate(wr.StaticRoute, p.settings.LocalAS, p.settings.IsIBGP(), asn4)
+				if err := p.SendUpdate(update); err != nil {
+					trace.Log(trace.Routes, "peer %s: send error: %v", addr, err)
+					break
+				}
+				trace.RouteSent(addr, routeKey, wr.NextHop.String())
+			}
+		}
+		trace.Log(trace.Routes, "peer %s: initialized %d watchdog groups", addr, len(p.settings.WatchdogGroups))
+	}
+
 	// Re-send Adj-RIB-Out routes (routes announced via API that persist across reconnects).
 	sentRoutes := p.adjRIBOut.GetSentRoutes()
 	if len(sentRoutes) > 0 {
@@ -786,6 +844,83 @@ func buildWithdrawNLRI(n nlri.NLRI) *message.Update {
 		AFI:  attribute.AFI(family.AFI),
 		SAFI: attribute.SAFI(family.SAFI),
 		NLRI: n.Bytes(),
+	}
+
+	return &message.Update{
+		PathAttributes: attribute.PackAttribute(mpUnreach),
+	}
+}
+
+// buildStaticRouteWithdraw builds a withdrawal UPDATE for a static route.
+// Handles VPN, IPv4 unicast, and IPv6 unicast correctly.
+func buildStaticRouteWithdraw(route StaticRoute) *message.Update {
+	switch {
+	case route.IsVPN():
+		// VPN route: use MP_UNREACH_NLRI with RD + prefix
+		return buildMPUnreachVPN(route)
+	case route.Prefix.Addr().Is4():
+		// IPv4 unicast: use WithdrawnRoutes field
+		inet := nlri.NewINET(nlri.Family{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast}, route.Prefix, route.PathID)
+		return &message.Update{
+			WithdrawnRoutes: inet.Bytes(),
+		}
+	default:
+		// IPv6 unicast: use MP_UNREACH_NLRI
+		inet := nlri.NewINET(nlri.Family{AFI: nlri.AFIIPv6, SAFI: nlri.SAFIUnicast}, route.Prefix, route.PathID)
+		mpUnreach := &attribute.MPUnreachNLRI{
+			AFI:  attribute.AFI(nlri.AFIIPv6),
+			SAFI: attribute.SAFI(nlri.SAFIUnicast),
+			NLRI: inet.Bytes(),
+		}
+		return &message.Update{
+			PathAttributes: attribute.PackAttribute(mpUnreach),
+		}
+	}
+}
+
+// buildMPUnreachVPN builds MP_UNREACH_NLRI for VPN route withdrawal.
+func buildMPUnreachVPN(route StaticRoute) *message.Update {
+	// Determine AFI from prefix
+	var afi nlri.AFI
+	if route.Prefix.Addr().Is4() {
+		afi = nlri.AFIIPv4
+	} else {
+		afi = nlri.AFIIPv6
+	}
+
+	// Build labeled VPN NLRI: label (3 bytes) + RD (8 bytes) + prefix
+	var nlriBytes []byte
+
+	// Label: use route.Label or withdraw label (0x800000)
+	label := route.Label
+	if label == 0 {
+		label = 0x800000 // Withdraw label
+	}
+	nlriBytes = append(nlriBytes, byte(label>>16), byte(label>>8), byte(label)|0x01) // Bottom of stack
+
+	// RD (convert [8]byte to slice)
+	nlriBytes = append(nlriBytes, route.RDBytes[:]...)
+
+	// Prefix
+	prefixBits := route.Prefix.Bits()
+	prefixBytes := (prefixBits + 7) / 8
+	addr := route.Prefix.Addr()
+	if addr.Is4() {
+		a4 := addr.As4()
+		nlriBytes = append(nlriBytes, a4[:prefixBytes]...)
+	} else {
+		a16 := addr.As16()
+		nlriBytes = append(nlriBytes, a16[:prefixBytes]...)
+	}
+
+	// Prepend length (label + RD + prefix bits)
+	totalBits := 24 + 64 + prefixBits // 3 bytes label + 8 bytes RD + prefix
+	nlriWithLen := append([]byte{byte(totalBits)}, nlriBytes...)
+
+	mpUnreach := &attribute.MPUnreachNLRI{
+		AFI:  attribute.AFI(afi),
+		SAFI: attribute.SAFI(nlri.SAFIVPN), // RFC 4364: SAFI 128
+		NLRI: nlriWithLen,
 	}
 
 	return &message.Update{
@@ -2081,4 +2216,125 @@ func buildMUPMPReachNLRI(route MUPRoute) []byte {
 	copy(attr[4:], value)
 
 	return attr
+}
+
+// AnnounceWatchdog sends all routes in the named watchdog group that are currently withdrawn.
+// Routes are moved from withdrawn (-) to announced (+) state.
+func (p *Peer) AnnounceWatchdog(name string) error {
+	p.mu.RLock()
+	session := p.session
+	routes, exists := p.settings.WatchdogGroups[name]
+	stateMap := p.watchdogState[name]
+	stateInitialized := p.watchdogState != nil && stateMap != nil
+	p.mu.RUnlock()
+
+	if !exists {
+		return nil // No such watchdog group
+	}
+
+	if session == nil {
+		return nil // Not connected
+	}
+
+	if !stateInitialized {
+		return nil // State not yet initialized (session not fully established)
+	}
+
+	asn4 := true
+	if neg := session.Negotiated(); neg != nil {
+		asn4 = neg.ASN4
+	}
+
+	addr := p.settings.Address.String()
+	announced := 0
+
+	for i := range routes {
+		wr := &routes[i]
+		routeKey := wr.RouteKey()
+
+		p.mu.RLock()
+		isAnnounced := stateMap[routeKey]
+		p.mu.RUnlock()
+
+		if isAnnounced {
+			continue // Already announced
+		}
+
+		// Send the route
+		update := buildStaticRouteUpdate(wr.StaticRoute, p.settings.LocalAS, p.settings.IsIBGP(), asn4)
+		if err := p.SendUpdate(update); err != nil {
+			return err
+		}
+
+		// Update state (safe - we checked stateInitialized above)
+		p.mu.Lock()
+		p.watchdogState[name][routeKey] = true
+		p.mu.Unlock()
+
+		trace.RouteSent(addr, routeKey, wr.NextHop.String())
+		announced++
+	}
+
+	if announced > 0 {
+		trace.Log(trace.Routes, "peer %s: watchdog %s: announced %d routes", addr, name, announced)
+	}
+	return nil
+}
+
+// WithdrawWatchdog withdraws all routes in the named watchdog group that are currently announced.
+// Routes are moved from announced (+) to withdrawn (-) state.
+func (p *Peer) WithdrawWatchdog(name string) error {
+	p.mu.RLock()
+	session := p.session
+	routes, exists := p.settings.WatchdogGroups[name]
+	stateMap := p.watchdogState[name]
+	stateInitialized := p.watchdogState != nil && stateMap != nil
+	p.mu.RUnlock()
+
+	if !exists {
+		return nil // No such watchdog group
+	}
+
+	if session == nil {
+		return nil // Not connected
+	}
+
+	if !stateInitialized {
+		return nil // State not yet initialized (session not fully established)
+	}
+
+	addr := p.settings.Address.String()
+	withdrawn := 0
+
+	for i := range routes {
+		wr := &routes[i]
+		routeKey := wr.RouteKey()
+
+		p.mu.RLock()
+		isAnnounced := stateMap[routeKey]
+		p.mu.RUnlock()
+
+		if !isAnnounced {
+			continue // Already withdrawn
+		}
+
+		// Build withdrawal - handles VPN, IPv4 unicast, IPv6 unicast correctly
+		update := buildStaticRouteWithdraw(wr.StaticRoute)
+		if err := p.SendUpdate(update); err != nil {
+			return err
+		}
+
+		// Update state (safe - we checked stateInitialized above)
+		p.mu.Lock()
+		p.watchdogState[name][routeKey] = false
+		p.mu.Unlock()
+
+		trace.Log(trace.Routes, "peer %s: watchdog %s: withdrew %s", addr, name, routeKey)
+		withdrawn++
+	}
+
+	if withdrawn > 0 {
+		trace.Log(trace.Routes, "peer %s: watchdog %s: withdrew %d routes", addr, name, withdrawn)
+	}
+	return nil
 }

@@ -3,6 +3,7 @@
 package reactor
 
 import (
+	"fmt"
 	"net/netip"
 	"time"
 
@@ -66,6 +67,24 @@ type RawAttribute struct {
 // IsVPN returns true if this is a VPN route (has RD).
 func (r StaticRoute) IsVPN() bool {
 	return r.RD != ""
+}
+
+// RouteKey returns a unique key for this route, suitable for use as a map key.
+// Includes prefix, RD (for VPN), and PathID (for ADD-PATH).
+// PathID is always included since 0 is a valid path identifier.
+func (r StaticRoute) RouteKey() string {
+	key := r.Prefix.String()
+	if r.RD != "" {
+		key = r.RD + ":" + key
+	}
+	return fmt.Sprintf("%s#%d", key, r.PathID)
+}
+
+// WatchdogRoute wraps a static route with watchdog metadata.
+// Stored separately from StaticRoutes to avoid bloating that struct.
+type WatchdogRoute struct {
+	StaticRoute             // Embed existing type
+	InitiallyWithdrawn bool // Start in '-' state (held until "announce watchdog")
 }
 
 // MVPNRoute represents an MVPN route (RFC 6514).
@@ -173,6 +192,11 @@ type PeerSettings struct {
 
 	// StaticRoutes are announced when session is established.
 	StaticRoutes []StaticRoute
+
+	// WatchdogGroups holds routes controlled by watchdog API.
+	// Key is watchdog name, value is list of routes in that group.
+	// Routes here are NOT in StaticRoutes - they're stored separately.
+	WatchdogGroups map[string][]WatchdogRoute
 
 	// Exotic route types
 	MVPNRoutes     []MVPNRoute

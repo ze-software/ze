@@ -516,6 +516,38 @@ func (a *reactorAPIAdapter) AnnounceEOR(peerSelector string, afi uint16, safi ui
 	return a.sendToMatchingPeers(peerSelector, update)
 }
 
+// AnnounceWatchdog announces all routes in the named watchdog group.
+// Routes are moved from withdrawn (-) to announced (+) state.
+func (a *reactorAPIAdapter) AnnounceWatchdog(peerSelector, name string) error {
+	peers := a.getMatchingPeers(peerSelector)
+	if len(peers) == 0 {
+		return nil // No matching peers
+	}
+
+	for _, peer := range peers {
+		if err := peer.AnnounceWatchdog(name); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// WithdrawWatchdog withdraws all routes in the named watchdog group.
+// Routes are moved from announced (+) to withdrawn (-) state.
+func (a *reactorAPIAdapter) WithdrawWatchdog(peerSelector, name string) error {
+	peers := a.getMatchingPeers(peerSelector)
+	if len(peers) == 0 {
+		return nil // No matching peers
+	}
+
+	for _, peer := range peers {
+		if err := peer.WithdrawWatchdog(name); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 // RIBInRoutes returns routes from Adj-RIB-In.
 func (a *reactorAPIAdapter) RIBInRoutes(peerID string) []api.RIBRoute {
 	if a.r.ribIn == nil {

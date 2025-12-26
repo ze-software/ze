@@ -32,6 +32,7 @@ var (
 	ErrInvalidProtocol    = errors.New("invalid protocol")
 	ErrInvalidPort        = errors.New("invalid port")
 	ErrInvalidSplit       = errors.New("invalid split length")
+	ErrMissingWatchdog    = errors.New("missing watchdog name")
 )
 
 // splitPrefix splits a prefix into more-specific prefixes with the given length.
@@ -210,6 +211,10 @@ func RegisterRouteHandlers(d *Dispatcher) {
 	// Family-explicit withdraw commands (ExaBGP compatibility)
 	d.Register("withdraw ipv4", handleWithdrawIPv4, "Withdraw IPv4 route (family-explicit)")
 	d.Register("withdraw ipv6", handleWithdrawIPv6, "Withdraw IPv6 route (family-explicit)")
+
+	// Watchdog commands - control routes by watchdog group
+	d.Register("announce watchdog", handleAnnounceWatchdog, "Announce routes in watchdog group")
+	d.Register("withdraw watchdog", handleWithdrawWatchdog, "Withdraw routes in watchdog group")
 }
 
 // handleAnnounceRoute handles: announce route <prefix> next-hop <addr> [attributes...] [split /N].
@@ -2348,4 +2353,62 @@ func parseL2VPNArgs(args []string) (L2VPNRoute, error) {
 	}
 
 	return route, nil
+}
+
+// handleAnnounceWatchdog handles: announce watchdog <name>
+// Announces all routes in the named watchdog group that are currently withdrawn.
+func handleAnnounceWatchdog(ctx *CommandContext, args []string) (*Response, error) {
+	if len(args) < 1 {
+		return &Response{
+			Status: "error",
+			Error:  "missing watchdog name",
+		}, ErrMissingWatchdog
+	}
+
+	name := args[0]
+	peerSelector := ctx.PeerSelector()
+
+	if err := ctx.Reactor.AnnounceWatchdog(peerSelector, name); err != nil {
+		return &Response{
+			Status: "error",
+			Error:  err.Error(),
+		}, err
+	}
+
+	return &Response{
+		Status: "done",
+		Data: map[string]any{
+			"peer":     peerSelector,
+			"watchdog": name,
+		},
+	}, nil
+}
+
+// handleWithdrawWatchdog handles: withdraw watchdog <name>
+// Withdraws all routes in the named watchdog group that are currently announced.
+func handleWithdrawWatchdog(ctx *CommandContext, args []string) (*Response, error) {
+	if len(args) < 1 {
+		return &Response{
+			Status: "error",
+			Error:  "missing watchdog name",
+		}, ErrMissingWatchdog
+	}
+
+	name := args[0]
+	peerSelector := ctx.PeerSelector()
+
+	if err := ctx.Reactor.WithdrawWatchdog(peerSelector, name); err != nil {
+		return &Response{
+			Status: "error",
+			Error:  err.Error(),
+		}, err
+	}
+
+	return &Response{
+		Status: "done",
+		Data: map[string]any{
+			"peer":     peerSelector,
+			"watchdog": name,
+		},
+	}, nil
 }

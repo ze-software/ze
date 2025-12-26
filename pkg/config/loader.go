@@ -305,7 +305,19 @@ func configToPeer(nc *PeerConfig, global *BGPConfig) (*reactor.PeerSettings, err
 			RawAttributes:     rawAttrs,
 		}
 
-		n.StaticRoutes = append(n.StaticRoutes, route)
+		// Route to correct bucket based on watchdog field
+		if sr.Watchdog != "" {
+			wr := reactor.WatchdogRoute{
+				StaticRoute:        route,
+				InitiallyWithdrawn: sr.WatchdogWithdraw,
+			}
+			if n.WatchdogGroups == nil {
+				n.WatchdogGroups = make(map[string][]reactor.WatchdogRoute)
+			}
+			n.WatchdogGroups[sr.Watchdog] = append(n.WatchdogGroups[sr.Watchdog], wr)
+		} else {
+			n.StaticRoutes = append(n.StaticRoutes, route)
+		}
 	}
 
 	// Convert MVPN routes

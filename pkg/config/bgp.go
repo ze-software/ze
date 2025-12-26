@@ -419,6 +419,10 @@ type StaticRouteConfig struct {
 	Aggregator        string // ASN:IP format
 	AtomicAggregate   bool   // ATOMIC_AGGREGATE attribute
 	Attribute         string // Raw attribute hex: [ code flags value ]
+
+	// Watchdog support - routes can be grouped and controlled via API
+	Watchdog         string // Watchdog group name (empty = no watchdog)
+	WatchdogWithdraw bool   // Start in withdrawn state (held until "announce watchdog")
 }
 
 // MVPNRouteConfig holds an MVPN route configuration.
@@ -1227,6 +1231,14 @@ func parseRouteConfig(prefix string, route *Tree) (StaticRouteConfig, error) {
 	}
 	if v, ok := route.Get("attribute"); ok {
 		sr.Attribute = v
+	}
+
+	// Watchdog support
+	if v, ok := route.Get("watchdog"); ok {
+		sr.Watchdog = v
+	}
+	if _, ok := route.Get("withdraw"); ok {
+		sr.WatchdogWithdraw = true
 	}
 
 	return sr, nil
