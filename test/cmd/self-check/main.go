@@ -204,6 +204,10 @@ func (ts *Tests) parseCIFile(ciFile, name, nick string, port int) (*Test, error)
 			// Expected message in raw hex format
 			test.Expects = append(test.Expects, line)
 
+		case strings.Contains(line, ":notification:"):
+			// Notification action - testpeer sends notification
+			test.Expects = append(test.Expects, line)
+
 		case strings.Contains(line, ":cmd:"):
 			// Command to send - skip for now (ZeBGP handles via config)
 			continue

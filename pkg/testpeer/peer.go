@@ -20,6 +20,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"unicode/utf8"
 )
 
 // BGP message types.
@@ -42,18 +43,33 @@ var Marker = []byte{
 
 // Config holds test peer configuration.
 type Config struct {
-	Port                  int
-	ASN                   int
-	Sink                  bool
-	Echo                  bool
-	IPv6                  bool
-	Decode                bool // Decode messages to human-readable format
+	// Port to listen on (default 179)
+	Port int
+	// ASN to use in OPEN message (0 = extract from peer OPEN)
+	ASN int
+	// TCPConnections is the number of TCP connections to accept for multi-connection tests.
+	// Used with option:tcp_connections:N in .ci files. Default 1.
+	TCPConnections int
+	// Sink mode: accept any BGP messages, reply with keepalive
+	Sink bool
+	// Echo mode: accept any BGP messages, echo them back
+	Echo bool
+	// IPv6: bind to IPv6 instead of IPv4
+	IPv6 bool
+	// Decode: decode messages to human-readable format in output
+	Decode bool
+	// SendUnknownCapability: add unknown capability 66 to OPEN message
 	SendUnknownCapability bool
-	SendDefaultRoute      bool
-	InspectOpenMessage    bool
-	SendUnknownMessage    bool
-	Expect                []string
-	Output                io.Writer // For logging (defaults to os.Stdout)
+	// SendDefaultRoute: send a default route (0.0.0.0/0) UPDATE after OPEN
+	SendDefaultRoute bool
+	// InspectOpenMessage: validate received OPEN message against expectations
+	InspectOpenMessage bool
+	// SendUnknownMessage: send an unknown message type (255) after OPEN
+	SendUnknownMessage bool
+	// Expect: list of expected messages from .ci file
+	Expect []string
+	// Output: writer for logging (defaults to os.Stdout)
+	Output io.Writer
 }
 
 // Result holds the test result.
@@ -106,6 +122,13 @@ func (p *Peer) Run(ctx context.Context) Result {
 		_ = ln.Close()
 	}()
 
+	// Track connection count for multi-connection tests
+	connCount := 0
+	maxConns := p.config.TCPConnections
+	if maxConns <= 0 {
+		maxConns = 1
+	}
+
 	for {
 		conn, err := ln.Accept()
 		if err != nil {
@@ -120,6 +143,8 @@ func (p *Peer) Run(ctx context.Context) Result {
 			}
 		}
 
+		connCount++
+
 		go func(c net.Conn) {
 			defer func() { _ = c.Close() }()
 			result := p.handleConnection(ctx, c)
@@ -129,14 +154,26 @@ func (p *Peer) Run(ctx context.Context) Result {
 			}
 		}(conn)
 
-		// In check mode, wait for first connection to complete.
-		if !p.config.Sink && !p.config.Echo {
-			select {
-			case result := <-resultCh:
+		// In sink/echo mode, don't wait
+		if p.config.Sink || p.config.Echo {
+			continue
+		}
+
+		// Wait for connection to complete
+		select {
+		case result := <-resultCh:
+			if !result.Success {
 				return result
-			case <-ctx.Done():
+			}
+			// Check if all expectations are met
+			if p.checker.Completed() {
 				return Result{Success: true}
 			}
+			// More connections expected - continue accepting
+			p.printf("\nwaiting for next connection (%d/%d)...\n", connCount, maxConns)
+			continue
+		case <-ctx.Done():
+			return Result{Success: true}
 		}
 	}
 }
@@ -203,6 +240,20 @@ func (p *Peer) handleConnection(ctx context.Context, conn net.Conn) Result {
 		}
 	}
 
+	// Check for notification action after OPEN handshake.
+	if ok, text := p.checker.NextNotificationAction(); ok {
+		p.printf("\nsending notification: %q\n", text)
+		if _, err := conn.Write(NotificationMsg(text)); err != nil {
+			return Result{Success: false, Error: fmt.Errorf("write notification: %w", err)}
+		}
+		// Notification closes the session.
+		if p.checker.Completed() {
+			return Result{Success: true}
+		}
+		// More sequences expected - connection will close and client should reconnect.
+		return Result{Success: true}
+	}
+
 	// Main message loop.
 	counter := 0
 	for {
@@ -252,6 +303,19 @@ func (p *Peer) handleConnection(ctx context.Context, conn net.Conn) Result {
 		}
 
 		if p.checker.Completed() {
+			return Result{Success: true}
+		}
+
+		// Check for notification action after matched message.
+		if ok, text := p.checker.NextNotificationAction(); ok {
+			p.printf("\nsending notification: %q\n", text)
+			if _, err := conn.Write(NotificationMsg(text)); err != nil {
+				return Result{Success: false, Error: fmt.Errorf("write notification: %w", err)}
+			}
+			if p.checker.Completed() {
+				return Result{Success: true}
+			}
+			// More sequences expected - connection will close and client should reconnect.
 			return Result{Success: true}
 		}
 	}
@@ -359,6 +423,63 @@ func DefaultRouteMsg() []byte {
 	}
 }
 
+// NotificationMsg builds a BGP NOTIFICATION message with Cease/Administrative Shutdown.
+// RFC 4271 Section 4.5 - NOTIFICATION Message Format.
+// RFC 9003 - Extended BGP Administrative Shutdown Communication.
+//
+// Format: [Error Code 6][Subcode 2][Length][Shutdown Communication]
+// - Error Code: 6 (Cease)
+// - Subcode: 2 (Administrative Shutdown)
+// - Length: 1 byte (0-255)
+// - Shutdown Communication: UTF-8, max 255 bytes per RFC 9003.
+func NotificationMsg(text string) []byte {
+	textBytes := []byte(text)
+
+	// RFC 9003: max 255 octets for shutdown communication
+	// Must truncate at valid UTF-8 boundary to maintain RFC compliance
+	if len(textBytes) > 255 {
+		textBytes = truncateUTF8(textBytes, 255)
+	}
+
+	// Header (19) + Error Code (1) + Subcode (1) + Length (1) + Text
+	msgLen := 19 + 3 + len(textBytes)
+
+	msg := make([]byte, msgLen)
+	copy(msg, Marker)
+	binary.BigEndian.PutUint16(msg[16:], uint16(msgLen)) //nolint:gosec // msgLen max 277
+	msg[18] = MsgNOTIFICATION
+	msg[19] = 6                    // Cease
+	msg[20] = 2                    // Administrative Shutdown (RFC 9003)
+	msg[21] = byte(len(textBytes)) // Length of shutdown communication
+	copy(msg[22:], textBytes)
+
+	return msg
+}
+
+// truncateUTF8 truncates bytes to maxLen while preserving valid UTF-8.
+// It finds the last valid rune boundary at or before maxLen.
+func truncateUTF8(b []byte, maxLen int) []byte {
+	if len(b) <= maxLen {
+		return b
+	}
+
+	// Start at maxLen and work backwards to find valid UTF-8 boundary
+	for i := maxLen; i > 0; i-- {
+		if utf8.RuneStart(b[i]) {
+			// Found a rune start - check if there's room for the full rune
+			_, size := utf8.DecodeRune(b[i:])
+			if i+size <= maxLen {
+				return b[:i+size]
+			}
+			// Rune would exceed maxLen, try previous position
+			continue
+		}
+	}
+
+	// Fallback: no valid boundary found (shouldn't happen with valid UTF-8)
+	return b[:maxLen]
+}
+
 func isTimeout(err error) bool {
 	var netErr net.Error
 	if errors.As(err, &netErr) {
@@ -420,38 +541,51 @@ func (c *Checker) groupMessages(expected []string) [][]string {
 	groups := make(map[string]map[int][]string)
 
 	for _, rule := range expected {
-		if !strings.Contains(rule, "notification:") {
-			rule = strings.ToLower(strings.ReplaceAll(rule, " ", ""))
-		}
-
+		// Extract connection letter and sequence BEFORE any transformation
+		// This preserves A1, B1, C1 grouping regardless of case
 		parts := strings.SplitN(rule, ":", 3)
 		if len(parts) < 3 {
 			continue
 		}
 
-		prefix, encoding, content := parts[0], parts[1], parts[2]
-
+		prefix := parts[0]
 		conn := "A"
 		var seq int
-		if len(prefix) > 0 && prefix[0] >= 'A' && prefix[0] <= 'Z' {
-			conn = string(prefix[0])
-			seq, _ = strconv.Atoi(prefix[1:])
-		} else {
-			seq, _ = strconv.Atoi(prefix)
+
+		// Check for connection letter (case-insensitive)
+		if len(prefix) > 0 {
+			first := prefix[0]
+			if (first >= 'A' && first <= 'Z') || (first >= 'a' && first <= 'z') {
+				conn = strings.ToUpper(string(first))
+				seq, _ = strconv.Atoi(prefix[1:])
+			} else {
+				seq, _ = strconv.Atoi(prefix)
+			}
 		}
 		if seq == 0 {
 			seq = 1
 		}
 
+		// Now process encoding and content
+		encoding := strings.ToLower(parts[1])
+		content := parts[2]
+
 		if groups[conn] == nil {
 			groups[conn] = make(map[int][]string)
 		}
 
-		if encoding == "raw" {
-			content = strings.ToUpper(strings.ReplaceAll(content, ":", ""))
+		switch encoding {
+		case "raw":
+			// Raw hex: uppercase, remove colons and spaces
+			content = strings.ToUpper(strings.ReplaceAll(strings.ReplaceAll(content, ":", ""), " ", ""))
 			groups[conn][seq] = append(groups[conn][seq], content)
-		} else {
-			groups[conn][seq] = append(groups[conn][seq], fmt.Sprintf("%s:%s", strings.ToLower(encoding), strings.ToLower(content)))
+		case "notification":
+			// Preserve case for notification text (RFC 9003 message)
+			groups[conn][seq] = append(groups[conn][seq], fmt.Sprintf("notification:%s", content))
+		default:
+			// Other encodings: normalize to lowercase, no spaces
+			content = strings.ToLower(strings.ReplaceAll(content, " ", ""))
+			groups[conn][seq] = append(groups[conn][seq], fmt.Sprintf("%s:%s", encoding, content))
 		}
 	}
 
@@ -547,6 +681,30 @@ func (c *Checker) Completed() bool {
 	return len(c.messages) == 0 && len(c.sequences) == 0
 }
 
+// NextNotificationAction checks if the next expected item is a notification: action.
+// If so, it returns (true, text) and removes the action from the queue.
+// If not, it returns (false, "").
+func (c *Checker) NextNotificationAction() (bool, string) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	if len(c.messages) == 0 {
+		return false, ""
+	}
+
+	msg := c.messages[0]
+	if !strings.HasPrefix(msg, "notification:") {
+		return false, ""
+	}
+
+	// Extract the notification text (everything after "notification:")
+	text := strings.TrimPrefix(msg, "notification:")
+	c.messages = c.messages[1:]
+	c.updateMessagesIfRequired()
+
+	return true, text
+}
+
 // LoadExpectFile loads expected messages from a file.
 func LoadExpectFile(path string) ([]string, *Config, error) {
 	f, err := os.Open(path) //nolint:gosec // Path from user input (CLI arg)
@@ -579,6 +737,10 @@ func LoadExpectFile(path string) ([]string, *Config, error) {
 		case strings.HasPrefix(line, "option:asn:"):
 			if v, err := strconv.Atoi(strings.TrimPrefix(line, "option:asn:")); err == nil {
 				config.ASN = v
+			}
+		case strings.HasPrefix(line, "option:tcp_connections:"):
+			if v, err := strconv.Atoi(strings.TrimPrefix(line, "option:tcp_connections:")); err == nil {
+				config.TCPConnections = v
 			}
 		case strings.HasPrefix(line, "option:file:"):
 			// Ignore - this is handled by self-check, not testpeer
