@@ -146,6 +146,7 @@ func NewPeer(settings *PeerSettings) *Peer {
 		reconnectMin: DefaultReconnectMin,
 		reconnectMax: DefaultReconnectMax,
 		adjRIBOut:    rib.NewOutgoingRIB(),
+		opQueue:      make([]PeerOp, 0, 16), // Pre-allocate small capacity
 	}
 }
 
@@ -743,6 +744,22 @@ func buildRIBRouteUpdate(route *rib.Route, localAS uint32, isIBGP, asn4 bool) *m
 		// LOCAL_PREF for iBGP
 		if isIBGP {
 			attrBytes = append(attrBytes, attribute.PackAttribute(attribute.LocalPref(100))...)
+		}
+	}
+
+	// Copy optional attributes from stored route (MED, communities, etc.)
+	for _, attr := range route.Attributes() {
+		switch attr.(type) {
+		case attribute.Origin, *attribute.ASPath, *attribute.NextHop, attribute.LocalPref:
+			// Already handled above
+			continue
+		case attribute.MED, attribute.Communities,
+			attribute.ExtendedCommunities, attribute.LargeCommunities,
+			attribute.IPv6ExtendedCommunities,
+			attribute.AtomicAggregate, *attribute.Aggregator,
+			attribute.OriginatorID, attribute.ClusterList:
+			// Pack optional attributes
+			attrBytes = append(attrBytes, attribute.PackAttribute(attr)...)
 		}
 	}
 

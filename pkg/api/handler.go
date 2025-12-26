@@ -274,6 +274,9 @@ func handleTeardown(ctx *CommandContext, args []string) (*Response, error) {
 
 // parseUint parses a string as unsigned integer.
 func parseUint(s string) (uint64, error) {
+	if len(s) == 0 {
+		return 0, fmt.Errorf("empty string")
+	}
 	var n uint64
 	for _, c := range s {
 		if c < '0' || c > '9' {

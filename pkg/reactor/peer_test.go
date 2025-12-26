@@ -10,12 +10,21 @@ import (
 	"time"
 
 	"github.com/exa-networks/zebgp/pkg/bgp/attribute"
+	"github.com/exa-networks/zebgp/pkg/bgp/nlri"
 	"github.com/exa-networks/zebgp/pkg/rib"
 	"github.com/stretchr/testify/require"
 )
 
 func mustParseAddr(s string) netip.Addr {
 	return netip.MustParseAddr(s)
+}
+
+// testRoute creates a valid route for testing.
+func testRoute(prefixStr string) *rib.Route {
+	prefix := netip.MustParsePrefix(prefixStr)
+	family := nlri.Family{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast}
+	n := nlri.NewINET(family, prefix, 0)
+	return rib.NewRoute(n, netip.MustParseAddr("10.0.0.1"), nil)
 }
 
 // TestPeerNew verifies Peer creation with correct initial state.
@@ -412,8 +421,8 @@ func TestPeerOpQueueOrdering(t *testing.T) {
 	peer := NewPeer(settings)
 
 	// Queue operations while not connected
-	route1 := &rib.Route{}
-	route2 := &rib.Route{}
+	route1 := testRoute("10.0.0.0/8")
+	route2 := testRoute("20.0.0.0/8")
 
 	peer.QueueAnnounce(route1)
 	peer.QueueAnnounce(route2)
@@ -465,8 +474,8 @@ func TestPeerOpQueueMixedOperations(t *testing.T) {
 	peer := NewPeer(settings)
 
 	// Simulate: announce → teardown → announce
-	route1 := &rib.Route{}
-	route2 := &rib.Route{}
+	route1 := testRoute("10.0.0.0/8")
+	route2 := testRoute("20.0.0.0/8")
 
 	peer.QueueAnnounce(route1)
 	peer.Teardown(4)
@@ -507,5 +516,37 @@ func TestPeerOpQueueMultipleTeardowns(t *testing.T) {
 	require.Len(t, peer.opQueue, 2, "queue should have 2 items")
 	require.Equal(t, uint8(2), peer.opQueue[0].Subcode)
 	require.Equal(t, uint8(4), peer.opQueue[1].Subcode)
+	peer.mu.RUnlock()
+}
+
+// TestPeerOpQueueOverflow verifies queue respects MaxOpQueueSize limit.
+//
+// VALIDATES: Operations are dropped when queue reaches MaxOpQueueSize.
+//
+// PREVENTS: Unbounded memory growth when session is disconnected.
+func TestPeerOpQueueOverflow(t *testing.T) {
+	settings := NewPeerSettings(
+		mustParseAddr("192.0.2.1"),
+		65000, 65001, 0x01010101,
+	)
+
+	peer := NewPeer(settings)
+
+	// Fill queue to capacity with valid routes
+	route := testRoute("10.0.0.0/8")
+	for i := 0; i < MaxOpQueueSize; i++ {
+		peer.QueueAnnounce(route)
+	}
+
+	peer.mu.RLock()
+	require.Len(t, peer.opQueue, MaxOpQueueSize, "queue should be at max capacity")
+	peer.mu.RUnlock()
+
+	// Additional operations should be dropped
+	peer.QueueAnnounce(route)
+	peer.Teardown(4)
+
+	peer.mu.RLock()
+	require.Len(t, peer.opQueue, MaxOpQueueSize, "queue should not exceed max capacity")
 	peer.mu.RUnlock()
 }

@@ -63,7 +63,7 @@ func NewSession(settings *PeerSettings) *Session {
 		fsm:      fsm.New(),
 		timers:   fsm.NewTimers(),
 		readBuf:  make([]byte, message.MaxMsgLen),
-		errChan:  make(chan error, 1),
+		errChan:  make(chan error, 2), // Buffer 2: normal error + teardown
 	}
 
 	// Configure FSM passive mode.
