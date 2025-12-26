@@ -207,6 +207,52 @@ func (s *Session) Close() error {
 	return nil
 }
 
+// ErrTeardown is returned when the session is torn down via API.
+var ErrTeardown = errors.New("session teardown")
+
+// Teardown sends a Cease NOTIFICATION with the given subcode and closes.
+// RFC 4486 defines Cease subcodes: 1=MaxPrefixes, 2=AdminShutdown, 3=PeerDeconfigured,
+// 4=AdminReset, 5=ConnectionRejected, 6=OtherConfigChange, 7=Collision, 8=OutOfResources.
+// RFC 9003 specifies that subcodes 2/4 include a length-prefixed message.
+func (s *Session) Teardown(subcode uint8) error {
+	s.timers.StopAll()
+
+	s.mu.Lock()
+	conn := s.conn
+	neg := s.negotiated
+	s.mu.Unlock()
+
+	if conn != nil {
+		// Build data per RFC 9003: length byte + message for subcodes 2/4
+		var data []byte
+		msg := message.CeaseSubcodeString(subcode)
+		if subcode == message.NotifyCeaseAdminShutdown || subcode == message.NotifyCeaseAdminReset {
+			// RFC 9003: length byte + UTF-8 message
+			data = make([]byte, 1+len(msg))
+			data[0] = byte(len(msg))
+			copy(data[1:], msg)
+		}
+
+		_ = s.sendNotification(conn, neg,
+			message.NotifyCease,
+			subcode,
+			data,
+		)
+	}
+
+	s.closeConn()
+	_ = s.fsm.Event(fsm.EventManualStop)
+
+	// Signal the Run loop to exit
+	select {
+	case s.errChan <- ErrTeardown:
+	default:
+		// Channel full or closed, that's ok
+	}
+
+	return nil
+}
+
 // closeConn closes the TCP connection.
 func (s *Session) closeConn() {
 	s.mu.Lock()

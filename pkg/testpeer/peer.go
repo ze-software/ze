@@ -342,6 +342,13 @@ func (p *Peer) handleConnection(ctx context.Context, conn net.Conn) Result {
 			return Result{Success: true}
 		}
 
+		// Check if this message completed a sequence - connection should close
+		// and a new connection is expected.
+		if p.checker.SequenceEnded() {
+			// More sequences expected - let connection close and wait for reconnect.
+			return Result{Success: true}
+		}
+
 		// Check for notification action after matched message.
 		if ok, text := p.checker.NextNotificationAction(); ok {
 			p.printf("\nsending notification: %q\n", text)
@@ -559,21 +566,24 @@ func (m *Message) Stream() string {
 
 // Checker validates received messages against expected patterns.
 type Checker struct {
-	messages     []string
-	sequences    [][]string
-	lastExpected string // For diff output on mismatch
-	lastReceived string // For diff output on mismatch
-	mu           sync.Mutex
+	messages            []string
+	sequences           [][]string
+	connectionLetters   []string // Connection letter for each sequence
+	currentConnection   string   // Current connection letter
+	lastExpected        string   // For diff output on mismatch
+	lastReceived        string   // For diff output on mismatch
+	connectionJustEnded bool     // True if last match ended a connection (not just sequence)
+	mu                  sync.Mutex
 }
 
 // NewChecker creates a new checker from expected messages.
 func NewChecker(expected []string) *Checker {
 	c := &Checker{}
-	c.sequences = c.groupMessages(expected)
+	c.sequences, c.connectionLetters = c.groupMessages(expected)
 	return c
 }
 
-func (c *Checker) groupMessages(expected []string) [][]string {
+func (c *Checker) groupMessages(expected []string) ([][]string, []string) {
 	groups := make(map[string]map[int][]string)
 
 	for _, rule := range expected {
@@ -626,6 +636,7 @@ func (c *Checker) groupMessages(expected []string) [][]string {
 	}
 
 	var result [][]string
+	var letters []string
 	for _, conn := range []string{"A", "B", "C", "D"} {
 		if groups[conn] == nil {
 			continue
@@ -633,11 +644,12 @@ func (c *Checker) groupMessages(expected []string) [][]string {
 		for seq := 1; seq <= 100; seq++ {
 			if msgs := groups[conn][seq]; len(msgs) > 0 {
 				result = append(result, msgs)
+				letters = append(letters, conn)
 			}
 		}
 	}
 
-	return result
+	return result, letters
 }
 
 // Init initializes the checker for a new session.
@@ -652,8 +664,11 @@ func (c *Checker) Init() bool {
 		return false
 	}
 
+	c.currentConnection = c.connectionLetters[0]
 	c.messages = c.sequences[0]
 	c.sequences = c.sequences[1:]
+	c.connectionLetters = c.connectionLetters[1:]
+	c.connectionJustEnded = false
 	return true
 }
 
@@ -705,9 +720,27 @@ func (c *Checker) LastMismatch() (expected, received string) {
 
 func (c *Checker) updateMessagesIfRequired() {
 	if len(c.messages) == 0 && len(c.sequences) > 0 {
+		// Check if the next sequence is from a different connection
+		nextConn := c.connectionLetters[0]
+		if c.currentConnection != "" && nextConn != c.currentConnection {
+			c.connectionJustEnded = true
+		}
+		c.currentConnection = nextConn
 		c.messages = c.sequences[0]
 		c.sequences = c.sequences[1:]
+		c.connectionLetters = c.connectionLetters[1:]
 	}
+}
+
+// SequenceEnded returns true if the last matched message ended a connection.
+// This indicates the connection should close and a new connection is expected.
+// Calling this method clears the flag.
+func (c *Checker) SequenceEnded() bool {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	ended := c.connectionJustEnded
+	c.connectionJustEnded = false
+	return ended
 }
 
 // Completed returns true if all expected messages have been received.

@@ -305,6 +305,56 @@ func (r *OutgoingRIB) Stats() OutgoingRIBStats {
 	return stats
 }
 
+// GetSentRoutes returns all previously sent routes for re-announcement.
+// Used when a session re-establishes to replay the RIB to the peer.
+func (r *OutgoingRIB) GetSentRoutes() []*Route {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	var routes []*Route
+	for _, familySent := range r.sent {
+		for _, route := range familySent {
+			routes = append(routes, route)
+		}
+	}
+	return routes
+}
+
+// MarkSent records a route as sent, adding it to the sent cache.
+// Used when routes are sent immediately (not via transaction/flush).
+// This ensures the route will be re-sent on session re-establishment.
+func (r *OutgoingRIB) MarkSent(route *Route) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	family := route.NLRI().Family()
+	idx := string(route.Index())
+
+	if r.sent[family] == nil {
+		r.sent[family] = make(map[string]*Route)
+	}
+	r.sent[family][idx] = route
+}
+
+// RemoveFromSent removes a route from the sent cache by NLRI.
+// Used when a withdrawal is queued to prevent re-announcement on reconnect.
+func (r *OutgoingRIB) RemoveFromSent(n nlri.NLRI) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	family := n.Family()
+	nlriIdx := string(buildNLRIIndex(n))
+
+	if sentFamily, ok := r.sent[family]; ok {
+		// Find and remove any route matching this NLRI
+		for routeIdx := range sentFamily {
+			if matchesNLRI(routeIdx, nlriIdx) {
+				delete(sentFamily, routeIdx)
+			}
+		}
+	}
+}
+
 // OutgoingRIBStats holds statistics about the OutgoingRIB.
 type OutgoingRIBStats struct {
 	PendingAnnouncements int

@@ -227,9 +227,10 @@ type ReactorInterface interface {
 	// WithdrawLabeledUnicast withdraws an MPLS labeled unicast route.
 	WithdrawLabeledUnicast(peerSelector string, route LabeledUnicastRoute) error
 
-	// TeardownPeer gracefully closes a peer session.
-	// If reason is provided, it's sent in the NOTIFICATION message.
-	TeardownPeer(addr netip.Addr, reason string) error
+	// TeardownPeer gracefully closes a peer session with NOTIFICATION.
+	// Sends Cease (6) with the specified subcode per RFC 4486.
+	// Common subcodes: 2=Admin Shutdown, 3=Peer De-configured, 4=Admin Reset.
+	TeardownPeer(addr netip.Addr, subcode uint8) error
 
 	// AnnounceEOR sends an End-of-RIB marker for the given address family.
 	AnnounceEOR(peerSelector string, afi uint16, safi uint8) error

@@ -3,6 +3,7 @@ package reactor
 import (
 	"context"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"net"
 	"net/netip"
@@ -58,10 +59,53 @@ const (
 // PeerCallback is called when peer state changes.
 type PeerCallback func(from, to PeerState)
 
+// PeerOpType identifies the type of queued operation.
+type PeerOpType int
+
+const (
+	PeerOpAnnounce PeerOpType = iota
+	PeerOpWithdraw
+	PeerOpTeardown
+)
+
+// PeerOp represents a queued operation (announce, withdraw, or teardown).
+type PeerOp struct {
+	Type    PeerOpType
+	Route   *rib.Route // For PeerOpAnnounce
+	NLRI    nlri.NLRI  // For PeerOpWithdraw
+	Subcode uint8      // For PeerOpTeardown
+}
+
+// MaxOpQueueSize is the maximum number of operations that can be queued
+// when the session is not established. Prevents unbounded memory growth.
+const MaxOpQueueSize = 10000
+
 // Peer wraps a Session with reconnection logic.
 //
 // It manages the connection lifecycle in its own goroutine,
 // automatically reconnecting on failure with exponential backoff.
+//
+// # Route Queuing Architecture
+//
+// The peer uses two complementary queuing mechanisms:
+//
+//  1. adjRIBOut (Adj-RIB-Out): Manages the "sent cache" - routes that have been
+//     successfully announced and should be re-sent on session re-establishment.
+//     Also handles transaction-based batching via Begin/Commit.
+//
+//  2. opQueue: Ordered operation queue for when session is not established.
+//     Maintains strict ordering of announce/withdraw/teardown operations.
+//     Processed on session establishment, with teardowns acting as batch separators.
+//
+// When a route is announced:
+//   - Session ESTABLISHED + no transaction → sent immediately, added to sent cache
+//   - Session ESTABLISHED + in transaction → queued to adjRIBOut transaction queue
+//   - Session NOT ESTABLISHED → queued to opQueue
+//
+// On session establishment:
+//  1. Routes from sent cache are re-sent (previously announced routes)
+//  2. opQueue is processed in order until a teardown is encountered
+//  3. Teardown sends EOR + NOTIFICATION, remaining opQueue items persist
 type Peer struct {
 	settings *PeerSettings
 	session  *Session
@@ -73,8 +117,19 @@ type Peer struct {
 	reconnectMin time.Duration
 	reconnectMax time.Duration
 
-	// Adj-RIB-Out: routes pending announcement to this peer
+	// Adj-RIB-Out: Maintains the "sent cache" of routes that should persist
+	// across session re-establishments. Also handles transaction batching.
+	// Routes added here are re-sent automatically on reconnect.
 	adjRIBOut *rib.OutgoingRIB
+
+	// Ordered operation queue: Used when session is NOT established.
+	// Maintains strict ordering of announce/withdraw/teardown operations.
+	// Processed on session establishment; teardowns act as batch separators.
+	opQueue []PeerOp
+
+	// sendingInitialRoutes prevents concurrent sendInitialRoutes goroutines.
+	// Set to 1 when sendInitialRoutes starts, 0 when it ends.
+	sendingInitialRoutes atomic.Int32
 
 	// Goroutine control
 	ctx    context.Context
@@ -167,6 +222,65 @@ func (p *Peer) Stop() {
 	}
 }
 
+// Teardown sends a Cease NOTIFICATION with the given subcode and closes.
+// The session will send NOTIFICATION before closing the connection.
+// RFC 4486 defines Cease subcodes; RFC 9003 defines the message format.
+// If called when not connected, queues the teardown to maintain operation order.
+func (p *Peer) Teardown(subcode uint8) {
+	p.mu.Lock()
+	session := p.session
+	if session != nil {
+		p.mu.Unlock()
+		if err := session.Teardown(subcode); err != nil {
+			trace.Log(trace.Session, "peer %s: teardown error: %v", p.settings.Address, err)
+		}
+		// Set state after teardown - there's a brief race window where
+		// AnnounceRoute might see ESTABLISHED, but SendUpdate will fail
+		// on the closed session (which is correct behavior)
+		p.setState(PeerStateConnecting)
+	} else {
+		// No active session - queue teardown to maintain operation order
+		if len(p.opQueue) < MaxOpQueueSize {
+			p.opQueue = append(p.opQueue, PeerOp{Type: PeerOpTeardown, Subcode: subcode})
+		} else {
+			trace.Log(trace.Routes, "peer %s: opQueue full, dropping teardown", p.settings.Address)
+		}
+		p.mu.Unlock()
+	}
+}
+
+// QueueAnnounce queues a route announcement for when session establishes.
+// Used when session is not established to maintain operation order.
+// If queue is full (MaxOpQueueSize), the operation is dropped with a warning.
+func (p *Peer) QueueAnnounce(route *rib.Route) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	if len(p.opQueue) >= MaxOpQueueSize {
+		trace.Log(trace.Routes, "peer %s: opQueue full (%d), dropping announce for %s",
+			p.settings.Address, len(p.opQueue), route.NLRI())
+		return
+	}
+	p.opQueue = append(p.opQueue, PeerOp{Type: PeerOpAnnounce, Route: route})
+}
+
+// QueueWithdraw queues a route withdrawal for when session establishes.
+// Used when session is not established to maintain operation order.
+// Also removes from sent cache immediately to prevent re-announcement on reconnect.
+// If queue is full (MaxOpQueueSize), the operation is dropped with a warning,
+// but the route is still removed from sent cache.
+func (p *Peer) QueueWithdraw(n nlri.NLRI) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	// Always remove from sent cache, even if queue is full
+	p.adjRIBOut.RemoveFromSent(n)
+	if len(p.opQueue) >= MaxOpQueueSize {
+		trace.Log(trace.Routes, "peer %s: opQueue full (%d), dropping withdraw for %s",
+			p.settings.Address, len(p.opQueue), n)
+		return
+	}
+	p.opQueue = append(p.opQueue, PeerOp{Type: PeerOpWithdraw, NLRI: n})
+}
+
 // Wait waits for the peer to stop.
 func (p *Peer) Wait(ctx context.Context) error {
 	done := make(chan struct{})
@@ -207,7 +321,16 @@ func (p *Peer) run() {
 		}
 
 		if err != nil {
-			// Backoff before retry
+			// Check if this was a teardown - reconnect immediately
+			if errors.Is(err, ErrTeardown) {
+				// Teardown means intentional disconnect, reconnect immediately
+				// Reset delay and continue without waiting
+				delay = p.reconnectMin
+				p.setState(PeerStateConnecting)
+				continue
+			}
+
+			// Normal error: Backoff before retry
 			p.setState(PeerStateConnecting)
 
 			select {
@@ -352,7 +475,16 @@ func (p *Peer) cleanup() {
 
 // sendInitialRoutes sends static routes configured for this peer.
 // Routes with identical attributes are grouped into a single UPDATE message.
+// Uses atomic flag to prevent concurrent execution if session reconnects quickly.
 func (p *Peer) sendInitialRoutes() {
+	// Prevent concurrent sendInitialRoutes goroutines.
+	// If another instance is running, skip this one - the running instance
+	// will process any queued operations.
+	if !p.sendingInitialRoutes.CompareAndSwap(0, 1) {
+		return
+	}
+	defer p.sendingInitialRoutes.Store(0)
+
 	addr := p.settings.Address.String()
 	trace.Log(trace.Routes, "peer %s: sending %d static routes", addr, len(p.settings.StaticRoutes))
 
@@ -409,6 +541,94 @@ func (p *Peer) sendInitialRoutes() {
 		}
 	}
 
+	// Re-send Adj-RIB-Out routes (routes announced via API that persist across reconnects).
+	sentRoutes := p.adjRIBOut.GetSentRoutes()
+	if len(sentRoutes) > 0 {
+		trace.Log(trace.Routes, "peer %s: re-sending %d Adj-RIB-Out routes", addr, len(sentRoutes))
+		for _, route := range sentRoutes {
+			update := buildRIBRouteUpdate(route, p.settings.LocalAS, p.settings.IsIBGP(), asn4)
+			if err := p.SendUpdate(update); err != nil {
+				trace.Log(trace.Routes, "peer %s: send error: %v", addr, err)
+				break
+			}
+		}
+	}
+
+	// Send pending routes from transactions (committed while not connected).
+	pendingRoutes := p.adjRIBOut.FlushAllPending()
+	if len(pendingRoutes) > 0 {
+		trace.Log(trace.Routes, "peer %s: sending %d pending routes from transactions", addr, len(pendingRoutes))
+		for _, route := range pendingRoutes {
+			update := buildRIBRouteUpdate(route, p.settings.LocalAS, p.settings.IsIBGP(), asn4)
+			if err := p.SendUpdate(update); err != nil {
+				trace.Log(trace.Routes, "peer %s: send error: %v", addr, err)
+				break
+			}
+		}
+	}
+
+	// Process operation queue in order (maintains announce/withdraw/teardown ordering).
+	// Stop at first teardown - remaining items stay for next session.
+	//
+	// CONCURRENCY NOTE: opQueue is append-only from other goroutines (QueueAnnounce,
+	// QueueWithdraw, Teardown). We capture the slice at loop start via range; new items
+	// appended while unlocked go to the end. The processed count remains valid because
+	// the first N items in current opQueue match what we processed from the captured slice.
+	var teardownSubcode uint8
+	hasTeardown := false
+
+	p.mu.Lock()
+	queueLen := len(p.opQueue)
+	processed := 0
+	for i, op := range p.opQueue {
+		switch op.Type {
+		case PeerOpTeardown:
+			teardownSubcode = op.Subcode
+			hasTeardown = true
+			processed = i + 1 // Include the teardown in processed count
+
+		case PeerOpAnnounce:
+			// Send route and add to sent cache
+			update := buildRIBRouteUpdate(op.Route, p.settings.LocalAS, p.settings.IsIBGP(), asn4)
+			p.mu.Unlock()
+			if err := p.SendUpdate(update); err != nil {
+				trace.Log(trace.Routes, "peer %s: send error: %v", addr, err)
+				p.mu.Lock()
+				break
+			}
+			p.adjRIBOut.MarkSent(op.Route)
+			p.mu.Lock()
+			processed = i + 1
+			continue
+
+		case PeerOpWithdraw:
+			// Send withdrawal (already removed from sent cache when queued)
+			update := buildWithdrawNLRI(op.NLRI)
+			p.mu.Unlock()
+			if err := p.SendUpdate(update); err != nil {
+				trace.Log(trace.Routes, "peer %s: send error: %v", addr, err)
+				p.mu.Lock()
+				break
+			}
+			p.mu.Lock()
+			processed = i + 1
+			continue
+		}
+
+		// If we get here, it was a teardown - break out of loop
+		break
+	}
+	// Remove processed items from queue
+	if processed > 0 {
+		p.opQueue = p.opQueue[processed:]
+	}
+	p.mu.Unlock()
+
+	if queueLen > 0 {
+		trace.Log(trace.Routes, "peer %s: processed %d queue ops, %d remaining, teardown=%v",
+			addr, processed, queueLen-processed, hasTeardown)
+	}
+
 	// Send End-of-RIB marker for each configured address family.
 	if hasIPv4Family {
 		eor := message.BuildEOR(nlri.IPv4Unicast)
@@ -419,6 +639,23 @@ func (p *Peer) sendInitialRoutes() {
 		eor := message.BuildEOR(nlri.IPv6Unicast)
 		_ = p.SendUpdate(eor)
 		trace.Log(trace.Routes, "peer %s: sent IPv6 unicast EOR marker", addr)
+	}
+
+	// If teardown was in queue, execute it now (after EOR)
+	if hasTeardown {
+		trace.Log(trace.Routes, "peer %s: executing queued teardown (subcode=%d)", addr, teardownSubcode)
+		p.mu.RLock()
+		session := p.session
+		p.mu.RUnlock()
+		if session != nil {
+			if err := session.Teardown(teardownSubcode); err != nil {
+				trace.Log(trace.Routes, "peer %s: teardown error: %v", addr, err)
+			}
+			// Immediately mark as not established to prevent race conditions
+			// where subsequent API commands see stale ESTABLISHED state
+			p.setState(PeerStateConnecting)
+		}
+		return // Don't send other routes after teardown
 	}
 
 	// Send MVPN routes
@@ -432,6 +669,111 @@ func (p *Peer) sendInitialRoutes() {
 
 	// Send MUP routes
 	p.sendMUPRoutes()
+}
+
+// buildRIBRouteUpdate builds an UPDATE message from a RIB route.
+// Used for re-announcing routes from Adj-RIB-Out on session re-establishment.
+// Rebuilds the full set of required attributes since rib.Route may not store all.
+func buildRIBRouteUpdate(route *rib.Route, localAS uint32, isIBGP, asn4 bool) *message.Update {
+	var attrBytes []byte
+
+	// 1. ORIGIN - use stored or default to IGP
+	foundOrigin := false
+	for _, attr := range route.Attributes() {
+		if _, ok := attr.(attribute.Origin); ok {
+			attrBytes = append(attrBytes, attribute.PackAttribute(attr)...)
+			foundOrigin = true
+			break
+		}
+	}
+	if !foundOrigin {
+		attrBytes = append(attrBytes, attribute.PackAttribute(attribute.OriginIGP)...)
+	}
+
+	// 2. AS_PATH - use stored or build appropriate default
+	storedASPath := route.ASPath()
+	hasStoredASPath := storedASPath != nil && len(storedASPath.Segments) > 0
+
+	if hasStoredASPath {
+		attrBytes = append(attrBytes, attribute.PackASPathAttribute(storedASPath, asn4)...)
+	} else if isIBGP || localAS == 0 {
+		// iBGP or LocalAS not set: empty AS_PATH
+		emptyASPath := &attribute.ASPath{Segments: nil}
+		attrBytes = append(attrBytes, attribute.PackASPathAttribute(emptyASPath, asn4)...)
+	} else {
+		// eBGP: prepend local AS
+		ebgpASPath := &attribute.ASPath{
+			Segments: []attribute.ASPathSegment{{
+				Type: attribute.ASSequence,
+				ASNs: []uint32{localAS},
+			}},
+		}
+		attrBytes = append(attrBytes, attribute.PackASPathAttribute(ebgpASPath, asn4)...)
+	}
+
+	// Determine NLRI handling based on address family
+	routeNLRI := route.NLRI()
+	family := routeNLRI.Family()
+	var nlriBytes []byte
+
+	switch {
+	case family.AFI == nlri.AFIIPv4 && family.SAFI == nlri.SAFIUnicast:
+		// 3. NEXT_HOP for IPv4 unicast
+		nh := &attribute.NextHop{Addr: route.NextHop()}
+		attrBytes = append(attrBytes, attribute.PackAttribute(nh)...)
+
+		// 4. LOCAL_PREF for iBGP
+		if isIBGP {
+			attrBytes = append(attrBytes, attribute.PackAttribute(attribute.LocalPref(100))...)
+		}
+
+		// IPv4 unicast: use inline NLRI field
+		nlriBytes = routeNLRI.Bytes()
+	default:
+		// Other families: use MP_REACH_NLRI attribute
+		// This includes IPv6, VPN, etc.
+		mpReach := &attribute.MPReachNLRI{
+			AFI:      attribute.AFI(family.AFI),
+			SAFI:     attribute.SAFI(family.SAFI),
+			NextHops: []netip.Addr{route.NextHop()},
+			NLRI:     routeNLRI.Bytes(),
+		}
+		attrBytes = append(attrBytes, attribute.PackAttribute(mpReach)...)
+
+		// LOCAL_PREF for iBGP
+		if isIBGP {
+			attrBytes = append(attrBytes, attribute.PackAttribute(attribute.LocalPref(100))...)
+		}
+	}
+
+	return &message.Update{
+		PathAttributes: attrBytes,
+		NLRI:           nlriBytes,
+	}
+}
+
+// buildWithdrawNLRI builds an UPDATE message to withdraw an NLRI.
+// RFC 4760: IPv4 unicast uses WithdrawnRoutes, others use MP_UNREACH_NLRI.
+func buildWithdrawNLRI(n nlri.NLRI) *message.Update {
+	family := n.Family()
+
+	if family.AFI == nlri.AFIIPv4 && family.SAFI == nlri.SAFIUnicast {
+		// IPv4 unicast: use WithdrawnRoutes field
+		return &message.Update{
+			WithdrawnRoutes: n.Bytes(),
+		}
+	}
+
+	// Other families: use MP_UNREACH_NLRI attribute
+	mpUnreach := &attribute.MPUnreachNLRI{
+		AFI:  attribute.AFI(family.AFI),
+		SAFI: attribute.SAFI(family.SAFI),
+		NLRI: n.Bytes(),
+	}
+
+	return &message.Update{
+		PathAttributes: attribute.PackAttribute(mpUnreach),
+	}
 }
 
 // buildStaticRouteUpdate builds an UPDATE message for a static route.

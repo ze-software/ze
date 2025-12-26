@@ -261,7 +261,7 @@ func (n *Notification) subcodeString() string {
 	case NotifyFSMError:
 		return fsmSubcodeString(n.ErrorSubcode)
 	case NotifyCease:
-		return ceaseSubcodeString(n.ErrorSubcode)
+		return CeaseSubcodeString(n.ErrorSubcode)
 	case NotifyRouteRefresh:
 		return routeRefreshSubcodeString(n.ErrorSubcode)
 	default:
@@ -319,7 +319,9 @@ func routeRefreshSubcodeString(subcode uint8) string {
 	}
 }
 
-func ceaseSubcodeString(subcode uint8) string {
+// CeaseSubcodeString returns the human-readable string for a Cease subcode.
+// RFC 4486 defines Cease subcodes, RFC 9003 specifies message format.
+func CeaseSubcodeString(subcode uint8) string {
 	switch subcode {
 	case 0:
 		return subcodeUnspecific

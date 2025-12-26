@@ -154,7 +154,7 @@ func (a *reactorAPIAdapter) AnnounceRoute(peerSelector string, route api.RouteSp
 		return errors.New("no peers match selector")
 	}
 
-	// Build route object for queueing
+	// Build NLRI
 	var n nlri.NLRI
 	if route.Prefix.Addr().Is4() {
 		n = nlri.NewINET(nlri.Family{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast}, route.Prefix, 0)
@@ -162,32 +162,45 @@ func (a *reactorAPIAdapter) AnnounceRoute(peerSelector string, route api.RouteSp
 		n = nlri.NewINET(nlri.Family{AFI: nlri.AFIIPv6, SAFI: nlri.SAFIUnicast}, route.Prefix, 0)
 	}
 
-	// Build attributes
-	asPath := &attribute.ASPath{
-		Segments: []attribute.ASPathSegment{
-			{Type: attribute.ASSequence, ASNs: []uint32{a.r.config.LocalAS}},
-		},
-	}
 	attrs := []attribute.Attribute{attribute.OriginIGP}
-
-	ribRoute := rib.NewRouteWithASPath(n, route.NextHop, attrs, asPath)
 
 	var lastErr error
 	for _, peer := range peers {
+		isIBGP := peer.Settings().IsIBGP()
+
+		// Build AS_PATH: empty for iBGP, prepend LocalAS for eBGP
+		// RFC 4271 §5.1.2: iBGP SHALL NOT modify AS_PATH; eBGP prepends local AS
+		var asPath *attribute.ASPath
+		if isIBGP {
+			asPath = &attribute.ASPath{Segments: nil}
+		} else {
+			asPath = &attribute.ASPath{
+				Segments: []attribute.ASPathSegment{
+					{Type: attribute.ASSequence, ASNs: []uint32{a.r.config.LocalAS}},
+				},
+			}
+		}
+
+		ribRoute := rib.NewRouteWithASPath(n, route.NextHop, attrs, asPath)
+
 		if peer.AdjRIBOut().InTransaction() {
 			// Queue to Adj-RIB-Out (will be sent on commit)
 			peer.AdjRIBOut().QueueAnnounce(ribRoute)
-		} else {
-			// Send immediately
-			isIBGP := peer.Settings().IsIBGP()
+		} else if peer.State() == PeerStateEstablished {
+			// Send immediately and track for re-announcement on reconnect
 			// Default to 4-byte ASN (modern standard) for API-announced routes
 			asn4 := true
 			update := buildAnnounceUpdate(route, a.r.config.LocalAS, isIBGP, asn4)
-			if peer.State() == PeerStateEstablished {
-				if err := peer.SendUpdate(update); err != nil {
-					lastErr = err
-				}
+			if err := peer.SendUpdate(update); err != nil {
+				lastErr = err
+			} else {
+				// Track sent route for re-announcement on session re-establishment
+				peer.AdjRIBOut().MarkSent(ribRoute)
 			}
+		} else {
+			// Session not established: queue to peer's operation queue
+			// This maintains order with any pending teardowns
+			peer.QueueAnnounce(ribRoute)
 		}
 	}
 	return lastErr
@@ -214,14 +227,19 @@ func (a *reactorAPIAdapter) WithdrawRoute(peerSelector string, prefix netip.Pref
 		if peer.AdjRIBOut().InTransaction() {
 			// Queue withdrawal to Adj-RIB-Out (will be sent on commit)
 			peer.AdjRIBOut().QueueWithdraw(n)
-		} else {
-			// Send immediately
+		} else if peer.State() == PeerStateEstablished {
+			// Send immediately and remove from sent cache
 			update := buildWithdrawUpdate(prefix)
-			if peer.State() == PeerStateEstablished {
-				if err := peer.SendUpdate(update); err != nil {
-					lastErr = err
-				}
+			if err := peer.SendUpdate(update); err != nil {
+				lastErr = err
+			} else {
+				// Remove from sent cache to prevent re-announcement on reconnect
+				peer.AdjRIBOut().RemoveFromSent(n)
 			}
+		} else {
+			// Session not established: queue to peer's operation queue
+			// This maintains order with any pending announces/teardowns
+			peer.QueueWithdraw(n)
 		}
 	}
 	return lastErr
@@ -474,8 +492,9 @@ func (a *reactorAPIAdapter) WithdrawLabeledUnicast(_ string, _ api.LabeledUnicas
 	return errors.New("labeled-unicast: not implemented")
 }
 
-// TeardownPeer gracefully closes a peer session.
-func (a *reactorAPIAdapter) TeardownPeer(addr netip.Addr, _ string) error {
+// TeardownPeer gracefully closes a peer session with NOTIFICATION.
+// Sends Cease (6) with the specified subcode per RFC 4486.
+func (a *reactorAPIAdapter) TeardownPeer(addr netip.Addr, subcode uint8) error {
 	a.r.mu.RLock()
 	peer, exists := a.r.peers[addr.String()]
 	a.r.mu.RUnlock()
@@ -484,8 +503,10 @@ func (a *reactorAPIAdapter) TeardownPeer(addr netip.Addr, _ string) error {
 		return ErrPeerNotFound
 	}
 
-	// TODO: Send NOTIFICATION with reason before stopping
-	peer.Stop()
+	// Signal teardown with subcode - peer will send NOTIFICATION and close.
+	// If session exists, teardown happens immediately.
+	// If not connected, teardown is queued to maintain operation order.
+	peer.Teardown(subcode)
 	return nil
 }
 
@@ -641,6 +662,8 @@ func (a *reactorAPIAdapter) CommitTransactionWithLabel(peerSelector, label strin
 
 // flushAndSendForPeer flushes pending routes for a peer, groups them, and sends.
 // Returns the number of UPDATE messages sent.
+// If session is not established, routes are queued to opQueue to maintain ordering
+// with any pending teardowns.
 func (a *reactorAPIAdapter) flushAndSendForPeer(peer *Peer) int {
 	ribOut := peer.AdjRIBOut()
 	if ribOut == nil {
@@ -656,6 +679,12 @@ func (a *reactorAPIAdapter) flushAndSendForPeer(peer *Peer) int {
 	// Get negotiated parameters for CommitService
 	neg := peer.messageNegotiated()
 	if neg == nil {
+		// Session not established - queue routes to opQueue to maintain
+		// ordering with any pending teardowns. Without this, committed
+		// transaction routes would be sent before a queued teardown.
+		for _, route := range routes {
+			peer.QueueAnnounce(route)
+		}
 		return 0
 	}
 

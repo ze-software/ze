@@ -40,6 +40,10 @@ type mockReactor struct {
 		selector string
 		route    LabeledUnicastRoute
 	}
+	teardownCalls []struct {
+		addr    netip.Addr
+		subcode uint8
+	}
 }
 
 func (m *mockReactor) Peers() []PeerInfo {
@@ -70,7 +74,11 @@ func (m *mockReactor) WithdrawRoute(selector string, prefix netip.Prefix) error 
 	return nil
 }
 
-func (m *mockReactor) TeardownPeer(_ netip.Addr, _ string) error {
+func (m *mockReactor) TeardownPeer(addr netip.Addr, subcode uint8) error {
+	m.teardownCalls = append(m.teardownCalls, struct {
+		addr    netip.Addr
+		subcode uint8
+	}{addr, subcode})
 	return nil
 }
 
@@ -1133,6 +1141,137 @@ func TestHandleAnnounceLabeledUnicast_NlriMplsAlias(t *testing.T) {
 	require.NotNil(t, resp)
 	assert.Equal(t, "done", resp.Status)
 	require.Len(t, reactor.announcedLabeledUnicastRoutes, 1)
+}
+
+// =============================================================================
+// Teardown Command Tests
+// =============================================================================
+
+// TestHandleTeardown verifies the teardown command with cease subcode.
+//
+// VALIDATES: Teardown command calls reactor with correct IP and subcode.
+//
+// PREVENTS: Wrong subcode being sent in NOTIFICATION.
+func TestHandleTeardown(t *testing.T) {
+	reactor := &mockReactor{}
+	ctx := &CommandContext{
+		Reactor: reactor,
+		Peer:    "127.0.0.1", // Set by dispatcher from "neighbor 127.0.0.1 teardown 4"
+	}
+
+	// teardown 4 = Cease subcode 4 (Administrative Reset)
+	resp, err := handleTeardown(ctx, []string{"4"})
+
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	assert.Equal(t, "done", resp.Status)
+
+	require.Len(t, reactor.teardownCalls, 1)
+	assert.Equal(t, netip.MustParseAddr("127.0.0.1"), reactor.teardownCalls[0].addr)
+	assert.Equal(t, uint8(4), reactor.teardownCalls[0].subcode)
+}
+
+// TestHandleTeardown_AdminShutdown verifies subcode 2 (Admin Shutdown).
+//
+// VALIDATES: Subcode 2 works correctly.
+//
+// PREVENTS: Wrong subcode for shutdown vs reset.
+func TestHandleTeardown_AdminShutdown(t *testing.T) {
+	reactor := &mockReactor{}
+	ctx := &CommandContext{
+		Reactor: reactor,
+		Peer:    "192.168.1.1",
+	}
+
+	resp, err := handleTeardown(ctx, []string{"2"})
+
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	assert.Equal(t, "done", resp.Status)
+
+	require.Len(t, reactor.teardownCalls, 1)
+	assert.Equal(t, uint8(2), reactor.teardownCalls[0].subcode)
+}
+
+// TestHandleTeardown_MissingSubcode verifies error on missing subcode.
+//
+// VALIDATES: Missing subcode returns error.
+//
+// PREVENTS: Default subcode being used silently.
+func TestHandleTeardown_MissingSubcode(t *testing.T) {
+	reactor := &mockReactor{}
+	ctx := &CommandContext{
+		Reactor: reactor,
+		Peer:    "127.0.0.1",
+	}
+
+	resp, err := handleTeardown(ctx, []string{})
+
+	require.Error(t, err)
+	require.NotNil(t, resp)
+	assert.Equal(t, "error", resp.Status)
+	assert.Contains(t, resp.Error, "usage")
+}
+
+// TestHandleTeardown_InvalidSubcode verifies error on non-numeric subcode.
+//
+// VALIDATES: Non-numeric subcode returns error.
+//
+// PREVENTS: Parsing errors being silently ignored.
+func TestHandleTeardown_InvalidSubcode(t *testing.T) {
+	reactor := &mockReactor{}
+	ctx := &CommandContext{
+		Reactor: reactor,
+		Peer:    "127.0.0.1",
+	}
+
+	resp, err := handleTeardown(ctx, []string{"invalid"})
+
+	require.Error(t, err)
+	require.NotNil(t, resp)
+	assert.Equal(t, "error", resp.Status)
+}
+
+// TestHandleTeardown_MissingPeer verifies error when no peer specified.
+//
+// VALIDATES: Teardown without peer target returns error.
+//
+// PREVENTS: Tearing down wrong peer.
+func TestHandleTeardown_MissingPeer(t *testing.T) {
+	reactor := &mockReactor{}
+	ctx := &CommandContext{
+		Reactor: reactor,
+		Peer:    "", // No peer specified
+	}
+
+	resp, err := handleTeardown(ctx, []string{"4"})
+
+	require.Error(t, err)
+	require.NotNil(t, resp)
+	assert.Equal(t, "error", resp.Status)
+}
+
+// TestDispatchNeighborTeardown verifies full command parsing.
+//
+// VALIDATES: "neighbor 127.0.0.1 teardown 4" is correctly dispatched.
+//
+// PREVENTS: Command not being recognized.
+func TestDispatchNeighborTeardown(t *testing.T) {
+	d := NewDispatcher()
+	RegisterDefaultHandlers(d)
+
+	reactor := &mockReactor{}
+	ctx := &CommandContext{Reactor: reactor}
+
+	resp, err := d.Dispatch(ctx, "neighbor 127.0.0.1 teardown 4")
+
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	assert.Equal(t, "done", resp.Status)
+
+	require.Len(t, reactor.teardownCalls, 1)
+	assert.Equal(t, netip.MustParseAddr("127.0.0.1"), reactor.teardownCalls[0].addr)
+	assert.Equal(t, uint8(4), reactor.teardownCalls[0].subcode)
 }
 
 // TestHandleAnnounceLabeledUnicast_AttributeValues verifies attribute values are parsed correctly.

@@ -20,6 +20,9 @@ func RegisterDefaultHandlers(d *Dispatcher) {
 	d.Register("peer show", handlePeerShow, "Show peer details")
 	d.Register("peer teardown", handlePeerTeardown, "Teardown a peer session")
 
+	// Teardown command (for "neighbor <ip> teardown <subcode>" syntax)
+	d.Register("teardown", handleTeardown, "Teardown peer session with cease subcode")
+
 	// System commands
 	d.Register("system help", handleSystemHelp, "Show available commands")
 	d.Register("system version", handleSystemVersion, "Show version")
@@ -167,11 +170,13 @@ func handleSystemVersion(_ *CommandContext, _ []string) (*Response, error) {
 }
 
 // handlePeerTeardown closes a peer session.
+// Usage: peer teardown <ip> [subcode]
+// Subcode defaults to 3 (Peer De-configured) if not specified.
 func handlePeerTeardown(ctx *CommandContext, args []string) (*Response, error) {
 	if len(args) < 1 {
 		return &Response{
 			Status: "error",
-			Error:  "usage: peer teardown <ip> [reason]",
+			Error:  "usage: peer teardown <ip> [subcode]",
 		}, fmt.Errorf("missing peer address")
 	}
 
@@ -183,13 +188,21 @@ func handlePeerTeardown(ctx *CommandContext, args []string) (*Response, error) {
 		}, err
 	}
 
-	// Optional reason
-	reason := ""
+	// Optional subcode (default: 3 = Peer De-configured)
+	subcode := uint8(3)
 	if len(args) > 1 {
-		reason = args[1]
+		var code uint64
+		code, err = parseUint(args[1])
+		if err != nil || code > 255 {
+			return &Response{
+				Status: "error",
+				Error:  fmt.Sprintf("invalid subcode: %s", args[1]),
+			}, fmt.Errorf("invalid subcode: %s", args[1])
+		}
+		subcode = uint8(code)
 	}
 
-	if err := ctx.Reactor.TeardownPeer(addr, reason); err != nil {
+	if err := ctx.Reactor.TeardownPeer(addr, subcode); err != nil {
 		return &Response{
 			Status: "error",
 			Error:  fmt.Sprintf("teardown failed: %v", err),
@@ -199,10 +212,76 @@ func handlePeerTeardown(ctx *CommandContext, args []string) (*Response, error) {
 	return &Response{
 		Status: "done",
 		Data: map[string]any{
-			"peer":   addr.String(),
-			"reason": reason,
+			"peer":    addr.String(),
+			"subcode": subcode,
 		},
 	}, nil
+}
+
+// handleTeardown handles "neighbor <ip> teardown <subcode>" command.
+// The neighbor IP is extracted by the dispatcher into ctx.Peer.
+// Subcode is the Cease subcode per RFC 4486.
+func handleTeardown(ctx *CommandContext, args []string) (*Response, error) {
+	if len(args) < 1 {
+		return &Response{
+			Status: "error",
+			Error:  "usage: neighbor <ip> teardown <subcode>",
+		}, fmt.Errorf("missing cease subcode")
+	}
+
+	// Parse peer address from context
+	peer := ctx.PeerSelector()
+	if peer == "*" || peer == "" {
+		return &Response{
+			Status: "error",
+			Error:  "teardown requires specific peer: neighbor <ip> teardown <subcode>",
+		}, fmt.Errorf("no peer specified")
+	}
+
+	addr, err := netip.ParseAddr(peer)
+	if err != nil {
+		return &Response{
+			Status: "error",
+			Error:  fmt.Sprintf("invalid peer address: %s", peer),
+		}, err
+	}
+
+	// Parse subcode
+	code, err := parseUint(args[0])
+	if err != nil || code > 255 {
+		return &Response{
+			Status: "error",
+			Error:  fmt.Sprintf("invalid subcode: %s", args[0]),
+		}, fmt.Errorf("invalid subcode: %s", args[0])
+	}
+	subcode := uint8(code)
+
+	if err := ctx.Reactor.TeardownPeer(addr, subcode); err != nil {
+		return &Response{
+			Status: "error",
+			Error:  fmt.Sprintf("teardown failed: %v", err),
+		}, err
+	}
+
+	return &Response{
+		Status: "done",
+		Data: map[string]any{
+			"peer":    addr.String(),
+			"subcode": subcode,
+		},
+	}, nil
+}
+
+// parseUint parses a string as unsigned integer.
+func parseUint(s string) (uint64, error) {
+	var n uint64
+	for _, c := range s {
+		if c < '0' || c > '9' {
+			return 0, fmt.Errorf("invalid digit: %c", c)
+		}
+		n = n*10 + uint64(c-'0')
+	}
+	return n, nil
 }
 
 // handleRIBShowIn returns Adj-RIB-In contents.

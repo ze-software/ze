@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/exa-networks/zebgp/pkg/bgp/attribute"
+	"github.com/exa-networks/zebgp/pkg/rib"
 	"github.com/stretchr/testify/require"
 )
 
@@ -395,4 +396,116 @@ func TestBuildStaticRouteUpdateWithCommunities(t *testing.T) {
 	}
 
 	require.True(t, found, "UPDATE with communities must contain COMMUNITIES attribute")
+}
+
+// TestPeerOpQueueOrdering verifies operation queue maintains order.
+//
+// VALIDATES: Operations queued when not connected are processed in order.
+//
+// PREVENTS: Out-of-order route announcements or teardowns.
+func TestPeerOpQueueOrdering(t *testing.T) {
+	settings := NewPeerSettings(
+		mustParseAddr("192.0.2.1"),
+		65000, 65001, 0x01010101,
+	)
+
+	peer := NewPeer(settings)
+
+	// Queue operations while not connected
+	route1 := &rib.Route{}
+	route2 := &rib.Route{}
+
+	peer.QueueAnnounce(route1)
+	peer.QueueAnnounce(route2)
+
+	// Verify queue order
+	peer.mu.RLock()
+	require.Len(t, peer.opQueue, 2, "queue should have 2 items")
+	require.Equal(t, PeerOpAnnounce, peer.opQueue[0].Type)
+	require.Equal(t, route1, peer.opQueue[0].Route)
+	require.Equal(t, PeerOpAnnounce, peer.opQueue[1].Type)
+	require.Equal(t, route2, peer.opQueue[1].Route)
+	peer.mu.RUnlock()
+}
+
+// TestPeerTeardownQueuesWhenNotConnected verifies teardown is queued when no session.
+//
+// VALIDATES: Teardown called without active session queues the operation.
+//
+// PREVENTS: Lost teardown requests when session is not established.
+func TestPeerTeardownQueuesWhenNotConnected(t *testing.T) {
+	settings := NewPeerSettings(
+		mustParseAddr("192.0.2.1"),
+		65000, 65001, 0x01010101,
+	)
+
+	peer := NewPeer(settings)
+
+	// Teardown with no session should queue
+	peer.Teardown(4) // AdminReset subcode
+
+	peer.mu.RLock()
+	require.Len(t, peer.opQueue, 1, "queue should have 1 item")
+	require.Equal(t, PeerOpTeardown, peer.opQueue[0].Type)
+	require.Equal(t, uint8(4), peer.opQueue[0].Subcode)
+	peer.mu.RUnlock()
+}
+
+// TestPeerOpQueueMixedOperations verifies mixed announce/teardown ordering.
+//
+// VALIDATES: Interleaved announce and teardown operations maintain order.
+//
+// PREVENTS: Teardowns being processed before preceding announces.
+func TestPeerOpQueueMixedOperations(t *testing.T) {
+	settings := NewPeerSettings(
+		mustParseAddr("192.0.2.1"),
+		65000, 65001, 0x01010101,
+	)
+
+	peer := NewPeer(settings)
+
+	// Simulate: announce → teardown → announce
+	route1 := &rib.Route{}
+	route2 := &rib.Route{}
+
+	peer.QueueAnnounce(route1)
+	peer.Teardown(4)
+	peer.QueueAnnounce(route2)
+
+	peer.mu.RLock()
+	require.Len(t, peer.opQueue, 3, "queue should have 3 items")
+
+	// Verify order: Route1, Teardown, Route2
+	require.Equal(t, PeerOpAnnounce, peer.opQueue[0].Type)
+	require.Equal(t, route1, peer.opQueue[0].Route)
+
+	require.Equal(t, PeerOpTeardown, peer.opQueue[1].Type)
+	require.Equal(t, uint8(4), peer.opQueue[1].Subcode)
+
+	require.Equal(t, PeerOpAnnounce, peer.opQueue[2].Type)
+	require.Equal(t, route2, peer.opQueue[2].Route)
+	peer.mu.RUnlock()
+}
+
+// TestPeerOpQueueMultipleTeardowns verifies consecutive teardowns are queued.
+//
+// VALIDATES: Multiple teardowns without intervening announces are all queued.
+//
+// PREVENTS: Teardown coalescing that might lose subcode information.
+func TestPeerOpQueueMultipleTeardowns(t *testing.T) {
+	settings := NewPeerSettings(
+		mustParseAddr("192.0.2.1"),
+		65000, 65001, 0x01010101,
+	)
+
+	peer := NewPeer(settings)
+
+	peer.Teardown(2) // AdminShutdown
+	peer.Teardown(4) // AdminReset
+
+	peer.mu.RLock()
+	require.Len(t, peer.opQueue, 2, "queue should have 2 items")
+	require.Equal(t, uint8(2), peer.opQueue[0].Subcode)
+	require.Equal(t, uint8(4), peer.opQueue[1].Subcode)
+	peer.mu.RUnlock()
 }
