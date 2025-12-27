@@ -240,7 +240,8 @@ func (s *Server) handleSingleProcessCommands(proc *Process) {
 		Reactor:       s.reactor,
 		Encoder:       s.encoder,
 		CommitManager: s.commitManager,
-		Peer:          "*", // Default to all peers
+		Process:       proc, // For session state (ack, sync)
+		Peer:          "*",  // Default to all peers
 	}
 
 	for proc.Running() {
@@ -272,12 +273,18 @@ func (s *Server) handleSingleProcessCommands(proc *Process) {
 		// Dispatch command
 		resp, err := s.dispatcher.Dispatch(cmdCtx, line)
 		if err != nil {
+			// ErrSilent means suppress response entirely
+			if errors.Is(err, ErrSilent) {
+				continue
+			}
 			resp = &Response{Status: "error", Error: err.Error()}
 		}
 
-		// Send response back to process stdin
-		respJSON, _ := json.Marshal(resp)
-		_ = proc.WriteEvent(strings.TrimSuffix(string(respJSON), "\n"))
+		// Send response back to process stdin (if ack enabled or error)
+		if resp != nil && (resp.Status == "error" || proc.AckEnabled()) {
+			respJSON, _ := json.Marshal(resp)
+			_ = proc.WriteEvent(strings.TrimSuffix(string(respJSON), "\n"))
+		}
 	}
 }
 
@@ -348,10 +355,15 @@ func (s *Server) processCommand(client *Client, command string) {
 		Reactor:       s.reactor,
 		Encoder:       s.encoder,
 		CommitManager: s.commitManager,
+		// Note: Process is nil for socket clients - session commands are no-ops
 	}
 
 	resp, err := s.dispatcher.Dispatch(ctx, command)
 	if err != nil {
+		// ErrSilent means suppress response entirely
+		if errors.Is(err, ErrSilent) {
+			return
+		}
 		// Send error response
 		errResp := &Response{
 			Status: "error",

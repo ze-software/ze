@@ -6,29 +6,46 @@
 
 ## CURRENT STATUS
 
-✅ **Completed:** RIB Flush/Clear API Commands
+✅ **Completed:** Session API Commands
 
 ### Session Summary (2025-12-27)
 
 **Completed this session:**
-- ✅ Implemented `rib clear in` - clears all routes from Adj-RIB-In
-- ✅ Implemented `rib clear out` - withdraws all routes from Adj-RIB-Out
-- ✅ Implemented `rib flush out` - re-queues sent routes for re-announcement
-- ✅ Added `ClearAll()` to IncomingRIB
-- ✅ Added `ClearSent()`, `FlushSent()` to OutgoingRIB
-- ✅ Added reactor adapter methods
-- ✅ Updated help text with new commands
-- ✅ Unit tests for RIB methods (TDD)
-- ✅ API handler tests
+- ✅ Implemented 8 session API commands (ExaBGP compatible)
+  - `session ack enable/disable/silence` - ACK response control
+  - `session sync enable/disable` - wire transmission sync
+  - `session reset` - reset session state
+  - `session ping` - health check (returns pong + PID)
+  - `session bye` - client disconnect cleanup
+- ✅ Added `ackEnabled`/`syncEnabled` atomic state to Process struct
+- ✅ Added `Process` field to CommandContext for session state
+- ✅ Implemented `ErrSilent` sentinel for suppressing responses
+- ✅ Wired Process to CommandContext in server dispatch
+- ✅ ACK state respected in response sending
 - ✅ All tests pass (`make test`)
 - ✅ Lint clean (`make lint`)
 
+**Critical fixes found during review:**
+- 🔧 Process was not wired to CommandContext - session commands would have been no-ops
+- 🔧 ErrSilent was treated as error instead of suppressing response
+
 **Key files modified:**
-- `pkg/api/types.go` - ReactorInterface methods
-- `pkg/api/handler.go` - handlers + registration + help
-- `pkg/rib/incoming.go` - ClearAll()
-- `pkg/rib/outgoing.go` - ClearSent(), FlushSent()
-- `pkg/reactor/reactor.go` - adapter methods
+- `pkg/api/process.go` - ackEnabled/syncEnabled + getter/setter methods
+- `pkg/api/command.go` - Process field in CommandContext
+- `pkg/api/session.go` - NEW: 8 session handlers + ErrSilent
+- `pkg/api/session_test.go` - NEW: 9 tests
+- `pkg/api/handler.go` - registration + help text
+- `pkg/api/server.go` - Process wiring + ErrSilent handling + ACK check
+- `pkg/api/process_test.go` - state tests
+
+**Spec file:** `plan/spec-session-commands.md`
+
+### Previous Session (2025-12-27) - RIB Commands
+
+**Completed:**
+- ✅ `rib clear in` - clears all routes from Adj-RIB-In
+- ✅ `rib clear out` - withdraws all routes from Adj-RIB-Out
+- ✅ `rib flush out` - re-queues sent routes for re-announcement
 
 **Spec file:** `plan/spec-rib-flush-clear.md`
 
@@ -352,7 +369,7 @@ Full review of ZeBGP implementation against all 44 `.claude` documentation files
 ### 🟡 IMPORTANT Issues
 
 1. **FSM violation** - OpenSent + TCPFails → Idle (should → Active) - documented in code
-2. **API commands incomplete** - session/daemon/RIB commands missing
+2. ~~API commands incomplete~~ - ✅ DONE: session + RIB commands implemented
 3. **Process backpressure missing** - slow processes can cause memory growth
 
 ### 🟢 Minor Issues
@@ -367,9 +384,9 @@ Full review of ZeBGP implementation against all 44 `.claude` documentation files
 |----------|--------|--------|--------|
 | ✅ Done | Extended community parsing (API + config) | ~200 lines | 2025-12-27 |
 | ✅ Done | EVPN Bytes() methods | ~300 lines | 2025-12-27 |
-| 🔴 P0 | Implement collision detection (RFC 4271 §6.8) | ~150 lines | Pending |
 | ✅ Done | RIB flush/clear API commands | ~200 lines | 2025-12-27 |
-| 🟡 P1 | Add missing API commands (session/daemon) | ~100 lines | Pending |
+| ✅ Done | Session API commands (ack/sync/ping/bye) | ~200 lines | 2025-12-27 |
+| 🔴 P0 | Implement collision detection (RFC 4271 §6.8) | ~150 lines | Pending |
 | 🟡 P1 | Process backpressure & respawn limits | ~100 lines | Pending |
 | 🟢 P2 | Fix FlowSpec ICMP encoding | ~100 lines | Pending |
 | 🟢 P2 | Fix BGP-LS TLV containers | ~150 lines | Pending |
@@ -384,4 +401,4 @@ Full review of ZeBGP implementation against all 44 `.claude` documentation files
 
 ### Overall Assessment
 
-**~87% complete** against documented specifications. Core BGP wire format is excellent. Main gaps: collision detection, API control commands.
+**~90% complete** against documented specifications. Core BGP wire format is excellent. Main gap: collision detection (RFC 4271 §6.8).

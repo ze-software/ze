@@ -232,3 +232,55 @@ func TestProcessManagerNoProcesses(t *testing.T) {
 
 	assert.Equal(t, 0, pm.ProcessCount())
 }
+
+// TestProcessAckState verifies ack state management on Process.
+//
+// VALIDATES: Process tracks ack enabled/disabled state correctly.
+// Default is enabled (true).
+//
+// PREVENTS: Missing ack state, always-on or always-off behavior,
+// incorrect default value.
+func TestProcessAckState(t *testing.T) {
+	proc := NewProcess(ProcessConfig{
+		Name:    "test",
+		Run:     "echo test",
+		Encoder: "json",
+	})
+
+	// Default should be enabled
+	assert.True(t, proc.AckEnabled(), "ack should be enabled by default")
+
+	// Disable ack
+	proc.SetAck(false)
+	assert.False(t, proc.AckEnabled(), "ack should be disabled after SetAck(false)")
+
+	// Re-enable ack
+	proc.SetAck(true)
+	assert.True(t, proc.AckEnabled(), "ack should be enabled after SetAck(true)")
+}
+
+// TestProcessSyncState verifies sync state management on Process.
+//
+// VALIDATES: Process tracks sync enabled/disabled state correctly.
+// Default is disabled (false).
+//
+// PREVENTS: Missing sync state, incorrect default, sync always on
+// causing unnecessary waits.
+func TestProcessSyncState(t *testing.T) {
+	proc := NewProcess(ProcessConfig{
+		Name:    "test",
+		Run:     "echo test",
+		Encoder: "json",
+	})
+
+	// Default should be disabled
+	assert.False(t, proc.SyncEnabled(), "sync should be disabled by default")
+
+	// Enable sync
+	proc.SetSync(true)
+	assert.True(t, proc.SyncEnabled(), "sync should be enabled after SetSync(true)")
+
+	// Disable sync
+	proc.SetSync(false)
+	assert.False(t, proc.SyncEnabled(), "sync should be disabled after SetSync(false)")
+}

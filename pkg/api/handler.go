@@ -39,6 +39,9 @@ func RegisterDefaultHandlers(d *Dispatcher) {
 
 	// Commit operations (transaction-based batching)
 	RegisterCommitHandlers(d)
+
+	// Session operations (per-process API connection state)
+	RegisterSessionHandlers(d)
 }
 
 // handleDaemonShutdown signals the reactor to stop.
@@ -143,6 +146,14 @@ func handleSystemHelp(_ *CommandContext, _ []string) (*Response, error) {
 		"rib clear in - Clear Adj-RIB-In",
 		"rib clear out - Withdraw all routes from Adj-RIB-Out",
 		"rib flush out - Re-send all routes to peers",
+		"session ack enable - Enable ACK responses (default)",
+		"session ack disable - Disable ACK responses",
+		"session ack silence - Disable ACK immediately (no response)",
+		"session sync enable - Wait for wire transmission before ACK",
+		"session sync disable - ACK immediately after RIB update",
+		"session reset - Reset session state to defaults",
+		"session ping - Health check (returns pong)",
+		"session bye - Client disconnect cleanup",
 		"announce route <prefix> next-hop <addr> - Announce a route",
 		"announce eor [<afi> <safi>] - Send End-of-RIB marker",
 		"announce flow match <spec> then <action> - Announce a FlowSpec route",

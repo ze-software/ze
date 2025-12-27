@@ -20,7 +20,8 @@ type CommandContext struct {
 	Reactor       ReactorInterface
 	Encoder       *JSONEncoder
 	CommitManager *CommitManager
-	Peer          string // Peer selector: "*" for all, or specific IP. Empty = "*"
+	Process       *Process // The API process (for session state)
+	Peer          string   // Peer selector: "*" for all, or specific IP. Empty = "*"
 }
 
 // PeerSelector returns the effective neighbor selector.

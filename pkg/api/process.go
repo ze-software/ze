@@ -29,6 +29,10 @@ type Process struct {
 
 	running atomic.Bool
 
+	// Session state (per-process API connection state)
+	ackEnabled  atomic.Bool // Whether to send "done" responses (default: true)
+	syncEnabled atomic.Bool // Whether to wait for wire transmission (default: false)
+
 	ctx    context.Context
 	cancel context.CancelFunc
 	wg     sync.WaitGroup
@@ -37,14 +41,39 @@ type Process struct {
 
 // NewProcess creates a new process with the given configuration.
 func NewProcess(config ProcessConfig) *Process {
-	return &Process{
+	p := &Process{
 		config: config,
 	}
+	// Default: ack enabled, sync disabled
+	p.ackEnabled.Store(true)
+	return p
 }
 
 // Running returns true if the process is running.
 func (p *Process) Running() bool {
 	return p.running.Load()
+}
+
+// AckEnabled returns true if ACK responses are enabled for this process.
+// When enabled (default), "done" responses are sent after commands.
+func (p *Process) AckEnabled() bool {
+	return p.ackEnabled.Load()
+}
+
+// SetAck enables or disables ACK responses for this process.
+func (p *Process) SetAck(enabled bool) {
+	p.ackEnabled.Store(enabled)
+}
+
+// SyncEnabled returns true if sync mode is enabled for this process.
+// When enabled, announce/withdraw waits for wire transmission before ACK.
+func (p *Process) SyncEnabled() bool {
+	return p.syncEnabled.Load()
+}
+
+// SetSync enables or disables sync mode for this process.
+func (p *Process) SetSync(enabled bool) {
+	p.syncEnabled.Store(enabled)
 }
 
 // Start spawns the process.
