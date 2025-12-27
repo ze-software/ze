@@ -126,6 +126,56 @@ func (s *Session) Negotiated() *capability.Negotiated {
 	return s.negotiated
 }
 
+// DetectCollision checks if an incoming connection causes a collision.
+// RFC 4271 §6.8 - BGP Connection Collision Detection.
+//
+// Returns (shouldAccept, shouldCloseExisting):
+//   - shouldAccept: true if the new connection should be accepted
+//   - shouldCloseExisting: true if the existing connection should be closed
+//
+// The collision resolution algorithm:
+//   - ESTABLISHED: always reject new connection
+//   - OPENCONFIRM: compare BGP IDs as uint32
+//   - If local_id < remote_id: accept new, close existing
+//   - If local_id >= remote_id: reject new, keep existing
+//   - Other states: accept new (no collision detection possible)
+func (s *Session) DetectCollision(remoteBGPID uint32) (shouldAccept, shouldCloseExisting bool) {
+	state := s.fsm.State()
+
+	switch state {
+	case fsm.StateEstablished:
+		// RFC 4271 §6.8: "collision with existing BGP connection that is in
+		// the Established state causes closing of the newly created connection"
+		return false, false
+
+	case fsm.StateOpenConfirm:
+		// RFC 4271 §6.8: "Upon receipt of an OPEN message, the local system
+		// MUST examine all of its connections that are in the OpenConfirm state"
+		localID := s.settings.RouterID
+
+		// RFC 4271 §6.8: "Comparing BGP Identifiers is done by converting them
+		// to host byte order and treating them as 4-octet unsigned integers"
+		if localID < remoteBGPID {
+			// RFC 4271 §6.8: "If the value of the local BGP Identifier is less
+			// than the remote one, the local system closes the BGP connection
+			// that already exists and accepts the BGP connection initiated by
+			// the remote system"
+			return true, true
+		}
+		// RFC 4271 §6.8: "Otherwise, the local system closes the newly created
+		// BGP connection and continues to use the existing one"
+		return false, false
+
+	case fsm.StateIdle, fsm.StateConnect, fsm.StateActive, fsm.StateOpenSent:
+		// RFC 4271 §6.8: "a connection collision cannot be detected with
+		// connections that are in Idle, Connect, or Active states"
+		// OpenSent MAY detect if BGP ID known by other means - we don't implement this
+		return true, false
+	}
+	// Unreachable, but required for exhaustive switch
+	return true, false
+}
+
 // Start triggers the ManualStart event to begin the connection process.
 func (s *Session) Start() error {
 	return s.fsm.Event(fsm.EventManualStart)
@@ -178,6 +228,105 @@ func (s *Session) Accept(conn net.Conn) error {
 	return s.connectionEstablished(conn)
 }
 
+// AcceptWithOpen accepts a connection and processes a pre-received OPEN.
+// RFC 4271 §6.8: Used for collision resolution when we've already read the peer's OPEN.
+func (s *Session) AcceptWithOpen(conn net.Conn, peerOpen *message.Open) error {
+	s.mu.Lock()
+	if s.conn != nil {
+		s.mu.Unlock()
+		return ErrAlreadyConnected
+	}
+	s.mu.Unlock()
+
+	// Establish connection (sends our OPEN)
+	if err := s.connectionEstablished(conn); err != nil {
+		return err
+	}
+
+	// Process the pre-received OPEN
+	return s.processOpen(peerOpen)
+}
+
+// processOpen handles a pre-parsed OPEN message.
+// Used by AcceptWithOpen for collision resolution.
+func (s *Session) processOpen(open *message.Open) error {
+	// Validate version
+	if open.Version != 4 {
+		s.mu.RLock()
+		conn := s.conn
+		neg := s.negotiated
+		s.mu.RUnlock()
+
+		_ = s.sendNotification(conn, neg,
+			message.NotifyOpenMessage,
+			message.NotifyOpenUnsupportedVersion,
+			[]byte{4},
+		)
+		_ = s.fsm.Event(fsm.EventBGPOpenMsgErr)
+		s.closeConn()
+		return ErrUnsupportedVersion
+	}
+
+	// Validate hold time
+	if err := open.ValidateHoldTime(); err != nil {
+		s.mu.RLock()
+		conn := s.conn
+		neg := s.negotiated
+		s.mu.RUnlock()
+
+		var notif *message.Notification
+		if errors.As(err, &notif) {
+			_ = s.sendNotification(conn, neg, notif.ErrorCode, notif.ErrorSubcode, notif.Data)
+		}
+		_ = s.fsm.Event(fsm.EventBGPOpenMsgErr)
+		s.closeConn()
+		return fmt.Errorf("invalid hold time %d: %w", open.HoldTime, err)
+	}
+
+	s.mu.Lock()
+	s.peerOpen = open
+	s.mu.Unlock()
+
+	// Negotiate capabilities
+	s.negotiate()
+
+	// Validate required families
+	s.mu.RLock()
+	conn := s.conn
+	neg := s.negotiated
+	requiredFamilies := s.settings.RequiredFamilies
+	s.mu.RUnlock()
+
+	if len(requiredFamilies) > 0 && neg != nil {
+		if missing := neg.CheckRequired(requiredFamilies); len(missing) > 0 {
+			capData := buildUnsupportedCapabilityData(missing)
+			_ = s.sendNotification(conn, neg,
+				message.NotifyOpenMessage,
+				message.NotifyOpenUnsupportedCapability,
+				capData,
+			)
+			_ = s.fsm.Event(fsm.EventBGPOpenMsgErr)
+			s.closeConn()
+			return fmt.Errorf("%w: required families not negotiated: %v", ErrInvalidState, missing)
+		}
+	}
+
+	// Update FSM
+	if err := s.fsm.Event(fsm.EventBGPOpen); err != nil {
+		return err
+	}
+
+	// Send KEEPALIVE
+	if err := s.sendKeepalive(conn, neg); err != nil {
+		return err
+	}
+
+	// Reset hold timer
+	s.timers.ResetHoldTimer()
+
+	return nil
+}
+
 // connectionEstablished handles a new TCP connection (incoming or outgoing).
 func (s *Session) connectionEstablished(conn net.Conn) error {
 	s.mu.Lock()
@@ -217,6 +366,26 @@ func (s *Session) Close() error {
 			message.NotifyCeaseAdminShutdown,
 			nil,
 		)
+	}
+
+	s.closeConn()
+	_ = s.fsm.Event(fsm.EventManualStop)
+
+	return nil
+}
+
+// CloseWithNotification closes the session with a specific NOTIFICATION.
+// RFC 4271 §6.8: Used for collision detection to close with Cease/Connection Collision.
+func (s *Session) CloseWithNotification(code message.NotifyErrorCode, subcode uint8) error {
+	s.timers.StopAll()
+
+	s.mu.Lock()
+	conn := s.conn
+	neg := s.negotiated
+	s.mu.Unlock()
+
+	if conn != nil {
+		_ = s.sendNotification(conn, neg, code, subcode, nil)
 	}
 
 	s.closeConn()

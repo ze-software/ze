@@ -1,5 +1,7 @@
 # Spec: EVPN Bytes() Methods
 
+**Status:** ✅ COMPLETE (2025-12-27)
+
 ## Task
 
 Implement EVPN `Bytes()` methods for all 5 route types (currently return nil), blocking EVPN route announcements.

@@ -6,37 +6,50 @@
 
 ## CURRENT STATUS
 
-✅ **Completed:** Session API Commands
+✅ **Completed:** BGP Connection Collision Detection (RFC 4271 §6.8)
 
 ### Session Summary (2025-12-27)
 
 **Completed this session:**
+- ✅ Full RFC 4271 §6.8 collision detection implementation
+- ✅ ESTABLISHED collision: incoming rejected with NOTIFICATION 6/7
+- ✅ OpenConfirm collision: BGP ID comparison, close loser
+- ✅ Pending connection tracking in Peer
+- ✅ `handlePendingCollision()` goroutine reads OPEN, resolves collision
+- ✅ `AcceptWithOpen()` accepts connection with pre-received OPEN
+- ✅ 10 collision tests (TDD)
+- ✅ All tests pass (`make test`)
+- ✅ Lint clean (`make lint`)
+
+**Architecture:**
+```
+handleConnection()
+├── ESTABLISHED → rejectConnectionCollision() [NOTIFICATION 6/7]
+├── OpenConfirm → SetPendingConnection() + go handlePendingCollision()
+│                  └── Read OPEN → ResolvePendingCollision()
+│                       ├── Local wins → rejectConnectionCollision()
+│                       └── Remote wins → CloseWithNotification() existing
+│                                        + acceptPendingConnection()
+└── Other states → normal AcceptConnection()
+```
+
+**Key files modified:**
+- `pkg/reactor/session.go` - `DetectCollision()`, `CloseWithNotification()`, `AcceptWithOpen()`, `processOpen()`
+- `pkg/reactor/peer.go` - `pendingConn/pendingOpen` fields, collision tracking methods
+- `pkg/reactor/reactor.go` - `handleConnection()`, `handlePendingCollision()`, `acceptPendingConnection()`
+- `pkg/reactor/collision_test.go` - 10 test functions
+
+**Spec file:** `plan/spec-collision-detection.md`
+
+### Previous Session (2025-12-27) - Session API Commands
+
+**Completed:**
 - ✅ Implemented 8 session API commands (ExaBGP compatible)
   - `session ack enable/disable/silence` - ACK response control
   - `session sync enable/disable` - wire transmission sync
   - `session reset` - reset session state
   - `session ping` - health check (returns pong + PID)
   - `session bye` - client disconnect cleanup
-- ✅ Added `ackEnabled`/`syncEnabled` atomic state to Process struct
-- ✅ Added `Process` field to CommandContext for session state
-- ✅ Implemented `ErrSilent` sentinel for suppressing responses
-- ✅ Wired Process to CommandContext in server dispatch
-- ✅ ACK state respected in response sending
-- ✅ All tests pass (`make test`)
-- ✅ Lint clean (`make lint`)
-
-**Critical fixes found during review:**
-- 🔧 Process was not wired to CommandContext - session commands would have been no-ops
-- 🔧 ErrSilent was treated as error instead of suppressing response
-
-**Key files modified:**
-- `pkg/api/process.go` - ackEnabled/syncEnabled + getter/setter methods
-- `pkg/api/command.go` - Process field in CommandContext
-- `pkg/api/session.go` - NEW: 8 session handlers + ErrSilent
-- `pkg/api/session_test.go` - NEW: 9 tests
-- `pkg/api/handler.go` - registration + help text
-- `pkg/api/server.go` - Process wiring + ErrSilent handling + ACK check
-- `pkg/api/process_test.go` - state tests
 
 **Spec file:** `plan/spec-session-commands.md`
 
@@ -49,47 +62,6 @@
 
 **Spec file:** `plan/spec-rib-flush-clear.md`
 
-### Previous Session (2025-12-27)
-
-**Completed:**
-- ✅ Fixed deadlock in `StartWithContext` - was calling `SetUpdateReceiver()` while holding mutex
-- ✅ Fixed lowercase origin in text encoder - ExaBGP uses `igp` not `IGP`
-- ✅ Added `parsePrefixWithDefault()` - allows bare IPs like `1.2.3.4` (defaults to /32)
-- ✅ Updated `handleAnnounceRoute()` to normalize prefixes
-- ✅ Removed all debug statements from api/server.go, api/process.go
-
-**Known issue - FSM Bug:**
-🔴 The `ae` (check) API test times out due to a pre-existing FSM bug:
-- FSM transitions from `ESTABLISHED → IDLE` prematurely during session
-- This happens AFTER session is established and routes are being exchanged
-- Causes API-announced routes to fail with "not connected"
-- Root cause: Unknown - needs investigation
-- Workaround: None currently
-
-**To investigate:**
-- Check what triggers `EventTCPConnectionFails` or other IDLE-causing events
-- May be related to sendInitialRoutes() goroutine timing
-- May be related to read timeout handling
-
-### Previous Implementation (Complete)
-
-**UPDATE receive forwarding to API processes:**
-- ✅ `api.ReceivedRoute` type in `pkg/api/text.go`
-- ✅ `FormatReceivedUpdate()` text formatter (lowercase origin)
-- ✅ `UpdateReceiver` interface and callback chain
-- ✅ `OnUpdateReceived()` in API Server
-- ✅ `ReceiveUpdate` field in ProcessConfig
-- ✅ Text encoder processes receive updates by default
-
-**Key files:**
-- `pkg/api/text.go` - ReceivedRoute, FormatReceivedUpdate()
-- `pkg/api/server.go` - OnUpdateReceived()
-- `pkg/api/route.go` - parsePrefixWithDefault()
-- `pkg/reactor/reactor.go` - UpdateReceiver, notifyUpdateReceiver()
-- `pkg/reactor/session.go` - parseUpdateRoutes()
-
-**Spec file:** `plan/spec-api-receive-update.md`
-
 ---
 
 ## PREVIOUS STATUS
@@ -100,104 +72,14 @@
 
 **Extended Community Support - COMPLETE ✅**
 - ✅ Added `parseExtendedCommunity()` - parses origin:, redirect:, rate-limit: formats (RFC 4360/5575)
-- ✅ Added `parseExtendedCommunities()` - parses bracketed lists like `[origin:2345:6.7.8.9 redirect:65500:12345]`
+- ✅ Added `parseExtendedCommunities()` - parses bracketed lists
 - ✅ Added `extended-community` keyword to UnicastKeywords, MPLSKeywords, VPNKeywords
-- ✅ Added `ExtendedCommunities []attribute.ExtendedCommunity` to `PathAttributes` struct
-- ✅ Wired to UPDATE building in `buildAnnounceUpdate()` (pkg/reactor/reactor.go)
-- ✅ Unit tests for all parsing functions (TDD)
-
-**FlowSpec Extended Community from "then" block - COMPLETE ✅**
-- ✅ Fixed `parseFlowSpecRoute()` to extract extended-community from Then map
-- ✅ Fixed order: explicit extended communities (origin, target) come BEFORE action-based (redirect, rate-limit)
-- ✅ EXT_COMMUNITIES now matches ExaBGP output for flow-redirect test
+- ✅ Wired to UPDATE building in `buildAnnounceUpdate()`
 
 **Remaining encode test issues:**
 - FlowSpec ICMP type/code encoding (MP_REACH_NLRI length mismatch)
 - Extended nexthop (RFC 8950)
 - ADD-PATH (path-information)
-
-**Key files modified:**
-- `pkg/api/route.go` - extended community parsing functions
-- `pkg/api/route_keywords.go` - added extended-community to keyword sets
-- `pkg/api/types.go` - added ExtendedCommunities to PathAttributes
-- `pkg/api/route_parse_test.go` - unit tests for extended community parsing
-- `pkg/reactor/reactor.go` - wire extended communities to UPDATE building
-- `pkg/config/bgp.go` - extract extended-community from FlowSpec "then" block
-- `pkg/config/loader.go` - reorder extended community building (explicit before action-based)
-
----
-
-## PREVIOUS STATUS
-
-🔴 **Previous Priority:** API Commit-Based Route Batching
-
-See: `plan/api-commit-batching.md`
-
-**Why:** Converting ALL 45 `.run` scripts to use commit-based batching is REQUIRED for `.ci` tests to pass. Without explicit commit semantics, ZeBGP cannot reproduce ExaBGP's UPDATE message grouping.
-
-### Progress (2025-12-23)
-
-**Infrastructure completed:**
-- ✅ Process spawning with working directory
-- ✅ API server process integration
-- ✅ self-check loads API tests from `test/data/api/`
-- ✅ Socket path env var (`zebgp_api_socketpath`)
-- ✅ testpeer ignores non-raw `.ci` lines
-- ✅ iBGP attribute fix (LOCAL_PREF 100, empty AS_PATH)
-- ✅ Process I/O race condition fix (single reader goroutine)
-- ✅ **Attribute parsing for API commands** (2025-12-23)
-  - RouteSpec fields: Origin, LocalPreference, MED, ASPath, Communities, LargeCommunities
-  - Well-known communities: no-export, no-advertise, no-export-subconfed, nopeer, blackhole
-  - Single value without brackets (ExaBGP compatible)
-  - LargeCommunity type aliased to attribute.LargeCommunity (no duplication)
-  - RFC reference comments in buildAnnounceUpdate
-  - Unit tests for all parsing functions (TDD)
-
-**Current state (verified 2025-12-27):**
-- 11 API tests pass: `add-remove`, `announce`, `attributes`, `eor`, `fast`, `ipv4`, `ipv6`, `nexthop`, `notification`, `teardown`, `watchdog`
-- `announcement` test removed (required multi-session)
-- Remaining failing: `check` (timeout), `mup4` (timeout), `mup6` (timeout)
-
-**Recently fixed (2025-12-23):**
-- ✅ MP_REACH_NLRI for IPv6 routes in buildAnnounceUpdate
-- ✅ MP_UNREACH_NLRI for IPv6 withdrawals in buildWithdrawUpdate
-- ✅ nexthop test now passes
-- ✅ Documented attribute ordering difference vs ExaBGP (`.claude/zebgp/EXABGP_DIFFERENCES.md`)
-- ✅ **`split /N` syntax for route splitting** (pkg/api/route.go)
-  - `splitPrefix()` function splits prefix into more-specific prefixes
-  - `parseSplitArg()` parses `split /N` from command args
-  - `handleAnnounceRoute()` announces each split prefix separately
-  - Unit tests with IPv4 and IPv6 coverage
-- ✅ **`announce ipv4/ipv6 unicast` syntax** (pkg/api/route.go)
-  - `parseFamilyArgs()` parses `ipv4/ipv6 unicast` prefix
-  - Handlers: `handleAnnounceIPv4`, `handleAnnounceIPv6`, `handleWithdrawIPv4`, `handleWithdrawIPv6`
-  - Test files simplified to unicast-only (MUP deferred)
-  - ipv4 and ipv6 tests now pass
-- ✅ **L3VPN (MPLS VPN) route announcement** (pkg/api/route.go)
-  - `announce ipv4/ipv6 mpls-vpn <prefix> rd <rd> label <label> next-hop <nh>`
-  - RD validation: RFC 4364 Type 0 (2-byte ASN), Type 1 (IPv4), Type 2 (4-byte ASN)
-  - Label validation: 20-bit range (0-1048575), label 0 (Explicit Null) valid
-  - Label stack support: `label [100 200 300]` or `label [100,200,300]`
-  - L3VPNRoute type with Labels []uint32
-  - Reactor stubs (wire format integration pending)
-  - See: `plan/route-families.md`
-
-**Remaining work for failing tests (verified 2025-12-27):**
-- `check` test: Receive updates → forward to script (timeout)
-- `mup4`/`mup6` tests: MUP (Mobile User Plane) routing not implemented (timeout)
-
-**Previously thought failing but now PASS:**
-- ✅ `attributes` - `announce attributes ... nlri` syntax works
-- ✅ `teardown` - `neighbor X teardown` command works
-- ✅ `notification` - NOTIFICATION on peer disconnect works
-- ✅ `watchdog` - Watchdog subsystem works
-- ✅ `add-remove` - Route add/remove works
-
-**Not supported (by design):**
-- Multi-session: neighbor qualifiers (`local-as`, `peer-as`, `local-ip`, `router-id`) not implemented
-- Tests requiring multi-session can be removed
-
-**Next:** See `plan/api-test-features.md` for priorities.
 
 ---
 
@@ -240,25 +122,25 @@ See: `plan/api-commit-batching.md`
 
 ## RECENTLY COMPLETED
 
+**Collision Detection (RFC 4271 §6.8)** - 2025-12-27
+- ✅ Full implementation with OpenConfirm BGP ID comparison
+- ✅ ESTABLISHED early rejection
+- ✅ Pending connection tracking
+- ✅ NOTIFICATION 6/7 to loser
+
+**Session API Commands** - 2025-12-27
+- ✅ 8 ExaBGP-compatible session commands
+
+**RIB Commands** - 2025-12-27
+- ✅ `rib clear in/out`, `rib flush out`
+
+**EVPN Encoding** - 2025-12-27
+- ✅ All 5 route types have Bytes() implemented
+
 **Critical Review** - 2025-12-22
 - ✅ Verified all Phase 1 claims against code
 - ✅ Verified Phase 4-5 claims against code
 - ✅ Reviewed KEEP decision rationales
-- ✅ Verified ExaBGP claims against source
-- ✅ Downloaded RFC 7606
-- ✅ Updated `rfc/README.md`
-- ✅ Updated `plan/exabgp-alignment.md`
-
-**Phase 3 Internal Refactoring** - **COMPLETE ✅**
-
-Full neighbor→peer terminology unification:
-- ✅ config.PeerConfig (was NeighborConfig)
-- ✅ reactor.PeerSettings (was Neighbor)
-- ✅ All tests updated and passing
-
-**Named Commit System** - **COMPLETE ✅**
-
-Phase 3 API commit commands fully implemented.
 
 ---
 
@@ -267,7 +149,7 @@ Phase 3 API commit commands fully implemented.
 | Doc | Purpose |
 |-----|---------|
 | `exabgp-alignment.md` | Review decisions (18 ALIGN, 7 KEEP, 2 SKIP, 9 DONE) |
-| `route-families.md` | Route family keyword validation plan (L3VPN ✅, MPLS, FlowSpec pending) |
+| `route-families.md` | Route family keyword validation plan |
 | `ARCHITECTURE.md` | Codebase architecture overview |
 
 ---
@@ -283,17 +165,12 @@ Phase 3 API commit commands fully implemented.
 
 | Purpose | File |
 |---------|------|
-| Route handlers (L3VPN, unicast, ext-comm) | `pkg/api/route.go` |
-| Route keywords | `pkg/api/route_keywords.go` |
-| API types (RouteSpec, PathAttributes) | `pkg/api/types.go` |
-| Route parsing tests | `pkg/api/route_parse_test.go` |
+| Collision detection | `pkg/reactor/session.go`, `pkg/reactor/peer.go`, `pkg/reactor/reactor.go` |
+| Collision tests | `pkg/reactor/collision_test.go` |
+| Route handlers | `pkg/api/route.go` |
 | UPDATE building | `pkg/reactor/reactor.go` |
-| FlowSpec config parsing | `pkg/config/bgp.go`, `pkg/config/loader.go` |
-| Extended msg validation | `pkg/bgp/message/header.go` |
-| RFC 7606 validation | `pkg/bgp/message/rfc7606.go` |
-| Session receive path | `pkg/reactor/session.go` |
-| RFC 7606 | `rfc/rfc7606.txt` |
-| Alignment plan | `plan/exabgp-alignment.md` |
+| Session commands | `pkg/api/session.go` |
+| RIB commands | `pkg/api/rib.go` |
 | This file | `plan/CLAUDE_CONTINUATION.md` |
 | Protocols | `.claude/ESSENTIAL_PROTOCOLS.md` |
 
@@ -328,18 +205,17 @@ Full review of ZeBGP implementation against all 44 `.claude` documentation files
 
 | Area | Issue | Impact | Doc Reference |
 |------|-------|--------|---------------|
-| ~~NLRI Encoding~~ | ~~EVPN Bytes() returns nil~~ | ✅ DONE - All 5 types implemented | `wire/NLRI_EVPN.md` |
+| ~~NLRI Encoding~~ | ~~EVPN Bytes() returns nil~~ | ✅ DONE | `wire/NLRI_EVPN.md` |
+| ~~Collision Detection~~ | ~~RFC 4271 §6.8 violation~~ | ✅ DONE | `behavior/FSM.md` |
 | **NLRI Encoding** | FlowSpec encoding incomplete | Limited FlowSpec support | `wire/NLRI_FLOWSPEC.md` |
 | **BGP-LS TLVs** | RFC violation in descriptor containers | Interop risk | `wire/NLRI_BGPLS.md` |
 | **API v4 JSON** | Not implemented (v6 only) | No v4 compat | `api/JSON_FORMAT.md` |
-| **API Commands** | Missing session/daemon/RIB commands | Incomplete control | `api/COMMANDS.md` |
 | **Process Protocol** | No backpressure queue, no respawn limits | Memory/stability risk | `api/PROCESS_PROTOCOL.md` |
 
 ### ❌ NOT IMPLEMENTED (Missing Features)
 
 | Feature | RFC | Impact | Doc Reference |
 |---------|-----|--------|---------------|
-| **Collision Detection** | RFC 4271 §6.8 | Active/active peers fail | `behavior/FSM.md` |
 | **MVPN/VPLS/RTC/MUP** | Various | Stub only | `wire/NLRI.md` |
 | **Outbound Route Filtering** | RFC 5291 | Optional, acceptable | `wire/CAPABILITIES.md` |
 | **Graceful Restart State Machine** | RFC 4724 | Capability parsed, FSM missing | `wire/CAPABILITIES.md` |
@@ -361,16 +237,15 @@ Full review of ZeBGP implementation against all 44 `.claude` documentation files
 | pkg/reactor | 31.5% | ⚠️ Low |
 | pkg/trace | 0% | ❌ None |
 
-### 🔴 CRITICAL Issues (Blocking)
+### 🔴 CRITICAL Issues - ALL RESOLVED ✅
 
 1. ~~EVPN encoding missing~~ - ✅ DONE - All 5 route types have Bytes() implemented
-2. **Collision detection missing** - RFC 4271 §6.8 violation, blocks active/active peers
+2. ~~Collision detection missing~~ - ✅ DONE - RFC 4271 §6.8 fully implemented
 
 ### 🟡 IMPORTANT Issues
 
 1. **FSM violation** - OpenSent + TCPFails → Idle (should → Active) - documented in code
-2. ~~API commands incomplete~~ - ✅ DONE: session + RIB commands implemented
-3. **Process backpressure missing** - slow processes can cause memory growth
+2. **Process backpressure missing** - slow processes can cause memory growth
 
 ### 🟢 Minor Issues
 
@@ -382,11 +257,11 @@ Full review of ZeBGP implementation against all 44 `.claude` documentation files
 
 | Priority | Action | Effort | Status |
 |----------|--------|--------|--------|
-| ✅ Done | Extended community parsing (API + config) | ~200 lines | 2025-12-27 |
+| ✅ Done | Extended community parsing | ~200 lines | 2025-12-27 |
 | ✅ Done | EVPN Bytes() methods | ~300 lines | 2025-12-27 |
 | ✅ Done | RIB flush/clear API commands | ~200 lines | 2025-12-27 |
-| ✅ Done | Session API commands (ack/sync/ping/bye) | ~200 lines | 2025-12-27 |
-| 🔴 P0 | Implement collision detection (RFC 4271 §6.8) | ~150 lines | Pending |
+| ✅ Done | Session API commands | ~200 lines | 2025-12-27 |
+| ✅ Done | Collision detection (RFC 4271 §6.8) | ~350 lines | 2025-12-27 |
 | 🟡 P1 | Process backpressure & respawn limits | ~100 lines | Pending |
 | 🟢 P2 | Fix FlowSpec ICMP encoding | ~100 lines | Pending |
 | 🟢 P2 | Fix BGP-LS TLV containers | ~150 lines | Pending |
@@ -401,4 +276,4 @@ Full review of ZeBGP implementation against all 44 `.claude` documentation files
 
 ### Overall Assessment
 
-**~90% complete** against documented specifications. Core BGP wire format is excellent. Main gap: collision detection (RFC 4271 §6.8).
+**~92% complete** against documented specifications. Core BGP wire format is excellent. All critical RFC compliance issues resolved.

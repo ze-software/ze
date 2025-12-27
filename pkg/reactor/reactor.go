@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"net"
 	"net/netip"
 	"strings"
@@ -14,6 +15,7 @@ import (
 
 	"github.com/exa-networks/zebgp/pkg/api"
 	"github.com/exa-networks/zebgp/pkg/bgp/attribute"
+	"github.com/exa-networks/zebgp/pkg/bgp/fsm"
 	"github.com/exa-networks/zebgp/pkg/bgp/message"
 	"github.com/exa-networks/zebgp/pkg/bgp/nlri"
 	"github.com/exa-networks/zebgp/pkg/rib"
@@ -1600,6 +1602,18 @@ func (r *Reactor) cleanup() {
 }
 
 // handleConnection handles an incoming TCP connection.
+// RFC 4271 §6.8: Connection collision detection.
+//
+// Architecture:
+//
+//	handleConnection()
+//	├── ESTABLISHED → rejectConnectionCollision() [NOTIFICATION 6/7]
+//	├── OpenConfirm → SetPendingConnection() + go handlePendingCollision()
+//	│                  └── Read OPEN → ResolvePendingCollision()
+//	│                       ├── Local wins → rejectConnectionCollision()
+//	│                       └── Remote wins → CloseWithNotification() existing
+//	│                                        + acceptPendingConnection()
+//	└── Other states → normal AcceptConnection()
 func (r *Reactor) handleConnection(conn net.Conn) {
 	remoteAddr, ok := conn.RemoteAddr().(*net.TCPAddr)
 	if !ok {
@@ -1628,9 +1642,123 @@ func (r *Reactor) handleConnection(conn net.Conn) {
 		return
 	}
 
+	// RFC 4271 §6.8: Check for collision with ESTABLISHED session.
+	// "collision with existing BGP connection that is in the Established
+	// state causes closing of the newly created connection"
+	if peer.State() == PeerStateEstablished {
+		r.rejectConnectionCollision(conn)
+		return
+	}
+
+	// RFC 4271 §6.8: Check for collision with OpenConfirm session.
+	// Queue the connection and wait for OPEN to compare BGP IDs.
+	if peer.SessionState() == fsm.StateOpenConfirm {
+		if err := peer.SetPendingConnection(conn); err != nil {
+			// Already have a pending connection, reject this one
+			r.rejectConnectionCollision(conn)
+			return
+		}
+		// Start goroutine to read OPEN and resolve collision
+		go r.handlePendingCollision(peer, conn)
+		return
+	}
+
 	// Accept connection on peer's session.
 	// For passive peers, this triggers the BGP handshake.
 	if err := peer.AcceptConnection(conn); err != nil {
+		_ = conn.Close()
+	}
+}
+
+// rejectConnectionCollision sends NOTIFICATION Cease/Connection Collision (6/7)
+// and closes the connection. RFC 4271 §6.8.
+func (r *Reactor) rejectConnectionCollision(conn net.Conn) {
+	notif := &message.Notification{
+		ErrorCode:    message.NotifyCease,
+		ErrorSubcode: message.NotifyCeaseConnectionCollision,
+	}
+	data, err := notif.Pack(nil)
+	if err == nil {
+		_, _ = conn.Write(data)
+	}
+	_ = conn.Close()
+}
+
+// handlePendingCollision reads OPEN from a pending connection and resolves collision.
+// RFC 4271 §6.8: Upon receipt of OPEN, compare BGP IDs and close the loser.
+func (r *Reactor) handlePendingCollision(peer *Peer, conn net.Conn) {
+	buf := make([]byte, message.MaxMsgLen)
+
+	// Set read deadline - use hold time or 90s default
+	holdTime := peer.Settings().HoldTime
+	if holdTime == 0 {
+		holdTime = 90 * time.Second
+	}
+	_ = conn.SetReadDeadline(time.Now().Add(holdTime))
+
+	// Read BGP header
+	_, err := io.ReadFull(conn, buf[:message.HeaderLen])
+	if err != nil {
+		peer.ClearPendingConnection()
+		_ = conn.Close()
+		return
+	}
+
+	hdr, err := message.ParseHeader(buf[:message.HeaderLen])
+	if err != nil {
+		peer.ClearPendingConnection()
+		r.rejectConnectionCollision(conn)
+		return
+	}
+
+	// Must be OPEN message
+	if hdr.Type != message.TypeOPEN {
+		peer.ClearPendingConnection()
+		r.rejectConnectionCollision(conn)
+		return
+	}
+
+	// Read OPEN body
+	_, err = io.ReadFull(conn, buf[message.HeaderLen:hdr.Length])
+	if err != nil {
+		peer.ClearPendingConnection()
+		_ = conn.Close()
+		return
+	}
+
+	// Parse OPEN
+	open, err := message.UnpackOpen(buf[message.HeaderLen:hdr.Length])
+	if err != nil {
+		peer.ClearPendingConnection()
+		r.rejectConnectionCollision(conn)
+		return
+	}
+
+	// Resolve collision using BGP ID from OPEN
+	acceptPending, pendingConn, pendingOpen := peer.ResolvePendingCollision(open)
+
+	if !acceptPending {
+		// Local wins: close pending with NOTIFICATION
+		r.rejectConnectionCollision(pendingConn)
+		return
+	}
+
+	// Remote wins: existing session is being closed, accept pending
+	// We need to wait a bit for the existing session to close, then
+	// start a new session with the pending connection
+	r.acceptPendingConnection(peer, pendingConn, pendingOpen)
+}
+
+// acceptPendingConnection accepts a pending connection after collision resolution.
+// The existing session has been closed, so we accept the pending connection with its pre-read OPEN.
+func (r *Reactor) acceptPendingConnection(peer *Peer, conn net.Conn, open *message.Open) {
+	// Wait for existing session to fully close
+	// The CloseWithNotification was called in ResolvePendingCollision
+	time.Sleep(100 * time.Millisecond)
+
+	// Accept connection with the pre-received OPEN
+	if err := peer.AcceptConnectionWithOpen(conn, open); err != nil {
+		// Failed to accept - peer may have been stopped or old session not yet closed
 		_ = conn.Close()
 	}
 }
