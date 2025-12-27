@@ -163,6 +163,17 @@ func parseSplitArg(args []string) (int, bool) {
 	return 0, false
 }
 
+// parseWatchdogArg looks for "watchdog <name>" in args and returns the pool name.
+// Returns ("", false) if not found.
+func parseWatchdogArg(args []string) (string, bool) {
+	for i := 0; i < len(args)-1; i++ {
+		if strings.EqualFold(args[i], "watchdog") {
+			return args[i+1], true
+		}
+	}
+	return "", false
+}
+
 // parseSAFI validates SAFI and returns remaining args with the normalized SAFI name.
 // Supported SAFIs: unicast, nlri-mpls (or labeled-unicast), mpls-vpn.
 // Note: "labeled-unicast" is normalized to "nlri-mpls" for ExaBGP compatibility.
@@ -265,6 +276,29 @@ func announceRouteImpl(ctx *CommandContext, args []string) (*Response, error) {
 	}
 
 	peerSelector := ctx.PeerSelector()
+
+	// Check for watchdog suffix - route goes to global pool
+	watchdogName, hasWatchdog := parseWatchdogArg(args)
+	if hasWatchdog {
+		if err := ctx.Reactor.AddWatchdogRoute(parsed.Route, watchdogName); err != nil {
+			return &Response{
+				Status: "error",
+				Error:  fmt.Sprintf("failed to add to watchdog pool: %v", err),
+			}, err
+		}
+		nextHopStr := parsed.Route.NextHop.String()
+		if parsed.NextHopSelf {
+			nextHopStr = "self"
+		}
+		return &Response{
+			Status: "done",
+			Data: map[string]any{
+				"watchdog": watchdogName,
+				"prefix":   parsed.Route.Prefix.String(),
+				"next_hop": nextHopStr,
+			},
+		}, nil
+	}
 
 	// Check for split argument
 	splitLen, hasSplit := parseSplitArg(args)
@@ -473,6 +507,7 @@ func parseRouteAttributes(args []string, allowedKeywords KeywordSet) (ParsedRout
 			nhStr := args[i+1]
 			if strings.EqualFold(nhStr, "self") {
 				result.NextHopSelf = true
+				result.Route.NextHopSelf = true
 			} else {
 				nh, err := netip.ParseAddr(nhStr)
 				if err != nil {
@@ -652,8 +687,9 @@ func handleWithdrawRoute(ctx *CommandContext, args []string) (*Response, error) 
 }
 
 // withdrawRouteImpl is the shared implementation for route withdrawals.
-// Handles: <prefix>.
+// Handles: <prefix> [watchdog <name>].
 // Example: 10.0.0.0/24.
+// Example: 10.0.0.0/24 watchdog health.
 func withdrawRouteImpl(ctx *CommandContext, args []string) (*Response, error) {
 	if len(args) < 1 {
 		return &Response{
@@ -668,6 +704,26 @@ func withdrawRouteImpl(ctx *CommandContext, args []string) (*Response, error) {
 			Status: "error",
 			Error:  fmt.Sprintf("invalid prefix: %s", args[0]),
 		}, ErrInvalidPrefix
+	}
+
+	// Check for watchdog suffix - remove from global pool
+	watchdogName, hasWatchdog := parseWatchdogArg(args)
+	if hasWatchdog {
+		// Route key format: "prefix#pathID" (pathID is 0 for API routes)
+		routeKey := fmt.Sprintf("%s#0", prefix.String())
+		if err := ctx.Reactor.RemoveWatchdogRoute(routeKey, watchdogName); err != nil {
+			return &Response{
+				Status: "error",
+				Error:  fmt.Sprintf("failed to remove from watchdog pool: %v", err),
+			}, err
+		}
+		return &Response{
+			Status: "done",
+			Data: map[string]any{
+				"watchdog": watchdogName,
+				"prefix":   prefix.String(),
+			},
+		}, nil
 	}
 
 	// Withdraw from matching peers (default "*" for all)

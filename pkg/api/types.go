@@ -91,9 +91,14 @@ type PathAttributes struct {
 
 // RouteSpec specifies a route for announcement.
 // Supports optional BGP path attributes that override iBGP defaults.
+//
+// IMMUTABILITY: RouteSpec and its slices (ASPath, Communities, etc.) must not
+// be mutated after being passed to any reactor method. The reactor stores
+// shallow copies for efficiency; mutation would corrupt internal state.
 type RouteSpec struct {
-	Prefix  netip.Prefix
-	NextHop netip.Addr
+	Prefix      netip.Prefix
+	NextHop     netip.Addr
+	NextHopSelf bool // Use peer's local address as next-hop (resolved at send time)
 	PathAttributes
 }
 
@@ -277,6 +282,14 @@ type ReactorInterface interface {
 	// WithdrawWatchdog withdraws all routes in the named watchdog group.
 	// Routes are moved from announced (+) to withdrawn (-) state.
 	WithdrawWatchdog(peerSelector, name string) error
+
+	// AddWatchdogRoute adds a route to a global watchdog pool.
+	// The route will be announced when "announce watchdog <name>" is called.
+	AddWatchdogRoute(route RouteSpec, poolName string) error
+
+	// RemoveWatchdogRoute removes a route from a global watchdog pool.
+	// Returns error if pool or route doesn't exist.
+	RemoveWatchdogRoute(routeKey, poolName string) error
 }
 
 // RIBRoute is an API-friendly representation of a route.

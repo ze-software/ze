@@ -18,9 +18,15 @@ const DefaultHoldTime = 90 * time.Second
 
 // StaticRoute represents a route to announce when session is established.
 // Fields are stored in both serializable (string/uint) and wire-ready formats.
+//
+// IMMUTABILITY: StaticRoute and its slices (ASPath, Communities, etc.) must not
+// be mutated after being stored. Watchdog pools and peer settings store shallow
+// copies for efficiency; mutation would corrupt internal state.
 type StaticRoute struct {
-	Prefix          netip.Prefix
-	NextHop         netip.Addr
+	Prefix      netip.Prefix
+	NextHop     netip.Addr
+	NextHopSelf bool // Use peer's local address as next-hop (resolved at send time)
+
 	Origin          uint8  // 0=IGP, 1=EGP, 2=INCOMPLETE
 	LocalPreference uint32 // For iBGP
 	MED             uint32 // Multi-Exit Discriminator

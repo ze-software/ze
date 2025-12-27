@@ -128,6 +128,8 @@ func (s *Session) Stop() error {
 }
 
 // Connect initiates an outgoing TCP connection.
+// If LocalAddress is configured, binds to it for outgoing connections.
+// This ensures consistent source address for next-hop self resolution.
 func (s *Session) Connect(ctx context.Context) error {
 	s.mu.Lock()
 	if s.conn != nil {
@@ -138,7 +140,13 @@ func (s *Session) Connect(ctx context.Context) error {
 
 	addr := net.JoinHostPort(s.settings.Address.String(), fmt.Sprintf("%d", s.settings.Port))
 
-	var d net.Dialer
+	d := net.Dialer{}
+
+	// Bind to local address if configured
+	if s.settings.LocalAddress.IsValid() {
+		d.LocalAddr = &net.TCPAddr{IP: s.settings.LocalAddress.AsSlice()}
+	}
+
 	conn, err := d.DialContext(ctx, "tcp", addr)
 	if err != nil {
 		_ = s.fsm.Event(fsm.EventTCPConnectionFails)

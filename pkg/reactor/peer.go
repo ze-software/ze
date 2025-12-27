@@ -142,22 +142,46 @@ type Peer struct {
 	// Key: watchdog name, Value: map of route key (prefix string) → isAnnounced.
 	// Initialized from WatchdogGroups on session establishment.
 	watchdogState map[string]map[string]bool
+
+	// Global watchdog manager for API-created pools.
+	// Set by reactor when peer is added. Used to re-send pool routes on reconnect.
+	globalWatchdog *WatchdogManager
 }
 
 // NewPeer creates a new peer for the given settings.
 func NewPeer(settings *PeerSettings) *Peer {
-	return &Peer{
-		settings:     settings,
-		reconnectMin: DefaultReconnectMin,
-		reconnectMax: DefaultReconnectMax,
-		adjRIBOut:    rib.NewOutgoingRIB(),
-		opQueue:      make([]PeerOp, 0, 16), // Pre-allocate small capacity
+	p := &Peer{
+		settings:      settings,
+		reconnectMin:  DefaultReconnectMin,
+		reconnectMax:  DefaultReconnectMax,
+		adjRIBOut:     rib.NewOutgoingRIB(),
+		opQueue:       make([]PeerOp, 0, 16), // Pre-allocate small capacity
+		watchdogState: make(map[string]map[string]bool),
 	}
+
+	// Initialize watchdog state from config
+	for name, routes := range settings.WatchdogGroups {
+		p.watchdogState[name] = make(map[string]bool)
+		for i := range routes {
+			wr := &routes[i]
+			p.watchdogState[name][wr.RouteKey()] = !wr.InitiallyWithdrawn
+		}
+	}
+
+	return p
 }
 
 // Settings returns the configured peer settings.
 func (p *Peer) Settings() *PeerSettings {
 	return p.settings
+}
+
+// SetGlobalWatchdog sets the global watchdog manager for this peer.
+// Called by reactor when peer is added.
+func (p *Peer) SetGlobalWatchdog(wm *WatchdogManager) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.globalWatchdog = wm
 }
 
 // AdjRIBOut returns the peer's Adj-RIB-Out.
@@ -548,32 +572,9 @@ func (p *Peer) sendInitialRoutes() {
 	}
 
 	// Handle watchdog routes (routes controlled via "announce/withdraw watchdog" API).
-	// State persists across reconnects: routes keep their announced/withdrawn status.
-	// On first connect, InitiallyWithdrawn determines initial state.
+	// State is eagerly initialized in NewPeer() and persists across reconnects.
+	// Send routes based on current state (which may have been modified by API while disconnected).
 	if len(p.settings.WatchdogGroups) > 0 {
-		p.mu.Lock()
-		// Initialize watchdogState only if nil (preserves state across reconnects)
-		if p.watchdogState == nil {
-			p.watchdogState = make(map[string]map[string]bool)
-		}
-
-		// Initialize any missing group maps and set initial state for new routes
-		for name, routes := range p.settings.WatchdogGroups {
-			if p.watchdogState[name] == nil {
-				p.watchdogState[name] = make(map[string]bool)
-			}
-			for i := range routes {
-				wr := &routes[i]
-				routeKey := wr.RouteKey()
-				// Only set initial state if route not already tracked
-				if _, exists := p.watchdogState[name][routeKey]; !exists {
-					p.watchdogState[name][routeKey] = !wr.InitiallyWithdrawn
-				}
-			}
-		}
-		p.mu.Unlock()
-
-		// Send routes based on current state (not InitiallyWithdrawn)
 		for name, routes := range p.settings.WatchdogGroups {
 			for i := range routes {
 				wr := &routes[i]
@@ -597,7 +598,43 @@ func (p *Peer) sendInitialRoutes() {
 				trace.RouteSent(addr, routeKey, wr.NextHop.String())
 			}
 		}
-		trace.Log(trace.Routes, "peer %s: initialized %d watchdog groups", addr, len(p.settings.WatchdogGroups))
+		trace.Log(trace.Routes, "peer %s: sent watchdog routes from %d groups", addr, len(p.settings.WatchdogGroups))
+	}
+
+	// Re-send global watchdog pool routes that were announced for this peer.
+	// These are API-created routes that persist across reconnects.
+	p.mu.RLock()
+	globalWatchdog := p.globalWatchdog
+	p.mu.RUnlock()
+
+	if globalWatchdog != nil {
+		localAddr := p.settings.LocalAddress
+		poolNames := globalWatchdog.PoolNames()
+		for _, poolName := range poolNames {
+			pool := globalWatchdog.GetPool(poolName)
+			if pool == nil {
+				continue
+			}
+			for _, pr := range pool.Routes() {
+				if !pr.IsAnnounced(addr) {
+					continue
+				}
+				// Resolve next-hop self if needed
+				nextHop := pr.NextHop
+				if pr.NextHopSelf && localAddr.IsValid() {
+					nextHop = localAddr
+				}
+				// Build route with resolved next-hop
+				route := pr.StaticRoute
+				route.NextHop = nextHop
+				update := buildStaticRouteUpdate(route, p.settings.LocalAS, p.settings.IsIBGP(), asn4)
+				if err := p.SendUpdate(update); err != nil {
+					trace.Log(trace.Routes, "peer %s: send error: %v", addr, err)
+					break
+				}
+				trace.Log(trace.Routes, "peer %s: re-sent global pool route %s from pool %s", addr, pr.RouteKey(), poolName)
+			}
+		}
 	}
 
 	// Re-send Adj-RIB-Out routes (routes announced via API that persist across reconnects).
@@ -753,13 +790,14 @@ func buildRIBRouteUpdate(route *rib.Route, localAS uint32, isIBGP, asn4 bool) *m
 	storedASPath := route.ASPath()
 	hasStoredASPath := storedASPath != nil && len(storedASPath.Segments) > 0
 
-	if hasStoredASPath {
+	switch {
+	case hasStoredASPath:
 		attrBytes = append(attrBytes, attribute.PackASPathAttribute(storedASPath, asn4)...)
-	} else if isIBGP || localAS == 0 {
+	case isIBGP || localAS == 0:
 		// iBGP or LocalAS not set: empty AS_PATH
 		emptyASPath := &attribute.ASPath{Segments: nil}
 		attrBytes = append(attrBytes, attribute.PackASPathAttribute(emptyASPath, asn4)...)
-	} else {
+	default:
 		// eBGP: prepend local AS
 		ebgpASPath := &attribute.ASPath{
 			Segments: []attribute.ASPathSegment{{
@@ -2218,26 +2256,48 @@ func buildMUPMPReachNLRI(route MUPRoute) []byte {
 	return attr
 }
 
+// ErrWatchdogNotFound is returned when a watchdog group doesn't exist.
+var ErrWatchdogNotFound = errors.New("watchdog group not found")
+
 // AnnounceWatchdog sends all routes in the named watchdog group that are currently withdrawn.
 // Routes are moved from withdrawn (-) to announced (+) state.
+// State is updated even when disconnected, so routes will be in correct state on reconnect.
+// Returns ErrWatchdogNotFound if the watchdog group doesn't exist.
 func (p *Peer) AnnounceWatchdog(name string) error {
-	p.mu.RLock()
+	p.mu.Lock()
 	session := p.session
 	routes, exists := p.settings.WatchdogGroups[name]
-	stateMap := p.watchdogState[name]
-	stateInitialized := p.watchdogState != nil && stateMap != nil
-	p.mu.RUnlock()
 
 	if !exists {
-		return nil // No such watchdog group
+		p.mu.Unlock()
+		return fmt.Errorf("%w: %s", ErrWatchdogNotFound, name)
 	}
 
+	// Ensure watchdogState is initialized for this group
+	if p.watchdogState == nil {
+		p.watchdogState = make(map[string]map[string]bool)
+	}
+	if p.watchdogState[name] == nil {
+		p.watchdogState[name] = make(map[string]bool)
+		// Initialize state for all routes in group
+		for i := range routes {
+			wr := &routes[i]
+			p.watchdogState[name][wr.RouteKey()] = !wr.InitiallyWithdrawn
+		}
+	}
+	p.mu.Unlock()
+
+	// If not connected, just update state (will be sent on reconnect)
 	if session == nil {
-		return nil // Not connected
-	}
-
-	if !stateInitialized {
-		return nil // State not yet initialized (session not fully established)
+		p.mu.Lock()
+		for i := range routes {
+			wr := &routes[i]
+			p.watchdogState[name][wr.RouteKey()] = true
+		}
+		p.mu.Unlock()
+		trace.Log(trace.Routes, "peer %s: watchdog %s: marked %d routes for announce (disconnected)",
+			p.settings.Address, name, len(routes))
+		return nil
 	}
 
 	asn4 := true
@@ -2252,8 +2312,9 @@ func (p *Peer) AnnounceWatchdog(name string) error {
 		wr := &routes[i]
 		routeKey := wr.RouteKey()
 
+		// Read state inside lock to avoid race with stale captured reference
 		p.mu.RLock()
-		isAnnounced := stateMap[routeKey]
+		isAnnounced := p.watchdogState[name][routeKey]
 		p.mu.RUnlock()
 
 		if isAnnounced {
@@ -2266,7 +2327,7 @@ func (p *Peer) AnnounceWatchdog(name string) error {
 			return err
 		}
 
-		// Update state (safe - we checked stateInitialized above)
+		// Update state
 		p.mu.Lock()
 		p.watchdogState[name][routeKey] = true
 		p.mu.Unlock()
@@ -2283,24 +2344,43 @@ func (p *Peer) AnnounceWatchdog(name string) error {
 
 // WithdrawWatchdog withdraws all routes in the named watchdog group that are currently announced.
 // Routes are moved from announced (+) to withdrawn (-) state.
+// State is updated even when disconnected, so routes will be in correct state on reconnect.
+// Returns ErrWatchdogNotFound if the watchdog group doesn't exist.
 func (p *Peer) WithdrawWatchdog(name string) error {
-	p.mu.RLock()
+	p.mu.Lock()
 	session := p.session
 	routes, exists := p.settings.WatchdogGroups[name]
-	stateMap := p.watchdogState[name]
-	stateInitialized := p.watchdogState != nil && stateMap != nil
-	p.mu.RUnlock()
 
 	if !exists {
-		return nil // No such watchdog group
+		p.mu.Unlock()
+		return fmt.Errorf("%w: %s", ErrWatchdogNotFound, name)
 	}
 
+	// Ensure watchdogState is initialized for this group
+	if p.watchdogState == nil {
+		p.watchdogState = make(map[string]map[string]bool)
+	}
+	if p.watchdogState[name] == nil {
+		p.watchdogState[name] = make(map[string]bool)
+		// Initialize state for all routes in group
+		for i := range routes {
+			wr := &routes[i]
+			p.watchdogState[name][wr.RouteKey()] = !wr.InitiallyWithdrawn
+		}
+	}
+	p.mu.Unlock()
+
+	// If not connected, just update state (will NOT be sent on reconnect)
 	if session == nil {
-		return nil // Not connected
-	}
-
-	if !stateInitialized {
-		return nil // State not yet initialized (session not fully established)
+		p.mu.Lock()
+		for i := range routes {
+			wr := &routes[i]
+			p.watchdogState[name][wr.RouteKey()] = false
+		}
+		p.mu.Unlock()
+		trace.Log(trace.Routes, "peer %s: watchdog %s: marked %d routes for withdraw (disconnected)",
+			p.settings.Address, name, len(routes))
+		return nil
 	}
 
 	addr := p.settings.Address.String()
@@ -2310,8 +2390,9 @@ func (p *Peer) WithdrawWatchdog(name string) error {
 		wr := &routes[i]
 		routeKey := wr.RouteKey()
 
+		// Read state inside lock to avoid race with stale captured reference
 		p.mu.RLock()
-		isAnnounced := stateMap[routeKey]
+		isAnnounced := p.watchdogState[name][routeKey]
 		p.mu.RUnlock()
 
 		if !isAnnounced {
@@ -2324,7 +2405,7 @@ func (p *Peer) WithdrawWatchdog(name string) error {
 			return err
 		}
 
-		// Update state (safe - we checked stateInitialized above)
+		// Update state
 		p.mu.Lock()
 		p.watchdogState[name][routeKey] = false
 		p.mu.Unlock()

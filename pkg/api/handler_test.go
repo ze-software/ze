@@ -199,6 +199,14 @@ func (m *mockReactor) WithdrawWatchdog(_, _ string) error {
 	return nil
 }
 
+func (m *mockReactor) AddWatchdogRoute(_ RouteSpec, _ string) error {
+	return nil
+}
+
+func (m *mockReactor) RemoveWatchdogRoute(_, _ string) error {
+	return nil
+}
+
 // TestHandlerPeerList verifies peer list output.
 //
 // VALIDATES: All peers returned with state info.

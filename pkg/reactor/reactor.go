@@ -21,10 +21,11 @@ import (
 
 // Reactor errors.
 var (
-	ErrAlreadyRunning = errors.New("reactor already running")
-	ErrNotRunning     = errors.New("reactor not running")
-	ErrPeerExists     = errors.New("peer already exists")
-	ErrPeerNotFound   = errors.New("peer not found")
+	ErrAlreadyRunning        = errors.New("reactor already running")
+	ErrNotRunning            = errors.New("reactor not running")
+	ErrPeerExists            = errors.New("peer already exists")
+	ErrPeerNotFound          = errors.New("peer not found")
+	ErrWatchdogRouteNotFound = errors.New("watchdog route not found")
 )
 
 // Config holds reactor configuration.
@@ -77,6 +78,7 @@ type ConnectionCallback func(conn net.Conn, settings *PeerSettings)
 //   - Graceful shutdown
 //   - API server for external communication
 //   - RIB (Routing Information Base) for route storage
+//   - Watchdog pools for API-controlled route groups
 type Reactor struct {
 	config *Config
 
@@ -89,6 +91,9 @@ type Reactor struct {
 	ribIn    *rib.IncomingRIB // Adj-RIB-In
 	ribOut   *rib.OutgoingRIB // Adj-RIB-Out
 	ribStore *rib.RouteStore  // Global deduplication store
+
+	// Watchdog pools for API-created routes
+	watchdog *WatchdogManager
 
 	connCallback ConnectionCallback
 
@@ -183,10 +188,11 @@ func (a *reactorAPIAdapter) AnnounceRoute(peerSelector string, route api.RouteSp
 
 		ribRoute := rib.NewRouteWithASPath(n, route.NextHop, attrs, asPath)
 
-		if peer.AdjRIBOut().InTransaction() {
+		switch {
+		case peer.AdjRIBOut().InTransaction():
 			// Queue to Adj-RIB-Out (will be sent on commit)
 			peer.AdjRIBOut().QueueAnnounce(ribRoute)
-		} else if peer.State() == PeerStateEstablished {
+		case peer.State() == PeerStateEstablished:
 			// Send immediately and track for re-announcement on reconnect
 			// Default to 4-byte ASN (modern standard) for API-announced routes
 			asn4 := true
@@ -197,7 +203,7 @@ func (a *reactorAPIAdapter) AnnounceRoute(peerSelector string, route api.RouteSp
 				// Track sent route for re-announcement on session re-establishment
 				peer.AdjRIBOut().MarkSent(ribRoute)
 			}
-		} else {
+		default:
 			// Session not established: queue to peer's operation queue
 			// This maintains order with any pending teardowns
 			peer.QueueAnnounce(ribRoute)
@@ -224,10 +230,11 @@ func (a *reactorAPIAdapter) WithdrawRoute(peerSelector string, prefix netip.Pref
 
 	var lastErr error
 	for _, peer := range peers {
-		if peer.AdjRIBOut().InTransaction() {
+		switch {
+		case peer.AdjRIBOut().InTransaction():
 			// Queue withdrawal to Adj-RIB-Out (will be sent on commit)
 			peer.AdjRIBOut().QueueWithdraw(n)
-		} else if peer.State() == PeerStateEstablished {
+		case peer.State() == PeerStateEstablished:
 			// Send immediately and remove from sent cache
 			update := buildWithdrawUpdate(prefix)
 			if err := peer.SendUpdate(update); err != nil {
@@ -236,7 +243,7 @@ func (a *reactorAPIAdapter) WithdrawRoute(peerSelector string, prefix netip.Pref
 				// Remove from sent cache to prevent re-announcement on reconnect
 				peer.AdjRIBOut().RemoveFromSent(n)
 			}
-		} else {
+		default:
 			// Session not established: queue to peer's operation queue
 			// This maintains order with any pending announces/teardowns
 			peer.QueueWithdraw(n)
@@ -518,34 +525,201 @@ func (a *reactorAPIAdapter) AnnounceEOR(peerSelector string, afi uint16, safi ui
 
 // AnnounceWatchdog announces all routes in the named watchdog group.
 // Routes are moved from withdrawn (-) to announced (+) state.
+// Checks global pools first, then per-peer WatchdogGroups.
+// Returns error only for send failures, not for missing groups.
 func (a *reactorAPIAdapter) AnnounceWatchdog(peerSelector, name string) error {
 	peers := a.getMatchingPeers(peerSelector)
 	if len(peers) == 0 {
 		return nil // No matching peers
 	}
 
+	// Check global pool first
+	globalPool := a.r.watchdog.GetPool(name)
+	if globalPool != nil {
+		var lastErr error
+		for _, peer := range peers {
+			if peer.State() != PeerStateEstablished {
+				continue
+			}
+			peerAddr := peer.Settings().Address.String()
+			localAddr := peer.Settings().LocalAddress
+			routes := a.r.watchdog.AnnouncePool(name, peerAddr)
+			for _, pr := range routes {
+				update := buildAnnounceUpdateFromStatic(pr.StaticRoute, a.r.config.LocalAS, peer.Settings().IsIBGP(), localAddr)
+				if err := peer.SendUpdate(update); err != nil {
+					lastErr = err
+				}
+			}
+		}
+		return lastErr
+	}
+
+	// Fall back to per-peer WatchdogGroups
+	var lastErr error
+	found := false
 	for _, peer := range peers {
-		if err := peer.AnnounceWatchdog(name); err != nil {
-			return err
+		err := peer.AnnounceWatchdog(name)
+		if err != nil {
+			if errors.Is(err, ErrWatchdogNotFound) {
+				// This peer doesn't have the group - skip, try others
+				continue
+			}
+			// Real error (send failure) - record but continue with other peers
+			lastErr = err
+		} else {
+			found = true
 		}
 	}
-	return nil
+
+	// If no peer had the group, return not found error
+	if !found && lastErr == nil {
+		return fmt.Errorf("%w: %s", ErrWatchdogNotFound, name)
+	}
+	return lastErr
 }
 
 // WithdrawWatchdog withdraws all routes in the named watchdog group.
 // Routes are moved from announced (+) to withdrawn (-) state.
+// Checks global pools first, then per-peer WatchdogGroups.
+// Returns error only for send failures, not for missing groups.
 func (a *reactorAPIAdapter) WithdrawWatchdog(peerSelector, name string) error {
 	peers := a.getMatchingPeers(peerSelector)
 	if len(peers) == 0 {
 		return nil // No matching peers
 	}
 
+	// Check global pool first
+	globalPool := a.r.watchdog.GetPool(name)
+	if globalPool != nil {
+		var lastErr error
+		for _, peer := range peers {
+			if peer.State() != PeerStateEstablished {
+				continue
+			}
+			peerAddr := peer.Settings().Address.String()
+			routes := a.r.watchdog.WithdrawPool(name, peerAddr)
+			for _, pr := range routes {
+				update := buildWithdrawUpdate(pr.Prefix)
+				if err := peer.SendUpdate(update); err != nil {
+					lastErr = err
+				}
+			}
+		}
+		return lastErr
+	}
+
+	// Fall back to per-peer WatchdogGroups
+	var lastErr error
+	found := false
 	for _, peer := range peers {
-		if err := peer.WithdrawWatchdog(name); err != nil {
-			return err
+		err := peer.WithdrawWatchdog(name)
+		if err != nil {
+			if errors.Is(err, ErrWatchdogNotFound) {
+				// This peer doesn't have the group - skip, try others
+				continue
+			}
+			// Real error (send failure) - record but continue with other peers
+			lastErr = err
+		} else {
+			found = true
 		}
 	}
-	return nil
+
+	// If no peer had the group, return not found error
+	if !found && lastErr == nil {
+		return fmt.Errorf("%w: %s", ErrWatchdogNotFound, name)
+	}
+	return lastErr
+}
+
+// AddWatchdogRoute adds a route to a global watchdog pool.
+// Implements api.ReactorInterface.
+func (a *reactorAPIAdapter) AddWatchdogRoute(route api.RouteSpec, poolName string) error {
+	// Convert api.RouteSpec to StaticRoute
+	sr := StaticRoute{
+		Prefix:      route.Prefix,
+		NextHop:     route.NextHop,
+		NextHopSelf: route.NextHopSelf,
+	}
+	if route.Origin != nil {
+		sr.Origin = *route.Origin
+	}
+	if route.LocalPreference != nil {
+		sr.LocalPreference = *route.LocalPreference
+	}
+	if route.MED != nil {
+		sr.MED = *route.MED
+	}
+	if len(route.ASPath) > 0 {
+		sr.ASPath = route.ASPath
+	}
+	if len(route.Communities) > 0 {
+		sr.Communities = route.Communities
+	}
+	if len(route.LargeCommunities) > 0 {
+		sr.LargeCommunities = make([][3]uint32, len(route.LargeCommunities))
+		for i, lc := range route.LargeCommunities {
+			sr.LargeCommunities[i] = [3]uint32{lc.GlobalAdmin, lc.LocalData1, lc.LocalData2}
+		}
+	}
+
+	return a.r.AddWatchdogRoute(sr, poolName)
+}
+
+// RemoveWatchdogRoute removes a route from a global watchdog pool.
+// Implements api.ReactorInterface.
+func (a *reactorAPIAdapter) RemoveWatchdogRoute(routeKey, poolName string) error {
+	return a.r.RemoveWatchdogRoute(routeKey, poolName)
+}
+
+// buildAnnounceUpdateFromStatic builds an UPDATE message from a StaticRoute.
+// Uses the route's attributes, with defaults for missing values.
+// localAddress is used to resolve "next-hop self" routes.
+func buildAnnounceUpdateFromStatic(route StaticRoute, localAS uint32, isIBGP bool, localAddress netip.Addr) *message.Update {
+	// Resolve next-hop: use local address if NextHopSelf, otherwise use configured NextHop
+	nextHop := route.NextHop
+	if route.NextHopSelf && localAddress.IsValid() {
+		nextHop = localAddress
+	}
+
+	// Convert StaticRoute to RouteSpec for buildAnnounceUpdate
+	spec := api.RouteSpec{
+		Prefix:  route.Prefix,
+		NextHop: nextHop,
+	}
+
+	// Copy optional attributes
+	if route.Origin != 0 {
+		origin := route.Origin
+		spec.Origin = &origin
+	}
+	if route.LocalPreference != 0 {
+		lp := route.LocalPreference
+		spec.LocalPreference = &lp
+	}
+	if route.MED != 0 {
+		med := route.MED
+		spec.MED = &med
+	}
+	if len(route.ASPath) > 0 {
+		spec.ASPath = route.ASPath
+	}
+	if len(route.Communities) > 0 {
+		spec.Communities = route.Communities
+	}
+	if len(route.LargeCommunities) > 0 {
+		spec.LargeCommunities = make([]attribute.LargeCommunity, len(route.LargeCommunities))
+		for i, lc := range route.LargeCommunities {
+			spec.LargeCommunities[i] = attribute.LargeCommunity{
+				GlobalAdmin: lc[0],
+				LocalData1:  lc[1],
+				LocalData2:  lc[2],
+			}
+		}
+	}
+
+	// Default to 4-byte ASN
+	return buildAnnounceUpdate(spec, localAS, isIBGP, true)
 }
 
 // RIBInRoutes returns routes from Adj-RIB-In.
@@ -1055,7 +1229,58 @@ func New(config *Config) *Reactor {
 		ribIn:    rib.NewIncomingRIB(),
 		ribOut:   rib.NewOutgoingRIB(),
 		ribStore: rib.NewRouteStore(100), // Buffer size for dedup workers
+		watchdog: NewWatchdogManager(),
 	}
+}
+
+// WatchdogManager returns the global watchdog pool manager.
+func (r *Reactor) WatchdogManager() *WatchdogManager {
+	return r.watchdog
+}
+
+// AddWatchdogRoute adds a route to a global watchdog pool.
+// Creates the pool if it doesn't exist.
+// The route will be announced to all peers when "announce watchdog <name>" is called.
+// Returns ErrRouteExists if a route with the same key already exists in the pool.
+func (r *Reactor) AddWatchdogRoute(route StaticRoute, poolName string) error {
+	_, err := r.watchdog.AddRoute(poolName, route)
+	return err
+}
+
+// RemoveWatchdogRoute removes a route from a global watchdog pool.
+// Returns ErrWatchdogNotFound if pool doesn't exist.
+// Returns ErrWatchdogRouteNotFound if route doesn't exist in pool.
+// Sends withdrawals to all peers that had the route announced.
+func (r *Reactor) RemoveWatchdogRoute(routeKey, poolName string) error {
+	// Check pool exists first (for better error message)
+	if r.watchdog.GetPool(poolName) == nil {
+		return fmt.Errorf("%w: %s", ErrWatchdogNotFound, poolName)
+	}
+
+	// Atomically remove route and get its data for withdrawals
+	removedRoute, ok := r.watchdog.RemoveAndGetRoute(poolName, routeKey)
+	if !ok {
+		return fmt.Errorf("%w: %s", ErrWatchdogRouteNotFound, routeKey)
+	}
+
+	// Send withdrawals to all peers that had this route announced
+	// Route is already removed from pool, so no race condition
+	r.mu.RLock()
+	for _, peer := range r.peers {
+		if peer.State() != PeerStateEstablished {
+			continue
+		}
+		peerAddr := peer.Settings().Address.String()
+		// Note: removedRoute.announced is no longer protected by pool mutex,
+		// but it's safe because the route is now orphaned (no concurrent access)
+		if removedRoute.announced[peerAddr] {
+			update := buildWithdrawUpdate(removedRoute.Prefix)
+			_ = peer.SendUpdate(update) // Best effort, continue on error
+		}
+	}
+	r.mu.RUnlock()
+
+	return nil
 }
 
 // Running returns true if the reactor is running.
@@ -1121,6 +1346,7 @@ func (r *Reactor) AddPeer(settings *PeerSettings) error {
 	}
 
 	peer := NewPeer(settings)
+	peer.SetGlobalWatchdog(r.watchdog)
 	r.peers[key] = peer
 
 	// If reactor is running, start the peer

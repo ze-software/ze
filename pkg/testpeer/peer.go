@@ -41,17 +41,25 @@ const (
 	ModeEcho              // Accept any BGP messages, echo them back
 )
 
+// Mode name constants.
+const (
+	modeNameCheck   = "check"
+	modeNameSink    = "sink"
+	modeNameEcho    = "echo"
+	modeNameUnknown = "unknown"
+)
+
 // String returns the mode name.
 func (m Mode) String() string {
 	switch m {
 	case ModeCheck:
-		return "check"
+		return modeNameCheck
 	case ModeSink:
-		return "sink"
+		return modeNameSink
 	case ModeEcho:
-		return "echo"
+		return modeNameEcho
 	default:
-		return "unknown"
+		return modeNameUnknown
 	}
 }
 
@@ -59,11 +67,11 @@ func (m Mode) String() string {
 // Returns the mode and true if valid, or ModeCheck and false if invalid.
 func ParseMode(s string) (Mode, bool) {
 	switch strings.ToLower(s) {
-	case "check":
+	case modeNameCheck:
 		return ModeCheck, true
-	case "sink":
+	case modeNameSink:
 		return ModeSink, true
-	case "echo":
+	case modeNameEcho:
 		return ModeEcho, true
 	default:
 		return ModeCheck, false
