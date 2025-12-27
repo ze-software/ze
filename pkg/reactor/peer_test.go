@@ -550,3 +550,225 @@ func TestPeerOpQueueOverflow(t *testing.T) {
 	require.Len(t, peer.opQueue, MaxOpQueueSize, "queue should not exceed max capacity")
 	peer.mu.RUnlock()
 }
+
+// =============================================================================
+// Watchdog Tests
+// =============================================================================
+
+// testWatchdogSettings creates settings with watchdog groups for testing.
+func testWatchdogSettings() *PeerSettings {
+	settings := NewPeerSettings(
+		mustParseAddr("192.0.2.1"),
+		65000, 65001, 0x01010101,
+	)
+	settings.WatchdogGroups = map[string][]WatchdogRoute{
+		"health": {
+			{
+				StaticRoute:        StaticRoute{Prefix: netip.MustParsePrefix("10.0.0.0/24"), NextHop: netip.MustParseAddr("192.0.2.1")},
+				InitiallyWithdrawn: false, // Starts announced
+			},
+			{
+				StaticRoute:        StaticRoute{Prefix: netip.MustParsePrefix("10.0.1.0/24"), NextHop: netip.MustParseAddr("192.0.2.1")},
+				InitiallyWithdrawn: true, // Starts withdrawn
+			},
+		},
+		"backup": {
+			{
+				StaticRoute:        StaticRoute{Prefix: netip.MustParsePrefix("20.0.0.0/24"), NextHop: netip.MustParseAddr("192.0.2.2")},
+				InitiallyWithdrawn: true,
+			},
+		},
+	}
+	return settings
+}
+
+// TestWatchdogStateEagerlyInitialized verifies watchdog state is initialized in NewPeer.
+//
+// VALIDATES: Watchdog state is populated from config at Peer creation time.
+//
+// PREVENTS: Nil map panic when accessing watchdog state before session.
+func TestWatchdogStateEagerlyInitialized(t *testing.T) {
+	settings := testWatchdogSettings()
+	peer := NewPeer(settings)
+
+	// State should already be initialized
+	require.NotNil(t, peer.watchdogState, "watchdogState should be initialized")
+	require.Len(t, peer.watchdogState, 2, "should have 2 watchdog groups")
+
+	// Verify "health" group state
+	healthState := peer.watchdogState["health"]
+	require.NotNil(t, healthState, "health group should exist")
+	require.True(t, healthState["10.0.0.0/24#0"], "10.0.0.0/24 should be announced (InitiallyWithdrawn=false)")
+	require.False(t, healthState["10.0.1.0/24#0"], "10.0.1.0/24 should be withdrawn (InitiallyWithdrawn=true)")
+
+	// Verify "backup" group state
+	backupState := peer.watchdogState["backup"]
+	require.NotNil(t, backupState, "backup group should exist")
+	require.False(t, backupState["20.0.0.0/24#0"], "20.0.0.0/24 should be withdrawn")
+}
+
+// TestWatchdogUnknownGroupReturnsError verifies error for non-existent group.
+//
+// VALIDATES: AnnounceWatchdog/WithdrawWatchdog return ErrWatchdogNotFound for unknown groups.
+//
+// PREVENTS: Silent success when group doesn't exist (confusing for users).
+func TestWatchdogUnknownGroupReturnsError(t *testing.T) {
+	settings := testWatchdogSettings()
+	peer := NewPeer(settings)
+
+	// Announce unknown group
+	err := peer.AnnounceWatchdog("nonexistent")
+	require.Error(t, err, "AnnounceWatchdog should error for unknown group")
+	require.ErrorIs(t, err, ErrWatchdogNotFound)
+
+	// Withdraw unknown group
+	err = peer.WithdrawWatchdog("nonexistent")
+	require.Error(t, err, "WithdrawWatchdog should error for unknown group")
+	require.ErrorIs(t, err, ErrWatchdogNotFound)
+}
+
+// TestWatchdogStateUpdatedWhenDisconnected verifies state changes persist when not connected.
+//
+// VALIDATES: AnnounceWatchdog/WithdrawWatchdog update state even without active session.
+//
+// PREVENTS: State change being lost, causing wrong routes to be sent on reconnect.
+func TestWatchdogStateUpdatedWhenDisconnected(t *testing.T) {
+	settings := testWatchdogSettings()
+	peer := NewPeer(settings)
+
+	// Peer not started, no session
+	require.Nil(t, peer.session, "session should be nil")
+
+	// Initial state
+	require.False(t, peer.watchdogState["health"]["10.0.1.0/24#0"], "should start withdrawn")
+
+	// Announce while disconnected
+	err := peer.AnnounceWatchdog("health")
+	require.NoError(t, err)
+
+	// State should be updated (all routes now announced)
+	require.True(t, peer.watchdogState["health"]["10.0.0.0/24#0"], "should remain announced")
+	require.True(t, peer.watchdogState["health"]["10.0.1.0/24#0"], "should now be announced")
+
+	// Withdraw while disconnected
+	err = peer.WithdrawWatchdog("health")
+	require.NoError(t, err)
+
+	// State should be updated (all routes now withdrawn)
+	require.False(t, peer.watchdogState["health"]["10.0.0.0/24#0"], "should now be withdrawn")
+	require.False(t, peer.watchdogState["health"]["10.0.1.0/24#0"], "should now be withdrawn")
+}
+
+// TestWatchdogStatePersistsAcrossOperations verifies state is not reset between calls.
+//
+// VALIDATES: Multiple announce/withdraw calls correctly track cumulative state.
+//
+// PREVENTS: State being reset to InitiallyWithdrawn on each operation.
+func TestWatchdogStatePersistsAcrossOperations(t *testing.T) {
+	settings := testWatchdogSettings()
+	peer := NewPeer(settings)
+
+	// Initial: 10.0.0.0/24 announced, 10.0.1.0/24 withdrawn
+	require.True(t, peer.watchdogState["health"]["10.0.0.0/24#0"])
+	require.False(t, peer.watchdogState["health"]["10.0.1.0/24#0"])
+
+	// Withdraw all
+	_ = peer.WithdrawWatchdog("health")
+	require.False(t, peer.watchdogState["health"]["10.0.0.0/24#0"])
+	require.False(t, peer.watchdogState["health"]["10.0.1.0/24#0"])
+
+	// Announce all
+	_ = peer.AnnounceWatchdog("health")
+	require.True(t, peer.watchdogState["health"]["10.0.0.0/24#0"])
+	require.True(t, peer.watchdogState["health"]["10.0.1.0/24#0"])
+
+	// Withdraw again - should update, not reset to initial
+	_ = peer.WithdrawWatchdog("health")
+	require.False(t, peer.watchdogState["health"]["10.0.0.0/24#0"])
+	require.False(t, peer.watchdogState["health"]["10.0.1.0/24#0"])
+}
+
+// TestWatchdogMultipleGroupsIndependent verifies groups don't affect each other.
+//
+// VALIDATES: Announce/withdraw on one group doesn't change other groups.
+//
+// PREVENTS: Cross-group state pollution.
+func TestWatchdogMultipleGroupsIndependent(t *testing.T) {
+	settings := testWatchdogSettings()
+	peer := NewPeer(settings)
+
+	// Initial: backup group is withdrawn
+	require.False(t, peer.watchdogState["backup"]["20.0.0.0/24#0"])
+
+	// Announce health group
+	_ = peer.AnnounceWatchdog("health")
+
+	// Backup should remain unchanged
+	require.False(t, peer.watchdogState["backup"]["20.0.0.0/24#0"], "backup should not be affected by health announce")
+
+	// Announce backup
+	_ = peer.AnnounceWatchdog("backup")
+	require.True(t, peer.watchdogState["backup"]["20.0.0.0/24#0"])
+
+	// Withdraw health
+	_ = peer.WithdrawWatchdog("health")
+	require.True(t, peer.watchdogState["backup"]["20.0.0.0/24#0"], "backup should not be affected by health withdraw")
+}
+
+// TestWatchdogEmptyGroupNoError verifies empty watchdog groups work correctly.
+//
+// VALIDATES: Watchdog group with no routes is handled gracefully.
+//
+// PREVENTS: Panic or error when processing empty group.
+func TestWatchdogEmptyGroupNoError(t *testing.T) {
+	settings := NewPeerSettings(
+		mustParseAddr("192.0.2.1"),
+		65000, 65001, 0x01010101,
+	)
+	settings.WatchdogGroups = map[string][]WatchdogRoute{
+		"empty": {}, // No routes
+	}
+
+	peer := NewPeer(settings)
+
+	// Empty group should be initialized
+	require.NotNil(t, peer.watchdogState["empty"])
+	require.Empty(t, peer.watchdogState["empty"])
+
+	// Operations should succeed (no-op)
+	err := peer.AnnounceWatchdog("empty")
+	require.NoError(t, err)
+
+	err = peer.WithdrawWatchdog("empty")
+	require.NoError(t, err)
+}
+
+// TestWatchdogRouteKeyIncludesPathID verifies PathID is included in route key.
+//
+// VALIDATES: Routes with different PathIDs are tracked separately.
+//
+// PREVENTS: ADD-PATH routes overwriting each other in state.
+func TestWatchdogRouteKeyIncludesPathID(t *testing.T) {
+	settings := NewPeerSettings(
+		mustParseAddr("192.0.2.1"),
+		65000, 65001, 0x01010101,
+	)
+	settings.WatchdogGroups = map[string][]WatchdogRoute{
+		"addpath": {
+			{
+				StaticRoute:        StaticRoute{Prefix: netip.MustParsePrefix("10.0.0.0/24"), PathID: 1},
+				InitiallyWithdrawn: false,
+			},
+			{
+				StaticRoute:        StaticRoute{Prefix: netip.MustParsePrefix("10.0.0.0/24"), PathID: 2},
+				InitiallyWithdrawn: true,
+			},
+		},
+	}
+
+	peer := NewPeer(settings)
+
+	// Same prefix but different PathIDs should have separate state
+	require.True(t, peer.watchdogState["addpath"]["10.0.0.0/24#1"], "PathID=1 should be announced")
+	require.False(t, peer.watchdogState["addpath"]["10.0.0.0/24#2"], "PathID=2 should be withdrawn")
+}
