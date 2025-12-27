@@ -940,3 +940,126 @@ func TestParseUpdateCommand(t *testing.T) {
 func ptr[T any](v T) *T {
 	return &v
 }
+
+// TestParseExtendedCommunity tests extended community parsing per RFC 4360/5575.
+// Extended communities are 8 octets: Type:Subtype:Value
+//
+// VALIDATES: Extended community strings are correctly parsed to [8]byte.
+// PREVENTS: Invalid format or incorrect byte encoding.
+func TestParseExtendedCommunity(t *testing.T) {
+	tests := []struct {
+		name    string
+		input   string
+		want    [8]byte
+		wantErr bool
+	}{
+		// Origin extended communities (RFC 4360, RFC 7153)
+		// Type 0x00: 2-byte ASN + 4-byte IPv4
+		{
+			name:  "origin with 2-byte ASN and IPv4",
+			input: "origin:2345:6.7.8.9",
+			want:  [8]byte{0x00, 0x03, 0x09, 0x29, 0x06, 0x07, 0x08, 0x09}, // Type=0, Subtype=3, ASN=2345 (0x0929), IP=6.7.8.9
+		},
+		// Type 0x01: IPv4 + 2-byte ASN
+		{
+			name:  "origin with IPv4 and 2-byte ASN",
+			input: "origin:2.3.4.5:6789",
+			want:  [8]byte{0x01, 0x03, 0x02, 0x03, 0x04, 0x05, 0x1A, 0x85}, // Type=1, Subtype=3, IP=2.3.4.5, ASN=6789 (0x1A85)
+		},
+
+		// Traffic redirect (RFC 5575, RFC 7674)
+		// Type 0x80: 2-byte ASN + 4-byte target
+		{
+			name:  "redirect with 2-byte ASN",
+			input: "redirect:65500:12345",
+			want:  [8]byte{0x80, 0x08, 0xFF, 0xDC, 0x00, 0x00, 0x30, 0x39}, // Type=0x80, Subtype=8, ASN=65500 (0xFFDC), Target=12345 (0x3039)
+		},
+		{
+			name:  "redirect with small values",
+			input: "redirect:65001:119",
+			want:  [8]byte{0x80, 0x08, 0xFD, 0xE9, 0x00, 0x00, 0x00, 0x77}, // ASN=65001 (0xFDE9), Target=119 (0x77)
+		},
+
+		// Traffic rate limit (RFC 5575)
+		// Type 0x80, Subtype 0x06: rate limit in IEEE 754 float
+		{
+			name:  "rate-limit",
+			input: "rate-limit:1250000000",
+			want:  [8]byte{0x80, 0x06, 0x00, 0x00, 0x4E, 0x95, 0x02, 0xF9}, // Rate as IEEE 754 float
+		},
+
+		// Invalid cases
+		{
+			name:    "empty string",
+			input:   "",
+			wantErr: true,
+		},
+		{
+			name:    "unknown type",
+			input:   "unknown:1:2",
+			wantErr: true,
+		},
+		{
+			name:    "invalid origin format",
+			input:   "origin:invalid",
+			wantErr: true,
+		},
+		{
+			name:    "missing colon",
+			input:   "redirect65500:12345",
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := parseExtendedCommunity(tt.input)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("parseExtendedCommunity(%q) error = %v, wantErr %v", tt.input, err, tt.wantErr)
+				return
+			}
+			if !tt.wantErr && got != tt.want {
+				t.Errorf("parseExtendedCommunity(%q) = %x, want %x", tt.input, got, tt.want)
+			}
+		})
+	}
+}
+
+// TestParseExtendedCommunities tests parsing multiple extended communities.
+func TestParseExtendedCommunities(t *testing.T) {
+	tests := []struct {
+		name         string
+		args         []string
+		wantCount    int
+		wantConsumed int
+		wantErr      bool
+	}{
+		// Valid
+		{"single", []string{"[origin:2345:6.7.8.9]"}, 1, 1, false},
+		{"multiple", []string{"[origin:2345:6.7.8.9", "redirect:65500:12345]"}, 2, 2, false},
+		{"empty", []string{"[]"}, 0, 1, false},
+
+		// Single value without brackets (ExaBGP compatible)
+		{"single no brackets", []string{"redirect:65500:12345"}, 1, 1, false},
+
+		// Invalid
+		{"invalid community", []string{"[invalid:1:2]"}, 0, 1, true},
+		{"empty input", []string{}, 0, 0, true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			comms, consumed, err := parseExtendedCommunities(tt.args)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("parseExtendedCommunities(%v) error = %v, wantErr %v", tt.args, err, tt.wantErr)
+				return
+			}
+			if consumed != tt.wantConsumed {
+				t.Errorf("parseExtendedCommunities(%v) consumed = %d, want %d", tt.args, consumed, tt.wantConsumed)
+			}
+			if len(comms) != tt.wantCount {
+				t.Errorf("parseExtendedCommunities(%v) count = %d, want %d", tt.args, len(comms), tt.wantCount)
+			}
+		})
+	}
+}

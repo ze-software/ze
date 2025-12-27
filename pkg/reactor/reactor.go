@@ -378,6 +378,12 @@ func buildAnnounceUpdate(route api.RouteSpec, localAS uint32, isIBGP, asn4 bool)
 		attrBytes = append(attrBytes, attribute.PackAttribute(lcomms)...)
 	}
 
+	// 8. EXTENDED_COMMUNITIES - RFC 4360: Optional transitive attribute.
+	if len(route.ExtendedCommunities) > 0 {
+		extComms := attribute.ExtendedCommunities(route.ExtendedCommunities)
+		attrBytes = append(attrBytes, attribute.PackAttribute(extComms)...)
+	}
+
 	// Build NLRI
 	var nlriBytes []byte
 	if !isIPv6 {

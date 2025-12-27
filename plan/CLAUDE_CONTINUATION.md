@@ -1,12 +1,47 @@
 # Claude Continuation State
 
-**Last Updated:** 2025-12-26
+**Last Updated:** 2025-12-27
 
 ---
 
 ## CURRENT STATUS
 
-🔴 **Active Priority:** API Commit-Based Route Batching
+🟡 **Active Priority:** Encode Test Fixes
+
+### Progress (2025-12-27)
+
+**Extended Community Support - COMPLETE ✅**
+- ✅ Added `parseExtendedCommunity()` - parses origin:, redirect:, rate-limit: formats (RFC 4360/5575)
+- ✅ Added `parseExtendedCommunities()` - parses bracketed lists like `[origin:2345:6.7.8.9 redirect:65500:12345]`
+- ✅ Added `extended-community` keyword to UnicastKeywords, MPLSKeywords, VPNKeywords
+- ✅ Added `ExtendedCommunities []attribute.ExtendedCommunity` to `PathAttributes` struct
+- ✅ Wired to UPDATE building in `buildAnnounceUpdate()` (pkg/reactor/reactor.go)
+- ✅ Unit tests for all parsing functions (TDD)
+
+**FlowSpec Extended Community from "then" block - COMPLETE ✅**
+- ✅ Fixed `parseFlowSpecRoute()` to extract extended-community from Then map
+- ✅ Fixed order: explicit extended communities (origin, target) come BEFORE action-based (redirect, rate-limit)
+- ✅ EXT_COMMUNITIES now matches ExaBGP output for flow-redirect test
+
+**Remaining encode test issues:**
+- FlowSpec ICMP type/code encoding (MP_REACH_NLRI length mismatch)
+- Extended nexthop (RFC 8950)
+- ADD-PATH (path-information)
+
+**Key files modified:**
+- `pkg/api/route.go` - extended community parsing functions
+- `pkg/api/route_keywords.go` - added extended-community to keyword sets
+- `pkg/api/types.go` - added ExtendedCommunities to PathAttributes
+- `pkg/api/route_parse_test.go` - unit tests for extended community parsing
+- `pkg/reactor/reactor.go` - wire extended communities to UPDATE building
+- `pkg/config/bgp.go` - extract extended-community from FlowSpec "then" block
+- `pkg/config/loader.go` - reorder extended community building (explicit before action-based)
+
+---
+
+## PREVIOUS STATUS
+
+🔴 **Previous Priority:** API Commit-Based Route Batching
 
 See: `plan/api-commit-batching.md`
 
@@ -156,9 +191,12 @@ Phase 3 API commit commands fully implemented.
 
 | Purpose | File |
 |---------|------|
-| Route handlers (L3VPN, unicast) | `pkg/api/route.go` |
+| Route handlers (L3VPN, unicast, ext-comm) | `pkg/api/route.go` |
 | Route keywords | `pkg/api/route_keywords.go` |
-| API types (L3VPNRoute, RouteSpec) | `pkg/api/types.go` |
+| API types (RouteSpec, PathAttributes) | `pkg/api/types.go` |
+| Route parsing tests | `pkg/api/route_parse_test.go` |
+| UPDATE building | `pkg/reactor/reactor.go` |
+| FlowSpec config parsing | `pkg/config/bgp.go`, `pkg/config/loader.go` |
 | Extended msg validation | `pkg/bgp/message/header.go` |
 | RFC 7606 validation | `pkg/bgp/message/rfc7606.go` |
 | Session receive path | `pkg/reactor/session.go` |
@@ -244,20 +282,21 @@ Full review of ZeBGP implementation against all 44 `.claude` documentation files
 
 ### 🟢 Minor Issues
 
-1. **FlowSpec partial** - Structure exists, encoding incomplete
+1. **FlowSpec ICMP encoding** - ICMP type/code components missing in MP_REACH_NLRI
 2. **BGP-LS TLV containers** - Non-RFC descriptor wrapping
 3. **No benchmarks** - Only 2 benchmark tests in codebase
 
 ### 🎯 Recommendations Priority
 
-| Priority | Action | Effort |
-|----------|--------|--------|
-| 🔴 P0 | Implement EVPN Bytes() methods | ~300 lines |
-| 🔴 P0 | Implement collision detection (RFC 4271 §6.8) | ~150 lines |
-| 🟡 P1 | Add missing API commands (session/daemon/RIB) | ~200 lines |
-| 🟡 P1 | Process backpressure & respawn limits | ~100 lines |
-| 🟢 P2 | Complete FlowSpec encoding | ~400 lines |
-| 🟢 P2 | Fix BGP-LS TLV containers | ~150 lines |
+| Priority | Action | Effort | Status |
+|----------|--------|--------|--------|
+| ✅ Done | Extended community parsing (API + config) | ~200 lines | 2025-12-27 |
+| 🔴 P0 | Implement EVPN Bytes() methods | ~300 lines | Pending |
+| 🔴 P0 | Implement collision detection (RFC 4271 §6.8) | ~150 lines | Pending |
+| 🟡 P1 | Add missing API commands (session/daemon/RIB) | ~200 lines | Pending |
+| 🟡 P1 | Process backpressure & respawn limits | ~100 lines | Pending |
+| 🟢 P2 | Fix FlowSpec ICMP encoding | ~100 lines | Pending |
+| 🟢 P2 | Fix BGP-LS TLV containers | ~150 lines | Pending |
 
 ### Design Decisions (Intentional Differences)
 

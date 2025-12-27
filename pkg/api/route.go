@@ -4,6 +4,8 @@ package api
 import (
 	"errors"
 	"fmt"
+	"math"
+	"net"
 	"net/netip"
 	"strconv"
 	"strings"
@@ -450,6 +452,17 @@ func parseCommonAttribute(key string, args []string, idx int, attrs *PathAttribu
 		}
 		attrs.LargeCommunities = lcomms
 		return consumed, nil
+
+	case "extended-community":
+		if idx+1 >= len(args) {
+			return 0, fmt.Errorf("missing extended-community value")
+		}
+		extcomms, consumed, err := parseExtendedCommunities(args[idx+1:])
+		if err != nil {
+			return 0, err
+		}
+		attrs.ExtendedCommunities = extcomms
+		return consumed, nil
 	}
 
 	// Not a common attribute
@@ -665,6 +678,159 @@ func parseLargeCommunity(s string) (LargeCommunity, error) {
 		GlobalAdmin: vals[0],
 		LocalData1:  vals[1],
 		LocalData2:  vals[2],
+	}, nil
+}
+
+// parseExtendedCommunities parses extended communities in format [type:value:value ...].
+// RFC 4360 (Extended Communities), RFC 5575 (FlowSpec Actions).
+//
+// Supported formats:
+//   - origin:ASN:IP (Type 0x00, Subtype 0x03) - 2-byte ASN + IPv4
+//   - origin:IP:ASN (Type 0x01, Subtype 0x03) - IPv4 + 2-byte ASN
+//   - redirect:ASN:target (Type 0x80, Subtype 0x08) - Traffic redirect
+//   - rate-limit:bps (Type 0x80, Subtype 0x06) - Traffic rate limit
+func parseExtendedCommunities(args []string) ([]attribute.ExtendedCommunity, int, error) {
+	if len(args) == 0 {
+		return nil, 0, fmt.Errorf("missing extended-community value")
+	}
+
+	tokens, consumed := parseBracketedList(args)
+	comms := make([]attribute.ExtendedCommunity, 0, len(tokens))
+	for _, tok := range tokens {
+		ec, err := parseExtendedCommunity(tok)
+		if err != nil {
+			return nil, consumed, err
+		}
+		comms = append(comms, ec)
+	}
+
+	return comms, consumed, nil
+}
+
+// parseExtendedCommunity parses a single extended community string.
+// RFC 4360: Extended communities are 8 octets with Type:Subtype:Value encoding.
+// RFC 5575: FlowSpec traffic actions use specific type/subtype combinations.
+//
+// Formats:
+//   - origin:ASN:IP     -> Type 0x00, Subtype 0x03 (2-byte ASN + 4-byte IP)
+//   - origin:IP:ASN     -> Type 0x01, Subtype 0x03 (4-byte IP + 2-byte ASN)
+//   - redirect:ASN:target -> Type 0x80, Subtype 0x08 (2-byte ASN + 4-byte target)
+//   - rate-limit:bps    -> Type 0x80, Subtype 0x06 (IEEE 754 float rate)
+func parseExtendedCommunity(s string) (attribute.ExtendedCommunity, error) {
+	if s == "" {
+		return attribute.ExtendedCommunity{}, fmt.Errorf("empty extended community")
+	}
+
+	// Split on first colon to get type prefix
+	colonIdx := strings.Index(s, ":")
+	if colonIdx == -1 {
+		return attribute.ExtendedCommunity{}, fmt.Errorf("invalid extended community format: %s", s)
+	}
+
+	typePrefix := strings.ToLower(s[:colonIdx])
+	value := s[colonIdx+1:]
+
+	switch typePrefix {
+	case "origin":
+		return parseOriginExtCommunity(value)
+	case "redirect":
+		return parseRedirectExtCommunity(value)
+	case "rate-limit":
+		return parseRateLimitExtCommunity(value)
+	default:
+		return attribute.ExtendedCommunity{}, fmt.Errorf("unknown extended community type: %s", typePrefix)
+	}
+}
+
+// parseOriginExtCommunity parses origin extended community.
+// RFC 4360/7153: Origin can be:
+//   - Type 0x00: 2-byte ASN + 4-byte IPv4 (origin:ASN:IP)
+//   - Type 0x01: 4-byte IPv4 + 2-byte ASN (origin:IP:ASN)
+func parseOriginExtCommunity(value string) (attribute.ExtendedCommunity, error) {
+	parts := strings.Split(value, ":")
+	if len(parts) != 2 {
+		return attribute.ExtendedCommunity{}, fmt.Errorf("invalid origin format: %s", value)
+	}
+
+	// Try to determine format: ASN:IP or IP:ASN
+	// If first part contains '.', it's IP:ASN format
+	if strings.Contains(parts[0], ".") {
+		// Type 0x01: IP:ASN format
+		ip := net.ParseIP(parts[0])
+		if ip == nil || ip.To4() == nil {
+			return attribute.ExtendedCommunity{}, fmt.Errorf("invalid IPv4 in origin: %s", parts[0])
+		}
+		asn, err := strconv.ParseUint(parts[1], 10, 16)
+		if err != nil {
+			return attribute.ExtendedCommunity{}, fmt.Errorf("invalid ASN in origin: %s", parts[1])
+		}
+		ip4 := ip.To4()
+		return attribute.ExtendedCommunity{
+			0x01, 0x03, // Type=1, Subtype=3 (Origin)
+			ip4[0], ip4[1], ip4[2], ip4[3], // IPv4 address
+			byte(asn >> 8), byte(asn), // 2-byte ASN
+		}, nil
+	}
+
+	// Type 0x00: ASN:IP format
+	asn, err := strconv.ParseUint(parts[0], 10, 16)
+	if err != nil {
+		return attribute.ExtendedCommunity{}, fmt.Errorf("invalid ASN in origin: %s", parts[0])
+	}
+	ip := net.ParseIP(parts[1])
+	if ip == nil || ip.To4() == nil {
+		return attribute.ExtendedCommunity{}, fmt.Errorf("invalid IPv4 in origin: %s", parts[1])
+	}
+	ip4 := ip.To4()
+	return attribute.ExtendedCommunity{
+		0x00, 0x03, // Type=0, Subtype=3 (Origin)
+		byte(asn >> 8), byte(asn), // 2-byte ASN
+		ip4[0], ip4[1], ip4[2], ip4[3], // IPv4 address
+	}, nil
+}
+
+// parseRedirectExtCommunity parses FlowSpec redirect extended community.
+// RFC 5575/7674: Traffic redirect to VRF.
+// Format: redirect:ASN:target (Type 0x80, Subtype 0x08).
+func parseRedirectExtCommunity(value string) (attribute.ExtendedCommunity, error) {
+	parts := strings.Split(value, ":")
+	if len(parts) != 2 {
+		return attribute.ExtendedCommunity{}, fmt.Errorf("invalid redirect format: %s", value)
+	}
+
+	asn, err := strconv.ParseUint(parts[0], 10, 16)
+	if err != nil {
+		return attribute.ExtendedCommunity{}, fmt.Errorf("invalid ASN in redirect: %s", parts[0])
+	}
+	target, err := strconv.ParseUint(parts[1], 10, 32)
+	if err != nil {
+		return attribute.ExtendedCommunity{}, fmt.Errorf("invalid target in redirect: %s", parts[1])
+	}
+
+	return attribute.ExtendedCommunity{
+		0x80, 0x08, // Type=0x80, Subtype=0x08 (Redirect)
+		byte(asn >> 8), byte(asn), // 2-byte ASN
+		byte(target >> 24), byte(target >> 16), byte(target >> 8), byte(target), // 4-byte target
+	}, nil
+}
+
+// parseRateLimitExtCommunity parses FlowSpec rate-limit extended community.
+// RFC 5575: Traffic rate limiting.
+// Format: rate-limit:bps (Type 0x80, Subtype 0x06)
+// The rate is encoded as an IEEE 754 single-precision float.
+func parseRateLimitExtCommunity(value string) (attribute.ExtendedCommunity, error) {
+	rate, err := strconv.ParseFloat(value, 32)
+	if err != nil {
+		return attribute.ExtendedCommunity{}, fmt.Errorf("invalid rate in rate-limit: %s", value)
+	}
+
+	// Convert to IEEE 754 single-precision float (4 bytes)
+	bits := math.Float32bits(float32(rate))
+
+	return attribute.ExtendedCommunity{
+		0x80, 0x06, // Type=0x80, Subtype=0x06 (Rate Limit)
+		0x00, 0x00, // Reserved bytes
+		byte(bits >> 24), byte(bits >> 16), byte(bits >> 8), byte(bits), // IEEE 754 float
 	}, nil
 }
 

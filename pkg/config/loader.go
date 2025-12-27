@@ -564,10 +564,10 @@ func convertFlowSpecRoute(fr FlowSpecRouteConfig) (reactor.FlowSpecRoute, error)
 	// Build communities from "then" actions
 	route.CommunityBytes = buildFlowSpecCommunities(fr.Then)
 
-	// Build extended communities from "then" actions
-	route.ExtCommunityBytes = buildFlowSpecExtCommunities(fr.Then, route.NextHop)
-
-	// Also parse explicit extended-community if present
+	// Build extended communities:
+	// 1. First, explicit extended-community (origin, target, etc.)
+	// 2. Then, action-based extended communities (redirect, rate-limit, etc.)
+	// This order matches ExaBGP output for compatibility.
 	if ec := fr.ExtendedCommunity; ec != "" {
 		extComm, err := ParseExtendedCommunity(ec)
 		if err != nil {
@@ -575,6 +575,10 @@ func convertFlowSpecRoute(fr FlowSpecRouteConfig) (reactor.FlowSpecRoute, error)
 		}
 		route.ExtCommunityBytes = append(route.ExtCommunityBytes, extComm.Bytes...)
 	}
+
+	// Build action-based extended communities from "then" block (redirect, rate-limit, etc.)
+	route.ExtCommunityBytes = append(route.ExtCommunityBytes,
+		buildFlowSpecExtCommunities(fr.Then, route.NextHop)...)
 
 	return route, nil
 }

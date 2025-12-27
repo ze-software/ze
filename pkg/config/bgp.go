@@ -1672,6 +1672,19 @@ func parseFlowSpecRoute(name string, route *Tree) FlowSpecRouteConfig {
 		}
 	}
 
+	// Extract extended-community from "then" block into dedicated field
+	// This is needed because extended-community can appear either in "then" block
+	// or at route level, but processing always uses the ExtendedCommunity field.
+	if ec, ok := r.Then["extended-community"]; ok && ec != "" {
+		// Append to any existing extended-community
+		if r.ExtendedCommunity != "" {
+			r.ExtendedCommunity += " " + ec
+		} else {
+			r.ExtendedCommunity = ec
+		}
+		delete(r.Then, "extended-community") // Avoid double processing
+	}
+
 	return r
 }
 

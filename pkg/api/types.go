@@ -81,12 +81,13 @@ type ReactorStats struct {
 // These attributes are optional - nil values use protocol defaults.
 // Embedding this struct in route types ensures consistency and reduces duplication.
 type PathAttributes struct {
-	Origin           *uint8           // 0=IGP, 1=EGP, 2=INCOMPLETE (nil = use default)
-	LocalPreference  *uint32          // LOCAL_PREF (nil = use default 100 for iBGP)
-	MED              *uint32          // MULTI_EXIT_DISC (nil = not sent)
-	ASPath           []uint32         // AS_PATH segments (nil = empty for iBGP)
-	Communities      []uint32         // Standard communities (2-byte ASN:2-byte value)
-	LargeCommunities []LargeCommunity // RFC 8092 large communities
+	Origin              *uint8                        // 0=IGP, 1=EGP, 2=INCOMPLETE (nil = use default)
+	LocalPreference     *uint32                       // LOCAL_PREF (nil = use default 100 for iBGP)
+	MED                 *uint32                       // MULTI_EXIT_DISC (nil = not sent)
+	ASPath              []uint32                      // AS_PATH segments (nil = empty for iBGP)
+	Communities         []uint32                      // Standard communities (2-byte ASN:2-byte value)
+	LargeCommunities    []LargeCommunity              // RFC 8092 large communities
+	ExtendedCommunities []attribute.ExtendedCommunity // RFC 4360 extended communities
 }
 
 // RouteSpec specifies a route for announcement.
