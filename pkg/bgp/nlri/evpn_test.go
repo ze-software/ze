@@ -431,3 +431,351 @@ func TestEVPNErrors(t *testing.T) {
 		})
 	}
 }
+
+// TestEVPNType1RoundTrip verifies that parsing and encoding are symmetric.
+//
+// VALIDATES: Bytes() produces wire format that ParseEVPN() can read back identically.
+//
+// PREVENTS: Asymmetric encoding that would corrupt routes on re-advertisement,
+// causing EVPN Type 1 routes to be malformed when sent to peers.
+func TestEVPNType1RoundTrip(t *testing.T) {
+	// Type 1: Ethernet Auto-Discovery
+	// Wire: [type:1][len:1][RD:8][ESI:10][EthTag:4][Labels:3]
+	rd := []byte{0x00, 0x00, 0xFD, 0xE8, 0x00, 0x00, 0x00, 0x64} // 65000:100
+	esi := []byte{0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09}
+	ethTag := []byte{0x00, 0x00, 0x00, 0x0A} // Tag 10
+	label := []byte{0x00, 0x01, 0x01}        // Label 16 with BOS
+
+	original := []byte{byte(EVPNRouteType1), byte(8 + 10 + 4 + 3)}
+	original = append(original, rd...)
+	original = append(original, esi...)
+	original = append(original, ethTag...)
+	original = append(original, label...)
+
+	nlri, _, err := ParseEVPN(original, false)
+	require.NoError(t, err)
+
+	evpn, ok := nlri.(*EVPNType1)
+	require.True(t, ok)
+
+	encoded := evpn.Bytes()
+	assert.Equal(t, original, encoded, "round-trip encoding mismatch")
+}
+
+// TestEVPNType2RoundTripMACOnly verifies Type 2 MAC-only round-trip.
+//
+// VALIDATES: Bytes() correctly encodes MAC-only routes (no IP).
+//
+// PREVENTS: MAC-only routes being corrupted, breaking L2 EVPN.
+func TestEVPNType2RoundTripMACOnly(t *testing.T) {
+	// Type 2: MAC/IP Advertisement (MAC only)
+	// Wire: [type:1][len:1][RD:8][ESI:10][EthTag:4][MACLen:1][MAC:6][IPLen:1][Labels:3]
+	rd := []byte{0x00, 0x00, 0xFD, 0xE8, 0x00, 0x00, 0x00, 0x64}
+	esi := make([]byte, 10)
+	ethTag := []byte{0x00, 0x00, 0x00, 0x00}
+	macLen := byte(48)
+	mac := []byte{0x00, 0x11, 0x22, 0x33, 0x44, 0x55}
+	ipLen := byte(0)
+	label := []byte{0x00, 0x01, 0x01}
+
+	original := []byte{byte(EVPNRouteType2), byte(8 + 10 + 4 + 1 + 6 + 1 + 3)}
+	original = append(original, rd...)
+	original = append(original, esi...)
+	original = append(original, ethTag...)
+	original = append(original, macLen)
+	original = append(original, mac...)
+	original = append(original, ipLen)
+	original = append(original, label...)
+
+	nlri, _, err := ParseEVPN(original, false)
+	require.NoError(t, err)
+
+	evpn, ok := nlri.(*EVPNType2)
+	require.True(t, ok)
+
+	encoded := evpn.Bytes()
+	assert.Equal(t, original, encoded, "round-trip encoding mismatch")
+}
+
+// TestEVPNType2RoundTripWithIPv4 verifies Type 2 with IPv4 round-trip.
+//
+// VALIDATES: Bytes() correctly encodes MAC+IPv4 routes.
+//
+// PREVENTS: IPv4 address corruption in MAC/IP advertisement routes.
+func TestEVPNType2RoundTripWithIPv4(t *testing.T) {
+	rd := []byte{0x00, 0x00, 0xFD, 0xE8, 0x00, 0x00, 0x00, 0x64}
+	esi := make([]byte, 10)
+	ethTag := []byte{0x00, 0x00, 0x00, 0x00}
+	macLen := byte(48)
+	mac := []byte{0x00, 0x11, 0x22, 0x33, 0x44, 0x55}
+	ipLen := byte(32)
+	ip := []byte{10, 0, 0, 1}
+	label := []byte{0x00, 0x01, 0x01}
+
+	original := []byte{byte(EVPNRouteType2), byte(8 + 10 + 4 + 1 + 6 + 1 + 4 + 3)}
+	original = append(original, rd...)
+	original = append(original, esi...)
+	original = append(original, ethTag...)
+	original = append(original, macLen)
+	original = append(original, mac...)
+	original = append(original, ipLen)
+	original = append(original, ip...)
+	original = append(original, label...)
+
+	nlri, _, err := ParseEVPN(original, false)
+	require.NoError(t, err)
+
+	evpn, ok := nlri.(*EVPNType2)
+	require.True(t, ok)
+
+	encoded := evpn.Bytes()
+	assert.Equal(t, original, encoded, "round-trip encoding mismatch")
+}
+
+// TestEVPNType3RoundTripIPv4 verifies Type 3 with IPv4 round-trip.
+//
+// VALIDATES: Bytes() correctly encodes Inclusive Multicast routes.
+//
+// PREVENTS: BUM traffic flooding issues from malformed Type 3 routes.
+func TestEVPNType3RoundTripIPv4(t *testing.T) {
+	// Type 3: Inclusive Multicast Ethernet Tag
+	// Wire: [type:1][len:1][RD:8][EthTag:4][IPLen:1][IP:4]
+	rd := []byte{0x00, 0x00, 0xFD, 0xE8, 0x00, 0x00, 0x00, 0x64}
+	ethTag := []byte{0x00, 0x00, 0x00, 0x00}
+	ipLen := byte(32)
+	ip := []byte{10, 0, 0, 1}
+
+	original := []byte{byte(EVPNRouteType3), byte(8 + 4 + 1 + 4)}
+	original = append(original, rd...)
+	original = append(original, ethTag...)
+	original = append(original, ipLen)
+	original = append(original, ip...)
+
+	nlri, _, err := ParseEVPN(original, false)
+	require.NoError(t, err)
+
+	evpn, ok := nlri.(*EVPNType3)
+	require.True(t, ok)
+
+	encoded := evpn.Bytes()
+	assert.Equal(t, original, encoded, "round-trip encoding mismatch")
+}
+
+// TestEVPNType4RoundTripIPv4 verifies Type 4 with IPv4 round-trip.
+//
+// VALIDATES: Bytes() correctly encodes Ethernet Segment routes.
+//
+// PREVENTS: DF election failures from malformed Type 4 routes.
+func TestEVPNType4RoundTripIPv4(t *testing.T) {
+	// Type 4: Ethernet Segment
+	// Wire: [type:1][len:1][RD:8][ESI:10][IPLen:1][IP:4]
+	rd := []byte{0x00, 0x00, 0xFD, 0xE8, 0x00, 0x00, 0x00, 0x64}
+	esi := []byte{0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09}
+	ipLen := byte(32)
+	ip := []byte{10, 0, 0, 1}
+
+	original := []byte{byte(EVPNRouteType4), byte(8 + 10 + 1 + 4)}
+	original = append(original, rd...)
+	original = append(original, esi...)
+	original = append(original, ipLen)
+	original = append(original, ip...)
+
+	nlri, _, err := ParseEVPN(original, false)
+	require.NoError(t, err)
+
+	evpn, ok := nlri.(*EVPNType4)
+	require.True(t, ok)
+
+	encoded := evpn.Bytes()
+	assert.Equal(t, original, encoded, "round-trip encoding mismatch")
+}
+
+// TestEVPNType5RoundTripIPv4 verifies Type 5 IPv4 round-trip.
+//
+// VALIDATES: Bytes() correctly encodes IP Prefix routes per RFC 9136.
+//
+// PREVENTS: IP prefix routes being malformed, breaking L3VPN over EVPN.
+func TestEVPNType5RoundTripIPv4(t *testing.T) {
+	// Type 5: IP Prefix per RFC 9136
+	// Wire: [type:1][len:1][RD:8][ESI:10][EthTag:4][PrefixLen:1][Prefix:4][GW:4][Labels:3]
+	// Total length = 34 for IPv4
+	rd := []byte{0x00, 0x00, 0xFD, 0xE8, 0x00, 0x00, 0x00, 0x64}
+	esi := make([]byte, 10)
+	ethTag := []byte{0x00, 0x00, 0x00, 0x00}
+	prefixLen := byte(24)
+	prefix := []byte{10, 1, 2, 0}
+	gw := []byte{0, 0, 0, 0}
+	label := []byte{0x00, 0x01, 0x01}
+
+	original := []byte{byte(EVPNRouteType5), byte(34)}
+	original = append(original, rd...)
+	original = append(original, esi...)
+	original = append(original, ethTag...)
+	original = append(original, prefixLen)
+	original = append(original, prefix...)
+	original = append(original, gw...)
+	original = append(original, label...)
+
+	nlri, _, err := ParseEVPN(original, false)
+	require.NoError(t, err)
+
+	evpn, ok := nlri.(*EVPNType5)
+	require.True(t, ok)
+
+	encoded := evpn.Bytes()
+	assert.Equal(t, original, encoded, "round-trip encoding mismatch")
+}
+
+// TestEVPNType5RoundTripIPv6 verifies Type 5 IPv6 round-trip.
+//
+// VALIDATES: Bytes() correctly encodes IPv6 prefix routes per RFC 9136.
+//
+// PREVENTS: IPv6 prefix routes being malformed.
+func TestEVPNType5RoundTripIPv6(t *testing.T) {
+	// Type 5: IP Prefix per RFC 9136
+	// Total length = 58 for IPv6
+	rd := []byte{0x00, 0x00, 0xFD, 0xE8, 0x00, 0x00, 0x00, 0x64}
+	esi := make([]byte, 10)
+	ethTag := []byte{0x00, 0x00, 0x00, 0x00}
+	prefixLen := byte(64)
+	prefix := []byte{0x20, 0x01, 0x0d, 0xb8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
+	gw := make([]byte, 16)
+	label := []byte{0x00, 0x01, 0x01}
+
+	original := []byte{byte(EVPNRouteType5), byte(58)}
+	original = append(original, rd...)
+	original = append(original, esi...)
+	original = append(original, ethTag...)
+	original = append(original, prefixLen)
+	original = append(original, prefix...)
+	original = append(original, gw...)
+	original = append(original, label...)
+
+	nlri, _, err := ParseEVPN(original, false)
+	require.NoError(t, err)
+
+	evpn, ok := nlri.(*EVPNType5)
+	require.True(t, ok)
+
+	encoded := evpn.Bytes()
+	assert.Equal(t, original, encoded, "round-trip encoding mismatch")
+}
+
+// TestEVPNType2RoundTripWithIPv6 verifies Type 2 with IPv6 round-trip.
+//
+// VALIDATES: Bytes() correctly encodes MAC+IPv6 routes.
+//
+// PREVENTS: IPv6 address corruption in MAC/IP advertisement routes.
+func TestEVPNType2RoundTripWithIPv6(t *testing.T) {
+	rd := []byte{0x00, 0x00, 0xFD, 0xE8, 0x00, 0x00, 0x00, 0x64}
+	esi := make([]byte, 10)
+	ethTag := []byte{0x00, 0x00, 0x00, 0x00}
+	macLen := byte(48)
+	mac := []byte{0x00, 0x11, 0x22, 0x33, 0x44, 0x55}
+	ipLen := byte(128)
+	ip := []byte{0x20, 0x01, 0x0d, 0xb8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1}
+	label := []byte{0x00, 0x01, 0x01}
+
+	original := []byte{byte(EVPNRouteType2), byte(8 + 10 + 4 + 1 + 6 + 1 + 16 + 3)}
+	original = append(original, rd...)
+	original = append(original, esi...)
+	original = append(original, ethTag...)
+	original = append(original, macLen)
+	original = append(original, mac...)
+	original = append(original, ipLen)
+	original = append(original, ip...)
+	original = append(original, label...)
+
+	nlri, _, err := ParseEVPN(original, false)
+	require.NoError(t, err)
+
+	evpn, ok := nlri.(*EVPNType2)
+	require.True(t, ok)
+
+	encoded := evpn.Bytes()
+	assert.Equal(t, original, encoded, "round-trip encoding mismatch")
+}
+
+// TestEVPNType3RoundTripIPv6 verifies Type 3 with IPv6 round-trip.
+//
+// VALIDATES: Bytes() correctly encodes Inclusive Multicast routes with IPv6.
+//
+// PREVENTS: IPv6 originator address corruption in IMET routes.
+func TestEVPNType3RoundTripIPv6(t *testing.T) {
+	rd := []byte{0x00, 0x00, 0xFD, 0xE8, 0x00, 0x00, 0x00, 0x64}
+	ethTag := []byte{0x00, 0x00, 0x00, 0x00}
+	ipLen := byte(128)
+	ip := []byte{0x20, 0x01, 0x0d, 0xb8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1}
+
+	original := []byte{byte(EVPNRouteType3), byte(8 + 4 + 1 + 16)}
+	original = append(original, rd...)
+	original = append(original, ethTag...)
+	original = append(original, ipLen)
+	original = append(original, ip...)
+
+	nlri, _, err := ParseEVPN(original, false)
+	require.NoError(t, err)
+
+	evpn, ok := nlri.(*EVPNType3)
+	require.True(t, ok)
+
+	encoded := evpn.Bytes()
+	assert.Equal(t, original, encoded, "round-trip encoding mismatch")
+}
+
+// TestEVPNType4RoundTripIPv6 verifies Type 4 with IPv6 round-trip.
+//
+// VALIDATES: Bytes() correctly encodes Ethernet Segment routes with IPv6.
+//
+// PREVENTS: IPv6 originator address corruption in ES routes.
+func TestEVPNType4RoundTripIPv6(t *testing.T) {
+	rd := []byte{0x00, 0x00, 0xFD, 0xE8, 0x00, 0x00, 0x00, 0x64}
+	esi := []byte{0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09}
+	ipLen := byte(128)
+	ip := []byte{0x20, 0x01, 0x0d, 0xb8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1}
+
+	original := []byte{byte(EVPNRouteType4), byte(8 + 10 + 1 + 16)}
+	original = append(original, rd...)
+	original = append(original, esi...)
+	original = append(original, ipLen)
+	original = append(original, ip...)
+
+	nlri, _, err := ParseEVPN(original, false)
+	require.NoError(t, err)
+
+	evpn, ok := nlri.(*EVPNType4)
+	require.True(t, ok)
+
+	encoded := evpn.Bytes()
+	assert.Equal(t, original, encoded, "round-trip encoding mismatch")
+}
+
+// TestEVPNType1RoundTripMultiLabel verifies Type 1 with label stack.
+//
+// VALIDATES: Bytes() correctly encodes multiple MPLS labels with BOS bit.
+//
+// PREVENTS: Label stack corruption breaking EVPN-MPLS forwarding.
+func TestEVPNType1RoundTripMultiLabel(t *testing.T) {
+	rd := []byte{0x00, 0x00, 0xFD, 0xE8, 0x00, 0x00, 0x00, 0x64}
+	esi := []byte{0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09}
+	ethTag := []byte{0x00, 0x00, 0x00, 0x0A}
+	// Label stack: 100, 200 (BOS on last)
+	// Label 100 = 0x000640 (no BOS), Label 200 = 0x000C81 (with BOS)
+	labels := []byte{0x00, 0x06, 0x40, 0x00, 0x0C, 0x81}
+
+	original := []byte{byte(EVPNRouteType1), byte(8 + 10 + 4 + 6)}
+	original = append(original, rd...)
+	original = append(original, esi...)
+	original = append(original, ethTag...)
+	original = append(original, labels...)
+
+	nlri, _, err := ParseEVPN(original, false)
+	require.NoError(t, err)
+
+	evpn, ok := nlri.(*EVPNType1)
+	require.True(t, ok)
+	assert.Equal(t, []uint32{100, 200}, evpn.Labels())
+
+	encoded := evpn.Bytes()
+	assert.Equal(t, original, encoded, "round-trip encoding mismatch")
+}

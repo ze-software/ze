@@ -228,8 +228,27 @@ func (e *EVPNType1) PathID() uint32           { return e.pathID }
 func (e *EVPNType1) HasPathID() bool          { return e.hasPath }
 
 func (e *EVPNType1) Bytes() []byte {
-	// TODO: implement encoding
-	return nil
+	// RFC 7432 Section 7.1: RD (8) + ESI (10) + EthTag (4) + Labels (3+)
+	labelBytes := EncodeLabelStack(e.labels)
+	payloadLen := 8 + 10 + 4 + len(labelBytes)
+
+	buf := make([]byte, 2+payloadLen)
+	buf[0] = byte(EVPNRouteType1)
+	buf[1] = byte(payloadLen)
+
+	offset := 2
+	copy(buf[offset:], e.rd.Bytes())
+	offset += 8
+
+	copy(buf[offset:], e.esi[:])
+	offset += 10
+
+	binary.BigEndian.PutUint32(buf[offset:], e.ethernetTag)
+	offset += 4
+
+	copy(buf[offset:], labelBytes)
+
+	return buf
 }
 
 func (e *EVPNType1) Len() int {
@@ -365,8 +384,57 @@ func (e *EVPNType2) PathID() uint32           { return e.pathID }
 func (e *EVPNType2) HasPathID() bool          { return e.hasPath }
 
 func (e *EVPNType2) Bytes() []byte {
-	// TODO: implement encoding
-	return nil
+	// RFC 7432 Section 7.2: RD (8) + ESI (10) + EthTag (4) + MACLen (1) + MAC (6) +
+	// IPLen (1) + IP (0/4/16) + Labels (3+)
+	labelBytes := EncodeLabelStack(e.labels)
+
+	ipLen := 0
+	var ipBytes []byte
+	if e.ip.IsValid() {
+		if e.ip.Is4() {
+			ipLen = 32
+			ip4 := e.ip.As4()
+			ipBytes = ip4[:]
+		} else {
+			ipLen = 128
+			ip6 := e.ip.As16()
+			ipBytes = ip6[:]
+		}
+	}
+
+	payloadLen := 8 + 10 + 4 + 1 + 6 + 1 + len(ipBytes) + len(labelBytes)
+
+	buf := make([]byte, 2+payloadLen)
+	buf[0] = byte(EVPNRouteType2)
+	buf[1] = byte(payloadLen)
+
+	offset := 2
+	copy(buf[offset:], e.rd.Bytes())
+	offset += 8
+
+	copy(buf[offset:], e.esi[:])
+	offset += 10
+
+	binary.BigEndian.PutUint32(buf[offset:], e.ethernetTag)
+	offset += 4
+
+	buf[offset] = 48 // MAC length in bits (always 48 for Ethernet)
+	offset++
+
+	copy(buf[offset:], e.mac[:])
+	offset += 6
+
+	buf[offset] = byte(ipLen)
+	offset++
+
+	if len(ipBytes) > 0 {
+		copy(buf[offset:], ipBytes)
+		offset += len(ipBytes)
+	}
+
+	copy(buf[offset:], labelBytes)
+
+	return buf
 }
 
 func (e *EVPNType2) Len() int {
@@ -463,8 +531,51 @@ func (e *EVPNType3) EthernetTag() uint32      { return e.ethernetTag }
 func (e *EVPNType3) OriginatorIP() netip.Addr { return e.originatorIP }
 func (e *EVPNType3) PathID() uint32           { return e.pathID }
 func (e *EVPNType3) HasPathID() bool          { return e.hasPath }
-func (e *EVPNType3) Bytes() []byte            { return nil }
-func (e *EVPNType3) Len() int                 { return 0 }
+
+func (e *EVPNType3) Bytes() []byte {
+	// RFC 7432 Section 7.3: RD (8) + EthTag (4) + IPLen (1) + IP (4/16)
+	var ipLen int
+	var ipBytes []byte
+	if e.originatorIP.Is4() {
+		ipLen = 32
+		ip4 := e.originatorIP.As4()
+		ipBytes = ip4[:]
+	} else {
+		ipLen = 128
+		ip6 := e.originatorIP.As16()
+		ipBytes = ip6[:]
+	}
+
+	payloadLen := 8 + 4 + 1 + len(ipBytes)
+
+	buf := make([]byte, 2+payloadLen)
+	buf[0] = byte(EVPNRouteType3)
+	buf[1] = byte(payloadLen)
+
+	offset := 2
+	copy(buf[offset:], e.rd.Bytes())
+	offset += 8
+
+	binary.BigEndian.PutUint32(buf[offset:], e.ethernetTag)
+	offset += 4
+
+	buf[offset] = byte(ipLen)
+	offset++
+
+	copy(buf[offset:], ipBytes)
+
+	return buf
+}
+
+func (e *EVPNType3) Len() int {
+	n := 8 + 4 + 1
+	if e.originatorIP.Is4() {
+		n += 4
+	} else {
+		n += 16
+	}
+	return n + 2 // +2 for type and length
+}
 
 func (e *EVPNType3) String() string {
 	return fmt.Sprintf("type3 RD:%s originator:%s", e.rd, e.originatorIP)
@@ -548,8 +659,38 @@ func (e *EVPNType4) PathID() uint32           { return e.pathID }
 func (e *EVPNType4) HasPathID() bool          { return e.hasPath }
 
 func (e *EVPNType4) Bytes() []byte {
-	// TODO: implement encoding
-	return nil
+	// RFC 7432 Section 7.4: RD (8) + ESI (10) + IPLen (1) + IP (4/16)
+	var ipLen int
+	var ipBytes []byte
+	if e.originatorIP.Is4() {
+		ipLen = 32
+		ip4 := e.originatorIP.As4()
+		ipBytes = ip4[:]
+	} else {
+		ipLen = 128
+		ip6 := e.originatorIP.As16()
+		ipBytes = ip6[:]
+	}
+
+	payloadLen := 8 + 10 + 1 + len(ipBytes)
+
+	buf := make([]byte, 2+payloadLen)
+	buf[0] = byte(EVPNRouteType4)
+	buf[1] = byte(payloadLen)
+
+	offset := 2
+	copy(buf[offset:], e.rd.Bytes())
+	offset += 8
+
+	copy(buf[offset:], e.esi[:])
+	offset += 10
+
+	buf[offset] = byte(ipLen)
+	offset++
+
+	copy(buf[offset:], ipBytes)
+
+	return buf
 }
 
 func (e *EVPNType4) Len() int {
@@ -692,8 +833,70 @@ func (e *EVPNType5) Gateway() netip.Addr      { return e.gateway }
 func (e *EVPNType5) Labels() []uint32         { return e.labels }
 func (e *EVPNType5) PathID() uint32           { return e.pathID }
 func (e *EVPNType5) HasPathID() bool          { return e.hasPath }
-func (e *EVPNType5) Bytes() []byte            { return nil }
-func (e *EVPNType5) Len() int                 { return 0 }
+
+func (e *EVPNType5) Bytes() []byte {
+	// RFC 9136 Section 3.1: IP Prefix route encoding
+	// IPv4: RD (8) + ESI (10) + EthTag (4) + PrefixLen (1) + Prefix (4) + GW (4) + Labels (3) = 34
+	// IPv6: RD (8) + ESI (10) + EthTag (4) + PrefixLen (1) + Prefix (16) + GW (16) + Labels (3) = 58
+	labelBytes := EncodeLabelStack(e.labels)
+
+	var prefixSize int
+	if e.prefix.Addr().Is4() {
+		prefixSize = 4
+	} else {
+		prefixSize = 16
+	}
+
+	payloadLen := 8 + 10 + 4 + 1 + prefixSize + prefixSize + len(labelBytes)
+
+	buf := make([]byte, 2+payloadLen)
+	buf[0] = byte(EVPNRouteType5)
+	buf[1] = byte(payloadLen)
+
+	offset := 2
+	copy(buf[offset:], e.rd.Bytes())
+	offset += 8
+
+	copy(buf[offset:], e.esi[:])
+	offset += 10
+
+	binary.BigEndian.PutUint32(buf[offset:], e.ethernetTag)
+	offset += 4
+
+	buf[offset] = byte(e.prefix.Bits())
+	offset++
+
+	// RFC 9136: Prefix field is FIXED size (4 or 16 bytes), not variable
+	if prefixSize == 4 {
+		ip4 := e.prefix.Addr().As4()
+		copy(buf[offset:], ip4[:])
+		offset += 4
+
+		gw4 := e.gateway.As4()
+		copy(buf[offset:], gw4[:])
+		offset += 4
+	} else {
+		ip6 := e.prefix.Addr().As16()
+		copy(buf[offset:], ip6[:])
+		offset += 16
+
+		gw6 := e.gateway.As16()
+		copy(buf[offset:], gw6[:])
+		offset += 16
+	}
+
+	copy(buf[offset:], labelBytes)
+
+	return buf
+}
+
+func (e *EVPNType5) Len() int {
+	// RFC 9136: Fixed lengths (34 for IPv4, 58 for IPv6)
+	if e.prefix.Addr().Is4() {
+		return 34 + 2 // +2 for type and length header
+	}
+	return 58 + 2
+}
 
 func (e *EVPNType5) String() string {
 	return fmt.Sprintf("type5 RD:%s prefix:%s", e.rd, e.prefix)
