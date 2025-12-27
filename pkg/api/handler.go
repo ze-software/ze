@@ -27,9 +27,12 @@ func RegisterDefaultHandlers(d *Dispatcher) {
 	d.Register("system help", handleSystemHelp, "Show available commands")
 	d.Register("system version", handleSystemVersion, "Show version")
 
-	// RIB operations (placeholder - needs RIB integration)
+	// RIB operations
 	d.Register("rib show in", handleRIBShowIn, "Show Adj-RIB-In")
 	d.Register("rib show out", handleRIBShowOut, "Show Adj-RIB-Out")
+	d.Register("rib clear in", handleRIBClearIn, "Clear Adj-RIB-In")
+	d.Register("rib clear out", handleRIBClearOut, "Withdraw all routes from Adj-RIB-Out")
+	d.Register("rib flush out", handleRIBFlushOut, "Re-send all routes to peers")
 
 	// Route operations
 	RegisterRouteHandlers(d)
@@ -137,6 +140,9 @@ func handleSystemHelp(_ *CommandContext, _ []string) (*Response, error) {
 		"peer teardown <ip> [reason] - Teardown a peer session",
 		"rib show in - Show Adj-RIB-In",
 		"rib show out - Show Adj-RIB-Out",
+		"rib clear in - Clear Adj-RIB-In",
+		"rib clear out - Withdraw all routes from Adj-RIB-Out",
+		"rib flush out - Re-send all routes to peers",
 		"announce route <prefix> next-hop <addr> - Announce a route",
 		"announce eor [<afi> <safi>] - Send End-of-RIB marker",
 		"announce flow match <spec> then <action> - Announce a FlowSpec route",
@@ -320,6 +326,42 @@ func handleRIBShowOut(ctx *CommandContext, _ []string) (*Response, error) {
 			"route_count":         len(routes),
 			"pending_withdrawals": stats.OutWithdrawls,
 			"sent_routes":         stats.OutSent,
+		},
+	}, nil
+}
+
+// handleRIBClearIn clears all routes from Adj-RIB-In.
+func handleRIBClearIn(ctx *CommandContext, _ []string) (*Response, error) {
+	count := ctx.Reactor.ClearRIBIn()
+
+	return &Response{
+		Status: "done",
+		Data: map[string]any{
+			"routes_cleared": count,
+		},
+	}, nil
+}
+
+// handleRIBClearOut withdraws all routes from Adj-RIB-Out.
+func handleRIBClearOut(ctx *CommandContext, _ []string) (*Response, error) {
+	count := ctx.Reactor.ClearRIBOut()
+
+	return &Response{
+		Status: "done",
+		Data: map[string]any{
+			"routes_withdrawn": count,
+		},
+	}, nil
+}
+
+// handleRIBFlushOut re-queues all sent routes for re-announcement.
+func handleRIBFlushOut(ctx *CommandContext, _ []string) (*Response, error) {
+	count := ctx.Reactor.FlushRIBOut()
+
+	return &Response{
+		Status: "done",
+		Data: map[string]any{
+			"routes_flushed": count,
 		},
 	}, nil
 }

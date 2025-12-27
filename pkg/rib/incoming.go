@@ -102,6 +102,22 @@ func (r *IncomingRIB) ClearPeer(peerID string) []*Route {
 	return routes
 }
 
+// ClearAll removes all routes from all peers.
+// Returns count of routes removed.
+func (r *IncomingRIB) ClearAll() int {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	count := 0
+	for _, peerRoutes := range r.routes {
+		count += len(peerRoutes)
+	}
+
+	r.routes = make(map[string]map[string]*Route)
+
+	return count
+}
+
 // GetPeerRoutes returns all routes from a peer.
 // Returns a copy to avoid holding the lock.
 func (r *IncomingRIB) GetPeerRoutes(peerID string) []*Route {

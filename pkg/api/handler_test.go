@@ -44,6 +44,10 @@ type mockReactor struct {
 		addr    netip.Addr
 		subcode uint8
 	}
+	// RIB operation tracking
+	ribInCleared  bool
+	ribOutCleared bool
+	ribOutFlushed bool
 }
 
 func (m *mockReactor) Peers() []PeerInfo {
@@ -152,6 +156,21 @@ func (m *mockReactor) RIBOutRoutes() []RIBRoute {
 
 func (m *mockReactor) RIBStats() RIBStatsInfo {
 	return RIBStatsInfo{}
+}
+
+func (m *mockReactor) ClearRIBIn() int {
+	m.ribInCleared = true
+	return 5 // Mock: pretend we cleared 5 routes
+}
+
+func (m *mockReactor) ClearRIBOut() int {
+	m.ribOutCleared = true
+	return 3 // Mock: pretend we withdrew 3 routes
+}
+
+func (m *mockReactor) FlushRIBOut() int {
+	m.ribOutFlushed = true
+	return 7 // Mock: pretend we flushed 7 routes
 }
 
 func (m *mockReactor) WithdrawL2VPN(_ string, _ L2VPNRoute) error {
@@ -1337,4 +1356,96 @@ func TestHandleAnnounceLabeledUnicast_AttributeValues(t *testing.T) {
 
 	require.Len(t, route.LargeCommunities, 1)
 	assert.Equal(t, uint32(65000), route.LargeCommunities[0].GlobalAdmin)
+}
+
+// TestRIBClearIn verifies clearing Adj-RIB-In removes all received routes.
+//
+// VALIDATES: API command correctly clears incoming route storage.
+//
+// PREVENTS: Memory leaks from accumulated routes, stale route data.
+func TestRIBClearIn(t *testing.T) {
+	reactor := &mockReactor{
+		ribInCleared: false,
+	}
+
+	ctx := &CommandContext{Reactor: reactor}
+	resp, err := handleRIBClearIn(ctx, nil)
+
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	assert.Equal(t, "done", resp.Status)
+	assert.True(t, reactor.ribInCleared, "RIB-In should be cleared")
+
+	data, ok := resp.Data.(map[string]any)
+	require.True(t, ok)
+	assert.Contains(t, data, "routes_cleared")
+}
+
+// TestRIBClearOut verifies clearing Adj-RIB-Out queues withdrawals.
+//
+// VALIDATES: Withdrawing all sent routes generates proper cleanup.
+//
+// PREVENTS: Orphaned routes in peer tables after clear.
+func TestRIBClearOut(t *testing.T) {
+	reactor := &mockReactor{
+		ribOutCleared: false,
+	}
+
+	ctx := &CommandContext{Reactor: reactor}
+	resp, err := handleRIBClearOut(ctx, nil)
+
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	assert.Equal(t, "done", resp.Status)
+	assert.True(t, reactor.ribOutCleared, "RIB-Out should be cleared")
+
+	data, ok := resp.Data.(map[string]any)
+	require.True(t, ok)
+	assert.Contains(t, data, "routes_withdrawn")
+}
+
+// TestRIBFlushOut verifies flushing re-queues routes for resend.
+//
+// VALIDATES: All previously sent routes are queued for re-announcement.
+//
+// PREVENTS: Route sync failures after peer reconnection.
+func TestRIBFlushOut(t *testing.T) {
+	reactor := &mockReactor{
+		ribOutFlushed: false,
+	}
+
+	ctx := &CommandContext{Reactor: reactor}
+	resp, err := handleRIBFlushOut(ctx, nil)
+
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	assert.Equal(t, "done", resp.Status)
+	assert.True(t, reactor.ribOutFlushed, "RIB-Out should be flushed")
+
+	data, ok := resp.Data.(map[string]any)
+	require.True(t, ok)
+	assert.Contains(t, data, "routes_flushed")
+}
+
+// TestRIBCommandsRegistered verifies all RIB commands are registered.
+//
+// VALIDATES: Commands are discoverable via dispatcher.
+//
+// PREVENTS: Missing commands causing API failures.
+func TestRIBCommandsRegistered(t *testing.T) {
+	d := NewDispatcher()
+	RegisterDefaultHandlers(d)
+
+	ribCommands := []string{
+		"rib show in",
+		"rib show out",
+		"rib clear in",
+		"rib clear out",
+		"rib flush out",
+	}
+
+	for _, cmd := range ribCommands {
+		c := d.Lookup(cmd)
+		assert.NotNil(t, c, "command %q must be registered", cmd)
+	}
 }

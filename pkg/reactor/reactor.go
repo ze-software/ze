@@ -814,6 +814,30 @@ func (a *reactorAPIAdapter) RIBStats() api.RIBStatsInfo {
 	return stats
 }
 
+// ClearRIBIn clears all routes from Adj-RIB-In.
+func (a *reactorAPIAdapter) ClearRIBIn() int {
+	if a.r.ribIn == nil {
+		return 0
+	}
+	return a.r.ribIn.ClearAll()
+}
+
+// ClearRIBOut queues withdrawals for all routes in Adj-RIB-Out.
+func (a *reactorAPIAdapter) ClearRIBOut() int {
+	if a.r.ribOut == nil {
+		return 0
+	}
+	return a.r.ribOut.ClearSent()
+}
+
+// FlushRIBOut re-queues all sent routes for re-announcement.
+func (a *reactorAPIAdapter) FlushRIBOut() int {
+	if a.r.ribOut == nil {
+		return 0
+	}
+	return a.r.ribOut.FlushSent()
+}
+
 // Transaction support for commit-based batching.
 
 // BeginTransaction starts a new transaction for batched route updates.

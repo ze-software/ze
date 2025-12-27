@@ -6,18 +6,40 @@
 
 ## CURRENT STATUS
 
-🟡 **Active Priority:** API Receive Update Forwarding
+✅ **Completed:** RIB Flush/Clear API Commands
 
 ### Session Summary (2025-12-27)
 
 **Completed this session:**
+- ✅ Implemented `rib clear in` - clears all routes from Adj-RIB-In
+- ✅ Implemented `rib clear out` - withdraws all routes from Adj-RIB-Out
+- ✅ Implemented `rib flush out` - re-queues sent routes for re-announcement
+- ✅ Added `ClearAll()` to IncomingRIB
+- ✅ Added `ClearSent()`, `FlushSent()` to OutgoingRIB
+- ✅ Added reactor adapter methods
+- ✅ Updated help text with new commands
+- ✅ Unit tests for RIB methods (TDD)
+- ✅ API handler tests
+- ✅ All tests pass (`make test`)
+- ✅ Lint clean (`make lint`)
+
+**Key files modified:**
+- `pkg/api/types.go` - ReactorInterface methods
+- `pkg/api/handler.go` - handlers + registration + help
+- `pkg/rib/incoming.go` - ClearAll()
+- `pkg/rib/outgoing.go` - ClearSent(), FlushSent()
+- `pkg/reactor/reactor.go` - adapter methods
+
+**Spec file:** `plan/spec-rib-flush-clear.md`
+
+### Previous Session (2025-12-27)
+
+**Completed:**
 - ✅ Fixed deadlock in `StartWithContext` - was calling `SetUpdateReceiver()` while holding mutex
 - ✅ Fixed lowercase origin in text encoder - ExaBGP uses `igp` not `IGP`
 - ✅ Added `parsePrefixWithDefault()` - allows bare IPs like `1.2.3.4` (defaults to /32)
 - ✅ Updated `handleAnnounceRoute()` to normalize prefixes
 - ✅ Removed all debug statements from api/server.go, api/process.go
-- ✅ All unit tests pass (`make test`)
-- ✅ Lint clean (`make lint`)
 
 **Known issue - FSM Bug:**
 🔴 The `ae` (check) API test times out due to a pre-existing FSM bug:
@@ -289,7 +311,7 @@ Full review of ZeBGP implementation against all 44 `.claude` documentation files
 
 | Area | Issue | Impact | Doc Reference |
 |------|-------|--------|---------------|
-| **NLRI Encoding** | EVPN Bytes() returns nil (5 types) | Cannot ANNOUNCE EVPN routes | `wire/NLRI_EVPN.md` |
+| ~~NLRI Encoding~~ | ~~EVPN Bytes() returns nil~~ | ✅ DONE - All 5 types implemented | `wire/NLRI_EVPN.md` |
 | **NLRI Encoding** | FlowSpec encoding incomplete | Limited FlowSpec support | `wire/NLRI_FLOWSPEC.md` |
 | **BGP-LS TLVs** | RFC violation in descriptor containers | Interop risk | `wire/NLRI_BGPLS.md` |
 | **API v4 JSON** | Not implemented (v6 only) | No v4 compat | `api/JSON_FORMAT.md` |
@@ -324,7 +346,7 @@ Full review of ZeBGP implementation against all 44 `.claude` documentation files
 
 ### 🔴 CRITICAL Issues (Blocking)
 
-1. **EVPN encoding missing** - Cannot advertise EVPN routes (5 route types have `Bytes()` returning nil)
+1. ~~EVPN encoding missing~~ - ✅ DONE - All 5 route types have Bytes() implemented
 2. **Collision detection missing** - RFC 4271 §6.8 violation, blocks active/active peers
 
 ### 🟡 IMPORTANT Issues
@@ -344,9 +366,10 @@ Full review of ZeBGP implementation against all 44 `.claude` documentation files
 | Priority | Action | Effort | Status |
 |----------|--------|--------|--------|
 | ✅ Done | Extended community parsing (API + config) | ~200 lines | 2025-12-27 |
-| 🔴 P0 | Implement EVPN Bytes() methods | ~300 lines | Pending |
+| ✅ Done | EVPN Bytes() methods | ~300 lines | 2025-12-27 |
 | 🔴 P0 | Implement collision detection (RFC 4271 §6.8) | ~150 lines | Pending |
-| 🟡 P1 | Add missing API commands (session/daemon/RIB) | ~200 lines | Pending |
+| ✅ Done | RIB flush/clear API commands | ~200 lines | 2025-12-27 |
+| 🟡 P1 | Add missing API commands (session/daemon) | ~100 lines | Pending |
 | 🟡 P1 | Process backpressure & respawn limits | ~100 lines | Pending |
 | 🟢 P2 | Fix FlowSpec ICMP encoding | ~100 lines | Pending |
 | 🟢 P2 | Fix BGP-LS TLV containers | ~150 lines | Pending |
@@ -361,4 +384,4 @@ Full review of ZeBGP implementation against all 44 `.claude` documentation files
 
 ### Overall Assessment
 
-**~85% complete** against documented specifications. Core BGP wire format is excellent. Main gaps: EVPN encoding, collision detection, API control commands.
+**~87% complete** against documented specifications. Core BGP wire format is excellent. Main gaps: collision detection, API control commands.

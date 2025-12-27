@@ -291,6 +291,20 @@ type ReactorInterface interface {
 	// RemoveWatchdogRoute removes a route from a global watchdog pool.
 	// Returns error if pool or route doesn't exist.
 	RemoveWatchdogRoute(routeKey, poolName string) error
+
+	// ClearRIBIn clears all routes in Adj-RIB-In.
+	// Returns count of routes cleared.
+	ClearRIBIn() int
+
+	// ClearRIBOut withdraws all routes from Adj-RIB-Out.
+	// Queues withdrawals to be sent to peers.
+	// Returns count of routes withdrawn.
+	ClearRIBOut() int
+
+	// FlushRIBOut re-queues all sent routes for re-announcement.
+	// Used to force resend of all routes to peers.
+	// Returns count of routes flushed.
+	FlushRIBOut() int
 }
 
 // RIBRoute is an API-friendly representation of a route.

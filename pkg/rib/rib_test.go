@@ -234,3 +234,111 @@ func TestOutgoingRIBStats(t *testing.T) {
 	stats := rib.Stats()
 	require.Equal(t, 2, stats.PendingAnnouncements, "must have 2 pending announcements")
 }
+
+// TestIncomingRIBClearAll verifies that all routes from all peers can be cleared.
+//
+// VALIDATES: Admin clear operation removes all incoming routes.
+//
+// PREVENTS: Stale routes persisting after RIB clear, memory leaks.
+func TestIncomingRIBClearAll(t *testing.T) {
+	rib := NewIncomingRIB()
+
+	prefix1 := netip.MustParsePrefix("10.0.0.0/24")
+	prefix2 := netip.MustParsePrefix("10.0.1.0/24")
+	inet1 := nlri.NewINET(nlri.IPv4Unicast, prefix1, 0)
+	inet2 := nlri.NewINET(nlri.IPv4Unicast, prefix2, 0)
+	nextHop := netip.MustParseAddr("192.168.1.1")
+
+	route1 := NewRoute(inet1, nextHop, nil)
+	route2 := NewRoute(inet2, nextHop, nil)
+
+	peer1 := "192.168.1.1"
+	peer2 := "192.168.1.2"
+
+	// Insert routes from different peers
+	rib.Insert(peer1, route1)
+	rib.Insert(peer2, route2)
+
+	// Verify routes exist
+	stats := rib.Stats()
+	require.Equal(t, 2, stats.PeerCount, "must have 2 peers")
+	require.Equal(t, 2, stats.RouteCount, "must have 2 routes")
+
+	// Clear all
+	count := rib.ClearAll()
+	require.Equal(t, 2, count, "must report 2 routes cleared")
+
+	// Verify all cleared
+	stats = rib.Stats()
+	require.Equal(t, 0, stats.PeerCount, "must have 0 peers after clear")
+	require.Equal(t, 0, stats.RouteCount, "must have 0 routes after clear")
+}
+
+// TestOutgoingRIBClearSent verifies that clearing sent routes queues withdrawals.
+//
+// VALIDATES: ClearSent queues withdrawals and clears sent cache.
+//
+// PREVENTS: Orphaned routes in peers after admin clear.
+func TestOutgoingRIBClearSent(t *testing.T) {
+	rib := NewOutgoingRIB()
+
+	prefix1 := netip.MustParsePrefix("10.0.0.0/24")
+	prefix2 := netip.MustParsePrefix("10.0.1.0/24")
+	inet1 := nlri.NewINET(nlri.IPv4Unicast, prefix1, 0)
+	inet2 := nlri.NewINET(nlri.IPv4Unicast, prefix2, 0)
+	nextHop := netip.MustParseAddr("192.168.1.1")
+
+	route1 := NewRoute(inet1, nextHop, nil)
+	route2 := NewRoute(inet2, nextHop, nil)
+
+	// Mark routes as sent (simulating they were already advertised)
+	rib.MarkSent(route1)
+	rib.MarkSent(route2)
+
+	stats := rib.Stats()
+	require.Equal(t, 2, stats.SentRoutes, "must have 2 sent routes")
+
+	// Clear sent - should queue withdrawals
+	count := rib.ClearSent()
+	require.Equal(t, 2, count, "must report 2 routes withdrawn")
+
+	// Verify sent is empty and withdrawals are queued
+	stats = rib.Stats()
+	require.Equal(t, 0, stats.SentRoutes, "sent must be empty after clear")
+	require.Equal(t, 2, stats.PendingWithdrawals, "must have 2 pending withdrawals")
+}
+
+// TestOutgoingRIBFlushSent verifies that flushing re-queues routes for announcement.
+//
+// VALIDATES: FlushSent queues sent routes for re-announcement.
+//
+// PREVENTS: Route sync failures after peer reconnection.
+func TestOutgoingRIBFlushSent(t *testing.T) {
+	rib := NewOutgoingRIB()
+
+	prefix1 := netip.MustParsePrefix("10.0.0.0/24")
+	prefix2 := netip.MustParsePrefix("10.0.1.0/24")
+	inet1 := nlri.NewINET(nlri.IPv4Unicast, prefix1, 0)
+	inet2 := nlri.NewINET(nlri.IPv4Unicast, prefix2, 0)
+	nextHop := netip.MustParseAddr("192.168.1.1")
+
+	route1 := NewRoute(inet1, nextHop, nil)
+	route2 := NewRoute(inet2, nextHop, nil)
+
+	// Mark routes as sent
+	rib.MarkSent(route1)
+	rib.MarkSent(route2)
+
+	stats := rib.Stats()
+	require.Equal(t, 2, stats.SentRoutes, "must have 2 sent routes")
+	require.Equal(t, 0, stats.PendingAnnouncements, "must have 0 pending")
+
+	// Flush - should re-queue for announcement
+	count := rib.FlushSent()
+	require.Equal(t, 2, count, "must report 2 routes flushed")
+
+	// Verify routes are now pending (sent should remain for tracking)
+	stats = rib.Stats()
+	require.Equal(t, 2, stats.SentRoutes, "sent should still have routes")
+	require.Equal(t, 2, stats.PendingAnnouncements, "must have 2 pending announcements")
+}

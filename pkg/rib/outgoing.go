@@ -355,6 +355,57 @@ func (r *OutgoingRIB) RemoveFromSent(n nlri.NLRI) {
 	}
 }
 
+// ClearSent queues withdrawals for all sent routes and clears the sent cache.
+// Returns the number of routes withdrawn.
+func (r *OutgoingRIB) ClearSent() int {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	count := 0
+	for family, sentFamily := range r.sent {
+		for _, route := range sentFamily {
+			// Queue withdrawal for this route
+			familyWithdrawals, ok := r.withdrawals[family]
+			if !ok {
+				familyWithdrawals = make(map[string]nlri.NLRI)
+				r.withdrawals[family] = familyWithdrawals
+			}
+			idx := string(buildNLRIIndex(route.NLRI()))
+			familyWithdrawals[idx] = route.NLRI()
+			count++
+		}
+	}
+
+	// Clear the sent cache
+	r.sent = make(map[nlri.Family]map[string]*Route)
+
+	return count
+}
+
+// FlushSent re-queues all sent routes for re-announcement.
+// Returns the number of routes flushed.
+func (r *OutgoingRIB) FlushSent() int {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	count := 0
+	for family, sentFamily := range r.sent {
+		for _, route := range sentFamily {
+			// Queue for re-announcement
+			familyPending, ok := r.pending[family]
+			if !ok {
+				familyPending = make(map[string]*Route)
+				r.pending[family] = familyPending
+			}
+			idx := string(route.Index())
+			familyPending[idx] = route
+			count++
+		}
+	}
+
+	return count
+}
+
 // OutgoingRIBStats holds statistics about the OutgoingRIB.
 type OutgoingRIBStats struct {
 	PendingAnnouncements int
