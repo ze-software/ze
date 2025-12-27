@@ -138,17 +138,10 @@ These are edge cases and advanced features:
 ## Resume Point
 
 **Last worked:** 2025-12-27
-**Last commit:** (uncommitted - self-check rewrite + security fixes)
+**Last commit:** `d20b97c` (feat: implement ExaBGP-style functional test runner)
 **Session ended:** Clean break
 
-**Uncommitted files:**
-- `test/pkg/` - 9 new files (functional test infrastructure)
-- `test/cmd/functional/main.go` - new runner
-- `Makefile` - new targets
-- `plan/spec-self-check-rewrite.md` - spec
-
 **To resume:**
-1. Commit the self-check rewrite
-2. Or pick a failing encode test to fix
-3. Run `go run ./test/cmd/functional encoding <code>` to test
-4. Verify with `make test && make lint`
+1. Pick a failing encode test to fix
+2. Run `go run ./test/cmd/functional encoding <code>` to test
+3. Verify with `make test && make lint`
