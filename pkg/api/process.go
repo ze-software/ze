@@ -67,7 +67,6 @@ func (p *Process) StartWithContext(ctx context.Context) error {
 	if p.config.WorkDir != "" {
 		p.cmd.Dir = p.config.WorkDir
 	}
-	fmt.Fprintf(os.Stderr, "DEBUG process: Run=%s WorkDir=%s\n", p.config.Run, p.config.WorkDir)
 
 	// Set up pipes
 	var err error
@@ -201,12 +200,7 @@ func (p *Process) monitor() {
 	defer p.wg.Done()
 
 	// Wait for process to exit
-	err := p.cmd.Wait()
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "DEBUG process monitor: process exited with error: %v\n", err)
-	} else {
-		fmt.Fprintf(os.Stderr, "DEBUG process monitor: process exited successfully\n")
-	}
+	_ = p.cmd.Wait()
 
 	p.running.Store(false)
 

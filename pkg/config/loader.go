@@ -108,9 +108,10 @@ func CreateReactorWithDir(cfg *BGPConfig, configDir string) (*reactor.Reactor, e
 		// Convert process configs
 		for _, pc := range cfg.Processes {
 			reactorCfg.APIProcesses = append(reactorCfg.APIProcesses, reactor.APIProcessConfig{
-				Name:    pc.Name,
-				Run:     pc.Run,
-				Encoder: pc.Encoder,
+				Name:          pc.Name,
+				Run:           pc.Run,
+				Encoder:       pc.Encoder,
+				ReceiveUpdate: pc.ReceiveUpdate,
 			})
 		}
 	}

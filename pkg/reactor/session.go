@@ -7,9 +7,11 @@ import (
 	"fmt"
 	"io"
 	"net"
+	"net/netip"
 	"sync"
 	"time"
 
+	"github.com/exa-networks/zebgp/pkg/api"
 	"github.com/exa-networks/zebgp/pkg/bgp/attribute"
 	"github.com/exa-networks/zebgp/pkg/bgp/capability"
 	"github.com/exa-networks/zebgp/pkg/bgp/fsm"
@@ -34,6 +36,10 @@ var (
 //
 // It integrates the FSM, timers, and message I/O to drive the BGP
 // state machine through the connection lifecycle.
+// UpdateCallback is called when an UPDATE is received and parsed.
+// peerAddr is the peer's address, routes are the parsed announced routes.
+type UpdateCallback func(peerAddr netip.Addr, routes []api.ReceivedRoute)
+
 type Session struct {
 	mu sync.RWMutex
 
@@ -54,6 +60,10 @@ type Session struct {
 
 	// Error channel for timer callbacks to signal errors.
 	errChan chan error
+
+	// onUpdateReceived is called when an UPDATE is received.
+	// Set by Peer to forward to reactor.
+	onUpdateReceived UpdateCallback
 }
 
 // NewSession creates a new BGP session for a peer.
@@ -532,7 +542,131 @@ func (s *Session) handleUpdate(body []byte) error {
 		return err
 	}
 
+	// Parse UPDATE and notify receiver for API forwarding.
+	if routes := s.parseUpdateRoutes(body); len(routes) > 0 {
+		if s.onUpdateReceived != nil {
+			s.onUpdateReceived(s.settings.Address, routes)
+		}
+	}
+
 	return s.fsm.Event(fsm.EventUpdateMsg)
+}
+
+// parseUpdateRoutes parses an UPDATE body into ReceivedRoute structs.
+// Used for forwarding to API processes.
+func (s *Session) parseUpdateRoutes(body []byte) []api.ReceivedRoute {
+	if len(body) < 4 {
+		return nil
+	}
+
+	// Parse UPDATE structure
+	withdrawnLen := int(binary.BigEndian.Uint16(body[0:2]))
+	offset := 2 + withdrawnLen
+	if offset+2 > len(body) {
+		return nil
+	}
+
+	attrLen := int(binary.BigEndian.Uint16(body[offset : offset+2]))
+	offset += 2
+	if offset+attrLen > len(body) {
+		return nil
+	}
+
+	pathAttrs := body[offset : offset+attrLen]
+	nlriOffset := offset + attrLen
+	nlriLen := len(body) - nlriOffset
+
+	// Parse path attributes
+	origin := "igp"
+	var localPref uint32 = 100 // Default for iBGP
+	var med uint32
+	var nextHop netip.Addr
+	var asPath []uint32
+
+	for i := 0; i < len(pathAttrs); {
+		if i+3 > len(pathAttrs) {
+			break
+		}
+		flags := pathAttrs[i]
+		typeCode := pathAttrs[i+1]
+		attrLenBytes := 1
+		if flags&0x10 != 0 { // Extended length
+			attrLenBytes = 2
+		}
+		if i+2+attrLenBytes > len(pathAttrs) {
+			break
+		}
+		var attrValueLen int
+		if attrLenBytes == 1 {
+			attrValueLen = int(pathAttrs[i+2])
+			i += 3
+		} else {
+			attrValueLen = int(binary.BigEndian.Uint16(pathAttrs[i+2 : i+4]))
+			i += 4
+		}
+		if i+attrValueLen > len(pathAttrs) {
+			break
+		}
+		attrValue := pathAttrs[i : i+attrValueLen]
+		i += attrValueLen
+
+		switch typeCode {
+		case 1: // ORIGIN
+			if o, err := attribute.ParseOrigin(attrValue); err == nil {
+				origin = o.String()
+			}
+		case 2: // AS_PATH
+			if ap, err := attribute.ParseASPath(attrValue, true); err == nil {
+				// Collect ASNs from all segments
+				for _, seg := range ap.Segments {
+					asPath = append(asPath, seg.ASNs...)
+				}
+			}
+		case 3: // NEXT_HOP
+			if nh, err := attribute.ParseNextHop(attrValue); err == nil {
+				nextHop = nh.Addr
+			}
+		case 4: // MED
+			if m, err := attribute.ParseMED(attrValue); err == nil {
+				med = uint32(m)
+			}
+		case 5: // LOCAL_PREF
+			if lp, err := attribute.ParseLocalPref(attrValue); err == nil {
+				localPref = uint32(lp)
+			}
+		}
+	}
+
+	// Parse IPv4 NLRI
+	var routes []api.ReceivedRoute
+	for i := 0; i < nlriLen; {
+		if nlriOffset+i >= len(body) {
+			break
+		}
+		prefixLen := int(body[nlriOffset+i])
+		i++
+		prefixBytes := (prefixLen + 7) / 8
+		if i+prefixBytes > nlriLen {
+			break
+		}
+		// Build prefix from bytes
+		var addrBytes [4]byte
+		copy(addrBytes[:], body[nlriOffset+i:nlriOffset+i+prefixBytes])
+		i += prefixBytes
+
+		addr := netip.AddrFrom4(addrBytes)
+		prefix := netip.PrefixFrom(addr, prefixLen)
+		routes = append(routes, api.ReceivedRoute{
+			Prefix:          prefix,
+			NextHop:         nextHop,
+			Origin:          origin,
+			LocalPreference: localPref,
+			MED:             med,
+			ASPath:          asPath,
+		})
+	}
+
+	return routes
 }
 
 // validateUpdateRFC7606 performs RFC 7606 attribute validation.

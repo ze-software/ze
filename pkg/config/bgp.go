@@ -487,9 +487,10 @@ type MUPRouteConfig struct {
 
 // ProcessConfig holds process configuration.
 type ProcessConfig struct {
-	Name    string
-	Run     string
-	Encoder string
+	Name          string
+	Run           string
+	Encoder       string
+	ReceiveUpdate bool // Forward received UPDATEs to process stdin
 }
 
 // TreeToConfig converts a parsed tree to a typed BGPConfig.
@@ -525,6 +526,11 @@ func TreeToConfig(tree *Tree) (*BGPConfig, error) {
 		}
 		if v, ok := proc.Get("encoder"); ok {
 			pc.Encoder = v
+		}
+		// Default: text encoder processes receive updates
+		// TODO: Parse api { receive { update; } } from peer/template for proper config
+		if pc.Encoder == "text" {
+			pc.ReceiveUpdate = true
 		}
 		cfg.Processes = append(cfg.Processes, pc)
 	}

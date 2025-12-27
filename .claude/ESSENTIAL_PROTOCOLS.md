@@ -428,10 +428,18 @@ make test
 ```
 
 **Mandatory Before Implementation:**
-1. Explore relevant code paths using Explore agent or grep/read
-2. Understand where new code should be added
-3. Identify what functions/methods need to be modified
-4. If ambiguous, ask user for direction
+1. **Run functional tests FIRST** to verify feature isn't already implemented
+   - For API features: `go run ./test/cmd/self-check <test-code>`
+   - For encode features: `go run ./test/cmd/self-check <test-code>`
+   - If test passes, the feature EXISTS - don't reimplement it
+2. Explore relevant code paths using Explore agent or grep/read
+3. Understand where new code should be added
+4. Identify what functions/methods need to be modified
+5. If ambiguous, ask user for direction
+
+**Anti-Pattern:** Writing tests/specs for features that already work. This wastes
+effort and creates confusion. ALWAYS verify feature status with functional tests
+before starting implementation work.
 
 ---
 

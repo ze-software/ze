@@ -5,8 +5,8 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"fmt"
 	"net"
+	"net/netip"
 	"os"
 	"strings"
 	"sync"
@@ -236,8 +236,6 @@ func (s *Server) handleProcessCommands() {
 
 // handleSingleProcessCommands handles commands from a single process.
 func (s *Server) handleSingleProcessCommands(proc *Process) {
-	fmt.Fprintf(os.Stderr, "DEBUG: handleSingleProcessCommands started for process\n")
-
 	cmdCtx := &CommandContext{
 		Reactor:       s.reactor,
 		Encoder:       s.encoder,
@@ -249,7 +247,6 @@ func (s *Server) handleSingleProcessCommands(proc *Process) {
 		// Check for shutdown
 		select {
 		case <-s.ctx.Done():
-			fmt.Fprintf(os.Stderr, "DEBUG: context done, exiting\n")
 			return
 		default:
 		}
@@ -265,7 +262,6 @@ func (s *Server) handleSingleProcessCommands(proc *Process) {
 				continue
 			}
 			// Process probably exited
-			fmt.Fprintf(os.Stderr, "DEBUG: read error: %v\n", err)
 			return
 		}
 
@@ -273,12 +269,9 @@ func (s *Server) handleSingleProcessCommands(proc *Process) {
 			continue
 		}
 
-		fmt.Fprintf(os.Stderr, "DEBUG: got command: %s\n", line)
-
 		// Dispatch command
 		resp, err := s.dispatcher.Dispatch(cmdCtx, line)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "DEBUG: dispatch error: %v\n", err)
 			resp = &Response{Status: "error", Error: err.Error()}
 		}
 
@@ -286,7 +279,6 @@ func (s *Server) handleSingleProcessCommands(proc *Process) {
 		respJSON, _ := json.Marshal(resp)
 		_ = proc.WriteEvent(strings.TrimSuffix(string(respJSON), "\n"))
 	}
-	fmt.Fprintf(os.Stderr, "DEBUG: process no longer running\n")
 }
 
 // handleClient creates and manages a client connection.
@@ -391,4 +383,30 @@ func (s *Server) removeClient(client *Client) {
 	s.mu.Lock()
 	delete(s.clients, client.id)
 	s.mu.Unlock()
+}
+
+// OnUpdateReceived handles received UPDATE messages from peers.
+// Forwards to processes with ReceiveUpdate=true.
+// Implements reactor.UpdateReceiver interface.
+func (s *Server) OnUpdateReceived(peerAddr netip.Addr, routes []ReceivedRoute) {
+	if s.procManager == nil {
+		return
+	}
+
+	// Format as ExaBGP text encoder output
+	text := FormatReceivedUpdate(peerAddr, routes)
+
+	// Write to all processes with ReceiveUpdate=true
+	s.procManager.mu.RLock()
+	defer s.procManager.mu.RUnlock()
+
+	for name, proc := range s.procManager.processes {
+		// Check if this process wants to receive updates
+		for _, cfg := range s.config.Processes {
+			if cfg.Name == name && cfg.ReceiveUpdate {
+				_ = proc.WriteEvent(text)
+				break
+			}
+		}
+	}
 }

@@ -6,7 +6,56 @@
 
 ## CURRENT STATUS
 
-🟡 **Active Priority:** Encode Test Fixes
+🟡 **Active Priority:** API Receive Update Forwarding
+
+### Session Summary (2025-12-27)
+
+**Completed this session:**
+- ✅ Fixed deadlock in `StartWithContext` - was calling `SetUpdateReceiver()` while holding mutex
+- ✅ Fixed lowercase origin in text encoder - ExaBGP uses `igp` not `IGP`
+- ✅ Added `parsePrefixWithDefault()` - allows bare IPs like `1.2.3.4` (defaults to /32)
+- ✅ Updated `handleAnnounceRoute()` to normalize prefixes
+- ✅ Removed all debug statements from api/server.go, api/process.go
+- ✅ All unit tests pass (`make test`)
+- ✅ Lint clean (`make lint`)
+
+**Known issue - FSM Bug:**
+🔴 The `ae` (check) API test times out due to a pre-existing FSM bug:
+- FSM transitions from `ESTABLISHED → IDLE` prematurely during session
+- This happens AFTER session is established and routes are being exchanged
+- Causes API-announced routes to fail with "not connected"
+- Root cause: Unknown - needs investigation
+- Workaround: None currently
+
+**To investigate:**
+- Check what triggers `EventTCPConnectionFails` or other IDLE-causing events
+- May be related to sendInitialRoutes() goroutine timing
+- May be related to read timeout handling
+
+### Previous Implementation (Complete)
+
+**UPDATE receive forwarding to API processes:**
+- ✅ `api.ReceivedRoute` type in `pkg/api/text.go`
+- ✅ `FormatReceivedUpdate()` text formatter (lowercase origin)
+- ✅ `UpdateReceiver` interface and callback chain
+- ✅ `OnUpdateReceived()` in API Server
+- ✅ `ReceiveUpdate` field in ProcessConfig
+- ✅ Text encoder processes receive updates by default
+
+**Key files:**
+- `pkg/api/text.go` - ReceivedRoute, FormatReceivedUpdate()
+- `pkg/api/server.go` - OnUpdateReceived()
+- `pkg/api/route.go` - parsePrefixWithDefault()
+- `pkg/reactor/reactor.go` - UpdateReceiver, notifyUpdateReceiver()
+- `pkg/reactor/session.go` - parseUpdateRoutes()
+
+**Spec file:** `plan/spec-api-receive-update.md`
+
+---
+
+## PREVIOUS STATUS
+
+🟡 **Previous Priority:** Encode Test Fixes
 
 ### Progress (2025-12-27)
 
@@ -65,10 +114,10 @@ See: `plan/api-commit-batching.md`
   - RFC reference comments in buildAnnounceUpdate
   - Unit tests for all parsing functions (TDD)
 
-**Current state:**
-- 6 API tests pass: `announce`, `eor`, `fast`, `ipv4`, `ipv6`, `nexthop`
+**Current state (verified 2025-12-27):**
+- 11 API tests pass: `add-remove`, `announce`, `attributes`, `eor`, `fast`, `ipv4`, `ipv6`, `nexthop`, `notification`, `teardown`, `watchdog`
 - `announcement` test removed (required multi-session)
-- Remaining failing: `add-remove`, `attributes`, `check`, `mup4`, `mup6`, `notification`, `teardown`
+- Remaining failing: `check` (timeout), `mup4` (timeout), `mup6` (timeout)
 
 **Recently fixed (2025-12-23):**
 - ✅ MP_REACH_NLRI for IPv6 routes in buildAnnounceUpdate
@@ -94,12 +143,16 @@ See: `plan/api-commit-batching.md`
   - Reactor stubs (wire format integration pending)
   - See: `plan/route-families.md`
 
-**Remaining work for failing tests:**
-- `announce attributes ... nlri` syntax (for `attributes` test)
-- `neighbor X teardown` command (for `teardown` test)
-- Receive updates to script (for `check` test)
-- NOTIFICATION on peer disconnect (for `notification` test)
-- Watchdog subsystem (for `watchdog` test)
+**Remaining work for failing tests (verified 2025-12-27):**
+- `check` test: Receive updates → forward to script (timeout)
+- `mup4`/`mup6` tests: MUP (Mobile User Plane) routing not implemented (timeout)
+
+**Previously thought failing but now PASS:**
+- ✅ `attributes` - `announce attributes ... nlri` syntax works
+- ✅ `teardown` - `neighbor X teardown` command works
+- ✅ `notification` - NOTIFICATION on peer disconnect works
+- ✅ `watchdog` - Watchdog subsystem works
+- ✅ `add-remove` - Route add/remove works
 
 **Not supported (by design):**
 - Multi-session: neighbor qualifiers (`local-as`, `peer-as`, `local-ip`, `router-id`) not implemented

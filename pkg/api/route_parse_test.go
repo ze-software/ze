@@ -1063,3 +1063,156 @@ func TestParseExtendedCommunities(t *testing.T) {
 		})
 	}
 }
+
+// TestParseAttributesNlri tests parsing of 'announce attributes ... nlri' syntax.
+//
+// VALIDATES: The attributes and NLRI list are correctly parsed from the command string.
+// ExaBGP syntax: 'announce attributes med 100 next-hop 1.2.3.4 nlri 10.0.0.1/32 10.0.0.2/32'
+//
+// PREVENTS: Incorrect parsing that would cause attribute/NLRI mismatch or missing routes.
+func TestParseAttributesNlri(t *testing.T) {
+	// Helper to create uint32 pointer
+	u32 := func(v uint32) *uint32 { return &v }
+	u8 := func(v uint8) *uint8 { return &v }
+
+	tests := []struct {
+		name        string
+		args        string
+		wantNextHop string
+		wantMED     *uint32
+		wantLP      *uint32  // LocalPreference
+		wantOrigin  *uint8   // 0=IGP, 1=EGP, 2=INCOMPLETE
+		wantASPath  []uint32 // nil means not checked
+		wantComms   []uint32 // Communities
+		wantNlris   []string
+		wantErr     bool
+		errContains string
+	}{
+		{
+			name:        "med and next-hop with two nlris",
+			args:        "med 100 next-hop 101.1.101.1 nlri 1.0.0.1/32 1.0.0.2/32",
+			wantNextHop: "101.1.101.1",
+			wantMED:     u32(100),
+			wantNlris:   []string{"1.0.0.1/32", "1.0.0.2/32"},
+		},
+		{
+			name:        "local-preference and as-path with two nlris",
+			args:        "local-preference 200 as-path [ 1 2 3 4 ] next-hop 202.2.202.2 nlri 2.0.0.1/32 2.0.0.2/32",
+			wantNextHop: "202.2.202.2",
+			wantLP:      u32(200),
+			wantASPath:  []uint32{1, 2, 3, 4},
+			wantNlris:   []string{"2.0.0.1/32", "2.0.0.2/32"},
+		},
+		{
+			name:        "origin explicit egp",
+			args:        "origin egp next-hop 1.2.3.4 nlri 10.0.0.0/8",
+			wantNextHop: "1.2.3.4",
+			wantOrigin:  u8(1), // EGP = 1
+			wantNlris:   []string{"10.0.0.0/8"},
+		},
+		{
+			name:        "communities",
+			args:        "next-hop 1.2.3.4 community [ 65000:1 65000:2 ] nlri 10.0.0.0/24",
+			wantNextHop: "1.2.3.4",
+			wantComms:   []uint32{0xFDE80001, 0xFDE80002}, // 65000:1, 65000:2
+			wantNlris:   []string{"10.0.0.0/24"},
+		},
+		{
+			name:        "missing nlri keyword",
+			args:        "med 100 next-hop 1.2.3.4 10.0.0.1/32",
+			wantErr:     true,
+			errContains: "nlri", // Function returns error when 'nlri' keyword not found
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			args := strings.Fields(tt.args)
+			attrs, nlris, err := parseAttributesNLRI(args)
+
+			if tt.wantErr {
+				if err == nil {
+					t.Errorf("parseAttributesNLRI(%q) expected error containing %q, got nil", tt.args, tt.errContains)
+				} else if tt.errContains != "" && !strings.Contains(err.Error(), tt.errContains) {
+					t.Errorf("parseAttributesNLRI(%q) error = %q, want error containing %q", tt.args, err.Error(), tt.errContains)
+				}
+				return
+			}
+
+			if err != nil {
+				t.Errorf("parseAttributesNLRI(%q) unexpected error: %v", tt.args, err)
+				return
+			}
+
+			// Check next-hop
+			wantNH := netip.MustParseAddr(tt.wantNextHop)
+			if attrs.NextHop != wantNH {
+				t.Errorf("parseAttributesNLRI(%q) NextHop = %v, want %v", tt.args, attrs.NextHop, wantNH)
+			}
+
+			// Check MED (pointer comparison)
+			if tt.wantMED != nil {
+				if attrs.MED == nil {
+					t.Errorf("parseAttributesNLRI(%q) MED = nil, want %d", tt.args, *tt.wantMED)
+				} else if *attrs.MED != *tt.wantMED {
+					t.Errorf("parseAttributesNLRI(%q) MED = %d, want %d", tt.args, *attrs.MED, *tt.wantMED)
+				}
+			}
+
+			// Check LocalPreference (pointer comparison)
+			if tt.wantLP != nil {
+				if attrs.LocalPreference == nil {
+					t.Errorf("parseAttributesNLRI(%q) LocalPreference = nil, want %d", tt.args, *tt.wantLP)
+				} else if *attrs.LocalPreference != *tt.wantLP {
+					t.Errorf("parseAttributesNLRI(%q) LocalPreference = %d, want %d", tt.args, *attrs.LocalPreference, *tt.wantLP)
+				}
+			}
+
+			// Check Origin (pointer comparison)
+			if tt.wantOrigin != nil {
+				if attrs.Origin == nil {
+					t.Errorf("parseAttributesNLRI(%q) Origin = nil, want %d", tt.args, *tt.wantOrigin)
+				} else if *attrs.Origin != *tt.wantOrigin {
+					t.Errorf("parseAttributesNLRI(%q) Origin = %d, want %d", tt.args, *attrs.Origin, *tt.wantOrigin)
+				}
+			}
+
+			// Check ASPath
+			if tt.wantASPath != nil {
+				if len(attrs.ASPath) != len(tt.wantASPath) {
+					t.Errorf("parseAttributesNLRI(%q) ASPath = %v, want %v", tt.args, attrs.ASPath, tt.wantASPath)
+				} else {
+					for i, asn := range attrs.ASPath {
+						if asn != tt.wantASPath[i] {
+							t.Errorf("parseAttributesNLRI(%q) ASPath[%d] = %d, want %d", tt.args, i, asn, tt.wantASPath[i])
+						}
+					}
+				}
+			}
+
+			// Check Communities
+			if tt.wantComms != nil {
+				if len(attrs.Communities) != len(tt.wantComms) {
+					t.Errorf("parseAttributesNLRI(%q) Communities = %v, want %v", tt.args, attrs.Communities, tt.wantComms)
+				} else {
+					for i, comm := range attrs.Communities {
+						if comm != tt.wantComms[i] {
+							t.Errorf("parseAttributesNLRI(%q) Communities[%d] = %08x, want %08x", tt.args, i, comm, tt.wantComms[i])
+						}
+					}
+				}
+			}
+
+			// Check NLRIs
+			if len(nlris) != len(tt.wantNlris) {
+				t.Errorf("parseAttributesNLRI(%q) nlris count = %d, want %d", tt.args, len(nlris), len(tt.wantNlris))
+			} else {
+				for i, prefix := range nlris {
+					if prefix.String() != tt.wantNlris[i] {
+						t.Errorf("parseAttributesNLRI(%q) nlris[%d] = %s, want %s", tt.args, i, prefix.String(), tt.wantNlris[i])
+					}
+				}
+			}
+		})
+	}
+}

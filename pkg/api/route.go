@@ -19,9 +19,34 @@ import (
 
 // Errors for route parsing.
 var (
-	ErrMissingPrefix      = errors.New("missing prefix")
-	ErrMissingNextHop     = errors.New("missing next-hop")
-	ErrInvalidPrefix      = errors.New("invalid prefix")
+	ErrMissingPrefix  = errors.New("missing prefix")
+	ErrMissingNextHop = errors.New("missing next-hop")
+	ErrInvalidPrefix  = errors.New("invalid prefix")
+)
+
+// parsePrefixWithDefault parses a prefix string, defaulting to /32 for IPv4
+// and /128 for IPv6 if no prefix length is specified.
+// This matches ExaBGP behavior where "1.2.3.4" means "1.2.3.4/32".
+func parsePrefixWithDefault(s string) (netip.Prefix, error) {
+	// First try parsing as a prefix with length
+	if prefix, err := netip.ParsePrefix(s); err == nil {
+		return prefix, nil
+	}
+
+	// If that fails, try parsing as an address and default the prefix length
+	addr, err := netip.ParseAddr(s)
+	if err != nil {
+		return netip.Prefix{}, fmt.Errorf("%w: %s", ErrInvalidPrefix, s)
+	}
+
+	// Default to /32 for IPv4, /128 for IPv6
+	if addr.Is4() {
+		return netip.PrefixFrom(addr, 32), nil
+	}
+	return netip.PrefixFrom(addr, 128), nil
+}
+
+var (
 	ErrInvalidNextHop     = errors.New("invalid next-hop")
 	ErrMissingPeerAddress = errors.New("missing peer address")
 	ErrInvalidFamily      = errors.New("invalid address family")
@@ -239,12 +264,20 @@ func handleAnnounceRoute(ctx *CommandContext, args []string) (*Response, error) 
 	if len(args) < 1 {
 		return &Response{Status: "error", Error: "missing prefix"}, ErrMissingPrefix
 	}
-	if _, err := netip.ParsePrefix(args[0]); err != nil {
+
+	// Parse prefix, allowing bare IP addresses (defaults to /32 for IPv4, /128 for IPv6)
+	prefix, err := parsePrefixWithDefault(args[0])
+	if err != nil {
 		return &Response{Status: "error", Error: fmt.Sprintf("invalid prefix: %s", args[0])}, ErrInvalidPrefix
 	}
 
+	// Normalize args to include prefix length for downstream processing
+	normalizedArgs := make([]string, len(args))
+	copy(normalizedArgs, args)
+	normalizedArgs[0] = prefix.String()
+
 	// Delegate to shared implementation (wire encoding is determined by prefix in reactor)
-	return announceRouteImpl(ctx, args)
+	return announceRouteImpl(ctx, normalizedArgs)
 }
 
 // announceRouteImpl is the shared implementation for route announcements.

@@ -110,8 +110,9 @@ type Peer struct {
 	settings *PeerSettings
 	session  *Session
 
-	state    atomic.Int32
-	callback PeerCallback
+	state          atomic.Int32
+	callback       PeerCallback
+	updateCallback UpdateCallback // Called when UPDATE is received
 
 	// Reconnect configuration
 	reconnectMin time.Duration
@@ -388,6 +389,7 @@ func (p *Peer) run() {
 func (p *Peer) runOnce() error {
 	// Create session
 	session := NewSession(p.settings)
+	session.onUpdateReceived = p.updateCallback
 
 	p.mu.Lock()
 	p.session = session

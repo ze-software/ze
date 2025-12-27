@@ -53,10 +53,11 @@ type Config struct {
 
 // APIProcessConfig holds external process configuration for the API.
 type APIProcessConfig struct {
-	Name    string
-	Run     string
-	Encoder string
-	Respawn bool
+	Name          string
+	Run           string
+	Encoder       string
+	Respawn       bool
+	ReceiveUpdate bool // Forward received UPDATEs to process stdin
 }
 
 // Stats holds reactor statistics.
@@ -68,6 +69,14 @@ type Stats struct {
 
 // ConnectionCallback is called when a connection is matched to a peer.
 type ConnectionCallback func(conn net.Conn, settings *PeerSettings)
+
+// UpdateReceiver receives parsed UPDATE messages from peers.
+// Used by API server to forward updates to processes with receive { update; } config.
+type UpdateReceiver interface {
+	// OnUpdateReceived is called when an UPDATE is received from a peer.
+	// peerAddr is the peer's address, routes are the parsed announced routes.
+	OnUpdateReceived(peerAddr netip.Addr, routes []api.ReceivedRoute)
+}
 
 // Reactor is the main BGP orchestrator.
 //
@@ -95,7 +104,8 @@ type Reactor struct {
 	// Watchdog pools for API-created routes
 	watchdog *WatchdogManager
 
-	connCallback ConnectionCallback
+	connCallback   ConnectionCallback
+	updateReceiver UpdateReceiver // Receives parsed UPDATE messages
 
 	running   bool
 	startTime time.Time
@@ -1341,6 +1351,26 @@ func (r *Reactor) SetConnectionCallback(cb ConnectionCallback) {
 	r.connCallback = cb
 }
 
+// SetUpdateReceiver sets the receiver for parsed UPDATE messages.
+// Used by API server to forward updates to processes with receive { update; } config.
+func (r *Reactor) SetUpdateReceiver(receiver UpdateReceiver) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.updateReceiver = receiver
+}
+
+// notifyUpdateReceiver notifies the update receiver of received routes.
+// Called from session when an UPDATE is received and parsed.
+func (r *Reactor) notifyUpdateReceiver(peerAddr netip.Addr, routes []api.ReceivedRoute) {
+	r.mu.RLock()
+	receiver := r.updateReceiver
+	r.mu.RUnlock()
+
+	if receiver != nil && len(routes) > 0 {
+		receiver.OnUpdateReceived(peerAddr, routes)
+	}
+}
+
 // AddPeer adds a peer to the reactor.
 func (r *Reactor) AddPeer(settings *PeerSettings) error {
 	r.mu.Lock()
@@ -1353,6 +1383,8 @@ func (r *Reactor) AddPeer(settings *PeerSettings) error {
 
 	peer := NewPeer(settings)
 	peer.SetGlobalWatchdog(r.watchdog)
+	// Set update callback to forward to reactor's update receiver
+	peer.updateCallback = r.notifyUpdateReceiver
 	r.peers[key] = peer
 
 	// If reactor is running, start the peer
@@ -1416,14 +1448,17 @@ func (r *Reactor) StartWithContext(ctx context.Context) error {
 		// Convert process configs
 		for _, pc := range r.config.APIProcesses {
 			apiConfig.Processes = append(apiConfig.Processes, api.ProcessConfig{
-				Name:    pc.Name,
-				Run:     pc.Run,
-				Encoder: pc.Encoder,
-				Respawn: pc.Respawn,
-				WorkDir: r.config.ConfigDir,
+				Name:          pc.Name,
+				Run:           pc.Run,
+				Encoder:       pc.Encoder,
+				Respawn:       pc.Respawn,
+				WorkDir:       r.config.ConfigDir,
+				ReceiveUpdate: pc.ReceiveUpdate,
 			})
 		}
 		r.api = api.NewServer(apiConfig, &reactorAPIAdapter{r})
+		// Set API server as update receiver (direct assignment, already holding lock)
+		r.updateReceiver = r.api
 		if err := r.api.StartWithContext(r.ctx); err != nil {
 			if r.listener != nil {
 				r.listener.Stop()
