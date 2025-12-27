@@ -734,6 +734,11 @@ Check for:
    ```
    Types: `feat`, `fix`, `refactor`, `test`, `docs`, `chore`
 5. **Verify:** `git log --oneline -3 && git status`
+6. **Update continuation file:** `plan/CLAUDE_CONTINUATION.md`
+   - Move completed items to "COMPLETED" section
+   - Update test status if changed
+   - Add commit hash to relevant entries
+   - This is MANDATORY after EVERY commit
 
 ### Forbidden Without Permission
 
@@ -771,6 +776,11 @@ Before committing:
 - [ ] `make test` passes
 - [ ] `make lint` passes
 - [ ] Commit message follows convention
+
+After committing:
+- [ ] `plan/CLAUDE_CONTINUATION.md` updated with completed work
+- [ ] Commit hash added to relevant entries
+- [ ] Test status updated if changed
 
 Before pushing:
 - [ ] User explicitly requested push
