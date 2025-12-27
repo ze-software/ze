@@ -1,4 +1,10 @@
-# Self-Check Test System
+# Self-Check Test System (Legacy)
+
+> ⚠️ **Note:** This is the legacy test runner. The new recommended runner is:
+> ```bash
+> go run ./test/cmd/functional encoding --all
+> ```
+> See `FUNCTIONAL_TESTS.md` for the new system.
 
 **Location:** `test/cmd/self-check/main.go`
 **Test Data:** `test/data/encode/`
@@ -321,4 +327,4 @@ Each test gets a unique port to avoid conflicts.
 
 ---
 
-**Updated:** 2025-12-21
+**Updated:** 2025-12-27 (marked as legacy)

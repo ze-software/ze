@@ -1,4 +1,4 @@
-.PHONY: all build test lint clean fmt vet tidy self-check help
+.PHONY: all build test lint clean fmt vet tidy self-check functional functional-encoding functional-api help
 
 # Default target
 all: lint test build
@@ -53,10 +53,24 @@ clean:
 test-all: test self-check
 	@echo "All tests passed"
 
-# Run self-check functional tests
+# Run self-check functional tests (legacy - use 'functional' instead)
 self-check:
 	@echo "Running self-check tests..."
 	go run ./test/cmd/self-check --all
+
+# Run new functional tests (encoding + api)
+functional: functional-encoding functional-api
+	@echo "All functional tests passed"
+
+# Run encoding functional tests
+functional-encoding:
+	@echo "Running encoding functional tests..."
+	go run ./test/cmd/functional encoding --all
+
+# Run API functional tests
+functional-api:
+	@echo "Running API functional tests..."
+	go run ./test/cmd/functional api --all
 
 # Quick check (fast feedback during development)
 check: fmt vet
@@ -70,17 +84,20 @@ ci: lint test build
 help:
 	@echo "ZeBGP Makefile targets:"
 	@echo ""
-	@echo "  all          - lint, test, build (default)"
-	@echo "  build        - Build all binaries"
-	@echo "  test         - Run unit tests with race detector"
-	@echo "  test-all     - Run unit tests + self-check functional tests"
-	@echo "  test-cover   - Run tests with coverage report"
-	@echo "  self-check   - Run functional tests (ExaBGP compatibility)"
-	@echo "  lint         - Run golangci-lint"
-	@echo "  fmt          - Format code (gofmt + goimports)"
-	@echo "  vet          - Run go vet"
-	@echo "  tidy         - Tidy go.mod dependencies"
-	@echo "  clean        - Remove build artifacts"
-	@echo "  check        - Quick check (fmt + vet)"
-	@echo "  ci           - Full CI check (lint + test + build)"
-	@echo "  help         - Show this help"
+	@echo "  all                 - lint, test, build (default)"
+	@echo "  build               - Build all binaries"
+	@echo "  test                - Run unit tests with race detector"
+	@echo "  test-all            - Run unit tests + functional tests"
+	@echo "  test-cover          - Run tests with coverage report"
+	@echo "  functional          - Run all functional tests (encoding + api)"
+	@echo "  functional-encoding - Run encoding functional tests only"
+	@echo "  functional-api      - Run API functional tests only"
+	@echo "  self-check          - Run legacy functional tests"
+	@echo "  lint                - Run golangci-lint"
+	@echo "  fmt                 - Format code (gofmt + goimports)"
+	@echo "  vet                 - Run go vet"
+	@echo "  tidy                - Tidy go.mod dependencies"
+	@echo "  clean               - Remove build artifacts"
+	@echo "  check               - Quick check (fmt + vet)"
+	@echo "  ci                  - Full CI check (lint + test + build)"
+	@echo "  help                - Show this help"

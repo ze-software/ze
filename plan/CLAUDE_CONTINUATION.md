@@ -1,44 +1,84 @@
 # Claude Continuation State
 
-**Last Updated:** 2025-12-27
+**Last Updated:** 2025-12-27 (security review completed)
 
 ---
 
 ## CURRENT STATUS
 
-✅ **All P0/P1 items complete.** Remaining work is encode test fixes.
+✅ **Completed:** Self-check rewrite (ExaBGP-style functional testing)
+
+**New runner:** `go run ./test/cmd/functional <encoding|api> [options] [tests...]`
 
 ---
 
 ## RECENTLY COMPLETED
 
+### Self-Check Rewrite (This Session)
+
+Implemented ExaBGP-style functional test runner with:
+
+| Component | File | Lines |
+|-----------|------|-------|
+| State machine | `test/pkg/state.go` | 110 |
+| Record tracking | `test/pkg/record.go` | 127 |
+| Process exec | `test/pkg/exec.go` | 188 |
+| Test container | `test/pkg/tests.go` | 176 |
+| Timing cache | `test/pkg/timing.go` | 155 |
+| Encoding tests | `test/pkg/encoding.go` | 383 |
+| API tests | `test/pkg/api.go` | 345 |
+| CLI parsing | `test/pkg/cli.go` | 124 |
+| Main runner | `test/cmd/functional/main.go` | 267 |
+
+**Features:**
+- State machine for test lifecycle (none → starting → running → success/fail/timeout)
+- Concurrent test execution with configurable parallelism
+- Timing cache for ETA estimation
+- Colorized live progress display
+- Nick-based test selection (0-9, A-Z, a-z)
+- Edit mode (`--edit`)
+- Verbose/quiet modes
+
+**Security Review (completed):**
+- ✅ Path traversal protection for `option:file:` directive
+- ✅ Path traversal protection for `.run` scripts
+- ✅ Process isolation via Setpgid
+- ✅ Context timeouts on all execution
+- ✅ Proper file permissions (0600/0750)
+
+**Usage:**
+```bash
+# List tests
+go run ./test/cmd/functional encoding --list
+
+# Run specific tests
+go run ./test/cmd/functional encoding 4 5 6
+
+# Run all tests
+go run ./test/cmd/functional encoding --all
+
+# Makefile targets
+make functional           # Run all (encoding + api)
+make functional-encoding  # Run encoding tests only
+make functional-api       # Run API tests only
+```
+
+### Previous Completions
+
 | Commit | Feature |
 |--------|---------|
 | `5d8539e` | Process backpressure and respawn limits |
 | `af8a705` | BGP collision detection (RFC 4271 §6.8) |
-| `2587fdf` | Session-level API commands (status, enable, disable) |
+| `2587fdf` | Session-level API commands |
 | `777e1f0` | RIB flush/clear API commands |
-| `6210707` | API UPDATE receive forwarding to processes |
-| `3cf4f92` | EVPN Bytes() encoding for all 5 route types |
-| `85bac94` | L3VPN (MPLS VPN) route announcement support |
-
-**Previous P0 items - now complete:**
-- ✅ EVPN Bytes() methods
-- ✅ Collision detection (RFC 4271 §6.8)
-- ✅ FSM bug (ESTABLISHED→IDLE) - fixed, `ae` test passes
-
-**Previous P1 items - now complete:**
-- ✅ Process backpressure & respawn limits
-- ✅ Session API commands
-- ✅ RIB API commands
 
 ---
 
 ## FUNCTIONAL TEST STATUS
 
-**Passing:** 37/51 tests
+**Passing:** 37/51 tests (legacy self-check)
 
-**Failing tests:**
+**Failing tests:** (edge cases/advanced features)
 
 | Code | Test | Issue |
 |------|------|-------|
@@ -78,32 +118,37 @@ These are edge cases and advanced features:
 
 | Purpose | File |
 |---------|------|
+| New functional runner | `test/cmd/functional/main.go` |
+| Test infrastructure | `test/pkg/*.go` |
+| Legacy self-check | `test/cmd/self-check/main.go` |
 | Route handlers | `pkg/api/route.go` |
 | UPDATE building | `pkg/reactor/reactor.go` |
-| Session handling | `pkg/reactor/session.go` |
-| Collision detection | `pkg/reactor/collision_test.go` |
-| EVPN encoding | `pkg/bgp/nlri/evpn.go` |
-| FSM | `pkg/bgp/fsm/` |
 
 ---
 
 ## NOTES
 
-- All unit tests pass (`make test`)
-- Lint clean (`make lint`)
-- 14/51 functional tests fail (mostly advanced features)
-- Core BGP functionality complete and tested
+- `make test`: ✅ All unit tests pass
+- `make lint`: ✅ 0 issues
+- New `test/pkg/` package provides reusable test infrastructure
+- Legacy `self-check` still works, new `functional` runner available
 
 ---
 
 ## Resume Point
 
 **Last worked:** 2025-12-27
-**Last commit:** `5d8539e` (process backpressure)
+**Last commit:** (uncommitted - self-check rewrite + security fixes)
 **Session ended:** Clean break
 
+**Uncommitted files:**
+- `test/pkg/` - 9 new files (functional test infrastructure)
+- `test/cmd/functional/main.go` - new runner
+- `Makefile` - new targets
+- `plan/spec-self-check-rewrite.md` - spec
+
 **To resume:**
-1. Pick a failing encode test to fix
-2. Run `go run ./test/cmd/self-check <code>` to see failure
-3. Fix encoding issue
+1. Commit the self-check rewrite
+2. Or pick a failing encode test to fix
+3. Run `go run ./test/cmd/functional encoding <code>` to test
 4. Verify with `make test && make lint`

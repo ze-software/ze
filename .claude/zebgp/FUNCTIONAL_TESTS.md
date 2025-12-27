@@ -2,7 +2,38 @@
 
 ## Overview
 
-The self-check system (`test/cmd/self-check/`) runs functional tests that validate ZeBGP's BGP message output against expected byte sequences.
+ZeBGP has two functional test runners:
+
+| Runner | Command | Status |
+|--------|---------|--------|
+| **New** | `go run ./test/cmd/functional` | Recommended |
+| Legacy | `go run ./test/cmd/self-check` | Still works |
+
+The new runner is modeled after ExaBGP's `qa/bin/functional` with state machine lifecycle, concurrent execution, and timing tracking.
+
+---
+
+## Quick Start
+
+```bash
+# List available tests
+go run ./test/cmd/functional encoding --list
+go run ./test/cmd/functional api --list
+
+# Run specific tests by nick
+go run ./test/cmd/functional encoding 4 5 6
+
+# Run all tests
+go run ./test/cmd/functional encoding --all
+go run ./test/cmd/functional api --all
+
+# Makefile targets
+make functional           # Run all (encoding + api)
+make functional-encoding  # Encoding tests only
+make functional-api       # API tests only
+```
+
+---
 
 ## Test Types
 
@@ -16,12 +47,68 @@ Static route tests - routes defined in config, sent at session establishment.
 
 ### 2. API Tests (`test/data/api/`)
 
-Dynamic route tests - routes injected via Python scripts using the process API.
+Dynamic route tests - routes injected via scripts using the process API.
 
 **Files:**
 - `*.ci` - Expected messages and config reference
 - `*.conf` - ZeBGP configuration (includes `process` block)
-- `*.run` - Python script that sends API commands
+- `*.run` - Script that sends API commands
+
+---
+
+## CLI Reference
+
+```
+Usage: functional <command> [options] [tests...]
+
+Commands:
+  encoding    Run encoding tests (static routes)
+  api         Run API tests (dynamic routes via .run scripts)
+
+Modes:
+  --list, -l          List available tests
+  --short-list        List test codes only (space separated)
+  --all               Run all tests
+  --edit              Open test files in $EDITOR
+  --dry               Show commands without running
+
+Options:
+  --timeout N         Timeout per test (default: 30s)
+  --parallel N        Max concurrent tests (default: 4)
+  --verbose, -v       Show output for each test
+  --quiet, -q         Minimal output
+  --save DIR          Save logs to directory
+
+Debugging:
+  --server NICK       Run server only for test
+  --client NICK       Run client only for test
+  --port N            Base port to use (default: 1790)
+```
+
+---
+
+## Nick System
+
+Tests are assigned single-character nicks for quick selection:
+
+```
+0-9  → First 10 tests (0, 1, 2, ... 9)
+A-Z  → Next 26 tests (A, B, C, ... Z)
+a-z  → Next 26 tests (a, b, c, ... z)
+```
+
+Total: 62 tests max per category.
+
+**Examples:**
+```bash
+# Run test with nick "4"
+go run ./test/cmd/functional encoding 4
+
+# Run tests 0, A, and B
+go run ./test/cmd/functional encoding 0 A B
+```
+
+---
 
 ## .ci File Format
 
@@ -29,37 +116,23 @@ The `.ci` file is the **source of truth** for bidirectional testing:
 
 ```
 option:file:test.conf           # Config file to use
+option:asn:65000                # Override peer ASN
 1:cmd:announce route ...        # API command
 1:raw:FFFF...:0017:02:...       # Raw bytes produced by command
 1:json:{...}                    # JSON representation
 ```
 
-### Test Modes Using .ci Files
-
-| Mode | Direction | Purpose |
-|------|-----------|---------|
-| Functional | cmd → raw | ZeBGP sends command, validate raw output |
-| Encode | cmd → raw | Verify encoder produces correct bytes |
-| Decode | raw → cmd | Verify decoder produces correct command |
-| JSON round-trip | raw → json → raw | Verify JSON encoding/decoding |
-
 ### Line Prefixes
 
 | Prefix | Meaning |
 |--------|---------|
-| `option:` | Test configuration |
+| `option:file:` | Config file to use |
+| `option:asn:` | Override peer ASN |
+| `option:bind:` | Bind option (ipv6) |
 | `N:cmd:` | API command (source of truth) |
 | `N:raw:` | Expected raw bytes from command |
 | `N:json:` | Expected JSON from raw bytes |
 | `AN:notification:` | Peer A sends notification at step N |
-
-### Circular Validation (Future)
-
-The `.ci` format enables circular checks (to be implemented):
-```
-cmd → raw → cmd   (encoding/decoding consistency)
-raw → json → raw  (JSON serialization consistency)
-```
 
 ### Raw Message Format
 
@@ -72,119 +145,145 @@ MARKER:LENGTH:TYPE:PAYLOAD
 - TYPE: 1 byte (1=OPEN, 2=UPDATE, 3=NOTIFICATION, 4=KEEPALIVE)
 - PAYLOAD: Variable
 
+---
+
 ## Test Execution Flow
 
 ### Encode Tests
 
 ```
-1. self-check starts zebgp-peer on random port
-2. zebgp-peer waits for connection
-3. self-check starts zebgp with config
+1. Runner builds zebgp + zebgp-peer to temp dir
+2. Starts zebgp-peer on unique port with .ci expectations
+3. Starts zebgp with config
 4. zebgp connects, sends OPEN, receives OPEN
 5. zebgp sends UPDATE messages (from static routes)
-6. zebgp-peer validates messages against .ci expectations
-7. zebgp-peer prints "successful" or "failed: message mismatch"
+6. zebgp-peer validates messages against expectations
+7. zebgp-peer prints "successful" or error
 ```
 
 ### API Tests
 
 ```
-1. self-check starts zebgp-peer on random port
-2. zebgp-peer waits for connection
-3. self-check starts zebgp with config (includes process block)
-4. zebgp spawns .run script as subprocess
-5. .run script sends commands via stdout (API)
-6. zebgp processes commands, sends UPDATE messages
-7. zebgp-peer validates messages against .ci expectations
-8. .run script calls wait_for_shutdown() and exits
-9. zebgp-peer prints "successful" or "failed"
+1. Same as encode tests, plus:
+5. zebgp spawns .run script as subprocess
+6. .run script sends commands via API
+7. zebgp processes commands, sends UPDATE messages
+8. zebgp-peer validates messages
 ```
-
-## Python API Scripts
-
-The `.run` script sends commands that get batched/processed. The `:cmd:` line represents the **final raw bytes**, not the script commands.
-
-Example: Script sends `add A`, `add B`, `withdraw A`, `add A` → batched result is `add A, add B` → `:cmd:` shows these final routes.
-
-### Common Imports
-
-```python
-from exabgp_api import send, wait_for_ack, wait_for_shutdown
-```
-
-### Supported API Commands
-
-| Command | Description |
-|---------|-------------|
-| `announce route PREFIX next-hop NH [attrs]` | Announce IPv4/IPv6 route |
-| `withdraw route PREFIX` | Withdraw route |
-| `announce eor [family]` | Send End-of-RIB |
-| `announce flow match ... then ...` | Announce FlowSpec |
-| `withdraw flow match ...` | Withdraw FlowSpec |
-| `announce vpls rd RD ...` | Announce VPLS |
-| `announce l2vpn TYPE ...` | Announce L2VPN/EVPN |
-| `commit start [label]` | Begin transaction |
-| `commit end [label]` | Flush transaction |
-
-### Unsupported Commands (cause test failures)
-
-| Command | Status |
-|---------|--------|
-| `announce ipv4 unicast PREFIX ...` | Not implemented |
-| `announce ipv6 unicast PREFIX ...` | Not implemented |
-| `announce ipv4 mup ...` | Not implemented |
-| `neighbor X announce route ...` | Not implemented |
-
-### wait_for_shutdown()
-
-Scripts should call `wait_for_shutdown()` at the end to:
-1. Wait for parent process to signal shutdown
-2. Allow graceful cleanup
-3. Prevent premature exit
-
-## Debugging Tests
-
-### Manual Execution
-
-```bash
-# Terminal 1: Start peer
-./zebgp-peer --port 1790 --decode test/data/api/test.ci
-
-# Terminal 2: Start zebgp
-env exabgp_tcp_port=1790 zebgp_api_socketpath=/tmp/test.sock \
-    ./zebgp server test/data/api/test.conf
-```
-
-### Common Issues
-
-| Issue | Cause | Fix |
-|-------|-------|-----|
-| Timeout | Script doesn't exit | Add `wait_for_shutdown()` |
-| Message mismatch | Wrong attributes | Check iBGP vs eBGP settings |
-| "invalid prefix" | Missing /length | Use `1.2.3.4/32` not `1.2.3.4` |
-
-## Test Status (as of 2025-12-23)
-
-### Passing API Tests (4/12)
-
-- `add-remove` - Basic announce/withdraw
-- `announce` - Simple announcement
-- `eor` - End-of-RIB
-- `fast` - Multiple routes
-
-### Failing API Tests (8/12)
-
-| Test | Issue | Root Cause |
-|------|-------|------------|
-| announcement | Message mismatch | Complex route batching |
-| attributes | Timeout | Unknown command format |
-| check | Timeout | Needs `receive update` events |
-| ipv4 | Timeout | `announce ipv4 unicast` not supported |
-| ipv6 | Timeout | `announce ipv6 unicast` not supported |
-| nexthop | Message mismatch | `next-hop self` not supported |
-| notification | Timeout | testpeer can't send notifications |
-| teardown | Timeout | Needs teardown command support |
 
 ---
 
-**Updated:** 2025-12-23
+## Display Output
+
+The runner shows live progress with colored nicks:
+
+```
+ 0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZa
+```
+
+| Color | Meaning |
+|-------|---------|
+| Gray | Skipped |
+| Cyan | Running |
+| Green | Passed |
+| Red | Failed |
+| Yellow | Timeout |
+
+---
+
+## Debugging Tests
+
+### Run single test verbosely
+
+```bash
+go run ./test/cmd/functional encoding --timeout 60s --verbose 4
+```
+
+### Manual execution
+
+```bash
+# Terminal 1: Start peer
+go run ./test/cmd/zebgp-peer --port 1790 test/data/encode/ebgp.ci
+
+# Terminal 2: Run zebgp
+env exabgp_tcp_port=1790 go run ./cmd/zebgp server test/data/encode/ebgp.conf
+```
+
+### Decode message bytes
+
+```bash
+# Decode UPDATE payload
+go run ./cmd/zebgp-decode update 0000001540010100400200400304650165014005040000006400
+
+# Decode full message
+go run ./cmd/zebgp-decode raw FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002D02...
+```
+
+---
+
+## Adding New Tests
+
+### 1. Create config file
+
+```
+# test/data/encode/mytest.conf
+peer 127.0.0.1 {
+    router-id 1.2.3.4;
+    local-address 127.0.0.1;
+    local-as 1;
+    peer-as 1;
+
+    static {
+        route 10.0.0.0/24 next-hop 1.2.3.4;
+    }
+}
+```
+
+### 2. Create .ci file
+
+```
+# test/data/encode/mytest.ci
+option:file:mytest.conf
+1:cmd:announce route 10.0.0.0/24 next-hop 1.2.3.4
+1:raw:FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF:002D:02:0000001540010100...
+```
+
+### 3. Generate expected bytes
+
+Run with ExaBGP first to capture correct bytes, or use `zebgp-decode` to verify.
+
+---
+
+## Architecture
+
+### New Runner (`test/pkg/`)
+
+| File | Purpose |
+|------|---------|
+| `state.go` | State machine (none→starting→running→success/fail) |
+| `record.go` | Test record with metadata |
+| `exec.go` | Process wrapper with termination |
+| `tests.go` | Test container and selection |
+| `timing.go` | Performance cache for ETA |
+| `encoding.go` | Encoding test discovery/execution |
+| `api.go` | API test discovery/execution |
+| `cli.go` | Argument parsing |
+
+### Security
+
+- Path traversal protection on `option:file:` and `.run` scripts
+- Process isolation via `Setpgid`
+- Context timeouts on all execution
+- File permissions: 0600 (files), 0750 (dirs)
+
+---
+
+## Test Status
+
+See `plan/CLAUDE_CONTINUATION.md` for current pass/fail status.
+
+**Summary:** 37/51 passing (14 failing are advanced features like MUP, MVPN, FlowSpec)
+
+---
+
+**Updated:** 2025-12-27
