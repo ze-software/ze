@@ -22,12 +22,12 @@ These files use UPPERCASE because they are standard project files:
 
 Files in `.claude/` directory use UPPERCASE for critical protocols:
 
-- `ESSENTIAL_PROTOCOLS.md`
-- `MANDATORY_REFACTORING_PROTOCOL.md`
-- `GIT_VERIFICATION_PROTOCOL.md`
+- `ESSENTIAL_PROTOCOLS.md` (consolidated protocols)
 - `CODING_STANDARDS.md`
+- `TDD_ENFORCEMENT.md`
 - `TESTING_PROTOCOL.md`
 - `CI_TESTING.md`
+- `RFC_DOCUMENTATION_PROTOCOL.md`
 
 **Rationale:** UPPERCASE signals critical nature, similar to README.md.
 

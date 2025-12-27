@@ -99,24 +99,11 @@
       "Bash(chmod:*)",
       "Bash(go mod tidy:*)",
       "Bash(go build:*)",
-      "Bash(xargs:*)"
+      "Bash(xargs:*)",
+      "Bash(./download.sh:*)",
+      "Bash(/tmp/mrt-analyze:*)"
     ],
     "deny": []
   },
-  "enableAllProjectMcpServers": false,
-  "hooks": {
-    "PostToolUse": [
-      {
-        "matcher": "Write|Edit",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "\"$CLAUDE_PROJECT_DIR\"/.claude/hooks/auto_linter.sh",
-            "timeout": 60
-          }
-        ]
-      }
-    ]
-  },
-  "outputStyle": "ZeBGP Terse"
+  "enableAllProjectMcpServers": false
 }

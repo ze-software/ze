@@ -8,6 +8,26 @@
 ╚═══════════════════════════════════════════════════════════════════════════════╝
 ```
 
+## Table of Contents
+
+1. [Session Start Checklist](#session-start-checklist-mandatory---do-this-first)
+2. [File Locations](#file-locations-mandatory)
+3. [Critical Rules](#critical-rules)
+   - [RFC 4271 Compliance](#0-rfc-4271-compliance-non-negotiable)
+   - [Context Management](#02-use-agents-for-multi-file-work-context-management)
+   - [ExaBGP Reference](#04-exabgp-reference-implementation-must-check-before-coding)
+   - [Work Preservation](#1-work-preservation-never-lose-code)
+   - [Verification](#2-verification-before-claiming)
+   - [Self-Review](#25-post-completion-self-review-mandatory)
+   - [TDD](#5-test-driven-development-tdd---blocking-rule)
+   - [Coding Standards](#6-coding-standards)
+4. [Git Safety](#git-safety-protocol)
+5. [Error Recovery](#error-recovery-protocol)
+6. [Refactoring Protocol](#refactoring-protocol)
+7. [Session End Checklist](#session-end-checklist)
+8. [/prep Requirement](#prep-requirement-blocking)
+9. [Quick Reference](#quick-reference-forbidden-phrases)
+
 ---
 
 ## SESSION START CHECKLIST (MANDATORY - DO THIS FIRST)
@@ -212,7 +232,7 @@ python3 scripts/refactor.py --pattern 'old' --replace 'new'
 ```
 ┌─────────────────────────────────────────────────────────────────┐
 │  BEFORE implementing ANY BGP feature, ALWAYS check how         │
-│  ExaBGP does it in ../src/exabgp/                               │
+│  ExaBGP does it in ../main/src/exabgp/                        │
 │                                                                 │
 │  ZeBGP MUST match ExaBGP's API and behavior for compatibility. │
 │                                                                 │
@@ -228,7 +248,7 @@ python3 scripts/refactor.py --pattern 'old' --replace 'new'
 
 **MANDATORY before writing/fixing BGP code:**
 1. Read the relevant RFC sections from `rfc/rfcNNNN.txt`
-2. Find the equivalent code in `../src/exabgp/bgp/`
+2. Find the equivalent code in `../main/src/exabgp/bgp/`
 3. Check if ExaBGP's implementation matches the RFC
 4. If ExaBGP matches RFC: follow ExaBGP's approach
 5. If ExaBGP deviates from RFC: implement per RFC, document deviation
@@ -242,10 +262,10 @@ func parseFeature(...) { ... }
 ```
 
 **Key ExaBGP directories:**
-- `../src/exabgp/bgp/message/` - Message encoding/decoding
-- `../src/exabgp/bgp/message/open/capability/` - Capability negotiation
-- `../src/exabgp/bgp/message/update/attribute/` - Path attributes
-- `../src/exabgp/bgp/message/update/nlri/` - NLRI types
+- `../main/src/exabgp/bgp/message/` - Message encoding/decoding
+- `../main/src/exabgp/bgp/message/open/capability/` - Capability negotiation
+- `../main/src/exabgp/bgp/message/update/attribute/` - Path attributes
+- `../main/src/exabgp/bgp/message/update/nlri/` - NLRI types
 
 **Why:** ExaBGP is the reference for API compatibility and tests validate
 against ExaBGP output. But RFC compliance ensures interoperability with
@@ -303,6 +323,68 @@ make test
 # [paste full output]
 # PASS
 ```
+
+---
+
+### 2.5. Post-Completion Self-Review (MANDATORY)
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│  AFTER COMPLETING ANY TASK, perform critical self-review.       │
+│                                                                 │
+│  This is NOT optional. Review catches issues before user does.  │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+**Trigger:** After any task completion (code written, bug fixed, feature added)
+
+**Self-Review Process (ITERATE UNTIL CLEAN):**
+
+1. **Perform Deep Critical Analysis (USE EXTENDED THINKING)**
+
+   Begin review with: "ultrathink critically review the work performed"
+
+   This FORCES extended thinking mode for thorough analysis.
+   - Review ALL code changes made during this task
+   - Check: Does it actually solve the problem correctly?
+   - Check: Are there logic errors, edge cases missed, or subtle bugs?
+   - Check: Does it follow existing patterns in the codebase?
+   - Check: Are there RFC compliance issues?
+   - Check: Are there security issues?
+
+2. **Classify Issues Found:**
+   | Severity | Action |
+   |----------|--------|
+   | 🔴 Critical | FIX IMMEDIATELY - blocks completion |
+   | 🟡 Medium | FIX NOW - could cause problems |
+   | 🟢 Minor | NOTE for user review |
+
+3. **Fix Critical/Medium Issues:**
+   - Fix each 🔴/🟡 issue found
+   - Run tests after fixes
+   - **LOOP:** Return to step 1 and re-review until NO critical/medium issues remain
+
+4. **Report to User:**
+   - Confirm task completion
+   - List any 🟢 minor items for user review
+   - Example: "✅ Done. Minor items for review: consider adding timeout config (line 45)"
+
+**Example Review Output:**
+```
+🔍 Self-review:
+  🔴 Missing nil check in parse() - FIXING
+  🟡 Error message unclear - FIXING
+  🟢 Could add metric counter (optional)
+
+[After fixes]
+🔍 Re-review: No critical/medium issues
+✅ Done. Minor: could add metric counter at line 89
+```
+
+**Forbidden:**
+- Claiming "done" without self-review
+- Skipping re-review after fixes
+- Ignoring critical/medium issues
 
 ---
 
@@ -478,19 +560,17 @@ make lint  # golangci-lint run
 
 ---
 
-## Load Contextual Protocols Based on Task
+## Load Additional Reference Based on Task
 
-| Activity | Load Protocol |
-|----------|---------------|
+| Activity | Reference File |
+|----------|----------------|
 | **ANY implementation** | **TDD_ENFORCEMENT.md** (ALWAYS) |
-| Git operations | GIT_VERIFICATION_PROTOCOL.md |
 | Writing Go code | CODING_STANDARDS.md |
 | Writing protocol code | RFC_DOCUMENTATION_PROTOCOL.md |
-| Refactoring | MANDATORY_REFACTORING_PROTOCOL.md |
 | Test failures | TESTING_PROTOCOL.md, CI_TESTING.md |
-| Error recovery | ERROR_RECOVERY_PROTOCOL.md |
 | Creating docs | DOCUMENTATION_PLACEMENT_GUIDE.md |
-| Session ending | SESSION_END_CHECKLIST.md |
+
+**Note:** Git safety, error recovery, refactoring, and session end protocols are now consolidated in this file (see sections above).
 
 ---
 
@@ -501,8 +581,9 @@ make lint  # golangci-lint run
 **Quick reference:**
 - Encode tests: `test/data/encode/*.ci` + `.conf`
 - API tests: `test/data/api/*.ci` + `.conf` + `.run`
-- Run single test: `./self-check <nick>` (e.g., `./self-check ah`)
-- List tests: `./self-check -list`
+- Run all functional tests: `make self-check`
+- Run single test: `go run ./test/cmd/self-check <nick>`
+- List tests: `go run ./test/cmd/self-check --list`
 
 ---
 
@@ -512,9 +593,7 @@ make lint  # golangci-lint run
 ```
 zebgp/
 ├── cmd/
-│   ├── zebgp/           # Main daemon
-│   ├── zebgp-cli/       # CLI client
-│   └── zebgp-decode/    # Message decoder
+│   └── zebgp/           # Main daemon
 ├── pkg/
 │   ├── bgp/             # BGP protocol
 │   │   ├── message/     # Message types
@@ -540,42 +619,6 @@ zebgp/
 
 ---
 
-## Git Workflow Essentials
-
-**NEVER commit/push without explicit user request.**
-
-**User must say:** "commit" / "make a commit" / "push"
-
-**MANDATORY: Run `make test && make lint` Before Commit**
-```
-┌─────────────────────────────────────────────────────────────────┐
-│  ALWAYS run `make test && make lint` BEFORE committing.         │
-│                                                                 │
-│  WHY: To find issues and FIX THEM, not to document and bypass.  │
-│                                                                 │
-│  If `make test` or `make lint` fails:                           │
-│  1. FIX the failures - this is the whole point of testing       │
-│  2. Re-run until ALL pass                                       │
-│  3. Only then proceed with commit                               │
-│                                                                 │
-│  DO NOT commit with failing tests or lint. FIX THEM FIRST.      │
-└─────────────────────────────────────────────────────────────────┘
-```
-
-**Before ANY git operation:**
-```bash
-git status && git log --oneline -5
-```
-
-**Workflow:**
-1. Complete work
-2. Run `make test` - verify ALL pass or document failures
-3. STOP and report what was done
-4. WAIT for user instruction
-5. Only commit/push if explicitly asked
-
----
-
 ## Quick Reference: Forbidden Phrases
 
 **Without verification (command + output pasted):**
@@ -595,9 +638,16 @@ git status && git log --oneline -5
 - Showing test pass without showing it failed first
 - Tests without VALIDATES/PREVENTS documentation
 
+**Self-Review Violations:**
+- Claiming "done" without performing self-review
+- Skipping re-review after fixing issues
+- Not reporting 🟢 minor items to user
+
 **Auto-fix:** Stop. Run tests. Paste output. Then claim.
 
 **TDD auto-fix:** Delete implementation. Write test. Show failure. Implement.
+
+**Review auto-fix:** Perform self-review. Fix 🔴/🟡. Re-review. Report 🟢.
 
 ---
 
@@ -607,11 +657,327 @@ Before EVERY response, verify:
 
 - [ ] Did I check git status at session start?
 - [ ] Did I ask about modified files before proceeding?
+- [ ] **Before implementation:** Did I run `/prep` to create a spec?
+- [ ] **For BGP code:** Did I read the RFC and check ExaBGP reference?
 - [ ] Am I putting files in the correct location?
 - [ ] Am I following TDD (test first, show failure, then implement)?
 - [ ] Am I being terse and emoji-prefixed?
 - [ ] Am I running commands and pasting output as proof?
+- [ ] **After task completion:** Did I perform self-review?
+- [ ] **After self-review:** Did I fix all 🔴/🟡 issues and re-review?
+- [ ] **After clean review:** Did I report 🟢 minor items to user?
 
 ---
 
-**Updated:** 2025-12-21
+## Git Safety Protocol
+
+### Core Rule
+
+**NEVER commit or push without EXPLICIT user request.**
+
+User must say one of: "commit", "make a commit", "git commit", "push", "git push"
+
+**Completing work is NOT permission to commit.**
+
+### Before ANY Git Operation
+
+```bash
+git status && git log --oneline -5
+```
+
+Check for:
+- Unexpected modified files
+- Staged changes you didn't make
+- Current branch is correct
+
+### MANDATORY: Run Tests Before Commit
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│  ALWAYS run `make test && make lint` BEFORE committing.         │
+│                                                                 │
+│  WHY: To find issues and FIX THEM, not to document and bypass.  │
+│                                                                 │
+│  If `make test` or `make lint` fails:                           │
+│  1. FIX the failures - this is the whole point of testing       │
+│  2. Re-run until ALL pass                                       │
+│  3. Only then proceed with commit                               │
+│                                                                 │
+│  DO NOT commit with failing tests or lint. FIX THEM FIRST.      │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Commit Workflow
+
+1. **User explicitly requests commit** - Wait for "commit this", "make a commit"
+2. **Check state:** `git status && git diff --staged`
+3. **Add files:** `git add <specific-files>`
+4. **Create commit** with conventional message:
+   ```bash
+   git commit -m "$(cat <<'EOF'
+   <type>: <description>
+
+   Generated with [Claude Code](https://claude.com/claude-code)
+
+   Co-Authored-By: Claude <noreply@anthropic.com>
+   EOF
+   )"
+   ```
+   Types: `feat`, `fix`, `refactor`, `test`, `docs`, `chore`
+5. **Verify:** `git log --oneline -3 && git status`
+
+### Forbidden Without Permission
+
+**MUST ask before:**
+- `git reset` (any form)
+- `git revert`
+- `git checkout -- <file>`
+- `git restore` (to discard)
+- `git stash drop`
+- `git push --force`
+- Deleting branches
+
+**How to ask:**
+```
+I need to run `git reset --hard HEAD~1`. This will discard the last commit.
+May I proceed? (yes/no)
+```
+
+### Pre-Commit Workflow
+
+1. Complete work
+2. Run `make test && make lint` - ALL must pass
+3. **STOP** - do NOT commit yet
+4. Report what was done to user
+5. **WAIT** for user instruction
+6. **Tests passing is NOT permission to commit**
+7. Only commit if user EXPLICITLY says "commit"
+
+### Enforcement Checklist
+
+Before committing:
+- [ ] User explicitly requested commit
+- [ ] `git status` shows expected files
+- [ ] `git diff --staged` reviewed
+- [ ] `make test` passes
+- [ ] `make lint` passes
+- [ ] Commit message follows convention
+
+Before pushing:
+- [ ] User explicitly requested push
+- [ ] `git log origin/main..HEAD` shows expected commits
+- [ ] Branch is correct
+
+---
+
+## Error Recovery Protocol
+
+### Step 1: STOP
+
+Do not try to fix immediately. Assess first.
+
+### Step 2: Preserve Current State
+
+```bash
+git diff > .claude/backups/error-$(date +%Y%m%d-%H%M%S).patch
+git diff --staged >> .claude/backups/error-$(date +%Y%m%d-%H%M%S).patch
+```
+
+### Step 3: Identify the Problem
+
+| Problem | Command |
+|---------|---------|
+| Code not compiling | `go build ./...` |
+| Tests failing | `go test ./... -v 2>&1 \| head -50` |
+| Wrong approach | Document what was tried and why it failed |
+
+### Step 4: Ask User
+
+Present options:
+```
+Tests failing after change to X.
+
+Options:
+(a) Continue debugging - I see the issue is Y
+(b) Revert to last working state
+(c) Save current work and try different approach
+
+Which?
+```
+
+**Wait for response before destructive actions.**
+
+### Recovery Tools
+
+```bash
+# Git reflog - find lost commits
+git reflog
+git cherry-pick <sha>
+
+# Saved patches
+ls -la .claude/backups/
+git apply .claude/backups/<filename>.patch
+
+# Git stash
+git stash list
+git stash pop
+```
+
+### Anti-Patterns
+
+**Don't:**
+- Make more changes to "fix" without understanding the problem
+- Delete or revert without saving first
+- Claim success after recovery without re-running all tests
+
+**Do:**
+- Admit the mistake clearly
+- Save state before attempting recovery
+- Test thoroughly after recovery
+
+---
+
+## Refactoring Protocol
+
+### Core Rule
+
+**ONE function/type at a time. No batching.**
+
+### Phase 0: Planning
+
+Write numbered steps. Each MUST have:
+```
+Step N: [Action] [What] in [Where]
+  Files: [exact paths]
+  Verification: [exact command]
+  Expected: "PASS"
+```
+
+**Get user approval before proceeding.**
+
+### Phase 1-N: Execution
+
+```
+=== STEP N ===
+[Make changes]
+Verification: [run command]
+OUTPUT:
+[PASTE EXACT OUTPUT - NO SUMMARY]
+Result: PASS
+=== STEP N COMPLETE ===
+```
+
+**Rules:**
+- Announce step
+- Complete ONLY that step
+- Run verification
+- PASTE EXACT OUTPUT
+- Stop if failures
+
+**NEVER:** Skip verification, batch steps, summarize output, proceed with failures
+
+### Git Strategy
+
+- **Commit message:** `refactor: rename Pool.Get to Pool.Lookup`
+- **When to commit:** Function renamed + all call sites + ALL tests pass
+- **One function = one commit**
+
+### Violation Detection
+
+If I do these, I'm violating:
+- Batch multiple steps together
+- Summarize test output instead of pasting
+- Proceed with ANY test failures
+- Skip verification command
+- Commit without full test suite passing
+
+**Auto-fix:** Stop. Run verification. Paste output. Wait for pass before next step.
+
+---
+
+## Session End Checklist
+
+### Before Ending ANY Session
+
+#### 1. Plan File Updates
+
+If you worked on ANY plan file:
+- [ ] Updated "Last Updated" timestamp
+- [ ] Documented progress made
+- [ ] Documented any test failures
+- [ ] Documented any blockers
+- [ ] Updated "Resume Point" section
+
+**Resume Point template:**
+```markdown
+## Resume Point
+
+**Last worked:** YYYY-MM-DD
+**Last commit:** [hash or "uncommitted"]
+**Session ended:** Mid-task / Clean break / Blocked
+
+**To resume:**
+1. [Exact next step]
+2. [Context needed]
+3. [Watch out for: potential issues]
+```
+
+#### 2. Failure Documentation
+
+If ANY tests failed:
+- [ ] Each failure has entry in plan file
+- [ ] Root cause documented (or "Unknown - needs investigation")
+- [ ] Resolution documented (or "Pending")
+
+#### 3. Git Status Check
+
+```bash
+git status
+```
+
+- [ ] Check if plan files are modified
+- [ ] If modified: Include in next commit OR ask user
+
+#### 4. Session Summary
+
+Report to user:
+```
+Session summary:
+- Plans updated: [list or "none"]
+- Failures documented: [count or "none"]
+- Blockers: [list or "none"]
+- Next steps: [what to do next session]
+```
+
+---
+
+## /prep Requirement (BLOCKING)
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│  USE /prep BEFORE STARTING ANY IMPLEMENTATION TASK              │
+│                                                                 │
+│  /prep forces reading protocols and embeds rules in the spec.  │
+│  Skipping /prep = skipping protocols = likely mistakes.        │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+**MANDATORY for:**
+- Any task involving code changes
+- Multi-file modifications
+- Feature implementation
+- Bug fixes
+- Refactoring
+
+**Workflow:**
+1. User describes task
+2. **IMMEDIATELY** run `/prep <task description>`
+3. Spec is written to `plan/spec-<name>.md` with embedded rules
+4. Read the spec before implementing
+5. Follow the embedded protocol requirements
+
+**Skipping /prep is a protocol violation.** The spec embeds rules I would otherwise skip.
+
+---
+
+**Updated:** 2025-12-27

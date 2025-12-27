@@ -55,19 +55,15 @@ ze/
 │
 ├── .claude/
 │   ├── # PROTOCOLS (how we work)
-│   ├── ESSENTIAL_PROTOCOLS.md
-│   ├── CODING_STANDARDS.md
-│   ├── TESTING_PROTOCOL.md
-│   ├── GIT_VERIFICATION_PROTOCOL.md
+│   ├── ESSENTIAL_PROTOCOLS.md      # All protocols consolidated
+│   ├── CODING_STANDARDS.md         # Go style guide
+│   ├── TDD_ENFORCEMENT.md          # TDD workflow
+│   ├── TESTING_PROTOCOL.md         # Test commands
+│   ├── CI_TESTING.md               # CI commands
 │   ├── RFC_DOCUMENTATION_PROTOCOL.md
-│   ├── MANDATORY_REFACTORING_PROTOCOL.md
-│   ├── ERROR_RECOVERY_PROTOCOL.md
-│   ├── CI_TESTING.md
-│   ├── SESSION_END_CHECKLIST.md
-│   ├── PRE_FLIGHT_CHECKLIST.md
 │   ├── FILE_NAMING_CONVENTIONS.md
 │   ├── DOCUMENTATION_PLACEMENT_GUIDE.md  # This file
-│   ├── README.md
+│   ├── README.md                   # Directory index
 │   │
 │   ├── output-styles/
 │   │   └── zebgp.md                   # Communication style
@@ -157,18 +153,18 @@ ze/
 
 **Decision:**
 - Protocol/rules? YES
-- **Location:** `.claude/GIT_VERIFICATION_PROTOCOL.md` (already exists)
+- **Location:** `.claude/ESSENTIAL_PROTOCOLS.md` (git safety section)
 
 ---
 
 ## File Size Policy
 
-- Core protocols: < 5 KB
-- Reference docs: < 8 KB
+- ESSENTIAL_PROTOCOLS.md: ~30 KB (consolidated protocols)
+- Reference docs: < 15 KB
 - Plans: < 10 KB
 - READMEs: < 3 KB
 
-**If exceeding: split or compress**
+**If exceeding: compress, don't split (consolidation preferred)**
 
 ---
 

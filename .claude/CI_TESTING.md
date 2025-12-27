@@ -2,19 +2,23 @@
 
 Run ALL tests before declaring code ready.
 
-**Current test status:** See `CLAUDE_CONTINUATION.md` in project root.
+**Current test status:** See `plan/CLAUDE_CONTINUATION.md`.
 
 ---
 
 ## Required Test Sequence
 
 ```bash
-make test  # ALL tests, exits on first failure
+make test && make lint  # Tests + linting - BOTH required
 ```
 
-**This runs:**
-1. `golangci-lint run` - Linting
-2. `go test -race ./...` - All tests with race detector
+**Individual targets:**
+- `make test` = `go test -race -v ./...` (tests only)
+- `make lint` = `golangci-lint run` (linting only)
+- `make ci` = lint + test + build (full CI check)
+- `make test-all` = unit tests + functional tests (self-check)
+
+**IMPORTANT:** `make test` alone does NOT run lint. Always run BOTH.
 
 ---
 
@@ -168,19 +172,30 @@ dlv test ./internal/pool/... -- -test.run TestInternDeduplication
 ## Makefile Targets
 
 ```makefile
-.PHONY: build test lint clean
+.PHONY: all build test lint clean test-all self-check ci
 
-build:
-	go build ./...
+all: lint test build        # Default: full check
 
-test: lint
-	go test -race ./...
+build:                      # Build binaries
+	go build -o bin/zebgp ./cmd/zebgp
+	go build -o bin/zebgp-cli ./cmd/zebgp-cli
+	go build -o bin/zebgp-decode ./cmd/zebgp-decode
 
-lint:
+test:                       # Unit tests with race detector
+	go test -race -v ./...
+
+lint:                       # Linting
 	golangci-lint run
 
+test-all: test self-check   # Unit + functional tests
+
+self-check:                 # Functional tests (ExaBGP compat)
+	go run ./test/cmd/self-check --all
+
+ci: lint test build         # Full CI check
+
 clean:
-	go clean -testcache
+	rm -rf bin/ coverage.out coverage.html
 ```
 
 ---
