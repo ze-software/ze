@@ -129,7 +129,7 @@ These are edge cases and advanced features:
 ## Resume Point
 
 **Last worked:** 2025-12-27
-**Last commit:** uncommitted (AS path validation + RFC 5065 fix)
+**Last commit:** `f2578c6` (feat: add AS_PATH validation and fix RFC 5065 constants)
 **Session ended:** Clean break
 
 **To resume:**
