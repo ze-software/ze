@@ -22,14 +22,21 @@ type ASPathSegmentType uint8
 const (
 	ASSet            ASPathSegmentType = 1 // RFC 4271: Unordered set of ASes
 	ASSequence       ASPathSegmentType = 2 // RFC 4271: Ordered sequence of ASes
-	ASConfedSet      ASPathSegmentType = 3 // RFC 5065: Confederation set
-	ASConfedSequence ASPathSegmentType = 4 // RFC 5065: Confederation sequence
+	ASConfedSequence ASPathSegmentType = 3 // RFC 5065: Confederation sequence
+	ASConfedSet      ASPathSegmentType = 4 // RFC 5065: Confederation set
 )
 
 // MaxASPathSegmentLength is the maximum number of ASNs in a single segment.
 // RFC 4271 Section 4.3: "The path segment length is a 1-octet length field"
 // This means max value is 255.
 const MaxASPathSegmentLength = 255
+
+// MaxASPathTotalLength is the maximum total number of ASNs allowed in an AS path.
+// RFC 4271 does not mandate a specific limit, but implementations should enforce
+// a reasonable limit to prevent DoS attacks. Real-world paths rarely exceed 50 ASNs.
+// Default is 1000 - large enough for segment splitting tests (255+255+...) while
+// still protecting against memory exhaustion from malicious peers.
+const MaxASPathTotalLength = 1000
 
 // ASPathSegment represents a segment in an AS path.
 //
@@ -262,11 +269,18 @@ func (p *ASPath) Prepend(asn uint32) {
 // RFC 4271 Section 4.3: AS_PATH is composed of path segments, each as
 // <type, length, value> where length is the count of AS numbers.
 //
+// RFC 4271 Section 6.3: Error Subcode 11 (Malformed AS_PATH) is returned
+// when the path is syntactically incorrect.
+//
 // RFC 6793 Section 4.1: Between NEW speakers, AS numbers are 4-octet.
 // RFC 6793 Section 4.2: Between NEW and OLD speakers, AS numbers are 2-octet.
 //
 // The fourByte parameter indicates whether the peer supports 4-byte ASNs
 // (i.e., both speakers have the four-octet AS number capability).
+//
+// Validation performed:
+//   - Segment types must be 1-4 (RFC 4271 Section 4.3, RFC 5065)
+//   - Total ASN count must not exceed MaxASPathTotalLength
 func ParseASPath(data []byte, fourByte bool) (*ASPath, error) {
 	path := &ASPath{}
 
@@ -276,6 +290,7 @@ func ParseASPath(data []byte, fourByte bool) (*ASPath, error) {
 	}
 
 	offset := 0
+	totalASNs := 0
 	for offset < len(data) {
 		// RFC 4271: Need at least type(1) + count(1)
 		if offset+2 > len(data) {
@@ -285,6 +300,19 @@ func ParseASPath(data []byte, fourByte bool) (*ASPath, error) {
 		segType := ASPathSegmentType(data[offset]) //nolint:gosec // Bounds checked above
 		count := int(data[offset+1])               //nolint:gosec // Bounds checked above
 		offset += 2
+
+		// RFC 4271 Section 4.3: Segment types 1 (AS_SET) and 2 (AS_SEQUENCE)
+		// RFC 5065: Adds types 3 (AS_CONFED_SEQUENCE) and 4 (AS_CONFED_SET)
+		// Any other value is malformed per RFC 4271 Section 6.3 (Error Subcode 11).
+		if segType < ASSet || segType > ASConfedSet {
+			return nil, ErrMalformedASPath
+		}
+
+		// Track total ASNs to enforce maximum path length (DoS protection)
+		totalASNs += count
+		if totalASNs > MaxASPathTotalLength {
+			return nil, ErrMalformedASPath
+		}
 
 		// Check we have enough data for ASNs
 		needed := count * asnSize

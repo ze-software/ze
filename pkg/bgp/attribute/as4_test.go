@@ -562,9 +562,9 @@ func TestAS4PathFilterConfedSegments(t *testing.T) {
 //
 // PREVENTS: Incorrectly rejecting AS4_PATH with confed segments.
 func TestAS4PathParseAcceptsConfed(t *testing.T) {
-	// AS4_PATH with AS_CONFED_SEQUENCE (type 4 per RFC 5065)
+	// AS4_PATH with AS_CONFED_SEQUENCE (type 3 per RFC 5065)
 	data := []byte{
-		0x04, 0x02, // AS_CONFED_SEQUENCE (4), 2 ASNs
+		0x03, 0x02, // AS_CONFED_SEQUENCE (3), 2 ASNs
 		0x00, 0x00, 0xFC, 0x00, // 64512
 		0x00, 0x00, 0xFC, 0x01, // 64513
 	}

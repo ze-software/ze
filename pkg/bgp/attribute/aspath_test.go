@@ -7,11 +7,19 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// TestASPathSegmentTypes verifies segment type constants match RFC values.
+//
+// RFC 4271 Section 4.3: AS_SET=1, AS_SEQUENCE=2
+// RFC 5065 Section 3: AS_CONFED_SEQUENCE=3, AS_CONFED_SET=4
+//
+// VALIDATES: Constants match RFC-defined wire format values.
+//
+// PREVENTS: Encoding wrong segment types, causing interoperability failures.
 func TestASPathSegmentTypes(t *testing.T) {
 	assert.Equal(t, uint8(1), uint8(ASSet))
 	assert.Equal(t, uint8(2), uint8(ASSequence))
-	assert.Equal(t, uint8(3), uint8(ASConfedSet))
-	assert.Equal(t, uint8(4), uint8(ASConfedSequence))
+	assert.Equal(t, uint8(3), uint8(ASConfedSequence)) // RFC 5065
+	assert.Equal(t, uint8(4), uint8(ASConfedSet))      // RFC 5065
 }
 
 func TestASPathEmpty(t *testing.T) {
@@ -252,4 +260,213 @@ func TestASPathPackAutoSplitLarge(t *testing.T) {
 	assert.Len(t, parsed.Segments[0].ASNs, 255)
 	assert.Len(t, parsed.Segments[1].ASNs, 255)
 	assert.Len(t, parsed.Segments[2].ASNs, 90)
+}
+
+// TestParseASPathInvalidSegmentType verifies rejection of invalid segment types.
+//
+// RFC 4271 Section 4.3 defines segment types 1 (AS_SET) and 2 (AS_SEQUENCE).
+// RFC 5065 adds types 3 (AS_CONFED_SET) and 4 (AS_CONFED_SEQUENCE).
+// Any other segment type value is malformed per RFC 4271 Section 6.3.
+//
+// VALIDATES: Only segment types 1-4 are accepted per RFC 4271/5065.
+//
+// PREVENTS: Accepting malformed AS_PATH with invalid segment types,
+// which could cause undefined behavior or interoperability issues.
+func TestParseASPathInvalidSegmentType(t *testing.T) {
+	tests := []struct {
+		name    string
+		segType byte
+		wantErr bool
+	}{
+		{"type 0 invalid", 0, true},
+		{"type 1 (AS_SET) valid", 1, false},
+		{"type 2 (AS_SEQUENCE) valid", 2, false},
+		{"type 3 (AS_CONFED_SET) valid", 3, false},
+		{"type 4 (AS_CONFED_SEQUENCE) valid", 4, false},
+		{"type 5 invalid", 5, true},
+		{"type 127 invalid", 127, true},
+		{"type 255 invalid", 255, true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Build AS path with single segment: type + count(1) + ASN(4 bytes)
+			data := []byte{
+				tt.segType,             // segment type
+				0x01,                   // count = 1
+				0x00, 0x00, 0xFD, 0xE9, // ASN 65001
+			}
+
+			_, err := ParseASPath(data, true)
+			if tt.wantErr {
+				require.Error(t, err, "expected error for segment type %d", tt.segType)
+				require.ErrorIs(t, err, ErrMalformedASPath, "expected ErrMalformedASPath")
+			} else {
+				require.NoError(t, err, "expected no error for segment type %d", tt.segType)
+			}
+		})
+	}
+}
+
+// TestParseASPathMaxLength verifies maximum path length enforcement.
+//
+// RFC 4271 does not specify a maximum total path length, but implementations
+// should enforce a limit to prevent DoS attacks via extremely long paths.
+// Real-world AS paths rarely exceed 50 ASNs.
+//
+// VALIDATES: Paths exceeding MaxASPathTotalLength are rejected.
+//
+// PREVENTS: Memory exhaustion and CPU abuse from extremely long AS paths
+// that could be used for denial of service attacks.
+func TestParseASPathMaxLength(t *testing.T) {
+	// Build a path with exactly MaxASPathTotalLength ASNs using multiple segments
+	// (since a single segment max is 255, we need 4 segments of 250 each = 1000)
+	var data []byte
+	totalASNs := 0
+	for totalASNs < MaxASPathTotalLength {
+		segmentSize := MaxASPathTotalLength - totalASNs
+		if segmentSize > MaxASPathSegmentLength {
+			segmentSize = MaxASPathSegmentLength
+		}
+		// Segment header: type + count
+		segment := make([]byte, 2+segmentSize*4)
+		segment[0] = byte(ASSequence)
+		segment[1] = byte(segmentSize)
+		// Fill with ASN values
+		for i := 0; i < segmentSize; i++ {
+			offset := 2 + i*4
+			asnVal := totalASNs + i + 1
+			segment[offset] = byte(asnVal >> 24)   //nolint:gosec // test values
+			segment[offset+1] = byte(asnVal >> 16) //nolint:gosec // test values
+			segment[offset+2] = byte(asnVal >> 8)  //nolint:gosec // test values
+			segment[offset+3] = byte(asnVal)       //nolint:gosec // test values
+		}
+		data = append(data, segment...)
+		totalASNs += segmentSize
+	}
+
+	_, err := ParseASPath(data, true)
+	require.NoError(t, err, "path at MaxASPathTotalLength should be accepted")
+
+	// Now add one more segment to exceed the limit
+	extraSegment := []byte{
+		byte(ASSequence),       // segment type
+		0x01,                   // count = 1
+		0x00, 0x00, 0xFF, 0xFF, // ASN 65535
+	}
+	data = append(data, extraSegment...)
+
+	_, err = ParseASPath(data, true)
+	require.Error(t, err, "path exceeding MaxASPathTotalLength should be rejected")
+	require.ErrorIs(t, err, ErrMalformedASPath, "expected ErrMalformedASPath for oversized path")
+}
+
+// TestParseASPathEmptySegment verifies empty segments are accepted.
+//
+// RFC 4271 does not prohibit empty segments (count=0).
+// ExaBGP also accepts empty segments.
+//
+// VALIDATES: Segments with count=0 are accepted.
+//
+// PREVENTS: False rejection of valid (albeit unusual) AS paths.
+func TestParseASPathEmptySegment(t *testing.T) {
+	// Empty segment: type + count(0)
+	data := []byte{
+		byte(ASSequence), // segment type
+		0x00,             // count = 0
+	}
+
+	path, err := ParseASPath(data, true)
+	require.NoError(t, err, "empty segment should be accepted")
+	require.Len(t, path.Segments, 1)
+	assert.Len(t, path.Segments[0].ASNs, 0)
+}
+
+// TestParseASPathConfederationTypes verifies confederation segment types are parsed correctly.
+//
+// RFC 5065 Section 3:
+//   - AS_CONFED_SEQUENCE (3): ordered set of Member ASes in local confederation
+//   - AS_CONFED_SET (4): unordered set of Member ASes in local confederation
+//
+// VALIDATES: Both confederation segment types parse with correct wire values.
+//
+// PREVENTS: Wire format mismatch causing interoperability failures with confederation peers.
+func TestParseASPathConfederationTypes(t *testing.T) {
+	tests := []struct {
+		name     string
+		wireType byte
+		wantType ASPathSegmentType
+	}{
+		{
+			name:     "AS_CONFED_SEQUENCE (type 3)",
+			wireType: 0x03,
+			wantType: ASConfedSequence,
+		},
+		{
+			name:     "AS_CONFED_SET (type 4)",
+			wireType: 0x04,
+			wantType: ASConfedSet,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Segment with 2 confederation member ASNs
+			data := []byte{
+				tt.wireType,            // segment type
+				0x02,                   // count = 2
+				0x00, 0x00, 0xFC, 0x00, // 64512 (confederation member)
+				0x00, 0x00, 0xFC, 0x01, // 64513 (confederation member)
+			}
+
+			path, err := ParseASPath(data, true)
+			require.NoError(t, err)
+			require.Len(t, path.Segments, 1)
+			assert.Equal(t, tt.wantType, path.Segments[0].Type)
+			assert.Equal(t, []uint32{64512, 64513}, path.Segments[0].ASNs)
+		})
+	}
+}
+
+// TestParseASPathConfederationPathLength verifies confederation segments don't count in path length.
+//
+// RFC 5065: Confederation segments are not counted in path length for route selection.
+//
+// VALIDATES: PathLength() excludes AS_CONFED_SEQUENCE and AS_CONFED_SET.
+//
+// PREVENTS: Incorrect route selection due to counting confederation hops.
+func TestParseASPathConfederationPathLength(t *testing.T) {
+	// Path with: AS_SEQUENCE(2) + AS_CONFED_SEQUENCE(3) + AS_CONFED_SET(2) + AS_SET(2)
+	// Expected path length: 2 (sequence) + 0 (confed_seq) + 0 (confed_set) + 1 (set) = 3
+	path := &ASPath{
+		Segments: []ASPathSegment{
+			{Type: ASSequence, ASNs: []uint32{65001, 65002}},
+			{Type: ASConfedSequence, ASNs: []uint32{64512, 64513, 64514}},
+			{Type: ASConfedSet, ASNs: []uint32{64520, 64521}},
+			{Type: ASSet, ASNs: []uint32{65010, 65011}},
+		},
+	}
+
+	assert.Equal(t, 3, path.PathLength(), "confed segments should not count")
+}
+
+// TestParseASPath2ByteValidation verifies segment type validation works in 2-byte ASN mode.
+//
+// RFC 4271 Section 4.3: Segment types 1-2 (extended by RFC 5065 to 1-4).
+// Validation must work regardless of ASN size negotiation.
+//
+// VALIDATES: Invalid segment types rejected in 2-byte mode.
+//
+// PREVENTS: Validation bypass when speaking to OLD (2-byte) peers.
+func TestParseASPath2ByteValidation(t *testing.T) {
+	// Invalid segment type 5 with 2-byte ASNs
+	data := []byte{
+		0x05,       // invalid segment type
+		0x01,       // count = 1
+		0xFD, 0xE9, // 65001 (2-byte)
+	}
+
+	_, err := ParseASPath(data, false) // 2-byte mode
+	require.Error(t, err)
+	require.ErrorIs(t, err, ErrMalformedASPath)
 }

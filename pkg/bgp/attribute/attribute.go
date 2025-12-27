@@ -25,6 +25,10 @@ var (
 	ErrInvalidLength  = errors.New("attribute: invalid length")
 	ErrUnknownCode    = errors.New("attribute: unknown code")
 	ErrMalformedValue = errors.New("attribute: malformed value")
+	// ErrMalformedASPath indicates a malformed AS_PATH attribute.
+	// RFC 4271 Section 6.3: Error Subcode 11 - Malformed AS_PATH.
+	// Returned when segment type is invalid (not 1-4) or path exceeds max length.
+	ErrMalformedASPath = errors.New("attribute: malformed AS_PATH")
 )
 
 // AttributeCode identifies a path attribute type (RFC 4271 Section 5).

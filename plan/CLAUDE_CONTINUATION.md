@@ -1,72 +1,62 @@
 # Claude Continuation State
 
-**Last Updated:** 2025-12-27 (security review completed)
+**Last Updated:** 2025-12-27 (AS path validation completed)
 
 ---
 
 ## CURRENT STATUS
 
-✅ **Completed:** Self-check rewrite (ExaBGP-style functional testing)
-
-**New runner:** `go run ./test/cmd/functional <encoding|api> [options] [tests...]`
+✅ **Completed:** AS path length validation + RFC 5065 constant fix
 
 ---
 
 ## RECENTLY COMPLETED
 
-### Self-Check Rewrite (This Session)
+### AS Path Length Validation (This Session)
 
-Implemented ExaBGP-style functional test runner with:
+Implemented RFC-compliant AS_PATH validation:
 
-| Component | File | Lines |
-|-----------|------|-------|
-| State machine | `test/pkg/state.go` | 110 |
-| Record tracking | `test/pkg/record.go` | 127 |
-| Process exec | `test/pkg/exec.go` | 188 |
-| Test container | `test/pkg/tests.go` | 176 |
-| Timing cache | `test/pkg/timing.go` | 155 |
-| Encoding tests | `test/pkg/encoding.go` | 383 |
-| API tests | `test/pkg/api.go` | 345 |
-| CLI parsing | `test/pkg/cli.go` | 124 |
-| Main runner | `test/cmd/functional/main.go` | 267 |
+| Change | File | Description |
+|--------|------|-------------|
+| Error type | `attribute.go:28-31` | Added `ErrMalformedASPath` |
+| Max length | `aspath.go:34-39` | Added `MaxASPathTotalLength = 1000` |
+| Type validation | `aspath.go:304-309` | Reject segment types outside 1-4 |
+| Length check | `aspath.go:311-314` | Reject paths > 1000 ASNs |
+| Tests | `aspath_test.go` | 7 new tests with VALIDATES/PREVENTS |
 
-**Features:**
-- State machine for test lifecycle (none → starting → running → success/fail/timeout)
-- Concurrent test execution with configurable parallelism
+**RFC 5065 Bug Fix (discovered during review):**
+
+Constants were swapped - fixed to match RFC 5065 Section 3:
+
+| Constant | Before (WRONG) | After (RFC) |
+|----------|----------------|-------------|
+| ASConfedSequence | 4 | 3 |
+| ASConfedSet | 3 | 4 |
+
+Also fixed `as4_test.go:565-570` wire data (0x04 → 0x03).
+
+**New Tests:**
+- `TestParseASPathInvalidSegmentType` - validates types 1-4 only
+- `TestParseASPathMaxLength` - validates 1000 ASN limit
+- `TestParseASPathEmptySegment` - validates count=0 accepted
+- `TestParseASPathConfederationTypes` - validates wire format
+- `TestParseASPathConfederationPathLength` - validates confed excluded
+- `TestParseASPath2ByteValidation` - validates 2-byte mode
+- `TestASPathSegmentTypes` - updated with RFC references
+
+### Previous Session: Self-Check Rewrite
+
+Implemented ExaBGP-style functional test runner:
+- State machine for test lifecycle
+- Concurrent execution with parallelism
 - Timing cache for ETA estimation
-- Colorized live progress display
-- Nick-based test selection (0-9, A-Z, a-z)
-- Edit mode (`--edit`)
-- Verbose/quiet modes
-
-**Security Review (completed):**
-- ✅ Path traversal protection for `option:file:` directive
-- ✅ Path traversal protection for `.run` scripts
-- ✅ Process isolation via Setpgid
-- ✅ Context timeouts on all execution
-- ✅ Proper file permissions (0600/0750)
-
-**Usage:**
-```bash
-# List tests
-go run ./test/cmd/functional encoding --list
-
-# Run specific tests
-go run ./test/cmd/functional encoding 4 5 6
-
-# Run all tests
-go run ./test/cmd/functional encoding --all
-
-# Makefile targets
-make functional           # Run all (encoding + api)
-make functional-encoding  # Run encoding tests only
-make functional-api       # Run API tests only
-```
+- See `test/cmd/functional/` and `test/pkg/`
 
 ### Previous Completions
 
 | Commit | Feature |
 |--------|---------|
+| `d20b97c` | ExaBGP-style functional test runner |
 | `5d8539e` | Process backpressure and respawn limits |
 | `af8a705` | BGP collision detection (RFC 4271 §6.8) |
 | `2587fdf` | Session-level API commands |
@@ -118,11 +108,11 @@ These are edge cases and advanced features:
 
 | Purpose | File |
 |---------|------|
-| New functional runner | `test/cmd/functional/main.go` |
+| AS_PATH parsing | `pkg/bgp/attribute/aspath.go` |
+| AS4_PATH parsing | `pkg/bgp/attribute/as4.go` |
+| Attribute errors | `pkg/bgp/attribute/attribute.go` |
+| Functional runner | `test/cmd/functional/main.go` |
 | Test infrastructure | `test/pkg/*.go` |
-| Legacy self-check | `test/cmd/self-check/main.go` |
-| Route handlers | `pkg/api/route.go` |
-| UPDATE building | `pkg/reactor/reactor.go` |
 
 ---
 
@@ -130,18 +120,20 @@ These are edge cases and advanced features:
 
 - `make test`: ✅ All unit tests pass
 - `make lint`: ✅ 0 issues
-- New `test/pkg/` package provides reusable test infrastructure
-- Legacy `self-check` still works, new `functional` runner available
+- AS path validation now RFC 4271/5065 compliant
+- Segment types 1-4 validated, others rejected with ErrMalformedASPath
+- DoS protection via MaxASPathTotalLength=1000
 
 ---
 
 ## Resume Point
 
 **Last worked:** 2025-12-27
-**Last commit:** `d20b97c` (feat: implement ExaBGP-style functional test runner)
+**Last commit:** uncommitted (AS path validation + RFC 5065 fix)
 **Session ended:** Clean break
 
 **To resume:**
-1. Pick a failing encode test to fix
-2. Run `go run ./test/cmd/functional encoding <code>` to test
-3. Verify with `make test && make lint`
+1. Commit the AS path validation changes if desired
+2. Pick a failing encode test to fix
+3. Run `go run ./test/cmd/functional encoding <code>` to test
+4. Verify with `make test && make lint`
