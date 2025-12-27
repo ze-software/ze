@@ -1,7 +1,7 @@
 # ExaBGP to ZeBGP Code Map
 
 **Purpose:** Map ExaBGP source structure to ZeBGP equivalents
-**Source:** `../main/src/exabgp/` (372 Python files)
+**Source:** `/Users/thomas/Code/github.com/exa-networks/exabgp/main/src/exabgp/` (372 Python files)
 **Target:** `pkg/`, `internal/`, `cmd/`
 
 ---

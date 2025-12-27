@@ -25,7 +25,7 @@ Read these files in order:
 | implement, add, create, feature, new | `.claude/TDD_ENFORCEMENT.md`, `.claude/CODING_STANDARDS.md` |
 | test, fix test, failing, coverage | `.claude/TESTING_PROTOCOL.md`, `.claude/CI_TESTING.md` |
 | RFC, protocol, compliance | `.claude/RFC_DOCUMENTATION_PROTOCOL.md`, read `rfc/rfcNNNN.txt` |
-| ExaBGP, exabgp, compatibility | Check `../main/src/exabgp/bgp/` for reference implementation |
+| ExaBGP, exabgp, compatibility | Check `/Users/thomas/Code/github.com/exa-networks/exabgp/main/src/exabgp/bgp/` for reference implementation |
 | API, endpoint, command | `.claude/zebgp/api/COMMANDS.md` |
 | FSM, state, session, peer | `.claude/zebgp/behavior/FSM.md` |
 | wire, message, parse, encode, decode | `.claude/zebgp/wire/MESSAGES.md`, `.claude/RFC_DOCUMENTATION_PROTOCOL.md` |
@@ -59,7 +59,7 @@ $ARGUMENTS
 - Run `make test && make lint` before claiming done
 - NEVER discard uncommitted work without explicit user permission
 - Verify before claiming: run commands, paste output as proof
-- For BGP code: Read RFC first, check ExaBGP reference in `../main/src/exabgp/`
+- For BGP code: Read RFC first, check ExaBGP reference in `/Users/thomas/Code/github.com/exa-networks/exabgp/main/src/exabgp/`
 - Tests passing is NOT permission to commit - wait for user
 
 ### From ESSENTIAL_PROTOCOLS.md

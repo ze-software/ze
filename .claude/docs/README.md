@@ -29,12 +29,12 @@ Project documentation and session notes.
 
 ## ExaBGP Reference
 
-The Python implementation is in `../main/`.
+The Python implementation is at `/Users/thomas/Code/github.com/exa-networks/exabgp/main/`.
 
 Key reference paths:
-- `../main/qa/encoding/` - Encoding test vectors
-- `../main/qa/decoding/` - Decoding test vectors
-- `../main/src/exabgp/bgp/message/` - Message implementation reference
+- `qa/encoding/` - Encoding test vectors
+- `qa/decoding/` - Decoding test vectors
+- `src/exabgp/bgp/message/` - Message implementation reference
 
 ---
 

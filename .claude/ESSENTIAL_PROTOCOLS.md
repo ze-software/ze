@@ -232,7 +232,8 @@ python3 scripts/refactor.py --pattern 'old' --replace 'new'
 ```
 ┌─────────────────────────────────────────────────────────────────┐
 │  BEFORE implementing ANY BGP feature, ALWAYS check how         │
-│  ExaBGP does it in ../main/src/exabgp/                        │
+│  ExaBGP does it in:                                            │
+│  /Users/thomas/Code/github.com/exa-networks/exabgp/main/src/exabgp/
 │                                                                 │
 │  ZeBGP MUST match ExaBGP's API and behavior for compatibility. │
 │                                                                 │
@@ -248,7 +249,7 @@ python3 scripts/refactor.py --pattern 'old' --replace 'new'
 
 **MANDATORY before writing/fixing BGP code:**
 1. Read the relevant RFC sections from `rfc/rfcNNNN.txt`
-2. Find the equivalent code in `../main/src/exabgp/bgp/`
+2. Find the equivalent code in `/Users/thomas/Code/github.com/exa-networks/exabgp/main/src/exabgp/bgp/`
 3. Check if ExaBGP's implementation matches the RFC
 4. If ExaBGP matches RFC: follow ExaBGP's approach
 5. If ExaBGP deviates from RFC: implement per RFC, document deviation
@@ -261,11 +262,11 @@ python3 scripts/refactor.py --pattern 'old' --replace 'new'
 func parseFeature(...) { ... }
 ```
 
-**Key ExaBGP directories:**
-- `../main/src/exabgp/bgp/message/` - Message encoding/decoding
-- `../main/src/exabgp/bgp/message/open/capability/` - Capability negotiation
-- `../main/src/exabgp/bgp/message/update/attribute/` - Path attributes
-- `../main/src/exabgp/bgp/message/update/nlri/` - NLRI types
+**Key ExaBGP directories:** (base: `/Users/thomas/Code/github.com/exa-networks/exabgp/main/src/exabgp/`)
+- `bgp/message/` - Message encoding/decoding
+- `bgp/message/open/capability/` - Capability negotiation
+- `bgp/message/update/attribute/` - Path attributes
+- `bgp/message/update/nlri/` - NLRI types
 
 **Why:** ExaBGP is the reference for API compatibility and tests validate
 against ExaBGP output. But RFC compliance ensures interoperability with

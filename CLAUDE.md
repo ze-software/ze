@@ -46,7 +46,7 @@
 
 - **`/prep`:** Run `/prep <task>` before any implementation
 - **TDD:** Tests MUST exist and FAIL before implementation
-- **ExaBGP:** Check `../main/src/exabgp/` before implementing BGP features
+- **ExaBGP:** Check `/Users/thomas/Code/github.com/exa-networks/exabgp/main/src/exabgp/` before implementing BGP features
 - **Verify:** Run `make test && make lint` before claiming success
 - **Plans:** Go in `plan/`, protocols go in `.claude/`
 - **Terse:** Emoji-prefixed status lines, no fluff
