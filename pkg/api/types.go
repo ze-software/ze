@@ -333,12 +333,13 @@ type Response struct {
 
 // ProcessConfig holds external process configuration.
 type ProcessConfig struct {
-	Name          string // Process identifier
-	Run           string // Command to execute
-	Encoder       string // "json" (only v6 supported)
-	Respawn       bool   // Respawn on exit
-	WorkDir       string // Working directory for process execution
-	ReceiveUpdate bool   // Forward received UPDATEs to process stdin
+	Name           string // Process identifier
+	Run            string // Command to execute
+	Encoder        string // "json" (only v6 supported)
+	Respawn        bool   // Respawn on exit (deprecated, use RespawnEnabled)
+	RespawnEnabled bool   // Respawn on exit with limit enforcement
+	WorkDir        string // Working directory for process execution
+	ReceiveUpdate  bool   // Forward received UPDATEs to process stdin
 }
 
 // ServerConfig holds API server configuration.

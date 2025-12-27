@@ -3,6 +3,7 @@ package api
 import (
 	"bufio"
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -10,6 +11,32 @@ import (
 	"sync"
 	"sync/atomic"
 	"time"
+)
+
+// Backpressure constants matching ExaBGP behavior.
+// ExaBGP: WRITE_QUEUE_HIGH_WATER=1000, WRITE_QUEUE_LOW_WATER=100.
+const (
+	// WriteQueueHighWater is the maximum items before dropping events.
+	WriteQueueHighWater = 1000
+
+	// WriteQueueLowWater is the threshold to resume after backpressure.
+	// Reserved for future hysteresis support (pause at high, resume at low).
+	// Currently unused - we use simple drop-when-full semantics.
+	WriteQueueLowWater = 100 //nolint:unused // Reserved for future hysteresis
+
+	// RespawnLimit is max respawns per RespawnWindow before disabling.
+	// ExaBGP: respawn_number=5 per ~63 seconds.
+	RespawnLimit = 5
+
+	// RespawnWindow is the time window for respawn limit tracking.
+	RespawnWindow = 60 * time.Second
+)
+
+// Respawn errors.
+var (
+	ErrRespawnLimitExceeded = errors.New("respawn limit exceeded")
+	ErrProcessDisabled      = errors.New("process disabled due to respawn limit")
+	ErrProcessNotFound      = errors.New("process not found")
 )
 
 // Process represents an external subprocess.
@@ -26,6 +53,13 @@ type Process struct {
 
 	// Channel for lines read from stdout (single reader goroutine)
 	lines chan string
+
+	// Write queue for backpressure management
+	writeQueue chan []byte
+
+	// Backpressure stats
+	queueDropped atomic.Uint64 // Total events dropped due to full queue
+	warnedOnce   atomic.Bool   // Whether we've warned about backpressure
 
 	running atomic.Bool
 
@@ -74,6 +108,19 @@ func (p *Process) SyncEnabled() bool {
 // SetSync enables or disables sync mode for this process.
 func (p *Process) SetSync(enabled bool) {
 	p.syncEnabled.Store(enabled)
+}
+
+// QueueSize returns the current number of items in the write queue.
+func (p *Process) QueueSize() int {
+	if p.writeQueue == nil {
+		return 0
+	}
+	return len(p.writeQueue)
+}
+
+// QueueDropped returns the total number of events dropped due to backpressure.
+func (p *Process) QueueDropped() uint64 {
+	return p.queueDropped.Load()
 }
 
 // Start spawns the process.
@@ -134,8 +181,14 @@ func (p *Process) StartWithContext(ctx context.Context) error {
 	// Create channel for stdout lines
 	p.lines = make(chan string, 100)
 
+	// Create write queue for backpressure management
+	p.writeQueue = make(chan []byte, WriteQueueHighWater)
+
 	// Start single reader goroutine for stdout
 	go p.readLines()
+
+	// Start write loop goroutine for backpressure management
+	go p.writeLoop()
 
 	// Copy stderr to os.Stderr for debugging
 	go func() {
@@ -197,17 +250,59 @@ func (p *Process) Wait(ctx context.Context) error {
 	}
 }
 
-// WriteEvent writes an event to the process stdin.
+// WriteEvent writes an event to the process stdin via the write queue.
+// Uses non-blocking send with backpressure - events are dropped if queue is full.
 func (p *Process) WriteEvent(event string) error {
-	p.mu.Lock()
-	defer p.mu.Unlock()
-
-	if p.stdin == nil || !p.running.Load() {
+	if !p.running.Load() || p.writeQueue == nil {
 		return os.ErrClosed
 	}
 
-	_, err := p.stdin.Write([]byte(event + "\n"))
-	return err
+	data := []byte(event + "\n")
+
+	// Handle potential panic from sending to closed channel.
+	// Race: monitor() can close writeQueue between running check and send.
+	defer func() {
+		if r := recover(); r != nil {
+			// Channel was closed during send - process shutting down
+			p.queueDropped.Add(1)
+		}
+	}()
+
+	// Non-blocking send with backpressure
+	select {
+	case p.writeQueue <- data:
+		return nil
+	default:
+		// Queue full - drop event and increment counter
+		if p.queueDropped.Add(1) == 1 {
+			// First drop - log warning once
+			if p.warnedOnce.CompareAndSwap(false, true) {
+				fmt.Fprintf(os.Stderr, "PROCESS %s: backpressure active, dropping events (queue full)\n", p.config.Name)
+			}
+		}
+		return nil // Don't return error to avoid blocking caller
+	}
+}
+
+// writeLoop drains the write queue and writes to stdin.
+// Stops on write error (EPIPE indicates process died).
+func (p *Process) writeLoop() {
+	for data := range p.writeQueue {
+		p.mu.Lock()
+		if p.stdin == nil || !p.running.Load() {
+			p.mu.Unlock()
+			continue
+		}
+		_, err := p.stdin.Write(data)
+		p.mu.Unlock()
+
+		if err != nil {
+			// Write failed (EPIPE, closed pipe, etc.) - process likely dead
+			// Stop processing queue; monitor() will handle cleanup
+			p.running.Store(false)
+			return
+		}
+	}
 }
 
 // ReadCommand reads a command from the process stdout.
@@ -233,6 +328,11 @@ func (p *Process) monitor() {
 
 	p.running.Store(false)
 
+	// Close write queue to stop writeLoop goroutine
+	if p.writeQueue != nil {
+		close(p.writeQueue)
+	}
+
 	// Close pipes
 	p.mu.Lock()
 	if p.stdin != nil {
@@ -252,6 +352,12 @@ type ProcessManager struct {
 	configs   []ProcessConfig
 	processes map[string]*Process
 
+	// Respawn tracking: name -> list of respawn timestamps
+	respawnTimes map[string][]time.Time
+
+	// Disabled processes (respawn limit exceeded)
+	disabled map[string]bool
+
 	ctx    context.Context
 	cancel context.CancelFunc
 	mu     sync.RWMutex
@@ -260,8 +366,10 @@ type ProcessManager struct {
 // NewProcessManager creates a new process manager.
 func NewProcessManager(configs []ProcessConfig) *ProcessManager {
 	return &ProcessManager{
-		configs:   configs,
-		processes: make(map[string]*Process),
+		configs:      configs,
+		processes:    make(map[string]*Process),
+		respawnTimes: make(map[string][]time.Time),
+		disabled:     make(map[string]bool),
 	}
 }
 
@@ -360,4 +468,88 @@ func (pm *ProcessManager) IsRunning(name string) bool {
 		return false
 	}
 	return proc.Running()
+}
+
+// IsDisabled returns true if the named process is disabled due to respawn limit.
+func (pm *ProcessManager) IsDisabled(name string) bool {
+	pm.mu.RLock()
+	defer pm.mu.RUnlock()
+	return pm.disabled[name]
+}
+
+// Respawn restarts a process, enforcing respawn limits.
+// Returns ErrRespawnLimitExceeded if limit exceeded within window.
+// Returns ErrProcessDisabled if process was previously disabled.
+// Returns ErrProcessNotFound if process name not in configuration.
+// Returns error if ProcessManager was not started (ctx is nil).
+func (pm *ProcessManager) Respawn(name string) error {
+	pm.mu.Lock()
+	defer pm.mu.Unlock()
+
+	// Check if ProcessManager was started
+	if pm.ctx == nil {
+		return errors.New("process manager not started")
+	}
+
+	// Check if already disabled
+	if pm.disabled[name] {
+		return ErrProcessDisabled
+	}
+
+	// Find config
+	var cfg *ProcessConfig
+	for i := range pm.configs {
+		if pm.configs[i].Name == name {
+			cfg = &pm.configs[i]
+			break
+		}
+	}
+	if cfg == nil {
+		return ErrProcessNotFound
+	}
+
+	// Check respawn enabled
+	if !cfg.RespawnEnabled && !cfg.Respawn {
+		return nil // Respawn not enabled, nothing to do
+	}
+
+	now := time.Now()
+
+	// Clean up old respawn times (outside window)
+	var validTimes []time.Time
+	for _, t := range pm.respawnTimes[name] {
+		if now.Sub(t) < RespawnWindow {
+			validTimes = append(validTimes, t)
+		}
+	}
+
+	// Check limit
+	if len(validTimes) >= RespawnLimit {
+		pm.disabled[name] = true
+		fmt.Fprintf(os.Stderr, "PROCESS %s: respawn limit exceeded (%d in %v), process disabled\n",
+			name, RespawnLimit, RespawnWindow)
+		return ErrRespawnLimitExceeded
+	}
+
+	// Record this respawn
+	validTimes = append(validTimes, now)
+	pm.respawnTimes[name] = validTimes
+
+	// Stop existing process if running
+	if proc, ok := pm.processes[name]; ok && proc.Running() {
+		proc.Stop()
+		// Wait briefly for stop
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+		_ = proc.Wait(ctx)
+		cancel()
+	}
+
+	// Start new process
+	newProc := NewProcess(*cfg)
+	if err := newProc.StartWithContext(pm.ctx); err != nil {
+		return err
+	}
+	pm.processes[name] = newProc
+
+	return nil
 }

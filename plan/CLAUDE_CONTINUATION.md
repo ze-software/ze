@@ -6,17 +6,43 @@
 
 ## CURRENT STATUS
 
-✅ **Completed:** BGP Connection Collision Detection (RFC 4271 §6.8)
+✅ **Completed:** Process Backpressure and Respawn Limits
 
 ### Session Summary (2025-12-27)
 
 **Completed this session:**
+- ✅ Write queue backpressure for API processes
+  - `WriteQueueHighWater = 1000` (matches ExaBGP)
+  - Non-blocking queue send, drops events when full
+  - `QueueSize()`, `QueueDropped()` stats methods
+  - Warning log on first backpressure event
+  - defer/recover handles race condition on shutdown
+- ✅ Respawn limits for API processes
+  - `RespawnLimit = 5` per 60-second window (matches ExaBGP)
+  - `IsDisabled()`, `Respawn()` methods on ProcessManager
+  - Process disabled after exceeding limit
+  - Warning log when limit exceeded
+- ✅ 8 new tests (TDD) including race condition coverage
+- ✅ Critical review performed - no issues found
+- ✅ All tests pass (`make test`)
+- ✅ Lint clean (`make lint`)
+
+**Key files modified:**
+- `pkg/api/process.go` - writeQueue, backpressure, respawn tracking (+210 lines)
+- `pkg/api/types.go` - RespawnEnabled field
+- `pkg/api/process_test.go` - 8 new tests (+231 lines)
+
+**Spec file:** `plan/done/spec-process-backpressure.md`
+
+---
+
+### Previous Session (2025-12-27) - Collision Detection
+
+**Completed:**
 - ✅ Full RFC 4271 §6.8 collision detection implementation
 - ✅ ESTABLISHED collision: incoming rejected with NOTIFICATION 6/7
 - ✅ OpenConfirm collision: BGP ID comparison, close loser
 - ✅ Pending connection tracking in Peer
-- ✅ `handlePendingCollision()` goroutine reads OPEN, resolves collision
-- ✅ `AcceptWithOpen()` accepts connection with pre-received OPEN
 - ✅ 10 collision tests (TDD)
 - ✅ All tests pass (`make test`)
 - ✅ Lint clean (`make lint`)
@@ -245,7 +271,7 @@ Full review of ZeBGP implementation against all 44 `.claude` documentation files
 ### 🟡 IMPORTANT Issues
 
 1. **FSM violation** - OpenSent + TCPFails → Idle (should → Active) - documented in code
-2. **Process backpressure missing** - slow processes can cause memory growth
+2. ~~Process backpressure missing~~ - ✅ DONE (2025-12-27)
 
 ### 🟢 Minor Issues
 
@@ -262,7 +288,7 @@ Full review of ZeBGP implementation against all 44 `.claude` documentation files
 | ✅ Done | RIB flush/clear API commands | ~200 lines | 2025-12-27 |
 | ✅ Done | Session API commands | ~200 lines | 2025-12-27 |
 | ✅ Done | Collision detection (RFC 4271 §6.8) | ~350 lines | 2025-12-27 |
-| 🟡 P1 | Process backpressure & respawn limits | ~100 lines | Pending |
+| ✅ Done | Process backpressure & respawn limits | ~100 lines | 2025-12-27 |
 | 🟢 P2 | Fix FlowSpec ICMP encoding | ~100 lines | Pending |
 | 🟢 P2 | Fix BGP-LS TLV containers | ~150 lines | Pending |
 
@@ -276,4 +302,4 @@ Full review of ZeBGP implementation against all 44 `.claude` documentation files
 
 ### Overall Assessment
 
-**~92% complete** against documented specifications. Core BGP wire format is excellent. All critical RFC compliance issues resolved.
+**~93% complete** against documented specifications. Core BGP wire format is excellent. All critical RFC compliance issues resolved. Process stability features (backpressure, respawn limits) now implemented.
