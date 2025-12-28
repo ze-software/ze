@@ -169,6 +169,39 @@ When encountering RFC "MAY" clauses (optional behavior), ASK user:
 Example: "RFC 4760 says speaker MAY treat non-negotiated AFI/SAFI as error.
 Options: (1) Always error, (2) Always ignore, (3) Config option?"
 
+**MANDATORY: Confirm Before Any RFC Deviation**
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│  If the user requests something that DEVIATES from an RFC:      │
+│                                                                 │
+│  1. STOP and explain the RFC requirement                        │
+│  2. ASK for explicit confirmation before proceeding             │
+│  3. If confirmed, document the deviation in code comments       │
+│                                                                 │
+│  NEVER silently implement non-RFC-compliant behavior.           │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+When user requests something non-RFC-compliant, respond:
+```
+⚠️ RFC DEVIATION REQUEST
+
+RFC NNNN Section X.Y requires: [quote requirement]
+Your request: [what user asked]
+
+This would make ZeBGP non-compliant with [RFC].
+Confirm you want to proceed? (yes/no)
+```
+
+If confirmed, code MUST include deviation comment:
+```go
+// NOTE: RFC DEVIATION - User requested [behavior] on [date].
+// RFC NNNN Section X.Y requires [X], but we do [Y] because:
+// [User's reason or "explicit user request"]
+func nonCompliantBehavior() { ... }
+```
+
 **MANDATORY: RFC References in Code**
 
 Code implementing RFC functionality MUST include a comment referencing
@@ -287,9 +320,10 @@ func parseFeature(...) { ... }
 - `bgp/message/update/attribute/` - Path attributes
 - `bgp/message/update/nlri/` - NLRI types
 
-**Why:** ExaBGP is the reference for API compatibility and tests validate
-against ExaBGP output. But RFC compliance ensures interoperability with
-all BGP implementations, not just ExaBGP.
+**Why:** ExaBGP is a reference implementation for API compatibility, NOT
+an authoritative specification. RFCs are the authoritative source.
+If tests fail because ZeBGP follows RFC but ExaBGP doesn't, the tests
+are wrong - fix the tests, not the RFC-compliant code.
 
 ---
 
