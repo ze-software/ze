@@ -18,12 +18,19 @@ Text versions of RFCs relevant to ZeBGP implementation.
 
 > ⚠️ **Important:** RFC 7606 updates RFC 4271's strict "session reset" error handling with recovery tactics: treat-as-withdraw, attribute discard, AFI/SAFI disable. New implementations SHOULD follow RFC 7606.
 
+## Graceful Restart
+
+| RFC | Title | Status |
+|-----|-------|--------|
+| [4724](rfc4724.txt) | Graceful Restart Mechanism for BGP | Partial (EOR markers) |
+
 ## Capabilities
 
 | RFC | Title | Status |
 |-----|-------|--------|
 | [5492](rfc5492.txt) | Capabilities Advertisement with BGP-4 | Core |
-| [5549](rfc5549.txt) | IPv4 NLRI with IPv6 Next Hop | Implemented |
+| [8950](rfc8950.txt) | IPv4 NLRI with IPv6 Next Hop | **Implemented** |
+| [5549](rfc5549.txt) | IPv4 NLRI with IPv6 Next Hop | Obsoleted by RFC 8950 |
 | [9072](rfc9072.txt) | Extended Optional Parameters Length | Planned |
 | [2918](rfc2918.txt) | Route Refresh Capability | Implemented |
 | [7313](rfc7313.txt) | Enhanced Route Refresh | Planned |
