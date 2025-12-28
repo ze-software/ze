@@ -61,6 +61,8 @@ type NegotiatedFamilies struct {
 	// RFC 7911: ADD-PATH - allows multiple paths per prefix
 	IPv4UnicastAddPath bool // IPv4 unicast supports ADD-PATH
 	IPv6UnicastAddPath bool // IPv6 unicast supports ADD-PATH
+	IPv4MPLSVPNAddPath bool // IPv4 mpls-vpn supports ADD-PATH
+	IPv6MPLSVPNAddPath bool // IPv6 mpls-vpn supports ADD-PATH
 }
 
 // computeNegotiatedFamilies extracts family flags from capability negotiation.
@@ -129,6 +131,16 @@ func computeNegotiatedFamilies(neg *capability.Negotiated) *NegotiatedFamilies {
 	ipv6Mode := neg.AddPathMode(capability.Family{AFI: capability.AFIIPv6, SAFI: capability.SAFIUnicast})
 	if ipv6Mode == capability.AddPathSend || ipv6Mode == capability.AddPathBoth {
 		nf.IPv6UnicastAddPath = true
+	}
+
+	// RFC 7911: Check ADD-PATH for MPLS-VPN families
+	ipv4VPNMode := neg.AddPathMode(capability.Family{AFI: capability.AFIIPv4, SAFI: capability.SAFIMPLS})
+	if ipv4VPNMode == capability.AddPathSend || ipv4VPNMode == capability.AddPathBoth {
+		nf.IPv4MPLSVPNAddPath = true
+	}
+	ipv6VPNMode := neg.AddPathMode(capability.Family{AFI: capability.AFIIPv6, SAFI: capability.SAFIMPLS})
+	if ipv6VPNMode == capability.AddPathSend || ipv6VPNMode == capability.AddPathBoth {
+		nf.IPv6MPLSVPNAddPath = true
 	}
 
 	return nf
@@ -334,8 +346,11 @@ func (p *Peer) packContext(family nlri.Family) *nlri.PackContext {
 		ctx.AddPath = nf.IPv4UnicastAddPath
 	case family.AFI == nlri.AFIIPv6 && family.SAFI == nlri.SAFIUnicast:
 		ctx.AddPath = nf.IPv6UnicastAddPath
+	case family.AFI == nlri.AFIIPv4 && family.SAFI == nlri.SAFIVPN:
+		ctx.AddPath = nf.IPv4MPLSVPNAddPath
+	case family.AFI == nlri.AFIIPv6 && family.SAFI == nlri.SAFIVPN:
+		ctx.AddPath = nf.IPv6MPLSVPNAddPath
 	}
-	// Other families: AddPath remains false (not yet implemented)
 
 	return ctx
 }

@@ -310,6 +310,16 @@ func (r *rawAttribute) Flags() attribute.AttributeFlags { return r.flags }
 func (r *rawAttribute) Len() int                        { return len(r.data) }
 func (r *rawAttribute) Pack() []byte                    { return r.data }
 
+// packAttributesNoSort packs attributes in the order provided (no sorting).
+// Used when ExaBGP ordering differs from RFC 4271 Appendix F.3.
+func packAttributesNoSort(attrs []attribute.Attribute) []byte {
+	var result []byte
+	for _, attr := range attrs {
+		result = append(result, attribute.PackAttribute(attr)...)
+	}
+	return result
+}
+
 // VPNParams contains parameters for building a VPN route UPDATE.
 //
 // RFC 4364 - BGP/MPLS IP Virtual Private Networks (VPNs).
@@ -375,6 +385,14 @@ func (ub *UpdateBuilder) BuildVPN(p VPNParams) *Update {
 	asPath := ub.buildASPath(p.ASPath)
 	attrs = append(attrs, asPath)
 
+	// 3. NEXT_HOP - RFC 4271 Section 5.1.3
+	// For ExaBGP compatibility, include NEXT_HOP even for MP_REACH_NLRI routes.
+	// RFC 4760 says NEXT_HOP is optional when using MP_REACH_NLRI, but ExaBGP
+	// includes it for VPN routes with IPv4 next-hop.
+	if p.NextHop.Is4() {
+		attrs = append(attrs, &attribute.NextHop{Addr: p.NextHop})
+	}
+
 	// 4. MED
 	if p.MED > 0 {
 		attrs = append(attrs, attribute.MED(p.MED))
@@ -415,11 +433,10 @@ func (ub *UpdateBuilder) BuildVPN(p VPNParams) *Update {
 		attrs = append(attrs, comms)
 	}
 
-	// 14. MP_REACH_NLRI for VPN
-	mpReach := ub.buildMPReachVPN(p)
-	attrs = append(attrs, mpReach)
-
 	// 16. EXTENDED_COMMUNITIES (route targets)
+	// NOTE: ExaBGP places EXT_COM before MP_REACH. This violates RFC 4271
+	// Appendix F.3 ordering (should be type-code order: 14 before 16) but
+	// we match ExaBGP for compatibility.
 	if len(p.ExtCommunityBytes) > 0 {
 		attrs = append(attrs, &rawAttribute{
 			flags: attribute.FlagOptional | attribute.FlagTransitive,
@@ -427,6 +444,10 @@ func (ub *UpdateBuilder) BuildVPN(p VPNParams) *Update {
 			data:  p.ExtCommunityBytes,
 		})
 	}
+
+	// 14. MP_REACH_NLRI for VPN (after EXT_COM for ExaBGP compatibility)
+	mpReach := ub.buildMPReachVPN(p)
+	attrs = append(attrs, mpReach)
 
 	// 32. LARGE_COMMUNITIES
 	if len(p.LargeCommunities) > 0 {
@@ -441,12 +462,10 @@ func (ub *UpdateBuilder) BuildVPN(p VPNParams) *Update {
 		attrs = append(attrs, lcs)
 	}
 
-	// Sort by type code
-	sort.Slice(attrs, func(i, j int) bool {
-		return attrs[i].Code() < attrs[j].Code()
-	})
-
-	attrBytes := attribute.PackAttributesOrdered(attrs)
+	// NOTE: We do NOT sort VPN attributes by type code.
+	// ExaBGP orders them as: ORIGIN, AS_PATH, NEXT_HOP, LOCAL_PREF, EXT_COM, MP_REACH.
+	// This differs from RFC 4271 Appendix F.3 but matches ExaBGP for compatibility.
+	attrBytes := packAttributesNoSort(attrs)
 
 	return &Update{
 		PathAttributes: attrBytes,

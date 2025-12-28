@@ -2,6 +2,7 @@ package reactor
 
 import (
 	"bytes"
+	"encoding/hex"
 	"net/netip"
 	"testing"
 
@@ -117,41 +118,47 @@ func TestWireCompat_UnicastIPv6(t *testing.T) {
 	}
 }
 
-// TestWireCompat_VPNIPv4 verifies VPN-IPv4 wire format compatibility.
+// TestWireCompat_VPNIPv4 verifies VPN-IPv4 wire format matches ExaBGP.
+//
+// NOTE: VPN wire format differs from RFC 4271 Appendix F.3 ordering to match
+// ExaBGP compatibility. ExaBGP places EXT_COMMUNITIES before MP_REACH_NLRI
+// and includes NEXT_HOP attribute even for MP_REACH routes.
 func TestWireCompat_VPNIPv4(t *testing.T) {
-	route := StaticRoute{
+	ctx := &nlri.PackContext{ASN4: true}
+
+	// Build VPN route UPDATE
+	ub := message.NewUpdateBuilder(65001, true, ctx)
+	params := message.VPNParams{
 		Prefix:            netip.MustParsePrefix("10.0.0.0/24"),
 		NextHop:           netip.MustParseAddr("192.168.1.1"),
-		Origin:            0,
+		Origin:            attribute.OriginIGP,
 		Label:             100,
-		RD:                "100:100",                           // IsVPN() checks this string
 		RDBytes:           [8]byte{0, 1, 0, 0, 0, 100, 0, 100}, // Type 1: 100:100
 		LocalPreference:   150,
 		ExtCommunityBytes: []byte{0x00, 0x02, 0xfd, 0xe9, 0x00, 0x00, 0x00, 0x64}, // RT 65001:100
 	}
+	update := ub.BuildVPN(params)
 
-	ctx := &nlri.PackContext{ASN4: true}
-	nf := &NegotiatedFamilies{IPv4Unicast: true} // VPN detection is via route.IsVPN()
+	// Expected output matching ExaBGP format:
+	// ORIGIN (1) + AS_PATH (2) + NEXT_HOP (3) + LOCAL_PREF (5) + EXT_COM (16) + MP_REACH (14)
+	// Note: EXT_COM before MP_REACH for ExaBGP compatibility
+	expected, _ := hex.DecodeString(
+		"40010100" + // ORIGIN: IGP
+			"400200" + // AS_PATH: empty
+			"400304c0a80101" + // NEXT_HOP: 192.168.1.1
+			"40050400000096" + // LOCAL_PREF: 150
+			"c010080002fde900000064" + // EXT_COMMUNITIES: RT 65001:100
+			"800e20" + // MP_REACH_NLRI header (len=32)
+			"0001800c" + // AFI=1, SAFI=128, NH_LEN=12
+			"0000000000000000c0a80101" + // NH: RD(8 zeros) + IPv4(192.168.1.1)
+			"00" + // Reserved
+			"70" + // NLRI: Length=112 bits (3*8 label + 64 RD + 24 prefix)
+			"000641" + // Label: 100 with BOS
+			"00010000006400640a0000") // RD + prefix (10.0.0.0/24)
 
-	// Old implementation
-	oldUpdate := buildStaticRouteUpdate(route, 65001, true, ctx, nf)
-
-	// New implementation
-	ub := message.NewUpdateBuilder(65001, true, ctx)
-	params := message.VPNParams{
-		Prefix:            route.Prefix,
-		NextHop:           route.NextHop,
-		Origin:            attribute.Origin(route.Origin),
-		Label:             route.Label,
-		RDBytes:           route.RDBytes,
-		LocalPreference:   route.LocalPreference,
-		ExtCommunityBytes: route.ExtCommunityBytes,
-	}
-	newUpdate := ub.BuildVPN(params)
-
-	if !bytes.Equal(oldUpdate.PathAttributes, newUpdate.PathAttributes) {
-		t.Errorf("PathAttributes mismatch:\nold: %x\nnew: %x",
-			oldUpdate.PathAttributes, newUpdate.PathAttributes)
+	if !bytes.Equal(update.PathAttributes, expected) {
+		t.Errorf("PathAttributes mismatch:\nexpected: %x\ngot:      %x",
+			expected, update.PathAttributes)
 	}
 }
 
