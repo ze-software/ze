@@ -94,7 +94,7 @@ Implemented ExaBGP-style pre-computed negotiated families for O(1) access:
 ## Resume Point
 
 **Last worked:** 2025-12-28
-**Last commit:** `100c1f2` (refactor: implement NegotiatedFamilies for O(1) capability checks)
+**Last commit:** `26ce539` (refactor: implement NegotiatedFamilies for O(1) capability checks)
 **Session ended:** Clean break
 
 **To resume:**
