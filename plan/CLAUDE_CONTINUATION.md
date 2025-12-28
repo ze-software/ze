@@ -6,41 +6,41 @@
 
 ## CURRENT STATUS
 
-✅ **Completed:** RFC 4724 EOR Compliance (`50a32ad`)
+✅ **Completed:** FlowSpec TDD and RFC Compliance Audit
 
-EOR now sent for ALL negotiated families per RFC 4724 Section 4:
-"including the case when there is no update to send"
+Full test coverage and documentation for all 13 FlowSpec component types.
 
 ---
 
 ## RECENTLY COMPLETED
 
-### RFC 4724 EOR Compliance (This Session)
+### FlowSpec TDD/RFC Compliance (This Session)
 
-Fixed all send*Routes functions to send EOR for ALL negotiated families:
+| Task | Details |
+|------|---------|
+| Missing unit tests | Added ICMP Type, ICMP Code, Flow Label (+6 tests) |
+| Boundary tests | Added ICMP 0/255 boundary validation (+1 table-driven test) |
+| VALIDATES/PREVENTS docs | Added to all 34 FlowSpec tests |
+| RFC references | Added to 5 config/loader.go functions |
+| Downloaded RFCs | rfc5575.txt, rfc8956.txt |
 
-| Function | EOR Condition |
-|----------|---------------|
-| `sendInitialRoutes` | `nf.IPv4Unicast`, `nf.IPv6Unicast` |
-| `sendFlowSpecRoutes` | `nf.IPv4FlowSpec`, etc. (4 families) |
-| `sendMVPNRoutes` | `nf.IPv4McastVPN`, `nf.IPv6McastVPN` |
-| `sendVPLSRoutes` | Always (guarded by early return) |
-| `sendMUPRoutes` | `nf.IPv4MUP`, `nf.IPv6MUP` |
+**Files changed:**
+- `pkg/bgp/nlri/flowspec_test.go` (+313 lines)
+- `pkg/config/loader.go` (+16 lines)
 
-**Protocol updates:**
-- `.claude/ESSENTIAL_PROTOCOLS.md`: RFC > ExaBGP clarification
-- Added: Must confirm before any RFC deviation
-
-**Test improvement:** 27/37 passing (was 23/37, +4 tests)
+**Critical review fixes:**
+- Added Type 13 (FlowFlowLabel) to TestFlowSpecComponentTypes
+- Added value verification to 6 tests (SourcePort, TCPFlags, PacketLength, DSCP, Fragment)
+- Fixed PREVENTS claim in FlowLabel documentation
 
 ### Previous Commits
 
 | Commit | Feature |
 |--------|---------|
 | `50a32ad` | RFC 4724 EOR compliance (all families) |
-| `ed469b1` | EOR tracking (reverted by 50a32ad) |
-| `93de483` | RFC 8950 extended next-hop encoding |
 | `d20b97c` | ExaBGP-style functional test runner |
+| `5d8539e` | Process backpressure and respawn limits |
+| `af8a705` | BGP collision detection (RFC 4271 §6.8) |
 
 ---
 
@@ -52,12 +52,12 @@ Fixed all send*Routes functions to send EOR for ALL negotiated families:
 
 | Code | Test | Issue |
 |------|------|-------|
-| 0 | addpath | ADD-PATH feature |
+| 0 | addpath | NEXT_HOP missing in MP_REACH_NLRI |
 | N | new-v4 | Unknown |
 | Q | parity | Unknown |
 | R | path-information | ADD-PATH encoding |
 | S | prefix-sid | Prefix-SID not implemented |
-| T | split | Unknown |
+| T | split | Config parse error |
 | U | srv6-mup-v3 | MUP timeout (stub) |
 | V | srv6-mup | MUP timeout (stub) |
 | Z | vpn | Extended-community parsing |
@@ -69,8 +69,9 @@ Fixed all send*Routes functions to send EOR for ALL negotiated families:
 
 | Purpose | File |
 |---------|------|
-| EOR sending | `pkg/reactor/peer.go:send*Routes()` |
-| Protocol docs | `.claude/ESSENTIAL_PROTOCOLS.md` |
+| FlowSpec NLRI | `pkg/bgp/nlri/flowspec.go` |
+| FlowSpec tests | `pkg/bgp/nlri/flowspec_test.go` |
+| FlowSpec config | `pkg/config/loader.go` |
 
 ---
 
@@ -78,17 +79,18 @@ Fixed all send*Routes functions to send EOR for ALL negotiated families:
 
 - `make test`: ✅ All unit tests pass
 - `make lint`: ✅ 0 issues
-- RFC 4724 now fully compliant for EOR behavior
+- FlowSpec: 34 unit tests with full TDD documentation
+- RFC 8955/8956 references throughout
 
 ---
 
 ## Resume Point
 
 **Last worked:** 2025-12-28
-**Last commit:** `50a32ad` (fix: send EOR for all negotiated families per RFC 4724)
+**Last commit:** (pending - FlowSpec TDD compliance)
 **Session ended:** Clean break
 
 **To resume:**
-1. Pick a failing encode test to fix
+1. Pick a failing encode test to fix (0, N, Q, R, S, T, Z)
 2. Run `go run ./test/cmd/functional encoding <code>` to test
 3. Verify with `make test && make lint`

@@ -550,6 +550,9 @@ func convertVPLSRoute(vr VPLSRouteConfig) (reactor.VPLSRoute, error) {
 }
 
 // convertFlowSpecRoute converts config FlowSpec route to reactor FlowSpec route.
+// RFC 8955 Section 4 defines the FlowSpec NLRI format.
+// RFC 8955 Section 7 defines the Traffic Filtering Actions (extended communities).
+// RFC 8955 Section 8 defines the FlowSpec VPN variant (SAFI 134) with Route Distinguisher.
 func convertFlowSpecRoute(fr FlowSpecRouteConfig) (reactor.FlowSpecRoute, error) {
 	route := reactor.FlowSpecRoute{
 		Name:   fr.Name,
@@ -609,6 +612,7 @@ func convertFlowSpecRoute(fr FlowSpecRouteConfig) (reactor.FlowSpecRoute, error)
 }
 
 // buildFlowSpecCommunities builds standard community bytes from FlowSpec "then" actions.
+// RFC 1997 defines the standard BGP Community attribute format (ASN:NN, 4 bytes each).
 func buildFlowSpecCommunities(then map[string]string) []byte {
 	var result []byte
 
@@ -633,6 +637,13 @@ func buildFlowSpecCommunities(then map[string]string) []byte {
 }
 
 // buildFlowSpecExtCommunities builds extended community bytes from FlowSpec "then" actions.
+// RFC 8955 Section 7 defines Traffic Filtering Action Extended Communities:
+//   - Type 0x8006: Traffic-rate (rate-limit, discard) - RFC 8955 Section 7.3
+//   - Type 0x8007: Traffic-action (sample, terminal) - RFC 8955 Section 7.4
+//   - Type 0x8008: Redirect AS-2byte:value - RFC 8955 Section 7.5
+//   - Type 0x8009: Traffic-marking (DSCP) - RFC 8955 Section 7.6
+//   - Type 0x0800: Redirect to next-hop - RFC 7674 Section 3
+//   - Type 0x010c: Redirect to IPv4 - RFC 7674 Section 3.1
 func buildFlowSpecExtCommunities(then map[string]string, nextHop netip.Addr) []byte {
 	var result []byte
 
@@ -699,6 +710,8 @@ func buildFlowSpecExtCommunities(then map[string]string, nextHop netip.Addr) []b
 
 // buildFlowSpecIPv6ExtCommunity builds IPv6 Extended Communities (attribute 25, RFC 5701).
 // This is used for actions that require IPv6-specific encoding like redirect-to-nexthop-ietf with IPv6.
+// RFC 5701 Section 2 defines the IPv6 Extended Community format (20 bytes per community).
+// RFC 7674 Section 3.2 defines the Redirect to IPv6 action (subtype 0x000c).
 func buildFlowSpecIPv6ExtCommunity(then map[string]string) []byte {
 	var result []byte
 
@@ -768,6 +781,9 @@ func sortExtCommunities(data []byte) []byte {
 
 // buildFlowSpecNLRI builds FlowSpec NLRI bytes from match criteria.
 // If forVPN is true, returns component bytes without length prefix (VPN adds its own).
+// RFC 8955 Section 4 defines the FlowSpec NLRI encoding.
+// RFC 8955 Section 4.2.2 defines component types 1-12.
+// RFC 8956 Section 3.7 defines component type 13 (Flow Label, IPv6 only).
 func buildFlowSpecNLRI(match map[string]string, isIPv6 bool, forVPN bool) []byte {
 	family := nlri.IPv4FlowSpec
 	if isIPv6 {

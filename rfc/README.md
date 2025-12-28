@@ -53,7 +53,9 @@ Text versions of RFCs relevant to ZeBGP implementation.
 | RFC | Title | Status |
 |-----|-------|--------|
 | [7432](rfc7432.txt) | BGP MPLS-Based Ethernet VPN (EVPN) | Partial |
-| [8955](rfc8955.txt) | Dissemination of Flow Specification Rules | Implemented |
+| [5575](rfc5575.txt) | Dissemination of Flow Specification Rules | Obsoleted by RFC 8955 |
+| [8955](rfc8955.txt) | Dissemination of Flow Specification Rules | **Implemented** |
+| [8956](rfc8956.txt) | Dissemination of Flow Specification Rules for IPv6 | **Implemented** |
 | [4364](rfc4364.txt) | BGP/MPLS IP Virtual Private Networks (VPNs) | Implemented |
 | [4659](rfc4659.txt) | BGP-MPLS IP VPN Extension for IPv6 VPN | Implemented |
 | [4761](rfc4761.txt) | Virtual Private LAN Service (VPLS) | Planned |
