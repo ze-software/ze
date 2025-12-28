@@ -6,41 +6,32 @@
 
 ## CURRENT STATUS
 
-✅ **Completed:** NLRIHashable interface cleanup (Bytes→Key)
+✅ **Completed:** ASN4 added to PackContext (Phase 2 of negotiated packing)
 
 ---
 
 ## RECENTLY COMPLETED
 
-### NLRIHashable Interface Cleanup (This Session)
+### ASN4 in PackContext (This Session)
 
-| Change | Purpose |
-|--------|---------|
-| `Bytes()` → `Key()` | Clarify semantics: Key() for identity/hashing, Pack(ctx) for wire |
-| Files | `internal/store/nlri.go`, `nlri_test.go`, `pkg/rib/store.go` |
+| Commit | Change |
+|--------|--------|
+| `13fd04b` | Add ASN4 to PackContext for unified encoding (RFC 6793) |
 
-### Unified Pack(ctx) Pattern (Previous Session)
+**Details:**
+- Added `ASN4 bool` field to `PackContext` struct
+- `packContext()` now always returns non-nil context (for any family)
+- Refactored 8 build functions to use `ctx.ASN4` instead of separate param
+- Updated ~20 call sites to pass ctx for ASN4 encoding
+- Specs moved to `plan/done/`: `spec-negotiated-packing.md`, `spec-asn4-packcontext.md`
 
-Refactored all NLRI wire encoding to use Pack(ctx) API:
-
-| Component | Change |
-|-----------|--------|
-| `Peer.packContext()` | New helper for capability-aware encoding |
-| `reactor/peer.go` | Migrated buildRIBRouteUpdate, buildWithdrawNLRI, buildStaticRouteWithdraw, buildVPLSUpdate |
-| `reactor/reactor.go` | Migrated buildAnnounceUpdate, buildWithdrawUpdate, sendWithdrawals |
-| `rib/update.go` | Migrated BuildGroupedUpdate, buildNLRIBytes |
-| External callers | Migrated to Pack(nil): store, outgoing, route, commit_manager, loader |
-
-### Previous Completions
+### Previous Session
 
 | Commit | Feature |
 |--------|---------|
+| `81b9ed9` | Rename NLRIHashable.Bytes() to Key() for clarity |
 | `ddcb300` | Unified Pack(ctx) pattern (RFC 7911) |
 | `612bd11` | Extended-community hex format (RFC 4360) |
-| `ef4ebf1` | ADD-PATH encoding support (RFC 7911) |
-| `d20b97c` | ExaBGP-style functional test runner |
-| `5d8539e` | Process backpressure and respawn limits |
-| `af8a705` | BGP collision detection (RFC 4271 §6.8) |
 
 ---
 
@@ -55,10 +46,11 @@ Refactored all NLRI wire encoding to use Pack(ctx) API:
 ## Resume Point
 
 **Last worked:** 2025-12-28
-**Last commit:** `4ef0e8b` (refactor: rename NLRIHashable.Bytes to Key)
+**Last commit:** `13fd04b` (refactor: add ASN4 to PackContext)
 **Session ended:** Clean break
 
 **To resume:**
 1. Run `go run ./test/cmd/functional encoding --all` to see actual status
-2. NLRIHashable uses Key() for identity, Pack(ctx) for wire encoding
-3. Consider Phase 2: Add ASN4 to PackContext for AS_PATH encoding
+2. PackContext now has both AddPath (RFC 7911) and ASN4 (RFC 6793)
+3. All build functions use unified ctx pattern
+4. Consider next: Extended Next-Hop (RFC 8950) or peer encoding extraction

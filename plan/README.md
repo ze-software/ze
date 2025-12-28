@@ -16,27 +16,24 @@
 
 | Plan | Description |
 |------|-------------|
-| `rfc7606-extension.md` | RFC 7606 full compliance (3 phases) |
-| `two-level-grouping.md` | Two-level route grouping for UPDATE generation |
-| `unified-commit-system.md` | Full CommitService with wire format (Phase 1-3) |
+| `spec-asn4-packcontext.md` | ASN4 in PackContext (RFC 6793) |
+| `spec-negotiated-packing.md` | Unified Pack(ctx) pattern (RFC 7911) |
+| `spec-addpath-encoding.md` | ADD-PATH encoding support |
+| `spec-extcomm-hex.md` | Extended-community hex format (RFC 4360) |
+| `spec-extended-nexthop.md` | RFC 8950 design (implemented) |
+| `spec-collision-detection.md` | BGP collision detection (RFC 4271 §6.8) |
+| `spec-process-backpressure.md` | Process backpressure and respawn |
+| `spec-self-check-rewrite.md` | ExaBGP-style functional tests |
+| `unified-commit-system.md` | Full CommitService with wire format |
+| `two-level-grouping.md` | Two-level route grouping for UPDATEs |
 | `neighbor-to-peer-rename.md` | All 6 phases done, v2 syntax removed |
-| `config-migration-system.md` | v2→v3 migration, CLI commands, docs |
-| `knowledge-acquisition.md` | ExaBGP study notes |
-| `pool-completion.md` | Pool implementation complete |
-| `family-negotiation.md` | Family negotiation implementation |
-| `align-implementation.md` | ExaBGP alignment implementation |
-| `rfc-annotation.md` | RFC annotation work |
-| `rib-config-design.md` | RIB configuration design |
-| `edit-command.md` | Edit command implementation |
-| `fsm-active-design.md` | FSM critique reviewed - no action needed |
-| `api-commit-batching.md` | Superseded by unified-commit-system |
-| `config-routes-eor.md` | Superseded by unified-commit-system |
+| `config-migration-system.md` | v2→v3 migration, CLI commands |
+| `rfc7606-extension.md` | RFC 7606 full compliance |
 
 ### 📋 Implementation Specs (Active)
 
 | Spec | Description | Priority |
 |------|-------------|----------|
-| `spec-extended-nexthop.md` | RFC 8950 IPv4 NLRI with IPv6 next-hop | High |
 | `spec-peer-encoding-extraction.md` | Extract UPDATE builders from peer.go | High |
 | `spec-pool-integration.md` | Wire RouteStore to components | Medium |
 | `spec-update-builder.md` | Fluent UPDATE builder pattern | Medium |
@@ -51,7 +48,6 @@
 | `exabgp-migration-tool.md` | CLI tool to convert ExaBGP configs | Medium |
 | `plugin-system-mvp.md` | Plugin system MVP specification | Low |
 | `plugin-system.md` | Plugin system full design | Deferred |
-| `claude-folder-improvements.md` | Claude protocol improvements | Meta |
 
 ### 📖 Reference
 
@@ -60,6 +56,7 @@
 | `ARCHITECTURE.md` | System architecture |
 | `exabgp-alignment.md` | Review decisions (18 ALIGN, 7 KEEP, 2 SKIP, 9 DONE) |
 | `CLAUDE_CONTINUATION.md` | Session state and priorities |
+| `deterministic-simulation-analysis.md` | Simulation testing research |
 
 ---
 
