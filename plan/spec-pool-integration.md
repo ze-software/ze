@@ -112,3 +112,19 @@ RouteStore exists but is **completely unused**:
 2. No direct `&attribute.*{}` in production code
 3. RouteStore metrics show dedup hits > 0
 4. Memory usage lower with duplicate routes
+
+---
+
+## Relationship to spec-unified-handle-nlri.md
+
+**This spec should be completed FIRST.**
+
+unified-handle-nlri builds on this work:
+- Uses RouteStore wiring established here
+- Extends RouteStore with Ctx for NLRI pools
+- Factory methods survive - they abstract storage decisions
+
+**Design for forward compatibility:**
+- Factory methods hide storage implementation
+- RouteStore can be extended with Ctx later
+- Attribute storage (AttributeStore) remains separate from NLRI storage (pool.Pool)
