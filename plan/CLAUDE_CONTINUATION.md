@@ -6,39 +6,22 @@
 
 ## CURRENT STATUS
 
-✅ **Completed:** RFC 8950 Extended Next-Hop (test 6 passes)
+✅ **Completed:** RFC 8950 Extended Next-Hop (`93de483`)
 
-### Implementation Summary
-
-| Component | File | Description |
-|-----------|------|-------------|
-| Capability negotiation | `pkg/bgp/capability/negotiated.go` | ExtendedNextHop map + ExtendedNextHopAFI() |
-| Negotiation tests | `pkg/bgp/capability/negotiated_test.go` | 3 tests for ExtNH negotiation |
-| Config parsing | `pkg/config/bgp.go` | NexthopFamilyConfig, parseNexthopFamilies() |
-| Capability building | `pkg/config/loader.go` | Build ExtendedNextHop capability |
-| Route encoding | `pkg/reactor/peer.go` | IPv4UnicastExtNH, IPv4MPLSVPNExtNH flags |
-| | | buildMPReachNLRIExtNHUnicast() function |
-| | | useExtNHVPN check for VPN routes |
-
-### Files Modified (uncommitted)
-- `pkg/bgp/capability/negotiated.go`
-- `pkg/bgp/capability/negotiated_test.go`
-- `pkg/config/bgp.go`
-- `pkg/config/loader.go`
-- `pkg/reactor/peer.go`
-- `pkg/reactor/peer_test.go`
-- `test/data/encode/extended-nexthop.ci`
-- `test/data/encode/extended-nexthop.conf`
-
----
-
-## PREVIOUS STATUS
-
-✅ **Completed:** Protocol updates and plan-to-spec conversion (`215aaa8`)
+Test 6 (extended-nexthop) now passes.
 
 ---
 
 ## RECENTLY COMPLETED
+
+### RFC 8950 Extended Next-Hop (`93de483`)
+
+| Component | Description |
+|-----------|-------------|
+| Capability negotiation | ExtendedNextHop map + ExtendedNextHopAFI() |
+| Config parsing | `nexthop { ipv4 unicast ipv6; }` syntax |
+| Route encoding | buildMPReachNLRIExtNHUnicast() for IPv4 NLRI with IPv6 NH |
+| VPN support | Warning log when ExtNH not negotiated |
 
 ### Protocol & Spec Updates (`215aaa8`)
 
