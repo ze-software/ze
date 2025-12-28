@@ -10,6 +10,7 @@ import (
 
 	"github.com/exa-networks/zebgp/pkg/api"
 	"github.com/exa-networks/zebgp/pkg/bgp/attribute"
+	"github.com/exa-networks/zebgp/pkg/bgp/nlri"
 	"github.com/stretchr/testify/require"
 )
 
@@ -313,8 +314,9 @@ func TestBuildAnnounceUpdateIPv6UsesMPReachNLRI(t *testing.T) {
 		NextHop: netip.MustParseAddr("2001::1"),
 	}
 
-	// ctx=nil means no ADD-PATH encoding
-	update := buildAnnounceUpdate(route, 65000, true, true, nil)
+	// ctx with ASN4=true, AddPath=false
+	ctx := &nlri.PackContext{ASN4: true}
+	update := buildAnnounceUpdate(route, 65000, true, ctx)
 
 	// IPv6 routes MUST NOT have regular NLRI field
 	require.Empty(t, update.NLRI, "IPv6 routes must not use NLRI field")

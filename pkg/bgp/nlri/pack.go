@@ -11,7 +11,11 @@ type PackContext struct {
 	// RFC 7911 Section 3: When true, NLRI includes 4-byte Path Identifier.
 	AddPath bool
 
+	// ASN4 indicates 4-byte AS number capability is negotiated.
+	// RFC 6793 Section 4.1: When true, AS_PATH uses 4-byte AS numbers.
+	// When false, AS_PATH uses 2-byte with AS_TRANS (23456) for large ASNs.
+	ASN4 bool
+
 	// Future fields for other capabilities:
-	// ASN4 bool           // RFC 6793: 4-byte AS numbers in AS_PATH
 	// ExtendedNextHop AFI // RFC 8950: Extended next-hop encoding
 }

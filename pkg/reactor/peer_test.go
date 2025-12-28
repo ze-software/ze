@@ -313,7 +313,8 @@ func TestBuildStaticRouteUpdateIPv6(t *testing.T) {
 		LocalPreference: 100,
 	}
 
-	update := buildStaticRouteUpdate(route, 65000, true, true, nil) // iBGP, asn4, no ExtNH
+	ctx := &nlri.PackContext{ASN4: true}
+	update := buildStaticRouteUpdate(route, 65000, true, ctx, nil) // iBGP, ctx with ASN4, no ExtNH
 
 	// IPv6 routes must NOT have inline NLRI
 	require.Empty(t, update.NLRI, "IPv6 route must not have inline NLRI")
@@ -369,7 +370,8 @@ func TestBuildStaticRouteUpdateWithCommunities(t *testing.T) {
 		Communities: []uint32{0x78140000, 0x78147814}, // 30740:0, 30740:30740
 	}
 
-	update := buildStaticRouteUpdate(route, 65000, false, true, nil) // eBGP, asn4, no ExtNH
+	ctx := &nlri.PackContext{ASN4: true}
+	update := buildStaticRouteUpdate(route, 65000, false, ctx, nil) // eBGP, ctx with ASN4, no ExtNH
 	require.NotEmpty(t, update.PathAttributes, "must have path attributes")
 
 	// Look for COMMUNITIES (code 8) in attributes
@@ -1167,11 +1169,11 @@ func TestPeerPackContextNoAddPath(t *testing.T) {
 	require.False(t, ctx6.AddPath, "AddPath should be false for IPv6 unicast without ADD-PATH")
 }
 
-// TestPeerPackContextOtherFamilies verifies non-unicast families return nil context.
+// TestPeerPackContextOtherFamilies verifies non-unicast families return context with AddPath=false.
 //
-// VALIDATES: packContext returns nil for families without ADD-PATH support.
+// VALIDATES: packContext returns context with ASN4 but AddPath=false for non-unicast.
 //
-// PREVENTS: Attempting ADD-PATH encoding for unsupported families.
+// PREVENTS: Missing ASN4 for non-unicast families while correctly omitting ADD-PATH.
 func TestPeerPackContextOtherFamilies(t *testing.T) {
 	settings := NewPeerSettings(
 		mustParseAddr("192.0.2.1"),
@@ -1182,10 +1184,47 @@ func TestPeerPackContextOtherFamilies(t *testing.T) {
 	peer.families.Store(&NegotiatedFamilies{
 		IPv4Unicast:        true,
 		IPv4UnicastAddPath: true,
+		ASN4:               true,
 	})
 
 	// VPN family - not supported for ADD-PATH in current implementation
 	vpnFamily := nlri.Family{AFI: nlri.AFIIPv4, SAFI: 128}
 	ctx := peer.packContext(vpnFamily)
-	require.Nil(t, ctx, "VPN family should return nil context (ADD-PATH not implemented)")
+	require.NotNil(t, ctx, "VPN family should return context (for ASN4)")
+	require.False(t, ctx.AddPath, "VPN family should have AddPath=false")
+	require.True(t, ctx.ASN4, "VPN family should have ASN4 from session")
+}
+
+// TestPeerPackContextASN4 verifies packContext includes ASN4 from negotiated state.
+//
+// VALIDATES: PackContext.ASN4 reflects negotiated 4-byte AS number capability.
+// RFC 6793 Section 4.1: NEW speakers use 4-byte AS numbers when both support it.
+//
+// PREVENTS: AS_PATH encoded with wrong ASN size, causing protocol violations.
+func TestPeerPackContextASN4(t *testing.T) {
+	settings := NewPeerSettings(
+		mustParseAddr("192.0.2.1"),
+		65000, 65001, 0x01010101,
+	)
+	peer := NewPeer(settings)
+
+	// Session with ASN4=true
+	peer.families.Store(&NegotiatedFamilies{
+		IPv4Unicast: true,
+		ASN4:        true,
+	})
+
+	ctx := peer.packContext(nlri.IPv4Unicast)
+	require.NotNil(t, ctx, "should return non-nil context")
+	require.True(t, ctx.ASN4, "ASN4 should be true when negotiated")
+
+	// Session with ASN4=false (OLD speaker)
+	peer.families.Store(&NegotiatedFamilies{
+		IPv4Unicast: true,
+		ASN4:        false,
+	})
+
+	ctx = peer.packContext(nlri.IPv4Unicast)
+	require.NotNil(t, ctx, "should return non-nil context")
+	require.False(t, ctx.ASN4, "ASN4 should be false for OLD speaker")
 }

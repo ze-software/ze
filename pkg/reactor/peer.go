@@ -313,28 +313,31 @@ func (p *Peer) AdjRIBOut() *rib.OutgoingRIB {
 	return p.adjRIBOut
 }
 
-// packContext returns a PackContext for capability-aware NLRI encoding.
+// packContext returns a PackContext for capability-aware encoding.
 // RFC 7911: ADD-PATH requires 4-byte path identifier prefix on NLRI.
+// RFC 6793: ASN4 determines 2-byte vs 4-byte AS numbers in AS_PATH.
 //
-// Returns nil if:
-//   - No negotiated families (session not established).
-//   - Family doesn't support ADD-PATH in current implementation.
+// Returns nil only if no negotiated families (session not established).
+// Always returns a context with ASN4 set; AddPath is family-dependent.
 func (p *Peer) packContext(family nlri.Family) *nlri.PackContext {
 	nf := p.families.Load()
 	if nf == nil {
 		return nil
 	}
 
-	// Check ADD-PATH support for this family
+	// Base context with ASN4 (applies to all families)
+	ctx := &nlri.PackContext{ASN4: nf.ASN4}
+
+	// ADD-PATH support is family-specific (RFC 7911)
 	switch {
 	case family.AFI == nlri.AFIIPv4 && family.SAFI == nlri.SAFIUnicast:
-		return &nlri.PackContext{AddPath: nf.IPv4UnicastAddPath}
+		ctx.AddPath = nf.IPv4UnicastAddPath
 	case family.AFI == nlri.AFIIPv6 && family.SAFI == nlri.SAFIUnicast:
-		return &nlri.PackContext{AddPath: nf.IPv6UnicastAddPath}
-	default:
-		// Other families don't have ADD-PATH support yet
-		return nil
+		ctx.AddPath = nf.IPv6UnicastAddPath
 	}
+	// Other families: AddPath remains false (not yet implemented)
+
+	return ctx
 }
 
 // State returns the current peer state.
@@ -804,7 +807,9 @@ func (p *Peer) sendInitialRoutes() {
 		groups := groupRoutesByAttributes(p.settings.StaticRoutes)
 
 		for _, routes := range groups {
-			update := buildGroupedUpdate(routes, p.settings.LocalAS, p.settings.IsIBGP(), nf.ASN4, nf)
+			// Use first route's family for context (all routes in group have same family)
+			ctx := p.packContext(routeFamily(routes[0]))
+			update := buildGroupedUpdate(routes, p.settings.LocalAS, p.settings.IsIBGP(), ctx, nf)
 			if err := p.SendUpdate(update); err != nil {
 				trace.Log(trace.Routes, "peer %s: send error: %v", addr, err)
 				break
@@ -816,7 +821,8 @@ func (p *Peer) sendInitialRoutes() {
 	} else {
 		// Send each route in its own UPDATE.
 		for _, route := range p.settings.StaticRoutes {
-			update := buildStaticRouteUpdate(route, p.settings.LocalAS, p.settings.IsIBGP(), nf.ASN4, nf)
+			ctx := p.packContext(routeFamily(route))
+			update := buildStaticRouteUpdate(route, p.settings.LocalAS, p.settings.IsIBGP(), ctx, nf)
 			if err := p.SendUpdate(update); err != nil {
 				trace.Log(trace.Routes, "peer %s: send error: %v", addr, err)
 				break
@@ -844,7 +850,8 @@ func (p *Peer) sendInitialRoutes() {
 				}
 
 				// Send the route
-				update := buildStaticRouteUpdate(wr.StaticRoute, p.settings.LocalAS, p.settings.IsIBGP(), nf.ASN4, nf)
+				ctx := p.packContext(routeFamily(wr.StaticRoute))
+				update := buildStaticRouteUpdate(wr.StaticRoute, p.settings.LocalAS, p.settings.IsIBGP(), ctx, nf)
 				if err := p.SendUpdate(update); err != nil {
 					trace.Log(trace.Routes, "peer %s: send error: %v", addr, err)
 					break
@@ -881,7 +888,8 @@ func (p *Peer) sendInitialRoutes() {
 				// Build route with resolved next-hop
 				route := pr.StaticRoute
 				route.NextHop = nextHop
-				update := buildStaticRouteUpdate(route, p.settings.LocalAS, p.settings.IsIBGP(), nf.ASN4, nf)
+				ctx := p.packContext(routeFamily(route))
+				update := buildStaticRouteUpdate(route, p.settings.LocalAS, p.settings.IsIBGP(), ctx, nf)
 				if err := p.SendUpdate(update); err != nil {
 					trace.Log(trace.Routes, "peer %s: send error: %v", addr, err)
 					break
@@ -897,7 +905,7 @@ func (p *Peer) sendInitialRoutes() {
 		trace.Log(trace.Routes, "peer %s: re-sending %d Adj-RIB-Out routes", addr, len(sentRoutes))
 		for _, route := range sentRoutes {
 			ctx := p.packContext(route.NLRI().Family())
-			update := buildRIBRouteUpdate(route, p.settings.LocalAS, p.settings.IsIBGP(), nf.ASN4, ctx)
+			update := buildRIBRouteUpdate(route, p.settings.LocalAS, p.settings.IsIBGP(), ctx)
 			if err := p.SendUpdate(update); err != nil {
 				trace.Log(trace.Routes, "peer %s: send error: %v", addr, err)
 				break
@@ -911,7 +919,7 @@ func (p *Peer) sendInitialRoutes() {
 		trace.Log(trace.Routes, "peer %s: sending %d pending routes from transactions", addr, len(pendingRoutes))
 		for _, route := range pendingRoutes {
 			ctx := p.packContext(route.NLRI().Family())
-			update := buildRIBRouteUpdate(route, p.settings.LocalAS, p.settings.IsIBGP(), nf.ASN4, ctx)
+			update := buildRIBRouteUpdate(route, p.settings.LocalAS, p.settings.IsIBGP(), ctx)
 			if err := p.SendUpdate(update); err != nil {
 				trace.Log(trace.Routes, "peer %s: send error: %v", addr, err)
 				break
@@ -942,7 +950,7 @@ func (p *Peer) sendInitialRoutes() {
 		case PeerOpAnnounce:
 			// Send route and add to sent cache
 			ctx := p.packContext(op.Route.NLRI().Family())
-			update := buildRIBRouteUpdate(op.Route, p.settings.LocalAS, p.settings.IsIBGP(), nf.ASN4, ctx)
+			update := buildRIBRouteUpdate(op.Route, p.settings.LocalAS, p.settings.IsIBGP(), ctx)
 			p.mu.Unlock()
 			if err := p.SendUpdate(update); err != nil {
 				trace.Log(trace.Routes, "peer %s: send error: %v", addr, err)
@@ -1028,8 +1036,12 @@ func (p *Peer) sendInitialRoutes() {
 // Used for re-announcing routes from Adj-RIB-Out on session re-establishment.
 // Rebuilds the full set of required attributes since rib.Route may not store all.
 // RFC 7911: ctx provides ADD-PATH capability state for NLRI encoding.
-func buildRIBRouteUpdate(route *rib.Route, localAS uint32, isIBGP, asn4 bool, ctx *nlri.PackContext) *message.Update {
+// RFC 6793: ctx.ASN4 determines 2-byte vs 4-byte AS numbers in AS_PATH.
+func buildRIBRouteUpdate(route *rib.Route, localAS uint32, isIBGP bool, ctx *nlri.PackContext) *message.Update {
 	var attrBytes []byte
+
+	// Extract ASN4 from context (default to true if nil)
+	asn4 := ctx == nil || ctx.ASN4
 
 	// 1. ORIGIN - use stored or default to IGP
 	foundOrigin := false
@@ -1249,10 +1261,13 @@ func routeFamily(route StaticRoute) nlri.Family {
 }
 
 // buildStaticRouteUpdate builds an UPDATE message for a static route.
-// asn4 indicates whether to use 4-byte AS numbers in AS_PATH.
+// ctx.ASN4 indicates whether to use 4-byte AS numbers in AS_PATH.
 // nf contains negotiated family flags including ExtNH support.
-func buildStaticRouteUpdate(route StaticRoute, localAS uint32, isIBGP, asn4 bool, nf *NegotiatedFamilies) *message.Update {
+func buildStaticRouteUpdate(route StaticRoute, localAS uint32, isIBGP bool, ctx *nlri.PackContext, nf *NegotiatedFamilies) *message.Update {
 	var attrBytes []byte
+
+	// Extract ASN4 from context (default to true if nil)
+	asn4 := ctx == nil || ctx.ASN4
 
 	// 1. ORIGIN (IGP by default, use configured value if set)
 	origin := attribute.Origin(route.Origin)
@@ -1512,12 +1527,15 @@ func groupRoutesByAttributes(routes []StaticRoute) [][]StaticRoute {
 }
 
 // buildGroupedUpdate builds an UPDATE message for multiple routes with same attributes.
-// asn4 indicates whether to use 4-byte AS numbers in AS_PATH.
+// ctx.ASN4 indicates whether to use 4-byte AS numbers in AS_PATH.
 // nf contains negotiated capability flags for proper NLRI encoding.
-func buildGroupedUpdate(routes []StaticRoute, localAS uint32, isIBGP, asn4 bool, nf *NegotiatedFamilies) *message.Update {
+func buildGroupedUpdate(routes []StaticRoute, localAS uint32, isIBGP bool, ctx *nlri.PackContext, nf *NegotiatedFamilies) *message.Update {
 	if len(routes) == 0 {
 		return &message.Update{}
 	}
+
+	// Extract ASN4 from context (default to true if nil)
+	asn4 := ctx == nil || ctx.ASN4
 
 	// Use first route as representative for attributes.
 	route := routes[0]
@@ -1624,8 +1642,11 @@ func buildGroupedUpdate(routes []StaticRoute, localAS uint32, isIBGP, asn4 bool,
 
 	// Build NLRI for all routes in group.
 	// RFC 7911: Use Pack(ctx) for capability-aware encoding
+	// Note: ctx already provided with ASN4, ensure AddPath is set for IPv4 unicast
 	var nlriBytes []byte
-	ctx := &nlri.PackContext{AddPath: nf != nil && nf.IPv4UnicastAddPath}
+	if ctx != nil && nf != nil {
+		ctx.AddPath = nf.IPv4UnicastAddPath
+	}
 	for _, r := range routes {
 		switch {
 		case r.IsVPN():
@@ -1881,9 +1902,11 @@ func (p *Peer) sendMVPNRoutes() {
 
 	// Send IPv4 MVPN routes grouped by next-hop
 	if len(ipv4Routes) > 0 {
+		ipv4MVPNFamily := nlri.Family{AFI: 1, SAFI: 5} // IPv4 MVPN
+		ctx := p.packContext(ipv4MVPNFamily)
 		ipv4Groups := groupMVPNRoutesByNextHop(ipv4Routes)
 		for nh, routes := range ipv4Groups {
-			update := buildMVPNUpdate(routes, p.settings.LocalAS, p.settings.IsIBGP(), false, nf.ASN4)
+			update := buildMVPNUpdate(routes, p.settings.LocalAS, p.settings.IsIBGP(), false, ctx)
 			if err := p.SendUpdate(update); err != nil {
 				trace.Log(trace.Routes, "peer %s: MVPN send error: %v", addr, err)
 			} else {
@@ -1894,9 +1917,11 @@ func (p *Peer) sendMVPNRoutes() {
 
 	// Send IPv6 MVPN routes grouped by next-hop
 	if len(ipv6Routes) > 0 {
+		ipv6MVPNFamily := nlri.Family{AFI: 2, SAFI: 5} // IPv6 MVPN
+		ctx := p.packContext(ipv6MVPNFamily)
 		ipv6Groups := groupMVPNRoutesByNextHop(ipv6Routes)
 		for nh, routes := range ipv6Groups {
-			update := buildMVPNUpdate(routes, p.settings.LocalAS, p.settings.IsIBGP(), true, nf.ASN4)
+			update := buildMVPNUpdate(routes, p.settings.LocalAS, p.settings.IsIBGP(), true, ctx)
 			if err := p.SendUpdate(update); err != nil {
 				trace.Log(trace.Routes, "peer %s: MVPN send error: %v", addr, err)
 			} else {
@@ -1928,10 +1953,14 @@ func groupMVPNRoutesByNextHop(routes []MVPNRoute) map[string][]MVPNRoute {
 }
 
 // buildMVPNUpdate builds an UPDATE message for MVPN routes.
-func buildMVPNUpdate(routes []MVPNRoute, localAS uint32, isIBGP, isIPv6, asn4 bool) *message.Update {
+// ctx.ASN4 indicates whether to use 4-byte AS numbers in AS_PATH.
+func buildMVPNUpdate(routes []MVPNRoute, localAS uint32, isIBGP, isIPv6 bool, ctx *nlri.PackContext) *message.Update {
 	if len(routes) == 0 {
 		return &message.Update{}
 	}
+
+	// Extract ASN4 from context (default to true if nil)
+	asn4 := ctx == nil || ctx.ASN4
 
 	// Use first route for common attributes
 	first := routes[0]
@@ -2133,7 +2162,7 @@ func (p *Peer) sendVPLSRoutes() {
 		vplsFamily := nlri.Family{AFI: 25, SAFI: 65}
 		ctx := p.packContext(vplsFamily)
 		for _, route := range p.settings.VPLSRoutes {
-			update := buildVPLSUpdate(route, p.settings.LocalAS, p.settings.IsIBGP(), nf.ASN4, ctx)
+			update := buildVPLSUpdate(route, p.settings.LocalAS, p.settings.IsIBGP(), ctx)
 			if err := p.SendUpdate(update); err != nil {
 				trace.Log(trace.Routes, "peer %s: VPLS send error: %v", addr, err)
 			}
@@ -2148,10 +2177,13 @@ func (p *Peer) sendVPLSRoutes() {
 }
 
 // buildVPLSUpdate builds an UPDATE message for a VPLS route.
-// asn4 indicates whether to use 4-byte AS numbers in AS_PATH.
 // RFC 7911: ctx provides ADD-PATH capability state for NLRI encoding.
-func buildVPLSUpdate(route VPLSRoute, localAS uint32, isIBGP, asn4 bool, ctx *nlri.PackContext) *message.Update {
+// RFC 6793: ctx.ASN4 determines 2-byte vs 4-byte AS numbers in AS_PATH.
+func buildVPLSUpdate(route VPLSRoute, localAS uint32, isIBGP bool, ctx *nlri.PackContext) *message.Update {
 	var attrBytes []byte
+
+	// Extract ASN4 from context (default to true if nil)
+	asn4 := ctx == nil || ctx.ASN4
 
 	// 1. ORIGIN
 	origin := attribute.Origin(route.Origin)
@@ -2324,7 +2356,17 @@ func (p *Peer) sendFlowSpecRoutes() {
 			continue
 		}
 
-		update := buildFlowSpecUpdate(route, p.settings.LocalAS, p.settings.IsIBGP(), nf.ASN4)
+		// Determine FlowSpec family: AFI 1/2, SAFI 133 (unicast) or 134 (VPN)
+		afi := uint16(1)
+		if isIPv6 {
+			afi = 2
+		}
+		safi := uint8(133)
+		if isVPN {
+			safi = 134
+		}
+		ctx := p.packContext(nlri.Family{AFI: nlri.AFI(afi), SAFI: nlri.SAFI(safi)})
+		update := buildFlowSpecUpdate(route, p.settings.LocalAS, p.settings.IsIBGP(), ctx)
 		if err := p.SendUpdate(update); err != nil {
 			trace.Log(trace.Routes, "peer %s: FlowSpec send error: %v", addr, err)
 			continue
@@ -2356,9 +2398,12 @@ func (p *Peer) sendFlowSpecRoutes() {
 }
 
 // buildFlowSpecUpdate builds an UPDATE message for a FlowSpec route.
-// asn4 indicates whether to use 4-byte AS numbers in AS_PATH.
-func buildFlowSpecUpdate(route FlowSpecRoute, localAS uint32, isIBGP, asn4 bool) *message.Update {
+// ctx.ASN4 indicates whether to use 4-byte AS numbers in AS_PATH.
+func buildFlowSpecUpdate(route FlowSpecRoute, localAS uint32, isIBGP bool, ctx *nlri.PackContext) *message.Update {
 	var attrBytes []byte
+
+	// Extract ASN4 from context (default to true if nil)
+	asn4 := ctx == nil || ctx.ASN4
 
 	// 1. ORIGIN (IGP)
 	origin := attribute.Origin(0)
@@ -2533,8 +2578,10 @@ func (p *Peer) sendMUPRoutes() {
 	// Send IPv4 MUP routes
 	if len(ipv4Routes) > 0 {
 		trace.Log(trace.Routes, "peer %s: sending %d IPv4 MUP routes", addr, len(ipv4Routes))
+		ipv4MUPFamily := nlri.Family{AFI: 1, SAFI: 85}
+		ctx := p.packContext(ipv4MUPFamily)
 		for _, route := range ipv4Routes {
-			update := buildMUPUpdate(route, p.settings.LocalAS, p.settings.IsIBGP(), nf.ASN4)
+			update := buildMUPUpdate(route, p.settings.LocalAS, p.settings.IsIBGP(), ctx)
 			if err := p.SendUpdate(update); err != nil {
 				trace.Log(trace.Routes, "peer %s: MUP send error: %v", addr, err)
 			}
@@ -2544,8 +2591,10 @@ func (p *Peer) sendMUPRoutes() {
 	// Send IPv6 MUP routes
 	if len(ipv6Routes) > 0 {
 		trace.Log(trace.Routes, "peer %s: sending %d IPv6 MUP routes", addr, len(ipv6Routes))
+		ipv6MUPFamily := nlri.Family{AFI: 2, SAFI: 85}
+		ctx := p.packContext(ipv6MUPFamily)
 		for _, route := range ipv6Routes {
-			update := buildMUPUpdate(route, p.settings.LocalAS, p.settings.IsIBGP(), nf.ASN4)
+			update := buildMUPUpdate(route, p.settings.LocalAS, p.settings.IsIBGP(), ctx)
 			if err := p.SendUpdate(update); err != nil {
 				trace.Log(trace.Routes, "peer %s: MUP send error: %v", addr, err)
 			}
@@ -2565,9 +2614,12 @@ func (p *Peer) sendMUPRoutes() {
 }
 
 // buildMUPUpdate builds an UPDATE message for a MUP route.
-// asn4 indicates whether to use 4-byte AS numbers in AS_PATH.
-func buildMUPUpdate(route MUPRoute, localAS uint32, isIBGP, asn4 bool) *message.Update {
+// ctx.ASN4 indicates whether to use 4-byte AS numbers in AS_PATH.
+func buildMUPUpdate(route MUPRoute, localAS uint32, isIBGP bool, ctx *nlri.PackContext) *message.Update {
 	var attrBytes []byte
+
+	// Extract ASN4 from context (default to true if nil)
+	asn4 := ctx == nil || ctx.ASN4
 
 	// 1. ORIGIN (IGP)
 	origin := attribute.Origin(0)
@@ -2702,11 +2754,6 @@ func (p *Peer) AnnounceWatchdog(name string) error {
 		return nil
 	}
 
-	asn4 := true
-	if neg := session.Negotiated(); neg != nil {
-		asn4 = neg.ASN4
-	}
-
 	// Get negotiated families for ExtNH support
 	nf := p.families.Load()
 
@@ -2727,7 +2774,9 @@ func (p *Peer) AnnounceWatchdog(name string) error {
 		}
 
 		// Send the route
-		update := buildStaticRouteUpdate(wr.StaticRoute, p.settings.LocalAS, p.settings.IsIBGP(), asn4, nf)
+		// RFC 7911: Get PackContext for ADD-PATH encoding
+		ctx := p.packContext(routeFamily(wr.StaticRoute))
+		update := buildStaticRouteUpdate(wr.StaticRoute, p.settings.LocalAS, p.settings.IsIBGP(), ctx, nf)
 		if err := p.SendUpdate(update); err != nil {
 			return err
 		}

@@ -194,6 +194,7 @@ func (c *CommitService) useTraditionalNLRI(family nlri.Family, nextHop netip.Add
 
 // packContext creates a PackContext for capability-aware NLRI encoding.
 // RFC 7911: Checks if ADD-PATH is negotiated for the given family.
+// RFC 6793: Includes ASN4 for attribute encoding decisions.
 func (c *CommitService) packContext(family nlri.Family) *nlri.PackContext {
 	if c.negotiated == nil || c.negotiated.AddPath == nil {
 		return nil
@@ -201,6 +202,7 @@ func (c *CommitService) packContext(family nlri.Family) *nlri.PackContext {
 	msgFamily := message.Family{AFI: uint16(family.AFI), SAFI: uint8(family.SAFI)}
 	return &nlri.PackContext{
 		AddPath: c.negotiated.AddPath[msgFamily],
+		ASN4:    c.negotiated.ASN4,
 	}
 }
 

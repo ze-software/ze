@@ -206,11 +206,10 @@ func (a *reactorAPIAdapter) AnnounceRoute(peerSelector string, route api.RouteSp
 			peer.AdjRIBOut().QueueAnnounce(ribRoute)
 		case peer.State() == PeerStateEstablished:
 			// Send immediately and track for re-announcement on reconnect
-			// Default to 4-byte ASN (modern standard) for API-announced routes
-			asn4 := true
 			// RFC 7911: Get PackContext for ADD-PATH encoding
+			// RFC 6793: ctx.ASN4 provides 4-byte AS capability
 			ctx := peer.packContext(n.Family())
-			update := buildAnnounceUpdate(route, a.r.config.LocalAS, isIBGP, asn4, ctx)
+			update := buildAnnounceUpdate(route, a.r.config.LocalAS, isIBGP, ctx)
 			if err := peer.SendUpdate(update); err != nil {
 				lastErr = err
 			} else {
@@ -317,9 +316,13 @@ func (a *reactorAPIAdapter) sendToMatchingPeers(selector string, update *message
 //  7. LARGE_COMMUNITY (type 32) - RFC 8092
 //
 // RFC 7911: ctx provides ADD-PATH capability state for NLRI encoding.
-func buildAnnounceUpdate(route api.RouteSpec, localAS uint32, isIBGP, asn4 bool, ctx *nlri.PackContext) *message.Update {
+// RFC 6793: ctx.ASN4 determines 2-byte vs 4-byte AS numbers in AS_PATH.
+func buildAnnounceUpdate(route api.RouteSpec, localAS uint32, isIBGP bool, ctx *nlri.PackContext) *message.Update {
 	// Build path attributes
 	var attrBytes []byte
+
+	// Extract ASN4 from context (default to true if nil)
+	asn4 := ctx == nil || ctx.ASN4
 
 	// 1. ORIGIN - RFC 4271 §5.1.1: Well-known mandatory attribute.
 	// Default to IGP (0) for locally originated routes.
@@ -755,8 +758,8 @@ func buildAnnounceUpdateFromStatic(route StaticRoute, localAS uint32, isIBGP boo
 		}
 	}
 
-	// Default to 4-byte ASN
-	return buildAnnounceUpdate(spec, localAS, isIBGP, true, ctx)
+	// ctx provides ASN4 and ADD-PATH capability state
+	return buildAnnounceUpdate(spec, localAS, isIBGP, ctx)
 }
 
 // RIBInRoutes returns routes from Adj-RIB-In.

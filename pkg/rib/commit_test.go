@@ -605,3 +605,54 @@ func TestCommitService_NoGrouping_PreservesExplicitASPath(t *testing.T) {
 		t.Errorf("expected AS_PATH with 2 ASNs (>=10 bytes), got %d bytes", asPathLen)
 	}
 }
+
+// TestCommitServicePackContextASN4 verifies packContext includes ASN4 from negotiated.
+//
+// VALIDATES: CommitService.packContext returns PackContext with ASN4 from session.
+// RFC 6793: Correct ASN4 propagation ensures AS_PATH encoded with right ASN size.
+//
+// PREVENTS: AS_PATH encoded with 2-byte ASNs when 4-byte was negotiated.
+func TestCommitServicePackContextASN4(t *testing.T) {
+	sender := &mockUpdateSender{}
+
+	// Test with ASN4=true
+	neg := &message.Negotiated{
+		ASN4:    true,
+		LocalAS: 65000,
+		PeerAS:  65001,
+		AddPath: map[message.Family]bool{
+			{AFI: 1, SAFI: 1}: true, // IPv4 unicast with ADD-PATH
+		},
+	}
+	cs := NewCommitService(sender, neg, false)
+
+	ctx := cs.packContext(nlri.IPv4Unicast)
+	if ctx == nil {
+		t.Fatal("expected non-nil context")
+	}
+	if !ctx.ASN4 {
+		t.Error("ASN4 should be true when negotiated")
+	}
+	if !ctx.AddPath {
+		t.Error("AddPath should be true when negotiated for family")
+	}
+
+	// Test with ASN4=false (OLD speaker)
+	neg = &message.Negotiated{
+		ASN4:    false,
+		LocalAS: 65000,
+		PeerAS:  65001,
+		AddPath: map[message.Family]bool{
+			{AFI: 1, SAFI: 1}: false,
+		},
+	}
+	cs = NewCommitService(sender, neg, false)
+
+	ctx = cs.packContext(nlri.IPv4Unicast)
+	if ctx == nil {
+		t.Fatal("expected non-nil context")
+	}
+	if ctx.ASN4 {
+		t.Error("ASN4 should be false for OLD speaker")
+	}
+}
