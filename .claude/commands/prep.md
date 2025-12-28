@@ -55,6 +55,9 @@ $ARGUMENTS
 ## Embedded Protocol Requirements
 
 ### Default Rules (ALL tasks)
+- **FIRST:** Run `git status` - if modified files exist, ASK user before proceeding
+- **FIRST:** Read `plan/CLAUDE_CONTINUATION.md` for current state
+- **FIRST:** Read `.claude/ESSENTIAL_PROTOCOLS.md` for session rules
 - Tests MUST exist and FAIL before implementation code exists
 - Run `make test && make lint` before claiming done
 - NEVER discard uncommitted work without explicit user permission

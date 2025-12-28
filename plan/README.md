@@ -29,23 +29,29 @@
 | `rib-config-design.md` | RIB configuration design |
 | `edit-command.md` | Edit command implementation |
 | `fsm-active-design.md` | FSM critique reviewed - no action needed |
+| `api-commit-batching.md` | Superseded by unified-commit-system |
+| `config-routes-eor.md` | Superseded by unified-commit-system |
 
-### ⏭️ Superseded
+### 📋 Implementation Specs (Active)
 
-| Plan | Superseded By |
-|------|---------------|
-| `api-commit-batching.md` | `done/unified-commit-system.md` |
-| `config-routes-eor.md` | `done/unified-commit-system.md` |
+| Spec | Description | Priority |
+|------|-------------|----------|
+| `spec-extended-nexthop.md` | RFC 8950 IPv4 NLRI with IPv6 next-hop | High |
+| `spec-peer-encoding-extraction.md` | Extract UPDATE builders from peer.go | High |
+| `spec-pool-integration.md` | Wire RouteStore to components | Medium |
+| `spec-update-builder.md` | Fluent UPDATE builder pattern | Medium |
+| `spec-route-families.md` | FlowSpec/VPLS/EVPN keyword validation | Medium |
+| `spec-api-test-features.md` | Remaining API test features | Medium |
+| `spec-rfc7606-validation-cache.md` | Validation result caching (optional) | Low |
 
-### 📋 Planned / In Progress
+### 📋 Feature Plans (Not Yet Specs)
 
 | Plan | Description | Priority |
 |------|-------------|----------|
-| `peer-encoding-extraction.md` | Extract UPDATE builders from peer.go | High |
-| `pool-integration.md` | Wire RouteStore to components | Medium |
 | `exabgp-migration-tool.md` | CLI tool to convert ExaBGP configs | Medium |
 | `plugin-system-mvp.md` | Plugin system MVP specification | Low |
 | `plugin-system.md` | Plugin system full design | Deferred |
+| `claude-folder-improvements.md` | Claude protocol improvements | Meta |
 
 ### 📖 Reference
 
@@ -57,17 +63,49 @@
 
 ---
 
-## Structure
+## Spec Format
 
-```
-plan/
-├── done/           # Completed plans
-│   └── <name>.md
-├── <name>.md       # Active/planned work
-├── ARCHITECTURE.md # Reference
-└── README.md       # This index
+All implementation specs follow the format defined in `.claude/commands/prep.md`:
+
+```markdown
+# Spec: <task-name>
+
+## Task
+<description>
+
+## Embedded Protocol Requirements
+### Default Rules (ALL tasks)
+- **FIRST:** Run `git status` - if modified files exist, ASK user before proceeding
+- **FIRST:** Read `plan/CLAUDE_CONTINUATION.md` for current state
+- **FIRST:** Read `.claude/ESSENTIAL_PROTOCOLS.md` for session rules
+- Tests MUST exist and FAIL before implementation code exists
+- ...
+
+## Codebase Context
+<files to modify>
+
+## Implementation Steps
+<numbered TDD steps>
+
+## Verification Checklist
+<checkboxes>
 ```
 
 ---
 
-**Last Updated:** 2025-12-22
+## Structure
+
+```
+plan/
+├── done/              # Completed plans
+│   └── <name>.md
+├── spec-<name>.md     # Active implementation specs
+├── <name>.md          # Feature plans (not yet specs)
+├── ARCHITECTURE.md    # Reference
+├── CLAUDE_CONTINUATION.md  # Session state
+└── README.md          # This index
+```
+
+---
+
+**Last Updated:** 2025-12-28

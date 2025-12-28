@@ -65,10 +65,10 @@ Implemented ExaBGP-style pre-computed negotiated families for O(1) access:
 | R | path-information | ADD-PATH encoding |
 | S | prefix-sid | Prefix-SID not implemented |
 | T | split | Unknown |
-| U | srv6-mup-v3 | MUP stub only |
-| V | srv6-mup | MUP stub only |
-| Z | vpn | VPN community parsing |
-| a | watchdog | Permission error on socket |
+| U | srv6-mup-v3 | MUP timeout (stub) |
+| V | srv6-mup | MUP timeout (stub) |
+| Z | vpn | Extended-community parsing |
+| a | watchdog | Socket permission denied |
 
 ---
 

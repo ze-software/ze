@@ -8,6 +8,25 @@
 ╚═══════════════════════════════════════════════════════════════════════════════╝
 ```
 
+```
+╔═══════════════════════════════════════════════════════════════════════════════╗
+║                                                                               ║
+║   QUALITY MANDATE: THE BEST OF THE BEST - NO EXCEPTIONS                       ║
+║                                                                               ║
+║   • Resources are NOT a constraint - spend as much as necessary               ║
+║   • Always use "ultrathink" (extended thinking) when it would help            ║
+║   • 100% correctness is REQUIRED - no approximations, no shortcuts            ║
+║   • If unsure, investigate deeper - never guess                               ║
+║   • Quality over speed - take the time to do it RIGHT                         ║
+║                                                                               ║
+║   This project demands excellence. Every implementation must be:              ║
+║   • RFC-compliant without exception                                           ║
+║   • Thoroughly tested                                                         ║
+║   • Properly reviewed before claiming done                                    ║
+║                                                                               ║
+╚═══════════════════════════════════════════════════════════════════════════════╝
+```
+
 ## Table of Contents
 
 1. [Session Start Checklist](#session-start-checklist-mandatory---do-this-first)
