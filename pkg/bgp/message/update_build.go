@@ -92,6 +92,15 @@ type UnicastParams struct {
 	HasAggregator bool
 	AggregatorASN uint32
 	AggregatorIP  [4]byte
+
+	// UseExtendedNextHop enables RFC 8950 extended next-hop encoding.
+	// When true and prefix is IPv4 with IPv6 next-hop, uses MP_REACH_NLRI.
+	UseExtendedNextHop bool
+
+	// RawAttributeBytes contains pre-packed raw attributes to append.
+	// Each entry is a complete attribute (flags+code+length+value).
+	// Used for pass-through of custom attributes from config.
+	RawAttributeBytes [][]byte
 }
 
 // BuildUnicast builds an UPDATE message for a unicast route.
@@ -113,8 +122,9 @@ func (ub *UpdateBuilder) BuildUnicast(p UnicastParams) *Update {
 	attrs = append(attrs, asPath)
 
 	// 3. NEXT_HOP (type 3) - RFC 4271 Section 5.1.3
-	// Only for IPv4 unicast with IPv4 next-hop (not MP_REACH_NLRI)
-	if p.Prefix.Addr().Is4() && p.NextHop.Is4() {
+	// Only for IPv4 unicast with IPv4 next-hop (not MP_REACH_NLRI, not extended next-hop)
+	// RFC 8950: When extended next-hop is used, next-hop goes in MP_REACH_NLRI
+	if p.Prefix.Addr().Is4() && p.NextHop.Is4() && !p.UseExtendedNextHop {
 		attrs = append(attrs, &attribute.NextHop{Addr: p.NextHop})
 	}
 
@@ -160,12 +170,19 @@ func (ub *UpdateBuilder) BuildUnicast(p UnicastParams) *Update {
 	}
 
 	// 14. MP_REACH_NLRI (type 14) - RFC 4760
-	// For IPv6 unicast, next-hop and NLRI go here
+	// For IPv6 unicast and RFC 8950 extended next-hop, next-hop and NLRI go here
 	var inlineNLRI []byte
-	if p.Prefix.Addr().Is6() {
+	switch {
+	case p.Prefix.Addr().Is6():
+		// IPv6 unicast: use MP_REACH_NLRI
 		mpReach := ub.buildMPReachUnicast(p)
 		attrs = append(attrs, mpReach)
-	} else if p.Prefix.Addr().Is4() && p.NextHop.Is4() {
+	case p.UseExtendedNextHop && p.Prefix.Addr().Is4() && p.NextHop.Is6():
+		// RFC 8950: IPv4 unicast with IPv6 next-hop via MP_REACH_NLRI
+		// buildMPReachUnicast handles this - AFI is set from prefix, not next-hop
+		mpReach := ub.buildMPReachUnicast(p)
+		attrs = append(attrs, mpReach)
+	case p.Prefix.Addr().Is4():
 		// IPv4 unicast: inline NLRI
 		inet := nlri.NewINET(nlri.Family{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast}, p.Prefix, p.PathID)
 		ctx := ub.Ctx
@@ -206,6 +223,11 @@ func (ub *UpdateBuilder) BuildUnicast(p UnicastParams) *Update {
 
 	// Pack sorted attributes
 	attrBytes := attribute.PackAttributesOrdered(attrs)
+
+	// Append raw attributes (already packed, pass-through from config)
+	for _, raw := range p.RawAttributeBytes {
+		attrBytes = append(attrBytes, raw...)
+	}
 
 	return &Update{
 		PathAttributes: attrBytes,

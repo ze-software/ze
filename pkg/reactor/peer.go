@@ -380,6 +380,71 @@ func toMVPNParams(routes []MVPNRoute) []message.MVPNParams {
 	return params
 }
 
+// toStaticRouteUnicastParams converts a StaticRoute to UnicastParams.
+// Used for IPv4/IPv6 unicast routes (not VPN).
+func toStaticRouteUnicastParams(r StaticRoute, nf *NegotiatedFamilies) message.UnicastParams {
+	// RFC 8950: Extended next-hop for IPv4 unicast with IPv6 next-hop
+	useExtNH := r.Prefix.Addr().Is4() && r.NextHop.Is6() && nf != nil && nf.IPv4UnicastExtNH
+
+	// Pack raw attributes
+	rawAttrs := make([][]byte, len(r.RawAttributes))
+	for i, ra := range r.RawAttributes {
+		rawAttrs[i] = packRawAttribute(ra)
+	}
+
+	return message.UnicastParams{
+		Prefix:             r.Prefix,
+		PathID:             r.PathID,
+		NextHop:            r.NextHop,
+		Origin:             attribute.Origin(r.Origin),
+		ASPath:             r.ASPath,
+		MED:                r.MED,
+		LocalPreference:    r.LocalPreference,
+		Communities:        r.Communities,
+		ExtCommunityBytes:  r.ExtCommunityBytes,
+		LargeCommunities:   r.LargeCommunities,
+		AtomicAggregate:    r.AtomicAggregate,
+		HasAggregator:      r.HasAggregator,
+		AggregatorASN:      r.AggregatorASN,
+		AggregatorIP:       r.AggregatorIP,
+		UseExtendedNextHop: useExtNH,
+		RawAttributeBytes:  rawAttrs,
+	}
+}
+
+// toStaticRouteVPNParams converts a StaticRoute to VPNParams.
+// Used for VPN routes (SAFI 128).
+func toStaticRouteVPNParams(r StaticRoute) message.VPNParams {
+	return message.VPNParams{
+		Prefix:            r.Prefix,
+		PathID:            r.PathID,
+		NextHop:           r.NextHop,
+		Label:             r.Label,
+		RDBytes:           r.RDBytes,
+		Origin:            attribute.Origin(r.Origin),
+		ASPath:            r.ASPath,
+		MED:               r.MED,
+		LocalPreference:   r.LocalPreference,
+		Communities:       r.Communities,
+		ExtCommunityBytes: r.ExtCommunityBytes,
+		LargeCommunities:  r.LargeCommunities,
+		AtomicAggregate:   r.AtomicAggregate,
+		HasAggregator:     r.HasAggregator,
+		AggregatorASN:     r.AggregatorASN,
+		AggregatorIP:      r.AggregatorIP,
+	}
+}
+
+// buildStaticRouteUpdateNew builds an UPDATE for a static route using UpdateBuilder.
+// This is the new implementation that will replace buildStaticRouteUpdate.
+func buildStaticRouteUpdateNew(route StaticRoute, localAS uint32, isIBGP bool, ctx *nlri.PackContext, nf *NegotiatedFamilies) *message.Update {
+	ub := message.NewUpdateBuilder(localAS, isIBGP, ctx)
+	if route.IsVPN() {
+		return ub.BuildVPN(toStaticRouteVPNParams(route))
+	}
+	return ub.BuildUnicast(toStaticRouteUnicastParams(route, nf))
+}
+
 // State returns the current peer state.
 func (p *Peer) State() PeerState {
 	return PeerState(p.state.Load())
@@ -862,7 +927,7 @@ func (p *Peer) sendInitialRoutes() {
 		// Send each route in its own UPDATE.
 		for _, route := range p.settings.StaticRoutes {
 			ctx := p.packContext(routeFamily(route))
-			update := buildStaticRouteUpdate(route, p.settings.LocalAS, p.settings.IsIBGP(), ctx, nf)
+			update := buildStaticRouteUpdateNew(route, p.settings.LocalAS, p.settings.IsIBGP(), ctx, nf)
 			if err := p.SendUpdate(update); err != nil {
 				trace.Log(trace.Routes, "peer %s: send error: %v", addr, err)
 				break
@@ -891,7 +956,7 @@ func (p *Peer) sendInitialRoutes() {
 
 				// Send the route
 				ctx := p.packContext(routeFamily(wr.StaticRoute))
-				update := buildStaticRouteUpdate(wr.StaticRoute, p.settings.LocalAS, p.settings.IsIBGP(), ctx, nf)
+				update := buildStaticRouteUpdateNew(wr.StaticRoute, p.settings.LocalAS, p.settings.IsIBGP(), ctx, nf)
 				if err := p.SendUpdate(update); err != nil {
 					trace.Log(trace.Routes, "peer %s: send error: %v", addr, err)
 					break
@@ -929,7 +994,7 @@ func (p *Peer) sendInitialRoutes() {
 				route := pr.StaticRoute
 				route.NextHop = nextHop
 				ctx := p.packContext(routeFamily(route))
-				update := buildStaticRouteUpdate(route, p.settings.LocalAS, p.settings.IsIBGP(), ctx, nf)
+				update := buildStaticRouteUpdateNew(route, p.settings.LocalAS, p.settings.IsIBGP(), ctx, nf)
 				if err := p.SendUpdate(update); err != nil {
 					trace.Log(trace.Routes, "peer %s: send error: %v", addr, err)
 					break
@@ -2252,7 +2317,7 @@ func (p *Peer) AnnounceWatchdog(name string) error {
 		// Send the route
 		// RFC 7911: Get PackContext for ADD-PATH encoding
 		ctx := p.packContext(routeFamily(wr.StaticRoute))
-		update := buildStaticRouteUpdate(wr.StaticRoute, p.settings.LocalAS, p.settings.IsIBGP(), ctx, nf)
+		update := buildStaticRouteUpdateNew(wr.StaticRoute, p.settings.LocalAS, p.settings.IsIBGP(), ctx, nf)
 		if err := p.SendUpdate(update); err != nil {
 			return err
 		}

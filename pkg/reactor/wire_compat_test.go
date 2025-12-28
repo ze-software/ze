@@ -155,6 +155,61 @@ func TestWireCompat_VPNIPv4(t *testing.T) {
 	}
 }
 
+// TestWireCompat_ExtendedNextHop verifies RFC 8950 extended next-hop.
+// IPv4 prefix with IPv6 next-hop using MP_REACH_NLRI.
+func TestWireCompat_ExtendedNextHop(t *testing.T) {
+	route := StaticRoute{
+		Prefix:          netip.MustParsePrefix("10.0.0.0/24"),
+		NextHop:         netip.MustParseAddr("2001:db8::1"),
+		Origin:          0,
+		LocalPreference: 100,
+	}
+
+	ctx := &nlri.PackContext{ASN4: true}
+	nf := &NegotiatedFamilies{IPv4Unicast: true, IPv4UnicastExtNH: true}
+
+	// Old implementation
+	oldUpdate := buildStaticRouteUpdate(route, 65001, true, ctx, nf)
+
+	// New implementation via helper
+	newUpdate := buildStaticRouteUpdateNew(route, 65001, true, ctx, nf)
+
+	if !bytes.Equal(oldUpdate.PathAttributes, newUpdate.PathAttributes) {
+		t.Errorf("PathAttributes mismatch:\nold: %x\nnew: %x",
+			oldUpdate.PathAttributes, newUpdate.PathAttributes)
+	}
+	if !bytes.Equal(oldUpdate.NLRI, newUpdate.NLRI) {
+		t.Errorf("NLRI mismatch:\nold: %x\nnew: %x",
+			oldUpdate.NLRI, newUpdate.NLRI)
+	}
+}
+
+// TestWireCompat_RawAttributes verifies raw attribute pass-through.
+func TestWireCompat_RawAttributes(t *testing.T) {
+	route := StaticRoute{
+		Prefix:  netip.MustParsePrefix("10.0.0.0/24"),
+		NextHop: netip.MustParseAddr("192.168.1.1"),
+		Origin:  0,
+		RawAttributes: []RawAttribute{
+			{Flags: 0xC0, Code: 99, Value: []byte{0x01, 0x02, 0x03}},
+		},
+	}
+
+	ctx := &nlri.PackContext{ASN4: true}
+	nf := &NegotiatedFamilies{IPv4Unicast: true}
+
+	// Old implementation
+	oldUpdate := buildStaticRouteUpdate(route, 65001, true, ctx, nf)
+
+	// New implementation via helper
+	newUpdate := buildStaticRouteUpdateNew(route, 65001, true, ctx, nf)
+
+	if !bytes.Equal(oldUpdate.PathAttributes, newUpdate.PathAttributes) {
+		t.Errorf("PathAttributes mismatch:\nold: %x\nnew: %x",
+			oldUpdate.PathAttributes, newUpdate.PathAttributes)
+	}
+}
+
 // Note: MVPN, VPLS, FlowSpec, MUP wire compat tests removed.
 // Those build functions were extracted to UpdateBuilder and the old
 // implementations deleted. UpdateBuilder tests are in update_build_test.go.

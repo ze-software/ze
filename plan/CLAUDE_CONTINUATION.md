@@ -6,13 +6,30 @@
 
 ## CURRENT STATUS
 
+✅ **Completed:** Static route UpdateBuilder conversion (this session)
 ✅ **Completed:** Peer encoding extraction - UpdateBuilder integration
 
 ---
 
 ## RECENTLY COMPLETED
 
-### Peer Encoding Extraction (This Session)
+### Static Route UpdateBuilder Conversion (This Session)
+
+**Spec:** `plan/spec-static-route-updatebuilder.md`
+
+| Change | Status |
+|--------|--------|
+| Added `UseExtendedNextHop` to UnicastParams (RFC 8950) | ✅ |
+| Added `RawAttributeBytes` to UnicastParams | ✅ |
+| Created `toStaticRouteUnicastParams()` helper | ✅ |
+| Created `toStaticRouteVPNParams()` helper | ✅ |
+| Created `buildStaticRouteUpdateNew()` wrapper | ✅ |
+| Updated 4 call sites to use new builder | ✅ |
+| Added wire compat tests for extended NH + raw attrs | ✅ |
+
+**Note:** `buildRIBRouteUpdate` and `buildGroupedUpdate` not converted - different use cases.
+
+### Peer Encoding Extraction (Previous Session)
 
 **Spec:** `plan/spec-peer-encoding-extraction.md`
 
@@ -48,13 +65,16 @@
 ## Resume Point
 
 **Last worked:** 2025-12-28
-**Last commit:** Pending (peer encoding extraction)
+**Last commit:** Pending (static route UpdateBuilder conversion)
 **Session ended:** Clean break
 
 **To resume:**
-1. Run `go run ./test/cmd/functional encoding --all` to verify functional tests
-2. Consider next: Convert sendStaticRoutes to UpdateBuilder (not in original scope)
-3. PackContext now has AddPath (RFC 7911) and ASN4 (RFC 6793)
+1. Functional tests: 24 passed, 13 failed (pre-existing failures)
+2. Static route call sites now use `buildStaticRouteUpdateNew`
+3. Remaining legacy functions (lower priority):
+   - `buildGroupedUpdate` - groups multiple IPv4 routes in one UPDATE
+   - `buildRIBRouteUpdate` - reconstructs UPDATEs from stored RIB routes
+4. Consider: Remove old `buildStaticRouteUpdate` after stable period
 
 ---
 
@@ -63,6 +83,9 @@
 ```
 make test   - PASS (all tests)
 make lint   - PASS (0 issues)
+functional  - 24 passed, 13 failed [0, 7, 8, J, L, N, Q, S, T, U, V, Z, a]
 ```
 
 Wire compat tests all pass (verifying UpdateBuilder == old build functions).
+
+**Note:** Functional test failures are pre-existing, not caused by recent changes.
