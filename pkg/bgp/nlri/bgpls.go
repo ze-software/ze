@@ -810,3 +810,12 @@ func (s *BGPLSSRv6SID) Len() int { return len(s.Bytes()) }
 func (s *BGPLSSRv6SID) String() string {
 	return fmt.Sprintf("bgp-ls:srv6-sid(asn=%d)", s.LocalNode.ASN)
 }
+
+// Pack methods for BGP-LS types.
+// BGP-LS types don't currently support ADD-PATH (HasPathID() always false).
+// Pack returns Bytes() directly since no path ID handling is needed.
+
+func (n *BGPLSNode) Pack(ctx *PackContext) []byte    { return n.Bytes() }
+func (l *BGPLSLink) Pack(ctx *PackContext) []byte    { return l.Bytes() }
+func (p *BGPLSPrefix) Pack(ctx *PackContext) []byte  { return p.Bytes() }
+func (s *BGPLSSRv6SID) Pack(ctx *PackContext) []byte { return s.Bytes() }

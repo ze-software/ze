@@ -204,7 +204,18 @@ type NLRI interface {
 	// Bytes returns the wire-format encoding of this NLRI.
 	// RFC 4271 Section 4.3: Encoded as <length, prefix> tuples.
 	// The returned slice may be shared; do not modify.
+	//
+	// Note: For capability-aware encoding (ADD-PATH, etc.), use Pack() instead.
 	Bytes() []byte
+
+	// Pack returns wire-format bytes adapted for negotiated capabilities.
+	//
+	// RFC 7911 Section 3: Handles ADD-PATH path identifier based on ctx.AddPath:
+	//   - If ctx is nil: behaves like Bytes()
+	//   - If ctx.AddPath=true and HasPathID()=true: returns with path ID
+	//   - If ctx.AddPath=true and HasPathID()=false: prepends NOPATH (4 zeros)
+	//   - If ctx.AddPath=false: returns without path ID (strips if present)
+	Pack(ctx *PackContext) []byte
 
 	// Len returns the length in bytes of the wire encoding.
 	Len() int

@@ -1155,6 +1155,16 @@ func (s *Session) writeMessage(conn net.Conn, neg *capability.Negotiated, msg me
 			PeerAS:          neg.PeerASN,
 			HoldTime:        neg.HoldTime,
 		}
+		// Populate ADD-PATH send capability per family (RFC 7911)
+		for _, f := range neg.Families() {
+			mode := neg.AddPathMode(f)
+			if mode == capability.AddPathSend || mode == capability.AddPathBoth {
+				if msgNeg.AddPath == nil {
+					msgNeg.AddPath = make(map[message.Family]bool)
+				}
+				msgNeg.AddPath[message.Family{AFI: uint16(f.AFI), SAFI: uint8(f.SAFI)}] = true
+			}
+		}
 	}
 
 	data, err := msg.Pack(msgNeg)
@@ -1251,6 +1261,16 @@ func (s *Session) SendUpdate(update *message.Update) error {
 			LocalAS:         neg.LocalASN,
 			PeerAS:          neg.PeerASN,
 			HoldTime:        neg.HoldTime,
+		}
+		// Populate ADD-PATH send capability per family (RFC 7911)
+		for _, f := range neg.Families() {
+			mode := neg.AddPathMode(f)
+			if mode == capability.AddPathSend || mode == capability.AddPathBoth {
+				if msgNeg.AddPath == nil {
+					msgNeg.AddPath = make(map[message.Family]bool)
+				}
+				msgNeg.AddPath[message.Family{AFI: uint16(f.AFI), SAFI: uint8(f.SAFI)}] = true
+			}
 		}
 	}
 

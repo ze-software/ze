@@ -57,6 +57,10 @@ type NegotiatedFamilies struct {
 	// RFC 8950: Extended Next Hop - allows IPv4 NLRI with IPv6 next-hop
 	IPv4UnicastExtNH bool // IPv4 unicast can use IPv6 next-hop
 	IPv4MPLSVPNExtNH bool // IPv4 mpls-vpn can use IPv6 next-hop
+
+	// RFC 7911: ADD-PATH - allows multiple paths per prefix
+	IPv4UnicastAddPath bool // IPv4 unicast supports ADD-PATH
+	IPv6UnicastAddPath bool // IPv6 unicast supports ADD-PATH
 }
 
 // computeNegotiatedFamilies extracts family flags from capability negotiation.
@@ -115,6 +119,16 @@ func computeNegotiatedFamilies(neg *capability.Negotiated) *NegotiatedFamilies {
 	}
 	if neg.ExtendedNextHopAFI(capability.Family{AFI: capability.AFIIPv4, SAFI: capability.SAFIMPLS}) == capability.AFIIPv6 {
 		nf.IPv4MPLSVPNExtNH = true
+	}
+
+	// RFC 7911: Check ADD-PATH for unicast families (can we send multiple paths?)
+	ipv4Mode := neg.AddPathMode(capability.Family{AFI: capability.AFIIPv4, SAFI: capability.SAFIUnicast})
+	if ipv4Mode == capability.AddPathSend || ipv4Mode == capability.AddPathBoth {
+		nf.IPv4UnicastAddPath = true
+	}
+	ipv6Mode := neg.AddPathMode(capability.Family{AFI: capability.AFIIPv6, SAFI: capability.SAFIUnicast})
+	if ipv6Mode == capability.AddPathSend || ipv6Mode == capability.AddPathBoth {
+		nf.IPv6UnicastAddPath = true
 	}
 
 	return nf
@@ -704,11 +718,25 @@ func (p *Peer) messageNegotiated() *message.Negotiated {
 		return nil
 	}
 
-	return &message.Negotiated{
+	msgNeg := &message.Negotiated{
 		ASN4:    neg.ASN4,
 		LocalAS: neg.LocalASN,
 		PeerAS:  neg.PeerASN,
 	}
+
+	// Populate ADD-PATH send capability per family (RFC 7911)
+	// We can send with ADD-PATH if mode is Send or Both
+	for _, f := range neg.Families() {
+		mode := neg.AddPathMode(f)
+		if mode == capability.AddPathSend || mode == capability.AddPathBoth {
+			if msgNeg.AddPath == nil {
+				msgNeg.AddPath = make(map[message.Family]bool)
+			}
+			msgNeg.AddPath[message.Family{AFI: uint16(f.AFI), SAFI: uint8(f.SAFI)}] = true
+		}
+	}
+
+	return msgNeg
 }
 
 // cleanup runs when peer stops.
@@ -752,7 +780,7 @@ func (p *Peer) sendInitialRoutes() {
 		groups := groupRoutesByAttributes(p.settings.StaticRoutes)
 
 		for _, routes := range groups {
-			update := buildGroupedUpdate(routes, p.settings.LocalAS, p.settings.IsIBGP(), nf.ASN4)
+			update := buildGroupedUpdate(routes, p.settings.LocalAS, p.settings.IsIBGP(), nf.ASN4, nf)
 			if err := p.SendUpdate(update); err != nil {
 				trace.Log(trace.Routes, "peer %s: send error: %v", addr, err)
 				break
@@ -1319,9 +1347,11 @@ func buildStaticRouteUpdate(route StaticRoute, localAS uint32, isIBGP, asn4 bool
 		// RFC 8950: IPv4 unicast with IPv6 next-hop via MP_REACH_NLRI
 		attrBytes = append(attrBytes, buildMPReachNLRIExtNHUnicast(route)...)
 	case route.Prefix.Addr().Is4():
-		// IPv4 unicast: inline NLRI with optional path-id
+		// IPv4 unicast: inline NLRI with capability-aware encoding
+		// RFC 7911: Use Pack(ctx) to handle ADD-PATH correctly
 		inet := nlri.NewINET(nlri.Family{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast}, route.Prefix, route.PathID)
-		nlriBytes = inet.Bytes()
+		ctx := &nlri.PackContext{AddPath: nf != nil && nf.IPv4UnicastAddPath}
+		nlriBytes = inet.Pack(ctx)
 	default:
 		// IPv6 unicast: use MP_REACH_NLRI attribute (RFC 4760)
 		attrBytes = append(attrBytes, buildMPReachNLRIUnicast(route)...)
@@ -1445,7 +1475,8 @@ func groupRoutesByAttributes(routes []StaticRoute) [][]StaticRoute {
 
 // buildGroupedUpdate builds an UPDATE message for multiple routes with same attributes.
 // asn4 indicates whether to use 4-byte AS numbers in AS_PATH.
-func buildGroupedUpdate(routes []StaticRoute, localAS uint32, isIBGP, asn4 bool) *message.Update {
+// nf contains negotiated capability flags for proper NLRI encoding.
+func buildGroupedUpdate(routes []StaticRoute, localAS uint32, isIBGP, asn4 bool, nf *NegotiatedFamilies) *message.Update {
 	if len(routes) == 0 {
 		return &message.Update{}
 	}
@@ -1554,16 +1585,18 @@ func buildGroupedUpdate(routes []StaticRoute, localAS uint32, isIBGP, asn4 bool)
 	}
 
 	// Build NLRI for all routes in group.
+	// RFC 7911: Use Pack(ctx) for capability-aware encoding
 	var nlriBytes []byte
+	ctx := &nlri.PackContext{AddPath: nf != nil && nf.IPv4UnicastAddPath}
 	for _, r := range routes {
 		switch {
 		case r.IsVPN():
 			// VPN routes need separate handling - for now, just use first.
 			attrBytes = append(attrBytes, buildMPReachNLRI(r)...)
 		case r.Prefix.Addr().Is4():
-			// IPv4 unicast: append to NLRI.
+			// IPv4 unicast: append to NLRI with capability-aware encoding.
 			inet := nlri.NewINET(nlri.Family{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast}, r.Prefix, r.PathID)
-			nlriBytes = append(nlriBytes, inet.Bytes()...)
+			nlriBytes = append(nlriBytes, inet.Pack(ctx)...)
 		default:
 			// IPv6 unicast: use MP_REACH_NLRI (handle separately).
 			attrBytes = append(attrBytes, buildMPReachNLRIUnicast(r)...)

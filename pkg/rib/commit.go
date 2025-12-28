@@ -132,10 +132,13 @@ func (c *CommitService) buildGroupedUpdateTwoLevel(attrGroup *AttributeGroup, as
 	family := attrGroup.Family
 	nextHop := bytesToAddr(attrGroup.NextHop)
 
+	// Create PackContext for capability-aware NLRI encoding (RFC 7911 ADD-PATH)
+	ctx := c.packContext(family)
+
 	// Collect all NLRIs from the ASPathGroup
 	var nlriBytes []byte
 	for _, route := range aspGroup.Routes {
-		nlriBytes = append(nlriBytes, route.NLRI().Bytes()...)
+		nlriBytes = append(nlriBytes, route.NLRI().Pack(ctx)...)
 	}
 
 	// Build path attributes with explicit AS_PATH
@@ -159,7 +162,10 @@ func (c *CommitService) buildGroupedUpdateTwoLevel(attrGroup *AttributeGroup, as
 func (c *CommitService) buildSingleUpdate(route *Route) *message.Update {
 	family := route.NLRI().Family()
 	nextHop := route.NextHop()
-	nlriBytes := route.NLRI().Bytes()
+
+	// Create PackContext for capability-aware NLRI encoding (RFC 7911 ADD-PATH)
+	ctx := c.packContext(family)
+	nlriBytes := route.NLRI().Pack(ctx)
 
 	// Use getRouteASPath to get AS_PATH (explicit field or from attrs)
 	asPath := getRouteASPath(route)
@@ -184,6 +190,18 @@ func (c *CommitService) useTraditionalNLRI(family nlri.Family, nextHop netip.Add
 	// Only IPv4 unicast with IPv4 next-hop uses traditional NLRI field
 	// IPv4 unicast with IPv6 next-hop (RFC 5549) must use MP_REACH_NLRI
 	return family.AFI == 1 && family.SAFI == 1 && nextHop.Is4()
+}
+
+// packContext creates a PackContext for capability-aware NLRI encoding.
+// RFC 7911: Checks if ADD-PATH is negotiated for the given family.
+func (c *CommitService) packContext(family nlri.Family) *nlri.PackContext {
+	if c.negotiated == nil || c.negotiated.AddPath == nil {
+		return nil
+	}
+	msgFamily := message.Family{AFI: uint16(family.AFI), SAFI: uint8(family.SAFI)}
+	return &nlri.PackContext{
+		AddPath: c.negotiated.AddPath[msgFamily],
+	}
 }
 
 // packAttributesWithASPath packs path attributes with an explicit AS_PATH.

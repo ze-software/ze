@@ -2,8 +2,21 @@ package config
 
 import (
 	"sort"
+	"strconv"
 	"strings"
 )
+
+// stripListKeySuffix removes the #N suffix added by AddListEntry for duplicate keys.
+// For example, "10.0.0.10#1" becomes "10.0.0.10".
+func stripListKeySuffix(key string) string {
+	if idx := strings.LastIndex(key, "#"); idx > 0 {
+		suffix := key[idx+1:]
+		if _, err := strconv.Atoi(suffix); err == nil {
+			return key[:idx]
+		}
+	}
+	return key
+}
 
 // Serialize converts a Tree back to ExaBGP config format.
 func Serialize(tree *Tree, schema *Schema) string {
@@ -189,6 +202,9 @@ func serializeNode(b *strings.Builder, tree *Tree, name string, node Node, inden
 
 			for _, key := range keys {
 				entry := entries[key]
+				// Strip #N suffix from duplicate keys for serialization
+				displayKey := stripListKeySuffix(key)
+
 				// Decide: inline or block?
 				// Use inline if all values are simple (no nested containers)
 				useInline := len(entry.containers) == 0 && len(entry.lists) == 0
@@ -197,7 +213,7 @@ func serializeNode(b *strings.Builder, tree *Tree, name string, node Node, inden
 					b.WriteString(prefix)
 					b.WriteString(name)
 					b.WriteString(" ")
-					b.WriteString(quoteIfNeeded(key))
+					b.WriteString(quoteIfNeeded(displayKey))
 					for _, attrName := range n.Children() {
 						if v, ok := entry.values[attrName]; ok {
 							b.WriteString(" ")
@@ -220,7 +236,7 @@ func serializeNode(b *strings.Builder, tree *Tree, name string, node Node, inden
 					b.WriteString(prefix)
 					b.WriteString(name)
 					b.WriteString(" ")
-					b.WriteString(quoteIfNeeded(key))
+					b.WriteString(quoteIfNeeded(displayKey))
 					b.WriteString(" {\n")
 					serializeInlineListEntry(b, entry, n, indent+1)
 					b.WriteString(prefix)

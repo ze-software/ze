@@ -388,3 +388,23 @@ func (v *IPVPN) String() string {
 	}
 	return s
 }
+
+// Pack returns wire-format bytes adapted for negotiated capabilities.
+// RFC 7911 Section 3: Handles ADD-PATH path identifier based on ctx.AddPath.
+func (v *IPVPN) Pack(ctx *PackContext) []byte {
+	if ctx == nil {
+		return v.Bytes()
+	}
+	if ctx.AddPath {
+		if v.hasPath {
+			return v.Bytes() // Already has path ID
+		}
+		// Prepend NOPATH (4 zero bytes)
+		return append([]byte{0, 0, 0, 0}, v.Bytes()...)
+	}
+	// No ADD-PATH: strip path ID if present
+	if v.hasPath {
+		return v.Bytes()[4:] // Skip 4-byte path ID
+	}
+	return v.Bytes()
+}

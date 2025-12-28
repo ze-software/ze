@@ -921,3 +921,30 @@ func (e *EVPNGeneric) HasPathID() bool          { return e.hasPath }
 func (e *EVPNGeneric) Bytes() []byte            { return e.data }
 func (e *EVPNGeneric) Len() int                 { return len(e.data) + 2 }
 func (e *EVPNGeneric) String() string           { return fmt.Sprintf("evpn-type%d", e.routeType) }
+
+// Pack methods for EVPN types - handle ADD-PATH encoding per RFC 7911.
+// All EVPN types use the same ADD-PATH handling pattern.
+
+func (e *EVPNType1) Pack(ctx *PackContext) []byte   { return packEVPN(e.Bytes(), e.hasPath, ctx) }
+func (e *EVPNType2) Pack(ctx *PackContext) []byte   { return packEVPN(e.Bytes(), e.hasPath, ctx) }
+func (e *EVPNType3) Pack(ctx *PackContext) []byte   { return packEVPN(e.Bytes(), e.hasPath, ctx) }
+func (e *EVPNType4) Pack(ctx *PackContext) []byte   { return packEVPN(e.Bytes(), e.hasPath, ctx) }
+func (e *EVPNType5) Pack(ctx *PackContext) []byte   { return packEVPN(e.Bytes(), e.hasPath, ctx) }
+func (e *EVPNGeneric) Pack(ctx *PackContext) []byte { return packEVPN(e.Bytes(), e.hasPath, ctx) }
+
+// packEVPN handles ADD-PATH encoding for EVPN types.
+func packEVPN(bytes []byte, hasPath bool, ctx *PackContext) []byte {
+	if ctx == nil {
+		return bytes
+	}
+	if ctx.AddPath {
+		if hasPath {
+			return bytes
+		}
+		return append([]byte{0, 0, 0, 0}, bytes...)
+	}
+	if hasPath {
+		return bytes[4:]
+	}
+	return bytes
+}

@@ -15,6 +15,12 @@ const (
 	configDisable = "disable" // Config value for disabled state
 	configRequire = "require" // Config value for required state
 
+	// ADD-PATH mode strings.
+	addPathSend        = "send"
+	addPathReceive     = "receive"
+	addPathSendReceive = "send/receive"
+	addPathReceiveSend = "receive/send"
+
 	// MUP route types for SRv6 Mobile User Plane.
 	routeTypeMUPISD  = "mup-isd"
 	routeTypeMUPT1ST = "mup-t1st"
@@ -746,11 +752,24 @@ func applyTreeSettings(nc *PeerConfig, tree *Tree) error {
 				nc.Capabilities.RestartTime = uint16(n)
 			}
 		}
+		// Handle add-path as value (e.g., "add-path send/receive;")
+		if v, ok := cap.GetFlex("add-path"); ok && v != "" {
+			switch v {
+			case addPathSendReceive, addPathReceiveSend:
+				nc.Capabilities.AddPathSend = true
+				nc.Capabilities.AddPathReceive = true
+			case addPathSend:
+				nc.Capabilities.AddPathSend = true
+			case addPathReceive:
+				nc.Capabilities.AddPathReceive = true
+			}
+		}
+		// Handle add-path as block (e.g., "add-path { send; receive; }")
 		if ap := cap.GetContainer("add-path"); ap != nil {
-			if v, ok := ap.Get("send"); ok {
+			if v, ok := ap.Get(addPathSend); ok {
 				nc.Capabilities.AddPathSend = v == configTrue
 			}
-			if v, ok := ap.Get("receive"); ok {
+			if v, ok := ap.Get(addPathReceive); ok {
 				nc.Capabilities.AddPathReceive = v == configTrue
 			}
 		}
@@ -998,11 +1017,24 @@ func parsePeerConfig(addr string, tree *Tree, templates map[string]*Tree, peerGl
 				nc.Capabilities.RestartTime = uint16(n)
 			}
 		}
+		// Handle add-path as value (e.g., "add-path send/receive;")
+		if v, ok := cap.GetFlex("add-path"); ok && v != "" {
+			switch v {
+			case addPathSendReceive, addPathReceiveSend:
+				nc.Capabilities.AddPathSend = true
+				nc.Capabilities.AddPathReceive = true
+			case addPathSend:
+				nc.Capabilities.AddPathSend = true
+			case addPathReceive:
+				nc.Capabilities.AddPathReceive = true
+			}
+		}
+		// Handle add-path as block (e.g., "add-path { send; receive; }")
 		if ap := cap.GetContainer("add-path"); ap != nil {
-			if v, ok := ap.Get("send"); ok {
+			if v, ok := ap.Get(addPathSend); ok {
 				nc.Capabilities.AddPathSend = v == configTrue
 			}
-			if v, ok := ap.Get("receive"); ok {
+			if v, ok := ap.Get(addPathReceive); ok {
 				nc.Capabilities.AddPathReceive = v == configTrue
 			}
 		}
@@ -1242,16 +1274,28 @@ func extractRoutesFromTree(tree *Tree) ([]StaticRouteConfig, error) {
 }
 
 // parseRouteConfig extracts a StaticRouteConfig from a parsed route tree.
+// The prefix key may have a #N suffix for duplicate routes (ADD-PATH support).
 func parseRouteConfig(prefix string, route *Tree) (StaticRouteConfig, error) {
 	sr := StaticRouteConfig{}
 
+	// Strip #N suffix added by AddListEntry for duplicate keys
+	// e.g., "10.0.0.10#1" → "10.0.0.10"
+	actualPrefix := prefix
+	if idx := strings.LastIndex(prefix, "#"); idx > 0 {
+		// Verify suffix is numeric (not part of IPv6 address)
+		suffix := prefix[idx+1:]
+		if _, err := strconv.Atoi(suffix); err == nil {
+			actualPrefix = prefix[:idx]
+		}
+	}
+
 	// Try as prefix first, then as bare IP (host route)
-	p, err := netip.ParsePrefix(prefix)
+	p, err := netip.ParsePrefix(actualPrefix)
 	if err != nil {
 		// Try as bare IP, convert to /32 or /128
-		ip, err2 := netip.ParseAddr(prefix)
+		ip, err2 := netip.ParseAddr(actualPrefix)
 		if err2 != nil {
-			return sr, fmt.Errorf("invalid prefix %s: %w", prefix, err)
+			return sr, fmt.Errorf("invalid prefix %s: %w", actualPrefix, err)
 		}
 		bits := 32
 		if ip.Is6() {
@@ -1932,11 +1976,11 @@ func parseAddPathFamily(s string) AddPathFamilyConfig {
 	apf := AddPathFamilyConfig{Family: family}
 
 	switch mode {
-	case "send":
+	case addPathSend:
 		apf.Send = true
-	case "receive":
+	case addPathReceive:
 		apf.Receive = true
-	case "send/receive", "receive/send":
+	case addPathSendReceive, addPathReceiveSend:
 		apf.Send = true
 		apf.Receive = true
 	}

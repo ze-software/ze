@@ -867,3 +867,12 @@ func (m *MUP) String() string {
 	}
 	return fmt.Sprintf("mup:%s", m.routeType)
 }
+
+// Pack methods for other NLRI types.
+// These types don't support ADD-PATH (HasPathID() always false).
+// Pack returns Bytes() directly since no path ID handling is needed.
+
+func (m *MVPN) Pack(ctx *PackContext) []byte { return m.Bytes() }
+func (v *VPLS) Pack(ctx *PackContext) []byte { return v.Bytes() }
+func (r *RTC) Pack(ctx *PackContext) []byte  { return r.Bytes() }
+func (m *MUP) Pack(ctx *PackContext) []byte  { return m.Bytes() }

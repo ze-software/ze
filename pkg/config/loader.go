@@ -268,6 +268,78 @@ func configToPeer(nc *PeerConfig, global *BGPConfig) (*reactor.PeerSettings, err
 		n.Capabilities = append(n.Capabilities, extNH)
 	}
 
+	// RFC 7911: Build ADD-PATH capability from config.
+	// Global add-path applies to all configured families.
+	// Per-family add-path overrides global settings.
+	if nc.Capabilities.AddPathSend || nc.Capabilities.AddPathReceive || len(nc.AddPathFamilies) > 0 {
+		addPath := &capability.AddPath{
+			Families: make([]capability.AddPathFamily, 0),
+		}
+
+		// Global mode
+		var globalMode capability.AddPathMode
+		switch {
+		case nc.Capabilities.AddPathSend && nc.Capabilities.AddPathReceive:
+			globalMode = capability.AddPathBoth
+		case nc.Capabilities.AddPathSend:
+			globalMode = capability.AddPathSend
+		case nc.Capabilities.AddPathReceive:
+			globalMode = capability.AddPathReceive
+		}
+
+		// Apply global mode to all configured families
+		if globalMode != capability.AddPathNone {
+			for _, cap := range n.Capabilities {
+				if mp, ok := cap.(*capability.Multiprotocol); ok {
+					addPath.Families = append(addPath.Families, capability.AddPathFamily{
+						AFI:  mp.AFI,
+						SAFI: mp.SAFI,
+						Mode: globalMode,
+					})
+				}
+			}
+		}
+
+		// Override with per-family settings
+		for _, apf := range nc.AddPathFamilies {
+			var mode capability.AddPathMode
+			switch {
+			case apf.Send && apf.Receive:
+				mode = capability.AddPathBoth
+			case apf.Send:
+				mode = capability.AddPathSend
+			case apf.Receive:
+				mode = capability.AddPathReceive
+			}
+			if mode != capability.AddPathNone {
+				// Parse family string like "ipv4 unicast"
+				var afi capability.AFI
+				var safi capability.SAFI
+				switch apf.Family {
+				case "ipv4 unicast":
+					afi, safi = capability.AFIIPv4, capability.SAFIUnicast
+				case "ipv6 unicast":
+					afi, safi = capability.AFIIPv6, capability.SAFIUnicast
+				case "ipv4 multicast":
+					afi, safi = capability.AFIIPv4, capability.SAFIMulticast
+				case "ipv6 multicast":
+					afi, safi = capability.AFIIPv6, capability.SAFIMulticast
+				default:
+					continue // Skip unknown families
+				}
+				addPath.Families = append(addPath.Families, capability.AddPathFamily{
+					AFI:  afi,
+					SAFI: safi,
+					Mode: mode,
+				})
+			}
+		}
+
+		if len(addPath.Families) > 0 {
+			n.Capabilities = append(n.Capabilities, addPath)
+		}
+	}
+
 	// ASN4 is enabled by default, disable if explicitly set to false in config.
 	n.DisableASN4 = !nc.Capabilities.ASN4
 

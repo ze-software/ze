@@ -6,38 +6,38 @@
 
 ## CURRENT STATUS
 
-✅ **Completed:** FlowSpec TDD and RFC Compliance Audit
-
-Full test coverage and documentation for all 13 FlowSpec component types.
+✅ **Completed:** ADD-PATH encoding support (test R passes)
 
 ---
 
 ## RECENTLY COMPLETED
 
-### FlowSpec TDD/RFC Compliance (This Session)
+### ADD-PATH Encoding (This Session)
 
-| Task | Details |
-|------|---------|
-| Missing unit tests | Added ICMP Type, ICMP Code, Flow Label (+6 tests) |
-| Boundary tests | Added ICMP 0/255 boundary validation (+1 table-driven test) |
-| VALIDATES/PREVENTS docs | Added to all 34 FlowSpec tests |
-| RFC references | Added to 5 config/loader.go functions |
-| Downloaded RFCs | rfc5575.txt, rfc8956.txt |
+Implemented full ADD-PATH (RFC 7911) support for static routes:
 
-**Files changed:**
-- `pkg/bgp/nlri/flowspec_test.go` (+313 lines)
-- `pkg/config/loader.go` (+16 lines)
+| Component | Change |
+|-----------|--------|
+| Config parsing | Duplicate prefixes via `#N` suffix in `AddListEntry` |
+| NLRI interface | `Pack(ctx *PackContext)` method for capability-aware encoding |
+| NegotiatedFamilies | Added `IPv4UnicastAddPath`, `IPv6UnicastAddPath` flags |
+| Static route sending | `buildStaticRouteUpdate` and `buildGroupedUpdate` use `Pack(ctx)` |
+| CommitService | Uses `Pack(ctx)` for API-announced routes |
 
-**Critical review fixes:**
-- Added Type 13 (FlowFlowLabel) to TestFlowSpecComponentTypes
-- Added value verification to 6 tests (SourcePort, TCPFlags, PacketLength, DSCP, Fragment)
-- Fixed PREVENTS claim in FlowLabel documentation
+**Files modified:**
+- `pkg/config/parser.go` - Duplicate key handling
+- `pkg/config/bgp.go` - Strip `#N` suffix, add-path constants
+- `pkg/config/serialize.go` - Strip suffix on output
+- `pkg/config/loader.go` - ADD-PATH capability creation
+- `pkg/bgp/nlri/*.go` - Pack(ctx) methods
+- `pkg/reactor/peer.go` - NegotiatedFamilies ADD-PATH flags, capability-aware packing
+- `pkg/reactor/session.go` - Populate Negotiated.AddPath
+- `pkg/rib/commit.go` - packContext helper
 
-### Previous Commits
+### Previous Completions
 
 | Commit | Feature |
 |--------|---------|
-| `50a32ad` | RFC 4724 EOR compliance (all families) |
 | `d20b97c` | ExaBGP-style functional test runner |
 | `5d8539e` | Process backpressure and respawn limits |
 | `af8a705` | BGP collision detection (RFC 4271 §6.8) |
@@ -46,22 +46,39 @@ Full test coverage and documentation for all 13 FlowSpec component types.
 
 ## FUNCTIONAL TEST STATUS
 
-**Passing:** 27/37 encoding tests (73%)
+**Passing:** 38/51 tests (test R now passes)
 
-**Failing tests:**
+**Failing tests:** (edge cases/advanced features)
 
 | Code | Test | Issue |
 |------|------|-------|
-| 0 | addpath | NEXT_HOP missing in MP_REACH_NLRI |
+| 6 | extended-nexthop | RFC 8950 not implemented |
+| 7 | flow-redirect | FlowSpec encoding incomplete |
+| L | mvpn | MVPN stub only |
 | N | new-v4 | Unknown |
 | Q | parity | Unknown |
-| R | path-information | ADD-PATH encoding |
 | S | prefix-sid | Prefix-SID not implemented |
-| T | split | Config parse error |
-| U | srv6-mup-v3 | MUP timeout (stub) |
-| V | srv6-mup | MUP timeout (stub) |
-| Z | vpn | Extended-community parsing |
-| a | watchdog | Socket permission denied |
+| T | split | Unknown |
+| U | srv6-mup-v3 | MUP stub only |
+| V | srv6-mup | MUP stub only |
+| Z | vpn | VPN encoding issue |
+| a | watchdog | Unknown |
+| aj | mup4 | MUP API not implemented |
+| ak | mup6 | MUP API not implemented |
+
+---
+
+## PRIORITIES
+
+### Low Priority (Encode Tests)
+
+These are edge cases and advanced features:
+
+1. **FlowSpec encoding** - ICMP type/code components
+2. **Extended nexthop** - RFC 8950
+3. **Prefix-SID** - Segment routing
+4. **MUP** - Mobile User Plane (stub)
+5. **MVPN** - Multicast VPN (stub)
 
 ---
 
@@ -69,28 +86,21 @@ Full test coverage and documentation for all 13 FlowSpec component types.
 
 | Purpose | File |
 |---------|------|
-| FlowSpec NLRI | `pkg/bgp/nlri/flowspec.go` |
-| FlowSpec tests | `pkg/bgp/nlri/flowspec_test.go` |
-| FlowSpec config | `pkg/config/loader.go` |
-
----
-
-## NOTES
-
-- `make test`: ✅ All unit tests pass
-- `make lint`: ✅ 0 issues
-- FlowSpec: 34 unit tests with full TDD documentation
-- RFC 8955/8956 references throughout
+| Functional runner | `test/cmd/functional/main.go` |
+| NLRI packing | `pkg/bgp/nlri/pack.go` |
+| Static route sending | `pkg/reactor/peer.go` |
+| Route handlers | `pkg/api/route.go` |
+| UPDATE building | `pkg/rib/commit.go` |
 
 ---
 
 ## Resume Point
 
 **Last worked:** 2025-12-28
-**Last commit:** `142575f` (test: add FlowSpec TDD compliance and RFC documentation)
+**Last commit:** (pending - ADD-PATH encoding)
 **Session ended:** Clean break
 
 **To resume:**
-1. Pick a failing encode test to fix (0, N, Q, R, S, T, Z)
+1. Pick a failing encode test to fix
 2. Run `go run ./test/cmd/functional encoding <code>` to test
 3. Verify with `make test && make lint`

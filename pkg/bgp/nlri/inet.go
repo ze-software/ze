@@ -206,3 +206,42 @@ func (i *INET) String() string {
 	}
 	return i.prefix.String()
 }
+
+// Pack returns wire-format bytes adapted for negotiated capabilities.
+//
+// RFC 7911 Section 3 - Extended NLRI Encodings:
+// When ADD-PATH is negotiated, NLRI is encoded as:
+//
+//	+--------------------------------+
+//	| Path Identifier (4 octets)     |
+//	+--------------------------------+
+//	| Length (1 octet)               |
+//	+--------------------------------+
+//	| Prefix (variable)              |
+//	+--------------------------------+
+//
+// Behavior:
+//   - If ctx is nil: returns Bytes() (no capability adaptation)
+//   - If ctx.AddPath=true and HasPathID()=true: returns with path ID
+//   - If ctx.AddPath=true and HasPathID()=false: prepends NOPATH (4 zeros)
+//   - If ctx.AddPath=false: returns without path ID (strips if present)
+func (i *INET) Pack(ctx *PackContext) []byte {
+	// If no context, return raw bytes
+	if ctx == nil {
+		return i.Bytes()
+	}
+
+	if ctx.AddPath {
+		if i.hasPath {
+			return i.Bytes() // Already has path ID
+		}
+		// Prepend NOPATH (4 zero bytes) - RFC 7911 requires path ID when negotiated
+		return append([]byte{0, 0, 0, 0}, i.Bytes()...)
+	}
+
+	// No ADD-PATH: strip path ID if present
+	if i.hasPath {
+		return i.Bytes()[4:] // Skip 4-byte path ID
+	}
+	return i.Bytes()
+}

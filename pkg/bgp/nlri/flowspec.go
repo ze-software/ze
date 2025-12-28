@@ -937,3 +937,10 @@ func ParseFlowSpecVPN(family Family, data []byte) (*FlowSpecVPN, error) {
 		flowSpec: fs,
 	}, nil
 }
+
+// Pack methods for FlowSpec types.
+// FlowSpec doesn't support ADD-PATH (HasPathID() always false).
+// Pack returns Bytes() directly since no path ID handling is needed.
+
+func (f *FlowSpec) Pack(ctx *PackContext) []byte    { return f.Bytes() }
+func (f *FlowSpecVPN) Pack(ctx *PackContext) []byte { return f.Bytes() }

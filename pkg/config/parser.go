@@ -162,15 +162,27 @@ func (t *Tree) GetList(name string) map[string]*Tree {
 }
 
 // AddListEntry adds an entry to a list.
+// For duplicate keys, generates unique keys by appending #N suffix.
+// This supports ADD-PATH routes with same prefix but different path-info.
 func (t *Tree) AddListEntry(name, key string, entry *Tree) {
 	if t.lists[name] == nil {
 		t.lists[name] = make(map[string]*Tree)
 	}
-	// Track insertion order (only add if new key).
-	if _, exists := t.lists[name][key]; !exists {
-		t.listOrder[name] = append(t.listOrder[name], key)
+
+	// Generate unique key for duplicates
+	uniqueKey := key
+	if _, exists := t.lists[name][key]; exists {
+		// Find next available suffix
+		for i := 1; ; i++ {
+			uniqueKey = fmt.Sprintf("%s#%d", key, i)
+			if _, exists := t.lists[name][uniqueKey]; !exists {
+				break
+			}
+		}
 	}
-	t.lists[name][key] = entry
+
+	t.listOrder[name] = append(t.listOrder[name], uniqueKey)
+	t.lists[name][uniqueKey] = entry
 }
 
 // GetListOrdered returns list entries in insertion order.
