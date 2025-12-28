@@ -1,52 +1,53 @@
 # Claude Continuation State
 
-**Last Updated:** 2025-12-28 (FlowSpec test 7 fixed)
+**Last Updated:** 2025-12-28
 
 ---
 
 ## CURRENT STATUS
 
-✅ **Completed:** FlowSpec test 7 (flow-redirect) now passes
+✅ **Completed:** NegotiatedFamilies refactor with pre-computed capability flags
 
 ---
 
 ## RECENTLY COMPLETED
 
-### Negotiation Filtering for All Route Types (This Session)
+### NegotiatedFamilies Refactor (This Session)
 
-All route sending functions now filter by negotiated families:
+Implemented ExaBGP-style pre-computed negotiated families for O(1) access:
 
-| Route Type | File | Change |
-|------------|------|--------|
-| FlowSpec | `pkg/reactor/peer.go:sendFlowSpecRoutes()` | Filter by negotiated FlowSpec/FlowSpecVPN |
-| VPLS | `pkg/reactor/peer.go:sendVPLSRoutes()` | Check L2VPN VPLS negotiated |
-| MVPN | `pkg/reactor/peer.go:sendMVPNRoutes()` | Check IPv4/IPv6 McastVPN negotiated |
-| MUP | `pkg/reactor/peer.go:sendMUPRoutes()` | Check IPv4/IPv6 MUP negotiated |
+| Component | Description |
+|-----------|-------------|
+| `NegotiatedFamilies` struct | Pre-computed flags for all family types |
+| `computeNegotiatedFamilies()` | Extracts flags from capability intersection |
+| `Peer.families` | Atomic pointer for lock-free access |
+| `safiMUP` constant | Replaces magic number 85 |
 
-**Also added:** EORs now sent for all negotiated families (not just those with routes)
+**Functions refactored:**
+- `sendInitialRoutes()` - Fixed EOR bug (was using local caps, now uses negotiated)
+- `sendFlowSpecRoutes()` - Uses `nf.IPv4FlowSpec`, etc.
+- `sendVPLSRoutes()` - Uses `nf.L2VPNVPLS`
+- `sendMVPNRoutes()` - Uses `nf.IPv4McastVPN`, `nf.IPv6McastVPN`
+- `sendMUPRoutes()` - Uses `nf.IPv4MUP`, `nf.IPv6MUP`
 
-### FlowSpec Test 7 Fix (Previous Commit `3befe4f`)
+**Bug fixed:** EOR was being sent based on LOCAL configured capabilities instead of NEGOTIATED families. Could send EOR for families the peer doesn't support.
 
-| Issue | File | Fix |
-|-------|------|-----|
-| Peer returns Success on timeout | `pkg/testpeer/peer.go` | Returns `Success:false` on ctx.Done() |
-| No output on timeout | `test/pkg/encoding.go` | Collects peer/client output before returning |
-| EORs only for families with routes | `pkg/reactor/peer.go` | Sends EORs for ALL negotiated families |
-| ICMP type/code symbolic names | `pkg/config/loader.go` | Added parsing |
-| Extended community ordering | `pkg/config/loader.go` | Sort by type |
+**Tests added:**
+- `TestComputeNegotiatedFamiliesNil`
+- `TestComputeNegotiatedFamiliesBasic` (verifies intersection semantics)
+- `TestComputeNegotiatedFamiliesFlowSpecVPN`
+- `TestComputeNegotiatedFamiliesVPLS`
+- `TestComputeNegotiatedFamiliesMVPN`
+- `TestComputeNegotiatedFamiliesMUP`
 
-**Test Results:**
-- Test 7 (flow-redirect): ✅ Now passes
-- Encoding tests: 27/37 pass (73%)
-
-### Previous Session: AS Path Validation
+### Previous Session: FlowSpec Test 7 Fix
 
 | Commit | Feature |
 |--------|---------|
+| `0af99b6` | Filter routes by negotiated families |
+| `3befe4f` | Fix test peer timeout handling |
 | `f2578c6` | AS_PATH validation + RFC 5065 constant fix |
 | `d20b97c` | ExaBGP-style functional test runner |
-| `5d8539e` | Process backpressure and respawn limits |
-| `af8a705` | BGP collision detection (RFC 4271 §6.8) |
 
 ---
 
@@ -66,14 +67,8 @@ All route sending functions now filter by negotiated families:
 | T | split | Unknown |
 | U | srv6-mup-v3 | MUP stub only |
 | V | srv6-mup | MUP stub only |
-| Z | vpn | VPN community parsing ("0" not supported) |
+| Z | vpn | VPN community parsing |
 | a | watchdog | Permission error on socket |
-
----
-
-## KNOWN ISSUES
-
-None currently.
 
 ---
 
@@ -81,10 +76,9 @@ None currently.
 
 | Purpose | File |
 |---------|------|
-| FlowSpec route sending | `pkg/reactor/peer.go:sendFlowSpecRoutes()` |
-| FlowSpec config parsing | `pkg/config/loader.go` |
-| Test peer | `pkg/testpeer/peer.go` |
-| Functional test runner | `test/pkg/encoding.go` |
+| NegotiatedFamilies | `pkg/reactor/peer.go` (lines 24-107) |
+| Route sending | `pkg/reactor/peer.go:send*Routes()` |
+| Tests | `pkg/reactor/peer_test.go` |
 
 ---
 
@@ -92,14 +86,15 @@ None currently.
 
 - `make test`: ✅ All unit tests pass
 - `make lint`: ✅ 0 issues
-- Test 7 fixed: ICMP names, ext-community ordering, EOR for all families
+- Atomic pointer provides lock-free O(1) family checks
+- Families cleared on session teardown (3 places for robustness)
 
 ---
 
 ## Resume Point
 
 **Last worked:** 2025-12-28
-**Last commit:** `0af99b6` (refactor: filter routes by negotiated families)
+**Last commit:** `100c1f2` (refactor: implement NegotiatedFamilies for O(1) capability checks)
 **Session ended:** Clean break
 
 **To resume:**

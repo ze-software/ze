@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/exa-networks/zebgp/pkg/bgp/attribute"
+	"github.com/exa-networks/zebgp/pkg/bgp/capability"
 	"github.com/exa-networks/zebgp/pkg/bgp/nlri"
 	"github.com/exa-networks/zebgp/pkg/rib"
 	"github.com/stretchr/testify/require"
@@ -771,4 +772,156 @@ func TestWatchdogRouteKeyIncludesPathID(t *testing.T) {
 	// Same prefix but different PathIDs should have separate state
 	require.True(t, peer.watchdogState["addpath"]["10.0.0.0/24#1"], "PathID=1 should be announced")
 	require.False(t, peer.watchdogState["addpath"]["10.0.0.0/24#2"], "PathID=2 should be withdrawn")
+}
+
+// =============================================================================
+// NegotiatedFamilies Tests
+// =============================================================================
+
+// TestComputeNegotiatedFamiliesNil verifies nil input returns nil.
+//
+// VALIDATES: nil Negotiated returns nil NegotiatedFamilies.
+//
+// PREVENTS: Nil pointer dereference when session has no negotiated state.
+func TestComputeNegotiatedFamiliesNil(t *testing.T) {
+	result := computeNegotiatedFamilies(nil)
+	require.Nil(t, result, "nil input should return nil")
+}
+
+// TestComputeNegotiatedFamiliesBasic verifies basic family extraction.
+//
+// VALIDATES: computeNegotiatedFamilies correctly extracts families from intersection.
+//
+// PREVENTS: Missing or incorrect family flags after negotiation.
+func TestComputeNegotiatedFamiliesBasic(t *testing.T) {
+	// Create capabilities that BOTH sides advertise (intersection)
+	local := []capability.Capability{
+		&capability.Multiprotocol{AFI: capability.AFIIPv4, SAFI: capability.SAFIUnicast},
+		&capability.Multiprotocol{AFI: capability.AFIIPv6, SAFI: capability.SAFIUnicast},
+		&capability.Multiprotocol{AFI: capability.AFIIPv4, SAFI: capability.SAFIFlowSpec},
+		&capability.Multiprotocol{AFI: capability.AFIIPv6, SAFI: capability.SAFIFlowSpec},
+		&capability.ASN4{ASN: 65000},
+		&capability.ExtendedMessage{},
+	}
+	remote := []capability.Capability{
+		&capability.Multiprotocol{AFI: capability.AFIIPv4, SAFI: capability.SAFIUnicast},
+		// Remote does NOT support IPv6 unicast - should not be negotiated
+		&capability.Multiprotocol{AFI: capability.AFIIPv4, SAFI: capability.SAFIFlowSpec},
+		&capability.Multiprotocol{AFI: capability.AFIIPv6, SAFI: capability.SAFIFlowSpec},
+		&capability.ASN4{ASN: 65001},
+		// Remote does NOT support ExtendedMessage - should not be negotiated
+	}
+
+	neg := capability.Negotiate(local, remote, 65000, 65001)
+	require.NotNil(t, neg, "Negotiate should return non-nil")
+
+	result := computeNegotiatedFamilies(neg)
+	require.NotNil(t, result, "computeNegotiatedFamilies should return non-nil")
+
+	// IPv4 unicast: both support - should be true
+	require.True(t, result.IPv4Unicast, "IPv4 unicast should be negotiated (both support)")
+
+	// IPv6 unicast: only local supports - should be false
+	require.False(t, result.IPv6Unicast, "IPv6 unicast should NOT be negotiated (only local supports)")
+
+	// IPv4 FlowSpec: both support - should be true
+	require.True(t, result.IPv4FlowSpec, "IPv4 FlowSpec should be negotiated (both support)")
+
+	// IPv6 FlowSpec: both support - should be true
+	require.True(t, result.IPv6FlowSpec, "IPv6 FlowSpec should be negotiated (both support)")
+
+	// ASN4: both support - should be true
+	require.True(t, result.ASN4, "ASN4 should be negotiated (both support)")
+
+	// ExtendedMessage: only local supports - should be false
+	require.False(t, result.ExtendedMessage, "ExtendedMessage should NOT be negotiated (only local supports)")
+}
+
+// TestComputeNegotiatedFamiliesFlowSpecVPN verifies FlowSpec VPN family extraction.
+//
+// VALIDATES: FlowSpec VPN families are correctly identified.
+//
+// PREVENTS: FlowSpec non-VPN being confused with VPN variants.
+func TestComputeNegotiatedFamiliesFlowSpecVPN(t *testing.T) {
+	local := []capability.Capability{
+		&capability.Multiprotocol{AFI: capability.AFIIPv4, SAFI: capability.SAFIFlowSpec},    // 1/133
+		&capability.Multiprotocol{AFI: capability.AFIIPv4, SAFI: capability.SAFIFlowSpecVPN}, // 1/134
+		&capability.Multiprotocol{AFI: capability.AFIIPv6, SAFI: capability.SAFIFlowSpecVPN}, // 2/134
+	}
+	remote := []capability.Capability{
+		&capability.Multiprotocol{AFI: capability.AFIIPv4, SAFI: capability.SAFIFlowSpec},    // 1/133
+		&capability.Multiprotocol{AFI: capability.AFIIPv4, SAFI: capability.SAFIFlowSpecVPN}, // 1/134
+		&capability.Multiprotocol{AFI: capability.AFIIPv6, SAFI: capability.SAFIFlowSpecVPN}, // 2/134
+	}
+
+	neg := capability.Negotiate(local, remote, 65000, 65001)
+	result := computeNegotiatedFamilies(neg)
+
+	require.True(t, result.IPv4FlowSpec, "IPv4 FlowSpec should be negotiated")
+	require.False(t, result.IPv6FlowSpec, "IPv6 FlowSpec should NOT be negotiated (not advertised)")
+	require.True(t, result.IPv4FlowSpecVPN, "IPv4 FlowSpec VPN should be negotiated")
+	require.True(t, result.IPv6FlowSpecVPN, "IPv6 FlowSpec VPN should be negotiated")
+}
+
+// TestComputeNegotiatedFamiliesVPLS verifies L2VPN VPLS family extraction.
+//
+// VALIDATES: L2VPN VPLS (AFI=25, SAFI=65) is correctly identified.
+//
+// PREVENTS: VPLS routes being sent when not negotiated.
+func TestComputeNegotiatedFamiliesVPLS(t *testing.T) {
+	local := []capability.Capability{
+		&capability.Multiprotocol{AFI: capability.AFIL2VPN, SAFI: capability.SAFIVPLS},
+	}
+	remote := []capability.Capability{
+		&capability.Multiprotocol{AFI: capability.AFIL2VPN, SAFI: capability.SAFIVPLS},
+	}
+
+	neg := capability.Negotiate(local, remote, 65000, 65001)
+	result := computeNegotiatedFamilies(neg)
+
+	require.True(t, result.L2VPNVPLS, "L2VPN VPLS should be negotiated")
+}
+
+// TestComputeNegotiatedFamiliesMVPN verifies MVPN family extraction.
+//
+// VALIDATES: McastVPN (SAFI=5) for IPv4/IPv6 is correctly identified.
+//
+// PREVENTS: MVPN routes being sent when not negotiated.
+func TestComputeNegotiatedFamiliesMVPN(t *testing.T) {
+	local := []capability.Capability{
+		&capability.Multiprotocol{AFI: capability.AFIIPv4, SAFI: capability.SAFIMcastVPN},
+		&capability.Multiprotocol{AFI: capability.AFIIPv6, SAFI: capability.SAFIMcastVPN},
+	}
+	remote := []capability.Capability{
+		&capability.Multiprotocol{AFI: capability.AFIIPv4, SAFI: capability.SAFIMcastVPN},
+		// Remote does NOT support IPv6 MVPN
+	}
+
+	neg := capability.Negotiate(local, remote, 65000, 65001)
+	result := computeNegotiatedFamilies(neg)
+
+	require.True(t, result.IPv4McastVPN, "IPv4 McastVPN should be negotiated")
+	require.False(t, result.IPv6McastVPN, "IPv6 McastVPN should NOT be negotiated")
+}
+
+// TestComputeNegotiatedFamiliesMUP verifies MUP family extraction.
+//
+// VALIDATES: MUP (SAFI=85) for IPv4/IPv6 is correctly identified.
+//
+// PREVENTS: MUP routes being sent when not negotiated.
+func TestComputeNegotiatedFamiliesMUP(t *testing.T) {
+	local := []capability.Capability{
+		&capability.Multiprotocol{AFI: capability.AFIIPv4, SAFI: 85}, // MUP
+		&capability.Multiprotocol{AFI: capability.AFIIPv6, SAFI: 85}, // MUP
+	}
+	remote := []capability.Capability{
+		&capability.Multiprotocol{AFI: capability.AFIIPv4, SAFI: 85}, // MUP
+		&capability.Multiprotocol{AFI: capability.AFIIPv6, SAFI: 85}, // MUP
+	}
+
+	neg := capability.Negotiate(local, remote, 65000, 65001)
+	result := computeNegotiatedFamilies(neg)
+
+	require.True(t, result.IPv4MUP, "IPv4 MUP should be negotiated")
+	require.True(t, result.IPv6MUP, "IPv6 MUP should be negotiated")
 }

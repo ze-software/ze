@@ -21,6 +21,92 @@ import (
 	"github.com/exa-networks/zebgp/pkg/trace"
 )
 
+// safiMUP is the SAFI for Mobile User Plane (draft-mpmz-bess-mup-safi).
+// Not in capability package as it's not yet standardized (SAFI 85).
+const safiMUP = 85
+
+// NegotiatedFamilies contains pre-computed flags from capability negotiation.
+// Computed once when session is established, provides O(1) family checks.
+// This avoids repeated iteration through capability lists when sending routes.
+type NegotiatedFamilies struct {
+	// Unicast (RFC 4760)
+	IPv4Unicast bool
+	IPv6Unicast bool
+
+	// FlowSpec (RFC 8955)
+	IPv4FlowSpec    bool
+	IPv6FlowSpec    bool
+	IPv4FlowSpecVPN bool
+	IPv6FlowSpecVPN bool
+
+	// L2VPN VPLS (RFC 4761)
+	L2VPNVPLS bool
+
+	// MVPN (RFC 6514)
+	IPv4McastVPN bool
+	IPv6McastVPN bool
+
+	// MUP (draft-mpmz-bess-mup-safi, SAFI 85)
+	IPv4MUP bool
+	IPv6MUP bool
+
+	// Encoding options
+	ASN4            bool
+	ExtendedMessage bool
+}
+
+// computeNegotiatedFamilies extracts family flags from capability negotiation.
+// Called once when session transitions to Established state.
+func computeNegotiatedFamilies(neg *capability.Negotiated) *NegotiatedFamilies {
+	if neg == nil {
+		return nil
+	}
+
+	nf := &NegotiatedFamilies{
+		ASN4:            neg.ASN4,
+		ExtendedMessage: neg.ExtendedMessage,
+	}
+
+	for _, f := range neg.Families() {
+		afi, safi := f.AFI, f.SAFI
+		switch {
+		// Unicast
+		case afi == capability.AFIIPv4 && safi == capability.SAFIUnicast:
+			nf.IPv4Unicast = true
+		case afi == capability.AFIIPv6 && safi == capability.SAFIUnicast:
+			nf.IPv6Unicast = true
+
+		// FlowSpec
+		case afi == capability.AFIIPv4 && safi == capability.SAFIFlowSpec:
+			nf.IPv4FlowSpec = true
+		case afi == capability.AFIIPv6 && safi == capability.SAFIFlowSpec:
+			nf.IPv6FlowSpec = true
+		case afi == capability.AFIIPv4 && safi == capability.SAFIFlowSpecVPN:
+			nf.IPv4FlowSpecVPN = true
+		case afi == capability.AFIIPv6 && safi == capability.SAFIFlowSpecVPN:
+			nf.IPv6FlowSpecVPN = true
+
+		// L2VPN VPLS
+		case afi == capability.AFIL2VPN && safi == capability.SAFIVPLS:
+			nf.L2VPNVPLS = true
+
+		// MVPN
+		case afi == capability.AFIIPv4 && safi == capability.SAFIMcastVPN:
+			nf.IPv4McastVPN = true
+		case afi == capability.AFIIPv6 && safi == capability.SAFIMcastVPN:
+			nf.IPv6McastVPN = true
+
+		// MUP
+		case afi == capability.AFIIPv4 && safi == safiMUP:
+			nf.IPv4MUP = true
+		case afi == capability.AFIIPv6 && safi == safiMUP:
+			nf.IPv6MUP = true
+		}
+	}
+
+	return nf
+}
+
 // PeerState represents the high-level state of a peer.
 type PeerState int32
 
@@ -109,6 +195,10 @@ const MaxOpQueueSize = 10000
 type Peer struct {
 	settings *PeerSettings
 	session  *Session
+
+	// Pre-computed negotiated families for O(1) access.
+	// Set when session transitions to Established, cleared on teardown.
+	families atomic.Pointer[NegotiatedFamilies]
 
 	state          atomic.Int32
 	callback       PeerCallback
@@ -402,6 +492,7 @@ func (p *Peer) runOnce() error {
 	p.mu.Unlock()
 
 	defer func() {
+		p.families.Store(nil) // Clear pre-computed families
 		p.mu.Lock()
 		p.session = nil
 		p.mu.Unlock()
@@ -432,11 +523,15 @@ func (p *Peer) runOnce() error {
 		trace.FSMTransition(addr, from.String(), to.String())
 
 		if to == fsm.StateEstablished {
+			// Pre-compute negotiated families for O(1) access during route sending
+			p.families.Store(computeNegotiatedFamilies(session.Negotiated()))
 			p.setState(PeerStateEstablished)
 			trace.SessionEstablished(addr, p.settings.LocalAS, p.settings.PeerAS)
 			// Send static routes from config.
 			go p.sendInitialRoutes()
 		} else if from == fsm.StateEstablished {
+			// Clear negotiated families on session teardown
+			p.families.Store(nil)
 			p.setState(PeerStateConnecting)
 			trace.SessionClosed(addr, "FSM left Established state")
 		}
@@ -605,6 +700,7 @@ func (p *Peer) messageNegotiated() *message.Negotiated {
 
 // cleanup runs when peer stops.
 func (p *Peer) cleanup() {
+	p.families.Store(nil) // Clear pre-computed families
 	p.mu.Lock()
 	if p.session != nil {
 		_ = p.session.Close()
@@ -628,34 +724,14 @@ func (p *Peer) sendInitialRoutes() {
 	}
 	defer p.sendingInitialRoutes.Store(0)
 
+	// Get pre-computed negotiated families for ASN4 and family checks.
+	nf := p.families.Load()
+	if nf == nil {
+		return
+	}
+
 	addr := p.settings.Address.String()
 	trace.Log(trace.Routes, "peer %s: sending %d static routes", addr, len(p.settings.StaticRoutes))
-
-	// Get negotiated capabilities for AS_PATH encoding.
-	p.mu.RLock()
-	session := p.session
-	p.mu.RUnlock()
-
-	asn4 := true // Default to 4-byte if no session (shouldn't happen)
-	if session != nil {
-		if neg := session.Negotiated(); neg != nil {
-			asn4 = neg.ASN4
-		}
-	}
-
-	// Determine which address families are configured from capabilities.
-	hasIPv4Family := false
-	hasIPv6Family := false
-	for _, cap := range p.settings.Capabilities {
-		if mp, ok := cap.(*capability.Multiprotocol); ok {
-			if mp.AFI == 1 && mp.SAFI == 1 { // IPv4 unicast
-				hasIPv4Family = true
-			}
-			if mp.AFI == 2 && mp.SAFI == 1 { // IPv6 unicast
-				hasIPv6Family = true
-			}
-		}
-	}
 
 	// Send routes - either grouped or individually based on config.
 	if p.settings.GroupUpdates {
@@ -663,7 +739,7 @@ func (p *Peer) sendInitialRoutes() {
 		groups := groupRoutesByAttributes(p.settings.StaticRoutes)
 
 		for _, routes := range groups {
-			update := buildGroupedUpdate(routes, p.settings.LocalAS, p.settings.IsIBGP(), asn4)
+			update := buildGroupedUpdate(routes, p.settings.LocalAS, p.settings.IsIBGP(), nf.ASN4)
 			if err := p.SendUpdate(update); err != nil {
 				trace.Log(trace.Routes, "peer %s: send error: %v", addr, err)
 				break
@@ -675,7 +751,7 @@ func (p *Peer) sendInitialRoutes() {
 	} else {
 		// Send each route in its own UPDATE.
 		for _, route := range p.settings.StaticRoutes {
-			update := buildStaticRouteUpdate(route, p.settings.LocalAS, p.settings.IsIBGP(), asn4)
+			update := buildStaticRouteUpdate(route, p.settings.LocalAS, p.settings.IsIBGP(), nf.ASN4)
 			if err := p.SendUpdate(update); err != nil {
 				trace.Log(trace.Routes, "peer %s: send error: %v", addr, err)
 				break
@@ -703,7 +779,7 @@ func (p *Peer) sendInitialRoutes() {
 				}
 
 				// Send the route
-				update := buildStaticRouteUpdate(wr.StaticRoute, p.settings.LocalAS, p.settings.IsIBGP(), asn4)
+				update := buildStaticRouteUpdate(wr.StaticRoute, p.settings.LocalAS, p.settings.IsIBGP(), nf.ASN4)
 				if err := p.SendUpdate(update); err != nil {
 					trace.Log(trace.Routes, "peer %s: send error: %v", addr, err)
 					break
@@ -740,7 +816,7 @@ func (p *Peer) sendInitialRoutes() {
 				// Build route with resolved next-hop
 				route := pr.StaticRoute
 				route.NextHop = nextHop
-				update := buildStaticRouteUpdate(route, p.settings.LocalAS, p.settings.IsIBGP(), asn4)
+				update := buildStaticRouteUpdate(route, p.settings.LocalAS, p.settings.IsIBGP(), nf.ASN4)
 				if err := p.SendUpdate(update); err != nil {
 					trace.Log(trace.Routes, "peer %s: send error: %v", addr, err)
 					break
@@ -755,7 +831,7 @@ func (p *Peer) sendInitialRoutes() {
 	if len(sentRoutes) > 0 {
 		trace.Log(trace.Routes, "peer %s: re-sending %d Adj-RIB-Out routes", addr, len(sentRoutes))
 		for _, route := range sentRoutes {
-			update := buildRIBRouteUpdate(route, p.settings.LocalAS, p.settings.IsIBGP(), asn4)
+			update := buildRIBRouteUpdate(route, p.settings.LocalAS, p.settings.IsIBGP(), nf.ASN4)
 			if err := p.SendUpdate(update); err != nil {
 				trace.Log(trace.Routes, "peer %s: send error: %v", addr, err)
 				break
@@ -768,7 +844,7 @@ func (p *Peer) sendInitialRoutes() {
 	if len(pendingRoutes) > 0 {
 		trace.Log(trace.Routes, "peer %s: sending %d pending routes from transactions", addr, len(pendingRoutes))
 		for _, route := range pendingRoutes {
-			update := buildRIBRouteUpdate(route, p.settings.LocalAS, p.settings.IsIBGP(), asn4)
+			update := buildRIBRouteUpdate(route, p.settings.LocalAS, p.settings.IsIBGP(), nf.ASN4)
 			if err := p.SendUpdate(update); err != nil {
 				trace.Log(trace.Routes, "peer %s: send error: %v", addr, err)
 				break
@@ -798,7 +874,7 @@ func (p *Peer) sendInitialRoutes() {
 
 		case PeerOpAnnounce:
 			// Send route and add to sent cache
-			update := buildRIBRouteUpdate(op.Route, p.settings.LocalAS, p.settings.IsIBGP(), asn4)
+			update := buildRIBRouteUpdate(op.Route, p.settings.LocalAS, p.settings.IsIBGP(), nf.ASN4)
 			p.mu.Unlock()
 			if err := p.SendUpdate(update); err != nil {
 				trace.Log(trace.Routes, "peer %s: send error: %v", addr, err)
@@ -838,15 +914,13 @@ func (p *Peer) sendInitialRoutes() {
 			addr, processed, queueLen-processed, hasTeardown)
 	}
 
-	// Send End-of-RIB marker for each configured address family.
-	if hasIPv4Family {
-		eor := message.BuildEOR(nlri.IPv4Unicast)
-		_ = p.SendUpdate(eor)
+	// Send End-of-RIB marker for each negotiated address family.
+	if nf.IPv4Unicast {
+		_ = p.SendUpdate(message.BuildEOR(nlri.IPv4Unicast))
 		trace.Log(trace.Routes, "peer %s: sent IPv4 unicast EOR marker", addr)
 	}
-	if hasIPv6Family {
-		eor := message.BuildEOR(nlri.IPv6Unicast)
-		_ = p.SendUpdate(eor)
+	if nf.IPv6Unicast {
+		_ = p.SendUpdate(message.BuildEOR(nlri.IPv6Unicast))
 		trace.Log(trace.Routes, "peer %s: sent IPv6 unicast EOR marker", addr)
 	}
 
@@ -1612,33 +1686,12 @@ func buildMPReachNLRIUnicast(route StaticRoute) []byte {
 
 // sendMVPNRoutes sends MVPN routes configured for this peer.
 func (p *Peer) sendMVPNRoutes() {
-	addr := p.settings.Address.String()
-
-	// Get negotiated capabilities for AS_PATH encoding and MVPN families.
-	p.mu.RLock()
-	session := p.session
-	p.mu.RUnlock()
-
-	asn4 := true
-	ipv4McastVPNNegotiated := false
-	ipv6McastVPNNegotiated := false
-	if session != nil {
-		if neg := session.Negotiated(); neg != nil {
-			asn4 = neg.ASN4
-			for _, family := range neg.Families() {
-				if family.SAFI != capability.SAFIMcastVPN {
-					continue
-				}
-				//nolint:exhaustive // Only IPv4/IPv6 applicable for MVPN
-				switch family.AFI {
-				case capability.AFIIPv4:
-					ipv4McastVPNNegotiated = true
-				case capability.AFIIPv6:
-					ipv6McastVPNNegotiated = true
-				}
-			}
-		}
+	nf := p.families.Load()
+	if nf == nil {
+		return
 	}
+
+	addr := p.settings.Address.String()
 
 	// Group MVPN routes by AFI, filtering by negotiated families
 	var ipv4Routes, ipv6Routes []MVPNRoute
@@ -1646,13 +1699,13 @@ func (p *Peer) sendMVPNRoutes() {
 
 	for _, route := range p.settings.MVPNRoutes {
 		if route.IsIPv6 {
-			if ipv6McastVPNNegotiated {
+			if nf.IPv6McastVPN {
 				ipv6Routes = append(ipv6Routes, route)
 			} else {
 				skippedIPv6++
 			}
 		} else {
-			if ipv4McastVPNNegotiated {
+			if nf.IPv4McastVPN {
 				ipv4Routes = append(ipv4Routes, route)
 			} else {
 				skippedIPv4++
@@ -1671,7 +1724,7 @@ func (p *Peer) sendMVPNRoutes() {
 	if len(ipv4Routes) > 0 {
 		ipv4Groups := groupMVPNRoutesByNextHop(ipv4Routes)
 		for nh, routes := range ipv4Groups {
-			update := buildMVPNUpdate(routes, p.settings.LocalAS, p.settings.IsIBGP(), false, asn4)
+			update := buildMVPNUpdate(routes, p.settings.LocalAS, p.settings.IsIBGP(), false, nf.ASN4)
 			if err := p.SendUpdate(update); err != nil {
 				trace.Log(trace.Routes, "peer %s: MVPN send error: %v", addr, err)
 			} else {
@@ -1684,7 +1737,7 @@ func (p *Peer) sendMVPNRoutes() {
 	if len(ipv6Routes) > 0 {
 		ipv6Groups := groupMVPNRoutesByNextHop(ipv6Routes)
 		for nh, routes := range ipv6Groups {
-			update := buildMVPNUpdate(routes, p.settings.LocalAS, p.settings.IsIBGP(), true, asn4)
+			update := buildMVPNUpdate(routes, p.settings.LocalAS, p.settings.IsIBGP(), true, nf.ASN4)
 			if err := p.SendUpdate(update); err != nil {
 				trace.Log(trace.Routes, "peer %s: MVPN send error: %v", addr, err)
 			} else {
@@ -1694,13 +1747,11 @@ func (p *Peer) sendMVPNRoutes() {
 	}
 
 	// Send EORs for negotiated MVPN families
-	if ipv4McastVPNNegotiated {
-		eor := message.BuildEOR(nlri.Family{AFI: 1, SAFI: 5}) // IPv4 mcast-vpn
-		_ = p.SendUpdate(eor)
+	if nf.IPv4McastVPN {
+		_ = p.SendUpdate(message.BuildEOR(nlri.Family{AFI: 1, SAFI: 5}))
 	}
-	if ipv6McastVPNNegotiated {
-		eor := message.BuildEOR(nlri.Family{AFI: 2, SAFI: 5}) // IPv6 mcast-vpn
-		_ = p.SendUpdate(eor)
+	if nf.IPv6McastVPN {
+		_ = p.SendUpdate(message.BuildEOR(nlri.Family{AFI: 2, SAFI: 5}))
 	}
 }
 
@@ -1901,40 +1952,21 @@ func buildMVPNNLRI(route MVPNRoute) []byte {
 
 // sendVPLSRoutes sends VPLS routes configured for this peer.
 func (p *Peer) sendVPLSRoutes() {
-	addr := p.settings.Address.String()
-
-	// Get negotiated capabilities for AS_PATH encoding and L2VPN VPLS family.
-	p.mu.RLock()
-	session := p.session
-	p.mu.RUnlock()
-
-	asn4 := true
-	vplsNegotiated := false
-	if session != nil {
-		if neg := session.Negotiated(); neg != nil {
-			asn4 = neg.ASN4
-			// Check if L2VPN VPLS (AFI=25, SAFI=65) is negotiated
-			for _, family := range neg.Families() {
-				if family.AFI == capability.AFIL2VPN && family.SAFI == capability.SAFIVPLS {
-					vplsNegotiated = true
-					break
-				}
-			}
-		}
-	}
-
-	if !vplsNegotiated {
+	nf := p.families.Load()
+	if nf == nil || !nf.L2VPNVPLS {
 		if len(p.settings.VPLSRoutes) > 0 {
+			addr := p.settings.Address.String()
 			trace.Log(trace.Routes, "peer %s: skipping %d VPLS routes (L2VPN VPLS not negotiated)",
 				addr, len(p.settings.VPLSRoutes))
 		}
 		return
 	}
 
+	addr := p.settings.Address.String()
 	if len(p.settings.VPLSRoutes) > 0 {
 		trace.Log(trace.Routes, "peer %s: sending %d VPLS routes", addr, len(p.settings.VPLSRoutes))
 		for _, route := range p.settings.VPLSRoutes {
-			update := buildVPLSUpdate(route, p.settings.LocalAS, p.settings.IsIBGP(), asn4)
+			update := buildVPLSUpdate(route, p.settings.LocalAS, p.settings.IsIBGP(), nf.ASN4)
 			if err := p.SendUpdate(update); err != nil {
 				trace.Log(trace.Routes, "peer %s: VPLS send error: %v", addr, err)
 			}
@@ -1942,8 +1974,7 @@ func (p *Peer) sendVPLSRoutes() {
 	}
 
 	// Send EOR for L2VPN VPLS
-	eor := message.BuildEOR(nlri.Family{AFI: 25, SAFI: 65})
-	_ = p.SendUpdate(eor)
+	_ = p.SendUpdate(message.BuildEOR(nlri.Family{AFI: 25, SAFI: 65}))
 }
 
 // buildVPLSUpdate builds an UPDATE message for a VPLS route.
@@ -2086,36 +2117,38 @@ func buildVPLSMPReachNLRI(route VPLSRoute) []byte {
 // sendFlowSpecRoutes sends FlowSpec routes configured for this peer.
 // Only sends routes for families that were successfully negotiated.
 func (p *Peer) sendFlowSpecRoutes() {
-	addr := p.settings.Address.String()
-
-	// Get negotiated capabilities for AS_PATH encoding and FlowSpec families.
-	p.mu.RLock()
-	session := p.session
-	p.mu.RUnlock()
-
-	asn4 := true // Default to 4-byte if no session
-	negotiatedFlowSpec := make(map[capability.Family]bool)
-	if session != nil {
-		if neg := session.Negotiated(); neg != nil {
-			asn4 = neg.ASN4
-			for _, family := range neg.Families() {
-				if family.SAFI == capability.SAFIFlowSpec || family.SAFI == capability.SAFIFlowSpecVPN {
-					negotiatedFlowSpec[family] = true
-				}
-			}
-		}
+	nf := p.families.Load()
+	if nf == nil {
+		return
 	}
+
+	addr := p.settings.Address.String()
 
 	// Send routes only for negotiated families
 	var sentCount int
 	for _, route := range p.settings.FlowSpecRoutes {
-		family := flowSpecRouteFamily(route)
-		if !negotiatedFlowSpec[family] {
-			trace.Log(trace.Routes, "peer %s: skipping FlowSpec route (family %d/%d not negotiated)",
-				addr, family.AFI, family.SAFI)
+		// Check if this route's family is negotiated
+		isIPv6 := route.IsIPv6
+		isVPN := route.RD != [8]byte{}
+
+		var negotiated bool
+		switch {
+		case !isIPv6 && !isVPN:
+			negotiated = nf.IPv4FlowSpec
+		case !isIPv6 && isVPN:
+			negotiated = nf.IPv4FlowSpecVPN
+		case isIPv6 && !isVPN:
+			negotiated = nf.IPv6FlowSpec
+		case isIPv6 && isVPN:
+			negotiated = nf.IPv6FlowSpecVPN
+		}
+
+		if !negotiated {
+			trace.Log(trace.Routes, "peer %s: skipping FlowSpec route (family not negotiated)", addr)
 			continue
 		}
-		update := buildFlowSpecUpdate(route, p.settings.LocalAS, p.settings.IsIBGP(), asn4)
+
+		update := buildFlowSpecUpdate(route, p.settings.LocalAS, p.settings.IsIBGP(), nf.ASN4)
 		if err := p.SendUpdate(update); err != nil {
 			trace.Log(trace.Routes, "peer %s: FlowSpec send error: %v", addr, err)
 		}
@@ -2126,30 +2159,18 @@ func (p *Peer) sendFlowSpecRoutes() {
 	}
 
 	// Send EORs for all negotiated FlowSpec families (even if no routes)
-	for family := range negotiatedFlowSpec {
-		eor := message.BuildEOR(nlri.Family{AFI: nlri.AFI(family.AFI), SAFI: nlri.SAFI(family.SAFI)})
-		_ = p.SendUpdate(eor)
+	if nf.IPv4FlowSpec {
+		_ = p.SendUpdate(message.BuildEOR(nlri.Family{AFI: 1, SAFI: 133}))
 	}
-}
-
-// flowSpecRouteFamily returns the BGP family for a FlowSpec route.
-func flowSpecRouteFamily(route FlowSpecRoute) capability.Family {
-	var afi capability.AFI
-	var safi capability.SAFI
-
-	if route.IsIPv6 {
-		afi = capability.AFIIPv6
-	} else {
-		afi = capability.AFIIPv4
+	if nf.IPv6FlowSpec {
+		_ = p.SendUpdate(message.BuildEOR(nlri.Family{AFI: 2, SAFI: 133}))
 	}
-
-	if route.RD != [8]byte{} {
-		safi = capability.SAFIFlowSpecVPN
-	} else {
-		safi = capability.SAFIFlowSpec
+	if nf.IPv4FlowSpecVPN {
+		_ = p.SendUpdate(message.BuildEOR(nlri.Family{AFI: 1, SAFI: 134}))
 	}
-
-	return capability.Family{AFI: afi, SAFI: safi}
+	if nf.IPv6FlowSpecVPN {
+		_ = p.SendUpdate(message.BuildEOR(nlri.Family{AFI: 2, SAFI: 134}))
+	}
 }
 
 // buildFlowSpecUpdate builds an UPDATE message for a FlowSpec route.
@@ -2292,38 +2313,13 @@ func buildFlowSpecMPReachNLRI(route FlowSpecRoute) []byte {
 }
 
 // sendMUPRoutes sends MUP routes configured for this peer.
-// SAFIMUP is the SAFI for Mobile User Plane (draft-mpmz-bess-mup-safi).
-// Not in capability package as it's not yet standardized.
-const safiMUP capability.SAFI = 85
-
 func (p *Peer) sendMUPRoutes() {
-	addr := p.settings.Address.String()
-
-	// Get negotiated capabilities for AS_PATH encoding and MUP families.
-	p.mu.RLock()
-	session := p.session
-	p.mu.RUnlock()
-
-	asn4 := true
-	ipv4MUPNegotiated := false
-	ipv6MUPNegotiated := false
-	if session != nil {
-		if neg := session.Negotiated(); neg != nil {
-			asn4 = neg.ASN4
-			for _, family := range neg.Families() {
-				if family.SAFI != safiMUP {
-					continue
-				}
-				//nolint:exhaustive // Only IPv4/IPv6 applicable for MUP
-				switch family.AFI {
-				case capability.AFIIPv4:
-					ipv4MUPNegotiated = true
-				case capability.AFIIPv6:
-					ipv6MUPNegotiated = true
-				}
-			}
-		}
+	nf := p.families.Load()
+	if nf == nil {
+		return
 	}
+
+	addr := p.settings.Address.String()
 
 	// Separate routes by AFI, filtering by negotiated families
 	var ipv4Routes, ipv6Routes []MUPRoute
@@ -2331,13 +2327,13 @@ func (p *Peer) sendMUPRoutes() {
 
 	for _, route := range p.settings.MUPRoutes {
 		if route.IsIPv6 {
-			if ipv6MUPNegotiated {
+			if nf.IPv6MUP {
 				ipv6Routes = append(ipv6Routes, route)
 			} else {
 				skippedIPv6++
 			}
 		} else {
-			if ipv4MUPNegotiated {
+			if nf.IPv4MUP {
 				ipv4Routes = append(ipv4Routes, route)
 			} else {
 				skippedIPv4++
@@ -2356,7 +2352,7 @@ func (p *Peer) sendMUPRoutes() {
 	if len(ipv4Routes) > 0 {
 		trace.Log(trace.Routes, "peer %s: sending %d IPv4 MUP routes", addr, len(ipv4Routes))
 		for _, route := range ipv4Routes {
-			update := buildMUPUpdate(route, p.settings.LocalAS, p.settings.IsIBGP(), asn4)
+			update := buildMUPUpdate(route, p.settings.LocalAS, p.settings.IsIBGP(), nf.ASN4)
 			if err := p.SendUpdate(update); err != nil {
 				trace.Log(trace.Routes, "peer %s: MUP send error: %v", addr, err)
 			}
@@ -2367,7 +2363,7 @@ func (p *Peer) sendMUPRoutes() {
 	if len(ipv6Routes) > 0 {
 		trace.Log(trace.Routes, "peer %s: sending %d IPv6 MUP routes", addr, len(ipv6Routes))
 		for _, route := range ipv6Routes {
-			update := buildMUPUpdate(route, p.settings.LocalAS, p.settings.IsIBGP(), asn4)
+			update := buildMUPUpdate(route, p.settings.LocalAS, p.settings.IsIBGP(), nf.ASN4)
 			if err := p.SendUpdate(update); err != nil {
 				trace.Log(trace.Routes, "peer %s: MUP send error: %v", addr, err)
 			}
@@ -2375,13 +2371,11 @@ func (p *Peer) sendMUPRoutes() {
 	}
 
 	// Send EORs for negotiated MUP families
-	if ipv4MUPNegotiated {
-		eor := message.BuildEOR(nlri.Family{AFI: 1, SAFI: 85}) // IPv4 MUP
-		_ = p.SendUpdate(eor)
+	if nf.IPv4MUP {
+		_ = p.SendUpdate(message.BuildEOR(nlri.Family{AFI: 1, SAFI: safiMUP}))
 	}
-	if ipv6MUPNegotiated {
-		eor := message.BuildEOR(nlri.Family{AFI: 2, SAFI: 85}) // IPv6 MUP
-		_ = p.SendUpdate(eor)
+	if nf.IPv6MUP {
+		_ = p.SendUpdate(message.BuildEOR(nlri.Family{AFI: 2, SAFI: safiMUP}))
 	}
 }
 
@@ -2452,7 +2446,7 @@ func buildMUPMPReachNLRI(route MUPRoute) []byte {
 	if route.IsIPv6 {
 		afi = 2 // IPv6
 	}
-	var safi byte = 85 // MUP
+	var safi byte = safiMUP
 
 	// Next-hop
 	nhBytes := route.NextHop.AsSlice()
