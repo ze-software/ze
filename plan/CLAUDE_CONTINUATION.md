@@ -87,7 +87,7 @@ Full test coverage and documentation for all 13 FlowSpec component types.
 ## Resume Point
 
 **Last worked:** 2025-12-28
-**Last commit:** (pending - FlowSpec TDD compliance)
+**Last commit:** `142575f` (test: add FlowSpec TDD compliance and RFC documentation)
 **Session ended:** Clean break
 
 **To resume:**
