@@ -184,7 +184,16 @@ func ParseExtendedCommunity(s string) (ExtendedCommunity, error) {
 }
 
 // parseOneExtCommunity parses a single extended community string to 8 bytes.
+// Supports formats:
+//   - Hex format: 0x0002fde800000001 (16 hex chars = 8 bytes wire format)
+//   - Named format: target:ASN:NN, origin:ASN:NN
+//   - Generic format: ASN:NN, IP:NN
 func parseOneExtCommunity(s string) ([]byte, error) {
+	// Check for hex format (0x prefix, no colons) - ExaBGP compatible
+	if (strings.HasPrefix(s, "0x") || strings.HasPrefix(s, "0X")) && !strings.Contains(s, ":") {
+		return parseExtCommunityHex(s)
+	}
+
 	// Format: [type:]value1:value2
 	parts := strings.Split(s, ":")
 
@@ -245,6 +254,28 @@ func parseOneExtCommunity(s string) ([]byte, error) {
 	}
 
 	return nil, fmt.Errorf("invalid extended-community %q: expected format like target:ASN:NN", s)
+}
+
+// parseExtCommunityHex parses hex format extended community (e.g., "0x0002fde800000001").
+// This is ExaBGP-compatible: the hex string represents the raw 8-byte wire format.
+// RFC 4360: Extended communities are 8 bytes (type + subtype + 6 bytes value).
+func parseExtCommunityHex(s string) ([]byte, error) {
+	// Strip 0x/0X prefix
+	hexStr := strings.TrimPrefix(s, "0x")
+	hexStr = strings.TrimPrefix(hexStr, "0X")
+
+	// Must be exactly 16 hex chars (8 bytes for extended community)
+	if len(hexStr) != 16 {
+		return nil, fmt.Errorf("invalid extended-community %q: hex format must be 16 chars (8 bytes)", s)
+	}
+
+	// Decode hex to bytes
+	raw, err := hex.DecodeString(hexStr)
+	if err != nil {
+		return nil, fmt.Errorf("invalid extended-community %q: %w", s, err)
+	}
+
+	return raw, nil
 }
 
 // parseGenericExtCommunity parses ASN:Value format (type 0x00, subtype from context).
