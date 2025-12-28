@@ -1,5 +1,5 @@
 ---
-description: Create task specification with embedded protocol requirements
+description: Create task specification with embedded protocol requirements (project)
 argument-hint: <task description>
 ---
 
@@ -10,6 +10,38 @@ Create a task specification with embedded protocol requirements.
 ## Instructions
 
 When this skill is invoked:
+
+### Step 0: Verify Current State (MANDATORY - PREVENTS STALE INFO)
+
+**WHY:** The continuation file gets out of sync. Trusting it without verification
+causes incorrect information to propagate session after session. This step FORCES
+verification before any planning work.
+
+1. **Run functional tests:**
+   ```bash
+   go run ./test/cmd/functional encoding --all 2>&1 | tail -30
+   ```
+
+2. **Extract actual status** from test output (passed/failed counts, which tests failed)
+
+3. **Read continuation file:**
+   ```bash
+   cat plan/CLAUDE_CONTINUATION.md
+   ```
+
+4. **Compare and update if different:**
+   - If test results differ from what's documented, UPDATE the continuation file
+   - Update the "Last verified" date
+   - Update the pass/fail counts
+   - Update the list of failing tests with actual error messages
+
+5. **Report to user:**
+   ```
+   🔍 Verified test status: X passed, Y failed
+   📋 Continuation file: [up-to-date | UPDATED]
+   ```
+
+**DO NOT SKIP THIS STEP.** The whole point is to prevent trusting stale docs.
 
 ### Step 1: Read Protocols (MANDATORY)
 
@@ -51,6 +83,11 @@ Write the specification to `plan/spec-<task-name>.md` using this format:
 
 ## Task
 $ARGUMENTS
+
+## Current State (verified)
+- Functional tests: X passed, Y failed
+- Failing: [list of failing test codes]
+- Last commit: <hash>
 
 ## Embedded Protocol Requirements
 
@@ -94,6 +131,7 @@ After writing the spec, confirm:
 ```
 ✅ Spec written to plan/spec-<task-name>.md
 📋 Protocols read: <list>
+🔍 Test status verified: X passed, Y failed
 🎯 Ready to implement
 ```
 
@@ -103,6 +141,12 @@ After writing the spec, confirm:
 
 ### Example 1: `/prep implement AS path validation`
 
+Step 0 output:
+```
+🔍 Verified test status: 28 passed, 9 failed
+📋 Continuation file: up-to-date
+```
+
 Protocols to read:
 - ESSENTIAL_PROTOCOLS.md (always)
 - TDD_ENFORCEMENT.md (keyword: implement)
@@ -110,41 +154,42 @@ Protocols to read:
 - zebgp/wire/ATTRIBUTES.md (keyword: path)
 
 Output spec includes:
+- Current state (verified test counts)
 - Default rules (TDD, verification, work preservation)
 - Key TDD rules (test first, VALIDATES/PREVENTS docs)
 - Key coding rules (error handling, no panic)
 - Key attribute parsing rules
 
-### Example 2: `/prep fix failing API test`
+### Example 2: `/prep fix failing test N`
+
+Step 0 output:
+```
+🔍 Verified test status: 28 passed, 9 failed
+📋 Continuation file: UPDATED (was showing 25 passed)
+```
 
 Protocols to read:
 - ESSENTIAL_PROTOCOLS.md (always)
 - TESTING_PROTOCOL.md (keyword: test, failing)
-- CI_TESTING.md (keyword: test)
-- zebgp/api/COMMANDS.md (keyword: API)
 
 Output spec includes:
-- Default rules
+- Current state showing test N actually fails
+- Actual error message from test run
 - Key testing rules
-- Key API command format rules
-
-### Example 3: `/prep refactor message parsing`
-
-Protocols to read:
-- ESSENTIAL_PROTOCOLS.md (always, includes refactoring rules after consolidation)
-- zebgp/wire/MESSAGES.md (keyword: message, parse)
-
-Output spec includes:
-- Default rules
-- Key refactoring rules (from ESSENTIAL)
-- Key message format rules
 
 ---
 
 ## Why This Matters
 
-This skill exists because Claude skips reading protocol files "on demand."
-By forcing protocol reading as part of `/prep`, the rules are embedded
-directly in the spec. When Claude reads the spec later, the rules are visible.
+This skill exists because:
 
-**The spec contains the rules, not references to other files.**
+1. **Claude skips reading protocol files "on demand"** - By forcing protocol reading
+   as part of `/prep`, the rules are embedded directly in the spec.
+
+2. **Documentation gets stale** - The continuation file drifts from reality.
+   Step 0 forces verification BEFORE planning, catching drift immediately.
+
+3. **Stale info propagates** - Without verification, incorrect test status gets
+   copied session after session. Step 0 breaks this cycle.
+
+**The spec contains VERIFIED current state and embedded rules, not stale references.**
