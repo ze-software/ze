@@ -97,7 +97,7 @@ These are edge cases and advanced features:
 ## Resume Point
 
 **Last worked:** 2025-12-28
-**Last commit:** (pending - ADD-PATH encoding)
+**Last commit:** `ef4ebf1` (feat: implement ADD-PATH encoding support)
 **Session ended:** Clean break
 
 **To resume:**
