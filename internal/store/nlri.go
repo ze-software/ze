@@ -8,9 +8,10 @@ import (
 
 // NLRIHashable represents an NLRI that can be hashed and compared.
 type NLRIHashable interface {
-	// Bytes returns the wire-format bytes for hashing.
-	Bytes() []byte
-	// Family returns AFI/SAFI as a comparable key.
+	// Key returns the bytes used for hashing/deduplication.
+	// This is the identity of the NLRI for storage purposes.
+	Key() []byte
+	// FamilyKey returns AFI/SAFI as a comparable key.
 	FamilyKey() uint32
 }
 
@@ -81,7 +82,7 @@ func (s *FamilyStore[T]) Intern(value T) T {
 
 // internSync performs the actual interning.
 func (s *FamilyStore[T]) internSync(value T) T {
-	hash := HashBytes(value.Bytes())
+	hash := HashBytes(value.Key())
 
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -100,10 +101,10 @@ func (s *FamilyStore[T]) internSync(value T) T {
 	return value
 }
 
-// nlriEqual compares two NLRIs by their wire format.
+// nlriEqual compares two NLRIs by their key bytes.
 func nlriEqual[T NLRIHashable](a, b T) bool {
-	aBytes := a.Bytes()
-	bBytes := b.Bytes()
+	aBytes := a.Key()
+	bBytes := b.Key()
 	if len(aBytes) != len(bBytes) {
 		return false
 	}
@@ -122,7 +123,7 @@ func (s *FamilyStore[T]) InternDirect(value T) T {
 
 // Release decrements the reference count for an NLRI.
 func (s *FamilyStore[T]) Release(value T) bool {
-	hash := HashBytes(value.Bytes())
+	hash := HashBytes(value.Key())
 
 	s.mu.Lock()
 	defer s.mu.Unlock()

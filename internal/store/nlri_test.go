@@ -11,7 +11,7 @@ type testNLRI struct {
 	data   []byte
 }
 
-func (n testNLRI) Bytes() []byte {
+func (n testNLRI) Key() []byte {
 	return n.data
 }
 

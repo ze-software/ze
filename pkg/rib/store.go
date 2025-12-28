@@ -76,8 +76,8 @@ type hashableNLRI struct {
 	n nlri.NLRI
 }
 
-func (h hashableNLRI) Bytes() []byte {
-	// Use Pack(nil) for consistent API - returns same bytes as Bytes()
+func (h hashableNLRI) Key() []byte {
+	// Use Pack(nil) for consistent API - returns NLRI bytes for keying
 	return h.n.Pack(nil)
 }
 
