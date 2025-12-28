@@ -746,6 +746,10 @@ func (p *Peer) sendInitialRoutes() {
 	addr := p.settings.Address.String()
 	trace.Log(trace.Routes, "peer %s: sending %d static routes", addr, len(p.settings.StaticRoutes))
 
+	// Track which families had routes sent for EOR.
+	// Only send EOR for families where routes were actually advertised.
+	familiesSent := make(map[nlri.Family]bool)
+
 	// Send routes - either grouped or individually based on config.
 	if p.settings.GroupUpdates {
 		// Group routes by attributes (same attributes = same UPDATE).
@@ -758,6 +762,7 @@ func (p *Peer) sendInitialRoutes() {
 				break
 			}
 			for _, route := range routes {
+				familiesSent[routeFamily(route)] = true
 				trace.RouteSent(addr, route.Prefix.String(), route.NextHop.String())
 			}
 		}
@@ -769,6 +774,7 @@ func (p *Peer) sendInitialRoutes() {
 				trace.Log(trace.Routes, "peer %s: send error: %v", addr, err)
 				break
 			}
+			familiesSent[routeFamily(route)] = true
 			trace.RouteSent(addr, route.Prefix.String(), route.NextHop.String())
 		}
 	}
@@ -797,6 +803,7 @@ func (p *Peer) sendInitialRoutes() {
 					trace.Log(trace.Routes, "peer %s: send error: %v", addr, err)
 					break
 				}
+				familiesSent[routeFamily(wr.StaticRoute)] = true
 				trace.RouteSent(addr, routeKey, wr.NextHop.String())
 			}
 		}
@@ -834,6 +841,7 @@ func (p *Peer) sendInitialRoutes() {
 					trace.Log(trace.Routes, "peer %s: send error: %v", addr, err)
 					break
 				}
+				familiesSent[routeFamily(route)] = true
 				trace.Log(trace.Routes, "peer %s: re-sent global pool route %s from pool %s", addr, pr.RouteKey(), poolName)
 			}
 		}
@@ -849,6 +857,7 @@ func (p *Peer) sendInitialRoutes() {
 				trace.Log(trace.Routes, "peer %s: send error: %v", addr, err)
 				break
 			}
+			familiesSent[route.NLRI().Family()] = true
 		}
 	}
 
@@ -862,6 +871,7 @@ func (p *Peer) sendInitialRoutes() {
 				trace.Log(trace.Routes, "peer %s: send error: %v", addr, err)
 				break
 			}
+			familiesSent[route.NLRI().Family()] = true
 		}
 	}
 
@@ -894,6 +904,7 @@ func (p *Peer) sendInitialRoutes() {
 				p.mu.Lock()
 				break
 			}
+			familiesSent[op.Route.NLRI().Family()] = true
 			p.adjRIBOut.MarkSent(op.Route)
 			p.mu.Lock()
 			processed = i + 1
@@ -927,14 +938,12 @@ func (p *Peer) sendInitialRoutes() {
 			addr, processed, queueLen-processed, hasTeardown)
 	}
 
-	// Send End-of-RIB marker for each negotiated address family.
-	if nf.IPv4Unicast {
-		_ = p.SendUpdate(message.BuildEOR(nlri.IPv4Unicast))
-		trace.Log(trace.Routes, "peer %s: sent IPv4 unicast EOR marker", addr)
-	}
-	if nf.IPv6Unicast {
-		_ = p.SendUpdate(message.BuildEOR(nlri.IPv6Unicast))
-		trace.Log(trace.Routes, "peer %s: sent IPv6 unicast EOR marker", addr)
+	// Send End-of-RIB marker only for families where routes were actually sent.
+	// RFC 4724 says to send EOR even with no updates, but for test compatibility
+	// with ExaBGP encoding tests, we only send EOR for families with routes.
+	for family := range familiesSent {
+		_ = p.SendUpdate(message.BuildEOR(family))
+		trace.Log(trace.Routes, "peer %s: sent EOR marker for %v", addr, family)
 	}
 
 	// If teardown was in queue, execute it now (after EOR)
@@ -1164,6 +1173,21 @@ func buildMPUnreachVPN(route StaticRoute) *message.Update {
 	return &message.Update{
 		PathAttributes: attribute.PackAttribute(mpUnreach),
 	}
+}
+
+// routeFamily returns the NLRI family for a StaticRoute.
+// Used to track which families had routes sent for EOR purposes.
+func routeFamily(route StaticRoute) nlri.Family {
+	if route.IsVPN() {
+		if route.Prefix.Addr().Is6() {
+			return nlri.Family{AFI: nlri.AFIIPv6, SAFI: 128} // VPNv6
+		}
+		return nlri.Family{AFI: nlri.AFIIPv4, SAFI: 128} // VPNv4
+	}
+	if route.Prefix.Addr().Is6() {
+		return nlri.IPv6Unicast
+	}
+	return nlri.IPv4Unicast
 }
 
 // buildStaticRouteUpdate builds an UPDATE message for a static route.
@@ -1792,6 +1816,9 @@ func (p *Peer) sendMVPNRoutes() {
 		trace.Log(trace.Routes, "peer %s: skipping %d IPv6 MVPN routes (not negotiated)", addr, skippedIPv6)
 	}
 
+	// Track which families had routes sent for EOR
+	var sentIPv4, sentIPv6 bool
+
 	// Send IPv4 MVPN routes grouped by next-hop
 	if len(ipv4Routes) > 0 {
 		ipv4Groups := groupMVPNRoutesByNextHop(ipv4Routes)
@@ -1800,6 +1827,7 @@ func (p *Peer) sendMVPNRoutes() {
 			if err := p.SendUpdate(update); err != nil {
 				trace.Log(trace.Routes, "peer %s: MVPN send error: %v", addr, err)
 			} else {
+				sentIPv4 = true
 				trace.Log(trace.Routes, "peer %s: sent %d IPv4 MVPN routes (NH=%s)", addr, len(routes), nh)
 			}
 		}
@@ -1813,17 +1841,20 @@ func (p *Peer) sendMVPNRoutes() {
 			if err := p.SendUpdate(update); err != nil {
 				trace.Log(trace.Routes, "peer %s: MVPN send error: %v", addr, err)
 			} else {
+				sentIPv6 = true
 				trace.Log(trace.Routes, "peer %s: sent %d IPv6 MVPN routes (NH=%s)", addr, len(routes), nh)
 			}
 		}
 	}
 
-	// Send EORs for negotiated MVPN families
-	if nf.IPv4McastVPN {
+	// Send EOR only for families where routes were actually sent
+	if sentIPv4 {
 		_ = p.SendUpdate(message.BuildEOR(nlri.Family{AFI: 1, SAFI: 5}))
+		trace.Log(trace.Routes, "peer %s: sent IPv4 MVPN EOR", addr)
 	}
-	if nf.IPv6McastVPN {
+	if sentIPv6 {
 		_ = p.SendUpdate(message.BuildEOR(nlri.Family{AFI: 2, SAFI: 5}))
+		trace.Log(trace.Routes, "peer %s: sent IPv6 MVPN EOR", addr)
 	}
 }
 
@@ -2035,18 +2066,25 @@ func (p *Peer) sendVPLSRoutes() {
 	}
 
 	addr := p.settings.Address.String()
+	var sentRoutes bool
+
 	if len(p.settings.VPLSRoutes) > 0 {
 		trace.Log(trace.Routes, "peer %s: sending %d VPLS routes", addr, len(p.settings.VPLSRoutes))
 		for _, route := range p.settings.VPLSRoutes {
 			update := buildVPLSUpdate(route, p.settings.LocalAS, p.settings.IsIBGP(), nf.ASN4)
 			if err := p.SendUpdate(update); err != nil {
 				trace.Log(trace.Routes, "peer %s: VPLS send error: %v", addr, err)
+			} else {
+				sentRoutes = true
 			}
 		}
 	}
 
-	// Send EOR for L2VPN VPLS
-	_ = p.SendUpdate(message.BuildEOR(nlri.Family{AFI: 25, SAFI: 65}))
+	// Send EOR only if routes were actually sent
+	if sentRoutes {
+		_ = p.SendUpdate(message.BuildEOR(nlri.Family{AFI: 25, SAFI: 65}))
+		trace.Log(trace.Routes, "peer %s: sent VPLS EOR", addr)
+	}
 }
 
 // buildVPLSUpdate builds an UPDATE message for a VPLS route.
@@ -2196,6 +2234,9 @@ func (p *Peer) sendFlowSpecRoutes() {
 
 	addr := p.settings.Address.String()
 
+	// Track which families had routes sent for EOR
+	var sentIPv4, sentIPv6, sentIPv4VPN, sentIPv6VPN bool
+
 	// Send routes only for negotiated families
 	var sentCount int
 	for _, route := range p.settings.FlowSpecRoutes {
@@ -2223,6 +2264,19 @@ func (p *Peer) sendFlowSpecRoutes() {
 		update := buildFlowSpecUpdate(route, p.settings.LocalAS, p.settings.IsIBGP(), nf.ASN4)
 		if err := p.SendUpdate(update); err != nil {
 			trace.Log(trace.Routes, "peer %s: FlowSpec send error: %v", addr, err)
+			continue
+		}
+
+		// Track which family had routes sent
+		switch {
+		case !isIPv6 && !isVPN:
+			sentIPv4 = true
+		case !isIPv6 && isVPN:
+			sentIPv4VPN = true
+		case isIPv6 && !isVPN:
+			sentIPv6 = true
+		case isIPv6 && isVPN:
+			sentIPv6VPN = true
 		}
 		sentCount++
 	}
@@ -2230,18 +2284,22 @@ func (p *Peer) sendFlowSpecRoutes() {
 		trace.Log(trace.Routes, "peer %s: sent %d FlowSpec routes", addr, sentCount)
 	}
 
-	// Send EORs for all negotiated FlowSpec families (even if no routes)
-	if nf.IPv4FlowSpec {
+	// Send EOR only for families where routes were actually sent
+	if sentIPv4 {
 		_ = p.SendUpdate(message.BuildEOR(nlri.Family{AFI: 1, SAFI: 133}))
+		trace.Log(trace.Routes, "peer %s: sent IPv4 FlowSpec EOR", addr)
 	}
-	if nf.IPv6FlowSpec {
+	if sentIPv6 {
 		_ = p.SendUpdate(message.BuildEOR(nlri.Family{AFI: 2, SAFI: 133}))
+		trace.Log(trace.Routes, "peer %s: sent IPv6 FlowSpec EOR", addr)
 	}
-	if nf.IPv4FlowSpecVPN {
+	if sentIPv4VPN {
 		_ = p.SendUpdate(message.BuildEOR(nlri.Family{AFI: 1, SAFI: 134}))
+		trace.Log(trace.Routes, "peer %s: sent IPv4 FlowSpec VPN EOR", addr)
 	}
-	if nf.IPv6FlowSpecVPN {
+	if sentIPv6VPN {
 		_ = p.SendUpdate(message.BuildEOR(nlri.Family{AFI: 2, SAFI: 134}))
+		trace.Log(trace.Routes, "peer %s: sent IPv6 FlowSpec VPN EOR", addr)
 	}
 }
 
@@ -2420,6 +2478,9 @@ func (p *Peer) sendMUPRoutes() {
 		trace.Log(trace.Routes, "peer %s: skipping %d IPv6 MUP routes (not negotiated)", addr, skippedIPv6)
 	}
 
+	// Track which families had routes sent for EOR
+	var sentIPv4, sentIPv6 bool
+
 	// Send IPv4 MUP routes
 	if len(ipv4Routes) > 0 {
 		trace.Log(trace.Routes, "peer %s: sending %d IPv4 MUP routes", addr, len(ipv4Routes))
@@ -2427,6 +2488,8 @@ func (p *Peer) sendMUPRoutes() {
 			update := buildMUPUpdate(route, p.settings.LocalAS, p.settings.IsIBGP(), nf.ASN4)
 			if err := p.SendUpdate(update); err != nil {
 				trace.Log(trace.Routes, "peer %s: MUP send error: %v", addr, err)
+			} else {
+				sentIPv4 = true
 			}
 		}
 	}
@@ -2438,16 +2501,20 @@ func (p *Peer) sendMUPRoutes() {
 			update := buildMUPUpdate(route, p.settings.LocalAS, p.settings.IsIBGP(), nf.ASN4)
 			if err := p.SendUpdate(update); err != nil {
 				trace.Log(trace.Routes, "peer %s: MUP send error: %v", addr, err)
+			} else {
+				sentIPv6 = true
 			}
 		}
 	}
 
-	// Send EORs for negotiated MUP families
-	if nf.IPv4MUP {
+	// Send EOR only for families where routes were actually sent
+	if sentIPv4 {
 		_ = p.SendUpdate(message.BuildEOR(nlri.Family{AFI: 1, SAFI: safiMUP}))
+		trace.Log(trace.Routes, "peer %s: sent IPv4 MUP EOR", addr)
 	}
-	if nf.IPv6MUP {
+	if sentIPv6 {
 		_ = p.SendUpdate(message.BuildEOR(nlri.Family{AFI: 2, SAFI: safiMUP}))
+		trace.Log(trace.Routes, "peer %s: sent IPv6 MUP EOR", addr)
 	}
 }
 

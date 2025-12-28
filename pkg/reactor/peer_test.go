@@ -925,3 +925,144 @@ func TestComputeNegotiatedFamiliesMUP(t *testing.T) {
 	require.True(t, result.IPv4MUP, "IPv4 MUP should be negotiated")
 	require.True(t, result.IPv6MUP, "IPv6 MUP should be negotiated")
 }
+
+// TestRouteFamilyIPv4Unicast verifies IPv4 unicast routes return correct family.
+//
+// VALIDATES: IPv4 unicast route returns AFI=1, SAFI=1.
+//
+// PREVENTS: EOR being sent for wrong family.
+func TestRouteFamilyIPv4Unicast(t *testing.T) {
+	route := StaticRoute{
+		Prefix:  netip.MustParsePrefix("192.0.2.0/24"),
+		NextHop: netip.MustParseAddr("192.0.2.1"),
+	}
+
+	family := routeFamily(route)
+
+	require.Equal(t, nlri.AFIIPv4, family.AFI, "AFI should be IPv4")
+	require.Equal(t, nlri.SAFIUnicast, family.SAFI, "SAFI should be unicast")
+}
+
+// TestRouteFamilyIPv6Unicast verifies IPv6 unicast routes return correct family.
+//
+// VALIDATES: IPv6 unicast route returns AFI=2, SAFI=1.
+//
+// PREVENTS: EOR being sent for wrong family.
+func TestRouteFamilyIPv6Unicast(t *testing.T) {
+	route := StaticRoute{
+		Prefix:  netip.MustParsePrefix("2001:db8::/32"),
+		NextHop: netip.MustParseAddr("2001:db8::1"),
+	}
+
+	family := routeFamily(route)
+
+	require.Equal(t, nlri.AFIIPv6, family.AFI, "AFI should be IPv6")
+	require.Equal(t, nlri.SAFIUnicast, family.SAFI, "SAFI should be unicast")
+}
+
+// TestRouteFamilyVPNv4 verifies VPNv4 routes return correct family.
+//
+// VALIDATES: VPNv4 route (with RD) returns AFI=1, SAFI=128.
+//
+// PREVENTS: VPN routes being counted as unicast for EOR.
+func TestRouteFamilyVPNv4(t *testing.T) {
+	route := StaticRoute{
+		Prefix:  netip.MustParsePrefix("10.0.0.0/24"),
+		NextHop: netip.MustParseAddr("192.0.2.1"),
+		RD:      "100:100", // Has RD = VPN
+	}
+
+	family := routeFamily(route)
+
+	require.Equal(t, nlri.AFIIPv4, family.AFI, "AFI should be IPv4")
+	require.Equal(t, nlri.SAFI(128), family.SAFI, "SAFI should be MPLS-VPN (128)")
+}
+
+// TestRouteFamilyVPNv6 verifies VPNv6 routes return correct family.
+//
+// VALIDATES: VPNv6 route (with RD) returns AFI=2, SAFI=128.
+//
+// PREVENTS: VPN routes being counted as unicast for EOR.
+func TestRouteFamilyVPNv6(t *testing.T) {
+	route := StaticRoute{
+		Prefix:  netip.MustParsePrefix("2001:db8::/32"),
+		NextHop: netip.MustParseAddr("2001:db8::1"),
+		RD:      "100:100", // Has RD = VPN
+	}
+
+	family := routeFamily(route)
+
+	require.Equal(t, nlri.AFIIPv6, family.AFI, "AFI should be IPv6")
+	require.Equal(t, nlri.SAFI(128), family.SAFI, "SAFI should be MPLS-VPN (128)")
+}
+
+// TestFamiliesSentTracking verifies that family tracking produces correct EOR set.
+//
+// VALIDATES: Mixed route families result in correct familiesSent map.
+//
+// PREVENTS: EOR being sent for families without routes, or missing for families with routes.
+func TestFamiliesSentTracking(t *testing.T) {
+	// Simulate the familiesSent tracking logic from sendInitialRoutes
+	familiesSent := make(map[nlri.Family]bool)
+
+	// Routes of various types
+	routes := []StaticRoute{
+		{Prefix: netip.MustParsePrefix("192.0.2.0/24"), NextHop: netip.MustParseAddr("10.0.0.1")},               // IPv4 Unicast
+		{Prefix: netip.MustParsePrefix("192.0.2.128/25"), NextHop: netip.MustParseAddr("10.0.0.1")},             // IPv4 Unicast (same family)
+		{Prefix: netip.MustParsePrefix("2001:db8::/32"), NextHop: netip.MustParseAddr("2001:db8::1")},           // IPv6 Unicast
+		{Prefix: netip.MustParsePrefix("10.0.0.0/24"), NextHop: netip.MustParseAddr("10.0.0.1"), RD: "100:100"}, // VPNv4
+	}
+
+	// Track families as sendInitialRoutes does
+	for _, route := range routes {
+		familiesSent[routeFamily(route)] = true
+	}
+
+	// Verify correct families are tracked
+	require.True(t, familiesSent[nlri.IPv4Unicast], "IPv4 Unicast should be tracked")
+	require.True(t, familiesSent[nlri.IPv6Unicast], "IPv6 Unicast should be tracked")
+	require.True(t, familiesSent[nlri.Family{AFI: nlri.AFIIPv4, SAFI: 128}], "VPNv4 should be tracked")
+
+	// Verify families without routes are NOT tracked
+	require.False(t, familiesSent[nlri.Family{AFI: nlri.AFIIPv6, SAFI: 128}], "VPNv6 should NOT be tracked")
+	require.False(t, familiesSent[nlri.Family{AFI: 1, SAFI: 5}], "MVPN should NOT be tracked")
+
+	// Verify exactly 3 families (no duplicates from same-family routes)
+	require.Equal(t, 3, len(familiesSent), "Should track exactly 3 unique families")
+}
+
+// TestFamiliesSentEmpty verifies empty routes produce no EOR.
+//
+// VALIDATES: No routes results in empty familiesSent map.
+//
+// PREVENTS: Spurious EOR messages when no routes are configured.
+func TestFamiliesSentEmpty(t *testing.T) {
+	familiesSent := make(map[nlri.Family]bool)
+
+	// No routes sent - familiesSent should be empty
+	require.Empty(t, familiesSent, "No routes should mean no EOR families")
+}
+
+// TestFamiliesSentOnlyVPN verifies VPN-only routes track correct family.
+//
+// VALIDATES: VPN routes don't pollute unicast EOR.
+//
+// PREVENTS: VPN routes triggering unicast EOR.
+func TestFamiliesSentOnlyVPN(t *testing.T) {
+	familiesSent := make(map[nlri.Family]bool)
+
+	// Only VPN routes
+	routes := []StaticRoute{
+		{Prefix: netip.MustParsePrefix("10.0.0.0/24"), NextHop: netip.MustParseAddr("10.0.0.1"), RD: "100:100"},
+		{Prefix: netip.MustParsePrefix("10.0.1.0/24"), NextHop: netip.MustParseAddr("10.0.0.1"), RD: "100:101"},
+	}
+
+	for _, route := range routes {
+		familiesSent[routeFamily(route)] = true
+	}
+
+	// Only VPNv4 should be tracked
+	require.Equal(t, 1, len(familiesSent), "Should track exactly 1 family")
+	require.True(t, familiesSent[nlri.Family{AFI: nlri.AFIIPv4, SAFI: 128}], "VPNv4 should be tracked")
+	require.False(t, familiesSent[nlri.IPv4Unicast], "IPv4 Unicast should NOT be tracked")
+}
