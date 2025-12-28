@@ -7,9 +7,5 @@ option:file:extended-nexthop.conf
 1:json:{"exabgp":"6.0.0","type":"update","neighbor":{"address":{"local":"127.0.0.1","peer":"127.0.0.1"},"asn":{"local":12345,"peer":12345},"direction":"in","message":{"update":{"attribute":{"origin":"igp","local-preference":100},"announce":{"ipv6 unicast":{"170.170.170.170":[{"nlri":"dead:beef:dead:beef:dead:beef:dead:beef/128"}]}}}}}}
 1:cmd:announce eor ipv4 unicast
 1:raw:FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF:0017:02:00000000
-1:cmd:announce eor ipv4 mpls-vpn
-1:raw:FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF:001E:02:00000007900F0003000180
 1:cmd:announce eor ipv6 unicast
 1:raw:FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF:001E:02:00000007900F0003000201
-1:cmd:announce eor ipv6 mpls-vpn
-1:raw:FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF:001E:02:00000007900F0003000280

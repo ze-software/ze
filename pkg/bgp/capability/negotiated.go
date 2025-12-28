@@ -65,6 +65,11 @@ type Negotiated struct {
 	// ADD-PATH modes per family, negotiated per Section 4.
 	addPath map[Family]AddPathMode
 
+	// RFC 8950: Extended Next Hop Encoding
+	// Maps (NLRI AFI, NLRI SAFI) -> Next Hop AFI.
+	// When present, allows advertising IPv4 NLRI with IPv6 next-hop via MP_REACH_NLRI.
+	extendedNextHop map[Family]AFI
+
 	// RFC 4724: Graceful Restart Mechanism for BGP
 	GracefulRestart *GracefulRestart
 
@@ -100,6 +105,7 @@ func Negotiate(local, remote []Capability, localASN, peerASN uint32) *Negotiated
 	localFamilies := make(map[Family]bool)
 	remoteFamilies := make(map[Family]bool)
 	var localAddPath, remoteAddPath *AddPath
+	var localExtNH, remoteExtNH *ExtendedNextHop
 	localASN4 := false
 	remoteASN4 := false
 	localExtMsg := false
@@ -123,6 +129,8 @@ func Negotiate(local, remote []Capability, localASN, peerASN uint32) *Negotiated
 			localRR = true
 		case *EnhancedRouteRefresh:
 			localERR = true
+		case *ExtendedNextHop:
+			localExtNH = cap
 		}
 	}
 
@@ -142,6 +150,8 @@ func Negotiate(local, remote []Capability, localASN, peerASN uint32) *Negotiated
 			remoteERR = true
 		case *GracefulRestart:
 			neg.GracefulRestart = cap
+		case *ExtendedNextHop:
+			remoteExtNH = cap
 		}
 	}
 
@@ -258,6 +268,25 @@ func Negotiate(local, remote []Capability, localASN, peerASN uint32) *Negotiated
 		}
 	}
 
+	// RFC 8950 Section 4: Extended Next Hop Encoding capability negotiation.
+	// A tuple is negotiated only if both peers advertise the same (NLRI AFI, NLRI SAFI, NH AFI).
+	neg.extendedNextHop = make(map[Family]AFI)
+	if localExtNH != nil && remoteExtNH != nil {
+		// Build lookup from local capabilities
+		localNHMap := make(map[Family]AFI)
+		for _, f := range localExtNH.Families {
+			localNHMap[Family{AFI: f.NLRIAFI, SAFI: f.NLRISAFI}] = f.NextHopAFI
+		}
+
+		// Find intersection with remote capabilities
+		for _, f := range remoteExtNH.Families {
+			key := Family{AFI: f.NLRIAFI, SAFI: f.NLRISAFI}
+			if localNHMap[key] == f.NextHopAFI {
+				neg.extendedNextHop[key] = f.NextHopAFI
+			}
+		}
+	}
+
 	return neg
 }
 
@@ -271,6 +300,14 @@ func (n *Negotiated) SupportsFamily(f Family) bool {
 // RFC 7911 Section 4: Returns the effective mode after asymmetric negotiation.
 func (n *Negotiated) AddPathMode(f Family) AddPathMode {
 	return n.addPath[f]
+}
+
+// ExtendedNextHopAFI returns the negotiated next-hop AFI for a family.
+// RFC 8950 Section 4: Returns the next-hop AFI if extended next-hop is negotiated.
+// Returns 0 if extended next-hop is not negotiated for this family.
+// When non-zero, the family can use next-hops of the returned AFI via MP_REACH_NLRI.
+func (n *Negotiated) ExtendedNextHopAFI(f Family) AFI {
+	return n.extendedNextHop[f]
 }
 
 // Families returns a slice of all negotiated families.

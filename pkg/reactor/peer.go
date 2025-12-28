@@ -53,6 +53,10 @@ type NegotiatedFamilies struct {
 	// Encoding options
 	ASN4            bool
 	ExtendedMessage bool
+
+	// RFC 8950: Extended Next Hop - allows IPv4 NLRI with IPv6 next-hop
+	IPv4UnicastExtNH bool // IPv4 unicast can use IPv6 next-hop
+	IPv4MPLSVPNExtNH bool // IPv4 mpls-vpn can use IPv6 next-hop
 }
 
 // computeNegotiatedFamilies extracts family flags from capability negotiation.
@@ -102,6 +106,15 @@ func computeNegotiatedFamilies(neg *capability.Negotiated) *NegotiatedFamilies {
 		case afi == capability.AFIIPv6 && safi == safiMUP:
 			nf.IPv6MUP = true
 		}
+	}
+
+	// RFC 8950: Check extended next-hop for IPv4 families
+	// If negotiated with IPv6 next-hop AFI, we can use MP_REACH_NLRI for IPv4 NLRI
+	if neg.ExtendedNextHopAFI(capability.Family{AFI: capability.AFIIPv4, SAFI: capability.SAFIUnicast}) == capability.AFIIPv6 {
+		nf.IPv4UnicastExtNH = true
+	}
+	if neg.ExtendedNextHopAFI(capability.Family{AFI: capability.AFIIPv4, SAFI: capability.SAFIMPLS}) == capability.AFIIPv6 {
+		nf.IPv4MPLSVPNExtNH = true
 	}
 
 	return nf
@@ -751,7 +764,7 @@ func (p *Peer) sendInitialRoutes() {
 	} else {
 		// Send each route in its own UPDATE.
 		for _, route := range p.settings.StaticRoutes {
-			update := buildStaticRouteUpdate(route, p.settings.LocalAS, p.settings.IsIBGP(), nf.ASN4)
+			update := buildStaticRouteUpdate(route, p.settings.LocalAS, p.settings.IsIBGP(), nf.ASN4, nf)
 			if err := p.SendUpdate(update); err != nil {
 				trace.Log(trace.Routes, "peer %s: send error: %v", addr, err)
 				break
@@ -779,7 +792,7 @@ func (p *Peer) sendInitialRoutes() {
 				}
 
 				// Send the route
-				update := buildStaticRouteUpdate(wr.StaticRoute, p.settings.LocalAS, p.settings.IsIBGP(), nf.ASN4)
+				update := buildStaticRouteUpdate(wr.StaticRoute, p.settings.LocalAS, p.settings.IsIBGP(), nf.ASN4, nf)
 				if err := p.SendUpdate(update); err != nil {
 					trace.Log(trace.Routes, "peer %s: send error: %v", addr, err)
 					break
@@ -816,7 +829,7 @@ func (p *Peer) sendInitialRoutes() {
 				// Build route with resolved next-hop
 				route := pr.StaticRoute
 				route.NextHop = nextHop
-				update := buildStaticRouteUpdate(route, p.settings.LocalAS, p.settings.IsIBGP(), nf.ASN4)
+				update := buildStaticRouteUpdate(route, p.settings.LocalAS, p.settings.IsIBGP(), nf.ASN4, nf)
 				if err := p.SendUpdate(update); err != nil {
 					trace.Log(trace.Routes, "peer %s: send error: %v", addr, err)
 					break
@@ -1155,7 +1168,8 @@ func buildMPUnreachVPN(route StaticRoute) *message.Update {
 
 // buildStaticRouteUpdate builds an UPDATE message for a static route.
 // asn4 indicates whether to use 4-byte AS numbers in AS_PATH.
-func buildStaticRouteUpdate(route StaticRoute, localAS uint32, isIBGP, asn4 bool) *message.Update {
+// nf contains negotiated family flags including ExtNH support.
+func buildStaticRouteUpdate(route StaticRoute, localAS uint32, isIBGP, asn4 bool, nf *NegotiatedFamilies) *message.Update {
 	var attrBytes []byte
 
 	// 1. ORIGIN (IGP by default, use configured value if set)
@@ -1192,11 +1206,16 @@ func buildStaticRouteUpdate(route StaticRoute, localAS uint32, isIBGP, asn4 bool
 	}
 	attrBytes = append(attrBytes, attribute.PackASPathAttribute(asPath, asn4)...)
 
-	// 3. NEXT_HOP (always include for IPv4 routes, even VPN - for compatibility)
-	if route.NextHop.Is4() {
+	// 3. NEXT_HOP (for IPv4 routes with IPv4 next-hop)
+	// RFC 8950: When using extended next-hop, next-hop goes in MP_REACH_NLRI, not here.
+	// Check for IPv4 unicast or VPN with IPv6 next-hop.
+	useExtNH := route.Prefix.Addr().Is4() && route.NextHop.Is6() && nf != nil && nf.IPv4UnicastExtNH
+	useExtNHVPN := route.IsVPN() && route.Prefix.Addr().Is4() && route.NextHop.Is6() && nf != nil && nf.IPv4MPLSVPNExtNH
+	if route.NextHop.Is4() && !route.IsVPN() {
 		nextHop := &attribute.NextHop{Addr: route.NextHop}
 		attrBytes = append(attrBytes, attribute.PackAttribute(nextHop)...)
 	}
+	// VPN routes: next-hop goes in MP_REACH_NLRI (handled in buildMPReachNLRI)
 
 	// 4. MED (if set).
 	if route.MED > 0 {
@@ -1268,11 +1287,21 @@ func buildStaticRouteUpdate(route StaticRoute, localAS uint32, isIBGP, asn4 bool
 	}
 
 	// Build NLRI - use MP_REACH_NLRI for VPN/IPv6, inline NLRI for IPv4 unicast
+	// RFC 8950: Use MP_REACH_NLRI for IPv4 with IPv6 next-hop when extended NH negotiated
 	var nlriBytes []byte
 	switch {
 	case route.IsVPN():
 		// VPN route: use MP_REACH_NLRI attribute (returns raw bytes)
+		// RFC 8950: IPv6 next-hop requires extended next-hop negotiation
+		if route.Prefix.Addr().Is4() && route.NextHop.Is6() && !useExtNHVPN {
+			// Extended next-hop not negotiated for VPN - peer may reject
+			trace.Log(trace.Routes, "VPN route %s with IPv6 next-hop but extended-nexthop not negotiated",
+				route.Prefix)
+		}
 		attrBytes = append(attrBytes, buildMPReachNLRI(route)...)
+	case useExtNH:
+		// RFC 8950: IPv4 unicast with IPv6 next-hop via MP_REACH_NLRI
+		attrBytes = append(attrBytes, buildMPReachNLRIExtNHUnicast(route)...)
 	case route.Prefix.Addr().Is4():
 		// IPv4 unicast: inline NLRI with optional path-id
 		inet := nlri.NewINET(nlri.Family{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast}, route.Prefix, route.PathID)
@@ -1626,6 +1655,49 @@ func buildVPNNLRIBytes(route StaticRoute) []byte {
 	}
 
 	return buf
+}
+
+// buildMPReachNLRIExtNHUnicast builds MP_REACH_NLRI for IPv4 unicast NLRI with IPv6 next-hop.
+// RFC 8950 Section 3: AFI=1, SAFI=1, NH Length=16, IPv6 next-hop, IPv4 NLRI.
+func buildMPReachNLRIExtNHUnicast(route StaticRoute) []byte {
+	// Build NLRI bytes for the IPv4 prefix
+	prefixBits := route.Prefix.Bits()
+	prefixBytes := (prefixBits + 7) / 8
+	nlriData := make([]byte, 1+prefixBytes)
+	nlriData[0] = byte(prefixBits)
+	copy(nlriData[1:], route.Prefix.Addr().AsSlice()[:prefixBytes])
+
+	// RFC 8950: AFI=1 (IPv4), IPv6 next-hop (16 bytes)
+	mpReach := &attribute.MPReachNLRI{
+		AFI:      attribute.AFIIPv4, // NLRI is IPv4
+		SAFI:     attribute.SAFIUnicast,
+		NextHops: []netip.Addr{route.NextHop}, // IPv6 next-hop
+		NLRI:     nlriData,
+	}
+
+	// Pack the attribute with header
+	value := mpReach.Pack()
+	valueLen := len(value)
+
+	// Build attribute: flags + type + length + value
+	// Flags: 0x80 = optional, 0x90 = optional + extended length
+	var attr []byte
+	if valueLen > 255 {
+		attr = make([]byte, 4+valueLen)
+		attr[0] = 0x90 // optional + extended length
+		attr[1] = byte(attribute.AttrMPReachNLRI)
+		attr[2] = byte(valueLen >> 8)
+		attr[3] = byte(valueLen)
+		copy(attr[4:], value)
+	} else {
+		attr = make([]byte, 3+valueLen)
+		attr[0] = 0x80 // optional
+		attr[1] = byte(attribute.AttrMPReachNLRI)
+		attr[2] = byte(valueLen)
+		copy(attr[3:], value)
+	}
+
+	return attr
 }
 
 // buildMPReachNLRIUnicast builds MP_REACH_NLRI for IPv6 unicast routes.
@@ -2522,6 +2594,9 @@ func (p *Peer) AnnounceWatchdog(name string) error {
 		asn4 = neg.ASN4
 	}
 
+	// Get negotiated families for ExtNH support
+	nf := p.families.Load()
+
 	addr := p.settings.Address.String()
 	announced := 0
 
@@ -2539,7 +2614,7 @@ func (p *Peer) AnnounceWatchdog(name string) error {
 		}
 
 		// Send the route
-		update := buildStaticRouteUpdate(wr.StaticRoute, p.settings.LocalAS, p.settings.IsIBGP(), asn4)
+		update := buildStaticRouteUpdate(wr.StaticRoute, p.settings.LocalAS, p.settings.IsIBGP(), asn4, nf)
 		if err := p.SendUpdate(update); err != nil {
 			return err
 		}

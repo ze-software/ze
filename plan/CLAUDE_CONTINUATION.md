@@ -6,13 +6,50 @@
 
 ## CURRENT STATUS
 
-✅ **Completed:** NegotiatedFamilies refactor with pre-computed capability flags
+✅ **Completed:** RFC 8950 Extended Next-Hop (test 6 passes)
+
+### Implementation Summary
+
+| Component | File | Description |
+|-----------|------|-------------|
+| Capability negotiation | `pkg/bgp/capability/negotiated.go` | ExtendedNextHop map + ExtendedNextHopAFI() |
+| Negotiation tests | `pkg/bgp/capability/negotiated_test.go` | 3 tests for ExtNH negotiation |
+| Config parsing | `pkg/config/bgp.go` | NexthopFamilyConfig, parseNexthopFamilies() |
+| Capability building | `pkg/config/loader.go` | Build ExtendedNextHop capability |
+| Route encoding | `pkg/reactor/peer.go` | IPv4UnicastExtNH, IPv4MPLSVPNExtNH flags |
+| | | buildMPReachNLRIExtNHUnicast() function |
+| | | useExtNHVPN check for VPN routes |
+
+### Files Modified (uncommitted)
+- `pkg/bgp/capability/negotiated.go`
+- `pkg/bgp/capability/negotiated_test.go`
+- `pkg/config/bgp.go`
+- `pkg/config/loader.go`
+- `pkg/reactor/peer.go`
+- `pkg/reactor/peer_test.go`
+- `test/data/encode/extended-nexthop.ci`
+- `test/data/encode/extended-nexthop.conf`
+
+---
+
+## PREVIOUS STATUS
+
+✅ **Completed:** Protocol updates and plan-to-spec conversion (`215aaa8`)
 
 ---
 
 ## RECENTLY COMPLETED
 
-### NegotiatedFamilies Refactor (This Session)
+### Protocol & Spec Updates (`215aaa8`)
+
+- Added QUALITY MANDATE to ESSENTIAL_PROTOCOLS.md
+- Updated prep.md with FIRST rules (git status, continuation, protocols)
+- Converted 6 implementation plans to spec format
+- Added spec-extended-nexthop.md for RFC 8950
+- Moved superseded plans to done/
+- Added rfc/rfc8950.txt
+
+### NegotiatedFamilies Refactor (`26ce539`)
 
 Implemented ExaBGP-style pre-computed negotiated families for O(1) access:
 
@@ -94,10 +131,10 @@ Implemented ExaBGP-style pre-computed negotiated families for O(1) access:
 ## Resume Point
 
 **Last worked:** 2025-12-28
-**Last commit:** `26ce539` (refactor: implement NegotiatedFamilies for O(1) capability checks)
+**Last commit:** `215aaa8` (docs: add quality mandate and convert plans to spec format)
 **Session ended:** Clean break
 
 **To resume:**
-1. Pick a failing encode test to fix (6, N, Q, R, S, T, U, V, Z, a)
-2. Run `go run ./test/cmd/functional encoding <code>` to test
+1. Implement extended-nexthop (RFC 8950) per `plan/spec-extended-nexthop.md`
+2. Run `go run ./test/cmd/functional encoding 6` to test
 3. Verify with `make test && make lint`

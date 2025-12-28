@@ -375,6 +375,7 @@ type PeerConfig struct {
 	DomainName           string
 	Capabilities         CapabilityConfig
 	AddPathFamilies      []AddPathFamilyConfig // Per-family add-path settings (RFC 7911)
+	NexthopFamilies      []NexthopFamilyConfig // RFC 8950 Extended Next Hop families
 	StaticRoutes         []StaticRouteConfig
 	MVPNRoutes           []MVPNRouteConfig
 	VPLSRoutes           []VPLSRouteConfig
@@ -399,6 +400,15 @@ type CapabilityConfig struct {
 	AddPathReceive  bool
 	ExtendedMessage bool // RFC 8654 Extended Message Support
 	SoftwareVersion bool
+	Nexthop         bool // RFC 8950 Extended Next Hop Encoding
+}
+
+// NexthopFamilyConfig defines an extended next-hop family mapping.
+// RFC 8950: Maps (NLRI AFI, NLRI SAFI) to the allowed Next Hop AFI.
+type NexthopFamilyConfig struct {
+	NLRIAFI    uint16 // AFI of the NLRI (1=IPv4, 2=IPv6)
+	NLRISAFI   uint8  // SAFI of the NLRI
+	NextHopAFI uint16 // AFI of the allowed next-hop (1=IPv4, 2=IPv6)
 }
 
 // StaticRouteConfig holds a static route.
@@ -750,6 +760,16 @@ func applyTreeSettings(nc *PeerConfig, tree *Tree) error {
 		if v, ok := cap.GetFlex("software-version"); ok {
 			nc.Capabilities.SoftwareVersion = v == configTrue || v == configEnable
 		}
+		// RFC 8950: Extended Next Hop Encoding capability
+		if v, ok := cap.GetFlex("nexthop"); ok {
+			nc.Capabilities.Nexthop = v == configTrue || v == configEnable
+		}
+	}
+
+	// Parse nexthop { ... } block for extended next-hop families
+	// Format: nexthop { ipv4 unicast ipv6; ipv4 mpls-vpn ipv6; }
+	if nhBlock := tree.GetContainer("nexthop"); nhBlock != nil {
+		nc.NexthopFamilies = parseNexthopFamilies(nhBlock)
 	}
 
 	return nil
@@ -993,6 +1013,16 @@ func parsePeerConfig(addr string, tree *Tree, templates map[string]*Tree, peerGl
 		if v, ok := cap.GetFlex("software-version"); ok {
 			nc.Capabilities.SoftwareVersion = v == configTrue || v == configEnable
 		}
+		// RFC 8950: Extended Next Hop Encoding capability
+		if v, ok := cap.GetFlex("nexthop"); ok {
+			nc.Capabilities.Nexthop = v == configTrue || v == configEnable
+		}
+	}
+
+	// Parse nexthop { ... } block for extended next-hop families
+	// Format: nexthop { ipv4 unicast ipv6; ipv4 mpls-vpn ipv6; }
+	if nhBlock := tree.GetContainer("nexthop"); nhBlock != nil {
+		nc.NexthopFamilies = parseNexthopFamilies(nhBlock)
 	}
 
 	// Per-family add-path configuration (RFC 7911)
@@ -1109,6 +1139,48 @@ func applyRIBOutParseResult(cfg *RIBOutConfig, parsed ribOutParseResult) {
 	if parsed.MaxBatchSizeSet {
 		cfg.MaxBatchSize = parsed.MaxBatchSize
 	}
+}
+
+// parseNexthopFamilies parses the nexthop { ... } block for RFC 8950 extended next-hop.
+// Format: nexthop { ipv4 unicast ipv6; ipv4 mpls-vpn ipv6; ipv6 unicast ipv4; }
+// Each entry maps (NLRI AFI, NLRI SAFI) -> NextHop AFI.
+// Freeform stores ALL words as a single key with value "true".
+// So "ipv4 unicast ipv6;" becomes key="ipv4 unicast ipv6", value="true".
+func parseNexthopFamilies(tree *Tree) []NexthopFamilyConfig {
+	var families []NexthopFamilyConfig
+
+	afiMap := map[string]uint16{
+		"ipv4": 1,
+		"ipv6": 2,
+	}
+	safiMap := map[string]uint8{
+		"unicast":    1,
+		"multicast":  2,
+		"mpls-vpn":   128,
+		"mpls-label": 4,
+	}
+
+	// Iterate over all possible combinations: "<afi> <safi> <nexthop-afi>"
+	// Freeform stores the entire line as the key with value "true"
+	for _, nlriAFIName := range []string{"ipv4", "ipv6"} {
+		nlriAFI := afiMap[nlriAFIName]
+		for _, safiName := range []string{"unicast", "multicast", "mpls-vpn", "mpls-label"} {
+			nlriSAFI := safiMap[safiName]
+			for _, nhAFIName := range []string{"ipv4", "ipv6"} {
+				nhAFI := afiMap[nhAFIName]
+				key := nlriAFIName + " " + safiName + " " + nhAFIName
+				if _, ok := tree.Get(key); ok {
+					families = append(families, NexthopFamilyConfig{
+						NLRIAFI:    nlriAFI,
+						NLRISAFI:   nlriSAFI,
+						NextHopAFI: nhAFI,
+					})
+				}
+			}
+		}
+	}
+
+	return families
 }
 
 // extractRoutesFromTree extracts all routes from a neighbor or template tree.

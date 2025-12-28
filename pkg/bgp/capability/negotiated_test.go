@@ -217,3 +217,102 @@ func TestMismatchString(t *testing.T) {
 	}
 	assert.Contains(t, m2.String(), "peer supports")
 }
+
+// TestNegotiateExtendedNextHop verifies Extended Next Hop capability negotiation.
+//
+// RFC 8950 Section 4: "A BGP speaker that wishes to advertise an IPv6 next hop
+// for IPv4 NLRI [...] MUST use the Capability Advertisement procedures [...] to
+// determine whether its peer supports this for the NLRI AFI/SAFI pair(s)."
+//
+// VALIDATES: ExtendedNextHop is negotiated when both peers advertise same tuple.
+//
+// PREVENTS: Sending IPv4 NLRI with IPv6 next-hop to peer that doesn't support it.
+func TestNegotiateExtendedNextHop(t *testing.T) {
+	// Both peers advertise IPv4/Unicast can use IPv6 next-hop
+	local := []Capability{
+		&Multiprotocol{AFI: AFIIPv4, SAFI: SAFIUnicast},
+		&ExtendedNextHop{Families: []ExtendedNextHopFamily{
+			{NLRIAFI: AFIIPv4, NLRISAFI: SAFIUnicast, NextHopAFI: AFIIPv6},
+		}},
+	}
+
+	remote := []Capability{
+		&Multiprotocol{AFI: AFIIPv4, SAFI: SAFIUnicast},
+		&ExtendedNextHop{Families: []ExtendedNextHopFamily{
+			{NLRIAFI: AFIIPv4, NLRISAFI: SAFIUnicast, NextHopAFI: AFIIPv6},
+		}},
+	}
+
+	neg := Negotiate(local, remote, 65001, 65002)
+
+	// Should be negotiated since both advertise same tuple
+	nhAFI := neg.ExtendedNextHopAFI(Family{AFI: AFIIPv4, SAFI: SAFIUnicast})
+	assert.Equal(t, AFIIPv6, nhAFI, "IPv4/Unicast should allow IPv6 next-hop")
+}
+
+// TestNegotiateExtendedNextHopMismatch verifies ExtNH negotiation with mismatch.
+//
+// RFC 8950: Capability is only negotiated if both peers advertise the same tuple.
+//
+// VALIDATES: Mismatched ExtNH tuples result in no negotiation.
+//
+// PREVENTS: Assuming ExtNH support when only one peer advertises it.
+func TestNegotiateExtendedNextHopMismatch(t *testing.T) {
+	// Only local advertises ExtNH
+	local := []Capability{
+		&Multiprotocol{AFI: AFIIPv4, SAFI: SAFIUnicast},
+		&ExtendedNextHop{Families: []ExtendedNextHopFamily{
+			{NLRIAFI: AFIIPv4, NLRISAFI: SAFIUnicast, NextHopAFI: AFIIPv6},
+		}},
+	}
+
+	remote := []Capability{
+		&Multiprotocol{AFI: AFIIPv4, SAFI: SAFIUnicast},
+		// No ExtendedNextHop
+	}
+
+	neg := Negotiate(local, remote, 65001, 65002)
+
+	// Should NOT be negotiated
+	nhAFI := neg.ExtendedNextHopAFI(Family{AFI: AFIIPv4, SAFI: SAFIUnicast})
+	assert.Equal(t, AFI(0), nhAFI, "ExtNH should not be negotiated without peer support")
+}
+
+// TestNegotiateExtendedNextHopMultipleFamilies verifies ExtNH with multiple families.
+//
+// RFC 8950 Section 4: Capability can contain multiple AFI/SAFI tuples.
+//
+// VALIDATES: Each tuple is negotiated independently.
+//
+// PREVENTS: All-or-nothing behavior when only some tuples match.
+func TestNegotiateExtendedNextHopMultipleFamilies(t *testing.T) {
+	// Local advertises IPv4/Unicast and IPv4/MPLS can use IPv6 next-hop
+	local := []Capability{
+		&Multiprotocol{AFI: AFIIPv4, SAFI: SAFIUnicast},
+		&Multiprotocol{AFI: AFIIPv4, SAFI: SAFIMPLS},
+		&ExtendedNextHop{Families: []ExtendedNextHopFamily{
+			{NLRIAFI: AFIIPv4, NLRISAFI: SAFIUnicast, NextHopAFI: AFIIPv6},
+			{NLRIAFI: AFIIPv4, NLRISAFI: SAFIMPLS, NextHopAFI: AFIIPv6},
+		}},
+	}
+
+	// Remote only advertises IPv4/Unicast with IPv6 next-hop
+	remote := []Capability{
+		&Multiprotocol{AFI: AFIIPv4, SAFI: SAFIUnicast},
+		&Multiprotocol{AFI: AFIIPv4, SAFI: SAFIMPLS},
+		&ExtendedNextHop{Families: []ExtendedNextHopFamily{
+			{NLRIAFI: AFIIPv4, NLRISAFI: SAFIUnicast, NextHopAFI: AFIIPv6},
+			// IPv4/MPLS NOT included
+		}},
+	}
+
+	neg := Negotiate(local, remote, 65001, 65002)
+
+	// IPv4/Unicast should be negotiated
+	nhAFI := neg.ExtendedNextHopAFI(Family{AFI: AFIIPv4, SAFI: SAFIUnicast})
+	assert.Equal(t, AFIIPv6, nhAFI, "IPv4/Unicast should allow IPv6 next-hop")
+
+	// IPv4/MPLS should NOT be negotiated
+	nhAFI2 := neg.ExtendedNextHopAFI(Family{AFI: AFIIPv4, SAFI: SAFIMPLS})
+	assert.Equal(t, AFI(0), nhAFI2, "IPv4/MPLS should not have ExtNH")
+}

@@ -252,6 +252,22 @@ func configToPeer(nc *PeerConfig, global *BGPConfig) (*reactor.PeerSettings, err
 		})
 	}
 
+	// RFC 8950: Build ExtendedNextHop capability from nexthop families config.
+	// Only include if capability is enabled AND there are families defined.
+	if len(nc.NexthopFamilies) > 0 {
+		extNH := &capability.ExtendedNextHop{
+			Families: make([]capability.ExtendedNextHopFamily, 0, len(nc.NexthopFamilies)),
+		}
+		for _, nhf := range nc.NexthopFamilies {
+			extNH.Families = append(extNH.Families, capability.ExtendedNextHopFamily{
+				NLRIAFI:    capability.AFI(nhf.NLRIAFI),
+				NLRISAFI:   capability.SAFI(nhf.NLRISAFI),
+				NextHopAFI: capability.AFI(nhf.NextHopAFI),
+			})
+		}
+		n.Capabilities = append(n.Capabilities, extNH)
+	}
+
 	// ASN4 is enabled by default, disable if explicitly set to false in config.
 	n.DisableASN4 = !nc.Capabilities.ASN4
 
