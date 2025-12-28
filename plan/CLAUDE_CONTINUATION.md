@@ -4,6 +4,40 @@
 
 ---
 
+## TDD CHECKPOINT (READ BEFORE ANY IMPLEMENTATION)
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│  BEFORE writing ANY implementation code, I MUST:                │
+│                                                                 │
+│  1. Write a unit test that captures the expected behavior       │
+│  2. Run the test → SEE IT FAIL                                  │
+│  3. Paste the failure output                                    │
+│  4. THEN write implementation                                   │
+│  5. Run the test → SEE IT PASS                                  │
+│                                                                 │
+│  "Fix the test" does NOT mean "debug and patch"                 │
+│  It means: write test → fail → implement → pass                 │
+│                                                                 │
+│  If I skip steps 1-3, I am VIOLATING the protocol.              │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+**Quick TDD template:**
+```go
+// TestXxx_ExpectedBehavior verifies [behavior].
+//
+// VALIDATES: [what correct behavior looks like]
+// PREVENTS: [what bug this catches]
+func TestXxx_ExpectedBehavior(t *testing.T) {
+    // Setup
+    // Action
+    // Assert
+}
+```
+
+---
+
 ## CURRENT STATUS
 
 ✅ **Completed:** ADD-PATH support for VPN routes (test 0 fixed)
@@ -27,8 +61,8 @@ Fixed functional test `0` (addpath) - VPN routes now include path ID when ADD-PA
 | EXT_COM before MP_REACH (ExaBGP compat) | `update_build.go:426-440` |
 | `packAttributesNoSort` helper | `update_build.go:313-320` |
 
-**Note:** Attribute ordering differs from RFC 4271 Appendix F.3 to match ExaBGP.
-RFC says ordering is "entirely optional", so this is compliant.
+**TDD VIOLATION:** This fix was done without writing unit tests first.
+Should have written tests for `packContext` and `BuildVPN` before implementing.
 
 ### Static Route UpdateBuilder Conversion (Previous)
 
@@ -48,6 +82,7 @@ RFC says ordering is "entirely optional", so this is compliant.
 
 | Commit | Feature |
 |--------|---------|
+| `f34bac0` | ADD-PATH support for VPN routes |
 | `9c94a2b` | Static route building to use UpdateBuilder |
 | `53b8d12` | Extract UPDATE builders to message package |
 | `13fd04b` | Add ASN4 to PackContext (RFC 6793) |
@@ -58,11 +93,11 @@ RFC says ordering is "entirely optional", so this is compliant.
 ## Resume Point
 
 **Last worked:** 2025-12-28
-**Last commit:** Pending (ADD-PATH VPN fix)
+**Last commit:** `cdf6445` (docs: spec relationship notes)
 **Session ended:** Clean break
 
 **To resume:**
-1. Functional tests: 24 passed, 13 failed (test 0 now fixed!)
+1. Functional tests: 24 passed, 13 failed [6, 7, 8, J, L, N, Q, S, T, U, V, Z, a]
 2. Remaining legacy functions (lower priority):
    - `buildGroupedUpdate` - groups multiple IPv4 routes in one UPDATE
    - `buildRIBRouteUpdate` - reconstructs UPDATEs from stored RIB routes
