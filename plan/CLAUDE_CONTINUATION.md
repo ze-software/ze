@@ -6,63 +6,53 @@
 
 ## CURRENT STATUS
 
-✅ **Completed:** EOR Tracking (all send*Routes functions)
+✅ **Completed:** RFC 4724 EOR Compliance (`50a32ad`)
 
-EOR now only sent for families where routes were actually sent.
+EOR now sent for ALL negotiated families per RFC 4724 Section 4:
+"including the case when there is no update to send"
 
 ---
 
 ## RECENTLY COMPLETED
 
-### EOR Tracking (This Session)
+### RFC 4724 EOR Compliance (This Session)
 
-Fixed all send*Routes functions to only send EOR for families with routes:
+Fixed all send*Routes functions to send EOR for ALL negotiated families:
 
-| Function | Change |
-|----------|--------|
-| `sendInitialRoutes` | `familiesSent` map tracks all families |
-| `sendMVPNRoutes` | `sentIPv4`/`sentIPv6` flags |
-| `sendVPLSRoutes` | `sentRoutes` flag |
-| `sendFlowSpecRoutes` | 4 flags for each FlowSpec family |
-| `sendMUPRoutes` | `sentIPv4`/`sentIPv6` flags |
+| Function | EOR Condition |
+|----------|---------------|
+| `sendInitialRoutes` | `nf.IPv4Unicast`, `nf.IPv6Unicast` |
+| `sendFlowSpecRoutes` | `nf.IPv4FlowSpec`, etc. (4 families) |
+| `sendMVPNRoutes` | `nf.IPv4McastVPN`, `nf.IPv6McastVPN` |
+| `sendVPLSRoutes` | Always (guarded by early return) |
+| `sendMUPRoutes` | `nf.IPv4MUP`, `nf.IPv6MUP` |
 
-**Helper added:** `routeFamily(StaticRoute) nlri.Family`
+**Protocol updates:**
+- `.claude/ESSENTIAL_PROTOCOLS.md`: RFC > ExaBGP clarification
+- Added: Must confirm before any RFC deviation
 
-**Tests added:**
-- `TestRouteFamilyIPv4Unicast`
-- `TestRouteFamilyIPv6Unicast`
-- `TestRouteFamilyVPNv4`
-- `TestRouteFamilyVPNv6`
-- `TestFamiliesSentTracking`
-- `TestFamiliesSentEmpty`
-- `TestFamiliesSentOnlyVPN`
-
-### RFC 8950 Extended Next-Hop (`93de483`)
-
-| Component | Description |
-|-----------|-------------|
-| Capability negotiation | ExtendedNextHop map + ExtendedNextHopAFI() |
-| Config parsing | `nexthop { ipv4 unicast ipv6; }` syntax |
-| Route encoding | buildMPReachNLRIExtNHUnicast() for IPv4 NLRI with IPv6 NH |
+**Test improvement:** 27/37 passing (was 23/37, +4 tests)
 
 ### Previous Commits
 
 | Commit | Feature |
 |--------|---------|
-| `26ce539` | NegotiatedFamilies refactor |
-| `0af99b6` | Filter routes by negotiated families |
+| `50a32ad` | RFC 4724 EOR compliance (all families) |
+| `ed469b1` | EOR tracking (reverted by 50a32ad) |
+| `93de483` | RFC 8950 extended next-hop encoding |
 | `d20b97c` | ExaBGP-style functional test runner |
 
 ---
 
 ## FUNCTIONAL TEST STATUS
 
-**Passing:** 28/37 encoding tests (76%)
+**Passing:** 27/37 encoding tests (73%)
 
 **Failing tests:**
 
 | Code | Test | Issue |
 |------|------|-------|
+| 0 | addpath | ADD-PATH feature |
 | N | new-v4 | Unknown |
 | Q | parity | Unknown |
 | R | path-information | ADD-PATH encoding |
@@ -79,9 +69,8 @@ Fixed all send*Routes functions to only send EOR for families with routes:
 
 | Purpose | File |
 |---------|------|
-| EOR tracking | `pkg/reactor/peer.go:send*Routes()` |
-| Route family helper | `pkg/reactor/peer.go:routeFamily()` |
-| Tests | `pkg/reactor/peer_test.go` |
+| EOR sending | `pkg/reactor/peer.go:send*Routes()` |
+| Protocol docs | `.claude/ESSENTIAL_PROTOCOLS.md` |
 
 ---
 
@@ -89,14 +78,14 @@ Fixed all send*Routes functions to only send EOR for families with routes:
 
 - `make test`: ✅ All unit tests pass
 - `make lint`: ✅ 0 issues
-- EOR sent per AFI/SAFI pair, not just negotiated families
+- RFC 4724 now fully compliant for EOR behavior
 
 ---
 
 ## Resume Point
 
 **Last worked:** 2025-12-28
-**Last commit:** `ed469b1` (feat: implement EOR tracking for all send*Routes functions)
+**Last commit:** `50a32ad` (fix: send EOR for all negotiated families per RFC 4724)
 **Session ended:** Clean break
 
 **To resume:**
