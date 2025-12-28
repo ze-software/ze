@@ -129,13 +129,14 @@ type VPLSRoute struct {
 
 // FlowSpecRoute represents a FlowSpec route (RFC 5575).
 type FlowSpecRoute struct {
-	Name              string
-	IsIPv6            bool
-	RD                [8]byte // For flow-vpn
-	NLRI              []byte  // Pre-built FlowSpec NLRI
-	NextHop           netip.Addr
-	CommunityBytes    []byte // Standard communities
-	ExtCommunityBytes []byte
+	Name                  string
+	IsIPv6                bool
+	RD                    [8]byte // For flow-vpn
+	NLRI                  []byte  // Pre-built FlowSpec NLRI
+	NextHop               netip.Addr
+	CommunityBytes        []byte // Standard communities
+	ExtCommunityBytes     []byte // Extended communities (attribute 16)
+	IPv6ExtCommunityBytes []byte // IPv6 Extended communities (attribute 25, RFC 5701)
 }
 
 // MUPRoute represents a MUP route.

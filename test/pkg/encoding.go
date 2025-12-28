@@ -357,7 +357,13 @@ func (r *Runner) runTest(ctx context.Context, rec *Record, opts *RunOptions) (bo
 
 	case <-testCtx.Done():
 		rec.State = StateTimeout
-		return false, "test timed out"
+		// Collect output before terminating for debugging
+		peer.Terminate()
+		client.Terminate()
+		peer.Collect()
+		client.Collect()
+		return false, fmt.Sprintf("test timed out\npeer: %s\nclient: %s",
+			peer.Stdout()+peer.Stderr(), client.Stdout()+client.Stderr())
 	}
 }
 

@@ -6,6 +6,7 @@ import (
 	"net/netip"
 	"os"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -581,6 +582,13 @@ func convertFlowSpecRoute(fr FlowSpecRouteConfig) (reactor.FlowSpecRoute, error)
 	route.ExtCommunityBytes = append(route.ExtCommunityBytes,
 		buildFlowSpecExtCommunities(fr.Then, route.NextHop)...)
 
+	// Sort extended communities by type for RFC 4360 compliance.
+	// ExaBGP sorts communities by type (origin before redirect, etc.)
+	route.ExtCommunityBytes = sortExtCommunities(route.ExtCommunityBytes)
+
+	// Build IPv6 Extended Communities (attribute 25) for IPv6-specific actions
+	route.IPv6ExtCommunityBytes = buildFlowSpecIPv6ExtCommunity(fr.Then)
+
 	return route, nil
 }
 
@@ -642,6 +650,18 @@ func buildFlowSpecExtCommunities(then map[string]string, nextHop netip.Addr) []b
 			// Redirect to next-hop - type 0x0800, subtype 0x00
 			result = append(result, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00)
 
+		case "redirect-to-nexthop-ietf":
+			// RFC 7674: Redirect to IP (IETF encoding)
+			// IPv4: type 0x01, subtype 0x0c - format: type(1) subtype(1) IPv4(4) reserved(2)
+			// IPv6: uses attribute 25 (IPv6 Ext Community) - handled separately
+			if ip, err := netip.ParseAddr(value); err == nil && ip.Is4() {
+				ipBytes := ip.As4()
+				result = append(result, 0x01, 0x0c,
+					ipBytes[0], ipBytes[1], ipBytes[2], ipBytes[3],
+					0x00, 0x00)
+			}
+			// IPv6 is handled in buildFlowSpecIPv6ExtCommunity
+
 		case "copy":
 			// Copy to IP - type 0x0800, subtype 0x01
 			result = append(result, 0x08, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01)
@@ -658,6 +678,75 @@ func buildFlowSpecExtCommunities(then map[string]string, nextHop netip.Addr) []b
 		}
 	}
 
+	return result
+}
+
+// buildFlowSpecIPv6ExtCommunity builds IPv6 Extended Communities (attribute 25, RFC 5701).
+// This is used for actions that require IPv6-specific encoding like redirect-to-nexthop-ietf with IPv6.
+func buildFlowSpecIPv6ExtCommunity(then map[string]string) []byte {
+	var result []byte
+
+	for action, value := range then {
+		// Handle redirect-to-nexthop-ietf with IPv6 address
+		if action == "redirect-to-nexthop-ietf" {
+			// RFC 7674: Redirect to IPv6 address using IPv6 Extended Community (attr 25)
+			// Format: subtype(2) + IPv6(16) + copy_flag(2) = 20 bytes
+			if ip, err := netip.ParseAddr(value); err == nil && ip.Is6() {
+				ipBytes := ip.As16()
+				result = append(result, 0x00, 0x0c) // Subtype 0x000c = redirect to IP
+				result = append(result, ipBytes[:]...)
+				result = append(result, 0x00, 0x00) // Copy flag = 0
+			}
+		}
+	}
+
+	return result
+}
+
+// sortExtCommunities sorts extended communities by type for RFC 4360 compliance.
+// Each extended community is 8 bytes. Sorting by the 64-bit value puts lower
+// type codes first (e.g., origin 0x0003 before redirect 0x8008).
+// Trailing bytes that don't form a complete community are discarded.
+func sortExtCommunities(data []byte) []byte {
+	if len(data) < 16 { // Need at least 2 communities to sort
+		return data
+	}
+
+	// Validate and truncate to complete communities only
+	count := len(data) / 8
+	if count*8 != len(data) {
+		// Discard trailing bytes that don't form a complete community
+		data = data[:count*8]
+	}
+	communities := make([]uint64, count)
+	for i := 0; i < count; i++ {
+		offset := i * 8
+		communities[i] = uint64(data[offset])<<56 |
+			uint64(data[offset+1])<<48 |
+			uint64(data[offset+2])<<40 |
+			uint64(data[offset+3])<<32 |
+			uint64(data[offset+4])<<24 |
+			uint64(data[offset+5])<<16 |
+			uint64(data[offset+6])<<8 |
+			uint64(data[offset+7])
+	}
+
+	// Sort by value (lower type codes first)
+	slices.Sort(communities)
+
+	// Rebuild byte slice
+	result := make([]byte, len(data))
+	for i, c := range communities {
+		offset := i * 8
+		result[offset] = byte(c >> 56)
+		result[offset+1] = byte(c >> 48)
+		result[offset+2] = byte(c >> 40)
+		result[offset+3] = byte(c >> 32)
+		result[offset+4] = byte(c >> 24)
+		result[offset+5] = byte(c >> 16)
+		result[offset+6] = byte(c >> 8)
+		result[offset+7] = byte(c)
+	}
 	return result
 }
 
@@ -785,7 +874,7 @@ func buildFlowSpecNLRI(match map[string]string, isIPv6 bool, forVPN bool) []byte
 
 	// Add ICMP type
 	if it, ok := match["icmp-type"]; ok {
-		types := parseFlowOctets(it)
+		types := parseFlowICMPTypes(it)
 		if len(types) > 0 {
 			fs.AddComponent(nlri.NewFlowICMPTypeComponent(types...))
 		}
@@ -793,7 +882,7 @@ func buildFlowSpecNLRI(match map[string]string, isIPv6 bool, forVPN bool) []byte
 
 	// Add ICMP code
 	if ic, ok := match["icmp-code"]; ok {
-		codes := parseFlowOctets(ic)
+		codes := parseFlowICMPCodes(ic)
 		if len(codes) > 0 {
 			fs.AddComponent(nlri.NewFlowICMPCodeComponent(codes...))
 		}
@@ -949,7 +1038,7 @@ func parseFlowMatches(s string) []nlri.FlowMatch {
 	return result
 }
 
-// parseFlowOctets parses octet values (DSCP, ICMP type/code, traffic-class).
+// parseFlowOctets parses octet values (DSCP, traffic-class).
 func parseFlowOctets(s string) []uint8 {
 	s = strings.Trim(s, "[]")
 	parts := strings.Fields(s)
@@ -960,6 +1049,114 @@ func parseFlowOctets(s string) []uint8 {
 		if n, err := strconv.ParseUint(p, 10, 8); err == nil {
 			result = append(result, uint8(n))
 		}
+	}
+	return result
+}
+
+// icmpTypeNames maps ICMP type symbolic names to values.
+// Per IANA ICMP Type Numbers: https://www.iana.org/assignments/icmp-parameters
+// ExaBGP compatible naming (lowercase, hyphens).
+var icmpTypeNames = map[string]uint8{
+	"echo-reply":            0,
+	"unreachable":           3,
+	"redirect":              5,
+	"echo-request":          8,
+	"router-advertisement":  9,
+	"router-solicit":        10,
+	"time-exceeded":         11,
+	"parameter-problem":     12,
+	"timestamp":             13,
+	"timestamp-reply":       14,
+	"photuris":              40,
+	"experimental-mobility": 41,
+	"extended-echo-request": 42,
+	"extended-echo-reply":   43,
+	"experimental-one":      253,
+	"experimental-two":      254,
+}
+
+// parseFlowICMPTypes parses ICMP type values or names.
+// Handles: [ unreachable echo-request echo-reply ] or [ 3 8 0 ] or [ =3 =8 =0 ].
+// Unknown names are logged as warnings and skipped.
+func parseFlowICMPTypes(s string) []uint8 {
+	s = strings.Trim(s, "[]")
+	parts := strings.Fields(s)
+	var result []uint8
+
+	for _, p := range parts {
+		p = strings.TrimPrefix(p, "=")
+		// Try numeric first
+		if n, err := strconv.ParseUint(p, 10, 8); err == nil {
+			result = append(result, uint8(n))
+			continue
+		}
+		// Try symbolic name
+		if n, ok := icmpTypeNames[strings.ToLower(p)]; ok {
+			result = append(result, n)
+			continue
+		}
+		// Unknown name - log warning
+		trace.Log(trace.Config, "unknown ICMP type name: %s", p)
+	}
+	return result
+}
+
+// icmpCodeNames maps ICMP code symbolic names to values.
+// Per IANA ICMP Type Numbers: https://www.iana.org/assignments/icmp-parameters
+// ExaBGP compatible naming (lowercase, hyphens).
+var icmpCodeNames = map[string]uint8{
+	// Destination Unreachable (type 3)
+	"network-unreachable":                   0,
+	"host-unreachable":                      1,
+	"protocol-unreachable":                  2,
+	"port-unreachable":                      3,
+	"fragmentation-needed":                  4,
+	"source-route-failed":                   5,
+	"destination-network-unknown":           6,
+	"destination-host-unknown":              7,
+	"source-host-isolated":                  8,
+	"destination-network-prohibited":        9,
+	"destination-host-prohibited":           10,
+	"network-unreachable-for-tos":           11,
+	"host-unreachable-for-tos":              12,
+	"communication-prohibited-by-filtering": 13,
+	"host-precedence-violation":             14,
+	"precedence-cutoff-in-effect":           15,
+	// Redirect (type 5)
+	"redirect-for-network":      0,
+	"redirect-for-host":         1,
+	"redirect-for-tos-and-net":  2,
+	"redirect-for-tos-and-host": 3,
+	// Time Exceeded (type 11)
+	"ttl-eq-zero-during-transit":    0,
+	"ttl-eq-zero-during-reassembly": 1,
+	// Parameter Problem (type 12)
+	"required-option-missing": 1,
+	"ip-header-bad":           2,
+}
+
+// parseFlowICMPCodes parses ICMP code values or names.
+// Handles: [ host-unreachable network-unreachable ] or [ 1 0 ] or [ =1 =0 ].
+// Unknown names are logged as warnings and skipped.
+func parseFlowICMPCodes(s string) []uint8 {
+	s = strings.Trim(s, "[]")
+	parts := strings.Fields(s)
+	var result []uint8
+
+	for _, p := range parts {
+		p = strings.TrimPrefix(p, "=")
+		// Try numeric first
+		if n, err := strconv.ParseUint(p, 10, 8); err == nil {
+			result = append(result, uint8(n))
+			continue
+		}
+		// Try symbolic name
+		if n, ok := icmpCodeNames[strings.ToLower(p)]; ok {
+			result = append(result, n)
+			continue
+		}
+		// Unknown name - log warning
+		trace.Log(trace.Config, "unknown ICMP code name: %s", p)
 	}
 	return result
 }
@@ -1009,8 +1206,10 @@ func parseFlowTCPFlagMatches(s string) []nlri.FlowMatch {
 	var result []nlri.FlowMatch
 
 	flagMap := map[string]uint8{
-		"fin": 0x01, "syn": 0x02, "rst": 0x04, "psh": 0x08, "push": 0x08,
-		"ack": 0x10, "urg": 0x20, "ece": 0x40, "cwr": 0x80,
+		"fin": 0x01, "syn": 0x02, "rst": 0x04, "reset": 0x04,
+		"psh": 0x08, "push": 0x08,
+		"ack": 0x10, "urg": 0x20, "urgent": 0x20,
+		"ece": 0x40, "cwr": 0x80,
 	}
 
 	for _, p := range parts {

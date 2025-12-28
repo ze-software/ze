@@ -2033,57 +2033,39 @@ func buildVPLSMPReachNLRI(route VPLSRoute) []byte {
 
 // sendFlowSpecRoutes sends FlowSpec routes configured for this peer.
 func (p *Peer) sendFlowSpecRoutes() {
-	if len(p.settings.FlowSpecRoutes) == 0 {
-		return
-	}
-
 	addr := p.settings.Address.String()
-	trace.Log(trace.Routes, "peer %s: sending %d FlowSpec routes", addr, len(p.settings.FlowSpecRoutes))
 
-	// Get negotiated capabilities for AS_PATH encoding.
+	// Get negotiated capabilities for AS_PATH encoding and FlowSpec families.
 	p.mu.RLock()
 	session := p.session
 	p.mu.RUnlock()
 
 	asn4 := true // Default to 4-byte if no session
+	var negotiatedFamilies []capability.Family
 	if session != nil {
 		if neg := session.Negotiated(); neg != nil {
 			asn4 = neg.ASN4
+			negotiatedFamilies = neg.Families()
 		}
 	}
 
-	// Track which AFI/SAFIs we've sent for EOR
-	var hasIPv4, hasIPv6, hasIPv4VPN bool
-
-	// Send routes in config order
-	for _, route := range p.settings.FlowSpecRoutes {
-		update := buildFlowSpecUpdate(route, p.settings.LocalAS, p.settings.IsIBGP(), asn4)
-		if err := p.SendUpdate(update); err != nil {
-			trace.Log(trace.Routes, "peer %s: FlowSpec send error: %v", addr, err)
-		}
-		// Track AFI/SAFI
-		switch {
-		case route.IsIPv6:
-			hasIPv6 = true
-		case route.RD != [8]byte{}:
-			hasIPv4VPN = true
-		default:
-			hasIPv4 = true
+	// Send routes if any
+	if len(p.settings.FlowSpecRoutes) > 0 {
+		trace.Log(trace.Routes, "peer %s: sending %d FlowSpec routes", addr, len(p.settings.FlowSpecRoutes))
+		for _, route := range p.settings.FlowSpecRoutes {
+			update := buildFlowSpecUpdate(route, p.settings.LocalAS, p.settings.IsIBGP(), asn4)
+			if err := p.SendUpdate(update); err != nil {
+				trace.Log(trace.Routes, "peer %s: FlowSpec send error: %v", addr, err)
+			}
 		}
 	}
 
-	// Send EORs
-	if hasIPv4 {
-		eor := message.BuildEOR(nlri.Family{AFI: 1, SAFI: 133}) // IPv4 FlowSpec
-		_ = p.SendUpdate(eor)
-	}
-	if hasIPv4VPN {
-		eor := message.BuildEOR(nlri.Family{AFI: 1, SAFI: 134}) // IPv4 FlowSpec VPN
-		_ = p.SendUpdate(eor)
-	}
-	if hasIPv6 {
-		eor := message.BuildEOR(nlri.Family{AFI: 2, SAFI: 133}) // IPv6 FlowSpec
-		_ = p.SendUpdate(eor)
+	// Send EORs for all negotiated FlowSpec families (even if no routes)
+	for _, family := range negotiatedFamilies {
+		if family.SAFI == capability.SAFIFlowSpec || family.SAFI == capability.SAFIFlowSpecVPN {
+			eor := message.BuildEOR(nlri.Family{AFI: nlri.AFI(family.AFI), SAFI: nlri.SAFI(family.SAFI)})
+			_ = p.SendUpdate(eor)
+		}
 	}
 }
 
@@ -2128,6 +2110,15 @@ func buildFlowSpecUpdate(route FlowSpecRoute, localAS uint32, isIBGP, asn4 bool)
 		ecAttr = append(ecAttr, 0xC0, 0x10, byte(len(route.ExtCommunityBytes)))
 		ecAttr = append(ecAttr, route.ExtCommunityBytes...)
 		attrBytes = append(attrBytes, ecAttr...)
+	}
+
+	// 5b. IPv6 EXTENDED_COMMUNITY (attribute 25, RFC 5701)
+	// Used for IPv6-specific actions like redirect-to-nexthop-ietf with IPv6 address
+	if len(route.IPv6ExtCommunityBytes) > 0 {
+		ec6Attr := make([]byte, 0, 3+len(route.IPv6ExtCommunityBytes))
+		ec6Attr = append(ec6Attr, 0xC0, 0x19, byte(len(route.IPv6ExtCommunityBytes)))
+		ec6Attr = append(ec6Attr, route.IPv6ExtCommunityBytes...)
+		attrBytes = append(attrBytes, ec6Attr...)
 	}
 
 	// 6. MP_REACH_NLRI for FlowSpec
