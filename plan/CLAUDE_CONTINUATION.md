@@ -96,7 +96,7 @@ Fixed all send*Routes functions to only send EOR for families with routes:
 ## Resume Point
 
 **Last worked:** 2025-12-28
-**Last commit:** (pending - EOR tracking)
+**Last commit:** `ed469b1` (feat: implement EOR tracking for all send*Routes functions)
 **Session ended:** Clean break
 
 **To resume:**
