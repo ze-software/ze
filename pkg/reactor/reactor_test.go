@@ -313,7 +313,8 @@ func TestBuildAnnounceUpdateIPv6UsesMPReachNLRI(t *testing.T) {
 		NextHop: netip.MustParseAddr("2001::1"),
 	}
 
-	update := buildAnnounceUpdate(route, 65000, true, true)
+	// ctx=nil means no ADD-PATH encoding
+	update := buildAnnounceUpdate(route, 65000, true, true, nil)
 
 	// IPv6 routes MUST NOT have regular NLRI field
 	require.Empty(t, update.NLRI, "IPv6 routes must not use NLRI field")
@@ -365,7 +366,8 @@ func TestBuildAnnounceUpdateIPv6UsesMPReachNLRI(t *testing.T) {
 func TestBuildWithdrawUpdateIPv6UsesMPUnreachNLRI(t *testing.T) {
 	prefix := netip.MustParsePrefix("2605::2/128")
 
-	update := buildWithdrawUpdate(prefix)
+	// ctx=nil means no ADD-PATH encoding
+	update := buildWithdrawUpdate(prefix, nil)
 
 	// IPv6 withdrawals MUST NOT have WithdrawnRoutes field
 	require.Empty(t, update.WithdrawnRoutes, "IPv6 withdrawals must not use WithdrawnRoutes field")

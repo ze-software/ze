@@ -142,7 +142,8 @@ func (r *OutgoingRIB) QueueWithdraw(n nlri.NLRI) {
 // buildNLRIIndex builds an index for an NLRI (without AS-PATH).
 func buildNLRIIndex(n nlri.NLRI) []byte {
 	family := n.Family()
-	nlriBytes := n.Bytes()
+	// Use Pack(nil) for consistent API - returns same bytes as Bytes()
+	nlriBytes := n.Pack(nil)
 
 	buf := make([]byte, 3+len(nlriBytes))
 	buf[0] = byte(family.AFI >> 8)

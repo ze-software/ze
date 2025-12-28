@@ -5,6 +5,7 @@ import (
 
 	"github.com/exa-networks/zebgp/pkg/bgp/attribute"
 	"github.com/exa-networks/zebgp/pkg/bgp/message"
+	"github.com/exa-networks/zebgp/pkg/bgp/nlri"
 )
 
 // BuildGroupedUpdate creates an UPDATE message from a RouteGroup.
@@ -15,7 +16,8 @@ import (
 //
 // RFC 4271 Section 4.3: An UPDATE message can advertise multiple routes
 // that share the same path attributes to a peer.
-func BuildGroupedUpdate(group *RouteGroup) (*message.Update, error) {
+// RFC 7911: ctx provides ADD-PATH capability state for NLRI encoding.
+func BuildGroupedUpdate(group *RouteGroup, ctx *nlri.PackContext) (*message.Update, error) {
 	if len(group.Routes) == 0 {
 		return &message.Update{}, nil
 	}
@@ -24,7 +26,8 @@ func BuildGroupedUpdate(group *RouteGroup) (*message.Update, error) {
 	pathAttrs := buildPathAttributes(group)
 
 	// Build NLRI bytes
-	nlriBytes := buildNLRIBytes(group)
+	// RFC 7911: Pack uses ADD-PATH encoding when negotiated
+	nlriBytes := buildNLRIBytes(group, ctx)
 
 	return &message.Update{
 		PathAttributes: pathAttrs,
@@ -59,21 +62,22 @@ func buildPathAttributes(group *RouteGroup) []byte {
 }
 
 // buildNLRIBytes packs all NLRIs from the group into wire format.
-func buildNLRIBytes(group *RouteGroup) []byte {
+// RFC 7911: Uses Pack(ctx) for ADD-PATH aware encoding.
+func buildNLRIBytes(group *RouteGroup, ctx *nlri.PackContext) []byte {
 	if len(group.Routes) == 0 {
 		return nil
 	}
 
-	// Calculate total size
+	// Calculate total size (using Pack for accurate length with ADD-PATH)
 	totalLen := 0
 	for _, route := range group.Routes {
-		totalLen += len(route.NLRI().Bytes())
+		totalLen += len(route.NLRI().Pack(ctx))
 	}
 
 	// Pack all NLRIs
 	buf := make([]byte, 0, totalLen)
 	for _, route := range group.Routes {
-		buf = append(buf, route.NLRI().Bytes()...)
+		buf = append(buf, route.NLRI().Pack(ctx)...)
 	}
 
 	return buf
@@ -81,14 +85,15 @@ func buildNLRIBytes(group *RouteGroup) []byte {
 
 // BuildGroupedUpdates creates UPDATE messages from multiple RouteGroups.
 // Returns one UPDATE per group.
-func BuildGroupedUpdates(groups []RouteGroup) ([]*message.Update, error) {
+// RFC 7911: ctx provides ADD-PATH capability state for NLRI encoding.
+func BuildGroupedUpdates(groups []RouteGroup, ctx *nlri.PackContext) ([]*message.Update, error) {
 	if len(groups) == 0 {
 		return nil, nil
 	}
 
 	updates := make([]*message.Update, 0, len(groups))
 	for i := range groups {
-		update, err := BuildGroupedUpdate(&groups[i])
+		update, err := BuildGroupedUpdate(&groups[i], ctx)
 		if err != nil {
 			return nil, err
 		}

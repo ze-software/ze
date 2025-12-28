@@ -1066,3 +1066,126 @@ func TestFamiliesSentOnlyVPN(t *testing.T) {
 	require.True(t, familiesSent[nlri.Family{AFI: nlri.AFIIPv4, SAFI: 128}], "VPNv4 should be tracked")
 	require.False(t, familiesSent[nlri.IPv4Unicast], "IPv4 Unicast should NOT be tracked")
 }
+
+// =============================================================================
+// PackContext Tests (RFC 7911 ADD-PATH)
+// =============================================================================
+
+// TestPeerPackContextNilFamilies verifies nil families returns nil context.
+//
+// VALIDATES: packContext returns nil when no negotiated families exist.
+//
+// PREVENTS: Nil pointer dereference when building NLRI before session established.
+func TestPeerPackContextNilFamilies(t *testing.T) {
+	settings := NewPeerSettings(
+		mustParseAddr("192.0.2.1"),
+		65000, 65001, 0x01010101,
+	)
+	peer := NewPeer(settings)
+
+	// No families set (session not established)
+	ctx := peer.packContext(nlri.IPv4Unicast)
+	require.Nil(t, ctx, "nil families should return nil context")
+}
+
+// TestPeerPackContextIPv4AddPath verifies IPv4 unicast ADD-PATH context.
+//
+// VALIDATES: packContext returns AddPath=true for IPv4 unicast when negotiated.
+//
+// PREVENTS: Missing path ID in IPv4 unicast NLRI when ADD-PATH is negotiated.
+func TestPeerPackContextIPv4AddPath(t *testing.T) {
+	settings := NewPeerSettings(
+		mustParseAddr("192.0.2.1"),
+		65000, 65001, 0x01010101,
+	)
+	peer := NewPeer(settings)
+
+	// Set families with ADD-PATH enabled for IPv4 unicast
+	peer.families.Store(&NegotiatedFamilies{
+		IPv4Unicast:        true,
+		IPv4UnicastAddPath: true,
+		IPv6Unicast:        true,
+		IPv6UnicastAddPath: false,
+	})
+
+	ctx := peer.packContext(nlri.IPv4Unicast)
+	require.NotNil(t, ctx, "should return non-nil context")
+	require.True(t, ctx.AddPath, "AddPath should be true for IPv4 unicast")
+}
+
+// TestPeerPackContextIPv6AddPath verifies IPv6 unicast ADD-PATH context.
+//
+// VALIDATES: packContext returns AddPath=true for IPv6 unicast when negotiated.
+//
+// PREVENTS: Missing path ID in IPv6 unicast NLRI when ADD-PATH is negotiated.
+func TestPeerPackContextIPv6AddPath(t *testing.T) {
+	settings := NewPeerSettings(
+		mustParseAddr("192.0.2.1"),
+		65000, 65001, 0x01010101,
+	)
+	peer := NewPeer(settings)
+
+	// Set families with ADD-PATH enabled for IPv6 unicast
+	peer.families.Store(&NegotiatedFamilies{
+		IPv4Unicast:        true,
+		IPv4UnicastAddPath: false,
+		IPv6Unicast:        true,
+		IPv6UnicastAddPath: true,
+	})
+
+	ctx := peer.packContext(nlri.IPv6Unicast)
+	require.NotNil(t, ctx, "should return non-nil context")
+	require.True(t, ctx.AddPath, "AddPath should be true for IPv6 unicast")
+}
+
+// TestPeerPackContextNoAddPath verifies non-ADD-PATH families return AddPath=false.
+//
+// VALIDATES: packContext returns AddPath=false for families without ADD-PATH.
+//
+// PREVENTS: Spurious path ID prepended to NLRI for non-ADD-PATH sessions.
+func TestPeerPackContextNoAddPath(t *testing.T) {
+	settings := NewPeerSettings(
+		mustParseAddr("192.0.2.1"),
+		65000, 65001, 0x01010101,
+	)
+	peer := NewPeer(settings)
+
+	// Set families WITHOUT ADD-PATH
+	peer.families.Store(&NegotiatedFamilies{
+		IPv4Unicast:        true,
+		IPv4UnicastAddPath: false,
+		IPv6Unicast:        true,
+		IPv6UnicastAddPath: false,
+	})
+
+	ctx4 := peer.packContext(nlri.IPv4Unicast)
+	require.NotNil(t, ctx4, "should return non-nil context")
+	require.False(t, ctx4.AddPath, "AddPath should be false for IPv4 unicast without ADD-PATH")
+
+	ctx6 := peer.packContext(nlri.IPv6Unicast)
+	require.NotNil(t, ctx6, "should return non-nil context")
+	require.False(t, ctx6.AddPath, "AddPath should be false for IPv6 unicast without ADD-PATH")
+}
+
+// TestPeerPackContextOtherFamilies verifies non-unicast families return nil context.
+//
+// VALIDATES: packContext returns nil for families without ADD-PATH support.
+//
+// PREVENTS: Attempting ADD-PATH encoding for unsupported families.
+func TestPeerPackContextOtherFamilies(t *testing.T) {
+	settings := NewPeerSettings(
+		mustParseAddr("192.0.2.1"),
+		65000, 65001, 0x01010101,
+	)
+	peer := NewPeer(settings)
+
+	peer.families.Store(&NegotiatedFamilies{
+		IPv4Unicast:        true,
+		IPv4UnicastAddPath: true,
+	})
+
+	// VPN family - not supported for ADD-PATH in current implementation
+	vpnFamily := nlri.Family{AFI: nlri.AFIIPv4, SAFI: 128}
+	ctx := peer.packContext(vpnFamily)
+	require.Nil(t, ctx, "VPN family should return nil context (ADD-PATH not implemented)")
+}

@@ -77,7 +77,8 @@ type hashableNLRI struct {
 }
 
 func (h hashableNLRI) Bytes() []byte {
-	return h.n.Bytes()
+	// Use Pack(nil) for consistent API - returns same bytes as Bytes()
+	return h.n.Pack(nil)
 }
 
 func (h hashableNLRI) FamilyKey() uint32 {

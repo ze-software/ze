@@ -24,7 +24,8 @@ func TestBuildGroupedUpdate_SingleRoute(t *testing.T) {
 		t.Fatalf("got %d groups, want 1", len(groups))
 	}
 
-	update, err := BuildGroupedUpdate(&groups[0])
+	// ctx=nil means no ADD-PATH encoding
+	update, err := BuildGroupedUpdate(&groups[0], nil)
 	if err != nil {
 		t.Fatalf("BuildGroupedUpdate failed: %v", err)
 	}
@@ -63,7 +64,8 @@ func TestBuildGroupedUpdate_MultipleRoutes(t *testing.T) {
 		t.Fatalf("got %d groups, want 1", len(groups))
 	}
 
-	update, err := BuildGroupedUpdate(&groups[0])
+	// ctx=nil means no ADD-PATH encoding
+	update, err := BuildGroupedUpdate(&groups[0], nil)
 	if err != nil {
 		t.Fatalf("BuildGroupedUpdate failed: %v", err)
 	}
@@ -88,7 +90,8 @@ func TestBuildGroupedUpdate_IncludesNextHop(t *testing.T) {
 	}
 
 	groups := GroupByAttributes(routes)
-	update, err := BuildGroupedUpdate(&groups[0])
+	// ctx=nil means no ADD-PATH encoding
+	update, err := BuildGroupedUpdate(&groups[0], nil)
 	if err != nil {
 		t.Fatalf("BuildGroupedUpdate failed: %v", err)
 	}
@@ -137,7 +140,8 @@ func TestBuildGroupedUpdate_IncludesOrigin(t *testing.T) {
 	}
 
 	groups := GroupByAttributes(routes)
-	update, err := BuildGroupedUpdate(&groups[0])
+	// ctx=nil means no ADD-PATH encoding
+	update, err := BuildGroupedUpdate(&groups[0], nil)
 	if err != nil {
 		t.Fatalf("BuildGroupedUpdate failed: %v", err)
 	}
@@ -181,7 +185,8 @@ func TestBuildGroupedUpdate_EmptyGroup(t *testing.T) {
 		Family: nlri.Family{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast},
 	}
 
-	update, err := BuildGroupedUpdate(group)
+	// ctx=nil means no ADD-PATH encoding
+	update, err := BuildGroupedUpdate(group, nil)
 
 	// Either error or empty UPDATE is acceptable
 	if err == nil && len(update.NLRI) > 0 {

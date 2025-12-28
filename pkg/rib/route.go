@@ -90,7 +90,8 @@ func (r *Route) Index() []byte {
 	}
 
 	family := r.nlri.Family()
-	nlriBytes := r.nlri.Bytes()
+	// Use Pack(nil) for consistent API - returns same bytes as Bytes()
+	nlriBytes := r.nlri.Pack(nil)
 
 	// Calculate index size
 	size := 3 + len(nlriBytes) // AFI(2) + SAFI(1) + NLRI

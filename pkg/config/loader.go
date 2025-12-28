@@ -996,7 +996,8 @@ func buildFlowSpecNLRI(match map[string]string, isIPv6 bool, forVPN bool) []byte
 	if forVPN {
 		return fs.ComponentBytes()
 	}
-	return fs.Bytes()
+	// Use Pack(nil) for consistent API - returns same bytes as Bytes()
+	return fs.Pack(nil)
 }
 
 // parseFlowPrefixWithOffset parses a FlowSpec prefix like "10.0.0.1/32" or "::1/128/120".
@@ -1495,7 +1496,8 @@ func buildMUPNLRI(mr MUPRouteConfig) []byte {
 	}
 
 	mup := nlri.NewMUPFull(afi, nlri.MUPArch3GPP5G, routeType, rd, data)
-	return mup.Bytes()
+	// Use Pack(nil) for consistent API - returns same bytes as Bytes()
+	return mup.Pack(nil)
 }
 
 // buildMUPPrefix encodes a prefix for MUP NLRI.

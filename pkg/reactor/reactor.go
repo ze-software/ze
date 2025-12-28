@@ -208,7 +208,9 @@ func (a *reactorAPIAdapter) AnnounceRoute(peerSelector string, route api.RouteSp
 			// Send immediately and track for re-announcement on reconnect
 			// Default to 4-byte ASN (modern standard) for API-announced routes
 			asn4 := true
-			update := buildAnnounceUpdate(route, a.r.config.LocalAS, isIBGP, asn4)
+			// RFC 7911: Get PackContext for ADD-PATH encoding
+			ctx := peer.packContext(n.Family())
+			update := buildAnnounceUpdate(route, a.r.config.LocalAS, isIBGP, asn4, ctx)
 			if err := peer.SendUpdate(update); err != nil {
 				lastErr = err
 			} else {
@@ -248,7 +250,9 @@ func (a *reactorAPIAdapter) WithdrawRoute(peerSelector string, prefix netip.Pref
 			peer.AdjRIBOut().QueueWithdraw(n)
 		case peer.State() == PeerStateEstablished:
 			// Send immediately and remove from sent cache
-			update := buildWithdrawUpdate(prefix)
+			// RFC 7911: Get PackContext for ADD-PATH encoding
+			ctx := peer.packContext(n.Family())
+			update := buildWithdrawUpdate(prefix, ctx)
 			if err := peer.SendUpdate(update); err != nil {
 				lastErr = err
 			} else {
@@ -311,7 +315,9 @@ func (a *reactorAPIAdapter) sendToMatchingPeers(selector string, update *message
 //  5. LOCAL_PREF (type 5) - RFC 4271 §5.1.5
 //  6. COMMUNITY (type 8) - RFC 1997
 //  7. LARGE_COMMUNITY (type 32) - RFC 8092
-func buildAnnounceUpdate(route api.RouteSpec, localAS uint32, isIBGP, asn4 bool) *message.Update {
+//
+// RFC 7911: ctx provides ADD-PATH capability state for NLRI encoding.
+func buildAnnounceUpdate(route api.RouteSpec, localAS uint32, isIBGP, asn4 bool, ctx *nlri.PackContext) *message.Update {
 	// Build path attributes
 	var attrBytes []byte
 
@@ -397,11 +403,12 @@ func buildAnnounceUpdate(route api.RouteSpec, localAS uint32, isIBGP, asn4 bool)
 	}
 
 	// Build NLRI
+	// RFC 7911: Pack uses ADD-PATH encoding when negotiated
 	var nlriBytes []byte
 	if !isIPv6 {
 		// IPv4: Use regular NLRI field
 		inet := nlri.NewINET(nlri.Family{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast}, route.Prefix, 0)
-		nlriBytes = inet.Bytes()
+		nlriBytes = inet.Pack(ctx)
 	} else {
 		// IPv6: Use MP_REACH_NLRI attribute (RFC 4760)
 		// Build NLRI bytes for the prefix
@@ -410,7 +417,7 @@ func buildAnnounceUpdate(route api.RouteSpec, localAS uint32, isIBGP, asn4 bool)
 			AFI:      attribute.AFIIPv6,
 			SAFI:     attribute.SAFIUnicast,
 			NextHops: []netip.Addr{route.NextHop},
-			NLRI:     inet.Bytes(),
+			NLRI:     inet.Pack(ctx),
 		}
 		attrBytes = append(attrBytes, attribute.PackAttribute(mpReach)...)
 	}
@@ -423,21 +430,24 @@ func buildAnnounceUpdate(route api.RouteSpec, localAS uint32, isIBGP, asn4 bool)
 
 // buildWithdrawUpdate builds an UPDATE message for withdrawing a route.
 // RFC 4760 Section 4: IPv6 withdrawals use MP_UNREACH_NLRI attribute.
-func buildWithdrawUpdate(prefix netip.Prefix) *message.Update {
+// RFC 7911: ctx provides ADD-PATH capability state for NLRI encoding.
+func buildWithdrawUpdate(prefix netip.Prefix, ctx *nlri.PackContext) *message.Update {
 	if prefix.Addr().Is4() {
 		// IPv4: Use WithdrawnRoutes field
+		// RFC 7911: Pack uses ADD-PATH encoding when negotiated
 		inet := nlri.NewINET(nlri.Family{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast}, prefix, 0)
 		return &message.Update{
-			WithdrawnRoutes: inet.Bytes(),
+			WithdrawnRoutes: inet.Pack(ctx),
 		}
 	}
 
 	// IPv6: Use MP_UNREACH_NLRI attribute (RFC 4760 Section 4)
+	// RFC 7911: Pack uses ADD-PATH encoding when negotiated
 	inet := nlri.NewINET(nlri.Family{AFI: nlri.AFIIPv6, SAFI: nlri.SAFIUnicast}, prefix, 0)
 	mpUnreach := &attribute.MPUnreachNLRI{
 		AFI:  attribute.AFIIPv6,
 		SAFI: attribute.SAFIUnicast,
-		NLRI: inet.Bytes(),
+		NLRI: inet.Pack(ctx),
 	}
 
 	return &message.Update{
@@ -563,7 +573,9 @@ func (a *reactorAPIAdapter) AnnounceWatchdog(peerSelector, name string) error {
 			localAddr := peer.Settings().LocalAddress
 			routes := a.r.watchdog.AnnouncePool(name, peerAddr)
 			for _, pr := range routes {
-				update := buildAnnounceUpdateFromStatic(pr.StaticRoute, a.r.config.LocalAS, peer.Settings().IsIBGP(), localAddr)
+				// RFC 7911: Get PackContext for ADD-PATH encoding
+				ctx := peer.packContext(routeFamily(pr.StaticRoute))
+				update := buildAnnounceUpdateFromStatic(pr.StaticRoute, a.r.config.LocalAS, peer.Settings().IsIBGP(), localAddr, ctx)
 				if err := peer.SendUpdate(update); err != nil {
 					lastErr = err
 				}
@@ -617,7 +629,13 @@ func (a *reactorAPIAdapter) WithdrawWatchdog(peerSelector, name string) error {
 			peerAddr := peer.Settings().Address.String()
 			routes := a.r.watchdog.WithdrawPool(name, peerAddr)
 			for _, pr := range routes {
-				update := buildWithdrawUpdate(pr.Prefix)
+				// RFC 7911: Get PackContext for ADD-PATH encoding
+				family := nlri.IPv4Unicast
+				if pr.Prefix.Addr().Is6() {
+					family = nlri.IPv6Unicast
+				}
+				ctx := peer.packContext(family)
+				update := buildWithdrawUpdate(pr.Prefix, ctx)
 				if err := peer.SendUpdate(update); err != nil {
 					lastErr = err
 				}
@@ -693,7 +711,8 @@ func (a *reactorAPIAdapter) RemoveWatchdogRoute(routeKey, poolName string) error
 // buildAnnounceUpdateFromStatic builds an UPDATE message from a StaticRoute.
 // Uses the route's attributes, with defaults for missing values.
 // localAddress is used to resolve "next-hop self" routes.
-func buildAnnounceUpdateFromStatic(route StaticRoute, localAS uint32, isIBGP bool, localAddress netip.Addr) *message.Update {
+// RFC 7911: ctx provides ADD-PATH capability state for NLRI encoding.
+func buildAnnounceUpdateFromStatic(route StaticRoute, localAS uint32, isIBGP bool, localAddress netip.Addr, ctx *nlri.PackContext) *message.Update {
 	// Resolve next-hop: use local address if NextHopSelf, otherwise use configured NextHop
 	nextHop := route.NextHop
 	if route.NextHopSelf && localAddress.IsValid() {
@@ -737,7 +756,7 @@ func buildAnnounceUpdateFromStatic(route StaticRoute, localAS uint32, isIBGP boo
 	}
 
 	// Default to 4-byte ASN
-	return buildAnnounceUpdate(spec, localAS, isIBGP, true)
+	return buildAnnounceUpdate(spec, localAS, isIBGP, true, ctx)
 }
 
 // RIBInRoutes returns routes from Adj-RIB-In.
@@ -1132,10 +1151,9 @@ func (a *reactorAPIAdapter) SendRoutes(peerSelector string, routes []*rib.Route,
 	return totalResult, nil
 }
 
-// sendWithdrawals sends withdrawal UPDATE messages to a peer.
-// Groups withdrawals by family: IPv4 unicast uses WithdrawnRoutes field,
-// other families use MP_UNREACH_NLRI attribute.
-// Returns number of UPDATE messages sent.
+// sendWithdrawals sends withdrawal UPDATE messages for the given NLRIs.
+// Groups by family for efficient packing.
+// RFC 7911: Uses Pack(ctx) for ADD-PATH aware encoding.
 func (a *reactorAPIAdapter) sendWithdrawals(peer *Peer, withdrawals []nlri.NLRI) int {
 	if len(withdrawals) == 0 {
 		return 0
@@ -1152,13 +1170,15 @@ func (a *reactorAPIAdapter) sendWithdrawals(peer *Peer, withdrawals []nlri.NLRI)
 	ipv4Unicast := nlri.Family{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast}
 
 	for family, nlris := range byFamily {
+		// RFC 7911: Get PackContext for ADD-PATH encoding
+		ctx := peer.packContext(family)
 		var update *message.Update
 
 		if family == ipv4Unicast {
 			// IPv4 unicast: use WithdrawnRoutes field
 			var withdrawnBytes []byte
 			for _, n := range nlris {
-				withdrawnBytes = append(withdrawnBytes, n.Bytes()...)
+				withdrawnBytes = append(withdrawnBytes, n.Pack(ctx)...)
 			}
 			update = &message.Update{
 				WithdrawnRoutes: withdrawnBytes,
@@ -1167,7 +1187,7 @@ func (a *reactorAPIAdapter) sendWithdrawals(peer *Peer, withdrawals []nlri.NLRI)
 			// Other families: use MP_UNREACH_NLRI attribute
 			var nlriBytes []byte
 			for _, n := range nlris {
-				nlriBytes = append(nlriBytes, n.Bytes()...)
+				nlriBytes = append(nlriBytes, n.Pack(ctx)...)
 			}
 			mpUnreach := &attribute.MPUnreachNLRI{
 				AFI:  attribute.AFI(family.AFI),
@@ -1316,7 +1336,13 @@ func (r *Reactor) RemoveWatchdogRoute(routeKey, poolName string) error {
 		// Note: removedRoute.announced is no longer protected by pool mutex,
 		// but it's safe because the route is now orphaned (no concurrent access)
 		if removedRoute.announced[peerAddr] {
-			update := buildWithdrawUpdate(removedRoute.Prefix)
+			// RFC 7911: Get PackContext for ADD-PATH encoding
+			family := nlri.IPv4Unicast
+			if removedRoute.Prefix.Addr().Is6() {
+				family = nlri.IPv6Unicast
+			}
+			ctx := peer.packContext(family)
+			update := buildWithdrawUpdate(removedRoute.Prefix, ctx)
 			_ = peer.SendUpdate(update) // Best effort, continue on error
 		}
 	}
