@@ -2,7 +2,11 @@
 
 ## Task
 
-Fix API encoder switching - processes with `encoder json` should receive JSON-formatted route updates, not text format.
+Redesign process API configuration to properly separate:
+1. **WHAT** messages to receive/send (message types)
+2. **HOW** to format them (encoding + format)
+
+Fix the current bug where `encoder json` processes receive nothing or text format.
 
 ## Current State (verified)
 
@@ -11,66 +15,207 @@ Fix API encoder switching - processes with `encoder json` should receive JSON-fo
 - Functional tests: 24 passed, 13 failed
 - Last commit: `a317ea9`
 
-## Context Loaded
+## New ZeBGP Process Configuration Format
 
-### Architecture Docs
-- `.claude/zebgp/api/ARCHITECTURE.md` - API package structure, route injection flow, ProcessConfig
+### Design Principles
 
-### Source Files Read
-- `pkg/api/server.go:400-424` - OnUpdateReceived() always uses text format
-- `pkg/api/json.go:121-151` - RouteAnnounce() method, RouteUpdate struct
-- `pkg/api/text.go:15-101` - ReceivedRoute struct, FormatReceivedUpdate/Withdraw
-- `pkg/api/types.go:334-343` - ProcessConfig struct with Encoder field
-- `pkg/config/bgp.go:543-550` - Config parsing sets ReceiveUpdate only for text encoder
+1. **Separate concerns:** WHAT (message types) vs HOW (formatting)
+2. **ExaBGP compatible:** Migration tool converts ExaBGP → ZeBGP
+3. **Cleaner defaults:** Less boilerplate than ExaBGP
 
-## Problem Analysis
+### ZeBGP Format
 
-**Primary bug (stated):** `OnUpdateReceived` ignores `cfg.Encoder`, always uses text format.
+```
+process <name> {
+    run <command>;
 
-**Secondary bug (found):** Config parsing at `bgp.go:548` only sets `ReceiveUpdate=true` when `encoder=text`. JSON-configured processes have `ReceiveUpdate=false`, so they receive **nothing**.
+    # HOW to format output
+    content {
+        encoding json;       # json | text (default: text)
+        format parsed;       # parsed | raw | full (default: parsed)
+    }
+}
+
+neighbor <address> {
+    # WHAT messages this process receives/sends for this neighbor
+    process <name> {
+        receive {
+            update;          # route announcements
+            withdraw;        # route withdrawals
+            open;            # OPEN messages
+            notification;    # errors
+            keepalive;       # heartbeats
+            refresh;         # route-refresh
+            state;           # up/down/connected/fsm events
+        }
+        send {
+            update;          # can inject routes
+            # ... other message types
+        }
+    }
+}
+```
+
+### Shorthand Forms
+
+```
+# Minimal (defaults: text, parsed, no messages)
+process foo { run ./script; }
+
+# Common case: JSON updates only
+process foo {
+    run ./script;
+    content { encoding json; }
+}
+
+neighbor 10.0.0.1 {
+    process foo {
+        receive { update; withdraw; }
+    }
+}
+
+# All messages, full format (parsed + raw)
+process foo {
+    run ./script;
+    content { format full; }
+}
+
+neighbor 10.0.0.1 {
+    process foo {
+        receive { all; }
+        send { all; }
+    }
+}
+```
+
+### Format Options
+
+| Option | Description |
+|--------|-------------|
+| `encoding json` | JSON format output |
+| `encoding text` | Text format output (default) |
+| `format parsed` | Decoded/interpreted fields only (default) |
+| `format raw` | Wire bytes only (hex header + body) |
+| `format full` | Both parsed content AND raw bytes |
+
+### ExaBGP → ZeBGP Mapping
+
+| ExaBGP | ZeBGP |
+|--------|-------|
+| `encoder json` | `content { encoding json; }` |
+| `receive { parsed; }` | `content { format parsed; }` |
+| `receive { packets; }` | `content { format raw; }` |
+| `receive { parsed; packets; consolidate; }` | `content { format full; }` |
+| `api { processes [ foo ]; }` in neighbor | `process foo { ... }` in neighbor |
+| `receive { update; }` in api | `receive { update; }` in process |
+| `neighbor-changes;` | `receive { state; }` |
+
+### Migration Example
+
+**ExaBGP input:**
+```
+process foo {
+    run ./script.py;
+    encoder json;
+}
+
+neighbor 10.0.0.1 {
+    api {
+        processes [ foo ];
+        receive {
+            parsed;
+            packets;
+            consolidate;
+            update;
+            notification;
+        }
+    }
+}
+```
+
+**ZeBGP output:**
+```
+process foo {
+    run ./script.py;
+    content {
+        encoding json;
+        format full;
+    }
+}
+
+neighbor 10.0.0.1 {
+    process foo {
+        receive {
+            update;
+            notification;
+        }
+    }
+}
+```
+
+## Problem Analysis (Current Code)
+
+**Primary bug:** `OnUpdateReceived` ignores `cfg.Encoder`, always uses text format.
+
+**Secondary bug:** Config parsing at `bgp.go:548` only sets `ReceiveUpdate=true` when `encoder=text`. JSON-configured processes have `ReceiveUpdate=false`, so they receive **nothing**.
 
 **Missing feature:** No `OnWithdrawReceived` exists. Withdrawals are not forwarded to processes at all.
 
-## End-to-End User Flow
+**Architectural issue (config):** Current config mixes "what" and "how" at wrong levels.
 
-### Configuration Path
-- Config syntax: `process foo { run ./script.py; encoder json; }`
-- Parsing: `pkg/config/bgp.go:538-552`
-  - Line 543-544: `pc.Encoder = v` ✓
-  - Line 548-550: `if pc.Encoder == "text" { pc.ReceiveUpdate = true }` ❌
-- **Bug:** JSON processes get `ReceiveUpdate=false`
+**Architectural issue (interface):** `UpdateReceiver.OnUpdateReceived(peerAddr netip.Addr, routes)` only passes peer address, but `JSONEncoder.RouteAnnounce(peer PeerInfo, routes)` requires full `PeerInfo` (LocalAddress, LocalAS, PeerAS, RouterID). The interface signature must change.
 
-### Execution Path
-- Entry: `server.go:OnUpdateReceived(peerAddr, routes)`
-- Processing: `FormatReceivedUpdate()` always called
-- Output: Text format sent via `proc.WriteEvent(text)`
-- **Bug:** `cfg.Encoder` is never checked
+### Interface Mismatch Detail
 
-### Related Handlers
-- `FormatReceivedWithdraw()` exists in text.go but never called
-- `JSONEncoder.RouteWithdraw()` exists in json.go but never called
-- No withdrawal forwarding to processes exists
+```go
+// Current interface (pkg/reactor/reactor.go:77-80)
+type UpdateReceiver interface {
+    OnUpdateReceived(peerAddr netip.Addr, routes []api.ReceivedRoute)
+}
 
-## Goal Achievement Check
+// JSONEncoder.RouteAnnounce requires (pkg/api/json.go:123)
+func (e *JSONEncoder) RouteAnnounce(peer PeerInfo, routes []RouteUpdate) string
 
-### User's Actual Goal
-User wants to receive JSON-formatted route updates in their process's stdin when they configure `encoder json`.
+// PeerInfo fields needed (pkg/api/types.go:57-71)
+type PeerInfo struct {
+    Address      netip.Addr  // ✓ We have this
+    LocalAddress netip.Addr  // ✗ Missing
+    LocalAS      uint32      // ✗ Missing
+    PeerAS       uint32      // ✗ Missing
+    RouterID     uint32      // ✗ Missing
+    State        string
+    Uptime       time.Duration
+    // ... stats fields
+}
+```
 
-### Will Plan Achieve It?
-| Step | Status | Notes |
-|------|--------|-------|
-| Config works? | ✅ | Phase 1 fixes config parsing so JSON processes can receive updates |
-| Code works? | ✅ | Phase 2 adds encoder switching in OnUpdateReceived |
-| Output correct? | ✅ | JSONEncoder.RouteAnnounce already produces correct JSON |
+### Type Mismatch Detail
 
-### Blockers and Coverage
-| Blocker | Plan Step | Covered? |
-|---------|-----------|----------|
-| Config: JSON→ReceiveUpdate=false | Phase 1: Config Parsing Fix | ✅ |
-| OnUpdateReceived ignores encoder | Phase 2: Encoder Switching | ✅ |
-| No withdrawal forwarding | Phase 3 (optional) | ⚠️ User decision |
+```go
+// Text encoder uses (pkg/api/text.go:17-24)
+type ReceivedRoute struct {
+    Prefix          netip.Prefix
+    NextHop         netip.Addr
+    Origin          string
+    LocalPreference uint32
+    MED             uint32
+    ASPath          []uint32
+}
 
-**Plan achieves goal:** YES (core goal achieved, withdrawals optional)
+// JSON encoder uses (pkg/api/json.go:243-253)
+type RouteUpdate struct {
+    Prefix    string   // String, not netip.Prefix
+    NextHop   string   // String, not netip.Addr
+    AFI       string   // "ipv4" or "ipv6"
+    SAFI      string   // "unicast", etc.
+    Origin    string
+    ASPath    []uint32
+    LocalPref uint32
+    MED       uint32
+}
+```
+
+Need converter: `ReceivedRoute` → `RouteUpdate`
 
 ## Embedded Protocol Requirements
 
@@ -94,110 +239,257 @@ User wants to receive JSON-formatted route updates in their process's stdin when
 - Fix all 🔴/🟡 issues before claiming done
 - Report 🟢 minor items to user
 
-## Design Decision
+## Implementation Phases
 
-**Option A: Minimal fix** - Only fix OnUpdateReceived encoder switching
-- Pros: Smallest change
-- Cons: JSON processes still can't receive updates (config bug), no withdrawals
+### Phase 0: Raw Message Interface (Correct Design)
 
-**Option B: Complete fix** - Fix config parsing + encoder switching + add withdrawal support
-- Pros: Feature actually works end-to-end
-- Cons: More changes
+**Key principle:** Pass raw wire bytes, decode on demand based on format config.
 
-**Chosen: Option B** - The minimal fix doesn't achieve the user goal
+Current (wrong):
+```
+Reactor → parse UPDATE → ReceivedRoute struct → Server → format text
+```
 
-## Implementation Steps
+Correct:
+```
+Reactor → RawMessage{type, bytes, peer} → Server → decode IF needed → format
+```
 
-### Phase 1: Config Parsing Fix
-
-#### Step 1.1: Write test for ReceiveUpdate parsing
-**File:** `pkg/config/bgp_test.go`
+#### 0.1 Define RawMessage type
+**File:** `pkg/api/types.go`
 
 ```go
-// TestProcessConfigReceiveUpdate verifies that ReceiveUpdate is set
-// correctly for both json and text encoders.
-//
-// VALIDATES: JSON encoder processes can receive updates when configured.
-//
-// PREVENTS: Bug where encoder=json → ReceiveUpdate=false.
-func TestProcessConfigReceiveUpdate(t *testing.T) {
-    // Test: encoder json with receive-update should set ReceiveUpdate=true
-    // Test: encoder text with receive-update should set ReceiveUpdate=true
-    // Test: encoder json without receive-update should set ReceiveUpdate=false
+// RawMessage represents a BGP message received from a peer.
+// Contains raw wire bytes for on-demand parsing.
+type RawMessage struct {
+    Type      message.MessageType // UPDATE, OPEN, NOTIFICATION, etc.
+    RawBytes  []byte              // Original wire bytes (without marker)
+    Timestamp time.Time
 }
 ```
 
-#### Step 1.2: Run test → MUST FAIL
+#### 0.2 Define MessageReceiver interface
+**File:** `pkg/reactor/reactor.go`
 
-#### Step 1.3: Fix config parsing
-**File:** `pkg/config/bgp.go` around line 546
+Replace `UpdateReceiver` with generic `MessageReceiver`:
 
-Change from:
 ```go
-// Default: text encoder processes receive updates
-if pc.Encoder == "text" {
-    pc.ReceiveUpdate = true
+// MessageReceiver receives BGP messages from peers.
+// Messages are passed as raw bytes for on-demand parsing.
+type MessageReceiver interface {
+    // OnMessageReceived is called when a message is received from a peer.
+    // msg contains raw wire bytes - parsing is done by receiver based on format config.
+    OnMessageReceived(peer api.PeerInfo, msg api.RawMessage)
 }
 ```
 
-To proper parsing of `receive-update` or `receive { update; }` config directive.
-
-#### Step 1.4: Run test → MUST PASS
-
-### Phase 2: Encoder Switching
-
-#### Step 2.1: Write test for ReceivedRouteToRouteUpdate conversion
-**File:** `pkg/api/json_test.go`
+#### 0.3 Update notifyMessageReceiver
+**File:** `pkg/reactor/reactor.go`
 
 ```go
-// TestReceivedRouteToRouteUpdate verifies conversion from ReceivedRoute to RouteUpdate.
-//
-// VALIDATES: All fields are correctly converted for JSON encoding.
-//
-// PREVENTS: Data loss or corruption during type conversion.
-func TestReceivedRouteToRouteUpdate(t *testing.T) { ... }
+func (r *Reactor) notifyMessageReceiver(peerAddr netip.Addr, msgType message.MessageType, rawBytes []byte) {
+    r.mu.RLock()
+    receiver := r.messageReceiver
+    peer, hasPeer := r.peers[peerAddr.String()]
+    r.mu.RUnlock()
+
+    if receiver == nil || !hasPeer {
+        return
+    }
+
+    // Build PeerInfo from peer settings
+    s := peer.Settings()
+    peerInfo := api.PeerInfo{
+        Address:      s.Address,
+        LocalAddress: peer.LocalAddress(),
+        LocalAS:      s.LocalAS,
+        PeerAS:       s.PeerAS,
+        RouterID:     s.RouterID,
+        State:        peer.State(),
+    }
+
+    msg := api.RawMessage{
+        Type:      msgType,
+        RawBytes:  rawBytes,
+        Timestamp: time.Now(),
+    }
+
+    receiver.OnMessageReceived(peerInfo, msg)
+}
 ```
 
-#### Step 2.2: Write test for encoder switching
-**File:** `pkg/api/server_test.go`
+#### 0.4 Add on-demand parsers
+**File:** `pkg/api/decode.go`
 
 ```go
-// TestOnUpdateReceivedEncoderSwitching verifies that OnUpdateReceived
-// uses the correct encoder format based on process configuration.
-//
-// VALIDATES: Process receives JSON format when encoder=json.
-//
-// PREVENTS: Bug where all processes receive text format.
-func TestOnUpdateReceivedEncoderSwitching(t *testing.T) { ... }
+// DecodeUpdate parses raw UPDATE bytes into structured data.
+// Called only when format=parsed or format=full.
+func DecodeUpdate(rawBytes []byte, ctx *context.EncodingContext) (*ParsedUpdate, error) {
+    // Parse using existing message.ParseUpdate()
+}
+
+// DecodeOpen parses raw OPEN bytes into structured data.
+func DecodeOpen(rawBytes []byte) (*ParsedOpen, error) {
+    // Parse using existing message.ParseOpen()
+}
+
+// DecodeNotification parses raw NOTIFICATION bytes into structured data.
+func DecodeNotification(rawBytes []byte) (*ParsedNotification, error) {
+    // Parse using existing message.ParseNotification()
+}
 ```
 
-#### Step 2.3: Run tests → MUST FAIL
-
-#### Step 2.4: Add ReceivedRouteToRouteUpdate function
-**File:** `pkg/api/json.go`
-
-```go
-// ReceivedRouteToRouteUpdate converts a ReceivedRoute to RouteUpdate for JSON encoding.
-func ReceivedRouteToRouteUpdate(r ReceivedRoute) RouteUpdate { ... }
-```
-
-#### Step 2.5: Fix OnUpdateReceived
+#### 0.5 Update Server.OnMessageReceived
 **File:** `pkg/api/server.go`
 
 ```go
-func (s *Server) OnUpdateReceived(peerAddr netip.Addr, routes []ReceivedRoute) {
-    // Check encoder and format accordingly
-    // Lazy-init both formats (only create when needed)
+func (s *Server) OnMessageReceived(peer PeerInfo, msg RawMessage) {
+    if s.procManager == nil {
+        return
+    }
+
+    s.procManager.mu.RLock()
+    defer s.procManager.mu.RUnlock()
+
+    for name, proc := range s.procManager.processes {
+        cfg := s.getProcessConfig(name)
+        if cfg == nil || !cfg.wantsMessage(msg.Type) {
+            continue
+        }
+
+        output := s.formatMessage(peer, msg, cfg.Content)
+        _ = proc.WriteEvent(output)
+    }
+}
+
+func (s *Server) formatMessage(peer PeerInfo, msg RawMessage, content ContentConfig) string {
+    switch content.Format {
+    case "raw":
+        // Just hex-encode the wire bytes
+        return s.formatRaw(peer, msg, content.Encoding)
+
+    case "parsed":
+        // Decode and format structured data
+        return s.formatParsed(peer, msg, content.Encoding)
+
+    case "full":
+        // Both parsed AND raw
+        return s.formatFull(peer, msg, content.Encoding)
+
+    default:
+        return s.formatParsed(peer, msg, content.Encoding)
+    }
+}
+
+func (s *Server) formatParsed(peer PeerInfo, msg RawMessage, encoding string) string {
+    switch msg.Type {
+    case message.TypeUPDATE:
+        parsed, err := DecodeUpdate(msg.RawBytes, nil)
+        if err != nil {
+            return s.formatError(peer, msg, err, encoding)
+        }
+        if encoding == "json" {
+            return s.encoder.Update(peer, parsed)
+        }
+        return FormatTextUpdate(peer.Address, parsed)
+
+    case message.TypeOPEN:
+        parsed, err := DecodeOpen(msg.RawBytes)
+        if err != nil {
+            return s.formatError(peer, msg, err, encoding)
+        }
+        if encoding == "json" {
+            return s.encoder.Open(peer, parsed)
+        }
+        return FormatTextOpen(peer.Address, parsed)
+
+    // ... other message types
+    }
 }
 ```
 
-#### Step 2.6: Run tests → MUST PASS
+#### 0.6 Wire up session to pass raw bytes
+**File:** `pkg/reactor/session.go`
 
-### Phase 3: Withdrawal Support (optional - confirm with user)
+When message is received, call `notifyMessageReceiver` with raw bytes before or instead of parsing:
 
-#### Step 3.1: Add OnWithdrawReceived to server
-#### Step 3.2: Wire up withdrawal forwarding
-#### Step 3.3: Add tests
+```go
+func (s *Session) handleMessage(header *message.Header, body []byte) {
+    // Notify receiver with raw bytes
+    if s.peer.messageCallback != nil {
+        s.peer.messageCallback(s.peerAddr, header.Type, body)
+    }
+
+    // Continue with normal processing...
+}
+```
+
+#### 0.7 Run tests
+```bash
+make test && make lint
+```
+
+### Phase 1: Config Schema Update
+
+Update config parsing to support new format structure.
+
+#### 1.1 Update ProcessConfig struct
+**File:** `pkg/api/types.go`
+
+```go
+type ProcessConfig struct {
+    Name     string
+    Run      string
+    Content  ContentConfig  // NEW: replaces Encoder
+}
+
+type ContentConfig struct {
+    Encoding string  // "json" | "text" (default: "text")
+    Format   string  // "parsed" | "raw" | "full" (default: "parsed")
+}
+```
+
+#### 1.2 Add per-neighbor process binding
+**File:** `pkg/config/bgp.go`
+
+Support `process <name> { receive { ... } send { ... } }` inside neighbor blocks.
+
+#### 1.3 Update config schema
+**File:** `pkg/config/schema.go`
+
+Add schema nodes for:
+- `process.<name>.content.encoding`
+- `process.<name>.content.format`
+- `neighbor.<addr>.process.<name>.receive.*`
+- `neighbor.<addr>.process.<name>.send.*`
+
+### Phase 2: Message Routing
+
+#### 2.1 Add message type filtering
+**File:** `pkg/api/server.go`
+
+Route messages only to processes subscribed to that type for that neighbor.
+
+#### 2.2 Fix encoder switching
+**File:** `pkg/api/server.go`
+
+Use `ContentConfig.Encoding` to select JSON vs text formatter.
+
+#### 2.3 Add format handling
+**File:** `pkg/api/json.go`, `pkg/api/text.go`
+
+Support `parsed`, `raw`, and `full` output formats.
+
+### Phase 3: Migration Tool Update
+
+#### 3.1 Add process API transform
+**File:** `pkg/config/migration/process_api.go`
+
+Transform ExaBGP process + api blocks to ZeBGP format:
+- Extract `encoder` → `content.encoding`
+- Map `receive { parsed; packets; consolidate; }` → `content.format`
+- Move `api { processes [...] }` → `neighbor.process.<name>`
+- Map message type subscriptions
 
 ### Phase 4: Verification
 
@@ -205,79 +497,280 @@ func (s *Server) OnUpdateReceived(peerAddr netip.Addr, routes []ReceivedRoute) {
 make test && make lint
 ```
 
+Test migration:
+```bash
+zebgp config import exabgp.conf > zebgp.conf
+zebgp config check zebgp.conf
+```
+
 ## Verification Checklist
 
-- [ ] Config parsing test written and shown to FAIL first
-- [ ] Config parsing fix makes test pass
-- [ ] ReceivedRouteToRouteUpdate test written and shown to FAIL first
-- [ ] Encoder switching test written and shown to FAIL first
-- [ ] Implementation makes tests pass
+### Phase 0: Raw Message Interface
+- [ ] `RawMessage` type defined with Type, RawBytes, Timestamp
+- [ ] `MessageReceiver` interface replaces `UpdateReceiver`
+- [ ] `notifyMessageReceiver` passes raw bytes + PeerInfo
+- [ ] On-demand parsers: `DecodeUpdate`, `DecodeOpen`, `DecodeNotification`
+- [ ] `Server.OnMessageReceived` dispatches by message type
+- [ ] Format switching: raw, parsed, full
+- [ ] Encoding switching: json, text
+- [ ] Session wired to pass raw bytes to callback
+- [ ] Phase 0 tests pass
+
+### Phase 1-3: Config Redesign (Future)
+- [ ] ContentConfig struct added with Encoding and Format fields
+- [ ] Config schema updated for new `content {}` block
+- [ ] Per-neighbor process binding works
+- [ ] Message type filtering routes correctly
+- [ ] Format handling supports parsed/raw/full
+- [ ] Migration tool converts ExaBGP api blocks
+
+### Final Verification
 - [ ] `make test` passes
 - [ ] `make lint` passes
-- [ ] **Goal verified**: User can configure `encoder json` and receive JSON-formatted updates
+- [ ] **Goal verified**: Process with `encoder json` receives JSON format
+- [ ] **Goal verified**: Process with `encoder text` receives text format
 - [ ] Self-review performed
 - [ ] No 🔴/🟡 issues remaining
 
 ## Test Specification
 
-### TestProcessConfigReceiveUpdate
+### Phase 0 Tests
+
+#### TestMessageReceiverReceivesRawBytes
 
 ```go
-func TestProcessConfigReceiveUpdate(t *testing.T) {
+// TestMessageReceiverReceivesRawBytes verifies that MessageReceiver
+// receives raw wire bytes, not pre-parsed structures.
+//
+// VALIDATES: Raw bytes are passed through for on-demand parsing.
+//
+// PREVENTS: Bug where messages are pre-parsed, wasting CPU for format=raw.
+func TestMessageReceiverReceivesRawBytes(t *testing.T) {
+    var receivedPeer api.PeerInfo
+    var receivedMsg api.RawMessage
+
+    mockReceiver := &mockMessageReceiver{
+        onMessage: func(peer api.PeerInfo, msg api.RawMessage) {
+            receivedPeer = peer
+            receivedMsg = msg
+        },
+    }
+
+    // Setup reactor with peer and mock receiver
+    reactor := NewReactor(...)
+    reactor.SetMessageReceiver(mockReceiver)
+    reactor.AddPeer(&PeerSettings{
+        Address: netip.MustParseAddr("192.168.1.2"),
+        LocalAS: 65001,
+        PeerAS:  65002,
+    })
+
+    // Simulate receiving UPDATE with known wire bytes
+    updateBytes := []byte{0x00, 0x00, 0x00, 0x17, ...} // Valid UPDATE
+    reactor.injectMessage(netip.MustParseAddr("192.168.1.2"), message.TypeUPDATE, updateBytes)
+
+    // Assert raw bytes are passed through
+    require.Equal(t, message.TypeUPDATE, receivedMsg.Type)
+    require.Equal(t, updateBytes, receivedMsg.RawBytes)
+
+    // Assert PeerInfo has all required fields
+    require.Equal(t, netip.MustParseAddr("192.168.1.2"), receivedPeer.Address)
+    require.Equal(t, uint32(65001), receivedPeer.LocalAS)
+    require.Equal(t, uint32(65002), receivedPeer.PeerAS)
+}
+```
+
+#### TestFormatSwitching
+
+```go
+// TestFormatSwitching verifies that format config controls parsing behavior.
+//
+// VALIDATES: format=raw doesn't parse, format=parsed parses, format=full does both.
+//
+// PREVENTS: Bug where parsing always happens regardless of format setting.
+func TestFormatSwitching(t *testing.T) {
+    updateBytes := []byte{...} // Valid UPDATE wire bytes
+
     tests := []struct {
-        name          string
-        config        string
-        wantEncoder   string
-        wantReceive   bool
+        name       string
+        format     string
+        encoding   string
+        wantRaw    bool // Output contains hex bytes
+        wantParsed bool // Output contains parsed fields
+    }{
+        {"raw json", "raw", "json", true, false},
+        {"raw text", "raw", "text", true, false},
+        {"parsed json", "parsed", "json", false, true},
+        {"parsed text", "parsed", "text", false, true},
+        {"full json", "full", "json", true, true},
+        {"full text", "full", "text", true, true},
+    }
+
+    for _, tt := range tests {
+        t.Run(tt.name, func(t *testing.T) {
+            cfg := ContentConfig{Format: tt.format, Encoding: tt.encoding}
+            output := formatMessage(peer, RawMessage{Type: message.TypeUPDATE, RawBytes: updateBytes}, cfg)
+
+            if tt.wantRaw {
+                require.Contains(t, output, "raw") // Contains hex-encoded bytes
+            }
+            if tt.wantParsed {
+                require.Contains(t, output, "announce") // Contains parsed data
+            }
+        })
+    }
+}
+```
+
+#### TestEncodingSwitching
+
+```go
+// TestEncodingSwitching verifies that encoding config controls output format.
+//
+// VALIDATES: encoding=json produces JSON, encoding=text produces text.
+//
+// PREVENTS: Bug where all processes receive text format.
+func TestEncodingSwitching(t *testing.T) {
+    jsonReceived := make(chan string, 1)
+    textReceived := make(chan string, 1)
+
+    jsonProc := &mockProcess{onWrite: func(s string) { jsonReceived <- s }}
+    textProc := &mockProcess{onWrite: func(s string) { textReceived <- s }}
+
+    server := &Server{
+        config: ServerConfig{
+            Processes: []ProcessConfig{
+                {Name: "json-proc", Content: ContentConfig{Encoding: "json", Format: "parsed"}, ReceiveUpdate: true},
+                {Name: "text-proc", Content: ContentConfig{Encoding: "text", Format: "parsed"}, ReceiveUpdate: true},
+            },
+        },
+        procManager: &ProcessManager{
+            processes: map[string]*Process{
+                "json-proc": jsonProc,
+                "text-proc": textProc,
+            },
+        },
+        encoder: NewJSONEncoder("6.0.0"),
+    }
+
+    // Send raw UPDATE message
+    peer := PeerInfo{Address: netip.MustParseAddr("192.168.1.2"), LocalAS: 65001, PeerAS: 65002}
+    msg := RawMessage{Type: message.TypeUPDATE, RawBytes: validUpdateBytes}
+
+    server.OnMessageReceived(peer, msg)
+
+    // Verify JSON process got JSON
+    jsonOut := <-jsonReceived
+    require.True(t, strings.HasPrefix(jsonOut, "{"), "JSON process should receive JSON")
+
+    // Verify text process got text
+    textOut := <-textReceived
+    require.True(t, strings.HasPrefix(textOut, "neighbor"), "Text process should receive text")
+}
+```
+
+#### TestDecodeUpdate
+
+```go
+// TestDecodeUpdate verifies on-demand UPDATE parsing.
+//
+// VALIDATES: Raw bytes correctly parsed into structured data.
+//
+// PREVENTS: Parse errors when format=parsed or format=full.
+func TestDecodeUpdate(t *testing.T) {
+    // Valid UPDATE with 10.0.0.0/8, next-hop 192.168.1.1
+    updateBytes := []byte{...}
+
+    parsed, err := DecodeUpdate(updateBytes, nil)
+    require.NoError(t, err)
+    require.Len(t, parsed.Announced, 1)
+    require.Equal(t, "10.0.0.0/8", parsed.Announced[0].Prefix.String())
+}
+```
+
+### Phase 1+ Tests
+
+### TestProcessContentConfig
+
+```go
+func TestProcessContentConfig(t *testing.T) {
+    tests := []struct {
+        name         string
+        config       string
+        wantEncoding string
+        wantFormat   string
     }{
         {
-            name: "json encoder with receive-update",
-            config: `process foo { run ./test; encoder json; receive-update; }`,
-            wantEncoder: "json",
-            wantReceive: true,
+            name: "json encoding with parsed format",
+            config: `process foo { run ./test; content { encoding json; format parsed; } }`,
+            wantEncoding: "json",
+            wantFormat:   "parsed",
         },
         {
-            name: "text encoder with receive-update",
-            config: `process foo { run ./test; encoder text; receive-update; }`,
-            wantEncoder: "text",
-            wantReceive: true,
+            name: "text encoding with full format",
+            config: `process foo { run ./test; content { encoding text; format full; } }`,
+            wantEncoding: "text",
+            wantFormat:   "full",
         },
         {
-            name: "json encoder without receive-update",
-            config: `process foo { run ./test; encoder json; }`,
-            wantEncoder: "json",
-            wantReceive: false,
+            name: "defaults when content omitted",
+            config: `process foo { run ./test; }`,
+            wantEncoding: "text",
+            wantFormat:   "parsed",
         },
     }
     // ...
 }
 ```
 
-### TestOnUpdateReceivedEncoderSwitching
+### TestNeighborProcessBinding
 
 ```go
-func TestOnUpdateReceivedEncoderSwitching(t *testing.T) {
-    // Setup: Mock process manager with two processes
-    // - jsonProc: encoder=json, ReceiveUpdate=true
-    // - textProc: encoder=text, ReceiveUpdate=true
-
-    // Call OnUpdateReceived with sample routes
-
-    // Assert: jsonProc.received starts with "{" (JSON)
-    // Assert: textProc.received starts with "neighbor" (text)
+func TestNeighborProcessBinding(t *testing.T) {
+    config := `
+        process foo { run ./test; content { encoding json; } }
+        neighbor 10.0.0.1 {
+            process foo {
+                receive { update; withdraw; }
+            }
+        }
+    `
+    // Assert: neighbor 10.0.0.1 has process foo bound
+    // Assert: foo receives update and withdraw for this neighbor
 }
 ```
 
-## Questions for User
+### TestMessageTypeFiltering
 
-1. **Withdrawal support**: Should Phase 3 (withdrawal forwarding) be included in this task, or deferred to a separate spec?
+```go
+func TestMessageTypeFiltering(t *testing.T) {
+    // Setup: Process subscribed to update only (not notification)
+    // Send: UPDATE message → should be forwarded
+    // Send: NOTIFICATION message → should NOT be forwarded
+}
+```
 
-2. **Config syntax**: The current config uses implicit `receive-update` tied to encoder type. Should we:
-   - (A) Add explicit `receive-update;` directive that must be present
-   - (B) Change the default so all encoders receive updates unless `no-receive-update;` is specified
-   - (C) Keep backward compatibility (text=receive, json=no-receive) and add explicit directive
+## Migration Transform Details
+
+### ExaBGP `consolidate` Logic
+
+| parsed | packets | consolidate | → ZeBGP format |
+|--------|---------|-------------|----------------|
+| true | false | - | `parsed` |
+| false | true | - | `raw` |
+| true | true | true | `full` |
+| true | true | false | `full` (we don't support split events) |
+
+### ExaBGP State Events
+
+| ExaBGP | → ZeBGP receive |
+|--------|-----------------|
+| `neighbor-changes;` | `state;` |
+| `negotiated;` | `state;` |
+| `fsm;` | `state;` |
+| `signal;` | `state;` |
 
 ---
 
 **Created:** 2025-12-29
-**Updated:** 2025-12-29 (added end-to-end analysis, config parsing bug, withdrawal gap)
+**Updated:** 2025-12-29 (redesigned format: content{encoding,format} + per-neighbor binding)

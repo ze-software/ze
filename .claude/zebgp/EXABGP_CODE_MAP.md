@@ -1,5 +1,20 @@
 # ExaBGP to ZeBGP Code Map
 
+## TL;DR (Read This First)
+
+| ExaBGP | ZeBGP | Notes |
+|--------|-------|-------|
+| `bgp/message/` | `pkg/bgp/message/` | Message types |
+| `bgp/message/open/capability/` | `pkg/bgp/capability/` | Capabilities |
+| `bgp/message/update/attribute/` | `pkg/bgp/attribute/` | Path attributes |
+| `bgp/message/update/nlri/` | `pkg/bgp/nlri/` | NLRI types |
+| `reactor/peer/` | `pkg/reactor/peer.go` | Peer management |
+| `rib/` | `pkg/rib/` | Route storage |
+
+**When to read full doc:** ExaBGP compatibility, finding reference implementation.
+
+---
+
 **Purpose:** Map ExaBGP source structure to ZeBGP equivalents
 **Source:** `/Users/thomas/Code/github.com/exa-networks/exabgp/main/src/exabgp/` (372 Python files)
 **Target:** `pkg/`, `internal/`, `cmd/`

@@ -104,7 +104,92 @@ peer * {                          template {
 
 **Implementation:** Already in `MigrateV2ToV3()` ✅
 
-### 4. `static` → `announce` (NEW)
+### 4. Process API Configuration (NEW)
+
+ExaBGP has a complex process/API configuration model. ZeBGP simplifies it.
+
+**ExaBGP model:**
+- `process` block defines executable + encoder
+- `api` block in neighbor binds processes + message subscriptions
+- `receive`/`send` blocks control format (parsed/packets/consolidate) AND message types
+
+**ZeBGP model:**
+- `process` block defines executable + `content { encoding; format; }`
+- `process` block in neighbor binds processes + message subscriptions
+- Clean separation: HOW (content) vs WHAT (receive/send)
+
+**Transform:**
+
+```
+# ExaBGP
+process foo {
+    run ./script.py;
+    encoder json;
+}
+
+neighbor 10.0.0.1 {
+    api {
+        processes [ foo ];
+        neighbor-changes;
+        receive {
+            parsed;
+            packets;
+            consolidate;
+            update;
+            notification;
+        }
+        send {
+            update;
+        }
+    }
+}
+
+# ZeBGP
+process foo {
+    run ./script.py;
+    content {
+        encoding json;
+        format full;          # parsed+packets+consolidate → full
+    }
+}
+
+neighbor 10.0.0.1 {
+    process foo {
+        receive {
+            update;
+            notification;
+            state;            # neighbor-changes → state
+        }
+        send {
+            update;
+        }
+    }
+}
+```
+
+**Format mapping:**
+
+| ExaBGP parsed | ExaBGP packets | ExaBGP consolidate | → ZeBGP format |
+|---------------|----------------|--------------------| --------------|
+| true | false | - | `parsed` |
+| false | true | - | `raw` |
+| true | true | true | `full` |
+| true | true | false | `full` |
+
+**State event mapping:**
+
+| ExaBGP | → ZeBGP |
+|--------|---------|
+| `neighbor-changes;` | `receive { state; }` |
+| `negotiated;` | `receive { state; }` |
+| `fsm;` | `receive { state; }` |
+| `signal;` | `receive { state; }` |
+
+**Implementation:** `pkg/config/migration/process_api.go`
+
+---
+
+### 5. `static` → `announce` (existing)
 
 ExaBGP supports **both** `static { }` and `announce { }` blocks inside neighbor blocks. ZeBGP uses only `announce { }`. Migration converts `static` to `announce` with AFI/SAFI structure:
 
@@ -238,7 +323,25 @@ All ExaBGP address families are supported. Only structural/protocol features may
 
 ## Implementation Plan
 
-> **Order:** Implement transforms first (4.1), then CLI (4.2), then feature detection (4.3).
+> **Order:** Process API first (4.0), then static blocks (4.1), then CLI (4.2), then feature detection (4.3).
+
+### Phase 4.0: Process API Migration (NEW)
+
+| # | Task | Files |
+|---|------|-------|
+| 4.0.1 | Add `extractFormatFromReceive(api) string` helper | `pkg/config/migration/process_api.go` |
+| 4.0.2 | Add `extractStateEvents(api) bool` helper | `pkg/config/migration/process_api.go` |
+| 4.0.3 | Implement `transformProcessAPI(tree)` | `pkg/config/migration/process_api.go` |
+| 4.0.4 | Add to migration pipeline | `pkg/config/migration/v2_to_v3.go` |
+| 4.0.5 | Tests for process API transform | `pkg/config/migration/process_api_test.go` |
+
+**Transform logic:**
+1. For each `process` block: extract `encoder` → `content.encoding`
+2. For each `neighbor.api` block:
+   - Extract `receive { parsed; packets; consolidate; }` → determine `content.format`
+   - Extract message types → `neighbor.process.<name>.receive { ... }`
+   - Extract state events (neighbor-changes, fsm, etc.) → `receive { state; }`
+   - Remove `api` block, add `process <name> { ... }` block
 
 ### Phase 4.1: Static Block Extraction
 
@@ -280,6 +383,8 @@ cmd/zebgp/
 pkg/config/migration/
 ├── detect.go           # existing - version detection
 ├── v2_to_v3.go         # existing - main transforms
+├── process_api.go      # NEW: process/api block transform
+├── process_api_test.go # NEW: tests
 ├── helpers.go          # NEW: prefix detection helpers
 ├── static.go           # NEW: static block extraction
 ├── static_test.go      # NEW: tests
@@ -363,6 +468,11 @@ peer 192.0.2.1 {
 10. ✅ `--in-place` creates backup before modifying
 11. ✅ Parse errors handled gracefully
 12. ✅ All existing tests still pass
+13. ✅ `process.encoder` → `process.content.encoding`
+14. ✅ `neighbor.api { receive { parsed; packets; consolidate; } }` → `process.content.format`
+15. ✅ `neighbor.api { processes [...] }` → `neighbor.process.<name> { ... }`
+16. ✅ ExaBGP state events → `receive { state; }`
+17. ✅ Message type subscriptions correctly migrated
 
 ---
 
@@ -370,6 +480,17 @@ peer 192.0.2.1 {
 
 ### Unit Tests
 
+**Process API migration:**
+- `process.encoder json` → `process.content { encoding json; }`
+- `receive { parsed; }` only → `format parsed`
+- `receive { packets; }` only → `format raw`
+- `receive { parsed; packets; consolidate; }` → `format full`
+- `neighbor.api { processes [ foo ]; }` → `neighbor.process foo { ... }`
+- ExaBGP `neighbor-changes;` → ZeBGP `receive { state; }`
+- Multiple processes bound to same neighbor
+- Process bound to multiple neighbors
+
+**Static route migration:**
 - `neighbor.static` → `peer.announce` with IPv4 routes
 - `neighbor.static` → `peer.announce` with IPv6 routes
 - `neighbor.static` → `peer.announce` with mixed routes

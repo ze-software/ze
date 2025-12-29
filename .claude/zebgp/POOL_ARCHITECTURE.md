@@ -1,5 +1,19 @@
 # ZeBGP Pool Architecture
 
+## TL;DR (Read This First)
+
+| Concept | Description |
+|---------|-------------|
+| **Purpose** | Deduplicate attributes/NLRIs across peers, zero-copy forwarding |
+| **Key Pattern** | Double-buffer with MSB handles: `Handle = (bufferBit << 31) \| slotIndex` |
+| **Core Types** | `Handle`, `Pool`, `Slot`, `CompactionScheduler` |
+| **Key Functions** | `Pool.Intern()`, `Pool.Get()`, `Pool.AddRef()`, `Pool.Release()` |
+| **Zero-Copy** | Slice into message buffer; copy only when storing to pool |
+
+**When to read full doc:** Pool storage, memory issues, compaction debugging, pass-through optimization.
+
+---
+
 Memory-efficient, zero-copy attribute and NLRI deduplication.
 
 ---

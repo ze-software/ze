@@ -1,5 +1,19 @@
 # API Architecture
 
+## TL;DR (Read This First)
+
+| Concept | Description |
+|---------|-------------|
+| **Purpose** | External route injection via Unix socket and subprocess |
+| **Flow** | `acceptLoop()` → `handleClient()` → `processCommand()` → Reactor |
+| **Key Types** | `Server`, `Client`, `Process`, `Dispatcher`, `RouteSpec` |
+| **Transactions** | `begin`/`commit`/`rollback` with Adj-RIB-Out queuing |
+| **Gap** | No EncodingContext for API routes (planned: API-as-Peer) |
+
+**When to read full doc:** API commands, route injection, subprocess management.
+
+---
+
 ## Overview
 
 The ZeBGP API system enables external route injection and daemon control via:

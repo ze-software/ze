@@ -1,5 +1,19 @@
 # NLRI Wire Format
 
+## TL;DR (Read This First)
+
+| Concept | Description |
+|---------|-------------|
+| **Pattern** | Packed-bytes-first: store wire format in `packed` field |
+| **ADD-PATH** | 4-byte Path ID prepended when negotiated |
+| **Key Types** | `NLRI` interface, `INET`, `Label`, `IPVPN`, `EVPN`, `Flow` |
+| **Zero-Copy** | Return `packed` directly when ADD-PATH matches |
+| **Index** | Family bytes + packed bytes for RIB deduplication |
+
+**When to read full doc:** NLRI parsing, new NLRI types, ADD-PATH handling.
+
+---
+
 **Source:** ExaBGP `bgp/message/update/nlri/`
 **Purpose:** Document wire format for all NLRI types
 

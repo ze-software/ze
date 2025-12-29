@@ -1,5 +1,19 @@
 # Configuration Syntax
 
+## TL;DR (Read This First)
+
+| Concept | Description |
+|---------|-------------|
+| **Style** | JUNOS-like: `{}` blocks, `;` terminators, `#` comments |
+| **Sections** | `process`, `template`, `neighbor` (top-level) |
+| **Inheritance** | `inherit <template-name>` applies template config |
+| **Pattern** | Registry/dispatch: `sectionParsers` map routes to handlers |
+| **Key Types** | `Parser`, `Tokenizer`, `Scope`, `Validator` |
+
+**When to read full doc:** Config keywords, parsing bugs, new config sections.
+
+---
+
 **Source:** ExaBGP `configuration/` directory
 **Purpose:** Document complete configuration file syntax
 

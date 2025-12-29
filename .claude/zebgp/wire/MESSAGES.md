@@ -1,5 +1,19 @@
 # BGP Message Wire Format
 
+## TL;DR (Read This First)
+
+| Concept | Description |
+|---------|-------------|
+| **Header** | 19 bytes: 16-byte marker (0xFF), 2-byte length, 1-byte type |
+| **Types** | 1=OPEN, 2=UPDATE, 3=NOTIFICATION, 4=KEEPALIVE, 5=ROUTE-REFRESH |
+| **Max Size** | 4096 bytes standard, 65535 with Extended Message (RFC 8654) |
+| **Key Types** | `Message` interface, `MessageType`, `ParseHeader()` |
+| **Pattern** | All messages share header; type-specific body follows |
+
+**When to read full doc:** Message parsing, wire format debugging, new message types.
+
+---
+
 **Source:** RFC 4271, ExaBGP `bgp/message/`
 **Purpose:** Document wire format for all BGP message types
 

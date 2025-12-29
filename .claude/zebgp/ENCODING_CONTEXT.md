@@ -1,5 +1,19 @@
 # Encoding Context System
 
+## TL;DR (Read This First)
+
+| Concept | Description |
+|---------|-------------|
+| **Purpose** | Capability-dependent encoding, zero-copy when contexts match |
+| **Key Types** | `EncodingContext`, `ContextID` (uint16), `ContextRegistry` |
+| **Key Functions** | `FromNegotiatedRecv/Send()`, `Registry.Register()`, `route.PackAttributesFor()` |
+| **Zero-Copy Rule** | If `sourceCtxID == destCtxID`, return cached wire bytes directly |
+| **Files** | `pkg/bgp/context/`, `pkg/rib/route.go`, `pkg/reactor/peer.go` |
+
+**When to read full doc:** Route forwarding, peer session, encoding mismatches, new capabilities.
+
+---
+
 ## Overview
 
 The encoding context system enables capability-dependent message encoding and

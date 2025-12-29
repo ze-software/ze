@@ -1,5 +1,19 @@
 # BGP Path Attributes Wire Format
 
+## TL;DR (Read This First)
+
+| Concept | Description |
+|---------|-------------|
+| **Header** | Flags (1) + Type (1) + Length (1-2 bytes) |
+| **Flags** | 0x80=Optional, 0x40=Transitive, 0x20=Partial, 0x10=ExtLen |
+| **Key Codes** | 1=ORIGIN, 2=AS_PATH, 3=NEXT_HOP, 4=MED, 5=LOCAL_PREF |
+| **ASN4 Impact** | AS_PATH uses 2-byte ASNs by default, 4-byte with ASN4 cap |
+| **Key Types** | `Attribute` interface, `AttributeCode`, `AttributeFlags` |
+
+**When to read full doc:** Attribute parsing, new attribute types, ASN4 encoding.
+
+---
+
 **Source:** RFC 4271, various RFCs, ExaBGP `bgp/message/update/attribute/`
 **Purpose:** Document wire format for all BGP path attributes
 

@@ -1,5 +1,19 @@
 # BGP Finite State Machine
 
+## TL;DR (Read This First)
+
+| Concept | Description |
+|---------|-------------|
+| **States** | IDLE→ACTIVE→CONNECT→OPENSENT→OPENCONFIRM→ESTABLISHED |
+| **Timers** | Connect retry (120s), Hold (negotiated), Keepalive (hold/3) |
+| **Collision** | Higher router-id wins when both peers initiate |
+| **Pattern** | Goroutine-per-peer, switch on `fsm.state` |
+| **Key Types** | `State`, `FSM`, `Peer.Run()` |
+
+**When to read full doc:** Connection lifecycle, timer logic, collision detection.
+
+---
+
 **Source:** ExaBGP `bgp/fsm.py`, `reactor/peer/`
 **Reference:** RFC 4271 Section 8
 

@@ -63,19 +63,22 @@ git status && git diff --stat
 - WAIT for user response
 - Do NOT proceed with any other task until resolved
 
-### Step 2: Read plan/CLAUDE_CONTINUATION.md
+### Step 2: Read Navigation Docs
 
-```bash
-cat plan/CLAUDE_CONTINUATION.md 2>/dev/null || echo "No continuation file"
-```
+Read these with the Read tool (load into context, not just list):
 
-Contains: Current state, priorities, what previous sessions accomplished.
+1. **`.claude/INDEX.md`** - Navigation tree, tells you what docs exist
+2. **`.claude/QUICK_REFERENCE.md`** - Essential patterns in one place
+3. **`plan/CLAUDE_CONTINUATION.md`** - Current state, priorities
 
-### Step 3: Check Plan State
+### Step 3: Understand Before Acting
 
-```bash
-ls -la plan/ 2>/dev/null || echo "No plan directory"
-```
+Before any implementation task:
+1. Use INDEX.md to find relevant architecture docs
+2. Read those docs (load into context)
+3. Read actual source code (with line numbers)
+4. Identify patterns to follow
+5. Run `/prep <task>` to create spec
 
 ### Step 4: Only THEN Proceed With User's Request
 

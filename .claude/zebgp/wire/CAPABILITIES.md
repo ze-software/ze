@@ -1,5 +1,19 @@
 # BGP Capabilities Wire Format
 
+## TL;DR (Read This First)
+
+| Concept | Description |
+|---------|-------------|
+| **Format** | TLV: Type (1) + Length (1) + Value (variable) |
+| **Key Codes** | 1=MP, 2=RouteRefresh, 65=ASN4, 69=ADD-PATH, 6=ExtMsg |
+| **ADD-PATH Flags** | 1=receive, 2=send, 3=both |
+| **Negotiation** | Intersection of peer caps; unknown ignored; last wins |
+| **Key Types** | `Capability` interface, `CapabilityCode`, `Negotiated` |
+
+**When to read full doc:** Capability parsing, OPEN messages, new capabilities.
+
+---
+
 **Source:** RFC 5492, various RFCs, ExaBGP `bgp/message/open/capability/`
 **Purpose:** Document wire format for all BGP capabilities
 
