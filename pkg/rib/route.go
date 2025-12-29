@@ -35,9 +35,11 @@ type Route struct {
 
 	// Wire cache: enables zero-copy forwarding when contexts match.
 	// wireBytes contains the original packed path attributes.
+	// nlriWireBytes contains the original packed NLRI.
 	// sourceCtxID identifies the encoding context (for compatibility check).
-	wireBytes   []byte
-	sourceCtxID bgpctx.ContextID
+	wireBytes     []byte
+	nlriWireBytes []byte
+	sourceCtxID   bgpctx.ContextID
 }
 
 // NewRoute creates a new route without explicit AS-PATH.
@@ -65,7 +67,7 @@ func NewRouteWithASPath(n nlri.NLRI, nextHop netip.Addr, attrs []attribute.Attri
 	return r
 }
 
-// NewRouteWithWireCache creates a route with cached wire bytes.
+// NewRouteWithWireCache creates a route with cached attribute wire bytes.
 // Used when receiving routes - store original bytes for potential zero-copy forwarding.
 //
 // Note: wireBytes is stored by reference, not copied. The caller must ensure
@@ -85,6 +87,32 @@ func NewRouteWithWireCache(
 		asPath:      asPath,
 		wireBytes:   wireBytes,
 		sourceCtxID: sourceCtxID,
+	}
+	r.refCount.Store(1)
+	return r
+}
+
+// NewRouteWithWireCacheFull creates a route with both attribute and NLRI wire caches.
+// Used when receiving routes with full wire preservation for zero-copy forwarding.
+//
+// Note: Both wireBytes and nlriWireBytes are stored by reference, not copied.
+func NewRouteWithWireCacheFull(
+	n nlri.NLRI,
+	nextHop netip.Addr,
+	attrs []attribute.Attribute,
+	asPath *attribute.ASPath,
+	wireBytes []byte,
+	nlriWireBytes []byte,
+	sourceCtxID bgpctx.ContextID,
+) *Route {
+	r := &Route{
+		nlri:          n,
+		nextHop:       nextHop,
+		attributes:    attrs,
+		asPath:        asPath,
+		wireBytes:     wireBytes,
+		nlriWireBytes: nlriWireBytes,
+		sourceCtxID:   sourceCtxID,
 	}
 	r.refCount.Store(1)
 	return r
@@ -111,9 +139,14 @@ func (r *Route) ASPath() *attribute.ASPath {
 	return r.asPath
 }
 
-// WireBytes returns the cached wire bytes (may be nil).
+// WireBytes returns the cached attribute wire bytes (may be nil).
 func (r *Route) WireBytes() []byte {
 	return r.wireBytes
+}
+
+// NLRIWireBytes returns the cached NLRI wire bytes (may be nil).
+func (r *Route) NLRIWireBytes() []byte {
+	return r.nlriWireBytes
 }
 
 // SourceCtxID returns the source context ID.
@@ -126,6 +159,94 @@ func (r *Route) SourceCtxID() bgpctx.ContextID {
 // peers have identical encoding contexts (same ASN4, ADD-PATH, etc.).
 func (r *Route) CanForwardDirect(destCtxID bgpctx.ContextID) bool {
 	return len(r.wireBytes) > 0 && r.sourceCtxID == destCtxID
+}
+
+// PackAttributesFor returns packed path attributes for the destination context.
+// Uses cached wire bytes if contexts match (zero-copy), otherwise re-encodes.
+//
+// This is the main entry point for route forwarding:
+//   - Fast path: return wireBytes when CanForwardDirect(destCtxID) is true
+//   - Slow path: re-encode attributes using destination context
+//
+// Note: Callers must use registered ContextIDs (via Registry.Register).
+// Unregistered IDs (0) may cause incorrect zero-copy decisions.
+func (r *Route) PackAttributesFor(destCtxID bgpctx.ContextID) []byte {
+	// Fast path: use cached bytes if compatible
+	if r.CanForwardDirect(destCtxID) {
+		return r.wireBytes
+	}
+
+	// Slow path: re-encode with destination context
+	destCtx := bgpctx.Registry.Get(destCtxID)
+	return packAttributesWithContext(r.attributes, r.asPath, destCtx)
+}
+
+// PackNLRIFor returns packed NLRI for the destination context.
+// Uses cached nlriWireBytes if contexts match (zero-copy), otherwise re-encodes.
+//
+// Note: Callers must use registered ContextIDs (via Registry.Register).
+func (r *Route) PackNLRIFor(destCtxID bgpctx.ContextID) []byte {
+	// Fast path: use cached bytes if compatible
+	if len(r.nlriWireBytes) > 0 && r.sourceCtxID == destCtxID {
+		return r.nlriWireBytes
+	}
+
+	// Slow path: re-encode with destination context
+	destCtx := bgpctx.Registry.Get(destCtxID)
+	if destCtx == nil {
+		return r.nlri.Pack(nil)
+	}
+	family := bgpctx.Family{
+		AFI:  uint16(r.nlri.Family().AFI),
+		SAFI: uint8(r.nlri.Family().SAFI),
+	}
+	packCtx := destCtx.ToPackContext(family)
+	return r.nlri.Pack(packCtx)
+}
+
+// packAttributesWithContext packs attributes using the given encoding context.
+// Handles context-dependent encoding for AS_PATH (ASN4) and other attributes.
+//
+// Optimization: Pre-calculates total size to minimize allocations.
+func packAttributesWithContext(attrs []attribute.Attribute, asPath *attribute.ASPath, ctx *bgpctx.EncodingContext) []byte {
+	// Fast path: no attributes
+	if len(attrs) == 0 && asPath == nil {
+		return nil
+	}
+
+	// Collect all attributes including AS_PATH
+	allAttrs := make([]attribute.Attribute, 0, len(attrs)+1)
+	allAttrs = append(allAttrs, attrs...)
+	if asPath != nil {
+		allAttrs = append(allAttrs, asPath)
+	}
+
+	// Order by type code per RFC 4271 Appendix F.3
+	ordered := attribute.OrderAttributes(allAttrs)
+
+	// Pre-calculate total size
+	totalSize := 0
+	for _, attr := range ordered {
+		attrLen := attr.Len()
+		if attrLen > 255 {
+			totalSize += 4 + attrLen // Extended header
+		} else {
+			totalSize += 3 + attrLen // Normal header
+		}
+	}
+
+	// Pre-allocate result buffer
+	result := make([]byte, 0, totalSize)
+
+	// Pack with context
+	for _, attr := range ordered {
+		packed := attr.PackWithContext(nil, ctx)
+		header := attribute.PackHeader(attr.Flags(), attr.Code(), uint16(len(packed))) //nolint:gosec // Attr max 65535
+		result = append(result, header...)
+		result = append(result, packed...)
+	}
+
+	return result
 }
 
 // Index returns a unique identifier for this route.

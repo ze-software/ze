@@ -372,13 +372,18 @@ When forwarding routes, use cached wire bytes if contexts match.
 
 // PackAttributesFor returns packed attributes for the destination context.
 // Uses cached wire bytes if contexts match (zero-copy), otherwise re-encodes.
-func (r *Route) PackAttributesFor(destCtx *bgpctx.EncodingContext, destCtxID bgpctx.ContextID) []byte {
+//
+// Takes only ContextID (not *EncodingContext) because:
+// - Fast path only needs ID comparison
+// - Slow path looks up context from Registry
+func (r *Route) PackAttributesFor(destCtxID bgpctx.ContextID) []byte {
     // Fast path: use cached bytes if compatible
     if r.CanForwardDirect(destCtxID) {
         return r.wireBytes
     }
 
     // Slow path: re-encode with destination context
+    destCtx := bgpctx.Registry.Get(destCtxID)
     return packAttributesWithContext(r.attributes, r.asPath, destCtx)
 }
 ```
@@ -421,24 +426,61 @@ func PackAttributesWithContext(
 // pkg/reactor/peer.go
 
 func (p *Peer) forwardRoute(route *rib.Route) error {
-    var attrBytes []byte
-
-    if route.CanForwardDirect(p.sendCtxID) {
-        // Zero-copy: use cached wire bytes
-        attrBytes = route.WireBytes()
-    } else {
-        // Re-encode with our send context
-        attrBytes = route.PackAttributesFor(p.sendCtx, p.sendCtxID)
-    }
+    // Both methods take only ContextID - lookup happens internally
+    attrBytes := route.PackAttributesFor(p.sendCtxID)
+    nlriBytes := route.PackNLRIFor(p.sendCtxID)
 
     // Build and send UPDATE
     update := &message.Update{
         PathAttributes: attrBytes,
-        NLRI:           route.NLRI().Pack(p.sendCtx.ToPackContext(route.NLRI().Family())),
+        NLRI:           nlriBytes,
     }
 
     return p.sendUpdate(update)
 }
+```
+
+**Step 3.4: Add PackNLRIFor to Route (with zero-copy)**
+
+```go
+// pkg/rib/route.go
+
+// PackNLRIFor returns packed NLRI for the destination context.
+// Uses cached nlriWireBytes if contexts match (zero-copy), otherwise re-encodes.
+func (r *Route) PackNLRIFor(destCtxID bgpctx.ContextID) []byte {
+    // Fast path: use cached bytes if compatible
+    if len(r.nlriWireBytes) > 0 && r.sourceCtxID == destCtxID {
+        return r.nlriWireBytes
+    }
+
+    // Slow path: re-encode with destination context
+    destCtx := bgpctx.Registry.Get(destCtxID)
+    if destCtx == nil {
+        return r.nlri.Pack(nil)
+    }
+    packCtx := destCtx.ToPackContext(r.nlri.Family())
+    return r.nlri.Pack(packCtx)
+}
+```
+
+**Step 3.5: Add nlriWireBytes to Route struct**
+
+```go
+type Route struct {
+    // ...existing fields...
+
+    // Wire cache for zero-copy forwarding
+    wireBytes     []byte             // Cached packed attributes
+    nlriWireBytes []byte             // Cached packed NLRI
+    sourceCtxID   bgpctx.ContextID   // Context used for encoding
+}
+
+// NewRouteWithWireCacheFull creates route with both caches
+func NewRouteWithWireCacheFull(
+    n nlri.NLRI, nextHop netip.Addr, attrs []attribute.Attribute,
+    asPath *attribute.ASPath, wireBytes, nlriWireBytes []byte,
+    sourceCtxID bgpctx.ContextID,
+) *Route
 ```
 
 ### Tests
@@ -695,6 +737,7 @@ Phase 2: Route Storage
 Phase 3: Zero-Copy Forwarding
     │
     ├── PackAttributesFor on Route
+    ├── PackNLRIFor on Route
     ├── Update peer forwarding logic
     └── Metrics/logging for cache hits
 ```

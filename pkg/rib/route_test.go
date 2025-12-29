@@ -261,3 +261,307 @@ func TestRouteCanForwardDirect_ZeroContextID(t *testing.T) {
 	require.False(t, route.CanForwardDirect(bgpctx.ContextID(1)),
 		"CanForwardDirect must return false when IDs differ")
 }
+
+// TestPackAttributesFor_ZeroCopy verifies zero-copy path when contexts match.
+//
+// VALIDATES: Returns cached wireBytes when source and dest context IDs match.
+//
+// PREVENTS: Unnecessary re-encoding wasting CPU cycles.
+func TestPackAttributesFor_ZeroCopy(t *testing.T) {
+	prefix := netip.MustParsePrefix("10.0.0.0/24")
+	inet := nlri.NewINET(nlri.IPv4Unicast, prefix, 0)
+	nextHop := netip.MustParseAddr("192.168.1.1")
+
+	// Create a context and register it
+	ctx := &bgpctx.EncodingContext{ASN4: true}
+	ctxID := bgpctx.Registry.Register(ctx)
+
+	// Simulated wire bytes (ORIGIN IGP attribute)
+	wireBytes := []byte{0x40, 0x01, 0x01, 0x00}
+
+	route := NewRouteWithWireCache(inet, nextHop, nil, nil, wireBytes, ctxID)
+
+	// PackAttributesFor with same context ID should return cached bytes
+	result := route.PackAttributesFor(ctxID)
+
+	require.Equal(t, wireBytes, result, "must return cached wireBytes for matching context")
+}
+
+// TestPackAttributesFor_Reencode verifies re-encoding when contexts differ.
+//
+// VALIDATES: Re-encodes attributes when source and dest context IDs differ.
+//
+// PREVENTS: Sending wrongly-encoded data to peer with different capabilities.
+func TestPackAttributesFor_Reencode(t *testing.T) {
+	prefix := netip.MustParsePrefix("10.0.0.0/24")
+	inet := nlri.NewINET(nlri.IPv4Unicast, prefix, 0)
+	nextHop := netip.MustParseAddr("192.168.1.1")
+
+	// Source context (ASN4=true)
+	srcCtx := &bgpctx.EncodingContext{ASN4: true}
+	srcCtxID := bgpctx.Registry.Register(srcCtx)
+
+	// Destination context (ASN4=false) - different!
+	dstCtx := &bgpctx.EncodingContext{ASN4: false}
+	dstCtxID := bgpctx.Registry.Register(dstCtx)
+
+	// Route with attributes
+	origin := attribute.OriginIGP
+	attrs := []attribute.Attribute{origin}
+
+	// Wire bytes from source context
+	wireBytes := []byte{0x40, 0x01, 0x01, 0x00}
+
+	route := NewRouteWithWireCache(inet, nextHop, attrs, nil, wireBytes, srcCtxID)
+
+	// PackAttributesFor with different context ID should re-encode
+	result := route.PackAttributesFor(dstCtxID)
+
+	// Should NOT be the cached wireBytes
+	require.NotNil(t, result, "must return re-encoded bytes")
+	// Result should contain the ORIGIN attribute
+	require.GreaterOrEqual(t, len(result), 4, "must contain at least ORIGIN header+value")
+}
+
+// TestPackAttributesFor_NoCache verifies re-encoding when no cache exists.
+//
+// VALIDATES: Re-encodes attributes when route has no wire cache.
+//
+// PREVENTS: Nil return when forwarding routes without cache.
+func TestPackAttributesFor_NoCache(t *testing.T) {
+	prefix := netip.MustParsePrefix("10.0.0.0/24")
+	inet := nlri.NewINET(nlri.IPv4Unicast, prefix, 0)
+	nextHop := netip.MustParseAddr("192.168.1.1")
+
+	// Create dest context
+	dstCtx := &bgpctx.EncodingContext{ASN4: true}
+	dstCtxID := bgpctx.Registry.Register(dstCtx)
+
+	// Route without wire cache
+	origin := attribute.OriginIGP
+	attrs := []attribute.Attribute{origin}
+	route := NewRoute(inet, nextHop, attrs)
+
+	// PackAttributesFor should re-encode
+	result := route.PackAttributesFor(dstCtxID)
+
+	require.NotNil(t, result, "must return re-encoded bytes")
+	require.GreaterOrEqual(t, len(result), 4, "must contain at least ORIGIN header+value")
+}
+
+// TestPackAttributesFor_WithASPath verifies AS_PATH is included in re-encoding.
+//
+// VALIDATES: AS_PATH (stored separately) is packed with context-aware encoding.
+//
+// PREVENTS: Missing AS_PATH in forwarded routes.
+func TestPackAttributesFor_WithASPath(t *testing.T) {
+	prefix := netip.MustParsePrefix("10.0.0.0/24")
+	inet := nlri.NewINET(nlri.IPv4Unicast, prefix, 0)
+	nextHop := netip.MustParseAddr("192.168.1.1")
+
+	// Dest context with ASN4
+	dstCtx := &bgpctx.EncodingContext{ASN4: true}
+	dstCtxID := bgpctx.Registry.Register(dstCtx)
+
+	// Route with AS_PATH
+	origin := attribute.OriginIGP
+	attrs := []attribute.Attribute{origin}
+	asPath := &attribute.ASPath{
+		Segments: []attribute.ASPathSegment{
+			{Type: attribute.ASSequence, ASNs: []uint32{65001, 65002}},
+		},
+	}
+	route := NewRouteWithASPath(inet, nextHop, attrs, asPath)
+
+	result := route.PackAttributesFor(dstCtxID)
+
+	// Should contain both ORIGIN and AS_PATH
+	// ORIGIN: 4 bytes (header 3 + value 1)
+	// AS_PATH with 2 ASNs (4-byte): header 3-4 + type 1 + count 1 + 2*4 = ~13 bytes
+	require.GreaterOrEqual(t, len(result), 12, "must contain ORIGIN + AS_PATH")
+}
+
+// TestPackNLRIFor_NoAddPath verifies NLRI packing without ADD-PATH.
+//
+// VALIDATES: PackNLRIFor returns NLRI without path ID when context has no ADD-PATH.
+//
+// PREVENTS: Sending path IDs to peers that don't support ADD-PATH.
+func TestPackNLRIFor_NoAddPath(t *testing.T) {
+	prefix := netip.MustParsePrefix("10.0.0.0/24")
+	inet := nlri.NewINET(nlri.IPv4Unicast, prefix, 42) // Has path ID
+	nextHop := netip.MustParseAddr("192.168.1.1")
+
+	// Context without ADD-PATH
+	ctx := &bgpctx.EncodingContext{
+		ASN4:    true,
+		AddPath: make(map[bgpctx.Family]bool),
+	}
+	ctxID := bgpctx.Registry.Register(ctx)
+
+	route := NewRoute(inet, nextHop, nil)
+	result := route.PackNLRIFor(ctxID)
+
+	// Without ADD-PATH: length(1) + prefix bytes(3 for /24)
+	require.Equal(t, 4, len(result), "NLRI without ADD-PATH should be 4 bytes")
+}
+
+// TestPackNLRIFor_WithAddPath verifies NLRI packing with ADD-PATH.
+//
+// VALIDATES: PackNLRIFor includes path ID when context has ADD-PATH for family.
+//
+// PREVENTS: Missing path IDs for ADD-PATH capable peers.
+func TestPackNLRIFor_WithAddPath(t *testing.T) {
+	prefix := netip.MustParsePrefix("10.0.0.0/24")
+	inet := nlri.NewINET(nlri.IPv4Unicast, prefix, 42) // Path ID = 42
+	nextHop := netip.MustParseAddr("192.168.1.1")
+
+	// Context with ADD-PATH for IPv4 unicast
+	ctx := &bgpctx.EncodingContext{
+		ASN4: true,
+		AddPath: map[bgpctx.Family]bool{
+			{AFI: 1, SAFI: 1}: true, // IPv4 unicast
+		},
+	}
+	ctxID := bgpctx.Registry.Register(ctx)
+
+	route := NewRoute(inet, nextHop, nil)
+	result := route.PackNLRIFor(ctxID)
+
+	// With ADD-PATH: path-id(4) + length(1) + prefix bytes(3 for /24)
+	require.Equal(t, 8, len(result), "NLRI with ADD-PATH should be 8 bytes")
+	// First 4 bytes should be path ID (42)
+	require.Equal(t, byte(0), result[0])
+	require.Equal(t, byte(0), result[1])
+	require.Equal(t, byte(0), result[2])
+	require.Equal(t, byte(42), result[3])
+}
+
+// TestPackNLRIFor_ZeroCopy verifies zero-copy when NLRI cache exists and contexts match.
+//
+// VALIDATES: Returns cached nlriWireBytes when context IDs match.
+//
+// PREVENTS: Unnecessary re-encoding of NLRI.
+func TestPackNLRIFor_ZeroCopy(t *testing.T) {
+	prefix := netip.MustParsePrefix("10.0.0.0/24")
+	inet := nlri.NewINET(nlri.IPv4Unicast, prefix, 42)
+	nextHop := netip.MustParseAddr("192.168.1.1")
+
+	ctx := &bgpctx.EncodingContext{ASN4: true}
+	ctxID := bgpctx.Registry.Register(ctx)
+
+	// Cached NLRI wire bytes
+	nlriWireBytes := []byte{24, 10, 0, 0} // /24 prefix without path-id
+	wireBytes := []byte{0x40, 0x01, 0x01, 0x00}
+
+	route := NewRouteWithWireCacheFull(inet, nextHop, nil, nil, wireBytes, nlriWireBytes, ctxID)
+
+	result := route.PackNLRIFor(ctxID)
+	require.Equal(t, nlriWireBytes, result, "must return cached nlriWireBytes")
+}
+
+// TestPackNLRIFor_Reencode verifies re-encoding when contexts differ.
+//
+// VALIDATES: Re-encodes NLRI when context IDs don't match.
+//
+// PREVENTS: Sending wrongly-encoded NLRI to peer.
+func TestPackNLRIFor_ReencodeOnMismatch(t *testing.T) {
+	prefix := netip.MustParsePrefix("10.0.0.0/24")
+	inet := nlri.NewINET(nlri.IPv4Unicast, prefix, 42)
+	nextHop := netip.MustParseAddr("192.168.1.1")
+
+	srcCtx := &bgpctx.EncodingContext{ASN4: true}
+	srcCtxID := bgpctx.Registry.Register(srcCtx)
+
+	dstCtx := &bgpctx.EncodingContext{
+		ASN4: true,
+		AddPath: map[bgpctx.Family]bool{
+			{AFI: 1, SAFI: 1}: true,
+		},
+	}
+	dstCtxID := bgpctx.Registry.Register(dstCtx)
+
+	// Cached without ADD-PATH
+	nlriWireBytes := []byte{24, 10, 0, 0}
+	wireBytes := []byte{0x40, 0x01, 0x01, 0x00}
+
+	route := NewRouteWithWireCacheFull(inet, nextHop, nil, nil, wireBytes, nlriWireBytes, srcCtxID)
+
+	// Request with different context (has ADD-PATH)
+	result := route.PackNLRIFor(dstCtxID)
+
+	// Should NOT be the cached bytes (different length due to path-id)
+	require.NotEqual(t, nlriWireBytes, result, "must re-encode, not use cache")
+	require.Equal(t, 8, len(result), "re-encoded NLRI with ADD-PATH should be 8 bytes")
+}
+
+// TestPackAttributesFor_ZeroContextID verifies behavior with unregistered context IDs.
+//
+// VALIDATES: Handles edge case where both source and dest IDs are 0.
+//
+// PREVENTS: Incorrect zero-copy when contexts are actually different.
+func TestPackAttributesFor_ZeroContextID(t *testing.T) {
+	prefix := netip.MustParsePrefix("10.0.0.0/24")
+	inet := nlri.NewINET(nlri.IPv4Unicast, prefix, 0)
+	nextHop := netip.MustParseAddr("192.168.1.1")
+
+	origin := attribute.OriginIGP
+	attrs := []attribute.Attribute{origin}
+
+	// Wire cache with unregistered context (ID=0)
+	// Use a unique marker to detect if cache is used vs re-encoded
+	wireBytes := []byte{0xFF, 0xFF, 0xFF, 0xFF} // Invalid bytes - won't match re-encoded ORIGIN
+	route := NewRouteWithWireCache(inet, nextHop, attrs, nil, wireBytes, bgpctx.ContextID(0))
+
+	// Request with ID=0 - should use cache (both unregistered)
+	result := route.PackAttributesFor(bgpctx.ContextID(0))
+	require.Equal(t, wireBytes, result, "same ID=0 should use cache")
+
+	// Request with registered ID - should re-encode (not use invalid cache)
+	ctx := &bgpctx.EncodingContext{ASN4: true}
+	ctxID := bgpctx.Registry.Register(ctx)
+	result2 := route.PackAttributesFor(ctxID)
+	require.NotEqual(t, wireBytes, result2, "different ID should re-encode, not use cache")
+	// Verify we got valid ORIGIN attribute
+	require.GreaterOrEqual(t, len(result2), 4, "re-encoded result should have ORIGIN")
+}
+
+// TestPackAttributesFor_EmptyAttributes verifies handling of empty attributes.
+//
+// VALIDATES: Returns nil/empty when no attributes to pack.
+//
+// PREVENTS: Panic on empty attribute slice.
+func TestPackAttributesFor_EmptyAttributes(t *testing.T) {
+	prefix := netip.MustParsePrefix("10.0.0.0/24")
+	inet := nlri.NewINET(nlri.IPv4Unicast, prefix, 0)
+	nextHop := netip.MustParseAddr("192.168.1.1")
+
+	ctx := &bgpctx.EncodingContext{ASN4: true}
+	ctxID := bgpctx.Registry.Register(ctx)
+
+	// Route with no attributes and no AS_PATH
+	route := NewRoute(inet, nextHop, nil)
+
+	result := route.PackAttributesFor(ctxID)
+	require.Nil(t, result, "empty attributes should return nil")
+}
+
+// TestPackNLRIFor_IPv6 verifies NLRI packing for IPv6 prefixes.
+//
+// VALIDATES: IPv6 NLRI is correctly packed with proper length.
+//
+// PREVENTS: Incorrect encoding for IPv6 routes.
+func TestPackNLRIFor_IPv6(t *testing.T) {
+	prefix := netip.MustParsePrefix("2001:db8::/32")
+	inet := nlri.NewINET(nlri.IPv6Unicast, prefix, 0)
+	nextHop := netip.MustParseAddr("192.168.1.1")
+
+	ctx := &bgpctx.EncodingContext{ASN4: true}
+	ctxID := bgpctx.Registry.Register(ctx)
+
+	route := NewRoute(inet, nextHop, nil)
+	result := route.PackNLRIFor(ctxID)
+
+	// IPv6 /32: length(1) + 4 bytes of prefix
+	require.Equal(t, 5, len(result), "IPv6 /32 NLRI should be 5 bytes")
+	require.Equal(t, byte(32), result[0], "prefix length should be 32")
+}

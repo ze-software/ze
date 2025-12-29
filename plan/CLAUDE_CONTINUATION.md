@@ -46,12 +46,6 @@ functional  - 24 passed, 13 failed [6, 7, 8, J, L, N, Q, S, T, U, V, Z, a]
 
 ## PLANNED
 
-### Zero-Copy Forwarding
-**Spec:** `plan/spec-context-full-integration.md` (Phase 3)
-
-- Use wireBytes when CanForwardDirect() returns true
-- PackAttributesFor() method on Route
-
 ### Wire Container (Future)
 **Spec:** `plan/spec-attribute-context-wire-container.md`
 
@@ -60,6 +54,18 @@ AttributesWire for zero-copy route reflection.
 ---
 
 ## COMPLETED
+
+### Zero-Copy Forwarding (uncommitted)
+**Spec:** `plan/spec-context-full-integration.md` Phase 3
+
+Added ID-only API for route forwarding:
+- `PackAttributesFor(destCtxID)` - zero-copy or re-encode attributes
+- `PackNLRIFor(destCtxID)` - zero-copy or re-encode NLRI
+- `NewRouteWithWireCacheFull()` - cache both attributes and NLRI
+- `nlriWireBytes` field in Route for NLRI zero-copy
+- Registry lookup for slow path
+- Pre-allocated buffer in packAttributesWithContext
+- 11 TDD tests (including edge cases)
 
 ### Route Wire Cache (`d4c0fb2`)
 **Spec:** `plan/spec-context-full-integration.md` Phase 2
