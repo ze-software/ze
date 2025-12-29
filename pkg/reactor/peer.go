@@ -14,6 +14,7 @@ import (
 
 	"github.com/exa-networks/zebgp/pkg/bgp/attribute"
 	"github.com/exa-networks/zebgp/pkg/bgp/capability"
+	bgpctx "github.com/exa-networks/zebgp/pkg/bgp/context"
 	"github.com/exa-networks/zebgp/pkg/bgp/fsm"
 	"github.com/exa-networks/zebgp/pkg/bgp/message"
 	"github.com/exa-networks/zebgp/pkg/bgp/nlri"
@@ -239,6 +240,15 @@ type Peer struct {
 	// Set when session transitions to Established, cleared on teardown.
 	families atomic.Pointer[NegotiatedFamilies]
 
+	// Encoding contexts for this peer session.
+	// Created at session establishment, cleared on teardown.
+	// recvCtx is used when parsing routes FROM peer.
+	// sendCtx is used when encoding routes TO peer.
+	recvCtx   *bgpctx.EncodingContext
+	recvCtxID bgpctx.ContextID
+	sendCtx   *bgpctx.EncodingContext
+	sendCtxID bgpctx.ContextID
+
 	state          atomic.Int32
 	callback       PeerCallback
 	updateCallback UpdateCallback // Called when UPDATE is received
@@ -310,6 +320,69 @@ func NewPeer(settings *PeerSettings) *Peer {
 // Settings returns the configured peer settings.
 func (p *Peer) Settings() *PeerSettings {
 	return p.settings
+}
+
+// RecvContext returns the receive encoding context.
+// Used when parsing routes received FROM this peer.
+// Returns nil if session is not established.
+func (p *Peer) RecvContext() *bgpctx.EncodingContext {
+	p.mu.RLock()
+	defer p.mu.RUnlock()
+	return p.recvCtx
+}
+
+// RecvContextID returns the receive context ID.
+// Used for fast compatibility checks.
+func (p *Peer) RecvContextID() bgpctx.ContextID {
+	p.mu.RLock()
+	defer p.mu.RUnlock()
+	return p.recvCtxID
+}
+
+// SendContext returns the send encoding context.
+// Used when encoding routes TO this peer.
+// Returns nil if session is not established.
+func (p *Peer) SendContext() *bgpctx.EncodingContext {
+	p.mu.RLock()
+	defer p.mu.RUnlock()
+	return p.sendCtx
+}
+
+// SendContextID returns the send context ID.
+// Used for fast compatibility checks.
+func (p *Peer) SendContextID() bgpctx.ContextID {
+	p.mu.RLock()
+	defer p.mu.RUnlock()
+	return p.sendCtxID
+}
+
+// setEncodingContexts creates and stores encoding contexts from negotiation.
+// Called when session transitions to Established.
+func (p *Peer) setEncodingContexts(neg *capability.Negotiated) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	p.recvCtx = bgpctx.FromNegotiatedRecv(neg)
+	if p.recvCtx != nil {
+		p.recvCtxID = bgpctx.Registry.Register(p.recvCtx)
+	}
+
+	p.sendCtx = bgpctx.FromNegotiatedSend(neg)
+	if p.sendCtx != nil {
+		p.sendCtxID = bgpctx.Registry.Register(p.sendCtx)
+	}
+}
+
+// clearEncodingContexts clears the encoding contexts.
+// Called when session is torn down.
+func (p *Peer) clearEncodingContexts() {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	p.recvCtx = nil
+	p.recvCtxID = 0
+	p.sendCtx = nil
+	p.sendCtxID = 0
 }
 
 // SetGlobalWatchdog sets the global watchdog manager for this peer.
@@ -667,6 +740,7 @@ func (p *Peer) runOnce() error {
 
 	defer func() {
 		p.families.Store(nil) // Clear pre-computed families
+		p.clearEncodingContexts()
 		p.mu.Lock()
 		p.session = nil
 		p.mu.Unlock()
@@ -698,14 +772,17 @@ func (p *Peer) runOnce() error {
 
 		if to == fsm.StateEstablished {
 			// Pre-compute negotiated families for O(1) access during route sending
-			p.families.Store(computeNegotiatedFamilies(session.Negotiated()))
+			neg := session.Negotiated()
+			p.families.Store(computeNegotiatedFamilies(neg))
+			p.setEncodingContexts(neg)
 			p.setState(PeerStateEstablished)
 			trace.SessionEstablished(addr, p.settings.LocalAS, p.settings.PeerAS)
 			// Send static routes from config.
 			go p.sendInitialRoutes()
 		} else if from == fsm.StateEstablished {
-			// Clear negotiated families on session teardown
+			// Clear negotiated families and encoding contexts on session teardown
 			p.families.Store(nil)
+			p.clearEncodingContexts()
 			p.setState(PeerStateConnecting)
 			trace.SessionClosed(addr, "FSM left Established state")
 		}
@@ -889,6 +966,7 @@ func (p *Peer) messageNegotiated() *message.Negotiated {
 // cleanup runs when peer stops.
 func (p *Peer) cleanup() {
 	p.families.Store(nil) // Clear pre-computed families
+	p.clearEncodingContexts()
 	p.mu.Lock()
 	if p.session != nil {
 		_ = p.session.Close()

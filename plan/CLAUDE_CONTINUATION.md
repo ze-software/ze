@@ -1,6 +1,6 @@
 # Claude Continuation State
 
-**Last Updated:** 2025-12-28
+**Last Updated:** 2025-12-29
 
 ---
 
@@ -40,48 +40,66 @@ func TestXxx_ExpectedBehavior(t *testing.T) {
 
 ## CURRENT STATUS
 
+✅ **Completed:** EncodingContext package (`1afd604`)
+✅ **Completed:** Peer EncodingContext integration (this session)
 ✅ **Completed:** ADD-PATH support for VPN routes (test 0 fixed)
 ✅ **Completed:** Static route UpdateBuilder conversion
-✅ **Completed:** Peer encoding extraction - UpdateBuilder integration
 
 ---
 
 ## RECENTLY COMPLETED
 
-### ADD-PATH VPN Fix (This Session)
+### Peer EncodingContext Integration (This Session)
 
-Fixed functional test `0` (addpath) - VPN routes now include path ID when ADD-PATH negotiated.
+**Spec:** `plan/spec-context-full-integration.md` Phase 1
 
-| Change | File |
-|--------|------|
-| Added `IPv4MPLSVPNAddPath`/`IPv6MPLSVPNAddPath` fields | `peer.go:64-65` |
-| Check ADD-PATH capability for SAFI 128 | `peer.go:136-144` |
-| Set AddPath in packContext for VPN families | `peer.go:349-352` |
-| Add NEXT_HOP attribute for VPN (ExaBGP compat) | `update_build.go:378-384` |
-| EXT_COM before MP_REACH (ExaBGP compat) | `update_build.go:426-440` |
-| `packAttributesNoSort` helper | `update_build.go:313-320` |
+Integrated EncodingContext with Peer for capability-dependent encoding:
 
-**TDD VIOLATION:** This fix was done without writing unit tests first.
-Should have written tests for `packContext` and `BuildVPN` before implementing.
+| Component | Description |
+|-----------|-------------|
+| `FromNegotiatedRecv()` | Creates recv context from capability negotiation |
+| `FromNegotiatedSend()` | Creates send context from capability negotiation |
+| `Peer.recvCtx/sendCtx` | Encoding contexts stored on Peer |
+| `Peer.RecvContext()` | Thread-safe accessor for recv context |
+| `Peer.SendContext()` | Thread-safe accessor for send context |
+| `setEncodingContexts()` | Called on session established |
+| `clearEncodingContexts()` | Called on session teardown (3 locations) |
 
-### Static Route UpdateBuilder Conversion (Previous)
+**Test Coverage:**
 
-**Spec:** `plan/spec-static-route-updatebuilder.md`
+| Category | Tests | Description |
+|----------|-------|-------------|
+| ADD-PATH negotiation | 10 | All 9 mode permutations + no capability |
+| ASN4 encoding | 8 | 2-byte/4-byte ASNs with ASN4=true/false |
+| ADD-PATH encoding | 13 | Path IDs, prefix lengths, IPv4/IPv6 |
+| Peer integration | 4 | Context lifecycle on Peer |
 
-| Change | Status |
-|--------|--------|
-| Added `UseExtendedNextHop` to UnicastParams (RFC 8950) | ✅ |
-| Added `RawAttributeBytes` to UnicastParams | ✅ |
-| Created `toStaticRouteUnicastParams()` helper | ✅ |
-| Created `toStaticRouteVPNParams()` helper | ✅ |
-| Created `buildStaticRouteUpdateNew()` wrapper | ✅ |
-| Updated 4 call sites to use new builder | ✅ |
-| Added wire compat tests for extended NH + raw attrs | ✅ |
+RFC references: 6793 (ASN4), 7911 (ADD-PATH), 8950 (Extended NH)
+
+### EncodingContext Package (Previous Session)
+
+**Commit:** `1afd604`
+**Spec:** `plan/spec-encoding-context-impl.md`
+
+New `pkg/bgp/context/` package for capability-dependent encoding parameters:
+
+| Component | Description |
+|-----------|-------------|
+| `Family` | AFI/SAFI combination (avoids circular import with capability) |
+| `EncodingContext` | ASN4, AddPath, ExtendedNextHop per family + session info |
+| `ContextID` | uint16 identifier for fast comparison (limit: 65535) |
+| `ContextRegistry` | Thread-safe registration with FNV-64 hash deduplication |
+| `Hash()` | Deterministic hashing for dedup |
+| `AddPathFor()` | Per-family ADD-PATH lookup |
+| `ExtendedNextHopFor()` | Per-family extended NH lookup |
+| `ToPackContext()` | Converts to nlri.PackContext for encoding |
 
 ### Earlier Work
 
 | Commit | Feature |
 |--------|---------|
+| `1afd604` | EncodingContext package |
+| `3a8ef7b` | Keyword validation for FlowSpec, VPLS, L2VPN |
 | `f34bac0` | ADD-PATH support for VPN routes |
 | `9c94a2b` | Static route building to use UpdateBuilder |
 | `53b8d12` | Extract UPDATE builders to message package |
@@ -92,16 +110,16 @@ Should have written tests for `packContext` and `BuildVPN` before implementing.
 
 ## Resume Point
 
-**Last worked:** 2025-12-28
-**Last commit:** `cdf6445` (docs: spec relationship notes)
+**Last worked:** 2025-12-29
+**Last commit:** `94862af` (feat: integrate EncodingContext with Peer)
 **Session ended:** Clean break
 
 **To resume:**
-1. Functional tests: 24 passed, 13 failed [6, 7, 8, J, L, N, Q, S, T, U, V, Z, a]
-2. Remaining legacy functions (lower priority):
+1. Use recvCtx/sendCtx in actual encoding/decoding paths
+2. Functional tests: 24 passed, 13 failed [6, 7, 8, J, L, N, Q, S, T, U, V, Z, a]
+3. Remaining legacy functions (lower priority):
    - `buildGroupedUpdate` - groups multiple IPv4 routes in one UPDATE
    - `buildRIBRouteUpdate` - reconstructs UPDATEs from stored RIB routes
-3. Consider: Remove old `buildStaticRouteUpdate` after stable period
 
 ---
 

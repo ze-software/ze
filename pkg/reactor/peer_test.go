@@ -11,6 +11,7 @@ import (
 
 	"github.com/exa-networks/zebgp/pkg/bgp/attribute"
 	"github.com/exa-networks/zebgp/pkg/bgp/capability"
+	bgpctx "github.com/exa-networks/zebgp/pkg/bgp/context"
 	"github.com/exa-networks/zebgp/pkg/bgp/nlri"
 	"github.com/exa-networks/zebgp/pkg/rib"
 	"github.com/stretchr/testify/require"
@@ -1227,4 +1228,143 @@ func TestPeerPackContextASN4(t *testing.T) {
 	ctx = peer.packContext(nlri.IPv4Unicast)
 	require.NotNil(t, ctx, "should return non-nil context")
 	require.False(t, ctx.ASN4, "ASN4 should be false for OLD speaker")
+}
+
+// =============================================================================
+// Peer EncodingContext Tests
+// =============================================================================
+//
+// These tests verify the integration of EncodingContext with Peer lifecycle:
+//
+//	Test                              | Scenario
+//	----------------------------------|------------------------------------------
+//	TestPeerEncodingContextNilInitially | Contexts nil before session established
+//	TestPeerSetEncodingContexts         | Contexts created from Negotiated
+//	TestPeerClearEncodingContexts       | Contexts cleared on teardown
+//	TestPeerEncodingContextAddPath      | Asymmetric ADD-PATH (Send/Receive case)
+//
+// Note: Full ADD-PATH permutation testing is in pkg/bgp/context/negotiated_test.go.
+// These tests focus on Peer integration, not the FromNegotiated logic itself.
+// =============================================================================
+
+// TestPeerEncodingContextNilInitially verifies contexts are nil after creation.
+//
+// VALIDATES: recvCtx/sendCtx are nil before session established.
+//
+// PREVENTS: Using uninitialized context for encoding.
+func TestPeerEncodingContextNilInitially(t *testing.T) {
+	settings := NewPeerSettings(
+		mustParseAddr("192.0.2.1"),
+		65000, 65001, 0x01010101,
+	)
+	peer := NewPeer(settings)
+
+	require.Nil(t, peer.RecvContext(), "recvCtx should be nil initially")
+	require.Nil(t, peer.SendContext(), "sendCtx should be nil initially")
+	require.Equal(t, bgpctx.ContextID(0), peer.RecvContextID(), "recvCtxID should be 0 initially")
+	require.Equal(t, bgpctx.ContextID(0), peer.SendContextID(), "sendCtxID should be 0 initially")
+}
+
+// TestPeerSetEncodingContexts verifies context setting.
+//
+// VALIDATES: setEncodingContexts correctly stores contexts and IDs.
+//
+// PREVENTS: Wrong context used for encoding/decoding.
+func TestPeerSetEncodingContexts(t *testing.T) {
+	settings := NewPeerSettings(
+		mustParseAddr("192.0.2.1"),
+		65000, 65001, 0x01010101,
+	)
+	peer := NewPeer(settings)
+
+	// Create mock negotiated state
+	local := []capability.Capability{
+		&capability.Multiprotocol{AFI: capability.AFIIPv4, SAFI: capability.SAFIUnicast},
+		&capability.ASN4{ASN: 65000},
+	}
+	remote := []capability.Capability{
+		&capability.Multiprotocol{AFI: capability.AFIIPv4, SAFI: capability.SAFIUnicast},
+		&capability.ASN4{ASN: 65001},
+	}
+	neg := capability.Negotiate(local, remote, 65000, 65001)
+
+	// Set contexts
+	peer.setEncodingContexts(neg)
+
+	require.NotNil(t, peer.RecvContext(), "recvCtx should be set")
+	require.NotNil(t, peer.SendContext(), "sendCtx should be set")
+	require.True(t, peer.RecvContext().ASN4, "recvCtx should have ASN4=true")
+	require.True(t, peer.SendContext().ASN4, "sendCtx should have ASN4=true")
+}
+
+// TestPeerClearEncodingContexts verifies context clearing on teardown.
+//
+// VALIDATES: clearEncodingContexts sets contexts to nil.
+//
+// PREVENTS: Stale context after session end.
+func TestPeerClearEncodingContexts(t *testing.T) {
+	settings := NewPeerSettings(
+		mustParseAddr("192.0.2.1"),
+		65000, 65001, 0x01010101,
+	)
+	peer := NewPeer(settings)
+
+	// Set contexts first
+	local := []capability.Capability{
+		&capability.Multiprotocol{AFI: capability.AFIIPv4, SAFI: capability.SAFIUnicast},
+		&capability.ASN4{ASN: 65000},
+	}
+	remote := []capability.Capability{
+		&capability.Multiprotocol{AFI: capability.AFIIPv4, SAFI: capability.SAFIUnicast},
+		&capability.ASN4{ASN: 65001},
+	}
+	neg := capability.Negotiate(local, remote, 65000, 65001)
+	peer.setEncodingContexts(neg)
+
+	require.NotNil(t, peer.RecvContext(), "recvCtx should be set before clear")
+
+	// Clear contexts
+	peer.clearEncodingContexts()
+
+	require.Nil(t, peer.RecvContext(), "recvCtx should be nil after clear")
+	require.Nil(t, peer.SendContext(), "sendCtx should be nil after clear")
+	require.Equal(t, bgpctx.ContextID(0), peer.RecvContextID(), "recvCtxID should be 0 after clear")
+	require.Equal(t, bgpctx.ContextID(0), peer.SendContextID(), "sendCtxID should be 0 after clear")
+}
+
+// TestPeerEncodingContextAddPath verifies ADD-PATH context asymmetry.
+//
+// VALIDATES: recv/send contexts have correct ADD-PATH based on mode.
+//
+// PREVENTS: Wrong path ID handling for asymmetric ADD-PATH.
+func TestPeerEncodingContextAddPath(t *testing.T) {
+	settings := NewPeerSettings(
+		mustParseAddr("192.0.2.1"),
+		65000, 65001, 0x01010101,
+	)
+	peer := NewPeer(settings)
+
+	// Local wants to send, remote wants to receive -> we can send, can't receive
+	local := []capability.Capability{
+		&capability.Multiprotocol{AFI: capability.AFIIPv4, SAFI: capability.SAFIUnicast},
+		&capability.ASN4{ASN: 65000},
+		&capability.AddPath{Families: []capability.AddPathFamily{
+			{AFI: capability.AFIIPv4, SAFI: capability.SAFIUnicast, Mode: capability.AddPathSend},
+		}},
+	}
+	remote := []capability.Capability{
+		&capability.Multiprotocol{AFI: capability.AFIIPv4, SAFI: capability.SAFIUnicast},
+		&capability.ASN4{ASN: 65001},
+		&capability.AddPath{Families: []capability.AddPathFamily{
+			{AFI: capability.AFIIPv4, SAFI: capability.SAFIUnicast, Mode: capability.AddPathReceive},
+		}},
+	}
+	neg := capability.Negotiate(local, remote, 65000, 65001)
+	peer.setEncodingContexts(neg)
+
+	ipv4 := bgpctx.Family{AFI: 1, SAFI: 1}
+
+	// We can send but not receive
+	require.False(t, peer.RecvContext().AddPathFor(ipv4), "recv should NOT have AddPath (we can't receive)")
+	require.True(t, peer.SendContext().AddPathFor(ipv4), "send should have AddPath (we can send)")
 }
