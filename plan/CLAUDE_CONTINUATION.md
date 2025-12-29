@@ -35,11 +35,11 @@ functional  - 24 passed, 13 failed [6, 7, 8, J, L, N, Q, S, T, U, V, Z, a]
 ## Resume Point
 
 **Last worked:** 2025-12-29
-**Last commit:** `d4c0fb2` (feat: add wire cache to Route for zero-copy forwarding)
+**Last commit:** `a317ea9` (feat: add zero-copy forwarding methods to Route)
 **Session ended:** Clean break
 
 **Next steps:**
-1. Phase 3: Zero-Copy Forwarding (spec-context-full-integration.md)
+1. Integrate zero-copy forwarding into peer route distribution (future)
 2. Fix remaining functional tests [6, 7, 8, J, L, N, Q, S, T, U, V, Z, a]
 
 ---
@@ -55,8 +55,9 @@ AttributesWire for zero-copy route reflection.
 
 ## COMPLETED
 
-### Zero-Copy Forwarding (uncommitted)
+### Zero-Copy Forwarding (`a317ea9`)
 **Spec:** `plan/spec-context-full-integration.md` Phase 3
+**Docs:** `.claude/zebgp/ENCODING_CONTEXT.md`
 
 Added ID-only API for route forwarding:
 - `PackAttributesFor(destCtxID)` - zero-copy or re-encode attributes
