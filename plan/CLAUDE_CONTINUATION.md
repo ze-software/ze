@@ -46,6 +46,14 @@ functional  - 24 passed, 13 failed [6, 7, 8, J, L, N, Q, S, T, U, V, Z, a]
 
 ## PLANNED
 
+### API as Virtual Peer
+**Spec:** `plan/spec-api-virtual-peer.md`
+
+Add EncodingContext to API connections:
+- API clients declare capabilities (ASN4, ADD-PATH)
+- Context locked after first route
+- Routes from API get sourceCtxID for zero-copy
+
 ### Wire Container (Future)
 **Spec:** `plan/spec-attribute-context-wire-container.md`
 
