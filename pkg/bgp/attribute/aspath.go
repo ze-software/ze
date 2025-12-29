@@ -3,6 +3,8 @@ package attribute
 
 import (
 	"encoding/binary"
+
+	bgpctx "github.com/exa-networks/zebgp/pkg/bgp/context"
 )
 
 // ASPathSegmentType identifies the type of AS path segment.
@@ -113,6 +115,24 @@ func (p *ASPath) LenWithASN4(asn4 bool) int {
 // Pack serializes the AS path (4-byte ASN format per RFC 6793).
 func (p *ASPath) Pack() []byte {
 	return p.PackWithASN4(true)
+}
+
+// PackWithContext serializes AS_PATH with context-dependent ASN size.
+//
+// RFC 6793 transcoding scenarios:
+//
+//	srcCtx.ASN4=true  → dstCtx.ASN4=true:  encode 4-byte
+//	srcCtx.ASN4=true  → dstCtx.ASN4=false: encode 2-byte (AS_TRANS for large ASNs)
+//	srcCtx.ASN4=false → dstCtx.ASN4=true:  encode 4-byte (after AS4_PATH merge)
+//	srcCtx.ASN4=false → dstCtx.ASN4=false: encode 2-byte
+//
+// Note: AS4_PATH merge/generation is handled at UPDATE processing level.
+// This method handles the encoding format based on dstCtx.ASN4.
+func (p *ASPath) PackWithContext(_, dstCtx *bgpctx.EncodingContext) []byte {
+	if dstCtx == nil || dstCtx.ASN4 {
+		return p.PackWithASN4(true)
+	}
+	return p.PackWithASN4(false)
 }
 
 // PackWithASN4 serializes the AS path.

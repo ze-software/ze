@@ -16,6 +16,8 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+
+	bgpctx "github.com/exa-networks/zebgp/pkg/bgp/context"
 )
 
 // Errors for attribute parsing and validation.
@@ -219,4 +221,15 @@ type Attribute interface {
 
 	// Pack serializes the attribute value (excluding header).
 	Pack() []byte
+
+	// PackWithContext serializes the attribute value for transmission.
+	//
+	// srcCtx describes how the attribute was received (nil if locally originated).
+	// dstCtx describes how the attribute should be encoded (destination capabilities).
+	//
+	// Most attributes ignore srcCtx and only use dstCtx for encoding.
+	// AS_PATH and AGGREGATOR use dstCtx.ASN4 for RFC 6793 encoding decisions.
+	//
+	// RFC 6793: ASN4 determines 2-byte vs 4-byte AS number encoding.
+	PackWithContext(srcCtx, dstCtx *bgpctx.EncodingContext) []byte
 }

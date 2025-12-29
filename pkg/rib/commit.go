@@ -6,6 +6,7 @@ import (
 	"sort"
 
 	"github.com/exa-networks/zebgp/pkg/bgp/attribute"
+	bgpctx "github.com/exa-networks/zebgp/pkg/bgp/context"
 	"github.com/exa-networks/zebgp/pkg/bgp/message"
 	"github.com/exa-networks/zebgp/pkg/bgp/nlri"
 )
@@ -383,6 +384,9 @@ func (m *vpnMPReachNLRI) Flags() attribute.AttributeFlags {
 }
 func (m *vpnMPReachNLRI) Len() int     { return len(m.value) }
 func (m *vpnMPReachNLRI) Pack() []byte { return m.value }
+
+// PackWithContext returns Pack() - raw attribute value is pre-encoded.
+func (m *vpnMPReachNLRI) PackWithContext(_, _ *bgpctx.EncodingContext) []byte { return m.value }
 
 // isVPNSAFI returns true if the SAFI indicates a VPN family.
 func isVPNSAFI(safi nlri.SAFI) bool {

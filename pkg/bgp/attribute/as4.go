@@ -3,6 +3,8 @@ package attribute
 import (
 	"encoding/binary"
 	"net/netip"
+
+	bgpctx "github.com/exa-networks/zebgp/pkg/bgp/context"
 )
 
 // AS4Path represents the AS4_PATH attribute for 4-byte AS number support.
@@ -91,6 +93,9 @@ func (p *AS4Path) Pack() []byte {
 
 	return buf
 }
+
+// PackWithContext returns Pack() - AS4_PATH always uses 4-byte ASNs (RFC 6793).
+func (p *AS4Path) PackWithContext(_, _ *bgpctx.EncodingContext) []byte { return p.Pack() }
 
 // FilterConfedSegments returns a new AS4Path with confederation segments removed.
 //
@@ -275,6 +280,9 @@ func (a *AS4Aggregator) Pack() []byte {
 	copy(buf[4:8], a.Address.AsSlice())
 	return buf
 }
+
+// PackWithContext returns Pack() - AS4_AGGREGATOR always uses 4-byte ASN (RFC 6793).
+func (a *AS4Aggregator) PackWithContext(_, _ *bgpctx.EncodingContext) []byte { return a.Pack() }
 
 // ParseAS4Aggregator parses an AS4_AGGREGATOR attribute value.
 //

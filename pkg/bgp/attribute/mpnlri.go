@@ -5,6 +5,8 @@ import (
 	"encoding/binary"
 	"errors"
 	"net/netip"
+
+	bgpctx "github.com/exa-networks/zebgp/pkg/bgp/context"
 )
 
 // Errors for MP NLRI parsing.
@@ -141,6 +143,10 @@ func (m *MPReachNLRI) Pack() []byte {
 
 	return buf
 }
+
+// PackWithContext returns Pack() - MP_REACH_NLRI header encoding is context-independent.
+// Note: The NLRI bytes within are pre-packed with correct context (including ADD-PATH).
+func (m *MPReachNLRI) PackWithContext(_, _ *bgpctx.EncodingContext) []byte { return m.Pack() }
 
 // ParseMPReachNLRI parses an MP_REACH_NLRI attribute value per RFC 4760 Section 3.
 // The Reserved octet is ignored per RFC 4760.
@@ -391,6 +397,10 @@ func (m *MPUnreachNLRI) Pack() []byte {
 
 	return buf
 }
+
+// PackWithContext returns Pack() - MP_UNREACH_NLRI header encoding is context-independent.
+// Note: The NLRI bytes within are pre-packed with correct context (including ADD-PATH).
+func (m *MPUnreachNLRI) PackWithContext(_, _ *bgpctx.EncodingContext) []byte { return m.Pack() }
 
 // ParseMPUnreachNLRI parses an MP_UNREACH_NLRI attribute value per RFC 4760 Section 4.
 func ParseMPUnreachNLRI(data []byte) (*MPUnreachNLRI, error) {

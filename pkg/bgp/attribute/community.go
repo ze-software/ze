@@ -3,6 +3,8 @@ package attribute
 import (
 	"encoding/binary"
 	"fmt"
+
+	bgpctx "github.com/exa-networks/zebgp/pkg/bgp/context"
 )
 
 // Community represents a standard BGP community.
@@ -89,6 +91,9 @@ func (c Communities) Pack() []byte {
 	return buf
 }
 
+// PackWithContext returns Pack() - COMMUNITIES encoding is context-independent.
+func (c Communities) PackWithContext(_, _ *bgpctx.EncodingContext) []byte { return c.Pack() }
+
 // ParseCommunities parses a COMMUNITIES attribute.
 //
 // RFC 1997: The attribute consists of a set of four octet values.
@@ -155,6 +160,9 @@ func (e ExtendedCommunities) Pack() []byte {
 	}
 	return buf
 }
+
+// PackWithContext returns Pack() - EXT_COMMUNITIES encoding is context-independent.
+func (e ExtendedCommunities) PackWithContext(_, _ *bgpctx.EncodingContext) []byte { return e.Pack() }
 
 // ParseExtendedCommunities parses an EXTENDED_COMMUNITIES attribute.
 //
@@ -241,6 +249,9 @@ func (l LargeCommunities) Pack() []byte {
 	}
 	return buf
 }
+
+// PackWithContext returns Pack() - LARGE_COMMUNITIES encoding is context-independent.
+func (l LargeCommunities) PackWithContext(_, _ *bgpctx.EncodingContext) []byte { return l.Pack() }
 
 // deduplicate returns a new slice with duplicate communities removed.
 // Preserves order of first occurrence.
@@ -349,6 +360,11 @@ func (e IPv6ExtendedCommunities) Pack() []byte {
 		copy(buf[i*20:], ec[:])
 	}
 	return buf
+}
+
+// PackWithContext returns Pack() - IPV6_EXT_COMMUNITIES encoding is context-independent.
+func (e IPv6ExtendedCommunities) PackWithContext(_, _ *bgpctx.EncodingContext) []byte {
+	return e.Pack()
 }
 
 // ParseIPv6ExtendedCommunities parses an IPV6_EXTENDED_COMMUNITIES attribute.

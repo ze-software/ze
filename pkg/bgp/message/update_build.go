@@ -9,6 +9,7 @@ import (
 	"sort"
 
 	"github.com/exa-networks/zebgp/pkg/bgp/attribute"
+	bgpctx "github.com/exa-networks/zebgp/pkg/bgp/context"
 	"github.com/exa-networks/zebgp/pkg/bgp/nlri"
 )
 
@@ -309,6 +310,9 @@ func (r *rawAttribute) Code() attribute.AttributeCode   { return r.code }
 func (r *rawAttribute) Flags() attribute.AttributeFlags { return r.flags }
 func (r *rawAttribute) Len() int                        { return len(r.data) }
 func (r *rawAttribute) Pack() []byte                    { return r.data }
+
+// PackWithContext returns Pack() - raw attributes are pre-encoded.
+func (r *rawAttribute) PackWithContext(_, _ *bgpctx.EncodingContext) []byte { return r.data }
 
 // packAttributesNoSort packs attributes in the order provided (no sorting).
 // Used when ExaBGP ordering differs from RFC 4271 Appendix F.3.

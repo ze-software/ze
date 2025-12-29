@@ -1,6 +1,10 @@
 package attribute
 
-import "fmt"
+import (
+	"fmt"
+
+	bgpctx "github.com/exa-networks/zebgp/pkg/bgp/context"
+)
 
 // Origin represents the ORIGIN path attribute.
 //
@@ -61,6 +65,9 @@ func (o Origin) Len() int { return 1 }
 
 // Pack serializes the origin value as a single octet per RFC 4271.
 func (o Origin) Pack() []byte { return []byte{byte(o)} }
+
+// PackWithContext returns Pack() - ORIGIN encoding is context-independent.
+func (o Origin) PackWithContext(_, _ *bgpctx.EncodingContext) []byte { return o.Pack() }
 
 // ParseOrigin parses an ORIGIN attribute value.
 //

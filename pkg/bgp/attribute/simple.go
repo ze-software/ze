@@ -3,6 +3,8 @@ package attribute
 import (
 	"encoding/binary"
 	"net/netip"
+
+	bgpctx "github.com/exa-networks/zebgp/pkg/bgp/context"
 )
 
 // NextHop represents the NEXT_HOP attribute.
@@ -30,6 +32,9 @@ func (n *NextHop) Len() int {
 	return 4
 }
 func (n *NextHop) Pack() []byte { return n.Addr.AsSlice() }
+
+// PackWithContext returns Pack() - NEXT_HOP encoding is context-independent.
+func (n *NextHop) PackWithContext(_, _ *bgpctx.EncodingContext) []byte { return n.Pack() }
 
 // ParseNextHop parses a NEXT_HOP attribute.
 // RFC 4271 Section 5.1.3 specifies 4-octet length for IPv4.
@@ -67,6 +72,9 @@ func (m MED) Pack() []byte {
 	return buf
 }
 
+// PackWithContext returns Pack() - MED encoding is context-independent.
+func (m MED) PackWithContext(_, _ *bgpctx.EncodingContext) []byte { return m.Pack() }
+
 // ParseMED parses a MULTI_EXIT_DISC attribute.
 // RFC 4271 Section 5.1.4 specifies 4-octet length.
 func ParseMED(data []byte) (MED, error) {
@@ -98,6 +106,9 @@ func (l LocalPref) Pack() []byte {
 	return buf
 }
 
+// PackWithContext returns Pack() - LOCAL_PREF encoding is context-independent.
+func (l LocalPref) PackWithContext(_, _ *bgpctx.EncodingContext) []byte { return l.Pack() }
+
 // ParseLocalPref parses a LOCAL_PREF attribute.
 // RFC 4271 Section 5.1.5 specifies 4-octet length.
 func ParseLocalPref(data []byte) (LocalPref, error) {
@@ -123,6 +134,9 @@ func (AtomicAggregate) Code() AttributeCode   { return AttrAtomicAggregate }
 func (AtomicAggregate) Flags() AttributeFlags { return FlagTransitive }
 func (AtomicAggregate) Len() int              { return 0 }
 func (AtomicAggregate) Pack() []byte          { return nil }
+
+// PackWithContext returns Pack() - ATOMIC_AGGREGATE encoding is context-independent.
+func (AtomicAggregate) PackWithContext(_, _ *bgpctx.EncodingContext) []byte { return nil }
 
 // Aggregator represents the AGGREGATOR attribute.
 //
@@ -151,11 +165,35 @@ func (a *Aggregator) Flags() AttributeFlags { return FlagOptional | FlagTransiti
 func (a *Aggregator) Len() int { return 8 }
 
 // Pack encodes the AGGREGATOR using 4-byte AS format (RFC 6793).
-// For 2-byte AS format encoding, use a separate packing function.
 func (a *Aggregator) Pack() []byte {
 	buf := make([]byte, 8)
 	binary.BigEndian.PutUint32(buf[0:4], a.ASN)
 	copy(buf[4:8], a.Address.AsSlice())
+	return buf
+}
+
+// PackWithContext serializes AGGREGATOR with context-dependent format.
+//
+// RFC 6793: 8-byte format (4-byte ASN + 4-byte IP) when dstCtx.ASN4=true,
+// 6-byte format (2-byte ASN + 4-byte IP) when dstCtx.ASN4=false.
+// Large ASNs (>65535) are encoded as AS_TRANS (23456) in 2-byte format.
+func (a *Aggregator) PackWithContext(_, dstCtx *bgpctx.EncodingContext) []byte {
+	if dstCtx == nil || dstCtx.ASN4 {
+		// 8-byte format: 4-byte ASN + 4-byte IP
+		buf := make([]byte, 8)
+		binary.BigEndian.PutUint32(buf[0:4], a.ASN)
+		copy(buf[4:8], a.Address.AsSlice())
+		return buf
+	}
+
+	// 6-byte format: 2-byte ASN + 4-byte IP
+	asn := a.ASN
+	if asn > 65535 {
+		asn = 23456 // AS_TRANS per RFC 6793 Section 9
+	}
+	buf := make([]byte, 6)
+	binary.BigEndian.PutUint16(buf[0:2], uint16(asn)) // #nosec G115 -- bounds checked above
+	copy(buf[2:6], a.Address.AsSlice())
 	return buf
 }
 
@@ -196,6 +234,9 @@ func (o OriginatorID) Flags() AttributeFlags { return FlagOptional }
 func (o OriginatorID) Len() int              { return 4 }
 func (o OriginatorID) Pack() []byte          { return netip.Addr(o).AsSlice() }
 
+// PackWithContext returns Pack() - ORIGINATOR_ID encoding is context-independent.
+func (o OriginatorID) PackWithContext(_, _ *bgpctx.EncodingContext) []byte { return o.Pack() }
+
 // ClusterList represents the CLUSTER_LIST attribute (RFC 4456).
 type ClusterList []uint32
 
@@ -209,6 +250,9 @@ func (c ClusterList) Pack() []byte {
 	}
 	return buf
 }
+
+// PackWithContext returns Pack() - CLUSTER_LIST encoding is context-independent.
+func (c ClusterList) PackWithContext(_, _ *bgpctx.EncodingContext) []byte { return c.Pack() }
 
 // ParseClusterList parses a CLUSTER_LIST attribute.
 func ParseClusterList(data []byte) (ClusterList, error) {
