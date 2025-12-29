@@ -237,3 +237,27 @@ func TestRouteCanForwardDirect_EmptyWireBytes(t *testing.T) {
 	require.False(t, route.CanForwardDirect(bgpctx.ContextID(42)),
 		"CanForwardDirect must return false when wire bytes empty")
 }
+
+// TestRouteCanForwardDirect_ZeroContextID verifies behavior with zero context ID.
+//
+// VALIDATES: Zero ContextID (unregistered) still works correctly with matching IDs.
+//
+// PREVENTS: Special-casing zero ID causing unexpected behavior.
+func TestRouteCanForwardDirect_ZeroContextID(t *testing.T) {
+	prefix := netip.MustParsePrefix("10.0.0.0/24")
+	inet := nlri.NewINET(nlri.IPv4Unicast, prefix, 0)
+	nextHop := netip.MustParseAddr("192.168.1.1")
+
+	wireBytes := []byte{0x40, 0x01, 0x01, 0x00}
+
+	// Route with zero context ID (edge case - unregistered context)
+	route := NewRouteWithWireCache(inet, nextHop, nil, nil, wireBytes, bgpctx.ContextID(0))
+
+	// Zero matches zero - should return true since wireBytes exists
+	require.True(t, route.CanForwardDirect(bgpctx.ContextID(0)),
+		"CanForwardDirect must return true when both IDs are zero and wireBytes exists")
+
+	// Zero doesn't match non-zero
+	require.False(t, route.CanForwardDirect(bgpctx.ContextID(1)),
+		"CanForwardDirect must return false when IDs differ")
+}

@@ -67,6 +67,9 @@ func NewRouteWithASPath(n nlri.NLRI, nextHop netip.Addr, attrs []attribute.Attri
 
 // NewRouteWithWireCache creates a route with cached wire bytes.
 // Used when receiving routes - store original bytes for potential zero-copy forwarding.
+//
+// Note: wireBytes is stored by reference, not copied. The caller must ensure
+// the slice is not modified after passing it to this function.
 func NewRouteWithWireCache(
 	n nlri.NLRI,
 	nextHop netip.Addr,

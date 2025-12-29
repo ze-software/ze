@@ -35,23 +35,22 @@ functional  - 24 passed, 13 failed [6, 7, 8, J, L, N, Q, S, T, U, V, Z, a]
 ## Resume Point
 
 **Last worked:** 2025-12-29
-**Last commit:** `ab2cdd4` (feat: add PackWithContext to Attribute interface)
+**Last commit:** `d4c0fb2` (feat: add wire cache to Route for zero-copy forwarding)
 **Session ended:** Clean break
 
 **Next steps:**
-1. Phase 2: Route Storage with SourceCtxID (spec-context-full-integration.md)
-2. Phase 3: Zero-Copy Forwarding
-3. Fix remaining functional tests [6, 7, 8, J, L, N, Q, S, T, U, V, Z, a]
+1. Phase 3: Zero-Copy Forwarding (spec-context-full-integration.md)
+2. Fix remaining functional tests [6, 7, 8, J, L, N, Q, S, T, U, V, Z, a]
 
 ---
 
 ## PLANNED
 
-### Route Storage + Zero-Copy Forwarding
-**Spec:** `plan/spec-context-full-integration.md` (Phases 2-3)
+### Zero-Copy Forwarding
+**Spec:** `plan/spec-context-full-integration.md` (Phase 3)
 
-- Phase 2: Add wireBytes/sourceCtxID to Route for caching
-- Phase 3: Zero-copy forwarding when contexts match
+- Use wireBytes when CanForwardDirect() returns true
+- PackAttributesFor() method on Route
 
 ### Wire Container (Future)
 **Spec:** `plan/spec-attribute-context-wire-container.md`
@@ -62,7 +61,16 @@ AttributesWire for zero-copy route reflection.
 
 ## COMPLETED
 
-### PackWithContext on Attribute Interface (`ab2cdd4`)
+### Route Wire Cache (`d4c0fb2`)
+**Spec:** `plan/spec-context-full-integration.md` Phase 2
+
+Added wire cache to Route for zero-copy forwarding:
+- `wireBytes` and `sourceCtxID` fields
+- `NewRouteWithWireCache()` constructor
+- `CanForwardDirect()` eligibility check
+- 5 TDD tests
+
+### PackWithContext on Attribute Interface (`d8836c9`)
 **Spec:** `plan/spec-context-full-integration.md` Phase 4
 
 Added `PackWithContext(srcCtx, dstCtx *EncodingContext)` to Attribute interface:
