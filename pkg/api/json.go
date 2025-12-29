@@ -121,6 +121,17 @@ func (e *JSONEncoder) StateConnected(peer PeerInfo) string {
 // RouteAnnounce returns JSON for a route announcement.
 // Format matches ExaBGP v6 "update" message.
 func (e *JSONEncoder) RouteAnnounce(peer PeerInfo, routes []RouteUpdate) string {
+	return e.routeAnnounceInternal(peer, routes, "")
+}
+
+// RouteAnnounceWithRaw returns JSON for a route announcement including raw wire bytes.
+// Used for format=full which includes both parsed content and raw hex.
+func (e *JSONEncoder) RouteAnnounceWithRaw(peer PeerInfo, routes []RouteUpdate, rawHex string) string {
+	return e.routeAnnounceInternal(peer, routes, rawHex)
+}
+
+// routeAnnounceInternal builds route announcement JSON, optionally with raw bytes.
+func (e *JSONEncoder) routeAnnounceInternal(peer PeerInfo, routes []RouteUpdate, rawHex string) string {
 	msg := e.message(peer, "update")
 	peerObj := e.peerSection(peer)
 
@@ -147,6 +158,12 @@ func (e *JSONEncoder) RouteAnnounce(peer PeerInfo, routes []RouteUpdate) string 
 		},
 	}
 	msg["peer"] = peerObj
+
+	// Include raw bytes if provided (format=full)
+	if rawHex != "" {
+		msg["raw"] = rawHex
+	}
+
 	return e.marshal(msg)
 }
 

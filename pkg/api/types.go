@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/exa-networks/zebgp/pkg/bgp/attribute"
+	"github.com/exa-networks/zebgp/pkg/bgp/message"
 	"github.com/exa-networks/zebgp/pkg/bgp/nlri"
 	"github.com/exa-networks/zebgp/pkg/rib"
 )
@@ -346,4 +347,37 @@ type ProcessConfig struct {
 type ServerConfig struct {
 	SocketPath string          // Path to Unix socket
 	Processes  []ProcessConfig // External processes to spawn
+}
+
+// Format constants for process output formatting.
+const (
+	FormatParsed = "parsed" // Decoded/interpreted fields only (default)
+	FormatRaw    = "raw"    // Wire bytes only (hex)
+	FormatFull   = "full"   // Both parsed content AND raw bytes
+)
+
+// ContentConfig controls HOW messages are formatted (encoding + format).
+// Separated from message type subscriptions (WHAT) per new API design.
+type ContentConfig struct {
+	Encoding string // "json" | "text" (default: "text")
+	Format   string // "parsed" | "raw" | "full" (default: "parsed")
+}
+
+// WithDefaults returns a ContentConfig with default values applied.
+func (c ContentConfig) WithDefaults() ContentConfig {
+	if c.Encoding == "" {
+		c.Encoding = EncodingText
+	}
+	if c.Format == "" {
+		c.Format = FormatParsed
+	}
+	return c
+}
+
+// RawMessage represents a BGP message received from a peer.
+// Contains raw wire bytes for on-demand parsing based on format config.
+type RawMessage struct {
+	Type      message.MessageType // UPDATE, OPEN, NOTIFICATION, etc.
+	RawBytes  []byte              // Original wire bytes (without marker/header)
+	Timestamp time.Time
 }

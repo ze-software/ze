@@ -249,9 +249,9 @@ type Peer struct {
 	sendCtx   *bgpctx.EncodingContext
 	sendCtxID bgpctx.ContextID
 
-	state          atomic.Int32
-	callback       PeerCallback
-	updateCallback UpdateCallback // Called when UPDATE is received
+	state           atomic.Int32
+	callback        PeerCallback
+	messageCallback MessageCallback // Called when any BGP message is received
 
 	// Reconnect configuration
 	reconnectMin time.Duration
@@ -732,7 +732,7 @@ func (p *Peer) run() {
 func (p *Peer) runOnce() error {
 	// Create session
 	session := NewSession(p.settings)
-	session.onUpdateReceived = p.updateCallback
+	session.onMessageReceived = p.messageCallback
 
 	p.mu.Lock()
 	p.session = session

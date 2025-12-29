@@ -72,12 +72,13 @@ type Stats struct {
 // ConnectionCallback is called when a connection is matched to a peer.
 type ConnectionCallback func(conn net.Conn, settings *PeerSettings)
 
-// UpdateReceiver receives parsed UPDATE messages from peers.
-// Used by API server to forward updates to processes with receive { update; } config.
-type UpdateReceiver interface {
-	// OnUpdateReceived is called when an UPDATE is received from a peer.
-	// peerAddr is the peer's address, routes are the parsed announced routes.
-	OnUpdateReceived(peerAddr netip.Addr, routes []api.ReceivedRoute)
+// MessageReceiver receives raw BGP messages from peers.
+// Messages are passed as raw wire bytes for on-demand parsing based on format config.
+type MessageReceiver interface {
+	// OnMessageReceived is called when a BGP message is received from a peer.
+	// peer contains full peer information for proper JSON encoding.
+	// msg contains raw wire bytes - parsing is done by receiver based on format config.
+	OnMessageReceived(peer api.PeerInfo, msg api.RawMessage)
 }
 
 // Reactor is the main BGP orchestrator.
@@ -106,8 +107,8 @@ type Reactor struct {
 	// Watchdog pools for API-created routes
 	watchdog *WatchdogManager
 
-	connCallback   ConnectionCallback
-	updateReceiver UpdateReceiver // Receives parsed UPDATE messages
+	connCallback    ConnectionCallback
+	messageReceiver MessageReceiver // Receives raw BGP messages
 
 	running   bool
 	startTime time.Time
@@ -1406,24 +1407,56 @@ func (r *Reactor) SetConnectionCallback(cb ConnectionCallback) {
 	r.connCallback = cb
 }
 
-// SetUpdateReceiver sets the receiver for parsed UPDATE messages.
-// Used by API server to forward updates to processes with receive { update; } config.
-func (r *Reactor) SetUpdateReceiver(receiver UpdateReceiver) {
+// SetMessageReceiver sets the receiver for raw BGP messages.
+// When set, OnMessageReceived is called with raw wire bytes for all message types.
+// This allows the receiver to control parsing based on format configuration.
+func (r *Reactor) SetMessageReceiver(receiver MessageReceiver) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	r.updateReceiver = receiver
+	r.messageReceiver = receiver
 }
 
-// notifyUpdateReceiver notifies the update receiver of received routes.
-// Called from session when an UPDATE is received and parsed.
-func (r *Reactor) notifyUpdateReceiver(peerAddr netip.Addr, routes []api.ReceivedRoute) {
+// notifyMessageReceiver notifies the message receiver of a raw BGP message.
+// Called from session when any BGP message is received, before parsing.
+// peerAddr is used to look up full PeerInfo from the peers map.
+func (r *Reactor) notifyMessageReceiver(peerAddr netip.Addr, msgType message.MessageType, rawBytes []byte) {
 	r.mu.RLock()
-	receiver := r.updateReceiver
+	receiver := r.messageReceiver
+	peer, hasPeer := r.peers[peerAddr.String()]
+
+	// Build PeerInfo while holding lock to avoid race on state
+	var peerInfo api.PeerInfo
+	if hasPeer {
+		s := peer.Settings()
+		peerInfo = api.PeerInfo{
+			Address:      s.Address,
+			LocalAddress: s.LocalAddress,
+			LocalAS:      s.LocalAS,
+			PeerAS:       s.PeerAS,
+			RouterID:     s.RouterID,
+			State:        peer.State().String(),
+		}
+	} else {
+		peerInfo = api.PeerInfo{Address: peerAddr}
+	}
 	r.mu.RUnlock()
 
-	if receiver != nil && len(routes) > 0 {
-		receiver.OnUpdateReceived(peerAddr, routes)
+	if receiver == nil {
+		return
 	}
+
+	// Copy raw bytes - the original slice is reused by session's read buffer.
+	// Without this copy, the data would be corrupted on next message read.
+	bytesCopy := make([]byte, len(rawBytes))
+	copy(bytesCopy, rawBytes)
+
+	msg := api.RawMessage{
+		Type:      msgType,
+		RawBytes:  bytesCopy,
+		Timestamp: time.Now(),
+	}
+
+	receiver.OnMessageReceived(peerInfo, msg)
 }
 
 // AddPeer adds a peer to the reactor.
@@ -1438,8 +1471,8 @@ func (r *Reactor) AddPeer(settings *PeerSettings) error {
 
 	peer := NewPeer(settings)
 	peer.SetGlobalWatchdog(r.watchdog)
-	// Set update callback to forward to reactor's update receiver
-	peer.updateCallback = r.notifyUpdateReceiver
+	// Set message callback to forward raw bytes to reactor's message receiver
+	peer.messageCallback = r.notifyMessageReceiver
 	r.peers[key] = peer
 
 	// If reactor is running, start the peer
@@ -1512,8 +1545,8 @@ func (r *Reactor) StartWithContext(ctx context.Context) error {
 			})
 		}
 		r.api = api.NewServer(apiConfig, &reactorAPIAdapter{r})
-		// Set API server as update receiver (direct assignment, already holding lock)
-		r.updateReceiver = r.api
+		// Set API server as message receiver for raw byte access
+		r.messageReceiver = r.api
 		if err := r.api.StartWithContext(r.ctx); err != nil {
 			if r.listener != nil {
 				r.listener.Stop()

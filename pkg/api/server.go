@@ -6,12 +6,13 @@ import (
 	"encoding/json"
 	"errors"
 	"net"
-	"net/netip"
 	"os"
 	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"github.com/exa-networks/zebgp/pkg/bgp/message"
 )
 
 // Server manages API connections and command dispatch.
@@ -397,28 +398,68 @@ func (s *Server) removeClient(client *Client) {
 	s.mu.Unlock()
 }
 
-// OnUpdateReceived handles received UPDATE messages from peers.
-// Forwards to processes with ReceiveUpdate=true.
-// Implements reactor.UpdateReceiver interface.
-func (s *Server) OnUpdateReceived(peerAddr netip.Addr, routes []ReceivedRoute) {
+// OnMessageReceived handles raw BGP messages from peers.
+// Forwards to processes based on their content config (encoding + format).
+// Implements reactor.MessageReceiver interface.
+//
+// This is called for ALL message types (UPDATE, OPEN, NOTIFICATION, KEEPALIVE).
+// Processes can filter by message type via their receive config.
+func (s *Server) OnMessageReceived(peer PeerInfo, msg RawMessage) {
 	if s.procManager == nil {
 		return
 	}
+	// Only forward UPDATEs for now
+	// TODO: Add per-message-type filtering based on process config
+	if msg.Type != message.TypeUPDATE {
+		return
+	}
+	// Parse and delegate to shared implementation
+	routes := DecodeUpdateRoutes(msg.RawBytes)
+	s.forwardUpdateToProcesses(peer, routes)
+}
 
-	// Format as ExaBGP text encoder output
-	text := FormatReceivedUpdate(peerAddr, routes)
+// forwardUpdateToProcesses forwards parsed UPDATE routes to all subscribed processes.
+func (s *Server) forwardUpdateToProcesses(peer PeerInfo, routes []ReceivedRoute) {
+	// Pre-convert to RouteUpdate once for all JSON processes
+	var updates []RouteUpdate
+	if len(routes) > 0 {
+		updates = make([]RouteUpdate, len(routes))
+		for i, r := range routes {
+			updates[i] = r.ToRouteUpdate()
+		}
+	}
 
-	// Write to all processes with ReceiveUpdate=true
 	s.procManager.mu.RLock()
 	defer s.procManager.mu.RUnlock()
 
 	for name, proc := range s.procManager.processes {
-		// Check if this process wants to receive updates
-		for _, cfg := range s.config.Processes {
-			if cfg.Name == name && cfg.ReceiveUpdate {
-				_ = proc.WriteEvent(text)
-				break
+		cfg := s.getProcessConfigByName(name)
+		if cfg == nil || !cfg.ReceiveUpdate {
+			continue
+		}
+
+		// Format based on encoding config
+		var output string
+		if cfg.Encoder == EncodingJSON {
+			output = s.encoder.RouteAnnounce(peer, updates)
+		} else {
+			if len(routes) > 0 {
+				output = FormatReceivedUpdate(peer.Address, routes)
+			} else {
+				output = "neighbor " + peer.Address.String() + " receive update\n"
 			}
 		}
+
+		_ = proc.WriteEvent(output)
 	}
+}
+
+// getProcessConfigByName finds a process config by name.
+func (s *Server) getProcessConfigByName(name string) *ProcessConfig {
+	for i := range s.config.Processes {
+		if s.config.Processes[i].Name == name {
+			return &s.config.Processes[i]
+		}
+	}
+	return nil
 }

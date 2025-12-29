@@ -6,6 +6,12 @@ import (
 	"strings"
 )
 
+// Encoding constants for process output formatting.
+const (
+	EncodingJSON = "json"
+	EncodingText = "text"
+)
+
 // originLower returns the lowercase origin string for ExaBGP compatibility.
 // ExaBGP uses lowercase: "igp", "egp", "incomplete".
 func originLower(origin string) string {
@@ -98,4 +104,118 @@ func FormatReceivedWithdraw(peerAddr netip.Addr, prefixes []netip.Prefix) string
 	sb.WriteString(" end\n")
 
 	return sb.String()
+}
+
+// ToRouteUpdate converts a ReceivedRoute to a RouteUpdate for JSON encoding.
+func (r ReceivedRoute) ToRouteUpdate() RouteUpdate {
+	afi := AFINameIPv4
+	if r.Prefix.Addr().Is6() {
+		afi = AFINameIPv6
+	}
+	return RouteUpdate{
+		Prefix:    r.Prefix.String(),
+		NextHop:   r.NextHop.String(),
+		AFI:       afi,
+		SAFI:      SAFINameUnicast,
+		Origin:    r.Origin,
+		ASPath:    r.ASPath,
+		LocalPref: r.LocalPreference,
+		MED:       r.MED,
+	}
+}
+
+// FormatReceivedUpdateWithEncoding formats received routes using the specified encoding.
+// encoding: "json" or "text" (default).
+//
+// NOTE: For JSON encoding, this creates a new encoder per call (counter resets).
+// Production code should use Server.encoder directly for proper counter tracking.
+// This function is primarily for testing encoder output format.
+func FormatReceivedUpdateWithEncoding(peer PeerInfo, routes []ReceivedRoute, encoding string) string {
+	if encoding == EncodingJSON {
+		// Convert to RouteUpdate for JSON encoder
+		updates := make([]RouteUpdate, len(routes))
+		for i, r := range routes {
+			updates[i] = r.ToRouteUpdate()
+		}
+		encoder := NewJSONEncoder("6.0.0")
+		return encoder.RouteAnnounce(peer, updates)
+	}
+	// Default to text
+	return FormatReceivedUpdate(peer.Address, routes)
+}
+
+// FormatMessage formats a RawMessage based on ContentConfig.
+// Handles encoding (json/text) and format (parsed/raw/full).
+func FormatMessage(peer PeerInfo, msg RawMessage, content ContentConfig) string {
+	content = content.WithDefaults()
+
+	switch content.Format {
+	case FormatRaw:
+		return formatRaw(peer, msg, content.Encoding)
+	case FormatFull:
+		return formatFull(peer, msg, content.Encoding)
+	default: // FormatParsed
+		return formatParsed(peer, msg, content.Encoding)
+	}
+}
+
+// formatRaw formats message as raw hex bytes only.
+func formatRaw(peer PeerInfo, msg RawMessage, encoding string) string {
+	rawHex := fmt.Sprintf("%x", msg.RawBytes)
+	if encoding == EncodingJSON {
+		return fmt.Sprintf(`{"type":"%s","raw":"%s","peer":"%s"}`,
+			msg.Type.String(), rawHex, peer.Address)
+	}
+	return fmt.Sprintf("neighbor %s receive raw %s %s\n",
+		peer.Address, msg.Type.String(), rawHex)
+}
+
+// formatParsed formats message with parsed content (no raw bytes).
+func formatParsed(peer PeerInfo, msg RawMessage, encoding string) string {
+	// Parse UPDATE and format routes
+	routes := DecodeUpdateRoutes(msg.RawBytes)
+	if len(routes) == 0 {
+		// No routes to format (could be withdraw-only or parse error)
+		if encoding == EncodingJSON {
+			return fmt.Sprintf(`{"type":"update","peer":{"address":{"peer":"%s"}},"announce":{}}`, peer.Address)
+		}
+		return fmt.Sprintf("neighbor %s receive update\n", peer.Address)
+	}
+
+	if encoding == EncodingJSON {
+		updates := make([]RouteUpdate, len(routes))
+		for i, r := range routes {
+			updates[i] = r.ToRouteUpdate()
+		}
+		encoder := NewJSONEncoder("6.0.0")
+		return encoder.RouteAnnounce(peer, updates)
+	}
+	return FormatReceivedUpdate(peer.Address, routes)
+}
+
+// formatFull formats message with both parsed content AND raw bytes.
+func formatFull(peer PeerInfo, msg RawMessage, encoding string) string {
+	rawHex := fmt.Sprintf("%x", msg.RawBytes)
+	routes := DecodeUpdateRoutes(msg.RawBytes)
+
+	if encoding == EncodingJSON {
+		// Use proper JSON encoder with raw field support
+		encoder := NewJSONEncoder("6.0.0")
+		if len(routes) > 0 {
+			updates := make([]RouteUpdate, len(routes))
+			for i, r := range routes {
+				updates[i] = r.ToRouteUpdate()
+			}
+			return encoder.RouteAnnounceWithRaw(peer, updates, rawHex)
+		}
+		// Empty routes - still include raw bytes
+		return encoder.RouteAnnounceWithRaw(peer, nil, rawHex)
+	}
+
+	// Text format: include both parsed routes and raw hex
+	if len(routes) > 0 {
+		parsed := FormatReceivedUpdate(peer.Address, routes)
+		return parsed + fmt.Sprintf("neighbor %s receive update raw %s\n", peer.Address, rawHex)
+	}
+	return fmt.Sprintf("neighbor %s receive update raw %s\n", peer.Address, rawHex)
 }
