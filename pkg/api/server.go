@@ -408,14 +408,20 @@ func (s *Server) OnMessageReceived(peer PeerInfo, msg RawMessage) {
 	if s.procManager == nil {
 		return
 	}
-	// Only forward UPDATEs for now
-	// TODO: Add per-message-type filtering based on process config
-	if msg.Type != message.TypeUPDATE {
-		return
+
+	switch msg.Type { //nolint:exhaustive // ROUTE-REFRESH not yet supported
+	case message.TypeUPDATE:
+		routes := DecodeUpdateRoutes(msg.RawBytes)
+		s.forwardUpdateToProcesses(peer, routes)
+	case message.TypeOPEN:
+		decoded := DecodeOpen(msg.RawBytes)
+		s.forwardOpenToProcesses(peer, decoded)
+	case message.TypeNOTIFICATION:
+		decoded := DecodeNotification(msg.RawBytes)
+		s.forwardNotificationToProcesses(peer, decoded)
+	case message.TypeKEEPALIVE:
+		s.forwardKeepaliveToProcesses(peer)
 	}
-	// Parse and delegate to shared implementation
-	routes := DecodeUpdateRoutes(msg.RawBytes)
-	s.forwardUpdateToProcesses(peer, routes)
 }
 
 // forwardUpdateToProcesses forwards parsed UPDATE routes to all subscribed processes.
@@ -448,6 +454,72 @@ func (s *Server) forwardUpdateToProcesses(peer PeerInfo, routes []ReceivedRoute)
 			} else {
 				output = "neighbor " + peer.Address.String() + " receive update\n"
 			}
+		}
+
+		_ = proc.WriteEvent(output)
+	}
+}
+
+// forwardOpenToProcesses forwards parsed OPEN to all subscribed processes.
+func (s *Server) forwardOpenToProcesses(peer PeerInfo, open DecodedOpen) {
+	s.procManager.mu.RLock()
+	defer s.procManager.mu.RUnlock()
+
+	for name, proc := range s.procManager.processes {
+		cfg := s.getProcessConfigByName(name)
+		if cfg == nil || !cfg.ReceiveUpdate { // TODO: Add ReceiveOpen flag in Phase 1
+			continue
+		}
+
+		var output string
+		if cfg.Encoder == EncodingJSON {
+			output = s.encoder.Open(peer, open)
+		} else {
+			output = FormatOpen(peer.Address, open)
+		}
+
+		_ = proc.WriteEvent(output)
+	}
+}
+
+// forwardNotificationToProcesses forwards parsed NOTIFICATION to all subscribed processes.
+func (s *Server) forwardNotificationToProcesses(peer PeerInfo, notify DecodedNotification) {
+	s.procManager.mu.RLock()
+	defer s.procManager.mu.RUnlock()
+
+	for name, proc := range s.procManager.processes {
+		cfg := s.getProcessConfigByName(name)
+		if cfg == nil || !cfg.ReceiveUpdate { // TODO: Add ReceiveNotification flag in Phase 1
+			continue
+		}
+
+		var output string
+		if cfg.Encoder == EncodingJSON {
+			output = s.encoder.Notification(peer, notify)
+		} else {
+			output = FormatNotification(peer.Address, notify)
+		}
+
+		_ = proc.WriteEvent(output)
+	}
+}
+
+// forwardKeepaliveToProcesses forwards KEEPALIVE event to all subscribed processes.
+func (s *Server) forwardKeepaliveToProcesses(peer PeerInfo) {
+	s.procManager.mu.RLock()
+	defer s.procManager.mu.RUnlock()
+
+	for name, proc := range s.procManager.processes {
+		cfg := s.getProcessConfigByName(name)
+		if cfg == nil || !cfg.ReceiveUpdate { // TODO: Add ReceiveKeepalive flag in Phase 1
+			continue
+		}
+
+		var output string
+		if cfg.Encoder == EncodingJSON {
+			output = s.encoder.Keepalive(peer)
+		} else {
+			output = FormatKeepalive(peer.Address)
 		}
 
 		_ = proc.WriteEvent(output)

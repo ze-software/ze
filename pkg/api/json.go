@@ -209,41 +209,68 @@ func (e *JSONEncoder) EOR(peer PeerInfo, family string) string {
 }
 
 // Notification returns JSON for a NOTIFICATION message.
-func (e *JSONEncoder) Notification(peer PeerInfo, code, subcode uint8, data string) string {
+// ExaBGP fields: code, subcode, data (always present).
+// ZeBGP extensions: code_name, subcode_name, message.
+func (e *JSONEncoder) Notification(peer PeerInfo, notify DecodedNotification) string {
 	msg := e.message(peer, "notification")
 	peerObj := e.peerSection(peer)
 
-	peerObj["notification"] = map[string]any{
-		"code":    code,
-		"subcode": subcode,
-		"data":    data,
+	// ExaBGP always includes data field (empty string if no data)
+	dataHex := ""
+	if len(notify.Data) > 0 {
+		dataHex = fmt.Sprintf("%x", notify.Data)
 	}
+
+	notifyObj := map[string]any{
+		"code":    notify.ErrorCode,
+		"subcode": notify.ErrorSubcode,
+		"data":    dataHex,
+	}
+
+	// ZeBGP extensions (use underscores for consistency)
+	if notify.ErrorCodeName != "" {
+		notifyObj["code_name"] = notify.ErrorCodeName
+	}
+	if notify.ErrorSubcodeName != "" {
+		notifyObj["subcode_name"] = notify.ErrorSubcodeName
+	}
+	if notify.ShutdownMessage != "" {
+		notifyObj["message"] = notify.ShutdownMessage
+	}
+
+	peerObj["notification"] = notifyObj
 	msg["peer"] = peerObj
 	return e.marshal(msg)
 }
 
 // Open returns JSON for an OPEN message received.
-func (e *JSONEncoder) Open(peer PeerInfo, capabilities []string) string {
+// Field names match ExaBGP: hold_time, router_id, capabilities (underscores).
+func (e *JSONEncoder) Open(peer PeerInfo, open DecodedOpen) string {
 	msg := e.message(peer, "open")
 	peerObj := e.peerSection(peer)
 
+	// Ensure capabilities is always an array (empty if none)
+	caps := open.Capabilities
+	if caps == nil {
+		caps = []string{}
+	}
+
 	peerObj["open"] = map[string]any{
-		"version":      4,
-		"asn":          peer.PeerAS,
-		"router-id":    uint32ToIP(peer.RouterID),
-		"capabilities": capabilities,
+		"version":      open.Version,
+		"asn":          open.ASN,
+		"hold_time":    open.HoldTime,
+		"router_id":    open.RouterID,
+		"capabilities": caps,
 	}
 	msg["peer"] = peerObj
 	return e.marshal(msg)
 }
 
-// uint32ToIP converts a uint32 router ID to dotted decimal.
-func uint32ToIP(id uint32) string {
-	return fmt.Sprintf("%d.%d.%d.%d",
-		byte(id>>24),
-		byte(id>>16),
-		byte(id>>8),
-		byte(id))
+// Keepalive returns JSON for a KEEPALIVE message.
+func (e *JSONEncoder) Keepalive(peer PeerInfo) string {
+	msg := e.message(peer, "keepalive")
+	msg["peer"] = e.peerSection(peer)
+	return e.marshal(msg)
 }
 
 // marshal converts a message to JSON string.

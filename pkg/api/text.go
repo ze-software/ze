@@ -219,3 +219,39 @@ func formatFull(peer PeerInfo, msg RawMessage, encoding string) string {
 	}
 	return fmt.Sprintf("neighbor %s receive update raw %s\n", peer.Address, rawHex)
 }
+
+// FormatOpen formats an OPEN message as ExaBGP text encoder output.
+// Format: neighbor <ip> receive open version <v> asn <asn> hold_time <t> router_id <id> capabilities [...].
+func FormatOpen(peerAddr netip.Addr, open DecodedOpen) string {
+	capsStr := "[]"
+	if len(open.Capabilities) > 0 {
+		capsStr = "[" + strings.Join(open.Capabilities, ", ") + "]"
+	}
+	return fmt.Sprintf("neighbor %s receive open version %d asn %d hold_time %d router_id %s capabilities %s\n",
+		peerAddr, open.Version, open.ASN, open.HoldTime, open.RouterID, capsStr)
+}
+
+// FormatNotification formats a NOTIFICATION message as ExaBGP text encoder output.
+// Format: neighbor <ip> receive notification code <c> subcode <s> data <hex> [name].
+func FormatNotification(peerAddr netip.Addr, notify DecodedNotification) string {
+	// ExaBGP format: code {num} subcode {num} data {hex}
+	// We add human-readable names at the end as extension
+	dataHex := ""
+	if len(notify.Data) > 0 {
+		dataHex = fmt.Sprintf("%x", notify.Data)
+	}
+
+	base := fmt.Sprintf("neighbor %s receive notification code %d subcode %d data %s",
+		peerAddr, notify.ErrorCode, notify.ErrorSubcode, dataHex)
+
+	// Add human-readable names
+	names := fmt.Sprintf(" [%s/%s]", notify.ErrorCodeName, notify.ErrorSubcodeName)
+
+	return base + names + "\n"
+}
+
+// FormatKeepalive formats a KEEPALIVE message as ExaBGP text encoder output.
+// Format: neighbor <ip> receive keepalive.
+func FormatKeepalive(peerAddr netip.Addr) string {
+	return fmt.Sprintf("neighbor %s receive keepalive\n", peerAddr)
+}
