@@ -11,9 +11,9 @@ Complete keyword validation for remaining BGP address families (FlowSpec, VPLS, 
 | IPv4/IPv6 Unicast | ✅ Validated |
 | MPLS (Labeled Unicast) | ✅ Validated |
 | L3VPN (IPv4/IPv6 VPN) | ✅ Validated |
-| FlowSpec | ❌ No validation |
-| VPLS | ❌ No validation |
-| L2VPN/EVPN | ❌ No validation |
+| FlowSpec | ✅ Validated |
+| VPLS | ✅ Validated |
+| L2VPN/EVPN | ✅ Validated |
 
 ## Embedded Protocol Requirements
 
@@ -103,13 +103,13 @@ var L2VPNKeywords = KeywordSet{
 
 ## Verification Checklist
 
-- [ ] RFC sections read for each family
-- [ ] ExaBGP handlers checked for compatibility
-- [ ] TDD followed: Tests shown to FAIL first
-- [ ] Invalid keywords rejected with clear error
-- [ ] Valid keywords accepted and parsed
-- [ ] `make test` passes
-- [ ] `make lint` passes
+- [x] RFC sections read for each family
+- [x] ExaBGP handlers checked for compatibility
+- [x] TDD followed: Tests shown to FAIL first
+- [x] Invalid keywords rejected with clear error
+- [x] Valid keywords accepted and parsed
+- [x] `make test` passes
+- [x] `make lint` passes
 
 ## Priority
 

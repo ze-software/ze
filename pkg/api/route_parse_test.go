@@ -1216,3 +1216,148 @@ func TestParseAttributesNlri(t *testing.T) {
 		})
 	}
 }
+
+// TestParseFlowSpecArgs_InvalidKeywords tests that invalid keywords are rejected.
+//
+// VALIDATES: FlowSpec parser rejects unknown match/then keywords.
+//
+// PREVENTS: Silent ignoring of typos/unknown keywords in FlowSpec rules.
+func TestParseFlowSpecArgs_InvalidKeywords(t *testing.T) {
+	tests := []struct {
+		name    string
+		args    []string
+		wantErr bool
+		errMsg  string
+	}{
+		// Valid keywords should work
+		{
+			name:    "valid match keywords",
+			args:    strings.Fields("match destination 10.0.0.0/24 then discard"),
+			wantErr: false,
+		},
+		{
+			name:    "valid match source",
+			args:    strings.Fields("match source 192.168.1.0/24 then accept"),
+			wantErr: false,
+		},
+		{
+			name:    "valid match protocol",
+			args:    strings.Fields("match destination 10.0.0.0/24 protocol tcp then discard"),
+			wantErr: false,
+		},
+		{
+			name:    "valid then rate-limit",
+			args:    strings.Fields("match destination 10.0.0.0/24 then rate-limit 1000000"),
+			wantErr: false,
+		},
+
+		// Invalid: keyword before match/then section
+		{
+			name:    "invalid: unknown keyword before match",
+			args:    strings.Fields("bogus match destination 10.0.0.0/24 then discard"),
+			wantErr: true,
+			errMsg:  "unknown keyword",
+		},
+		{
+			name:    "invalid: match keyword before match",
+			args:    strings.Fields("destination 10.0.0.0/24 match then discard"),
+			wantErr: true,
+			errMsg:  "match keyword",
+		},
+		{
+			name:    "invalid: then keyword before then",
+			args:    strings.Fields("discard match destination 10.0.0.0/24 then"),
+			wantErr: true,
+			errMsg:  "then keyword",
+		},
+
+		// Invalid match keywords should error
+		{
+			name:    "invalid: unknown match keyword",
+			args:    strings.Fields("match bogus-keyword 10.0.0.0/24 then discard"),
+			wantErr: true,
+			errMsg:  "bogus-keyword",
+		},
+		{
+			name:    "invalid: typo in destination",
+			args:    strings.Fields("match destnation 10.0.0.0/24 then discard"),
+			wantErr: true,
+			errMsg:  "destnation",
+		},
+
+		// Invalid then keywords should error
+		{
+			name:    "invalid: unknown then keyword",
+			args:    strings.Fields("match destination 10.0.0.0/24 then unknown-action"),
+			wantErr: true,
+			errMsg:  "unknown-action",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := parseFlowSpecArgs(tt.args)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("parseFlowSpecArgs(%v) error = %v, wantErr %v", tt.args, err, tt.wantErr)
+				return
+			}
+			if tt.wantErr && tt.errMsg != "" {
+				if err == nil || !strings.Contains(err.Error(), tt.errMsg) {
+					t.Errorf("parseFlowSpecArgs(%v) error = %v, want error containing %q", tt.args, err, tt.errMsg)
+				}
+			}
+		})
+	}
+}
+
+// keywordTestCase is a test case for keyword validation.
+type keywordTestCase struct {
+	name, errMsg string
+	args         []string
+	wantErr      bool
+}
+
+// runKeywordTests runs a set of keyword validation tests with the given parser.
+func runKeywordTests(t *testing.T, parserName string, parser func([]string) error, tests []keywordTestCase) {
+	t.Helper()
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := parser(tt.args)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("%s(%v) error = %v, wantErr %v", parserName, tt.args, err, tt.wantErr)
+			} else if tt.wantErr && tt.errMsg != "" && (err == nil || !strings.Contains(err.Error(), tt.errMsg)) {
+				t.Errorf("%s(%v) error = %v, want containing %q", parserName, tt.args, err, tt.errMsg)
+			}
+		})
+	}
+}
+
+// TestParseVPLSArgs_InvalidKeywords tests that invalid keywords are rejected.
+//
+// VALIDATES: VPLS parser rejects unknown keywords.
+//
+// PREVENTS: Silent ignoring of typos/unknown keywords in VPLS routes.
+func TestParseVPLSArgs_InvalidKeywords(t *testing.T) {
+	runKeywordTests(t, "parseVPLSArgs", func(args []string) error { _, err := parseVPLSArgs(args); return err }, []keywordTestCase{
+		{"valid minimal", "", strings.Fields("rd 100:100 next-hop 1.2.3.4"), false},
+		{"valid with ve-block", "", strings.Fields("rd 100:100 ve-block-offset 1 ve-block-size 10 next-hop 1.2.3.4"), false},
+		{"valid with label", "", strings.Fields("rd 100:100 label 1000 next-hop 1.2.3.4"), false},
+		{"invalid: unknown keyword", "bogus-key", strings.Fields("rd 100:100 bogus-key value next-hop 1.2.3.4"), true},
+		{"invalid: typo in next-hop", "nexthop", strings.Fields("rd 100:100 nexthop 1.2.3.4"), true},
+	})
+}
+
+// TestParseL2VPNArgs_InvalidKeywords tests that invalid keywords are rejected.
+//
+// VALIDATES: L2VPN parser rejects unknown keywords.
+//
+// PREVENTS: Silent ignoring of typos/unknown keywords in L2VPN/EVPN routes.
+func TestParseL2VPNArgs_InvalidKeywords(t *testing.T) {
+	runKeywordTests(t, "parseL2VPNArgs", func(args []string) error { _, err := parseL2VPNArgs(args); return err }, []keywordTestCase{
+		{"valid mac-ip", "", strings.Fields("mac-ip rd 100:100 mac 00:11:22:33:44:55 label 1000 next-hop 1.2.3.4"), false},
+		{"valid ip-prefix", "", strings.Fields("ip-prefix rd 100:100 prefix 10.0.0.0/24 label 1000 next-hop 1.2.3.4"), false},
+		{"valid with esi", "", strings.Fields("mac-ip rd 100:100 mac 00:11:22:33:44:55 esi 00:00:00:00:00:00:00:00:00:00 label 1000 next-hop 1.2.3.4"), false},
+		{"invalid: unknown keyword", "bogus-key", strings.Fields("mac-ip rd 100:100 mac 00:11:22:33:44:55 bogus-key value next-hop 1.2.3.4"), true},
+		{"invalid: typo in ethernet-tag", "ethernettag", strings.Fields("mac-ip rd 100:100 mac 00:11:22:33:44:55 ethernettag 100 next-hop 1.2.3.4"), true},
+	})
+}

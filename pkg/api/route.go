@@ -2212,7 +2212,8 @@ func parseFlowSpecArgs(args []string) (FlowSpecRoute, error) {
 			continue
 		}
 
-		if inMatch {
+		switch {
+		case inMatch:
 			if i+1 >= len(args) {
 				return route, fmt.Errorf("missing value for %s", arg)
 			}
@@ -2272,10 +2273,12 @@ func parseFlowSpecArgs(args []string) (FlowSpecRoute, error) {
 				}
 				route.SourcePorts = append(route.SourcePorts, port)
 				i++
-			}
-		}
 
-		if inThen {
+			default:
+				return route, fmt.Errorf("unknown match keyword: %s", arg)
+			}
+
+		case inThen:
 			switch arg {
 			case "accept":
 				route.Actions.Accept = true
@@ -2307,6 +2310,20 @@ func parseFlowSpecArgs(args []string) (FlowSpecRoute, error) {
 				}
 				route.Actions.MarkDSCP = uint8(dscp)
 				i++
+
+			default:
+				return route, fmt.Errorf("unknown then keyword: %s", arg)
+			}
+
+		default:
+			// Provide helpful error: is it a misplaced match/then keyword or unknown?
+			switch arg {
+			case "destination", "source", "protocol", "port", "destination-port", "source-port":
+				return route, fmt.Errorf("match keyword %q must appear after 'match'", arg)
+			case "accept", "discard", "rate-limit", "redirect", "mark":
+				return route, fmt.Errorf("then keyword %q must appear after 'then'", arg)
+			default:
+				return route, fmt.Errorf("unknown keyword %q", arg)
 			}
 		}
 	}
@@ -2432,6 +2449,9 @@ func parseVPLSArgs(args []string) (VPLSRoute, error) {
 				return route, fmt.Errorf("%w: %s", ErrInvalidNextHop, value)
 			}
 			route.NextHop = nh
+
+		default:
+			return route, fmt.Errorf("unknown vpls keyword: %s", key)
 		}
 	}
 
@@ -2591,6 +2611,9 @@ func parseL2VPNArgs(args []string) (L2VPNRoute, error) {
 				return route, fmt.Errorf("%w: %s", ErrInvalidNextHop, value)
 			}
 			route.NextHop = nh
+
+		default:
+			return route, fmt.Errorf("unknown l2vpn keyword: %s", key)
 		}
 	}
 
