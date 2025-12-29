@@ -13,7 +13,19 @@ Fix the current bug where `encoder json` processes receive nothing or text forma
 - `make test`: PASS
 - `make lint`: PASS (0 issues)
 - **Phase 0 COMPLETE**: All message types dispatched
+- **Phase 1 NEXT**: Config schema for `content {}` block
 - Last verified: 2025-12-29
+
+### Next Session Checklist
+
+Before implementing Phase 1, read these files:
+1. `pkg/config/bgp.go:286-290` - current schema
+2. `pkg/config/bgp.go:505-510` - config.ProcessConfig
+3. `pkg/config/bgp.go:538-551` - parsing logic
+4. `pkg/reactor/reactor.go:57-63` - reactor.APIProcessConfig
+5. `pkg/config/loader.go:111-116` - config→reactor conversion
+6. `pkg/reactor/reactor.go:1538-1545` - reactor→api conversion
+7. `pkg/api/types.go:336-344` - api.ProcessConfig
 
 ### Completed (Phase 0 FULL)
 
@@ -477,37 +489,200 @@ make test && make lint
 
 ### Phase 1: Config Schema Update
 
-Update config parsing to support new format structure.
+Update config parsing to support `content { encoding; format; }` block.
 
-#### 1.1 Update ProcessConfig struct
-**File:** `pkg/api/types.go`
+#### Context (READ THIS FIRST)
 
+**Three ProcessConfig structs exist (all need Format field):**
+
+| Struct | File | Line | Purpose |
+|--------|------|------|---------|
+| `config.ProcessConfig` | `pkg/config/bgp.go` | 505-510 | Config parsing output |
+| `reactor.APIProcessConfig` | `pkg/reactor/reactor.go` | 57-63 | Intermediate storage |
+| `api.ProcessConfig` | `pkg/api/types.go` | 336-344 | API server input |
+
+**Two conversion points (both need Format copying):**
+
+| From | To | File | Line |
+|------|----|------|------|
+| config → reactor | `loader.go` | 111-116 |
+| reactor → api | `reactor.go` | 1538-1545 |
+
+**ContentConfig already exists:** `pkg/api/types.go:359-375`
+
+**Current schema definition:** `pkg/config/bgp.go:286-290`
+```go
+schema.Define("process", List(TypeString,
+    Field("run", MultiLeaf(TypeString)),
+    Field("encoder", Leaf(TypeString)),
+    Field("respawn", Leaf(TypeBool)),
+))
+```
+
+**Current parsing:** `pkg/config/bgp.go:538-551`
+
+#### 1.1 Update config schema
+**File:** `pkg/config/bgp.go:286-290`
+
+Add `content` container with `encoding` and `format` fields:
+```go
+schema.Define("process", List(TypeString,
+    Field("run", MultiLeaf(TypeString)),
+    Field("encoder", Leaf(TypeString)),      // Keep for backward compat
+    Field("respawn", Leaf(TypeBool)),
+    Field("content", Container(              // NEW
+        Field("encoding", Leaf(TypeString)), // json | text
+        Field("format", Leaf(TypeString)),   // parsed | raw | full
+    )),
+))
+```
+
+#### 1.2 Update config.ProcessConfig
+**File:** `pkg/config/bgp.go:505-510`
+
+Add Format field:
 ```go
 type ProcessConfig struct {
-    Name     string
-    Run      string
-    Content  ContentConfig  // NEW: replaces Encoder
-}
-
-type ContentConfig struct {
-    Encoding string  // "json" | "text" (default: "text")
-    Format   string  // "parsed" | "raw" | "full" (default: "parsed")
+    Name          string
+    Run           string
+    Encoder       string
+    Format        string // NEW: parsed | raw | full
+    ReceiveUpdate bool
 }
 ```
 
-#### 1.2 Add per-neighbor process binding
-**File:** `pkg/config/bgp.go`
+#### 1.3 Update parsing logic
+**File:** `pkg/config/bgp.go:538-551`
 
-Support `process <name> { receive { ... } send { ... } }` inside neighbor blocks.
+Parse content block (with backward compat for top-level encoder):
+```go
+for name, proc := range tree.GetList("process") {
+    pc := ProcessConfig{Name: name}
+    if v, ok := proc.Get("run"); ok { pc.Run = v }
 
-#### 1.3 Update config schema
-**File:** `pkg/config/schema.go`
+    // NEW: Check content block first
+    if content := proc.GetContainer("content"); content != nil {
+        if v, ok := content.Get("encoding"); ok { pc.Encoder = v }
+        if v, ok := content.Get("format"); ok { pc.Format = v }
+    }
+    // Backward compat: top-level encoder overrides
+    if v, ok := proc.Get("encoder"); ok { pc.Encoder = v }
 
-Add schema nodes for:
-- `process.<name>.content.encoding`
-- `process.<name>.content.format`
-- `neighbor.<addr>.process.<name>.receive.*`
-- `neighbor.<addr>.process.<name>.send.*`
+    // Defaults
+    if pc.Encoder == "" { pc.Encoder = "text" }
+    if pc.Format == "" { pc.Format = "parsed" }
+    if pc.Encoder == "text" { pc.ReceiveUpdate = true }
+
+    cfg.Processes = append(cfg.Processes, pc)
+}
+```
+
+#### 1.4 Update reactor.APIProcessConfig
+**File:** `pkg/reactor/reactor.go:57-63`
+
+Add Format field:
+```go
+type APIProcessConfig struct {
+    Name          string
+    Run           string
+    Encoder       string
+    Format        string // NEW
+    Respawn       bool
+    ReceiveUpdate bool
+}
+```
+
+#### 1.5 Update loader conversion
+**File:** `pkg/config/loader.go:111-116`
+
+Copy Format field:
+```go
+reactorCfg.APIProcesses = append(reactorCfg.APIProcesses, reactor.APIProcessConfig{
+    Name:          pc.Name,
+    Run:           pc.Run,
+    Encoder:       pc.Encoder,
+    Format:        pc.Format,  // NEW
+    ReceiveUpdate: pc.ReceiveUpdate,
+})
+```
+
+#### 1.6 Update api.ProcessConfig
+**File:** `pkg/api/types.go:336-344`
+
+Add Format field:
+```go
+type ProcessConfig struct {
+    Name           string
+    Run            string
+    Encoder        string
+    Format         string // NEW: parsed | raw | full
+    Respawn        bool
+    RespawnEnabled bool
+    WorkDir        string
+    ReceiveUpdate  bool
+}
+```
+
+#### 1.7 Update reactor→api conversion
+**File:** `pkg/reactor/reactor.go:1538-1545`
+
+Copy Format field:
+```go
+apiConfig.Processes = append(apiConfig.Processes, api.ProcessConfig{
+    Name:          pc.Name,
+    Run:           pc.Run,
+    Encoder:       pc.Encoder,
+    Format:        pc.Format,  // NEW
+    Respawn:       pc.Respawn,
+    WorkDir:       r.config.ConfigDir,
+    ReceiveUpdate: pc.ReceiveUpdate,
+})
+```
+
+#### 1.8 Wire Format into message forwarding
+**File:** `pkg/api/server.go` (forwardUpdateToProcesses, etc.)
+
+Use `cfg.Format` when calling format functions. The format switching code
+already exists in `FormatMessage()` - just need to pass the config value.
+
+#### 1.9 Tests
+**File:** `pkg/config/bgp_test.go`
+
+```go
+func TestProcessContentConfig(t *testing.T) {
+    tests := []struct {
+        name         string
+        config       string
+        wantEncoding string
+        wantFormat   string
+    }{
+        {
+            name: "content block",
+            config: `process foo { run ./test; content { encoding json; format full; } }`,
+            wantEncoding: "json",
+            wantFormat:   "full",
+        },
+        {
+            name: "backward compat encoder",
+            config: `process foo { run ./test; encoder text; }`,
+            wantEncoding: "text",
+            wantFormat:   "parsed", // default
+        },
+        {
+            name: "defaults",
+            config: `process foo { run ./test; }`,
+            wantEncoding: "text",
+            wantFormat:   "parsed",
+        },
+    }
+    // ... test implementation
+}
+```
+
+#### 1.10 Verification
+```bash
+make test && make lint
+```
 
 ### Phase 2: Message Routing
 
@@ -577,12 +752,21 @@ zebgp config check zebgp.conf
 - [x] `Server.lookupPeer()` gets full PeerInfo from reactor
 - [x] Tests: `TestRawMessageType`, `TestEncodingSwitchingJSON`, `TestFormatSwitchingParsedRawFull`, `TestContentConfigDefaults`, `TestReceivedRouteToRouteUpdate`
 
-### Phase 1-3: Config Redesign (Future)
+### Phase 1: Config Schema (NEXT)
 - [x] ContentConfig struct added with Encoding and Format fields
-- [ ] Config schema updated for new `content {}` block
+- [ ] Schema: Add `content { encoding; format; }` to process definition
+- [ ] Struct: Add Format to `config.ProcessConfig` (bgp.go:505)
+- [ ] Struct: Add Format to `reactor.APIProcessConfig` (reactor.go:57)
+- [ ] Struct: Add Format to `api.ProcessConfig` (types.go:336)
+- [ ] Parsing: Extract content.encoding and content.format (bgp.go:538)
+- [ ] Conversion: Copy Format in loader.go:111
+- [ ] Conversion: Copy Format in reactor.go:1538
+- [ ] Wiring: Use Format in server.go forwarding functions
+- [ ] Tests: TestProcessContentConfig in bgp_test.go
+
+### Phase 2-3: Per-Neighbor Binding (Future)
 - [ ] Per-neighbor process binding works
 - [ ] Message type filtering routes correctly
-- [x] Format handling supports parsed/raw/full
 - [ ] Migration tool converts ExaBGP api blocks
 
 ### Final Verification
