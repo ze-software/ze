@@ -12,6 +12,7 @@ import (
 	"sync/atomic"
 
 	"github.com/exa-networks/zebgp/pkg/bgp/attribute"
+	bgpctx "github.com/exa-networks/zebgp/pkg/bgp/context"
 	"github.com/exa-networks/zebgp/pkg/bgp/nlri"
 )
 
@@ -31,6 +32,12 @@ type Route struct {
 
 	// Cached index for fast lookup
 	indexCache []byte
+
+	// Wire cache: enables zero-copy forwarding when contexts match.
+	// wireBytes contains the original packed path attributes.
+	// sourceCtxID identifies the encoding context (for compatibility check).
+	wireBytes   []byte
+	sourceCtxID bgpctx.ContextID
 }
 
 // NewRoute creates a new route without explicit AS-PATH.
@@ -58,6 +65,28 @@ func NewRouteWithASPath(n nlri.NLRI, nextHop netip.Addr, attrs []attribute.Attri
 	return r
 }
 
+// NewRouteWithWireCache creates a route with cached wire bytes.
+// Used when receiving routes - store original bytes for potential zero-copy forwarding.
+func NewRouteWithWireCache(
+	n nlri.NLRI,
+	nextHop netip.Addr,
+	attrs []attribute.Attribute,
+	asPath *attribute.ASPath,
+	wireBytes []byte,
+	sourceCtxID bgpctx.ContextID,
+) *Route {
+	r := &Route{
+		nlri:        n,
+		nextHop:     nextHop,
+		attributes:  attrs,
+		asPath:      asPath,
+		wireBytes:   wireBytes,
+		sourceCtxID: sourceCtxID,
+	}
+	r.refCount.Store(1)
+	return r
+}
+
 // NLRI returns the route's NLRI.
 func (r *Route) NLRI() nlri.NLRI {
 	return r.nlri
@@ -77,6 +106,23 @@ func (r *Route) Attributes() []attribute.Attribute {
 // ASPath returns the route's AS-PATH (may be nil).
 func (r *Route) ASPath() *attribute.ASPath {
 	return r.asPath
+}
+
+// WireBytes returns the cached wire bytes (may be nil).
+func (r *Route) WireBytes() []byte {
+	return r.wireBytes
+}
+
+// SourceCtxID returns the source context ID.
+func (r *Route) SourceCtxID() bgpctx.ContextID {
+	return r.sourceCtxID
+}
+
+// CanForwardDirect returns true if wireBytes can be used directly.
+// This is the fast path for route reflection when source and destination
+// peers have identical encoding contexts (same ASN4, ADD-PATH, etc.).
+func (r *Route) CanForwardDirect(destCtxID bgpctx.ContextID) bool {
+	return len(r.wireBytes) > 0 && r.sourceCtxID == destCtxID
 }
 
 // Index returns a unique identifier for this route.
