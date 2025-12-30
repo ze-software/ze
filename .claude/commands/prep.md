@@ -14,6 +14,8 @@ Phase 2: Load context (see CONTEXT_LOADING.md)
 Phase 3: Analyze problem, trace user flow
 Phase 4: Write spec to plan/spec-<name>.md
 Phase 5: Confirm ready to implement
+--- AFTER IMPLEMENTATION ---
+Phase 6: Move spec to plan/done/, update README
 ```
 
 ---
@@ -131,6 +133,8 @@ $ARGUMENTS
 - [ ] make lint passes
 - [ ] Goal achieved
 - [ ] Documentation updated (if design changed)
+- [ ] Spec moved to plan/done/
+- [ ] plan/README.md updated
 ```
 
 ---
@@ -163,6 +167,14 @@ Before claiming /prep done:
 
 **If any incomplete, DO NOT proceed.**
 
+Before claiming task complete (after implementation):
+1. ✅ All checklist items checked
+2. ✅ Spec moved to plan/done/
+3. ✅ plan/README.md updated
+4. ✅ plan/CLAUDE_CONTINUATION.md updated
+
+**If any incomplete, task is NOT complete.**
+
 ---
 
 ## Documentation Update Rule
@@ -177,3 +189,38 @@ Design changes include:
 - API interface changes
 - Wire format changes
 - New message flows or dispatch patterns
+
+---
+
+## Phase 6: Completion (AFTER IMPLEMENTATION)
+
+**Run after implementation is verified and committed.**
+
+1. Move spec to done:
+```bash
+git mv plan/spec-<task-name>.md plan/done/
+```
+
+2. Update `plan/README.md`:
+   - Move entry from "Implementation Specs (Active)" to "Complete (in `done/`)"
+   - Update description if needed
+
+3. Update `plan/CLAUDE_CONTINUATION.md`:
+   - Remove from current priorities
+   - Add to completed work summary
+
+4. Commit:
+```bash
+git add plan/
+git commit -m "docs: move spec-<task-name> to done"
+```
+
+Output:
+```
+✅ Implementation complete
+📁 Moved: plan/spec-<task-name>.md → plan/done/
+📝 Updated: plan/README.md, plan/CLAUDE_CONTINUATION.md
+🏁 Task closed
+```
+
+**BLOCKING:** Do not claim task complete until spec is in `done/`.
