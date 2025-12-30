@@ -317,14 +317,23 @@ func TestParseCommunity(t *testing.T) {
 		{"NO-EXPORT uppercase", "NO-EXPORT", 0xFFFFFF01, false},
 		{"No-Advertise mixed", "No-Advertise", 0xFFFFFF02, false},
 
+		// Bare integers (ExaBGP compatible)
+		{"bare integer zero", "0", 0, false},
+		{"bare integer", "2914666", 2914666, false},
+		{"bare integer max", "4294967295", 0xFFFFFFFF, false},
+
+		// Hex format (ExaBGP compatible)
+		{"hex format", "0x12345678", 0x12345678, false},
+
 		// Invalid
-		{"missing colon", "2914666", 0, true},
 		{"too many colons", "2914:666:1", 0, true},
 		{"invalid ASN", "abc:666", 0, true},
 		{"invalid value", "2914:abc", 0, true},
 		{"ASN too large", "65536:1", 0, true},
 		{"value too large", "1:65536", 0, true},
 		{"empty string", "", 0, true},
+		{"invalid hex", "0xGGGG", 0, true},
+		{"bare integer overflow", "4294967296", 0, true},
 	}
 
 	for _, tt := range tests {

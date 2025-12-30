@@ -30,8 +30,17 @@ func TestCommunity(t *testing.T) {
 		{"No-Advertise mixed", "No-Advertise", CommunityNoAdvertise, false},
 		{"BLACKHOLE uppercase", "BLACKHOLE", CommunityBlackhole, false},
 
+		// Bare integers (ExaBGP compatible)
+		{"bare integer zero", "0", 0, false},
+		{"bare integer", "2914666", 2914666, false},
+		{"bare integer max", "4294967295", 0xFFFFFFFF, false},
+
+		// Hex format (ExaBGP compatible)
+		{"hex format", "0x12345678", 0x12345678, false},
+		{"hex format lowercase", "0xabcdef00", 0xABCDEF00, false},
+		{"hex format uppercase", "0xABCDEF00", 0xABCDEF00, false},
+
 		// Invalid
-		{"missing colon", "2914666", 0, true},
 		{"too many colons", "2914:666:1", 0, true},
 		{"invalid ASN", "abc:666", 0, true},
 		{"invalid value", "2914:abc", 0, true},
@@ -39,6 +48,8 @@ func TestCommunity(t *testing.T) {
 		{"value too large", "1:65536", 0, true},
 		{"empty string", "", 0, true},
 		{"unknown name", "unknown", 0, true},
+		{"invalid hex", "0xGGGG", 0, true},
+		{"bare integer overflow", "4294967296", 0, true},
 	}
 
 	for _, tt := range tests {

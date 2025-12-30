@@ -23,6 +23,8 @@ const (
 // Supports:
 //   - ASN:VAL format per RFC 1997
 //   - Well-known names: no-export, no-advertise, no-export-subconfed, nopeer, blackhole
+//   - Bare integers: raw 32-bit community value (ExaBGP compatible)
+//   - Hex values: 0xNNNNNNNN format (ExaBGP compatible)
 func Community(s string) (uint32, error) {
 	// Check for well-known community names (case-insensitive)
 	switch strings.ToLower(s) {
@@ -38,22 +40,38 @@ func Community(s string) (uint32, error) {
 		return CommunityBlackhole, nil
 	}
 
-	// Parse ASN:Value format
-	parts := strings.Split(s, ":")
-	if len(parts) != 2 {
-		return 0, fmt.Errorf("invalid community %q: expected ASN:Value format or well-known name", s)
+	// Check for hex format (0xNNNNNNNN)
+	if strings.HasPrefix(strings.ToLower(s), "0x") {
+		val, err := strconv.ParseUint(s[2:], 16, 32)
+		if err != nil {
+			return 0, fmt.Errorf("invalid community hex value %q", s)
+		}
+		return uint32(val), nil
 	}
 
-	asn, err := strconv.ParseUint(parts[0], 10, 16)
-	if err != nil {
-		return 0, fmt.Errorf("invalid community ASN %q", parts[0])
-	}
-	val, err := strconv.ParseUint(parts[1], 10, 16)
-	if err != nil {
-		return 0, fmt.Errorf("invalid community value %q", parts[1])
+	// Check for ASN:Value format
+	if strings.Contains(s, ":") {
+		parts := strings.Split(s, ":")
+		if len(parts) != 2 {
+			return 0, fmt.Errorf("invalid community %q: expected ASN:Value format", s)
+		}
+		asn, err := strconv.ParseUint(parts[0], 10, 16)
+		if err != nil {
+			return 0, fmt.Errorf("invalid community ASN %q", parts[0])
+		}
+		val, err := strconv.ParseUint(parts[1], 10, 16)
+		if err != nil {
+			return 0, fmt.Errorf("invalid community value %q", parts[1])
+		}
+		return uint32(asn)<<16 | uint32(val), nil
 	}
 
-	return uint32(asn)<<16 | uint32(val), nil
+	// Bare integer: raw 32-bit community value (ExaBGP compatible)
+	val, err := strconv.ParseUint(s, 10, 32)
+	if err != nil {
+		return 0, fmt.Errorf("invalid community %q: expected ASN:Value, hex, integer, or well-known name", s)
+	}
+	return uint32(val), nil
 }
 
 // LargeCommunity parses a single large community GA:LD1:LD2 to [3]uint32.
