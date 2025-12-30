@@ -35,8 +35,8 @@ functional  - 24 passed, 13 failed [6, 7, 8, J, L, N, Q, S, T, U, V, Z, a]
 ## Resume Point
 
 **Last worked:** 2025-12-30
-**Last commit:** `d330456` (feat(migration): complete Phase 4 API block migration)
-**Session ended:** Clean break - API encoder switching complete (Phases 0-5)
+**Last commit:** (uncommitted) format-based migration refactor
+**Session ended:** Format-based migration complete
 
 **Next steps:**
 1. Integrate zero-copy forwarding into peer route distribution (future)
@@ -45,16 +45,6 @@ functional  - 24 passed, 13 failed [6, 7, 8, J, L, N, Q, S, T, U, V, Z, a]
 ---
 
 ## PLANNED
-
-### Format-Based Migration Refactor
-**Spec:** `plan/spec-format-based-migration.md`
-
-Remove version numbers, add visibility, keep atomic operations:
-- `MigrateV2ToV3()` → `Migrate()` returning `*MigrateResult`
-- `DetectVersion()` → `NeedsMigration()` returning `bool`
-- Remove `ConfigVersion`, `Version2`, `Version3` constants
-- CLI: `Migrated: neighbor→peer (2), api→new-syntax (1)`
-- Keep `migrateAPIBlocks()` atomic (don't split)
 
 ### API as Virtual Peer
 **Spec:** `plan/spec-api-virtual-peer.md`
@@ -72,6 +62,22 @@ AttributesWire for zero-copy route reflection.
 ---
 
 ## COMPLETED
+
+### Format-Based Migration Refactor (uncommitted)
+**Spec:** `plan/spec-format-based-migration.md` ✅ COMPLETE
+
+Refactored migration from version-based to transformation-based:
+- `MigrateV2ToV3()` → `Migrate()` returning `*MigrateResult`
+- `DetectVersion()` → `NeedsMigration()` returning `bool`
+- Removed `ConfigVersion`, `Version2`, `Version3` constants
+- New CLI flags: `--dry-run`, `--list`
+- Transformation visibility: Applied/Skipped lists with emoji status
+- Atomic: all transformations succeed or original unchanged
+
+Files changed:
+- New: `pkg/config/migration/migrate.go`, `migrate_test.go`
+- Removed: `version.go`, `v2_to_v3.go`
+- Updated: `detect.go`, `cmd/zebgp/config_migrate.go`, `config_check.go`, `config_fmt.go`
 
 ### API Encoder Switching (`d330456`)
 **Spec:** `plan/spec-api-encoder-switching.md` ✅ COMPLETE

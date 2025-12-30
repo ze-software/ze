@@ -84,9 +84,8 @@ Examples:
 		pLegacy := config.NewParser(config.LegacyBGPSchema())
 		treeLegacy, errLegacy := pLegacy.Parse(string(input))
 		if errLegacy == nil {
-			version := migration.DetectVersion(treeLegacy)
-			if version < migration.VersionCurrent {
-				fmt.Fprintf(os.Stderr, "error: config is %s, run 'zebgp config migrate' first\n", version)
+			if migration.NeedsMigration(treeLegacy) {
+				fmt.Fprintf(os.Stderr, "error: config needs migration, run 'zebgp config migrate' first\n")
 				return exitError
 			}
 		}
@@ -94,10 +93,9 @@ Examples:
 		return exitError
 	}
 
-	// Detect version - reject non-current
-	version := migration.DetectVersion(tree)
-	if version < migration.VersionCurrent {
-		fmt.Fprintf(os.Stderr, "error: config is %s, run 'zebgp config migrate' first\n", version)
+	// Reject configs that need migration
+	if migration.NeedsMigration(tree) {
+		fmt.Fprintf(os.Stderr, "error: config needs migration, run 'zebgp config migrate' first\n")
 		return exitError
 	}
 
@@ -157,18 +155,16 @@ func configFmtBytes(input []byte) (string, bool, error) {
 		pLegacy := config.NewParser(config.LegacyBGPSchema())
 		treeLegacy, errLegacy := pLegacy.Parse(string(input))
 		if errLegacy == nil {
-			version := migration.DetectVersion(treeLegacy)
-			if version < migration.VersionCurrent {
-				return "", false, fmt.Errorf("%w: %s", ErrV2Config, version)
+			if migration.NeedsMigration(treeLegacy) {
+				return "", false, ErrV2Config
 			}
 		}
 		return "", false, fmt.Errorf("parse error: %w", err)
 	}
 
-	// Detect version - reject non-current
-	version := migration.DetectVersion(tree)
-	if version < migration.VersionCurrent {
-		return "", false, fmt.Errorf("%w: %s", ErrV2Config, version)
+	// Reject configs that need migration
+	if migration.NeedsMigration(tree) {
+		return "", false, ErrV2Config
 	}
 
 	// Serialize (formats the output)

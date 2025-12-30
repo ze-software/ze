@@ -66,11 +66,10 @@ Exit codes:
 
 // checkResult holds results from config check.
 type checkResult struct {
-	version     string
-	isCurrent   bool
-	deprecated  []string
-	unsupported []string // Features ZeBGP doesn't support (e.g., multi-session, operational)
-	err         error
+	needsMigration bool
+	deprecated     []string
+	unsupported    []string // Features ZeBGP doesn't support (e.g., multi-session, operational)
+	err            error
 }
 
 // configCheck analyzes a config file and returns version/deprecation info.
@@ -88,8 +87,8 @@ func configCheck(path string) checkResult {
 		return checkResult{err: fmt.Errorf("parse error: %w", err)}
 	}
 
-	// Detect version
-	version := migration.DetectVersion(tree)
+	// Check if migration needed
+	needsMigration := migration.NeedsMigration(tree)
 
 	// Find deprecated patterns
 	deprecated := findDeprecatedPatterns(tree)
@@ -98,10 +97,9 @@ func configCheck(path string) checkResult {
 	unsupported := findUnsupportedFeatures(tree)
 
 	return checkResult{
-		version:     version.String(),
-		isCurrent:   version == migration.VersionCurrent,
-		deprecated:  deprecated,
-		unsupported: unsupported,
+		needsMigration: needsMigration,
+		deprecated:     deprecated,
+		unsupported:    unsupported,
 	}
 }
 
@@ -227,12 +225,11 @@ func isGlobPattern(pattern string) bool {
 }
 
 func outputCheckText(result checkResult) int {
-	if result.isCurrent {
-		fmt.Printf("✅ Config version: %s (current)\n", result.version)
+	if !result.needsMigration {
+		fmt.Println("✅ Config is current")
 		fmt.Println("   No migration needed.")
 	} else {
-		fmt.Printf("⚠️  Config version: %s\n", result.version)
-		fmt.Printf("   Current version: %s\n", migration.VersionCurrent.String())
+		fmt.Println("⚠️  Config needs migration")
 		fmt.Println()
 		fmt.Println("Deprecated patterns found:")
 		for _, d := range result.deprecated {
@@ -253,7 +250,7 @@ func outputCheckText(result checkResult) int {
 		}
 	}
 
-	if !result.isCurrent {
+	if result.needsMigration {
 		return exitMigrationNeeded
 	}
 	return exitOK
@@ -263,12 +260,12 @@ func outputCheckJSON(result checkResult) int {
 	// Simple JSON without encoding/json for minimal size
 	status := "current"
 	exitCode := exitOK
-	if !result.isCurrent {
+	if result.needsMigration {
 		status = "needs-migration"
 		exitCode = exitMigrationNeeded
 	}
 
-	fmt.Printf(`{"version":%q,"status":%q,"deprecated":[`, result.version, status)
+	fmt.Printf(`{"status":%q,"deprecated":[`, status)
 	for i, d := range result.deprecated {
 		if i > 0 {
 			fmt.Print(",")

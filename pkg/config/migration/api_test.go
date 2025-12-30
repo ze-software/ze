@@ -446,8 +446,9 @@ neighbor 10.0.0.1 {
 	tree := parseWithLegacySchema(t, input)
 
 	// Use full v2→v3 migration
-	migrated, err := MigrateV2ToV3(tree)
+	result, err := Migrate(tree)
 	require.NoError(t, err)
+	migrated := result.Tree
 
 	// Should now be peer, not neighbor
 	require.Empty(t, migrated.GetList("neighbor"))
@@ -464,6 +465,213 @@ neighbor 10.0.0.1 {
 	require.NotNil(t, receive)
 	_, ok := receive.Get("state")
 	require.True(t, ok)
+}
+
+// TestMigrateAPIBlocksNamedWithProcesses verifies named api blocks with processes field.
+//
+// VALIDATES: "api speaking { processes [...] }" migrates to "api foo { }".
+//
+// PREVENTS: Named blocks with processes inside being skipped.
+func TestMigrateAPIBlocksNamedWithProcesses(t *testing.T) {
+	input := `
+process foo { run ./test; }
+peer 10.0.0.1 {
+    api speaking {
+        processes [ foo ];
+        receive {
+            update;
+        }
+    }
+}
+`
+	tree := parseWithLegacySchema(t, input)
+	migrated, err := MigrateAPIBlocks(tree)
+	require.NoError(t, err)
+
+	peer := migrated.GetList("peer")["10.0.0.1"]
+	require.NotNil(t, peer)
+
+	apiList := peer.GetList("api")
+	require.NotContains(t, apiList, "speaking", "old named block should be removed")
+	require.Contains(t, apiList, "foo", "process name should become api key")
+
+	fooAPI := apiList["foo"]
+	receive := fooAPI.GetContainer("receive")
+	require.NotNil(t, receive)
+	_, ok := receive.Get("update")
+	require.True(t, ok)
+}
+
+// TestMigrateAPIBlocksFormatParsed verifies parsed flag migration.
+//
+// VALIDATES: "receive { parsed; update; }" becomes "content { format parsed; } receive { update; }".
+//
+// PREVENTS: Format flags remaining in receive block.
+func TestMigrateAPIBlocksFormatParsed(t *testing.T) {
+	input := `
+process foo { run ./test; }
+peer 10.0.0.1 {
+    api foo {
+        receive {
+            parsed;
+            update;
+        }
+    }
+}
+`
+	tree := parseWithLegacySchema(t, input)
+	migrated, err := MigrateAPIBlocks(tree)
+	require.NoError(t, err)
+
+	peer := migrated.GetList("peer")["10.0.0.1"]
+	apiList := peer.GetList("api")
+	fooAPI := apiList["foo"]
+
+	// Check content block with format
+	content := fooAPI.GetContainer("content")
+	require.NotNil(t, content, "content block should exist")
+	format, ok := content.Get("format")
+	require.True(t, ok)
+	require.Equal(t, "parsed", format)
+
+	// Check receive block has update but NOT parsed
+	receive := fooAPI.GetContainer("receive")
+	require.NotNil(t, receive)
+	_, hasUpdate := receive.Get("update")
+	require.True(t, hasUpdate)
+	_, hasParsed := receive.Get("parsed")
+	require.False(t, hasParsed, "parsed should be removed from receive")
+}
+
+// TestMigrateAPIBlocksFormatFull verifies consolidate flag migration.
+//
+// VALIDATES: "receive { parsed; packets; consolidate; }" becomes "content { format full; }".
+//
+// PREVENTS: consolidate not triggering full format.
+func TestMigrateAPIBlocksFormatFull(t *testing.T) {
+	input := `
+process foo { run ./test; }
+peer 10.0.0.1 {
+    api foo {
+        receive {
+            consolidate;
+            parsed;
+            packets;
+            update;
+        }
+    }
+}
+`
+	tree := parseWithLegacySchema(t, input)
+	migrated, err := MigrateAPIBlocks(tree)
+	require.NoError(t, err)
+
+	peer := migrated.GetList("peer")["10.0.0.1"]
+	apiList := peer.GetList("api")
+	fooAPI := apiList["foo"]
+
+	content := fooAPI.GetContainer("content")
+	require.NotNil(t, content)
+	format, ok := content.Get("format")
+	require.True(t, ok)
+	require.Equal(t, "full", format)
+}
+
+// TestMigrateAPIBlocksFormatRaw verifies packets-only migration.
+//
+// VALIDATES: "receive { packets; update; }" becomes "content { format raw; }".
+//
+// PREVENTS: packets-only not recognized as raw format.
+func TestMigrateAPIBlocksFormatRaw(t *testing.T) {
+	input := `
+process foo { run ./test; }
+peer 10.0.0.1 {
+    api foo {
+        receive {
+            packets;
+            update;
+        }
+    }
+}
+`
+	tree := parseWithLegacySchema(t, input)
+	migrated, err := MigrateAPIBlocks(tree)
+	require.NoError(t, err)
+
+	peer := migrated.GetList("peer")["10.0.0.1"]
+	apiList := peer.GetList("api")
+	fooAPI := apiList["foo"]
+
+	content := fooAPI.GetContainer("content")
+	require.NotNil(t, content)
+	format, ok := content.Get("format")
+	require.True(t, ok)
+	require.Equal(t, "raw", format)
+}
+
+// TestMigrateAPIBlocksSendBlock verifies send block migration.
+//
+// VALIDATES: send block message types are preserved.
+//
+// PREVENTS: send block being dropped during migration.
+func TestMigrateAPIBlocksSendBlock(t *testing.T) {
+	input := `
+process foo { run ./test; }
+peer 10.0.0.1 {
+    api foo {
+        receive {
+            update;
+        }
+        send {
+            update;
+            refresh;
+        }
+    }
+}
+`
+	tree := parseWithLegacySchema(t, input)
+	migrated, err := MigrateAPIBlocks(tree)
+	require.NoError(t, err)
+
+	peer := migrated.GetList("peer")["10.0.0.1"]
+	apiList := peer.GetList("api")
+	fooAPI := apiList["foo"]
+
+	send := fooAPI.GetContainer("send")
+	require.NotNil(t, send)
+	_, hasUpdate := send.Get("update")
+	require.True(t, hasUpdate)
+	_, hasRefresh := send.Get("refresh")
+	require.True(t, hasRefresh)
+}
+
+// TestMigrateAPIBlocksNeighborChanges verifies neighbor-changes flag migration.
+//
+// VALIDATES: neighbor-changes becomes receive { state; }.
+//
+// PREVENTS: neighbor-changes flag being lost during migration.
+func TestMigrateAPIBlocksNeighborChanges(t *testing.T) {
+	input := `
+process foo { run ./test; }
+peer 10.0.0.1 {
+    api {
+        processes [ foo ];
+        neighbor-changes;
+    }
+}
+`
+	tree := parseWithLegacySchema(t, input)
+	migrated, err := MigrateAPIBlocks(tree)
+	require.NoError(t, err)
+
+	peer := migrated.GetList("peer")["10.0.0.1"]
+	apiList := peer.GetList("api")
+	fooAPI := apiList["foo"]
+
+	receive := fooAPI.GetContainer("receive")
+	require.NotNil(t, receive)
+	_, hasState := receive.Get("state")
+	require.True(t, hasState, "state flag should be set from neighbor-changes")
 }
 
 // parseWithLegacySchema parses config with legacy schema for testing.

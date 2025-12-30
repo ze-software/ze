@@ -1,6 +1,6 @@
 # Configuration Migration
 
-ZeBGP uses a versioned configuration format. When the format changes, the `zebgp config` commands help migrate existing configurations to the current version.
+ZeBGP migrates configurations using named transformations. Each transformation has a specific purpose and can be previewed before applying.
 
 ## Quick Start
 
@@ -27,31 +27,42 @@ zebgp config fmt -w myconfig.conf
 zebgp config fmt --check myconfig.conf
 ```
 
-## Config Versions
+## Available Transformations
 
-| Version | Name | Description |
-|---------|------|-------------|
-| v1 | ExaBGP main | RIB options at neighbor level (not yet supported) |
-| v2 | ZeBGP intermediate | Uses `neighbor` keyword, `template { neighbor }` |
-| v3 | ZeBGP current | Uses `peer` keyword, `template { group/match }` |
+View available transformations with:
 
-## Version Detection
+```bash
+$ zebgp config migrate --list
 
-ZeBGP detects config version automatically using heuristics (no version field required):
+Available transformations (in order):
+  neighbor->peer            Rename 'neighbor' blocks to 'peer'
+  peer-glob->template.match Move glob patterns (10.0.0.0/8) to template.match
+  template.neighbor->group  Rename template.neighbor to template.group
+  static->announce          Convert 'static' route blocks to 'announce'
+  api->new-format           Convert old api syntax (processes, format flags) to named blocks
+```
 
-**v2 indicators:**
+## Migration Detection
+
+ZeBGP detects what needs migration automatically:
+
+**Deprecated patterns (triggers migration):**
 - `neighbor <IP> { }` at root level
 - `peer <glob>` at root level (e.g., `peer * { }`)
 - `template { neighbor <name> { } }`
+- `static { }` blocks (should use `announce { }`)
+- Old-style `api { processes [...] }` syntax
 
-**v3 indicators:**
+**Current patterns (no migration needed):**
 - `peer <IP> { }` at root level (non-glob)
 - `template { group <name> { } }`
 - `template { match <glob> { } }`
+- `announce { ipv4 { unicast { } } }` blocks
+- Named `api <name> { }` blocks
 
-## Migration: v2 to v3
+## Transformations
 
-The v2→v3 migration performs these transformations:
+Migration performs these transformations in order:
 
 | v2 Syntax | v3 Syntax |
 |-----------|-----------|
@@ -103,16 +114,19 @@ peer 192.0.2.1 {
 
 ### zebgp config check
 
-Shows config version and any issues:
+Shows if migration is needed:
 
 ```bash
 $ zebgp config check old.conf
-Config version: v2 (ZeBGP intermediate)
-Target version: v3 (ZeBGP current)
+⚠️  Config needs migration
 
-Migration required:
-  neighbor 192.0.2.1 → peer 192.0.2.1
-  template.neighbor.defaults → template.group.defaults
+Deprecated patterns found:
+  • neighbor 192.0.2.1 → peer 192.0.2.1
+  • template.neighbor defaults → template.group defaults
+
+To migrate, run:
+  zebgp config migrate <file> -o <output>
+  zebgp config migrate <file> --in-place
 ```
 
 ### zebgp config fmt
@@ -146,11 +160,30 @@ $ zebgp config fmt --diff config.conf
 
 ### zebgp config migrate
 
-Converts config to current version:
+Converts config to current format:
 
 ```bash
-# Preview changes (no modifications)
+# List available transformations
+$ zebgp config migrate --list
+
+# Preview what would happen
 $ zebgp config migrate --dry-run old.conf
+Transformation analysis:
+  ⏳ neighbor->peer (pending)
+  ⏳ api->new-format (pending)
+  ✅ peer-glob->template.match (done)
+  ✅ template.neighbor->group (done)
+  ✅ static->announce (done)
+
+Result: 2 transformation(s) would apply. All would succeed.
+
+# Migrate to stdout (config to stdout, progress to stderr)
+$ zebgp config migrate old.conf
+Transformations:
+  ✅ neighbor->peer
+  ⏭️  peer-glob->template.match (not needed)
+  ...
+2 applied, 3 skipped.
 
 # Write to new file
 $ zebgp config migrate old.conf -o new.conf
@@ -160,7 +193,8 @@ $ zebgp config migrate --in-place old.conf
 ```
 
 **Flags:**
-- `--dry-run` - Show changes without writing
+- `--list` - Show available transformations
+- `--dry-run` - Show what would happen without applying
 - `-o <file>` - Write to specified file
 - `--in-place` - Modify original file (creates backup)
 

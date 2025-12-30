@@ -19,26 +19,41 @@ var ErrAPICollision = errors.New("api block collision: old syntax process confli
 
 // MigrateAPIBlocks transforms old api syntax to new named syntax.
 //
-// For each peer/template block with an old-style api block:
+// Handles two cases:
 //
-//	api { processes [ foo bar ]; neighbor-changes; }
-//	api { processes-match [ "^collector" ]; }
+// 1. Anonymous api blocks:
+//
+//	api { processes [ foo ]; neighbor-changes; }
 //
 // Becomes:
 //
 //	api foo { receive { state; } }
-//	api bar { receive { state; } }
-//	api "^collector" { }
 //
-// If neighbor-changes is not set, receive block is omitted (inherit defaults).
+// 2. Named api blocks with processes inside:
 //
-// Returns error if:
-//   - api block has neither processes nor processes-match
-//   - duplicate process names found
-//   - process name conflicts with existing named api block
+//	api speaking {
+//	    processes [ foo ];
+//	    receive { parsed; update; }
+//	}
+//
+// Becomes:
+//
+//	api foo {
+//	    content { format parsed; }
+//	    receive { update; }
+//	}
+//
+// Format mapping:
+//   - parsed only (no packets) → format parsed
+//   - packets only (no parsed) → format raw
+//   - parsed + packets OR consolidate → format full
+//
+// State flag (neighbor-changes) → receive { state; }
+//
+// Note: Format flags in send block (parsed, packets, consolidate) are dropped
+// since ZeBGP uses a single format for both directions.
 //
 // Returns a new tree; original is not modified.
-// Returns ErrNilTree for nil input.
 func MigrateAPIBlocks(tree *config.Tree) (*config.Tree, error) {
 	if tree == nil {
 		return nil, ErrNilTree
@@ -49,7 +64,7 @@ func MigrateAPIBlocks(tree *config.Tree) (*config.Tree, error) {
 	// Process peer blocks
 	for _, entry := range result.GetListOrdered("peer") {
 		if err := migrateAPIFromPeer("peer "+entry.Key, entry.Value); err != nil {
-			return nil, err // Error already contains location
+			return nil, err
 		}
 	}
 
@@ -71,35 +86,65 @@ func MigrateAPIBlocks(tree *config.Tree) (*config.Tree, error) {
 }
 
 // migrateAPIFromPeer converts old api syntax to new named syntax in a peer tree.
-// Returns error if api block is invalid.
 func migrateAPIFromPeer(location string, peer *config.Tree) error {
 	if peer == nil {
 		return nil
 	}
 
-	// Get the api list - old syntax uses KeyDefault
-	apiList := peer.GetList("api")
+	apiList := peer.GetListOrdered("api")
 	if len(apiList) == 0 {
 		return nil
 	}
 
-	// Check for old anonymous syntax
-	anonymousAPI := apiList[config.KeyDefault]
-	if anonymousAPI == nil {
-		// Already using new syntax or no api block
+	// Collect all blocks that need migration (to avoid modifying while iterating)
+	type migrationTask struct {
+		key     string
+		apiTree *config.Tree
+	}
+	var tasks []migrationTask
+
+	for _, entry := range apiList {
+		if needsMigration(entry.Value) {
+			tasks = append(tasks, migrationTask{key: entry.Key, apiTree: entry.Value})
+		}
+	}
+
+	if len(tasks) == 0 {
 		return nil
 	}
 
-	// Extract process names from "processes [ foo bar ]" and "processes-match [ ... ]"
-	processNames := extractProcessNames(anonymousAPI)
-	matchPatterns := extractProcessesMatch(anonymousAPI)
-
-	// Validate: must have at least one process or pattern
-	if len(processNames) == 0 && len(matchPatterns) == 0 {
-		return fmt.Errorf("%s: %w", location, ErrEmptyProcesses)
+	// Process each block that needs migration
+	for _, task := range tasks {
+		if err := migrateAPIBlock(location, peer, task.key, task.apiTree); err != nil {
+			return err
+		}
 	}
 
-	// Check for duplicates in processes
+	return nil
+}
+
+// needsMigration returns true if the api block uses old syntax.
+// Delegates to isOldStyleAPIBlock in detect.go to avoid duplication.
+func needsMigration(apiTree *config.Tree) bool {
+	return isOldStyleAPIBlock(apiTree)
+}
+
+// migrateAPIBlock migrates a single api block (anonymous or named).
+func migrateAPIBlock(location string, peer *config.Tree, key string, apiTree *config.Tree) error {
+	// Extract process names
+	processNames := extractProcessNames(apiTree)
+	matchPatterns := extractProcessesMatch(apiTree)
+
+	// For named blocks without processes field, the key IS the process name
+	if len(processNames) == 0 && len(matchPatterns) == 0 {
+		if key == config.KeyDefault {
+			return fmt.Errorf("%s: %w", location, ErrEmptyProcesses)
+		}
+		// Named block without processes - just transform in place
+		processNames = []string{key}
+	}
+
+	// Check for duplicates
 	seen := make(map[string]bool)
 	for _, name := range processNames {
 		if seen[name] {
@@ -107,8 +152,6 @@ func migrateAPIFromPeer(location string, peer *config.Tree) error {
 		}
 		seen[name] = true
 	}
-
-	// Check for duplicates in processes-match
 	for _, pattern := range matchPatterns {
 		if seen[pattern] {
 			return fmt.Errorf("%s: %w: %s", location, ErrDuplicateProcess, pattern)
@@ -117,49 +160,188 @@ func migrateAPIFromPeer(location string, peer *config.Tree) error {
 	}
 
 	// Check for collision with existing named api blocks
+	apiList := peer.GetList("api")
 	for name := range seen {
+		if name == key {
+			continue // Same block, will be replaced
+		}
 		if _, exists := apiList[name]; exists {
 			return fmt.Errorf("%s: %w: %s", location, ErrAPICollision, name)
 		}
 	}
 
-	// Check for neighbor-changes flag
-	hasNeighborChanges := false
-	if _, ok := anonymousAPI.GetFlex("neighbor-changes"); ok {
-		hasNeighborChanges = true
+	// Extract configuration from old block
+	cfg := extractAPIConfig(apiTree)
+
+	// Remove the old block
+	peer.RemoveListEntry("api", key)
+
+	// Create new named blocks for each process
+	for _, procName := range processNames {
+		newAPI := buildNewAPIBlock(cfg)
+		peer.AddListEntry("api", procName, newAPI)
 	}
-
-	// Remove the old anonymous api block
-	peer.RemoveListEntry("api", config.KeyDefault)
-
-	// Create new named api blocks for each process
-	for _, processName := range processNames {
-		newAPI := config.NewTree()
-
-		if hasNeighborChanges {
-			// Add receive { state; } block
-			receive := config.NewTree()
-			receive.Set("state", "true")
-			newAPI.SetContainer("receive", receive)
-		}
-
-		peer.AddListEntry("api", processName, newAPI)
-	}
-
-	// Create new named api blocks for each match pattern
-	for _, pattern := range matchPatterns {
-		newAPI := config.NewTree()
-
-		if hasNeighborChanges {
-			receive := config.NewTree()
-			receive.Set("state", "true")
-			newAPI.SetContainer("receive", receive)
-		}
-
-		peer.AddListEntry("api", pattern, newAPI)
+	for _, procName := range matchPatterns {
+		newAPI := buildNewAPIBlock(cfg)
+		peer.AddListEntry("api", procName, newAPI)
 	}
 
 	return nil
+}
+
+// apiConfig holds extracted configuration from old api block.
+type apiConfig struct {
+	// Format from receive block (parsed/packets/consolidate)
+	format string
+
+	// Message types from receive block
+	receiveUpdate       bool
+	receiveOpen         bool
+	receiveNotification bool
+	receiveKeepalive    bool
+	receiveRefresh      bool
+	receiveOperational  bool
+
+	// State from api-level flags
+	receiveState bool
+
+	// Message types from send block
+	sendUpdate      bool
+	sendRefresh     bool
+	sendKeepalive   bool
+	sendOperational bool
+}
+
+// extractAPIConfig extracts configuration from old-style api block.
+func extractAPIConfig(apiTree *config.Tree) apiConfig {
+	cfg := apiConfig{}
+
+	// Extract neighbor-changes flag from api level (maps to receive { state; })
+	if _, ok := apiTree.GetFlex("neighbor-changes"); ok {
+		cfg.receiveState = true
+	}
+
+	// Extract from receive block
+	if recv := apiTree.GetContainer("receive"); recv != nil {
+		cfg.format = extractFormat(recv)
+		cfg.receiveUpdate = hasFlag(recv, "update")
+		cfg.receiveOpen = hasFlag(recv, "open")
+		cfg.receiveNotification = hasFlag(recv, "notification")
+		cfg.receiveKeepalive = hasFlag(recv, "keepalive")
+		cfg.receiveRefresh = hasFlag(recv, "refresh")
+		cfg.receiveOperational = hasFlag(recv, "operational")
+	}
+
+	// Extract from send block
+	if send := apiTree.GetContainer("send"); send != nil {
+		cfg.sendUpdate = hasFlag(send, "update")
+		cfg.sendRefresh = hasFlag(send, "refresh")
+		cfg.sendKeepalive = hasFlag(send, "keepalive")
+		cfg.sendOperational = hasFlag(send, "operational")
+	}
+
+	return cfg
+}
+
+// extractFormat determines format from parsed/packets/consolidate flags.
+func extractFormat(block *config.Tree) string {
+	hasParsed := hasFlag(block, "parsed")
+	hasPackets := hasFlag(block, "packets")
+	hasConsolidate := hasFlag(block, "consolidate")
+
+	// consolidate implies full format
+	if hasConsolidate {
+		return "full"
+	}
+
+	// Both parsed and packets = full
+	if hasParsed && hasPackets {
+		return "full"
+	}
+
+	// Only packets = raw
+	if hasPackets && !hasParsed {
+		return "raw"
+	}
+
+	// Only parsed or nothing specified = parsed (default)
+	if hasParsed {
+		return "parsed"
+	}
+
+	return "" // No format flags, inherit default
+}
+
+// hasFlag checks if a flag is set in a tree (handles both Get and GetFlex).
+func hasFlag(tree *config.Tree, flag string) bool {
+	if _, ok := tree.Get(flag); ok {
+		return true
+	}
+	if _, ok := tree.GetFlex(flag); ok {
+		return true
+	}
+	return false
+}
+
+// buildNewAPIBlock creates a new api block from extracted config.
+func buildNewAPIBlock(cfg apiConfig) *config.Tree {
+	newAPI := config.NewTree()
+
+	// Add content block if format is specified
+	if cfg.format != "" {
+		content := config.NewTree()
+		content.Set("format", cfg.format)
+		newAPI.SetContainer("content", content)
+	}
+
+	// Add receive block if any receive flags are set
+	if cfg.receiveState || cfg.receiveUpdate || cfg.receiveOpen ||
+		cfg.receiveNotification || cfg.receiveKeepalive || cfg.receiveRefresh ||
+		cfg.receiveOperational {
+		receive := config.NewTree()
+		if cfg.receiveState {
+			receive.Set("state", "true")
+		}
+		if cfg.receiveUpdate {
+			receive.Set("update", "true")
+		}
+		if cfg.receiveOpen {
+			receive.Set("open", "true")
+		}
+		if cfg.receiveNotification {
+			receive.Set("notification", "true")
+		}
+		if cfg.receiveKeepalive {
+			receive.Set("keepalive", "true")
+		}
+		if cfg.receiveRefresh {
+			receive.Set("refresh", "true")
+		}
+		if cfg.receiveOperational {
+			receive.Set("operational", "true")
+		}
+		newAPI.SetContainer("receive", receive)
+	}
+
+	// Add send block if any send flags are set
+	if cfg.sendUpdate || cfg.sendRefresh || cfg.sendKeepalive || cfg.sendOperational {
+		send := config.NewTree()
+		if cfg.sendUpdate {
+			send.Set("update", "true")
+		}
+		if cfg.sendRefresh {
+			send.Set("refresh", "true")
+		}
+		if cfg.sendKeepalive {
+			send.Set("keepalive", "true")
+		}
+		if cfg.sendOperational {
+			send.Set("operational", "true")
+		}
+		newAPI.SetContainer("send", send)
+	}
+
+	return newAPI
 }
 
 // extractProcessNames parses "[ foo bar ]" or "foo bar" format from processes field.

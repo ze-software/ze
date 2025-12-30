@@ -22,19 +22,19 @@ neighbor 192.0.2.1 {
 	tree := parseWithBGPSchema(t, input)
 
 	// Verify it's v2 before migration
-	require.Equal(t, Version2, DetectVersion(tree))
+	require.True(t, NeedsMigration(tree))
 
 	// Migrate
-	result, err := MigrateV2ToV3(tree)
+	result, err := Migrate(tree)
 	require.NoError(t, err)
 	require.NotNil(t, result)
 
 	// Verify neighbor is gone
-	neighbors := result.GetList("neighbor")
+	neighbors := result.Tree.GetList("neighbor")
 	require.Empty(t, neighbors, "neighbor list should be empty after migration")
 
 	// Verify peer exists with correct data
-	peers := result.GetList("peer")
+	peers := result.Tree.GetList("peer")
 	require.Len(t, peers, 1)
 
 	peer := peers["192.0.2.1"]
@@ -45,7 +45,7 @@ neighbor 192.0.2.1 {
 	require.Equal(t, "65000", val)
 
 	// Verify it's now v3
-	require.Equal(t, Version3, DetectVersion(result))
+	require.False(t, NeedsMigration(result.Tree))
 }
 
 // TestMigrateV2ToV3PeerGlobToMatch verifies peer glob→template.match.
@@ -66,19 +66,19 @@ neighbor 192.0.2.1 {
 }
 `
 	tree := parseWithBGPSchema(t, input)
-	require.Equal(t, Version2, DetectVersion(tree))
+	require.True(t, NeedsMigration(tree))
 
-	result, err := MigrateV2ToV3(tree)
+	result, err := Migrate(tree)
 	require.NoError(t, err)
 
 	// Verify root peer globs are gone
-	peers := result.GetList("peer")
+	peers := result.Tree.GetList("peer")
 	require.Len(t, peers, 1, "only non-glob peer should remain")
 	_, hasIP := peers["192.0.2.1"]
 	require.True(t, hasIP)
 
 	// Verify template.match has the globs
-	tmpl := result.GetContainer("template")
+	tmpl := result.Tree.GetContainer("template")
 	require.NotNil(t, tmpl)
 
 	matches := tmpl.GetList("match")
@@ -118,13 +118,13 @@ neighbor 192.0.2.1 {
 }
 `
 	tree := parseWithBGPSchema(t, input)
-	require.Equal(t, Version2, DetectVersion(tree))
+	require.True(t, NeedsMigration(tree))
 
-	result, err := MigrateV2ToV3(tree)
+	result, err := Migrate(tree)
 	require.NoError(t, err)
 
 	// Verify template.neighbor is gone
-	tmpl := result.GetContainer("template")
+	tmpl := result.Tree.GetContainer("template")
 	require.NotNil(t, tmpl)
 
 	oldNeighbors := tmpl.GetList("neighbor")
@@ -167,10 +167,10 @@ neighbor 192.0.2.1 {
 `
 	tree := parseWithBGPSchema(t, input)
 
-	result, err := MigrateV2ToV3(tree)
+	result, err := Migrate(tree)
 	require.NoError(t, err)
 
-	tmpl := result.GetContainer("template")
+	tmpl := result.Tree.GetContainer("template")
 	require.NotNil(t, tmpl)
 
 	// Get ordered matches
@@ -202,11 +202,11 @@ neighbor 172.16.0.1 {
 `
 	tree := parseWithBGPSchema(t, input)
 
-	result, err := MigrateV2ToV3(tree)
+	result, err := Migrate(tree)
 	require.NoError(t, err)
 
 	// Get ordered peers
-	peers := result.GetListOrdered("peer")
+	peers := result.Tree.GetListOrdered("peer")
 	require.Len(t, peers, 3)
 
 	// Verify order is preserved
@@ -232,20 +232,20 @@ neighbor 192.0.2.1 {
 	tree := parseWithBGPSchema(t, input)
 
 	// First migration
-	result1, err := MigrateV2ToV3(tree)
+	result1, err := Migrate(tree)
 	require.NoError(t, err)
 
 	// Second migration (on already-migrated config)
-	result2, err := MigrateV2ToV3(result1)
+	result2, err := Migrate(result1.Tree)
 	require.NoError(t, err)
 
 	// Both should be v3
-	require.Equal(t, Version3, DetectVersion(result1))
-	require.Equal(t, Version3, DetectVersion(result2))
+	require.False(t, NeedsMigration(result1.Tree))
+	require.False(t, NeedsMigration(result2.Tree))
 
 	// Should have same structure
-	peers1 := result1.GetList("peer")
-	peers2 := result2.GetList("peer")
+	peers1 := result1.Tree.GetList("peer")
+	peers2 := result2.Tree.GetList("peer")
 	require.Equal(t, len(peers1), len(peers2))
 }
 
@@ -263,7 +263,7 @@ neighbor 192.0.2.1 {
 	tree := parseWithBGPSchema(t, input)
 
 	// Migrate
-	_, err := MigrateV2ToV3(tree)
+	_, err := Migrate(tree)
 	require.NoError(t, err)
 
 	// Original should still have neighbor
@@ -271,13 +271,13 @@ neighbor 192.0.2.1 {
 	require.Len(t, neighbors, 1, "original should be unchanged")
 }
 
-// TestMigrateV2ToV3NilTree verifies nil tree handling.
+// TestMigrateNilTree verifies nil tree handling.
 //
 // VALIDATES: Nil tree returns ErrNilTree without panic.
 //
 // PREVENTS: Nil pointer dereference.
-func TestMigrateV2ToV3NilTree(t *testing.T) {
-	result, err := MigrateV2ToV3(nil)
+func TestMigrateNilTreeV2ToV3(t *testing.T) {
+	result, err := Migrate(nil)
 	require.ErrorIs(t, err, ErrNilTree)
 	require.Nil(t, result, "nil input should return nil result")
 }
@@ -297,13 +297,13 @@ peer 192.0.2.1 {
 }
 `
 	tree := parseWithBGPSchema(t, input)
-	require.Equal(t, Version2, DetectVersion(tree))
+	require.True(t, NeedsMigration(tree))
 
-	result, err := MigrateV2ToV3(tree)
+	result, err := Migrate(tree)
 	require.NoError(t, err)
 
 	// CIDR pattern should move to template.match
-	tmpl := result.GetContainer("template")
+	tmpl := result.Tree.GetContainer("template")
 	require.NotNil(t, tmpl)
 
 	matches := tmpl.GetList("match")
@@ -315,7 +315,7 @@ peer 192.0.2.1 {
 	require.Equal(t, "90", val)
 
 	// Non-CIDR peer should remain
-	peers := result.GetList("peer")
+	peers := result.Tree.GetList("peer")
 	require.Len(t, peers, 1)
 	_, hasIP := peers["192.0.2.1"]
 	require.True(t, hasIP)
@@ -336,13 +336,13 @@ peer 2001:db8::1 {
 }
 `
 	tree := parseWithBGPSchema(t, input)
-	require.Equal(t, Version2, DetectVersion(tree))
+	require.True(t, NeedsMigration(tree))
 
-	result, err := MigrateV2ToV3(tree)
+	result, err := Migrate(tree)
 	require.NoError(t, err)
 
 	// IPv6 glob pattern should move to template.match
-	tmpl := result.GetContainer("template")
+	tmpl := result.Tree.GetContainer("template")
 	require.NotNil(t, tmpl)
 
 	matches := tmpl.GetList("match")
@@ -354,7 +354,7 @@ peer 2001:db8::1 {
 	require.Equal(t, "90", val)
 
 	// Non-glob IPv6 peer should remain
-	peers := result.GetList("peer")
+	peers := result.Tree.GetList("peer")
 	require.Len(t, peers, 1)
 	_, hasIP := peers["2001:db8::1"]
 	require.True(t, hasIP)
@@ -381,13 +381,13 @@ neighbor 192.0.2.1 {
 }
 `
 	tree := parseWithBGPSchema(t, input)
-	require.Equal(t, Version2, DetectVersion(tree))
+	require.True(t, NeedsMigration(tree))
 
-	result, err := MigrateV2ToV3(tree)
+	result, err := Migrate(tree)
 	require.NoError(t, err)
 
 	// template.neighbor should be renamed to template.group
-	tmpl := result.GetContainer("template")
+	tmpl := result.Tree.GetContainer("template")
 	require.NotNil(t, tmpl)
 
 	oldNeighbors := tmpl.GetList("neighbor")
@@ -405,10 +405,10 @@ neighbor 192.0.2.1 {
 	require.True(t, hasWildcard)
 
 	// neighbor should become peer
-	neighbors := result.GetList("neighbor")
+	neighbors := result.Tree.GetList("neighbor")
 	require.Empty(t, neighbors)
 
-	peers := result.GetList("peer")
+	peers := result.Tree.GetList("peer")
 	require.Len(t, peers, 1)
 }
 
@@ -430,13 +430,13 @@ neighbor 192.0.2.1 {
 }
 `
 	tree := parseWithBGPSchema(t, input)
-	require.Equal(t, Version2, DetectVersion(tree))
+	require.True(t, NeedsMigration(tree))
 
-	result, err := MigrateV2ToV3(tree)
+	result, err := Migrate(tree)
 	require.NoError(t, err)
 
 	// Should be peer now (neighbor→peer)
-	peers := result.GetList("peer")
+	peers := result.Tree.GetList("peer")
 	require.Len(t, peers, 1)
 
 	peer := peers["192.0.2.1"]
@@ -486,12 +486,12 @@ peer 192.0.2.1 {
 	tree := parseWithBGPSchema(t, input)
 
 	// Should detect as v2 because of static block
-	require.Equal(t, Version2, DetectVersion(tree))
+	require.True(t, NeedsMigration(tree))
 
-	result, err := MigrateV2ToV3(tree)
+	result, err := Migrate(tree)
 	require.NoError(t, err)
 
-	peer := result.GetList("peer")["192.0.2.1"]
+	peer := result.Tree.GetList("peer")["192.0.2.1"]
 	require.NotNil(t, peer)
 
 	// static should be gone
@@ -528,13 +528,13 @@ neighbor 192.0.2.1 {
 }
 `
 	tree := parseWithBGPSchema(t, input)
-	require.Equal(t, Version2, DetectVersion(tree))
+	require.True(t, NeedsMigration(tree))
 
-	result, err := MigrateV2ToV3(tree)
+	result, err := Migrate(tree)
 	require.NoError(t, err)
 
 	// template.neighbor should become template.group
-	tmpl := result.GetContainer("template")
+	tmpl := result.Tree.GetContainer("template")
 	require.NotNil(t, tmpl)
 
 	oldNeighbors := tmpl.GetList("neighbor")
@@ -590,12 +590,12 @@ peer 192.0.2.1 {
 	tree := parseWithBGPSchema(t, input)
 
 	// Should detect as v2 because of static in template.group
-	require.Equal(t, Version2, DetectVersion(tree))
+	require.True(t, NeedsMigration(tree))
 
-	result, err := MigrateV2ToV3(tree)
+	result, err := Migrate(tree)
 	require.NoError(t, err)
 
-	tmpl := result.GetContainer("template")
+	tmpl := result.Tree.GetContainer("template")
 	require.NotNil(t, tmpl)
 
 	group := tmpl.GetList("group")["vpn-customers"]

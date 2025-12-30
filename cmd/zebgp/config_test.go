@@ -14,14 +14,13 @@ import (
 // PREVENTS: User confusion about config format version.
 func TestCmdConfigCheck(t *testing.T) {
 	tests := []struct {
-		name           string
-		config         string
-		wantVersion    string
-		wantDeprecated []string
-		wantCurrent    bool
+		name               string
+		config             string
+		wantDeprecated     []string
+		wantNeedsMigration bool
 	}{
 		{
-			name: "v3 config shows current",
+			name: "current config shows no migration needed",
 			config: `
 peer 192.0.2.1 {
 	peer-as 65001;
@@ -35,22 +34,20 @@ template {
 	}
 }
 `,
-			wantVersion: "v3",
-			wantCurrent: true,
+			wantNeedsMigration: false,
 		},
 		{
-			name: "v2 neighbor detected",
+			name: "neighbor detected",
 			config: `
 neighbor 192.0.2.1 {
 	peer-as 65001;
 }
 `,
-			wantVersion:    "v2",
-			wantDeprecated: []string{"neighbor"},
-			wantCurrent:    false,
+			wantDeprecated:     []string{"neighbor"},
+			wantNeedsMigration: true,
 		},
 		{
-			name: "v2 peer glob at root detected",
+			name: "peer glob at root detected",
 			config: `
 peer * {
 	hold-time 90;
@@ -59,12 +56,11 @@ peer 192.0.2.1 {
 	peer-as 65001;
 }
 `,
-			wantVersion:    "v2",
-			wantDeprecated: []string{"peer *"},
-			wantCurrent:    false,
+			wantDeprecated:     []string{"peer *"},
+			wantNeedsMigration: true,
 		},
 		{
-			name: "v2 template.neighbor detected",
+			name: "template.neighbor detected",
 			config: `
 template {
 	neighbor rr {
@@ -75,12 +71,11 @@ peer 192.0.2.1 {
 	peer-as 65001;
 }
 `,
-			wantVersion:    "v2",
-			wantDeprecated: []string{"template.neighbor"},
-			wantCurrent:    false,
+			wantDeprecated:     []string{"template.neighbor"},
+			wantNeedsMigration: true,
 		},
 		{
-			name: "v2 static block detected",
+			name: "static block detected",
 			config: `
 peer 192.0.2.1 {
 	peer-as 65001;
@@ -89,9 +84,8 @@ peer 192.0.2.1 {
 	}
 }
 `,
-			wantVersion:    "v2",
-			wantDeprecated: []string{"static"},
-			wantCurrent:    false,
+			wantDeprecated:     []string{"static"},
+			wantNeedsMigration: true,
 		},
 	}
 
@@ -107,14 +101,9 @@ peer 192.0.2.1 {
 			// Run check command
 			result := runConfigCheck(configPath)
 
-			// Verify version
-			if !strings.Contains(result.version, tt.wantVersion) {
-				t.Errorf("version = %q, want contains %q", result.version, tt.wantVersion)
-			}
-
-			// Verify current status
-			if result.isCurrent != tt.wantCurrent {
-				t.Errorf("isCurrent = %v, want %v", result.isCurrent, tt.wantCurrent)
+			// Verify migration status
+			if result.needsMigration != tt.wantNeedsMigration {
+				t.Errorf("needsMigration = %v, want %v", result.needsMigration, tt.wantNeedsMigration)
 			}
 
 			// Verify deprecated patterns
@@ -131,8 +120,8 @@ peer 192.0.2.1 {
 				}
 			}
 
-			// If config is current, deprecated list must be empty
-			if tt.wantCurrent && len(result.deprecated) > 0 {
+			// If config is current (no migration needed), deprecated list must be empty
+			if !tt.wantNeedsMigration && len(result.deprecated) > 0 {
 				t.Errorf("current config should have no deprecated patterns, got: %v", result.deprecated)
 			}
 		})
@@ -551,7 +540,7 @@ peer 192.0.2.1 {
 				t.Fatalf("write config: %v", err)
 			}
 
-			_, warnings, err := configMigrateWithWarnings(configPath, "")
+			_, _, warnings, err := configMigrateWithWarnings(configPath, "")
 			if err != nil {
 				t.Fatalf("configMigrateWithWarnings: %v", err)
 			}

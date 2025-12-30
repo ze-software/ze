@@ -6,83 +6,6 @@ import (
 	"github.com/exa-networks/zebgp/pkg/config"
 )
 
-// DetectVersion examines a Tree to determine its schema version.
-// Uses heuristic detection based on config structure.
-//
-// Priority: Any deprecated (v2) syntax means config needs migration,
-// even if it also contains some v3 syntax. Check v2 FIRST.
-func DetectVersion(tree *config.Tree) ConfigVersion {
-	if tree == nil {
-		return VersionUnknown
-	}
-
-	// Check oldest to newest - any deprecated syntax = needs migration
-
-	// v2: Has neighbor at root, template.neighbor, or peer glob at root
-	// If ANY deprecated pattern exists, config needs migration
-	if hasV2Patterns(tree) {
-		return Version2
-	}
-
-	// v3: Has peer (not glob) at root, template.group, or template.match
-	if hasV3Patterns(tree) {
-		return Version3
-	}
-
-	// No patterns found = assume current (empty or minimal config)
-	return VersionCurrent
-}
-
-// hasV3Patterns checks for v3 config structure.
-func hasV3Patterns(tree *config.Tree) bool {
-	// v3: template.group or template.match exist
-	if tmpl := tree.GetContainer("template"); tmpl != nil {
-		if hasListEntries(tmpl, "group") || hasListEntries(tmpl, "match") {
-			return true
-		}
-	}
-
-	// v3: has peer at root that is NOT a glob pattern
-	peerList := tree.GetList("peer")
-	for key := range peerList {
-		if !isGlobPattern(key) {
-			return true
-		}
-	}
-
-	return false
-}
-
-// hasV2Patterns checks for v2 config structure.
-func hasV2Patterns(tree *config.Tree) bool {
-	// v2: has "neighbor" at root level
-	if hasListEntries(tree, "neighbor") {
-		return true
-	}
-
-	// v2: has peer glob at root level
-	peerList := tree.GetList("peer")
-	for key := range peerList {
-		if isGlobPattern(key) {
-			return true
-		}
-	}
-
-	// v2: template.neighbor exists
-	if tmpl := tree.GetContainer("template"); tmpl != nil {
-		if hasListEntries(tmpl, "neighbor") {
-			return true
-		}
-	}
-
-	// v2: any peer/neighbor/template.group has static block (should use announce)
-	if hasStaticBlocks(tree) {
-		return true
-	}
-
-	return false
-}
-
 // hasStaticBlocks returns true if any peer, neighbor, template.group, or template.match has a static block.
 // Note: peer+static and template.match+static are defensive checks for scenarios that don't exist in practice.
 func hasStaticBlocks(tree *config.Tree) bool {
@@ -118,6 +41,91 @@ func hasStaticBlocks(tree *config.Tree) bool {
 	return false
 }
 
+// hasOldAPIBlocks returns true if any peer or template block has old-style api syntax.
+// Old style includes:
+//   - Anonymous api block: api { processes [ foo ]; } - uses KeyDefault as key
+//   - Named block with processes: api speaking { processes [ foo ]; }
+//   - Format flags in receive/send: receive { parsed; packets; consolidate; }
+//   - State flag: neighbor-changes
+func hasOldAPIBlocks(tree *config.Tree) bool {
+	// Check peer blocks
+	for _, entry := range tree.GetList("peer") {
+		if hasOldStyleAPI(entry) {
+			return true
+		}
+	}
+
+	// Check neighbor blocks (defensive - should be caught by neighbor detection)
+	for _, entry := range tree.GetList("neighbor") {
+		if hasOldStyleAPI(entry) {
+			return true
+		}
+	}
+
+	// Check template.group and template.match blocks
+	if tmpl := tree.GetContainer("template"); tmpl != nil {
+		for _, entry := range tmpl.GetList("group") {
+			if hasOldStyleAPI(entry) {
+				return true
+			}
+		}
+		for _, entry := range tmpl.GetList("match") {
+			if hasOldStyleAPI(entry) {
+				return true
+			}
+		}
+	}
+
+	return false
+}
+
+// hasOldStyleAPI returns true if any api block in the tree uses old syntax.
+func hasOldStyleAPI(tree *config.Tree) bool {
+	apiList := tree.GetList("api")
+	for _, apiTree := range apiList {
+		if isOldStyleAPIBlock(apiTree) {
+			return true
+		}
+	}
+	return false
+}
+
+// isOldStyleAPIBlock returns true if an api block uses old syntax.
+func isOldStyleAPIBlock(apiTree *config.Tree) bool {
+	// Check for processes/processes-match field
+	if _, ok := apiTree.Get("processes"); ok {
+		return true
+	}
+	if _, ok := apiTree.Get("processes-match"); ok {
+		return true
+	}
+
+	// Check for neighbor-changes flag at api level (maps to receive { state; })
+	if _, ok := apiTree.GetFlex("neighbor-changes"); ok {
+		return true
+	}
+
+	// Check for format flags in receive block (parsed, packets, consolidate)
+	if recv := apiTree.GetContainer("receive"); recv != nil {
+		for _, flag := range []string{"parsed", "packets", "consolidate"} {
+			if _, ok := recv.GetFlex(flag); ok {
+				return true
+			}
+		}
+	}
+
+	// Check for format flags in send block (will be dropped during migration)
+	if send := apiTree.GetContainer("send"); send != nil {
+		for _, flag := range []string{"parsed", "packets", "consolidate"} {
+			if _, ok := send.GetFlex(flag); ok {
+				return true
+			}
+		}
+	}
+
+	return false
+}
+
 // hasListEntries returns true if the tree has any entries for the given list name.
 func hasListEntries(tree *config.Tree, listName string) bool {
 	list := tree.GetList(listName)
@@ -127,4 +135,30 @@ func hasListEntries(tree *config.Tree, listName string) bool {
 // isGlobPattern returns true if the pattern contains wildcards or CIDR notation.
 func isGlobPattern(pattern string) bool {
 	return strings.Contains(pattern, "*") || strings.Contains(pattern, "/")
+}
+
+// --- Individual detection functions for transformation registry ---
+
+// hasNeighborAtRoot returns true if tree has neighbor entries at root level.
+func hasNeighborAtRoot(tree *config.Tree) bool {
+	return hasListEntries(tree, "neighbor")
+}
+
+// hasPeerGlobPattern returns true if tree has peer entries with glob patterns.
+func hasPeerGlobPattern(tree *config.Tree) bool {
+	peerList := tree.GetList("peer")
+	for key := range peerList {
+		if isGlobPattern(key) {
+			return true
+		}
+	}
+	return false
+}
+
+// hasTemplateNeighbor returns true if tree has template.neighbor entries.
+func hasTemplateNeighbor(tree *config.Tree) bool {
+	if tmpl := tree.GetContainer("template"); tmpl != nil {
+		return hasListEntries(tmpl, "neighbor")
+	}
+	return false
 }
