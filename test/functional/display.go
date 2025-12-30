@@ -57,8 +57,8 @@ func (d *Display) Status() {
 	d.tests.mu.RLock()
 	defer d.tests.mu.RUnlock()
 
-	var passed, failed, running, pending int
-	var failedNicks, pendingNicks []string
+	var passed, failed, timedOut, running, pending int
+	var failedNicks, timedOutNicks, pendingNicks []string
 	var maxRunningElapsed time.Duration
 
 	now := time.Now()
@@ -67,9 +67,12 @@ func (d *Display) Status() {
 		switch r.State {
 		case StateSuccess:
 			passed++
-		case StateFail, StateTimeout:
+		case StateFail:
 			failed++
 			failedNicks = append(failedNicks, nick)
+		case StateTimeout:
+			timedOut++
+			timedOutNicks = append(timedOutNicks, nick)
 		case StateRunning, StateStarting:
 			running++
 			// Track longest running test
@@ -119,6 +122,15 @@ func (d *Display) Status() {
 			failedStr += fmt.Sprintf(" [%s]", strings.Join(failedNicks, ", "))
 		}
 		parts = append(parts, failedStr)
+	}
+
+	// Timed out count with IDs
+	if timedOut > 0 {
+		timedOutStr := fmt.Sprintf("%s %d", d.colors.Yellow("timed out"), timedOut)
+		if len(timedOutNicks) > 0 && len(timedOutNicks) <= 10 {
+			timedOutStr += fmt.Sprintf(" [%s]", strings.Join(timedOutNicks, ", "))
+		}
+		parts = append(parts, timedOutStr)
 	}
 
 	// Pending count with IDs (if small)
