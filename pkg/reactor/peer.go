@@ -2148,13 +2148,14 @@ func (p *Peer) sendMVPNRoutes() {
 		trace.Log(trace.Routes, "peer %s: skipping %d IPv6 MVPN routes (not negotiated)", addr, skippedIPv6)
 	}
 
-	// Send IPv4 MVPN routes grouped by next-hop
+	// Send IPv4 MVPN routes grouped by next-hop (sorted for deterministic order)
 	if len(ipv4Routes) > 0 {
 		ipv4MVPNFamily := nlri.Family{AFI: 1, SAFI: 5} // IPv4 MVPN
 		ctx := p.packContext(ipv4MVPNFamily)
 		ub := message.NewUpdateBuilder(p.settings.LocalAS, p.settings.IsIBGP(), ctx)
 		ipv4Groups := groupMVPNRoutesByNextHop(ipv4Routes)
-		for nh, routes := range ipv4Groups {
+		for _, nh := range sortedKeys(ipv4Groups) {
+			routes := ipv4Groups[nh]
 			update := ub.BuildMVPN(toMVPNParams(routes))
 			if err := p.SendUpdate(update); err != nil {
 				trace.Log(trace.Routes, "peer %s: MVPN send error: %v", addr, err)
@@ -2164,13 +2165,14 @@ func (p *Peer) sendMVPNRoutes() {
 		}
 	}
 
-	// Send IPv6 MVPN routes grouped by next-hop
+	// Send IPv6 MVPN routes grouped by next-hop (sorted for deterministic order)
 	if len(ipv6Routes) > 0 {
 		ipv6MVPNFamily := nlri.Family{AFI: 2, SAFI: 5} // IPv6 MVPN
 		ctx := p.packContext(ipv6MVPNFamily)
 		ub := message.NewUpdateBuilder(p.settings.LocalAS, p.settings.IsIBGP(), ctx)
 		ipv6Groups := groupMVPNRoutesByNextHop(ipv6Routes)
-		for nh, routes := range ipv6Groups {
+		for _, nh := range sortedKeys(ipv6Groups) {
+			routes := ipv6Groups[nh]
 			update := ub.BuildMVPN(toMVPNParams(routes))
 			if err := p.SendUpdate(update); err != nil {
 				trace.Log(trace.Routes, "peer %s: MVPN send error: %v", addr, err)
@@ -2200,6 +2202,16 @@ func groupMVPNRoutesByNextHop(routes []MVPNRoute) map[string][]MVPNRoute {
 		groups[key] = append(groups[key], route)
 	}
 	return groups
+}
+
+// sortedKeys returns map keys in sorted order for deterministic iteration.
+func sortedKeys[V any](m map[string]V) []string {
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	return keys
 }
 
 // sendVPLSRoutes sends VPLS routes configured for this peer.
