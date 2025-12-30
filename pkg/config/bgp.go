@@ -164,8 +164,13 @@ func routeAttributes() []FieldDef {
 }
 
 // peerFields returns the common field definitions for neighbor and template schemas.
+// Field order determines serialization order in generated configs.
 func peerFields() []FieldDef {
 	return []FieldDef{
+		// Template inheritance (first, so it's clear what template is used)
+		Field("inherit", Leaf(TypeString)),
+
+		// Basic peer identification
 		Field("description", Leaf(TypeString)),
 		Field("router-id", Leaf(TypeIPv4)),
 		Field("local-address", Leaf(TypeString)), // IP address or "auto"
@@ -174,22 +179,8 @@ func peerFields() []FieldDef {
 		Field("hold-time", LeafWithDefault(TypeUint16, "90")),
 		Field("passive", LeafWithDefault(TypeBool, "false")),
 		Field("group-updates", LeafWithDefault(TypeBool, configTrue)),
-		Field("host-name", Leaf(TypeString)),
-		Field("domain-name", Leaf(TypeString)),
-		Field("md5-password", Leaf(TypeString)),
-		Field("md5-ip", Leaf(TypeIP)),
-		Field("ttl-security", Leaf(TypeUint16)),
-		Field("outgoing-ttl", Leaf(TypeUint16)),
-		Field("incoming-ttl", Leaf(TypeUint16)),
-		Field("multi-session", LeafWithDefault(TypeBool, "false")),
-		Field("inherit", Leaf(TypeString)),  // template name
-		Field("nexthop", Freeform()),        // nexthop configuration
-		Field("manual-eor", Leaf(TypeBool)), // manual end-of-RIB
-		Field("auto-flush", Leaf(TypeBool)), // auto-flush routes
-		Field("adj-rib-out", Leaf(TypeBool)),
-		Field("adj-rib-in", Leaf(TypeBool)),
 
-		// Address families: "ipv4 unicast", "ipv6 unicast", etc.
+		// Address families (before capability)
 		Field("family", FamilyBlock()), // { ipv4 unicast; ipv4 { unicast require; } }
 
 		// Capabilities
@@ -210,6 +201,21 @@ func peerFields() []FieldDef {
 			Field("aigp", Flex()),
 			Field("software-version", Flex()),
 		)),
+
+		// Additional peer settings
+		Field("host-name", Leaf(TypeString)),
+		Field("domain-name", Leaf(TypeString)),
+		Field("md5-password", Leaf(TypeString)),
+		Field("md5-ip", Leaf(TypeIP)),
+		Field("ttl-security", Leaf(TypeUint16)),
+		Field("outgoing-ttl", Leaf(TypeUint16)),
+		Field("incoming-ttl", Leaf(TypeUint16)),
+		Field("multi-session", LeafWithDefault(TypeBool, "false")),
+		Field("nexthop", Freeform()),        // nexthop configuration
+		Field("manual-eor", Leaf(TypeBool)), // manual end-of-RIB
+		Field("auto-flush", Leaf(TypeBool)), // auto-flush routes
+		Field("adj-rib-out", Leaf(TypeBool)),
+		Field("adj-rib-in", Leaf(TypeBool)),
 
 		// Announce routes - structured by AFI/SAFI
 		// announce { ipv4 { unicast <prefix> <attrs>; } ipv6 { unicast <prefix> <attrs>; } }
@@ -306,15 +312,15 @@ func BGPSchema() *Schema {
 		Field("respawn", Leaf(TypeBool)),    // respawn on exit
 	))
 
-	// Peer definitions - actual BGP sessions (v3: requires IP address)
-	schema.Define("peer", List(TypeIP, peerFields()...))
-
 	// Template definitions - named templates and glob patterns (v3)
 	// template { group <name> { ... }; match <pattern> { ... } }
 	schema.Define("template", Container(
 		Field("group", List(TypeString, peerFields()...)), // Named templates (inherit <name>)
 		Field("match", List(TypeString, peerFields()...)), // Glob patterns (auto-apply by IP)
 	))
+
+	// Peer definitions - actual BGP sessions (v3: requires IP address)
+	schema.Define("peer", List(TypeIP, peerFields()...))
 
 	return schema
 }
@@ -1248,7 +1254,7 @@ func applyRIBOutParseResult(cfg *RIBOutConfig, parsed ribOutParseResult) {
 
 // parseAPIBindings parses API bindings from a peer tree.
 // Supports both old and new syntax:
-//   - Old: api { processes [ foo bar ]; } - uses _anonymous key
+//   - Old: api { processes [ foo bar ]; } - uses KeyDefault
 //   - New: api <process-name> { content { encoding json; } receive { update; } }
 func parseAPIBindings(tree *Tree) []PeerAPIBinding {
 	var bindings []PeerAPIBinding
@@ -1268,7 +1274,7 @@ func parseAPIBindings(tree *Tree) []PeerAPIBinding {
 
 	for _, key := range keys {
 		apiTree := apiList[key]
-		if key == "_anonymous" {
+		if key == KeyDefault {
 			// Old syntax: api { processes [ foo bar ]; }
 			bindings = append(bindings, parseOldAPIBindings(apiTree)...)
 		} else {

@@ -4,6 +4,9 @@ import (
 	"fmt"
 )
 
+// KeyDefault is the key used for anonymous list entries (e.g., "api { ... }").
+const KeyDefault = "default"
+
 // Tree represents parsed configuration data.
 type Tree struct {
 	values      map[string]string
@@ -437,7 +440,7 @@ func (p *Parser) parseContainer(tree *Tree, name string, node *ContainerNode) er
 }
 
 // parseList parses a list entry: `name key { ... }` or `name { ... }` (anonymous).
-// Anonymous entries use "_anonymous" as the key for backward compatibility.
+// Anonymous entries use KeyDefault as the key.
 func (p *Parser) parseList(tree *Tree, name string, node *ListNode) error {
 	tok := p.tok.Peek()
 	var key string
@@ -445,8 +448,8 @@ func (p *Parser) parseList(tree *Tree, name string, node *ListNode) error {
 	// Check for anonymous block (no key, direct `{`) or named entry
 	switch tok.Type { //nolint:exhaustive // default handles all other token types
 	case TokenLBrace:
-		// Anonymous entry - use special key
-		key = "_anonymous"
+		// Anonymous entry - use default key
+		key = KeyDefault
 	case TokenWord, TokenString:
 		// Named entry
 		key = tok.Value

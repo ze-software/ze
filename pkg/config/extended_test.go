@@ -256,10 +256,10 @@ peer 192.0.2.1 {
 	neighbors := tree.GetList("peer")
 	n := neighbors["192.0.2.1"]
 
-	// api is now List(TypeString, ...), so use GetList with _anonymous key
+	// api is now List(TypeString, ...), so use GetList with KeyDefault key
 	apiList := n.GetList("api")
 	require.NotNil(t, apiList)
-	api := apiList["_anonymous"]
+	api := apiList[KeyDefault]
 	require.NotNil(t, api, "anonymous api block should exist")
 
 	val, ok := api.Get("processes")
@@ -290,10 +290,10 @@ peer 192.0.2.1 {
 	neighbors := tree.GetList("peer")
 	n := neighbors["192.0.2.1"]
 
-	// api is now List(TypeString, ...), so use GetList with _anonymous key
+	// api is now List(TypeString, ...), so use GetList with KeyDefault key
 	apiList := n.GetList("api")
 	require.NotNil(t, apiList)
-	api := apiList["_anonymous"]
+	api := apiList[KeyDefault]
 	require.NotNil(t, api, "anonymous api block should exist")
 
 	val, ok := api.Get("processes")

@@ -18,6 +18,19 @@ func stripListKeySuffix(key string) string {
 	return key
 }
 
+// normalizeBool converts internal boolean values to config format.
+// Converts true → enable, false → disable.
+func normalizeBool(v string) string {
+	switch v {
+	case configTrue:
+		return configEnable
+	case configFalse:
+		return configDisable
+	default:
+		return v
+	}
+}
+
 // Serialize converts a Tree back to ExaBGP config format.
 func Serialize(tree *Tree, schema *Schema) string {
 	var b strings.Builder
@@ -67,7 +80,7 @@ func serializeNode(b *strings.Builder, tree *Tree, name string, node Node, inden
 			b.WriteString(prefix)
 			b.WriteString(name)
 			b.WriteString(" ")
-			b.WriteString(quoteIfNeeded(v))
+			b.WriteString(quoteIfNeeded(normalizeBool(v)))
 			b.WriteString(";\n")
 		}
 
@@ -112,8 +125,11 @@ func serializeNode(b *strings.Builder, tree *Tree, name string, node Node, inden
 				entry := entries[key]
 				b.WriteString(prefix)
 				b.WriteString(name)
-				b.WriteString(" ")
-				b.WriteString(quoteIfNeeded(key))
+				// Skip outputting KeyDefault - it's the implicit default
+				if key != KeyDefault {
+					b.WriteString(" ")
+					b.WriteString(quoteIfNeeded(key))
+				}
 				b.WriteString(" {\n")
 				serializeListEntry(b, entry, n, indent+1)
 				b.WriteString(prefix)
@@ -134,7 +150,9 @@ func serializeNode(b *strings.Builder, tree *Tree, name string, node Node, inden
 	case *FamilyBlockNode:
 		// FamilyBlockNode stores families as "AFI SAFI" -> "mode"
 		// Serialize using inline syntax for simplicity
+		// Add blank line before family for readability
 		if child := tree.containers[name]; child != nil {
+			b.WriteString("\n")
 			b.WriteString(prefix)
 			b.WriteString(name)
 			b.WriteString(" {\n")

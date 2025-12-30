@@ -77,14 +77,14 @@ func migrateAPIFromPeer(location string, peer *config.Tree) error {
 		return nil
 	}
 
-	// Get the api list - old syntax uses _anonymous key
+	// Get the api list - old syntax uses KeyDefault
 	apiList := peer.GetList("api")
 	if len(apiList) == 0 {
 		return nil
 	}
 
 	// Check for old anonymous syntax
-	anonymousAPI := apiList["_anonymous"]
+	anonymousAPI := apiList[config.KeyDefault]
 	if anonymousAPI == nil {
 		// Already using new syntax or no api block
 		return nil
@@ -130,7 +130,7 @@ func migrateAPIFromPeer(location string, peer *config.Tree) error {
 	}
 
 	// Remove the old anonymous api block
-	peer.RemoveListEntry("api", "_anonymous")
+	peer.RemoveListEntry("api", config.KeyDefault)
 
 	// Create new named api blocks for each process
 	for _, processName := range processNames {

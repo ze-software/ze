@@ -33,7 +33,7 @@ peer 10.0.0.1 {
 	require.NotNil(t, peer)
 
 	apiList := peer.GetList("api")
-	require.NotContains(t, apiList, "_anonymous", "old anonymous block should be removed")
+	require.NotContains(t, apiList, config.KeyDefault, "old anonymous block should be removed")
 	require.Contains(t, apiList, "foo", "new named block should exist")
 }
 
@@ -62,7 +62,7 @@ peer 10.0.0.1 {
 	peer := migrated.GetList("peer")["10.0.0.1"]
 	apiList := peer.GetList("api")
 
-	require.NotContains(t, apiList, "_anonymous")
+	require.NotContains(t, apiList, config.KeyDefault)
 	require.Contains(t, apiList, "foo", "foo binding should exist")
 	require.Contains(t, apiList, "bar", "bar binding should exist")
 }
@@ -157,7 +157,7 @@ peer 10.0.0.1 {
 	peer := migrated.GetList("peer")["10.0.0.1"]
 	apiList := peer.GetList("api")
 
-	require.NotContains(t, apiList, "_anonymous", "no anonymous block")
+	require.NotContains(t, apiList, config.KeyDefault, "no anonymous block")
 	require.Contains(t, apiList, "foo", "foo binding preserved")
 
 	// Verify receive block preserved
@@ -196,7 +196,7 @@ template {
 	require.NotNil(t, defaultGroup)
 
 	apiList := defaultGroup.GetList("api")
-	require.NotContains(t, apiList, "_anonymous")
+	require.NotContains(t, apiList, config.KeyDefault)
 	require.Contains(t, apiList, "collector")
 
 	// Check receive { state; }
@@ -264,7 +264,7 @@ peer 10.0.0.1 {
 	peer := migrated.GetList("peer")["10.0.0.1"]
 	apiList := peer.GetList("api")
 
-	require.NotContains(t, apiList, "_anonymous")
+	require.NotContains(t, apiList, config.KeyDefault)
 	require.Contains(t, apiList, "^collector.*", "pattern should be migrated as api key")
 }
 
@@ -456,7 +456,7 @@ neighbor 10.0.0.1 {
 
 	// API should be migrated to new syntax
 	apiList := peer.GetList("api")
-	require.NotContains(t, apiList, "_anonymous")
+	require.NotContains(t, apiList, config.KeyDefault)
 	require.Contains(t, apiList, "watcher")
 
 	watcherAPI := apiList["watcher"]
