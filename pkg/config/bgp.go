@@ -1469,6 +1469,13 @@ func extractRoutesFromTree(tree *Tree) ([]StaticRouteConfig, error) {
 				}
 				routes = append(routes, sr)
 			}
+			for _, entry := range ipv4.GetListOrdered("mpls-vpn") {
+				sr, err := parseRouteConfig(entry.Key, entry.Value)
+				if err != nil {
+					return nil, err
+				}
+				routes = append(routes, sr)
+			}
 		}
 		// Parse IPv6 routes
 		if ipv6 := announce.GetContainer("ipv6"); ipv6 != nil {
@@ -1480,6 +1487,13 @@ func extractRoutesFromTree(tree *Tree) ([]StaticRouteConfig, error) {
 				routes = append(routes, sr)
 			}
 			for _, entry := range ipv6.GetListOrdered("multicast") {
+				sr, err := parseRouteConfig(entry.Key, entry.Value)
+				if err != nil {
+					return nil, err
+				}
+				routes = append(routes, sr)
+			}
+			for _, entry := range ipv6.GetListOrdered("mpls-vpn") {
 				sr, err := parseRouteConfig(entry.Key, entry.Value)
 				if err != nil {
 					return nil, err
