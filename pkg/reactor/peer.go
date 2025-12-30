@@ -34,6 +34,10 @@ type NegotiatedFamilies struct {
 	IPv4Unicast bool
 	IPv6Unicast bool
 
+	// Labeled Unicast (RFC 8277, SAFI 4)
+	IPv4LabeledUnicast bool
+	IPv6LabeledUnicast bool
+
 	// MPLS-VPN (RFC 4364)
 	IPv4MPLSVPN bool
 	IPv6MPLSVPN bool
@@ -66,10 +70,12 @@ type NegotiatedFamilies struct {
 	IPv6MPLSVPNExtNH bool // IPv6 mpls-vpn can use IPv4 next-hop
 
 	// RFC 7911: ADD-PATH - allows multiple paths per prefix
-	IPv4UnicastAddPath bool // IPv4 unicast supports ADD-PATH
-	IPv6UnicastAddPath bool // IPv6 unicast supports ADD-PATH
-	IPv4MPLSVPNAddPath bool // IPv4 mpls-vpn supports ADD-PATH
-	IPv6MPLSVPNAddPath bool // IPv6 mpls-vpn supports ADD-PATH
+	IPv4UnicastAddPath        bool // IPv4 unicast supports ADD-PATH
+	IPv6UnicastAddPath        bool // IPv6 unicast supports ADD-PATH
+	IPv4LabeledUnicastAddPath bool // IPv4 labeled-unicast supports ADD-PATH
+	IPv6LabeledUnicastAddPath bool // IPv6 labeled-unicast supports ADD-PATH
+	IPv4MPLSVPNAddPath        bool // IPv4 mpls-vpn supports ADD-PATH
+	IPv6MPLSVPNAddPath        bool // IPv6 mpls-vpn supports ADD-PATH
 }
 
 // computeNegotiatedFamilies extracts family flags from capability negotiation.
@@ -92,6 +98,12 @@ func computeNegotiatedFamilies(neg *capability.Negotiated) *NegotiatedFamilies {
 			nf.IPv4Unicast = true
 		case afi == capability.AFIIPv6 && safi == capability.SAFIUnicast:
 			nf.IPv6Unicast = true
+
+		// Labeled Unicast (RFC 8277, SAFI 4)
+		case afi == capability.AFIIPv4 && safi == capability.SAFIMPLSLabel:
+			nf.IPv4LabeledUnicast = true
+		case afi == capability.AFIIPv6 && safi == capability.SAFIMPLSLabel:
+			nf.IPv6LabeledUnicast = true
 
 		// MPLS-VPN (RFC 4364)
 		case afi == capability.AFIIPv4 && safi == capability.SAFIMPLS:
@@ -151,6 +163,16 @@ func computeNegotiatedFamilies(neg *capability.Negotiated) *NegotiatedFamilies {
 	ipv6Mode := neg.AddPathMode(capability.Family{AFI: capability.AFIIPv6, SAFI: capability.SAFIUnicast})
 	if ipv6Mode == capability.AddPathSend || ipv6Mode == capability.AddPathBoth {
 		nf.IPv6UnicastAddPath = true
+	}
+
+	// RFC 7911: Check ADD-PATH for labeled-unicast families (SAFI 4)
+	ipv4LabeledMode := neg.AddPathMode(capability.Family{AFI: capability.AFIIPv4, SAFI: capability.SAFIMPLSLabel})
+	if ipv4LabeledMode == capability.AddPathSend || ipv4LabeledMode == capability.AddPathBoth {
+		nf.IPv4LabeledUnicastAddPath = true
+	}
+	ipv6LabeledMode := neg.AddPathMode(capability.Family{AFI: capability.AFIIPv6, SAFI: capability.SAFIMPLSLabel})
+	if ipv6LabeledMode == capability.AddPathSend || ipv6LabeledMode == capability.AddPathBoth {
+		nf.IPv6LabeledUnicastAddPath = true
 	}
 
 	// RFC 7911: Check ADD-PATH for MPLS-VPN families
@@ -438,6 +460,10 @@ func (p *Peer) packContext(family nlri.Family) *nlri.PackContext {
 		ctx.AddPath = nf.IPv4UnicastAddPath
 	case family.AFI == nlri.AFIIPv6 && family.SAFI == nlri.SAFIUnicast:
 		ctx.AddPath = nf.IPv6UnicastAddPath
+	case family.AFI == nlri.AFIIPv4 && family.SAFI == nlri.SAFIMPLSLabel:
+		ctx.AddPath = nf.IPv4LabeledUnicastAddPath
+	case family.AFI == nlri.AFIIPv6 && family.SAFI == nlri.SAFIMPLSLabel:
+		ctx.AddPath = nf.IPv6LabeledUnicastAddPath
 	case family.AFI == nlri.AFIIPv4 && family.SAFI == nlri.SAFIVPN:
 		ctx.AddPath = nf.IPv4MPLSVPNAddPath
 	case family.AFI == nlri.AFIIPv6 && family.SAFI == nlri.SAFIVPN:
@@ -1255,6 +1281,16 @@ func (p *Peer) sendInitialRoutes() {
 	if nf.IPv6Unicast {
 		_ = p.SendUpdate(message.BuildEOR(nlri.Family{AFI: 2, SAFI: 1}))
 		trace.Log(trace.Routes, "peer %s: sent IPv6 Unicast EOR", addr)
+	}
+
+	// Send EOR for ALL negotiated labeled-unicast families per RFC 4724 Section 4.
+	if nf.IPv4LabeledUnicast {
+		_ = p.SendUpdate(message.BuildEOR(nlri.Family{AFI: 1, SAFI: 4}))
+		trace.Log(trace.Routes, "peer %s: sent IPv4 Labeled-Unicast EOR", addr)
+	}
+	if nf.IPv6LabeledUnicast {
+		_ = p.SendUpdate(message.BuildEOR(nlri.Family{AFI: 2, SAFI: 4}))
+		trace.Log(trace.Routes, "peer %s: sent IPv6 Labeled-Unicast EOR", addr)
 	}
 
 	// Send EOR for ALL negotiated MPLS-VPN families per RFC 4724 Section 4.

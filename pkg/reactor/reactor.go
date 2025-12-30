@@ -520,15 +520,113 @@ func (a *reactorAPIAdapter) WithdrawL3VPN(_ string, _ api.L3VPNRoute) error {
 }
 
 // AnnounceLabeledUnicast announces an MPLS labeled unicast route (SAFI 4).
-// TODO: Implement when labeled-unicast RIB integration is complete.
-func (a *reactorAPIAdapter) AnnounceLabeledUnicast(_ string, _ api.LabeledUnicastRoute) error {
-	return errors.New("labeled-unicast: not implemented")
+// RFC 8277 - Using BGP to Bind MPLS Labels to Address Prefixes.
+func (a *reactorAPIAdapter) AnnounceLabeledUnicast(peerSelector string, route api.LabeledUnicastRoute) error {
+	peers := a.getMatchingPeers(peerSelector)
+	if len(peers) == 0 {
+		return errors.New("no peers match selector")
+	}
+
+	// Default label if not specified
+	label := uint32(0)
+	if len(route.Labels) > 0 {
+		label = route.Labels[0]
+	}
+
+	var lastErr error
+	for _, peer := range peers {
+		if peer.State() != PeerStateEstablished {
+			continue
+		}
+
+		isIBGP := peer.Settings().IsIBGP()
+		family := nlri.Family{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIMPLSLabel}
+		if route.Prefix.Addr().Is6() {
+			family.AFI = nlri.AFIIPv6
+		}
+		ctx := peer.packContext(family)
+
+		// Build UPDATE using UpdateBuilder
+		ub := message.NewUpdateBuilder(a.r.config.LocalAS, isIBGP, ctx)
+
+		// Convert API route to LabeledUnicastParams
+		params := message.LabeledUnicastParams{
+			Prefix:  route.Prefix,
+			NextHop: route.NextHop,
+			Label:   label,
+			Origin:  attribute.OriginIGP,
+		}
+
+		// Set optional attributes
+		if route.Origin != nil {
+			params.Origin = attribute.Origin(*route.Origin)
+		}
+		if route.LocalPreference != nil {
+			params.LocalPreference = *route.LocalPreference
+		}
+		if route.MED != nil {
+			params.MED = *route.MED
+		}
+		if len(route.ASPath) > 0 {
+			params.ASPath = route.ASPath
+		}
+		if len(route.Communities) > 0 {
+			params.Communities = route.Communities
+		}
+		if len(route.LargeCommunities) > 0 {
+			lc := make([][3]uint32, len(route.LargeCommunities))
+			for i, c := range route.LargeCommunities {
+				lc[i] = [3]uint32{c.GlobalAdmin, c.LocalData1, c.LocalData2}
+			}
+			params.LargeCommunities = lc
+		}
+		if len(route.ExtendedCommunities) > 0 {
+			params.ExtCommunityBytes = attribute.ExtendedCommunities(route.ExtendedCommunities).Pack()
+		}
+
+		update := ub.BuildLabeledUnicast(params)
+		if err := peer.SendUpdate(update); err != nil {
+			lastErr = err
+		}
+	}
+	return lastErr
 }
 
 // WithdrawLabeledUnicast withdraws an MPLS labeled unicast route.
-// TODO: Implement when labeled-unicast RIB integration is complete.
-func (a *reactorAPIAdapter) WithdrawLabeledUnicast(_ string, _ api.LabeledUnicastRoute) error {
-	return errors.New("labeled-unicast: not implemented")
+// RFC 8277 - Uses MP_UNREACH_NLRI with SAFI 4.
+func (a *reactorAPIAdapter) WithdrawLabeledUnicast(peerSelector string, route api.LabeledUnicastRoute) error {
+	peers := a.getMatchingPeers(peerSelector)
+	if len(peers) == 0 {
+		return errors.New("no peers match selector")
+	}
+
+	var lastErr error
+	for _, peer := range peers {
+		if peer.State() != PeerStateEstablished {
+			continue
+		}
+
+		family := nlri.Family{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIMPLSLabel}
+		if route.Prefix.Addr().Is6() {
+			family.AFI = nlri.AFIIPv6
+		}
+		ctx := peer.packContext(family)
+
+		// Build withdrawal using existing helper
+		staticRoute := StaticRoute{
+			Prefix: route.Prefix,
+			Label:  0x800000, // Withdraw label
+		}
+		if len(route.Labels) > 0 {
+			staticRoute.Label = route.Labels[0]
+		}
+
+		update := buildMPUnreachLabeledUnicast(staticRoute, ctx)
+		if err := peer.SendUpdate(update); err != nil {
+			lastErr = err
+		}
+	}
+	return lastErr
 }
 
 // TeardownPeer gracefully closes a peer session with NOTIFICATION.

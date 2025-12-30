@@ -929,6 +929,58 @@ func TestComputeNegotiatedFamiliesMUP(t *testing.T) {
 	require.True(t, result.IPv6MUP, "IPv6 MUP should be negotiated")
 }
 
+// TestComputeNegotiatedFamiliesLabeledUnicast verifies labeled-unicast family extraction.
+//
+// VALIDATES: Labeled unicast (SAFI=4) for IPv4/IPv6 is correctly identified.
+//
+// PREVENTS: Labeled-unicast routes being sent when not negotiated, EOR not sent.
+func TestComputeNegotiatedFamiliesLabeledUnicast(t *testing.T) {
+	local := []capability.Capability{
+		&capability.Multiprotocol{AFI: capability.AFIIPv4, SAFI: capability.SAFIMPLSLabel},
+		&capability.Multiprotocol{AFI: capability.AFIIPv6, SAFI: capability.SAFIMPLSLabel},
+	}
+	remote := []capability.Capability{
+		&capability.Multiprotocol{AFI: capability.AFIIPv4, SAFI: capability.SAFIMPLSLabel},
+		// Remote does NOT support IPv6 labeled-unicast
+	}
+
+	neg := capability.Negotiate(local, remote, 65000, 65001)
+	result := computeNegotiatedFamilies(neg)
+
+	require.True(t, result.IPv4LabeledUnicast, "IPv4 labeled-unicast should be negotiated")
+	require.False(t, result.IPv6LabeledUnicast, "IPv6 labeled-unicast should NOT be negotiated")
+}
+
+// TestComputeNegotiatedFamiliesLabeledUnicastAddPath verifies ADD-PATH for labeled-unicast.
+//
+// VALIDATES: ADD-PATH capability is correctly extracted for labeled-unicast families.
+//
+// PREVENTS: ADD-PATH encoding not applied for labeled-unicast routes.
+func TestComputeNegotiatedFamiliesLabeledUnicastAddPath(t *testing.T) {
+	local := []capability.Capability{
+		&capability.Multiprotocol{AFI: capability.AFIIPv4, SAFI: capability.SAFIMPLSLabel},
+		&capability.AddPath{
+			Families: []capability.AddPathFamily{
+				{AFI: capability.AFIIPv4, SAFI: capability.SAFIMPLSLabel, Mode: capability.AddPathBoth},
+			},
+		},
+	}
+	remote := []capability.Capability{
+		&capability.Multiprotocol{AFI: capability.AFIIPv4, SAFI: capability.SAFIMPLSLabel},
+		&capability.AddPath{
+			Families: []capability.AddPathFamily{
+				{AFI: capability.AFIIPv4, SAFI: capability.SAFIMPLSLabel, Mode: capability.AddPathBoth},
+			},
+		},
+	}
+
+	neg := capability.Negotiate(local, remote, 65000, 65001)
+	result := computeNegotiatedFamilies(neg)
+
+	require.True(t, result.IPv4LabeledUnicast, "IPv4 labeled-unicast should be negotiated")
+	require.True(t, result.IPv4LabeledUnicastAddPath, "IPv4 labeled-unicast ADD-PATH should be negotiated")
+}
+
 // TestRouteFamilyIPv4Unicast verifies IPv4 unicast routes return correct family.
 //
 // VALIDATES: IPv4 unicast route returns AFI=1, SAFI=1.
@@ -1139,6 +1191,37 @@ func TestPeerPackContextIPv6AddPath(t *testing.T) {
 	ctx := peer.packContext(nlri.IPv6Unicast)
 	require.NotNil(t, ctx, "should return non-nil context")
 	require.True(t, ctx.AddPath, "AddPath should be true for IPv6 unicast")
+}
+
+// TestPeerPackContextLabeledUnicastAddPath verifies labeled-unicast ADD-PATH context.
+//
+// VALIDATES: packContext returns AddPath=true for labeled-unicast when negotiated.
+//
+// PREVENTS: Missing path ID in labeled-unicast NLRI when ADD-PATH is negotiated.
+func TestPeerPackContextLabeledUnicastAddPath(t *testing.T) {
+	settings := NewPeerSettings(
+		mustParseAddr("192.0.2.1"),
+		65000, 65001, 0x01010101,
+	)
+	peer := NewPeer(settings)
+
+	// Set families with ADD-PATH enabled for labeled-unicast
+	peer.families.Store(&NegotiatedFamilies{
+		IPv4LabeledUnicast:        true,
+		IPv4LabeledUnicastAddPath: true,
+		IPv6LabeledUnicast:        true,
+		IPv6LabeledUnicastAddPath: true,
+	})
+
+	// IPv4 labeled-unicast (SAFI 4)
+	ctx4 := peer.packContext(nlri.Family{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIMPLSLabel})
+	require.NotNil(t, ctx4, "should return non-nil context")
+	require.True(t, ctx4.AddPath, "AddPath should be true for IPv4 labeled-unicast")
+
+	// IPv6 labeled-unicast (SAFI 4)
+	ctx6 := peer.packContext(nlri.Family{AFI: nlri.AFIIPv6, SAFI: nlri.SAFIMPLSLabel})
+	require.NotNil(t, ctx6, "should return non-nil context")
+	require.True(t, ctx6.AddPath, "AddPath should be true for IPv6 labeled-unicast")
 }
 
 // TestPeerPackContextNoAddPath verifies non-ADD-PATH families return AddPath=false.
