@@ -2,14 +2,14 @@
 
 ## Overview
 
-ZeBGP has two functional test runners:
+Functional tests verify ZeBGP's BGP message encoding by comparing actual wire output against expected bytes.
 
-| Runner | Command | Status |
-|--------|---------|--------|
-| **New** | `go run ./test/cmd/functional` | Recommended |
-| Legacy | `go run ./test/cmd/self-check` | Still works |
-
-The new runner is modeled after ExaBGP's `qa/bin/functional` with state machine lifecycle, concurrent execution, and timing tracking.
+```bash
+# Quick start
+make functional           # Run all tests
+make functional-encoding  # Encoding tests only
+make functional-api       # API tests only
+```
 
 ---
 
@@ -27,10 +27,8 @@ go run ./test/cmd/functional encoding 4 5 6
 go run ./test/cmd/functional encoding --all
 go run ./test/cmd/functional api --all
 
-# Makefile targets
-make functional           # Run all (encoding + api)
-make functional-encoding  # Encoding tests only
-make functional-api       # API tests only
+# Stress test (detect flaky tests)
+go run ./test/cmd/functional encoding --count 10 0 1
 ```
 
 ---
@@ -69,8 +67,6 @@ Modes:
   --list, -l          List available tests
   --short-list        List test codes only (space separated)
   --all               Run all tests
-  --edit              Open test files in $EDITOR
-  --dry               Show commands without running
 
 Options:
   --timeout N         Timeout per test (default: 30s)
@@ -78,11 +74,12 @@ Options:
   --verbose, -v       Show output for each test
   --quiet, -q         Minimal output
   --save DIR          Save logs to directory
+  --port N            Base port to use (default: 1790)
+  --count N           Run each test N times (stress testing)
 
 Debugging:
   --server NICK       Run server only for test
   --client NICK       Run client only for test
-  --port N            Base port to use (default: 1790)
 ```
 
 ---
@@ -175,19 +172,33 @@ MARKER:LENGTH:TYPE:PAYLOAD
 
 ## Display Output
 
-The runner shows live progress with colored nicks:
+ExaBGP-style progress display:
 
 ```
- 0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZa
+timeout [5/30] running 4 passed 12 failed 2 [S, V]
 ```
 
-| Color | Meaning |
+| Field | Meaning |
 |-------|---------|
-| Gray | Skipped |
-| Cyan | Running |
-| Green | Passed |
-| Red | Failed |
-| Yellow | Timeout |
+| `timeout [N/M]` | Longest running test: N seconds elapsed, M timeout |
+| `running N` | N tests currently executing |
+| `passed N` | N tests passed |
+| `failed N [IDs]` | N tests failed, with nicks |
+
+### Stress Test Summary
+
+When using `--count N`:
+
+```
+STRESS TEST SUMMARY
+═══════════════════════════════════════════════════════════════════════════════
+Iterations: 10
+
+Nick     Pass   Fail    T/O        Min        Avg        Max    Rate
+---------------------------------------------------------------------------
+0          10      0      0      108ms      332ms      764ms  100.0%
+1           8      2      0      115ms      400ms      900ms   80.0%
+```
 
 ---
 
@@ -206,17 +217,17 @@ go run ./test/cmd/functional encoding --timeout 60s --verbose 4
 go run ./test/cmd/zebgp-peer --port 1790 test/data/encode/ebgp.ci
 
 # Terminal 2: Run zebgp
-env exabgp_tcp_port=1790 go run ./cmd/zebgp server test/data/encode/ebgp.conf
+env zebgp_tcp_port=1790 go run ./cmd/zebgp server test/data/encode/ebgp.conf
 ```
 
 ### Decode message bytes
 
 ```bash
 # Decode UPDATE payload
-go run ./cmd/zebgp-decode update 0000001540010100400200400304650165014005040000006400
+zebgp decode update 0000001540010100400200400304650165014005040000006400
 
 # Decode full message
-go run ./cmd/zebgp-decode raw FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002D02...
+zebgp decode raw FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002D02...
 ```
 
 ---
@@ -250,31 +261,36 @@ option:file:mytest.conf
 
 ### 3. Generate expected bytes
 
-Run with ExaBGP first to capture correct bytes, or use `zebgp-decode` to verify.
+Run with ExaBGP first to capture correct bytes, or use `zebgp decode` to verify.
 
 ---
 
 ## Architecture
 
-### New Runner (`test/pkg/`)
+### Package: `test/functional/`
 
 | File | Purpose |
 |------|---------|
-| `state.go` | State machine (none→starting→running→success/fail) |
-| `record.go` | Test record with metadata |
-| `exec.go` | Process wrapper with termination |
-| `tests.go` | Test container and selection |
-| `timing.go` | Performance cache for ETA |
-| `encoding.go` | Encoding test discovery/execution |
-| `api.go` | API test discovery/execution |
-| `cli.go` | Argument parsing |
+| `color.go` | TTY-aware ANSI colors |
+| `decode.go` | BGP message decoding for failure reports |
+| `display.go` | Live progress display |
+| `limits.go` | ulimit check and auto-raise |
+| `ports.go` | Dynamic port range allocation |
+| `record.go` | Test record with state machine |
+| `report.go` | AI-friendly failure reports |
+| `runner.go` | Test execution engine |
+| `stress.go` | Iteration stats for --count |
+
+### Entry Point: `test/cmd/functional/`
+
+Single `main.go` with CLI parsing.
 
 ### Security
 
 - Path traversal protection on `option:file:` and `.run` scripts
 - Process isolation via `Setpgid`
 - Context timeouts on all execution
-- File permissions: 0600 (files), 0750 (dirs)
+- Dynamic port allocation prevents conflicts
 
 ---
 
@@ -282,8 +298,6 @@ Run with ExaBGP first to capture correct bytes, or use `zebgp-decode` to verify.
 
 See `plan/CLAUDE_CONTINUATION.md` for current pass/fail status.
 
-**Summary:** 37/51 passing (14 failing are advanced features like MUP, MVPN, FlowSpec)
-
 ---
 
-**Updated:** 2025-12-27
+**Updated:** 2025-12-30

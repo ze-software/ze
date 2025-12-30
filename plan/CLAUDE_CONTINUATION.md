@@ -26,8 +26,8 @@
 
 ```
 make test   - PASS
-make lint   - 1 issue (pre-existing goconst in static_test.go)
-functional  - 24 passed, 13 failed [6, 7, 8, J, L, N, Q, S, T, U, V, Z, a]
+make lint   - PASS
+functional  - 33 passed, 4 failed [S, V, U, a]
 ```
 
 ---
@@ -35,12 +35,12 @@ functional  - 24 passed, 13 failed [6, 7, 8, J, L, N, Q, S, T, U, V, Z, a]
 ## Resume Point
 
 **Last worked:** 2025-12-30
-**Last commit:** (uncommitted) format-based migration refactor
-**Session ended:** Format-based migration complete
+**Last commit:** (uncommitted) functional test migration
+**Session ended:** Functional test system migration complete
 
 **Next steps:**
-1. Integrate zero-copy forwarding into peer route distribution (future)
-2. Fix remaining functional tests [6, 7, 8, J, L, N, Q, S, T, U, V, Z, a]
+1. Fix remaining functional tests [S, V, U, a]
+2. Integrate zero-copy forwarding into peer route distribution (future)
 
 ---
 
@@ -62,6 +62,24 @@ AttributesWire for zero-copy route reflection.
 ---
 
 ## COMPLETED
+
+### Functional Test System Migration (uncommitted)
+**Spec:** `plan/spec-functional-test-diagnostics.md` ✅ COMPLETE
+
+Migrated functional test system from old to new implementation:
+- Removed old `test/cmd/functional/`, `test/cmd/self-check/`, `test/pkg/`
+- Renamed `test/cmd/selfcheck/` → `test/cmd/functional/`
+- Renamed `test/selfcheck/` → `test/functional/`
+- Package renamed from `selfcheck` to `functional`
+- Added `--count N` flag for stress testing
+- Added `--save DIR` flag for log capture
+- AI-friendly failure reports with decoded messages
+- Dynamic port allocation, ulimit auto-raise
+
+Files:
+- New package: `test/functional/` (12 files)
+- Entry point: `test/cmd/functional/main.go`
+- Updated: `Makefile`
 
 ### Format-Based Migration Refactor (uncommitted)
 **Spec:** `plan/spec-format-based-migration.md` ✅ COMPLETE

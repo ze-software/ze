@@ -1,4 +1,4 @@
-.PHONY: all build test lint clean fmt vet tidy self-check functional functional-encoding functional-api help
+.PHONY: all build test lint clean fmt vet tidy functional functional-encoding functional-api help
 
 # Default target
 all: lint test build
@@ -49,16 +49,11 @@ clean:
 	rm -rf bin/
 	rm -f coverage.out coverage.html
 
-# Run all tests including self-check
-test-all: test self-check
+# Run all tests including functional tests
+test-all: test functional
 	@echo "All tests passed"
 
-# Run self-check functional tests (legacy - use 'functional' instead)
-self-check:
-	@echo "Running self-check tests..."
-	go run ./test/cmd/self-check --all
-
-# Run new functional tests (encoding + api)
+# Run functional tests (encoding + api)
 functional: functional-encoding functional-api
 	@echo "All functional tests passed"
 
@@ -92,7 +87,6 @@ help:
 	@echo "  functional          - Run all functional tests (encoding + api)"
 	@echo "  functional-encoding - Run encoding functional tests only"
 	@echo "  functional-api      - Run API functional tests only"
-	@echo "  self-check          - Run legacy functional tests"
 	@echo "  lint                - Run golangci-lint"
 	@echo "  fmt                 - Format code (gofmt + goimports)"
 	@echo "  vet                 - Run go vet"

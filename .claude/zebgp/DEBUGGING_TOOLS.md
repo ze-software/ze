@@ -9,7 +9,7 @@ This document describes the debugging tools available in ZeBGP for troubleshooti
 | `zebgp config-dump` | Inspect parsed config | `zebgp config-dump [--json] config.conf` |
 | `zebgp-peer --decode` | Decode BGP messages | `zebgp-peer --decode --sink` |
 | `ZEBGP_TRACE` | Pipeline tracing | `ZEBGP_TRACE=all zebgp server config.conf` |
-| Self-check decode diff | Test failure analysis | Automatic on message mismatch |
+| Functional test diff | Test failure analysis | Automatic on message mismatch |
 
 ---
 
@@ -60,7 +60,7 @@ peer 10.0.0.1:
 
 **Location:** `pkg/testpeer/decode.go`
 
-Decodes raw BGP messages (hex) into human-readable format. Used automatically by self-check tests and available via `--decode` flag.
+Decodes raw BGP messages (hex) into human-readable format. Used automatically by functional tests and available via `--decode` flag.
 
 ### Usage
 
@@ -98,7 +98,7 @@ msg  recv   FFFFFFFF...:0030:02:00000014400101004002060201000000014003040A000001
 
 **Location:** `pkg/testpeer/peer.go`, `pkg/testpeer/decode.go`
 
-When a self-check test fails with "message mismatch", the output now includes a decoded diff showing exactly what differed.
+When a functional test fails with "message mismatch", the output now includes a decoded diff showing exactly what differed.
 
 ### Example Output
 
@@ -246,7 +246,7 @@ ZEBGP_TRACE=session,fsm zebgp server config.conf
 
 ```bash
 # Run single test
-go run ./test/cmd/self-check 0
+go run ./test/cmd/functional encoding 0
 
 # Output now includes decoded diff automatically
 # Look at "Differences:" section to see what's wrong

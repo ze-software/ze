@@ -16,7 +16,7 @@ make test && make lint  # Tests + linting - BOTH required
 - `make test` = `go test -race -v ./...` (tests only)
 - `make lint` = `golangci-lint run` (linting only)
 - `make ci` = lint + test + build (full CI check)
-- `make test-all` = unit tests + functional tests (self-check)
+- `make test-all` = unit tests + functional tests
 
 **IMPORTANT:** `make test` alone does NOT run lint. Always run BOTH.
 
@@ -172,14 +172,12 @@ dlv test ./internal/pool/... -- -test.run TestInternDeduplication
 ## Makefile Targets
 
 ```makefile
-.PHONY: all build test lint clean test-all self-check ci
+.PHONY: all build test lint clean test-all functional ci
 
 all: lint test build        # Default: full check
 
 build:                      # Build binaries
 	go build -o bin/zebgp ./cmd/zebgp
-	go build -o bin/zebgp-cli ./cmd/zebgp-cli
-	go build -o bin/zebgp-decode ./cmd/zebgp-decode
 
 test:                       # Unit tests with race detector
 	go test -race -v ./...
@@ -187,10 +185,16 @@ test:                       # Unit tests with race detector
 lint:                       # Linting
 	golangci-lint run
 
-test-all: test self-check   # Unit + functional tests
+test-all: test functional   # Unit + functional tests
 
-self-check:                 # Functional tests (ExaBGP compat)
-	go run ./test/cmd/self-check --all
+functional: functional-encoding functional-api
+	@echo "All functional tests passed"
+
+functional-encoding:
+	go run ./test/cmd/functional encoding --all
+
+functional-api:
+	go run ./test/cmd/functional api --all
 
 ci: lint test build         # Full CI check
 
@@ -282,52 +286,28 @@ if !result.Success {
 | `SendUnknownMessage` | bool | Send invalid message type |
 | `Output` | io.Writer | Log output (default: os.Stdout) |
 
-### self-check (Test Runner)
+### functional (Test Runner)
 
-Runs functional tests from `qa/encoding/` directory.
+Runs functional tests from `test/data/encode/` and `test/data/api/` directories.
 
 ```bash
 # List available tests
-self-check --list
+go run ./test/cmd/functional encoding --list
 
 # Run all tests
-self-check --all
+go run ./test/cmd/functional encoding --all
 
 # Run specific tests by nick
-self-check 0 1 2
+go run ./test/cmd/functional encoding 0 1 2
 
 # Custom timeout
-self-check --timeout 60s --all
+go run ./test/cmd/functional encoding --timeout 60s --all
+
+# Stress testing (detect flaky tests)
+go run ./test/cmd/functional encoding --count 10 0 1
 ```
 
-**Test file structure:**
-
-```
-qa/encoding/
-├── test-name.ci     # Config file reference
-└── test-name.msg    # Expected BGP messages
-```
-
-**.ci file format:**
-```
-config-file.conf
-```
-
-**.msg file format:**
-```
-1:raw:FFFFFFFF...:0017:02:00000000
-1:raw:FFFFFFFF...:0030:02:...
-```
-
-**Options in .msg files:**
-```
-option:bind:ipv6
-option:open:send-unknown-capability
-option:open:inspect-open-message
-option:update:send-default-route
-option:open:send-unknown-message
-option:asn:65001
-```
+**See:** `.claude/zebgp/FUNCTIONAL_TESTS.md` for full documentation.
 
 ---
 
@@ -360,4 +340,4 @@ env exabgp_tcp_port=1790 zebgp run qa/configs/test.conf
 
 ---
 
-**Updated:** 2025-12-19
+**Updated:** 2025-12-30

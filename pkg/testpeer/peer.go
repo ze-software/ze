@@ -832,7 +832,7 @@ func LoadExpectFile(path string) ([]string, *Config, error) {
 				config.TCPConnections = v
 			}
 		case strings.HasPrefix(line, "option:file:"):
-			// Ignore - this is handled by self-check, not testpeer
+			// Ignore - this is handled by functional test runner, not testpeer
 		case strings.Contains(line, ":cmd:"):
 			// Ignore - documentation of command sent
 		case strings.Contains(line, ":json:"):

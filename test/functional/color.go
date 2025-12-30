@@ -1,5 +1,5 @@
-// Package selfcheck provides a functional test runner with AI-friendly diagnostics.
-package selfcheck
+// Package functional provides a functional test runner with AI-friendly diagnostics.
+package functional
 
 import (
 	"os"

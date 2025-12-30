@@ -1,4 +1,4 @@
-package selfcheck
+package functional
 
 import (
 	"testing"

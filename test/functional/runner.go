@@ -1,4 +1,4 @@
-package selfcheck
+package functional
 
 import (
 	"context"
@@ -46,7 +46,7 @@ type Runner struct {
 
 // NewRunner creates a test runner.
 func NewRunner(tests *EncodingTests, baseDir string) (*Runner, error) {
-	tmpDir, err := os.MkdirTemp("", "zebgp-selfcheck-*")
+	tmpDir, err := os.MkdirTemp("", "zebgp-functional-*")
 	if err != nil {
 		return nil, fmt.Errorf("create temp dir: %w", err)
 	}
@@ -378,7 +378,7 @@ func (r *Runner) runTest(ctx context.Context, rec *Record, opts *RunOptions) boo
 
 // writeExpectFile writes expected messages to a temp file.
 func (r *Runner) writeExpectFile(rec *Record) (string, error) {
-	f, err := os.CreateTemp("", "zebgp-selfcheck-*.expect")
+	f, err := os.CreateTemp("", "zebgp-functional-*.expect")
 	if err != nil {
 		return "", err
 	}

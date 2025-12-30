@@ -1,252 +1,283 @@
-// Command functional runs ZeBGP functional tests.
-//
-// This is modeled after ExaBGP's qa/bin/functional test runner,
-// providing state machine-based test lifecycle, concurrent execution,
-// timing tracking, and rich output.
-//
-// Usage:
-//
-//	functional encoding --list
-//	functional encoding 0 1 2
-//	functional encoding --all
-//	functional api --all --verbose
+// Package main provides the functional functional test runner with AI-friendly diagnostics.
 package main
 
 import (
 	"context"
+	"errors"
+	"flag"
 	"fmt"
 	"os"
-	"os/exec"
 	"os/signal"
 	"path/filepath"
 	"syscall"
+	"time"
 
-	functional "github.com/exa-networks/zebgp/test/pkg"
+	"github.com/exa-networks/zebgp/test/functional"
 )
+
+// errTestsFailed is returned when tests fail (not an error, but indicates exit code 1).
+var errTestsFailed = errors.New("tests failed")
 
 func main() {
 	if err := run(); err != nil {
-		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		if !errors.Is(err, errTestsFailed) {
+			_, _ = fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		}
 		os.Exit(1)
 	}
 }
 
 func run() error {
-	// Find project root
-	baseDir, err := findBaseDir()
-	if err != nil {
-		return err
+	// Parse command line
+	cli := parseCLI()
+	if cli == nil {
+		return nil // Help was printed
 	}
 
-	// Parse CLI
-	cli := functional.DefaultCLI()
-	if err := cli.Parse(os.Args[1:]); err != nil {
-		cli.PrintUsage()
-		return err
-	}
-
-	// Handle based on command
-	switch cli.Command {
-	case "encoding":
-		return runEncoding(baseDir, cli)
-	case "api":
-		return runAPI(baseDir, cli)
-	default:
-		cli.PrintUsage()
-		return fmt.Errorf("unknown command: %s", cli.Command)
-	}
-}
-
-//nolint:dupl // Encoding and API runners are intentionally separate
-func runEncoding(baseDir string, cli *functional.CLI) error {
-	encodeDir := filepath.Join(baseDir, "test", "data", "encode")
-
-	// Create test manager
-	functional.ResetNickCounter()
-	tests := functional.NewEncodingTests(baseDir)
-	if err := tests.Discover(encodeDir); err != nil {
-		return fmt.Errorf("discover tests: %w", err)
-	}
-
-	// Handle modes
-	if cli.List {
-		tests.List()
-		return nil
-	}
-
-	if cli.ShortList {
-		for _, r := range tests.Registered() {
-			fmt.Print(r.Nick + " ")
-		}
-		fmt.Println()
-		return nil
-	}
-
-	if cli.Edit {
-		return editTest(tests.Tests, cli.TestArgs)
-	}
-
-	// Select tests
-	if err := selectTests(tests.Tests, cli); err != nil {
-		return err
-	}
-	if len(tests.Selected()) == 0 {
-		tests.List()
-		fmt.Println("Use --all to run all tests, or specify test nick(s)")
-		return nil
-	}
-
-	// Build binaries
+	// Setup context with signal handling
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	setupSignalHandler(cancel)
 
-	fmt.Println("Building test binaries...")
-	runner, err := functional.NewRunner(tests, baseDir)
-	if err != nil {
-		return fmt.Errorf("create runner: %w", err)
-	}
-	defer runner.Cleanup()
-
-	if err := runner.Build(ctx); err != nil {
-		return fmt.Errorf("build: %w", err)
-	}
-
-	// Run tests
-	opts := cli.ToRunOptions()
-	success := runner.Run(ctx, opts)
-
-	// Print summary
-	passed, failed, timedOut, skipped := tests.Summary()
-	functional.PrintSummary(passed, failed, timedOut, skipped, tests.FailedNicks())
-
-	if !success {
-		return fmt.Errorf("some tests failed")
-	}
-	return nil
-}
-
-//nolint:dupl // API and Encoding runners are intentionally separate
-func runAPI(baseDir string, cli *functional.CLI) error {
-	apiDir := filepath.Join(baseDir, "test", "data", "api")
-
-	// Create test manager
-	functional.ResetNickCounter()
-	tests := functional.NewAPITests(baseDir)
-	if err := tests.Discover(apiDir); err != nil {
-		return fmt.Errorf("discover tests: %w", err)
-	}
-
-	// Handle modes
-	if cli.List {
-		tests.List()
-		return nil
-	}
-
-	if cli.ShortList {
-		for _, r := range tests.Registered() {
-			fmt.Print(r.Nick + " ")
-		}
-		fmt.Println()
-		return nil
-	}
-
-	if cli.Edit {
-		return editTest(tests.Tests, cli.TestArgs)
-	}
-
-	// Select tests
-	if err := selectTests(tests.Tests, cli); err != nil {
-		return err
-	}
-	if len(tests.Selected()) == 0 {
-		tests.List()
-		fmt.Println("Use --all to run all tests, or specify test nick(s)")
-		return nil
-	}
-
-	// Build binaries
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	setupSignalHandler(cancel)
-
-	fmt.Println("Building test binaries...")
-	runner, err := functional.NewAPIRunner(tests, baseDir)
-	if err != nil {
-		return fmt.Errorf("create runner: %w", err)
-	}
-	defer runner.Cleanup()
-
-	if err := runner.Build(ctx); err != nil {
-		return fmt.Errorf("build: %w", err)
-	}
-
-	// Run tests
-	opts := cli.ToRunOptions()
-	success := runner.Run(ctx, opts)
-
-	// Print summary
-	passed, failed, timedOut, skipped := tests.Summary()
-	functional.PrintSummary(passed, failed, timedOut, skipped, tests.FailedNicks())
-
-	if !success {
-		return fmt.Errorf("some tests failed")
-	}
-	return nil
-}
-
-// selectTests enables tests based on CLI flags.
-func selectTests(tests *functional.Tests, cli *functional.CLI) error {
-	if cli.All {
-		tests.EnableAll()
-		return nil
-	}
-	for _, nick := range cli.TestArgs {
-		if !tests.EnableByNick(nick) {
-			return fmt.Errorf("unknown test: %s", nick)
-		}
-	}
-	return nil
-}
-
-// setupSignalHandler sets up SIGINT/SIGTERM handling.
-func setupSignalHandler(cancel context.CancelFunc) {
 	sigCh := make(chan os.Signal, 1)
 	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
 	go func() {
 		<-sigCh
 		cancel()
 	}()
+
+	// Find base directory
+	baseDir, err := findBaseDir()
+	if err != nil {
+		return fmt.Errorf("find base dir: %w", err)
+	}
+
+	// Initialize
+	colors := functional.NewColors()
+	functional.ResetNickCounter()
+
+	// Check ulimit
+	limitCheck, err := functional.CheckUlimit(cli.parallel)
+	if err != nil {
+		return fmt.Errorf("ulimit check: %w", err)
+	}
+	if limitCheck.Raised && !cli.quiet {
+		fmt.Printf("%s raised to %d\n", colors.Yellow("ulimit:"), limitCheck.RaisedTo)
+	}
+
+	// Discover tests
+	tests := functional.NewEncodingTests(baseDir)
+	testDir := filepath.Join(baseDir, "test/data/encode")
+	if cli.command == "api" {
+		testDir = filepath.Join(baseDir, "test/data/api")
+	}
+
+	if err := tests.Discover(testDir); err != nil {
+		return fmt.Errorf("discover tests: %w", err)
+	}
+
+	// Handle list mode
+	if cli.list {
+		tests.List()
+		return nil
+	}
+
+	if cli.shortList {
+		for _, r := range tests.Registered() {
+			fmt.Printf("%s ", r.Nick)
+		}
+		fmt.Println()
+		return nil
+	}
+
+	// Allocate ports
+	pr, shifted, err := functional.AllocatePorts(cli.port, tests.Count())
+	if err != nil {
+		return fmt.Errorf("allocate ports: %w", err)
+	}
+
+	// Update test ports based on allocation
+	basePort := pr.Start
+	for _, r := range tests.Registered() {
+		r.Port = basePort
+		basePort++
+	}
+
+	if !cli.quiet {
+		if shifted {
+			fmt.Printf("%s %s (base %d in use, shifted)\n",
+				colors.Yellow("ports:"), pr.String(), cli.port)
+		} else {
+			fmt.Printf("%s %s (%d tests)\n",
+				colors.Cyan("ports:"), pr.String(), tests.Count())
+		}
+	}
+
+	// Select tests
+	switch {
+	case cli.all:
+		tests.EnableAll()
+	case len(cli.testArgs) > 0:
+		for _, arg := range cli.testArgs {
+			if !tests.EnableByNick(arg) {
+				// Try by name
+				for _, r := range tests.Registered() {
+					if r.Name == arg {
+						r.Activate()
+						break
+					}
+				}
+			}
+		}
+	default:
+		printUsage()
+		return nil
+	}
+
+	tests.Sort()
+
+	// Create runner
+	runner, err := functional.NewRunner(tests, baseDir)
+	if err != nil {
+		return fmt.Errorf("create runner: %w", err)
+	}
+	defer runner.Cleanup()
+
+	// Build
+	if err := runner.Build(ctx); err != nil {
+		return err
+	}
+
+	// Run options
+	opts := &functional.RunOptions{
+		Timeout:  cli.timeout,
+		Parallel: cli.parallel,
+		Verbose:  cli.verbose,
+		Quiet:    cli.quiet,
+		SaveDir:  cli.saveDir,
+	}
+
+	// Print summary
+	display := functional.NewDisplay(tests.Tests, colors)
+	display.SetQuiet(cli.quiet)
+
+	var success bool
+	if cli.count > 1 {
+		// Stress test mode
+		stats, ok := runner.RunWithCount(ctx, opts, cli.count)
+		success = ok
+		display.StressSummary(stats, cli.count)
+	} else {
+		// Normal mode
+		success = runner.Run(ctx, opts)
+		display.Summary()
+	}
+
+	if !success {
+		return errTestsFailed
+	}
+
+	return nil
 }
 
-func editTest(tests *functional.Tests, args []string) error {
-	if len(args) != 1 {
-		return fmt.Errorf("--edit requires exactly one test nick")
+type cliFlags struct {
+	command   string
+	all       bool
+	list      bool
+	shortList bool
+	timeout   time.Duration
+	parallel  int
+	verbose   bool
+	quiet     bool
+	saveDir   string
+	port      int
+	server    string
+	client    string
+	count     int
+	testArgs  []string
+}
+
+func parseCLI() *cliFlags {
+	if len(os.Args) < 2 {
+		printUsage()
+		return nil
 	}
 
-	r := tests.GetByNick(args[0])
-	if r == nil {
-		return fmt.Errorf("unknown test: %s", args[0])
+	command := os.Args[1]
+	if command == "-h" || command == "--help" || command == "help" {
+		printUsage()
+		return nil
 	}
 
-	if len(r.Files) == 0 {
-		return fmt.Errorf("no files for test: %s", args[0])
+	if command != "encoding" && command != "api" {
+		fmt.Fprintf(os.Stderr, "Unknown command: %s (use 'encoding' or 'api')\n", command)
+		printUsage()
+		return nil
 	}
 
-	editor := os.Getenv("EDITOR")
-	if editor == "" {
-		editor = "vi"
+	cli := &cliFlags{command: command}
+
+	fs := flag.NewFlagSet(command, flag.ExitOnError)
+	fs.BoolVar(&cli.all, "all", false, "run all tests")
+	fs.BoolVar(&cli.list, "list", false, "list available tests")
+	fs.BoolVar(&cli.list, "l", false, "list available tests (shorthand)")
+	fs.BoolVar(&cli.shortList, "short-list", false, "list test codes only")
+	fs.DurationVar(&cli.timeout, "timeout", 30*time.Second, "timeout per test")
+	fs.IntVar(&cli.parallel, "parallel", 4, "max concurrent tests")
+	fs.BoolVar(&cli.verbose, "verbose", false, "verbose output")
+	fs.BoolVar(&cli.verbose, "v", false, "verbose output (shorthand)")
+	fs.BoolVar(&cli.quiet, "quiet", false, "minimal output")
+	fs.BoolVar(&cli.quiet, "q", false, "minimal output (shorthand)")
+	fs.StringVar(&cli.saveDir, "save", "", "save logs to directory")
+	fs.IntVar(&cli.port, "port", 1790, "base port to use")
+	fs.StringVar(&cli.server, "server", "", "run server only for test")
+	fs.StringVar(&cli.client, "client", "", "run client only for test")
+	fs.IntVar(&cli.count, "count", 1, "run each test N times (stress testing)")
+
+	if err := fs.Parse(os.Args[2:]); err != nil {
+		return nil
 	}
 
-	cmd := exec.Command(editor, r.Files...) //nolint:gosec,noctx // Files from known test dir, interactive command
-	cmd.Stdin = os.Stdin
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
+	cli.testArgs = fs.Args()
 
-	return cmd.Run()
+	return cli
+}
+
+func printUsage() {
+	fmt.Fprintf(os.Stderr, `Usage: functional <command> [options] [tests...]
+
+Commands:
+  encoding    Run encoding tests (static routes)
+  api         Run API tests (dynamic routes via .run scripts)
+
+Modes:
+  --list, -l          List available tests
+  --short-list        List test codes only (space separated)
+  --all               Run all tests
+
+Options:
+  --timeout N         Timeout per test (default: 30s)
+  --parallel N        Max concurrent tests (default: 4)
+  --verbose, -v       Show output for each test
+  --quiet, -q         Minimal output
+  --save DIR          Save logs to directory
+  --port N            Base port to use (default: 1790)
+  --count N           Run each test N times (stress testing)
+
+Debugging:
+  --server NICK       Run server only for test
+  --client NICK       Run client only for test
+
+Examples:
+  functional encoding --list
+  functional encoding --all
+  functional encoding 0 1 2
+  functional api --all --quiet
+  functional encoding --count 10 0 1    # stress test: run tests 0,1 ten times
+`)
 }
 
 func findBaseDir() (string, error) {
+	// Start from current directory, look for go.mod
 	dir, err := os.Getwd()
 	if err != nil {
 		return "", err
@@ -256,6 +287,7 @@ func findBaseDir() (string, error) {
 		if _, err := os.Stat(filepath.Join(dir, "go.mod")); err == nil {
 			return dir, nil
 		}
+
 		parent := filepath.Dir(dir)
 		if parent == dir {
 			break
@@ -263,5 +295,5 @@ func findBaseDir() (string, error) {
 		dir = parent
 	}
 
-	return os.Getwd()
+	return "", fmt.Errorf("could not find go.mod in parent directories")
 }

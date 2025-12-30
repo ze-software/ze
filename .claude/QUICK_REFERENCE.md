@@ -159,7 +159,7 @@ make lint      # golangci-lint
 make functional # Encoding + API tests
 
 # Single functional test
-go run ./test/cmd/self-check <nick>
+go run ./test/cmd/functional encoding <nick>
 ```
 
 ---

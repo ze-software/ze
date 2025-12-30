@@ -2186,11 +2186,11 @@ func BenchmarkRIBInsert(b *testing.B) {
 ## Appendix D: Testing Infrastructure Status (2025-12-20)
 
 ### Self-Check Framework
-The `self-check` command runs ExaBGP-style integration tests.
+The functional test runner runs ExaBGP-style integration tests.
 
 | Component | Status | Notes |
 |-----------|--------|-------|
-| Test runner | ✅ Working | `test/cmd/self-check/main.go` |
+| Test runner | ✅ Working | `test/cmd/functional/main.go` |
 | Test peer | ✅ Working | `test/cmd/zebgp-peer/main.go` |
 | Expect file parsing | ✅ Working | Supports `option:`, `N:raw:`, `N:cmd:` |
 | KEEPALIVE matching | ✅ Fixed | Was bypassing expected message list |

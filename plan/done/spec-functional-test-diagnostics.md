@@ -627,7 +627,7 @@ functional-api:
 2. **P1 (Soon):** Display fixes ✅ (done as part of P0)
 3. **P2 (Later):** Stress testing (--count) ✅ (commit 4ce5b99)
 4. **P3 (Optional):** --save implementation ✅ (commit 511b423)
-5. **P4 (Final):** Remove old program, rename, update docs
+5. **P4 (Final):** Remove old program, rename, update docs ✅
 
 ## Dropped from Original Spec
 
@@ -691,16 +691,21 @@ functional-api:
 - [x] Warning on save failure (not silent)
 - [x] Permissions: 0700/0600 (gosec compliant)
 
-### Phase 6: Migration (TODO)
-- [ ] All tests pass with new `selfcheck` program
-- [ ] Old `test/cmd/functional` removed
-- [ ] Old `test/pkg` removed
-- [ ] `selfcheck` renamed to `functional`
-- [ ] Imports updated after rename
-- [ ] Makefile updated
-- [ ] `.claude/zebgp/FUNCTIONAL_TESTS.md` rewritten
-- [ ] `plan/CLAUDE_CONTINUATION.md` updated
-- [ ] Spec moved to `plan/done/`
+### Phase 6: Migration (P4 COMPLETE)
+- [x] All tests pass with new program
+- [x] Old `test/cmd/functional` removed
+- [x] Old `test/cmd/self-check` removed
+- [x] Old `test/pkg` removed (14 files)
+- [x] `test/cmd/selfcheck` → `test/cmd/functional`
+- [x] `test/selfcheck` → `test/functional`
+- [x] Package renamed from `selfcheck` to `functional`
+- [x] Imports updated
+- [x] Makefile updated (removed self-check target)
+- [x] `make test` passes
+- [x] `make lint` passes
+- [x] `.claude/zebgp/FUNCTIONAL_TESTS.md` rewritten
+- [x] `plan/CLAUDE_CONTINUATION.md` updated
+- [x] Spec moved to `plan/done/`
 
 ## Summary of Key Design Decisions
 

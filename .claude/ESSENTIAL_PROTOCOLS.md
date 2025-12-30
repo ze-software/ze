@@ -485,8 +485,8 @@ make test
 
 **Mandatory Before Implementation:**
 1. **Run functional tests FIRST** to verify feature isn't already implemented
-   - For API features: `go run ./test/cmd/self-check <test-code>`
-   - For encode features: `go run ./test/cmd/self-check <test-code>`
+   - For API features: `go run ./test/cmd/functional encoding <test-code>`
+   - For encode features: `go run ./test/cmd/functional encoding <test-code>`
    - If test passes, the feature EXISTS - don't reimplement it
 2. Explore relevant code paths using Explore agent or grep/read
 3. Understand where new code should be added
@@ -646,9 +646,9 @@ make lint  # golangci-lint run
 **Quick reference:**
 - Encode tests: `test/data/encode/*.ci` + `.conf`
 - API tests: `test/data/api/*.ci` + `.conf` + `.run`
-- Run all functional tests: `make self-check`
-- Run single test: `go run ./test/cmd/self-check <nick>`
-- List tests: `go run ./test/cmd/self-check --list`
+- Run all functional tests: `make functional`
+- Run single test: `go run ./test/cmd/functional encoding <nick>`
+- List tests: `go run ./test/cmd/functional encoding --list`
 
 ---
 
