@@ -441,10 +441,12 @@ func (ub *UpdateBuilder) BuildVPN(p VPNParams) *Update {
 		attrs = append(attrs, comms)
 	}
 
+	// 14. MP_REACH_NLRI for VPN
+	// RFC 4271 Appendix F.3: attributes SHOULD be ordered by type code
+	mpReach := ub.buildMPReachVPN(p)
+	attrs = append(attrs, mpReach)
+
 	// 16. EXTENDED_COMMUNITIES (route targets)
-	// NOTE: ExaBGP places EXT_COM before MP_REACH. This violates RFC 4271
-	// Appendix F.3 ordering (should be type-code order: 14 before 16) but
-	// we match ExaBGP for compatibility.
 	if len(p.ExtCommunityBytes) > 0 {
 		attrs = append(attrs, &rawAttribute{
 			flags: attribute.FlagOptional | attribute.FlagTransitive,
@@ -452,10 +454,6 @@ func (ub *UpdateBuilder) BuildVPN(p VPNParams) *Update {
 			data:  p.ExtCommunityBytes,
 		})
 	}
-
-	// 14. MP_REACH_NLRI for VPN (after EXT_COM for ExaBGP compatibility)
-	mpReach := ub.buildMPReachVPN(p)
-	attrs = append(attrs, mpReach)
 
 	// 32. LARGE_COMMUNITIES
 	if len(p.LargeCommunities) > 0 {
@@ -470,9 +468,7 @@ func (ub *UpdateBuilder) BuildVPN(p VPNParams) *Update {
 		attrs = append(attrs, lcs)
 	}
 
-	// NOTE: We do NOT sort VPN attributes by type code.
-	// ExaBGP orders them as: ORIGIN, AS_PATH, NEXT_HOP, LOCAL_PREF, EXT_COM, MP_REACH.
-	// This differs from RFC 4271 Appendix F.3 but matches ExaBGP for compatibility.
+	// Attributes are already in RFC 4271 type code order.
 	attrBytes := packAttributesNoSort(attrs)
 
 	return &Update{
