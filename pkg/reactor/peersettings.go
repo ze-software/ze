@@ -63,6 +63,9 @@ type StaticRoute struct {
 	OriginatorID uint32
 	ClusterList  []uint32
 
+	// BGP Prefix-SID (RFC 8669) - wire-format bytes for attribute type 40
+	PrefixSIDBytes []byte
+
 	// Raw attributes (code, flags, value bytes)
 	RawAttributes []RawAttribute
 }
@@ -77,6 +80,11 @@ type RawAttribute struct {
 // IsVPN returns true if this is a VPN route (has RD).
 func (r StaticRoute) IsVPN() bool {
 	return r.RD != ""
+}
+
+// IsLabeledUnicast returns true if this is a labeled unicast route (has label but no RD).
+func (r StaticRoute) IsLabeledUnicast() bool {
+	return r.Label != 0 && r.RD == ""
 }
 
 // RouteKey returns a unique key for this route, suitable for use as a map key.

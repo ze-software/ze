@@ -520,6 +520,38 @@ func toStaticRouteUnicastParams(r StaticRoute, nf *NegotiatedFamilies) message.U
 	}
 }
 
+// toStaticRouteLabeledUnicastParams converts a StaticRoute to LabeledUnicastParams.
+// Used for labeled unicast routes (SAFI 4).
+func toStaticRouteLabeledUnicastParams(r StaticRoute) message.LabeledUnicastParams {
+	// Pack raw attributes
+	rawAttrs := make([][]byte, len(r.RawAttributes))
+	for i, ra := range r.RawAttributes {
+		rawAttrs[i] = packRawAttribute(ra)
+	}
+
+	return message.LabeledUnicastParams{
+		Prefix:            r.Prefix,
+		PathID:            r.PathID,
+		NextHop:           r.NextHop,
+		Label:             r.Label,
+		Origin:            attribute.Origin(r.Origin),
+		ASPath:            r.ASPath,
+		MED:               r.MED,
+		LocalPreference:   r.LocalPreference,
+		Communities:       r.Communities,
+		ExtCommunityBytes: r.ExtCommunityBytes,
+		LargeCommunities:  r.LargeCommunities,
+		AtomicAggregate:   r.AtomicAggregate,
+		HasAggregator:     r.HasAggregator,
+		AggregatorASN:     r.AggregatorASN,
+		AggregatorIP:      r.AggregatorIP,
+		OriginatorID:      r.OriginatorID,
+		ClusterList:       r.ClusterList,
+		PrefixSID:         r.PrefixSIDBytes,
+		RawAttributeBytes: rawAttrs,
+	}
+}
+
 // toStaticRouteVPNParams converts a StaticRoute to VPNParams.
 // Used for VPN routes (SAFI 128).
 func toStaticRouteVPNParams(r StaticRoute) message.VPNParams {
@@ -551,6 +583,9 @@ func buildStaticRouteUpdateNew(route StaticRoute, localAS uint32, isIBGP bool, c
 	ub := message.NewUpdateBuilder(localAS, isIBGP, ctx)
 	if route.IsVPN() {
 		return ub.BuildVPN(toStaticRouteVPNParams(route))
+	}
+	if route.IsLabeledUnicast() {
+		return ub.BuildLabeledUnicast(toStaticRouteLabeledUnicastParams(route))
 	}
 	return ub.BuildUnicast(toStaticRouteUnicastParams(route, nf))
 }
@@ -1395,7 +1430,7 @@ func buildWithdrawNLRI(n nlri.NLRI, ctx *nlri.PackContext) *message.Update {
 }
 
 // buildStaticRouteWithdraw builds a withdrawal UPDATE for a static route.
-// Handles VPN, IPv4 unicast, and IPv6 unicast correctly.
+// Handles VPN, labeled-unicast, IPv4 unicast, and IPv6 unicast correctly.
 // RFC 7911: ctx provides ADD-PATH capability state for NLRI encoding.
 func buildStaticRouteWithdraw(route StaticRoute, ctx *nlri.PackContext) *message.Update {
 	switch {
@@ -1403,6 +1438,9 @@ func buildStaticRouteWithdraw(route StaticRoute, ctx *nlri.PackContext) *message
 		// VPN route: use MP_UNREACH_NLRI with RD + prefix
 		// VPN doesn't use Pack() - manual NLRI construction
 		return buildMPUnreachVPN(route)
+	case route.IsLabeledUnicast():
+		// Labeled unicast: use MP_UNREACH_NLRI with label + prefix
+		return buildMPUnreachLabeledUnicast(route, ctx)
 	case route.Prefix.Addr().Is4():
 		// IPv4 unicast: use WithdrawnRoutes field
 		// RFC 7911: Pack uses ADD-PATH encoding when negotiated
@@ -1475,6 +1513,68 @@ func buildMPUnreachVPN(route StaticRoute) *message.Update {
 	}
 }
 
+// buildMPUnreachLabeledUnicast builds MP_UNREACH_NLRI for labeled unicast withdrawal.
+// RFC 8277: Labeled unicast uses SAFI 4 with label + prefix.
+func buildMPUnreachLabeledUnicast(route StaticRoute, ctx *nlri.PackContext) *message.Update {
+	// Determine AFI from prefix
+	var afi nlri.AFI
+	if route.Prefix.Addr().Is4() {
+		afi = nlri.AFIIPv4
+	} else {
+		afi = nlri.AFIIPv6
+	}
+
+	// Build labeled unicast NLRI: label (3 bytes) + prefix
+	var nlriBytes []byte
+
+	// Label: use route.Label or withdraw label (0x800000)
+	label := route.Label
+	if label == 0 {
+		label = 0x800000 // Withdraw label
+	}
+	nlriBytes = append(nlriBytes, byte(label>>12), byte(label>>4), byte(label<<4)|0x01) // BOS=1
+
+	// Prefix
+	prefixBits := route.Prefix.Bits()
+	prefixBytes := (prefixBits + 7) / 8
+	addr := route.Prefix.Addr()
+	if addr.Is4() {
+		a4 := addr.As4()
+		nlriBytes = append(nlriBytes, a4[:prefixBytes]...)
+	} else {
+		a16 := addr.As16()
+		nlriBytes = append(nlriBytes, a16[:prefixBytes]...)
+	}
+
+	// Prepend length (label + prefix bits)
+	totalBits := 24 + prefixBits // 3 bytes label + prefix
+	var nlriWithLen []byte
+
+	// Handle ADD-PATH if enabled
+	hasAddPath := ctx != nil && ctx.AddPath
+	if hasAddPath && route.PathID != 0 {
+		nlriWithLen = make([]byte, 4+1+len(nlriBytes))
+		nlriWithLen[0] = byte(route.PathID >> 24)
+		nlriWithLen[1] = byte(route.PathID >> 16)
+		nlriWithLen[2] = byte(route.PathID >> 8)
+		nlriWithLen[3] = byte(route.PathID)
+		nlriWithLen[4] = byte(totalBits)
+		copy(nlriWithLen[5:], nlriBytes)
+	} else {
+		nlriWithLen = append([]byte{byte(totalBits)}, nlriBytes...)
+	}
+
+	mpUnreach := &attribute.MPUnreachNLRI{
+		AFI:  attribute.AFI(afi),
+		SAFI: 4, // RFC 8277: Labeled Unicast
+		NLRI: nlriWithLen,
+	}
+
+	return &message.Update{
+		PathAttributes: attribute.PackAttribute(mpUnreach),
+	}
+}
+
 // routeFamily returns the NLRI family for a StaticRoute.
 // Used to track which families had routes sent for EOR purposes.
 func routeFamily(route StaticRoute) nlri.Family {
@@ -1483,6 +1583,12 @@ func routeFamily(route StaticRoute) nlri.Family {
 			return nlri.Family{AFI: nlri.AFIIPv6, SAFI: 128} // VPNv6
 		}
 		return nlri.Family{AFI: nlri.AFIIPv4, SAFI: 128} // VPNv4
+	}
+	if route.IsLabeledUnicast() {
+		if route.Prefix.Addr().Is6() {
+			return nlri.Family{AFI: nlri.AFIIPv6, SAFI: 4} // IPv6 Labeled Unicast
+		}
+		return nlri.Family{AFI: nlri.AFIIPv4, SAFI: 4} // IPv4 Labeled Unicast
 	}
 	if route.Prefix.Addr().Is6() {
 		return nlri.IPv6Unicast

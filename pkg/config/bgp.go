@@ -223,6 +223,7 @@ func peerFields() []FieldDef {
 			Field("ipv4", Container(
 				Field("unicast", InlineList(TypePrefix, routeAttributes()...)),
 				Field("multicast", InlineList(TypePrefix, routeAttributes()...)),
+				Field("nlri-mpls", InlineList(TypePrefix, routeAttributes()...)), // labeled-unicast (SAFI 4)
 				Field("mpls-vpn", InlineList(TypePrefix, routeAttributes()...)),
 				Field("mcast-vpn", InlineList(TypeString, mcastVpnAttributes()...)),
 				Field("mup", Flex()),      // MUP - complex inline format with nested parens
@@ -231,6 +232,7 @@ func peerFields() []FieldDef {
 			Field("ipv6", Container(
 				Field("unicast", InlineList(TypePrefix, routeAttributes()...)),
 				Field("multicast", InlineList(TypePrefix, routeAttributes()...)),
+				Field("nlri-mpls", InlineList(TypePrefix, routeAttributes()...)), // labeled-unicast (SAFI 4)
 				Field("mpls-vpn", InlineList(TypePrefix, routeAttributes()...)),
 				Field("mcast-vpn", InlineList(TypeString, mcastVpnAttributes()...)),
 				Field("mup", Flex()),      // MUP - complex inline format with nested parens
@@ -493,6 +495,7 @@ type StaticRouteConfig struct {
 	Attribute         string // Raw attribute hex: [ code flags value ]
 	OriginatorID      string // ORIGINATOR_ID (RFC 4456)
 	ClusterList       string // CLUSTER_LIST (RFC 4456)
+	PrefixSID         string // BGP Prefix-SID (RFC 8669) - can be number or "N, [(base,range),...]"
 
 	// Split prefix into more-specific routes (e.g., "/25" splits /24 into two /25s)
 	Split string
@@ -1474,6 +1477,13 @@ func extractRoutesFromTree(tree *Tree) ([]StaticRouteConfig, error) {
 				}
 				routes = append(routes, sr)
 			}
+			for _, entry := range ipv4.GetListOrdered("nlri-mpls") {
+				sr, err := parseRouteConfig(entry.Key, entry.Value)
+				if err != nil {
+					return nil, err
+				}
+				routes = append(routes, sr)
+			}
 			for _, entry := range ipv4.GetListOrdered("mpls-vpn") {
 				sr, err := parseRouteConfig(entry.Key, entry.Value)
 				if err != nil {
@@ -1492,6 +1502,13 @@ func extractRoutesFromTree(tree *Tree) ([]StaticRouteConfig, error) {
 				routes = append(routes, sr)
 			}
 			for _, entry := range ipv6.GetListOrdered("multicast") {
+				sr, err := parseRouteConfig(entry.Key, entry.Value)
+				if err != nil {
+					return nil, err
+				}
+				routes = append(routes, sr)
+			}
+			for _, entry := range ipv6.GetListOrdered("nlri-mpls") {
 				sr, err := parseRouteConfig(entry.Key, entry.Value)
 				if err != nil {
 					return nil, err
@@ -1597,6 +1614,9 @@ func parseRouteConfig(prefix string, route *Tree) (StaticRouteConfig, error) {
 	}
 	if v, ok := route.Get("cluster-list"); ok {
 		sr.ClusterList = v
+	}
+	if v, ok := route.Get("bgp-prefix-sid"); ok {
+		sr.PrefixSID = v
 	}
 	if v, ok := route.Get("split"); ok {
 		sr.Split = v

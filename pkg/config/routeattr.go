@@ -775,6 +775,198 @@ func parseHexBytes(s string) ([]byte, error) {
 	return hex.DecodeString(s)
 }
 
+// PrefixSID represents BGP Prefix-SID (RFC 8669).
+// Stores the wire-format TLV bytes for attribute type 40.
+type PrefixSID struct {
+	Bytes []byte // Wire-format TLV bytes (without attribute header)
+}
+
+// ParsePrefixSID parses a prefix-sid string.
+// Formats:
+//   - Simple: "777" → Label Index 777
+//   - With SRGB: "300, [( 800000,4096) ,( 1000000,5000)]"
+//
+// RFC 8669 TLV format:
+//   - Type (1 byte) + Length (2 bytes) + Value (variable)
+//
+// Label Index TLV (Type 1):
+//   - Reserved (3 bytes) + Flags (1 byte) + Label-Index (3 bytes)
+func ParsePrefixSID(s string) (PrefixSID, error) {
+	if s == "" {
+		return PrefixSID{}, nil
+	}
+
+	// Clean up the input
+	s = strings.TrimSpace(s)
+	s = strings.Trim(s, "[]")
+	s = strings.TrimSpace(s)
+
+	// Check for SRGB list (contains parentheses)
+	if strings.Contains(s, "(") {
+		return parsePrefixSIDWithSRGB(s)
+	}
+
+	// Simple label index
+	idx, err := strconv.ParseUint(s, 10, 32)
+	if err != nil {
+		return PrefixSID{}, fmt.Errorf("invalid prefix-sid label index %q: %w", s, err)
+	}
+
+	// RFC 8669: Label-Index is 24 bits (max 16777215)
+	if idx > 0xFFFFFF {
+		return PrefixSID{}, fmt.Errorf("prefix-sid label index %d exceeds 24-bit maximum (16777215)", idx)
+	}
+
+	// Build TLV for Label Index (Type 1)
+	// RFC 8669 Section 4.1: Type(1) + Length(2) + Reserved(3) + Flags(1) + LabelIndex(3) = 10 bytes
+	tlv := []byte{
+		1,               // Type: Label Index
+		0,               // Length high byte
+		7,               // Length low byte (7 bytes value)
+		0,               // Reserved byte 1
+		0,               // Reserved byte 2
+		0,               // Reserved byte 3
+		0,               // Flags
+		byte(idx >> 16), // Label Index (3 bytes, big-endian)
+		byte(idx >> 8),
+		byte(idx),
+	}
+
+	return PrefixSID{Bytes: tlv}, nil
+}
+
+// parsePrefixSIDWithSRGB parses format: "300, [( 800000,4096) ,( 1000000,5000)]".
+//
+// RFC 8669 TLV format:
+//   - Type (1 byte) + Length (2 bytes) + Value (variable)
+//
+// SRGB TLV (Type 3):
+//   - Flags (2 bytes) + SRGB descriptors (6 bytes each: Base(3) + Range(3))
+func parsePrefixSIDWithSRGB(s string) (PrefixSID, error) {
+	// Find the comma that separates label index from SRGB list
+	// Format: "300, [( 800000,4096) ,( 1000000,5000)]"
+	parts := strings.SplitN(s, ",", 2)
+	if len(parts) < 2 {
+		return PrefixSID{}, fmt.Errorf("invalid prefix-sid format: expected 'index, [(base,range)...]'")
+	}
+
+	// Parse label index
+	idxStr := strings.TrimSpace(parts[0])
+	idx, err := strconv.ParseUint(idxStr, 10, 32)
+	if err != nil {
+		return PrefixSID{}, fmt.Errorf("invalid prefix-sid label index %q: %w", idxStr, err)
+	}
+
+	// RFC 8669: Label-Index is 24 bits (max 16777215)
+	if idx > 0xFFFFFF {
+		return PrefixSID{}, fmt.Errorf("prefix-sid label index %d exceeds 24-bit maximum (16777215)", idx)
+	}
+
+	// Parse SRGB list
+	srgbStr := parts[1]
+	srgbs, err := parseSRGBList(srgbStr)
+	if err != nil {
+		return PrefixSID{}, err
+	}
+
+	// Build TLVs
+	// Label Index TLV (Type 1)
+	// Type(1) + Length(2) + Reserved(3) + Flags(1) + LabelIndex(3) = 10 bytes
+	result := []byte{
+		1,               // Type: Label Index
+		0,               // Length high byte
+		7,               // Length low byte (7 bytes value)
+		0,               // Reserved byte 1
+		0,               // Reserved byte 2
+		0,               // Reserved byte 3
+		0,               // Flags
+		byte(idx >> 16), // Label Index (3 bytes, big-endian)
+		byte(idx >> 8),
+		byte(idx),
+	}
+
+	// SRGB TLV (Type 3) if we have SRGBs
+	// Type(1) + Length(2) + Flags(2) + entries(6 each)
+	if len(srgbs) > 0 {
+		valueLen := 2 + len(srgbs)*6 // Flags(2) + entries
+		srgbTLV := make([]byte, 3+valueLen)
+		srgbTLV[0] = 3                   // Type: Originator SRGB
+		srgbTLV[1] = byte(valueLen >> 8) // Length high byte
+		srgbTLV[2] = byte(valueLen)      // Length low byte
+		srgbTLV[3] = 0                   // Flags high byte
+		srgbTLV[4] = 0                   // Flags low byte
+		for i, entry := range srgbs {
+			offset := 5 + i*6
+			// Base (3 bytes, big-endian)
+			srgbTLV[offset+0] = byte(entry.Base >> 16)
+			srgbTLV[offset+1] = byte(entry.Base >> 8)
+			srgbTLV[offset+2] = byte(entry.Base)
+			// Range (3 bytes, big-endian)
+			srgbTLV[offset+3] = byte(entry.Range >> 16)
+			srgbTLV[offset+4] = byte(entry.Range >> 8)
+			srgbTLV[offset+5] = byte(entry.Range)
+		}
+		result = append(result, srgbTLV...)
+	}
+
+	return PrefixSID{Bytes: result}, nil
+}
+
+// srgbEntry represents a single SRGB base,range pair.
+type srgbEntry struct {
+	Base  uint32
+	Range uint32
+}
+
+// parseSRGBList parses "[( 800000,4096) ,( 1000000,5000)]" format.
+func parseSRGBList(s string) ([]srgbEntry, error) {
+	s = strings.TrimSpace(s)
+	s = strings.Trim(s, "[]")
+
+	var entries []srgbEntry
+
+	// Find all (base,range) pairs
+	for {
+		start := strings.Index(s, "(")
+		if start == -1 {
+			break
+		}
+		end := strings.Index(s, ")")
+		if end == -1 {
+			return nil, fmt.Errorf("unmatched parenthesis in SRGB list")
+		}
+
+		pair := s[start+1 : end]
+		parts := strings.Split(pair, ",")
+		if len(parts) != 2 {
+			return nil, fmt.Errorf("invalid SRGB pair %q: expected (base,range)", pair)
+		}
+
+		base, err := strconv.ParseUint(strings.TrimSpace(parts[0]), 10, 32)
+		if err != nil {
+			return nil, fmt.Errorf("invalid SRGB base %q: %w", parts[0], err)
+		}
+		// RFC 8669: SRGB base is 24 bits (max 16777215)
+		if base > 0xFFFFFF {
+			return nil, fmt.Errorf("SRGB base %d exceeds 24-bit maximum (16777215)", base)
+		}
+
+		rng, err := strconv.ParseUint(strings.TrimSpace(parts[1]), 10, 32)
+		if err != nil {
+			return nil, fmt.Errorf("invalid SRGB range %q: %w", parts[1], err)
+		}
+		// RFC 8669: SRGB range is 24 bits (max 16777215)
+		if rng > 0xFFFFFF {
+			return nil, fmt.Errorf("SRGB range %d exceeds 24-bit maximum (16777215)", rng)
+		}
+
+		entries = append(entries, srgbEntry{Base: uint32(base), Range: uint32(rng)})
+		s = s[end+1:]
+	}
+
+	return entries, nil
+}
+
 // ParsedRouteAttributes holds all parsed route attributes.
 type ParsedRouteAttributes struct {
 	Prefix            netip.Prefix
@@ -793,6 +985,7 @@ type ParsedRouteAttributes struct {
 	AtomicAggregate   bool
 	OriginatorID      uint32   // RFC 4456
 	ClusterList       []uint32 // RFC 4456
+	PrefixSID         PrefixSID
 	RawAttributes     []RawAttribute
 }
 
@@ -906,6 +1099,15 @@ func ParseRouteAttributes(src StaticRouteConfig) (*ParsedRouteAttributes, error)
 				attrs.ClusterList = append(attrs.ClusterList, uint32(b[0])<<24|uint32(b[1])<<16|uint32(b[2])<<8|uint32(b[3]))
 			}
 		}
+	}
+
+	// BGP Prefix-SID (RFC 8669)
+	if src.PrefixSID != "" {
+		sid, err := ParsePrefixSID(src.PrefixSID)
+		if err != nil {
+			return nil, err
+		}
+		attrs.PrefixSID = sid
 	}
 
 	// Raw Attributes (hex format: "0xNN 0xNN 0xVALUE")
