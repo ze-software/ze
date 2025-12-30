@@ -223,6 +223,7 @@ type APIBinding struct {
 	// Content settings (HOW messages are formatted)
 	Encoding string // "json" | "text" (empty = inherit from process)
 	Format   string // "parsed" | "raw" | "full" (empty = "parsed")
+	Version  int    // 6=legacy ExaBGP, 7=new nlri format (0 = default to 7)
 
 	// Receive settings (WHAT message types to forward)
 	ReceiveUpdate       bool

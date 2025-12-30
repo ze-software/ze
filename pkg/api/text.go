@@ -145,22 +145,49 @@ func FormatReceivedUpdateWithEncoding(peer PeerInfo, routes []ReceivedRoute, enc
 }
 
 // FormatMessage formats a RawMessage based on ContentConfig.
-// Handles encoding (json/text) and format (parsed/raw/full).
+// Handles encoding (json/text), format (parsed/raw/full), and version (6/7).
 func FormatMessage(peer PeerInfo, msg RawMessage, content ContentConfig) string {
 	content = content.WithDefaults()
 
+	// Route to version-specific formatter
+	if content.Version == APIVersionLegacy {
+		return formatMessageV6(peer, msg, content)
+	}
+	return formatMessageV7(peer, msg, content)
+}
+
+// formatMessageV6 formats using legacy ExaBGP format (version 6).
+// Output: "neighbor X receive update announced ...".
+func formatMessageV6(peer PeerInfo, msg RawMessage, content ContentConfig) string {
 	switch content.Format {
 	case FormatRaw:
-		return formatRaw(peer, msg, content.Encoding)
+		return formatRawV6(peer, msg, content.Encoding)
 	case FormatFull:
-		return formatFull(peer, msg, content.Encoding)
+		return formatFullV6(peer, msg, content.Encoding)
 	default: // FormatParsed
-		return formatParsed(peer, msg, content.Encoding)
+		return formatParsedV6(peer, msg, content.Encoding)
 	}
 }
 
-// formatRaw formats message as raw hex bytes only.
-func formatRaw(peer PeerInfo, msg RawMessage, encoding string) string {
+// formatMessageV7 formats using new nlri format (version 7).
+// Output: "peer X update announce nlri ...".
+func formatMessageV7(peer PeerInfo, msg RawMessage, content ContentConfig) string {
+	switch content.Format {
+	case FormatRaw:
+		return formatRawV7(peer, msg, content.Encoding)
+	case FormatFull:
+		return formatFullV7(peer, msg, content.Encoding)
+	default: // FormatParsed
+		return formatParsedV7(peer, msg, content.Encoding)
+	}
+}
+
+// =============================================================================
+// VERSION 6 (Legacy ExaBGP) FORMATTERS
+// =============================================================================
+
+// formatRawV6 formats message as raw hex bytes only (v6 format).
+func formatRawV6(peer PeerInfo, msg RawMessage, encoding string) string {
 	rawHex := fmt.Sprintf("%x", msg.RawBytes)
 	if encoding == EncodingJSON {
 		return fmt.Sprintf(`{"type":"%s","raw":"%s","peer":"%s"}`,
@@ -170,12 +197,10 @@ func formatRaw(peer PeerInfo, msg RawMessage, encoding string) string {
 		peer.Address, msg.Type.String(), rawHex)
 }
 
-// formatParsed formats message with parsed content (no raw bytes).
-func formatParsed(peer PeerInfo, msg RawMessage, encoding string) string {
-	// Parse UPDATE and format routes
+// formatParsedV6 formats message with parsed content (v6 format).
+func formatParsedV6(peer PeerInfo, msg RawMessage, encoding string) string {
 	routes := DecodeUpdateRoutes(msg.RawBytes)
 	if len(routes) == 0 {
-		// No routes to format (could be withdraw-only or parse error)
 		if encoding == EncodingJSON {
 			return fmt.Sprintf(`{"type":"update","peer":{"address":{"peer":"%s"}},"announce":{}}`, peer.Address)
 		}
@@ -193,13 +218,12 @@ func formatParsed(peer PeerInfo, msg RawMessage, encoding string) string {
 	return FormatReceivedUpdate(peer.Address, routes)
 }
 
-// formatFull formats message with both parsed content AND raw bytes.
-func formatFull(peer PeerInfo, msg RawMessage, encoding string) string {
+// formatFullV6 formats message with both parsed content AND raw bytes (v6 format).
+func formatFullV6(peer PeerInfo, msg RawMessage, encoding string) string {
 	rawHex := fmt.Sprintf("%x", msg.RawBytes)
 	routes := DecodeUpdateRoutes(msg.RawBytes)
 
 	if encoding == EncodingJSON {
-		// Use proper JSON encoder with raw field support
 		encoder := NewJSONEncoder("6.0.0")
 		if len(routes) > 0 {
 			updates := make([]RouteUpdate, len(routes))
@@ -208,16 +232,211 @@ func formatFull(peer PeerInfo, msg RawMessage, encoding string) string {
 			}
 			return encoder.RouteAnnounceWithRaw(peer, updates, rawHex)
 		}
-		// Empty routes - still include raw bytes
 		return encoder.RouteAnnounceWithRaw(peer, nil, rawHex)
 	}
 
-	// Text format: include both parsed routes and raw hex
 	if len(routes) > 0 {
 		parsed := FormatReceivedUpdate(peer.Address, routes)
 		return parsed + fmt.Sprintf("neighbor %s receive update raw %s\n", peer.Address, rawHex)
 	}
 	return fmt.Sprintf("neighbor %s receive update raw %s\n", peer.Address, rawHex)
+}
+
+// =============================================================================
+// VERSION 7 (New NLRI) FORMATTERS
+// =============================================================================
+
+// formatRawV7 formats message as raw hex bytes only (v7 format).
+func formatRawV7(peer PeerInfo, msg RawMessage, encoding string) string {
+	rawHex := fmt.Sprintf("%x", msg.RawBytes)
+	if encoding == EncodingJSON {
+		return fmt.Sprintf(`{"type":"update","peer":{"address":"%s","asn":%d},"raw":"%s"}`+"\n",
+			peer.Address, peer.PeerAS, rawHex)
+	}
+	return fmt.Sprintf("peer %s update raw %s\n", peer.Address, rawHex)
+}
+
+// formatParsedV7 formats message with parsed content (v7 format).
+// Text: "peer X update announce nlri ipv4 unicast PREFIX next-hop NH [attrs]".
+// JSON: {"type":"update","peer":{...},"announce":{"nlri":{...}}}.
+func formatParsedV7(peer PeerInfo, msg RawMessage, encoding string) string {
+	routes := DecodeUpdateRoutes(msg.RawBytes)
+	if len(routes) == 0 {
+		if encoding == EncodingJSON {
+			return fmt.Sprintf(`{"type":"update","peer":{"address":"%s","asn":%d},"announce":{}}`+"\n",
+				peer.Address, peer.PeerAS)
+		}
+		return fmt.Sprintf("peer %s update\n", peer.Address)
+	}
+
+	if encoding == EncodingJSON {
+		return formatRoutesJSONv7(peer, routes)
+	}
+	return formatRoutesTextV7(peer, routes)
+}
+
+// formatFullV7 formats message with both parsed content AND raw bytes (v7 format).
+func formatFullV7(peer PeerInfo, msg RawMessage, encoding string) string {
+	rawHex := fmt.Sprintf("%x", msg.RawBytes)
+	routes := DecodeUpdateRoutes(msg.RawBytes)
+
+	if encoding == EncodingJSON {
+		if len(routes) > 0 {
+			// Include raw in the JSON structure
+			return formatRoutesJSONv7WithRaw(peer, routes, rawHex)
+		}
+		return fmt.Sprintf(`{"type":"update","peer":{"address":"%s","asn":%d},"announce":{},"raw":"%s"}`+"\n",
+			peer.Address, peer.PeerAS, rawHex)
+	}
+
+	if len(routes) > 0 {
+		parsed := formatRoutesTextV7(peer, routes)
+		return parsed + fmt.Sprintf("peer %s update raw %s\n", peer.Address, rawHex)
+	}
+	return fmt.Sprintf("peer %s update raw %s\n", peer.Address, rawHex)
+}
+
+// formatRoutesTextV7 formats routes in v7 text format.
+// Format: peer X update announce nlri ipv4 unicast PREFIX next-hop NH origin O as-path [...].
+func formatRoutesTextV7(peer PeerInfo, routes []ReceivedRoute) string {
+	var sb strings.Builder
+	for _, route := range routes {
+		family := "ipv4 unicast"
+		if route.Prefix.Addr().Is6() {
+			family = "ipv6 unicast"
+		}
+
+		sb.WriteString(fmt.Sprintf("peer %s update announce nlri %s %s next-hop %s",
+			peer.Address, family, route.Prefix, route.NextHop))
+
+		if route.Origin != "" {
+			sb.WriteString(" origin ")
+			sb.WriteString(originLower(route.Origin))
+		}
+		if len(route.ASPath) > 0 {
+			sb.WriteString(" as-path [")
+			for i, asn := range route.ASPath {
+				if i > 0 {
+					sb.WriteString(" ")
+				}
+				sb.WriteString(fmt.Sprintf("%d", asn))
+			}
+			sb.WriteString("]")
+		}
+		if route.LocalPreference > 0 {
+			sb.WriteString(fmt.Sprintf(" local-preference %d", route.LocalPreference))
+		}
+		if route.MED > 0 {
+			sb.WriteString(fmt.Sprintf(" med %d", route.MED))
+		}
+		sb.WriteString("\n")
+	}
+	return sb.String()
+}
+
+// formatRoutesJSONv7 formats routes in v7 JSON format.
+func formatRoutesJSONv7(peer PeerInfo, routes []ReceivedRoute) string {
+	// Group routes by family
+	ipv4Routes := make([]ReceivedRoute, 0)
+	ipv6Routes := make([]ReceivedRoute, 0)
+	for _, r := range routes {
+		if r.Prefix.Addr().Is6() {
+			ipv6Routes = append(ipv6Routes, r)
+		} else {
+			ipv4Routes = append(ipv4Routes, r)
+		}
+	}
+
+	var sb strings.Builder
+	sb.WriteString(fmt.Sprintf(`{"type":"update","peer":{"address":"%s","asn":%d},"announce":{"nlri":{`,
+		peer.Address, peer.PeerAS))
+
+	needComma := false
+	if len(ipv4Routes) > 0 {
+		sb.WriteString(`"ipv4 unicast":`)
+		sb.WriteString(formatNLRIArray(ipv4Routes))
+		needComma = true
+	}
+	if len(ipv6Routes) > 0 {
+		if needComma {
+			sb.WriteString(",")
+		}
+		sb.WriteString(`"ipv6 unicast":`)
+		sb.WriteString(formatNLRIArray(ipv6Routes))
+	}
+
+	sb.WriteString("}}}\n")
+	return sb.String()
+}
+
+// formatRoutesJSONv7WithRaw formats routes in v7 JSON format with raw bytes.
+func formatRoutesJSONv7WithRaw(peer PeerInfo, routes []ReceivedRoute, rawHex string) string {
+	// Same as formatRoutesJSONv7 but with raw field
+	ipv4Routes := make([]ReceivedRoute, 0)
+	ipv6Routes := make([]ReceivedRoute, 0)
+	for _, r := range routes {
+		if r.Prefix.Addr().Is6() {
+			ipv6Routes = append(ipv6Routes, r)
+		} else {
+			ipv4Routes = append(ipv4Routes, r)
+		}
+	}
+
+	var sb strings.Builder
+	sb.WriteString(fmt.Sprintf(`{"type":"update","peer":{"address":"%s","asn":%d},"announce":{"nlri":{`,
+		peer.Address, peer.PeerAS))
+
+	needComma := false
+	if len(ipv4Routes) > 0 {
+		sb.WriteString(`"ipv4 unicast":`)
+		sb.WriteString(formatNLRIArray(ipv4Routes))
+		needComma = true
+	}
+	if len(ipv6Routes) > 0 {
+		if needComma {
+			sb.WriteString(",")
+		}
+		sb.WriteString(`"ipv6 unicast":`)
+		sb.WriteString(formatNLRIArray(ipv6Routes))
+	}
+
+	sb.WriteString(fmt.Sprintf(`}},"raw":"%s"}`, rawHex))
+	sb.WriteString("\n")
+	return sb.String()
+}
+
+// formatNLRIArray formats an array of routes as JSON NLRI entries.
+func formatNLRIArray(routes []ReceivedRoute) string {
+	var sb strings.Builder
+	sb.WriteString("[")
+	for i, r := range routes {
+		if i > 0 {
+			sb.WriteString(",")
+		}
+		sb.WriteString(fmt.Sprintf(`{"prefix":"%s","next-hop":"%s"`, r.Prefix, r.NextHop))
+		if r.Origin != "" {
+			sb.WriteString(fmt.Sprintf(`,"origin":"%s"`, originLower(r.Origin)))
+		}
+		if len(r.ASPath) > 0 {
+			sb.WriteString(`,"as-path":[`)
+			for j, asn := range r.ASPath {
+				if j > 0 {
+					sb.WriteString(",")
+				}
+				sb.WriteString(fmt.Sprintf("%d", asn))
+			}
+			sb.WriteString("]")
+		}
+		if r.LocalPreference > 0 {
+			sb.WriteString(fmt.Sprintf(`,"local-preference":%d`, r.LocalPreference))
+		}
+		if r.MED > 0 {
+			sb.WriteString(fmt.Sprintf(`,"med":%d`, r.MED))
+		}
+		sb.WriteString("}")
+	}
+	sb.WriteString("]")
+	return sb.String()
 }
 
 // FormatOpen formats an OPEN message as ExaBGP text encoder output.

@@ -457,6 +457,7 @@ func configToPeer(nc *PeerConfig, global *BGPConfig) (*reactor.PeerSettings, err
 			ProcessName:         ab.ProcessName,
 			Encoding:            ab.Content.Encoding,
 			Format:              ab.Content.Format,
+			Version:             ab.Content.Version,
 			ReceiveUpdate:       ab.Receive.Update,
 			ReceiveOpen:         ab.Receive.Open,
 			ReceiveNotification: ab.Receive.Notification,

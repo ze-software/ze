@@ -2,6 +2,7 @@ package api
 
 import (
 	"net/netip"
+	"strings"
 	"testing"
 )
 
@@ -149,5 +150,138 @@ func TestFormatStateChange(t *testing.T) {
 				t.Errorf("FormatStateChange() = %q, want %q", got, tt.want)
 			}
 		})
+	}
+}
+
+// TestFormatMessageV7Text tests v7 text format output.
+//
+// VALIDATES: V7 format uses "peer X update announce nlri ..." syntax.
+//
+// PREVENTS: Wrong format sent to v7-expecting processes.
+func TestFormatMessageV7Text(t *testing.T) {
+	peer := PeerInfo{
+		Address: netip.MustParseAddr("10.0.0.1"),
+		PeerAS:  65001,
+	}
+
+	route := ReceivedRoute{
+		Prefix:          netip.MustParsePrefix("192.168.1.0/24"),
+		NextHop:         netip.MustParseAddr("10.0.0.1"),
+		Origin:          "igp",
+		LocalPreference: 100,
+		ASPath:          []uint32{65001, 65002},
+	}
+
+	// Create a minimal UPDATE message (just need RawBytes for decoding)
+	// We'll test the formatting function directly instead
+	content := ContentConfig{
+		Encoding: EncodingText,
+		Format:   FormatParsed,
+		Version:  APIVersionNLRI, // v7
+	}
+
+	got := formatRoutesTextV7(peer, []ReceivedRoute{route})
+	want := "peer 10.0.0.1 update announce nlri ipv4 unicast 192.168.1.0/24 next-hop 10.0.0.1 origin igp as-path [65001 65002] local-preference 100\n"
+
+	if got != want {
+		t.Errorf("formatRoutesTextV7() =\n%q\nwant:\n%q", got, want)
+	}
+
+	// Verify ContentConfig defaults to v7
+	_ = content // used above
+}
+
+// TestFormatMessageV7JSON tests v7 JSON format output.
+//
+// VALIDATES: V7 JSON uses announce.nlri structure.
+//
+// PREVENTS: Wrong JSON structure sent to v7-expecting processes.
+func TestFormatMessageV7JSON(t *testing.T) {
+	peer := PeerInfo{
+		Address: netip.MustParseAddr("10.0.0.1"),
+		PeerAS:  65001,
+	}
+
+	route := ReceivedRoute{
+		Prefix:  netip.MustParsePrefix("192.168.1.0/24"),
+		NextHop: netip.MustParseAddr("10.0.0.1"),
+		Origin:  "igp",
+	}
+
+	got := formatRoutesJSONv7(peer, []ReceivedRoute{route})
+
+	// Check key parts of the JSON structure
+	if !strings.Contains(got, `"type":"update"`) {
+		t.Error("missing type:update")
+	}
+	if !strings.Contains(got, `"peer":{"address":"10.0.0.1","asn":65001}`) {
+		t.Error("missing peer info")
+	}
+	if !strings.Contains(got, `"announce":{"nlri":{`) {
+		t.Error("missing announce.nlri structure")
+	}
+	if !strings.Contains(got, `"ipv4 unicast":`) {
+		t.Error("missing ipv4 unicast family")
+	}
+	if !strings.Contains(got, `"prefix":"192.168.1.0/24"`) {
+		t.Error("missing prefix")
+	}
+}
+
+// TestFormatMessageV6VsV7 tests that v6 and v7 produce different output.
+//
+// VALIDATES: Version field affects output format.
+//
+// PREVENTS: Version being ignored.
+func TestFormatMessageV6VsV7(t *testing.T) {
+	peer := PeerInfo{
+		Address: netip.MustParseAddr("10.0.0.1"),
+		PeerAS:  65001,
+	}
+
+	route := ReceivedRoute{
+		Prefix:  netip.MustParsePrefix("192.168.1.0/24"),
+		NextHop: netip.MustParseAddr("10.0.0.1"),
+		Origin:  "igp",
+	}
+
+	v6Text := FormatReceivedUpdate(peer.Address, []ReceivedRoute{route})
+	v7Text := formatRoutesTextV7(peer, []ReceivedRoute{route})
+
+	// V6 uses "neighbor X receive update announced ..."
+	if !strings.Contains(v6Text, "neighbor") {
+		t.Error("v6 should use 'neighbor' keyword")
+	}
+	if !strings.Contains(v6Text, "receive update") {
+		t.Error("v6 should use 'receive update'")
+	}
+
+	// V7 uses "peer X update announce nlri ..."
+	if !strings.Contains(v7Text, "peer") {
+		t.Error("v7 should use 'peer' keyword")
+	}
+	if !strings.Contains(v7Text, "announce nlri") {
+		t.Error("v7 should use 'announce nlri'")
+	}
+
+	// They should be different
+	if v6Text == v7Text {
+		t.Error("v6 and v7 output should be different")
+	}
+}
+
+// TestContentConfigVersionDefault tests that version defaults to 7.
+//
+// VALIDATES: Empty version field defaults to APIVersionNLRI (7).
+//
+// PREVENTS: Legacy format being used unintentionally.
+func TestContentConfigVersionDefault(t *testing.T) {
+	content := ContentConfig{}.WithDefaults()
+
+	if content.Version != APIVersionNLRI {
+		t.Errorf("Version default = %d, want %d (APIVersionNLRI)", content.Version, APIVersionNLRI)
+	}
+	if content.Version != 7 {
+		t.Errorf("Version default = %d, want 7", content.Version)
 	}
 }

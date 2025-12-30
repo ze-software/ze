@@ -319,6 +319,7 @@ type PeerAPIBinding struct {
 	// Content settings (HOW messages are formatted)
 	Encoding string // "json" | "text" (empty = inherit from process)
 	Format   string // "parsed" | "raw" | "full" (empty = "parsed")
+	Version  int    // 6=legacy ExaBGP, 7=new nlri format (default: 7)
 
 	// Receive settings (WHAT message types to forward)
 	ReceiveUpdate       bool
@@ -387,11 +388,18 @@ const (
 	FormatFull   = "full"   // Both parsed content AND raw bytes
 )
 
-// ContentConfig controls HOW messages are formatted (encoding + format).
+// API version constants for output format.
+const (
+	APIVersionLegacy = 6 // ExaBGP-compatible format (neighbor X announce route ...)
+	APIVersionNLRI   = 7 // New format (peer X update announce nlri ...)
+)
+
+// ContentConfig controls HOW messages are formatted (encoding + format + version).
 // Separated from message type subscriptions (WHAT) per new API design.
 type ContentConfig struct {
 	Encoding string // "json" | "text" (default: "text")
 	Format   string // "parsed" | "raw" | "full" (default: "parsed")
+	Version  int    // 6=legacy, 7=nlri (default: 7)
 }
 
 // WithDefaults returns a ContentConfig with default values applied.
@@ -401,6 +409,9 @@ func (c ContentConfig) WithDefaults() ContentConfig {
 	}
 	if c.Format == "" {
 		c.Format = FormatParsed
+	}
+	if c.Version == 0 {
+		c.Version = APIVersionNLRI
 	}
 	return c
 }
