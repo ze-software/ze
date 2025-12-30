@@ -80,6 +80,27 @@ func MigrateV2ToV3(tree *config.Tree) (*config.Tree, error) {
 		}
 	}
 
+	// Step 5: Migrate old api blocks to new named syntax
+	// api { processes [ foo ]; neighbor-changes; } → api foo { receive { state; } }
+	for _, entry := range result.GetListOrdered("peer") {
+		if err := migrateAPIFromPeer("peer "+entry.Key, entry.Value); err != nil {
+			return nil, err
+		}
+	}
+
+	if tmpl := result.GetContainer("template"); tmpl != nil {
+		for _, entry := range tmpl.GetListOrdered("group") {
+			if err := migrateAPIFromPeer("template.group."+entry.Key, entry.Value); err != nil {
+				return nil, err
+			}
+		}
+		for _, entry := range tmpl.GetListOrdered("match") {
+			if err := migrateAPIFromPeer("template.match."+entry.Key, entry.Value); err != nil {
+				return nil, err
+			}
+		}
+	}
+
 	return result, nil
 }
 

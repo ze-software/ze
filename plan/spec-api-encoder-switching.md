@@ -15,6 +15,7 @@ Fix the current bug where `encoder json` processes receive nothing or text forma
 - **Phase 0 COMPLETE**: Message dispatch wired for all types
 - **Phase 1 COMPLETE**: Config parsing and data flow working
 - **Phase 2 COMPLETE**: Per-peer message routing with bindings
+- **Phase 4 COMPLETE**: Migration tool updated
 - Last verified: 2025-12-30
 
 ### Known Issues in Current Code
@@ -1404,9 +1405,23 @@ Update ExaBGP config migrator to:
 - [x] Tests: TestFormatMessageV7Text, TestFormatMessageV7JSON, TestFormatMessageV6VsV7, TestContentConfigVersionDefault
 - [x] `make test && make lint` pass
 
-### Phase 4: Migration
-- [ ] ExaBGP configs convert correctly
-- [ ] Tests pass
+### Phase 4: Migration (COMPLETE - 2025-12-30)
+
+**All items completed:**
+- [x] MigrateAPIBlocks function added to pkg/config/migration/api.go
+- [x] Integrated into MigrateV2ToV3 as Step 5
+- [x] Converts: `api { processes [ foo ]; neighbor-changes; }` → `api foo { receive { state; } }`
+- [x] Multiple processes create multiple named api blocks
+- [x] neighbor-changes flag maps to receive { state; }
+- [x] Preserves already-migrated new syntax
+- [x] Works in peer, template.group, template.match blocks
+- [x] processes-match patterns migrated to named blocks
+- [x] Error on empty/missing processes (ErrEmptyProcesses)
+- [x] Error on duplicate process names (ErrDuplicateProcess)
+- [x] Error on collision with existing named blocks (ErrAPICollision)
+- [x] v2 neighbor→peer integration test
+- [x] 16 tests for api migration
+- [x] `make test && make lint` pass
 
 ### Phase 5: Documentation
 - [ ] ARCHITECTURE.md updated
