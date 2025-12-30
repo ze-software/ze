@@ -123,20 +123,18 @@ Write to `plan/spec-<task-name>.md`:
 ```markdown
 # Spec: <task-name>
 
-## MANDATORY READING (BEFORE IMPLEMENTATION)
+## SOURCE FILES (read before implementation)
 
 \`\`\`
 ┌─────────────────────────────────────────────────────────────────┐
-│  STOP. Read these files FIRST before ANY implementation:        │
+│  Read these source files before implementing:                   │
 │                                                                 │
-│  1. .claude/ESSENTIAL_PROTOCOLS.md - Session rules, TDD         │
-│  2. .claude/INDEX.md - Find what docs to load                   │
-│  3. plan/CLAUDE_CONTINUATION.md - Current state                 │
-│  4. THIS SPEC FILE - Design requirements                        │
-│  5. [relevant source files for this task]                       │
-│  6. [relevant .claude design docs - see INDEX.md]               │
+│  1. [relevant source files for this task]                       │
+│  2. [relevant .claude design docs - see INDEX.md]               │
 │                                                                 │
-│  DO NOT PROCEED until all are read and understood.              │
+│  NOTE: Protocol files (.claude/ESSENTIAL_PROTOCOLS.md,          │
+│  .claude/INDEX.md, plan/CLAUDE_CONTINUATION.md) should have     │
+│  been read at SESSION START, before /prep was invoked.          │
 │                                                                 │
 │  ON COMPLETION: Update design docs listed in Documentation      │
 │  Impact section to match any design changes made.               │
