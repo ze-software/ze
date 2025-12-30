@@ -623,10 +623,10 @@ functional-api:
 
 ## Priority Order
 
-1. **P0 (Do Now):** AI-friendly failure output + dynamic ports + ulimit
-2. **P1 (Soon):** Display fixes
-3. **P2 (Later):** Stress testing (--count)
-4. **P3 (Optional):** --save implementation
+1. **P0 (Do Now):** AI-friendly failure output + dynamic ports + ulimit ✅
+2. **P1 (Soon):** Display fixes ✅ (done as part of P0)
+3. **P2 (Later):** Stress testing (--count) ✅ (commit 4ce5b99)
+4. **P3 (Optional):** --save implementation ✅ (commit 511b423)
 5. **P4 (Final):** Remove old program, rename, update docs
 
 ## Dropped from Original Spec
@@ -670,7 +670,28 @@ functional-api:
 - [x] `make test` passes
 - [x] `make lint` passes
 
-### Phase 4: Migration (TODO)
+### Phase 4: Stress Testing (P2 COMPLETE)
+- [x] `--count N` flag added to CLI
+- [x] `RunWithCount()` method in runner.go
+- [x] `IterationStats` type for per-test statistics
+- [x] `StressSummary()` display with pass/fail/timeout counts
+- [x] Min/avg/max timing per test
+- [x] Context cancellation handled between iterations
+- [x] Per-iteration failure reports suppressed (quiet mode)
+- [x] 9 unit tests for stats logic
+
+### Phase 5: Save Output (P3 COMPLETE)
+- [x] `--save DIR` flag (already in CLI)
+- [x] `saveTestOutput()` method in runner.go
+- [x] Separate stdout/stderr files for peer and client
+- [x] expected.txt from .ci file expects
+- [x] received.txt from parsed peer output
+- [x] Directory naming: `nick-testname` for easy identification
+- [x] Filename sanitization (path separators, special chars)
+- [x] Warning on save failure (not silent)
+- [x] Permissions: 0700/0600 (gosec compliant)
+
+### Phase 6: Migration (TODO)
 - [ ] All tests pass with new `selfcheck` program
 - [ ] Old `test/cmd/functional` removed
 - [ ] Old `test/pkg` removed

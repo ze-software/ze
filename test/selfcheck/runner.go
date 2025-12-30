@@ -334,6 +334,19 @@ func (r *Runner) runTest(ctx context.Context, rec *Record, opts *RunOptions) boo
 	// Parse received messages from peer output
 	rec.ReceivedRaw = extractReceivedMessages(rec.PeerOutput)
 
+	// Save outputs if requested
+	if opts.SaveDir != "" {
+		out := &testOutput{
+			peerStdout:   peerStdout.String(),
+			peerStderr:   peerStderr.String(),
+			clientStdout: clientStdout.String(),
+			clientStderr: clientStderr.String(),
+		}
+		if err := r.saveTestOutput(rec, out, opts.SaveDir); err != nil {
+			fmt.Fprintf(os.Stderr, "warning: save %s: %v\n", rec.Nick, err)
+		}
+	}
+
 	// Check if we timed out
 	if testCtx.Err() != nil {
 		rec.State = StateTimeout
@@ -436,4 +449,81 @@ func extractMismatchIndices(output string) (expected, received int) {
 	}
 
 	return
+}
+
+// testOutput holds captured output for saving.
+type testOutput struct {
+	peerStdout   string
+	peerStderr   string
+	clientStdout string
+	clientStderr string
+}
+
+// sanitizeFilename removes/replaces characters unsafe for filenames.
+func sanitizeFilename(name string) string {
+	// Replace path separators and other unsafe chars with underscore
+	result := strings.Map(func(r rune) rune {
+		switch r {
+		case '/', '\\', ':', '*', '?', '"', '<', '>', '|', ' ':
+			return '_'
+		default:
+			return r
+		}
+	}, name)
+	// Truncate if too long
+	if len(result) > 50 {
+		result = result[:50]
+	}
+	return result
+}
+
+// saveTestOutput saves test outputs to files when SaveDir is set.
+func (r *Runner) saveTestOutput(rec *Record, out *testOutput, saveDir string) error {
+	if saveDir == "" {
+		return nil
+	}
+
+	// Create test directory (nick-name for easy identification)
+	dirName := fmt.Sprintf("%s-%s", rec.Nick, sanitizeFilename(rec.Name))
+	testDir := filepath.Join(saveDir, dirName)
+	if err := os.MkdirAll(testDir, 0o700); err != nil {
+		return fmt.Errorf("create save dir: %w", err)
+	}
+
+	// Write output files
+	files := map[string]string{
+		"peer-stdout.log":   out.peerStdout,
+		"peer-stderr.log":   out.peerStderr,
+		"client-stdout.log": out.clientStdout,
+		"client-stderr.log": out.clientStderr,
+	}
+
+	for name, content := range files {
+		path := filepath.Join(testDir, name)
+		if err := os.WriteFile(path, []byte(content), 0o600); err != nil {
+			return fmt.Errorf("write %s: %w", name, err)
+		}
+	}
+
+	// Write expected.txt (from .ci file)
+	var expected strings.Builder
+	for _, exp := range rec.Expects {
+		expected.WriteString(exp)
+		expected.WriteString("\n")
+	}
+	if err := os.WriteFile(filepath.Join(testDir, "expected.txt"), []byte(expected.String()), 0o600); err != nil {
+		return fmt.Errorf("write expected.txt: %w", err)
+	}
+
+	// Write received.txt (from peer output)
+	var received strings.Builder
+	for _, raw := range rec.ReceivedRaw {
+		received.WriteString(raw)
+		received.WriteString("\n")
+	}
+	if err := os.WriteFile(filepath.Join(testDir, "received.txt"), []byte(received.String()), 0o600); err != nil {
+		return fmt.Errorf("write received.txt: %w", err)
+	}
+
+	return nil
 }
