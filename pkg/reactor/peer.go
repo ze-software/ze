@@ -55,9 +55,11 @@ type NegotiatedFamilies struct {
 	ASN4            bool
 	ExtendedMessage bool
 
-	// RFC 8950: Extended Next Hop - allows IPv4 NLRI with IPv6 next-hop
+	// RFC 8950: Extended Next Hop - allows cross-AFI next-hop
 	IPv4UnicastExtNH bool // IPv4 unicast can use IPv6 next-hop
 	IPv4MPLSVPNExtNH bool // IPv4 mpls-vpn can use IPv6 next-hop
+	IPv6UnicastExtNH bool // IPv6 unicast can use IPv4 next-hop
+	IPv6MPLSVPNExtNH bool // IPv6 mpls-vpn can use IPv4 next-hop
 
 	// RFC 7911: ADD-PATH - allows multiple paths per prefix
 	IPv4UnicastAddPath bool // IPv4 unicast supports ADD-PATH
@@ -115,13 +117,20 @@ func computeNegotiatedFamilies(neg *capability.Negotiated) *NegotiatedFamilies {
 		}
 	}
 
-	// RFC 8950: Check extended next-hop for IPv4 families
+	// RFC 8950: Check extended next-hop for IPv4 families (IPv6 next-hop)
 	// If negotiated with IPv6 next-hop AFI, we can use MP_REACH_NLRI for IPv4 NLRI
 	if neg.ExtendedNextHopAFI(capability.Family{AFI: capability.AFIIPv4, SAFI: capability.SAFIUnicast}) == capability.AFIIPv6 {
 		nf.IPv4UnicastExtNH = true
 	}
 	if neg.ExtendedNextHopAFI(capability.Family{AFI: capability.AFIIPv4, SAFI: capability.SAFIMPLS}) == capability.AFIIPv6 {
 		nf.IPv4MPLSVPNExtNH = true
+	}
+	// RFC 8950: Check extended next-hop for IPv6 families (IPv4 next-hop)
+	if neg.ExtendedNextHopAFI(capability.Family{AFI: capability.AFIIPv6, SAFI: capability.SAFIUnicast}) == capability.AFIIPv4 {
+		nf.IPv6UnicastExtNH = true
+	}
+	if neg.ExtendedNextHopAFI(capability.Family{AFI: capability.AFIIPv6, SAFI: capability.SAFIMPLS}) == capability.AFIIPv4 {
+		nf.IPv6MPLSVPNExtNH = true
 	}
 
 	// RFC 7911: Check ADD-PATH for unicast families (can we send multiple paths?)
@@ -471,8 +480,9 @@ func toMVPNParams(routes []MVPNRoute) []message.MVPNParams {
 // toStaticRouteUnicastParams converts a StaticRoute to UnicastParams.
 // Used for IPv4/IPv6 unicast routes (not VPN).
 func toStaticRouteUnicastParams(r StaticRoute, nf *NegotiatedFamilies) message.UnicastParams {
-	// RFC 8950: Extended next-hop for IPv4 unicast with IPv6 next-hop
-	useExtNH := r.Prefix.Addr().Is4() && r.NextHop.Is6() && nf != nil && nf.IPv4UnicastExtNH
+	// RFC 8950: Extended next-hop for cross-AFI next-hop
+	useExtNH := (r.Prefix.Addr().Is4() && r.NextHop.Is6() && nf != nil && nf.IPv4UnicastExtNH) ||
+		(r.Prefix.Addr().Is6() && r.NextHop.Is4() && nf != nil && nf.IPv6UnicastExtNH)
 
 	// Pack raw attributes
 	rawAttrs := make([][]byte, len(r.RawAttributes))

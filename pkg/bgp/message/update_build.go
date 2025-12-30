@@ -128,6 +128,10 @@ func (ub *UpdateBuilder) BuildUnicast(p UnicastParams) *Update {
 	if p.Prefix.Addr().Is4() && p.NextHop.Is4() && !p.UseExtendedNextHop {
 		attrs = append(attrs, &attribute.NextHop{Addr: p.NextHop})
 	}
+	// RFC 8950: For IPv6 unicast with IPv4 next-hop, include NEXT_HOP for compatibility
+	if p.Prefix.Addr().Is6() && p.NextHop.Is4() && p.UseExtendedNextHop {
+		attrs = append(attrs, &attribute.NextHop{Addr: p.NextHop})
+	}
 
 	// 4. MED (type 4) - RFC 4271 Section 5.1.4
 	if p.MED > 0 {
