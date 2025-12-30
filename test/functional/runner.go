@@ -281,11 +281,8 @@ func (r *Runner) runTest(ctx context.Context, rec *Record, opts *RunOptions) boo
 	clientEnv := append(os.Environ(),
 		fmt.Sprintf("zebgp_tcp_port=%d", rec.Port),
 		"zebgp_tcp_bind=",
+		fmt.Sprintf("zebgp_api_socketpath=%s", filepath.Join(os.TempDir(), fmt.Sprintf("zebgp-test-%d.sock", rec.Port))),
 	)
-	if rec.IsAPI {
-		clientEnv = append(clientEnv,
-			fmt.Sprintf("zebgp_api_socketpath=%s", filepath.Join(os.TempDir(), fmt.Sprintf("zebgp-test-%d.sock", rec.Port))))
-	}
 
 	clientCmd := exec.CommandContext(testCtx, r.zebgpPath, "server", configPath) //nolint:gosec // test runner, paths from temp dir
 	clientCmd.Env = clientEnv
