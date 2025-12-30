@@ -1000,6 +1000,8 @@ func (ub *UpdateBuilder) BuildFlowSpec(p FlowSpecParams) *Update {
 }
 
 // buildMPReachFlowSpec constructs MP_REACH_NLRI for FlowSpec routes.
+// RFC 8955 Section 4 defines FlowSpec NLRI format.
+// RFC 8955 Section 8 defines FlowSpec VPN NLRI format with Route Distinguisher.
 func (ub *UpdateBuilder) buildMPReachFlowSpec(p FlowSpecParams) *rawAttribute {
 	if len(p.NLRI) == 0 {
 		return &rawAttribute{
@@ -1022,7 +1024,32 @@ func (ub *UpdateBuilder) buildMPReachFlowSpec(p FlowSpecParams) *rawAttribute {
 	nhBytes := p.NextHop.AsSlice()
 	nhLen := len(nhBytes)
 
-	valueLen := 2 + 1 + 1 + nhLen + 1 + len(p.NLRI)
+	// Build NLRI bytes - for VPN, wrap with length prefix and RD per RFC 8955 Section 8
+	var nlriBytes []byte
+	if isVPN {
+		// RFC 8955 Section 8: FlowSpec VPN NLRI = Length + RD (8) + FlowSpec components
+		// p.NLRI contains just the component bytes for VPN routes
+		payloadLen := 8 + len(p.NLRI) // RD (8) + components
+		if payloadLen < 240 {
+			// Single byte length
+			nlriBytes = make([]byte, 1+payloadLen)
+			nlriBytes[0] = byte(payloadLen)
+			copy(nlriBytes[1:9], p.RD[:])
+			copy(nlriBytes[9:], p.NLRI)
+		} else {
+			// Extended length (2 bytes): 0xfnnn format
+			nlriBytes = make([]byte, 2+payloadLen)
+			nlriBytes[0] = 0xF0 | byte(payloadLen>>8)
+			nlriBytes[1] = byte(payloadLen)
+			copy(nlriBytes[2:10], p.RD[:])
+			copy(nlriBytes[10:], p.NLRI)
+		}
+	} else {
+		// Non-VPN: p.NLRI already contains length prefix + components
+		nlriBytes = p.NLRI
+	}
+
+	valueLen := 2 + 1 + 1 + nhLen + 1 + len(nlriBytes)
 	value := make([]byte, valueLen)
 	value[0] = byte(afi >> 8)
 	value[1] = byte(afi)
@@ -1030,7 +1057,7 @@ func (ub *UpdateBuilder) buildMPReachFlowSpec(p FlowSpecParams) *rawAttribute {
 	value[3] = byte(nhLen)
 	copy(value[4:4+nhLen], nhBytes)
 	value[4+nhLen] = 0 // reserved
-	copy(value[5+nhLen:], p.NLRI)
+	copy(value[5+nhLen:], nlriBytes)
 
 	return &rawAttribute{
 		flags: attribute.FlagOptional,
