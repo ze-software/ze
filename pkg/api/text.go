@@ -255,3 +255,23 @@ func FormatNotification(peerAddr netip.Addr, notify DecodedNotification) string 
 func FormatKeepalive(peerAddr netip.Addr) string {
 	return fmt.Sprintf("neighbor %s receive keepalive\n", peerAddr)
 }
+
+// FormatStateChange formats a peer state change event.
+// State events are separate from BGP protocol messages.
+// Common states: "up", "down", "connected", "established".
+func FormatStateChange(peer PeerInfo, state string, encoding string) string {
+	if encoding == EncodingJSON {
+		return formatStateChangeJSON(peer, state)
+	}
+	return formatStateChangeText(peer, state)
+}
+
+func formatStateChangeJSON(peer PeerInfo, state string) string {
+	// Manual JSON construction to match ExaBGP format
+	return fmt.Sprintf(`{"type":"state","peer":{"address":"%s","asn":%d},"state":"%s"}`+"\n",
+		peer.Address, peer.PeerAS, state)
+}
+
+func formatStateChangeText(peer PeerInfo, state string) string {
+	return fmt.Sprintf("neighbor %s state %s\n", peer.Address, state)
+}

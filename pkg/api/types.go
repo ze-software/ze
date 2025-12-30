@@ -333,6 +333,12 @@ type PeerAPIBinding struct {
 	SendRefresh bool
 }
 
+// StateChangeReceiver receives peer state change notifications.
+// State events are separate from BGP protocol messages.
+type StateChangeReceiver interface {
+	OnPeerStateChange(peer PeerInfo, state string)
+}
+
 // RIBRoute is an API-friendly representation of a route.
 type RIBRoute struct {
 	Peer    string `json:"peer,omitempty"`

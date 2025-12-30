@@ -12,8 +12,9 @@ Fix the current bug where `encoder json` processes receive nothing or text forma
 
 - `make test`: PASS
 - `make lint`: PASS (0 issues)
-- **Phase 0 PARTIAL**: Message dispatch wired, but all types use `ReceiveUpdate` flag
+- **Phase 0 COMPLETE**: Message dispatch wired for all types
 - **Phase 1 COMPLETE**: Config parsing and data flow working
+- **Phase 2 COMPLETE**: Per-peer message routing with bindings
 - Last verified: 2025-12-30
 
 ### Known Issues in Current Code
@@ -1371,18 +1372,19 @@ Update ExaBGP config migrator to:
 **Deferred to future phases:**
 - [ ] Validation: Invalid encoding/format values (low priority)
 
-### Phase 2: Message Routing
-- [ ] GetProcess method added to ProcessManager
-- [ ] ProcessWriter interface for testability
-- [ ] Server.OnMessageReceived uses GetPeerAPIBindings
-- [ ] Per-binding format/encoding applied
-- [ ] Old forwarding functions removed
-- [ ] wantsMessageType helper
-- [ ] OnPeerStateChange for state events (separate from BGP messages)
-- [ ] FormatStateChange function
-- [ ] StateChangeReceiver interface
-- [ ] Tests: TestPerPeerFormatting, TestMessageTypeFiltering, TestStateEventFiltering
-- [ ] `make test && make lint` pass
+### Phase 2: Message Routing (COMPLETE - 2025-12-30)
+
+**All items completed:**
+- [x] GetProcess method added to ProcessManager
+- [x] ProcessWriter interface for testability
+- [x] Server.OnMessageReceived uses GetPeerAPIBindings
+- [x] Per-binding format/encoding applied via formatMessage()
+- [x] Old forwarding functions removed (forwardUpdateToProcesses, etc.)
+- [x] wantsMessageType helper for message type filtering
+- [x] OnPeerStateChange for state events (separate from BGP messages)
+- [x] FormatStateChange function (text and JSON)
+- [x] Tests: TestWantsMessageType, TestFormatStateChange
+- [x] `make test && make lint` pass
 
 ### Phase 3: Output Format
 - [ ] Version field added to structs (deferred from Phase 1)

@@ -363,6 +363,15 @@ type ProcessManager struct {
 	mu     sync.RWMutex
 }
 
+// ProcessWriter is the interface for writing events to a process.
+// Used for testing with mock implementations.
+type ProcessWriter interface {
+	WriteEvent(data string) error
+}
+
+// Ensure Process implements ProcessWriter.
+var _ ProcessWriter = (*Process)(nil)
+
 // NewProcessManager creates a new process manager.
 func NewProcessManager(configs []ProcessConfig) *ProcessManager {
 	return &ProcessManager{
@@ -371,6 +380,13 @@ func NewProcessManager(configs []ProcessConfig) *ProcessManager {
 		respawnTimes: make(map[string][]time.Time),
 		disabled:     make(map[string]bool),
 	}
+}
+
+// GetProcess returns a process by name, or nil if not found.
+func (pm *ProcessManager) GetProcess(name string) *Process {
+	pm.mu.RLock()
+	defer pm.mu.RUnlock()
+	return pm.processes[name]
 }
 
 // Start starts all configured processes.

@@ -98,3 +98,56 @@ func TestFormatReceivedUpdateMultipleRoutes(t *testing.T) {
 		t.Errorf("FormatReceivedUpdate() =\n%q\nwant:\n%q", got, want)
 	}
 }
+
+// TestFormatStateChange tests state event formatting.
+//
+// VALIDATES: Peer state changes format correctly for both encodings.
+//
+// PREVENTS: State events not being delivered to processes.
+func TestFormatStateChange(t *testing.T) {
+	peer := PeerInfo{
+		Address: netip.MustParseAddr("10.0.0.1"),
+		PeerAS:  65001,
+	}
+
+	tests := []struct {
+		name     string
+		state    string
+		encoding string
+		want     string
+	}{
+		{
+			name:     "text established",
+			state:    "established",
+			encoding: EncodingText,
+			want:     "neighbor 10.0.0.1 state established\n",
+		},
+		{
+			name:     "text down",
+			state:    "down",
+			encoding: EncodingText,
+			want:     "neighbor 10.0.0.1 state down\n",
+		},
+		{
+			name:     "json established",
+			state:    "established",
+			encoding: EncodingJSON,
+			want:     `{"type":"state","peer":{"address":"10.0.0.1","asn":65001},"state":"established"}` + "\n",
+		},
+		{
+			name:     "json down",
+			state:    "down",
+			encoding: EncodingJSON,
+			want:     `{"type":"state","peer":{"address":"10.0.0.1","asn":65001},"state":"down"}` + "\n",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := FormatStateChange(peer, tt.state, tt.encoding)
+			if got != tt.want {
+				t.Errorf("FormatStateChange() = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}

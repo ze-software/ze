@@ -399,139 +399,119 @@ func (s *Server) removeClient(client *Client) {
 }
 
 // OnMessageReceived handles raw BGP messages from peers.
-// Forwards to processes based on their content config (encoding + format).
+// Forwards to processes based on per-peer API bindings.
 // Implements reactor.MessageReceiver interface.
 //
 // This is called for ALL message types (UPDATE, OPEN, NOTIFICATION, KEEPALIVE).
-// Processes can filter by message type via their receive config.
+// Each peer can have different bindings with different encodings and message filters.
 func (s *Server) OnMessageReceived(peer PeerInfo, msg RawMessage) {
 	if s.procManager == nil {
 		return
 	}
 
-	switch msg.Type { //nolint:exhaustive // ROUTE-REFRESH not yet supported
+	// Get peer-specific API bindings from reactor
+	bindings := s.reactor.GetPeerAPIBindings(peer.Address)
+	if len(bindings) == 0 {
+		return
+	}
+
+	for _, binding := range bindings {
+		if !wantsMessageType(binding, msg.Type) {
+			continue
+		}
+
+		proc := s.procManager.GetProcess(binding.ProcessName)
+		if proc == nil {
+			continue
+		}
+
+		// Format using THIS BINDING's config
+		output := s.formatMessage(peer, msg, binding)
+		_ = proc.WriteEvent(output)
+	}
+}
+
+// wantsMessageType checks if binding wants this message type.
+// State events are NOT BGP messages - handled separately via OnPeerStateChange.
+func wantsMessageType(binding PeerAPIBinding, msgType message.MessageType) bool {
+	switch msgType { //nolint:exhaustive // Only handle supported types
 	case message.TypeUPDATE:
-		routes := DecodeUpdateRoutes(msg.RawBytes)
-		s.forwardUpdateToProcesses(peer, routes)
+		return binding.ReceiveUpdate
 	case message.TypeOPEN:
+		return binding.ReceiveOpen
+	case message.TypeNOTIFICATION:
+		return binding.ReceiveNotification
+	case message.TypeKEEPALIVE:
+		return binding.ReceiveKeepalive
+	default:
+		return false
+	}
+}
+
+// formatMessage formats a BGP message using the binding's encoding and format config.
+func (s *Server) formatMessage(peer PeerInfo, msg RawMessage, binding PeerAPIBinding) string {
+	// Build ContentConfig from binding
+	content := ContentConfig{
+		Encoding: binding.Encoding,
+		Format:   binding.Format,
+	}.WithDefaults()
+
+	switch msg.Type { //nolint:exhaustive // Only handle supported types
+	case message.TypeUPDATE:
+		// UPDATE messages support format (parsed/raw/full)
+		return FormatMessage(peer, msg, content)
+
+	case message.TypeOPEN:
+		// Other message types only use encoding (json/text)
 		decoded := DecodeOpen(msg.RawBytes)
-		s.forwardOpenToProcesses(peer, decoded)
+		if content.Encoding == EncodingJSON {
+			return s.encoder.Open(peer, decoded)
+		}
+		return FormatOpen(peer.Address, decoded)
+
 	case message.TypeNOTIFICATION:
 		decoded := DecodeNotification(msg.RawBytes)
-		s.forwardNotificationToProcesses(peer, decoded)
+		if content.Encoding == EncodingJSON {
+			return s.encoder.Notification(peer, decoded)
+		}
+		return FormatNotification(peer.Address, decoded)
+
 	case message.TypeKEEPALIVE:
-		s.forwardKeepaliveToProcesses(peer)
+		if content.Encoding == EncodingJSON {
+			return s.encoder.Keepalive(peer)
+		}
+		return FormatKeepalive(peer.Address)
+
+	default:
+		return ""
 	}
 }
 
-// forwardUpdateToProcesses forwards parsed UPDATE routes to all subscribed processes.
-func (s *Server) forwardUpdateToProcesses(peer PeerInfo, routes []ReceivedRoute) {
-	// Pre-convert to RouteUpdate once for all JSON processes
-	var updates []RouteUpdate
-	if len(routes) > 0 {
-		updates = make([]RouteUpdate, len(routes))
-		for i, r := range routes {
-			updates[i] = r.ToRouteUpdate()
-		}
+// OnPeerStateChange handles peer state transitions.
+// Called by reactor when peer state changes (not a BGP message).
+// State events are separate from BGP protocol messages.
+func (s *Server) OnPeerStateChange(peer PeerInfo, state string) {
+	if s.procManager == nil {
+		return
 	}
 
-	s.procManager.mu.RLock()
-	defer s.procManager.mu.RUnlock()
-
-	for name, proc := range s.procManager.processes {
-		cfg := s.getProcessConfigByName(name)
-		if cfg == nil || !cfg.ReceiveUpdate {
+	bindings := s.reactor.GetPeerAPIBindings(peer.Address)
+	for _, binding := range bindings {
+		if !binding.ReceiveState {
 			continue
 		}
 
-		// Format based on encoding config
-		var output string
-		if cfg.Encoder == EncodingJSON {
-			output = s.encoder.RouteAnnounce(peer, updates)
-		} else {
-			if len(routes) > 0 {
-				output = FormatReceivedUpdate(peer.Address, routes)
-			} else {
-				output = "neighbor " + peer.Address.String() + " receive update\n"
-			}
-		}
-
-		_ = proc.WriteEvent(output)
-	}
-}
-
-// forwardOpenToProcesses forwards parsed OPEN to all subscribed processes.
-func (s *Server) forwardOpenToProcesses(peer PeerInfo, open DecodedOpen) {
-	s.procManager.mu.RLock()
-	defer s.procManager.mu.RUnlock()
-
-	for name, proc := range s.procManager.processes {
-		cfg := s.getProcessConfigByName(name)
-		if cfg == nil || !cfg.ReceiveUpdate { // TODO: Add ReceiveOpen flag in Phase 1
+		proc := s.procManager.GetProcess(binding.ProcessName)
+		if proc == nil {
 			continue
 		}
 
-		var output string
-		if cfg.Encoder == EncodingJSON {
-			output = s.encoder.Open(peer, open)
-		} else {
-			output = FormatOpen(peer.Address, open)
+		encoding := binding.Encoding
+		if encoding == "" {
+			encoding = EncodingText
 		}
 
+		output := FormatStateChange(peer, state, encoding)
 		_ = proc.WriteEvent(output)
 	}
-}
-
-// forwardNotificationToProcesses forwards parsed NOTIFICATION to all subscribed processes.
-func (s *Server) forwardNotificationToProcesses(peer PeerInfo, notify DecodedNotification) {
-	s.procManager.mu.RLock()
-	defer s.procManager.mu.RUnlock()
-
-	for name, proc := range s.procManager.processes {
-		cfg := s.getProcessConfigByName(name)
-		if cfg == nil || !cfg.ReceiveUpdate { // TODO: Add ReceiveNotification flag in Phase 1
-			continue
-		}
-
-		var output string
-		if cfg.Encoder == EncodingJSON {
-			output = s.encoder.Notification(peer, notify)
-		} else {
-			output = FormatNotification(peer.Address, notify)
-		}
-
-		_ = proc.WriteEvent(output)
-	}
-}
-
-// forwardKeepaliveToProcesses forwards KEEPALIVE event to all subscribed processes.
-func (s *Server) forwardKeepaliveToProcesses(peer PeerInfo) {
-	s.procManager.mu.RLock()
-	defer s.procManager.mu.RUnlock()
-
-	for name, proc := range s.procManager.processes {
-		cfg := s.getProcessConfigByName(name)
-		if cfg == nil || !cfg.ReceiveUpdate { // TODO: Add ReceiveKeepalive flag in Phase 1
-			continue
-		}
-
-		var output string
-		if cfg.Encoder == EncodingJSON {
-			output = s.encoder.Keepalive(peer)
-		} else {
-			output = FormatKeepalive(peer.Address)
-		}
-
-		_ = proc.WriteEvent(output)
-	}
-}
-
-// getProcessConfigByName finds a process config by name.
-func (s *Server) getProcessConfigByName(name string) *ProcessConfig {
-	for i := range s.config.Processes {
-		if s.config.Processes[i].Name == name {
-			return &s.config.Processes[i]
-		}
-	}
-	return nil
 }

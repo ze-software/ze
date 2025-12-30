@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/exa-networks/zebgp/pkg/bgp/message"
 	"github.com/exa-networks/zebgp/pkg/bgp/nlri"
 	"github.com/exa-networks/zebgp/pkg/rib"
 	"github.com/stretchr/testify/assert"
@@ -1451,5 +1452,63 @@ func TestRIBCommandsRegistered(t *testing.T) {
 	for _, cmd := range ribCommands {
 		c := d.Lookup(cmd)
 		assert.NotNil(t, c, "command %q must be registered", cmd)
+	}
+}
+
+// TestWantsMessageType verifies message type filtering.
+//
+// VALIDATES: Only subscribed message types are forwarded to processes.
+//
+// PREVENTS: Processes receiving unwanted messages.
+func TestWantsMessageType(t *testing.T) {
+	tests := []struct {
+		name    string
+		binding PeerAPIBinding
+		msgType message.MessageType
+		want    bool
+	}{
+		{
+			name:    "update subscribed",
+			binding: PeerAPIBinding{ReceiveUpdate: true},
+			msgType: message.TypeUPDATE,
+			want:    true,
+		},
+		{
+			name:    "update not subscribed",
+			binding: PeerAPIBinding{ReceiveUpdate: false},
+			msgType: message.TypeUPDATE,
+			want:    false,
+		},
+		{
+			name:    "open subscribed",
+			binding: PeerAPIBinding{ReceiveOpen: true},
+			msgType: message.TypeOPEN,
+			want:    true,
+		},
+		{
+			name:    "notification subscribed",
+			binding: PeerAPIBinding{ReceiveNotification: true},
+			msgType: message.TypeNOTIFICATION,
+			want:    true,
+		},
+		{
+			name:    "keepalive subscribed",
+			binding: PeerAPIBinding{ReceiveKeepalive: true},
+			msgType: message.TypeKEEPALIVE,
+			want:    true,
+		},
+		{
+			name:    "mixed flags - only update",
+			binding: PeerAPIBinding{ReceiveUpdate: true, ReceiveOpen: false},
+			msgType: message.TypeOPEN,
+			want:    false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := wantsMessageType(tt.binding, tt.msgType)
+			assert.Equal(t, tt.want, got)
+		})
 	}
 }
