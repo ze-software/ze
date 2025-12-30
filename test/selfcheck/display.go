@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"sort"
 	"strings"
 	"time"
 )
@@ -221,4 +222,80 @@ func (d *Display) BuildStatus(building bool, err error) {
 	default:
 		_, _ = fmt.Fprint(d.output, d.colors.Green("ready")+" ")
 	}
+}
+
+// StressSummary prints stress test statistics.
+func (d *Display) StressSummary(stats StressStats, count int) {
+	_, _ = fmt.Fprintln(d.output)
+	_, _ = fmt.Fprintln(d.output, d.colors.DoubleSeparator())
+	_, _ = fmt.Fprintln(d.output, "STRESS TEST SUMMARY")
+	_, _ = fmt.Fprintln(d.output, d.colors.DoubleSeparator())
+	_, _ = fmt.Fprintf(d.output, "Iterations: %d\n\n", count)
+
+	// Header
+	_, _ = fmt.Fprintf(d.output, "%-6s %6s %6s %6s %10s %10s %10s %7s\n",
+		"Nick", "Pass", "Fail", "T/O", "Min", "Avg", "Max", "Rate")
+	_, _ = fmt.Fprintln(d.output, strings.Repeat("-", 75))
+
+	// Collect nicks in order
+	nicks := make([]string, 0, len(stats))
+	for nick := range stats {
+		nicks = append(nicks, nick)
+	}
+	sort.Strings(nicks)
+
+	var totalPassed, totalFailed, totalTimedOut int
+
+	for _, nick := range nicks {
+		s := stats[nick]
+		if s.Total() == 0 {
+			continue // Skip tests that weren't run
+		}
+
+		totalPassed += s.Passed
+		totalFailed += s.Failed
+		totalTimedOut += s.TimedOut
+
+		// Color the pass rate based on value
+		rate := s.PassRate()
+		var rateStr string
+		switch {
+		case rate == 100:
+			rateStr = d.colors.Green(fmt.Sprintf("%6.1f%%", rate))
+		case rate >= 50:
+			rateStr = d.colors.Yellow(fmt.Sprintf("%6.1f%%", rate))
+		default:
+			rateStr = d.colors.Red(fmt.Sprintf("%6.1f%%", rate))
+		}
+
+		_, _ = fmt.Fprintf(d.output, "%-6s %6d %6d %6d %10s %10s %10s %s\n",
+			nick,
+			s.Passed, s.Failed, s.TimedOut,
+			formatDuration(s.Min()),
+			formatDuration(s.Avg()),
+			formatDuration(s.Max()),
+			rateStr)
+	}
+
+	_, _ = fmt.Fprintln(d.output, d.colors.DoubleSeparator())
+
+	// Total summary
+	total := totalPassed + totalFailed + totalTimedOut
+	if total > 0 {
+		rate := float64(totalPassed) / float64(total) * 100
+		_, _ = fmt.Fprintf(d.output, "Total: %d iterations, %d passed, %d failed, %d timed out (%.1f%% pass rate)\n",
+			total, totalPassed, totalFailed, totalTimedOut, rate)
+	}
+	_, _ = fmt.Fprintln(d.output)
+}
+
+// formatDuration formats a duration for display.
+func formatDuration(d time.Duration) string {
+	if d == 0 {
+		return "-"
+	}
+	if d < time.Second {
+		return fmt.Sprintf("%dms", d.Milliseconds())
+	}
+	return fmt.Sprintf("%.1fs", d.Seconds())
 }

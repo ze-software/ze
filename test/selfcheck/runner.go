@@ -178,6 +178,55 @@ func (r *Runner) Run(ctx context.Context, opts *RunOptions) bool {
 	return allSuccess
 }
 
+// RunWithCount runs each test count times for stress testing.
+// Returns stats for each test and overall success (all iterations passed).
+func (r *Runner) RunWithCount(ctx context.Context, opts *RunOptions, count int) (StressStats, bool) {
+	stats := NewStressStats(r.tests.Tests)
+	allSuccess := true
+
+	// Create stress-mode options (suppress per-iteration failure reports)
+	stressOpts := *opts
+	stressOpts.Quiet = true // Suppress verbose output per iteration
+
+	for i := 1; i <= count; i++ {
+		// Check for cancellation before each iteration
+		select {
+		case <-ctx.Done():
+			return stats, false
+		default:
+		}
+
+		if !opts.Quiet {
+			fmt.Printf("\n%s Iteration %d/%d\n", r.colors.Cyan("==>"), i, count)
+		}
+
+		// Reset test states for this iteration
+		for _, rec := range r.tests.Selected() {
+			rec.State = StateNone
+			rec.Error = nil
+			rec.Duration = 0
+		}
+
+		// Run iteration (with quiet mode to suppress failure reports)
+		success := r.Run(ctx, &stressOpts)
+		if !success {
+			allSuccess = false
+		}
+
+		// Collect stats from this iteration (only terminal states)
+		for _, rec := range r.tests.Selected() {
+			if s, ok := stats[rec.Nick]; ok {
+				// Only record terminal states
+				if rec.State == StateSuccess || rec.State == StateFail || rec.State == StateTimeout {
+					s.Add(rec.State, rec.Duration)
+				}
+			}
+		}
+	}
+
+	return stats, allSuccess
+}
+
 // runTest executes a single test.
 func (r *Runner) runTest(ctx context.Context, rec *Record, opts *RunOptions) bool {
 	rec.State = StateStarting

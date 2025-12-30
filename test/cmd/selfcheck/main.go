@@ -156,13 +156,21 @@ func run() error {
 		SaveDir:  cli.saveDir,
 	}
 
-	// Run tests
-	success := runner.Run(ctx, opts)
-
 	// Print summary
 	display := selfcheck.NewDisplay(tests.Tests, colors)
 	display.SetQuiet(cli.quiet)
-	display.Summary()
+
+	var success bool
+	if cli.count > 1 {
+		// Stress test mode
+		stats, ok := runner.RunWithCount(ctx, opts, cli.count)
+		success = ok
+		display.StressSummary(stats, cli.count)
+	} else {
+		// Normal mode
+		success = runner.Run(ctx, opts)
+		display.Summary()
+	}
 
 	if !success {
 		return errTestsFailed
@@ -184,6 +192,7 @@ type cliFlags struct {
 	port      int
 	server    string
 	client    string
+	count     int
 	testArgs  []string
 }
 
@@ -222,6 +231,7 @@ func parseCLI() *cliFlags {
 	fs.IntVar(&cli.port, "port", 1790, "base port to use")
 	fs.StringVar(&cli.server, "server", "", "run server only for test")
 	fs.StringVar(&cli.client, "client", "", "run client only for test")
+	fs.IntVar(&cli.count, "count", 1, "run each test N times (stress testing)")
 
 	if err := fs.Parse(os.Args[2:]); err != nil {
 		return nil
@@ -251,6 +261,7 @@ Options:
   --quiet, -q         Minimal output
   --save DIR          Save logs to directory
   --port N            Base port to use (default: 1790)
+  --count N           Run each test N times (stress testing)
 
 Debugging:
   --server NICK       Run server only for test
@@ -261,6 +272,7 @@ Examples:
   selfcheck encoding --all
   selfcheck encoding 0 1 2
   selfcheck api --all --quiet
+  selfcheck encoding --count 10 0 1    # stress test: run tests 0,1 ten times
 `)
 }
 
