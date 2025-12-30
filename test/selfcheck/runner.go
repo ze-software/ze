@@ -252,63 +252,66 @@ func (r *Runner) runTest(ctx context.Context, rec *Record, opts *RunOptions) boo
 		return false
 	}
 
+	// Kill processes on context cancellation (exec.CommandContext + Start() doesn't auto-kill)
+	go func() {
+		<-testCtx.Done()
+		if peerCmd.Process != nil {
+			_ = peerCmd.Process.Kill()
+		}
+		if clientCmd.Process != nil {
+			_ = clientCmd.Process.Kill()
+		}
+	}()
+
 	// Wait for peer to finish
 	peerDone := make(chan error, 1)
 	go func() {
 		peerDone <- peerCmd.Wait()
 	}()
 
-	select {
-	case err := <-peerDone:
-		// Peer finished
+	// Wait for peer to finish (context kill goroutine handles timeout)
+	err = <-peerDone
+
+	// Kill client
+	if clientCmd.Process != nil {
 		_ = clientCmd.Process.Kill()
-		_ = clientCmd.Wait()
+	}
+	_ = clientCmd.Wait()
 
-		rec.PeerOutput = peerStdout.String() + peerStderr.String()
-		rec.ClientOutput = clientStdout.String() + clientStderr.String()
-		rec.Duration = time.Since(rec.StartTime)
+	rec.PeerOutput = peerStdout.String() + peerStderr.String()
+	rec.ClientOutput = clientStdout.String() + clientStderr.String()
+	rec.Duration = time.Since(rec.StartTime)
 
-		// Parse received messages from peer output
-		rec.ReceivedRaw = extractReceivedMessages(rec.PeerOutput)
+	// Parse received messages from peer output
+	rec.ReceivedRaw = extractReceivedMessages(rec.PeerOutput)
 
-		// Check for success
-		if err == nil && strings.Contains(rec.PeerOutput, "successful") {
-			return true
-		}
-
-		// Determine failure type
-		switch {
-		case strings.Contains(rec.PeerOutput, "mismatch"):
-			rec.FailureType = "mismatch"
-			rec.LastExpectedIdx, rec.LastReceivedIdx = extractMismatchIndices(rec.PeerOutput)
-		case strings.Contains(rec.PeerOutput, "connection refused"):
-			rec.FailureType = "connection_refused"
-		default:
-			rec.FailureType = stateUnknown
-		}
-
-		if err != nil {
-			rec.Error = err
-		}
-		return false
-
-	case <-testCtx.Done():
+	// Check if we timed out
+	if testCtx.Err() != nil {
 		rec.State = StateTimeout
 		rec.FailureType = "timeout"
-		rec.Duration = time.Since(rec.StartTime)
-
-		// Collect output before killing
-		_ = peerCmd.Process.Kill()
-		_ = clientCmd.Process.Kill()
-		_ = peerCmd.Wait()
-		_ = clientCmd.Wait()
-
-		rec.PeerOutput = peerStdout.String() + peerStderr.String()
-		rec.ClientOutput = clientStdout.String() + clientStderr.String()
-		rec.ReceivedRaw = extractReceivedMessages(rec.PeerOutput)
-
 		return false
 	}
+
+	// Check for success
+	if err == nil && strings.Contains(rec.PeerOutput, "successful") {
+		return true
+	}
+
+	// Determine failure type
+	switch {
+	case strings.Contains(rec.PeerOutput, "mismatch"):
+		rec.FailureType = "mismatch"
+		rec.LastExpectedIdx, rec.LastReceivedIdx = extractMismatchIndices(rec.PeerOutput)
+	case strings.Contains(rec.PeerOutput, "connection refused"):
+		rec.FailureType = "connection_refused"
+	default:
+		rec.FailureType = stateUnknown
+	}
+
+	if err != nil {
+		rec.Error = err
+	}
+	return false
 }
 
 // writeExpectFile writes expected messages to a temp file.
