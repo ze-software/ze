@@ -5,10 +5,11 @@
 | Concept | Description |
 |---------|-------------|
 | **Style** | JUNOS-like: `{}` blocks, `;` terminators, `#` comments |
-| **Sections** | `process`, `template`, `neighbor` (top-level) |
+| **Sections** | `process`, `template`, `peer` (top-level) |
 | **Inheritance** | `inherit <template-name>` applies template config |
 | **Pattern** | Registry/dispatch: `sectionParsers` map routes to handlers |
 | **Key Types** | `Parser`, `Tokenizer`, `Scope`, `Validator` |
+| **Migration** | `zebgp config migrate` converts ExaBGP (v2) → ZeBGP (v3) |
 
 **When to read full doc:** Config keywords, parsing bugs, new config sections.
 
@@ -70,12 +71,12 @@ template <name> neighbor <name> {
 }
 ```
 
-### neighbor
+### peer (ZeBGP) / neighbor (ExaBGP)
 
-BGP peer configuration.
+BGP peer configuration. ZeBGP uses `peer`, ExaBGP uses `neighbor`.
 
 ```
-neighbor <ip-address> {
+peer <ip-address> {
     inherit <template-name>;
 
     # Session settings
@@ -91,11 +92,11 @@ neighbor <ip-address> {
     # Address families
     family { ... }
 
-    # API
-    api { ... }
+    # API bindings
+    api <process-name> { ... }
 
-    # Static routes
-    static { ... }
+    # Static routes (v3: use announce block)
+    announce { ... }
 
     # FlowSpec
     flow { ... }
@@ -104,6 +105,8 @@ neighbor <ip-address> {
     l2vpn { ... }
 }
 ```
+
+**Migration:** `zebgp config migrate` converts `neighbor` → `peer`.
 
 ---
 
@@ -176,37 +179,49 @@ add-path {
 }
 ```
 
-### API Section
+### API Section (ZeBGP New Syntax)
 
 ```
-api {
-    processes [ <process-name>, ... ];
-
-    neighbor-changes;
-
-    receive {
-        parsed;
-        packets;
-        consolidate;
-        open;
-        update;
-        keepalive;
-        notification;
-        refresh;
-        operational;
+# Named API binding (preferred)
+api <process-name> {
+    content {
+        encoding json;       # json | text (default: inherit from process)
+        format parsed;       # parsed | raw | full (default: parsed)
     }
-
+    receive {
+        update;              # route announcements
+        open;                # session open messages
+        notification;        # error notifications
+        keepalive;           # keepalive messages
+        refresh;             # route refresh requests
+        state;               # peer up/down events
+        all;                 # shorthand for all message types
+    }
     send {
-        packets;
-        consolidate;
-        open;
-        update;
-        keepalive;
-        notification;
-        refresh;
-        operational;
+        update;              # can inject routes
+        refresh;             # can request route refresh
+        all;                 # shorthand for all
     }
 }
+```
+
+### API Section (Old Syntax - Still Supported)
+
+```
+# Anonymous API block (ExaBGP compatibility)
+api {
+    processes [ <process-name>, ... ];
+    neighbor-changes;        # maps to receive { state; }
+}
+```
+
+The migration tool (`zebgp config migrate`) converts old syntax to new:
+```
+# Old:
+api { processes [ foo ]; neighbor-changes; }
+
+# Becomes:
+api foo { receive { state; } }
 ```
 
 ---
@@ -511,4 +526,4 @@ var validators = map[string]Validator{
 
 ---
 
-**Last Updated:** 2025-12-19
+**Last Updated:** 2025-12-30

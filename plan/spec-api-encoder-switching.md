@@ -16,6 +16,8 @@ Fix the current bug where `encoder json` processes receive nothing or text forma
 - **Phase 1 COMPLETE**: Config parsing and data flow working
 - **Phase 2 COMPLETE**: Per-peer message routing with bindings
 - **Phase 4 COMPLETE**: Migration tool updated
+- **Phase 5 COMPLETE**: Documentation updated
+- **ALL PHASES COMPLETE** ✅
 - Last verified: 2025-12-30
 
 ### Known Issues in Current Code
@@ -1423,10 +1425,13 @@ Update ExaBGP config migrator to:
 - [x] 16 tests for api migration
 - [x] `make test && make lint` pass
 
-### Phase 5: Documentation
-- [ ] ARCHITECTURE.md updated
-- [ ] SYNTAX.md updated
-- [ ] CONTINUATION.md updated
+### Phase 5: Documentation (COMPLETE - 2025-12-30)
+
+**All items completed:**
+- [x] ARCHITECTURE.md: Already had API binding docs, verified current
+- [x] SYNTAX.md: Updated with new api syntax, migration info, peer keyword
+- [x] CONTINUATION.md: Added API encoder switching to completed section
+- [x] `make test && make lint` pass
 
 ## Embedded Protocol Requirements
 

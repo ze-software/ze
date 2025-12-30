@@ -1,6 +1,6 @@
 # Claude Continuation State
 
-**Last Updated:** 2025-12-29
+**Last Updated:** 2025-12-30
 
 ---
 
@@ -34,9 +34,9 @@ functional  - 24 passed, 13 failed [6, 7, 8, J, L, N, Q, S, T, U, V, Z, a]
 
 ## Resume Point
 
-**Last worked:** 2025-12-29
-**Last commit:** `a317ea9` (feat: add zero-copy forwarding methods to Route)
-**Session ended:** Clean break
+**Last worked:** 2025-12-30
+**Last commit:** `d330456` (feat(migration): complete Phase 4 API block migration)
+**Session ended:** Clean break - API encoder switching complete (Phases 0-5)
 
 **Next steps:**
 1. Integrate zero-copy forwarding into peer route distribution (future)
@@ -62,6 +62,24 @@ AttributesWire for zero-copy route reflection.
 ---
 
 ## COMPLETED
+
+### API Encoder Switching (`d330456`)
+**Spec:** `plan/spec-api-encoder-switching.md` ✅ COMPLETE
+
+Per-peer API binding with encoding/format control:
+- **Phase 0:** Message dispatch for all BGP message types
+- **Phase 1:** Config parsing with new syntax `api <name> { content {...} receive {...} }`
+- **Phase 2:** Per-peer message routing with bindings
+- **Phase 3:** Output format (v6/v7 JSON, text)
+- **Phase 4:** Migration tool (`zebgp config migrate` handles api blocks)
+- **Phase 5:** Documentation updates
+
+Key features:
+- Named api blocks: `api foo { content { encoding json; } receive { update; } }`
+- Encoding inheritance: peer → process → "text" default
+- `all;` keyword expansion in receive/send blocks
+- Error on empty/duplicate/collision in migration
+- 16 migration tests, 8 config tests
 
 ### Zero-Copy Forwarding (`a317ea9`)
 **Spec:** `plan/spec-context-full-integration.md` Phase 3
