@@ -189,6 +189,11 @@ func (p *Peer) Run(ctx context.Context) Result {
 
 		connCount++
 
+		// Disable Nagle's algorithm to reduce message batching delays
+		if tcpConn, ok := conn.(*net.TCPConn); ok {
+			_ = tcpConn.SetNoDelay(true)
+		}
+
 		go func(c net.Conn) {
 			defer func() { _ = c.Close() }()
 			result := p.handleConnection(ctx, c)

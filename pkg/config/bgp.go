@@ -1622,18 +1622,18 @@ func extractMVPNRoutes(tree *Tree) []MVPNRouteConfig {
 		return routes
 	}
 
-	// IPv4 MVPN
+	// IPv4 MVPN - use GetListOrdered to preserve config order
 	if ipv4 := announce.GetContainer("ipv4"); ipv4 != nil {
-		for routeType, route := range ipv4.GetList("mcast-vpn") {
-			r := parseMVPNRoute(routeType, route, false)
+		for _, entry := range ipv4.GetListOrdered("mcast-vpn") {
+			r := parseMVPNRoute(entry.Key, entry.Value, false)
 			routes = append(routes, r)
 		}
 	}
 
-	// IPv6 MVPN
+	// IPv6 MVPN - use GetListOrdered to preserve config order
 	if ipv6 := announce.GetContainer("ipv6"); ipv6 != nil {
-		for routeType, route := range ipv6.GetList("mcast-vpn") {
-			r := parseMVPNRoute(routeType, route, true)
+		for _, entry := range ipv6.GetListOrdered("mcast-vpn") {
+			r := parseMVPNRoute(entry.Key, entry.Value, true)
 			routes = append(routes, r)
 		}
 	}
@@ -1868,9 +1868,9 @@ func extractVPLSRoutes(tree *Tree) []VPLSRouteConfig {
 					routes = append(routes, r)
 				}
 			}
-			// Named blocks from announce
-			for name, route := range l2vpn.GetList("vpls") {
-				r := parseVPLSRoute(name, route)
+			// Named blocks from announce - use GetListOrdered to preserve config order
+			for _, entry := range l2vpn.GetListOrdered("vpls") {
+				r := parseVPLSRoute(entry.Key, entry.Value)
 				routes = append(routes, r)
 			}
 		}
@@ -1878,9 +1878,9 @@ func extractVPLSRoutes(tree *Tree) []VPLSRouteConfig {
 
 	// From l2vpn block - named blocks then inline
 	if l2vpn := tree.GetContainer("l2vpn"); l2vpn != nil {
-		// Named blocks: vpls site5 { ... }
-		for name, route := range l2vpn.GetList("vpls") {
-			r := parseVPLSRoute(name, route)
+		// Named blocks: vpls site5 { ... } - use GetListOrdered to preserve config order
+		for _, entry := range l2vpn.GetListOrdered("vpls") {
+			r := parseVPLSRoute(entry.Key, entry.Value)
 			routes = append(routes, r)
 		}
 		// Inline: vpls rd X endpoint Y ...;
@@ -2120,11 +2120,11 @@ func extractMUPRoutes(tree *Tree) []MUPRouteConfig {
 		return routes
 	}
 
-	// IPv4 MUP
+	// IPv4 MUP - use GetListOrdered to preserve config order
 	if ipv4 := announce.GetContainer("ipv4"); ipv4 != nil {
 		// Named blocks (if any)
-		for routeType, route := range ipv4.GetList("mup") {
-			r := parseMUPRoute(routeType, route, false)
+		for _, entry := range ipv4.GetListOrdered("mup") {
+			r := parseMUPRoute(entry.Key, entry.Value, false)
 			routes = append(routes, r)
 		}
 		// Inline: mup mup-isd PREFIX rd RD ...;
@@ -2136,11 +2136,11 @@ func extractMUPRoutes(tree *Tree) []MUPRouteConfig {
 		}
 	}
 
-	// IPv6 MUP
+	// IPv6 MUP - use GetListOrdered to preserve config order
 	if ipv6 := announce.GetContainer("ipv6"); ipv6 != nil {
 		// Named blocks (if any)
-		for routeType, route := range ipv6.GetList("mup") {
-			r := parseMUPRoute(routeType, route, true)
+		for _, entry := range ipv6.GetListOrdered("mup") {
+			r := parseMUPRoute(entry.Key, entry.Value, true)
 			routes = append(routes, r)
 		}
 		// Inline
