@@ -8,9 +8,91 @@
 | **Flow** | `acceptLoop()` → `handleClient()` → `processCommand()` → Reactor |
 | **Key Types** | `Server`, `Client`, `Process`, `Dispatcher`, `RouteSpec` |
 | **Transactions** | `begin`/`commit`/`rollback` with Adj-RIB-Out queuing |
+| **Process binding** | Per-peer API binding with encoding/format config |
+| **Output syntax** | `announce nlri <family> <nlris>` (differs from ExaBGP) |
 | **Gap** | No EncodingContext for API routes (planned: API-as-Peer) |
 
 **When to read full doc:** API commands, route injection, subprocess management.
+
+---
+
+## Process and Peer API Binding
+
+### Design Principles
+
+```
+Process = unique program (runs once, defined globally)
+Peer API binding = which process, what messages, what format (per-peer)
+```
+
+One process can serve multiple peers. Each peer-binding can have different:
+- Message types (update, notification, etc.)
+- Format (parsed, raw, full)
+- Encoding (json, text)
+
+### Configuration Syntax
+
+```
+# Global process definition (program runs once)
+process <name> {
+    run <command>;
+    respawn <bool>;
+}
+
+# Per-peer API binding
+peer <address> {
+    api <process-name> {
+        content {
+            encoding json;       # json | text
+            format parsed;       # parsed | raw | full
+        }
+        receive {
+            update;              # route announcements
+            notification;        # errors
+            state;               # up/down events
+            all;                 # shorthand
+        }
+        send {
+            update;              # can inject routes
+        }
+    }
+}
+```
+
+### Key Differences from ExaBGP
+
+| Aspect | ExaBGP | ZeBGP |
+|--------|--------|-------|
+| Keyword | `neighbor {` | `peer {` |
+| API binding | `api { processes [foo]; }` | `api foo { ... }` in peer |
+| Format location | `receive { parsed; packets; }` | `content { format ...; }` per binding |
+| Output syntax | `neighbor X announce route ...` | `announce nlri <family> <nlris>` |
+
+### Data Flow: Config → Server
+
+```
+config.PeerConfig.APIBindings
+        │
+        ▼ (loader.go)
+reactor.PeerSettings.APIBindings
+        │
+        ▼ (stored in Reactor.peers)
+Server.OnMessageReceived()
+        │ calls reactor.GetPeerAPIBindings(addr)
+        ▼
+Per-binding format/encoding applied
+```
+
+**Server queries Reactor via ReactorInterface:**
+- No data duplication (bindings live in PeerSettings)
+- Server doesn't track peer lifecycle
+- Encoding inheritance resolved at query time
+
+### Encoding Inheritance
+
+1. Peer binding specifies `content { encoding json; }` → use JSON
+2. Peer binding empty → inherit from process `encoder json;`
+3. Both empty → default to "text"
 
 ---
 
@@ -149,9 +231,73 @@ type ReactorInterface interface {
     // Peer management
     GetPeerByIP(ip string) (Peer, bool)
     GetPeers() []Peer
+
+    // API bindings (Phase 1)
+    GetPeerAPIBindings(addr netip.Addr) []PeerAPIBinding
     // ... etc
 }
 ```
+
+## Output Format: announce nlri
+
+### JSON Format
+
+```json
+{
+  "type": "update",
+  "peer": {
+    "address": "10.0.0.1",
+    "asn": 65001
+  },
+  "announce": {
+    "nlri": {
+      "ipv4 unicast": {
+        "192.168.1.0/24": {
+          "next-hop": "10.0.0.1",
+          "origin": "igp",
+          "as-path": [65001]
+        }
+      }
+    }
+  }
+}
+```
+
+### Text Format
+
+```
+peer 10.0.0.1 update announce nlri ipv4 unicast 192.168.1.0/24 next-hop 10.0.0.1 origin igp as-path [65001]
+```
+
+### Withdrawals
+
+JSON:
+```json
+{
+  "type": "update",
+  "peer": { "address": "10.0.0.1" },
+  "withdraw": {
+    "nlri": {
+      "ipv4 unicast": ["192.168.1.0/24"]
+    }
+  }
+}
+```
+
+Text:
+```
+peer 10.0.0.1 update withdraw nlri ipv4 unicast 192.168.1.0/24
+```
+
+### Format Options
+
+| Option | Description |
+|--------|-------------|
+| `format parsed` | Decoded fields only (default) |
+| `format raw` | Wire bytes only (hex) |
+| `format full` | Both parsed AND raw bytes |
+
+---
 
 ## Route Encoding
 

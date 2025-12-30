@@ -173,6 +173,10 @@ func (m *mockReactor) FlushRIBOut() int {
 	return 7 // Mock: pretend we flushed 7 routes
 }
 
+func (m *mockReactor) GetPeerAPIBindings(_ netip.Addr) []PeerAPIBinding {
+	return nil // Mock: no API bindings configured
+}
+
 func (m *mockReactor) WithdrawL2VPN(_ string, _ L2VPNRoute) error {
 	return nil
 }

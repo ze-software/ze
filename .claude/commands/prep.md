@@ -111,10 +111,18 @@ $ARGUMENTS
 - Verify: make test && make lint before done
 - RFC: read RFC first for protocol code
 
+## Documentation Impact
+[List docs that need updating if design changes]
+- [ ] `.claude/zebgp/api/ARCHITECTURE.md` - if API design changes
+- [ ] `.claude/zebgp/config/SYNTAX.md` - if config syntax changes
+- [ ] `.claude/zebgp/wire/*.md` - if wire format changes
+- [ ] `plan/CLAUDE_CONTINUATION.md` - always update after impl
+
 ## Implementation Steps
 ### Phase 1: Tests
 ### Phase 2: Implementation
 ### Phase 3: Verification
+### Phase 4: Documentation Updates
 
 ## Checklist
 - [ ] Tests fail first
@@ -122,6 +130,7 @@ $ARGUMENTS
 - [ ] make test passes
 - [ ] make lint passes
 - [ ] Goal achieved
+- [ ] Documentation updated (if design changed)
 ```
 
 ---
@@ -150,5 +159,21 @@ Before claiming /prep done:
 3. ✅ Patterns identified
 4. ✅ Goal achievement checked (YES/NO)
 5. ✅ Spec written to plan/spec-*.md
+6. ✅ Documentation Impact section identifies docs to update
 
 **If any incomplete, DO NOT proceed.**
+
+---
+
+## Documentation Update Rule
+
+**BLOCKING:** When design changes affect architecture, syntax, or behavior:
+1. Identify affected docs in "Documentation Impact" section
+2. Include doc updates in implementation phases
+3. Update docs BEFORE claiming implementation complete
+
+Design changes include:
+- New config syntax or semantics
+- API interface changes
+- Wire format changes
+- New message flows or dispatch patterns

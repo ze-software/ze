@@ -306,6 +306,31 @@ type ReactorInterface interface {
 	// Used to force resend of all routes to peers.
 	// Returns count of routes flushed.
 	FlushRIBOut() int
+
+	// GetPeerAPIBindings returns API bindings for a specific peer.
+	// Used to determine which processes receive messages from this peer.
+	GetPeerAPIBindings(peerAddr netip.Addr) []PeerAPIBinding
+}
+
+// PeerAPIBinding describes which process receives messages from a peer.
+type PeerAPIBinding struct {
+	ProcessName string // Reference to process name
+
+	// Content settings (HOW messages are formatted)
+	Encoding string // "json" | "text" (empty = inherit from process)
+	Format   string // "parsed" | "raw" | "full" (empty = "parsed")
+
+	// Receive settings (WHAT message types to forward)
+	ReceiveUpdate       bool
+	ReceiveOpen         bool
+	ReceiveNotification bool
+	ReceiveKeepalive    bool
+	ReceiveRefresh      bool
+	ReceiveState        bool
+
+	// Send settings (WHAT message types process can send)
+	SendUpdate  bool
+	SendRefresh bool
 }
 
 // RIBRoute is an API-friendly representation of a route.

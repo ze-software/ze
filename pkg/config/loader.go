@@ -451,6 +451,23 @@ func configToPeer(nc *PeerConfig, global *BGPConfig) (*reactor.PeerSettings, err
 		trace.PeerRoutes(nc.Address.String(), len(n.StaticRoutes))
 	}
 
+	// Convert API bindings
+	for _, ab := range nc.APIBindings {
+		n.APIBindings = append(n.APIBindings, reactor.APIBinding{
+			ProcessName:         ab.ProcessName,
+			Encoding:            ab.Content.Encoding,
+			Format:              ab.Content.Format,
+			ReceiveUpdate:       ab.Receive.Update,
+			ReceiveOpen:         ab.Receive.Open,
+			ReceiveNotification: ab.Receive.Notification,
+			ReceiveKeepalive:    ab.Receive.Keepalive,
+			ReceiveRefresh:      ab.Receive.Refresh,
+			ReceiveState:        ab.Receive.State,
+			SendUpdate:          ab.Send.Update,
+			SendRefresh:         ab.Send.Refresh,
+		})
+	}
+
 	return n, nil
 }
 

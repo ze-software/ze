@@ -210,6 +210,31 @@ type PeerSettings struct {
 	VPLSRoutes     []VPLSRoute
 	FlowSpecRoutes []FlowSpecRoute
 	MUPRoutes      []MUPRoute
+
+	// API bindings - which processes receive messages from this peer.
+	APIBindings []APIBinding
+}
+
+// APIBinding represents a binding between this peer and an API process.
+// Controls what messages are forwarded and in what format.
+type APIBinding struct {
+	ProcessName string // Reference to process name
+
+	// Content settings (HOW messages are formatted)
+	Encoding string // "json" | "text" (empty = inherit from process)
+	Format   string // "parsed" | "raw" | "full" (empty = "parsed")
+
+	// Receive settings (WHAT message types to forward)
+	ReceiveUpdate       bool
+	ReceiveOpen         bool
+	ReceiveNotification bool
+	ReceiveKeepalive    bool
+	ReceiveRefresh      bool
+	ReceiveState        bool
+
+	// Send settings (WHAT message types process can send)
+	SendUpdate  bool
+	SendRefresh bool
 }
 
 // NewPeerSettings creates a peer settings with default values.
