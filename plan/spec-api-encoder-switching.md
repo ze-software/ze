@@ -3,8 +3,8 @@
 ## Task
 
 Redesign process API configuration to properly separate:
-1. **WHAT** messages to receive/send (message types)
-2. **HOW** to format them (encoding + format)
+1. **WHAT** messages to receive/send (message types) - per-peer
+2. **HOW** to format them (encoding + format) - per-peer-binding
 
 Fix the current bug where `encoder json` processes receive nothing or text format.
 
@@ -12,103 +12,154 @@ Fix the current bug where `encoder json` processes receive nothing or text forma
 
 - `make test`: PASS
 - `make lint`: PASS (0 issues)
-- **Phase 0 COMPLETE**: All message types dispatched
-- **Phase 1 NEXT**: Config schema for `content {}` block
-- Last verified: 2025-12-29
+- **Phase 0 PARTIAL**: Message dispatch wired, but all types use `ReceiveUpdate` flag
+- **Phase 1 COMPLETE**: Config parsing and data flow working
+- Last verified: 2025-12-30
 
-### Next Session Checklist
+### Known Issues in Current Code
 
-Before implementing Phase 1, read these files:
-1. `pkg/config/bgp.go:286-290` - current schema
-2. `pkg/config/bgp.go:505-510` - config.ProcessConfig
-3. `pkg/config/bgp.go:538-551` - parsing logic
-4. `pkg/reactor/reactor.go:57-63` - reactor.APIProcessConfig
-5. `pkg/config/loader.go:111-116` - config→reactor conversion
-6. `pkg/reactor/reactor.go:1538-1545` - reactor→api conversion
-7. `pkg/api/types.go:336-344` - api.ProcessConfig
+| Location | Issue |
+|----------|-------|
+| `bgp.go:548` | `if pc.Encoder == "text" { pc.ReceiveUpdate = true }` - JSON gets nothing |
+| `server.go:470,492,514` | TODO: All message types use `ReceiveUpdate` flag |
 
-### Completed (Phase 0 FULL)
+### Phase 1 Completed (2025-12-30)
 
-| Item | File | Status |
-|------|------|--------|
-| `RawMessage` type | `pkg/api/types.go:377-383` | ✅ |
-| `MessageReceiver` interface | `pkg/reactor/reactor.go:75-82` | ✅ |
-| `notifyMessageReceiver` | `pkg/reactor/reactor.go:1419-1460` | ✅ |
-| `DecodeUpdate`/`DecodeUpdateRoutes` | `pkg/api/decode.go` | ✅ |
-| `DecodeOpen` | `pkg/api/decode.go:334-350` | ✅ |
-| `DecodeNotification` | `pkg/api/decode.go:365-384` | ✅ |
-| `ContentConfig` type + `WithDefaults()` | `pkg/api/types.go:359-375` | ✅ |
-| Format constants (`FormatParsed/Raw/Full`) | `pkg/api/types.go:352-357` | ✅ |
-| Encoding constants (`EncodingJSON/Text`) | `pkg/api/text.go:9-13` | ✅ |
-| `ReceivedRoute.ToRouteUpdate()` | `pkg/api/text.go:109-125` | ✅ |
-| `FormatReceivedUpdateWithEncoding()` | `pkg/api/text.go:127-145` | ✅ |
-| `FormatMessage()` format switching | `pkg/api/text.go:147-160` | ✅ |
-| `FormatOpen` / `FormatNotification` / `FormatKeepalive` | `pkg/api/text.go:223-249` | ✅ |
-| `JSONEncoder.Open/Notification/Keepalive` | `pkg/api/json.go:211-257` | ✅ |
-| `Server.OnMessageReceived` dispatch all types | `pkg/api/server.go:407-424` | ✅ |
-| `forwardOpenToProcesses` | `pkg/api/server.go:463-482` | ✅ |
-| `forwardNotificationToProcesses` | `pkg/api/server.go:485-504` | ✅ |
-| `forwardKeepaliveToProcesses` | `pkg/api/server.go:507-526` | ✅ |
-| Session callback wiring | `pkg/reactor/reactor.go:1475` | ✅ |
-| Unit tests | `pkg/api/message_receiver_test.go` | ✅ |
+**What was implemented:**
+- Config structs: `PeerAPIBinding`, `PeerContentConfig`, `PeerReceiveConfig`, `PeerSendConfig` ✅
+- Reactor struct: `reactor.APIBinding` ✅
+- API struct: `api.PeerAPIBinding` ✅
+- Data flow pipeline: config→loader→reactor→api ✅
+- Process validation: undefined process error ✅
+- Old syntax parsing: `api { processes [...]; neighbor-changes; }` ✅
+- **New syntax parsing:** `api foo { content {...} receive {...} send {...} }` ✅
+- **Schema:** Changed to `List(TypeString, ...)` with `_anonymous` key for old syntax ✅
+- **Parsing helpers:** `parseReceiveConfig()`, `parseSendConfig()`, `parseNewAPIBinding()` ✅
+- **Encoding inheritance:** `GetPeerAPIBindings()` resolves peer → process → "text" ✅
+- **`all;` keyword:** Expands to all flags in receive/send blocks ✅
+- **ExaBGP compat:** `processes-match`, `neighbor-changes` fields added to schema ✅
+- **Tests:** 8 new tests for new syntax parsing ✅
 
-### Primary Bug Fixed
+**Remaining for future phases:**
+- Validation for invalid encoding/format values (low priority)
 
-**Before:** `OnUpdateReceived` always used text format, ignoring `cfg.Encoder`
-**After:** Uses `s.encoder.RouteAnnounce()` for JSON, `FormatReceivedUpdate()` for text
+## Design Principles
 
-### Phase 0 Complete
+### Key Differences from ExaBGP
 
-All message types now flow through the API:
-- UPDATE → `DecodeUpdateRoutes` → `forwardUpdateToProcesses`
-- OPEN → `DecodeOpen` → `forwardOpenToProcesses`
-- NOTIFICATION → `DecodeNotification` → `forwardNotificationToProcesses`
-- KEEPALIVE → `forwardKeepaliveToProcesses`
+| Aspect | ExaBGP | ZeBGP |
+|--------|--------|-------|
+| Keyword | `neighbor {` | `peer {` |
+| API binding | `api { processes [foo]; }` | `api foo { ... }` in peer |
+| Format location | `receive { parsed; packets; }` | `content { format ...; }` per binding |
+| Output syntax | `neighbor X announce route ...` | `announce nlri <family> <nlris>` |
 
-### Remaining (Phase 1-3)
+### Architecture
 
-| Item | Status |
-|------|--------|
-| Config schema for `content {}` block | ⏳ |
-| Per-neighbor process binding | ⏳ |
-| Migration tool update | ⏳ |
+```
+Process = unique program (runs once, defined globally)
+Peer API binding = which process, what messages, what format (per-peer)
+```
 
-## New ZeBGP Process Configuration Format
+One process can serve multiple peers. Each peer-binding can have different:
+- Message types (update, notification, etc.)
+- Format (parsed, raw, full)
+- Encoding (json, text)
 
-### Design Principles
+## Data Flow Design
 
-1. **Separate concerns:** WHAT (message types) vs HOW (formatting)
-2. **ExaBGP compatible:** Migration tool converts ExaBGP → ZeBGP
-3. **Cleaner defaults:** Less boilerplate than ExaBGP
+### Current Flow (Process-Global)
 
-### ZeBGP Format
+```
+config.ProcessConfig ──► loader.go ──► reactor.APIProcessConfig ──► reactor.go ──► api.ProcessConfig ──► Server
+     (global)                              (global)                                    (global)
+```
+
+### New Flow (Per-Peer Bindings)
+
+```
+config.PeerConfig.APIBindings ──► loader.go ──► reactor.PeerSettings.APIBindings
+                                                           │
+                                                           ▼
+                                              reactor.peerBindingsMap[addr]
+                                                           │
+                                                           ▼
+                                              Server.getPeerAPIBindings(addr)
+                                                     via ReactorInterface
+```
+
+### Server Access to Peer Bindings
+
+**Option chosen: Server queries Reactor via interface**
+
+```go
+// ReactorInterface addition
+type ReactorInterface interface {
+    // ... existing methods ...
+
+    // GetPeerAPIBindings returns API bindings for a peer address.
+    // Returns nil if peer has no API bindings.
+    GetPeerAPIBindings(addr netip.Addr) []PeerAPIBinding
+}
+
+// Server usage
+func (s *Server) OnMessageReceived(peer PeerInfo, msg RawMessage) {
+    bindings := s.reactor.GetPeerAPIBindings(peer.Address)
+    for _, binding := range bindings {
+        // ...
+    }
+}
+```
+
+**Why this approach:**
+- No data duplication (bindings live in Reactor/PeerSettings)
+- Server doesn't need to track peer lifecycle
+- Consistent with existing `s.reactor.GetPeerByIP()` pattern
+
+## ZeBGP Configuration Format
+
+### Process Definition (Global)
 
 ```
 process <name> {
     run <command>;
-
-    # HOW to format output
-    content {
-        encoding json;       # json | text (default: text)
-        format parsed;       # parsed | raw | full (default: parsed)
-    }
+    encoder <type>;           # KEPT for backward compat (default: text)
+    respawn <bool>;           # default: true
 }
+```
 
-neighbor <address> {
-    # WHAT messages this process receives/sends for this neighbor
-    process <name> {
-        receive {
-            update;          # route announcements
-            withdraw;        # route withdrawals
-            open;            # OPEN messages
-            notification;    # errors
-            keepalive;       # heartbeats
-            refresh;         # route-refresh
-            state;           # up/down/connected/fsm events
+**Backward compatibility:** `encoder` stays in process definition but is OVERRIDDEN by peer-level `content.encoding` if specified.
+
+### Peer API Binding
+
+```
+peer <address> {
+    # ... peer settings ...
+
+    # API binding: link peer to process with per-binding config
+    api <process-name> {
+        # HOW to format (per this peer-binding, overrides process encoder)
+        content {
+            encoding json;       # json | text (default: inherit from process)
+            format parsed;       # parsed | raw | full (default: parsed)
         }
+
+        # WHAT messages to receive from this peer
+        receive {
+            update;              # route announcements (includes withdrawals)
+            open;                # OPEN messages
+            notification;        # errors
+            keepalive;           # heartbeats
+            refresh;             # route-refresh
+            state;               # up/down/connected/fsm events
+            all;                 # shorthand for all above
+        }
+
+        # WHAT messages this process can send to this peer
         send {
-            update;          # can inject routes
-            # ... other message types
+            update;              # can inject routes
+            refresh;             # can request route-refresh
+            all;                 # shorthand for all above
         }
     }
 }
@@ -117,60 +168,151 @@ neighbor <address> {
 ### Shorthand Forms
 
 ```
-# Minimal (defaults: text, parsed, no messages)
+# Minimal process definition
 process foo { run ./script; }
 
-# Common case: JSON updates only
-process foo {
-    run ./script;
-    content { encoding json; }
+# Minimal peer binding (defaults: inherit encoding, parsed format, no messages)
+# Note: Empty block required - parser doesn't support `api foo;` shorthand
+peer 10.0.0.1 {
+    api foo { }
 }
 
-neighbor 10.0.0.1 {
-    process foo {
-        receive { update; withdraw; }
+# Common case: JSON updates only
+peer 10.0.0.1 {
+    api foo {
+        content { encoding json; }
+        receive { update; }
     }
 }
 
-# All messages, full format (parsed + raw)
-process foo {
-    run ./script;
-    content { format full; }
-}
-
-neighbor 10.0.0.1 {
-    process foo {
+# All messages, full format
+peer 10.0.0.1 {
+    api foo {
+        content { encoding json; format full; }
         receive { all; }
         send { all; }
     }
 }
 ```
 
-### Format Options
+**Parser note:** The `List()` schema type requires a block after the key. `api foo;` without braces will fail to parse. Use `api foo { }` for minimal bindings.
 
-| Option | Description |
-|--------|-------------|
-| `encoding json` | JSON format output |
-| `encoding text` | Text format output (default) |
-| `format parsed` | Decoded/interpreted fields only (default) |
-| `format raw` | Wire bytes only (hex header + body) |
-| `format full` | Both parsed content AND raw bytes |
+### Multiple Peers, Same Process, Different Formats
 
-### ExaBGP → ZeBGP Mapping
+```
+process route-collector { run ./collector.py; }
 
-| ExaBGP | ZeBGP |
-|--------|-------|
-| `encoder json` | `content { encoding json; }` |
-| `receive { parsed; }` | `content { format parsed; }` |
-| `receive { packets; }` | `content { format raw; }` |
-| `receive { parsed; packets; consolidate; }` | `content { format full; }` |
-| `api { processes [ foo ]; }` in neighbor | `process foo { ... }` in neighbor |
-| `receive { update; }` in api | `receive { update; }` in process |
-| `neighbor-changes;` | `receive { state; }` |
+# Peer A: JSON, parsed only
+peer 10.0.0.1 {
+    api route-collector {
+        content { encoding json; format parsed; }
+        receive { update; }
+    }
+}
 
-### Migration Example
+# Peer B: Text, full format (parsed + raw)
+peer 10.0.0.2 {
+    api route-collector {
+        content { encoding text; format full; }
+        receive { update; notification; }
+    }
+}
+```
 
-**ExaBGP input:**
+## Output Syntax: announce nlri
+
+### Versioning
+
+**API Version 7** introduces the new output format. Existing v6 format preserved for compatibility.
+
+```go
+const (
+    APIVersionLegacy = 6  // ExaBGP-compatible format
+    APIVersionNLRI   = 7  // New announce nlri format
+)
+```
+
+Process can request version via environment or config (future).
+
+### JSON Format (v7)
+
+```json
+{
+  "type": "update",
+  "peer": {
+    "address": "10.0.0.1",
+    "asn": 65001
+  },
+  "announce": {
+    "nlri": {
+      "ipv4 unicast": {
+        "192.168.1.0/24": {
+          "next-hop": "10.0.0.1",
+          "origin": "igp",
+          "as-path": [65001]
+        }
+      }
+    }
+  }
+}
+```
+
+### Text Format (v7)
+
+```
+peer 10.0.0.1 update announce nlri ipv4 unicast 192.168.1.0/24 next-hop 10.0.0.1 origin igp as-path [65001]
+```
+
+### Withdrawals
+
+JSON:
+```json
+{
+  "type": "update",
+  "peer": { "address": "10.0.0.1" },
+  "withdraw": {
+    "nlri": {
+      "ipv4 unicast": ["192.168.1.0/24", "192.168.2.0/24"]
+    }
+  }
+}
+```
+
+Text:
+```
+peer 10.0.0.1 update withdraw nlri ipv4 unicast 192.168.1.0/24 192.168.2.0/24
+```
+
+## Format Options
+
+| Option | Description | JSON example |
+|--------|-------------|--------------|
+| `format parsed` | Decoded fields only (default) | `{"announce": {"nlri": ...}}` |
+| `format raw` | Wire bytes only (hex) | `{"raw": "ffffffff..."}` |
+| `format full` | Both parsed AND raw | `{"announce": ..., "raw": "..."}` |
+
+## Error Handling
+
+### Config Validation Errors
+
+| Condition | Error |
+|-----------|-------|
+| `api foo` references non-existent process | `"process 'foo' not defined"` |
+| Invalid encoding value | `"invalid encoding 'xml': must be 'json' or 'text'"` |
+| Invalid format value | `"invalid format 'compact': must be 'parsed', 'raw', or 'full'"` |
+| Duplicate api binding for same process | Warning only (later binding wins) |
+
+### Runtime Errors
+
+| Condition | Behavior |
+|-----------|----------|
+| Process not running | Skip, log warning |
+| Process write fails | Log error, continue to other processes |
+| Peer disconnected | Bindings still exist, messages not sent |
+
+## ExaBGP Migration
+
+### ExaBGP Input
 ```
 process foo {
     run ./script.py;
@@ -191,18 +333,19 @@ neighbor 10.0.0.1 {
 }
 ```
 
-**ZeBGP output:**
+### ZeBGP Output
 ```
 process foo {
     run ./script.py;
-    content {
-        encoding json;
-        format full;
-    }
+    encoder json;      # Kept for reference
 }
 
-neighbor 10.0.0.1 {
-    process foo {
+peer 10.0.0.1 {
+    api foo {
+        content {
+            encoding json;
+            format full;        # parsed + packets + consolidate
+        }
         receive {
             update;
             notification;
@@ -211,76 +354,1057 @@ neighbor 10.0.0.1 {
 }
 ```
 
-## Problem Analysis (Current Code)
+### Migration Mapping
 
-**Primary bug:** `OnUpdateReceived` ignores `cfg.Encoder`, always uses text format.
+| ExaBGP | ZeBGP |
+|--------|-------|
+| `encoder json` in process | `content { encoding json; }` in api binding |
+| `encoder text` in process | `content { encoding text; }` in api binding |
+| `receive { parsed; }` only | `content { format parsed; }` |
+| `receive { packets; }` only | `content { format raw; }` |
+| `receive { parsed; packets; consolidate; }` | `content { format full; }` |
+| `api { processes [ foo ]; }` | `api foo { ... }` |
+| `neighbor-changes;` | `receive { state; }` |
 
-**Secondary bug:** Config parsing at `bgp.go:548` only sets `ReceiveUpdate=true` when `encoder=text`. JSON-configured processes have `ReceiveUpdate=false`, so they receive **nothing**.
+## Documentation Impact
 
-**Missing feature:** No `OnWithdrawReceived` exists. Withdrawals are not forwarded to processes at all.
+Design changes require updating:
+- [ ] `.claude/zebgp/api/ARCHITECTURE.md` - new API binding model
+- [ ] `.claude/zebgp/config/SYNTAX.md` - `peer {` and `api <name> {}` syntax
+- [ ] `plan/CLAUDE_CONTINUATION.md` - phase status
 
-**Architectural issue (config):** Current config mixes "what" and "how" at wrong levels.
+## Implementation Phases
 
-**Architectural issue (interface):** `UpdateReceiver.OnUpdateReceived(peerAddr netip.Addr, routes)` only passes peer address, but `JSONEncoder.RouteAnnounce(peer PeerInfo, routes)` requires full `PeerInfo` (LocalAddress, LocalAS, PeerAS, RouterID). The interface signature must change.
+### Phase 0: Message Dispatch (PARTIAL - needs completion)
 
-### Interface Mismatch Detail
+**Done:**
+- UPDATE → `DecodeUpdateRoutes` → `forwardUpdateToProcesses`
+- OPEN → `DecodeOpen` → `forwardOpenToProcesses`
+- NOTIFICATION → `DecodeNotification` → `forwardNotificationToProcesses`
+- KEEPALIVE → `forwardKeepaliveToProcesses`
+
+**TODO (move to Phase 1):**
+- All forward functions use `ReceiveUpdate` flag - need per-message flags
+- JSON encoding works, but only if `ReceiveUpdate=true`
+
+### Phase 1: Config Schema + Data Flow
+
+#### 1.1 Keep encoder in process schema (backward compat)
+**File:** `pkg/config/bgp.go:286-290`
 
 ```go
-// Current interface (pkg/reactor/reactor.go:77-80)
-type UpdateReceiver interface {
-    OnUpdateReceived(peerAddr netip.Addr, routes []api.ReceivedRoute)
+// Process schema - encoder KEPT for backward compatibility
+schema.Define("process", List(TypeString,
+    Field("run", MultiLeaf(TypeString)),
+    Field("encoder", Leaf(TypeString)),  // KEEP - default for processes without peer override
+    Field("respawn", Leaf(TypeBool)),
+))
+```
+
+#### 1.2 Add api binding to peerFields()
+**File:** `pkg/config/bgp.go:166-230` (add to peerFields)
+
+```go
+// API bindings: api <process-name> { content {...}; receive {...}; send {...} }
+Field("api", List(TypeString,
+    Field("content", Container(
+        Field("encoding", Leaf(TypeString)),  // json | text
+        Field("format", Leaf(TypeString)),    // parsed | raw | full
+    )),
+    Field("receive", Freeform()),  // { update; notification; all; }
+    Field("send", Freeform()),     // { update; refresh; all; }
+)),
+```
+
+**Note:** Using `Freeform()` for receive/send blocks - parses `word;` entries as key→"true".
+
+#### 1.3 Add config structs
+**File:** `pkg/config/bgp.go` (after ProcessConfig)
+
+```go
+// PeerAPIBinding holds per-peer API binding configuration.
+type PeerAPIBinding struct {
+    ProcessName string
+    Content     PeerContentConfig
+    Receive     PeerReceiveConfig
+    Send        PeerSendConfig
 }
 
-// JSONEncoder.RouteAnnounce requires (pkg/api/json.go:123)
-func (e *JSONEncoder) RouteAnnounce(peer PeerInfo, routes []RouteUpdate) string
+// PeerContentConfig controls HOW messages are formatted.
+type PeerContentConfig struct {
+    Encoding string // json | text (empty = inherit from process)
+    Format   string // parsed | raw | full (default: parsed)
+    // Version int - DEFERRED TO PHASE 3
+}
 
-// PeerInfo fields needed (pkg/api/types.go:57-71)
-type PeerInfo struct {
-    Address      netip.Addr  // ✓ We have this
-    LocalAddress netip.Addr  // ✗ Missing
-    LocalAS      uint32      // ✗ Missing
-    PeerAS       uint32      // ✗ Missing
-    RouterID     uint32      // ✗ Missing
-    State        string
-    Uptime       time.Duration
-    // ... stats fields
+// PeerReceiveConfig controls WHAT messages to receive.
+// Note: `all;` expands to set all flags true at parse time.
+type PeerReceiveConfig struct {
+    Update       bool
+    Open         bool
+    Notification bool
+    Keepalive    bool
+    Refresh      bool
+    State        bool
+}
+
+// PeerSendConfig controls WHAT messages process can send.
+// Note: `all;` expands to set all flags true at parse time.
+type PeerSendConfig struct {
+    Update  bool
+    Refresh bool
 }
 ```
 
-### Type Mismatch Detail
+#### 1.4 Add to PeerConfig
+**File:** `pkg/config/bgp.go` (PeerConfig struct)
 
 ```go
-// Text encoder uses (pkg/api/text.go:17-24)
-type ReceivedRoute struct {
-    Prefix          netip.Prefix
-    NextHop         netip.Addr
-    Origin          string
-    LocalPreference uint32
-    MED             uint32
-    ASPath          []uint32
-}
-
-// JSON encoder uses (pkg/api/json.go:243-253)
-type RouteUpdate struct {
-    Prefix    string   // String, not netip.Prefix
-    NextHop   string   // String, not netip.Addr
-    AFI       string   // "ipv4" or "ipv6"
-    SAFI      string   // "unicast", etc.
-    Origin    string
-    ASPath    []uint32
-    LocalPref uint32
-    MED       uint32
+type PeerConfig struct {
+    // ... existing fields ...
+    APIBindings []PeerAPIBinding  // NEW: per-peer API bindings
 }
 ```
 
-Need converter: `ReceivedRoute` → `RouteUpdate`
+#### 1.5 Update parsing in TreeToConfig
+**File:** `pkg/config/bgp.go` (in peer parsing section)
+
+```go
+// Parse API bindings for this peer
+for procName, apiTree := range peerTree.GetList("api") {
+    binding := PeerAPIBinding{ProcessName: procName}
+
+    // Parse content block
+    if content := apiTree.GetContainer("content"); content != nil {
+        if v, ok := content.Get("encoding"); ok {
+            binding.Content.Encoding = v
+        }
+        if v, ok := content.Get("format"); ok {
+            binding.Content.Format = v
+        }
+    }
+
+    // Parse receive block (Freeform: entries stored as key->"true")
+    if recv := apiTree.GetContainer("receive"); recv != nil {
+        binding.Receive = parseReceiveConfig(recv)
+    }
+
+    // Parse send block
+    if send := apiTree.GetContainer("send"); send != nil {
+        binding.Send = parseSendConfig(send)
+    }
+
+    // Validate process exists
+    if !hasProcess(cfg.Processes, procName) {
+        return nil, fmt.Errorf("peer %s: api references undefined process %q", addr, procName)
+    }
+
+    peer.APIBindings = append(peer.APIBindings, binding)
+}
+```
+
+#### 1.6 Parsing helpers
+**File:** `pkg/config/bgp.go`
+
+```go
+// parseReceiveConfig parses a Freeform receive block.
+// Freeform stores "update;" as key "update" -> value "true".
+func parseReceiveConfig(tree *Tree) PeerReceiveConfig {
+    cfg := PeerReceiveConfig{}
+
+    // Check for "all" shorthand
+    if _, ok := tree.Get("all"); ok {
+        cfg.Update = true
+        cfg.Open = true
+        cfg.Notification = true
+        cfg.Keepalive = true
+        cfg.Refresh = true
+        cfg.State = true
+        return cfg
+    }
+
+    // Individual flags
+    _, cfg.Update = tree.Get("update")
+    _, cfg.Open = tree.Get("open")
+    _, cfg.Notification = tree.Get("notification")
+    _, cfg.Keepalive = tree.Get("keepalive")
+    _, cfg.Refresh = tree.Get("refresh")
+    _, cfg.State = tree.Get("state")
+
+    return cfg
+}
+
+// parseSendConfig parses a Freeform send block.
+func parseSendConfig(tree *Tree) PeerSendConfig {
+    cfg := PeerSendConfig{}
+
+    if _, ok := tree.Get("all"); ok {
+        cfg.Update = true
+        cfg.Refresh = true
+        return cfg
+    }
+
+    _, cfg.Update = tree.Get("update")
+    _, cfg.Refresh = tree.Get("refresh")
+
+    return cfg
+}
+
+// hasProcess checks if a process name exists in the config.
+func hasProcess(procs []ProcessConfig, name string) bool {
+    for _, p := range procs {
+        if p.Name == name {
+            return true
+        }
+    }
+    return false
+}
+```
+
+#### 1.7 Add to reactor.PeerSettings
+**File:** `pkg/reactor/peersettings.go`
+
+```go
+type PeerSettings struct {
+    // ... existing fields (line 153-213) ...
+
+    // APIBindings holds per-peer API process bindings.
+    // Each binding specifies which process receives messages and how to format them.
+    APIBindings []PeerAPIBinding
+}
+
+// PeerAPIBinding matches config.PeerAPIBinding for reactor use.
+type PeerAPIBinding struct {
+    ProcessName string
+    Content     PeerContentConfig
+    Receive     PeerReceiveConfig
+    Send        PeerSendConfig
+}
+
+type PeerContentConfig struct {
+    Encoding string
+    Format   string
+    // Version int - DEFERRED TO PHASE 3
+}
+
+type PeerReceiveConfig struct {
+    Update       bool
+    Open         bool
+    Notification bool
+    Keepalive    bool
+    Refresh      bool
+    State        bool
+}
+
+type PeerSendConfig struct {
+    Update  bool
+    Refresh bool
+}
+```
+
+#### 1.8 Update loader.go conversion
+**File:** `pkg/config/loader.go` (configToPeer function)
+
+```go
+// Convert API bindings
+for _, ab := range nc.APIBindings {
+    settings.APIBindings = append(settings.APIBindings, reactor.PeerAPIBinding{
+        ProcessName: ab.ProcessName,
+        Content: reactor.PeerContentConfig{
+            Encoding: ab.Content.Encoding,
+            Format:   ab.Content.Format,
+        },
+        Receive: reactor.PeerReceiveConfig{
+            Update:       ab.Receive.Update,
+            Open:         ab.Receive.Open,
+            Notification: ab.Receive.Notification,
+            Keepalive:    ab.Receive.Keepalive,
+            Refresh:      ab.Receive.Refresh,
+            State:        ab.Receive.State,
+        },
+        Send: reactor.PeerSendConfig{
+            Update:  ab.Send.Update,
+            Refresh: ab.Send.Refresh,
+        },
+    })
+}
+```
+
+#### 1.9 Add ReactorInterface method
+**File:** `pkg/api/types.go` (ReactorInterface)
+
+```go
+type ReactorInterface interface {
+    // ... existing methods ...
+
+    // GetPeerAPIBindings returns API bindings for a peer.
+    GetPeerAPIBindings(addr netip.Addr) []PeerAPIBinding
+}
+
+// PeerAPIBinding in api package (for interface return type)
+type PeerAPIBinding struct {
+    ProcessName string
+    Encoding    string // Resolved: peer override or process default
+    Format      string
+    // Version int - DEFERRED TO PHASE 3
+    Receive     ReceiveConfig
+    Send        SendConfig
+}
+
+type ReceiveConfig struct {
+    Update       bool
+    Open         bool
+    Notification bool
+    Keepalive    bool
+    Refresh      bool
+    State        bool
+}
+
+type SendConfig struct {
+    Update  bool
+    Refresh bool
+}
+```
+
+#### 1.10 Implement in reactorAPIAdapter
+**File:** `pkg/reactor/reactor.go` (reactorAPIAdapter)
+
+```go
+func (a *reactorAPIAdapter) GetPeerAPIBindings(addr netip.Addr) []api.PeerAPIBinding {
+    a.r.mu.RLock()
+    defer a.r.mu.RUnlock()
+
+    peer, ok := a.r.peers[addr.String()]
+    if !ok {
+        return nil
+    }
+
+    settings := peer.Settings()
+    result := make([]api.PeerAPIBinding, len(settings.APIBindings))
+
+    for i, b := range settings.APIBindings {
+        // Resolve encoding: peer override or process default
+        encoding := b.Content.Encoding
+        if encoding == "" {
+            // Look up process default
+            for _, pc := range a.r.config.APIProcesses {
+                if pc.Name == b.ProcessName {
+                    encoding = pc.Encoder
+                    break
+                }
+            }
+        }
+        if encoding == "" {
+            encoding = "text" // Ultimate default
+        }
+
+        format := b.Content.Format
+        if format == "" {
+            format = "parsed"
+        }
+
+        result[i] = api.PeerAPIBinding{
+            ProcessName: b.ProcessName,
+            Encoding:    encoding,
+            Format:      format,
+            Receive: api.ReceiveConfig{
+                Update:       b.Receive.Update,
+                Open:         b.Receive.Open,
+                Notification: b.Receive.Notification,
+                Keepalive:    b.Receive.Keepalive,
+                Refresh:      b.Receive.Refresh,
+                State:        b.Receive.State,
+            },
+            Send: api.SendConfig{
+                Update:  b.Send.Update,
+                Refresh: b.Send.Refresh,
+            },
+        }
+    }
+
+    return result
+}
+```
+
+#### 1.11 Tests
+**File:** `pkg/config/bgp_test.go`
+
+```go
+// parseConfig is a test helper that parses config and converts to BGPConfig.
+func parseConfig(t *testing.T, input string) *BGPConfig {
+    t.Helper()
+    p := NewParser(BGPSchema())
+    tree, err := p.Parse(input)
+    require.NoError(t, err, "parse failed")
+    cfg, err := TreeToConfig(tree)
+    require.NoError(t, err, "TreeToConfig failed")
+    return cfg
+}
+
+// parseConfigErr is a test helper that expects parsing/conversion to fail.
+func parseConfigErr(t *testing.T, input string) error {
+    t.Helper()
+    p := NewParser(BGPSchema())
+    tree, err := p.Parse(input)
+    if err != nil {
+        return err
+    }
+    _, err = TreeToConfig(tree)
+    return err
+}
+
+func TestPeerAPIBinding(t *testing.T) {
+    // VALIDATES: Config parsing extracts API bindings correctly
+    // PREVENTS: Silent failures when api block is malformed
+
+    input := `
+        process foo { run ./test; encoder text; }
+        peer 10.0.0.1 {
+            router-id 1.2.3.4;
+            local-as 65001;
+            peer-as 65002;
+            api foo {
+                content { encoding json; format full; }
+                receive { update; notification; }
+            }
+        }
+    `
+
+    cfg := parseConfig(t, input)
+    require.Len(t, cfg.Peers, 1)
+    require.Len(t, cfg.Peers[0].APIBindings, 1)
+
+    binding := cfg.Peers[0].APIBindings[0]
+    assert.Equal(t, "foo", binding.ProcessName)
+    assert.Equal(t, "json", binding.Content.Encoding)
+    assert.Equal(t, "full", binding.Content.Format)
+    assert.True(t, binding.Receive.Update)
+    assert.True(t, binding.Receive.Notification)
+    assert.False(t, binding.Receive.Open) // Not specified
+}
+
+func TestReceiveAllExpansion(t *testing.T) {
+    // VALIDATES: "all" keyword expands to all message type flags
+    // PREVENTS: Missing messages when user specifies "all"
+
+    input := `
+        process foo { run ./test; }
+        peer 10.0.0.1 {
+            router-id 1.2.3.4;
+            local-as 65001;
+            peer-as 65002;
+            api foo {
+                receive { all; }
+            }
+        }
+    `
+
+    cfg := parseConfig(t, input)
+
+    recv := cfg.Peers[0].APIBindings[0].Receive
+    assert.True(t, recv.Update, "all should set Update")
+    assert.True(t, recv.Open, "all should set Open")
+    assert.True(t, recv.Notification, "all should set Notification")
+    assert.True(t, recv.Keepalive, "all should set Keepalive")
+    assert.True(t, recv.Refresh, "all should set Refresh")
+    assert.True(t, recv.State, "all should set State")
+}
+
+func TestAPIBindingUndefinedProcess(t *testing.T) {
+    // VALIDATES: Error when api references non-existent process
+    // PREVENTS: Runtime crashes from nil process lookup
+
+    input := `
+        peer 10.0.0.1 {
+            router-id 1.2.3.4;
+            local-as 65001;
+            peer-as 65002;
+            api nonexistent {
+                receive { update; }
+            }
+        }
+    `
+
+    err := parseConfigErr(t, input)
+    require.Error(t, err)
+    assert.Contains(t, err.Error(), "undefined process")
+}
+
+func TestEncodingInheritance(t *testing.T) {
+    // VALIDATES: Peer binding inherits encoder from process if not specified
+    // PREVENTS: Wrong encoding when peer doesn't override
+
+    input := `
+        process foo { run ./test; encoder json; }
+        peer 10.0.0.1 {
+            router-id 1.2.3.4;
+            local-as 65001;
+            peer-as 65002;
+            api foo {
+                receive { update; }
+            }
+        }
+    `
+
+    cfg := parseConfig(t, input)
+
+    // Content.Encoding should be empty (inherited at runtime)
+    assert.Empty(t, cfg.Peers[0].APIBindings[0].Content.Encoding)
+
+    // Verify process has the encoder
+    assert.Equal(t, "json", cfg.Processes[0].Encoder)
+}
+
+func TestEmptyAPIBinding(t *testing.T) {
+    // VALIDATES: Empty api block creates binding with defaults
+    // PREVENTS: Crash on minimal api binding
+
+    input := `
+        process foo { run ./test; }
+        peer 10.0.0.1 {
+            router-id 1.2.3.4;
+            local-as 65001;
+            peer-as 65002;
+            api foo { }
+        }
+    `
+
+    cfg := parseConfig(t, input)
+    require.Len(t, cfg.Peers[0].APIBindings, 1)
+
+    binding := cfg.Peers[0].APIBindings[0]
+    assert.Equal(t, "foo", binding.ProcessName)
+    assert.Empty(t, binding.Content.Encoding) // Inherit from process
+    assert.Empty(t, binding.Content.Format)   // Default to "parsed"
+    assert.False(t, binding.Receive.Update)   // No messages subscribed
+}
+```
+
+### Phase 2: Message Routing with Per-Peer Format
+
+#### 2.1 Add GetProcess to ProcessManager
+**File:** `pkg/api/process.go`
+
+```go
+// GetProcess returns a process by name, or nil if not found.
+func (pm *ProcessManager) GetProcess(name string) *Process {
+    pm.mu.RLock()
+    defer pm.mu.RUnlock()
+    return pm.processes[name]
+}
+```
+
+#### 2.2 Add ProcessWriter interface for testability
+**File:** `pkg/api/process.go`
+
+```go
+// ProcessWriter is the interface for writing events to a process.
+// Used for testing with mock implementations.
+type ProcessWriter interface {
+    WriteEvent(data string) error
+}
+
+// Ensure Process implements ProcessWriter
+var _ ProcessWriter = (*Process)(nil)
+```
+
+#### 2.3 Update Server.OnMessageReceived
+**File:** `pkg/api/server.go`
+
+```go
+func (s *Server) OnMessageReceived(peer PeerInfo, msg RawMessage) {
+    if s.procManager == nil {
+        return
+    }
+
+    // Get peer-specific API bindings from reactor
+    bindings := s.reactor.GetPeerAPIBindings(peer.Address)
+    if len(bindings) == 0 {
+        return
+    }
+
+    for _, binding := range bindings {
+        if !wantsMessageType(binding.Receive, msg.Type) {
+            continue
+        }
+
+        proc := s.procManager.GetProcess(binding.ProcessName)
+        if proc == nil {
+            continue
+        }
+
+        // Format using THIS BINDING's resolved config
+        content := ContentConfig{
+            Encoding: binding.Encoding,
+            Format:   binding.Format,
+        }
+        // FormatMessage is a package-level function in text.go
+        output := FormatMessage(peer, msg, content)
+        _ = proc.WriteEvent(output)
+    }
+}
+
+// wantsMessageType checks if receive config wants this message type.
+// Note: State events are NOT BGP messages - they're handled separately
+// via OnPeerStateChange (see 2.4).
+func wantsMessageType(recv ReceiveConfig, msgType message.MessageType) bool {
+    switch msgType {
+    case message.TypeUPDATE:
+        return recv.Update
+    case message.TypeOPEN:
+        return recv.Open
+    case message.TypeNOTIFICATION:
+        return recv.Notification
+    case message.TypeKEEPALIVE:
+        return recv.Keepalive
+    default:
+        return false
+    }
+}
+```
+
+#### 2.4 Handle state events separately
+**File:** `pkg/api/server.go`
+
+State events (up/down/connected) are NOT BGP messages - they're session lifecycle events. Add a separate handler:
+
+```go
+// OnPeerStateChange handles peer state transitions.
+// Called by reactor when peer state changes (not a BGP message).
+func (s *Server) OnPeerStateChange(peer PeerInfo, state string) {
+    if s.procManager == nil {
+        return
+    }
+
+    bindings := s.reactor.GetPeerAPIBindings(peer.Address)
+    for _, binding := range bindings {
+        if !binding.Receive.State {
+            continue
+        }
+
+        proc := s.procManager.GetProcess(binding.ProcessName)
+        if proc == nil {
+            continue
+        }
+
+        content := ContentConfig{
+            Encoding: binding.Encoding,
+            Format:   binding.Format,
+        }
+        output := FormatStateChange(peer, state, content)
+        _ = proc.WriteEvent(output)
+    }
+}
+```
+
+Add to api/types.go:
+```go
+// StateChangeReceiver receives peer state change notifications.
+type StateChangeReceiver interface {
+    OnPeerStateChange(peer PeerInfo, state string)
+}
+```
+
+#### 2.5 Add FormatStateChange function
+**File:** `pkg/api/text.go`
+
+```go
+// FormatStateChange formats a peer state change event.
+func FormatStateChange(peer PeerInfo, state string, content ContentConfig) string {
+    if content.Encoding == EncodingJSON {
+        return formatStateChangeJSON(peer, state)
+    }
+    return formatStateChangeText(peer, state)
+}
+
+func formatStateChangeJSON(peer PeerInfo, state string) string {
+    data := map[string]any{
+        "type": "state",
+        "peer": map[string]any{
+            "address": peer.Address.String(),
+            "asn":     peer.ASN,
+        },
+        "state": state,
+    }
+    b, _ := json.Marshal(data)
+    return string(b) + "\n"
+}
+
+func formatStateChangeText(peer PeerInfo, state string) string {
+    return fmt.Sprintf("peer %s state %s\n", peer.Address, state)
+}
+```
+
+#### 2.6 Remove old forwarding functions
+**File:** `pkg/api/server.go`
+
+Remove or deprecate:
+- `forwardUpdateToProcesses`
+- `forwardOpenToProcesses`
+- `forwardNotificationToProcesses`
+- `forwardKeepaliveToProcesses`
+- `getProcessConfigByName`
+
+All replaced by unified `OnMessageReceived` with per-binding config.
+
+#### 2.7 Tests
+**File:** `pkg/api/server_test.go`
+
+```go
+// mockReactor implements ReactorInterface for testing.
+type mockReactor struct {
+    bindings map[string][]PeerAPIBinding // addr -> bindings
+}
+
+func (m *mockReactor) GetPeerAPIBindings(addr netip.Addr) []PeerAPIBinding {
+    return m.bindings[addr.String()]
+}
+
+// Implement other ReactorInterface methods as no-ops
+func (m *mockReactor) Peers() []PeerInfo                              { return nil }
+func (m *mockReactor) Stats() ReactorStats                            { return ReactorStats{} }
+func (m *mockReactor) Stop()                                          {}
+func (m *mockReactor) Reload() error                                  { return nil }
+func (m *mockReactor) AnnounceRoute(string, RouteSpec) error          { return nil }
+func (m *mockReactor) WithdrawRoute(string, netip.Prefix) error       { return nil }
+// ... etc for other methods ...
+
+// mockProcessWriter implements ProcessWriter for testing.
+type mockProcessWriter struct {
+    events []string
+    mu     sync.Mutex
+}
+
+func (w *mockProcessWriter) WriteEvent(data string) error {
+    w.mu.Lock()
+    defer w.mu.Unlock()
+    w.events = append(w.events, data)
+    return nil
+}
+
+func (w *mockProcessWriter) Events() []string {
+    w.mu.Lock()
+    defer w.mu.Unlock()
+    return append([]string{}, w.events...)
+}
+
+// testServer creates a Server with mock dependencies for testing.
+// Uses real ProcessManager but with test process configs.
+func testServer(t *testing.T, reactor *mockReactor, writers map[string]*mockProcessWriter) *Server {
+    t.Helper()
+    // For unit tests, we test the logic directly rather than through
+    // full Server construction. See testOnMessageReceived helper.
+    return nil
+}
+
+// testOnMessageReceived tests message routing logic directly.
+// This avoids needing to mock the full Server/ProcessManager.
+func testOnMessageReceived(
+    bindings []PeerAPIBinding,
+    writers map[string]*mockProcessWriter,
+    peer PeerInfo,
+    msg RawMessage,
+) {
+    for _, binding := range bindings {
+        if !wantsMessageType(binding.Receive, msg.Type) {
+            continue
+        }
+        if w, ok := writers[binding.ProcessName]; ok {
+            content := ContentConfig{
+                Encoding: binding.Encoding,
+                Format:   binding.Format,
+            }
+            output := FormatMessage(peer, msg, content)
+            _ = w.WriteEvent(output)
+        }
+    }
+}
+
+func TestPerPeerFormatting(t *testing.T) {
+    // VALIDATES: Same process receives different formats from different peers
+    // PREVENTS: All peers getting same format regardless of config
+
+    peerA := netip.MustParseAddr("10.0.0.1")
+    peerB := netip.MustParseAddr("10.0.0.2")
+
+    writer := &mockProcessWriter{}
+    writers := map[string]*mockProcessWriter{"collector": writer}
+
+    bindingsA := []PeerAPIBinding{{
+        ProcessName: "collector",
+        Encoding:    "json",
+        Format:      "parsed",
+        Receive:     ReceiveConfig{Update: true},
+    }}
+    bindingsB := []PeerAPIBinding{{
+        ProcessName: "collector",
+        Encoding:    "text",
+        Format:      "full",
+        Receive:     ReceiveConfig{Update: true},
+    }}
+
+    // Send UPDATE from peer A (JSON)
+    testOnMessageReceived(
+        bindingsA,
+        writers,
+        PeerInfo{Address: peerA, ASN: 65001},
+        RawMessage{Type: message.TypeUPDATE, RawBytes: []byte{0xff}},
+    )
+
+    // Send UPDATE from peer B (text)
+    testOnMessageReceived(
+        bindingsB,
+        writers,
+        PeerInfo{Address: peerB, ASN: 65002},
+        RawMessage{Type: message.TypeUPDATE, RawBytes: []byte{0xff}},
+    )
+
+    events := writer.Events()
+    require.Len(t, events, 2)
+
+    // Peer A should get JSON
+    assert.Contains(t, events[0], `"type"`)
+    assert.Contains(t, events[0], `"peer"`)
+
+    // Peer B should get text with raw bytes (full format)
+    assert.Contains(t, events[1], "peer 10.0.0.2")
+    assert.Contains(t, events[1], "raw")
+}
+
+func TestMessageTypeFiltering(t *testing.T) {
+    // VALIDATES: Process only receives subscribed message types
+    // PREVENTS: Processes getting messages they didn't subscribe to
+
+    peer := netip.MustParseAddr("10.0.0.1")
+    writer := &mockProcessWriter{}
+    writers := map[string]*mockProcessWriter{"updater": writer}
+
+    bindings := []PeerAPIBinding{{
+        ProcessName: "updater",
+        Encoding:    "text",
+        Format:      "parsed",
+        Receive:     ReceiveConfig{Update: true}, // ONLY update
+    }}
+
+    peerInfo := PeerInfo{Address: peer, ASN: 65001}
+
+    // Send UPDATE -> should be forwarded
+    testOnMessageReceived(bindings, writers, peerInfo, RawMessage{Type: message.TypeUPDATE})
+    assert.Len(t, writer.Events(), 1, "UPDATE should be forwarded")
+
+    // Send NOTIFICATION -> should NOT be forwarded
+    testOnMessageReceived(bindings, writers, peerInfo, RawMessage{Type: message.TypeNOTIFICATION})
+    assert.Len(t, writer.Events(), 1, "NOTIFICATION should NOT be forwarded")
+
+    // Send KEEPALIVE -> should NOT be forwarded
+    testOnMessageReceived(bindings, writers, peerInfo, RawMessage{Type: message.TypeKEEPALIVE})
+    assert.Len(t, writer.Events(), 1, "KEEPALIVE should NOT be forwarded")
+}
+
+// testOnPeerStateChange tests state event routing logic directly.
+func testOnPeerStateChange(
+    bindings []PeerAPIBinding,
+    writers map[string]*mockProcessWriter,
+    peer PeerInfo,
+    state string,
+) {
+    for _, binding := range bindings {
+        if !binding.Receive.State {
+            continue
+        }
+        if w, ok := writers[binding.ProcessName]; ok {
+            content := ContentConfig{
+                Encoding: binding.Encoding,
+                Format:   binding.Format,
+            }
+            output := FormatStateChange(peer, state, content)
+            _ = w.WriteEvent(output)
+        }
+    }
+}
+
+func TestStateEventFiltering(t *testing.T) {
+    // VALIDATES: State events only sent to processes with Receive.State=true
+    // PREVENTS: Processes getting state events they didn't subscribe to
+
+    peer := netip.MustParseAddr("10.0.0.1")
+    writerWithState := &mockProcessWriter{}
+    writerWithoutState := &mockProcessWriter{}
+
+    writers := map[string]*mockProcessWriter{
+        "with-state":    writerWithState,
+        "without-state": writerWithoutState,
+    }
+
+    bindings := []PeerAPIBinding{
+        {
+            ProcessName: "with-state",
+            Encoding:    "json",
+            Format:      "parsed",
+            Receive:     ReceiveConfig{Update: true, State: true},
+        },
+        {
+            ProcessName: "without-state",
+            Encoding:    "json",
+            Format:      "parsed",
+            Receive:     ReceiveConfig{Update: true, State: false},
+        },
+    }
+
+    // Send state change
+    testOnPeerStateChange(bindings, writers, PeerInfo{Address: peer, ASN: 65001}, "established")
+
+    assert.Len(t, writerWithState.Events(), 1, "with-state should receive state event")
+    assert.Len(t, writerWithoutState.Events(), 0, "without-state should NOT receive state event")
+}
+```
+
+### Phase 3: Output Format Update
+
+#### 3.1 Add Version field to structs
+Add `Version int` to:
+- `config.PeerContentConfig`
+- `reactor.PeerContentConfig`
+- `api.PeerAPIBinding`
+
+Add to schema:
+```go
+Field("content", Container(
+    Field("encoding", Leaf(TypeString)),
+    Field("format", Leaf(TypeString)),
+    Field("version", Leaf(TypeInt)),  // 6=legacy, 7=nlri
+)),
+```
+
+Add parsing:
+```go
+if v, ok := content.Get("version"); ok {
+    if n, err := strconv.Atoi(v); err == nil {
+        binding.Content.Version = n
+    }
+}
+```
+
+Add resolution in reactorAPIAdapter:
+```go
+version := b.Content.Version
+if version == 0 {
+    version = 7 // Default to new nlri format
+}
+```
+
+#### 3.2 Add JSON v7 encoder
+**File:** `pkg/api/json.go`
+
+New methods for v7 format with `announce.nlri` structure.
+
+#### 3.3 Add Text v7 encoder
+**File:** `pkg/api/text.go`
+
+New format: `peer <addr> update announce nlri <family> <prefix> [attrs...]`
+
+#### 3.4 Version-aware formatting
+Update `FormatMessage` to check Version and use appropriate encoder:
+```go
+func FormatMessage(peer PeerInfo, msg RawMessage, content ContentConfig) string {
+    version := content.Version
+    if version == 0 {
+        version = 7
+    }
+
+    if content.Encoding == EncodingJSON {
+        if version == 6 {
+            return formatMessageJSONv6(peer, msg, content)
+        }
+        return formatMessageJSONv7(peer, msg, content)
+    }
+    // Text format
+    if version == 6 {
+        return formatMessageTextv6(peer, msg, content)
+    }
+    return formatMessageTextv7(peer, msg, content)
+}
+```
+
+### Phase 4: Migration Tool Update
+
+Update ExaBGP config migrator to:
+1. Keep `encoder` in process (for backward compat)
+2. Add `api <name> { content {...}; receive {...} }` to peers
+3. Map ExaBGP api blocks to new format
+
+### Phase 5: Documentation Updates
+
+- [ ] Update `.claude/zebgp/api/ARCHITECTURE.md`
+- [ ] Update `.claude/zebgp/config/SYNTAX.md`
+- [ ] Update `plan/CLAUDE_CONTINUATION.md`
+
+## Verification Checklist
+
+### Phase 0 (Partial)
+- [x] Message dispatch wired for all types
+- [x] Encoding switching works (json/text)
+- [ ] Per-message-type flags (currently all use ReceiveUpdate)
+
+### Phase 1: Config Schema + Data Flow (COMPLETE - 2025-12-30)
+
+**All items completed:**
+- [x] Structs: PeerAPIBinding, PeerContentConfig, PeerReceiveConfig, PeerSendConfig
+- [x] PeerConfig has APIBindings field
+- [x] PeerSettings has APIBindings field (reactor.APIBinding)
+- [x] api.PeerAPIBinding type added to types.go
+- [x] Validation: Error on undefined process reference
+- [x] Loader: config → reactor conversion (configToPeer copies APIBindings)
+- [x] ReactorInterface: GetPeerAPIBindings method added
+- [x] Schema: `api` uses `List(TypeString, ...)` with `_anonymous` for old syntax
+- [x] New syntax: `api <name> { content {...} }` parses correctly
+- [x] Parsing: content/encoding/format extraction works
+- [x] Parsing: receive flags (update, open, etc.) work
+- [x] Parsing: send flags (update, refresh) work
+- [x] Parsing: `all;` keyword expansion works
+- [x] reactorAPIAdapter: Encoding inheritance from process (peer → process → "text")
+- [x] Old syntax: `neighbor-changes;` maps to `receive.State`
+- [x] ExaBGP compat: `processes-match`, `neighbor-changes` schema fields
+- [x] Tests: 8 new tests for new syntax
+- [x] `make test && make lint` pass
+
+**Deferred to future phases:**
+- [ ] Validation: Invalid encoding/format values (low priority)
+
+### Phase 2: Message Routing
+- [ ] GetProcess method added to ProcessManager
+- [ ] ProcessWriter interface for testability
+- [ ] Server.OnMessageReceived uses GetPeerAPIBindings
+- [ ] Per-binding format/encoding applied
+- [ ] Old forwarding functions removed
+- [ ] wantsMessageType helper
+- [ ] OnPeerStateChange for state events (separate from BGP messages)
+- [ ] FormatStateChange function
+- [ ] StateChangeReceiver interface
+- [ ] Tests: TestPerPeerFormatting, TestMessageTypeFiltering, TestStateEventFiltering
+- [ ] `make test && make lint` pass
+
+### Phase 3: Output Format
+- [ ] Version field added to structs (deferred from Phase 1)
+- [ ] Version parsing added to config
+- [ ] JSON v7 encoder with announce.nlri
+- [ ] Text v7 encoder
+- [ ] Version-aware FormatMessage
+- [ ] Tests pass
+
+### Phase 4: Migration
+- [ ] ExaBGP configs convert correctly
+- [ ] Tests pass
+
+### Phase 5: Documentation
+- [ ] ARCHITECTURE.md updated
+- [ ] SYNTAX.md updated
+- [ ] CONTINUATION.md updated
 
 ## Embedded Protocol Requirements
 
 ### Default Rules (ALL tasks)
 - **FIRST:** Run `git status` - if modified files exist, ASK user before proceeding
-- **FIRST:** Read `plan/CLAUDE_CONTINUATION.md` for current state
-- **FIRST:** Read `.claude/ESSENTIAL_PROTOCOLS.md` for session rules
 - Tests MUST exist and FAIL before implementation code exists
 - Run `make test && make lint` before claiming done
 - NEVER discard uncommitted work without explicit user permission
@@ -297,725 +1421,7 @@ Need converter: `ReceivedRoute` → `RouteUpdate`
 - Fix all 🔴/🟡 issues before claiming done
 - Report 🟢 minor items to user
 
-## Implementation Phases
-
-### Phase 0: Raw Message Interface (Correct Design)
-
-**Key principle:** Pass raw wire bytes, decode on demand based on format config.
-
-Current (wrong):
-```
-Reactor → parse UPDATE → ReceivedRoute struct → Server → format text
-```
-
-Correct:
-```
-Reactor → RawMessage{type, bytes, peer} → Server → decode IF needed → format
-```
-
-#### 0.1 Define RawMessage type
-**File:** `pkg/api/types.go`
-
-```go
-// RawMessage represents a BGP message received from a peer.
-// Contains raw wire bytes for on-demand parsing.
-type RawMessage struct {
-    Type      message.MessageType // UPDATE, OPEN, NOTIFICATION, etc.
-    RawBytes  []byte              // Original wire bytes (without marker)
-    Timestamp time.Time
-}
-```
-
-#### 0.2 Define MessageReceiver interface
-**File:** `pkg/reactor/reactor.go`
-
-Replace `UpdateReceiver` with generic `MessageReceiver`:
-
-```go
-// MessageReceiver receives BGP messages from peers.
-// Messages are passed as raw bytes for on-demand parsing.
-type MessageReceiver interface {
-    // OnMessageReceived is called when a message is received from a peer.
-    // msg contains raw wire bytes - parsing is done by receiver based on format config.
-    OnMessageReceived(peer api.PeerInfo, msg api.RawMessage)
-}
-```
-
-#### 0.3 Update notifyMessageReceiver
-**File:** `pkg/reactor/reactor.go`
-
-```go
-func (r *Reactor) notifyMessageReceiver(peerAddr netip.Addr, msgType message.MessageType, rawBytes []byte) {
-    r.mu.RLock()
-    receiver := r.messageReceiver
-    peer, hasPeer := r.peers[peerAddr.String()]
-    r.mu.RUnlock()
-
-    if receiver == nil || !hasPeer {
-        return
-    }
-
-    // Build PeerInfo from peer settings
-    s := peer.Settings()
-    peerInfo := api.PeerInfo{
-        Address:      s.Address,
-        LocalAddress: peer.LocalAddress(),
-        LocalAS:      s.LocalAS,
-        PeerAS:       s.PeerAS,
-        RouterID:     s.RouterID,
-        State:        peer.State(),
-    }
-
-    msg := api.RawMessage{
-        Type:      msgType,
-        RawBytes:  rawBytes,
-        Timestamp: time.Now(),
-    }
-
-    receiver.OnMessageReceived(peerInfo, msg)
-}
-```
-
-#### 0.4 Add on-demand parsers
-**File:** `pkg/api/decode.go`
-
-```go
-// DecodeUpdate parses raw UPDATE bytes into structured data.
-// Called only when format=parsed or format=full.
-func DecodeUpdate(rawBytes []byte, ctx *context.EncodingContext) (*ParsedUpdate, error) {
-    // Parse using existing message.ParseUpdate()
-}
-
-// DecodeOpen parses raw OPEN bytes into structured data.
-func DecodeOpen(rawBytes []byte) (*ParsedOpen, error) {
-    // Parse using existing message.ParseOpen()
-}
-
-// DecodeNotification parses raw NOTIFICATION bytes into structured data.
-func DecodeNotification(rawBytes []byte) (*ParsedNotification, error) {
-    // Parse using existing message.ParseNotification()
-}
-```
-
-#### 0.5 Update Server.OnMessageReceived
-**File:** `pkg/api/server.go`
-
-```go
-func (s *Server) OnMessageReceived(peer PeerInfo, msg RawMessage) {
-    if s.procManager == nil {
-        return
-    }
-
-    s.procManager.mu.RLock()
-    defer s.procManager.mu.RUnlock()
-
-    for name, proc := range s.procManager.processes {
-        cfg := s.getProcessConfig(name)
-        if cfg == nil || !cfg.wantsMessage(msg.Type) {
-            continue
-        }
-
-        output := s.formatMessage(peer, msg, cfg.Content)
-        _ = proc.WriteEvent(output)
-    }
-}
-
-func (s *Server) formatMessage(peer PeerInfo, msg RawMessage, content ContentConfig) string {
-    switch content.Format {
-    case "raw":
-        // Just hex-encode the wire bytes
-        return s.formatRaw(peer, msg, content.Encoding)
-
-    case "parsed":
-        // Decode and format structured data
-        return s.formatParsed(peer, msg, content.Encoding)
-
-    case "full":
-        // Both parsed AND raw
-        return s.formatFull(peer, msg, content.Encoding)
-
-    default:
-        return s.formatParsed(peer, msg, content.Encoding)
-    }
-}
-
-func (s *Server) formatParsed(peer PeerInfo, msg RawMessage, encoding string) string {
-    switch msg.Type {
-    case message.TypeUPDATE:
-        parsed, err := DecodeUpdate(msg.RawBytes, nil)
-        if err != nil {
-            return s.formatError(peer, msg, err, encoding)
-        }
-        if encoding == "json" {
-            return s.encoder.Update(peer, parsed)
-        }
-        return FormatTextUpdate(peer.Address, parsed)
-
-    case message.TypeOPEN:
-        parsed, err := DecodeOpen(msg.RawBytes)
-        if err != nil {
-            return s.formatError(peer, msg, err, encoding)
-        }
-        if encoding == "json" {
-            return s.encoder.Open(peer, parsed)
-        }
-        return FormatTextOpen(peer.Address, parsed)
-
-    // ... other message types
-    }
-}
-```
-
-#### 0.6 Wire up session to pass raw bytes
-**File:** `pkg/reactor/session.go`
-
-When message is received, call `notifyMessageReceiver` with raw bytes before or instead of parsing:
-
-```go
-func (s *Session) handleMessage(header *message.Header, body []byte) {
-    // Notify receiver with raw bytes
-    if s.peer.messageCallback != nil {
-        s.peer.messageCallback(s.peerAddr, header.Type, body)
-    }
-
-    // Continue with normal processing...
-}
-```
-
-#### 0.7 Run tests
-```bash
-make test && make lint
-```
-
-### Phase 1: Config Schema Update
-
-Update config parsing to support `content { encoding; format; }` block.
-
-#### Context (READ THIS FIRST)
-
-**Three ProcessConfig structs exist (all need Format field):**
-
-| Struct | File | Line | Purpose |
-|--------|------|------|---------|
-| `config.ProcessConfig` | `pkg/config/bgp.go` | 505-510 | Config parsing output |
-| `reactor.APIProcessConfig` | `pkg/reactor/reactor.go` | 57-63 | Intermediate storage |
-| `api.ProcessConfig` | `pkg/api/types.go` | 336-344 | API server input |
-
-**Two conversion points (both need Format copying):**
-
-| From | To | File | Line |
-|------|----|------|------|
-| config → reactor | `loader.go` | 111-116 |
-| reactor → api | `reactor.go` | 1538-1545 |
-
-**ContentConfig already exists:** `pkg/api/types.go:359-375`
-
-**Current schema definition:** `pkg/config/bgp.go:286-290`
-```go
-schema.Define("process", List(TypeString,
-    Field("run", MultiLeaf(TypeString)),
-    Field("encoder", Leaf(TypeString)),
-    Field("respawn", Leaf(TypeBool)),
-))
-```
-
-**Current parsing:** `pkg/config/bgp.go:538-551`
-
-#### 1.1 Update config schema
-**File:** `pkg/config/bgp.go:286-290`
-
-Add `content` container with `encoding` and `format` fields:
-```go
-schema.Define("process", List(TypeString,
-    Field("run", MultiLeaf(TypeString)),
-    Field("encoder", Leaf(TypeString)),      // Keep for backward compat
-    Field("respawn", Leaf(TypeBool)),
-    Field("content", Container(              // NEW
-        Field("encoding", Leaf(TypeString)), // json | text
-        Field("format", Leaf(TypeString)),   // parsed | raw | full
-    )),
-))
-```
-
-#### 1.2 Update config.ProcessConfig
-**File:** `pkg/config/bgp.go:505-510`
-
-Add Format field:
-```go
-type ProcessConfig struct {
-    Name          string
-    Run           string
-    Encoder       string
-    Format        string // NEW: parsed | raw | full
-    ReceiveUpdate bool
-}
-```
-
-#### 1.3 Update parsing logic
-**File:** `pkg/config/bgp.go:538-551`
-
-Parse content block (with backward compat for top-level encoder):
-```go
-for name, proc := range tree.GetList("process") {
-    pc := ProcessConfig{Name: name}
-    if v, ok := proc.Get("run"); ok { pc.Run = v }
-
-    // NEW: Check content block first
-    if content := proc.GetContainer("content"); content != nil {
-        if v, ok := content.Get("encoding"); ok { pc.Encoder = v }
-        if v, ok := content.Get("format"); ok { pc.Format = v }
-    }
-    // Backward compat: top-level encoder overrides
-    if v, ok := proc.Get("encoder"); ok { pc.Encoder = v }
-
-    // Defaults
-    if pc.Encoder == "" { pc.Encoder = "text" }
-    if pc.Format == "" { pc.Format = "parsed" }
-    if pc.Encoder == "text" { pc.ReceiveUpdate = true }
-
-    cfg.Processes = append(cfg.Processes, pc)
-}
-```
-
-#### 1.4 Update reactor.APIProcessConfig
-**File:** `pkg/reactor/reactor.go:57-63`
-
-Add Format field:
-```go
-type APIProcessConfig struct {
-    Name          string
-    Run           string
-    Encoder       string
-    Format        string // NEW
-    Respawn       bool
-    ReceiveUpdate bool
-}
-```
-
-#### 1.5 Update loader conversion
-**File:** `pkg/config/loader.go:111-116`
-
-Copy Format field:
-```go
-reactorCfg.APIProcesses = append(reactorCfg.APIProcesses, reactor.APIProcessConfig{
-    Name:          pc.Name,
-    Run:           pc.Run,
-    Encoder:       pc.Encoder,
-    Format:        pc.Format,  // NEW
-    ReceiveUpdate: pc.ReceiveUpdate,
-})
-```
-
-#### 1.6 Update api.ProcessConfig
-**File:** `pkg/api/types.go:336-344`
-
-Add Format field:
-```go
-type ProcessConfig struct {
-    Name           string
-    Run            string
-    Encoder        string
-    Format         string // NEW: parsed | raw | full
-    Respawn        bool
-    RespawnEnabled bool
-    WorkDir        string
-    ReceiveUpdate  bool
-}
-```
-
-#### 1.7 Update reactor→api conversion
-**File:** `pkg/reactor/reactor.go:1538-1545`
-
-Copy Format field:
-```go
-apiConfig.Processes = append(apiConfig.Processes, api.ProcessConfig{
-    Name:          pc.Name,
-    Run:           pc.Run,
-    Encoder:       pc.Encoder,
-    Format:        pc.Format,  // NEW
-    Respawn:       pc.Respawn,
-    WorkDir:       r.config.ConfigDir,
-    ReceiveUpdate: pc.ReceiveUpdate,
-})
-```
-
-#### 1.8 Wire Format into message forwarding
-**File:** `pkg/api/server.go` (forwardUpdateToProcesses, etc.)
-
-Use `cfg.Format` when calling format functions. The format switching code
-already exists in `FormatMessage()` - just need to pass the config value.
-
-#### 1.9 Tests
-**File:** `pkg/config/bgp_test.go`
-
-```go
-func TestProcessContentConfig(t *testing.T) {
-    tests := []struct {
-        name         string
-        config       string
-        wantEncoding string
-        wantFormat   string
-    }{
-        {
-            name: "content block",
-            config: `process foo { run ./test; content { encoding json; format full; } }`,
-            wantEncoding: "json",
-            wantFormat:   "full",
-        },
-        {
-            name: "backward compat encoder",
-            config: `process foo { run ./test; encoder text; }`,
-            wantEncoding: "text",
-            wantFormat:   "parsed", // default
-        },
-        {
-            name: "defaults",
-            config: `process foo { run ./test; }`,
-            wantEncoding: "text",
-            wantFormat:   "parsed",
-        },
-    }
-    // ... test implementation
-}
-```
-
-#### 1.10 Verification
-```bash
-make test && make lint
-```
-
-### Phase 2: Message Routing
-
-#### 2.1 Add message type filtering
-**File:** `pkg/api/server.go`
-
-Route messages only to processes subscribed to that type for that neighbor.
-
-#### 2.2 Fix encoder switching
-**File:** `pkg/api/server.go`
-
-Use `ContentConfig.Encoding` to select JSON vs text formatter.
-
-#### 2.3 Add format handling
-**File:** `pkg/api/json.go`, `pkg/api/text.go`
-
-Support `parsed`, `raw`, and `full` output formats.
-
-### Phase 3: Migration Tool Update
-
-#### 3.1 Add process API transform
-**File:** `pkg/config/migration/process_api.go`
-
-Transform ExaBGP process + api blocks to ZeBGP format:
-- Extract `encoder` → `content.encoding`
-- Map `receive { parsed; packets; consolidate; }` → `content.format`
-- Move `api { processes [...] }` → `neighbor.process.<name>`
-- Map message type subscriptions
-
-### Phase 4: Verification
-
-```bash
-make test && make lint
-```
-
-Test migration:
-```bash
-zebgp config import exabgp.conf > zebgp.conf
-zebgp config check zebgp.conf
-```
-
-## Verification Checklist
-
-### Phase 0: Raw Message Interface ✅ COMPLETE
-- [x] `RawMessage` type defined with Type, RawBytes, Timestamp
-- [x] `MessageReceiver` interface replaces `UpdateReceiver` (`reactor.go:75-82`)
-- [x] `notifyMessageReceiver` passes raw bytes + PeerInfo (`reactor.go:1419-1460`)
-- [x] On-demand parser: `DecodeUpdate`, `DecodeUpdateRoutes` (`decode.go`)
-- [x] On-demand parser: `DecodeOpen` (`decode.go:334-350`)
-- [x] On-demand parser: `DecodeNotification` (`decode.go:365-384`)
-- [x] `Server.OnMessageReceived` dispatches UPDATE (`server.go:413-415`)
-- [x] `Server.OnMessageReceived` dispatches OPEN (`server.go:416-418`)
-- [x] `Server.OnMessageReceived` dispatches NOTIFICATION (`server.go:419-421`)
-- [x] `Server.OnMessageReceived` dispatches KEEPALIVE (`server.go:422-423`)
-- [x] Format switching: raw, parsed, full (via `FormatMessage`)
-- [x] Encoding switching: json, text (via `forwardUpdateToProcesses`)
-- [x] Session wired to pass raw bytes via `peer.messageCallback` (`reactor.go:1475`)
-- [x] All message type tests pass
-
-### Phase 0 Infrastructure (Done)
-- [x] `ContentConfig` type with `WithDefaults()`
-- [x] Format constants: `FormatParsed`, `FormatRaw`, `FormatFull`
-- [x] Encoding constants: `EncodingJSON`, `EncodingText`
-- [x] `ReceivedRoute.ToRouteUpdate()` conversion
-- [x] `FormatReceivedUpdateWithEncoding()` helper
-- [x] `Server.OnUpdateReceived` uses encoder config
-- [x] `Server.lookupPeer()` gets full PeerInfo from reactor
-- [x] Tests: `TestRawMessageType`, `TestEncodingSwitchingJSON`, `TestFormatSwitchingParsedRawFull`, `TestContentConfigDefaults`, `TestReceivedRouteToRouteUpdate`
-
-### Phase 1: Config Schema (NEXT)
-- [x] ContentConfig struct added with Encoding and Format fields
-- [ ] Schema: Add `content { encoding; format; }` to process definition
-- [ ] Struct: Add Format to `config.ProcessConfig` (bgp.go:505)
-- [ ] Struct: Add Format to `reactor.APIProcessConfig` (reactor.go:57)
-- [ ] Struct: Add Format to `api.ProcessConfig` (types.go:336)
-- [ ] Parsing: Extract content.encoding and content.format (bgp.go:538)
-- [ ] Conversion: Copy Format in loader.go:111
-- [ ] Conversion: Copy Format in reactor.go:1538
-- [ ] Wiring: Use Format in server.go forwarding functions
-- [ ] Tests: TestProcessContentConfig in bgp_test.go
-
-### Phase 2-3: Per-Neighbor Binding (Future)
-- [ ] Per-neighbor process binding works
-- [ ] Message type filtering routes correctly
-- [ ] Migration tool converts ExaBGP api blocks
-
-### Final Verification
-- [x] `make test` passes
-- [x] `make lint` passes
-- [x] **Goal verified**: Process with `encoder json` receives JSON format
-- [x] **Goal verified**: Process with `encoder text` receives text format
-- [x] Self-review performed
-- [x] No 🔴/🟡 issues remaining
-
-## Test Specification
-
-### Phase 0 Tests
-
-#### TestMessageReceiverReceivesRawBytes
-
-```go
-// TestMessageReceiverReceivesRawBytes verifies that MessageReceiver
-// receives raw wire bytes, not pre-parsed structures.
-//
-// VALIDATES: Raw bytes are passed through for on-demand parsing.
-//
-// PREVENTS: Bug where messages are pre-parsed, wasting CPU for format=raw.
-func TestMessageReceiverReceivesRawBytes(t *testing.T) {
-    var receivedPeer api.PeerInfo
-    var receivedMsg api.RawMessage
-
-    mockReceiver := &mockMessageReceiver{
-        onMessage: func(peer api.PeerInfo, msg api.RawMessage) {
-            receivedPeer = peer
-            receivedMsg = msg
-        },
-    }
-
-    // Setup reactor with peer and mock receiver
-    reactor := NewReactor(...)
-    reactor.SetMessageReceiver(mockReceiver)
-    reactor.AddPeer(&PeerSettings{
-        Address: netip.MustParseAddr("192.168.1.2"),
-        LocalAS: 65001,
-        PeerAS:  65002,
-    })
-
-    // Simulate receiving UPDATE with known wire bytes
-    updateBytes := []byte{0x00, 0x00, 0x00, 0x17, ...} // Valid UPDATE
-    reactor.injectMessage(netip.MustParseAddr("192.168.1.2"), message.TypeUPDATE, updateBytes)
-
-    // Assert raw bytes are passed through
-    require.Equal(t, message.TypeUPDATE, receivedMsg.Type)
-    require.Equal(t, updateBytes, receivedMsg.RawBytes)
-
-    // Assert PeerInfo has all required fields
-    require.Equal(t, netip.MustParseAddr("192.168.1.2"), receivedPeer.Address)
-    require.Equal(t, uint32(65001), receivedPeer.LocalAS)
-    require.Equal(t, uint32(65002), receivedPeer.PeerAS)
-}
-```
-
-#### TestFormatSwitching
-
-```go
-// TestFormatSwitching verifies that format config controls parsing behavior.
-//
-// VALIDATES: format=raw doesn't parse, format=parsed parses, format=full does both.
-//
-// PREVENTS: Bug where parsing always happens regardless of format setting.
-func TestFormatSwitching(t *testing.T) {
-    updateBytes := []byte{...} // Valid UPDATE wire bytes
-
-    tests := []struct {
-        name       string
-        format     string
-        encoding   string
-        wantRaw    bool // Output contains hex bytes
-        wantParsed bool // Output contains parsed fields
-    }{
-        {"raw json", "raw", "json", true, false},
-        {"raw text", "raw", "text", true, false},
-        {"parsed json", "parsed", "json", false, true},
-        {"parsed text", "parsed", "text", false, true},
-        {"full json", "full", "json", true, true},
-        {"full text", "full", "text", true, true},
-    }
-
-    for _, tt := range tests {
-        t.Run(tt.name, func(t *testing.T) {
-            cfg := ContentConfig{Format: tt.format, Encoding: tt.encoding}
-            output := formatMessage(peer, RawMessage{Type: message.TypeUPDATE, RawBytes: updateBytes}, cfg)
-
-            if tt.wantRaw {
-                require.Contains(t, output, "raw") // Contains hex-encoded bytes
-            }
-            if tt.wantParsed {
-                require.Contains(t, output, "announce") // Contains parsed data
-            }
-        })
-    }
-}
-```
-
-#### TestEncodingSwitching
-
-```go
-// TestEncodingSwitching verifies that encoding config controls output format.
-//
-// VALIDATES: encoding=json produces JSON, encoding=text produces text.
-//
-// PREVENTS: Bug where all processes receive text format.
-func TestEncodingSwitching(t *testing.T) {
-    jsonReceived := make(chan string, 1)
-    textReceived := make(chan string, 1)
-
-    jsonProc := &mockProcess{onWrite: func(s string) { jsonReceived <- s }}
-    textProc := &mockProcess{onWrite: func(s string) { textReceived <- s }}
-
-    server := &Server{
-        config: ServerConfig{
-            Processes: []ProcessConfig{
-                {Name: "json-proc", Content: ContentConfig{Encoding: "json", Format: "parsed"}, ReceiveUpdate: true},
-                {Name: "text-proc", Content: ContentConfig{Encoding: "text", Format: "parsed"}, ReceiveUpdate: true},
-            },
-        },
-        procManager: &ProcessManager{
-            processes: map[string]*Process{
-                "json-proc": jsonProc,
-                "text-proc": textProc,
-            },
-        },
-        encoder: NewJSONEncoder("6.0.0"),
-    }
-
-    // Send raw UPDATE message
-    peer := PeerInfo{Address: netip.MustParseAddr("192.168.1.2"), LocalAS: 65001, PeerAS: 65002}
-    msg := RawMessage{Type: message.TypeUPDATE, RawBytes: validUpdateBytes}
-
-    server.OnMessageReceived(peer, msg)
-
-    // Verify JSON process got JSON
-    jsonOut := <-jsonReceived
-    require.True(t, strings.HasPrefix(jsonOut, "{"), "JSON process should receive JSON")
-
-    // Verify text process got text
-    textOut := <-textReceived
-    require.True(t, strings.HasPrefix(textOut, "neighbor"), "Text process should receive text")
-}
-```
-
-#### TestDecodeUpdate
-
-```go
-// TestDecodeUpdate verifies on-demand UPDATE parsing.
-//
-// VALIDATES: Raw bytes correctly parsed into structured data.
-//
-// PREVENTS: Parse errors when format=parsed or format=full.
-func TestDecodeUpdate(t *testing.T) {
-    // Valid UPDATE with 10.0.0.0/8, next-hop 192.168.1.1
-    updateBytes := []byte{...}
-
-    parsed, err := DecodeUpdate(updateBytes, nil)
-    require.NoError(t, err)
-    require.Len(t, parsed.Announced, 1)
-    require.Equal(t, "10.0.0.0/8", parsed.Announced[0].Prefix.String())
-}
-```
-
-### Phase 1+ Tests
-
-### TestProcessContentConfig
-
-```go
-func TestProcessContentConfig(t *testing.T) {
-    tests := []struct {
-        name         string
-        config       string
-        wantEncoding string
-        wantFormat   string
-    }{
-        {
-            name: "json encoding with parsed format",
-            config: `process foo { run ./test; content { encoding json; format parsed; } }`,
-            wantEncoding: "json",
-            wantFormat:   "parsed",
-        },
-        {
-            name: "text encoding with full format",
-            config: `process foo { run ./test; content { encoding text; format full; } }`,
-            wantEncoding: "text",
-            wantFormat:   "full",
-        },
-        {
-            name: "defaults when content omitted",
-            config: `process foo { run ./test; }`,
-            wantEncoding: "text",
-            wantFormat:   "parsed",
-        },
-    }
-    // ...
-}
-```
-
-### TestNeighborProcessBinding
-
-```go
-func TestNeighborProcessBinding(t *testing.T) {
-    config := `
-        process foo { run ./test; content { encoding json; } }
-        neighbor 10.0.0.1 {
-            process foo {
-                receive { update; withdraw; }
-            }
-        }
-    `
-    // Assert: neighbor 10.0.0.1 has process foo bound
-    // Assert: foo receives update and withdraw for this neighbor
-}
-```
-
-### TestMessageTypeFiltering
-
-```go
-func TestMessageTypeFiltering(t *testing.T) {
-    // Setup: Process subscribed to update only (not notification)
-    // Send: UPDATE message → should be forwarded
-    // Send: NOTIFICATION message → should NOT be forwarded
-}
-```
-
-## Migration Transform Details
-
-### ExaBGP `consolidate` Logic
-
-| parsed | packets | consolidate | → ZeBGP format |
-|--------|---------|-------------|----------------|
-| true | false | - | `parsed` |
-| false | true | - | `raw` |
-| true | true | true | `full` |
-| true | true | false | `full` (we don't support split events) |
-
-### ExaBGP State Events
-
-| ExaBGP | → ZeBGP receive |
-|--------|-----------------|
-| `neighbor-changes;` | `state;` |
-| `negotiated;` | `state;` |
-| `fsm;` | `state;` |
-| `signal;` | `state;` |
-
 ---
 
 **Created:** 2025-12-29
-**Updated:** 2025-12-29 (Phase 0 partial: encoder switching fix, PeerInfo lookup, format constants)
+**Updated:** 2025-12-29 (Final: GetProcess, ProcessWriter interface, mock tests fixed, Version deferred to Phase 3, FormatStateChange added)

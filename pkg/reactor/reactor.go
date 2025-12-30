@@ -863,6 +863,63 @@ func (a *reactorAPIAdapter) FlushRIBOut() int {
 	return a.r.ribOut.FlushSent()
 }
 
+// GetPeerAPIBindings returns API bindings for a specific peer.
+// Returns nil if peer not found.
+// Resolves encoding inheritance: peer binding → process encoder → "text" default.
+func (a *reactorAPIAdapter) GetPeerAPIBindings(peerAddr netip.Addr) []api.PeerAPIBinding {
+	a.r.mu.RLock()
+	defer a.r.mu.RUnlock()
+
+	peer, ok := a.r.peers[peerAddr.String()]
+	if !ok {
+		return nil
+	}
+
+	settings := peer.Settings()
+	result := make([]api.PeerAPIBinding, 0, len(settings.APIBindings))
+	for _, b := range settings.APIBindings {
+		// Resolve encoding: peer override → process default → "text"
+		encoding := b.Encoding
+		if encoding == "" {
+			encoding = a.getProcessEncoder(b.ProcessName)
+		}
+		if encoding == "" {
+			encoding = "text"
+		}
+
+		// Resolve format: peer override → "parsed"
+		format := b.Format
+		if format == "" {
+			format = "parsed"
+		}
+
+		result = append(result, api.PeerAPIBinding{
+			ProcessName:         b.ProcessName,
+			Encoding:            encoding,
+			Format:              format,
+			ReceiveUpdate:       b.ReceiveUpdate,
+			ReceiveOpen:         b.ReceiveOpen,
+			ReceiveNotification: b.ReceiveNotification,
+			ReceiveKeepalive:    b.ReceiveKeepalive,
+			ReceiveRefresh:      b.ReceiveRefresh,
+			ReceiveState:        b.ReceiveState,
+			SendUpdate:          b.SendUpdate,
+			SendRefresh:         b.SendRefresh,
+		})
+	}
+	return result
+}
+
+// getProcessEncoder returns the encoder for a process, or empty if not found.
+func (a *reactorAPIAdapter) getProcessEncoder(name string) string {
+	for _, pc := range a.r.config.APIProcesses {
+		if pc.Name == name {
+			return pc.Encoder
+		}
+	}
+	return ""
+}
+
 // Transaction support for commit-based batching.
 
 // BeginTransaction starts a new transaction for batched route updates.

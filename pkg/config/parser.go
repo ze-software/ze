@@ -436,27 +436,36 @@ func (p *Parser) parseContainer(tree *Tree, name string, node *ContainerNode) er
 	return nil
 }
 
-// parseList parses a list entry: `name key { ... }`.
+// parseList parses a list entry: `name key { ... }` or `name { ... }` (anonymous).
+// Anonymous entries use "_anonymous" as the key for backward compatibility.
 func (p *Parser) parseList(tree *Tree, name string, node *ListNode) error {
-	// Get key
 	tok := p.tok.Peek()
 	var key string
-	if tok.Type == TokenWord || tok.Type == TokenString {
+
+	// Check for anonymous block (no key, direct `{`) or named entry
+	switch tok.Type { //nolint:exhaustive // default handles all other token types
+	case TokenLBrace:
+		// Anonymous entry - use special key
+		key = "_anonymous"
+	case TokenWord, TokenString:
+		// Named entry
 		key = tok.Value
 		p.tok.Next()
-	} else {
-		return p.errorf(tok, "expected key for %s, got %s", name, tok.Type)
-	}
 
-	// Validate key type
-	if err := ValidateValue(node.KeyType, key); err != nil {
-		return p.errorf(tok, "invalid key for %s: %v", name, err)
+		// Validate key type
+		if err := ValidateValue(node.KeyType, key); err != nil {
+			return p.errorf(tok, "invalid key for %s: %v", name, err)
+		}
+
+		// Now check for opening brace
+		tok = p.tok.Peek()
+	default:
+		return p.errorf(tok, "expected key or '{' for %s, got %s", name, tok.Type)
 	}
 
 	// Expect opening brace
-	tok = p.tok.Peek()
 	if tok.Type != TokenLBrace {
-		return p.errorf(tok, "expected '{' after %s key, got %s", name, tok.Type)
+		return p.errorf(tok, "expected '{' after %s, got %s", name, tok.Type)
 	}
 	p.tok.Next()
 

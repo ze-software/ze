@@ -254,8 +254,23 @@ func peerFields() []FieldDef {
 		// Add-path per-family configuration
 		Field("add-path", Freeform()),
 
-		// API configuration - can be named or anonymous
-		Field("api", Freeform()),
+		// API configuration - supports both old and new syntax:
+		// Old: api { processes [ foo ]; } or api <label> { processes [...]; receive {...}; }
+		// New: api <process-name> { content { encoding json; }; receive { update; }; }
+		Field("api", List(TypeString,
+			// Old syntax fields (ExaBGP compatibility)
+			Field("processes", ArrayLeaf(TypeString)),       // processes [ foo bar ]
+			Field("processes-match", ArrayLeaf(TypeString)), // processes-match [ "^pattern" ]
+			Field("neighbor-changes", Flex()),               // neighbor-changes; (flag)
+
+			// New syntax fields
+			Field("content", Container(
+				Field("encoding", Leaf(TypeString)), // json | text
+				Field("format", Leaf(TypeString)),   // parsed | raw | full
+			)),
+			Field("receive", Freeform()), // { update; open; notification; all; }
+			Field("send", Freeform()),    // { update; refresh; all; }
+		)),
 
 		// Operational messages (ExaBGP-specific, not supported in ZeBGP)
 		// We parse it to detect and warn, but don't process it
@@ -387,6 +402,38 @@ type PeerConfig struct {
 	VPLSRoutes           []VPLSRouteConfig
 	FlowSpecRoutes       []FlowSpecRouteConfig
 	MUPRoutes            []MUPRouteConfig
+	APIBindings          []PeerAPIBinding // Per-peer API process bindings
+}
+
+// PeerAPIBinding binds a peer to an API process with specific content and message config.
+// This separates WHAT messages to send/receive from HOW they are formatted.
+type PeerAPIBinding struct {
+	ProcessName string            // Reference to process name (must exist)
+	Content     PeerContentConfig // HOW: encoding and format
+	Receive     PeerReceiveConfig // WHAT: which message types to receive
+	Send        PeerSendConfig    // WHAT: which message types to send
+}
+
+// PeerContentConfig controls message formatting (encoding + format).
+type PeerContentConfig struct {
+	Encoding string // "json" | "text" (empty = inherit from process)
+	Format   string // "parsed" | "raw" | "full" (empty = "parsed")
+}
+
+// PeerReceiveConfig specifies which message types to forward to the process.
+type PeerReceiveConfig struct {
+	Update       bool // Forward UPDATE messages
+	Open         bool // Forward OPEN messages
+	Notification bool // Forward NOTIFICATION messages
+	Keepalive    bool // Forward KEEPALIVE messages
+	Refresh      bool // Forward ROUTE-REFRESH messages
+	State        bool // Forward state change events
+}
+
+// PeerSendConfig specifies which message types the process can send.
+type PeerSendConfig struct {
+	Update  bool // Allow sending UPDATE messages
+	Refresh bool // Allow sending ROUTE-REFRESH requests
 }
 
 // AddPathFamilyConfig holds per-family add-path settings per RFC 7911.
@@ -630,6 +677,12 @@ func TreeToConfig(tree *Tree) (*BGPConfig, error) {
 		cfg.Peers = append(cfg.Peers, nc)
 	}
 
+	// Build set of defined process names for validation
+	processNames := make(map[string]bool)
+	for _, p := range cfg.Processes {
+		processNames[p.Name] = true
+	}
+
 	// V3: peer <IP> { ... } - parse IPs as neighbors
 	for addr, n := range tree.GetList("peer") {
 		if !isGlobPattern(addr) {
@@ -638,6 +691,14 @@ func TreeToConfig(tree *Tree) (*BGPConfig, error) {
 			if err != nil {
 				return nil, fmt.Errorf("peer %s: %w", addr, err)
 			}
+
+			// Validate API binding process references
+			for _, binding := range nc.APIBindings {
+				if !processNames[binding.ProcessName] {
+					return nil, fmt.Errorf("peer %s: undefined process %q in api binding", addr, binding.ProcessName)
+				}
+			}
+
 			cfg.Peers = append(cfg.Peers, nc)
 		}
 	}
@@ -1107,6 +1168,11 @@ func parsePeerConfig(addr string, tree *Tree, templates map[string]*Tree, peerGl
 		}
 	}
 
+	// Parse API bindings - supports both old and new syntax:
+	// Old: api { processes [ foo bar ]; receive { ... } }
+	// New: api <process-name> { content { encoding json; } receive { update; } }
+	nc.APIBindings = parseAPIBindings(tree)
+
 	return nc, nil
 }
 
@@ -1171,6 +1237,133 @@ func applyRIBOutParseResult(cfg *RIBOutConfig, parsed ribOutParseResult) {
 	if parsed.MaxBatchSizeSet {
 		cfg.MaxBatchSize = parsed.MaxBatchSize
 	}
+}
+
+// parseAPIBindings parses API bindings from a peer tree.
+// Supports both old and new syntax:
+//   - Old: api { processes [ foo bar ]; } - uses _anonymous key
+//   - New: api <process-name> { content { encoding json; } receive { update; } }
+func parseAPIBindings(tree *Tree) []PeerAPIBinding {
+	var bindings []PeerAPIBinding
+
+	// Schema defines api as List(TypeString, ...) - use GetList
+	apiList := tree.GetList("api")
+	if len(apiList) == 0 {
+		return nil
+	}
+
+	for key, apiTree := range apiList {
+		if key == "_anonymous" {
+			// Old syntax: api { processes [ foo bar ]; }
+			bindings = append(bindings, parseOldAPIBindings(apiTree)...)
+		} else {
+			// New syntax: api <process-name> { content {...} receive {...} send {...} }
+			binding := parseNewAPIBinding(key, apiTree)
+			bindings = append(bindings, binding)
+		}
+	}
+
+	return bindings
+}
+
+// parseOldAPIBindings parses the old api { processes [...] } syntax.
+// Also handles neighbor-changes flag which maps to receive.State.
+func parseOldAPIBindings(apiTree *Tree) []PeerAPIBinding {
+	var bindings []PeerAPIBinding
+
+	// Check for neighbor-changes flag (maps to receive.State)
+	// Flex stores "neighbor-changes;" as GetFlex returning "true" or "enable"
+	neighborChanges := false
+	if v, ok := apiTree.GetFlex("neighbor-changes"); ok {
+		neighborChanges = v == configTrue || v == configEnable || v == ""
+	}
+
+	// Look for "processes" key with array value like "[ foo bar ]"
+	if processesValue, ok := apiTree.Get("processes"); ok {
+		// Parse process names from "[ foo bar ]" or "foo bar" format
+		processesValue = strings.Trim(processesValue, "[]")
+		for _, processName := range strings.Fields(processesValue) {
+			binding := PeerAPIBinding{ProcessName: processName}
+			if neighborChanges {
+				binding.Receive.State = true
+			}
+			bindings = append(bindings, binding)
+		}
+	}
+
+	return bindings
+}
+
+// parseNewAPIBinding parses a single api <name> { ... } binding.
+func parseNewAPIBinding(processName string, apiTree *Tree) PeerAPIBinding {
+	binding := PeerAPIBinding{ProcessName: processName}
+
+	// Parse content block: content { encoding json; format full; }
+	if content := apiTree.GetContainer("content"); content != nil {
+		if v, ok := content.Get("encoding"); ok {
+			binding.Content.Encoding = v
+		}
+		if v, ok := content.Get("format"); ok {
+			binding.Content.Format = v
+		}
+	}
+
+	// Parse receive block: receive { update; notification; all; }
+	if recv := apiTree.GetContainer("receive"); recv != nil {
+		binding.Receive = parseReceiveConfig(recv)
+	}
+
+	// Parse send block: send { update; refresh; all; }
+	if send := apiTree.GetContainer("send"); send != nil {
+		binding.Send = parseSendConfig(send)
+	}
+
+	return binding
+}
+
+// parseReceiveConfig parses a Freeform receive block.
+// Freeform stores "update;" as key "update" -> value "true".
+func parseReceiveConfig(tree *Tree) PeerReceiveConfig {
+	cfg := PeerReceiveConfig{}
+
+	// Check for "all" shorthand - sets all flags
+	if _, ok := tree.Get("all"); ok {
+		cfg.Update = true
+		cfg.Open = true
+		cfg.Notification = true
+		cfg.Keepalive = true
+		cfg.Refresh = true
+		cfg.State = true
+		return cfg
+	}
+
+	// Individual flags
+	_, cfg.Update = tree.Get("update")
+	_, cfg.Open = tree.Get("open")
+	_, cfg.Notification = tree.Get("notification")
+	_, cfg.Keepalive = tree.Get("keepalive")
+	_, cfg.Refresh = tree.Get("refresh")
+	_, cfg.State = tree.Get("state")
+
+	return cfg
+}
+
+// parseSendConfig parses a Freeform send block.
+func parseSendConfig(tree *Tree) PeerSendConfig {
+	cfg := PeerSendConfig{}
+
+	// Check for "all" shorthand
+	if _, ok := tree.Get("all"); ok {
+		cfg.Update = true
+		cfg.Refresh = true
+		return cfg
+	}
+
+	// Individual flags
+	_, cfg.Update = tree.Get("update")
+	_, cfg.Refresh = tree.Get("refresh")
+
+	return cfg
 }
 
 // parseNexthopFamilies parses the nexthop { ... } block for RFC 8950 extended next-hop.

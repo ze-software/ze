@@ -256,8 +256,11 @@ peer 192.0.2.1 {
 	neighbors := tree.GetList("peer")
 	n := neighbors["192.0.2.1"]
 
-	api := n.GetContainer("api")
-	require.NotNil(t, api)
+	// api is now List(TypeString, ...), so use GetList with _anonymous key
+	apiList := n.GetList("api")
+	require.NotNil(t, apiList)
+	api := apiList["_anonymous"]
+	require.NotNil(t, api, "anonymous api block should exist")
 
 	val, ok := api.Get("processes")
 	require.True(t, ok)
@@ -287,7 +290,12 @@ peer 192.0.2.1 {
 	neighbors := tree.GetList("peer")
 	n := neighbors["192.0.2.1"]
 
-	api := n.GetContainer("api")
+	// api is now List(TypeString, ...), so use GetList with _anonymous key
+	apiList := n.GetList("api")
+	require.NotNil(t, apiList)
+	api := apiList["_anonymous"]
+	require.NotNil(t, api, "anonymous api block should exist")
+
 	val, ok := api.Get("processes")
 	require.True(t, ok)
 	require.Equal(t, "watcher announcer receiver", val)

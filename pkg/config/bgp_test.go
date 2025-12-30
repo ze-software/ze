@@ -1882,6 +1882,358 @@ peer 10.0.0.1 { local-as 65000; peer-as 65002; }
 }
 
 // =============================================================================
+// API BINDING TESTS (Phase 1 - per-peer API configuration)
+// =============================================================================
+// Note: These tests use OLD syntax (api { processes [...] }) which works with Freeform().
+// NEW syntax (api <name> { content {...} }) requires parser changes (Phase 2).
+
+// TestPeerAPIBindingOldSyntax verifies API binding parsing with old syntax.
+//
+// VALIDATES: Config parsing extracts API bindings from processes array.
+//
+// PREVENTS: Silent failures when api block is malformed.
+func TestPeerAPIBindingOldSyntax(t *testing.T) {
+	input := `
+process foo { run ./test; encoder text; }
+peer 10.0.0.1 {
+    router-id 1.2.3.4;
+    local-as 65001;
+    peer-as 65002;
+    api {
+        processes [ foo ];
+    }
+}
+`
+	cfg := parseConfig(t, input)
+	require.Len(t, cfg.Peers, 1)
+	require.Len(t, cfg.Peers[0].APIBindings, 1)
+
+	binding := cfg.Peers[0].APIBindings[0]
+	require.Equal(t, "foo", binding.ProcessName)
+}
+
+// TestAPIBindingMultipleProcesses verifies multiple processes in old syntax.
+//
+// VALIDATES: Multiple processes in array create multiple bindings.
+//
+// PREVENTS: Missing processes when multiple specified.
+func TestAPIBindingMultipleProcesses(t *testing.T) {
+	input := `
+process collector { run ./collector; encoder json; }
+process logger { run ./logger; encoder text; }
+peer 10.0.0.1 {
+    router-id 1.2.3.4;
+    local-as 65001;
+    peer-as 65002;
+    api {
+        processes [ collector logger ];
+    }
+}
+`
+	cfg := parseConfig(t, input)
+	require.Len(t, cfg.Peers[0].APIBindings, 2)
+
+	// Find bindings by name
+	names := make([]string, 0)
+	for _, b := range cfg.Peers[0].APIBindings {
+		names = append(names, b.ProcessName)
+	}
+	require.Contains(t, names, "collector")
+	require.Contains(t, names, "logger")
+}
+
+// TestAPIBindingNeighborChanges verifies neighbor-changes flag sets receive.State.
+//
+// VALIDATES: neighbor-changes; in old syntax sets receive.State = true.
+//
+// PREVENTS: State change events being dropped for old-style configs.
+func TestAPIBindingNeighborChanges(t *testing.T) {
+	input := `
+process foo { run ./test; encoder text; }
+peer 10.0.0.1 {
+    router-id 1.2.3.4;
+    local-as 65001;
+    peer-as 65002;
+    api {
+        processes [ foo ];
+        neighbor-changes;
+    }
+}
+`
+	cfg := parseConfig(t, input)
+	require.Len(t, cfg.Peers, 1)
+	require.Len(t, cfg.Peers[0].APIBindings, 1)
+
+	binding := cfg.Peers[0].APIBindings[0]
+	require.Equal(t, "foo", binding.ProcessName)
+	require.True(t, binding.Receive.State, "neighbor-changes should set receive.State")
+}
+
+// TestAPIBindingUndefinedProcess verifies error on undefined process reference.
+//
+// VALIDATES: Error when api references non-existent process.
+//
+// PREVENTS: Runtime crashes from nil process lookup.
+func TestAPIBindingUndefinedProcess(t *testing.T) {
+	input := `
+peer 10.0.0.1 {
+    router-id 1.2.3.4;
+    local-as 65001;
+    peer-as 65002;
+    api {
+        processes [ nonexistent ];
+    }
+}
+`
+	p := NewParser(BGPSchema())
+	tree, err := p.Parse(input)
+	require.NoError(t, err)
+
+	_, err = TreeToConfig(tree)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "undefined process")
+}
+
+// TestEmptyAPIBlock verifies empty api block creates no bindings.
+//
+// VALIDATES: Empty api block (no processes) creates no bindings.
+//
+// PREVENTS: Crash on empty api block.
+func TestEmptyAPIBlock(t *testing.T) {
+	input := `
+process foo { run ./test; }
+peer 10.0.0.1 {
+    router-id 1.2.3.4;
+    local-as 65001;
+    peer-as 65002;
+    api { }
+}
+`
+	cfg := parseConfig(t, input)
+	require.Len(t, cfg.Peers[0].APIBindings, 0, "Empty api block should have no bindings")
+}
+
+// TestAPIBindingConfigStructs verifies the config struct fields exist.
+//
+// VALIDATES: PeerAPIBinding struct has all required fields.
+//
+// PREVENTS: Missing fields for Phase 2 new syntax support.
+func TestAPIBindingConfigStructs(t *testing.T) {
+	// Verify struct fields exist (compile-time check)
+	binding := PeerAPIBinding{
+		ProcessName: "test",
+		Content: PeerContentConfig{
+			Encoding: "json",
+			Format:   "full",
+		},
+		Receive: PeerReceiveConfig{
+			Update:       true,
+			Open:         true,
+			Notification: true,
+			Keepalive:    true,
+			Refresh:      true,
+			State:        true,
+		},
+		Send: PeerSendConfig{
+			Update:  true,
+			Refresh: true,
+		},
+	}
+	require.Equal(t, "test", binding.ProcessName)
+	require.Equal(t, "json", binding.Content.Encoding)
+	require.True(t, binding.Receive.Update)
+	require.True(t, binding.Send.Update)
+}
+
+// =============================================================================
+// NEW API SYNTAX TESTS (api <process-name> { content {...} receive {...} })
+// =============================================================================
+
+// TestPeerAPIBindingNewSyntax verifies API binding parsing with new syntax.
+//
+// VALIDATES: New syntax (api <name> { content {...} }) parses correctly.
+//
+// PREVENTS: Silent failures when using new api syntax.
+func TestPeerAPIBindingNewSyntax(t *testing.T) {
+	input := `
+process foo { run ./test; encoder text; }
+peer 10.0.0.1 {
+    router-id 1.2.3.4;
+    local-as 65001;
+    peer-as 65002;
+    api foo {
+        content { encoding json; format full; }
+        receive { update; notification; }
+    }
+}
+`
+	cfg := parseConfig(t, input)
+	require.Len(t, cfg.Peers, 1)
+	require.Len(t, cfg.Peers[0].APIBindings, 1)
+
+	binding := cfg.Peers[0].APIBindings[0]
+	require.Equal(t, "foo", binding.ProcessName)
+	require.Equal(t, "json", binding.Content.Encoding)
+	require.Equal(t, "full", binding.Content.Format)
+	require.True(t, binding.Receive.Update)
+	require.True(t, binding.Receive.Notification)
+	require.False(t, binding.Receive.Open) // Not specified
+}
+
+// TestReceiveAllExpansion verifies "all" keyword expands to all message types.
+//
+// VALIDATES: "all" keyword sets all receive flags true.
+//
+// PREVENTS: Missing messages when user specifies "all".
+func TestReceiveAllExpansion(t *testing.T) {
+	input := `
+process foo { run ./test; }
+peer 10.0.0.1 {
+    router-id 1.2.3.4;
+    local-as 65001;
+    peer-as 65002;
+    api foo {
+        receive { all; }
+    }
+}
+`
+	cfg := parseConfig(t, input)
+
+	recv := cfg.Peers[0].APIBindings[0].Receive
+	require.True(t, recv.Update, "all should set Update")
+	require.True(t, recv.Open, "all should set Open")
+	require.True(t, recv.Notification, "all should set Notification")
+	require.True(t, recv.Keepalive, "all should set Keepalive")
+	require.True(t, recv.Refresh, "all should set Refresh")
+	require.True(t, recv.State, "all should set State")
+}
+
+// TestSendAllExpansion verifies "all" keyword in send block.
+//
+// VALIDATES: "all" keyword sets all send flags true.
+//
+// PREVENTS: Missing send capabilities when user specifies "all".
+func TestSendAllExpansion(t *testing.T) {
+	input := `
+process foo { run ./test; }
+peer 10.0.0.1 {
+    router-id 1.2.3.4;
+    local-as 65001;
+    peer-as 65002;
+    api foo {
+        send { all; }
+    }
+}
+`
+	cfg := parseConfig(t, input)
+
+	send := cfg.Peers[0].APIBindings[0].Send
+	require.True(t, send.Update, "all should set Update")
+	require.True(t, send.Refresh, "all should set Refresh")
+}
+
+// TestEmptyAPIBindingNewSyntax verifies empty new-syntax api block creates binding with defaults.
+//
+// VALIDATES: Empty api block creates binding with process name but empty config.
+//
+// PREVENTS: Crash on minimal api binding.
+func TestEmptyAPIBindingNewSyntax(t *testing.T) {
+	input := `
+process foo { run ./test; }
+peer 10.0.0.1 {
+    router-id 1.2.3.4;
+    local-as 65001;
+    peer-as 65002;
+    api foo { }
+}
+`
+	cfg := parseConfig(t, input)
+	require.Len(t, cfg.Peers[0].APIBindings, 1)
+
+	binding := cfg.Peers[0].APIBindings[0]
+	require.Equal(t, "foo", binding.ProcessName)
+	require.Empty(t, binding.Content.Encoding) // Inherit from process at runtime
+	require.Empty(t, binding.Content.Format)   // Default to "parsed" at runtime
+	require.False(t, binding.Receive.Update)   // No messages subscribed
+}
+
+// TestAPIBindingUndefinedProcessNewSyntax verifies error on undefined process in new syntax.
+//
+// VALIDATES: Error when api references non-existent process.
+//
+// PREVENTS: Runtime crashes from nil process lookup.
+func TestAPIBindingUndefinedProcessNewSyntax(t *testing.T) {
+	input := `
+peer 10.0.0.1 {
+    router-id 1.2.3.4;
+    local-as 65001;
+    peer-as 65002;
+    api nonexistent {
+        receive { update; }
+    }
+}
+`
+	p := NewParser(BGPSchema())
+	tree, err := p.Parse(input)
+	require.NoError(t, err)
+
+	_, err = TreeToConfig(tree)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "undefined process")
+}
+
+// TestMultipleAPIBindingsNewSyntax verifies multiple api blocks for different processes.
+//
+// VALIDATES: Multiple api <name> blocks create separate bindings.
+//
+// PREVENTS: Only first api block being parsed.
+func TestMultipleAPIBindingsNewSyntax(t *testing.T) {
+	input := `
+process collector { run ./collector; encoder json; }
+process logger { run ./logger; encoder text; }
+peer 10.0.0.1 {
+    router-id 1.2.3.4;
+    local-as 65001;
+    peer-as 65002;
+    api collector {
+        content { encoding json; }
+        receive { update; }
+    }
+    api logger {
+        content { encoding text; format full; }
+        receive { all; }
+    }
+}
+`
+	cfg := parseConfig(t, input)
+	require.Len(t, cfg.Peers[0].APIBindings, 2)
+
+	// Find bindings by name
+	var collectorBinding, loggerBinding *PeerAPIBinding
+	for i := range cfg.Peers[0].APIBindings {
+		b := &cfg.Peers[0].APIBindings[i]
+		switch b.ProcessName {
+		case "collector":
+			collectorBinding = b
+		case "logger":
+			loggerBinding = b
+		}
+	}
+
+	require.NotNil(t, collectorBinding, "collector binding not found")
+	require.NotNil(t, loggerBinding, "logger binding not found")
+
+	require.Equal(t, "json", collectorBinding.Content.Encoding)
+	require.True(t, collectorBinding.Receive.Update)
+	require.False(t, collectorBinding.Receive.Open)
+
+	require.Equal(t, "text", loggerBinding.Content.Encoding)
+	require.Equal(t, "full", loggerBinding.Content.Format)
+	require.True(t, loggerBinding.Receive.Update)
+	require.True(t, loggerBinding.Receive.Open) // all expands to true
+}
+
+// =============================================================================
 // V2 SYNTAX REJECTION TESTS
 // =============================================================================
 
