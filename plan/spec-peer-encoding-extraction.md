@@ -1,5 +1,21 @@
 # Spec: Peer Encoding Extraction
 
+## MANDATORY READING (BEFORE IMPLEMENTATION)
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│  STOP. Read these files FIRST before ANY implementation:        │
+│                                                                 │
+│  1. .claude/ESSENTIAL_PROTOCOLS.md - Session rules, TDD         │
+│  2. .claude/INDEX.md - Find what docs to load                   │
+│  3. plan/CLAUDE_CONTINUATION.md - Current state                 │
+│  4. THIS SPEC FILE - Design requirements                        │
+│  5. pkg/reactor/peer.go - Current implementation                │
+│                                                                 │
+│  DO NOT PROCEED until all are read and understood.              │
+└─────────────────────────────────────────────────────────────────┘
+```
+
 ## Task
 
 Extract ~900 LOC of UPDATE building logic from `pkg/reactor/peer.go` to `pkg/bgp/message/` for better separation of concerns and testability.

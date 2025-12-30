@@ -5,33 +5,64 @@ argument-hint: <task description>
 
 # /prep - Prepare Task Specification
 
+## PHASES 0-1: MANDATORY READING (BLOCKING)
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│  PHASE 0: READ PROTOCOLS (do this FIRST)                        │
+│                                                                 │
+│  1. .claude/ESSENTIAL_PROTOCOLS.md - Session rules, TDD         │
+│  2. plan/CLAUDE_CONTINUATION.md - Current state, priorities     │
+│                                                                 │
+├─────────────────────────────────────────────────────────────────┤
+│  PHASE 1: READ INDEX + FIND DOCS                                │
+│                                                                 │
+│  3. .claude/INDEX.md - Navigation, find what docs to load       │
+│  4. Identify task type → find docs from Quick Navigation table  │
+│  5. Check if spec exists:                                       │
+│     - If plan/spec-<task>.md exists → READ IT, skip to Phase 6  │
+│     - If no spec exists → proceed with Phase 2-5 to CREATE spec │
+│                                                                 │
+│  DO NOT SKIP THIS. DO NOT PROCEED WITHOUT READING PROTOCOLS.    │
+└─────────────────────────────────────────────────────────────────┘
+```
+
 ## Quick Summary
 
 ```
-Phase 0: Read INDEX.md → find what docs to load
-Phase 1: Check git status, verify test status
-Phase 2: Load context (see CONTEXT_LOADING.md)
-Phase 3: Analyze problem, trace user flow
-Phase 4: Write spec to plan/spec-<name>.md
-Phase 5: Confirm ready to implement
+Phase 0: READ PROTOCOLS (BLOCKING) - ESSENTIAL_PROTOCOLS.md, CLAUDE_CONTINUATION.md
+Phase 1: READ INDEX.md → find what docs to load for task type
+Phase 2: Check git status, verify test status
+Phase 3: Load context (see CONTEXT_LOADING.md)
+Phase 4: Analyze problem, trace user flow
+Phase 5: Write spec to plan/spec-<name>.md
+Phase 6: Confirm ready to implement
 --- AFTER IMPLEMENTATION ---
-Phase 6: Move spec to plan/done/, update README
+Phase 7: Move spec to plan/done/, update README
 ```
 
 ---
 
-## Phase 0: Navigation
+## Phase 0 Output
 
-Read `.claude/INDEX.md` with Read tool. Output:
+```
+📖 Protocols loaded:
+  ✅ .claude/ESSENTIAL_PROTOCOLS.md
+  ✅ plan/CLAUDE_CONTINUATION.md
+```
+
+## Phase 1 Output
+
 ```
 📖 INDEX.md loaded
 🎯 Task type: [wire format | API | config | pool | etc.]
-📚 Docs to load: [list from Quick Navigation table]
+📚 Docs to load: [list from INDEX.md Quick Navigation table]
+📋 Spec exists: [yes → READ IT, skip to Phase 6 | no → proceed to Phase 2]
 ```
 
 ---
 
-## Phase 1: Session State
+## Phase 2: Session State
 
 ```bash
 git status && git diff --stat
@@ -51,7 +82,7 @@ Output:
 
 ---
 
-## Phase 2: Context Loading (BLOCKING)
+## Phase 3: Context Loading (BLOCKING)
 
 **Read `.claude/CONTEXT_LOADING.md` for detailed steps.**
 
@@ -66,7 +97,7 @@ Summary:
 
 ---
 
-## Phase 3: Problem Analysis
+## Phase 4: Problem Analysis
 
 After context loaded:
 1. Trace user flow end-to-end (config → execution → output)
@@ -85,12 +116,32 @@ Plan achieves goal: YES/NO
 
 ---
 
-## Phase 4: Write Specification
+## Phase 5: Write Specification
 
 Write to `plan/spec-<task-name>.md`:
 
 ```markdown
 # Spec: <task-name>
+
+## MANDATORY READING (BEFORE IMPLEMENTATION)
+
+\`\`\`
+┌─────────────────────────────────────────────────────────────────┐
+│  STOP. Read these files FIRST before ANY implementation:        │
+│                                                                 │
+│  1. .claude/ESSENTIAL_PROTOCOLS.md - Session rules, TDD         │
+│  2. .claude/INDEX.md - Find what docs to load                   │
+│  3. plan/CLAUDE_CONTINUATION.md - Current state                 │
+│  4. THIS SPEC FILE - Design requirements                        │
+│  5. [relevant source files for this task]                       │
+│  6. [relevant .claude design docs - see INDEX.md]               │
+│                                                                 │
+│  DO NOT PROCEED until all are read and understood.              │
+│                                                                 │
+│  ON COMPLETION: Update design docs listed in Documentation      │
+│  Impact section to match any design changes made.               │
+└─────────────────────────────────────────────────────────────────┘
+\`\`\`
 
 ## Task
 $ARGUMENTS
@@ -100,7 +151,7 @@ $ARGUMENTS
 - Last commit: <hash>
 
 ## Context Loaded
-[Verification block from Phase 2]
+[Verification block from Phase 3]
 
 ## Problem Analysis
 [User flow, blockers, related code]
@@ -139,7 +190,7 @@ $ARGUMENTS
 
 ---
 
-## Phase 5: Confirmation
+## Phase 6: Confirmation
 
 ```
 ✅ Spec written to plan/spec-<task-name>.md
@@ -192,7 +243,7 @@ Design changes include:
 
 ---
 
-## Phase 6: Completion (AFTER IMPLEMENTATION)
+## Phase 7: Completion (AFTER IMPLEMENTATION)
 
 **Run after implementation is verified and committed.**
 

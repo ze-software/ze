@@ -1,5 +1,21 @@
 # Spec: api-encoder-switching
 
+## MANDATORY READING (BEFORE IMPLEMENTATION)
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│  STOP. Read these files FIRST before ANY implementation:        │
+│                                                                 │
+│  1. .claude/ESSENTIAL_PROTOCOLS.md - Session rules, TDD         │
+│  2. .claude/INDEX.md - Find what docs to load                   │
+│  3. plan/CLAUDE_CONTINUATION.md - Current state                 │
+│  4. THIS SPEC FILE - Design requirements                        │
+│  5. pkg/api/*.go, pkg/config/bgp.go - Current implementation    │
+│                                                                 │
+│  DO NOT PROCEED until all are read and understood.              │
+└─────────────────────────────────────────────────────────────────┘
+```
+
 ## Task
 
 Redesign process API configuration to properly separate:

@@ -1,5 +1,21 @@
 # Spec: Encoding Context Design
 
+## MANDATORY READING (BEFORE IMPLEMENTATION)
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│  STOP. Read these files FIRST before ANY implementation:        │
+│                                                                 │
+│  1. .claude/ESSENTIAL_PROTOCOLS.md - Session rules, TDD         │
+│  2. .claude/INDEX.md - Find what docs to load                   │
+│  3. plan/CLAUDE_CONTINUATION.md - Current state                 │
+│  4. THIS SPEC FILE - Design requirements                        │
+│  5. pkg/bgp/context/*.go - Current implementation               │
+│                                                                 │
+│  DO NOT PROCEED until all are read and understood.              │
+└─────────────────────────────────────────────────────────────────┘
+```
+
 ## Core Insight
 
 **Source context and destination context are the SAME structure.**

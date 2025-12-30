@@ -26,7 +26,7 @@
 
 ```
 make test   - PASS
-make lint   - PASS (0 issues)
+make lint   - 1 issue (pre-existing goconst in static_test.go)
 functional  - 24 passed, 13 failed [6, 7, 8, J, L, N, Q, S, T, U, V, Z, a]
 ```
 
@@ -45,6 +45,16 @@ functional  - 24 passed, 13 failed [6, 7, 8, J, L, N, Q, S, T, U, V, Z, a]
 ---
 
 ## PLANNED
+
+### Format-Based Migration Refactor
+**Spec:** `plan/spec-format-based-migration.md`
+
+Remove version numbers, add visibility, keep atomic operations:
+- `MigrateV2ToV3()` → `Migrate()` returning `*MigrateResult`
+- `DetectVersion()` → `NeedsMigration()` returning `bool`
+- Remove `ConfigVersion`, `Version2`, `Version3` constants
+- CLI: `Migrated: neighbor→peer (2), api→new-syntax (1)`
+- Keep `migrateAPIBlocks()` atomic (don't split)
 
 ### API as Virtual Peer
 **Spec:** `plan/spec-api-virtual-peer.md`
