@@ -491,6 +491,8 @@ type StaticRouteConfig struct {
 	Aggregator        string // ASN:IP format
 	AtomicAggregate   bool   // ATOMIC_AGGREGATE attribute
 	Attribute         string // Raw attribute hex: [ code flags value ]
+	OriginatorID      string // ORIGINATOR_ID (RFC 4456)
+	ClusterList       string // CLUSTER_LIST (RFC 4456)
 
 	// Watchdog support - routes can be grouped and controlled via API
 	Watchdog         string // Watchdog group name (empty = no watchdog)
@@ -1586,6 +1588,12 @@ func parseRouteConfig(prefix string, route *Tree) (StaticRouteConfig, error) {
 	}
 	if v, ok := route.Get("attribute"); ok {
 		sr.Attribute = v
+	}
+	if v, ok := route.Get("originator-id"); ok {
+		sr.OriginatorID = v
+	}
+	if v, ok := route.Get("cluster-list"); ok {
+		sr.ClusterList = v
 	}
 
 	// Watchdog support

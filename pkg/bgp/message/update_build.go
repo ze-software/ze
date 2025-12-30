@@ -377,6 +377,10 @@ type VPNParams struct {
 	HasAggregator   bool
 	AggregatorASN   uint32
 	AggregatorIP    [4]byte
+
+	// ORIGINATOR_ID and CLUSTER_LIST (RFC 4456)
+	OriginatorID uint32
+	ClusterList  []uint32
 }
 
 // BuildVPN builds an UPDATE message for a VPN route (SAFI 128).
@@ -439,6 +443,22 @@ func (ub *UpdateBuilder) BuildVPN(p VPNParams) *Update {
 			comms[i] = attribute.Community(c)
 		}
 		attrs = append(attrs, comms)
+	}
+
+	// 9. ORIGINATOR_ID (RFC 4456)
+	if p.OriginatorID != 0 {
+		origIP := netip.AddrFrom4([4]byte{
+			byte(p.OriginatorID >> 24), byte(p.OriginatorID >> 16),
+			byte(p.OriginatorID >> 8), byte(p.OriginatorID),
+		})
+		attrs = append(attrs, attribute.OriginatorID(origIP))
+	}
+
+	// 10. CLUSTER_LIST (RFC 4456)
+	if len(p.ClusterList) > 0 {
+		cl := make(attribute.ClusterList, len(p.ClusterList))
+		copy(cl, p.ClusterList)
+		attrs = append(attrs, cl)
 	}
 
 	// 14. MP_REACH_NLRI for VPN

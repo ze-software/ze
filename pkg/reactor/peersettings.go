@@ -59,6 +59,10 @@ type StaticRoute struct {
 	// ATOMIC_AGGREGATE flag
 	AtomicAggregate bool
 
+	// ORIGINATOR_ID and CLUSTER_LIST (RFC 4456)
+	OriginatorID uint32
+	ClusterList  []uint32
+
 	// Raw attributes (code, flags, value bytes)
 	RawAttributes []RawAttribute
 }

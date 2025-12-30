@@ -392,6 +392,8 @@ func configToPeer(nc *PeerConfig, global *BGPConfig) (*reactor.PeerSettings, err
 			AggregatorIP:      attrs.Aggregator.IP,
 			HasAggregator:     attrs.Aggregator.Valid,
 			AtomicAggregate:   attrs.AtomicAggregate,
+			OriginatorID:      attrs.OriginatorID,
+			ClusterList:       attrs.ClusterList,
 			RawAttributes:     rawAttrs,
 		}
 

@@ -34,6 +34,10 @@ type NegotiatedFamilies struct {
 	IPv4Unicast bool
 	IPv6Unicast bool
 
+	// MPLS-VPN (RFC 4364)
+	IPv4MPLSVPN bool
+	IPv6MPLSVPN bool
+
 	// FlowSpec (RFC 8955)
 	IPv4FlowSpec    bool
 	IPv6FlowSpec    bool
@@ -88,6 +92,12 @@ func computeNegotiatedFamilies(neg *capability.Negotiated) *NegotiatedFamilies {
 			nf.IPv4Unicast = true
 		case afi == capability.AFIIPv6 && safi == capability.SAFIUnicast:
 			nf.IPv6Unicast = true
+
+		// MPLS-VPN (RFC 4364)
+		case afi == capability.AFIIPv4 && safi == capability.SAFIMPLS:
+			nf.IPv4MPLSVPN = true
+		case afi == capability.AFIIPv6 && safi == capability.SAFIMPLS:
+			nf.IPv6MPLSVPN = true
 
 		// FlowSpec
 		case afi == capability.AFIIPv4 && safi == capability.SAFIFlowSpec:
@@ -530,6 +540,8 @@ func toStaticRouteVPNParams(r StaticRoute) message.VPNParams {
 		HasAggregator:     r.HasAggregator,
 		AggregatorASN:     r.AggregatorASN,
 		AggregatorIP:      r.AggregatorIP,
+		OriginatorID:      r.OriginatorID,
+		ClusterList:       r.ClusterList,
 	}
 }
 
@@ -1210,6 +1222,16 @@ func (p *Peer) sendInitialRoutes() {
 		trace.Log(trace.Routes, "peer %s: sent IPv6 Unicast EOR", addr)
 	}
 
+	// Send EOR for ALL negotiated MPLS-VPN families per RFC 4724 Section 4.
+	if nf.IPv4MPLSVPN {
+		_ = p.SendUpdate(message.BuildEOR(nlri.Family{AFI: 1, SAFI: 128}))
+		trace.Log(trace.Routes, "peer %s: sent IPv4 MPLS-VPN EOR", addr)
+	}
+	if nf.IPv6MPLSVPN {
+		_ = p.SendUpdate(message.BuildEOR(nlri.Family{AFI: 2, SAFI: 128}))
+		trace.Log(trace.Routes, "peer %s: sent IPv6 MPLS-VPN EOR", addr)
+	}
+
 	// If teardown was in queue, execute it now (after EOR)
 	if hasTeardown {
 		trace.Log(trace.Routes, "peer %s: executing queued teardown (subcode=%d)", addr, teardownSubcode)
@@ -1826,6 +1848,22 @@ func buildGroupedUpdate(routes []StaticRoute, localAS uint32, isIBGP bool, ctx *
 			comms[i] = attribute.Community(c)
 		}
 		attrBytes = append(attrBytes, attribute.PackAttribute(comms)...)
+	}
+
+	// 9. ORIGINATOR_ID (RFC 4456)
+	if route.OriginatorID != 0 {
+		origIP := netip.AddrFrom4([4]byte{
+			byte(route.OriginatorID >> 24), byte(route.OriginatorID >> 16),
+			byte(route.OriginatorID >> 8), byte(route.OriginatorID),
+		})
+		attrBytes = append(attrBytes, attribute.PackAttribute(attribute.OriginatorID(origIP))...)
+	}
+
+	// 10. CLUSTER_LIST (RFC 4456)
+	if len(route.ClusterList) > 0 {
+		cl := make(attribute.ClusterList, len(route.ClusterList))
+		copy(cl, route.ClusterList)
+		attrBytes = append(attrBytes, attribute.PackAttribute(cl)...)
 	}
 
 	// Build NLRI for all routes in group.

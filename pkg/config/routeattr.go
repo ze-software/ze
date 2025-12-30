@@ -791,6 +791,8 @@ type ParsedRouteAttributes struct {
 	ASPath            ASPath
 	Aggregator        Aggregator
 	AtomicAggregate   bool
+	OriginatorID      uint32   // RFC 4456
+	ClusterList       []uint32 // RFC 4456
 	RawAttributes     []RawAttribute
 }
 
@@ -876,6 +878,35 @@ func ParseRouteAttributes(src StaticRouteConfig) (*ParsedRouteAttributes, error)
 
 	// Atomic Aggregate
 	attrs.AtomicAggregate = src.AtomicAggregate
+
+	// Originator ID (RFC 4456)
+	if src.OriginatorID != "" {
+		ip, err := netip.ParseAddr(src.OriginatorID)
+		if err != nil {
+			return nil, fmt.Errorf("invalid originator-id %q: %w", src.OriginatorID, err)
+		}
+		if ip.Is4() {
+			b := ip.As4()
+			attrs.OriginatorID = uint32(b[0])<<24 | uint32(b[1])<<16 | uint32(b[2])<<8 | uint32(b[3])
+		}
+	}
+
+	// Cluster List (RFC 4456)
+	if src.ClusterList != "" {
+		clStr := strings.TrimSpace(src.ClusterList)
+		clStr = strings.TrimPrefix(clStr, "[")
+		clStr = strings.TrimSuffix(clStr, "]")
+		for _, p := range strings.Fields(clStr) {
+			ip, err := netip.ParseAddr(p)
+			if err != nil {
+				return nil, fmt.Errorf("invalid cluster-list entry %q: %w", p, err)
+			}
+			if ip.Is4() {
+				b := ip.As4()
+				attrs.ClusterList = append(attrs.ClusterList, uint32(b[0])<<24|uint32(b[1])<<16|uint32(b[2])<<8|uint32(b[3]))
+			}
+		}
+	}
 
 	// Raw Attributes (hex format: "0xNN 0xNN 0xVALUE")
 	// Known attribute codes are converted to typed fields.
