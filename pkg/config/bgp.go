@@ -3,6 +3,7 @@ package config
 import (
 	"fmt"
 	"net/netip"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -267,6 +268,7 @@ func peerFields() []FieldDef {
 			Field("content", Container(
 				Field("encoding", Leaf(TypeString)), // json | text
 				Field("format", Leaf(TypeString)),   // parsed | raw | full
+				Field("version", Leaf(TypeInt)),     // 6=legacy, 7=nlri (default: 7)
 			)),
 			Field("receive", Freeform()), // { update; open; notification; all; }
 			Field("send", Freeform()),    // { update; refresh; all; }
@@ -414,10 +416,11 @@ type PeerAPIBinding struct {
 	Send        PeerSendConfig    // WHAT: which message types to send
 }
 
-// PeerContentConfig controls message formatting (encoding + format).
+// PeerContentConfig controls message formatting (encoding + format + version).
 type PeerContentConfig struct {
 	Encoding string // "json" | "text" (empty = inherit from process)
 	Format   string // "parsed" | "raw" | "full" (empty = "parsed")
+	Version  int    // 6=legacy ExaBGP, 7=new nlri format (0 = default to 7)
 }
 
 // PeerReceiveConfig specifies which message types to forward to the process.
@@ -583,6 +586,10 @@ func TreeToConfig(tree *Tree) (*BGPConfig, error) {
 
 	// Processes
 	for name, proc := range tree.GetList("process") {
+		// Reject reserved names (underscore prefix used internally)
+		if strings.HasPrefix(name, "_") {
+			return nil, fmt.Errorf("process name %q: names starting with underscore are reserved", name)
+		}
 		pc := ProcessConfig{Name: name}
 		if v, ok := proc.Get("run"); ok {
 			pc.Run = v
@@ -1252,7 +1259,15 @@ func parseAPIBindings(tree *Tree) []PeerAPIBinding {
 		return nil
 	}
 
-	for key, apiTree := range apiList {
+	// Sort keys for deterministic order (maps iterate randomly)
+	keys := make([]string, 0, len(apiList))
+	for k := range apiList {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+
+	for _, key := range keys {
+		apiTree := apiList[key]
 		if key == "_anonymous" {
 			// Old syntax: api { processes [ foo bar ]; }
 			bindings = append(bindings, parseOldAPIBindings(apiTree)...)
@@ -1298,13 +1313,18 @@ func parseOldAPIBindings(apiTree *Tree) []PeerAPIBinding {
 func parseNewAPIBinding(processName string, apiTree *Tree) PeerAPIBinding {
 	binding := PeerAPIBinding{ProcessName: processName}
 
-	// Parse content block: content { encoding json; format full; }
+	// Parse content block: content { encoding json; format full; version 7; }
 	if content := apiTree.GetContainer("content"); content != nil {
 		if v, ok := content.Get("encoding"); ok {
-			binding.Content.Encoding = v
+			binding.Content.Encoding = strings.ToLower(v) // Normalize case
 		}
 		if v, ok := content.Get("format"); ok {
-			binding.Content.Format = v
+			binding.Content.Format = strings.ToLower(v) // Normalize case
+		}
+		if v, ok := content.Get("version"); ok {
+			if n, err := strconv.Atoi(v); err == nil {
+				binding.Content.Version = n
+			}
 		}
 	}
 

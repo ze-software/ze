@@ -893,10 +893,17 @@ func (a *reactorAPIAdapter) GetPeerAPIBindings(peerAddr netip.Addr) []api.PeerAP
 			format = "parsed"
 		}
 
+		// Resolve version: peer override → default to 7 (nlri format)
+		version := b.Version
+		if version == 0 {
+			version = api.APIVersionNLRI
+		}
+
 		result = append(result, api.PeerAPIBinding{
 			ProcessName:         b.ProcessName,
 			Encoding:            encoding,
 			Format:              format,
+			Version:             version,
 			ReceiveUpdate:       b.ReceiveUpdate,
 			ReceiveOpen:         b.ReceiveOpen,
 			ReceiveNotification: b.ReceiveNotification,

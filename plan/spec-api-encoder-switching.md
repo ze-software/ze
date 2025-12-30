@@ -41,6 +41,12 @@ Fix the current bug where `encoder json` processes receive nothing or text forma
 - **ExaBGP compat:** `processes-match`, `neighbor-changes` fields added to schema ✅
 - **Tests:** 8 new tests for new syntax parsing ✅
 
+**Phase 1 Hardening (2025-12-30):**
+- Deterministic binding order: sort map keys before iteration ✅
+- Case normalization: encoding/format values lowercased ✅
+- Reserved name validation: reject process names starting with `_` ✅
+- Reactor inheritance tests: `TestGetPeerAPIBindingsEncodingInheritance` ✅
+
 **Remaining for future phases:**
 - Validation for invalid encoding/format values (low priority)
 
@@ -1386,13 +1392,17 @@ Update ExaBGP config migrator to:
 - [x] Tests: TestWantsMessageType, TestFormatStateChange
 - [x] `make test && make lint` pass
 
-### Phase 3: Output Format
-- [ ] Version field added to structs (deferred from Phase 1)
-- [ ] Version parsing added to config
-- [ ] JSON v7 encoder with announce.nlri
-- [ ] Text v7 encoder
-- [ ] Version-aware FormatMessage
-- [ ] Tests pass
+### Phase 3: Output Format (COMPLETE - 2025-12-30)
+
+**All items completed:**
+- [x] Version field added to structs (config, reactor, api)
+- [x] Version parsing added to config schema and parser
+- [x] Version inheritance in reactor (peer → default 7)
+- [x] JSON v7 encoder with announce.nlri structure
+- [x] Text v7 encoder with "peer X update announce nlri ..." format
+- [x] Version-aware FormatMessage (routes to v6/v7 formatters)
+- [x] Tests: TestFormatMessageV7Text, TestFormatMessageV7JSON, TestFormatMessageV6VsV7, TestContentConfigVersionDefault
+- [x] `make test && make lint` pass
 
 ### Phase 4: Migration
 - [ ] ExaBGP configs convert correctly

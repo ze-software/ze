@@ -415,3 +415,69 @@ func TestBuildWithdrawUpdateIPv6UsesMPUnreachNLRI(t *testing.T) {
 
 	require.True(t, foundMPUnreach, "IPv6 withdrawals must have MP_UNREACH_NLRI attribute")
 }
+
+// TestGetPeerAPIBindingsEncodingInheritance verifies encoding inheritance chain.
+//
+// VALIDATES: Empty peer encoding inherits from process, empty process defaults to "text".
+//
+// PREVENTS: Empty encoding causing silent failures in message dispatch.
+func TestGetPeerAPIBindingsEncodingInheritance(t *testing.T) {
+	cfg := &Config{
+		ListenAddr: "127.0.0.1:0",
+		APIProcesses: []APIProcessConfig{
+			{Name: "json-proc", Run: "./test", Encoder: "json"},
+			{Name: "text-proc", Run: "./test", Encoder: "text"},
+			{Name: "empty-proc", Run: "./test", Encoder: ""},
+		},
+	}
+
+	reactor := New(cfg)
+
+	// Add peer with bindings that test inheritance
+	settings := NewPeerSettings(
+		mustParseAddr("192.0.2.1"),
+		65000, 65001, 0x01010101,
+	)
+	settings.APIBindings = []APIBinding{
+		{ProcessName: "json-proc", Encoding: "text"}, // Explicit override
+		{ProcessName: "json-proc", Encoding: ""},     // Inherit from process (json)
+		{ProcessName: "text-proc", Encoding: ""},     // Inherit from process (text)
+		{ProcessName: "empty-proc", Encoding: ""},    // Process empty, default to text
+	}
+
+	err := reactor.AddPeer(settings)
+	require.NoError(t, err)
+
+	// Get bindings through API adapter
+	adapter := &reactorAPIAdapter{reactor}
+	bindings := adapter.GetPeerAPIBindings(mustParseAddr("192.0.2.1"))
+
+	require.Len(t, bindings, 4)
+
+	// Verify inheritance chain
+	require.Equal(t, "text", bindings[0].Encoding, "explicit override should be text")
+	require.Equal(t, "json", bindings[1].Encoding, "empty should inherit from json-proc")
+	require.Equal(t, "text", bindings[2].Encoding, "empty should inherit from text-proc")
+	require.Equal(t, "text", bindings[3].Encoding, "empty proc should default to text")
+
+	// Verify format defaults to "parsed"
+	require.Equal(t, "parsed", bindings[0].Format, "format should default to parsed")
+}
+
+// TestGetPeerAPIBindingsNotFound verifies nil return for unknown peer.
+//
+// VALIDATES: GetPeerAPIBindings returns nil for non-existent peer.
+//
+// PREVENTS: Panic on unknown peer lookup.
+func TestGetPeerAPIBindingsNotFound(t *testing.T) {
+	cfg := &Config{
+		ListenAddr: "127.0.0.1:0",
+	}
+
+	reactor := New(cfg)
+
+	adapter := &reactorAPIAdapter{reactor}
+	bindings := adapter.GetPeerAPIBindings(mustParseAddr("192.0.2.99"))
+
+	require.Nil(t, bindings, "unknown peer should return nil")
+}
