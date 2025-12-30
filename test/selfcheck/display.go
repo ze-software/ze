@@ -97,12 +97,10 @@ func (d *Display) Status() {
 	if d.timeout > 0 && running > 0 {
 		elapsedSec := int(maxRunningElapsed.Seconds())
 		timeoutSec := int(d.timeout.Seconds())
-		parts = append(parts, fmt.Sprintf("%s [%d/%s%d%s]",
+		parts = append(parts, fmt.Sprintf("%s [%d/%s]",
 			d.colors.Cyan("timeout"),
 			elapsedSec,
-			d.colors.Yellow(""),
-			timeoutSec,
-			d.colors.Reset()))
+			d.colors.Yellow(fmt.Sprintf("%d", timeoutSec))))
 	}
 
 	// Running count

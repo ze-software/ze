@@ -288,7 +288,7 @@ func (r *Runner) runTest(ctx context.Context, rec *Record, opts *RunOptions) boo
 	// Check if we timed out
 	if testCtx.Err() != nil {
 		rec.State = StateTimeout
-		rec.FailureType = "timeout"
+		rec.FailureType = stateTimeout
 		return false
 	}
 

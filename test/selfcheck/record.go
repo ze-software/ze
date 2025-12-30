@@ -103,7 +103,6 @@ type Record struct {
 
 	// Failure details
 	FailureType     string // "mismatch", "timeout", "connection_refused"
-	ReceivedMsgs    [][]byte
 	ReceivedRaw     []string
 	LastExpectedIdx int
 	LastReceivedIdx int
