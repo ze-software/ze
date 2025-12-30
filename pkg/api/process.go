@@ -253,25 +253,21 @@ func (p *Process) Wait(ctx context.Context) error {
 // WriteEvent writes an event to the process stdin via the write queue.
 // Uses non-blocking send with backpressure - events are dropped if queue is full.
 func (p *Process) WriteEvent(event string) error {
-	if !p.running.Load() || p.writeQueue == nil {
+	// Check if process is running and context is valid
+	if !p.running.Load() || p.writeQueue == nil || p.ctx == nil {
 		return os.ErrClosed
 	}
 
 	data := []byte(event + "\n")
 
-	// Handle potential panic from sending to closed channel.
-	// Race: monitor() can close writeQueue between running check and send.
-	defer func() {
-		if r := recover(); r != nil {
-			// Channel was closed during send - process shutting down
-			p.queueDropped.Add(1)
-		}
-	}()
-
-	// Non-blocking send with backpressure
+	// Non-blocking send with backpressure.
+	// Use context to detect shutdown instead of relying on channel close.
 	select {
 	case p.writeQueue <- data:
 		return nil
+	case <-p.ctx.Done():
+		// Process shutting down
+		return os.ErrClosed
 	default:
 		// Queue full - drop event and increment counter
 		if p.queueDropped.Add(1) == 1 {
@@ -285,21 +281,27 @@ func (p *Process) WriteEvent(event string) error {
 }
 
 // writeLoop drains the write queue and writes to stdin.
-// Stops on write error (EPIPE indicates process died).
+// Stops on context cancellation or write error (EPIPE indicates process died).
 func (p *Process) writeLoop() {
-	for data := range p.writeQueue {
-		p.mu.Lock()
-		if p.stdin == nil || !p.running.Load() {
+	for {
+		select {
+		case data := <-p.writeQueue:
+			p.mu.Lock()
+			if p.stdin == nil || !p.running.Load() {
+				p.mu.Unlock()
+				continue
+			}
+			_, err := p.stdin.Write(data)
 			p.mu.Unlock()
-			continue
-		}
-		_, err := p.stdin.Write(data)
-		p.mu.Unlock()
 
-		if err != nil {
-			// Write failed (EPIPE, closed pipe, etc.) - process likely dead
-			// Stop processing queue; monitor() will handle cleanup
-			p.running.Store(false)
+			if err != nil {
+				// Write failed (EPIPE, closed pipe, etc.) - process likely dead
+				// Stop processing queue; monitor() will handle cleanup
+				p.running.Store(false)
+				return
+			}
+		case <-p.ctx.Done():
+			// Process shutting down
 			return
 		}
 	}
@@ -328,9 +330,10 @@ func (p *Process) monitor() {
 
 	p.running.Store(false)
 
-	// Close write queue to stop writeLoop goroutine
-	if p.writeQueue != nil {
-		close(p.writeQueue)
+	// Cancel context to stop writeLoop goroutine.
+	// This is safe even if Stop() already cancelled it (cancel is idempotent).
+	if p.cancel != nil {
+		p.cancel()
 	}
 
 	// Close pipes
