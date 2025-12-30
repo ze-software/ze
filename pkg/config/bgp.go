@@ -494,6 +494,9 @@ type StaticRouteConfig struct {
 	OriginatorID      string // ORIGINATOR_ID (RFC 4456)
 	ClusterList       string // CLUSTER_LIST (RFC 4456)
 
+	// Split prefix into more-specific routes (e.g., "/25" splits /24 into two /25s)
+	Split string
+
 	// Watchdog support - routes can be grouped and controlled via API
 	Watchdog         string // Watchdog group name (empty = no watchdog)
 	WatchdogWithdraw bool   // Start in withdrawn state (held until "announce watchdog")
@@ -1594,6 +1597,9 @@ func parseRouteConfig(prefix string, route *Tree) (StaticRouteConfig, error) {
 	}
 	if v, ok := route.Get("cluster-list"); ok {
 		sr.ClusterList = v
+	}
+	if v, ok := route.Get("split"); ok {
+		sr.Split = v
 	}
 
 	// Watchdog support

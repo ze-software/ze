@@ -373,42 +373,51 @@ func configToPeer(nc *PeerConfig, global *BGPConfig) (*reactor.PeerSettings, err
 			})
 		}
 
-		route := reactor.StaticRoute{
-			Prefix:            attrs.Prefix,
-			NextHop:           nextHop,
-			Origin:            uint8(attrs.Origin),
-			LocalPreference:   attrs.LocalPreference,
-			MED:               attrs.MED,
-			Communities:       attrs.Community.Values,
-			LargeCommunities:  attrs.LargeCommunity.Values,
-			ExtCommunity:      attrs.ExtendedCommunity.Raw,
-			ExtCommunityBytes: attrs.ExtendedCommunity.Bytes,
-			PathID:            uint32(attrs.PathID),
-			Label:             uint32(attrs.Label),
-			RD:                attrs.RD.Raw,
-			RDBytes:           attrs.RD.Bytes,
-			ASPath:            attrs.ASPath.Values,
-			AggregatorASN:     attrs.Aggregator.ASN,
-			AggregatorIP:      attrs.Aggregator.IP,
-			HasAggregator:     attrs.Aggregator.Valid,
-			AtomicAggregate:   attrs.AtomicAggregate,
-			OriginatorID:      attrs.OriginatorID,
-			ClusterList:       attrs.ClusterList,
-			RawAttributes:     rawAttrs,
+		// Handle split: expand prefix into more-specific prefixes
+		prefixes := []netip.Prefix{attrs.Prefix}
+		if splitLen := parseSplitLen(sr.Split); splitLen > 0 {
+			prefixes = splitPrefix(attrs.Prefix, splitLen)
 		}
 
-		// Route to correct bucket based on watchdog field
-		if sr.Watchdog != "" {
-			wr := reactor.WatchdogRoute{
-				StaticRoute:        route,
-				InitiallyWithdrawn: sr.WatchdogWithdraw,
+		// Create a route for each prefix (usually just one, unless split)
+		for _, prefix := range prefixes {
+			route := reactor.StaticRoute{
+				Prefix:            prefix,
+				NextHop:           nextHop,
+				Origin:            uint8(attrs.Origin),
+				LocalPreference:   attrs.LocalPreference,
+				MED:               attrs.MED,
+				Communities:       attrs.Community.Values,
+				LargeCommunities:  attrs.LargeCommunity.Values,
+				ExtCommunity:      attrs.ExtendedCommunity.Raw,
+				ExtCommunityBytes: attrs.ExtendedCommunity.Bytes,
+				PathID:            uint32(attrs.PathID),
+				Label:             uint32(attrs.Label),
+				RD:                attrs.RD.Raw,
+				RDBytes:           attrs.RD.Bytes,
+				ASPath:            attrs.ASPath.Values,
+				AggregatorASN:     attrs.Aggregator.ASN,
+				AggregatorIP:      attrs.Aggregator.IP,
+				HasAggregator:     attrs.Aggregator.Valid,
+				AtomicAggregate:   attrs.AtomicAggregate,
+				OriginatorID:      attrs.OriginatorID,
+				ClusterList:       attrs.ClusterList,
+				RawAttributes:     rawAttrs,
 			}
-			if n.WatchdogGroups == nil {
-				n.WatchdogGroups = make(map[string][]reactor.WatchdogRoute)
+
+			// Route to correct bucket based on watchdog field
+			if sr.Watchdog != "" {
+				wr := reactor.WatchdogRoute{
+					StaticRoute:        route,
+					InitiallyWithdrawn: sr.WatchdogWithdraw,
+				}
+				if n.WatchdogGroups == nil {
+					n.WatchdogGroups = make(map[string][]reactor.WatchdogRoute)
+				}
+				n.WatchdogGroups[sr.Watchdog] = append(n.WatchdogGroups[sr.Watchdog], wr)
+			} else {
+				n.StaticRoutes = append(n.StaticRoutes, route)
 			}
-			n.WatchdogGroups[sr.Watchdog] = append(n.WatchdogGroups[sr.Watchdog], wr)
-		} else {
-			n.StaticRoutes = append(n.StaticRoutes, route)
 		}
 	}
 
@@ -1722,4 +1731,92 @@ func detectV2SyntaxHint(input string, parseErr error) string {
 	}
 
 	return ""
+}
+
+// parseSplitLen parses a split specification like "/25" and returns the prefix length.
+// Returns 0 if no split or invalid format.
+func parseSplitLen(s string) int {
+	s = strings.TrimSpace(s)
+	if s == "" {
+		return 0
+	}
+	s = strings.TrimPrefix(s, "/")
+	n, err := strconv.Atoi(s)
+	if err != nil || n < 0 || n > 128 {
+		return 0
+	}
+	return n
+}
+
+// splitPrefix splits a prefix into more-specific prefixes with the given length.
+// For example, 10.0.0.0/24 split to /25 produces two /25 prefixes.
+func splitPrefix(prefix netip.Prefix, targetLen int) []netip.Prefix {
+	sourceBits := prefix.Bits()
+
+	// Validate target length
+	maxBits := 32
+	if prefix.Addr().Is6() {
+		maxBits = 128
+	}
+
+	if targetLen <= sourceBits || targetLen > maxBits {
+		return []netip.Prefix{prefix}
+	}
+
+	// Calculate number of resulting prefixes: 2^(targetLen - sourceBits)
+	numPrefixes := 1 << (targetLen - sourceBits)
+	result := make([]netip.Prefix, 0, numPrefixes)
+
+	baseAddr := prefix.Addr()
+	for i := 0; i < numPrefixes; i++ {
+		newAddr := addToAddr(baseAddr, i, targetLen)
+		result = append(result, netip.PrefixFrom(newAddr, targetLen))
+	}
+
+	return result
+}
+
+// addToAddr adds an offset to an address at the given prefix boundary.
+func addToAddr(addr netip.Addr, offset int, prefixLen int) netip.Addr {
+	if offset == 0 {
+		return addr
+	}
+
+	maxBits := 32
+	if addr.Is6() {
+		maxBits = 128
+	}
+	shift := maxBits - prefixLen
+
+	if addr.Is4() {
+		v4 := addr.As4()
+		val := uint32(v4[0])<<24 | uint32(v4[1])<<16 | uint32(v4[2])<<8 | uint32(v4[3])
+		val += uint32(offset) << shift //nolint:gosec // offset is bounded
+		return netip.AddrFrom4([4]byte{byte(val >> 24), byte(val >> 16), byte(val >> 8), byte(val)})
+	}
+
+	// IPv6
+	v6 := addr.As16()
+	hi := uint64(v6[0])<<56 | uint64(v6[1])<<48 | uint64(v6[2])<<40 | uint64(v6[3])<<32 |
+		uint64(v6[4])<<24 | uint64(v6[5])<<16 | uint64(v6[6])<<8 | uint64(v6[7])
+	lo := uint64(v6[8])<<56 | uint64(v6[9])<<48 | uint64(v6[10])<<40 | uint64(v6[11])<<32 |
+		uint64(v6[12])<<24 | uint64(v6[13])<<16 | uint64(v6[14])<<8 | uint64(v6[15])
+
+	if shift >= 64 {
+		hi += uint64(offset) << (shift - 64) //nolint:gosec // offset is bounded
+	} else {
+		addLo := uint64(offset) << shift //nolint:gosec // offset is bounded
+		newLo := lo + addLo
+		if newLo < lo {
+			hi++
+		}
+		lo = newLo
+	}
+
+	return netip.AddrFrom16([16]byte{
+		byte(hi >> 56), byte(hi >> 48), byte(hi >> 40), byte(hi >> 32),
+		byte(hi >> 24), byte(hi >> 16), byte(hi >> 8), byte(hi),
+		byte(lo >> 56), byte(lo >> 48), byte(lo >> 40), byte(lo >> 32),
+		byte(lo >> 24), byte(lo >> 16), byte(lo >> 8), byte(lo),
+	})
 }
