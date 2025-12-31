@@ -2234,6 +2234,446 @@ peer 10.0.0.1 {
 }
 
 // =============================================================================
+// TEMPLATE API BINDING INHERITANCE TESTS
+// =============================================================================
+
+// TestTemplateAPIBindingInheritance verifies API bindings are inherited from templates.
+//
+// VALIDATES: Peer inheriting a template gets the template's API bindings.
+//
+// PREVENTS: Lost API bindings when using template inheritance.
+func TestTemplateAPIBindingInheritance(t *testing.T) {
+	input := `
+process collector { run ./collector; encoder json; }
+template {
+    group api-template {
+        api collector {
+            content { encoding json; format full; }
+            receive { update; }
+        }
+    }
+}
+peer 192.0.2.1 {
+    inherit api-template;
+    local-as 65000;
+    peer-as 65001;
+}
+`
+	cfg := parseConfig(t, input)
+	require.Len(t, cfg.Peers, 1)
+	require.Len(t, cfg.Peers[0].APIBindings, 1)
+
+	binding := cfg.Peers[0].APIBindings[0]
+	require.Equal(t, "collector", binding.ProcessName)
+	require.Equal(t, "json", binding.Content.Encoding)
+	require.Equal(t, "full", binding.Content.Format)
+	require.True(t, binding.Receive.Update)
+}
+
+// TestTemplateAPIBindingPeerOverride verifies peer API bindings override template bindings.
+//
+// VALIDATES: Peer API binding with same process name replaces template binding.
+//
+// PREVENTS: Template bindings not being overridden by peer-specific config.
+func TestTemplateAPIBindingPeerOverride(t *testing.T) {
+	input := `
+process collector { run ./collector; encoder json; }
+template {
+    group api-template {
+        api collector {
+            content { encoding json; format parsed; }
+            receive { update; }
+        }
+    }
+}
+peer 192.0.2.1 {
+    inherit api-template;
+    local-as 65000;
+    peer-as 65001;
+    api collector {
+        content { encoding text; format full; }
+        receive { all; }
+    }
+}
+`
+	cfg := parseConfig(t, input)
+	require.Len(t, cfg.Peers, 1)
+	require.Len(t, cfg.Peers[0].APIBindings, 1, "should have 1 binding (peer overrides template)")
+
+	binding := cfg.Peers[0].APIBindings[0]
+	require.Equal(t, "collector", binding.ProcessName)
+	require.Equal(t, "text", binding.Content.Encoding, "peer should override template encoding")
+	require.Equal(t, "full", binding.Content.Format, "peer should override template format")
+	require.True(t, binding.Receive.Update, "peer 'all' should set Update")
+	require.True(t, binding.Receive.Open, "peer 'all' should set Open (template didn't have it)")
+}
+
+// TestTemplateAPIBindingMergeMultipleProcesses verifies merging different process bindings.
+//
+// VALIDATES: Template and peer with different process names both appear in result.
+//
+// PREVENTS: Missing bindings when template and peer bind different processes.
+func TestTemplateAPIBindingMergeMultipleProcesses(t *testing.T) {
+	input := `
+process collector { run ./collector; encoder json; }
+process logger { run ./logger; encoder text; }
+template {
+    group api-template {
+        api collector {
+            receive { update; }
+        }
+    }
+}
+peer 192.0.2.1 {
+    inherit api-template;
+    local-as 65000;
+    peer-as 65001;
+    api logger {
+        receive { notification; }
+    }
+}
+`
+	cfg := parseConfig(t, input)
+	require.Len(t, cfg.Peers, 1)
+	require.Len(t, cfg.Peers[0].APIBindings, 2, "should have 2 bindings (template + peer)")
+
+	// Find bindings by name
+	m := make(map[string]PeerAPIBinding)
+	for _, b := range cfg.Peers[0].APIBindings {
+		m[b.ProcessName] = b
+	}
+
+	require.Contains(t, m, "collector", "should have collector from template")
+	require.Contains(t, m, "logger", "should have logger from peer")
+	require.True(t, m["collector"].Receive.Update)
+	require.True(t, m["logger"].Receive.Notification)
+}
+
+// TestTemplateWithMultipleAPIBindings verifies single template with multiple API bindings.
+//
+// VALIDATES: A template can have multiple API bindings for different processes.
+//
+// PREVENTS: Lost bindings when template has multiple process bindings.
+//
+// Note: Multiple inherit statements are NOT supported (inherit is a Leaf type,
+// second inherit overwrites first). This test uses a single template with
+// multiple api blocks instead.
+func TestTemplateWithMultipleAPIBindings(t *testing.T) {
+	input := `
+process collector { run ./collector; encoder json; }
+process logger { run ./logger; encoder text; }
+template {
+    group multi-api {
+        api collector {
+            content { encoding json; }
+            receive { update; }
+        }
+        api logger {
+            content { encoding text; }
+            receive { notification; }
+        }
+    }
+}
+peer 192.0.2.1 {
+    inherit multi-api;
+    local-as 65000;
+    peer-as 65001;
+}
+`
+	cfg := parseConfig(t, input)
+	require.Len(t, cfg.Peers, 1)
+	require.Len(t, cfg.Peers[0].APIBindings, 2, "should have 2 bindings from template")
+
+	m := make(map[string]PeerAPIBinding)
+	for _, b := range cfg.Peers[0].APIBindings {
+		m[b.ProcessName] = b
+	}
+
+	require.Equal(t, "json", m["collector"].Content.Encoding)
+	require.Equal(t, "text", m["logger"].Content.Encoding)
+}
+
+// TestMatchTemplateAPIBinding verifies API bindings from match templates.
+//
+// VALIDATES: Match patterns can specify API bindings that apply to matching peers.
+//
+// PREVENTS: Unable to set default API bindings via match patterns.
+func TestMatchTemplateAPIBinding(t *testing.T) {
+	input := `
+process collector { run ./collector; encoder json; }
+template {
+    match * {
+        api collector {
+            receive { update; }
+        }
+    }
+}
+peer 192.0.2.1 {
+    local-as 65000;
+    peer-as 65001;
+}
+peer 10.0.0.1 {
+    local-as 65000;
+    peer-as 65002;
+}
+`
+	cfg := parseConfig(t, input)
+	require.Len(t, cfg.Peers, 2)
+
+	for _, peer := range cfg.Peers {
+		require.Len(t, peer.APIBindings, 1, "match * should apply to %s", peer.Address)
+		require.Equal(t, "collector", peer.APIBindings[0].ProcessName)
+		require.True(t, peer.APIBindings[0].Receive.Update)
+	}
+}
+
+// TestMatchAndInheritAPIBindingPrecedence verifies correct precedence: match → inherit → peer.
+//
+// VALIDATES: Inherit overrides match, peer overrides both.
+//
+// PREVENTS: Wrong API binding precedence causing unexpected behavior.
+func TestMatchAndInheritAPIBindingPrecedence(t *testing.T) {
+	input := `
+process collector { run ./collector; encoder json; }
+template {
+    match * {
+        api collector {
+            content { encoding json; }
+            receive { update; }
+        }
+    }
+    group override-template {
+        api collector {
+            content { encoding text; }
+            receive { notification; }
+        }
+    }
+}
+peer 192.0.2.1 {
+    inherit override-template;
+    local-as 65000;
+    peer-as 65001;
+}
+peer 10.0.0.1 {
+    local-as 65000;
+    peer-as 65002;
+}
+`
+	cfg := parseConfig(t, input)
+	require.Len(t, cfg.Peers, 2)
+	m := peersByAddr(cfg.Peers)
+
+	// 192.0.2.1: match * first, then inherit override-template (inherit wins)
+	require.Len(t, m["192.0.2.1"].APIBindings, 1)
+	require.Equal(t, "text", m["192.0.2.1"].APIBindings[0].Content.Encoding, "inherit should override match")
+	require.False(t, m["192.0.2.1"].APIBindings[0].Receive.Update, "inherit replaces entire binding")
+	require.True(t, m["192.0.2.1"].APIBindings[0].Receive.Notification)
+
+	// 10.0.0.1: only match * applies
+	require.Len(t, m["10.0.0.1"].APIBindings, 1)
+	require.Equal(t, "json", m["10.0.0.1"].APIBindings[0].Content.Encoding)
+	require.True(t, m["10.0.0.1"].APIBindings[0].Receive.Update)
+}
+
+// =============================================================================
+// V2 SYNTAX REJECTION TESTS
+// =============================================================================
+
+// =============================================================================
+// MERGE API BINDINGS TESTS
+// =============================================================================
+
+// TestMergeAPIBindingsEmptyNew verifies that empty new returns existing unchanged.
+//
+// VALIDATES: When new is empty, existing bindings are returned as-is.
+//
+// PREVENTS: Lost bindings when merging with empty list.
+func TestMergeAPIBindingsEmptyNew(t *testing.T) {
+	existing := []PeerAPIBinding{
+		{ProcessName: "foo", Content: PeerContentConfig{Encoding: "json"}},
+		{ProcessName: "bar", Content: PeerContentConfig{Encoding: "text"}},
+	}
+	result := mergeAPIBindings(existing, nil)
+	require.Equal(t, existing, result)
+
+	result = mergeAPIBindings(existing, []PeerAPIBinding{})
+	require.Equal(t, existing, result)
+}
+
+// TestMergeAPIBindingsEmptyExisting verifies that empty existing returns new unchanged.
+//
+// VALIDATES: When existing is empty, new bindings are returned as-is.
+//
+// PREVENTS: Lost bindings when starting from empty.
+func TestMergeAPIBindingsEmptyExisting(t *testing.T) {
+	newBindings := []PeerAPIBinding{
+		{ProcessName: "foo", Content: PeerContentConfig{Encoding: "json"}},
+		{ProcessName: "bar", Content: PeerContentConfig{Encoding: "text"}},
+	}
+	result := mergeAPIBindings(nil, newBindings)
+	require.Equal(t, newBindings, result)
+
+	result = mergeAPIBindings([]PeerAPIBinding{}, newBindings)
+	require.Equal(t, newBindings, result)
+}
+
+// TestMergeAPIBindingsAppend verifies that new bindings with different names are appended.
+//
+// VALIDATES: Bindings with unique names are appended to result.
+//
+// PREVENTS: Missing bindings when names don't overlap.
+func TestMergeAPIBindingsAppend(t *testing.T) {
+	existing := []PeerAPIBinding{
+		{ProcessName: "foo", Content: PeerContentConfig{Encoding: "json"}},
+	}
+	newBindings := []PeerAPIBinding{
+		{ProcessName: "bar", Content: PeerContentConfig{Encoding: "text"}},
+	}
+
+	result := mergeAPIBindings(existing, newBindings)
+
+	require.Len(t, result, 2)
+	require.Equal(t, "foo", result[0].ProcessName)
+	require.Equal(t, "bar", result[1].ProcessName)
+}
+
+// TestMergeAPIBindingsReplace verifies that new bindings replace existing with same name.
+//
+// VALIDATES: Bindings with same ProcessName are replaced (new overrides existing).
+//
+// PREVENTS: Duplicate bindings for same process, wrong override semantics.
+func TestMergeAPIBindingsReplace(t *testing.T) {
+	existing := []PeerAPIBinding{
+		{ProcessName: "foo", Content: PeerContentConfig{Encoding: "json", Format: "parsed"}},
+		{ProcessName: "bar", Content: PeerContentConfig{Encoding: "text"}},
+	}
+	newBindings := []PeerAPIBinding{
+		{ProcessName: "foo", Content: PeerContentConfig{Encoding: "text", Format: "full"}},
+	}
+
+	result := mergeAPIBindings(existing, newBindings)
+
+	require.Len(t, result, 2)
+
+	// foo should be replaced with new binding
+	require.Equal(t, "foo", result[0].ProcessName)
+	require.Equal(t, "text", result[0].Content.Encoding)
+	require.Equal(t, "full", result[0].Content.Format)
+
+	// bar should remain unchanged
+	require.Equal(t, "bar", result[1].ProcessName)
+	require.Equal(t, "text", result[1].Content.Encoding)
+}
+
+// TestMergeAPIBindingsMixed verifies mixed append and replace operations.
+//
+// VALIDATES: Some bindings replaced, others appended in single merge.
+//
+// PREVENTS: Incorrect behavior when mix of new and existing names.
+func TestMergeAPIBindingsMixed(t *testing.T) {
+	existing := []PeerAPIBinding{
+		{ProcessName: "foo", Content: PeerContentConfig{Encoding: "json"}},
+		{ProcessName: "bar", Content: PeerContentConfig{Encoding: "json"}},
+	}
+	newBindings := []PeerAPIBinding{
+		{ProcessName: "bar", Content: PeerContentConfig{Encoding: "text"}}, // replace
+		{ProcessName: "baz", Content: PeerContentConfig{Encoding: "json"}}, // append
+	}
+
+	result := mergeAPIBindings(existing, newBindings)
+
+	require.Len(t, result, 3)
+
+	// Build map for easier checking
+	m := make(map[string]PeerAPIBinding)
+	for _, b := range result {
+		m[b.ProcessName] = b
+	}
+
+	require.Equal(t, "json", m["foo"].Content.Encoding) // unchanged
+	require.Equal(t, "text", m["bar"].Content.Encoding) // replaced
+	require.Equal(t, "json", m["baz"].Content.Encoding) // appended
+}
+
+// TestMergeAPIBindingsPreservesOrder verifies that result order is: existing (replaced in place), new appends.
+//
+// VALIDATES: Order is deterministic: existing items in original positions, new items appended.
+//
+// PREVENTS: Non-deterministic ordering causing config instability.
+func TestMergeAPIBindingsPreservesOrder(t *testing.T) {
+	existing := []PeerAPIBinding{
+		{ProcessName: "a"},
+		{ProcessName: "b"},
+		{ProcessName: "c"},
+	}
+	newBindings := []PeerAPIBinding{
+		{ProcessName: "b", Content: PeerContentConfig{Encoding: "replaced"}}, // replace in position 1
+		{ProcessName: "d"}, // append
+		{ProcessName: "e"}, // append
+	}
+
+	result := mergeAPIBindings(existing, newBindings)
+
+	require.Len(t, result, 5)
+	require.Equal(t, "a", result[0].ProcessName)
+	require.Equal(t, "b", result[1].ProcessName)
+	require.Equal(t, "replaced", result[1].Content.Encoding)
+	require.Equal(t, "c", result[2].ProcessName)
+	require.Equal(t, "d", result[3].ProcessName)
+	require.Equal(t, "e", result[4].ProcessName)
+}
+
+// TestMergeAPIBindingsFullReplace verifies complete replacement of all existing bindings.
+//
+// VALIDATES: When all existing names are in new, all are replaced.
+//
+// PREVENTS: Stale existing bindings remaining after full override.
+func TestMergeAPIBindingsFullReplace(t *testing.T) {
+	existing := []PeerAPIBinding{
+		{ProcessName: "foo", Content: PeerContentConfig{Encoding: "old"}},
+		{ProcessName: "bar", Content: PeerContentConfig{Encoding: "old"}},
+	}
+	newBindings := []PeerAPIBinding{
+		{ProcessName: "foo", Content: PeerContentConfig{Encoding: "new"}},
+		{ProcessName: "bar", Content: PeerContentConfig{Encoding: "new"}},
+	}
+
+	result := mergeAPIBindings(existing, newBindings)
+
+	require.Len(t, result, 2)
+	for _, b := range result {
+		require.Equal(t, "new", b.Content.Encoding, "binding %s should be replaced", b.ProcessName)
+	}
+}
+
+// TestMergeAPIBindingsReceiveConfig verifies Receive config is properly merged.
+//
+// VALIDATES: Receive flags are replaced along with the binding.
+//
+// PREVENTS: Receive config not being properly copied during replace.
+func TestMergeAPIBindingsReceiveConfig(t *testing.T) {
+	existing := []PeerAPIBinding{
+		{
+			ProcessName: "foo",
+			Receive:     PeerReceiveConfig{Update: true, Open: false},
+		},
+	}
+	newBindings := []PeerAPIBinding{
+		{
+			ProcessName: "foo",
+			Receive:     PeerReceiveConfig{Update: false, Open: true, Notification: true},
+		},
+	}
+
+	result := mergeAPIBindings(existing, newBindings)
+
+	require.Len(t, result, 1)
+	require.False(t, result[0].Receive.Update, "Update should be false after replace")
+	require.True(t, result[0].Receive.Open, "Open should be true after replace")
+	require.True(t, result[0].Receive.Notification, "Notification should be true after replace")
+}
+
+// =============================================================================
 // V2 SYNTAX REJECTION TESTS
 // =============================================================================
 

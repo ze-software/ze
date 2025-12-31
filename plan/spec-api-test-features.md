@@ -174,17 +174,15 @@ ZeBGP uses a different architecture for multi-peer scenarios.
 
 ## Technical Debt
 
-### 1. Unit tests for mergeAPIBindings() (Priority: Medium)
+### ✅ 1. Unit tests for mergeAPIBindings() - DONE
 **Location:** `pkg/config/bgp.go:1416`
-**Issue:** Function added without TDD - no unit test exists
-**Should test:**
-- Merge behavior when adding new bindings
-- Duplicate handling (same process name)
-- Override semantics (peer overrides template)
+**Added:** 8 unit tests in `bgp_test.go` (TestMergeAPIBindings*)
+**Coverage:** empty inputs, append, replace, mixed, order preservation, Receive config
 
-### 2. Unit tests for template inheritance (Priority: Medium)
-**Issue:** API bindings from templates are inherited but not unit tested
-**Status:** Functional test (check) proves it works, but TDD requires unit tests first
+### ✅ 2. Unit tests for template inheritance - DONE
+**Added:** 6 unit tests for API binding inheritance
+**Coverage:** inherit, peer override, multiple processes, match templates, precedence
+**Bug Fixed:** Match templates were not applying API bindings (fixed in bgp.go:1200-1206)
 
 ### 3. Functional test reporter bug (Priority: Low)
 **Location:** `test/functional/record.go`
@@ -195,3 +193,8 @@ ZeBGP uses a different architecture for multi-peer scenarios.
 ### 4. check.ci order documentation (Priority: Low)
 **Issue:** CI file shows: EOR → EOR → routes, but ZeBGP sends: routes → EOR → EOR
 **Note:** Both are valid BGP; testpeer is order-agnostic; CI comments are misleading
+
+### 5. Multiple inherit not supported (Design Limitation)
+**Issue:** `inherit` is defined as `Leaf(TypeString)`, not a List
+**Effect:** Second `inherit` statement overwrites first
+**Workaround:** Use single template with multiple api blocks

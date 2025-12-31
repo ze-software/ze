@@ -26,7 +26,7 @@
 
 ```
 make test   - PASS
-make lint   - has pre-existing issues (not from this session)
+make lint   - PASS
 API tests   - 12/14 passed (85.7%)
   - PASS: add-remove, announce, eor, fast, nexthop, ipv4, ipv6, attributes
   - PASS: teardown, notification, watchdog (were already implemented)
@@ -41,10 +41,19 @@ API tests   - 12/14 passed (85.7%)
 
 **Last worked:** 2025-12-31
 **Last commits:**
-- `f900669` fix(config): inherit API bindings from templates
-- `989c485` docs(plan): update spec-api-test-features with current status
+- `62e96f2` fix(test): add version 6 to check.conf for ExaBGP-compatible output
 
-**Session ended:** check test now passing (12/14 API tests pass)
+**Session ended:** Technical debt addressed (unit tests added, bug fixed)
+
+**Uncommitted:**
+- `pkg/config/bgp.go` (+18 lines)
+  - Fix: match templates now apply API bindings
+  - Optimization: collect matching trees once, reuse for API bindings
+- `pkg/config/bgp_test.go` (+440 lines)
+  - 8 tests for `mergeAPIBindings()` function
+  - 6 tests for template API binding inheritance
+- `plan/CLAUDE_CONTINUATION.md` - status update
+- `plan/spec-api-test-features.md` - technical debt status update
 
 ---
 
@@ -92,27 +101,34 @@ api check-and-announce {
 
 ## TECHNICAL DEBT
 
-### 1. Unit tests for mergeAPIBindings() (from previous session)
+### ✅ 1. Unit tests for mergeAPIBindings() - DONE
 Location: `pkg/config/bgp.go:1416`
-- No unit test exists for this function
-- Should test: merge behavior, duplicate handling, override semantics
+- Added 8 unit tests in `bgp_test.go` (TestMergeAPIBindings*)
+- Tests cover: empty inputs, append, replace, mixed, order preservation
 
-### 2. Unit tests for template inheritance
-- API bindings from templates are inherited but not unit tested
-- Functional test proves it works, but TDD requires unit tests first
+### ✅ 2. Unit tests for template inheritance - DONE
+- Added 6 unit tests for API binding inheritance
+- Tests cover: inherit, peer override, multiple processes, match templates
+- **BUG FIXED:** Match templates were not applying API bindings
+- **OPTIMIZED:** Collect matching trees once, reuse for API bindings (avoids duplicate iteration)
 
-### 3. Functional test reporter message merging bug
+### 3. Functional test reporter message merging bug (Priority: Low)
 Location: `test/functional/record.go`
 - All messages in check.ci use index `1:`, causing them to merge
 - Report shows wrong "EXPECTED MESSAGE 1" (shows last message only)
 - Actual testpeer comparison is correct (order-agnostic)
 - Only affects diagnostic output, not test correctness
 
-### 4. check.ci order documentation mismatch
+### 4. check.ci order documentation mismatch (Priority: Low)
 - CI file shows: EOR → EOR → routes
 - ZeBGP sends: routes → EOR → EOR
 - Both are valid BGP (testpeer is order-agnostic)
 - CI comments are misleading
+
+### 5. Multiple inherit not supported (Priority: Low - design limitation)
+- `inherit` is defined as `Leaf(TypeString)`, not a List
+- Second `inherit` statement overwrites first
+- Workaround: use single template with multiple api blocks
 
 ### Spec Location
 `plan/spec-api-test-features.md` - Updated with current status

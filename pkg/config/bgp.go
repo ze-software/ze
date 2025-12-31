@@ -898,8 +898,11 @@ func parsePeerConfig(addr string, tree *Tree, templates map[string]*Tree, peerGl
 
 	// Layer 1: Apply matching peer globs / template.match blocks (in order)
 	// This sets defaults that can be overridden by templates and neighbor config
+	// Collect matching trees for reuse when processing API bindings later
+	matchingTrees := make([]*Tree, 0, len(peerGlobs))
 	for _, glob := range peerGlobs {
 		if IPGlobMatch(glob.Pattern, addr) {
+			matchingTrees = append(matchingTrees, glob.Tree)
 			// Apply all settings from this match block
 			if err := applyTreeSettings(&nc, glob.Tree); err != nil {
 				return nc, fmt.Errorf("match %s: %w", glob.Pattern, err)
@@ -1194,13 +1197,22 @@ func parsePeerConfig(addr string, tree *Tree, templates map[string]*Tree, peerGl
 	// Old: api { processes [ foo bar ]; receive { ... } }
 	// New: api <process-name> { content { encoding json; } receive { update; } }
 	//
-	// Parse from templates first (later templates override earlier ones),
-	// then parse from peer tree (peer overrides templates).
+	// Precedence: match templates → inherited templates → peer config
+	// Each layer can override the previous.
+
+	// Layer 1: Match templates (collected earlier in matchingTrees)
+	for _, matchTree := range matchingTrees {
+		matchBindings := parseAPIBindings(matchTree)
+		nc.APIBindings = mergeAPIBindings(nc.APIBindings, matchBindings)
+	}
+
+	// Layer 2: Inherited templates (later templates override earlier ones)
 	for _, tmpl := range inheritedTemplates {
 		tmplBindings := parseAPIBindings(tmpl)
 		nc.APIBindings = mergeAPIBindings(nc.APIBindings, tmplBindings)
 	}
-	// Peer bindings override template bindings
+
+	// Layer 3: Peer bindings override all templates
 	peerBindings := parseAPIBindings(tree)
 	nc.APIBindings = mergeAPIBindings(nc.APIBindings, peerBindings)
 
