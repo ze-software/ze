@@ -56,11 +56,12 @@ type LogEnv struct {
 
 // TCPEnv holds TCP-related settings.
 type TCPEnv struct {
-	Attempts int      // Max connection attempts (0 = unlimited)
-	Delay    int      // Delay announcements by N minutes
-	Bind     []string // IPs to bind when listening
-	Port     int      // Port to bind
-	ACL      bool     // Experimental ACL
+	Attempts int  // Max connection attempts (0 = unlimited)
+	Delay    int  // Delay announcements by N minutes
+	Port     int  // Port to bind
+	ACL      bool // Experimental ACL
+	// NOTE: Bind was removed - listeners are now derived from peer LocalAddress.
+	// See spec-listener-per-local-address.md for details.
 }
 
 // BGPEnv holds BGP-related settings.
@@ -184,7 +185,7 @@ func (e *Environment) loadFromEnv() {
 	// TCP
 	e.TCP.Attempts = getEnvInt("tcp", "attempts", e.TCP.Attempts)
 	e.TCP.Delay = getEnvInt("tcp", "delay", e.TCP.Delay)
-	e.TCP.Bind = getEnvStringList("tcp", "bind", e.TCP.Bind)
+	// NOTE: tcp.bind removed - listeners are derived from peer LocalAddress
 	e.TCP.Port = getEnvInt("tcp", "port", e.TCP.Port)
 	e.TCP.ACL = getEnvBool("tcp", "acl", e.TCP.ACL)
 
@@ -313,13 +314,4 @@ func getEnvOctal(section, option string, def int) int {
 		return int(n)
 	}
 	return def
-}
-
-// getEnvStringList returns a space-separated list of strings from environment.
-func getEnvStringList(section, option string, def []string) []string {
-	v := getEnv(section, option)
-	if v == "" {
-		return def
-	}
-	return strings.Fields(v)
 }

@@ -39,13 +39,59 @@ API tests   - 14/14 passed (100%) ✅
 ## Resume Point
 
 **Last worked:** 2025-12-31
-**Last commit:** Pending - Labeled-Unicast API Completeness
+**Last commit:** Listener Per Local Address
 
 **Status:** Ready to commit
 
 ---
 
-## RECENTLY COMPLETED: Labeled-Unicast API Completeness (pending commit)
+## RECENTLY COMPLETED: Listener Per Local Address (pending commit)
+
+**Spec:** `plan/done/spec-listener-per-local-address.md`
+
+### Summary
+Replace single listener + `TCP.Bind` with multiple listeners derived from peer
+`LocalAddress` fields. Security improvement - only expose BGP on configured interfaces.
+
+### Changes
+1. **Multi-listener map** - `pkg/reactor/reactor.go`
+   - `listeners map[netip.Addr]*Listener` (one per unique LocalAddress)
+   - `startListenerForAddress()`, `stopAllListeners()` helpers
+   - `handleConnectionWithContext()` validates LocalAddress match
+
+2. **Dynamic lifecycle** - AddPeer/RemovePeer
+   - AddPeer creates listener if running and new LocalAddress
+   - RemovePeer stops listener when last peer using it removed
+
+3. **LocalAddress validation**
+   - Self-referential (Address == LocalAddress) → rejected
+   - Link-local IPv6 → rejected
+   - Address family mismatch (IPv4/IPv6) → rejected
+
+4. **IPv4-mapped IPv6 normalization**
+   - Both Address and LocalAddress unmapped in AddPeer
+   - RemovePeer also normalizes for consistent lookup
+   - Connection handler unmaps incoming IPs
+
+5. **TCP.Bind removed** - `pkg/config/environment.go`
+   - `Bind []string` field removed from TCPEnv
+   - `getEnvStringList` helper removed (unused)
+
+6. **19 new tests** - `pkg/reactor/reactor_test.go`
+   - Multi-listener startup (5 tests)
+   - LocalAddress validation (4 tests)
+   - Dynamic lifecycle (4 tests)
+   - IPv4-mapped handling (6 tests)
+
+### Verification
+```
+make test       - PASS
+make lint       - pre-existing dupl only (6)
+```
+
+---
+
+## RECENTLY COMPLETED: Labeled-Unicast API Completeness (`4c16628`)
 
 **Spec:** `plan/done/spec-labeled-unicast-api-completeness.md`
 

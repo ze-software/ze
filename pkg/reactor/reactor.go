@@ -9,6 +9,7 @@ import (
 	"io"
 	"net"
 	"net/netip"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -39,7 +40,13 @@ const (
 // Config holds reactor configuration.
 type Config struct {
 	// ListenAddr is the address to listen on (e.g., "0.0.0.0:179").
+	//
+	// Deprecated: Use Port with per-peer LocalAddress instead.
 	ListenAddr string
+
+	// Port is the BGP port to listen on (default 179).
+	// Used with per-peer LocalAddress to create listeners.
+	Port int
 
 	// RouterID is the local BGP router identifier.
 	RouterID uint32
@@ -100,10 +107,11 @@ type MessageReceiver interface {
 type Reactor struct {
 	config *Config
 
-	peers    map[string]*Peer // keyed by peer address
-	listener *Listener
-	signals  *SignalHandler
-	api      *api.Server // API server for CLI and external processes
+	peers     map[string]*Peer         // keyed by peer address
+	listener  *Listener                // deprecated: single listener for backward compat
+	listeners map[netip.Addr]*Listener // one listener per unique LocalAddress
+	signals   *SignalHandler
+	api       *api.Server // API server for CLI and external processes
 
 	// RIB components
 	ribIn    *rib.IncomingRIB // Adj-RIB-In
@@ -1692,12 +1700,13 @@ func formatASPath(asPath *attribute.ASPath) string {
 // New creates a new reactor with the given configuration.
 func New(config *Config) *Reactor {
 	return &Reactor{
-		config:   config,
-		peers:    make(map[string]*Peer),
-		ribIn:    rib.NewIncomingRIB(),
-		ribOut:   rib.NewOutgoingRIB(),
-		ribStore: rib.NewRouteStore(100), // Buffer size for dedup workers
-		watchdog: NewWatchdogManager(),
+		config:    config,
+		peers:     make(map[string]*Peer),
+		listeners: make(map[netip.Addr]*Listener),
+		ribIn:     rib.NewIncomingRIB(),
+		ribOut:    rib.NewOutgoingRIB(),
+		ribStore:  rib.NewRouteStore(100), // Buffer size for dedup workers
+		watchdog:  NewWatchdogManager(),
 	}
 }
 
@@ -1777,14 +1786,46 @@ func (r *Reactor) Peers() []*Peer {
 }
 
 // ListenAddr returns the listener's bound address.
+//
+// Deprecated: Use ListenAddrs() for multi-listener support.
 func (r *Reactor) ListenAddr() net.Addr {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
+	// Return legacy listener if set
 	if r.listener != nil {
 		return r.listener.Addr()
 	}
+	// Return first listener from multi-listener map (for backward compat)
+	for _, l := range r.listeners {
+		if addr := l.Addr(); addr != nil {
+			return addr
+		}
+	}
 	return nil
+}
+
+// ListenAddrs returns all addresses the reactor is listening on.
+func (r *Reactor) ListenAddrs() []net.Addr {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	addrs := make([]net.Addr, 0, len(r.listeners)+1)
+
+	// Include legacy listener if set
+	if r.listener != nil {
+		if addr := r.listener.Addr(); addr != nil {
+			addrs = append(addrs, addr)
+		}
+	}
+
+	// Include all multi-listeners
+	for _, l := range r.listeners {
+		if addr := l.Addr(); addr != nil {
+			addrs = append(addrs, addr)
+		}
+	}
+	return addrs
 }
 
 // Stats returns current reactor statistics.
@@ -1866,9 +1907,35 @@ func (r *Reactor) AddPeer(settings *PeerSettings) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
+	// Normalize peer Address for consistent lookup (handles IPv4-mapped IPv6)
+	// This ensures connections from 10.0.0.1 match peers configured as ::ffff:10.0.0.1
+	settings.Address = settings.Address.Unmap()
+
 	key := settings.Address.String()
 	if _, exists := r.peers[key]; exists {
 		return ErrPeerExists
+	}
+
+	// Validate and normalize LocalAddress (only if set)
+	if settings.LocalAddress.IsValid() {
+		// Normalize IPv4-mapped IPv6 addresses (e.g., ::ffff:192.168.1.1 -> 192.168.1.1)
+		settings.LocalAddress = settings.LocalAddress.Unmap()
+
+		// Check self-referential (Address == LocalAddress)
+		if settings.Address == settings.LocalAddress {
+			return fmt.Errorf("peer %s: address cannot equal local-address", settings.Address)
+		}
+
+		// Check link-local IPv6 (requires zone ID, not portable)
+		if settings.LocalAddress.Is6() && settings.LocalAddress.IsLinkLocalUnicast() {
+			return fmt.Errorf("peer %s: link-local addresses not supported for local-address", settings.Address)
+		}
+
+		// Check address family mismatch (IPv4 peer with IPv6 LocalAddress or vice versa)
+		// Note: Both Address and LocalAddress are already unmapped at this point
+		if settings.Address.Is4() != settings.LocalAddress.Is4() {
+			return fmt.Errorf("peer %s: address family mismatch (IPv4/IPv6)", settings.Address)
+		}
 	}
 
 	peer := NewPeer(settings)
@@ -1877,8 +1944,18 @@ func (r *Reactor) AddPeer(settings *PeerSettings) error {
 	peer.messageCallback = r.notifyMessageReceiver
 	r.peers[key] = peer
 
-	// If reactor is running, start the peer
+	// If reactor is running, start the peer and create listener if needed
 	if r.running {
+		// Start listener for this LocalAddress if it doesn't exist
+		if settings.LocalAddress.IsValid() {
+			if _, hasListener := r.listeners[settings.LocalAddress]; !hasListener {
+				if err := r.startListenerForAddress(settings.LocalAddress); err != nil {
+					// Rollback peer addition
+					delete(r.peers, key)
+					return err
+				}
+			}
+		}
 		peer.StartWithContext(r.ctx)
 	}
 
@@ -1890,16 +1967,44 @@ func (r *Reactor) RemovePeer(addr netip.Addr) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
+	// Normalize address for consistent lookup (handles IPv4-mapped IPv6)
+	addr = addr.Unmap()
+
 	key := addr.String()
 	peer, exists := r.peers[key]
 	if !exists {
 		return ErrPeerNotFound
 	}
 
+	localAddr := peer.Settings().LocalAddress
+
 	// Stop peer if running
 	peer.Stop()
 
 	delete(r.peers, key)
+
+	// Check if any other peer uses this LocalAddress
+	if localAddr.IsValid() {
+		stillUsed := false
+		for _, p := range r.peers {
+			if p.Settings().LocalAddress == localAddr {
+				stillUsed = true
+				break
+			}
+		}
+
+		// Stop listener if no longer needed
+		if !stillUsed {
+			if listener, ok := r.listeners[localAddr]; ok {
+				listener.Stop()
+				waitCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+				_ = listener.Wait(waitCtx)
+				cancel()
+				delete(r.listeners, localAddr)
+			}
+		}
+	}
+
 	return nil
 }
 
@@ -1920,11 +2025,34 @@ func (r *Reactor) StartWithContext(ctx context.Context) error {
 	r.ctx, r.cancel = context.WithCancel(ctx)
 	r.startTime = time.Now()
 
-	// Start listener
+	// Start legacy listener if ListenAddr is configured (backward compatibility)
 	if r.config.ListenAddr != "" {
 		r.listener = NewListener(r.config.ListenAddr)
 		r.listener.SetHandler(r.handleConnection)
 		if err := r.listener.StartWithContext(r.ctx); err != nil {
+			r.cancel()
+			return err
+		}
+	}
+
+	// Start multi-listeners based on peer LocalAddresses (new behavior)
+	// Collect unique LocalAddresses from peers
+	localAddrs := make(map[netip.Addr]struct{})
+	for _, peer := range r.peers {
+		localAddr := peer.Settings().LocalAddress
+		if localAddr.IsValid() {
+			localAddrs[localAddr] = struct{}{}
+		}
+	}
+
+	// Create listener for each unique LocalAddress
+	for addr := range localAddrs {
+		if err := r.startListenerForAddress(addr); err != nil {
+			// Cleanup already-started listeners on error
+			r.stopAllListeners()
+			if r.listener != nil {
+				r.listener.Stop()
+			}
 			r.cancel()
 			return err
 		}
@@ -1950,6 +2078,7 @@ func (r *Reactor) StartWithContext(ctx context.Context) error {
 		// Set API server as message receiver for raw byte access
 		r.messageReceiver = r.api
 		if err := r.api.StartWithContext(r.ctx); err != nil {
+			r.stopAllListeners()
 			if r.listener != nil {
 				r.listener.Stop()
 			}
@@ -1987,6 +2116,45 @@ func (r *Reactor) Stop() {
 
 	if cancel != nil {
 		cancel()
+	}
+}
+
+// startListenerForAddress creates and starts a listener for the given local address.
+// Must be called with r.mu held.
+func (r *Reactor) startListenerForAddress(addr netip.Addr) error {
+	// Check if listener already exists for this address
+	if _, exists := r.listeners[addr]; exists {
+		return nil // Already listening on this address
+	}
+
+	// Use config.Port directly (0 means ephemeral port for testing)
+	// Production configs should set Port explicitly (typically 179)
+	listenAddr := net.JoinHostPort(addr.String(), strconv.Itoa(r.config.Port))
+	listener := NewListener(listenAddr)
+
+	// Capture addr in closure so handleConnectionWithContext knows which listener accepted
+	localAddr := addr
+	listener.SetHandler(func(conn net.Conn) {
+		r.handleConnectionWithContext(conn, localAddr)
+	})
+
+	if err := listener.StartWithContext(r.ctx); err != nil {
+		return fmt.Errorf("listen on %s: %w", addr, err)
+	}
+
+	r.listeners[addr] = listener
+	return nil
+}
+
+// stopAllListeners stops all multi-listeners and waits for them to finish.
+// Must be called with r.mu held.
+func (r *Reactor) stopAllListeners() {
+	for addr, listener := range r.listeners {
+		listener.Stop()
+		waitCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		_ = listener.Wait(waitCtx)
+		cancel()
+		delete(r.listeners, addr)
 	}
 }
 
@@ -2028,13 +2196,16 @@ func (r *Reactor) cleanup() {
 		cancel()
 	}
 
-	// Stop listener
+	// Stop legacy listener
 	if r.listener != nil {
 		r.listener.Stop()
 		waitCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		_ = r.listener.Wait(waitCtx)
 		cancel()
 	}
+
+	// Stop all multi-listeners
+	r.stopAllListeners()
 
 	// Stop signal handler
 	if r.signals != nil {
@@ -2129,6 +2300,68 @@ func (r *Reactor) handleConnection(conn net.Conn) {
 
 	// Accept connection on peer's session.
 	// For passive peers, this triggers the BGP handshake.
+	if err := peer.AcceptConnection(conn); err != nil {
+		_ = conn.Close()
+	}
+}
+
+// handleConnectionWithContext handles an incoming TCP connection with listener context.
+// listenerAddr is the local address the listener is bound to.
+// This validates that the connection arrived on the expected listener for RFC compliance.
+func (r *Reactor) handleConnectionWithContext(conn net.Conn, listenerAddr netip.Addr) {
+	remoteAddr, ok := conn.RemoteAddr().(*net.TCPAddr)
+	if !ok {
+		_ = conn.Close()
+		return
+	}
+	peerIP, _ := netip.AddrFromSlice(remoteAddr.IP)
+	peerIP = peerIP.Unmap() // Handle IPv4-mapped IPv6
+
+	r.mu.RLock()
+	peer, exists := r.peers[peerIP.String()]
+	cb := r.connCallback
+	r.mu.RUnlock()
+
+	if !exists {
+		// Unknown peer, close connection
+		_ = conn.Close()
+		return
+	}
+
+	settings := peer.Settings()
+
+	// RFC compliance: verify connection arrived on expected listener
+	// This validates peer connected to the correct LocalAddress
+	if settings.LocalAddress.IsValid() && settings.LocalAddress != listenerAddr {
+		// Connection to wrong local address - misconfiguration or routing anomaly
+		// Log and reject (logging infrastructure not used here, just close)
+		_ = conn.Close()
+		return
+	}
+
+	// Call callback if set
+	if cb != nil {
+		cb(conn, settings)
+		return
+	}
+
+	// RFC 4271 §6.8: Check for collision with ESTABLISHED session.
+	if peer.State() == PeerStateEstablished {
+		r.rejectConnectionCollision(conn)
+		return
+	}
+
+	// RFC 4271 §6.8: Check for collision with OpenConfirm session.
+	if peer.SessionState() == fsm.StateOpenConfirm {
+		if err := peer.SetPendingConnection(conn); err != nil {
+			r.rejectConnectionCollision(conn)
+			return
+		}
+		go r.handlePendingCollision(peer, conn)
+		return
+	}
+
+	// Accept connection on peer's session.
 	if err := peer.AcceptConnection(conn); err != nil {
 		_ = conn.Close()
 	}

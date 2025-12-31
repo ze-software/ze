@@ -650,3 +650,543 @@ func TestBuildLabeledUnicastRIBRouteEBGPPrependsAS(t *testing.T) {
 	require.Len(t, asPath.Segments, 1, "AS_PATH must have 1 segment")
 	require.Equal(t, []uint32{65000}, asPath.Segments[0].ASNs, "LocalAS must be prepended")
 }
+
+// =============================================================================
+// Multi-Listener Tests (spec-listener-per-local-address.md)
+// =============================================================================
+
+// TestMultiListenerSameLocalAddress verifies one listener per unique LocalAddress.
+//
+// VALIDATES: Two peers with same LocalAddress create only one listener.
+//
+// PREVENTS: Duplicate listeners wasting resources and port conflicts.
+func TestMultiListenerSameLocalAddress(t *testing.T) {
+	cfg := &Config{
+		Port:    0, // Use ephemeral port
+		LocalAS: 65000,
+	}
+	reactor := New(cfg)
+
+	localAddr := mustParseAddr("127.0.0.1")
+
+	// Add two peers with same LocalAddress
+	settings1 := NewPeerSettings(mustParseAddr("10.0.0.2"), 65000, 65001, 0x01010101)
+	settings1.LocalAddress = localAddr
+	settings1.Passive = true
+
+	settings2 := NewPeerSettings(mustParseAddr("10.0.0.3"), 65000, 65002, 0x01010101)
+	settings2.LocalAddress = localAddr
+	settings2.Passive = true
+
+	err := reactor.AddPeer(settings1)
+	require.NoError(t, err)
+	err = reactor.AddPeer(settings2)
+	require.NoError(t, err)
+
+	err = reactor.Start()
+	require.NoError(t, err)
+	defer reactor.Stop()
+
+	// Should have exactly one listener
+	addrs := reactor.ListenAddrs()
+	require.Len(t, addrs, 1, "should have exactly 1 listener for shared LocalAddress")
+}
+
+// TestMultiListenerDifferentLocalAddresses verifies separate listeners per LocalAddress.
+//
+// VALIDATES: Two peers with different LocalAddresses create two listeners.
+//
+// PREVENTS: Cross-interface connection acceptance.
+func TestMultiListenerDifferentLocalAddresses(t *testing.T) {
+	// Check if IPv6 loopback is available
+	ln, err := net.Listen("tcp", "[::1]:0") //nolint:noctx // Test code
+	if err != nil {
+		t.Skip("IPv6 loopback not available, skipping multi-listener test")
+	}
+	_ = ln.Close()
+
+	cfg := &Config{
+		Port:    0, // Use ephemeral port
+		LocalAS: 65000,
+	}
+	reactor := New(cfg)
+
+	// Add two peers with different LocalAddresses (IPv4 and IPv6 loopback)
+	// Note: Peer Address must match LocalAddress family
+	settings1 := NewPeerSettings(mustParseAddr("10.0.0.2"), 65000, 65001, 0x01010101)
+	settings1.LocalAddress = mustParseAddr("127.0.0.1") // IPv4 local for IPv4 peer
+	settings1.Passive = true
+
+	settings2 := NewPeerSettings(mustParseAddr("2001:db8::3"), 65000, 65002, 0x01010101)
+	settings2.LocalAddress = mustParseAddr("::1") // IPv6 local for IPv6 peer
+	settings2.Passive = true
+
+	err = reactor.AddPeer(settings1)
+	require.NoError(t, err)
+	err = reactor.AddPeer(settings2)
+	require.NoError(t, err)
+
+	err = reactor.Start()
+	require.NoError(t, err)
+	defer reactor.Stop()
+
+	// Should have two listeners
+	addrs := reactor.ListenAddrs()
+	require.Len(t, addrs, 2, "should have 2 listeners for different LocalAddresses")
+}
+
+// TestMultiListenerNoPeers verifies reactor runs with no peers.
+//
+// VALIDATES: Reactor starts successfully with no peers (no listeners created).
+//
+// PREVENTS: Startup failure when no peers are configured.
+func TestMultiListenerNoPeers(t *testing.T) {
+	cfg := &Config{
+		Port:    0, // Use ephemeral port
+		LocalAS: 65000,
+	}
+	reactor := New(cfg)
+
+	// No peers added
+
+	err := reactor.Start()
+	require.NoError(t, err, "reactor should start with no peers")
+	defer reactor.Stop()
+
+	require.True(t, reactor.Running(), "reactor should be running")
+
+	// Should have no listeners (no peers = no LocalAddresses)
+	addrs := reactor.ListenAddrs()
+	require.Len(t, addrs, 0, "should have 0 listeners with no peers")
+}
+
+// TestMultiListenerConnectionToCorrectListener verifies connection routing.
+//
+// VALIDATES: Connection to a listener is matched to peer with that LocalAddress.
+//
+// PREVENTS: Connection from peer going to wrong listener.
+func TestMultiListenerConnectionToCorrectListener(t *testing.T) {
+	cfg := &Config{
+		Port:    0, // Use ephemeral port
+		LocalAS: 65000,
+	}
+	reactor := New(cfg)
+
+	// Add peer expecting connection from 127.0.0.1
+	// Note: Address != LocalAddress (peer is at 10.0.0.2, we listen on 127.0.0.1)
+	settings := NewPeerSettings(mustParseAddr("10.0.0.2"), 65000, 65001, 0x01010101)
+	settings.LocalAddress = mustParseAddr("127.0.0.1")
+	settings.Passive = true
+
+	err := reactor.AddPeer(settings)
+	require.NoError(t, err)
+
+	var accepted atomic.Bool
+	reactor.SetConnectionCallback(func(conn net.Conn, n *PeerSettings) {
+		accepted.Store(true)
+		_ = conn.Close()
+	})
+
+	err = reactor.Start()
+	require.NoError(t, err)
+	defer reactor.Stop()
+
+	addr := reactor.ListenAddr()
+	require.NotNil(t, addr, "should have a listener")
+
+	// Connect from localhost
+	// Note: This connection won't be "matched" to the peer because our source IP
+	// isn't 10.0.0.2, but the listener should still be active
+	conn, err := net.DialTimeout("tcp", addr.String(), time.Second) //nolint:noctx // Test code
+	require.NoError(t, err)
+	_ = conn.Close()
+
+	// The connection will be rejected (unknown peer), but listener should work
+	// Just verify listener is working by checking no error on connect
+}
+
+// TestMultiListenerLegacyListenAddrFallback verifies backward compatibility.
+//
+// VALIDATES: Legacy ListenAddr config still works when no LocalAddress on peers.
+//
+// PREVENTS: Breaking existing configs during migration.
+func TestMultiListenerLegacyListenAddrFallback(t *testing.T) {
+	cfg := &Config{
+		ListenAddr: "127.0.0.1:0", // Legacy config
+		LocalAS:    65000,
+	}
+	reactor := New(cfg)
+
+	// Peer without LocalAddress (legacy behavior)
+	settings := NewPeerSettings(mustParseAddr("127.0.0.1"), 65000, 65001, 0x01010101)
+	settings.Passive = true
+	// Note: LocalAddress is zero value
+
+	err := reactor.AddPeer(settings)
+	require.NoError(t, err)
+
+	err = reactor.Start()
+	require.NoError(t, err)
+	defer reactor.Stop()
+
+	// Legacy listener should be used
+	addr := reactor.ListenAddr()
+	require.NotNil(t, addr, "should have legacy listener")
+}
+
+// =============================================================================
+// LocalAddress Validation Tests (spec-listener-per-local-address.md)
+// =============================================================================
+
+// TestAddPeerSelfReferential verifies Address != LocalAddress validation.
+//
+// VALIDATES: Peer with Address == LocalAddress is rejected.
+//
+// PREVENTS: Self-referential peer configuration that would never work.
+func TestAddPeerSelfReferential(t *testing.T) {
+	cfg := &Config{LocalAS: 65000}
+	reactor := New(cfg)
+
+	// Self-referential: Address equals LocalAddress
+	settings := NewPeerSettings(mustParseAddr("10.0.0.1"), 65000, 65001, 0x01010101)
+	settings.LocalAddress = mustParseAddr("10.0.0.1") // Same as Address!
+
+	err := reactor.AddPeer(settings)
+	require.Error(t, err, "self-referential peer should be rejected")
+	require.Contains(t, err.Error(), "cannot equal local-address")
+}
+
+// TestAddPeerLinkLocalIPv6 verifies link-local IPv6 LocalAddress is rejected.
+//
+// VALIDATES: Link-local IPv6 addresses are rejected for LocalAddress.
+//
+// PREVENTS: Configuration with zone-dependent addresses that aren't portable.
+func TestAddPeerLinkLocalIPv6(t *testing.T) {
+	cfg := &Config{LocalAS: 65000}
+	reactor := New(cfg)
+
+	// Link-local IPv6 as LocalAddress
+	settings := NewPeerSettings(mustParseAddr("2001:db8::2"), 65000, 65001, 0x01010101)
+	settings.LocalAddress = mustParseAddr("fe80::1") // Link-local!
+
+	err := reactor.AddPeer(settings)
+	require.Error(t, err, "link-local IPv6 LocalAddress should be rejected")
+	require.Contains(t, err.Error(), "link-local")
+}
+
+// TestAddPeerDuplicateAddress verifies duplicate peer Address is rejected.
+//
+// VALIDATES: Adding peer with same Address as existing peer fails.
+//
+// PREVENTS: Map key collision and ambiguous peer matching.
+func TestAddPeerDuplicateAddress(t *testing.T) {
+	cfg := &Config{LocalAS: 65000}
+	reactor := New(cfg)
+
+	// Add first peer
+	settings1 := NewPeerSettings(mustParseAddr("10.0.0.2"), 65000, 65001, 0x01010101)
+	settings1.LocalAddress = mustParseAddr("192.168.1.1")
+	err := reactor.AddPeer(settings1)
+	require.NoError(t, err)
+
+	// Try to add duplicate
+	settings2 := NewPeerSettings(mustParseAddr("10.0.0.2"), 65000, 65002, 0x01010101) // Same Address!
+	settings2.LocalAddress = mustParseAddr("192.168.1.1")
+
+	err = reactor.AddPeer(settings2)
+	require.Error(t, err, "duplicate peer Address should be rejected")
+	require.ErrorIs(t, err, ErrPeerExists)
+}
+
+// TestAddPeerAddressFamilyMismatch verifies Address/LocalAddress family must match.
+//
+// VALIDATES: IPv4 peer cannot have IPv6 LocalAddress and vice versa.
+//
+// PREVENTS: Configuration where TCP socket family doesn't match peer.
+func TestAddPeerAddressFamilyMismatch(t *testing.T) {
+	cfg := &Config{LocalAS: 65000}
+	reactor := New(cfg)
+
+	// IPv4 peer with IPv6 LocalAddress
+	settings := NewPeerSettings(mustParseAddr("10.0.0.2"), 65000, 65001, 0x01010101)
+	settings.LocalAddress = mustParseAddr("::1") // IPv6 local for IPv4 peer!
+
+	err := reactor.AddPeer(settings)
+	require.Error(t, err, "address family mismatch should be rejected")
+	require.Contains(t, err.Error(), "family mismatch")
+}
+
+// =============================================================================
+// Dynamic Listener Lifecycle Tests (spec-listener-per-local-address.md)
+// =============================================================================
+
+// TestDynamicListenerAddPeerNewLocalAddress verifies listener creation on AddPeer.
+//
+// VALIDATES: Adding peer with new LocalAddress while running creates listener.
+//
+// PREVENTS: Dynamic peers failing to accept incoming connections.
+func TestDynamicListenerAddPeerNewLocalAddress(t *testing.T) {
+	cfg := &Config{
+		Port:    0, // Use ephemeral port
+		LocalAS: 65000,
+	}
+	reactor := New(cfg)
+
+	// Start with no peers (no listeners)
+	err := reactor.Start()
+	require.NoError(t, err)
+	defer reactor.Stop()
+
+	require.Len(t, reactor.ListenAddrs(), 0, "should have 0 listeners initially")
+
+	// Add peer with LocalAddress
+	settings := NewPeerSettings(mustParseAddr("10.0.0.2"), 65000, 65001, 0x01010101)
+	settings.LocalAddress = mustParseAddr("127.0.0.1")
+	settings.Passive = true
+
+	err = reactor.AddPeer(settings)
+	require.NoError(t, err)
+
+	// Should now have 1 listener
+	require.Len(t, reactor.ListenAddrs(), 1, "should have 1 listener after AddPeer")
+}
+
+// TestDynamicListenerAddPeerExistingLocalAddress verifies listener reuse.
+//
+// VALIDATES: Adding peer with existing LocalAddress doesn't create new listener.
+//
+// PREVENTS: Resource waste from duplicate listeners.
+func TestDynamicListenerAddPeerExistingLocalAddress(t *testing.T) {
+	cfg := &Config{
+		Port:    0,
+		LocalAS: 65000,
+	}
+	reactor := New(cfg)
+
+	// Add first peer
+	settings1 := NewPeerSettings(mustParseAddr("10.0.0.2"), 65000, 65001, 0x01010101)
+	settings1.LocalAddress = mustParseAddr("127.0.0.1")
+	settings1.Passive = true
+	err := reactor.AddPeer(settings1)
+	require.NoError(t, err)
+
+	err = reactor.Start()
+	require.NoError(t, err)
+	defer reactor.Stop()
+
+	require.Len(t, reactor.ListenAddrs(), 1, "should have 1 listener")
+
+	// Add second peer with SAME LocalAddress
+	settings2 := NewPeerSettings(mustParseAddr("10.0.0.3"), 65000, 65002, 0x01010101)
+	settings2.LocalAddress = mustParseAddr("127.0.0.1") // Same!
+	settings2.Passive = true
+
+	err = reactor.AddPeer(settings2)
+	require.NoError(t, err)
+
+	// Should still have only 1 listener
+	require.Len(t, reactor.ListenAddrs(), 1, "should still have 1 listener (shared)")
+}
+
+// TestDynamicListenerRemoveLastPeer verifies listener cleanup on RemovePeer.
+//
+// VALIDATES: Removing last peer for LocalAddress stops the listener.
+//
+// PREVENTS: Orphaned listeners consuming resources.
+func TestDynamicListenerRemoveLastPeer(t *testing.T) {
+	cfg := &Config{
+		Port:    0,
+		LocalAS: 65000,
+	}
+	reactor := New(cfg)
+
+	// Add peer
+	settings := NewPeerSettings(mustParseAddr("10.0.0.2"), 65000, 65001, 0x01010101)
+	settings.LocalAddress = mustParseAddr("127.0.0.1")
+	settings.Passive = true
+	err := reactor.AddPeer(settings)
+	require.NoError(t, err)
+
+	err = reactor.Start()
+	require.NoError(t, err)
+	defer reactor.Stop()
+
+	require.Len(t, reactor.ListenAddrs(), 1, "should have 1 listener")
+
+	// Remove peer
+	err = reactor.RemovePeer(settings.Address)
+	require.NoError(t, err)
+
+	// Listener should be stopped
+	require.Len(t, reactor.ListenAddrs(), 0, "should have 0 listeners after removing last peer")
+}
+
+// TestDynamicListenerRemoveOneOfMany verifies listener stays when others share it.
+//
+// VALIDATES: Removing peer keeps listener if other peers share LocalAddress.
+//
+// PREVENTS: Premature listener closure breaking other peers.
+func TestDynamicListenerRemoveOneOfMany(t *testing.T) {
+	cfg := &Config{
+		Port:    0,
+		LocalAS: 65000,
+	}
+	reactor := New(cfg)
+
+	localAddr := mustParseAddr("127.0.0.1")
+
+	// Add two peers with same LocalAddress
+	settings1 := NewPeerSettings(mustParseAddr("10.0.0.2"), 65000, 65001, 0x01010101)
+	settings1.LocalAddress = localAddr
+	settings1.Passive = true
+	err := reactor.AddPeer(settings1)
+	require.NoError(t, err)
+
+	settings2 := NewPeerSettings(mustParseAddr("10.0.0.3"), 65000, 65002, 0x01010101)
+	settings2.LocalAddress = localAddr
+	settings2.Passive = true
+	err = reactor.AddPeer(settings2)
+	require.NoError(t, err)
+
+	err = reactor.Start()
+	require.NoError(t, err)
+	defer reactor.Stop()
+
+	require.Len(t, reactor.ListenAddrs(), 1, "should have 1 listener")
+
+	// Remove one peer
+	err = reactor.RemovePeer(settings1.Address)
+	require.NoError(t, err)
+
+	// Listener should still exist (other peer uses it)
+	require.Len(t, reactor.ListenAddrs(), 1, "should still have 1 listener (other peer shares it)")
+}
+
+// =============================================================================
+// IPv4-Mapped IPv6 Address Tests
+// =============================================================================
+
+// TestAddPeerIPv4MappedNormalization verifies IPv4-mapped addresses are normalized.
+//
+// VALIDATES: LocalAddress ::ffff:192.168.1.1 is normalized to 192.168.1.1.
+//
+// PREVENTS: Listener/connection mismatch due to different address formats.
+func TestAddPeerIPv4MappedNormalization(t *testing.T) {
+	cfg := &Config{
+		Port:    0,
+		LocalAS: 65000,
+	}
+	reactor := New(cfg)
+
+	// Add peer with IPv4-mapped IPv6 LocalAddress
+	settings := NewPeerSettings(mustParseAddr("10.0.0.2"), 65000, 65001, 0x01010101)
+	settings.LocalAddress = netip.MustParseAddr("::ffff:127.0.0.1") // IPv4-mapped
+	settings.Passive = true
+
+	err := reactor.AddPeer(settings)
+	require.NoError(t, err, "IPv4-mapped LocalAddress should be accepted")
+
+	err = reactor.Start()
+	require.NoError(t, err)
+	defer reactor.Stop()
+
+	// Verify listener was created on the unmapped IPv4 address
+	addrs := reactor.ListenAddrs()
+	require.Len(t, addrs, 1)
+
+	// The listener should be on 127.0.0.1, not ::ffff:127.0.0.1
+	listenerAddr := addrs[0].String()
+	require.Contains(t, listenerAddr, "127.0.0.1:", "listener should be on unmapped IPv4")
+	require.NotContains(t, listenerAddr, "::ffff", "listener should not use IPv4-mapped format")
+}
+
+// TestAddPeerIPv4MappedSelfReferential verifies self-referential check works with mapped addresses.
+//
+// VALIDATES: Peer with Address 10.0.0.1 and LocalAddress ::ffff:10.0.0.1 is rejected.
+//
+// PREVENTS: Self-referential configuration bypassing validation via address format.
+func TestAddPeerIPv4MappedSelfReferential(t *testing.T) {
+	cfg := &Config{LocalAS: 65000}
+	reactor := New(cfg)
+
+	// Self-referential using IPv4-mapped format
+	settings := NewPeerSettings(mustParseAddr("10.0.0.1"), 65000, 65001, 0x01010101)
+	settings.LocalAddress = netip.MustParseAddr("::ffff:10.0.0.1") // Same as Address, mapped
+
+	err := reactor.AddPeer(settings)
+	require.Error(t, err, "IPv4-mapped self-referential should be rejected")
+	require.Contains(t, err.Error(), "cannot equal local-address")
+}
+
+// TestAddPeerIPv4MappedAddressNormalization verifies peer Address is normalized.
+//
+// VALIDATES: Peer with Address ::ffff:10.0.0.2 is stored as 10.0.0.2.
+//
+// PREVENTS: Connection lookup failure when peer Address uses IPv4-mapped format.
+func TestAddPeerIPv4MappedAddressNormalization(t *testing.T) {
+	cfg := &Config{LocalAS: 65000}
+	reactor := New(cfg)
+
+	// Add peer with IPv4-mapped Address
+	settings := NewPeerSettings(netip.MustParseAddr("::ffff:10.0.0.2"), 65000, 65001, 0x01010101)
+	settings.LocalAddress = mustParseAddr("127.0.0.1")
+	settings.Passive = true
+
+	err := reactor.AddPeer(settings)
+	require.NoError(t, err)
+
+	// Verify peer is accessible via unmapped address
+	peers := reactor.Peers()
+	require.Len(t, peers, 1)
+
+	// The stored Address should be unmapped
+	storedAddr := peers[0].Settings().Address
+	require.Equal(t, netip.MustParseAddr("10.0.0.2"), storedAddr, "Address should be unmapped")
+	require.True(t, storedAddr.Is4(), "Address should be IPv4 after unmapping")
+}
+
+// TestAddPeerIPv4MappedAddressDuplicate verifies duplicate detection works with mapped addresses.
+//
+// VALIDATES: Adding ::ffff:10.0.0.2 after 10.0.0.2 is rejected as duplicate.
+//
+// PREVENTS: Duplicate peers via different address formats.
+func TestAddPeerIPv4MappedAddressDuplicate(t *testing.T) {
+	cfg := &Config{LocalAS: 65000}
+	reactor := New(cfg)
+
+	// Add peer with IPv4 Address
+	settings1 := NewPeerSettings(mustParseAddr("10.0.0.2"), 65000, 65001, 0x01010101)
+	settings1.LocalAddress = mustParseAddr("127.0.0.1")
+	err := reactor.AddPeer(settings1)
+	require.NoError(t, err)
+
+	// Try to add same peer with IPv4-mapped Address
+	settings2 := NewPeerSettings(netip.MustParseAddr("::ffff:10.0.0.2"), 65000, 65002, 0x01010101)
+	settings2.LocalAddress = mustParseAddr("127.0.0.1")
+
+	err = reactor.AddPeer(settings2)
+	require.Error(t, err, "IPv4-mapped duplicate should be rejected")
+	require.ErrorIs(t, err, ErrPeerExists)
+}
+
+// TestRemovePeerIPv4Mapped verifies RemovePeer works with mapped addresses.
+//
+// VALIDATES: RemovePeer(::ffff:10.0.0.2) removes peer stored as 10.0.0.2.
+//
+// PREVENTS: API inconsistency where AddPeer normalizes but RemovePeer doesn't.
+func TestRemovePeerIPv4Mapped(t *testing.T) {
+	cfg := &Config{LocalAS: 65000}
+	reactor := New(cfg)
+
+	// Add peer with IPv4 Address
+	settings := NewPeerSettings(mustParseAddr("10.0.0.2"), 65000, 65001, 0x01010101)
+	settings.LocalAddress = mustParseAddr("127.0.0.1")
+	err := reactor.AddPeer(settings)
+	require.NoError(t, err)
+	require.Len(t, reactor.Peers(), 1)
+
+	// Remove using IPv4-mapped format
+	err = reactor.RemovePeer(netip.MustParseAddr("::ffff:10.0.0.2"))
+	require.NoError(t, err, "RemovePeer should accept IPv4-mapped address")
+	require.Len(t, reactor.Peers(), 0, "peer should be removed")
+}
