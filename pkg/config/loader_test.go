@@ -1,10 +1,12 @@
 package config
 
 import (
+	"encoding/hex"
 	"os"
 	"path/filepath"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -200,4 +202,129 @@ func TestV2SyntaxHint(t *testing.T) {
 		_, err := LoadReactor(input)
 		require.NoError(t, err)
 	})
+}
+
+// TestBuildMUPNLRI_T1ST_Source verifies T1ST source field encoding.
+//
+// VALIDATES: MUP T1ST routes correctly encode the optional source field
+// with source_len (1 byte) + source_addr (4 or 16 bytes).
+//
+// PREVENTS: Silent failures when source address is invalid,
+// missing source encoding in NLRI output.
+func TestBuildMUPNLRI_T1ST_Source(t *testing.T) {
+	tests := []struct {
+		name        string
+		config      MUPRouteConfig
+		wantHex     string // expected hex substring in NLRI (source_len + source_addr)
+		wantErr     bool
+		wantErrText string
+	}{
+		{
+			name: "IPv4 T1ST with source",
+			config: MUPRouteConfig{
+				RouteType: "mup-t1st",
+				IsIPv6:    false,
+				Prefix:    "192.168.0.2/32",
+				RD:        "100:100",
+				TEID:      "12345",
+				QFI:       9,
+				Endpoint:  "10.0.0.1",
+				Source:    "10.0.1.1",
+			},
+			// source: len=32 (0x20), addr=10.0.1.1 (0x0a000101)
+			wantHex: "200a000101",
+		},
+		{
+			name: "IPv6 T1ST with source",
+			config: MUPRouteConfig{
+				RouteType: "mup-t1st",
+				IsIPv6:    true,
+				Prefix:    "2001:db8:1:1::2/128",
+				RD:        "100:100",
+				TEID:      "12345",
+				QFI:       9,
+				Endpoint:  "2001::1",
+				Source:    "2002::2",
+			},
+			// source: len=128 (0x80), addr=2002::2
+			wantHex: "8020020000000000000000000000000002",
+		},
+		{
+			name: "T1ST without source (optional)",
+			config: MUPRouteConfig{
+				RouteType: "mup-t1st",
+				IsIPv6:    false,
+				Prefix:    "192.168.0.2/32",
+				RD:        "100:100",
+				TEID:      "12345",
+				QFI:       9,
+				Endpoint:  "10.0.0.1",
+				Source:    "", // no source
+			},
+			// endpoint should be last: len=32 (0x20), addr=10.0.0.1 (0x0a000001)
+			// no source bytes after
+			wantHex: "200a000001",
+		},
+		{
+			name: "T1ST with invalid source fails loudly",
+			config: MUPRouteConfig{
+				RouteType: "mup-t1st",
+				IsIPv6:    false,
+				Prefix:    "192.168.0.2/32",
+				RD:        "100:100",
+				TEID:      "12345",
+				QFI:       9,
+				Endpoint:  "10.0.0.1",
+				Source:    "not-an-ip",
+			},
+			wantErr:     true,
+			wantErrText: "invalid T1ST source",
+		},
+		{
+			name: "T1ST with invalid endpoint fails loudly",
+			config: MUPRouteConfig{
+				RouteType: "mup-t1st",
+				IsIPv6:    false,
+				Prefix:    "192.168.0.2/32",
+				RD:        "100:100",
+				TEID:      "12345",
+				QFI:       9,
+				Endpoint:  "bad-endpoint",
+				Source:    "10.0.1.1",
+			},
+			wantErr:     true,
+			wantErrText: "invalid T1ST endpoint",
+		},
+		{
+			name: "T1ST with invalid prefix fails loudly",
+			config: MUPRouteConfig{
+				RouteType: "mup-t1st",
+				IsIPv6:    false,
+				Prefix:    "not-a-prefix",
+				RD:        "100:100",
+			},
+			wantErr:     true,
+			wantErrText: "invalid T1ST prefix",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			nlri, err := buildMUPNLRI(tt.config)
+
+			if tt.wantErr {
+				require.Error(t, err)
+				assert.Contains(t, err.Error(), tt.wantErrText)
+				return
+			}
+
+			require.NoError(t, err)
+			require.NotEmpty(t, nlri)
+
+			// Check that the expected hex is present in the NLRI
+			nlriHex := hex.EncodeToString(nlri)
+			assert.Contains(t, nlriHex, tt.wantHex,
+				"NLRI should contain %s, got %s", tt.wantHex, nlriHex)
+		})
+	}
 }

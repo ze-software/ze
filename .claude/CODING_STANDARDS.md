@@ -73,6 +73,48 @@ make test  # go test -race ./...
 
 ## Error Handling
 
+### Fail Early and Loud (BLOCKING RULE)
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│  ERRORS MUST BE REPORTED, NOT SILENTLY IGNORED                  │
+│                                                                 │
+│  Configuration and parsing errors MUST propagate up.            │
+│  Silent failures lead to debugging nightmares.                  │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+**NEVER do this:**
+```go
+// WRONG - silent failure, caller has no idea parsing failed
+func parseConfig(input string) Config {
+    addr, err := netip.ParseAddr(input)
+    if err != nil {
+        return Config{} // Silent failure!
+    }
+    return Config{Addr: addr}
+}
+```
+
+**ALWAYS do this:**
+```go
+// RIGHT - caller knows exactly what failed and why
+func parseConfig(input string) (Config, error) {
+    addr, err := netip.ParseAddr(input)
+    if err != nil {
+        return Config{}, fmt.Errorf("invalid address %q: %w", input, err)
+    }
+    return Config{Addr: addr}, nil
+}
+```
+
+**Why:** Silent failures cause:
+- Config files with typos appear to "work" but do nothing
+- Hours of debugging "why isn't my route showing up?"
+- Production incidents from misconfiguration
+
+**Rule:** If parsing can fail, the function MUST return an error.
+
 ### Never Ignore Errors
 
 ```go

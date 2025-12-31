@@ -560,6 +560,7 @@ type MUPRouteConfig struct {
 	TEID              string
 	QFI               uint8
 	Endpoint          string
+	Source            string // T1ST source address
 	NextHop           string
 	ExtendedCommunity string
 	PrefixSID         string
@@ -2118,6 +2119,9 @@ func parseMUPFromInline(inline string, isIPv6 bool) MUPRouteConfig {
 	if v, ok := kv["endpoint"]; ok {
 		r.Endpoint = v
 	}
+	if v, ok := kv["source"]; ok {
+		r.Source = v
+	}
 	if v, ok := kv["next-hop"]; ok {
 		r.NextHop = v
 	}
@@ -2213,6 +2217,9 @@ func parseMUPRoute(routeType string, route *Tree, isIPv6 bool) MUPRouteConfig {
 	}
 	if v, ok := route.Get("endpoint"); ok {
 		r.Endpoint = v
+	}
+	if v, ok := route.Get("source"); ok {
+		r.Source = v
 	}
 	if v, ok := route.Get("next-hop"); ok {
 		r.NextHop = v

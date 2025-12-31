@@ -418,7 +418,7 @@ func parseRouteTargetOrOrigin(subtype byte, asnStr, numStr string) ([]byte, erro
 // parseMUPExtCommunity parses mup:ASN:NN format.
 // MUP Extended Community uses type 0x0C (Generic Transitive Experimental Use).
 // Wire format: type(1) subtype(1) global-admin(2) local-admin(4)
-// For mup:10:10 -> 0x0C 0x00 0x000A 0x0000000A
+// For mup:10:10 -> 0x0C 0x00 0x000A 0x0000000A.
 func parseMUPExtCommunity(asnStr, numStr string) ([]byte, error) {
 	asn, err := strconv.ParseUint(asnStr, 10, 16)
 	if err != nil {
@@ -1020,13 +1020,14 @@ func ParsePrefixSIDSRv6(s string) (PrefixSID, error) {
 
 	// Parse service type
 	var serviceType byte
-	if strings.HasPrefix(s, "l3-service") {
+	switch {
+	case strings.HasPrefix(s, "l3-service"):
 		serviceType = 5 // TLV Type 5: SRv6 L3 Service
 		s = strings.TrimPrefix(s, "l3-service")
-	} else if strings.HasPrefix(s, "l2-service") {
+	case strings.HasPrefix(s, "l2-service"):
 		serviceType = 6 // TLV Type 6: SRv6 L2 Service
 		s = strings.TrimPrefix(s, "l2-service")
-	} else {
+	default:
 		return PrefixSID{}, fmt.Errorf("invalid srv6 prefix-sid: expected l3-service or l2-service")
 	}
 	s = strings.TrimSpace(s)
@@ -1063,7 +1064,8 @@ func ParsePrefixSIDSRv6(s string) (PrefixSID, error) {
 		behEnd := len(s)
 		for i := 2; i < len(s); i++ {
 			c := s[i]
-			if !((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F')) {
+			isHexDigit := (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F')
+			if !isHexDigit {
 				behEnd = i
 				break
 			}

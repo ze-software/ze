@@ -1432,7 +1432,11 @@ func convertMUPRoute(mr MUPRouteConfig) (reactor.MUPRoute, error) {
 	}
 
 	// Build MUP NLRI
-	route.NLRI = buildMUPNLRI(mr)
+	nlriBytes, err := buildMUPNLRI(mr)
+	if err != nil {
+		return route, fmt.Errorf("build MUP NLRI: %w", err)
+	}
+	route.NLRI = nlriBytes
 
 	// Parse SRv6 Prefix-SID if present
 	if mr.PrefixSID != "" {
@@ -1447,7 +1451,8 @@ func convertMUPRoute(mr MUPRouteConfig) (reactor.MUPRoute, error) {
 }
 
 // buildMUPNLRI builds MUP NLRI bytes from route config.
-func buildMUPNLRI(mr MUPRouteConfig) []byte {
+// Returns an error if any address/prefix parsing fails.
+func buildMUPNLRI(mr MUPRouteConfig) ([]byte, error) {
 	// Determine route type code
 	var routeType nlri.MUPRouteType
 	switch mr.RouteType {
@@ -1460,20 +1465,21 @@ func buildMUPNLRI(mr MUPRouteConfig) []byte {
 	case "mup-t2st":
 		routeType = nlri.MUPT2ST
 	default:
-		return nil
+		return nil, fmt.Errorf("unknown MUP route type: %s", mr.RouteType)
 	}
 
 	// Parse RD
 	var rd nlri.RouteDistinguisher
 	if mr.RD != "" {
 		parsed, err := ParseRouteDistinguisher(mr.RD)
-		if err == nil {
-			// Convert config.RouteDistinguisher to nlri.RouteDistinguisher
-			// Bytes[0:2] is the type, Bytes[2:8] is the value
-			rdType := uint16(parsed.Bytes[0])<<8 | uint16(parsed.Bytes[1])
-			rd.Type = nlri.RDType(rdType)
-			copy(rd.Value[:], parsed.Bytes[2:8])
+		if err != nil {
+			return nil, fmt.Errorf("invalid RD %q: %w", mr.RD, err)
 		}
+		// Convert config.RouteDistinguisher to nlri.RouteDistinguisher
+		// Bytes[0:2] is the type, Bytes[2:8] is the value
+		rdType := uint16(parsed.Bytes[0])<<8 | uint16(parsed.Bytes[1])
+		rd.Type = nlri.RDType(rdType)
+		copy(rd.Value[:], parsed.Bytes[2:8])
 	}
 
 	// Build route-type-specific data
@@ -1481,54 +1487,78 @@ func buildMUPNLRI(mr MUPRouteConfig) []byte {
 	switch routeType {
 	case nlri.MUPISD:
 		// ISD: prefix-len (1 byte) + prefix (variable)
-		if mr.Prefix != "" {
-			prefix, err := netip.ParsePrefix(mr.Prefix)
-			if err == nil {
-				data = buildMUPPrefix(prefix)
-			}
+		if mr.Prefix == "" {
+			return nil, fmt.Errorf("MUP ISD requires prefix")
 		}
+		prefix, err := netip.ParsePrefix(mr.Prefix)
+		if err != nil {
+			return nil, fmt.Errorf("invalid ISD prefix %q: %w", mr.Prefix, err)
+		}
+		data = buildMUPPrefix(prefix)
+
 	case nlri.MUPDSD:
 		// DSD: address (4 or 16 bytes)
-		if mr.Address != "" {
-			addr, err := netip.ParseAddr(mr.Address)
-			if err == nil {
-				data = addr.AsSlice()
-			}
+		if mr.Address == "" {
+			return nil, fmt.Errorf("MUP DSD requires address")
 		}
+		addr, err := netip.ParseAddr(mr.Address)
+		if err != nil {
+			return nil, fmt.Errorf("invalid DSD address %q: %w", mr.Address, err)
+		}
+		data = addr.AsSlice()
+
 	case nlri.MUPT1ST:
-		// T1ST: prefix + TEID (4) + QFI (1) + endpoint-len + endpoint
-		if mr.Prefix != "" {
-			prefix, err := netip.ParsePrefix(mr.Prefix)
-			if err == nil {
-				data = buildMUPPrefix(prefix)
-				// Add TEID (4 bytes)
-				teid := parseTEID(mr.TEID)
-				data = append(data, byte(teid>>24), byte(teid>>16), byte(teid>>8), byte(teid))
-				// Add QFI (1 byte)
-				data = append(data, mr.QFI)
-				// Add endpoint
-				if mr.Endpoint != "" {
-					if ep, err := netip.ParseAddr(mr.Endpoint); err == nil {
-						epBytes := ep.AsSlice()
-						data = append(data, byte(len(epBytes)*8)) // endpoint length in bits
-						data = append(data, epBytes...)
-					}
-				}
-			}
+		// T1ST: prefix + TEID (4) + QFI (1) + endpoint-len + endpoint + [source-len + source]
+		if mr.Prefix == "" {
+			return nil, fmt.Errorf("MUP T1ST requires prefix")
 		}
+		prefix, err := netip.ParsePrefix(mr.Prefix)
+		if err != nil {
+			return nil, fmt.Errorf("invalid T1ST prefix %q: %w", mr.Prefix, err)
+		}
+		data = buildMUPPrefix(prefix)
+		// Add TEID (4 bytes)
+		teid := parseTEID(mr.TEID)
+		data = append(data, byte(teid>>24), byte(teid>>16), byte(teid>>8), byte(teid))
+		// Add QFI (1 byte)
+		data = append(data, mr.QFI)
+		// Add endpoint
+		if mr.Endpoint != "" {
+			ep, err := netip.ParseAddr(mr.Endpoint)
+			if err != nil {
+				return nil, fmt.Errorf("invalid T1ST endpoint %q: %w", mr.Endpoint, err)
+			}
+			epBytes := ep.AsSlice()
+			data = append(data, byte(len(epBytes)*8)) // endpoint length in bits
+			data = append(data, epBytes...)
+		}
+		// Add source (optional, for T1ST)
+		if mr.Source != "" {
+			src, err := netip.ParseAddr(mr.Source)
+			if err != nil {
+				return nil, fmt.Errorf("invalid T1ST source %q: %w", mr.Source, err)
+			}
+			srcBytes := src.AsSlice()
+			data = append(data, byte(len(srcBytes)*8)) // source length in bits
+			data = append(data, srcBytes...)
+		}
+
 	case nlri.MUPT2ST:
 		// T2ST: endpoint-len + endpoint + TEID (variable based on teid/bits)
-		if mr.Address != "" {
-			if ep, err := netip.ParseAddr(mr.Address); err == nil {
-				epBytes := ep.AsSlice()
-				data = append(data, byte(len(epBytes)*8)) // endpoint length in bits
-				data = append(data, epBytes...)
-				// Add TEID with bit-encoded length
-				teid, bits := parseTEIDWithBits(mr.TEID)
-				teidBytes := encodeTEIDWithBits(teid, bits)
-				data = append(data, teidBytes...)
-			}
+		if mr.Address == "" {
+			return nil, fmt.Errorf("MUP T2ST requires address")
 		}
+		ep, err := netip.ParseAddr(mr.Address)
+		if err != nil {
+			return nil, fmt.Errorf("invalid T2ST endpoint %q: %w", mr.Address, err)
+		}
+		epBytes := ep.AsSlice()
+		data = append(data, byte(len(epBytes)*8)) // endpoint length in bits
+		data = append(data, epBytes...)
+		// Add TEID with bit-encoded length
+		teid, bits := parseTEIDWithBits(mr.TEID)
+		teidBytes := encodeTEIDWithBits(teid, bits)
+		data = append(data, teidBytes...)
 	}
 
 	// Determine AFI
@@ -1539,7 +1569,7 @@ func buildMUPNLRI(mr MUPRouteConfig) []byte {
 
 	mup := nlri.NewMUPFull(afi, nlri.MUPArch3GPP5G, routeType, rd, data)
 	// Use Pack(nil) for consistent API - returns same bytes as Bytes()
-	return mup.Pack(nil)
+	return mup.Pack(nil), nil
 }
 
 // buildMUPPrefix encodes a prefix for MUP NLRI.

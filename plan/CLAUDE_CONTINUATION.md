@@ -27,20 +27,20 @@
 ```
 make test   - PASS
 make lint   - PASS
-functional  - 33 passed, 4 failed [S, V, U, a]
+functional  - 37/37 passed
 ```
 
 ---
 
 ## Resume Point
 
-**Last worked:** 2025-12-30
-**Last commit:** (uncommitted) functional test migration
-**Session ended:** Functional test system migration complete
+**Last worked:** 2025-12-31
+**Last commit:** `f6846fb` MUP T1ST source field + fail-early rule
+**Session ended:** All encoding tests passing
 
 **Next steps:**
-1. Fix remaining functional tests [S, V, U, a]
-2. Integrate zero-copy forwarding into peer route distribution (future)
+1. Integrate zero-copy forwarding into peer route distribution (future)
+2. API as Virtual Peer implementation
 
 ---
 
@@ -62,6 +62,37 @@ AttributesWire for zero-copy route reflection.
 ---
 
 ## COMPLETED
+
+### MUP T1ST Source Field + Fail-Early Rule (`f6846fb`)
+
+Added source field support for MUP T1ST routes (test U):
+- `MUPRouteConfig.Source` field for T1ST source address
+- Parsing in `parseMUPFromInline` and `parseMUPRoute`
+- Encoding in `buildMUPNLRI`: source_len (1B) + source_addr (variable)
+
+Refactored `buildMUPNLRI` for fail-early error handling:
+- Now returns `([]byte, error)` instead of `[]byte`
+- All parse failures report specific errors (prefix, address, endpoint, source, RD)
+- Missing required fields return descriptive errors
+
+Added coding standard rule:
+- `.claude/CODING_STANDARDS.md`: "Fail Early and Loud" blocking rule
+- Configuration/parsing errors MUST propagate, never silently ignored
+
+Added unit test:
+- `TestBuildMUPNLRI_T1ST_Source`: 6 test cases for source encoding and error handling
+
+Fixed pre-existing lint issues:
+- `routeattr.go:421`: Added period to comment
+- `routeattr.go:1023`: Converted if-else chain to switch
+- `routeattr.go:1067`: Extracted isHexDigit variable
+
+Files:
+- `.claude/CODING_STANDARDS.md`
+- `pkg/config/bgp.go`
+- `pkg/config/loader.go`
+- `pkg/config/loader_test.go`
+- `pkg/config/routeattr.go`
 
 ### Functional Test System Migration (uncommitted)
 **Spec:** `plan/spec-functional-test-diagnostics.md` ✅ COMPLETE
