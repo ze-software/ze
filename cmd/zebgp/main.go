@@ -27,6 +27,8 @@ func main() {
 		os.Exit(cmdCLI(os.Args[2:]))
 	case "validate":
 		os.Exit(cmdValidate(os.Args[2:]))
+	case "decode":
+		os.Exit(cmdDecode(os.Args[2:]))
 	case "edit":
 		os.Exit(cmdEdit(os.Args[2:]))
 	case "config":
@@ -87,6 +89,7 @@ Commands:
   cli                  Interactive CLI with autocomplete
   edit <config>        Interactive configuration editor
   validate <config>    Validate configuration file
+  decode <hex>         Decode BGP message from hex to JSON
   config <subcommand>  Configuration management (check, migrate)
   config-dump <config> Dump parsed config (debug tool)
   version              Show version

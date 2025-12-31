@@ -1,4 +1,4 @@
-// Package main provides the functional functional test runner with AI-friendly diagnostics.
+// Package main provides the functional test runner with AI-friendly diagnostics.
 package main
 
 import (
@@ -7,6 +7,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"os/exec"
 	"os/signal"
 	"path/filepath"
 	"syscall"
@@ -51,6 +52,189 @@ func run() error {
 		return fmt.Errorf("find base dir: %w", err)
 	}
 
+	// Route to appropriate handler
+	switch cli.command {
+	case "encoding", "api":
+		return runEncodingOrAPI(ctx, cli, baseDir)
+	case "decoding":
+		return runSimpleTests(ctx, cli, baseDir, newDecodingTestSuite)
+	case "parsing":
+		return runSimpleTests(ctx, cli, baseDir, newParsingTestSuite)
+	default:
+		return fmt.Errorf("unknown command: %s", cli.command)
+	}
+}
+
+// testSuite abstracts decoding and parsing test suites.
+type testSuite interface {
+	Discover(dir string) error
+	List()
+	Count() int
+	EnableAll()
+	EnableByNick(nick string) bool
+	GetNicks() []string
+	GetNames() map[string]string
+	SetActive(name string)
+	Run(ctx context.Context, zebgpPath string, verbose, quiet bool) bool
+}
+
+// decodingTestSuite wraps DecodingTests to implement testSuite.
+type decodingTestSuite struct {
+	*functional.DecodingTests
+	baseDir string
+}
+
+func newDecodingTestSuite(baseDir string) testSuite {
+	return &decodingTestSuite{
+		DecodingTests: functional.NewDecodingTests(baseDir),
+		baseDir:       baseDir,
+	}
+}
+
+func (d *decodingTestSuite) GetNicks() []string {
+	registered := d.Registered()
+	nicks := make([]string, 0, len(registered))
+	for _, t := range registered {
+		nicks = append(nicks, t.Nick)
+	}
+	return nicks
+}
+
+func (d *decodingTestSuite) GetNames() map[string]string {
+	names := make(map[string]string)
+	for _, t := range d.Registered() {
+		names[t.Name] = t.Nick
+	}
+	return names
+}
+
+func (d *decodingTestSuite) SetActive(name string) {
+	for _, t := range d.Registered() {
+		if t.Name == name {
+			t.Active = true
+		}
+	}
+}
+
+func (d *decodingTestSuite) Run(ctx context.Context, zebgpPath string, verbose, quiet bool) bool {
+	runner := functional.NewDecodingRunner(d.DecodingTests, d.baseDir, zebgpPath)
+	return runner.Run(ctx, verbose, quiet)
+}
+
+// parsingTestSuite wraps ParsingTests to implement testSuite.
+type parsingTestSuite struct {
+	*functional.ParsingTests
+	baseDir string
+}
+
+func newParsingTestSuite(baseDir string) testSuite {
+	return &parsingTestSuite{
+		ParsingTests: functional.NewParsingTests(baseDir),
+		baseDir:      baseDir,
+	}
+}
+
+func (p *parsingTestSuite) GetNicks() []string {
+	registered := p.Registered()
+	nicks := make([]string, 0, len(registered))
+	for _, t := range registered {
+		nicks = append(nicks, t.Nick)
+	}
+	return nicks
+}
+
+func (p *parsingTestSuite) GetNames() map[string]string {
+	names := make(map[string]string)
+	for _, t := range p.Registered() {
+		names[t.Name] = t.Nick
+	}
+	return names
+}
+
+func (p *parsingTestSuite) SetActive(name string) {
+	for _, t := range p.Registered() {
+		if t.Name == name {
+			t.Active = true
+		}
+	}
+}
+
+func (p *parsingTestSuite) Run(ctx context.Context, zebgpPath string, verbose, quiet bool) bool {
+	runner := functional.NewParsingRunner(p.ParsingTests, p.baseDir, zebgpPath)
+	return runner.Run(ctx, verbose, quiet)
+}
+
+// runSimpleTests handles decoding and parsing tests using the testSuite interface.
+func runSimpleTests(ctx context.Context, cli *cliFlags, baseDir string, newSuite func(string) testSuite) error {
+	functional.ResetNickCounter()
+
+	tests := newSuite(baseDir)
+
+	// Determine test directory
+	var testDir string
+	switch cli.command {
+	case "decoding":
+		testDir = filepath.Join(baseDir, "test/data/decode")
+	case "parsing":
+		testDir = filepath.Join(baseDir, "test/data/parse")
+	}
+
+	if err := tests.Discover(testDir); err != nil {
+		return fmt.Errorf("discover tests: %w", err)
+	}
+
+	// Handle list mode
+	if cli.list {
+		tests.List()
+		return nil
+	}
+
+	if cli.shortList {
+		for _, nick := range tests.GetNicks() {
+			fmt.Printf("%s ", nick)
+		}
+		fmt.Println()
+		return nil
+	}
+
+	// Select tests
+	switch {
+	case cli.all:
+		tests.EnableAll()
+	case len(cli.testArgs) > 0:
+		names := tests.GetNames()
+		for _, arg := range cli.testArgs {
+			if !tests.EnableByNick(arg) {
+				// Try by name
+				if _, ok := names[arg]; ok {
+					tests.SetActive(arg)
+				}
+			}
+		}
+	default:
+		printUsage()
+		return nil
+	}
+
+	// Build zebgp
+	zebgpPath, err := buildZebgp(ctx, baseDir)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = os.Remove(zebgpPath) }()
+
+	// Run tests
+	success := tests.Run(ctx, zebgpPath, cli.verbose, cli.quiet)
+
+	if !success {
+		return errTestsFailed
+	}
+
+	return nil
+}
+
+// runEncodingOrAPI handles encoding and API tests (original behavior).
+func runEncodingOrAPI(ctx context.Context, cli *cliFlags, baseDir string) error {
 	// Initialize
 	colors := functional.NewColors()
 	functional.ResetNickCounter()
@@ -179,6 +363,25 @@ func run() error {
 	return nil
 }
 
+// buildZebgp builds the zebgp binary and returns its path.
+func buildZebgp(ctx context.Context, baseDir string) (string, error) {
+	tmpDir, err := os.MkdirTemp("", "zebgp-functional-*")
+	if err != nil {
+		return "", fmt.Errorf("create temp dir: %w", err)
+	}
+
+	zebgpPath := filepath.Join(tmpDir, "zebgp")
+	cmd := exec.CommandContext(ctx, "go", "build", "-o", zebgpPath, "./cmd/zebgp") //nolint:gosec // paths from internal runner
+	cmd.Dir = baseDir
+	cmd.Env = append(os.Environ(), "CGO_ENABLED=0")
+	if output, err := cmd.CombinedOutput(); err != nil {
+		_ = os.RemoveAll(tmpDir)
+		return "", fmt.Errorf("build zebgp: %w: %s", err, output)
+	}
+
+	return zebgpPath, nil
+}
+
 type cliFlags struct {
 	command   string
 	all       bool
@@ -208,8 +411,15 @@ func parseCLI() *cliFlags {
 		return nil
 	}
 
-	if command != "encoding" && command != "api" {
-		fmt.Fprintf(os.Stderr, "Unknown command: %s (use 'encoding' or 'api')\n", command)
+	validCommands := map[string]bool{
+		"encoding": true,
+		"api":      true,
+		"decoding": true,
+		"parsing":  true,
+	}
+
+	if !validCommands[command] {
+		fmt.Fprintf(os.Stderr, "Unknown command: %s\n", command)
 		printUsage()
 		return nil
 	}
@@ -248,6 +458,8 @@ func printUsage() {
 Commands:
   encoding    Run encoding tests (static routes)
   api         Run API tests (dynamic routes via .run scripts)
+  decoding    Run decoding tests (BGP message hex to JSON)
+  parsing     Run parsing tests (config file validation)
 
 Modes:
   --list, -l          List available tests
@@ -272,6 +484,8 @@ Examples:
   functional encoding --all
   functional encoding 0 1 2
   functional api --all --quiet
+  functional decoding --all
+  functional parsing --all
   functional encoding --count 10 0 1    # stress test: run tests 0,1 ten times
 `)
 }
