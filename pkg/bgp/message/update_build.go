@@ -1371,6 +1371,12 @@ func (ub *UpdateBuilder) BuildMUP(p MUPParams) *Update {
 	asPath := ub.buildASPath(nil)
 	attrs = append(attrs, asPath)
 
+	// 3. NEXT_HOP - only for IPv4 MUP with IPv4 next-hop
+	// For IPv6 MUP with IPv4 next-hop, use IPv4-mapped IPv6 in MP_REACH instead
+	if !p.IsIPv6 && p.NextHop.Is4() {
+		attrs = append(attrs, &attribute.NextHop{Addr: p.NextHop})
+	}
+
 	// 5. LOCAL_PREF
 	if ub.IsIBGP {
 		attrs = append(attrs, attribute.LocalPref(100))
@@ -1425,7 +1431,15 @@ func (ub *UpdateBuilder) buildMPReachMUP(p MUPParams) *rawAttribute {
 	}
 	const safiMUP byte = 85
 
-	nhBytes := p.NextHop.AsSlice()
+	// For IPv6 MUP with IPv4 next-hop, use IPv4-mapped IPv6 (::ffff:x.x.x.x)
+	var nhBytes []byte
+	if p.IsIPv6 && p.NextHop.Is4() {
+		// Convert to IPv4-mapped IPv6: ::ffff:x.x.x.x
+		mapped := p.NextHop.As16()
+		nhBytes = mapped[:]
+	} else {
+		nhBytes = p.NextHop.AsSlice()
+	}
 	nhLen := len(nhBytes)
 
 	valueLen := 2 + 1 + 1 + nhLen + 1 + len(p.NLRI)

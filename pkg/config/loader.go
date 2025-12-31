@@ -211,6 +211,10 @@ func configToPeer(nc *PeerConfig, global *BGPConfig) (*reactor.PeerSettings, err
 			afi, safi = capability.AFIBGPLS, capability.SAFIBGPLS
 		case "bgp-ls bgp-ls-vpn":
 			afi, safi = capability.AFIBGPLS, capability.SAFIBGPLSVPN
+		case "ipv4 mup":
+			afi, safi = capability.AFIIPv4, 85 // MUP SAFI (draft-mpmz-bess-mup-safi)
+		case "ipv6 mup":
+			afi, safi = capability.AFIIPv6, 85 // MUP SAFI (draft-mpmz-bess-mup-safi)
 		default:
 			// Unknown family, skip
 			continue
@@ -1427,9 +1431,17 @@ func convertMUPRoute(mr MUPRouteConfig) (reactor.MUPRoute, error) {
 		route.ExtCommunityBytes = ec.Bytes
 	}
 
-	// TODO: Build MUP NLRI from route config
-	// This requires MUP-specific encoding
+	// Build MUP NLRI
 	route.NLRI = buildMUPNLRI(mr)
+
+	// Parse SRv6 Prefix-SID if present
+	if mr.PrefixSID != "" {
+		sid, err := ParsePrefixSIDSRv6(mr.PrefixSID)
+		if err != nil {
+			return route, fmt.Errorf("parse prefix-sid-srv6: %w", err)
+		}
+		route.PrefixSID = sid.Bytes
+	}
 
 	return route, nil
 }

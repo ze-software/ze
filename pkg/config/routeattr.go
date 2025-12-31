@@ -219,8 +219,9 @@ func parseOneExtCommunity(s string) ([]byte, error) {
 			// FlowSpec redirect (RFC 5575): type 0x80, subtype 0x08
 			return parseFlowSpecRedirect(parts[1], parts[2])
 		case "mup":
-			// MUP extended community: mup:ASN:NN
-			return parseRouteTargetOrOrigin(0x0B, parts[1], parts[2]) // MUP subtype
+			// MUP extended community: mup:ASN:NN (draft-mpmz-bess-mup-safi)
+			// Uses type 0x0C (Generic Transitive Experimental Use) with subtype 0x00
+			return parseMUPExtCommunity(parts[1], parts[2])
 		default:
 			return nil, fmt.Errorf("unknown extended-community type %q", parts[0])
 		}
@@ -411,6 +412,30 @@ func parseRouteTargetOrOrigin(subtype byte, asnStr, numStr string) ([]byte, erro
 		ecTypeTransitive4ByteAS, subtype,
 		byte(asn >> 24), byte(asn >> 16), byte(asn >> 8), byte(asn),
 		byte(num >> 8), byte(num),
+	}, nil
+}
+
+// parseMUPExtCommunity parses mup:ASN:NN format.
+// MUP Extended Community uses type 0x0C (Generic Transitive Experimental Use).
+// Wire format: type(1) subtype(1) global-admin(2) local-admin(4)
+// For mup:10:10 -> 0x0C 0x00 0x000A 0x0000000A
+func parseMUPExtCommunity(asnStr, numStr string) ([]byte, error) {
+	asn, err := strconv.ParseUint(asnStr, 10, 16)
+	if err != nil {
+		return nil, fmt.Errorf("invalid mup extended-community ASN %q (must be 16-bit)", asnStr)
+	}
+	num, err := strconv.ParseUint(numStr, 10, 32)
+	if err != nil {
+		return nil, fmt.Errorf("invalid mup extended-community number %q", numStr)
+	}
+
+	// Type 0x0C: Generic Transitive Experimental Use
+	// Subtype 0x00: MUP Extended Community
+	// Format: 2-byte global-admin (ASN) + 4-byte local-admin (number)
+	return []byte{
+		0x0C, 0x00, // Type + Subtype
+		byte(asn >> 8), byte(asn),
+		byte(num >> 24), byte(num >> 16), byte(num >> 8), byte(num),
 	}, nil
 }
 
@@ -965,6 +990,146 @@ func parseSRGBList(s string) ([]srgbEntry, error) {
 	}
 
 	return entries, nil
+}
+
+// ParsePrefixSIDSRv6 parses SRv6 Prefix-SID format.
+// Formats (ExaBGP compatible):
+//   - "l3-service IPv6"
+//   - "l3-service IPv6 behavior"
+//   - "l3-service IPv6 behavior[struct]"
+//   - "(l3-service IPv6 behavior[struct])"
+//   - "l2-service IPv6 ..." (same variants)
+//
+// Where:
+//   - IPv6 = 16-byte SRv6 SID address
+//   - behavior = hex value like 0x48 (optional, default 0)
+//   - struct = [LB,LN,Func,Arg,TransLen,TransOffset] (optional)
+//
+// RFC 9252 defines the wire format for SRv6-VPN SID.
+func ParsePrefixSIDSRv6(s string) (PrefixSID, error) {
+	if s == "" {
+		return PrefixSID{}, nil
+	}
+
+	// Clean up input - remove outer parentheses
+	s = strings.TrimSpace(s)
+	if strings.HasPrefix(s, "(") && strings.HasSuffix(s, ")") {
+		s = s[1 : len(s)-1]
+		s = strings.TrimSpace(s)
+	}
+
+	// Parse service type
+	var serviceType byte
+	if strings.HasPrefix(s, "l3-service") {
+		serviceType = 5 // TLV Type 5: SRv6 L3 Service
+		s = strings.TrimPrefix(s, "l3-service")
+	} else if strings.HasPrefix(s, "l2-service") {
+		serviceType = 6 // TLV Type 6: SRv6 L2 Service
+		s = strings.TrimPrefix(s, "l2-service")
+	} else {
+		return PrefixSID{}, fmt.Errorf("invalid srv6 prefix-sid: expected l3-service or l2-service")
+	}
+	s = strings.TrimSpace(s)
+
+	// Parse IPv6 address (required)
+	var ipv6 netip.Addr
+	var behavior byte
+	var sidStruct []byte
+
+	// Find end of IPv6 address (space, 0x, or [)
+	ipEnd := len(s)
+	for i, c := range s {
+		if c == ' ' || c == '[' {
+			ipEnd = i
+			break
+		}
+		if i > 0 && strings.HasPrefix(s[i:], "0x") {
+			ipEnd = i
+			break
+		}
+	}
+
+	ipStr := strings.TrimSpace(s[:ipEnd])
+	var err error
+	ipv6, err = netip.ParseAddr(ipStr)
+	if err != nil || !ipv6.Is6() {
+		return PrefixSID{}, fmt.Errorf("invalid srv6 prefix-sid: expected IPv6 address, got %q", ipStr)
+	}
+	s = strings.TrimSpace(s[ipEnd:])
+
+	// Parse optional behavior (0xNN format)
+	if strings.HasPrefix(s, "0x") || strings.HasPrefix(s, "0X") {
+		// Find end of behavior value
+		behEnd := len(s)
+		for i := 2; i < len(s); i++ {
+			c := s[i]
+			if !((c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F')) {
+				behEnd = i
+				break
+			}
+		}
+		behStr := s[2:behEnd]
+		behVal, err := strconv.ParseUint(behStr, 16, 8)
+		if err != nil {
+			return PrefixSID{}, fmt.Errorf("invalid srv6 behavior %q: %w", s[:behEnd], err)
+		}
+		behavior = byte(behVal)
+		s = strings.TrimSpace(s[behEnd:])
+	}
+
+	// Parse optional SID structure [LB,LN,Func,Arg,TransLen,TransOffset]
+	if strings.HasPrefix(s, "[") {
+		end := strings.Index(s, "]")
+		if end == -1 {
+			return PrefixSID{}, fmt.Errorf("invalid srv6 prefix-sid: unmatched [ in SID structure")
+		}
+		structStr := s[1:end]
+		parts := strings.Split(structStr, ",")
+		if len(parts) != 6 {
+			return PrefixSID{}, fmt.Errorf("invalid srv6 SID structure: expected 6 values, got %d", len(parts))
+		}
+		for _, p := range parts {
+			v, err := strconv.ParseUint(strings.TrimSpace(p), 10, 8)
+			if err != nil {
+				return PrefixSID{}, fmt.Errorf("invalid srv6 SID structure value %q: %w", p, err)
+			}
+			sidStruct = append(sidStruct, byte(v))
+		}
+	}
+
+	// Build wire format per RFC 9252
+	// Outer TLV: Type 5/6 (L3/L2 Service)
+	//   Inner Sub-TLV: Type 1 (SRv6 SID Information)
+	//     Value: reserved(1) + SID(16) + flags(1) + behavior(1) + [optional sub-sub-TLV]
+	//       Optional sub-sub-TLV: Type 1 (SRv6 SID Structure, 6 bytes)
+
+	// Build inner sub-TLV value (Type 1: SRv6 SID Information)
+	// RFC 9252 format: reserved(1) + SID(16) + flags(1) + reserved(1) + behavior(1) + [sub-TLVs]
+	var innerValue []byte
+	innerValue = append(innerValue, 0) // reserved
+	innerValue = append(innerValue, ipv6.AsSlice()...)
+	innerValue = append(innerValue, 0)        // flags
+	innerValue = append(innerValue, 0)        // reserved
+	innerValue = append(innerValue, behavior) // behavior
+
+	// Add SID structure sub-sub-TLV if provided
+	if len(sidStruct) == 6 {
+		innerValue = append(innerValue, 0, 1)                    // sub-sub-TLV type 1
+		innerValue = append(innerValue, 0, byte(len(sidStruct))) // length
+		innerValue = append(innerValue, sidStruct...)
+	}
+
+	// Build inner sub-TLV header (Type 1)
+	innerLen := len(innerValue)
+	innerTLV := []byte{0, 1, byte(innerLen >> 8), byte(innerLen)}
+	innerTLV = append(innerTLV, innerValue...)
+
+	// Build outer TLV header (Type 5 or 6)
+	outerLen := len(innerTLV)
+	result := []byte{serviceType, byte(outerLen >> 8), byte(outerLen)}
+	result = append(result, innerTLV...)
+
+	return PrefixSID{Bytes: result}, nil
 }
 
 // ParsedRouteAttributes holds all parsed route attributes.
