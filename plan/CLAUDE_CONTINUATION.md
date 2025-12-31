@@ -26,10 +26,12 @@
 
 ```
 make test   - PASS
-make lint   - PASS
-functional  - 37/37 passed
-decoding    - 18/18 passed
-parsing     - 10/10 passed
+make lint   - has pre-existing issues (not from this session)
+API tests   - 11/14 passed (78.6%)
+  - PASS: add-remove, announce, eor, fast, nexthop, ipv4, ipv6, attributes
+  - PASS: teardown, notification, watchdog (were already implemented)
+  - FAIL: check (static routes not sent)
+  - FAIL: mup4, mup6 (MUP API not implemented - separate feature)
 ```
 
 ---
@@ -37,13 +39,70 @@ parsing     - 10/10 passed
 ## Resume Point
 
 **Last worked:** 2025-12-31
-**Last commit:** uncommitted (decoding tests complete)
-**Session ended:** Clean break - all decoding tests pass
+**Last commits:**
+- `f900669` fix(config): inherit API bindings from templates
+- `989c485` docs(plan): update spec-api-test-features with current status
 
-**Next steps:**
-1. Commit decoding test completion
-2. Sync ExaBGP with lossless JSON format (see spec)
-3. API as Virtual Peer implementation
+**Session ended:** Partial fix committed, critical review identified remaining issues
+
+---
+
+## IMMEDIATE PRIORITY: spec-api-test-features.md
+
+### What Was Fixed
+1. **API bindings template inheritance** - Templates with `api process { receive { update; } }`
+   now properly inherited by peers using `inherit template-name;`
+2. **mup4/mup6 config files** - Fixed to reference correct .run files
+
+### What Still Fails: check test
+
+**Symptom:** Test expects EOR + static routes first, receives KEEPALIVE
+
+**Expected sequence from ZeBGP:**
+1. EOR ipv4 unicast
+2. EOR ipv6 unicast
+3. IPv6 route ::1/128 (from config)
+4. IPv4 route 127.0.0.1/32 (from config)
+5. IPv4 route 1.2.3.4/32 (from check.run response)
+
+**Actual:** KEEPALIVE sent first → mismatch at message 1
+
+**Root cause:** Static routes from config aren't being announced. This is SEPARATE from the API bindings issue.
+
+**Investigation needed:**
+```bash
+# Run check test
+go run ./test/cmd/functional api check
+
+# Check config has static routes
+cat test/data/api/check.conf | grep -A5 "announce"
+```
+
+### Critical Review Findings (TDD violations to fix)
+
+1. **No unit tests written** for:
+   - `mergeAPIBindings()` function in `pkg/config/bgp.go`
+   - API bindings template inheritance behavior
+
+2. **Unverified fix** - API bindings fix couldn't be directly verified because
+   test fails earlier (at static route step)
+
+3. **Recommended next steps:**
+   ```
+   1. Write unit test for mergeAPIBindings() - MUST FAIL first
+   2. Write unit test for template inheritance - MUST FAIL first
+   3. Investigate why static routes aren't sent (separate bug)
+   4. Fix static routes issue
+   5. THEN verify check test passes end-to-end
+   ```
+
+### Files Changed (uncommitted debug removed)
+- `pkg/config/bgp.go` - Added template inheritance + mergeAPIBindings()
+- `test/data/api/mup4.conf` - Fixed run path
+- `test/data/api/mup6.conf` - Fixed run path
+
+### Spec Location
+`plan/spec-api-test-features.md` - Updated with current status
 
 ---
 
@@ -66,8 +125,8 @@ AttributesWire for zero-copy route reflection.
 
 ## COMPLETED
 
-### Decoding Tests Complete (uncommitted)
-**Spec:** `plan/spec-functional-decoding-parsing.md` ✅ COMPLETE
+### Decoding Tests Complete (`196c95d`)
+**Spec:** `plan/done/spec-functional-decoding-parsing.md` ✅ COMPLETE
 
 All 18 decoding tests now pass with lossless JSON format:
 
