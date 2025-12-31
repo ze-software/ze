@@ -27,11 +27,12 @@
 ```
 make test   - PASS
 make lint   - has pre-existing issues (not from this session)
-API tests   - 11/14 passed (78.6%)
+API tests   - 12/14 passed (85.7%)
   - PASS: add-remove, announce, eor, fast, nexthop, ipv4, ipv6, attributes
   - PASS: teardown, notification, watchdog (were already implemented)
-  - FAIL: check (static routes not sent)
+  - PASS: check (fixed - added version 6 to content block)
   - FAIL: mup4, mup6 (MUP API not implemented - separate feature)
+  - SKIP: announcement (multi-session qualifiers - NOT SUPPORTED by design)
 ```
 
 ---
@@ -43,63 +44,75 @@ API tests   - 11/14 passed (78.6%)
 - `f900669` fix(config): inherit API bindings from templates
 - `989c485` docs(plan): update spec-api-test-features with current status
 
-**Session ended:** Partial fix committed, critical review identified remaining issues
+**Session ended:** check test now passing (12/14 API tests pass)
 
 ---
 
-## IMMEDIATE PRIORITY: spec-api-test-features.md
+## RECENT FIX: check test (version 6 format)
 
-### What Was Fixed
-1. **API bindings template inheritance** - Templates with `api process { receive { update; } }`
-   now properly inherited by peers using `inherit template-name;`
-2. **mup4/mup6 config files** - Fixed to reference correct .run files
+### Misdiagnosis Corrected
+Previous diagnosis: "Static routes not being sent" - **WRONG**
 
-### What Still Fails: check test
+Actual finding: Static routes and EORs WERE being sent correctly. The issue was
+that check.run wasn't receiving forwarded UPDATEs in the expected format.
 
-**Symptom:** Test expects EOR + static routes first, receives KEEPALIVE
-
-**Expected sequence from ZeBGP:**
-1. EOR ipv4 unicast
-2. EOR ipv6 unicast
-3. IPv6 route ::1/128 (from config)
-4. IPv4 route 127.0.0.1/32 (from config)
-5. IPv4 route 1.2.3.4/32 (from check.run response)
-
-**Actual:** KEEPALIVE sent first → mismatch at message 1
-
-**Root cause:** Static routes from config aren't being announced. This is SEPARATE from the API bindings issue.
-
-**Investigation needed:**
-```bash
-# Run check test
-go run ./test/cmd/functional api check
-
-# Check config has static routes
-cat test/data/api/check.conf | grep -A5 "announce"
+### Root Cause
+The check.run script expects ExaBGP-compatible format (version 6):
+```
+neighbor 127.0.0.1 receive update announced 0.0.0.0/32 next-hop 127.0.0.1 origin igp local-preference 100
 ```
 
-### Critical Review Findings (TDD violations to fix)
+But ZeBGP defaults to version 7 format:
+```
+peer 127.0.0.1 update announce nlri ipv4 unicast 0.0.0.0/32 next-hop 127.0.0.1 ...
+```
 
-1. **No unit tests written** for:
-   - `mergeAPIBindings()` function in `pkg/config/bgp.go`
-   - API bindings template inheritance behavior
+### Fix Applied
+Added `version 6;` to check.conf content block (test data fix, not code fix):
+```
+api check-and-announce {
+    content {
+        format parsed;
+        version 6;  // <-- Added
+    }
+    ...
+}
+```
 
-2. **Unverified fix** - API bindings fix couldn't be directly verified because
-   test fails earlier (at static route step)
+### Files Changed (uncommitted)
+- `test/data/api/check.conf` - Added version 6 to content block
+- `plan/spec-api-test-features.md` - Updated status
+- `plan/CLAUDE_CONTINUATION.md` - Updated status
 
-3. **Recommended next steps:**
-   ```
-   1. Write unit test for mergeAPIBindings() - MUST FAIL first
-   2. Write unit test for template inheritance - MUST FAIL first
-   3. Investigate why static routes aren't sent (separate bug)
-   4. Fix static routes issue
-   5. THEN verify check test passes end-to-end
-   ```
+### Remaining Failures (out of scope)
+- **mup4/mup6** - MUP SAFI not supported in API commands (separate feature)
+- **announcement** - Multi-session qualifiers not supported by design
 
-### Files Changed (uncommitted debug removed)
-- `pkg/config/bgp.go` - Added template inheritance + mergeAPIBindings()
-- `test/data/api/mup4.conf` - Fixed run path
-- `test/data/api/mup6.conf` - Fixed run path
+---
+
+## TECHNICAL DEBT
+
+### 1. Unit tests for mergeAPIBindings() (from previous session)
+Location: `pkg/config/bgp.go:1416`
+- No unit test exists for this function
+- Should test: merge behavior, duplicate handling, override semantics
+
+### 2. Unit tests for template inheritance
+- API bindings from templates are inherited but not unit tested
+- Functional test proves it works, but TDD requires unit tests first
+
+### 3. Functional test reporter message merging bug
+Location: `test/functional/record.go`
+- All messages in check.ci use index `1:`, causing them to merge
+- Report shows wrong "EXPECTED MESSAGE 1" (shows last message only)
+- Actual testpeer comparison is correct (order-agnostic)
+- Only affects diagnostic output, not test correctness
+
+### 4. check.ci order documentation mismatch
+- CI file shows: EOR → EOR → routes
+- ZeBGP sends: routes → EOR → EOR
+- Both are valid BGP (testpeer is order-agnostic)
+- CI comments are misleading
 
 ### Spec Location
 `plan/spec-api-test-features.md` - Updated with current status
