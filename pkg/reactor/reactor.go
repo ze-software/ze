@@ -30,6 +30,12 @@ var (
 	ErrWatchdogRouteNotFound = errors.New("watchdog route not found")
 )
 
+// Address family names for error messages.
+const (
+	familyIPv4 = "IPv4"
+	familyIPv6 = "IPv6"
+)
+
 // Config holds reactor configuration.
 type Config struct {
 	// ListenAddr is the address to listen on (e.g., "0.0.0.0:179").
@@ -2181,6 +2187,14 @@ func buildAPIMUPNLRI(spec api.MUPRouteSpec) ([]byte, error) {
 		if err != nil {
 			return nil, fmt.Errorf("invalid ISD prefix %q: %w", spec.Prefix, err)
 		}
+		// Validate family match
+		if spec.IsIPv6 != prefix.Addr().Is6() {
+			expected := familyIPv4
+			if spec.IsIPv6 {
+				expected = familyIPv6
+			}
+			return nil, fmt.Errorf("prefix %q is not %s", spec.Prefix, expected)
+		}
 		data = buildMUPPrefix(prefix)
 
 	case nlri.MUPDSD:
@@ -2190,6 +2204,14 @@ func buildAPIMUPNLRI(spec api.MUPRouteSpec) ([]byte, error) {
 		addr, err := netip.ParseAddr(spec.Address)
 		if err != nil {
 			return nil, fmt.Errorf("invalid DSD address %q: %w", spec.Address, err)
+		}
+		// Validate family match
+		if spec.IsIPv6 != addr.Is6() {
+			expected := familyIPv4
+			if spec.IsIPv6 {
+				expected = familyIPv6
+			}
+			return nil, fmt.Errorf("address %q is not %s", spec.Address, expected)
 		}
 		data = addr.AsSlice()
 
@@ -2201,6 +2223,14 @@ func buildAPIMUPNLRI(spec api.MUPRouteSpec) ([]byte, error) {
 		if err != nil {
 			return nil, fmt.Errorf("invalid T1ST prefix %q: %w", spec.Prefix, err)
 		}
+		// Validate family match
+		if spec.IsIPv6 != prefix.Addr().Is6() {
+			expected := familyIPv4
+			if spec.IsIPv6 {
+				expected = familyIPv6
+			}
+			return nil, fmt.Errorf("prefix %q is not %s", spec.Prefix, expected)
+		}
 		data = buildMUPPrefix(prefix)
 		// TODO: Add TEID, QFI, endpoint if needed
 
@@ -2211,6 +2241,14 @@ func buildAPIMUPNLRI(spec api.MUPRouteSpec) ([]byte, error) {
 		ep, err := netip.ParseAddr(spec.Address)
 		if err != nil {
 			return nil, fmt.Errorf("invalid T2ST endpoint %q: %w", spec.Address, err)
+		}
+		// Validate family match
+		if spec.IsIPv6 != ep.Is6() {
+			expected := familyIPv4
+			if spec.IsIPv6 {
+				expected = familyIPv6
+			}
+			return nil, fmt.Errorf("address %q is not %s", spec.Address, expected)
 		}
 		epBytes := ep.AsSlice()
 		data = append(data, byte(len(epBytes)*8))

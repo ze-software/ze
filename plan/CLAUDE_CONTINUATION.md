@@ -39,9 +39,31 @@ API tests   - 14/14 passed (100%) ✅
 ## Resume Point
 
 **Last worked:** 2025-12-31
-**Last commit:** `64d8a0f` feat(api): add MUP SAFI support for announce/withdraw commands
+**Last commit:** uncommitted - MUP API family validation fix + unit tests
 
-**Session ended:** MUP API support implemented and committed
+**Status:** Ready to commit
+
+---
+
+## READY TO COMMIT: MUP API Fixes
+
+**Spec:** `plan/done/spec-mup-api-fixes.md` ✅
+
+### Changes
+1. **Family validation** in `buildAPIMUPNLRI()` - all 4 route types validated
+2. **Unit tests** - `pkg/reactor/mup_test.go` with 24 test cases
+
+### Verification
+```
+make test       - PASS
+make lint       - pre-existing dupl only (6)
+API functional  - 14/14 passed
+```
+
+### Files to commit
+- `pkg/reactor/reactor.go` - family validation + constants
+- `pkg/reactor/mup_test.go` - 24 unit tests
+- `plan/done/spec-mup-api-fixes.md` - completed spec
 
 ---
 
