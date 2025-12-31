@@ -143,6 +143,14 @@ func (m *mockReactor) WithdrawLabeledUnicast(selector string, route LabeledUnica
 	return nil
 }
 
+func (m *mockReactor) AnnounceMUPRoute(_ string, _ MUPRouteSpec) error {
+	return nil
+}
+
+func (m *mockReactor) WithdrawMUPRoute(_ string, _ MUPRouteSpec) error {
+	return nil
+}
+
 func (m *mockReactor) AnnounceEOR(_ string, _ uint16, _ uint8) error {
 	return nil
 }

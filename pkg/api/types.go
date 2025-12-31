@@ -35,6 +35,7 @@ const (
 	SAFINameNLRIMPLS  = "nlri-mpls" // ExaBGP name for labeled-unicast
 	SAFINameFlowSpec  = "flowspec"
 	SAFINameEVPN      = "evpn"
+	SAFINameMUP       = "mup" // Mobile User Plane (SAFI 85)
 )
 
 // Transaction errors.
@@ -182,6 +183,24 @@ type LabeledUnicastRoute struct {
 	PathAttributes
 }
 
+// MUPRouteSpec specifies a MUP route for announcement (SAFI 85).
+// Per draft-mpmz-bess-mup-safi for Mobile User Plane.
+type MUPRouteSpec struct {
+	RouteType    string // mup-isd, mup-dsd, mup-t1st, mup-t2st
+	IsIPv6       bool   // AFI: false=IPv4, true=IPv6
+	Prefix       string // For ISD, T1ST (e.g., "10.0.1.0/24")
+	Address      string // For DSD, T2ST (e.g., "10.0.0.1")
+	RD           string // Route Distinguisher
+	TEID         string // Tunnel Endpoint ID (for T1ST/T2ST)
+	QFI          uint8  // QoS Flow Identifier
+	Endpoint     string // GTP endpoint address
+	Source       string // Source address (optional)
+	NextHop      string // Next-hop address (IPv6 for SRv6)
+	ExtCommunity string // Extended communities (e.g., "[target:10:10]")
+	PrefixSID    string // SRv6 Prefix SID (e.g., "l3-service 2001:db8::1 0x48 [64,24,16,0,0,0]")
+	PathAttributes
+}
+
 // ReactorInterface defines what the API needs from the reactor.
 // This interface avoids import cycles between pkg/api and pkg/reactor.
 type ReactorInterface interface {
@@ -233,6 +252,12 @@ type ReactorInterface interface {
 
 	// WithdrawLabeledUnicast withdraws an MPLS labeled unicast route.
 	WithdrawLabeledUnicast(peerSelector string, route LabeledUnicastRoute) error
+
+	// AnnounceMUPRoute announces a MUP route (SAFI 85) to peers.
+	AnnounceMUPRoute(peerSelector string, route MUPRouteSpec) error
+
+	// WithdrawMUPRoute withdraws a MUP route from peers.
+	WithdrawMUPRoute(peerSelector string, route MUPRouteSpec) error
 
 	// TeardownPeer gracefully closes a peer session with NOTIFICATION.
 	// Sends Cease (6) with the specified subcode per RFC 4486.

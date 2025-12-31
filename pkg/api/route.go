@@ -202,23 +202,23 @@ func parseWatchdogArg(args []string) (string, bool) {
 }
 
 // parseSAFI validates SAFI and returns remaining args with the normalized SAFI name.
-// Supported SAFIs: unicast, nlri-mpls (or labeled-unicast), mpls-vpn.
+// Supported SAFIs: unicast, nlri-mpls (or labeled-unicast), mpls-vpn, mup.
 // Note: "labeled-unicast" is normalized to "nlri-mpls" for ExaBGP compatibility.
 func parseSAFI(args []string) (safi string, rest []string, err error) {
 	if len(args) < 1 {
-		return "", nil, fmt.Errorf("missing SAFI (expected: %s, %s, or %s)",
-			SAFINameUnicast, SAFINameNLRIMPLS, SAFINameMPLSVPN)
+		return "", nil, fmt.Errorf("missing SAFI (expected: %s, %s, %s, or %s)",
+			SAFINameUnicast, SAFINameNLRIMPLS, SAFINameMPLSVPN, SAFINameMUP)
 	}
 	safi = strings.ToLower(args[0])
 	switch safi {
-	case SAFINameUnicast, SAFINameMPLSVPN:
+	case SAFINameUnicast, SAFINameMPLSVPN, SAFINameMUP:
 		return safi, args[1:], nil
 	case SAFINameNLRIMPLS, "labeled-unicast":
 		// Normalize to nlri-mpls for ExaBGP compatibility
 		return SAFINameNLRIMPLS, args[1:], nil
 	default:
-		return "", nil, fmt.Errorf("unsupported SAFI: %s (expected: %s, %s, or %s)",
-			args[0], SAFINameUnicast, SAFINameNLRIMPLS, SAFINameMPLSVPN)
+		return "", nil, fmt.Errorf("unsupported SAFI: %s (expected: %s, %s, %s, or %s)",
+			args[0], SAFINameUnicast, SAFINameNLRIMPLS, SAFINameMPLSVPN, SAFINameMUP)
 	}
 }
 
@@ -655,6 +655,40 @@ func parseBracketedList(args []string) ([]string, int) {
 	return expanded, 1
 }
 
+// parseParenthesizedValue parses a parenthesis-delimited value from args.
+// Used for bgp-prefix-sid-srv6 ( l3-service ... ) format.
+// Returns the content between parentheses as a single string, and consumed count.
+func parseParenthesizedValue(args []string) (string, int, error) {
+	if len(args) == 0 {
+		return "", 0, fmt.Errorf("empty args for parenthesized value")
+	}
+
+	// Must start with "("
+	if args[0] != "(" {
+		return "", 0, fmt.Errorf("expected '(' at start of parenthesized value, got %q", args[0])
+	}
+
+	// Collect tokens until ")"
+	// Pre-allocate with estimated capacity (args length minus parens)
+	parts := make([]string, 0, len(args)-2)
+	consumed := 0
+
+	for i, arg := range args {
+		consumed++
+		if i == 0 {
+			// Skip the opening paren
+			continue
+		}
+		if arg == ")" {
+			// Found closing paren
+			return strings.Join(parts, " "), consumed, nil
+		}
+		parts = append(parts, arg)
+	}
+
+	return "", 0, fmt.Errorf("unclosed parenthesis in value")
+}
+
 // parseCommunities parses communities in format [ASN:VAL ASN:VAL ...].
 // Returns the parsed communities and how many tokens were consumed.
 func parseCommunities(args []string) ([]uint32, int, error) {
@@ -943,16 +977,100 @@ func withdrawRouteImpl(ctx *CommandContext, args []string) (*Response, error) {
 	}, nil
 }
 
+// announceMUPImpl handles MUP route announcements.
+// Format: <route-type> <prefix/addr> rd <RD> next-hop <NH> [extended-community [...]] [bgp-prefix-sid-srv6 (...)].
+// Example: mup-isd 10.0.1.0/24 rd 100:100 next-hop 2001::1.
+func announceMUPImpl(ctx *CommandContext, args []string, isIPv6 bool) (*Response, error) {
+	spec, err := parseMUPArgs(args, isIPv6)
+	if err != nil {
+		return &Response{
+			Status: "error",
+			Error:  err.Error(),
+		}, err
+	}
+
+	peerSelector := ctx.PeerSelector()
+
+	if err := ctx.Reactor.AnnounceMUPRoute(peerSelector, spec); err != nil {
+		return &Response{
+			Status: "error",
+			Error:  fmt.Sprintf("failed to announce MUP route: %v", err),
+		}, err
+	}
+
+	afi := AFINameIPv4
+	if isIPv6 {
+		afi = AFINameIPv6
+	}
+
+	return &Response{
+		Status: "done",
+		Data: map[string]any{
+			"peer":       peerSelector,
+			"family":     afi + " " + SAFINameMUP,
+			"route_type": spec.RouteType,
+			"prefix":     spec.Prefix,
+			"address":    spec.Address,
+			"rd":         spec.RD,
+		},
+	}, nil
+}
+
+// withdrawMUPImpl handles MUP route withdrawals.
+// Format: <route-type> <prefix/addr> rd <RD> next-hop <NH> [extended-community [...]] [bgp-prefix-sid-srv6 (...)].
+// Example: mup-isd 10.0.1.0/24 rd 100:100 next-hop 2001::1.
+func withdrawMUPImpl(ctx *CommandContext, args []string, isIPv6 bool) (*Response, error) {
+	spec, err := parseMUPArgs(args, isIPv6)
+	if err != nil {
+		return &Response{
+			Status: "error",
+			Error:  err.Error(),
+		}, err
+	}
+
+	peerSelector := ctx.PeerSelector()
+
+	if err := ctx.Reactor.WithdrawMUPRoute(peerSelector, spec); err != nil {
+		return &Response{
+			Status: "error",
+			Error:  fmt.Sprintf("failed to withdraw MUP route: %v", err),
+		}, err
+	}
+
+	afi := AFINameIPv4
+	if isIPv6 {
+		afi = AFINameIPv6
+	}
+
+	return &Response{
+		Status: "done",
+		Data: map[string]any{
+			"peer":       peerSelector,
+			"family":     afi + " " + SAFINameMUP,
+			"route_type": spec.RouteType,
+			"prefix":     spec.Prefix,
+			"address":    spec.Address,
+			"rd":         spec.RD,
+		},
+	}, nil
+}
+
 // handleAnnounceIPv4 handles: announce ipv4 <safi> <prefix> [attributes...].
-// Supported SAFIs: unicast, nlri-mpls (or labeled-unicast), mpls-vpn.
+// Supported SAFIs: unicast, nlri-mpls (or labeled-unicast), mpls-vpn, mup.
 // Example: announce ipv4 unicast 10.0.0.0/24 next-hop 192.168.1.1.
 // Example: announce ipv4 nlri-mpls 10.0.0.0/24 label 100 next-hop 1.2.3.4.
 // Example: announce ipv4 mpls-vpn 10.0.0.0/24 rd 100:100 label 100 next-hop 1.2.3.4.
+// Example: announce ipv4 mup mup-isd 10.0.0.0/24 rd 100:100 next-hop 2001::1.
 func handleAnnounceIPv4(ctx *CommandContext, args []string) (*Response, error) {
 	// Parse SAFI
 	safi, rest, err := parseSAFI(args)
 	if err != nil {
 		return &Response{Status: "error", Error: err.Error()}, err
+	}
+
+	// MUP has different arg format: route-type prefix ... (not prefix first)
+	if safi == SAFINameMUP {
+		return announceMUPImpl(ctx, rest, false)
 	}
 
 	// Validate prefix is IPv4
@@ -983,15 +1101,21 @@ func handleAnnounceIPv4(ctx *CommandContext, args []string) (*Response, error) {
 }
 
 // handleAnnounceIPv6 handles: announce ipv6 <safi> <prefix> [attributes...].
-// Supported SAFIs: unicast, nlri-mpls (or labeled-unicast), mpls-vpn.
+// Supported SAFIs: unicast, nlri-mpls (or labeled-unicast), mpls-vpn, mup.
 // Example: announce ipv6 unicast 2001:db8::/32 next-hop 2001::1.
 // Example: announce ipv6 nlri-mpls 2001:db8::/32 label 100 next-hop 2001::1.
 // Example: announce ipv6 mpls-vpn 2001:db8::/32 rd 100:100 label 100 next-hop 2001::1.
+// Example: announce ipv6 mup mup-isd 2001:db8::/32 rd 100:100 next-hop 2001::1.
 func handleAnnounceIPv6(ctx *CommandContext, args []string) (*Response, error) {
 	// Parse SAFI
 	safi, rest, err := parseSAFI(args)
 	if err != nil {
 		return &Response{Status: "error", Error: err.Error()}, err
+	}
+
+	// MUP has different arg format: route-type prefix ... (not prefix first)
+	if safi == SAFINameMUP {
+		return announceMUPImpl(ctx, rest, true)
 	}
 
 	// Validate prefix is IPv6
@@ -1022,15 +1146,21 @@ func handleAnnounceIPv6(ctx *CommandContext, args []string) (*Response, error) {
 }
 
 // handleWithdrawIPv4 handles: withdraw ipv4 <safi> <prefix> [attributes...].
-// Supported SAFIs: unicast, nlri-mpls (or labeled-unicast), mpls-vpn.
+// Supported SAFIs: unicast, nlri-mpls (or labeled-unicast), mpls-vpn, mup.
 // Example: withdraw ipv4 unicast 10.0.0.0/24.
 // Example: withdraw ipv4 nlri-mpls 10.0.0.0/24 label 100.
 // Example: withdraw ipv4 mpls-vpn 10.0.0.0/24 rd 100:100.
+// Example: withdraw ipv4 mup mup-isd 10.0.0.0/24 rd 100:100.
 func handleWithdrawIPv4(ctx *CommandContext, args []string) (*Response, error) {
 	// Parse SAFI
 	safi, rest, err := parseSAFI(args)
 	if err != nil {
 		return &Response{Status: "error", Error: err.Error()}, err
+	}
+
+	// MUP has different arg format: route-type prefix ... (not prefix first)
+	if safi == SAFINameMUP {
+		return withdrawMUPImpl(ctx, rest, false)
 	}
 
 	// Validate prefix is IPv4
@@ -1061,15 +1191,21 @@ func handleWithdrawIPv4(ctx *CommandContext, args []string) (*Response, error) {
 }
 
 // handleWithdrawIPv6 handles: withdraw ipv6 <safi> <prefix> [attributes...].
-// Supported SAFIs: unicast, nlri-mpls (or labeled-unicast), mpls-vpn.
+// Supported SAFIs: unicast, nlri-mpls (or labeled-unicast), mpls-vpn, mup.
 // Example: withdraw ipv6 unicast 2001:db8::/32.
 // Example: withdraw ipv6 nlri-mpls 2001:db8::/32 label 100.
 // Example: withdraw ipv6 mpls-vpn 2001:db8::/32 rd 100:100.
+// Example: withdraw ipv6 mup mup-isd 2001:db8::/32 rd 100:100.
 func handleWithdrawIPv6(ctx *CommandContext, args []string) (*Response, error) {
 	// Parse SAFI
 	safi, rest, err := parseSAFI(args)
 	if err != nil {
 		return &Response{Status: "error", Error: err.Error()}, err
+	}
+
+	// MUP has different arg format: route-type prefix ... (not prefix first)
+	if safi == SAFINameMUP {
+		return withdrawMUPImpl(ctx, rest, true)
 	}
 
 	// Validate prefix is IPv6
@@ -2689,4 +2825,168 @@ func handleWithdrawWatchdog(ctx *CommandContext, args []string) (*Response, erro
 			"watchdog": name,
 		},
 	}, nil
+}
+
+// MUP route type constants.
+const (
+	MUPRouteTypeISD  = "mup-isd"  // Interwork Segment Discovery
+	MUPRouteTypeDSD  = "mup-dsd"  // Direct Segment Discovery
+	MUPRouteTypeT1ST = "mup-t1st" // Type 1 Session Transformed
+	MUPRouteTypeT2ST = "mup-t2st" // Type 2 Session Transformed
+)
+
+// validMUPRouteTypes is the set of valid MUP route types.
+var validMUPRouteTypes = map[string]bool{
+	MUPRouteTypeISD:  true,
+	MUPRouteTypeDSD:  true,
+	MUPRouteTypeT1ST: true,
+	MUPRouteTypeT2ST: true,
+}
+
+// parseMUPArgs parses MUP route arguments.
+// Format: <route-type> <prefix/addr> rd <RD> next-hop <NH> [extended-community [...]] [bgp-prefix-sid-srv6 (...)].
+// Route types: mup-isd, mup-dsd, mup-t1st, mup-t2st.
+func parseMUPArgs(args []string, isIPv6 bool) (MUPRouteSpec, error) {
+	spec := MUPRouteSpec{
+		IsIPv6: isIPv6,
+	}
+
+	if len(args) < 1 {
+		return spec, fmt.Errorf("missing MUP route type")
+	}
+
+	// First arg is route type
+	routeType := strings.ToLower(args[0])
+	if !validMUPRouteTypes[routeType] {
+		return spec, fmt.Errorf("invalid MUP route type: %s (expected: mup-isd, mup-dsd, mup-t1st, mup-t2st)", args[0])
+	}
+	spec.RouteType = routeType
+
+	if len(args) < 2 {
+		return spec, fmt.Errorf("missing prefix/address for MUP route")
+	}
+
+	// Second arg is prefix or address depending on route type
+	switch routeType {
+	case MUPRouteTypeISD, MUPRouteTypeT1ST:
+		spec.Prefix = args[1]
+	case MUPRouteTypeDSD, MUPRouteTypeT2ST:
+		spec.Address = args[1]
+	}
+
+	// Parse remaining args as key-value pairs
+	for i := 2; i < len(args); i++ {
+		key := strings.ToLower(args[i])
+
+		switch key {
+		case "rd":
+			if i+1 >= len(args) {
+				return spec, fmt.Errorf("missing rd value")
+			}
+			spec.RD = args[i+1]
+			i++
+
+		case "next-hop":
+			if i+1 >= len(args) {
+				return spec, fmt.Errorf("missing next-hop value")
+			}
+			spec.NextHop = args[i+1]
+			i++
+
+		case "teid":
+			if i+1 >= len(args) {
+				return spec, fmt.Errorf("missing teid value")
+			}
+			spec.TEID = args[i+1]
+			i++
+
+		case "qfi":
+			if i+1 >= len(args) {
+				return spec, fmt.Errorf("missing qfi value")
+			}
+			qfi, err := strconv.ParseUint(args[i+1], 10, 8)
+			if err != nil {
+				return spec, fmt.Errorf("invalid qfi value: %s", args[i+1])
+			}
+			spec.QFI = uint8(qfi)
+			i++
+
+		case "endpoint":
+			if i+1 >= len(args) {
+				return spec, fmt.Errorf("missing endpoint value")
+			}
+			spec.Endpoint = args[i+1]
+			i++
+
+		case "source":
+			if i+1 >= len(args) {
+				return spec, fmt.Errorf("missing source value")
+			}
+			spec.Source = args[i+1]
+			i++
+
+		case "extended-community":
+			if i+1 >= len(args) {
+				return spec, fmt.Errorf("missing extended-community value")
+			}
+			// Collect bracketed value
+			tokens, consumed := parseBracketedList(args[i+1:])
+			spec.ExtCommunity = "[" + strings.Join(tokens, " ") + "]"
+			i += consumed
+
+		case "bgp-prefix-sid-srv6":
+			if i+1 >= len(args) {
+				return spec, fmt.Errorf("missing bgp-prefix-sid-srv6 value")
+			}
+			// Parse parenthesized value
+			value, consumed, err := parseParenthesizedValue(args[i+1:])
+			if err != nil {
+				return spec, fmt.Errorf("invalid bgp-prefix-sid-srv6: %w", err)
+			}
+			spec.PrefixSID = value
+			i += consumed
+
+		case "origin":
+			if i+1 >= len(args) {
+				return spec, fmt.Errorf("missing origin value")
+			}
+			origin, err := parseOrigin(args[i+1])
+			if err != nil {
+				return spec, err
+			}
+			spec.Origin = &origin
+			i++
+
+		case "local-preference":
+			if i+1 >= len(args) {
+				return spec, fmt.Errorf("missing local-preference value")
+			}
+			lp, err := strconv.ParseUint(args[i+1], 10, 32)
+			if err != nil {
+				return spec, fmt.Errorf("invalid local-preference: %s", args[i+1])
+			}
+			lpVal := uint32(lp)
+			spec.LocalPreference = &lpVal
+			i++
+
+		case "as-path":
+			if i+1 >= len(args) {
+				return spec, fmt.Errorf("missing as-path value")
+			}
+			tokens, consumed := parseBracketedList(args[i+1:])
+			for _, tok := range tokens {
+				asn, err := strconv.ParseUint(tok, 10, 32)
+				if err != nil {
+					return spec, fmt.Errorf("invalid ASN in as-path: %s", tok)
+				}
+				spec.ASPath = append(spec.ASPath, uint32(asn))
+			}
+			i += consumed
+
+		default:
+			// Unknown keyword - could be future extension, skip silently
+		}
+	}
+
+	return spec, nil
 }

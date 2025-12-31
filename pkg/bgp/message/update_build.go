@@ -1458,3 +1458,76 @@ func (ub *UpdateBuilder) buildMPReachMUP(p MUPParams) *rawAttribute {
 		data:  value,
 	}
 }
+
+// BuildMUPWithdraw builds an UPDATE message to withdraw a MUP route (SAFI 85).
+// Unlike simple withdrawals, MUP withdrawals include path attributes per the test expectations.
+func (ub *UpdateBuilder) BuildMUPWithdraw(p MUPParams) *Update {
+	var attrs []attribute.Attribute
+
+	// 1. ORIGIN (IGP)
+	attrs = append(attrs, attribute.OriginIGP)
+
+	// 2. AS_PATH
+	asPath := ub.buildASPath(nil)
+	attrs = append(attrs, asPath)
+
+	// 5. LOCAL_PREF
+	if ub.IsIBGP {
+		attrs = append(attrs, attribute.LocalPref(100))
+	}
+
+	// 15. MP_UNREACH_NLRI
+	mpUnreach := ub.buildMPUnreachMUP(p)
+	attrs = append(attrs, mpUnreach)
+
+	// 16. EXTENDED_COMMUNITIES
+	if len(p.ExtCommunityBytes) > 0 {
+		attrs = append(attrs, &rawAttribute{
+			flags: attribute.FlagOptional | attribute.FlagTransitive,
+			code:  attribute.AttrExtCommunity,
+			data:  p.ExtCommunityBytes,
+		})
+	}
+
+	// 40. PREFIX_SID
+	if len(p.PrefixSID) > 0 {
+		attrs = append(attrs, &rawAttribute{
+			flags: attribute.FlagOptional | attribute.FlagTransitive,
+			code:  attribute.AttrPrefixSID,
+			data:  p.PrefixSID,
+		})
+	}
+
+	sort.Slice(attrs, func(i, j int) bool {
+		return attrs[i].Code() < attrs[j].Code()
+	})
+
+	attrBytes := attribute.PackAttributesOrdered(attrs)
+
+	return &Update{
+		PathAttributes: attrBytes,
+	}
+}
+
+// buildMPUnreachMUP constructs MP_UNREACH_NLRI for MUP route withdrawals.
+func (ub *UpdateBuilder) buildMPUnreachMUP(p MUPParams) *rawAttribute {
+	var afi uint16 = 1
+	if p.IsIPv6 {
+		afi = 2
+	}
+	const safiMUP byte = 85
+
+	// Value: AFI(2) + SAFI(1) + Withdrawn NLRI
+	valueLen := 2 + 1 + len(p.NLRI)
+	value := make([]byte, valueLen)
+	value[0] = byte(afi >> 8)
+	value[1] = byte(afi)
+	value[2] = safiMUP
+	copy(value[3:], p.NLRI)
+
+	return &rawAttribute{
+		flags: attribute.FlagOptional,
+		code:  attribute.AttrMPUnreachNLRI,
+		data:  value,
+	}
+}

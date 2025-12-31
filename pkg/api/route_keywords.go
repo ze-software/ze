@@ -47,3 +47,19 @@ var VPNKeywords = KeywordSet{
 	"rt":                 true, // Route Target
 	"label":              true, // MPLS label
 }
+
+// MUPKeywords defines valid keywords for MUP routes (SAFI 85).
+// Per draft-mpmz-bess-mup-safi for Mobile User Plane.
+var MUPKeywords = KeywordSet{
+	"next-hop":            true,
+	"origin":              true,
+	"local-preference":    true,
+	"as-path":             true,
+	"extended-community":  true, // Route targets
+	"rd":                  true, // Route Distinguisher
+	"bgp-prefix-sid-srv6": true, // SRv6 Prefix SID (RFC 9252)
+	"teid":                true, // Tunnel Endpoint ID (for T1ST/T2ST)
+	"qfi":                 true, // QoS Flow Identifier
+	"endpoint":            true, // GTP endpoint address
+	"source":              true, // Source address (optional)
+}

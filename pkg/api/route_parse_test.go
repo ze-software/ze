@@ -455,6 +455,10 @@ func TestParseSAFI(t *testing.T) {
 		{"mpls-vpn lowercase", []string{"mpls-vpn", "10.0.0.0/24", "rd", "100:100"}, "mpls-vpn", []string{"10.0.0.0/24", "rd", "100:100"}, false},
 		{"MPLS-VPN uppercase", []string{"MPLS-VPN", "10.0.0.0/24"}, "mpls-vpn", []string{"10.0.0.0/24"}, false},
 
+		// Valid MUP SAFI
+		{"mup lowercase", []string{"mup", "mup-isd", "10.0.0.0/24", "rd", "100:100"}, "mup", []string{"mup-isd", "10.0.0.0/24", "rd", "100:100"}, false},
+		{"MUP uppercase", []string{"MUP", "mup-dsd", "10.0.0.1"}, "mup", []string{"mup-dsd", "10.0.0.1"}, false},
+
 		// Invalid
 		{"empty", []string{}, "", nil, true},
 		{"invalid safi", []string{"multipath", "10.0.0.0/24"}, "", nil, true},
@@ -1369,4 +1373,147 @@ func TestParseL2VPNArgs_InvalidKeywords(t *testing.T) {
 		{"invalid: unknown keyword", "bogus-key", strings.Fields("mac-ip rd 100:100 mac 00:11:22:33:44:55 bogus-key value next-hop 1.2.3.4"), true},
 		{"invalid: typo in ethernet-tag", "ethernettag", strings.Fields("mac-ip rd 100:100 mac 00:11:22:33:44:55 ethernettag 100 next-hop 1.2.3.4"), true},
 	})
+}
+
+// TestParseParenthesizedValue tests parsing of parenthesis-delimited values.
+//
+// VALIDATES: Parenthesized values are correctly extracted from args.
+//
+// PREVENTS: bgp-prefix-sid-srv6 ( ... ) not being parsed correctly.
+func TestParseParenthesizedValue(t *testing.T) {
+	tests := []struct {
+		name         string
+		args         []string
+		wantValue    string
+		wantConsumed int
+		wantErr      bool
+	}{
+		{
+			name:         "simple parenthesized",
+			args:         []string{"(", "l3-service", "2001::1", "0x48", ")"},
+			wantValue:    "l3-service 2001::1 0x48",
+			wantConsumed: 5,
+		},
+		{
+			name:         "with SID structure",
+			args:         []string{"(", "l3-service", "2001:db8:1:1::", "0x48", "[64,24,16,0,0,0]", ")"},
+			wantValue:    "l3-service 2001:db8:1:1:: 0x48 [64,24,16,0,0,0]",
+			wantConsumed: 6,
+		},
+		{
+			name:    "unclosed parenthesis",
+			args:    []string{"(", "l3-service", "2001::1"},
+			wantErr: true,
+		},
+		{
+			name:    "empty args",
+			args:    []string{},
+			wantErr: true,
+		},
+		{
+			name:    "not starting with paren",
+			args:    []string{"l3-service", "2001::1", ")"},
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			value, consumed, err := parseParenthesizedValue(tt.args)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("parseParenthesizedValue() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if tt.wantErr {
+				return
+			}
+			if value != tt.wantValue {
+				t.Errorf("parseParenthesizedValue() value = %q, want %q", value, tt.wantValue)
+			}
+			if consumed != tt.wantConsumed {
+				t.Errorf("parseParenthesizedValue() consumed = %d, want %d", consumed, tt.wantConsumed)
+			}
+		})
+	}
+}
+
+// TestParseMUPArgs tests MUP route argument parsing.
+//
+// VALIDATES: MUP route types and attributes are correctly parsed.
+//
+// PREVENTS: MUP API commands not producing correct route specs.
+func TestParseMUPArgs(t *testing.T) {
+	tests := []struct {
+		name          string
+		args          []string
+		isIPv6        bool
+		wantRouteType string
+		wantPrefix    string
+		wantRD        string
+		wantNextHop   string
+		wantErr       bool
+	}{
+		{
+			name:          "mup-isd IPv4",
+			args:          strings.Fields("mup-isd 10.0.1.0/24 rd 100:100 next-hop 2001::1"),
+			isIPv6:        false,
+			wantRouteType: "mup-isd",
+			wantPrefix:    "10.0.1.0/24",
+			wantRD:        "100:100",
+			wantNextHop:   "2001::1",
+		},
+		{
+			name:          "mup-dsd IPv4",
+			args:          strings.Fields("mup-dsd 10.0.0.1 rd 200:200 next-hop 2001::2"),
+			isIPv6:        false,
+			wantRouteType: "mup-dsd",
+			wantPrefix:    "10.0.0.1",
+			wantRD:        "200:200",
+			wantNextHop:   "2001::2",
+		},
+		{
+			name:          "mup-isd IPv6",
+			args:          strings.Fields("mup-isd 2001:db8::/32 rd 100:100 next-hop 2001::1"),
+			isIPv6:        true,
+			wantRouteType: "mup-isd",
+			wantPrefix:    "2001:db8::/32",
+			wantRD:        "100:100",
+			wantNextHop:   "2001::1",
+		},
+		{
+			name:    "missing route type",
+			args:    strings.Fields("10.0.1.0/24 rd 100:100"),
+			wantErr: true,
+		},
+		{
+			name:    "invalid route type",
+			args:    strings.Fields("mup-invalid 10.0.1.0/24 rd 100:100"),
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			spec, err := parseMUPArgs(tt.args, tt.isIPv6)
+			if (err != nil) != tt.wantErr {
+				t.Errorf("parseMUPArgs() error = %v, wantErr %v", err, tt.wantErr)
+				return
+			}
+			if tt.wantErr {
+				return
+			}
+			if spec.RouteType != tt.wantRouteType {
+				t.Errorf("parseMUPArgs() RouteType = %q, want %q", spec.RouteType, tt.wantRouteType)
+			}
+			if spec.Prefix != tt.wantPrefix && spec.Address != tt.wantPrefix {
+				t.Errorf("parseMUPArgs() Prefix/Address = %q/%q, want %q", spec.Prefix, spec.Address, tt.wantPrefix)
+			}
+			if spec.RD != tt.wantRD {
+				t.Errorf("parseMUPArgs() RD = %q, want %q", spec.RD, tt.wantRD)
+			}
+			if spec.NextHop != tt.wantNextHop {
+				t.Errorf("parseMUPArgs() NextHop = %q, want %q", spec.NextHop, tt.wantNextHop)
+			}
+		})
+	}
 }

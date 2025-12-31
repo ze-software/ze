@@ -629,6 +629,104 @@ func (a *reactorAPIAdapter) WithdrawLabeledUnicast(peerSelector string, route ap
 	return lastErr
 }
 
+// AnnounceMUPRoute announces a MUP route (SAFI 85) to matching peers.
+// draft-mpmz-bess-mup-safi - Mobile User Plane.
+func (a *reactorAPIAdapter) AnnounceMUPRoute(peerSelector string, spec api.MUPRouteSpec) error {
+	peers := a.getMatchingPeers(peerSelector)
+	if len(peers) == 0 {
+		return errors.New("no peers match selector")
+	}
+
+	// Convert API spec to reactor MUPRoute
+	mupRoute, err := convertAPIMUPRoute(spec)
+	if err != nil {
+		return fmt.Errorf("convert MUP route: %w", err)
+	}
+
+	var lastErr error
+	for _, peer := range peers {
+		if peer.State() != PeerStateEstablished {
+			continue
+		}
+
+		// Check if MUP family is negotiated
+		nf := peer.families.Load()
+		if nf == nil {
+			continue
+		}
+		if spec.IsIPv6 && !nf.IPv6MUP {
+			continue // Skip peer that doesn't support IPv6 MUP
+		}
+		if !spec.IsIPv6 && !nf.IPv4MUP {
+			continue // Skip peer that doesn't support IPv4 MUP
+		}
+
+		family := nlri.Family{AFI: nlri.AFIIPv4, SAFI: safiMUP}
+		if spec.IsIPv6 {
+			family.AFI = nlri.AFIIPv6
+		}
+		ctx := peer.packContext(family)
+
+		// Build UPDATE using UpdateBuilder
+		ub := message.NewUpdateBuilder(peer.settings.LocalAS, peer.settings.IsIBGP(), ctx)
+		update := ub.BuildMUP(toMUPParams(mupRoute))
+
+		if err := peer.SendUpdate(update); err != nil {
+			lastErr = err
+		}
+	}
+	return lastErr
+}
+
+// WithdrawMUPRoute withdraws a MUP route from matching peers.
+// Uses MP_UNREACH_NLRI with SAFI 85.
+func (a *reactorAPIAdapter) WithdrawMUPRoute(peerSelector string, spec api.MUPRouteSpec) error {
+	peers := a.getMatchingPeers(peerSelector)
+	if len(peers) == 0 {
+		return errors.New("no peers match selector")
+	}
+
+	// Convert API spec to reactor MUPRoute
+	mupRoute, err := convertAPIMUPRoute(spec)
+	if err != nil {
+		return fmt.Errorf("convert MUP route: %w", err)
+	}
+
+	var lastErr error
+	for _, peer := range peers {
+		if peer.State() != PeerStateEstablished {
+			continue
+		}
+
+		// Check if MUP family is negotiated
+		nf := peer.families.Load()
+		if nf == nil {
+			continue
+		}
+		if spec.IsIPv6 && !nf.IPv6MUP {
+			continue
+		}
+		if !spec.IsIPv6 && !nf.IPv4MUP {
+			continue
+		}
+
+		family := nlri.Family{AFI: nlri.AFIIPv4, SAFI: safiMUP}
+		if spec.IsIPv6 {
+			family.AFI = nlri.AFIIPv6
+		}
+		ctx := peer.packContext(family)
+
+		// Build withdrawal UPDATE using UpdateBuilder
+		ub := message.NewUpdateBuilder(peer.settings.LocalAS, peer.settings.IsIBGP(), ctx)
+		update := ub.BuildMUPWithdraw(toMUPParams(mupRoute))
+
+		if err := peer.SendUpdate(update); err != nil {
+			lastErr = err
+		}
+	}
+	return lastErr
+}
+
 // TeardownPeer gracefully closes a peer session with NOTIFICATION.
 // Sends Cease (6) with the specified subcode per RFC 4486.
 func (a *reactorAPIAdapter) TeardownPeer(addr netip.Addr, subcode uint8) error {
@@ -1985,4 +2083,362 @@ func (r *Reactor) acceptPendingConnection(peer *Peer, conn net.Conn, open *messa
 		// Failed to accept - peer may have been stopped or old session not yet closed
 		_ = conn.Close()
 	}
+}
+
+// convertAPIMUPRoute converts an api.MUPRouteSpec to a reactor.MUPRoute.
+// This function parses the string fields in the API spec into wire-format bytes.
+func convertAPIMUPRoute(spec api.MUPRouteSpec) (MUPRoute, error) {
+	route := MUPRoute{
+		IsIPv6: spec.IsIPv6,
+	}
+
+	// Convert route type string to numeric
+	switch spec.RouteType {
+	case "mup-isd":
+		route.RouteType = 1
+	case "mup-dsd":
+		route.RouteType = 2
+	case "mup-t1st":
+		route.RouteType = 3
+	case "mup-t2st":
+		route.RouteType = 4
+	default:
+		return route, fmt.Errorf("unknown MUP route type: %s", spec.RouteType)
+	}
+
+	// Parse NextHop
+	if spec.NextHop != "" {
+		ip, err := netip.ParseAddr(spec.NextHop)
+		if err != nil {
+			return route, fmt.Errorf("parse next-hop: %w", err)
+		}
+		route.NextHop = ip
+	}
+
+	// Build MUP NLRI bytes (simplified - reuse from config/loader pattern)
+	nlriBytes, err := buildAPIMUPNLRI(spec)
+	if err != nil {
+		return route, fmt.Errorf("build MUP NLRI: %w", err)
+	}
+	route.NLRI = nlriBytes
+
+	// Parse extended communities if present
+	if spec.ExtCommunity != "" {
+		ecBytes, err := parseAPIExtCommunity(spec.ExtCommunity)
+		if err != nil {
+			return route, fmt.Errorf("parse extended-community: %w", err)
+		}
+		route.ExtCommunityBytes = ecBytes
+	}
+
+	// Parse SRv6 Prefix-SID if present
+	if spec.PrefixSID != "" {
+		sidBytes, err := parseAPIPrefixSIDSRv6(spec.PrefixSID)
+		if err != nil {
+			return route, fmt.Errorf("parse prefix-sid-srv6: %w", err)
+		}
+		route.PrefixSID = sidBytes
+	}
+
+	return route, nil
+}
+
+// buildAPIMUPNLRI builds MUP NLRI bytes from API spec.
+func buildAPIMUPNLRI(spec api.MUPRouteSpec) ([]byte, error) {
+	// Determine route type code
+	var routeType nlri.MUPRouteType
+	switch spec.RouteType {
+	case "mup-isd":
+		routeType = nlri.MUPISD
+	case "mup-dsd":
+		routeType = nlri.MUPDSD
+	case "mup-t1st":
+		routeType = nlri.MUPT1ST
+	case "mup-t2st":
+		routeType = nlri.MUPT2ST
+	default:
+		return nil, fmt.Errorf("unknown MUP route type: %s", spec.RouteType)
+	}
+
+	// Parse RD
+	var rd nlri.RouteDistinguisher
+	if spec.RD != "" {
+		parsed, err := parseRD(spec.RD)
+		if err != nil {
+			return nil, fmt.Errorf("invalid RD %q: %w", spec.RD, err)
+		}
+		rd = parsed
+	}
+
+	// Build route-type-specific data
+	var data []byte
+	switch routeType {
+	case nlri.MUPISD:
+		if spec.Prefix == "" {
+			return nil, fmt.Errorf("MUP ISD requires prefix")
+		}
+		prefix, err := netip.ParsePrefix(spec.Prefix)
+		if err != nil {
+			return nil, fmt.Errorf("invalid ISD prefix %q: %w", spec.Prefix, err)
+		}
+		data = buildMUPPrefix(prefix)
+
+	case nlri.MUPDSD:
+		if spec.Address == "" {
+			return nil, fmt.Errorf("MUP DSD requires address")
+		}
+		addr, err := netip.ParseAddr(spec.Address)
+		if err != nil {
+			return nil, fmt.Errorf("invalid DSD address %q: %w", spec.Address, err)
+		}
+		data = addr.AsSlice()
+
+	case nlri.MUPT1ST:
+		if spec.Prefix == "" {
+			return nil, fmt.Errorf("MUP T1ST requires prefix")
+		}
+		prefix, err := netip.ParsePrefix(spec.Prefix)
+		if err != nil {
+			return nil, fmt.Errorf("invalid T1ST prefix %q: %w", spec.Prefix, err)
+		}
+		data = buildMUPPrefix(prefix)
+		// TODO: Add TEID, QFI, endpoint if needed
+
+	case nlri.MUPT2ST:
+		if spec.Address == "" {
+			return nil, fmt.Errorf("MUP T2ST requires address")
+		}
+		ep, err := netip.ParseAddr(spec.Address)
+		if err != nil {
+			return nil, fmt.Errorf("invalid T2ST endpoint %q: %w", spec.Address, err)
+		}
+		epBytes := ep.AsSlice()
+		data = append(data, byte(len(epBytes)*8))
+		data = append(data, epBytes...)
+		// TODO: Add TEID encoding
+	}
+
+	// Determine AFI
+	afi := nlri.AFIIPv4
+	if spec.IsIPv6 {
+		afi = nlri.AFIIPv6
+	}
+
+	mup := nlri.NewMUPFull(afi, nlri.MUPArch3GPP5G, routeType, rd, data)
+	return mup.Pack(nil), nil
+}
+
+// buildMUPPrefix encodes a prefix for MUP NLRI.
+func buildMUPPrefix(prefix netip.Prefix) []byte {
+	bits := prefix.Bits()
+	addr := prefix.Addr()
+	addrBytes := addr.AsSlice()
+	prefixBytes := (bits + 7) / 8
+	result := make([]byte, 1+prefixBytes)
+	result[0] = byte(bits)
+	copy(result[1:], addrBytes[:prefixBytes])
+	return result
+}
+
+// parseRD parses a Route Distinguisher string.
+func parseRD(s string) (nlri.RouteDistinguisher, error) {
+	var rd nlri.RouteDistinguisher
+	// Parse "ASN:value" or "IP:value" format
+	parts := strings.Split(s, ":")
+	if len(parts) != 2 {
+		return rd, fmt.Errorf("invalid RD format: %s", s)
+	}
+
+	// Try ASN:value format (Type 0)
+	ip := net.ParseIP(parts[0])
+	if ip == nil {
+		// Type 0: 2-byte ASN + 4-byte value
+		var asn, val uint64
+		if _, err := fmt.Sscanf(s, "%d:%d", &asn, &val); err != nil {
+			return rd, fmt.Errorf("invalid RD: %s", s)
+		}
+		rd.Type = 0
+		rd.Value[0] = byte(asn >> 8)
+		rd.Value[1] = byte(asn)
+		rd.Value[2] = byte(val >> 24)
+		rd.Value[3] = byte(val >> 16)
+		rd.Value[4] = byte(val >> 8)
+		rd.Value[5] = byte(val)
+	} else {
+		// Type 1: 4-byte IP + 2-byte value
+		ip4 := ip.To4()
+		if ip4 == nil {
+			return rd, fmt.Errorf("RD IP must be IPv4: %s", parts[0])
+		}
+		var val uint64
+		if _, err := fmt.Sscanf(parts[1], "%d", &val); err != nil {
+			return rd, fmt.Errorf("invalid RD value: %s", parts[1])
+		}
+		rd.Type = 1
+		copy(rd.Value[:4], ip4)
+		rd.Value[4] = byte(val >> 8)
+		rd.Value[5] = byte(val)
+	}
+
+	return rd, nil
+}
+
+// parseAPIExtCommunity parses extended community string to bytes.
+func parseAPIExtCommunity(s string) ([]byte, error) {
+	// Strip brackets if present: "[target:10:10]" -> "target:10:10"
+	s = strings.TrimPrefix(s, "[")
+	s = strings.TrimSuffix(s, "]")
+	s = strings.TrimSpace(s)
+
+	// Parse "type:ASN:value" format (e.g., "target:10:10")
+	parts := strings.SplitN(s, ":", 3)
+	if len(parts) < 2 {
+		return nil, fmt.Errorf("invalid extended community: %s", s)
+	}
+
+	ecType := strings.ToLower(parts[0])
+	switch ecType {
+	case "target":
+		// Route Target: Type 0x00, Subtype 0x02
+		if len(parts) != 3 {
+			return nil, fmt.Errorf("target requires ASN:value format")
+		}
+		var asn, val uint64
+		if _, err := fmt.Sscanf(parts[1]+":"+parts[2], "%d:%d", &asn, &val); err != nil {
+			return nil, fmt.Errorf("invalid target values: %s:%s", parts[1], parts[2])
+		}
+		ec := [8]byte{0x00, 0x02}
+		ec[2] = byte(asn >> 8)
+		ec[3] = byte(asn)
+		ec[4] = byte(val >> 24)
+		ec[5] = byte(val >> 16)
+		ec[6] = byte(val >> 8)
+		ec[7] = byte(val)
+		return ec[:], nil
+
+	case "origin":
+		// Route Origin: Type 0x00, Subtype 0x03
+		if len(parts) != 3 {
+			return nil, fmt.Errorf("origin requires ASN:value format")
+		}
+		var asn, val uint64
+		if _, err := fmt.Sscanf(parts[1]+":"+parts[2], "%d:%d", &asn, &val); err != nil {
+			return nil, fmt.Errorf("invalid origin values: %s:%s", parts[1], parts[2])
+		}
+		ec := [8]byte{0x00, 0x03}
+		ec[2] = byte(asn >> 8)
+		ec[3] = byte(asn)
+		ec[4] = byte(val >> 24)
+		ec[5] = byte(val >> 16)
+		ec[6] = byte(val >> 8)
+		ec[7] = byte(val)
+		return ec[:], nil
+
+	default:
+		return nil, fmt.Errorf("unknown extended community type: %s", ecType)
+	}
+}
+
+// parseAPIPrefixSIDSRv6 parses SRv6 Prefix-SID string to bytes.
+func parseAPIPrefixSIDSRv6(s string) ([]byte, error) {
+	if s == "" {
+		return nil, nil
+	}
+
+	// Parse service type
+	var serviceType byte
+	switch {
+	case strings.HasPrefix(s, "l3-service"):
+		serviceType = 5 // TLV Type 5: SRv6 L3 Service
+		s = strings.TrimPrefix(s, "l3-service")
+	case strings.HasPrefix(s, "l2-service"):
+		serviceType = 6 // TLV Type 6: SRv6 L2 Service
+		s = strings.TrimPrefix(s, "l2-service")
+	default:
+		return nil, fmt.Errorf("invalid srv6 prefix-sid: expected l3-service or l2-service")
+	}
+	s = strings.TrimSpace(s)
+
+	// Parse IPv6 address
+	fields := strings.Fields(s)
+	if len(fields) < 1 {
+		return nil, fmt.Errorf("invalid srv6 prefix-sid: missing IPv6 address")
+	}
+	ipv6, err := netip.ParseAddr(fields[0])
+	if err != nil || !ipv6.Is6() {
+		return nil, fmt.Errorf("invalid srv6 prefix-sid: expected IPv6 address, got %q", fields[0])
+	}
+
+	var behavior byte
+	var sidStruct []byte
+
+	// Parse optional behavior (0xNN format)
+	for _, f := range fields[1:] {
+		if strings.HasPrefix(f, "0x") || strings.HasPrefix(f, "0X") {
+			behVal, err := parseHexByte(f)
+			if err != nil {
+				return nil, fmt.Errorf("invalid srv6 behavior %q: %w", f, err)
+			}
+			behavior = behVal
+		} else if strings.HasPrefix(f, "[") {
+			// Parse SID structure [LB,LN,Func,Arg,TransLen,TransOffset]
+			structStr := strings.TrimPrefix(f, "[")
+			structStr = strings.TrimSuffix(structStr, "]")
+			parts := strings.Split(structStr, ",")
+			if len(parts) != 6 {
+				return nil, fmt.Errorf("invalid srv6 SID structure: expected 6 values")
+			}
+			for _, p := range parts {
+				v, err := parseUint8(strings.TrimSpace(p))
+				if err != nil {
+					return nil, fmt.Errorf("invalid srv6 SID structure value %q: %w", p, err)
+				}
+				sidStruct = append(sidStruct, v)
+			}
+		}
+	}
+
+	// Build wire format per RFC 9252
+	var innerValue []byte
+	innerValue = append(innerValue, 0) // reserved
+	innerValue = append(innerValue, ipv6.AsSlice()...)
+	innerValue = append(innerValue, 0)        // flags
+	innerValue = append(innerValue, 0)        // reserved
+	innerValue = append(innerValue, behavior) // behavior
+
+	if len(sidStruct) == 6 {
+		innerValue = append(innerValue, 0, 1)
+		innerValue = append(innerValue, 0, byte(len(sidStruct)))
+		innerValue = append(innerValue, sidStruct...)
+	}
+
+	innerLen := len(innerValue)
+	innerTLV := []byte{0, 1, byte(innerLen >> 8), byte(innerLen)}
+	innerTLV = append(innerTLV, innerValue...)
+
+	outerLen := len(innerTLV)
+	result := []byte{serviceType, byte(outerLen >> 8), byte(outerLen)}
+	result = append(result, innerTLV...)
+
+	return result, nil
+}
+
+func parseHexByte(s string) (byte, error) {
+	s = strings.TrimPrefix(s, "0x")
+	s = strings.TrimPrefix(s, "0X")
+	var v uint64
+	_, err := fmt.Sscanf(s, "%x", &v)
+	if err != nil || v > 255 {
+		return 0, fmt.Errorf("invalid hex byte: %s", s)
+	}
+	return byte(v), nil
+}
+
+func parseUint8(s string) (byte, error) {
+	var v uint64
+	_, err := fmt.Sscanf(s, "%d", &v)
+	if err != nil || v > 255 {
+		return 0, fmt.Errorf("invalid uint8: %s", s)
+	}
+	return byte(v), nil
 }

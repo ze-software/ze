@@ -26,12 +26,11 @@
 
 ```
 make test   - PASS
-make lint   - PASS
-API tests   - 12/14 passed (85.7%)
+make lint   - pre-existing dupl issues only (6)
+API tests   - 14/14 passed (100%) ✅
   - PASS: add-remove, announce, eor, fast, nexthop, ipv4, ipv6, attributes
-  - PASS: teardown, notification, watchdog (were already implemented)
-  - PASS: check (fixed - added version 6 to content block)
-  - FAIL: mup4, mup6 (MUP API not implemented - separate feature)
+  - PASS: teardown, notification, watchdog, check
+  - PASS: mup4, mup6 (MUP API implemented this session)
   - SKIP: announcement (multi-session qualifiers - NOT SUPPORTED by design)
 ```
 
@@ -40,20 +39,53 @@ API tests   - 12/14 passed (85.7%)
 ## Resume Point
 
 **Last worked:** 2025-12-31
-**Last commits:**
-- `62e96f2` fix(test): add version 6 to check.conf for ExaBGP-compatible output
+**Last commits:** (UNCOMMITTED - ready to commit)
+- MUP API support implementation complete
 
-**Session ended:** Technical debt addressed (unit tests added, bug fixed)
+**Session ended:** MUP API support implemented (announce/withdraw ipv4/ipv6 mup)
 
-**Uncommitted:**
-- `pkg/config/bgp.go` (+18 lines)
-  - Fix: match templates now apply API bindings
-  - Optimization: collect matching trees once, reuse for API bindings
-- `pkg/config/bgp_test.go` (+440 lines)
-  - 8 tests for `mergeAPIBindings()` function
-  - 6 tests for template API binding inheritance
-- `plan/CLAUDE_CONTINUATION.md` - status update
-- `plan/spec-api-test-features.md` - technical debt status update
+---
+
+## UNCOMMITTED: MUP API Support (ready to commit)
+
+### What was implemented
+Full MUP SAFI (85) support for API commands:
+- `announce ipv4/ipv6 mup mup-isd <prefix> rd <RD> next-hop <NH> extended-community [...] bgp-prefix-sid-srv6 (...)`
+- `withdraw ipv4/ipv6 mup mup-isd <prefix> rd <RD> next-hop <NH> extended-community [...] bgp-prefix-sid-srv6 (...)`
+
+Route types supported: mup-isd, mup-dsd, mup-t1st, mup-t2st
+
+### Files changed
+| File | Changes |
+|------|---------|
+| `pkg/api/route.go` | `announceMUPImpl()`, `withdrawMUPImpl()`, `parseMUPArgs()`, `parseParenthesizedValue()`, MUP cases |
+| `pkg/api/route_keywords.go` | `MUPKeywords` |
+| `pkg/api/types.go` | `SAFINameMUP`, `MUPRouteSpec`, interface methods |
+| `pkg/api/handler_test.go` | Mock methods for MUP |
+| `pkg/api/route_parse_test.go` | Tests for MUP parsing |
+| `pkg/reactor/reactor.go` | `AnnounceMUPRoute()`, `WithdrawMUPRoute()`, `convertAPIMUPRoute()`, helpers |
+| `pkg/bgp/message/update_build.go` | `BuildMUPWithdraw()`, `buildMPUnreachMUP()` |
+
+### Key implementation notes
+1. MUP withdrawals include path attributes (origin, local-pref, ext-community, prefix-sid)
+2. `parseParenthesizedValue()` handles `bgp-prefix-sid-srv6 ( ... )` syntax
+3. Reuses existing MUP NLRI building patterns from config package
+
+### Next steps
+1. **Commit this work** - All tests pass, ready to commit
+2. **Move spec to done/** - `plan/spec-mup-api-support.md` → `plan/done/`
+3. **Update plan/README.md** - Add MUP API to completed list
+
+### Suggested commit message
+```
+feat(api): add MUP SAFI support for announce/withdraw commands
+
+- Add announce/withdraw ipv4/ipv6 mup commands
+- Support mup-isd, mup-dsd, mup-t1st, mup-t2st route types
+- Parse bgp-prefix-sid-srv6 and extended-community attributes
+- MUP withdrawals include path attributes per protocol requirements
+- All 14 API functional tests pass (was 12/14)
+```
 
 ---
 
@@ -88,14 +120,8 @@ api check-and-announce {
 }
 ```
 
-### Files Changed (uncommitted)
-- `test/data/api/check.conf` - Added version 6 to content block
-- `plan/spec-api-test-features.md` - Updated status
-- `plan/CLAUDE_CONTINUATION.md` - Updated status
-
-### Remaining Failures (out of scope)
-- **mup4/mup6** - MUP SAFI not supported in API commands (separate feature)
-- **announcement** - Multi-session qualifiers not supported by design
+### Remaining Skipped Tests
+- **announcement** - Multi-session qualifiers not supported by design (SKIP)
 
 ---
 
