@@ -1,5 +1,6 @@
 ---
-globs: "*"
+paths:
+  - "*"
 ---
 
 # Git Safety

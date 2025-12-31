@@ -54,15 +54,16 @@ ze/
 │       └── <name>.md
 │
 ├── .claude/
-│   ├── # PROTOCOLS (how we work)
-│   ├── ESSENTIAL_PROTOCOLS.md      # All protocols consolidated
-│   ├── CODING_STANDARDS.md         # Go style guide
-│   ├── TDD_ENFORCEMENT.md          # TDD workflow
-│   ├── TESTING_PROTOCOL.md         # Test commands
-│   ├── CI_TESTING.md               # CI commands
-│   ├── RFC_DOCUMENTATION_PROTOCOL.md
-│   ├── FILE_NAMING_CONVENTIONS.md
-│   ├── DOCUMENTATION_PLACEMENT_GUIDE.md  # This file
+│   ├── # RULES (auto-loaded by path)
+│   ├── rules/
+│   │   ├── tdd.md                    # TDD (**/*.go)
+│   │   ├── go-standards.md           # Go standards (**/*.go)
+│   │   ├── rfc-compliance.md         # RFC (pkg/bgp/**/*.go)
+│   │   └── git-safety.md             # Git safety (*)
+│   │
+│   ├── # REFERENCE
+│   ├── ESSENTIAL_PROTOCOLS.md      # Protocol reference
+│   ├── INDEX.md                    # Doc navigation
 │   ├── README.md                   # Directory index
 │   │
 │   ├── output-styles/
@@ -117,7 +118,7 @@ ze/
 
 | Doc Type | Location | Example |
 |----------|----------|---------|
-| Work protocols | `.claude/` | CODING_STANDARDS.md |
+| Work protocols | `.claude/rules/` | tdd.md, go-standards.md |
 | Wire formats | `.claude/zebgp/wire/` | NLRI_EVPN.md |
 | Design docs | `.claude/zebgp/` | POOL_ARCHITECTURE.md |
 | Edge cases | `.claude/zebgp/edge-cases/` | AS4.md |

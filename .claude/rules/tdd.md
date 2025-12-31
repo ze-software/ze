@@ -1,5 +1,6 @@
 ---
-globs: "**/*.go"
+paths:
+  - "**/*.go"
 ---
 
 # Test-Driven Development

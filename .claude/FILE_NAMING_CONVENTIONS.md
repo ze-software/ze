@@ -18,18 +18,19 @@ These files use UPPERCASE because they are standard project files:
 - `LICENSE` - License file
 - `Makefile` - Build file
 
-### 2. AI Assistant Protocol Files in `.claude/` (UPPERCASE)
+### 2. AI Assistant Files in `.claude/`
 
-Files in `.claude/` directory use UPPERCASE for critical protocols:
+**Protocol files (UPPERCASE):**
+- `ESSENTIAL_PROTOCOLS.md` - Reference protocols
+- `INDEX.md` - Documentation navigation
 
-- `ESSENTIAL_PROTOCOLS.md` (consolidated protocols)
-- `CODING_STANDARDS.md`
-- `TDD_ENFORCEMENT.md`
-- `TESTING_PROTOCOL.md`
-- `CI_TESTING.md`
-- `RFC_DOCUMENTATION_PROTOCOL.md`
+**Rules (lowercase, in rules/):**
+- `rules/tdd.md` - TDD rules (auto-loaded for `**/*.go`)
+- `rules/go-standards.md` - Go standards (auto-loaded)
+- `rules/rfc-compliance.md` - RFC rules (auto-loaded for `pkg/bgp/**/*.go`)
+- `rules/git-safety.md` - Git protection (auto-loaded)
 
-**Rationale:** UPPERCASE signals critical nature, similar to README.md.
+**Rationale:** UPPERCASE for reference docs, lowercase for auto-loaded rules.
 
 ### 3. Documentation Files (lowercase-with-hyphens)
 

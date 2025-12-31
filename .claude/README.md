@@ -1,50 +1,39 @@
 # .claude/ Directory Index
 
-## Core Protocol (Read Every Session)
+## Structure
 
-- **ESSENTIAL_PROTOCOLS.md** - All protocols consolidated (~985 lines)
-  - Session start/end checklists
-  - TDD, verification, git safety, error recovery, refactoring
-  - RFC compliance, ExaBGP reference, coding standards summary
-
-## Reference Files
-
-| File | Purpose |
-|------|---------|
-| CODING_STANDARDS.md | Go style guide (detailed) |
-| TDD_ENFORCEMENT.md | TDD workflow (detailed) |
-| TESTING_PROTOCOL.md | Test commands reference |
-| CI_TESTING.md | CI commands reference |
-| RFC_DOCUMENTATION_PROTOCOL.md | Wire format documentation |
-| DOCUMENTATION_PLACEMENT_GUIDE.md | Where to put docs |
-| FILE_NAMING_CONVENTIONS.md | Naming patterns |
-
-## Subdirectories
-
-| Directory | Contents |
-|-----------|----------|
-| commands/ | Custom skills (`/prep`, etc.) |
-| hooks/ | Auto-linter hook |
-| output-styles/ | Communication style (zebgp.md) |
-| backups/ | Work preservation (patches) |
-| zebgp/ | Codebase reference docs |
-
-## zebgp/ Reference Docs
-
-| Subdirectory | Topics |
-|--------------|--------|
-| api/ | API commands, JSON format |
-| behavior/ | FSM, signals |
-| config/ | Configuration syntax, environment |
-| edge-cases/ | ADD-PATH, AS4, extended messages |
-| wire/ | Message formats, attributes, NLRI, capabilities |
+```
+.claude/
+├── rules/              # Auto-loaded by file path
+│   ├── tdd.md          # TDD rules (**/*.go)
+│   ├── go-standards.md # Go coding standards (**/*.go)
+│   ├── rfc-compliance.md # RFC rules (pkg/bgp/**/*.go)
+│   └── git-safety.md   # Git protection (*)
+├── hooks/              # Automation scripts
+│   ├── session-start.sh # Git status check (SessionStart)
+│   └── auto_linter.sh   # Lint on file write (PostToolUse)
+├── commands/           # Custom skills
+│   └── prep.md         # /prep task specification
+├── output-styles/      # Communication style
+│   └── zebgp.md        # Terse emoji-prefixed
+├── zebgp/              # Architecture reference docs
+│   ├── wire/           # Wire format docs
+│   ├── behavior/       # FSM, signals
+│   ├── api/            # API architecture
+│   └── config/         # Config syntax
+├── backups/            # Work preservation
+├── INDEX.md            # Doc navigation
+├── ESSENTIAL_PROTOCOLS.md # Reference (slim)
+└── settings.json       # Hooks, permissions
+```
 
 ## Quick Start
 
-1. Read `ESSENTIAL_PROTOCOLS.md` at session start
-2. Use `/prep <task>` for non-trivial tasks
-3. Run `make test && make lint` before claiming done
+1. Rules auto-load based on file path
+2. Hooks automate git check and linting
+3. Read `INDEX.md` to find architecture docs
+4. Run `make test && make lint` before claiming done
 
 ---
 
-**Updated:** 2025-12-27
+**Updated:** 2025-12-31

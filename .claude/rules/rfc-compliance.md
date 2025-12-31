@@ -1,5 +1,6 @@
 ---
-globs: "pkg/bgp/**/*.go"
+paths:
+  - "pkg/bgp/**/*.go"
 ---
 
 # RFC Compliance

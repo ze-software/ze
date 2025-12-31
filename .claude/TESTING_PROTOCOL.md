@@ -2,7 +2,7 @@
 
 **BLOCKING RULE: Tests MUST be written BEFORE implementation.**
 
-See `TDD_ENFORCEMENT.md` for complete workflow.
+See `rules/tdd.md` for TDD rules (auto-loaded for Go files).
 
 ---
 
@@ -346,9 +346,9 @@ Test file: [path]
 
 ## See Also
 
-- **TDD_ENFORCEMENT.md** - Complete TDD workflow and enforcement
+- **rules/tdd.md** - TDD rules (auto-loaded for Go files)
+- **rules/go-standards.md** - Go coding standards (auto-loaded)
 - CI_TESTING.md - Full test suite commands
-- CODING_STANDARDS.md - Go patterns
 
 ---
 
