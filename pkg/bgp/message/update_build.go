@@ -831,11 +831,13 @@ func (ub *UpdateBuilder) buildLabeledUnicastNLRIBytes(p LabeledUnicastParams) []
 	totalBits := 24 + prefixBits
 
 	// Build: [path-id] + length + label + prefix
+	// RFC 7911: Path Identifier MUST be included when ADD-PATH is negotiated
 	ctx := ub.Ctx
 	hasAddPath := ctx != nil && ctx.AddPath
 
 	var buf []byte
-	if hasAddPath && p.PathID != 0 {
+	if hasAddPath {
+		// RFC 7911: Always include 4-byte path ID when ADD-PATH negotiated
 		buf = make([]byte, 4+1+3+prefixBytes)
 		buf[0] = byte(p.PathID >> 24)
 		buf[1] = byte(p.PathID >> 16)

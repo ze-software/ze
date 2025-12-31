@@ -607,6 +607,24 @@ func TestParseLabeledUnicastAttributes(t *testing.T) {
 			args:    []string{"10.0.0.0/23", "label", "100", "next-hop", "1.2.3.4", "split", "/24"},
 			wantErr: false,
 		},
+		// ADD-PATH path-id (RFC 7911)
+		{
+			name:    "valid: path-id for ADD-PATH",
+			args:    []string{"10.0.0.0/24", "label", "100", "next-hop", "1.2.3.4", "path-id", "42"},
+			wantErr: false,
+		},
+		{
+			name:    "invalid: path-id missing value",
+			args:    []string{"10.0.0.0/24", "label", "100", "next-hop", "1.2.3.4", "path-id"},
+			wantErr: true,
+			errMsg:  "missing path-id",
+		},
+		{
+			name:    "invalid: path-id not a number",
+			args:    []string{"10.0.0.0/24", "label", "100", "next-hop", "1.2.3.4", "path-id", "abc"},
+			wantErr: true,
+			errMsg:  "invalid path-id",
+		},
 	}
 
 	for _, tt := range tests {
@@ -624,6 +642,52 @@ func TestParseLabeledUnicastAttributes(t *testing.T) {
 			// Verify parsed result has valid prefix for success cases
 			if !tt.wantErr && !route.Prefix.IsValid() {
 				t.Errorf("parseLabeledUnicastAttributes(%v) returned invalid prefix", tt.args)
+			}
+		})
+	}
+}
+
+// TestParseLabeledUnicastPathID verifies ADD-PATH path-id parsing.
+//
+// VALIDATES: RFC 7911 path-id is correctly parsed and stored.
+//
+// PREVENTS: ADD-PATH functionality not working due to parse errors.
+func TestParseLabeledUnicastPathID(t *testing.T) {
+	tests := []struct {
+		name       string
+		args       []string
+		wantPathID uint32
+	}{
+		{
+			name:       "path-id 0 (no path-id specified)",
+			args:       []string{"10.0.0.0/24", "label", "100", "next-hop", "1.2.3.4"},
+			wantPathID: 0,
+		},
+		{
+			name:       "path-id 1",
+			args:       []string{"10.0.0.0/24", "label", "100", "next-hop", "1.2.3.4", "path-id", "1"},
+			wantPathID: 1,
+		},
+		{
+			name:       "path-id 42",
+			args:       []string{"10.0.0.0/24", "label", "100", "next-hop", "1.2.3.4", "path-id", "42"},
+			wantPathID: 42,
+		},
+		{
+			name:       "path-id max uint32",
+			args:       []string{"10.0.0.0/24", "label", "100", "next-hop", "1.2.3.4", "path-id", "4294967295"},
+			wantPathID: 4294967295,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			route, err := parseLabeledUnicastAttributes(tt.args)
+			if err != nil {
+				t.Fatalf("parseLabeledUnicastAttributes(%v) unexpected error: %v", tt.args, err)
+			}
+			if route.PathID != tt.wantPathID {
+				t.Errorf("parseLabeledUnicastAttributes(%v) PathID = %d, want %d", tt.args, route.PathID, tt.wantPathID)
 			}
 		})
 	}

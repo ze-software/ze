@@ -2062,6 +2062,19 @@ func parseLabeledUnicastAttributes(args []string) (LabeledUnicastRoute, error) {
 			if i+1 < len(args) {
 				i++
 			}
+
+		case "path-id":
+			// RFC 7911 ADD-PATH identifier
+			if i+1 >= len(args) {
+				return LabeledUnicastRoute{}, fmt.Errorf("missing path-id value")
+			}
+			var pathID uint64
+			pathID, err = strconv.ParseUint(args[i+1], 10, 32)
+			if err != nil {
+				return LabeledUnicastRoute{}, fmt.Errorf("invalid path-id: %s", args[i+1])
+			}
+			route.PathID = uint32(pathID)
+			i++
 		}
 	}
 

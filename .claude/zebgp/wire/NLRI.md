@@ -342,6 +342,88 @@ See `NLRI_BGPLS.md` for detailed documentation.
 
 ---
 
+## LabeledUnicast NLRI (RFC 8277)
+
+### Wire Format (SAFI 4)
+
+Same as Label NLRI (RFC 3107), but specifically for labeled unicast routes.
+
+```
+Without ADD-PATH:
++---------------------------+
+|   Length (1 octet)        |  = 24*N + prefix_bits (N = labels)
++---------------------------+
+|   Label 1 (3 octets)      |  S=0 (more labels follow)
++---------------------------+
+|   Label N (3 octets)      |  S=1 (Bottom of Stack)
++---------------------------+
+|   Prefix (variable)       |  ceiling(prefix_bits/8) bytes
++---------------------------+
+
+With ADD-PATH (RFC 7911):
++---------------------------+
+|   Path ID (4 octets)      |  Always present when negotiated
++---------------------------+
+|   Length (1 octet)        |
++---------------------------+
+|   Labels (3*N octets)     |
++---------------------------+
+|   Prefix (variable)       |
++---------------------------+
+```
+
+### ZeBGP Implementation
+
+```go
+// pkg/bgp/nlri/labeled.go
+type LabeledUnicast struct {
+    family  Family       // AFI + SAFI (SAFI always SAFIMPLSLabel)
+    prefix  netip.Prefix
+    labels  []uint32     // Label stack (BOS on last)
+    pathID  uint32
+    hasPath bool
+}
+
+// Implements nlri.NLRI interface
+func (l *LabeledUnicast) Pack(ctx *PackContext) []byte
+func (l *LabeledUnicast) Bytes() []byte
+func (l *LabeledUnicast) Family() Family
+func (l *LabeledUnicast) PathID() uint32
+func (l *LabeledUnicast) HasPathID() bool
+```
+
+### Label Encoding
+
+Per RFC 3032 (3 bytes in BGP, no TTL):
+
+```
+ 0                   1                   2
+ 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+|          Label Value (20 bits)        |TC |S|
++-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+
+Label Value: 20 bits (0-1048575)
+TC: 3 bits (Traffic Class, set to 0)
+S: 1 bit (Stack bit: 0=more labels, 1=bottom of stack)
+```
+
+### Example
+
+```
+Label 100, prefix 10.0.0.0/8, no ADD-PATH:
+Length = 24 (label) + 8 (prefix) = 32 bits
+Label = (100 >> 12) = 0x00, (100 >> 4) = 0x06, (100 << 4 | 1) = 0x41
+
+Wire: [32, 0x00, 0x06, 0x41, 10]
+       |   |_____________|   |
+       |         |           +-- Prefix byte
+       |         +-------------- Label 100 with BOS=1
+       +------------------------ Length in bits
+```
+
+---
+
 ## ZeBGP Implementation Notes
 
 ### Packed-Bytes-First Pattern

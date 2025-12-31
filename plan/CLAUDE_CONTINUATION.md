@@ -39,9 +39,52 @@ API tests   - 14/14 passed (100%) ✅
 ## Resume Point
 
 **Last worked:** 2025-12-31
-**Last commit:** `794eb8e` fix(api): add MUP family validation and unit tests
+**Last commit:** Pending - Labeled-Unicast API Completeness
 
-**Status:** Clean
+**Status:** Ready to commit
+
+---
+
+## RECENTLY COMPLETED: Labeled-Unicast API Completeness (pending commit)
+
+**Spec:** `plan/done/spec-labeled-unicast-api-completeness.md`
+
+### Summary
+Complete labeled-unicast (SAFI 4) API to match AnnounceRoute pattern with full
+Adj-RIB-Out tracking, transaction support, and all path attributes preserved.
+
+### Changes
+1. **nlri.LabeledUnicast type** - `pkg/bgp/nlri/labeled.go`
+   - Implements `nlri.NLRI` interface
+   - RFC 8277 wire format, RFC 3032 label encoding
+   - RFC 7911 ADD-PATH support, label stack support
+
+2. **PathID in API** - `pkg/api/types.go`, `route.go`, `route_keywords.go`
+   - Added `PathID uint32` to `LabeledUnicastRoute`
+   - Added `path-id` keyword parsing
+
+3. **3-way switch pattern** - `pkg/reactor/reactor.go`
+   - `AnnounceLabeledUnicast`: Transaction → Established → Queue
+   - `WithdrawLabeledUnicast`: Same pattern
+   - `buildLabeledUnicastRIBRoute`: ALL attributes (not just Origin)
+
+4. **Bug fixes**
+   - Fixed `buildLabeledUnicastNLRIBytes` ADD-PATH pathID=0 (RFC 7911)
+   - Added LocalPref to `buildLabeledUnicastRIBRoute`
+
+5. **Wire consistency tests** - `pkg/bgp/message/labeled_wire_test.go`
+   - Verifies `nlri.LabeledUnicast.Pack()` matches `buildLabeledUnicastNLRIBytes`
+
+6. **Unit tests for attribute storage** - `pkg/reactor/reactor_test.go`
+   - `TestBuildLabeledUnicastRIBRouteAllAttributes`
+   - `TestBuildLabeledUnicastRIBRouteIBGPDefaults`
+   - `TestBuildLabeledUnicastRIBRouteEBGPPrependsAS`
+
+### Verification
+```
+make test       - PASS
+make lint       - pre-existing dupl only (6)
+```
 
 ---
 

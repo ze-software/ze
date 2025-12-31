@@ -527,109 +527,245 @@ func (a *reactorAPIAdapter) WithdrawL3VPN(_ string, _ api.L3VPNRoute) error {
 
 // AnnounceLabeledUnicast announces an MPLS labeled unicast route (SAFI 4).
 // RFC 8277 - Using BGP to Bind MPLS Labels to Address Prefixes.
+//
+// Supports three modes like AnnounceRoute:
+//   - Transaction mode: queues to Adj-RIB-Out (sent on commit)
+//   - Established: sends immediately and tracks for re-announcement
+//   - Not established: queues to peer's operation queue.
 func (a *reactorAPIAdapter) AnnounceLabeledUnicast(peerSelector string, route api.LabeledUnicastRoute) error {
 	peers := a.getMatchingPeers(peerSelector)
 	if len(peers) == 0 {
 		return errors.New("no peers match selector")
 	}
 
+	var lastErr error
+	for _, peer := range peers {
+		isIBGP := peer.Settings().IsIBGP()
+
+		// Build rib.Route with ALL attributes (not just Origin like AnnounceRoute bug)
+		ribRoute := a.buildLabeledUnicastRIBRoute(route, isIBGP)
+
+		switch {
+		case peer.AdjRIBOut().InTransaction():
+			// Queue to Adj-RIB-Out (will be sent on commit)
+			peer.AdjRIBOut().QueueAnnounce(ribRoute)
+
+		case peer.State() == PeerStateEstablished:
+			// Send immediately and track for re-announcement on reconnect
+			family := nlri.Family{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIMPLSLabel}
+			if route.Prefix.Addr().Is6() {
+				family.AFI = nlri.AFIIPv6
+			}
+			ctx := peer.packContext(family)
+
+			// Build UPDATE using UpdateBuilder for immediate send
+			ub := message.NewUpdateBuilder(a.r.config.LocalAS, isIBGP, ctx)
+			params := a.buildLabeledUnicastParams(route)
+			update := ub.BuildLabeledUnicast(params)
+
+			if err := peer.SendUpdate(update); err != nil {
+				lastErr = err
+			} else {
+				// Track sent route for re-announcement on session re-establishment
+				peer.AdjRIBOut().MarkSent(ribRoute)
+			}
+
+		default:
+			// Session not established: queue to peer's operation queue
+			// This maintains order with any pending teardowns
+			peer.QueueAnnounce(ribRoute)
+		}
+	}
+	return lastErr
+}
+
+// buildLabeledUnicastParams converts an API route to message.LabeledUnicastParams.
+func (a *reactorAPIAdapter) buildLabeledUnicastParams(route api.LabeledUnicastRoute) message.LabeledUnicastParams {
 	// Default label if not specified
 	label := uint32(0)
 	if len(route.Labels) > 0 {
 		label = route.Labels[0]
 	}
 
-	var lastErr error
-	for _, peer := range peers {
-		if peer.State() != PeerStateEstablished {
-			continue
-		}
+	params := message.LabeledUnicastParams{
+		Prefix:  route.Prefix,
+		PathID:  route.PathID, // RFC 7911 ADD-PATH
+		NextHop: route.NextHop,
+		Label:   label,
+		Origin:  attribute.OriginIGP,
+	}
 
-		isIBGP := peer.Settings().IsIBGP()
-		family := nlri.Family{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIMPLSLabel}
-		if route.Prefix.Addr().Is6() {
-			family.AFI = nlri.AFIIPv6
+	// Set optional attributes
+	if route.Origin != nil {
+		params.Origin = attribute.Origin(*route.Origin)
+	}
+	if route.LocalPreference != nil {
+		params.LocalPreference = *route.LocalPreference
+	}
+	if route.MED != nil {
+		params.MED = *route.MED
+	}
+	if len(route.ASPath) > 0 {
+		params.ASPath = route.ASPath
+	}
+	if len(route.Communities) > 0 {
+		params.Communities = route.Communities
+	}
+	if len(route.LargeCommunities) > 0 {
+		lc := make([][3]uint32, len(route.LargeCommunities))
+		for i, c := range route.LargeCommunities {
+			lc[i] = [3]uint32{c.GlobalAdmin, c.LocalData1, c.LocalData2}
 		}
-		ctx := peer.packContext(family)
+		params.LargeCommunities = lc
+	}
+	if len(route.ExtendedCommunities) > 0 {
+		params.ExtCommunityBytes = attribute.ExtendedCommunities(route.ExtendedCommunities).Pack()
+	}
 
-		// Build UPDATE using UpdateBuilder
-		ub := message.NewUpdateBuilder(a.r.config.LocalAS, isIBGP, ctx)
+	return params
+}
 
-		// Convert API route to LabeledUnicastParams
-		params := message.LabeledUnicastParams{
-			Prefix:  route.Prefix,
-			NextHop: route.NextHop,
-			Label:   label,
-			Origin:  attribute.OriginIGP,
-		}
+// buildLabeledUnicastRIBRoute creates a rib.Route from a LabeledUnicastRoute.
+// Unlike AnnounceRoute which only stores OriginIGP, this stores ALL attributes.
+// This ensures attributes are preserved when routes are queued and replayed.
+//
+// RFC 8277: Labeled unicast routes include MPLS labels in the NLRI.
+// RFC 7911: PathID is included when ADD-PATH is negotiated.
+func (a *reactorAPIAdapter) buildLabeledUnicastRIBRoute(route api.LabeledUnicastRoute, isIBGP bool) *rib.Route {
+	// 1. Build NLRI with nlri.LabeledUnicast
+	family := nlri.Family{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIMPLSLabel}
+	if route.Prefix.Addr().Is6() {
+		family.AFI = nlri.AFIIPv6
+	}
 
-		// Set optional attributes
-		if route.Origin != nil {
-			params.Origin = attribute.Origin(*route.Origin)
-		}
-		if route.LocalPreference != nil {
-			params.LocalPreference = *route.LocalPreference
-		}
-		if route.MED != nil {
-			params.MED = *route.MED
-		}
-		if len(route.ASPath) > 0 {
-			params.ASPath = route.ASPath
-		}
-		if len(route.Communities) > 0 {
-			params.Communities = route.Communities
-		}
-		if len(route.LargeCommunities) > 0 {
-			lc := make([][3]uint32, len(route.LargeCommunities))
-			for i, c := range route.LargeCommunities {
-				lc[i] = [3]uint32{c.GlobalAdmin, c.LocalData1, c.LocalData2}
-			}
-			params.LargeCommunities = lc
-		}
-		if len(route.ExtendedCommunities) > 0 {
-			params.ExtCommunityBytes = attribute.ExtendedCommunities(route.ExtendedCommunities).Pack()
-		}
+	// Default label if not specified
+	labels := route.Labels
+	if len(labels) == 0 {
+		labels = []uint32{0}
+	}
 
-		update := ub.BuildLabeledUnicast(params)
-		if err := peer.SendUpdate(update); err != nil {
-			lastErr = err
+	n := nlri.NewLabeledUnicast(family, route.Prefix, labels, route.PathID)
+
+	// 2. Build attributes - MUST INCLUDE ALL (unlike AnnounceRoute bug)
+	var attrs []attribute.Attribute
+
+	// Origin (required)
+	if route.Origin != nil {
+		attrs = append(attrs, attribute.Origin(*route.Origin))
+	} else {
+		attrs = append(attrs, attribute.OriginIGP)
+	}
+
+	// LocalPreference (optional, iBGP only per RFC 4271)
+	if route.LocalPreference != nil {
+		attrs = append(attrs, attribute.LocalPref(*route.LocalPreference))
+	}
+
+	// MED (optional)
+	if route.MED != nil {
+		attrs = append(attrs, attribute.MED(*route.MED))
+	}
+
+	// Communities (optional)
+	if len(route.Communities) > 0 {
+		comms := make(attribute.Communities, len(route.Communities))
+		for i, c := range route.Communities {
+			comms[i] = attribute.Community(c)
+		}
+		attrs = append(attrs, comms)
+	}
+
+	// LargeCommunities (optional)
+	if len(route.LargeCommunities) > 0 {
+		lcs := make(attribute.LargeCommunities, len(route.LargeCommunities))
+		copy(lcs, route.LargeCommunities)
+		attrs = append(attrs, lcs)
+	}
+
+	// ExtendedCommunities (optional)
+	if len(route.ExtendedCommunities) > 0 {
+		attrs = append(attrs, attribute.ExtendedCommunities(route.ExtendedCommunities))
+	}
+
+	// 3. Build AS-PATH
+	// RFC 4271 §5.1.2: iBGP SHALL NOT modify AS_PATH; eBGP prepends local AS
+	var asPath *attribute.ASPath
+	switch {
+	case len(route.ASPath) > 0:
+		asPath = &attribute.ASPath{
+			Segments: []attribute.ASPathSegment{
+				{Type: attribute.ASSequence, ASNs: route.ASPath},
+			},
+		}
+	case isIBGP:
+		asPath = &attribute.ASPath{Segments: nil}
+	default:
+		asPath = &attribute.ASPath{
+			Segments: []attribute.ASPathSegment{
+				{Type: attribute.ASSequence, ASNs: []uint32{a.r.config.LocalAS}},
+			},
 		}
 	}
-	return lastErr
+
+	return rib.NewRouteWithASPath(n, route.NextHop, attrs, asPath)
 }
 
 // WithdrawLabeledUnicast withdraws an MPLS labeled unicast route.
 // RFC 8277 - Uses MP_UNREACH_NLRI with SAFI 4.
+//
+// Supports three modes like WithdrawRoute:
+//   - Transaction mode: queues to Adj-RIB-Out (sent on commit)
+//   - Established: sends immediately and removes from sent cache
+//   - Not established: queues to peer's operation queue.
 func (a *reactorAPIAdapter) WithdrawLabeledUnicast(peerSelector string, route api.LabeledUnicastRoute) error {
 	peers := a.getMatchingPeers(peerSelector)
 	if len(peers) == 0 {
 		return errors.New("no peers match selector")
 	}
 
+	// Build NLRI for queueing
+	family := nlri.Family{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIMPLSLabel}
+	if route.Prefix.Addr().Is6() {
+		family.AFI = nlri.AFIIPv6
+	}
+
+	// Default label for withdrawal
+	labels := route.Labels
+	if len(labels) == 0 {
+		labels = []uint32{0x800000} // RFC 8277 withdrawal label
+	}
+
+	n := nlri.NewLabeledUnicast(family, route.Prefix, labels, route.PathID)
+
 	var lastErr error
 	for _, peer := range peers {
-		if peer.State() != PeerStateEstablished {
-			continue
-		}
+		switch {
+		case peer.AdjRIBOut().InTransaction():
+			// Queue withdrawal to Adj-RIB-Out (will be sent on commit)
+			peer.AdjRIBOut().QueueWithdraw(n)
 
-		family := nlri.Family{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIMPLSLabel}
-		if route.Prefix.Addr().Is6() {
-			family.AFI = nlri.AFIIPv6
-		}
-		ctx := peer.packContext(family)
+		case peer.State() == PeerStateEstablished:
+			// Send immediately and remove from sent cache
+			ctx := peer.packContext(family)
 
-		// Build withdrawal using existing helper
-		staticRoute := StaticRoute{
-			Prefix: route.Prefix,
-			Label:  0x800000, // Withdraw label
-		}
-		if len(route.Labels) > 0 {
-			staticRoute.Label = route.Labels[0]
-		}
+			// Build withdrawal using existing helper
+			staticRoute := StaticRoute{
+				Prefix: route.Prefix,
+				Label:  labels[0],
+			}
 
-		update := buildMPUnreachLabeledUnicast(staticRoute, ctx)
-		if err := peer.SendUpdate(update); err != nil {
-			lastErr = err
+			update := buildMPUnreachLabeledUnicast(staticRoute, ctx)
+			if err := peer.SendUpdate(update); err != nil {
+				lastErr = err
+			} else {
+				// Remove from sent cache to prevent re-announcement on reconnect
+				peer.AdjRIBOut().RemoveFromSent(n)
+			}
+
+		default:
+			// Session not established: queue to peer's operation queue
+			// This maintains order with any pending announces/teardowns
+			peer.QueueWithdraw(n)
 		}
 	}
 	return lastErr

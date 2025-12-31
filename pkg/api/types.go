@@ -176,10 +176,12 @@ type L3VPNRoute struct {
 // LabeledUnicastRoute specifies an MPLS labeled unicast route (SAFI 4).
 // This is unicast routing with MPLS labels but without VPN semantics (no RD/RT).
 // RFC 8277: Using BGP to Bind MPLS Labels to Address Prefixes.
+// RFC 7911: ADD-PATH support via PathID field.
 type LabeledUnicastRoute struct {
 	Prefix  netip.Prefix // IP prefix
 	NextHop netip.Addr   // Next-hop address
 	Labels  []uint32     // MPLS label stack
+	PathID  uint32       // ADD-PATH path identifier (RFC 7911), 0 means not set
 	PathAttributes
 }
 

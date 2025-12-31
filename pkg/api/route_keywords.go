@@ -17,7 +17,7 @@ var UnicastKeywords = KeywordSet{
 }
 
 // MPLSKeywords defines valid keywords for MPLS labeled unicast routes (SAFI 4).
-// This is unicast + label + split (no RD/RT - those are VPN-only).
+// This is unicast + label + split + path-id (no RD/RT - those are VPN-only).
 var MPLSKeywords = KeywordSet{
 	"next-hop":           true,
 	"origin":             true,
@@ -29,6 +29,7 @@ var MPLSKeywords = KeywordSet{
 	"extended-community": true, // RFC 4360 extended communities
 	"label":              true, // MPLS label stack
 	"split":              true, // Prefix expansion (same label per prefix)
+	"path-id":            true, // ADD-PATH identifier (RFC 7911)
 }
 
 // VPNKeywords defines valid keywords for VPN routes.

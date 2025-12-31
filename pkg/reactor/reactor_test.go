@@ -481,3 +481,172 @@ func TestGetPeerAPIBindingsNotFound(t *testing.T) {
 
 	require.Nil(t, bindings, "unknown peer should return nil")
 }
+
+// TestBuildLabeledUnicastRIBRouteAllAttributes verifies ALL attributes are stored.
+//
+// VALIDATES: buildLabeledUnicastRIBRoute includes all path attributes in rib.Route.
+// This is critical for queued routes to preserve attributes on replay.
+//
+// PREVENTS: Attribute loss when routes are queued and replayed via buildRIBRouteUpdate.
+// (Fixes bug where AnnounceRoute only stored OriginIGP, losing MED/Communities/etc.)
+func TestBuildLabeledUnicastRIBRouteAllAttributes(t *testing.T) {
+	cfg := &Config{
+		ListenAddr: "127.0.0.1:0",
+		LocalAS:    65000,
+	}
+	reactor := New(cfg)
+	adapter := &reactorAPIAdapter{reactor}
+
+	// Create route with ALL attributes populated
+	origin := uint8(1) // EGP
+	med := uint32(100)
+	localPref := uint32(200)
+	route := api.LabeledUnicastRoute{
+		Prefix:  netip.MustParsePrefix("10.0.0.0/8"),
+		NextHop: netip.MustParseAddr("192.0.2.1"),
+		Labels:  []uint32{100, 200}, // Label stack
+		PathID:  42,
+		PathAttributes: api.PathAttributes{
+			Origin:          &origin,
+			MED:             &med,
+			LocalPreference: &localPref,
+			ASPath:          []uint32{65001, 65002},
+			Communities:     []uint32{0x12345678},
+			LargeCommunities: []api.LargeCommunity{
+				{GlobalAdmin: 65000, LocalData1: 1, LocalData2: 2},
+			},
+			ExtendedCommunities: []attribute.ExtendedCommunity{{0x00, 0x02, 0xFD, 0xE9, 0x00, 0x00, 0x00, 0x64}},
+		},
+	}
+
+	ribRoute := adapter.buildLabeledUnicastRIBRoute(route, false) // eBGP
+
+	// Verify NLRI
+	require.NotNil(t, ribRoute.NLRI(), "NLRI must not be nil")
+	require.Equal(t, nlri.SAFIMPLSLabel, ribRoute.NLRI().Family().SAFI, "SAFI must be MPLSLabel")
+	require.Equal(t, uint32(42), ribRoute.NLRI().PathID(), "PathID must be preserved")
+
+	// Verify NextHop
+	require.Equal(t, netip.MustParseAddr("192.0.2.1"), ribRoute.NextHop(), "NextHop must be preserved")
+
+	// Verify attributes are present
+	attrs := ribRoute.Attributes()
+	require.NotEmpty(t, attrs, "Attributes must not be empty")
+
+	// Count attribute types
+	foundOrigin := false
+	foundMED := false
+	foundLocalPref := false
+	foundCommunities := false
+	foundLargeCommunities := false
+	foundExtCommunities := false
+
+	for _, attr := range attrs {
+		switch attr.Code() { //nolint:exhaustive // Only checking specific attributes
+		case attribute.AttrOrigin:
+			foundOrigin = true
+			if o, ok := attr.(attribute.Origin); ok {
+				require.Equal(t, attribute.Origin(1), o, "Origin must be EGP")
+			}
+		case attribute.AttrMED:
+			foundMED = true
+			if m, ok := attr.(attribute.MED); ok {
+				require.Equal(t, attribute.MED(100), m, "MED must be 100")
+			}
+		case attribute.AttrLocalPref:
+			foundLocalPref = true
+			if lp, ok := attr.(attribute.LocalPref); ok {
+				require.Equal(t, attribute.LocalPref(200), lp, "LocalPref must be 200")
+			}
+		case attribute.AttrCommunity:
+			foundCommunities = true
+		case attribute.AttrLargeCommunity:
+			foundLargeCommunities = true
+		case attribute.AttrExtCommunity:
+			foundExtCommunities = true
+		default:
+			// Other attributes not checked in this test
+		}
+	}
+
+	require.True(t, foundOrigin, "Origin attribute must be present")
+	require.True(t, foundMED, "MED attribute must be present")
+	require.True(t, foundLocalPref, "LocalPref attribute must be present")
+	require.True(t, foundCommunities, "Communities attribute must be present")
+	require.True(t, foundLargeCommunities, "LargeCommunities attribute must be present")
+	require.True(t, foundExtCommunities, "ExtendedCommunities attribute must be present")
+
+	// Verify AS_PATH
+	asPath := ribRoute.ASPath()
+	require.NotNil(t, asPath, "AS_PATH must not be nil")
+	require.Len(t, asPath.Segments, 1, "AS_PATH must have 1 segment")
+	require.Equal(t, []uint32{65001, 65002}, asPath.Segments[0].ASNs, "AS_PATH must preserve ASNs")
+}
+
+// TestBuildLabeledUnicastRIBRouteIBGPDefaults verifies iBGP default handling.
+//
+// VALIDATES: iBGP routes have empty AS_PATH and default origin.
+//
+// PREVENTS: Incorrect AS_PATH for iBGP routes.
+func TestBuildLabeledUnicastRIBRouteIBGPDefaults(t *testing.T) {
+	cfg := &Config{
+		ListenAddr: "127.0.0.1:0",
+		LocalAS:    65000,
+	}
+	reactor := New(cfg)
+	adapter := &reactorAPIAdapter{reactor}
+
+	// Minimal route - no attributes set
+	route := api.LabeledUnicastRoute{
+		Prefix:  netip.MustParsePrefix("10.0.0.0/8"),
+		NextHop: netip.MustParseAddr("192.0.2.1"),
+		Labels:  []uint32{100},
+	}
+
+	ribRoute := adapter.buildLabeledUnicastRIBRoute(route, true) // iBGP
+
+	// Verify AS_PATH is empty for iBGP
+	asPath := ribRoute.ASPath()
+	require.NotNil(t, asPath, "AS_PATH must not be nil")
+	require.Empty(t, asPath.Segments, "AS_PATH must be empty for iBGP")
+
+	// Verify default Origin is IGP
+	attrs := ribRoute.Attributes()
+	foundOrigin := false
+	for _, attr := range attrs {
+		if o, ok := attr.(attribute.Origin); ok {
+			foundOrigin = true
+			require.Equal(t, attribute.OriginIGP, o, "Default origin must be IGP")
+		}
+	}
+	require.True(t, foundOrigin, "Origin attribute must be present")
+}
+
+// TestBuildLabeledUnicastRIBRouteEBGPPrependsAS verifies eBGP AS prepending.
+//
+// VALIDATES: eBGP routes have LocalAS prepended to AS_PATH when no AS_PATH specified.
+//
+// PREVENTS: Missing LocalAS in eBGP announcements.
+func TestBuildLabeledUnicastRIBRouteEBGPPrependsAS(t *testing.T) {
+	cfg := &Config{
+		ListenAddr: "127.0.0.1:0",
+		LocalAS:    65000,
+	}
+	reactor := New(cfg)
+	adapter := &reactorAPIAdapter{reactor}
+
+	// Route without AS_PATH
+	route := api.LabeledUnicastRoute{
+		Prefix:  netip.MustParsePrefix("10.0.0.0/8"),
+		NextHop: netip.MustParseAddr("192.0.2.1"),
+		Labels:  []uint32{100},
+	}
+
+	ribRoute := adapter.buildLabeledUnicastRIBRoute(route, false) // eBGP
+
+	// Verify LocalAS is prepended for eBGP
+	asPath := ribRoute.ASPath()
+	require.NotNil(t, asPath, "AS_PATH must not be nil")
+	require.Len(t, asPath.Segments, 1, "AS_PATH must have 1 segment")
+	require.Equal(t, []uint32{65000}, asPath.Segments[0].ASNs, "LocalAS must be prepended")
+}

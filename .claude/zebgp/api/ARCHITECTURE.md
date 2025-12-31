@@ -159,6 +159,8 @@ Features:
 
 ## Route Injection Flow
 
+### Unicast Routes
+
 ```
 API Client
     │ "announce route 10.0.0.0/24 next-hop 1.2.3.4"
@@ -174,6 +176,61 @@ Per Peer:
     ├─ Established?   → SendUpdate() + MarkSent()
     └─ Down?          → opQueue (send when up)
 ```
+
+### Labeled-Unicast Routes (SAFI 4)
+
+```
+API Client
+    │ "announce ipv4 nlri-mpls 10.0.0.0/24 label 100 next-hop 1.2.3.4 path-id 42"
+    ▼
+Dispatcher.announceLabeledUnicastImpl()
+    │ parseLabeledUnicastAttributes() - validates MPLSKeywords
+    ▼
+Reactor.AnnounceLabeledUnicast(peerSelector, LabeledUnicastRoute)
+    │
+    ├─ buildLabeledUnicastRIBRoute()
+    │      Creates rib.Route with:
+    │      - nlri.LabeledUnicast (prefix + labels + pathID)
+    │      - ALL attributes (Origin, MED, LocalPref, Communities, etc.)
+    │      - AS_PATH (empty for iBGP, LocalAS prepend for eBGP)
+    ▼
+Per Peer:
+    ├─ InTransaction? → Adj-RIB-Out.QueueAnnounce(ribRoute)
+    │                   Queued for commit
+    │
+    ├─ Established?   → buildLabeledUnicastParams() → BuildLabeledUnicast()
+    │                   SendUpdate() + MarkSent(ribRoute)
+    │                   Tracks for re-announcement on reconnect
+    │
+    └─ Down?          → peer.QueueAnnounce(ribRoute)
+                        Sent when session establishes
+```
+
+### LabeledUnicastRoute Structure
+
+```go
+type LabeledUnicastRoute struct {
+    Prefix  netip.Prefix  // IP prefix
+    NextHop netip.Addr    // Next-hop address
+    Labels  []uint32      // MPLS label stack
+    PathID  uint32        // ADD-PATH identifier (RFC 7911)
+    PathAttributes        // Origin, MED, Communities, etc.
+}
+```
+
+### Key Differences from UnicastRoute
+
+| Feature | UnicastRoute | LabeledUnicastRoute |
+|---------|--------------|---------------------|
+| SAFI | 1 (Unicast) | 4 (MPLS Label) |
+| NLRI type | `nlri.INET` | `nlri.LabeledUnicast` |
+| Labels | None | `[]uint32` (RFC 8277) |
+| PathID | Not in API type | `uint32` (RFC 7911) |
+| Attribute storage | Only OriginIGP ⚠️ | ALL attributes ✅ |
+| Keyword set | UnicastKeywords | MPLSKeywords |
+
+**Note:** The unicast route flow has a bug where only OriginIGP is stored in rib.Route.
+Labeled-unicast correctly stores ALL attributes for proper queue replay.
 
 ## RouteSpec Structure
 
