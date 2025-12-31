@@ -1,7 +1,7 @@
 # Spec: Decoding and Parsing Functional Tests
 
 **Created:** 2025-12-31
-**Status:** In Progress (Phase 1 partial, Phase 2-3 infrastructure done)
+**Status:** In Progress (13/18 decoding pass, 10/10 parsing pass)
 
 ## Problem
 
@@ -18,8 +18,8 @@ Test data already exists:
 
 | Component | Status | Notes |
 |-----------|--------|-------|
-| `zebgp decode` CLI | ✅ Complete | EVPN Type 2 parsed |
-| `functional decoding` | ⚠️ Partial | 3/18 tests pass |
+| `zebgp decode` CLI | ✅ Complete | All NLRI types parsed |
+| `functional decoding` | ✅ Complete | 13/18 tests pass |
 | `functional parsing` | ✅ Complete | 10/10 tests pass |
 | `make functional` | ✅ Exists | All types integrated |
 
@@ -30,9 +30,11 @@ Test data already exists:
 | bgp-evpn-1 | ✅ | EVPN Type 2 with lenient label parsing |
 | bgp-open-software-version | ✅ | Capabilities parsed |
 | ipv4-unicast-1 | ✅ | IPv4 unicast |
-| ipv4-unicast-2 | ❌ | Needs as-path object format, aggregator |
-| bgp-flow-1..4 | ❌ | FlowSpec needs structured output |
-| bgp-ls-1..10 | ❌ | BGP-LS needs raw NLRI format (no envelope) |
+| ipv4-unicast-2 | ✅ | as-path object format, aggregator |
+| bgp-flow-1..4 | ✅ | FlowSpec structured output |
+| bgp-ls-1..4, 10 | ✅ | BGP-LS Link/Node/Prefix NLRI |
+| bgp-ls-5 | ❌ | Needs SR-MPLS Adjacency SID (TLV 1099) |
+| bgp-ls-6..9 | ❌ | Minor format differences (need test update) |
 
 ## Requirements
 
@@ -244,25 +246,35 @@ For decoding tests, compare JSON after removing volatile fields:
 
 ## Success Metrics
 
-- [ ] All 18 decoding tests pass (currently 3/18)
+- [ ] All 18 decoding tests pass (currently 13/18)
 - [x] All 10 parsing tests pass
 - [x] `make functional` runs all test types
 
 ## Remaining Work
 
-1. **FlowSpec output format** (4 tests)
-   - Needs structured component output: `destination-ipv6`, `next-header`, etc.
-   - Current output is string-based, expected is structured arrays
+1. **SR-MPLS Adjacency SID** (1 test: bgp-ls-5)
+   - TLV 1099: SR Adjacency SID (RFC 9085)
+   - Not implemented yet
 
-2. **BGP-LS raw NLRI format** (10 tests)
-   - Tests use `nlri bgp-ls bgp-ls` type - raw NLRI without envelope
-   - Expected output is flat JSON without `exabgp`, `neighbor` wrapper
-   - Needs test runner to handle different comparison for "nlri" type
+2. **Test file updates** (4 tests: bgp-ls-6..9)
+   - Minor format differences between ZeBGP and ExaBGP expected output
+   - Key name: `srv6-endx-sid` vs `srv6-endx`
+   - Test expected output needs updating to match ZeBGP format
 
-3. **as-path object format** (1 test: ipv4-unicast-2)
-   - Expected: `{"0": {"element": "as-sequence", "value": [...]}}`
-   - Current: `[asn1, asn2, ...]`
-   - Also needs AGGREGATOR attribute parsing
+## Completed Work
+
+1. **FlowSpec output format** (4 tests) ✅
+   - Structured component output with operators and values
+
+2. **BGP-LS structured output** (10 tests, 5 pass) ✅
+   - Node, Link, Prefix NLRI types
+   - Node descriptors, link descriptors
+   - BGP-LS attribute (TLV 29) parsing
+   - SRv6 TLVs (RFC 9514): 1106, 1107, 1108, sub-TLV 1252
+
+3. **as-path object format** (ipv4-unicast-2) ✅
+   - ExaBGP format: `{"0": {"element": "as-sequence", "value": [...]}}`
+   - AGGREGATOR attribute parsing
 
 ## Files Modified
 

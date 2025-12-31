@@ -35,12 +35,13 @@ functional  - 37/37 passed
 ## Resume Point
 
 **Last worked:** 2025-12-31
-**Last commit:** `f6846fb` MUP T1ST source field + fail-early rule
-**Session ended:** All encoding tests passing
+**Last commit:** `4ff9140` docs(rfc): add RFC 7752 and RFC 9514
+**Session ended:** BGP-LS decode complete, 13/18 decoding tests pass
 
 **Next steps:**
-1. Integrate zero-copy forwarding into peer route distribution (future)
-2. API as Virtual Peer implementation
+1. Update bgp-ls-6..9 test expected output to match ZeBGP format
+2. Implement SR-MPLS Adjacency SID (TLV 1099) for bgp-ls-5
+3. API as Virtual Peer implementation
 
 ---
 
@@ -62,6 +63,23 @@ AttributesWire for zero-copy route reflection.
 ---
 
 ## COMPLETED
+
+### BGP-LS Decode + SRv6 TLVs (`48fe442`, `7054c27`, `4ff9140`)
+**Spec:** `plan/spec-functional-decoding-parsing.md`
+
+Complete BGP-LS structured JSON output for decode command:
+- RFC 7752: Node, Link, Prefix NLRI types
+- Node descriptors (AS, BGP-LS ID, OSPF Area, Router-ID)
+- Link descriptors (interface/neighbor addresses, MTIDs, link IDs)
+- BGP-LS attribute (type 29) TLV parsing
+- RFC 9514 SRv6 TLVs: 1106, 1107, 1108, sub-TLV 1252
+- Fixed formatNodeDescriptors to only include present TLVs
+- Unified IPv6 formatting with compression
+- Added originator-id and cluster-list attribute parsing
+
+Files:
+- `cmd/zebgp/decode.go`, `decode_test.go`
+- `rfc/rfc7752.txt`, `rfc/rfc9514.txt`
 
 ### MUP T1ST Source Field + Fail-Early Rule (`f6846fb`)
 
