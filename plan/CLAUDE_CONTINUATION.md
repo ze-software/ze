@@ -39,13 +39,13 @@ API tests   - 14/14 passed (100%) ✅
 ## Resume Point
 
 **Last worked:** 2025-12-31
-**Last commit:** uncommitted - MUP API family validation fix + unit tests
+**Last commit:** `794eb8e` fix(api): add MUP family validation and unit tests
 
-**Status:** Ready to commit
+**Status:** Clean
 
 ---
 
-## READY TO COMMIT: MUP API Fixes
+## RECENTLY COMPLETED: MUP API Fixes (`794eb8e`)
 
 **Spec:** `plan/done/spec-mup-api-fixes.md` ✅
 
@@ -59,11 +59,6 @@ make test       - PASS
 make lint       - pre-existing dupl only (6)
 API functional  - 14/14 passed
 ```
-
-### Files to commit
-- `pkg/reactor/reactor.go` - family validation + constants
-- `pkg/reactor/mup_test.go` - 24 unit tests
-- `plan/done/spec-mup-api-fixes.md` - completed spec
 
 ---
 

@@ -243,32 +243,37 @@ Design changes include:
 
 ## Phase 7: Completion (AFTER IMPLEMENTATION)
 
-**Run after implementation is verified and committed.**
+**Run after implementation is verified, BEFORE committing.**
 
 1. Move spec to done:
 ```bash
-git mv plan/spec-<task-name>.md plan/done/
+mv plan/spec-<task-name>.md plan/done/
 ```
 
-2. Update `plan/README.md`:
-   - Move entry from "Implementation Specs (Active)" to "Complete (in `done/`)"
-   - Update description if needed
+2. Update spec checklist to mark all items complete
 
 3. Update `plan/CLAUDE_CONTINUATION.md`:
-   - Remove from current priorities
+   - Update status to ready/complete
    - Add to completed work summary
 
-4. Commit:
+4. Commit implementation + spec together:
 ```bash
-git add plan/
-git commit -m "docs: move spec-<task-name> to done"
+git add pkg/... plan/done/spec-<task-name>.md plan/CLAUDE_CONTINUATION.md
+git commit -m "feat/fix(...): description
+
+🤖 Generated with [Claude Code](https://claude.com/claude-code)
+
+Co-Authored-By: Claude <noreply@anthropic.com>"
 ```
+
+**PROPER WORKFLOW:** Include the completed spec in the same commit as the
+implementation. This keeps the spec and code changes atomic and traceable.
 
 Output:
 ```
 ✅ Implementation complete
 📁 Moved: plan/spec-<task-name>.md → plan/done/
-📝 Updated: plan/README.md, plan/CLAUDE_CONTINUATION.md
+📝 Updated: plan/CLAUDE_CONTINUATION.md
 🏁 Task closed
 ```
 
