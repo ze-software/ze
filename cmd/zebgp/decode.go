@@ -1482,7 +1482,7 @@ func bgplsToJSON(n nlri.BGPLSNLRI) map[string]any {
 		// Parse TLVs from wire bytes to include only TLVs actually present
 		result["node-descriptors"] = parseBGPLSNodeTLVs(v.Bytes())
 		if len(v.SRv6SID.SRv6SID) > 0 {
-			result["srv6-sid"] = formatIPv6Address(v.SRv6SID.SRv6SID)
+			result["srv6-sid"] = formatIPv6Compressed(v.SRv6SID.SRv6SID)
 		}
 	}
 
@@ -1510,6 +1510,7 @@ func bgplsNLRITypeString(nlriType uint16) string {
 
 // formatNodeDescriptors converts a NodeDescriptor to ExaBGP array format.
 // Each sub-TLV becomes a separate object in the array per ExaBGP convention.
+// Note: Only includes fields that have non-zero values (TLVs actually present).
 func formatNodeDescriptors(nd *nlri.NodeDescriptor) []any {
 	var descs []any
 
@@ -1519,12 +1520,14 @@ func formatNodeDescriptors(nd *nlri.NodeDescriptor) []any {
 	}
 
 	// RFC 7752 Section 3.2.1.4 - BGP-LS Identifier (TLV 513)
-	// ExaBGP shows this as a string (decimal representation)
-	descs = append(descs, map[string]any{"bgp-ls-identifier": fmt.Sprintf("%d", nd.BGPLSIdentifier)})
+	// Only add if non-zero (TLV was present)
+	if nd.BGPLSIdentifier != 0 {
+		descs = append(descs, map[string]any{"bgp-ls-identifier": fmt.Sprintf("%d", nd.BGPLSIdentifier)})
+	}
 
 	// RFC 7752 Section 3.2.1.4 - OSPF Area-ID (TLV 514)
-	// ExaBGP shows as dotted-decimal IP format
-	if nd.OSPFAreaID != 0 || len(descs) > 0 {
+	// Only add if non-zero (TLV was present)
+	if nd.OSPFAreaID != 0 {
 		descs = append(descs, map[string]any{
 			"ospf-area-id": fmt.Sprintf("%d.%d.%d.%d",
 				(nd.OSPFAreaID>>24)&0xFF,
@@ -1589,23 +1592,13 @@ func formatIPReachability(data []byte, nlriType nlri.BGPLSNLRIType) string {
 		// IPv6 prefix
 		addr := make([]byte, 16)
 		copy(addr, prefixBytes)
-		return formatIPv6Address(addr) + "/" + fmt.Sprintf("%d", prefixLen)
+		return formatIPv6Compressed(addr) + "/" + fmt.Sprintf("%d", prefixLen)
 	}
 
 	// IPv4 prefix
 	addr := make([]byte, 4)
 	copy(addr, prefixBytes)
 	return fmt.Sprintf("%d.%d.%d.%d/%d", addr[0], addr[1], addr[2], addr[3], prefixLen)
-}
-
-// formatIPv6Address formats a 16-byte IPv6 address.
-func formatIPv6Address(addr []byte) string {
-	if len(addr) != 16 {
-		return fmt.Sprintf("%X", addr)
-	}
-	return fmt.Sprintf("%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x:%02x%02x",
-		addr[0], addr[1], addr[2], addr[3], addr[4], addr[5], addr[6], addr[7],
-		addr[8], addr[9], addr[10], addr[11], addr[12], addr[13], addr[14], addr[15])
 }
 
 // prefixDescriptorInfo holds parsed prefix descriptor information.
@@ -1757,11 +1750,11 @@ func parseBGPLSLinkTLVs(data []byte) (localDescs, remoteDescs []any, info linkDe
 			}
 		case 261: // IPv6 Interface Address
 			if len(value) == 16 {
-				info.ifAddrs = append(info.ifAddrs, formatIPv6Address(value))
+				info.ifAddrs = append(info.ifAddrs, formatIPv6Compressed(value))
 			}
 		case 262: // IPv6 Neighbor Address
 			if len(value) == 16 {
-				info.neighAddrs = append(info.neighAddrs, formatIPv6Address(value))
+				info.neighAddrs = append(info.neighAddrs, formatIPv6Compressed(value))
 			}
 		case 263: // Multi-Topology ID
 			// 2 bytes per MT-ID, high 4 bits reserved
@@ -1887,7 +1880,7 @@ func parseBGPLSAttribute(data []byte) map[string]any {
 			}
 		case 1029: // IPv6 Router-ID Local
 			if len(value) == 16 {
-				addr := formatIPv6Address(value)
+				addr := formatIPv6Compressed(value)
 				if existing, ok := result["local-router-ids"].([]string); ok {
 					result["local-router-ids"] = append(existing, addr)
 				} else {
@@ -1902,7 +1895,7 @@ func parseBGPLSAttribute(data []byte) map[string]any {
 			}
 		case 1031: // IPv6 Router-ID Remote
 			if len(value) == 16 {
-				result["remote-router-id"] = formatIPv6Address(value)
+				result["remote-router-id"] = formatIPv6Compressed(value)
 			}
 		case 1088: // Administrative Group (color)
 			if len(value) >= 4 {
@@ -1958,6 +1951,19 @@ func parseBGPLSAttribute(data []byte) map[string]any {
 				}
 			}
 
+		// SRv6 Link Attribute TLVs (RFC 9514 Section 4)
+		case 1106: // SRv6 End.X SID
+			sids := parseSRv6EndXSID(value, 0)
+			appendSRv6SIDs(result, "srv6-endx-sid", sids)
+
+		case 1107: // IS-IS SRv6 LAN End.X SID
+			sids := parseSRv6EndXSID(value, 6) // 6-byte IS-IS neighbor ID
+			appendSRv6SIDs(result, "srv6-lan-endx-isis", sids)
+
+		case 1108: // OSPFv3 SRv6 LAN End.X SID
+			sids := parseSRv6EndXSID(value, 4) // 4-byte OSPFv3 neighbor ID
+			appendSRv6SIDs(result, "srv6-lan-endx-ospf", sids)
+
 		default:
 			// Generic TLV - store as hex
 			result[fmt.Sprintf("generic-lsid-%d", tlvType)] = []string{fmt.Sprintf("0x%X", value)}
@@ -1967,6 +1973,100 @@ func parseBGPLSAttribute(data []byte) map[string]any {
 	}
 
 	return result
+}
+
+// parseSRv6EndXSID parses SRv6 End.X SID or LAN End.X SID TLVs (RFC 9514 Section 4).
+// neighborIDLen is 0 for End.X SID, 6 for IS-IS LAN End.X, 4 for OSPFv3 LAN End.X.
+// Returns a slice of parsed SID entries.
+func parseSRv6EndXSID(data []byte, neighborIDLen int) []map[string]any {
+	var sids []map[string]any
+
+	// Minimum: Behavior(2) + Flags(1) + Algo(1) + Weight(1) + Reserved(1) + NeighborID + SID(16)
+	minLen := 6 + neighborIDLen + 16
+	offset := 0
+
+	for offset+minLen <= len(data) {
+		behavior := binary.BigEndian.Uint16(data[offset : offset+2])
+		flags := data[offset+2]
+		algorithm := data[offset+3]
+		weight := data[offset+4]
+		// offset+5 is reserved
+
+		sidOffset := offset + 6 + neighborIDLen
+		if sidOffset+16 > len(data) {
+			break
+		}
+
+		sid := data[sidOffset : sidOffset+16]
+
+		entry := map[string]any{
+			"behavior":  int(behavior),
+			"algorithm": int(algorithm),
+			"weight":    int(weight),
+			"flags": map[string]any{
+				"B":   int((flags >> 7) & 1),
+				"S":   int((flags >> 6) & 1),
+				"P":   int((flags >> 5) & 1),
+				"RSV": int(flags & 0x1F),
+			},
+			"sid": formatIPv6Compressed(sid),
+		}
+
+		// Add neighbor ID if present (LAN End.X SID)
+		if neighborIDLen > 0 {
+			neighborID := data[offset+6 : offset+6+neighborIDLen]
+			entry["neighbor-id"] = fmt.Sprintf("%X", neighborID)
+		}
+
+		// Parse sub-TLVs (SRv6 SID Structure)
+		subTLVOffset := sidOffset + 16
+		if subTLVOffset+4 <= len(data) {
+			subTLVType := binary.BigEndian.Uint16(data[subTLVOffset : subTLVOffset+2])
+			subTLVLen := int(binary.BigEndian.Uint16(data[subTLVOffset+2 : subTLVOffset+4]))
+
+			if subTLVType == 1252 && subTLVLen == 4 && subTLVOffset+4+4 <= len(data) {
+				// SRv6 SID Structure (RFC 9514 Section 8)
+				structData := data[subTLVOffset+4 : subTLVOffset+8]
+				entry["srv6-sid-structure"] = map[string]any{
+					"loc_block_len": int(structData[0]),
+					"loc_node_len":  int(structData[1]),
+					"func_len":      int(structData[2]),
+					"arg_len":       int(structData[3]),
+				}
+				offset = subTLVOffset + 4 + subTLVLen
+			} else {
+				offset = subTLVOffset
+			}
+		} else {
+			offset = subTLVOffset
+		}
+
+		sids = append(sids, entry)
+	}
+
+	return sids
+}
+
+// appendSRv6SIDs appends SRv6 SID entries to the result map under the given key.
+func appendSRv6SIDs(result map[string]any, key string, sids []map[string]any) {
+	if len(sids) == 0 {
+		return
+	}
+	if existing, ok := result[key].([]map[string]any); ok {
+		result[key] = append(existing, sids...)
+	} else {
+		result[key] = sids
+	}
+}
+
+// formatIPv6Compressed formats a 16-byte IPv6 address with zero compression.
+func formatIPv6Compressed(addr []byte) string {
+	if len(addr) != 16 {
+		return fmt.Sprintf("%X", addr)
+	}
+	// Use netip for proper zero compression
+	ip := netip.AddrFrom16([16]byte(addr))
+	return ip.String()
 }
 
 // parseGenericNLRI parses generic NLRI (IPv4/IPv6 prefixes).
