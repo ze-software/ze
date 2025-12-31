@@ -68,6 +68,14 @@ Text versions of RFCs relevant to ZeBGP implementation.
 | [8203](rfc8203.txt) | BGP Administrative Shutdown Communication | Implemented |
 | [9003](rfc9003.txt) | Extended BGP Administrative Shutdown Communication | Implemented |
 
+## BGP-LS (Link State)
+
+| RFC | Title | Status |
+|-----|-------|--------|
+| [7752](rfc7752.txt) | BGP-LS: North-Bound Distribution of Link-State | Implemented |
+| [9085](rfc9085.txt) | BGP-LS Extensions for Segment Routing | Partial (TLV 1099) |
+| [9514](rfc9514.txt) | BGP-LS Extensions for SRv6 | Partial (TLVs 1106-1108) |
+
 ---
 
 **Note:** When implementing RFC functionality, code MUST reference the RFC number and section.

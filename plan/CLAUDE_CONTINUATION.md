@@ -1,6 +1,6 @@
 # Claude Continuation State
 
-**Last Updated:** 2025-12-30
+**Last Updated:** 2025-12-31
 
 ---
 
@@ -28,6 +28,8 @@
 make test   - PASS
 make lint   - PASS
 functional  - 37/37 passed
+decoding    - 18/18 passed
+parsing     - 10/10 passed
 ```
 
 ---
@@ -35,12 +37,12 @@ functional  - 37/37 passed
 ## Resume Point
 
 **Last worked:** 2025-12-31
-**Last commit:** `4ff9140` docs(rfc): add RFC 7752 and RFC 9514
-**Session ended:** BGP-LS decode complete, 13/18 decoding tests pass
+**Last commit:** uncommitted (decoding tests complete)
+**Session ended:** Clean break - all decoding tests pass
 
 **Next steps:**
-1. Update bgp-ls-6..9 test expected output to match ZeBGP format
-2. Implement SR-MPLS Adjacency SID (TLV 1099) for bgp-ls-5
+1. Commit decoding test completion
+2. Sync ExaBGP with lossless JSON format (see spec)
 3. API as Virtual Peer implementation
 
 ---
@@ -63,6 +65,32 @@ AttributesWire for zero-copy route reflection.
 ---
 
 ## COMPLETED
+
+### Decoding Tests Complete (uncommitted)
+**Spec:** `plan/spec-functional-decoding-parsing.md` ✅ COMPLETE
+
+All 18 decoding tests now pass with lossless JSON format:
+
+**TLV 1099 (SR-MPLS Adjacency SID):**
+- Implemented RFC 9085 Section 2.2.1 parsing
+- V/L flag handling for 3-byte label vs 4-byte index
+- Array format for multiple TLV instances (lossless)
+- Unit tests: `TestParseSRMPLSAdjSID`, `TestSRAdjMultipleInstances`
+
+**Lossless JSON Format (API breaking change):**
+- `remote-router-id` → `remote-router-ids` (array, preserves IPv4+IPv6)
+- `sr-adj` → array format (preserves multiple TLV instances)
+- `srv6-endx-sid` → `srv6-endx` (key name fix)
+
+**Test file updates:**
+- `bgp-ls-5.test`: sr-adj array format
+- `bgp-ls-6..9.test`: lossless router-ids format
+
+**RFC downloaded:**
+- `rfc/rfc9085.txt` (BGP-LS Extensions for Segment Routing)
+- `rfc/README.md` updated with BGP-LS section
+
+**ExaBGP sync required:** Same duplicate-key bug exists in ExaBGP. See spec for fix plan.
 
 ### BGP-LS Decode + SRv6 TLVs (`48fe442`, `7054c27`, `4ff9140`)
 **Spec:** `plan/spec-functional-decoding-parsing.md`

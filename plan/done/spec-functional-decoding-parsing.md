@@ -1,7 +1,7 @@
 # Spec: Decoding and Parsing Functional Tests
 
 **Created:** 2025-12-31
-**Status:** In Progress (13/18 decoding pass, 10/10 parsing pass)
+**Status:** ✅ Complete (18/18 decoding pass, 10/10 parsing pass)
 
 ## Problem
 
@@ -19,7 +19,7 @@ Test data already exists:
 | Component | Status | Notes |
 |-----------|--------|-------|
 | `zebgp decode` CLI | ✅ Complete | All NLRI types parsed |
-| `functional decoding` | ✅ Complete | 13/18 tests pass |
+| `functional decoding` | ✅ Complete | 18/18 tests pass |
 | `functional parsing` | ✅ Complete | 10/10 tests pass |
 | `make functional` | ✅ Exists | All types integrated |
 
@@ -33,8 +33,8 @@ Test data already exists:
 | ipv4-unicast-2 | ✅ | as-path object format, aggregator |
 | bgp-flow-1..4 | ✅ | FlowSpec structured output |
 | bgp-ls-1..4, 10 | ✅ | BGP-LS Link/Node/Prefix NLRI |
-| bgp-ls-5 | ❌ | Needs SR-MPLS Adjacency SID (TLV 1099) |
-| bgp-ls-6..9 | ❌ | Minor format differences (need test update) |
+| bgp-ls-5 | ✅ | SR-MPLS Adjacency SID (TLV 1099) |
+| bgp-ls-6..9 | ✅ | SRv6 End.X SID, lossless array format |
 
 ## Requirements
 
@@ -246,20 +246,25 @@ For decoding tests, compare JSON after removing volatile fields:
 
 ## Success Metrics
 
-- [ ] All 18 decoding tests pass (currently 13/18)
-- [x] All 10 parsing tests pass
-- [x] `make functional` runs all test types
+- [x] All 18 decoding tests pass ✅
+- [x] All 10 parsing tests pass ✅
+- [x] `make functional` runs all test types ✅
 
-## Remaining Work
+## Completed Work (2025-12-31)
 
-1. **SR-MPLS Adjacency SID** (1 test: bgp-ls-5)
-   - TLV 1099: SR Adjacency SID (RFC 9085)
-   - Not implemented yet
+1. **SR-MPLS Adjacency SID** (bgp-ls-5) ✅
+   - Implemented TLV 1099 parsing (RFC 9085)
+   - Array format for multiple instances (lossless JSON)
 
-2. **Test file updates** (4 tests: bgp-ls-6..9)
-   - Minor format differences between ZeBGP and ExaBGP expected output
-   - Key name: `srv6-endx-sid` vs `srv6-endx`
-   - Test expected output needs updating to match ZeBGP format
+2. **SRv6 End.X SID key name** (bgp-ls-6..9) ✅
+   - Changed `srv6-endx-sid` → `srv6-endx`
+   - Fixed `remote-router-ids` to use array (lossless)
+   - Updated test files with correct expected output
+
+3. **Lossless JSON Format** ✅
+   - `sr-adj`: Array of entries (was: duplicate keys, data loss)
+   - `local-router-ids`: Array of IPv4+IPv6 (already correct)
+   - `remote-router-ids`: Array of IPv4+IPv6 (was: single value, data loss)
 
 ## Completed Work
 
@@ -281,9 +286,40 @@ For decoding tests, compare JSON after removing volatile fields:
 | File | Status | Purpose |
 |------|--------|---------|
 | `cmd/zebgp/main.go` | ✅ | Added `decode` command |
-| `cmd/zebgp/decode.go` | ✅ | Decode logic with EVPN lenient parsing |
-| `cmd/zebgp/decode_test.go` | ✅ | Unit tests |
+| `cmd/zebgp/decode.go` | ✅ | Decode logic, TLV 1099, lossless arrays |
+| `cmd/zebgp/decode_test.go` | ✅ | Unit tests including TLV 1099 |
 | `test/cmd/functional/main.go` | ✅ | Added decoding/parsing commands |
 | `test/functional/decoding.go` | ✅ | Decoding test infrastructure |
 | `test/functional/parsing.go` | ✅ | Parsing test infrastructure |
+| `test/data/decode/bgp-ls-5.test` | ✅ | Updated for sr-adj array format |
+| `test/data/decode/bgp-ls-6..9.test` | ✅ | Updated for lossless router-ids |
+| `rfc/rfc9085.txt` | ✅ | Downloaded for TLV 1099 reference |
+| `rfc/README.md` | ✅ | Added BGP-LS section |
 | `Makefile` | ✅ | Has `functional` target |
+
+## API Breaking Changes
+
+**ZeBGP now outputs lossless JSON format for BGP-LS attributes:**
+
+| Before | After | Reason |
+|--------|-------|--------|
+| `"remote-router-id": "x"` | `"remote-router-ids": ["x", "y"]` | Preserve IPv4+IPv6 |
+| `"sr-adj": {...}` | `"sr-adj": [{...}, {...}]` | Preserve multiple TLVs |
+| `"srv6-endx-sid": [...]` | `"srv6-endx": [...]` | Match ExaBGP key name |
+
+**Impact:** Code parsing ZeBGP's BGP-LS JSON output needs updating.
+
+## ExaBGP Sync Required
+
+ExaBGP has the same duplicate-key bug causing data loss. Needs fix:
+
+**Files to modify in ExaBGP** (`src/exabgp/bgp/message/update/attribute/bgpls/`):
+
+| File | Change |
+|------|--------|
+| `link/remotetepv4.py` | TLV 1030: `remote-router-id` → `remote-router-ids`, accumulate |
+| `link/remotetepv6.py` | TLV 1031: `remote-router-id` → `remote-router-ids`, accumulate |
+| `link/adjacencysid.py` | TLV 1099: `sr-adj` output as array element |
+| `link/__init__.py` | Add accumulation logic for multi-instance TLVs |
+
+**Key change:** Add `ACCUMULATING_KEYS = {'sr-adj', 'local-router-ids', 'remote-router-ids'}` and merge into arrays instead of overwriting.

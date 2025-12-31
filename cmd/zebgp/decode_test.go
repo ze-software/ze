@@ -980,3 +980,133 @@ func TestBGPLSL3RoutingTopology(t *testing.T) {
 		}
 	}
 }
+
+// TestParseSRMPLSAdjSID verifies SR-MPLS Adjacency SID TLV 1099 parsing.
+//
+// VALIDATES: V/L flag combinations, label and index SID formats, multiple TLV accumulation.
+//
+// PREVENTS: Data loss from duplicate TLV instances, incorrect SID value parsing.
+func TestParseSRMPLSAdjSID(t *testing.T) {
+	tests := []struct {
+		name     string
+		data     []byte
+		wantSIDs []int
+		wantV    int
+		wantL    int
+	}{
+		{
+			name:     "V=1,L=1 3-byte label",
+			data:     []byte{0x30, 0x00, 0x00, 0x00, 0x04, 0x93, 0x10}, // flags=0x30 (V=1,L=1), weight=0, reserved=0, SID=0x049310
+			wantSIDs: []int{299792},
+			wantV:    1,
+			wantL:    1,
+		},
+		{
+			name:     "V=1,L=1 with B flag",
+			data:     []byte{0x70, 0x00, 0x00, 0x00, 0x04, 0x93, 0x00}, // flags=0x70 (B=1,V=1,L=1)
+			wantSIDs: []int{299776},
+			wantV:    1,
+			wantL:    1,
+		},
+		{
+			name:     "V=0,L=0 4-byte index",
+			data:     []byte{0x00, 0x05, 0x00, 0x00, 0x00, 0x00, 0x01, 0x00}, // flags=0, weight=5, SID=256
+			wantSIDs: []int{256},
+			wantV:    0,
+			wantL:    0,
+		},
+		{
+			name:     "data too short",
+			data:     []byte{0x30, 0x00, 0x00}, // Only 3 bytes, minimum is 4
+			wantSIDs: nil,
+			wantV:    0,
+			wantL:    0,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := make(map[string]any)
+			parseSRMPLSAdjSID(result, "sr-adj", tt.data)
+
+			if tt.wantSIDs == nil {
+				if _, ok := result["sr-adj"]; ok {
+					t.Error("expected no sr-adj entry for short data")
+				}
+				return
+			}
+
+			entries, ok := result["sr-adj"].([]map[string]any)
+			if !ok || len(entries) == 0 {
+				t.Fatal("expected sr-adj array with entries")
+			}
+
+			entry := entries[0]
+			sids, ok := entry["sids"].([]int)
+			if !ok {
+				t.Fatal("expected sids array")
+			}
+
+			if len(sids) != len(tt.wantSIDs) {
+				t.Errorf("got %d SIDs, want %d", len(sids), len(tt.wantSIDs))
+			}
+			for i, want := range tt.wantSIDs {
+				if i < len(sids) && sids[i] != want {
+					t.Errorf("SID[%d] = %d, want %d", i, sids[i], want)
+				}
+			}
+
+			flags, ok := entry["flags"].(map[string]any)
+			if !ok {
+				t.Fatal("expected flags map")
+			}
+
+			if v, ok := flags["V"].(int); ok && v != tt.wantV {
+				t.Errorf("V flag = %d, want %d", v, tt.wantV)
+			}
+			if l, ok := flags["L"].(int); ok && l != tt.wantL {
+				t.Errorf("L flag = %d, want %d", l, tt.wantL)
+			}
+		})
+	}
+}
+
+// TestSRAdjMultipleInstances verifies multiple TLV 1099 instances accumulate into array.
+//
+// VALIDATES: Lossless JSON format with array accumulation.
+//
+// PREVENTS: Data loss from duplicate keys (ExaBGP bug).
+func TestSRAdjMultipleInstances(t *testing.T) {
+	result := make(map[string]any)
+
+	// First TLV instance
+	parseSRMPLSAdjSID(result, "sr-adj", []byte{0x30, 0x00, 0x00, 0x00, 0x04, 0x93, 0x10})
+	// Second TLV instance
+	parseSRMPLSAdjSID(result, "sr-adj", []byte{0x70, 0x00, 0x00, 0x00, 0x04, 0x93, 0x00})
+
+	entries, ok := result["sr-adj"].([]map[string]any)
+	if !ok {
+		t.Fatal("expected sr-adj to be array")
+	}
+
+	if len(entries) != 2 {
+		t.Errorf("expected 2 sr-adj entries, got %d", len(entries))
+	}
+
+	// Verify both SIDs are preserved
+	sids0, ok := entries[0]["sids"].([]int)
+	if !ok || len(sids0) == 0 {
+		t.Fatal("expected sids array in first entry")
+	}
+	sids1, ok := entries[1]["sids"].([]int)
+	if !ok || len(sids1) == 0 {
+		t.Fatal("expected sids array in second entry")
+	}
+
+	if sids0[0] != 299792 {
+		t.Errorf("first SID = %d, want 299792", sids0[0])
+	}
+	if sids1[0] != 299776 {
+		t.Errorf("second SID = %d, want 299776", sids1[0])
+	}
+}

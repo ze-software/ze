@@ -1891,11 +1891,21 @@ func parseBGPLSAttribute(data []byte) map[string]any {
 		// Link Attribute TLVs (RFC 7752 Section 3.3.2)
 		case 1030: // IPv4 Router-ID Remote
 			if len(value) == 4 {
-				result["remote-router-id"] = fmt.Sprintf("%d.%d.%d.%d", value[0], value[1], value[2], value[3])
+				addr := fmt.Sprintf("%d.%d.%d.%d", value[0], value[1], value[2], value[3])
+				if existing, ok := result["remote-router-ids"].([]string); ok {
+					result["remote-router-ids"] = append(existing, addr)
+				} else {
+					result["remote-router-ids"] = []string{addr}
+				}
 			}
 		case 1031: // IPv6 Router-ID Remote
 			if len(value) == 16 {
-				result["remote-router-id"] = formatIPv6Compressed(value)
+				addr := formatIPv6Compressed(value)
+				if existing, ok := result["remote-router-ids"].([]string); ok {
+					result["remote-router-ids"] = append(existing, addr)
+				} else {
+					result["remote-router-ids"] = []string{addr}
+				}
 			}
 		case 1088: // Administrative Group (color)
 			if len(value) >= 4 {
@@ -1952,9 +1962,12 @@ func parseBGPLSAttribute(data []byte) map[string]any {
 			}
 
 		// SRv6 Link Attribute TLVs (RFC 9514 Section 4)
+		case 1099: // SR-MPLS Adjacency SID (RFC 9085)
+			parseSRMPLSAdjSID(result, "sr-adj", value)
+
 		case 1106: // SRv6 End.X SID
 			sids := parseSRv6EndXSID(value, 0)
-			appendSRv6SIDs(result, "srv6-endx-sid", sids)
+			appendSRv6SIDs(result, "srv6-endx", sids)
 
 		case 1107: // IS-IS SRv6 LAN End.X SID
 			sids := parseSRv6EndXSID(value, 6) // 6-byte IS-IS neighbor ID
@@ -2056,6 +2069,81 @@ func appendSRv6SIDs(result map[string]any, key string, sids []map[string]any) {
 		result[key] = append(existing, sids...)
 	} else {
 		result[key] = sids
+	}
+}
+
+// parseSRMPLSAdjSID parses SR-MPLS Adjacency SID TLV 1099 (RFC 9085 Section 2.2.1).
+// Format: Flags(1) + Weight(1) + Reserved(2) + SID/Label(variable).
+// When V=1 and L=1: 3-byte label. When V=0 and L=0: 4-byte index.
+//
+//nolint:unparam // key parameter for API consistency with other TLV parsers
+func parseSRMPLSAdjSID(result map[string]any, key string, data []byte) {
+	if len(data) < 4 {
+		return
+	}
+
+	flags := data[0]
+	weight := int(data[1])
+	// data[2:4] is reserved
+
+	// Parse flags: F(7), B(6), V(5), L(4), S(3), P(2), RSV(1), RSV(0)
+	flagMap := map[string]any{
+		"F":   int((flags >> 7) & 1),
+		"B":   int((flags >> 6) & 1),
+		"V":   int((flags >> 5) & 1),
+		"L":   int((flags >> 4) & 1),
+		"S":   int((flags >> 3) & 1),
+		"P":   int((flags >> 2) & 1),
+		"RSV": int(flags & 0x03),
+	}
+
+	vFlag := (flags >> 5) & 1
+	lFlag := (flags >> 4) & 1
+
+	sids := make([]int, 0)
+	undecoded := make([]string, 0)
+	sidData := data[4:]
+
+	// Combine V and L flags: 0b00=index, 0b11=label, others=invalid
+	flagCombo := (vFlag << 1) | lFlag
+	for len(sidData) > 0 {
+		switch flagCombo {
+		case 0b11: // V=1, L=1: 3-byte label
+			if len(sidData) < 3 {
+				undecoded = append(undecoded, fmt.Sprintf("%X", sidData))
+				sidData = nil
+				continue
+			}
+			sid := (int(sidData[0]) << 16) | (int(sidData[1]) << 8) | int(sidData[2])
+			sids = append(sids, sid)
+			sidData = sidData[3:]
+		case 0b00: // V=0, L=0: 4-byte index
+			if len(sidData) < 4 {
+				undecoded = append(undecoded, fmt.Sprintf("%X", sidData))
+				sidData = nil
+				continue
+			}
+			sid := int(binary.BigEndian.Uint32(sidData[:4]))
+			sids = append(sids, sid)
+			sidData = sidData[4:]
+		default: // Invalid flag combination
+			undecoded = append(undecoded, fmt.Sprintf("%X", sidData))
+			sidData = nil
+		}
+	}
+
+	entry := map[string]any{
+		"flags":          flagMap,
+		"sids":           sids,
+		"weight":         weight,
+		"undecoded-sids": undecoded,
+	}
+
+	// Accumulate multiple TLV instances into an array (proper JSON, no data loss)
+	if existing, ok := result[key].([]map[string]any); ok {
+		result[key] = append(existing, entry)
+	} else {
+		result[key] = []map[string]any{entry}
 	}
 }
 
