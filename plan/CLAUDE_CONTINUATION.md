@@ -39,53 +39,23 @@ API tests   - 14/14 passed (100%) ✅
 ## Resume Point
 
 **Last worked:** 2025-12-31
-**Last commits:** (UNCOMMITTED - ready to commit)
-- MUP API support implementation complete
+**Last commit:** `64d8a0f` feat(api): add MUP SAFI support for announce/withdraw commands
 
-**Session ended:** MUP API support implemented (announce/withdraw ipv4/ipv6 mup)
+**Session ended:** MUP API support implemented and committed
 
 ---
 
-## UNCOMMITTED: MUP API Support (ready to commit)
+## RECENTLY COMPLETED: MUP API Support (`64d8a0f`)
 
-### What was implemented
 Full MUP SAFI (85) support for API commands:
 - `announce ipv4/ipv6 mup mup-isd <prefix> rd <RD> next-hop <NH> extended-community [...] bgp-prefix-sid-srv6 (...)`
 - `withdraw ipv4/ipv6 mup mup-isd <prefix> rd <RD> next-hop <NH> extended-community [...] bgp-prefix-sid-srv6 (...)`
 
-Route types supported: mup-isd, mup-dsd, mup-t1st, mup-t2st
-
-### Files changed
-| File | Changes |
-|------|---------|
-| `pkg/api/route.go` | `announceMUPImpl()`, `withdrawMUPImpl()`, `parseMUPArgs()`, `parseParenthesizedValue()`, MUP cases |
-| `pkg/api/route_keywords.go` | `MUPKeywords` |
-| `pkg/api/types.go` | `SAFINameMUP`, `MUPRouteSpec`, interface methods |
-| `pkg/api/handler_test.go` | Mock methods for MUP |
-| `pkg/api/route_parse_test.go` | Tests for MUP parsing |
-| `pkg/reactor/reactor.go` | `AnnounceMUPRoute()`, `WithdrawMUPRoute()`, `convertAPIMUPRoute()`, helpers |
-| `pkg/bgp/message/update_build.go` | `BuildMUPWithdraw()`, `buildMPUnreachMUP()` |
-
-### Key implementation notes
-1. MUP withdrawals include path attributes (origin, local-pref, ext-community, prefix-sid)
-2. `parseParenthesizedValue()` handles `bgp-prefix-sid-srv6 ( ... )` syntax
-3. Reuses existing MUP NLRI building patterns from config package
+Route types: mup-isd, mup-dsd, mup-t1st, mup-t2st
 
 ### Next steps
-1. **Commit this work** - All tests pass, ready to commit
-2. **Move spec to done/** - `plan/spec-mup-api-support.md` → `plan/done/`
-3. **Update plan/README.md** - Add MUP API to completed list
-
-### Suggested commit message
-```
-feat(api): add MUP SAFI support for announce/withdraw commands
-
-- Add announce/withdraw ipv4/ipv6 mup commands
-- Support mup-isd, mup-dsd, mup-t1st, mup-t2st route types
-- Parse bgp-prefix-sid-srv6 and extended-community attributes
-- MUP withdrawals include path attributes per protocol requirements
-- All 14 API functional tests pass (was 12/14)
-```
+1. Move spec to done/: `git mv plan/spec-mup-api-support.md plan/done/`
+2. Update plan/README.md with completed MUP API entry
 
 ---
 
