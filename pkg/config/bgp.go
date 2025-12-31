@@ -1193,7 +1193,16 @@ func parsePeerConfig(addr string, tree *Tree, templates map[string]*Tree, peerGl
 	// Parse API bindings - supports both old and new syntax:
 	// Old: api { processes [ foo bar ]; receive { ... } }
 	// New: api <process-name> { content { encoding json; } receive { update; } }
-	nc.APIBindings = parseAPIBindings(tree)
+	//
+	// Parse from templates first (later templates override earlier ones),
+	// then parse from peer tree (peer overrides templates).
+	for _, tmpl := range inheritedTemplates {
+		tmplBindings := parseAPIBindings(tmpl)
+		nc.APIBindings = mergeAPIBindings(nc.APIBindings, tmplBindings)
+	}
+	// Peer bindings override template bindings
+	peerBindings := parseAPIBindings(tree)
+	nc.APIBindings = mergeAPIBindings(nc.APIBindings, peerBindings)
 
 	return nc, nil
 }
@@ -1399,6 +1408,42 @@ func parseSendConfig(tree *Tree) PeerSendConfig {
 	_, cfg.Refresh = tree.Get("refresh")
 
 	return cfg
+}
+
+// mergeAPIBindings merges new bindings into existing bindings.
+// Bindings with the same process name are replaced (new overrides existing).
+// Bindings with different process names are appended.
+func mergeAPIBindings(existing, new []PeerAPIBinding) []PeerAPIBinding {
+	if len(new) == 0 {
+		return existing
+	}
+	if len(existing) == 0 {
+		return new
+	}
+
+	// Build map of existing bindings by process name
+	result := make([]PeerAPIBinding, 0, len(existing)+len(new))
+	seen := make(map[string]int) // process name -> index in result
+
+	// Add existing bindings
+	for _, b := range existing {
+		seen[b.ProcessName] = len(result)
+		result = append(result, b)
+	}
+
+	// Merge new bindings (replace or append)
+	for _, b := range new {
+		if idx, exists := seen[b.ProcessName]; exists {
+			// Replace existing binding
+			result[idx] = b
+		} else {
+			// Append new binding
+			seen[b.ProcessName] = len(result)
+			result = append(result, b)
+		}
+	}
+
+	return result
 }
 
 // parseNexthopFamilies parses the nexthop { ... } block for RFC 8950 extended next-hop.
