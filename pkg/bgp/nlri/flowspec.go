@@ -339,11 +339,15 @@ func parseFlowComponent(data []byte, family Family) (FlowComponent, []byte, erro
 }
 
 // parsePrefixComponent parses a prefix-type component (Type 1 or 2).
-// RFC 8955 Section 4.2.2.1-2 defines the encoding:
+// RFC 8955 Section 4.2.2.1-2 defines the IPv4 encoding:
 //
 //	<type (1 octet), length (1 octet), prefix (variable)>
 //
-// The length and prefix fields are encoded as in BGP UPDATE messages (RFC 4271).
+// RFC 8956 Section 3.1 defines the IPv6 encoding with offset field:
+//
+//	<type (1 octet), length (1 octet), offset (1 octet), prefix (variable)>
+//
+// The offset field in IPv6 allows matching on a portion of the prefix.
 func parsePrefixComponent(t FlowComponentType, data []byte, family Family) (FlowComponent, []byte, error) {
 	if len(data) == 0 {
 		return nil, nil, ErrFlowSpecTruncated
@@ -352,7 +356,18 @@ func parsePrefixComponent(t FlowComponentType, data []byte, family Family) (Flow
 	prefixLen := int(data[0])
 	prefixBytes := (prefixLen + 7) / 8
 
-	if len(data) < 1+prefixBytes {
+	// IPv6 FlowSpec includes an offset byte per RFC 8956 Section 3.1
+	var offset uint8
+	headerLen := 1 // Just prefix length for IPv4
+	if family.AFI == AFIIPv6 {
+		if len(data) < 2 {
+			return nil, nil, ErrFlowSpecTruncated
+		}
+		offset = data[1]
+		headerLen = 2 // Prefix length + offset for IPv6
+	}
+
+	if len(data) < headerLen+prefixBytes {
 		return nil, nil, ErrFlowSpecTruncated
 	}
 
@@ -364,7 +379,7 @@ func parsePrefixComponent(t FlowComponentType, data []byte, family Family) (Flow
 		addr = netip.AddrFrom4(ip)
 	} else {
 		var ip [16]byte
-		copy(ip[:], data[1:1+prefixBytes])
+		copy(ip[:], data[headerLen:headerLen+prefixBytes])
 		addr = netip.AddrFrom16(ip)
 	}
 
@@ -372,12 +387,20 @@ func parsePrefixComponent(t FlowComponentType, data []byte, family Family) (Flow
 
 	var comp FlowComponent
 	if t == FlowDestPrefix {
-		comp = NewFlowDestPrefixComponent(prefix)
+		if offset > 0 {
+			comp = NewFlowDestPrefixComponentWithOffset(prefix, offset)
+		} else {
+			comp = NewFlowDestPrefixComponent(prefix)
+		}
 	} else {
-		comp = NewFlowSourcePrefixComponent(prefix)
+		if offset > 0 {
+			comp = NewFlowSourcePrefixComponentWithOffset(prefix, offset)
+		} else {
+			comp = NewFlowSourcePrefixComponent(prefix)
+		}
 	}
 
-	return comp, data[1+prefixBytes:], nil
+	return comp, data[headerLen+prefixBytes:], nil
 }
 
 // parseNumericComponent parses a numeric-type component (Types 3-12).
@@ -475,6 +498,7 @@ func NewFlowSourcePrefixComponentWithOffset(prefix netip.Prefix, offset uint8) F
 
 func (c *prefixComponent) Type() FlowComponentType { return c.compType }
 func (c *prefixComponent) Prefix() netip.Prefix    { return c.prefix }
+func (c *prefixComponent) Offset() uint8           { return c.offset }
 
 // Bytes returns the wire encoding per RFC 8955 Section 4.2.2.1-2.
 // IPv4: <type (1), length (1), prefix (variable)>.

@@ -245,6 +245,8 @@ func (r *DecodingRunner) runTest(ctx context.Context, test *DecodingTest) bool {
 	switch test.Type {
 	case "open":
 		args = append(args, "--open")
+	case "nlri":
+		args = append(args, "--nlri")
 	case "update":
 		args = append(args, "--update")
 	default:
