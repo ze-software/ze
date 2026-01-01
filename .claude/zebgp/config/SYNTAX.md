@@ -334,6 +334,69 @@ match {
 
 ---
 
+## MVPN (Multicast VPN)
+
+RFC 6514 MVPN routes are configured under `announce { ipv4/ipv6 { mcast-vpn ... } }`.
+
+### Route Types
+
+| Type | Description |
+|------|-------------|
+| `source-ad` | Source Active A-D (Type 5) |
+| `shared-join` | Shared Tree Join (Type 6) |
+| `source-join` | Source Tree Join (Type 7) |
+
+### Syntax
+
+```
+announce {
+    ipv4 {
+        mcast-vpn <route-type> {
+            rd <route-distinguisher>;
+            source-as <asn>;
+            source <ip>;              # or rp <ip> for shared-join
+            group <multicast-group>;
+            next-hop <ip>;
+            origin igp;
+            local-preference <int>;
+            med <int>;
+            community [ <community>, ... ];
+            extended-community [ <ext-community>, ... ];
+            originator-id <ip>;       # RFC 4456 route reflector
+            cluster-list <ip> <ip>;   # RFC 4456 route reflector
+        }
+    }
+    ipv6 {
+        mcast-vpn <route-type> { ... }
+    }
+}
+```
+
+### Example
+
+```
+announce {
+    ipv4 {
+        mcast-vpn source-ad {
+            rd 100:100;
+            source-as 65000;
+            source 10.0.0.1;
+            group 239.1.1.1;
+            next-hop 192.168.1.1;
+            extended-community target:100:100;
+        }
+        mcast-vpn shared-join {
+            rd 100:100;
+            rp 10.0.0.1;
+            group 239.1.1.1;
+            next-hop 192.168.1.1;
+        }
+    }
+}
+```
+
+---
+
 ## L2VPN / EVPN
 
 ```
@@ -538,4 +601,4 @@ var validators = map[string]Validator{
 
 ---
 
-**Last Updated:** 2025-12-30
+**Last Updated:** 2026-01-01
