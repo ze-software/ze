@@ -54,7 +54,7 @@ test-all: test functional
 	@echo "All tests passed"
 
 # Run functional tests (all types)
-functional: functional-encoding functional-api functional-parsing
+functional: functional-encoding functional-api functional-parsing functional-decoding
 	@echo "All functional tests passed"
 
 # Run encoding functional tests
