@@ -168,12 +168,18 @@ family {
     ipv4 multicast;
     ipv4 nlri-mpls;
     ipv4 mpls-vpn;
+    ipv4 mcast-vpn;
     ipv4 flow;
     ipv4 flow-vpn;
+    ipv4 mup;
     ipv6 unicast;
+    ipv6 multicast;
+    ipv6 nlri-mpls;
     ipv6 mpls-vpn;
+    ipv6 mcast-vpn;
     ipv6 flow;
     ipv6 flow-vpn;
+    ipv6 mup;
     l2vpn vpls;
     l2vpn evpn;
     bgpls bgpls;
@@ -266,6 +272,65 @@ static {
 static {
     route <prefix> next-hop <ip>;
     route <prefix> next-hop <ip> as-path [ 65001 65002 ];
+}
+```
+
+---
+
+## MPLS-VPN (L3VPN)
+
+RFC 4364 L3VPN routes are configured under `announce { ipv4/ipv6 { mpls-vpn ... } }`.
+
+### Syntax
+
+```
+announce {
+    ipv4 {
+        mpls-vpn <prefix> {
+            rd <route-distinguisher>;
+            label <mpls-label>;
+            next-hop <ip>;
+            origin igp;
+            local-preference <int>;
+            med <int>;
+            as-path [ <asn>, ... ];
+            community [ <community>, ... ];
+            extended-community [ <ext-community>, ... ];
+            originator-id <ip>;       # RFC 4456 route reflector
+            cluster-list <ip> <ip>;   # RFC 4456 route reflector
+        }
+    }
+    ipv6 {
+        mpls-vpn <prefix> { ... }
+    }
+}
+```
+
+### Shorthand
+
+```
+announce {
+    ipv4 {
+        mpls-vpn 10.0.0.0/24 rd 100:100 label 1000 next-hop 192.168.1.1;
+        mpls-vpn 10.0.1.0/24 rd 100:100 label 1001 next-hop 192.168.1.1 extended-community target:100:100;
+    }
+}
+```
+
+### Example
+
+```
+announce {
+    ipv4 {
+        mpls-vpn 10.0.0.0/24 {
+            rd 65000:100;
+            label 16000;
+            next-hop 192.168.1.1;
+            origin igp;
+            local-preference 100;
+            extended-community target:65000:100;
+        }
+    }
 }
 ```
 
