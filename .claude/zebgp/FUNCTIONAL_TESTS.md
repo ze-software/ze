@@ -69,13 +69,13 @@ Modes:
   --all               Run all tests
 
 Options:
-  --timeout N         Timeout per test (default: 30s)
-  --parallel N        Max concurrent tests (default: 4)
-  --verbose, -v       Show output for each test
-  --quiet, -q         Minimal output
-  --save DIR          Save logs to directory
+  -t, --timeout N     Timeout per test (default: 15s)
+  -p, --parallel N    Max concurrent tests (0 = all, default: 0)
+  -v, --verbose       Show output for each test
+  -q, --quiet         Minimal output
+  -s, --save DIR      Save logs to directory
   --port N            Base port to use (default: 1790)
-  --count N           Run each test N times (stress testing)
+  -c, --count N       Run each test N times (stress/benchmark mode)
 
 Debugging:
   --server NICK       Run server only for test
@@ -185,10 +185,28 @@ timeout [5/30] running 4 passed 12 failed 2 [S, V]
 | `passed N` | N tests passed |
 | `failed N [IDs]` | N tests failed, with nicks |
 
-### Stress Test Summary
+### Stress Test Mode
 
-When using `--count N`:
+Use `--count N` (`-c N`) to run tests multiple times for benchmarking or detecting flaky tests:
 
+```bash
+# Run test C 10 times with timing
+go run ./test/cmd/functional api -c 10 C
+
+# Run all encoding tests 5 times
+go run ./test/cmd/functional encoding -c 5 -a
+```
+
+**Per-iteration timing** is shown during execution:
+```
+==> Iteration 1/10
+==> Iteration 1: 5.2s
+
+==> Iteration 2/10
+==> Iteration 2: 4.8s
+```
+
+**Summary** shows per-test stats and overall timing:
 ```
 STRESS TEST SUMMARY
 ═══════════════════════════════════════════════════════════════════════════════
@@ -198,7 +216,15 @@ Nick     Pass   Fail    T/O        Min        Avg        Max    Rate
 ---------------------------------------------------------------------------
 0          10      0      0      108ms      332ms      764ms  100.0%
 1           8      2      0      115ms      400ms      900ms   80.0%
+═══════════════════════════════════════════════════════════════════════════════
+Iteration timing: min=4.8s avg=5.1s max=5.7s total=51.2s
+Total: 20 iterations, 18 passed, 2 failed, 0 timed out (90.0% pass rate)
 ```
+
+**Key metrics:**
+- Per-test min/avg/max duration
+- Per-test pass rate (color-coded: green=100%, yellow≥50%, red<50%)
+- Iteration timing: min/avg/max/total wall-clock time
 
 ---
 
@@ -279,7 +305,7 @@ Run with ExaBGP first to capture correct bytes, or use `zebgp decode` to verify.
 | `record.go` | Test record with state machine |
 | `report.go` | AI-friendly failure reports |
 | `runner.go` | Test execution engine |
-| `stress.go` | Iteration stats for --count |
+| `stress.go` | Iteration stats and timing for -c/--count |
 
 ### Entry Point: `test/cmd/functional/`
 
@@ -300,4 +326,4 @@ See `plan/CLAUDE_CONTINUATION.md` for current pass/fail status.
 
 ---
 
-**Updated:** 2025-12-30
+**Updated:** 2026-01-01

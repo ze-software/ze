@@ -347,9 +347,9 @@ func runEncodingOrAPI(ctx context.Context, cli *cliFlags, baseDir string) error 
 	var success bool
 	if cli.count > 1 {
 		// Stress test mode
-		stats, ok := runner.RunWithCount(ctx, opts, cli.count)
-		success = ok
-		display.StressSummary(stats, cli.count)
+		result := runner.RunWithCount(ctx, opts, cli.count)
+		success = result.AllPassed
+		display.StressSummary(result, cli.count)
 	} else {
 		// Normal mode
 		success = runner.Run(ctx, opts)

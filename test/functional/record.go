@@ -471,6 +471,10 @@ func (et *EncodingTests) parseAndAdd(ciFile string) error {
 			r.Extra["bind"] = strings.TrimPrefix(line, "option:bind:")
 			r.Options = append(r.Options, line)
 
+		case strings.HasPrefix(line, "option:timeout:"):
+			r.Extra["timeout"] = strings.TrimPrefix(line, "option:timeout:")
+			// Don't add to Options - this is for the runner, not testpeer
+
 		case strings.HasPrefix(line, "option:"):
 			r.Options = append(r.Options, line)
 

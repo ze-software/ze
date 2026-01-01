@@ -187,10 +187,16 @@ func (r *Runner) Run(ctx context.Context, opts *RunOptions) bool {
 }
 
 // RunWithCount runs each test count times for stress testing.
-// Returns stats for each test and overall success (all iterations passed).
-func (r *Runner) RunWithCount(ctx context.Context, opts *RunOptions, count int) (StressStats, bool) {
+// Returns StressResult with stats, iteration timings, and overall success.
+func (r *Runner) RunWithCount(ctx context.Context, opts *RunOptions, count int) *StressResult {
 	stats := NewStressStats(r.tests.Tests)
-	allSuccess := true
+	result := &StressResult{
+		Stats:              stats,
+		IterationDurations: make([]time.Duration, 0, count),
+		AllPassed:          true,
+	}
+
+	totalStart := time.Now()
 
 	// Create stress-mode options (suppress per-iteration failure reports)
 	stressOpts := *opts
@@ -200,9 +206,13 @@ func (r *Runner) RunWithCount(ctx context.Context, opts *RunOptions, count int) 
 		// Check for cancellation before each iteration
 		select {
 		case <-ctx.Done():
-			return stats, false
+			result.TotalDuration = time.Since(totalStart)
+			result.AllPassed = false
+			return result
 		default:
 		}
+
+		iterStart := time.Now()
 
 		if !opts.Quiet {
 			fmt.Printf("\n%s Iteration %d/%d\n", r.colors.Cyan("==>"), i, count)
@@ -217,8 +227,16 @@ func (r *Runner) RunWithCount(ctx context.Context, opts *RunOptions, count int) 
 
 		// Run iteration (with quiet mode to suppress failure reports)
 		success := r.Run(ctx, &stressOpts)
+
+		iterDuration := time.Since(iterStart)
+		result.IterationDurations = append(result.IterationDurations, iterDuration)
+
+		if !opts.Quiet {
+			fmt.Printf("%s Iteration %d: %s\n", r.colors.Cyan("==>"), i, formatDurationShort(iterDuration))
+		}
+
 		if !success {
-			allSuccess = false
+			result.AllPassed = false
 		}
 
 		// Collect stats from this iteration (only terminal states)
@@ -232,7 +250,16 @@ func (r *Runner) RunWithCount(ctx context.Context, opts *RunOptions, count int) 
 		}
 	}
 
-	return stats, allSuccess
+	result.TotalDuration = time.Since(totalStart)
+	return result
+}
+
+// formatDurationShort formats a duration concisely.
+func formatDurationShort(d time.Duration) string {
+	if d < time.Second {
+		return fmt.Sprintf("%dms", d.Milliseconds())
+	}
+	return fmt.Sprintf("%.1fs", d.Seconds())
 }
 
 // runTest executes a single test.
@@ -240,8 +267,16 @@ func (r *Runner) runTest(ctx context.Context, rec *Record, opts *RunOptions) boo
 	rec.State = StateStarting
 	rec.StartTime = time.Now()
 
+	// Determine timeout - per-test override or global default
+	timeout := opts.Timeout
+	if timeoutStr, ok := rec.Extra["timeout"]; ok {
+		if d, err := time.ParseDuration(timeoutStr); err == nil {
+			timeout = d
+		}
+	}
+
 	// Create test context with timeout
-	testCtx, cancel := context.WithTimeout(ctx, opts.Timeout)
+	testCtx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 
 	// Write expects to temp file

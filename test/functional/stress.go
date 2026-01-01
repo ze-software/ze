@@ -91,3 +91,51 @@ func NewStressStats(tests *Tests) StressStats {
 	}
 	return stats
 }
+
+// StressResult holds results from a stress test run.
+type StressResult struct {
+	Stats              StressStats
+	IterationDurations []time.Duration
+	TotalDuration      time.Duration
+	AllPassed          bool
+}
+
+// IterationMin returns the minimum iteration duration.
+func (r *StressResult) IterationMin() time.Duration {
+	if len(r.IterationDurations) == 0 {
+		return 0
+	}
+	min := r.IterationDurations[0]
+	for _, d := range r.IterationDurations[1:] {
+		if d < min {
+			min = d
+		}
+	}
+	return min
+}
+
+// IterationMax returns the maximum iteration duration.
+func (r *StressResult) IterationMax() time.Duration {
+	if len(r.IterationDurations) == 0 {
+		return 0
+	}
+	max := r.IterationDurations[0]
+	for _, d := range r.IterationDurations[1:] {
+		if d > max {
+			max = d
+		}
+	}
+	return max
+}
+
+// IterationAvg returns the average iteration duration.
+func (r *StressResult) IterationAvg() time.Duration {
+	if len(r.IterationDurations) == 0 {
+		return 0
+	}
+	var total time.Duration
+	for _, d := range r.IterationDurations {
+		total += d
+	}
+	return total / time.Duration(len(r.IterationDurations))
+}

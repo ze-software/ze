@@ -332,14 +332,16 @@ func (d *Display) BuildStatus(building bool, err error) {
 }
 
 // StressSummary prints stress test statistics.
-func (d *Display) StressSummary(stats StressStats, count int) {
+func (d *Display) StressSummary(result *StressResult, count int) {
+	stats := result.Stats
+
 	_, _ = fmt.Fprintln(d.output)
 	_, _ = fmt.Fprintln(d.output, d.colors.DoubleSeparator())
 	_, _ = fmt.Fprintln(d.output, "STRESS TEST SUMMARY")
 	_, _ = fmt.Fprintln(d.output, d.colors.DoubleSeparator())
 	_, _ = fmt.Fprintf(d.output, "Iterations: %d\n\n", count)
 
-	// Header
+	// Per-test stats header
 	_, _ = fmt.Fprintf(d.output, "%-6s %6s %6s %6s %10s %10s %10s %7s\n",
 		"Nick", "Pass", "Fail", "T/O", "Min", "Avg", "Max", "Rate")
 	_, _ = fmt.Fprintln(d.output, strings.Repeat("-", 75))
@@ -385,6 +387,15 @@ func (d *Display) StressSummary(stats StressStats, count int) {
 	}
 
 	_, _ = fmt.Fprintln(d.output, d.colors.DoubleSeparator())
+
+	// Iteration timing summary
+	if len(result.IterationDurations) > 0 {
+		_, _ = fmt.Fprintf(d.output, "Iteration timing: min=%s avg=%s max=%s total=%s\n",
+			formatDuration(result.IterationMin()),
+			formatDuration(result.IterationAvg()),
+			formatDuration(result.IterationMax()),
+			formatDuration(result.TotalDuration))
+	}
 
 	// Total summary
 	total := totalPassed + totalFailed + totalTimedOut
