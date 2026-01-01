@@ -7,12 +7,12 @@ paths:
 
 ## Commit Rules
 - ONLY commit when user explicitly says "commit"
-- Run `make test && make lint` before commit - ALL must pass
+- Run `make test && make lint && make functional` before commit - ALL must pass
 - Update `plan/CLAUDE_CONTINUATION.md` after commit
 
 ## Before Any Commit
 ```bash
-make test && make lint  # Must pass
+make test && make lint && make functional  # Must pass
 git status              # Review changes
 git diff --staged       # Review what's staged
 ```

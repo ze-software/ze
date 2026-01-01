@@ -8,7 +8,7 @@
 ## Workflow
 1. For BGP code: read RFC from `rfc/` folder first
 2. Write test, see it FAIL, implement, see it PASS (TDD)
-3. Run `make test && make lint` before claiming done
+3. Run `make test && make lint && make functional` before claiming done
 4. Only commit when explicitly requested
 
 ## Key Rules
