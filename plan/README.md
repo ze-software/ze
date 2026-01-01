@@ -32,6 +32,12 @@
 | `spec-listener-per-local-address.md` | Multi-listener from peer LocalAddress |
 | `spec-environment-config-block.md` | Environment block in config (ZeBGP-specific) |
 | `spec-mup-api-support.md` | MUP SAFI support in API parser |
+| `spec-encoding-context-design.md` | EncodingContext design |
+| `spec-encoding-context-impl.md` | EncodingContext implementation |
+| `spec-api-test-features.md` | API test features (14/14 pass) |
+| `spec-route-families.md` | FlowSpec/VPLS/EVPN keyword validation |
+| `spec-update-builder.md` | Fluent UPDATE builder pattern |
+| `spec-format-based-migration.md` | Config migration with transformations |
 
 ### 📋 Implementation Specs (Active)
 
@@ -39,9 +45,6 @@
 |------|-------------|----------|
 | `spec-peer-encoding-extraction.md` | Extract UPDATE builders from peer.go | High |
 | `spec-pool-integration.md` | Wire RouteStore to components | Medium |
-| `spec-update-builder.md` | Fluent UPDATE builder pattern | Medium |
-| `spec-route-families.md` | FlowSpec/VPLS/EVPN keyword validation | Medium |
-| `spec-api-test-features.md` | Remaining API test features | Medium |
 | `spec-rfc7606-validation-cache.md` | Validation result caching (optional) | Low |
 
 ### 📋 Feature Plans (Not Yet Specs)
