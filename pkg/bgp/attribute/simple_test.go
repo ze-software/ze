@@ -101,3 +101,42 @@ func TestClusterListParse(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, ClusterList{0x01020304, 0x05060708}, cl)
 }
+
+func TestOriginatorID(t *testing.T) {
+	oid := OriginatorID(netip.MustParseAddr("10.0.0.1"))
+
+	assert.Equal(t, AttrOriginatorID, oid.Code())
+	assert.Equal(t, FlagOptional, oid.Flags())
+	assert.Equal(t, 4, oid.Len())
+	assert.Equal(t, []byte{10, 0, 0, 1}, oid.Pack())
+}
+
+// TestOriginatorIDParse verifies ORIGINATOR_ID parsing (RFC 4456).
+//
+// VALIDATES: 4-byte router ID is correctly parsed.
+// PREVENTS: Route reflection failures due to parse errors.
+func TestOriginatorIDParse(t *testing.T) {
+	t.Run("valid", func(t *testing.T) {
+		data := []byte{192, 168, 1, 1}
+		oid, err := ParseOriginatorID(data)
+		require.NoError(t, err)
+		assert.Equal(t, netip.MustParseAddr("192.168.1.1"), netip.Addr(oid))
+	})
+
+	t.Run("wrong length short", func(t *testing.T) {
+		data := []byte{10, 0, 0}
+		_, err := ParseOriginatorID(data)
+		assert.ErrorIs(t, err, ErrInvalidLength)
+	})
+
+	t.Run("wrong length long", func(t *testing.T) {
+		data := []byte{10, 0, 0, 1, 2}
+		_, err := ParseOriginatorID(data)
+		assert.ErrorIs(t, err, ErrInvalidLength)
+	})
+
+	t.Run("empty", func(t *testing.T) {
+		_, err := ParseOriginatorID(nil)
+		assert.ErrorIs(t, err, ErrInvalidLength)
+	})
+}

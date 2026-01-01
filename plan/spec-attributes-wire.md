@@ -32,18 +32,31 @@ type AttributesWire struct {
 
 type attrIndex struct {
     code   AttributeCode
-    offset uint16  // Offset into packed
+    offset uint16  // Offset into packed (points to value, after header)
     length uint16  // Value length (excludes header)
-    hdrLen uint8   // Header length (3 or 4)
+    hdrLen uint8   // Header length (3 or 4) - used to locate flags for unknown attrs
 }
 ```
 
 ### Memory Contract
 
 **IMPORTANT:** `packed` is a reference to external memory (message buffer).
-- Caller MUST ensure buffer lifetime exceeds AttributesWire lifetime
-- Caller MUST NOT modify buffer contents after construction
-- Future: Will transition to pool.Handle (see spec-pool-handle-migration.md)
+
+**Lifetime Rule:** AttributesWire lifetime is tied to the Message that created it.
+- Message owns the buffer; AttributesWire borrows it
+- When Message is released to pool, all derived AttributesWire become invalid
+- Route must not outlive its source Message (enforced by RIB design)
+
+**Accepted Risk:** This is a use-after-free footgun if misused. We accept this
+risk for zero-copy performance. The code path from Message → Route → AttributesWire
+must maintain this invariant.
+
+**Caller Contract:**
+- MUST NOT modify buffer contents after construction
+- MUST NOT use AttributesWire after Message is released
+
+**Future:** Will transition to pool.Handle (see spec-pool-handle-migration.md)
+for explicit lifetime tracking.
 
 ## API
 
@@ -59,7 +72,8 @@ func (a *AttributesWire) Packed() []byte
 func (a *AttributesWire) Get(code AttributeCode) (Attribute, error)
 
 // Check existence without parsing value
-func (a *AttributesWire) Has(code AttributeCode) bool
+// Returns error if wire bytes are malformed
+func (a *AttributesWire) Has(code AttributeCode) (bool, error)
 
 // Parse subset (for API output)
 func (a *AttributesWire) GetMultiple(codes []AttributeCode) (map[AttributeCode]Attribute, error)
@@ -90,11 +104,12 @@ import (
 
 // attrIndex caches attribute location within packed bytes.
 // Built lazily on first scan, reused for subsequent lookups.
+// hdrLen is retained to locate original flags for unknown attributes.
 type attrIndex struct {
     code   AttributeCode
-    offset uint16
+    offset uint16  // Points to value (after header)
     length uint16
-    hdrLen uint8
+    hdrLen uint8   // 3 or 4; flags at packed[offset-hdrLen]
 }
 
 // AttributesWire stores path attributes in wire format with lazy parsing.
@@ -178,13 +193,14 @@ func (a *AttributesWire) Get(code AttributeCode) (Attribute, error) {
 }
 
 // Has checks if attribute exists without parsing value.
-func (a *AttributesWire) Has(code AttributeCode) bool {
+// Returns error if wire bytes are malformed.
+func (a *AttributesWire) Has(code AttributeCode) (bool, error) {
     a.mu.RLock()
     // Check parse cache first
     if a.parsed != nil {
         if _, ok := a.parsed[code]; ok {
             a.mu.RUnlock()
-            return true
+            return true, nil
         }
     }
 
@@ -193,11 +209,11 @@ func (a *AttributesWire) Has(code AttributeCode) bool {
         for _, idx := range a.index {
             if idx.code == code {
                 a.mu.RUnlock()
-                return true
+                return true, nil
             }
         }
         a.mu.RUnlock()
-        return false
+        return false, nil
     }
     a.mu.RUnlock()
 
@@ -206,15 +222,15 @@ func (a *AttributesWire) Has(code AttributeCode) bool {
     defer a.mu.Unlock()
 
     if err := a.ensureIndexLocked(); err != nil {
-        return false
+        return false, err
     }
 
     for _, idx := range a.index {
         if idx.code == code {
-            return true
+            return true, nil
         }
     }
-    return false
+    return false, nil
 }
 
 // GetMultiple returns multiple attributes (for API output).
@@ -286,6 +302,7 @@ func (a *AttributesWire) PackFor(destCtxID bgpctx.ContextID) ([]byte, error) {
 
 // ensureIndexLocked builds the attribute index if not already built.
 // Caller must hold write lock.
+// RFC 4271: Duplicate attributes are a Malformed Attribute List error.
 func (a *AttributesWire) ensureIndexLocked() error {
     if a.index != nil {
         return nil
@@ -293,6 +310,7 @@ func (a *AttributesWire) ensureIndexLocked() error {
 
     // Estimate capacity: typical UPDATE has 4-8 attributes
     a.index = make([]attrIndex, 0, 8)
+    seen := make(map[AttributeCode]bool, 8)
 
     offset := 0
     for offset < len(a.packed) {
@@ -300,6 +318,12 @@ func (a *AttributesWire) ensureIndexLocked() error {
         if err != nil {
             return fmt.Errorf("parsing header at offset %d: %w", offset, err)
         }
+
+        // RFC 4271: duplicate attributes are malformed
+        if seen[code] {
+            return fmt.Errorf("duplicate attribute %s at offset %d", code, offset)
+        }
+        seen[code] = true
 
         // Validate we have enough data
         if offset+hdrLen+int(length) > len(a.packed) {
@@ -326,8 +350,23 @@ func (a *AttributesWire) parseAtLocked(idx attrIndex) (Attribute, error) {
 
     // Get source context for context-dependent parsing (e.g., ASN4)
     srcCtx := bgpctx.Registry.Get(a.sourceCtxID)
+    if srcCtx == nil {
+        return nil, fmt.Errorf("unknown source context ID: %d", a.sourceCtxID)
+    }
 
-    return parseAttributeValue(idx.code, valueBytes, srcCtx)
+    // Try known attribute parsers first
+    attr, err := parseKnownAttribute(idx.code, valueBytes, srcCtx)
+    if err != nil {
+        return nil, err
+    }
+    if attr != nil {
+        return attr, nil
+    }
+
+    // Unknown attribute: read original flags from header for preservation
+    // Flags are at the start of the header: packed[offset - hdrLen]
+    flags := AttributeFlags(a.packed[idx.offset-uint16(idx.hdrLen)])
+    return NewOpaqueAttribute(flags, idx.code, valueBytes), nil
 }
 
 // packWithContext re-encodes all attributes with destination context.
@@ -338,6 +377,9 @@ func (a *AttributesWire) packWithContext(destCtx *bgpctx.EncodingContext) ([]byt
     }
 
     srcCtx := bgpctx.Registry.Get(a.sourceCtxID)
+    if srcCtx == nil {
+        return nil, fmt.Errorf("unknown source context ID: %d", a.sourceCtxID)
+    }
 
     // Estimate size
     buf := make([]byte, 0, len(a.packed))
@@ -352,10 +394,15 @@ func (a *AttributesWire) packWithContext(destCtx *bgpctx.EncodingContext) ([]byt
     return buf, nil
 }
 
-// parseAttributeValue parses a single attribute value by code.
-// This dispatches to the appropriate type-specific parser.
-func parseAttributeValue(code AttributeCode, data []byte, ctx *bgpctx.EncodingContext) (Attribute, error) {
-    fourByteAS := ctx == nil || ctx.ASN4
+// parseKnownAttribute parses a known attribute value by code.
+// Returns (nil, nil) for unknown attribute codes - caller handles as OpaqueAttribute.
+// Known attributes derive their flags from type; only OpaqueAttribute needs stored flags.
+// REQUIRES: ctx != nil (caller must validate context exists)
+func parseKnownAttribute(code AttributeCode, data []byte, ctx *bgpctx.EncodingContext) (Attribute, error) {
+    if ctx == nil {
+        return nil, fmt.Errorf("nil encoding context")
+    }
+    fourByteAS := ctx.ASN4
 
     switch code {
     case AttrOrigin:
@@ -369,13 +416,19 @@ func parseAttributeValue(code AttributeCode, data []byte, ctx *bgpctx.EncodingCo
     case AttrLocalPref:
         return ParseLocalPref(data)
     case AttrAtomicAggregate:
+        // RFC 4271: ATOMIC_AGGREGATE has length 0
+        if len(data) != 0 {
+            return nil, fmt.Errorf("ATOMIC_AGGREGATE must be empty, got %d bytes", len(data))
+        }
         return &AtomicAggregate{}, nil
     case AttrAggregator:
         return ParseAggregator(data, fourByteAS)
-    case AttrCommunity:
-        return ParseCommunities(data)
+    case AttrOriginatorID:
+        return ParseOriginatorID(data)
     case AttrClusterList:
         return ParseClusterList(data)
+    case AttrCommunity:
+        return ParseCommunities(data)
     case AttrMPReachNLRI:
         return ParseMPReachNLRI(data)
     case AttrMPUnreachNLRI:
@@ -391,8 +444,8 @@ func parseAttributeValue(code AttributeCode, data []byte, ctx *bgpctx.EncodingCo
     case AttrIPv6ExtCommunity:
         return ParseIPv6ExtendedCommunities(data)
     default:
-        // Unknown attribute - return as opaque
-        return NewOpaqueAttribute(code, data), nil
+        // Unknown - caller will create OpaqueAttribute with preserved flags
+        return nil, nil
     }
 }
 ```
@@ -411,8 +464,8 @@ func TestAttributesWireGet(t *testing.T)
 func TestAttributesWireGetError(t *testing.T)
 
 // TestAttributesWireHas verifies header-only scanning.
-// VALIDATES: Check existence without parsing value.
-// PREVENTS: Parsing overhead for existence check.
+// VALIDATES: Check existence without parsing value, returns error on malformed data.
+// PREVENTS: Parsing overhead for existence check, silent failures.
 func TestAttributesWireHas(t *testing.T)
 
 // TestAttributesWireGetMultiple verifies partial parsing.
@@ -444,19 +497,61 @@ func TestAttributesWireConcurrentAccess(t *testing.T)
 // VALIDATES: Second Get() reuses index, doesn't rescan.
 // PREVENTS: O(n^2) scanning for multiple Gets.
 func TestAttributesWireIndexReuse(t *testing.T)
+
+// TestAttributesWireDuplicateAttribute verifies RFC 4271 compliance.
+// VALIDATES: Duplicate attributes return error.
+// PREVENTS: Silent acceptance of malformed UPDATE messages.
+func TestAttributesWireDuplicateAttribute(t *testing.T)
+
+// TestAttributesWireEmptyPacked verifies edge case handling.
+// VALIDATES: Empty packed bytes returns empty results, not error.
+// PREVENTS: Nil pointer dereference on empty input.
+func TestAttributesWireEmptyPacked(t *testing.T)
+
+// TestAttributesWireUnknownAttribute verifies opaque handling.
+// VALIDATES: Unknown attribute codes return OpaqueAttribute.
+// PREVENTS: Errors on vendor-specific or future attributes.
+func TestAttributesWireUnknownAttribute(t *testing.T)
+
+// TestAttributesWireInvalidContext verifies context validation.
+// VALIDATES: Invalid context ID returns error.
+// PREVENTS: Nil pointer dereference on missing context.
+func TestAttributesWireInvalidContext(t *testing.T)
+
+// TestAttributesWirePreservesFlags verifies flag preservation for unknown attributes.
+// VALIDATES: Unknown transitive attributes retain original flags including Partial bit.
+// PREVENTS: Incorrect flag reconstruction during forwarding (RFC 4271 violation).
+func TestAttributesWirePreservesFlags(t *testing.T)
+
+// TestAttributesWireAtomicAggregateValidation verifies length validation.
+// VALIDATES: ATOMIC_AGGREGATE with non-zero length returns error.
+// PREVENTS: Silent acceptance of malformed ATOMIC_AGGREGATE.
+func TestAttributesWireAtomicAggregateValidation(t *testing.T)
+
+// TestAttributesWireOriginatorID verifies route reflection attribute parsing.
+// VALIDATES: ORIGINATOR_ID is correctly parsed.
+// PREVENTS: Route reflection failures.
+func TestAttributesWireOriginatorID(t *testing.T)
 ```
 
 ## Checklist
 
 - [ ] Tests written for Get() (success + not found)
 - [ ] Tests written for Get() (error cases)
-- [ ] Tests written for Has()
+- [ ] Tests written for Has() (success + error)
 - [ ] Tests written for GetMultiple()
 - [ ] Tests written for PackFor() (same context)
 - [ ] Tests written for PackFor() (different context)
 - [ ] Tests written for All()
 - [ ] Tests written for concurrent access
 - [ ] Tests written for index reuse
+- [ ] Tests written for duplicate attribute detection
+- [ ] Tests written for empty packed bytes
+- [ ] Tests written for unknown attribute codes
+- [ ] Tests written for invalid context ID
+- [ ] Tests written for flag preservation (unknown attrs)
+- [ ] Tests written for ATOMIC_AGGREGATE validation
+- [ ] Tests written for ORIGINATOR_ID parsing
 - [ ] Tests FAIL before implementation
 - [ ] Implementation makes tests pass
 - [ ] `make test` passes
@@ -465,7 +560,29 @@ func TestAttributesWireIndexReuse(t *testing.T)
 ## Dependencies
 
 - `pkg/bgp/context/` (EncodingContext, ContextID, Registry) - EXISTS
+  - **Requirement:** `Registry.Get()` must be thread-safe (concurrent reads)
 - `pkg/bgp/attribute/` (Attribute interface, ParseHeader, Parse* functions) - EXISTS
+  - **Attribute interface:**
+    ```go
+    type Attribute interface {
+        Code() AttributeCode
+        Flags() AttributeFlags  // Base flags only (Optional, Transitive, Partial)
+        PackWithContext(src, dst *EncodingContext) []byte
+    }
+    ```
+  - **ParseHeader signature:** `func ParseHeader(data []byte) (flags AttributeFlags, code AttributeCode, length uint16, hdrLen int, err error)`
+  - **PackHeader signature:** `func PackHeader(flags AttributeFlags, code AttributeCode, length uint16) []byte`
+    - RFC 4271 Section 4.3: Extended Length bit is wire-format only
+    - `PackHeader` determines Extended Length **solely from length parameter**:
+      - Sets Extended Length if `length > 255`, clears otherwise
+      - Ignores any Extended Length bit in input flags
+      - Zeroes lower 4 bits of flags (RFC 4271: "MUST be zero when sent")
+    - This ensures correct encoding for both known attrs and OpaqueAttribute
+  - **NewOpaqueAttribute signature:** `func NewOpaqueAttribute(flags AttributeFlags, code AttributeCode, data []byte) *OpaqueAttribute`
+    - `flags` preserved for forwarding (only OpaqueAttribute needs stored flags)
+    - `data` is NOT copied (follows memory contract)
+    - `PackWithContext()` returns data unchanged (can't re-encode unknown structure)
+  - **AttributeCode:** Must implement `fmt.Stringer` for error messages
 
 ## Dependents
 
@@ -477,7 +594,24 @@ func TestAttributesWireIndexReuse(t *testing.T)
 - `spec-pool-handle-migration.md` - Transition `packed []byte` to `pool.Handle`
   for memory deduplication across routes
 
+## Notes
+
+### RFC 7606 Consideration
+
+RFC 7606 defines "treat-as-withdraw" for certain malformed attributes instead of
+session reset. AttributesWire returns errors up the stack; callers (UPDATE parser)
+must decide whether to:
+1. Send NOTIFICATION and reset session (traditional)
+2. Treat as withdrawal (RFC 7606)
+
+This decision is outside AttributesWire's scope but callers should be aware.
+
 ---
 
 **Created:** 2026-01-01
 **Updated:** 2026-01-01 - Added thread safety, error handling, offset caching
+**Updated:** 2026-01-01 - Review fixes: Has() returns error, duplicate detection, nil context handling, expanded tests
+**Updated:** 2026-01-01 - Review v2 fixes: flags preservation, ATOMIC_AGGREGATE validation, ORIGINATOR_ID, RFC 7606 note
+**Updated:** 2026-01-01 - Simplified: flags only stored for OpaqueAttribute (known attrs derive from type)
+**Updated:** 2026-01-01 - Documented: Attribute interface, PackHeader sets Extended Length per RFC 4271 §4.3
+**Updated:** 2026-01-01 - Clarified: PackHeader ignores input Extended Length, zeroes lower 4 flag bits

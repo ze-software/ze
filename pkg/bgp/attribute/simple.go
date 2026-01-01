@@ -237,6 +237,20 @@ func (o OriginatorID) Pack() []byte          { return netip.Addr(o).AsSlice() }
 // PackWithContext returns Pack() - ORIGINATOR_ID encoding is context-independent.
 func (o OriginatorID) PackWithContext(_, _ *bgpctx.EncodingContext) []byte { return o.Pack() }
 
+// ParseOriginatorID parses an ORIGINATOR_ID attribute (RFC 4456).
+// ORIGINATOR_ID is the Router ID (4 bytes) of the route reflector client
+// that originated the route.
+func ParseOriginatorID(data []byte) (OriginatorID, error) {
+	if len(data) != 4 {
+		return OriginatorID{}, ErrInvalidLength
+	}
+	addr, ok := netip.AddrFromSlice(data)
+	if !ok {
+		return OriginatorID{}, ErrMalformedValue
+	}
+	return OriginatorID(addr), nil
+}
+
 // ClusterList represents the CLUSTER_LIST attribute (RFC 4456).
 type ClusterList []uint32
 
