@@ -508,6 +508,8 @@ func toMVPNParams(routes []MVPNRoute) []message.MVPNParams {
 			NextHop: r.NextHop, Origin: attribute.Origin(r.Origin),
 			LocalPreference: r.LocalPreference, MED: r.MED,
 			ExtCommunityBytes: r.ExtCommunityBytes,
+			OriginatorID:      r.OriginatorID,
+			ClusterList:       r.ClusterList,
 		}
 	}
 	return params
@@ -1793,36 +1795,36 @@ func (p *Peer) sendMVPNRoutes() {
 		trace.Log(trace.Routes, "peer %s: skipping %d IPv6 MVPN routes (not negotiated)", addr, skippedIPv6)
 	}
 
-	// Send IPv4 MVPN routes grouped by next-hop (sorted for deterministic order)
+	// Send IPv4 MVPN routes grouped by attributes (sorted for deterministic order)
 	if len(ipv4Routes) > 0 {
 		ipv4MVPNFamily := nlri.Family{AFI: 1, SAFI: 5} // IPv4 MVPN
 		ctx := p.packContext(ipv4MVPNFamily)
 		ub := message.NewUpdateBuilder(p.settings.LocalAS, p.settings.IsIBGP(), ctx)
-		ipv4Groups := groupMVPNRoutesByNextHop(ipv4Routes)
-		for _, nh := range sortedKeys(ipv4Groups) {
-			routes := ipv4Groups[nh]
+		ipv4Groups := groupMVPNRoutesByKey(ipv4Routes)
+		for _, key := range sortedKeys(ipv4Groups) {
+			routes := ipv4Groups[key]
 			update := ub.BuildMVPN(toMVPNParams(routes))
 			if err := p.SendUpdate(update); err != nil {
 				trace.Log(trace.Routes, "peer %s: MVPN send error: %v", addr, err)
 			} else {
-				trace.Log(trace.Routes, "peer %s: sent %d IPv4 MVPN routes (NH=%s)", addr, len(routes), nh)
+				trace.Log(trace.Routes, "peer %s: sent %d IPv4 MVPN routes", addr, len(routes))
 			}
 		}
 	}
 
-	// Send IPv6 MVPN routes grouped by next-hop (sorted for deterministic order)
+	// Send IPv6 MVPN routes grouped by attributes (sorted for deterministic order)
 	if len(ipv6Routes) > 0 {
 		ipv6MVPNFamily := nlri.Family{AFI: 2, SAFI: 5} // IPv6 MVPN
 		ctx := p.packContext(ipv6MVPNFamily)
 		ub := message.NewUpdateBuilder(p.settings.LocalAS, p.settings.IsIBGP(), ctx)
-		ipv6Groups := groupMVPNRoutesByNextHop(ipv6Routes)
-		for _, nh := range sortedKeys(ipv6Groups) {
-			routes := ipv6Groups[nh]
+		ipv6Groups := groupMVPNRoutesByKey(ipv6Routes)
+		for _, key := range sortedKeys(ipv6Groups) {
+			routes := ipv6Groups[key]
 			update := ub.BuildMVPN(toMVPNParams(routes))
 			if err := p.SendUpdate(update); err != nil {
 				trace.Log(trace.Routes, "peer %s: MVPN send error: %v", addr, err)
 			} else {
-				trace.Log(trace.Routes, "peer %s: sent %d IPv6 MVPN routes (NH=%s)", addr, len(routes), nh)
+				trace.Log(trace.Routes, "peer %s: sent %d IPv6 MVPN routes", addr, len(routes))
 			}
 		}
 	}
@@ -1839,11 +1841,41 @@ func (p *Peer) sendMVPNRoutes() {
 	}
 }
 
-// groupMVPNRoutesByNextHop groups MVPN routes by next-hop address.
-func groupMVPNRoutesByNextHop(routes []MVPNRoute) map[string][]MVPNRoute {
+// mvpnRouteGroupKey generates a grouping key for MVPN routes.
+// Routes with identical keys can share path attributes in one UPDATE.
+//
+// Fields in key (shared UPDATE attributes per RFC 4271 Section 4.3):
+// - NextHop, Origin, LocalPreference, MED: Standard path attributes.
+// - ExtCommunityBytes: Route Targets for VPN isolation (RFC 4360).
+// - OriginatorID, ClusterList: Route reflector attributes (RFC 4456).
+//
+// Fields NOT in key (per-NLRI, not per-UPDATE):
+// - IsIPv6: Routes pre-separated by AFI before grouping.
+// - RouteType: Multiple types allowed in same UPDATE.
+// - RD: Per-NLRI field in MP_REACH_NLRI.
+// - SourceAS, Source, Group: Per-NLRI fields.
+//
+// RFC 4456 Section 8: ClusterList is ordered (RRs prepend their CLUSTER_ID).
+// Routes with same cluster IDs in different order traversed different paths
+// and MUST NOT be grouped together. ClusterList is intentionally not sorted.
+func mvpnRouteGroupKey(r MVPNRoute) string {
+	return fmt.Sprintf("%s|%d|%d|%d|%s|%d|%v",
+		r.NextHop.String(),
+		r.Origin,
+		r.LocalPreference,
+		r.MED,
+		hex.EncodeToString(r.ExtCommunityBytes),
+		r.OriginatorID,
+		r.ClusterList,
+	)
+}
+
+// groupMVPNRoutesByKey groups MVPN routes by attribute key.
+// Routes with same key can share path attributes in a single UPDATE message.
+func groupMVPNRoutesByKey(routes []MVPNRoute) map[string][]MVPNRoute {
 	groups := make(map[string][]MVPNRoute)
 	for _, route := range routes {
-		key := route.NextHop.String()
+		key := mvpnRouteGroupKey(route)
 		groups[key] = append(groups[key], route)
 	}
 	return groups

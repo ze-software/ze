@@ -1465,3 +1465,187 @@ func TestRouteGroupKey_IncludesClusterList(t *testing.T) {
 	require.NotEqual(t, key1, key2,
 		"Routes with different ClusterList should have different keys")
 }
+
+// TestMVPNRouteGroupKey_SeparatesDifferentExtCommunities verifies VPN isolation.
+//
+// VALIDATES: Routes with different Route Targets get different keys.
+// PREVENTS: VPN isolation failure from incorrect grouping.
+func TestMVPNRouteGroupKey_SeparatesDifferentExtCommunities(t *testing.T) {
+	nh := netip.MustParseAddr("192.168.1.1")
+	r1 := MVPNRoute{NextHop: nh, ExtCommunityBytes: []byte{0x00, 0x02, 0x00, 0x01}}
+	r2 := MVPNRoute{NextHop: nh, ExtCommunityBytes: []byte{0x00, 0x02, 0x00, 0x02}}
+
+	key1 := mvpnRouteGroupKey(r1)
+	key2 := mvpnRouteGroupKey(r2)
+
+	require.NotEqual(t, key1, key2,
+		"Routes with different ExtCommunityBytes should have different keys")
+}
+
+// TestMVPNRouteGroupKey_SeparatesDifferentOrigin verifies attribute separation.
+//
+// VALIDATES: Routes with different Origin get different keys.
+// PREVENTS: Silent attribute loss in grouped updates.
+func TestMVPNRouteGroupKey_SeparatesDifferentOrigin(t *testing.T) {
+	nh := netip.MustParseAddr("192.168.1.1")
+	r1 := MVPNRoute{NextHop: nh, Origin: 0}
+	r2 := MVPNRoute{NextHop: nh, Origin: 1}
+
+	key1 := mvpnRouteGroupKey(r1)
+	key2 := mvpnRouteGroupKey(r2)
+
+	require.NotEqual(t, key1, key2,
+		"Routes with different Origin should have different keys")
+}
+
+// TestMVPNRouteGroupKey_SeparatesDifferentOriginatorID verifies RR attribute separation.
+//
+// VALIDATES: Routes with different OriginatorID get different keys.
+// PREVENTS: Route reflector loop from incorrect grouping.
+func TestMVPNRouteGroupKey_SeparatesDifferentOriginatorID(t *testing.T) {
+	nh := netip.MustParseAddr("192.168.1.1")
+	r1 := MVPNRoute{NextHop: nh, OriginatorID: 0xC0A80101}
+	r2 := MVPNRoute{NextHop: nh, OriginatorID: 0xC0A80102}
+
+	key1 := mvpnRouteGroupKey(r1)
+	key2 := mvpnRouteGroupKey(r2)
+
+	require.NotEqual(t, key1, key2,
+		"Routes with different OriginatorID should have different keys")
+}
+
+// TestMVPNRouteGroupKey_SeparatesDifferentClusterList verifies RR attribute separation.
+//
+// VALIDATES: Routes with different ClusterList get different keys.
+// PREVENTS: Route reflector loop from incorrect grouping.
+func TestMVPNRouteGroupKey_SeparatesDifferentClusterList(t *testing.T) {
+	nh := netip.MustParseAddr("192.168.1.1")
+	r1 := MVPNRoute{NextHop: nh, ClusterList: []uint32{0xC0A80101}}
+	r2 := MVPNRoute{NextHop: nh, ClusterList: []uint32{0xC0A80102}}
+
+	key1 := mvpnRouteGroupKey(r1)
+	key2 := mvpnRouteGroupKey(r2)
+
+	require.NotEqual(t, key1, key2,
+		"Routes with different ClusterList should have different keys")
+}
+
+// TestMVPNRouteGroupKey_SameAttributesSameKey verifies batching preserved.
+//
+// VALIDATES: Routes with identical attributes get same key.
+// PREVENTS: Unnecessary UPDATE fragmentation.
+func TestMVPNRouteGroupKey_SameAttributesSameKey(t *testing.T) {
+	nh := netip.MustParseAddr("192.168.1.1")
+	rt := []byte{0x00, 0x02, 0x00, 0x01}
+	r1 := MVPNRoute{NextHop: nh, Origin: 0, LocalPreference: 100, ExtCommunityBytes: rt}
+	r2 := MVPNRoute{NextHop: nh, Origin: 0, LocalPreference: 100, ExtCommunityBytes: rt}
+
+	key1 := mvpnRouteGroupKey(r1)
+	key2 := mvpnRouteGroupKey(r2)
+
+	require.Equal(t, key1, key2,
+		"Routes with identical attributes should have same key")
+}
+
+// TestGroupMVPNRoutesByKey_SeparatesDifferentRT verifies VPN isolation.
+//
+// VALIDATES: Routes with different Route Targets are in separate groups.
+// PREVENTS: VPN traffic leakage between customers.
+func TestGroupMVPNRoutesByKey_SeparatesDifferentRT(t *testing.T) {
+	nh := netip.MustParseAddr("192.168.1.1")
+	routes := []MVPNRoute{
+		{NextHop: nh, ExtCommunityBytes: []byte{0x00, 0x02, 0x00, 0x01}},
+		{NextHop: nh, ExtCommunityBytes: []byte{0x00, 0x02, 0x00, 0x02}},
+	}
+
+	groups := groupMVPNRoutesByKey(routes)
+
+	require.Equal(t, 2, len(groups),
+		"Expected 2 groups for different RTs, got %d", len(groups))
+}
+
+// TestGroupMVPNRoutesByKey_GroupsSameAttributes verifies batching.
+//
+// VALIDATES: Routes with same attributes are grouped together.
+// PREVENTS: Unnecessary UPDATE fragmentation.
+func TestGroupMVPNRoutesByKey_GroupsSameAttributes(t *testing.T) {
+	nh := netip.MustParseAddr("192.168.1.1")
+	rt := []byte{0x00, 0x02, 0x00, 0x01}
+	routes := []MVPNRoute{
+		{NextHop: nh, Origin: 0, LocalPreference: 100, ExtCommunityBytes: rt, RouteType: 5},
+		{NextHop: nh, Origin: 0, LocalPreference: 100, ExtCommunityBytes: rt, RouteType: 6},
+	}
+
+	groups := groupMVPNRoutesByKey(routes)
+
+	require.Equal(t, 1, len(groups),
+		"Expected 1 group for same attributes, got %d", len(groups))
+	for _, g := range groups {
+		require.Equal(t, 2, len(g),
+			"Expected 2 routes in group, got %d", len(g))
+	}
+}
+
+// TestMVPNRouteGroupKey_SeparatesDifferentLocalPref verifies LOCAL_PREF separation.
+//
+// VALIDATES: Routes with different LocalPreference get different keys.
+// PREVENTS: Incorrect route selection from shared LOCAL_PREF.
+func TestMVPNRouteGroupKey_SeparatesDifferentLocalPref(t *testing.T) {
+	nh := netip.MustParseAddr("192.168.1.1")
+	r1 := MVPNRoute{NextHop: nh, LocalPreference: 100}
+	r2 := MVPNRoute{NextHop: nh, LocalPreference: 200}
+
+	key1 := mvpnRouteGroupKey(r1)
+	key2 := mvpnRouteGroupKey(r2)
+
+	require.NotEqual(t, key1, key2,
+		"Routes with different LocalPreference should have different keys")
+}
+
+// TestMVPNRouteGroupKey_SeparatesDifferentMED verifies MED separation.
+//
+// VALIDATES: Routes with different MED get different keys.
+// PREVENTS: Incorrect route selection from shared MED.
+func TestMVPNRouteGroupKey_SeparatesDifferentMED(t *testing.T) {
+	nh := netip.MustParseAddr("192.168.1.1")
+	r1 := MVPNRoute{NextHop: nh, MED: 10}
+	r2 := MVPNRoute{NextHop: nh, MED: 20}
+
+	key1 := mvpnRouteGroupKey(r1)
+	key2 := mvpnRouteGroupKey(r2)
+
+	require.NotEqual(t, key1, key2,
+		"Routes with different MED should have different keys")
+}
+
+// TestMVPNRouteGroupKey_SeparatesDifferentNextHop verifies NextHop separation.
+//
+// VALIDATES: Routes with different NextHop get different keys.
+// PREVENTS: Incorrect forwarding from shared NextHop.
+func TestMVPNRouteGroupKey_SeparatesDifferentNextHop(t *testing.T) {
+	r1 := MVPNRoute{NextHop: netip.MustParseAddr("192.168.1.1")}
+	r2 := MVPNRoute{NextHop: netip.MustParseAddr("192.168.1.2")}
+
+	key1 := mvpnRouteGroupKey(r1)
+	key2 := mvpnRouteGroupKey(r2)
+
+	require.NotEqual(t, key1, key2,
+		"Routes with different NextHop should have different keys")
+}
+
+// TestMVPNRouteGroupKey_ClusterListOrderMatters verifies RFC 4456 compliance.
+//
+// VALIDATES: Routes with same cluster IDs in different order get different keys.
+// PREVENTS: RFC 4456 violation - ClusterList order indicates RR traversal path.
+func TestMVPNRouteGroupKey_ClusterListOrderMatters(t *testing.T) {
+	nh := netip.MustParseAddr("192.168.1.1")
+	// RFC 4456 Section 8: RRs prepend CLUSTER_ID, so order matters
+	r1 := MVPNRoute{NextHop: nh, ClusterList: []uint32{0xC0A80101, 0xC0A80102}}
+	r2 := MVPNRoute{NextHop: nh, ClusterList: []uint32{0xC0A80102, 0xC0A80101}} // Reversed
+
+	key1 := mvpnRouteGroupKey(r1)
+	key2 := mvpnRouteGroupKey(r2)
+
+	require.NotEqual(t, key1, key2,
+		"Routes with different ClusterList order should have different keys (RFC 4456)")
+}

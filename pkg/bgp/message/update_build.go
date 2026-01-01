@@ -1342,13 +1342,19 @@ func (ub *UpdateBuilder) buildMPReachVPLS(p VPLSParams) *rawAttribute {
 // FlowSpecParams contains parameters for building a FlowSpec route UPDATE.
 //
 // RFC 5575 - Dissemination of Flow Specification Rules.
+//
+// Design note: CommunityBytes uses []byte (not []uint32 like UnicastParams)
+// because FlowSpec routes are config-originated and low-volume. The config
+// loader pre-packs communities once at load time, avoiding repacking at
+// each BuildFlowSpec() call. For received route forwarding (high-volume),
+// the Route.wireBytes cache provides zero-copy - that's separate from this.
 type FlowSpecParams struct {
 	IsIPv6                bool
 	RD                    [8]byte // For FlowSpec VPN (SAFI 134)
 	NLRI                  []byte  // Pre-built FlowSpec NLRI
 	NextHop               netip.Addr
-	CommunityBytes        []byte
-	ExtCommunityBytes     []byte
+	CommunityBytes        []byte // Pre-packed by config loader (RFC 1997)
+	ExtCommunityBytes     []byte // Pre-packed extended communities (RFC 4360)
 	IPv6ExtCommunityBytes []byte // RFC 5701
 
 	// ORIGINATOR_ID (RFC 4456) - 0 means not set.

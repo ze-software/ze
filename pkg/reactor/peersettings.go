@@ -118,6 +118,8 @@ type MVPNRoute struct {
 	LocalPreference   uint32
 	MED               uint32
 	ExtCommunityBytes []byte
+	OriginatorID      uint32   // RFC 4456
+	ClusterList       []uint32 // RFC 4456
 }
 
 // VPLSRoute represents a VPLS route.
