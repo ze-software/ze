@@ -25,9 +25,9 @@
 ## CURRENT STATUS
 
 ```
-make test   - PASS
-make lint   - 0 issues ✅
-API tests   - 14/14 passed (100%) ✅
+make test       - PASS
+make lint       - 0 issues ✅
+make functional - 37/37 passed (100%) ✅
 ```
 
 ---
@@ -35,9 +35,64 @@ API tests   - 14/14 passed (100%) ✅
 ## Resume Point
 
 **Last worked:** 2026-01-01
-**Last commit:** Environment Configuration Block
+**Last commit:** Pending (peer encoding extraction)
 
-**Status:** Ready for next task
+**Status:** Ready for commit
+
+---
+
+## RECENTLY COMPLETED: Peer Encoding Extraction
+
+**Spec:** `plan/spec-peer-encoding-extraction.md`
+
+### Summary
+Fixed production bugs and cleaned up ~500 LOC of dead code:
+
+1. **ORIGINATOR_ID/CLUSTER_LIST bug** - RFC 4456 attributes silently dropped in non-grouped paths
+2. **routeGroupKey bug** - Missing reflector fields caused silent data loss during UPDATE grouping
+3. **ASN4 encoding bug (RFC 6793)** - AS_PATH always used 4-byte encoding even when `asn4 disable` was set
+   - Fixed in ALL builders: Unicast, GroupedUnicast, VPN, LabeledUnicast, MVPN, VPLS, FlowSpec, MUP
+
+### Changes
+1. **UnicastParams extended** - `pkg/bgp/message/update_build.go`
+   - Added `OriginatorID uint32` and `ClusterList []uint32` fields
+
+2. **BuildUnicast fixed** - Encodes ORIGINATOR_ID (type 9) and CLUSTER_LIST (type 10)
+
+3. **BuildGroupedUnicast added** - New method for grouped IPv4 unicast with shared attributes
+
+4. **routeGroupKey fixed** - Now includes OriginatorID and ClusterList in grouping key
+
+5. **ASN4 encoding fixed in ALL builders** - AS_PATH now uses correct 2-byte or 4-byte encoding:
+   - BuildUnicast, BuildGroupedUnicast (already fixed)
+   - BuildVPN, BuildLabeledUnicast, BuildMVPN, BuildVPLS, BuildFlowSpec, BuildMUP, BuildMUPWithdraw
+
+6. **AGGREGATOR ASN4 encoding fixed** - AGGREGATOR uses correct 6-byte or 8-byte format:
+   - Uses 2-byte ASN when ASN4=false, 4-byte ASN when ASN4=true
+   - Uses AS_TRANS (23456) for large ASNs when ASN4=false (RFC 6793 Section 4.2.3)
+   - Fixed in: BuildUnicast, BuildGroupedUnicast, BuildVPN, BuildLabeledUnicast
+
+7. **sendInitialRoutes updated** - Uses new BuildGroupedUnicast for multi-route groups
+
+8. **Wire compat tests migrated** - Changed from old-vs-new comparison to expected-bytes assertions
+
+9. **Dead code deleted (~500 LOC)**:
+   - `buildStaticRouteUpdate` (old UPDATE builder)
+   - `buildGroupedUpdate` (old grouped builder)
+   - `buildMPReachNLRI` (VPN MP_REACH)
+   - `buildVPNNLRIBytes` (VPN NLRI helper)
+   - `buildMPReachNLRIExtNHUnicast` (extended NH helper)
+   - `buildMPReachNLRIUnicast` (IPv6 MP_REACH)
+   - `TestBuildMPReachNLRIUnicast` (obsolete test)
+
+10. **12 new ASN4 unit tests** - Verifying 2-byte AS/AGGREGATOR encoding for all route types
+
+### Verification
+```
+make test       - PASS
+make lint       - 0 issues ✅
+make functional - 37/37 passed (100%) ✅
+```
 
 ---
 

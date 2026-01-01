@@ -11,110 +11,116 @@ import (
 	"github.com/exa-networks/zebgp/pkg/bgp/nlri"
 )
 
-// Wire format compatibility tests verify that the new message.UpdateBuilder
-// produces byte-identical output to the old buildXxx functions in peer.go.
+// Wire format tests verify that UpdateBuilder produces correct wire format.
+// Tests use expected-bytes assertions based on RFC specifications.
 //
-// VALIDATES: New builders produce same wire format as old code.
+// VALIDATES: UPDATE encoding follows RFC 4271 wire format.
 //
 // PREVENTS: Breaking changes to UPDATE encoding that could cause peer rejection.
 
-// TestWireCompat_UnicastIPv4 verifies IPv4 unicast wire format compatibility.
-func TestWireCompat_UnicastIPv4(t *testing.T) {
-	route := StaticRoute{
+// TestWireFormat_UnicastIPv4 verifies IPv4 unicast wire format.
+//
+// RFC 4271 attribute order: ORIGIN(1), AS_PATH(2), NEXT_HOP(3), MED(4), LOCAL_PREF(5), COMMUNITIES(8).
+func TestWireFormat_UnicastIPv4(t *testing.T) {
+	ctx := &nlri.PackContext{ASN4: true}
+	ub := message.NewUpdateBuilder(65001, true, ctx)
+
+	params := message.UnicastParams{
 		Prefix:          netip.MustParsePrefix("10.0.0.0/24"),
 		NextHop:         netip.MustParseAddr("192.168.1.1"),
-		Origin:          0, // IGP
+		Origin:          attribute.OriginIGP,
 		MED:             100,
 		LocalPreference: 200,
 		Communities:     []uint32{0xFFFF0001, 0xFFFF0002},
 	}
 
-	ctx := &nlri.PackContext{ASN4: true}
-	nf := &NegotiatedFamilies{IPv4Unicast: true}
+	update := ub.BuildUnicast(params)
 
-	// Old implementation
-	oldUpdate := buildStaticRouteUpdate(route, 65001, true, ctx, nf)
+	// Expected: ORIGIN + AS_PATH(empty) + NEXT_HOP + MED + LOCAL_PREF + COMMUNITIES
+	expectedAttrs, _ := hex.DecodeString(
+		"40010100" + // ORIGIN: IGP
+			"400200" + // AS_PATH: empty
+			"400304c0a80101" + // NEXT_HOP: 192.168.1.1
+			"800404" + "00000064" + // MED: 100
+			"400504" + "000000c8" + // LOCAL_PREF: 200
+			"c00808" + "ffff0001ffff0002") // COMMUNITIES: sorted
 
-	// New implementation
-	ub := message.NewUpdateBuilder(65001, true, ctx)
-	params := message.UnicastParams{
-		Prefix:          route.Prefix,
-		NextHop:         route.NextHop,
-		Origin:          attribute.Origin(route.Origin),
-		MED:             route.MED,
-		LocalPreference: route.LocalPreference,
-		Communities:     route.Communities,
+	if !bytes.Equal(update.PathAttributes, expectedAttrs) {
+		t.Errorf("PathAttributes mismatch:\nexpected: %x\ngot:      %x",
+			expectedAttrs, update.PathAttributes)
 	}
-	newUpdate := ub.BuildUnicast(params)
 
-	// Compare wire format
-	if !bytes.Equal(oldUpdate.PathAttributes, newUpdate.PathAttributes) {
-		t.Errorf("PathAttributes mismatch:\nold: %x\nnew: %x",
-			oldUpdate.PathAttributes, newUpdate.PathAttributes)
-	}
-	if !bytes.Equal(oldUpdate.NLRI, newUpdate.NLRI) {
-		t.Errorf("NLRI mismatch:\nold: %x\nnew: %x",
-			oldUpdate.NLRI, newUpdate.NLRI)
+	// NLRI: 24-bit prefix (1 byte len + 3 bytes prefix)
+	expectedNLRI, _ := hex.DecodeString("180a0000")
+	if !bytes.Equal(update.NLRI, expectedNLRI) {
+		t.Errorf("NLRI mismatch:\nexpected: %x\ngot:      %x",
+			expectedNLRI, update.NLRI)
 	}
 }
 
-// TestWireCompat_UnicastIPv4_EBGP verifies eBGP AS_PATH handling.
-func TestWireCompat_UnicastIPv4_EBGP(t *testing.T) {
-	route := StaticRoute{
+// TestWireFormat_UnicastIPv4_EBGP verifies eBGP AS_PATH handling.
+//
+// RFC 4271 Section 5.1.2: eBGP MUST prepend local AS to AS_PATH.
+func TestWireFormat_UnicastIPv4_EBGP(t *testing.T) {
+	ctx := &nlri.PackContext{ASN4: true}
+	ub := message.NewUpdateBuilder(65001, false, ctx) // eBGP
+
+	params := message.UnicastParams{
 		Prefix:  netip.MustParsePrefix("10.0.0.0/24"),
 		NextHop: netip.MustParseAddr("192.168.1.1"),
-		Origin:  0,
+		Origin:  attribute.OriginIGP,
 	}
 
-	ctx := &nlri.PackContext{ASN4: true}
-	nf := &NegotiatedFamilies{IPv4Unicast: true}
+	update := ub.BuildUnicast(params)
 
-	// Old implementation (eBGP)
-	oldUpdate := buildStaticRouteUpdate(route, 65001, false, ctx, nf)
+	// Expected: ORIGIN + AS_PATH([65001]) + NEXT_HOP (no LOCAL_PREF for eBGP)
+	expectedAttrs, _ := hex.DecodeString(
+		"40010100" + // ORIGIN: IGP
+			"40020602010000fde9" + // AS_PATH: AS_SEQUENCE [65001]
+			"400304c0a80101") // NEXT_HOP: 192.168.1.1
 
-	// New implementation
-	ub := message.NewUpdateBuilder(65001, false, ctx)
-	params := message.UnicastParams{
-		Prefix:  route.Prefix,
-		NextHop: route.NextHop,
-		Origin:  attribute.Origin(route.Origin),
-	}
-	newUpdate := ub.BuildUnicast(params)
-
-	if !bytes.Equal(oldUpdate.PathAttributes, newUpdate.PathAttributes) {
-		t.Errorf("PathAttributes mismatch:\nold: %x\nnew: %x",
-			oldUpdate.PathAttributes, newUpdate.PathAttributes)
+	if !bytes.Equal(update.PathAttributes, expectedAttrs) {
+		t.Errorf("PathAttributes mismatch:\nexpected: %x\ngot:      %x",
+			expectedAttrs, update.PathAttributes)
 	}
 }
 
-// TestWireCompat_UnicastIPv6 verifies IPv6 unicast wire format compatibility.
-func TestWireCompat_UnicastIPv6(t *testing.T) {
-	route := StaticRoute{
+// TestWireFormat_UnicastIPv6 verifies IPv6 unicast wire format.
+//
+// RFC 4760: IPv6 unicast uses MP_REACH_NLRI for next-hop and NLRI.
+func TestWireFormat_UnicastIPv6(t *testing.T) {
+	ctx := &nlri.PackContext{ASN4: true}
+	ub := message.NewUpdateBuilder(65001, true, ctx)
+
+	params := message.UnicastParams{
 		Prefix:          netip.MustParsePrefix("2001:db8::/32"),
 		NextHop:         netip.MustParseAddr("2001:db8::1"),
-		Origin:          0,
+		Origin:          attribute.OriginIGP,
 		LocalPreference: 100,
 	}
 
-	ctx := &nlri.PackContext{ASN4: true}
-	nf := &NegotiatedFamilies{IPv6Unicast: true}
+	update := ub.BuildUnicast(params)
 
-	// Old implementation
-	oldUpdate := buildStaticRouteUpdate(route, 65001, true, ctx, nf)
+	// Expected: ORIGIN + AS_PATH + LOCAL_PREF + MP_REACH_NLRI
+	// MP_REACH_NLRI = AFI(2) + SAFI(1) + NH_LEN(1) + NH(16) + Reserved(1) + NLRI(5) = 26 bytes
+	expectedAttrs, _ := hex.DecodeString(
+		"40010100" + // ORIGIN: IGP
+			"400200" + // AS_PATH: empty
+			"40050400000064" + // LOCAL_PREF: 100
+			"800e1a" + // MP_REACH_NLRI header (len=26)
+			"00020110" + // AFI=2, SAFI=1, NH_LEN=16
+			"20010db8000000000000000000000001" + // Next-hop: 2001:db8::1
+			"00" + // Reserved
+			"2020010db8") // NLRI: /32 2001:db8::
 
-	// New implementation
-	ub := message.NewUpdateBuilder(65001, true, ctx)
-	params := message.UnicastParams{
-		Prefix:          route.Prefix,
-		NextHop:         route.NextHop,
-		Origin:          attribute.Origin(route.Origin),
-		LocalPreference: route.LocalPreference,
+	if !bytes.Equal(update.PathAttributes, expectedAttrs) {
+		t.Errorf("PathAttributes mismatch:\nexpected: %x\ngot:      %x",
+			expectedAttrs, update.PathAttributes)
 	}
-	newUpdate := ub.BuildUnicast(params)
 
-	if !bytes.Equal(oldUpdate.PathAttributes, newUpdate.PathAttributes) {
-		t.Errorf("PathAttributes mismatch:\nold: %x\nnew: %x",
-			oldUpdate.PathAttributes, newUpdate.PathAttributes)
+	// IPv6 uses MP_REACH_NLRI, no inline NLRI
+	if len(update.NLRI) != 0 {
+		t.Errorf("Expected no inline NLRI for IPv6, got: %x", update.NLRI)
 	}
 }
 
@@ -160,58 +166,71 @@ func TestWireCompat_VPNIPv4(t *testing.T) {
 	}
 }
 
-// TestWireCompat_ExtendedNextHop verifies RFC 8950 extended next-hop.
-// IPv4 prefix with IPv6 next-hop using MP_REACH_NLRI.
-func TestWireCompat_ExtendedNextHop(t *testing.T) {
-	route := StaticRoute{
-		Prefix:          netip.MustParsePrefix("10.0.0.0/24"),
-		NextHop:         netip.MustParseAddr("2001:db8::1"),
-		Origin:          0,
-		LocalPreference: 100,
-	}
-
+// TestWireFormat_ExtendedNextHop verifies RFC 8950 extended next-hop.
+//
+// IPv4 prefix with IPv6 next-hop uses MP_REACH_NLRI with AFI=1, SAFI=1.
+func TestWireFormat_ExtendedNextHop(t *testing.T) {
 	ctx := &nlri.PackContext{ASN4: true}
-	nf := &NegotiatedFamilies{IPv4Unicast: true, IPv4UnicastExtNH: true}
+	ub := message.NewUpdateBuilder(65001, true, ctx)
 
-	// Old implementation
-	oldUpdate := buildStaticRouteUpdate(route, 65001, true, ctx, nf)
-
-	// New implementation via helper
-	newUpdate := buildStaticRouteUpdateNew(route, 65001, true, ctx, nf)
-
-	if !bytes.Equal(oldUpdate.PathAttributes, newUpdate.PathAttributes) {
-		t.Errorf("PathAttributes mismatch:\nold: %x\nnew: %x",
-			oldUpdate.PathAttributes, newUpdate.PathAttributes)
+	params := message.UnicastParams{
+		Prefix:             netip.MustParsePrefix("10.0.0.0/24"),
+		NextHop:            netip.MustParseAddr("2001:db8::1"),
+		Origin:             attribute.OriginIGP,
+		LocalPreference:    100,
+		UseExtendedNextHop: true,
 	}
-	if !bytes.Equal(oldUpdate.NLRI, newUpdate.NLRI) {
-		t.Errorf("NLRI mismatch:\nold: %x\nnew: %x",
-			oldUpdate.NLRI, newUpdate.NLRI)
+
+	update := ub.BuildUnicast(params)
+
+	// Expected: ORIGIN + AS_PATH + LOCAL_PREF + MP_REACH_NLRI (AFI=1, SAFI=1, IPv6 NH)
+	expectedAttrs, _ := hex.DecodeString(
+		"40010100" + // ORIGIN: IGP
+			"400200" + // AS_PATH: empty
+			"40050400000064" + // LOCAL_PREF: 100
+			"800e19" + // MP_REACH_NLRI header (len=25)
+			"00010110" + // AFI=1 (IPv4), SAFI=1, NH_LEN=16
+			"20010db8000000000000000000000001" + // Next-hop: 2001:db8::1
+			"00" + // Reserved
+			"180a0000") // NLRI: /24 10.0.0.0
+
+	if !bytes.Equal(update.PathAttributes, expectedAttrs) {
+		t.Errorf("PathAttributes mismatch:\nexpected: %x\ngot:      %x",
+			expectedAttrs, update.PathAttributes)
+	}
+
+	// No inline NLRI when using MP_REACH_NLRI
+	if len(update.NLRI) != 0 {
+		t.Errorf("Expected no inline NLRI for extended next-hop, got: %x", update.NLRI)
 	}
 }
 
-// TestWireCompat_RawAttributes verifies raw attribute pass-through.
-func TestWireCompat_RawAttributes(t *testing.T) {
-	route := StaticRoute{
+// TestWireFormat_RawAttributes verifies raw attribute pass-through.
+//
+// Custom attributes from config are appended after sorted standard attributes.
+func TestWireFormat_RawAttributes(t *testing.T) {
+	ctx := &nlri.PackContext{ASN4: true}
+	ub := message.NewUpdateBuilder(65001, true, ctx)
+
+	params := message.UnicastParams{
 		Prefix:  netip.MustParsePrefix("10.0.0.0/24"),
 		NextHop: netip.MustParseAddr("192.168.1.1"),
-		Origin:  0,
-		RawAttributes: []RawAttribute{
-			{Flags: 0xC0, Code: 99, Value: []byte{0x01, 0x02, 0x03}},
+		Origin:  attribute.OriginIGP,
+		RawAttributeBytes: [][]byte{
+			{0xC0, 0x63, 0x03, 0x01, 0x02, 0x03}, // Custom attr code 99
 		},
 	}
 
-	ctx := &nlri.PackContext{ASN4: true}
-	nf := &NegotiatedFamilies{IPv4Unicast: true}
+	update := ub.BuildUnicast(params)
 
-	// Old implementation
-	oldUpdate := buildStaticRouteUpdate(route, 65001, true, ctx, nf)
+	// Check raw attr is appended at end
+	if !bytes.Contains(update.PathAttributes, []byte{0xC0, 0x63, 0x03, 0x01, 0x02, 0x03}) {
+		t.Errorf("Raw attribute not found in PathAttributes:\ngot: %x", update.PathAttributes)
+	}
 
-	// New implementation via helper
-	newUpdate := buildStaticRouteUpdateNew(route, 65001, true, ctx, nf)
-
-	if !bytes.Equal(oldUpdate.PathAttributes, newUpdate.PathAttributes) {
-		t.Errorf("PathAttributes mismatch:\nold: %x\nnew: %x",
-			oldUpdate.PathAttributes, newUpdate.PathAttributes)
+	// Verify standard attrs are present before raw attr
+	if !bytes.Contains(update.PathAttributes, []byte{0x40, 0x01, 0x01, 0x00}) {
+		t.Error("ORIGIN attribute missing")
 	}
 }
 

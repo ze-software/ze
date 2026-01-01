@@ -241,65 +241,6 @@ func TestPeerCallback(t *testing.T) {
 	require.NotEmpty(t, transitions, "callback should be invoked at least once")
 }
 
-// TestBuildMPReachNLRIUnicast verifies MP_REACH_NLRI generation for IPv6 unicast.
-//
-// VALIDATES: IPv6 unicast routes produce correct MP_REACH_NLRI attribute with
-// proper AFI=2, SAFI=1, next-hop, and NLRI encoding.
-//
-// PREVENTS: IPv6 routes being sent without MP_REACH_NLRI (which would be
-// silently dropped by peers).
-func TestBuildMPReachNLRIUnicast(t *testing.T) {
-	route := StaticRoute{
-		Prefix:  netip.MustParsePrefix("2001:db8::1/128"),
-		NextHop: netip.MustParseAddr("2001:db8::ffff"),
-		Origin:  0, // IGP
-	}
-
-	attrBytes := buildMPReachNLRIUnicast(route)
-	require.NotEmpty(t, attrBytes, "must produce attribute bytes")
-
-	// Parse attribute header
-	require.GreaterOrEqual(t, len(attrBytes), 3, "must have at least header")
-	flags := attrBytes[0]
-	code := attrBytes[1]
-
-	require.Equal(t, byte(attribute.AttrMPReachNLRI), code, "code must be MP_REACH_NLRI (14)")
-	require.True(t, flags&0x80 != 0, "must be optional")
-
-	// Determine value offset based on extended length
-	var valueOffset int
-	if flags&0x10 != 0 {
-		valueOffset = 4 // flags + code + 2-byte length
-	} else {
-		valueOffset = 3 // flags + code + 1-byte length
-	}
-
-	value := attrBytes[valueOffset:]
-	require.GreaterOrEqual(t, len(value), 5, "value must have AFI/SAFI/NH_Len")
-
-	// Parse AFI/SAFI
-	afi := binary.BigEndian.Uint16(value[0:2])
-	safi := value[2]
-	nhLen := value[3]
-
-	require.Equal(t, uint16(2), afi, "AFI must be IPv6 (2)")
-	require.Equal(t, byte(1), safi, "SAFI must be Unicast (1)")
-	require.Equal(t, byte(16), nhLen, "next-hop length must be 16 for IPv6")
-
-	// Verify next-hop
-	require.GreaterOrEqual(t, len(value), 4+16+1, "must have next-hop + reserved")
-	nhBytes := value[4 : 4+16]
-	expectedNH := route.NextHop.As16()
-	require.Equal(t, expectedNH[:], nhBytes, "next-hop must match")
-
-	// Verify reserved byte
-	require.Equal(t, byte(0), value[4+16], "reserved byte must be 0")
-
-	// Verify NLRI is present
-	nlriOffset := 4 + 16 + 1
-	require.Greater(t, len(value), nlriOffset, "must have NLRI")
-}
-
 // TestBuildStaticRouteUpdateIPv6 verifies UPDATE generation for IPv6 unicast.
 //
 // VALIDATES: IPv6 unicast routes include MP_REACH_NLRI attribute and have
@@ -315,7 +256,8 @@ func TestBuildStaticRouteUpdateIPv6(t *testing.T) {
 	}
 
 	ctx := &nlri.PackContext{ASN4: true}
-	update := buildStaticRouteUpdate(route, 65000, true, ctx, nil) // iBGP, ctx with ASN4, no ExtNH
+	nf := &NegotiatedFamilies{IPv6Unicast: true}
+	update := buildStaticRouteUpdateNew(route, 65000, true, ctx, nf) // iBGP, ctx with ASN4
 
 	// IPv6 routes must NOT have inline NLRI
 	require.Empty(t, update.NLRI, "IPv6 route must not have inline NLRI")
@@ -372,7 +314,8 @@ func TestBuildStaticRouteUpdateWithCommunities(t *testing.T) {
 	}
 
 	ctx := &nlri.PackContext{ASN4: true}
-	update := buildStaticRouteUpdate(route, 65000, false, ctx, nil) // eBGP, ctx with ASN4, no ExtNH
+	nf := &NegotiatedFamilies{IPv4Unicast: true}
+	update := buildStaticRouteUpdateNew(route, 65000, false, ctx, nf) // eBGP, ctx with ASN4
 	require.NotEmpty(t, update.PathAttributes, "must have path attributes")
 
 	// Look for COMMUNITIES (code 8) in attributes
@@ -1450,4 +1393,75 @@ func TestPeerEncodingContextAddPath(t *testing.T) {
 	// We can send but not receive
 	require.False(t, peer.RecvContext().AddPathFor(ipv4), "recv should NOT have AddPath (we can't receive)")
 	require.True(t, peer.SendContext().AddPathFor(ipv4), "send should have AddPath (we can send)")
+}
+
+// TestToStaticRouteUnicastParams_CopiesReflectorAttrs verifies RFC 4456 fields.
+//
+// VALIDATES: OriginatorID and ClusterList are copied to UnicastParams.
+// PREVENTS: Silent data loss for route reflector attributes.
+func TestToStaticRouteUnicastParams_CopiesReflectorAttrs(t *testing.T) {
+	route := StaticRoute{
+		Prefix:       netip.MustParsePrefix("10.0.0.0/24"),
+		NextHop:      netip.MustParseAddr("192.168.1.1"),
+		OriginatorID: 0xC0A80101,
+		ClusterList:  []uint32{0xC0A80102, 0xC0A80103},
+	}
+	nf := &NegotiatedFamilies{IPv4Unicast: true}
+
+	params := toStaticRouteUnicastParams(route, nf)
+
+	require.Equal(t, route.OriginatorID, params.OriginatorID,
+		"OriginatorID not copied: got %x, want %x", params.OriginatorID, route.OriginatorID)
+	require.Equal(t, len(route.ClusterList), len(params.ClusterList),
+		"ClusterList length mismatch: got %d, want %d", len(params.ClusterList), len(route.ClusterList))
+	for i, v := range route.ClusterList {
+		require.Equal(t, v, params.ClusterList[i],
+			"ClusterList[%d] mismatch: got %x, want %x", i, params.ClusterList[i], v)
+	}
+}
+
+// TestRouteGroupKey_IncludesReflectorAttrs verifies grouping key includes RFC 4456 fields.
+//
+// VALIDATES: Routes with different OriginatorID get different keys.
+// PREVENTS: Silent data loss when grouping routes with different reflector attrs.
+func TestRouteGroupKey_IncludesReflectorAttrs(t *testing.T) {
+	route1 := StaticRoute{
+		Prefix:       netip.MustParsePrefix("10.0.0.0/24"),
+		NextHop:      netip.MustParseAddr("192.168.1.1"),
+		OriginatorID: 0xC0A80101,
+	}
+	route2 := StaticRoute{
+		Prefix:       netip.MustParsePrefix("10.0.1.0/24"),
+		NextHop:      netip.MustParseAddr("192.168.1.1"),
+		OriginatorID: 0xC0A80102, // Different!
+	}
+
+	key1 := routeGroupKey(route1)
+	key2 := routeGroupKey(route2)
+
+	require.NotEqual(t, key1, key2,
+		"Routes with different OriginatorID should have different keys\nkey1: %s\nkey2: %s", key1, key2)
+}
+
+// TestRouteGroupKey_IncludesClusterList verifies ClusterList affects grouping.
+//
+// VALIDATES: Routes with different ClusterList get different keys.
+// PREVENTS: Silent data loss when grouping routes with different cluster lists.
+func TestRouteGroupKey_IncludesClusterList(t *testing.T) {
+	route1 := StaticRoute{
+		Prefix:      netip.MustParsePrefix("10.0.0.0/24"),
+		NextHop:     netip.MustParseAddr("192.168.1.1"),
+		ClusterList: []uint32{0xC0A80101},
+	}
+	route2 := StaticRoute{
+		Prefix:      netip.MustParsePrefix("10.0.1.0/24"),
+		NextHop:     netip.MustParseAddr("192.168.1.1"),
+		ClusterList: []uint32{0xC0A80101, 0xC0A80102}, // Different!
+	}
+
+	key1 := routeGroupKey(route1)
+	key2 := routeGroupKey(route2)
+
+	require.NotEqual(t, key1, key2,
+		"Routes with different ClusterList should have different keys")
 }

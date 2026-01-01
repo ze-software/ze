@@ -102,6 +102,14 @@ type UnicastParams struct {
 	// Each entry is a complete attribute (flags+code+length+value).
 	// Used for pass-through of custom attributes from config.
 	RawAttributeBytes [][]byte
+
+	// ORIGINATOR_ID (RFC 4456) - 0 means not set.
+	// Used for route reflector configurations.
+	OriginatorID uint32
+
+	// CLUSTER_LIST (RFC 4456) - cluster IDs traversed.
+	// Used for route reflector configurations.
+	ClusterList []uint32
 }
 
 // BuildUnicast builds an UPDATE message for a unicast route.
@@ -119,8 +127,16 @@ func (ub *UpdateBuilder) BuildUnicast(p UnicastParams) *Update {
 	attrs = append(attrs, p.Origin)
 
 	// 2. AS_PATH (type 2) - RFC 4271 Section 5.1.2
+	// RFC 6793: AS_PATH encoding depends on ASN4 capability negotiation.
+	// When ASN4=false, ASNs are 2-byte. When ASN4=true (default), ASNs are 4-byte.
 	asPath := ub.buildASPath(p.ASPath)
-	attrs = append(attrs, asPath)
+	asn4 := ub.Ctx == nil || ub.Ctx.ASN4
+	asPathValue := asPath.PackWithASN4(asn4)
+	attrs = append(attrs, &rawAttribute{
+		flags: asPath.Flags(),
+		code:  asPath.Code(),
+		data:  asPathValue,
+	})
 
 	// 3. NEXT_HOP (type 3) - RFC 4271 Section 5.1.3
 	// Only for IPv4 unicast with IPv4 next-hop (not MP_REACH_NLRI, not extended next-hop)
@@ -154,10 +170,13 @@ func (ub *UpdateBuilder) BuildUnicast(p UnicastParams) *Update {
 	}
 
 	// 7. AGGREGATOR (type 7) - RFC 4271 Section 5.1.7
+	// RFC 6793: AGGREGATOR encoding depends on ASN4 capability.
 	if p.HasAggregator {
-		attrs = append(attrs, &attribute.Aggregator{
-			ASN:     p.AggregatorASN,
-			Address: netip.AddrFrom4(p.AggregatorIP),
+		aggBytes := ub.packAggregator(p.AggregatorASN, p.AggregatorIP)
+		attrs = append(attrs, &rawAttribute{
+			flags: attribute.FlagOptional | attribute.FlagTransitive,
+			code:  attribute.AttrAggregator,
+			data:  aggBytes,
 		})
 	}
 
@@ -172,6 +191,22 @@ func (ub *UpdateBuilder) BuildUnicast(p UnicastParams) *Update {
 			comms[i] = attribute.Community(c)
 		}
 		attrs = append(attrs, comms)
+	}
+
+	// 9. ORIGINATOR_ID (type 9) - RFC 4456
+	if p.OriginatorID != 0 {
+		origIP := netip.AddrFrom4([4]byte{
+			byte(p.OriginatorID >> 24), byte(p.OriginatorID >> 16),
+			byte(p.OriginatorID >> 8), byte(p.OriginatorID),
+		})
+		attrs = append(attrs, attribute.OriginatorID(origIP))
+	}
+
+	// 10. CLUSTER_LIST (type 10) - RFC 4456
+	if len(p.ClusterList) > 0 {
+		cl := make(attribute.ClusterList, len(p.ClusterList))
+		copy(cl, p.ClusterList)
+		attrs = append(attrs, cl)
 	}
 
 	// 14. MP_REACH_NLRI (type 14) - RFC 4760
@@ -270,6 +305,39 @@ func (ub *UpdateBuilder) buildASPath(configuredPath []uint32) *attribute.ASPath 
 	}
 
 	return &attribute.ASPath{Segments: segments}
+}
+
+// packAggregator encodes AGGREGATOR with context-dependent ASN size.
+//
+// RFC 6793 Section 4.2.3 - AGGREGATOR format:
+//   - ASN4=true: 8 bytes (4-byte ASN + 4-byte IP).
+//   - ASN4=false: 6 bytes (2-byte ASN + 4-byte IP).
+//   - ASN4=false with ASN>65535: Uses AS_TRANS (23456).
+func (ub *UpdateBuilder) packAggregator(asn uint32, ip [4]byte) []byte {
+	asn4 := ub.Ctx == nil || ub.Ctx.ASN4
+
+	if asn4 {
+		// 8-byte format: 4-byte ASN + 4-byte IP
+		buf := make([]byte, 8)
+		buf[0] = byte(asn >> 24)
+		buf[1] = byte(asn >> 16)
+		buf[2] = byte(asn >> 8)
+		buf[3] = byte(asn)
+		copy(buf[4:8], ip[:])
+		return buf
+	}
+
+	// 6-byte format: 2-byte ASN + 4-byte IP
+	// RFC 6793: Large ASNs use AS_TRANS (23456)
+	encodedASN := asn
+	if asn > 65535 {
+		encodedASN = 23456 // AS_TRANS
+	}
+	buf := make([]byte, 6)
+	buf[0] = byte(encodedASN >> 8) //nolint:gosec // buf is 6 bytes, indices 0-5 are valid
+	buf[1] = byte(encodedASN)      //nolint:gosec // buf is 6 bytes, indices 0-5 are valid
+	copy(buf[2:6], ip[:])
+	return buf
 }
 
 // buildMPReachUnicast constructs MP_REACH_NLRI for unicast routes.
@@ -394,8 +462,15 @@ func (ub *UpdateBuilder) BuildVPN(p VPNParams) *Update {
 	attrs = append(attrs, p.Origin)
 
 	// 2. AS_PATH
+	// RFC 6793: AS_PATH encoding depends on ASN4 capability negotiation.
 	asPath := ub.buildASPath(p.ASPath)
-	attrs = append(attrs, asPath)
+	asn4 := ub.Ctx == nil || ub.Ctx.ASN4
+	asPathValue := asPath.PackWithASN4(asn4)
+	attrs = append(attrs, &rawAttribute{
+		flags: asPath.Flags(),
+		code:  asPath.Code(),
+		data:  asPathValue,
+	})
 
 	// 3. NEXT_HOP - RFC 4271 Section 5.1.3
 	// For ExaBGP compatibility, include NEXT_HOP even for MP_REACH_NLRI routes.
@@ -425,10 +500,13 @@ func (ub *UpdateBuilder) BuildVPN(p VPNParams) *Update {
 	}
 
 	// 7. AGGREGATOR
+	// RFC 6793: AGGREGATOR encoding depends on ASN4 capability.
 	if p.HasAggregator {
-		attrs = append(attrs, &attribute.Aggregator{
-			ASN:     p.AggregatorASN,
-			Address: netip.AddrFrom4(p.AggregatorIP),
+		aggBytes := ub.packAggregator(p.AggregatorASN, p.AggregatorIP)
+		attrs = append(attrs, &rawAttribute{
+			flags: attribute.FlagOptional | attribute.FlagTransitive,
+			code:  attribute.AttrAggregator,
+			data:  aggBytes,
 		})
 	}
 
@@ -658,8 +736,15 @@ func (ub *UpdateBuilder) BuildLabeledUnicast(p LabeledUnicastParams) *Update {
 	attrs = append(attrs, p.Origin)
 
 	// 2. AS_PATH
+	// RFC 6793: AS_PATH encoding depends on ASN4 capability negotiation.
 	asPath := ub.buildASPath(p.ASPath)
-	attrs = append(attrs, asPath)
+	asn4 := ub.Ctx == nil || ub.Ctx.ASN4
+	asPathValue := asPath.PackWithASN4(asn4)
+	attrs = append(attrs, &rawAttribute{
+		flags: asPath.Flags(),
+		code:  asPath.Code(),
+		data:  asPathValue,
+	})
 
 	// 3. NEXT_HOP - RFC 4271 Section 5.1.3
 	// For ExaBGP compatibility, include NEXT_HOP even for MP_REACH_NLRI routes.
@@ -687,10 +772,13 @@ func (ub *UpdateBuilder) BuildLabeledUnicast(p LabeledUnicastParams) *Update {
 	}
 
 	// 7. AGGREGATOR
+	// RFC 6793: AGGREGATOR encoding depends on ASN4 capability.
 	if p.HasAggregator {
-		attrs = append(attrs, &attribute.Aggregator{
-			ASN:     p.AggregatorASN,
-			Address: netip.AddrFrom4(p.AggregatorIP),
+		aggBytes := ub.packAggregator(p.AggregatorASN, p.AggregatorIP)
+		attrs = append(attrs, &rawAttribute{
+			flags: attribute.FlagOptional | attribute.FlagTransitive,
+			code:  attribute.AttrAggregator,
+			data:  aggBytes,
 		})
 	}
 
@@ -910,8 +998,15 @@ func (ub *UpdateBuilder) BuildMVPN(routes []MVPNParams) *Update {
 	attrs = append(attrs, first.Origin)
 
 	// 2. AS_PATH
+	// RFC 6793: AS_PATH encoding depends on ASN4 capability negotiation.
 	asPath := ub.buildASPath(nil)
-	attrs = append(attrs, asPath)
+	asn4 := ub.Ctx == nil || ub.Ctx.ASN4
+	asPathValue := asPath.PackWithASN4(asn4)
+	attrs = append(attrs, &rawAttribute{
+		flags: asPath.Flags(),
+		code:  asPath.Code(),
+		data:  asPathValue,
+	})
 
 	// 3. NEXT_HOP (for IPv4 test compatibility)
 	if first.NextHop.Is4() {
@@ -1096,8 +1191,15 @@ func (ub *UpdateBuilder) BuildVPLS(p VPLSParams) *Update {
 	attrs = append(attrs, p.Origin)
 
 	// 2. AS_PATH
+	// RFC 6793: AS_PATH encoding depends on ASN4 capability negotiation.
 	asPath := ub.buildASPath(p.ASPath)
-	attrs = append(attrs, asPath)
+	asn4 := ub.Ctx == nil || ub.Ctx.ASN4
+	asPathValue := asPath.PackWithASN4(asn4)
+	attrs = append(attrs, &rawAttribute{
+		flags: asPath.Flags(),
+		code:  asPath.Code(),
+		data:  asPathValue,
+	})
 
 	// 4. MED
 	if p.MED > 0 {
@@ -1233,8 +1335,15 @@ func (ub *UpdateBuilder) BuildFlowSpec(p FlowSpecParams) *Update {
 	attrs = append(attrs, attribute.OriginIGP)
 
 	// 2. AS_PATH
+	// RFC 6793: AS_PATH encoding depends on ASN4 capability negotiation.
 	asPath := ub.buildASPath(nil)
-	attrs = append(attrs, asPath)
+	asn4 := ub.Ctx == nil || ub.Ctx.ASN4
+	asPathValue := asPath.PackWithASN4(asn4)
+	attrs = append(attrs, &rawAttribute{
+		flags: asPath.Flags(),
+		code:  asPath.Code(),
+		data:  asPathValue,
+	})
 
 	// 5. LOCAL_PREF
 	if ub.IsIBGP {
@@ -1370,8 +1479,15 @@ func (ub *UpdateBuilder) BuildMUP(p MUPParams) *Update {
 	attrs = append(attrs, attribute.OriginIGP)
 
 	// 2. AS_PATH
+	// RFC 6793: AS_PATH encoding depends on ASN4 capability negotiation.
 	asPath := ub.buildASPath(nil)
-	attrs = append(attrs, asPath)
+	asn4 := ub.Ctx == nil || ub.Ctx.ASN4
+	asPathValue := asPath.PackWithASN4(asn4)
+	attrs = append(attrs, &rawAttribute{
+		flags: asPath.Flags(),
+		code:  asPath.Code(),
+		data:  asPathValue,
+	})
 
 	// 3. NEXT_HOP - only for IPv4 MUP with IPv4 next-hop
 	// For IPv6 MUP with IPv4 next-hop, use IPv4-mapped IPv6 in MP_REACH instead
@@ -1470,8 +1586,15 @@ func (ub *UpdateBuilder) BuildMUPWithdraw(p MUPParams) *Update {
 	attrs = append(attrs, attribute.OriginIGP)
 
 	// 2. AS_PATH
+	// RFC 6793: AS_PATH encoding depends on ASN4 capability negotiation.
 	asPath := ub.buildASPath(nil)
-	attrs = append(attrs, asPath)
+	asn4 := ub.Ctx == nil || ub.Ctx.ASN4
+	asPathValue := asPath.PackWithASN4(asn4)
+	attrs = append(attrs, &rawAttribute{
+		flags: asPath.Flags(),
+		code:  asPath.Code(),
+		data:  asPathValue,
+	})
 
 	// 5. LOCAL_PREF
 	if ub.IsIBGP {
@@ -1531,5 +1654,147 @@ func (ub *UpdateBuilder) buildMPUnreachMUP(p MUPParams) *rawAttribute {
 		flags: attribute.FlagOptional,
 		code:  attribute.AttrMPUnreachNLRI,
 		data:  value,
+	}
+}
+
+// BuildGroupedUnicast builds an UPDATE with multiple IPv4 unicast NLRIs.
+//
+// RFC 4271 Section 4.3 - Multiple NLRI can share path attributes.
+// Uses first route's attributes; other routes contribute only prefixes.
+//
+// Precondition: All routes MUST be IPv4 unicast (caller validates via routeGroupKey).
+func (ub *UpdateBuilder) BuildGroupedUnicast(routes []UnicastParams) *Update {
+	if len(routes) == 0 {
+		return &Update{}
+	}
+
+	// Use first route for all attributes
+	first := routes[0]
+	var attrs []attribute.Attribute
+
+	// 1. ORIGIN
+	attrs = append(attrs, first.Origin)
+
+	// 2. AS_PATH
+	// RFC 6793: AS_PATH encoding depends on ASN4 capability negotiation.
+	asPath := ub.buildASPath(first.ASPath)
+	asn4 := ub.Ctx == nil || ub.Ctx.ASN4
+	asPathValue := asPath.PackWithASN4(asn4)
+	attrs = append(attrs, &rawAttribute{
+		flags: asPath.Flags(),
+		code:  asPath.Code(),
+		data:  asPathValue,
+	})
+
+	// 3. NEXT_HOP (IPv4 only for grouped updates)
+	if first.NextHop.Is4() {
+		attrs = append(attrs, &attribute.NextHop{Addr: first.NextHop})
+	}
+
+	// 4. MED
+	if first.MED > 0 {
+		attrs = append(attrs, attribute.MED(first.MED))
+	}
+
+	// 5. LOCAL_PREF
+	if ub.IsIBGP {
+		lp := first.LocalPreference
+		if lp == 0 {
+			lp = 100
+		}
+		attrs = append(attrs, attribute.LocalPref(lp))
+	}
+
+	// 6. ATOMIC_AGGREGATE
+	if first.AtomicAggregate {
+		attrs = append(attrs, attribute.AtomicAggregate{})
+	}
+
+	// 7. AGGREGATOR
+	// RFC 6793: AGGREGATOR encoding depends on ASN4 capability.
+	if first.HasAggregator {
+		aggBytes := ub.packAggregator(first.AggregatorASN, first.AggregatorIP)
+		attrs = append(attrs, &rawAttribute{
+			flags: attribute.FlagOptional | attribute.FlagTransitive,
+			code:  attribute.AttrAggregator,
+			data:  aggBytes,
+		})
+	}
+
+	// 8. COMMUNITIES
+	if len(first.Communities) > 0 {
+		sorted := make([]uint32, len(first.Communities))
+		copy(sorted, first.Communities)
+		sort.Slice(sorted, func(i, j int) bool { return sorted[i] < sorted[j] })
+		comms := make(attribute.Communities, len(sorted))
+		for i, c := range sorted {
+			comms[i] = attribute.Community(c)
+		}
+		attrs = append(attrs, comms)
+	}
+
+	// 9. ORIGINATOR_ID (RFC 4456)
+	if first.OriginatorID != 0 {
+		origIP := netip.AddrFrom4([4]byte{
+			byte(first.OriginatorID >> 24), byte(first.OriginatorID >> 16),
+			byte(first.OriginatorID >> 8), byte(first.OriginatorID),
+		})
+		attrs = append(attrs, attribute.OriginatorID(origIP))
+	}
+
+	// 10. CLUSTER_LIST (RFC 4456)
+	if len(first.ClusterList) > 0 {
+		cl := make(attribute.ClusterList, len(first.ClusterList))
+		copy(cl, first.ClusterList)
+		attrs = append(attrs, cl)
+	}
+
+	// 16. EXTENDED_COMMUNITIES
+	if len(first.ExtCommunityBytes) > 0 {
+		attrs = append(attrs, &rawAttribute{
+			flags: attribute.FlagOptional | attribute.FlagTransitive,
+			code:  attribute.AttrExtCommunity,
+			data:  first.ExtCommunityBytes,
+		})
+	}
+
+	// 32. LARGE_COMMUNITIES
+	if len(first.LargeCommunities) > 0 {
+		lcs := make(attribute.LargeCommunities, len(first.LargeCommunities))
+		for i, lc := range first.LargeCommunities {
+			lcs[i] = attribute.LargeCommunity{
+				GlobalAdmin: lc[0],
+				LocalData1:  lc[1],
+				LocalData2:  lc[2],
+			}
+		}
+		attrs = append(attrs, lcs)
+	}
+
+	// Sort and pack attributes
+	sort.Slice(attrs, func(i, j int) bool {
+		return attrs[i].Code() < attrs[j].Code()
+	})
+	attrBytes := attribute.PackAttributesOrdered(attrs)
+
+	// Append raw attributes from first route (pass-through from config)
+	for _, raw := range first.RawAttributeBytes {
+		attrBytes = append(attrBytes, raw...)
+	}
+
+	// Build NLRI for all routes
+	ctx := ub.Ctx
+	if ctx == nil {
+		ctx = &nlri.PackContext{}
+	}
+	var nlriBytes []byte
+	for _, r := range routes {
+		inet := nlri.NewINET(nlri.Family{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast}, r.Prefix, r.PathID)
+		nlriBytes = append(nlriBytes, inet.Pack(ctx)...)
+	}
+
+	return &Update{
+		PathAttributes: attrBytes,
+		NLRI:           nlriBytes,
 	}
 }

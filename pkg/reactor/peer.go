@@ -543,6 +543,8 @@ func toStaticRouteUnicastParams(r StaticRoute, nf *NegotiatedFamilies) message.U
 		AggregatorIP:       r.AggregatorIP,
 		UseExtendedNextHop: useExtNH,
 		RawAttributeBytes:  rawAttrs,
+		OriginatorID:       r.OriginatorID,
+		ClusterList:        r.ClusterList,
 	}
 }
 
@@ -1088,9 +1090,20 @@ func (p *Peer) sendInitialRoutes() {
 		groups := groupRoutesByAttributes(p.settings.StaticRoutes)
 
 		for _, routes := range groups {
-			// Use first route's family for context (all routes in group have same family)
 			ctx := p.packContext(routeFamily(routes[0]))
-			update := buildGroupedUpdate(routes, p.settings.LocalAS, p.settings.IsIBGP(), ctx, nf)
+			var update *message.Update
+			if len(routes) == 1 {
+				// Single-route group (IPv6, VPN, LabeledUnicast, or solo IPv4)
+				update = buildStaticRouteUpdateNew(routes[0], p.settings.LocalAS, p.settings.IsIBGP(), ctx, nf)
+			} else {
+				// Multi-route group - IPv4 unicast only (routeGroupKey ensures this)
+				ub := message.NewUpdateBuilder(p.settings.LocalAS, p.settings.IsIBGP(), ctx)
+				params := make([]message.UnicastParams, len(routes))
+				for i, r := range routes {
+					params[i] = toStaticRouteUnicastParams(r, nf)
+				}
+				update = ub.BuildGroupedUnicast(params)
+			}
 			if err := p.SendUpdate(update); err != nil {
 				trace.Log(trace.Routes, "peer %s: send error: %v", addr, err)
 				break
@@ -1632,163 +1645,6 @@ func routeFamily(route StaticRoute) nlri.Family {
 	return nlri.IPv4Unicast
 }
 
-// buildStaticRouteUpdate builds an UPDATE message for a static route.
-// ctx.ASN4 indicates whether to use 4-byte AS numbers in AS_PATH.
-// nf contains negotiated family flags including ExtNH support.
-func buildStaticRouteUpdate(route StaticRoute, localAS uint32, isIBGP bool, ctx *nlri.PackContext, nf *NegotiatedFamilies) *message.Update {
-	var attrBytes []byte
-
-	// Extract ASN4 from context (default to true if nil)
-	asn4 := ctx == nil || ctx.ASN4
-
-	// 1. ORIGIN (IGP by default, use configured value if set)
-	origin := attribute.Origin(route.Origin)
-	attrBytes = append(attrBytes, attribute.PackAttribute(origin)...)
-
-	// 2. AS_PATH
-	// - For iBGP: use configured AS_PATH or empty
-	// - For eBGP: prepend local AS to configured AS_PATH
-	var asPath *attribute.ASPath
-	switch {
-	case len(route.ASPath) > 0:
-		// Use configured AS_PATH, prepend local AS for eBGP
-		asns := make([]uint32, 0, len(route.ASPath)+1)
-		if !isIBGP {
-			asns = append(asns, localAS)
-		}
-		asns = append(asns, route.ASPath...)
-		asPath = &attribute.ASPath{
-			Segments: []attribute.ASPathSegment{
-				{Type: attribute.ASSequence, ASNs: asns},
-			},
-		}
-	case isIBGP:
-		// Empty AS_PATH for iBGP self-originated routes
-		asPath = &attribute.ASPath{Segments: nil}
-	default:
-		// Prepend local AS for eBGP
-		asPath = &attribute.ASPath{
-			Segments: []attribute.ASPathSegment{
-				{Type: attribute.ASSequence, ASNs: []uint32{localAS}},
-			},
-		}
-	}
-	attrBytes = append(attrBytes, attribute.PackASPathAttribute(asPath, asn4)...)
-
-	// 3. NEXT_HOP (for IPv4 routes with IPv4 next-hop)
-	// RFC 8950: When using extended next-hop, next-hop goes in MP_REACH_NLRI, not here.
-	// Check for IPv4 unicast or VPN with IPv6 next-hop.
-	useExtNH := route.Prefix.Addr().Is4() && route.NextHop.Is6() && nf != nil && nf.IPv4UnicastExtNH
-	useExtNHVPN := route.IsVPN() && route.Prefix.Addr().Is4() && route.NextHop.Is6() && nf != nil && nf.IPv4MPLSVPNExtNH
-	if route.NextHop.Is4() && !route.IsVPN() {
-		nextHop := &attribute.NextHop{Addr: route.NextHop}
-		attrBytes = append(attrBytes, attribute.PackAttribute(nextHop)...)
-	}
-	// VPN routes: next-hop goes in MP_REACH_NLRI (handled in buildMPReachNLRI)
-
-	// 4. MED (if set).
-	if route.MED > 0 {
-		med := attribute.MED(route.MED)
-		attrBytes = append(attrBytes, attribute.PackAttribute(med)...)
-	}
-
-	// 5. LOCAL_PREF (for iBGP, default 100 if not set)
-	if isIBGP {
-		localPref := route.LocalPreference
-		if localPref == 0 {
-			localPref = 100 // Default LOCAL_PREF
-		}
-		attrBytes = append(attrBytes, attribute.PackAttribute(attribute.LocalPref(localPref))...)
-	}
-
-	// 6. ATOMIC_AGGREGATE (if set)
-	if route.AtomicAggregate {
-		attrBytes = append(attrBytes, attribute.PackAttribute(attribute.AtomicAggregate{})...)
-	}
-
-	// 7. AGGREGATOR (if set)
-	if route.HasAggregator {
-		agg := &attribute.Aggregator{
-			ASN:     route.AggregatorASN,
-			Address: netip.AddrFrom4(route.AggregatorIP),
-		}
-		attrBytes = append(attrBytes, attribute.PackAttribute(agg)...)
-	}
-
-	// 8. COMMUNITIES (RFC 1997) - sorted per RFC.
-	if len(route.Communities) > 0 {
-		sorted := make([]uint32, len(route.Communities))
-		copy(sorted, route.Communities)
-		sort.Slice(sorted, func(i, j int) bool { return sorted[i] < sorted[j] })
-
-		comms := make(attribute.Communities, len(sorted))
-		for i, c := range sorted {
-			comms[i] = attribute.Community(c)
-		}
-		attrBytes = append(attrBytes, attribute.PackAttribute(comms)...)
-	}
-
-	// Build NLRI - use MP_REACH_NLRI for VPN/IPv6, inline NLRI for IPv4 unicast
-	// RFC 8950: Use MP_REACH_NLRI for IPv4 with IPv6 next-hop when extended NH negotiated
-	// RFC 4271: MP_REACH_NLRI (type 14) MUST come before EXTENDED_COMMUNITY (type 16)
-	var nlriBytes []byte
-	switch {
-	case route.IsVPN():
-		// VPN route: use MP_REACH_NLRI attribute (returns raw bytes)
-		// RFC 8950: IPv6 next-hop requires extended next-hop negotiation
-		if route.Prefix.Addr().Is4() && route.NextHop.Is6() && !useExtNHVPN {
-			// Extended next-hop not negotiated for VPN - peer may reject
-			trace.Log(trace.Routes, "VPN route %s with IPv6 next-hop but extended-nexthop not negotiated",
-				route.Prefix)
-		}
-		attrBytes = append(attrBytes, buildMPReachNLRI(route)...)
-	case useExtNH:
-		// RFC 8950: IPv4 unicast with IPv6 next-hop via MP_REACH_NLRI
-		attrBytes = append(attrBytes, buildMPReachNLRIExtNHUnicast(route)...)
-	case route.Prefix.Addr().Is4():
-		// IPv4 unicast: inline NLRI with capability-aware encoding
-		// RFC 7911: Use Pack(ctx) to handle ADD-PATH correctly
-		inet := nlri.NewINET(nlri.Family{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast}, route.Prefix, route.PathID)
-		ctx := &nlri.PackContext{AddPath: nf != nil && nf.IPv4UnicastAddPath}
-		nlriBytes = inet.Pack(ctx)
-	default:
-		// IPv6 unicast: use MP_REACH_NLRI attribute (RFC 4760)
-		attrBytes = append(attrBytes, buildMPReachNLRIUnicast(route)...)
-	}
-
-	// 16. EXTENDED_COMMUNITY (if set)
-	if len(route.ExtCommunityBytes) > 0 {
-		// Pack as attribute: flags=0xC0 (optional, transitive), type=16, len, value
-		ecAttr := make([]byte, 0, 3+len(route.ExtCommunityBytes))
-		ecAttr = append(ecAttr, 0xC0, 0x10, byte(len(route.ExtCommunityBytes)))
-		ecAttr = append(ecAttr, route.ExtCommunityBytes...)
-		attrBytes = append(attrBytes, ecAttr...)
-	}
-
-	// 32. LARGE_COMMUNITIES (RFC 8092) - if set
-	if len(route.LargeCommunities) > 0 {
-		lcs := make(attribute.LargeCommunities, len(route.LargeCommunities))
-		for i, lc := range route.LargeCommunities {
-			lcs[i] = attribute.LargeCommunity{
-				GlobalAdmin: lc[0],
-				LocalData1:  lc[1],
-				LocalData2:  lc[2],
-			}
-		}
-		attrBytes = append(attrBytes, attribute.PackAttribute(lcs)...)
-	}
-
-	// RAW ATTRIBUTES - pass through as-is from config
-	for _, ra := range route.RawAttributes {
-		attrBytes = append(attrBytes, packRawAttribute(ra)...)
-	}
-
-	return &message.Update{
-		PathAttributes: attrBytes,
-		NLRI:           nlriBytes,
-	}
-}
-
 // packRawAttribute packs a raw attribute into wire format.
 // Format: flags (1 byte) + code (1 byte) + length (1 or 2 bytes) + value.
 func packRawAttribute(ra RawAttribute) []byte {
@@ -1837,14 +1693,14 @@ func routeGroupKey(r StaticRoute) string {
 	})
 
 	// Key includes: nexthop, origin, localpref, med, communities, large-communities, ext-communities, vpn, ipv4/ipv6,
-	// as-path, atomic-aggregate, aggregator.
+	// as-path, atomic-aggregate, aggregator, originator-id, cluster-list.
 	// For IPv6 routes, include prefix in key to prevent grouping (each needs separate MP_REACH_NLRI UPDATE).
 	// IPv4 routes can be grouped since multiple NLRIs can be in one UPDATE.
 	prefixKey := ""
 	if !r.Prefix.Addr().Is4() {
 		prefixKey = r.Prefix.String()
 	}
-	return fmt.Sprintf("%s|%d|%d|%d|%v|%v|%s|%s|%v|%s|%v|%v|%d|%v",
+	return fmt.Sprintf("%s|%d|%d|%d|%v|%v|%s|%s|%v|%s|%v|%v|%d|%v|%d|%v",
 		r.NextHop.String(),
 		r.Origin,
 		r.LocalPreference,
@@ -1859,6 +1715,8 @@ func routeGroupKey(r StaticRoute) string {
 		r.AtomicAggregate,
 		r.AggregatorASN,
 		r.AggregatorIP,
+		r.OriginatorID,
+		r.ClusterList,
 	)
 }
 
@@ -1897,361 +1755,6 @@ func groupRoutesByAttributes(routes []StaticRoute) [][]StaticRoute {
 	})
 
 	return result
-}
-
-// buildGroupedUpdate builds an UPDATE message for multiple routes with same attributes.
-// ctx.ASN4 indicates whether to use 4-byte AS numbers in AS_PATH.
-// nf contains negotiated capability flags for proper NLRI encoding.
-func buildGroupedUpdate(routes []StaticRoute, localAS uint32, isIBGP bool, ctx *nlri.PackContext, nf *NegotiatedFamilies) *message.Update {
-	if len(routes) == 0 {
-		return &message.Update{}
-	}
-
-	// Extract ASN4 from context (default to true if nil)
-	asn4 := ctx == nil || ctx.ASN4
-
-	// Use first route as representative for attributes.
-	route := routes[0]
-	var attrBytes []byte
-
-	// 1. ORIGIN.
-	origin := attribute.Origin(route.Origin)
-	attrBytes = append(attrBytes, attribute.PackAttribute(origin)...)
-
-	// 2. AS_PATH.
-	var asPath *attribute.ASPath
-	switch {
-	case len(route.ASPath) > 0:
-		asns := make([]uint32, 0, len(route.ASPath)+1)
-		if !isIBGP {
-			asns = append(asns, localAS)
-		}
-		asns = append(asns, route.ASPath...)
-		asPath = &attribute.ASPath{
-			Segments: []attribute.ASPathSegment{
-				{Type: attribute.ASSequence, ASNs: asns},
-			},
-		}
-	case isIBGP:
-		asPath = &attribute.ASPath{Segments: nil}
-	default:
-		asPath = &attribute.ASPath{
-			Segments: []attribute.ASPathSegment{
-				{Type: attribute.ASSequence, ASNs: []uint32{localAS}},
-			},
-		}
-	}
-	attrBytes = append(attrBytes, attribute.PackASPathAttribute(asPath, asn4)...)
-
-	// 3. NEXT_HOP (for IPv4 routes).
-	if route.NextHop.Is4() {
-		nextHop := &attribute.NextHop{Addr: route.NextHop}
-		attrBytes = append(attrBytes, attribute.PackAttribute(nextHop)...)
-	}
-
-	// 4. MED (if set).
-	if route.MED > 0 {
-		med := attribute.MED(route.MED)
-		attrBytes = append(attrBytes, attribute.PackAttribute(med)...)
-	}
-
-	// 5. LOCAL_PREF (for iBGP).
-	if isIBGP {
-		localPref := route.LocalPreference
-		if localPref == 0 {
-			localPref = 100
-		}
-		attrBytes = append(attrBytes, attribute.PackAttribute(attribute.LocalPref(localPref))...)
-	}
-
-	// 6. ATOMIC_AGGREGATE (if set).
-	if route.AtomicAggregate {
-		attrBytes = append(attrBytes, attribute.PackAttribute(attribute.AtomicAggregate{})...)
-	}
-
-	// 7. AGGREGATOR (if set).
-	if route.HasAggregator {
-		agg := &attribute.Aggregator{
-			ASN:     route.AggregatorASN,
-			Address: netip.AddrFrom4(route.AggregatorIP),
-		}
-		attrBytes = append(attrBytes, attribute.PackAttribute(agg)...)
-	}
-
-	// 8. COMMUNITIES (RFC 1997) - sorted per RFC 1997.
-	if len(route.Communities) > 0 {
-		// Copy and sort communities.
-		sorted := make([]uint32, len(route.Communities))
-		copy(sorted, route.Communities)
-		sort.Slice(sorted, func(i, j int) bool { return sorted[i] < sorted[j] })
-
-		comms := make(attribute.Communities, len(sorted))
-		for i, c := range sorted {
-			comms[i] = attribute.Community(c)
-		}
-		attrBytes = append(attrBytes, attribute.PackAttribute(comms)...)
-	}
-
-	// 9. ORIGINATOR_ID (RFC 4456)
-	if route.OriginatorID != 0 {
-		origIP := netip.AddrFrom4([4]byte{
-			byte(route.OriginatorID >> 24), byte(route.OriginatorID >> 16),
-			byte(route.OriginatorID >> 8), byte(route.OriginatorID),
-		})
-		attrBytes = append(attrBytes, attribute.PackAttribute(attribute.OriginatorID(origIP))...)
-	}
-
-	// 10. CLUSTER_LIST (RFC 4456)
-	if len(route.ClusterList) > 0 {
-		cl := make(attribute.ClusterList, len(route.ClusterList))
-		copy(cl, route.ClusterList)
-		attrBytes = append(attrBytes, attribute.PackAttribute(cl)...)
-	}
-
-	// Build NLRI for all routes in group.
-	// RFC 7911: Use Pack(ctx) for capability-aware encoding
-	// RFC 4271: MP_REACH_NLRI (type 14) MUST come before EXTENDED_COMMUNITY (type 16)
-	// Note: ctx already provided with ASN4, ensure AddPath is set for IPv4 unicast
-	var nlriBytes []byte
-	if ctx != nil && nf != nil {
-		ctx.AddPath = nf.IPv4UnicastAddPath
-	}
-	for _, r := range routes {
-		switch {
-		case r.IsVPN():
-			// VPN routes need separate handling - for now, just use first.
-			attrBytes = append(attrBytes, buildMPReachNLRI(r)...)
-		case r.Prefix.Addr().Is4():
-			// IPv4 unicast: append to NLRI with capability-aware encoding.
-			inet := nlri.NewINET(nlri.Family{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast}, r.Prefix, r.PathID)
-			nlriBytes = append(nlriBytes, inet.Pack(ctx)...)
-		default:
-			// IPv6 unicast: use MP_REACH_NLRI (handle separately).
-			attrBytes = append(attrBytes, buildMPReachNLRIUnicast(r)...)
-		}
-	}
-
-	// 16. EXTENDED_COMMUNITY.
-	if len(route.ExtCommunityBytes) > 0 {
-		ecAttr := make([]byte, 0, 3+len(route.ExtCommunityBytes))
-		ecAttr = append(ecAttr, 0xC0, 0x10, byte(len(route.ExtCommunityBytes)))
-		ecAttr = append(ecAttr, route.ExtCommunityBytes...)
-		attrBytes = append(attrBytes, ecAttr...)
-	}
-
-	// 32. LARGE_COMMUNITIES (RFC 8092).
-	if len(route.LargeCommunities) > 0 {
-		lcs := make(attribute.LargeCommunities, len(route.LargeCommunities))
-		for i, lc := range route.LargeCommunities {
-			lcs[i] = attribute.LargeCommunity{
-				GlobalAdmin: lc[0],
-				LocalData1:  lc[1],
-				LocalData2:  lc[2],
-			}
-		}
-		attrBytes = append(attrBytes, attribute.PackAttribute(lcs)...)
-	}
-
-	return &message.Update{
-		PathAttributes: attrBytes,
-		NLRI:           nlriBytes,
-	}
-}
-
-// buildMPReachNLRI builds MP_REACH_NLRI for VPN routes.
-// Returns raw attribute bytes (flags + type + length + value).
-func buildMPReachNLRI(route StaticRoute) []byte {
-	// Determine AFI/SAFI
-	afi := uint16(1) // IPv4
-	if route.Prefix.Addr().Is6() {
-		afi = 2 // IPv6
-	}
-	safi := byte(128) // MPLS VPN
-
-	// Build next-hop: RD (all zeros) + IP address
-	var nhBytes []byte
-	if route.NextHop.Is4() {
-		nhBytes = make([]byte, 12) // 8-byte RD + 4-byte IPv4
-		copy(nhBytes[8:], route.NextHop.AsSlice())
-	} else {
-		nhBytes = make([]byte, 24) // 8-byte RD + 16-byte IPv6
-		copy(nhBytes[8:], route.NextHop.AsSlice())
-	}
-
-	// Build VPN NLRI
-	vpnNLRI := buildVPNNLRIBytes(route)
-
-	// MP_REACH_NLRI value: AFI(2) + SAFI(1) + NH_Len(1) + NextHop + Reserved(1) + NLRI
-	valueLen := 2 + 1 + 1 + len(nhBytes) + 1 + len(vpnNLRI)
-	value := make([]byte, valueLen)
-	value[0] = byte(afi >> 8)
-	value[1] = byte(afi)
-	value[2] = safi
-	value[3] = byte(len(nhBytes))
-	copy(value[4:], nhBytes)
-	value[4+len(nhBytes)] = 0 // Reserved
-	copy(value[4+len(nhBytes)+1:], vpnNLRI)
-
-	// Build attribute header: flags + type + length + value
-	// Flags: 0x80 = optional, 0x90 = optional + extended length
-	var attr []byte
-	if valueLen > 255 {
-		attr = make([]byte, 4+valueLen)
-		attr[0] = 0x90 // optional + extended length
-		attr[1] = 14   // MP_REACH_NLRI
-		attr[2] = byte(valueLen >> 8)
-		attr[3] = byte(valueLen)
-		copy(attr[4:], value)
-	} else {
-		attr = make([]byte, 3+valueLen)
-		attr[0] = 0x80 // optional
-		attr[1] = 14   // MP_REACH_NLRI
-		attr[2] = byte(valueLen)
-		copy(attr[3:], value)
-	}
-
-	return attr
-}
-
-// buildVPNNLRIBytes builds the raw VPN NLRI bytes (for MP_REACH_NLRI).
-func buildVPNNLRIBytes(route StaticRoute) []byte {
-	// Label encoding: 20-bit label, 3-bit TC, 1-bit BOS (bottom of stack)
-	// Label is in upper 20 bits: label << 4, BOS in bit 0
-	label := route.Label
-	labelBytes := []byte{
-		byte(label >> 12),
-		byte(label >> 4),
-		byte(label<<4) | 0x01, // BOS = 1
-	}
-
-	// Prefix bytes
-	prefixBits := route.Prefix.Bits()
-	prefixBytes := (prefixBits + 7) / 8
-	prefixData := route.Prefix.Addr().AsSlice()[:prefixBytes]
-
-	// Total bits: 24 (label) + 64 (RD) + prefix bits
-	totalBits := 24 + 64 + prefixBits
-
-	// Build: [path-id] + length + label + RD + prefix
-	var buf []byte
-	if route.PathID != 0 {
-		buf = make([]byte, 4+1+3+8+prefixBytes)
-		buf[0] = byte(route.PathID >> 24)
-		buf[1] = byte(route.PathID >> 16)
-		buf[2] = byte(route.PathID >> 8)
-		buf[3] = byte(route.PathID)
-		buf[4] = byte(totalBits)
-		copy(buf[5:8], labelBytes)
-		copy(buf[8:16], route.RDBytes[:])
-		copy(buf[16:], prefixData)
-	} else {
-		buf = make([]byte, 1+3+8+prefixBytes)
-		buf[0] = byte(totalBits)
-		copy(buf[1:4], labelBytes)
-		copy(buf[4:12], route.RDBytes[:])
-		copy(buf[12:], prefixData)
-	}
-
-	return buf
-}
-
-// buildMPReachNLRIExtNHUnicast builds MP_REACH_NLRI for IPv4 unicast NLRI with IPv6 next-hop.
-// RFC 8950 Section 3: AFI=1, SAFI=1, NH Length=16, IPv6 next-hop, IPv4 NLRI.
-func buildMPReachNLRIExtNHUnicast(route StaticRoute) []byte {
-	// Build NLRI bytes for the IPv4 prefix
-	prefixBits := route.Prefix.Bits()
-	prefixBytes := (prefixBits + 7) / 8
-	nlriData := make([]byte, 1+prefixBytes)
-	nlriData[0] = byte(prefixBits)
-	copy(nlriData[1:], route.Prefix.Addr().AsSlice()[:prefixBytes])
-
-	// RFC 8950: AFI=1 (IPv4), IPv6 next-hop (16 bytes)
-	mpReach := &attribute.MPReachNLRI{
-		AFI:      attribute.AFIIPv4, // NLRI is IPv4
-		SAFI:     attribute.SAFIUnicast,
-		NextHops: []netip.Addr{route.NextHop}, // IPv6 next-hop
-		NLRI:     nlriData,
-	}
-
-	// Pack the attribute with header
-	value := mpReach.Pack()
-	valueLen := len(value)
-
-	// Build attribute: flags + type + length + value
-	// Flags: 0x80 = optional, 0x90 = optional + extended length
-	var attr []byte
-	if valueLen > 255 {
-		attr = make([]byte, 4+valueLen)
-		attr[0] = 0x90 // optional + extended length
-		attr[1] = byte(attribute.AttrMPReachNLRI)
-		attr[2] = byte(valueLen >> 8)
-		attr[3] = byte(valueLen)
-		copy(attr[4:], value)
-	} else {
-		attr = make([]byte, 3+valueLen)
-		attr[0] = 0x80 // optional
-		attr[1] = byte(attribute.AttrMPReachNLRI)
-		attr[2] = byte(valueLen)
-		copy(attr[3:], value)
-	}
-
-	return attr
-}
-
-// buildMPReachNLRIUnicast builds MP_REACH_NLRI for IPv6 unicast routes.
-// Returns raw attribute bytes (flags + type + length + value).
-func buildMPReachNLRIUnicast(route StaticRoute) []byte {
-	// Build NLRI bytes for the prefix
-	prefixBits := route.Prefix.Bits()
-	prefixBytes := (prefixBits + 7) / 8
-	nlriData := make([]byte, 1+prefixBytes)
-	nlriData[0] = byte(prefixBits)
-	copy(nlriData[1:], route.Prefix.Addr().AsSlice()[:prefixBytes])
-
-	// Determine AFI based on address family
-	var afi attribute.AFI
-	var nhLen int
-	if route.Prefix.Addr().Is6() {
-		afi = attribute.AFIIPv6
-		nhLen = 16
-	} else {
-		afi = attribute.AFIIPv4
-		nhLen = 4
-	}
-
-	mpReach := &attribute.MPReachNLRI{
-		AFI:      afi,
-		SAFI:     attribute.SAFIUnicast,
-		NextHops: []netip.Addr{route.NextHop},
-		NLRI:     nlriData,
-	}
-
-	// Pack the attribute with header
-	value := mpReach.Pack()
-	valueLen := len(value)
-
-	// Build attribute: flags + type + length + value
-	// Flags: 0x80 = optional, 0x90 = optional + extended length
-	var attr []byte
-	if valueLen > 255 {
-		attr = make([]byte, 4+valueLen)
-		attr[0] = 0x90 // optional + extended length
-		attr[1] = byte(attribute.AttrMPReachNLRI)
-		attr[2] = byte(valueLen >> 8)
-		attr[3] = byte(valueLen)
-		copy(attr[4:], value)
-	} else {
-		attr = make([]byte, 3+valueLen)
-		attr[0] = 0x80 // optional
-		attr[1] = byte(attribute.AttrMPReachNLRI)
-		attr[2] = byte(valueLen)
-		copy(attr[3:], value)
-	}
-
-	// Silence unused variable
-	_ = nhLen
-
-	return attr
 }
 
 // sendMVPNRoutes sends MVPN routes configured for this peer.

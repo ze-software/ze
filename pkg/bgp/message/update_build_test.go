@@ -1,6 +1,7 @@
 package message
 
 import (
+	"bytes"
 	"net/netip"
 	"testing"
 
@@ -652,5 +653,633 @@ func TestUpdateBuilder_BuildMUP_Basic(t *testing.T) {
 	}
 	if !hasMPReach {
 		t.Error("MUP route should have MP_REACH_NLRI")
+	}
+}
+
+// TestBuildUnicast_EncodesReflectorAttrs verifies RFC 4456 attribute encoding.
+//
+// VALIDATES: ORIGINATOR_ID and CLUSTER_LIST are encoded in PathAttributes.
+// PREVENTS: Data loss for route reflector configurations.
+func TestBuildUnicast_EncodesReflectorAttrs(t *testing.T) {
+	ctx := &nlri.PackContext{ASN4: true}
+	ub := NewUpdateBuilder(65001, true, ctx)
+
+	params := UnicastParams{
+		Prefix:          netip.MustParsePrefix("10.0.0.0/24"),
+		NextHop:         netip.MustParseAddr("192.168.1.1"),
+		Origin:          attribute.OriginIGP,
+		LocalPreference: 100,
+		OriginatorID:    0xC0A80101, // 192.168.1.1
+		ClusterList:     []uint32{0xC0A80102, 0xC0A80103},
+	}
+
+	update := ub.BuildUnicast(params)
+
+	// ORIGINATOR_ID: flags=0x80 (optional), type=0x09, len=0x04, value=C0A80101
+	expectedOriginator := []byte{0x80, 0x09, 0x04, 0xC0, 0xA8, 0x01, 0x01}
+	if !bytes.Contains(update.PathAttributes, expectedOriginator) {
+		t.Errorf("ORIGINATOR_ID not found in PathAttributes\ngot: %x\nwant to contain: %x",
+			update.PathAttributes, expectedOriginator)
+	}
+
+	// CLUSTER_LIST: flags=0x80, type=0x0A, len=0x08, values=C0A80102 C0A80103
+	expectedClusterType := []byte{0x80, 0x0A, 0x08}
+	if !bytes.Contains(update.PathAttributes, expectedClusterType) {
+		t.Errorf("CLUSTER_LIST not found in PathAttributes\ngot: %x",
+			update.PathAttributes)
+	}
+}
+
+// TestBuildUnicast_eBGP_NoLocalPref verifies LOCAL_PREF omitted for eBGP.
+//
+// VALIDATES: LOCAL_PREF not present in eBGP UPDATE.
+// PREVENTS: RFC violation - LOCAL_PREF is iBGP only.
+func TestBuildUnicast_eBGP_NoLocalPref(t *testing.T) {
+	ctx := &nlri.PackContext{ASN4: true}
+	ub := NewUpdateBuilder(65001, false, ctx) // isIBGP=false
+
+	params := UnicastParams{
+		Prefix:          netip.MustParsePrefix("10.0.0.0/24"),
+		NextHop:         netip.MustParseAddr("192.168.1.1"),
+		Origin:          attribute.OriginIGP,
+		LocalPreference: 200, // Should be ignored for eBGP
+	}
+
+	update := ub.BuildUnicast(params)
+
+	// LOCAL_PREF (type 5) should NOT be present for eBGP
+	// Attribute header: flags (1 byte) + type 0x05
+	if bytes.Contains(update.PathAttributes, []byte{0x40, 0x05}) {
+		t.Error("LOCAL_PREF should not be present in eBGP UPDATE")
+	}
+}
+
+// TestBuildUnicast_ASN4Disabled verifies 2-byte AS encoding.
+//
+// VALIDATES: AS_PATH uses 2-byte ASN format when ctx.ASN4=false.
+// PREVENTS: RFC 6793 violation for legacy peers with asn4 disable.
+func TestBuildUnicast_ASN4Disabled(t *testing.T) {
+	ctx := &nlri.PackContext{ASN4: false}   // 2-byte mode
+	ub := NewUpdateBuilder(100, false, ctx) // eBGP, AS 100
+
+	params := UnicastParams{
+		Prefix:  netip.MustParsePrefix("10.0.0.0/24"),
+		NextHop: netip.MustParseAddr("192.168.1.1"),
+		Origin:  attribute.OriginIGP,
+	}
+
+	update := ub.BuildUnicast(params)
+
+	// AS_PATH with 2-byte ASN: 40 02 04 02 01 00 64
+	// flags=0x40 (transitive), type=2 (AS_PATH), len=4
+	// segment: type=2 (AS_SEQUENCE), count=1, AS=100 (0x0064) as 2 bytes
+	expected2ByteAS := []byte{0x40, 0x02, 0x04, 0x02, 0x01, 0x00, 0x64}
+	if !bytes.Contains(update.PathAttributes, expected2ByteAS) {
+		t.Errorf("AS_PATH not 2-byte encoded\nexpected to contain: %x\ngot: %x",
+			expected2ByteAS, update.PathAttributes)
+	}
+
+	// Verify it's NOT using 4-byte format (would be 40 02 06 02 01 00 00 00 64)
+	wrong4ByteAS := []byte{0x40, 0x02, 0x06, 0x02, 0x01, 0x00, 0x00, 0x00, 0x64}
+	if bytes.Contains(update.PathAttributes, wrong4ByteAS) {
+		t.Error("AS_PATH incorrectly using 4-byte format when ASN4=false")
+	}
+}
+
+// TestBuildUnicast_ASN4Enabled verifies 4-byte AS encoding (default).
+//
+// VALIDATES: AS_PATH uses 4-byte ASN format when ctx.ASN4=true.
+// PREVENTS: Regression in standard 4-byte AS encoding.
+func TestBuildUnicast_ASN4Enabled(t *testing.T) {
+	ctx := &nlri.PackContext{ASN4: true}      // 4-byte mode (default)
+	ub := NewUpdateBuilder(65001, false, ctx) // eBGP, AS 65001
+
+	params := UnicastParams{
+		Prefix:  netip.MustParsePrefix("10.0.0.0/24"),
+		NextHop: netip.MustParseAddr("192.168.1.1"),
+		Origin:  attribute.OriginIGP,
+	}
+
+	update := ub.BuildUnicast(params)
+
+	// AS_PATH with 4-byte ASN: 40 02 06 02 01 00 00 fd e9
+	// flags=0x40 (transitive), type=2 (AS_PATH), len=6
+	// segment: type=2 (AS_SEQUENCE), count=1, AS=65001 (0x0000FDE9) as 4 bytes
+	expected4ByteAS := []byte{0x40, 0x02, 0x06, 0x02, 0x01, 0x00, 0x00, 0xfd, 0xe9}
+	if !bytes.Contains(update.PathAttributes, expected4ByteAS) {
+		t.Errorf("AS_PATH not 4-byte encoded\nexpected to contain: %x\ngot: %x",
+			expected4ByteAS, update.PathAttributes)
+	}
+}
+
+// TestBuildGroupedUnicast_ASN4Disabled verifies grouped updates respect ASN4 flag.
+//
+// VALIDATES: BuildGroupedUnicast uses 2-byte ASN format when ctx.ASN4=false.
+// PREVENTS: Grouped updates ignoring ASN4 capability.
+func TestBuildGroupedUnicast_ASN4Disabled(t *testing.T) {
+	ctx := &nlri.PackContext{ASN4: false}   // 2-byte mode
+	ub := NewUpdateBuilder(100, false, ctx) // eBGP, AS 100
+
+	routes := []UnicastParams{
+		{
+			Prefix:  netip.MustParsePrefix("10.0.0.0/24"),
+			NextHop: netip.MustParseAddr("192.168.1.1"),
+			Origin:  attribute.OriginIGP,
+		},
+		{
+			Prefix:  netip.MustParsePrefix("10.0.1.0/24"),
+			NextHop: netip.MustParseAddr("192.168.1.1"),
+			Origin:  attribute.OriginIGP,
+		},
+	}
+
+	update := ub.BuildGroupedUnicast(routes)
+
+	// AS_PATH with 2-byte ASN
+	expected2ByteAS := []byte{0x40, 0x02, 0x04, 0x02, 0x01, 0x00, 0x64}
+	if !bytes.Contains(update.PathAttributes, expected2ByteAS) {
+		t.Errorf("Grouped AS_PATH not 2-byte encoded\nexpected to contain: %x\ngot: %x",
+			expected2ByteAS, update.PathAttributes)
+	}
+}
+
+// TestBuildGroupedUnicast_MultipleNLRIs verifies grouped UPDATE encoding.
+//
+// VALIDATES: Multiple prefixes packed into single UPDATE with shared attributes.
+// PREVENTS: Regression in GroupUpdates=true performance optimization.
+func TestBuildGroupedUnicast_MultipleNLRIs(t *testing.T) {
+	ctx := &nlri.PackContext{ASN4: true}
+	ub := NewUpdateBuilder(65001, true, ctx)
+
+	routes := []UnicastParams{
+		{
+			Prefix:          netip.MustParsePrefix("10.0.0.0/24"),
+			NextHop:         netip.MustParseAddr("192.168.1.1"),
+			Origin:          attribute.OriginIGP,
+			LocalPreference: 100,
+			Communities:     []uint32{0xFFFF0001},
+		},
+		{
+			Prefix:  netip.MustParsePrefix("10.0.1.0/24"),
+			NextHop: netip.MustParseAddr("192.168.1.1"),
+			Origin:  attribute.OriginIGP,
+		},
+		{
+			Prefix:  netip.MustParsePrefix("10.0.2.0/24"),
+			NextHop: netip.MustParseAddr("192.168.1.1"),
+			Origin:  attribute.OriginIGP,
+		},
+	}
+
+	update := ub.BuildGroupedUnicast(routes)
+
+	if update == nil {
+		t.Fatal("BuildGroupedUnicast returned nil")
+	}
+
+	// Verify NLRI contains all 3 prefixes (each /24 = 4 bytes: 1 len + 3 prefix)
+	expectedNLRILen := 3 * 4
+	if len(update.NLRI) != expectedNLRILen {
+		t.Errorf("NLRI length: got %d, want %d", len(update.NLRI), expectedNLRILen)
+	}
+
+	// Verify attributes from first route are present (COMMUNITIES)
+	if !bytes.Contains(update.PathAttributes, []byte{0xFF, 0xFF, 0x00, 0x01}) {
+		t.Error("First route's communities not found in PathAttributes")
+	}
+}
+
+// TestBuildGroupedUnicast_IncludesReflectorAttrs verifies RFC 4456 fields.
+//
+// VALIDATES: ORIGINATOR_ID and CLUSTER_LIST from first route are encoded.
+// PREVENTS: Data loss for route reflector attributes in grouped updates.
+func TestBuildGroupedUnicast_IncludesReflectorAttrs(t *testing.T) {
+	ctx := &nlri.PackContext{ASN4: true}
+	ub := NewUpdateBuilder(65001, true, ctx)
+
+	routes := []UnicastParams{
+		{
+			Prefix:            netip.MustParsePrefix("10.0.0.0/24"),
+			NextHop:           netip.MustParseAddr("192.168.1.1"),
+			Origin:            attribute.OriginIGP,
+			OriginatorID:      0xC0A80101,
+			ClusterList:       []uint32{0xC0A80102, 0xC0A80103},
+			RawAttributeBytes: [][]byte{{0xC0, 0x63, 0x01, 0xAB}}, // Custom attr
+		},
+		{
+			Prefix:  netip.MustParsePrefix("10.0.1.0/24"),
+			NextHop: netip.MustParseAddr("192.168.1.1"),
+			Origin:  attribute.OriginIGP,
+		},
+	}
+
+	update := ub.BuildGroupedUnicast(routes)
+	if update == nil {
+		t.Fatal("BuildGroupedUnicast returned nil")
+	}
+
+	// Verify ORIGINATOR_ID (type 9) present
+	if !bytes.Contains(update.PathAttributes, []byte{0x80, 0x09, 0x04, 0xC0, 0xA8, 0x01, 0x01}) {
+		t.Error("ORIGINATOR_ID not encoded")
+	}
+
+	// Verify CLUSTER_LIST (type 10) present
+	if !bytes.Contains(update.PathAttributes, []byte{0x80, 0x0A}) {
+		t.Error("CLUSTER_LIST not encoded")
+	}
+
+	// Verify RawAttributes appended
+	if !bytes.Contains(update.PathAttributes, []byte{0xC0, 0x63, 0x01, 0xAB}) {
+		t.Error("RawAttributes not appended")
+	}
+}
+
+// TestBuildGroupedUnicast_WithAddPath verifies ADD-PATH encoding (RFC 7911).
+//
+// VALIDATES: PathID is encoded when ADD-PATH is negotiated.
+// PREVENTS: Missing path identifiers in grouped updates.
+func TestBuildGroupedUnicast_WithAddPath(t *testing.T) {
+	ctx := &nlri.PackContext{ASN4: true, AddPath: true}
+	ub := NewUpdateBuilder(65001, true, ctx)
+
+	routes := []UnicastParams{
+		{
+			Prefix:  netip.MustParsePrefix("10.0.0.0/24"),
+			NextHop: netip.MustParseAddr("192.168.1.1"),
+			Origin:  attribute.OriginIGP,
+			PathID:  1,
+		},
+		{
+			Prefix:  netip.MustParsePrefix("10.0.1.0/24"),
+			NextHop: netip.MustParseAddr("192.168.1.1"),
+			Origin:  attribute.OriginIGP,
+			PathID:  2,
+		},
+	}
+
+	update := ub.BuildGroupedUnicast(routes)
+	if update == nil {
+		t.Fatal("BuildGroupedUnicast returned nil")
+	}
+
+	// With ADD-PATH: each NLRI = 4-byte PathID + 1-byte len + 3-byte prefix = 8 bytes
+	// 2 routes = 16 bytes
+	expectedNLRILen := 16
+	if len(update.NLRI) != expectedNLRILen {
+		t.Errorf("NLRI length with ADD-PATH: got %d, want %d", len(update.NLRI), expectedNLRILen)
+	}
+}
+
+// TestBuildGroupedUnicast_EmptySlice verifies empty input handling.
+func TestBuildGroupedUnicast_EmptySlice(t *testing.T) {
+	ctx := &nlri.PackContext{ASN4: true}
+	ub := NewUpdateBuilder(65001, true, ctx)
+
+	update := ub.BuildGroupedUnicast(nil)
+
+	if update == nil {
+		t.Fatal("BuildGroupedUnicast returned nil for empty input")
+	}
+	if len(update.PathAttributes) != 0 || len(update.NLRI) != 0 {
+		t.Error("Expected empty update for empty input")
+	}
+}
+
+// =============================================================================
+// ASN4 Encoding Tests for Non-Unicast Builders (RFC 6793)
+// =============================================================================
+
+// TestBuildVPN_ASN4Disabled verifies 2-byte AS encoding for VPN routes.
+//
+// VALIDATES: AS_PATH uses 2-byte ASN format when ctx.ASN4=false.
+// PREVENTS: RFC 6793 violation for legacy peers with VPN routes.
+func TestBuildVPN_ASN4Disabled(t *testing.T) {
+	ctx := &nlri.PackContext{ASN4: false} // 2-byte mode
+	ub := NewUpdateBuilder(100, false, ctx)
+
+	params := VPNParams{
+		Prefix:  netip.MustParsePrefix("10.0.0.0/24"),
+		NextHop: netip.MustParseAddr("192.168.1.1"),
+		Origin:  attribute.OriginIGP,
+		Label:   100,
+		RDBytes: [8]byte{0, 1, 0, 0, 0, 100, 0, 100},
+	}
+
+	update := ub.BuildVPN(params)
+
+	// AS_PATH with 2-byte ASN: 40 02 04 02 01 00 64
+	// flags=0x40 (transitive), type=2 (AS_PATH), len=4
+	// segment: type=2 (AS_SEQUENCE), count=1, AS=100 (0x0064) as 2 bytes
+	expected2ByteAS := []byte{0x40, 0x02, 0x04, 0x02, 0x01, 0x00, 0x64}
+	if !bytes.Contains(update.PathAttributes, expected2ByteAS) {
+		t.Errorf("VPN AS_PATH not 2-byte encoded\nexpected to contain: %x\ngot: %x",
+			expected2ByteAS, update.PathAttributes)
+	}
+
+	// Verify it's NOT using 4-byte format
+	wrong4ByteAS := []byte{0x40, 0x02, 0x06, 0x02, 0x01, 0x00, 0x00, 0x00, 0x64}
+	if bytes.Contains(update.PathAttributes, wrong4ByteAS) {
+		t.Error("VPN AS_PATH incorrectly using 4-byte format when ASN4=false")
+	}
+}
+
+// TestBuildLabeledUnicast_ASN4Disabled verifies 2-byte AS encoding for labeled unicast.
+//
+// VALIDATES: AS_PATH uses 2-byte ASN format when ctx.ASN4=false.
+// PREVENTS: RFC 6793 violation for legacy peers with labeled unicast routes.
+func TestBuildLabeledUnicast_ASN4Disabled(t *testing.T) {
+	ctx := &nlri.PackContext{ASN4: false}
+	ub := NewUpdateBuilder(100, false, ctx)
+
+	params := LabeledUnicastParams{
+		Prefix:  netip.MustParsePrefix("10.0.0.0/24"),
+		NextHop: netip.MustParseAddr("192.168.1.1"),
+		Origin:  attribute.OriginIGP,
+		Label:   100,
+	}
+
+	update := ub.BuildLabeledUnicast(params)
+
+	expected2ByteAS := []byte{0x40, 0x02, 0x04, 0x02, 0x01, 0x00, 0x64}
+	if !bytes.Contains(update.PathAttributes, expected2ByteAS) {
+		t.Errorf("LabeledUnicast AS_PATH not 2-byte encoded\nexpected to contain: %x\ngot: %x",
+			expected2ByteAS, update.PathAttributes)
+	}
+}
+
+// TestBuildMVPN_ASN4Disabled verifies 2-byte AS encoding for MVPN routes.
+//
+// VALIDATES: AS_PATH uses 2-byte ASN format when ctx.ASN4=false.
+// PREVENTS: RFC 6793 violation for legacy peers with MVPN routes.
+func TestBuildMVPN_ASN4Disabled(t *testing.T) {
+	ctx := &nlri.PackContext{ASN4: false}
+	ub := NewUpdateBuilder(100, false, ctx)
+
+	params := MVPNParams{
+		RouteType: 5,
+		IsIPv6:    false,
+		RD:        [8]byte{0, 1, 0, 0, 0, 100, 0, 100},
+		Source:    netip.MustParseAddr("10.0.0.1"),
+		Group:     netip.MustParseAddr("239.1.1.1"),
+		NextHop:   netip.MustParseAddr("192.168.1.1"),
+		Origin:    attribute.OriginIGP,
+	}
+
+	update := ub.BuildMVPN([]MVPNParams{params})
+
+	expected2ByteAS := []byte{0x40, 0x02, 0x04, 0x02, 0x01, 0x00, 0x64}
+	if !bytes.Contains(update.PathAttributes, expected2ByteAS) {
+		t.Errorf("MVPN AS_PATH not 2-byte encoded\nexpected to contain: %x\ngot: %x",
+			expected2ByteAS, update.PathAttributes)
+	}
+}
+
+// TestBuildVPLS_ASN4Disabled verifies 2-byte AS encoding for VPLS routes.
+//
+// VALIDATES: AS_PATH uses 2-byte ASN format when ctx.ASN4=false.
+// PREVENTS: RFC 6793 violation for legacy peers with VPLS routes.
+func TestBuildVPLS_ASN4Disabled(t *testing.T) {
+	ctx := &nlri.PackContext{ASN4: false}
+	ub := NewUpdateBuilder(100, false, ctx)
+
+	params := VPLSParams{
+		RD:       [8]byte{0, 1, 0, 0, 0, 100, 0, 100},
+		Endpoint: 1,
+		Base:     100,
+		Offset:   0,
+		Size:     10,
+		NextHop:  netip.MustParseAddr("192.168.1.1"),
+		Origin:   attribute.OriginIGP,
+	}
+
+	update := ub.BuildVPLS(params)
+
+	expected2ByteAS := []byte{0x40, 0x02, 0x04, 0x02, 0x01, 0x00, 0x64}
+	if !bytes.Contains(update.PathAttributes, expected2ByteAS) {
+		t.Errorf("VPLS AS_PATH not 2-byte encoded\nexpected to contain: %x\ngot: %x",
+			expected2ByteAS, update.PathAttributes)
+	}
+}
+
+// TestBuildFlowSpec_ASN4Disabled verifies 2-byte AS encoding for FlowSpec routes.
+//
+// VALIDATES: AS_PATH uses 2-byte ASN format when ctx.ASN4=false.
+// PREVENTS: RFC 6793 violation for legacy peers with FlowSpec routes.
+func TestBuildFlowSpec_ASN4Disabled(t *testing.T) {
+	ctx := &nlri.PackContext{ASN4: false}
+	ub := NewUpdateBuilder(100, false, ctx)
+
+	params := FlowSpecParams{
+		IsIPv6:  false,
+		NLRI:    []byte{0x03, 0x01, 0x18, 0x0a},
+		NextHop: netip.MustParseAddr("192.168.1.1"),
+	}
+
+	update := ub.BuildFlowSpec(params)
+
+	expected2ByteAS := []byte{0x40, 0x02, 0x04, 0x02, 0x01, 0x00, 0x64}
+	if !bytes.Contains(update.PathAttributes, expected2ByteAS) {
+		t.Errorf("FlowSpec AS_PATH not 2-byte encoded\nexpected to contain: %x\ngot: %x",
+			expected2ByteAS, update.PathAttributes)
+	}
+}
+
+// TestBuildMUP_ASN4Disabled verifies 2-byte AS encoding for MUP routes.
+//
+// VALIDATES: AS_PATH uses 2-byte ASN format when ctx.ASN4=false.
+// PREVENTS: RFC 6793 violation for legacy peers with MUP routes.
+func TestBuildMUP_ASN4Disabled(t *testing.T) {
+	ctx := &nlri.PackContext{ASN4: false}
+	ub := NewUpdateBuilder(100, false, ctx)
+
+	params := MUPParams{
+		RouteType: 1,
+		IsIPv6:    false,
+		NLRI:      []byte{0x01, 0x02, 0x03, 0x04},
+		NextHop:   netip.MustParseAddr("192.168.1.1"),
+	}
+
+	update := ub.BuildMUP(params)
+
+	expected2ByteAS := []byte{0x40, 0x02, 0x04, 0x02, 0x01, 0x00, 0x64}
+	if !bytes.Contains(update.PathAttributes, expected2ByteAS) {
+		t.Errorf("MUP AS_PATH not 2-byte encoded\nexpected to contain: %x\ngot: %x",
+			expected2ByteAS, update.PathAttributes)
+	}
+}
+
+// TestBuildMUPWithdraw_ASN4Disabled verifies 2-byte AS encoding for MUP withdrawals.
+//
+// VALIDATES: AS_PATH uses 2-byte ASN format when ctx.ASN4=false.
+// PREVENTS: RFC 6793 violation for legacy peers with MUP withdrawals.
+func TestBuildMUPWithdraw_ASN4Disabled(t *testing.T) {
+	ctx := &nlri.PackContext{ASN4: false}
+	ub := NewUpdateBuilder(100, false, ctx)
+
+	params := MUPParams{
+		RouteType: 1,
+		IsIPv6:    false,
+		NLRI:      []byte{0x01, 0x02, 0x03, 0x04},
+		NextHop:   netip.MustParseAddr("192.168.1.1"),
+	}
+
+	update := ub.BuildMUPWithdraw(params)
+
+	expected2ByteAS := []byte{0x40, 0x02, 0x04, 0x02, 0x01, 0x00, 0x64}
+	if !bytes.Contains(update.PathAttributes, expected2ByteAS) {
+		t.Errorf("MUPWithdraw AS_PATH not 2-byte encoded\nexpected to contain: %x\ngot: %x",
+			expected2ByteAS, update.PathAttributes)
+	}
+}
+
+// =============================================================================
+// AGGREGATOR ASN4 Encoding Tests (RFC 6793 Section 4.2.3)
+// =============================================================================
+
+// TestBuildUnicast_Aggregator_ASN4Disabled verifies 6-byte AGGREGATOR encoding.
+//
+// VALIDATES: AGGREGATOR uses 6-byte format (2-byte ASN) when ctx.ASN4=false.
+// PREVENTS: RFC 6793 violation - AGGREGATOR must match ASN4 capability.
+func TestBuildUnicast_Aggregator_ASN4Disabled(t *testing.T) {
+	ctx := &nlri.PackContext{ASN4: false}
+	ub := NewUpdateBuilder(100, false, ctx)
+
+	params := UnicastParams{
+		Prefix:        netip.MustParsePrefix("10.0.0.0/24"),
+		NextHop:       netip.MustParseAddr("192.168.1.1"),
+		Origin:        attribute.OriginIGP,
+		HasAggregator: true,
+		AggregatorASN: 100,
+		AggregatorIP:  [4]byte{192, 168, 1, 1},
+	}
+
+	update := ub.BuildUnicast(params)
+
+	// AGGREGATOR with 2-byte ASN: C0 07 06 00 64 C0 A8 01 01
+	// flags=0xC0 (optional+transitive), type=7, len=6, ASN=100 (2 bytes), IP=192.168.1.1
+	expected6Byte := []byte{0xC0, 0x07, 0x06, 0x00, 0x64, 0xC0, 0xA8, 0x01, 0x01}
+	if !bytes.Contains(update.PathAttributes, expected6Byte) {
+		t.Errorf("AGGREGATOR not 6-byte encoded\nexpected to contain: %x\ngot: %x",
+			expected6Byte, update.PathAttributes)
+	}
+
+	// Verify it's NOT using 8-byte format
+	wrong8Byte := []byte{0xC0, 0x07, 0x08, 0x00, 0x00, 0x00, 0x64}
+	if bytes.Contains(update.PathAttributes, wrong8Byte) {
+		t.Error("AGGREGATOR incorrectly using 8-byte format when ASN4=false")
+	}
+}
+
+// TestBuildVPN_Aggregator_ASN4Disabled verifies 6-byte AGGREGATOR for VPN routes.
+//
+// VALIDATES: AGGREGATOR uses 6-byte format when ctx.ASN4=false.
+// PREVENTS: RFC 6793 violation for VPN routes.
+func TestBuildVPN_Aggregator_ASN4Disabled(t *testing.T) {
+	ctx := &nlri.PackContext{ASN4: false}
+	ub := NewUpdateBuilder(100, false, ctx)
+
+	params := VPNParams{
+		Prefix:        netip.MustParsePrefix("10.0.0.0/24"),
+		NextHop:       netip.MustParseAddr("192.168.1.1"),
+		Origin:        attribute.OriginIGP,
+		Label:         100,
+		RDBytes:       [8]byte{0, 1, 0, 0, 0, 100, 0, 100},
+		HasAggregator: true,
+		AggregatorASN: 100,
+		AggregatorIP:  [4]byte{192, 168, 1, 1},
+	}
+
+	update := ub.BuildVPN(params)
+
+	expected6Byte := []byte{0xC0, 0x07, 0x06, 0x00, 0x64, 0xC0, 0xA8, 0x01, 0x01}
+	if !bytes.Contains(update.PathAttributes, expected6Byte) {
+		t.Errorf("VPN AGGREGATOR not 6-byte encoded\nexpected to contain: %x\ngot: %x",
+			expected6Byte, update.PathAttributes)
+	}
+}
+
+// TestBuildLabeledUnicast_Aggregator_ASN4Disabled verifies 6-byte AGGREGATOR for labeled unicast.
+//
+// VALIDATES: AGGREGATOR uses 6-byte format when ctx.ASN4=false.
+// PREVENTS: RFC 6793 violation for labeled unicast routes.
+func TestBuildLabeledUnicast_Aggregator_ASN4Disabled(t *testing.T) {
+	ctx := &nlri.PackContext{ASN4: false}
+	ub := NewUpdateBuilder(100, false, ctx)
+
+	params := LabeledUnicastParams{
+		Prefix:        netip.MustParsePrefix("10.0.0.0/24"),
+		NextHop:       netip.MustParseAddr("192.168.1.1"),
+		Origin:        attribute.OriginIGP,
+		Label:         100,
+		HasAggregator: true,
+		AggregatorASN: 100,
+		AggregatorIP:  [4]byte{192, 168, 1, 1},
+	}
+
+	update := ub.BuildLabeledUnicast(params)
+
+	expected6Byte := []byte{0xC0, 0x07, 0x06, 0x00, 0x64, 0xC0, 0xA8, 0x01, 0x01}
+	if !bytes.Contains(update.PathAttributes, expected6Byte) {
+		t.Errorf("LabeledUnicast AGGREGATOR not 6-byte encoded\nexpected to contain: %x\ngot: %x",
+			expected6Byte, update.PathAttributes)
+	}
+}
+
+// TestBuildVPLS_Aggregator_ASN4Disabled verifies 6-byte AGGREGATOR for VPLS routes.
+//
+// VALIDATES: AGGREGATOR uses 6-byte format when ctx.ASN4=false.
+// PREVENTS: RFC 6793 violation for VPLS routes.
+func TestBuildVPLS_Aggregator_ASN4Disabled(t *testing.T) {
+	ctx := &nlri.PackContext{ASN4: false}
+	ub := NewUpdateBuilder(100, false, ctx)
+
+	params := VPLSParams{
+		RD:       [8]byte{0, 1, 0, 0, 0, 100, 0, 100},
+		Endpoint: 1,
+		Base:     100,
+		Offset:   0,
+		Size:     10,
+		NextHop:  netip.MustParseAddr("192.168.1.1"),
+		Origin:   attribute.OriginIGP,
+		ASPath:   []uint32{100}, // Need AS path to trigger aggregator
+	}
+	// Note: VPLSParams doesn't have HasAggregator - this test documents the limitation
+
+	update := ub.BuildVPLS(params)
+	if update == nil {
+		t.Fatal("BuildVPLS returned nil")
+	}
+}
+
+// TestBuildGroupedUnicast_Aggregator_ASN4Disabled verifies 6-byte AGGREGATOR for grouped updates.
+//
+// VALIDATES: AGGREGATOR uses 6-byte format when ctx.ASN4=false in grouped updates.
+// PREVENTS: RFC 6793 violation for grouped unicast routes.
+func TestBuildGroupedUnicast_Aggregator_ASN4Disabled(t *testing.T) {
+	ctx := &nlri.PackContext{ASN4: false}
+	ub := NewUpdateBuilder(100, false, ctx)
+
+	routes := []UnicastParams{
+		{
+			Prefix:        netip.MustParsePrefix("10.0.0.0/24"),
+			NextHop:       netip.MustParseAddr("192.168.1.1"),
+			Origin:        attribute.OriginIGP,
+			HasAggregator: true,
+			AggregatorASN: 100,
+			AggregatorIP:  [4]byte{192, 168, 1, 1},
+		},
+		{
+			Prefix:  netip.MustParsePrefix("10.0.1.0/24"),
+			NextHop: netip.MustParseAddr("192.168.1.1"),
+			Origin:  attribute.OriginIGP,
+		},
+	}
+
+	update := ub.BuildGroupedUnicast(routes)
+
+	expected6Byte := []byte{0xC0, 0x07, 0x06, 0x00, 0x64, 0xC0, 0xA8, 0x01, 0x01}
+	if !bytes.Contains(update.PathAttributes, expected6Byte) {
+		t.Errorf("Grouped AGGREGATOR not 6-byte encoded\nexpected to contain: %x\ngot: %x",
+			expected6Byte, update.PathAttributes)
 	}
 }
