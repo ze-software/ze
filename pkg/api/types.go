@@ -337,6 +337,15 @@ type ReactorInterface interface {
 	// GetPeerAPIBindings returns API bindings for a specific peer.
 	// Used to determine which processes receive messages from this peer.
 	GetPeerAPIBindings(peerAddr netip.Addr) []PeerAPIBinding
+
+	// ForwardUpdate forwards a cached UPDATE to peers matching the selector.
+	// One-shot: deletes from cache after forwarding.
+	// Returns error if update-id is expired or not found.
+	ForwardUpdate(sel *Selector, updateID uint64) error
+
+	// DeleteUpdate removes an update from the cache without forwarding.
+	// Used when controller decides not to forward (filtering).
+	DeleteUpdate(updateID uint64) error
 }
 
 // PeerAPIBinding describes which process receives messages from a peer.
@@ -449,4 +458,5 @@ type RawMessage struct {
 	Type      message.MessageType // UPDATE, OPEN, NOTIFICATION, etc.
 	RawBytes  []byte              // Original wire bytes (without marker/header)
 	Timestamp time.Time
+	UpdateID  uint64 // Unique ID for UPDATE messages (for route forwarding)
 }

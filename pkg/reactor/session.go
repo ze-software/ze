@@ -1165,6 +1165,46 @@ func (s *Session) SendUpdate(update *message.Update) error {
 	return err
 }
 
+// SendRawUpdateBody sends a pre-encoded UPDATE message body (without BGP header).
+// Used for zero-copy forwarding when encoding contexts match.
+// Prepends the BGP header with correct length.
+// Returns ErrInvalidState if the session is not established.
+func (s *Session) SendRawUpdateBody(body []byte) error {
+	s.mu.RLock()
+	conn := s.conn
+	state := s.fsm.State()
+	s.mu.RUnlock()
+
+	if state != fsm.StateEstablished {
+		return ErrInvalidState
+	}
+
+	if conn == nil {
+		return ErrNotConnected
+	}
+
+	// Build BGP header + body
+	// RFC 4271 Section 4.1 - Length includes header (19 bytes) + body
+	totalLen := message.HeaderLen + len(body)
+	data := make([]byte, totalLen)
+
+	// Marker (16 bytes of 0xFF)
+	copy(data[:message.MarkerLen], message.Marker[:])
+
+	// Length (2 bytes, big-endian)
+	data[16] = byte(totalLen >> 8)
+	data[17] = byte(totalLen)
+
+	// Type (1 byte) - UPDATE = 2
+	data[18] = byte(message.TypeUPDATE)
+
+	// Body
+	copy(data[message.HeaderLen:], body)
+
+	_, err := conn.Write(data)
+	return err
+}
+
 // isTimeout checks if an error is a timeout.
 func isTimeout(err error) bool {
 	if err == nil {

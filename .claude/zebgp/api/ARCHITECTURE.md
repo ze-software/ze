@@ -397,7 +397,9 @@ Key methods:
 - `BeginTransaction()` - Start batch mode
 - `CommitAndClear()` - Flush queued
 
-## Route Reflection via API (Route ID Pattern)
+## Route Reflection via API (Update ID Pattern)
+
+> **Implementation spec:** `plan/spec-route-id-forwarding.md`
 
 ZeBGP implements route reflection through the API, not internally. This enables
 external policy engines to make routing decisions.
@@ -405,38 +407,39 @@ external policy engines to make routing decisions.
 ### Architecture
 
 ```
-Peer A → Receive UPDATE → Store (wire + route ID) → API output (partial parse)
+Peer A → Receive UPDATE → Store (wire + update ID) → API output (partial parse)
                                                             ↓
                                                    External process decides
                                                             ↓
-                          API command: "peer !<ip> forward route-id 123"
+                          API command: "peer !<ip> forward update-id 123"
                                                             ↓
-Peer B,C ← Send wire bytes directly ← Lookup route by ID
+Peer B,C ← Send wire bytes directly ← Lookup update by ID
 ```
 
 ### Key Concepts
 
 | Concept | Description |
 |---------|-------------|
-| **Route ID** | Unique identifier assigned when route received |
+| **Update ID** | Unique identifier per UPDATE message (not per-NLRI) |
+| **Time-based cache** | Recent updates cached for fast lookup (TTL configurable) |
 | **Partial parsing** | Only parse attributes needed for API output |
-| **Forward by ID** | API references routes by ID, ZeBGP forwards wire bytes |
+| **Forward by ID** | API references updates by ID, ZeBGP forwards wire bytes |
 | **`peer !<ip>`** | Negated selector for "all except this peer" |
 
 ### Flow Details
 
-1. **Receive:** Store wire bytes + assign route ID
-2. **API output:** Parse only configured attributes, include route ID
+1. **Receive:** Assign update-id, cache UPDATE, store NLRIs in RIB
+2. **API output:** Parse only configured attributes, include update-id
 3. **External decision:** Policy engine decides destinations
-4. **Forward command:** `peer !<source-ip> forward route-id <id>`
-5. **Send:** Lookup route, use wire bytes (zero-copy if contexts match)
+4. **Forward command:** `peer !<source-ip> forward update-id <id>`
+5. **Send:** Lookup cached update, use wire bytes (zero-copy if contexts match)
 
-### API Output with Route ID
+### API Output with Update ID
 
 ```json
 {
   "type": "update",
-  "route-id": 12345,
+  "update-id": 12345,
   "peer": { "address": "10.0.0.1" },
   "announce": {
     "nlri": { "ipv4 unicast": ["192.168.1.0/24"] },
@@ -451,11 +454,11 @@ Peer B,C ← Send wire bytes directly ← Lookup route by ID
 ### Forward Command
 
 ```
-# Forward route to all peers except source
-peer !10.0.0.1 forward route-id 12345
+# Forward update to all peers except source
+peer !10.0.0.1 forward update-id 12345
 
 # Forward to specific peer
-peer 10.0.0.2 forward route-id 12345
+peer 10.0.0.2 forward update-id 12345
 ```
 
 ### Attribute Filtering (Partial Parse)
@@ -481,11 +484,11 @@ Benefits:
 RFC 9234 (BGP Role) enables route decisions **without parsing attributes**:
 
 ```
-Peer A (Role: Customer) → Receive → Tag with role → API output (role + route-id)
+Peer A (Role: Customer) → Receive → Tag with role → API output (role + update-id)
                                                             ↓
                                       External process decides based on ROLE
                                                             ↓
-                             API command: "peer !<ip> forward route-id 123"
+                             API command: "peer !<ip> forward update-id 123"
 ```
 
 Each route carries a `RouteTag`:
@@ -497,7 +500,7 @@ With role tagging, decisions can be made without parsing AS_PATH, communities, e
 
 ### Wire Cache Value
 
-Unlike locally-originated API routes, **received routes** benefit from wire caching:
+Unlike locally-originated API routes, **received updates** benefit from wire caching:
 
 | Route Type | Wire Cache | Reason |
 |------------|------------|--------|
@@ -506,8 +509,8 @@ Unlike locally-originated API routes, **received routes** benefit from wire cach
 
 ### Zero-Copy Forwarding
 
-When forwarding by route ID:
-1. Lookup route in RIB by ID
+When forwarding by update-id:
+1. Lookup cached update by ID
 2. Check context compatibility (`sourceCtxID == destCtxID`)
 3. If compatible: return `wireBytes` directly (zero-copy)
 4. If not: re-encode with destination context

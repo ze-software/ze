@@ -64,6 +64,14 @@ type Config struct {
 	// ConfigDir is the directory containing the config file.
 	// Used as working directory for process execution.
 	ConfigDir string
+
+	// RecentUpdateTTL is how long update-ids remain valid for forwarding.
+	// Default: 60s. Zero disables caching (forwarding won't work).
+	RecentUpdateTTL time.Duration
+
+	// RecentUpdateMax is the maximum number of cached updates.
+	// Default: 100000. Zero means no limit (not recommended).
+	RecentUpdateMax int
 }
 
 // APIProcessConfig holds external process configuration for the API.
@@ -120,6 +128,9 @@ type Reactor struct {
 
 	// Watchdog pools for API-created routes
 	watchdog *WatchdogManager
+
+	// Recent UPDATE cache for efficient forwarding via update-id
+	recentUpdates *RecentUpdateCache
 
 	connCallback    ConnectionCallback
 	messageReceiver MessageReceiver // Receives raw BGP messages
@@ -1588,6 +1599,106 @@ func (a *reactorAPIAdapter) sendWithdrawals(peer *Peer, withdrawals []nlri.NLRI)
 	return updatesSent
 }
 
+// ForwardUpdate forwards a cached UPDATE to peers matching the selector.
+// Looks up the update by ID from the cache and sends to matching peers.
+// One-shot: deletes from cache after forwarding completes.
+//
+// Zero-copy optimization: When source and destination encoding contexts match
+// (same ASN4, ADD-PATH capabilities), the raw UPDATE bytes are forwarded
+// directly without re-encoding.
+func (a *reactorAPIAdapter) ForwardUpdate(sel *api.Selector, updateID uint64) error {
+	// Look up update by ID from cache
+	update, ok := a.r.recentUpdates.Get(updateID)
+	if !ok {
+		return ErrUpdateExpired
+	}
+
+	// Get matching peers
+	a.r.mu.RLock()
+	var matchingPeers []*Peer
+	for _, peer := range a.r.peers {
+		addr := peer.Settings().Address
+		if sel.Matches(addr) && addr != update.SourcePeerIP {
+			// Don't forward back to source peer (implicit loop prevention)
+			matchingPeers = append(matchingPeers, peer)
+		}
+	}
+	a.r.mu.RUnlock()
+
+	if len(matchingPeers) == 0 {
+		return fmt.Errorf("no peers match selector %s", sel)
+	}
+
+	// Convert to routes for adj-rib-out persistence (parse once, reuse for all peers)
+	// Errors are non-fatal: forwarding still works, but routes won't persist across reconnects
+	routes, _ := update.ConvertToRoutes()
+
+	// Forward to all matching peers, collect errors
+	// Lazy parsing: only parse if we need to re-encode
+	var parsedUpdate *message.Update
+	var errs []error
+	var sentCount int
+
+	for _, peer := range matchingPeers {
+		if peer.State() != PeerStateEstablished {
+			continue // Skip non-established peers
+		}
+
+		sentCount++
+		destCtxID := peer.SendContextID()
+
+		// Zero-copy path: use raw bytes when contexts match
+		// Both must be non-zero (registered) and equal
+		if update.SourceCtxID != 0 && destCtxID != 0 && update.SourceCtxID == destCtxID {
+			if err := peer.SendRawUpdateBody(update.RawBytes); err != nil {
+				errs = append(errs, fmt.Errorf("peer %s: %w", peer.Settings().Address, err))
+			}
+		} else {
+			// Re-encode path: parse (lazily) and send
+			if parsedUpdate == nil {
+				var parseErr error
+				parsedUpdate, parseErr = message.UnpackUpdate(update.RawBytes)
+				if parseErr != nil {
+					return fmt.Errorf("parsing cached update: %w", parseErr)
+				}
+			}
+			if err := peer.SendUpdate(parsedUpdate); err != nil {
+				errs = append(errs, fmt.Errorf("peer %s: %w", peer.Settings().Address, err))
+			}
+		}
+
+		// Store in adj-rib-out for persistence across reconnects
+		adjRIBOut := peer.AdjRIBOut()
+		for _, route := range routes {
+			adjRIBOut.MarkSent(route)
+		}
+		for _, n := range update.Withdraws {
+			adjRIBOut.RemoveFromSent(n)
+		}
+	}
+
+	// One-shot: delete from cache after forwarding (even on partial failure)
+	a.r.recentUpdates.Delete(updateID)
+
+	if sentCount == 0 {
+		return fmt.Errorf("no established peers to forward to")
+	}
+
+	if len(errs) > 0 {
+		return errors.Join(errs...)
+	}
+	return nil
+}
+
+// DeleteUpdate removes an update from the cache without forwarding.
+// Used when controller decides not to forward (filtering).
+func (a *reactorAPIAdapter) DeleteUpdate(updateID uint64) error {
+	if !a.r.recentUpdates.Delete(updateID) {
+		return ErrUpdateExpired
+	}
+	return nil
+}
+
 // convertRIBError converts RIB errors to API errors.
 func convertRIBError(err error) error {
 	switch {
@@ -1666,14 +1777,25 @@ func formatASPath(asPath *attribute.ASPath) string {
 
 // New creates a new reactor with the given configuration.
 func New(config *Config) *Reactor {
+	// Apply defaults for recent update cache
+	ttl := config.RecentUpdateTTL
+	if ttl == 0 {
+		ttl = 60 * time.Second // Default: 60 seconds
+	}
+	maxEntries := config.RecentUpdateMax
+	if maxEntries == 0 {
+		maxEntries = 100000 // Default: 100k entries
+	}
+
 	return &Reactor{
-		config:    config,
-		peers:     make(map[string]*Peer),
-		listeners: make(map[netip.Addr]*Listener),
-		ribIn:     rib.NewIncomingRIB(),
-		ribOut:    rib.NewOutgoingRIB(),
-		ribStore:  rib.NewRouteStore(100), // Buffer size for dedup workers
-		watchdog:  NewWatchdogManager(),
+		config:        config,
+		peers:         make(map[string]*Peer),
+		listeners:     make(map[netip.Addr]*Listener),
+		ribIn:         rib.NewIncomingRIB(),
+		ribOut:        rib.NewOutgoingRIB(),
+		ribStore:      rib.NewRouteStore(100), // Buffer size for dedup workers
+		watchdog:      NewWatchdogManager(),
+		recentUpdates: NewRecentUpdateCache(ttl, maxEntries),
 	}
 }
 
@@ -1864,6 +1986,20 @@ func (r *Reactor) notifyMessageReceiver(peerAddr netip.Addr, msgType message.Mes
 		Type:      msgType,
 		RawBytes:  bytesCopy,
 		Timestamp: time.Now(),
+	}
+
+	// Assign update-id for UPDATE messages (used for forwarding via API)
+	if msgType == message.TypeUPDATE && hasPeer {
+		msg.UpdateID = nextUpdateID()
+
+		// Cache the update for forwarding
+		r.recentUpdates.Add(&ReceivedUpdate{
+			UpdateID:     msg.UpdateID,
+			RawBytes:     bytesCopy, // Already a copy, safe to store
+			SourcePeerIP: peerAddr,
+			SourceCtxID:  peer.RecvContextID(),
+			ReceivedAt:   msg.Timestamp,
+		})
 	}
 
 	receiver.OnMessageReceived(peerInfo, msg)

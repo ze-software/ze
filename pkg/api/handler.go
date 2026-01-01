@@ -42,6 +42,9 @@ func RegisterDefaultHandlers(d *Dispatcher) {
 
 	// Session operations (per-process API connection state)
 	RegisterSessionHandlers(d)
+
+	// Forward operations (route reflection via update-id)
+	RegisterForwardHandlers(d)
 }
 
 // handleDaemonShutdown signals the reactor to stop.

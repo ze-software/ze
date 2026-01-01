@@ -263,6 +263,10 @@ func formatParsedV7(peer PeerInfo, msg RawMessage, encoding string) string {
 	routes := DecodeUpdateRoutes(msg.RawBytes)
 	if len(routes) == 0 {
 		if encoding == EncodingJSON {
+			if msg.UpdateID != 0 {
+				return fmt.Sprintf(`{"type":"update","update-id":%d,"peer":{"address":"%s","asn":%d},"announce":{}}`+"\n",
+					msg.UpdateID, peer.Address, peer.PeerAS)
+			}
 			return fmt.Sprintf(`{"type":"update","peer":{"address":"%s","asn":%d},"announce":{}}`+"\n",
 				peer.Address, peer.PeerAS)
 		}
@@ -270,7 +274,7 @@ func formatParsedV7(peer PeerInfo, msg RawMessage, encoding string) string {
 	}
 
 	if encoding == EncodingJSON {
-		return formatRoutesJSONv7(peer, routes)
+		return formatRoutesJSONv7(peer, routes, msg.UpdateID)
 	}
 	return formatRoutesTextV7(peer, routes)
 }
@@ -283,7 +287,11 @@ func formatFullV7(peer PeerInfo, msg RawMessage, encoding string) string {
 	if encoding == EncodingJSON {
 		if len(routes) > 0 {
 			// Include raw in the JSON structure
-			return formatRoutesJSONv7WithRaw(peer, routes, rawHex)
+			return formatRoutesJSONv7WithRaw(peer, routes, rawHex, msg.UpdateID)
+		}
+		if msg.UpdateID != 0 {
+			return fmt.Sprintf(`{"type":"update","update-id":%d,"peer":{"address":"%s","asn":%d},"announce":{},"raw":"%s"}`+"\n",
+				msg.UpdateID, peer.Address, peer.PeerAS, rawHex)
 		}
 		return fmt.Sprintf(`{"type":"update","peer":{"address":"%s","asn":%d},"announce":{},"raw":"%s"}`+"\n",
 			peer.Address, peer.PeerAS, rawHex)
@@ -335,7 +343,7 @@ func formatRoutesTextV7(peer PeerInfo, routes []ReceivedRoute) string {
 }
 
 // formatRoutesJSONv7 formats routes in v7 JSON format.
-func formatRoutesJSONv7(peer PeerInfo, routes []ReceivedRoute) string {
+func formatRoutesJSONv7(peer PeerInfo, routes []ReceivedRoute, updateID uint64) string {
 	// Group routes by family
 	ipv4Routes := make([]ReceivedRoute, 0)
 	ipv6Routes := make([]ReceivedRoute, 0)
@@ -348,8 +356,13 @@ func formatRoutesJSONv7(peer PeerInfo, routes []ReceivedRoute) string {
 	}
 
 	var sb strings.Builder
-	sb.WriteString(fmt.Sprintf(`{"type":"update","peer":{"address":"%s","asn":%d},"announce":{"nlri":{`,
-		peer.Address, peer.PeerAS))
+	if updateID != 0 {
+		sb.WriteString(fmt.Sprintf(`{"type":"update","update-id":%d,"peer":{"address":"%s","asn":%d},"announce":{"nlri":{`,
+			updateID, peer.Address, peer.PeerAS))
+	} else {
+		sb.WriteString(fmt.Sprintf(`{"type":"update","peer":{"address":"%s","asn":%d},"announce":{"nlri":{`,
+			peer.Address, peer.PeerAS))
+	}
 
 	needComma := false
 	if len(ipv4Routes) > 0 {
@@ -370,7 +383,7 @@ func formatRoutesJSONv7(peer PeerInfo, routes []ReceivedRoute) string {
 }
 
 // formatRoutesJSONv7WithRaw formats routes in v7 JSON format with raw bytes.
-func formatRoutesJSONv7WithRaw(peer PeerInfo, routes []ReceivedRoute, rawHex string) string {
+func formatRoutesJSONv7WithRaw(peer PeerInfo, routes []ReceivedRoute, rawHex string, updateID uint64) string {
 	// Same as formatRoutesJSONv7 but with raw field
 	ipv4Routes := make([]ReceivedRoute, 0)
 	ipv6Routes := make([]ReceivedRoute, 0)
@@ -383,8 +396,13 @@ func formatRoutesJSONv7WithRaw(peer PeerInfo, routes []ReceivedRoute, rawHex str
 	}
 
 	var sb strings.Builder
-	sb.WriteString(fmt.Sprintf(`{"type":"update","peer":{"address":"%s","asn":%d},"announce":{"nlri":{`,
-		peer.Address, peer.PeerAS))
+	if updateID != 0 {
+		sb.WriteString(fmt.Sprintf(`{"type":"update","update-id":%d,"peer":{"address":"%s","asn":%d},"announce":{"nlri":{`,
+			updateID, peer.Address, peer.PeerAS))
+	} else {
+		sb.WriteString(fmt.Sprintf(`{"type":"update","peer":{"address":"%s","asn":%d},"announce":{"nlri":{`,
+			peer.Address, peer.PeerAS))
+	}
 
 	needComma := false
 	if len(ipv4Routes) > 0 {

@@ -208,7 +208,7 @@ func TestFormatMessageV7JSON(t *testing.T) {
 		Origin:  "igp",
 	}
 
-	got := formatRoutesJSONv7(peer, []ReceivedRoute{route})
+	got := formatRoutesJSONv7(peer, []ReceivedRoute{route}, 0)
 
 	// Check key parts of the JSON structure
 	if !strings.Contains(got, `"type":"update"`) {

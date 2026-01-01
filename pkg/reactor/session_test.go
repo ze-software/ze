@@ -1247,3 +1247,131 @@ func TestSessionRFC7606MissingMandatoryTreatAsWithdraw(t *testing.T) {
 	require.NoError(t, err, "RFC 7606: missing mandatory attribute should trigger treat-as-withdraw, not session reset")
 	require.Equal(t, fsm.StateEstablished, session.State())
 }
+
+// TestSendRawUpdateBody verifies raw UPDATE body sending with BGP header.
+//
+// VALIDATES: SendRawUpdateBody prepends correct BGP header (marker, length, type).
+// PREVENTS: Malformed messages when using zero-copy forwarding.
+func TestSendRawUpdateBody(t *testing.T) {
+	settings := NewPeerSettings(
+		netip.MustParseAddr("192.0.2.1"),
+		65001, 65002, 0x01020301,
+	)
+	settings.Passive = true
+
+	session := NewSession(settings)
+	_ = session.Start()
+
+	client, server := net.Pipe()
+	defer func() { _ = client.Close() }()
+	defer func() { _ = server.Close() }()
+
+	// Accept connection
+	_ = acceptWithReader(t, session, server, client)
+
+	// Peer's OPEN
+	peerOpen := &message.Open{
+		Version: 4, MyAS: 65002, HoldTime: 90, BGPIdentifier: 0x01020302,
+		OptionalParams: []byte{
+			2, 6,
+			65, 4, 0, 0, 0xFD, 0xEA, // ASN4 = 65002
+		},
+	}
+	openBytes, _ := peerOpen.Pack(nil)
+
+	go func() {
+		_, _ = client.Write(openBytes)
+		buf := make([]byte, 4096)
+		_, _ = client.Read(buf) // Drain KEEPALIVE
+	}()
+
+	err := session.ReadAndProcess()
+	require.NoError(t, err)
+
+	// Exchange KEEPALIVE to reach Established
+	keepalive := message.NewKeepalive()
+	keepaliveBytes, _ := keepalive.Pack(nil)
+
+	go func() {
+		_, _ = client.Write(keepaliveBytes)
+	}()
+
+	err = session.ReadAndProcess()
+	require.NoError(t, err)
+	require.Equal(t, fsm.StateEstablished, session.State())
+
+	// Create raw UPDATE body (minimal valid UPDATE: no withdrawals, no attrs, no NLRI)
+	rawBody := []byte{
+		0x00, 0x00, // Withdrawn routes length = 0
+		0x00, 0x00, // Path attributes length = 0
+		// No NLRI
+	}
+
+	// Read what session sends
+	var received []byte
+	done := make(chan struct{})
+	go func() {
+		buf := make([]byte, 4096)
+		n, _ := client.Read(buf)
+		received = buf[:n]
+		close(done)
+	}()
+
+	// Send raw UPDATE body
+	err = session.SendRawUpdateBody(rawBody)
+	require.NoError(t, err)
+
+	// Wait for receive
+	select {
+	case <-done:
+	case <-time.After(time.Second):
+		t.Fatal("timeout waiting for message")
+	}
+
+	// Verify BGP header
+	require.GreaterOrEqual(t, len(received), message.HeaderLen, "message too short")
+
+	// Check marker (16 bytes of 0xFF)
+	for i := 0; i < 16; i++ {
+		require.Equal(t, byte(0xFF), received[i], "marker byte %d should be 0xFF", i)
+	}
+
+	// Check length (19 header + 4 body = 23)
+	expectedLen := message.HeaderLen + len(rawBody)
+	actualLen := int(received[16])<<8 | int(received[17])
+	require.Equal(t, expectedLen, actualLen, "length field mismatch")
+
+	// Check type (UPDATE = 2)
+	require.Equal(t, byte(message.TypeUPDATE), received[18], "type should be UPDATE")
+
+	// Check body
+	require.Equal(t, rawBody, received[message.HeaderLen:], "body mismatch")
+}
+
+// TestSendRawUpdateBodyNotEstablished verifies error when session not established.
+//
+// VALIDATES: SendRawUpdateBody returns ErrInvalidState before ESTABLISHED.
+// PREVENTS: Sending data on non-established sessions.
+func TestSendRawUpdateBodyNotEstablished(t *testing.T) {
+	settings := NewPeerSettings(
+		netip.MustParseAddr("192.0.2.1"),
+		65001, 65002, 0x01020301,
+	)
+	settings.Passive = true
+
+	session := NewSession(settings)
+	_ = session.Start()
+
+	client, server := net.Pipe()
+	defer func() { _ = client.Close() }()
+	defer func() { _ = server.Close() }()
+
+	// Accept connection (now in OpenSent, not Established)
+	_ = acceptWithReader(t, session, server, client)
+	require.Equal(t, fsm.StateOpenSent, session.State())
+
+	// Try to send - should fail
+	rawBody := []byte{0x00, 0x00, 0x00, 0x00}
+	err := session.SendRawUpdateBody(rawBody)
+	require.ErrorIs(t, err, ErrInvalidState)
+}

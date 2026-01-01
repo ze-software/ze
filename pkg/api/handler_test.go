@@ -239,6 +239,14 @@ func (m *mockReactor) RemoveWatchdogRoute(_, _ string) error {
 	return nil
 }
 
+func (m *mockReactor) ForwardUpdate(_ *Selector, _ uint64) error {
+	return nil
+}
+
+func (m *mockReactor) DeleteUpdate(_ uint64) error {
+	return nil
+}
+
 // TestHandlerPeerList verifies peer list output.
 //
 // VALIDATES: All peers returned with state info.

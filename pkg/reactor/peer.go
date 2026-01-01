@@ -1013,6 +1013,21 @@ func (p *Peer) SendUpdate(update *message.Update) error {
 	return session.SendUpdate(update)
 }
 
+// SendRawUpdateBody sends a pre-encoded UPDATE message body (without BGP header).
+// Used for zero-copy forwarding when encoding contexts match.
+// Returns ErrNotConnected if no session is active.
+func (p *Peer) SendRawUpdateBody(body []byte) error {
+	p.mu.RLock()
+	session := p.session
+	p.mu.RUnlock()
+
+	if session == nil {
+		return ErrNotConnected
+	}
+
+	return session.SendRawUpdateBody(body)
+}
+
 // messageNegotiated returns message.Negotiated for use with CommitService.
 // Returns nil if session is not established.
 func (p *Peer) messageNegotiated() *message.Negotiated {

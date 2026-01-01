@@ -137,6 +137,7 @@ ExaBGP outputs JSON messages to external processes via stdout. Two API versions 
 ```json
 "message": {
   "update": {
+    "update-id": 12345,
     "attribute": { ... },
     "announce": {
       "ipv4 unicast": {
@@ -154,6 +155,16 @@ ExaBGP outputs JSON messages to external processes via stdout. Two API versions 
   }
 }
 ```
+
+### Update ID (ZeBGP Extension)
+
+The `update-id` field is a unique identifier for each received UPDATE message.
+Used for route reflection via the `forward update-id` command.
+
+- Assigned per-UPDATE (not per-NLRI)
+- Included when API content config enables it
+- Expires after configurable TTL (default 60s)
+- See `plan/spec-route-id-forwarding.md` for implementation details
 
 ### Announce Section
 

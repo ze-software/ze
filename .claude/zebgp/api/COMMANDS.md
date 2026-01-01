@@ -77,35 +77,36 @@ peer <ip> delete         # Delete dynamic peer
 
 ### Forward Commands (ZeBGP)
 
+> **Implementation spec:** `plan/spec-route-id-forwarding.md`
+
 ```
-peer <selector> forward route-id <id>    # Forward received route by ID
-peer !<ip> forward route-id <id>         # Forward to all except source peer
+peer <selector> forward update-id <id>    # Forward received UPDATE by ID
+peer !<ip> forward update-id <id>         # Forward to all except source peer
 ```
 
 The `forward` command enables route reflection via API:
-1. Received routes are assigned a unique route-id
-2. API outputs route info with route-id
+1. Received UPDATEs are assigned a unique update-id (per-UPDATE, not per-NLRI)
+2. API outputs UPDATE info with update-id
 3. External process decides routing
-4. Forward command references route-id (zero-copy when contexts match)
+4. Forward command references update-id (zero-copy when contexts match)
+5. Update-ids expire after configurable TTL (default 60s)
 
 ### Peer Selectors
 
 ```
 peer *                   # All peers
 peer 192.168.1.2         # Specific peer by IP
-peer !192.168.1.2        # All peers EXCEPT this IP (ZeBGP: for route reflection)
-peer [local-as 65001]    # Peers matching filter
-peer [peer-as 65002]     # Peers by peer AS
-peer [local-ip 1.1.1.1]  # Peers by local IP
-peer [id 1.1.1.1]        # Peers by router-id
-peer [family-allowed ipv4 unicast]  # Peers with family
+peer !192.168.1.2        # All peers EXCEPT this IP (for route reflection)
 ```
 
 The `!<ip>` negated selector is useful for route reflection:
 ```
-# Forward route to all peers except the source
-peer !10.0.0.1 forward route-id 12345
+# Forward update to all peers except the source
+peer !10.0.0.1 forward update-id 12345
 ```
+
+> **Note:** Filter selectors (`[local-as ...]`, `[peer-as ...]`) from ExaBGP multi-session
+> draft are not supported — the draft never became an RFC.
 
 ### Announce Commands
 

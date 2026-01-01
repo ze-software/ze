@@ -311,3 +311,78 @@ func TestJSONEncoderIPv6(t *testing.T) {
 	assert.True(t, strings.Contains(local, "2001:db8"))
 	assert.True(t, strings.Contains(peerAddr, "2001:db8"))
 }
+
+// TestAPIOutputIncludesUpdateID verifies API JSON has update-id field.
+//
+// VALIDATES: API output contains update-id for received UPDATEs.
+// PREVENTS: Controller can't reference updates for forwarding.
+func TestAPIOutputIncludesUpdateID(t *testing.T) {
+	peer := PeerInfo{
+		Address:      netip.MustParseAddr("10.0.0.1"),
+		LocalAddress: netip.MustParseAddr("10.0.0.2"),
+		LocalAS:      65001,
+		PeerAS:       65002,
+	}
+
+	// UPDATE with update-id
+	msg := RawMessage{
+		RawBytes: []byte{
+			// Minimal UPDATE with NLRI: 10.0.0.0/24
+			0x00, 0x00, // withdrawn length
+			0x00, 0x00, // attrs length
+			0x18, 0x0a, 0x00, 0x00, // NLRI: 10.0.0.0/24
+		},
+		UpdateID: 12345,
+	}
+
+	content := ContentConfig{
+		Encoding: EncodingJSON,
+		Format:   FormatParsed,
+		Version:  APIVersionNLRI, // v7
+	}
+
+	output := FormatMessage(peer, msg, content)
+
+	// Parse JSON
+	var result map[string]any
+	err := json.Unmarshal([]byte(output), &result)
+	require.NoError(t, err, "JSON must be valid: %s", output)
+
+	// Check update-id present
+	updateID, ok := result["update-id"]
+	require.True(t, ok, "update-id must be present")
+	assert.Equal(t, float64(12345), updateID)
+}
+
+// TestAPIOutputNoUpdateIDWhenZero verifies update-id omitted when zero.
+//
+// VALIDATES: Zero update-id is not included in output.
+// PREVENTS: Cluttering output with meaningless update-id:0.
+func TestAPIOutputNoUpdateIDWhenZero(t *testing.T) {
+	peer := PeerInfo{
+		Address: netip.MustParseAddr("10.0.0.1"),
+		PeerAS:  65002,
+	}
+
+	msg := RawMessage{
+		RawBytes: []byte{0x00, 0x00, 0x00, 0x00}, // Empty UPDATE
+		UpdateID: 0,                              // No update-id
+	}
+
+	content := ContentConfig{
+		Encoding: EncodingJSON,
+		Format:   FormatParsed,
+		Version:  APIVersionNLRI,
+	}
+
+	output := FormatMessage(peer, msg, content)
+
+	// Parse JSON
+	var result map[string]any
+	err := json.Unmarshal([]byte(output), &result)
+	require.NoError(t, err)
+
+	// update-id should NOT be present
+	_, ok := result["update-id"]
+	assert.False(t, ok, "update-id should not be present when zero")
+}
