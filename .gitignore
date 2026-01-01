@@ -1,5 +1,7 @@
 # Build artifacts
 bin/
+/zebgp
+/functional
 
 # MRT data files (large, downloaded)
 test/internet/*.gz
