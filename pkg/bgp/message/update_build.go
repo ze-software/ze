@@ -980,6 +980,12 @@ type MVPNParams struct {
 
 	// ExtCommunityBytes for route targets.
 	ExtCommunityBytes []byte
+
+	// ORIGINATOR_ID (RFC 4456) - 0 means not set.
+	OriginatorID uint32
+
+	// CLUSTER_LIST (RFC 4456) - cluster IDs traversed.
+	ClusterList []uint32
 }
 
 // BuildMVPN builds an UPDATE message for MVPN routes (SAFI 5).
@@ -1025,6 +1031,22 @@ func (ub *UpdateBuilder) BuildMVPN(routes []MVPNParams) *Update {
 			lp = 100
 		}
 		attrs = append(attrs, attribute.LocalPref(lp))
+	}
+
+	// 9. ORIGINATOR_ID (RFC 4456)
+	if first.OriginatorID != 0 {
+		origIP := netip.AddrFrom4([4]byte{
+			byte(first.OriginatorID >> 24), byte(first.OriginatorID >> 16),
+			byte(first.OriginatorID >> 8), byte(first.OriginatorID),
+		})
+		attrs = append(attrs, attribute.OriginatorID(origIP))
+	}
+
+	// 10. CLUSTER_LIST (RFC 4456)
+	if len(first.ClusterList) > 0 {
+		cl := make(attribute.ClusterList, len(first.ClusterList))
+		copy(cl, first.ClusterList)
+		attrs = append(attrs, cl)
 	}
 
 	// 14. MP_REACH_NLRI for MVPN
@@ -1323,6 +1345,12 @@ type FlowSpecParams struct {
 	CommunityBytes        []byte
 	ExtCommunityBytes     []byte
 	IPv6ExtCommunityBytes []byte // RFC 5701
+
+	// ORIGINATOR_ID (RFC 4456) - 0 means not set.
+	OriginatorID uint32
+
+	// CLUSTER_LIST (RFC 4456) - cluster IDs traversed.
+	ClusterList []uint32
 }
 
 // BuildFlowSpec builds an UPDATE message for a FlowSpec route (SAFI 133/134).
@@ -1357,6 +1385,22 @@ func (ub *UpdateBuilder) BuildFlowSpec(p FlowSpecParams) *Update {
 			code:  attribute.AttrCommunity,
 			data:  p.CommunityBytes,
 		})
+	}
+
+	// 9. ORIGINATOR_ID (RFC 4456)
+	if p.OriginatorID != 0 {
+		origIP := netip.AddrFrom4([4]byte{
+			byte(p.OriginatorID >> 24), byte(p.OriginatorID >> 16),
+			byte(p.OriginatorID >> 8), byte(p.OriginatorID),
+		})
+		attrs = append(attrs, attribute.OriginatorID(origIP))
+	}
+
+	// 10. CLUSTER_LIST (RFC 4456)
+	if len(p.ClusterList) > 0 {
+		cl := make(attribute.ClusterList, len(p.ClusterList))
+		copy(cl, p.ClusterList)
+		attrs = append(attrs, cl)
 	}
 
 	// 14. MP_REACH_NLRI
@@ -1469,6 +1513,12 @@ type MUPParams struct {
 	NextHop           netip.Addr
 	ExtCommunityBytes []byte
 	PrefixSID         []byte
+
+	// ORIGINATOR_ID (RFC 4456) - 0 means not set.
+	OriginatorID uint32
+
+	// CLUSTER_LIST (RFC 4456) - cluster IDs traversed.
+	ClusterList []uint32
 }
 
 // BuildMUP builds an UPDATE message for a MUP route (SAFI 85).
@@ -1498,6 +1548,22 @@ func (ub *UpdateBuilder) BuildMUP(p MUPParams) *Update {
 	// 5. LOCAL_PREF
 	if ub.IsIBGP {
 		attrs = append(attrs, attribute.LocalPref(100))
+	}
+
+	// 9. ORIGINATOR_ID (RFC 4456)
+	if p.OriginatorID != 0 {
+		origIP := netip.AddrFrom4([4]byte{
+			byte(p.OriginatorID >> 24), byte(p.OriginatorID >> 16),
+			byte(p.OriginatorID >> 8), byte(p.OriginatorID),
+		})
+		attrs = append(attrs, attribute.OriginatorID(origIP))
+	}
+
+	// 10. CLUSTER_LIST (RFC 4456)
+	if len(p.ClusterList) > 0 {
+		cl := make(attribute.ClusterList, len(p.ClusterList))
+		copy(cl, p.ClusterList)
+		attrs = append(attrs, cl)
 	}
 
 	// 14. MP_REACH_NLRI

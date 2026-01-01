@@ -1283,3 +1283,109 @@ func TestBuildGroupedUnicast_Aggregator_ASN4Disabled(t *testing.T) {
 			expected6Byte, update.PathAttributes)
 	}
 }
+
+// TestBuildMVPN_EncodesReflectorAttrs verifies RFC 4456 attribute encoding for MVPN.
+//
+// VALIDATES: ORIGINATOR_ID and CLUSTER_LIST are encoded in PathAttributes.
+// PREVENTS: Data loss for route reflector configurations with MVPN.
+func TestBuildMVPN_EncodesReflectorAttrs(t *testing.T) {
+	ctx := &nlri.PackContext{ASN4: true}
+	ub := NewUpdateBuilder(65001, true, ctx)
+
+	routes := []MVPNParams{
+		{
+			RouteType:       5,
+			IsIPv6:          false,
+			Source:          netip.MustParseAddr("192.168.1.1"),
+			Group:           netip.MustParseAddr("239.0.0.1"),
+			NextHop:         netip.MustParseAddr("192.168.1.1"),
+			Origin:          attribute.OriginIGP,
+			LocalPreference: 100,
+			OriginatorID:    0xC0A80101, // 192.168.1.1
+			ClusterList:     []uint32{0xC0A80102, 0xC0A80103},
+		},
+	}
+
+	update := ub.BuildMVPN(routes)
+
+	// ORIGINATOR_ID: flags=0x80 (optional), type=0x09, len=0x04, value=C0A80101
+	expectedOriginator := []byte{0x80, 0x09, 0x04, 0xC0, 0xA8, 0x01, 0x01}
+	if !bytes.Contains(update.PathAttributes, expectedOriginator) {
+		t.Errorf("ORIGINATOR_ID not found in PathAttributes\ngot: %x\nwant to contain: %x",
+			update.PathAttributes, expectedOriginator)
+	}
+
+	// CLUSTER_LIST: flags=0x80, type=0x0A, len=0x08, values=C0A80102 C0A80103
+	expectedClusterType := []byte{0x80, 0x0A, 0x08}
+	if !bytes.Contains(update.PathAttributes, expectedClusterType) {
+		t.Errorf("CLUSTER_LIST not found in PathAttributes\ngot: %x",
+			update.PathAttributes)
+	}
+}
+
+// TestBuildFlowSpec_EncodesReflectorAttrs verifies RFC 4456 attribute encoding for FlowSpec.
+//
+// VALIDATES: ORIGINATOR_ID and CLUSTER_LIST are encoded in PathAttributes.
+// PREVENTS: Data loss for route reflector configurations with FlowSpec.
+func TestBuildFlowSpec_EncodesReflectorAttrs(t *testing.T) {
+	ctx := &nlri.PackContext{ASN4: true}
+	ub := NewUpdateBuilder(65001, true, ctx)
+
+	params := FlowSpecParams{
+		IsIPv6:       false,
+		NLRI:         []byte{0x06, 0x01, 0x18, 0x0A, 0x00, 0x00}, // simple flowspec
+		NextHop:      netip.MustParseAddr("192.168.1.1"),
+		OriginatorID: 0xC0A80101, // 192.168.1.1
+		ClusterList:  []uint32{0xC0A80102, 0xC0A80103},
+	}
+
+	update := ub.BuildFlowSpec(params)
+
+	// ORIGINATOR_ID: flags=0x80 (optional), type=0x09, len=0x04, value=C0A80101
+	expectedOriginator := []byte{0x80, 0x09, 0x04, 0xC0, 0xA8, 0x01, 0x01}
+	if !bytes.Contains(update.PathAttributes, expectedOriginator) {
+		t.Errorf("ORIGINATOR_ID not found in PathAttributes\ngot: %x\nwant to contain: %x",
+			update.PathAttributes, expectedOriginator)
+	}
+
+	// CLUSTER_LIST: flags=0x80, type=0x0A, len=0x08, values=C0A80102 C0A80103
+	expectedClusterType := []byte{0x80, 0x0A, 0x08}
+	if !bytes.Contains(update.PathAttributes, expectedClusterType) {
+		t.Errorf("CLUSTER_LIST not found in PathAttributes\ngot: %x",
+			update.PathAttributes)
+	}
+}
+
+// TestBuildMUP_EncodesReflectorAttrs verifies RFC 4456 attribute encoding for MUP.
+//
+// VALIDATES: ORIGINATOR_ID and CLUSTER_LIST are encoded in PathAttributes.
+// PREVENTS: Data loss for route reflector configurations with MUP.
+func TestBuildMUP_EncodesReflectorAttrs(t *testing.T) {
+	ctx := &nlri.PackContext{ASN4: true}
+	ub := NewUpdateBuilder(65001, true, ctx)
+
+	params := MUPParams{
+		RouteType:    1,
+		IsIPv6:       false,
+		NLRI:         []byte{0x01, 0x00, 0x00, 0x01}, // simple MUP NLRI
+		NextHop:      netip.MustParseAddr("192.168.1.1"),
+		OriginatorID: 0xC0A80101, // 192.168.1.1
+		ClusterList:  []uint32{0xC0A80102, 0xC0A80103},
+	}
+
+	update := ub.BuildMUP(params)
+
+	// ORIGINATOR_ID: flags=0x80 (optional), type=0x09, len=0x04, value=C0A80101
+	expectedOriginator := []byte{0x80, 0x09, 0x04, 0xC0, 0xA8, 0x01, 0x01}
+	if !bytes.Contains(update.PathAttributes, expectedOriginator) {
+		t.Errorf("ORIGINATOR_ID not found in PathAttributes\ngot: %x\nwant to contain: %x",
+			update.PathAttributes, expectedOriginator)
+	}
+
+	// CLUSTER_LIST: flags=0x80, type=0x0A, len=0x08, values=C0A80102 C0A80103
+	expectedClusterType := []byte{0x80, 0x0A, 0x08}
+	if !bytes.Contains(update.PathAttributes, expectedClusterType) {
+		t.Errorf("CLUSTER_LIST not found in PathAttributes\ngot: %x",
+			update.PathAttributes)
+	}
+}
