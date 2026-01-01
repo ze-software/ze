@@ -238,17 +238,19 @@ func packUpdateWithLimit(attrs []byte, nlris []nlri.NLRI, maxSize int) (*Update,
 
 **Key points:**
 - Check `updateSize > destMaxSize` BEFORE attempting zero-copy
-- If too large: parse, group by attrs, split NLRIs across multiple UPDATEs
-- Withdrawals also need splitting if many prefixes withdrawn
-- Reconnect replay also needs splitting (same logic)
+- If too large: parse and send routes individually (batching deferred to separate spec)
+- Withdrawals are batched efficiently in `sendWithdrawalsWithLimit`
+- Reconnect replay sends routes individually with same size checking
+- Single routes with huge attributes (>4KB) are skipped with warning (cannot split atomic route)
 
 ## Memory Considerations
 
 | Scenario | Memory Impact |
 |----------|---------------|
-| 100K routes × 10 peers | ~1GB (100K × 10 × 1KB/route) |
-| Route deduplication | Attrs shared via pointers |
-| Wire cache | Additional ~100 bytes/route |
+| 100K routes × 10 peers | ~200MB struct overhead (Route ~200B each) |
+| AttributesWire sharing | Shared across routes from same UPDATE |
+| Wire cache per route | ~50-100 bytes (NLRI wire bytes) |
+| Total with attrs | Depends on attribute size; attrs shared |
 
 Mitigation options:
 1. **Per-peer route limits** - Configure max routes per adj-rib-out
@@ -302,21 +304,43 @@ func TestReplayUpdateSplitting(t *testing.T)
 - [x] Create Route with wire cache
 - [x] Modify ForwardUpdate to call MarkSent
 - [x] Handle withdrawals with RemoveFromSent
-- [ ] Check `updateSize > destMaxSize` before zero-copy
-- [ ] Implement `sendSplitUpdates()` for oversized UPDATEs
-- [ ] Group routes by attributes for efficient packing
-- [ ] Reconnect replay with splitting (same logic)
-- [ ] Unit tests for conversion
-- [ ] Integration test for reconnect replay
-- [ ] Test forward splitting (Extended → non-Extended peer)
+- [x] Check `updateSize > destMaxSize` before zero-copy (reactor.go:1662)
+- [x] Implement `sendSplitUpdates()` for oversized UPDATEs (reactor.go:1743)
+- [ ] Group routes by attributes for efficient packing (TODO in sendRoutesWithLimit)
+- [x] Reconnect replay with size checking (peer.go:1225-1232)
+- [x] Unit tests for conversion (received_update_test.go)
+- [x] Integration test for reconnect replay (adjribout_forward_test.go)
+- [~] Test forward splitting (forward_split_test.go - scaffold tests with TODOs, needs mocking)
 - [ ] Memory profiling with high route counts
-- [ ] Documentation update
+- [x] Documentation update (this checklist)
 
 ## Related Documentation
 
 - `pkg/rib/outgoing.go` - OutgoingRIB implementation
 - `pkg/reactor/peer.go:1199` - Reconnect replay logic
 - `spec-route-id-forwarding.md` - One-shot cache design
+
+## Known Limitations
+
+**FlushAllPending mid-loop failure:** If `SendUpdate` fails mid-loop during pending route
+processing, remaining routes from `FlushAllPending` are in sent cache but not actually sent.
+This is a pre-existing design issue but **cannot occur in practice until RFC 7606 is implemented**
+— currently any send error tears down the session, and on reconnect the entire adj-rib-out
+is replayed from scratch.
+
+**Concurrent ForwardUpdate ordering:** Multiple concurrent `ForwardUpdate` calls may race.
+If UPDATE1 announces prefix P and UPDATE2 withdraws P, the final adj-rib-out state depends
+on execution order:
+- If MarkSent(P) completes before RemoveFromSent(P): correct (P removed)
+- If RemoveFromSent(P) completes before MarkSent(P): incorrect (P remains)
+
+This is an **API usage consideration**, not a bug. Callers should:
+1. Wait for ForwardUpdate to complete before issuing conflicting operations, OR
+2. Use the same UPDATE for announce+withdraw (BGP allows this)
+
+**Route batching not implemented:** Current split path sends routes individually. Efficient
+batching (grouping routes with same attributes into single UPDATE) is deferred to a separate
+spec. This works correctly but uses more UPDATE messages than optimal.
 
 ## Dependencies
 

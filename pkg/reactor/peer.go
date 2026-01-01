@@ -1211,12 +1211,26 @@ func (p *Peer) sendInitialRoutes() {
 	}
 
 	// Re-send Adj-RIB-Out routes (routes announced via API that persist across reconnects).
+	// Each route is sent individually with size checking to handle large attributes.
+	// RFC 8654: Max message size is 4096 without Extended Message, 65535 with.
 	sentRoutes := p.adjRIBOut.GetSentRoutes()
 	if len(sentRoutes) > 0 {
-		trace.Log(trace.Routes, "peer %s: re-sending %d Adj-RIB-Out routes", addr, len(sentRoutes))
+		extendedMessage := nf != nil && nf.ExtendedMessage
+		maxMsgSize := int(message.MaxMessageLength(message.TypeUPDATE, extendedMessage))
+		trace.Log(trace.Routes, "peer %s: re-sending %d Adj-RIB-Out routes (ExtendedMessage=%v, maxSize=%d)",
+			addr, len(sentRoutes), extendedMessage, maxMsgSize)
 		for _, route := range sentRoutes {
 			ctx := p.packContext(route.NLRI().Family())
 			update := buildRIBRouteUpdate(route, p.settings.LocalAS, p.settings.IsIBGP(), ctx)
+			// Check if UPDATE exceeds peer's max message size
+			// Size = Header(19) + WithdrawnLen(2) + Withdrawn + AttrLen(2) + Attrs + NLRI
+			updateSize := message.HeaderLen + 4 + len(update.WithdrawnRoutes) +
+				len(update.PathAttributes) + len(update.NLRI)
+			if updateSize > maxMsgSize {
+				trace.Log(trace.Routes, "peer %s: skipping route %s: UPDATE size %d exceeds max %d",
+					addr, route.NLRI(), updateSize, maxMsgSize)
+				continue
+			}
 			if err := p.SendUpdate(update); err != nil {
 				trace.Log(trace.Routes, "peer %s: send error: %v", addr, err)
 				break
@@ -1225,12 +1239,27 @@ func (p *Peer) sendInitialRoutes() {
 	}
 
 	// Send pending routes from transactions (committed while not connected).
+	// Same size checking as adj-rib-out replay above.
+	// NOTE: FlushAllPending adds routes to sent cache immediately. If we skip a route
+	// due to size, we must remove it from sent to avoid state mismatch.
 	pendingRoutes := p.adjRIBOut.FlushAllPending()
 	if len(pendingRoutes) > 0 {
+		extendedMessage := nf != nil && nf.ExtendedMessage
+		maxMsgSize := int(message.MaxMessageLength(message.TypeUPDATE, extendedMessage))
 		trace.Log(trace.Routes, "peer %s: sending %d pending routes from transactions", addr, len(pendingRoutes))
 		for _, route := range pendingRoutes {
 			ctx := p.packContext(route.NLRI().Family())
 			update := buildRIBRouteUpdate(route, p.settings.LocalAS, p.settings.IsIBGP(), ctx)
+			// Check if UPDATE exceeds peer's max message size
+			updateSize := message.HeaderLen + 4 + len(update.WithdrawnRoutes) +
+				len(update.PathAttributes) + len(update.NLRI)
+			if updateSize > maxMsgSize {
+				trace.Log(trace.Routes, "peer %s: skipping pending route %s: UPDATE size %d exceeds max %d",
+					addr, route.NLRI(), updateSize, maxMsgSize)
+				// Remove from sent cache since FlushAllPending already added it
+				p.adjRIBOut.RemoveFromSent(route.NLRI())
+				continue
+			}
 			if err := p.SendUpdate(update); err != nil {
 				trace.Log(trace.Routes, "peer %s: send error: %v", addr, err)
 				break
@@ -1248,6 +1277,10 @@ func (p *Peer) sendInitialRoutes() {
 	var teardownSubcode uint8
 	hasTeardown := false
 
+	// Pre-compute max message size for size checking in PeerOpAnnounce
+	opExtendedMessage := nf != nil && nf.ExtendedMessage
+	opMaxMsgSize := int(message.MaxMessageLength(message.TypeUPDATE, opExtendedMessage))
+
 	p.mu.Lock()
 	queueLen := len(p.opQueue)
 	processed := 0
@@ -1262,6 +1295,15 @@ func (p *Peer) sendInitialRoutes() {
 			// Send route and add to sent cache
 			ctx := p.packContext(op.Route.NLRI().Family())
 			update := buildRIBRouteUpdate(op.Route, p.settings.LocalAS, p.settings.IsIBGP(), ctx)
+			// Check if UPDATE exceeds peer's max message size
+			updateSize := message.HeaderLen + 4 + len(update.WithdrawnRoutes) +
+				len(update.PathAttributes) + len(update.NLRI)
+			if updateSize > opMaxMsgSize {
+				trace.Log(trace.Routes, "peer %s: skipping queued route %s: UPDATE size %d exceeds max %d",
+					addr, op.Route.NLRI(), updateSize, opMaxMsgSize)
+				processed = i + 1
+				continue
+			}
 			p.mu.Unlock()
 			if err := p.SendUpdate(update); err != nil {
 				trace.Log(trace.Routes, "peer %s: send error: %v", addr, err)

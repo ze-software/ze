@@ -103,8 +103,8 @@ func (ru *ReceivedUpdate) ConvertToRoutes() ([]*rib.Route, error) {
 			if len(a.NextHops) > 0 {
 				nextHop = a.NextHops[0]
 			}
-			// Keep MP_REACH_NLRI in otherAttrs for replay
-			otherAttrs = append(otherAttrs, attr)
+			// MP_REACH_NLRI is NOT included in otherAttrs.
+			// buildRIBRouteUpdate creates a fresh one from route.NLRI() and route.NextHop().
 		case *attribute.ASPath:
 			asPath = a
 		default:

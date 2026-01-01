@@ -20,6 +20,7 @@ import (
 	"github.com/exa-networks/zebgp/pkg/bgp/message"
 	"github.com/exa-networks/zebgp/pkg/bgp/nlri"
 	"github.com/exa-networks/zebgp/pkg/rib"
+	"github.com/exa-networks/zebgp/pkg/trace"
 )
 
 // Reactor errors.
@@ -1606,6 +1607,10 @@ func (a *reactorAPIAdapter) sendWithdrawals(peer *Peer, withdrawals []nlri.NLRI)
 // Zero-copy optimization: When source and destination encoding contexts match
 // (same ASN4, ADD-PATH capabilities), the raw UPDATE bytes are forwarded
 // directly without re-encoding.
+//
+// RFC 8654 compliance: If the UPDATE exceeds a peer's max message size
+// (4096 without Extended Message, 65535 with), it is split into multiple
+// smaller UPDATEs that each fit within the limit.
 func (a *reactorAPIAdapter) ForwardUpdate(sel *api.Selector, updateID uint64) error {
 	// Look up update by ID from cache
 	update, ok := a.r.recentUpdates.Get(updateID)
@@ -1629,9 +1634,16 @@ func (a *reactorAPIAdapter) ForwardUpdate(sel *api.Selector, updateID uint64) er
 		return fmt.Errorf("no peers match selector %s", sel)
 	}
 
-	// Convert to routes for adj-rib-out persistence (parse once, reuse for all peers)
-	// Errors are non-fatal: forwarding still works, but routes won't persist across reconnects
-	routes, _ := update.ConvertToRoutes()
+	// Convert to routes for adj-rib-out persistence and splitting (parse once, reuse)
+	// Track error separately: non-fatal for adj-rib-out, fatal for split path
+	routes, routesErr := update.ConvertToRoutes()
+	if routesErr != nil {
+		// Warn about persistence failure - forwarding will work but routes won't survive reconnect
+		trace.Log(trace.Routes, "forward update %d: ConvertToRoutes failed: %v (routes will not persist)", updateID, routesErr)
+	}
+
+	// Calculate update size once (header + body)
+	updateSize := message.HeaderLen + len(update.RawBytes)
 
 	// Forward to all matching peers, collect errors
 	// Lazy parsing: only parse if we need to re-encode
@@ -1645,29 +1657,67 @@ func (a *reactorAPIAdapter) ForwardUpdate(sel *api.Selector, updateID uint64) er
 		}
 
 		sentCount++
-		destCtxID := peer.SendContextID()
 
-		// Zero-copy path: use raw bytes when contexts match
-		// Both must be non-zero (registered) and equal
-		if update.SourceCtxID != 0 && destCtxID != 0 && update.SourceCtxID == destCtxID {
-			if err := peer.SendRawUpdateBody(update.RawBytes); err != nil {
+		// Get max message size for this peer (RFC 8654)
+		nf := peer.families.Load()
+		extendedMessage := nf != nil && nf.ExtendedMessage
+		maxMsgSize := int(message.MaxMessageLength(message.TypeUPDATE, extendedMessage))
+
+		// Check if UPDATE exceeds peer's max message size
+		if updateSize > maxMsgSize {
+			// Split path: UPDATE too large for this peer
+			// Requires routes from ConvertToRoutes - fail if conversion failed
+			if routesErr != nil {
+				errs = append(errs, fmt.Errorf("peer %s: cannot split UPDATE: %w",
+					peer.Settings().Address, routesErr))
+				continue
+			}
+			if err := a.sendSplitUpdate(peer, update, routes, maxMsgSize); err != nil {
 				errs = append(errs, fmt.Errorf("peer %s: %w", peer.Settings().Address, err))
 			}
 		} else {
-			// Re-encode path: parse (lazily) and send
-			if parsedUpdate == nil {
-				var parseErr error
-				parsedUpdate, parseErr = message.UnpackUpdate(update.RawBytes)
-				if parseErr != nil {
-					return fmt.Errorf("parsing cached update: %w", parseErr)
+			// Normal path: UPDATE fits based on original size
+			destCtxID := peer.SendContextID()
+
+			// Zero-copy path: use raw bytes when contexts match
+			// Both must be non-zero (registered) and equal
+			if update.SourceCtxID != 0 && destCtxID != 0 && update.SourceCtxID == destCtxID {
+				if err := peer.SendRawUpdateBody(update.RawBytes); err != nil {
+					errs = append(errs, fmt.Errorf("peer %s: %w", peer.Settings().Address, err))
 				}
-			}
-			if err := peer.SendUpdate(parsedUpdate); err != nil {
-				errs = append(errs, fmt.Errorf("peer %s: %w", peer.Settings().Address, err))
+			} else {
+				// Re-encode path: parse (lazily) and send
+				if parsedUpdate == nil {
+					var parseErr error
+					parsedUpdate, parseErr = message.UnpackUpdate(update.RawBytes)
+					if parseErr != nil {
+						return fmt.Errorf("parsing cached update: %w", parseErr)
+					}
+				}
+
+				// Check repacked size - may differ from original due to ASN4 encoding changes
+				// Size = Header(19) + WithdrawnLen(2) + Withdrawn + AttrLen(2) + Attrs + NLRI
+				repackedSize := message.HeaderLen + 4 + len(parsedUpdate.WithdrawnRoutes) +
+					len(parsedUpdate.PathAttributes) + len(parsedUpdate.NLRI)
+				if repackedSize > maxMsgSize {
+					// Re-encoded UPDATE is too large, fall back to split path
+					if routesErr != nil {
+						errs = append(errs, fmt.Errorf("peer %s: re-encoded UPDATE size %d exceeds max %d and cannot split: %w",
+							peer.Settings().Address, repackedSize, maxMsgSize, routesErr))
+					} else if err := a.sendSplitUpdate(peer, update, routes, maxMsgSize); err != nil {
+						errs = append(errs, fmt.Errorf("peer %s: %w", peer.Settings().Address, err))
+					}
+				} else {
+					if err := peer.SendUpdate(parsedUpdate); err != nil {
+						errs = append(errs, fmt.Errorf("peer %s: %w", peer.Settings().Address, err))
+					}
+				}
 			}
 		}
 
-		// Store in adj-rib-out for persistence across reconnects
+		// Store in adj-rib-out for persistence across reconnects.
+		// If routes is nil (ConvertToRoutes failed), this is a no-op for announcements
+		// but we still remove withdrawals. Non-fatal: forwarding works, persistence doesn't.
 		adjRIBOut := peer.AdjRIBOut()
 		for _, route := range routes {
 			adjRIBOut.MarkSent(route)
@@ -1688,6 +1738,126 @@ func (a *reactorAPIAdapter) ForwardUpdate(sel *api.Selector, updateID uint64) er
 		return errors.Join(errs...)
 	}
 	return nil
+}
+
+// sendSplitUpdate sends an UPDATE split into multiple messages to fit maxMsgSize.
+// Used when forwarding from Extended Message peer to non-Extended peer.
+//
+// RFC 8654 compliance: Messages are split so each fits within the peer's
+// maximum message size (4096 without Extended Message capability).
+func (a *reactorAPIAdapter) sendSplitUpdate(peer *Peer, update *ReceivedUpdate, routes []*rib.Route, maxMsgSize int) error {
+	var errs []error
+
+	// Send announcements (routes) in batches
+	if len(routes) > 0 {
+		if err := a.sendRoutesWithLimit(peer, routes, maxMsgSize); err != nil {
+			errs = append(errs, fmt.Errorf("sending routes: %w", err))
+		}
+	}
+
+	// Send withdrawals in batches
+	if len(update.Withdraws) > 0 {
+		if err := a.sendWithdrawalsWithLimit(peer, update.Withdraws, maxMsgSize); err != nil {
+			errs = append(errs, fmt.Errorf("sending withdrawals: %w", err))
+		}
+	}
+
+	if len(errs) > 0 {
+		return errors.Join(errs...)
+	}
+	return nil
+}
+
+// sendRoutesWithLimit sends routes in batches that fit within maxMsgSize.
+// Each route is sent individually. If a single route exceeds maxMsgSize
+// (very rare - requires huge attributes), an error is returned for that route.
+//
+// TODO: Future optimization could group routes with same attributes to reduce
+// UPDATE count while respecting size limits.
+func (a *reactorAPIAdapter) sendRoutesWithLimit(peer *Peer, routes []*rib.Route, maxMsgSize int) error {
+	if len(routes) == 0 {
+		return nil
+	}
+
+	var errs []error
+
+	for _, route := range routes {
+		// Build UPDATE for this route
+		ctx := peer.packContext(route.NLRI().Family())
+		update := buildRIBRouteUpdate(route, peer.settings.LocalAS, peer.settings.IsIBGP(), ctx)
+
+		// Check if this single route exceeds max message size
+		// Size = Header(19) + WithdrawnLen(2) + Withdrawn + AttrLen(2) + Attrs + NLRI
+		updateSize := message.HeaderLen + 4 + len(update.WithdrawnRoutes) +
+			len(update.PathAttributes) + len(update.NLRI)
+		if updateSize > maxMsgSize {
+			errs = append(errs, fmt.Errorf("route %s: UPDATE size %d exceeds max %d (large attributes)",
+				route.NLRI(), updateSize, maxMsgSize))
+			continue // Skip this route, can't split further
+		}
+
+		if err := peer.SendUpdate(update); err != nil {
+			errs = append(errs, err)
+		}
+	}
+
+	if len(errs) > 0 {
+		return errors.Join(errs...)
+	}
+	return nil
+}
+
+// sendWithdrawalsWithLimit sends withdrawals in batches that fit within maxMsgSize.
+func (a *reactorAPIAdapter) sendWithdrawalsWithLimit(peer *Peer, withdraws []nlri.NLRI, maxMsgSize int) error {
+	if len(withdraws) == 0 {
+		return nil
+	}
+
+	// Calculate overhead: Header(19) + WithdrawnLen(2) + AttrLen(2) = 23 bytes
+	// Plus we need at least a few bytes for the withdrawn NLRI
+	overhead := message.HeaderLen + 4
+	available := maxMsgSize - overhead
+
+	var batch []byte
+	var errs []error
+
+	for _, n := range withdraws {
+		nlriBytes := n.Bytes()
+		nlriLen := len(nlriBytes)
+
+		// Check if adding this NLRI would exceed limit
+		if len(batch)+nlriLen > available && len(batch) > 0 {
+			// Send current batch
+			if err := sendWithdrawBatch(peer, batch); err != nil {
+				errs = append(errs, err)
+			}
+			batch = batch[:0]
+		}
+
+		batch = append(batch, nlriBytes...)
+	}
+
+	// Send remaining batch
+	if len(batch) > 0 {
+		if err := sendWithdrawBatch(peer, batch); err != nil {
+			errs = append(errs, err)
+		}
+	}
+
+	if len(errs) > 0 {
+		return errors.Join(errs...)
+	}
+	return nil
+}
+
+// sendWithdrawBatch sends a batch of withdrawn NLRIs as a single UPDATE.
+func sendWithdrawBatch(peer *Peer, withdrawnNLRI []byte) error {
+	update := &message.Update{
+		WithdrawnRoutes: withdrawnNLRI,
+		PathAttributes:  nil, // Withdraw-only UPDATE
+		NLRI:            nil,
+	}
+	return peer.SendUpdate(update)
 }
 
 // DeleteUpdate removes an update from the cache without forwarding.
