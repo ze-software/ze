@@ -75,16 +75,36 @@ peer create <config>     # Create dynamic peer
 peer <ip> delete         # Delete dynamic peer
 ```
 
+### Forward Commands (ZeBGP)
+
+```
+peer <selector> forward route-id <id>    # Forward received route by ID
+peer !<ip> forward route-id <id>         # Forward to all except source peer
+```
+
+The `forward` command enables route reflection via API:
+1. Received routes are assigned a unique route-id
+2. API outputs route info with route-id
+3. External process decides routing
+4. Forward command references route-id (zero-copy when contexts match)
+
 ### Peer Selectors
 
 ```
 peer *                   # All peers
 peer 192.168.1.2         # Specific peer by IP
+peer !192.168.1.2        # All peers EXCEPT this IP (ZeBGP: for route reflection)
 peer [local-as 65001]    # Peers matching filter
 peer [peer-as 65002]     # Peers by peer AS
 peer [local-ip 1.1.1.1]  # Peers by local IP
 peer [id 1.1.1.1]        # Peers by router-id
 peer [family-allowed ipv4 unicast]  # Peers with family
+```
+
+The `!<ip>` negated selector is useful for route reflection:
+```
+# Forward route to all peers except the source
+peer !10.0.0.1 forward route-id 12345
 ```
 
 ### Announce Commands
@@ -168,6 +188,46 @@ silence-ack
 help
 version
 ```
+
+---
+
+## API Content Configuration (ZeBGP)
+
+### Attribute Filtering
+
+Limit which attributes are parsed for API output:
+
+```
+api route-server {
+    content {
+        encoding json;
+        attributes as-path community next-hop;  # Only parse these
+    }
+    receive { update; }
+}
+```
+
+Available attribute names:
+| Name | Code | Description |
+|------|------|-------------|
+| `origin` | 1 | ORIGIN |
+| `as-path` | 2 | AS_PATH |
+| `next-hop` | 3 | NEXT_HOP |
+| `med` | 4 | MULTI_EXIT_DISC |
+| `local-pref` | 5 | LOCAL_PREF |
+| `atomic-aggregate` | 6 | ATOMIC_AGGREGATE |
+| `aggregator` | 7 | AGGREGATOR |
+| `community` | 8 | COMMUNITIES |
+| `originator-id` | 9 | ORIGINATOR_ID |
+| `cluster-list` | 10 | CLUSTER_LIST |
+| `extended-community` | 16 | EXTENDED_COMMUNITIES |
+| `large-community` | 32 | LARGE_COMMUNITIES |
+| `all` | - | All attributes (default) |
+
+Benefits of partial parsing:
+- Reduced CPU (only parse what's needed for routing decision)
+- Reduced memory (don't store full parsed attributes)
+- Wire bytes preserved for zero-copy forwarding
 
 ---
 

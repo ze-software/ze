@@ -35,9 +35,9 @@ make functional - 37/37 passed (100%) ✅
 ## Resume Point
 
 **Last worked:** 2026-01-01
-**Last commit:** Pending (peer encoding extraction)
+**Last commit:** `0838f2e` docs: remove flawed API-as-Virtual-Peer concept
 
-**Status:** Ready for commit
+**Status:** All work committed. Next: Wire Container spec
 
 ---
 
@@ -358,10 +358,29 @@ Location: `test/functional/record.go`
 
 ## PLANNED
 
-### Wire Container (Future)
-**Spec:** `plan/spec-attribute-context-wire-container.md`
+### Route Reflection via API
+**Overview:** `plan/spec-attribute-context-wire-container.md`
 
-AttributesWire for zero-copy route reflection (received routes only).
+Split into self-contained specs:
+
+| Spec | Description | Status |
+|------|-------------|--------|
+| `spec-attributes-wire.md` | Wire-canonical storage, lazy parsing | Ready |
+| `spec-route-id-forwarding.md` | Route ID, forward command, `!<ip>` | Ready |
+| `spec-api-attribute-filter.md` | `attributes <list>` config | Ready |
+| `spec-rfc9234-role.md` | RFC 9234 Role for API policy | Ready |
+
+Implementation order:
+```
+1. spec-attributes-wire.md      (foundation)
+        ↓
+2. spec-route-id-forwarding.md  (uses AttributesWire)
+   spec-api-attribute-filter.md (uses AttributesWire)
+        ↓
+3. spec-rfc9234-role.md         (independent)
+```
+
+**All features are NEW - none exist in current codebase.**
 
 ---
 
