@@ -16,6 +16,8 @@ func cmdConfig(args []string) int {
 	subArgs := args[1:]
 
 	switch subcmd {
+	case "edit":
+		return cmdEdit(subArgs)
 	case "check":
 		return cmdConfigCheckCLI(subArgs)
 	case "migrate":
@@ -38,11 +40,13 @@ func configUsage() {
 Configuration management commands.
 
 Commands:
+  edit <file>          Interactive configuration editor
   check <file>         Show config version and what needs migration
   migrate <file>       Convert config to current format
   fmt <file>           Format and normalize config
 
 Examples:
+  zebgp config edit config.conf
   zebgp config check config.conf
   zebgp config migrate config.conf
   zebgp config migrate config.conf -o new.conf

@@ -10,10 +10,10 @@ import (
 )
 
 func cmdEdit(args []string) int {
-	fs := flag.NewFlagSet("edit", flag.ExitOnError)
+	fs := flag.NewFlagSet("config edit", flag.ExitOnError)
 
 	fs.Usage = func() {
-		fmt.Fprintf(os.Stderr, `Usage: zebgp edit [options] <config-file>
+		fmt.Fprintf(os.Stderr, `Usage: zebgp config edit [options] <config-file>
 
 Interactive configuration editor with VyOS-like set commands.
 
@@ -42,8 +42,8 @@ Tab completion:
   Ghost text shows best match in gray
 
 Examples:
-  zebgp edit /etc/zebgp/config.conf
-  zebgp edit ./myconfig.conf
+  zebgp config edit /etc/zebgp/config.conf
+  zebgp config edit ./myconfig.conf
 `)
 	}
 

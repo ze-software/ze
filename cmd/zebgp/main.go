@@ -29,8 +29,6 @@ func main() {
 		os.Exit(cmdValidate(os.Args[2:]))
 	case "decode":
 		os.Exit(cmdDecode(os.Args[2:]))
-	case "edit":
-		os.Exit(cmdEdit(os.Args[2:]))
 	case "config":
 		os.Exit(cmdConfig(os.Args[2:]))
 	case "config-dump":
@@ -87,26 +85,27 @@ Commands:
   server <config>      Start the BGP daemon (same as zebgp <config>)
   run <command>        Execute API command on running daemon
   cli                  Interactive CLI with autocomplete
-  edit <config>        Interactive configuration editor
   validate <config>    Validate configuration file
   decode <hex>         Decode BGP message from hex to JSON
-  config <subcommand>  Configuration management (check, migrate)
+  config <subcommand>  Configuration management (edit, check, migrate, fmt)
   config-dump <config> Dump parsed config (debug tool)
   version              Show version
   help                 Show this help
 
 Config Subcommands:
+  config edit <file>          Interactive configuration editor
   config check <file>         Show version and what needs migration
   config migrate <file>       Convert config to current format
   config migrate <file> -o <output>    Write to file
   config migrate <file> --in-place     Convert in place (with backup)
+  config fmt <file>           Format and normalize config
 
 Examples:
   zebgp /etc/zebgp/config.conf
   zebgp server /etc/zebgp/config.conf
   zebgp run peer list
   zebgp cli
-  zebgp edit /etc/zebgp/config.conf
+  zebgp config edit /etc/zebgp/config.conf
   zebgp validate /etc/zebgp/config.conf
   zebgp config check config.conf
   zebgp config migrate old.conf -o new.conf

@@ -1,4 +1,4 @@
-# ZeBGP Interactive Config Editor (`zebgp edit`)
+# ZeBGP Interactive Config Editor (`zebgp config edit`)
 
 **Status:** Ready for implementation
 **Effort:** ~1,500 lines (implementation + tests)
@@ -31,7 +31,7 @@ pkg/editor/
 └── editor_test.go    # Tests
 
 cmd/zebgp/
-└── edit.go           # Entry point
+└── config_edit.go    # Entry point
 ```
 
 ---
@@ -236,10 +236,10 @@ Example:
 - `TestCommandCompare` - Shows correct diff
 
 ### Phase 5: Integration
-**Files:** `cmd/zebgp/edit.go`, modify `main.go`
+**Files:** `cmd/zebgp/config_edit.go`
 
 - `cmdEdit()` entry point
-- Add "edit" case to main switch
+- Add "edit" case to config subcommand switch
 
 ---
 
@@ -251,7 +251,7 @@ Example:
 | `pkg/config/setparser.go` | Reuse for set/delete |
 | `pkg/config/serialize.go` | For show/diff output |
 | `cmd/zebgp/cli.go` | Reference Bubble Tea patterns |
-| `cmd/zebgp/main.go` | Add edit command |
+| `cmd/zebgp/config.go` | Add edit subcommand |
 
 ---
 
