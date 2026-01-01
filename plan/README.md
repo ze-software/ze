@@ -31,6 +31,7 @@
 | `rfc7606-extension.md` | RFC 7606 full compliance |
 | `spec-listener-per-local-address.md` | Multi-listener from peer LocalAddress |
 | `spec-environment-config-block.md` | Environment block in config (ZeBGP-specific) |
+| `spec-mup-api-support.md` | MUP SAFI support in API parser |
 
 ### 📋 Implementation Specs (Active)
 
