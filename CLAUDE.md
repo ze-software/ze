@@ -28,6 +28,7 @@ Read when working on specific areas:
 - NLRI types: `.claude/zebgp/wire/NLRI.md`
 - Attributes: `.claude/zebgp/wire/ATTRIBUTES.md`
 - Capabilities: `.claude/zebgp/wire/CAPABILITIES.md`
+- UPDATE building: `.claude/zebgp/UPDATE_BUILDING.md` (Build vs Forward paths)
 - Memory pools: `.claude/zebgp/POOL_ARCHITECTURE.md`
 - Zero-copy: `.claude/zebgp/ENCODING_CONTEXT.md`
 - ExaBGP compat: `.claude/zebgp/EXABGP_CODE_MAP.md`

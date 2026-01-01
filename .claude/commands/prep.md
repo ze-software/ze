@@ -1,21 +1,44 @@
 ---
-description: Create task specification
+description: Create task specification (project)
 argument-hint: <task description>
 ---
 
 # /prep - Create Task Spec
 
+**CRITICAL:** You MUST read the required architecture docs BEFORE analyzing or implementing. Failure to do so leads to uninformed decisions.
+
 ## Steps
 
 1. Check if spec exists: `plan/spec-<task>.md`
-   - If exists: read it, skip to step 5
+   - If exists: read it, skip to step 6
    - If not: continue
 
-2. Identify relevant docs from `.claude/INDEX.md`
+2. **MANDATORY: Identify required docs from `.claude/INDEX.md`**
 
-3. Read source code for the affected area
+   Use this keyword mapping to identify relevant docs:
 
-4. Write spec to `plan/spec-<task-name>.md`:
+   | Keywords in task | Required docs |
+   |------------------|---------------|
+   | UPDATE, message, build, route, announce | `UPDATE_BUILDING.md`, `ENCODING_CONTEXT.md` |
+   | attribute, community, AS_PATH, NEXT_HOP | `wire/ATTRIBUTES.md`, `UPDATE_BUILDING.md` |
+   | NLRI, prefix, MP_REACH, MP_UNREACH | `wire/NLRI.md` |
+   | capability, OPEN, negotiate | `wire/CAPABILITIES.md` |
+   | pool, memory, dedup, zero-copy | `POOL_ARCHITECTURE.md`, `ENCODING_CONTEXT.md` |
+   | forward, reflect, wire cache | `ENCODING_CONTEXT.md`, `UPDATE_BUILDING.md` |
+   | FSM, state, session, peer | `behavior/FSM.md` |
+   | API, command, announce, withdraw | `api/ARCHITECTURE.md` |
+   | config, YAML, load | `config/SYNTAX.md` |
+   | FlowSpec, VPN, EVPN, MPLS | `wire/NLRI.md`, `UPDATE_BUILDING.md` |
+   | ExaBGP, compatibility | `EXABGP_CODE_MAP.md` |
+
+3. **MANDATORY: Read the identified docs NOW**
+
+   Use the Read tool to read each relevant `.claude/zebgp/` doc.
+   Do NOT proceed until you have read them.
+
+4. Read source code for the affected area
+
+5. Write spec to `plan/spec-<task-name>.md`:
 
 ```markdown
 # Spec: <task-name>
@@ -23,9 +46,19 @@ argument-hint: <task description>
 ## Task
 $ARGUMENTS
 
-## Files to Read
-- [relevant source files]
-- [relevant .claude/zebgp/ docs]
+## Required Reading (MUST complete before implementation)
+
+The following docs MUST be read before starting implementation:
+
+- [ ] `.claude/zebgp/<doc1>.md` - [reason this is relevant]
+- [ ] `.claude/zebgp/<doc2>.md` - [reason this is relevant]
+
+**Key insights from docs:**
+- [insight 1 relevant to this task]
+- [insight 2 relevant to this task]
+
+## Files to Modify
+- [source files]
 
 ## Current State
 - Tests: [from plan/CLAUDE_CONTINUATION.md]
@@ -39,16 +72,20 @@ $ARGUMENTS
 5. Run `make test && make lint`
 
 ## Checklist
+- [ ] Required docs read
 - [ ] Test fails first
 - [ ] Test passes after impl
 - [ ] make test passes
 - [ ] make lint passes
 ```
 
-5. Report ready:
+6. Report ready:
 ```
 ✅ Spec: plan/spec-<name>.md
-📖 Docs: [list]
+📖 Required reading:
+   - .claude/zebgp/<doc1>.md
+   - .claude/zebgp/<doc2>.md
+🔑 Key insight: [one line summary from docs]
 🚀 Ready
 ```
 
@@ -58,3 +95,11 @@ Move completed spec:
 ```bash
 mv plan/spec-<name>.md plan/done/
 ```
+
+## Why This Matters
+
+Reading architecture docs BEFORE implementation prevents:
+- Uninformed "critical reviews" that miss intentional design
+- Duplicate work rediscovering existing patterns
+- Wrong assumptions about "bugs" that are actually by-design
+- Wasted effort on changes that don't fit the architecture

@@ -10,6 +10,7 @@ Read when working on specific areas:
 | NLRI types | `zebgp/wire/NLRI.md` |
 | Attributes | `zebgp/wire/ATTRIBUTES.md` |
 | Capabilities | `zebgp/wire/CAPABILITIES.md` |
+| UPDATE building | `zebgp/UPDATE_BUILDING.md` |
 | Memory pools | `zebgp/POOL_ARCHITECTURE.md` |
 | Zero-copy | `zebgp/ENCODING_CONTEXT.md` |
 | ExaBGP mapping | `zebgp/EXABGP_CODE_MAP.md` |
