@@ -202,4 +202,4 @@ func TestConvertMVPNRoute_InvalidClusterList(t *testing.T) {
 - [x] Test passes after impl
 - [x] make test passes
 - [x] make lint passes
-- [ ] Update .claude/zebgp/config/SYNTAX.md
+- [x] Update .claude/zebgp/config/SYNTAX.md
