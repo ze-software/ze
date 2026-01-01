@@ -462,7 +462,70 @@ announce {
 
 ---
 
+## MUP (Mobile User Plane)
+
+SRv6 Mobile User Plane routes (draft-mpmz-bess-mup-safi) are configured under `announce { ipv4/ipv6 { mup ... } }`.
+
+### Route Types
+
+| Type | Description |
+|------|-------------|
+| `mup-isd` | Interwork Segment Discovery (Type 1) |
+| `mup-dsd` | Direct Segment Discovery (Type 2) |
+| `mup-t1st` | Type 1 Session Transformed (Type 3) |
+| `mup-t2st` | Type 2 Session Transformed (Type 4) |
+
+### Syntax
+
+```
+announce {
+    ipv4 {
+        mup <route-type> <prefix-or-addr> rd <rd> [options...];
+    }
+    ipv6 {
+        mup <route-type> <prefix-or-addr> rd <rd> [options...];
+    }
+}
+```
+
+### Options
+
+| Option | Used by | Description |
+|--------|---------|-------------|
+| `rd` | All | Route distinguisher |
+| `teid` | T1ST, T2ST | Tunnel Endpoint ID |
+| `qfi` | T1ST | QoS Flow Identifier |
+| `endpoint` | T1ST | GTP tunnel endpoint |
+| `source` | T1ST | Source address (optional) |
+| `next-hop` | All | Next hop address |
+| `extended-community` | All | Extended communities (e.g., `mup:10:10`) |
+| `bgp-prefix-sid` | All | SRv6 Prefix SID |
+
+### Examples
+
+```
+announce {
+    ipv4 {
+        # Interwork Segment Discovery
+        mup mup-isd 10.0.0.0/24 rd 100:100 next-hop 192.168.1.1;
+
+        # Type 1 Session Transformed
+        mup mup-t1st 192.168.0.2/32 rd 100:100 teid 12345 qfi 9 endpoint 10.0.0.1 next-hop 192.168.1.1;
+
+        # Direct Segment Discovery
+        mup mup-dsd 10.0.0.1 rd 100:100 next-hop 192.168.1.1;
+    }
+    ipv6 {
+        mup mup-isd 2001:db8::/48 rd 100:100 next-hop 2001::1 extended-community mup:10:10;
+    }
+}
+```
+
+---
+
 ## L2VPN / EVPN
+
+### VPLS
 
 ```
 l2vpn {
@@ -476,7 +539,36 @@ l2vpn {
         as-path [ ... ];
         rd <rd>;
         route-target [ <rt>, ... ];
+        originator-id <ip>;       # RFC 4456 route reflector
+        cluster-list <ip> <ip>;   # RFC 4456 route reflector
     }
+}
+```
+
+### EVPN
+
+EVPN routes use freeform syntax (complex format, passed through to ExaBGP-compatible parser):
+
+```
+announce {
+    l2vpn {
+        evpn <route-type> <nlri> <attributes>;
+    }
+}
+```
+
+See ExaBGP documentation for EVPN route type details.
+
+---
+
+## BGP-LS
+
+BGP Link-State (RFC 7752) is supported as a family but route injection uses ExaBGP-compatible freeform syntax.
+
+```
+family {
+    bgpls bgpls;
+    bgpls bgpls-vpn;
 }
 ```
 
