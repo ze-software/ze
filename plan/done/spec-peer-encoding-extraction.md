@@ -93,6 +93,23 @@ These pre-existing issues are NOT addressed by this spec:
 
 Both grouping bugs are latent issues in rarely-used code paths (GroupUpdates + VPN/LabeledUnicast).
 
+5. **AS4_AGGREGATOR not implemented** - Per RFC 6793 Section 4.2.3, when ASN4=false AND AggregatorASN > 65535:
+   - AGGREGATOR uses AS_TRANS (23456) → ✅ Implemented
+   - AS4_AGGREGATOR attribute with real 4-byte ASN → ❌ Not implemented
+
+   **Risk Assessment: VERY LOW** - This requires the combination of:
+   1. AGGREGATOR attribute present (rare - only for aggregated routes)
+   2. ASN4=false peer (legacy - <0.1% of deployments)
+   3. AggregatorASN > 65535 (4-byte ASN networks usually have ASN4 capability)
+
+   **Recommendation:** Document in follow-up issue. The fix would require:
+   1. Detecting ASN4=false + AggregatorASN > 65535
+   2. Adding AS4_AGGREGATOR (type 18) attribute with real ASN
+
+6. **Route reflector attributes missing for advanced SAFIs** - See `plan/issue-route-reflector-attrs-missing.md`:
+   - MVPNParams, FlowSpecParams, MUPParams missing ORIGINATOR_ID/CLUSTER_LIST
+   - Low priority: these SAFIs rarely used with route reflectors
+
 ## Embedded Protocol Requirements
 
 ### Default Rules (ALL tasks)
@@ -817,6 +834,26 @@ If desired for consistency:
 - Rename `buildStaticRouteUpdateNew` → `buildStaticRouteUpdate`
 
 This is cosmetic - the "New" suffix is no longer misleading since the old function is gone.
+
+## Test Coverage Analysis
+
+New tests added: 12
+
+| Test Category              | Count | Coverage                                                     |
+|----------------------------|-------|--------------------------------------------------------------|
+| AS_PATH ASN4 (non-unicast) | 7     | VPN, LabeledUnicast, MVPN, VPLS, FlowSpec, MUP, MUPWithdraw  |
+| AGGREGATOR ASN4            | 5     | Unicast, GroupedUnicast, VPN, LabeledUnicast, VPLS (trivial) |
+
+## Code Consistency Analysis
+
+| Aspect                    | Builders Using                                                  | Status     |
+|---------------------------|-----------------------------------------------------------------|------------|
+| Explicit sort before pack | Unicast, GroupedUnicast, MVPN, VPLS, FlowSpec, MUP, MUPWithdraw | ✅         |
+| packAttributesNoSort      | VPN, LabeledUnicast                                             | ⚠️ Fragile |
+
+**Issue:** VPN and LabeledUnicast use `packAttributesNoSort()` with a comment claiming "Attributes are already in RFC 4271 type code order." This is correct but relies on developer discipline during future maintenance.
+
+**Recommendation:** Consider adding a debug assertion or using explicit sorting for consistency.
 
 ## Verification Checklist
 

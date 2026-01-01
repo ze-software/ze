@@ -84,3 +84,68 @@ Add tests similar to `TestBuildUnicast_EncodesReflectorAttrs` for each affected 
 
 - Fixed in same PR: Unicast, VPN, LabeledUnicast, VPLS (already have support)
 - Spec: `plan/spec-peer-encoding-extraction.md`
+
+---
+
+## Critical Review (2026-01-01)
+
+### ✅ Accurate Claims
+
+1. Correctly identifies affected types (MVPN, FlowSpec, MUP)
+2. Correctly identifies working types (Unicast, VPN, LabeledUnicast, VPLS)
+3. Proposed fix code is correct and matches existing patterns
+4. Priority assessment is reasonable
+
+### ⚠️ Design Considerations
+
+#### MVPNParams Batch Interface Issue
+
+```go
+func (ub *UpdateBuilder) BuildMVPN(routes []MVPNParams) *Update
+```
+
+MVPN takes a **slice** of params. Adding per-route attributes is awkward:
+- Current code uses `first := routes[0]` for shared attributes
+- If routes have different `OriginatorID` values, only first is used
+- **Recommendation:** Document this limitation or redesign to match other builders
+
+#### FlowSpecParams Raw Bytes Pattern
+
+```go
+type FlowSpecParams struct {
+    CommunityBytes        []byte  // raw bytes, not []uint32
+    ExtCommunityBytes     []byte
+}
+```
+
+FlowSpec uses raw bytes for communities. Two options:
+- Use `OriginatorIDBytes [4]byte` for consistency
+- Accept inconsistency (`uint32` is simpler for fixed-format attributes)
+
+### ❌ Broader Issues Not Covered
+
+| Attribute | Unicast | VPN | LabeledUnicast | VPLS | MVPN | FlowSpec | MUP |
+|-----------|---------|-----|----------------|------|------|----------|-----|
+| ASPath | ✅ | ✅ | ✅ | ✅ | ❌ | ❌ | ❌ |
+| Communities | ✅ | ✅ | ✅ | ✅ | ❌ | ❌¹ | ❌ |
+| LargeCommunities | ✅ | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ |
+| AtomicAggregate | ✅ | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ |
+| Aggregator | ✅ | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ |
+| MED | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ | ❌ |
+
+¹ FlowSpec has `CommunityBytes` (raw) not `Communities []uint32`
+
+The missing ORIGINATOR_ID/CLUSTER_LIST is part of a larger pattern of incomplete params structs for advanced SAFIs. This is out of scope for this issue.
+
+### 📋 RFC 4456 Compliance Notes
+
+The proposed fix is correct for **pass-through encoding**, but route reflector logic must also:
+
+1. **ORIGINATOR_ID (Section 8):** MUST NOT create if already exists
+2. **CLUSTER_LIST (Section 8):** MUST prepend local cluster ID, not replace
+
+This logic belongs in reactor, not the builder.
+
+### ✅ Verdict
+
+The issue is **technically correct but narrow in scope**. The proposed fix will work. For a low-priority issue, the targeted approach is appropriate.
