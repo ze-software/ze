@@ -17,6 +17,8 @@ type Display struct {
 	quiet     bool
 	startTime time.Time
 	timeout   time.Duration
+	parallel  int // for batch display (0 = all at once)
+	total     int // total test count
 }
 
 // NewDisplay creates a new display.
@@ -43,6 +45,12 @@ func (d *Display) SetTimeout(timeout time.Duration) {
 	d.timeout = timeout
 }
 
+// SetParallel sets the parallel count for batch display.
+func (d *Display) SetParallel(parallel, total int) {
+	d.parallel = parallel
+	d.total = total
+}
+
 // Start marks the beginning of test execution.
 func (d *Display) Start() {
 	d.startTime = time.Now()
@@ -58,7 +66,7 @@ func (d *Display) Status() {
 	defer d.tests.mu.RUnlock()
 
 	var passed, failed, timedOut, running, pending int
-	var failedNicks, timedOutNicks, pendingNicks []string
+	var failedTests, timedOutTests, pendingTests []string
 	var maxRunningElapsed time.Duration
 
 	now := time.Now()
@@ -69,13 +77,12 @@ func (d *Display) Status() {
 			passed++
 		case StateFail:
 			failed++
-			failedNicks = append(failedNicks, nick)
+			failedTests = append(failedTests, fmt.Sprintf("%s:%s", nick, r.Name))
 		case StateTimeout:
 			timedOut++
-			timedOutNicks = append(timedOutNicks, nick)
+			timedOutTests = append(timedOutTests, fmt.Sprintf("%s:%s", nick, r.Name))
 		case StateRunning, StateStarting:
 			running++
-			// Track longest running test
 			if !r.StartTime.IsZero() {
 				elapsed := now.Sub(r.StartTime)
 				if elapsed > maxRunningElapsed {
@@ -87,9 +94,7 @@ func (d *Display) Status() {
 		case StateNone:
 			if r.Active {
 				pending++
-				if len(pendingNicks) < 5 {
-					pendingNicks = append(pendingNicks, nick)
-				}
+				pendingTests = append(pendingTests, fmt.Sprintf("%s:%s", nick, r.Name))
 			}
 		}
 	}
@@ -97,14 +102,22 @@ func (d *Display) Status() {
 	// Build status parts
 	var parts []string
 
-	// Timeout countdown (show longest running test vs timeout)
-	if d.timeout > 0 && running > 0 {
-		elapsedSec := int(maxRunningElapsed.Seconds())
-		timeoutSec := int(d.timeout.Seconds())
-		parts = append(parts, fmt.Sprintf("%s [%d/%s]",
-			d.colors.Cyan("timeout"),
-			elapsedSec,
-			d.colors.Yellow(fmt.Sprintf("%d", timeoutSec))))
+	// Batch indicator (only if parallel < total, meaning we're batching)
+	completed := passed + failed + timedOut
+	if d.parallel > 0 && d.parallel < d.total {
+		totalBatches := (d.total + d.parallel - 1) / d.parallel // ceil division
+		currentBatch := (completed / d.parallel) + 1
+		if currentBatch > totalBatches {
+			currentBatch = totalBatches
+		}
+		parts = append(parts, fmt.Sprintf("batch[%d/%d]", currentBatch, totalBatches))
+	}
+
+	// Timer: longest running test elapsed vs timeout (resets per batch)
+	if running > 0 && d.timeout > 0 {
+		elapsed := int(maxRunningElapsed.Seconds())
+		timeout := int(d.timeout.Seconds())
+		parts = append(parts, fmt.Sprintf("[%d/%ds]", elapsed, timeout))
 	}
 
 	// Running count
@@ -115,29 +128,37 @@ func (d *Display) Status() {
 	// Passed count
 	parts = append(parts, fmt.Sprintf("%s %d", d.colors.Green("passed"), passed))
 
-	// Failed count with IDs
+	// Failed tests with nick:name
 	if failed > 0 {
 		failedStr := fmt.Sprintf("%s %d", d.colors.Red("failed"), failed)
-		if len(failedNicks) > 0 && len(failedNicks) <= 10 {
-			failedStr += fmt.Sprintf(" [%s]", strings.Join(failedNicks, ", "))
+		if len(failedTests) > 0 {
+			shown := failedTests
+			if len(shown) > 3 {
+				shown = shown[:3]
+			}
+			failedStr += fmt.Sprintf(" [%s]", strings.Join(shown, ", "))
 		}
 		parts = append(parts, failedStr)
 	}
 
-	// Timed out count with IDs
+	// Timed out tests with nick:name
 	if timedOut > 0 {
 		timedOutStr := fmt.Sprintf("%s %d", d.colors.Yellow("timed out"), timedOut)
-		if len(timedOutNicks) > 0 && len(timedOutNicks) <= 10 {
-			timedOutStr += fmt.Sprintf(" [%s]", strings.Join(timedOutNicks, ", "))
+		if len(timedOutTests) > 0 {
+			shown := timedOutTests
+			if len(shown) > 3 {
+				shown = shown[:3]
+			}
+			timedOutStr += fmt.Sprintf(" [%s]", strings.Join(shown, ", "))
 		}
 		parts = append(parts, timedOutStr)
 	}
 
-	// Pending count with IDs (if small)
+	// Pending count (show names when <= 5 remaining)
 	if pending > 0 {
-		pendingStr := fmt.Sprintf("%s %d", d.colors.Yellow("pending"), pending)
-		if len(pendingNicks) > 0 && pending <= 5 {
-			pendingStr += fmt.Sprintf(" [%s]", strings.Join(pendingNicks, ", "))
+		pendingStr := fmt.Sprintf("%s %d", d.colors.Gray("pending"), pending)
+		if pending <= 5 {
+			pendingStr += fmt.Sprintf(" [%s]", strings.Join(pendingTests, ", "))
 		}
 		parts = append(parts, pendingStr)
 	}
@@ -145,14 +166,82 @@ func (d *Display) Status() {
 	status := strings.Join(parts, " ")
 
 	// Clear line and print status
-	_, _ = fmt.Fprint(d.output, "\r\033[K"+status+d.colors.Reset()+"\r")
+	if d.colors.Enabled() {
+		// TTY mode: update in place
+		_, _ = fmt.Fprint(d.output, "\r\033[K"+status+d.colors.Reset()+"\r")
+	}
+	// Non-TTY: skip intermediate updates (final summary will show results)
 }
 
 // Newline prints a newline to move past the status line.
 func (d *Display) Newline() {
-	if !d.quiet {
+	if d.quiet {
+		return
+	}
+	if d.colors.Enabled() {
+		// TTY: move past the in-place status line
 		_, _ = fmt.Fprintln(d.output)
 	}
+	// Non-TTY: no status line to move past (BuildStatus already ended with newline)
+}
+
+// FinalStatus prints the final test status (for non-TTY mode).
+func (d *Display) FinalStatus() {
+	if d.quiet || d.colors.Enabled() {
+		return // TTY mode uses in-place updates, quiet mode shows nothing
+	}
+
+	d.tests.mu.RLock()
+	defer d.tests.mu.RUnlock()
+
+	var passed, failed, timedOut int
+	var failedTests, timedOutTests []string
+
+	for _, nick := range d.tests.ordered {
+		r := d.tests.byNick[nick]
+		switch r.State {
+		case StateSuccess:
+			passed++
+		case StateFail:
+			failed++
+			failedTests = append(failedTests, fmt.Sprintf("%s:%s", nick, r.Name))
+		case StateTimeout:
+			timedOut++
+			timedOutTests = append(timedOutTests, fmt.Sprintf("%s:%s", nick, r.Name))
+		case StateNone, StateSkip, StateStarting, StateRunning:
+			// Not terminal states - ignore
+		}
+	}
+
+	// Build status parts
+	var parts []string
+	parts = append(parts, fmt.Sprintf("passed %d", passed))
+
+	if failed > 0 {
+		failedStr := fmt.Sprintf("failed %d", failed)
+		if len(failedTests) > 0 {
+			shown := failedTests
+			if len(shown) > 5 {
+				shown = shown[:5]
+			}
+			failedStr += fmt.Sprintf(" [%s]", strings.Join(shown, ", "))
+		}
+		parts = append(parts, failedStr)
+	}
+
+	if timedOut > 0 {
+		timedOutStr := fmt.Sprintf("timed out %d", timedOut)
+		if len(timedOutTests) > 0 {
+			shown := timedOutTests
+			if len(shown) > 5 {
+				shown = shown[:5]
+			}
+			timedOutStr += fmt.Sprintf(" [%s]", strings.Join(shown, ", "))
+		}
+		parts = append(parts, timedOutStr)
+	}
+
+	_, _ = fmt.Fprintln(d.output, strings.Join(parts, " "))
 }
 
 // Printf prints formatted output.
@@ -232,7 +321,13 @@ func (d *Display) BuildStatus(building bool, err error) {
 	case err != nil:
 		_, _ = fmt.Fprintf(d.output, "%s %v\n", d.colors.Red("build failed:"), err)
 	default:
-		_, _ = fmt.Fprint(d.output, d.colors.Green("ready")+" ")
+		if d.colors.Enabled() {
+			// TTY: status updates will overwrite this line
+			_, _ = fmt.Fprint(d.output, d.colors.Green("ready")+" ")
+		} else {
+			// Non-TTY: end line since no status updates follow
+			_, _ = fmt.Fprintln(d.output, d.colors.Green("ready"))
+		}
 	}
 }
 

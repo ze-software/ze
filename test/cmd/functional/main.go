@@ -427,21 +427,26 @@ func parseCLI() *cliFlags {
 	cli := &cliFlags{command: command}
 
 	fs := flag.NewFlagSet(command, flag.ExitOnError)
+	fs.BoolVar(&cli.all, "a", false, "run all tests")
 	fs.BoolVar(&cli.all, "all", false, "run all tests")
+	fs.BoolVar(&cli.list, "l", false, "list available tests")
 	fs.BoolVar(&cli.list, "list", false, "list available tests")
-	fs.BoolVar(&cli.list, "l", false, "list available tests (shorthand)")
 	fs.BoolVar(&cli.shortList, "short-list", false, "list test codes only")
-	fs.DurationVar(&cli.timeout, "timeout", 30*time.Second, "timeout per test")
-	fs.IntVar(&cli.parallel, "parallel", 4, "max concurrent tests")
+	fs.DurationVar(&cli.timeout, "t", 15*time.Second, "timeout per test")
+	fs.DurationVar(&cli.timeout, "timeout", 15*time.Second, "timeout per test")
+	fs.IntVar(&cli.parallel, "p", 0, "max concurrent tests (0 = all)")
+	fs.IntVar(&cli.parallel, "parallel", 0, "max concurrent tests (0 = all)")
+	fs.BoolVar(&cli.verbose, "v", false, "verbose output")
 	fs.BoolVar(&cli.verbose, "verbose", false, "verbose output")
-	fs.BoolVar(&cli.verbose, "v", false, "verbose output (shorthand)")
+	fs.BoolVar(&cli.quiet, "q", false, "minimal output")
 	fs.BoolVar(&cli.quiet, "quiet", false, "minimal output")
-	fs.BoolVar(&cli.quiet, "q", false, "minimal output (shorthand)")
+	fs.StringVar(&cli.saveDir, "s", "", "save logs to directory")
 	fs.StringVar(&cli.saveDir, "save", "", "save logs to directory")
 	fs.IntVar(&cli.port, "port", 1790, "base port to use")
 	fs.StringVar(&cli.server, "server", "", "run server only for test")
 	fs.StringVar(&cli.client, "client", "", "run client only for test")
-	fs.IntVar(&cli.count, "count", 1, "run each test N times (stress testing)")
+	fs.IntVar(&cli.count, "c", 1, "run each test N times")
+	fs.IntVar(&cli.count, "count", 1, "run each test N times")
 
 	if err := fs.Parse(os.Args[2:]); err != nil {
 		return nil
@@ -462,31 +467,31 @@ Commands:
   parsing     Run parsing tests (config file validation)
 
 Modes:
-  --list, -l          List available tests
+  -l, --list          List available tests
   --short-list        List test codes only (space separated)
-  --all               Run all tests
+  -a, --all           Run all tests
 
 Options:
-  --timeout N         Timeout per test (default: 30s)
-  --parallel N        Max concurrent tests (default: 4)
-  --verbose, -v       Show output for each test
-  --quiet, -q         Minimal output
-  --save DIR          Save logs to directory
+  -t, --timeout N     Timeout per test (default: 15s)
+  -p, --parallel N    Max concurrent tests (0 = all, default: 0)
+  -v, --verbose       Show output for each test
+  -q, --quiet         Minimal output
+  -s, --save DIR      Save logs to directory
   --port N            Base port to use (default: 1790)
-  --count N           Run each test N times (stress testing)
+  -c, --count N       Run each test N times (stress testing)
 
 Debugging:
   --server NICK       Run server only for test
   --client NICK       Run client only for test
 
 Examples:
-  functional encoding --list
-  functional encoding --all
+  functional encoding -l
+  functional encoding -a
   functional encoding 0 1 2
-  functional api --all --quiet
-  functional decoding --all
-  functional parsing --all
-  functional encoding --count 10 0 1    # stress test: run tests 0,1 ten times
+  functional api -a -q
+  functional decoding -a
+  functional parsing -a
+  functional encoding -c 10 0 1    # stress test: run tests 0,1 ten times
 `)
 }
 

@@ -25,8 +25,8 @@ type RunOptions struct {
 // DefaultRunOptions returns sensible defaults.
 func DefaultRunOptions() *RunOptions {
 	return &RunOptions{
-		Timeout:  30 * time.Second,
-		Parallel: 4,
+		Timeout:  15 * time.Second,
+		Parallel: 0, // 0 = all tests in parallel
 		Verbose:  false,
 		Quiet:    false,
 	}
@@ -108,6 +108,13 @@ func (r *Runner) Run(ctx context.Context, opts *RunOptions) bool {
 		return true
 	}
 
+	// Set parallel for batch display
+	parallel := opts.Parallel
+	if parallel <= 0 {
+		parallel = len(selected)
+	}
+	r.display.SetParallel(parallel, len(selected))
+
 	r.display.Start()
 
 	type result struct {
@@ -120,7 +127,7 @@ func (r *Runner) Run(ctx context.Context, opts *RunOptions) bool {
 	var wg sync.WaitGroup
 
 	// Semaphore for concurrency limit
-	sem := make(chan struct{}, opts.Parallel)
+	sem := make(chan struct{}, parallel)
 
 	for _, rec := range selected {
 		wg.Add(1)
@@ -169,6 +176,7 @@ func (r *Runner) Run(ctx context.Context, opts *RunOptions) bool {
 
 	close(done)
 	r.display.Newline()
+	r.display.FinalStatus() // For non-TTY mode
 
 	// Print failure reports
 	if !allSuccess && !opts.Quiet {
