@@ -234,6 +234,26 @@ func (p *Process) Stop() {
 	}
 }
 
+// SendShutdown sends a shutdown signal to the process via stdin.
+// This allows the process to exit gracefully before being killed.
+// Uses synchronous write to ensure delivery before process termination.
+// The message is written directly to stdin, bypassing the async write queue.
+// Returns true if the shutdown signal was sent successfully.
+func (p *Process) SendShutdown() bool {
+	if !p.running.Load() {
+		return false
+	}
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	if p.stdin == nil || !p.running.Load() {
+		return false
+	}
+	// Write synchronously - shutdown is critical and must be delivered
+	// JSON format: {"answer": "shutdown"}
+	_, err := p.stdin.Write([]byte("{\"answer\": \"shutdown\"}\n"))
+	return err == nil
+}
+
 // Wait waits for the process to exit.
 func (p *Process) Wait(ctx context.Context) error {
 	done := make(chan struct{})
@@ -418,7 +438,18 @@ func (pm *ProcessManager) StartWithContext(ctx context.Context) error {
 }
 
 // Stop stops all processes.
+// Sends shutdown signal to each process before termination to allow graceful exit.
 func (pm *ProcessManager) Stop() {
+	// Send shutdown signal synchronously to all processes.
+	// SendShutdown writes directly to stdin (bypassing async queue),
+	// so the message is in the pipe buffer before we proceed.
+	pm.mu.RLock()
+	for _, proc := range pm.processes {
+		proc.SendShutdown()
+	}
+	pm.mu.RUnlock()
+
+	// Cancel context and stop all processes
 	if pm.cancel != nil {
 		pm.cancel()
 	}

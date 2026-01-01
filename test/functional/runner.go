@@ -9,6 +9,7 @@ import (
 	"regexp"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 )
 
@@ -361,11 +362,26 @@ func (r *Runner) runTest(ctx context.Context, rec *Record, opts *RunOptions) boo
 	// Wait for peer to finish (context kill goroutine handles timeout)
 	err = <-peerDone
 
-	// Kill client
+	// Gracefully stop client - send SIGTERM first to allow cleanup
 	if clientCmd.Process != nil {
-		_ = clientCmd.Process.Kill()
+		_ = clientCmd.Process.Signal(syscall.SIGTERM)
+		// Wait briefly for graceful shutdown, then force kill
+		done := make(chan struct{})
+		go func() {
+			_ = clientCmd.Wait()
+			close(done)
+		}()
+		select {
+		case <-done:
+			// Process exited gracefully
+		case <-time.After(2 * time.Second):
+			// Force kill if still running
+			_ = clientCmd.Process.Kill()
+			<-done
+		}
+	} else {
+		_ = clientCmd.Wait()
 	}
-	_ = clientCmd.Wait()
 
 	rec.PeerOutput = peerStdout.String() + peerStderr.String()
 	rec.ClientOutput = clientStdout.String() + clientStderr.String()
