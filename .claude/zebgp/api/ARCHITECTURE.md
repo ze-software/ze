@@ -10,7 +10,7 @@
 | **Transactions** | `begin`/`commit`/`rollback` with Adj-RIB-Out queuing |
 | **Process binding** | Per-peer API binding with encoding/format config |
 | **Output syntax** | `announce nlri <family> <nlris>` (differs from ExaBGP) |
-| **Gap** | No EncodingContext for API routes (planned: API-as-Peer) |
+| **Encoding** | Per-peer (correct: iBGP/eBGP differ, next-hop-self, ADD-PATH) |
 
 **When to read full doc:** API commands, route injection, subprocess management.
 
@@ -397,14 +397,16 @@ Key methods:
 - `BeginTransaction()` - Start batch mode
 - `CommitAndClear()` - Flush queued
 
-## Current Limitation: No API Context
+## Design Note: API Routes and Encoding
 
-**Problem:** API routes don't have an EncodingContext:
-- No `sourceCtxID` for zero-copy forwarding
-- No wire cache for API-sourced routes
-- API doesn't declare capabilities (ASN4, ADD-PATH)
+API routes are **locally originated** - they have no source wire bytes to cache.
+This is correct behavior, not a limitation:
 
-**Solution:** API-as-Peer design (see `plan/spec-api-virtual-peer.md`)
+- **Zero-copy** is for route reflection (forwarding received routes)
+- **API routes** are created from text commands, then encoded per-peer
+- **Per-peer encoding** is required anyway (iBGP vs eBGP AS_PATH, next-hop-self, ADD-PATH)
+
+The current flow builds UPDATEs with each peer's `PackContext`, which is RFC-correct.
 
 ## Files
 
