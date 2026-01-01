@@ -66,8 +66,9 @@ func (d *Display) Status() {
 	defer d.tests.mu.RUnlock()
 
 	var passed, failed, timedOut, running, pending int
-	var failedTests, timedOutTests, pendingTests []string
+	var failedTests, timedOutTests, runningTests, pendingTests []string
 	var maxRunningElapsed time.Duration
+	maxRunningTimeout := d.timeout
 
 	now := time.Now()
 	for _, nick := range d.tests.ordered {
@@ -83,10 +84,17 @@ func (d *Display) Status() {
 			timedOutTests = append(timedOutTests, fmt.Sprintf("%s:%s", nick, r.Name))
 		case StateRunning, StateStarting:
 			running++
+			runningTests = append(runningTests, fmt.Sprintf("%s:%s", nick, r.Name))
 			if !r.StartTime.IsZero() {
 				elapsed := now.Sub(r.StartTime)
 				if elapsed > maxRunningElapsed {
 					maxRunningElapsed = elapsed
+				}
+			}
+			// Track max timeout of running tests
+			if timeoutStr, ok := r.Extra["timeout"]; ok {
+				if t, err := time.ParseDuration(timeoutStr); err == nil && t > maxRunningTimeout {
+					maxRunningTimeout = t
 				}
 			}
 		case StateSkip:
@@ -113,16 +121,20 @@ func (d *Display) Status() {
 		parts = append(parts, fmt.Sprintf("batch[%d/%d]", currentBatch, totalBatches))
 	}
 
-	// Timer: longest running test elapsed vs timeout (resets per batch)
-	if running > 0 && d.timeout > 0 {
+	// Timer: longest running test elapsed vs max timeout of running tests
+	if running > 0 && maxRunningTimeout > 0 {
 		elapsed := int(maxRunningElapsed.Seconds())
-		timeout := int(d.timeout.Seconds())
+		timeout := int(maxRunningTimeout.Seconds())
 		parts = append(parts, fmt.Sprintf("[%d/%ds]", elapsed, timeout))
 	}
 
-	// Running count
+	// Running count with test names when <= 5
 	if running > 0 {
-		parts = append(parts, fmt.Sprintf("%s %d", d.colors.Cyan("running"), running))
+		runningStr := fmt.Sprintf("%s %d", d.colors.Cyan("running"), running)
+		if running <= 5 && len(runningTests) > 0 {
+			runningStr += fmt.Sprintf(" [%s]", strings.Join(runningTests, ", "))
+		}
+		parts = append(parts, runningStr)
 	}
 
 	// Passed count
