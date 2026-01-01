@@ -1889,7 +1889,9 @@ func (r *Reactor) AddPeer(settings *PeerSettings) error {
 		settings.LocalAddress = settings.LocalAddress.Unmap()
 
 		// Check self-referential (Address == LocalAddress)
-		if settings.Address == settings.LocalAddress {
+		// Allow for loopback (127.0.0.0/8 or ::1) to support testing with next-hop self
+		isLoopback := settings.Address.IsLoopback() && settings.LocalAddress.IsLoopback()
+		if settings.Address == settings.LocalAddress && !isLoopback {
 			return fmt.Errorf("peer %s: address cannot equal local-address", settings.Address)
 		}
 
