@@ -23,7 +23,8 @@ However, the config layer was not updated, so users cannot configure these field
 
 ## Current State
 
-- Tests: All passing (11 MVPN grouping tests)
+- **IMPLEMENTED** (pending commit)
+- Tests: All passing (11 MVPN grouping + 4 new config tests)
 - Last commit: ee13d3d (docs: document BuildMVPN batch interface limitation)
 
 ## Implementation Steps
@@ -156,9 +157,49 @@ announce {
 }
 ```
 
+## Additional Tests (from review)
+
+### Error handling test
+
+```go
+// TestConvertMVPNRoute_InvalidOriginatorID verifies error on bad IP.
+//
+// VALIDATES: Invalid originator-id returns descriptive error.
+// PREVENTS: Silent failure on malformed config.
+func TestConvertMVPNRoute_InvalidOriginatorID(t *testing.T) {
+    mr := MVPNRouteConfig{
+        RouteType:    "source-ad",
+        OriginatorID: "not-an-ip",
+    }
+    _, err := convertMVPNRoute(mr)
+    require.Error(t, err)
+    require.Contains(t, err.Error(), "originator-id")
+}
+
+// TestConvertMVPNRoute_InvalidClusterList verifies error on bad cluster-list IP.
+//
+// VALIDATES: Invalid cluster-list IP returns descriptive error.
+// PREVENTS: Silent failure on malformed config.
+func TestConvertMVPNRoute_InvalidClusterList(t *testing.T) {
+    mr := MVPNRouteConfig{
+        RouteType:   "source-ad",
+        ClusterList: "192.168.1.1 bad-ip",
+    }
+    _, err := convertMVPNRoute(mr)
+    require.Error(t, err)
+    require.Contains(t, err.Error(), "cluster-list")
+}
+```
+
+## Notes
+
+- IPv6 silently ignored (matches VPLS pattern for consistency)
+- FlowSpec/MUP config intentionally lacks these fields (only BuildFlowSpec/BuildMUP use them)
+
 ## Checklist
 
-- [ ] Test fails first
-- [ ] Test passes after impl
-- [ ] make test passes
-- [ ] make lint passes
+- [x] Test fails first
+- [x] Test passes after impl
+- [x] make test passes
+- [x] make lint passes
+- [ ] Update .claude/zebgp/config/SYNTAX.md

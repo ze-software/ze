@@ -77,6 +77,7 @@ The following docs MUST be read before starting implementation:
 - [ ] Test passes after impl
 - [ ] make test passes
 - [ ] make lint passes
+- [ ] Update `.claude/zebgp/` docs if schema/syntax changed
 ```
 
 6. Report ready:
@@ -91,7 +92,22 @@ The following docs MUST be read before starting implementation:
 
 ## After Implementation
 
-Move completed spec:
+### Update Docs (if applicable)
+
+If the task changed any of these, update the corresponding `.claude/zebgp/` doc:
+
+| Changed | Update |
+|---------|--------|
+| Config schema (new fields/blocks) | `config/SYNTAX.md` |
+| Wire format (messages, attributes) | `wire/MESSAGES.md`, `wire/ATTRIBUTES.md` |
+| NLRI types | `wire/NLRI.md` |
+| Capabilities | `wire/CAPABILITIES.md` |
+| UPDATE building | `UPDATE_BUILDING.md` |
+| Pool/memory | `POOL_ARCHITECTURE.md` |
+| API commands | `api/ARCHITECTURE.md` |
+
+### Move Completed Spec
+
 ```bash
 mv plan/spec-<name>.md plan/done/
 ```

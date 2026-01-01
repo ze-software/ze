@@ -567,6 +567,37 @@ func convertMVPNRoute(mr MVPNRouteConfig) (reactor.MVPNRoute, error) {
 		route.ExtCommunityBytes = ec.Bytes
 	}
 
+	// Parse originator-id (RFC 4456)
+	if mr.OriginatorID != "" {
+		ip, err := netip.ParseAddr(mr.OriginatorID)
+		if err != nil {
+			return route, fmt.Errorf("parse originator-id: %w", err)
+		}
+		if ip.Is4() {
+			b := ip.As4()
+			route.OriginatorID = uint32(b[0])<<24 | uint32(b[1])<<16 | uint32(b[2])<<8 | uint32(b[3])
+		}
+	}
+
+	// Parse cluster-list (RFC 4456, space-separated IPs)
+	if mr.ClusterList != "" {
+		parts := strings.Fields(mr.ClusterList)
+		for _, p := range parts {
+			p = strings.Trim(p, "[]")
+			if p == "" {
+				continue
+			}
+			ip, err := netip.ParseAddr(p)
+			if err != nil {
+				return route, fmt.Errorf("parse cluster-list: %w", err)
+			}
+			if ip.Is4() {
+				b := ip.As4()
+				route.ClusterList = append(route.ClusterList, uint32(b[0])<<24|uint32(b[1])<<16|uint32(b[2])<<8|uint32(b[3]))
+			}
+		}
+	}
+
 	return route, nil
 }
 

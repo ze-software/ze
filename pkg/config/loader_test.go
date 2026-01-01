@@ -328,3 +328,99 @@ func TestBuildMUPNLRI_T1ST_Source(t *testing.T) {
 		})
 	}
 }
+
+// TestConvertMVPNRoute_OriginatorID verifies RFC 4456 originator-id parsing.
+//
+// VALIDATES: OriginatorID is parsed from config IP string to uint32.
+// PREVENTS: Route reflector config silently ignored.
+func TestConvertMVPNRoute_OriginatorID(t *testing.T) {
+	mr := MVPNRouteConfig{
+		RouteType:    "source-ad",
+		OriginatorID: "192.168.1.1",
+	}
+	route, err := convertMVPNRoute(mr)
+	require.NoError(t, err)
+	require.Equal(t, uint32(0xC0A80101), route.OriginatorID)
+}
+
+// TestConvertMVPNRoute_ClusterList verifies RFC 4456 cluster-list parsing.
+//
+// VALIDATES: ClusterList is parsed from space-separated IPs to []uint32.
+// PREVENTS: Route reflector config silently ignored.
+func TestConvertMVPNRoute_ClusterList(t *testing.T) {
+	mr := MVPNRouteConfig{
+		RouteType:   "source-ad",
+		ClusterList: "192.168.1.1 192.168.1.2",
+	}
+	route, err := convertMVPNRoute(mr)
+	require.NoError(t, err)
+	require.Equal(t, []uint32{0xC0A80101, 0xC0A80102}, route.ClusterList)
+}
+
+// TestConvertMVPNRoute_InvalidOriginatorID verifies error on bad IP.
+//
+// VALIDATES: Invalid originator-id returns descriptive error.
+// PREVENTS: Silent failure on malformed config.
+func TestConvertMVPNRoute_InvalidOriginatorID(t *testing.T) {
+	mr := MVPNRouteConfig{
+		RouteType:    "source-ad",
+		OriginatorID: "not-an-ip",
+	}
+	_, err := convertMVPNRoute(mr)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "originator-id")
+}
+
+// TestConvertMVPNRoute_InvalidClusterList verifies error on bad cluster-list IP.
+//
+// VALIDATES: Invalid cluster-list IP returns descriptive error.
+// PREVENTS: Silent failure on malformed config.
+func TestConvertMVPNRoute_InvalidClusterList(t *testing.T) {
+	mr := MVPNRouteConfig{
+		RouteType:   "source-ad",
+		ClusterList: "192.168.1.1 bad-ip",
+	}
+	_, err := convertMVPNRoute(mr)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "cluster-list")
+}
+
+// TestLoadReactor_MVPNRouteReflector verifies full config→reactor flow for RFC 4456.
+//
+// VALIDATES: originator-id and cluster-list parsed from config file to reactor.
+// PREVENTS: Config parser missing fields (parseMVPNRoute gap).
+func TestLoadReactor_MVPNRouteReflector(t *testing.T) {
+	input := `
+router-id 10.0.0.1;
+local-as 65000;
+
+peer 192.0.2.1 {
+    peer-as 65001;
+    announce {
+        ipv4 {
+            mcast-vpn source-ad {
+                rd 100:100;
+                source 10.0.0.1;
+                group 239.1.1.1;
+                next-hop 192.168.1.1;
+                originator-id 192.168.1.1;
+                cluster-list 10.0.0.1 10.0.0.2;
+            }
+        }
+    }
+}
+`
+	r, err := LoadReactor(input)
+	require.NoError(t, err)
+	require.NotNil(t, r)
+
+	peers := r.Peers()
+	require.Len(t, peers, 1)
+
+	settings := peers[0].Settings()
+	require.Len(t, settings.MVPNRoutes, 1)
+
+	mvpn := settings.MVPNRoutes[0]
+	require.Equal(t, uint32(0xC0A80101), mvpn.OriginatorID, "originator-id should be 192.168.1.1")
+	require.Equal(t, []uint32{0x0A000001, 0x0A000002}, mvpn.ClusterList, "cluster-list should be 10.0.0.1 10.0.0.2")
+}

@@ -114,6 +114,8 @@ func mcastVpnAttributes() []FieldDef {
 		Field("origin", Leaf(TypeString)),
 		Field("local-preference", Leaf(TypeUint32)),
 		Field("med", Leaf(TypeUint32)),
+		Field("originator-id", Leaf(TypeIPv4)),          // RFC 4456
+		Field("cluster-list", ValueOrArray(TypeString)), // RFC 4456
 	}
 }
 
@@ -599,6 +601,8 @@ type MVPNRouteConfig struct {
 	LocalPreference   uint32
 	MED               uint32
 	ExtendedCommunity string
+	OriginatorID      string // RFC 4456 route reflector
+	ClusterList       string // RFC 4456 route reflector
 }
 
 // VPLSRouteConfig holds a VPLS route configuration.
@@ -1841,6 +1845,12 @@ func parseMVPNRoute(routeType string, route *Tree, isIPv6 bool) MVPNRouteConfig 
 	}
 	if v, ok := route.Get("extended-community"); ok {
 		r.ExtendedCommunity = v
+	}
+	if v, ok := route.Get("originator-id"); ok {
+		r.OriginatorID = v
+	}
+	if v, ok := route.Get("cluster-list"); ok {
+		r.ClusterList = v
 	}
 
 	return r
