@@ -992,6 +992,11 @@ type MVPNParams struct {
 //
 // RFC 6514 - MVPN routes use MP_REACH_NLRI with SAFI=5.
 // Multiple routes can be included in a single UPDATE.
+//
+// LIMITATION: Shared attributes (Origin, LocalPreference, MED, ExtCommunityBytes,
+// OriginatorID, ClusterList) are taken from routes[0] only. If routes in the
+// slice have differing values for these attributes, only the first route's
+// values are used.
 func (ub *UpdateBuilder) BuildMVPN(routes []MVPNParams) *Update {
 	if len(routes) == 0 {
 		return &Update{}
