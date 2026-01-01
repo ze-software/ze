@@ -241,3 +241,5 @@ Context IDs must be registered via `Registry.Register()`:
 
 - `plan/spec-encoding-context-impl.md` - Original design
 - `plan/spec-context-full-integration.md` - Full integration plan
+- `plan/spec-attributes-wire.md` - Lazy-parsed wire attribute storage
+- `plan/spec-pool-handle-migration.md` - Future migration to pool handles

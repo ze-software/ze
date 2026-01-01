@@ -219,6 +219,11 @@ Wire format depends on negotiated capabilities:
 - `MESSAGE_BUFFER_DESIGN.md` - Passthrough message handling
 - `wire/MESSAGES.md` - Wire format specification
 
+## Related Specs
+
+- `plan/spec-attributes-wire.md` - Lazy-parsed wire attribute storage (forward path)
+- `plan/spec-pool-handle-migration.md` - Future pool handle integration
+
 ---
 
 **Created:** 2026-01-01

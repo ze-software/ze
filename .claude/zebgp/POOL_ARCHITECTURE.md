@@ -818,4 +818,11 @@ func (p *Pool) Length(h Handle) int
 
 ---
 
-**Last Updated:** 2025-12-19
+## Related Specs
+
+- `plan/spec-pool-handle-migration.md` - Implementation plan for pool integration
+- `plan/spec-attributes-wire.md` - AttributesWire (will use pool handles)
+
+---
+
+**Last Updated:** 2026-01-01
