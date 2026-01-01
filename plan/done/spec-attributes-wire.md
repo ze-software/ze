@@ -1,6 +1,6 @@
 # Spec: AttributesWire - Wire-Canonical Attribute Storage
 
-## Status: Ready for Implementation
+## Status: Done
 
 ## Problem
 
@@ -536,26 +536,26 @@ func TestAttributesWireOriginatorID(t *testing.T)
 
 ## Checklist
 
-- [ ] Tests written for Get() (success + not found)
-- [ ] Tests written for Get() (error cases)
-- [ ] Tests written for Has() (success + error)
-- [ ] Tests written for GetMultiple()
-- [ ] Tests written for PackFor() (same context)
-- [ ] Tests written for PackFor() (different context)
-- [ ] Tests written for All()
-- [ ] Tests written for concurrent access
-- [ ] Tests written for index reuse
-- [ ] Tests written for duplicate attribute detection
-- [ ] Tests written for empty packed bytes
-- [ ] Tests written for unknown attribute codes
-- [ ] Tests written for invalid context ID
-- [ ] Tests written for flag preservation (unknown attrs)
-- [ ] Tests written for ATOMIC_AGGREGATE validation
-- [ ] Tests written for ORIGINATOR_ID parsing
-- [ ] Tests FAIL before implementation
-- [ ] Implementation makes tests pass
-- [ ] `make test` passes
-- [ ] `make lint` passes
+- [x] Tests written for Get() (success + not found)
+- [x] Tests written for Get() (error cases)
+- [x] Tests written for Has() (success + error)
+- [x] Tests written for GetMultiple()
+- [x] Tests written for PackFor() (same context)
+- [x] Tests written for PackFor() (different context)
+- [x] Tests written for All()
+- [x] Tests written for concurrent access
+- [x] Tests written for index reuse
+- [x] Tests written for duplicate attribute detection
+- [x] Tests written for empty packed bytes
+- [x] Tests written for unknown attribute codes
+- [x] Tests written for invalid context ID
+- [x] Tests written for flag preservation (unknown attrs)
+- [x] Tests written for ATOMIC_AGGREGATE validation
+- [x] Tests written for ORIGINATOR_ID parsing
+- [x] Tests FAIL before implementation
+- [x] Implementation makes tests pass
+- [x] `make test` passes
+- [x] `make lint` passes
 
 ## Dependencies
 
@@ -615,3 +615,4 @@ This decision is outside AttributesWire's scope but callers should be aware.
 **Updated:** 2026-01-01 - Simplified: flags only stored for OpaqueAttribute (known attrs derive from type)
 **Updated:** 2026-01-01 - Documented: Attribute interface, PackHeader sets Extended Length per RFC 4271 §4.3
 **Updated:** 2026-01-01 - Clarified: PackHeader ignores input Extended Length, zeroes lower 4 flag bits
+**Completed:** 2026-01-01 - Implementation done: wire.go, opaque.go, ParseOriginatorID, 33 tests
