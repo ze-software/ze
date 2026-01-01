@@ -2,10 +2,18 @@
 package config
 
 import (
+	"fmt"
 	"os"
 	"strconv"
 	"strings"
 	"time"
+)
+
+// Environment constants.
+const (
+	LogLevelInfo = "INFO"
+	EncoderText  = "text"
+	EncoderJSON  = "json"
 )
 
 // Environment holds all environment-based configuration.
@@ -106,11 +114,10 @@ type DebugEnv struct {
 }
 
 // LoadEnvironment loads configuration from environment variables.
-func LoadEnvironment() *Environment {
-	env := &Environment{}
-	env.loadDefaults()
-	env.loadFromEnv()
-	return env
+// Returns error for invalid env var values (BREAKING CHANGE from silent ignore).
+// Use LoadEnvironmentWithConfig(nil) for the same behavior with explicit error handling.
+func LoadEnvironment() (*Environment, error) {
+	return LoadEnvironmentWithConfig(nil)
 }
 
 // loadDefaults sets default values.
@@ -122,7 +129,7 @@ func (e *Environment) loadDefaults() {
 
 	// Log defaults
 	e.Log.Enable = true
-	e.Log.Level = "INFO"
+	e.Log.Level = LogLevelInfo
 	e.Log.Destination = "stdout"
 	e.Log.Configuration = true
 	e.Log.Reactor = true
@@ -154,84 +161,6 @@ func (e *Environment) loadDefaults() {
 	e.Reactor.Speed = 1.0
 }
 
-// loadFromEnv loads values from environment variables.
-func (e *Environment) loadFromEnv() {
-	// Daemon
-	e.Daemon.PID = getEnvString("daemon", "pid", e.Daemon.PID)
-	e.Daemon.User = getEnvString("daemon", "user", e.Daemon.User)
-	e.Daemon.Daemonize = getEnvBool("daemon", "daemonize", e.Daemon.Daemonize)
-	e.Daemon.Drop = getEnvBool("daemon", "drop", e.Daemon.Drop)
-	e.Daemon.Umask = getEnvOctal("daemon", "umask", e.Daemon.Umask)
-
-	// Log
-	e.Log.Enable = getEnvBool("log", "enable", e.Log.Enable)
-	e.Log.Level = getEnvString("log", "level", e.Log.Level)
-	e.Log.Destination = getEnvString("log", "destination", e.Log.Destination)
-	e.Log.All = getEnvBool("log", "all", e.Log.All)
-	e.Log.Configuration = getEnvBool("log", "configuration", e.Log.Configuration)
-	e.Log.Reactor = getEnvBool("log", "reactor", e.Log.Reactor)
-	e.Log.Daemon = getEnvBool("log", "daemon", e.Log.Daemon)
-	e.Log.Processes = getEnvBool("log", "processes", e.Log.Processes)
-	e.Log.Network = getEnvBool("log", "network", e.Log.Network)
-	e.Log.Statistics = getEnvBool("log", "statistics", e.Log.Statistics)
-	e.Log.Packets = getEnvBool("log", "packets", e.Log.Packets)
-	e.Log.RIB = getEnvBool("log", "rib", e.Log.RIB)
-	e.Log.Message = getEnvBool("log", "message", e.Log.Message)
-	e.Log.Timers = getEnvBool("log", "timers", e.Log.Timers)
-	e.Log.Routes = getEnvBool("log", "routes", e.Log.Routes)
-	e.Log.Parser = getEnvBool("log", "parser", e.Log.Parser)
-	e.Log.Short = getEnvBool("log", "short", e.Log.Short)
-
-	// TCP
-	e.TCP.Attempts = getEnvInt("tcp", "attempts", e.TCP.Attempts)
-	e.TCP.Delay = getEnvInt("tcp", "delay", e.TCP.Delay)
-	// NOTE: tcp.bind removed - listeners are derived from peer LocalAddress
-	e.TCP.Port = getEnvInt("tcp", "port", e.TCP.Port)
-	e.TCP.ACL = getEnvBool("tcp", "acl", e.TCP.ACL)
-
-	// Backward compatibility: tcp.once -> tcp.attempts
-	if getEnvBool("tcp", "once", false) && e.TCP.Attempts == 0 {
-		e.TCP.Attempts = 1
-	}
-	// Backward compatibility: tcp.connections -> tcp.attempts
-	if v := getEnv("tcp", "connections"); v != "" {
-		if n, err := strconv.Atoi(v); err == nil {
-			e.TCP.Attempts = n
-		}
-	}
-
-	// BGP
-	e.BGP.Passive = getEnvBool("bgp", "passive", e.BGP.Passive)
-	e.BGP.OpenWait = getEnvInt("bgp", "openwait", e.BGP.OpenWait)
-
-	// Cache
-	e.Cache.Attributes = getEnvBool("cache", "attributes", e.Cache.Attributes)
-
-	// API
-	e.API.ACK = getEnvBool("api", "ack", e.API.ACK)
-	e.API.Chunk = getEnvInt("api", "chunk", e.API.Chunk)
-	e.API.Encoder = getEnvString("api", "encoder", e.API.Encoder)
-	e.API.Compact = getEnvBool("api", "compact", e.API.Compact)
-	e.API.Respawn = getEnvBool("api", "respawn", e.API.Respawn)
-	e.API.Terminate = getEnvBool("api", "terminate", e.API.Terminate)
-	e.API.CLI = getEnvBool("api", "cli", e.API.CLI)
-	e.API.PipeName = getEnvString("api", "pipename", e.API.PipeName)
-	e.API.SocketName = getEnvString("api", "socketname", e.API.SocketName)
-
-	// Reactor
-	e.Reactor.Speed = getEnvFloat("reactor", "speed", e.Reactor.Speed)
-
-	// Debug
-	e.Debug.PDB = getEnvBool("debug", "pdb", e.Debug.PDB)
-	e.Debug.Memory = getEnvBool("debug", "memory", e.Debug.Memory)
-	e.Debug.Configuration = getEnvBool("debug", "configuration", e.Debug.Configuration)
-	e.Debug.SelfCheck = getEnvBool("debug", "selfcheck", e.Debug.SelfCheck)
-	e.Debug.Route = getEnvString("debug", "route", e.Debug.Route)
-	e.Debug.Defensive = getEnvBool("debug", "defensive", e.Debug.Defensive)
-	e.Debug.Rotate = getEnvBool("debug", "rotate", e.Debug.Rotate)
-	e.Debug.Timing = getEnvBool("debug", "timing", e.Debug.Timing)
-}
-
 // OpenWaitDuration returns the OpenWait as a time.Duration.
 func (e *Environment) OpenWaitDuration() time.Duration {
 	return time.Duration(e.BGP.OpenWait) * time.Second
@@ -260,58 +189,333 @@ func getEnv(section, option string) string {
 	return os.Getenv(underKey)
 }
 
-// getEnvString returns a string value from environment.
-func getEnvString(section, option, def string) string {
-	if v := getEnv(section, option); v != "" {
-		return v
+// =============================================================================
+// Strict Parsing Functions (return errors instead of silent defaults)
+// =============================================================================
+
+// parseBoolStrict parses a boolean value strictly.
+// Returns error for invalid values instead of defaulting to false.
+func parseBoolStrict(value string) (bool, error) {
+	v := strings.ToLower(value)
+	switch v {
+	case "1", "true", "yes", "on", "enable":
+		return true, nil
+	case "0", "false", "no", "off", "disable":
+		return false, nil
+	default:
+		return false, fmt.Errorf("invalid boolean %q: must be true/false/yes/no/on/off/enable/disable/1/0", value)
 	}
-	return def
 }
 
-// getEnvBool returns a boolean value from environment.
-func getEnvBool(section, option string, def bool) bool {
-	v := getEnv(section, option)
-	if v == "" {
-		return def
+// parseIntStrict parses an integer strictly.
+func parseIntStrict(value string) (int, error) {
+	if value == "" {
+		return 0, fmt.Errorf("invalid integer: empty string")
 	}
-	v = strings.ToLower(v)
-	return v == "1" || v == "true" || v == "yes" || v == "on" || v == "enable" //nolint:goconst // Truthy values
+	n, err := strconv.Atoi(value)
+	if err != nil {
+		return 0, fmt.Errorf("invalid integer %q: %w", value, err)
+	}
+	return n, nil
 }
 
-// getEnvInt returns an integer value from environment.
-func getEnvInt(section, option string, def int) int {
-	v := getEnv(section, option)
-	if v == "" {
-		return def
+// parseFloatStrict parses a float strictly.
+func parseFloatStrict(value string) (float64, error) {
+	if value == "" {
+		return 0, fmt.Errorf("invalid float: empty string")
 	}
-	if n, err := strconv.Atoi(v); err == nil {
-		return n
+	f, err := strconv.ParseFloat(value, 64)
+	if err != nil {
+		return 0, fmt.Errorf("invalid float %q: %w", value, err)
 	}
-	return def
+	return f, nil
 }
 
-// getEnvFloat returns a float value from environment.
-func getEnvFloat(section, option string, def float64) float64 {
-	v := getEnv(section, option)
-	if v == "" {
-		return def
+// parseOctalStrict parses an octal integer strictly.
+func parseOctalStrict(value string) (int, error) {
+	if value == "" {
+		return 0, fmt.Errorf("invalid octal: empty string")
 	}
-	if f, err := strconv.ParseFloat(v, 64); err == nil {
-		return f
+	v := strings.TrimPrefix(value, "0")
+	n, err := strconv.ParseInt(v, 8, 32)
+	if err != nil {
+		return 0, fmt.Errorf("invalid octal %q: %w", value, err)
 	}
-	return def
+	return int(n), nil
 }
 
-// getEnvOctal returns an octal integer value from environment.
-func getEnvOctal(section, option string, def int) int {
-	v := getEnv(section, option)
-	if v == "" {
-		return def
+// =============================================================================
+// Validation Functions
+// =============================================================================
+
+// validateLogLevel checks log level is valid.
+// Does NOT trim whitespace - strict validation.
+func validateLogLevel(value string) error {
+	valid := map[string]bool{
+		"DEBUG": true, "INFO": true, "NOTICE": true,
+		"WARNING": true, "ERR": true, "CRITICAL": true,
 	}
-	// Strip leading 0 if present
-	v = strings.TrimPrefix(v, "0")
-	if n, err := strconv.ParseInt(v, 8, 32); err == nil {
-		return int(n)
+	v := strings.ToUpper(value)
+	if !valid[v] {
+		return fmt.Errorf("invalid log level %q: must be DEBUG, INFO, NOTICE, WARNING, ERR, or CRITICAL", value)
 	}
-	return def
+	return nil
+}
+
+// validatePort checks port is valid for BGP: 179 (standard) or >1024 (unprivileged).
+func validatePort(value string) error {
+	n, err := strconv.Atoi(value)
+	if err != nil {
+		return fmt.Errorf("invalid port %q: %w", value, err)
+	}
+	if n == 179 || (n > 1024 && n <= 65535) {
+		return nil
+	}
+	return fmt.Errorf("port %d invalid: must be 179 or 1025-65535", n)
+}
+
+// validateEncoder checks encoder is valid.
+// Does NOT trim whitespace - strict validation.
+func validateEncoder(value string) error {
+	valid := map[string]bool{EncoderJSON: true, EncoderText: true}
+	v := strings.ToLower(value)
+	if !valid[v] {
+		return fmt.Errorf("invalid encoder %q: must be %s or %s", value, EncoderJSON, EncoderText)
+	}
+	return nil
+}
+
+// validateAttempts checks attempts is in valid range (0-1000).
+func validateAttempts(value string) error {
+	n, err := strconv.Atoi(value)
+	if err != nil {
+		return fmt.Errorf("invalid attempts %q: %w", value, err)
+	}
+	if n < 0 || n > 1000 {
+		return fmt.Errorf("attempts %d out of range: must be 0-1000", n)
+	}
+	return nil
+}
+
+// validateOpenWait checks openwait is in valid range (1-3600 seconds).
+func validateOpenWait(value string) error {
+	n, err := strconv.Atoi(value)
+	if err != nil {
+		return fmt.Errorf("invalid openwait %q: %w", value, err)
+	}
+	if n < 1 || n > 3600 {
+		return fmt.Errorf("openwait %d out of range: must be 1-3600", n)
+	}
+	return nil
+}
+
+// validateSpeed checks reactor speed is in valid range (0.1-10.0).
+func validateSpeed(value string) error {
+	f, err := strconv.ParseFloat(value, 64)
+	if err != nil {
+		return fmt.Errorf("invalid speed %q: %w", value, err)
+	}
+	if f < 0.1 || f > 10.0 {
+		return fmt.Errorf("speed %.2f out of range: must be 0.1-10.0", f)
+	}
+	return nil
+}
+
+// =============================================================================
+// Table-Driven Configuration Setters
+// =============================================================================
+
+// envOption defines how to set an environment option.
+type envOption struct {
+	setter   func(env *Environment, value string) error
+	validate func(value string) error // optional
+}
+
+// setBoolField creates a setter function for boolean fields.
+func setBoolField(getter func(e *Environment) *bool) func(env *Environment, value string) error {
+	return func(env *Environment, value string) error {
+		b, err := parseBoolStrict(value)
+		if err != nil {
+			return err
+		}
+		*getter(env) = b
+		return nil
+	}
+}
+
+// setIntField creates a setter function for integer fields.
+func setIntField(getter func(e *Environment) *int) func(env *Environment, value string) error {
+	return func(env *Environment, value string) error {
+		n, err := parseIntStrict(value)
+		if err != nil {
+			return err
+		}
+		*getter(env) = n
+		return nil
+	}
+}
+
+// envOptions maps section.option to its setter and validator.
+//
+//nolint:gochecknoglobals // Table-driven configuration, intentionally global
+var envOptions = map[string]map[string]envOption{
+	"daemon": {
+		"pid":       {setter: func(e *Environment, v string) error { e.Daemon.PID = v; return nil }},
+		"user":      {setter: func(e *Environment, v string) error { e.Daemon.User = v; return nil }},
+		"daemonize": {setter: setBoolField(func(e *Environment) *bool { return &e.Daemon.Daemonize })},
+		"drop":      {setter: setBoolField(func(e *Environment) *bool { return &e.Daemon.Drop })},
+		"umask": {setter: func(e *Environment, v string) error {
+			n, err := parseOctalStrict(v)
+			if err != nil {
+				return err
+			}
+			e.Daemon.Umask = n
+			return nil
+		}},
+	},
+	"log": {
+		"level":         {setter: func(e *Environment, v string) error { e.Log.Level = strings.ToUpper(v); return nil }, validate: validateLogLevel},
+		"enable":        {setter: setBoolField(func(e *Environment) *bool { return &e.Log.Enable })},
+		"destination":   {setter: func(e *Environment, v string) error { e.Log.Destination = v; return nil }},
+		"all":           {setter: setBoolField(func(e *Environment) *bool { return &e.Log.All })},
+		"configuration": {setter: setBoolField(func(e *Environment) *bool { return &e.Log.Configuration })},
+		"reactor":       {setter: setBoolField(func(e *Environment) *bool { return &e.Log.Reactor })},
+		"daemon":        {setter: setBoolField(func(e *Environment) *bool { return &e.Log.Daemon })},
+		"processes":     {setter: setBoolField(func(e *Environment) *bool { return &e.Log.Processes })},
+		"network":       {setter: setBoolField(func(e *Environment) *bool { return &e.Log.Network })},
+		"statistics":    {setter: setBoolField(func(e *Environment) *bool { return &e.Log.Statistics })},
+		"packets":       {setter: setBoolField(func(e *Environment) *bool { return &e.Log.Packets })},
+		"rib":           {setter: setBoolField(func(e *Environment) *bool { return &e.Log.RIB })},
+		"message":       {setter: setBoolField(func(e *Environment) *bool { return &e.Log.Message })},
+		"timers":        {setter: setBoolField(func(e *Environment) *bool { return &e.Log.Timers })},
+		"routes":        {setter: setBoolField(func(e *Environment) *bool { return &e.Log.Routes })},
+		"parser":        {setter: setBoolField(func(e *Environment) *bool { return &e.Log.Parser })},
+		"short":         {setter: setBoolField(func(e *Environment) *bool { return &e.Log.Short })},
+	},
+	"tcp": {
+		"port":     {setter: setIntField(func(e *Environment) *int { return &e.TCP.Port }), validate: validatePort},
+		"attempts": {setter: setIntField(func(e *Environment) *int { return &e.TCP.Attempts }), validate: validateAttempts},
+		"delay":    {setter: setIntField(func(e *Environment) *int { return &e.TCP.Delay })},
+		"acl":      {setter: setBoolField(func(e *Environment) *bool { return &e.TCP.ACL })},
+		// Backward compatibility aliases (ExaBGP legacy)
+		"once": {setter: func(e *Environment, v string) error {
+			b, err := parseBoolStrict(v)
+			if err != nil {
+				return err
+			}
+			if b && e.TCP.Attempts == 0 {
+				e.TCP.Attempts = 1
+			}
+			return nil
+		}},
+		"connections": {setter: setIntField(func(e *Environment) *int { return &e.TCP.Attempts }), validate: validateAttempts},
+	},
+	"bgp": {
+		"passive":  {setter: setBoolField(func(e *Environment) *bool { return &e.BGP.Passive })},
+		"openwait": {setter: setIntField(func(e *Environment) *int { return &e.BGP.OpenWait }), validate: validateOpenWait},
+	},
+	"cache": {
+		"attributes": {setter: setBoolField(func(e *Environment) *bool { return &e.Cache.Attributes })},
+	},
+	"api": {
+		"ack":        {setter: setBoolField(func(e *Environment) *bool { return &e.API.ACK })},
+		"chunk":      {setter: setIntField(func(e *Environment) *int { return &e.API.Chunk })},
+		"encoder":    {setter: func(e *Environment, v string) error { e.API.Encoder = strings.ToLower(v); return nil }, validate: validateEncoder},
+		"compact":    {setter: setBoolField(func(e *Environment) *bool { return &e.API.Compact })},
+		"respawn":    {setter: setBoolField(func(e *Environment) *bool { return &e.API.Respawn })},
+		"terminate":  {setter: setBoolField(func(e *Environment) *bool { return &e.API.Terminate })},
+		"cli":        {setter: setBoolField(func(e *Environment) *bool { return &e.API.CLI })},
+		"pipename":   {setter: func(e *Environment, v string) error { e.API.PipeName = v; return nil }},
+		"socketname": {setter: func(e *Environment, v string) error { e.API.SocketName = v; return nil }},
+	},
+	"reactor": {
+		"speed": {
+			setter: func(e *Environment, v string) error {
+				f, err := parseFloatStrict(v)
+				if err != nil {
+					return err
+				}
+				e.Reactor.Speed = f
+				return nil
+			},
+			validate: validateSpeed,
+		},
+	},
+	"debug": {
+		"pdb":           {setter: setBoolField(func(e *Environment) *bool { return &e.Debug.PDB })},
+		"memory":        {setter: setBoolField(func(e *Environment) *bool { return &e.Debug.Memory })},
+		"configuration": {setter: setBoolField(func(e *Environment) *bool { return &e.Debug.Configuration })},
+		"selfcheck":     {setter: setBoolField(func(e *Environment) *bool { return &e.Debug.SelfCheck })},
+		"route":         {setter: func(e *Environment, v string) error { e.Debug.Route = v; return nil }},
+		"defensive":     {setter: setBoolField(func(e *Environment) *bool { return &e.Debug.Defensive })},
+		"rotate":        {setter: setBoolField(func(e *Environment) *bool { return &e.Debug.Rotate })},
+		"timing":        {setter: setBoolField(func(e *Environment) *bool { return &e.Debug.Timing })},
+	},
+}
+
+// SetConfigValue applies a single config value from the environment block.
+// Returns error for unknown section/option, type parse failure, or validation failure.
+func (e *Environment) SetConfigValue(section, option, value string) error {
+	section = strings.ToLower(section)
+	option = strings.ToLower(option)
+
+	sectionOpts, ok := envOptions[section]
+	if !ok {
+		return fmt.Errorf("unknown environment section: %s", section)
+	}
+
+	opt, ok := sectionOpts[option]
+	if !ok {
+		return fmt.Errorf("unknown %s option: %s", section, option)
+	}
+
+	// Validate if validator exists
+	if opt.validate != nil {
+		if err := opt.validate(value); err != nil {
+			return err
+		}
+	}
+
+	// Set the value
+	return opt.setter(e, value)
+}
+
+// loadFromEnvStrict loads values from environment variables with strict validation.
+// Returns error on any parse failure instead of silently using defaults.
+func (e *Environment) loadFromEnvStrict() error {
+	for section, opts := range envOptions {
+		for option := range opts {
+			value := getEnv(section, option)
+			if value == "" {
+				continue
+			}
+			if err := e.SetConfigValue(section, option, value); err != nil {
+				return fmt.Errorf("env var zebgp.%s.%s: %w", section, option, err)
+			}
+		}
+	}
+	return nil
+}
+
+// LoadEnvironmentWithConfig loads env: defaults → config block → OS env.
+// The configValues map is section -> option -> value from parsed config.
+func LoadEnvironmentWithConfig(configValues map[string]map[string]string) (*Environment, error) {
+	env := &Environment{}
+	env.loadDefaults()
+
+	// Apply config file values
+	for section, options := range configValues {
+		for option, value := range options {
+			if err := env.SetConfigValue(section, option, value); err != nil {
+				return nil, fmt.Errorf("config environment.%s.%s: %w", section, option, err)
+			}
+		}
+	}
+
+	// OS env vars override config (with strict validation)
+	if err := env.loadFromEnvStrict(); err != nil {
+		return nil, err
+	}
+
+	return env, nil
 }

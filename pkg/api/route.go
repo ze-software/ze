@@ -1062,42 +1062,7 @@ func withdrawMUPImpl(ctx *CommandContext, args []string, isIPv6 bool) (*Response
 // Example: announce ipv4 mpls-vpn 10.0.0.0/24 rd 100:100 label 100 next-hop 1.2.3.4.
 // Example: announce ipv4 mup mup-isd 10.0.0.0/24 rd 100:100 next-hop 2001::1.
 func handleAnnounceIPv4(ctx *CommandContext, args []string) (*Response, error) {
-	// Parse SAFI
-	safi, rest, err := parseSAFI(args)
-	if err != nil {
-		return &Response{Status: "error", Error: err.Error()}, err
-	}
-
-	// MUP has different arg format: route-type prefix ... (not prefix first)
-	if safi == SAFINameMUP {
-		return announceMUPImpl(ctx, rest, false)
-	}
-
-	// Validate prefix is IPv4
-	if len(rest) < 1 {
-		return &Response{Status: "error", Error: "missing prefix"}, ErrMissingPrefix
-	}
-	prefix, err := netip.ParsePrefix(rest[0])
-	if err != nil {
-		return &Response{Status: "error", Error: fmt.Sprintf("invalid prefix: %s", rest[0])}, ErrInvalidPrefix
-	}
-	if !prefix.Addr().Is4() {
-		return &Response{
-			Status: "error",
-			Error:  fmt.Sprintf("expected IPv4 prefix for 'announce ipv4', got: %s", rest[0]),
-		}, ErrInvalidPrefix
-	}
-
-	// Route to appropriate handler based on SAFI
-	switch safi {
-	case SAFINameMPLSVPN:
-		return announceL3VPNImpl(ctx, rest)
-	case SAFINameNLRIMPLS:
-		return announceLabeledUnicastImpl(ctx, rest)
-	default:
-		// Delegate unicast to shared implementation
-		return announceRouteImpl(ctx, rest)
-	}
+	return handleAFIRoute(ctx, args, false, false)
 }
 
 // handleAnnounceIPv6 handles: announce ipv6 <safi> <prefix> [attributes...].
@@ -1107,42 +1072,7 @@ func handleAnnounceIPv4(ctx *CommandContext, args []string) (*Response, error) {
 // Example: announce ipv6 mpls-vpn 2001:db8::/32 rd 100:100 label 100 next-hop 2001::1.
 // Example: announce ipv6 mup mup-isd 2001:db8::/32 rd 100:100 next-hop 2001::1.
 func handleAnnounceIPv6(ctx *CommandContext, args []string) (*Response, error) {
-	// Parse SAFI
-	safi, rest, err := parseSAFI(args)
-	if err != nil {
-		return &Response{Status: "error", Error: err.Error()}, err
-	}
-
-	// MUP has different arg format: route-type prefix ... (not prefix first)
-	if safi == SAFINameMUP {
-		return announceMUPImpl(ctx, rest, true)
-	}
-
-	// Validate prefix is IPv6
-	if len(rest) < 1 {
-		return &Response{Status: "error", Error: "missing prefix"}, ErrMissingPrefix
-	}
-	prefix, err := netip.ParsePrefix(rest[0])
-	if err != nil {
-		return &Response{Status: "error", Error: fmt.Sprintf("invalid prefix: %s", rest[0])}, ErrInvalidPrefix
-	}
-	if !prefix.Addr().Is6() {
-		return &Response{
-			Status: "error",
-			Error:  fmt.Sprintf("expected IPv6 prefix for 'announce ipv6', got: %s", rest[0]),
-		}, ErrInvalidPrefix
-	}
-
-	// Route to appropriate handler based on SAFI
-	switch safi {
-	case SAFINameMPLSVPN:
-		return announceL3VPNImpl(ctx, rest)
-	case SAFINameNLRIMPLS:
-		return announceLabeledUnicastImpl(ctx, rest)
-	default:
-		// Delegate unicast to shared implementation
-		return announceRouteImpl(ctx, rest)
-	}
+	return handleAFIRoute(ctx, args, true, false)
 }
 
 // handleWithdrawIPv4 handles: withdraw ipv4 <safi> <prefix> [attributes...].
@@ -1152,42 +1082,7 @@ func handleAnnounceIPv6(ctx *CommandContext, args []string) (*Response, error) {
 // Example: withdraw ipv4 mpls-vpn 10.0.0.0/24 rd 100:100.
 // Example: withdraw ipv4 mup mup-isd 10.0.0.0/24 rd 100:100.
 func handleWithdrawIPv4(ctx *CommandContext, args []string) (*Response, error) {
-	// Parse SAFI
-	safi, rest, err := parseSAFI(args)
-	if err != nil {
-		return &Response{Status: "error", Error: err.Error()}, err
-	}
-
-	// MUP has different arg format: route-type prefix ... (not prefix first)
-	if safi == SAFINameMUP {
-		return withdrawMUPImpl(ctx, rest, false)
-	}
-
-	// Validate prefix is IPv4
-	if len(rest) < 1 {
-		return &Response{Status: "error", Error: "missing prefix"}, ErrMissingPrefix
-	}
-	prefix, err := netip.ParsePrefix(rest[0])
-	if err != nil {
-		return &Response{Status: "error", Error: fmt.Sprintf("invalid prefix: %s", rest[0])}, ErrInvalidPrefix
-	}
-	if !prefix.Addr().Is4() {
-		return &Response{
-			Status: "error",
-			Error:  fmt.Sprintf("expected IPv4 prefix for 'withdraw ipv4', got: %s", rest[0]),
-		}, ErrInvalidPrefix
-	}
-
-	// Route to appropriate handler based on SAFI
-	switch safi {
-	case SAFINameMPLSVPN:
-		return withdrawL3VPNImpl(ctx, rest)
-	case SAFINameNLRIMPLS:
-		return withdrawLabeledUnicastImpl(ctx, rest)
-	default:
-		// Delegate unicast to shared implementation
-		return withdrawRouteImpl(ctx, rest)
-	}
+	return handleAFIRoute(ctx, args, false, true)
 }
 
 // handleWithdrawIPv6 handles: withdraw ipv6 <safi> <prefix> [attributes...].
@@ -1197,6 +1092,11 @@ func handleWithdrawIPv4(ctx *CommandContext, args []string) (*Response, error) {
 // Example: withdraw ipv6 mpls-vpn 2001:db8::/32 rd 100:100.
 // Example: withdraw ipv6 mup mup-isd 2001:db8::/32 rd 100:100.
 func handleWithdrawIPv6(ctx *CommandContext, args []string) (*Response, error) {
+	return handleAFIRoute(ctx, args, true, true)
+}
+
+// handleAFIRoute is a common handler for announce/withdraw ipv4/ipv6.
+func handleAFIRoute(ctx *CommandContext, args []string, isIPv6, isWithdraw bool) (*Response, error) {
 	// Parse SAFI
 	safi, rest, err := parseSAFI(args)
 	if err != nil {
@@ -1205,10 +1105,13 @@ func handleWithdrawIPv6(ctx *CommandContext, args []string) (*Response, error) {
 
 	// MUP has different arg format: route-type prefix ... (not prefix first)
 	if safi == SAFINameMUP {
-		return withdrawMUPImpl(ctx, rest, true)
+		if isWithdraw {
+			return withdrawMUPImpl(ctx, rest, isIPv6)
+		}
+		return announceMUPImpl(ctx, rest, isIPv6)
 	}
 
-	// Validate prefix is IPv6
+	// Validate prefix
 	if len(rest) < 1 {
 		return &Response{Status: "error", Error: "missing prefix"}, ErrMissingPrefix
 	}
@@ -1216,22 +1119,40 @@ func handleWithdrawIPv6(ctx *CommandContext, args []string) (*Response, error) {
 	if err != nil {
 		return &Response{Status: "error", Error: fmt.Sprintf("invalid prefix: %s", rest[0])}, ErrInvalidPrefix
 	}
-	if !prefix.Addr().Is6() {
+
+	// Check AFI matches
+	afiName := "ipv4"
+	if isIPv6 {
+		afiName = "ipv6"
+	}
+	action := "announce"
+	if isWithdraw {
+		action = "withdraw"
+	}
+	if isIPv6 != prefix.Addr().Is6() {
 		return &Response{
 			Status: "error",
-			Error:  fmt.Sprintf("expected IPv6 prefix for 'withdraw ipv6', got: %s", rest[0]),
+			Error:  fmt.Sprintf("expected %s prefix for '%s %s', got: %s", afiName, action, afiName, rest[0]),
 		}, ErrInvalidPrefix
 	}
 
 	// Route to appropriate handler based on SAFI
 	switch safi {
 	case SAFINameMPLSVPN:
-		return withdrawL3VPNImpl(ctx, rest)
+		if isWithdraw {
+			return withdrawL3VPNImpl(ctx, rest)
+		}
+		return announceL3VPNImpl(ctx, rest)
 	case SAFINameNLRIMPLS:
-		return withdrawLabeledUnicastImpl(ctx, rest)
+		if isWithdraw {
+			return withdrawLabeledUnicastImpl(ctx, rest)
+		}
+		return announceLabeledUnicastImpl(ctx, rest)
 	default:
-		// Delegate unicast to shared implementation
-		return withdrawRouteImpl(ctx, rest)
+		if isWithdraw {
+			return withdrawRouteImpl(ctx, rest)
+		}
+		return announceRouteImpl(ctx, rest)
 	}
 }
 

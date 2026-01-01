@@ -29,6 +29,8 @@
 | `neighbor-to-peer-rename.md` | All 6 phases done, v2 syntax removed |
 | `config-migration-system.md` | v2→v3 migration, CLI commands |
 | `rfc7606-extension.md` | RFC 7606 full compliance |
+| `spec-listener-per-local-address.md` | Multi-listener from peer LocalAddress |
+| `spec-environment-config-block.md` | Environment block in config (ZeBGP-specific) |
 
 ### 📋 Implementation Specs (Active)
 
@@ -105,4 +107,4 @@ plan/
 
 ---
 
-**Last Updated:** 2025-12-28
+**Last Updated:** 2026-01-01

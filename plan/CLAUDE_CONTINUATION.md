@@ -1,6 +1,6 @@
 # Claude Continuation State
 
-**Last Updated:** 2025-12-31
+**Last Updated:** 2026-01-01
 
 ---
 
@@ -26,26 +26,90 @@
 
 ```
 make test   - PASS
-make lint   - pre-existing dupl issues only (6)
+make lint   - 0 issues ✅
 API tests   - 14/14 passed (100%) ✅
-  - PASS: add-remove, announce, eor, fast, nexthop, ipv4, ipv6, attributes
-  - PASS: teardown, notification, watchdog, check
-  - PASS: mup4, mup6 (MUP API implemented this session)
-  - SKIP: announcement (multi-session qualifiers - NOT SUPPORTED by design)
 ```
 
 ---
 
 ## Resume Point
 
-**Last worked:** 2025-12-31
-**Last commit:** Listener Per Local Address
+**Last worked:** 2026-01-01
+**Last commit:** Environment Configuration Block
 
-**Status:** Ready to commit
+**Status:** Ready for next task
 
 ---
 
-## RECENTLY COMPLETED: Listener Per Local Address (pending commit)
+## RECENTLY COMPLETED: Environment Configuration Block
+
+**Spec:** `plan/spec-environment-config-block.md`
+
+### Summary
+ZeBGP-specific feature to set environment variables from config file instead of shell.
+Includes strict validation (BREAKING CHANGE from ExaBGP's silent-ignore behavior).
+
+### Changes
+1. **Strict parsing functions** - `pkg/config/environment.go`
+   - `parseBoolStrict()`, `parseIntStrict()`, `parseFloatStrict()`, `parseOctalStrict()`
+   - Return errors instead of silent defaults
+
+2. **Validation functions** - `pkg/config/environment.go`
+   - `validateLogLevel()` - DEBUG, INFO, NOTICE, WARNING, ERR, CRITICAL
+   - `validatePort()` - 1-65535
+   - `validateEncoder()` - json, text
+   - `validateAttempts()` - 0-1000
+   - `validateOpenWait()` - 1-3600
+   - `validateSpeed()` - 0.1-10.0
+
+3. **Table-driven setters** - `envOptions` map
+   - All 8 sections: daemon, log, tcp, bgp, cache, api, reactor, debug
+   - Backward compat: `tcp.once`, `tcp.connections` aliases
+
+4. **New API** - `pkg/config/environment.go`
+   - `SetConfigValue(section, option, value)` - set individual values
+   - `LoadEnvironmentWithConfig(map)` - load with config block values
+   - `LoadEnvironment() (*Environment, error)` - now returns error (BREAKING)
+
+5. **Config parser integration** - `pkg/config/bgp.go`
+   - `environmentBlock()` schema for BGPSchema and LegacyBGPSchema
+   - `ExtractEnvironment(tree)` extracts values from parsed config
+   - `BGPConfig.EnvValues` field carries environment values
+
+6. **Migration helper** - `cmd/zebgp/config_check.go`
+   - `--env` flag validates environment variables before upgrade
+   - JSON output support
+
+7. **50+ new tests** - `pkg/config/environment_test.go`
+   - Strict parsing, validation, SetConfigValue, LoadEnvironmentWithConfig
+   - Backward compat (tcp.once, tcp.connections)
+   - Environment block parsing
+
+8. **Documentation** - `.claude/zebgp/config/`
+   - `ENVIRONMENT_BLOCK.md` - new feature doc
+   - Updated `SYNTAX.md` - added environment section
+   - Updated `ENVIRONMENT.md` - added ZeBGP enhancements
+
+### Usage
+```
+environment {
+    log { level DEBUG; }
+    tcp { port 1179; }
+    api { encoder text; }
+}
+```
+
+Priority: OS env > config block > defaults
+
+### Verification
+```
+make test       - PASS
+make lint       - 0 issues ✅
+```
+
+---
+
+## RECENTLY COMPLETED: Listener Per Local Address
 
 **Spec:** `plan/done/spec-listener-per-local-address.md`
 

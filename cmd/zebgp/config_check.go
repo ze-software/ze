@@ -21,25 +21,32 @@ const (
 func cmdConfigCheckCLI(args []string) int {
 	fs := flag.NewFlagSet("config check", flag.ExitOnError)
 	jsonOutput := fs.Bool("json", false, "output as JSON")
+	envOnly := fs.Bool("env", false, "validate environment variables only (no config file needed)")
 
 	fs.Usage = func() {
-		fmt.Fprintf(os.Stderr, `Usage: zebgp config check [options] <config-file>
+		fmt.Fprintf(os.Stderr, `Usage: zebgp config check [options] [config-file]
 
 Show config version and deprecated patterns that need migration.
+Use --env to validate environment variables without a config file.
 
 Options:
 `)
 		fs.PrintDefaults()
 		fmt.Fprintf(os.Stderr, `
 Exit codes:
-  0  Config is current (v3)
+  0  Config is current (v3) / environment valid
   1  Config needs migration (v2 or older)
-  2  File not found or parse error
+  2  File not found, parse error, or invalid environment
 `)
 	}
 
 	if err := fs.Parse(args); err != nil {
 		return exitError
+	}
+
+	// Handle --env flag: validate environment variables only
+	if *envOnly {
+		return checkEnvironment(*jsonOutput)
 	}
 
 	if fs.NArg() < 1 {
@@ -62,6 +69,28 @@ Exit codes:
 	}
 
 	return outputCheckText(result)
+}
+
+// checkEnvironment validates environment variables with strict parsing.
+// Returns exitOK if all valid, exitError if any invalid.
+func checkEnvironment(jsonOutput bool) int {
+	_, err := config.LoadEnvironment()
+	if err != nil {
+		if jsonOutput {
+			fmt.Printf(`{"status":"invalid","error":%q}`+"\n", err.Error())
+		} else {
+			fmt.Fprintf(os.Stderr, "❌ Environment validation failed\n")
+			fmt.Fprintf(os.Stderr, "   %v\n", err)
+		}
+		return exitError
+	}
+
+	if jsonOutput {
+		fmt.Println(`{"status":"valid"}`)
+	} else {
+		fmt.Println("✅ Environment variables valid")
+	}
+	return exitOK
 }
 
 // checkResult holds results from config check.

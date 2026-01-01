@@ -5,7 +5,7 @@
 | Concept | Description |
 |---------|-------------|
 | **Style** | JUNOS-like: `{}` blocks, `;` terminators, `#` comments |
-| **Sections** | `process`, `template`, `peer` (top-level) |
+| **Sections** | `environment`, `process`, `template`, `peer` (top-level) |
 | **Inheritance** | `inherit <template-name>` applies template config |
 | **Pattern** | Registry/dispatch: `sectionParsers` map routes to handlers |
 | **Key Types** | `Parser`, `Tokenizer`, `Scope`, `Validator` |
@@ -46,6 +46,18 @@ neighbor <ip-address> {
 ---
 
 ## Section Types
+
+### environment
+
+ZeBGP-specific block for setting environment configuration from the config file.
+See [ENVIRONMENT_BLOCK.md](ENVIRONMENT_BLOCK.md) for full documentation.
+
+```
+environment {
+    log { level DEBUG; }
+    tcp { port 1179; }
+}
+```
 
 ### process
 

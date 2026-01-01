@@ -25,6 +25,9 @@ const (
 	// MUP route types for SRv6 Mobile User Plane.
 	routeTypeMUPISD  = "mup-isd"
 	routeTypeMUPT1ST = "mup-t1st"
+
+	// Encoder types.
+	encoderText = "text"
 )
 
 // FamilyMode represents the negotiation mode for an address family.
@@ -302,6 +305,10 @@ func peerFields() []FieldDef {
 func BGPSchema() *Schema {
 	schema := NewSchema()
 
+	// Environment settings (ZeBGP-specific, not in ExaBGP)
+	// Processed first, before template/peer/process blocks
+	schema.Define("environment", environmentBlock())
+
 	// Global settings
 	schema.Define("router-id", Leaf(TypeIPv4))
 	schema.Define("local-as", Leaf(TypeUint32))
@@ -327,10 +334,83 @@ func BGPSchema() *Schema {
 	return schema
 }
 
+// environmentBlock returns the schema for the environment configuration block.
+// Maps to Environment struct sections (daemon, log, tcp, bgp, cache, api, reactor, debug).
+func environmentBlock() *ContainerNode {
+	return Container(
+		Field("daemon", Container(
+			Field("pid", Leaf(TypeString)),
+			Field("user", Leaf(TypeString)),
+			Field("daemonize", Leaf(TypeBool)),
+			Field("drop", Leaf(TypeBool)),
+			Field("umask", Leaf(TypeString)), // Octal string
+		)),
+		Field("log", Container(
+			Field("level", Leaf(TypeString)),
+			Field("enable", Leaf(TypeBool)),
+			Field("destination", Leaf(TypeString)),
+			Field("all", Leaf(TypeBool)),
+			Field("configuration", Leaf(TypeBool)),
+			Field("reactor", Leaf(TypeBool)),
+			Field("daemon", Leaf(TypeBool)),
+			Field("processes", Leaf(TypeBool)),
+			Field("network", Leaf(TypeBool)),
+			Field("statistics", Leaf(TypeBool)),
+			Field("packets", Leaf(TypeBool)),
+			Field("rib", Leaf(TypeBool)),
+			Field("message", Leaf(TypeBool)),
+			Field("timers", Leaf(TypeBool)),
+			Field("routes", Leaf(TypeBool)),
+			Field("parser", Leaf(TypeBool)),
+			Field("short", Leaf(TypeBool)),
+		)),
+		Field("tcp", Container(
+			Field("port", Leaf(TypeUint16)),
+			Field("attempts", Leaf(TypeInt)),
+			Field("delay", Leaf(TypeInt)),
+			Field("acl", Leaf(TypeBool)),
+		)),
+		Field("bgp", Container(
+			Field("passive", Leaf(TypeBool)),
+			Field("openwait", Leaf(TypeInt)),
+		)),
+		Field("cache", Container(
+			Field("attributes", Leaf(TypeBool)),
+		)),
+		Field("api", Container(
+			Field("ack", Leaf(TypeBool)),
+			Field("chunk", Leaf(TypeInt)),
+			Field("encoder", Leaf(TypeString)),
+			Field("compact", Leaf(TypeBool)),
+			Field("respawn", Leaf(TypeBool)),
+			Field("terminate", Leaf(TypeBool)),
+			Field("cli", Leaf(TypeBool)),
+			Field("pipename", Leaf(TypeString)),
+			Field("socketname", Leaf(TypeString)),
+		)),
+		Field("reactor", Container(
+			Field("speed", Leaf(TypeString)), // Float as string
+		)),
+		Field("debug", Container(
+			Field("pdb", Leaf(TypeBool)),
+			Field("memory", Leaf(TypeBool)),
+			Field("configuration", Leaf(TypeBool)),
+			Field("selfcheck", Leaf(TypeBool)),
+			Field("route", Leaf(TypeString)),
+			Field("defensive", Leaf(TypeBool)),
+			Field("rotate", Leaf(TypeBool)),
+			Field("timing", Leaf(TypeBool)),
+		)),
+	)
+}
+
 // LegacyBGPSchema returns a schema that accepts both v2 and v3 syntax.
 // Used by the migration tool to parse v2 configs before transformation.
 func LegacyBGPSchema() *Schema {
 	schema := NewSchema()
+
+	// Environment settings (ZeBGP-specific)
+	schema.Define("environment", environmentBlock())
 
 	// Global settings
 	schema.Define("router-id", Leaf(TypeIPv4))
@@ -383,7 +463,8 @@ type BGPConfig struct {
 	Listen    string
 	Peers     []PeerConfig
 	Processes []ProcessConfig
-	ConfigDir string // Directory containing config file (set by LoadReactorFile)
+	ConfigDir string                       // Directory containing config file (set by LoadReactorFile)
+	EnvValues map[string]map[string]string // Environment block values (ZeBGP-specific)
 }
 
 // PeerConfig holds neighbor configuration.
@@ -614,7 +695,7 @@ func TreeToConfig(tree *Tree) (*BGPConfig, error) {
 		}
 		// Default: text encoder processes receive updates
 		// TODO: Parse api { receive { update; } } from peer/template for proper config
-		if pc.Encoder == "text" {
+		if pc.Encoder == encoderText {
 			pc.ReceiveUpdate = true
 		}
 		cfg.Processes = append(cfg.Processes, pc)
@@ -2614,4 +2695,37 @@ type PeerGlob struct {
 	Pattern     string
 	Specificity int
 	Tree        *Tree
+}
+
+// ExtractEnvironment extracts environment configuration values from a parsed Tree.
+// Returns a map suitable for passing to LoadEnvironmentWithConfig.
+// The environment block is optional - returns empty map if not present.
+func ExtractEnvironment(tree *Tree) map[string]map[string]string {
+	envContainer := tree.GetContainer("environment")
+	if envContainer == nil {
+		return nil
+	}
+
+	result := make(map[string]map[string]string)
+
+	// Extract each section (daemon, log, tcp, bgp, cache, api, reactor, debug)
+	sections := []string{"daemon", "log", "tcp", "bgp", "cache", "api", "reactor", "debug"}
+	for _, section := range sections {
+		sectionContainer := envContainer.GetContainer(section)
+		if sectionContainer == nil {
+			continue
+		}
+
+		sectionValues := make(map[string]string)
+		for _, option := range sectionContainer.Values() {
+			value, _ := sectionContainer.Get(option)
+			sectionValues[option] = value
+		}
+
+		if len(sectionValues) > 0 {
+			result[section] = sectionValues
+		}
+	}
+
+	return result
 }

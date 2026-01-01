@@ -45,11 +45,17 @@ func LoadReactorWithConfig(input string) (*BGPConfig, *reactor.Reactor, error) {
 	// Log parse warnings
 	trace.ConfigParsed("(input)", 0, p.Warnings())
 
+	// Extract environment block (ZeBGP-specific, before conversion)
+	envValues := ExtractEnvironment(tree)
+
 	// Convert to typed config
 	cfg, err := TreeToConfig(tree)
 	if err != nil {
 		return nil, nil, fmt.Errorf("convert config: %w", err)
 	}
+
+	// Store environment values for later use
+	cfg.EnvValues = envValues
 
 	trace.ConfigLoaded(len(cfg.Peers))
 
@@ -103,7 +109,11 @@ func CreateReactorWithDir(cfg *BGPConfig, configDir string) (*reactor.Reactor, e
 
 	// Set API socket path if processes are configured
 	if len(cfg.Processes) > 0 {
-		env := LoadEnvironment()
+		// Load environment with config block values (if any)
+		env, err := LoadEnvironmentWithConfig(cfg.EnvValues)
+		if err != nil {
+			return nil, fmt.Errorf("load environment: %w", err)
+		}
 		reactorCfg.APISocketPath = env.SocketPath()
 
 		// Convert process configs

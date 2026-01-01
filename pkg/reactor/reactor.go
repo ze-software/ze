@@ -782,6 +782,17 @@ func (a *reactorAPIAdapter) WithdrawLabeledUnicast(peerSelector string, route ap
 // AnnounceMUPRoute announces a MUP route (SAFI 85) to matching peers.
 // draft-mpmz-bess-mup-safi - Mobile User Plane.
 func (a *reactorAPIAdapter) AnnounceMUPRoute(peerSelector string, spec api.MUPRouteSpec) error {
+	return a.sendMUPRoute(peerSelector, spec, false)
+}
+
+// WithdrawMUPRoute withdraws a MUP route from matching peers.
+// Uses MP_UNREACH_NLRI with SAFI 85.
+func (a *reactorAPIAdapter) WithdrawMUPRoute(peerSelector string, spec api.MUPRouteSpec) error {
+	return a.sendMUPRoute(peerSelector, spec, true)
+}
+
+// sendMUPRoute is a common helper for announce/withdraw MUP routes.
+func (a *reactorAPIAdapter) sendMUPRoute(peerSelector string, spec api.MUPRouteSpec, isWithdraw bool) error {
 	peers := a.getMatchingPeers(peerSelector)
 	if len(peers) == 0 {
 		return errors.New("no peers match selector")
@@ -819,56 +830,12 @@ func (a *reactorAPIAdapter) AnnounceMUPRoute(peerSelector string, spec api.MUPRo
 
 		// Build UPDATE using UpdateBuilder
 		ub := message.NewUpdateBuilder(peer.settings.LocalAS, peer.settings.IsIBGP(), ctx)
-		update := ub.BuildMUP(toMUPParams(mupRoute))
-
-		if err := peer.SendUpdate(update); err != nil {
-			lastErr = err
+		var update *message.Update
+		if isWithdraw {
+			update = ub.BuildMUPWithdraw(toMUPParams(mupRoute))
+		} else {
+			update = ub.BuildMUP(toMUPParams(mupRoute))
 		}
-	}
-	return lastErr
-}
-
-// WithdrawMUPRoute withdraws a MUP route from matching peers.
-// Uses MP_UNREACH_NLRI with SAFI 85.
-func (a *reactorAPIAdapter) WithdrawMUPRoute(peerSelector string, spec api.MUPRouteSpec) error {
-	peers := a.getMatchingPeers(peerSelector)
-	if len(peers) == 0 {
-		return errors.New("no peers match selector")
-	}
-
-	// Convert API spec to reactor MUPRoute
-	mupRoute, err := convertAPIMUPRoute(spec)
-	if err != nil {
-		return fmt.Errorf("convert MUP route: %w", err)
-	}
-
-	var lastErr error
-	for _, peer := range peers {
-		if peer.State() != PeerStateEstablished {
-			continue
-		}
-
-		// Check if MUP family is negotiated
-		nf := peer.families.Load()
-		if nf == nil {
-			continue
-		}
-		if spec.IsIPv6 && !nf.IPv6MUP {
-			continue
-		}
-		if !spec.IsIPv6 && !nf.IPv4MUP {
-			continue
-		}
-
-		family := nlri.Family{AFI: nlri.AFIIPv4, SAFI: safiMUP}
-		if spec.IsIPv6 {
-			family.AFI = nlri.AFIIPv6
-		}
-		ctx := peer.packContext(family)
-
-		// Build withdrawal UPDATE using UpdateBuilder
-		ub := message.NewUpdateBuilder(peer.settings.LocalAS, peer.settings.IsIBGP(), ctx)
-		update := ub.BuildMUPWithdraw(toMUPParams(mupRoute))
 
 		if err := peer.SendUpdate(update); err != nil {
 			lastErr = err

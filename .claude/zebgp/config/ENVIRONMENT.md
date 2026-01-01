@@ -5,6 +5,20 @@
 
 ---
 
+## ZeBGP Enhancement
+
+ZeBGP uses `zebgp.` prefix instead of `exabgp.` and adds:
+
+1. **Config block support:** Set environment in config file via `environment { }` block
+2. **Strict validation:** Invalid values cause startup failure (not silent defaults)
+3. **Migration helper:** `zebgp config check --env` validates before upgrade
+
+See [ENVIRONMENT_BLOCK.md](ENVIRONMENT_BLOCK.md) for the config block syntax.
+
+**ZeBGP priority:** `zebgp.x.y` > `zebgp_x_y` > config block > defaults
+
+---
+
 ## Overview
 
 ExaBGP configuration uses environment variables with the format:

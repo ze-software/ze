@@ -592,6 +592,52 @@ func TestCmdConfigCheckErrors(t *testing.T) {
 	})
 }
 
+// TestCmdConfigCheckEnv tests the --env flag for environment validation.
+//
+// VALIDATES: config check --env validates environment variables.
+//
+// PREVENTS: Invalid environment variables causing runtime failures.
+func TestCmdConfigCheckEnv(t *testing.T) {
+	t.Run("valid environment", func(t *testing.T) {
+		// No env vars set - defaults should be valid
+		exitCode := checkEnvironment(false)
+		if exitCode != exitOK {
+			t.Errorf("expected exitOK for valid environment, got %d", exitCode)
+		}
+	})
+
+	t.Run("valid environment json", func(t *testing.T) {
+		exitCode := checkEnvironment(true)
+		if exitCode != exitOK {
+			t.Errorf("expected exitOK for valid environment, got %d", exitCode)
+		}
+	})
+
+	t.Run("invalid port in environment", func(t *testing.T) {
+		t.Setenv("zebgp.tcp.port", "invalid")
+		exitCode := checkEnvironment(false)
+		if exitCode != exitError {
+			t.Errorf("expected exitError for invalid port, got %d", exitCode)
+		}
+	})
+
+	t.Run("invalid boolean in environment", func(t *testing.T) {
+		t.Setenv("zebgp.bgp.passive", "maybe")
+		exitCode := checkEnvironment(false)
+		if exitCode != exitError {
+			t.Errorf("expected exitError for invalid boolean, got %d", exitCode)
+		}
+	})
+
+	t.Run("invalid log level in environment", func(t *testing.T) {
+		t.Setenv("zebgp.log.level", "BOGUS")
+		exitCode := checkEnvironment(false)
+		if exitCode != exitError {
+			t.Errorf("expected exitError for invalid log level, got %d", exitCode)
+		}
+	})
+}
+
 // TestCmdConfigMigrateErrors tests error handling in config migrate.
 //
 // VALIDATES: config migrate returns errors for invalid input.
