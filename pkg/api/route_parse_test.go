@@ -1373,14 +1373,14 @@ func TestParseFlowSpecArgs_InvalidKeywords(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			_, err := parseFlowSpecArgs(tt.args)
+			_, err := ParseFlowSpecArgs(tt.args)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("parseFlowSpecArgs(%v) error = %v, wantErr %v", tt.args, err, tt.wantErr)
+				t.Errorf("ParseFlowSpecArgs(%v) error = %v, wantErr %v", tt.args, err, tt.wantErr)
 				return
 			}
 			if tt.wantErr && tt.errMsg != "" {
 				if err == nil || !strings.Contains(err.Error(), tt.errMsg) {
-					t.Errorf("parseFlowSpecArgs(%v) error = %v, want error containing %q", tt.args, err, tt.errMsg)
+					t.Errorf("ParseFlowSpecArgs(%v) error = %v, want error containing %q", tt.args, err, tt.errMsg)
 				}
 			}
 		})
@@ -1415,7 +1415,7 @@ func runKeywordTests(t *testing.T, parserName string, parser func([]string) erro
 //
 // PREVENTS: Silent ignoring of typos/unknown keywords in VPLS routes.
 func TestParseVPLSArgs_InvalidKeywords(t *testing.T) {
-	runKeywordTests(t, "parseVPLSArgs", func(args []string) error { _, err := parseVPLSArgs(args); return err }, []keywordTestCase{
+	runKeywordTests(t, "ParseVPLSArgs", func(args []string) error { _, err := ParseVPLSArgs(args); return err }, []keywordTestCase{
 		{"valid minimal", "", strings.Fields("rd 100:100 next-hop 1.2.3.4"), false},
 		{"valid with ve-block", "", strings.Fields("rd 100:100 ve-block-offset 1 ve-block-size 10 next-hop 1.2.3.4"), false},
 		{"valid with label", "", strings.Fields("rd 100:100 label 1000 next-hop 1.2.3.4"), false},
@@ -1558,25 +1558,25 @@ func TestParseMUPArgs(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			spec, err := parseMUPArgs(tt.args, tt.isIPv6)
+			spec, err := ParseMUPArgs(tt.args, tt.isIPv6)
 			if (err != nil) != tt.wantErr {
-				t.Errorf("parseMUPArgs() error = %v, wantErr %v", err, tt.wantErr)
+				t.Errorf("ParseMUPArgs() error = %v, wantErr %v", err, tt.wantErr)
 				return
 			}
 			if tt.wantErr {
 				return
 			}
 			if spec.RouteType != tt.wantRouteType {
-				t.Errorf("parseMUPArgs() RouteType = %q, want %q", spec.RouteType, tt.wantRouteType)
+				t.Errorf("ParseMUPArgs() RouteType = %q, want %q", spec.RouteType, tt.wantRouteType)
 			}
 			if spec.Prefix != tt.wantPrefix && spec.Address != tt.wantPrefix {
-				t.Errorf("parseMUPArgs() Prefix/Address = %q/%q, want %q", spec.Prefix, spec.Address, tt.wantPrefix)
+				t.Errorf("ParseMUPArgs() Prefix/Address = %q/%q, want %q", spec.Prefix, spec.Address, tt.wantPrefix)
 			}
 			if spec.RD != tt.wantRD {
-				t.Errorf("parseMUPArgs() RD = %q, want %q", spec.RD, tt.wantRD)
+				t.Errorf("ParseMUPArgs() RD = %q, want %q", spec.RD, tt.wantRD)
 			}
 			if spec.NextHop != tt.wantNextHop {
-				t.Errorf("parseMUPArgs() NextHop = %q, want %q", spec.NextHop, tt.wantNextHop)
+				t.Errorf("ParseMUPArgs() NextHop = %q, want %q", spec.NextHop, tt.wantNextHop)
 			}
 		})
 	}
