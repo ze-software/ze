@@ -433,9 +433,11 @@ const (
 // ContentConfig controls HOW messages are formatted (encoding + format + version).
 // Separated from message type subscriptions (WHAT) per new API design.
 type ContentConfig struct {
-	Encoding string // "json" | "text" (default: "text")
-	Format   string // "parsed" | "raw" | "full" (default: "parsed")
-	Version  int    // 6=legacy, 7=nlri (default: 7)
+	Encoding   string           // "json" | "text" (default: "text")
+	Format     string           // "parsed" | "raw" | "full" (default: "parsed")
+	Version    int              // 6=legacy, 7=nlri (default: 7)
+	Attributes *AttributeFilter // Which attrs to include (nil = all)
+	NLRI       *NLRIFilter      // Which address families to include (nil = all)
 }
 
 // WithDefaults returns a ContentConfig with default values applied.
@@ -458,5 +460,6 @@ type RawMessage struct {
 	Type      message.MessageType // UPDATE, OPEN, NOTIFICATION, etc.
 	RawBytes  []byte              // Original wire bytes (without marker/header)
 	Timestamp time.Time
-	UpdateID  uint64 // Unique ID for UPDATE messages (for route forwarding)
+	UpdateID  uint64                    // Unique ID for UPDATE messages (for route forwarding)
+	AttrsWire *attribute.AttributesWire // Lazy attribute parsing (nil if not UPDATE or parse failed)
 }

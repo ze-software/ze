@@ -17,6 +17,39 @@ type DecodedUpdate struct {
 	Withdrawn []netip.Prefix  // Withdrawn prefixes (Withdrawn Routes + MP_UNREACH_NLRI)
 }
 
+// ExtractAttributeBytes extracts the path attributes section from UPDATE body.
+// Returns nil if body is malformed or has no attributes.
+//
+// UPDATE body format (RFC 4271 Section 4.3):
+//   - Withdrawn Routes Length: 2 octets
+//   - Withdrawn Routes: variable
+//   - Total Path Attribute Length: 2 octets
+//   - Path Attributes: variable
+//   - NLRI: variable
+func ExtractAttributeBytes(body []byte) []byte {
+	if len(body) < 4 {
+		return nil
+	}
+
+	// Skip withdrawn routes
+	withdrawnLen := int(binary.BigEndian.Uint16(body[0:2]))
+	offset := 2 + withdrawnLen
+
+	if offset+2 > len(body) {
+		return nil
+	}
+
+	// Read attribute length
+	attrLen := int(binary.BigEndian.Uint16(body[offset : offset+2]))
+	offset += 2
+
+	if attrLen == 0 || offset+attrLen > len(body) {
+		return nil
+	}
+
+	return body[offset : offset+attrLen]
+}
+
 // DecodeUpdate parses raw UPDATE bytes into announced and withdrawn routes.
 // Handles both IPv4 unicast NLRI and MP_REACH_NLRI for IPv6.
 func DecodeUpdate(body []byte) DecodedUpdate {

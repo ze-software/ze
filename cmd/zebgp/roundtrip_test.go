@@ -650,20 +650,15 @@ func TestRoundTrip_LabeledUnicast_IPv6(t *testing.T) {
 	}
 }
 
-// TestRoundTrip_FlowSpec_IPv6 verifies IPv6 FlowSpec round-trip.
-//
-// VALIDATES: IPv6 FlowSpec routes round-trip correctly.
-// PREVENTS: IPv6 FlowSpec encoding/decoding bugs.
-func TestRoundTrip_FlowSpec_IPv6(t *testing.T) {
+// testRoundTripIPv6Family is a helper for testing IPv6 family round-trips.
+func testRoundTripIPv6Family(t *testing.T, encodeArgs []string, announceKey, expectedContent string) {
+	t.Helper()
+
 	var encodeOut bytes.Buffer
 	oldStdout := encodeStdout
 	encodeStdout = &encodeOut
 	defer func() { encodeStdout = oldStdout }()
 
-	encodeArgs := []string{
-		"-f", "ipv6 flowspec",
-		"match destination 2001:db8::/32 then discard",
-	}
 	if code := cmdEncode(encodeArgs); code != 0 {
 		t.Fatalf("encode failed with code %d", code)
 	}
@@ -690,15 +685,25 @@ func TestRoundTrip_FlowSpec_IPv6(t *testing.T) {
 		t.Fatalf("missing announce section")
 	}
 
-	// Check for ipv6 flow (decoder uses "flow" not "flowspec")
-	if _, ok := announce["ipv6 flow"]; !ok {
-		t.Errorf("expected ipv6 flow in announce, got: %v", announce)
+	if _, ok := announce[announceKey]; !ok {
+		t.Errorf("expected %s in announce, got: %v", announceKey, announce)
 	}
 
-	// Verify destination prefix appears in output
-	if !strings.Contains(decodeOutput, "2001:db8::") {
-		t.Errorf("expected destination 2001:db8:: in decoded output")
+	if !strings.Contains(decodeOutput, expectedContent) {
+		t.Errorf("expected %s in decoded output", expectedContent)
 	}
+}
+
+// TestRoundTrip_FlowSpec_IPv6 verifies IPv6 FlowSpec round-trip.
+//
+// VALIDATES: IPv6 FlowSpec routes round-trip correctly.
+// PREVENTS: IPv6 FlowSpec encoding/decoding bugs.
+func TestRoundTrip_FlowSpec_IPv6(t *testing.T) {
+	testRoundTripIPv6Family(t,
+		[]string{"-f", "ipv6 flowspec", "match destination 2001:db8::/32 then discard"},
+		"ipv6 flow", // decoder uses "flow" not "flowspec"
+		"2001:db8::",
+	)
 }
 
 // TestRoundTrip_MUP_IPv6 verifies IPv6 MUP round-trip.
@@ -706,48 +711,9 @@ func TestRoundTrip_FlowSpec_IPv6(t *testing.T) {
 // VALIDATES: IPv6 MUP routes round-trip correctly.
 // PREVENTS: IPv6 MUP encoding/decoding bugs.
 func TestRoundTrip_MUP_IPv6(t *testing.T) {
-	var encodeOut bytes.Buffer
-	oldStdout := encodeStdout
-	encodeStdout = &encodeOut
-	defer func() { encodeStdout = oldStdout }()
-
-	encodeArgs := []string{
-		"-f", "ipv6 mup",
-		"mup-t1st 2001:db8::/32 rd 100:1 next-hop 2001:db8::1",
-	}
-	if code := cmdEncode(encodeArgs); code != 0 {
-		t.Fatalf("encode failed with code %d", code)
-	}
-
-	hexOutput := strings.TrimSpace(encodeOut.String())
-
-	decodeOutput, err := decodeHexPacket(hexOutput, msgTypeUpdate, "")
-	if err != nil {
-		t.Fatalf("decode failed: %v", err)
-	}
-
-	var decoded map[string]any
-	if err := json.Unmarshal([]byte(decodeOutput), &decoded); err != nil {
-		t.Fatalf("JSON unmarshal failed: %v", err)
-	}
-
-	update, errStr := getUpdateSection(decoded)
-	if errStr != "" {
-		t.Fatalf("%s", errStr)
-	}
-
-	announce, ok := update["announce"].(map[string]any)
-	if !ok {
-		t.Fatalf("missing announce section")
-	}
-
-	// Check for ipv6 mup
-	if _, ok := announce["ipv6 mup"]; !ok {
-		t.Errorf("expected ipv6 mup in announce, got: %v", announce)
-	}
-
-	// Verify next-hop appears in output
-	if !strings.Contains(decodeOutput, "2001:db8::1") {
-		t.Errorf("expected next-hop 2001:db8::1 in decoded output")
-	}
+	testRoundTripIPv6Family(t,
+		[]string{"-f", "ipv6 mup", "mup-t1st 2001:db8::/32 rd 100:1 next-hop 2001:db8::1"},
+		"ipv6 mup",
+		"2001:db8::1",
+	)
 }

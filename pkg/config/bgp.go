@@ -7,6 +7,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/exa-networks/zebgp/pkg/api"
 )
 
 const (
@@ -279,9 +281,10 @@ func peerFields() []FieldDef {
 
 			// New syntax fields
 			Field("content", Container(
-				Field("encoding", Leaf(TypeString)), // json | text
-				Field("format", Leaf(TypeString)),   // parsed | raw | full
-				Field("version", Leaf(TypeInt)),     // 6=legacy, 7=nlri (default: 7)
+				Field("encoding", Leaf(TypeString)),   // json | text
+				Field("format", Leaf(TypeString)),     // parsed | raw | full
+				Field("version", Leaf(TypeInt)),       // 6=legacy, 7=nlri (default: 7)
+				Field("attributes", Leaf(TypeString)), // all | none | "origin as-path ..."
 			)),
 			Field("receive", Freeform()), // { update; open; notification; all; }
 			Field("send", Freeform()),    // { update; refresh; all; }
@@ -509,9 +512,10 @@ type PeerAPIBinding struct {
 
 // PeerContentConfig controls message formatting (encoding + format + version).
 type PeerContentConfig struct {
-	Encoding string // "json" | "text" (empty = inherit from process)
-	Format   string // "parsed" | "raw" | "full" (empty = "parsed")
-	Version  int    // 6=legacy ExaBGP, 7=new nlri format (0 = default to 7)
+	Encoding   string               // "json" | "text" (empty = inherit from process)
+	Format     string               // "parsed" | "raw" | "full" (empty = "parsed")
+	Version    int                  // 6=legacy ExaBGP, 7=new nlri format (0 = default to 7)
+	Attributes *api.AttributeFilter // Which attrs to include (nil = all)
 }
 
 // PeerReceiveConfig specifies which message types to forward to the process.
@@ -1434,7 +1438,7 @@ func parseOldAPIBindings(apiTree *Tree) []PeerAPIBinding {
 func parseNewAPIBinding(processName string, apiTree *Tree) PeerAPIBinding {
 	binding := PeerAPIBinding{ProcessName: processName}
 
-	// Parse content block: content { encoding json; format full; version 7; }
+	// Parse content block: content { encoding json; format full; attributes ...; }
 	if content := apiTree.GetContainer("content"); content != nil {
 		if v, ok := content.Get("encoding"); ok {
 			binding.Content.Encoding = strings.ToLower(v) // Normalize case
@@ -1446,6 +1450,12 @@ func parseNewAPIBinding(processName string, apiTree *Tree) PeerAPIBinding {
 			if n, err := strconv.Atoi(v); err == nil {
 				binding.Content.Version = n
 			}
+		}
+		if v, ok := content.Get("attributes"); ok {
+			if filter, err := api.ParseAttributeFilter(v); err == nil {
+				binding.Content.Attributes = &filter
+			}
+			// Note: parse errors silently ignored - could add logging
 		}
 	}
 

@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/exa-networks/zebgp/pkg/bgp/message"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -326,6 +327,7 @@ func TestAPIOutputIncludesUpdateID(t *testing.T) {
 
 	// UPDATE with update-id
 	msg := RawMessage{
+		Type: message.TypeUPDATE,
 		RawBytes: []byte{
 			// Minimal UPDATE with NLRI: 10.0.0.0/24
 			0x00, 0x00, // withdrawn length
@@ -365,6 +367,7 @@ func TestAPIOutputNoUpdateIDWhenZero(t *testing.T) {
 	}
 
 	msg := RawMessage{
+		Type:     message.TypeUPDATE,
 		RawBytes: []byte{0x00, 0x00, 0x00, 0x00}, // Empty UPDATE
 		UpdateID: 0,                              // No update-id
 	}
