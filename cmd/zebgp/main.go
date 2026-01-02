@@ -29,6 +29,8 @@ func main() {
 		os.Exit(cmdValidate(os.Args[2:]))
 	case "decode":
 		os.Exit(cmdDecode(os.Args[2:]))
+	case "encode":
+		os.Exit(cmdEncode(os.Args[2:]))
 	case "config":
 		os.Exit(cmdConfig(os.Args[2:]))
 	case "config-dump":
@@ -87,6 +89,7 @@ Commands:
   cli                  Interactive CLI with autocomplete
   validate <config>    Validate configuration file
   decode <hex>         Decode BGP message from hex to JSON
+  encode <route>       Encode API route command to BGP hex
   config <subcommand>  Configuration management (edit, check, migrate, fmt)
   config-dump <config> Dump parsed config (debug tool)
   version              Show version

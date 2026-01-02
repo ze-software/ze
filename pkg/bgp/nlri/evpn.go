@@ -13,8 +13,11 @@ package nlri
 
 import (
 	"encoding/binary"
+	"encoding/hex"
 	"fmt"
 	"net/netip"
+	"strconv"
+	"strings"
 )
 
 // EVPNRouteType identifies the EVPN route type.
@@ -74,6 +77,47 @@ func (e ESI) IsZero() bool {
 func (e ESI) String() string {
 	return fmt.Sprintf("%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x",
 		e[0], e[1], e[2], e[3], e[4], e[5], e[6], e[7], e[8], e[9])
+}
+
+// ParseESIString parses an Ethernet Segment Identifier from string format.
+//
+// RFC 7432 Section 5 defines ESI as a 10-byte identifier.
+// Supports: "0" (all zeros), plain hex (20 chars), colon-separated (10 bytes).
+func ParseESIString(s string) (ESI, error) {
+	var esi ESI
+
+	// Handle "0" or empty for all zeros
+	if s == "0" || s == "" {
+		return esi, nil
+	}
+
+	// Try colon-separated format (00:11:22:33:44:55:66:77:88:99)
+	if strings.Contains(s, ":") {
+		parts := strings.Split(s, ":")
+		if len(parts) != 10 {
+			return esi, fmt.Errorf("invalid ESI format: expected 10 parts, got %d", len(parts))
+		}
+		for i, p := range parts {
+			b, err := strconv.ParseUint(p, 16, 8)
+			if err != nil {
+				return esi, fmt.Errorf("invalid ESI byte %d: %s", i, p)
+			}
+			esi[i] = byte(b)
+		}
+		return esi, nil
+	}
+
+	// Try plain hex format (20 chars)
+	if len(s) == 20 {
+		decoded, err := hex.DecodeString(s)
+		if err != nil {
+			return esi, fmt.Errorf("invalid ESI hex: %w", err)
+		}
+		copy(esi[:], decoded)
+		return esi, nil
+	}
+
+	return esi, fmt.Errorf("invalid ESI format: %s (expected 0, 20 hex chars, or colon-separated)", s)
 }
 
 // EVPN is the interface for all EVPN route types.
@@ -947,4 +991,61 @@ func packEVPN(bytes []byte, hasPath bool, ctx *PackContext) []byte {
 		return bytes[4:]
 	}
 	return bytes
+}
+
+// NewEVPNType1 creates an Ethernet Auto-Discovery route (Type 1).
+// RFC 7432 Section 7.1.
+func NewEVPNType1(rd RouteDistinguisher, esi [10]byte, ethernetTag uint32, labels []uint32) *EVPNType1 {
+	return &EVPNType1{
+		rd:          rd,
+		esi:         esi,
+		ethernetTag: ethernetTag,
+		labels:      labels,
+	}
+}
+
+// NewEVPNType2 creates a MAC/IP Advertisement route (Type 2).
+// RFC 7432 Section 7.2.
+func NewEVPNType2(rd RouteDistinguisher, esi [10]byte, ethernetTag uint32, mac [6]byte, ip netip.Addr, labels []uint32) *EVPNType2 {
+	return &EVPNType2{
+		rd:          rd,
+		esi:         esi,
+		ethernetTag: ethernetTag,
+		mac:         mac,
+		ip:          ip,
+		labels:      labels,
+	}
+}
+
+// NewEVPNType3 creates an Inclusive Multicast Ethernet Tag route (Type 3).
+// RFC 7432 Section 7.3.
+func NewEVPNType3(rd RouteDistinguisher, ethernetTag uint32, originatorIP netip.Addr) *EVPNType3 {
+	return &EVPNType3{
+		rd:           rd,
+		ethernetTag:  ethernetTag,
+		originatorIP: originatorIP,
+	}
+}
+
+// NewEVPNType4 creates an Ethernet Segment route (Type 4).
+// RFC 7432 Section 7.4.
+func NewEVPNType4(rd RouteDistinguisher, esi [10]byte, originatorIP netip.Addr) *EVPNType4 {
+	return &EVPNType4{
+		rd:           rd,
+		esi:          esi,
+		originatorIP: originatorIP,
+	}
+}
+
+// NewEVPNType5 creates an IP Prefix route (Type 5).
+// RFC 9136 Section 3.1.
+func NewEVPNType5(rd RouteDistinguisher, esi [10]byte, ethernetTag uint32, prefix netip.Prefix, gateway netip.Addr, labels []uint32) *EVPNType5 {
+	return &EVPNType5{
+		rd:          rd,
+		esi:         esi,
+		ethernetTag: ethernetTag,
+		prefix:      prefix,
+		gateway:     gateway,
+		labels:      labels,
+	}
 }

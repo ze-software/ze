@@ -3221,46 +3221,9 @@ func buildMUPPrefix(prefix netip.Prefix) []byte {
 }
 
 // parseRD parses a Route Distinguisher string.
+// Delegates to nlri.ParseRDString for the actual parsing.
 func parseRD(s string) (nlri.RouteDistinguisher, error) {
-	var rd nlri.RouteDistinguisher
-	// Parse "ASN:value" or "IP:value" format
-	parts := strings.Split(s, ":")
-	if len(parts) != 2 {
-		return rd, fmt.Errorf("invalid RD format: %s", s)
-	}
-
-	// Try ASN:value format (Type 0)
-	ip := net.ParseIP(parts[0])
-	if ip == nil {
-		// Type 0: 2-byte ASN + 4-byte value
-		var asn, val uint64
-		if _, err := fmt.Sscanf(s, "%d:%d", &asn, &val); err != nil {
-			return rd, fmt.Errorf("invalid RD: %s", s)
-		}
-		rd.Type = 0
-		rd.Value[0] = byte(asn >> 8)
-		rd.Value[1] = byte(asn)
-		rd.Value[2] = byte(val >> 24)
-		rd.Value[3] = byte(val >> 16)
-		rd.Value[4] = byte(val >> 8)
-		rd.Value[5] = byte(val)
-	} else {
-		// Type 1: 4-byte IP + 2-byte value
-		ip4 := ip.To4()
-		if ip4 == nil {
-			return rd, fmt.Errorf("RD IP must be IPv4: %s", parts[0])
-		}
-		var val uint64
-		if _, err := fmt.Sscanf(parts[1], "%d", &val); err != nil {
-			return rd, fmt.Errorf("invalid RD value: %s", parts[1])
-		}
-		rd.Type = 1
-		copy(rd.Value[:4], ip4)
-		rd.Value[4] = byte(val >> 8)
-		rd.Value[5] = byte(val)
-	}
-
-	return rd, nil
+	return nlri.ParseRDString(s)
 }
 
 // parseAPIExtCommunity parses extended community string to bytes.

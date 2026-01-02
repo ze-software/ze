@@ -412,6 +412,15 @@ type ParsedRoute struct {
 	NextHopSelf bool // true if "next-hop self" was specified
 }
 
+// ParseRouteAttributes parses route attributes from args with keyword validation.
+// Exported for use by encode command and tests.
+//
+// Args format: <prefix> [keyword value]...
+// Example: 10.0.0.0/24 next-hop 1.2.3.4 origin igp.
+func ParseRouteAttributes(args []string, allowedKeywords KeywordSet) (ParsedRoute, error) {
+	return parseRouteAttributes(args, allowedKeywords)
+}
+
 // parseCommonAttribute parses a common BGP attribute by keyword.
 // Returns the number of args consumed (0 if keyword not handled), or error.
 // This centralizes parsing logic for origin, med, local-preference, as-path,
@@ -981,7 +990,7 @@ func withdrawRouteImpl(ctx *CommandContext, args []string) (*Response, error) {
 // Format: <route-type> <prefix/addr> rd <RD> next-hop <NH> [extended-community [...]] [bgp-prefix-sid-srv6 (...)].
 // Example: mup-isd 10.0.1.0/24 rd 100:100 next-hop 2001::1.
 func announceMUPImpl(ctx *CommandContext, args []string, isIPv6 bool) (*Response, error) {
-	spec, err := parseMUPArgs(args, isIPv6)
+	spec, err := ParseMUPArgs(args, isIPv6)
 	if err != nil {
 		return &Response{
 			Status: "error",
@@ -1020,7 +1029,7 @@ func announceMUPImpl(ctx *CommandContext, args []string, isIPv6 bool) (*Response
 // Format: <route-type> <prefix/addr> rd <RD> next-hop <NH> [extended-community [...]] [bgp-prefix-sid-srv6 (...)].
 // Example: mup-isd 10.0.1.0/24 rd 100:100 next-hop 2001::1.
 func withdrawMUPImpl(ctx *CommandContext, args []string, isIPv6 bool) (*Response, error) {
-	spec, err := parseMUPArgs(args, isIPv6)
+	spec, err := ParseMUPArgs(args, isIPv6)
 	if err != nil {
 		return &Response{
 			Status: "error",
@@ -2203,7 +2212,7 @@ func handleAnnounceFlow(ctx *CommandContext, args []string) (*Response, error) {
 		}, fmt.Errorf("insufficient arguments")
 	}
 
-	route, err := parseFlowSpecArgs(args)
+	route, err := ParseFlowSpecArgs(args)
 	if err != nil {
 		return &Response{
 			Status: "error",
@@ -2236,7 +2245,7 @@ func handleWithdrawFlow(ctx *CommandContext, args []string) (*Response, error) {
 		}, fmt.Errorf("insufficient arguments")
 	}
 
-	route, err := parseFlowSpecArgs(args)
+	route, err := ParseFlowSpecArgs(args)
 	if err != nil {
 		return &Response{
 			Status: "error",
@@ -2260,8 +2269,10 @@ func handleWithdrawFlow(ctx *CommandContext, args []string) (*Response, error) {
 	}, nil
 }
 
-// parseFlowSpecArgs parses FlowSpec command arguments.
-func parseFlowSpecArgs(args []string) (FlowSpecRoute, error) {
+// ParseFlowSpecArgs parses FlowSpec command arguments.
+// Format: match <spec> then <action>.
+// Example: match destination 10.0.0.0/24 destination-port 80 then discard.
+func ParseFlowSpecArgs(args []string) (FlowSpecRoute, error) {
 	var route FlowSpecRoute
 	route.Family = AFINameIPv4 // default
 
@@ -2434,7 +2445,7 @@ func parsePort(s string) (uint16, error) {
 
 // handleAnnounceVPLS handles: announce vpls rd <rd> ... next-hop <addr>.
 func handleAnnounceVPLS(ctx *CommandContext, args []string) (*Response, error) {
-	route, err := parseVPLSArgs(args)
+	route, err := ParseVPLSArgs(args)
 	if err != nil {
 		return &Response{
 			Status: "error",
@@ -2460,7 +2471,7 @@ func handleAnnounceVPLS(ctx *CommandContext, args []string) (*Response, error) {
 
 // handleWithdrawVPLS handles: withdraw vpls rd <rd>.
 func handleWithdrawVPLS(ctx *CommandContext, args []string) (*Response, error) {
-	route, err := parseVPLSArgs(args)
+	route, err := ParseVPLSArgs(args)
 	if err != nil {
 		return &Response{
 			Status: "error",
@@ -2484,8 +2495,9 @@ func handleWithdrawVPLS(ctx *CommandContext, args []string) (*Response, error) {
 	}, nil
 }
 
-// parseVPLSArgs parses VPLS command arguments.
-func parseVPLSArgs(args []string) (VPLSRoute, error) {
+// ParseVPLSArgs parses VPLS command arguments.
+// Format: rd <rd> ve-block-offset <n> ve-block-size <n> label <n> next-hop <addr>.
+func ParseVPLSArgs(args []string) (VPLSRoute, error) {
 	var route VPLSRoute
 
 	for i := 0; i < len(args)-1; i += 2 {
@@ -2600,6 +2612,26 @@ func handleWithdrawL2VPN(ctx *CommandContext, args []string) (*Response, error) 
 			"rd":         route.RD,
 		},
 	}, nil
+}
+
+// ParseL3VPNAttributes parses L3VPN (mpls-vpn) command arguments.
+// Exported for use by encode command.
+// Format: <prefix> rd <rd> next-hop <addr> label <label> [attributes...].
+func ParseL3VPNAttributes(args []string) (L3VPNRoute, error) {
+	return parseL3VPNAttributes(args)
+}
+
+// ParseLabeledUnicastAttributes parses labeled unicast (nlri-mpls) command arguments.
+// Exported for use by encode command.
+// Format: <prefix> next-hop <addr> label <label> [attributes...].
+func ParseLabeledUnicastAttributes(args []string) (LabeledUnicastRoute, error) {
+	return parseLabeledUnicastAttributes(args)
+}
+
+// ParseL2VPNArgs parses L2VPN/EVPN command arguments.
+// Exported for use by encode command.
+func ParseL2VPNArgs(args []string) (L2VPNRoute, error) {
+	return parseL2VPNArgs(args)
 }
 
 // parseL2VPNArgs parses L2VPN/EVPN command arguments.
@@ -2777,10 +2809,10 @@ var validMUPRouteTypes = map[string]bool{
 	MUPRouteTypeT2ST: true,
 }
 
-// parseMUPArgs parses MUP route arguments.
+// ParseMUPArgs parses MUP route arguments.
 // Format: <route-type> <prefix/addr> rd <RD> next-hop <NH> [extended-community [...]] [bgp-prefix-sid-srv6 (...)].
 // Route types: mup-isd, mup-dsd, mup-t1st, mup-t2st.
-func parseMUPArgs(args []string, isIPv6 bool) (MUPRouteSpec, error) {
+func ParseMUPArgs(args []string, isIPv6 bool) (MUPRouteSpec, error) {
 	spec := MUPRouteSpec{
 		IsIPv6: isIPv6,
 	}

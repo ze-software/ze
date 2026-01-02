@@ -243,3 +243,43 @@ func TestIPVPNErrors(t *testing.T) {
 		})
 	}
 }
+
+// TestParseRDString verifies RD string parsing.
+//
+// VALIDATES: ParseRDString handles Type 0 (ASN:value) and Type 1 (IP:value).
+// PREVENTS: RD string parsing bugs.
+func TestParseRDString(t *testing.T) {
+	tests := []struct {
+		input       string
+		expectType  RDType
+		expectValue [6]byte
+		wantErr     bool
+	}{
+		// Type 0: ASN:Local (2-byte ASN : 4-byte Local)
+		{"100:1", RDType0, [6]byte{0x00, 0x64, 0x00, 0x00, 0x00, 0x01}, false},
+		{"65535:65536", RDType0, [6]byte{0xff, 0xff, 0x00, 0x01, 0x00, 0x00}, false},
+		// Type 1: IP:Local (4-byte IP : 2-byte Local)
+		{"1.2.3.4:100", RDType1, [6]byte{0x01, 0x02, 0x03, 0x04, 0x00, 0x64}, false},
+		{"192.168.1.1:1", RDType1, [6]byte{0xc0, 0xa8, 0x01, 0x01, 0x00, 0x01}, false},
+		// Type 2: 4-byte ASN : 2-byte Local (ASN > 65535)
+		{"65536:1", RDType2, [6]byte{0x00, 0x01, 0x00, 0x00, 0x00, 0x01}, false},
+		{"4200000001:100", RDType2, [6]byte{0xfa, 0x56, 0xea, 0x01, 0x00, 0x64}, false},
+		{"4294967295:65535", RDType2, [6]byte{0xff, 0xff, 0xff, 0xff, 0xff, 0xff}, false},
+		// Invalid
+		{"invalid", RDType0, [6]byte{}, true},
+		{"100", RDType0, [6]byte{}, true},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.input, func(t *testing.T) {
+			result, err := ParseRDString(tc.input)
+			if tc.wantErr {
+				require.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
+			assert.Equal(t, tc.expectType, result.Type)
+			assert.Equal(t, tc.expectValue, result.Value)
+		})
+	}
+}

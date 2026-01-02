@@ -5,6 +5,8 @@ import (
 	"encoding/binary"
 	"fmt"
 	"net/netip"
+	"strconv"
+	"strings"
 )
 
 // RDType represents Route Distinguisher type.
@@ -98,6 +100,79 @@ func (rd RouteDistinguisher) String() string {
 	default:
 		return fmt.Sprintf("rd-type%d:%x", rd.Type, rd.Value)
 	}
+}
+
+// ParseRDString parses a Route Distinguisher from string format.
+//
+// RFC 4364 Section 4.2 defines RD types:
+//   - Type 0: "ASN:value" (2-byte ASN, 4-byte value) e.g., "65000:100"
+//   - Type 1: "IP:value" (4-byte IP, 2-byte value) e.g., "192.0.2.1:100"
+//   - Type 2: "ASN:value" (4-byte ASN, 2-byte value) e.g., "4200000001:100"
+//
+// Detection:
+//   - If first part contains "." → Type 1 (IP:value)
+//   - If ASN > 65535 → Type 2 (4-byte ASN, 2-byte value)
+//   - Otherwise → Type 0 (2-byte ASN, 4-byte value)
+func ParseRDString(s string) (RouteDistinguisher, error) {
+	var rd RouteDistinguisher
+	parts := strings.Split(s, ":")
+	if len(parts) != 2 {
+		return rd, fmt.Errorf("invalid RD format: %s (expected ASN:value or IP:value)", s)
+	}
+
+	// Check if first part is an IP address (Type 1)
+	if strings.Contains(parts[0], ".") {
+		ip, err := netip.ParseAddr(parts[0])
+		if err != nil || !ip.Is4() {
+			return rd, fmt.Errorf("invalid IP in RD: %s", parts[0])
+		}
+		val, err := strconv.ParseUint(parts[1], 10, 16)
+		if err != nil {
+			return rd, fmt.Errorf("invalid RD value (must be 0-65535): %s", parts[1])
+		}
+		rd.Type = RDType1
+		ip4 := ip.As4()
+		copy(rd.Value[:4], ip4[:])
+		rd.Value[4] = byte(val >> 8)
+		rd.Value[5] = byte(val)
+		return rd, nil
+	}
+
+	// Parse ASN to determine Type 0 vs Type 2
+	asn, err := strconv.ParseUint(parts[0], 10, 32)
+	if err != nil {
+		return rd, fmt.Errorf("invalid ASN in RD: %s", parts[0])
+	}
+
+	if asn > 65535 {
+		// Type 2: 4-byte ASN : 2-byte value
+		val, err := strconv.ParseUint(parts[1], 10, 16)
+		if err != nil {
+			return rd, fmt.Errorf("invalid RD value (must be 0-65535 for 4-byte ASN): %s", parts[1])
+		}
+		rd.Type = RDType2
+		rd.Value[0] = byte(asn >> 24)
+		rd.Value[1] = byte(asn >> 16)
+		rd.Value[2] = byte(asn >> 8)
+		rd.Value[3] = byte(asn)
+		rd.Value[4] = byte(val >> 8)
+		rd.Value[5] = byte(val)
+		return rd, nil
+	}
+
+	// Type 0: 2-byte ASN : 4-byte value
+	val, err := strconv.ParseUint(parts[1], 10, 32)
+	if err != nil {
+		return rd, fmt.Errorf("invalid RD value: %s", parts[1])
+	}
+	rd.Type = RDType0
+	rd.Value[0] = byte(asn >> 8)
+	rd.Value[1] = byte(asn)
+	rd.Value[2] = byte(val >> 24)
+	rd.Value[3] = byte(val >> 16)
+	rd.Value[4] = byte(val >> 8)
+	rd.Value[5] = byte(val)
+	return rd, nil
 }
 
 // ParseLabelStack parses MPLS labels from wire format.

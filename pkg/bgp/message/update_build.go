@@ -1514,6 +1514,231 @@ func (ub *UpdateBuilder) buildMPReachFlowSpec(p FlowSpecParams) *rawAttribute {
 	}
 }
 
+// EVPNParams contains parameters for building EVPN route UPDATEs.
+//
+// RFC 7432 - BGP MPLS-Based Ethernet VPN.
+// Supports all 5 EVPN route types.
+type EVPNParams struct {
+	// RouteType is the EVPN route type (1-5).
+	// RFC 7432 Section 7 defines route types.
+	RouteType uint8
+
+	// RD is the Route Distinguisher.
+	RD nlri.RouteDistinguisher
+
+	// NextHop is the next-hop address (PE address).
+	NextHop netip.Addr
+
+	// PathID is the ADD-PATH path identifier (RFC 7911).
+	PathID uint32
+
+	// ESI is the Ethernet Segment Identifier (Types 1, 2, 4, 5).
+	// RFC 7432 Section 5 - 10-byte ESI.
+	ESI [10]byte
+
+	// EthernetTag is the Ethernet Tag ID (Types 1, 2, 3, 5).
+	// RFC 7432 Section 7 - 4-byte ethernet tag.
+	EthernetTag uint32
+
+	// MAC is the MAC address (Type 2 only).
+	// RFC 7432 Section 7.2 - 6-byte MAC.
+	MAC [6]byte
+
+	// IP is the IP address (Type 2 optional).
+	// RFC 7432 Section 7.2 - IPv4 or IPv6.
+	IP netip.Addr
+
+	// OriginatorIP is the originating router's IP (Types 3, 4).
+	// RFC 7432 Sections 7.3, 7.4.
+	OriginatorIP netip.Addr
+
+	// Prefix is the IP prefix (Type 5 only).
+	// RFC 9136 Section 3.1.
+	Prefix netip.Prefix
+
+	// Gateway is the gateway IP (Type 5 only).
+	// RFC 9136 Section 3.1 - 0.0.0.0 or :: if not set.
+	Gateway netip.Addr
+
+	// Labels is the MPLS label stack (Types 1, 2, 5).
+	Labels []uint32
+
+	// Path attributes
+	Origin            attribute.Origin
+	ASPath            []uint32
+	MED               uint32
+	LocalPreference   uint32
+	Communities       []uint32
+	LargeCommunities  [][3]uint32
+	ExtCommunityBytes []byte // Pre-packed (RT, etc.)
+
+	// ORIGINATOR_ID (RFC 4456) - 0 means not set.
+	OriginatorID uint32
+
+	// CLUSTER_LIST (RFC 4456).
+	ClusterList []uint32
+}
+
+// BuildEVPN builds an UPDATE message for EVPN routes (AFI=25, SAFI=70).
+//
+// RFC 7432 - BGP MPLS-Based Ethernet VPN.
+func (ub *UpdateBuilder) BuildEVPN(p EVPNParams) *Update {
+	var attrs []attribute.Attribute
+
+	// 1. ORIGIN
+	attrs = append(attrs, p.Origin)
+
+	// 2. AS_PATH
+	asPath := ub.buildASPath(p.ASPath)
+	asn4 := ub.Ctx == nil || ub.Ctx.ASN4
+	asPathValue := asPath.PackWithASN4(asn4)
+	attrs = append(attrs, &rawAttribute{
+		flags: asPath.Flags(),
+		code:  asPath.Code(),
+		data:  asPathValue,
+	})
+
+	// 3. NEXT_HOP - for IPv4 next-hop compatibility
+	if p.NextHop.Is4() {
+		attrs = append(attrs, &attribute.NextHop{Addr: p.NextHop})
+	}
+
+	// 4. MED
+	if p.MED > 0 {
+		attrs = append(attrs, attribute.MED(p.MED))
+	}
+
+	// 5. LOCAL_PREF
+	if ub.IsIBGP {
+		lp := p.LocalPreference
+		if lp == 0 {
+			lp = 100
+		}
+		attrs = append(attrs, attribute.LocalPref(lp))
+	}
+
+	// 8. COMMUNITIES
+	if len(p.Communities) > 0 {
+		sorted := make([]uint32, len(p.Communities))
+		copy(sorted, p.Communities)
+		sort.Slice(sorted, func(i, j int) bool { return sorted[i] < sorted[j] })
+
+		comms := make(attribute.Communities, len(sorted))
+		for i, c := range sorted {
+			comms[i] = attribute.Community(c)
+		}
+		attrs = append(attrs, comms)
+	}
+
+	// 9. ORIGINATOR_ID
+	if p.OriginatorID != 0 {
+		origIP := netip.AddrFrom4([4]byte{
+			byte(p.OriginatorID >> 24), byte(p.OriginatorID >> 16),
+			byte(p.OriginatorID >> 8), byte(p.OriginatorID),
+		})
+		attrs = append(attrs, attribute.OriginatorID(origIP))
+	}
+
+	// 10. CLUSTER_LIST
+	if len(p.ClusterList) > 0 {
+		cl := make(attribute.ClusterList, len(p.ClusterList))
+		copy(cl, p.ClusterList)
+		attrs = append(attrs, cl)
+	}
+
+	// 14. MP_REACH_NLRI for EVPN
+	mpReach := ub.buildMPReachEVPN(p)
+	attrs = append(attrs, mpReach)
+
+	// 16. EXTENDED_COMMUNITIES
+	if len(p.ExtCommunityBytes) > 0 {
+		attrs = append(attrs, &rawAttribute{
+			flags: attribute.FlagOptional | attribute.FlagTransitive,
+			code:  attribute.AttrExtCommunity,
+			data:  p.ExtCommunityBytes,
+		})
+	}
+
+	// 32. LARGE_COMMUNITIES
+	if len(p.LargeCommunities) > 0 {
+		lcs := make(attribute.LargeCommunities, len(p.LargeCommunities))
+		for i, lc := range p.LargeCommunities {
+			lcs[i] = attribute.LargeCommunity{
+				GlobalAdmin: lc[0],
+				LocalData1:  lc[1],
+				LocalData2:  lc[2],
+			}
+		}
+		attrs = append(attrs, lcs)
+	}
+
+	// Pack attributes (no sort - already in RFC order)
+	attrBytes := packAttributesNoSort(attrs)
+
+	return &Update{
+		PathAttributes: attrBytes,
+	}
+}
+
+// buildMPReachEVPN builds MP_REACH_NLRI for EVPN routes.
+func (ub *UpdateBuilder) buildMPReachEVPN(p EVPNParams) *rawAttribute {
+	// Build EVPN NLRI based on route type
+	var evpnNLRI nlri.EVPN
+	switch p.RouteType {
+	case 1:
+		evpnNLRI = nlri.NewEVPNType1(p.RD, p.ESI, p.EthernetTag, p.Labels)
+	case 2:
+		evpnNLRI = nlri.NewEVPNType2(p.RD, p.ESI, p.EthernetTag, p.MAC, p.IP, p.Labels)
+	case 3:
+		evpnNLRI = nlri.NewEVPNType3(p.RD, p.EthernetTag, p.OriginatorIP)
+	case 4:
+		evpnNLRI = nlri.NewEVPNType4(p.RD, p.ESI, p.OriginatorIP)
+	case 5:
+		evpnNLRI = nlri.NewEVPNType5(p.RD, p.ESI, p.EthernetTag, p.Prefix, p.Gateway, p.Labels)
+	default:
+		// Unknown type - return empty
+		return &rawAttribute{
+			flags: attribute.FlagOptional,
+			code:  attribute.AttrMPReachNLRI,
+			data:  nil,
+		}
+	}
+
+	// Pack NLRI
+	ctx := ub.Ctx
+	if ctx == nil {
+		ctx = &nlri.PackContext{}
+	}
+	nlriBytes := evpnNLRI.Pack(ctx)
+
+	// Build next-hop bytes
+	var nhBytes []byte
+	switch {
+	case p.NextHop.Is4(), p.NextHop.Is6():
+		nhBytes = p.NextHop.AsSlice()
+	default:
+		nhBytes = []byte{0, 0, 0, 0} // Default IPv4 0.0.0.0
+	}
+	nhLen := len(nhBytes)
+
+	// MP_REACH_NLRI format:
+	// AFI (2) + SAFI (1) + NH Len (1) + NH + Reserved (1) + NLRI
+	value := make([]byte, 2+1+1+nhLen+1+len(nlriBytes))
+	value[0] = 0x00
+	value[1] = byte(nlri.AFIL2VPN) // AFI 25
+	value[2] = byte(nlri.SAFIEVPN) // SAFI 70
+	value[3] = byte(nhLen)
+	copy(value[4:4+nhLen], nhBytes)
+	value[4+nhLen] = 0 // reserved
+	copy(value[5+nhLen:], nlriBytes)
+
+	return &rawAttribute{
+		flags: attribute.FlagOptional,
+		code:  attribute.AttrMPReachNLRI,
+		data:  value,
+	}
+}
+
 // MUPParams contains parameters for building a MUP route UPDATE.
 //
 // draft-mpmz-bess-mup-safi - Mobile User Plane Integration.

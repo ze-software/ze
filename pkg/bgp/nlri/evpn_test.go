@@ -779,3 +779,43 @@ func TestEVPNType1RoundTripMultiLabel(t *testing.T) {
 	encoded := evpn.Bytes()
 	assert.Equal(t, original, encoded, "round-trip encoding mismatch")
 }
+
+// TestParseESIString verifies ESI string parsing.
+//
+// VALIDATES: ParseESIString handles all formats (0, hex, colon-separated).
+// PREVENTS: ESI string parsing bugs.
+func TestParseESIString(t *testing.T) {
+	tests := []struct {
+		input    string
+		expected ESI
+		wantErr  bool
+	}{
+		// Zero ESI
+		{"0", ESI{}, false},
+		{"", ESI{}, false},
+		// Plain hex (20 chars)
+		{"00112233445566778899", ESI{0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88, 0x99}, false},
+		// Colon-separated
+		{"00:11:22:33:44:55:66:77:88:99", ESI{0x00, 0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88, 0x99}, false},
+		// All zeros colon-separated
+		{"00:00:00:00:00:00:00:00:00:00", ESI{}, false},
+		// All FF
+		{"ff:ff:ff:ff:ff:ff:ff:ff:ff:ff", ESI{0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff}, false},
+		{"FFFFFFFFFFFFFFFFFFFF", ESI{0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff, 0xff}, false},
+		// Invalid
+		{"invalid", ESI{}, true},
+		{"00:11:22", ESI{}, true}, // Too short
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.input, func(t *testing.T) {
+			result, err := ParseESIString(tc.input)
+			if tc.wantErr {
+				require.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
+			assert.Equal(t, tc.expected, result)
+		})
+	}
+}
