@@ -252,12 +252,52 @@ adj-rib-out Routes → GroupByAttributesTwoLevel() → ASPathGroups → BuildGro
 
 ---
 
+## UPDATE Size Limiting
+
+UPDATEs must respect max message size (4096 standard, 65535 with Extended Message). Two approaches:
+
+### Option A: Proactive (Build Path)
+```go
+// Size-aware builder splits at build time
+updates, err := ub.BuildGroupedUnicastWithLimit(params, maxSize)
+for _, update := range updates {
+    peer.SendUpdate(update)
+}
+```
+
+### Option B: Reactive (Forward/Replay Path)
+```go
+// Split after building if oversized
+update := buildRIBRouteUpdate(route, ...)
+peer.sendUpdateWithSplit(update, maxSize, family)
+```
+
+**Files involved:**
+- `pkg/bgp/message/update_split.go` - `SplitUpdate()`, `SplitUpdateWithAddPath()`
+- `pkg/bgp/message/chunk_mp_nlri.go` - `ChunkMPNLRI()` for family-aware NLRI parsing
+- `pkg/reactor/peer.go` - `sendUpdateWithSplit()` integration
+
+**NLRI formats handled by ChunkMPNLRI:**
+| SAFI | Format |
+|------|--------|
+| 1 (Unicast) | `[prefix-len][prefix-bytes]` or Add-Path: `[path-id:4][prefix-len][prefix-bytes]` |
+| 4 (Labeled) | `[total-bits][labels][prefix-bytes]` |
+| 128 (VPN) | `[total-bits][labels][RD:8][prefix-bytes]` |
+| 70 (EVPN) | `[route-type][length][payload]` |
+| 133 (FlowSpec) | `[length:1-2][components]` |
+| 71 (BGP-LS) | `[nlri-type:2][length:2][payload]` |
+
+**MP Attribute Ordering:** See `wire/MP_NLRI_ORDERING.md` - MP_REACH/MP_UNREACH can be placed at end of PathAttributes.
+
+---
+
 ## Related Documentation
 
 - `ENCODING_CONTEXT.md` - Context system for capability-dependent encoding
 - `POOL_ARCHITECTURE.md` - Attribute/NLRI deduplication pools
 - `MESSAGE_BUFFER_DESIGN.md` - Passthrough message handling
 - `wire/MESSAGES.md` - Wire format specification
+- `wire/MP_NLRI_ORDERING.md` - MP attribute ordering rationale
 
 ## Related Specs
 
