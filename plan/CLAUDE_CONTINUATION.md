@@ -35,9 +35,37 @@ make functional - 37/37 passed (100%) ✅
 ## Resume Point
 
 **Last worked:** 2026-01-02
-**Last commit:** `6002ea4` docs(plan): move debug-teardown-timing to done
+**Last commit:** `9eb38b1` refactor(reactor): consolidate AFI/SAFI to nlri.Family, separate negotiation from encoding
 
-**Status:** All work committed. Recently completed: adj-rib-out, route-id-forwarding, attributes-wire specs.
+**Status:** All work committed. AFI/SAFI refactor complete - NegotiatedFamilies replaced with NegotiatedCapabilities.
+
+---
+
+## RECENTLY COMPLETED: AFI/SAFI Map-Based Refactor
+
+**Spec:** `plan/spec-afi-safi-map-refactor.md`
+
+### Summary
+Consolidated Family type to nlri package, separated "what was negotiated" from "how to encode",
+eliminated data duplication between NegotiatedFamilies and EncodingContext.
+
+### Changes
+1. **Family type consolidation** - capability.AFI/SAFI/Family now alias nlri types
+2. **NegotiatedCapabilities** - replaces NegotiatedFamilies (25 bools → 1 map)
+3. **ExtendedNextHop type change** - now `map[Family]AFI` (stores next-hop AFI, not bool)
+4. **EOR deduplication** - removed duplicate EOR sending from family-specific functions
+5. **Deterministic ordering** - `Families()` returns sorted slice for reproducible EOR order
+
+### Code Reduction
+- ~180 lines removed from peer.go
+- Eliminated 6 switch statements checking AFI+SAFI pairs
+
+### Verification
+```
+make test       - PASS
+make lint       - 0 issues ✅
+make functional - 79/79 passed (100%) ✅
+```
 
 ---
 
