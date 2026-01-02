@@ -1,6 +1,6 @@
 # Claude Continuation State
 
-**Last Updated:** 2026-01-01
+**Last Updated:** 2026-01-02
 
 ---
 
@@ -34,10 +34,10 @@ make functional - 37/37 passed (100%) ✅
 
 ## Resume Point
 
-**Last worked:** 2026-01-01
-**Last commit:** `0838f2e` docs: remove flawed API-as-Virtual-Peer concept
+**Last worked:** 2026-01-02
+**Last commit:** `6002ea4` docs(plan): move debug-teardown-timing to done
 
-**Status:** All work committed. Next: Wire Container spec
+**Status:** All work committed. Recently completed: adj-rib-out, route-id-forwarding, attributes-wire specs.
 
 ---
 
@@ -358,29 +358,21 @@ Location: `test/functional/record.go`
 
 ## PLANNED
 
-### Route Reflection via API
-**Overview:** `plan/spec-attribute-context-wire-container.md`
-
-Split into self-contained specs:
+### Remaining Specs
 
 | Spec | Description | Status |
 |------|-------------|--------|
-| `spec-attributes-wire.md` | Wire-canonical storage, lazy parsing | Ready |
-| `spec-route-id-forwarding.md` | Route ID, forward command, `!<ip>` | Ready |
-| `spec-api-attribute-filter.md` | `attributes <list>` config | Ready |
+| `spec-api-attribute-filter.md` | `attributes <list>` config | In Progress |
 | `spec-rfc9234-role.md` | RFC 9234 Role for API policy | Ready |
+| `spec-route-grouping.md` | Route grouping for UPDATE packing | Ready |
+| `spec-update-size-limiting.md` | UPDATE message size limits | Ready |
+| `spec-adjribout-memory-profiling.md` | Memory profiling for Adj-RIB-Out | Ready |
 
-Implementation order:
-```
-1. spec-attributes-wire.md      (foundation)
-        ↓
-2. spec-route-id-forwarding.md  (uses AttributesWire)
-   spec-api-attribute-filter.md (uses AttributesWire)
-        ↓
-3. spec-rfc9234-role.md         (independent)
-```
-
-**All features are NEW - none exist in current codebase.**
+### Recently Completed (in plan/done/)
+- `spec-attributes-wire.md` - Wire-canonical storage ✅
+- `spec-route-id-forwarding.md` - Route ID forwarding ✅
+- `spec-adj-rib-out-forward.md` - Adj-RIB-Out forward ✅
+- `debug-teardown-timing.md` - Teardown timing issue ✅
 
 ---
 
