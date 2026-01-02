@@ -14,6 +14,7 @@ Read when working on specific areas:
 | Memory pools | `zebgp/POOL_ARCHITECTURE.md` |
 | Zero-copy | `zebgp/ENCODING_CONTEXT.md` |
 | ExaBGP mapping | `zebgp/EXABGP_CODE_MAP.md` |
+| ExaBGP compat | `zebgp/EXABGP_COMPATIBILITY.md` |
 | FSM | `zebgp/behavior/FSM.md` |
 | API | `zebgp/api/ARCHITECTURE.md` |
 | Config syntax | `zebgp/config/SYNTAX.md` |
