@@ -183,6 +183,35 @@ Wire format depends on negotiated capabilities:
 
 ---
 
+## Route Grouping (adj-rib-out → Peer)
+
+When sending routes from adj-rib-out, routes with identical attributes are grouped into single UPDATE messages:
+
+```
+adj-rib-out Routes → GroupByAttributesTwoLevel() → ASPathGroups → BuildGrouped*()
+       ↓                      ↓                         ↓              ↓
+  []*rib.Route         []AttributeGroup           Same AS_PATH    Multiple NLRIs
+                             ↓                     per UPDATE       per UPDATE
+                        []ASPathGroup
+```
+
+**Complexity reduction:** O(routes) → O(routes/capacity)
+
+| Family | Builder Method | Notes |
+|--------|---------------|-------|
+| IPv4 unicast | `BuildGroupedUnicastWithLimit()` | Uses UnicastParams |
+| IPv6/VPN | `sendGroupedMPFamily()` | Packs into MP_REACH_NLRI |
+
+**Files involved:**
+- `pkg/rib/grouping.go` - `GroupByAttributesTwoLevel()`, `RouteGroup`, `ASPathGroup`
+- `pkg/reactor/reactor.go` - `sendRoutesWithLimit()`, `sendGroupedIPv4Unicast()`, `sendGroupedMPFamily()`
+- `pkg/bgp/message/update_build.go` - `BuildGroupedUnicastWithLimit()`
+- `pkg/bgp/message/chunk_mp_nlri.go` - `ChunkMPNLRI()` for MP family splitting
+
+**Config:** `group-updates true` (default) in peer settings.
+
+---
+
 ## Summary
 
 ```
@@ -208,6 +237,17 @@ Wire format depends on negotiated capabilities:
 │  Volume: High (millions of routes)                              │
 │  Optimization: Zero-copy when contexts match                    │
 └─────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────┐
+│                    GROUPED SEND PATH (adj-rib-out)              │
+│                                                                 │
+│  Routes → GroupByAttributesTwoLevel() → BuildGrouped*WithLimit()│
+│     ↓              ↓                            ↓               │
+│  []*Route    []ASPathGroup              Multiple NLRIs/UPDATE   │
+│                                                                 │
+│  Volume: Medium (adj-rib-out replay, API announces)             │
+│  Optimization: O(routes) → O(routes/capacity) UPDATEs           │
+└─────────────────────────────────────────────────────────────────┘
 ```
 
 ---
@@ -227,4 +267,4 @@ Wire format depends on negotiated capabilities:
 ---
 
 **Created:** 2026-01-01
-**Last Updated:** 2026-01-01
+**Last Updated:** 2026-01-02

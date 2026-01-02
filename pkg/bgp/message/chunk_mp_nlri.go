@@ -1,0 +1,304 @@
+package message
+
+import (
+	"encoding/binary"
+	"fmt"
+)
+
+// ChunkMPNLRI splits MP family NLRIs respecting maxSize.
+//
+// Unlike ChunkNLRI (IPv4-only), handles all NLRI formats:
+//   - Add-Path: 4-byte path-id prefix
+//   - Labeled unicast: 3-byte label stack(s) before prefix
+//   - VPN: labels + 8-byte RD before prefix
+//   - EVPN: [route-type:1][length:1][payload]
+//   - FlowSpec: variable-length encoding
+//   - BGP-LS: [type:2][length:2][payload]
+//
+// Parameters:
+//   - nlri: raw NLRI bytes from MP_REACH_NLRI or MP_UNREACH_NLRI
+//   - afi: Address Family Identifier (1=IPv4, 2=IPv6, 25=L2VPN, 16388=BGP-LS)
+//   - safi: Subsequent AFI (1=unicast, 4=labeled, 70=EVPN, 128=VPN, 133=FlowSpec)
+//   - addPath: whether Add-Path is negotiated for this family
+//   - maxSize: maximum bytes per chunk
+//
+// Returns error if:
+//   - Single NLRI exceeds maxSize (ErrNLRITooLarge)
+//   - NLRI is truncated/malformed (ErrNLRIMalformed)
+//
+// RFC 4760 (MP), RFC 7911 (Add-Path), RFC 8277 (Labeled), RFC 4364 (VPN),
+// RFC 7432 (EVPN), RFC 5575 (FlowSpec), RFC 7752 (BGP-LS).
+func ChunkMPNLRI(nlri []byte, afi uint16, safi uint8, addPath bool, maxSize int) ([][]byte, error) {
+	if len(nlri) == 0 {
+		return nil, nil
+	}
+
+	// Select size calculator based on family
+	sizeFunc := getNLRISizeFunc(afi, safi, addPath)
+
+	// Validate NLRI structure and check if fits in fast path
+	if len(nlri) <= maxSize {
+		// Still need to validate structure
+		offset := 0
+		for offset < len(nlri) {
+			size, err := sizeFunc(nlri[offset:])
+			if err != nil {
+				return nil, fmt.Errorf("parsing NLRI at offset %d: %w", offset, err)
+			}
+			if offset+size > len(nlri) {
+				return nil, fmt.Errorf("%w: NLRI at offset %d claims %d bytes, only %d available",
+					ErrNLRIMalformed, offset, size, len(nlri)-offset)
+			}
+			offset += size
+		}
+		return [][]byte{nlri}, nil
+	}
+
+	var chunks [][]byte
+	var current []byte
+	offset := 0
+
+	for offset < len(nlri) {
+		// Calculate size of current NLRI
+		nlriSize, err := sizeFunc(nlri[offset:])
+		if err != nil {
+			return nil, fmt.Errorf("parsing NLRI at offset %d: %w", offset, err)
+		}
+
+		// Bounds check
+		if offset+nlriSize > len(nlri) {
+			return nil, fmt.Errorf("%w: NLRI at offset %d claims %d bytes, only %d available",
+				ErrNLRIMalformed, offset, nlriSize, len(nlri)-offset)
+		}
+
+		// Single NLRI too large?
+		if nlriSize > maxSize {
+			return nil, fmt.Errorf("%w: %d bytes, max %d", ErrNLRITooLarge, nlriSize, maxSize)
+		}
+
+		// Would overflow? Flush current chunk
+		if len(current)+nlriSize > maxSize && len(current) > 0 {
+			chunks = append(chunks, current)
+			current = nil
+		}
+
+		// Add this NLRI to current chunk
+		current = append(current, nlri[offset:offset+nlriSize]...)
+		offset += nlriSize
+	}
+
+	// Flush remainder
+	if len(current) > 0 {
+		chunks = append(chunks, current)
+	}
+
+	return chunks, nil
+}
+
+// ErrNLRIMalformed is returned when NLRI structure is invalid.
+var ErrNLRIMalformed = fmt.Errorf("malformed NLRI")
+
+// nlriSizeFunc returns the size of the first NLRI in the buffer.
+type nlriSizeFunc func(data []byte) (int, error)
+
+// getNLRISizeFunc returns the appropriate size function for the family.
+func getNLRISizeFunc(afi uint16, safi uint8, addPath bool) nlriSizeFunc {
+	switch {
+	case safi == 70: // EVPN
+		if addPath {
+			return addPathEVPNNLRISize
+		}
+		return evpnNLRISize
+
+	case safi == 133 || safi == 134: // FlowSpec
+		if addPath {
+			return addPathFlowSpecNLRISize
+		}
+		return flowSpecNLRISize
+
+	case afi == 16388 && safi == 71: // BGP-LS
+		if addPath {
+			return addPathBGPLSNLRISize
+		}
+		return bgpLSNLRISize
+
+	case safi == 128: // VPN (MPLS VPN)
+		if addPath {
+			return addPathVPNNLRISize
+		}
+		return vpnNLRISize
+
+	case safi == 4: // Labeled unicast
+		if addPath {
+			return addPathLabeledNLRISize
+		}
+		return labeledNLRISize
+
+	default: // Unicast (SAFI 1, 2)
+		if addPath {
+			return addPathNLRISize
+		}
+		return basicNLRISize
+	}
+}
+
+// =============================================================================
+// NLRI Size Functions
+// =============================================================================
+
+// basicNLRISize calculates size of basic IPv4/IPv6 unicast NLRI.
+// Format: [prefix-len-bits:1][prefix-bytes:ceil(len/8)].
+func basicNLRISize(data []byte) (int, error) {
+	if len(data) < 1 {
+		return 0, ErrNLRIMalformed
+	}
+	prefixLen := int(data[0])
+	prefixBytes := (prefixLen + 7) / 8
+	return 1 + prefixBytes, nil
+}
+
+// addPathNLRISize calculates size of Add-Path NLRI.
+// Format: [path-id:4][prefix-len-bits:1][prefix-bytes].
+func addPathNLRISize(data []byte) (int, error) {
+	if len(data) < 5 {
+		return 0, ErrNLRIMalformed
+	}
+	prefixLen := int(data[4])
+	prefixBytes := (prefixLen + 7) / 8
+	return 4 + 1 + prefixBytes, nil
+}
+
+// labeledNLRISize calculates size of labeled unicast NLRI (SAFI 4).
+// Format: [total-bits:1][labels:3*N][prefix-bytes]
+// The total-bits includes label bits + prefix bits.
+func labeledNLRISize(data []byte) (int, error) {
+	if len(data) < 1 {
+		return 0, ErrNLRIMalformed
+	}
+	totalBits := int(data[0])
+	totalBytes := (totalBits + 7) / 8
+	return 1 + totalBytes, nil
+}
+
+// addPathLabeledNLRISize calculates size of Add-Path labeled unicast NLRI.
+// Format: [path-id:4][total-bits:1][labels:3*N][prefix-bytes].
+func addPathLabeledNLRISize(data []byte) (int, error) {
+	if len(data) < 5 {
+		return 0, ErrNLRIMalformed
+	}
+	totalBits := int(data[4])
+	totalBytes := (totalBits + 7) / 8
+	return 4 + 1 + totalBytes, nil
+}
+
+// vpnNLRISize calculates size of VPN NLRI (SAFI 128).
+// Format: [total-bits:1][labels:3*N][RD:8][prefix-bytes]
+// The total-bits includes labels + RD (64 bits) + prefix bits.
+func vpnNLRISize(data []byte) (int, error) {
+	if len(data) < 1 {
+		return 0, ErrNLRIMalformed
+	}
+	totalBits := int(data[0])
+	totalBytes := (totalBits + 7) / 8
+	return 1 + totalBytes, nil
+}
+
+// addPathVPNNLRISize calculates size of Add-Path VPN NLRI.
+// Format: [path-id:4][total-bits:1][labels:3*N][RD:8][prefix-bytes].
+func addPathVPNNLRISize(data []byte) (int, error) {
+	if len(data) < 5 {
+		return 0, ErrNLRIMalformed
+	}
+	totalBits := int(data[4])
+	totalBytes := (totalBits + 7) / 8
+	return 4 + 1 + totalBytes, nil
+}
+
+// evpnNLRISize calculates size of EVPN NLRI.
+// Format: [route-type:1][length:1][payload:length].
+func evpnNLRISize(data []byte) (int, error) {
+	if len(data) < 2 {
+		return 0, ErrNLRIMalformed
+	}
+	// route-type is data[0], length is data[1]
+	length := int(data[1])
+	return 2 + length, nil
+}
+
+// addPathEVPNNLRISize calculates size of Add-Path EVPN NLRI.
+// Format: [path-id:4][route-type:1][length:1][payload:length].
+func addPathEVPNNLRISize(data []byte) (int, error) {
+	if len(data) < 6 {
+		return 0, ErrNLRIMalformed
+	}
+	// path-id is data[0:4], route-type is data[4], length is data[5]
+	length := int(data[5])
+	return 4 + 2 + length, nil
+}
+
+// flowSpecNLRISize calculates size of FlowSpec NLRI.
+// Format: [length:1-2][components:length]
+// Length < 240: 1 byte
+// Length >= 240: 2 bytes (0xF0|high, low).
+func flowSpecNLRISize(data []byte) (int, error) {
+	if len(data) < 1 {
+		return 0, ErrNLRIMalformed
+	}
+
+	if data[0] < 0xF0 {
+		// 1-byte length
+		length := int(data[0])
+		return 1 + length, nil
+	}
+
+	// 2-byte length
+	if len(data) < 2 {
+		return 0, ErrNLRIMalformed
+	}
+	length := (int(data[0]&0x0F) << 8) | int(data[1])
+	return 2 + length, nil
+}
+
+// addPathFlowSpecNLRISize calculates size of Add-Path FlowSpec NLRI.
+// Format: [path-id:4][length:1-2][components:length].
+func addPathFlowSpecNLRISize(data []byte) (int, error) {
+	if len(data) < 5 {
+		return 0, ErrNLRIMalformed
+	}
+
+	// Skip path-id (4 bytes), then check length encoding
+	if data[4] < 0xF0 {
+		// 1-byte length
+		length := int(data[4])
+		return 4 + 1 + length, nil
+	}
+
+	// 2-byte length
+	if len(data) < 6 {
+		return 0, ErrNLRIMalformed
+	}
+	length := (int(data[4]&0x0F) << 8) | int(data[5])
+	return 4 + 2 + length, nil
+}
+
+// bgpLSNLRISize calculates size of BGP-LS NLRI.
+// Format: [nlri-type:2][total-length:2][payload:total-length].
+func bgpLSNLRISize(data []byte) (int, error) {
+	if len(data) < 4 {
+		return 0, ErrNLRIMalformed
+	}
+	// nlri-type is data[0:2], length is data[2:4]
+	length := int(binary.BigEndian.Uint16(data[2:4]))
+	return 4 + length, nil
+}
+
+// addPathBGPLSNLRISize calculates size of Add-Path BGP-LS NLRI.
+// Format: [path-id:4][nlri-type:2][total-length:2][payload:total-length].
+func addPathBGPLSNLRISize(data []byte) (int, error) {
+	if len(data) < 8 {
+		return 0, ErrNLRIMalformed
+	}
+	// path-id is data[0:4], nlri-type is data[4:6], length is data[6:8]
+	length := int(binary.BigEndian.Uint16(data[6:8]))
+	return 4 + 4 + length, nil
+}

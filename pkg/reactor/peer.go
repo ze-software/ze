@@ -1101,6 +1101,10 @@ func (p *Peer) sendInitialRoutes() {
 	addr := p.settings.Address.String()
 	trace.Log(trace.Routes, "peer %s: sending %d static routes", addr, len(p.settings.StaticRoutes))
 
+	// Calculate max message size for this peer
+	extendedMessage := nf != nil && nf.ExtendedMessage
+	maxMsgSize := int(message.MaxMessageLength(message.TypeUPDATE, extendedMessage))
+
 	// Send routes - either grouped or individually based on config.
 	if p.settings.GroupUpdates {
 		// Group routes by attributes (same attributes = same UPDATE).
@@ -1108,22 +1112,32 @@ func (p *Peer) sendInitialRoutes() {
 
 		for _, routes := range groups {
 			ctx := p.packContext(routeFamily(routes[0]))
-			var update *message.Update
 			if len(routes) == 1 {
 				// Single-route group (IPv6, VPN, LabeledUnicast, or solo IPv4)
-				update = buildStaticRouteUpdateNew(routes[0], p.settings.LocalAS, p.settings.IsIBGP(), ctx, nf)
+				update := buildStaticRouteUpdateNew(routes[0], p.settings.LocalAS, p.settings.IsIBGP(), ctx, nf)
+				if err := p.sendUpdateWithSplit(update, maxMsgSize, routeFamily(routes[0])); err != nil {
+					trace.Log(trace.Routes, "peer %s: send error: %v", addr, err)
+					break
+				}
 			} else {
 				// Multi-route group - IPv4 unicast only (routeGroupKey ensures this)
+				// Use size-aware builder to respect max message size
 				ub := message.NewUpdateBuilder(p.settings.LocalAS, p.settings.IsIBGP(), ctx)
 				params := make([]message.UnicastParams, len(routes))
 				for i, r := range routes {
 					params[i] = toStaticRouteUnicastParams(r, nf)
 				}
-				update = ub.BuildGroupedUnicast(params)
-			}
-			if err := p.SendUpdate(update); err != nil {
-				trace.Log(trace.Routes, "peer %s: send error: %v", addr, err)
-				break
+				updates, err := ub.BuildGroupedUnicastWithLimit(params, maxMsgSize)
+				if err != nil {
+					trace.Log(trace.Routes, "peer %s: build error: %v", addr, err)
+					break
+				}
+				for _, update := range updates {
+					if err := p.SendUpdate(update); err != nil {
+						trace.Log(trace.Routes, "peer %s: send error: %v", addr, err)
+						break
+					}
+				}
 			}
 			for _, route := range routes {
 				trace.RouteSent(addr, route.Prefix.String(), route.NextHop.String())
@@ -1134,7 +1148,7 @@ func (p *Peer) sendInitialRoutes() {
 		for _, route := range p.settings.StaticRoutes {
 			ctx := p.packContext(routeFamily(route))
 			update := buildStaticRouteUpdateNew(route, p.settings.LocalAS, p.settings.IsIBGP(), ctx, nf)
-			if err := p.SendUpdate(update); err != nil {
+			if err := p.sendUpdateWithSplit(update, maxMsgSize, routeFamily(route)); err != nil {
 				trace.Log(trace.Routes, "peer %s: send error: %v", addr, err)
 				break
 			}
@@ -1163,7 +1177,7 @@ func (p *Peer) sendInitialRoutes() {
 				// Send the route
 				ctx := p.packContext(routeFamily(wr.StaticRoute))
 				update := buildStaticRouteUpdateNew(wr.StaticRoute, p.settings.LocalAS, p.settings.IsIBGP(), ctx, nf)
-				if err := p.SendUpdate(update); err != nil {
+				if err := p.sendUpdateWithSplit(update, maxMsgSize, routeFamily(wr.StaticRoute)); err != nil {
 					trace.Log(trace.Routes, "peer %s: send error: %v", addr, err)
 					break
 				}
@@ -1201,7 +1215,7 @@ func (p *Peer) sendInitialRoutes() {
 				route.NextHop = nextHop
 				ctx := p.packContext(routeFamily(route))
 				update := buildStaticRouteUpdateNew(route, p.settings.LocalAS, p.settings.IsIBGP(), ctx, nf)
-				if err := p.SendUpdate(update); err != nil {
+				if err := p.sendUpdateWithSplit(update, maxMsgSize, routeFamily(route)); err != nil {
 					trace.Log(trace.Routes, "peer %s: send error: %v", addr, err)
 					break
 				}
@@ -1211,7 +1225,7 @@ func (p *Peer) sendInitialRoutes() {
 	}
 
 	// Re-send Adj-RIB-Out routes (routes announced via API that persist across reconnects).
-	// Each route is sent individually with size checking to handle large attributes.
+	// Each route is sent individually, splitting if needed to respect max message size.
 	// RFC 8654: Max message size is 4096 without Extended Message, 65535 with.
 	sentRoutes := p.adjRIBOut.GetSentRoutes()
 	if len(sentRoutes) > 0 {
@@ -1220,49 +1234,37 @@ func (p *Peer) sendInitialRoutes() {
 		trace.Log(trace.Routes, "peer %s: re-sending %d Adj-RIB-Out routes (ExtendedMessage=%v, maxSize=%d)",
 			addr, len(sentRoutes), extendedMessage, maxMsgSize)
 		for _, route := range sentRoutes {
-			ctx := p.packContext(route.NLRI().Family())
+			family := route.NLRI().Family()
+			ctx := p.packContext(family)
 			update := buildRIBRouteUpdate(route, p.settings.LocalAS, p.settings.IsIBGP(), ctx)
-			// Check if UPDATE exceeds peer's max message size
-			// Size = Header(19) + WithdrawnLen(2) + Withdrawn + AttrLen(2) + Attrs + NLRI
-			updateSize := message.HeaderLen + 4 + len(update.WithdrawnRoutes) +
-				len(update.PathAttributes) + len(update.NLRI)
-			if updateSize > maxMsgSize {
-				trace.Log(trace.Routes, "peer %s: skipping route %s: UPDATE size %d exceeds max %d",
-					addr, route.NLRI(), updateSize, maxMsgSize)
-				continue
-			}
-			if err := p.SendUpdate(update); err != nil {
-				trace.Log(trace.Routes, "peer %s: send error: %v", addr, err)
+			if err := p.sendUpdateWithSplit(update, maxMsgSize, family); err != nil {
+				trace.Log(trace.Routes, "peer %s: send error for route %s: %v", addr, route.NLRI(), err)
 				break
 			}
 		}
 	}
 
 	// Send pending routes from transactions (committed while not connected).
-	// Same size checking as adj-rib-out replay above.
-	// NOTE: FlushAllPending adds routes to sent cache immediately. If we skip a route
-	// due to size, we must remove it from sent to avoid state mismatch.
+	// Each route is split if needed to respect max message size.
+	// NOTE: FlushAllPending adds routes to sent cache immediately. If we fail to send
+	// (e.g., unsplittable attributes), we remove from sent cache to avoid state mismatch.
 	pendingRoutes := p.adjRIBOut.FlushAllPending()
 	if len(pendingRoutes) > 0 {
 		extendedMessage := nf != nil && nf.ExtendedMessage
 		maxMsgSize := int(message.MaxMessageLength(message.TypeUPDATE, extendedMessage))
 		trace.Log(trace.Routes, "peer %s: sending %d pending routes from transactions", addr, len(pendingRoutes))
 		for _, route := range pendingRoutes {
-			ctx := p.packContext(route.NLRI().Family())
+			family := route.NLRI().Family()
+			ctx := p.packContext(family)
 			update := buildRIBRouteUpdate(route, p.settings.LocalAS, p.settings.IsIBGP(), ctx)
-			// Check if UPDATE exceeds peer's max message size
-			updateSize := message.HeaderLen + 4 + len(update.WithdrawnRoutes) +
-				len(update.PathAttributes) + len(update.NLRI)
-			if updateSize > maxMsgSize {
-				trace.Log(trace.Routes, "peer %s: skipping pending route %s: UPDATE size %d exceeds max %d",
-					addr, route.NLRI(), updateSize, maxMsgSize)
-				// Remove from sent cache since FlushAllPending already added it
-				p.adjRIBOut.RemoveFromSent(route.NLRI())
-				continue
-			}
-			if err := p.SendUpdate(update); err != nil {
-				trace.Log(trace.Routes, "peer %s: send error: %v", addr, err)
-				break
+			if err := p.sendUpdateWithSplit(update, maxMsgSize, family); err != nil {
+				trace.Log(trace.Routes, "peer %s: send error for pending route %s: %v", addr, route.NLRI(), err)
+				// Remove from sent cache since we failed to send
+				if errors.Is(err, message.ErrAttributesTooLarge) || errors.Is(err, message.ErrNLRITooLarge) {
+					p.adjRIBOut.RemoveFromSent(route.NLRI())
+					continue // Try next route
+				}
+				break // Connection error, stop sending
 			}
 		}
 	}
@@ -1292,22 +1294,22 @@ func (p *Peer) sendInitialRoutes() {
 			processed = i + 1 // Include the teardown in processed count
 
 		case PeerOpAnnounce:
-			// Send route and add to sent cache
-			ctx := p.packContext(op.Route.NLRI().Family())
+			// Send route and add to sent cache, splitting if needed.
+			// NOTE: Unlike FlushAllPending, MarkSent is called AFTER success,
+			// so no cache cleanup needed on split errors (route never cached).
+			family := op.Route.NLRI().Family()
+			ctx := p.packContext(family)
 			update := buildRIBRouteUpdate(op.Route, p.settings.LocalAS, p.settings.IsIBGP(), ctx)
-			// Check if UPDATE exceeds peer's max message size
-			updateSize := message.HeaderLen + 4 + len(update.WithdrawnRoutes) +
-				len(update.PathAttributes) + len(update.NLRI)
-			if updateSize > opMaxMsgSize {
-				trace.Log(trace.Routes, "peer %s: skipping queued route %s: UPDATE size %d exceeds max %d",
-					addr, op.Route.NLRI(), updateSize, opMaxMsgSize)
-				processed = i + 1
-				continue
-			}
 			p.mu.Unlock()
-			if err := p.SendUpdate(update); err != nil {
-				trace.Log(trace.Routes, "peer %s: send error: %v", addr, err)
+			if err := p.sendUpdateWithSplit(update, opMaxMsgSize, family); err != nil {
+				trace.Log(trace.Routes, "peer %s: send error for queued route %s: %v", addr, op.Route.NLRI(), err)
 				p.mu.Lock()
+				// Split errors: skip route (not cached yet, no cleanup needed)
+				// Connection errors: stop processing
+				if errors.Is(err, message.ErrAttributesTooLarge) || errors.Is(err, message.ErrNLRITooLarge) {
+					processed = i + 1
+					continue
+				}
 				break
 			}
 			p.adjRIBOut.MarkSent(op.Route)
@@ -1317,13 +1319,20 @@ func (p *Peer) sendInitialRoutes() {
 
 		case PeerOpWithdraw:
 			// Send withdrawal (already removed from sent cache when queued)
-			ctx := p.packContext(op.NLRI.Family())
+			// Use sendUpdateWithSplit for consistency, though single withdrawals rarely need splitting
+			family := op.NLRI.Family()
+			ctx := p.packContext(family)
 			update := buildWithdrawNLRI(op.NLRI, ctx)
 			p.mu.Unlock()
-			if err := p.SendUpdate(update); err != nil {
-				trace.Log(trace.Routes, "peer %s: send error: %v", addr, err)
+			if err := p.sendUpdateWithSplit(update, opMaxMsgSize, family); err != nil {
+				trace.Log(trace.Routes, "peer %s: send error for withdrawal %s: %v", addr, op.NLRI, err)
 				p.mu.Lock()
-				break
+				// Split errors are unlikely for single withdrawals, but handle consistently
+				if errors.Is(err, message.ErrAttributesTooLarge) || errors.Is(err, message.ErrNLRITooLarge) {
+					processed = i + 1
+					continue // Skip this withdrawal, try next
+				}
+				break // Connection error, stop processing
 			}
 			p.mu.Lock()
 			processed = i + 1
@@ -1508,6 +1517,52 @@ func buildRIBRouteUpdate(route *rib.Route, localAS uint32, isIBGP bool, ctx *nlr
 		PathAttributes: attrBytes,
 		NLRI:           nlriBytes,
 	}
+}
+
+// sendUpdateWithSplit sends an UPDATE, splitting if it exceeds maxSize.
+// Uses SplitUpdateWithAddPath to chunk oversized messages into multiple UPDATEs.
+// The family parameter is used to determine Add-Path state for correct NLRI parsing.
+// Returns nil on success, first error encountered on failure.
+//
+// RFC 4271 Section 4.3: Each split UPDATE is self-contained with full attributes.
+// RFC 7911: Add-Path requires 4-byte path identifier before each NLRI.
+// RFC 8654: Respects peer's max message size (4096 or 65535).
+func (p *Peer) sendUpdateWithSplit(update *message.Update, maxSize int, family nlri.Family) error {
+	// Determine Add-Path state for this family
+	// RFC 7911: Add-Path is negotiated per AFI/SAFI
+	addPath := false
+	if nf := p.families.Load(); nf != nil {
+		switch {
+		// Unicast (SAFI 1)
+		case family.AFI == nlri.AFIIPv4 && family.SAFI == nlri.SAFIUnicast:
+			addPath = nf.IPv4UnicastAddPath
+		case family.AFI == nlri.AFIIPv6 && family.SAFI == nlri.SAFIUnicast:
+			addPath = nf.IPv6UnicastAddPath
+		// Labeled Unicast (SAFI 4)
+		case family.AFI == nlri.AFIIPv4 && family.SAFI == 4:
+			addPath = nf.IPv4LabeledUnicastAddPath
+		case family.AFI == nlri.AFIIPv6 && family.SAFI == 4:
+			addPath = nf.IPv6LabeledUnicastAddPath
+		// MPLS VPN (SAFI 128)
+		case family.AFI == nlri.AFIIPv4 && family.SAFI == 128:
+			addPath = nf.IPv4MPLSVPNAddPath
+		case family.AFI == nlri.AFIIPv6 && family.SAFI == 128:
+			addPath = nf.IPv6MPLSVPNAddPath
+		}
+	}
+
+	chunks, err := message.SplitUpdateWithAddPath(update, maxSize, addPath)
+	if err != nil {
+		// Attributes too large or single NLRI too large - cannot send
+		return fmt.Errorf("splitting update: %w", err)
+	}
+
+	for _, chunk := range chunks {
+		if err := p.SendUpdate(chunk); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // buildWithdrawNLRI builds an UPDATE message to withdraw an NLRI.
