@@ -423,14 +423,14 @@ make test && make lint && make functional
 - [x] Changed ExtendedNextHop to map[Family]AFI
 - [x] Created NegotiatedCapabilities struct
 - [x] Changed Peer.families to Peer.negotiated
-- [ ] Fix remaining build errors in peer.go
-- [ ] Fix remaining build errors in reactor.go
-- [ ] Fix test files
-- [ ] Delete NegotiatedFamilies struct
-- [ ] make test passes
-- [ ] make lint passes
-- [ ] make functional passes
-- [ ] Update `.claude/zebgp/ENCODING_CONTEXT.md` with new architecture
+- [x] Fix remaining build errors in peer.go
+- [x] Fix remaining build errors in reactor.go
+- [x] Fix test files
+- [x] Delete NegotiatedFamilies struct
+- [x] make test passes
+- [x] make lint passes
+- [x] make functional passes
+- [x] Update `.claude/zebgp/ENCODING_CONTEXT.md` with new architecture
 
 ## Dependencies
 

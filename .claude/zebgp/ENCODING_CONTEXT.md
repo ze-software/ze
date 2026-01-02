@@ -5,8 +5,8 @@
 | Concept | Description |
 |---------|-------------|
 | **Purpose** | Capability-dependent encoding, zero-copy when contexts match |
-| **Key Types** | `EncodingContext`, `ContextID` (uint16), `ContextRegistry` |
-| **Key Functions** | `FromNegotiatedRecv/Send()`, `Registry.Register()`, `route.PackAttributesFor()` |
+| **Key Types** | `EncodingContext`, `NegotiatedCapabilities`, `ContextID` (uint16) |
+| **Key Functions** | `FromNegotiatedRecv/Send()`, `Registry.Register()`, `nc.Has()`, `nc.Families()` |
 | **Zero-Copy Rule** | If `sourceCtxID == destCtxID`, return cached wire bytes directly |
 | **Files** | `pkg/bgp/context/`, `pkg/rib/route.go`, `pkg/reactor/peer.go` |
 
@@ -17,11 +17,15 @@
 ## Overview
 
 The encoding context system enables capability-dependent message encoding and
-zero-copy route forwarding. It consists of three layers:
+zero-copy route forwarding. It consists of four layers:
 
-1. **EncodingContext** - Captures peer capabilities (ASN4, ADD-PATH, etc.)
-2. **ContextRegistry** - Deduplicates contexts, assigns compact IDs
-3. **Route Wire Cache** - Stores original wire bytes for zero-copy forwarding
+1. **NegotiatedCapabilities** - Tracks "what was negotiated" (which families)
+2. **EncodingContext** - Tracks "how to encode" (ASN4, ADD-PATH, ExtNH per family)
+3. **ContextRegistry** - Deduplicates contexts, assigns compact IDs
+4. **Route Wire Cache** - Stores original wire bytes for zero-copy forwarding
+
+**Separation of Concerns:** NegotiatedCapabilities answers "is this family enabled?"
+while EncodingContext answers "how do we encode for this peer?"
 
 ## Package Structure
 
@@ -30,22 +34,79 @@ pkg/bgp/context/
 ├── context.go      # EncodingContext struct, Hash(), ToPackContext()
 ├── registry.go     # ContextRegistry, ContextID, global Registry
 └── negotiated.go   # FromNegotiatedRecv/Send() helpers
+
+pkg/reactor/
+└── negotiated.go   # NegotiatedCapabilities struct
+```
+
+## Family Type
+
+All AFI/SAFI types are consolidated in `nlri.Family`. Other packages use type aliases:
+
+```go
+// pkg/bgp/nlri/nlri.go - canonical definition
+type Family struct { AFI AFI; SAFI SAFI }
+
+// pkg/bgp/capability/capability.go - alias for backward compat
+type Family = nlri.Family
+
+// pkg/bgp/context/context.go - alias
+type Family = nlri.Family
+```
+
+## NegotiatedCapabilities
+
+Tracks "what was negotiated" - which families are enabled. Lives in `pkg/reactor/`.
+
+```go
+type NegotiatedCapabilities struct {
+    families        map[nlri.Family]bool  // private, O(1) lookup
+    ExtendedMessage bool                  // RFC 8654
+}
+```
+
+### Key Methods
+
+```go
+// Has returns whether the family was negotiated
+func (nc *NegotiatedCapabilities) Has(f nlri.Family) bool
+
+// Families returns all negotiated families in deterministic order (sorted by AFI, SAFI)
+// Used for EOR sending where order should be reproducible for testing
+func (nc *NegotiatedCapabilities) Families() []nlri.Family
+```
+
+### Usage
+
+```go
+nc := p.negotiated.Load()
+if nc.Has(nlri.IPv4Unicast) {
+    // family is negotiated, send routes
+}
+
+// Send EOR for all families in deterministic order
+for _, family := range nc.Families() {
+    p.SendUpdate(message.BuildEOR(family))
+}
 ```
 
 ## EncodingContext
 
-Captures all capability flags that affect wire encoding:
+Captures all capability flags that affect wire encoding. Lives in `pkg/bgp/context/`.
 
 ```go
 type EncodingContext struct {
-    ASN4            bool              // RFC 6793: 4-byte ASN support
-    AddPath         map[Family]bool   // RFC 7911: per-family ADD-PATH
-    ExtendedNextHop map[Family]bool   // RFC 8950: IPv6 NH for IPv4
-    IsIBGP          bool              // iBGP vs eBGP session
-    LocalAS         uint32            // Local AS number
-    PeerAS          uint32            // Peer AS number
+    ASN4            bool                    // RFC 6793: 4-byte ASN support
+    AddPath         map[nlri.Family]bool    // RFC 7911: per-family ADD-PATH
+    ExtendedNextHop map[nlri.Family]nlri.AFI // RFC 8950: next-hop AFI per family
+    IsIBGP          bool                    // iBGP vs eBGP session
+    LocalAS         uint32                  // Local AS number
+    PeerAS          uint32                  // Peer AS number
 }
 ```
+
+**ExtendedNextHop:** Stores the next-hop AFI (not just bool). For example,
+`ExtendedNextHop[IPv4Unicast] = AFIIPv6` means IPv4 unicast can use IPv6 next-hop.
 
 ### Key Methods
 
@@ -136,10 +197,14 @@ func (r *Route) PackNLRIFor(destCtxID ContextID) []byte {
 
 ## Peer Integration
 
-Each Peer holds recv and send contexts:
+Each Peer holds negotiated capabilities and encoding contexts:
 
 ```go
 type Peer struct {
+    // What was negotiated (which families enabled)
+    negotiated atomic.Pointer[NegotiatedCapabilities]
+
+    // How to encode/decode (capabilities that affect wire format)
     recvCtx   *EncodingContext  // For parsing routes FROM peer
     recvCtxID ContextID
     sendCtx   *EncodingContext  // For encoding routes TO peer
@@ -147,9 +212,24 @@ type Peer struct {
 }
 ```
 
-Created at session establishment via:
-- `FromNegotiatedRecv()` - What peer sends us (their send capabilities)
-- `FromNegotiatedSend()` - What we send to peer (their receive capabilities)
+Created at session establishment:
+- `NewNegotiatedCapabilities(neg)` - Which families are enabled
+- `FromNegotiatedRecv(neg)` - How peer sends to us (their send capabilities)
+- `FromNegotiatedSend(neg)` - How we send to peer (their receive capabilities)
+
+### Usage Pattern
+
+```go
+// Check if family is negotiated
+nc := p.negotiated.Load()
+if !nc.Has(nlri.IPv4Unicast) {
+    return // family not negotiated, skip
+}
+
+// Get encoding context for building UPDATE
+ctx := p.packContext(family)  // uses sendCtx internally
+ub := message.NewUpdateBuilder(localAS, isIBGP, ctx)
+```
 
 ## Performance Characteristics
 
@@ -231,15 +311,18 @@ Context IDs must be registered via `Registry.Register()`:
 
 | File | Purpose |
 |------|---------|
+| `pkg/bgp/nlri/nlri.go` | Canonical `Family` type, `FamilyLess()` |
 | `pkg/bgp/context/context.go` | EncodingContext struct |
 | `pkg/bgp/context/registry.go` | ContextRegistry, global Registry |
 | `pkg/bgp/context/negotiated.go` | FromNegotiatedRecv/Send helpers |
+| `pkg/reactor/negotiated.go` | NegotiatedCapabilities struct |
 | `pkg/rib/route.go` | Wire cache fields, Pack*For methods |
-| `pkg/reactor/peer.go` | Peer context fields |
+| `pkg/reactor/peer.go` | Peer.negotiated, recvCtx, sendCtx fields |
 
 ## Related Specs
 
 - `plan/spec-encoding-context-impl.md` - Original design
 - `plan/spec-context-full-integration.md` - Full integration plan
+- `plan/spec-afi-safi-map-refactor.md` - NegotiatedCapabilities, Family consolidation
 - `plan/spec-attributes-wire.md` - Lazy-parsed wire attribute storage
 - `plan/spec-pool-handle-migration.md` - Future migration to pool handles
