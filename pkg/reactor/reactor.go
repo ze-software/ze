@@ -823,14 +823,14 @@ func (a *reactorAPIAdapter) sendMUPRoute(peerSelector string, spec api.MUPRouteS
 		}
 
 		// Check if MUP family is negotiated
-		nf := peer.families.Load()
-		if nf == nil {
+		nc := peer.negotiated.Load()
+		if nc == nil {
 			continue
 		}
-		if spec.IsIPv6 && !nf.IPv6MUP {
+		if spec.IsIPv6 && !nc.Has(nlri.IPv6MUP) {
 			continue // Skip peer that doesn't support IPv6 MUP
 		}
-		if !spec.IsIPv6 && !nf.IPv4MUP {
+		if !spec.IsIPv6 && !nc.Has(nlri.IPv4MUP) {
 			continue // Skip peer that doesn't support IPv4 MUP
 		}
 
@@ -1659,8 +1659,8 @@ func (a *reactorAPIAdapter) ForwardUpdate(sel *api.Selector, updateID uint64) er
 		sentCount++
 
 		// Get max message size for this peer (RFC 8654)
-		nf := peer.families.Load()
-		extendedMessage := nf != nil && nf.ExtendedMessage
+		nc := peer.negotiated.Load()
+		extendedMessage := nc != nil && nc.ExtendedMessage
 		maxMsgSize := int(message.MaxMessageLength(message.TypeUPDATE, extendedMessage))
 
 		// Check if UPDATE exceeds peer's max message size
@@ -1937,8 +1937,8 @@ func (a *reactorAPIAdapter) sendGroupedMPFamily(peer *Peer, routes []*rib.Route,
 	}
 
 	// Split NLRIs into chunks
-	nf := peer.families.Load()
-	addPath := nf != nil && a.familySupportsAddPath(family, nf)
+	sendCtx := peer.SendContext()
+	addPath := sendCtx != nil && sendCtx.AddPathFor(family)
 	chunks, err := message.ChunkMPNLRI(nlriBytes, uint16(family.AFI), uint8(family.SAFI), addPath, availableNLRISpace)
 	if err != nil {
 		return fmt.Errorf("chunking MP NLRI: %w", err)
@@ -2053,28 +2053,6 @@ func (a *reactorAPIAdapter) buildGroupedMPUpdate(templateRoute *rib.Route, nlriB
 	return &message.Update{
 		PathAttributes: attrBytes,
 	}
-}
-
-// familySupportsAddPath returns true if the family has ADD-PATH negotiated.
-func (a *reactorAPIAdapter) familySupportsAddPath(family nlri.Family, nf *NegotiatedFamilies) bool {
-	if nf == nil {
-		return false
-	}
-	switch {
-	case family.AFI == nlri.AFIIPv4 && family.SAFI == nlri.SAFIUnicast:
-		return nf.IPv4UnicastAddPath
-	case family.AFI == nlri.AFIIPv6 && family.SAFI == nlri.SAFIUnicast:
-		return nf.IPv6UnicastAddPath
-	case family.AFI == nlri.AFIIPv4 && family.SAFI == nlri.SAFIMPLSLabel:
-		return nf.IPv4LabeledUnicastAddPath
-	case family.AFI == nlri.AFIIPv6 && family.SAFI == nlri.SAFIMPLSLabel:
-		return nf.IPv6LabeledUnicastAddPath
-	case family.AFI == nlri.AFIIPv4 && family.SAFI == nlri.SAFIVPN:
-		return nf.IPv4MPLSVPNAddPath
-	case family.AFI == nlri.AFIIPv6 && family.SAFI == nlri.SAFIVPN:
-		return nf.IPv6MPLSVPNAddPath
-	}
-	return false
 }
 
 // toRIBRouteUnicastParams converts a RIB route to UnicastParams for grouped building.

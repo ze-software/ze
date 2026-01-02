@@ -1,6 +1,9 @@
 package context
 
-import "github.com/exa-networks/zebgp/pkg/bgp/capability"
+import (
+	"github.com/exa-networks/zebgp/pkg/bgp/capability"
+	"github.com/exa-networks/zebgp/pkg/bgp/nlri"
+)
 
 // addPathCheckFunc is a function type for checking ADD-PATH mode.
 type addPathCheckFunc func(mode capability.AddPathMode) bool
@@ -26,8 +29,8 @@ func fromNegotiated(neg *capability.Negotiated, addPathCheck addPathCheckFunc) *
 
 	ctx := &EncodingContext{
 		ASN4:            neg.ASN4,
-		AddPath:         make(map[Family]bool),
-		ExtendedNextHop: make(map[Family]bool),
+		AddPath:         make(map[nlri.Family]bool),
+		ExtendedNextHop: make(map[nlri.Family]nlri.AFI),
 		IsIBGP:          neg.LocalASN == neg.PeerASN,
 		LocalAS:         neg.LocalASN,
 		PeerAS:          neg.PeerASN,
@@ -37,14 +40,16 @@ func fromNegotiated(neg *capability.Negotiated, addPathCheck addPathCheckFunc) *
 	for _, f := range neg.Families() {
 		mode := neg.AddPathMode(f)
 		if addPathCheck(mode) {
-			ctx.AddPath[Family{AFI: uint16(f.AFI), SAFI: uint8(f.SAFI)}] = true
+			// f is capability.Family which is now nlri.Family (type alias)
+			ctx.AddPath[f] = true
 		}
 	}
 
-	// RFC 8950: Extended next-hop (symmetric for both recv and send)
+	// RFC 8950: Extended next-hop - store the next-hop AFI
 	for _, f := range neg.Families() {
-		if neg.ExtendedNextHopAFI(f) != 0 {
-			ctx.ExtendedNextHop[Family{AFI: uint16(f.AFI), SAFI: uint8(f.SAFI)}] = true
+		nhAFI := neg.ExtendedNextHopAFI(f)
+		if nhAFI != 0 {
+			ctx.ExtendedNextHop[f] = nhAFI
 		}
 	}
 

@@ -18,6 +18,8 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+
+	"github.com/exa-networks/zebgp/pkg/bgp/nlri"
 )
 
 // Errors.
@@ -87,12 +89,9 @@ type Capability interface {
 	Pack() []byte
 }
 
-// AFI represents Address Family Identifier.
-//
-// RFC 4760 Section 3: Address Family Identifier (AFI) is a 16-bit value
-// that identifies the address family (e.g., IPv4, IPv6).
-// Values are assigned by IANA in the Address Family Numbers registry.
-type AFI uint16
+// AFI is an alias for nlri.AFI for backward compatibility.
+// RFC 4760 Section 3: Address Family Identifier (AFI) is a 16-bit value.
+type AFI = nlri.AFI
 
 // Address Family Identifiers per IANA Address Family Numbers registry.
 const (
@@ -102,15 +101,11 @@ const (
 	AFIBGPLS AFI = 16388 // RFC 7752
 )
 
-// SAFI represents Subsequent Address Family Identifier.
-//
-// RFC 4760 Section 6: SAFI is an 8-bit value that provides additional
-// information about the type of NLRI being carried.
-type SAFI uint8
+// SAFI is an alias for nlri.SAFI for backward compatibility.
+// RFC 4760 Section 6: SAFI is an 8-bit value.
+type SAFI = nlri.SAFI
 
 // Subsequent Address Family Identifiers per IANA SAFI registry.
-//
-// RFC 4760 Section 6: SAFI values 1-2 defined in RFC 4760.
 const (
 	SAFIUnicast     SAFI = 1   // RFC 4760 Section 6
 	SAFIMulticast   SAFI = 2   // RFC 4760 Section 6
@@ -126,65 +121,9 @@ const (
 	SAFIFlowSpecVPN SAFI = 134 // RFC 8955 (FlowSpec VPN)
 )
 
-// Family combines AFI and SAFI.
-//
-// RFC 4760 Section 8: The <AFI, SAFI> tuple identifies the address family
-// and sub-address family for multiprotocol capabilities.
-type Family struct {
-	AFI  AFI
-	SAFI SAFI
-}
-
-// String returns human-readable family name (e.g., "ipv6/unicast").
-func (f Family) String() string {
-	return f.AFI.String() + "/" + f.SAFI.String()
-}
-
-// String returns human-readable AFI name.
-func (a AFI) String() string {
-	switch a {
-	case AFIIPv4:
-		return "ipv4"
-	case AFIIPv6:
-		return "ipv6"
-	case AFIL2VPN:
-		return "l2vpn"
-	case AFIBGPLS:
-		return "bgp-ls"
-	default:
-		return fmt.Sprintf("afi-%d", a)
-	}
-}
-
-// String returns human-readable SAFI name.
-func (s SAFI) String() string {
-	switch s {
-	case SAFIUnicast:
-		return "unicast"
-	case SAFIMulticast:
-		return "multicast"
-	case SAFIMPLSLabel:
-		return "mpls-label"
-	case SAFIMcastVPN:
-		return "mcast-vpn"
-	case SAFIVPLS:
-		return "vpls"
-	case SAFIEVPN:
-		return "evpn"
-	case SAFIBGPLS:
-		return "bgp-ls"
-	case SAFIBGPLSVPN:
-		return "bgp-ls-vpn"
-	case SAFIMPLS:
-		return "mpls-vpn"
-	case SAFIFlowSpec:
-		return "flowspec"
-	case SAFIFlowSpecVPN:
-		return "flowspec-vpn"
-	default:
-		return fmt.Sprintf("safi-%d", s)
-	}
-}
+// Family is an alias for nlri.Family for backward compatibility.
+// RFC 4760 Section 8: The <AFI, SAFI> tuple identifies the address family.
+type Family = nlri.Family
 
 // Parse parses capability TLVs from optional parameters.
 //

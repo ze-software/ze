@@ -256,8 +256,7 @@ func TestBuildStaticRouteUpdateIPv6(t *testing.T) {
 	}
 
 	ctx := &nlri.PackContext{ASN4: true}
-	nf := &NegotiatedFamilies{IPv6Unicast: true}
-	update := buildStaticRouteUpdateNew(route, 65000, true, ctx, nf) // iBGP, ctx with ASN4
+	update := buildStaticRouteUpdateNew(route, 65000, true, ctx, nil) // iBGP, ctx with ASN4, no ExtNH needed
 
 	// IPv6 routes must NOT have inline NLRI
 	require.Empty(t, update.NLRI, "IPv6 route must not have inline NLRI")
@@ -314,8 +313,7 @@ func TestBuildStaticRouteUpdateWithCommunities(t *testing.T) {
 	}
 
 	ctx := &nlri.PackContext{ASN4: true}
-	nf := &NegotiatedFamilies{IPv4Unicast: true}
-	update := buildStaticRouteUpdateNew(route, 65000, false, ctx, nf) // eBGP, ctx with ASN4
+	update := buildStaticRouteUpdateNew(route, 65000, false, ctx, nil) // eBGP, ctx with ASN4, no ExtNH needed
 	require.NotEmpty(t, update.PathAttributes, "must have path attributes")
 
 	// Look for COMMUNITIES (code 8) in attributes
@@ -720,210 +718,6 @@ func TestWatchdogRouteKeyIncludesPathID(t *testing.T) {
 	require.False(t, peer.watchdogState["addpath"]["10.0.0.0/24#2"], "PathID=2 should be withdrawn")
 }
 
-// =============================================================================
-// NegotiatedFamilies Tests
-// =============================================================================
-
-// TestComputeNegotiatedFamiliesNil verifies nil input returns nil.
-//
-// VALIDATES: nil Negotiated returns nil NegotiatedFamilies.
-//
-// PREVENTS: Nil pointer dereference when session has no negotiated state.
-func TestComputeNegotiatedFamiliesNil(t *testing.T) {
-	result := computeNegotiatedFamilies(nil)
-	require.Nil(t, result, "nil input should return nil")
-}
-
-// TestComputeNegotiatedFamiliesBasic verifies basic family extraction.
-//
-// VALIDATES: computeNegotiatedFamilies correctly extracts families from intersection.
-//
-// PREVENTS: Missing or incorrect family flags after negotiation.
-func TestComputeNegotiatedFamiliesBasic(t *testing.T) {
-	// Create capabilities that BOTH sides advertise (intersection)
-	local := []capability.Capability{
-		&capability.Multiprotocol{AFI: capability.AFIIPv4, SAFI: capability.SAFIUnicast},
-		&capability.Multiprotocol{AFI: capability.AFIIPv6, SAFI: capability.SAFIUnicast},
-		&capability.Multiprotocol{AFI: capability.AFIIPv4, SAFI: capability.SAFIFlowSpec},
-		&capability.Multiprotocol{AFI: capability.AFIIPv6, SAFI: capability.SAFIFlowSpec},
-		&capability.ASN4{ASN: 65000},
-		&capability.ExtendedMessage{},
-	}
-	remote := []capability.Capability{
-		&capability.Multiprotocol{AFI: capability.AFIIPv4, SAFI: capability.SAFIUnicast},
-		// Remote does NOT support IPv6 unicast - should not be negotiated
-		&capability.Multiprotocol{AFI: capability.AFIIPv4, SAFI: capability.SAFIFlowSpec},
-		&capability.Multiprotocol{AFI: capability.AFIIPv6, SAFI: capability.SAFIFlowSpec},
-		&capability.ASN4{ASN: 65001},
-		// Remote does NOT support ExtendedMessage - should not be negotiated
-	}
-
-	neg := capability.Negotiate(local, remote, 65000, 65001)
-	require.NotNil(t, neg, "Negotiate should return non-nil")
-
-	result := computeNegotiatedFamilies(neg)
-	require.NotNil(t, result, "computeNegotiatedFamilies should return non-nil")
-
-	// IPv4 unicast: both support - should be true
-	require.True(t, result.IPv4Unicast, "IPv4 unicast should be negotiated (both support)")
-
-	// IPv6 unicast: only local supports - should be false
-	require.False(t, result.IPv6Unicast, "IPv6 unicast should NOT be negotiated (only local supports)")
-
-	// IPv4 FlowSpec: both support - should be true
-	require.True(t, result.IPv4FlowSpec, "IPv4 FlowSpec should be negotiated (both support)")
-
-	// IPv6 FlowSpec: both support - should be true
-	require.True(t, result.IPv6FlowSpec, "IPv6 FlowSpec should be negotiated (both support)")
-
-	// ASN4: both support - should be true
-	require.True(t, result.ASN4, "ASN4 should be negotiated (both support)")
-
-	// ExtendedMessage: only local supports - should be false
-	require.False(t, result.ExtendedMessage, "ExtendedMessage should NOT be negotiated (only local supports)")
-}
-
-// TestComputeNegotiatedFamiliesFlowSpecVPN verifies FlowSpec VPN family extraction.
-//
-// VALIDATES: FlowSpec VPN families are correctly identified.
-//
-// PREVENTS: FlowSpec non-VPN being confused with VPN variants.
-func TestComputeNegotiatedFamiliesFlowSpecVPN(t *testing.T) {
-	local := []capability.Capability{
-		&capability.Multiprotocol{AFI: capability.AFIIPv4, SAFI: capability.SAFIFlowSpec},    // 1/133
-		&capability.Multiprotocol{AFI: capability.AFIIPv4, SAFI: capability.SAFIFlowSpecVPN}, // 1/134
-		&capability.Multiprotocol{AFI: capability.AFIIPv6, SAFI: capability.SAFIFlowSpecVPN}, // 2/134
-	}
-	remote := []capability.Capability{
-		&capability.Multiprotocol{AFI: capability.AFIIPv4, SAFI: capability.SAFIFlowSpec},    // 1/133
-		&capability.Multiprotocol{AFI: capability.AFIIPv4, SAFI: capability.SAFIFlowSpecVPN}, // 1/134
-		&capability.Multiprotocol{AFI: capability.AFIIPv6, SAFI: capability.SAFIFlowSpecVPN}, // 2/134
-	}
-
-	neg := capability.Negotiate(local, remote, 65000, 65001)
-	result := computeNegotiatedFamilies(neg)
-
-	require.True(t, result.IPv4FlowSpec, "IPv4 FlowSpec should be negotiated")
-	require.False(t, result.IPv6FlowSpec, "IPv6 FlowSpec should NOT be negotiated (not advertised)")
-	require.True(t, result.IPv4FlowSpecVPN, "IPv4 FlowSpec VPN should be negotiated")
-	require.True(t, result.IPv6FlowSpecVPN, "IPv6 FlowSpec VPN should be negotiated")
-}
-
-// TestComputeNegotiatedFamiliesVPLS verifies L2VPN VPLS family extraction.
-//
-// VALIDATES: L2VPN VPLS (AFI=25, SAFI=65) is correctly identified.
-//
-// PREVENTS: VPLS routes being sent when not negotiated.
-func TestComputeNegotiatedFamiliesVPLS(t *testing.T) {
-	local := []capability.Capability{
-		&capability.Multiprotocol{AFI: capability.AFIL2VPN, SAFI: capability.SAFIVPLS},
-	}
-	remote := []capability.Capability{
-		&capability.Multiprotocol{AFI: capability.AFIL2VPN, SAFI: capability.SAFIVPLS},
-	}
-
-	neg := capability.Negotiate(local, remote, 65000, 65001)
-	result := computeNegotiatedFamilies(neg)
-
-	require.True(t, result.L2VPNVPLS, "L2VPN VPLS should be negotiated")
-}
-
-// TestComputeNegotiatedFamiliesMVPN verifies MVPN family extraction.
-//
-// VALIDATES: McastVPN (SAFI=5) for IPv4/IPv6 is correctly identified.
-//
-// PREVENTS: MVPN routes being sent when not negotiated.
-func TestComputeNegotiatedFamiliesMVPN(t *testing.T) {
-	local := []capability.Capability{
-		&capability.Multiprotocol{AFI: capability.AFIIPv4, SAFI: capability.SAFIMcastVPN},
-		&capability.Multiprotocol{AFI: capability.AFIIPv6, SAFI: capability.SAFIMcastVPN},
-	}
-	remote := []capability.Capability{
-		&capability.Multiprotocol{AFI: capability.AFIIPv4, SAFI: capability.SAFIMcastVPN},
-		// Remote does NOT support IPv6 MVPN
-	}
-
-	neg := capability.Negotiate(local, remote, 65000, 65001)
-	result := computeNegotiatedFamilies(neg)
-
-	require.True(t, result.IPv4McastVPN, "IPv4 McastVPN should be negotiated")
-	require.False(t, result.IPv6McastVPN, "IPv6 McastVPN should NOT be negotiated")
-}
-
-// TestComputeNegotiatedFamiliesMUP verifies MUP family extraction.
-//
-// VALIDATES: MUP (SAFI=85) for IPv4/IPv6 is correctly identified.
-//
-// PREVENTS: MUP routes being sent when not negotiated.
-func TestComputeNegotiatedFamiliesMUP(t *testing.T) {
-	local := []capability.Capability{
-		&capability.Multiprotocol{AFI: capability.AFIIPv4, SAFI: 85}, // MUP
-		&capability.Multiprotocol{AFI: capability.AFIIPv6, SAFI: 85}, // MUP
-	}
-	remote := []capability.Capability{
-		&capability.Multiprotocol{AFI: capability.AFIIPv4, SAFI: 85}, // MUP
-		&capability.Multiprotocol{AFI: capability.AFIIPv6, SAFI: 85}, // MUP
-	}
-
-	neg := capability.Negotiate(local, remote, 65000, 65001)
-	result := computeNegotiatedFamilies(neg)
-
-	require.True(t, result.IPv4MUP, "IPv4 MUP should be negotiated")
-	require.True(t, result.IPv6MUP, "IPv6 MUP should be negotiated")
-}
-
-// TestComputeNegotiatedFamiliesLabeledUnicast verifies labeled-unicast family extraction.
-//
-// VALIDATES: Labeled unicast (SAFI=4) for IPv4/IPv6 is correctly identified.
-//
-// PREVENTS: Labeled-unicast routes being sent when not negotiated, EOR not sent.
-func TestComputeNegotiatedFamiliesLabeledUnicast(t *testing.T) {
-	local := []capability.Capability{
-		&capability.Multiprotocol{AFI: capability.AFIIPv4, SAFI: capability.SAFIMPLSLabel},
-		&capability.Multiprotocol{AFI: capability.AFIIPv6, SAFI: capability.SAFIMPLSLabel},
-	}
-	remote := []capability.Capability{
-		&capability.Multiprotocol{AFI: capability.AFIIPv4, SAFI: capability.SAFIMPLSLabel},
-		// Remote does NOT support IPv6 labeled-unicast
-	}
-
-	neg := capability.Negotiate(local, remote, 65000, 65001)
-	result := computeNegotiatedFamilies(neg)
-
-	require.True(t, result.IPv4LabeledUnicast, "IPv4 labeled-unicast should be negotiated")
-	require.False(t, result.IPv6LabeledUnicast, "IPv6 labeled-unicast should NOT be negotiated")
-}
-
-// TestComputeNegotiatedFamiliesLabeledUnicastAddPath verifies ADD-PATH for labeled-unicast.
-//
-// VALIDATES: ADD-PATH capability is correctly extracted for labeled-unicast families.
-//
-// PREVENTS: ADD-PATH encoding not applied for labeled-unicast routes.
-func TestComputeNegotiatedFamiliesLabeledUnicastAddPath(t *testing.T) {
-	local := []capability.Capability{
-		&capability.Multiprotocol{AFI: capability.AFIIPv4, SAFI: capability.SAFIMPLSLabel},
-		&capability.AddPath{
-			Families: []capability.AddPathFamily{
-				{AFI: capability.AFIIPv4, SAFI: capability.SAFIMPLSLabel, Mode: capability.AddPathBoth},
-			},
-		},
-	}
-	remote := []capability.Capability{
-		&capability.Multiprotocol{AFI: capability.AFIIPv4, SAFI: capability.SAFIMPLSLabel},
-		&capability.AddPath{
-			Families: []capability.AddPathFamily{
-				{AFI: capability.AFIIPv4, SAFI: capability.SAFIMPLSLabel, Mode: capability.AddPathBoth},
-			},
-		},
-	}
-
-	neg := capability.Negotiate(local, remote, 65000, 65001)
-	result := computeNegotiatedFamilies(neg)
-
-	require.True(t, result.IPv4LabeledUnicast, "IPv4 labeled-unicast should be negotiated")
-	require.True(t, result.IPv4LabeledUnicastAddPath, "IPv4 labeled-unicast ADD-PATH should be negotiated")
-}
-
 // TestRouteFamilyIPv4Unicast verifies IPv4 unicast routes return correct family.
 //
 // VALIDATES: IPv4 unicast route returns AFI=1, SAFI=1.
@@ -1098,13 +892,14 @@ func TestPeerPackContextIPv4AddPath(t *testing.T) {
 	)
 	peer := NewPeer(settings)
 
-	// Set families with ADD-PATH enabled for IPv4 unicast
-	peer.families.Store(&NegotiatedFamilies{
-		IPv4Unicast:        true,
-		IPv4UnicastAddPath: true,
-		IPv6Unicast:        true,
-		IPv6UnicastAddPath: false,
-	})
+	// Set sendCtx with ADD-PATH enabled for IPv4 unicast
+	peer.sendCtx = &bgpctx.EncodingContext{
+		ASN4: true,
+		AddPath: map[nlri.Family]bool{
+			nlri.IPv4Unicast: true,
+			nlri.IPv6Unicast: false,
+		},
+	}
 
 	ctx := peer.packContext(nlri.IPv4Unicast)
 	require.NotNil(t, ctx, "should return non-nil context")
@@ -1123,13 +918,14 @@ func TestPeerPackContextIPv6AddPath(t *testing.T) {
 	)
 	peer := NewPeer(settings)
 
-	// Set families with ADD-PATH enabled for IPv6 unicast
-	peer.families.Store(&NegotiatedFamilies{
-		IPv4Unicast:        true,
-		IPv4UnicastAddPath: false,
-		IPv6Unicast:        true,
-		IPv6UnicastAddPath: true,
-	})
+	// Set sendCtx with ADD-PATH enabled for IPv6 unicast
+	peer.sendCtx = &bgpctx.EncodingContext{
+		ASN4: true,
+		AddPath: map[nlri.Family]bool{
+			nlri.IPv4Unicast: false,
+			nlri.IPv6Unicast: true,
+		},
+	}
 
 	ctx := peer.packContext(nlri.IPv6Unicast)
 	require.NotNil(t, ctx, "should return non-nil context")
@@ -1148,13 +944,14 @@ func TestPeerPackContextLabeledUnicastAddPath(t *testing.T) {
 	)
 	peer := NewPeer(settings)
 
-	// Set families with ADD-PATH enabled for labeled-unicast
-	peer.families.Store(&NegotiatedFamilies{
-		IPv4LabeledUnicast:        true,
-		IPv4LabeledUnicastAddPath: true,
-		IPv6LabeledUnicast:        true,
-		IPv6LabeledUnicastAddPath: true,
-	})
+	// Set sendCtx with ADD-PATH enabled for labeled-unicast
+	peer.sendCtx = &bgpctx.EncodingContext{
+		ASN4: true,
+		AddPath: map[nlri.Family]bool{
+			nlri.IPv4LabeledUnicast: true,
+			nlri.IPv6LabeledUnicast: true,
+		},
+	}
 
 	// IPv4 labeled-unicast (SAFI 4)
 	ctx4 := peer.packContext(nlri.Family{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIMPLSLabel})
@@ -1179,13 +976,14 @@ func TestPeerPackContextNoAddPath(t *testing.T) {
 	)
 	peer := NewPeer(settings)
 
-	// Set families WITHOUT ADD-PATH
-	peer.families.Store(&NegotiatedFamilies{
-		IPv4Unicast:        true,
-		IPv4UnicastAddPath: false,
-		IPv6Unicast:        true,
-		IPv6UnicastAddPath: false,
-	})
+	// Set sendCtx WITHOUT ADD-PATH
+	peer.sendCtx = &bgpctx.EncodingContext{
+		ASN4: true,
+		AddPath: map[nlri.Family]bool{
+			nlri.IPv4Unicast: false,
+			nlri.IPv6Unicast: false,
+		},
+	}
 
 	ctx4 := peer.packContext(nlri.IPv4Unicast)
 	require.NotNil(t, ctx4, "should return non-nil context")
@@ -1208,13 +1006,15 @@ func TestPeerPackContextOtherFamilies(t *testing.T) {
 	)
 	peer := NewPeer(settings)
 
-	peer.families.Store(&NegotiatedFamilies{
-		IPv4Unicast:        true,
-		IPv4UnicastAddPath: true,
-		ASN4:               true,
-	})
+	peer.sendCtx = &bgpctx.EncodingContext{
+		ASN4: true,
+		AddPath: map[nlri.Family]bool{
+			nlri.IPv4Unicast: true,
+			// VPN not in map = AddPath false
+		},
+	}
 
-	// VPN family - not supported for ADD-PATH in current implementation
+	// VPN family - not in AddPath map so should be false
 	vpnFamily := nlri.Family{AFI: nlri.AFIIPv4, SAFI: 128}
 	ctx := peer.packContext(vpnFamily)
 	require.NotNil(t, ctx, "VPN family should return context (for ASN4)")
@@ -1236,20 +1036,18 @@ func TestPeerPackContextASN4(t *testing.T) {
 	peer := NewPeer(settings)
 
 	// Session with ASN4=true
-	peer.families.Store(&NegotiatedFamilies{
-		IPv4Unicast: true,
-		ASN4:        true,
-	})
+	peer.sendCtx = &bgpctx.EncodingContext{
+		ASN4: true,
+	}
 
 	ctx := peer.packContext(nlri.IPv4Unicast)
 	require.NotNil(t, ctx, "should return non-nil context")
 	require.True(t, ctx.ASN4, "ASN4 should be true when negotiated")
 
 	// Session with ASN4=false (OLD speaker)
-	peer.families.Store(&NegotiatedFamilies{
-		IPv4Unicast: true,
-		ASN4:        false,
-	})
+	peer.sendCtx = &bgpctx.EncodingContext{
+		ASN4: false,
+	}
 
 	ctx = peer.packContext(nlri.IPv4Unicast)
 	require.NotNil(t, ctx, "should return non-nil context")
@@ -1406,9 +1204,8 @@ func TestToStaticRouteUnicastParams_CopiesReflectorAttrs(t *testing.T) {
 		OriginatorID: 0xC0A80101,
 		ClusterList:  []uint32{0xC0A80102, 0xC0A80103},
 	}
-	nf := &NegotiatedFamilies{IPv4Unicast: true}
 
-	params := toStaticRouteUnicastParams(route, nf)
+	params := toStaticRouteUnicastParams(route, nil) // nil sendCtx - no ExtNH needed
 
 	require.Equal(t, route.OriginatorID, params.OriginatorID,
 		"OriginatorID not copied: got %x, want %x", params.OriginatorID, route.OriginatorID)

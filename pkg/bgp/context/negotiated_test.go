@@ -283,13 +283,13 @@ func TestFromNegotiatedExtendedNextHop(t *testing.T) {
 	recvCtx := bgpctx.FromNegotiatedRecv(neg)
 	sendCtx := bgpctx.FromNegotiatedSend(neg)
 
-	require.True(t, recvCtx.ExtendedNextHopFor(ipv4Family), "recv should have ExtendedNextHop")
-	require.True(t, sendCtx.ExtendedNextHopFor(ipv4Family), "send should have ExtendedNextHop")
+	require.NotZero(t, recvCtx.ExtendedNextHopFor(ipv4Family), "recv should have ExtendedNextHop")
+	require.NotZero(t, sendCtx.ExtendedNextHopFor(ipv4Family), "send should have ExtendedNextHop")
 }
 
 // TestFromNegotiatedExtendedNextHopMissing verifies no ExtNH when not negotiated.
 //
-// VALIDATES: ExtendedNextHop is false when not both sides advertise.
+// VALIDATES: ExtendedNextHop is zero when not both sides advertise.
 //
 // PREVENTS: Wrong next-hop encoding when peer doesn't support it.
 func TestFromNegotiatedExtendedNextHopMissing(t *testing.T) {
@@ -299,6 +299,6 @@ func TestFromNegotiatedExtendedNextHopMissing(t *testing.T) {
 	recvCtx := bgpctx.FromNegotiatedRecv(neg)
 	sendCtx := bgpctx.FromNegotiatedSend(neg)
 
-	require.False(t, recvCtx.ExtendedNextHopFor(ipv4Family), "recv should not have ExtendedNextHop")
-	require.False(t, sendCtx.ExtendedNextHopFor(ipv4Family), "send should not have ExtendedNextHop")
+	require.Zero(t, recvCtx.ExtendedNextHopFor(ipv4Family), "recv should not have ExtendedNextHop")
+	require.Zero(t, sendCtx.ExtendedNextHopFor(ipv4Family), "send should not have ExtendedNextHop")
 }

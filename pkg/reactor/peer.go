@@ -26,168 +26,6 @@ import (
 // Not in capability package as it's not yet standardized (SAFI 85).
 const safiMUP = 85
 
-// NegotiatedFamilies contains pre-computed flags from capability negotiation.
-// Computed once when session is established, provides O(1) family checks.
-// This avoids repeated iteration through capability lists when sending routes.
-type NegotiatedFamilies struct {
-	// Unicast (RFC 4760)
-	IPv4Unicast bool
-	IPv6Unicast bool
-
-	// Labeled Unicast (RFC 8277, SAFI 4)
-	IPv4LabeledUnicast bool
-	IPv6LabeledUnicast bool
-
-	// MPLS-VPN (RFC 4364)
-	IPv4MPLSVPN bool
-	IPv6MPLSVPN bool
-
-	// FlowSpec (RFC 8955)
-	IPv4FlowSpec    bool
-	IPv6FlowSpec    bool
-	IPv4FlowSpecVPN bool
-	IPv6FlowSpecVPN bool
-
-	// L2VPN VPLS (RFC 4761)
-	L2VPNVPLS bool
-
-	// MVPN (RFC 6514)
-	IPv4McastVPN bool
-	IPv6McastVPN bool
-
-	// MUP (draft-mpmz-bess-mup-safi, SAFI 85)
-	IPv4MUP bool
-	IPv6MUP bool
-
-	// Encoding options
-	ASN4            bool
-	ExtendedMessage bool
-
-	// RFC 8950: Extended Next Hop - allows cross-AFI next-hop
-	IPv4UnicastExtNH bool // IPv4 unicast can use IPv6 next-hop
-	IPv4MPLSVPNExtNH bool // IPv4 mpls-vpn can use IPv6 next-hop
-	IPv6UnicastExtNH bool // IPv6 unicast can use IPv4 next-hop
-	IPv6MPLSVPNExtNH bool // IPv6 mpls-vpn can use IPv4 next-hop
-
-	// RFC 7911: ADD-PATH - allows multiple paths per prefix
-	IPv4UnicastAddPath        bool // IPv4 unicast supports ADD-PATH
-	IPv6UnicastAddPath        bool // IPv6 unicast supports ADD-PATH
-	IPv4LabeledUnicastAddPath bool // IPv4 labeled-unicast supports ADD-PATH
-	IPv6LabeledUnicastAddPath bool // IPv6 labeled-unicast supports ADD-PATH
-	IPv4MPLSVPNAddPath        bool // IPv4 mpls-vpn supports ADD-PATH
-	IPv6MPLSVPNAddPath        bool // IPv6 mpls-vpn supports ADD-PATH
-}
-
-// computeNegotiatedFamilies extracts family flags from capability negotiation.
-// Called once when session transitions to Established state.
-func computeNegotiatedFamilies(neg *capability.Negotiated) *NegotiatedFamilies {
-	if neg == nil {
-		return nil
-	}
-
-	nf := &NegotiatedFamilies{
-		ASN4:            neg.ASN4,
-		ExtendedMessage: neg.ExtendedMessage,
-	}
-
-	for _, f := range neg.Families() {
-		afi, safi := f.AFI, f.SAFI
-		switch {
-		// Unicast
-		case afi == capability.AFIIPv4 && safi == capability.SAFIUnicast:
-			nf.IPv4Unicast = true
-		case afi == capability.AFIIPv6 && safi == capability.SAFIUnicast:
-			nf.IPv6Unicast = true
-
-		// Labeled Unicast (RFC 8277, SAFI 4)
-		case afi == capability.AFIIPv4 && safi == capability.SAFIMPLSLabel:
-			nf.IPv4LabeledUnicast = true
-		case afi == capability.AFIIPv6 && safi == capability.SAFIMPLSLabel:
-			nf.IPv6LabeledUnicast = true
-
-		// MPLS-VPN (RFC 4364)
-		case afi == capability.AFIIPv4 && safi == capability.SAFIMPLS:
-			nf.IPv4MPLSVPN = true
-		case afi == capability.AFIIPv6 && safi == capability.SAFIMPLS:
-			nf.IPv6MPLSVPN = true
-
-		// FlowSpec
-		case afi == capability.AFIIPv4 && safi == capability.SAFIFlowSpec:
-			nf.IPv4FlowSpec = true
-		case afi == capability.AFIIPv6 && safi == capability.SAFIFlowSpec:
-			nf.IPv6FlowSpec = true
-		case afi == capability.AFIIPv4 && safi == capability.SAFIFlowSpecVPN:
-			nf.IPv4FlowSpecVPN = true
-		case afi == capability.AFIIPv6 && safi == capability.SAFIFlowSpecVPN:
-			nf.IPv6FlowSpecVPN = true
-
-		// L2VPN VPLS
-		case afi == capability.AFIL2VPN && safi == capability.SAFIVPLS:
-			nf.L2VPNVPLS = true
-
-		// MVPN
-		case afi == capability.AFIIPv4 && safi == capability.SAFIMcastVPN:
-			nf.IPv4McastVPN = true
-		case afi == capability.AFIIPv6 && safi == capability.SAFIMcastVPN:
-			nf.IPv6McastVPN = true
-
-		// MUP
-		case afi == capability.AFIIPv4 && safi == safiMUP:
-			nf.IPv4MUP = true
-		case afi == capability.AFIIPv6 && safi == safiMUP:
-			nf.IPv6MUP = true
-		}
-	}
-
-	// RFC 8950: Check extended next-hop for IPv4 families (IPv6 next-hop)
-	// If negotiated with IPv6 next-hop AFI, we can use MP_REACH_NLRI for IPv4 NLRI
-	if neg.ExtendedNextHopAFI(capability.Family{AFI: capability.AFIIPv4, SAFI: capability.SAFIUnicast}) == capability.AFIIPv6 {
-		nf.IPv4UnicastExtNH = true
-	}
-	if neg.ExtendedNextHopAFI(capability.Family{AFI: capability.AFIIPv4, SAFI: capability.SAFIMPLS}) == capability.AFIIPv6 {
-		nf.IPv4MPLSVPNExtNH = true
-	}
-	// RFC 8950: Check extended next-hop for IPv6 families (IPv4 next-hop)
-	if neg.ExtendedNextHopAFI(capability.Family{AFI: capability.AFIIPv6, SAFI: capability.SAFIUnicast}) == capability.AFIIPv4 {
-		nf.IPv6UnicastExtNH = true
-	}
-	if neg.ExtendedNextHopAFI(capability.Family{AFI: capability.AFIIPv6, SAFI: capability.SAFIMPLS}) == capability.AFIIPv4 {
-		nf.IPv6MPLSVPNExtNH = true
-	}
-
-	// RFC 7911: Check ADD-PATH for unicast families (can we send multiple paths?)
-	ipv4Mode := neg.AddPathMode(capability.Family{AFI: capability.AFIIPv4, SAFI: capability.SAFIUnicast})
-	if ipv4Mode == capability.AddPathSend || ipv4Mode == capability.AddPathBoth {
-		nf.IPv4UnicastAddPath = true
-	}
-	ipv6Mode := neg.AddPathMode(capability.Family{AFI: capability.AFIIPv6, SAFI: capability.SAFIUnicast})
-	if ipv6Mode == capability.AddPathSend || ipv6Mode == capability.AddPathBoth {
-		nf.IPv6UnicastAddPath = true
-	}
-
-	// RFC 7911: Check ADD-PATH for labeled-unicast families (SAFI 4)
-	ipv4LabeledMode := neg.AddPathMode(capability.Family{AFI: capability.AFIIPv4, SAFI: capability.SAFIMPLSLabel})
-	if ipv4LabeledMode == capability.AddPathSend || ipv4LabeledMode == capability.AddPathBoth {
-		nf.IPv4LabeledUnicastAddPath = true
-	}
-	ipv6LabeledMode := neg.AddPathMode(capability.Family{AFI: capability.AFIIPv6, SAFI: capability.SAFIMPLSLabel})
-	if ipv6LabeledMode == capability.AddPathSend || ipv6LabeledMode == capability.AddPathBoth {
-		nf.IPv6LabeledUnicastAddPath = true
-	}
-
-	// RFC 7911: Check ADD-PATH for MPLS-VPN families
-	ipv4VPNMode := neg.AddPathMode(capability.Family{AFI: capability.AFIIPv4, SAFI: capability.SAFIMPLS})
-	if ipv4VPNMode == capability.AddPathSend || ipv4VPNMode == capability.AddPathBoth {
-		nf.IPv4MPLSVPNAddPath = true
-	}
-	ipv6VPNMode := neg.AddPathMode(capability.Family{AFI: capability.AFIIPv6, SAFI: capability.SAFIMPLS})
-	if ipv6VPNMode == capability.AddPathSend || ipv6VPNMode == capability.AddPathBoth {
-		nf.IPv6MPLSVPNAddPath = true
-	}
-
-	return nf
-}
-
 // PeerState represents the high-level state of a peer.
 type PeerState int32
 
@@ -277,9 +115,11 @@ type Peer struct {
 	settings *PeerSettings
 	session  *Session
 
-	// Pre-computed negotiated families for O(1) access.
+	// Negotiated capabilities: tracks which families are enabled.
 	// Set when session transitions to Established, cleared on teardown.
-	families atomic.Pointer[NegotiatedFamilies]
+	// Encoding details (AddPath, ExtNH, ASN4) live in sendCtx/recvCtx.
+	// Uses atomic.Pointer for thread-safe access from multiple goroutines.
+	negotiated atomic.Pointer[NegotiatedCapabilities]
 
 	// Encoding contexts for this peer session.
 	// Created at session establishment, cleared on teardown.
@@ -443,34 +283,13 @@ func (p *Peer) AdjRIBOut() *rib.OutgoingRIB {
 // RFC 7911: ADD-PATH requires 4-byte path identifier prefix on NLRI.
 // RFC 6793: ASN4 determines 2-byte vs 4-byte AS numbers in AS_PATH.
 //
-// Returns nil only if no negotiated families (session not established).
-// Always returns a context with ASN4 set; AddPath is family-dependent.
+// Returns nil only if session not established.
+// Uses sendCtx for encoding parameters (ASN4, AddPath per family).
 func (p *Peer) packContext(family nlri.Family) *nlri.PackContext {
-	nf := p.families.Load()
-	if nf == nil {
+	if p.sendCtx == nil {
 		return nil
 	}
-
-	// Base context with ASN4 (applies to all families)
-	ctx := &nlri.PackContext{ASN4: nf.ASN4}
-
-	// ADD-PATH support is family-specific (RFC 7911)
-	switch {
-	case family.AFI == nlri.AFIIPv4 && family.SAFI == nlri.SAFIUnicast:
-		ctx.AddPath = nf.IPv4UnicastAddPath
-	case family.AFI == nlri.AFIIPv6 && family.SAFI == nlri.SAFIUnicast:
-		ctx.AddPath = nf.IPv6UnicastAddPath
-	case family.AFI == nlri.AFIIPv4 && family.SAFI == nlri.SAFIMPLSLabel:
-		ctx.AddPath = nf.IPv4LabeledUnicastAddPath
-	case family.AFI == nlri.AFIIPv6 && family.SAFI == nlri.SAFIMPLSLabel:
-		ctx.AddPath = nf.IPv6LabeledUnicastAddPath
-	case family.AFI == nlri.AFIIPv4 && family.SAFI == nlri.SAFIVPN:
-		ctx.AddPath = nf.IPv4MPLSVPNAddPath
-	case family.AFI == nlri.AFIIPv6 && family.SAFI == nlri.SAFIVPN:
-		ctx.AddPath = nf.IPv6MPLSVPNAddPath
-	}
-
-	return ctx
+	return p.sendCtx.ToPackContext(family)
 }
 
 func toVPLSParams(r VPLSRoute) message.VPLSParams {
@@ -517,10 +336,16 @@ func toMVPNParams(routes []MVPNRoute) []message.MVPNParams {
 
 // toStaticRouteUnicastParams converts a StaticRoute to UnicastParams.
 // Used for IPv4/IPv6 unicast routes (not VPN).
-func toStaticRouteUnicastParams(r StaticRoute, nf *NegotiatedFamilies) message.UnicastParams {
+func toStaticRouteUnicastParams(r StaticRoute, sendCtx *bgpctx.EncodingContext) message.UnicastParams {
 	// RFC 8950: Extended next-hop for cross-AFI next-hop
-	useExtNH := (r.Prefix.Addr().Is4() && r.NextHop.Is6() && nf != nil && nf.IPv4UnicastExtNH) ||
-		(r.Prefix.Addr().Is6() && r.NextHop.Is4() && nf != nil && nf.IPv6UnicastExtNH)
+	var useExtNH bool
+	if sendCtx != nil {
+		if r.Prefix.Addr().Is4() && r.NextHop.Is6() {
+			useExtNH = sendCtx.ExtendedNextHopFor(nlri.IPv4Unicast) != 0
+		} else if r.Prefix.Addr().Is6() && r.NextHop.Is4() {
+			useExtNH = sendCtx.ExtendedNextHopFor(nlri.IPv6Unicast) != 0
+		}
+	}
 
 	// Pack raw attributes
 	rawAttrs := make([][]byte, len(r.RawAttributes))
@@ -609,7 +434,7 @@ func toStaticRouteVPNParams(r StaticRoute) message.VPNParams {
 
 // buildStaticRouteUpdateNew builds an UPDATE for a static route using UpdateBuilder.
 // This is the new implementation that will replace buildStaticRouteUpdate.
-func buildStaticRouteUpdateNew(route StaticRoute, localAS uint32, isIBGP bool, ctx *nlri.PackContext, nf *NegotiatedFamilies) *message.Update {
+func buildStaticRouteUpdateNew(route StaticRoute, localAS uint32, isIBGP bool, ctx *nlri.PackContext, sendCtx *bgpctx.EncodingContext) *message.Update {
 	ub := message.NewUpdateBuilder(localAS, isIBGP, ctx)
 	if route.IsVPN() {
 		return ub.BuildVPN(toStaticRouteVPNParams(route))
@@ -617,7 +442,7 @@ func buildStaticRouteUpdateNew(route StaticRoute, localAS uint32, isIBGP bool, c
 	if route.IsLabeledUnicast() {
 		return ub.BuildLabeledUnicast(toStaticRouteLabeledUnicastParams(route))
 	}
-	return ub.BuildUnicast(toStaticRouteUnicastParams(route, nf))
+	return ub.BuildUnicast(toStaticRouteUnicastParams(route, sendCtx))
 }
 
 // State returns the current peer state.
@@ -826,7 +651,7 @@ func (p *Peer) runOnce() error {
 	p.mu.Unlock()
 
 	defer func() {
-		p.families.Store(nil) // Clear pre-computed families
+		p.negotiated.Store(nil) // Clear negotiated capabilities
 		p.clearEncodingContexts()
 		p.mu.Lock()
 		p.session = nil
@@ -858,17 +683,17 @@ func (p *Peer) runOnce() error {
 		trace.FSMTransition(addr, from.String(), to.String())
 
 		if to == fsm.StateEstablished {
-			// Pre-compute negotiated families for O(1) access during route sending
+			// Pre-compute negotiated capabilities for O(1) access during route sending
 			neg := session.Negotiated()
-			p.families.Store(computeNegotiatedFamilies(neg))
+			p.negotiated.Store(NewNegotiatedCapabilities(neg))
 			p.setEncodingContexts(neg)
 			p.setState(PeerStateEstablished)
 			trace.SessionEstablished(addr, p.settings.LocalAS, p.settings.PeerAS)
 			// Send static routes from config.
 			go p.sendInitialRoutes()
 		} else if from == fsm.StateEstablished {
-			// Clear negotiated families and encoding contexts on session teardown
-			p.families.Store(nil)
+			// Clear negotiated capabilities and encoding contexts on session teardown
+			p.negotiated.Store(nil)
 			p.clearEncodingContexts()
 			p.setState(PeerStateConnecting)
 			trace.SessionClosed(addr, "FSM left Established state")
@@ -1067,7 +892,7 @@ func (p *Peer) messageNegotiated() *message.Negotiated {
 
 // cleanup runs when peer stops.
 func (p *Peer) cleanup() {
-	p.families.Store(nil) // Clear pre-computed families
+	p.negotiated.Store(nil) // Clear negotiated capabilities
 	p.clearEncodingContexts()
 	p.mu.Lock()
 	if p.session != nil {
@@ -1092,9 +917,9 @@ func (p *Peer) sendInitialRoutes() {
 	}
 	defer p.sendingInitialRoutes.Store(0)
 
-	// Get pre-computed negotiated families for ASN4 and family checks.
-	nf := p.families.Load()
-	if nf == nil {
+	// Get negotiated capabilities for family checks.
+	nc := p.negotiated.Load()
+	if nc == nil {
 		return
 	}
 
@@ -1102,8 +927,7 @@ func (p *Peer) sendInitialRoutes() {
 	trace.Log(trace.Routes, "peer %s: sending %d static routes", addr, len(p.settings.StaticRoutes))
 
 	// Calculate max message size for this peer
-	extendedMessage := nf != nil && nf.ExtendedMessage
-	maxMsgSize := int(message.MaxMessageLength(message.TypeUPDATE, extendedMessage))
+	maxMsgSize := int(message.MaxMessageLength(message.TypeUPDATE, nc.ExtendedMessage))
 
 	// Send routes - either grouped or individually based on config.
 	if p.settings.GroupUpdates {
@@ -1114,7 +938,7 @@ func (p *Peer) sendInitialRoutes() {
 			ctx := p.packContext(routeFamily(routes[0]))
 			if len(routes) == 1 {
 				// Single-route group (IPv6, VPN, LabeledUnicast, or solo IPv4)
-				update := buildStaticRouteUpdateNew(routes[0], p.settings.LocalAS, p.settings.IsIBGP(), ctx, nf)
+				update := buildStaticRouteUpdateNew(routes[0], p.settings.LocalAS, p.settings.IsIBGP(), ctx, p.sendCtx)
 				if err := p.sendUpdateWithSplit(update, maxMsgSize, routeFamily(routes[0])); err != nil {
 					trace.Log(trace.Routes, "peer %s: send error: %v", addr, err)
 					break
@@ -1125,7 +949,7 @@ func (p *Peer) sendInitialRoutes() {
 				ub := message.NewUpdateBuilder(p.settings.LocalAS, p.settings.IsIBGP(), ctx)
 				params := make([]message.UnicastParams, len(routes))
 				for i, r := range routes {
-					params[i] = toStaticRouteUnicastParams(r, nf)
+					params[i] = toStaticRouteUnicastParams(r, p.sendCtx)
 				}
 				updates, err := ub.BuildGroupedUnicastWithLimit(params, maxMsgSize)
 				if err != nil {
@@ -1147,7 +971,7 @@ func (p *Peer) sendInitialRoutes() {
 		// Send each route in its own UPDATE.
 		for _, route := range p.settings.StaticRoutes {
 			ctx := p.packContext(routeFamily(route))
-			update := buildStaticRouteUpdateNew(route, p.settings.LocalAS, p.settings.IsIBGP(), ctx, nf)
+			update := buildStaticRouteUpdateNew(route, p.settings.LocalAS, p.settings.IsIBGP(), ctx, p.sendCtx)
 			if err := p.sendUpdateWithSplit(update, maxMsgSize, routeFamily(route)); err != nil {
 				trace.Log(trace.Routes, "peer %s: send error: %v", addr, err)
 				break
@@ -1176,7 +1000,7 @@ func (p *Peer) sendInitialRoutes() {
 
 				// Send the route
 				ctx := p.packContext(routeFamily(wr.StaticRoute))
-				update := buildStaticRouteUpdateNew(wr.StaticRoute, p.settings.LocalAS, p.settings.IsIBGP(), ctx, nf)
+				update := buildStaticRouteUpdateNew(wr.StaticRoute, p.settings.LocalAS, p.settings.IsIBGP(), ctx, p.sendCtx)
 				if err := p.sendUpdateWithSplit(update, maxMsgSize, routeFamily(wr.StaticRoute)); err != nil {
 					trace.Log(trace.Routes, "peer %s: send error: %v", addr, err)
 					break
@@ -1214,7 +1038,7 @@ func (p *Peer) sendInitialRoutes() {
 				route := pr.StaticRoute
 				route.NextHop = nextHop
 				ctx := p.packContext(routeFamily(route))
-				update := buildStaticRouteUpdateNew(route, p.settings.LocalAS, p.settings.IsIBGP(), ctx, nf)
+				update := buildStaticRouteUpdateNew(route, p.settings.LocalAS, p.settings.IsIBGP(), ctx, p.sendCtx)
 				if err := p.sendUpdateWithSplit(update, maxMsgSize, routeFamily(route)); err != nil {
 					trace.Log(trace.Routes, "peer %s: send error: %v", addr, err)
 					break
@@ -1229,15 +1053,14 @@ func (p *Peer) sendInitialRoutes() {
 	// RFC 8654: Max message size is 4096 without Extended Message, 65535 with.
 	sentRoutes := p.adjRIBOut.GetSentRoutes()
 	if len(sentRoutes) > 0 {
-		extendedMessage := nf != nil && nf.ExtendedMessage
-		maxMsgSize := int(message.MaxMessageLength(message.TypeUPDATE, extendedMessage))
+		adjMaxMsgSize := int(message.MaxMessageLength(message.TypeUPDATE, nc.ExtendedMessage))
 		trace.Log(trace.Routes, "peer %s: re-sending %d Adj-RIB-Out routes (ExtendedMessage=%v, maxSize=%d)",
-			addr, len(sentRoutes), extendedMessage, maxMsgSize)
+			addr, len(sentRoutes), nc.ExtendedMessage, adjMaxMsgSize)
 		for _, route := range sentRoutes {
 			family := route.NLRI().Family()
 			ctx := p.packContext(family)
 			update := buildRIBRouteUpdate(route, p.settings.LocalAS, p.settings.IsIBGP(), ctx)
-			if err := p.sendUpdateWithSplit(update, maxMsgSize, family); err != nil {
+			if err := p.sendUpdateWithSplit(update, adjMaxMsgSize, family); err != nil {
 				trace.Log(trace.Routes, "peer %s: send error for route %s: %v", addr, route.NLRI(), err)
 				break
 			}
@@ -1250,14 +1073,13 @@ func (p *Peer) sendInitialRoutes() {
 	// (e.g., unsplittable attributes), we remove from sent cache to avoid state mismatch.
 	pendingRoutes := p.adjRIBOut.FlushAllPending()
 	if len(pendingRoutes) > 0 {
-		extendedMessage := nf != nil && nf.ExtendedMessage
-		maxMsgSize := int(message.MaxMessageLength(message.TypeUPDATE, extendedMessage))
+		pendMaxMsgSize := int(message.MaxMessageLength(message.TypeUPDATE, nc.ExtendedMessage))
 		trace.Log(trace.Routes, "peer %s: sending %d pending routes from transactions", addr, len(pendingRoutes))
 		for _, route := range pendingRoutes {
 			family := route.NLRI().Family()
 			ctx := p.packContext(family)
 			update := buildRIBRouteUpdate(route, p.settings.LocalAS, p.settings.IsIBGP(), ctx)
-			if err := p.sendUpdateWithSplit(update, maxMsgSize, family); err != nil {
+			if err := p.sendUpdateWithSplit(update, pendMaxMsgSize, family); err != nil {
 				trace.Log(trace.Routes, "peer %s: send error for pending route %s: %v", addr, route.NLRI(), err)
 				// Remove from sent cache since we failed to send
 				if errors.Is(err, message.ErrAttributesTooLarge) || errors.Is(err, message.ErrNLRITooLarge) {
@@ -1280,8 +1102,7 @@ func (p *Peer) sendInitialRoutes() {
 	hasTeardown := false
 
 	// Pre-compute max message size for size checking in PeerOpAnnounce
-	opExtendedMessage := nf != nil && nf.ExtendedMessage
-	opMaxMsgSize := int(message.MaxMessageLength(message.TypeUPDATE, opExtendedMessage))
+	opMaxMsgSize := int(message.MaxMessageLength(message.TypeUPDATE, nc.ExtendedMessage))
 
 	p.mu.Lock()
 	queueLen := len(p.opQueue)
@@ -1353,39 +1174,15 @@ func (p *Peer) sendInitialRoutes() {
 			addr, processed, queueLen-processed, hasTeardown)
 	}
 
-	// Send EOR for ALL negotiated unicast families per RFC 4724 Section 4.
-	// RFC 4724: "including the case when there is no update to send"
-	if nf.IPv4Unicast {
-		_ = p.SendUpdate(message.BuildEOR(nlri.Family{AFI: 1, SAFI: 1}))
-		trace.Log(trace.Routes, "peer %s: sent IPv4 Unicast EOR", addr)
-	}
-	if nf.IPv6Unicast {
-		_ = p.SendUpdate(message.BuildEOR(nlri.Family{AFI: 2, SAFI: 1}))
-		trace.Log(trace.Routes, "peer %s: sent IPv6 Unicast EOR", addr)
-	}
-
-	// Send EOR for ALL negotiated labeled-unicast families per RFC 4724 Section 4.
-	if nf.IPv4LabeledUnicast {
-		_ = p.SendUpdate(message.BuildEOR(nlri.Family{AFI: 1, SAFI: 4}))
-		trace.Log(trace.Routes, "peer %s: sent IPv4 Labeled-Unicast EOR", addr)
-	}
-	if nf.IPv6LabeledUnicast {
-		_ = p.SendUpdate(message.BuildEOR(nlri.Family{AFI: 2, SAFI: 4}))
-		trace.Log(trace.Routes, "peer %s: sent IPv6 Labeled-Unicast EOR", addr)
-	}
-
-	// Send EOR for ALL negotiated MPLS-VPN families per RFC 4724 Section 4.
-	if nf.IPv4MPLSVPN {
-		_ = p.SendUpdate(message.BuildEOR(nlri.Family{AFI: 1, SAFI: 128}))
-		trace.Log(trace.Routes, "peer %s: sent IPv4 MPLS-VPN EOR", addr)
-	}
-	if nf.IPv6MPLSVPN {
-		_ = p.SendUpdate(message.BuildEOR(nlri.Family{AFI: 2, SAFI: 128}))
-		trace.Log(trace.Routes, "peer %s: sent IPv6 MPLS-VPN EOR", addr)
-	}
-
-	// If teardown was in queue, execute it now (after EOR)
+	// If teardown was in queue, send EOR first, then execute teardown.
+	// EOR must be sent BEFORE NOTIFICATION per RFC 4724 Section 4.
 	if hasTeardown {
+		// Send EOR for ALL negotiated families before teardown
+		for _, family := range nc.Families() {
+			_ = p.SendUpdate(message.BuildEOR(family))
+			trace.Log(trace.Routes, "peer %s: sent %s EOR (before teardown)", addr, family)
+		}
+
 		trace.Log(trace.Routes, "peer %s: executing queued teardown (subcode=%d)", addr, teardownSubcode)
 		p.mu.RLock()
 		session := p.session
@@ -1398,20 +1195,23 @@ func (p *Peer) sendInitialRoutes() {
 			// where subsequent API commands see stale ESTABLISHED state
 			p.setState(PeerStateConnecting)
 		}
-		return // Don't send other routes after teardown
+		return // Don't send family-specific routes after teardown
 	}
 
-	// Send MVPN routes
+	// Send family-specific routes (config-originated)
 	p.sendMVPNRoutes()
-
-	// Send VPLS routes
 	p.sendVPLSRoutes()
-
-	// Send FlowSpec routes
 	p.sendFlowSpecRoutes()
-
-	// Send MUP routes
 	p.sendMUPRoutes()
+
+	// Send EOR for ALL negotiated families per RFC 4724 Section 4.
+	// RFC 4724: "including the case when there is no update to send"
+	// IMPORTANT: EORs must be sent AFTER all routes for each family.
+	// Families() returns families in deterministic order (sorted by AFI, then SAFI).
+	for _, family := range nc.Families() {
+		_ = p.SendUpdate(message.BuildEOR(family))
+		trace.Log(trace.Routes, "peer %s: sent %s EOR", addr, family)
+	}
 }
 
 // buildRIBRouteUpdate builds an UPDATE message from a RIB route.
@@ -1528,28 +1328,9 @@ func buildRIBRouteUpdate(route *rib.Route, localAS uint32, isIBGP bool, ctx *nlr
 // RFC 7911: Add-Path requires 4-byte path identifier before each NLRI.
 // RFC 8654: Respects peer's max message size (4096 or 65535).
 func (p *Peer) sendUpdateWithSplit(update *message.Update, maxSize int, family nlri.Family) error {
-	// Determine Add-Path state for this family
+	// Determine Add-Path state for this family using sendCtx
 	// RFC 7911: Add-Path is negotiated per AFI/SAFI
-	addPath := false
-	if nf := p.families.Load(); nf != nil {
-		switch {
-		// Unicast (SAFI 1)
-		case family.AFI == nlri.AFIIPv4 && family.SAFI == nlri.SAFIUnicast:
-			addPath = nf.IPv4UnicastAddPath
-		case family.AFI == nlri.AFIIPv6 && family.SAFI == nlri.SAFIUnicast:
-			addPath = nf.IPv6UnicastAddPath
-		// Labeled Unicast (SAFI 4)
-		case family.AFI == nlri.AFIIPv4 && family.SAFI == 4:
-			addPath = nf.IPv4LabeledUnicastAddPath
-		case family.AFI == nlri.AFIIPv6 && family.SAFI == 4:
-			addPath = nf.IPv6LabeledUnicastAddPath
-		// MPLS VPN (SAFI 128)
-		case family.AFI == nlri.AFIIPv4 && family.SAFI == 128:
-			addPath = nf.IPv4MPLSVPNAddPath
-		case family.AFI == nlri.AFIIPv6 && family.SAFI == 128:
-			addPath = nf.IPv6MPLSVPNAddPath
-		}
-	}
+	addPath := p.sendCtx != nil && p.sendCtx.AddPath[family]
 
 	chunks, err := message.SplitUpdateWithAddPath(update, maxSize, addPath)
 	if err != nil {
@@ -1873,8 +1654,8 @@ func groupRoutesByAttributes(routes []StaticRoute) [][]StaticRoute {
 
 // sendMVPNRoutes sends MVPN routes configured for this peer.
 func (p *Peer) sendMVPNRoutes() {
-	nf := p.families.Load()
-	if nf == nil {
+	nc := p.negotiated.Load()
+	if nc == nil {
 		return
 	}
 
@@ -1886,13 +1667,13 @@ func (p *Peer) sendMVPNRoutes() {
 
 	for _, route := range p.settings.MVPNRoutes {
 		if route.IsIPv6 {
-			if nf.IPv6McastVPN {
+			if nc.Has(nlri.IPv6MVPN) {
 				ipv6Routes = append(ipv6Routes, route)
 			} else {
 				skippedIPv6++
 			}
 		} else {
-			if nf.IPv4McastVPN {
+			if nc.Has(nlri.IPv4MVPN) {
 				ipv4Routes = append(ipv4Routes, route)
 			} else {
 				skippedIPv4++
@@ -1940,17 +1721,8 @@ func (p *Peer) sendMVPNRoutes() {
 			}
 		}
 	}
-
-	// Send EOR for ALL negotiated MVPN families per RFC 4724 Section 4.
-	// RFC 4724: "including the case when there is no update to send"
-	if nf.IPv4McastVPN {
-		_ = p.SendUpdate(message.BuildEOR(nlri.Family{AFI: 1, SAFI: 5}))
-		trace.Log(trace.Routes, "peer %s: sent IPv4 MVPN EOR", addr)
-	}
-	if nf.IPv6McastVPN {
-		_ = p.SendUpdate(message.BuildEOR(nlri.Family{AFI: 2, SAFI: 5}))
-		trace.Log(trace.Routes, "peer %s: sent IPv6 MVPN EOR", addr)
-	}
+	// Note: EORs are sent by the generic loop in sendInitialRoutes() for ALL
+	// negotiated families, so we don't send family-specific EORs here.
 }
 
 // mvpnRouteGroupKey generates a grouping key for MVPN routes.
@@ -2005,8 +1777,8 @@ func sortedKeys[V any](m map[string]V) []string {
 
 // sendVPLSRoutes sends VPLS routes configured for this peer.
 func (p *Peer) sendVPLSRoutes() {
-	nf := p.families.Load()
-	if nf == nil || !nf.L2VPNVPLS {
+	nc := p.negotiated.Load()
+	if nc == nil || !nc.Has(nlri.L2VPNVPLS) {
 		if len(p.settings.VPLSRoutes) > 0 {
 			addr := p.settings.Address.String()
 			trace.Log(trace.Routes, "peer %s: skipping %d VPLS routes (L2VPN VPLS not negotiated)",
@@ -2031,12 +1803,8 @@ func (p *Peer) sendVPLSRoutes() {
 			}
 		}
 	}
-
-	// Send EOR for L2VPN VPLS per RFC 4724 Section 4.
-	// RFC 4724: "including the case when there is no update to send"
-	// Note: We only reach here if nf.L2VPNVPLS is true (checked at function start)
-	_ = p.SendUpdate(message.BuildEOR(nlri.Family{AFI: 25, SAFI: 65}))
-	trace.Log(trace.Routes, "peer %s: sent VPLS EOR", addr)
+	// Note: EORs are sent by the generic loop in sendInitialRoutes() for ALL
+	// negotiated families, so we don't send family-specific EORs here.
 }
 
 // sendFlowSpecRoutes sends FlowSpec routes configured for this peer.
@@ -2044,8 +1812,8 @@ func (p *Peer) sendVPLSRoutes() {
 // Per RFC 4724 Section 4, EOR is sent for all negotiated families,
 // "including the case when there is no update to send".
 func (p *Peer) sendFlowSpecRoutes() {
-	nf := p.families.Load()
-	if nf == nil {
+	nc := p.negotiated.Load()
+	if nc == nil {
 		return
 	}
 
@@ -2058,19 +1826,19 @@ func (p *Peer) sendFlowSpecRoutes() {
 		isIPv6 := route.IsIPv6
 		isVPN := route.RD != [8]byte{}
 
-		var negotiated bool
+		var family nlri.Family
 		switch {
 		case !isIPv6 && !isVPN:
-			negotiated = nf.IPv4FlowSpec
+			family = nlri.IPv4FlowSpec
 		case !isIPv6 && isVPN:
-			negotiated = nf.IPv4FlowSpecVPN
+			family = nlri.IPv4FlowSpecVPN
 		case isIPv6 && !isVPN:
-			negotiated = nf.IPv6FlowSpec
+			family = nlri.IPv6FlowSpec
 		case isIPv6 && isVPN:
-			negotiated = nf.IPv6FlowSpecVPN
+			family = nlri.IPv6FlowSpecVPN
 		}
 
-		if !negotiated {
+		if !nc.Has(family) {
 			trace.Log(trace.Routes, "peer %s: skipping FlowSpec route (family not negotiated)", addr)
 			continue
 		}
@@ -2097,30 +1865,14 @@ func (p *Peer) sendFlowSpecRoutes() {
 		trace.Log(trace.Routes, "peer %s: sent %d FlowSpec routes", addr, sentCount)
 	}
 
-	// Send EOR for ALL negotiated FlowSpec families per RFC 4724 Section 4.
-	// RFC 4724: "including the case when there is no update to send"
-	if nf.IPv4FlowSpec {
-		_ = p.SendUpdate(message.BuildEOR(nlri.Family{AFI: 1, SAFI: 133}))
-		trace.Log(trace.Routes, "peer %s: sent IPv4 FlowSpec EOR", addr)
-	}
-	if nf.IPv6FlowSpec {
-		_ = p.SendUpdate(message.BuildEOR(nlri.Family{AFI: 2, SAFI: 133}))
-		trace.Log(trace.Routes, "peer %s: sent IPv6 FlowSpec EOR", addr)
-	}
-	if nf.IPv4FlowSpecVPN {
-		_ = p.SendUpdate(message.BuildEOR(nlri.Family{AFI: 1, SAFI: 134}))
-		trace.Log(trace.Routes, "peer %s: sent IPv4 FlowSpec VPN EOR", addr)
-	}
-	if nf.IPv6FlowSpecVPN {
-		_ = p.SendUpdate(message.BuildEOR(nlri.Family{AFI: 2, SAFI: 134}))
-		trace.Log(trace.Routes, "peer %s: sent IPv6 FlowSpec VPN EOR", addr)
-	}
+	// Note: EOR for FlowSpec families is now sent by the main sendInitialRoutes loop
+	// which iterates over all negotiated families using nc.Families().
 }
 
 // sendMUPRoutes sends MUP routes configured for this peer.
 func (p *Peer) sendMUPRoutes() {
-	nf := p.families.Load()
-	if nf == nil {
+	nc := p.negotiated.Load()
+	if nc == nil {
 		return
 	}
 
@@ -2132,13 +1884,13 @@ func (p *Peer) sendMUPRoutes() {
 
 	for _, route := range p.settings.MUPRoutes {
 		if route.IsIPv6 {
-			if nf.IPv6MUP {
+			if nc.Has(nlri.IPv6MUP) {
 				ipv6Routes = append(ipv6Routes, route)
 			} else {
 				skippedIPv6++
 			}
 		} else {
-			if nf.IPv4MUP {
+			if nc.Has(nlri.IPv4MUP) {
 				ipv4Routes = append(ipv4Routes, route)
 			} else {
 				skippedIPv4++
@@ -2180,17 +1932,8 @@ func (p *Peer) sendMUPRoutes() {
 			}
 		}
 	}
-
-	// Send EOR for ALL negotiated MUP families per RFC 4724 Section 4.
-	// RFC 4724: "including the case when there is no update to send"
-	if nf.IPv4MUP {
-		_ = p.SendUpdate(message.BuildEOR(nlri.Family{AFI: 1, SAFI: safiMUP}))
-		trace.Log(trace.Routes, "peer %s: sent IPv4 MUP EOR", addr)
-	}
-	if nf.IPv6MUP {
-		_ = p.SendUpdate(message.BuildEOR(nlri.Family{AFI: 2, SAFI: safiMUP}))
-		trace.Log(trace.Routes, "peer %s: sent IPv6 MUP EOR", addr)
-	}
+	// Note: EORs are sent by the generic loop in sendInitialRoutes() for ALL
+	// negotiated families, so we don't send family-specific EORs here.
 }
 
 // ErrWatchdogNotFound is returned when a watchdog group doesn't exist.
@@ -2237,9 +1980,6 @@ func (p *Peer) AnnounceWatchdog(name string) error {
 		return nil
 	}
 
-	// Get negotiated families for ExtNH support
-	nf := p.families.Load()
-
 	addr := p.settings.Address.String()
 	announced := 0
 
@@ -2259,7 +1999,7 @@ func (p *Peer) AnnounceWatchdog(name string) error {
 		// Send the route
 		// RFC 7911: Get PackContext for ADD-PATH encoding
 		ctx := p.packContext(routeFamily(wr.StaticRoute))
-		update := buildStaticRouteUpdateNew(wr.StaticRoute, p.settings.LocalAS, p.settings.IsIBGP(), ctx, nf)
+		update := buildStaticRouteUpdateNew(wr.StaticRoute, p.settings.LocalAS, p.settings.IsIBGP(), ctx, p.sendCtx)
 		if err := p.SendUpdate(update); err != nil {
 			return err
 		}

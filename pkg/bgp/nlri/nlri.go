@@ -116,16 +116,27 @@ type Family struct {
 // Common address families.
 // These are the most commonly used AFI/SAFI combinations.
 var (
-	IPv4Unicast   = Family{AFI: AFIIPv4, SAFI: SAFIUnicast}   // RFC 4271
-	IPv6Unicast   = Family{AFI: AFIIPv6, SAFI: SAFIUnicast}   // RFC 4760
-	IPv4Multicast = Family{AFI: AFIIPv4, SAFI: SAFIMulticast} // RFC 4760
-	IPv6Multicast = Family{AFI: AFIIPv6, SAFI: SAFIMulticast} // RFC 4760
-	IPv4VPN       = Family{AFI: AFIIPv4, SAFI: SAFIVPN}       // RFC 4364
-	IPv6VPN       = Family{AFI: AFIIPv6, SAFI: SAFIVPN}       // RFC 4659
-	L2VPNEVPN     = Family{AFI: AFIL2VPN, SAFI: SAFIEVPN}     // RFC 7432
-	IPv4FlowSpec  = Family{AFI: AFIIPv4, SAFI: SAFIFlowSpec}  // RFC 8955
-	IPv6FlowSpec  = Family{AFI: AFIIPv6, SAFI: SAFIFlowSpec}  // RFC 8955
+	IPv4Unicast        = Family{AFI: AFIIPv4, SAFI: SAFIUnicast}   // RFC 4271
+	IPv6Unicast        = Family{AFI: AFIIPv6, SAFI: SAFIUnicast}   // RFC 4760
+	IPv4Multicast      = Family{AFI: AFIIPv4, SAFI: SAFIMulticast} // RFC 4760
+	IPv6Multicast      = Family{AFI: AFIIPv6, SAFI: SAFIMulticast} // RFC 4760
+	IPv4LabeledUnicast = Family{AFI: AFIIPv4, SAFI: SAFIMPLSLabel} // RFC 8277
+	IPv6LabeledUnicast = Family{AFI: AFIIPv6, SAFI: SAFIMPLSLabel} // RFC 8277
+	IPv4VPN            = Family{AFI: AFIIPv4, SAFI: SAFIVPN}       // RFC 4364
+	IPv6VPN            = Family{AFI: AFIIPv6, SAFI: SAFIVPN}       // RFC 4659
+	L2VPNEVPN          = Family{AFI: AFIL2VPN, SAFI: SAFIEVPN}     // RFC 7432
+	IPv4FlowSpec       = Family{AFI: AFIIPv4, SAFI: SAFIFlowSpec}  // RFC 8955
+	IPv6FlowSpec       = Family{AFI: AFIIPv6, SAFI: SAFIFlowSpec}  // RFC 8955
 )
+
+// FamilyLess provides deterministic ordering for sorted iteration.
+// Orders by AFI first, then SAFI. Used for consistent EOR ordering in tests.
+func FamilyLess(a, b Family) bool {
+	if a.AFI != b.AFI {
+		return a.AFI < b.AFI
+	}
+	return a.SAFI < b.SAFI
+}
 
 // String returns a human-readable family name.
 func (f Family) String() string {
@@ -148,6 +159,8 @@ var familyStrings = map[string]Family{
 	"ipv6-unicast":      IPv6Unicast,
 	"ipv4-multicast":    IPv4Multicast,
 	"ipv6-multicast":    IPv6Multicast,
+	"ipv4-mpls-label":   IPv4LabeledUnicast,
+	"ipv6-mpls-label":   IPv6LabeledUnicast,
 	"ipv4-vpn":          IPv4VPN,
 	"ipv6-vpn":          IPv6VPN,
 	"l2vpn-evpn":        L2VPNEVPN,

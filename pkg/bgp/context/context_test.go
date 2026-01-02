@@ -17,12 +17,12 @@ func TestEncodingContextHash_Deterministic(t *testing.T) {
 		IsIBGP:  false,
 		LocalAS: 65000,
 		PeerAS:  65001,
-		AddPath: map[Family]bool{
+		AddPath: map[nlri.Family]bool{
 			{AFI: 1, SAFI: 1}: true,
 			{AFI: 2, SAFI: 1}: false,
 		},
-		ExtendedNextHop: map[Family]bool{
-			{AFI: 1, SAFI: 1}: false,
+		ExtendedNextHop: map[nlri.Family]nlri.AFI{
+			{AFI: 1, SAFI: 1}: nlri.AFIIPv6, // IPv4 unicast can use IPv6 NH
 		},
 	}
 
@@ -31,12 +31,12 @@ func TestEncodingContextHash_Deterministic(t *testing.T) {
 		IsIBGP:  false,
 		LocalAS: 65000,
 		PeerAS:  65001,
-		AddPath: map[Family]bool{
+		AddPath: map[nlri.Family]bool{
 			{AFI: 1, SAFI: 1}: true,
 			{AFI: 2, SAFI: 1}: false,
 		},
-		ExtendedNextHop: map[Family]bool{
-			{AFI: 1, SAFI: 1}: false,
+		ExtendedNextHop: map[nlri.Family]nlri.AFI{
+			{AFI: 1, SAFI: 1}: nlri.AFIIPv6,
 		},
 	}
 
@@ -66,7 +66,7 @@ func TestEncodingContextHash_Different(t *testing.T) {
 		IsIBGP:  false,
 		LocalAS: 65000,
 		PeerAS:  65001,
-		AddPath: map[Family]bool{
+		AddPath: map[nlri.Family]bool{
 			{AFI: 1, SAFI: 1}: true,
 		},
 	}
@@ -102,7 +102,7 @@ func TestEncodingContextHash_Different(t *testing.T) {
 		{
 			name: "different AddPath",
 			modify: func(ctx *EncodingContext) {
-				ctx.AddPath = map[Family]bool{
+				ctx.AddPath = map[nlri.Family]bool{
 					{AFI: 1, SAFI: 1}: false,
 				}
 			},
@@ -110,7 +110,7 @@ func TestEncodingContextHash_Different(t *testing.T) {
 		{
 			name: "additional family",
 			modify: func(ctx *EncodingContext) {
-				ctx.AddPath = map[Family]bool{
+				ctx.AddPath = map[nlri.Family]bool{
 					{AFI: 1, SAFI: 1}: true,
 					{AFI: 2, SAFI: 1}: true,
 				}
@@ -128,7 +128,7 @@ func TestEncodingContextHash_Different(t *testing.T) {
 				IsIBGP:  base.IsIBGP,
 				LocalAS: base.LocalAS,
 				PeerAS:  base.PeerAS,
-				AddPath: make(map[Family]bool),
+				AddPath: make(map[nlri.Family]bool),
 			}
 			for k, v := range base.AddPath {
 				modified.AddPath[k] = v
@@ -149,18 +149,18 @@ func TestEncodingContextHash_Different(t *testing.T) {
 // PREVENTS: Wrong encoding that omits path ID when ADD-PATH is negotiated.
 func TestEncodingContextAddPathFor_True(t *testing.T) {
 	ctx := &EncodingContext{
-		AddPath: map[Family]bool{
+		AddPath: map[nlri.Family]bool{
 			{AFI: 1, SAFI: 1}:   true,
 			{AFI: 2, SAFI: 1}:   false,
 			{AFI: 1, SAFI: 128}: true,
 		},
 	}
 
-	if !ctx.AddPathFor(Family{AFI: 1, SAFI: 1}) {
+	if !ctx.AddPathFor(nlri.Family{AFI: 1, SAFI: 1}) {
 		t.Error("AddPathFor should return true for IPv4 unicast")
 	}
 
-	if !ctx.AddPathFor(Family{AFI: 1, SAFI: 128}) {
+	if !ctx.AddPathFor(nlri.Family{AFI: 1, SAFI: 128}) {
 		t.Error("AddPathFor should return true for IPv4 MPLS VPN")
 	}
 }
@@ -172,18 +172,18 @@ func TestEncodingContextAddPathFor_True(t *testing.T) {
 // PREVENTS: Wrong encoding that includes path ID when ADD-PATH is not negotiated.
 func TestEncodingContextAddPathFor_False(t *testing.T) {
 	ctx := &EncodingContext{
-		AddPath: map[Family]bool{
+		AddPath: map[nlri.Family]bool{
 			{AFI: 1, SAFI: 1}: true,
 			{AFI: 2, SAFI: 1}: false,
 		},
 	}
 
-	if ctx.AddPathFor(Family{AFI: 2, SAFI: 1}) {
+	if ctx.AddPathFor(nlri.Family{AFI: 2, SAFI: 1}) {
 		t.Error("AddPathFor should return false for IPv6 unicast (explicitly false)")
 	}
 
 	// Family not in map at all
-	if ctx.AddPathFor(Family{AFI: 1, SAFI: 2}) {
+	if ctx.AddPathFor(nlri.Family{AFI: 1, SAFI: 2}) {
 		t.Error("AddPathFor should return false for family not in map")
 	}
 }
@@ -198,7 +198,7 @@ func TestEncodingContextAddPathFor_NilMap(t *testing.T) {
 		AddPath: nil,
 	}
 
-	if ctx.AddPathFor(Family{AFI: 1, SAFI: 1}) {
+	if ctx.AddPathFor(nlri.Family{AFI: 1, SAFI: 1}) {
 		t.Error("AddPathFor should return false for nil map")
 	}
 }
@@ -211,14 +211,14 @@ func TestEncodingContextAddPathFor_NilMap(t *testing.T) {
 func TestEncodingContextToPackContext(t *testing.T) {
 	ctx := &EncodingContext{
 		ASN4: true,
-		AddPath: map[Family]bool{
+		AddPath: map[nlri.Family]bool{
 			{AFI: 1, SAFI: 1}: true,
 			{AFI: 2, SAFI: 1}: false,
 		},
 	}
 
 	// IPv4 unicast with ADD-PATH
-	pc := ctx.ToPackContext(Family{AFI: 1, SAFI: 1})
+	pc := ctx.ToPackContext(nlri.Family{AFI: 1, SAFI: 1})
 	if pc == nil {
 		t.Fatal("ToPackContext returned nil")
 	}
@@ -230,7 +230,7 @@ func TestEncodingContextToPackContext(t *testing.T) {
 	}
 
 	// IPv6 unicast without ADD-PATH
-	pc2 := ctx.ToPackContext(Family{AFI: 2, SAFI: 1})
+	pc2 := ctx.ToPackContext(nlri.Family{AFI: 2, SAFI: 1})
 	if pc2 == nil {
 		t.Fatal("ToPackContext returned nil")
 	}
@@ -244,28 +244,33 @@ func TestEncodingContextToPackContext(t *testing.T) {
 
 // TestEncodingContextExtendedNextHopFor verifies ExtendedNextHopFor lookup.
 //
-// VALIDATES: ExtendedNextHopFor returns correct value per family.
+// VALIDATES: ExtendedNextHopFor returns correct next-hop AFI per family.
 //
 // PREVENTS: Wrong next-hop encoding when RFC 8950 is negotiated.
 func TestEncodingContextExtendedNextHopFor(t *testing.T) {
 	ctx := &EncodingContext{
-		ExtendedNextHop: map[Family]bool{
-			{AFI: 1, SAFI: 1}: true,
+		ExtendedNextHop: map[nlri.Family]nlri.AFI{
+			{AFI: 1, SAFI: 1}: nlri.AFIIPv6, // IPv4 unicast can use IPv6 NH
 		},
 	}
 
-	if !ctx.ExtendedNextHopFor(Family{AFI: 1, SAFI: 1}) {
-		t.Error("ExtendedNextHopFor should return true for IPv4 unicast")
+	// IPv4 unicast should return AFIIPv6 (can use IPv6 next-hop)
+	nhAFI := ctx.ExtendedNextHopFor(nlri.Family{AFI: 1, SAFI: 1})
+	if nhAFI != nlri.AFIIPv6 {
+		t.Errorf("ExtendedNextHopFor should return AFIIPv6 for IPv4 unicast, got %v", nhAFI)
 	}
 
-	if ctx.ExtendedNextHopFor(Family{AFI: 2, SAFI: 1}) {
-		t.Error("ExtendedNextHopFor should return false for family not in map")
+	// Family not in map should return 0
+	nhAFI2 := ctx.ExtendedNextHopFor(nlri.Family{AFI: 2, SAFI: 1})
+	if nhAFI2 != 0 {
+		t.Errorf("ExtendedNextHopFor should return 0 for family not in map, got %v", nhAFI2)
 	}
 
-	// Nil map
+	// Nil map should return 0
 	ctx2 := &EncodingContext{}
-	if ctx2.ExtendedNextHopFor(Family{AFI: 1, SAFI: 1}) {
-		t.Error("ExtendedNextHopFor should return false for nil map")
+	nhAFI3 := ctx2.ExtendedNextHopFor(nlri.Family{AFI: 1, SAFI: 1})
+	if nhAFI3 != 0 {
+		t.Errorf("ExtendedNextHopFor should return 0 for nil map, got %v", nhAFI3)
 	}
 }
 

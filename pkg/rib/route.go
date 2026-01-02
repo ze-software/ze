@@ -196,11 +196,7 @@ func (r *Route) PackNLRIFor(destCtxID bgpctx.ContextID) []byte {
 	if destCtx == nil {
 		return r.nlri.Pack(nil)
 	}
-	family := bgpctx.Family{
-		AFI:  uint16(r.nlri.Family().AFI),
-		SAFI: uint8(r.nlri.Family().SAFI),
-	}
-	packCtx := destCtx.ToPackContext(family)
+	packCtx := destCtx.ToPackContext(r.nlri.Family())
 	return r.nlri.Pack(packCtx)
 }
 

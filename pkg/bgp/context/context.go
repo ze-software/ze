@@ -14,12 +14,8 @@ import (
 	"github.com/exa-networks/zebgp/pkg/bgp/nlri"
 )
 
-// Family represents an AFI/SAFI combination.
-// Matches capability.Family but defined here to avoid circular imports.
-type Family struct {
-	AFI  uint16
-	SAFI uint8
-}
+// Family is an alias for nlri.Family. Use nlri.Family directly in new code.
+type Family = nlri.Family
 
 // EncodingContext holds capability-dependent encoding parameters.
 // Same structure for source (receive) and destination (send) contexts.
@@ -32,11 +28,12 @@ type EncodingContext struct {
 
 	// RFC 7911: ADD-PATH enabled per family.
 	// Key is AFI/SAFI, value indicates whether path ID is included.
-	AddPath map[Family]bool
+	AddPath map[nlri.Family]bool
 
 	// RFC 8950: Extended next-hop encoding per family.
-	// Allows IPv6 next-hop for IPv4 prefixes.
-	ExtendedNextHop map[Family]bool
+	// Value is the next-hop AFI (e.g., AFIIPv6 for IPv4 prefix with IPv6 NH).
+	// Zero value means not enabled.
+	ExtendedNextHop map[nlri.Family]nlri.AFI
 
 	// Session context for path attribute handling.
 	IsIBGP  bool
@@ -73,38 +70,35 @@ func (ctx *EncodingContext) Hash() uint64 {
 
 	// AddPath map (sorted for determinism)
 	_, _ = h.Write([]byte{0xFF}) // separator
-	hashFamilyMap(h, ctx.AddPath)
+	hashFamilyBoolMap(h, ctx.AddPath)
 
 	// ExtendedNextHop map (sorted for determinism)
 	_, _ = h.Write([]byte{0xFE}) // separator
-	hashFamilyMap(h, ctx.ExtendedNextHop)
+	hashFamilyAFIMap(h, ctx.ExtendedNextHop)
 
 	return h.Sum64()
 }
 
-// hashFamilyMap writes map entries to hash in deterministic order.
-func hashFamilyMap(h hash.Hash64, m map[Family]bool) {
+// hashFamilyBoolMap writes map entries to hash in deterministic order.
+func hashFamilyBoolMap(h hash.Hash64, m map[nlri.Family]bool) {
 	if m == nil {
 		return
 	}
 
 	// Sort keys for determinism
-	keys := make([]Family, 0, len(m))
+	keys := make([]nlri.Family, 0, len(m))
 	for k := range m {
 		keys = append(keys, k)
 	}
 	sort.Slice(keys, func(i, j int) bool {
-		if keys[i].AFI != keys[j].AFI {
-			return keys[i].AFI < keys[j].AFI
-		}
-		return keys[i].SAFI < keys[j].SAFI
+		return nlri.FamilyLess(keys[i], keys[j])
 	})
 
 	// Write each entry
 	buf := make([]byte, 4)
 	for _, k := range keys {
-		binary.BigEndian.PutUint16(buf[0:2], k.AFI)
-		buf[2] = k.SAFI
+		binary.BigEndian.PutUint16(buf[0:2], uint16(k.AFI))
+		buf[2] = uint8(k.SAFI)
 		if m[k] {
 			buf[3] = 1
 		} else {
@@ -114,27 +108,53 @@ func hashFamilyMap(h hash.Hash64, m map[Family]bool) {
 	}
 }
 
+// hashFamilyAFIMap writes ExtendedNextHop map entries to hash in deterministic order.
+func hashFamilyAFIMap(h hash.Hash64, m map[nlri.Family]nlri.AFI) {
+	if m == nil {
+		return
+	}
+
+	// Sort keys for determinism
+	keys := make([]nlri.Family, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	sort.Slice(keys, func(i, j int) bool {
+		return nlri.FamilyLess(keys[i], keys[j])
+	})
+
+	// Write each entry (family + next-hop AFI)
+	buf := make([]byte, 5)
+	for _, k := range keys {
+		binary.BigEndian.PutUint16(buf[0:2], uint16(k.AFI))
+		buf[2] = uint8(k.SAFI)
+		binary.BigEndian.PutUint16(buf[3:5], uint16(m[k]))
+		_, _ = h.Write(buf)
+	}
+}
+
 // AddPathFor returns whether ADD-PATH is enabled for the given family.
 // Returns false if the map is nil or family is not present.
-func (ctx *EncodingContext) AddPathFor(f Family) bool {
+func (ctx *EncodingContext) AddPathFor(f nlri.Family) bool {
 	if ctx.AddPath == nil {
 		return false
 	}
 	return ctx.AddPath[f]
 }
 
-// ExtendedNextHopFor returns whether extended next-hop is enabled for the family.
-// Returns false if the map is nil or family is not present.
-func (ctx *EncodingContext) ExtendedNextHopFor(f Family) bool {
+// ExtendedNextHopFor returns the next-hop AFI for the given family.
+// Returns 0 if extended next-hop is not enabled for this family.
+// Example: ExtendedNextHopFor(IPv4Unicast) returns AFIIPv6 if IPv6 NH is enabled.
+func (ctx *EncodingContext) ExtendedNextHopFor(f nlri.Family) nlri.AFI {
 	if ctx.ExtendedNextHop == nil {
-		return false
+		return 0
 	}
 	return ctx.ExtendedNextHop[f]
 }
 
 // ToPackContext creates an nlri.PackContext for the given family.
 // Extracts relevant capability flags for NLRI encoding.
-func (ctx *EncodingContext) ToPackContext(f Family) *nlri.PackContext {
+func (ctx *EncodingContext) ToPackContext(f nlri.Family) *nlri.PackContext {
 	return &nlri.PackContext{
 		ASN4:    ctx.ASN4,
 		AddPath: ctx.AddPathFor(f),
