@@ -1,4 +1,4 @@
-# Teardown Test Timing Investigation - RESOLVED
+# Teardown Test Timing Investigation - DONE
 
 ## Problem
 The teardown test showed suspicious timing variance:
