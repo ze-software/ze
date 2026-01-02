@@ -190,6 +190,7 @@ type PeerSettings struct {
 	Passive bool
 
 	// GroupUpdates indicates whether to group compatible routes in single UPDATE.
+	// Default: true (reduces UPDATE count from O(routes) to O(routes/capacity)).
 	GroupUpdates bool
 
 	// IgnoreFamilyMismatch ignores NLRI for non-negotiated AFI/SAFI instead of error.
@@ -255,12 +256,13 @@ type APIBinding struct {
 // NewPeerSettings creates a peer settings with default values.
 func NewPeerSettings(address netip.Addr, localAS, peerAS, routerID uint32) *PeerSettings {
 	return &PeerSettings{
-		Address:  address,
-		Port:     DefaultBGPPort,
-		LocalAS:  localAS,
-		PeerAS:   peerAS,
-		RouterID: routerID,
-		HoldTime: DefaultHoldTime,
+		Address:      address,
+		Port:         DefaultBGPPort,
+		LocalAS:      localAS,
+		PeerAS:       peerAS,
+		RouterID:     routerID,
+		HoldTime:     DefaultHoldTime,
+		GroupUpdates: true,
 	}
 }
 

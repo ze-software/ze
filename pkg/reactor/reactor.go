@@ -1769,33 +1769,107 @@ func (a *reactorAPIAdapter) sendSplitUpdate(peer *Peer, update *ReceivedUpdate, 
 }
 
 // sendRoutesWithLimit sends routes in batches that fit within maxMsgSize.
-// Each route is sent individually. If a single route exceeds maxMsgSize
-// (very rare - requires huge attributes), an error is returned for that route.
 //
-// TODO: Future optimization could group routes with same attributes to reduce
-// UPDATE count while respecting size limits.
+// When GroupUpdates is enabled (default), routes with identical attributes are
+// grouped into single UPDATE messages. This reduces UPDATE count from O(routes)
+// to O(routes/capacity), dramatically improving efficiency for large route sets.
+//
+// When GroupUpdates is disabled, routes are sent individually (legacy behavior).
 func (a *reactorAPIAdapter) sendRoutesWithLimit(peer *Peer, routes []*rib.Route, maxMsgSize int) error {
 	if len(routes) == 0 {
 		return nil
 	}
 
+	// Fall back to individual sending if grouping disabled
+	if !peer.settings.GroupUpdates {
+		return a.sendRoutesIndividually(peer, routes, maxMsgSize)
+	}
+
+	// Group routes by attributes + AS_PATH
+	attrGroups := rib.GroupByAttributesTwoLevel(routes)
+
+	var errs []error
+	for _, attrGroup := range attrGroups {
+		for _, aspGroup := range attrGroup.ByASPath {
+			if err := a.sendASPathGroup(peer, &attrGroup, &aspGroup, maxMsgSize); err != nil {
+				errs = append(errs, err)
+			}
+		}
+	}
+
+	if len(errs) > 0 {
+		return errors.Join(errs...)
+	}
+	return nil
+}
+
+// sendRoutesIndividually sends routes one at a time (legacy behavior).
+func (a *reactorAPIAdapter) sendRoutesIndividually(peer *Peer, routes []*rib.Route, maxMsgSize int) error {
 	var errs []error
 
 	for _, route := range routes {
-		// Build UPDATE for this route
-		ctx := peer.packContext(route.NLRI().Family())
+		family := route.NLRI().Family()
+		ctx := peer.packContext(family)
 		update := buildRIBRouteUpdate(route, peer.settings.LocalAS, peer.settings.IsIBGP(), ctx)
 
-		// Check if this single route exceeds max message size
-		// Size = Header(19) + WithdrawnLen(2) + Withdrawn + AttrLen(2) + Attrs + NLRI
-		updateSize := message.HeaderLen + 4 + len(update.WithdrawnRoutes) +
-			len(update.PathAttributes) + len(update.NLRI)
-		if updateSize > maxMsgSize {
-			errs = append(errs, fmt.Errorf("route %s: UPDATE size %d exceeds max %d (large attributes)",
-				route.NLRI(), updateSize, maxMsgSize))
-			continue // Skip this route, can't split further
+		if err := peer.sendUpdateWithSplit(update, maxMsgSize, family); err != nil {
+			errs = append(errs, fmt.Errorf("route %s: %w", route.NLRI(), err))
 		}
+	}
 
+	if len(errs) > 0 {
+		return errors.Join(errs...)
+	}
+	return nil
+}
+
+// sendASPathGroup sends routes in an AS_PATH group as efficiently as possible.
+// For IPv4 unicast: uses BuildGroupedUnicastWithLimit to pack multiple NLRIs.
+// For MP families: builds UPDATE with MP_REACH_NLRI containing grouped NLRIs.
+func (a *reactorAPIAdapter) sendASPathGroup(peer *Peer, attrGroup *rib.AttributeGroup, aspGroup *rib.ASPathGroup, maxMsgSize int) error {
+	if len(aspGroup.Routes) == 0 {
+		return nil
+	}
+
+	family := attrGroup.Family
+	ctx := peer.packContext(family)
+
+	// IPv4 unicast: use BuildGroupedUnicastWithLimit
+	if family.AFI == nlri.AFIIPv4 && family.SAFI == nlri.SAFIUnicast {
+		return a.sendGroupedIPv4Unicast(peer, aspGroup.Routes, ctx, maxMsgSize)
+	}
+
+	// MP families: build UPDATE with MP_REACH_NLRI containing grouped NLRIs
+	return a.sendGroupedMPFamily(peer, aspGroup.Routes, family, ctx, maxMsgSize)
+}
+
+// sendGroupedIPv4Unicast sends grouped IPv4 unicast routes using BuildGroupedUnicastWithLimit.
+func (a *reactorAPIAdapter) sendGroupedIPv4Unicast(peer *Peer, routes []*rib.Route, ctx *nlri.PackContext, maxMsgSize int) error {
+	// Check if any route has complex AS_PATH (AS_SET, CONFED, multiple segments)
+	// that can't be represented in UnicastParams.ASPath (which is just []uint32).
+	// Fall back to individual sending for such routes.
+	for _, route := range routes {
+		if hasComplexASPath(route) {
+			return a.sendRoutesIndividually(peer, routes, maxMsgSize)
+		}
+	}
+
+	// Convert to UnicastParams
+	params := make([]message.UnicastParams, len(routes))
+	for i, route := range routes {
+		params[i] = toRIBRouteUnicastParams(route)
+	}
+
+	// Build grouped UPDATEs respecting size limits
+	ub := message.NewUpdateBuilder(peer.settings.LocalAS, peer.settings.IsIBGP(), ctx)
+	updates, err := ub.BuildGroupedUnicastWithLimit(params, maxMsgSize)
+	if err != nil {
+		return fmt.Errorf("building grouped IPv4 unicast: %w", err)
+	}
+
+	// Send all UPDATEs
+	var errs []error
+	for _, update := range updates {
 		if err := peer.SendUpdate(update); err != nil {
 			errs = append(errs, err)
 		}
@@ -1807,39 +1881,73 @@ func (a *reactorAPIAdapter) sendRoutesWithLimit(peer *Peer, routes []*rib.Route,
 	return nil
 }
 
-// sendWithdrawalsWithLimit sends withdrawals in batches that fit within maxMsgSize.
-func (a *reactorAPIAdapter) sendWithdrawalsWithLimit(peer *Peer, withdraws []nlri.NLRI, maxMsgSize int) error {
-	if len(withdraws) == 0 {
+// hasComplexASPath returns true if the route's AS_PATH can't be represented
+// as a simple []uint32 (has AS_SET, CONFED segments, or multiple segments).
+func hasComplexASPath(route *rib.Route) bool {
+	asPath := route.ASPath()
+	if asPath == nil || len(asPath.Segments) == 0 {
+		return false
+	}
+
+	// Multiple segments = complex
+	if len(asPath.Segments) > 1 {
+		return true
+	}
+
+	// Single segment: only AS_SEQUENCE is simple
+	seg := asPath.Segments[0]
+	return seg.Type != attribute.ASSequence
+}
+
+// sendGroupedMPFamily sends grouped MP family routes (IPv6, VPN, etc.).
+// Packs multiple NLRIs into MP_REACH_NLRI attribute.
+func (a *reactorAPIAdapter) sendGroupedMPFamily(peer *Peer, routes []*rib.Route, family nlri.Family, ctx *nlri.PackContext, maxMsgSize int) error {
+	if len(routes) == 0 {
 		return nil
 	}
 
-	// Calculate overhead: Header(19) + WithdrawnLen(2) + AttrLen(2) = 23 bytes
-	// Plus we need at least a few bytes for the withdrawn NLRI
-	overhead := message.HeaderLen + 4
-	available := maxMsgSize - overhead
-
-	var batch []byte
-	var errs []error
-
-	for _, n := range withdraws {
-		nlriBytes := n.Bytes()
-		nlriLen := len(nlriBytes)
-
-		// Check if adding this NLRI would exceed limit
-		if len(batch)+nlriLen > available && len(batch) > 0 {
-			// Send current batch
-			if err := sendWithdrawBatch(peer, batch); err != nil {
-				errs = append(errs, err)
-			}
-			batch = batch[:0]
-		}
-
-		batch = append(batch, nlriBytes...)
+	// Pack all NLRIs
+	var nlriBytes []byte
+	for _, route := range routes {
+		nlriBytes = append(nlriBytes, route.NLRI().Pack(ctx)...)
 	}
 
-	// Send remaining batch
-	if len(batch) > 0 {
-		if err := sendWithdrawBatch(peer, batch); err != nil {
+	// Build grouped UPDATE with all NLRIs
+	firstRoute := routes[0]
+	groupedUpdate := a.buildGroupedMPUpdate(firstRoute, nlriBytes, family, peer.settings.LocalAS, peer.settings.IsIBGP(), ctx)
+
+	// Check actual size of grouped update
+	msgSize := message.HeaderLen + 4 + len(groupedUpdate.PathAttributes)
+	if msgSize <= maxMsgSize {
+		return peer.SendUpdate(groupedUpdate)
+	}
+
+	// Need to split - calculate available space for NLRI
+	// MP_REACH_NLRI overhead: header(3-4) + AFI(2) + SAFI(1) + NH-len(1) + NH + Reserved(1)
+	// Next-hop sizes: IPv4=4, IPv6=16 or 32 (global+link-local), VPN=12 or 24
+	nhLen := nextHopLength(family, firstRoute.NextHop())
+	mpReachOverhead := 4 + 2 + 1 + 1 + nhLen + 1 // extended header + AFI + SAFI + NH-len + NH + reserved
+
+	// Base attributes (without MP_REACH_NLRI's NLRI portion)
+	baseAttrSize := len(groupedUpdate.PathAttributes) - len(nlriBytes)
+	availableNLRISpace := maxMsgSize - message.HeaderLen - 4 - baseAttrSize - mpReachOverhead
+
+	if availableNLRISpace <= 0 {
+		return fmt.Errorf("attributes too large for MP family: %d bytes, max %d", baseAttrSize+mpReachOverhead, maxMsgSize-message.HeaderLen-4)
+	}
+
+	// Split NLRIs into chunks
+	nf := peer.families.Load()
+	addPath := nf != nil && a.familySupportsAddPath(family, nf)
+	chunks, err := message.ChunkMPNLRI(nlriBytes, uint16(family.AFI), uint8(family.SAFI), addPath, availableNLRISpace)
+	if err != nil {
+		return fmt.Errorf("chunking MP NLRI: %w", err)
+	}
+
+	var errs []error
+	for _, chunk := range chunks {
+		chunkUpdate := a.buildGroupedMPUpdate(firstRoute, chunk, family, peer.settings.LocalAS, peer.settings.IsIBGP(), ctx)
+		if err := peer.SendUpdate(chunkUpdate); err != nil {
 			errs = append(errs, err)
 		}
 	}
@@ -1850,14 +1958,226 @@ func (a *reactorAPIAdapter) sendWithdrawalsWithLimit(peer *Peer, withdraws []nlr
 	return nil
 }
 
-// sendWithdrawBatch sends a batch of withdrawn NLRIs as a single UPDATE.
-func sendWithdrawBatch(peer *Peer, withdrawnNLRI []byte) error {
-	update := &message.Update{
-		WithdrawnRoutes: withdrawnNLRI,
-		PathAttributes:  nil, // Withdraw-only UPDATE
-		NLRI:            nil,
+// nextHopLength returns the wire length of next-hop for a given family.
+func nextHopLength(family nlri.Family, nh netip.Addr) int {
+	switch {
+	case family.AFI == nlri.AFIIPv4:
+		return 4
+	case family.AFI == nlri.AFIIPv6:
+		// Could be 16 (global only) or 32 (global + link-local)
+		// Conservative: assume 32 for safety
+		return 32
+	case family.SAFI == nlri.SAFIVPN:
+		// VPN: RD (8) + address (4 or 16)
+		if family.AFI == nlri.AFIIPv4 {
+			return 12 // RD + IPv4
+		}
+		return 24 // RD + IPv6
+	default:
+		// Conservative default
+		if nh.Is6() {
+			return 32
+		}
+		return 4
 	}
-	return peer.SendUpdate(update)
+}
+
+// buildGroupedMPUpdate builds an UPDATE with MP_REACH_NLRI containing multiple NLRIs.
+func (a *reactorAPIAdapter) buildGroupedMPUpdate(templateRoute *rib.Route, nlriBytes []byte, family nlri.Family, localAS uint32, isIBGP bool, ctx *nlri.PackContext) *message.Update {
+	var attrBytes []byte
+
+	// Extract ASN4 from context
+	asn4 := ctx == nil || ctx.ASN4
+
+	// 1. ORIGIN
+	foundOrigin := false
+	for _, attr := range templateRoute.Attributes() {
+		if _, ok := attr.(attribute.Origin); ok {
+			attrBytes = append(attrBytes, attribute.PackAttribute(attr)...)
+			foundOrigin = true
+			break
+		}
+	}
+	if !foundOrigin {
+		attrBytes = append(attrBytes, attribute.PackAttribute(attribute.OriginIGP)...)
+	}
+
+	// 2. AS_PATH
+	storedASPath := templateRoute.ASPath()
+	hasStoredASPath := storedASPath != nil && len(storedASPath.Segments) > 0
+
+	switch {
+	case hasStoredASPath:
+		attrBytes = append(attrBytes, attribute.PackASPathAttribute(storedASPath, asn4)...)
+	case isIBGP || localAS == 0:
+		emptyASPath := &attribute.ASPath{Segments: nil}
+		attrBytes = append(attrBytes, attribute.PackASPathAttribute(emptyASPath, asn4)...)
+	default:
+		ebgpASPath := &attribute.ASPath{
+			Segments: []attribute.ASPathSegment{{
+				Type: attribute.ASSequence,
+				ASNs: []uint32{localAS},
+			}},
+		}
+		attrBytes = append(attrBytes, attribute.PackASPathAttribute(ebgpASPath, asn4)...)
+	}
+
+	// MP_REACH_NLRI with grouped NLRIs
+	mpReach := &attribute.MPReachNLRI{
+		AFI:      attribute.AFI(family.AFI),
+		SAFI:     attribute.SAFI(family.SAFI),
+		NextHops: []netip.Addr{templateRoute.NextHop()},
+		NLRI:     nlriBytes,
+	}
+	attrBytes = append(attrBytes, attribute.PackAttribute(mpReach)...)
+
+	// LOCAL_PREF for iBGP
+	if isIBGP {
+		attrBytes = append(attrBytes, attribute.PackAttribute(attribute.LocalPref(100))...)
+	}
+
+	// Copy optional attributes
+	for _, attr := range templateRoute.Attributes() {
+		switch attr.(type) {
+		case attribute.Origin, *attribute.ASPath, *attribute.NextHop, attribute.LocalPref:
+			continue
+		case attribute.MED, attribute.Communities,
+			attribute.ExtendedCommunities, attribute.LargeCommunities,
+			attribute.IPv6ExtendedCommunities,
+			attribute.AtomicAggregate, *attribute.Aggregator,
+			attribute.OriginatorID, attribute.ClusterList:
+			attrBytes = append(attrBytes, attribute.PackAttribute(attr)...)
+		}
+	}
+
+	return &message.Update{
+		PathAttributes: attrBytes,
+	}
+}
+
+// familySupportsAddPath returns true if the family has ADD-PATH negotiated.
+func (a *reactorAPIAdapter) familySupportsAddPath(family nlri.Family, nf *NegotiatedFamilies) bool {
+	if nf == nil {
+		return false
+	}
+	switch {
+	case family.AFI == nlri.AFIIPv4 && family.SAFI == nlri.SAFIUnicast:
+		return nf.IPv4UnicastAddPath
+	case family.AFI == nlri.AFIIPv6 && family.SAFI == nlri.SAFIUnicast:
+		return nf.IPv6UnicastAddPath
+	case family.AFI == nlri.AFIIPv4 && family.SAFI == nlri.SAFIMPLSLabel:
+		return nf.IPv4LabeledUnicastAddPath
+	case family.AFI == nlri.AFIIPv6 && family.SAFI == nlri.SAFIMPLSLabel:
+		return nf.IPv6LabeledUnicastAddPath
+	case family.AFI == nlri.AFIIPv4 && family.SAFI == nlri.SAFIVPN:
+		return nf.IPv4MPLSVPNAddPath
+	case family.AFI == nlri.AFIIPv6 && family.SAFI == nlri.SAFIVPN:
+		return nf.IPv6MPLSVPNAddPath
+	}
+	return false
+}
+
+// toRIBRouteUnicastParams converts a RIB route to UnicastParams for grouped building.
+// Extracts attributes from the route's attribute slice for use with BuildGroupedUnicastWithLimit.
+func toRIBRouteUnicastParams(route *rib.Route) message.UnicastParams {
+	params := message.UnicastParams{
+		NextHop: route.NextHop(),
+		Origin:  attribute.OriginIGP, // Default
+	}
+
+	// Extract prefix and path-id from NLRI
+	if n := route.NLRI(); n != nil {
+		if inet, ok := n.(*nlri.INET); ok {
+			params.Prefix = inet.Prefix()
+			params.PathID = inet.PathID()
+		}
+	}
+
+	// Extract AS_PATH if present
+	if asPath := route.ASPath(); asPath != nil {
+		for _, seg := range asPath.Segments {
+			if seg.Type == attribute.ASSequence {
+				params.ASPath = append(params.ASPath, seg.ASNs...)
+			}
+		}
+	}
+
+	// Extract attributes from the route's attribute slice
+	for _, attr := range route.Attributes() {
+		switch a := attr.(type) {
+		case attribute.Origin:
+			params.Origin = a
+		case attribute.MED:
+			params.MED = uint32(a)
+		case attribute.LocalPref:
+			params.LocalPreference = uint32(a)
+		case attribute.Communities:
+			params.Communities = make([]uint32, len(a))
+			for i, c := range a {
+				params.Communities[i] = uint32(c)
+			}
+		case attribute.ExtendedCommunities:
+			params.ExtCommunityBytes = a.Pack()
+		case attribute.LargeCommunities:
+			params.LargeCommunities = make([][3]uint32, len(a))
+			for i, lc := range a {
+				params.LargeCommunities[i] = [3]uint32{lc.GlobalAdmin, lc.LocalData1, lc.LocalData2}
+			}
+		case attribute.AtomicAggregate:
+			params.AtomicAggregate = true
+		case *attribute.Aggregator:
+			params.HasAggregator = true
+			params.AggregatorASN = a.ASN
+			if a.Address.Is4() {
+				params.AggregatorIP = a.Address.As4()
+			}
+		case attribute.OriginatorID:
+			if addr := netip.Addr(a); addr.Is4() {
+				ip4 := addr.As4()
+				params.OriginatorID = uint32(ip4[0])<<24 | uint32(ip4[1])<<16 | uint32(ip4[2])<<8 | uint32(ip4[3])
+			}
+		case attribute.ClusterList:
+			params.ClusterList = make([]uint32, len(a))
+			copy(params.ClusterList, a)
+		}
+	}
+
+	return params
+}
+
+// sendWithdrawalsWithLimit sends withdrawals using SplitUpdate for size limiting.
+// Groups withdrawals by family to ensure correct Add-Path detection for each.
+// Uses the same splitting infrastructure as announcements for consistency.
+func (a *reactorAPIAdapter) sendWithdrawalsWithLimit(peer *Peer, withdraws []nlri.NLRI, maxMsgSize int) error {
+	if len(withdraws) == 0 {
+		return nil
+	}
+
+	// Group withdrawals by family for correct Add-Path detection
+	// BGP spec requires same-family NLRIs in each UPDATE, and Add-Path is per-family
+	byFamily := make(map[nlri.Family][]byte)
+	for _, n := range withdraws {
+		family := n.Family()
+		byFamily[family] = append(byFamily[family], n.Bytes()...)
+	}
+
+	var errs []error
+	for family, withdrawnBytes := range byFamily {
+		// Build withdrawal-only UPDATE for this family
+		update := &message.Update{
+			WithdrawnRoutes: withdrawnBytes,
+		}
+
+		// Use sendUpdateWithSplit for consistent splitting and Add-Path handling
+		if err := peer.sendUpdateWithSplit(update, maxMsgSize, family); err != nil {
+			errs = append(errs, fmt.Errorf("sending %s withdrawals: %w", family, err))
+		}
+	}
+
+	if len(errs) > 0 {
+		return errors.Join(errs...)
+	}
+	return nil
 }
 
 // DeleteUpdate removes an update from the cache without forwarding.
