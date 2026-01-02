@@ -1389,3 +1389,216 @@ func TestBuildMUP_EncodesReflectorAttrs(t *testing.T) {
 			update.PathAttributes)
 	}
 }
+
+// =============================================================================
+// BuildGroupedUnicastWithLimit Tests (Phase 3: Size-Aware Builder)
+// =============================================================================
+
+// TestBuildWithLimit_Empty verifies empty input.
+//
+// VALIDATES: Empty routes returns nil, nil.
+// PREVENTS: Panic on empty input.
+func TestBuildWithLimit_Empty(t *testing.T) {
+	ctx := &nlri.PackContext{ASN4: true}
+	ub := NewUpdateBuilder(65001, true, ctx)
+
+	updates, err := ub.BuildGroupedUnicastWithLimit(nil, 4096)
+	if err != nil {
+		t.Errorf("unexpected error: %v", err)
+	}
+	if updates != nil {
+		t.Errorf("expected nil for empty input, got %d updates", len(updates))
+	}
+}
+
+// TestBuildWithLimit_SingleRoute verifies single route.
+//
+// VALIDATES: Single route returns single UPDATE.
+// PREVENTS: Unnecessary splitting.
+func TestBuildWithLimit_SingleRoute(t *testing.T) {
+	ctx := &nlri.PackContext{ASN4: true}
+	ub := NewUpdateBuilder(65001, true, ctx)
+
+	routes := []UnicastParams{{
+		Prefix:  netip.MustParsePrefix("10.0.0.0/24"),
+		NextHop: netip.MustParseAddr("192.168.1.1"),
+		Origin:  attribute.OriginIGP,
+	}}
+
+	updates, err := ub.BuildGroupedUnicastWithLimit(routes, 4096)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(updates) != 1 {
+		t.Errorf("expected 1 update, got %d", len(updates))
+	}
+}
+
+// TestBuildWithLimit_AllFit verifies multiple routes fitting.
+//
+// VALIDATES: N routes that fit return single UPDATE.
+// PREVENTS: Unnecessary splitting.
+func TestBuildWithLimit_AllFit(t *testing.T) {
+	ctx := &nlri.PackContext{ASN4: true}
+	ub := NewUpdateBuilder(65001, true, ctx)
+
+	// Create 10 routes that should fit in one UPDATE
+	var routes []UnicastParams
+	for i := 0; i < 10; i++ {
+		routes = append(routes, UnicastParams{
+			Prefix:  netip.MustParsePrefix("10.0.0.0/24"),
+			NextHop: netip.MustParseAddr("192.168.1.1"),
+			Origin:  attribute.OriginIGP,
+		})
+	}
+
+	updates, err := ub.BuildGroupedUnicastWithLimit(routes, 4096)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(updates) != 1 {
+		t.Errorf("expected 1 update (all fit), got %d", len(updates))
+	}
+}
+
+// TestBuildWithLimit_Overflow verifies route batching.
+//
+// VALIDATES: N routes overflow into M UPDATEs.
+// PREVENTS: Single oversized UPDATE from builder.
+func TestBuildWithLimit_Overflow(t *testing.T) {
+	ctx := &nlri.PackContext{ASN4: true}
+	ub := NewUpdateBuilder(65001, true, ctx)
+
+	// Create 100 routes - should overflow with small maxSize
+	var routes []UnicastParams
+	for i := 0; i < 100; i++ {
+		routes = append(routes, UnicastParams{
+			Prefix:  netip.MustParsePrefix("10.0.0.0/24"),
+			NextHop: netip.MustParseAddr("192.168.1.1"),
+			Origin:  attribute.OriginIGP,
+		})
+	}
+
+	// Small maxSize to force splitting
+	// Overhead = 19 + 4 = 23, attrs ~30 bytes, leaves ~47 for NLRI
+	// Each /24 = 4 bytes, so ~11 per update
+	updates, err := ub.BuildGroupedUnicastWithLimit(routes, 100)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(updates) <= 1 {
+		t.Errorf("expected multiple updates for overflow, got %d", len(updates))
+	}
+
+	// Verify each update is within size limit
+	for i, u := range updates {
+		size := HeaderLen + 4 + len(u.PathAttributes) + len(u.NLRI)
+		if size > 100 {
+			t.Errorf("update %d exceeds maxSize: %d > 100", i, size)
+		}
+	}
+
+	// Count total NLRIs
+	totalNLRIs := 0
+	for _, u := range updates {
+		// Each /24 is 4 bytes
+		totalNLRIs += len(u.NLRI) / 4
+	}
+	if totalNLRIs != 100 {
+		t.Errorf("expected 100 total NLRIs, got %d", totalNLRIs)
+	}
+}
+
+// TestBuildWithLimit_AttrsTooBig verifies attribute overflow.
+//
+// VALIDATES: ErrAttributesTooLarge when attrs > maxSize.
+// PREVENTS: Panic on huge attributes.
+func TestBuildWithLimit_AttrsTooBig(t *testing.T) {
+	ctx := &nlri.PackContext{ASN4: true}
+	ub := NewUpdateBuilder(65001, true, ctx)
+
+	// Route with large communities
+	routes := []UnicastParams{{
+		Prefix:      netip.MustParsePrefix("10.0.0.0/24"),
+		NextHop:     netip.MustParseAddr("192.168.1.1"),
+		Origin:      attribute.OriginIGP,
+		Communities: make([]uint32, 100), // 400 bytes of communities
+	}}
+
+	// maxSize too small for attributes
+	_, err := ub.BuildGroupedUnicastWithLimit(routes, 50)
+	if err == nil {
+		t.Error("expected ErrAttributesTooLarge, got nil")
+	}
+}
+
+// TestBuildWithLimit_AllRoutesPreserved verifies no data loss.
+//
+// VALIDATES: All routes appear in output UPDATEs.
+// PREVENTS: Route loss during splitting.
+func TestBuildWithLimit_AllRoutesPreserved(t *testing.T) {
+	ctx := &nlri.PackContext{ASN4: true}
+	ub := NewUpdateBuilder(65001, true, ctx)
+
+	// Create 50 routes (same prefix is fine - testing byte count)
+	var routes []UnicastParams
+	for i := 0; i < 50; i++ {
+		routes = append(routes, UnicastParams{
+			Prefix:  netip.MustParsePrefix("10.0.0.0/24"),
+			NextHop: netip.MustParseAddr("192.168.1.1"),
+			Origin:  attribute.OriginIGP,
+		})
+	}
+
+	updates, err := ub.BuildGroupedUnicastWithLimit(routes, 100)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	// Count total NLRI bytes
+	totalNLRIBytes := 0
+	for _, u := range updates {
+		totalNLRIBytes += len(u.NLRI)
+	}
+
+	// Each /24 = 4 bytes
+	expectedBytes := 50 * 4
+	if totalNLRIBytes != expectedBytes {
+		t.Errorf("expected %d NLRI bytes, got %d", expectedBytes, totalNLRIBytes)
+	}
+}
+
+// TestBuildWithLimit_AttributesShared verifies attribute reuse.
+//
+// VALIDATES: All updates share same attributes (consistent).
+// PREVENTS: Inconsistent attributes across split updates.
+func TestBuildWithLimit_AttributesShared(t *testing.T) {
+	ctx := &nlri.PackContext{ASN4: true}
+	ub := NewUpdateBuilder(65001, true, ctx)
+
+	var routes []UnicastParams
+	for i := 0; i < 50; i++ {
+		routes = append(routes, UnicastParams{
+			Prefix:  netip.MustParsePrefix("10.0.0.0/24"),
+			NextHop: netip.MustParseAddr("192.168.1.1"),
+			Origin:  attribute.OriginIGP,
+		})
+	}
+
+	updates, err := ub.BuildGroupedUnicastWithLimit(routes, 100)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if len(updates) < 2 {
+		t.Skip("need multiple updates to verify attribute sharing")
+	}
+
+	// All updates should have identical attributes
+	firstAttrs := updates[0].PathAttributes
+	for i, u := range updates[1:] {
+		if !bytes.Equal(u.PathAttributes, firstAttrs) {
+			t.Errorf("update %d has different attributes", i+1)
+		}
+	}
+}

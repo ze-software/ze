@@ -1875,3 +1875,189 @@ func (ub *UpdateBuilder) BuildGroupedUnicast(routes []UnicastParams) *Update {
 		NLRI:           nlriBytes,
 	}
 }
+
+// BuildGroupedUnicastWithLimit builds multiple UPDATEs if needed to respect size limit.
+//
+// All routes MUST have identical attributes (caller's responsibility).
+// Returns error if attributes exceed maxSize.
+//
+// Design: Build-and-tally approach - pack incrementally, flush when full.
+// This avoids wasteful pre-calculation of sizes.
+//
+// RFC 4271 Section 4.3: Multiple UPDATEs may advertise same attributes.
+// RFC 8654: Respects maxSize (4096 or 65535 based on Extended Message).
+func (ub *UpdateBuilder) BuildGroupedUnicastWithLimit(routes []UnicastParams, maxSize int) ([]*Update, error) {
+	if len(routes) == 0 {
+		return nil, nil
+	}
+
+	// Build attributes once from first route (shared across all)
+	attrBytes := ub.packGroupedAttributes(routes[0])
+
+	// Calculate overhead and available NLRI space
+	// Overhead = Header(19) + WithdrawnLen(2) + AttrLen(2) + Attrs
+	overhead := HeaderLen + 4 + len(attrBytes)
+
+	if overhead > maxSize {
+		return nil, ErrAttributesTooLarge
+	}
+
+	nlriSpace := maxSize - overhead
+
+	// Pack context for NLRI encoding
+	ctx := ub.Ctx
+	if ctx == nil {
+		ctx = &nlri.PackContext{}
+	}
+
+	var updates []*Update
+	var currentNLRI []byte
+
+	for _, r := range routes {
+		// Pack this NLRI
+		inet := nlri.NewINET(nlri.Family{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast}, r.Prefix, r.PathID)
+		nlriBytes := inet.Pack(ctx)
+
+		// Check if single NLRI is too large
+		if len(nlriBytes) > nlriSpace {
+			return nil, ErrNLRITooLarge
+		}
+
+		// Would overflow? Flush current batch
+		if len(currentNLRI)+len(nlriBytes) > nlriSpace && len(currentNLRI) > 0 {
+			updates = append(updates, &Update{
+				PathAttributes: attrBytes,
+				NLRI:           currentNLRI,
+			})
+			currentNLRI = nil
+		}
+
+		currentNLRI = append(currentNLRI, nlriBytes...)
+	}
+
+	// Flush remainder
+	if len(currentNLRI) > 0 {
+		updates = append(updates, &Update{
+			PathAttributes: attrBytes,
+			NLRI:           currentNLRI,
+		})
+	}
+
+	return updates, nil
+}
+
+// packGroupedAttributes packs attributes for grouped unicast routes.
+// Uses first route's attributes; called once per batch.
+func (ub *UpdateBuilder) packGroupedAttributes(first UnicastParams) []byte {
+	var attrs []attribute.Attribute
+
+	// 1. ORIGIN
+	attrs = append(attrs, first.Origin)
+
+	// 2. AS_PATH
+	asPath := ub.buildASPath(first.ASPath)
+	asn4 := ub.Ctx == nil || ub.Ctx.ASN4
+	asPathValue := asPath.PackWithASN4(asn4)
+	attrs = append(attrs, &rawAttribute{
+		flags: asPath.Flags(),
+		code:  asPath.Code(),
+		data:  asPathValue,
+	})
+
+	// 3. NEXT_HOP (IPv4 only)
+	if first.NextHop.Is4() {
+		attrs = append(attrs, &attribute.NextHop{Addr: first.NextHop})
+	}
+
+	// 4. MED
+	if first.MED > 0 {
+		attrs = append(attrs, attribute.MED(first.MED))
+	}
+
+	// 5. LOCAL_PREF
+	if ub.IsIBGP {
+		lp := first.LocalPreference
+		if lp == 0 {
+			lp = 100
+		}
+		attrs = append(attrs, attribute.LocalPref(lp))
+	}
+
+	// 6. ATOMIC_AGGREGATE
+	if first.AtomicAggregate {
+		attrs = append(attrs, attribute.AtomicAggregate{})
+	}
+
+	// 7. AGGREGATOR
+	if first.HasAggregator {
+		aggBytes := ub.packAggregator(first.AggregatorASN, first.AggregatorIP)
+		attrs = append(attrs, &rawAttribute{
+			flags: attribute.FlagOptional | attribute.FlagTransitive,
+			code:  attribute.AttrAggregator,
+			data:  aggBytes,
+		})
+	}
+
+	// 8. COMMUNITIES
+	if len(first.Communities) > 0 {
+		sorted := make([]uint32, len(first.Communities))
+		copy(sorted, first.Communities)
+		sort.Slice(sorted, func(i, j int) bool { return sorted[i] < sorted[j] })
+		comms := make(attribute.Communities, len(sorted))
+		for i, c := range sorted {
+			comms[i] = attribute.Community(c)
+		}
+		attrs = append(attrs, comms)
+	}
+
+	// 9. ORIGINATOR_ID (RFC 4456)
+	if first.OriginatorID != 0 {
+		origIP := netip.AddrFrom4([4]byte{
+			byte(first.OriginatorID >> 24), byte(first.OriginatorID >> 16),
+			byte(first.OriginatorID >> 8), byte(first.OriginatorID),
+		})
+		attrs = append(attrs, attribute.OriginatorID(origIP))
+	}
+
+	// 10. CLUSTER_LIST (RFC 4456)
+	if len(first.ClusterList) > 0 {
+		cl := make(attribute.ClusterList, len(first.ClusterList))
+		copy(cl, first.ClusterList)
+		attrs = append(attrs, cl)
+	}
+
+	// 16. EXTENDED_COMMUNITIES
+	if len(first.ExtCommunityBytes) > 0 {
+		attrs = append(attrs, &rawAttribute{
+			flags: attribute.FlagOptional | attribute.FlagTransitive,
+			code:  attribute.AttrExtCommunity,
+			data:  first.ExtCommunityBytes,
+		})
+	}
+
+	// 32. LARGE_COMMUNITIES
+	if len(first.LargeCommunities) > 0 {
+		lcs := make(attribute.LargeCommunities, len(first.LargeCommunities))
+		for i, lc := range first.LargeCommunities {
+			lcs[i] = attribute.LargeCommunity{
+				GlobalAdmin: lc[0],
+				LocalData1:  lc[1],
+				LocalData2:  lc[2],
+			}
+		}
+		attrs = append(attrs, lcs)
+	}
+
+	// Sort and pack attributes
+	sort.Slice(attrs, func(i, j int) bool {
+		return attrs[i].Code() < attrs[j].Code()
+	})
+	attrBytes := attribute.PackAttributesOrdered(attrs)
+
+	// Append raw attributes from first route (pass-through from config)
+	for _, raw := range first.RawAttributeBytes {
+		attrBytes = append(attrBytes, raw...)
+	}
+
+	return attrBytes
+}
