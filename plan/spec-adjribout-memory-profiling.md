@@ -2,6 +2,24 @@
 
 ## Status: Not Started
 
+**See:** `plan/DESIGN_TRANSITION.md` for overall architecture direction.
+
+---
+
+## Design Transition Note
+
+This profiling spec should be run **after** Pool + Wire implementation to measure actual savings:
+
+| Scenario | Before Pool+Wire | After Pool+Wire |
+|----------|------------------|-----------------|
+| Per-route memory | ~250-400 bytes | ~18 bytes + shared pool |
+| 1M routes, 100K unique | ~300 MB | ~33 MB |
+| Expected savings | - | 90%+ |
+
+**Recommendation:** Run Phase 2 baseline now with current code, then re-run after `spec-pool-handle-migration.md` to measure actual improvement.
+
+---
+
 ## Goal
 
 Profile memory usage of adj-rib-out under high route counts to:
@@ -20,6 +38,8 @@ Profile memory usage of adj-rib-out under high route counts to:
 | Full table | 1M | 1 | Production estimate |
 
 ## Memory Components per Route
+
+### Current (Before Pool+Wire)
 
 From `pkg/rib/route.go`:
 ```go
@@ -41,6 +61,33 @@ Estimated per-route overhead:
 - Attributes (minimal): ~50 bytes
 - Wire cache: ~50-200 bytes
 - **Total: ~250-400 bytes/route**
+
+### Target (After Pool+Wire)
+
+From `spec-pool-handle-migration.md`:
+```go
+type Route struct {
+    attrHandle    pool.Handle      // 4 bytes → shared pool data
+    nlriHandle    pool.Handle      // 4 bytes → shared pool data
+    sourceCtxID   ContextID        // 2 bytes
+    tag           RouteTag         // ~8 bytes
+    // No parsed attributes
+    // No wire cache (pool owns data)
+}
+```
+
+Estimated per-route overhead:
+- Route struct: ~18 bytes
+- Pool overhead: amortized across shared routes
+- **Total: ~18 bytes/route + shared pool**
+
+### Deduplication Impact
+
+| Routes | Unique Attrs | Current | Target | Savings |
+|--------|--------------|---------|--------|---------|
+| 1K | 100 | 400 KB | 20 KB + 15 KB pool | 95% |
+| 100K | 10K | 40 MB | 2 MB + 1.5 MB pool | 91% |
+| 1M | 100K | 400 MB | 18 MB + 15 MB pool | 92% |
 
 ## Profiling Approach
 

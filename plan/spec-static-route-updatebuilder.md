@@ -1,135 +1,109 @@
 # Spec: Convert Static Route Functions to UpdateBuilder
 
-## MANDATORY READING (BEFORE IMPLEMENTATION)
+## Status: Partially Obsolete
 
+**See:** `plan/DESIGN_TRANSITION.md` for overall architecture direction.
+
+---
+
+## Design Transition Impact
+
+This spec was written before the Pool + Wire lazy parsing design was finalized.
+
+### What's Still Relevant
+
+| Function | Status | Notes |
+|----------|--------|-------|
+| `buildStaticRouteUpdate` | ✅ DONE | Replaced by `buildStaticRouteUpdateNew` using UpdateBuilder |
+| `buildGroupedUpdate` | ✅ DONE | Deleted, UpdateBuilder used directly |
+
+### What's Now Obsolete
+
+| Function | Status | Notes |
+|----------|--------|-------|
+| `buildRIBRouteUpdate` | ❌ OBSOLETE | Will be replaced by pool-based zero-copy forwarding, NOT UpdateBuilder |
+
+**Why `buildRIBRouteUpdate` won't use UpdateBuilder:**
+
+1. Pool + Wire design stores routes as `pool.Handle` → wire bytes
+2. Forwarding uses `pool.Get(handle)` → zero-copy (no parsing)
+3. UpdateBuilder assumes parsed attributes → re-packs them
+4. This is wasted work when we already have wire bytes
+
+**Replacement path:**
+
+```go
+// OLD: buildRIBRouteUpdate (parse → re-pack)
+update := buildRIBRouteUpdate(route, localAS, isIBGP, ctx)
+
+// NEW: Zero-copy from pool (no parsing at all)
+if route.SourceCtxID() == peer.SendCtxID() {
+    attrBytes := pool.Get(route.AttrHandle())  // Zero-copy
+    nlriBytes := pool.Get(route.NLRIHandle())  // Zero-copy
+} else {
+    // Re-encode only when contexts differ
+    attrs := NewAttributesWire(pool.Get(route.AttrHandle()), route.SourceCtxID())
+    attrBytes, _ := attrs.PackFor(peer.SendCtxID())
+}
 ```
-┌─────────────────────────────────────────────────────────────────┐
-│  STOP. Read these files FIRST before ANY implementation:        │
-│                                                                 │
-│  1. .claude/ESSENTIAL_PROTOCOLS.md - Session rules, TDD         │
-│  2. .claude/INDEX.md - Find what docs to load                   │
-│  3. plan/CLAUDE_CONTINUATION.md - Current state                 │
-│  4. THIS SPEC FILE - Design requirements                        │
-│  5. pkg/reactor/peer.go, pkg/bgp/message/update_build.go        │
-│                                                                 │
-│  DO NOT PROCEED until all are read and understood.              │
-└─────────────────────────────────────────────────────────────────┘
+
+---
+
+## Completed Work (Reference Only)
+
+### Static Route Conversion ✅
+
+`buildStaticRouteUpdateNew` now uses UpdateBuilder pattern:
+
+```go
+func buildStaticRouteUpdateNew(route StaticRoute, ...) *message.Update {
+    ub := message.NewUpdateBuilder(localAS, isIBGP, ctx)
+    if route.IsVPN() {
+        return ub.BuildVPN(toStaticRouteVPNParams(route))
+    }
+    if route.IsLabeledUnicast() {
+        return ub.BuildLabeledUnicast(toStaticRouteLabeledUnicastParams(route))
+    }
+    return ub.BuildUnicast(toStaticRouteUnicastParams(route, sendCtx))
+}
 ```
 
-## Task
+### Why UpdateBuilder is Correct for Static Routes
 
-Convert legacy `buildStaticRouteUpdate`, `buildGroupedUpdate`, and `buildRIBRouteUpdate` functions in `pkg/reactor/peer.go` to use the UpdateBuilder pattern from `pkg/bgp/message/update_build.go`.
+Static routes are **locally originated** - they don't have existing wire bytes:
+- Parameters come from config
+- No pre-existing wire format to preserve
+- UpdateBuilder constructs from scratch (correct approach)
 
-## Current State (verified)
+### Why UpdateBuilder is Wrong for RIB Routes
 
-- Functional tests: 24 passed, 13 failed [0, 7, 8, J, L, N, Q, S, T, U, V, Z, a]
-- `make test && make lint`: Pass (unit tests)
-- Last commit: `5a5c5a8`
+RIB routes are **received** - they already have wire bytes:
+- Wire bytes stored via pool.Handle
+- Forwarding should use existing bytes (zero-copy)
+- Re-parsing and re-packing is wasted CPU
 
-## Embedded Protocol Requirements
+---
 
-### Default Rules (ALL tasks)
+## Action Items
 
-- **FIRST:** Run `git status` - if modified files exist, ASK user before proceeding
-- Tests MUST exist and FAIL before implementation code exists
-- Run `make test && make lint` before claiming done
-- NEVER discard uncommitted work without explicit user permission
-- Verify before claiming: run commands, paste output as proof
-- Tests passing is NOT permission to commit - wait for user
+- [x] Convert `buildStaticRouteUpdate` → `buildStaticRouteUpdateNew` with UpdateBuilder
+- [x] Delete `buildGroupedUpdate` (UpdateBuilder used directly)
+- [ ] ~~Convert `buildRIBRouteUpdate` to UpdateBuilder~~ **CANCELLED - use pool forwarding instead**
 
-### From ESSENTIAL_PROTOCOLS.md
+**Next Step:** Implement `spec-pool-handle-migration.md` which will:
+1. Store routes with `pool.Handle` instead of parsed attributes
+2. Enable zero-copy forwarding path
+3. Delete `buildRIBRouteUpdate` entirely
 
-1. **RFC 4271 Appendix F.3:** Attributes MUST be ordered by type code
-2. **Work Preservation:** Save work before any destructive action
-3. **Verification:** Never claim "done" without running tests and pasting output
-4. **One function at a time:** Refactoring protocol requires step-by-step execution
-5. **Self-review:** After completion, critically review changes
+---
 
-### From TDD_ENFORCEMENT.md
+## References
 
-1. For refactoring, existing tests serve as regression suite
-2. Wire compat tests verify OLD == NEW behavior
-3. Run tests after each function conversion
-4. Paste full test output as proof
+- `plan/DESIGN_TRANSITION.md` - Overall architecture direction
+- `plan/spec-pool-handle-migration.md` - Pool integration that replaces buildRIBRouteUpdate
+- `.claude/zebgp/POOL_ARCHITECTURE.md` - Pool design
 
-## Codebase Context
+---
 
-### Files to Modify
-
-- `pkg/reactor/peer.go` - Contains legacy functions
-- `pkg/bgp/message/update_build.go` - Contains UpdateBuilder (reference)
-
-### Legacy Functions
-
-1. **`buildRIBRouteUpdate`** (line 1080, ~100 LOC)
-   - Builds UPDATE for RIB routes
-   - Used by `sendInitialRoutes` for API-announced routes
-
-2. **`buildStaticRouteUpdate`** (line 1306, ~260 LOC)
-   - Builds UPDATE for configured static routes
-   - Handles unicast (IPv4/IPv6) and VPN routes
-   - Complex attribute construction with RFC 8950 extended next-hop
-
-3. **`buildGroupedUpdate`** (line 1573, ~unknown LOC)
-   - Builds UPDATE for multiple routes with same attributes
-   - Performance optimization for bulk announcements
-
-### Pattern to Follow
-
-Previous session converted send* functions using this approach:
-1. Create conversion helpers (toUnicastParams, toVPNParams, etc.)
-2. Call UpdateBuilder.BuildXxx() with converted params
-3. Wire compat tests verify OLD == NEW
-
-## Implementation Steps
-
-### Phase 1: Analysis
-
-1. Read all 3 legacy functions completely
-2. Map each to existing UpdateBuilder.BuildXxx() methods
-3. Identify gaps (methods UpdateBuilder doesn't have)
-
-### Phase 2: RIB Route Conversion
-
-1. Add wire compat test for `buildRIBRouteUpdate`
-2. Create `toRIBRouteParams()` conversion helper
-3. Replace implementation with UpdateBuilder call
-4. Verify wire compat test passes
-
-### Phase 3: Static Route Conversion
-
-1. Add wire compat test for `buildStaticRouteUpdate`
-2. Create `toStaticRouteParams()` conversion helper
-3. Replace implementation with UpdateBuilder call
-4. Verify wire compat test passes
-
-### Phase 4: Grouped Update Conversion
-
-1. Add wire compat test for `buildGroupedUpdate`
-2. Determine if UpdateBuilder needs new method or can reuse existing
-3. Convert or add new BuildGrouped method
-4. Verify wire compat test passes
-
-### Phase 5: Cleanup
-
-1. Remove old function bodies (keep signatures if needed)
-2. Run full `make test && make lint`
-3. Run functional tests
-4. Self-review
-
-## Verification Checklist
-
-- [ ] Wire compat test exists for each converted function
-- [ ] Wire compat tests pass (OLD == NEW)
-- [ ] `make test` passes
-- [ ] `make lint` passes
-- [ ] No RFC compliance regressions
-- [ ] Self-review completed
-- [ ] LOC reduction documented
-
-## Notes
-
-- The UpdateBuilder already handles RFC 4271 attribute ordering
-- VPN routes use rawAttribute for MP_REACH_NLRI (VPN next-hop format differs)
-- Extended next-hop (RFC 8950) support needs verification
-- Grouped updates may need new UpdateBuilder method
+**Created:** 2025-12-XX
+**Updated:** 2026-01-03 - Marked RIB route conversion as obsolete per Pool+Wire design

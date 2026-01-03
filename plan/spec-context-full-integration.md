@@ -24,6 +24,37 @@ Complete integration of EncodingContext throughout the codebase:
 3. **Zero-Copy Forwarding** - skip re-encoding when contexts match
 4. **PackWithContext** - context-aware attribute encoding
 
+---
+
+## Design Transition Alignment
+
+**See:** `plan/DESIGN_TRANSITION.md` for overall architecture direction.
+
+This spec is **foundational** for the Pool + Wire lazy parsing design:
+
+| This Spec Provides | Pool+Wire Uses It For |
+|-------------------|----------------------|
+| `SourceCtxID` in Route | Zero-copy check: `sourceCtxID == destCtxID` |
+| `Peer.sendCtxID` | Destination context for forwarding |
+| `PackFor(destCtxID)` | Re-encoding when contexts differ |
+| `ContextRegistry` | Global context lookup |
+
+**Key Integration Point:**
+
+```go
+// Pool+Wire zero-copy forwarding (from DESIGN_TRANSITION.md)
+if route.SourceCtxID() == peer.SendCtxID() {
+    // Contexts match - zero copy from pool
+    attrBytes := pool.Get(route.AttrHandle())
+} else {
+    // Contexts differ - use PackFor from this spec
+    attrs := NewAttributesWire(pool.Get(handle), route.SourceCtxID())
+    attrBytes, _ := attrs.PackFor(peer.SendCtxID())
+}
+```
+
+**Note:** Phase 2 (Route Storage) will be superseded by `spec-pool-handle-migration.md` which stores `pool.Handle` instead of `wireBytes []byte`. The `SourceCtxID` concept remains essential.
+
 ## Current State (verified)
 
 ```
@@ -218,6 +249,11 @@ func TestPeerContextsClearedOnTeardown(t *testing.T)
 
 ## Phase 2: Route Storage with SourceCtxID
 
+> **Pool+Wire Note:** This phase describes adding `wireBytes` + `sourceCtxID` to Route.
+> In the full Pool+Wire design (`spec-pool-handle-migration.md`), Route will store
+> `attrHandle` (pool.Handle) + `sourceCtxID` instead. The `sourceCtxID` concept
+> from this phase remains essential - only the wire bytes storage changes.
+
 ### Goal
 
 Routes store `SourceCtxID` to enable zero-copy forwarding.
@@ -353,6 +389,10 @@ func TestRouteCanForwardDirect_NoCache(t *testing.T)
 ---
 
 ## Phase 3: Zero-Copy Forwarding
+
+> **Pool+Wire Note:** This phase describes using `route.wireBytes` for zero-copy.
+> In the full Pool+Wire design, forwarding uses `pool.Get(route.attrHandle)` instead.
+> The context matching logic (`sourceCtxID == destCtxID`) is identical.
 
 ### Goal
 

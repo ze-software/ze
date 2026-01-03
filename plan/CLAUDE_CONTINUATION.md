@@ -37,7 +37,53 @@ make functional - 37 encoding + 14 api + 10 parsing + 18 decoding ✅
 **Last worked:** 2026-01-03
 **Last commit:** `4a01500` feat(api): add msg-id to all message types (OPEN, NOTIFICATION, KEEPALIVE)
 
-**Status:** API output format complete. All messages now have direction, msg-id, and parseable text format.
+**Status:** API output format complete. Design transition document created.
+
+---
+
+## RECENTLY COMPLETED: Design Transition Documentation
+
+**Created:** `plan/DESIGN_TRANSITION.md`
+
+### Summary
+
+Documented the Pool + Wire lazy parsing design and updated all live specs to reference it.
+
+### Key Design Points
+
+1. **Wire-canonical storage:** Routes store `pool.Handle` → wire bytes, not parsed `[]Attribute`
+2. **Lazy parsing:** `AttributesWire.Get(AttrCode)` parses on demand
+3. **Zero-copy forwarding:** `pool.Get(handle)` when `sourceCtxID == destCtxID`
+4. **Memory deduplication:** Pool interns identical attribute bytes
+
+### Spec Updates
+
+| Spec | Update |
+|------|--------|
+| `DESIGN_TRANSITION.md` | **NEW** - master architecture document |
+| `spec-static-route-updatebuilder.md` | Marked RIB section obsolete |
+| `spec-context-full-integration.md` | Added Pool+Wire notes |
+| `spec-pool-integration.md` | Marked as superseded |
+| `spec-unified-handle-nlri.md` | Updated execution order |
+| `spec-pool-handle-migration.md` | Marked as primary implementation spec |
+| `spec-adjribout-memory-profiling.md` | Added target memory model |
+| `plugin-system-mvp.md` | Added compatibility notes |
+
+### What This Changes
+
+| Old Plan | New Plan |
+|----------|----------|
+| Convert `buildRIBRouteUpdate` to UpdateBuilder | Delete it, use pool forwarding |
+| Implement `spec-pool-integration.md` factories | Skip, go directly to pool handles |
+| Store parsed `[]Attribute` in Route | Store `pool.Handle` instead |
+
+### Implementation Order
+
+```
+1. spec-pool-handle-migration.md   ← PRIMARY (pool core + attr handles)
+2. spec-unified-handle-nlri.md     ← NLRI as handles
+3. Delete buildRIBRouteUpdate      ← Replaced by pool forwarding
+```
 
 ---
 
@@ -435,15 +481,31 @@ Location: `test/functional/record.go`
 
 ## PLANNED
 
-### Remaining Specs
+### Pool + Wire Design (Priority)
+
+See `plan/DESIGN_TRANSITION.md` for overall architecture.
 
 | Spec | Description | Status |
 |------|-------------|--------|
-| `spec-api-attribute-filter.md` | `attributes <list>` config | In Progress |
-| `spec-rfc9234-role.md` | RFC 9234 Role for API policy | Ready |
-| `spec-route-grouping.md` | Route grouping for UPDATE packing | Ready |
-| `spec-update-size-limiting.md` | UPDATE message size limits | Ready |
-| `spec-adjribout-memory-profiling.md` | Memory profiling for Adj-RIB-Out | Ready |
+| `spec-pool-handle-migration.md` | Pool core + Route stores Handle | **PRIMARY** |
+| `spec-unified-handle-nlri.md` | NLRI as 4-byte Handle | After pool-handle |
+| `spec-context-full-integration.md` | Zero-copy forwarding | Partial (needs pool) |
+
+### Superseded (Skip)
+
+| Spec | Reason |
+|------|--------|
+| `spec-pool-integration.md` | Factory methods obsolete, go directly to pool handles |
+| `spec-static-route-updatebuilder.md` (RIB section) | Use pool forwarding, not UpdateBuilder |
+
+### Other Specs
+
+| Spec | Description | Status |
+|------|-------------|--------|
+| `spec-rfc9234-role.md` | RFC 9234 Role for API policy | Ready (independent) |
+| `spec-adjribout-memory-profiling.md` | Memory profiling | Run after pool impl |
+| `plugin-system-mvp.md` | Plugin system | Ready (compatible) |
+| `phase0-peer-callbacks.md` | Peer lifecycle | Ready (independent) |
 
 ### Recently Completed (in plan/done/)
 - `spec-attributes-wire.md` - Wire-canonical storage ✅

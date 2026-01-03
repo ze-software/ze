@@ -1,6 +1,37 @@
 # Spec: Pool Handle Migration
 
-## Status: Design Phase
+## Status: Design Phase (PRIMARY IMPLEMENTATION SPEC)
+
+**See:** `plan/DESIGN_TRANSITION.md` for overall architecture direction.
+
+---
+
+## Design Transition Alignment
+
+This spec is the **primary implementation spec** for the Pool + Wire design:
+
+| This Spec Implements | Design Goal |
+|---------------------|-------------|
+| Pool core with Handle encoding | Memory deduplication |
+| Route stores `attrHandle` | Wire-canonical storage |
+| `AttributesWire` wraps pool data | Lazy parsing on demand |
+| `Release()` lifecycle | Reference counting |
+
+### Supersedes
+
+| Spec | Status |
+|------|--------|
+| `spec-pool-integration.md` | **SKIP** - don't implement factory methods |
+| `buildRIBRouteUpdate` conversion | **SKIP** - pool forwarding replaces it |
+
+### Enables
+
+| Spec | When |
+|------|------|
+| `spec-unified-handle-nlri.md` | After Phase 2 |
+| Zero-copy forwarding | After Phase 4 |
+
+---
 
 ## Overview
 

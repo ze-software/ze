@@ -35,27 +35,40 @@ Redesign pool.Handle and NLRI structs for minimal memory footprint:
 
 ---
 
-## Relationship to spec-pool-integration.md
+## Design Transition Alignment
 
-**These specs are complementary, not conflicting:**
+**See:** `plan/DESIGN_TRANSITION.md` for overall architecture direction.
 
-| Spec | Scope | Storage |
-|------|-------|---------|
-| pool-integration | Attributes (ASPath, NextHop) | `store.AttributeStore` |
-| unified-handle | NLRI (INET, IPVPN) | `pool.Pool` with Handle |
+### Role in Pool + Wire Design
 
-**Execution Order: pool-integration FIRST**
+This spec is **essential** for the Pool + Wire design:
 
-1. pool-integration wires RouteStore (smaller, immediate value)
-2. unified-handle extends RouteStore with Ctx/pools for NLRI
-3. Factory methods from pool-integration survive - they abstract storage
-4. Some attributes may later migrate to pool.Pool (indices 60-61)
+| Component | Role in Design |
+|-----------|---------------|
+| Handle with PoolIdx | Identifies which pool owns the data |
+| 4-byte NLRI structs | Memory-efficient route storage |
+| `Ctx` with pools | Central pool registry for all families |
+| `HandleToNLRI()` | Reconstruct typed NLRI from handle |
 
-**Integration Points:**
-- RouteStore will own both AttributeStore AND Ctx
-- Ctx contains pools for NLRI families (indices 0-17)
-- Ctx contains pools for large/dedup attributes (indices 60-61)
-- Factory methods decide which storage to use
+### Updated Relationship to Other Specs
+
+| Spec | Relationship |
+|------|-------------|
+| `spec-pool-integration.md` | **SUPERSEDED** - don't implement parsed attr factories |
+| `spec-pool-handle-migration.md` | **COMPLEMENTARY** - this handles NLRI, that handles attrs |
+| `spec-attributes-wire.md` | **COMPLEMENTARY** - that wraps attr bytes, this wraps NLRI bytes |
+
+### Execution Order
+
+```
+1. spec-pool-handle-migration.md  ← Implement pool core + attr handles
+        ↓
+2. This spec (unified-handle-nlri) ← NLRI as handles
+        ↓
+3. Route stores both attrHandle + nlriHandle
+```
+
+**Note:** Skip `spec-pool-integration.md` entirely - go directly to pool handles.
 
 ---
 

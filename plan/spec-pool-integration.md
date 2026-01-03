@@ -20,6 +20,44 @@
 
 Wire the existing but unused `RouteStore` (pool system) to components for attribute deduplication and memory optimization.
 
+---
+
+## Design Transition Alignment
+
+**See:** `plan/DESIGN_TRANSITION.md` for overall architecture direction.
+
+### Status in Design Transition
+
+This spec is **superseded** by the Pool + Wire lazy parsing design:
+
+| This Spec Proposes | Pool+Wire Design Instead |
+|-------------------|-------------------------|
+| Factory methods (`NewASPath()`, etc.) | Store wire bytes via `pool.Intern()` |
+| Parsed attribute interning | Wire-canonical storage (no parsing on receive) |
+| RouteStore with AttributeStore | Pool with Handle-based deduplication |
+
+### Why This Approach is Outdated
+
+1. **Factory methods assume parsing:** `NewASPath(segments)` creates parsed `*ASPath`
+2. **Pool+Wire avoids parsing:** Routes store wire bytes, parse on demand
+3. **Deduplication at wrong layer:** This interns parsed objects; Pool interns bytes
+
+### What to Do Instead
+
+Skip this spec. Implement `spec-pool-handle-migration.md` directly:
+
+1. `pool.Intern(attrBytes)` → Handle (deduplicates wire bytes)
+2. Route stores `attrHandle` not `[]Attribute`
+3. No factory methods needed - wire bytes are canonical
+
+### What's Salvageable
+
+The observation that RouteStore exists but is unused is valid. However:
+- Don't wire parsed attribute factories
+- Wire pool.Handle storage instead
+
+---
+
 ## Problem
 
 RouteStore exists but is **completely unused**:

@@ -1,483 +1,410 @@
-# ZeBGP Plugin System - MVP Specification
+# ZeBGP Plugin System - MVP Specification (Revised)
 
-**Status:** Proposed (derived from plugin-system.md review)
-**Date:** 2025-12-22
+**Status:** Proposed (revised after architecture review)
+**Date:** 2026-01-03
 
-**Purpose:** Define minimum viable plugin system. Full spec in `plugin-system.md`.
+**Purpose:** Define minimum viable plugin system aligned with current architecture.
 
----
-
-## MVP Scope
-
-### In Scope (Phase 1)
-
-| Component | Description |
-|-----------|-------------|
-| Plugin interface | Base interface for all plugins |
-| PeerPlugin interface | Per-peer lifecycle hooks |
-| Registry | Plugin loading, dependency resolution |
-| RIB plugin | Wrap existing `pkg/rib` |
-| ExaBGP API plugin | Wrap existing `pkg/api` |
-| Validation layer | Basic RFC compliance checks |
-| TOML config | Plugin enable/disable, basic settings |
-
-### Deferred
-
-| Feature | Phase |
-|---------|-------|
-| gRPC external plugins | 2 |
-| Export policy | 2 |
-| JSON-RPC transport | 3 |
-| Graceful restart handler | 3 |
-| Custom capabilities/attributes | 4 |
-| State persistence | 4 |
-| stdio transport | 4 |
+**See:** `plan/DESIGN_TRANSITION.md` for overall architecture direction.
 
 ---
 
-## Core Types
+## Design Transition Alignment
+
+This plugin system is **compatible** with the Pool + Wire design:
+
+| Plugin Pattern | Pool+Wire Alignment |
+|---------------|---------------------|
+| `RawMessage.RawBytes` | Wire bytes (compatible with pool storage) |
+| `RawMessage.AttrsWire` | Lazy parsing via `AttributesWire` (designed for this) |
+| `sendCtx`/`recvCtx` | Zero-copy forwarding check |
+| `OnMessage` with raw bytes | No forced parsing on receive path |
+
+### Key Integration Points
 
 ```go
-package plugin
+// Plugins receive raw bytes - compatible with pool storage
+func (p *MyPlugin) OnMessage(peer *Peer, msg RawMessage) {
+    // msg.RawBytes = wire bytes (can be stored via pool.Intern)
+    // msg.AttrsWire = lazy parsing wrapper
 
-import (
-    "context"
-    "log/slog"
-    "net/netip"
-    "time"
+    // Only parse if needed:
+    if msg.AttrsWire != nil {
+        asPath, _ := msg.AttrsWire.Get(attribute.AttrASPath)
+    }
+}
+```
 
-    "github.com/exa-networks/zebgp/pkg/bgp/attribute"
-    "github.com/exa-networks/zebgp/pkg/bgp/capability"
-    "github.com/exa-networks/zebgp/pkg/bgp/message"
-)
+### No Conflicts
 
-// Route represents a BGP route for plugin consumption.
-type Route struct {
-    Prefix     netip.Prefix
-    PathID     uint32              // For ADD-PATH
-    NextHop    netip.Addr
-    Attributes []attribute.Attribute
-    Source     netip.Addr          // Peer that advertised (zero for local)
-    Timestamp  time.Time
+The plugin system operates at a higher layer than pool storage:
+- Plugins see `RawMessage` with wire bytes
+- Storage layer (pool) handles deduplication internally
+- Plugins don't need to know about handles
+
+---
+
+## Design Principles
+
+1. **Wrap, don't replace** - Existing code works; plugins wrap it
+2. **Raw bytes first** - Use `RawMessage` pattern, parse on demand
+3. **Preserve encoding contexts** - Keep `sendCtx`/`recvCtx` for zero-copy
+4. **Incremental phases** - Each phase is independently useful
+
+---
+
+## Phased Approach
+
+| Phase | Scope | Dependency |
+|-------|-------|------------|
+| 0 | Peer lifecycle callbacks (OnEstablished, OnClose) | None |
+| 0.5 | Message callbacks (OnUpdateReceived with RawMessage) | Phase 0 |
+| 1 | Plugin interface, Registry, RIB/API wrappers | Phase 0.5 |
+| 2 | Capability hooks (GetCapabilities, OnOpenReceived) | Phase 1 |
+| 3 | External plugins via gRPC | Phase 2 |
+
+---
+
+## Phase 0: Peer Lifecycle Callbacks
+
+See `plan/phase0-peer-callbacks.md` for full specification.
+
+Summary:
+- Add `OnEstablished(peer *Peer)` callback to Reactor
+- Add `OnClose(peer *Peer, reason string)` callback to Reactor
+- Emit API state messages on these events
+
+---
+
+## Phase 0.5: Message Callbacks
+
+Extend existing `messageCallback` to support plugin pattern:
+
+```go
+// MessageObserver receives BGP messages without parsing overhead.
+// Multiple observers can be registered; each sees all messages.
+type MessageObserver interface {
+    // OnMessage is called for every BGP message sent/received.
+    // msg contains raw bytes - observer decides if/how to parse.
+    // MUST NOT block; use goroutine for slow processing.
+    OnMessage(peer *Peer, msg RawMessage)
 }
 
-// AddPathMode describes ADD-PATH negotiation result.
-type AddPathMode uint8
+// Reactor.AddMessageObserver registers an observer.
+// Observers are called in registration order.
+func (r *Reactor) AddMessageObserver(obs MessageObserver)
+```
 
-const (
-    AddPathNone AddPathMode = iota
-    AddPathReceive
-    AddPathSend
-    AddPathBoth
-)
-
-// PeerInfo describes a peer for plugin consumption.
-// This is a COPY - safe to retain and access from any goroutine.
-type PeerInfo struct {
-    Address      netip.Addr
-    LocalAddress netip.Addr
-    LocalAS      uint32
-    PeerAS       uint32
-    RouterID     uint32
-    State        string
-    Established  time.Time
-    Negotiated   NegotiatedParams
-    PluginConfig map[string]any // Per-peer plugin config
-}
-
-// NegotiatedParams describes negotiated session parameters.
-type NegotiatedParams struct {
-    FourOctetAS     bool
-    ExtendedMessage bool
-    MaxMessageSize  int
-    AddPath         map[capability.Family]AddPathMode
-    Families        []capability.Family
-    HoldTime        time.Duration
+Uses existing `api.RawMessage`:
+```go
+type RawMessage struct {
+    Type      message.MessageType
+    RawBytes  []byte              // Wire bytes (no header)
+    Timestamp time.Time
+    MessageID uint64
+    AttrsWire *attribute.AttributesWire // Lazy parsing
+    Direction string              // "sent" or "received"
 }
 ```
 
 ---
 
-## Plugin Interface
+## Phase 1: Plugin System Core
+
+### Plugin Interface
 
 ```go
+package plugin
+
 // Plugin is the base interface all plugins must implement.
 type Plugin interface {
     // Name returns unique plugin identifier.
     Name() string
 
-    // Version returns semantic version (e.g., "1.0.0").
+    // Version returns semantic version.
     Version() string
 
-    // Dependencies returns plugins this one requires.
-    // Returns nil if no dependencies.
+    // Dependencies returns plugin names this one requires.
     Dependencies() []string
 
     // Init is called once during startup.
-    // Dependencies are guaranteed initialized before this is called.
-    Init(ctx context.Context, reactor ReactorAPI, config map[string]any) error
+    Init(ctx context.Context, reactor *Reactor) error
 
-    // Close is called during shutdown (reverse dependency order).
-    // Has 5s timeout by default.
+    // Close is called during shutdown.
     Close() error
 }
 ```
 
----
+Note: `Init` receives `*Reactor` directly (not an interface). This is intentional:
+- Avoids interface duplication with `api.ReactorInterface`
+- Plugins are internal; they can access reactor internals
+- External plugins (Phase 3) will use gRPC, not Go interfaces
 
-## PeerPlugin Interface
+### PeerObserver Interface
 
 ```go
-// PeerPlugin handles per-peer lifecycle events.
-//
-// THREAD SAFETY: All methods called from single goroutine per peer.
-// Do NOT block for extended periods.
-type PeerPlugin interface {
+// PeerObserver receives peer lifecycle events.
+// Implement this in addition to Plugin for peer-aware plugins.
+type PeerObserver interface {
     Plugin
 
-    // GetCapabilities returns capabilities to advertise in OPEN.
-    GetCapabilities(peer PeerInfo) []capability.Capability
+    // OnEstablished is called when peer reaches Established state.
+    // peer provides access to SendContext, RecvContext, AdjRIBOut, etc.
+    OnEstablished(peer *Peer)
 
-    // OnOpenReceived is called when peer's OPEN is received.
-    // Return non-nil Notification to reject session.
-    OnOpenReceived(peer PeerInfo, caps []capability.Capability) *message.Notification
-
-    // OnEstablished is called when session reaches Established.
-    // Returns handler for incoming UPDATEs.
-    OnEstablished(peer PeerInfo, writer UpdateWriter) UpdateHandler
-
-    // OnClose is called when session leaves Established.
-    // Called exactly once per Established session.
-    OnClose(peer PeerInfo)
+    // OnClose is called when peer leaves Established state.
+    OnClose(peer *Peer, reason string)
 }
 ```
 
----
-
-## UpdateHandler
+### MessageObserver Interface
 
 ```go
-// UpdateHandler processes incoming UPDATE messages.
-//
-// WARNING: update is pooled. Do NOT retain after handler returns.
-// Use update.Clone() for async processing.
-type UpdateHandler func(peer PeerInfo, update *message.Update) HandlerResult
+// MessageObserver receives BGP messages.
+// Implement this in addition to Plugin for message-aware plugins.
+type MessageObserver interface {
+    Plugin
 
-// HandlerResult specifies handler outcome.
-type HandlerResult struct {
-    Action       HandlerAction
-    Notification *message.Notification // Only for ActionCloseSession
-}
-
-type HandlerAction int
-
-const (
-    ActionContinue     HandlerAction = iota // Pass to next handler
-    ActionDrop                              // Silently discard UPDATE
-    ActionCloseSession                      // Send notification, close session
-)
-
-// Convenience constructors
-func Continue() HandlerResult { return HandlerResult{Action: ActionContinue} }
-func Drop() HandlerResult     { return HandlerResult{Action: ActionDrop} }
-func CloseSession(n *message.Notification) HandlerResult {
-    return HandlerResult{Action: ActionCloseSession, Notification: n}
+    // OnMessage receives all BGP messages for all peers.
+    // Use msg.Direction to filter sent vs received.
+    // Use peer.RecvContext()/SendContext() for encoding info.
+    OnMessage(peer *Peer, msg RawMessage)
 }
 ```
 
----
-
-## UpdateWriter
-
-```go
-// UpdateWriter sends UPDATE messages to a peer.
-//
-// LIFECYCLE: Valid from OnEstablished until OnClose.
-// THREAD SAFETY: All methods safe for concurrent use.
-type UpdateWriter interface {
-    // WriteUpdate sends an UPDATE message.
-    // Passes through validation layer before wire.
-    WriteUpdate(update *message.Update) error
-
-    // Closed returns true if session has ended.
-    Closed() bool
-
-    // Negotiated returns negotiated session parameters.
-    Negotiated() NegotiatedParams
-
-    // Peer returns peer info for this writer.
-    Peer() PeerInfo
-}
-
-var ErrSessionClosed = errors.New("session closed")
-```
-
----
-
-## ReactorAPI
-
-```go
-// ReactorAPI provides plugin access to reactor functionality.
-//
-// THREAD SAFETY: All methods safe for concurrent use.
-type ReactorAPI interface {
-    // Peer access
-    Peers() []PeerInfo
-    GetPeer(addr netip.Addr) (PeerInfo, bool)
-
-    // Peer control
-    TeardownPeer(addr netip.Addr, reason string) error
-
-    // Service registry
-    RegisterService(name string, service any) error
-    GetService(name string) (any, bool)
-
-    // Logging (scoped to plugin name)
-    Logger() *slog.Logger
-}
-```
-
----
-
-## Registry
+### Registry
 
 ```go
 // Registry manages plugin lifecycle.
 type Registry struct {
-    plugins map[string]Plugin
-    order   []Plugin // Initialization order
+    plugins []Plugin // Ordered by dependency
     mu      sync.RWMutex
 }
 
-// Register adds a plugin.
+// Register adds a plugin. Call before Init.
 func (r *Registry) Register(p Plugin) error
 
-// Get returns a plugin by name.
-func (r *Registry) Get(name string) (Plugin, bool)
+// Init initializes all plugins in dependency order.
+func (r *Registry) Init(ctx context.Context, reactor *Reactor) error
 
-// InitAll initializes plugins in dependency order.
-func (r *Registry) InitAll(ctx context.Context, reactor ReactorAPI) error
+// Close closes all plugins in reverse order.
+func (r *Registry) Close() error
 
-// CloseAll closes plugins in reverse order.
-func (r *Registry) CloseAll() error
+// PeerObservers returns plugins implementing PeerObserver.
+func (r *Registry) PeerObservers() []PeerObserver
 
-// PeerPlugins returns all PeerPlugin implementations.
-func (r *Registry) PeerPlugins() []PeerPlugin
+// MessageObservers returns plugins implementing MessageObserver.
+func (r *Registry) MessageObservers() []MessageObserver
 ```
 
-### Dependency Resolution (Fixed)
+---
+
+## Phase 1: Built-in Plugins
+
+### RIB Plugin
+
+Wraps existing `reactor.ribIn`, `reactor.ribOut`, `reactor.ribStore`:
 
 ```go
-// resolveDependencies returns plugins in initialization order.
-// Dependencies are initialized BEFORE dependents.
-func (r *Registry) resolveDependencies() ([]Plugin, error) {
-    // Build adjacency list: plugin -> its dependencies
-    deps := make(map[string][]string)
-    for name, p := range r.plugins {
-        deps[name] = p.Dependencies()
-    }
-
-    // Detect cycles using DFS
-    if cycle := detectCycle(deps); cycle != nil {
-        return nil, fmt.Errorf("dependency cycle: %s", strings.Join(cycle, " → "))
-    }
-
-    // Topological sort (Kahn's algorithm)
-    // inDegree[X] = number of plugins that X depends on
-    inDegree := make(map[string]int)
-    dependents := make(map[string][]string) // dep -> plugins that depend on it
-
-    for name := range r.plugins {
-        inDegree[name] = len(deps[name])
-        for _, dep := range deps[name] {
-            dependents[dep] = append(dependents[dep], name)
-        }
-    }
-
-    // Start with plugins that have no dependencies
-    var queue []string
-    for name, degree := range inDegree {
-        if degree == 0 {
-            queue = append(queue, name)
-        }
-    }
-
-    var result []Plugin
-    for len(queue) > 0 {
-        // Sort queue for deterministic order
-        sort.Strings(queue)
-        name := queue[0]
-        queue = queue[1:]
-
-        result = append(result, r.plugins[name])
-
-        // Decrement inDegree of dependents
-        for _, dependent := range dependents[name] {
-            inDegree[dependent]--
-            if inDegree[dependent] == 0 {
-                queue = append(queue, dependent)
-            }
-        }
-    }
-
-    // Check for unresolved dependencies
-    if len(result) != len(r.plugins) {
-        var missing []string
-        for name, degree := range inDegree {
-            if degree > 0 {
-                missing = append(missing, name)
-            }
-        }
-        return nil, fmt.Errorf("unresolved dependencies: %v", missing)
-    }
-
-    return result, nil
+type RIBPlugin struct {
+    ribIn    *rib.IncomingRIB
+    ribOut   *rib.OutgoingRIB
+    ribStore *rib.RouteStore
 }
 
-func detectCycle(deps map[string][]string) []string {
-    const (
-        unvisited = 0
-        visiting  = 1
-        visited   = 2
-    )
+func (p *RIBPlugin) Name() string         { return "rib" }
+func (p *RIBPlugin) Version() string      { return "1.0.0" }
+func (p *RIBPlugin) Dependencies() []string { return nil }
 
-    state := make(map[string]int)
-    parent := make(map[string]string)
-
-    var dfs func(node string) []string
-    dfs = func(node string) []string {
-        if state[node] == visited {
-            return nil
-        }
-        if state[node] == visiting {
-            // Found cycle - reconstruct path
-            cycle := []string{node}
-            for cur := parent[node]; cur != node; cur = parent[cur] {
-                cycle = append([]string{cur}, cycle...)
-            }
-            return append(cycle, node)
-        }
-
-        state[node] = visiting
-        for _, dep := range deps[node] {
-            parent[dep] = node
-            if cycle := dfs(dep); cycle != nil {
-                return cycle
-            }
-        }
-        state[node] = visited
-        return nil
-    }
-
-    for node := range deps {
-        if cycle := dfs(node); cycle != nil {
-            return cycle
-        }
-    }
+func (p *RIBPlugin) Init(ctx context.Context, reactor *Reactor) error {
+    // Take ownership of reactor's RIB components
+    p.ribIn = reactor.ribIn
+    p.ribOut = reactor.ribOut
+    p.ribStore = reactor.ribStore
     return nil
+}
+
+func (p *RIBPlugin) Close() error { return nil }
+
+// PeerObserver implementation
+func (p *RIBPlugin) OnEstablished(peer *Peer) {
+    // Initialize per-peer RIB state if needed
+}
+
+func (p *RIBPlugin) OnClose(peer *Peer, reason string) {
+    // Clear peer's routes from RIB-In
+    p.ribIn.RemovePeer(peer.Settings().Address)
+}
+
+// MessageObserver implementation
+func (p *RIBPlugin) OnMessage(peer *Peer, msg RawMessage) {
+    if msg.Type != message.TypeUPDATE || msg.Direction != "received" {
+        return
+    }
+    // Store in RIB-In (lazy parsing via AttrsWire)
+    // ...
+}
+```
+
+### ExaBGP API Plugin
+
+Wraps existing `reactor.api`:
+
+```go
+type APIPlugin struct {
+    server *api.Server
+}
+
+func (p *APIPlugin) Name() string         { return "exabgp-api" }
+func (p *APIPlugin) Version() string      { return "1.0.0" }
+func (p *APIPlugin) Dependencies() []string { return nil }
+
+func (p *APIPlugin) Init(ctx context.Context, reactor *Reactor) error {
+    p.server = reactor.api
+    return nil
+}
+
+func (p *APIPlugin) Close() error { return nil }
+
+// PeerObserver - emit state messages
+func (p *APIPlugin) OnEstablished(peer *Peer) {
+    p.server.EmitStateChange(peer.Settings().Address, "established")
+}
+
+func (p *APIPlugin) OnClose(peer *Peer, reason string) {
+    p.server.EmitStateChange(peer.Settings().Address, "down")
+}
+
+// MessageObserver - forward to processes
+func (p *APIPlugin) OnMessage(peer *Peer, msg RawMessage) {
+    p.server.ForwardMessage(peer, msg)
 }
 ```
 
 ---
 
-## Validation Layer
+## Preserved Patterns
+
+### Encoding Contexts
+
+Plugins access via Peer methods:
 
 ```go
-// Validator checks RFC compliance before wire encoding.
-type Validator struct {
-    mode ValidatorMode
+// Zero-copy forwarding check
+if srcPeer.SendContextID() == dstPeer.RecvContextID() {
+    // Contexts match - can forward raw bytes
+    dstPeer.SendRawUpdateBody(msg.RawBytes)
+} else {
+    // Must re-encode
+    // ...
 }
+```
 
-type ValidatorMode int
+### Transactions
 
-const (
-    ValidatorEnforce ValidatorMode = iota // Reject violations
-    ValidatorWarn                         // Log and allow
-    ValidatorDisable                      // Skip validation
-)
+Plugins access via Peer's AdjRIBOut:
 
-// ValidateUpdate checks UPDATE for RFC 4271 compliance.
-func (v *Validator) ValidateUpdate(u *message.Update, neg NegotiatedParams) error {
-    // Check mandatory attributes for announcements
-    if len(u.NLRI) > 0 || u.MPReachNLRI != nil {
-        if !hasAttribute(u.Attributes, attribute.AttrOrigin) {
-            return fmt.Errorf("missing ORIGIN attribute")
-        }
-        if !hasAttribute(u.Attributes, attribute.AttrASPath) {
-            return fmt.Errorf("missing AS_PATH attribute")
-        }
-        // NEXT_HOP required for IPv4 unicast NLRI
-        if len(u.NLRI) > 0 && !hasAttribute(u.Attributes, attribute.AttrNextHop) {
-            return fmt.Errorf("missing NEXT_HOP attribute")
-        }
+```go
+func (p *MyPlugin) OnMessage(peer *Peer, msg RawMessage) {
+    adjRIB := peer.AdjRIBOut()
+
+    if adjRIB.InTransaction() {
+        // Queue for commit
+        adjRIB.QueueAnnounce(route)
+    } else {
+        // Send immediately
+        peer.SendUpdate(update)
+        adjRIB.MarkSent(route)
     }
+}
+```
 
-    // Check message size
-    size := u.Len()
-    if size > neg.MaxMessageSize {
-        return fmt.Errorf("UPDATE size %d exceeds max %d", size, neg.MaxMessageSize)
-    }
+### Watchdog
+
+Plugins access via Reactor's WatchdogManager:
+
+```go
+func (p *MyPlugin) Init(ctx context.Context, reactor *Reactor) error {
+    wm := reactor.WatchdogManager()
+
+    // Create pool
+    wm.CreatePool("my-routes")
+
+    // Add route to pool
+    wm.AddRoute("my-routes", route)
 
     return nil
 }
+```
 
-func hasAttribute(attrs []attribute.Attribute, code attribute.Code) bool {
-    for _, a := range attrs {
-        if a.Code() == code {
-            return true
-        }
+### RawMessage with Lazy Parsing
+
+```go
+func (p *MyPlugin) OnMessage(peer *Peer, msg RawMessage) {
+    if msg.Type != message.TypeUPDATE {
+        return
     }
-    return false
+
+    // Option 1: Use lazy-parsed attributes
+    if msg.AttrsWire != nil {
+        origin := msg.AttrsWire.Origin()
+        asPath := msg.AttrsWire.ASPath()
+    }
+
+    // Option 2: Full parse if needed
+    update, err := message.ParseUpdate(msg.RawBytes, peer.RecvContext())
+    if err != nil {
+        return
+    }
 }
 ```
 
 ---
 
-## Clone Support
+## Integration Points
 
-Add to `pkg/bgp/message/update.go`:
+### Reactor Changes
 
 ```go
-// Clone creates a deep copy of the UPDATE message.
-// Use when retaining UPDATE beyond handler return (e.g., async processing).
-func (u *Update) Clone() *Update {
-    if u == nil {
-        return nil
-    }
+type Reactor struct {
+    // ... existing fields ...
 
-    clone := &Update{
-        PathID: u.PathID,
-    }
-
-    // Deep copy slices
-    if len(u.Withdrawn) > 0 {
-        clone.Withdrawn = make([]netip.Prefix, len(u.Withdrawn))
-        copy(clone.Withdrawn, u.Withdrawn)
-    }
-
-    if len(u.NLRI) > 0 {
-        clone.NLRI = make([]netip.Prefix, len(u.NLRI))
-        copy(clone.NLRI, u.NLRI)
-    }
-
-    // Deep copy attributes
-    if len(u.Attributes) > 0 {
-        clone.Attributes = make([]attribute.Attribute, len(u.Attributes))
-        for i, attr := range u.Attributes {
-            clone.Attributes[i] = attr.Clone()
-        }
-    }
-
-    // Deep copy MP-NLRI
-    if u.MPReachNLRI != nil {
-        clone.MPReachNLRI = u.MPReachNLRI.Clone()
-    }
-    if u.MPUnreachNLRI != nil {
-        clone.MPUnreachNLRI = u.MPUnreachNLRI.Clone()
-    }
-
-    return clone
+    plugins *plugin.Registry
 }
+
+func (r *Reactor) Run(ctx context.Context) error {
+    // Initialize plugins
+    if err := r.plugins.Init(ctx, r); err != nil {
+        return err
+    }
+    defer r.plugins.Close()
+
+    // ... existing run logic ...
+}
+```
+
+### Peer Changes
+
+```go
+// In Peer.run(), after FSM callback:
+if to == fsm.StateEstablished {
+    // Notify plugin observers
+    for _, obs := range r.plugins.PeerObservers() {
+        obs.OnEstablished(p)
+    }
+}
+```
+
+### Session Changes
+
+```go
+// In Session.processMessage(), after existing callback:
+if s.onMessageReceived != nil {
+    s.onMessageReceived(s.settings.Address, hdr.Type, body, direction)
+}
+
+// Plugin observers are called via Reactor, not Session
+// (Session doesn't know about plugins)
 ```
 
 ---
@@ -485,141 +412,52 @@ func (u *Update) Clone() *Update {
 ## Configuration
 
 ```toml
-# etc/zebgp/zebgp.toml
-
-[zebgp.plugin]
+[zebgp.plugins]
 rib = true          # Enable RIB plugin (default: true)
 exabgp-api = true   # Enable ExaBGP API plugin (default: true)
 
-[zebgp.validation]
-mode = "enforce"    # enforce, warn, disable
-```
-
----
-
-## Built-in Plugins
-
-### RIB Plugin
-
-```go
-type RIBPlugin struct {
-    ribIn  *rib.Table
-    ribOut *rib.Table
-    log    *slog.Logger
-}
-
-func (p *RIBPlugin) Name() string         { return "rib" }
-func (p *RIBPlugin) Version() string      { return "1.0.0" }
-func (p *RIBPlugin) Dependencies() []string { return nil }
-
-func (p *RIBPlugin) Init(ctx context.Context, reactor ReactorAPI, cfg map[string]any) error {
-    p.log = reactor.Logger()
-    p.ribIn = rib.NewTable()
-    p.ribOut = rib.NewTable()
-    reactor.RegisterService("rib.in", p.ribIn)
-    reactor.RegisterService("rib.out", p.ribOut)
-    return nil
-}
-
-func (p *RIBPlugin) Close() error { return nil }
-
-func (p *RIBPlugin) GetCapabilities(peer PeerInfo) []capability.Capability {
-    return nil // RIB doesn't add capabilities
-}
-
-func (p *RIBPlugin) OnOpenReceived(peer PeerInfo, caps []capability.Capability) *message.Notification {
-    return nil // Accept all
-}
-
-func (p *RIBPlugin) OnEstablished(peer PeerInfo, writer UpdateWriter) UpdateHandler {
-    return func(peer PeerInfo, update *message.Update) HandlerResult {
-        // Store in Adj-RIB-In
-        p.ribIn.ProcessUpdate(peer.Address, update)
-        return Continue()
-    }
-}
-
-func (p *RIBPlugin) OnClose(peer PeerInfo) {
-    // Remove peer's routes from RIB
-    p.ribIn.RemovePeer(peer.Address)
-}
-```
-
-### ExaBGP API Plugin
-
-```go
-type ExaBGPAPIPlugin struct {
-    server *api.Server
-    log    *slog.Logger
-}
-
-func (p *ExaBGPAPIPlugin) Name() string         { return "exabgp-api" }
-func (p *ExaBGPAPIPlugin) Version() string      { return "1.0.0" }
-func (p *ExaBGPAPIPlugin) Dependencies() []string { return nil }
-
-func (p *ExaBGPAPIPlugin) Init(ctx context.Context, reactor ReactorAPI, cfg map[string]any) error {
-    p.log = reactor.Logger()
-    socketPath := "/var/run/zebgp.sock"
-    if path, ok := cfg["socket"].(string); ok {
-        socketPath = path
-    }
-    p.server = api.NewServer(socketPath)
-    return p.server.Start()
-}
-
-func (p *ExaBGPAPIPlugin) Close() error {
-    return p.server.Stop()
-}
-
-// ExaBGP API doesn't need PeerPlugin hooks - it uses ReactorAPI
+# Future: external plugins
+# [zebgp.plugins.external]
+# my-plugin = { path = "/usr/lib/zebgp/my-plugin.so" }
 ```
 
 ---
 
 ## Implementation Checklist
 
-### Phase 1 Tasks
+### Phase 0 (see phase0-peer-callbacks.md)
+- [ ] Add PeerLifecycleCallback to Reactor
+- [ ] Call from Peer FSM callback
+- [ ] Emit API state messages
 
+### Phase 0.5
+- [ ] Add MessageObserver interface
+- [ ] Reactor.AddMessageObserver()
+- [ ] Wire into existing messageCallback flow
+
+### Phase 1
 - [ ] Create `pkg/plugin/` package
-- [ ] Define core interfaces (Plugin, PeerPlugin, UpdateHandler, etc.)
-- [ ] Define types (Route, PeerInfo, NegotiatedParams, etc.)
+- [ ] Define Plugin, PeerObserver, MessageObserver interfaces
 - [ ] Implement Registry with dependency resolution
-- [ ] Implement Validator (basic)
-- [ ] Add Clone() to message.Update
-- [ ] Add Clone() to attribute types
-- [ ] Wrap existing RIB as RIBPlugin
-- [ ] Wrap existing API as ExaBGPAPIPlugin
-- [ ] Integrate plugin system into reactor
+- [ ] Create RIBPlugin wrapper
+- [ ] Create APIPlugin wrapper
+- [ ] Add plugin init to Reactor.Run()
 - [ ] Add TOML configuration
-- [ ] Write tests for:
-  - [ ] Dependency cycle detection
-  - [ ] Topological ordering
-  - [ ] Handler chaining
-  - [ ] Validation layer
-
-### Tests Required
-
-```go
-func TestDependencyCycle(t *testing.T)
-func TestTopologicalOrder(t *testing.T)
-func TestHandlerChain(t *testing.T)
-func TestValidatorEnforce(t *testing.T)
-func TestUpdateClone(t *testing.T)
-```
 
 ---
 
 ## Migration Path
 
-1. **No breaking changes** - existing code continues to work
-2. Plugin system wraps existing `pkg/api` and `pkg/rib`
-3. Reactor delegates to plugin registry for peer events
-4. Future: external plugins via gRPC (Phase 2)
+1. Phase 0-0.5: No breaking changes, adds callbacks
+2. Phase 1: RIB/API become plugins, but behavior unchanged
+3. Existing code using `reactor.ribIn` continues to work
+4. Plugins are opt-in via config
 
 ---
 
 ## References
 
-- Full spec: `plan/plugin-system.md`
-- RFC 4271: BGP-4
-- RFC 8654: Extended Message
+- Current architecture: `pkg/reactor/`
+- API types: `pkg/api/types.go`
+- RIB: `pkg/rib/`
+- Encoding contexts: `pkg/bgp/context/`
