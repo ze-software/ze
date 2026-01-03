@@ -270,9 +270,9 @@ func TestFormatNonUpdateRoutesToDedicatedFormatters(t *testing.T) {
 
 	got := FormatMessage(peer, msg, content)
 
-	// Should use FormatOpen with new format: peer X received open asn Y router-id R hold-time T cap ...
-	if !strings.Contains(got, "peer 10.0.0.1 received open asn 42") {
-		t.Errorf("FormatMessage() for OPEN =\n%q\nshould contain 'peer 10.0.0.1 received open asn 42'", got)
+	// Should use FormatOpen with new format: peer X received open <msg-id> asn Y router-id R hold-time T cap ...
+	if !strings.Contains(got, "peer 10.0.0.1 received open") || !strings.Contains(got, "asn 42") {
+		t.Errorf("FormatMessage() for OPEN =\n%q\nshould contain 'peer 10.0.0.1 received open ... asn 42'", got)
 	}
 	if !strings.Contains(got, "router-id 10.0.0.1") {
 		t.Errorf("FormatMessage() for OPEN =\n%q\nshould contain 'router-id 10.0.0.1'", got)
@@ -578,18 +578,18 @@ func TestFormatOpenWithDirection(t *testing.T) {
 		{
 			name:      "sent",
 			direction: "sent",
-			want:      "peer 10.0.0.1 sent open asn 65001 router-id 1.1.1.1 hold-time 90\n",
+			want:      "peer 10.0.0.1 sent open 42 asn 65001 router-id 1.1.1.1 hold-time 90\n",
 		},
 		{
 			name:      "received",
 			direction: "received",
-			want:      "peer 10.0.0.1 received open asn 65001 router-id 1.1.1.1 hold-time 90\n",
+			want:      "peer 10.0.0.1 received open 42 asn 65001 router-id 1.1.1.1 hold-time 90\n",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := FormatOpen(peer, open, tt.direction)
+			got := FormatOpen(peer, open, tt.direction, 42)
 			if got != tt.want {
 				t.Errorf("FormatOpen() = %q, want %q", got, tt.want)
 			}
@@ -615,18 +615,18 @@ func TestFormatKeepaliveWithDirection(t *testing.T) {
 		{
 			name:      "sent",
 			direction: "sent",
-			want:      "peer 10.0.0.1 sent keepalive\n",
+			want:      "peer 10.0.0.1 sent keepalive 42\n",
 		},
 		{
 			name:      "received",
 			direction: "received",
-			want:      "peer 10.0.0.1 received keepalive\n",
+			want:      "peer 10.0.0.1 received keepalive 42\n",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := FormatKeepalive(peer, tt.direction)
+			got := FormatKeepalive(peer, tt.direction, 42)
 			if got != tt.want {
 				t.Errorf("FormatKeepalive() = %q, want %q", got, tt.want)
 			}
@@ -655,25 +655,25 @@ func TestFormatNotificationWithDirection(t *testing.T) {
 	tests := []struct {
 		name      string
 		direction string
-		wantDir   string
+		want      string
 	}{
 		{
 			name:      "sent",
 			direction: "sent",
-			wantDir:   "peer 10.0.0.1 sent notification",
+			want:      "peer 10.0.0.1 sent notification 42 code 6 subcode 2 code-name Cease subcode-name Administrative-Shutdown data \n",
 		},
 		{
 			name:      "received",
 			direction: "received",
-			wantDir:   "peer 10.0.0.1 received notification",
+			want:      "peer 10.0.0.1 received notification 42 code 6 subcode 2 code-name Cease subcode-name Administrative-Shutdown data \n",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := FormatNotification(peer, notify, tt.direction)
-			if !strings.Contains(got, tt.wantDir) {
-				t.Errorf("FormatNotification() = %q, want to contain %q", got, tt.wantDir)
+			got := FormatNotification(peer, notify, tt.direction, 42)
+			if got != tt.want {
+				t.Errorf("FormatNotification() = %q, want %q", got, tt.want)
 			}
 		})
 	}

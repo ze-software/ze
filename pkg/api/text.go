@@ -67,12 +67,12 @@ func formatNonUpdate(peer PeerInfo, msg RawMessage, content ContentConfig) strin
 		switch msg.Type { //nolint:exhaustive // only specific types have dedicated formatters
 		case message.TypeOPEN:
 			decoded := DecodeOpen(msg.RawBytes)
-			return FormatOpen(peer, decoded, msg.Direction)
+			return FormatOpen(peer, decoded, msg.Direction, msg.MessageID)
 		case message.TypeNOTIFICATION:
 			decoded := DecodeNotification(msg.RawBytes)
-			return FormatNotification(peer, decoded, msg.Direction)
+			return FormatNotification(peer, decoded, msg.Direction, msg.MessageID)
 		case message.TypeKEEPALIVE:
-			return FormatKeepalive(peer, msg.Direction)
+			return FormatKeepalive(peer, msg.Direction, msg.MessageID)
 		}
 	}
 
@@ -468,13 +468,13 @@ func formatAttributeText(sb *strings.Builder, code attribute.AttributeCode, attr
 }
 
 // FormatOpen formats an OPEN message as text output.
-// Format: peer <ip> <direction> open asn <asn> router-id <id> hold-time <t> [cap <name> <value>]...
+// Format: peer <ip> <direction> open <msg-id> asn <asn> router-id <id> hold-time <t> [cap <name> <value>]...
 // ASN is the speaker's ASN (from the OPEN message).
 // Capabilities use "cap <name> <value>" format for easy parsing.
-func FormatOpen(peer PeerInfo, open DecodedOpen, direction string) string {
+func FormatOpen(peer PeerInfo, open DecodedOpen, direction string, msgID uint64) string {
 	var sb strings.Builder
-	sb.WriteString(fmt.Sprintf("peer %s %s open asn %d router-id %s hold-time %d",
-		peer.Address, direction, open.ASN, open.RouterID, open.HoldTime))
+	sb.WriteString(fmt.Sprintf("peer %s %s open %d asn %d router-id %s hold-time %d",
+		peer.Address, direction, msgID, open.ASN, open.RouterID, open.HoldTime))
 
 	for _, cap := range open.Capabilities {
 		sb.WriteString(" cap ")
@@ -485,26 +485,27 @@ func FormatOpen(peer PeerInfo, open DecodedOpen, direction string) string {
 }
 
 // FormatNotification formats a NOTIFICATION message as text output.
-// Format: peer <ip> <direction> notification code <c> subcode <s> data <hex> [name].
-func FormatNotification(peer PeerInfo, notify DecodedNotification, direction string) string {
+// Format: peer <ip> <direction> notification <msg-id> code <n> subcode <n> code-name <name> subcode-name <name> data <hex>.
+// Names are hyphenated for single-word parsing (e.g., "Administrative-Shutdown").
+func FormatNotification(peer PeerInfo, notify DecodedNotification, direction string, msgID uint64) string {
 	dataHex := ""
 	if len(notify.Data) > 0 {
 		dataHex = fmt.Sprintf("%x", notify.Data)
 	}
 
-	base := fmt.Sprintf("peer %s %s notification code %d subcode %d data %s",
-		peer.Address, direction, notify.ErrorCode, notify.ErrorSubcode, dataHex)
+	// Replace spaces with hyphens in names for easier parsing
+	codeName := strings.ReplaceAll(notify.ErrorCodeName, " ", "-")
+	subcodeName := strings.ReplaceAll(notify.ErrorSubcodeName, " ", "-")
 
-	// Add human-readable names
-	names := fmt.Sprintf(" [%s/%s]", notify.ErrorCodeName, notify.ErrorSubcodeName)
-
-	return base + names + "\n"
+	return fmt.Sprintf("peer %s %s notification %d code %d subcode %d code-name %s subcode-name %s data %s\n",
+		peer.Address, direction, msgID, notify.ErrorCode, notify.ErrorSubcode,
+		codeName, subcodeName, dataHex)
 }
 
 // FormatKeepalive formats a KEEPALIVE message as text output.
-// Format: peer <ip> <direction> keepalive.
-func FormatKeepalive(peer PeerInfo, direction string) string {
-	return fmt.Sprintf("peer %s %s keepalive\n", peer.Address, direction)
+// Format: peer <ip> <direction> keepalive <msg-id>.
+func FormatKeepalive(peer PeerInfo, direction string, msgID uint64) string {
+	return fmt.Sprintf("peer %s %s keepalive %d\n", peer.Address, direction, msgID)
 }
 
 // FormatStateChange formats a peer state change event.

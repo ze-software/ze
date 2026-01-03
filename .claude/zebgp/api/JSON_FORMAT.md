@@ -135,7 +135,8 @@ ExaBGP outputs JSON messages to external processes via stdout. ZeBGP uses JSON e
 ```json
 "message": {
   "update": {
-    "update-id": 12345,
+    "direction": "received",
+    "msg-id": 12345,
     "attribute": { ... },
     "announce": {
       "ipv4 unicast": {
@@ -154,15 +155,18 @@ ExaBGP outputs JSON messages to external processes via stdout. ZeBGP uses JSON e
 }
 ```
 
-### Update ID (ZeBGP Extension)
+### Message ID and Direction (ZeBGP Extension)
 
-The `update-id` field is a unique identifier for each received UPDATE message.
-Used for route reflection via the `forward update-id` command.
+The `msg-id` field is a unique identifier assigned to every BGP message (OPEN, UPDATE, KEEPALIVE, NOTIFICATION).
+Used for route reflection via the `forward update-id` command (for UPDATE messages).
 
-- Assigned per-UPDATE (not per-NLRI)
-- Included when API content config enables it
-- Expires after configurable TTL (default 60s)
-- See `plan/spec-route-id-forwarding.md` for implementation details
+- Assigned per-message (all types, not just UPDATE)
+- Included when non-zero
+- UPDATE messages cached for forwarding (expires after configurable TTL, default 60s)
+- See `plan/done/spec-message-direction.md` for implementation details
+
+The `direction` field indicates whether the message was `"sent"` or `"received"`.
+Included for all message types.
 
 ### Announce Section
 
@@ -361,15 +365,41 @@ neighbor 192.0.2.1 update end
 
 **ZeBGP:**
 ```
-peer 192.0.2.1 asn 65001 update 1 announce origin igp as-path 65001 ipv4 unicast next-hop 192.0.2.1 nlri 10.0.0.0/8
+peer 192.0.2.1 received update 1 announce origin igp as-path 65001 ipv4 unicast next-hop 192.0.2.1 nlri 10.0.0.0/8
 ```
 
 Key text differences:
 - `neighbor` → `peer`
-- Includes `asn` and `update-id` for routing decisions
+- Includes direction (`sent`/`received`) and `msg-id` for routing decisions
 - Attributes before NLRI (easier to parse)
 - Family explicitly stated (`ipv4 unicast`)
 - Single line per UPDATE (no start/end)
+
+### Text Format: All Message Types
+
+All messages follow the pattern: `peer <ip> <direction> <type> <msg-id> ...`
+
+**OPEN:**
+```
+peer 10.0.0.1 received open 1 asn 65001 router-id 1.1.1.1 hold-time 90 cap multiprotocol-ipv4-unicast cap 4-byte-asn-65001
+```
+
+**KEEPALIVE:**
+```
+peer 10.0.0.1 sent keepalive 42
+```
+
+**NOTIFICATION:**
+```
+peer 10.0.0.1 sent notification 3 code 6 subcode 2 code-name Cease subcode-name Administrative-Shutdown data
+```
+
+**UPDATE:**
+```
+peer 10.0.0.1 received update 5 announce origin igp as-path 65001 ipv4 unicast next-hop 10.0.0.1 nlri 192.168.0.0/24
+```
+
+Note: NOTIFICATION names are hyphenated for single-word parsing (e.g., "Administrative-Shutdown").
 
 ### JSON Format Comparison
 
@@ -396,13 +426,13 @@ Key text differences:
 
 **ZeBGP:**
 ```json
-{"type":"update","update-id":1,"peer":{"address":"192.0.2.1","asn":65001},"announce":{"origin":"igp","as-path":[65001],"ipv4 unicast":{"192.0.2.1":["10.0.0.0/8"]}}}
+{"type":"update","direction":"received","msg-id":1,"peer":{"address":"192.0.2.1","asn":65001},"announce":{"origin":"igp","as-path":[65001],"ipv4 unicast":{"192.0.2.1":["10.0.0.0/8"]}}}
 ```
 
 Key JSON differences:
 - No envelope (`exabgp`, `time`, `host`, `pid`) - external process can add if needed
 - Flat structure (no `neighbor.message.update` nesting)
-- Includes `update-id` for route reflection
+- Includes `direction` and `msg-id` for route decisions and reflection
 - Prefixes as strings, not objects (`"10.0.0.0/8"` not `{"nlri": "10.0.0.0/8"}`)
 
 ---
@@ -449,4 +479,4 @@ type JSONEncoder struct {
 
 ---
 
-**Last Updated:** 2025-12-19
+**Last Updated:** 2026-01-03

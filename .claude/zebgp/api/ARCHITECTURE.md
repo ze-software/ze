@@ -302,6 +302,8 @@ type ReactorInterface interface {
 ```json
 {
   "type": "update",
+  "direction": "received",
+  "msg-id": 1,
   "peer": {
     "address": "10.0.0.1",
     "asn": 65001
@@ -323,7 +325,7 @@ type ReactorInterface interface {
 ### Text Format
 
 ```
-peer 10.0.0.1 update announce nlri ipv4 unicast 192.168.1.0/24 next-hop 10.0.0.1 origin igp as-path [65001]
+peer 10.0.0.1 received update 1 announce origin igp as-path 65001 ipv4 unicast next-hop 10.0.0.1 nlri 192.168.1.0/24
 ```
 
 ### Withdrawals
@@ -343,7 +345,7 @@ JSON:
 
 Text:
 ```
-peer 10.0.0.1 update withdraw nlri ipv4 unicast 192.168.1.0/24
+peer 10.0.0.1 received update 1 withdraw ipv4 unicast nlri 192.168.1.0/24
 ```
 
 ### Format Options
@@ -420,7 +422,8 @@ Peer B,C ← Send wire bytes directly ← Lookup update by ID
 
 | Concept | Description |
 |---------|-------------|
-| **Update ID** | Unique identifier per UPDATE message (not per-NLRI) |
+| **Message ID** | Unique identifier per message (all types: OPEN, UPDATE, KEEPALIVE, NOTIFICATION) |
+| **Direction** | `"sent"` or `"received"` indicator for all messages |
 | **Time-based cache** | Recent updates cached for fast lookup (TTL configurable) |
 | **Partial parsing** | Only parse attributes needed for API output |
 | **Forward by ID** | API references updates by ID, ZeBGP forwards wire bytes |
@@ -434,12 +437,13 @@ Peer B,C ← Send wire bytes directly ← Lookup update by ID
 4. **Forward command:** `peer !<source-ip> forward update-id <id>`
 5. **Send:** Lookup cached update, use wire bytes (zero-copy if contexts match)
 
-### API Output with Update ID
+### API Output with Message ID and Direction
 
 ```json
 {
   "type": "update",
-  "update-id": 12345,
+  "direction": "received",
+  "msg-id": 12345,
   "peer": { "address": "10.0.0.1" },
   "announce": {
     "nlri": { "ipv4 unicast": ["192.168.1.0/24"] },

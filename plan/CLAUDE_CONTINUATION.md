@@ -35,9 +35,9 @@ make functional - 37 encoding + 14 api + 10 parsing + 18 decoding ✅
 ## Resume Point
 
 **Last worked:** 2026-01-03
-**Last commit:** `7c0e0aa` refactor(api): rename update-id to msg-id, assign to all messages
+**Last commit:** `4a01500` feat(api): add msg-id to all message types (OPEN, NOTIFICATION, KEEPALIVE)
 
-**Status:** Direction + msg-id features complete. All messages now have direction and unique ID.
+**Status:** API output format complete. All messages now have direction, msg-id, and parseable text format.
 
 ---
 
