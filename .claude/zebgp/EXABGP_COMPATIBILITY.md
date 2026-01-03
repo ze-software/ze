@@ -34,7 +34,6 @@ ZeBGP aims for **easy migration from ExaBGP**, not 100% compatibility.
 | Keyword | `neighbor` | `peer` | Migration converts |
 | API output | `community` | `communities` | Plural for consistency |
 | Config syntax | `api { processes [...] }` | `api <name> { }` | Named blocks |
-| Output format | Version 6 default | Version 7 default | Can set `version 6;` |
 
 ## Adding New Differences
 
@@ -51,8 +50,7 @@ When introducing a breaking change:
 
 3. **Provide compatibility option (if practical)**
    - Config flag: `encoding legacy;`
-   - Version flag: `version 6;`
-   - Environment: `zebgp_api_legacy=true`
+   - Environment variable
 
 ## Migration Tool
 

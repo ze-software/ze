@@ -252,7 +252,7 @@
 | `api/command/*.py` | Command handlers | `pkg/api/command/*.go` |
 | `api/dispatch/*.py` | Command dispatch | `pkg/api/dispatch.go` |
 | `api/response/*.py` | Response encoding | `pkg/api/response.go` |
-| `api/response/v4/*.py` | API v4 format | N/A (v6 only) |
+| `api/response/v4/*.py` | Legacy API format | N/A |
 
 ---
 
@@ -390,8 +390,8 @@
 - **ZeBGP:** Explicit pool with handle-based deduplication
 
 ### 3. API Format
-- **ExaBGP:** v4 and v6 JSON formats
-- **ZeBGP:** v6 only (cleaner, RFC-aligned)
+- **ExaBGP:** Multiple JSON format versions
+- **ZeBGP:** Single unified format (RFC-aligned)
 
 ### 4. Configuration
 - **ExaBGP:** Text file parsing with tokenizer
