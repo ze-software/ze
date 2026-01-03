@@ -404,8 +404,8 @@ type ProcessConfig struct {
 	Name           string // Process identifier
 	Run            string // Command to execute
 	Encoder        string // "json" or "text"
-	Respawn        bool   // Respawn on exit (deprecated, use RespawnEnabled)
-	RespawnEnabled bool   // Respawn on exit with limit enforcement
+	Respawn        bool   // ExaBGP compat (prefer RespawnEnabled)
+	RespawnEnabled bool   // Respawn with limit enforcement (5/60s)
 	WorkDir        string // Working directory for process execution
 	ReceiveUpdate  bool   // Forward received UPDATEs to process stdin
 }
@@ -451,4 +451,5 @@ type RawMessage struct {
 	Timestamp time.Time
 	UpdateID  uint64                    // Unique ID for UPDATE messages (for route forwarding)
 	AttrsWire *attribute.AttributesWire // Lazy attribute parsing (nil if not UPDATE or parse failed)
+	Direction string                    // "sent" or "received"
 }
