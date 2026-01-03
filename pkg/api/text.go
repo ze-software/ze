@@ -171,53 +171,49 @@ func formatFilterResultJSON(peer PeerInfo, content ContentConfig, result FilterR
 }
 
 // formatFilterResultJSONV6 formats FilterResult as v6 JSON.
+// Uses AnnouncedByFamily()/WithdrawnByFamily() for RFC 4760-correct next-hop per family.
 func formatFilterResultJSONV6(peer PeerInfo, result FilterResult, origin string, asPath []uint32, localPref, med uint32) string {
 	var sb strings.Builder
 	sb.WriteString(`{"type":"update","peer":{"address":{"peer":"`)
 	sb.WriteString(peer.Address.String())
 	sb.WriteString(`"}}`)
 
-	// Announced routes
-	if len(result.Announced) > 0 {
+	// Announced routes - grouped by family with per-family next-hop
+	announced := result.AnnouncedByFamily()
+	if len(announced) > 0 {
 		sb.WriteString(`,"announce":{`)
-		// Group by family
-		ipv4, ipv6 := groupPrefixesByFamily(result.Announced)
 		first := true
-		if len(ipv4) > 0 {
-			sb.WriteString(`"ipv4 unicast":{`)
-			sb.WriteString(formatPrefixesJSON(ipv4, result.NextHopIPv4, origin, asPath, localPref, med))
-			sb.WriteString(`}`)
-			first = false
-		}
-		if len(ipv6) > 0 {
+		for _, fam := range announced {
 			if !first {
 				sb.WriteString(`,`)
 			}
-			sb.WriteString(`"ipv6 unicast":{`)
-			sb.WriteString(formatPrefixesJSON(ipv6, result.NextHopIPv6, origin, asPath, localPref, med))
+			familyKey := strings.ReplaceAll(fam.Family, "-", " ")
+			sb.WriteString(`"`)
+			sb.WriteString(familyKey)
+			sb.WriteString(`":{`)
+			sb.WriteString(formatPrefixesJSON(fam.Prefixes, fam.NextHop, origin, asPath, localPref, med))
 			sb.WriteString(`}`)
+			first = false
 		}
 		sb.WriteString(`}`)
 	}
 
 	// Withdrawn routes
-	if len(result.Withdrawn) > 0 {
+	withdrawn := result.WithdrawnByFamily()
+	if len(withdrawn) > 0 {
 		sb.WriteString(`,"withdraw":{`)
-		ipv4, ipv6 := groupPrefixesByFamily(result.Withdrawn)
 		first := true
-		if len(ipv4) > 0 {
-			sb.WriteString(`"ipv4 unicast":["`)
-			sb.WriteString(joinPrefixesQuoted(ipv4))
-			sb.WriteString(`"]`)
-			first = false
-		}
-		if len(ipv6) > 0 {
+		for _, fam := range withdrawn {
 			if !first {
 				sb.WriteString(`,`)
 			}
-			sb.WriteString(`"ipv6 unicast":["`)
-			sb.WriteString(joinPrefixesQuoted(ipv6))
+			familyKey := strings.ReplaceAll(fam.Family, "-", " ")
+			sb.WriteString(`"`)
+			sb.WriteString(familyKey)
+			sb.WriteString(`":["`)
+			sb.WriteString(joinPrefixesQuoted(fam.Prefixes))
 			sb.WriteString(`"]`)
+			first = false
 		}
 		sb.WriteString(`}`)
 	}
@@ -227,6 +223,7 @@ func formatFilterResultJSONV6(peer PeerInfo, result FilterResult, origin string,
 }
 
 // formatFilterResultJSONV7 formats FilterResult as v7 JSON.
+// Uses AnnouncedByFamily()/WithdrawnByFamily() for RFC 4760-correct next-hop per family.
 func formatFilterResultJSONV7(peer PeerInfo, result FilterResult, updateID uint64) string {
 	var sb strings.Builder
 	sb.WriteString(`{"type":"update"`)
@@ -242,24 +239,26 @@ func formatFilterResultJSONV7(peer PeerInfo, result FilterResult, updateID uint6
 	sb.WriteString(fmt.Sprintf("%d", peer.PeerAS))
 	sb.WriteString(`}`)
 
-	// Announced routes
-	if len(result.Announced) > 0 {
+	// Announced routes - grouped by family with per-family next-hop
+	announced := result.AnnouncedByFamily()
+	if len(announced) > 0 {
 		sb.WriteString(`,"announce":{`)
 
 		// Attributes first (only what filter requested)
 		needComma := formatAttributesJSONV7(&sb, result)
 
-		// Group prefixes by family, indexed by next-hop
-		ipv4, ipv6 := groupPrefixesByFamily(result.Announced)
-
-		if len(ipv4) > 0 {
+		for _, fam := range announced {
 			if needComma {
 				sb.WriteString(",")
 			}
-			sb.WriteString(`"ipv4 unicast":{"`)
-			sb.WriteString(result.NextHopIPv4.String())
+			// Family name with space for JSON key (e.g., "ipv4 unicast")
+			familyKey := strings.ReplaceAll(fam.Family, "-", " ")
+			sb.WriteString(`"`)
+			sb.WriteString(familyKey)
+			sb.WriteString(`":{"`)
+			sb.WriteString(fam.NextHop.String())
 			sb.WriteString(`":[`)
-			for i, p := range ipv4 {
+			for i, p := range fam.Prefixes {
 				if i > 0 {
 					sb.WriteString(",")
 				}
@@ -271,35 +270,23 @@ func formatFilterResultJSONV7(peer PeerInfo, result FilterResult, updateID uint6
 			needComma = true
 		}
 
-		if len(ipv6) > 0 {
-			if needComma {
-				sb.WriteString(",")
-			}
-			sb.WriteString(`"ipv6 unicast":{"`)
-			sb.WriteString(result.NextHopIPv6.String())
-			sb.WriteString(`":[`)
-			for i, p := range ipv6 {
-				if i > 0 {
-					sb.WriteString(",")
-				}
-				sb.WriteString(`"`)
-				sb.WriteString(p.String())
-				sb.WriteString(`"`)
-			}
-			sb.WriteString("]}")
-		}
-
 		sb.WriteString(`}`)
 	}
 
 	// Withdrawn routes - no attributes, just family -> [prefixes]
-	if len(result.Withdrawn) > 0 {
+	withdrawn := result.WithdrawnByFamily()
+	if len(withdrawn) > 0 {
 		sb.WriteString(`,"withdraw":{`)
-		ipv4, ipv6 := groupPrefixesByFamily(result.Withdrawn)
 		first := true
-		if len(ipv4) > 0 {
-			sb.WriteString(`"ipv4 unicast":[`)
-			for i, p := range ipv4 {
+		for _, fam := range withdrawn {
+			if !first {
+				sb.WriteString(",")
+			}
+			familyKey := strings.ReplaceAll(fam.Family, "-", " ")
+			sb.WriteString(`"`)
+			sb.WriteString(familyKey)
+			sb.WriteString(`":[`)
+			for i, p := range fam.Prefixes {
 				if i > 0 {
 					sb.WriteString(",")
 				}
@@ -309,21 +296,6 @@ func formatFilterResultJSONV7(peer PeerInfo, result FilterResult, updateID uint6
 			}
 			sb.WriteString("]")
 			first = false
-		}
-		if len(ipv6) > 0 {
-			if !first {
-				sb.WriteString(",")
-			}
-			sb.WriteString(`"ipv6 unicast":[`)
-			for i, p := range ipv6 {
-				if i > 0 {
-					sb.WriteString(",")
-				}
-				sb.WriteString(`"`)
-				sb.WriteString(p.String())
-				sb.WriteString(`"`)
-			}
-			sb.WriteString("]")
 		}
 		sb.WriteString(`}`)
 	}
@@ -447,6 +419,7 @@ func formatFilterResultText(peer PeerInfo, content ContentConfig, result FilterR
 }
 
 // formatFilterResultTextV6 formats FilterResult as v6 text.
+// Uses AnnouncedByFamily()/WithdrawnByFamily() for RFC 4760-correct next-hop per family.
 func formatFilterResultTextV6(peer PeerInfo, result FilterResult, origin string, asPath []uint32, localPref, med uint32) string {
 	var sb strings.Builder
 	prefix := fmt.Sprintf("neighbor %s receive update", peer.Address)
@@ -454,23 +427,27 @@ func formatFilterResultTextV6(peer PeerInfo, result FilterResult, origin string,
 	sb.WriteString(prefix)
 	sb.WriteString(" start\n")
 
-	// Announced routes
-	for _, p := range result.Announced {
-		sb.WriteString(prefix)
-		sb.WriteString(" announced ")
-		sb.WriteString(p.String())
-		sb.WriteString(" next-hop ")
-		sb.WriteString(result.NextHopFor(p).String())
-		formatAttributesText(&sb, origin, asPath, localPref, med)
-		sb.WriteString("\n")
+	// Announced routes - each family has its own next-hop
+	for _, fam := range result.AnnouncedByFamily() {
+		for _, p := range fam.Prefixes {
+			sb.WriteString(prefix)
+			sb.WriteString(" announced ")
+			sb.WriteString(p.String())
+			sb.WriteString(" next-hop ")
+			sb.WriteString(fam.NextHop.String())
+			formatAttributesText(&sb, origin, asPath, localPref, med)
+			sb.WriteString("\n")
+		}
 	}
 
 	// Withdrawn routes
-	for _, p := range result.Withdrawn {
-		sb.WriteString(prefix)
-		sb.WriteString(" withdrawn ")
-		sb.WriteString(p.String())
-		sb.WriteString("\n")
+	for _, fam := range result.WithdrawnByFamily() {
+		for _, p := range fam.Prefixes {
+			sb.WriteString(prefix)
+			sb.WriteString(" withdrawn ")
+			sb.WriteString(p.String())
+			sb.WriteString("\n")
+		}
 	}
 
 	sb.WriteString(prefix)
@@ -480,38 +457,31 @@ func formatFilterResultTextV6(peer PeerInfo, result FilterResult, origin string,
 }
 
 // formatFilterResultTextV7 formats FilterResult as v7 text.
+// Uses AnnouncedByFamily()/WithdrawnByFamily() for RFC 4760-correct next-hop per family.
 func formatFilterResultTextV7(peer PeerInfo, result FilterResult, updateID uint64) string {
 	var sb strings.Builder
 
 	// Build prefix: peer <ip> asn <asn> update <id>
 	prefix := fmt.Sprintf("peer %s asn %d update %d", peer.Address, peer.PeerAS, updateID)
 
-	// Announced routes - group by family and next-hop
-	if len(result.Announced) > 0 {
+	// Announced routes - grouped by family with per-family next-hop
+	announced := result.AnnouncedByFamily()
+	if len(announced) > 0 {
 		sb.WriteString(prefix)
 		sb.WriteString(" announce")
 
 		// Attributes first (shared) - only what filter requested
 		formatAttributesTextV7(&sb, result)
 
-		// Group prefixes by family
-		ipv4, ipv6 := groupPrefixesByFamily(result.Announced)
-
-		if len(ipv4) > 0 {
-			sb.WriteString(" ipv4 unicast next-hop ")
-			sb.WriteString(result.NextHopIPv4.String())
+		for _, fam := range announced {
+			// Family name with space (e.g., "ipv4 unicast")
+			familyKey := strings.ReplaceAll(fam.Family, "-", " ")
+			sb.WriteString(" ")
+			sb.WriteString(familyKey)
+			sb.WriteString(" next-hop ")
+			sb.WriteString(fam.NextHop.String())
 			sb.WriteString(" nlri")
-			for _, p := range ipv4 {
-				sb.WriteString(" ")
-				sb.WriteString(p.String())
-			}
-		}
-
-		if len(ipv6) > 0 {
-			sb.WriteString(" ipv6 unicast next-hop ")
-			sb.WriteString(result.NextHopIPv6.String())
-			sb.WriteString(" nlri")
-			for _, p := range ipv6 {
+			for _, p := range fam.Prefixes {
 				sb.WriteString(" ")
 				sb.WriteString(p.String())
 			}
@@ -521,24 +491,17 @@ func formatFilterResultTextV7(peer PeerInfo, result FilterResult, updateID uint6
 	}
 
 	// Withdrawn routes - no attributes
-	if len(result.Withdrawn) > 0 {
+	withdrawn := result.WithdrawnByFamily()
+	if len(withdrawn) > 0 {
 		sb.WriteString(prefix)
 		sb.WriteString(" withdraw")
 
-		// Group prefixes by family
-		ipv4, ipv6 := groupPrefixesByFamily(result.Withdrawn)
-
-		if len(ipv4) > 0 {
-			sb.WriteString(" ipv4 unicast nlri")
-			for _, p := range ipv4 {
-				sb.WriteString(" ")
-				sb.WriteString(p.String())
-			}
-		}
-
-		if len(ipv6) > 0 {
-			sb.WriteString(" ipv6 unicast nlri")
-			for _, p := range ipv6 {
+		for _, fam := range withdrawn {
+			familyKey := strings.ReplaceAll(fam.Family, "-", " ")
+			sb.WriteString(" ")
+			sb.WriteString(familyKey)
+			sb.WriteString(" nlri")
+			for _, p := range fam.Prefixes {
 				sb.WriteString(" ")
 				sb.WriteString(p.String())
 			}
@@ -711,18 +674,6 @@ func formatAttributesText(sb *strings.Builder, origin string, asPath []uint32, l
 		}
 		sb.WriteString("]")
 	}
-}
-
-// groupPrefixesByFamily separates prefixes into IPv4 and IPv6.
-func groupPrefixesByFamily(prefixes []netip.Prefix) (ipv4, ipv6 []netip.Prefix) {
-	for _, p := range prefixes {
-		if p.Addr().Is4() {
-			ipv4 = append(ipv4, p)
-		} else {
-			ipv6 = append(ipv6, p)
-		}
-	}
-	return ipv4, ipv6
 }
 
 // joinPrefixesQuoted joins prefixes as quoted JSON strings.
