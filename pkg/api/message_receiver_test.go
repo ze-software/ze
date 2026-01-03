@@ -2,7 +2,6 @@ package api
 
 import (
 	"net/netip"
-	"strings"
 	"testing"
 	"time"
 
@@ -26,41 +25,6 @@ func TestRawMessageType(t *testing.T) {
 	require.Equal(t, message.TypeUPDATE, msg.Type)
 	require.Equal(t, []byte{0x00, 0x00, 0x00, 0x17}, msg.RawBytes)
 	require.Equal(t, now, msg.Timestamp)
-}
-
-// TestEncodingSwitchingJSON verifies JSON encoding is used when configured.
-//
-// VALIDATES: Process with encoding=json receives JSON-formatted output.
-//
-// PREVENTS: Bug where all processes receive text format regardless of config.
-func TestEncodingSwitchingJSON(t *testing.T) {
-	// Create a formatter that respects encoding config
-	peer := PeerInfo{
-		Address:      netip.MustParseAddr("192.168.1.2"),
-		LocalAddress: netip.MustParseAddr("192.168.1.1"),
-		LocalAS:      65001,
-		PeerAS:       65002,
-		RouterID:     0xC0A80101,
-	}
-
-	routes := []ReceivedRoute{{
-		Prefix:  netip.MustParsePrefix("10.0.0.0/8"),
-		NextHop: netip.MustParseAddr("192.168.1.2"),
-		Origin:  "igp",
-		ASPath:  []uint32{65002},
-	}}
-
-	// Test JSON encoding
-	jsonOutput := FormatReceivedUpdateWithEncoding(peer, routes, "json")
-	require.True(t, strings.HasPrefix(jsonOutput, "{"), "JSON output should start with {")
-	require.Contains(t, jsonOutput, `"type":"update"`)
-	require.Contains(t, jsonOutput, `"10.0.0.0/8"`)
-
-	// Test text encoding
-	textOutput := FormatReceivedUpdateWithEncoding(peer, routes, "text")
-	require.True(t, strings.HasPrefix(textOutput, "neighbor"), "Text output should start with neighbor")
-	require.Contains(t, textOutput, "receive update")
-	require.Contains(t, textOutput, "10.0.0.0/8")
 }
 
 // TestFormatSwitchingParsedRawFull verifies format config controls parsing.
@@ -165,33 +129,6 @@ func TestContentConfigDefaults(t *testing.T) {
 
 	require.Equal(t, "text", cfg.Encoding)
 	require.Equal(t, "parsed", cfg.Format)
-}
-
-// TestReceivedRouteToRouteUpdate verifies conversion between route types.
-//
-// VALIDATES: ReceivedRoute can be converted to RouteUpdate for JSON encoding.
-//
-// PREVENTS: Type mismatch when switching between text and JSON encoders.
-func TestReceivedRouteToRouteUpdate(t *testing.T) {
-	received := ReceivedRoute{
-		Prefix:          netip.MustParsePrefix("10.0.0.0/8"),
-		NextHop:         netip.MustParseAddr("192.168.1.2"),
-		Origin:          "igp",
-		LocalPreference: 100,
-		MED:             50,
-		ASPath:          []uint32{65001, 65002},
-	}
-
-	update := received.ToRouteUpdate()
-
-	require.Equal(t, "10.0.0.0/8", update.Prefix)
-	require.Equal(t, "192.168.1.2", update.NextHop)
-	require.Equal(t, "igp", update.Origin)
-	require.Equal(t, uint32(100), update.LocalPref)
-	require.Equal(t, uint32(50), update.MED)
-	require.Equal(t, []uint32{65001, 65002}, update.ASPath)
-	require.Equal(t, "ipv4", update.AFI)
-	require.Equal(t, "unicast", update.SAFI)
 }
 
 // TestDecodeOpen verifies DecodeOpen parses OPEN message bytes.

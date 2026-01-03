@@ -6,102 +6,9 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/exa-networks/zebgp/pkg/bgp/attribute"
 	"github.com/exa-networks/zebgp/pkg/bgp/message"
 )
-
-// TestFormatReceivedUpdate tests ExaBGP text format for received UPDATE messages.
-//
-// VALIDATES: Received UPDATE messages are formatted correctly for text encoder.
-// Format: "neighbor <ip> receive update announced <prefix> next-hop <nh> <attrs>"
-//
-// PREVENTS: Process scripts not receiving expected UPDATE format, causing check test timeout.
-func TestFormatReceivedUpdate(t *testing.T) {
-	tests := []struct {
-		name       string
-		peerAddr   string
-		prefix     string
-		nextHop    string
-		origin     string
-		localPref  uint32
-		wantOutput string
-	}{
-		{
-			name:      "basic ipv4 announce",
-			peerAddr:  "127.0.0.1",
-			prefix:    "0.0.0.0/32",
-			nextHop:   "127.0.0.1",
-			origin:    "igp",
-			localPref: 100,
-			wantOutput: "neighbor 127.0.0.1 receive update start\n" +
-				"neighbor 127.0.0.1 receive update announced 0.0.0.0/32 next-hop 127.0.0.1 origin igp local-preference 100\n" +
-				"neighbor 127.0.0.1 receive update end\n",
-		},
-		{
-			name:      "different prefix and nexthop",
-			peerAddr:  "192.168.1.1",
-			prefix:    "10.0.0.0/8",
-			nextHop:   "192.168.1.1",
-			origin:    "egp",
-			localPref: 200,
-			wantOutput: "neighbor 192.168.1.1 receive update start\n" +
-				"neighbor 192.168.1.1 receive update announced 10.0.0.0/8 next-hop 192.168.1.1 origin egp local-preference 200\n" +
-				"neighbor 192.168.1.1 receive update end\n",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			peerAddr := netip.MustParseAddr(tt.peerAddr)
-			prefix := netip.MustParsePrefix(tt.prefix)
-			nextHop := netip.MustParseAddr(tt.nextHop)
-
-			route := ReceivedRoute{
-				Prefix:          prefix,
-				NextHop:         nextHop,
-				Origin:          tt.origin,
-				LocalPreference: tt.localPref,
-			}
-
-			got := FormatReceivedUpdate(peerAddr, []ReceivedRoute{route})
-			if got != tt.wantOutput {
-				t.Errorf("FormatReceivedUpdate() =\n%q\nwant:\n%q", got, tt.wantOutput)
-			}
-		})
-	}
-}
-
-// TestFormatReceivedUpdateMultipleRoutes tests formatting multiple routes in one UPDATE.
-//
-// VALIDATES: Multiple routes in one UPDATE are formatted correctly.
-//
-// PREVENTS: Missing routes when UPDATE contains multiple NLRIs.
-func TestFormatReceivedUpdateMultipleRoutes(t *testing.T) {
-	peerAddr := netip.MustParseAddr("127.0.0.1")
-	routes := []ReceivedRoute{
-		{
-			Prefix:          netip.MustParsePrefix("10.0.0.0/24"),
-			NextHop:         netip.MustParseAddr("192.168.1.1"),
-			Origin:          "igp",
-			LocalPreference: 100,
-		},
-		{
-			Prefix:          netip.MustParsePrefix("10.0.1.0/24"),
-			NextHop:         netip.MustParseAddr("192.168.1.1"),
-			Origin:          "igp",
-			LocalPreference: 100,
-		},
-	}
-
-	got := FormatReceivedUpdate(peerAddr, routes)
-	want := "neighbor 127.0.0.1 receive update start\n" +
-		"neighbor 127.0.0.1 receive update announced 10.0.0.0/24 next-hop 192.168.1.1 origin igp local-preference 100\n" +
-		"neighbor 127.0.0.1 receive update announced 10.0.1.0/24 next-hop 192.168.1.1 origin igp local-preference 100\n" +
-		"neighbor 127.0.0.1 receive update end\n"
-
-	if got != want {
-		t.Errorf("FormatReceivedUpdate() =\n%q\nwant:\n%q", got, want)
-	}
-}
 
 // TestFormatStateChange tests state event formatting.
 //
@@ -162,6 +69,8 @@ func TestFormatStateChange(t *testing.T) {
 //
 // PREVENTS: Wrong format sent to v7-expecting processes.
 func TestFormatMessageV7Text(t *testing.T) {
+	ctxID := testEncodingContext()
+
 	peer := PeerInfo{
 		Address: netip.MustParseAddr("10.0.0.1"),
 		PeerAS:  65001,
@@ -176,9 +85,11 @@ func TestFormatMessageV7Text(t *testing.T) {
 		[]uint32{65001, 65002},
 	)
 
+	attrBytes := ExtractAttributeBytes(body)
 	msg := RawMessage{
-		Type:     message.TypeUPDATE,
-		RawBytes: body,
+		Type:      message.TypeUPDATE,
+		RawBytes:  body,
+		AttrsWire: attribute.NewAttributesWire(attrBytes, ctxID),
 	}
 
 	content := ContentConfig{
@@ -216,6 +127,8 @@ func TestFormatMessageV7Text(t *testing.T) {
 //
 // PREVENTS: Wrong JSON structure sent to v7-expecting processes.
 func TestFormatMessageV7JSON(t *testing.T) {
+	ctxID := testEncodingContext()
+
 	peer := PeerInfo{
 		Address: netip.MustParseAddr("10.0.0.1"),
 		PeerAS:  65001,
@@ -228,9 +141,11 @@ func TestFormatMessageV7JSON(t *testing.T) {
 		0, 0, nil,
 	)
 
+	attrBytes := ExtractAttributeBytes(body)
 	msg := RawMessage{
-		Type:     message.TypeUPDATE,
-		RawBytes: body,
+		Type:      message.TypeUPDATE,
+		RawBytes:  body,
+		AttrsWire: attribute.NewAttributesWire(attrBytes, ctxID),
 	}
 
 	content := ContentConfig{
@@ -265,6 +180,8 @@ func TestFormatMessageV7JSON(t *testing.T) {
 //
 // PREVENTS: Version being ignored.
 func TestFormatMessageV6VsV7(t *testing.T) {
+	ctxID := testEncodingContext()
+
 	peer := PeerInfo{
 		Address: netip.MustParseAddr("10.0.0.1"),
 		PeerAS:  65001,
@@ -277,9 +194,11 @@ func TestFormatMessageV6VsV7(t *testing.T) {
 		0, 100, nil,
 	)
 
+	attrBytes := ExtractAttributeBytes(body)
 	msg := RawMessage{
-		Type:     message.TypeUPDATE,
-		RawBytes: body,
+		Type:      message.TypeUPDATE,
+		RawBytes:  body,
+		AttrsWire: attribute.NewAttributesWire(attrBytes, ctxID),
 	}
 
 	v6Content := ContentConfig{
@@ -376,6 +295,354 @@ func buildTestUpdateBodyWithAttrs(prefix netip.Prefix, nextHop netip.Addr, origi
 		binary.BigEndian.PutUint32(b, localPref)
 		attrs = append(attrs, 0x40, 0x05, 0x04)
 		attrs = append(attrs, b...)
+	}
+
+	// NLRI (IPv4)
+	var nlri []byte
+	if prefix.Addr().Is4() {
+		bits := prefix.Bits()
+		nlri = append(nlri, byte(bits))
+		prefixBytes := (bits + 7) / 8
+		addr := prefix.Addr().As4()
+		nlri = append(nlri, addr[:prefixBytes]...)
+	}
+
+	// Build body
+	body := make([]byte, 4+len(attrs)+len(nlri))
+	binary.BigEndian.PutUint16(body[0:2], 0)                  // withdrawn len
+	binary.BigEndian.PutUint16(body[2:4], uint16(len(attrs))) //nolint:gosec // test data
+	copy(body[4:], attrs)
+	copy(body[4+len(attrs):], nlri)
+
+	return body
+}
+
+// TestFormatNonUpdateRoutesToDedicatedFormatters tests that non-UPDATE messages
+// are formatted using dedicated formatters, not just raw hex output.
+//
+// VALIDATES: OPEN messages are formatted via FormatOpen.
+// PREVENTS: API processes receiving raw hex instead of parsed content.
+func TestFormatNonUpdateRoutesToDedicatedFormatters(t *testing.T) {
+	peer := PeerInfo{
+		Address: netip.MustParseAddr("10.0.0.1"),
+		PeerAS:  65001,
+	}
+
+	// Build OPEN message body: version(1) + AS(2) + hold(2) + router-id(4) + opt-len(1)
+	openBody := []byte{
+		4,     // version
+		0, 42, // AS 42
+		0, 180, // hold time 180
+		10, 0, 0, 1, // router-id 10.0.0.1
+		0, // opt params len
+	}
+
+	msg := RawMessage{
+		Type:     message.TypeOPEN,
+		RawBytes: openBody,
+	}
+
+	content := ContentConfig{
+		Encoding: EncodingText,
+		Format:   FormatParsed,
+		Version:  APIVersionNLRI,
+	}
+
+	got := FormatMessage(peer, msg, content)
+
+	// Should use FormatOpen, not raw hex
+	if !strings.Contains(got, "receive open") {
+		t.Errorf("FormatMessage() for OPEN =\n%q\nshould contain 'receive open'", got)
+	}
+	if !strings.Contains(got, "version 4") {
+		t.Errorf("FormatMessage() for OPEN =\n%q\nshould contain 'version 4'", got)
+	}
+	if !strings.Contains(got, "asn 42") {
+		t.Errorf("FormatMessage() for OPEN =\n%q\nshould contain 'asn 42'", got)
+	}
+}
+
+// TestFormatNonUpdateKeepalive tests that KEEPALIVE messages are formatted properly.
+//
+// VALIDATES: KEEPALIVE produces expected format.
+// PREVENTS: KEEPALIVE being shown as raw hex.
+func TestFormatNonUpdateKeepalive(t *testing.T) {
+	peer := PeerInfo{
+		Address: netip.MustParseAddr("10.0.0.1"),
+		PeerAS:  65001,
+	}
+
+	msg := RawMessage{
+		Type:     message.TypeKEEPALIVE,
+		RawBytes: []byte{}, // KEEPALIVE has no body
+	}
+
+	content := ContentConfig{
+		Encoding: EncodingText,
+		Format:   FormatParsed,
+		Version:  APIVersionNLRI,
+	}
+
+	got := FormatMessage(peer, msg, content)
+
+	if !strings.Contains(got, "receive keepalive") {
+		t.Errorf("FormatMessage() for KEEPALIVE =\n%q\nshould contain 'receive keepalive'", got)
+	}
+}
+
+// TestFilterResultZeroValues tests that LOCAL_PREF=0 and MED=0 are included.
+//
+// VALIDATES: Zero values for LOCAL_PREF and MED are valid and should be output.
+// PREVENTS: RFC-valid zero values being filtered out.
+func TestFilterResultZeroValues(t *testing.T) {
+	ctxID := testEncodingContext()
+
+	// Build UPDATE with LOCAL_PREF=0 and MED=0
+	body := buildTestUpdateBodyWithMEDAndLocalPref(
+		netip.MustParsePrefix("192.168.1.0/24"),
+		netip.MustParseAddr("10.0.0.1"),
+		0, // origin igp
+		0, // LOCAL_PREF = 0 (valid)
+		0, // MED = 0 (valid)
+	)
+
+	// Create AttrsWire and apply filter
+	attrBytes := ExtractAttributeBytes(body)
+	if attrBytes == nil {
+		t.Fatal("Failed to extract attribute bytes")
+	}
+	wire := attribute.NewAttributesWire(attrBytes, ctxID)
+
+	filter := NewFilterAll()
+	nlriFilter := NewNLRIFilterAll()
+	result, err := filter.ApplyToUpdate(wire, body, nlriFilter)
+	if err != nil {
+		t.Fatalf("ApplyToUpdate failed: %v", err)
+	}
+
+	// Check LOCAL_PREF is present (even at 0)
+	if _, ok := result.Attributes[attribute.AttrLocalPref]; !ok {
+		t.Error("LOCAL_PREF=0 should be in attributes, but is missing")
+	}
+
+	// Check MED is present (even at 0)
+	if _, ok := result.Attributes[attribute.AttrMED]; !ok {
+		t.Error("MED=0 should be in attributes, but is missing")
+	}
+}
+
+// TestFilterResultBothNextHops tests extraction of both IPv4 and IPv6 next-hops.
+//
+// VALIDATES: When UPDATE has both IPv4 NLRI and IPv6 MP_REACH_NLRI, both next-hops extracted.
+// PREVENTS: Wrong next-hop used for IPv6 prefixes.
+func TestFilterResultBothNextHops(t *testing.T) {
+	ctxID := testEncodingContext()
+
+	// Build UPDATE with both IPv4 and IPv6 NLRI
+	// IPv4 NEXT_HOP: 10.0.0.1
+	// IPv6 MP_REACH next-hop: 2001:db8::1
+	body := buildTestUpdateBodyWithBothFamilies(
+		netip.MustParsePrefix("192.168.1.0/24"),
+		netip.MustParseAddr("10.0.0.1"),
+		netip.MustParsePrefix("2001:db8::/32"),
+		netip.MustParseAddr("2001:db8::1"),
+	)
+
+	// Create AttrsWire and apply filter
+	attrBytes := ExtractAttributeBytes(body)
+	if attrBytes == nil {
+		t.Fatal("Failed to extract attribute bytes")
+	}
+	wire := attribute.NewAttributesWire(attrBytes, ctxID)
+
+	filter := NewFilterAll()
+	nlriFilter := NewNLRIFilterAll()
+	result, err := filter.ApplyToUpdate(wire, body, nlriFilter)
+	if err != nil {
+		t.Fatalf("ApplyToUpdate failed: %v", err)
+	}
+
+	if !result.NextHopIPv4.Is4() {
+		t.Errorf("NextHopIPv4 should be 10.0.0.1, got %v", result.NextHopIPv4)
+	}
+	if result.NextHopIPv4.String() != "10.0.0.1" {
+		t.Errorf("NextHopIPv4 = %v, want 10.0.0.1", result.NextHopIPv4)
+	}
+
+	if !result.NextHopIPv6.Is6() {
+		t.Errorf("NextHopIPv6 should be 2001:db8::1, got %v", result.NextHopIPv6)
+	}
+	if result.NextHopIPv6.String() != "2001:db8::1" {
+		t.Errorf("NextHopIPv6 = %v, want 2001:db8::1", result.NextHopIPv6)
+	}
+}
+
+// TestFilterResultCommunities tests that communities are parsed via AttrsWire.
+//
+// VALIDATES: COMMUNITY attribute is included in FilterResult.
+// PREVENTS: Communities missing from API output.
+func TestFilterResultCommunities(t *testing.T) {
+	ctxID := testEncodingContext()
+
+	// Build UPDATE with COMMUNITY attribute
+	body := buildTestUpdateBodyWithCommunities(
+		netip.MustParsePrefix("192.168.1.0/24"),
+		netip.MustParseAddr("10.0.0.1"),
+		[]uint32{0xFDE80064}, // 65000:100
+	)
+
+	// Create AttrsWire and apply filter
+	attrBytes := ExtractAttributeBytes(body)
+	if attrBytes == nil {
+		t.Fatal("Failed to extract attribute bytes")
+	}
+	wire := attribute.NewAttributesWire(attrBytes, ctxID)
+
+	filter := NewFilterAll()
+	nlriFilter := NewNLRIFilterAll()
+	result, err := filter.ApplyToUpdate(wire, body, nlriFilter)
+	if err != nil {
+		t.Fatalf("ApplyToUpdate failed: %v", err)
+	}
+
+	if _, ok := result.Attributes[attribute.AttrCommunity]; !ok {
+		t.Error("COMMUNITY should be in attributes, but is missing")
+	}
+}
+
+// buildTestUpdateBodyWithMEDAndLocalPref builds UPDATE body with explicit MED and LOCAL_PREF.
+// Always includes both attributes even when 0.
+func buildTestUpdateBodyWithMEDAndLocalPref(prefix netip.Prefix, nextHop netip.Addr, origin uint8, localPref, med uint32) []byte {
+	var attrs []byte
+
+	// ORIGIN
+	attrs = append(attrs, 0x40, 0x01, 0x01, origin)
+
+	// AS_PATH (empty)
+	attrs = append(attrs, 0x40, 0x02, 0x00)
+
+	// NEXT_HOP (IPv4)
+	if nextHop.Is4() {
+		b := nextHop.As4()
+		attrs = append(attrs, 0x40, 0x03, 0x04)
+		attrs = append(attrs, b[:]...)
+	}
+
+	// MED (always include)
+	medBytes := make([]byte, 4)
+	binary.BigEndian.PutUint32(medBytes, med)
+	attrs = append(attrs, 0x80, 0x04, 0x04) // optional, transitive
+	attrs = append(attrs, medBytes...)
+
+	// LOCAL_PREF (always include)
+	lpBytes := make([]byte, 4)
+	binary.BigEndian.PutUint32(lpBytes, localPref)
+	attrs = append(attrs, 0x40, 0x05, 0x04)
+	attrs = append(attrs, lpBytes...)
+
+	// NLRI (IPv4)
+	var nlri []byte
+	if prefix.Addr().Is4() {
+		bits := prefix.Bits()
+		nlri = append(nlri, byte(bits))
+		prefixBytes := (bits + 7) / 8
+		addr := prefix.Addr().As4()
+		nlri = append(nlri, addr[:prefixBytes]...)
+	}
+
+	// Build body
+	body := make([]byte, 4+len(attrs)+len(nlri))
+	binary.BigEndian.PutUint16(body[0:2], 0)                  // withdrawn len
+	binary.BigEndian.PutUint16(body[2:4], uint16(len(attrs))) //nolint:gosec // test data
+	copy(body[4:], attrs)
+	copy(body[4+len(attrs):], nlri)
+
+	return body
+}
+
+// buildTestUpdateBodyWithBothFamilies builds UPDATE with both IPv4 NLRI and IPv6 MP_REACH_NLRI.
+func buildTestUpdateBodyWithBothFamilies(ipv4Prefix netip.Prefix, ipv4NextHop netip.Addr, ipv6Prefix netip.Prefix, ipv6NextHop netip.Addr) []byte {
+	var attrs []byte
+
+	// ORIGIN
+	attrs = append(attrs, 0x40, 0x01, 0x01, 0x00) // igp
+
+	// AS_PATH (empty)
+	attrs = append(attrs, 0x40, 0x02, 0x00)
+
+	// NEXT_HOP for IPv4
+	if ipv4NextHop.Is4() {
+		b := ipv4NextHop.As4()
+		attrs = append(attrs, 0x40, 0x03, 0x04)
+		attrs = append(attrs, b[:]...)
+	}
+
+	// MP_REACH_NLRI for IPv6
+	// AFI=2 (IPv6), SAFI=1 (unicast), NH len=16, next-hop, reserved=0, NLRI
+	mpReach := []byte{
+		0x00, 0x02, // AFI IPv6
+		0x01, // SAFI unicast
+		0x10, // NH len = 16
+	}
+	nhBytes := ipv6NextHop.As16()
+	mpReach = append(mpReach, nhBytes[:]...)
+	mpReach = append(mpReach, 0x00) // reserved
+
+	// IPv6 NLRI
+	bits := ipv6Prefix.Bits()
+	mpReach = append(mpReach, byte(bits))
+	prefixBytes := (bits + 7) / 8
+	addr := ipv6Prefix.Addr().As16()
+	mpReach = append(mpReach, addr[:prefixBytes]...)
+
+	// MP_REACH_NLRI attribute (optional, transitive)
+	attrs = append(attrs, 0x90, 0x0e) // flags=0x90, type=14
+	attrs = append(attrs, byte(len(mpReach)>>8), byte(len(mpReach)))
+	attrs = append(attrs, mpReach...)
+
+	// IPv4 NLRI
+	var nlri []byte
+	bits = ipv4Prefix.Bits()
+	nlri = append(nlri, byte(bits))
+	prefixBytes = (bits + 7) / 8
+	addr4 := ipv4Prefix.Addr().As4()
+	nlri = append(nlri, addr4[:prefixBytes]...)
+
+	// Build body
+	body := make([]byte, 4+len(attrs)+len(nlri))
+	binary.BigEndian.PutUint16(body[0:2], 0)                  // withdrawn len
+	binary.BigEndian.PutUint16(body[2:4], uint16(len(attrs))) //nolint:gosec // test data
+	copy(body[4:], attrs)
+	copy(body[4+len(attrs):], nlri)
+
+	return body
+}
+
+// buildTestUpdateBodyWithCommunities builds UPDATE with COMMUNITY attribute.
+func buildTestUpdateBodyWithCommunities(prefix netip.Prefix, nextHop netip.Addr, communities []uint32) []byte {
+	var attrs []byte
+
+	// ORIGIN
+	attrs = append(attrs, 0x40, 0x01, 0x01, 0x00) // igp
+
+	// AS_PATH (empty)
+	attrs = append(attrs, 0x40, 0x02, 0x00)
+
+	// NEXT_HOP (IPv4)
+	if nextHop.Is4() {
+		b := nextHop.As4()
+		attrs = append(attrs, 0x40, 0x03, 0x04)
+		attrs = append(attrs, b[:]...)
+	}
+
+	// COMMUNITY (type 8)
+	if len(communities) > 0 {
+		commData := make([]byte, len(communities)*4)
+		for i, c := range communities {
+			binary.BigEndian.PutUint32(commData[i*4:], c)
+		}
+		attrs = append(attrs, 0xc0, 0x08, byte(len(commData))) // optional, transitive
+		attrs = append(attrs, commData...)
 	}
 
 	// NLRI (IPv4)

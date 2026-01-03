@@ -6,12 +6,14 @@
 - `make functional` - Run functional tests (37 tests)
 
 ## Workflow
+0. **DESIGN FIRST** - Search for existing code. Extend, don't duplicate. Think deeply.
 1. For BGP code: read RFC from `rfc/` folder first
 2. Write test, see it FAIL, implement, see it PASS (TDD)
 3. Run `make test && make lint && make functional` before claiming done
 4. Only commit when explicitly requested
 
 ## Key Rules
+- **Design before code** - Search codebase first. Reuse/extend existing code. Think deeply before implementing.
 - **TDD MANDATORY** - Test must exist and fail before implementation
 - **RFC compliance** - BGP code must follow RFCs, add `// RFC NNNN` comments
 - **Verify before claiming** - Paste command output as proof

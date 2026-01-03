@@ -15,138 +15,6 @@ const (
 	EncodingText = "text"
 )
 
-// originLower returns the lowercase origin string for ExaBGP compatibility.
-// ExaBGP uses lowercase: "igp", "egp", "incomplete".
-func originLower(origin string) string {
-	return strings.ToLower(origin)
-}
-
-// ReceivedRoute represents a route received from a BGP peer.
-// Used for formatting received UPDATE messages to API processes.
-type ReceivedRoute struct {
-	Prefix          netip.Prefix
-	NextHop         netip.Addr
-	Origin          string // "igp", "egp", "incomplete"
-	LocalPreference uint32
-	MED             uint32
-	ASPath          []uint32
-}
-
-// FormatReceivedUpdate formats received routes as ExaBGP text encoder output.
-// Format matches ExaBGP's text.py update() method:
-//
-//	neighbor <ip> receive update start
-//	neighbor <ip> receive update announced <prefix> next-hop <nh> <attrs>
-//	neighbor <ip> receive update end
-func FormatReceivedUpdate(peerAddr netip.Addr, routes []ReceivedRoute) string {
-	var sb strings.Builder
-	prefix := fmt.Sprintf("neighbor %s receive update", peerAddr)
-
-	sb.WriteString(prefix)
-	sb.WriteString(" start\n")
-
-	for _, route := range routes {
-		sb.WriteString(prefix)
-		sb.WriteString(" announced ")
-		sb.WriteString(route.Prefix.String())
-		sb.WriteString(" next-hop ")
-		sb.WriteString(route.NextHop.String())
-
-		// Format attributes (lowercase origin for ExaBGP compatibility)
-		if route.Origin != "" {
-			sb.WriteString(" origin ")
-			sb.WriteString(originLower(route.Origin))
-		}
-		if route.LocalPreference > 0 {
-			sb.WriteString(fmt.Sprintf(" local-preference %d", route.LocalPreference))
-		}
-		if route.MED > 0 {
-			sb.WriteString(fmt.Sprintf(" med %d", route.MED))
-		}
-		if len(route.ASPath) > 0 {
-			sb.WriteString(" as-path [")
-			for i, asn := range route.ASPath {
-				if i > 0 {
-					sb.WriteString(" ")
-				}
-				sb.WriteString(fmt.Sprintf("%d", asn))
-			}
-			sb.WriteString("]")
-		}
-
-		sb.WriteString("\n")
-	}
-
-	sb.WriteString(prefix)
-	sb.WriteString(" end\n")
-
-	return sb.String()
-}
-
-// FormatReceivedWithdraw formats withdrawn routes as ExaBGP text encoder output.
-// Format:
-//
-//	neighbor <ip> receive update start
-//	neighbor <ip> receive update withdrawn <prefix>
-//	neighbor <ip> receive update end
-func FormatReceivedWithdraw(peerAddr netip.Addr, prefixes []netip.Prefix) string {
-	var sb strings.Builder
-	prefix := fmt.Sprintf("neighbor %s receive update", peerAddr)
-
-	sb.WriteString(prefix)
-	sb.WriteString(" start\n")
-
-	for _, p := range prefixes {
-		sb.WriteString(prefix)
-		sb.WriteString(" withdrawn ")
-		sb.WriteString(p.String())
-		sb.WriteString("\n")
-	}
-
-	sb.WriteString(prefix)
-	sb.WriteString(" end\n")
-
-	return sb.String()
-}
-
-// ToRouteUpdate converts a ReceivedRoute to a RouteUpdate for JSON encoding.
-func (r ReceivedRoute) ToRouteUpdate() RouteUpdate {
-	afi := AFINameIPv4
-	if r.Prefix.Addr().Is6() {
-		afi = AFINameIPv6
-	}
-	return RouteUpdate{
-		Prefix:    r.Prefix.String(),
-		NextHop:   r.NextHop.String(),
-		AFI:       afi,
-		SAFI:      SAFINameUnicast,
-		Origin:    r.Origin,
-		ASPath:    r.ASPath,
-		LocalPref: r.LocalPreference,
-		MED:       r.MED,
-	}
-}
-
-// FormatReceivedUpdateWithEncoding formats received routes using the specified encoding.
-// encoding: "json" or "text" (default).
-//
-// NOTE: For JSON encoding, this creates a new encoder per call (counter resets).
-// Production code should use Server.encoder directly for proper counter tracking.
-// This function is primarily for testing encoder output format.
-func FormatReceivedUpdateWithEncoding(peer PeerInfo, routes []ReceivedRoute, encoding string) string {
-	if encoding == EncodingJSON {
-		// Convert to RouteUpdate for JSON encoder
-		updates := make([]RouteUpdate, len(routes))
-		for i, r := range routes {
-			updates[i] = r.ToRouteUpdate()
-		}
-		encoder := NewJSONEncoder("6.0.0")
-		return encoder.RouteAnnounce(peer, updates)
-	}
-	// Default to text
-	return FormatReceivedUpdate(peer.Address, routes)
-}
-
 // FormatMessage formats a RawMessage based on ContentConfig.
 // Uses lazy parsing via AttrsWire when available for optimal performance.
 // Handles encoding (json/text), format (parsed/raw/full), version (6/7), and attribute filtering.
@@ -169,19 +37,11 @@ func FormatMessage(peer PeerInfo, msg RawMessage, content ContentConfig) string 
 
 	// For UPDATE messages, build FilterResult and use unified formatter
 	if msg.Type == message.TypeUPDATE {
-		var result FilterResult
-
-		if msg.AttrsWire != nil {
-			// Lazy parsing path: use AttrsWire for efficient attribute access
-			var err error
-			result, err = filter.ApplyToUpdate(msg.AttrsWire, msg.RawBytes, *nlriFilter)
-			if err != nil {
-				// On error, return empty update
-				return formatEmptyUpdate(peer, content)
-			}
-		} else {
-			// Fallback: build FilterResult from DecodeUpdate
-			result = buildFilterResultFromDecode(msg.RawBytes, filter, *nlriFilter)
+		// AttrsWire required for attribute parsing (needs valid context ID)
+		// If nil, we can only extract NLRI from body structure
+		result, err := filter.ApplyToUpdate(msg.AttrsWire, msg.RawBytes, *nlriFilter)
+		if err != nil {
+			return formatEmptyUpdate(peer, content)
 		}
 
 		return formatFromFilterResult(peer, msg, content, result)
@@ -189,83 +49,6 @@ func FormatMessage(peer PeerInfo, msg RawMessage, content ContentConfig) string 
 
 	// Non-UPDATE messages: format as raw
 	return formatNonUpdate(peer, msg, content)
-}
-
-// buildFilterResultFromDecode creates a FilterResult by fully parsing the UPDATE.
-// Used as fallback when AttrsWire is not available.
-func buildFilterResultFromDecode(body []byte, filter *AttributeFilter, nlriFilter NLRIFilter) FilterResult {
-	decoded := DecodeUpdate(body)
-
-	result := FilterResult{}
-
-	// Only include withdrawn if NLRI filter allows (currently only ipv4 unicast in decode)
-	if nlriFilter.IncludesFamily("ipv4 unicast") {
-		result.Withdrawn = decoded.Withdrawn // Already []netip.Prefix
-	}
-
-	// Convert announced routes to prefixes and extract next-hops
-	if len(decoded.Announced) > 0 && nlriFilter.IncludesFamily("ipv4 unicast") {
-		result.Announced = make([]netip.Prefix, len(decoded.Announced))
-		for i, r := range decoded.Announced {
-			result.Announced[i] = r.Prefix
-		}
-
-		// Use first route for next-hop and attributes
-		route := decoded.Announced[0]
-		if route.NextHop.Is4() {
-			result.NextHopIPv4 = route.NextHop
-		} else if route.NextHop.Is6() {
-			result.NextHopIPv6 = route.NextHop
-		}
-
-		// Build attributes map from decoded route (if filter allows)
-		if !filter.IsEmpty() {
-			result.Attributes = make(map[attribute.AttributeCode]attribute.Attribute)
-
-			if filter.Mode == FilterModeAll || filter.Includes(attribute.AttrOrigin) {
-				if route.Origin != "" {
-					origin := attribute.Origin(originToCode(route.Origin))
-					result.Attributes[attribute.AttrOrigin] = origin
-				}
-			}
-			if filter.Mode == FilterModeAll || filter.Includes(attribute.AttrLocalPref) {
-				if route.LocalPreference > 0 {
-					lp := attribute.LocalPref(route.LocalPreference)
-					result.Attributes[attribute.AttrLocalPref] = lp
-				}
-			}
-			if filter.Mode == FilterModeAll || filter.Includes(attribute.AttrMED) {
-				if route.MED > 0 {
-					med := attribute.MED(route.MED)
-					result.Attributes[attribute.AttrMED] = med
-				}
-			}
-			if filter.Mode == FilterModeAll || filter.Includes(attribute.AttrASPath) {
-				if len(route.ASPath) > 0 {
-					result.Attributes[attribute.AttrASPath] = &attribute.ASPath{
-						Segments: []attribute.ASPathSegment{{
-							Type: attribute.ASSequence,
-							ASNs: route.ASPath,
-						}},
-					}
-				}
-			}
-		}
-	}
-
-	return result
-}
-
-// originToCode converts origin string to attribute code.
-func originToCode(origin string) uint8 {
-	switch strings.ToLower(origin) {
-	case "igp":
-		return 0
-	case "egp":
-		return 1
-	default:
-		return 2 // incomplete
-	}
 }
 
 // formatEmptyUpdate formats an empty UPDATE message.
@@ -284,7 +67,23 @@ func formatEmptyUpdate(peer PeerInfo, content ContentConfig) string {
 }
 
 // formatNonUpdate formats non-UPDATE messages (OPEN, NOTIFICATION, KEEPALIVE).
+// Routes to dedicated formatters for parsed output, falls back to raw for unknown types.
 func formatNonUpdate(peer PeerInfo, msg RawMessage, content ContentConfig) string {
+	// For parsed format, use dedicated formatters
+	if content.Format != FormatRaw {
+		switch msg.Type { //nolint:exhaustive // only specific types have dedicated formatters
+		case message.TypeOPEN:
+			decoded := DecodeOpen(msg.RawBytes)
+			return FormatOpen(peer.Address, decoded)
+		case message.TypeNOTIFICATION:
+			decoded := DecodeNotification(msg.RawBytes)
+			return FormatNotification(peer.Address, decoded)
+		case message.TypeKEEPALIVE:
+			return FormatKeepalive(peer.Address)
+		}
+	}
+
+	// Raw format or unknown type
 	rawHex := fmt.Sprintf("%x", msg.RawBytes)
 
 	if content.Encoding == EncodingJSON {
