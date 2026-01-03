@@ -35,9 +35,9 @@ make functional - 37 encoding + 14 api + 10 parsing + 18 decoding ✅
 ## Resume Point
 
 **Last worked:** 2026-01-03
-**Last commit:** (pending) feat(api): add direction to all BGP message output
+**Last commit:** `7c0e0aa` refactor(api): rename update-id to msg-id, assign to all messages
 
-**Status:** Direction feature complete. All API output now includes "sent" or "received" direction.
+**Status:** Direction + msg-id features complete. All messages now have direction and unique ID.
 
 ---
 

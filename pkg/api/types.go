@@ -449,7 +449,7 @@ type RawMessage struct {
 	Type      message.MessageType // UPDATE, OPEN, NOTIFICATION, etc.
 	RawBytes  []byte              // Original wire bytes (without marker/header)
 	Timestamp time.Time
-	UpdateID  uint64                    // Unique ID for UPDATE messages (for route forwarding)
+	MessageID uint64                    // Unique ID for all message types
 	AttrsWire *attribute.AttributesWire // Lazy attribute parsing (nil if not UPDATE or parse failed)
 	Direction string                    // "sent" or "received"
 }

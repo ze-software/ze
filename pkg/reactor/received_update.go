@@ -12,13 +12,13 @@ import (
 	"github.com/exa-networks/zebgp/pkg/rib"
 )
 
-// updateIDCounter generates unique UPDATE IDs.
+// msgIDCounter generates unique message IDs.
 // Atomic for concurrent access from multiple peer goroutines.
-var updateIDCounter atomic.Uint64
+var msgIDCounter atomic.Uint64
 
-// nextUpdateID returns the next unique UPDATE ID.
-func nextUpdateID() uint64 {
-	return updateIDCounter.Add(1)
+// nextMsgID returns the next unique message ID.
+func nextMsgID() uint64 {
+	return msgIDCounter.Add(1)
 }
 
 // ReceivedUpdate represents an immutable snapshot of a received UPDATE.

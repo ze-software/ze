@@ -88,17 +88,17 @@ func TestReceivedUpdateWithdrawOnly(t *testing.T) {
 	}
 }
 
-// TestUpdateIDAssignment verifies unique ID generation.
+// TestMsgIDAssignment verifies unique ID generation.
 //
-// VALIDATES: Each UPDATE gets unique ID.
+// VALIDATES: Each message gets unique ID.
 // PREVENTS: ID collisions causing wrong forwarding.
-func TestUpdateIDAssignment(t *testing.T) {
+func TestMsgIDAssignment(t *testing.T) {
 	// Reset counter for test
-	updateIDCounter.Store(0)
+	msgIDCounter.Store(0)
 
 	ids := make(map[uint64]bool)
 	for i := 0; i < 1000; i++ {
-		id := nextUpdateID()
+		id := nextMsgID()
 		if ids[id] {
 			t.Fatalf("duplicate ID %d at iteration %d", id, i)
 		}
@@ -110,16 +110,16 @@ func TestUpdateIDAssignment(t *testing.T) {
 	}
 }
 
-// TestUpdateIDMonotonic verifies IDs are monotonically increasing.
+// TestMsgIDMonotonic verifies IDs are monotonically increasing.
 //
 // VALIDATES: IDs increase sequentially.
 // PREVENTS: Out-of-order IDs confusing API consumers.
-func TestUpdateIDMonotonic(t *testing.T) {
-	updateIDCounter.Store(0)
+func TestMsgIDMonotonic(t *testing.T) {
+	msgIDCounter.Store(0)
 
 	var prev uint64
 	for i := 0; i < 100; i++ {
-		id := nextUpdateID()
+		id := nextMsgID()
 		if id <= prev {
 			t.Fatalf("ID %d not greater than previous %d", id, prev)
 		}

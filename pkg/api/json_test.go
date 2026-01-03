@@ -313,11 +313,11 @@ func TestJSONEncoderIPv6(t *testing.T) {
 	assert.True(t, strings.Contains(peerAddr, "2001:db8"))
 }
 
-// TestAPIOutputIncludesUpdateID verifies API JSON has update-id field.
+// TestAPIOutputIncludesMsgID verifies API JSON has msg-id field.
 //
-// VALIDATES: API output contains update-id for received UPDATEs.
+// VALIDATES: API output contains msg-id for received UPDATEs.
 // PREVENTS: Controller can't reference updates for forwarding.
-func TestAPIOutputIncludesUpdateID(t *testing.T) {
+func TestAPIOutputIncludesMsgID(t *testing.T) {
 	peer := PeerInfo{
 		Address:      netip.MustParseAddr("10.0.0.1"),
 		LocalAddress: netip.MustParseAddr("10.0.0.2"),
@@ -325,7 +325,7 @@ func TestAPIOutputIncludesUpdateID(t *testing.T) {
 		PeerAS:       65002,
 	}
 
-	// UPDATE with update-id
+	// UPDATE with msg-id
 	msg := RawMessage{
 		Type: message.TypeUPDATE,
 		RawBytes: []byte{
@@ -334,7 +334,7 @@ func TestAPIOutputIncludesUpdateID(t *testing.T) {
 			0x00, 0x00, // attrs length
 			0x18, 0x0a, 0x00, 0x00, // NLRI: 10.0.0.0/24
 		},
-		UpdateID: 12345,
+		MessageID: 12345,
 	}
 
 	content := ContentConfig{
@@ -349,26 +349,26 @@ func TestAPIOutputIncludesUpdateID(t *testing.T) {
 	err := json.Unmarshal([]byte(output), &result)
 	require.NoError(t, err, "JSON must be valid: %s", output)
 
-	// Check update-id present
-	updateID, ok := result["update-id"]
-	require.True(t, ok, "update-id must be present")
-	assert.Equal(t, float64(12345), updateID)
+	// Check msg-id present
+	msgID, ok := result["msg-id"]
+	require.True(t, ok, "msg-id must be present")
+	assert.Equal(t, float64(12345), msgID)
 }
 
-// TestAPIOutputNoUpdateIDWhenZero verifies update-id omitted when zero.
+// TestAPIOutputNoMsgIDWhenZero verifies msg-id omitted when zero.
 //
-// VALIDATES: Zero update-id is not included in output.
-// PREVENTS: Cluttering output with meaningless update-id:0.
-func TestAPIOutputNoUpdateIDWhenZero(t *testing.T) {
+// VALIDATES: Zero msg-id is not included in output.
+// PREVENTS: Cluttering output with meaningless msg-id:0.
+func TestAPIOutputNoMsgIDWhenZero(t *testing.T) {
 	peer := PeerInfo{
 		Address: netip.MustParseAddr("10.0.0.1"),
 		PeerAS:  65002,
 	}
 
 	msg := RawMessage{
-		Type:     message.TypeUPDATE,
-		RawBytes: []byte{0x00, 0x00, 0x00, 0x00}, // Empty UPDATE
-		UpdateID: 0,                              // No update-id
+		Type:      message.TypeUPDATE,
+		RawBytes:  []byte{0x00, 0x00, 0x00, 0x00}, // Empty UPDATE
+		MessageID: 0,                              // No msg-id
 	}
 
 	content := ContentConfig{
@@ -383,7 +383,7 @@ func TestAPIOutputNoUpdateIDWhenZero(t *testing.T) {
 	err := json.Unmarshal([]byte(output), &result)
 	require.NoError(t, err)
 
-	// update-id should NOT be present
-	_, ok := result["update-id"]
-	assert.False(t, ok, "update-id should not be present when zero")
+	// msg-id should NOT be present
+	_, ok := result["msg-id"]
+	assert.False(t, ok, "msg-id should not be present when zero")
 }

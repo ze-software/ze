@@ -113,9 +113,9 @@ func formatRawFromResult(peer PeerInfo, msg RawMessage, content ContentConfig) s
 // formatParsedFromResult formats parsed UPDATE using FilterResult.
 func formatParsedFromResult(peer PeerInfo, msg RawMessage, content ContentConfig, result FilterResult) string {
 	if content.Encoding == EncodingJSON {
-		return formatFilterResultJSON(peer, result, msg.UpdateID, msg.Direction)
+		return formatFilterResultJSON(peer, result, msg.MessageID, msg.Direction)
 	}
-	return formatFilterResultText(peer, result, msg.UpdateID, msg.Direction)
+	return formatFilterResultText(peer, result, msg.MessageID, msg.Direction)
 }
 
 // formatFullFromResult formats both parsed content AND raw hex.
@@ -137,7 +137,7 @@ func formatFullFromResult(peer PeerInfo, msg RawMessage, content ContentConfig, 
 
 // formatFilterResultJSON formats FilterResult as JSON.
 // Uses AnnouncedByFamily()/WithdrawnByFamily() for RFC 4760-correct next-hop per family.
-func formatFilterResultJSON(peer PeerInfo, result FilterResult, updateID uint64, direction string) string {
+func formatFilterResultJSON(peer PeerInfo, result FilterResult, msgID uint64, direction string) string {
 	var sb strings.Builder
 	sb.WriteString(`{"type":"update"`)
 
@@ -148,9 +148,9 @@ func formatFilterResultJSON(peer PeerInfo, result FilterResult, updateID uint64,
 		sb.WriteString(`"`)
 	}
 
-	// Include update-id if set
-	if updateID > 0 {
-		sb.WriteString(fmt.Sprintf(`,"update-id":%d`, updateID))
+	// Include msg-id if set
+	if msgID > 0 {
+		sb.WriteString(fmt.Sprintf(`,"msg-id":%d`, msgID))
 	}
 
 	sb.WriteString(`,"peer":{"address":"`)
@@ -327,11 +327,11 @@ func formatAttributeJSON(sb *strings.Builder, code attribute.AttributeCode, attr
 
 // formatFilterResultText formats FilterResult as text.
 // Uses AnnouncedByFamily()/WithdrawnByFamily() for RFC 4760-correct next-hop per family.
-func formatFilterResultText(peer PeerInfo, result FilterResult, updateID uint64, direction string) string {
+func formatFilterResultText(peer PeerInfo, result FilterResult, msgID uint64, direction string) string {
 	var sb strings.Builder
 
 	// Build prefix: peer <ip> <direction> update <id>
-	prefix := fmt.Sprintf("peer %s %s update %d", peer.Address, direction, updateID)
+	prefix := fmt.Sprintf("peer %s %s update %d", peer.Address, direction, msgID)
 
 	// Announced routes - grouped by family with per-family next-hop
 	announced := result.AnnouncedByFamily()
