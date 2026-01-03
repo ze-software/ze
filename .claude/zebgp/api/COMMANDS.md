@@ -7,9 +7,19 @@
 
 ## Overview
 
-ExaBGP supports two API versions:
-- **API v6** (current): Target-first syntax, JSON only
-- **API v4** (legacy): Action-first syntax, JSON or text
+ZeBGP uses target-first syntax with JSON or text encoding.
+
+### ExaBGP Differences
+
+| Aspect | ExaBGP | ZeBGP |
+|--------|--------|-------|
+| Syntax styles | v4 (action-first) and v6 (target-first) | Target-first only |
+| Encoder | json or text (v4), json only (v6) | json or text |
+| Peer selectors | `*`, IP, filters (`[local-as ...]`) | `*`, IP, negated (`!IP`) |
+| Multi-session filters | Supported (draft) | Not supported |
+| Forward command | Not available | `forward update-id` for route reflection |
+
+See [JSON_FORMAT.md](JSON_FORMAT.md#exabgp-differences) for output format differences.
 
 ---
 
@@ -28,7 +38,7 @@ ExaBGP supports two API versions:
 
 ---
 
-## v6 Syntax (Target-First)
+## Target-First Syntax
 
 ### Daemon Commands
 
@@ -153,7 +163,7 @@ group end                         # End batch, send all
 
 ---
 
-## v4 Syntax (Action-First)
+## Action-First Syntax (Legacy)
 
 ### Show Commands
 
@@ -433,7 +443,7 @@ withdraw ipv4 flow \
 
 ## Command Dispatch
 
-### v6 Tree Structure
+### Command Tree Structure
 
 ```
 daemon

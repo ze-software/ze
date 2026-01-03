@@ -5,9 +5,17 @@
 
 ---
 
-## ZeBGP Enhancement
+## ExaBGP Differences
 
-ZeBGP uses `zebgp.` prefix instead of `exabgp.` and adds:
+| Aspect | ExaBGP | ZeBGP |
+|--------|--------|-------|
+| Prefix | `exabgp.` | `zebgp.` |
+| API version var | `exabgp.api.version` (4 or 6) | Not present (single format) |
+| Invalid values | Silent defaults | Startup failure |
+| Config block | Not supported | `environment { }` in config |
+| Validation | Runtime | `zebgp config check --env` |
+
+## ZeBGP Enhancements
 
 1. **Config block support:** Set environment in config file via `environment { }` block
 2. **Strict validation:** Invalid values cause startup failure (not silent defaults)
@@ -120,10 +128,9 @@ Priority: `exabgp.x.y` > `exabgp_x_y` > INI file > default
 
 | Variable | Type | Default | Description |
 |----------|------|---------|-------------|
-| exabgp.api.version | int | 6 | API version (4 or 6) |
 | exabgp.api.ack | bool | true | Acknowledge API commands |
 | exabgp.api.chunk | int | 1 | Max lines before yield |
-| exabgp.api.encoder | string | "json" | Encoder for v4 (json/text) |
+| exabgp.api.encoder | string | "json" | Encoder (json/text) |
 | exabgp.api.compact | bool | false | Compact JSON for INET |
 | exabgp.api.respawn | bool | true | Respawn dead processes |
 | exabgp.api.terminate | bool | false | Terminate if process dies |
@@ -162,7 +169,6 @@ level = DEBUG
 destination = /var/log/exabgp.log
 
 [exabgp.api]
-version = 6
 encoder = json
 
 [exabgp.tcp]

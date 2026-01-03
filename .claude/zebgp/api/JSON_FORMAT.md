@@ -7,9 +7,7 @@
 
 ## Overview
 
-ExaBGP outputs JSON messages to external processes via stdout. Two API versions exist:
-- **API v6** (current): JSON only, nexthop not included in NLRI
-- **API v4** (legacy): JSON or text, nexthop included in Flow NLRI
+ExaBGP outputs JSON messages to external processes via stdout. ZeBGP uses JSON encoding with nexthop not included in Flow NLRI.
 
 ---
 
@@ -270,7 +268,7 @@ Label format: `[label_value, raw_24bit_value]`
 }
 ```
 
-**API v4 only** includes `"next-hop"` in FlowSpec NLRI.
+Note: ExaBGP API v4 includes `"next-hop"` in FlowSpec NLRI; ZeBGP does not.
 
 ### BGP-LS
 
@@ -341,37 +339,71 @@ Sent after OPEN exchange:
 
 ---
 
-## API v4 vs v6 Differences
+## ExaBGP Differences
 
-| Aspect | v4 | v6 |
-|--------|----|----|
-| Version string | "4.x.x" | "6.x.x" |
-| Encoder | json or text | json only |
-| Flow nexthop | Included in NLRI | Not included |
-| Method | `nlri.v4_json()` | `nlri.json()` |
+ZeBGP has its own output format optimized for parseability.
 
-### Implementation
+| Aspect | ExaBGP | ZeBGP |
+|--------|--------|-------|
+| API versions | v4 and v6 configurable | Single format |
+| Encoder | json or text | json or text |
+| Flow nexthop | Included in v4, not in v6 | Not included |
+| Version field | Configurable (4.x or 6.x) | Not present |
 
-```python
-# v6 encoder
-class JSON:
-    use_v4_json = False
+### Text Format Comparison
 
-    def _nlri_to_json(self, nlri, nexthop=None):
-        if self.use_v4_json:
-            return nlri.v4_json(compact=self.compact, nexthop=nexthop)
-        return nlri.json(compact=self.compact)
-
-# v4 encoder (wrapper)
-class V4JSON:
-    def __init__(self, version):
-        self._v6 = JSON(json_version)
-        self._v6.use_v4_json = True  # Enable v4 compat
-
-    def _patch_version(self, result):
-        # Replace v6 version with v4 version
-        return result.replace('"exabgp": "6.x"', f'"exabgp": "{self.version}"')
+**ExaBGP:**
 ```
+neighbor 192.0.2.1 update start
+neighbor 192.0.2.1 update announced 10.0.0.0/8 next-hop 192.0.2.1 origin igp as-path [ 65001 ]
+neighbor 192.0.2.1 update end
+```
+
+**ZeBGP:**
+```
+peer 192.0.2.1 asn 65001 update 1 announce origin igp as-path 65001 ipv4 unicast next-hop 192.0.2.1 nlri 10.0.0.0/8
+```
+
+Key text differences:
+- `neighbor` → `peer`
+- Includes `asn` and `update-id` for routing decisions
+- Attributes before NLRI (easier to parse)
+- Family explicitly stated (`ipv4 unicast`)
+- Single line per UPDATE (no start/end)
+
+### JSON Format Comparison
+
+**ExaBGP:**
+```json
+{
+  "exabgp": "6.0.0",
+  "time": 1234567890.123,
+  "host": "router1",
+  "pid": 1234,
+  "type": "update",
+  "neighbor": {
+    "address": {"local": "192.0.2.2", "peer": "192.0.2.1"},
+    "asn": {"local": 65000, "peer": 65001},
+    "message": {
+      "update": {
+        "attribute": {"origin": "igp", "as-path": [65001]},
+        "announce": {"ipv4 unicast": {"192.0.2.1": [{"nlri": "10.0.0.0/8"}]}}
+      }
+    }
+  }
+}
+```
+
+**ZeBGP:**
+```json
+{"type":"update","update-id":1,"peer":{"address":"192.0.2.1","asn":65001},"announce":{"origin":"igp","as-path":[65001],"ipv4 unicast":{"192.0.2.1":["10.0.0.0/8"]}}}
+```
+
+Key JSON differences:
+- No envelope (`exabgp`, `time`, `host`, `pid`) - external process can add if needed
+- Flat structure (no `neighbor.message.update` nesting)
+- Includes `update-id` for route reflection
+- Prefixes as strings, not objects (`"10.0.0.0/8"` not `{"nlri": "10.0.0.0/8"}`)
 
 ---
 
@@ -381,9 +413,8 @@ class V4JSON:
 
 ```go
 type JSONEncoder struct {
-    version   string
-    compact   bool
-    useV4JSON bool
+    version string
+    compact bool
 }
 
 func (e *JSONEncoder) Update(neighbor *Neighbor, direction string,
@@ -399,7 +430,6 @@ Each NLRI type implements JSON serialization:
 ```go
 type NLRI interface {
     JSON(compact bool) string
-    V4JSON(compact bool, nexthop IP) string  // For v4 compat
 }
 ```
 

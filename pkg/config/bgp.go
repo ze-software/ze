@@ -284,7 +284,6 @@ func peerFields() []FieldDef {
 			Field("content", Container(
 				Field("encoding", Leaf(TypeString)),  // json | text
 				Field("format", Leaf(TypeString)),    // parsed | raw | full
-				Field("version", Leaf(TypeInt)),      // 6=legacy, 7=nlri (default: 7)
 				Field("attribute", Leaf(TypeString)), // all | none | "origin as-path ..."
 				Field("nlri", Flex()),                // ipv4 unicast; ipv6 unicast; (repeated)
 			)),

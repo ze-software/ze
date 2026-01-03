@@ -403,7 +403,7 @@ type Response struct {
 type ProcessConfig struct {
 	Name           string // Process identifier
 	Run            string // Command to execute
-	Encoder        string // "json" (only v6 supported)
+	Encoder        string // "json" or "text"
 	Respawn        bool   // Respawn on exit (deprecated, use RespawnEnabled)
 	RespawnEnabled bool   // Respawn on exit with limit enforcement
 	WorkDir        string // Working directory for process execution
