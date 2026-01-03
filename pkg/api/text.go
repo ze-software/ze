@@ -17,7 +17,7 @@ const (
 
 // FormatMessage formats a RawMessage based on ContentConfig.
 // Uses lazy parsing via AttrsWire when available for optimal performance.
-// Handles encoding (json/text), format (parsed/raw/full), version (6/7), and attribute filtering.
+// Handles encoding (json/text), format (parsed/raw/full), and attribute filtering.
 func FormatMessage(peer PeerInfo, msg RawMessage, content ContentConfig) string {
 	content = content.WithDefaults()
 
@@ -54,14 +54,8 @@ func FormatMessage(peer PeerInfo, msg RawMessage, content ContentConfig) string 
 // formatEmptyUpdate formats an empty UPDATE message.
 func formatEmptyUpdate(peer PeerInfo, content ContentConfig) string {
 	if content.Encoding == EncodingJSON {
-		if content.Version == APIVersionLegacy {
-			return fmt.Sprintf(`{"type":"update","peer":{"address":{"peer":"%s"}},"announce":{}}`, peer.Address)
-		}
 		return fmt.Sprintf(`{"type":"update","peer":{"address":"%s","asn":%d},"announce":{}}`+"\n",
 			peer.Address, peer.PeerAS)
-	}
-	if content.Version == APIVersionLegacy {
-		return fmt.Sprintf("neighbor %s receive update\n", peer.Address)
 	}
 	return fmt.Sprintf("peer %s update\n", peer.Address)
 }
@@ -90,10 +84,6 @@ func formatNonUpdate(peer PeerInfo, msg RawMessage, content ContentConfig) strin
 		return fmt.Sprintf(`{"type":"%s","peer":"%s","raw":"%s"}`+"\n",
 			strings.ToLower(msg.Type.String()), peer.Address, rawHex)
 	}
-	if content.Version == APIVersionLegacy {
-		return fmt.Sprintf("neighbor %s receive %s raw %s\n",
-			peer.Address, strings.ToLower(msg.Type.String()), rawHex)
-	}
 	return fmt.Sprintf("peer %s %s raw %s\n",
 		peer.Address, strings.ToLower(msg.Type.String()), rawHex)
 }
@@ -115,16 +105,8 @@ func formatFromFilterResult(peer PeerInfo, msg RawMessage, content ContentConfig
 func formatRawFromResult(peer PeerInfo, msg RawMessage, content ContentConfig) string {
 	rawHex := fmt.Sprintf("%x", msg.RawBytes)
 	if content.Encoding == EncodingJSON {
-		if content.Version == APIVersionLegacy {
-			return fmt.Sprintf(`{"type":"%s","raw":"%s","peer":"%s"}`,
-				msg.Type.String(), rawHex, peer.Address)
-		}
 		return fmt.Sprintf(`{"type":"update","peer":{"address":"%s","asn":%d},"raw":"%s"}`+"\n",
 			peer.Address, peer.PeerAS, rawHex)
-	}
-	if content.Version == APIVersionLegacy {
-		return fmt.Sprintf("neighbor %s receive raw %s %s\n",
-			peer.Address, msg.Type.String(), rawHex)
 	}
 	return fmt.Sprintf("peer %s update raw %s\n", peer.Address, rawHex)
 }
@@ -132,9 +114,9 @@ func formatRawFromResult(peer PeerInfo, msg RawMessage, content ContentConfig) s
 // formatParsedFromResult formats parsed UPDATE using FilterResult.
 func formatParsedFromResult(peer PeerInfo, msg RawMessage, content ContentConfig, result FilterResult) string {
 	if content.Encoding == EncodingJSON {
-		return formatFilterResultJSON(peer, content, result, msg.UpdateID)
+		return formatFilterResultJSON(peer, result, msg.UpdateID)
 	}
-	return formatFilterResultText(peer, content, result, msg.UpdateID)
+	return formatFilterResultText(peer, result, msg.UpdateID)
 }
 
 // formatFullFromResult formats both parsed content AND raw hex.
@@ -151,80 +133,12 @@ func formatFullFromResult(peer PeerInfo, msg RawMessage, content ContentConfig, 
 	}
 
 	// For text, append raw line
-	if content.Version == APIVersionLegacy {
-		return parsed + fmt.Sprintf("neighbor %s receive update raw %s\n", peer.Address, rawHex)
-	}
 	return parsed + fmt.Sprintf("peer %s update raw %s\n", peer.Address, rawHex)
 }
 
 // formatFilterResultJSON formats FilterResult as JSON.
-func formatFilterResultJSON(peer PeerInfo, content ContentConfig, result FilterResult, updateID uint64) string {
-	if content.Version == APIVersionLegacy {
-		// V6 still uses extracted values for backward compat
-		origin := getOriginFromResult(result)
-		asPath := getASPathFromResult(result)
-		localPref := getLocalPrefFromResult(result)
-		med := getMEDFromResult(result)
-		return formatFilterResultJSONV6(peer, result, origin, asPath, localPref, med)
-	}
-	return formatFilterResultJSONV7(peer, result, updateID)
-}
-
-// formatFilterResultJSONV6 formats FilterResult as v6 JSON.
 // Uses AnnouncedByFamily()/WithdrawnByFamily() for RFC 4760-correct next-hop per family.
-func formatFilterResultJSONV6(peer PeerInfo, result FilterResult, origin string, asPath []uint32, localPref, med uint32) string {
-	var sb strings.Builder
-	sb.WriteString(`{"type":"update","peer":{"address":{"peer":"`)
-	sb.WriteString(peer.Address.String())
-	sb.WriteString(`"}}`)
-
-	// Announced routes - grouped by family with per-family next-hop
-	announced := result.AnnouncedByFamily()
-	if len(announced) > 0 {
-		sb.WriteString(`,"announce":{`)
-		first := true
-		for _, fam := range announced {
-			if !first {
-				sb.WriteString(`,`)
-			}
-			familyKey := strings.ReplaceAll(fam.Family, "-", " ")
-			sb.WriteString(`"`)
-			sb.WriteString(familyKey)
-			sb.WriteString(`":{`)
-			sb.WriteString(formatPrefixesJSON(fam.Prefixes, fam.NextHop, origin, asPath, localPref, med))
-			sb.WriteString(`}`)
-			first = false
-		}
-		sb.WriteString(`}`)
-	}
-
-	// Withdrawn routes
-	withdrawn := result.WithdrawnByFamily()
-	if len(withdrawn) > 0 {
-		sb.WriteString(`,"withdraw":{`)
-		first := true
-		for _, fam := range withdrawn {
-			if !first {
-				sb.WriteString(`,`)
-			}
-			familyKey := strings.ReplaceAll(fam.Family, "-", " ")
-			sb.WriteString(`"`)
-			sb.WriteString(familyKey)
-			sb.WriteString(`":["`)
-			sb.WriteString(joinPrefixesQuoted(fam.Prefixes))
-			sb.WriteString(`"]`)
-			first = false
-		}
-		sb.WriteString(`}`)
-	}
-
-	sb.WriteString("}\n")
-	return sb.String()
-}
-
-// formatFilterResultJSONV7 formats FilterResult as v7 JSON.
-// Uses AnnouncedByFamily()/WithdrawnByFamily() for RFC 4760-correct next-hop per family.
-func formatFilterResultJSONV7(peer PeerInfo, result FilterResult, updateID uint64) string {
+func formatFilterResultJSON(peer PeerInfo, result FilterResult, updateID uint64) string {
 	var sb strings.Builder
 	sb.WriteString(`{"type":"update"`)
 
@@ -245,7 +159,7 @@ func formatFilterResultJSONV7(peer PeerInfo, result FilterResult, updateID uint6
 		sb.WriteString(`,"announce":{`)
 
 		// Attributes first (only what filter requested)
-		needComma := formatAttributesJSONV7(&sb, result)
+		needComma := formatAttributesJSON(&sb, result)
 
 		for _, fam := range announced {
 			if needComma {
@@ -304,9 +218,9 @@ func formatFilterResultJSONV7(peer PeerInfo, result FilterResult, updateID uint6
 	return sb.String()
 }
 
-// formatAttributesJSONV7 formats attributes from FilterResult for v7 JSON.
+// formatAttributesJSON formats attributes from FilterResult for JSON.
 // Returns true if any attributes were written (for comma handling).
-func formatAttributesJSONV7(sb *strings.Builder, result FilterResult) bool {
+func formatAttributesJSON(sb *strings.Builder, result FilterResult) bool {
 	if len(result.Attributes) == 0 {
 		return false
 	}
@@ -317,13 +231,13 @@ func formatAttributesJSONV7(sb *strings.Builder, result FilterResult) bool {
 			sb.WriteString(",")
 		}
 		first = false
-		formatAttributeJSONV7(sb, code, attr)
+		formatAttributeJSON(sb, code, attr)
 	}
 	return true
 }
 
-// formatAttributeJSONV7 formats a single attribute for v7 JSON.
-func formatAttributeJSONV7(sb *strings.Builder, code attribute.AttributeCode, attr attribute.Attribute) {
+// formatAttributeJSON formats a single attribute for JSON.
+func formatAttributeJSON(sb *strings.Builder, code attribute.AttributeCode, attr attribute.Attribute) {
 	switch code { //nolint:exhaustive // default handles unknown codes as attr-N
 	case attribute.AttrOrigin:
 		if o, ok := attr.(*attribute.Origin); ok {
@@ -406,59 +320,8 @@ func formatAttributeJSONV7(sb *strings.Builder, code attribute.AttributeCode, at
 }
 
 // formatFilterResultText formats FilterResult as text.
-func formatFilterResultText(peer PeerInfo, content ContentConfig, result FilterResult, updateID uint64) string {
-	if content.Version == APIVersionLegacy {
-		// V6 still uses extracted values for backward compat
-		origin := getOriginFromResult(result)
-		asPath := getASPathFromResult(result)
-		localPref := getLocalPrefFromResult(result)
-		med := getMEDFromResult(result)
-		return formatFilterResultTextV6(peer, result, origin, asPath, localPref, med)
-	}
-	return formatFilterResultTextV7(peer, result, updateID)
-}
-
-// formatFilterResultTextV6 formats FilterResult as v6 text.
 // Uses AnnouncedByFamily()/WithdrawnByFamily() for RFC 4760-correct next-hop per family.
-func formatFilterResultTextV6(peer PeerInfo, result FilterResult, origin string, asPath []uint32, localPref, med uint32) string {
-	var sb strings.Builder
-	prefix := fmt.Sprintf("neighbor %s receive update", peer.Address)
-
-	sb.WriteString(prefix)
-	sb.WriteString(" start\n")
-
-	// Announced routes - each family has its own next-hop
-	for _, fam := range result.AnnouncedByFamily() {
-		for _, p := range fam.Prefixes {
-			sb.WriteString(prefix)
-			sb.WriteString(" announced ")
-			sb.WriteString(p.String())
-			sb.WriteString(" next-hop ")
-			sb.WriteString(fam.NextHop.String())
-			formatAttributesText(&sb, origin, asPath, localPref, med)
-			sb.WriteString("\n")
-		}
-	}
-
-	// Withdrawn routes
-	for _, fam := range result.WithdrawnByFamily() {
-		for _, p := range fam.Prefixes {
-			sb.WriteString(prefix)
-			sb.WriteString(" withdrawn ")
-			sb.WriteString(p.String())
-			sb.WriteString("\n")
-		}
-	}
-
-	sb.WriteString(prefix)
-	sb.WriteString(" end\n")
-
-	return sb.String()
-}
-
-// formatFilterResultTextV7 formats FilterResult as v7 text.
-// Uses AnnouncedByFamily()/WithdrawnByFamily() for RFC 4760-correct next-hop per family.
-func formatFilterResultTextV7(peer PeerInfo, result FilterResult, updateID uint64) string {
+func formatFilterResultText(peer PeerInfo, result FilterResult, updateID uint64) string {
 	var sb strings.Builder
 
 	// Build prefix: peer <ip> asn <asn> update <id>
@@ -471,7 +334,7 @@ func formatFilterResultTextV7(peer PeerInfo, result FilterResult, updateID uint6
 		sb.WriteString(" announce")
 
 		// Attributes first (shared) - only what filter requested
-		formatAttributesTextV7(&sb, result)
+		formatAttributesText(&sb, result)
 
 		for _, fam := range announced {
 			// Family name with space (e.g., "ipv4 unicast")
@@ -513,17 +376,17 @@ func formatFilterResultTextV7(peer PeerInfo, result FilterResult, updateID uint6
 	return sb.String()
 }
 
-// formatAttributesTextV7 formats attributes from FilterResult for v7 text.
+// formatAttributesText formats attributes from FilterResult for text output.
 // Only outputs what's in result.Attributes (lazy parsing - filter controls what's parsed).
-func formatAttributesTextV7(sb *strings.Builder, result FilterResult) {
+func formatAttributesText(sb *strings.Builder, result FilterResult) {
 	for code, attr := range result.Attributes {
 		sb.WriteString(" ")
-		formatAttributeTextV7(sb, code, attr)
+		formatAttributeText(sb, code, attr)
 	}
 }
 
-// formatAttributeTextV7 formats a single attribute for v7 text.
-func formatAttributeTextV7(sb *strings.Builder, code attribute.AttributeCode, attr attribute.Attribute) {
+// formatAttributeText formats a single attribute for text output.
+func formatAttributeText(sb *strings.Builder, code attribute.AttributeCode, attr attribute.Attribute) {
 	switch code { //nolint:exhaustive // default handles unknown codes as attr-N
 	case attribute.AttrOrigin:
 		if o, ok := attr.(*attribute.Origin); ok {
@@ -598,136 +461,7 @@ func formatAttributeTextV7(sb *strings.Builder, code attribute.AttributeCode, at
 	}
 }
 
-// Helper functions for extracting attributes from FilterResult
-
-func getOriginFromResult(result FilterResult) string {
-	if attr, ok := result.Attributes[attribute.AttrOrigin]; ok {
-		// Handle both pointer and value types
-		switch o := attr.(type) {
-		case *attribute.Origin:
-			return strings.ToLower(o.String())
-		case attribute.Origin:
-			return strings.ToLower(o.String())
-		}
-	}
-	return ""
-}
-
-func getASPathFromResult(result FilterResult) []uint32 {
-	if attr, ok := result.Attributes[attribute.AttrASPath]; ok {
-		if ap, ok := attr.(*attribute.ASPath); ok {
-			var path []uint32
-			for _, seg := range ap.Segments {
-				path = append(path, seg.ASNs...)
-			}
-			return path
-		}
-	}
-	return nil
-}
-
-func getLocalPrefFromResult(result FilterResult) uint32 {
-	if attr, ok := result.Attributes[attribute.AttrLocalPref]; ok {
-		// Handle both pointer and value types
-		switch lp := attr.(type) {
-		case *attribute.LocalPref:
-			return uint32(*lp)
-		case attribute.LocalPref:
-			return uint32(lp)
-		}
-	}
-	return 0
-}
-
-func getMEDFromResult(result FilterResult) uint32 {
-	if attr, ok := result.Attributes[attribute.AttrMED]; ok {
-		// Handle both pointer and value types
-		switch m := attr.(type) {
-		case *attribute.MED:
-			return uint32(*m)
-		case attribute.MED:
-			return uint32(m)
-		}
-	}
-	return 0
-}
-
-// formatAttributesText appends attribute text to builder.
-func formatAttributesText(sb *strings.Builder, origin string, asPath []uint32, localPref, med uint32) {
-	if origin != "" {
-		sb.WriteString(" origin ")
-		sb.WriteString(origin)
-	}
-	if localPref > 0 {
-		fmt.Fprintf(sb, " local-preference %d", localPref)
-	}
-	if med > 0 {
-		fmt.Fprintf(sb, " med %d", med)
-	}
-	if len(asPath) > 0 {
-		sb.WriteString(" as-path [")
-		for i, asn := range asPath {
-			if i > 0 {
-				sb.WriteString(" ")
-			}
-			fmt.Fprintf(sb, "%d", asn)
-		}
-		sb.WriteString("]")
-	}
-}
-
-// joinPrefixesQuoted joins prefixes as quoted JSON strings.
-func joinPrefixesQuoted(prefixes []netip.Prefix) string {
-	strs := make([]string, len(prefixes))
-	for i, p := range prefixes {
-		strs[i] = p.String()
-	}
-	return strings.Join(strs, `","`)
-}
-
-// formatPrefixesJSON formats prefixes with attributes as JSON object.
-func formatPrefixesJSON(prefixes []netip.Prefix, nextHop netip.Addr, origin string, asPath []uint32, localPref, med uint32) string {
-	var sb strings.Builder
-
-	// Format as: "prefix": {"next-hop": "x", "origin": "y", ...}
-	for i, p := range prefixes {
-		if i > 0 {
-			sb.WriteString(",")
-		}
-		sb.WriteString(`"`)
-		sb.WriteString(p.String())
-		sb.WriteString(`":{"next-hop":"`)
-		sb.WriteString(nextHop.String())
-		sb.WriteString(`"`)
-
-		if origin != "" {
-			sb.WriteString(`,"origin":"`)
-			sb.WriteString(origin)
-			sb.WriteString(`"`)
-		}
-		if len(asPath) > 0 {
-			sb.WriteString(`,"as-path":[`)
-			for j, asn := range asPath {
-				if j > 0 {
-					sb.WriteString(",")
-				}
-				sb.WriteString(fmt.Sprintf("%d", asn))
-			}
-			sb.WriteString("]")
-		}
-		if localPref > 0 {
-			sb.WriteString(fmt.Sprintf(`,"local-preference":%d`, localPref))
-		}
-		if med > 0 {
-			sb.WriteString(fmt.Sprintf(`,"med":%d`, med))
-		}
-		sb.WriteString("}")
-	}
-
-	return sb.String()
-}
-
-// FormatOpen formats an OPEN message as ExaBGP text encoder output.
+// FormatOpen formats an OPEN message as text output.
 // Format: neighbor <ip> receive open version <v> asn <asn> hold_time <t> router_id <id> capabilities [...].
 func FormatOpen(peerAddr netip.Addr, open DecodedOpen) string {
 	capsStr := "[]"
@@ -738,7 +472,7 @@ func FormatOpen(peerAddr netip.Addr, open DecodedOpen) string {
 		peerAddr, open.Version, open.ASN, open.HoldTime, open.RouterID, capsStr)
 }
 
-// FormatNotification formats a NOTIFICATION message as ExaBGP text encoder output.
+// FormatNotification formats a NOTIFICATION message as text output.
 // Format: neighbor <ip> receive notification code <c> subcode <s> data <hex> [name].
 func FormatNotification(peerAddr netip.Addr, notify DecodedNotification) string {
 	// ExaBGP format: code {num} subcode {num} data {hex}
@@ -757,7 +491,7 @@ func FormatNotification(peerAddr netip.Addr, notify DecodedNotification) string 
 	return base + names + "\n"
 }
 
-// FormatKeepalive formats a KEEPALIVE message as ExaBGP text encoder output.
+// FormatKeepalive formats a KEEPALIVE message as text output.
 // Format: neighbor <ip> receive keepalive.
 func FormatKeepalive(peerAddr netip.Addr) string {
 	return fmt.Sprintf("neighbor %s receive keepalive\n", peerAddr)

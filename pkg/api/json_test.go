@@ -340,7 +340,6 @@ func TestAPIOutputIncludesUpdateID(t *testing.T) {
 	content := ContentConfig{
 		Encoding: EncodingJSON,
 		Format:   FormatParsed,
-		Version:  APIVersionNLRI, // v7
 	}
 
 	output := FormatMessage(peer, msg, content)
@@ -375,7 +374,6 @@ func TestAPIOutputNoUpdateIDWhenZero(t *testing.T) {
 	content := ContentConfig{
 		Encoding: EncodingJSON,
 		Format:   FormatParsed,
-		Version:  APIVersionNLRI,
 	}
 
 	output := FormatMessage(peer, msg, content)

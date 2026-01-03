@@ -7,12 +7,12 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// TestDetectV2NeighborAtRoot verifies v2 detection for neighbor at root.
+// TestDetectLegacyNeighborAtRoot verifies v2 detection for neighbor at root.
 //
 // VALIDATES: Config with "neighbor <IP>" is detected as v2.
 //
 // PREVENTS: v2 configs being treated as current.
-func TestDetectV2NeighborAtRoot(t *testing.T) {
+func TestDetectLegacyNeighborAtRoot(t *testing.T) {
 	input := `
 neighbor 192.0.2.1 {
     local-as 65000;
@@ -24,12 +24,12 @@ neighbor 192.0.2.1 {
 	require.True(t, needsMigration, "neighbor at root should be v2")
 }
 
-// TestDetectV2PeerGlobAtRoot verifies v2 detection for peer glob at root.
+// TestDetectLegacyPeerGlobAtRoot verifies v2 detection for peer glob at root.
 //
 // VALIDATES: Config with "peer *" glob at root is detected as v2.
 //
 // PREVENTS: Root-level peer globs being treated as v3.
-func TestDetectV2PeerGlobAtRoot(t *testing.T) {
+func TestDetectLegacyPeerGlobAtRoot(t *testing.T) {
 	input := `
 peer * {
     hold-time 90;
@@ -43,12 +43,12 @@ neighbor 192.0.2.1 {
 	require.True(t, needsMigration, "peer glob at root should be v2")
 }
 
-// TestDetectV2TemplateNeighbor verifies v2 detection for template.neighbor.
+// TestDetectLegacyTemplateNeighbor verifies v2 detection for template.neighbor.
 //
 // VALIDATES: Config with template { neighbor <name> } is detected as v2.
 //
 // PREVENTS: Old template syntax being treated as v3.
-func TestDetectV2TemplateNeighbor(t *testing.T) {
+func TestDetectLegacyTemplateNeighbor(t *testing.T) {
 	input := `
 template {
     neighbor ibgp {
@@ -65,12 +65,12 @@ neighbor 192.0.2.1 {
 	require.True(t, needsMigration, "template.neighbor should be v2")
 }
 
-// TestDetectV3PeerAtRoot verifies v3 detection for peer IP at root.
+// TestDetectCurrentPeerAtRoot verifies v3 detection for peer IP at root.
 //
 // VALIDATES: Config with "peer <IP>" (not glob) is detected as v3.
 //
 // PREVENTS: New syntax being mistaken for old.
-func TestDetectV3PeerAtRoot(t *testing.T) {
+func TestDetectCurrentPeerAtRoot(t *testing.T) {
 	input := `
 peer 192.0.2.1 {
     local-as 65000;
@@ -82,12 +82,12 @@ peer 192.0.2.1 {
 	require.False(t, needsMigration, "peer IP at root should be v3")
 }
 
-// TestDetectV3TemplateGroup verifies v3 detection for template.group.
+// TestDetectCurrentTemplateGroup verifies v3 detection for template.group.
 //
 // VALIDATES: Config with template { group <name> } is detected as v3.
 //
 // PREVENTS: New template syntax being treated as old.
-func TestDetectV3TemplateGroup(t *testing.T) {
+func TestDetectCurrentTemplateGroup(t *testing.T) {
 	input := `
 template {
     group ibgp {
@@ -104,12 +104,12 @@ peer 192.0.2.1 {
 	require.False(t, needsMigration, "template.group should be v3")
 }
 
-// TestDetectV3TemplateMatch verifies v3 detection for template.match.
+// TestDetectCurrentTemplateMatch verifies v3 detection for template.match.
 //
 // VALIDATES: Config with template { match * } is detected as v3.
 //
 // PREVENTS: Match blocks being treated as v2.
-func TestDetectV3TemplateMatch(t *testing.T) {
+func TestDetectCurrentTemplateMatch(t *testing.T) {
 	input := `
 template {
     match * {

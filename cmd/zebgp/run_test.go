@@ -80,7 +80,6 @@ func (s *mockServer) handleCommand(cmd string) map[string]any {
 			"status": "done",
 			"data": map[string]any{
 				"version": "0.1.0",
-				"api":     "v6",
 			},
 		}
 	case "system help":

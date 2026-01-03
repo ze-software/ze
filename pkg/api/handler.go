@@ -184,7 +184,6 @@ func handleSystemVersion(_ *CommandContext, _ []string) (*Response, error) {
 		Status: "done",
 		Data: map[string]any{
 			"version": Version,
-			"api":     "v6",
 		},
 	}, nil
 }

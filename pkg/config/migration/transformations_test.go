@@ -7,12 +7,12 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// TestMigrateV2ToV3NeighborToPeer verifies neighbor→peer rename.
+// TestTransformNeighborToPeer verifies neighbor→peer rename.
 //
 // VALIDATES: "neighbor <IP>" becomes "peer <IP>".
 //
 // PREVENTS: Neighbor configs being lost during migration.
-func TestMigrateV2ToV3NeighborToPeer(t *testing.T) {
+func TestTransformNeighborToPeer(t *testing.T) {
 	input := `
 neighbor 192.0.2.1 {
     local-as 65000;
@@ -21,7 +21,7 @@ neighbor 192.0.2.1 {
 `
 	tree := parseWithBGPSchema(t, input)
 
-	// Verify it's v2 before migration
+	// Verify needs migration before
 	require.True(t, NeedsMigration(tree))
 
 	// Migrate
@@ -44,16 +44,16 @@ neighbor 192.0.2.1 {
 	require.True(t, ok)
 	require.Equal(t, "65000", val)
 
-	// Verify it's now v3
+	// Verify no longer needs migration
 	require.False(t, NeedsMigration(result.Tree))
 }
 
-// TestMigrateV2ToV3PeerGlobToMatch verifies peer glob→template.match.
+// TestMigratePeerGlobToMatch verifies peer glob→template.match.
 //
 // VALIDATES: Root "peer *" becomes "template { match * }".
 //
 // PREVENTS: Glob patterns being lost during migration.
-func TestMigrateV2ToV3PeerGlobToMatch(t *testing.T) {
+func TestMigratePeerGlobToMatch(t *testing.T) {
 	input := `
 peer * {
     hold-time 90;
@@ -97,12 +97,12 @@ neighbor 192.0.2.1 {
 	require.Equal(t, "60", val)
 }
 
-// TestMigrateV2ToV3TemplateNeighborToGroup verifies template.neighbor→template.group.
+// TestMigrateTemplateNeighborToGroup verifies template.neighbor→template.group.
 //
 // VALIDATES: "template { neighbor <name> }" becomes "template { group <name> }".
 //
 // PREVENTS: Named templates being lost during migration.
-func TestMigrateV2ToV3TemplateNeighborToGroup(t *testing.T) {
+func TestMigrateTemplateNeighborToGroup(t *testing.T) {
 	input := `
 template {
     neighbor ibgp {
@@ -145,12 +145,12 @@ neighbor 192.0.2.1 {
 	require.Equal(t, "65001", val)
 }
 
-// TestMigrateV2ToV3PreservesMatchOrder verifies match blocks preserve config order.
+// TestMigratePreservesMatchOrder verifies match blocks preserve config order.
 //
 // VALIDATES: Migration preserves order of peer globs for match blocks.
 //
 // PREVENTS: Match order being scrambled (important for precedence).
-func TestMigrateV2ToV3PreservesMatchOrder(t *testing.T) {
+func TestMigratePreservesMatchOrder(t *testing.T) {
 	input := `
 peer * {
     hold-time 90;
@@ -183,12 +183,12 @@ neighbor 192.0.2.1 {
 	require.Equal(t, "192.168.*.*", matches[2].Key)
 }
 
-// TestMigrateV2ToV3PreservesPeerOrder verifies neighbor→peer preserves order.
+// TestMigratePreservesPeerOrder verifies neighbor→peer preserves order.
 //
 // VALIDATES: Multiple neighbors become peers in same order.
 //
 // PREVENTS: Peer order being scrambled.
-func TestMigrateV2ToV3PreservesPeerOrder(t *testing.T) {
+func TestMigratePreservesPeerOrder(t *testing.T) {
 	input := `
 neighbor 192.0.2.1 {
     local-as 65000;
@@ -215,12 +215,12 @@ neighbor 172.16.0.1 {
 	require.Equal(t, "172.16.0.1", peers[2].Key)
 }
 
-// TestMigrateV2ToV3Idempotent verifies migration is idempotent.
+// TestMigrateIdempotent verifies migration is idempotent.
 //
 // VALIDATES: Running migration twice produces same result.
 //
 // PREVENTS: Broken configs from repeated migration.
-func TestMigrateV2ToV3Idempotent(t *testing.T) {
+func TestMigrateIdempotent(t *testing.T) {
 	input := `
 peer * {
     hold-time 90;
@@ -249,12 +249,12 @@ neighbor 192.0.2.1 {
 	require.Equal(t, len(peers1), len(peers2))
 }
 
-// TestMigrateV2ToV3DoesNotMutateOriginal verifies original tree is unchanged.
+// TestMigrateDoesNotMutateOriginal verifies original tree is unchanged.
 //
 // VALIDATES: Migration clones before modifying.
 //
 // PREVENTS: Original config corruption.
-func TestMigrateV2ToV3DoesNotMutateOriginal(t *testing.T) {
+func TestMigrateDoesNotMutateOriginal(t *testing.T) {
 	input := `
 neighbor 192.0.2.1 {
     local-as 65000;
@@ -282,12 +282,12 @@ func TestMigrateNilTreeV2ToV3(t *testing.T) {
 	require.Nil(t, result, "nil input should return nil result")
 }
 
-// TestMigrateV2ToV3CIDRPattern verifies CIDR patterns migrate correctly.
+// TestMigrateCIDRPattern verifies CIDR patterns migrate correctly.
 //
 // VALIDATES: "peer 10.0.0.0/8 { }" becomes "template { match 10.0.0.0/8 { } }".
 //
 // PREVENTS: CIDR patterns being lost during migration.
-func TestMigrateV2ToV3CIDRPattern(t *testing.T) {
+func TestMigrateCIDRPattern(t *testing.T) {
 	input := `
 peer 10.0.0.0/8 {
     hold-time 90;
@@ -321,12 +321,12 @@ peer 192.0.2.1 {
 	require.True(t, hasIP)
 }
 
-// TestMigrateV2ToV3IPv6GlobPattern verifies IPv6 glob patterns migrate correctly.
+// TestMigrateIPv6GlobPattern verifies IPv6 glob patterns migrate correctly.
 //
 // VALIDATES: "peer 2001:db8::* { }" becomes "template { match 2001:db8::* { } }".
 //
 // PREVENTS: IPv6 glob patterns being lost during migration.
-func TestMigrateV2ToV3IPv6GlobPattern(t *testing.T) {
+func TestMigrateIPv6GlobPattern(t *testing.T) {
 	input := `
 peer 2001:db8::* {
     hold-time 90;
@@ -360,12 +360,12 @@ peer 2001:db8::1 {
 	require.True(t, hasIP)
 }
 
-// TestMigrateV2ToV3MixedConfig verifies partially-migrated configs work.
+// TestMigrateMixedConfig verifies partially-migrated configs work.
 //
 // VALIDATES: Config with both v3 and v2 syntax migrates correctly.
 //
 // PREVENTS: Mixed configs causing errors.
-func TestMigrateV2ToV3MixedConfig(t *testing.T) {
+func TestMigrateMixedConfig(t *testing.T) {
 	input := `
 template {
     match * {
@@ -412,12 +412,12 @@ neighbor 192.0.2.1 {
 	require.Len(t, peers, 1)
 }
 
-// TestMigrateV2ToV3StaticToAnnounce verifies static→announce extraction.
+// TestMigrateStaticToAnnounce verifies static→announce extraction.
 //
 // VALIDATES: neighbor.static routes become peer.announce.<afi>.<safi>.
 //
 // PREVENTS: Static routes being lost during migration.
-func TestMigrateV2ToV3StaticToAnnounce(t *testing.T) {
+func TestMigrateStaticToAnnounce(t *testing.T) {
 	input := `
 neighbor 192.0.2.1 {
     local-as 65000;
@@ -469,12 +469,12 @@ neighbor 192.0.2.1 {
 	require.NotNil(t, ipv6Unicast["2001:db8::/32"])
 }
 
-// TestMigrateV2ToV3PeerWithStatic verifies peer+static is migrated.
+// TestMigratePeerWithStatic verifies peer+static is migrated.
 //
 // VALIDATES: v3-style peer with deprecated static block is still migrated.
 //
 // PREVENTS: Configs using peer (not neighbor) with static being skipped.
-func TestMigrateV2ToV3PeerWithStatic(t *testing.T) {
+func TestMigratePeerWithStatic(t *testing.T) {
 	input := `
 peer 192.0.2.1 {
     local-as 65000;
@@ -506,12 +506,12 @@ peer 192.0.2.1 {
 	require.Len(t, ipv4.GetList("unicast"), 1)
 }
 
-// TestMigrateV2ToV3TemplateNeighborWithStatic verifies template.neighbor with static migration.
+// TestMigrateTemplateNeighborWithStatic verifies template.neighbor with static migration.
 //
 // VALIDATES: template.neighbor.static becomes template.group.announce.
 //
 // PREVENTS: Static routes in template.neighbor being lost during rename.
-func TestMigrateV2ToV3TemplateNeighborWithStatic(t *testing.T) {
+func TestMigrateTemplateNeighborWithStatic(t *testing.T) {
 	input := `
 template {
     neighbor ibgp {
@@ -569,12 +569,12 @@ neighbor 192.0.2.1 {
 	require.Equal(t, "65000", peerAs)
 }
 
-// TestMigrateV2ToV3TemplateGroupStatic verifies template.group static migration.
+// TestMigrateTemplateGroupStatic verifies template.group static migration.
 //
 // VALIDATES: template.group.static becomes template.group.announce.
 //
 // PREVENTS: Template static routes being skipped.
-func TestMigrateV2ToV3TemplateGroupStatic(t *testing.T) {
+func TestMigrateTemplateGroupStatic(t *testing.T) {
 	input := `
 template {
     group vpn-customers {

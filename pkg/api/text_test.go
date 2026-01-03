@@ -63,12 +63,12 @@ func TestFormatStateChange(t *testing.T) {
 	}
 }
 
-// TestFormatMessageV7Text tests v7 text format output.
+// TestFormatMessageText tests text format output.
 //
-// VALIDATES: V7 format uses "peer X update announce nlri ..." syntax.
+// VALIDATES: Text format uses "peer X update announce nlri ..." syntax.
 //
-// PREVENTS: Wrong format sent to v7-expecting processes.
-func TestFormatMessageV7Text(t *testing.T) {
+// PREVENTS: Wrong format sent to API processes.
+func TestFormatMessageText(t *testing.T) {
 	ctxID := testEncodingContext()
 
 	peer := PeerInfo{
@@ -95,12 +95,11 @@ func TestFormatMessageV7Text(t *testing.T) {
 	content := ContentConfig{
 		Encoding: EncodingText,
 		Format:   FormatParsed,
-		Version:  APIVersionNLRI, // v7
 	}
 
 	got := FormatMessage(peer, msg, content)
 
-	// V7 format: peer <ip> asn <asn> update <id> announce <attrs> <family> next-hop <ip> nlri <prefixes>
+	// Format: peer <ip> asn <asn> update <id> announce <attrs> <family> next-hop <ip> nlri <prefixes>
 	if !strings.Contains(got, "peer 10.0.0.1 asn 65001 update") {
 		t.Errorf("FormatMessage() =\n%q\nshould contain 'peer 10.0.0.1 asn 65001 update'", got)
 	}
@@ -121,12 +120,12 @@ func TestFormatMessageV7Text(t *testing.T) {
 	}
 }
 
-// TestFormatMessageV7JSON tests v7 JSON format output.
+// TestFormatMessageJSON tests JSON format output.
 //
-// VALIDATES: V7 JSON uses announce.nlri structure.
+// VALIDATES: JSON uses announce.nlri structure.
 //
-// PREVENTS: Wrong JSON structure sent to v7-expecting processes.
-func TestFormatMessageV7JSON(t *testing.T) {
+// PREVENTS: Wrong JSON structure sent to API processes.
+func TestFormatMessageJSON(t *testing.T) {
 	ctxID := testEncodingContext()
 
 	peer := PeerInfo{
@@ -151,7 +150,6 @@ func TestFormatMessageV7JSON(t *testing.T) {
 	content := ContentConfig{
 		Encoding: EncodingJSON,
 		Format:   FormatParsed,
-		Version:  APIVersionNLRI, // v7
 	}
 
 	got := FormatMessage(peer, msg, content)
@@ -171,89 +169,6 @@ func TestFormatMessageV7JSON(t *testing.T) {
 	}
 	if !strings.Contains(got, `192.168.1.0/24`) {
 		t.Error("missing prefix")
-	}
-}
-
-// TestFormatMessageV6VsV7 tests that v6 and v7 produce different output.
-//
-// VALIDATES: Version field affects output format.
-//
-// PREVENTS: Version being ignored.
-func TestFormatMessageV6VsV7(t *testing.T) {
-	ctxID := testEncodingContext()
-
-	peer := PeerInfo{
-		Address: netip.MustParseAddr("10.0.0.1"),
-		PeerAS:  65001,
-	}
-
-	// Build UPDATE body with NLRI
-	body := buildTestUpdateBodyWithAttrs(
-		netip.MustParsePrefix("192.168.1.0/24"),
-		netip.MustParseAddr("10.0.0.1"),
-		0, 100, nil,
-	)
-
-	attrBytes := ExtractAttributeBytes(body)
-	msg := RawMessage{
-		Type:      message.TypeUPDATE,
-		RawBytes:  body,
-		AttrsWire: attribute.NewAttributesWire(attrBytes, ctxID),
-	}
-
-	v6Content := ContentConfig{
-		Encoding: EncodingText,
-		Format:   FormatParsed,
-		Version:  APIVersionLegacy, // v6
-	}
-
-	v7Content := ContentConfig{
-		Encoding: EncodingText,
-		Format:   FormatParsed,
-		Version:  APIVersionNLRI, // v7
-	}
-
-	v6Text := FormatMessage(peer, msg, v6Content)
-	v7Text := FormatMessage(peer, msg, v7Content)
-
-	// V6 uses "neighbor X receive update announced ..."
-	if !strings.Contains(v6Text, "neighbor") {
-		t.Error("v6 should use 'neighbor' keyword")
-	}
-	if !strings.Contains(v6Text, "receive update") {
-		t.Error("v6 should use 'receive update'")
-	}
-
-	// V7 uses "peer <ip> asn <asn> update <id> announce <attrs> <family> next-hop <ip> nlri <prefixes>"
-	if !strings.Contains(v7Text, "peer") {
-		t.Error("v7 should use 'peer' keyword")
-	}
-	if !strings.Contains(v7Text, "asn 65001") {
-		t.Error("v7 should include 'asn <number>'")
-	}
-	if !strings.Contains(v7Text, "nlri") {
-		t.Error("v7 should use 'nlri'")
-	}
-
-	// They should be different
-	if v6Text == v7Text {
-		t.Error("v6 and v7 output should be different")
-	}
-}
-
-// TestContentConfigVersionDefault tests that version defaults to 7.
-//
-// VALIDATES: Empty version field defaults to APIVersionNLRI (7).
-//
-// PREVENTS: Legacy format being used unintentionally.
-func TestContentConfigVersionDefault(t *testing.T) {
-	content := ContentConfig{}.WithDefaults()
-
-	if content.Version != APIVersionNLRI {
-		t.Errorf("Version default = %d, want %d (APIVersionNLRI)", content.Version, APIVersionNLRI)
-	}
-	if content.Version != 7 {
-		t.Errorf("Version default = %d, want 7", content.Version)
 	}
 }
 
@@ -345,7 +260,6 @@ func TestFormatNonUpdateRoutesToDedicatedFormatters(t *testing.T) {
 	content := ContentConfig{
 		Encoding: EncodingText,
 		Format:   FormatParsed,
-		Version:  APIVersionNLRI,
 	}
 
 	got := FormatMessage(peer, msg, content)
@@ -380,7 +294,6 @@ func TestFormatNonUpdateKeepalive(t *testing.T) {
 	content := ContentConfig{
 		Encoding: EncodingText,
 		Format:   FormatParsed,
-		Version:  APIVersionNLRI,
 	}
 
 	got := FormatMessage(peer, msg, content)

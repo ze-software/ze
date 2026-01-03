@@ -512,11 +512,10 @@ type PeerAPIBinding struct {
 	Send        PeerSendConfig    // WHAT: which message types to send
 }
 
-// PeerContentConfig controls message formatting (encoding + format + version).
+// PeerContentConfig controls message formatting (encoding + format).
 type PeerContentConfig struct {
 	Encoding   string               // "json" | "text" (empty = inherit from process)
 	Format     string               // "parsed" | "raw" | "full" (empty = "parsed")
-	Version    int                  // 6=legacy ExaBGP, 7=new nlri format (0 = default to 7)
 	Attributes *api.AttributeFilter // Which attrs to include (nil = all)
 	NLRI       *api.NLRIFilter      // Which families to include (nil = all)
 }
@@ -1460,11 +1459,6 @@ func parseNewAPIBinding(processName string, apiTree *Tree) (PeerAPIBinding, erro
 		}
 		if v, ok := content.Get("format"); ok {
 			binding.Content.Format = strings.ToLower(v) // Normalize case
-		}
-		if v, ok := content.Get("version"); ok {
-			if n, err := strconv.Atoi(v); err == nil {
-				binding.Content.Version = n
-			}
 		}
 		if v, ok := content.Get("attribute"); ok {
 			filter, err := api.ParseAttributeFilter(v)

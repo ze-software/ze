@@ -36,7 +36,7 @@ func LoadReactorWithConfig(input string) (*BGPConfig, *reactor.Reactor, error) {
 	tree, err := p.Parse(input)
 	if err != nil {
 		// Check if this looks like v2 syntax and provide migration hint
-		if hint := detectV2SyntaxHint(input, err); hint != "" {
+		if hint := detectLegacySyntaxHint(input, err); hint != "" {
 			return nil, nil, fmt.Errorf("parse config: %w\n\n%s", err, hint)
 		}
 		return nil, nil, fmt.Errorf("parse config: %w", err)
@@ -483,7 +483,6 @@ func configToPeer(nc *PeerConfig, global *BGPConfig) (*reactor.PeerSettings, err
 			ProcessName:         ab.ProcessName,
 			Encoding:            ab.Content.Encoding,
 			Format:              ab.Content.Format,
-			Version:             ab.Content.Version,
 			ReceiveUpdate:       ab.Receive.Update,
 			ReceiveOpen:         ab.Receive.Open,
 			ReceiveNotification: ab.Receive.Notification,
@@ -1788,9 +1787,9 @@ func parseActionFlags(s string) byte {
 	return flags
 }
 
-// detectV2SyntaxHint checks if a parse error is likely due to v2 syntax
+// detectLegacySyntaxHint checks if a parse error is likely due to v2 syntax
 // and returns a helpful hint for migration.
-func detectV2SyntaxHint(input string, parseErr error) string {
+func detectLegacySyntaxHint(input string, parseErr error) string {
 	errMsg := parseErr.Error()
 
 	// Check for common v2 patterns

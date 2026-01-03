@@ -448,13 +448,12 @@ func wantsMessageType(binding PeerAPIBinding, msgType message.MessageType) bool 
 	}
 }
 
-// formatMessage formats a BGP message using the binding's encoding, format, and version.
+// formatMessage formats a BGP message using the binding's encoding and format.
 func (s *Server) formatMessage(peer PeerInfo, msg RawMessage, binding PeerAPIBinding) string {
 	// Build ContentConfig from binding
 	content := ContentConfig{
 		Encoding: binding.Encoding,
 		Format:   binding.Format,
-		Version:  binding.Version,
 	}.WithDefaults()
 
 	switch msg.Type { //nolint:exhaustive // Only handle supported types
