@@ -444,6 +444,47 @@ func (p *Pool) Get(h Handle) []byte {
 }
 ```
 
+### GetBySlot (Read Data by Slot Index)
+
+Used when handles are stored normalized (buffer bit cleared) for dedup.
+Automatically selects the correct buffer based on compaction state.
+
+```go
+func (p *Pool) GetBySlot(slotIdx uint32) []byte {
+    p.mu.RLock()
+    defer p.mu.RUnlock()
+
+    slot := &p.slots[slotIdx]
+    bufIdx := p.currentBit
+
+    // During compaction, slot might not be migrated yet
+    if p.state == PoolCompacting && slotIdx >= p.compactCursor {
+        bufIdx = 1 - p.currentBit  // Use old buffer
+    }
+
+    offset := slot.offsets[bufIdx]
+    return p.buffers[bufIdx].data[offset : offset+uint32(slot.length)]
+}
+```
+
+### Handle Normalization
+
+When storing handles in compound structures (e.g., AttrSet), normalize
+by clearing the buffer bit. This ensures dedup works regardless of
+which compaction cycle created the handle.
+
+```go
+// Normalize: 0x80000005 → 0x00000005
+func (h Handle) SlotIndex() uint32 {
+    return uint32(h & SlotIndexMask)  // Clears MSB
+}
+
+// Both handles reference same data:
+// Get(0x00000005) → buffer 0
+// Get(0x80000005) → buffer 1
+// GetBySlot(5)    → whichever buffer is valid
+```
+
 ### WriteTo (Write Data to Output)
 
 ```go
@@ -500,6 +541,39 @@ func (p *Pool) Release(h Handle) {
             bufferKey := bytesToString(p.buffers[bufIdx].data[offset : offset+uint32(slot.length)])
             delete(p.index, bufferKey)
         }
+    }
+}
+```
+
+### ReleaseBySlot (Release by Slot Index)
+
+Used when handles are stored normalized. Releases using current buffer.
+
+```go
+func (p *Pool) ReleaseBySlot(slotIdx uint32) {
+    p.mu.Lock()
+    defer p.mu.Unlock()
+
+    slot := &p.slots[slotIdx]
+    bufIdx := p.currentBit
+
+    // During compaction, determine correct buffer
+    if p.state == PoolCompacting && slotIdx >= p.compactCursor {
+        bufIdx = 1 - p.currentBit
+    }
+
+    slot.refCount--
+    p.buffers[bufIdx].refCount.Add(-1)
+
+    if slot.refCount <= 0 {
+        slot.dead = true
+        p.deadCount++
+        p.liveCount--
+        p.liveBytes -= int64(slot.length)
+
+        offset := slot.offsets[bufIdx]
+        bufferKey := bytesToString(p.buffers[bufIdx].data[offset : offset+uint32(slot.length)])
+        delete(p.index, bufferKey)
     }
 }
 ```
