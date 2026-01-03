@@ -95,8 +95,9 @@ ExaBGP outputs JSON messages to external processes via stdout. ZeBGP uses JSON e
 
 ## State Messages
 
-### Up
+### ExaBGP Format
 
+**Up:**
 ```json
 {
   "exabgp": "6.0.0",
@@ -110,8 +111,7 @@ ExaBGP outputs JSON messages to external processes via stdout. ZeBGP uses JSON e
 }
 ```
 
-### Down
-
+**Down:**
 ```json
 {
   "exabgp": "6.0.0",
@@ -125,6 +125,29 @@ ExaBGP outputs JSON messages to external processes via stdout. ZeBGP uses JSON e
   }
 }
 ```
+
+### ZeBGP Format
+
+ZeBGP uses a simpler flat structure:
+
+**JSON:**
+```json
+{"type":"state","peer":{"address":"192.0.2.1","asn":65001},"state":"up"}
+{"type":"state","peer":{"address":"192.0.2.1","asn":65001},"state":"down"}
+```
+
+**Text:**
+```
+peer 192.0.2.1 asn 65001 state up
+peer 192.0.2.1 asn 65001 state down
+```
+
+Key differences from ExaBGP:
+- No envelope (`exabgp`, `time`, `host`, `pid`)
+- Flat `peer` object (not nested `neighbor.address/asn`)
+- No `reason` field (close reason not included in message)
+
+State messages are emitted by the `apiStateObserver` when peers transition to/from Established state. See `.claude/zebgp/api/ARCHITECTURE.md` for implementation details.
 
 ---
 

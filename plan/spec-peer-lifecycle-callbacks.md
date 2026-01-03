@@ -1,11 +1,27 @@
 # Spec: Peer Lifecycle Callbacks
 
-**Status:** Proposed
+**Status:** Implemented
 **Date:** 2026-01-03
 **Depends on:** None
 **Enables:** Phase 0.5 (Message Callbacks), Plugin System
 
 **See:** `plan/DESIGN_TRANSITION.md` for overall architecture direction.
+
+---
+
+## Required Reading (MUST complete before implementation)
+
+The following docs MUST be read before starting implementation:
+
+- [x] `.claude/zebgp/behavior/FSM.md` - FSM states and transitions, callback patterns
+- [x] `.claude/zebgp/api/ARCHITECTURE.md` - API server, message formats, process binding
+
+**Key insights from docs:**
+
+- FSM already has callback mechanism: `session.fsm.SetCallback()` (peer.go:681)
+- API output format: `{"type":"state","neighbor":{"address":{"peer":"..."},"state":"up/down"}}`
+- ExaBGP uses `fsm` API type with `api['fsm']` config flag
+- No existing `EmitPeerState()` or `broadcastJSON()` in api package
 
 ---
 

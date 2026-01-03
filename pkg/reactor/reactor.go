@@ -103,6 +103,51 @@ type MessageReceiver interface {
 	OnMessageReceived(peer api.PeerInfo, msg api.RawMessage)
 }
 
+// PeerLifecycleObserver receives peer state change notifications.
+// Observers are called synchronously in registration order.
+// Implementations MUST NOT block; use goroutine for slow processing.
+type PeerLifecycleObserver interface {
+	OnPeerEstablished(peer *Peer)
+	OnPeerClosed(peer *Peer, reason string)
+}
+
+// apiStateObserver emits ExaBGP-compatible state messages to API server.
+type apiStateObserver struct {
+	server *api.Server
+}
+
+func (o *apiStateObserver) OnPeerEstablished(peer *Peer) {
+	if o.server == nil {
+		return
+	}
+	s := peer.Settings()
+	peerInfo := api.PeerInfo{
+		Address:      s.Address,
+		LocalAddress: s.LocalAddress,
+		LocalAS:      s.LocalAS,
+		PeerAS:       s.PeerAS,
+		RouterID:     s.RouterID,
+		State:        peer.State().String(),
+	}
+	o.server.OnPeerStateChange(peerInfo, "up")
+}
+
+func (o *apiStateObserver) OnPeerClosed(peer *Peer, reason string) {
+	if o.server == nil {
+		return
+	}
+	s := peer.Settings()
+	peerInfo := api.PeerInfo{
+		Address:      s.Address,
+		LocalAddress: s.LocalAddress,
+		LocalAS:      s.LocalAS,
+		PeerAS:       s.PeerAS,
+		RouterID:     s.RouterID,
+		State:        peer.State().String(),
+	}
+	o.server.OnPeerStateChange(peerInfo, "down")
+}
+
 // Reactor is the main BGP orchestrator.
 //
 // It manages:
@@ -135,6 +180,10 @@ type Reactor struct {
 
 	connCallback    ConnectionCallback
 	messageReceiver MessageReceiver // Receives raw BGP messages
+
+	// Peer lifecycle observers (called on state transitions)
+	peerObservers []PeerLifecycleObserver
+	observersMu   sync.RWMutex
 
 	running   bool
 	startTime time.Time
@@ -2409,6 +2458,37 @@ func (r *Reactor) SetMessageReceiver(receiver MessageReceiver) {
 	r.messageReceiver = receiver
 }
 
+// AddPeerObserver registers an observer for peer lifecycle events.
+// Observers are called synchronously in registration order.
+// MUST NOT block; use goroutine for slow processing.
+func (r *Reactor) AddPeerObserver(obs PeerLifecycleObserver) {
+	r.observersMu.Lock()
+	defer r.observersMu.Unlock()
+	r.peerObservers = append(r.peerObservers, obs)
+}
+
+// notifyPeerEstablished calls all observers when peer reaches Established.
+func (r *Reactor) notifyPeerEstablished(peer *Peer) {
+	r.observersMu.RLock()
+	observers := r.peerObservers
+	r.observersMu.RUnlock()
+
+	for _, obs := range observers {
+		obs.OnPeerEstablished(peer)
+	}
+}
+
+// notifyPeerClosed calls all observers when peer leaves Established.
+func (r *Reactor) notifyPeerClosed(peer *Peer, reason string) {
+	r.observersMu.RLock()
+	observers := r.peerObservers
+	r.observersMu.RUnlock()
+
+	for _, obs := range observers {
+		obs.OnPeerClosed(peer, reason)
+	}
+}
+
 // notifyMessageReceiver notifies the message receiver of a raw BGP message.
 // Called from session when a BGP message is sent or received.
 // peerAddr is used to look up full PeerInfo from the peers map.
@@ -2516,6 +2596,7 @@ func (r *Reactor) AddPeer(settings *PeerSettings) error {
 
 	peer := NewPeer(settings)
 	peer.SetGlobalWatchdog(r.watchdog)
+	peer.SetReactor(r)
 	// Set message callback to forward raw bytes to reactor's message receiver
 	peer.messageCallback = r.notifyMessageReceiver
 	r.peers[key] = peer
@@ -2653,6 +2734,8 @@ func (r *Reactor) StartWithContext(ctx context.Context) error {
 		r.api = api.NewServer(apiConfig, &reactorAPIAdapter{r})
 		// Set API server as message receiver for raw byte access
 		r.messageReceiver = r.api
+		// Register API state observer for peer lifecycle events
+		r.AddPeerObserver(&apiStateObserver{server: r.api})
 		if err := r.api.StartWithContext(r.ctx); err != nil {
 			r.stopAllListeners()
 			if r.listener != nil {

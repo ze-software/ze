@@ -535,6 +535,68 @@ This is correct behavior, not a limitation:
 
 The current flow builds UPDATEs with each peer's `PackContext`, which is RFC-correct.
 
+## Peer Lifecycle Callbacks
+
+The reactor notifies observers when peers change state via the `PeerLifecycleObserver` interface:
+
+```go
+type PeerLifecycleObserver interface {
+    OnPeerEstablished(peer *Peer)
+    OnPeerClosed(peer *Peer, reason string)
+}
+```
+
+### Registration
+
+```go
+reactor.AddPeerObserver(observer)
+```
+
+Observers are called synchronously in registration order. Implementations MUST NOT block.
+
+### API State Observer
+
+The `apiStateObserver` is automatically registered when API server starts. It emits state messages to all configured processes:
+
+**Text format:**
+```
+peer 192.0.2.1 asn 65001 state up
+peer 192.0.2.1 asn 65001 state down
+```
+
+**JSON format:**
+```json
+{"type":"state","peer":{"address":"192.0.2.1","asn":65001},"state":"up"}
+{"type":"state","peer":{"address":"192.0.2.1","asn":65001},"state":"down"}
+```
+
+### Close Reasons
+
+| Reason | Trigger |
+|--------|---------|
+| `connection lost` | FSM transitions to Idle |
+| `session closed` | FSM leaves Established for other state |
+
+### Flow
+
+```
+FSM callback (peer.go)
+    │ State changes from/to Established
+    ▼
+Peer.reactor.notifyPeerEstablished/Closed()
+    │ Copy observers, iterate
+    ▼
+apiStateObserver.OnPeerEstablished/Closed()
+    │ Build PeerInfo, call Server
+    ▼
+api.Server.OnPeerStateChange(peer, "up"/"down")
+    │ FormatStateChange per process encoding
+    ▼
+Process stdin
+```
+
+---
+
 ## Files
 
 | File | Purpose |
@@ -543,6 +605,8 @@ The current flow builds UPDATEs with each peer's `PackContext`, which is RFC-cor
 | `pkg/api/process.go` | Subprocess management |
 | `pkg/api/route.go` | Route announce/withdraw handlers |
 | `pkg/api/types.go` | ReactorInterface, RouteSpec |
+| `pkg/api/text.go` | Text/JSON formatting including FormatStateChange |
 | `pkg/api/commit_manager.go` | Transaction management |
-| `pkg/reactor/reactor.go` | AnnounceRoute implementation |
+| `pkg/reactor/reactor.go` | AnnounceRoute, PeerLifecycleObserver |
+| `pkg/reactor/peer.go` | FSM callback, reactor notification |
 | `pkg/rib/outgoing.go` | Adj-RIB-Out structure |

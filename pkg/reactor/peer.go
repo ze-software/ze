@@ -168,6 +168,10 @@ type Peer struct {
 	// Set by reactor when peer is added. Used to re-send pool routes on reconnect.
 	globalWatchdog *WatchdogManager
 
+	// reactor is set when peer is added to reactor.
+	// Used to notify reactor of state changes.
+	reactor *Reactor
+
 	// Collision detection (RFC 4271 §6.8):
 	// When an incoming connection arrives while we're in OpenConfirm,
 	// we queue it here and wait for its OPEN to resolve the collision.
@@ -272,6 +276,14 @@ func (p *Peer) SetGlobalWatchdog(wm *WatchdogManager) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	p.globalWatchdog = wm
+}
+
+// SetReactor sets the reactor reference.
+// Called by Reactor.AddPeer().
+func (p *Peer) SetReactor(r *Reactor) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.reactor = r
 }
 
 // AdjRIBOut returns the peer's Adj-RIB-Out.
@@ -689,14 +701,37 @@ func (p *Peer) runOnce() error {
 			p.setEncodingContexts(neg)
 			p.setState(PeerStateEstablished)
 			trace.SessionEstablished(addr, p.settings.LocalAS, p.settings.PeerAS)
+
+			// Notify reactor of peer established
+			p.mu.RLock()
+			reactor := p.reactor
+			p.mu.RUnlock()
+			if reactor != nil {
+				reactor.notifyPeerEstablished(p)
+			}
+
 			// Send static routes from config.
 			go p.sendInitialRoutes()
 		} else if from == fsm.StateEstablished {
+			// Determine reason based on target state
+			reason := "session closed"
+			if to == fsm.StateIdle {
+				reason = "connection lost"
+			}
+
+			// Notify reactor of peer closed
+			p.mu.RLock()
+			reactor := p.reactor
+			p.mu.RUnlock()
+			if reactor != nil {
+				reactor.notifyPeerClosed(p, reason)
+			}
+
 			// Clear negotiated capabilities and encoding contexts on session teardown
 			p.negotiated.Store(nil)
 			p.clearEncodingContexts()
 			p.setState(PeerStateConnecting)
-			trace.SessionClosed(addr, "FSM left Established state")
+			trace.SessionClosed(addr, reason)
 		}
 	})
 

@@ -281,19 +281,50 @@ const (
     StateOpenConfirm State = 0x10
     StateEstablished State = 0x20
 )
-
-type FSM struct {
-    peer  *Peer
-    state State
-}
-
-func (f *FSM) Change(newState State) {
-    f.state = newState
-    if f.peer.neighbor.API.FSM {
-        f.peer.reactor.processes.FSM(f.peer.neighbor, f)
-    }
-}
 ```
+
+### Reactor Notification
+
+The FSM callback in `peer.go` notifies the reactor on Established transitions:
+
+```go
+session.fsm.SetCallback(func(from, to fsm.State) {
+    if to == fsm.StateEstablished {
+        // ... set negotiated capabilities ...
+        if reactor != nil {
+            reactor.notifyPeerEstablished(p)
+        }
+        go p.sendInitialRoutes()
+    } else if from == fsm.StateEstablished {
+        reason := "session closed"
+        if to == fsm.StateIdle {
+            reason = "connection lost"
+        }
+        if reactor != nil {
+            reactor.notifyPeerClosed(p, reason)
+        }
+        // ... clear capabilities ...
+    }
+})
+```
+
+### PeerLifecycleObserver
+
+Reactor maintains a list of observers notified on state changes:
+
+```go
+type PeerLifecycleObserver interface {
+    OnPeerEstablished(peer *Peer)
+    OnPeerClosed(peer *Peer, reason string)
+}
+
+// Register observer
+reactor.AddPeerObserver(observer)
+```
+
+The `apiStateObserver` is registered automatically when API server starts, emitting state messages to external processes.
+
+**See:** `.claude/zebgp/api/ARCHITECTURE.md` for full details.
 
 ### State Machine Goroutine
 
@@ -324,4 +355,4 @@ func (p *Peer) Run(ctx context.Context) error {
 
 ---
 
-**Last Updated:** 2025-12-19
+**Last Updated:** 2026-01-03
