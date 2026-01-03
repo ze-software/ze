@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/exa-networks/zebgp/pkg/api"
+	"github.com/exa-networks/zebgp/pkg/bgp/message"
 )
 
 const (
@@ -281,10 +282,11 @@ func peerFields() []FieldDef {
 
 			// New syntax fields
 			Field("content", Container(
-				Field("encoding", Leaf(TypeString)),   // json | text
-				Field("format", Leaf(TypeString)),     // parsed | raw | full
-				Field("version", Leaf(TypeInt)),       // 6=legacy, 7=nlri (default: 7)
-				Field("attributes", Leaf(TypeString)), // all | none | "origin as-path ..."
+				Field("encoding", Leaf(TypeString)),  // json | text
+				Field("format", Leaf(TypeString)),    // parsed | raw | full
+				Field("version", Leaf(TypeInt)),      // 6=legacy, 7=nlri (default: 7)
+				Field("attribute", Leaf(TypeString)), // all | none | "origin as-path ..."
+				Field("nlri", Flex()),                // ipv4 unicast; ipv6 unicast; (repeated)
 			)),
 			Field("receive", Freeform()), // { update; open; notification; all; }
 			Field("send", Freeform()),    // { update; refresh; all; }
@@ -516,6 +518,7 @@ type PeerContentConfig struct {
 	Format     string               // "parsed" | "raw" | "full" (empty = "parsed")
 	Version    int                  // 6=legacy ExaBGP, 7=new nlri format (0 = default to 7)
 	Attributes *api.AttributeFilter // Which attrs to include (nil = all)
+	NLRI       *api.NLRIFilter      // Which families to include (nil = all)
 }
 
 // PeerReceiveConfig specifies which message types to forward to the process.
@@ -1291,18 +1294,27 @@ func parsePeerConfig(addr string, tree *Tree, templates map[string]*Tree, peerGl
 
 	// Layer 1: Match templates (collected earlier in matchingTrees)
 	for _, matchTree := range matchingTrees {
-		matchBindings := parseAPIBindings(matchTree)
+		matchBindings, err := parseAPIBindings(matchTree)
+		if err != nil {
+			return PeerConfig{}, fmt.Errorf("peer %s: %w", addr, err)
+		}
 		nc.APIBindings = mergeAPIBindings(nc.APIBindings, matchBindings)
 	}
 
 	// Layer 2: Inherited templates (later templates override earlier ones)
 	for _, tmpl := range inheritedTemplates {
-		tmplBindings := parseAPIBindings(tmpl)
+		tmplBindings, err := parseAPIBindings(tmpl)
+		if err != nil {
+			return PeerConfig{}, fmt.Errorf("peer %s: %w", addr, err)
+		}
 		nc.APIBindings = mergeAPIBindings(nc.APIBindings, tmplBindings)
 	}
 
 	// Layer 3: Peer bindings override all templates
-	peerBindings := parseAPIBindings(tree)
+	peerBindings, err := parseAPIBindings(tree)
+	if err != nil {
+		return PeerConfig{}, fmt.Errorf("peer %s: %w", addr, err)
+	}
 	nc.APIBindings = mergeAPIBindings(nc.APIBindings, peerBindings)
 
 	return nc, nil
@@ -1375,13 +1387,13 @@ func applyRIBOutParseResult(cfg *RIBOutConfig, parsed ribOutParseResult) {
 // Supports both old and new syntax:
 //   - Old: api { processes [ foo bar ]; } - uses KeyDefault
 //   - New: api <process-name> { content { encoding json; } receive { update; } }
-func parseAPIBindings(tree *Tree) []PeerAPIBinding {
+func parseAPIBindings(tree *Tree) ([]PeerAPIBinding, error) {
 	var bindings []PeerAPIBinding
 
 	// Schema defines api as List(TypeString, ...) - use GetList
 	apiList := tree.GetList("api")
 	if len(apiList) == 0 {
-		return nil
+		return nil, nil
 	}
 
 	// Sort keys for deterministic order (maps iterate randomly)
@@ -1398,12 +1410,15 @@ func parseAPIBindings(tree *Tree) []PeerAPIBinding {
 			bindings = append(bindings, parseOldAPIBindings(apiTree)...)
 		} else {
 			// New syntax: api <process-name> { content {...} receive {...} send {...} }
-			binding := parseNewAPIBinding(key, apiTree)
+			binding, err := parseNewAPIBinding(key, apiTree)
+			if err != nil {
+				return nil, err
+			}
 			bindings = append(bindings, binding)
 		}
 	}
 
-	return bindings
+	return bindings, nil
 }
 
 // parseOldAPIBindings parses the old api { processes [...] } syntax.
@@ -1435,10 +1450,10 @@ func parseOldAPIBindings(apiTree *Tree) []PeerAPIBinding {
 }
 
 // parseNewAPIBinding parses a single api <name> { ... } binding.
-func parseNewAPIBinding(processName string, apiTree *Tree) PeerAPIBinding {
+func parseNewAPIBinding(processName string, apiTree *Tree) (PeerAPIBinding, error) {
 	binding := PeerAPIBinding{ProcessName: processName}
 
-	// Parse content block: content { encoding json; format full; attributes ...; }
+	// Parse content block: content { encoding json; format full; attribute ...; nlri ...; }
 	if content := apiTree.GetContainer("content"); content != nil {
 		if v, ok := content.Get("encoding"); ok {
 			binding.Content.Encoding = strings.ToLower(v) // Normalize case
@@ -1451,11 +1466,20 @@ func parseNewAPIBinding(processName string, apiTree *Tree) PeerAPIBinding {
 				binding.Content.Version = n
 			}
 		}
-		if v, ok := content.Get("attributes"); ok {
-			if filter, err := api.ParseAttributeFilter(v); err == nil {
-				binding.Content.Attributes = &filter
+		if v, ok := content.Get("attribute"); ok {
+			filter, err := api.ParseAttributeFilter(v)
+			if err != nil {
+				return PeerAPIBinding{}, fmt.Errorf("api %s: invalid attribute filter: %w", processName, err)
 			}
-			// Note: parse errors silently ignored - could add logging
+			binding.Content.Attributes = &filter
+		}
+		// Parse nlri entries: nlri ipv4 unicast; nlri ipv6 unicast;
+		if nlriEntries := content.GetMultiValues("nlri"); len(nlriEntries) > 0 {
+			filter, err := parseNLRIEntries(nlriEntries)
+			if err != nil {
+				return PeerAPIBinding{}, fmt.Errorf("api %s: invalid nlri filter: %w", processName, err)
+			}
+			binding.Content.NLRI = &filter
 		}
 	}
 
@@ -1469,7 +1493,53 @@ func parseNewAPIBinding(processName string, apiTree *Tree) PeerAPIBinding {
 		binding.Send = parseSendConfig(send)
 	}
 
-	return binding
+	return binding, nil
+}
+
+// parseNLRIEntries parses multiple "nlri <afi> <safi>;" entries into NLRIFilter.
+// Each entry is a space-separated string like "ipv4 unicast" or "ipv6 unicast".
+// Special values: "all" includes all families, "none" excludes all.
+func parseNLRIEntries(entries []string) (api.NLRIFilter, error) {
+	if len(entries) == 0 {
+		return api.NewNLRIFilterAll(), nil
+	}
+
+	// Check for special keywords
+	if len(entries) == 1 {
+		entry := strings.TrimSpace(strings.ToLower(entries[0]))
+		if entry == "all" {
+			return api.NewNLRIFilterAll(), nil
+		}
+		if entry == "none" {
+			return api.NewNLRIFilterNone(), nil
+		}
+	}
+
+	// Parse each entry as "<afi> <safi>" and convert to hyphenated form
+	families := make(map[string]bool, len(entries))
+	for _, entry := range entries {
+		entry = strings.TrimSpace(strings.ToLower(entry))
+		if entry == "" {
+			continue
+		}
+
+		// Convert "ipv4 unicast" to "ipv4-unicast" for FamilyConfigNames lookup
+		parts := strings.Fields(entry)
+		if len(parts) != 2 {
+			return api.NLRIFilter{}, fmt.Errorf("invalid nlri format %q, expected '<afi> <safi>'", entry)
+		}
+		hyphenated := parts[0] + "-" + parts[1]
+
+		// Validate against known families
+		canonical, ok := message.FamilyConfigNames[hyphenated]
+		if !ok {
+			return api.NLRIFilter{}, fmt.Errorf("unknown family %q, valid: %s",
+				entry, message.ValidFamilyConfigNames())
+		}
+		families[canonical] = true
+	}
+
+	return api.NewNLRIFilterSelective(families), nil
 }
 
 // parseReceiveConfig parses a Freeform receive block.

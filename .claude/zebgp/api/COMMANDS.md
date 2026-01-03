@@ -202,7 +202,7 @@ Limit which attributes are parsed for API output:
 api route-server {
     content {
         encoding json;
-        attributes as-path community next-hop;  # Only parse these
+        attribute as-path community next-hop;  # Only parse these
     }
     receive { update; }
 }
@@ -229,6 +229,40 @@ Benefits of partial parsing:
 - Reduced CPU (only parse what's needed for routing decision)
 - Reduced memory (don't store full parsed attributes)
 - Wire bytes preserved for zero-copy forwarding
+
+### NLRI Family Filtering
+
+Limit which address families are included in API output:
+
+```
+api route-server {
+    content {
+        encoding json;
+        attribute as-path community next-hop;
+        nlri ipv4 unicast;
+        nlri ipv6 unicast;
+    }
+    receive { update; }
+}
+```
+
+Available families:
+| Config Syntax | Canonical Name |
+|---------------|----------------|
+| `ipv4 unicast` | ipv4 unicast |
+| `ipv6 unicast` | ipv6 unicast |
+| `ipv4 multicast` | ipv4 multicast |
+| `ipv6 multicast` | ipv6 multicast |
+| `ipv4 mpls` | ipv4 mpls |
+| `ipv6 mpls` | ipv6 mpls |
+| `ipv4 mpls-vpn` | ipv4 mpls-vpn |
+| `ipv6 mpls-vpn` | ipv6 mpls-vpn |
+| `ipv4 flowspec` | ipv4 flowspec |
+| `ipv6 flowspec` | ipv6 flowspec |
+| `l2vpn evpn` | l2vpn evpn |
+| `l2vpn vpls` | l2vpn vpls |
+
+Special values: `all` (default), `none`
 
 ---
 

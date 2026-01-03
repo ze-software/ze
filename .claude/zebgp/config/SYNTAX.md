@@ -205,6 +205,9 @@ api <process-name> {
     content {
         encoding json;       # json | text (default: inherit from process)
         format parsed;       # parsed | raw | full (default: parsed)
+        attribute all;       # all | none | "as-path next-hop ..." (default: all)
+        nlri ipv4 unicast;   # <afi> <safi>; (can have multiple)
+        nlri ipv6 unicast;   # all | none | multiple nlri statements
     }
     receive {
         update;              # route announcements

@@ -158,34 +158,7 @@ type FilterResult struct {
 // Thread-safe: filter is immutable after construction.
 type NLRIFilter struct {
 	Mode     FilterMode
-	Families map[string]bool // e.g., "ipv4-unicast", "ipv6-unicast"
-}
-
-// ParseNLRIFilter parses an NLRI filter from config string.
-// Accepts: "all", "none", or space-separated family names.
-// Names: ipv4-unicast, ipv6-unicast, ipv4-multicast, etc.
-func ParseNLRIFilter(s string) (NLRIFilter, error) {
-	s = strings.TrimSpace(s)
-	if s == filterAll || s == "" {
-		return NewNLRIFilterAll(), nil
-	}
-	if s == filterNone {
-		return NewNLRIFilterNone(), nil
-	}
-
-	names := strings.Fields(s)
-	families := make(map[string]bool, len(names))
-
-	for _, name := range names {
-		name = strings.ToLower(name)
-		canonical, ok := message.FamilyConfigNames[name]
-		if !ok {
-			return NLRIFilter{}, fmt.Errorf("unknown family %q, valid: %s",
-				name, message.ValidFamilyConfigNames())
-		}
-		families[canonical] = true
-	}
-	return NewNLRIFilterSelective(families), nil
+	Families map[string]bool // e.g., "ipv4 unicast", "ipv6 unicast"
 }
 
 // NewNLRIFilterAll returns a filter that includes all families.

@@ -2755,3 +2755,170 @@ template {
 		require.NotNil(t, tree)
 	})
 }
+
+// =============================================================================
+// NLRI FILTER PARSING TESTS
+// =============================================================================
+
+// TestParseNLRIEntriesValid verifies valid NLRI family entries are parsed.
+//
+// VALIDATES: Space-separated AFI SAFI entries are correctly parsed.
+//
+// PREVENTS: Valid NLRI filter configs being rejected.
+func TestParseNLRIEntriesValid(t *testing.T) {
+	tests := []struct {
+		name     string
+		entries  []string
+		wantMode int // 0=all, 1=none, 2=selective
+		families []string
+	}{
+		{"empty returns all", []string{}, 0, nil},
+		{"all keyword", []string{"all"}, 0, nil},
+		{"none keyword", []string{"none"}, 1, nil},
+		{"ipv4 unicast", []string{"ipv4 unicast"}, 2, []string{"ipv4 unicast"}},
+		{"ipv6 unicast", []string{"ipv6 unicast"}, 2, []string{"ipv6 unicast"}},
+		{"multiple families", []string{"ipv4 unicast", "ipv6 unicast"}, 2, []string{"ipv4 unicast", "ipv6 unicast"}},
+		{"case insensitive", []string{"IPv4 Unicast", "IPV6 UNICAST"}, 2, []string{"ipv4 unicast", "ipv6 unicast"}},
+		{"l2vpn evpn", []string{"l2vpn evpn"}, 2, []string{"l2vpn evpn"}},
+		{"ipv4 flowspec", []string{"ipv4 flowspec"}, 2, []string{"ipv4 flowspec"}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			filter, err := parseNLRIEntries(tt.entries)
+			require.NoError(t, err)
+
+			switch tt.wantMode {
+			case 0: // all
+				require.True(t, filter.IncludesFamily("ipv4 unicast"), "all mode should include ipv4 unicast")
+				require.True(t, filter.IncludesFamily("ipv6 unicast"), "all mode should include ipv6 unicast")
+			case 1: // none
+				require.True(t, filter.IsEmpty(), "none mode should be empty")
+			case 2: // selective
+				for _, f := range tt.families {
+					require.True(t, filter.IncludesFamily(f), "should include %s", f)
+				}
+			}
+		})
+	}
+}
+
+// TestParseNLRIEntriesInvalid verifies invalid NLRI entries are rejected.
+//
+// VALIDATES: Invalid entries produce clear errors.
+//
+// PREVENTS: Silent failures on malformed NLRI config.
+func TestParseNLRIEntriesInvalid(t *testing.T) {
+	tests := []struct {
+		name    string
+		entries []string
+		wantErr string
+	}{
+		{"missing safi", []string{"ipv4"}, "invalid nlri format"},
+		{"too many parts", []string{"ipv4 unicast extra"}, "invalid nlri format"},
+		{"unknown afi", []string{"bogus unicast"}, "unknown family"},
+		{"unknown safi", []string{"ipv4 bogus"}, "unknown family"},
+		{"empty entry", []string{"ipv4 unicast", ""}, ""}, // empty entries skipped
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := parseNLRIEntries(tt.entries)
+			if tt.wantErr != "" {
+				require.Error(t, err)
+				require.Contains(t, err.Error(), tt.wantErr)
+			}
+		})
+	}
+}
+
+// TestAPIConfigNLRIFilter verifies NLRI filter in API config.
+//
+// VALIDATES: Config with nlri entries parses correctly.
+//
+// PREVENTS: NLRI filter config not being applied.
+func TestAPIConfigNLRIFilter(t *testing.T) {
+	input := `
+process foo { run ./test; encoder json; }
+peer 10.0.0.1 {
+    router-id 1.2.3.4;
+    local-as 65001;
+    peer-as 65002;
+    api foo {
+        content {
+            encoding json;
+            nlri ipv4 unicast;
+            nlri ipv6 unicast;
+        }
+        receive { update; }
+    }
+}
+`
+	cfg := parseConfig(t, input)
+	require.Len(t, cfg.Peers, 1)
+	require.Len(t, cfg.Peers[0].APIBindings, 1)
+
+	binding := cfg.Peers[0].APIBindings[0]
+	require.NotNil(t, binding.Content.NLRI, "NLRI filter should be set")
+	require.True(t, binding.Content.NLRI.IncludesFamily("ipv4 unicast"))
+	require.True(t, binding.Content.NLRI.IncludesFamily("ipv6 unicast"))
+	require.False(t, binding.Content.NLRI.IncludesFamily("l2vpn evpn"))
+}
+
+// TestAPIConfigAttributeFilterError verifies invalid attribute filter is rejected.
+//
+// VALIDATES: Invalid attribute config produces error.
+//
+// PREVENTS: Silent failures on malformed attribute config.
+func TestAPIConfigAttributeFilterError(t *testing.T) {
+	input := `
+process foo { run ./test; encoder json; }
+peer 10.0.0.1 {
+    router-id 1.2.3.4;
+    local-as 65001;
+    peer-as 65002;
+    api foo {
+        content {
+            attribute bogus-attribute;
+        }
+        receive { update; }
+    }
+}
+`
+	p := NewParser(BGPSchema())
+	tree, err := p.Parse(input)
+	require.NoError(t, err)
+
+	_, err = TreeToConfig(tree)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "invalid attribute filter")
+}
+
+// TestAPIConfigNLRIFilterError verifies invalid NLRI filter is rejected.
+//
+// VALIDATES: Invalid NLRI config produces error.
+//
+// PREVENTS: Silent failures on malformed NLRI config.
+func TestAPIConfigNLRIFilterError(t *testing.T) {
+	input := `
+process foo { run ./test; encoder json; }
+peer 10.0.0.1 {
+    router-id 1.2.3.4;
+    local-as 65001;
+    peer-as 65002;
+    api foo {
+        content {
+            nlri bogus family;
+        }
+        receive { update; }
+    }
+}
+`
+	p := NewParser(BGPSchema())
+	tree, err := p.Parse(input)
+	require.NoError(t, err)
+
+	_, err = TreeToConfig(tree)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "invalid nlri filter")
+}

@@ -59,7 +59,9 @@ Config option in content block:
 api foo {
     content {
         encoding json;
-        attributes as-path next-hop communities;  # Only parse/output these
+        attribute as-path next-hop communities;  # Only parse/output these
+        nlri ipv4 unicast;                       # Only include IPv4 unicast
+        nlri ipv6 unicast;                       # Also include IPv6 unicast
     }
     receive { update; }
 }
@@ -95,6 +97,31 @@ api foo {
 **Rejected codes:** `attr-14` (MP_REACH_NLRI) and `attr-15` (MP_UNREACH_NLRI) are structural and MUST be rejected in config parsing with error: `"attr-14 (MP_REACH_NLRI) is structural and cannot be filtered"`.
 
 **Both forms accepted:** `community`/`communities`, `extended-community`/`extended-communities`, `large-community`/`large-communities` all accepted. Internally normalized to attribute codes.
+
+### NLRI Family Names
+
+| Config Syntax | Canonical Name |
+|---------------|----------------|
+| `ipv4 unicast` | ipv4 unicast |
+| `ipv6 unicast` | ipv6 unicast |
+| `ipv4 multicast` | ipv4 multicast |
+| `ipv6 multicast` | ipv6 multicast |
+| `ipv4 mpls` | ipv4 mpls |
+| `ipv6 mpls` | ipv6 mpls |
+| `ipv4 mpls-vpn` | ipv4 mpls-vpn |
+| `ipv6 mpls-vpn` | ipv6 mpls-vpn |
+| `ipv4 flowspec` | ipv4 flowspec |
+| `ipv6 flowspec` | ipv6 flowspec |
+| `l2vpn evpn` | l2vpn evpn |
+| `l2vpn vpls` | l2vpn vpls |
+| `all` | All families (default) |
+| `none` | No families |
+
+Multiple `nlri` statements can be used to select multiple families:
+```
+nlri ipv4 unicast;
+nlri ipv6 unicast;
+```
 
 ## JSON Output Format
 

@@ -468,7 +468,9 @@ API bindings can limit which attributes are parsed:
 ```
 api foo {
     content {
-        attributes as-path community next-hop;  # Only parse these
+        attribute as-path community next-hop;  # Only parse these
+        nlri ipv4 unicast;                     # Only include IPv4 unicast
+        nlri ipv6 unicast;                     # Also include IPv6 unicast
     }
     receive { update; }
 }
@@ -478,6 +480,7 @@ Benefits:
 - Reduced CPU (parse only what's needed)
 - Reduced memory (don't store parsed attributes long-term)
 - Wire bytes preserved for forwarding
+- NLRI filtering reduces output to relevant families only
 
 ### RFC 9234 Role Tagging (Planned)
 
