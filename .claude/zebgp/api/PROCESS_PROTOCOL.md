@@ -338,4 +338,93 @@ func (pm *ProcessManager) respawn(name string) error {
 
 ---
 
-**Last Updated:** 2025-12-19
+## Plugin Command Registration
+
+External processes can register custom commands that extend ZeBGP's API.
+
+### Registration Protocol
+
+**Process → ZeBGP (stdout):**
+```
+#N register command "<name>" description "<help>" [args "<usage>"] [completable] [timeout <duration>]
+```
+
+**ZeBGP → Process (stdin):**
+```json
+{"serial":"N","status":"done"}
+{"serial":"N","status":"error","data":"conflicts with builtin: ..."}
+```
+
+### Registration Options
+
+| Option | Description |
+|--------|-------------|
+| `description` | Help text (required) |
+| `args` | Usage hint (e.g., `"<component>"`) |
+| `completable` | Process handles argument completion |
+| `timeout` | Per-command timeout (default 30s) |
+
+### Unregistration
+
+```
+#N unregister command "<name>"
+```
+
+### Command Execution
+
+**ZeBGP → Process (stdin):**
+```json
+{"serial":"a","type":"request","command":"myapp status","args":["component"],"peer":"*"}
+```
+
+**Process → ZeBGP (stdout):**
+```
+@a done {"status": "running"}
+@a error "component not found"
+```
+
+### Streaming Responses
+
+For large outputs, send partial responses:
+```
+@a+ {"chunk": 1, "data": [...]}
+@a+ {"chunk": 2, "data": [...]}
+@a done
+```
+
+Partials reset the timeout timer. JSON responses include `"partial": true`.
+
+### Argument Completion
+
+If registered with `completable`, process receives completion requests:
+
+**ZeBGP → Process:**
+```json
+{"serial":"b","type":"complete","command":"myapp copy","args":["file1"],"partial":"f"}
+```
+
+**Process → ZeBGP:**
+```
+@b done {"completions":[{"value":"file2","help":"Second file"}]}
+```
+
+Completion timeout: 500ms (non-configurable).
+
+### Lifecycle
+
+- On process death: all commands auto-unregistered, pending requests cancelled
+- Commands must be lowercase, no quotes in names
+- Cannot shadow builtin commands
+
+### Files
+
+| File | Purpose |
+|------|---------|
+| `pkg/api/registry.go` | CommandRegistry type |
+| `pkg/api/pending.go` | PendingRequests tracker |
+| `pkg/api/plugin.go` | Parse register/unregister/response |
+| `pkg/api/server.go` | handleRegisterCommand, handlePluginResponse |
+
+---
+
+**Last Updated:** 2026-01-03

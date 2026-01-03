@@ -110,14 +110,18 @@ The ZeBGP API system enables external route injection and daemon control via:
 
 ```
 pkg/api/
-├── server.go         # Server, Client, socket listener
+├── server.go         # Server, Client, socket listener, plugin response handling
 ├── process.go        # Process, subprocess management
-├── command.go        # Dispatcher, CommandContext
+├── command.go        # Dispatcher, CommandContext, plugin routing
+├── registry.go       # CommandRegistry for plugin commands
+├── pending.go        # PendingRequests tracker (timeout, streaming)
+├── plugin.go         # Parse register/unregister/response
 ├── route.go          # Route handlers (announce, withdraw)
 ├── commit.go         # Transaction handlers
 ├── commit_manager.go # Transaction management
-├── types.go          # ReactorInterface, RouteSpec
+├── types.go          # ReactorInterface, RouteSpec, Response
 ├── session.go        # Session commands (ack, sync)
+├── handler.go        # System command handlers (help, version, command)
 └── text.go           # ExaBGP-style text encoding
 ```
 
@@ -405,11 +409,71 @@ announce route 10.0.0.0/24 next-hop 1.2.3.4
 Response format:
 ```go
 type Response struct {
-    Serial string `json:"serial"`          // Correlation ID
-    Status string `json:"status"`          // "done" or "error"
-    Data   any    `json:"data,omitempty"`  // Payload
+    Serial  string `json:"serial,omitempty"`  // Correlation ID
+    Status  string `json:"status"`            // "done", "error", or streaming
+    Partial bool   `json:"partial,omitempty"` // True for streaming chunks
+    Data    any    `json:"data,omitempty"`    // Payload
 }
 ```
+
+## Plugin Commands
+
+External processes can register custom commands that extend the API.
+
+### Registration
+
+```
+#1 register command "myapp status" description "Show status" args "<component>" completable timeout 60s
+```
+
+### Execution Flow
+
+```
+CLI/Socket
+    │ "myapp status web"
+    ▼
+Dispatcher.Dispatch()
+    │ No builtin match → check registry
+    ▼
+CommandRegistry.Lookup("myapp status")
+    │ Found → route to process
+    ▼
+routeToProcess()
+    │ Add to PendingRequests
+    │ Send JSON: {"serial":"a","type":"request","command":"myapp status","args":["web"],"peer":"*"}
+    ▼
+Process stdout
+    │ @a done {"status":"running"}
+    ▼
+handlePluginResponse()
+    │ Complete pending request
+    ▼
+Response returned to CLI
+```
+
+### Key Types
+
+```go
+// CommandRegistry manages plugin commands
+type CommandRegistry struct {
+    commands map[string]*RegisteredCommand  // lowercase name → registration
+    builtins map[string]bool                // cannot be shadowed
+}
+
+// PendingRequests tracks in-flight requests
+type PendingRequests struct {
+    requests  map[string]*PendingRequest    // serial → pending
+    byProcess map[*Process]map[string]bool  // for cleanup on death
+}
+```
+
+### Lifecycle
+
+- **Process death:** `UnregisterAll()` + `CancelAll()` pending
+- **Timeout:** 30s default, configurable per-command
+- **Streaming:** `@serial+` resets timeout, collected into array
+
+See `PROCESS_PROTOCOL.md` for full protocol details.
 
 ## Adj-RIB-Out
 

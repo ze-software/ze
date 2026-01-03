@@ -72,6 +72,10 @@ type Process struct {
 	pendingRequests map[string]chan string // serial -> response channel
 	pendingMu       sync.Mutex             // Protects pendingRequests
 
+	// Registered plugin commands (tracked for cleanup on death)
+	registeredCommands []string
+	registeredMu       sync.Mutex
+
 	ctx    context.Context
 	cancel context.CancelFunc
 	wg     sync.WaitGroup
@@ -100,6 +104,39 @@ func (p *Process) SyncEnabled() bool {
 // SetSync enables or disables sync mode for this process.
 func (p *Process) SetSync(enabled bool) {
 	p.syncEnabled.Store(enabled)
+}
+
+// AddRegisteredCommand tracks a command registered by this process.
+func (p *Process) AddRegisteredCommand(name string) {
+	p.registeredMu.Lock()
+	defer p.registeredMu.Unlock()
+	p.registeredCommands = append(p.registeredCommands, name)
+}
+
+// RemoveRegisteredCommand removes a command from tracking.
+func (p *Process) RemoveRegisteredCommand(name string) {
+	p.registeredMu.Lock()
+	defer p.registeredMu.Unlock()
+	for i, cmd := range p.registeredCommands {
+		if cmd == name {
+			p.registeredCommands = append(p.registeredCommands[:i], p.registeredCommands[i+1:]...)
+			return
+		}
+	}
+}
+
+// RegisteredCommands returns a copy of the registered command names.
+func (p *Process) RegisteredCommands() []string {
+	p.registeredMu.Lock()
+	defer p.registeredMu.Unlock()
+	result := make([]string, len(p.registeredCommands))
+	copy(result, p.registeredCommands)
+	return result
+}
+
+// Name returns the process name from config.
+func (p *Process) Name() string {
+	return p.config.Name
 }
 
 // QueueSize returns the current number of items in the write queue.

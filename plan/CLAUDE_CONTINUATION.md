@@ -35,9 +35,71 @@ make functional - 37 encoding + 14 api + 10 parsing + 18 decoding ✅
 ## Resume Point
 
 **Last worked:** 2026-01-03
-**Last commit:** `a061622` refactor(reactor): remove Adj-RIB-Out from router core
+**Last commit:** `6cb9515` feat(api): add command serial numbers for request/response correlation
 
-**Status:** API Command Serial implemented. ACK controlled by `#N` prefix.
+**Status:** Plugin Command Registration implemented. External processes can register custom commands.
+
+---
+
+## RECENTLY COMPLETED: API Plugin Command Registration
+
+**Spec:** `plan/spec-api-plugin-commands.md` ✅ DONE
+
+### Summary
+
+External processes can register custom commands that extend ZeBGP's API. Commands route to the registering process with request/response semantics.
+
+### Key Features
+
+| Feature | Description |
+|---------|-------------|
+| `register command` | Process registers commands with description, args, timeout |
+| `unregister command` | Process can unregister its commands |
+| `@serial done/error` | Process sends responses to command requests |
+| `@serial+` streaming | Partial responses for large outputs |
+| Builtin protection | Plugin commands cannot shadow builtins |
+| Process cleanup | Auto-unregister + cancel pending on death |
+| Arg completion | Processes can handle argument completion |
+
+### Files Added
+
+| File | Purpose |
+|------|---------|
+| `pkg/api/registry.go` | CommandRegistry type |
+| `pkg/api/pending.go` | PendingRequests tracker |
+| `pkg/api/plugin.go` | Parse register/unregister/response |
+| `*_test.go` | Tests for above |
+
+### Files Modified
+
+| File | Change |
+|------|--------|
+| `pkg/api/command.go` | Dispatcher + plugin routing + streaming |
+| `pkg/api/handler.go` | system command list/help/complete handlers |
+| `pkg/api/server.go` | Register/unregister/response handling |
+| `pkg/api/types.go` | Response.Partial field |
+| `pkg/api/process.go` | RegisteredCommands tracking |
+
+### Protocol
+
+```
+# Register
+#1 register command "myapp status" description "Show status" timeout 60s
+
+# Execute (ZeBGP → Process)
+{"serial":"a","type":"request","command":"myapp status","args":["web"],"peer":"*"}
+
+# Response (Process → ZeBGP)
+@a done {"status":"running"}
+@a error "not found"
+@a+ {"chunk":1}  (streaming partial)
+```
+
+### Verification
+```
+make test       - PASS
+make lint       - 0 issues ✅
+```
 
 ---
 
@@ -601,6 +663,7 @@ See `plan/DESIGN_TRANSITION.md` for overall architecture.
 | `phase0-peer-callbacks.md` | Peer lifecycle | Ready (independent) |
 
 ### Recently Completed (in plan/done/)
+- `spec-api-plugin-commands.md` - Plugin command registration ✅
 - `spec-api-command-serial.md` - API command serial numbers ✅
 - `spec-remove-adjrib-integration.md` - Adj-RIB-Out removed from router core ✅
 - `spec-attributes-wire.md` - Wire-canonical storage ✅

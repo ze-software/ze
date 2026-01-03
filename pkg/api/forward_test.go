@@ -9,8 +9,6 @@ import (
 	"github.com/exa-networks/zebgp/pkg/rib"
 )
 
-const statusError = "error"
-
 // errUpdateExpired is a test error matching reactor.ErrUpdateExpired.
 // Cannot import reactor due to import cycle (reactor imports api).
 var errUpdateExpired = errors.New("update-id expired or not found")

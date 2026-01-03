@@ -1,6 +1,7 @@
 package api
 
 import (
+	"encoding/json"
 	"errors"
 	"sort"
 	"strings"
@@ -20,9 +21,10 @@ type CommandContext struct {
 	Reactor       ReactorInterface
 	Encoder       *JSONEncoder
 	CommitManager *CommitManager
-	Process       *Process // The API process (for session state)
-	Peer          string   // Peer selector: "*" for all, or specific IP. Empty = "*"
-	Serial        string   // Command serial from #N prefix (empty = no ack)
+	Dispatcher    *Dispatcher // For accessing registry/commands
+	Process       *Process    // The API process (for session state)
+	Peer          string      // Peer selector: "*" for all, or specific IP. Empty = "*"
+	Serial        string      // Command serial from #N prefix (empty = no ack)
 }
 
 // PeerSelector returns the effective neighbor selector.
@@ -43,19 +45,33 @@ type Command struct {
 
 // Dispatcher routes commands to handlers.
 type Dispatcher struct {
-	commands map[string]*Command
-	// sorted keys for longest-match lookup (longest first)
-	sortedKeys []string
+	commands   map[string]*Command
+	sortedKeys []string         // sorted keys for longest-match lookup (longest first)
+	registry   *CommandRegistry // Plugin commands
+	pending    *PendingRequests // In-flight plugin requests
 }
 
 // NewDispatcher creates a new command dispatcher.
 func NewDispatcher() *Dispatcher {
 	return &Dispatcher{
 		commands: make(map[string]*Command),
+		registry: NewCommandRegistry(),
+		pending:  NewPendingRequests(),
 	}
 }
 
-// Register adds a command handler.
+// Registry returns the plugin command registry.
+func (d *Dispatcher) Registry() *CommandRegistry {
+	return d.registry
+}
+
+// Pending returns the pending requests tracker.
+func (d *Dispatcher) Pending() *PendingRequests {
+	return d.pending
+}
+
+// Register adds a builtin command handler.
+// Also marks the command as builtin in the registry to prevent shadowing.
 func (d *Dispatcher) Register(name string, handler Handler, help string) {
 	// Store with lowercase key for case-insensitive matching
 	key := strings.ToLower(name)
@@ -65,6 +81,9 @@ func (d *Dispatcher) Register(name string, handler Handler, help string) {
 		Help:    help,
 	}
 	d.updateSortedKeys()
+
+	// Mark as builtin to prevent plugin shadowing
+	d.registry.AddBuiltin(name)
 }
 
 // updateSortedKeys rebuilds the sorted key list for longest-match lookup.
@@ -96,6 +115,7 @@ func (d *Dispatcher) Commands() []*Command {
 // Dispatch parses and executes a command.
 // Supports neighbor prefix: "neighbor <addr> <command>" or "neighbor * <command>".
 // If no neighbor prefix, defaults to all peers ("*").
+// First checks builtin commands, then falls back to plugin registry.
 func (d *Dispatcher) Dispatch(ctx *CommandContext, input string) (*Response, error) {
 	tokens := tokenize(input)
 	if len(tokens) == 0 {
@@ -105,11 +125,13 @@ func (d *Dispatcher) Dispatch(ctx *CommandContext, input string) (*Response, err
 	// Check for neighbor/peer prefix (peer is alias for neighbor)
 	// Only applies when second token looks like an IP address or glob pattern
 	prefix := strings.ToLower(tokens[0])
+	peerSelector := "*"
 	if (prefix == "neighbor" || prefix == "peer") && len(tokens) >= 3 {
 		// Check if second token looks like IP/glob (contains dots or is "*")
 		if looksLikeIPOrGlob(tokens[1]) {
+			peerSelector = tokens[1]
 			if ctx != nil {
-				ctx.Peer = tokens[1]
+				ctx.Peer = peerSelector
 			}
 			// Rebuild input without neighbor/peer prefix
 			input = strings.Join(tokens[2:], " ")
@@ -120,7 +142,7 @@ func (d *Dispatcher) Dispatch(ctx *CommandContext, input string) (*Response, err
 	lowerInput := strings.ToLower(input)
 	lowerInput = strings.TrimSpace(lowerInput)
 
-	// Find longest matching command prefix
+	// Find longest matching builtin command prefix
 	var matchedCmd *Command
 	var matchedLen int
 
@@ -135,8 +157,9 @@ func (d *Dispatcher) Dispatch(ctx *CommandContext, input string) (*Response, err
 		}
 	}
 
+	// If no builtin match, try plugin registry
 	if matchedCmd == nil {
-		return nil, ErrUnknownCommand
+		return d.dispatchPlugin(ctx, input, peerSelector)
 	}
 
 	// Extract remaining args
@@ -148,19 +171,170 @@ func (d *Dispatcher) Dispatch(ctx *CommandContext, input string) (*Response, err
 
 	// Execute handler
 	if matchedCmd.Handler == nil {
-		return &Response{Status: "done"}, nil
+		return &Response{Status: statusDone}, nil
 	}
 
 	return matchedCmd.Handler(ctx, args)
 }
 
+// dispatchPlugin routes a command to a plugin process.
+func (d *Dispatcher) dispatchPlugin(_ *CommandContext, input, peerSelector string) (*Response, error) {
+	lowerInput := strings.ToLower(strings.TrimSpace(input))
+
+	// Find longest matching plugin command
+	var matchedPlugin *RegisteredCommand
+	var matchedLen int
+
+	for _, cmd := range d.registry.All() {
+		key := strings.ToLower(cmd.Name)
+		if strings.HasPrefix(lowerInput, key) {
+			// Check it's a word boundary
+			if len(lowerInput) == len(key) || lowerInput[len(key)] == ' ' {
+				if len(key) > matchedLen {
+					matchedPlugin = cmd
+					matchedLen = len(key)
+				}
+			}
+		}
+	}
+
+	if matchedPlugin == nil {
+		return nil, ErrUnknownCommand
+	}
+
+	// Extract remaining args
+	remaining := strings.TrimSpace(input[matchedLen:])
+	var args []string
+	if remaining != "" {
+		args = tokenize(remaining)
+	}
+
+	// Route to process
+	return d.routeToProcess(matchedPlugin, args, peerSelector)
+}
+
+// routeToProcess sends a command request to a plugin process.
+func (d *Dispatcher) routeToProcess(cmd *RegisteredCommand, args []string, peerSelector string) (*Response, error) {
+	proc := cmd.Process
+	if proc == nil || !proc.Running() {
+		return nil, errors.New("plugin process not running")
+	}
+
+	// Create response channel
+	respCh := make(chan *Response, 1)
+
+	// Add pending request
+	serial := d.pending.Add(&PendingRequest{
+		Command:  cmd.Name,
+		Process:  proc,
+		Timeout:  cmd.Timeout,
+		RespChan: respCh,
+	})
+
+	if serial == "" {
+		// Limit exceeded - error already sent to respCh
+		select {
+		case resp := <-respCh:
+			return resp, nil
+		default:
+			return &Response{Status: statusError, Data: "too many pending requests"}, nil
+		}
+	}
+
+	// Build request JSON
+	request := map[string]any{
+		"serial":  serial,
+		"type":    "request",
+		"command": cmd.Name,
+		"args":    args,
+		"peer":    peerSelector,
+	}
+	reqJSON, _ := json.Marshal(request)
+
+	// Send to process
+	if writeErr := proc.WriteEvent(string(reqJSON)); writeErr != nil {
+		d.pending.Complete(serial, &Response{Status: statusError, Data: "failed to send request"})
+	}
+
+	// Collect responses (may be streaming with multiple partials)
+	var partials []any
+	for {
+		resp := <-respCh
+		if resp == nil {
+			// Channel closed unexpectedly
+			if len(partials) > 0 {
+				return &Response{Status: statusDone, Data: partials}, nil
+			}
+			return &Response{Status: statusError, Data: "no response received"}, nil
+		}
+
+		if !resp.Partial {
+			// Final response - combine with any partials
+			if len(partials) > 0 {
+				// Had streaming data, append final data if present
+				if resp.Data != nil {
+					partials = append(partials, resp.Data)
+				}
+				return &Response{Status: resp.Status, Data: partials}, nil
+			}
+			return resp, nil
+		}
+
+		// Partial response - collect and continue
+		if resp.Data != nil {
+			partials = append(partials, resp.Data)
+		}
+	}
+}
+
 // tokenize splits a command string into tokens.
+// Handles quoted strings: "hello world" → single token "hello world".
+// Supports backslash escaping: \" for literal quote, \\ for literal backslash.
+// Quotes are stripped from the result.
 func tokenize(input string) []string {
 	input = strings.TrimSpace(input)
 	if input == "" {
 		return nil
 	}
-	return strings.Fields(input)
+
+	var tokens []string
+	var current strings.Builder
+	inQuote := false
+	escape := false
+
+	for _, r := range input {
+		if escape {
+			current.WriteRune(r)
+			escape = false
+			continue
+		}
+
+		if r == '\\' {
+			escape = true
+			continue
+		}
+
+		if r == '"' {
+			inQuote = !inQuote
+			continue
+		}
+
+		if (r == ' ' || r == '\t') && !inQuote {
+			if current.Len() > 0 {
+				tokens = append(tokens, current.String())
+				current.Reset()
+			}
+			continue
+		}
+
+		current.WriteRune(r)
+	}
+
+	if current.Len() > 0 {
+		tokens = append(tokens, current.String())
+	}
+
+	return tokens
 }
 
 // looksLikeIPOrGlob returns true if s looks like an IP address or glob pattern.

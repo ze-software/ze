@@ -293,10 +293,14 @@ func isAlphaSerial(serial string) bool {
 
 // handleSingleProcessCommands handles commands from a single process.
 func (s *Server) handleSingleProcessCommands(proc *Process) {
+	// Cleanup on exit
+	defer s.cleanupProcess(proc)
+
 	cmdCtx := &CommandContext{
 		Reactor:       s.reactor,
 		Encoder:       s.encoder,
 		CommitManager: s.commitManager,
+		Dispatcher:    s.dispatcher,
 		Process:       proc, // For session state (ack, sync)
 		Peer:          "*",  // Default to all peers
 	}
@@ -327,9 +331,28 @@ func (s *Server) handleSingleProcessCommands(proc *Process) {
 			continue
 		}
 
+		// Check for @serial response (plugin command response)
+		if serial, respType, data, ok := parsePluginResponse(line); ok {
+			s.handlePluginResponse(proc, serial, respType, data)
+			continue
+		}
+
 		// Parse #N serial prefix
 		serial, cmd := parseSerial(line)
 		cmdCtx.Serial = serial
+
+		// Check for register/unregister before normal dispatch
+		tokens := tokenize(cmd)
+		if len(tokens) > 0 {
+			switch strings.ToLower(tokens[0]) {
+			case "register":
+				s.handleRegisterCommand(proc, serial, tokens[1:])
+				continue
+			case "unregister":
+				s.handleUnregisterCommand(proc, serial, tokens[1:])
+				continue
+			}
+		}
 
 		// Dispatch command
 		resp, err := s.dispatcher.Dispatch(cmdCtx, cmd)
@@ -348,6 +371,97 @@ func (s *Server) handleSingleProcessCommands(proc *Process) {
 			_ = proc.WriteEvent(string(respJSON))
 		}
 	}
+}
+
+// handleRegisterCommand processes a register command from a process.
+func (s *Server) handleRegisterCommand(proc *Process, serial string, tokens []string) {
+	def, err := parseRegisterCommand(tokens)
+	if err != nil {
+		if serial != "" {
+			resp := &Response{Serial: serial, Status: "error", Data: err.Error()}
+			respJSON, _ := json.Marshal(resp)
+			_ = proc.WriteEvent(string(respJSON))
+		}
+		return
+	}
+
+	results := s.dispatcher.Registry().Register(proc, []CommandDef{*def})
+	result := results[0]
+
+	if result.OK {
+		proc.AddRegisteredCommand(def.Name)
+	}
+
+	if serial != "" {
+		var resp *Response
+		if result.OK {
+			resp = &Response{Serial: serial, Status: "done"}
+		} else {
+			resp = &Response{Serial: serial, Status: "error", Data: result.Error}
+		}
+		respJSON, _ := json.Marshal(resp)
+		_ = proc.WriteEvent(string(respJSON))
+	}
+}
+
+// handleUnregisterCommand processes an unregister command from a process.
+func (s *Server) handleUnregisterCommand(proc *Process, serial string, tokens []string) {
+	name, err := parseUnregisterCommand(tokens)
+	if err != nil {
+		if serial != "" {
+			resp := &Response{Serial: serial, Status: "error", Data: err.Error()}
+			respJSON, _ := json.Marshal(resp)
+			_ = proc.WriteEvent(string(respJSON))
+		}
+		return
+	}
+
+	s.dispatcher.Registry().Unregister(proc, []string{name})
+	proc.RemoveRegisteredCommand(name)
+
+	if serial != "" {
+		resp := &Response{Serial: serial, Status: "done"}
+		respJSON, _ := json.Marshal(resp)
+		_ = proc.WriteEvent(string(respJSON))
+	}
+}
+
+// handlePluginResponse handles a response from a plugin process.
+func (s *Server) handlePluginResponse(_ *Process, serial, respType, data string) {
+	pending := s.dispatcher.Pending()
+
+	switch respType {
+	case statusDone:
+		var respData any
+		if data != "" {
+			// Try to parse as JSON
+			if err := json.Unmarshal([]byte(data), &respData); err != nil {
+				respData = data // Use as string if not valid JSON
+			}
+		}
+		pending.Complete(serial, &Response{Status: statusDone, Data: respData})
+
+	case statusError:
+		pending.Complete(serial, &Response{Status: statusError, Data: data})
+
+	case "partial":
+		var respData any
+		if data != "" {
+			if err := json.Unmarshal([]byte(data), &respData); err != nil {
+				respData = data
+			}
+		}
+		pending.Partial(serial, &Response{Status: statusDone, Partial: true, Data: respData})
+	}
+}
+
+// cleanupProcess handles cleanup when a process exits.
+func (s *Server) cleanupProcess(proc *Process) {
+	// Unregister all commands from this process
+	s.dispatcher.Registry().UnregisterAll(proc)
+
+	// Cancel all pending requests
+	s.dispatcher.Pending().CancelAll(proc)
 }
 
 // handleClient creates and manages a client connection.
@@ -420,6 +534,7 @@ func (s *Server) processCommand(client *Client, line string) {
 		Reactor:       s.reactor,
 		Encoder:       s.encoder,
 		CommitManager: s.commitManager,
+		Dispatcher:    s.dispatcher,
 		Serial:        serial,
 		// Note: Process is nil for socket clients - session commands are no-ops
 	}

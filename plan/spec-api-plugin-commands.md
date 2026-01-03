@@ -1,6 +1,6 @@
 # Spec: API Plugin Command Registration
 
-## Status: DRAFT
+## Status: DONE
 
 ## Prerequisites
 
@@ -108,45 +108,52 @@ This matches existing pattern: processes send text commands, receive JSON events
 
 ### Process → ZeBGP (Text Commands)
 
-**Existing commands** (unchanged):
-```
-announce route 10.0.0.0/24 next-hop 1.2.3.4
-withdraw route 10.0.0.0/24
-session ack enable
-# ... etc
-```
+All process commands use the `#N` serial prefix per **spec-api-command-serial.md**:
 
-**New commands** for plugin system:
+```
+#<serial> <command>
+```
 
 #### 1. Registration
 
 ```
-register command "<name>" description "<help>"
-register command "<name>" description "<help>" args "<usage>"
+#N register command "<name>" description "<help>"
+#N register command "<name>" description "<help>" args "<usage>"
+#N register command "<name>" description "<help>" args "<usage>" completable
+#N register command "<name>" description "<help>" timeout <duration>
 ```
 
 **Examples:**
 ```
-register command "myapp status" description "Show myapp status"
-register command "myapp status" description "Show myapp status" args "[component]"
-register command "myapp reload" description "Reload myapp config"
+#1 register command "myapp status" description "Show myapp status"
+#2 register command "myapp reload" description "Reload myapp config" timeout 60s
+#3 register command "myapp check" description "Check component" args "<component>" completable
+#4 register command "myapp sync" description "Full sync" timeout 120s
 ```
+
+**Timeout:**
+- Per-command timeout until first response byte
+- Format: `<number>s` (seconds) or `<number>ms` (milliseconds)
+- Default: 30s if not specified
+- Completion requests: fixed 500ms (not configurable)
 
 **Rules:**
 - Process MAY send multiple `register` commands (additive)
 - Command names MUST be quoted (may contain spaces)
+- Command names MUST be lowercase
+- Command names MUST NOT contain quote characters
 - Command names MUST NOT conflict with builtins (error response)
 - Command names MUST NOT conflict with other processes (first wins)
 
 #### 2. Unregistration
 
 ```
-unregister command "<name>"
+#N unregister command "<name>"
 ```
 
 **Example:**
 ```
-unregister command "myapp status"
+#4 unregister command "myapp status"
 ```
 
 **Rules:**
@@ -155,20 +162,43 @@ unregister command "myapp status"
 
 #### 3. Command Response
 
-When ZeBGP routes a CLI command to a process (via `{"type": "request", "serial": N, ...}` on stdin),
-the process MUST reply with a `response` command:
+When ZeBGP routes a CLI command to a process (via `{"serial": "abc", "type": "request", ...}` on stdin),
+the process MUST reply with `@serial` prefix echoing ZeBGP's alpha serial:
 
 ```
-response <serial> done [json-data]
-response <serial> error "<message>"
+@<serial> done [json-data]
+@<serial> error "<message>"
 ```
 
 **Examples:**
 ```
-response 42 done {"component": "web", "healthy": true}
-response 42 done
-response 42 error "component not found: web"
+@a done {"component": "web", "healthy": true}
+@a done
+@b error "component not found: web"
 ```
+
+#### 3a. Streaming Responses
+
+For commands that return large data (e.g., RIB dump), use continuation marker `+`:
+
+```
+@<serial>+ <json-data>     # Partial response, more coming
+@<serial> done [json-data] # Final response
+@<serial> error "<message>" # Error terminates stream
+```
+
+**Examples:**
+```
+@a+ {"routes": [{"prefix": "10.0.0.0/24", ...}]}
+@a+ {"routes": [{"prefix": "10.0.1.0/24", ...}]}
+@a done {"total": 2}
+```
+
+**Rules:**
+- `@serial+` indicates partial data, more chunks follow
+- `@serial` (without `+`) is always final (done or error)
+- Timeout applies between chunks (same as command timeout, resets on each chunk)
+- Error terminates stream immediately
 
 **Flow:**
 ```
@@ -176,20 +206,24 @@ CLI                    ZeBGP                   Process
  │                       │                        │
  │ "myapp status web"    │                        │
  │──────────────────────>│                        │
- │                       │ {"type":"request",     │
- │                       │  "serial":42,          │
+ │                       │ {"serial":"a",         │
+ │                       │  "type":"request",     │
  │                       │  "command":"myapp status", │
  │                       │  "args":["web"]}       │
  │                       │───────────────────────>│
  │                       │                        │ (process handles)
- │                       │ response 42 done {...} │
+ │                       │ @a done {...}          │
  │                       │<───────────────────────│
  │ {"status":"done",...} │                        │
  │<──────────────────────│                        │
 ```
 
+**Serial types** (per spec-api-command-serial.md):
+- Numeric (`#1`, `#2`, `#123`): Process-initiated commands
+- Alpha (`#a`, `#b`, `#bcd`): ZeBGP-initiated requests (0→a, 1→b, ..., 9→j)
+
 **Rules:**
-- `serial` MUST match the request serial (incrementing uint64)
+- `serial` MUST match the ZeBGP alpha serial
 - Unknown `serial` → logged and ignored (request may have timed out)
 - `done` may have optional JSON data (passed to CLI as `data` field)
 - `error` message MUST be quoted
@@ -198,41 +232,100 @@ CLI                    ZeBGP                   Process
 
 #### 4. Registration Result
 
+Response to `#N register command ...` (echoes numeric serial):
+
 ```json
-{
-  "type": "register-result",
-  "command": "myapp status",
-  "success": true
-}
+{"serial": "1", "status": "done"}
 ```
 
 **Or failure:**
 ```json
-{
-  "type": "register-result",
-  "command": "myapp status",
-  "success": false,
-  "reason": "conflicts with builtin"
-}
+{"serial": "1", "status": "error", "error": "conflicts with builtin: daemon status"}
 ```
 
-#### 5. Command Request
+#### 5. Command Request (ZeBGP-initiated)
+
+When CLI sends a plugin command, ZeBGP routes to process using alpha serial:
 
 ```json
-{
-  "type": "request",
-  "serial": 42,
-  "command": "myapp status",
-  "args": ["web"],
-  "peer": "*"
-}
+{"serial": "a", "type": "request", "command": "myapp status", "args": ["web"], "peer": "*"}
 ```
 
 **Fields:**
-- `serial`: Incrementing request number (uint64) for response matching
+- `serial`: Alpha serial (a, b, bcd, ...), process echoes in `@serial` response
+- `type`: `"request"` for command execution
 - `command`: Matched command name
 - `args`: Remaining arguments after command match
 - `peer`: Peer selector from `neighbor X` prefix (or `*`)
+
+#### 6. Completion Request (ZeBGP-initiated)
+
+```json
+{"serial": "b", "type": "complete", "command": "myapp status", "args": [], "partial": "w"}
+```
+
+**Fields:**
+- `args`: Completed arguments before the partial (context for multi-arg commands)
+- `partial`: Current incomplete token being typed
+
+**Example:** `myapp copy file1 f<TAB>`
+```json
+{"serial": "c", "type": "complete", "command": "myapp copy", "args": ["file1"], "partial": "f"}
+```
+
+---
+
+## Command Matching
+
+Commands are matched using **longest-prefix** matching, case-insensitive:
+
+1. All commands (builtin + plugin) sorted by name length descending
+2. Input compared against each command prefix
+3. First match wins (longest due to sort order)
+4. Remaining input becomes args
+
+**Example:**
+```
+Registered: "peer", "peer status", "peer list"
+Input: "peer status web"
+Match: "peer status" (longest prefix)
+Args:  ["web"]
+```
+
+**Conflict rules:**
+- Plugins CANNOT shadow builtins (registration rejected)
+- Full command name must be unique (first registration wins)
+- Shared prefixes allowed: Process A registers `myapp status`, Process B registers `myapp config` ✅
+- Duplicate leaf rejected: Two processes register `myapp status` ❌
+
+## Tokenization
+
+Single tokenizer for all parsing (registration and runtime):
+
+- Whitespace separates tokens
+- Quoted strings preserve spaces: `"hello world"` → single token `hello world`
+- Backslash escaping: `\"` for literal quote, `\\` for literal backslash
+- Quotes stripped from result
+
+```
+Input:  myapp check "hello world"
+Args:   ["hello world"]
+
+Input:  myapp set "value with \"quotes\""
+Args:   ["value with \"quotes\""]
+```
+
+## Peer Selector
+
+The `peer` field in requests uses the selector syntax from `pkg/api/selector.go`:
+
+| Pattern | Meaning |
+|---------|---------|
+| `*` | All peers |
+| `<ip>` | Specific peer (e.g., `192.0.2.1`) |
+| `!<ip>` | All peers except this IP |
+
+Invalid: `!*` (cannot exclude all), empty selector.
 
 ---
 
@@ -265,9 +358,10 @@ type CommandRegistry struct {
 type RegisteredCommand struct {
     Name         string
     Description  string
-    Args         string      // Usage hint (e.g., "<component>")
-    Completable  bool        // Process handles arg completion
-    Process      *Process    // Owning process
+    Args         string         // Usage hint (e.g., "<component>")
+    Completable  bool           // Process handles arg completion
+    Timeout      time.Duration  // Per-command timeout (default: 30s)
+    Process      *Process       // Owning process
     RegisteredAt time.Time
 }
 
@@ -284,15 +378,21 @@ func (r *CommandRegistry) Complete(partial string) []Completion  // For command 
 ```go
 // pkg/api/pending.go
 
+const (
+    DefaultCommandTimeout    = 30 * time.Second
+    CompletionTimeout        = 500 * time.Millisecond
+    MaxPendingPerProcess     = 100  // Prevent memory exhaustion from stuck process
+)
+
 type PendingRequests struct {
     mu       sync.RWMutex
-    next     uint64                        // Next serial number
-    requests map[uint64]*PendingRequest    // serial → pending
-    timeout  time.Duration
+    next     uint64                        // Next serial number (encoded as alpha)
+    requests map[string]*PendingRequest    // alpha serial → pending
+    byProcess map[*Process]int             // Count per process for limit enforcement
 }
 
 type PendingRequest struct {
-    Serial    uint64
+    Serial    string       // Alpha serial (a, b, bcd, ...)
     Command   string
     Process   *Process
     Client    *Client      // Socket client waiting for response
@@ -300,9 +400,9 @@ type PendingRequest struct {
     Timer     *time.Timer  // Timeout cancellation
 }
 
-func (p *PendingRequests) Add(req *PendingRequest) uint64  // Returns assigned serial
-func (p *PendingRequests) Complete(serial uint64, resp *Response) bool
-func (p *PendingRequests) Timeout(serial uint64)
+func (p *PendingRequests) Add(req *PendingRequest) string  // Returns assigned alpha serial
+func (p *PendingRequests) Complete(serial string, resp *Response) bool
+func (p *PendingRequests) Timeout(serial string)
 func (p *PendingRequests) CancelAll(proc *Process)  // Called on process death
 ```
 
@@ -339,24 +439,32 @@ type Process struct {
 
 // handleOutput processes stdout lines (all text commands)
 func (p *Process) handleOutput(line string) {
-    tokens := tokenize(line)
+    // Check for @serial response (to ZeBGP-initiated request)
+    if serial, rest, ok := parseResponseSerial(line); ok {
+        // @serial done [...] | @serial error "..."
+        p.handleResponse(serial, rest)
+        return
+    }
+
+    // Check for #N serial prefix (process-initiated)
+    serial, cmd := parseSerial(line)
+
+    // Parse command
+    tokens := tokenize(cmd)
     if len(tokens) == 0 {
         return
     }
 
     switch tokens[0] {
     case "register":
-        // register command "<name>" description "<help>" [args "<usage>"]
-        p.handleRegister(tokens[1:])
+        // #N register command "<name>" description "<help>" [args "<usage>"]
+        p.handleRegister(serial, tokens[1:])
     case "unregister":
-        // unregister command "<name>"
-        p.handleUnregister(tokens[1:])
-    case "response":
-        // response <id> done [json] | response <id> error "<msg>"
-        p.handleResponse(tokens[1:])
+        // #N unregister command "<name>"
+        p.handleUnregister(serial, tokens[1:])
     default:
         // Existing command handling (announce, withdraw, etc.)
-        p.handleCommand(line)
+        p.handleCommand(serial, cmd)
     }
 }
 ```
@@ -408,6 +516,36 @@ Response:
 }
 ```
 
+### Query: `system command help <name>`
+
+Returns detailed help for a specific command:
+
+```
+system command help "myapp status"
+```
+
+Response:
+```json
+{
+  "status": "done",
+  "data": {
+    "command": "myapp status",
+    "description": "Show myapp component status",
+    "args": "<component>",
+    "source": "myapp-controller",
+    "timeout": "5s"
+  }
+}
+```
+
+For unknown command:
+```json
+{
+  "status": "error",
+  "error": "unknown command: myapp foo"
+}
+```
+
 ### Query: `system command complete <partial>`
 
 CLI sends partial input, ZeBGP returns matching completions:
@@ -444,17 +582,12 @@ system command complete "myapp status" args "w"
 
 ZeBGP routes to owning process:
 ```json
-{
-  "type": "complete",
-  "serial": 43,
-  "command": "myapp status",
-  "partial": "w"
-}
+{"serial": "b", "type": "complete", "command": "myapp status", "args": [], "partial": "w"}
 ```
 
 Process responds (text):
 ```
-response 43 done {"completions":[{"value":"web"},{"value":"worker"},{"value":"websocket"}]}
+@b done {"completions":[{"value":"web"},{"value":"worker"},{"value":"websocket"}]}
 ```
 
 ZeBGP returns to CLI:
@@ -473,7 +606,7 @@ ZeBGP returns to CLI:
 
 Process MAY include `help` field for richer completions:
 ```
-response 43 done {"completions":[{"value":"web","help":"Web server"},{"value":"worker","help":"Background worker"}]}
+@a done {"completions":[{"value":"web","help":"Web server"},{"value":"worker","help":"Background worker"}]}
 ```
 
 ### Registration with Completion Support
@@ -495,9 +628,17 @@ Without `completable`, ZeBGP returns empty completions for arguments.
 ### Process Startup
 
 1. ZeBGP spawns process
-2. Process sends `{"type": "register", "commands": [...]}` on stdout
+2. Process sends registration commands on stdout:
+   ```
+   #1 register command "myapp status" description "Show status" args "<component>" completable
+   #2 register command "myapp reload" description "Reload config"
+   ```
 3. ZeBGP validates and registers commands
-4. ZeBGP sends `{"type": "register-result", ...}` on stdin
+4. ZeBGP sends results on stdin (serial as string):
+   ```json
+   {"serial": "1", "status": "done"}
+   {"serial": "2", "status": "done"}
+   ```
 5. Process is ready to handle commands
 
 ### Command Execution
@@ -505,10 +646,16 @@ Without `completable`, ZeBGP returns empty completions for arguments.
 1. CLI sends `myapp status web`
 2. Dispatcher checks builtins (no match)
 3. Dispatcher checks registry (match: `myapp status` → Process)
-4. Create PendingRequest, assign next serial (e.g., 42)
-5. Send `{"type": "request", "serial": 42, ...}` to process stdin
-6. Process handles, sends `response 42 done {...}` on stdout
-7. PendingRequests.Complete(42) routes response to CLI client
+4. Create PendingRequest, assign alpha serial (e.g., `a`)
+5. Send to process stdin:
+   ```json
+   {"serial": "a", "type": "request", "command": "myapp status", "args": ["web"], "peer": "*"}
+   ```
+6. Process handles, sends on stdout:
+   ```
+   @a done {"component": "web", "status": "healthy"}
+   ```
+7. PendingRequests.Complete() routes response to CLI client
 8. CLI receives response
 
 ### Timeout
@@ -544,6 +691,8 @@ Without `completable`, ZeBGP returns empty completions for arguments.
 | Response after timeout | Log warning, ignore |
 | Malformed JSON from process | Log error, ignore line |
 | Process death mid-request | Error response to CLI |
+| Max pending limit reached | Reject request with error, log warning |
+| Completion timeout (500ms) | Return empty completions |
 
 ---
 
@@ -573,33 +722,34 @@ process myapp {
 
 ## Implementation Phases
 
-### Phase 1: Core Infrastructure
-- [ ] `CommandRegistry` type
-- [ ] `PendingRequests` type (with serial counter)
-- [ ] Wire into `Dispatcher`
-- [ ] Tests for registry operations
+### Phase 1: Core Infrastructure ✅
+- [x] `CommandRegistry` type (`pkg/api/registry.go`)
+- [x] `PendingRequests` type with serial counter (`pkg/api/pending.go`)
+- [x] Wire into `Dispatcher` (`pkg/api/command.go`)
+- [x] Tests for registry operations (`pkg/api/registry_test.go`)
 
-### Phase 2: Process Protocol
-- [ ] Text command parsing in `handleOutput` (`register`, `unregister`, `response`)
-- [ ] `register` / `unregister` handling
-- [ ] `register-result` JSON sending
-- [ ] `request` JSON sending
-- [ ] `response` text parsing
-- [ ] Tests for protocol
+### Phase 2: Process Protocol ✅
+- [x] Text command parsing (`register`, `unregister`, `@serial response`)
+- [x] `register` / `unregister` handling (`pkg/api/server.go`)
+- [x] Response JSON sending to process
+- [x] `request` JSON sending to process
+- [x] `@serial done/error` response parsing (`pkg/api/plugin.go`)
+- [x] Tests for protocol (`pkg/api/plugin_test.go`)
 
-### Phase 3: Lifecycle
-- [ ] Timeout handling
-- [ ] Process death cleanup
-- [ ] Pending request cancellation
-- [ ] Integration tests
+### Phase 3: Lifecycle ✅
+- [x] Timeout handling (`PendingRequests` timer)
+- [x] Process death cleanup (`cleanupProcess()`)
+- [x] Pending request cancellation (`CancelAll()`)
+- [x] Streaming response collection
 
-### Phase 4: CLI Query & Completion
-- [ ] `system command list` handler
-- [ ] `system command list verbose` handler
-- [ ] `system command complete <partial>` handler
-- [ ] `system command complete <cmd> args <partial>` handler (routed to process)
-- [ ] `completable` flag in registration
-- [ ] Update `system help` to use dispatcher
+### Phase 4: CLI Query & Completion ✅
+- [x] `system command list` handler
+- [x] `system command list verbose` handler
+- [x] `system command help <name>` handler
+- [x] `system command complete <partial>` handler
+- [x] `system command complete <cmd> args <partial>` handler (routed to process)
+- [x] `completable` flag in registration
+- [x] Update `system help` to use dispatcher
 
 ---
 
@@ -612,61 +762,74 @@ import sys
 
 COMPONENTS = ["web", "worker", "websocket", "database"]
 
-# Register commands at startup (text format)
-# "completable" flag enables argument completion
-print('register command "hello" description "Say hello" args "[name]"')
-print('register command "myapp status" description "Show component status" args "<component>" completable')
-sys.stdout.flush()
+# Track our numeric serial for process-initiated commands
+next_serial = 1
+pending = {}  # serial -> command (to track our requests)
+
+def send_command(cmd):
+    global next_serial
+    serial = str(next_serial)
+    pending[serial] = cmd
+    print(f"#{serial} {cmd}")
+    next_serial += 1
+    sys.stdout.flush()
+
+# Register commands at startup (with #N serial prefix)
+send_command('register command "hello" description "Say hello" args "[name]"')
+send_command('register command "myapp status" description "Show component status" args "<component>" completable')
+send_command('register command "myapp dump" description "Dump all data" timeout 120s')
 
 # Handle incoming messages (JSON from ZeBGP)
 for line in sys.stdin:
     msg = json.loads(line)
-    serial = msg["serial"]
+    serial = msg.get("serial", "")
 
-    if msg["type"] == "request":
-        # Handle command execution
+    # Response to our command (numeric serial we sent)
+    if serial in pending:
+        del pending[serial]
+        if msg.get("status") == "error":
+            print(f"Command failed: {msg.get('error')}", file=sys.stderr)
+        continue
+
+    # ZeBGP-initiated request (alpha serial)
+    if msg.get("type") == "request":
         if msg["command"] == "hello":
             name = msg["args"][0] if msg["args"] else "stranger"
             data = json.dumps({"greeting": f"Hello, {name}!"})
-            print(f"response {serial} done {data}")
+            print(f"@{serial} done {data}")
 
         elif msg["command"] == "myapp status":
             comp = msg["args"][0] if msg["args"] else "all"
             data = json.dumps({"component": comp, "status": "healthy"})
-            print(f"response {serial} done {data}")
+            print(f"@{serial} done {data}")
+
+        elif msg["command"] == "myapp dump":
+            # Streaming response example
+            for i, comp in enumerate(COMPONENTS):
+                data = json.dumps({"component": comp, "index": i})
+                print(f"@{serial}+ {data}")  # + indicates more coming
+                sys.stdout.flush()
+            print(f"@{serial} done")  # Final response (no +)
 
         else:
-            print(f'response {serial} error "unknown command"')
+            print(f'@{serial} error "unknown command"')
 
-    elif msg["type"] == "complete":
+    elif msg.get("type") == "complete":
         # Handle argument completion
         partial = msg.get("partial", "")
         matches = [{"value": c} for c in COMPONENTS if c.startswith(partial)]
         data = json.dumps({"completions": matches})
-        print(f"response {serial} done {data}")
+        print(f"@{serial} done {data}")
 
     sys.stdout.flush()
 ```
 
 ---
 
-## Open Questions
+## Design Decisions
 
-1. **Sync vs async dispatch?**
-   - Current: CLI blocks until response
-   - Alternative: Return immediately, poll for result
-   - Recommendation: Sync (simpler, matches current behavior)
+1. **Sync dispatch** - CLI blocks until response. Async can be added later if needed.
 
-2. **Command namespacing?**
-   - Current: Flat namespace, conflicts rejected
-   - Alternative: `process:command` namespacing
-   - Recommendation: Flat (simpler, plugins choose unique names)
+2. **Shared prefix tree, unique leaf** - Commands can share prefixes (`myapp status`, `myapp config`) but full command names must be unique across all processes.
 
-3. **Multiple processes per command?**
-   - Current: One process per command
-   - Alternative: Load balancing / failover
-   - Recommendation: One (simpler, can add later)
-
-4. **Capability negotiation?**
-   - Should process declare protocol version?
-   - Recommendation: Add `"version": 1` to register message for future compat
+3. **One process per command** - Simple ownership model. Load balancing/failover can be added later if needed.

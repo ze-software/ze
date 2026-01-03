@@ -159,6 +159,13 @@ func TestDispatcherTokenize(t *testing.T) {
 		{"  peer show  ", []string{"peer", "show"}},
 		{"peer\tshow", []string{"peer", "show"}},
 		{"announce route 10.0.0.0/24", []string{"announce", "route", "10.0.0.0/24"}},
+		// Quoted strings
+		{`myapp check "hello world"`, []string{"myapp", "check", "hello world"}},
+		{`register command "myapp status" description "Show status"`, []string{"register", "command", "myapp status", "description", "Show status"}},
+		// Escaped quotes
+		{`myapp set "value with \"quotes\""`, []string{"myapp", "set", `value with "quotes"`}},
+		// Escaped backslash
+		{`myapp path "C:\\Users\\test"`, []string{"myapp", "path", `C:\Users\test`}},
 	}
 
 	for _, tt := range tests {

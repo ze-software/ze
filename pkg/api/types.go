@@ -412,9 +412,10 @@ type RIBStatsInfo struct {
 // Response represents an API command response.
 // Serial is included only if command had #N prefix.
 type Response struct {
-	Serial string `json:"serial,omitempty"` // Correlation ID (omitted if no prefix)
-	Status string `json:"status"`           // "done" or "error"
-	Data   any    `json:"data,omitempty"`   // Payload (success data or error message)
+	Serial  string `json:"serial,omitempty"`  // Correlation ID (omitted if no prefix)
+	Status  string `json:"status"`            // "done", "error", or "partial"
+	Partial bool   `json:"partial,omitempty"` // True for streaming chunks, false for final
+	Data    any    `json:"data,omitempty"`    // Payload (success data or error message)
 }
 
 // ProcessConfig holds external process configuration.
@@ -439,6 +440,12 @@ const (
 	FormatParsed = "parsed" // Decoded/interpreted fields only (default)
 	FormatRaw    = "raw"    // Wire bytes only (hex)
 	FormatFull   = "full"   // Both parsed content AND raw bytes
+)
+
+// Status constants for API responses.
+const (
+	statusDone  = "done"
+	statusError = "error"
 )
 
 // ContentConfig controls HOW messages are formatted (encoding + format).

@@ -65,11 +65,15 @@ session bye              # Close CLI connection
 ### System Commands
 
 ```
-system help              # Show help
+system help              # Show help (uses dispatcher, includes plugin commands)
 system version           # Show version
 system api version       # Show API version
 system queue-status      # Show write queue status
-system crash             # Debug: trigger crash
+system command list      # List all commands (builtin + plugin)
+system command list verbose  # List with source (builtin/process name)
+system command help "<name>" # Show command details
+system command complete "<partial>"  # Complete command names
+system command complete "<cmd>" args [<completed>...] "<partial>"  # Arg completion
 ```
 
 ### Peer Commands
