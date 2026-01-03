@@ -264,12 +264,12 @@ func TestFormatNonUpdateRoutesToDedicatedFormatters(t *testing.T) {
 
 	got := FormatMessage(peer, msg, content)
 
-	// Should use FormatOpen with new format: peer X asn Y open ...
-	if !strings.Contains(got, "peer 10.0.0.1 asn 65001 open") {
-		t.Errorf("FormatMessage() for OPEN =\n%q\nshould contain 'peer 10.0.0.1 asn 65001 open'", got)
+	// Should use FormatOpen with new format: peer X open asn Y router-id R hold-time T cap ...
+	if !strings.Contains(got, "peer 10.0.0.1 open asn 42") {
+		t.Errorf("FormatMessage() for OPEN =\n%q\nshould contain 'peer 10.0.0.1 open asn 42'", got)
 	}
-	if !strings.Contains(got, "version 4") {
-		t.Errorf("FormatMessage() for OPEN =\n%q\nshould contain 'version 4'", got)
+	if !strings.Contains(got, "router-id 10.0.0.1") {
+		t.Errorf("FormatMessage() for OPEN =\n%q\nshould contain 'router-id 10.0.0.1'", got)
 	}
 	if !strings.Contains(got, "hold-time 180") {
 		t.Errorf("FormatMessage() for OPEN =\n%q\nshould contain 'hold-time 180'", got)

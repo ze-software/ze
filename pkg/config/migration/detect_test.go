@@ -7,11 +7,11 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// TestDetectLegacyNeighborAtRoot verifies v2 detection for neighbor at root.
+// TestDetectLegacyNeighborAtRoot verifies detection of neighbor at root.
 //
-// VALIDATES: Config with "neighbor <IP>" is detected as v2.
+// VALIDATES: Config with "neighbor <IP>" needs migration.
 //
-// PREVENTS: v2 configs being treated as current.
+// PREVENTS: Old configs being treated as current.
 func TestDetectLegacyNeighborAtRoot(t *testing.T) {
 	input := `
 neighbor 192.0.2.1 {
@@ -21,14 +21,14 @@ neighbor 192.0.2.1 {
 `
 	tree := parseWithBGPSchema(t, input)
 	needsMigration := NeedsMigration(tree)
-	require.True(t, needsMigration, "neighbor at root should be v2")
+	require.True(t, needsMigration, "neighbor at root needs migration")
 }
 
-// TestDetectLegacyPeerGlobAtRoot verifies v2 detection for peer glob at root.
+// TestDetectLegacyPeerGlobAtRoot verifies detection of peer glob at root.
 //
-// VALIDATES: Config with "peer *" glob at root is detected as v2.
+// VALIDATES: Config with "peer *" glob at root needs migration.
 //
-// PREVENTS: Root-level peer globs being treated as v3.
+// PREVENTS: Root-level peer globs being treated as current.
 func TestDetectLegacyPeerGlobAtRoot(t *testing.T) {
 	input := `
 peer * {
@@ -40,14 +40,14 @@ neighbor 192.0.2.1 {
 `
 	tree := parseWithBGPSchema(t, input)
 	needsMigration := NeedsMigration(tree)
-	require.True(t, needsMigration, "peer glob at root should be v2")
+	require.True(t, needsMigration, "peer glob at root needs migration")
 }
 
-// TestDetectLegacyTemplateNeighbor verifies v2 detection for template.neighbor.
+// TestDetectLegacyTemplateNeighbor verifies detection of template.neighbor.
 //
-// VALIDATES: Config with template { neighbor <name> } is detected as v2.
+// VALIDATES: Config with template { neighbor <name> } needs migration.
 //
-// PREVENTS: Old template syntax being treated as v3.
+// PREVENTS: Old template syntax being treated as current.
 func TestDetectLegacyTemplateNeighbor(t *testing.T) {
 	input := `
 template {
@@ -62,14 +62,14 @@ neighbor 192.0.2.1 {
 `
 	tree := parseWithBGPSchema(t, input)
 	needsMigration := NeedsMigration(tree)
-	require.True(t, needsMigration, "template.neighbor should be v2")
+	require.True(t, needsMigration, "template.neighbor needs migration")
 }
 
-// TestDetectCurrentPeerAtRoot verifies v3 detection for peer IP at root.
+// TestDetectCurrentPeerAtRoot verifies detection of peer IP at root.
 //
-// VALIDATES: Config with "peer <IP>" (not glob) is detected as v3.
+// VALIDATES: Config with "peer <IP>" (not glob) does not need migration.
 //
-// PREVENTS: New syntax being mistaken for old.
+// PREVENTS: Current syntax being mistaken for old.
 func TestDetectCurrentPeerAtRoot(t *testing.T) {
 	input := `
 peer 192.0.2.1 {
@@ -79,14 +79,14 @@ peer 192.0.2.1 {
 `
 	tree := parseWithBGPSchema(t, input)
 	needsMigration := NeedsMigration(tree)
-	require.False(t, needsMigration, "peer IP at root should be v3")
+	require.False(t, needsMigration, "peer IP at root does not need migration")
 }
 
-// TestDetectCurrentTemplateGroup verifies v3 detection for template.group.
+// TestDetectCurrentTemplateGroup verifies detection of template.group.
 //
-// VALIDATES: Config with template { group <name> } is detected as v3.
+// VALIDATES: Config with template { group <name> } does not need migration.
 //
-// PREVENTS: New template syntax being treated as old.
+// PREVENTS: Current template syntax being treated as old.
 func TestDetectCurrentTemplateGroup(t *testing.T) {
 	input := `
 template {
@@ -101,14 +101,14 @@ peer 192.0.2.1 {
 `
 	tree := parseWithBGPSchema(t, input)
 	needsMigration := NeedsMigration(tree)
-	require.False(t, needsMigration, "template.group should be v3")
+	require.False(t, needsMigration, "template.group does not need migration")
 }
 
-// TestDetectCurrentTemplateMatch verifies v3 detection for template.match.
+// TestDetectCurrentTemplateMatch verifies detection of template.match.
 //
-// VALIDATES: Config with template { match * } is detected as v3.
+// VALIDATES: Config with template { match * } does not need migration.
 //
-// PREVENTS: Match blocks being treated as v2.
+// PREVENTS: Match blocks being treated as old syntax.
 func TestDetectCurrentTemplateMatch(t *testing.T) {
 	input := `
 template {
@@ -122,15 +122,15 @@ peer 192.0.2.1 {
 `
 	tree := parseWithBGPSchema(t, input)
 	needsMigration := NeedsMigration(tree)
-	require.False(t, needsMigration, "template.match should be v3")
+	require.False(t, needsMigration, "template.match does not need migration")
 }
 
-// TestDetectMixedV2V3ReturnsV2 verifies mixed configs are detected as v2.
+// TestDetectMixedSyntax verifies mixed configs need migration.
 //
-// VALIDATES: Config with both v3 (template.match) AND v2 (neighbor) is v2.
+// VALIDATES: Config with both current (template.match) AND old (neighbor) needs migration.
 //
 // PREVENTS: Partially migrated configs being treated as complete.
-func TestDetectMixedV2V3ReturnsV2(t *testing.T) {
+func TestDetectMixedSyntax(t *testing.T) {
 	input := `
 template {
     match * {
@@ -143,18 +143,18 @@ neighbor 192.0.2.1 {
 `
 	tree := parseWithBGPSchema(t, input)
 	needsMigration := NeedsMigration(tree)
-	require.True(t, needsMigration, "mixed v2/v3 should be detected as v2 (needs migration)")
+	require.True(t, needsMigration, "mixed syntax needs migration")
 }
 
-// TestDetectEmptyConfigReturnsV3 verifies empty config is treated as current.
+// TestDetectEmptyConfig verifies empty config is treated as current.
 //
 // VALIDATES: Empty config returns false (no migration needed).
 //
 // PREVENTS: Empty configs causing errors.
-func TestDetectEmptyConfigReturnsV3(t *testing.T) {
+func TestDetectEmptyConfig(t *testing.T) {
 	tree := config.NewTree()
 	needsMigration := NeedsMigration(tree)
-	require.False(t, needsMigration, "empty config should be v3 (current)")
+	require.False(t, needsMigration, "empty config does not need migration")
 }
 
 // TestNeedsMigrationNilTree verifies nil tree handling.
@@ -166,12 +166,12 @@ func TestNeedsMigrationNilTree(t *testing.T) {
 	require.False(t, NeedsMigration(nil), "nil tree should not need migration")
 }
 
-// TestDetectCIDRPatternAtRootIsV2 verifies CIDR patterns at root are v2.
+// TestDetectCIDRPatternAtRoot verifies CIDR patterns at root need migration.
 //
-// VALIDATES: "peer 10.0.0.0/8 { }" at root is v2 (needs migration to template.match).
+// VALIDATES: "peer 10.0.0.0/8 { }" at root needs migration to template.match.
 //
-// PREVENTS: CIDR patterns at root being treated as v3.
-func TestDetectCIDRPatternAtRootIsV2(t *testing.T) {
+// PREVENTS: CIDR patterns at root being treated as current.
+func TestDetectCIDRPatternAtRoot(t *testing.T) {
 	input := `
 peer 10.0.0.0/8 {
     hold-time 90;
@@ -182,15 +182,15 @@ peer 192.0.2.1 {
 `
 	tree := parseWithBGPSchema(t, input)
 	needsMigration := NeedsMigration(tree)
-	require.True(t, needsMigration, "CIDR pattern at root should be v2")
+	require.True(t, needsMigration, "CIDR pattern at root needs migration")
 }
 
-// TestDetectIPv6GlobPatternAtRootIsV2 verifies IPv6 glob patterns at root are v2.
+// TestDetectIPv6GlobPatternAtRoot verifies IPv6 glob patterns at root need migration.
 //
-// VALIDATES: "peer 2001:db8::* { }" at root is v2 (needs migration to template.match).
+// VALIDATES: "peer 2001:db8::* { }" at root needs migration to template.match.
 //
-// PREVENTS: IPv6 glob patterns at root being treated as v3.
-func TestDetectIPv6GlobPatternAtRootIsV2(t *testing.T) {
+// PREVENTS: IPv6 glob patterns at root being treated as current.
+func TestDetectIPv6GlobPatternAtRoot(t *testing.T) {
 	input := `
 peer 2001:db8::* {
     hold-time 90;
@@ -201,15 +201,15 @@ peer 2001:db8::1 {
 `
 	tree := parseWithBGPSchema(t, input)
 	needsMigration := NeedsMigration(tree)
-	require.True(t, needsMigration, "IPv6 glob pattern at root should be v2")
+	require.True(t, needsMigration, "IPv6 glob pattern at root needs migration")
 }
 
-// TestDetectPeerWithStaticIsV2 verifies peer with static block is v2.
+// TestDetectPeerWithStatic verifies peer with static block needs migration.
 //
-// VALIDATES: "peer { static { } }" is v2 (needs migration to announce).
+// VALIDATES: "peer { static { } }" needs migration to announce.
 //
-// PREVENTS: v3-style peer with deprecated static block being skipped.
-func TestDetectPeerWithStaticIsV2(t *testing.T) {
+// PREVENTS: Peer with deprecated static block being skipped.
+func TestDetectPeerWithStatic(t *testing.T) {
 	input := `
 peer 192.0.2.1 {
     local-as 65000;
@@ -220,15 +220,15 @@ peer 192.0.2.1 {
 `
 	tree := parseWithBGPSchema(t, input)
 	needsMigration := NeedsMigration(tree)
-	require.True(t, needsMigration, "peer with static block should be v2")
+	require.True(t, needsMigration, "peer with static block needs migration")
 }
 
-// TestDetectTemplateGroupWithStaticIsV2 verifies template.group with static is v2.
+// TestDetectTemplateGroupWithStatic verifies template.group with static needs migration.
 //
-// VALIDATES: "template { group { static { } } }" is v2.
+// VALIDATES: "template { group { static { } } }" needs migration.
 //
 // PREVENTS: Template static blocks being skipped.
-func TestDetectTemplateGroupWithStaticIsV2(t *testing.T) {
+func TestDetectTemplateGroupWithStatic(t *testing.T) {
 	input := `
 template {
     group vpn-customers {
@@ -243,15 +243,15 @@ peer 192.0.2.1 {
 `
 	tree := parseWithBGPSchema(t, input)
 	needsMigration := NeedsMigration(tree)
-	require.True(t, needsMigration, "template.group with static should be v2")
+	require.True(t, needsMigration, "template.group with static needs migration")
 }
 
-// TestDetectPeerWithAnonymousAPIIsV2 verifies peer with old-style anonymous api is v2.
+// TestDetectPeerWithAnonymousAPI verifies peer with old-style anonymous api needs migration.
 //
-// VALIDATES: "peer { api { processes [...] } }" is v2 (needs migration to named api).
+// VALIDATES: "peer { api { processes [...] } }" needs migration to named api.
 //
 // PREVENTS: Old API syntax being skipped during migration.
-func TestDetectPeerWithAnonymousAPIIsV2(t *testing.T) {
+func TestDetectPeerWithAnonymousAPI(t *testing.T) {
 	input := `
 process foo {
     run ./foo.run;
@@ -266,15 +266,15 @@ peer 192.0.2.1 {
 `
 	tree := parseWithBGPSchema(t, input)
 	needsMigration := NeedsMigration(tree)
-	require.True(t, needsMigration, "peer with anonymous api block should be v2")
+	require.True(t, needsMigration, "peer with anonymous api block needs migration")
 }
 
-// TestDetectTemplateGroupWithAnonymousAPIIsV2 verifies template.group with old api is v2.
+// TestDetectTemplateGroupWithAnonymousAPI verifies template.group with old api needs migration.
 //
-// VALIDATES: "template { group { api { processes [...] } } }" is v2.
+// VALIDATES: "template { group { api { processes [...] } } }" needs migration.
 //
 // PREVENTS: Template anonymous API blocks being skipped.
-func TestDetectTemplateGroupWithAnonymousAPIIsV2(t *testing.T) {
+func TestDetectTemplateGroupWithAnonymousAPI(t *testing.T) {
 	input := `
 process collector {
     run ./collector.run;
@@ -292,15 +292,15 @@ peer 192.0.2.1 {
 `
 	tree := parseWithBGPSchema(t, input)
 	needsMigration := NeedsMigration(tree)
-	require.True(t, needsMigration, "template.group with anonymous api should be v2")
+	require.True(t, needsMigration, "template.group with anonymous api needs migration")
 }
 
-// TestDetectPeerWithNamedAPIIsV3 verifies peer with new-style named api is v3.
+// TestDetectPeerWithNamedAPI verifies peer with new-style named api does not need migration.
 //
-// VALIDATES: "peer { api foo { } }" is v3 (already migrated).
+// VALIDATES: "peer { api foo { } }" does not need migration (already current).
 //
 // PREVENTS: Already-migrated configs being flagged for migration.
-func TestDetectPeerWithNamedAPIIsV3(t *testing.T) {
+func TestDetectPeerWithNamedAPI(t *testing.T) {
 	input := `
 process foo {
     run ./foo.run;
@@ -314,15 +314,15 @@ peer 192.0.2.1 {
 `
 	tree := parseWithBGPSchema(t, input)
 	needsMigration := NeedsMigration(tree)
-	require.False(t, needsMigration, "peer with named api block should be v3")
+	require.False(t, needsMigration, "peer with named api block does not need migration")
 }
 
-// TestDetectNamedAPIWithProcessesIsV2 verifies named api with processes field is v2.
+// TestDetectNamedAPIWithProcesses verifies named api with processes field needs migration.
 //
-// VALIDATES: "api speaking { processes [...] }" is v2 (needs migration).
+// VALIDATES: "api speaking { processes [...] }" needs migration.
 //
 // PREVENTS: Named blocks with old syntax being skipped.
-func TestDetectNamedAPIWithProcessesIsV2(t *testing.T) {
+func TestDetectNamedAPIWithProcesses(t *testing.T) {
 	input := `
 process foo {
     run ./foo.run;
@@ -337,7 +337,7 @@ peer 192.0.2.1 {
 `
 	tree := parseWithBGPSchema(t, input)
 	needsMigration := NeedsMigration(tree)
-	require.True(t, needsMigration, "named api with processes field should be v2")
+	require.True(t, needsMigration, "named api with processes field needs migration")
 }
 
 // TestDetectNamedAPIWithFormatFlagsIsV2 verifies named api with format flags is v2.
