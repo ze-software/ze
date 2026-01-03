@@ -273,7 +273,7 @@ func (t *Tree) RemoveListEntry(listName, key string) *Tree {
 
 // ClearList removes all entries from a list.
 // Reserved for future migrations that need bulk list replacement.
-// Current v2→v3 migration uses RemoveListEntry for order preservation.
+// Current migration uses RemoveListEntry for order preservation.
 func (t *Tree) ClearList(name string) {
 	delete(t.lists, name)
 	delete(t.listOrder, name)

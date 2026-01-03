@@ -307,8 +307,8 @@ func peerFields() []FieldDef {
 	}
 }
 
-// BGPSchema returns the schema for ZeBGP configuration (v3 only).
-// Use LegacyBGPSchema for migration from v2 configs.
+// BGPSchema returns the schema for ZeBGP configuration (current syntax).
+// Use LegacyBGPSchema for migration from old ExaBGP configs.
 func BGPSchema() *Schema {
 	schema := NewSchema()
 
@@ -328,14 +328,14 @@ func BGPSchema() *Schema {
 		Field("respawn", Leaf(TypeBool)),    // respawn on exit
 	))
 
-	// Template definitions - named templates and glob patterns (v3)
+	// Template definitions - named templates and glob patterns
 	// template { group <name> { ... }; match <pattern> { ... } }
 	schema.Define("template", Container(
 		Field("group", List(TypeString, peerFields()...)), // Named templates (inherit <name>)
 		Field("match", List(TypeString, peerFields()...)), // Glob patterns (auto-apply by IP)
 	))
 
-	// Peer definitions - actual BGP sessions (v3: requires IP address)
+	// Peer definitions - actual BGP sessions (requires IP address)
 	schema.Define("peer", List(TypeIP, peerFields()...))
 
 	return schema
@@ -411,8 +411,8 @@ func environmentBlock() *ContainerNode {
 	)
 }
 
-// LegacyBGPSchema returns a schema that accepts both v2 and v3 syntax.
-// Used by the migration tool to parse v2 configs before transformation.
+// LegacyBGPSchema returns a schema that accepts both old and current syntax.
+// Used by the migration tool to parse old configs before transformation.
 func LegacyBGPSchema() *Schema {
 	schema := NewSchema()
 
@@ -431,17 +431,17 @@ func LegacyBGPSchema() *Schema {
 		Field("respawn", Leaf(TypeBool)),
 	))
 
-	// v2: neighbor <IP> { ... } - deprecated
+	// neighbor <IP> { ... } - deprecated ExaBGP syntax
 	schema.Define("neighbor", List(TypeIP, peerFields()...))
 
-	// v2/v3: peer - accepts both IP (v3) and glob patterns (v2)
+	// peer - accepts both IP (current) and glob patterns (old)
 	schema.Define("peer", List(TypeString, peerFields()...))
 
-	// Template definitions - accepts both v2 and v3 syntax
+	// Template definitions - accepts both old and current syntax
 	schema.Define("template", Container(
-		Field("neighbor", List(TypeString, peerFields()...)), // v2: named templates
-		Field("group", List(TypeString, peerFields()...)),    // v3: named templates
-		Field("match", List(TypeString, peerFields()...)),    // v3: glob patterns
+		Field("neighbor", List(TypeString, peerFields()...)), // old: named templates
+		Field("group", List(TypeString, peerFields()...)),    // current: named templates
+		Field("match", List(TypeString, peerFields()...)),    // current: glob patterns
 	))
 
 	return schema
@@ -712,10 +712,10 @@ func TreeToConfig(tree *Tree) (*BGPConfig, error) {
 	}
 
 	// Parse templates first (for inheritance)
-	// Support both v2 (template.neighbor) and v3 (template.group) syntax
+	// Support both old (template.neighbor) and current (template.group) syntax
 	templates := make(map[string]*Tree)
 	if tmpl := tree.GetContainer("template"); tmpl != nil {
-		// V2: template { neighbor <name> { ... } }
+		// Old: template { neighbor <name> { ... } }
 		for name, neighborTree := range tmpl.GetList("neighbor") {
 			// Validate: inherit not allowed inside template
 			if _, hasInherit := neighborTree.Get("inherit"); hasInherit {
@@ -723,7 +723,7 @@ func TreeToConfig(tree *Tree) (*BGPConfig, error) {
 			}
 			templates[name] = neighborTree
 		}
-		// V3: template { group <name> { ... } }
+		// Current: template { group <name> { ... } }
 		for name, groupTree := range tmpl.GetList("group") {
 			// Validate group name: must start with letter, contain letters/numbers/hyphens, not end with hyphen
 			if !isValidGroupName(name) {

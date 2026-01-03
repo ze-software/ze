@@ -86,7 +86,7 @@ func TestMigrateNeighborToPeer(t *testing.T) {
 // VALIDATES: Already-migrated configs have transformations in Skipped.
 // PREVENTS: False positives in Applied list.
 func TestMigrateSkipsAlreadyMigrated(t *testing.T) {
-	// Create a v3 config (peer, not neighbor)
+	// Create a current config (peer, not neighbor)
 	tree := config.NewTree()
 	peer := config.NewTree()
 	peer.Set("router-id", "1.1.1.1")
@@ -157,7 +157,7 @@ func TestDryRunNilTree(t *testing.T) {
 // VALIDATES: DryRun shows AlreadyDone for migrated configs.
 // PREVENTS: False detection of needed migrations.
 func TestDryRunAlreadyDone(t *testing.T) {
-	// Create a v3 config
+	// Create a current config
 	tree := config.NewTree()
 	peer := config.NewTree()
 	tree.AddListEntry("peer", "10.0.0.1", peer)
@@ -181,7 +181,7 @@ func TestDryRunAlreadyDone(t *testing.T) {
 // VALIDATES: DryRun shows WouldApply for unmigrated configs.
 // PREVENTS: Missing detection of needed migrations.
 func TestDryRunWouldApply(t *testing.T) {
-	// Create a v2 config (neighbor, not peer)
+	// Create an old config (neighbor, not peer)
 	tree := config.NewTree()
 	neighbor := config.NewTree()
 	tree.AddListEntry("neighbor", "10.0.0.1", neighbor)
@@ -248,7 +248,7 @@ func TestNeedsMigrationNil(t *testing.T) {
 
 // TestNeedsMigrationTrue verifies detection for unmigrated config.
 //
-// VALIDATES: NeedsMigration returns true for v2 configs.
+// VALIDATES: NeedsMigration returns true for old configs.
 // PREVENTS: Failing to detect migration need.
 func TestNeedsMigrationTrue(t *testing.T) {
 	tree := config.NewTree()
@@ -256,13 +256,13 @@ func TestNeedsMigrationTrue(t *testing.T) {
 	tree.AddListEntry("neighbor", "10.0.0.1", neighbor)
 
 	if !NeedsMigration(tree) {
-		t.Error("NeedsMigration() = false, want true for v2 config")
+		t.Error("NeedsMigration() = false, want true for old config")
 	}
 }
 
 // TestNeedsMigrationFalse verifies detection for already-migrated config.
 //
-// VALIDATES: NeedsMigration returns false for v3 configs.
+// VALIDATES: NeedsMigration returns false for current configs.
 // PREVENTS: False positive migration detection.
 func TestNeedsMigrationFalse(t *testing.T) {
 	tree := config.NewTree()
@@ -270,7 +270,7 @@ func TestNeedsMigrationFalse(t *testing.T) {
 	tree.AddListEntry("peer", "10.0.0.1", peer)
 
 	if NeedsMigration(tree) {
-		t.Error("NeedsMigration() = true, want false for v3 config")
+		t.Error("NeedsMigration() = true, want false for current config")
 	}
 }
 

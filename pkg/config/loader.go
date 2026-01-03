@@ -35,7 +35,7 @@ func LoadReactorWithConfig(input string) (*BGPConfig, *reactor.Reactor, error) {
 	p := NewParser(BGPSchema())
 	tree, err := p.Parse(input)
 	if err != nil {
-		// Check if this looks like v2 syntax and provide migration hint
+		// Check if this looks like old syntax and provide migration hint
 		if hint := detectLegacySyntaxHint(input, err); hint != "" {
 			return nil, nil, fmt.Errorf("parse config: %w\n\n%s", err, hint)
 		}
@@ -1787,17 +1787,17 @@ func parseActionFlags(s string) byte {
 	return flags
 }
 
-// detectLegacySyntaxHint checks if a parse error is likely due to v2 syntax
+// detectLegacySyntaxHint checks if a parse error is likely due to old syntax
 // and returns a helpful hint for migration.
 func detectLegacySyntaxHint(input string, parseErr error) string {
 	errMsg := parseErr.Error()
 
-	// Check for common v2 patterns
+	// Check for common old syntax patterns
 	hasNeighborKeyword := strings.Contains(errMsg, "unknown top-level keyword: neighbor")
 	hasTemplateNeighbor := strings.Contains(errMsg, "unknown field in template: neighbor")
 	hasPeerGlobError := strings.Contains(errMsg, "invalid key for peer") && strings.Contains(errMsg, "invalid IP")
 
-	// Also check input for v2 patterns
+	// Also check input for old syntax patterns
 	lines := strings.Split(input, "\n")
 	for _, line := range lines {
 		trimmed := strings.TrimSpace(line)
@@ -1808,9 +1808,9 @@ func detectLegacySyntaxHint(input string, parseErr error) string {
 	}
 
 	if hasNeighborKeyword || hasTemplateNeighbor || hasPeerGlobError {
-		return "Hint: This config appears to use deprecated v2 syntax.\n" +
+		return "Hint: This config appears to use deprecated ExaBGP syntax.\n" +
 			"Run 'zebgp config check <file>' to verify, then\n" +
-			"Run 'zebgp config migrate <file>' to upgrade to v3 syntax."
+			"Run 'zebgp config migrate <file>' to upgrade."
 	}
 
 	return ""

@@ -340,12 +340,12 @@ peer 192.0.2.1 {
 	require.True(t, needsMigration, "named api with processes field needs migration")
 }
 
-// TestDetectNamedAPIWithFormatFlagsIsV2 verifies named api with format flags is v2.
+// TestDetectNamedAPIWithFormatFlags verifies named api with format flags needs migration.
 //
-// VALIDATES: "api foo { receive { parsed; } }" is v2 (needs migration).
+// VALIDATES: "api foo { receive { parsed; } }" needs migration.
 //
 // PREVENTS: Format flags in named blocks being skipped.
-func TestDetectNamedAPIWithFormatFlagsIsV2(t *testing.T) {
+func TestDetectNamedAPIWithFormatFlags(t *testing.T) {
 	input := `
 process foo {
     run ./foo.run;
@@ -363,15 +363,15 @@ peer 192.0.2.1 {
 `
 	tree := parseWithBGPSchema(t, input)
 	needsMigration := NeedsMigration(tree)
-	require.True(t, needsMigration, "named api with format flags should be v2")
+	require.True(t, needsMigration, "named api with format flags needs migration")
 }
 
-// TestDetectNamedAPIWithNewSyntaxIsV3 verifies named api with new syntax is v3.
+// TestDetectNamedAPIWithNewSyntax verifies named api with new syntax does not need migration.
 //
-// VALIDATES: "api foo { content { format parsed; } receive { update; } }" is v3.
+// VALIDATES: "api foo { content { format parsed; } receive { update; } }" does not need migration.
 //
 // PREVENTS: Already-migrated configs being flagged for migration.
-func TestDetectNamedAPIWithNewSyntaxIsV3(t *testing.T) {
+func TestDetectNamedAPIWithNewSyntax(t *testing.T) {
 	input := `
 process foo {
     run ./foo.run;
@@ -387,11 +387,11 @@ peer 192.0.2.1 {
 `
 	tree := parseWithBGPSchema(t, input)
 	needsMigration := NeedsMigration(tree)
-	require.False(t, needsMigration, "named api with new syntax should be v3")
+	require.False(t, needsMigration, "named api with new syntax does not need migration")
 }
 
 // parseWithBGPSchema is a helper that parses config using LegacyBGPSchema.
-// Migration tests need to parse v2 syntax, so we use the legacy schema.
+// Migration tests need to parse old syntax, so we use the legacy schema.
 func parseWithBGPSchema(t *testing.T, input string) *config.Tree {
 	t.Helper()
 	p := config.NewParser(config.LegacyBGPSchema())

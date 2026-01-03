@@ -425,12 +425,12 @@ peer 10.0.0.1 {
 	require.Contains(t, err.Error(), "peer 10.0.0.1")
 }
 
-// TestMigrateAPIBlocksV2NeighborIntegration verifies full v2→v3 migration.
+// TestMigrateAPIBlocksNeighborIntegration verifies full migration.
 //
 // VALIDATES: neighbor X { api {...} } → peer X { api name {...} }
 //
 // PREVENTS: API blocks lost during neighbor→peer rename.
-func TestMigrateAPIBlocksV2NeighborIntegration(t *testing.T) {
+func TestMigrateAPIBlocksNeighborIntegration(t *testing.T) {
 	input := `
 process watcher { run ./watcher; }
 neighbor 10.0.0.1 {
@@ -445,7 +445,7 @@ neighbor 10.0.0.1 {
 `
 	tree := parseWithLegacySchema(t, input)
 
-	// Use full v2→v3 migration
+	// Use full migration
 	result, err := Migrate(tree)
 	require.NoError(t, err)
 	migrated := result.Tree

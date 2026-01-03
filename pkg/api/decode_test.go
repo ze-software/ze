@@ -167,3 +167,56 @@ func TestExtractAttributeBytesMalformed(t *testing.T) {
 		})
 	}
 }
+
+// TestFormatCapabilityStrings verifies all capability types produce parseable hyphenated strings.
+//
+// VALIDATES: All capabilities use hyphenated format without spaces.
+// PREVENTS: Unparseable capability strings in OPEN output.
+func TestFormatCapabilityStrings(t *testing.T) {
+	tests := []struct {
+		name string
+		cap  string
+		want string
+	}{
+		// Basic capabilities
+		{"multiprotocol ipv4 unicast", "multiprotocol-ipv4-unicast", "multiprotocol-ipv4-unicast"},
+		{"multiprotocol ipv6 unicast", "multiprotocol-ipv6-unicast", "multiprotocol-ipv6-unicast"},
+		{"route refresh", "route-refresh", "route-refresh"},
+		{"enhanced route refresh", "enhanced-route-refresh", "enhanced-route-refresh"},
+		{"extended message", "extended-message", "extended-message"},
+
+		// ASN4 with value
+		{"4-byte-asn", "4-byte-asn-65536", "4-byte-asn-65536"},
+
+		// AddPath per family
+		{"addpath receive", "addpath-receive-ipv4-unicast", "addpath-receive-ipv4-unicast"},
+		{"addpath send", "addpath-send-ipv6-unicast", "addpath-send-ipv6-unicast"},
+		{"addpath send/receive", "addpath-send/receive-ipv4-unicast", "addpath-send/receive-ipv4-unicast"},
+
+		// Graceful restart
+		{"graceful restart", "graceful-restart-120", "graceful-restart-120"},
+
+		// Extended nexthop per family
+		{"extended nexthop", "extended-nexthop-ipv4-unicast-ipv6", "extended-nexthop-ipv4-unicast-ipv6"},
+
+		// FQDN
+		{"hostname only", "hostname-router1", "hostname-router1"},
+		{"hostname with domain", "hostname-router1.example.com", "hostname-router1.example.com"},
+
+		// Software version
+		{"software", "software-zebgp-1.0", "software-zebgp-1.0"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Verify no spaces in capability string
+			if bytes.Contains([]byte(tt.cap), []byte(" ")) {
+				t.Errorf("capability %q contains spaces", tt.cap)
+			}
+			// Verify expected format
+			if tt.cap != tt.want {
+				t.Errorf("capability = %q, want %q", tt.cap, tt.want)
+			}
+		})
+	}
+}

@@ -164,7 +164,7 @@ func parseCapabilitiesFromOptParams(optParams []byte) ([]string, uint32) {
 				continue
 			}
 			for _, cap := range caps {
-				capStrings = append(capStrings, formatCapability(cap))
+				capStrings = append(capStrings, formatCapability(cap)...)
 				// Extract ASN4 if present
 				if asn4Cap, ok := cap.(*capability.ASN4); ok {
 					asn4 = asn4Cap.ASN
@@ -176,33 +176,29 @@ func parseCapabilitiesFromOptParams(optParams []byte) ([]string, uint32) {
 	return capStrings, asn4
 }
 
-// formatCapability returns human-readable string for a capability.
-// Format matches ExaBGP text encoder (lowercased): capname(value) or capname.
-func formatCapability(cap capability.Capability) string {
+// formatCapability returns human-readable strings for a capability.
+// Most capabilities return a single string, but AddPath returns one per family.
+// Format is parseable: hyphenated names without spaces.
+func formatCapability(cap capability.Capability) []string {
 	switch c := cap.(type) {
 	case *capability.Multiprotocol:
-		// ExaBGP: "Multiprotocol(ipv4 unicast,ipv6 unicast)" -> "multiprotocol(ipv4 unicast)"
-		return fmt.Sprintf("multiprotocol(%s %s)", c.AFI, c.SAFI)
+		return []string{fmt.Sprintf("multiprotocol-%s-%s", c.AFI, c.SAFI)}
 	case *capability.ASN4:
-		// ExaBGP: "ASN4(65536)" -> "asn4(65536)"
-		return fmt.Sprintf("asn4(%d)", c.ASN)
+		return []string{fmt.Sprintf("4-byte-asn-%d", c.ASN)}
 	case *capability.RouteRefresh:
-		// ExaBGP: "Route Refresh" -> "route refresh"
-		return "route refresh"
+		return []string{"route-refresh"}
 	case *capability.ExtendedMessage:
-		// ExaBGP: "Extended Message" -> "extended message"
-		return "extended message"
+		return []string{"extended-message"}
 	case *capability.EnhancedRouteRefresh:
-		// ExaBGP: "Enhanced Route Refresh" -> "enhanced route refresh"
-		return "enhanced route refresh"
+		return []string{"enhanced-route-refresh"}
 	case *capability.AddPath:
-		// ExaBGP: "AddPath(receive ipv4 unicast,send ipv6 unicast)" -> "addpath(...)"
-		var parts []string
+		// Return one entry per family for easy parsing
+		var results []string
 		for _, f := range c.Families {
 			var mode string
 			switch f.Mode {
 			case capability.AddPathNone:
-				mode = "none"
+				continue // Skip none mode
 			case capability.AddPathReceive:
 				mode = "receive"
 			case capability.AddPathSend:
@@ -210,30 +206,27 @@ func formatCapability(cap capability.Capability) string {
 			case capability.AddPathBoth:
 				mode = "send/receive"
 			}
-			parts = append(parts, fmt.Sprintf("%s %s %s", mode, f.AFI, f.SAFI))
+			results = append(results, fmt.Sprintf("addpath-%s-%s-%s", mode, f.AFI, f.SAFI))
 		}
-		return "addpath(" + strings.Join(parts, ",") + ")"
+		return results
 	case *capability.GracefulRestart:
-		// ExaBGP: "Graceful Restart(120,ipv4 unicast preserved)" -> "graceful restart(...)"
-		return fmt.Sprintf("graceful restart(%d)", c.RestartTime)
+		return []string{fmt.Sprintf("graceful-restart-%d", c.RestartTime)}
 	case *capability.ExtendedNextHop:
-		// ExaBGP: "Nexthop(ipv4/unicast/ipv6)" -> "nexthop(...)"
-		var parts []string
+		// Return one entry per family for easy parsing
+		var results []string
 		for _, f := range c.Families {
-			parts = append(parts, fmt.Sprintf("%s/%s/%s", f.NLRIAFI, f.NLRISAFI, f.NextHopAFI))
+			results = append(results, fmt.Sprintf("extended-nexthop-%s-%s-%s", f.NLRIAFI, f.NLRISAFI, f.NextHopAFI))
 		}
-		return "nexthop(" + strings.Join(parts, ",") + ")"
+		return results
 	case *capability.FQDN:
-		// ExaBGP: "Hostname(host,domain)" -> "hostname(...)"
 		if c.DomainName != "" {
-			return fmt.Sprintf("hostname(%s,%s)", c.Hostname, c.DomainName)
+			return []string{fmt.Sprintf("hostname-%s.%s", c.Hostname, c.DomainName)}
 		}
-		return fmt.Sprintf("hostname(%s)", c.Hostname)
+		return []string{fmt.Sprintf("hostname-%s", c.Hostname)}
 	case *capability.SoftwareVersion:
-		// ExaBGP: "Software(version)" -> "software(version)"
-		return fmt.Sprintf("software(%s)", c.Version)
+		return []string{fmt.Sprintf("software-%s", c.Version)}
 	default:
-		return strings.ToLower(cap.Code().String())
+		return []string{strings.ReplaceAll(strings.ToLower(cap.Code().String()), " ", "-")}
 	}
 }
 

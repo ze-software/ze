@@ -463,7 +463,7 @@ func formatAttributeText(sb *strings.Builder, code attribute.AttributeCode, attr
 // FormatOpen formats an OPEN message as text output.
 // Format: peer <ip> open asn <asn> router-id <id> hold-time <t> [cap <name>]...
 // ASN comes from the OPEN message (remote peer's ASN).
-// Capability names are hyphenated for easy parsing.
+// Capability names are already hyphenated from decode.
 func FormatOpen(peer PeerInfo, open DecodedOpen) string {
 	var sb strings.Builder
 	sb.WriteString(fmt.Sprintf("peer %s open asn %d router-id %s hold-time %d",
@@ -471,8 +471,7 @@ func FormatOpen(peer PeerInfo, open DecodedOpen) string {
 
 	for _, cap := range open.Capabilities {
 		sb.WriteString(" cap ")
-		// Hyphenate capability names for easy parsing
-		sb.WriteString(strings.ReplaceAll(cap, " ", "-"))
+		sb.WriteString(cap)
 	}
 	sb.WriteString("\n")
 	return sb.String()

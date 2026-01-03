@@ -239,7 +239,7 @@ neighbor 192.0.2.1 {
 	result2, err := Migrate(result1.Tree)
 	require.NoError(t, err)
 
-	// Both should be v3
+	// Both should be current syntax
 	require.False(t, NeedsMigration(result1.Tree))
 	require.False(t, NeedsMigration(result2.Tree))
 
@@ -362,7 +362,7 @@ peer 2001:db8::1 {
 
 // TestMigrateMixedConfig verifies partially-migrated configs work.
 //
-// VALIDATES: Config with both v3 and v2 syntax migrates correctly.
+// VALIDATES: Config with both current and old syntax migrates correctly.
 //
 // PREVENTS: Mixed configs causing errors.
 func TestMigrateMixedConfig(t *testing.T) {
@@ -471,7 +471,7 @@ neighbor 192.0.2.1 {
 
 // TestMigratePeerWithStatic verifies peer+static is migrated.
 //
-// VALIDATES: v3-style peer with deprecated static block is still migrated.
+// VALIDATES: Peer with deprecated static block is still migrated.
 //
 // PREVENTS: Configs using peer (not neighbor) with static being skipped.
 func TestMigratePeerWithStatic(t *testing.T) {
@@ -485,7 +485,7 @@ peer 192.0.2.1 {
 `
 	tree := parseWithBGPSchema(t, input)
 
-	// Should detect as v2 because of static block
+	// Should detect as needing migration because of static block
 	require.True(t, NeedsMigration(tree))
 
 	result, err := Migrate(tree)
@@ -589,7 +589,7 @@ peer 192.0.2.1 {
 `
 	tree := parseWithBGPSchema(t, input)
 
-	// Should detect as v2 because of static in template.group
+	// Should detect as needing migration because of static in template.group
 	require.True(t, NeedsMigration(tree))
 
 	result, err := Migrate(tree)

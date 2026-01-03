@@ -174,12 +174,12 @@ func TestParseAllConfigFiles(t *testing.T) {
 	}
 }
 
-// TestV2SyntaxHint verifies that v2 syntax errors include migration hint.
+// TestOldSyntaxHint verifies that old syntax errors include migration hint.
 //
 // VALIDATES: Users get helpful error message with migration instructions.
 //
 // PREVENTS: Confusing "unknown keyword" errors without guidance.
-func TestV2SyntaxHint(t *testing.T) {
+func TestOldSyntaxHint(t *testing.T) {
 	t.Run("neighbor keyword triggers hint", func(t *testing.T) {
 		input := `neighbor 192.0.2.1 { local-as 65000; peer-as 65001; }`
 		_, err := LoadReactor(input)
@@ -196,8 +196,8 @@ func TestV2SyntaxHint(t *testing.T) {
 		require.Contains(t, err.Error(), "zebgp config migrate")
 	})
 
-	t.Run("v3 syntax no hint", func(t *testing.T) {
-		// Valid v3 config should parse without error (no hint needed)
+	t.Run("current syntax no hint", func(t *testing.T) {
+		// Valid current config should parse without error (no hint needed)
 		input := `peer 192.0.2.1 { local-as 65000; peer-as 65001; }`
 		_, err := LoadReactor(input)
 		require.NoError(t, err)
