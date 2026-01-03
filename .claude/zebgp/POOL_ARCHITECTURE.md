@@ -28,6 +28,102 @@ Memory-efficient, zero-copy attribute and NLRI deduplication.
 
 ---
 
+## Zero-Copy Flow (CRITICAL)
+
+The path from peer receive to RIB storage is zero-copy **until** Route creation:
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                           ZERO-COPY ZONE                                    │
+│                                                                             │
+│   Network recv()                                                            │
+│        │                                                                    │
+│        ▼                                                                    │
+│   ┌─────────────────────────────────────────────────────────────────┐      │
+│   │  Connection buffer (owned by TCP connection)                     │      │
+│   │  ┌─────────────────────────────────────────────────────────────┐│      │
+│   │  │ BGP Message: [header][attrs][nlri]                          ││      │
+│   │  └──────────────────────┬───────────────────────────────────────┘│      │
+│   └─────────────────────────┼────────────────────────────────────────┘      │
+│                             │                                               │
+│                             │ slice reference (no copy)                     │
+│                             ▼                                               │
+│   ┌─────────────────────────────────────────────────────────────────┐      │
+│   │  AttributesWire                                                  │      │
+│   │    packed []byte ──────► points into connection buffer          │      │
+│   │    (NO POOL, NO COPY)                                           │      │
+│   └─────────────────────────────────────────────────────────────────┘      │
+│                             │                                               │
+│                             │ slice reference (no copy)                     │
+│                             ▼                                               │
+│   ┌─────────────────────────────────────────────────────────────────┐      │
+│   │  API Processing (filters, transforms, etc.)                      │      │
+│   │    Uses AttributesWire.Packed() to read attribute bytes          │      │
+│   └─────────────────────────────────────────────────────────────────┘      │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+                              │
+════════════════════════════ COPY BOUNDARY ════════════════════════════════════
+                              │
+                              ▼
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                           POOL ZONE                                         │
+│                                                                             │
+│   ┌─────────────────────────────────────────────────────────────────┐      │
+│   │  Route.NewRouteWithWireCache(wireBytes, nlriBytes, ...)         │      │
+│   │                                                                  │      │
+│   │    attrHandle = pool.Attributes.Intern(wireBytes)  ◄── COPY     │      │
+│   │    nlriHandle = pool.NLRI.Intern(nlriBytes)        ◄── COPY     │      │
+│   │                                                                  │      │
+│   │  Deduplication happens here:                                     │      │
+│   │    - Identical attributes → same handle (no new allocation)     │      │
+│   │    - New attributes → stored in pool buffer                      │      │
+│   └─────────────────────────────────────────────────────────────────┘      │
+│                             │                                               │
+│                             ▼                                               │
+│   ┌─────────────────────────────────────────────────────────────────┐      │
+│   │  RIB Storage                                                     │      │
+│   │    Route stores pool.Handle (4 bytes) not []byte                │      │
+│   │    Multiple routes with same attrs → share storage              │      │
+│   └─────────────────────────────────────────────────────────────────┘      │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+### Key Principles
+
+| Component | Pool Interaction | Memory |
+|-----------|------------------|--------|
+| Connection buffer | None | Owned by TCP, temporary |
+| `AttributesWire` | **NONE** | Slice into connection buffer |
+| `Route` | `Intern()` at creation | Pool handles, permanent |
+
+### Why AttributesWire Doesn't Use Pool
+
+1. **Lifetime mismatch**: AttributesWire is temporary (message processing), pool is long-lived
+2. **Zero-copy requirement**: Parsing must not copy; copy only at storage
+3. **Simplicity**: No Release() needed for AttributesWire
+
+### Copy Happens Exactly Once
+
+```go
+// WRONG: Copy at AttributesWire creation (breaks zero-copy)
+func NewAttributesWire(packed []byte, ctxID ContextID) *AttributesWire {
+    h := pool.Attributes.Intern(packed)  // ❌ DON'T DO THIS
+    ...
+}
+
+// CORRECT: Copy at Route creation (RIB storage)
+func NewRouteWithWireCache(..., wireBytes []byte, ...) *Route {
+    return &Route{
+        attrHandle: pool.Attributes.Intern(wireBytes),  // ✅ COPY HERE
+        ...
+    }
+}
+```
+
+---
+
 ## Architecture Overview
 
 ```
@@ -821,8 +917,8 @@ func (p *Pool) Length(h Handle) int
 ## Related Specs
 
 - `plan/spec-pool-handle-migration.md` - Implementation plan for pool integration
-- `plan/spec-attributes-wire.md` - AttributesWire (will use pool handles)
+- `plan/spec-attributes-wire.md` - AttributesWire (zero-copy reference, NO pool)
 
 ---
 
-**Last Updated:** 2026-01-01
+**Last Updated:** 2026-01-03
