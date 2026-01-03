@@ -1603,281 +1603,115 @@ peer 10.0.0.1 update withdraw ipv4 unicast nlri 192.168.2.0/24
 - [x] Fix type assertion bug (value vs pointer types for Origin, LocalPref, MED)
 - [x] Re-enable AttrsWire path in `FormatMessage()`
 - [x] Remove legacy formatters (~500 lines: formatMessageV6, formatMessageV7, etc.)
-- [x] Add `buildFilterResultFromDecode()` fallback when AttrsWire is nil
 - [x] Add `formatNonUpdate()` for OPEN/NOTIFICATION/KEEPALIVE raw output
 - [x] Fix `update-id` inclusion in JSON output
 - [x] Update tests to set `msg.Type = message.TypeUPDATE`
 - [x] Run full test suite: `make test && make lint && make functional` ✅
 
-### Phase 1: Fix Remaining Bugs
+### ✅ COMPLETED: Non-UPDATE Formatting
 
-| Priority | Issue | Location | Fix |
-|----------|-------|----------|-----|
-| 🔴 High | Next-hop extraction only uses first route | `buildFilterResultFromDecode:209-215` | Iterate all routes for IPv4+IPv6 |
-| 🔴 High | `formatNonUpdate()` only outputs raw | `text.go:283` | Call `FormatOpen`, `FormatNotification`, `FormatKeepalive` |
-| 🟡 Medium | Communities not in decode fallback | `buildFilterResultFromDecode` | Add COMMUNITY, LARGE_COMMUNITY, EXT_COMMUNITY |
-| 🟡 Medium | `LOCAL_PREF=0` and `MED=0` filtered out | `buildFilterResultFromDecode:227,233` | Use nil pointer for absence |
+`formatNonUpdate()` at `text.go:71` already calls:
+- `FormatOpen()` line 77
+- `FormatNotification()` line 80
+- `FormatKeepalive()` line 82
+
+### ✅ COMPLETED: Config Integration
+
+- [x] `api.ParseAttributeFilter()` in `filter.go:51`
+- [x] Config calls it at `bgp.go:1470`
+- [x] Syntax: `attribute all | none | "origin as-path ...";`
+
+### ✅ COMPLETED: Grouped Output Format
+
+Already implemented in `text.go:501-513`:
+- `peer X update announce <attrs> ipv4 unicast next-hop Y nlri ...`
+- `peer X update announce <attrs> ipv6 unicast next-hop Y nlri ...`
 
 ---
 
-## Design: Eliminate Redundant Types
+## Phase: FamilyNLRI Refactoring
 
 ### Problem
 
-Current flow has redundant intermediate types:
-```
-parsePathAttributes() → parsedAttrs → DecodeUpdate() → DecodedUpdate → buildFilterResultFromDecode() → FilterResult
-```
-
-Three types doing the same thing:
-- `parsedAttrs` - internal parsing result
-- `DecodedUpdate` - decoded UPDATE with `[]ReceivedRoute`
-- `FilterResult` - final output with `map[AttributeCode]Attribute`
-
-Also, `parsedAttrs` uses primitives that can't distinguish "absent" from "value is 0":
+Current `FilterResult` has wrong design:
 ```go
-type parsedAttrs struct {
-    localPref uint32  // default 100 - what if UPDATE has no LOCAL_PREF?
-    med       uint32  // default 0 - what if UPDATE has MED=0?
+type FilterResult struct {
+    Announced   []netip.Prefix  // All families mixed
+    Withdrawn   []netip.Prefix
+    NextHopIPv4 netip.Addr      // Separate from prefixes
+    NextHopIPv6 netip.Addr      // Separate from prefixes
 }
 ```
 
-RFC 4271: `LOCAL_PREF=0` and `MED=0` are valid values.
+RFC 4760 Section 3: Each MP_REACH_NLRI has its own next-hop tied to <AFI, SAFI>.
+Next-hop must be grouped with its NLRI, not stored separately.
 
-### Solution: Use FilterResult Directly
+### Solution: Two Paths (MP-BGP + Legacy IPv4)
 
-**New flow:**
-```
-DecodeUpdateToFilterResult(body) → FilterResult
-```
-
-Single type, no intermediates. `FilterResult` already has:
-- `Attributes map[attribute.AttributeCode]attribute.Attribute` - nil = absent
-- `Announced []netip.Prefix`
-- `Withdrawn []netip.Prefix`
-- `NextHopIPv4 netip.Addr`
-- `NextHopIPv6 netip.Addr`
-
-### Changes Required
-
-#### 1. New function `DecodeUpdateToFilterResult()` in `decode.go`
-
+**MP-BGP path:** Zero-copy slices to attribute bytes
 ```go
-// DecodeUpdateToFilterResult parses UPDATE body directly into FilterResult.
-// Uses attribute.Attribute types - nil in map means absent.
-// RFC 4271: LOCAL_PREF=0 and MED=0 are valid values.
-// RFC 4760: Separate next-hops for IPv4 (NEXT_HOP) and IPv6 (MP_REACH).
-func DecodeUpdateToFilterResult(body []byte) FilterResult {
-    result := FilterResult{
-        Attributes: make(map[attribute.AttributeCode]attribute.Attribute),
-    }
+// MPReachWire wraps MP_REACH_NLRI bytes for lazy parsing.
+// RFC 4760 Section 3: AFI(2) + SAFI(1) + NH_Len(1) + NextHop + Reserved(1) + NLRI
+type MPReachWire []byte
 
-    if len(body) < 4 {
-        return result
-    }
+func (m MPReachWire) AFI() uint16               // m[0:2]
+func (m MPReachWire) SAFI() uint8               // m[2]
+func (m MPReachWire) Family() nlri.Family       // AFI + SAFI
+func (m MPReachWire) NextHop() netip.Addr       // m[4:4+m[3]]
+func (m MPReachWire) Prefixes() []netip.Prefix  // m[5+m[3]:]
 
-    // Parse UPDATE structure
-    withdrawnLen := int(binary.BigEndian.Uint16(body[0:2]))
-    offset := 2
+// MPUnreachWire wraps MP_UNREACH_NLRI bytes for lazy parsing.
+// RFC 4760 Section 4: AFI(2) + SAFI(1) + Withdrawn Routes
+type MPUnreachWire []byte
 
-    // IPv4 withdrawn
-    if withdrawnLen > 0 && offset+withdrawnLen <= len(body) {
-        result.Withdrawn = parseIPv4Prefixes(body[offset : offset+withdrawnLen])
-    }
-    offset += withdrawnLen
-
-    if offset+2 > len(body) {
-        return result
-    }
-
-    attrLen := int(binary.BigEndian.Uint16(body[offset : offset+2]))
-    offset += 2
-    if offset+attrLen > len(body) {
-        return result
-    }
-
-    pathAttrs := body[offset : offset+attrLen]
-    nlriOffset := offset + attrLen
-
-    // Parse path attributes into result.Attributes map
-    parsePathAttributesToMap(pathAttrs, &result)
-
-    // IPv4 NLRI
-    if nlriOffset < len(body) {
-        result.Announced = parseIPv4Prefixes(body[nlriOffset:])
-    }
-
-    return result
-}
-
-// parsePathAttributesToMap parses attributes directly into FilterResult.
-func parsePathAttributesToMap(pathAttrs []byte, result *FilterResult) {
-    for i := 0; i < len(pathAttrs); {
-        if i+2 > len(pathAttrs) {
-            break
-        }
-        flags := pathAttrs[i]
-        typeCode := attribute.AttributeCode(pathAttrs[i+1])
-
-        // ... length parsing ...
-
-        attrValue := pathAttrs[i : i+attrValueLen]
-        i += attrValueLen
-
-        switch typeCode {
-        case attribute.AttrOrigin:
-            if o, err := attribute.ParseOrigin(attrValue); err == nil {
-                result.Attributes[typeCode] = o
-            }
-        case attribute.AttrASPath:
-            if ap, err := attribute.ParseASPath(attrValue, true); err == nil {
-                result.Attributes[typeCode] = ap
-            }
-        case attribute.AttrNextHop:
-            if nh, err := attribute.ParseNextHop(attrValue); err == nil {
-                result.Attributes[typeCode] = nh
-                result.NextHopIPv4 = nh.Addr  // Quick access
-            }
-        case attribute.AttrMED:
-            if m, err := attribute.ParseMED(attrValue); err == nil {
-                result.Attributes[typeCode] = m  // MED=0 stored correctly
-            }
-        case attribute.AttrLocalPref:
-            if lp, err := attribute.ParseLocalPref(attrValue); err == nil {
-                result.Attributes[typeCode] = lp  // LOCAL_PREF=0 stored correctly
-            }
-        case attribute.AttrCommunity:
-            if c, err := attribute.ParseCommunities(attrValue); err == nil {
-                result.Attributes[typeCode] = &c
-            }
-        case attribute.AttrExtCommunity:
-            if ec, err := attribute.ParseExtendedCommunities(attrValue); err == nil {
-                result.Attributes[typeCode] = &ec
-            }
-        case attribute.AttrLargeCommunity:
-            if lc, err := attribute.ParseLargeCommunities(attrValue); err == nil {
-                result.Attributes[typeCode] = &lc
-            }
-        case attribute.AttrMPReachNLRI:
-            if mp, err := attribute.ParseMPReachNLRI(attrValue); err == nil {
-                // Extract IPv6 NLRI and next-hop
-                if mp.AFI == attribute.AFIIPv6 && mp.SAFI == attribute.SAFIUnicast {
-                    result.Announced = append(result.Announced, parseIPv6Prefixes(mp.NLRI)...)
-                    if len(mp.NextHops) > 0 {
-                        result.NextHopIPv6 = mp.NextHops[0]
-                    }
-                }
-            }
-        case attribute.AttrMPUnreachNLRI:
-            if mp, err := attribute.ParseMPUnreachNLRI(attrValue); err == nil {
-                if mp.AFI == attribute.AFIIPv6 && mp.SAFI == attribute.SAFIUnicast {
-                    result.Withdrawn = append(result.Withdrawn, parseIPv6Prefixes(mp.NLRI)...)
-                }
-            }
-        }
-    }
-}
+func (m MPUnreachWire) AFI() uint16               // m[0:2]
+func (m MPUnreachWire) SAFI() uint8               // m[2]
+func (m MPUnreachWire) Family() nlri.Family       // AFI + SAFI
+func (m MPUnreachWire) Prefixes() []netip.Prefix  // m[3:]
 ```
 
-#### 2. Update `buildFilterResultFromDecode()` in `text.go`
-
-Replace entire function:
+**Legacy IPv4 path:** Slices to body + NEXT_HOP attribute (lazy parsing)
 ```go
-func buildFilterResultFromDecode(body []byte, filter *AttributeFilter) FilterResult {
-    // Parse directly to FilterResult
-    result := DecodeUpdateToFilterResult(body)
-
-    // Apply filter if not "all"
-    if filter.Mode == FilterModeNone {
-        result.Attributes = nil
-    } else if filter.Mode == FilterModeSelective {
-        filtered := make(map[attribute.AttributeCode]attribute.Attribute)
-        for code, attr := range result.Attributes {
-            if filter.Includes(code) {
-                filtered[code] = attr
-            }
-        }
-        result.Attributes = filtered
-    }
-
-    return result
+type IPv4Reach struct {
+    nh   []byte  // slice → NEXT_HOP attr value (4 bytes)
+    nlri []byte  // slice → body NLRI section
 }
+
+func (r IPv4Reach) NextHop() netip.Addr       // parse r.nh
+func (r IPv4Reach) Prefixes() []netip.Prefix  // parse r.nlri on demand
 ```
 
-#### 3. Delete obsolete types
-
-- Remove `parsedAttrs` struct
-- Remove `parsePathAttributes()` function (replaced by `parsePathAttributesToMap`)
-- Keep `DecodedUpdate` and `DecodeUpdate()` for backward compat (used by other code)
-- Keep `ReceivedRoute` for `FormatReceivedUpdate()` (legacy API)
-
-#### 4. Update `formatNonUpdate()` in `text.go`
-
+**Updated FilterResult:**
 ```go
-func formatNonUpdate(peer PeerInfo, msg RawMessage, content ContentConfig) string {
-    switch msg.Type {
-    case message.TypeOPEN:
-        decoded := DecodeOpen(msg.RawBytes)
-        return FormatOpen(peer.Address, decoded)
-    case message.TypeNOTIFICATION:
-        decoded := DecodeNotification(msg.RawBytes)
-        return FormatNotification(peer.Address, decoded)
-    case message.TypeKEEPALIVE:
-        return FormatKeepalive(peer.Address)
-    default:
-        return fmt.Sprintf("peer %s %s raw %x\n",
-            peer.Address, strings.ToLower(msg.Type.String()), msg.RawBytes)
-    }
+type FilterResult struct {
+    Attributes    map[attribute.AttributeCode]attribute.Attribute
+
+    // MP-BGP (zero-copy slices into wire)
+    MPReach       []MPReachWire
+    MPUnreach     []MPUnreachWire
+
+    // Legacy IPv4 unicast (slices into body/attrs)
+    IPv4Reach     *IPv4Reach  // nil if no body NLRI
+    IPv4Withdrawn []byte      // slice → body withdrawn section (parse on demand)
 }
 ```
 
----
+### Tasks
 
-**Tasks:**
-- [ ] Add `DecodeUpdateToFilterResult()` in `decode.go`
-- [ ] Add `parsePathAttributesToMap()` with all attribute types
-- [ ] Simplify `buildFilterResultFromDecode()` to call new function
-- [ ] Update `formatNonUpdate()` to route to dedicated formatters
-- [ ] Verify `LOCAL_PREF=0` and `MED=0` are included in output
-- [ ] Verify both IPv4 and IPv6 next-hops extracted
+- [ ] Add `MPReachWire` type with methods
+- [ ] Add `MPUnreachWire` type with methods
+- [ ] Add `IPv4Reach` struct
+- [ ] Update `FilterResult` with new fields
+- [ ] Remove `NextHopIPv4`, `NextHopIPv6`, `Announced`, `Withdrawn`
+- [ ] Add `AttributesWire.GetRaw(code)` to get raw attr bytes
+- [ ] Update `ApplyToUpdate()` to populate new fields
+- [ ] Update `text.go` formatters to iterate both paths
+- [ ] Fix all tests
 - [ ] Run `make test && make lint && make functional`
-
-### Phase 2: Config Integration
-
-- [ ] Implement `parseAttributeFilter()` in config parser
-- [ ] Wire `Attributes` field from PeerContentConfig to ContentConfig
-- [ ] Support syntax: `attributes as-path next-hop communities;`
-- [ ] Support `all` and `none` keywords
-- [ ] Reject `attr-14` / `attr-15` (MP_REACH/UNREACH are structural)
-- [ ] Test config parsing with various attribute combinations
-
-### Phase 3: Grouped Output Format (Future)
-
-```go
-// FamilyNLRI groups NLRI by AFI/SAFI with family-specific next-hop
-type FamilyNLRI struct {
-    AFI      uint16
-    SAFI     uint8
-    NextHop  netip.Addr
-    Prefixes []netip.Prefix
-}
-```
-
-- [ ] Define `FamilyNLRI` struct
-- [ ] Update `FilterResult` to use `[]FamilyNLRI`
-- [ ] Implement grouped text format: `peer X update announce <attrs> ipv4 unicast next-hop Y nlri ...`
-- [ ] Implement grouped JSON format with per-family blocks
-- [ ] Handle multi-family UPDATEs correctly
-
-### Phase 4: Remove Version Field (Future)
-
-- [ ] Remove `ContentConfig.Version` field
-- [ ] Remove `APIVersionLegacy`, `APIVersionNLRI` constants
-- [ ] Use single unified format (grouped style)
-- [ ] Update all tests
 
 ---
 
 **Created:** 2026-01-01
 **Revised:** 2026-01-02 (lazy parsing, legacy removal, type assertion fixes)
-**Revised:** 2026-01-02 (eliminate redundant types - use FilterResult directly)
+**Revised:** 2026-01-03 (removed stale tasks - already implemented)
+**Revised:** 2026-01-03 (FamilyNLRI refactoring per RFC 4760)

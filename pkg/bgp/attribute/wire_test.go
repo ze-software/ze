@@ -677,3 +677,84 @@ func TestAttributesWireASN4ReEncoding(t *testing.T) {
 		t.Errorf("Re-encoded AS_PATH value = %x, want %x", valueBytes, expected)
 	}
 }
+
+// TestAttributesWireGetRaw verifies raw bytes extraction without parsing.
+//
+// VALIDATES: GetRaw returns attribute value bytes without parsing.
+// PREVENTS: Unnecessary parsing when only raw bytes needed (e.g., for MPReachWire).
+func TestAttributesWireGetRaw(t *testing.T) {
+	ctxID := setupTestContext(true)
+
+	// Build MP_REACH_NLRI with known content
+	// Wire format: AFI(2) + SAFI(1) + NHLen(1) + NextHop(4) + Reserved(1) + NLRI
+	mpReachValue := []byte{
+		0x00, 0x01, // AFI=1 (IPv4)
+		0x01,        // SAFI=1 (unicast)
+		0x04,        // NH len=4
+		10, 0, 0, 1, // Next-hop 10.0.0.1
+		0x00,            // Reserved
+		24, 192, 168, 1, // NLRI: 192.168.1.0/24
+	}
+
+	mpReachAttr := packAttr(FlagOptional, AttrMPReachNLRI, mpReachValue)
+	packed := packAttrs(mpReachAttr)
+	aw := NewAttributesWire(packed, ctxID)
+
+	// GetRaw should return exactly the value bytes (no header)
+	raw, err := aw.GetRaw(AttrMPReachNLRI)
+	if err != nil {
+		t.Fatalf("GetRaw(MP_REACH_NLRI) error: %v", err)
+	}
+	if raw == nil {
+		t.Fatal("GetRaw(MP_REACH_NLRI) returned nil")
+	}
+
+	if !bytes.Equal(raw, mpReachValue) {
+		t.Errorf("GetRaw() = %x, want %x", raw, mpReachValue)
+	}
+}
+
+// TestAttributesWireGetRawNotFound verifies GetRaw for missing attribute.
+//
+// VALIDATES: GetRaw returns nil, nil for missing attributes.
+// PREVENTS: Errors on absent attributes.
+func TestAttributesWireGetRawNotFound(t *testing.T) {
+	ctxID := setupTestContext(true)
+
+	origin := packAttr(FlagTransitive, AttrOrigin, []byte{0x00})
+	packed := packAttrs(origin)
+	aw := NewAttributesWire(packed, ctxID)
+
+	// GetRaw for attribute not present
+	raw, err := aw.GetRaw(AttrMPReachNLRI)
+	if err != nil {
+		t.Fatalf("GetRaw(not found) error: %v", err)
+	}
+	if raw != nil {
+		t.Errorf("GetRaw(not found) = %x, want nil", raw)
+	}
+}
+
+// TestAttributesWireGetRawZeroCopy verifies GetRaw returns slice into original buffer.
+//
+// VALIDATES: No copy made - returns view into packed bytes.
+// PREVENTS: Memory waste from unnecessary copies.
+func TestAttributesWireGetRawZeroCopy(t *testing.T) {
+	ctxID := setupTestContext(true)
+
+	originValue := []byte{0x00}
+	originAttr := packAttr(FlagTransitive, AttrOrigin, originValue)
+	packed := packAttrs(originAttr)
+	aw := NewAttributesWire(packed, ctxID)
+
+	raw, err := aw.GetRaw(AttrOrigin)
+	if err != nil {
+		t.Fatalf("GetRaw error: %v", err)
+	}
+
+	// raw should be a slice into packed, not a copy
+	// Value starts at offset 3 (3-byte header for short attrs)
+	if &raw[0] != &packed[3] {
+		t.Error("GetRaw returned copy, want slice into packed bytes")
+	}
+}

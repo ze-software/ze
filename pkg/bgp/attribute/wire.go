@@ -154,6 +154,43 @@ func (a *AttributesWire) GetMultiple(codes []AttributeCode) (map[AttributeCode]A
 	return result, nil
 }
 
+// GetRaw returns raw attribute value bytes without parsing.
+// Zero-copy: returns a slice into the packed buffer.
+// Returns (nil, nil) if attribute is not present.
+// Use this for attributes that need custom handling (e.g., MP_REACH_NLRI for MPReachWire).
+func (a *AttributesWire) GetRaw(code AttributeCode) ([]byte, error) {
+	// Fast path: check if index already built
+	a.mu.RLock()
+	if a.index != nil {
+		for _, idx := range a.index {
+			if idx.code == code {
+				result := a.packed[idx.offset : idx.offset+idx.length]
+				a.mu.RUnlock()
+				return result, nil
+			}
+		}
+		a.mu.RUnlock()
+		return nil, nil //nolint:nilnil // nil means not found
+	}
+	a.mu.RUnlock()
+
+	// Slow path: build index
+	a.mu.Lock()
+	defer a.mu.Unlock()
+
+	if err := a.ensureIndexLocked(); err != nil {
+		return nil, err
+	}
+
+	for _, idx := range a.index {
+		if idx.code == code {
+			return a.packed[idx.offset : idx.offset+idx.length], nil
+		}
+	}
+
+	return nil, nil //nolint:nilnil // nil means not found, not an error
+}
+
 // All returns all attributes (full parse).
 // Attributes are returned in wire order.
 func (a *AttributesWire) All() ([]Attribute, error) {

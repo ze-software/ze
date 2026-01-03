@@ -135,22 +135,31 @@ type AttributeFilter struct {
 
 // FilterResult contains filtered attributes and NLRI from UPDATE parsing.
 // This is the primary output type for lazy parsing with filtering.
+//
+// NLRI is stored in two paths:
+//   - MP-BGP: MPReach/MPUnreach wrap raw bytes for zero-copy access
+//   - Legacy IPv4: IPv4Announced/IPv4Withdrawn wrap body sections
+//
+// Use helper methods (AllAnnounced, AllWithdrawn) for iteration.
 type FilterResult struct {
 	// Attributes contains parsed attributes (only those matching the filter).
 	// Key is attribute code, value is parsed Attribute interface.
 	// nil or empty means no attributes to output.
 	Attributes map[attribute.AttributeCode]attribute.Attribute
 
-	// Announced contains announced prefixes (IPv4 from body + IPv6 from MP_REACH).
-	Announced []netip.Prefix
+	// MP-BGP path: zero-copy slices into wire bytes
+	// Each MPReachWire contains AFI/SAFI/NextHop/NLRI for one address family.
+	MPReach   []MPReachWire   // From MP_REACH_NLRI attributes
+	MPUnreach []MPUnreachWire // From MP_UNREACH_NLRI attributes
 
-	// Withdrawn contains withdrawn prefixes (IPv4 from body + IPv6 from MP_UNREACH).
-	Withdrawn []netip.Prefix
+	// Legacy IPv4 unicast path: slices into body structure
+	// Used when IPv4 NLRI is in UPDATE body (not MP attribute).
+	IPv4Announced *IPv4Reach    // nil if no body NLRI
+	IPv4Withdrawn *IPv4Withdraw // nil if no body withdrawn
 
-	// NextHopIPv4 is the next-hop for IPv4 prefixes (from NEXT_HOP attribute).
+	Announced   []netip.Prefix
+	Withdrawn   []netip.Prefix
 	NextHopIPv4 netip.Addr
-
-	// NextHopIPv6 is the next-hop for IPv6 prefixes (from MP_REACH_NLRI).
 	NextHopIPv6 netip.Addr
 }
 
@@ -212,6 +221,153 @@ func (r FilterResult) NextHopFor(p netip.Prefix) netip.Addr {
 		return r.NextHopIPv4
 	}
 	return r.NextHopIPv6 // fallback
+}
+
+// FamilyNLRI groups prefixes with their next-hop and family.
+// This is the RFC-correct structure: each AFI/SAFI has its own next-hop.
+type FamilyNLRI struct {
+	Family   string         // e.g., "ipv4 unicast", "ipv6 unicast"
+	NextHop  netip.Addr     // next-hop for this family
+	Prefixes []netip.Prefix // prefixes in this family
+}
+
+// AnnouncedByFamily returns announced NLRI grouped by address family.
+// Each FamilyNLRI has its own next-hop per RFC 4760.
+// Returns entries from both MP-BGP path and legacy IPv4 path.
+func (r FilterResult) AnnouncedByFamily() []FamilyNLRI {
+	var result []FamilyNLRI
+
+	// MP-BGP path
+	for _, mp := range r.MPReach {
+		prefixes := mp.Prefixes()
+		if len(prefixes) > 0 {
+			result = append(result, FamilyNLRI{
+				Family:   mp.Family().String(),
+				NextHop:  mp.NextHop(),
+				Prefixes: prefixes,
+			})
+		}
+	}
+
+	// Legacy IPv4 path
+	if r.IPv4Announced != nil {
+		prefixes := r.IPv4Announced.Prefixes()
+		if len(prefixes) > 0 {
+			result = append(result, FamilyNLRI{
+				Family:   "ipv4-unicast",
+				NextHop:  r.IPv4Announced.NextHop(),
+				Prefixes: prefixes,
+			})
+		}
+	}
+
+	// Fallback to deprecated fields if new paths empty
+	if len(result) == 0 && len(r.Announced) > 0 {
+		// Group by IPv4/IPv6
+		ipv4, ipv6 := groupPrefixesByFamilyFilter(r.Announced)
+		if len(ipv4) > 0 {
+			result = append(result, FamilyNLRI{
+				Family:   "ipv4-unicast",
+				NextHop:  r.NextHopIPv4,
+				Prefixes: ipv4,
+			})
+		}
+		if len(ipv6) > 0 {
+			result = append(result, FamilyNLRI{
+				Family:   "ipv6-unicast",
+				NextHop:  r.NextHopIPv6,
+				Prefixes: ipv6,
+			})
+		}
+	}
+
+	return result
+}
+
+// WithdrawnByFamily returns withdrawn NLRI grouped by address family.
+// Withdrawn NLRI has no next-hop (NextHop will be invalid).
+func (r FilterResult) WithdrawnByFamily() []FamilyNLRI {
+	var result []FamilyNLRI
+
+	// MP-BGP path
+	for _, mp := range r.MPUnreach {
+		prefixes := mp.Prefixes()
+		if len(prefixes) > 0 {
+			result = append(result, FamilyNLRI{
+				Family:   mp.Family().String(),
+				Prefixes: prefixes,
+			})
+		}
+	}
+
+	// Legacy IPv4 path
+	if r.IPv4Withdrawn != nil {
+		prefixes := r.IPv4Withdrawn.Prefixes()
+		if len(prefixes) > 0 {
+			result = append(result, FamilyNLRI{
+				Family:   "ipv4-unicast",
+				Prefixes: prefixes,
+			})
+		}
+	}
+
+	// Fallback to deprecated fields if new paths empty
+	if len(result) == 0 && len(r.Withdrawn) > 0 {
+		ipv4, ipv6 := groupPrefixesByFamilyFilter(r.Withdrawn)
+		if len(ipv4) > 0 {
+			result = append(result, FamilyNLRI{
+				Family:   "ipv4-unicast",
+				Prefixes: ipv4,
+			})
+		}
+		if len(ipv6) > 0 {
+			result = append(result, FamilyNLRI{
+				Family:   "ipv6-unicast",
+				Prefixes: ipv6,
+			})
+		}
+	}
+
+	return result
+}
+
+// HasAnnouncements returns true if there are any announced prefixes.
+func (r FilterResult) HasAnnouncements() bool {
+	if len(r.MPReach) > 0 {
+		return true
+	}
+	if r.IPv4Announced != nil && len(r.IPv4Announced.nlri) > 0 {
+		return true
+	}
+	return len(r.Announced) > 0
+}
+
+// HasWithdrawals returns true if there are any withdrawn prefixes.
+func (r FilterResult) HasWithdrawals() bool {
+	if len(r.MPUnreach) > 0 {
+		return true
+	}
+	if r.IPv4Withdrawn != nil && len(r.IPv4Withdrawn.withdrawn) > 0 {
+		return true
+	}
+	return len(r.Withdrawn) > 0
+}
+
+// IsEOR returns true if this is an End-of-RIB marker (no NLRI).
+func (r FilterResult) IsEOR() bool {
+	return !r.HasAnnouncements() && !r.HasWithdrawals()
+}
+
+// groupPrefixesByFamilyFilter separates prefixes into IPv4 and IPv6.
+func groupPrefixesByFamilyFilter(prefixes []netip.Prefix) (ipv4, ipv6 []netip.Prefix) {
+	for _, p := range prefixes {
+		if p.Addr().Is4() {
+			ipv4 = append(ipv4, p)
+		} else {
+			ipv6 = append(ipv6, p)
+		}
+	}
+	return ipv4, ipv6
 }
 
 // NewFilterAll returns a filter that includes all attributes.
@@ -320,11 +476,24 @@ func (f AttributeFilter) Apply(wire *attribute.AttributesWire) (FilterResult, er
 //  1. Extracts NLRI from body structure (IPv4) if nlriFilter includes ipv4 unicast
 //  2. Gets MP_REACH/MP_UNREACH from wire for other families if included
 //  3. Applies filter to get requested attributes from wire
+//
+// New fields (MPReach, MPUnreach, IPv4Announced, IPv4Withdrawn) use zero-copy slices.
+// Old fields (Announced, Withdrawn, NextHopIPv4, NextHopIPv6) are still populated for compat.
 func (f AttributeFilter) ApplyToUpdate(wire *attribute.AttributesWire, body []byte, nlriFilter NLRIFilter) (FilterResult, error) {
 	result := FilterResult{}
 
-	// Extract IPv4 unicast NLRI if included
+	// Extract IPv4 unicast NLRI if included (both new and legacy paths)
 	if nlriFilter.IncludesFamily("ipv4 unicast") {
+		// New path: zero-copy slices into body
+		ipv4Reach, ipv4Withdraw := extractIPv4SlicesFromBody(body)
+		if ipv4Reach != nil {
+			result.IPv4Announced = ipv4Reach
+		}
+		if ipv4Withdraw != nil {
+			result.IPv4Withdrawn = ipv4Withdraw
+		}
+
+		// Legacy path: parsed prefixes for backward compat
 		ipv4Announced, ipv4Withdrawn, ipv4NextHop := extractNLRIFromBody(body)
 		result.Announced = ipv4Announced
 		result.Withdrawn = ipv4Withdrawn
@@ -333,6 +502,25 @@ func (f AttributeFilter) ApplyToUpdate(wire *attribute.AttributesWire, body []by
 
 	// Get MP NLRI from wire (lazy - only parses MP attrs if present)
 	if wire != nil && !nlriFilter.IsEmpty() {
+		// New path: zero-copy MPReachWire
+		if mpRaw, err := wire.GetRaw(attribute.AttrMPReachNLRI); err == nil && mpRaw != nil {
+			mpw := MPReachWire(mpRaw)
+			family := mpw.Family().String()
+			if nlriFilter.IncludesFamily(family) {
+				result.MPReach = append(result.MPReach, mpw)
+			}
+		}
+
+		// New path: zero-copy MPUnreachWire
+		if mpRaw, err := wire.GetRaw(attribute.AttrMPUnreachNLRI); err == nil && mpRaw != nil {
+			mpw := MPUnreachWire(mpRaw)
+			family := mpw.Family().String()
+			if nlriFilter.IncludesFamily(family) {
+				result.MPUnreach = append(result.MPUnreach, mpw)
+			}
+		}
+
+		// Legacy path: parsed prefixes for backward compat
 		mpAnnounced, mpNextHop, family := extractMPReachFromWireWithFamily(wire)
 		if nlriFilter.IncludesFamily(family) {
 			result.Announced = append(result.Announced, mpAnnounced...)
@@ -359,6 +547,90 @@ func (f AttributeFilter) ApplyToUpdate(wire *attribute.AttributesWire, body []by
 	}
 
 	return result, nil
+}
+
+// extractIPv4SlicesFromBody extracts zero-copy slices for IPv4 unicast NLRI.
+// Returns nil for each if not present.
+func extractIPv4SlicesFromBody(body []byte) (*IPv4Reach, *IPv4Withdraw) {
+	if len(body) < 4 {
+		return nil, nil
+	}
+
+	// Parse UPDATE structure: withdrawn_len (2) + withdrawn + attr_len (2) + attrs + nlri
+	withdrawnLen := int(binary.BigEndian.Uint16(body[0:2]))
+	offset := 2
+
+	var ipv4Withdraw *IPv4Withdraw
+	if withdrawnLen > 0 && offset+withdrawnLen <= len(body) {
+		ipv4Withdraw = &IPv4Withdraw{withdrawn: body[offset : offset+withdrawnLen]}
+	}
+	offset += withdrawnLen
+
+	if offset+2 > len(body) {
+		return nil, ipv4Withdraw
+	}
+
+	attrLen := int(binary.BigEndian.Uint16(body[offset : offset+2]))
+	offset += 2
+	if offset+attrLen > len(body) {
+		return nil, ipv4Withdraw
+	}
+
+	// Extract NEXT_HOP bytes from attributes
+	attrBytes := body[offset : offset+attrLen]
+	nhBytes := extractNextHopBytes(attrBytes)
+
+	nlriOffset := offset + attrLen
+	nlriLen := len(body) - nlriOffset
+
+	var ipv4Reach *IPv4Reach
+	if nlriLen > 0 || len(nhBytes) > 0 {
+		ipv4Reach = &IPv4Reach{
+			nh:   nhBytes,
+			nlri: body[nlriOffset:],
+		}
+	}
+
+	return ipv4Reach, ipv4Withdraw
+}
+
+// extractNextHopBytes finds NEXT_HOP attribute and returns slice to its value.
+// Zero-copy: returns slice into pathAttrs, not a copy.
+func extractNextHopBytes(pathAttrs []byte) []byte {
+	for i := 0; i < len(pathAttrs); {
+		if i+2 > len(pathAttrs) {
+			break
+		}
+		flags := pathAttrs[i]
+		typeCode := pathAttrs[i+1]
+		attrLenBytes := 1
+		if flags&0x10 != 0 { // Extended length
+			attrLenBytes = 2
+		}
+		if i+2+attrLenBytes > len(pathAttrs) {
+			break
+		}
+		var attrValueLen int
+		var valueOffset int
+		if attrLenBytes == 1 {
+			attrValueLen = int(pathAttrs[i+2])
+			valueOffset = i + 3
+		} else {
+			attrValueLen = int(binary.BigEndian.Uint16(pathAttrs[i+2 : i+4]))
+			valueOffset = i + 4
+		}
+		if valueOffset+attrValueLen > len(pathAttrs) {
+			break
+		}
+
+		// NEXT_HOP = type code 3
+		if typeCode == 3 && attrValueLen == 4 {
+			return pathAttrs[valueOffset : valueOffset+4]
+		}
+
+		i = valueOffset + attrValueLen
+	}
+	return nil
 }
 
 // extractNLRIFromBody extracts IPv4 NLRI and withdrawn from UPDATE body.
