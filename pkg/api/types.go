@@ -274,30 +274,47 @@ type ReactorInterface interface {
 	RIBInRoutes(peerID string) []RIBRoute
 
 	// RIBOutRoutes returns routes from Adj-RIB-Out.
+	//
+	// Deprecated: Adj-RIB-Out tracking removed. Always returns nil.
 	RIBOutRoutes() []RIBRoute
 
 	// RIBStats returns RIB statistics.
+	// Note: OutPending/OutWithdrawls/OutSent always 0 (Adj-RIB-Out removed).
 	RIBStats() RIBStatsInfo
 
 	// Transaction support for commit-based batching.
-	// peerSelector is "*" for all peers or a specific peer address.
+	// Use CommitManager via "commit <name> start/end/rollback" instead.
+	//
+	// Deprecated: Per-peer Adj-RIB-Out transactions removed.
 
 	// BeginTransaction starts a new transaction with optional label.
+	//
+	// Deprecated: Use "commit <name> start" instead.
 	BeginTransaction(peerSelector, label string) error
 
 	// CommitTransaction commits the current transaction.
+	//
+	// Deprecated: Use "commit <name> end" instead.
 	CommitTransaction(peerSelector string) (TransactionResult, error)
 
 	// CommitTransactionWithLabel commits, verifying the label matches.
+	//
+	// Deprecated: Use "commit <name> end" instead.
 	CommitTransactionWithLabel(peerSelector, label string) (TransactionResult, error)
 
 	// RollbackTransaction discards all queued routes in the transaction.
+	//
+	// Deprecated: Use "commit <name> rollback" instead.
 	RollbackTransaction(peerSelector string) (TransactionResult, error)
 
 	// InTransaction returns true if a transaction is active.
+	//
+	// Deprecated: Always returns false (per-peer transactions removed).
 	InTransaction(peerSelector string) bool
 
 	// TransactionID returns the current transaction label.
+	//
+	// Deprecated: Always returns empty string (per-peer transactions removed).
 	TransactionID(peerSelector string) string
 
 	// SendRoutes sends routes directly to matching peers using CommitService.
@@ -325,13 +342,13 @@ type ReactorInterface interface {
 	ClearRIBIn() int
 
 	// ClearRIBOut withdraws all routes from Adj-RIB-Out.
-	// Queues withdrawals to be sent to peers.
-	// Returns count of routes withdrawn.
+	//
+	// Deprecated: Adj-RIB-Out tracking removed. Always returns 0.
 	ClearRIBOut() int
 
 	// FlushRIBOut re-queues all sent routes for re-announcement.
-	// Used to force resend of all routes to peers.
-	// Returns count of routes flushed.
+	//
+	// Deprecated: Adj-RIB-Out tracking removed. Always returns 0.
 	FlushRIBOut() int
 
 	// GetPeerAPIBindings returns API bindings for a specific peer.

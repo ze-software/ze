@@ -169,7 +169,6 @@ type Reactor struct {
 
 	// RIB components
 	ribIn    *rib.IncomingRIB // Adj-RIB-In
-	ribOut   *rib.OutgoingRIB // Adj-RIB-Out
 	ribStore *rib.RouteStore  // Global deduplication store
 
 	// Watchdog pools for API-created routes
@@ -276,23 +275,16 @@ func (a *reactorAPIAdapter) AnnounceRoute(peerSelector string, route api.RouteSp
 
 		ribRoute := rib.NewRouteWithASPath(n, route.NextHop, attrs, asPath)
 
-		switch {
-		case peer.AdjRIBOut().InTransaction():
-			// Queue to Adj-RIB-Out (will be sent on commit)
-			peer.AdjRIBOut().QueueAnnounce(ribRoute)
-		case peer.State() == PeerStateEstablished:
-			// Send immediately and track for re-announcement on reconnect
+		if peer.State() == PeerStateEstablished {
+			// Send immediately
 			// RFC 7911: Get PackContext for ADD-PATH encoding
 			// RFC 6793: ctx.ASN4 provides 4-byte AS capability
 			ctx := peer.packContext(n.Family())
 			update := buildAnnounceUpdate(route, a.r.config.LocalAS, isIBGP, ctx)
 			if err := peer.SendUpdate(update); err != nil {
 				lastErr = err
-			} else {
-				// Track sent route for re-announcement on session re-establishment
-				peer.AdjRIBOut().MarkSent(ribRoute)
 			}
-		default:
+		} else {
 			// Session not established: queue to peer's operation queue
 			// This maintains order with any pending teardowns
 			peer.QueueAnnounce(ribRoute)
@@ -302,7 +294,6 @@ func (a *reactorAPIAdapter) AnnounceRoute(peerSelector string, route api.RouteSp
 }
 
 // WithdrawRoute withdraws a route from matching peers.
-// If a peer is in transaction, queues to its Adj-RIB-Out; otherwise sends immediately.
 func (a *reactorAPIAdapter) WithdrawRoute(peerSelector string, prefix netip.Prefix) error {
 	peers := a.getMatchingPeers(peerSelector)
 	if len(peers) == 0 {
@@ -319,22 +310,15 @@ func (a *reactorAPIAdapter) WithdrawRoute(peerSelector string, prefix netip.Pref
 
 	var lastErr error
 	for _, peer := range peers {
-		switch {
-		case peer.AdjRIBOut().InTransaction():
-			// Queue withdrawal to Adj-RIB-Out (will be sent on commit)
-			peer.AdjRIBOut().QueueWithdraw(n)
-		case peer.State() == PeerStateEstablished:
-			// Send immediately and remove from sent cache
+		if peer.State() == PeerStateEstablished {
+			// Send immediately
 			// RFC 7911: Get PackContext for ADD-PATH encoding
 			ctx := peer.packContext(n.Family())
 			update := buildWithdrawUpdate(prefix, ctx)
 			if err := peer.SendUpdate(update); err != nil {
 				lastErr = err
-			} else {
-				// Remove from sent cache to prevent re-announcement on reconnect
-				peer.AdjRIBOut().RemoveFromSent(n)
 			}
-		default:
+		} else {
 			// Session not established: queue to peer's operation queue
 			// This maintains order with any pending announces/teardowns
 			peer.QueueWithdraw(n)
@@ -614,13 +598,8 @@ func (a *reactorAPIAdapter) AnnounceLabeledUnicast(peerSelector string, route ap
 		// Build rib.Route with ALL attributes (not just Origin like AnnounceRoute bug)
 		ribRoute := a.buildLabeledUnicastRIBRoute(route, isIBGP)
 
-		switch {
-		case peer.AdjRIBOut().InTransaction():
-			// Queue to Adj-RIB-Out (will be sent on commit)
-			peer.AdjRIBOut().QueueAnnounce(ribRoute)
-
-		case peer.State() == PeerStateEstablished:
-			// Send immediately and track for re-announcement on reconnect
+		if peer.State() == PeerStateEstablished {
+			// Send immediately
 			family := nlri.Family{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIMPLSLabel}
 			if route.Prefix.Addr().Is6() {
 				family.AFI = nlri.AFIIPv6
@@ -634,12 +613,8 @@ func (a *reactorAPIAdapter) AnnounceLabeledUnicast(peerSelector string, route ap
 
 			if err := peer.SendUpdate(update); err != nil {
 				lastErr = err
-			} else {
-				// Track sent route for re-announcement on session re-establishment
-				peer.AdjRIBOut().MarkSent(ribRoute)
 			}
-
-		default:
+		} else {
 			// Session not established: queue to peer's operation queue
 			// This maintains order with any pending teardowns
 			peer.QueueAnnounce(ribRoute)
@@ -808,13 +783,8 @@ func (a *reactorAPIAdapter) WithdrawLabeledUnicast(peerSelector string, route ap
 
 	var lastErr error
 	for _, peer := range peers {
-		switch {
-		case peer.AdjRIBOut().InTransaction():
-			// Queue withdrawal to Adj-RIB-Out (will be sent on commit)
-			peer.AdjRIBOut().QueueWithdraw(n)
-
-		case peer.State() == PeerStateEstablished:
-			// Send immediately and remove from sent cache
+		if peer.State() == PeerStateEstablished {
+			// Send immediately
 			ctx := peer.packContext(family)
 
 			// Build withdrawal using existing helper
@@ -826,12 +796,8 @@ func (a *reactorAPIAdapter) WithdrawLabeledUnicast(peerSelector string, route ap
 			update := buildMPUnreachLabeledUnicast(staticRoute, ctx)
 			if err := peer.SendUpdate(update); err != nil {
 				lastErr = err
-			} else {
-				// Remove from sent cache to prevent re-announcement on reconnect
-				peer.AdjRIBOut().RemoveFromSent(n)
 			}
-
-		default:
+		} else {
 			// Session not established: queue to peer's operation queue
 			// This maintains order with any pending announces/teardowns
 			peer.QueueWithdraw(n)
@@ -1171,26 +1137,10 @@ func (a *reactorAPIAdapter) RIBInRoutes(peerID string) []api.RIBRoute {
 }
 
 // RIBOutRoutes returns routes from Adj-RIB-Out.
+//
+// Deprecated: Adj-RIB-Out tracking removed. Returns nil.
 func (a *reactorAPIAdapter) RIBOutRoutes() []api.RIBRoute {
-	if a.r.ribOut == nil {
-		return nil
-	}
-
-	var routes []api.RIBRoute
-
-	// Get pending routes for common families
-	families := []nlri.Family{
-		{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast},
-		{AFI: nlri.AFIIPv6, SAFI: nlri.SAFIUnicast},
-	}
-
-	for _, family := range families {
-		for _, route := range a.r.ribOut.GetPending(family) {
-			routes = append(routes, routeToAPIRoute("", route))
-		}
-	}
-
-	return routes
+	return nil
 }
 
 // RIBStats returns RIB statistics.
@@ -1203,12 +1153,7 @@ func (a *reactorAPIAdapter) RIBStats() api.RIBStatsInfo {
 		stats.InRouteCount = inStats.RouteCount
 	}
 
-	if a.r.ribOut != nil {
-		outStats := a.r.ribOut.Stats()
-		stats.OutPending = outStats.PendingAnnouncements
-		stats.OutWithdrawls = outStats.PendingWithdrawals
-		stats.OutSent = outStats.SentRoutes
-	}
+	// Note: Adj-RIB-Out tracking removed. OutPending/OutWithdrawls/OutSent always 0.
 
 	return stats
 }
@@ -1222,19 +1167,17 @@ func (a *reactorAPIAdapter) ClearRIBIn() int {
 }
 
 // ClearRIBOut queues withdrawals for all routes in Adj-RIB-Out.
+//
+// Deprecated: Adj-RIB-Out tracking removed. Returns 0.
 func (a *reactorAPIAdapter) ClearRIBOut() int {
-	if a.r.ribOut == nil {
-		return 0
-	}
-	return a.r.ribOut.ClearSent()
+	return 0
 }
 
 // FlushRIBOut re-queues all sent routes for re-announcement.
+//
+// Deprecated: Adj-RIB-Out tracking removed. Returns 0.
 func (a *reactorAPIAdapter) FlushRIBOut() int {
-	if a.r.ribOut == nil {
-		return 0
-	}
-	return a.r.ribOut.FlushSent()
+	return 0
 }
 
 // GetPeerAPIBindings returns API bindings for a specific peer.
@@ -1295,138 +1238,34 @@ func (a *reactorAPIAdapter) getProcessEncoder(name string) string {
 }
 
 // Transaction support for commit-based batching.
+// Note: Per-peer Adj-RIB-Out transactions removed. Use CommitManager instead.
 
 // BeginTransaction starts a new transaction for batched route updates.
-// peerSelector is "*" for all peers or a specific peer address.
+//
+// Deprecated: Per-peer Adj-RIB-Out removed. Use CommitManager via "commit <name> start".
 func (a *reactorAPIAdapter) BeginTransaction(peerSelector, label string) error {
-	peers := a.getMatchingPeers(peerSelector)
-	if len(peers) == 0 {
-		return api.ErrNoTransaction
-	}
-
-	var lastErr error
-	for _, peer := range peers {
-		if err := peer.AdjRIBOut().BeginTransaction(label); err != nil {
-			lastErr = convertRIBError(err)
-		}
-	}
-	return lastErr
+	return errors.New("per-peer transactions removed; use 'commit <name> start' instead")
 }
 
 // CommitTransaction commits the current transaction.
-// After committing, flushes pending routes, groups them, and sends to peers.
+//
+// Deprecated: Per-peer Adj-RIB-Out removed. Use CommitManager via "commit <name> end".
 func (a *reactorAPIAdapter) CommitTransaction(peerSelector string) (api.TransactionResult, error) {
-	return a.CommitTransactionWithLabel(peerSelector, "")
+	return api.TransactionResult{}, errors.New("per-peer transactions removed; use 'commit <name> end' instead")
 }
 
 // CommitTransactionWithLabel commits, verifying the label matches.
-// After committing, flushes pending routes, groups them, and sends to peers.
+//
+// Deprecated: Per-peer Adj-RIB-Out removed. Use CommitManager via "commit <name> end".
 func (a *reactorAPIAdapter) CommitTransactionWithLabel(peerSelector, label string) (api.TransactionResult, error) {
-	peers := a.getMatchingPeers(peerSelector)
-	if len(peers) == 0 {
-		return api.TransactionResult{}, api.ErrNoTransaction
-	}
-
-	var totalResult api.TransactionResult
-	var lastErr error
-
-	for _, peer := range peers {
-		ribOut := peer.AdjRIBOut()
-
-		var stats rib.CommitStats
-		var err error
-
-		if label != "" {
-			stats, err = ribOut.CommitTransactionWithLabel(label)
-		} else {
-			stats, err = ribOut.CommitTransaction()
-		}
-
-		if err != nil {
-			lastErr = convertRIBError(err)
-			continue
-		}
-
-		// Flush and send for this peer
-		updatesSent := a.flushAndSendForPeer(peer)
-
-		totalResult.RoutesAnnounced += stats.RoutesAnnounced
-		totalResult.RoutesWithdrawn += stats.RoutesWithdrawn
-		totalResult.UpdatesSent += updatesSent
-		totalResult.TransactionID = ribOut.TransactionID()
-	}
-
-	if lastErr != nil {
-		return totalResult, lastErr
-	}
-	return totalResult, nil
-}
-
-// flushAndSendForPeer flushes pending routes for a peer, groups them, and sends.
-// Returns the number of UPDATE messages sent.
-// If session is not established, routes are queued to opQueue to maintain ordering
-// with any pending teardowns.
-func (a *reactorAPIAdapter) flushAndSendForPeer(peer *Peer) int {
-	ribOut := peer.AdjRIBOut()
-	if ribOut == nil {
-		return 0
-	}
-
-	// Flush all pending routes
-	routes := ribOut.FlushAllPending()
-	if len(routes) == 0 {
-		return 0
-	}
-
-	// Get negotiated parameters for CommitService
-	neg := peer.messageNegotiated()
-	if neg == nil {
-		// Session not established - queue routes to opQueue to maintain
-		// ordering with any pending teardowns. Without this, committed
-		// transaction routes would be sent before a queued teardown.
-		for _, route := range routes {
-			peer.QueueAnnounce(route)
-		}
-		return 0
-	}
-
-	// Use CommitService with two-level grouping for proper AS_PATH handling
-	cs := rib.NewCommitService(peer, neg, true)
-	stats, err := cs.Commit(routes, rib.CommitOptions{SendEOR: false})
-	if err != nil {
-		return 0
-	}
-
-	return stats.UpdatesSent
+	return api.TransactionResult{}, errors.New("per-peer transactions removed; use 'commit <name> end' instead")
 }
 
 // RollbackTransaction discards all queued routes in the transaction.
+//
+// Deprecated: Per-peer Adj-RIB-Out removed. Use CommitManager via "commit <name> rollback".
 func (a *reactorAPIAdapter) RollbackTransaction(peerSelector string) (api.TransactionResult, error) {
-	peers := a.getMatchingPeers(peerSelector)
-	if len(peers) == 0 {
-		return api.TransactionResult{}, api.ErrNoTransaction
-	}
-
-	var totalResult api.TransactionResult
-	var lastErr error
-
-	for _, peer := range peers {
-		ribOut := peer.AdjRIBOut()
-		txID := ribOut.TransactionID()
-		stats, err := ribOut.RollbackTransaction()
-		if err != nil {
-			lastErr = convertRIBError(err)
-			continue
-		}
-
-		totalResult.RoutesDiscarded += stats.RoutesDiscarded
-		totalResult.TransactionID = txID
-	}
-
-	if lastErr != nil {
-		return totalResult, lastErr
-	}
-	return totalResult, nil
+	return api.TransactionResult{}, errors.New("per-peer transactions removed; use 'commit <name> rollback' instead")
 }
 
 // getMatchingPeers returns peers matching the selector.
@@ -1494,23 +1333,17 @@ func ipGlobMatch(pattern, ip string) bool {
 }
 
 // InTransaction returns true if any matching peer has an active transaction.
+//
+// Deprecated: Per-peer Adj-RIB-Out removed. Always returns false.
 func (a *reactorAPIAdapter) InTransaction(peerSelector string) bool {
-	peers := a.getMatchingPeers(peerSelector)
-	for _, peer := range peers {
-		if peer.AdjRIBOut().InTransaction() {
-			return true
-		}
-	}
 	return false
 }
 
 // TransactionID returns the transaction label for the first matching peer.
+//
+// Deprecated: Per-peer Adj-RIB-Out removed. Always returns empty string.
 func (a *reactorAPIAdapter) TransactionID(peerSelector string) string {
-	peers := a.getMatchingPeers(peerSelector)
-	if len(peers) == 0 {
-		return ""
-	}
-	return peers[0].AdjRIBOut().TransactionID()
+	return ""
 }
 
 // SendRoutes sends routes directly to matching peers using CommitService.
@@ -1755,17 +1588,6 @@ func (a *reactorAPIAdapter) ForwardUpdate(sel *api.Selector, updateID uint64) er
 					}
 				}
 			}
-		}
-
-		// Store in adj-rib-out for persistence across reconnects.
-		// If routes is nil (ConvertToRoutes failed), this is a no-op for announcements
-		// but we still remove withdrawals. Non-fatal: forwarding works, persistence doesn't.
-		adjRIBOut := peer.AdjRIBOut()
-		for _, route := range routes {
-			adjRIBOut.MarkSent(route)
-		}
-		for _, n := range update.Withdraws {
-			adjRIBOut.RemoveFromSent(n)
 		}
 	}
 
@@ -2209,20 +2031,6 @@ func (a *reactorAPIAdapter) DeleteUpdate(updateID uint64) error {
 	return nil
 }
 
-// convertRIBError converts RIB errors to API errors.
-func convertRIBError(err error) error {
-	switch {
-	case errors.Is(err, rib.ErrAlreadyInTransaction):
-		return api.ErrAlreadyInTransaction
-	case errors.Is(err, rib.ErrNoTransaction):
-		return api.ErrNoTransaction
-	case errors.Is(err, rib.ErrLabelMismatch):
-		return api.ErrLabelMismatch
-	default:
-		return err
-	}
-}
-
 // routeToAPIRoute converts a RIB route to an API route.
 func routeToAPIRoute(peerID string, route *rib.Route) api.RIBRoute {
 	apiRoute := api.RIBRoute{
@@ -2302,7 +2110,6 @@ func New(config *Config) *Reactor {
 		peers:         make(map[string]*Peer),
 		listeners:     make(map[netip.Addr]*Listener),
 		ribIn:         rib.NewIncomingRIB(),
-		ribOut:        rib.NewOutgoingRIB(),
 		ribStore:      rib.NewRouteStore(100), // Buffer size for dedup workers
 		watchdog:      NewWatchdogManager(),
 		recentUpdates: NewRecentUpdateCache(ttl, maxEntries),

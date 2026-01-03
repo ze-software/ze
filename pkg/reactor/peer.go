@@ -92,25 +92,20 @@ const MaxOpQueueSize = 10000
 //
 // # Route Queuing Architecture
 //
-// The peer uses two complementary queuing mechanisms:
-//
-//  1. adjRIBOut (Adj-RIB-Out): Manages the "sent cache" - routes that have been
-//     successfully announced and should be re-sent on session re-establishment.
-//     Also handles transaction-based batching via Begin/Commit.
-//
-//  2. opQueue: Ordered operation queue for when session is not established.
-//     Maintains strict ordering of announce/withdraw/teardown operations.
-//     Processed on session establishment, with teardowns acting as batch separators.
+// The peer uses opQueue for ordering when session is not established.
+// Maintains strict ordering of announce/withdraw/teardown operations.
+// Processed on session establishment, with teardowns acting as batch separators.
 //
 // When a route is announced:
-//   - Session ESTABLISHED + no transaction → sent immediately, added to sent cache
-//   - Session ESTABLISHED + in transaction → queued to adjRIBOut transaction queue
+//   - Session ESTABLISHED → sent immediately
 //   - Session NOT ESTABLISHED → queued to opQueue
 //
 // On session establishment:
-//  1. Routes from sent cache are re-sent (previously announced routes)
-//  2. opQueue is processed in order until a teardown is encountered
-//  3. Teardown sends EOR + NOTIFICATION, remaining opQueue items persist
+//  1. opQueue is processed in order until a teardown is encountered
+//  2. Teardown sends EOR + NOTIFICATION, remaining opQueue items persist
+//
+// Note: Route persistence across reconnects is delegated to external API programs.
+// See capability contract for route-refresh handling.
 type Peer struct {
 	settings *PeerSettings
 	session  *Session
@@ -137,11 +132,6 @@ type Peer struct {
 	// Reconnect configuration
 	reconnectMin time.Duration
 	reconnectMax time.Duration
-
-	// Adj-RIB-Out: Maintains the "sent cache" of routes that should persist
-	// across session re-establishments. Also handles transaction batching.
-	// Routes added here are re-sent automatically on reconnect.
-	adjRIBOut *rib.OutgoingRIB
 
 	// Ordered operation queue: Used when session is NOT established.
 	// Maintains strict ordering of announce/withdraw/teardown operations.
@@ -185,7 +175,6 @@ func NewPeer(settings *PeerSettings) *Peer {
 		settings:      settings,
 		reconnectMin:  DefaultReconnectMin,
 		reconnectMax:  DefaultReconnectMax,
-		adjRIBOut:     rib.NewOutgoingRIB(),
 		opQueue:       make([]PeerOp, 0, 16), // Pre-allocate small capacity
 		watchdogState: make(map[string]map[string]bool),
 	}
@@ -284,11 +273,6 @@ func (p *Peer) SetReactor(r *Reactor) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	p.reactor = r
-}
-
-// AdjRIBOut returns the peer's Adj-RIB-Out.
-func (p *Peer) AdjRIBOut() *rib.OutgoingRIB {
-	return p.adjRIBOut
 }
 
 // packContext returns a PackContext for capability-aware encoding.
@@ -563,14 +547,10 @@ func (p *Peer) QueueAnnounce(route *rib.Route) {
 
 // QueueWithdraw queues a route withdrawal for when session establishes.
 // Used when session is not established to maintain operation order.
-// Also removes from sent cache immediately to prevent re-announcement on reconnect.
-// If queue is full (MaxOpQueueSize), the operation is dropped with a warning,
-// but the route is still removed from sent cache.
+// If queue is full (MaxOpQueueSize), the operation is dropped with a warning.
 func (p *Peer) QueueWithdraw(n nlri.NLRI) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	// Always remove from sent cache, even if queue is full
-	p.adjRIBOut.RemoveFromSent(n)
 	if len(p.opQueue) >= MaxOpQueueSize {
 		trace.Log(trace.Routes, "peer %s: opQueue full (%d), dropping withdraw for %s",
 			p.settings.Address, len(p.opQueue), n)
@@ -1083,49 +1063,6 @@ func (p *Peer) sendInitialRoutes() {
 		}
 	}
 
-	// Re-send Adj-RIB-Out routes (routes announced via API that persist across reconnects).
-	// Each route is sent individually, splitting if needed to respect max message size.
-	// RFC 8654: Max message size is 4096 without Extended Message, 65535 with.
-	sentRoutes := p.adjRIBOut.GetSentRoutes()
-	if len(sentRoutes) > 0 {
-		adjMaxMsgSize := int(message.MaxMessageLength(message.TypeUPDATE, nc.ExtendedMessage))
-		trace.Log(trace.Routes, "peer %s: re-sending %d Adj-RIB-Out routes (ExtendedMessage=%v, maxSize=%d)",
-			addr, len(sentRoutes), nc.ExtendedMessage, adjMaxMsgSize)
-		for _, route := range sentRoutes {
-			family := route.NLRI().Family()
-			ctx := p.packContext(family)
-			update := buildRIBRouteUpdate(route, p.settings.LocalAS, p.settings.IsIBGP(), ctx)
-			if err := p.sendUpdateWithSplit(update, adjMaxMsgSize, family); err != nil {
-				trace.Log(trace.Routes, "peer %s: send error for route %s: %v", addr, route.NLRI(), err)
-				break
-			}
-		}
-	}
-
-	// Send pending routes from transactions (committed while not connected).
-	// Each route is split if needed to respect max message size.
-	// NOTE: FlushAllPending adds routes to sent cache immediately. If we fail to send
-	// (e.g., unsplittable attributes), we remove from sent cache to avoid state mismatch.
-	pendingRoutes := p.adjRIBOut.FlushAllPending()
-	if len(pendingRoutes) > 0 {
-		pendMaxMsgSize := int(message.MaxMessageLength(message.TypeUPDATE, nc.ExtendedMessage))
-		trace.Log(trace.Routes, "peer %s: sending %d pending routes from transactions", addr, len(pendingRoutes))
-		for _, route := range pendingRoutes {
-			family := route.NLRI().Family()
-			ctx := p.packContext(family)
-			update := buildRIBRouteUpdate(route, p.settings.LocalAS, p.settings.IsIBGP(), ctx)
-			if err := p.sendUpdateWithSplit(update, pendMaxMsgSize, family); err != nil {
-				trace.Log(trace.Routes, "peer %s: send error for pending route %s: %v", addr, route.NLRI(), err)
-				// Remove from sent cache since we failed to send
-				if errors.Is(err, message.ErrAttributesTooLarge) || errors.Is(err, message.ErrNLRITooLarge) {
-					p.adjRIBOut.RemoveFromSent(route.NLRI())
-					continue // Try next route
-				}
-				break // Connection error, stop sending
-			}
-		}
-	}
-
 	// Process operation queue in order (maintains announce/withdraw/teardown ordering).
 	// Stop at first teardown - remaining items stay for next session.
 	//
@@ -1150,9 +1087,7 @@ func (p *Peer) sendInitialRoutes() {
 			processed = i + 1 // Include the teardown in processed count
 
 		case PeerOpAnnounce:
-			// Send route and add to sent cache, splitting if needed.
-			// NOTE: Unlike FlushAllPending, MarkSent is called AFTER success,
-			// so no cache cleanup needed on split errors (route never cached).
+			// Send route, splitting if needed.
 			family := op.Route.NLRI().Family()
 			ctx := p.packContext(family)
 			update := buildRIBRouteUpdate(op.Route, p.settings.LocalAS, p.settings.IsIBGP(), ctx)
@@ -1160,7 +1095,7 @@ func (p *Peer) sendInitialRoutes() {
 			if err := p.sendUpdateWithSplit(update, opMaxMsgSize, family); err != nil {
 				trace.Log(trace.Routes, "peer %s: send error for queued route %s: %v", addr, op.Route.NLRI(), err)
 				p.mu.Lock()
-				// Split errors: skip route (not cached yet, no cleanup needed)
+				// Split errors: skip route
 				// Connection errors: stop processing
 				if errors.Is(err, message.ErrAttributesTooLarge) || errors.Is(err, message.ErrNLRITooLarge) {
 					processed = i + 1
@@ -1168,13 +1103,12 @@ func (p *Peer) sendInitialRoutes() {
 				}
 				break
 			}
-			p.adjRIBOut.MarkSent(op.Route)
 			p.mu.Lock()
 			processed = i + 1
 			continue
 
 		case PeerOpWithdraw:
-			// Send withdrawal (already removed from sent cache when queued)
+			// Send withdrawal.
 			// Use sendUpdateWithSplit for consistency, though single withdrawals rarely need splitting
 			family := op.NLRI.Family()
 			ctx := p.packContext(family)
