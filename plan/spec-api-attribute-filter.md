@@ -1698,16 +1698,41 @@ type FilterResult struct {
 
 ### Tasks
 
-- [ ] Add `MPReachWire` type with methods
-- [ ] Add `MPUnreachWire` type with methods
-- [ ] Add `IPv4Reach` struct
-- [ ] Update `FilterResult` with new fields
-- [ ] Remove `NextHopIPv4`, `NextHopIPv6`, `Announced`, `Withdrawn`
-- [ ] Add `AttributesWire.GetRaw(code)` to get raw attr bytes
-- [ ] Update `ApplyToUpdate()` to populate new fields
-- [ ] Update `text.go` formatters to iterate both paths
-- [ ] Fix all tests
-- [ ] Run `make test && make lint && make functional`
+- [x] Add `MPReachWire` type with methods (`pkg/api/mpwire.go`)
+- [x] Add `MPUnreachWire` type with methods (`pkg/api/mpwire.go`)
+- [x] Add `IPv4Reach` / `IPv4Withdraw` structs (`pkg/api/mpwire.go`)
+- [x] Update `FilterResult` with new fields (MPReach, MPUnreach, IPv4Announced, IPv4Withdrawn)
+- [x] Remove legacy fields: `NextHopIPv4`, `NextHopIPv6`, `Announced`, `Withdrawn`, `NextHopFor()`
+- [x] Add `AttributesWire.GetRaw(code)` - zero-copy raw attr bytes (`pkg/bgp/attribute/wire.go`)
+- [x] Update `ApplyToUpdate()` to populate new fields
+- [x] Update `text.go` formatters to use `AnnouncedByFamily()` / `WithdrawnByFamily()`
+- [x] Fix all tests
+- [x] Run `make test && make lint && make functional` ✅
+
+### Implementation Notes
+
+**Two paths for different use cases:**
+
+1. **Zero-copy (API hot path):** `MPReachWire`, `MPUnreachWire`, `IPv4Reach` - slices into buffer, no allocation
+2. **Caching (RIB path):** `extractNLRIFromBody()`, `extractMPReachFromWireWithFamily()` - parse to concrete types, buffer-independent
+
+The parsing functions are kept with `//nolint:unused` for future RIB/caching implementation.
+
+**FamilyNLRI struct:**
+```go
+type FamilyNLRI struct {
+    Family   string         // e.g., "ipv4-unicast"
+    NextHop  netip.Addr     // per-family next-hop (RFC 4760)
+    Prefixes []netip.Prefix
+}
+```
+
+**Iteration:**
+```go
+for _, fam := range result.AnnouncedByFamily() {
+    // fam.Family, fam.NextHop, fam.Prefixes
+}
+```
 
 ---
 
@@ -1715,3 +1740,4 @@ type FilterResult struct {
 **Revised:** 2026-01-02 (lazy parsing, legacy removal, type assertion fixes)
 **Revised:** 2026-01-03 (removed stale tasks - already implemented)
 **Revised:** 2026-01-03 (FamilyNLRI refactoring per RFC 4760)
+**Completed:** 2026-01-03 (FamilyNLRI refactoring - all tasks done)
