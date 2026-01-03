@@ -140,7 +140,7 @@ type AttributeFilter struct {
 //   - MP-BGP: MPReach/MPUnreach wrap raw bytes for zero-copy access
 //   - Legacy IPv4: IPv4Announced/IPv4Withdrawn wrap body sections
 //
-// Use helper methods (AllAnnounced, AllWithdrawn) for iteration.
+// Use AnnouncedByFamily()/WithdrawnByFamily() for iteration.
 type FilterResult struct {
 	// Attributes contains parsed attributes (only those matching the filter).
 	// Key is attribute code, value is parsed Attribute interface.
@@ -156,11 +156,6 @@ type FilterResult struct {
 	// Used when IPv4 NLRI is in UPDATE body (not MP attribute).
 	IPv4Announced *IPv4Reach    // nil if no body NLRI
 	IPv4Withdrawn *IPv4Withdraw // nil if no body withdrawn
-
-	Announced   []netip.Prefix
-	Withdrawn   []netip.Prefix
-	NextHopIPv4 netip.Addr
-	NextHopIPv6 netip.Addr
 }
 
 // NLRIFilter specifies which address families to include in API output.
@@ -207,22 +202,6 @@ func (f NLRIFilter) IsEmpty() bool {
 	return f.Mode == FilterModeNone || (f.Mode == FilterModeSelective && len(f.Families) == 0)
 }
 
-// NextHopFor returns the appropriate next-hop for a prefix based on its address family.
-// Returns IPv4 next-hop for IPv4 prefixes, IPv6 next-hop for IPv6 prefixes.
-// Falls back to the other if the preferred one is not set.
-func (r FilterResult) NextHopFor(p netip.Prefix) netip.Addr {
-	if p.Addr().Is6() {
-		if r.NextHopIPv6.IsValid() {
-			return r.NextHopIPv6
-		}
-		return r.NextHopIPv4 // fallback
-	}
-	if r.NextHopIPv4.IsValid() {
-		return r.NextHopIPv4
-	}
-	return r.NextHopIPv6 // fallback
-}
-
 // FamilyNLRI groups prefixes with their next-hop and family.
 // This is the RFC-correct structure: each AFI/SAFI has its own next-hop.
 type FamilyNLRI struct {
@@ -249,7 +228,7 @@ func (r FilterResult) AnnouncedByFamily() []FamilyNLRI {
 		}
 	}
 
-	// Legacy IPv4 path
+	// Legacy IPv4 path (body NLRI)
 	if r.IPv4Announced != nil {
 		prefixes := r.IPv4Announced.Prefixes()
 		if len(prefixes) > 0 {
@@ -257,26 +236,6 @@ func (r FilterResult) AnnouncedByFamily() []FamilyNLRI {
 				Family:   "ipv4-unicast",
 				NextHop:  r.IPv4Announced.NextHop(),
 				Prefixes: prefixes,
-			})
-		}
-	}
-
-	// Fallback to deprecated fields if new paths empty
-	if len(result) == 0 && len(r.Announced) > 0 {
-		// Group by IPv4/IPv6
-		ipv4, ipv6 := groupPrefixesByFamilyFilter(r.Announced)
-		if len(ipv4) > 0 {
-			result = append(result, FamilyNLRI{
-				Family:   "ipv4-unicast",
-				NextHop:  r.NextHopIPv4,
-				Prefixes: ipv4,
-			})
-		}
-		if len(ipv6) > 0 {
-			result = append(result, FamilyNLRI{
-				Family:   "ipv6-unicast",
-				NextHop:  r.NextHopIPv6,
-				Prefixes: ipv6,
 			})
 		}
 	}
@@ -300,30 +259,13 @@ func (r FilterResult) WithdrawnByFamily() []FamilyNLRI {
 		}
 	}
 
-	// Legacy IPv4 path
+	// Legacy IPv4 path (body withdrawn)
 	if r.IPv4Withdrawn != nil {
 		prefixes := r.IPv4Withdrawn.Prefixes()
 		if len(prefixes) > 0 {
 			result = append(result, FamilyNLRI{
 				Family:   "ipv4-unicast",
 				Prefixes: prefixes,
-			})
-		}
-	}
-
-	// Fallback to deprecated fields if new paths empty
-	if len(result) == 0 && len(r.Withdrawn) > 0 {
-		ipv4, ipv6 := groupPrefixesByFamilyFilter(r.Withdrawn)
-		if len(ipv4) > 0 {
-			result = append(result, FamilyNLRI{
-				Family:   "ipv4-unicast",
-				Prefixes: ipv4,
-			})
-		}
-		if len(ipv6) > 0 {
-			result = append(result, FamilyNLRI{
-				Family:   "ipv6-unicast",
-				Prefixes: ipv6,
 			})
 		}
 	}
@@ -336,10 +278,7 @@ func (r FilterResult) HasAnnouncements() bool {
 	if len(r.MPReach) > 0 {
 		return true
 	}
-	if r.IPv4Announced != nil && len(r.IPv4Announced.nlri) > 0 {
-		return true
-	}
-	return len(r.Announced) > 0
+	return r.IPv4Announced != nil && len(r.IPv4Announced.nlri) > 0
 }
 
 // HasWithdrawals returns true if there are any withdrawn prefixes.
@@ -347,27 +286,12 @@ func (r FilterResult) HasWithdrawals() bool {
 	if len(r.MPUnreach) > 0 {
 		return true
 	}
-	if r.IPv4Withdrawn != nil && len(r.IPv4Withdrawn.withdrawn) > 0 {
-		return true
-	}
-	return len(r.Withdrawn) > 0
+	return r.IPv4Withdrawn != nil && len(r.IPv4Withdrawn.withdrawn) > 0
 }
 
 // IsEOR returns true if this is an End-of-RIB marker (no NLRI).
 func (r FilterResult) IsEOR() bool {
 	return !r.HasAnnouncements() && !r.HasWithdrawals()
-}
-
-// groupPrefixesByFamilyFilter separates prefixes into IPv4 and IPv6.
-func groupPrefixesByFamilyFilter(prefixes []netip.Prefix) (ipv4, ipv6 []netip.Prefix) {
-	for _, p := range prefixes {
-		if p.Addr().Is4() {
-			ipv4 = append(ipv4, p)
-		} else {
-			ipv6 = append(ipv6, p)
-		}
-	}
-	return ipv4, ipv6
 }
 
 // NewFilterAll returns a filter that includes all attributes.
@@ -477,14 +401,13 @@ func (f AttributeFilter) Apply(wire *attribute.AttributesWire) (FilterResult, er
 //  2. Gets MP_REACH/MP_UNREACH from wire for other families if included
 //  3. Applies filter to get requested attributes from wire
 //
-// New fields (MPReach, MPUnreach, IPv4Announced, IPv4Withdrawn) use zero-copy slices.
-// Old fields (Announced, Withdrawn, NextHopIPv4, NextHopIPv6) are still populated for compat.
+// Uses zero-copy slices: MPReach, MPUnreach, IPv4Announced, IPv4Withdrawn.
+// Use AnnouncedByFamily()/WithdrawnByFamily() to iterate results.
 func (f AttributeFilter) ApplyToUpdate(wire *attribute.AttributesWire, body []byte, nlriFilter NLRIFilter) (FilterResult, error) {
 	result := FilterResult{}
 
-	// Extract IPv4 unicast NLRI if included (both new and legacy paths)
+	// Extract IPv4 unicast NLRI if included
 	if nlriFilter.IncludesFamily("ipv4 unicast") {
-		// New path: zero-copy slices into body
 		ipv4Reach, ipv4Withdraw := extractIPv4SlicesFromBody(body)
 		if ipv4Reach != nil {
 			result.IPv4Announced = ipv4Reach
@@ -492,17 +415,11 @@ func (f AttributeFilter) ApplyToUpdate(wire *attribute.AttributesWire, body []by
 		if ipv4Withdraw != nil {
 			result.IPv4Withdrawn = ipv4Withdraw
 		}
-
-		// Legacy path: parsed prefixes for backward compat
-		ipv4Announced, ipv4Withdrawn, ipv4NextHop := extractNLRIFromBody(body)
-		result.Announced = ipv4Announced
-		result.Withdrawn = ipv4Withdrawn
-		result.NextHopIPv4 = ipv4NextHop
 	}
 
 	// Get MP NLRI from wire (lazy - only parses MP attrs if present)
 	if wire != nil && !nlriFilter.IsEmpty() {
-		// New path: zero-copy MPReachWire
+		// Zero-copy MPReachWire
 		if mpRaw, err := wire.GetRaw(attribute.AttrMPReachNLRI); err == nil && mpRaw != nil {
 			mpw := MPReachWire(mpRaw)
 			family := mpw.Family().String()
@@ -511,29 +428,13 @@ func (f AttributeFilter) ApplyToUpdate(wire *attribute.AttributesWire, body []by
 			}
 		}
 
-		// New path: zero-copy MPUnreachWire
+		// Zero-copy MPUnreachWire
 		if mpRaw, err := wire.GetRaw(attribute.AttrMPUnreachNLRI); err == nil && mpRaw != nil {
 			mpw := MPUnreachWire(mpRaw)
 			family := mpw.Family().String()
 			if nlriFilter.IncludesFamily(family) {
 				result.MPUnreach = append(result.MPUnreach, mpw)
 			}
-		}
-
-		// Legacy path: parsed prefixes for backward compat
-		mpAnnounced, mpNextHop, family := extractMPReachFromWireWithFamily(wire)
-		if nlriFilter.IncludesFamily(family) {
-			result.Announced = append(result.Announced, mpAnnounced...)
-			if mpNextHop.Is6() {
-				result.NextHopIPv6 = mpNextHop
-			} else if mpNextHop.Is4() {
-				result.NextHopIPv4 = mpNextHop
-			}
-		}
-
-		mpWithdrawn, wFamily := extractMPUnreachFromWireWithFamily(wire)
-		if nlriFilter.IncludesFamily(wFamily) {
-			result.Withdrawn = append(result.Withdrawn, mpWithdrawn...)
 		}
 	}
 
@@ -636,6 +537,9 @@ func extractNextHopBytes(pathAttrs []byte) []byte {
 // extractNLRIFromBody extracts IPv4 NLRI and withdrawn from UPDATE body.
 // Also extracts NEXT_HOP if present in path attributes.
 // Does NOT parse other attributes - this is the fast path.
+// Use this when you need concrete types for caching (vs zero-copy MPReachWire).
+//
+//nolint:unused // Reserved for RIB/caching path - parses to concrete types independent of buffer
 func extractNLRIFromBody(body []byte) (announced, withdrawn []netip.Prefix, nextHop netip.Addr) {
 	if len(body) < 4 {
 		return nil, nil, netip.Addr{}
@@ -677,6 +581,8 @@ func extractNLRIFromBody(body []byte) (announced, withdrawn []netip.Prefix, next
 
 // extractNextHopQuick scans attributes for NEXT_HOP without full parsing.
 // Returns zero Addr if not found.
+//
+//nolint:unused // Used by extractNLRIFromBody for RIB/caching path
 func extractNextHopQuick(pathAttrs []byte) netip.Addr {
 	for i := 0; i < len(pathAttrs); {
 		if i+2 > len(pathAttrs) {
@@ -717,6 +623,9 @@ func extractNextHopQuick(pathAttrs []byte) netip.Addr {
 
 // extractMPReachFromWireWithFamily gets prefixes, next-hop, and family from MP_REACH_NLRI.
 // Uses wire's lazy parsing - only parses this specific attribute.
+// Use this when you need concrete types for caching (vs zero-copy MPReachWire).
+//
+//nolint:unused // Reserved for RIB/caching path - parses to concrete types independent of buffer
 func extractMPReachFromWireWithFamily(wire *attribute.AttributesWire) (prefixes []netip.Prefix, nextHop netip.Addr, family string) {
 	attr, err := wire.Get(attribute.AttrMPReachNLRI)
 	if err != nil || attr == nil {
@@ -750,6 +659,9 @@ func extractMPReachFromWireWithFamily(wire *attribute.AttributesWire) (prefixes 
 
 // extractMPUnreachFromWireWithFamily gets withdrawn prefixes and family from MP_UNREACH_NLRI.
 // Uses wire's lazy parsing - only parses this specific attribute.
+// Use this when you need concrete types for caching (vs zero-copy MPUnreachWire).
+//
+//nolint:unused // Reserved for RIB/caching path - parses to concrete types independent of buffer
 func extractMPUnreachFromWireWithFamily(wire *attribute.AttributesWire) (prefixes []netip.Prefix, family string) {
 	attr, err := wire.Get(attribute.AttrMPUnreachNLRI)
 	if err != nil || attr == nil {

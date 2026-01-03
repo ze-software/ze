@@ -462,18 +462,33 @@ func TestFilterResultBothNextHops(t *testing.T) {
 		t.Fatalf("ApplyToUpdate failed: %v", err)
 	}
 
-	if !result.NextHopIPv4.Is4() {
-		t.Errorf("NextHopIPv4 should be 10.0.0.1, got %v", result.NextHopIPv4)
-	}
-	if result.NextHopIPv4.String() != "10.0.0.1" {
-		t.Errorf("NextHopIPv4 = %v, want 10.0.0.1", result.NextHopIPv4)
+	// Check next-hops via FamilyNLRI iteration
+	announced := result.AnnouncedByFamily()
+	if len(announced) != 2 {
+		t.Fatalf("AnnouncedByFamily len = %d, want 2 (IPv4 + IPv6)", len(announced))
 	}
 
-	if !result.NextHopIPv6.Is6() {
-		t.Errorf("NextHopIPv6 should be 2001:db8::1, got %v", result.NextHopIPv6)
+	// Find IPv4 and IPv6 families
+	var gotIPv4, gotIPv6 bool
+	for _, fam := range announced {
+		if fam.Family == "ipv4-unicast" {
+			gotIPv4 = true
+			if fam.NextHop.String() != "10.0.0.1" {
+				t.Errorf("IPv4 NextHop = %v, want 10.0.0.1", fam.NextHop)
+			}
+		}
+		if fam.Family == "ipv6-unicast" {
+			gotIPv6 = true
+			if fam.NextHop.String() != "2001:db8::1" {
+				t.Errorf("IPv6 NextHop = %v, want 2001:db8::1", fam.NextHop)
+			}
+		}
 	}
-	if result.NextHopIPv6.String() != "2001:db8::1" {
-		t.Errorf("NextHopIPv6 = %v, want 2001:db8::1", result.NextHopIPv6)
+	if !gotIPv4 {
+		t.Error("missing ipv4-unicast family")
+	}
+	if !gotIPv6 {
+		t.Error("missing ipv6-unicast family")
 	}
 }
 

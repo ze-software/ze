@@ -303,21 +303,26 @@ func TestApplyToUpdateIPv4(t *testing.T) {
 		t.Fatalf("ApplyToUpdate() error = %v", err)
 	}
 
-	// Check announced
-	if len(result.Announced) != 1 {
-		t.Errorf("Announced len = %d, want 1", len(result.Announced))
-	} else if result.Announced[0].String() != "10.0.0.0/24" {
-		t.Errorf("Announced[0] = %s, want 10.0.0.0/24", result.Announced[0])
+	// Check announced via FamilyNLRI
+	announced := result.AnnouncedByFamily()
+	if len(announced) != 1 {
+		t.Fatalf("AnnouncedByFamily len = %d, want 1", len(announced))
+	}
+	if len(announced[0].Prefixes) != 1 {
+		t.Errorf("Prefixes len = %d, want 1", len(announced[0].Prefixes))
+	} else if announced[0].Prefixes[0].String() != "10.0.0.0/24" {
+		t.Errorf("Prefix = %s, want 10.0.0.0/24", announced[0].Prefixes[0])
 	}
 
 	// Check next-hop (IPv4)
-	if result.NextHopIPv4.String() != "10.0.0.1" {
-		t.Errorf("NextHopIPv4 = %s, want 10.0.0.1", result.NextHopIPv4)
+	if announced[0].NextHop.String() != "10.0.0.1" {
+		t.Errorf("NextHop = %s, want 10.0.0.1", announced[0].NextHop)
 	}
 
 	// Check withdrawn is empty
-	if len(result.Withdrawn) != 0 {
-		t.Errorf("Withdrawn len = %d, want 0", len(result.Withdrawn))
+	withdrawn := result.WithdrawnByFamily()
+	if len(withdrawn) != 0 {
+		t.Errorf("WithdrawnByFamily len = %d, want 0", len(withdrawn))
 	}
 }
 
@@ -327,13 +332,13 @@ func TestApplyToUpdateIPv4(t *testing.T) {
 // PREVENTS: Missing withdrawn in FilterResult.
 func TestApplyToUpdateWithdrawn(t *testing.T) {
 	// Build UPDATE with withdrawn only: 10.0.0.0/24 withdrawn
-	withdrawn := []byte{24, 10, 0, 0} // 10.0.0.0/24
-	body := make([]byte, 4+len(withdrawn))
+	withdrawnBytes := []byte{24, 10, 0, 0} // 10.0.0.0/24
+	body := make([]byte, 4+len(withdrawnBytes))
 	// withdrawn len
-	body[0], body[1] = 0, byte(len(withdrawn))
-	copy(body[2:], withdrawn)
+	body[0], body[1] = 0, byte(len(withdrawnBytes))
+	copy(body[2:], withdrawnBytes)
 	// attr len = 0
-	body[2+len(withdrawn)], body[3+len(withdrawn)] = 0, 0
+	body[2+len(withdrawnBytes)], body[3+len(withdrawnBytes)] = 0, 0
 
 	filter := NewFilterAll()
 	result, err := filter.ApplyToUpdate(nil, body, NewNLRIFilterAll())
@@ -341,16 +346,21 @@ func TestApplyToUpdateWithdrawn(t *testing.T) {
 		t.Fatalf("ApplyToUpdate() error = %v", err)
 	}
 
-	// Check withdrawn
-	if len(result.Withdrawn) != 1 {
-		t.Errorf("Withdrawn len = %d, want 1", len(result.Withdrawn))
-	} else if result.Withdrawn[0].String() != "10.0.0.0/24" {
-		t.Errorf("Withdrawn[0] = %s, want 10.0.0.0/24", result.Withdrawn[0])
+	// Check withdrawn via FamilyNLRI
+	withdrawn := result.WithdrawnByFamily()
+	if len(withdrawn) != 1 {
+		t.Fatalf("WithdrawnByFamily len = %d, want 1", len(withdrawn))
+	}
+	if len(withdrawn[0].Prefixes) != 1 {
+		t.Errorf("Prefixes len = %d, want 1", len(withdrawn[0].Prefixes))
+	} else if withdrawn[0].Prefixes[0].String() != "10.0.0.0/24" {
+		t.Errorf("Prefix = %s, want 10.0.0.0/24", withdrawn[0].Prefixes[0])
 	}
 
 	// Check announced is empty
-	if len(result.Announced) != 0 {
-		t.Errorf("Announced len = %d, want 0", len(result.Announced))
+	announced := result.AnnouncedByFamily()
+	if len(announced) != 0 {
+		t.Errorf("AnnouncedByFamily len = %d, want 0", len(announced))
 	}
 }
 
@@ -456,12 +466,15 @@ func TestApplyToUpdate(t *testing.T) {
 		t.Error("NEXT_HOP should be filtered out")
 	}
 
-	// Check NLRI
-	if len(result.Announced) != 1 {
-		t.Errorf("len(Announced) = %d, want 1", len(result.Announced))
+	// Check NLRI via FamilyNLRI
+	announced := result.AnnouncedByFamily()
+	if len(announced) != 1 {
+		t.Fatalf("len(AnnouncedByFamily) = %d, want 1", len(announced))
 	}
-	if len(result.Announced) > 0 && result.Announced[0].String() != "192.168.1.0/24" {
-		t.Errorf("Announced[0] = %s, want 192.168.1.0/24", result.Announced[0])
+	if len(announced[0].Prefixes) != 1 {
+		t.Errorf("len(Prefixes) = %d, want 1", len(announced[0].Prefixes))
+	} else if announced[0].Prefixes[0].String() != "192.168.1.0/24" {
+		t.Errorf("Prefix = %s, want 192.168.1.0/24", announced[0].Prefixes[0])
 	}
 }
 
