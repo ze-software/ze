@@ -14,7 +14,6 @@ This spec is the **primary implementation spec** for the Pool + Wire design:
 |---------------------|-------------|
 | Pool core with Handle encoding | Memory deduplication |
 | Route stores `attrHandle` | Wire-canonical storage |
-| `AttributesWire` wraps pool data | Lazy parsing on demand |
 | `Release()` lifecycle | Reference counting |
 
 ### Supersedes
@@ -29,7 +28,48 @@ This spec is the **primary implementation spec** for the Pool + Wire design:
 | Spec | When |
 |------|------|
 | `spec-unified-handle-nlri.md` | After Phase 2 |
-| Zero-copy forwarding | After Phase 4 |
+| Zero-copy forwarding | After Phase 3 |
+
+---
+
+## Zero-Copy Design (CRITICAL)
+
+The path from peer receive to RIB storage MUST be zero-copy until interning:
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                        ZERO-COPY PATH                                   │
+│                                                                         │
+│  Network recv() ──► buffer[]byte ──► AttributesWire(ref) ──► Process   │
+│       │                  │                  │                    │      │
+│       │              (owned by           (slice                (API     │
+│       │              connection)         reference,            filters, │
+│       │                                  NO COPY)              etc.)    │
+│       │                                                          │      │
+│       └──────────────────────────────────────────────────────────┘      │
+│                                                                         │
+│  ═══════════════════════ COPY BOUNDARY ════════════════════════════     │
+│                                                                         │
+│  Route creation ──► pool.Intern(wireBytes) ──► RIB storage             │
+│       │                    │                        │                   │
+│       │              (COPY into pool,          (pool handles,           │
+│       │               deduplication)            long-lived)             │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+### Key Principles
+
+1. **AttributesWire** = Temporary wrapper, stores REFERENCE to received bytes
+   - NO pool interaction
+   - NO copying
+   - Lifetime tied to message processing
+
+2. **Route** = Long-lived RIB entry, stores POOL HANDLES
+   - `NewRouteWithWireCache()` calls `pool.Intern()`
+   - Interning is the ONLY copy point
+   - Deduplication happens here
+
+3. **Copy happens exactly once** - when storing in RIB
 
 ---
 
@@ -44,18 +84,18 @@ routes share identical attributes.
 ### Design Doc
 - `POOL_ARCHITECTURE.md` describes the pool system design
 - Double-buffer with MSB handles, incremental compaction
-- NOT YET IMPLEMENTED
 
 ### Current Code
 ```go
-// Route stores wire bytes directly
+// Route stores wire bytes directly (to be changed)
 type Route struct {
     wireBytes     []byte           // Direct ownership
     nlriWireBytes []byte           // Direct ownership
     sourceCtxID   ContextID
 }
 
-// AttributesWire references external buffer (spec-attributes-wire.md)
+// AttributesWire references external buffer - UNCHANGED
+// (per spec-attributes-wire.md, zero-copy reference)
 type AttributesWire struct {
     packed      []byte             // NOT owned, refs message buffer
     sourceCtxID ContextID
@@ -80,9 +120,9 @@ type Route struct {
     sourceCtxID   ContextID
 }
 
-// AttributesWire wraps a pool handle
+// AttributesWire UNCHANGED - stays as zero-copy reference
 type AttributesWire struct {
-    handle      pool.Handle        // Pool owns the bytes
+    packed      []byte             // Still refs message buffer (NO POOL)
     sourceCtxID ContextID
     index       []attrIndex
     parsed      map[AttributeCode]Attribute
@@ -130,7 +170,7 @@ func (p *Pool) Length(h Handle) int
 - AddRef/Release reference counting
 - Compaction preserves data integrity
 
-### Phase 2: Attribute Pool
+### Phase 2: Global Pools
 
 **File:** `pkg/pool/attributes.go`
 
@@ -140,43 +180,21 @@ var Attributes = NewPool(PoolConfig{
     InitialBufferSize: 1 << 20,  // 1MB
     ExpectedEntries:   10000,
 })
+
+// Global NLRI pool
+var NLRI = NewPool(PoolConfig{
+    InitialBufferSize: 1 << 18,  // 256KB
+    ExpectedEntries:   50000,
+})
 ```
 
-**Integration point:** Update receive path to intern attributes.
+**Note:** AttributesWire is NOT modified. It remains a zero-copy reference.
 
-### Phase 3: Update AttributesWire
-
-**File:** `pkg/bgp/attribute/wire.go`
-
-```go
-type AttributesWire struct {
-    handle      pool.Handle        // CHANGED from []byte
-    sourceCtxID ContextID
-    index       []attrIndex
-    parsed      map[AttributeCode]Attribute
-    mu          sync.RWMutex
-}
-
-func NewAttributesWire(packed []byte, ctxID ContextID) *AttributesWire {
-    h := pool.Attributes.Intern(packed)  // Dedup + copy
-    return &AttributesWire{
-        handle:      h,
-        sourceCtxID: ctxID,
-    }
-}
-
-func (a *AttributesWire) Packed() []byte {
-    return pool.Attributes.Get(a.handle)
-}
-
-func (a *AttributesWire) Release() {
-    pool.Attributes.Release(a.handle)
-}
-```
-
-### Phase 4: Update Route
+### Phase 3: Update Route (INTERNING POINT)
 
 **File:** `pkg/rib/route.go`
+
+This is the ONLY place where data is copied into the pool.
 
 ```go
 type Route struct {
@@ -187,20 +205,52 @@ type Route struct {
     // ...
 }
 
+// NewRouteWithWireCache - THE INTERNING POINT
+// This is where zero-copy ends and pool dedup begins
+func NewRouteWithWireCache(
+    n NLRI,
+    nextHop netip.Addr,
+    attrs []attribute.Attribute,
+    asPath *attribute.ASPath,
+    wireBytes []byte,          // From AttributesWire.Packed()
+    sourceCtxID ContextID,
+) *Route {
+    return &Route{
+        nlri:        n,
+        nextHop:     nextHop,
+        attributes:  attrs,
+        asPath:      asPath,
+        attrHandle:  pool.Attributes.Intern(wireBytes),  // COPY HERE
+        nlriHandle:  pool.InvalidHandle,
+        sourceCtxID: sourceCtxID,
+    }
+}
+
+func (r *Route) WireBytes() []byte {
+    if r.attrHandle == pool.InvalidHandle {
+        return nil
+    }
+    return pool.Attributes.Get(r.attrHandle)  // Zero-copy from pool
+}
+
 func (r *Route) PackAttributesFor(destCtxID ContextID) []byte {
-    if r.sourceCtxID == destCtxID {
+    if r.sourceCtxID == destCtxID && r.attrHandle != pool.InvalidHandle {
         return pool.Attributes.Get(r.attrHandle)  // Zero-copy from pool
     }
     // Re-encode path...
 }
 
-func (r *Route) Release() {
-    pool.Attributes.Release(r.attrHandle)
-    pool.NLRI.Release(r.nlriHandle)
+func (r *Route) ReleasePoolHandles() {
+    if r.attrHandle != pool.InvalidHandle {
+        pool.Attributes.Release(r.attrHandle)
+    }
+    if r.nlriHandle != pool.InvalidHandle {
+        pool.NLRI.Release(r.nlriHandle)
+    }
 }
 ```
 
-### Phase 5: Compaction Integration
+### Phase 4: Compaction Integration
 
 **File:** `pkg/pool/scheduler.go`
 
@@ -222,14 +272,22 @@ func (s *CompactionScheduler) Run(ctx context.Context)
 
 | Before | After |
 |--------|-------|
-| `NewAttributesWire([]byte, ContextID)` | Same signature, but now interns |
-| `AttributesWire.Packed() []byte` | Returns pool-managed bytes |
-| N/A | `AttributesWire.Release()` MUST be called |
+| `Route.wireBytes []byte` | `Route.attrHandle pool.Handle` |
+| `Route.nlriWireBytes []byte` | `Route.nlriHandle pool.Handle` |
+| N/A | `Route.ReleasePoolHandles()` MUST be called |
+
+### Unchanged (Zero-Copy Preserved)
+
+| Component | Why Unchanged |
+|-----------|---------------|
+| `AttributesWire` | Keeps zero-copy reference to received bytes |
+| `NewAttributesWire()` | No pool interaction |
+| `AttributesWire.Packed()` | Returns reference, not pool data |
 
 ### New Requirements
 
-1. **Lifecycle management:** Routes/AttributesWire MUST call `Release()` when done
-2. **No modification:** Bytes from `Packed()`/`Get()` MUST NOT be modified
+1. **Lifecycle management:** Routes MUST call `ReleasePoolHandles()` when removed from RIB
+2. **No modification:** Bytes from `pool.Get()` / `WireBytes()` MUST NOT be modified
 3. **Thread safety:** Pool operations are thread-safe
 
 ## Memory Analysis
@@ -250,36 +308,32 @@ func (s *CompactionScheduler) Run(ctx context.Context)
 
 ## Checklist
 
-### Phase 1: Pool Core
-- [ ] Implement `pkg/pool/pool.go`
-- [ ] Implement `pkg/pool/handle.go`
-- [ ] Tests for Intern/Get/AddRef/Release
-- [ ] Tests for deduplication
-- [ ] Tests for concurrent access
+### Phase 1: Pool Core ✅
+- [x] Implement `pkg/pool/pool.go`
+- [x] Implement `pkg/pool/handle.go`
+- [x] Tests for Intern/Get/AddRef/Release
+- [x] Tests for deduplication
+- [x] Tests for concurrent access
 
-### Phase 2: Attribute Pool
-- [ ] Create global Attributes pool
-- [ ] Integrate with receive path
+### Phase 2: Global Pools ✅
+- [x] Create global Attributes pool
+- [x] Create global NLRI pool
 
-### Phase 3: AttributesWire Migration
-- [ ] Change `packed []byte` to `handle Handle`
-- [ ] Update `NewAttributesWire` to intern
-- [ ] Update `Packed()` to use `pool.Get()`
-- [ ] Add `Release()` method
-- [ ] Update all callers to call Release()
-
-### Phase 4: Route Migration
+### Phase 3: Route Migration (INTERNING POINT)
 - [ ] Change `wireBytes` to `attrHandle`
 - [ ] Change `nlriWireBytes` to `nlriHandle`
-- [ ] Update constructors
-- [ ] Add `Release()` method
-- [ ] Update RIB to call Release() on route removal
+- [ ] Update constructors to call `pool.Intern()`
+- [ ] Add `ReleasePoolHandles()` method
+- [ ] Update `WireBytes()` / `NLRIWireBytes()` to use `pool.Get()`
+- [ ] Update RIB to call `ReleasePoolHandles()` on route removal
 
-### Phase 5: Compaction
+### Phase 4: Compaction
 - [ ] Implement CompactionScheduler
 - [ ] Integrate with reactor
 - [ ] Test incremental compaction
 - [ ] Test activity-based pausing
+
+**Note:** AttributesWire is NOT modified - it remains a zero-copy reference.
 
 ## Dependencies
 
