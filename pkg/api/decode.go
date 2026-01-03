@@ -4,7 +4,6 @@ import (
 	"encoding/binary"
 	"fmt"
 	"net/netip"
-	"strings"
 
 	"github.com/exa-networks/zebgp/pkg/bgp/capability"
 	"github.com/exa-networks/zebgp/pkg/bgp/message"
@@ -176,15 +175,15 @@ func parseCapabilitiesFromOptParams(optParams []byte) ([]string, uint32) {
 	return capStrings, asn4
 }
 
-// formatCapability returns human-readable strings for a capability.
-// Most capabilities return a single string, but AddPath returns one per family.
-// Format is parseable: hyphenated names without spaces.
+// formatCapability returns capability as "name value" pairs for easy parsing.
+// Most capabilities return a single string, but AddPath/ExtendedNextHop return one per family.
+// Format: "name value" where value is hyphenated. Valueless caps return just "name".
 func formatCapability(cap capability.Capability) []string {
 	switch c := cap.(type) {
 	case *capability.Multiprotocol:
-		return []string{fmt.Sprintf("multiprotocol-%s-%s", c.AFI, c.SAFI)}
+		return []string{fmt.Sprintf("multiprotocol %s-%s", c.AFI, c.SAFI)}
 	case *capability.ASN4:
-		return []string{fmt.Sprintf("4-byte-asn-%d", c.ASN)}
+		return []string{fmt.Sprintf("4-byte-asn %d", c.ASN)}
 	case *capability.RouteRefresh:
 		return []string{"route-refresh"}
 	case *capability.ExtendedMessage:
@@ -206,27 +205,28 @@ func formatCapability(cap capability.Capability) []string {
 			case capability.AddPathBoth:
 				mode = "send/receive"
 			}
-			results = append(results, fmt.Sprintf("addpath-%s-%s-%s", mode, f.AFI, f.SAFI))
+			results = append(results, fmt.Sprintf("addpath %s-%s-%s", mode, f.AFI, f.SAFI))
 		}
 		return results
 	case *capability.GracefulRestart:
-		return []string{fmt.Sprintf("graceful-restart-%d", c.RestartTime)}
+		return []string{fmt.Sprintf("graceful-restart %d", c.RestartTime)}
 	case *capability.ExtendedNextHop:
 		// Return one entry per family for easy parsing
 		var results []string
 		for _, f := range c.Families {
-			results = append(results, fmt.Sprintf("extended-nexthop-%s-%s-%s", f.NLRIAFI, f.NLRISAFI, f.NextHopAFI))
+			results = append(results, fmt.Sprintf("extended-nexthop %s-%s-%s", f.NLRIAFI, f.NLRISAFI, f.NextHopAFI))
 		}
 		return results
 	case *capability.FQDN:
 		if c.DomainName != "" {
-			return []string{fmt.Sprintf("hostname-%s.%s", c.Hostname, c.DomainName)}
+			return []string{fmt.Sprintf("hostname %s.%s", c.Hostname, c.DomainName)}
 		}
-		return []string{fmt.Sprintf("hostname-%s", c.Hostname)}
+		return []string{fmt.Sprintf("hostname %s", c.Hostname)}
 	case *capability.SoftwareVersion:
-		return []string{fmt.Sprintf("software-%s", c.Version)}
+		return []string{fmt.Sprintf("software %s", c.Version)}
 	default:
-		return []string{strings.ReplaceAll(strings.ToLower(cap.Code().String()), " ", "-")}
+		// Unknown capability: return code and raw hex data
+		return []string{fmt.Sprintf("unknown-%d %x", cap.Code(), cap.Pack())}
 	}
 }
 

@@ -110,7 +110,7 @@ func TestCompleterWildcard(t *testing.T) {
 	c := NewCompleter(config.BGPSchema())
 
 	// "edit peer " should show list key completions
-	// (including "*" only if there were glob patterns, which v3 doesn't have at root)
+	// (including "*" only if there were glob patterns, which current schema doesn't have at root)
 	completions := c.Complete("edit peer ", nil)
 	// peer requires IP address, so completions may include existing peers or be empty
 	// This test verifies the completer doesn't panic and handles list paths

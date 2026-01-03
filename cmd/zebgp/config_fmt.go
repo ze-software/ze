@@ -12,8 +12,8 @@ import (
 	"github.com/exa-networks/zebgp/pkg/config/migration"
 )
 
-// ErrV2Config is returned when fmt is called on a v2 config.
-var ErrV2Config = errors.New("config needs migration")
+// ErrOldConfig is returned when fmt is called on an old ExaBGP config.
+var ErrOldConfig = errors.New("config needs migration")
 
 // cmdConfigFmtCLI is the CLI entry point for "zebgp config fmt".
 func cmdConfigFmtCLI(args []string) int {
@@ -27,7 +27,7 @@ func cmdConfigFmtCLI(args []string) int {
 
 Format and normalize configuration file.
 
-Formats v3 config files only. For v2 configs, run "zebgp config migrate" first.
+Formats current config files only. For old ExaBGP configs, run "zebgp config migrate" first.
 
 Options:
 `)
@@ -36,7 +36,7 @@ Options:
 Exit codes:
   0  Success (or no changes needed with --check)
   1  Changes needed (with --check)
-  2  Error (file not found, parse error, v2 config detected)
+  2  Error (file not found, parse error, old config detected)
 
 Examples:
   zebgp config fmt config.conf          # Print formatted config to stdout
@@ -80,7 +80,7 @@ Examples:
 	p := config.NewParser(config.BGPSchema())
 	tree, err := p.Parse(string(input))
 	if err != nil {
-		// Try legacy schema to detect v2
+		// Try legacy schema to detect old ExaBGP syntax
 		pLegacy := config.NewParser(config.LegacyBGPSchema())
 		treeLegacy, errLegacy := pLegacy.Parse(string(input))
 		if errLegacy == nil {
@@ -145,18 +145,18 @@ Examples:
 }
 
 // configFmtBytes formats config bytes and returns formatted output and whether changes were made.
-// Returns ErrV2Config if the config needs migration.
+// Returns ErrOldConfig if the config needs migration.
 func configFmtBytes(input []byte) (string, bool, error) {
 	// Parse with current schema
 	p := config.NewParser(config.BGPSchema())
 	tree, err := p.Parse(string(input))
 	if err != nil {
-		// Try legacy schema to detect v2
+		// Try legacy schema to detect old ExaBGP syntax
 		pLegacy := config.NewParser(config.LegacyBGPSchema())
 		treeLegacy, errLegacy := pLegacy.Parse(string(input))
 		if errLegacy == nil {
 			if migration.NeedsMigration(treeLegacy) {
-				return "", false, ErrV2Config
+				return "", false, ErrOldConfig
 			}
 		}
 		return "", false, fmt.Errorf("parse error: %w", err)
@@ -164,7 +164,7 @@ func configFmtBytes(input []byte) (string, bool, error) {
 
 	// Reject configs that need migration
 	if migration.NeedsMigration(tree) {
-		return "", false, ErrV2Config
+		return "", false, ErrOldConfig
 	}
 
 	// Serialize (formats the output)

@@ -34,8 +34,8 @@ Options:
 		fs.PrintDefaults()
 		fmt.Fprintf(os.Stderr, `
 Exit codes:
-  0  Config is current (v3) / environment valid
-  1  Config needs migration (v2 or older)
+  0  Config is current / environment valid
+  1  Config needs migration (old ExaBGP syntax)
   2  File not found, parse error, or invalid environment
 `)
 	}
@@ -136,28 +136,28 @@ func configCheck(path string) checkResult {
 func findDeprecatedPatterns(tree *config.Tree) []string {
 	var deprecated []string
 
-	// Check for neighbor at root (v2 pattern)
+	// Check for neighbor at root (old ExaBGP pattern)
 	if hasListEntries(tree, "neighbor") {
 		for _, entry := range tree.GetListOrdered("neighbor") {
 			deprecated = append(deprecated, fmt.Sprintf("neighbor %s → peer %s", entry.Key, entry.Key))
 		}
 	}
 
-	// Check for peer glob at root (v2 pattern - should be template.match)
+	// Check for peer glob at root (old pattern - should be template.match)
 	for _, entry := range tree.GetListOrdered("peer") {
 		if isGlobPattern(entry.Key) {
 			deprecated = append(deprecated, fmt.Sprintf("peer %s → template { match %s }", entry.Key, entry.Key))
 		}
 	}
 
-	// Check for template.neighbor (v2 pattern - should be template.group)
+	// Check for template.neighbor (old pattern - should be template.group)
 	if tmpl := tree.GetContainer("template"); tmpl != nil {
 		for _, entry := range tmpl.GetListOrdered("neighbor") {
 			deprecated = append(deprecated, fmt.Sprintf("template.neighbor %s → template.group %s", entry.Key, entry.Key))
 		}
 	}
 
-	// Check for static blocks in any peer/neighbor (v2 pattern - should be announce)
+	// Check for static blocks in any peer/neighbor (old pattern - should be announce)
 	for _, entry := range tree.GetListOrdered("neighbor") {
 		if entry.Value.GetContainer("static") != nil {
 			deprecated = append(deprecated, fmt.Sprintf("neighbor.%s.static → peer.%s.announce.<afi>.<safi>", entry.Key, entry.Key))
@@ -197,7 +197,7 @@ func findUnsupportedFeatures(tree *config.Tree) []string {
 		warnings = append(warnings, checkUnsupportedInPeerTree(entry.Key, entry.Value)...)
 	}
 
-	// Check all neighbor blocks (v2 syntax, still need to warn)
+	// Check all neighbor blocks (old syntax, still need to warn)
 	for _, entry := range tree.GetListOrdered("neighbor") {
 		warnings = append(warnings, checkUnsupportedInPeerTree(entry.Key, entry.Value)...)
 	}
@@ -210,7 +210,7 @@ func findUnsupportedFeatures(tree *config.Tree) []string {
 		for _, entry := range tmpl.GetListOrdered("match") {
 			warnings = append(warnings, checkUnsupportedInPeerTree("template.match."+entry.Key, entry.Value)...)
 		}
-		// Also check template.neighbor (v2 syntax)
+		// Also check template.neighbor (old syntax)
 		for _, entry := range tmpl.GetListOrdered("neighbor") {
 			warnings = append(warnings, checkUnsupportedInPeerTree("template.neighbor."+entry.Key, entry.Value)...)
 		}

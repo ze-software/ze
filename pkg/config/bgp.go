@@ -743,45 +743,45 @@ func TreeToConfig(tree *Tree) (*BGPConfig, error) {
 		}
 	}
 
-	// Parse peer globs from root level (v2: peer *) and template.match (v3)
-	// V2: peer * { ... } at root - sorted by specificity (backward compat)
-	// V3: template { match * { ... } } - applied in CONFIG ORDER (not specificity!)
+	// Parse peer globs from root level (old: peer *) and template.match (current)
+	// Old: peer * { ... } at root - sorted by specificity (backward compat)
+	// Current: template { match * { ... } } - applied in CONFIG ORDER (not specificity!)
 	//
-	// Application order: v2 globs (sorted) → v3 matches (config order)
+	// Application order: old globs (sorted) → current matches (config order)
 
-	// V2: Root-level peer globs (patterns only, not IPs) - SORTED by specificity
-	v2PeerGlobs := make([]PeerGlob, 0)
+	// Old: Root-level peer globs (patterns only, not IPs) - SORTED by specificity
+	oldPeerGlobs := make([]PeerGlob, 0)
 	peerList := tree.GetList("peer")
 	for pattern, peerTree := range peerList {
 		if isGlobPattern(pattern) {
-			v2PeerGlobs = append(v2PeerGlobs, PeerGlob{
+			oldPeerGlobs = append(oldPeerGlobs, PeerGlob{
 				Pattern:     pattern,
 				Specificity: peerGlobSpecificity(pattern),
 				Tree:        peerTree,
 			})
 		}
 	}
-	// Sort v2 globs by specificity (least specific first)
-	sortPeerGlobs(v2PeerGlobs)
+	// Sort old globs by specificity (least specific first)
+	sortPeerGlobs(oldPeerGlobs)
 
-	// V3: template { match ... } - CONFIG ORDER (not sorted!)
-	v3MatchBlocks := make([]PeerGlob, 0)
+	// Current: template { match ... } - CONFIG ORDER (not sorted!)
+	matchBlocks := make([]PeerGlob, 0)
 	if tmpl := tree.GetContainer("template"); tmpl != nil {
 		for _, entry := range tmpl.GetListOrdered("match") {
-			v3MatchBlocks = append(v3MatchBlocks, PeerGlob{
+			matchBlocks = append(matchBlocks, PeerGlob{
 				Pattern:     entry.Key,
-				Specificity: 0, // Not used for v3
+				Specificity: 0, // Not used for current syntax
 				Tree:        entry.Value,
 			})
 		}
 	}
 
-	// Combined: v2 globs first (sorted), then v3 matches (config order)
-	peerGlobs := make([]PeerGlob, 0, len(v2PeerGlobs)+len(v3MatchBlocks))
-	peerGlobs = append(peerGlobs, v2PeerGlobs...)
-	peerGlobs = append(peerGlobs, v3MatchBlocks...)
+	// Combined: old globs first (sorted), then current matches (config order)
+	peerGlobs := make([]PeerGlob, 0, len(oldPeerGlobs)+len(matchBlocks))
+	peerGlobs = append(peerGlobs, oldPeerGlobs...)
+	peerGlobs = append(peerGlobs, matchBlocks...)
 
-	// Neighbors from "neighbor" (v2) and "peer" with IP address (v3)
+	// Neighbors from "neighbor" (old) and "peer" with IP address (current)
 	for addr, n := range tree.GetList("neighbor") {
 		nc, err := parsePeerConfig(addr, n, templates, peerGlobs)
 		if err != nil {
@@ -1017,7 +1017,7 @@ func parsePeerConfig(addr string, tree *Tree, templates map[string]*Tree, peerGl
 			inheritedTemplates = append(inheritedTemplates, t)
 		}
 	}
-	// Also check single inherit value (v2 compatibility)
+	// Also check single inherit value (ExaBGP compatibility)
 	if len(inheritedTemplates) == 0 {
 		if inheritName, ok := tree.Get("inherit"); ok {
 			if t, exists := templates[inheritName]; exists {

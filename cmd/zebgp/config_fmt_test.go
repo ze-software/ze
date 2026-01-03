@@ -11,7 +11,7 @@ import (
 //
 // PREVENTS: Formatter producing invalid or non-idempotent output.
 func TestConfigFmtFormatsConfig(t *testing.T) {
-	// Create a badly formatted but valid v3 config
+	// Create a badly formatted but valid config
 	input := `peer 127.0.0.1{local-as 1;peer-as 2;}`
 	expected := `peer 127.0.0.1 {
 	local-as 1;
@@ -70,13 +70,13 @@ func TestConfigFmtIdempotent(t *testing.T) {
 	}
 }
 
-// TestConfigFmtRejectsV2 verifies that fmt rejects v2 configs.
+// TestConfigFmtRejectsOld verifies that fmt rejects old ExaBGP configs.
 //
-// VALIDATES: v2 configs are rejected with helpful error message.
+// VALIDATES: Old configs are rejected with helpful error message.
 //
-// PREVENTS: Accidentally formatting v2 configs without migration.
-func TestConfigFmtRejectsV2(t *testing.T) {
-	// v2 config uses "neighbor" keyword
+// PREVENTS: Accidentally formatting old configs without migration.
+func TestConfigFmtRejectsOld(t *testing.T) {
+	// Old config uses "neighbor" keyword
 	input := `neighbor 127.0.0.1 {
 	local-as 1;
 	peer-as 2;
@@ -85,11 +85,11 @@ func TestConfigFmtRejectsV2(t *testing.T) {
 
 	_, _, err := configFmtBytes([]byte(input))
 	if err == nil {
-		t.Fatal("expected error for v2 config")
+		t.Fatal("expected error for old config")
 	}
 
-	if !errors.Is(err, ErrV2Config) {
-		t.Errorf("expected ErrV2Config, got: %v", err)
+	if !errors.Is(err, ErrOldConfig) {
+		t.Errorf("expected ErrOldConfig, got: %v", err)
 	}
 }
 

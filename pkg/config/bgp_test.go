@@ -1281,7 +1281,7 @@ func TestIPGlobMatch(t *testing.T) {
 //
 // VALIDATES: Named templates can be defined using "group" instead of "neighbor".
 //
-// PREVENTS: Unable to use v3 group syntax for named templates.
+// PREVENTS: Unable to use group syntax for named templates.
 func TestTemplateGroupBasic(t *testing.T) {
 	input := `
 template {
@@ -1309,7 +1309,7 @@ peer 192.0.2.1 {
 //
 // VALIDATES: Glob patterns can be defined using "match" inside template block.
 //
-// PREVENTS: Unable to use v3 match syntax for glob patterns.
+// PREVENTS: Unable to use match syntax for glob patterns.
 func TestTemplateMatchBasic(t *testing.T) {
 	input := `
 template {
@@ -1405,7 +1405,7 @@ peer 192.168.1.1 { local-as 65000; peer-as 65002; }
 //
 // VALIDATES: group templates can contain static routes.
 //
-// PREVENTS: Missing routes when using v3 group syntax.
+// PREVENTS: Missing routes when using group syntax.
 func TestTemplateGroupWithStaticRoutes(t *testing.T) {
 	input := `
 template {
@@ -1517,7 +1517,7 @@ peer 10.0.0.1 {
 //
 // VALIDATES: "peer <IP> { }" syntax works as alias for "neighbor <IP> { }".
 //
-// PREVENTS: Unable to use v3 peer syntax for BGP sessions.
+// PREVENTS: Unable to use peer syntax for BGP sessions.
 func TestPeerKeywordForSessions(t *testing.T) {
 	input := `
 peer 192.0.2.1 {
@@ -1778,7 +1778,7 @@ peer 172.16.0.1 { local-as 65000; peer-as 65003; }
 }
 
 // =============================================================================
-// TEMPLATE MATCH TESTS (v3 syntax)
+// TEMPLATE MATCH TESTS
 // =============================================================================
 
 // TestTemplateMatchConfig verifies template match patterns apply to peers.
@@ -2674,15 +2674,15 @@ func TestMergeAPIBindingsReceiveConfig(t *testing.T) {
 }
 
 // =============================================================================
-// V2 SYNTAX REJECTION TESTS
+// OLD SYNTAX REJECTION TESTS
 // =============================================================================
 
-// TestV2SyntaxRejected verifies that v2 syntax is rejected by BGPSchema.
+// TestOldSyntaxRejected verifies that old syntax is rejected by BGPSchema.
 //
-// VALIDATES: BGPSchema() only accepts v3 syntax.
+// VALIDATES: BGPSchema() only accepts current syntax.
 //
-// PREVENTS: Accidentally accepting deprecated v2 configs.
-func TestV2SyntaxRejected(t *testing.T) {
+// PREVENTS: Accidentally accepting deprecated configs.
+func TestOldSyntaxRejected(t *testing.T) {
 	t.Run("neighbor at root rejected", func(t *testing.T) {
 		input := `
 neighbor 192.0.2.1 {
@@ -2734,7 +2734,7 @@ template {
 		require.Contains(t, err.Error(), "unknown field in template: neighbor")
 	})
 
-	t.Run("v3 syntax accepted", func(t *testing.T) {
+	t.Run("current syntax accepted", func(t *testing.T) {
 		input := `
 peer 192.0.2.1 {
     local-as 65000;

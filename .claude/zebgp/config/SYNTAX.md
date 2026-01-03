@@ -9,7 +9,7 @@
 | **Inheritance** | `inherit <template-name>` applies template config |
 | **Pattern** | Registry/dispatch: `sectionParsers` map routes to handlers |
 | **Key Types** | `Parser`, `Tokenizer`, `Scope`, `Validator` |
-| **Migration** | `zebgp config migrate` converts ExaBGP (v2) → ZeBGP (v3) |
+| **Migration** | `zebgp config migrate` converts ExaBGP → ZeBGP syntax |
 
 **When to read full doc:** Config keywords, parsing bugs, new config sections.
 
@@ -107,7 +107,7 @@ peer <ip-address> {
     # API bindings
     api <process-name> { ... }
 
-    # Static routes (v3: use announce block)
+    # Static routes (use announce block)
     announce { ... }
 
     # FlowSpec

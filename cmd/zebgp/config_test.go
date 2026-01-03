@@ -130,7 +130,7 @@ peer 192.0.2.1 {
 
 // TestCmdConfigMigrate tests the config migrate command.
 //
-// VALIDATES: config migrate converts v2 to v3 format.
+// VALIDATES: config migrate converts old ExaBGP to current format.
 //
 // PREVENTS: Data loss during migration, incorrect output.
 func TestCmdConfigMigrate(t *testing.T) {
@@ -288,7 +288,7 @@ neighbor 192.0.2.1 {
 		t.Errorf("backup missing original content")
 	}
 
-	// Verify original file is now v3
+	// Verify original file is now current syntax
 	data, err := os.ReadFile(configPath) //nolint:gosec // test file path from TempDir
 	if err != nil {
 		t.Fatalf("read config: %v", err)
@@ -404,7 +404,7 @@ peer 192.0.2.1 {
 			wantWarnings: nil,
 		},
 		{
-			name: "unsupported in v2 neighbor block",
+			name: "unsupported in old neighbor block",
 			config: `
 neighbor 192.0.2.1 {
 	peer-as 65001;
@@ -432,7 +432,7 @@ peer 192.0.2.1 {
 			wantWarnings: []string{"multi-session"},
 		},
 		{
-			name: "unsupported in template.neighbor (v2)",
+			name: "unsupported in template.neighbor (old)",
 			config: `
 template {
 	neighbor rr {
@@ -498,7 +498,7 @@ func TestCmdConfigMigrateWarnings(t *testing.T) {
 		wantWarnings []string
 	}{
 		{
-			name: "v2 config with unsupported features",
+			name: "old config with unsupported features",
 			config: `
 neighbor 192.0.2.1 {
 	peer-as 65001;
@@ -510,7 +510,7 @@ neighbor 192.0.2.1 {
 			wantWarnings: []string{"multi-session"},
 		},
 		{
-			name: "v3 config with unsupported features",
+			name: "current config with unsupported features",
 			config: `
 peer 192.0.2.1 {
 	peer-as 65001;
