@@ -36,6 +36,7 @@ Read when working on specific areas:
 - ExaBGP compat: `.claude/zebgp/EXABGP_CODE_MAP.md`
 - FSM: `.claude/zebgp/behavior/FSM.md`
 - API: `.claude/zebgp/api/ARCHITECTURE.md`
+- API Capabilities: `.claude/zebgp/api/CAPABILITY_CONTRACT.md`
 - Config: `.claude/zebgp/config/SYNTAX.md`
 
 ## Style

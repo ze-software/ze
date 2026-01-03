@@ -54,21 +54,16 @@ This spec is **essential** for the Pool + Wire design:
 
 | Spec | Relationship |
 |------|-------------|
-| `spec-pool-integration.md` | **SUPERSEDED** - don't implement parsed attr factories |
-| `spec-pool-handle-migration.md` | **COMPLEMENTARY** - this handles NLRI, that handles attrs |
+| `spec-pool-handle-migration.md` | **COMPLEMENTARY** - single UPDATE pool, derived accessors |
 | `spec-attributes-wire.md` | **COMPLEMENTARY** - that wraps attr bytes, this wraps NLRI bytes |
 
 ### Execution Order
 
 ```
-1. spec-pool-handle-migration.md  ← Implement pool core + attr handles
+1. spec-pool-handle-migration.md  ← Single UPDATE pool, Route.Attrs()/NLRI() derived
         ↓
-2. This spec (unified-handle-nlri) ← NLRI as handles
-        ↓
-3. Route stores both attrHandle + nlriHandle
+2. This spec (unified-handle-nlri) ← Optional: NLRI dedup if needed
 ```
-
-**Note:** Skip `spec-pool-integration.md` entirely - go directly to pool handles.
 
 ---
 
@@ -769,19 +764,18 @@ func ParseINET(c *Ctx, family Family, data []byte, hasPathID bool) (INET, int) {
 
 ## Prerequisites
 
-**Complete spec-pool-integration.md FIRST:**
-- Wires RouteStore to components (Peer, CommitManager, etc.)
-- Creates attribute factory methods
-- Establishes routing for store through component hierarchy
-- unified-handle builds on this wired infrastructure
+**Complete spec-pool-handle-migration.md FIRST:**
+- Single UPDATE pool with derived accessors
+- Route/Update stores single `msgHandle`
+- `Attrs()`, `NLRI()`, `Withdrawn()` derived on access
 
 ## Migration Strategy
 
 This is a significant refactoring. Approach:
 
-1. **Prerequisite:** Complete pool-integration (RouteStore wired)
+1. **Prerequisite:** Complete spec-pool-handle-migration.md
 2. **Phase 1-2:** Add Handle encoding and Pool idx (backward compatible)
-3. **Phase 3:** Add Ctx to RouteStore, free functions (extends existing wiring)
+3. **Phase 3:** Add Ctx with NLRI pools, free functions
 4. **Phase 4-5:** Add new NLRI types with `v2` suffix (e.g., `INETv2`)
 5. **Phase 6:** Migrate parsing to use new types
 6. **Final:** Update all call sites, remove old types

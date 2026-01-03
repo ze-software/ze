@@ -5,17 +5,22 @@ argument-hint: <task description>
 
 # /prep - Create Task Spec
 
-**CRITICAL:** You MUST read the required architecture docs BEFORE analyzing or implementing. Failure to do so leads to uninformed decisions.
+**CRITICAL:** You MUST read required docs and present your plan BEFORE implementing. User approval is required.
 
 ## Steps
 
 1. Check if spec exists: `plan/spec-<task>.md`
-   - If exists: read it, skip to step 6
+   - If exists: read it, skip to step 7
    - If not: continue
 
-2. **MANDATORY: Identify required docs from `.claude/INDEX.md`**
+2. **MANDATORY: Identify relevant docs**
 
-   Use this keyword mapping to identify relevant docs:
+   Check these sources for relevant documentation:
+   - `plan/` - specs and design docs (e.g., `DESIGN_TRANSITION.md`, `spec-*.md`)
+   - `.claude/zebgp/` - architecture docs
+   - `.claude/INDEX.md` - doc index
+
+   Use this keyword mapping:
 
    | Keywords in task | Required docs |
    |------------------|---------------|
@@ -30,15 +35,39 @@ argument-hint: <task description>
    | config, YAML, load | `config/SYNTAX.md` |
    | FlowSpec, VPN, EVPN, MPLS | `wire/NLRI.md`, `UPDATE_BUILDING.md` |
    | ExaBGP, compatibility | `EXABGP_CODE_MAP.md` |
+   | design, transition, architecture | `plan/DESIGN_TRANSITION.md` |
 
 3. **MANDATORY: Read the identified docs NOW**
 
-   Use the Read tool to read each relevant `.claude/zebgp/` doc.
+   Use the Read tool to read each relevant doc.
    Do NOT proceed until you have read them.
 
 4. Read source code for the affected area
 
-5. Write spec to `plan/spec-<task-name>.md`:
+5. **MANDATORY: Present implementation plan to user**
+
+   Before writing spec or code, present a clear summary:
+   ```
+   ## 📋 Implementation Plan for <task>
+
+   ### What I'll do
+   - Phase 1: [description]
+   - Phase 2: [description]
+   ...
+
+   ### Files affected
+   - `pkg/...` - [what changes]
+
+   ### Design decisions
+   - [decision 1]: [rationale from docs]
+   - [decision 2]: [rationale from docs]
+
+   ❓ [Any clarifying questions]
+   ```
+
+   **WAIT FOR USER APPROVAL** before proceeding.
+
+6. Write spec to `plan/spec-<task-name>.md`:
 
 ```markdown
 # Spec: <task-name>
@@ -80,7 +109,7 @@ The following docs MUST be read before starting implementation:
 - [ ] Update `.claude/zebgp/` docs if schema/syntax changed
 ```
 
-6. Report ready:
+7. Report ready:
 ```
 ✅ Spec: plan/spec-<name>.md
 📖 Required reading:

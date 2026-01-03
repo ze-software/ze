@@ -170,7 +170,6 @@ Receive UPDATE → Intern wire bytes → Store Handle → Zero-copy forward
 | Spec | Update Needed |
 |------|---------------|
 | `spec-static-route-updatebuilder.md` | Mark RIB section obsolete |
-| `spec-pool-integration.md` | Clarify: attrs via pool, not factory |
 | `spec-adjribout-memory-profiling.md` | Update Route memory model |
 | `plugin-system-mvp.md` | Plugins use RawMessage + AttrsWire |
 

@@ -52,7 +52,9 @@ func TestCommitStartDuplicate(t *testing.T) {
 
 	require.Error(t, err)
 	assert.Equal(t, "error", resp.Status)
-	assert.Contains(t, resp.Error, "exists")
+	errMsg, ok := resp.Data.(string)
+	require.True(t, ok, "expected Data to be string")
+	assert.Contains(t, errMsg, "exists")
 }
 
 // TestCommitEnd verifies commit end command.
@@ -114,7 +116,7 @@ func TestCommitEndNotFound(t *testing.T) {
 
 	require.Error(t, err)
 	assert.Equal(t, "error", resp.Status)
-	assert.Contains(t, resp.Error, "not found")
+	assert.Contains(t, resp.Data.(string), "not found") //nolint:forcetypeassert // test code
 }
 
 // TestCommitRollback verifies rollback command.
@@ -154,7 +156,7 @@ func TestCommitRollbackNotFound(t *testing.T) {
 
 	require.Error(t, err)
 	assert.Equal(t, "error", resp.Status)
-	assert.Contains(t, resp.Error, "not found")
+	assert.Contains(t, resp.Data.(string), "not found") //nolint:forcetypeassert // test code
 }
 
 // TestCommitShow verifies show command.
@@ -211,7 +213,7 @@ func TestCommitMissingArgs(t *testing.T) {
 
 	require.Error(t, err)
 	assert.Equal(t, "error", resp.Status)
-	assert.Contains(t, resp.Error, "usage")
+	assert.Contains(t, resp.Data.(string), "usage") //nolint:forcetypeassert // test code
 }
 
 // TestCommitMissingAction verifies error for missing action.
@@ -225,7 +227,7 @@ func TestCommitMissingAction(t *testing.T) {
 
 	require.Error(t, err)
 	assert.Equal(t, "error", resp.Status)
-	assert.Contains(t, resp.Error, "usage")
+	assert.Contains(t, resp.Data.(string), "usage") //nolint:forcetypeassert // test code
 }
 
 // TestCommitUnknownAction verifies error for unknown action.
@@ -239,7 +241,7 @@ func TestCommitUnknownAction(t *testing.T) {
 
 	require.Error(t, err)
 	assert.Equal(t, "error", resp.Status)
-	assert.Contains(t, resp.Error, "unknown")
+	assert.Contains(t, resp.Data.(string), "unknown") //nolint:forcetypeassert // test code
 }
 
 // TestCommitCommandRegistered verifies commit command is registered.
@@ -352,7 +354,7 @@ func TestCommitAnnounceNoCommit(t *testing.T) {
 
 	require.Error(t, err)
 	assert.Equal(t, "error", resp.Status)
-	assert.Contains(t, resp.Error, "not found")
+	assert.Contains(t, resp.Data.(string), "not found") //nolint:forcetypeassert // test code
 }
 
 // TestCommitAnnounceMissingNextHop verifies error when next-hop is missing.

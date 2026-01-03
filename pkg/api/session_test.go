@@ -7,86 +7,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// TestSessionAckEnable verifies the session ack enable command.
-//
-// VALIDATES: Command enables ack and returns success response.
-//
-// PREVENTS: Ack remaining disabled after enable command.
-func TestSessionAckEnable(t *testing.T) {
-	proc := NewProcess(ProcessConfig{
-		Name:    "test",
-		Run:     "echo test",
-		Encoder: "json",
-	})
-	// Start with ack disabled
-	proc.SetAck(false)
-
-	ctx := &CommandContext{
-		Reactor: &mockReactor{},
-		Process: proc,
-	}
-
-	resp, err := handleSessionAckEnable(ctx, nil)
-	require.NoError(t, err)
-	require.NotNil(t, resp)
-	assert.Equal(t, "done", resp.Status)
-	assert.True(t, proc.AckEnabled(), "ack should be enabled after command")
-}
-
-// TestSessionAckDisable verifies the session ack disable command.
-//
-// VALIDATES: Command disables ack and returns success response.
-// Per ExaBGP behavior, a response IS sent for the disable command itself,
-// then subsequent commands don't get responses.
-//
-// PREVENTS: Ack remaining enabled after disable command.
-func TestSessionAckDisable(t *testing.T) {
-	proc := NewProcess(ProcessConfig{
-		Name:    "test",
-		Run:     "echo test",
-		Encoder: "json",
-	})
-	// Start with ack enabled (default)
-	assert.True(t, proc.AckEnabled())
-
-	ctx := &CommandContext{
-		Reactor: &mockReactor{},
-		Process: proc,
-	}
-
-	resp, err := handleSessionAckDisable(ctx, nil)
-	require.NoError(t, err)
-	require.NotNil(t, resp)
-	assert.Equal(t, "done", resp.Status)
-	assert.False(t, proc.AckEnabled(), "ack should be disabled after command")
-}
-
-// TestSessionAckSilence verifies the session ack silence command.
-//
-// VALIDATES: Command disables ack and returns ErrSilent (no output).
-// Unlike disable, silence doesn't send a response for itself either.
-//
-// PREVENTS: Unexpected response for silence command.
-func TestSessionAckSilence(t *testing.T) {
-	proc := NewProcess(ProcessConfig{
-		Name:    "test",
-		Run:     "echo test",
-		Encoder: "json",
-	})
-	// Start with ack enabled (default)
-	assert.True(t, proc.AckEnabled())
-
-	ctx := &CommandContext{
-		Reactor: &mockReactor{},
-		Process: proc,
-	}
-
-	resp, err := handleSessionAckSilence(ctx, nil)
-	require.ErrorIs(t, err, ErrSilent, "silence should return ErrSilent")
-	assert.Nil(t, resp, "silence should return nil response")
-	assert.False(t, proc.AckEnabled(), "ack should be disabled after silence")
-}
-
 // TestSessionSyncEnable verifies the session sync enable command.
 //
 // VALIDATES: Command enables sync mode and returns success.
@@ -223,9 +143,6 @@ func TestSessionCommandsRegistered(t *testing.T) {
 	RegisterDefaultHandlers(d)
 
 	commands := []string{
-		"session ack enable",
-		"session ack disable",
-		"session ack silence",
 		"session sync enable",
 		"session sync disable",
 		"session reset",

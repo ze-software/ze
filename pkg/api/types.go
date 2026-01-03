@@ -410,10 +410,11 @@ type RIBStatsInfo struct {
 }
 
 // Response represents an API command response.
+// Serial is included only if command had #N prefix.
 type Response struct {
-	Status string `json:"status"`          // "done" or "error"
-	Error  string `json:"error,omitempty"` // Error message if status="error"
-	Data   any    `json:"data,omitempty"`  // Result data if applicable
+	Serial string `json:"serial,omitempty"` // Correlation ID (omitted if no prefix)
+	Status string `json:"status"`           // "done" or "error"
+	Data   any    `json:"data,omitempty"`   // Payload (success data or error message)
 }
 
 // ProcessConfig holds external process configuration.

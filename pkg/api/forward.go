@@ -22,7 +22,7 @@ func handleForwardUpdateID(ctx *CommandContext, args []string) (*Response, error
 	if len(args) < 1 {
 		return &Response{
 			Status: "error",
-			Error:  "usage: peer <selector> forward update-id <id>",
+			Data:   "usage: peer <selector> forward update-id <id>",
 		}, fmt.Errorf("missing update-id")
 	}
 
@@ -31,7 +31,7 @@ func handleForwardUpdateID(ctx *CommandContext, args []string) (*Response, error
 	if err != nil {
 		return &Response{
 			Status: "error",
-			Error:  fmt.Sprintf("invalid update-id: %s", args[0]),
+			Data:   fmt.Sprintf("invalid update-id: %s", args[0]),
 		}, fmt.Errorf("invalid update-id: %w", err)
 	}
 
@@ -41,7 +41,7 @@ func handleForwardUpdateID(ctx *CommandContext, args []string) (*Response, error
 	if err != nil {
 		return &Response{
 			Status: "error",
-			Error:  fmt.Sprintf("invalid peer selector: %v", err),
+			Data:   fmt.Sprintf("invalid peer selector: %v", err),
 		}, err
 	}
 
@@ -49,7 +49,7 @@ func handleForwardUpdateID(ctx *CommandContext, args []string) (*Response, error
 	if err := ctx.Reactor.ForwardUpdate(selector, updateID); err != nil {
 		return &Response{
 			Status: "error",
-			Error:  fmt.Sprintf("forward failed: %v", err),
+			Data:   fmt.Sprintf("forward failed: %v", err),
 		}, err
 	}
 
@@ -70,7 +70,7 @@ func handleDeleteUpdateID(ctx *CommandContext, args []string) (*Response, error)
 	if len(args) < 1 {
 		return &Response{
 			Status: "error",
-			Error:  "usage: delete update-id <id>",
+			Data:   "usage: delete update-id <id>",
 		}, fmt.Errorf("missing update-id")
 	}
 
@@ -79,7 +79,7 @@ func handleDeleteUpdateID(ctx *CommandContext, args []string) (*Response, error)
 	if err != nil {
 		return &Response{
 			Status: "error",
-			Error:  fmt.Sprintf("invalid update-id: %s", args[0]),
+			Data:   fmt.Sprintf("invalid update-id: %s", args[0]),
 		}, fmt.Errorf("invalid update-id: %w", err)
 	}
 
@@ -87,7 +87,7 @@ func handleDeleteUpdateID(ctx *CommandContext, args []string) (*Response, error)
 	if err := ctx.Reactor.DeleteUpdate(updateID); err != nil {
 		return &Response{
 			Status: "error",
-			Error:  fmt.Sprintf("delete failed: %v", err),
+			Data:   fmt.Sprintf("delete failed: %v", err),
 		}, err
 	}
 

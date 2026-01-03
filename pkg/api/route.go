@@ -262,13 +262,13 @@ func RegisterRouteHandlers(d *Dispatcher) {
 func handleAnnounceRoute(ctx *CommandContext, args []string) (*Response, error) {
 	// Auto-detect family from prefix and delegate to shared implementation
 	if len(args) < 1 {
-		return &Response{Status: "error", Error: "missing prefix"}, ErrMissingPrefix
+		return &Response{Status: "error", Data: "missing prefix"}, ErrMissingPrefix
 	}
 
 	// Parse prefix, allowing bare IP addresses (defaults to /32 for IPv4, /128 for IPv6)
 	prefix, err := parsePrefixWithDefault(args[0])
 	if err != nil {
-		return &Response{Status: "error", Error: fmt.Sprintf("invalid prefix: %s", args[0])}, ErrInvalidPrefix
+		return &Response{Status: "error", Data: fmt.Sprintf("invalid prefix: %s", args[0])}, ErrInvalidPrefix
 	}
 
 	// Normalize args to include prefix length for downstream processing
@@ -290,7 +290,7 @@ func announceRouteImpl(ctx *CommandContext, args []string) (*Response, error) {
 	if len(args) < 3 {
 		return &Response{
 			Status: "error",
-			Error:  "usage: announce route <prefix> next-hop <addr|self>",
+			Data:   "usage: announce route <prefix> next-hop <addr|self>",
 		}, ErrMissingPrefix
 	}
 
@@ -299,14 +299,14 @@ func announceRouteImpl(ctx *CommandContext, args []string) (*Response, error) {
 	if err != nil {
 		return &Response{
 			Status: "error",
-			Error:  err.Error(),
+			Data:   err.Error(),
 		}, err
 	}
 
 	if !parsed.NextHopSelf && !parsed.Route.NextHop.IsValid() {
 		return &Response{
 			Status: "error",
-			Error:  "missing next-hop",
+			Data:   "missing next-hop",
 		}, ErrMissingNextHop
 	}
 
@@ -318,7 +318,7 @@ func announceRouteImpl(ctx *CommandContext, args []string) (*Response, error) {
 		if err := ctx.Reactor.AddWatchdogRoute(parsed.Route, watchdogName); err != nil {
 			return &Response{
 				Status: "error",
-				Error:  fmt.Sprintf("failed to add to watchdog pool: %v", err),
+				Data:   fmt.Sprintf("failed to add to watchdog pool: %v", err),
 			}, err
 		}
 		nextHopStr := parsed.Route.NextHop.String()
@@ -344,7 +344,7 @@ func announceRouteImpl(ctx *CommandContext, args []string) (*Response, error) {
 		if err != nil {
 			return &Response{
 				Status: "error",
-				Error:  err.Error(),
+				Data:   err.Error(),
 			}, err
 		}
 
@@ -355,7 +355,7 @@ func announceRouteImpl(ctx *CommandContext, args []string) (*Response, error) {
 			if err := ctx.Reactor.AnnounceRoute(peerSelector, splitRoute); err != nil {
 				return &Response{
 					Status: "error",
-					Error:  fmt.Sprintf("failed to announce %s: %v", p.String(), err),
+					Data:   fmt.Sprintf("failed to announce %s: %v", p.String(), err),
 				}, err
 			}
 		}
@@ -375,7 +375,7 @@ func announceRouteImpl(ctx *CommandContext, args []string) (*Response, error) {
 	if err := ctx.Reactor.AnnounceRoute(peerSelector, parsed.Route); err != nil {
 		return &Response{
 			Status: "error",
-			Error:  fmt.Sprintf("failed to announce: %v", err),
+			Data:   fmt.Sprintf("failed to announce: %v", err),
 		}, err
 	}
 
@@ -917,11 +917,11 @@ func parseRateLimitExtCommunity(value string) (attribute.ExtendedCommunity, erro
 func handleWithdrawRoute(ctx *CommandContext, args []string) (*Response, error) {
 	// Auto-detect family from prefix and delegate
 	if len(args) < 1 {
-		return &Response{Status: "error", Error: "missing prefix"}, ErrMissingPrefix
+		return &Response{Status: "error", Data: "missing prefix"}, ErrMissingPrefix
 	}
 	_, err := netip.ParsePrefix(args[0])
 	if err != nil {
-		return &Response{Status: "error", Error: fmt.Sprintf("invalid prefix: %s", args[0])}, ErrInvalidPrefix
+		return &Response{Status: "error", Data: fmt.Sprintf("invalid prefix: %s", args[0])}, ErrInvalidPrefix
 	}
 
 	// Delegate to shared implementation
@@ -936,7 +936,7 @@ func withdrawRouteImpl(ctx *CommandContext, args []string) (*Response, error) {
 	if len(args) < 1 {
 		return &Response{
 			Status: "error",
-			Error:  "usage: withdraw route <prefix>",
+			Data:   "usage: withdraw route <prefix>",
 		}, ErrMissingPrefix
 	}
 
@@ -944,7 +944,7 @@ func withdrawRouteImpl(ctx *CommandContext, args []string) (*Response, error) {
 	if err != nil {
 		return &Response{
 			Status: "error",
-			Error:  fmt.Sprintf("invalid prefix: %s", args[0]),
+			Data:   fmt.Sprintf("invalid prefix: %s", args[0]),
 		}, ErrInvalidPrefix
 	}
 
@@ -956,7 +956,7 @@ func withdrawRouteImpl(ctx *CommandContext, args []string) (*Response, error) {
 		if err := ctx.Reactor.RemoveWatchdogRoute(routeKey, watchdogName); err != nil {
 			return &Response{
 				Status: "error",
-				Error:  fmt.Sprintf("failed to remove from watchdog pool: %v", err),
+				Data:   fmt.Sprintf("failed to remove from watchdog pool: %v", err),
 			}, err
 		}
 		return &Response{
@@ -973,7 +973,7 @@ func withdrawRouteImpl(ctx *CommandContext, args []string) (*Response, error) {
 	if err := ctx.Reactor.WithdrawRoute(peerSelector, prefix); err != nil {
 		return &Response{
 			Status: "error",
-			Error:  fmt.Sprintf("failed to withdraw: %v", err),
+			Data:   fmt.Sprintf("failed to withdraw: %v", err),
 		}, err
 	}
 
@@ -994,7 +994,7 @@ func announceMUPImpl(ctx *CommandContext, args []string, isIPv6 bool) (*Response
 	if err != nil {
 		return &Response{
 			Status: "error",
-			Error:  err.Error(),
+			Data:   err.Error(),
 		}, err
 	}
 
@@ -1003,7 +1003,7 @@ func announceMUPImpl(ctx *CommandContext, args []string, isIPv6 bool) (*Response
 	if err := ctx.Reactor.AnnounceMUPRoute(peerSelector, spec); err != nil {
 		return &Response{
 			Status: "error",
-			Error:  fmt.Sprintf("failed to announce MUP route: %v", err),
+			Data:   fmt.Sprintf("failed to announce MUP route: %v", err),
 		}, err
 	}
 
@@ -1033,7 +1033,7 @@ func withdrawMUPImpl(ctx *CommandContext, args []string, isIPv6 bool) (*Response
 	if err != nil {
 		return &Response{
 			Status: "error",
-			Error:  err.Error(),
+			Data:   err.Error(),
 		}, err
 	}
 
@@ -1042,7 +1042,7 @@ func withdrawMUPImpl(ctx *CommandContext, args []string, isIPv6 bool) (*Response
 	if err := ctx.Reactor.WithdrawMUPRoute(peerSelector, spec); err != nil {
 		return &Response{
 			Status: "error",
-			Error:  fmt.Sprintf("failed to withdraw MUP route: %v", err),
+			Data:   fmt.Sprintf("failed to withdraw MUP route: %v", err),
 		}, err
 	}
 
@@ -1109,7 +1109,7 @@ func handleAFIRoute(ctx *CommandContext, args []string, isIPv6, isWithdraw bool)
 	// Parse SAFI
 	safi, rest, err := parseSAFI(args)
 	if err != nil {
-		return &Response{Status: "error", Error: err.Error()}, err
+		return &Response{Status: "error", Data: err.Error()}, err
 	}
 
 	// MUP has different arg format: route-type prefix ... (not prefix first)
@@ -1122,11 +1122,11 @@ func handleAFIRoute(ctx *CommandContext, args []string, isIPv6, isWithdraw bool)
 
 	// Validate prefix
 	if len(rest) < 1 {
-		return &Response{Status: "error", Error: "missing prefix"}, ErrMissingPrefix
+		return &Response{Status: "error", Data: "missing prefix"}, ErrMissingPrefix
 	}
 	prefix, err := netip.ParsePrefix(rest[0])
 	if err != nil {
-		return &Response{Status: "error", Error: fmt.Sprintf("invalid prefix: %s", rest[0])}, ErrInvalidPrefix
+		return &Response{Status: "error", Data: fmt.Sprintf("invalid prefix: %s", rest[0])}, ErrInvalidPrefix
 	}
 
 	// Check AFI matches
@@ -1141,7 +1141,7 @@ func handleAFIRoute(ctx *CommandContext, args []string, isIPv6, isWithdraw bool)
 	if isIPv6 != prefix.Addr().Is6() {
 		return &Response{
 			Status: "error",
-			Error:  fmt.Sprintf("expected %s prefix for '%s %s', got: %s", afiName, action, afiName, rest[0]),
+			Data:   fmt.Sprintf("expected %s prefix for '%s %s', got: %s", afiName, action, afiName, rest[0]),
 		}, ErrInvalidPrefix
 	}
 
@@ -1176,23 +1176,23 @@ func handleAnnounceAttributes(ctx *CommandContext, args []string) (*Response, er
 	if len(args) < 3 {
 		return &Response{
 			Status: "error",
-			Error:  "usage: announce attributes <attrs>... nlri <prefix>...",
+			Data:   "usage: announce attributes <attrs>... nlri <prefix>...",
 		}, ErrMissingNLRI
 	}
 
 	// Parse attributes and NLRIs
 	attrs, prefixes, err := parseAttributesNLRI(args)
 	if err != nil {
-		return &Response{Status: "error", Error: err.Error()}, err
+		return &Response{Status: "error", Data: err.Error()}, err
 	}
 
 	if len(prefixes) == 0 {
-		return &Response{Status: "error", Error: "no prefixes after nlri keyword"}, ErrMissingNLRI
+		return &Response{Status: "error", Data: "no prefixes after nlri keyword"}, ErrMissingNLRI
 	}
 
 	// Validate next-hop is present
 	if !attrs.NextHop.IsValid() {
-		return &Response{Status: "error", Error: "missing next-hop"}, ErrMissingNextHop
+		return &Response{Status: "error", Data: "missing next-hop"}, ErrMissingNextHop
 	}
 
 	peerSelector := ctx.PeerSelector()
@@ -1207,7 +1207,7 @@ func handleAnnounceAttributes(ctx *CommandContext, args []string) (*Response, er
 		if err := ctx.Reactor.AnnounceRoute(peerSelector, route); err != nil {
 			return &Response{
 				Status: "error",
-				Error:  fmt.Sprintf("failed to announce %s: %v", prefix.String(), err),
+				Data:   fmt.Sprintf("failed to announce %s: %v", prefix.String(), err),
 			}, err
 		}
 	}
@@ -1229,23 +1229,23 @@ func handleAnnounceNLRI(ctx *CommandContext, args []string) (*Response, error) {
 	if len(args) < 4 {
 		return &Response{
 			Status: "error",
-			Error:  "usage: announce nlri <attrs>... <afi> <safi> [nlri] <prefix>...",
+			Data:   "usage: announce nlri <attrs>... <afi> <safi> [nlri] <prefix>...",
 		}, ErrMissingNLRI
 	}
 
 	// Parse attributes, AFI/SAFI, and NLRIs
 	attrs, afi, safi, prefixes, err := parseUpdateCommand(args)
 	if err != nil {
-		return &Response{Status: "error", Error: err.Error()}, err
+		return &Response{Status: "error", Data: err.Error()}, err
 	}
 
 	if len(prefixes) == 0 {
-		return &Response{Status: "error", Error: "no prefixes specified"}, ErrMissingNLRI
+		return &Response{Status: "error", Data: "no prefixes specified"}, ErrMissingNLRI
 	}
 
 	// Validate next-hop is present
 	if !attrs.NextHop.IsValid() {
-		return &Response{Status: "error", Error: "missing next-hop"}, ErrMissingNextHop
+		return &Response{Status: "error", Data: "missing next-hop"}, ErrMissingNextHop
 	}
 
 	// Validate prefix families match AFI
@@ -1254,13 +1254,13 @@ func handleAnnounceNLRI(ctx *CommandContext, args []string) (*Response, error) {
 		if afi == AFINameIPv4 && !isIPv4 {
 			return &Response{
 				Status: "error",
-				Error:  fmt.Sprintf("prefix %s is not IPv4", prefix.String()),
+				Data:   fmt.Sprintf("prefix %s is not IPv4", prefix.String()),
 			}, ErrInvalidPrefix
 		}
 		if afi == AFINameIPv6 && isIPv4 {
 			return &Response{
 				Status: "error",
-				Error:  fmt.Sprintf("prefix %s is not IPv6", prefix.String()),
+				Data:   fmt.Sprintf("prefix %s is not IPv6", prefix.String()),
 			}, ErrInvalidPrefix
 		}
 	}
@@ -1277,23 +1277,23 @@ func handleAnnounceUpdate(ctx *CommandContext, args []string) (*Response, error)
 	if len(args) < 4 {
 		return &Response{
 			Status: "error",
-			Error:  "usage: announce update <attrs>... <afi> <safi> [nlri] <prefix>...",
+			Data:   "usage: announce update <attrs>... <afi> <safi> [nlri] <prefix>...",
 		}, ErrMissingNLRI
 	}
 
 	// Parse attributes, AFI/SAFI, and NLRIs
 	attrs, afi, safi, prefixes, err := parseUpdateCommand(args)
 	if err != nil {
-		return &Response{Status: "error", Error: err.Error()}, err
+		return &Response{Status: "error", Data: err.Error()}, err
 	}
 
 	if len(prefixes) == 0 {
-		return &Response{Status: "error", Error: "no prefixes specified"}, ErrMissingNLRI
+		return &Response{Status: "error", Data: "no prefixes specified"}, ErrMissingNLRI
 	}
 
 	// Validate next-hop is present
 	if !attrs.NextHop.IsValid() {
-		return &Response{Status: "error", Error: "missing next-hop"}, ErrMissingNextHop
+		return &Response{Status: "error", Data: "missing next-hop"}, ErrMissingNextHop
 	}
 
 	// Validate prefix families match AFI
@@ -1302,13 +1302,13 @@ func handleAnnounceUpdate(ctx *CommandContext, args []string) (*Response, error)
 		if afi == AFINameIPv4 && !isIPv4 {
 			return &Response{
 				Status: "error",
-				Error:  fmt.Sprintf("prefix %s is not IPv4", prefix.String()),
+				Data:   fmt.Sprintf("prefix %s is not IPv4", prefix.String()),
 			}, ErrInvalidPrefix
 		}
 		if afi == AFINameIPv6 && isIPv4 {
 			return &Response{
 				Status: "error",
-				Error:  fmt.Sprintf("prefix %s is not IPv6", prefix.String()),
+				Data:   fmt.Sprintf("prefix %s is not IPv6", prefix.String()),
 			}, ErrInvalidPrefix
 		}
 	}
@@ -1322,14 +1322,14 @@ func handleAnnounceUpdate(ctx *CommandContext, args []string) (*Response, error)
 	if err := ctx.CommitManager.Start(commitName, peerSelector); err != nil {
 		return &Response{
 			Status: "error",
-			Error:  fmt.Sprintf("failed to start auto-commit: %v", err),
+			Data:   fmt.Sprintf("failed to start auto-commit: %v", err),
 		}, err
 	}
 
 	// Queue routes
 	tx, err := ctx.CommitManager.Get(commitName)
 	if err != nil {
-		return &Response{Status: "error", Error: err.Error()}, err
+		return &Response{Status: "error", Data: err.Error()}, err
 	}
 
 	for _, prefix := range prefixes {
@@ -1342,7 +1342,7 @@ func handleAnnounceUpdate(ctx *CommandContext, args []string) (*Response, error)
 	if err != nil {
 		return &Response{
 			Status: "error",
-			Error:  fmt.Sprintf("failed to end auto-commit: %v", err),
+			Data:   fmt.Sprintf("failed to end auto-commit: %v", err),
 		}, err
 	}
 
@@ -1352,7 +1352,7 @@ func handleAnnounceUpdate(ctx *CommandContext, args []string) (*Response, error)
 	if err != nil {
 		return &Response{
 			Status: "error",
-			Error:  fmt.Sprintf("failed to send routes: %v", err),
+			Data:   fmt.Sprintf("failed to send routes: %v", err),
 		}, err
 	}
 
@@ -1609,7 +1609,7 @@ func queueRoutesToCommit(ctx *CommandContext, attrs BatchAttributes, afi, safi s
 	if len(commits) == 0 {
 		return &Response{
 			Status: "error",
-			Error:  "no active commit - use 'commit <name> start' first",
+			Data:   "no active commit - use 'commit <name> start' first",
 		}, fmt.Errorf("no active commit")
 	}
 
@@ -1620,7 +1620,7 @@ func queueRoutesToCommit(ctx *CommandContext, attrs BatchAttributes, afi, safi s
 	if err != nil {
 		return &Response{
 			Status: "error",
-			Error:  fmt.Sprintf("commit not found: %v", err),
+			Data:   fmt.Sprintf("commit not found: %v", err),
 		}, err
 	}
 
@@ -1741,33 +1741,33 @@ func parseLabels(args []string) ([]uint32, int, error) {
 // Args format: <prefix> rd <rd> label <label|[labels...]> next-hop <nh> [attributes...].
 func announceL3VPNImpl(ctx *CommandContext, args []string) (*Response, error) {
 	if len(args) < 1 {
-		return &Response{Status: "error", Error: "missing prefix"}, ErrMissingPrefix
+		return &Response{Status: "error", Data: "missing prefix"}, ErrMissingPrefix
 	}
 
 	route, err := parseL3VPNAttributes(args)
 	if err != nil {
-		return &Response{Status: "error", Error: err.Error()}, err
+		return &Response{Status: "error", Data: err.Error()}, err
 	}
 
 	// Validate required fields
 	if route.RD == "" {
-		return &Response{Status: "error", Error: "missing rd (route-distinguisher)"}, ErrMissingRD
+		return &Response{Status: "error", Data: "missing rd (route-distinguisher)"}, ErrMissingRD
 	}
 	if err := validateRD(route.RD); err != nil {
-		return &Response{Status: "error", Error: err.Error()}, err
+		return &Response{Status: "error", Data: err.Error()}, err
 	}
 	if len(route.Labels) == 0 {
-		return &Response{Status: "error", Error: "missing label"}, ErrMissingLabel
+		return &Response{Status: "error", Data: "missing label"}, ErrMissingLabel
 	}
 	if !route.NextHop.IsValid() {
-		return &Response{Status: "error", Error: "missing next-hop"}, ErrMissingNextHop
+		return &Response{Status: "error", Data: "missing next-hop"}, ErrMissingNextHop
 	}
 
 	peerSelector := ctx.PeerSelector()
 	if err := ctx.Reactor.AnnounceL3VPN(peerSelector, route); err != nil {
 		return &Response{
 			Status: "error",
-			Error:  fmt.Sprintf("failed to announce L3VPN: %v", err),
+			Data:   fmt.Sprintf("failed to announce L3VPN: %v", err),
 		}, err
 	}
 
@@ -1786,27 +1786,27 @@ func announceL3VPNImpl(ctx *CommandContext, args []string) (*Response, error) {
 // Args format: <prefix> rd <rd>.
 func withdrawL3VPNImpl(ctx *CommandContext, args []string) (*Response, error) {
 	if len(args) < 1 {
-		return &Response{Status: "error", Error: "missing prefix"}, ErrMissingPrefix
+		return &Response{Status: "error", Data: "missing prefix"}, ErrMissingPrefix
 	}
 
 	route, err := parseL3VPNAttributes(args)
 	if err != nil {
-		return &Response{Status: "error", Error: err.Error()}, err
+		return &Response{Status: "error", Data: err.Error()}, err
 	}
 
 	// RD is required for withdrawal to identify the VPN route
 	if route.RD == "" {
-		return &Response{Status: "error", Error: "missing rd (route-distinguisher)"}, ErrMissingRD
+		return &Response{Status: "error", Data: "missing rd (route-distinguisher)"}, ErrMissingRD
 	}
 	if err := validateRD(route.RD); err != nil {
-		return &Response{Status: "error", Error: err.Error()}, err
+		return &Response{Status: "error", Data: err.Error()}, err
 	}
 
 	peerSelector := ctx.PeerSelector()
 	if err := ctx.Reactor.WithdrawL3VPN(peerSelector, route); err != nil {
 		return &Response{
 			Status: "error",
-			Error:  fmt.Sprintf("failed to withdraw L3VPN: %v", err),
+			Data:   fmt.Sprintf("failed to withdraw L3VPN: %v", err),
 		}, err
 	}
 
@@ -1824,20 +1824,20 @@ func withdrawL3VPNImpl(ctx *CommandContext, args []string) (*Response, error) {
 // Args format: <prefix> label <labels> next-hop <addr> [attributes...] [split /N].
 func announceLabeledUnicastImpl(ctx *CommandContext, args []string) (*Response, error) {
 	if len(args) < 1 {
-		return &Response{Status: "error", Error: "missing prefix"}, ErrMissingPrefix
+		return &Response{Status: "error", Data: "missing prefix"}, ErrMissingPrefix
 	}
 
 	route, err := parseLabeledUnicastAttributes(args)
 	if err != nil {
-		return &Response{Status: "error", Error: err.Error()}, err
+		return &Response{Status: "error", Data: err.Error()}, err
 	}
 
 	// Validate required fields
 	if len(route.Labels) == 0 {
-		return &Response{Status: "error", Error: "missing label"}, ErrMissingLabel
+		return &Response{Status: "error", Data: "missing label"}, ErrMissingLabel
 	}
 	if !route.NextHop.IsValid() {
-		return &Response{Status: "error", Error: "missing next-hop"}, ErrMissingNextHop
+		return &Response{Status: "error", Data: "missing next-hop"}, ErrMissingNextHop
 	}
 
 	peerSelector := ctx.PeerSelector()
@@ -1851,7 +1851,7 @@ func announceLabeledUnicastImpl(ctx *CommandContext, args []string) (*Response, 
 		if err != nil {
 			return &Response{
 				Status: "error",
-				Error:  err.Error(),
+				Data:   err.Error(),
 			}, err
 		}
 
@@ -1862,7 +1862,7 @@ func announceLabeledUnicastImpl(ctx *CommandContext, args []string) (*Response, 
 			if err := ctx.Reactor.AnnounceLabeledUnicast(peerSelector, splitRoute); err != nil {
 				return &Response{
 					Status: "error",
-					Error:  fmt.Sprintf("failed to announce %s: %v", p.String(), err),
+					Data:   fmt.Sprintf("failed to announce %s: %v", p.String(), err),
 				}, err
 			}
 		}
@@ -1883,7 +1883,7 @@ func announceLabeledUnicastImpl(ctx *CommandContext, args []string) (*Response, 
 	if err := ctx.Reactor.AnnounceLabeledUnicast(peerSelector, route); err != nil {
 		return &Response{
 			Status: "error",
-			Error:  fmt.Sprintf("failed to announce labeled-unicast: %v", err),
+			Data:   fmt.Sprintf("failed to announce labeled-unicast: %v", err),
 		}, err
 	}
 
@@ -1901,19 +1901,19 @@ func announceLabeledUnicastImpl(ctx *CommandContext, args []string) (*Response, 
 // Args format: <prefix> label <labels>.
 func withdrawLabeledUnicastImpl(ctx *CommandContext, args []string) (*Response, error) {
 	if len(args) < 1 {
-		return &Response{Status: "error", Error: "missing prefix"}, ErrMissingPrefix
+		return &Response{Status: "error", Data: "missing prefix"}, ErrMissingPrefix
 	}
 
 	route, err := parseLabeledUnicastAttributes(args)
 	if err != nil {
-		return &Response{Status: "error", Error: err.Error()}, err
+		return &Response{Status: "error", Data: err.Error()}, err
 	}
 
 	peerSelector := ctx.PeerSelector()
 	if err := ctx.Reactor.WithdrawLabeledUnicast(peerSelector, route); err != nil {
 		return &Response{
 			Status: "error",
-			Error:  fmt.Sprintf("failed to withdraw labeled-unicast: %v", err),
+			Data:   fmt.Sprintf("failed to withdraw labeled-unicast: %v", err),
 		}, err
 	}
 
@@ -2116,7 +2116,7 @@ func handleAnnounceEOR(ctx *CommandContext, args []string) (*Response, error) {
 		default:
 			return &Response{
 				Status: "error",
-				Error:  fmt.Sprintf("unknown AFI: %s", afiStr),
+				Data:   fmt.Sprintf("unknown AFI: %s", afiStr),
 			}, ErrInvalidFamily
 		}
 
@@ -2134,7 +2134,7 @@ func handleAnnounceEOR(ctx *CommandContext, args []string) (*Response, error) {
 		default:
 			return &Response{
 				Status: "error",
-				Error:  fmt.Sprintf("unknown SAFI: %s", safiStr),
+				Data:   fmt.Sprintf("unknown SAFI: %s", safiStr),
 			}, ErrInvalidFamily
 		}
 
@@ -2145,7 +2145,7 @@ func handleAnnounceEOR(ctx *CommandContext, args []string) (*Response, error) {
 	if err := ctx.Reactor.AnnounceEOR("*", afi, safi); err != nil {
 		return &Response{
 			Status: "error",
-			Error:  fmt.Sprintf("failed to send EOR: %v", err),
+			Data:   fmt.Sprintf("failed to send EOR: %v", err),
 		}, err
 	}
 
@@ -2208,7 +2208,7 @@ func handleAnnounceFlow(ctx *CommandContext, args []string) (*Response, error) {
 	if len(args) < 2 {
 		return &Response{
 			Status: "error",
-			Error:  "usage: announce flow match <spec> then <action>",
+			Data:   "usage: announce flow match <spec> then <action>",
 		}, fmt.Errorf("insufficient arguments")
 	}
 
@@ -2216,14 +2216,14 @@ func handleAnnounceFlow(ctx *CommandContext, args []string) (*Response, error) {
 	if err != nil {
 		return &Response{
 			Status: "error",
-			Error:  err.Error(),
+			Data:   err.Error(),
 		}, err
 	}
 
 	if err := ctx.Reactor.AnnounceFlowSpec("*", route); err != nil {
 		return &Response{
 			Status: "error",
-			Error:  fmt.Sprintf("failed to announce flowspec: %v", err),
+			Data:   fmt.Sprintf("failed to announce flowspec: %v", err),
 		}, err
 	}
 
@@ -2241,7 +2241,7 @@ func handleWithdrawFlow(ctx *CommandContext, args []string) (*Response, error) {
 	if len(args) < 2 {
 		return &Response{
 			Status: "error",
-			Error:  "usage: withdraw flow match <spec>",
+			Data:   "usage: withdraw flow match <spec>",
 		}, fmt.Errorf("insufficient arguments")
 	}
 
@@ -2249,14 +2249,14 @@ func handleWithdrawFlow(ctx *CommandContext, args []string) (*Response, error) {
 	if err != nil {
 		return &Response{
 			Status: "error",
-			Error:  err.Error(),
+			Data:   err.Error(),
 		}, err
 	}
 
 	if err := ctx.Reactor.WithdrawFlowSpec("*", route); err != nil {
 		return &Response{
 			Status: "error",
-			Error:  fmt.Sprintf("failed to withdraw flowspec: %v", err),
+			Data:   fmt.Sprintf("failed to withdraw flowspec: %v", err),
 		}, err
 	}
 
@@ -2449,14 +2449,14 @@ func handleAnnounceVPLS(ctx *CommandContext, args []string) (*Response, error) {
 	if err != nil {
 		return &Response{
 			Status: "error",
-			Error:  err.Error(),
+			Data:   err.Error(),
 		}, err
 	}
 
 	if err := ctx.Reactor.AnnounceVPLS("*", route); err != nil {
 		return &Response{
 			Status: "error",
-			Error:  fmt.Sprintf("failed to announce vpls: %v", err),
+			Data:   fmt.Sprintf("failed to announce vpls: %v", err),
 		}, err
 	}
 
@@ -2475,14 +2475,14 @@ func handleWithdrawVPLS(ctx *CommandContext, args []string) (*Response, error) {
 	if err != nil {
 		return &Response{
 			Status: "error",
-			Error:  err.Error(),
+			Data:   err.Error(),
 		}, err
 	}
 
 	if err := ctx.Reactor.WithdrawVPLS("*", route); err != nil {
 		return &Response{
 			Status: "error",
-			Error:  fmt.Sprintf("failed to withdraw vpls: %v", err),
+			Data:   fmt.Sprintf("failed to withdraw vpls: %v", err),
 		}, err
 	}
 
@@ -2551,7 +2551,7 @@ func handleAnnounceL2VPN(ctx *CommandContext, args []string) (*Response, error) 
 	if len(args) < 1 {
 		return &Response{
 			Status: "error",
-			Error:  "usage: announce l2vpn <mac-ip|ip-prefix|multicast> ...",
+			Data:   "usage: announce l2vpn <mac-ip|ip-prefix|multicast> ...",
 		}, ErrMissingRouteType
 	}
 
@@ -2559,14 +2559,14 @@ func handleAnnounceL2VPN(ctx *CommandContext, args []string) (*Response, error) 
 	if err != nil {
 		return &Response{
 			Status: "error",
-			Error:  err.Error(),
+			Data:   err.Error(),
 		}, err
 	}
 
 	if err := ctx.Reactor.AnnounceL2VPN("*", route); err != nil {
 		return &Response{
 			Status: "error",
-			Error:  fmt.Sprintf("failed to announce l2vpn: %v", err),
+			Data:   fmt.Sprintf("failed to announce l2vpn: %v", err),
 		}, err
 	}
 
@@ -2585,7 +2585,7 @@ func handleWithdrawL2VPN(ctx *CommandContext, args []string) (*Response, error) 
 	if len(args) < 1 {
 		return &Response{
 			Status: "error",
-			Error:  "usage: withdraw l2vpn <mac-ip|ip-prefix|multicast> ...",
+			Data:   "usage: withdraw l2vpn <mac-ip|ip-prefix|multicast> ...",
 		}, ErrMissingRouteType
 	}
 
@@ -2593,14 +2593,14 @@ func handleWithdrawL2VPN(ctx *CommandContext, args []string) (*Response, error) 
 	if err != nil {
 		return &Response{
 			Status: "error",
-			Error:  err.Error(),
+			Data:   err.Error(),
 		}, err
 	}
 
 	if err := ctx.Reactor.WithdrawL2VPN("*", route); err != nil {
 		return &Response{
 			Status: "error",
-			Error:  fmt.Sprintf("failed to withdraw l2vpn: %v", err),
+			Data:   fmt.Sprintf("failed to withdraw l2vpn: %v", err),
 		}, err
 	}
 
@@ -2741,7 +2741,7 @@ func handleAnnounceWatchdog(ctx *CommandContext, args []string) (*Response, erro
 	if len(args) < 1 {
 		return &Response{
 			Status: "error",
-			Error:  "missing watchdog name",
+			Data:   "missing watchdog name",
 		}, ErrMissingWatchdog
 	}
 
@@ -2751,7 +2751,7 @@ func handleAnnounceWatchdog(ctx *CommandContext, args []string) (*Response, erro
 	if err := ctx.Reactor.AnnounceWatchdog(peerSelector, name); err != nil {
 		return &Response{
 			Status: "error",
-			Error:  err.Error(),
+			Data:   err.Error(),
 		}, err
 	}
 
@@ -2770,7 +2770,7 @@ func handleWithdrawWatchdog(ctx *CommandContext, args []string) (*Response, erro
 	if len(args) < 1 {
 		return &Response{
 			Status: "error",
-			Error:  "missing watchdog name",
+			Data:   "missing watchdog name",
 		}, ErrMissingWatchdog
 	}
 
@@ -2780,7 +2780,7 @@ func handleWithdrawWatchdog(ctx *CommandContext, args []string) (*Response, erro
 	if err := ctx.Reactor.WithdrawWatchdog(peerSelector, name); err != nil {
 		return &Response{
 			Status: "error",
-			Error:  err.Error(),
+			Data:   err.Error(),
 		}, err
 	}
 

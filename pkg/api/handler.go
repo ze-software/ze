@@ -74,7 +74,7 @@ func handleDaemonReload(ctx *CommandContext, _ []string) (*Response, error) {
 	if err := ctx.Reactor.Reload(); err != nil {
 		return &Response{
 			Status: "error",
-			Error:  fmt.Sprintf("reload failed: %v", err),
+			Data:   fmt.Sprintf("reload failed: %v", err),
 		}, err
 	}
 	return &Response{
@@ -109,7 +109,7 @@ func handlePeerShow(ctx *CommandContext, args []string) (*Response, error) {
 		if err != nil {
 			return &Response{
 				Status: "error",
-				Error:  fmt.Sprintf("invalid IP address: %s", args[0]),
+				Data:   fmt.Sprintf("invalid IP address: %s", args[0]),
 			}, err
 		}
 
@@ -190,7 +190,7 @@ func handlePeerTeardown(ctx *CommandContext, args []string) (*Response, error) {
 	if len(args) < 1 {
 		return &Response{
 			Status: "error",
-			Error:  "usage: peer teardown <ip> [subcode]",
+			Data:   "usage: peer teardown <ip> [subcode]",
 		}, fmt.Errorf("missing peer address")
 	}
 
@@ -198,7 +198,7 @@ func handlePeerTeardown(ctx *CommandContext, args []string) (*Response, error) {
 	if err != nil {
 		return &Response{
 			Status: "error",
-			Error:  fmt.Sprintf("invalid IP address: %s", args[0]),
+			Data:   fmt.Sprintf("invalid IP address: %s", args[0]),
 		}, err
 	}
 
@@ -210,7 +210,7 @@ func handlePeerTeardown(ctx *CommandContext, args []string) (*Response, error) {
 		if err != nil || code > 255 {
 			return &Response{
 				Status: "error",
-				Error:  fmt.Sprintf("invalid subcode: %s", args[1]),
+				Data:   fmt.Sprintf("invalid subcode: %s", args[1]),
 			}, fmt.Errorf("invalid subcode: %s", args[1])
 		}
 		subcode = uint8(code)
@@ -219,7 +219,7 @@ func handlePeerTeardown(ctx *CommandContext, args []string) (*Response, error) {
 	if err := ctx.Reactor.TeardownPeer(addr, subcode); err != nil {
 		return &Response{
 			Status: "error",
-			Error:  fmt.Sprintf("teardown failed: %v", err),
+			Data:   fmt.Sprintf("teardown failed: %v", err),
 		}, err
 	}
 
@@ -239,7 +239,7 @@ func handleTeardown(ctx *CommandContext, args []string) (*Response, error) {
 	if len(args) < 1 {
 		return &Response{
 			Status: "error",
-			Error:  "usage: neighbor <ip> teardown <subcode>",
+			Data:   "usage: neighbor <ip> teardown <subcode>",
 		}, fmt.Errorf("missing cease subcode")
 	}
 
@@ -248,7 +248,7 @@ func handleTeardown(ctx *CommandContext, args []string) (*Response, error) {
 	if peer == "*" || peer == "" {
 		return &Response{
 			Status: "error",
-			Error:  "teardown requires specific peer: neighbor <ip> teardown <subcode>",
+			Data:   "teardown requires specific peer: neighbor <ip> teardown <subcode>",
 		}, fmt.Errorf("no peer specified")
 	}
 
@@ -256,7 +256,7 @@ func handleTeardown(ctx *CommandContext, args []string) (*Response, error) {
 	if err != nil {
 		return &Response{
 			Status: "error",
-			Error:  fmt.Sprintf("invalid peer address: %s", peer),
+			Data:   fmt.Sprintf("invalid peer address: %s", peer),
 		}, err
 	}
 
@@ -265,7 +265,7 @@ func handleTeardown(ctx *CommandContext, args []string) (*Response, error) {
 	if err != nil || code > 255 {
 		return &Response{
 			Status: "error",
-			Error:  fmt.Sprintf("invalid subcode: %s", args[0]),
+			Data:   fmt.Sprintf("invalid subcode: %s", args[0]),
 		}, fmt.Errorf("invalid subcode: %s", args[0])
 	}
 	subcode := uint8(code)
@@ -273,7 +273,7 @@ func handleTeardown(ctx *CommandContext, args []string) (*Response, error) {
 	if err := ctx.Reactor.TeardownPeer(addr, subcode); err != nil {
 		return &Response{
 			Status: "error",
-			Error:  fmt.Sprintf("teardown failed: %v", err),
+			Data:   fmt.Sprintf("teardown failed: %v", err),
 		}, err
 	}
 

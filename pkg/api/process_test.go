@@ -234,32 +234,6 @@ func TestProcessManagerNoProcesses(t *testing.T) {
 	assert.Equal(t, 0, pm.ProcessCount())
 }
 
-// TestProcessAckState verifies ack state management on Process.
-//
-// VALIDATES: Process tracks ack enabled/disabled state correctly.
-// Default is enabled (true).
-//
-// PREVENTS: Missing ack state, always-on or always-off behavior,
-// incorrect default value.
-func TestProcessAckState(t *testing.T) {
-	proc := NewProcess(ProcessConfig{
-		Name:    "test",
-		Run:     "echo test",
-		Encoder: "json",
-	})
-
-	// Default should be enabled
-	assert.True(t, proc.AckEnabled(), "ack should be enabled by default")
-
-	// Disable ack
-	proc.SetAck(false)
-	assert.False(t, proc.AckEnabled(), "ack should be disabled after SetAck(false)")
-
-	// Re-enable ack
-	proc.SetAck(true)
-	assert.True(t, proc.AckEnabled(), "ack should be enabled after SetAck(true)")
-}
-
 // TestProcessSyncState verifies sync state management on Process.
 //
 // VALIDATES: Process tracks sync enabled/disabled state correctly.
@@ -514,4 +488,153 @@ func TestProcessManagerRespawnSuccess(t *testing.T) {
 
 	assert.True(t, pm.IsRunning("run"), "process should be running after respawn")
 	assert.False(t, pm.IsDisabled("run"), "process should not be disabled within limit")
+}
+
+// TestParseResponseSerial verifies @N response parsing.
+//
+// VALIDATES: @serial prefix is extracted correctly.
+//
+// PREVENTS: Wrong serial extraction, missing response body.
+func TestParseResponseSerial(t *testing.T) {
+	tests := []struct {
+		line       string
+		wantSerial string
+		wantRest   string
+		wantOK     bool
+	}{
+		{"@abc done", "abc", "done", true},
+		{"@123 success data", "123", "success data", true},
+		{"@a", "a", "", true},
+		{"@bcd status ok", "bcd", "status ok", true},
+		{"no prefix", "", "", false},
+		{"@ space", "", "", false},
+		{"", "", "", false},
+		{"@", "", "", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.line, func(t *testing.T) {
+			serial, rest, ok := parseResponseSerial(tt.line)
+			assert.Equal(t, tt.wantOK, ok, "ok mismatch")
+			if ok {
+				assert.Equal(t, tt.wantSerial, serial, "serial mismatch")
+				assert.Equal(t, tt.wantRest, rest, "rest mismatch")
+			}
+		})
+	}
+}
+
+// TestProcessSendRequest verifies ZeBGP→Process request/response.
+//
+// VALIDATES: Request sent with alpha serial, response received and correlated.
+//
+// PREVENTS: Request/response mismatch, timeout issues.
+func TestProcessSendRequest(t *testing.T) {
+	// Create a script that echoes back responses
+	// When it receives "#abc command", it responds with "@abc done"
+	script := filepath.Join(t.TempDir(), "echo.sh")
+	writeScript(t, script, `#!/bin/sh
+while IFS= read -r line; do
+  # Extract serial (part after # and before space)
+  serial=$(echo "$line" | sed -n 's/^#\([^ ]*\).*/\1/p')
+  if [ -n "$serial" ]; then
+    echo "@$serial done"
+  fi
+done
+`)
+
+	proc := NewProcess(ProcessConfig{
+		Name:    "echo",
+		Run:     script,
+		Encoder: "json",
+	})
+
+	err := proc.Start()
+	require.NoError(t, err)
+	defer proc.Stop()
+
+	// Give process time to start
+	time.Sleep(50 * time.Millisecond)
+
+	// Send request
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	resp, err := proc.SendRequest(ctx, "test command")
+	require.NoError(t, err)
+	assert.Equal(t, "done", resp)
+}
+
+// TestProcessSendRequestTimeout verifies request timeout handling.
+//
+// VALIDATES: Request times out when process doesn't respond.
+//
+// PREVENTS: Infinite wait on unresponsive process.
+func TestProcessSendRequestTimeout(t *testing.T) {
+	// Create a script that never responds
+	script := filepath.Join(t.TempDir(), "silent.sh")
+	writeScript(t, script, "#!/bin/sh\ncat > /dev/null\n")
+
+	proc := NewProcess(ProcessConfig{
+		Name:    "silent",
+		Run:     script,
+		Encoder: "json",
+	})
+
+	err := proc.Start()
+	require.NoError(t, err)
+	defer proc.Stop()
+
+	// Give process time to start
+	time.Sleep(50 * time.Millisecond)
+
+	// Send request with short timeout
+	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+	defer cancel()
+
+	_, err = proc.SendRequest(ctx, "test")
+	assert.ErrorIs(t, err, context.DeadlineExceeded)
+}
+
+// TestProcessSendRequestMultiple verifies multiple concurrent requests.
+//
+// VALIDATES: Multiple requests get correct responses via serial correlation.
+//
+// PREVENTS: Response mixup between concurrent requests.
+func TestProcessSendRequestMultiple(t *testing.T) {
+	// Create a script that echoes back responses with delay
+	script := filepath.Join(t.TempDir(), "multi.sh")
+	writeScript(t, script, `#!/bin/sh
+while IFS= read -r line; do
+  serial=$(echo "$line" | sed -n 's/^#\([^ ]*\) \(.*\)/\1/p')
+  data=$(echo "$line" | sed -n 's/^#\([^ ]*\) \(.*\)/\2/p')
+  if [ -n "$serial" ]; then
+    echo "@$serial got $data"
+  fi
+done
+`)
+
+	proc := NewProcess(ProcessConfig{
+		Name:    "multi",
+		Run:     script,
+		Encoder: "json",
+	})
+
+	err := proc.Start()
+	require.NoError(t, err)
+	defer proc.Stop()
+
+	time.Sleep(50 * time.Millisecond)
+
+	// Send multiple requests
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	resp1, err := proc.SendRequest(ctx, "first")
+	require.NoError(t, err)
+	assert.Equal(t, "got first", resp1)
+
+	resp2, err := proc.SendRequest(ctx, "second")
+	require.NoError(t, err)
+	assert.Equal(t, "got second", resp2)
 }

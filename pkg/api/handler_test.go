@@ -508,7 +508,7 @@ func TestHandleAnnounceIPv4_RejectsVPNKeywords(t *testing.T) {
 			require.Error(t, err, "expected error for invalid keyword")
 			require.NotNil(t, resp)
 			assert.Equal(t, "error", resp.Status)
-			assert.Contains(t, resp.Error, tt.errMsg)
+			assert.Contains(t, resp.Data.(string), tt.errMsg) //nolint:forcetypeassert // test code
 		})
 	}
 }
@@ -546,7 +546,7 @@ func TestHandleAnnounceIPv6_RejectsVPNKeywords(t *testing.T) {
 			require.Error(t, err, "expected error for invalid keyword")
 			require.NotNil(t, resp)
 			assert.Equal(t, "error", resp.Status)
-			assert.Contains(t, resp.Error, tt.errMsg)
+			assert.Contains(t, resp.Data.(string), tt.errMsg) //nolint:forcetypeassert // test code
 		})
 	}
 }
@@ -566,7 +566,7 @@ func TestHandleAnnounceRoute_RejectsVPNKeywords(t *testing.T) {
 	require.Error(t, err)
 	require.NotNil(t, resp)
 	assert.Equal(t, "error", resp.Status)
-	assert.Contains(t, resp.Error, "rd")
+	assert.Contains(t, resp.Data.(string), "rd") //nolint:forcetypeassert // test code
 }
 
 // TestHandleAnnounceIPv4_ValidKeywords verifies valid unicast keywords work.
@@ -851,7 +851,7 @@ func TestHandleAnnounceL3VPN_RequiresRD(t *testing.T) {
 	require.Error(t, err)
 	require.NotNil(t, resp)
 	assert.Equal(t, "error", resp.Status)
-	assert.Contains(t, resp.Error, "rd")
+	assert.Contains(t, resp.Data.(string), "rd") //nolint:forcetypeassert // test code
 }
 
 // TestHandleAnnounceL3VPN_RequiresLabel verifies label is required for L3VPN.
@@ -870,7 +870,7 @@ func TestHandleAnnounceL3VPN_RequiresLabel(t *testing.T) {
 	require.Error(t, err)
 	require.NotNil(t, resp)
 	assert.Equal(t, "error", resp.Status)
-	assert.Contains(t, resp.Error, "label")
+	assert.Contains(t, resp.Data.(string), "label") //nolint:forcetypeassert // test code
 }
 
 // TestHandleAnnounceL3VPN_WithRT verifies Route Target support.
@@ -1036,7 +1036,7 @@ func TestHandleAnnounceLabeledUnicast_RequiresLabel(t *testing.T) {
 	require.Error(t, err)
 	require.NotNil(t, resp)
 	assert.Equal(t, "error", resp.Status)
-	assert.Contains(t, resp.Error, "label")
+	assert.Contains(t, resp.Data.(string), "label") //nolint:forcetypeassert // test code
 }
 
 // TestHandleAnnounceLabeledUnicast_RejectsRD verifies RD is rejected.
@@ -1055,7 +1055,7 @@ func TestHandleAnnounceLabeledUnicast_RejectsRD(t *testing.T) {
 	require.Error(t, err)
 	require.NotNil(t, resp)
 	assert.Equal(t, "error", resp.Status)
-	assert.Contains(t, resp.Error, "rd")
+	assert.Contains(t, resp.Data.(string), "rd") //nolint:forcetypeassert // test code
 }
 
 // TestHandleAnnounceLabeledUnicast_WithAttributes verifies standard attributes work.
@@ -1266,7 +1266,7 @@ func TestHandleTeardown_MissingSubcode(t *testing.T) {
 	require.Error(t, err)
 	require.NotNil(t, resp)
 	assert.Equal(t, "error", resp.Status)
-	assert.Contains(t, resp.Error, "usage")
+	assert.Contains(t, resp.Data.(string), "usage") //nolint:forcetypeassert // test code
 }
 
 // TestHandleTeardown_InvalidSubcode verifies error on non-numeric subcode.

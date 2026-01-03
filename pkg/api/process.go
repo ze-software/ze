@@ -64,8 +64,13 @@ type Process struct {
 	running atomic.Bool
 
 	// Session state (per-process API connection state)
-	ackEnabled  atomic.Bool // Whether to send "done" responses (default: true)
+	// Note: ACK is controlled by serial prefix (#N), not per-process state
 	syncEnabled atomic.Bool // Whether to wait for wire transmission (default: false)
+
+	// ZeBGP→Process request tracking
+	nextSerial      atomic.Uint64          // Counter for alpha serial generation
+	pendingRequests map[string]chan string // serial -> response channel
+	pendingMu       sync.Mutex             // Protects pendingRequests
 
 	ctx    context.Context
 	cancel context.CancelFunc
@@ -75,28 +80,15 @@ type Process struct {
 
 // NewProcess creates a new process with the given configuration.
 func NewProcess(config ProcessConfig) *Process {
-	p := &Process{
-		config: config,
+	return &Process{
+		config:          config,
+		pendingRequests: make(map[string]chan string),
 	}
-	// Default: ack enabled, sync disabled
-	p.ackEnabled.Store(true)
-	return p
 }
 
 // Running returns true if the process is running.
 func (p *Process) Running() bool {
 	return p.running.Load()
-}
-
-// AckEnabled returns true if ACK responses are enabled for this process.
-// When enabled (default), "done" responses are sent after commands.
-func (p *Process) AckEnabled() bool {
-	return p.ackEnabled.Load()
-}
-
-// SetAck enables or disables ACK responses for this process.
-func (p *Process) SetAck(enabled bool) {
-	p.ackEnabled.Store(enabled)
 }
 
 // SyncEnabled returns true if sync mode is enabled for this process.
@@ -212,6 +204,7 @@ func (p *Process) StartWithContext(ctx context.Context) error {
 }
 
 // readLines continuously reads lines from stdout and sends to channel.
+// Lines starting with @N are routed to pending request handlers.
 func (p *Process) readLines() {
 	for {
 		line, err := p.reader.ReadString('\n')
@@ -223,8 +216,45 @@ func (p *Process) readLines() {
 		if len(line) > 0 && line[len(line)-1] == '\n' {
 			line = line[:len(line)-1]
 		}
+
+		// Check for @N response prefix (ZeBGP→Process request response)
+		if serial, response, ok := parseResponseSerial(line); ok {
+			p.pendingMu.Lock()
+			if ch, found := p.pendingRequests[serial]; found {
+				select {
+				case ch <- response:
+				default:
+					// Channel full or closed, ignore
+				}
+			}
+			p.pendingMu.Unlock()
+			continue // Don't send to normal command channel
+		}
+
 		p.lines <- line
 	}
+}
+
+// parseResponseSerial extracts @N prefix from response line.
+// Returns (serial, rest, true) if @N prefix found, ("", "", false) otherwise.
+func parseResponseSerial(line string) (string, string, bool) {
+	if len(line) < 2 || line[0] != '@' {
+		return "", "", false
+	}
+	// Find space after @serial
+	idx := 1
+	for idx < len(line) && line[idx] != ' ' {
+		idx++
+	}
+	if idx == 1 {
+		return "", "", false // Just "@" with no serial
+	}
+	serial := line[1:idx]
+	rest := ""
+	if idx < len(line) {
+		rest = line[idx+1:] // Skip the space
+	}
+	return serial, rest, true
 }
 
 // Stop terminates the process.
@@ -297,6 +327,50 @@ func (p *Process) WriteEvent(event string) error {
 			}
 		}
 		return nil // Don't return error to avoid blocking caller
+	}
+}
+
+// SendRequest sends a request to the process and waits for response.
+// Uses alpha serial encoding to avoid collision with process numeric serials.
+// Returns the response text (after @serial prefix) or error on timeout.
+func (p *Process) SendRequest(ctx context.Context, command string) (string, error) {
+	if !p.running.Load() {
+		return "", os.ErrClosed
+	}
+
+	// Generate alpha serial
+	n := p.nextSerial.Add(1) - 1
+	serial := encodeAlphaSerial(n)
+
+	// Create response channel
+	respCh := make(chan string, 1)
+
+	// Register pending request
+	p.pendingMu.Lock()
+	p.pendingRequests[serial] = respCh
+	p.pendingMu.Unlock()
+
+	// Cleanup on exit
+	defer func() {
+		p.pendingMu.Lock()
+		delete(p.pendingRequests, serial)
+		p.pendingMu.Unlock()
+	}()
+
+	// Send request: #serial command
+	request := fmt.Sprintf("#%s %s", serial, command)
+	if err := p.WriteEvent(request); err != nil {
+		return "", err
+	}
+
+	// Wait for response
+	select {
+	case resp := <-respCh:
+		return resp, nil
+	case <-ctx.Done():
+		return "", ctx.Err()
+	case <-p.ctx.Done():
+		return "", os.ErrClosed
 	}
 }
 

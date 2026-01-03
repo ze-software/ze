@@ -35,7 +35,7 @@ func handleCommit(ctx *CommandContext, args []string) (*Response, error) {
 	if len(args) == 0 {
 		return &Response{
 			Status: "error",
-			Error:  "usage: commit <name> <start|end|eor|rollback|show> or commit list",
+			Data:   "usage: commit <name> <start|end|eor|rollback|show> or commit list",
 		}, fmt.Errorf("missing commit arguments")
 	}
 
@@ -47,7 +47,7 @@ func handleCommit(ctx *CommandContext, args []string) (*Response, error) {
 	if len(args) < 2 {
 		return &Response{
 			Status: "error",
-			Error:  "usage: commit <name> <start|end|eor|rollback|show>",
+			Data:   "usage: commit <name> <start|end|eor|rollback|show>",
 		}, fmt.Errorf("missing action for commit %q", args[0])
 	}
 
@@ -70,7 +70,7 @@ func handleCommit(ctx *CommandContext, args []string) (*Response, error) {
 		if len(args) < 3 {
 			return &Response{
 				Status: "error",
-				Error:  "usage: commit <name> announce route <prefix> next-hop <addr>",
+				Data:   "usage: commit <name> announce route <prefix> next-hop <addr>",
 			}, fmt.Errorf("missing announce arguments")
 		}
 		return handleNamedCommitAnnounce(ctx, name, args[2:])
@@ -79,14 +79,14 @@ func handleCommit(ctx *CommandContext, args []string) (*Response, error) {
 		if len(args) < 3 {
 			return &Response{
 				Status: "error",
-				Error:  "usage: commit <name> withdraw route <prefix>",
+				Data:   "usage: commit <name> withdraw route <prefix>",
 			}, fmt.Errorf("missing withdraw arguments")
 		}
 		return handleNamedCommitWithdraw(ctx, name, args[2:])
 	default:
 		return &Response{
 			Status: "error",
-			Error:  fmt.Sprintf("unknown commit action: %s", action),
+			Data:   fmt.Sprintf("unknown commit action: %s", action),
 		}, fmt.Errorf("unknown commit action: %s", action)
 	}
 }
@@ -110,7 +110,7 @@ func handleNamedCommitStart(ctx *CommandContext, name string) (*Response, error)
 	if err := ctx.CommitManager.Start(name, peerSelector); err != nil {
 		return &Response{
 			Status: "error",
-			Error:  fmt.Sprintf("failed to start commit: %v", err),
+			Data:   fmt.Sprintf("failed to start commit: %v", err),
 		}, err
 	}
 
@@ -131,7 +131,7 @@ func handleNamedCommitEnd(ctx *CommandContext, name string, sendEOR bool) (*Resp
 	if err != nil {
 		return &Response{
 			Status: "error",
-			Error:  fmt.Sprintf("commit failed: %v", err),
+			Data:   fmt.Sprintf("commit failed: %v", err),
 		}, err
 	}
 
@@ -161,7 +161,7 @@ func handleNamedCommitEnd(ctx *CommandContext, name string, sendEOR bool) (*Resp
 	if err != nil {
 		return &Response{
 			Status: "error",
-			Error:  fmt.Sprintf("failed to send routes: %v", err),
+			Data:   fmt.Sprintf("failed to send routes: %v", err),
 		}, err
 	}
 
@@ -191,7 +191,7 @@ func handleNamedCommitRollback(ctx *CommandContext, name string) (*Response, err
 	if err != nil {
 		return &Response{
 			Status: "error",
-			Error:  fmt.Sprintf("rollback failed: %v", err),
+			Data:   fmt.Sprintf("rollback failed: %v", err),
 		}, err
 	}
 
@@ -211,7 +211,7 @@ func handleNamedCommitShow(ctx *CommandContext, name string) (*Response, error) 
 	if err != nil {
 		return &Response{
 			Status: "error",
-			Error:  fmt.Sprintf("commit not found: %v", err),
+			Data:   fmt.Sprintf("commit not found: %v", err),
 		}, err
 	}
 
@@ -240,7 +240,7 @@ func handleNamedCommitAnnounce(ctx *CommandContext, name string, args []string) 
 	if err != nil {
 		return &Response{
 			Status: "error",
-			Error:  fmt.Sprintf("commit not found: %v", err),
+			Data:   fmt.Sprintf("commit not found: %v", err),
 		}, err
 	}
 
@@ -248,14 +248,14 @@ func handleNamedCommitAnnounce(ctx *CommandContext, name string, args []string) 
 	if len(args) < 1 || !strings.EqualFold(args[0], "route") {
 		return &Response{
 			Status: "error",
-			Error:  "usage: commit <name> announce route <prefix> next-hop <addr>",
+			Data:   "usage: commit <name> announce route <prefix> next-hop <addr>",
 		}, fmt.Errorf("expected 'route' keyword")
 	}
 
 	if len(args) < 4 {
 		return &Response{
 			Status: "error",
-			Error:  "usage: commit <name> announce route <prefix> next-hop <addr>",
+			Data:   "usage: commit <name> announce route <prefix> next-hop <addr>",
 		}, fmt.Errorf("missing route arguments")
 	}
 
@@ -264,7 +264,7 @@ func handleNamedCommitAnnounce(ctx *CommandContext, name string, args []string) 
 	if err != nil {
 		return &Response{
 			Status: "error",
-			Error:  fmt.Sprintf("invalid prefix: %s", args[1]),
+			Data:   fmt.Sprintf("invalid prefix: %s", args[1]),
 		}, err
 	}
 
@@ -276,7 +276,7 @@ func handleNamedCommitAnnounce(ctx *CommandContext, name string, args []string) 
 			if err != nil {
 				return &Response{
 					Status: "error",
-					Error:  fmt.Sprintf("invalid next-hop: %s", args[i+1]),
+					Data:   fmt.Sprintf("invalid next-hop: %s", args[i+1]),
 				}, err
 			}
 			break
@@ -286,7 +286,7 @@ func handleNamedCommitAnnounce(ctx *CommandContext, name string, args []string) 
 	if !nextHop.IsValid() {
 		return &Response{
 			Status: "error",
-			Error:  "missing next-hop",
+			Data:   "missing next-hop",
 		}, fmt.Errorf("missing next-hop")
 	}
 
@@ -322,7 +322,7 @@ func handleNamedCommitWithdraw(ctx *CommandContext, name string, args []string) 
 	if err != nil {
 		return &Response{
 			Status: "error",
-			Error:  fmt.Sprintf("commit not found: %v", err),
+			Data:   fmt.Sprintf("commit not found: %v", err),
 		}, err
 	}
 
@@ -330,14 +330,14 @@ func handleNamedCommitWithdraw(ctx *CommandContext, name string, args []string) 
 	if len(args) < 1 || !strings.EqualFold(args[0], "route") {
 		return &Response{
 			Status: "error",
-			Error:  "usage: commit <name> withdraw route <prefix>",
+			Data:   "usage: commit <name> withdraw route <prefix>",
 		}, fmt.Errorf("expected 'route' keyword")
 	}
 
 	if len(args) < 2 {
 		return &Response{
 			Status: "error",
-			Error:  "usage: commit <name> withdraw route <prefix>",
+			Data:   "usage: commit <name> withdraw route <prefix>",
 		}, fmt.Errorf("missing prefix")
 	}
 
@@ -346,7 +346,7 @@ func handleNamedCommitWithdraw(ctx *CommandContext, name string, args []string) 
 	if err != nil {
 		return &Response{
 			Status: "error",
-			Error:  fmt.Sprintf("invalid prefix: %s", args[1]),
+			Data:   fmt.Sprintf("invalid prefix: %s", args[1]),
 		}, err
 	}
 

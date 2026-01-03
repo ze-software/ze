@@ -119,19 +119,32 @@ withdraw route 10.0.0.0/8
 3. Executed against matching peers
 4. Acknowledged (if enabled)
 
-### ACK/NAK
+### Command Serial (ACK Control)
 
-If `api.ack = true`:
+ACK is controlled by `#N` serial prefix on commands:
 
-```json
-{"type":"done"}
+```
+# No serial = fire-and-forget (no response)
+announce route 10.0.0.0/8 next-hop 192.168.1.1
+
+# With serial = get JSON response
+#1 announce route 10.0.0.0/8 next-hop 192.168.1.1
 ```
 
-On error:
+**Response format:**
 
+Success:
 ```json
-{"type":"error","error":"invalid command"}
+{"serial":"1","status":"done"}
+{"serial":"2","status":"done","data":{"routes":5}}
 ```
+
+Error:
+```json
+{"serial":"3","status":"error","data":"invalid command"}
+```
+
+**Process controls serial numbering.** ZeBGP echoes serial back for correlation.
 
 ---
 

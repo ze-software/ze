@@ -17,6 +17,7 @@ Read when working on specific areas:
 | ExaBGP compat | `zebgp/EXABGP_COMPATIBILITY.md` |
 | FSM | `zebgp/behavior/FSM.md` |
 | API | `zebgp/api/ARCHITECTURE.md` |
+| API Capabilities | `zebgp/api/CAPABILITY_CONTRACT.md` |
 | Config syntax | `zebgp/config/SYNTAX.md` |
 
 ## Rules (auto-loaded by path)

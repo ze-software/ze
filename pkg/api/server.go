@@ -235,6 +235,62 @@ func (s *Server) handleProcessCommands() {
 	procWg.Wait()
 }
 
+// parseSerial extracts #N prefix from command line.
+// Returns (serial, command) where serial is empty if no prefix.
+// Only recognizes numeric serials: "#1 cmd", "#123 cmd", not "# comment".
+func parseSerial(line string) (string, string) {
+	if !strings.HasPrefix(line, "#") {
+		return "", line
+	}
+	// Find first space
+	idx := strings.Index(line, " ")
+	if idx <= 1 {
+		return "", line // No space after # or just "#"
+	}
+	// Check if characters between # and space are all digits
+	serial := line[1:idx]
+	for _, c := range serial {
+		if c < '0' || c > '9' {
+			return "", line // Not a numeric serial
+		}
+	}
+	return serial, line[idx+1:]
+}
+
+// isComment returns true if line is a comment (starts with "# ").
+func isComment(line string) bool {
+	return strings.HasPrefix(line, "# ")
+}
+
+// encodeAlphaSerial converts a number to alpha serial by shifting digits.
+// 0->a, 1->b, ..., 9->j. Example: 123 -> "bcd", 0 -> "a", 99 -> "jj".
+// Used for ZeBGP-initiated requests to avoid collision with numeric process serials.
+func encodeAlphaSerial(n uint64) string {
+	if n == 0 {
+		return "a"
+	}
+	var result []byte
+	for n > 0 {
+		digit := n % 10
+		result = append([]byte{byte('a' + digit)}, result...)
+		n /= 10
+	}
+	return string(result)
+}
+
+// isAlphaSerial returns true if serial uses alpha encoding (a-j digits).
+func isAlphaSerial(serial string) bool {
+	if serial == "" {
+		return false
+	}
+	for _, c := range serial {
+		if c < 'a' || c > 'j' {
+			return false
+		}
+	}
+	return true
+}
+
 // handleSingleProcessCommands handles commands from a single process.
 func (s *Server) handleSingleProcessCommands(proc *Process) {
 	cmdCtx := &CommandContext{
@@ -271,20 +327,25 @@ func (s *Server) handleSingleProcessCommands(proc *Process) {
 			continue
 		}
 
+		// Parse #N serial prefix
+		serial, cmd := parseSerial(line)
+		cmdCtx.Serial = serial
+
 		// Dispatch command
-		resp, err := s.dispatcher.Dispatch(cmdCtx, line)
+		resp, err := s.dispatcher.Dispatch(cmdCtx, cmd)
 		if err != nil {
 			// ErrSilent means suppress response entirely
 			if errors.Is(err, ErrSilent) {
 				continue
 			}
-			resp = &Response{Status: "error", Error: err.Error()}
+			resp = &Response{Status: "error", Data: err.Error()}
 		}
 
-		// Send response back to process stdin (if ack enabled or error)
-		if resp != nil && (resp.Status == "error" || proc.AckEnabled()) {
+		// Send response only if serial present (serial = ack)
+		if serial != "" && resp != nil {
+			resp.Serial = serial
 			respJSON, _ := json.Marshal(resp)
-			_ = proc.WriteEvent(strings.TrimSuffix(string(respJSON), "\n"))
+			_ = proc.WriteEvent(string(respJSON))
 		}
 	}
 }
@@ -340,22 +401,26 @@ func (s *Server) clientLoop(client *Client) {
 			continue
 		}
 
-		// Skip comments
-		if strings.HasPrefix(line, "#") {
+		// Skip comments (lines starting with "# ")
+		if isComment(line) {
 			continue
 		}
 
-		// Process command
+		// Process command (handles #N serial prefix)
 		s.processCommand(client, line)
 	}
 }
 
 // processCommand dispatches a command and sends response.
-func (s *Server) processCommand(client *Client, command string) {
+func (s *Server) processCommand(client *Client, line string) {
+	// Parse #N serial prefix
+	serial, command := parseSerial(line)
+
 	ctx := &CommandContext{
 		Reactor:       s.reactor,
 		Encoder:       s.encoder,
 		CommitManager: s.commitManager,
+		Serial:        serial,
 		// Note: Process is nil for socket clients - session commands are no-ops
 	}
 
@@ -366,28 +431,29 @@ func (s *Server) processCommand(client *Client, command string) {
 			return
 		}
 		// Send error response
-		errResp := &Response{
+		resp = &Response{
 			Status: "error",
-			Error:  err.Error(),
+			Data:   err.Error(),
 		}
-		s.sendResponse(client, errResp)
-		return
 	}
 
-	s.sendResponse(client, resp)
+	// Socket clients always get responses, serial in JSON body
+	if resp != nil {
+		resp.Serial = serial
+		s.sendResponse(client, resp)
+	}
 }
 
 // sendResponse sends a JSON response to the client.
+// Serial is included in JSON body, not as prefix.
 func (s *Server) sendResponse(client *Client, resp *Response) {
 	data, err := json.Marshal(resp)
 	if err != nil {
 		// Fallback error response
-		data = []byte(`{"status":"error","error":"json marshal failed"}`)
+		data = []byte(`{"status":"error","data":"json marshal failed"}`)
 	}
 
-	// Append newline
 	data = append(data, '\n')
-
 	_, _ = client.conn.Write(data)
 }
 

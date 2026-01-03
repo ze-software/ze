@@ -38,13 +38,14 @@
 | `spec-route-families.md` | FlowSpec/VPLS/EVPN keyword validation |
 | `spec-update-builder.md` | Fluent UPDATE builder pattern |
 | `spec-format-based-migration.md` | Config migration with transformations |
+| `spec-api-command-serial.md` | API command serial numbers (ACK control) |
 
 ### 📋 Implementation Specs (Active)
 
 | Spec | Description | Priority |
 |------|-------------|----------|
 | `spec-peer-encoding-extraction.md` | Extract UPDATE builders from peer.go | High |
-| `spec-pool-integration.md` | Wire RouteStore to components | Medium |
+| `spec-pool-handle-migration.md` | Single UPDATE pool, derived accessors | High |
 | `spec-rfc7606-validation-cache.md` | Validation result caching (optional) | Low |
 
 ### 📋 Feature Plans (Not Yet Specs)
@@ -111,4 +112,4 @@ plan/
 
 ---
 
-**Last Updated:** 2026-01-01
+**Last Updated:** 2026-01-03

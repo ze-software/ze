@@ -1,5 +1,9 @@
 # API Architecture
 
+> **⚠️ PLANNED CHANGE:** Adj-RIB-Out will be removed from router core.
+> See `plan/spec-remove-adjrib-integration.md` and `.claude/zebgp/api/CAPABILITY_CONTRACT.md`.
+> Route refresh will be delegated to external API programs.
+
 ## TL;DR (Read This First)
 
 | Concept | Description |
@@ -143,7 +147,6 @@ type Process struct {
     stdout io.ReadCloser
 
     // Session state
-    ackEnabled  atomic.Bool    // Send "done" responses
     syncEnabled atomic.Bool    // Wait for wire transmission
 
     // Backpressure
@@ -153,9 +156,10 @@ type Process struct {
 ```
 
 Features:
-- Per-process session state (ACK/sync mode)
+- Per-process session state (sync mode)
 - Write queue with backpressure (high: 1000, low: 100)
 - Respawn limits (max 5 per 60 seconds)
+- **ACK controlled by serial prefix** (`#N` in command)
 
 ## Route Injection Flow
 
@@ -375,10 +379,37 @@ func buildAnnounceUpdate(route RouteSpec, localAS uint32,
 
 | Command | Effect |
 |---------|--------|
-| `session ack enable` | Send "done" after each command |
-| `session ack disable` | No acknowledgments |
 | `session sync enable` | Wait for wire transmission |
 | `session sync disable` | Return immediately |
+| `session reset` | Reset session state |
+| `session ping` | Health check |
+| `session bye` | Client disconnect |
+
+### Command Serial (ACK Control)
+
+ACK is controlled by serial prefix, not session commands:
+
+```
+# No serial = fire-and-forget (no response)
+announce route 10.0.0.0/24 next-hop 1.2.3.4
+
+# With serial = get response
+#1 announce route 10.0.0.0/24 next-hop 1.2.3.4
+→ {"serial":"1","status":"done"}
+
+# Error response
+#2 bad command
+→ {"serial":"2","status":"error","data":"unknown command"}
+```
+
+Response format:
+```go
+type Response struct {
+    Serial string `json:"serial"`          // Correlation ID
+    Status string `json:"status"`          // "done" or "error"
+    Data   any    `json:"data,omitempty"`  // Payload
+}
+```
 
 ## Adj-RIB-Out
 

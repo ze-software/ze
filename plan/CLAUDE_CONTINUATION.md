@@ -35,9 +35,105 @@ make functional - 37 encoding + 14 api + 10 parsing + 18 decoding ✅
 ## Resume Point
 
 **Last worked:** 2026-01-03
-**Last commit:** `4a01500` feat(api): add msg-id to all message types (OPEN, NOTIFICATION, KEEPALIVE)
+**Last commit:** `a061622` refactor(reactor): remove Adj-RIB-Out from router core
 
-**Status:** API output format complete. Design transition document created.
+**Status:** API Command Serial implemented. ACK controlled by `#N` prefix.
+
+---
+
+## RECENTLY COMPLETED: API Command Serial Numbers
+
+**Spec:** `plan/done/spec-api-command-serial.md`
+
+### Summary
+
+Added serial numbers to API commands for request/response correlation. ACK is now controlled by `#N` prefix instead of session commands.
+
+### Protocol
+
+```
+# Fire-and-forget (no response)
+announce route 10.0.0.0/24 next-hop 1.2.3.4
+
+# With serial (gets JSON response)
+#1 announce route 10.0.0.0/24 next-hop 1.2.3.4
+→ {"serial":"1","status":"done"}
+
+# Error
+#2 bad command
+→ {"serial":"2","status":"error","data":"unknown command"}
+```
+
+### Changes
+
+| File | Change |
+|------|--------|
+| `pkg/api/types.go` | Response struct: Serial, Status, Data (removed Error) |
+| `pkg/api/server.go` | parseSerial(), isComment(), serial handling |
+| `pkg/api/command.go` | Serial field in CommandContext |
+| `pkg/api/session.go` | Removed ack enable/disable/silence commands |
+| `pkg/api/process.go` | Removed ackEnabled state |
+| `pkg/api/*.go` | Updated Error→Data in all Response constructions |
+
+### Key Decisions
+
+1. **Serial = ACK**: No serial prefix = fire-and-forget, with serial = get response
+2. **Numeric only**: `#123` is serial, `# comment` is comment
+3. **JSON body only**: Serial in JSON, no `@N` prefix (redundant)
+4. **Process controls serial**: ZeBGP echoes, doesn't generate (except ZeBGP→Process requests)
+
+### Verification
+```
+make test       - PASS
+make lint       - 0 issues ✅
+```
+
+---
+
+## RECENTLY COMPLETED: Remove Adj-RIB-Out from Router Core
+
+**Spec:** `plan/done/spec-remove-adjrib-integration.md`
+
+### Summary
+
+Removed Adj-RIB-Out tracking from router core. Route persistence now delegated to external API program (`zebgp-rr`).
+
+### Decisions Made
+
+1. **Transactions:** Removed per-peer OutgoingRIB transactions (CommitManager via `commit <name>` remains)
+2. **opQueue:** Kept (unrelated - handles pre-session buffering)
+3. **Re-announcement on reconnect:** Removed (external API re-sends via refresh)
+4. **zebgp-rr:** TODO, not a prerequisite
+
+### Changes
+
+| File | Change |
+|------|--------|
+| `pkg/reactor/peer.go` | Removed `adjRIBOut` field, `AdjRIBOut()` accessor, sent tracking |
+| `pkg/reactor/reactor.go` | Removed `ribOut` field, simplified announce/withdraw, deprecated transaction methods |
+| `pkg/api/handler.go` | Removed `rib show/clear/flush out` commands |
+| `pkg/api/types.go` | Added deprecation notices to interface methods |
+| `pkg/reactor/adjribout_forward_test.go` | Deleted |
+
+### Behavioral Changes
+
+| Before | After |
+|--------|-------|
+| Session reconnect re-sends routes from Adj-RIB-Out | No automatic re-send |
+| Forward update tracked for reconnect | One-shot, not tracked |
+| `BeginTransaction()` starts per-peer transaction | Returns error (use `commit <name> start`) |
+
+### What Stays
+
+- `pkg/rib/` package (for external zebgp-rr)
+- CommitManager batching (`commit <name> start/end/rollback`)
+- `RIBOutConfig` in config (for batching options, not runtime tracking)
+
+### Verification
+```
+make test       - PASS
+make lint       - 0 issues ✅
+```
 
 ---
 
@@ -63,7 +159,6 @@ Documented the Pool + Wire lazy parsing design and updated all live specs to ref
 | `DESIGN_TRANSITION.md` | **NEW** - master architecture document |
 | `spec-static-route-updatebuilder.md` | Marked RIB section obsolete |
 | `spec-context-full-integration.md` | Added Pool+Wire notes |
-| `spec-pool-integration.md` | Marked as superseded |
 | `spec-unified-handle-nlri.md` | Updated execution order |
 | `spec-pool-handle-migration.md` | Marked as primary implementation spec |
 | `spec-adjribout-memory-profiling.md` | Added target memory model |
@@ -74,8 +169,7 @@ Documented the Pool + Wire lazy parsing design and updated all live specs to ref
 | Old Plan | New Plan |
 |----------|----------|
 | Convert `buildRIBRouteUpdate` to UpdateBuilder | Delete it, use pool forwarding |
-| Implement `spec-pool-integration.md` factories | Skip, go directly to pool handles |
-| Store parsed `[]Attribute` in Route | Store `pool.Handle` instead |
+| Store parsed `[]Attribute` in Route | Store single `pool.Handle` instead |
 
 ### Implementation Order
 
@@ -495,7 +589,6 @@ See `plan/DESIGN_TRANSITION.md` for overall architecture.
 
 | Spec | Reason |
 |------|--------|
-| `spec-pool-integration.md` | Factory methods obsolete, go directly to pool handles |
 | `spec-static-route-updatebuilder.md` (RIB section) | Use pool forwarding, not UpdateBuilder |
 
 ### Other Specs
@@ -508,9 +601,11 @@ See `plan/DESIGN_TRANSITION.md` for overall architecture.
 | `phase0-peer-callbacks.md` | Peer lifecycle | Ready (independent) |
 
 ### Recently Completed (in plan/done/)
+- `spec-api-command-serial.md` - API command serial numbers ✅
+- `spec-remove-adjrib-integration.md` - Adj-RIB-Out removed from router core ✅
 - `spec-attributes-wire.md` - Wire-canonical storage ✅
 - `spec-route-id-forwarding.md` - Route ID forwarding ✅
-- `spec-adj-rib-out-forward.md` - Adj-RIB-Out forward ✅
+- `spec-adj-rib-out-forward.md` - Adj-RIB-Out forward (superseded by removal) ✅
 - `debug-teardown-timing.md` - Teardown timing issue ✅
 
 ---
