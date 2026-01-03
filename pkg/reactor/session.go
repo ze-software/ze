@@ -36,9 +36,10 @@ var (
 // It integrates the FSM, timers, and message I/O to drive the BGP
 // state machine through the connection lifecycle.
 
-// MessageCallback is called when any BGP message is received.
+// MessageCallback is called when a BGP message is sent or received.
 // peerAddr is the peer's address, msgType is the message type, rawBytes is the body (without header).
-type MessageCallback func(peerAddr netip.Addr, msgType message.MessageType, rawBytes []byte)
+// direction is "sent" or "received".
+type MessageCallback func(peerAddr netip.Addr, msgType message.MessageType, rawBytes []byte, direction string)
 
 type Session struct {
 	mu sync.RWMutex
@@ -560,7 +561,7 @@ func (s *Session) processMessage(hdr *message.Header, body []byte) error {
 	// Notify raw message receiver before parsing.
 	// This allows receivers to access wire bytes for format=raw or format=full.
 	if s.onMessageReceived != nil {
-		s.onMessageReceived(s.settings.Address, hdr.Type, body)
+		s.onMessageReceived(s.settings.Address, hdr.Type, body, "received")
 	}
 
 	switch hdr.Type { //nolint:exhaustive // Unknown types handled in default
@@ -1055,7 +1056,18 @@ func (s *Session) writeMessage(conn net.Conn, neg *capability.Negotiated, msg me
 	}
 
 	_, err = conn.Write(data)
-	return err
+	if err != nil {
+		return err
+	}
+
+	// Notify callback after successful send.
+	// Body is data after the 19-byte header (16-byte marker + 2-byte length + 1-byte type).
+	if s.onMessageReceived != nil && len(data) >= message.HeaderLen {
+		body := data[message.HeaderLen:]
+		s.onMessageReceived(s.settings.Address, msg.Type(), body, "sent")
+	}
+
+	return nil
 }
 
 // TriggerHoldTimerExpiry triggers the hold timer expiry event.

@@ -2410,9 +2410,10 @@ func (r *Reactor) SetMessageReceiver(receiver MessageReceiver) {
 }
 
 // notifyMessageReceiver notifies the message receiver of a raw BGP message.
-// Called from session when any BGP message is received, before parsing.
+// Called from session when a BGP message is sent or received.
 // peerAddr is used to look up full PeerInfo from the peers map.
-func (r *Reactor) notifyMessageReceiver(peerAddr netip.Addr, msgType message.MessageType, rawBytes []byte) {
+// direction is "sent" or "received".
+func (r *Reactor) notifyMessageReceiver(peerAddr netip.Addr, msgType message.MessageType, rawBytes []byte, direction string) {
 	r.mu.RLock()
 	receiver := r.messageReceiver
 	peer, hasPeer := r.peers[peerAddr.String()]
@@ -2447,6 +2448,7 @@ func (r *Reactor) notifyMessageReceiver(peerAddr netip.Addr, msgType message.Mes
 		Type:      msgType,
 		RawBytes:  bytesCopy,
 		Timestamp: time.Now(),
+		Direction: direction,
 	}
 
 	// Assign update-id for UPDATE messages (used for forwarding via API)

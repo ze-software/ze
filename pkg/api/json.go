@@ -210,9 +210,10 @@ func (e *JSONEncoder) EOR(peer PeerInfo, family string) string {
 
 // Notification returns JSON for a NOTIFICATION message.
 // ExaBGP fields: code, subcode, data (always present).
-// ZeBGP extensions: code_name, subcode_name, message.
-func (e *JSONEncoder) Notification(peer PeerInfo, notify DecodedNotification) string {
+// ZeBGP extensions: code_name, subcode_name, message, direction.
+func (e *JSONEncoder) Notification(peer PeerInfo, notify DecodedNotification, direction string) string {
 	msg := e.message(peer, "notification")
+	msg["direction"] = direction
 	peerObj := e.peerSection(peer)
 
 	// ExaBGP always includes data field (empty string if no data)
@@ -243,10 +244,11 @@ func (e *JSONEncoder) Notification(peer PeerInfo, notify DecodedNotification) st
 	return e.marshal(msg)
 }
 
-// Open returns JSON for an OPEN message received.
+// Open returns JSON for an OPEN message.
 // Field names match ExaBGP: hold_time, router_id, capabilities (underscores).
-func (e *JSONEncoder) Open(peer PeerInfo, open DecodedOpen) string {
+func (e *JSONEncoder) Open(peer PeerInfo, open DecodedOpen, direction string) string {
 	msg := e.message(peer, "open")
+	msg["direction"] = direction
 	peerObj := e.peerSection(peer)
 
 	// Ensure capabilities is always an array (empty if none)
@@ -267,8 +269,9 @@ func (e *JSONEncoder) Open(peer PeerInfo, open DecodedOpen) string {
 }
 
 // Keepalive returns JSON for a KEEPALIVE message.
-func (e *JSONEncoder) Keepalive(peer PeerInfo) string {
+func (e *JSONEncoder) Keepalive(peer PeerInfo, direction string) string {
 	msg := e.message(peer, "keepalive")
+	msg["direction"] = direction
 	msg["peer"] = e.peerSection(peer)
 	return e.marshal(msg)
 }

@@ -27,17 +27,66 @@
 ```
 make test       - PASS
 make lint       - 0 issues ✅
-make functional - 37/37 passed (100%) ✅
+make functional - 37 encoding + 14 api + 10 parsing + 18 decoding ✅
 ```
 
 ---
 
 ## Resume Point
 
-**Last worked:** 2026-01-02
-**Last commit:** `9eb38b1` refactor(reactor): consolidate AFI/SAFI to nlri.Family, separate negotiation from encoding
+**Last worked:** 2026-01-03
+**Last commit:** (pending) feat(api): add direction to all BGP message output
 
-**Status:** All work committed. AFI/SAFI refactor complete - NegotiatedFamilies replaced with NegotiatedCapabilities.
+**Status:** Direction feature complete. All API output now includes "sent" or "received" direction.
+
+---
+
+## RECENTLY COMPLETED: Message Direction
+
+**Spec:** `plan/spec-message-direction.md`
+
+### Summary
+Added `direction` ("sent"/"received") to all BGP message API output (OPEN, NOTIFICATION, KEEPALIVE, UPDATE).
+
+### Changes
+1. **RawMessage.Direction** - `pkg/api/types.go`
+   - New `Direction string` field ("sent" or "received")
+   - Updated comment to reflect sent/received usage
+
+2. **MessageCallback signature** - `pkg/reactor/session.go`
+   - Added `direction string` parameter
+   - `processMessage()` passes "received"
+   - `writeMessage()` passes "sent" after successful send
+
+3. **Text formatters** - `pkg/api/text.go`
+   - `FormatOpen(peer, open, direction)`
+   - `FormatNotification(peer, notify, direction)`
+   - `FormatKeepalive(peer, direction)`
+   - `formatFilterResultText(peer, result, updateID, direction)`
+   - `formatRawFromResult` includes direction
+
+4. **JSON formatters** - `pkg/api/json.go`
+   - `Open()`, `Notification()`, `Keepalive()` accept direction
+   - `formatFilterResultJSON()` includes `"direction":"..."` field
+
+5. **Reactor integration** - `pkg/reactor/reactor.go`
+   - `notifyMessageReceiver()` accepts direction, sets `msg.Direction`
+
+### Output Format
+```
+peer 10.0.0.1 sent open asn 65000 router-id 2.2.2.2 hold-time 90
+peer 10.0.0.1 received open asn 65001 router-id 1.1.1.1 hold-time 90
+peer 10.0.0.1 received update 1 announce origin igp ...
+peer 10.0.0.1 sent keepalive
+peer 10.0.0.1 received notification code 6 subcode 2 ...
+```
+
+### Verification
+```
+make test       - PASS
+make lint       - 0 issues ✅
+make functional - 37 + 14 + 10 + 18 passed ✅
+```
 
 ---
 

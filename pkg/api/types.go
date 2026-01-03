@@ -443,7 +443,7 @@ func (c ContentConfig) WithDefaults() ContentConfig {
 	return c
 }
 
-// RawMessage represents a BGP message received from a peer.
+// RawMessage represents a BGP message sent or received.
 // Contains raw wire bytes for on-demand parsing based on format config.
 type RawMessage struct {
 	Type      message.MessageType // UPDATE, OPEN, NOTIFICATION, etc.

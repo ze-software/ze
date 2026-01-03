@@ -465,22 +465,22 @@ func (s *Server) formatMessage(peer PeerInfo, msg RawMessage, binding PeerAPIBin
 		// Other message types only use encoding (json/text)
 		decoded := DecodeOpen(msg.RawBytes)
 		if content.Encoding == EncodingJSON {
-			return s.encoder.Open(peer, decoded)
+			return s.encoder.Open(peer, decoded, msg.Direction)
 		}
-		return FormatOpen(peer, decoded)
+		return FormatOpen(peer, decoded, msg.Direction)
 
 	case message.TypeNOTIFICATION:
 		decoded := DecodeNotification(msg.RawBytes)
 		if content.Encoding == EncodingJSON {
-			return s.encoder.Notification(peer, decoded)
+			return s.encoder.Notification(peer, decoded, msg.Direction)
 		}
-		return FormatNotification(peer, decoded)
+		return FormatNotification(peer, decoded, msg.Direction)
 
 	case message.TypeKEEPALIVE:
 		if content.Encoding == EncodingJSON {
-			return s.encoder.Keepalive(peer)
+			return s.encoder.Keepalive(peer, msg.Direction)
 		}
-		return FormatKeepalive(peer)
+		return FormatKeepalive(peer, msg.Direction)
 
 	default:
 		return ""

@@ -70,9 +70,9 @@ peer 10.0.0.1 received keepalive
 9. Run `make test && make lint && make functional`
 
 ## Checklist
-- [ ] Required docs read
-- [ ] Test fails first
-- [ ] Test passes after impl
-- [ ] make test passes
-- [ ] make lint passes
-- [ ] make functional passes
+- [x] Required docs read
+- [x] Test fails first
+- [x] Test passes after impl
+- [x] make test passes
+- [x] make lint passes
+- [x] make functional passes

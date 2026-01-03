@@ -90,6 +90,7 @@ func TestFormatMessageText(t *testing.T) {
 		Type:      message.TypeUPDATE,
 		RawBytes:  body,
 		AttrsWire: attribute.NewAttributesWire(attrBytes, ctxID),
+		Direction: "received",
 	}
 
 	content := ContentConfig{
@@ -99,9 +100,9 @@ func TestFormatMessageText(t *testing.T) {
 
 	got := FormatMessage(peer, msg, content)
 
-	// Format: peer <ip> asn <asn> update <id> announce <attrs> <family> next-hop <ip> nlri <prefixes>
-	if !strings.Contains(got, "peer 10.0.0.1 asn 65001 update") {
-		t.Errorf("FormatMessage() =\n%q\nshould contain 'peer 10.0.0.1 asn 65001 update'", got)
+	// Format: peer <ip> <direction> update <id> announce <attrs> <family> next-hop <ip> nlri <prefixes>
+	if !strings.Contains(got, "peer 10.0.0.1 received update") {
+		t.Errorf("FormatMessage() =\n%q\nshould contain 'peer 10.0.0.1 received update'", got)
 	}
 	if !strings.Contains(got, "announce") {
 		t.Error("missing announce")
@@ -145,6 +146,7 @@ func TestFormatMessageJSON(t *testing.T) {
 		Type:      message.TypeUPDATE,
 		RawBytes:  body,
 		AttrsWire: attribute.NewAttributesWire(attrBytes, ctxID),
+		Direction: "received",
 	}
 
 	content := ContentConfig{
@@ -157,6 +159,9 @@ func TestFormatMessageJSON(t *testing.T) {
 	// Check key parts of the JSON structure
 	if !strings.Contains(got, `"type":"update"`) {
 		t.Error("missing type:update")
+	}
+	if !strings.Contains(got, `"direction":"received"`) {
+		t.Error("missing direction:received")
 	}
 	if !strings.Contains(got, `"peer":{"address":"10.0.0.1","asn":65001}`) {
 		t.Error("missing peer info")
@@ -253,8 +258,9 @@ func TestFormatNonUpdateRoutesToDedicatedFormatters(t *testing.T) {
 	}
 
 	msg := RawMessage{
-		Type:     message.TypeOPEN,
-		RawBytes: openBody,
+		Type:      message.TypeOPEN,
+		RawBytes:  openBody,
+		Direction: "received",
 	}
 
 	content := ContentConfig{
@@ -287,8 +293,9 @@ func TestFormatNonUpdateKeepalive(t *testing.T) {
 	}
 
 	msg := RawMessage{
-		Type:     message.TypeKEEPALIVE,
-		RawBytes: []byte{}, // KEEPALIVE has no body
+		Type:      message.TypeKEEPALIVE,
+		RawBytes:  []byte{}, // KEEPALIVE has no body
+		Direction: "received",
 	}
 
 	content := ContentConfig{
@@ -298,9 +305,9 @@ func TestFormatNonUpdateKeepalive(t *testing.T) {
 
 	got := FormatMessage(peer, msg, content)
 
-	// Should use new format: peer X asn Y keepalive
-	if !strings.Contains(got, "peer 10.0.0.1 asn 65001 keepalive") {
-		t.Errorf("FormatMessage() for KEEPALIVE =\n%q\nshould contain 'peer 10.0.0.1 asn 65001 keepalive'", got)
+	// Should use new format: peer X received keepalive
+	if !strings.Contains(got, "peer 10.0.0.1 received keepalive") {
+		t.Errorf("FormatMessage() for KEEPALIVE =\n%q\nshould contain 'peer 10.0.0.1 received keepalive'", got)
 	}
 }
 
@@ -545,6 +552,131 @@ func buildTestUpdateBodyWithBothFamilies(ipv4Prefix netip.Prefix, ipv4NextHop ne
 	copy(body[4+len(attrs):], nlri)
 
 	return body
+}
+
+// TestFormatOpenWithDirection tests that OPEN messages include direction.
+//
+// VALIDATES: FormatOpen uses direction parameter ("sent"/"received").
+// PREVENTS: API output missing direction indicator.
+func TestFormatOpenWithDirection(t *testing.T) {
+	peer := PeerInfo{
+		Address: netip.MustParseAddr("10.0.0.1"),
+		PeerAS:  65001,
+	}
+
+	open := DecodedOpen{
+		ASN:      65001,
+		RouterID: "1.1.1.1",
+		HoldTime: 90,
+	}
+
+	tests := []struct {
+		name      string
+		direction string
+		want      string
+	}{
+		{
+			name:      "sent",
+			direction: "sent",
+			want:      "peer 10.0.0.1 sent open asn 65001 router-id 1.1.1.1 hold-time 90\n",
+		},
+		{
+			name:      "received",
+			direction: "received",
+			want:      "peer 10.0.0.1 received open asn 65001 router-id 1.1.1.1 hold-time 90\n",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := FormatOpen(peer, open, tt.direction)
+			if got != tt.want {
+				t.Errorf("FormatOpen() = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
+// TestFormatKeepaliveWithDirection tests that KEEPALIVE messages include direction.
+//
+// VALIDATES: FormatKeepalive uses direction parameter ("sent"/"received").
+// PREVENTS: API output missing direction indicator.
+func TestFormatKeepaliveWithDirection(t *testing.T) {
+	peer := PeerInfo{
+		Address: netip.MustParseAddr("10.0.0.1"),
+		PeerAS:  65001,
+	}
+
+	tests := []struct {
+		name      string
+		direction string
+		want      string
+	}{
+		{
+			name:      "sent",
+			direction: "sent",
+			want:      "peer 10.0.0.1 sent keepalive\n",
+		},
+		{
+			name:      "received",
+			direction: "received",
+			want:      "peer 10.0.0.1 received keepalive\n",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := FormatKeepalive(peer, tt.direction)
+			if got != tt.want {
+				t.Errorf("FormatKeepalive() = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
+// TestFormatNotificationWithDirection tests that NOTIFICATION messages include direction.
+//
+// VALIDATES: FormatNotification uses direction parameter ("sent"/"received").
+// PREVENTS: API output missing direction indicator.
+func TestFormatNotificationWithDirection(t *testing.T) {
+	peer := PeerInfo{
+		Address: netip.MustParseAddr("10.0.0.1"),
+		PeerAS:  65001,
+	}
+
+	notify := DecodedNotification{
+		ErrorCode:        6,
+		ErrorSubcode:     2,
+		Data:             nil,
+		ErrorCodeName:    "Cease",
+		ErrorSubcodeName: "Administrative Shutdown",
+	}
+
+	tests := []struct {
+		name      string
+		direction string
+		wantDir   string
+	}{
+		{
+			name:      "sent",
+			direction: "sent",
+			wantDir:   "peer 10.0.0.1 sent notification",
+		},
+		{
+			name:      "received",
+			direction: "received",
+			wantDir:   "peer 10.0.0.1 received notification",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := FormatNotification(peer, notify, tt.direction)
+			if !strings.Contains(got, tt.wantDir) {
+				t.Errorf("FormatNotification() = %q, want to contain %q", got, tt.wantDir)
+			}
+		})
+	}
 }
 
 // buildTestUpdateBodyWithCommunities builds UPDATE with COMMUNITY attribute.

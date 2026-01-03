@@ -67,12 +67,12 @@ func formatNonUpdate(peer PeerInfo, msg RawMessage, content ContentConfig) strin
 		switch msg.Type { //nolint:exhaustive // only specific types have dedicated formatters
 		case message.TypeOPEN:
 			decoded := DecodeOpen(msg.RawBytes)
-			return FormatOpen(peer, decoded)
+			return FormatOpen(peer, decoded, msg.Direction)
 		case message.TypeNOTIFICATION:
 			decoded := DecodeNotification(msg.RawBytes)
-			return FormatNotification(peer, decoded)
+			return FormatNotification(peer, decoded, msg.Direction)
 		case message.TypeKEEPALIVE:
-			return FormatKeepalive(peer)
+			return FormatKeepalive(peer, msg.Direction)
 		}
 	}
 
@@ -104,18 +104,18 @@ func formatFromFilterResult(peer PeerInfo, msg RawMessage, content ContentConfig
 func formatRawFromResult(peer PeerInfo, msg RawMessage, content ContentConfig) string {
 	rawHex := fmt.Sprintf("%x", msg.RawBytes)
 	if content.Encoding == EncodingJSON {
-		return fmt.Sprintf(`{"type":"update","peer":{"address":"%s","asn":%d},"raw":"%s"}`+"\n",
-			peer.Address, peer.PeerAS, rawHex)
+		return fmt.Sprintf(`{"type":"update","direction":"%s","peer":{"address":"%s","asn":%d},"raw":"%s"}`+"\n",
+			msg.Direction, peer.Address, peer.PeerAS, rawHex)
 	}
-	return fmt.Sprintf("peer %s update raw %s\n", peer.Address, rawHex)
+	return fmt.Sprintf("peer %s %s update raw %s\n", peer.Address, msg.Direction, rawHex)
 }
 
 // formatParsedFromResult formats parsed UPDATE using FilterResult.
 func formatParsedFromResult(peer PeerInfo, msg RawMessage, content ContentConfig, result FilterResult) string {
 	if content.Encoding == EncodingJSON {
-		return formatFilterResultJSON(peer, result, msg.UpdateID)
+		return formatFilterResultJSON(peer, result, msg.UpdateID, msg.Direction)
 	}
-	return formatFilterResultText(peer, result, msg.UpdateID)
+	return formatFilterResultText(peer, result, msg.UpdateID, msg.Direction)
 }
 
 // formatFullFromResult formats both parsed content AND raw hex.
@@ -132,14 +132,21 @@ func formatFullFromResult(peer PeerInfo, msg RawMessage, content ContentConfig, 
 	}
 
 	// For text, append raw line
-	return parsed + fmt.Sprintf("peer %s update raw %s\n", peer.Address, rawHex)
+	return parsed + fmt.Sprintf("peer %s %s update raw %s\n", peer.Address, msg.Direction, rawHex)
 }
 
 // formatFilterResultJSON formats FilterResult as JSON.
 // Uses AnnouncedByFamily()/WithdrawnByFamily() for RFC 4760-correct next-hop per family.
-func formatFilterResultJSON(peer PeerInfo, result FilterResult, updateID uint64) string {
+func formatFilterResultJSON(peer PeerInfo, result FilterResult, updateID uint64, direction string) string {
 	var sb strings.Builder
 	sb.WriteString(`{"type":"update"`)
+
+	// Include direction
+	if direction != "" {
+		sb.WriteString(`,"direction":"`)
+		sb.WriteString(direction)
+		sb.WriteString(`"`)
+	}
 
 	// Include update-id if set
 	if updateID > 0 {
@@ -320,11 +327,11 @@ func formatAttributeJSON(sb *strings.Builder, code attribute.AttributeCode, attr
 
 // formatFilterResultText formats FilterResult as text.
 // Uses AnnouncedByFamily()/WithdrawnByFamily() for RFC 4760-correct next-hop per family.
-func formatFilterResultText(peer PeerInfo, result FilterResult, updateID uint64) string {
+func formatFilterResultText(peer PeerInfo, result FilterResult, updateID uint64, direction string) string {
 	var sb strings.Builder
 
-	// Build prefix: peer <ip> asn <asn> update <id>
-	prefix := fmt.Sprintf("peer %s asn %d update %d", peer.Address, peer.PeerAS, updateID)
+	// Build prefix: peer <ip> <direction> update <id>
+	prefix := fmt.Sprintf("peer %s %s update %d", peer.Address, direction, updateID)
 
 	// Announced routes - grouped by family with per-family next-hop
 	announced := result.AnnouncedByFamily()
@@ -460,14 +467,14 @@ func formatAttributeText(sb *strings.Builder, code attribute.AttributeCode, attr
 	}
 }
 
-// FormatOpen formats a received OPEN message as text output.
-// Format: peer <ip> received open asn <asn> router-id <id> hold-time <t> [cap <name> <value>]...
+// FormatOpen formats an OPEN message as text output.
+// Format: peer <ip> <direction> open asn <asn> router-id <id> hold-time <t> [cap <name> <value>]...
 // ASN is the speaker's ASN (from the OPEN message).
 // Capabilities use "cap <name> <value>" format for easy parsing.
-func FormatOpen(peer PeerInfo, open DecodedOpen) string {
+func FormatOpen(peer PeerInfo, open DecodedOpen, direction string) string {
 	var sb strings.Builder
-	sb.WriteString(fmt.Sprintf("peer %s received open asn %d router-id %s hold-time %d",
-		peer.Address, open.ASN, open.RouterID, open.HoldTime))
+	sb.WriteString(fmt.Sprintf("peer %s %s open asn %d router-id %s hold-time %d",
+		peer.Address, direction, open.ASN, open.RouterID, open.HoldTime))
 
 	for _, cap := range open.Capabilities {
 		sb.WriteString(" cap ")
@@ -478,15 +485,15 @@ func FormatOpen(peer PeerInfo, open DecodedOpen) string {
 }
 
 // FormatNotification formats a NOTIFICATION message as text output.
-// Format: peer <ip> asn <asn> notification code <c> subcode <s> data <hex> [name].
-func FormatNotification(peer PeerInfo, notify DecodedNotification) string {
+// Format: peer <ip> <direction> notification code <c> subcode <s> data <hex> [name].
+func FormatNotification(peer PeerInfo, notify DecodedNotification, direction string) string {
 	dataHex := ""
 	if len(notify.Data) > 0 {
 		dataHex = fmt.Sprintf("%x", notify.Data)
 	}
 
-	base := fmt.Sprintf("peer %s asn %d notification code %d subcode %d data %s",
-		peer.Address, peer.PeerAS, notify.ErrorCode, notify.ErrorSubcode, dataHex)
+	base := fmt.Sprintf("peer %s %s notification code %d subcode %d data %s",
+		peer.Address, direction, notify.ErrorCode, notify.ErrorSubcode, dataHex)
 
 	// Add human-readable names
 	names := fmt.Sprintf(" [%s/%s]", notify.ErrorCodeName, notify.ErrorSubcodeName)
@@ -495,9 +502,9 @@ func FormatNotification(peer PeerInfo, notify DecodedNotification) string {
 }
 
 // FormatKeepalive formats a KEEPALIVE message as text output.
-// Format: peer <ip> asn <asn> keepalive.
-func FormatKeepalive(peer PeerInfo) string {
-	return fmt.Sprintf("peer %s asn %d keepalive\n", peer.Address, peer.PeerAS)
+// Format: peer <ip> <direction> keepalive.
+func FormatKeepalive(peer PeerInfo, direction string) string {
+	return fmt.Sprintf("peer %s %s keepalive\n", peer.Address, direction)
 }
 
 // FormatStateChange formats a peer state change event.
