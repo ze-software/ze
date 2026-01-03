@@ -2,7 +2,6 @@ package api
 
 import (
 	"fmt"
-	"net/netip"
 	"strings"
 
 	"github.com/exa-networks/zebgp/pkg/bgp/attribute"
@@ -68,12 +67,12 @@ func formatNonUpdate(peer PeerInfo, msg RawMessage, content ContentConfig) strin
 		switch msg.Type { //nolint:exhaustive // only specific types have dedicated formatters
 		case message.TypeOPEN:
 			decoded := DecodeOpen(msg.RawBytes)
-			return FormatOpen(peer.Address, decoded)
+			return FormatOpen(peer, decoded)
 		case message.TypeNOTIFICATION:
 			decoded := DecodeNotification(msg.RawBytes)
-			return FormatNotification(peer.Address, decoded)
+			return FormatNotification(peer, decoded)
 		case message.TypeKEEPALIVE:
-			return FormatKeepalive(peer.Address)
+			return FormatKeepalive(peer)
 		}
 	}
 
@@ -462,28 +461,26 @@ func formatAttributeText(sb *strings.Builder, code attribute.AttributeCode, attr
 }
 
 // FormatOpen formats an OPEN message as text output.
-// Format: neighbor <ip> receive open version <v> asn <asn> hold_time <t> router_id <id> capabilities [...].
-func FormatOpen(peerAddr netip.Addr, open DecodedOpen) string {
+// Format: peer <ip> asn <asn> open version <v> hold-time <t> router-id <id> capabilities [...].
+func FormatOpen(peer PeerInfo, open DecodedOpen) string {
 	capsStr := "[]"
 	if len(open.Capabilities) > 0 {
 		capsStr = "[" + strings.Join(open.Capabilities, ", ") + "]"
 	}
-	return fmt.Sprintf("neighbor %s receive open version %d asn %d hold_time %d router_id %s capabilities %s\n",
-		peerAddr, open.Version, open.ASN, open.HoldTime, open.RouterID, capsStr)
+	return fmt.Sprintf("peer %s asn %d open version %d hold-time %d router-id %s capabilities %s\n",
+		peer.Address, peer.PeerAS, open.Version, open.HoldTime, open.RouterID, capsStr)
 }
 
 // FormatNotification formats a NOTIFICATION message as text output.
-// Format: neighbor <ip> receive notification code <c> subcode <s> data <hex> [name].
-func FormatNotification(peerAddr netip.Addr, notify DecodedNotification) string {
-	// ExaBGP format: code {num} subcode {num} data {hex}
-	// We add human-readable names at the end as extension
+// Format: peer <ip> asn <asn> notification code <c> subcode <s> data <hex> [name].
+func FormatNotification(peer PeerInfo, notify DecodedNotification) string {
 	dataHex := ""
 	if len(notify.Data) > 0 {
 		dataHex = fmt.Sprintf("%x", notify.Data)
 	}
 
-	base := fmt.Sprintf("neighbor %s receive notification code %d subcode %d data %s",
-		peerAddr, notify.ErrorCode, notify.ErrorSubcode, dataHex)
+	base := fmt.Sprintf("peer %s asn %d notification code %d subcode %d data %s",
+		peer.Address, peer.PeerAS, notify.ErrorCode, notify.ErrorSubcode, dataHex)
 
 	// Add human-readable names
 	names := fmt.Sprintf(" [%s/%s]", notify.ErrorCodeName, notify.ErrorSubcodeName)
@@ -492,9 +489,9 @@ func FormatNotification(peerAddr netip.Addr, notify DecodedNotification) string 
 }
 
 // FormatKeepalive formats a KEEPALIVE message as text output.
-// Format: neighbor <ip> receive keepalive.
-func FormatKeepalive(peerAddr netip.Addr) string {
-	return fmt.Sprintf("neighbor %s receive keepalive\n", peerAddr)
+// Format: peer <ip> asn <asn> keepalive.
+func FormatKeepalive(peer PeerInfo) string {
+	return fmt.Sprintf("peer %s asn %d keepalive\n", peer.Address, peer.PeerAS)
 }
 
 // FormatStateChange formats a peer state change event.
@@ -514,5 +511,5 @@ func formatStateChangeJSON(peer PeerInfo, state string) string {
 }
 
 func formatStateChangeText(peer PeerInfo, state string) string {
-	return fmt.Sprintf("neighbor %s state %s\n", peer.Address, state)
+	return fmt.Sprintf("peer %s asn %d state %s\n", peer.Address, peer.PeerAS, state)
 }

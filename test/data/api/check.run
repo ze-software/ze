@@ -18,16 +18,20 @@ def main() -> None:
                 continue
             if 'eor' in line:
                 continue
-            if (
-                'neighbor 127.0.0.1 receive update announced 0.0.0.0/32 next-hop 127.0.0.1 origin igp local-preference 100'
-                not in line
+            # ZeBGP format: peer 127.0.0.1 asn 65512 update N announce origin igp local-preference 100 ipv4 unicast next-hop 127.0.0.1 nlri 0.0.0.0/32
+            if not (
+                'peer 127.0.0.1' in line
+                and 'announce' in line
+                and 'nlri 0.0.0.0/32' in line
+                and 'origin igp' in line
+                and 'local-preference 100' in line
             ):
-                flush('neighbor 127.0.0.1 announce route 0.0.0.0/0 next-hop 255.255.255.255\n')
+                flush('peer 127.0.0.1 announce route 0.0.0.0/0 next-hop 255.255.255.255\n')
                 time.sleep(1)
                 sys.exit(1)
             break
 
-        flush('neighbor 127.0.0.1 announce route 1.2.3.4 next-hop 5.6.7.8\n')
+        flush('peer 127.0.0.1 announce route 1.2.3.4/32 next-hop 5.6.7.8 origin igp local-preference 100\n')
         if not wait_for_ack():
             # ACK not received, continuing anyway (ACKs may be disabled in config)
             pass

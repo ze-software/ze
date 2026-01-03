@@ -467,20 +467,20 @@ func (s *Server) formatMessage(peer PeerInfo, msg RawMessage, binding PeerAPIBin
 		if content.Encoding == EncodingJSON {
 			return s.encoder.Open(peer, decoded)
 		}
-		return FormatOpen(peer.Address, decoded)
+		return FormatOpen(peer, decoded)
 
 	case message.TypeNOTIFICATION:
 		decoded := DecodeNotification(msg.RawBytes)
 		if content.Encoding == EncodingJSON {
 			return s.encoder.Notification(peer, decoded)
 		}
-		return FormatNotification(peer.Address, decoded)
+		return FormatNotification(peer, decoded)
 
 	case message.TypeKEEPALIVE:
 		if content.Encoding == EncodingJSON {
 			return s.encoder.Keepalive(peer)
 		}
-		return FormatKeepalive(peer.Address)
+		return FormatKeepalive(peer)
 
 	default:
 		return ""

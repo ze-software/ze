@@ -31,13 +31,13 @@ func TestFormatStateChange(t *testing.T) {
 			name:     "text established",
 			state:    "established",
 			encoding: EncodingText,
-			want:     "neighbor 10.0.0.1 state established\n",
+			want:     "peer 10.0.0.1 asn 65001 state established\n",
 		},
 		{
 			name:     "text down",
 			state:    "down",
 			encoding: EncodingText,
-			want:     "neighbor 10.0.0.1 state down\n",
+			want:     "peer 10.0.0.1 asn 65001 state down\n",
 		},
 		{
 			name:     "json established",
@@ -264,15 +264,15 @@ func TestFormatNonUpdateRoutesToDedicatedFormatters(t *testing.T) {
 
 	got := FormatMessage(peer, msg, content)
 
-	// Should use FormatOpen, not raw hex
-	if !strings.Contains(got, "receive open") {
-		t.Errorf("FormatMessage() for OPEN =\n%q\nshould contain 'receive open'", got)
+	// Should use FormatOpen with new format: peer X asn Y open ...
+	if !strings.Contains(got, "peer 10.0.0.1 asn 65001 open") {
+		t.Errorf("FormatMessage() for OPEN =\n%q\nshould contain 'peer 10.0.0.1 asn 65001 open'", got)
 	}
 	if !strings.Contains(got, "version 4") {
 		t.Errorf("FormatMessage() for OPEN =\n%q\nshould contain 'version 4'", got)
 	}
-	if !strings.Contains(got, "asn 42") {
-		t.Errorf("FormatMessage() for OPEN =\n%q\nshould contain 'asn 42'", got)
+	if !strings.Contains(got, "hold-time 180") {
+		t.Errorf("FormatMessage() for OPEN =\n%q\nshould contain 'hold-time 180'", got)
 	}
 }
 
@@ -298,8 +298,9 @@ func TestFormatNonUpdateKeepalive(t *testing.T) {
 
 	got := FormatMessage(peer, msg, content)
 
-	if !strings.Contains(got, "receive keepalive") {
-		t.Errorf("FormatMessage() for KEEPALIVE =\n%q\nshould contain 'receive keepalive'", got)
+	// Should use new format: peer X asn Y keepalive
+	if !strings.Contains(got, "peer 10.0.0.1 asn 65001 keepalive") {
+		t.Errorf("FormatMessage() for KEEPALIVE =\n%q\nshould contain 'peer 10.0.0.1 asn 65001 keepalive'", got)
 	}
 }
 
