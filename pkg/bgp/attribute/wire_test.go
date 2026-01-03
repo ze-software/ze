@@ -174,14 +174,20 @@ func TestAttributesWirePackFor(t *testing.T) {
 	packed := packAttrs(origin)
 	aw := NewAttributesWire(packed, ctxID)
 
-	// Same context - should return exact same slice
+	// Same context - should return data from pool (content equal)
 	result, err := aw.PackFor(ctxID)
 	if err != nil {
 		t.Fatalf("PackFor(same context) error: %v", err)
 	}
 
-	if &result[0] != &packed[0] {
-		t.Error("PackFor(same context) returned copy, want same slice")
+	if !bytes.Equal(result, packed) {
+		t.Errorf("PackFor(same context) content mismatch: got %x, want %x", result, packed)
+	}
+
+	// Multiple calls should return same pool memory
+	result2, _ := aw.PackFor(ctxID)
+	if &result[0] != &result2[0] {
+		t.Error("PackFor should return same pool memory on repeated calls")
 	}
 }
 
@@ -507,8 +513,11 @@ func TestAttributesWirePacked(t *testing.T) {
 	if !bytes.Equal(result, packed) {
 		t.Errorf("Packed() = %x, want %x", result, packed)
 	}
-	if &result[0] != &packed[0] {
-		t.Error("Packed() returned copy, want same slice")
+
+	// Multiple calls should return same pool memory
+	result2 := aw.Packed()
+	if &result[0] != &result2[0] {
+		t.Error("Packed() should return same pool memory on repeated calls")
 	}
 }
 
@@ -735,9 +744,9 @@ func TestAttributesWireGetRawNotFound(t *testing.T) {
 	}
 }
 
-// TestAttributesWireGetRawZeroCopy verifies GetRaw returns slice into original buffer.
+// TestAttributesWireGetRawZeroCopy verifies GetRaw returns slice into pool buffer.
 //
-// VALIDATES: No copy made - returns view into packed bytes.
+// VALIDATES: No copy made - returns view into pool bytes.
 // PREVENTS: Memory waste from unnecessary copies.
 func TestAttributesWireGetRawZeroCopy(t *testing.T) {
 	ctxID := setupTestContext(true)
@@ -752,9 +761,14 @@ func TestAttributesWireGetRawZeroCopy(t *testing.T) {
 		t.Fatalf("GetRaw error: %v", err)
 	}
 
-	// raw should be a slice into packed, not a copy
-	// Value starts at offset 3 (3-byte header for short attrs)
-	if &raw[0] != &packed[3] {
-		t.Error("GetRaw returned copy, want slice into packed bytes")
+	// raw should be a slice into pool buffer (content equal to original)
+	if !bytes.Equal(raw, originValue) {
+		t.Errorf("GetRaw content mismatch: got %x, want %x", raw, originValue)
+	}
+
+	// Multiple calls should return same pool memory
+	raw2, _ := aw.GetRaw(AttrOrigin)
+	if &raw[0] != &raw2[0] {
+		t.Error("GetRaw should return same pool memory on repeated calls")
 	}
 }
