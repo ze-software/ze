@@ -5,7 +5,6 @@ import (
 	"sync"
 
 	bgpctx "github.com/exa-networks/zebgp/pkg/bgp/context"
-	"github.com/exa-networks/zebgp/pkg/pool"
 )
 
 // attrIndex caches attribute location within packed bytes.
@@ -20,49 +19,32 @@ type attrIndex struct {
 
 // AttributesWire stores path attributes in wire format with lazy parsing.
 //
-// Wire bytes are stored in a deduplicated pool. Parsed attributes are
+// Wire bytes are the canonical representation. Parsed attributes are
 // cached on demand. Thread-safe for concurrent read access.
 //
-// LIFECYCLE: Callers MUST call Release() when done with the AttributesWire.
-// Failure to release will leak pool memory.
+// Memory contract: packed is NOT owned by AttributesWire. Caller must
+// ensure the underlying buffer outlives this struct and is not modified.
 type AttributesWire struct {
 	mu          sync.RWMutex
-	handle      pool.Handle // Pool handle for deduplicated bytes
+	packed      []byte
 	sourceCtxID bgpctx.ContextID
 	index       []attrIndex                 // nil until first scan
 	parsed      map[AttributeCode]Attribute // nil until first parse
 }
 
 // NewAttributesWire creates from raw packed bytes.
-//
-// The data is interned in the global Attributes pool for deduplication.
-// Identical attribute sets share storage, reducing memory usage.
-//
-// LIFECYCLE: Caller MUST call Release() when done.
+// WARNING: packed is NOT copied. Caller retains ownership and must not modify.
 func NewAttributesWire(packed []byte, ctxID bgpctx.ContextID) *AttributesWire {
 	return &AttributesWire{
-		handle:      pool.Attributes.Intern(packed),
+		packed:      packed,
 		sourceCtxID: ctxID,
 	}
 }
 
 // Packed returns raw wire bytes for transmission.
 // WARNING: Do not modify the returned slice.
-// The slice references pool-managed memory.
 func (a *AttributesWire) Packed() []byte {
-	return pool.Attributes.Get(a.handle)
-}
-
-// Release frees the pool reference.
-// MUST be called when done with the AttributesWire.
-func (a *AttributesWire) Release() {
-	pool.Attributes.Release(a.handle)
-}
-
-// packed returns the internal byte slice for internal use.
-// Caller must hold appropriate lock.
-func (a *AttributesWire) packed() []byte {
-	return pool.Attributes.Get(a.handle)
+	return a.packed
 }
 
 // SourceContext returns the encoding context ID.
@@ -180,10 +162,9 @@ func (a *AttributesWire) GetRaw(code AttributeCode) ([]byte, error) {
 	// Fast path: check if index already built
 	a.mu.RLock()
 	if a.index != nil {
-		packed := a.packed()
 		for _, idx := range a.index {
 			if idx.code == code {
-				result := packed[idx.offset : idx.offset+idx.length]
+				result := a.packed[idx.offset : idx.offset+idx.length]
 				a.mu.RUnlock()
 				return result, nil
 			}
@@ -201,10 +182,9 @@ func (a *AttributesWire) GetRaw(code AttributeCode) ([]byte, error) {
 		return nil, err
 	}
 
-	packed := a.packed()
 	for _, idx := range a.index {
 		if idx.code == code {
-			return packed[idx.offset : idx.offset+idx.length], nil
+			return a.packed[idx.offset : idx.offset+idx.length], nil
 		}
 	}
 
@@ -251,7 +231,7 @@ func (a *AttributesWire) All() ([]Attribute, error) {
 // Zero-copy if contexts match, otherwise re-encode.
 func (a *AttributesWire) PackFor(destCtxID bgpctx.ContextID) ([]byte, error) {
 	if a.sourceCtxID == destCtxID {
-		return a.packed(), nil
+		return a.packed, nil
 	}
 
 	// Slow path: re-encode with destination context
@@ -274,16 +254,14 @@ func (a *AttributesWire) ensureIndexLocked() error {
 		return nil
 	}
 
-	packed := a.packed()
-
 	// Build index locally first - only assign to a.index on success
 	// This ensures parse errors leave a.index nil for retry
 	index := make([]attrIndex, 0, 8)
 	seen := make(map[AttributeCode]bool, 8)
 
 	offset := 0
-	for offset < len(packed) {
-		_, code, length, hdrLen, err := ParseHeader(packed[offset:])
+	for offset < len(a.packed) {
+		_, code, length, hdrLen, err := ParseHeader(a.packed[offset:])
 		if err != nil {
 			return fmt.Errorf("parsing header at offset %d: %w", offset, err)
 		}
@@ -295,7 +273,7 @@ func (a *AttributesWire) ensureIndexLocked() error {
 		seen[code] = true
 
 		// Validate we have enough data
-		if offset+hdrLen+int(length) > len(packed) {
+		if offset+hdrLen+int(length) > len(a.packed) {
 			return fmt.Errorf("attribute %s truncated at offset %d", code, offset)
 		}
 
@@ -317,8 +295,7 @@ func (a *AttributesWire) ensureIndexLocked() error {
 // parseAtLocked parses the attribute at the given index.
 // Caller must hold lock.
 func (a *AttributesWire) parseAtLocked(idx attrIndex) (Attribute, error) {
-	packed := a.packed()
-	valueBytes := packed[idx.offset : idx.offset+idx.length]
+	valueBytes := a.packed[idx.offset : idx.offset+idx.length]
 
 	// Get source context for context-dependent parsing (e.g., ASN4)
 	srcCtx := bgpctx.Registry.Get(a.sourceCtxID)
@@ -337,7 +314,7 @@ func (a *AttributesWire) parseAtLocked(idx attrIndex) (Attribute, error) {
 
 	// Unknown attribute: read original flags from header for preservation
 	// Flags are at the start of the header: packed[offset - hdrLen]
-	flags := AttributeFlags(packed[idx.offset-uint16(idx.hdrLen)])
+	flags := AttributeFlags(a.packed[idx.offset-uint16(idx.hdrLen)])
 	return NewOpaqueAttribute(flags, idx.code, valueBytes), nil
 }
 
@@ -354,7 +331,7 @@ func (a *AttributesWire) packWithContext(destCtx *bgpctx.EncodingContext) ([]byt
 	}
 
 	// Estimate size
-	buf := make([]byte, 0, pool.Attributes.Length(a.handle))
+	buf := make([]byte, 0, len(a.packed))
 
 	for _, attr := range attrs {
 		packed := attr.PackWithContext(srcCtx, destCtx)
