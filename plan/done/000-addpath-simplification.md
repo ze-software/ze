@@ -146,6 +146,24 @@ Commit: `5516ddd` refactor(nlri): Phase 3 ADD-PATH simplification - payload-only
 
 Note: EVPN types not updated - they don't currently support ADD-PATH
 
+Commit: `aa27eb9` refactor(nlri): Phase 4 cleanup - remove transitional methods
+
+### Phase 5: RFC Documentation (TODO)
+
+Add RFC references to explain ADD-PATH encoding logic:
+
+1. `WriteNLRI()` in nlri.go - document RFC 7911 Section 3 path ID encoding
+2. `LenWithContext()` in nlri.go - document when +4 bytes added for path ID
+3. `WriteTo()` in each NLRI type - document payload-only encoding per RFC 4271/4760
+4. `ParseINET/ParseIPVPN/etc` - verify RFC references for ADD-PATH parsing
+5. Add `// RFC 7911 Section 3` comments where path ID logic appears
+
+Key RFC sections:
+- RFC 7911 Section 3: ADD-PATH NLRI encoding (4-byte path ID prefix)
+- RFC 7911 Section 4: Capability negotiation for ADD-PATH
+- RFC 4271 Section 4.3: Base NLRI encoding (<length, prefix>)
+- RFC 4760 Section 5: MP-BGP NLRI encoding
+
 ## Test Strategy
 
 ### Invariant Tests

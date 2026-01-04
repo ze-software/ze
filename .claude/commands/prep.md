@@ -99,6 +99,13 @@ The following docs MUST be read before starting implementation:
 3. Implement
 4. See test pass
 5. Run `make test && make lint`
+6. Add RFC references to new/modified code
+
+## RFC Documentation
+For any BGP protocol code, add RFC comments explaining the logic:
+- Add `// RFC NNNN Section X.Y` comments for protocol behavior
+- Document wire format encoding/decoding with RFC references
+- Key RFCs: 4271 (BGP), 4760 (MP-BGP), 7911 (ADD-PATH), 8277 (Labeled), etc.
 
 ## Checklist
 - [ ] Required docs read
@@ -106,6 +113,7 @@ The following docs MUST be read before starting implementation:
 - [ ] Test passes after impl
 - [ ] make test passes
 - [ ] make lint passes
+- [ ] RFC references added to protocol code
 - [ ] Update `.claude/zebgp/` docs if schema/syntax changed
 ```
 
@@ -135,10 +143,22 @@ If the task changed any of these, update the corresponding `.claude/zebgp/` doc:
 | Pool/memory | `POOL_ARCHITECTURE.md` |
 | API commands | `api/ARCHITECTURE.md` |
 
+### Update Design Docs
+
+If the implementation changed how ZeBGP works, update `.claude/zebgp/` docs:
+- Document new behavior, APIs, or architectural patterns
+- Keep docs in sync with actual implementation
+
 ### Move Completed Spec
 
+Find next free 3-digit number and move:
 ```bash
-mv plan/spec-<name>.md plan/done/
+# Find next number (check existing in plan/done/)
+ls plan/done/ | grep -E "^[0-9]{3}-" | sort | tail -1
+# Move with number prefix
+mv plan/spec-<name>.md plan/done/NNN-<name>.md
+# Commit the completion
+git add plan/done/NNN-<name>.md && git commit -m "docs: complete spec NNN-<name>"
 ```
 
 ## Why This Matters
