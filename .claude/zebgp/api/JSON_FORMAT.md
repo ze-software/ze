@@ -404,7 +404,7 @@ All messages follow the pattern: `peer <ip> <direction> <type> <msg-id> ...`
 
 **OPEN:**
 ```
-peer 10.0.0.1 received open 1 asn 65001 router-id 1.1.1.1 hold-time 90 cap multiprotocol-ipv4-unicast cap 4-byte-asn-65001
+peer 10.0.0.1 received open 1 asn 65001 router-id 1.1.1.1 hold-time 90 cap 1 multiprotocol ipv4/unicast cap 65 asn4 65001
 ```
 
 **KEEPALIVE:**
