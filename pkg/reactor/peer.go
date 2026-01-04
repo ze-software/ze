@@ -1240,7 +1240,15 @@ func buildRIBRouteUpdate(route *rib.Route, localAS uint32, isIBGP bool, ctx *nlr
 		nh := &attribute.NextHop{Addr: route.NextHop()}
 		attrBytes = append(attrBytes, attribute.PackAttribute(nh)...)
 
-		// 4. LOCAL_PREF for iBGP - use stored value or default to 100
+		// 4. MED if present (before LOCAL_PREF per RFC order)
+		for _, attr := range route.Attributes() {
+			if med, ok := attr.(attribute.MED); ok {
+				attrBytes = append(attrBytes, attribute.PackAttribute(med)...)
+				break
+			}
+		}
+
+		// 5. LOCAL_PREF for iBGP - use stored value or default to 100
 		if isIBGP {
 			foundLocalPref := false
 			for _, attr := range route.Attributes() {
@@ -1259,16 +1267,22 @@ func buildRIBRouteUpdate(route *rib.Route, localAS uint32, isIBGP bool, ctx *nlr
 		// RFC 7911: Pack uses ADD-PATH encoding when negotiated
 		nlriBytes = routeNLRI.Pack(ctx)
 	default:
-		// Other families: use MP_REACH_NLRI attribute
-		// This includes IPv6, VPN, etc.
-		// RFC 7911: Pack uses ADD-PATH encoding when negotiated
+		// Other families: MP_REACH_NLRI goes at end (after all other attributes)
+		// Build it now but append after LOCAL_PREF
 		mpReach := &attribute.MPReachNLRI{
 			AFI:      attribute.AFI(family.AFI),
 			SAFI:     attribute.SAFI(family.SAFI),
 			NextHops: []netip.Addr{route.NextHop()},
 			NLRI:     routeNLRI.Pack(ctx),
 		}
-		attrBytes = append(attrBytes, attribute.PackAttribute(mpReach)...)
+
+		// MED if present (before LOCAL_PREF per RFC order)
+		for _, attr := range route.Attributes() {
+			if med, ok := attr.(attribute.MED); ok {
+				attrBytes = append(attrBytes, attribute.PackAttribute(med)...)
+				break
+			}
+		}
 
 		// LOCAL_PREF for iBGP - use stored value or default to 100
 		if isIBGP {
@@ -1284,15 +1298,19 @@ func buildRIBRouteUpdate(route *rib.Route, localAS uint32, isIBGP bool, ctx *nlr
 				attrBytes = append(attrBytes, attribute.PackAttribute(attribute.LocalPref(100))...)
 			}
 		}
+
+		// MP_REACH_NLRI at end (after all other path attributes)
+		// RFC 7911: Pack uses ADD-PATH encoding when negotiated
+		attrBytes = append(attrBytes, attribute.PackAttribute(mpReach)...)
 	}
 
-	// Copy optional attributes from stored route (MED, communities, etc.)
+	// Copy optional attributes from stored route (communities, etc.)
 	for _, attr := range route.Attributes() {
 		switch attr.(type) {
-		case attribute.Origin, *attribute.ASPath, *attribute.NextHop, attribute.LocalPref:
+		case attribute.Origin, *attribute.ASPath, *attribute.NextHop, attribute.LocalPref, attribute.MED:
 			// Already handled above
 			continue
-		case attribute.MED, attribute.Communities,
+		case attribute.Communities,
 			attribute.ExtendedCommunities, attribute.LargeCommunities,
 			attribute.IPv6ExtendedCommunities,
 			attribute.AtomicAggregate, *attribute.Aggregator,

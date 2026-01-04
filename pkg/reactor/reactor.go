@@ -101,6 +101,11 @@ type MessageReceiver interface {
 	// peer contains full peer information for proper JSON encoding.
 	// msg contains raw wire bytes - parsing is done by receiver based on format config.
 	OnMessageReceived(peer api.PeerInfo, msg api.RawMessage)
+
+	// OnMessageSent is called when a BGP message is sent to a peer.
+	// Only UPDATE messages trigger sent events.
+	// Used by persist plugin to track routes for replay on reconnect.
+	OnMessageSent(peer api.PeerInfo, msg api.RawMessage)
 }
 
 // PeerLifecycleObserver receives peer state change notifications.
@@ -113,7 +118,8 @@ type PeerLifecycleObserver interface {
 
 // apiStateObserver emits ExaBGP-compatible state messages to API server.
 type apiStateObserver struct {
-	server *api.Server
+	server  *api.Server
+	reactor *Reactor
 }
 
 func (o *apiStateObserver) OnPeerEstablished(peer *Peer) {
@@ -192,6 +198,10 @@ type Reactor struct {
 	wg     sync.WaitGroup
 
 	mu sync.RWMutex
+
+	// API process synchronization state.
+	// Embedded to access fields directly (e.g., r.apiStarted).
+	APISyncState
 }
 
 // reactorAPIAdapter implements api.ReactorInterface for the Reactor.
@@ -254,7 +264,45 @@ func (a *reactorAPIAdapter) AnnounceRoute(peerSelector string, route api.RouteSp
 		n = nlri.NewINET(nlri.Family{AFI: nlri.AFIIPv6, SAFI: nlri.SAFIUnicast}, route.Prefix, 0)
 	}
 
-	attrs := []attribute.Attribute{attribute.OriginIGP}
+	// Build attributes from RouteSpec
+	// Order matches buildAnnounceUpdate: ORIGIN, MED, LOCAL_PREF, communities
+	var attrs []attribute.Attribute
+
+	// 1. ORIGIN
+	if route.Origin != nil {
+		attrs = append(attrs, attribute.Origin(*route.Origin))
+	} else {
+		attrs = append(attrs, attribute.OriginIGP)
+	}
+
+	// 2. MED (RFC 4271 §5.1.4: optional non-transitive)
+	if route.MED != nil {
+		attrs = append(attrs, attribute.MED(*route.MED))
+	}
+
+	// 3. LOCAL_PREF (will be filtered by isIBGP check at send time)
+	if route.LocalPreference != nil {
+		attrs = append(attrs, attribute.LocalPref(*route.LocalPreference))
+	}
+
+	// 4. Communities
+	if len(route.Communities) > 0 {
+		comms := make(attribute.Communities, len(route.Communities))
+		for i, c := range route.Communities {
+			comms[i] = attribute.Community(c)
+		}
+		attrs = append(attrs, comms)
+	}
+
+	// 5. Large Communities
+	if len(route.LargeCommunities) > 0 {
+		attrs = append(attrs, attribute.LargeCommunities(route.LargeCommunities))
+	}
+
+	// 6. Extended Communities
+	if len(route.ExtendedCommunities) > 0 {
+		attrs = append(attrs, attribute.ExtendedCommunities(route.ExtendedCommunities))
+	}
 
 	var lastErr error
 	for _, peer := range peers {
@@ -263,9 +311,16 @@ func (a *reactorAPIAdapter) AnnounceRoute(peerSelector string, route api.RouteSp
 		// Build AS_PATH: empty for iBGP, prepend LocalAS for eBGP
 		// RFC 4271 §5.1.2: iBGP SHALL NOT modify AS_PATH; eBGP prepends local AS
 		var asPath *attribute.ASPath
-		if isIBGP {
+		switch {
+		case len(route.ASPath) > 0:
+			asPath = &attribute.ASPath{
+				Segments: []attribute.ASPathSegment{
+					{Type: attribute.ASSequence, ASNs: route.ASPath},
+				},
+			}
+		case isIBGP:
 			asPath = &attribute.ASPath{Segments: nil}
-		} else {
+		default:
 			asPath = &attribute.ASPath{
 				Segments: []attribute.ASPathSegment{
 					{Type: attribute.ASSequence, ASNs: []uint32{a.r.config.LocalAS}},
@@ -1220,6 +1275,7 @@ func (a *reactorAPIAdapter) GetPeerAPIBindings(peerAddr netip.Addr) []api.PeerAP
 			ReceiveKeepalive:    b.ReceiveKeepalive,
 			ReceiveRefresh:      b.ReceiveRefresh,
 			ReceiveState:        b.ReceiveState,
+			ReceiveSent:         b.ReceiveSent,
 			SendUpdate:          b.SendUpdate,
 			SendRefresh:         b.SendRefresh,
 		})
@@ -2031,6 +2087,11 @@ func (a *reactorAPIAdapter) DeleteUpdate(updateID uint64) error {
 	return nil
 }
 
+// SignalAPIReady signals that an API process is ready.
+func (a *reactorAPIAdapter) SignalAPIReady() {
+	a.r.SignalAPIReady()
+}
+
 // routeToAPIRoute converts a RIB route to an API route.
 func routeToAPIRoute(peerID string, route *rib.Route) api.RIBRoute {
 	apiRoute := api.RIBRoute{
@@ -2349,18 +2410,25 @@ func (r *Reactor) notifyMessageReceiver(peerAddr netip.Addr, msgType message.Mes
 			msg.AttrsWire = attribute.NewAttributesWire(attrBytes, peer.RecvContextID())
 		}
 
-		// Cache the update for forwarding
-		r.recentUpdates.Add(&ReceivedUpdate{
-			UpdateID:     messageID,
-			RawBytes:     bytesCopy, // Already a copy, safe to store
-			Attrs:        msg.AttrsWire,
-			SourcePeerIP: peerAddr,
-			SourceCtxID:  peer.RecvContextID(),
-			ReceivedAt:   msg.Timestamp,
-		})
+		// Cache the update for forwarding (only for received updates)
+		if direction == "received" {
+			r.recentUpdates.Add(&ReceivedUpdate{
+				UpdateID:     messageID,
+				RawBytes:     bytesCopy, // Already a copy, safe to store
+				Attrs:        msg.AttrsWire,
+				SourcePeerIP: peerAddr,
+				SourceCtxID:  peer.RecvContextID(),
+				ReceivedAt:   msg.Timestamp,
+			})
+		}
 	}
 
-	receiver.OnMessageReceived(peerInfo, msg)
+	// Route to appropriate handler based on direction
+	if direction == "sent" {
+		receiver.OnMessageSent(peerInfo, msg)
+	} else {
+		receiver.OnMessageReceived(peerInfo, msg)
+	}
 }
 
 // AddPeer adds a peer to the reactor.
@@ -2542,7 +2610,11 @@ func (r *Reactor) StartWithContext(ctx context.Context) error {
 		// Set API server as message receiver for raw byte access
 		r.messageReceiver = r.api
 		// Register API state observer for peer lifecycle events
-		r.AddPeerObserver(&apiStateObserver{server: r.api})
+		r.AddPeerObserver(&apiStateObserver{server: r.api, reactor: r})
+
+		// Set process count for API sync - wait for all processes to send "api ready"
+		r.SetAPIProcessCount(len(r.config.APIProcesses))
+
 		if err := r.api.StartWithContext(r.ctx); err != nil {
 			r.stopAllListeners()
 			if r.listener != nil {
@@ -2559,6 +2631,10 @@ func (r *Reactor) StartWithContext(ctx context.Context) error {
 		r.Stop()
 	})
 	r.signals.StartWithContext(r.ctx)
+
+	// Wait for API processes to signal readiness before starting peers.
+	// All processes must send "session api ready" before BGP sessions start.
+	r.WaitForAPIReady()
 
 	// Start all peers (passive peers wait for incoming connections).
 	for _, peer := range r.peers {
