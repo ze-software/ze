@@ -105,39 +105,43 @@ func (i *INET) WriteTo(buf []byte, off int) int {
 
 ## Migration Plan
 
-### Phase 1: Add New Methods (backward compatible)
+### Phase 1: Add New Methods (backward compatible) ✅ COMPLETE
 
-1. Add `BaseLen() int` to all NLRI types - returns length WITHOUT path ID
-2. Add `WritePayloadTo(buf, off) int` - writes payload only
-3. Add `WriteNLRI()` helper function in nlri package
-4. Keep old methods working
+1. ✅ Add `BaseLen() int` to all NLRI types - returns length WITHOUT path ID
+2. ✅ Add `WritePayloadTo(buf, off) int` - writes payload only
+3. ✅ Add `WriteNLRI()` helper function in nlri package
+4. ✅ Add `PayloadWriter` interface for types supporting payload-only writing
+5. ✅ Keep old methods working
 
-```go
-// Temporary: both old and new methods coexist
-func (i *INET) Len() int     { /* old behavior with hasPath */ }
-func (i *INET) BaseLen() int { /* new behavior without pathID */ }
-```
+Commit: `daab7d6` feat(nlri): add BaseLen, WritePayloadTo for ADD-PATH simplification
 
-### Phase 2: Update Callers
+### Phase 2: Update Callers ✅ COMPLETE
 
-1. Update `buildNLRIBytes` to use `WriteNLRI()`
-2. Update `LenWithContext` to use `BaseLen()`
-3. Update all message builders
-4. Run tests to verify identical wire output
+1. ✅ Update `buildNLRIBytes` to use `WriteNLRI()`
+2. ✅ Update `LenWithContext` to use new semantics
+3. ✅ Run tests to verify identical wire output
 
-### Phase 3: Simplify NLRI Types
+Commit: `daab7d6` (included in Phase 1 commit)
 
-1. Change `Len()` to return base length (breaking change)
-2. Change `WriteTo()` to write payload only
-3. Remove `hasPath` field from all types
-4. Remove `HasPathID()` from interface
-5. Remove `Pack()` method (deprecated)
+### Phase 3: Simplify NLRI Types ✅ COMPLETE
 
-### Phase 4: Cleanup
+1. ✅ Change `Len()` to return base length (breaking change)
+2. ✅ Change `WriteTo()` to write payload only
+3. ✅ Remove `hasPath` field from INET, IPVPN, LabeledUnicast
+4. ✅ Update `LenWithContext()` - adds 4 bytes when ctx.AddPath=true
+5. ✅ Update `writeNLRIOptimized()` - path ID only when ctx.AddPath=true
+6. ✅ Fix `route.Index()` and `store.Key()` to include path ID for uniqueness
+7. ✅ Keep `Pack()` as deprecated wrapper for backward compatibility
+
+Commit: `5516ddd` refactor(nlri): Phase 3 ADD-PATH simplification - payload-only encoding
+
+### Phase 4: Cleanup (TODO)
 
 1. Remove `BaseLen()` (now redundant with `Len()`)
 2. Remove `WritePayloadTo()` (now redundant with `WriteTo()`)
-3. Update documentation
+3. Remove `Pack()` from interface (callers should use `WriteNLRI()`)
+4. Update EVPN types to match new pattern
+5. Update documentation
 
 ## Test Strategy
 

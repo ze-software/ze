@@ -324,7 +324,7 @@ func TestEVPNType1WithAddPath(t *testing.T) {
 
 	evpn, ok := nlri.(*EVPNType1)
 	require.True(t, ok, "expected EVPNType1")
-	assert.True(t, evpn.HasPathID())
+	assert.True(t, evpn.PathID() != 0)
 	assert.Equal(t, uint32(5), evpn.PathID())
 }
 

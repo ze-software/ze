@@ -185,7 +185,7 @@ func TestIPVPNWithPathID(t *testing.T) {
 
 	vpn, ok := nlri.(*IPVPN)
 	require.True(t, ok, "expected IPVPN")
-	assert.True(t, vpn.HasPathID())
+	assert.True(t, vpn.PathID() != 0)
 	assert.Equal(t, uint32(42), vpn.PathID())
 }
 

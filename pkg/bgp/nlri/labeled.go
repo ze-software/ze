@@ -5,7 +5,6 @@
 package nlri
 
 import (
-	"encoding/binary"
 	"fmt"
 	"net/netip"
 	"strings"
@@ -24,23 +23,14 @@ import (
 //	|   Prefix (variable)       |
 //	+---------------------------+
 //
-// RFC 7911 Section 3 - Extended NLRI with ADD-PATH:
-//
-//	+---------------------------+
-//	|   Path ID (4 octets)      |  Only when ADD-PATH negotiated
-//	+---------------------------+
-//	|   Length (1 octet)        |
-//	+---------------------------+
-//	|   Label(s) (3*N octets)   |
-//	+---------------------------+
-//	|   Prefix (variable)       |
-//	+---------------------------+
+// RFC 7911 Section 3 - Extended NLRI Encodings:
+// Path ID is stored but NOT included in Len()/Bytes()/WriteTo().
+// Use WriteNLRI() for ADD-PATH aware encoding.
 type LabeledUnicast struct {
-	family  Family
-	prefix  netip.Prefix
-	labels  []uint32 // Label stack per RFC 3032 (BOS on last)
-	pathID  uint32
-	hasPath bool
+	family Family
+	prefix netip.Prefix
+	labels []uint32 // Label stack per RFC 3032 (BOS on last)
+	pathID uint32   // RFC 7911: 0 means no path ID
 }
 
 // NewLabeledUnicast creates a new labeled unicast NLRI.
@@ -48,14 +38,15 @@ type LabeledUnicast struct {
 // RFC 8277: Labels are encoded per RFC 3032: 20-bit label + 3-bit TC + 1-bit S.
 // The last label has S=1 (Bottom of Stack).
 //
+// pathID=0 means no path identifier; pathID>0 stores the path ID.
+// Use WriteNLRI() with PackContext.AddPath=true to encode with path ID.
 // The family's SAFI is overridden to SAFIMPLSLabel (4) regardless of input.
 func NewLabeledUnicast(family Family, prefix netip.Prefix, labels []uint32, pathID uint32) *LabeledUnicast {
 	return &LabeledUnicast{
-		family:  Family{AFI: family.AFI, SAFI: SAFIMPLSLabel},
-		prefix:  prefix,
-		labels:  labels,
-		pathID:  pathID,
-		hasPath: pathID != 0,
+		family: Family{AFI: family.AFI, SAFI: SAFIMPLSLabel},
+		prefix: prefix,
+		labels: labels,
+		pathID: pathID,
 	}
 }
 
@@ -75,14 +66,9 @@ func (l *LabeledUnicast) Labels() []uint32 {
 	return l.labels
 }
 
-// PathID returns the ADD-PATH path identifier.
+// PathID returns the ADD-PATH path identifier (0 if none).
 func (l *LabeledUnicast) PathID() uint32 {
 	return l.pathID
-}
-
-// HasPathID returns true if this NLRI has an ADD-PATH path ID.
-func (l *LabeledUnicast) HasPathID() bool {
-	return l.hasPath
 }
 
 // encodeLabel encodes a single MPLS label to 3 bytes per RFC 3032.
@@ -114,12 +100,12 @@ func encodeLabel(label uint32, bos bool) []byte {
 	}
 }
 
-// Bytes returns the wire-format encoding.
+// Bytes returns the wire-format encoding (payload only, no path ID).
 //
 // RFC 8277 Section 2.2 - NLRI Encoding:
-// [PathID (4 bytes, optional)][Length (1 byte)][Labels (3*N bytes)][Prefix (variable)]
+// [Length (1 byte)][Labels (3*N bytes)][Prefix (variable)]
 //
-// RFC 7911 Section 3: When HasPathID() is true, prepends 4-octet Path Identifier.
+// Note: Path ID is NOT included. Use WriteNLRI() for ADD-PATH encoding.
 func (l *LabeledUnicast) Bytes() []byte {
 	prefixBits := l.prefix.Bits()
 	prefixBytes := (prefixBits + 7) / 8
@@ -130,18 +116,9 @@ func (l *LabeledUnicast) Bytes() []byte {
 
 	// Calculate buffer size
 	size := 1 + labelBytes + prefixBytes // length + labels + prefix
-	if l.hasPath {
-		size += 4 // path ID
-	}
 
 	buf := make([]byte, size)
 	offset := 0
-
-	// Path ID (optional)
-	if l.hasPath {
-		binary.BigEndian.PutUint32(buf[:4], l.pathID)
-		offset = 4
-	}
 
 	// Length byte
 	buf[offset] = byte(totalBits)
@@ -163,64 +140,23 @@ func (l *LabeledUnicast) Bytes() []byte {
 	return buf
 }
 
-// Pack returns wire-format bytes adapted for negotiated capabilities.
-//
-// RFC 7911 Section 3 - Extended NLRI Encodings:
-// When ADD-PATH is negotiated, NLRI is encoded with Path Identifier.
-//
-// Behavior:
-//   - If ctx is nil: returns Bytes() (no capability adaptation)
-//   - If ctx.AddPath=true and HasPathID()=true: returns with path ID
-//   - If ctx.AddPath=true and HasPathID()=false: prepends NOPATH (4 zeros)
-//   - If ctx.AddPath=false: returns without path ID (strips if present)
-func (l *LabeledUnicast) Pack(ctx *PackContext) []byte {
-	if ctx == nil {
-		return l.Bytes()
-	}
-
-	if ctx.AddPath {
-		if l.hasPath {
-			return l.Bytes() // Already has path ID
-		}
-		// Prepend NOPATH (4 zero bytes) - RFC 7911 requires path ID when negotiated
-		return append([]byte{0, 0, 0, 0}, l.Bytes()...)
-	}
-
-	// No ADD-PATH: strip path ID if present
-	if l.hasPath {
-		return l.Bytes()[4:] // Skip 4-byte path ID
-	}
-	return l.Bytes()
-}
-
-// WriteTo writes the NLRI wire-format into buf at offset.
-// Returns number of bytes written.
-func (l *LabeledUnicast) WriteTo(buf []byte, off int, ctx *PackContext) int {
-	packed := l.Pack(ctx)
-	return copy(buf[off:], packed)
-}
-
-// Len returns the wire-format length in bytes.
+// Len returns the wire-format length in bytes (payload only, no path ID).
+// Use LenWithContext() for ADD-PATH aware length calculation.
 func (l *LabeledUnicast) Len() int {
-	prefixBytes := (l.prefix.Bits() + 7) / 8
-	labelBytes := len(l.labels) * 3
-	size := 1 + labelBytes + prefixBytes
-	if l.hasPath {
-		size += 4
-	}
-	return size
-}
-
-// BaseLen returns the payload length WITHOUT path ID.
-// RFC 7911: This is the NLRI length excluding the 4-byte path identifier.
-func (l *LabeledUnicast) BaseLen() int {
 	prefixBytes := (l.prefix.Bits() + 7) / 8
 	labelBytes := len(l.labels) * 3
 	return 1 + labelBytes + prefixBytes
 }
 
+// BaseLen returns the payload length WITHOUT path ID.
+// After Phase 3, this is identical to Len(). Kept for Phase 4 cleanup.
+func (l *LabeledUnicast) BaseLen() int {
+	return l.Len()
+}
+
 // WritePayloadTo writes the NLRI payload (without path ID) into buf at offset.
 // Returns number of bytes written.
+// After Phase 3, this is identical to WriteTo(buf, off, nil). Kept for Phase 4 cleanup.
 func (l *LabeledUnicast) WritePayloadTo(buf []byte, off int) int {
 	prefixBits := l.prefix.Bits()
 	prefixBytes := (prefixBits + 7) / 8
@@ -256,6 +192,26 @@ func (l *LabeledUnicast) WritePayloadTo(buf []byte, off int) int {
 	return pos - off
 }
 
+// WriteTo writes the NLRI payload (without path ID) into buf at offset.
+// Returns number of bytes written.
+//
+// Note: Path ID is NOT written. Use WriteNLRI() for ADD-PATH encoding.
+// The ctx parameter is ignored (kept for interface compatibility).
+func (l *LabeledUnicast) WriteTo(buf []byte, off int, _ *PackContext) int {
+	return l.WritePayloadTo(buf, off)
+}
+
+// Pack returns wire-format bytes adapted for negotiated capabilities.
+//
+// Deprecated: Use WriteNLRI() for zero-allocation encoding.
+// This method allocates a new slice; prefer WriteNLRI() with pre-allocated buffer.
+func (l *LabeledUnicast) Pack(ctx *PackContext) []byte {
+	size := LenWithContext(l, ctx)
+	buf := make([]byte, size)
+	WriteNLRI(l, buf, 0, ctx)
+	return buf
+}
+
 // String returns a human-readable representation.
 func (l *LabeledUnicast) String() string {
 	var sb strings.Builder
@@ -271,7 +227,7 @@ func (l *LabeledUnicast) String() string {
 		fmt.Fprintf(&sb, " labels=[%s]", strings.Join(labels, ","))
 	}
 
-	if l.hasPath {
+	if l.pathID != 0 {
 		fmt.Fprintf(&sb, " path-id=%d", l.pathID)
 	}
 

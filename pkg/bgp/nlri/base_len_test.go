@@ -8,7 +8,7 @@ import (
 
 // TestBaseLen_INET verifies BaseLen returns payload length without path ID.
 //
-// VALIDATES: BaseLen excludes 4-byte path ID regardless of hasPath.
+// VALIDATES: BaseLen equals Len() after Phase 3 simplification.
 // PREVENTS: Size mismatch when building wire format with ADD-PATH.
 func TestBaseLen_INET(t *testing.T) {
 	tests := []struct {
@@ -27,7 +27,7 @@ func TestBaseLen_INET(t *testing.T) {
 			name:     "IPv4/24 with path",
 			prefix:   netip.MustParsePrefix("10.0.0.0/24"),
 			pathID:   1,
-			wantBase: 1 + 3, // Same! BaseLen excludes path ID
+			wantBase: 1 + 3, // Same! Len() no longer includes path ID
 		},
 		{
 			name:     "IPv4/32 no path",
@@ -63,15 +63,9 @@ func TestBaseLen_INET(t *testing.T) {
 				t.Errorf("BaseLen() = %d, want %d", got, tt.wantBase)
 			}
 
-			// Verify relationship: Len() = BaseLen() + 4 when hasPath
-			if tt.pathID != 0 {
-				if inet.Len() != got+4 {
-					t.Errorf("Len() = %d, want BaseLen()+4 = %d", inet.Len(), got+4)
-				}
-			} else {
-				if inet.Len() != got {
-					t.Errorf("Len() = %d, want BaseLen() = %d (no path)", inet.Len(), got)
-				}
+			// Phase 3: Len() = BaseLen() always (no path ID included)
+			if inet.Len() != got {
+				t.Errorf("Len() = %d, want BaseLen() = %d", inet.Len(), got)
 			}
 		})
 	}
@@ -79,7 +73,7 @@ func TestBaseLen_INET(t *testing.T) {
 
 // TestBaseLen_IPVPN verifies BaseLen returns payload length without path ID.
 //
-// VALIDATES: BaseLen excludes 4-byte path ID for IPVPN.
+// VALIDATES: BaseLen equals Len() after Phase 3 simplification.
 // PREVENTS: Size mismatch in VPN route encoding.
 func TestBaseLen_IPVPN(t *testing.T) {
 	rd, _ := ParseRDString("65000:100")
@@ -103,7 +97,7 @@ func TestBaseLen_IPVPN(t *testing.T) {
 			prefix:   netip.MustParsePrefix("10.0.0.0/24"),
 			labels:   []uint32{16000},
 			pathID:   1,
-			wantBase: 1 + 3 + 8 + 3, // Same! Excludes path ID
+			wantBase: 1 + 3 + 8 + 3, // Same! Len() no longer includes path ID
 		},
 		{
 			name:     "VPNv4/32 two labels",
@@ -128,11 +122,9 @@ func TestBaseLen_IPVPN(t *testing.T) {
 				t.Errorf("BaseLen() = %d, want %d", got, tt.wantBase)
 			}
 
-			// Verify relationship
-			if tt.pathID != 0 {
-				if vpn.Len() != got+4 {
-					t.Errorf("Len() = %d, want BaseLen()+4 = %d", vpn.Len(), got+4)
-				}
+			// Phase 3: Len() = BaseLen() always
+			if vpn.Len() != got {
+				t.Errorf("Len() = %d, want BaseLen() = %d", vpn.Len(), got)
 			}
 		})
 	}
@@ -140,7 +132,7 @@ func TestBaseLen_IPVPN(t *testing.T) {
 
 // TestBaseLen_LabeledUnicast verifies BaseLen returns payload length without path ID.
 //
-// VALIDATES: BaseLen excludes 4-byte path ID for labeled unicast.
+// VALIDATES: BaseLen equals Len() after Phase 3 simplification.
 // PREVENTS: Size mismatch in MPLS-labeled route encoding.
 func TestBaseLen_LabeledUnicast(t *testing.T) {
 	tests := []struct {
@@ -162,7 +154,7 @@ func TestBaseLen_LabeledUnicast(t *testing.T) {
 			prefix:   netip.MustParsePrefix("10.0.0.0/24"),
 			labels:   []uint32{16000},
 			pathID:   1,
-			wantBase: 1 + 3 + 3, // Same! Excludes path ID
+			wantBase: 1 + 3 + 3, // Same! Len() no longer includes path ID
 		},
 	}
 
@@ -179,13 +171,18 @@ func TestBaseLen_LabeledUnicast(t *testing.T) {
 			if got != tt.wantBase {
 				t.Errorf("BaseLen() = %d, want %d", got, tt.wantBase)
 			}
+
+			// Phase 3: Len() = BaseLen() always
+			if lu.Len() != got {
+				t.Errorf("Len() = %d, want BaseLen() = %d", lu.Len(), got)
+			}
 		})
 	}
 }
 
 // TestWritePayloadTo_INET verifies WritePayloadTo writes payload without path ID.
 //
-// VALIDATES: WritePayloadTo produces bytes identical to Bytes() minus path ID.
+// VALIDATES: WritePayloadTo produces bytes identical to Bytes().
 // PREVENTS: Wire format corruption when ADD-PATH is handled externally.
 func TestWritePayloadTo_INET(t *testing.T) {
 	tests := []struct {
@@ -228,14 +225,10 @@ func TestWritePayloadTo_INET(t *testing.T) {
 				t.Errorf("WritePayloadTo returned %d, want BaseLen() = %d", n, inet.BaseLen())
 			}
 
-			// Verify bytes match Pack(nil) with path stripped
-			// When hasPath, Pack(nil) includes path ID, so strip first 4 bytes
-			expected := inet.Pack(nil)
-			if tt.pathID != 0 {
-				expected = expected[4:] // Strip path ID
-			}
-
+			// Phase 3: Bytes() = payload only, should match WritePayloadTo
+			expected := inet.Bytes()
 			got := buf[:n]
+
 			if len(got) != len(expected) {
 				t.Errorf("WritePayloadTo wrote %d bytes, want %d", len(got), len(expected))
 			}
@@ -288,7 +281,7 @@ func TestWriteNLRI_AddPath(t *testing.T) {
 		buf := make([]byte, 100)
 		n := WriteNLRI(inet, buf, 0, nil)
 
-		// Should be just BaseLen
+		// Phase 3: nil context = payload only (no path ID)
 		if n != inet.BaseLen() {
 			t.Errorf("WriteNLRI returned %d, want %d", n, inet.BaseLen())
 		}
@@ -313,8 +306,6 @@ func TestWriteNLRI_WithStoredPathID(t *testing.T) {
 	}
 
 	// Total length should be 4 + BaseLen
-	// Note: With stored path ID, Len() already includes the 4 bytes
-	// So: WriteNLRI with AddPath = Len() (since path is included either way)
 	wantLen := 4 + inet.BaseLen()
 	if n != wantLen {
 		t.Errorf("WriteNLRI returned %d, want %d", n, wantLen)

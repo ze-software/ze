@@ -51,7 +51,7 @@ func TestINETIPv4Basic(t *testing.T) {
 			require.True(t, ok, "expected INET")
 			assert.Equal(t, tt.expected, inet.Prefix())
 			assert.Equal(t, IPv4Unicast, inet.Family())
-			assert.False(t, inet.HasPathID())
+			assert.False(t, inet.PathID() != 0)
 		})
 	}
 }
@@ -114,7 +114,7 @@ func TestINETWithAddPath(t *testing.T) {
 
 	inet, ok := nlri.(*INET)
 	require.True(t, ok, "expected INET")
-	assert.True(t, inet.HasPathID())
+	assert.True(t, inet.PathID() != 0)
 	assert.Equal(t, uint32(1), inet.PathID())
 	assert.Equal(t, netip.MustParsePrefix("10.0.0.0/8"), inet.Prefix())
 }
@@ -157,14 +157,25 @@ func TestINETBytes(t *testing.T) {
 	assert.Equal(t, 4, inet.Len())
 }
 
-// TestINETBytesWithPathID verifies encoding with path ID.
+// TestINETBytesWithPathID verifies encoding with stored path ID.
+//
+// Phase 3: Bytes() returns payload only (no path ID).
+// Use Pack(ctx.AddPath=true) to encode with path ID.
 func TestINETBytesWithPathID(t *testing.T) {
 	prefix := netip.MustParsePrefix("10.0.0.0/8")
 	inet := NewINET(IPv4Unicast, prefix, 42)
 
-	// Should encode as: path_id(4 bytes) + prefix_len(8) + 1 byte (10)
-	expected := []byte{0, 0, 0, 42, 8, 10}
+	// Phase 3: Bytes() = payload only (no path ID)
+	expected := []byte{8, 10}
 	assert.Equal(t, expected, inet.Bytes())
+
+	// Path ID is stored but not in Bytes()
+	assert.Equal(t, uint32(42), inet.PathID())
+
+	// Pack(ctx.AddPath=true) includes path ID
+	ctx := &PackContext{AddPath: true}
+	expectedWithPath := []byte{0, 0, 0, 42, 8, 10}
+	assert.Equal(t, expectedWithPath, inet.Pack(ctx))
 }
 
 // TestINETString verifies string representation.

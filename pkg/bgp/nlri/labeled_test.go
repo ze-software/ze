@@ -24,7 +24,7 @@ func TestLabeledUnicastInterface(t *testing.T) {
 	assert.Equal(t, prefix, lu.Prefix())
 	assert.Equal(t, []uint32{100}, lu.Labels())
 	assert.Equal(t, uint32(0), lu.PathID())
-	assert.False(t, lu.HasPathID())
+	assert.False(t, lu.PathID() != 0)
 }
 
 // TestLabeledUnicastBytes verifies wire format encoding per RFC 8277 Section 2.2.
@@ -90,21 +90,30 @@ func TestLabeledUnicastBytes(t *testing.T) {
 	}
 }
 
-// TestLabeledUnicastBytesWithPathID verifies encoding with ADD-PATH path ID.
+// TestLabeledUnicastBytesWithPathID verifies encoding with stored path ID.
 //
-// VALIDATES: RFC 7911 - Path ID prepended when present.
-// Wire format: [PathID (4 bytes)][Length][Label (3 bytes)][Prefix]
+// VALIDATES: Phase 3 - Bytes() returns payload only (no path ID).
+// Path ID is stored but NOT encoded by Bytes().
+// Use Pack(ctx) with ctx.AddPath=true to encode with path ID.
 //
-// PREVENTS: ADD-PATH encoding failures.
+// PREVENTS: Confusion about Bytes() behavior after Phase 3.
 func TestLabeledUnicastBytesWithPathID(t *testing.T) {
 	prefix := netip.MustParsePrefix("10.0.0.0/8")
 	lu := NewLabeledUnicast(IPv4Unicast, prefix, []uint32{100}, 42)
 
-	// PathID=42 (4 bytes) + Length=32 + Label + Prefix
-	expected := []byte{0, 0, 0, 42, 32, 0x00, 0x06, 0x41, 10}
+	// Phase 3: Bytes() = payload only (no path ID)
+	// Length=32 + Label + Prefix
+	expected := []byte{32, 0x00, 0x06, 0x41, 10}
 	assert.Equal(t, expected, lu.Bytes())
-	assert.True(t, lu.HasPathID())
+
+	// Path ID is stored but not encoded by Bytes()
+	assert.True(t, lu.PathID() != 0)
 	assert.Equal(t, uint32(42), lu.PathID())
+
+	// Pack(ctx.AddPath=true) includes path ID
+	ctx := &PackContext{AddPath: true}
+	expectedWithPath := []byte{0, 0, 0, 42, 32, 0x00, 0x06, 0x41, 10}
+	assert.Equal(t, expectedWithPath, lu.Pack(ctx))
 }
 
 // TestLabeledUnicastIPv6 verifies IPv6 labeled unicast encoding.
@@ -234,17 +243,14 @@ func TestLabeledUnicastLabelStack(t *testing.T) {
 	assert.Equal(t, expected, lu.Bytes())
 }
 
-// TestLabeledUnicastWireConsistency verifies Pack output matches buildLabeledUnicastNLRIBytes.
+// TestLabeledUnicastWireConsistency verifies Pack output matches expected format.
 //
-// VALIDATES: Two code paths produce identical wire format.
-// Path 1: Immediate send via BuildLabeledUnicast → buildLabeledUnicastNLRIBytes
-// Path 2: Queued replay via buildRIBRouteUpdate → nlri.LabeledUnicast.Pack(ctx)
+// VALIDATES: Phase 3 - Bytes() is payload only, Pack(ctx.AddPath) includes path ID.
+// Path 1: Bytes() = payload only (no path ID)
+// Path 2: Pack(ctx.AddPath=true) = path ID + payload
 //
 // PREVENTS: Route replay producing different wire encoding than original announcement.
 func TestLabeledUnicastWireConsistency(t *testing.T) {
-	// This test will be expanded when we integrate with message.UpdateBuilder
-	// For now, verify the encoding matches expected RFC 8277 format
-
 	tests := []struct {
 		name   string
 		prefix netip.Prefix
@@ -259,28 +265,33 @@ func TestLabeledUnicastWireConsistency(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			lu := NewLabeledUnicast(IPv4Unicast, tt.prefix, []uint32{tt.label}, tt.pathID)
+
+			// Phase 3: Bytes() = payload only (no path ID ever)
 			bytes := lu.Bytes()
 
-			// Verify format: [pathID?][length][label 3 bytes][prefix bytes]
-			offset := 0
-			if tt.pathID != 0 {
-				require.GreaterOrEqual(t, len(bytes), 4)
-				offset = 4
-			}
-
-			// Length byte
+			// Length byte is at offset 0 (no path ID)
 			prefixBits := tt.prefix.Bits()
 			expectedLen := byte(24 + prefixBits)
-			assert.Equal(t, expectedLen, bytes[offset], "length byte mismatch")
+			assert.Equal(t, expectedLen, bytes[0], "length byte mismatch")
 
-			// Label encoding (3 bytes)
-			labelBytes := bytes[offset+1 : offset+4]
+			// Label encoding (3 bytes) at offset 1
+			labelBytes := bytes[1:4]
 			// Reconstruct label from bytes
 			decoded := (uint32(labelBytes[0]) << 12) | (uint32(labelBytes[1]) << 4) | (uint32(labelBytes[2]) >> 4)
 			assert.Equal(t, tt.label, decoded, "label value mismatch")
 
 			// BOS bit should be set (last 4 bits of label[2] & 0x01)
 			assert.Equal(t, byte(0x01), labelBytes[2]&0x01, "BOS bit not set")
+
+			// If pathID is set, verify Pack(ctx.AddPath=true) includes it
+			if tt.pathID != 0 {
+				ctx := &PackContext{AddPath: true}
+				packed := lu.Pack(ctx)
+				require.GreaterOrEqual(t, len(packed), 4)
+				// Verify path ID at beginning
+				gotPathID := (uint32(packed[0]) << 24) | (uint32(packed[1]) << 16) | (uint32(packed[2]) << 8) | uint32(packed[3])
+				assert.Equal(t, tt.pathID, gotPathID, "path ID mismatch in Pack()")
+			}
 		})
 	}
 }

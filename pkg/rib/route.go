@@ -256,11 +256,16 @@ func (r *Route) Index() []byte {
 	}
 
 	family := r.nlri.Family()
-	// Use Pack(nil) for consistent API - returns same bytes as Bytes()
+	// Phase 3: Pack(nil) returns payload only, need to include path ID separately
 	nlriBytes := r.nlri.Pack(nil)
+	pathID := r.nlri.PathID()
+	hasPathID := pathID != 0
 
 	// Calculate index size
 	size := 3 + len(nlriBytes) // AFI(2) + SAFI(1) + NLRI
+	if hasPathID {
+		size += 4 // Path ID
+	}
 	if r.asPath != nil {
 		size += 8 // AS-PATH hash
 	}
@@ -273,6 +278,12 @@ func (r *Route) Index() []byte {
 	offset += 2
 	buf[offset] = byte(family.SAFI)
 	offset++
+
+	// Path ID (if present)
+	if hasPathID {
+		binary.BigEndian.PutUint32(buf[offset:], pathID)
+		offset += 4
+	}
 
 	// NLRI bytes
 	copy(buf[offset:], nlriBytes)

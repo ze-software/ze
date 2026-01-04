@@ -77,8 +77,21 @@ type hashableNLRI struct {
 }
 
 func (h hashableNLRI) Key() []byte {
-	// Use Pack(nil) for consistent API - returns NLRI bytes for keying
-	return h.n.Pack(nil)
+	// Phase 3: Include path ID in key for uniqueness
+	// Pack(nil) returns payload only, so prepend path ID if non-zero
+	payload := h.n.Pack(nil)
+	pathID := h.n.PathID()
+	if pathID == 0 {
+		return payload
+	}
+	// Prepend 4-byte path ID to payload
+	key := make([]byte, 4+len(payload))
+	key[0] = byte(pathID >> 24)
+	key[1] = byte(pathID >> 16)
+	key[2] = byte(pathID >> 8)
+	key[3] = byte(pathID)
+	copy(key[4:], payload)
+	return key
 }
 
 func (h hashableNLRI) FamilyKey() uint32 {

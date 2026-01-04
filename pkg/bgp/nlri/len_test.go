@@ -95,12 +95,14 @@ func TestLenWithContext_MatchesPack(t *testing.T) {
 	}
 }
 
-// TestLenWithContext_MatchesWriteTo verifies that LenWithContext returns the same
-// length as WriteTo actually writes.
+// TestLenWithContext_MatchesWriteNLRI_AllTypes verifies that LenWithContext returns the same
+// length as WriteNLRI actually writes for all NLRI types including FlowSpec.
 //
-// VALIDATES: Buffer size from LenWithContext is exactly what WriteTo needs.
-// PREVENTS: Buffer overflow when WriteTo writes more than LenWithContext predicted.
-func TestLenWithContext_MatchesWriteTo(t *testing.T) {
+// Phase 3: WriteTo writes payload only. Use WriteNLRI for ADD-PATH encoding.
+//
+// VALIDATES: Buffer size from LenWithContext is exactly what WriteNLRI needs.
+// PREVENTS: Buffer overflow when WriteNLRI writes more than LenWithContext predicted.
+func TestLenWithContext_MatchesWriteNLRI_AllTypes(t *testing.T) {
 	testCases := []struct {
 		name            string
 		nlri            NLRI
@@ -150,12 +152,12 @@ func TestLenWithContext_MatchesWriteTo(t *testing.T) {
 				// Get predicted length
 				predictedLen := LenWithContext(nlri, ctx)
 
-				// Allocate buffer and write
+				// Allocate buffer and write using WriteNLRI (not WriteTo)
 				buf := make([]byte, predictedLen+10) // Extra space to detect overflow
-				written := nlri.WriteTo(buf, 0, ctx)
+				written := WriteNLRI(nlri, buf, 0, ctx)
 
 				if written != predictedLen {
-					t.Errorf("LenWithContext=%d but WriteTo wrote %d bytes",
+					t.Errorf("LenWithContext=%d but WriteNLRI wrote %d bytes",
 						predictedLen, written)
 				}
 			})
@@ -164,32 +166,32 @@ func TestLenWithContext_MatchesWriteTo(t *testing.T) {
 }
 
 // mustParseINET creates INET NLRI for testing.
-func mustParseINET(t *testing.T, prefix string, hasPath bool, pathID uint32) *INET {
+// hasPath parameter is kept for API compatibility but ignored - pathID!=0 implies path exists.
+func mustParseINET(t *testing.T, prefix string, _ bool, pathID uint32) *INET {
 	t.Helper()
 	p := netip.MustParsePrefix(prefix)
-	inet := &INET{
-		prefix:  p,
-		hasPath: hasPath,
-		pathID:  pathID,
+	return &INET{
+		prefix: p,
+		pathID: pathID,
 	}
-	return inet
 }
 
 // mustParseIPVPN creates IPVPN NLRI for testing.
-func mustParseIPVPN(t *testing.T, prefix string, hasPath bool, pathID uint32) *IPVPN {
+// hasPath parameter is kept for API compatibility but ignored - pathID!=0 implies path exists.
+func mustParseIPVPN(t *testing.T, prefix string, _ bool, pathID uint32) *IPVPN {
 	t.Helper()
 	p := netip.MustParsePrefix(prefix)
 	return &IPVPN{
-		prefix:  p,
-		hasPath: hasPath,
-		pathID:  pathID,
-		labels:  []uint32{100}, // Single label
-		rd:      RouteDistinguisher{Type: 0, Value: [6]byte{0, 0, 0, 0, 0, 1}},
+		prefix: p,
+		pathID: pathID,
+		labels: []uint32{100}, // Single label
+		rd:     RouteDistinguisher{Type: 0, Value: [6]byte{0, 0, 0, 0, 0, 1}},
 	}
 }
 
 // mustParseLabeledUnicast creates LabeledUnicast NLRI for testing.
-func mustParseLabeledUnicast(t *testing.T, prefix string, hasPath bool, pathID uint32) *LabeledUnicast {
+// hasPath parameter is kept for API compatibility but ignored - pathID!=0 implies path exists.
+func mustParseLabeledUnicast(t *testing.T, prefix string, _ bool, pathID uint32) *LabeledUnicast {
 	t.Helper()
 	p := netip.MustParsePrefix(prefix)
 	family := IPv4Unicast
@@ -197,11 +199,10 @@ func mustParseLabeledUnicast(t *testing.T, prefix string, hasPath bool, pathID u
 		family = IPv6Unicast
 	}
 	return &LabeledUnicast{
-		family:  family,
-		prefix:  p,
-		labels:  []uint32{16000}, // Single label
-		hasPath: hasPath,
-		pathID:  pathID,
+		family: family,
+		prefix: p,
+		labels: []uint32{16000}, // Single label
+		pathID: pathID,
 	}
 }
 

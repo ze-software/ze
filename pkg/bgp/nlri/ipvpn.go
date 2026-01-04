@@ -244,25 +244,27 @@ func EncodeLabelStack(labels []uint32) []byte {
 //   - AFI=2 (IPv6), SAFI=128 (MPLS-labeled VPN)
 //   - Prefix = MPLS label(s) + 8-byte RD + IPv6 prefix
 //
-// The NLRI is encoded per RFC 3107 (Carrying Label Information in BGP-4).
+// RFC 7911 Section 3 - Extended NLRI Encodings:
+// Path ID is stored but NOT included in Len()/Bytes()/WriteTo().
+// Use WriteNLRI() for ADD-PATH aware encoding.
 type IPVPN struct {
-	family  Family             // RFC 4364/4659: AFI + SAFI
-	rd      RouteDistinguisher // RFC 4364 Section 4.1: 8-byte RD
-	labels  []uint32           // RFC 3107: MPLS label stack
-	prefix  netip.Prefix       // IPv4 (RFC 4364) or IPv6 (RFC 4659) prefix
-	pathID  uint32             // RFC 7911: ADD-PATH path identifier
-	hasPath bool               // True if ADD-PATH is enabled
+	family Family             // RFC 4364/4659: AFI + SAFI
+	rd     RouteDistinguisher // RFC 4364 Section 4.1: 8-byte RD
+	labels []uint32           // RFC 3107: MPLS label stack
+	prefix netip.Prefix       // IPv4 (RFC 4364) or IPv6 (RFC 4659) prefix
+	pathID uint32             // RFC 7911: 0 means no path ID
 }
 
 // NewIPVPN creates a new IPVPN NLRI.
+// pathID=0 means no path identifier; pathID>0 stores the path ID.
+// Use WriteNLRI() with PackContext.AddPath=true to encode with path ID.
 func NewIPVPN(family Family, rd RouteDistinguisher, labels []uint32, prefix netip.Prefix, pathID uint32) *IPVPN {
 	return &IPVPN{
-		family:  family,
-		rd:      rd,
-		labels:  labels,
-		prefix:  prefix,
-		pathID:  pathID,
-		hasPath: pathID != 0,
+		family: family,
+		rd:     rd,
+		labels: labels,
+		prefix: prefix,
+		pathID: pathID,
 	}
 }
 
@@ -369,12 +371,11 @@ func ParseIPVPN(afi AFI, safi SAFI, data []byte, addpath bool) (NLRI, []byte, er
 	}
 
 	vpn := &IPVPN{
-		family:  Family{AFI: afi, SAFI: safi},
-		rd:      rd,
-		labels:  labels,
-		prefix:  prefix,
-		pathID:  pathID,
-		hasPath: addpath,
+		family: Family{AFI: afi, SAFI: safi},
+		rd:     rd,
+		labels: labels,
+		prefix: prefix,
+		pathID: pathID,
 	}
 
 	return vpn, data[offset+totalBytes:], nil
@@ -394,21 +395,19 @@ func (v *IPVPN) Labels() []uint32 { return v.labels }
 // Prefix returns the IP prefix (IPv4 per RFC 4364, IPv6 per RFC 4659).
 func (v *IPVPN) Prefix() netip.Prefix { return v.prefix }
 
-// PathID returns the ADD-PATH path identifier per RFC 7911.
+// PathID returns the ADD-PATH path identifier (0 if none).
 func (v *IPVPN) PathID() uint32 { return v.pathID }
 
-// HasPathID returns true if this NLRI has a path ID (RFC 7911 ADD-PATH).
-func (v *IPVPN) HasPathID() bool { return v.hasPath }
-
-// Bytes returns the wire format per RFC 3107, RFC 4364, and RFC 4659.
+// Bytes returns the wire format (payload only, no path ID).
 //
 // Wire format:
 //
-//	[Path ID (4 bytes, optional)]  RFC 7911 ADD-PATH
 //	[Length (1 byte)]              Total bits of labels + RD + prefix
 //	[MPLS Labels (3+ bytes)]       RFC 3107 label stack
 //	[Route Distinguisher (8 bytes)] RFC 4364 Section 4.2
 //	[IP Prefix (variable)]         IPv4 (RFC 4364) or IPv6 (RFC 4659)
+//
+// Note: Path ID is NOT included. Use WriteNLRI() for ADD-PATH encoding.
 func (v *IPVPN) Bytes() []byte {
 	labelBytes := EncodeLabelStack(v.labels)
 	rdBytes := v.rd.Bytes()
@@ -419,48 +418,31 @@ func (v *IPVPN) Bytes() []byte {
 	// RFC 3107: Length field = label bits + RD bits (64) + prefix bits
 	totalBits := len(labelBytes)*8 + 64 + prefixBits
 
-	var buf []byte
-	if v.hasPath {
-		// RFC 7911: Include 4-byte path identifier
-		buf = make([]byte, 4+1+len(labelBytes)+8+prefixBytes)
-		binary.BigEndian.PutUint32(buf[:4], v.pathID)
-		buf[4] = byte(totalBits)
-		copy(buf[5:], labelBytes)
-		copy(buf[5+len(labelBytes):], rdBytes)
-		copy(buf[5+len(labelBytes)+8:], v.prefix.Addr().AsSlice()[:prefixBytes])
-	} else {
-		buf = make([]byte, 1+len(labelBytes)+8+prefixBytes)
-		buf[0] = byte(totalBits)
-		copy(buf[1:], labelBytes)
-		copy(buf[1+len(labelBytes):], rdBytes)
-		copy(buf[1+len(labelBytes)+8:], v.prefix.Addr().AsSlice()[:prefixBytes])
-	}
+	buf := make([]byte, 1+len(labelBytes)+8+prefixBytes)
+	buf[0] = byte(totalBits)
+	copy(buf[1:], labelBytes)
+	copy(buf[1+len(labelBytes):], rdBytes)
+	copy(buf[1+len(labelBytes)+8:], v.prefix.Addr().AsSlice()[:prefixBytes])
 
 	return buf
 }
 
-// Len returns the wire format length.
-//
-// Length = [Path ID (4)] + Length (1) + Labels (3*n) + RD (8) + Prefix (variable).
+// Len returns the wire format length (payload only, no path ID).
+// Use LenWithContext() for ADD-PATH aware length calculation.
 func (v *IPVPN) Len() int {
-	prefixBytes := (v.prefix.Bits() + 7) / 8
-	// 1 byte length + 3 bytes per label + 8 byte RD + prefix bytes
-	n := 1 + len(v.labels)*3 + 8 + prefixBytes
-	if v.hasPath {
-		n += 4 // RFC 7911: ADD-PATH path identifier
-	}
-	return n
-}
-
-// BaseLen returns the payload length WITHOUT path ID.
-// RFC 7911: This is the NLRI length excluding the 4-byte path identifier.
-func (v *IPVPN) BaseLen() int {
 	prefixBytes := (v.prefix.Bits() + 7) / 8
 	return 1 + len(v.labels)*3 + 8 + prefixBytes
 }
 
+// BaseLen returns the payload length WITHOUT path ID.
+// After Phase 3, this is identical to Len(). Kept for Phase 4 cleanup.
+func (v *IPVPN) BaseLen() int {
+	return v.Len()
+}
+
 // WritePayloadTo writes the NLRI payload (without path ID) into buf at offset.
 // Returns number of bytes written.
+// After Phase 3, this is identical to WriteTo(buf, off, nil). Kept for Phase 4 cleanup.
 func (v *IPVPN) WritePayloadTo(buf []byte, off int) int {
 	prefixBits := v.prefix.Bits()
 	prefixBytes := (prefixBits + 7) / 8
@@ -496,74 +478,30 @@ func (v *IPVPN) String() string {
 	if len(v.labels) > 0 {
 		s = fmt.Sprintf("%s labels=%v", s, v.labels)
 	}
-	if v.hasPath {
+	if v.pathID != 0 {
 		s = fmt.Sprintf("%s path-id=%d", s, v.pathID)
 	}
 	return s
 }
 
-// Pack returns wire-format bytes adapted for negotiated capabilities.
-// RFC 7911 Section 3: Handles ADD-PATH path identifier based on ctx.AddPath.
-func (v *IPVPN) Pack(ctx *PackContext) []byte {
-	if ctx == nil {
-		return v.Bytes()
-	}
-	if ctx.AddPath {
-		if v.hasPath {
-			return v.Bytes() // Already has path ID
-		}
-		// Prepend NOPATH (4 zero bytes)
-		return append([]byte{0, 0, 0, 0}, v.Bytes()...)
-	}
-	// No ADD-PATH: strip path ID if present
-	if v.hasPath {
-		return v.Bytes()[4:] // Skip 4-byte path ID
-	}
-	return v.Bytes()
+// WriteTo writes the NLRI payload (without path ID) into buf at offset.
+// Returns number of bytes written.
+//
+// Note: Path ID is NOT written. Use WriteNLRI() for ADD-PATH encoding.
+// The ctx parameter is ignored (kept for interface compatibility).
+func (v *IPVPN) WriteTo(buf []byte, off int, _ *PackContext) int {
+	return v.WritePayloadTo(buf, off)
 }
 
-// WriteTo writes the NLRI wire-format into buf at offset.
-// Returns number of bytes written.
-func (v *IPVPN) WriteTo(buf []byte, off int, ctx *PackContext) int {
-	prefixBits := v.prefix.Bits()
-	prefixBytes := (prefixBits + 7) / 8
-	labelCount := len(v.labels)
-
-	// RFC 3107: Length field = label bits + RD bits (64) + prefix bits
-	totalBits := labelCount*24 + 64 + prefixBits
-
-	pos := off
-
-	// Handle ADD-PATH path identifier
-	if ctx != nil && ctx.AddPath {
-		if v.hasPath {
-			binary.BigEndian.PutUint32(buf[pos:], v.pathID)
-		} else {
-			binary.BigEndian.PutUint32(buf[pos:], 0) // NOPATH
-		}
-		pos += 4
-	} else if ctx == nil && v.hasPath {
-		binary.BigEndian.PutUint32(buf[pos:], v.pathID)
-		pos += 4
-	}
-
-	// Write length field
-	buf[pos] = byte(totalBits)
-	pos++
-
-	// Write MPLS labels
-	pos += writeLabelStack(buf, pos, v.labels)
-
-	// Write Route Distinguisher (8 bytes)
-	binary.BigEndian.PutUint16(buf[pos:], uint16(v.rd.Type))
-	copy(buf[pos+2:], v.rd.Value[:])
-	pos += 8
-
-	// Write IP prefix
-	copy(buf[pos:], v.prefix.Addr().AsSlice()[:prefixBytes])
-	pos += prefixBytes
-
-	return pos - off
+// Pack returns wire-format bytes adapted for negotiated capabilities.
+//
+// Deprecated: Use WriteNLRI() for zero-allocation encoding.
+// This method allocates a new slice; prefer WriteNLRI() with pre-allocated buffer.
+func (v *IPVPN) Pack(ctx *PackContext) []byte {
+	size := LenWithContext(v, ctx)
+	buf := make([]byte, size)
+	WriteNLRI(v, buf, 0, ctx)
+	return buf
 }
 
 // writeLabelStack writes MPLS labels to buf at offset.

@@ -229,30 +229,29 @@ func ParseFamily(s string) (Family, bool) {
 //
 // This is the core interface for all NLRI types (prefixes, VPN routes,
 // EVPN routes, FlowSpec rules, etc.).
+//
+// Phase 3 simplification: Len()/Bytes()/WriteTo() return payload only (no path ID).
+// Use WriteNLRI() for ADD-PATH aware encoding.
 type NLRI interface {
 	// Family returns the AFI/SAFI for this NLRI.
 	// RFC 4760 Section 3: <AFI, SAFI> identifies NLRI semantics.
 	Family() Family
 
-	// Bytes returns the wire-format encoding of this NLRI.
+	// Bytes returns the wire-format encoding of this NLRI (payload only).
 	// RFC 4271 Section 4.3: Encoded as <length, prefix> tuples.
 	// The returned slice may be shared; do not modify.
 	//
-	// Note: For capability-aware encoding (ADD-PATH, etc.), use Pack() instead.
+	// Note: Path ID is NOT included. Use WriteNLRI() for ADD-PATH encoding.
 	Bytes() []byte
 
 	// Pack returns wire-format bytes adapted for negotiated capabilities.
 	//
-	// RFC 7911 Section 3: Handles ADD-PATH path identifier based on ctx.AddPath:
-	//   - If ctx is nil: behaves like Bytes()
-	//   - If ctx.AddPath=true and HasPathID()=true: returns with path ID
-	//   - If ctx.AddPath=true and HasPathID()=false: prepends NOPATH (4 zeros)
-	//   - If ctx.AddPath=false: returns without path ID (strips if present)
-	//
-	// Deprecated: Use WriteTo for zero-allocation encoding.
+	// Deprecated: Use WriteNLRI() for zero-allocation encoding.
+	// This method allocates a new slice; prefer WriteNLRI() with pre-allocated buffer.
 	Pack(ctx *PackContext) []byte
 
-	// Len returns the length in bytes of the wire encoding.
+	// Len returns the payload length in bytes (no path ID).
+	// Use LenWithContext() for ADD-PATH aware length calculation.
 	Len() int
 
 	// String returns a human-readable representation.
@@ -262,51 +261,38 @@ type NLRI interface {
 	// RFC 7911 Section 3: Path Identifier is a 4-octet field.
 	PathID() uint32
 
-	// HasPathID returns true if this NLRI has an ADD-PATH path ID.
-	// RFC 7911: Path ID is present when ADD-PATH capability is negotiated.
-	HasPathID() bool
-
-	// WriteTo writes the NLRI wire-format into buf at offset.
+	// WriteTo writes the NLRI payload (without path ID) into buf at offset.
 	// Returns number of bytes written.
-	// Uses ctx for capability-aware encoding (ADD-PATH, etc.).
-	// Caller guarantees buf has sufficient capacity.
+	//
+	// Note: Path ID is NOT written. Use WriteNLRI() for ADD-PATH encoding.
+	// The ctx parameter is kept for interface compatibility but is ignored.
 	WriteTo(buf []byte, off int, ctx *PackContext) int
 }
 
 // LenWithContext returns the wire-format length adjusted for context.
 //
-// RFC 7911: ADD-PATH adds/removes 4-byte path identifier based on context:
-//   - If ctx is nil: returns Len() (includes path ID if present)
-//   - If ctx.AddPath=true and !HasPathID(): adds 4 bytes for NOPATH
-//   - If ctx.AddPath=false and HasPathID(): subtracts 4 bytes
+// Phase 3: Len() now returns payload length (no path ID). LenWithContext adds
+// 4 bytes when ctx.AddPath=true for types that support ADD-PATH.
+//
+// RFC 7911: ADD-PATH prepends 4-byte path identifier when negotiated:
+//   - If ctx is nil or ctx.AddPath=false: returns Len() (payload only)
+//   - If ctx.AddPath=true: returns Len() + 4 (for types supporting ADD-PATH)
 //
 // Note: Some NLRI types (FlowSpec, BGPLS, etc.) don't support ADD-PATH
-// and ignore the context. For these, Len() is always returned.
+// and always return Len() regardless of context.
 func LenWithContext(n NLRI, ctx *PackContext) int {
 	baseLen := n.Len()
 
-	// Types that don't support ADD-PATH - Pack() ignores context
+	// Types that don't support ADD-PATH
 	if !supportsAddPath(n) {
 		return baseLen
 	}
 
-	hasPath := n.HasPathID()
-
-	if ctx == nil {
-		return baseLen
+	// ADD-PATH: add 4 bytes for path identifier
+	if ctx != nil && ctx.AddPath {
+		return baseLen + 4
 	}
 
-	if ctx.AddPath {
-		if !hasPath {
-			return baseLen + 4 // Add NOPATH
-		}
-		return baseLen // Already has path ID
-	}
-
-	// ctx.AddPath == false
-	if hasPath {
-		return baseLen - 4 // Strip path ID
-	}
 	return baseLen
 }
 
@@ -355,21 +341,16 @@ func WriteNLRI(n NLRI, buf []byte, off int, ctx *PackContext) int {
 }
 
 // writeNLRIOptimized handles ADD-PATH encoding for PayloadWriter types.
+//
+// Phase 3: Path ID is only written when ctx.AddPath=true.
+// When ctx=nil or ctx.AddPath=false, only payload is written.
 func writeNLRIOptimized(pw PayloadWriter, buf []byte, off int, ctx *PackContext) int {
 	pos := off
-	pathID := pw.PathID()
-	hasPath := pathID != 0
 
 	// Handle ADD-PATH path identifier
-	// RFC 7911: Path ID included when:
-	// - ctx.AddPath=true: always write path ID (use stored or NOPATH=0)
-	// - ctx=nil and hasPath: preserve stored path ID (backward compatible)
-	// - ctx.AddPath=false: never write path ID
+	// RFC 7911: Path ID only included when ctx.AddPath=true
 	if ctx != nil && ctx.AddPath {
-		binary.BigEndian.PutUint32(buf[pos:], pathID)
-		pos += 4
-	} else if ctx == nil && hasPath {
-		binary.BigEndian.PutUint32(buf[pos:], pathID)
+		binary.BigEndian.PutUint32(buf[pos:], pw.PathID())
 		pos += 4
 	}
 

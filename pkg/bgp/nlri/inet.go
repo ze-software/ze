@@ -15,6 +15,7 @@
 //
 // RFC 7911 Section 3 - Extended NLRI Encodings:
 // ADD-PATH extends NLRI by prepending a 4-octet Path Identifier.
+// Path ID handling is done by WriteNLRI(), not by the NLRI type itself.
 package nlri
 
 import (
@@ -38,23 +39,22 @@ var (
 // and prefix contains the minimum octets needed for the prefix.
 //
 // RFC 7911 Section 3 - Extended NLRI Encodings:
-// When ADD-PATH is negotiated, a 4-octet Path Identifier precedes the NLRI.
+// Path ID is stored but NOT included in Len()/Bytes()/WriteTo().
+// Use WriteNLRI() for ADD-PATH aware encoding.
 type INET struct {
-	family  Family
-	prefix  netip.Prefix
-	pathID  uint32
-	hasPath bool
+	family Family
+	prefix netip.Prefix
+	pathID uint32 // RFC 7911: 0 means no path ID
 }
 
 // NewINET creates a new INET NLRI.
-// Use pathID=0 and the result will have HasPathID()=false.
-// Use pathID>0 and the result will have HasPathID()=true.
+// pathID=0 means no path identifier; pathID>0 stores the path ID.
+// Use WriteNLRI() with PackContext.AddPath=true to encode with path ID.
 func NewINET(family Family, prefix netip.Prefix, pathID uint32) *INET {
 	return &INET{
-		family:  family,
-		prefix:  prefix,
-		pathID:  pathID,
-		hasPath: pathID != 0,
+		family: family,
+		prefix: prefix,
+		pathID: pathID,
 	}
 }
 
@@ -134,10 +134,9 @@ func ParseINET(afi AFI, safi SAFI, data []byte, addpath bool) (NLRI, []byte, err
 	}
 
 	inet := &INET{
-		family:  Family{AFI: afi, SAFI: safi},
-		prefix:  prefix,
-		pathID:  pathID,
-		hasPath: addpath,
+		family: Family{AFI: afi, SAFI: safi},
+		prefix: prefix,
+		pathID: pathID,
 	}
 
 	return inet, data[offset+prefixBytes:], nil
@@ -153,64 +152,46 @@ func (i *INET) Prefix() netip.Prefix {
 	return i.prefix
 }
 
-// PathID returns the ADD-PATH path identifier.
+// PathID returns the ADD-PATH path identifier (0 if none).
 func (i *INET) PathID() uint32 {
 	return i.pathID
 }
 
-// HasPathID returns true if this NLRI has an ADD-PATH path ID.
-func (i *INET) HasPathID() bool {
-	return i.hasPath
-}
-
-// Bytes returns the wire-format encoding.
+// Bytes returns the wire-format encoding (payload only, no path ID).
 //
 // RFC 4271 Section 4.3 - UPDATE Message Format:
 // Encodes as <length, prefix> where length is prefix bits and prefix is
 // the minimum octets needed (trailing bits are zero-padded to octet boundary).
 //
-// RFC 7911 Section 3: When HasPathID() is true, prepends 4-octet Path Identifier.
+// Note: Path ID is NOT included. Use WriteNLRI() for ADD-PATH encoding.
 func (i *INET) Bytes() []byte {
 	prefixLen := i.prefix.Bits()
 	prefixBytes := (prefixLen + 7) / 8
 
-	var buf []byte
-	if i.hasPath {
-		buf = make([]byte, 4+1+prefixBytes)
-		binary.BigEndian.PutUint32(buf[:4], i.pathID)
-		buf[4] = byte(prefixLen)
-		copy(buf[5:], i.prefix.Addr().AsSlice()[:prefixBytes])
-	} else {
-		buf = make([]byte, 1+prefixBytes)
-		buf[0] = byte(prefixLen)
-		copy(buf[1:], i.prefix.Addr().AsSlice()[:prefixBytes])
-	}
+	buf := make([]byte, 1+prefixBytes)
+	buf[0] = byte(prefixLen)
+	copy(buf[1:], i.prefix.Addr().AsSlice()[:prefixBytes])
 
 	return buf
 }
 
-// Len returns the wire-format length in bytes.
+// Len returns the wire-format length in bytes (payload only, no path ID).
+// Use LenWithContext() for ADD-PATH aware length calculation.
 func (i *INET) Len() int {
 	prefixLen := i.prefix.Bits()
 	prefixBytes := (prefixLen + 7) / 8
-	if i.hasPath {
-		return 4 + 1 + prefixBytes
-	}
 	return 1 + prefixBytes
 }
 
 // BaseLen returns the payload length WITHOUT path ID.
-// RFC 7911: This is the NLRI length excluding the 4-byte path identifier.
-// Used for ADD-PATH encoding where path ID is handled separately.
+// After Phase 3, this is identical to Len(). Kept for Phase 4 cleanup.
 func (i *INET) BaseLen() int {
-	prefixLen := i.prefix.Bits()
-	prefixBytes := (prefixLen + 7) / 8
-	return 1 + prefixBytes // length byte + prefix bytes, never includes path ID
+	return i.Len()
 }
 
 // WritePayloadTo writes the NLRI payload (without path ID) into buf at offset.
 // Returns number of bytes written.
-// RFC 7911: ADD-PATH path identifier is NOT written by this method.
+// After Phase 3, this is identical to WriteTo(buf, off, nil). Kept for Phase 4 cleanup.
 func (i *INET) WritePayloadTo(buf []byte, off int) int {
 	prefixLen := i.prefix.Bits()
 	prefixBytes := (prefixLen + 7) / 8
@@ -230,81 +211,28 @@ func (i *INET) WritePayloadTo(buf []byte, off int) int {
 
 // String returns a human-readable representation.
 func (i *INET) String() string {
-	if i.hasPath {
+	if i.pathID != 0 {
 		return fmt.Sprintf("%s path-id=%d", i.prefix, i.pathID)
 	}
 	return i.prefix.String()
 }
 
-// Pack returns wire-format bytes adapted for negotiated capabilities.
+// WriteTo writes the NLRI payload (without path ID) into buf at offset.
+// Returns number of bytes written.
 //
-// RFC 7911 Section 3 - Extended NLRI Encodings:
-// When ADD-PATH is negotiated, NLRI is encoded as:
-//
-//	+--------------------------------+
-//	| Path Identifier (4 octets)     |
-//	+--------------------------------+
-//	| Length (1 octet)               |
-//	+--------------------------------+
-//	| Prefix (variable)              |
-//	+--------------------------------+
-//
-// Behavior:
-//   - If ctx is nil: returns Bytes() (no capability adaptation)
-//   - If ctx.AddPath=true and HasPathID()=true: returns with path ID
-//   - If ctx.AddPath=true and HasPathID()=false: prepends NOPATH (4 zeros)
-//   - If ctx.AddPath=false: returns without path ID (strips if present)
-func (i *INET) Pack(ctx *PackContext) []byte {
-	// If no context, return raw bytes
-	if ctx == nil {
-		return i.Bytes()
-	}
-
-	if ctx.AddPath {
-		if i.hasPath {
-			return i.Bytes() // Already has path ID
-		}
-		// Prepend NOPATH (4 zero bytes) - RFC 7911 requires path ID when negotiated
-		return append([]byte{0, 0, 0, 0}, i.Bytes()...)
-	}
-
-	// No ADD-PATH: strip path ID if present
-	if i.hasPath {
-		return i.Bytes()[4:] // Skip 4-byte path ID
-	}
-	return i.Bytes()
+// Note: Path ID is NOT written. Use WriteNLRI() for ADD-PATH encoding.
+// The ctx parameter is ignored (kept for interface compatibility).
+func (i *INET) WriteTo(buf []byte, off int, _ *PackContext) int {
+	return i.WritePayloadTo(buf, off)
 }
 
-// WriteTo writes the NLRI wire-format into buf at offset.
-// Returns number of bytes written.
-func (i *INET) WriteTo(buf []byte, off int, ctx *PackContext) int {
-	prefixLen := i.prefix.Bits()
-	prefixBytes := (prefixLen + 7) / 8
-
-	pos := off
-
-	// Handle ADD-PATH path identifier
-	if ctx != nil && ctx.AddPath {
-		if i.hasPath {
-			binary.BigEndian.PutUint32(buf[pos:], i.pathID)
-		} else {
-			// Prepend NOPATH (4 zero bytes)
-			binary.BigEndian.PutUint32(buf[pos:], 0)
-		}
-		pos += 4
-	} else if ctx == nil && i.hasPath {
-		// No context but has path ID - include it
-		binary.BigEndian.PutUint32(buf[pos:], i.pathID)
-		pos += 4
-	}
-
-	// Write prefix length
-	buf[pos] = byte(prefixLen)
-	pos++
-
-	// Write prefix bytes
-	copy(buf[pos:], i.prefix.Addr().AsSlice()[:prefixBytes])
-	pos += prefixBytes
-
-	return pos - off
+// Pack returns wire-format bytes adapted for negotiated capabilities.
+//
+// Deprecated: Use WriteNLRI() for zero-allocation encoding.
+// This method allocates a new slice; prefer WriteNLRI() with pre-allocated buffer.
+func (i *INET) Pack(ctx *PackContext) []byte {
+	size := LenWithContext(i, ctx)
+	buf := make([]byte, size)
+	WriteNLRI(i, buf, 0, ctx)
+	return buf
 }
