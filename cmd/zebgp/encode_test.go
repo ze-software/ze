@@ -85,7 +85,7 @@ func TestCmdEncode_IPv6Unicast(t *testing.T) {
 	encodeStdout = &stdout
 	defer func() { encodeStdout = oldStdout }()
 
-	args := []string{"-f", "ipv6 unicast", "route 2001:db8::/32 next-hop 2001:db8::1"}
+	args := []string{"-f", "ipv6/unicast", "route 2001:db8::/32 next-hop 2001:db8::1"}
 	exitCode := cmdEncode(args)
 
 	if exitCode != 0 {
@@ -215,7 +215,7 @@ func TestCmdEncode_EVPN_Type2(t *testing.T) {
 	defer func() { encodeStdout = oldStdout }()
 
 	args := []string{
-		"-f", "l2vpn evpn",
+		"-f", "l2vpn/evpn",
 		"mac-ip rd 100:1 esi 0 etag 0 mac 00:11:22:33:44:55 label 100 next-hop 192.168.1.1",
 	}
 	exitCode := cmdEncode(args)
@@ -266,7 +266,7 @@ func TestCmdEncode_EVPN_Type5(t *testing.T) {
 	defer func() { encodeStdout = oldStdout }()
 
 	args := []string{
-		"-f", "l2vpn evpn",
+		"-f", "l2vpn/evpn",
 		"ip-prefix rd 100:1 esi 0 etag 0 prefix 10.0.0.0/24 gateway 0.0.0.0 label 100 next-hop 192.168.1.1",
 	}
 	exitCode := cmdEncode(args)
@@ -378,7 +378,7 @@ func TestCmdEncode_StdinWithFamily(t *testing.T) {
 	encodeStdinIsTTY = func() bool { return false }
 	defer func() { encodeStdinIsTTY = oldIsTTY }()
 
-	args := []string{"-f", "ipv6 unicast"} // Family flag but route from stdin
+	args := []string{"-f", "ipv6/unicast"} // Family flag but route from stdin
 	exitCode := cmdEncode(args)
 
 	if exitCode != 0 {
@@ -405,7 +405,7 @@ func TestCmdEncode_LabeledUnicast(t *testing.T) {
 	defer func() { encodeStdout = oldStdout }()
 
 	args := []string{
-		"-f", "ipv4 nlri-mpls",
+		"-f", "ipv4/nlri-mpls",
 		"10.0.0.0/24 next-hop 192.168.1.1 label 100",
 	}
 	exitCode := cmdEncode(args)
@@ -439,7 +439,7 @@ func TestCmdEncode_L3VPN(t *testing.T) {
 	defer func() { encodeStdout = oldStdout }()
 
 	args := []string{
-		"-f", "ipv4 mpls-vpn",
+		"-f", "ipv4/mpls-vpn",
 		"10.0.0.0/24 rd 100:1 next-hop 192.168.1.1 label 100",
 	}
 	exitCode := cmdEncode(args)
@@ -473,7 +473,7 @@ func TestCmdEncode_L3VPN_IPv6(t *testing.T) {
 	defer func() { encodeStdout = oldStdout }()
 
 	args := []string{
-		"-f", "ipv6 mpls-vpn",
+		"-f", "ipv6/mpls-vpn",
 		"2001:db8::/32 rd 100:1 next-hop 2001:db8::1 label 100",
 	}
 	exitCode := cmdEncode(args)
@@ -502,7 +502,7 @@ func TestCmdEncode_EVPN_Type1(t *testing.T) {
 	defer func() { encodeStdout = oldStdout }()
 
 	args := []string{
-		"-f", "l2vpn evpn",
+		"-f", "l2vpn/evpn",
 		"ethernet-ad rd 100:1 esi 0 etag 0 label 100 next-hop 192.168.1.1",
 	}
 	exitCode := cmdEncode(args)
@@ -531,7 +531,7 @@ func TestCmdEncode_EVPN_Type3(t *testing.T) {
 	defer func() { encodeStdout = oldStdout }()
 
 	args := []string{
-		"-f", "l2vpn evpn",
+		"-f", "l2vpn/evpn",
 		"multicast rd 100:1 etag 0 next-hop 192.168.1.1",
 	}
 	exitCode := cmdEncode(args)
@@ -560,7 +560,7 @@ func TestCmdEncode_EVPN_Type4(t *testing.T) {
 	defer func() { encodeStdout = oldStdout }()
 
 	args := []string{
-		"-f", "l2vpn evpn",
+		"-f", "l2vpn/evpn",
 		"ethernet-segment rd 100:1 esi 0 next-hop 192.168.1.1",
 	}
 	exitCode := cmdEncode(args)
@@ -589,7 +589,7 @@ func TestCmdEncode_EVPN_WithESI(t *testing.T) {
 	defer func() { encodeStdout = oldStdout }()
 
 	args := []string{
-		"-f", "l2vpn evpn",
+		"-f", "l2vpn/evpn",
 		"mac-ip rd 100:1 esi 00:11:22:33:44:55:66:77:88:99 etag 0 mac 00:11:22:33:44:55 label 100 next-hop 192.168.1.1",
 	}
 	exitCode := cmdEncode(args)
@@ -716,7 +716,7 @@ func TestCmdEncode_FlowSpec_Discard(t *testing.T) {
 	defer func() { encodeStdout = oldStdout }()
 
 	args := []string{
-		"-f", "ipv4 flowspec",
+		"-f", "ipv4/flowspec",
 		"match destination 10.0.0.0/24 then discard",
 	}
 	exitCode := cmdEncode(args)
@@ -762,7 +762,7 @@ func TestCmdEncode_FlowSpec_DestPort(t *testing.T) {
 	defer func() { encodeStdout = oldStdout }()
 
 	args := []string{
-		"-f", "ipv4 flowspec",
+		"-f", "ipv4/flowspec",
 		"match destination 10.0.0.0/24 destination-port 80 then discard",
 	}
 	exitCode := cmdEncode(args)
@@ -799,7 +799,7 @@ func TestCmdEncode_FlowSpec_IPv6(t *testing.T) {
 	defer func() { encodeStdout = oldStdout }()
 
 	args := []string{
-		"-f", "ipv6 flowspec",
+		"-f", "ipv6/flowspec",
 		"match destination 2001:db8::/32 then discard",
 	}
 	exitCode := cmdEncode(args)
@@ -828,7 +828,7 @@ func TestCmdEncode_LabeledUnicast_IPv6(t *testing.T) {
 	defer func() { encodeStdout = oldStdout }()
 
 	args := []string{
-		"-f", "ipv6 nlri-mpls",
+		"-f", "ipv6/nlri-mpls",
 		"2001:db8::/32 next-hop 2001:db8::1 label 100",
 	}
 	exitCode := cmdEncode(args)
@@ -857,7 +857,7 @@ func TestCmdEncode_L3VPN_RDType1(t *testing.T) {
 	defer func() { encodeStdout = oldStdout }()
 
 	args := []string{
-		"-f", "ipv4 mpls-vpn",
+		"-f", "ipv4/mpls-vpn",
 		"10.0.0.0/24 rd 1.2.3.4:100 next-hop 192.168.1.1 label 100",
 	}
 	exitCode := cmdEncode(args)
@@ -959,7 +959,7 @@ func TestCmdEncode_MUP_ISD(t *testing.T) {
 	defer func() { encodeStdout = oldStdout }()
 
 	args := []string{
-		"-f", "ipv4 mup",
+		"-f", "ipv4/mup",
 		"mup-isd 10.0.0.0/24 rd 100:1 next-hop 192.168.1.1",
 	}
 	exitCode := cmdEncode(args)
@@ -996,7 +996,7 @@ func TestCmdEncode_MUP_T1ST(t *testing.T) {
 	defer func() { encodeStdout = oldStdout }()
 
 	args := []string{
-		"-f", "ipv6 mup",
+		"-f", "ipv6/mup",
 		"mup-t1st 2001:db8::/32 rd 100:1 next-hop 2001:db8::1",
 	}
 	exitCode := cmdEncode(args)
@@ -1025,7 +1025,7 @@ func TestCmdEncode_VPLS(t *testing.T) {
 	defer func() { encodeStdout = oldStdout }()
 
 	args := []string{
-		"-f", "l2vpn vpls",
+		"-f", "l2vpn/vpls",
 		"rd 100:1 ve-block-offset 0 ve-block-size 10 label 100 next-hop 192.168.1.1",
 	}
 	exitCode := cmdEncode(args)
@@ -1062,7 +1062,7 @@ func TestCmdEncode_MUP_DSD(t *testing.T) {
 	defer func() { encodeStdout = oldStdout }()
 
 	args := []string{
-		"-f", "ipv4 mup",
+		"-f", "ipv4/mup",
 		"mup-dsd 192.168.1.100 rd 100:1 next-hop 192.168.1.1",
 	}
 	exitCode := cmdEncode(args)
@@ -1104,7 +1104,7 @@ func TestCmdEncode_MUP_T2ST(t *testing.T) {
 	defer func() { encodeStdout = oldStdout }()
 
 	args := []string{
-		"-f", "ipv4 mup",
+		"-f", "ipv4/mup",
 		"mup-t2st 192.168.1.100 rd 100:1 next-hop 192.168.1.1",
 	}
 	exitCode := cmdEncode(args)
@@ -1146,7 +1146,7 @@ func TestCmdEncode_FlowSpec_Redirect_2ByteASN(t *testing.T) {
 	defer func() { encodeStdout = oldStdout }()
 
 	args := []string{
-		"-f", "ipv4 flowspec",
+		"-f", "ipv4/flowspec",
 		"match destination 10.0.0.0/24 then redirect 65000:100",
 	}
 	exitCode := cmdEncode(args)
@@ -1181,7 +1181,7 @@ func TestCmdEncode_FlowSpec_Redirect_4ByteASN(t *testing.T) {
 	defer func() { encodeStdout = oldStdout }()
 
 	args := []string{
-		"-f", "ipv4 flowspec",
+		"-f", "ipv4/flowspec",
 		"match destination 10.0.0.0/24 then redirect 4200000000:100",
 	}
 	exitCode := cmdEncode(args)
@@ -1216,7 +1216,7 @@ func TestCmdEncode_FlowSpec_Redirect_Boundary_65535(t *testing.T) {
 	defer func() { encodeStdout = oldStdout }()
 
 	args := []string{
-		"-f", "ipv4 flowspec",
+		"-f", "ipv4/flowspec",
 		"match destination 10.0.0.0/24 then redirect 65535:100",
 	}
 	exitCode := cmdEncode(args)
@@ -1250,7 +1250,7 @@ func TestCmdEncode_FlowSpec_Redirect_Boundary_65536(t *testing.T) {
 	defer func() { encodeStdout = oldStdout }()
 
 	args := []string{
-		"-f", "ipv4 flowspec",
+		"-f", "ipv4/flowspec",
 		"match destination 10.0.0.0/24 then redirect 65536:100",
 	}
 	exitCode := cmdEncode(args)
@@ -1292,7 +1292,7 @@ func TestCmdEncode_FlowSpec_Redirect_4ByteASN_LargeTarget(t *testing.T) {
 	// 4-byte ASN (4200000000) with target > 65535 (70000) should fail
 	// RFC 7674 limits local admin to 16 bits for 4-byte ASN format
 	args := []string{
-		"-f", "ipv4 flowspec",
+		"-f", "ipv4/flowspec",
 		"match destination 10.0.0.0/24 then redirect 4200000000:70000",
 	}
 	exitCode := cmdEncode(args)
@@ -1325,7 +1325,7 @@ func TestCmdEncode_FlowSpec_Redirect_MalformedNoColon(t *testing.T) {
 	}()
 
 	args := []string{
-		"-f", "ipv4 flowspec",
+		"-f", "ipv4/flowspec",
 		"match destination 10.0.0.0/24 then redirect 65000",
 	}
 	exitCode := cmdEncode(args)
@@ -1357,7 +1357,7 @@ func TestCmdEncode_FlowSpec_Redirect_NegativeASN(t *testing.T) {
 	}()
 
 	args := []string{
-		"-f", "ipv4 flowspec",
+		"-f", "ipv4/flowspec",
 		"match destination 10.0.0.0/24 then redirect -1:100",
 	}
 	exitCode := cmdEncode(args)
@@ -1389,7 +1389,7 @@ func TestCmdEncode_FlowSpec_Redirect_ASNOverflow(t *testing.T) {
 	}()
 
 	args := []string{
-		"-f", "ipv4 flowspec",
+		"-f", "ipv4/flowspec",
 		"match destination 10.0.0.0/24 then redirect 5000000000:100",
 	}
 	exitCode := cmdEncode(args)

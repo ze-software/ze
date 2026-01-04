@@ -305,7 +305,7 @@ commit end [label]
   "updates_sent": 3,
   "routes_announced": 15,
   "routes_withdrawn": 2,
-  "eor_sent": ["ipv4 unicast", "ipv6 unicast"],
+  "eor_sent": ["ipv4/unicast", "ipv6/unicast"],
   "transaction": "batch1"
 }
 ```
@@ -996,7 +996,7 @@ Response to client:
   "updates_sent": 2,
   "routes_announced": 3,
   "routes_withdrawn": 0,
-  "eor_sent": ["ipv4 unicast"],
+  "eor_sent": ["ipv4/unicast"],
   "transaction": "batch1"
 }
 ```

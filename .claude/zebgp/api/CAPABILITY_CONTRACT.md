@@ -65,14 +65,14 @@ ERROR: peer 192.168.1.1 has graceful-restart but no API to resend routes
 
 **Router → API:**
 ```
-peer 192.168.1.1 refresh ipv4 unicast
+peer 192.168.1.1 refresh ipv4/unicast
 ```
 
 **API → Router:**
 ```
-peer 192.168.1.1 borr ipv4 unicast
+peer 192.168.1.1 borr ipv4/unicast
 announce route 10.0.0.0/24 next-hop self
-peer 192.168.1.1 eorr ipv4 unicast
+peer 192.168.1.1 eorr ipv4/unicast
 ```
 
 ---

@@ -26,8 +26,8 @@ This file documents decisions made for RFC "MAY" clauses (optional behavior).
 ```
 peer 192.0.2.1 {
     family {
-        ipv4 unicast;
-        ipv6 unicast;
+        ipv4/unicast;
+        ipv6/unicast;
         ignore-mismatch enable;  # For buggy peers
     }
 }

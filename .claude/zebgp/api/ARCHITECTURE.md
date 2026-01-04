@@ -189,7 +189,7 @@ Per Peer:
 
 ```
 API Client
-    │ "announce ipv4 nlri-mpls 10.0.0.0/24 label 100 next-hop 1.2.3.4 path-id 42"
+    │ "announce ipv4/nlri-mpls 10.0.0.0/24 label 100 next-hop 1.2.3.4 path-id 42"
     ▼
 Dispatcher.announceLabeledUnicastImpl()
     │ parseLabeledUnicastAttributes() - validates MPLSKeywords
@@ -318,7 +318,7 @@ type ReactorInterface interface {
   },
   "announce": {
     "nlri": {
-      "ipv4 unicast": {
+      "ipv4/unicast": {
         "192.168.1.0/24": {
           "next-hop": "10.0.0.1",
           "origin": "igp",
@@ -333,7 +333,7 @@ type ReactorInterface interface {
 ### Text Format
 
 ```
-peer 10.0.0.1 received update 1 announce origin igp as-path 65001 ipv4 unicast next-hop 10.0.0.1 nlri 192.168.1.0/24
+peer 10.0.0.1 received update 1 announce origin igp as-path 65001 ipv4/unicast next-hop 10.0.0.1 nlri 192.168.1.0/24
 ```
 
 ### Withdrawals
@@ -345,7 +345,7 @@ JSON:
   "peer": { "address": "10.0.0.1" },
   "withdraw": {
     "nlri": {
-      "ipv4 unicast": ["192.168.1.0/24"]
+      "ipv4/unicast": ["192.168.1.0/24"]
     }
   }
 }
@@ -353,7 +353,7 @@ JSON:
 
 Text:
 ```
-peer 10.0.0.1 received update 1 withdraw ipv4 unicast nlri 192.168.1.0/24
+peer 10.0.0.1 received update 1 withdraw ipv4/unicast nlri 192.168.1.0/24
 ```
 
 ### Format Options
@@ -541,7 +541,7 @@ Peer B,C ← Send wire bytes directly ← Lookup update by ID
   "msg-id": 12345,
   "peer": { "address": "10.0.0.1" },
   "announce": {
-    "nlri": { "ipv4 unicast": ["192.168.1.0/24"] },
+    "nlri": { "ipv4/unicast": ["192.168.1.0/24"] },
     "attributes": {
       "as-path": [65001, 65002],
       "next-hop": "10.0.0.1"
@@ -568,8 +568,8 @@ API bindings can limit which attributes are parsed:
 api foo {
     content {
         attribute as-path community next-hop;  # Only parse these
-        nlri ipv4 unicast;                     # Only include IPv4 unicast
-        nlri ipv6 unicast;                     # Also include IPv6 unicast
+        nlri ipv4/unicast;                     # Only include IPv4 unicast
+        nlri ipv6/unicast;                     # Also include IPv6 unicast
     }
     receive { update; }
 }

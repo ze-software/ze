@@ -32,7 +32,7 @@ func cmdDecode(args []string) int {
 	openMsg := fs.Bool("open", false, "decode as OPEN message")
 	updateMsg := fs.Bool("update", false, "decode as UPDATE message")
 	nlriOnly := fs.Bool("nlri", false, "decode as NLRI only")
-	family := fs.String("f", "", "address family (e.g., 'ipv4 unicast', 'l2vpn evpn')")
+	family := fs.String("f", "", "address family (e.g., 'ipv4/unicast', 'l2vpn/evpn')")
 
 	fs.Usage = func() {
 		fmt.Fprintf(os.Stderr, `Usage: zebgp decode [options] <hex-payload>
@@ -46,7 +46,7 @@ Options:
 Examples:
   zebgp decode --open FFFF...       # Decode OPEN message
   zebgp decode --update FFFF...     # Decode UPDATE message
-  zebgp decode -f "l2vpn evpn" --nlri 02...  # Decode NLRI with family context
+  zebgp decode -f "l2vpn/evpn" --nlri 02...  # Decode NLRI with family context
 
 The hex payload can include colons or spaces which will be stripped.
 `)
@@ -385,7 +385,7 @@ func decodeUpdateMessage(data []byte, _ string, hasHeader bool) (map[string]any,
 				updateContent["withdraw"] = make(map[string]any)
 			}
 			if withdraw, ok := updateContent["withdraw"].(map[string]any); ok {
-				withdraw["ipv4 unicast"] = prefixes
+				withdraw["ipv4/unicast"] = prefixes
 			}
 		}
 	}
@@ -401,7 +401,7 @@ func decodeUpdateMessage(data []byte, _ string, hasHeader bool) (map[string]any,
 			updateContent["announce"] = make(map[string]any)
 		}
 		if announce, ok := updateContent["announce"].(map[string]any); ok {
-			announce["ipv4 unicast"] = map[string]any{
+			announce["ipv4/unicast"] = map[string]any{
 				nextHop: nlriList,
 			}
 		}
@@ -758,19 +758,8 @@ func parseNextHop(data []byte, _ nlri.AFI) string {
 
 // formatFamily returns the family string for JSON output.
 func formatFamily(afi nlri.AFI, safi nlri.SAFI) string {
-	// Match ExaBGP format
-	switch {
-	case afi == nlri.AFIL2VPN && safi == nlri.SAFIEVPN:
-		return "l2vpn evpn"
-	case afi == nlri.AFIIPv4 && safi == nlri.SAFIFlowSpec:
-		return "ipv4 flow"
-	case afi == nlri.AFIIPv6 && safi == nlri.SAFIFlowSpec:
-		return "ipv6 flow"
-	case afi == nlri.AFIBGPLS:
-		return "bgp-ls bgp-ls"
-	default:
-		return fmt.Sprintf("%s %s", strings.ToLower(afi.String()), strings.ToLower(safi.String()))
-	}
+	// Use afi/safi format
+	return nlri.Family{AFI: afi, SAFI: safi}.String()
 }
 
 // parseNLRIByFamily parses NLRI based on address family.
@@ -2229,43 +2218,13 @@ func decodeNLRIOnly(data []byte, family string) (string, error) {
 	return string(jsonData), nil
 }
 
-// parseFamily parses a family string like "ipv4 unicast" into AFI/SAFI.
+// parseFamily parses a family string like "ipv4/unicast" into AFI/SAFI.
 func parseFamily(family string) (nlri.AFI, nlri.SAFI) {
-	parts := strings.Fields(strings.ToLower(family))
-	if len(parts) < 2 {
+	f, ok := nlri.ParseFamily(strings.ToLower(family))
+	if !ok {
 		return 0, 0
 	}
-
-	var afi nlri.AFI
-	var safi nlri.SAFI
-
-	switch parts[0] {
-	case "ipv4":
-		afi = nlri.AFIIPv4
-	case "ipv6":
-		afi = nlri.AFIIPv6
-	case "l2vpn":
-		afi = nlri.AFIL2VPN
-	case "bgp-ls":
-		afi = nlri.AFIBGPLS
-	}
-
-	switch parts[1] {
-	case "unicast":
-		safi = nlri.SAFIUnicast
-	case "multicast":
-		safi = nlri.SAFIMulticast
-	case "evpn":
-		safi = nlri.SAFIEVPN
-	case "flowspec", "flow":
-		safi = nlri.SAFIFlowSpec
-	case "vpn":
-		safi = nlri.SAFIVPN
-	case "bgp-ls":
-		safi = nlri.SAFIBGPLinkState
-	}
-
-	return afi, safi
+	return f.AFI, f.SAFI
 }
 
 // hasValidMarker checks if data has the BGP marker (16 0xFF bytes).

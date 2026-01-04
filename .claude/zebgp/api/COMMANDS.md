@@ -126,8 +126,8 @@ peer !10.0.0.1 forward update-id 12345
 
 ```
 peer <selector> announce route <prefix> next-hop <ip> [attributes...]
-peer <selector> announce ipv4 unicast <prefix> next-hop <ip> [attributes...]
-peer <selector> announce ipv6 unicast <prefix> next-hop <ip> [attributes...]
+peer <selector> announce ipv4/unicast <prefix> next-hop <ip> [attributes...]
+peer <selector> announce ipv6/unicast <prefix> next-hop <ip> [attributes...]
 peer <selector> announce flow <flow-spec> [attributes...]
 peer <selector> announce vpls <name> endpoint <id> ... [attributes...]
 peer <selector> announce eor <afi> <safi>
@@ -139,8 +139,8 @@ peer <selector> announce operational <type> <afi> <safi>
 
 ```
 peer <selector> withdraw route <prefix> [attributes...]
-peer <selector> withdraw ipv4 unicast <prefix> [attributes...]
-peer <selector> withdraw ipv6 unicast <prefix> [attributes...]
+peer <selector> withdraw ipv4/unicast <prefix> [attributes...]
+peer <selector> withdraw ipv6/unicast <prefix> [attributes...]
 peer <selector> withdraw flow <flow-spec>
 peer <selector> withdraw vpls <name>
 peer <selector> withdraw watchdog <name>
@@ -182,8 +182,8 @@ show adj-rib out [<afi> <safi>]
 ```
 announce route <prefix> next-hop <ip> [attributes...]
 withdraw route <prefix>
-announce ipv4 unicast <prefix> next-hop <ip>
-announce ipv6 unicast <prefix> next-hop <ip>
+announce ipv4/unicast <prefix> next-hop <ip>
+announce ipv6/unicast <prefix> next-hop <ip>
 announce flow <flow-spec>
 announce eor <afi> <safi>
 announce route-refresh <afi> <safi>
@@ -253,8 +253,8 @@ api route-server {
     content {
         encoding json;
         attribute as-path community next-hop;
-        nlri ipv4 unicast;
-        nlri ipv6 unicast;
+        nlri ipv4/unicast;
+        nlri ipv6/unicast;
     }
     receive { update; }
 }
@@ -263,18 +263,18 @@ api route-server {
 Available families:
 | Config Syntax | Canonical Name |
 |---------------|----------------|
-| `ipv4 unicast` | ipv4 unicast |
-| `ipv6 unicast` | ipv6 unicast |
-| `ipv4 multicast` | ipv4 multicast |
-| `ipv6 multicast` | ipv6 multicast |
+| `ipv4/unicast` | ipv4/unicast |
+| `ipv6/unicast` | ipv6/unicast |
+| `ipv4/multicast` | ipv4/multicast |
+| `ipv6/multicast` | ipv6/multicast |
 | `ipv4 mpls` | ipv4 mpls |
 | `ipv6 mpls` | ipv6 mpls |
-| `ipv4 mpls-vpn` | ipv4 mpls-vpn |
-| `ipv6 mpls-vpn` | ipv6 mpls-vpn |
-| `ipv4 flowspec` | ipv4 flowspec |
-| `ipv6 flowspec` | ipv6 flowspec |
-| `l2vpn evpn` | l2vpn evpn |
-| `l2vpn vpls` | l2vpn vpls |
+| `ipv4/mpls-vpn` | ipv4/mpls-vpn |
+| `ipv6/mpls-vpn` | ipv6/mpls-vpn |
+| `ipv4/flowspec` | ipv4/flowspec |
+| `ipv6/flowspec` | ipv6/flowspec |
+| `l2vpn/evpn` | l2vpn/evpn |
+| `l2vpn/vpls` | l2vpn/vpls |
 
 Special values: `all` (default), `none`
 
@@ -323,14 +323,14 @@ announce route 10.0.0.0/23 next-hop 1.2.3.4 split /24
 # → 10.0.1.0/24 next-hop 1.2.3.4
 
 # With MPLS label - label applies to each prefix
-announce ipv4 nlri-mpls 10.0.0.0/22 label 100 next-hop 1.2.3.4 split /24
+announce ipv4/nlri-mpls 10.0.0.0/22 label 100 next-hop 1.2.3.4 split /24
 # → 10.0.0.0/24 label 100
 # → 10.0.1.0/24 label 100
 # → 10.0.2.0/24 label 100
 # → 10.0.3.0/24 label 100
 
 # With L3VPN - RD and label apply to each prefix
-announce ipv4 mpls-vpn 10.0.0.0/23 rd 100:1 label 200 next-hop 1.2.3.4 split /24
+announce ipv4/mpls-vpn 10.0.0.0/23 rd 100:1 label 200 next-hop 1.2.3.4 split /24
 # → 10.0.0.0/24 rd 100:1 label 200
 # → 10.0.1.0/24 rd 100:1 label 200
 ```
@@ -355,13 +355,13 @@ announce ipv4 mpls-vpn 10.0.0.0/23 rd 100:1 label 200 next-hop 1.2.3.4 split /24
 ## FlowSpec Commands
 
 ```
-announce ipv4 flow \
+announce ipv4/flow \
   destination 10.0.0.0/8 \
   destination-port =80 \
   protocol =tcp \
   then discard
 
-withdraw ipv4 flow \
+withdraw ipv4/flow \
   destination 10.0.0.0/8 \
   destination-port =80
 ```

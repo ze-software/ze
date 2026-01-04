@@ -31,7 +31,7 @@ def main() -> None:
             return
 
         # Send route-refresh request
-        flush('announce route-refresh ipv4 unicast\n')
+        flush('announce route-refresh ipv4/unicast\n')
         time.sleep(0.2)
         if not check_ack():
             signal_failure()

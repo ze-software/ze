@@ -552,8 +552,8 @@ API functional  - 14/14 passed
 ## RECENTLY COMPLETED: MUP API Support (`64d8a0f`)
 
 Full MUP SAFI (85) support for API commands:
-- `announce ipv4/ipv6 mup mup-isd <prefix> rd <RD> next-hop <NH> extended-community [...] bgp-prefix-sid-srv6 (...)`
-- `withdraw ipv4/ipv6 mup mup-isd <prefix> rd <RD> next-hop <NH> extended-community [...] bgp-prefix-sid-srv6 (...)`
+- `announce ipv4/ipv6/mup mup-isd <prefix> rd <RD> next-hop <NH> extended-community [...] bgp-prefix-sid-srv6 (...)`
+- `withdraw ipv4/ipv6/mup mup-isd <prefix> rd <RD> next-hop <NH> extended-community [...] bgp-prefix-sid-srv6 (...)`
 
 Route types: mup-isd, mup-dsd, mup-t1st, mup-t2st
 
@@ -579,7 +579,7 @@ neighbor 127.0.0.1 receive update announced 0.0.0.0/32 next-hop 127.0.0.1 origin
 
 But ZeBGP defaults to version 7 format:
 ```
-peer 127.0.0.1 update announce nlri ipv4 unicast 0.0.0.0/32 next-hop 127.0.0.1 ...
+peer 127.0.0.1 update announce nlri ipv4/unicast 0.0.0.0/32 next-hop 127.0.0.1 ...
 ```
 
 ### Fix Applied

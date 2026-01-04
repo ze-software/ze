@@ -29,7 +29,7 @@ Fix issues identified in MUP API implementation critical review.
 
 **Example of bug:**
 ```
-announce ipv4 mup mup-isd 2001:db8::/32 rd 100:100 next-hop 2001::1
+announce ipv4/mup mup-isd 2001:db8::/32 rd 100:100 next-hop 2001::1
 ```
 Produces malformed wire format (IPv6 bytes with AFI=1).
 

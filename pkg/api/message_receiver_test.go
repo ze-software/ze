@@ -188,9 +188,10 @@ func TestDecodeOpenWithCapabilities(t *testing.T) {
 	require.Equal(t, uint16(180), decoded.HoldTime)
 	require.Equal(t, "10.0.0.1", decoded.RouterID)
 	require.Len(t, decoded.Capabilities, 3)
-	require.Contains(t, decoded.Capabilities, "multiprotocol ipv4-unicast")
-	require.Contains(t, decoded.Capabilities, "route-refresh")
-	require.Contains(t, decoded.Capabilities, "4-byte-asn 65536")
+	// Check structured capabilities
+	require.Equal(t, DecodedCapability{Code: 1, Name: "multiprotocol", Value: "ipv4/unicast"}, decoded.Capabilities[0])
+	require.Equal(t, DecodedCapability{Code: 2, Name: "route-refresh", Value: ""}, decoded.Capabilities[1])
+	require.Equal(t, DecodedCapability{Code: 65, Name: "asn4", Value: "65536"}, decoded.Capabilities[2])
 }
 
 // TestDecodeOpenInvalid verifies DecodeOpen handles invalid input gracefully.

@@ -2,6 +2,7 @@ package config
 
 import (
 	"fmt"
+	"strings"
 )
 
 // KeyDefault is the key used for anonymous list entries (e.g., "api { ... }").
@@ -738,7 +739,7 @@ func (p *Parser) parseFreeform(tree *Tree, name string) error {
 				}
 				child.Set(key, value)
 			} else {
-				// No array: "ipv4 unicast;" -> key="ipv4 unicast", value="true"
+				// No array: "ipv4/unicast;" -> key="ipv4/unicast", value="true"
 				key := ""
 				for i, w := range words {
 					if i > 0 {
@@ -758,7 +759,7 @@ func (p *Parser) parseFreeform(tree *Tree, name string) error {
 // parseFamilyBlock parses a family block with inline and block syntax.
 //
 // Supports:
-//   - Inline: "ipv4 unicast;" or "ipv4 unicast require;"
+//   - Inline: "ipv4/unicast;" or "ipv4/unicast require;"
 //   - Block: "ipv4 { unicast; multicast require; }"
 //   - Mixed: both in same block
 //
@@ -833,37 +834,39 @@ func (p *Parser) parseFamilyBlock(tree *Tree, name string) error {
 				}
 				// rbrace without semicolon is also valid (end of block)
 
-				// Store as "AFI SAFI" -> mode
-				key := afi + " " + safi
+				// Store as "AFI/SAFI" -> mode
+				key := afi + "/" + safi
 				child.Set(key, mode)
 			}
 		} else {
-			// Inline syntax: "ipv4 unicast;" or "ipv4 unicast require;"
-			// Second word is SAFI
-			if tok.Type != TokenWord {
-				// Could be "ignore-mismatch" followed by value
-				if afi == "ignore-mismatch" {
-					mode := configTrue
-					if tok.Type == TokenWord {
-						mode = tok.Value
-						p.tok.Next()
-						tok = p.tok.Peek()
-					}
-					if tok.Type == TokenSemicolon {
-						p.tok.Next()
-					}
-					child.Set("ignore-mismatch "+mode, configTrue)
-					continue
+			// Inline syntax: "ipv4/unicast;" or "ipv4/unicast require;"
+			// Requires "/" format (e.g., "ipv4/unicast")
+			var safi string
+			switch {
+			case afi == "ignore-mismatch":
+				// Special case: ignore-mismatch keyword
+				mode := configTrue
+				if tok.Type == TokenWord {
+					mode = tok.Value
+					p.tok.Next()
+					tok = p.tok.Peek()
 				}
-				return p.errorf(tok, "expected SAFI after %s in %s, got %s", afi, name, tok.Type)
+				if tok.Type == TokenSemicolon {
+					p.tok.Next()
+				}
+				child.Set("ignore-mismatch "+mode, configTrue)
+				continue
+			case strings.Contains(afi, "/"):
+				// Format: "ipv4/unicast" as single token
+				parts := strings.SplitN(afi, "/", 2)
+				afi = parts[0]
+				safi = parts[1]
+			default:
+				return p.errorf(tok, "expected afi/safi format (e.g., ipv4/unicast), got %q", afi)
 			}
-
-			safi := tok.Value
-			p.tok.Next()
 
 			// Check for mode or terminator
 			mode := configTrue // default to enable
-			tok = p.tok.Peek()
 			if tok.Type == TokenWord {
 				// Mode specified
 				mode = tok.Value
@@ -876,8 +879,8 @@ func (p *Parser) parseFamilyBlock(tree *Tree, name string) error {
 				p.tok.Next()
 			}
 
-			// Store as "AFI SAFI" -> mode
-			key := afi + " " + safi
+			// Store as "AFI/SAFI" -> mode
+			key := afi + "/" + safi
 			child.Set(key, mode)
 		}
 	}

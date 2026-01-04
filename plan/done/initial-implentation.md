@@ -1886,7 +1886,7 @@ func TestConfEBGP(t *testing.T) {
         },
         {
             name:    "announce_eor",
-            command: "announce eor ipv4 unicast",
+            command: "announce eor ipv4/unicast",
             expected: "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000",
         },
     }

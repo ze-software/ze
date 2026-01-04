@@ -74,9 +74,9 @@ func TestRoundTrip_BasicUnicast(t *testing.T) {
 	}
 
 	// Deep verification: Check family, next-hop, and prefix
-	familyData, ok := getAnnounceFamily(update, "ipv4 unicast")
+	familyData, ok := getAnnounceFamily(update, "ipv4/unicast")
 	if !ok {
-		t.Fatalf("missing ipv4 unicast in announce")
+		t.Fatalf("missing ipv4/unicast in announce")
 	}
 
 	// Check next-hop key exists and contains prefix
@@ -110,7 +110,7 @@ func TestRoundTrip_IPv6Unicast(t *testing.T) {
 	encodeStdout = &encodeOut
 	defer func() { encodeStdout = oldStdout }()
 
-	encodeArgs := []string{"-f", "ipv6 unicast", "route 2001:db8::/32 next-hop 2001:db8::1"}
+	encodeArgs := []string{"-f", "ipv6/unicast", "route 2001:db8::/32 next-hop 2001:db8::1"}
 	if code := cmdEncode(encodeArgs); code != 0 {
 		t.Fatalf("encode failed with code %d", code)
 	}
@@ -133,9 +133,9 @@ func TestRoundTrip_IPv6Unicast(t *testing.T) {
 	}
 
 	// Deep verification: Check family, next-hop, and prefix
-	familyData, ok := getAnnounceFamily(update, "ipv6 unicast")
+	familyData, ok := getAnnounceFamily(update, "ipv6/unicast")
 	if !ok {
-		t.Fatalf("missing ipv6 unicast in announce")
+		t.Fatalf("missing ipv6/unicast in announce")
 	}
 
 	// Check next-hop (might be link-local or global)
@@ -309,7 +309,7 @@ func TestRoundTrip_EVPN_Type2(t *testing.T) {
 	defer func() { encodeStdout = oldStdout }()
 
 	encodeArgs := []string{
-		"-f", "l2vpn evpn",
+		"-f", "l2vpn/evpn",
 		"mac-ip rd 100:1 esi 0 etag 0 mac 00:11:22:33:44:55 label 100 next-hop 192.168.1.1",
 	}
 	if code := cmdEncode(encodeArgs); code != 0 {
@@ -334,9 +334,9 @@ func TestRoundTrip_EVPN_Type2(t *testing.T) {
 	}
 
 	// Deep verification: Check family exists
-	_, ok := getAnnounceFamily(update, "l2vpn evpn")
+	_, ok := getAnnounceFamily(update, "l2vpn/evpn")
 	if !ok {
-		t.Fatalf("missing l2vpn evpn in announce")
+		t.Fatalf("missing l2vpn/evpn in announce")
 	}
 
 	// Verify MAC address preserved
@@ -357,7 +357,7 @@ func TestRoundTrip_EVPN_Type2(t *testing.T) {
 
 // TestRoundTrip_L3VPN verifies L3VPN (mpls-vpn) round-trip.
 //
-// VALIDATES: L3VPN route encodes and decodes as ipv4 vpn family.
+// VALIDATES: L3VPN route encodes and decodes as ipv4/vpn family.
 // PREVENTS: VPN encoding/decoding bugs.
 // NOTE: VPN NLRI parsing has known limitations in the decoder.
 func TestRoundTrip_L3VPN(t *testing.T) {
@@ -366,7 +366,7 @@ func TestRoundTrip_L3VPN(t *testing.T) {
 	encodeStdout = &encodeOut
 	defer func() { encodeStdout = oldStdout }()
 
-	encodeArgs := []string{"-f", "ipv4 mpls-vpn", "10.0.0.0/24 rd 100:1 next-hop 192.168.1.1 label 100"}
+	encodeArgs := []string{"-f", "ipv4/mpls-vpn", "10.0.0.0/24 rd 100:1 next-hop 192.168.1.1 label 100"}
 	if code := cmdEncode(encodeArgs); code != 0 {
 		t.Fatalf("encode failed with code %d", code)
 	}
@@ -389,9 +389,9 @@ func TestRoundTrip_L3VPN(t *testing.T) {
 	}
 
 	// Verify family (decoder uses "vpn" not "mpls-vpn")
-	_, ok := getAnnounceFamily(update, "ipv4 vpn")
+	_, ok := getAnnounceFamily(update, "ipv4/vpn")
 	if !ok {
-		t.Fatalf("missing ipv4 vpn in announce")
+		t.Fatalf("missing ipv4/vpn in announce")
 	}
 
 	// Verify attributes are decoded
@@ -420,7 +420,7 @@ func TestRoundTrip_FlowSpec(t *testing.T) {
 	defer func() { encodeStdout = oldStdout }()
 
 	encodeArgs := []string{
-		"-f", "ipv4 flowspec",
+		"-f", "ipv4/flowspec",
 		"match destination 10.0.0.0/24 then discard",
 	}
 	if code := cmdEncode(encodeArgs); code != 0 {
@@ -445,9 +445,9 @@ func TestRoundTrip_FlowSpec(t *testing.T) {
 	}
 
 	// Deep verification: Check family (decoder uses "flow" not "flowspec")
-	_, ok := getAnnounceFamily(update, "ipv4 flow")
+	_, ok := getAnnounceFamily(update, "ipv4/flowspec")
 	if !ok {
-		t.Fatalf("missing ipv4 flow in announce")
+		t.Fatalf("missing ipv4/flow in announce")
 	}
 
 	// Verify destination prefix preserved
@@ -488,7 +488,7 @@ func TestRoundTrip_VPLS(t *testing.T) {
 	defer func() { encodeStdout = oldStdout }()
 
 	encodeArgs := []string{
-		"-f", "l2vpn vpls",
+		"-f", "l2vpn/vpls",
 		"rd 100:1 ve-block-offset 0 ve-block-size 10 label 100 next-hop 192.168.1.1",
 	}
 	if code := cmdEncode(encodeArgs); code != 0 {
@@ -513,14 +513,14 @@ func TestRoundTrip_VPLS(t *testing.T) {
 	}
 
 	// Deep verification: Check family
-	familyData, ok := getAnnounceFamily(update, "l2vpn vpls")
+	familyData, ok := getAnnounceFamily(update, "l2vpn/vpls")
 	if !ok {
-		t.Fatalf("missing l2vpn vpls in announce")
+		t.Fatalf("missing l2vpn/vpls in announce")
 	}
 
 	// Verify next-hop is present
 	if _, ok := familyData["192.168.1.1"]; !ok {
-		t.Errorf("expected next-hop 192.168.1.1 in l2vpn vpls announce")
+		t.Errorf("expected next-hop 192.168.1.1 in l2vpn/vpls announce")
 	}
 
 	// Verify label value appears in output (label 100 = 0x64)
@@ -532,7 +532,7 @@ func TestRoundTrip_VPLS(t *testing.T) {
 
 // TestRoundTrip_MUP_ISD verifies MUP ISD round-trip.
 //
-// VALIDATES: MUP ISD routes encode and decode as ipv4 mup family with correct next-hop.
+// VALIDATES: MUP ISD routes encode and decode as ipv4/mup family with correct next-hop.
 // PREVENTS: MUP encoding/decoding bugs.
 // NOTE: MUP NLRI parsing has known limitations in the decoder.
 func TestRoundTrip_MUP_ISD(t *testing.T) {
@@ -542,7 +542,7 @@ func TestRoundTrip_MUP_ISD(t *testing.T) {
 	defer func() { encodeStdout = oldStdout }()
 
 	encodeArgs := []string{
-		"-f", "ipv4 mup",
+		"-f", "ipv4/mup",
 		"mup-isd 10.0.0.0/24 rd 100:1 next-hop 192.168.1.1",
 	}
 	if code := cmdEncode(encodeArgs); code != 0 {
@@ -567,9 +567,9 @@ func TestRoundTrip_MUP_ISD(t *testing.T) {
 	}
 
 	// Verify family
-	familyData, ok := getAnnounceFamily(update, "ipv4 mup")
+	familyData, ok := getAnnounceFamily(update, "ipv4/mup")
 	if !ok {
-		t.Fatalf("missing ipv4 mup in announce")
+		t.Fatalf("missing ipv4/mup in announce")
 	}
 
 	// Verify next-hop is present
@@ -603,7 +603,7 @@ func TestRoundTrip_LabeledUnicast_IPv6(t *testing.T) {
 	defer func() { encodeStdout = oldStdout }()
 
 	encodeArgs := []string{
-		"-f", "ipv6 nlri-mpls",
+		"-f", "ipv6/nlri-mpls",
 		"2001:db8::/32 next-hop 2001:db8::1 label 100",
 	}
 	if code := cmdEncode(encodeArgs); code != 0 {
@@ -632,7 +632,7 @@ func TestRoundTrip_LabeledUnicast_IPv6(t *testing.T) {
 		t.Fatalf("missing announce section")
 	}
 
-	// Check for ipv6 nlri-mpls (decoder may use different name)
+	// Check for ipv6/nlri-mpls (decoder may use different name)
 	found := false
 	for family := range announce {
 		if strings.Contains(family, "ipv6") && (strings.Contains(family, "mpls") || strings.Contains(family, "label")) {
@@ -700,8 +700,8 @@ func testRoundTripIPv6Family(t *testing.T, encodeArgs []string, announceKey, exp
 // PREVENTS: IPv6 FlowSpec encoding/decoding bugs.
 func TestRoundTrip_FlowSpec_IPv6(t *testing.T) {
 	testRoundTripIPv6Family(t,
-		[]string{"-f", "ipv6 flowspec", "match destination 2001:db8::/32 then discard"},
-		"ipv6 flow", // decoder uses "flow" not "flowspec"
+		[]string{"-f", "ipv6/flowspec", "match destination 2001:db8::/32 then discard"},
+		"ipv6/flowspec", // decoder uses "flow" not "flowspec"
 		"2001:db8::",
 	)
 }
@@ -712,8 +712,8 @@ func TestRoundTrip_FlowSpec_IPv6(t *testing.T) {
 // PREVENTS: IPv6 MUP encoding/decoding bugs.
 func TestRoundTrip_MUP_IPv6(t *testing.T) {
 	testRoundTripIPv6Family(t,
-		[]string{"-f", "ipv6 mup", "mup-t1st 2001:db8::/32 rd 100:1 next-hop 2001:db8::1"},
-		"ipv6 mup",
+		[]string{"-f", "ipv6/mup", "mup-t1st 2001:db8::/32 rd 100:1 next-hop 2001:db8::1"},
+		"ipv6/mup",
 		"2001:db8::1",
 	)
 }

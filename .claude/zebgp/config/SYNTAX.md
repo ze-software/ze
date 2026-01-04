@@ -164,24 +164,24 @@ capability {
 
 ```
 family {
-    ipv4 unicast;
-    ipv4 multicast;
-    ipv4 nlri-mpls;
-    ipv4 mpls-vpn;
+    ipv4/unicast;
+    ipv4/multicast;
+    ipv4/nlri-mpls;
+    ipv4/mpls-vpn;
     ipv4 mcast-vpn;
     ipv4 flow;
     ipv4 flow-vpn;
-    ipv4 mup;
-    ipv6 unicast;
-    ipv6 multicast;
-    ipv6 nlri-mpls;
-    ipv6 mpls-vpn;
+    ipv4/mup;
+    ipv6/unicast;
+    ipv6/multicast;
+    ipv6/nlri-mpls;
+    ipv6/mpls-vpn;
     ipv6 mcast-vpn;
     ipv6 flow;
     ipv6 flow-vpn;
-    ipv6 mup;
-    l2vpn vpls;
-    l2vpn evpn;
+    ipv6/mup;
+    l2vpn/vpls;
+    l2vpn/evpn;
     bgpls bgpls;
     bgpls bgpls-vpn;
 }
@@ -191,9 +191,9 @@ family {
 
 ```
 add-path {
-    ipv4 unicast;            # Both send and receive
-    ipv4 unicast send;       # Send only
-    ipv4 unicast receive;    # Receive only
+    ipv4/unicast;            # Both send and receive
+    ipv4/unicast send;       # Send only
+    ipv4/unicast receive;    # Receive only
 }
 ```
 
@@ -206,8 +206,8 @@ api <process-name> {
         encoding json;       # json | text (default: inherit from process)
         format parsed;       # parsed | raw | full (default: parsed)
         attribute all;       # all | none | "as-path next-hop ..." (default: all)
-        nlri ipv4 unicast;   # <afi> <safi>; (can have multiple)
-        nlri ipv6 unicast;   # all | none | multiple nlri statements
+        nlri ipv4/unicast;   # <afi> <safi>; (can have multiple)
+        nlri ipv6/unicast;   # all | none | multiple nlri statements
     }
     receive {
         update;              # route announcements
@@ -660,7 +660,7 @@ incomplete
 template mytemplate neighbor myneighbor {
     hold-time 90;
     family {
-        ipv4 unicast;
+        ipv4/unicast;
     }
 }
 

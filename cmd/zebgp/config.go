@@ -24,7 +24,7 @@ func cmdConfig(args []string) int {
 		return cmdConfigMigrateCLI(subArgs)
 	case "fmt":
 		return cmdConfigFmtCLI(subArgs)
-	case "help", "-h", "--help":
+	case "help", "-h", "--help": //nolint:goconst // consistent pattern across cmd files
 		configUsage()
 		return exitOK
 	default:

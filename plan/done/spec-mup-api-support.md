@@ -52,7 +52,7 @@ Add MUP SAFI support to API parser to fix mup4/mup6 tests.
 ### User Flow (current - BROKEN)
 
 ```
-API Command: announce ipv4 mup mup-isd 10.0.1.0/24 rd 100:100 next-hop 2001::1 ...
+API Command: announce ipv4/mup mup-isd 10.0.1.0/24 rd 100:100 next-hop 2001::1 ...
                 │
                 ▼
         parseSAFI(["mup", "mup-isd", ...])
@@ -70,7 +70,7 @@ API Command: announce ipv4 mup mup-isd 10.0.1.0/24 rd 100:100 next-hop 2001::1 .
 ### User Flow (after fix)
 
 ```
-API Command: announce ipv4 mup mup-isd 10.0.1.0/24 rd 100:100 next-hop 2001::1 ...
+API Command: announce ipv4/mup mup-isd 10.0.1.0/24 rd 100:100 next-hop 2001::1 ...
                 │
                 ▼
         parseSAFI(["mup", "mup-isd", ...])

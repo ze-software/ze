@@ -19,7 +19,7 @@ type DecodingTest struct {
 	Nick         string
 	File         string
 	Type         string // "open", "update"
-	Family       string // e.g., "l2vpn evpn"
+	Family       string // e.g., "l2vpn/evpn"
 	HexPayload   string
 	ExpectedJSON string
 
@@ -98,7 +98,7 @@ func (dt *DecodingTests) parseTestFile(filePath string) (*DecodingTest, error) {
 	}
 	expectedJSON := strings.TrimSpace(scanner.Text())
 
-	// Parse type line: "update l2vpn evpn" or "open"
+	// Parse type line: "update l2vpn/evpn" or "open"
 	msgType, family := parseTypeLine(typeLine)
 
 	name := strings.TrimSuffix(filepath.Base(filePath), ".test")
@@ -115,7 +115,7 @@ func (dt *DecodingTests) parseTestFile(filePath string) (*DecodingTest, error) {
 	}, nil
 }
 
-// parseTypeLine parses "update l2vpn evpn" into type and family.
+// parseTypeLine parses "update l2vpn/evpn" into type and family.
 func parseTypeLine(line string) (msgType, family string) {
 	parts := strings.Fields(line)
 	if len(parts) == 0 {

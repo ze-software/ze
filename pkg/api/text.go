@@ -171,8 +171,8 @@ func formatFilterResultJSON(peer PeerInfo, result FilterResult, msgID uint64, di
 			if needComma {
 				sb.WriteString(",")
 			}
-			// Family name with space for JSON key (e.g., "ipv4 unicast")
-			familyKey := strings.ReplaceAll(fam.Family, "-", " ")
+			// Family name (e.g., "ipv4/unicast")
+			familyKey := fam.Family
 			sb.WriteString(`"`)
 			sb.WriteString(familyKey)
 			sb.WriteString(`":{"`)
@@ -202,7 +202,7 @@ func formatFilterResultJSON(peer PeerInfo, result FilterResult, msgID uint64, di
 			if !first {
 				sb.WriteString(",")
 			}
-			familyKey := strings.ReplaceAll(fam.Family, "-", " ")
+			familyKey := fam.Family
 			sb.WriteString(`"`)
 			sb.WriteString(familyKey)
 			sb.WriteString(`":[`)
@@ -343,8 +343,8 @@ func formatFilterResultText(peer PeerInfo, result FilterResult, msgID uint64, di
 		formatAttributesText(&sb, result)
 
 		for _, fam := range announced {
-			// Family name with space (e.g., "ipv4 unicast")
-			familyKey := strings.ReplaceAll(fam.Family, "-", " ")
+			// Family name with space (e.g., "ipv4/unicast")
+			familyKey := fam.Family
 			sb.WriteString(" ")
 			sb.WriteString(familyKey)
 			sb.WriteString(" next-hop ")
@@ -366,7 +366,7 @@ func formatFilterResultText(peer PeerInfo, result FilterResult, msgID uint64, di
 		sb.WriteString(" withdraw")
 
 		for _, fam := range withdrawn {
-			familyKey := strings.ReplaceAll(fam.Family, "-", " ")
+			familyKey := fam.Family
 			sb.WriteString(" ")
 			sb.WriteString(familyKey)
 			sb.WriteString(" nlri")
@@ -468,17 +468,20 @@ func formatAttributeText(sb *strings.Builder, code attribute.AttributeCode, attr
 }
 
 // FormatOpen formats an OPEN message as text output.
-// Format: peer <ip> <direction> open <msg-id> asn <asn> router-id <id> hold-time <t> [cap <name> <value>]...
+// Format: peer <ip> <direction> open <msg-id> asn <asn> router-id <id> hold-time <t> [cap <code> <name> <value>]...
 // ASN is the speaker's ASN (from the OPEN message).
-// Capabilities use "cap <name> <value>" format for easy parsing.
+// Capabilities use "cap <code> <name> <value>" format for easy parsing.
 func FormatOpen(peer PeerInfo, open DecodedOpen, direction string, msgID uint64) string {
 	var sb strings.Builder
 	sb.WriteString(fmt.Sprintf("peer %s %s open %d asn %d router-id %s hold-time %d",
 		peer.Address, direction, msgID, open.ASN, open.RouterID, open.HoldTime))
 
 	for _, cap := range open.Capabilities {
-		sb.WriteString(" cap ")
-		sb.WriteString(cap)
+		if cap.Value != "" {
+			fmt.Fprintf(&sb, " cap %d %s %s", cap.Code, cap.Name, cap.Value)
+		} else {
+			fmt.Fprintf(&sb, " cap %d %s", cap.Code, cap.Name)
+		}
 	}
 	sb.WriteString("\n")
 	return sb.String()

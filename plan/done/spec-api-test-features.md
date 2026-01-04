@@ -50,7 +50,7 @@ Implement remaining API features required to pass ExaBGP-compatible tests.
 - check test: Added `version 6;` to check.conf content block
 - Root cause: Default API version is 7 (nlri format), but check.run expects version 6 (ExaBGP format)
 - Version 6: `neighbor 127.0.0.1 receive update announced ...`
-- Version 7: `peer 127.0.0.1 update announce nlri ipv4 unicast ...`
+- Version 7: `peer 127.0.0.1 update announce nlri ipv4/unicast ...`
 
 **mup4/mup6 tests:**
 - Config fixed but MUP SAFI not supported in API commands

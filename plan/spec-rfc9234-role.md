@@ -203,7 +203,7 @@ func ParseOTC(data []byte) (OTC, error) {
     },
     "peer": { "address": "10.0.0.1" },
     "announce": {
-        "nlri": { "ipv4 unicast": ["192.168.1.0/24"] }
+        "nlri": { "ipv4/unicast": ["192.168.1.0/24"] }
     }
 }
 ```

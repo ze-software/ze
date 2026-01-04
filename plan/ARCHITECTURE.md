@@ -561,8 +561,8 @@ zebgp(config-neighbor)# set description "Transit Provider"
 zebgp(config-neighbor)# set peer-as 65002
 zebgp(config-neighbor)# set local-as 65001
 zebgp(config-neighbor)# edit family
-zebgp(config-neighbor-family)# set ipv4 unicast
-zebgp(config-neighbor-family)# set ipv6 unicast
+zebgp(config-neighbor-family)# set ipv4/unicast
+zebgp(config-neighbor-family)# set ipv6/unicast
 zebgp(config-neighbor-family)# top
 zebgp(config)# compare
 + neighbor 192.168.1.2 {
@@ -570,8 +570,8 @@ zebgp(config)# compare
 +     peer-as 65002
 +     local-as 65001
 +     family {
-+         ipv4 unicast
-+         ipv6 unicast
++         ipv4/unicast
++         ipv6/unicast
 +     }
 + }
 zebgp(config)# commit
@@ -607,8 +607,8 @@ set neighbor 192.168.1.2 description "Transit Provider"
 set neighbor 192.168.1.2 peer-as 65002
 set neighbor 192.168.1.2 local-as 65001
 set neighbor 192.168.1.2 local-address 192.168.1.1
-set neighbor 192.168.1.2 family ipv4 unicast
-set neighbor 192.168.1.2 family ipv6 unicast
+set neighbor 192.168.1.2 family ipv4/unicast
+set neighbor 192.168.1.2 family ipv6/unicast
 
 set process announce-routes run "/usr/bin/python3 /path/to/script.py"
 set process announce-routes encoder json
@@ -998,7 +998,7 @@ Must produce identical JSON for same BGP events:
     "message": {
       "update": {
         "announce": {
-          "ipv4 unicast": {
+          "ipv4/unicast": {
             "192.168.1.2": {
               "10.0.0.0/24": {}
             }
@@ -1045,8 +1045,8 @@ peer 192.168.1.2 {
     peer-as 65002;
 
     family {
-        ipv4 unicast;
-        ipv6 unicast;
+        ipv4/unicast;
+        ipv6/unicast;
     }
 
     api {

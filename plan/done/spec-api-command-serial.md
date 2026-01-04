@@ -131,7 +131,7 @@ Events (no serial):
 
 ```
 peer 10.0.0.1 state up
-peer 10.0.0.1 update announce ipv4 unicast 192.168.1.0/24 next-hop 10.0.0.1
+peer 10.0.0.1 update announce ipv4/unicast 192.168.1.0/24 next-hop 10.0.0.1
 ```
 
 ZeBGP-initiated requests use `#` prefix (setting an ID):
@@ -256,7 +256,7 @@ Process stdout:
 Process stdin:
 peer 192.0.2.1 state up
 @5 done
-peer 192.0.2.1 update announce ipv4 unicast ...
+peer 192.0.2.1 update announce ipv4/unicast ...
 ```
 
 ### Plugin command flow

@@ -233,7 +233,7 @@ peer 192.168.1.2 {
     router-id 1.1.1.1;
     local-as 65001;
     family {
-        ipv4 unicast;
+        ipv4/unicast;
     }
 }
 ```

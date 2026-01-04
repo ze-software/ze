@@ -249,6 +249,7 @@ func (e *JSONEncoder) Notification(peer PeerInfo, notify DecodedNotification, di
 
 // Open returns JSON for an OPEN message.
 // Field names match ExaBGP: hold_time, router_id, capabilities (underscores).
+// Capabilities are structured as [{code, name, value}] for easy parsing.
 func (e *JSONEncoder) Open(peer PeerInfo, open DecodedOpen, direction string, msgID uint64) string {
 	msg := e.message(peer, "open")
 	msg["direction"] = direction
@@ -257,10 +258,17 @@ func (e *JSONEncoder) Open(peer PeerInfo, open DecodedOpen, direction string, ms
 	}
 	peerObj := e.peerSection(peer)
 
-	// Ensure capabilities is always an array (empty if none)
-	caps := open.Capabilities
-	if caps == nil {
-		caps = []string{}
+	// Convert capabilities to structured JSON format
+	caps := make([]map[string]any, 0, len(open.Capabilities))
+	for _, cap := range open.Capabilities {
+		capObj := map[string]any{
+			"code": cap.Code,
+			"name": cap.Name,
+		}
+		if cap.Value != "" {
+			capObj["value"] = cap.Value
+		}
+		caps = append(caps, capObj)
 	}
 
 	peerObj["open"] = map[string]any{

@@ -235,6 +235,16 @@ func RegisterRouteHandlers(d *Dispatcher) {
 	d.Register("announce ipv4", handleAnnounceIPv4, "Announce IPv4 route (family-explicit)")
 	d.Register("announce ipv6", handleAnnounceIPv6, "Announce IPv6 route (family-explicit)")
 
+	// Family-explicit announce commands with slash format
+	d.Register("announce ipv4/unicast", handleAnnounceIPv4Unicast, "Announce IPv4 unicast route")
+	d.Register("announce ipv4/mpls-vpn", handleAnnounceIPv4MPLSVPN, "Announce IPv4 MPLS-VPN route")
+	d.Register("announce ipv4/nlri-mpls", handleAnnounceIPv4NLRIMPLS, "Announce IPv4 labeled unicast route")
+	d.Register("announce ipv4/mup", handleAnnounceIPv4MUP, "Announce IPv4 MUP route")
+	d.Register("announce ipv6/unicast", handleAnnounceIPv6Unicast, "Announce IPv6 unicast route")
+	d.Register("announce ipv6/mpls-vpn", handleAnnounceIPv6MPLSVPN, "Announce IPv6 MPLS-VPN route")
+	d.Register("announce ipv6/nlri-mpls", handleAnnounceIPv6NLRIMPLS, "Announce IPv6 labeled unicast route")
+	d.Register("announce ipv6/mup", handleAnnounceIPv6MUP, "Announce IPv6 MUP route")
+
 	// Batch announce commands (multiple NLRIs per UPDATE)
 	d.Register("announce attributes", handleAnnounceAttributes, "Announce routes with shared attributes (ExaBGP compat)")
 	d.Register("announce nlri", handleAnnounceNLRI, "Queue routes to active commit with explicit AFI/SAFI")
@@ -249,6 +259,16 @@ func RegisterRouteHandlers(d *Dispatcher) {
 	// Family-explicit withdraw commands (ExaBGP compatibility)
 	d.Register("withdraw ipv4", handleWithdrawIPv4, "Withdraw IPv4 route (family-explicit)")
 	d.Register("withdraw ipv6", handleWithdrawIPv6, "Withdraw IPv6 route (family-explicit)")
+
+	// Family-explicit withdraw commands with slash format
+	d.Register("withdraw ipv4/unicast", handleWithdrawIPv4Unicast, "Withdraw IPv4 unicast route")
+	d.Register("withdraw ipv4/mpls-vpn", handleWithdrawIPv4MPLSVPN, "Withdraw IPv4 MPLS-VPN route")
+	d.Register("withdraw ipv4/nlri-mpls", handleWithdrawIPv4NLRIMPLS, "Withdraw IPv4 labeled unicast route")
+	d.Register("withdraw ipv4/mup", handleWithdrawIPv4MUP, "Withdraw IPv4 MUP route")
+	d.Register("withdraw ipv6/unicast", handleWithdrawIPv6Unicast, "Withdraw IPv6 unicast route")
+	d.Register("withdraw ipv6/mpls-vpn", handleWithdrawIPv6MPLSVPN, "Withdraw IPv6 MPLS-VPN route")
+	d.Register("withdraw ipv6/nlri-mpls", handleWithdrawIPv6NLRIMPLS, "Withdraw IPv6 labeled unicast route")
+	d.Register("withdraw ipv6/mup", handleWithdrawIPv6MUP, "Withdraw IPv6 MUP route")
 
 	// Watchdog commands - control routes by watchdog group
 	d.Register("announce watchdog", handleAnnounceWatchdog, "Announce routes in watchdog group")
@@ -1066,42 +1086,98 @@ func withdrawMUPImpl(ctx *CommandContext, args []string, isIPv6 bool) (*Response
 
 // handleAnnounceIPv4 handles: announce ipv4 <safi> <prefix> [attributes...].
 // Supported SAFIs: unicast, nlri-mpls (or labeled-unicast), mpls-vpn, mup.
-// Example: announce ipv4 unicast 10.0.0.0/24 next-hop 192.168.1.1.
-// Example: announce ipv4 nlri-mpls 10.0.0.0/24 label 100 next-hop 1.2.3.4.
-// Example: announce ipv4 mpls-vpn 10.0.0.0/24 rd 100:100 label 100 next-hop 1.2.3.4.
-// Example: announce ipv4 mup mup-isd 10.0.0.0/24 rd 100:100 next-hop 2001::1.
+// Example: announce ipv4/unicast 10.0.0.0/24 next-hop 192.168.1.1.
+// Example: announce ipv4/nlri-mpls 10.0.0.0/24 label 100 next-hop 1.2.3.4.
+// Example: announce ipv4/mpls-vpn 10.0.0.0/24 rd 100:100 label 100 next-hop 1.2.3.4.
+// Example: announce ipv4/mup mup-isd 10.0.0.0/24 rd 100:100 next-hop 2001::1.
 func handleAnnounceIPv4(ctx *CommandContext, args []string) (*Response, error) {
 	return handleAFIRoute(ctx, args, false, false)
 }
 
 // handleAnnounceIPv6 handles: announce ipv6 <safi> <prefix> [attributes...].
 // Supported SAFIs: unicast, nlri-mpls (or labeled-unicast), mpls-vpn, mup.
-// Example: announce ipv6 unicast 2001:db8::/32 next-hop 2001::1.
-// Example: announce ipv6 nlri-mpls 2001:db8::/32 label 100 next-hop 2001::1.
-// Example: announce ipv6 mpls-vpn 2001:db8::/32 rd 100:100 label 100 next-hop 2001::1.
-// Example: announce ipv6 mup mup-isd 2001:db8::/32 rd 100:100 next-hop 2001::1.
+// Example: announce ipv6/unicast 2001:db8::/32 next-hop 2001::1.
+// Example: announce ipv6/nlri-mpls 2001:db8::/32 label 100 next-hop 2001::1.
+// Example: announce ipv6/mpls-vpn 2001:db8::/32 rd 100:100 label 100 next-hop 2001::1.
+// Example: announce ipv6/mup mup-isd 2001:db8::/32 rd 100:100 next-hop 2001::1.
 func handleAnnounceIPv6(ctx *CommandContext, args []string) (*Response, error) {
 	return handleAFIRoute(ctx, args, true, false)
 }
 
 // handleWithdrawIPv4 handles: withdraw ipv4 <safi> <prefix> [attributes...].
 // Supported SAFIs: unicast, nlri-mpls (or labeled-unicast), mpls-vpn, mup.
-// Example: withdraw ipv4 unicast 10.0.0.0/24.
-// Example: withdraw ipv4 nlri-mpls 10.0.0.0/24 label 100.
-// Example: withdraw ipv4 mpls-vpn 10.0.0.0/24 rd 100:100.
-// Example: withdraw ipv4 mup mup-isd 10.0.0.0/24 rd 100:100.
+// Example: withdraw ipv4/unicast 10.0.0.0/24.
+// Example: withdraw ipv4/nlri-mpls 10.0.0.0/24 label 100.
+// Example: withdraw ipv4/mpls-vpn 10.0.0.0/24 rd 100:100.
+// Example: withdraw ipv4/mup mup-isd 10.0.0.0/24 rd 100:100.
 func handleWithdrawIPv4(ctx *CommandContext, args []string) (*Response, error) {
 	return handleAFIRoute(ctx, args, false, true)
 }
 
 // handleWithdrawIPv6 handles: withdraw ipv6 <safi> <prefix> [attributes...].
 // Supported SAFIs: unicast, nlri-mpls (or labeled-unicast), mpls-vpn, mup.
-// Example: withdraw ipv6 unicast 2001:db8::/32.
-// Example: withdraw ipv6 nlri-mpls 2001:db8::/32 label 100.
-// Example: withdraw ipv6 mpls-vpn 2001:db8::/32 rd 100:100.
-// Example: withdraw ipv6 mup mup-isd 2001:db8::/32 rd 100:100.
+// Example: withdraw ipv6/unicast 2001:db8::/32.
+// Example: withdraw ipv6/nlri-mpls 2001:db8::/32 label 100.
+// Example: withdraw ipv6/mpls-vpn 2001:db8::/32 rd 100:100.
+// Example: withdraw ipv6/mup mup-isd 2001:db8::/32 rd 100:100.
 func handleWithdrawIPv6(ctx *CommandContext, args []string) (*Response, error) {
 	return handleAFIRoute(ctx, args, true, true)
+}
+
+// Slash-format announce handlers for ipv4/<safi>.
+func handleAnnounceIPv4Unicast(ctx *CommandContext, args []string) (*Response, error) {
+	return handleAFIRoute(ctx, append([]string{"unicast"}, args...), false, false)
+}
+func handleAnnounceIPv4MPLSVPN(ctx *CommandContext, args []string) (*Response, error) {
+	return handleAFIRoute(ctx, append([]string{"mpls-vpn"}, args...), false, false)
+}
+func handleAnnounceIPv4NLRIMPLS(ctx *CommandContext, args []string) (*Response, error) {
+	return handleAFIRoute(ctx, append([]string{"nlri-mpls"}, args...), false, false)
+}
+func handleAnnounceIPv4MUP(ctx *CommandContext, args []string) (*Response, error) {
+	return handleAFIRoute(ctx, append([]string{"mup"}, args...), false, false)
+}
+
+// Slash-format announce handlers for ipv6/<safi>.
+func handleAnnounceIPv6Unicast(ctx *CommandContext, args []string) (*Response, error) {
+	return handleAFIRoute(ctx, append([]string{"unicast"}, args...), true, false)
+}
+func handleAnnounceIPv6MPLSVPN(ctx *CommandContext, args []string) (*Response, error) {
+	return handleAFIRoute(ctx, append([]string{"mpls-vpn"}, args...), true, false)
+}
+func handleAnnounceIPv6NLRIMPLS(ctx *CommandContext, args []string) (*Response, error) {
+	return handleAFIRoute(ctx, append([]string{"nlri-mpls"}, args...), true, false)
+}
+func handleAnnounceIPv6MUP(ctx *CommandContext, args []string) (*Response, error) {
+	return handleAFIRoute(ctx, append([]string{"mup"}, args...), true, false)
+}
+
+// Slash-format withdraw handlers for ipv4/<safi>.
+func handleWithdrawIPv4Unicast(ctx *CommandContext, args []string) (*Response, error) {
+	return handleAFIRoute(ctx, append([]string{"unicast"}, args...), false, true)
+}
+func handleWithdrawIPv4MPLSVPN(ctx *CommandContext, args []string) (*Response, error) {
+	return handleAFIRoute(ctx, append([]string{"mpls-vpn"}, args...), false, true)
+}
+func handleWithdrawIPv4NLRIMPLS(ctx *CommandContext, args []string) (*Response, error) {
+	return handleAFIRoute(ctx, append([]string{"nlri-mpls"}, args...), false, true)
+}
+func handleWithdrawIPv4MUP(ctx *CommandContext, args []string) (*Response, error) {
+	return handleAFIRoute(ctx, append([]string{"mup"}, args...), false, true)
+}
+
+// Slash-format withdraw handlers for ipv6/<safi>.
+func handleWithdrawIPv6Unicast(ctx *CommandContext, args []string) (*Response, error) {
+	return handleAFIRoute(ctx, append([]string{"unicast"}, args...), true, true)
+}
+func handleWithdrawIPv6MPLSVPN(ctx *CommandContext, args []string) (*Response, error) {
+	return handleAFIRoute(ctx, append([]string{"mpls-vpn"}, args...), true, true)
+}
+func handleWithdrawIPv6NLRIMPLS(ctx *CommandContext, args []string) (*Response, error) {
+	return handleAFIRoute(ctx, append([]string{"nlri-mpls"}, args...), true, true)
+}
+func handleWithdrawIPv6MUP(ctx *CommandContext, args []string) (*Response, error) {
+	return handleAFIRoute(ctx, append([]string{"mup"}, args...), true, true)
 }
 
 // handleAFIRoute is a common handler for announce/withdraw ipv4/ipv6.
@@ -1224,7 +1300,7 @@ func handleAnnounceAttributes(ctx *CommandContext, args []string) (*Response, er
 
 // handleAnnounceNLRI handles: announce nlri <attrs>... <afi> <safi> [nlri] <prefix>...
 // Queues routes to an active commit. Requires commit to be started first.
-// Example: announce nlri next-hop 10.0.0.1 origin igp ipv4 unicast 1.0.0.0/24 2.0.0.0/24.
+// Example: announce nlri next-hop 10.0.0.1 origin igp ipv4/unicast 1.0.0.0/24 2.0.0.0/24.
 func handleAnnounceNLRI(ctx *CommandContext, args []string) (*Response, error) {
 	if len(args) < 4 {
 		return &Response{
@@ -1272,7 +1348,7 @@ func handleAnnounceNLRI(ctx *CommandContext, args []string) (*Response, error) {
 // handleAnnounceUpdate handles: announce update <attrs>... <afi> <safi> [nlri] <prefix>...
 // This is an auto-commit wrapper: starts commit, queues routes, ends with EOR.
 // Equivalent to: commit <auto> start; announce nlri ...; commit <auto> eor
-// Example: announce update next-hop 10.0.0.1 origin igp ipv4 unicast 1.0.0.0/24 2.0.0.0/24.
+// Example: announce update next-hop 10.0.0.1 origin igp ipv4/unicast 1.0.0.0/24 2.0.0.0/24.
 func handleAnnounceUpdate(ctx *CommandContext, args []string) (*Response, error) {
 	if len(args) < 4 {
 		return &Response{
@@ -1448,26 +1524,22 @@ func parseUpdateCommand(args []string) (BatchAttributes, string, string, []netip
 	var prefixes []netip.Prefix
 	var afi, safi string
 
-	// Find AFI keyword (ipv4 or ipv6)
-	afiIndex := -1
+	// Find family token (afi/safi format, e.g., "ipv4/unicast")
+	familyIndex := -1
 	for i, arg := range args {
 		lower := strings.ToLower(arg)
-		if lower == AFINameIPv4 || lower == AFINameIPv6 {
-			afiIndex = i
-			afi = lower
+		if strings.HasPrefix(lower, AFINameIPv4+"/") || strings.HasPrefix(lower, AFINameIPv6+"/") {
+			parts := strings.SplitN(lower, "/", 2)
+			afi = parts[0]
+			safi = parts[1]
+			familyIndex = i
 			break
 		}
 	}
 
-	if afiIndex < 0 {
-		return attrs, "", "", nil, fmt.Errorf("%w: AFI (ipv4/ipv6) not found", ErrInvalidFamily)
+	if familyIndex < 0 {
+		return attrs, "", "", nil, fmt.Errorf("%w: family not found (expected afi/safi format)", ErrInvalidFamily)
 	}
-
-	// SAFI must follow AFI
-	if afiIndex+1 >= len(args) {
-		return attrs, "", "", nil, fmt.Errorf("%w: missing SAFI after %s", ErrInvalidFamily, afi)
-	}
-	safi = strings.ToLower(args[afiIndex+1])
 
 	// Validate SAFI
 	switch safi {
@@ -1477,13 +1549,13 @@ func parseUpdateCommand(args []string) (BatchAttributes, string, string, []netip
 		return attrs, "", "", nil, fmt.Errorf("%w: unsupported SAFI '%s'", ErrInvalidFamily, safi)
 	}
 
-	// Parse attributes before AFI
-	for i := 0; i < afiIndex; i++ {
+	// Parse attributes before family
+	for i := 0; i < familyIndex; i++ {
 		key := strings.ToLower(args[i])
 
 		// Handle next-hop
 		if key == "next-hop" {
-			if i+1 >= afiIndex {
+			if i+1 >= familyIndex {
 				return attrs, "", "", nil, ErrMissingNextHop
 			}
 			nh, err := netip.ParseAddr(args[i+1])
@@ -1506,13 +1578,13 @@ func parseUpdateCommand(args []string) (BatchAttributes, string, string, []netip
 		}
 
 		// Unknown attribute - skip with value
-		if i+1 < afiIndex {
+		if i+1 < familyIndex {
 			i++
 		}
 	}
 
-	// Parse prefixes after AFI SAFI [nlri]
-	startIdx := afiIndex + 2
+	// Parse prefixes after family [nlri]
+	startIdx := familyIndex + 1
 	if startIdx < len(args) && strings.EqualFold(args[startIdx], "nlri") {
 		startIdx++ // Skip optional "nlri" keyword
 	}
@@ -2093,18 +2165,34 @@ func parseL3VPNAttributes(args []string) (L3VPNRoute, error) {
 
 // handleAnnounceEOR handles: announce eor [family].
 // Example: announce eor (sends IPv4 unicast EOR).
-// Example: announce eor ipv4 unicast.
-// Example: announce eor ipv6 unicast.
+// Example: announce eor ipv4/unicast.
+// Example: announce eor ipv6/unicast.
 func handleAnnounceEOR(ctx *CommandContext, args []string) (*Response, error) {
 	// Default to IPv4 unicast
 	afi := uint16(1) // IPv4
 	safi := uint8(1) // Unicast
-	family := AFINameIPv4 + " " + SAFINameUnicast
+	family := AFINameIPv4 + "/" + SAFINameUnicast
 
-	// Parse optional family
-	if len(args) >= 2 {
-		afiStr := strings.ToLower(args[0])
-		safiStr := strings.ToLower(args[1])
+	// Parse optional family - supports "ipv4/unicast" or "ipv4 unicast"
+	if len(args) >= 1 {
+		var afiStr, safiStr string
+
+		switch {
+		case strings.Contains(args[0], "/"):
+			// Slash format (ipv4/unicast)
+			parts := strings.SplitN(args[0], "/", 2)
+			afiStr = strings.ToLower(parts[0])
+			safiStr = strings.ToLower(parts[1])
+		case len(args) >= 2:
+			// Space-separated format (ipv4 unicast)
+			afiStr = strings.ToLower(args[0])
+			safiStr = strings.ToLower(args[1])
+		default:
+			return &Response{
+				Status: "error",
+				Data:   fmt.Sprintf("invalid family format: %s (expected afi/safi)", args[0]),
+			}, ErrInvalidFamily
+		}
 
 		switch afiStr {
 		case AFINameIPv4:
@@ -2138,7 +2226,7 @@ func handleAnnounceEOR(ctx *CommandContext, args []string) (*Response, error) {
 			}, ErrInvalidFamily
 		}
 
-		family = afiStr + " " + safiStr
+		family = afiStr + "/" + safiStr
 	}
 
 	// Send EOR to all established peers

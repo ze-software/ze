@@ -17,7 +17,7 @@ import (
 //
 //	set router-id 1.2.3.4
 //	set neighbor 192.0.2.1 local-as 65000
-//	set neighbor 192.0.2.1 family ipv4 unicast true
+//	set neighbor 192.0.2.1 family ipv4/unicast true
 //	delete neighbor 192.0.2.1 peer-as
 type SetParser struct {
 	schema *Schema

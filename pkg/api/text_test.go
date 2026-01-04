@@ -116,7 +116,7 @@ func TestFormatMessageText(t *testing.T) {
 	if !strings.Contains(got, "local-preference 100") {
 		t.Error("missing local-preference")
 	}
-	if !strings.Contains(got, "ipv4 unicast next-hop 10.0.0.1 nlri 192.168.1.0/24") {
+	if !strings.Contains(got, "ipv4/unicast next-hop 10.0.0.1 nlri 192.168.1.0/24") {
 		t.Error("missing family/next-hop/nlri")
 	}
 }
@@ -169,8 +169,8 @@ func TestFormatMessageJSON(t *testing.T) {
 	if !strings.Contains(got, `"announce":{`) {
 		t.Error("missing announce structure")
 	}
-	if !strings.Contains(got, `"ipv4 unicast":`) {
-		t.Error("missing ipv4 unicast family")
+	if !strings.Contains(got, `"ipv4/unicast":`) {
+		t.Error("missing ipv4/unicast family")
 	}
 	if !strings.Contains(got, `192.168.1.0/24`) {
 		t.Error("missing prefix")
@@ -392,13 +392,13 @@ func TestFilterResultBothNextHops(t *testing.T) {
 	// Find IPv4 and IPv6 families
 	var gotIPv4, gotIPv6 bool
 	for _, fam := range announced {
-		if fam.Family == "ipv4-unicast" {
+		if fam.Family == "ipv4/unicast" {
 			gotIPv4 = true
 			if fam.NextHop.String() != "10.0.0.1" {
 				t.Errorf("IPv4 NextHop = %v, want 10.0.0.1", fam.NextHop)
 			}
 		}
-		if fam.Family == "ipv6-unicast" {
+		if fam.Family == "ipv6/unicast" {
 			gotIPv6 = true
 			if fam.NextHop.String() != "2001:db8::1" {
 				t.Errorf("IPv6 NextHop = %v, want 2001:db8::1", fam.NextHop)
@@ -406,10 +406,10 @@ func TestFilterResultBothNextHops(t *testing.T) {
 		}
 	}
 	if !gotIPv4 {
-		t.Error("missing ipv4-unicast family")
+		t.Error("missing ipv4/unicast family")
 	}
 	if !gotIPv6 {
-		t.Error("missing ipv6-unicast family")
+		t.Error("missing ipv6/unicast family")
 	}
 }
 

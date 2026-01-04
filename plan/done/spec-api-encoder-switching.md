@@ -271,7 +271,7 @@ Process can request version via environment or config (future).
   },
   "announce": {
     "nlri": {
-      "ipv4 unicast": {
+      "ipv4/unicast": {
         "192.168.1.0/24": {
           "next-hop": "10.0.0.1",
           "origin": "igp",
@@ -286,7 +286,7 @@ Process can request version via environment or config (future).
 ### Text Format (v7)
 
 ```
-peer 10.0.0.1 update announce nlri ipv4 unicast 192.168.1.0/24 next-hop 10.0.0.1 origin igp as-path [65001]
+peer 10.0.0.1 update announce nlri ipv4/unicast 192.168.1.0/24 next-hop 10.0.0.1 origin igp as-path [65001]
 ```
 
 ### Withdrawals
@@ -298,7 +298,7 @@ JSON:
   "peer": { "address": "10.0.0.1" },
   "withdraw": {
     "nlri": {
-      "ipv4 unicast": ["192.168.1.0/24", "192.168.2.0/24"]
+      "ipv4/unicast": ["192.168.1.0/24", "192.168.2.0/24"]
     }
   }
 }
@@ -306,7 +306,7 @@ JSON:
 
 Text:
 ```
-peer 10.0.0.1 update withdraw nlri ipv4 unicast 192.168.1.0/24 192.168.2.0/24
+peer 10.0.0.1 update withdraw nlri ipv4/unicast 192.168.1.0/24 192.168.2.0/24
 ```
 
 ## Format Options

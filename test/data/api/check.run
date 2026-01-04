@@ -18,7 +18,7 @@ def main() -> None:
                 continue
             if 'eor' in line:
                 continue
-            # ZeBGP format: peer 127.0.0.1 asn 65512 update N announce origin igp local-preference 100 ipv4 unicast next-hop 127.0.0.1 nlri 0.0.0.0/32
+            # ZeBGP format: peer 127.0.0.1 asn 65512 update N announce origin igp local-preference 100 ipv4/unicast next-hop 127.0.0.1 nlri 0.0.0.0/32
             if not (
                 'peer 127.0.0.1' in line
                 and 'announce' in line

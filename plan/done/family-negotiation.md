@@ -20,15 +20,15 @@ Enhance family configuration to support:
 ### Config Syntax
 ```
 family {
-    ipv4 unicast;
-    ipv6 unicast;
+    ipv4/unicast;
+    ipv6/unicast;
     ignore-mismatch enable;  # global option
 }
 ```
 
 ### Data Flow
 1. `bgp.go:127` - Schema: `Field("family", Freeform())`
-2. Parser stores "ipv4 unicast" → "true" in Tree
+2. Parser stores "ipv4/unicast" → "true" in Tree
 3. `bgp.go:539-560` - Extracts families as []string in NeighborConfig.Families
 4. `loader.go` converts to []capability.Multiprotocol in Neighbor.Capabilities
 5. `session.go:532-572` - Negotiates capabilities, stores in Negotiated.families
@@ -41,10 +41,10 @@ family {
 ### Inline syntax (current + mode)
 ```
 family {
-    ipv4 unicast;               # enable (default)
-    ipv4 unicast enable;        # explicit enable
-    ipv6 unicast disable;       # disable (don't advertise)
-    l2vpn evpn require;         # require (fail if peer doesn't support)
+    ipv4/unicast;               # enable (default)
+    ipv4/unicast enable;        # explicit enable
+    ipv6/unicast disable;       # disable (don't advertise)
+    l2vpn/evpn require;         # require (fail if peer doesn't support)
 }
 ```
 
@@ -73,7 +73,7 @@ family { ipv6 { unicast require; mpls-vpn } }
 ### Mixed syntax
 ```
 family {
-    ipv4 unicast;               # inline - simple case
+    ipv4/unicast;               # inline - simple case
     ipv6 {                      # block - multiple SAFIs
         unicast require;
         mpls-vpn
@@ -84,7 +84,7 @@ family {
 ### Syntax Rules
 1. **Semicolons separate entries** on the same line: `unicast require; mpls-vpn`
 2. **Semicolons optional** before `}` or at end of line (newline/`}` acts as terminator)
-3. Both inline (`ipv4 unicast`) and block (`ipv4 { unicast }`) syntaxes coexist
+3. Both inline (`ipv4/unicast`) and block (`ipv4 { unicast }`) syntaxes coexist
 4. Default mode is `enable` when not specified
 
 ---
@@ -155,12 +155,12 @@ type Neighbor struct {
 
 3. Parser changes:
    - `parseFamilyBlock()` method
-   - Handle inline: `ipv4 unicast require;`
+   - Handle inline: `ipv4/unicast require;`
    - Handle block: `ipv4 { unicast; multicast require; }`
 
 **Tests:**
-- Parse `ipv4 unicast;` → FamilyConfig{AFI:"ipv4", SAFI:"unicast", Mode:Enable}
-- Parse `ipv4 unicast require;` → Mode:Require
+- Parse `ipv4/unicast;` → FamilyConfig{AFI:"ipv4", SAFI:"unicast", Mode:Enable}
+- Parse `ipv4/unicast require;` → Mode:Require
 - Parse `ipv4 { unicast; multicast disable; }` → two FamilyConfigs
 - Parse `ipv6 { unicast require }` → no semicolon before `}`
 
@@ -239,8 +239,8 @@ const NotifyOpenUnsupportedCapability = 7 // RFC 5492
 
 ```
 family {
-    ipv4 unicast;           # affected by ignore-mismatch
-    ipv6 unicast require;   # NOT affected by ignore-mismatch
+    ipv4/unicast;           # affected by ignore-mismatch
+    ipv6/unicast require;   # NOT affected by ignore-mismatch
     ignore-mismatch enable;
 }
 ```
@@ -289,12 +289,12 @@ level=info msg="all required families negotiated"
 ## Test Cases
 
 ### Config Parsing Tests
-1. `ipv4 unicast` → enable
-2. `ipv4 unicast enable` → enable
-3. `ipv4 unicast true` → enable
-4. `ipv4 unicast disable` → disable
-5. `ipv4 unicast false` → disable
-6. `ipv4 unicast require` → require
+1. `ipv4/unicast` → enable
+2. `ipv4/unicast enable` → enable
+3. `ipv4/unicast true` → enable
+4. `ipv4/unicast disable` → disable
+5. `ipv4/unicast false` → disable
+6. `ipv4/unicast require` → require
 7. `ipv4 { unicast; multicast require; }` → two families
 8. `ipv6 { unicast require }` → no trailing semicolon
 9. Invalid mode → parse error

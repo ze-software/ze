@@ -409,12 +409,12 @@ func TestFamilyParsing(t *testing.T) {
 		expected Family
 		ok       bool
 	}{
-		{"ipv4-mvpn", IPv4MVPN, true},
-		{"ipv6-mvpn", IPv6MVPN, true},
-		{"l2vpn-vpls", L2VPNVPLS, true},
-		{"ipv4-rtc", IPv4RTC, true},
-		{"ipv4-mup", IPv4MUP, true},
-		{"ipv6-mup", IPv6MUP, true},
+		{"ipv4/mvpn", IPv4MVPN, true},
+		{"ipv6/mvpn", IPv6MVPN, true},
+		{"l2vpn/vpls", L2VPNVPLS, true},
+		{"ipv4/rtc", IPv4RTC, true},
+		{"ipv4/mup", IPv4MUP, true},
+		{"ipv6/mup", IPv6MUP, true},
 		{"unknown", Family{}, false},
 	}
 

@@ -101,23 +101,23 @@ func TestDetectSAFI(t *testing.T) {
 		want     string
 	}{
 		// Unicast (default)
-		{"ipv4 unicast", "10.0.0.0/8", false, false, "unicast"},
-		{"ipv6 unicast", "2001:db8::/32", false, false, "unicast"},
+		{"ipv4/unicast", "10.0.0.0/8", false, false, "unicast"},
+		{"ipv6/unicast", "2001:db8::/32", false, false, "unicast"},
 
 		// Multicast (from prefix range)
-		{"ipv4 multicast", "224.0.0.0/4", false, false, "multicast"},
-		{"ipv6 multicast", "ff02::1/128", false, false, "multicast"},
+		{"ipv4/multicast", "224.0.0.0/4", false, false, "multicast"},
+		{"ipv6/multicast", "ff02::1/128", false, false, "multicast"},
 
 		// MPLS-VPN (from rd attribute)
-		{"ipv4 mpls-vpn with rd", "10.0.0.0/8", true, false, "mpls-vpn"},
-		{"ipv6 mpls-vpn with rd", "2001:db8::/32", true, false, "mpls-vpn"},
+		{"ipv4/mpls-vpn with rd", "10.0.0.0/8", true, false, "mpls-vpn"},
+		{"ipv6/mpls-vpn with rd", "2001:db8::/32", true, false, "mpls-vpn"},
 
 		// MPLS-VPN (from label only)
-		{"ipv4 mpls-vpn with label", "10.0.0.0/8", false, true, "mpls-vpn"},
-		{"ipv6 mpls-vpn with label", "2001:db8::/32", false, true, "mpls-vpn"},
+		{"ipv4/mpls-vpn with label", "10.0.0.0/8", false, true, "mpls-vpn"},
+		{"ipv6/mpls-vpn with label", "2001:db8::/32", false, true, "mpls-vpn"},
 
 		// MPLS-VPN (both rd and label)
-		{"ipv4 mpls-vpn with both", "10.0.0.0/8", true, true, "mpls-vpn"},
+		{"ipv4/mpls-vpn with both", "10.0.0.0/8", true, true, "mpls-vpn"},
 
 		// Multicast takes precedence over attributes (unusual but possible)
 		{"multicast ignores rd", "224.0.0.0/4", true, false, "multicast"},

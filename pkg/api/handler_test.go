@@ -606,7 +606,7 @@ func TestHandleAnnounceL3VPN_IPv4(t *testing.T) {
 	reactor := &mockReactor{}
 	ctx := &CommandContext{Reactor: reactor}
 
-	// announce ipv4 mpls-vpn 10.0.0.0/24 rd 100:100 label 100 next-hop 1.2.3.4
+	// announce ipv4/mpls-vpn 10.0.0.0/24 rd 100:100 label 100 next-hop 1.2.3.4
 	args := []string{"mpls-vpn", "10.0.0.0/24", "rd", "100:100", "label", "100", "next-hop", "1.2.3.4"}
 	resp, err := handleAnnounceIPv4(ctx, args)
 
@@ -632,7 +632,7 @@ func TestHandleAnnounceL3VPN_IPv6(t *testing.T) {
 	reactor := &mockReactor{}
 	ctx := &CommandContext{Reactor: reactor}
 
-	// announce ipv6 mpls-vpn 2001:db8::/32 rd 100:100 label 100 next-hop 2001::1
+	// announce ipv6/mpls-vpn 2001:db8::/32 rd 100:100 label 100 next-hop 2001::1
 	args := []string{"mpls-vpn", "2001:db8::/32", "rd", "100:100", "label", "100", "next-hop", "2001::1"}
 	resp, err := handleAnnounceIPv6(ctx, args)
 
@@ -933,7 +933,7 @@ func TestHandleWithdrawL3VPN_IPv4(t *testing.T) {
 	reactor := &mockReactor{}
 	ctx := &CommandContext{Reactor: reactor}
 
-	// withdraw ipv4 mpls-vpn 10.0.0.0/24 rd 100:100
+	// withdraw ipv4/mpls-vpn 10.0.0.0/24 rd 100:100
 	args := []string{"mpls-vpn", "10.0.0.0/24", "rd", "100:100"}
 	resp, err := handleWithdrawIPv4(ctx, args)
 

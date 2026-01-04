@@ -150,8 +150,8 @@ When peer reconnects after session drop:
 
    **Text:**
    ```
-   peer 192.168.1.1 refresh ipv4 unicast
-   peer 192.168.1.1 refresh ipv6 unicast
+   peer 192.168.1.1 refresh ipv4/unicast
+   peer 192.168.1.1 refresh ipv6/unicast
    ```
    **JSON:**
    ```json
@@ -163,9 +163,9 @@ When peer reconnects after session drop:
 
    **Text:**
    ```
-   peer 192.168.1.1 borr ipv4 unicast
+   peer 192.168.1.1 borr ipv4/unicast
    announce route 10.0.0.0/24 next-hop self
-   peer 192.168.1.1 eorr ipv4 unicast
+   peer 192.168.1.1 eorr ipv4/unicast
    ```
    **JSON:** (borr/eorr are JSON, announce remains text command)
    ```json
@@ -198,7 +198,7 @@ GR: borr/eorr are internal signals. ERR: borr/eorr are sent on wire.
 When router receives ROUTE-REFRESH from peer:
 1. Router sends to API:
 
-   **Text:** `peer 192.168.1.1 refresh ipv4 unicast`
+   **Text:** `peer 192.168.1.1 refresh ipv4/unicast`
 
    **JSON:** `{"type": "refresh", "peer": "192.168.1.1", "afi": "ipv4", "safi": "unicast"}`
 
@@ -211,19 +211,19 @@ For bounded refresh (knowing when done), use `enhanced-route-refresh`.
 ### enhanced-route-refresh
 
 When router receives ROUTE-REFRESH from peer:
-1. Router sends: `peer 192.168.1.1 refresh ipv4 unicast`
-2. Process sends: `peer 192.168.1.1 borr ipv4 unicast`
+1. Router sends: `peer 192.168.1.1 refresh ipv4/unicast`
+2. Process sends: `peer 192.168.1.1 borr ipv4/unicast`
 3. Router sends BoRR to peer
 4. Process resends routes
-5. Process sends: `peer 192.168.1.1 eorr ipv4 unicast`
+5. Process sends: `peer 192.168.1.1 eorr ipv4/unicast`
 6. Router sends EoRR to peer
 
 API commands for Enhanced RR:
 
 **Text:**
 ```
-peer 192.168.1.1 borr ipv4 unicast
-peer 192.168.1.1 eorr ipv4 unicast
+peer 192.168.1.1 borr ipv4/unicast
+peer 192.168.1.1 eorr ipv4/unicast
 ```
 
 **JSON:**

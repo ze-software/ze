@@ -184,8 +184,8 @@ func TestFormatCapabilityStrings(t *testing.T) {
 		{"extended message", "extended-message"},
 
 		// Capabilities with values (name value)
-		{"multiprotocol ipv4 unicast", "multiprotocol ipv4-unicast"},
-		{"multiprotocol ipv6 unicast", "multiprotocol ipv6-unicast"},
+		{"multiprotocol ipv4/unicast", "multiprotocol ipv4-unicast"},
+		{"multiprotocol ipv6/unicast", "multiprotocol ipv6-unicast"},
 		{"4-byte-asn", "4-byte-asn 65536"},
 
 		// AddPath per family (name value)

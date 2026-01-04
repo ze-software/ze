@@ -9,10 +9,10 @@ Current behavior: EOR is sent for ALL negotiated families, regardless of whether
 Expected behavior: EOR should only be sent for families where routes were actually advertised.
 
 **Example:**
-- Config has: ipv4 unicast, ipv4 mpls-vpn, ipv6 unicast, ipv6 mpls-vpn
+- Config has: ipv4/unicast, ipv4/mpls-vpn, ipv6/unicast, ipv6/mpls-vpn
 - Routes sent: 1 IPv4 unicast, 1 IPv6 unicast
 - Current: Sends EOR for all 4 families
-- Expected: Sends EOR only for ipv4 unicast and ipv6 unicast
+- Expected: Sends EOR only for ipv4/unicast and ipv6/unicast
 
 ## Embedded Protocol Requirements
 

@@ -440,7 +440,7 @@ func TestFlowSpecTCPFlagsFormat(t *testing.T) {
 	// bgp-flow-2 test: tcp-flags [ =rst =fin+push ]
 	hexInput := "000000274001010040020040050400000064C010088006000000000000800E0B0001850000050901048109"
 
-	output, err := decodeHexPacket(hexInput, "update", "ipv4 flow")
+	output, err := decodeHexPacket(hexInput, "update", "ipv4/flow")
 	if err != nil {
 		t.Fatalf("decode failed: %v", err)
 	}
@@ -463,7 +463,7 @@ func TestFlowSpecTCPFlagsCompound(t *testing.T) {
 	// bgp-flow-3 test: tcp-flags [ ack cwr&!fin&!ece ]
 	hexInput := "0000002B4001010040020040050400000064C010088006000000000000800E0F00018500000909001000804201C240"
 
-	output, err := decodeHexPacket(hexInput, "update", "ipv4 flow")
+	output, err := decodeHexPacket(hexInput, "update", "ipv4/flow")
 	if err != nil {
 		t.Fatalf("decode failed: %v", err)
 	}
@@ -475,14 +475,14 @@ func TestFlowSpecTCPFlagsCompound(t *testing.T) {
 	}
 
 	// Navigate to tcp-flags array (nolint for test code)
-	neighbor, _ := result["neighbor"].(map[string]any)    //nolint:forcetypeassert // test
-	message, _ := neighbor["message"].(map[string]any)    //nolint:forcetypeassert // test
-	update, _ := message["update"].(map[string]any)       //nolint:forcetypeassert // test
-	announce, _ := update["announce"].(map[string]any)    //nolint:forcetypeassert // test
-	ipv4flow, _ := announce["ipv4 flow"].(map[string]any) //nolint:forcetypeassert // test
-	noNexthop, _ := ipv4flow["no-nexthop"].([]any)        //nolint:forcetypeassert // test
-	first, _ := noNexthop[0].(map[string]any)             //nolint:forcetypeassert // test
-	tcpFlags, _ := first["tcp-flags"].([]any)             //nolint:forcetypeassert // test
+	neighbor, _ := result["neighbor"].(map[string]any)        //nolint:forcetypeassert // test
+	message, _ := neighbor["message"].(map[string]any)        //nolint:forcetypeassert // test
+	update, _ := message["update"].(map[string]any)           //nolint:forcetypeassert // test
+	announce, _ := update["announce"].(map[string]any)        //nolint:forcetypeassert // test
+	ipv4flow, _ := announce["ipv4/flowspec"].(map[string]any) //nolint:forcetypeassert // test
+	noNexthop, _ := ipv4flow["no-nexthop"].([]any)            //nolint:forcetypeassert // test
+	first, _ := noNexthop[0].(map[string]any)                 //nolint:forcetypeassert // test
+	tcpFlags, _ := first["tcp-flags"].([]any)                 //nolint:forcetypeassert // test
 
 	// Check values
 	if len(tcpFlags) != 2 {
@@ -619,7 +619,7 @@ func TestFlowSpecWithExtendedCommunity(t *testing.T) {
 	// From bgp-flow-2: rate-limit:0
 	hexInput := "000000274001010040020040050400000064C010088006000000000000800E0B0001850000050901048109"
 
-	output, err := decodeHexPacket(hexInput, "update", "ipv4 flow")
+	output, err := decodeHexPacket(hexInput, "update", "ipv4/flow")
 	if err != nil {
 		t.Fatalf("decode failed: %v", err)
 	}
@@ -660,7 +660,7 @@ func TestBGPLSLinkNLRIFormat(t *testing.T) {
 	// From bgp-ls-2.test - Link NLRI with local and remote node descriptors
 	hexInput := testBGPLSLinkUpdate
 
-	output, err := decodeHexPacket(hexInput, "update", "bgp-ls bgp-ls")
+	output, err := decodeHexPacket(hexInput, "update", "bgp-ls/bgp-ls")
 	if err != nil {
 		t.Fatalf("decode failed: %v", err)
 	}
@@ -675,7 +675,7 @@ func TestBGPLSLinkNLRIFormat(t *testing.T) {
 	message, _ := neighbor["message"].(map[string]any)     //nolint:forcetypeassert // test
 	update, _ := message["update"].(map[string]any)        //nolint:forcetypeassert // test
 	announce, _ := update["announce"].(map[string]any)     //nolint:forcetypeassert // test
-	bgpls, _ := announce["bgp-ls bgp-ls"].(map[string]any) //nolint:forcetypeassert // test
+	bgpls, _ := announce["bgp-ls/bgp-ls"].(map[string]any) //nolint:forcetypeassert // test
 
 	// Should have next-hop key
 	if len(bgpls) == 0 {
@@ -835,7 +835,7 @@ func TestBGPLSAttribute(t *testing.T) {
 	// From bgp-ls-2.test - has bgp-ls attribute with igp-metric: 1
 	hexInput := testBGPLSLinkUpdate
 
-	output, err := decodeHexPacket(hexInput, "update", "bgp-ls bgp-ls")
+	output, err := decodeHexPacket(hexInput, "update", "bgp-ls/bgp-ls")
 	if err != nil {
 		t.Fatalf("decode failed: %v", err)
 	}
@@ -873,7 +873,7 @@ func TestBGPLSInterfaceAddresses(t *testing.T) {
 	// Even if empty, they should be present as arrays
 	hexInput := testBGPLSLinkUpdate
 
-	output, err := decodeHexPacket(hexInput, "update", "bgp-ls bgp-ls")
+	output, err := decodeHexPacket(hexInput, "update", "bgp-ls/bgp-ls")
 	if err != nil {
 		t.Fatalf("decode failed: %v", err)
 	}
@@ -888,7 +888,7 @@ func TestBGPLSInterfaceAddresses(t *testing.T) {
 	message, _ := neighbor["message"].(map[string]any)     //nolint:forcetypeassert // test
 	update, _ := message["update"].(map[string]any)        //nolint:forcetypeassert // test
 	announce, _ := update["announce"].(map[string]any)     //nolint:forcetypeassert // test
-	bgpls, _ := announce["bgp-ls bgp-ls"].(map[string]any) //nolint:forcetypeassert // test
+	bgpls, _ := announce["bgp-ls/bgp-ls"].(map[string]any) //nolint:forcetypeassert // test
 
 	var routes []any
 	for _, v := range bgpls {
@@ -918,10 +918,10 @@ func TestBGPLSInterfaceAddresses(t *testing.T) {
 // PREVENTS: Envelope wrapper for nlri-type tests.
 func TestBGPLSRawNLRIFormat(t *testing.T) {
 	// From bgp-ls-1.test - raw NLRI without BGP header
-	// Type: nlri bgp-ls bgp-ls
+	// Type: nlri bgp-ls/bgp-ls
 	hexInput := "0002005103000000000000000001000020020000040000000102010004C0A87A7E0202000400000000020300040A0A0A0A01010020020000040000000102010004C0A87A7E0202000400000000020300040A020202"
 
-	output, err := decodeHexPacket(hexInput, "nlri", "bgp-ls bgp-ls")
+	output, err := decodeHexPacket(hexInput, "nlri", "bgp-ls/bgp-ls")
 	if err != nil {
 		t.Fatalf("decode failed: %v", err)
 	}
@@ -958,7 +958,7 @@ func TestBGPLSL3RoutingTopology(t *testing.T) {
 	// Link NLRI should have l3-routing-topology from identifier field
 	hexInput := "0002005103000000000000000001000020020000040000000102010004C0A87A7E0202000400000000020300040A0A0A0A01010020020000040000000102010004C0A87A7E0202000400000000020300040A020202"
 
-	output, err := decodeHexPacket(hexInput, "nlri", "bgp-ls bgp-ls")
+	output, err := decodeHexPacket(hexInput, "nlri", "bgp-ls/bgp-ls")
 	if err != nil {
 		t.Fatalf("decode failed: %v", err)
 	}

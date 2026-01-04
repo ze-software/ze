@@ -6,10 +6,10 @@ from exabgp_api import send, wait_for_ack, wait_for_shutdown
 
 
 def main() -> None:
-    announce_unicast = 'announce ipv4 unicast 10.0.1.0/24 next-hop 10.0.1.254 local-preference 200'
-    withdraw_unicast = 'withdraw ipv4 unicast 10.0.1.0/24 next-hop 10.0.1.254 local-preference 200'
-    announce_mup = 'announce ipv4 mup mup-isd 10.0.1.0/24 rd 100:100 next-hop 2001::1 extended-community [ target:10:10 ] bgp-prefix-sid-srv6 ( l3-service 2001:db8:1:1:: 0x48 [64,24,16,0,0,0] )'
-    withdraw_mup = 'withdraw ipv4 mup mup-isd 10.0.1.0/24 rd 100:100 next-hop 2001::1 extended-community [ target:10:10 ] bgp-prefix-sid-srv6 ( l3-service 2001:db8:1:1:: 0x48 [64,24,16,0,0,0] )'
+    announce_unicast = 'announce ipv4/unicast 10.0.1.0/24 next-hop 10.0.1.254 local-preference 200'
+    withdraw_unicast = 'withdraw ipv4/unicast 10.0.1.0/24 next-hop 10.0.1.254 local-preference 200'
+    announce_mup = 'announce ipv4/mup mup-isd 10.0.1.0/24 rd 100:100 next-hop 2001::1 extended-community [ target:10:10 ] bgp-prefix-sid-srv6 ( l3-service 2001:db8:1:1:: 0x48 [64,24,16,0,0,0] )'
+    withdraw_mup = 'withdraw ipv4/mup mup-isd 10.0.1.0/24 rd 100:100 next-hop 2001::1 extended-community [ target:10:10 ] bgp-prefix-sid-srv6 ( l3-service 2001:db8:1:1:: 0x48 [64,24,16,0,0,0] )'
 
     messages = [
         announce_unicast,

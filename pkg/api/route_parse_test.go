@@ -925,8 +925,8 @@ func TestParseUpdateCommand(t *testing.T) {
 	}{
 		// Valid cases
 		{
-			name:         "ipv4 unicast",
-			args:         strings.Fields("next-hop 10.0.0.1 ipv4 unicast 1.0.0.0/24"),
+			name:         "ipv4/unicast",
+			args:         strings.Fields("next-hop 10.0.0.1 ipv4/unicast 1.0.0.0/24"),
 			wantAFI:      "ipv4",
 			wantSAFI:     "unicast",
 			wantPrefixes: 1,
@@ -934,8 +934,8 @@ func TestParseUpdateCommand(t *testing.T) {
 			wantErr:      false,
 		},
 		{
-			name:         "ipv6 unicast",
-			args:         strings.Fields("next-hop 2001::1 ipv6 unicast 2001:db8::/32"),
+			name:         "ipv6/unicast",
+			args:         strings.Fields("next-hop 2001::1 ipv6/unicast 2001:db8::/32"),
 			wantAFI:      "ipv6",
 			wantSAFI:     "unicast",
 			wantPrefixes: 1,
@@ -944,7 +944,7 @@ func TestParseUpdateCommand(t *testing.T) {
 		},
 		{
 			name:         "with optional nlri keyword",
-			args:         strings.Fields("next-hop 10.0.0.1 ipv4 unicast nlri 1.0.0.0/24 2.0.0.0/24"),
+			args:         strings.Fields("next-hop 10.0.0.1 ipv4/unicast nlri 1.0.0.0/24 2.0.0.0/24"),
 			wantAFI:      "ipv4",
 			wantSAFI:     "unicast",
 			wantPrefixes: 2,
@@ -953,7 +953,7 @@ func TestParseUpdateCommand(t *testing.T) {
 		},
 		{
 			name:         "with attributes before afi",
-			args:         strings.Fields("next-hop 10.0.0.1 origin igp local-preference 100 ipv4 unicast 1.0.0.0/24"),
+			args:         strings.Fields("next-hop 10.0.0.1 origin igp local-preference 100 ipv4/unicast 1.0.0.0/24"),
 			wantAFI:      "ipv4",
 			wantSAFI:     "unicast",
 			wantPrefixes: 1,
@@ -966,19 +966,19 @@ func TestParseUpdateCommand(t *testing.T) {
 			name:        "missing AFI",
 			args:        strings.Fields("next-hop 10.0.0.1 1.0.0.0/24"),
 			wantErr:     true,
-			errContains: "AFI",
+			errContains: "family not found",
 		},
 		{
 			name:        "missing SAFI",
 			args:        strings.Fields("next-hop 10.0.0.1 ipv4"),
 			wantErr:     true,
-			errContains: "SAFI",
+			errContains: "family not found",
 		},
 		{
 			name:        "invalid SAFI",
-			args:        strings.Fields("next-hop 10.0.0.1 ipv4 vpn 1.0.0.0/24"),
+			args:        strings.Fields("next-hop 10.0.0.1 ipv4/bogus 1.0.0.0/24"),
 			wantErr:     true,
-			errContains: "SAFI",
+			errContains: "unsupported SAFI",
 		},
 	}
 

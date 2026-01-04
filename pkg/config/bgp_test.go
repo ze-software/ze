@@ -58,9 +58,9 @@ peer 192.0.2.1 {
     local-as 65000;
     peer-as 65001;
     family {
-        ipv4 unicast;
-        ipv4 multicast;
-        ipv6 unicast;
+        ipv4/unicast;
+        ipv4/multicast;
+        ipv6/unicast;
     }
 }
 `
@@ -75,15 +75,15 @@ peer 192.0.2.1 {
 	require.NotNil(t, family)
 
 	// Families stored as "afi safi" -> true
-	val, ok := family.Get("ipv4 unicast")
+	val, ok := family.Get("ipv4/unicast")
 	require.True(t, ok)
 	require.Equal(t, "true", val)
 
-	val, ok = family.Get("ipv4 multicast")
+	val, ok = family.Get("ipv4/multicast")
 	require.True(t, ok)
 	require.Equal(t, "true", val)
 
-	val, ok = family.Get("ipv6 unicast")
+	val, ok = family.Get("ipv6/unicast")
 	require.True(t, ok)
 	require.Equal(t, "true", val)
 }
@@ -106,7 +106,7 @@ peer 192.0.2.1 {
     local-as 65000;
     peer-as 65001;
     family {
-        ipv4 unicast;
+        ipv4/unicast;
         ignore-mismatch enable;
     }
 }`,
@@ -119,7 +119,7 @@ peer 192.0.2.1 {
     local-as 65000;
     peer-as 65001;
     family {
-        ipv4 unicast;
+        ipv4/unicast;
         ignore-mismatch true;
     }
 }`,
@@ -132,7 +132,7 @@ peer 192.0.2.1 {
     local-as 65000;
     peer-as 65001;
     family {
-        ipv4 unicast;
+        ipv4/unicast;
         ignore-mismatch disable;
     }
 }`,
@@ -145,7 +145,7 @@ peer 192.0.2.1 {
     local-as 65000;
     peer-as 65001;
     family {
-        ipv4 unicast;
+        ipv4/unicast;
     }
 }`,
 			expected: false,
@@ -212,7 +212,7 @@ func TestFamilyModeString(t *testing.T) {
 
 // TestFamilyConfigInlineWithMode verifies inline family syntax with mode.
 //
-// VALIDATES: "ipv4 unicast require;" parses to FamilyConfig with Mode=Require.
+// VALIDATES: "ipv4/unicast require;" parses to FamilyConfig with Mode=Require.
 //
 // PREVENTS: Unable to require specific address families.
 func TestFamilyConfigInlineWithMode(t *testing.T) {
@@ -222,13 +222,13 @@ func TestFamilyConfigInlineWithMode(t *testing.T) {
 		expected []FamilyConfig
 	}{
 		{
-			name: "ipv4 unicast require",
+			name: "ipv4/unicast require",
 			input: `
 peer 192.0.2.1 {
     local-as 65000;
     peer-as 65001;
     family {
-        ipv4 unicast require;
+        ipv4/unicast require;
     }
 }`,
 			expected: []FamilyConfig{
@@ -236,13 +236,13 @@ peer 192.0.2.1 {
 			},
 		},
 		{
-			name: "ipv6 unicast disable",
+			name: "ipv6/unicast disable",
 			input: `
 peer 192.0.2.1 {
     local-as 65000;
     peer-as 65001;
     family {
-        ipv6 unicast disable;
+        ipv6/unicast disable;
     }
 }`,
 			expected: []FamilyConfig{
@@ -256,9 +256,9 @@ peer 192.0.2.1 {
     local-as 65000;
     peer-as 65001;
     family {
-        ipv4 unicast;
-        ipv4 multicast require;
-        ipv6 unicast disable;
+        ipv4/unicast;
+        ipv4/multicast require;
+        ipv6/unicast disable;
     }
 }`,
 			expected: []FamilyConfig{
@@ -274,8 +274,8 @@ peer 192.0.2.1 {
     local-as 65000;
     peer-as 65001;
     family {
-        ipv4 unicast ignore;
-        ipv6 unicast;
+        ipv4/unicast ignore;
+        ipv6/unicast;
     }
 }`,
 			expected: []FamilyConfig{
@@ -401,12 +401,12 @@ peer 192.0.2.1 {
     local-as 65000;
     peer-as 65001;
     family {
-        ipv4 unicast;
+        ipv4/unicast;
         ipv6 {
             unicast require;
             mpls-vpn;
         }
-        l2vpn evpn require;
+        l2vpn/evpn require;
     }
 }`
 	expected := []FamilyConfig{
@@ -595,8 +595,8 @@ peer 192.0.2.1 {
     peer-as 65001;
     hold-time 90;
     family {
-        ipv4 unicast;
-        ipv6 unicast;
+        ipv4/unicast;
+        ipv6/unicast;
     }
     capability {
         asn4 true;
@@ -611,7 +611,7 @@ peer 192.0.2.10 {
     peer-as 65010;
     passive true;
     family {
-        ipv4 unicast;
+        ipv4/unicast;
     }
     static {
         route 10.0.0.0/8 {
@@ -694,7 +694,7 @@ peer 127.0.0.1 {
     peer-as 65000;
 
     family {
-        ipv4 unicast;
+        ipv4/unicast;
     }
 
     announce {
@@ -751,7 +751,7 @@ peer 127.0.0.1 {
     peer-as 65533;
 
     family {
-        ipv6 unicast;
+        ipv6/unicast;
     }
 
     announce {
@@ -806,7 +806,7 @@ peer 127.0.0.1 {
     peer-as 65533;
 
     family {
-        ipv4 unicast;
+        ipv4/unicast;
     }
 
     announce {
@@ -992,9 +992,9 @@ peer 192.0.2.1 {
     local-as 65000;
     peer-as 65001;
     add-path {
-        ipv4 unicast send;
-        ipv6 unicast receive;
-        ipv4 multicast send/receive;
+        ipv4/unicast send;
+        ipv6/unicast receive;
+        ipv4/multicast send/receive;
     }
 }
 `
@@ -1017,20 +1017,20 @@ peer 192.0.2.1 {
 		familyMap[f.Family] = f
 	}
 
-	ipv4Uni, ok := familyMap["ipv4 unicast"]
-	require.True(t, ok, "missing ipv4 unicast add-path config")
-	require.True(t, ipv4Uni.Send, "ipv4 unicast should have send")
-	require.False(t, ipv4Uni.Receive, "ipv4 unicast should not have receive")
+	ipv4Uni, ok := familyMap["ipv4/unicast"]
+	require.True(t, ok, "missing ipv4/unicast add-path config")
+	require.True(t, ipv4Uni.Send, "ipv4/unicast should have send")
+	require.False(t, ipv4Uni.Receive, "ipv4/unicast should not have receive")
 
-	ipv6Uni, ok := familyMap["ipv6 unicast"]
-	require.True(t, ok, "missing ipv6 unicast add-path config")
-	require.False(t, ipv6Uni.Send, "ipv6 unicast should not have send")
-	require.True(t, ipv6Uni.Receive, "ipv6 unicast should have receive")
+	ipv6Uni, ok := familyMap["ipv6/unicast"]
+	require.True(t, ok, "missing ipv6/unicast add-path config")
+	require.False(t, ipv6Uni.Send, "ipv6/unicast should not have send")
+	require.True(t, ipv6Uni.Receive, "ipv6/unicast should have receive")
 
-	ipv4Multi, ok := familyMap["ipv4 multicast"]
-	require.True(t, ok, "missing ipv4 multicast add-path config")
-	require.True(t, ipv4Multi.Send, "ipv4 multicast should have send")
-	require.True(t, ipv4Multi.Receive, "ipv4 multicast should have receive")
+	ipv4Multi, ok := familyMap["ipv4/multicast"]
+	require.True(t, ok, "missing ipv4/multicast add-path config")
+	require.True(t, ipv4Multi.Send, "ipv4/multicast should have send")
+	require.True(t, ipv4Multi.Receive, "ipv4/multicast should have receive")
 }
 
 // TestASN4DefaultEnabled verifies ASN4 capability is enabled by default.
@@ -2775,12 +2775,12 @@ func TestParseNLRIEntriesValid(t *testing.T) {
 		{"empty returns all", []string{}, 0, nil},
 		{"all keyword", []string{"all"}, 0, nil},
 		{"none keyword", []string{"none"}, 1, nil},
-		{"ipv4 unicast", []string{"ipv4 unicast"}, 2, []string{"ipv4 unicast"}},
-		{"ipv6 unicast", []string{"ipv6 unicast"}, 2, []string{"ipv6 unicast"}},
-		{"multiple families", []string{"ipv4 unicast", "ipv6 unicast"}, 2, []string{"ipv4 unicast", "ipv6 unicast"}},
-		{"case insensitive", []string{"IPv4 Unicast", "IPV6 UNICAST"}, 2, []string{"ipv4 unicast", "ipv6 unicast"}},
-		{"l2vpn evpn", []string{"l2vpn evpn"}, 2, []string{"l2vpn evpn"}},
-		{"ipv4 flowspec", []string{"ipv4 flowspec"}, 2, []string{"ipv4 flowspec"}},
+		{"ipv4/unicast", []string{"ipv4/unicast"}, 2, []string{"ipv4/unicast"}},
+		{"ipv6/unicast", []string{"ipv6/unicast"}, 2, []string{"ipv6/unicast"}},
+		{"multiple families", []string{"ipv4/unicast", "ipv6/unicast"}, 2, []string{"ipv4/unicast", "ipv6/unicast"}},
+		{"case insensitive", []string{"IPv4/Unicast", "IPV6/UNICAST"}, 2, []string{"ipv4/unicast", "ipv6/unicast"}},
+		{"l2vpn/evpn", []string{"l2vpn/evpn"}, 2, []string{"l2vpn/evpn"}},
+		{"ipv4/flowspec", []string{"ipv4/flowspec"}, 2, []string{"ipv4/flowspec"}},
 	}
 
 	for _, tt := range tests {
@@ -2790,8 +2790,8 @@ func TestParseNLRIEntriesValid(t *testing.T) {
 
 			switch tt.wantMode {
 			case 0: // all
-				require.True(t, filter.IncludesFamily("ipv4 unicast"), "all mode should include ipv4 unicast")
-				require.True(t, filter.IncludesFamily("ipv6 unicast"), "all mode should include ipv6 unicast")
+				require.True(t, filter.IncludesFamily("ipv4/unicast"), "all mode should include ipv4/unicast")
+				require.True(t, filter.IncludesFamily("ipv6/unicast"), "all mode should include ipv6/unicast")
 			case 1: // none
 				require.True(t, filter.IsEmpty(), "none mode should be empty")
 			case 2: // selective
@@ -2814,11 +2814,11 @@ func TestParseNLRIEntriesInvalid(t *testing.T) {
 		entries []string
 		wantErr string
 	}{
-		{"missing safi", []string{"ipv4"}, "invalid nlri format"},
-		{"too many parts", []string{"ipv4 unicast extra"}, "invalid nlri format"},
-		{"unknown afi", []string{"bogus unicast"}, "unknown family"},
-		{"unknown safi", []string{"ipv4 bogus"}, "unknown family"},
-		{"empty entry", []string{"ipv4 unicast", ""}, ""}, // empty entries skipped
+		{"missing safi", []string{"ipv4"}, "unknown family"},
+		{"invalid format", []string{"ipv4/unicast extra"}, "unknown family"},
+		{"unknown afi", []string{"bogus/unicast"}, "unknown family"},
+		{"unknown safi", []string{"ipv4/bogus"}, "unknown family"},
+		{"empty entry", []string{"ipv4/unicast", ""}, ""}, // empty entries skipped
 	}
 
 	for _, tt := range tests {
@@ -2847,8 +2847,8 @@ peer 10.0.0.1 {
     api foo {
         content {
             encoding json;
-            nlri ipv4 unicast;
-            nlri ipv6 unicast;
+            nlri ipv4/unicast;
+            nlri ipv6/unicast;
         }
         receive { update; }
     }
@@ -2860,9 +2860,9 @@ peer 10.0.0.1 {
 
 	binding := cfg.Peers[0].APIBindings[0]
 	require.NotNil(t, binding.Content.NLRI, "NLRI filter should be set")
-	require.True(t, binding.Content.NLRI.IncludesFamily("ipv4 unicast"))
-	require.True(t, binding.Content.NLRI.IncludesFamily("ipv6 unicast"))
-	require.False(t, binding.Content.NLRI.IncludesFamily("l2vpn evpn"))
+	require.True(t, binding.Content.NLRI.IncludesFamily("ipv4/unicast"))
+	require.True(t, binding.Content.NLRI.IncludesFamily("ipv6/unicast"))
+	require.False(t, binding.Content.NLRI.IncludesFamily("l2vpn/evpn"))
 }
 
 // TestAPIConfigAttributeFilterError verifies invalid attribute filter is rejected.

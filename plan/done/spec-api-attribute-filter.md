@@ -60,8 +60,8 @@ api foo {
     content {
         encoding json;
         attribute as-path next-hop communities;  # Only parse/output these
-        nlri ipv4 unicast;                       # Only include IPv4 unicast
-        nlri ipv6 unicast;                       # Also include IPv6 unicast
+        nlri ipv4/unicast;                       # Only include IPv4 unicast
+        nlri ipv6/unicast;                       # Also include IPv6 unicast
     }
     receive { update; }
 }
@@ -102,25 +102,25 @@ api foo {
 
 | Config Syntax | Canonical Name |
 |---------------|----------------|
-| `ipv4 unicast` | ipv4 unicast |
-| `ipv6 unicast` | ipv6 unicast |
-| `ipv4 multicast` | ipv4 multicast |
-| `ipv6 multicast` | ipv6 multicast |
+| `ipv4/unicast` | ipv4/unicast |
+| `ipv6/unicast` | ipv6/unicast |
+| `ipv4/multicast` | ipv4/multicast |
+| `ipv6/multicast` | ipv6/multicast |
 | `ipv4 mpls` | ipv4 mpls |
 | `ipv6 mpls` | ipv6 mpls |
-| `ipv4 mpls-vpn` | ipv4 mpls-vpn |
-| `ipv6 mpls-vpn` | ipv6 mpls-vpn |
-| `ipv4 flowspec` | ipv4 flowspec |
-| `ipv6 flowspec` | ipv6 flowspec |
-| `l2vpn evpn` | l2vpn evpn |
-| `l2vpn vpls` | l2vpn vpls |
+| `ipv4/mpls-vpn` | ipv4/mpls-vpn |
+| `ipv6/mpls-vpn` | ipv6/mpls-vpn |
+| `ipv4/flowspec` | ipv4/flowspec |
+| `ipv6/flowspec` | ipv6/flowspec |
+| `l2vpn/evpn` | l2vpn/evpn |
+| `l2vpn/vpls` | l2vpn/vpls |
 | `all` | All families (default) |
 | `none` | No families |
 
 Multiple `nlri` statements can be used to select multiple families:
 ```
-nlri ipv4 unicast;
-nlri ipv6 unicast;
+nlri ipv4/unicast;
+nlri ipv6/unicast;
 ```
 
 ## JSON Output Format
@@ -135,7 +135,7 @@ This format groups NLRI by address family with shared attributes, matching BGP U
     "update-id": 12345,
     "peer": {"address": "10.0.0.1", "asn": 65001},
     "announce": {
-        "ipv4 unicast": ["192.168.1.0/24", "192.168.2.0/24"],
+        "ipv4/unicast": ["192.168.1.0/24", "192.168.2.0/24"],
         "attributes": {
             "next-hop": "10.0.0.1",
             "origin": "igp",
@@ -144,7 +144,7 @@ This format groups NLRI by address family with shared attributes, matching BGP U
         }
     },
     "withdraw": {
-        "ipv4 unicast": ["192.168.3.0/24"]
+        "ipv4/unicast": ["192.168.3.0/24"]
     }
 }
 ```
@@ -597,7 +597,7 @@ func formatGroupedPrefixes(sb *strings.Builder, prefixes []netip.Prefix) {
 
     needComma := false
     if len(ipv4) > 0 {
-        sb.WriteString(`"ipv4 unicast":`)
+        sb.WriteString(`"ipv4/unicast":`)
         writeStringArray(sb, ipv4)
         needComma = true
     }
@@ -605,7 +605,7 @@ func formatGroupedPrefixes(sb *strings.Builder, prefixes []netip.Prefix) {
         if needComma {
             sb.WriteString(",")
         }
-        sb.WriteString(`"ipv6 unicast":`)
+        sb.WriteString(`"ipv6/unicast":`)
         writeStringArray(sb, ipv6)
     }
 }
@@ -1033,7 +1033,7 @@ peer 10.0.0.1 eor
     "update-id": 12345,
     "peer": {"address": "10.0.0.1", "asn": 65001},
     "announce": {
-        "ipv4 unicast": ["192.168.1.0/24", "192.168.2.0/24"],
+        "ipv4/unicast": ["192.168.1.0/24", "192.168.2.0/24"],
         "attributes": {
             "origin": "igp",
             "as-path": [65001, 65002],
@@ -1053,7 +1053,7 @@ peer 10.0.0.1 eor
     "update-id": 12345,
     "peer": {"address": "10.0.0.1", "asn": 65001},
     "announce": {
-        "ipv4 unicast": ["192.168.1.0/24"],
+        "ipv4/unicast": ["192.168.1.0/24"],
         "attributes": {
             "as-path": [65001, 65002],
             "next-hop": "10.0.0.1",
@@ -1071,7 +1071,7 @@ peer 10.0.0.1 eor
     "update-id": 12345,
     "peer": {"address": "10.0.0.1", "asn": 65001},
     "announce": {
-        "ipv4 unicast": ["192.168.1.0/24"]
+        "ipv4/unicast": ["192.168.1.0/24"]
     }
 }
 ```
@@ -1086,14 +1086,14 @@ No `"attributes"` key when filter is `none`. `update-id` always present.
     "update-id": 12346,
     "peer": {"address": "10.0.0.1", "asn": 65001},
     "announce": {
-        "ipv4 unicast": ["192.168.1.0/24"],
+        "ipv4/unicast": ["192.168.1.0/24"],
         "attributes": {
             "next-hop": "10.0.0.1",
             "origin": "igp"
         }
     },
     "withdraw": {
-        "ipv4 unicast": ["192.168.3.0/24"]
+        "ipv4/unicast": ["192.168.3.0/24"]
     }
 }
 ```
@@ -1106,7 +1106,7 @@ No `"attributes"` key when filter is `none`. `update-id` always present.
     "update-id": 12347,
     "peer": {"address": "10.0.0.1", "asn": 65001},
     "withdraw": {
-        "ipv4 unicast": ["192.168.2.0/24", "192.168.3.0/24"]
+        "ipv4/unicast": ["192.168.2.0/24", "192.168.3.0/24"]
     }
 }
 ```
@@ -1121,7 +1121,7 @@ If `attributes as-path;` configured but UPDATE has no AS_PATH:
     "update-id": 12345,
     "peer": {"address": "10.0.0.1", "asn": 65001},
     "announce": {
-        "ipv4 unicast": ["192.168.1.0/24"]
+        "ipv4/unicast": ["192.168.1.0/24"]
     }
 }
 ```
@@ -1534,23 +1534,23 @@ peer <ip> update eor <afi> <safi>
 
 **Single family announce:**
 ```
-peer 10.0.0.1 update announce origin igp as-path 65001 65002 local-preference 100 ipv4 unicast next-hop 10.0.0.1 nlri 192.168.1.0/24 192.168.2.0/24
+peer 10.0.0.1 update announce origin igp as-path 65001 65002 local-preference 100 ipv4/unicast next-hop 10.0.0.1 nlri 192.168.1.0/24 192.168.2.0/24
 ```
 
 **Multi-family announce (same UPDATE):**
 ```
-peer 10.0.0.1 update announce origin igp as-path 65001 ipv4 unicast next-hop 10.0.0.1 nlri 10.0.0.0/8 ipv6 unicast next-hop 2001:db8::1 nlri 2001:db8::/32 2001:db8:1::/48
+peer 10.0.0.1 update announce origin igp as-path 65001 ipv4/unicast next-hop 10.0.0.1 nlri 10.0.0.0/8 ipv6/unicast next-hop 2001:db8::1 nlri 2001:db8::/32 2001:db8:1::/48
 ```
 
 **Withdraw:**
 ```
-peer 10.0.0.1 update withdraw ipv4 unicast nlri 192.168.3.0/24 192.168.4.0/24
+peer 10.0.0.1 update withdraw ipv4/unicast nlri 192.168.3.0/24 192.168.4.0/24
 ```
 
 **Mixed announce + withdraw (same UPDATE):**
 ```
-peer 10.0.0.1 update announce origin igp ipv4 unicast next-hop 10.0.0.1 nlri 192.168.1.0/24
-peer 10.0.0.1 update withdraw ipv4 unicast nlri 192.168.2.0/24
+peer 10.0.0.1 update announce origin igp ipv4/unicast next-hop 10.0.0.1 nlri 192.168.1.0/24
+peer 10.0.0.1 update withdraw ipv4/unicast nlri 192.168.2.0/24
 ```
 
 ### JSON Format
@@ -1566,17 +1566,17 @@ peer 10.0.0.1 update withdraw ipv4 unicast nlri 192.168.2.0/24
             "as-path": [65001, 65002],
             "local-preference": 100
         },
-        "ipv4 unicast": {
+        "ipv4/unicast": {
             "next-hop": "10.0.0.1",
             "nlri": ["192.168.1.0/24", "192.168.2.0/24"]
         },
-        "ipv6 unicast": {
+        "ipv6/unicast": {
             "next-hop": "2001:db8::1",
             "nlri": ["2001:db8::/32"]
         }
     },
     "withdraw": {
-        "ipv4 unicast": {
+        "ipv4/unicast": {
             "nlri": ["192.168.3.0/24"]
         }
     }
@@ -1624,8 +1624,8 @@ peer 10.0.0.1 update withdraw ipv4 unicast nlri 192.168.2.0/24
 ### ✅ COMPLETED: Grouped Output Format
 
 Already implemented in `text.go:501-513`:
-- `peer X update announce <attrs> ipv4 unicast next-hop Y nlri ...`
-- `peer X update announce <attrs> ipv6 unicast next-hop Y nlri ...`
+- `peer X update announce <attrs> ipv4/unicast next-hop Y nlri ...`
+- `peer X update announce <attrs> ipv6/unicast next-hop Y nlri ...`
 
 ---
 

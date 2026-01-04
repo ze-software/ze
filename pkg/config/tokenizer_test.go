@@ -114,7 +114,7 @@ neighbor 192.0.2.1 {
 func TestTokenizerNestedBraces(t *testing.T) {
 	input := `neighbor 192.0.2.1 {
     family {
-        ipv4 unicast;
+        ipv4/unicast;
     }
 }`
 

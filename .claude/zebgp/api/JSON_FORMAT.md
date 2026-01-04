@@ -162,7 +162,7 @@ State messages are emitted by the `apiStateObserver` when peers transition to/fr
     "msg-id": 12345,
     "attribute": { ... },
     "announce": {
-      "ipv4 unicast": {
+      "ipv4/unicast": {
         "192.168.1.2": [
           { "nlri": "10.0.0.0/8" },
           { "nlri": "10.1.0.0/16" }
@@ -170,7 +170,7 @@ State messages are emitted by the `apiStateObserver` when peers transition to/fr
       }
     },
     "withdraw": {
-      "ipv4 unicast": [
+      "ipv4/unicast": [
         { "nlri": "10.2.0.0/16" }
       ]
     }
@@ -355,11 +355,11 @@ Sent after OPEN exchange:
   "multisession": false,
   "operational": false,
   "refresh": "normal",
-  "families": "[ ipv4 unicast, ipv6 unicast ]",
+  "families": "[ ipv4/unicast, ipv6/unicast ]",
   "nexthop": "[ ]",
   "add_path": {
-    "send": "[ \"ipv4 unicast\" ]",
-    "receive": "[ \"ipv4 unicast\" ]"
+    "send": "[ \"ipv4/unicast\" ]",
+    "receive": "[ \"ipv4/unicast\" ]"
   }
 }
 ```
@@ -388,14 +388,14 @@ neighbor 192.0.2.1 update end
 
 **ZeBGP:**
 ```
-peer 192.0.2.1 received update 1 announce origin igp as-path 65001 ipv4 unicast next-hop 192.0.2.1 nlri 10.0.0.0/8
+peer 192.0.2.1 received update 1 announce origin igp as-path 65001 ipv4/unicast next-hop 192.0.2.1 nlri 10.0.0.0/8
 ```
 
 Key text differences:
 - `neighbor` → `peer`
 - Includes direction (`sent`/`received`) and `msg-id` for routing decisions
 - Attributes before NLRI (easier to parse)
-- Family explicitly stated (`ipv4 unicast`)
+- Family explicitly stated (`ipv4/unicast`)
 - Single line per UPDATE (no start/end)
 
 ### Text Format: All Message Types
@@ -419,7 +419,7 @@ peer 10.0.0.1 sent notification 3 code 6 subcode 2 code-name Cease subcode-name 
 
 **UPDATE:**
 ```
-peer 10.0.0.1 received update 5 announce origin igp as-path 65001 ipv4 unicast next-hop 10.0.0.1 nlri 192.168.0.0/24
+peer 10.0.0.1 received update 5 announce origin igp as-path 65001 ipv4/unicast next-hop 10.0.0.1 nlri 192.168.0.0/24
 ```
 
 Note: NOTIFICATION names are hyphenated for single-word parsing (e.g., "Administrative-Shutdown").
@@ -440,7 +440,7 @@ Note: NOTIFICATION names are hyphenated for single-word parsing (e.g., "Administ
     "message": {
       "update": {
         "attribute": {"origin": "igp", "as-path": [65001]},
-        "announce": {"ipv4 unicast": {"192.0.2.1": [{"nlri": "10.0.0.0/8"}]}}
+        "announce": {"ipv4/unicast": {"192.0.2.1": [{"nlri": "10.0.0.0/8"}]}}
       }
     }
   }
@@ -449,7 +449,7 @@ Note: NOTIFICATION names are hyphenated for single-word parsing (e.g., "Administ
 
 **ZeBGP:**
 ```json
-{"type":"update","direction":"received","msg-id":1,"peer":{"address":"192.0.2.1","asn":65001},"announce":{"origin":"igp","as-path":[65001],"ipv4 unicast":{"192.0.2.1":["10.0.0.0/8"]}}}
+{"type":"update","direction":"received","msg-id":1,"peer":{"address":"192.0.2.1","asn":65001},"announce":{"origin":"igp","as-path":[65001],"ipv4/unicast":{"192.0.2.1":["10.0.0.0/8"]}}}
 ```
 
 Key JSON differences:

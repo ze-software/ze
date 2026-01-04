@@ -44,7 +44,7 @@ Test data already exists:
 
 **Test file format** (3 lines):
 ```
-<type> [<afi> <safi>]           # e.g., "update l2vpn evpn" or "open"
+<type> [<afi> <safi>]           # e.g., "update l2vpn/evpn" or "open"
 <hex_packet>                     # UPDATE message body (no BGP header)
 <expected_json>                  # Expected JSON output (ExaBGP format)
 ```
@@ -118,7 +118,7 @@ Existing parsers in `pkg/bgp/nlri/`:
 ```go
 import "github.com/exa-networks/zebgp/pkg/bgp/nlri"
 
-// Parse MP_UNREACH_NLRI for l2vpn evpn
+// Parse MP_UNREACH_NLRI for l2vpn/evpn
 routes, err := nlri.ParseEVPN(nlriData, false)
 ```
 
@@ -128,7 +128,7 @@ Expected structure for EVPN routes:
 ```json
 {
   "withdraw": {
-    "l2vpn evpn": [
+    "l2vpn/evpn": [
       {
         "code": 2,
         "parsed": true,
@@ -195,11 +195,11 @@ functional: build
 
 | Test | Type | Family | NLRI Parser |
 |------|------|--------|-------------|
-| bgp-evpn-1 | update | l2vpn evpn | `ParseEVPN` |
-| bgp-flow-1..4 | update | ipv4 flowspec | `ParseFlowSpec` |
+| bgp-evpn-1 | update | l2vpn/evpn | `ParseEVPN` |
+| bgp-flow-1..4 | update | ipv4/flowspec | `ParseFlowSpec` |
 | bgp-ls-1..10 | update/nlri | bgp-ls | `ParseBGPLS` |
 | bgp-open-software-version | open | - | Capabilities |
-| ipv4-unicast-1..2 | update | ipv4 unicast | IPv4 prefix |
+| ipv4-unicast-1..2 | update | ipv4/unicast | IPv4 prefix |
 
 ### Parsing Tests (10 existing)
 

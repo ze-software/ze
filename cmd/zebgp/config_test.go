@@ -355,7 +355,7 @@ peer 192.0.2.1 {
 peer 192.0.2.1 {
 	peer-as 65001;
 	operational {
-		asm ipv4 unicast "test";
+		asm ipv4/unicast "test";
 	}
 }
 `,
@@ -515,7 +515,7 @@ neighbor 192.0.2.1 {
 peer 192.0.2.1 {
 	peer-as 65001;
 	operational {
-		asm ipv4 unicast "test";
+		asm ipv4/unicast "test";
 	}
 }
 `,

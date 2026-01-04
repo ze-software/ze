@@ -6,9 +6,9 @@
 
 Current implementation accepts all keywords for all families. Invalid combinations are silently ignored:
 ```
-announce ipv4 unicast 10.0.0.0/24 rd 100:100 next-hop 1.2.3.4
+announce ipv4/unicast 10.0.0.0/24 rd 100:100 next-hop 1.2.3.4
 ```
-→ `rd` silently ignored (should error: "rd not valid for ipv4 unicast")
+→ `rd` silently ignored (should error: "rd not valid for ipv4/unicast")
 
 ## Goal
 
@@ -52,8 +52,8 @@ parseL3VPNAttributes()     ← VPN (validates against VPNKeywords)
 
 ## Success Criteria
 
-1. ✅ `announce ipv4 unicast ... rd ...` returns error
-2. ✅ `announce ipv6 unicast ... rd ...` returns error
+1. ✅ `announce ipv4/unicast ... rd ...` returns error
+2. ✅ `announce ipv6/unicast ... rd ...` returns error
 3. ✅ Unknown keywords return error (not silently ignored)
 4. ✅ Valid unicast keywords still work
 5. ✅ All existing tests pass

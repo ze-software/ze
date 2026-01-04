@@ -90,13 +90,21 @@ func parseIPv6Prefixes(data []byte) []netip.Prefix {
 	return prefixes
 }
 
+// DecodedCapability holds structured capability data for API formatting.
+// Used by both text and JSON encoders.
+type DecodedCapability struct {
+	Code  uint8  // Capability code (e.g., 1 for multiprotocol)
+	Name  string // Capability name (e.g., "multiprotocol")
+	Value string // Capability value (e.g., "ipv4/unicast"), empty if none
+}
+
 // DecodedOpen holds parsed OPEN message contents for API formatting.
 type DecodedOpen struct {
 	Version      uint8
 	ASN          uint32 // 4-byte ASN (uses ASN4 capability if present)
 	HoldTime     uint16
-	RouterID     string   // Dotted-decimal format
-	Capabilities []string // Human-readable capability names
+	RouterID     string              // Dotted-decimal format
+	Capabilities []DecodedCapability // Structured capability data
 }
 
 // DecodeOpen parses raw OPEN message bytes into API-friendly struct.
@@ -127,15 +135,15 @@ func DecodeOpen(body []byte) DecodedOpen {
 	}
 }
 
-// parseCapabilitiesFromOptParams extracts capability strings from OPEN optional parameters.
+// parseCapabilitiesFromOptParams extracts capabilities from OPEN optional parameters.
 // RFC 3392: Optional Parameter Type 2 contains capabilities.
-// Returns capability strings and ASN4 value (0 if not present).
-func parseCapabilitiesFromOptParams(optParams []byte) ([]string, uint32) {
+// Returns structured capabilities and ASN4 value (0 if not present).
+func parseCapabilitiesFromOptParams(optParams []byte) ([]DecodedCapability, uint32) {
 	if len(optParams) == 0 {
 		return nil, 0
 	}
 
-	var capStrings []string
+	var caps []DecodedCapability
 	var asn4 uint32
 	offset := 0
 
@@ -158,12 +166,12 @@ func parseCapabilitiesFromOptParams(optParams []byte) ([]string, uint32) {
 
 		// Type 2 = Capabilities Optional Parameter (RFC 3392/5492)
 		if paramType == 2 {
-			caps, err := capability.Parse(paramData)
+			parsed, err := capability.Parse(paramData)
 			if err != nil {
 				continue
 			}
-			for _, cap := range caps {
-				capStrings = append(capStrings, formatCapability(cap)...)
+			for _, cap := range parsed {
+				caps = append(caps, formatCapability(cap)...)
 				// Extract ASN4 if present
 				if asn4Cap, ok := cap.(*capability.ASN4); ok {
 					asn4 = asn4Cap.ASN
@@ -172,27 +180,27 @@ func parseCapabilitiesFromOptParams(optParams []byte) ([]string, uint32) {
 		}
 	}
 
-	return capStrings, asn4
+	return caps, asn4
 }
 
-// formatCapability returns capability as "name value" pairs for easy parsing.
-// Most capabilities return a single string, but AddPath/ExtendedNextHop return one per family.
-// Format: "name value" where value is hyphenated. Valueless caps return just "name".
-func formatCapability(cap capability.Capability) []string {
+// formatCapability returns structured capability data.
+// Most capabilities return a single entry, but AddPath/ExtendedNextHop return one per family.
+func formatCapability(cap capability.Capability) []DecodedCapability {
+	code := uint8(cap.Code())
 	switch c := cap.(type) {
 	case *capability.Multiprotocol:
-		return []string{fmt.Sprintf("multiprotocol %s-%s", c.AFI, c.SAFI)}
+		return []DecodedCapability{{Code: code, Name: "multiprotocol", Value: fmt.Sprintf("%s/%s", c.AFI, c.SAFI)}}
 	case *capability.ASN4:
-		return []string{fmt.Sprintf("4-byte-asn %d", c.ASN)}
+		return []DecodedCapability{{Code: code, Name: "asn4", Value: fmt.Sprintf("%d", c.ASN)}}
 	case *capability.RouteRefresh:
-		return []string{"route-refresh"}
+		return []DecodedCapability{{Code: code, Name: "route-refresh"}}
 	case *capability.ExtendedMessage:
-		return []string{"extended-message"}
+		return []DecodedCapability{{Code: code, Name: "extended-message"}}
 	case *capability.EnhancedRouteRefresh:
-		return []string{"enhanced-route-refresh"}
+		return []DecodedCapability{{Code: code, Name: "enhanced-route-refresh"}}
 	case *capability.AddPath:
-		// Return one entry per family for easy parsing
-		var results []string
+		// Return one entry per family
+		var results []DecodedCapability
 		for _, f := range c.Families {
 			var mode string
 			switch f.Mode {
@@ -203,30 +211,38 @@ func formatCapability(cap capability.Capability) []string {
 			case capability.AddPathSend:
 				mode = "send"
 			case capability.AddPathBoth:
-				mode = "send/receive"
+				mode = "send-receive"
 			}
-			results = append(results, fmt.Sprintf("addpath %s-%s-%s", mode, f.AFI, f.SAFI))
+			results = append(results, DecodedCapability{
+				Code:  code,
+				Name:  "addpath",
+				Value: fmt.Sprintf("%s/%s %s", f.AFI, f.SAFI, mode),
+			})
 		}
 		return results
 	case *capability.GracefulRestart:
-		return []string{fmt.Sprintf("graceful-restart %d", c.RestartTime)}
+		return []DecodedCapability{{Code: code, Name: "graceful-restart", Value: fmt.Sprintf("%d", c.RestartTime)}}
 	case *capability.ExtendedNextHop:
-		// Return one entry per family for easy parsing
-		var results []string
+		// Return one entry per family
+		var results []DecodedCapability
 		for _, f := range c.Families {
-			results = append(results, fmt.Sprintf("extended-nexthop %s-%s-%s", f.NLRIAFI, f.NLRISAFI, f.NextHopAFI))
+			results = append(results, DecodedCapability{
+				Code:  code,
+				Name:  "extended-nexthop",
+				Value: fmt.Sprintf("%s/%s %s", f.NLRIAFI, f.NLRISAFI, f.NextHopAFI),
+			})
 		}
 		return results
 	case *capability.FQDN:
 		if c.DomainName != "" {
-			return []string{fmt.Sprintf("hostname %s.%s", c.Hostname, c.DomainName)}
+			return []DecodedCapability{{Code: code, Name: "fqdn", Value: fmt.Sprintf("%s.%s", c.Hostname, c.DomainName)}}
 		}
-		return []string{fmt.Sprintf("hostname %s", c.Hostname)}
+		return []DecodedCapability{{Code: code, Name: "fqdn", Value: c.Hostname}}
 	case *capability.SoftwareVersion:
-		return []string{fmt.Sprintf("software %s", c.Version)}
+		return []DecodedCapability{{Code: code, Name: "software-version", Value: c.Version}}
 	default:
-		// Unknown capability: return code and raw hex data
-		return []string{fmt.Sprintf("unknown-%d %x", cap.Code(), cap.Pack())}
+		// Unknown capability: use "unknown-<code>" as name, hex data as value
+		return []DecodedCapability{{Code: code, Name: fmt.Sprintf("unknown-%d", code), Value: fmt.Sprintf("%x", cap.Pack())}}
 	}
 }
 

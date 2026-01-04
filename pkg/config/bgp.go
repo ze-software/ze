@@ -189,7 +189,7 @@ func peerFields() []FieldDef {
 		Field("group-updates", LeafWithDefault(TypeBool, configTrue)),
 
 		// Address families (before capability)
-		Field("family", FamilyBlock()), // { ipv4 unicast; ipv4 { unicast require; } }
+		Field("family", FamilyBlock()), // { ipv4/unicast; ipv4 { unicast require; } }
 
 		// Capabilities
 		Field("capability", Container(
@@ -285,7 +285,7 @@ func peerFields() []FieldDef {
 				Field("encoding", Leaf(TypeString)),  // json | text
 				Field("format", Leaf(TypeString)),    // parsed | raw | full
 				Field("attribute", Leaf(TypeString)), // all | none | "origin as-path ..."
-				Field("nlri", Flex()),                // ipv4 unicast; ipv6 unicast; (repeated)
+				Field("nlri", Flex()),                // ipv4/unicast; ipv6/unicast; (repeated)
 			)),
 			Field("receive", Freeform()), // { update; open; notification; all; }
 			Field("send", Freeform()),    // { update; refresh; all; }
@@ -486,7 +486,7 @@ type PeerConfig struct {
 	Passive              bool
 	GroupUpdates         bool           // DEPRECATED: Use RIBOut.GroupUpdates
 	RIBOut               RIBOutConfig   // Per-neighbor outgoing RIB config
-	Families             []string       // Legacy: "ipv4 unicast", "ipv6 unicast" etc.
+	Families             []string       // Legacy: "ipv4/unicast", "ipv6/unicast" etc.
 	FamilyConfigs        []FamilyConfig // New: structured family config with mode
 	IgnoreFamilyMismatch bool           // Ignore NLRI for non-negotiated AFI/SAFI instead of error
 	Hostname             string
@@ -537,7 +537,7 @@ type PeerSendConfig struct {
 
 // AddPathFamilyConfig holds per-family add-path settings per RFC 7911.
 type AddPathFamilyConfig struct {
-	Family  string // e.g., "ipv4 unicast"
+	Family  string // e.g., "ipv4/unicast"
 	Send    bool   // Send additional paths
 	Receive bool   // Receive additional paths
 }
@@ -959,7 +959,7 @@ func applyTreeSettings(nc *PeerConfig, tree *Tree) error {
 	}
 
 	// Parse nexthop { ... } block for extended next-hop families
-	// Format: nexthop { ipv4 unicast ipv6; ipv4 mpls-vpn ipv6; }
+	// Format: nexthop { ipv4/unicast ipv6; ipv4/mpls-vpn ipv6; }
 	if nhBlock := tree.GetContainer("nexthop"); nhBlock != nil {
 		nc.NexthopFamilies = parseNexthopFamilies(nhBlock)
 	}
@@ -1130,7 +1130,7 @@ func parsePeerConfig(addr string, tree *Tree, templates map[string]*Tree, peerGl
 		nc.DomainName = v
 	}
 
-	// Families - FamilyBlock stores "ipv4 unicast" as key with mode as value
+	// Families - FamilyBlock stores "ipv4/unicast" as key with mode as value
 	// Also parse ignore-mismatch option from family block
 	// Check template first, then override with neighbor values
 	familyTree := tree.GetContainer("family")
@@ -1150,12 +1150,12 @@ func parsePeerConfig(addr string, tree *Tree, templates map[string]*Tree, peerGl
 					nc.IgnoreFamilyMismatch = true
 				}
 			} else {
-				// Regular address family - key is "AFI SAFI", value is mode
+				// Regular address family - key is "AFI/SAFI", value is mode
 				modeStr, _ := familyTree.Get(key)
 				mode := ParseFamilyMode(modeStr)
 
-				// Parse AFI and SAFI from key
-				parts := strings.SplitN(key, " ", 2)
+				// Parse AFI and SAFI from key (format: afi/safi)
+				parts := strings.SplitN(key, "/", 2)
 				if len(parts) == 2 {
 					fc := FamilyConfig{
 						AFI:  parts[0],
@@ -1228,13 +1228,13 @@ func parsePeerConfig(addr string, tree *Tree, templates map[string]*Tree, peerGl
 	}
 
 	// Parse nexthop { ... } block for extended next-hop families
-	// Format: nexthop { ipv4 unicast ipv6; ipv4 mpls-vpn ipv6; }
+	// Format: nexthop { ipv4/unicast ipv6; ipv4/mpls-vpn ipv6; }
 	if nhBlock := tree.GetContainer("nexthop"); nhBlock != nil {
 		nc.NexthopFamilies = parseNexthopFamilies(nhBlock)
 	}
 
 	// Per-family add-path configuration (RFC 7911)
-	// Format: add-path { ipv4 unicast send; ipv6 unicast receive; ipv4 multicast send/receive; }
+	// Format: add-path { ipv4/unicast send; ipv6/unicast receive; ipv4/multicast send/receive; }
 	if addPath := tree.GetContainer("add-path"); addPath != nil {
 		for _, key := range addPath.Values() {
 			apf := parseAddPathFamily(key)
@@ -1466,7 +1466,7 @@ func parseNewAPIBinding(processName string, apiTree *Tree) (PeerAPIBinding, erro
 			}
 			binding.Content.Attributes = &filter
 		}
-		// Parse nlri entries: nlri ipv4 unicast; nlri ipv6 unicast;
+		// Parse nlri entries: nlri ipv4/unicast; nlri ipv6/unicast;
 		if nlriEntries := content.GetMultiValues("nlri"); len(nlriEntries) > 0 {
 			filter, err := parseNLRIEntries(nlriEntries)
 			if err != nil {
@@ -1490,7 +1490,7 @@ func parseNewAPIBinding(processName string, apiTree *Tree) (PeerAPIBinding, erro
 }
 
 // parseNLRIEntries parses multiple "nlri <afi> <safi>;" entries into NLRIFilter.
-// Each entry is a space-separated string like "ipv4 unicast" or "ipv6 unicast".
+// Each entry is a space-separated string like "ipv4/unicast" or "ipv6/unicast".
 // Special values: "all" includes all families, "none" excludes all.
 func parseNLRIEntries(entries []string) (api.NLRIFilter, error) {
 	if len(entries) == 0 {
@@ -1516,15 +1516,8 @@ func parseNLRIEntries(entries []string) (api.NLRIFilter, error) {
 			continue
 		}
 
-		// Convert "ipv4 unicast" to "ipv4-unicast" for FamilyConfigNames lookup
-		parts := strings.Fields(entry)
-		if len(parts) != 2 {
-			return api.NLRIFilter{}, fmt.Errorf("invalid nlri format %q, expected '<afi> <safi>'", entry)
-		}
-		hyphenated := parts[0] + "-" + parts[1]
-
-		// Validate against known families
-		canonical, ok := message.FamilyConfigNames[hyphenated]
+		// Validate against known families (format: afi/safi)
+		canonical, ok := message.FamilyConfigNames[strings.ToLower(entry)]
 		if !ok {
 			return api.NLRIFilter{}, fmt.Errorf("unknown family %q, valid: %s",
 				entry, message.ValidFamilyConfigNames())
@@ -1617,10 +1610,10 @@ func mergeAPIBindings(existing, new []PeerAPIBinding) []PeerAPIBinding {
 }
 
 // parseNexthopFamilies parses the nexthop { ... } block for RFC 8950 extended next-hop.
-// Format: nexthop { ipv4 unicast ipv6; ipv4 mpls-vpn ipv6; ipv6 unicast ipv4; }
+// Format: nexthop { ipv4/unicast ipv6; ipv4/mpls-vpn ipv6; ipv6/unicast ipv4; }
 // Each entry maps (NLRI AFI, NLRI SAFI) -> NextHop AFI.
 // Freeform stores ALL words as a single key with value "true".
-// So "ipv4 unicast ipv6;" becomes key="ipv4 unicast ipv6", value="true".
+// So "ipv4/unicast ipv6;" becomes key="ipv4/unicast ipv6", value="true".
 func parseNexthopFamilies(tree *Tree) []NexthopFamilyConfig {
 	var families []NexthopFamilyConfig
 
@@ -1635,7 +1628,7 @@ func parseNexthopFamilies(tree *Tree) []NexthopFamilyConfig {
 		"mpls-label": 4,
 	}
 
-	// Iterate over all possible combinations: "<afi> <safi> <nexthop-afi>"
+	// Iterate over all possible combinations: "<afi>/<safi> <nexthop-afi>"
 	// Freeform stores the entire line as the key with value "true"
 	for _, nlriAFIName := range []string{"ipv4", "ipv6"} {
 		nlriAFI := afiMap[nlriAFIName]
@@ -1643,7 +1636,7 @@ func parseNexthopFamilies(tree *Tree) []NexthopFamilyConfig {
 			nlriSAFI := safiMap[safiName]
 			for _, nhAFIName := range []string{"ipv4", "ipv6"} {
 				nhAFI := afiMap[nhAFIName]
-				key := nlriAFIName + " " + safiName + " " + nhAFIName
+				key := nlriAFIName + "/" + safiName + " " + nhAFIName
 				if _, ok := tree.Get(key); ok {
 					families = append(families, NexthopFamilyConfig{
 						NLRIAFI:    nlriAFI,
@@ -2456,17 +2449,17 @@ func parseMUPRoute(routeType string, route *Tree, isIPv6 bool) MUPRouteConfig {
 }
 
 // parseAddPathFamily parses a per-family add-path configuration string.
-// Format: "ipv4 unicast send" or "ipv6 unicast receive" or "ipv4 multicast send/receive"
+// Format: "ipv4/unicast send" or "ipv6/unicast receive" or "ipv4/multicast send/receive"
 // Returns AddPathFamilyConfig with Family, Send, and Receive populated.
 func parseAddPathFamily(s string) AddPathFamilyConfig {
 	parts := strings.Fields(s)
-	if len(parts) < 3 {
+	if len(parts) < 2 {
 		return AddPathFamilyConfig{}
 	}
 
-	// Family is first two tokens (e.g., "ipv4 unicast")
-	family := parts[0] + " " + parts[1]
-	mode := parts[2]
+	// Family is first token (e.g., "ipv4/unicast")
+	family := parts[0]
+	mode := parts[1]
 
 	apf := AddPathFamilyConfig{Family: family}
 

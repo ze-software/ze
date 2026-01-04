@@ -10,6 +10,7 @@ import (
 
 	"github.com/exa-networks/zebgp/pkg/bgp/attribute"
 	"github.com/exa-networks/zebgp/pkg/bgp/message"
+	"github.com/exa-networks/zebgp/pkg/bgp/nlri"
 )
 
 // Filter keywords.
@@ -162,7 +163,7 @@ type FilterResult struct {
 // Thread-safe: filter is immutable after construction.
 type NLRIFilter struct {
 	Mode     FilterMode
-	Families map[string]bool // e.g., "ipv4 unicast", "ipv6 unicast"
+	Families map[string]bool // e.g., "ipv4/unicast", "ipv6/unicast"
 }
 
 // NewNLRIFilterAll returns a filter that includes all families.
@@ -205,7 +206,7 @@ func (f NLRIFilter) IsEmpty() bool {
 // FamilyNLRI groups prefixes with their next-hop and family.
 // This is the RFC-correct structure: each AFI/SAFI has its own next-hop.
 type FamilyNLRI struct {
-	Family   string         // e.g., "ipv4 unicast", "ipv6 unicast"
+	Family   string         // e.g., "ipv4/unicast", "ipv6/unicast"
 	NextHop  netip.Addr     // next-hop for this family
 	Prefixes []netip.Prefix // prefixes in this family
 }
@@ -233,7 +234,7 @@ func (r FilterResult) AnnouncedByFamily() []FamilyNLRI {
 		prefixes := r.IPv4Announced.Prefixes()
 		if len(prefixes) > 0 {
 			result = append(result, FamilyNLRI{
-				Family:   "ipv4-unicast",
+				Family:   nlri.IPv4Unicast.String(),
 				NextHop:  r.IPv4Announced.NextHop(),
 				Prefixes: prefixes,
 			})
@@ -264,7 +265,7 @@ func (r FilterResult) WithdrawnByFamily() []FamilyNLRI {
 		prefixes := r.IPv4Withdrawn.Prefixes()
 		if len(prefixes) > 0 {
 			result = append(result, FamilyNLRI{
-				Family:   "ipv4-unicast",
+				Family:   nlri.IPv4Unicast.String(),
 				Prefixes: prefixes,
 			})
 		}
@@ -397,7 +398,7 @@ func (f AttributeFilter) Apply(wire *attribute.AttributesWire) (FilterResult, er
 //   - nlriFilter: which address families to include in output
 //
 // The function:
-//  1. Extracts NLRI from body structure (IPv4) if nlriFilter includes ipv4 unicast
+//  1. Extracts NLRI from body structure (IPv4) if nlriFilter includes ipv4/unicast
 //  2. Gets MP_REACH/MP_UNREACH from wire for other families if included
 //  3. Applies filter to get requested attributes from wire
 //
@@ -407,7 +408,7 @@ func (f AttributeFilter) ApplyToUpdate(wire *attribute.AttributesWire, body []by
 	result := FilterResult{}
 
 	// Extract IPv4 unicast NLRI if included
-	if nlriFilter.IncludesFamily("ipv4 unicast") {
+	if nlriFilter.IncludesFamily("ipv4/unicast") {
 		ipv4Reach, ipv4Withdraw := extractIPv4SlicesFromBody(body)
 		if ipv4Reach != nil {
 			result.IPv4Announced = ipv4Reach

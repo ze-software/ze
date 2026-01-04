@@ -185,10 +185,10 @@ rib:
     "update-id": 12345,
     "peer": { "address": "10.0.0.1" },
     "announce": {
-        "nlri": { "ipv4 unicast": ["192.168.1.0/24", "10.0.0.0/8"] }
+        "nlri": { "ipv4/unicast": ["192.168.1.0/24", "10.0.0.0/8"] }
     },
     "withdraw": {
-        "nlri": { "ipv4 unicast": ["172.16.0.0/16"] }
+        "nlri": { "ipv4/unicast": ["172.16.0.0/16"] }
     }
 }
 ```

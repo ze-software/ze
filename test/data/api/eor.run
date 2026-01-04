@@ -8,8 +8,8 @@ from exabgp_api import send, wait_for_ack, wait_for_shutdown
 def main() -> None:
     messages = [
         'announce eor',
-        'announce eor ipv6 unicast',
-        'announce eor ipv4 unicast',
+        'announce eor ipv6/unicast',
+        'announce eor ipv4/unicast',
     ]
 
     time.sleep(2)

@@ -217,9 +217,9 @@ peer 192.168.1.2 {
     }
 
     add-path {
-        ipv4 unicast;           # Both send and receive
-        ipv4 unicast send;      # Send only
-        ipv4 unicast receive;   # Receive only
+        ipv4/unicast;           # Both send and receive
+        ipv4/unicast send;      # Send only
+        ipv4/unicast receive;   # Receive only
     }
 }
 ```

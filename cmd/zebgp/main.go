@@ -33,12 +33,14 @@ func main() {
 		os.Exit(cmdEncode(os.Args[2:]))
 	case "config":
 		os.Exit(cmdConfig(os.Args[2:]))
+	case "api":
+		os.Exit(cmdAPI(os.Args[2:]))
 	case "config-dump":
 		os.Exit(cmdConfigDump(os.Args[2:]))
 	case "version":
 		fmt.Printf("zebgp %s\n", version)
 		os.Exit(0)
-	case "help", "-h", "--help":
+	case "help", "-h", "--help": //nolint:goconst // consistent pattern across cmd files
 		usage()
 		os.Exit(0)
 	}
@@ -92,6 +94,7 @@ Commands:
   encode <route>       Encode API route command to BGP hex
   config <subcommand>  Configuration management (edit, check, migrate, fmt)
   config-dump <config> Dump parsed config (debug tool)
+  api <subcommand>     API plugins (rr for route server)
   version              Show version
   help                 Show this help
 

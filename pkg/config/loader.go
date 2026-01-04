@@ -180,55 +180,13 @@ func configToPeer(nc *PeerConfig, global *BGPConfig) (*reactor.PeerSettings, err
 		}
 
 		// Map AFI/SAFI strings to capability types
-		var afi capability.AFI
-		var safi capability.SAFI
-		familyKey := fc.AFI + " " + fc.SAFI
-
-		switch familyKey {
-		case "ipv4 unicast":
-			afi, safi = capability.AFIIPv4, capability.SAFIUnicast
-		case "ipv6 unicast":
-			afi, safi = capability.AFIIPv6, capability.SAFIUnicast
-		case "ipv4 multicast":
-			afi, safi = capability.AFIIPv4, capability.SAFIMulticast
-		case "ipv6 multicast":
-			afi, safi = capability.AFIIPv6, capability.SAFIMulticast
-		case "ipv4 mpls-vpn":
-			afi, safi = capability.AFIIPv4, capability.SAFIMPLS
-		case "ipv6 mpls-vpn":
-			afi, safi = capability.AFIIPv6, capability.SAFIMPLS
-		case "ipv4 nlri-mpls":
-			afi, safi = capability.AFIIPv4, capability.SAFIMPLSLabel
-		case "ipv6 nlri-mpls":
-			afi, safi = capability.AFIIPv6, capability.SAFIMPLSLabel
-		case "ipv4 flow":
-			afi, safi = capability.AFIIPv4, capability.SAFIFlowSpec
-		case "ipv6 flow":
-			afi, safi = capability.AFIIPv6, capability.SAFIFlowSpec
-		case "ipv4 flow-vpn":
-			afi, safi = capability.AFIIPv4, capability.SAFIFlowSpecVPN
-		case "ipv6 flow-vpn":
-			afi, safi = capability.AFIIPv6, capability.SAFIFlowSpecVPN
-		case "ipv4 mcast-vpn":
-			afi, safi = capability.AFIIPv4, capability.SAFIMcastVPN
-		case "ipv6 mcast-vpn":
-			afi, safi = capability.AFIIPv6, capability.SAFIMcastVPN
-		case "l2vpn vpls":
-			afi, safi = capability.AFIL2VPN, capability.SAFIVPLS
-		case "l2vpn evpn":
-			afi, safi = capability.AFIL2VPN, capability.SAFIEVPN
-		case "bgp-ls bgp-ls":
-			afi, safi = capability.AFIBGPLS, capability.SAFIBGPLS
-		case "bgp-ls bgp-ls-vpn":
-			afi, safi = capability.AFIBGPLS, capability.SAFIBGPLSVPN
-		case "ipv4 mup":
-			afi, safi = capability.AFIIPv4, 85 // MUP SAFI (draft-mpmz-bess-mup-safi)
-		case "ipv6 mup":
-			afi, safi = capability.AFIIPv6, 85 // MUP SAFI (draft-mpmz-bess-mup-safi)
-		default:
+		familyKey := fc.AFI + "/" + fc.SAFI
+		family, ok := nlri.ParseFamily(familyKey)
+		if !ok {
 			// Unknown family, skip
 			continue
 		}
+		afi, safi := family.AFI, family.SAFI
 
 		// Add capability
 		n.Capabilities = append(n.Capabilities, &capability.Multiprotocol{
@@ -326,21 +284,12 @@ func configToPeer(nc *PeerConfig, global *BGPConfig) (*reactor.PeerSettings, err
 				mode = capability.AddPathReceive
 			}
 			if mode != capability.AddPathNone {
-				// Parse family string like "ipv4 unicast"
-				var afi capability.AFI
-				var safi capability.SAFI
-				switch apf.Family {
-				case "ipv4 unicast":
-					afi, safi = capability.AFIIPv4, capability.SAFIUnicast
-				case "ipv6 unicast":
-					afi, safi = capability.AFIIPv6, capability.SAFIUnicast
-				case "ipv4 multicast":
-					afi, safi = capability.AFIIPv4, capability.SAFIMulticast
-				case "ipv6 multicast":
-					afi, safi = capability.AFIIPv6, capability.SAFIMulticast
-				default:
+				// Parse family string like "ipv4/unicast"
+				family, ok := nlri.ParseFamily(apf.Family)
+				if !ok {
 					continue // Skip unknown families
 				}
+				afi, safi := family.AFI, family.SAFI
 				addPath.Families = append(addPath.Families, capability.AddPathFamily{
 					AFI:  afi,
 					SAFI: safi,

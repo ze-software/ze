@@ -71,8 +71,8 @@ func TestSerializeFamily(t *testing.T) {
     local-as 65000;
     peer-as 65001;
     family {
-        ipv4 unicast;
-        ipv6 unicast;
+        ipv4/unicast;
+        ipv6/unicast;
     }
 }
 `

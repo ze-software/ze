@@ -380,22 +380,22 @@ class APITest:
 
         # IPv4 explicit
         self.expect(
-            'peer 127.0.0.1 announce ipv4 unicast 10.0.1.0/24 next-hop 1.2.3.4',
+            'peer 127.0.0.1 announce ipv4/unicast 10.0.1.0/24 next-hop 1.2.3.4',
             {'answer': 'done'},
-            'announce ipv4 unicast succeeds',
+            'announce ipv4/unicast succeeds',
         )
 
         # EOR - requires ESTABLISHED session (may error if no peer)
         # This test intentionally expects error since there's no actual BGP peer
         self.expect_error(
-            'peer 127.0.0.1 announce eor ipv4 unicast',
+            'peer 127.0.0.1 announce eor ipv4/unicast',
             'announce eor errors without established peer',
         )
 
         # Route-refresh - requires ESTABLISHED session (may error if no peer)
         # This test intentionally expects error since there's no actual BGP peer
         self.expect_error(
-            'peer 127.0.0.1 announce route-refresh ipv4 unicast',
+            'peer 127.0.0.1 announce route-refresh ipv4/unicast',
             'announce route-refresh errors without established peer',
         )
 
@@ -410,9 +410,9 @@ class APITest:
         )
 
         self.expect(
-            'peer 127.0.0.1 withdraw ipv4 unicast 10.0.1.0/24',
+            'peer 127.0.0.1 withdraw ipv4/unicast 10.0.1.0/24',
             {'answer': 'done'},
-            'withdraw ipv4 unicast succeeds',
+            'withdraw ipv4/unicast succeeds',
         )
 
     def test_rib_commands(self) -> None:

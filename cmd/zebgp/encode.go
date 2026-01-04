@@ -38,7 +38,7 @@ func cmdEncode(args []string) int {
 	fs := flag.NewFlagSet("encode", flag.ContinueOnError)
 	fs.SetOutput(encodeStderr)
 
-	family := fs.String("f", "ipv4 unicast", "address family (e.g., 'ipv4 unicast', 'ipv6 unicast', 'l2vpn evpn')")
+	family := fs.String("f", "ipv4/unicast", "address family (e.g., 'ipv4/unicast', 'ipv6/unicast', 'l2vpn/evpn')")
 	localAS := fs.Uint("a", 65533, "local AS number")
 	peerAS := fs.Uint("z", 65533, "peer AS number")
 	pathInfo := fs.Bool("i", false, "enable ADD-PATH (include path-id)")
@@ -59,19 +59,19 @@ Options:
 Examples:
   # IPv4/IPv6 Unicast
   zebgp encode "route 10.0.0.0/24 next-hop 192.168.1.1"
-  zebgp encode -f "ipv6 unicast" "route 2001:db8::/32 next-hop 2001:db8::1"
+  zebgp encode -f "ipv6/unicast" "route 2001:db8::/32 next-hop 2001:db8::1"
 
   # L3VPN (mpls-vpn)
-  zebgp encode -f "ipv4 mpls-vpn" "10.0.0.0/24 rd 100:1 next-hop 1.2.3.4 label 100"
-  zebgp encode -f "ipv4 mpls-vpn" "10.0.0.0/24 rd 1.2.3.4:100 next-hop 1.2.3.4 label 100"
+  zebgp encode -f "ipv4/mpls-vpn" "10.0.0.0/24 rd 100:1 next-hop 1.2.3.4 label 100"
+  zebgp encode -f "ipv4/mpls-vpn" "10.0.0.0/24 rd 1.2.3.4:100 next-hop 1.2.3.4 label 100"
 
   # Labeled Unicast (nlri-mpls)
-  zebgp encode -f "ipv4 nlri-mpls" "10.0.0.0/24 next-hop 1.2.3.4 label 100"
+  zebgp encode -f "ipv4/nlri-mpls" "10.0.0.0/24 next-hop 1.2.3.4 label 100"
 
   # EVPN
-  zebgp encode -f "l2vpn evpn" "mac-ip rd 100:1 esi 0 etag 0 mac 00:11:22:33:44:55 label 100 next-hop 1.2.3.4"
-  zebgp encode -f "l2vpn evpn" "ip-prefix rd 100:1 esi 0 etag 0 prefix 10.0.0.0/24 gateway 0.0.0.0 label 100 next-hop 1.2.3.4"
-  zebgp encode -f "l2vpn evpn" "multicast rd 100:1 etag 0 next-hop 1.2.3.4"
+  zebgp encode -f "l2vpn/evpn" "mac-ip rd 100:1 esi 0 etag 0 mac 00:11:22:33:44:55 label 100 next-hop 1.2.3.4"
+  zebgp encode -f "l2vpn/evpn" "ip-prefix rd 100:1 esi 0 etag 0 prefix 10.0.0.0/24 gateway 0.0.0.0 label 100 next-hop 1.2.3.4"
+  zebgp encode -f "l2vpn/evpn" "multicast rd 100:1 etag 0 next-hop 1.2.3.4"
 
   # Output options
   zebgp encode -n "route 10.0.0.0/24 next-hop 1.2.3.4"       # NLRI only
@@ -188,46 +188,13 @@ Examples:
 }
 
 // parseEncodingFamily parses family string to AFI/SAFI.
+// Requires "afi/safi" format (e.g., "ipv4/unicast").
 func parseEncodingFamily(family string) (nlri.AFI, nlri.SAFI, error) {
-	parts := strings.Fields(strings.ToLower(family))
-	if len(parts) < 2 {
-		return 0, 0, fmt.Errorf("invalid family format: %s (expected 'afi safi')", family)
+	f, ok := nlri.ParseFamily(strings.ToLower(family))
+	if !ok {
+		return 0, 0, fmt.Errorf("unknown family: %s (expected afi/safi format)", family)
 	}
-
-	var afi nlri.AFI
-	var safi nlri.SAFI
-
-	switch parts[0] {
-	case "ipv4":
-		afi = nlri.AFIIPv4
-	case "ipv6":
-		afi = nlri.AFIIPv6
-	case "l2vpn":
-		afi = nlri.AFIL2VPN
-	default:
-		return 0, 0, fmt.Errorf("unknown AFI: %s", parts[0])
-	}
-
-	switch parts[1] {
-	case "unicast":
-		safi = nlri.SAFIUnicast
-	case "mpls-vpn":
-		safi = nlri.SAFIVPN
-	case "nlri-mpls", "labeled-unicast":
-		safi = nlri.SAFIMPLSLabel
-	case "flowspec":
-		safi = nlri.SAFIFlowSpec
-	case "evpn":
-		safi = nlri.SAFIEVPN
-	case "vpls":
-		safi = nlri.SAFIVPLS
-	case "mup":
-		safi = nlri.SAFIMUP
-	default:
-		return 0, 0, fmt.Errorf("unknown SAFI: %s", parts[1])
-	}
-
-	return afi, safi, nil
+	return f.AFI, f.SAFI, nil
 }
 
 // encodeUnicastRoute parses and encodes a unicast route command.

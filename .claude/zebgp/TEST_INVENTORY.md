@@ -42,7 +42,7 @@ Line 3: Expected JSON output
 
 **Example (`bgp-evpn-1`):**
 ```
-update l2vpn evpn
+update l2vpn/evpn
 000000EA900F00E6001946...
 { "exabgp": "5.0.0", "type": "update", ... }
 ```

@@ -235,7 +235,7 @@ func List(keyType ValueType, fields ...FieldDef) *ListNode {
 }
 
 // FreeformNode accepts "word word ...;" entries, storing as "word word" -> true.
-// Used for family { ipv4 unicast; ipv6 unicast; }.
+// Used for family { ipv4/unicast; ipv6/unicast; }.
 type FreeformNode struct{}
 
 func (n *FreeformNode) Kind() NodeKind { return NodeFreeform }
@@ -247,7 +247,7 @@ func Freeform() *FreeformNode {
 
 // FamilyBlockNode handles address family configuration with optional modes.
 // Supports:
-//   - Inline: "ipv4 unicast;" or "ipv4 unicast require;"
+//   - Inline: "ipv4/unicast;" or "ipv4/unicast require;"
 //   - Block: "ipv4 { unicast; multicast require; }"
 //
 // Stores entries as FamilyEntry structs with AFI, SAFI, and Mode.
