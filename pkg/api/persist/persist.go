@@ -6,6 +6,7 @@ import (
 	"bufio"
 	"fmt"
 	"io"
+	"sort"
 	"sync"
 )
 
@@ -192,6 +193,12 @@ func (p *Persister) handleStateUp(peerAddr string) {
 		routesCopy = append(routesCopy, r)
 	}
 	p.mu.RUnlock()
+
+	// Sort by MsgID to replay in original announcement order
+	// (Go maps iterate in random order)
+	sort.Slice(routesCopy, func(i, j int) bool {
+		return routesCopy[i].MsgID < routesCopy[j].MsgID
+	})
 
 	// Replay all stored routes
 	for _, route := range routesCopy {
