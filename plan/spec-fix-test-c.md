@@ -85,13 +85,32 @@ A1:notification:Administrative Reset
 5. Run `make test && make lint && make functional`
 6. Remove old test C
 
+## Status
+
+### Completed
+- [x] Test C2 (teardown-cmd) - PASSING
+- [x] Old test C replaced with new tests
+- [x] Stale teardown bug fixed (don't queue when disconnected)
+
+### Remaining: Test C1 (reconnect)
+- [ ] Add `send:raw:...` action to test peer
+- [ ] Test C1 (reconnect) passes
+
+## Next Session
+
+To complete C1, implement test peer send feature:
+
+1. Read `pkg/testpeer/peer.go` and `pkg/testpeer/checker.go`
+2. Add `send:raw:...` action type to checker
+3. In message loop, after matching expected message, check for send action
+4. Send raw bytes to ZeBGP connection
+5. Test with `go run ./test/cmd/functional api C`
+
 ## Checklist
 - [x] Required docs read
 - [ ] Test peer send action implemented
+- [x] Test C2 (teardown-cmd) passes
 - [ ] Test C1 (reconnect) passes
-- [ ] Test C2 (teardown-cmd) passes
-- [ ] Stale teardown bug fixed
-- [ ] Old test C removed
 - [ ] make test passes
 - [ ] make lint passes
 - [ ] make functional passes

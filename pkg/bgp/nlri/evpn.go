@@ -911,21 +911,28 @@ func (e *EVPNType5) Bytes() []byte {
 	offset++
 
 	// RFC 9136: Prefix field is FIXED size (4 or 16 bytes), not variable
+	// RFC 9136 Section 3.1: Gateway IP is 0 when not used
 	if prefixSize == 4 {
 		ip4 := e.prefix.Addr().As4()
 		copy(buf[offset:], ip4[:])
 		offset += 4
 
-		gw4 := e.gateway.As4()
-		copy(buf[offset:], gw4[:])
+		if e.gateway.IsValid() {
+			gw4 := e.gateway.As4()
+			copy(buf[offset:], gw4[:])
+		}
+		// else: leave as zeros (gateway not used)
 		offset += 4
 	} else {
 		ip6 := e.prefix.Addr().As16()
 		copy(buf[offset:], ip6[:])
 		offset += 16
 
-		gw6 := e.gateway.As16()
-		copy(buf[offset:], gw6[:])
+		if e.gateway.IsValid() {
+			gw6 := e.gateway.As16()
+			copy(buf[offset:], gw6[:])
+		}
+		// else: leave as zeros (gateway not used)
 		offset += 16
 	}
 
