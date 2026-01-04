@@ -103,9 +103,11 @@ The following docs MUST be read before starting implementation:
 
 ## RFC Documentation
 For any BGP protocol code, add RFC comments explaining the logic:
+- **MUST read `rfc/` folder** to get correct wording and section references
 - Add `// RFC NNNN Section X.Y` comments for protocol behavior
 - Document wire format encoding/decoding with RFC references
 - Key RFCs: 4271 (BGP), 4760 (MP-BGP), 7911 (ADD-PATH), 8277 (Labeled), etc.
+- If RFC missing: `curl -o rfc/rfcNNNN.txt https://www.rfc-editor.org/rfc/rfcNNNN.txt`
 
 ## Checklist
 - [ ] Required docs read
