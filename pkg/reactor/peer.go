@@ -142,6 +142,13 @@ type Peer struct {
 	// Set to 1 when sendInitialRoutes starts, 0 when it ends.
 	sendingInitialRoutes atomic.Int32
 
+	// API sync for EOR: wait for API processes to finish initial routes before EOR.
+	// Reset on each session establishment, signaled by "session api ready" commands.
+	apiSyncExpected  int32         // Number of ready signals expected (processes with SendUpdate)
+	apiSyncReady     chan struct{} // Closed when all expected ready signals received
+	apiSyncReadyOnce sync.Once     // Ensures channel is closed only once
+	apiSyncCount     atomic.Int32  // Count of ready signals received since session start
+
 	// Goroutine control
 	ctx    context.Context
 	cancel context.CancelFunc
@@ -194,6 +201,63 @@ func NewPeer(settings *PeerSettings) *Peer {
 // Settings returns the configured peer settings.
 func (p *Peer) Settings() *PeerSettings {
 	return p.settings
+}
+
+// ResetAPISync resets the per-session API synchronization state.
+// Called when session transitions to Established.
+// expectedCount is the number of API processes with SendUpdate permission.
+func (p *Peer) ResetAPISync(expectedCount int) {
+	p.mu.Lock()
+	p.apiSyncExpected = int32(expectedCount)
+	p.apiSyncReady = make(chan struct{})
+	p.apiSyncReadyOnce = sync.Once{}
+	p.apiSyncCount.Store(0)
+	p.mu.Unlock()
+}
+
+// SignalAPIReady is called when "session api ready" is received for this peer.
+// When all expected signals are received, unblocks waitForAPISync.
+func (p *Peer) SignalAPIReady() {
+	count := p.apiSyncCount.Add(1)
+	p.mu.RLock()
+	expected := p.apiSyncExpected
+	ready := p.apiSyncReady
+	p.mu.RUnlock()
+
+	if int32(count) >= expected && ready != nil {
+		p.mu.Lock()
+		p.apiSyncReadyOnce.Do(func() {
+			close(p.apiSyncReady)
+		})
+		p.mu.Unlock()
+	}
+}
+
+// waitForAPISync blocks until all API processes signal ready or timeout.
+// Returns immediately if no API sync is expected.
+func (p *Peer) waitForAPISync(timeout time.Duration) {
+	p.mu.RLock()
+	expected := p.apiSyncExpected
+	ready := p.apiSyncReady
+	p.mu.RUnlock()
+
+	addr := p.settings.Address.String()
+	trace.Log(trace.Routes, "peer %s: waiting for API sync (expected=%d)", addr, expected)
+
+	if expected == 0 || ready == nil {
+		trace.Log(trace.Routes, "peer %s: no API sync needed", addr)
+		return
+	}
+
+	select {
+	case <-ready:
+		trace.Log(trace.Routes, "peer %s: API sync complete", addr)
+		return
+	case <-time.After(timeout):
+		// Timeout - proceed anyway to avoid blocking forever
+		trace.Log(trace.Routes, "peer %s: API sync timeout", addr)
+		return
+	}
 }
 
 // RecvContext returns the receive encoding context.
@@ -507,10 +571,25 @@ func (p *Peer) Stop() {
 // Teardown sends a Cease NOTIFICATION with the given subcode and closes.
 // The session will send NOTIFICATION before closing the connection.
 // RFC 4486 defines Cease subcodes; RFC 9003 defines the message format.
-// If called when not connected, queues the teardown to maintain operation order.
+// If called when sendInitialRoutes is running, queues the teardown so that
+// EOR can be sent before NOTIFICATION. If not connected, also queues.
 func (p *Peer) Teardown(subcode uint8) {
 	p.mu.Lock()
 	session := p.session
+
+	// If sendInitialRoutes is running, queue the teardown so it can send
+	// EOR before executing the teardown. This ensures proper BGP protocol
+	// sequencing: routes + EOR + NOTIFICATION.
+	if p.sendingInitialRoutes.Load() == 1 {
+		if len(p.opQueue) < MaxOpQueueSize {
+			p.opQueue = append(p.opQueue, PeerOp{Type: PeerOpTeardown, Subcode: subcode})
+		} else {
+			trace.Log(trace.Routes, "peer %s: opQueue full, dropping teardown", p.settings.Address)
+		}
+		p.mu.Unlock()
+		return
+	}
+
 	if session != nil {
 		p.mu.Unlock()
 		if err := session.Teardown(subcode); err != nil {
@@ -645,6 +724,10 @@ func (p *Peer) runOnce() error {
 	defer func() {
 		p.negotiated.Store(nil) // Clear negotiated capabilities
 		p.clearEncodingContexts()
+		// Reset sendingInitialRoutes flag so next session can run sendInitialRoutes().
+		// This is needed because session.Teardown() may return before the old
+		// sendInitialRoutes() goroutine finishes its 500ms sleep.
+		p.sendingInitialRoutes.Store(0)
 		p.mu.Lock()
 		p.session = nil
 		p.mu.Unlock()
@@ -681,6 +764,16 @@ func (p *Peer) runOnce() error {
 			p.setEncodingContexts(neg)
 			p.setState(PeerStateEstablished)
 			trace.SessionEstablished(addr, p.settings.LocalAS, p.settings.PeerAS)
+
+			// Reset per-session API sync: count processes with SendUpdate permission.
+			// They will signal "session api ready" after replaying routes.
+			apiSendCount := 0
+			for _, binding := range p.settings.APIBindings {
+				if binding.SendUpdate {
+					apiSendCount++
+				}
+			}
+			p.ResetAPISync(apiSendCount)
 
 			// Notify reactor of peer established
 			p.mu.RLock()
@@ -924,21 +1017,26 @@ func (p *Peer) cleanup() {
 // Routes with identical attributes are grouped into a single UPDATE message.
 // Uses atomic flag to prevent concurrent execution if session reconnects quickly.
 func (p *Peer) sendInitialRoutes() {
+	addr := p.settings.Address.String()
+
 	// Prevent concurrent sendInitialRoutes goroutines.
 	// If another instance is running, skip this one - the running instance
 	// will process any queued operations.
 	if !p.sendingInitialRoutes.CompareAndSwap(0, 1) {
+		trace.Log(trace.Routes, "peer %s: sendInitialRoutes skipped (concurrent instance)", addr)
 		return
 	}
 	defer p.sendingInitialRoutes.Store(0)
 
+	trace.Log(trace.Routes, "peer %s: sendInitialRoutes started", addr)
+
 	// Get negotiated capabilities for family checks.
 	nc := p.negotiated.Load()
 	if nc == nil {
+		trace.Log(trace.Routes, "peer %s: sendInitialRoutes aborted (no negotiated caps)", addr)
 		return
 	}
 
-	addr := p.settings.Address.String()
 	trace.Log(trace.Routes, "peer %s: sending %d static routes", addr, len(p.settings.StaticRoutes))
 
 	// Calculate max message size for this peer
@@ -1063,6 +1161,18 @@ func (p *Peer) sendInitialRoutes() {
 		}
 	}
 
+	// Wait for API processes to send initial routes before processing queue.
+	// Only delay if there are API processes that may send routes (SendUpdate permission).
+	// This prevents unnecessary delay for tests without persist/route-injection APIs.
+	p.mu.RLock()
+	needsAPIWait := p.apiSyncExpected > 0
+	p.mu.RUnlock()
+	if needsAPIWait {
+		trace.Log(trace.Routes, "peer %s: sleeping 500ms for API routes", addr)
+		time.Sleep(500 * time.Millisecond)
+		trace.Log(trace.Routes, "peer %s: woke from sleep, processing queue", addr)
+	}
+
 	// Process operation queue in order (maintains announce/withdraw/teardown ordering).
 	// Stop at first teardown - remaining items stay for next session.
 	//
@@ -1157,13 +1267,27 @@ func (p *Peer) sendInitialRoutes() {
 		session := p.session
 		p.mu.RUnlock()
 		if session != nil {
+			// Set state to Connecting BEFORE Teardown to avoid race condition:
+			// Teardown closes TCP, peer immediately reconnects, but if peer.State()
+			// still shows Established, the new connection is rejected by collision check.
+			// The FSM callback will also set this, but may fire too late.
+			p.setState(PeerStateConnecting)
 			if err := session.Teardown(teardownSubcode); err != nil {
 				trace.Log(trace.Routes, "peer %s: teardown error: %v", addr, err)
 			}
-			// Immediately mark as not established to prevent race conditions
-			// where subsequent API commands see stale ESTABLISHED state
-			p.setState(PeerStateConnecting)
 		}
+		// Clear remaining opQueue - these routes were never sent, so shouldn't
+		// be re-sent on reconnection. Persist plugin tracks actually-sent routes.
+		p.mu.Lock()
+		if len(p.opQueue) > 0 {
+			trace.Log(trace.Routes, "peer %s: clearing %d unsent queue items after teardown", addr, len(p.opQueue))
+			p.opQueue = p.opQueue[:0]
+		}
+		p.mu.Unlock()
+		// Reset flag BEFORE return so new session's sendInitialRoutes can run.
+		// Teardown triggers reconnection; new session may call sendInitialRoutes
+		// before this defer runs, causing the new call to be skipped.
+		p.sendingInitialRoutes.Store(0)
 		return // Don't send family-specific routes after teardown
 	}
 

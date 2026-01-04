@@ -93,10 +93,18 @@ func handleSessionBye(ctx *CommandContext, _ []string) (*Response, error) {
 }
 
 // handleSessionAPIReady signals that an API process has completed initialization.
-// Unblocks the reactor startup, allowing BGP peer connections to begin.
+// If called with a peer prefix ("peer <addr> session api ready"), signals that
+// peer-specific API initialization is complete (e.g., route replay after reconnect).
+// If called without peer prefix, unblocks reactor startup.
 func handleSessionAPIReady(ctx *CommandContext, _ []string) (*Response, error) {
 	if ctx.Reactor != nil {
-		ctx.Reactor.SignalAPIReady()
+		// Check if this is a peer-specific ready signal
+		if ctx.Peer != "" && ctx.Peer != "*" {
+			ctx.Reactor.SignalPeerAPIReady(ctx.Peer)
+		} else {
+			// Global ready signal for startup
+			ctx.Reactor.SignalAPIReady()
+		}
 	}
 	return &Response{
 		Status: "done",

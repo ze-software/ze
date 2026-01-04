@@ -367,6 +367,10 @@ type ReactorInterface interface {
 	// SignalAPIReady signals that an API process is ready.
 	// When all processes have signaled, WaitForAPIReady returns.
 	SignalAPIReady()
+
+	// SignalPeerAPIReady signals that a peer-specific API initialization is complete.
+	// Called when "peer <addr> session api ready" is received (e.g., after route replay).
+	SignalPeerAPIReady(peerAddr string)
 }
 
 // PeerAPIBinding describes which process receives messages from a peer.

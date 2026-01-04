@@ -756,6 +756,58 @@ Process stdin
 
 ---
 
+## Persist Plugin and Route Replay
+
+The persist plugin (`pkg/api/persist/`) tracks routes sent to peers and replays them on session re-establishment.
+
+### Persist Flow
+
+```
+Session A established
+    │ API sends route1
+    ▼
+Engine sends UPDATE to peer
+    │ Persist receives "sent" event with route1
+    ▼
+Persist stores: ribOut[peerAddr][prefix] = route1
+    │
+    ▼ Session A teardown
+    │
+    ▼ Session B establishes
+    │
+Persist receives "state up"
+    │ Looks up ribOut[peerAddr]
+    ▼
+Persist replays: "peer <addr> announce route <prefix> ..."
+    │
+    ▼
+Persist signals: "peer <addr> session api ready"
+```
+
+### API Sync Protocol
+
+To ensure routes are replayed before EOR is sent, the engine uses an API sync protocol:
+
+1. **Session establishment:** Engine counts API bindings with `SendUpdate` permission
+2. **ResetAPISync(count):** Peer initializes sync state with expected signal count
+3. **Persist replays routes:** After "state up", replays stored routes
+4. **Persist signals ready:** `"peer <addr> session api ready"`
+5. **SignalPeerAPIReady:** Engine decrements counter, closes channel when all received
+6. **sendInitialRoutes:** Waits up to 500ms for API sync before sending EOR
+
+```go
+// In sendInitialRoutes()
+p.mu.RLock()
+needsAPIWait := p.apiSyncExpected > 0
+p.mu.RUnlock()
+if needsAPIWait {
+    time.Sleep(500 * time.Millisecond)
+}
+// Then process opQueue and send EOR
+```
+
+---
+
 ## Files
 
 | File | Purpose |
@@ -766,6 +818,8 @@ Process stdin
 | `pkg/api/types.go` | ReactorInterface, RouteSpec |
 | `pkg/api/text.go` | Text/JSON formatting including FormatStateChange |
 | `pkg/api/commit_manager.go` | Transaction management |
+| `pkg/api/persist/persist.go` | Route persistence and replay plugin |
 | `pkg/reactor/reactor.go` | AnnounceRoute, PeerLifecycleObserver |
-| `pkg/reactor/peer.go` | FSM callback, reactor notification |
+| `pkg/reactor/peer.go` | FSM callback, reactor notification, API sync |
+| `pkg/reactor/session.go` | Session lifecycle, teardown handling |
 | `pkg/rib/outgoing.go` | Adj-RIB-Out structure |

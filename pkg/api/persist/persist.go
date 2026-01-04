@@ -206,8 +206,8 @@ func (p *Persister) handleStateUp(peerAddr string) {
 		p.send("peer %s announce route %s next-hop %s", peerAddr, route.Prefix, route.NextHop)
 	}
 
-	// Signal done - ZeBGP can now send EOR
-	p.sendCommand("session api ready")
+	// Signal done with peer-specific ready - ZeBGP can now send EOR for this peer
+	p.sendCommand("peer " + peerAddr + " session api ready")
 }
 
 // handleRequest processes command requests from ZeBGP.

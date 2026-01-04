@@ -83,3 +83,18 @@ func (r *Reactor) signalAllReady() {
 		close(r.apiReady)
 	})
 }
+
+// SignalPeerAPIReady signals that a peer-specific API initialization is complete.
+// Called when "peer <addr> session api ready" is received (e.g., after route replay).
+// Routes the signal to the specified peer.
+func (r *Reactor) SignalPeerAPIReady(peerAddr string) {
+	r.mu.RLock()
+	peer, ok := r.peers[peerAddr]
+	r.mu.RUnlock()
+
+	slog.Debug("peer api ready signal", "peer", peerAddr, "found", ok)
+
+	if ok && peer != nil {
+		peer.SignalAPIReady()
+	}
+}

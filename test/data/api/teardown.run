@@ -8,19 +8,35 @@ from exabgp_api import ready, send, wait_for_ack, wait_for_shutdown
 def main() -> None:
     ready()
 
-    messages = [
-        ('announce route 1.1.0.0/16 next-hop 1.1.1.1', 0.5),
-        ('neighbor 127.0.0.1 teardown 4', 1.5),
-        ('announce route 2.2.0.0/16 next-hop 2.2.2.2', 0.5),
-        ('neighbor 127.0.0.1 teardown 4', 1.5),
-        ('announce route 3.3.0.0/16 next-hop 3.3.3.3', 0.5),
-    ]
+    # Connection A: route1 -> EOR -> teardown (via test peer notification)
+    # Connection B: route1 (persist) + route2 -> EOR -> teardown
+    # Connection C: route1 + route2 (persist) + route3 -> EOR
+    #
+    # The 500ms delay in sendInitialRoutes waits for API routes.
+    # We need route2/route3 to arrive BEFORE the 500ms ends so they're
+    # sent before EOR. The test peer sends notification after seeing
+    # expected messages.
+    #
+    # Timing: route arrives, teardown happens, quick route injection for next conn.
 
-    # Send all messages with timing delays
-    message_count = len(messages)
-    for message, sleep_duration in messages:
-        send(message)
-        time.sleep(sleep_duration)
+    send('announce route 1.1.0.0/16 next-hop 1.1.1.1')
+    time.sleep(1.0)  # Wait for connection A to be established and EOR sent
+
+    # Connection A will receive notification from test peer after route1+EOR
+    # Connection B now establishes
+
+    # Send route2 immediately - it needs to arrive during B's 500ms window
+    send('announce route 2.2.0.0/16 next-hop 2.2.2.2')
+    time.sleep(1.0)  # Wait for connection B cycle
+
+    # Connection B receives notification after route1+route2+EOR
+    # Connection C now establishes
+
+    # Send route3 immediately
+    send('announce route 3.3.0.0/16 next-hop 3.3.3.3')
+    time.sleep(1.0)  # Wait for connection C cycle
+
+    message_count = 3  # route1, route2, route3
 
     # Wait for all ACKs at once
     if message_count > 0:

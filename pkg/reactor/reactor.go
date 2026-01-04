@@ -2092,6 +2092,11 @@ func (a *reactorAPIAdapter) SignalAPIReady() {
 	a.r.SignalAPIReady()
 }
 
+// SignalPeerAPIReady signals that a peer-specific API initialization is complete.
+func (a *reactorAPIAdapter) SignalPeerAPIReady(peerAddr string) {
+	a.r.SignalPeerAPIReady(peerAddr)
+}
+
 // routeToAPIRoute converts a RIB route to an API route.
 func routeToAPIRoute(peerID string, route *rib.Route) api.RIBRoute {
 	apiRoute := api.RIBRoute{

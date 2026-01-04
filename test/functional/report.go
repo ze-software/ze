@@ -153,6 +153,19 @@ func (r *Report) printTimeoutReport(rec *Record) {
 func (r *Report) printMismatchReport(rec *Record) {
 	c := r.colors
 
+	// Debug: show raw peer output to diagnose mismatch
+	if rec.PeerOutput != "" {
+		_, _ = fmt.Fprintln(r.output, c.LineSeparator())
+		_, _ = fmt.Fprintln(r.output, c.Yellow("RAW PEER OUTPUT (first 3000 chars):"))
+		_, _ = fmt.Fprintln(r.output, c.LineSeparator())
+		out := rec.PeerOutput
+		if len(out) > 3000 {
+			out = out[:3000] + "..."
+		}
+		_, _ = fmt.Fprintln(r.output, out)
+		_, _ = fmt.Fprintln(r.output)
+	}
+
 	msgIdx := rec.LastExpectedIdx
 	if msgIdx == 0 {
 		msgIdx = 1
@@ -169,8 +182,10 @@ func (r *Report) printMismatchReport(rec *Record) {
 	_, _ = fmt.Fprintf(r.output, "%s %d:\n", c.Cyan("EXPECTED MESSAGE"), msgIdx)
 	_, _ = fmt.Fprintln(r.output, c.LineSeparator())
 
-	// Use connection offset for API tests with multiple connections (A, B, C)
-	expectedIdx := rec.ConnectionOffset() + msgIdx
+	// For multi-connection tests, don't use Nick-based offset since Nick is
+	// the test identifier, not the connection letter. Just show first message.
+	// Future: parse actual connection info from testpeer output.
+	expectedIdx := msgIdx
 	if msg := rec.GetMessage(expectedIdx); msg != nil {
 		if msg.Cmd != "" {
 			_, _ = fmt.Fprintf(r.output, "%s     %s\n", c.Yellow("cmd:"), msg.Cmd)
@@ -190,9 +205,8 @@ func (r *Report) printMismatchReport(rec *Record) {
 	_, _ = fmt.Fprintf(r.output, "%s %d:\n", c.Cyan("RECEIVED MESSAGE"), msgIdx)
 	_, _ = fmt.Fprintln(r.output, c.LineSeparator())
 
-	// For multi-connection tests, offset by messages from previous connections
-	rcvOffset := rec.ReceivedMessageOffset()
-	rcvIdx := rcvOffset + rec.LastReceivedIdx
+	// Use LastReceivedIdx directly (0-based from extractMismatchIndices)
+	rcvIdx := rec.LastReceivedIdx
 	// Fallback: if calculated index is out of bounds, use last available message
 	if rcvIdx >= len(rec.ReceivedRaw) && len(rec.ReceivedRaw) > 0 {
 		rcvIdx = len(rec.ReceivedRaw) - 1

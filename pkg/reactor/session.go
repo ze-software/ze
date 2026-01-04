@@ -9,6 +9,7 @@ import (
 	"net"
 	"net/netip"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/exa-networks/zebgp/pkg/bgp/attribute"
@@ -29,6 +30,7 @@ var (
 	ErrInvalidMessage      = errors.New("invalid message")
 	ErrUnsupportedVersion  = errors.New("unsupported BGP version")
 	ErrFamilyNotNegotiated = errors.New("address family not negotiated")
+	ErrSessionTearingDown  = errors.New("session is tearing down")
 )
 
 // Session manages a single BGP peer connection.
@@ -61,6 +63,9 @@ type Session struct {
 
 	// Error channel for timer callbacks to signal errors.
 	errChan chan error
+
+	// tearingDown is set when Teardown starts, preventing Accept race.
+	tearingDown atomic.Bool
 
 	// onMessageReceived is called when any BGP message is received.
 	// Set by Peer to forward raw bytes to reactor.
@@ -219,6 +224,12 @@ func (s *Session) Connect(ctx context.Context) error {
 
 // Accept accepts an incoming TCP connection.
 func (s *Session) Accept(conn net.Conn) error {
+	// Check if session is being torn down - reject if so.
+	// This prevents accepting a connection on a session that's about to exit.
+	if s.tearingDown.Load() {
+		return ErrSessionTearingDown
+	}
+
 	s.mu.Lock()
 	if s.conn != nil {
 		s.mu.Unlock()
@@ -226,7 +237,41 @@ func (s *Session) Accept(conn net.Conn) error {
 	}
 	s.mu.Unlock()
 
-	return s.connectionEstablished(conn)
+	// Drain any stale errors from previous teardown.
+	// If a teardown was queued but a new connection arrives before Run() exits,
+	// the old ErrTeardown would incorrectly terminate the new session.
+	// Drain all buffered errors (channel has buffer size 2).
+drainLoop:
+	for {
+		select {
+		case <-s.errChan:
+		default:
+			break drainLoop
+		}
+	}
+
+	// Reset tearing down flag for new connection.
+	// This allows the session to be reused after a teardown.
+	s.tearingDown.Store(false)
+
+	err := s.connectionEstablished(conn)
+	if err != nil {
+		return err
+	}
+
+	// Drain errChan again after connection setup.
+	// A concurrent Teardown() may have sent ErrTeardown between our first
+	// drain and connectionEstablished(). This second drain catches it.
+drainLoop2:
+	for {
+		select {
+		case <-s.errChan:
+		default:
+			break drainLoop2
+		}
+	}
+
+	return nil
 }
 
 // AcceptWithOpen accepts a connection and processes a pre-received OPEN.
@@ -403,6 +448,9 @@ var ErrTeardown = errors.New("session teardown")
 // 4=AdminReset, 5=ConnectionRejected, 6=OtherConfigChange, 7=Collision, 8=OutOfResources.
 // RFC 9003 specifies that subcodes 2/4 include a length-prefixed message.
 func (s *Session) Teardown(subcode uint8) error {
+	// Mark session as tearing down to prevent accepting new connections
+	s.tearingDown.Store(true)
+
 	s.timers.StopAll()
 
 	s.mu.Lock()

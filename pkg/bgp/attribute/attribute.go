@@ -232,4 +232,57 @@ type Attribute interface {
 	//
 	// RFC 6793: ASN4 determines 2-byte vs 4-byte AS number encoding.
 	PackWithContext(srcCtx, dstCtx *bgpctx.EncodingContext) []byte
+
+	// WriteTo writes the attribute value (excluding header) into buf at offset.
+	// Returns number of bytes written.
+	// Caller guarantees buf has sufficient capacity.
+	WriteTo(buf []byte, off int) int
+
+	// WriteToWithContext writes the attribute value with context-dependent encoding.
+	// Returns number of bytes written.
+	WriteToWithContext(buf []byte, off int, srcCtx, dstCtx *bgpctx.EncodingContext) int
+}
+
+// WriteHeaderTo writes an attribute header into buf at offset.
+// Returns number of bytes written (3 or 4).
+// Automatically sets FlagExtLength if length > 255.
+func WriteHeaderTo(buf []byte, off int, flags AttributeFlags, code AttributeCode, length uint16) int {
+	if length > 255 {
+		flags |= FlagExtLength
+	}
+
+	if flags.IsExtLength() {
+		buf[off] = byte(flags)
+		buf[off+1] = byte(code)
+		buf[off+2] = byte(length >> 8)
+		buf[off+3] = byte(length)
+		return 4
+	}
+
+	buf[off] = byte(flags)
+	buf[off+1] = byte(code)
+	buf[off+2] = byte(length)
+	return 3
+}
+
+// WriteAttrTo writes a complete attribute (header + value) into buf at offset.
+// Returns total bytes written.
+func WriteAttrTo(attr Attribute, buf []byte, off int) int {
+	valueLen := attr.Len()
+	hdrLen := WriteHeaderTo(buf, off, attr.Flags(), attr.Code(), uint16(valueLen)) //nolint:gosec
+	n := attr.WriteTo(buf, off+hdrLen)
+	return hdrLen + n
+}
+
+// WriteAttrToWithContext writes a complete attribute with context-dependent encoding.
+// Returns total bytes written.
+func WriteAttrToWithContext(attr Attribute, buf []byte, off int, srcCtx, dstCtx *bgpctx.EncodingContext) int {
+	// Get context-dependent length by checking encoded size
+	// For most attributes this equals Len(), but AS_PATH may differ
+	packed := attr.PackWithContext(srcCtx, dstCtx)
+	valueLen := len(packed)
+
+	hdrLen := WriteHeaderTo(buf, off, attr.Flags(), attr.Code(), uint16(valueLen)) //nolint:gosec
+	n := attr.WriteToWithContext(buf, off+hdrLen, srcCtx, dstCtx)
+	return hdrLen + n
 }
