@@ -151,8 +151,11 @@ func (l *LabeledUnicast) Len() int {
 // WriteTo writes the NLRI payload (without path ID) into buf at offset.
 // Returns number of bytes written.
 //
-// Note: Path ID is NOT written. Use WriteNLRI() for ADD-PATH encoding.
-// The ctx parameter is ignored (kept for interface compatibility).
+// RFC 8277 Section 2.2 - Labeled Unicast NLRI Format:
+// Encodes as [length][labels][prefix] where length is total bits.
+//
+// RFC 7911 Section 3: Path ID is NOT written by this method.
+// Use WriteNLRI() for ADD-PATH encoding with path identifier.
 func (l *LabeledUnicast) WriteTo(buf []byte, off int, _ *PackContext) int {
 	prefixBits := l.prefix.Bits()
 	prefixBytes := (prefixBits + 7) / 8

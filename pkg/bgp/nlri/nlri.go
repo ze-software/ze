@@ -271,15 +271,14 @@ type NLRI interface {
 
 // LenWithContext returns the wire-format length adjusted for context.
 //
-// Phase 3: Len() now returns payload length (no path ID). LenWithContext adds
-// 4 bytes when ctx.AddPath=true for types that support ADD-PATH.
-//
-// RFC 7911: ADD-PATH prepends 4-byte path identifier when negotiated:
+// RFC 7911 Section 3 - Extended NLRI Encodings:
+// When ADD-PATH is negotiated, each NLRI is prefixed with a 4-byte Path
+// Identifier. This function calculates the total wire length:
 //   - If ctx is nil or ctx.AddPath=false: returns Len() (payload only)
-//   - If ctx.AddPath=true: returns Len() + 4 (for types supporting ADD-PATH)
+//   - If ctx.AddPath=true: returns Len() + 4 (path ID + payload)
 //
 // Note: Some NLRI types (FlowSpec, BGPLS, etc.) don't support ADD-PATH
-// and always return Len() regardless of context.
+// per their respective RFCs and always return Len() regardless of context.
 func LenWithContext(n NLRI, ctx *PackContext) int {
 	baseLen := n.Len()
 

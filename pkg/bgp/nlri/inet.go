@@ -194,8 +194,12 @@ func (i *INET) String() string {
 // WriteTo writes the NLRI payload (without path ID) into buf at offset.
 // Returns number of bytes written.
 //
-// Note: Path ID is NOT written. Use WriteNLRI() for ADD-PATH encoding.
-// The ctx parameter is ignored (kept for interface compatibility).
+// RFC 4271 Section 4.3 - UPDATE Message Format:
+// Encodes as <length, prefix> where length is prefix bits and prefix is
+// the minimum octets needed (trailing bits zero-padded to octet boundary).
+//
+// RFC 7911 Section 3: Path ID is NOT written by this method.
+// Use WriteNLRI() for ADD-PATH encoding with path identifier.
 func (i *INET) WriteTo(buf []byte, off int, _ *PackContext) int {
 	prefixLen := i.prefix.Bits()
 	prefixBytes := (prefixLen + 7) / 8

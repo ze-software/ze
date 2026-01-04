@@ -449,8 +449,11 @@ func (v *IPVPN) String() string {
 // WriteTo writes the NLRI payload (without path ID) into buf at offset.
 // Returns number of bytes written.
 //
-// Note: Path ID is NOT written. Use WriteNLRI() for ADD-PATH encoding.
-// The ctx parameter is ignored (kept for interface compatibility).
+// RFC 4364 Section 4.3.4 / RFC 4659 Section 3.2 - VPN NLRI Format:
+// Encodes as [length][labels][RD][prefix] where length is total bits.
+//
+// RFC 7911 Section 3: Path ID is NOT written by this method.
+// Use WriteNLRI() for ADD-PATH encoding with path identifier.
 func (v *IPVPN) WriteTo(buf []byte, off int, _ *PackContext) int {
 	prefixBits := v.prefix.Bits()
 	prefixBytes := (prefixBits + 7) / 8

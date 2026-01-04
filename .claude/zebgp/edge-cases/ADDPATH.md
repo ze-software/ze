@@ -358,29 +358,36 @@ func (a AddPath) Pack() []byte {
 }
 ```
 
-### NLRI with ADD-PATH
+### NLRI Encoding (Phase 3+ Simplification)
+
+After ADD-PATH simplification, NLRI types store **payload only** (no path ID in Len/WriteTo).
+Path ID handling is centralized in `WriteNLRI()`:
 
 ```go
-func (n *INET) Pack(neg *Negotiated) []byte {
-    sendAddPath := neg.AddPath.CanSend(n.Family(), neg.PeerAddPath)
+// NLRI interface - payload only
+type NLRI interface {
+    Len() int                                    // Payload length (no path ID)
+    WriteTo(buf []byte, off int, ctx) int        // Write payload only
+    PathID() uint32                              // Stored path ID (0 if unset)
+}
 
-    if sendAddPath {
-        if n.hasAddPath {
-            return n.packed  // Already has path ID
-        }
-        // Prepend zero path ID
-        result := make([]byte, 4+len(n.packed))
-        copy(result[4:], n.packed)
-        return result
-    } else {
-        if n.hasAddPath {
-            return n.packed[4:]  // Strip path ID
-        }
-        return n.packed
-    }
+// Encoding with ADD-PATH handling
+func encodeNLRI(n nlri.NLRI, ctx *nlri.PackContext) []byte {
+    size := nlri.LenWithContext(n, ctx)  // +4 when ctx.AddPath=true
+    buf := make([]byte, size)
+    nlri.WriteNLRI(n, buf, 0, ctx)       // Prepends path ID when AddPath=true
+    return buf
 }
 ```
 
+**WriteNLRI behavior (RFC 7911 Section 3):**
+- `ctx.AddPath=true`: writes `[4-byte pathID][payload]`
+- `ctx.AddPath=false` or `ctx=nil`: writes `[payload]` only
+
+**Path ID value:**
+- Uses `n.PathID()` (stored value, 0 if unset)
+- Value 0 is valid per RFC 7911 (NOPATH)
+
 ---
 
-**Last Updated:** 2025-12-19
+**Last Updated:** 2026-01-04

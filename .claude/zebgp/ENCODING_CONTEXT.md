@@ -276,14 +276,24 @@ func (p *ASPath) PackWithContext(srcCtx, dstCtx *EncodingContext) []byte {
 ### ADD-PATH (RFC 7911)
 
 NLRI encoding includes path-id when ADD-PATH negotiated:
-- Without: length + prefix
-- With: path-id(4) + length + prefix
+- Without: `[payload]` (length + prefix)
+- With: `[path-id(4)][payload]`
+
+**Canonical encoding method:**
 
 ```go
 packCtx := destCtx.ToPackContext(family)
-// packCtx.AddPath determines if path-id is included
-nlri.Pack(packCtx)
+
+// Calculate wire length
+size := nlri.LenWithContext(n, packCtx)  // +4 when packCtx.AddPath=true
+
+// Write NLRI with ADD-PATH handling
+buf := make([]byte, size)
+nlri.WriteNLRI(n, buf, 0, packCtx)  // Prepends path ID when AddPath=true
 ```
+
+**Note:** NLRI `Len()` and `WriteTo()` return payload-only (no path ID).
+Use `LenWithContext()` and `WriteNLRI()` for ADD-PATH aware encoding.
 
 ## API Summary
 

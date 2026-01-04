@@ -166,15 +166,17 @@ Note: EVPN types not updated - they don't currently support ADD-PATH
 
 Commit: `aa27eb9` refactor(nlri): Phase 4 cleanup - remove transitional methods
 
-### Phase 5: RFC Documentation (TODO)
+### Phase 5: RFC Documentation ✅ COMPLETE
 
-Add RFC references to explain ADD-PATH encoding logic:
+Added/verified RFC references for ADD-PATH encoding:
 
-1. `WriteNLRI()` in nlri.go - document RFC 7911 Section 3 path ID encoding
-2. `LenWithContext()` in nlri.go - document when +4 bytes added for path ID
-3. `WriteTo()` in each NLRI type - document payload-only encoding per RFC 4271/4760
-4. `ParseINET/ParseIPVPN/etc` - verify RFC references for ADD-PATH parsing
-5. Add `// RFC 7911 Section 3` comments where path ID logic appears
+1. ✅ `WriteNLRI()` in nlri.go - RFC 7911 Section 3 path ID encoding
+2. ✅ `LenWithContext()` in nlri.go - RFC 7911 Section 3 path ID sizing
+3. ✅ `WriteTo()` in INET - RFC 4271 Section 4.3, RFC 7911 Section 3
+4. ✅ `WriteTo()` in IPVPN - RFC 4364/4659, RFC 7911 Section 3
+5. ✅ `WriteTo()` in LabeledUnicast - RFC 8277 Section 2.2, RFC 7911 Section 3
+6. ✅ `ParseINET()` - already had RFC 7911 Section 3 reference
+7. ✅ `ParseIPVPN()` - already had RFC 7911 reference
 
 Key RFC sections:
 - RFC 7911 Section 3: ADD-PATH NLRI encoding (4-byte path ID prefix)
@@ -182,21 +184,22 @@ Key RFC sections:
 - RFC 4271 Section 4.3: Base NLRI encoding (<length, prefix>)
 - RFC 4760 Section 5: MP-BGP NLRI encoding
 
-### Phase 6: Update Architecture Docs (TODO)
+### Phase 6: Update Architecture Docs ✅ COMPLETE
 
-Update `.claude/zebgp/` docs to reflect new ADD-PATH encoding:
+Updated `.claude/zebgp/` docs to reflect new ADD-PATH encoding:
 
-1. `.claude/zebgp/wire/NLRI.md` - Document that:
-   - `Len()` returns payload-only length (no path ID)
-   - `WriteTo()` writes payload only
-   - Use `WriteNLRI()` for ADD-PATH aware encoding
-   - Use `LenWithContext()` for ADD-PATH aware length calculation
+1. ✅ `.claude/zebgp/wire/NLRI.md`:
+   - Updated NLRI interface to show payload-only methods
+   - Added `WriteNLRI()` and `LenWithContext()` usage
+   - Removed old `hasPath` field from struct examples
 
-2. `.claude/zebgp/ENCODING_CONTEXT.md` - Document:
-   - `PackContext.AddPath` controls path ID inclusion
-   - `WriteNLRI()` is the canonical way to encode NLRIs
+2. ✅ `.claude/zebgp/ENCODING_CONTEXT.md`:
+   - Updated ADD-PATH section with canonical encoding pattern
+   - Added note that `Len()`/`WriteTo()` return payload-only
 
-3. `.claude/zebgp/edge-cases/ADDPATH.md` - Verify current content matches implementation
+3. ✅ `.claude/zebgp/edge-cases/ADDPATH.md`:
+   - Replaced old NLRI Pack() example with WriteNLRI() pattern
+   - Documented RFC 7911 Section 3 behavior
 
 ## Checklist
 
@@ -205,8 +208,8 @@ Update `.claude/zebgp/` docs to reflect new ADD-PATH encoding:
 - [x] Test passes after impl
 - [x] make test passes
 - [x] make lint passes
-- [ ] Phase 5: RFC documentation in code
-- [ ] Phase 6: Update `.claude/zebgp/` docs
+- [x] Phase 5: RFC documentation in code
+- [x] Phase 6: Update `.claude/zebgp/` docs
 - [x] Move to `plan/done/` when complete
 
 ## Test Strategy

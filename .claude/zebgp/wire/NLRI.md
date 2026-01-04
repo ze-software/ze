@@ -380,16 +380,18 @@ type LabeledUnicast struct {
     family  Family       // AFI + SAFI (SAFI always SAFIMPLSLabel)
     prefix  netip.Prefix
     labels  []uint32     // Label stack (BOS on last)
-    pathID  uint32
-    hasPath bool
+    pathID  uint32       // RFC 7911: 0 means no path ID
 }
 
-// Implements nlri.NLRI interface
-func (l *LabeledUnicast) Pack(ctx *PackContext) []byte
-func (l *LabeledUnicast) Bytes() []byte
-func (l *LabeledUnicast) Family() Family
-func (l *LabeledUnicast) PathID() uint32
-func (l *LabeledUnicast) HasPathID() bool
+// NLRI interface methods (payload-only, no path ID)
+func (l *LabeledUnicast) Len() int                              // Payload length only
+func (l *LabeledUnicast) WriteTo(buf []byte, off int, ctx) int  // Write payload only
+func (l *LabeledUnicast) Bytes() []byte                         // Payload bytes only
+func (l *LabeledUnicast) PathID() uint32                        // Stored path ID
+
+// For ADD-PATH aware encoding, use package functions:
+nlri.LenWithContext(n, ctx)      // Adds 4 bytes when ctx.AddPath=true
+nlri.WriteNLRI(n, buf, off, ctx) // Prepends path ID when ctx.AddPath=true
 ```
 
 ### Label Encoding
@@ -426,58 +428,53 @@ Wire: [32, 0x00, 0x06, 0x41, 10]
 
 ## ZeBGP Implementation Notes
 
-### Packed-Bytes-First Pattern
+### NLRI Interface (Payload-Only)
 
-All NLRI types store wire format in `_packed`:
+After ADD-PATH simplification (Phase 3), NLRI methods return **payload only**:
 
 ```go
 type NLRI interface {
-    PackNLRI(negotiated *Negotiated) []byte
-    Index() []byte  // For RIB deduplication
+    Family() Family
+    Len() int                                    // Payload length (no path ID)
+    Bytes() []byte                               // Payload bytes (no path ID)
+    WriteTo(buf []byte, off int, ctx) int        // Write payload only
+    PathID() uint32                              // Stored path ID (0 if unset)
+    String() string
 }
 
-// INET stores complete wire format
+// INET stores parsed data (not wire format)
 type INET struct {
-    packed     []byte  // [addpath:4?][mask:1][prefix:var]
-    hasAddpath bool
-}
-
-// Properties extract data lazily
-func (i *INET) CIDR() CIDR {
-    offset := 0
-    if i.hasAddpath { offset = 4 }
-    return ParseCIDR(i.packed[offset:])
+    family Family
+    prefix netip.Prefix
+    pathID uint32  // RFC 7911: 0 means no path ID
 }
 ```
+
+### ADD-PATH Encoding (RFC 7911)
+
+Path ID is handled **separately** from NLRI payload encoding:
+
+```go
+// Calculate wire length with ADD-PATH
+size := nlri.LenWithContext(n, ctx)  // +4 when ctx.AddPath=true
+
+// Write NLRI with ADD-PATH handling
+buf := make([]byte, size)
+nlri.WriteNLRI(n, buf, 0, ctx)  // Prepends path ID when ctx.AddPath=true
+```
+
+**WriteNLRI behavior:**
+- `ctx.AddPath=true`: writes `[4-byte pathID][payload]`
+- `ctx.AddPath=false` or `ctx=nil`: writes `[payload]` only
 
 ### Index Generation
 
-For RIB deduplication, index includes family + packed bytes:
+For RIB deduplication, index includes family + path ID + prefix:
 
 ```go
 func (i *INET) Index() []byte {
-    return append(i.Family().Index(), i.packed...)
-}
-```
-
-### ADD-PATH Handling
-
-```go
-func (i *INET) PackNLRI(neg *Negotiated) []byte {
-    sendAddpath := neg.AddPath.Send(i.AFI, i.SAFI)
-
-    if sendAddpath {
-        if i.hasAddpath {
-            return i.packed  // Zero-copy
-        }
-        // Prepend NOPATH (4 zero bytes)
-        return append([]byte{0,0,0,0}, i.packed...)
-    } else {
-        if i.hasAddpath {
-            return i.packed[4:]  // Strip path ID
-        }
-        return i.packed  // Zero-copy
-    }
+    // Family bytes + path ID (for uniqueness) + prefix bytes
+    return append(i.Family().Index(), i.Bytes()...)
 }
 ```
 
@@ -510,4 +507,4 @@ func (i *INET) PackNLRI(neg *Negotiated) []byte {
 
 ---
 
-**Last Updated:** 2025-12-19
+**Last Updated:** 2026-01-04

@@ -153,14 +153,15 @@ If the implementation changed how ZeBGP works, update `.claude/zebgp/` docs:
 
 ### Move Completed Spec
 
-Find next free 3-digit number and move:
+Find next free 3-digit number (starting from 001) and move:
 ```bash
-# Find next number (check existing in plan/done/)
-ls plan/done/ | grep -E "^[0-9]{3}-" | sort | tail -1
+# Find next number (check existing in plan/done/, start at 001 if empty)
+LAST=$(ls plan/done/ 2>/dev/null | grep -E "^[0-9]{3}-" | sort | tail -1 | cut -c1-3)
+NEXT=$(printf "%03d" $((10#${LAST:-0} + 1)))
 # Move with number prefix
-mv plan/spec-<name>.md plan/done/NNN-<name>.md
+mv plan/spec-<name>.md plan/done/${NEXT}-<name>.md
 # Commit the completion
-git add plan/done/NNN-<name>.md && git commit -m "docs: complete spec NNN-<name>"
+git add plan/done/${NEXT}-<name>.md && git commit -m "docs: complete spec ${NEXT}-<name>"
 ```
 
 ## Why This Matters
