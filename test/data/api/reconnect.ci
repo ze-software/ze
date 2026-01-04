@@ -1,4 +1,4 @@
-option:file:teardown.conf
+option:file:reconnect.conf
 option:tcp_connections:3
 option:timeout:18s
 # the first route and inet4 unicast EOR
