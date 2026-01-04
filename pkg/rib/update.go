@@ -1,6 +1,7 @@
 package rib
 
 import (
+	"fmt"
 	"log/slog"
 	"net/netip"
 
@@ -63,7 +64,7 @@ func buildPathAttributes(group *RouteGroup) []byte {
 }
 
 // buildNLRIBytes packs all NLRIs from the group into wire format.
-// RFC 7911: Uses WriteTo(ctx) for ADD-PATH aware encoding.
+// RFC 7911: Uses WriteNLRI for centralized ADD-PATH handling.
 // Zero-allocation: calculates size then writes with copy.
 func buildNLRIBytes(group *RouteGroup, ctx *nlri.PackContext) []byte {
 	if len(group.Routes) == 0 {
@@ -76,21 +77,20 @@ func buildNLRIBytes(group *RouteGroup, ctx *nlri.PackContext) []byte {
 		totalLen += nlri.LenWithContext(route.NLRI(), ctx)
 	}
 
-	// Write all NLRIs using copy
+	// Write all NLRIs using WriteNLRI for centralized ADD-PATH handling
 	buf := make([]byte, totalLen)
 	off := 0
 	for _, route := range group.Routes {
-		off += route.NLRI().WriteTo(buf, off, ctx)
+		off += nlri.WriteNLRI(route.NLRI(), buf, off, ctx)
 	}
 
-	// Sanity check: verify size calculation matches actual bytes written
+	// Invariant: LenWithContext must match WriteNLRI
 	if off != totalLen {
-		slog.Error("NLRI size mismatch: LenWithContext disagrees with WriteTo",
+		slog.Error("NLRI size mismatch: LenWithContext disagrees with WriteNLRI",
 			"predicted", totalLen,
 			"actual", off,
 			"routes", len(group.Routes))
-		// Return actual bytes written to maintain correctness
-		return buf[:off]
+		panic(fmt.Sprintf("BUG: NLRI size mismatch: LenWithContext=%d WriteNLRI=%d", totalLen, off))
 	}
 
 	return buf

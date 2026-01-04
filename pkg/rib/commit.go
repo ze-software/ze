@@ -2,6 +2,7 @@ package rib
 
 import (
 	"errors"
+	"fmt"
 	"log/slog"
 	"net/netip"
 	"sort"
@@ -294,14 +295,13 @@ func (c *CommitService) packAttributesWithASPath(attrs []attribute.Attribute, as
 		off += attribute.WriteAttrTo(attr, buf, off)
 	}
 
-	// Sanity check: verify size calculation matches actual bytes written
+	// Invariant: attrSize must match WriteAttrTo
 	if off != totalLen {
 		slog.Error("attribute size mismatch: attrSize disagrees with WriteAttrTo",
 			"predicted", totalLen,
 			"actual", off,
 			"attrCount", len(otherAttrs)+4) // origin, aspath, nh, localpref + others
-		// Return actual bytes written to maintain correctness
-		return buf[:off]
+		panic(fmt.Sprintf("BUG: attribute size mismatch: predicted=%d actual=%d", totalLen, off))
 	}
 
 	return buf
