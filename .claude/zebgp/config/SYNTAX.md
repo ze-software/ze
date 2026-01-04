@@ -247,7 +247,93 @@ api foo { receive { state; } }
 
 ---
 
-## Static Routes
+## Update Block (NOT IMPLEMENTED)
+
+**Status:** Design specification - not yet implemented.
+
+New unified syntax for announcing routes with chained attribute modifications.
+
+### Syntax
+
+```
+update {
+    <encoding> {
+        attr {
+            <set|add|del> <attribute>;
+            ...
+            nlri <family> add <nlri>... [del <nlri>...];
+            ...
+        }
+        attr { ... }  # Each top-level attr block = clean state
+    }
+}
+```
+
+- `attr { }` block = clean state (no inherited attributes)
+- `set <attr>` = replace value (`k = v`)
+- `add <attr>` = append to list (`k.append(v)`) - community, large-community, extended-community
+- `del <attr>` = remove from list (`k.remove(v)`)
+- `nlri` uses current accumulated attributes
+
+### Encodings
+
+| Encoding | Attributes | NLRI |
+|----------|------------|------|
+| `text` | Parsed keywords | Prefixes |
+| `hex` | Hex wire bytes | Hex wire bytes |
+| `b64` | Base64 wire bytes | Base64 wire bytes |
+| `cbor` | CBOR binary | CBOR binary |
+
+### Example (text)
+
+```
+update {
+    text {
+        # Route group 1
+        attr {
+            set next-hop 10.0.0.1;
+            set origin igp;
+            set community [65000:1 65000:2];
+
+            nlri ipv4/unicast add 1.0.0.0/24 2.0.0.0/24;
+
+            add community [65000:3];
+            nlri ipv4/unicast add 3.0.0.0/24;
+
+            del community [65000:1];
+            nlri ipv4/unicast add 4.0.0.0/24 del 5.0.0.0/24;
+        }
+
+        # Route group 2 - clean state
+        attr {
+            set next-hop 10.0.0.2;
+            set med 200;
+
+            nlri ipv4/unicast add 6.0.0.0/24;
+        }
+    }
+}
+```
+
+### Example (hex)
+
+```
+update {
+    hex {
+        attr {
+            set 400101400206020100001f94400304050607;
+            # Spaces help track NLRI boundaries for UPDATE size splitting
+            nlri ipv4/unicast add 18010a00 18020b00;
+        }
+    }
+}
+```
+
+See `.claude/zebgp/api/UPDATE_SYNTAX.md` for full specification.
+
+---
+
+## Static Routes (Current Implementation)
 
 ```
 static {

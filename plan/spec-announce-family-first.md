@@ -18,117 +18,269 @@ Remove `announce route` and `announce attributes` commands.
 
 ## Design
 
-### New Syntax
+### Unified Update Syntax
+
+API and config share the same structure - encoding before attr:
 
 ```
-announce <family> <shared-attrs>... nlri <prefix>... [add|set <attr>]... [watchdog <name>]
+update <encoding> [attr <set|add|del> <attributes>]... [nlri <family> add <nlri>... [del <nlri>...]]...
 ```
+
+- `attr set` - replace all attributes
+- `attr add` - add to list attributes (community, large-community, extended-community)
+- `attr del` - remove from list attributes
+- Multiple `attr` and `nlri` sections allowed - attributes accumulate and apply to subsequent `nlri` sections
+
+### Encodings
+
+| Encoding | Attributes | NLRI | Use case |
+|----------|------------|------|----------|
+| `text` | Parsed (next-hop, med, ...) | Prefixes (1.0.0.0/24) | Human-readable |
+| `hex` | Hex wire bytes | Hex wire bytes | Debug |
+| `b64` | Base64 wire bytes | Base64 wire bytes | Compact |
+| `cbor` | CBOR binary | CBOR binary | Performance |
+
+### API Command Format
+
+```
+peer <addr> update <encoding> [attr <set|add|del> <attributes>]... [nlri <family> add <nlri>... [del <nlri>...]]...
+```
+
+**Examples:**
+```bash
+peer 10.0.0.1 update text attr set next-hop 10.0.0.1 med 100 nlri ipv4/unicast add 1.0.0.0/24
+peer 10.0.0.1 update hex attr set 400101... nlri ipv4/unicast add 18000a000a00
+peer 10.0.0.1 update b64 attr set QAEB... nlri ipv4/unicast add GAAK...
+```
+
+### Config File Format
+
+```
+update {
+    <encoding> {
+        attr {
+            <set|add|del> <attribute>;
+            ...
+            nlri <family> add <nlri>... [del <nlri>...];
+            ...
+        }
+        attr { ... }  # Each top-level attr block starts with clean state
+    }
+}
+```
+
+- `attr { }` block = clean state (no inherited attributes)
+- `set <attr>` = replace value
+- `add <attr>` = append to list (community, etc.)
+- `del <attr>` = remove from list
+- `nlri` uses current accumulated attributes
+
+**Example (text):**
+```
+update {
+    text {
+        # Route group 1
+        attr {
+            set next-hop 10.0.0.1;
+            set origin igp;
+            set community [65000:1 65000:2];
+
+            nlri ipv4/unicast add 1.0.0.0/24 2.0.0.0/24;
+
+            add community [65000:3];
+            nlri ipv4/unicast add 3.0.0.0/24;
+
+            del community [65000:1];
+            nlri ipv4/unicast add 4.0.0.0/24 del 5.0.0.0/24;
+        }
+
+        # Route group 2 - clean state
+        attr {
+            set next-hop 10.0.0.2;
+            set med 200;
+
+            nlri ipv4/unicast add 6.0.0.0/24;
+        }
+    }
+}
+```
+
+**Example (hex):**
+```
+update {
+    hex {
+        attr {
+            set 400101400206020100001f94400304050607;
+            # Spaces help track NLRI boundaries for UPDATE size splitting
+            nlri ipv4/unicast add 18010a00 18020b00;  # 10.0.0.0/24, 11.0.0.0/24
+        }
+        attr {
+            set 400101;
+            nlri ipv4/unicast del 18030c00;  # 12.0.0.0/24
+        }
+    }
+}
+```
+
+### Chained Attr/NLRI Sections
+
+Multiple `attr` and `nlri` sections can be chained. Attributes accumulate and apply to subsequent `nlri`:
+
+```bash
+peer 10.0.0.1 update text \
+    attr set next-hop 10.0.0.1 origin igp community [65000:1 65000:2] \
+    nlri ipv4/unicast add 1.0.0.0/24 2.0.0.0/24 \
+    attr add community [65000:3] \
+    nlri ipv4/unicast add 3.0.0.0/24 \
+    attr del community [65000:1] \
+    nlri ipv4/unicast add 4.0.0.0/24 del 5.0.0.0/24
+```
+
+Result:
+- `1.0.0.0/24`, `2.0.0.0/24` → next-hop, origin, community [65000:1 65000:2]
+- `3.0.0.0/24` → next-hop, origin, community [65000:1 65000:2 65000:3]
+- `4.0.0.0/24` → next-hop, origin, community [65000:2 65000:3]
+- `5.0.0.0/24` → withdraw
+
+### Common Parser
+
+API and config share the same parser with format-specific tokenizer:
+
+```
+Tokenizer (format-specific)
+    ├── API: split on whitespace, newline terminates
+    └── Config: split on whitespace + { } ;
+            ↓
+Common Token Stream: [update, hex, attr, 400101..., nlri, ipv4/unicast, add, 18000a...]
+            ↓
+Shared Parser: parseUpdate() → parseEncoding() → parseAttr() → parseNlri()
+            ↓
+         AST / Command struct
+```
+
+| Aspect | API | Config |
+|--------|-----|--------|
+| Blocks | implicit | `{ }` |
+| Terminator | newline | `;` |
+| Multiple attrs | separate commands | multiple `attr { }` |
+| Peer selector | `peer 10.0.0.1` | neighbor block context |
 
 ### Grammar
 
 ```
-<command>     := announce <family> <shared-attrs> <nlri-groups> [watchdog <name>]
-<family>      := ipv4/unicast | ipv4/mpls-vpn | ipv4/nlri-mpls | ipv4/mup
-              |  ipv6/unicast | ipv6/mpls-vpn | ipv6/nlri-mpls | ipv6/mup
-<shared-attrs> := <attr>...
-<nlri-groups> := <nlri-group>...
-<nlri-group>  := nlri <prefix>... [<override>...]
-<override>    := add <attr> | set <attr>
+<command>     := peer <addr> update <encoding> <sections> [watchdog <name>]
+<sections>    := <section>...
+<section>     := <attr-section> | <nlri-section>
+<attr-section>:= attr <attr-mode> <attributes>
+<attr-mode>   := set | add | del
+<encoding>    := text | hex | b64 | cbor
+<attributes>  := <text-attrs> | <wire-data>
+<text-attrs>  := <attr>...
+<wire-data>   := <encoded-bytes>
 <attr>        := next-hop <addr> | origin <type> | med <n> | local-preference <n>
               |  community [...] | large-community [...] | extended-community [...]
-              |  as-path [...] | ...
+              |  as-path [...] | rd <rd> | label <n> | ...
+<nlri-sections> := <nlri-section>...
+<nlri-section>:= nlri <family> <nlri-ops> [<override-attrs>]
+<nlri-ops>    := add <nlri>... [del <nlri>...]
+<override-attrs> := <attr>... (text mode only)
+<family>      := ipv4/unicast | ipv4/mpls-vpn | ipv4/nlri-mpls | ipv4/mup
+              |  ipv6/unicast | ipv6/mpls-vpn | ipv6/nlri-mpls | ipv6/mup
+<nlri>        := <prefix> (text) | <encoded-bytes> (hex/b64/cbor)
 ```
-
-### Override Semantics
-
-| Modifier | List attrs (community, etc.) | Scalar attrs (med, etc.) |
-|----------|------------------------------|--------------------------|
-| `add`    | Append to shared list        | Set if missing, ERROR if exists |
-| `set`    | Replace shared list          | Override value |
 
 ### Family Validation
 
-- `announce ipv4/*` rejects IPv6 prefixes
-- `announce ipv6/*` rejects IPv4 prefixes
-- Error message: "prefix family mismatch: expected IPv4, got IPv6"
+- `nlri ipv4/*` rejects IPv6 prefixes (parsed mode)
+- `nlri ipv6/*` rejects IPv4 prefixes (parsed mode)
+- Wire bytes mode: no validation (peer's responsibility)
 
-### Examples
+### Examples (text)
 
 ```bash
-# Simple single route
-announce ipv4/unicast next-hop 10.0.0.1 nlri 1.0.0.0/24
+# Simple announce
+peer 10.0.0.1 update text attr set next-hop 10.0.0.1 nlri ipv4/unicast add 1.0.0.0/24
 
-# Multiple routes with shared attributes
-announce ipv4/unicast next-hop 10.0.0.1 origin igp community [65000:1] \
-    nlri 1.0.0.0/24 2.0.0.0/24 3.0.0.0/24
+# Multiple routes
+peer 10.0.0.1 update text attr set next-hop 10.0.0.1 origin igp community [65000:1] \
+    nlri ipv4/unicast add 1.0.0.0/24 2.0.0.0/24 3.0.0.0/24
 
-# Per-route overrides
-announce ipv4/unicast next-hop 10.0.0.1 community [65000:1] origin igp \
-    nlri 1.0.0.0/24 \
-    nlri 2.0.0.0/24 add community [65000:2] \
-    nlri 3.0.0.0/24 set community [65000:3] \
-    nlri 4.0.0.0/24 set med 100 add community [65000:4]
-
-# With watchdog
-announce ipv4/unicast next-hop 10.0.0.1 nlri 10.0.0.0/24 watchdog mygroup
+# Announce and withdraw
+peer 10.0.0.1 update text attr set next-hop 10.0.0.1 \
+    nlri ipv4/unicast add 1.0.0.0/24 del 2.0.0.0/24
 
 # IPv6
-announce ipv6/unicast next-hop 2001::1 nlri 2001:db8::/32
+peer 10.0.0.1 update text attr set next-hop 2001::1 nlri ipv6/unicast add 2001:db8::/32
 
-# VPN with RD/label in shared attrs
-announce ipv4/mpls-vpn next-hop 10.0.0.1 rd 65000:100 label 1000 \
+# VPN with RD/label
+peer 10.0.0.1 update text attr set next-hop 10.0.0.1 rd 65000:100 label 1000 \
     extended-community [target:65000:100] \
-    nlri 10.0.0.0/24 10.0.1.0/24
+    nlri ipv4/mpls-vpn add 10.0.0.0/24 10.0.1.0/24
 
-# Labeled unicast
-announce ipv4/nlri-mpls next-hop 10.0.0.1 label 100 \
-    nlri 10.0.0.0/24 \
-    nlri 10.0.1.0/24 set label 101
+# Multiple families
+peer 10.0.0.1 update text attr set next-hop 10.0.0.1 \
+    nlri ipv4/unicast add 1.0.0.0/24 \
+    nlri ipv6/unicast add 2001:db8::/32
+
+# Chained attr sections (attributes accumulate)
+peer 10.0.0.1 update text \
+    attr set next-hop 10.0.0.1 origin igp community [65000:1 65000:2] \
+    nlri ipv4/unicast add 1.0.0.0/24 \
+    attr add community [65000:3] \
+    nlri ipv4/unicast add 2.0.0.0/24 \
+    attr del community [65000:1] \
+    nlri ipv4/unicast add 3.0.0.0/24
+
+# With watchdog
+peer 10.0.0.1 update text attr set next-hop 10.0.0.1 nlri ipv4/unicast add 10.0.0.0/24 watchdog mygroup
+```
+
+### Examples (Wire Bytes)
+
+```bash
+# Hex encoding - spaces optional, concatenated as raw wire bytes
+# Spaces help track NLRI boundaries for UPDATE size management (max 4096 bytes)
+peer 10.0.0.1 update hex attr set 400101400206020100001f94 nlri ipv4/unicast add 18010a00 18020b00
+# Or as single blob:
+peer 10.0.0.1 update hex attr set 400101400206020100001f94 nlri ipv4/unicast add 18010a0018020b00
+
+# Base64 encoding
+peer 10.0.0.1 update b64 attr set QAEBQAIGAgEAAAH5 nlri ipv4/unicast add GAAKAAoA
+
+# Announce and withdraw
+peer 10.0.0.1 update hex attr set 400101400206020100001f94 \
+    nlri ipv4/unicast add 18010a00 del 18020b00
+
+# Multiple families
+peer 10.0.0.1 update hex attr set 400101400206020100001f94 \
+    nlri ipv4/unicast add 18010a00 \
+    nlri ipv6/unicast add 402001db80000000000000000000000000
 ```
 
 ## Removed Commands
 
 | Command | Migration |
 |---------|-----------|
-| `announce route <prefix> next-hop <nh>` | `announce ipv4/unicast next-hop <nh> nlri <prefix>` |
-| `announce attributes ... nlri ...` | `announce ipv4/unicast ... nlri ...` |
+| `announce route <prefix> next-hop <nh>` | `peer * update text attr set next-hop <nh> nlri ipv4/unicast add <prefix>` |
+| `announce attributes ... nlri ...` | `peer * update text attr set ... nlri ipv4/unicast add ...` |
+| `withdraw route <prefix>` | `peer * update text attr set nlri ipv4/unicast del <prefix>` |
 
 ## Kept Commands
 
 | Command | Notes |
 |---------|-------|
-| `withdraw route <prefix>` | Auto-detect family from prefix |
 | `announce watchdog <name>` | Enable watchdog group |
 | `withdraw watchdog <name>` | Disable watchdog group |
 
-## New Command: Raw Announce
+## Validation
 
-### Syntax
+### Text Mode
+- Attributes validated (valid origin, med range, etc.)
+- NLRI prefix validated against family
+- Peer must be established
 
-```
-peer <addr> announce raw <base64-attributes> nlri <base64-nlri>
-```
-
-### Purpose
-
-Send pre-encoded BGP UPDATE components without parsing/re-encoding. Used for:
-- Zero-copy forwarding from external route reflector
-- Pre-built wire bytes from policy engine
-- Testing with specific wire formats
-
-### Example
-
-```bash
-# Forward pre-encoded route to specific peer
-peer 10.0.0.1 announce raw QAEBQAIGAgEAAAH5QAMEBQYHCA== nlri GAAKAAoA
-
-# Attributes: ORIGIN IGP, AS_PATH [65529], NEXT_HOP 5.6.7.8
-# NLRI: 10.0.10.0/24
-```
-
-### Validation
-
-- Base64 must decode successfully
+### Wire Bytes Mode (hex/b64/cbor)
+- Wire bytes must decode successfully
 - Attributes must start with valid attribute flags
 - NLRI format not validated (peer's responsibility)
 - Peer must be established
@@ -137,11 +289,14 @@ peer 10.0.0.1 announce raw QAEBQAIGAgEAAAH5QAMEBQYHCA== nlri GAAKAAoA
 
 | Condition | Message |
 |-----------|---------|
-| Invalid base64 | `invalid base64 in attributes: <error>` |
+| Invalid encoding | `invalid hex/b64 in attributes: <error>` |
 | Peer not found | `peer not found: 10.0.0.1` |
 | Peer not established | `peer not established: 10.0.0.1` |
+| Invalid family | `invalid family: <family>` |
+| Missing add/del | `expected 'add' or 'del' after nlri family` |
+| Prefix family mismatch | `prefix family mismatch: 2001:db8::/32 is IPv6, expected IPv4` |
 
-## Raw Output Format (Receive)
+## Wire Bytes Output Format (Receive)
 
 ### Two Modes: Forward-Only vs Payload
 
@@ -180,8 +335,9 @@ session api encoding <format>           # Both directions
 
 | Format | Overhead | Default | Notes |
 |--------|----------|---------|-------|
-| `hex` | 100% | ✅ Yes | Human-readable, debug-friendly |
-| `base64` | 33% | | Standard, good Python support |
+| `text` | N/A | | Parsed attributes and prefixes |
+| `hex` | 100% | ✅ Yes | Human-readable wire bytes |
+| `b64` | 33% | | Compact wire bytes |
 | `cbor` | 0% | | RFC 8949, native binary |
 
 **Default is `hex`** for maximum compatibility and debuggability.
@@ -192,27 +348,51 @@ session api encoding <format>           # Both directions
 session api encoding hex
 
 # Production Python (smaller payload)
-session api encoding base64
+session api encoding b64
 
 # Performance Go/Rust (native binary)
 session api encoding cbor
 
 # Mixed: debug inbound, efficient outbound
 session api encoding inbound hex
-session api encoding outbound base64
+session api encoding outbound b64
 ```
 
 **Note:** `cbor` output uses native binary blobs - both directions must be cbor.
 
 ### Output Format
 
-Wire bytes field name depends on encoding:
+Encoding keyword is self-describing:
 
 ```
-peer 10.0.0.1 update raw <encoded-attributes> nlri <family> <encoded-nlri>
+peer <addr> update <encoding> [attr <set|add|del> <attributes>]... [nlri <family> add <nlri>... [del <nlri>...]]...
 ```
 
-### Attribute Encoding
+### Example Output (text)
+
+```json
+{
+  "type": "update",
+  "direction": "received",
+  "msg-id": 123,
+  "peer": {"address": "10.0.0.1", "asn": 65001},
+  "attr": {
+    "encoding": "text",
+    "origin": "igp",
+    "as-path": [65001, 65002],
+    "next-hop": "10.0.0.1",
+    "med": 100
+  },
+  "nlri": {
+    "ipv4/unicast": {
+      "add": ["10.0.0.0/24", "10.0.1.0/24"],
+      "del": ["10.0.2.0/24"]
+    }
+  }
+}
+```
+
+### Attribute Encoding (wire bytes)
 
 - **Included:** All path attributes in wire order
 - **Excluded:** MP_REACH_NLRI (type 14), MP_UNREACH_NLRI (type 15)
@@ -226,16 +406,20 @@ peer 10.0.0.1 update raw <encoded-attributes> nlri <family> <encoded-nlri>
   "direction": "received",
   "msg-id": 123,
   "peer": {"address": "10.0.0.1", "asn": 65001},
-  "raw": {
-    "attributes": "400101400206020100001f9400304050607",
-    "nlri": {
-      "ipv4/unicast": "18000a000a00"
+  "attr": {
+    "encoding": "hex",
+    "data": "400101400206020100001f94"
+  },
+  "nlri": {
+    "ipv4/unicast": {
+      "add": ["18000a000a00"],
+      "del": ["18000b000b00"]
     }
   }
 }
 ```
 
-### Example Output (base64)
+### Example Output (b64)
 
 ```json
 {
@@ -243,10 +427,13 @@ peer 10.0.0.1 update raw <encoded-attributes> nlri <family> <encoded-nlri>
   "direction": "received",
   "msg-id": 123,
   "peer": {"address": "10.0.0.1", "asn": 65001},
-  "raw": {
-    "attributes": "QAEBQAIGAgEAAAH5QAMEBQYHCA==",
-    "nlri": {
-      "ipv4/unicast": "GAAKAAoA"
+  "attr": {
+    "encoding": "b64",
+    "data": "QAEBQAIGAgEAAAH5"
+  },
+  "nlri": {
+    "ipv4/unicast": {
+      "add": ["GAAKAAoA"]
     }
   }
 }
@@ -261,10 +448,13 @@ CBOR uses native binary - wire bytes are embedded directly without encoding over
 {
   "type": "update",
   "msg-id": 123,
-  "raw": {
-    "attributes": h'400101400206020100001f94400304050607',
-    "nlri": {
-      "ipv4/unicast": h'18000a000a00'
+  "attr": {
+    "encoding": "cbor",
+    "data": h'400101400206020100001f94'
+  },
+  "nlri": {
+    "ipv4/unicast": {
+      "add": [h'18000a000a00']
     }
   }
 }
@@ -273,7 +463,9 @@ CBOR uses native binary - wire bytes are embedded directly without encoding over
 ### Text Format
 
 ```
-peer 10.0.0.1 received update 123 raw 400101400206... nlri ipv4/unicast 18000a000a00
+peer 10.0.0.1 received 123 update text attr set next-hop 10.0.0.1 med 100 nlri ipv4/unicast add 10.0.0.0/24
+peer 10.0.0.1 received 123 update hex attr set 400101... nlri ipv4/unicast add 18000a000a00 del 18000b000b00
+peer 10.0.0.1 received 123 update b64 attr set QAEB... nlri ipv4/unicast add GAAK...
 ```
 
 ### Family Support
@@ -375,8 +567,8 @@ Wire bytes encoding controlled at runtime via `session api encoding` command.
 2. Implement encoding session handlers → MUST PASS
 3. Write test for hex wire bytes output → MUST FAIL
 4. Implement hex encoder → MUST PASS
-5. Write test for base64 wire bytes output → MUST FAIL
-6. Implement base64 encoder → MUST PASS
+5. Write test for b64 wire bytes output → MUST FAIL
+6. Implement b64 encoder → MUST PASS
 7. Write test for CBOR output → MUST FAIL
 8. Implement CBOR encoder (`fxamacker/cbor`) → MUST PASS
 
@@ -413,7 +605,7 @@ Wire bytes encoding controlled at runtime via `session api encoding` command.
 - [ ] Test passes after impl
 - [ ] Test fails first (hex encoder)
 - [ ] Test passes after impl
-- [ ] Test fails first (base64 encoder)
+- [ ] Test fails first (b64 encoder)
 - [ ] Test passes after impl
 - [ ] Test fails first (CBOR encoder)
 - [ ] Test passes after impl

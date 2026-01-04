@@ -4,6 +4,26 @@
 > The ZeBGP engine is a minimal BGP speaker - no RIB, no best-path, no policy.
 > See `plan/DESIGN_TRANSITION.md` for the full architecture.
 
+## Implementation Status
+
+| Feature | Status | Code Location |
+|---------|--------|---------------|
+| Process management | ✅ Done | `process.go` |
+| Backpressure (1000/100) | ✅ Done | `process.go:18-26` |
+| Respawn limits (5/60s) | ✅ Done | `process.go:28-33` |
+| Command dispatch | ✅ Done | `command.go` |
+| Plugin commands | ✅ Done | `registry.go`, `plugin.go` |
+| Route injection | ✅ Done | `route.go` |
+| Forward update-id | ✅ Done | `forward.go` |
+| Session sync | ✅ Done | `session.go` |
+| JSON/text encoding | ✅ Done | `json.go`, `text.go` |
+| RR plugin | ✅ Done | `rr/server.go` |
+| Persist plugin | ✅ Done | `persist/persist.go` |
+| msg-id cache control | ❌ Not impl | Documented but no handlers |
+| borr/eorr markers | ❌ Not impl | Enhanced RR incomplete |
+
+---
+
 ## TL;DR (Read This First)
 
 | Concept | Description |
@@ -62,7 +82,10 @@ Engine sends base64-encoded wire bytes to API:
 
 API decodes and stores in pool for deduplication.
 
-### msg-id Cache Control
+### msg-id Cache Control (❌ NOT IMPLEMENTED)
+
+> **Status:** These commands are documented but not yet implemented.
+> See `CAPABILITY_CONTRACT.md` for implementation roadmap.
 
 API controls msg-id lifetime:
 

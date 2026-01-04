@@ -1,5 +1,22 @@
 # API Capability Contract
 
+## Implementation Status
+
+| Feature | Status | Notes |
+|---------|--------|-------|
+| `msg-id` in events | ✅ Done | `json.go`, `text.go` |
+| `forward update-id` | ✅ Done | `forward.go` |
+| `capability route-refresh` | ✅ Done | `rr/server.go:68` |
+| `session api ready` | ✅ Done | `session.go` |
+| Refresh event handling | ✅ Done | `rr/server.go`, `decode.go` |
+| `msg-id retain/release/expire` | ❌ Not impl | No handlers registered |
+| `msg-id list` | ❌ Not impl | No handler |
+| 5s startup timeout | ❌ Not impl | No validation |
+| Config validation (GR→API) | ❌ Not impl | No fail-fast check |
+| `borr`/`eorr` markers | ❌ Not impl | No handlers |
+
+---
+
 ## TL;DR
 
 | Concept | Description |
@@ -51,7 +68,10 @@ All other capabilities (ADD-PATH, 4-byte AS, etc.) are engine-handled.
 
 ---
 
-## msg-id Cache Control
+## msg-id Cache Control (❌ NOT IMPLEMENTED)
+
+> **Status:** These commands are documented but not yet implemented.
+> Requires: handler registration in `handler.go`, cache store in reactor.
 
 API controls msg-id cache lifetime in engine:
 
@@ -85,18 +105,23 @@ peer A announce raw <base64-attrs> nlri ipv4/unicast <base64-nlri>
 
 ---
 
-## Startup Protocol
+## Startup Protocol (⚠️ PARTIAL)
+
+> **Status:** `session api ready` exists but no 5s timeout validation.
+> Process can advertise capabilities but engine doesn't validate or fail-fast.
 
 1. Engine spawns process
-2. Process advertises: `capability route-refresh` (within 5s)
-3. Engine collects all process capabilities
-4. Engine validates: config requirements ⊆ process capabilities
+2. Process advertises: `capability route-refresh` (within 5s) ❌ no timeout
+3. Engine collects all process capabilities ❌ not collected
+4. Engine validates: config requirements ⊆ process capabilities ❌ no validation
 5. If OK: start peer sessions
-6. If mismatch/timeout: refuse to start
+6. If mismatch/timeout: refuse to start ❌ no fail-fast
 
 ---
 
-## Config Validation
+## Config Validation (❌ NOT IMPLEMENTED)
+
+> **Status:** No validation exists. Config loader accepts GR/RR without API.
 
 If peer has `graceful-restart`, `route-refresh`, or `enhanced-route-refresh` but no API with `send { update; }`:
 
@@ -107,14 +132,16 @@ ERROR: peer 192.168.1.1 has graceful-restart but no API to resend routes
 
 ---
 
-## Refresh Commands
+## Refresh Commands (⚠️ PARTIAL)
 
-**Router → API:**
+> **Status:** `refresh` event sent to API. `borr`/`eorr` handlers not implemented.
+
+**Router → API:** ✅ Implemented
 ```
 peer 192.168.1.1 refresh ipv4/unicast
 ```
 
-**API → Router:**
+**API → Router:** ❌ borr/eorr not implemented
 ```
 peer 192.168.1.1 borr ipv4/unicast
 announce route 10.0.0.0/24 next-hop self
@@ -157,4 +184,4 @@ See `plan/spec-api-rr.md` for implementation details.
 
 ---
 
-**Last Updated:** 2026-01-04
+**Last Updated:** 2026-01-04 (implementation status reviewed)
