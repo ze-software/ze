@@ -363,6 +363,10 @@ type ReactorInterface interface {
 	// DeleteUpdate removes an update from the cache without forwarding.
 	// Used when controller decides not to forward (filtering).
 	DeleteUpdate(updateID uint64) error
+
+	// SignalAPIReady signals that an API process is ready.
+	// When all processes have signaled, WaitForAPIReady returns.
+	SignalAPIReady()
 }
 
 // PeerAPIBinding describes which process receives messages from a peer.
@@ -380,6 +384,7 @@ type PeerAPIBinding struct {
 	ReceiveKeepalive    bool
 	ReceiveRefresh      bool
 	ReceiveState        bool
+	ReceiveSent         bool // Forward sent UPDATE events
 
 	// Send settings (WHAT message types process can send)
 	SendUpdate  bool

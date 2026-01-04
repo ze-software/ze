@@ -3,7 +3,7 @@
 import sys
 import time
 
-from exabgp_api import send, wait_for_ack, wait_for_shutdown
+from exabgp_api import ready, send, wait_for_ack, wait_for_shutdown
 
 # Test sequence:
 # 1. Send a regular announce command and expect ACK (baseline test)
@@ -20,7 +20,7 @@ def fail(msg: str) -> None:
 
 
 def main() -> None:
-    time.sleep(0.2)  # let the EOR pass
+    ready()
 
     # Step 1: Baseline - send command and expect ACK
     send('announce route 2.1.0.0/24 next-hop 102.1.102.1')

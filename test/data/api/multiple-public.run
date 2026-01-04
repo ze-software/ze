@@ -2,10 +2,12 @@
 
 import time
 
-from exabgp_api import send, wait_for_ack, wait_for_shutdown
+from exabgp_api import ready, send, wait_for_ack, wait_for_shutdown
 
 
 def main() -> None:
+    ready()
+
     messages = [
         'announce route 1.1.1.1/32 next-hop 127.0.0.1',
         'announce route 3.3.3.3/32 next-hop 127.0.0.1',

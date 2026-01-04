@@ -3,10 +3,12 @@
 import sys
 import time
 
-from exabgp_api import send, wait_for_ack, wait_for_shutdown
+from exabgp_api import ready, send, wait_for_ack, wait_for_shutdown
 
 
 def main() -> None:
+    ready()
+
     messages = [
         'announce flow route { match { source 4.4.4.4/32; } then { rate-limit 0; } }',
         'announce flow route { match { source 5.5.5.5/32; } then { discard; } }',

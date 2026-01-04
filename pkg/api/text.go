@@ -159,16 +159,20 @@ func formatFilterResultJSON(peer PeerInfo, result FilterResult, msgID uint64, di
 	sb.WriteString(fmt.Sprintf("%d", peer.PeerAS))
 	sb.WriteString(`}`)
 
+	// Attributes at top level (not inside announce - that breaks JSON parsing for persist plugin)
+	if len(result.Attributes) > 0 {
+		sb.WriteString(",")
+		formatAttributesJSON(&sb, result)
+	}
+
 	// Announced routes - grouped by family with per-family next-hop
 	announced := result.AnnouncedByFamily()
 	if len(announced) > 0 {
 		sb.WriteString(`,"announce":{`)
 
-		// Attributes first (only what filter requested)
-		needComma := formatAttributesJSON(&sb, result)
-
+		first := true
 		for _, fam := range announced {
-			if needComma {
+			if !first {
 				sb.WriteString(",")
 			}
 			// Family name (e.g., "ipv4/unicast")
@@ -187,7 +191,7 @@ func formatFilterResultJSON(peer PeerInfo, result FilterResult, msgID uint64, di
 				sb.WriteString(`"`)
 			}
 			sb.WriteString("]}")
-			needComma = true
+			first = false
 		}
 
 		sb.WriteString(`}`)
@@ -529,4 +533,22 @@ func formatStateChangeJSON(peer PeerInfo, state string) string {
 
 func formatStateChangeText(peer PeerInfo, state string) string {
 	return fmt.Sprintf("peer %s asn %d state %s\n", peer.Address, peer.PeerAS, state)
+}
+
+// FormatSentMessage formats a sent UPDATE message.
+// Uses "type":"sent" instead of "type":"update" to distinguish from received messages.
+// For text format, uses "sent update" instead of "received update".
+func FormatSentMessage(peer PeerInfo, msg RawMessage, content ContentConfig) string {
+	// Force direction to "sent" for sent messages
+	msg.Direction = "sent"
+
+	// Format as regular update message
+	output := FormatMessage(peer, msg, content)
+
+	// Replace type indicator for JSON (text format uses direction field)
+	if content.Encoding == EncodingJSON {
+		output = strings.Replace(output, `"type":"update"`, `"type":"sent"`, 1)
+	}
+
+	return output
 }

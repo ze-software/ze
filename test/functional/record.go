@@ -537,17 +537,27 @@ func (et *EncodingTests) parseAndAdd(ciFile string) error {
 	return nil
 }
 
-// parseMessageIndex extracts the message index from a prefix like "1", "A1", "2".
+// parseMessageIndex extracts the message index from a prefix like "1", "A1", "B2".
+// Connection letters are encoded as offsets: A=0, B=100, C=200, D=300.
+// So A1→1, B1→101, C1→201, ensuring unique indices per connection.
 func parseMessageIndex(prefix string) int {
-	// Remove leading letters (connection letter)
-	for len(prefix) > 0 && (prefix[0] >= 'A' && prefix[0] <= 'Z' || prefix[0] >= 'a' && prefix[0] <= 'z') {
-		prefix = prefix[1:]
+	connOffset := 0
+	// Extract connection letter offset
+	if len(prefix) > 0 {
+		first := prefix[0]
+		if first >= 'A' && first <= 'Z' {
+			connOffset = int(first-'A') * 100
+			prefix = prefix[1:]
+		} else if first >= 'a' && first <= 'z' {
+			connOffset = int(first-'a') * 100
+			prefix = prefix[1:]
+		}
 	}
 	idx, _ := strconv.Atoi(prefix)
 	if idx == 0 {
 		idx = 1
 	}
-	return idx
+	return connOffset + idx
 }
 
 // List prints available tests.

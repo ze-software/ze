@@ -2,10 +2,12 @@
 
 import time
 
-from exabgp_api import send, wait_for_ack, wait_for_shutdown
+from exabgp_api import ready, send, wait_for_ack, wait_for_shutdown
 
 
 def main() -> None:
+    ready()
+
     messages = [
         'announce attribute route-distinguisher 63333:100 label [ 110 ] next-hop 10.0.99.12 origin igp as-path [100, 500] local-preference 100 extended-community 0:0 originator-id 10.0.99.12 nlri 128.0.64.0/18 128.0.0.0/18',
     ]

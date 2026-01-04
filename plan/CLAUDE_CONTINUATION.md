@@ -1,6 +1,6 @@
 # Claude Continuation State
 
-**Last Updated:** 2026-01-02
+**Last Updated:** 2026-01-04
 
 ---
 
@@ -27,17 +27,95 @@
 ```
 make test       - PASS
 make lint       - 0 issues ✅
-make functional - 37 encoding + 14 api + 10 parsing + 18 decoding ✅
+make functional - 37 encoding + 13 api (1 FAIL: C teardown) + 10 parsing + 18 decoding
 ```
+
+**Test C (teardown) fails:** Needs `zebgp api persist` plugin to replay routes on peer reconnect.
 
 ---
 
 ## Resume Point
 
-**Last worked:** 2026-01-03
-**Last commit:** `6cb9515` feat(api): add command serial numbers for request/response correlation
+**Last worked:** 2026-01-04
+**Last commit:** `910f31f` feat(api): implement plugin command registration
 
-**Status:** Plugin Command Registration implemented. External processes can register custom commands.
+**Status:** RR plugin partially implemented (uncommitted). Spec updated for persist plugin.
+
+---
+
+## IN PROGRESS: API Plugins (rr + persist)
+
+**Spec:** `plan/spec-api-rr.md` ✅ UPDATED
+
+### Overview
+
+Two separate plugins sharing common code:
+
+| Plugin | Use Case | RIB | Events | Test |
+|--------|----------|-----|--------|------|
+| `zebgp api rr` | Route Server (multi-peer) | ribIn | `update`, `state` | - |
+| `zebgp api persist` | State persistence | ribOut | `sent`, `state` | Test C |
+
+### Uncommitted Files
+
+```
+pkg/api/rr/           # Partially implemented
+├── server.go
+├── server_test.go
+├── rib.go
+├── rib_test.go
+└── peer.go
+
+cmd/zebgp/
+├── api.go
+└── api_rr.go
+```
+
+### What Needs To Be Done
+
+| Phase | Component | Task | Status |
+|-------|-----------|------|--------|
+| 1 | shared | Move RIB, PeerState, Route to `pkg/api/apiutil/` | TODO |
+| 2-5 | rr | Route Server plugin (partially done) | IN PROGRESS |
+| 6-7 | persist | `zebgp api persist` for Test C | TODO |
+| 8 | core | `type: "sent"` event with source filtering | TODO |
+| 9 | core | msg-id cache (60s TTL, reset on use) | TODO |
+| 10 | core | Capability validation on startup | TODO |
+
+### Key Design Decisions
+
+1. **msg-id cache:** 60 seconds TTL, reset on use, survives peer down
+2. **ribOut on peer down:** KEPT (not cleared) for replay on reconnect
+3. **Source field:** API process name; `sender` for original peer context
+4. **EOR:** Must be sent after replay on peer up
+5. **Capability protocol:** Simple advertise model (no query/response)
+
+### Test C Fix
+
+Test C config needs two API processes:
+```
+process announce-routes { run ./teardown.run; encoder json; }
+process persist { run "zebgp api persist"; encoder json; }
+
+peer 127.0.0.1 {
+    api announce-routes { }
+    api persist {
+        receive { sent; state; }
+        send { update; }
+    }
+}
+```
+
+### Next Steps
+
+1. **Refactor:** Move shared types from `pkg/api/rr/` to `pkg/api/apiutil/`
+2. **Implement:** `zebgp api persist` in `pkg/api/persist/`
+3. **Core changes:**
+   - Add `type: "sent"` event to `pkg/api/server.go`
+   - Add `source` filtering (skip if source == processName)
+   - Add msg-id cache with 60s TTL
+4. **Update test:** Modify `test/data/api/teardown.conf` to use persist
+5. **Verify:** `make functional` should pass all tests
 
 ---
 

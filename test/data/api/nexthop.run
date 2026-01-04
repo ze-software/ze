@@ -2,11 +2,11 @@
 
 import time
 
-from exabgp_api import send, wait_for_shutdown
+from exabgp_api import ready, send, wait_for_shutdown
 
 
 def main() -> None:
-    time.sleep(0.2)
+    ready()
 
     send('neighbor 127.0.0.1 announce route 2605::2/128 next-hop 2001::1 local-preference 500')
     time.sleep(0.2)

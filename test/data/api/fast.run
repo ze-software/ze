@@ -9,15 +9,14 @@ the final expected routes.
 
 import sys
 import time
-from exabgp_api import flush, wait_for_shutdown
+from exabgp_api import flush, ready, wait_for_shutdown
 
 print("DEBUG: fast.run starting", file=sys.stderr)
 
 def main() -> None:
     print("DEBUG: main() called", file=sys.stderr)
-    # Wait for session to establish
-    time.sleep(0.2)
-    print("DEBUG: after sleep", file=sys.stderr)
+    ready()
+    print("DEBUG: after ready", file=sys.stderr)
 
     # Message 1: Announce 1.1.0.0/25
     # (ExaBGP batched: announce /24, announce /25, withdraw /24, announce /25 → just /25)

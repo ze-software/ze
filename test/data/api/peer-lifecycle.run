@@ -2,12 +2,11 @@
 
 import time
 
-from exabgp_api import send, wait_for_ack
+from exabgp_api import ready, send, wait_for_ack
 
 
 def main() -> None:
-    # Wait for ExaBGP to initialize
-    time.sleep(1)
+    ready()
 
     # Test dynamic peer lifecycle (create) + route announcement
     # This test creates a neighbor dynamically (without pre-configured neighbor)

@@ -1174,7 +1174,17 @@ func (s *Session) SendUpdate(update *message.Update) error {
 	}
 
 	_, err = conn.Write(data)
-	return err
+	if err != nil {
+		return err
+	}
+
+	// Notify callback after successful send
+	if s.onMessageReceived != nil && len(data) >= message.HeaderLen {
+		body := data[message.HeaderLen:]
+		s.onMessageReceived(s.settings.Address, message.TypeUPDATE, body, "sent")
+	}
+
+	return nil
 }
 
 // SendRawUpdateBody sends a pre-encoded UPDATE message body (without BGP header).

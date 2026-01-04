@@ -1,5 +1,10 @@
 # Spec: Full Context Integration
 
+> **📍 LOCATION CHANGE:** Context handling for RIB zero-copy forwarding now lives
+> in **API programs**. The engine still uses contexts for capability negotiation.
+> API programs use `source-ctx-id` from events to track encoding context.
+> See `plan/DESIGN_TRANSITION.md` for the overall architecture.
+
 ## MANDATORY READING (BEFORE IMPLEMENTATION)
 
 ```

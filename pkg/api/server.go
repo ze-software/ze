@@ -696,3 +696,51 @@ func (s *Server) OnPeerStateChange(peer PeerInfo, state string) {
 		_ = proc.WriteEvent(output)
 	}
 }
+
+// OnMessageSent handles BGP messages sent to peers.
+// Forwards to processes that subscribed to sent events.
+// Called by reactor after successfully sending UPDATE to peer.
+func (s *Server) OnMessageSent(peer PeerInfo, msg RawMessage) {
+	if s.procManager == nil {
+		return
+	}
+
+	// Only forward UPDATE messages for now (sent events)
+	if msg.Type != message.TypeUPDATE {
+		return
+	}
+
+	// Get peer-specific API bindings from reactor
+	bindings := s.reactor.GetPeerAPIBindings(peer.Address)
+	if len(bindings) == 0 {
+		return
+	}
+
+	for _, binding := range bindings {
+		if !binding.ReceiveSent {
+			continue
+		}
+
+		proc := s.procManager.GetProcess(binding.ProcessName)
+		if proc == nil {
+			continue
+		}
+
+		// Format using THIS BINDING's config
+		output := s.formatSentMessage(peer, msg, binding)
+		_ = proc.WriteEvent(output)
+	}
+}
+
+// formatSentMessage formats a sent UPDATE message.
+func (s *Server) formatSentMessage(peer PeerInfo, msg RawMessage, binding PeerAPIBinding) string {
+	// Build ContentConfig from binding
+	content := ContentConfig{
+		Encoding: binding.Encoding,
+		Format:   binding.Format,
+	}.WithDefaults()
+
+	// For sent events, use "sent" type instead of "update"
+	// The message body is the same format as update events
+	return FormatSentMessage(peer, msg, content)
+}

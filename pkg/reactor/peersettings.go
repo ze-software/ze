@@ -246,6 +246,7 @@ type APIBinding struct {
 	ReceiveKeepalive    bool
 	ReceiveRefresh      bool
 	ReceiveState        bool
+	ReceiveSent         bool // Forward sent UPDATE events
 
 	// Send settings (WHAT message types process can send)
 	SendUpdate  bool

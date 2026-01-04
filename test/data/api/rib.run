@@ -2,13 +2,13 @@
 
 import time
 
-from exabgp_api import send, wait_for_ack, wait_for_shutdown
+from exabgp_api import ready, send, wait_for_ack, wait_for_shutdown
 
 
 def main() -> None:
-    try:
-        time.sleep(1)
+    ready()
 
+    try:
         send('announce route 192.168.0.0/32 next-hop 10.0.0.0')
         send('clear adj-rib out')
         wait_for_ack(expected_count=2)

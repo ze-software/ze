@@ -3,15 +3,15 @@
 import sys
 import time
 
-from exabgp_api import send, wait_for_shutdown
+from exabgp_api import ready, send, wait_for_shutdown
 
 
 def main() -> None:
+    ready()
+
     announce_flow_1 = 'announce flow route { match { source 0.0.0.0/32; destination 0.0.0.0/32; destination-port =3128; protocol tcp; } then { rate-limit 0; } }'
     withdraw_flow_1 = 'withdraw flow route { match { source 0.0.0.0/32; destination 0.0.0.0/32; destination-port =3128; protocol tcp; } }'
     announce_flow_2 = 'announce flow route { match { source 255.255.255.255/32; destination 255.255.255.255/32; } then { rate-limit 65535; } }'
-
-    time.sleep(0.2)  # let the EOR pass
 
     messages = [
         withdraw_flow_1,

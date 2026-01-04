@@ -16,6 +16,9 @@ func RegisterSessionHandlers(d *Dispatcher) {
 	d.Register("session sync enable", handleSessionSyncEnable, "Enable sync mode (wait for wire)")
 	d.Register("session sync disable", handleSessionSyncDisable, "Disable sync mode")
 
+	// API startup synchronization
+	d.Register("session api ready", handleSessionAPIReady, "Signal API initialization complete")
+
 	// Session control
 	d.Register("session reset", handleSessionReset, "Reset session state")
 	d.Register("session ping", handleSessionPing, "Health check")
@@ -85,6 +88,20 @@ func handleSessionBye(ctx *CommandContext, _ []string) (*Response, error) {
 		Status: "done",
 		Data: map[string]any{
 			"status": "goodbye",
+		},
+	}, nil
+}
+
+// handleSessionAPIReady signals that an API process has completed initialization.
+// Unblocks the reactor startup, allowing BGP peer connections to begin.
+func handleSessionAPIReady(ctx *CommandContext, _ []string) (*Response, error) {
+	if ctx.Reactor != nil {
+		ctx.Reactor.SignalAPIReady()
+	}
+	return &Response{
+		Status: "done",
+		Data: map[string]any{
+			"api": "ready acknowledged",
 		},
 	}, nil
 }

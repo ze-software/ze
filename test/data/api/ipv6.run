@@ -2,10 +2,12 @@
 
 import time
 
-from exabgp_api import send, wait_for_ack, wait_for_shutdown
+from exabgp_api import ready, send, wait_for_ack, wait_for_shutdown
 
 
 def main() -> None:
+    ready()
+
     # Simplified test: unicast only (no MUP)
     announce_unicast = 'announce ipv6/unicast fc00:1::/64 next-hop 2001::11 local-preference 200'
     withdraw_unicast = 'withdraw ipv6/unicast fc00:1::/64'
@@ -14,8 +16,6 @@ def main() -> None:
         announce_unicast,
         withdraw_unicast,
     ]
-
-    time.sleep(0.2)
 
     for message in messages:
         send(message)

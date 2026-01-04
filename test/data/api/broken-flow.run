@@ -2,10 +2,12 @@
 
 import time
 
-from exabgp_api import send, wait_for_ack, wait_for_shutdown
+from exabgp_api import ready, send, wait_for_ack, wait_for_shutdown
 
 
 def main() -> None:
+    ready()
+
     announce_flow_A = 'announce flow route { match { source 170.170.170.170/32; destination 170.170.170.170/32; } then { rate-limit 1; } }'
     withdraw_flow_A = 'withdraw flow route { match { source 170.170.170.170/32; destination 170.170.170.170/32; } then { rate-limit 1; } }'
     announce_flow_B = 'announce flow route { match { source 187.187.187.187/32; destination 187.187.187.187/32; } then { rate-limit 2; } }'

@@ -2,6 +2,10 @@
 
 ## Status: Done
 
+> **📍 LOCATION CHANGE:** Wire-canonical storage now lives in **API programs**
+> via base64-encoded wire bytes in JSON events. The design principles remain valid.
+> See `plan/DESIGN_TRANSITION.md` for the overall architecture.
+
 ## Problem
 
 Current Route stores both parsed attributes AND wire cache:

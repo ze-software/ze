@@ -287,6 +287,15 @@ def _get_api() -> API:
     return _api
 
 
+def ready() -> None:
+    """Signal to ZeBGP that this API process is ready.
+
+    MUST be called at the start of every API script before sending commands.
+    ZeBGP waits for all API processes to signal ready before starting BGP peers.
+    """
+    _get_api().send('session api ready')
+
+
 def flush(msg: str) -> None:
     """Write message to stdout and flush."""
     _get_api().flush(msg)

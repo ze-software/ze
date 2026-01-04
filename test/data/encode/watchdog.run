@@ -3,10 +3,12 @@
 import os
 import time
 
-from exabgp_api import send
+from exabgp_api import ready, send
 
 
 def main() -> None:
+    ready()
+
     while os.getppid() != 1:
         send('announce watchdog dnsr')
         time.sleep(0.2)

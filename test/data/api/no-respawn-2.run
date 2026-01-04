@@ -2,16 +2,16 @@
 
 import time
 
-from exabgp_api import send, wait_for_ack, wait_for_shutdown
+from exabgp_api import ready, send, wait_for_ack, wait_for_shutdown
 
 
 def main() -> None:
+    ready()
+
     messages = [
         'announce route 2.2.2.2/32 next-hop 22.22.22.22',
         'announce route 3.3.3.3/32 next-hop 33.33.33.33',
     ]
-
-    time.sleep(0.2)
 
     for message in messages:
         send(message)

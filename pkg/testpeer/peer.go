@@ -327,25 +327,39 @@ func (p *Peer) handleConnection(ctx context.Context, conn net.Conn) Result {
 			return Result{Success: false, Error: fmt.Errorf("read: %w", err)}
 		}
 
-		counter++
 		msg := &Message{Header: header, Body: body}
-		p.printPayload("msg  recv", header, body)
 
+		// For sink/echo modes, handle all messages
 		if p.config.Mode == ModeSink {
+			counter++
+			p.printPayload("msg  recv", header, body)
 			p.printPayload(fmt.Sprintf("sank    #%d", counter), header, body)
 			_, _ = conn.Write(KeepaliveMsg())
 			continue
 		}
 
 		if p.config.Mode == ModeEcho {
+			counter++
+			p.printPayload("msg  recv", header, body)
 			p.printPayload(fmt.Sprintf("echo'd  #%d", counter), header, body)
 			_, _ = conn.Write(append(header, body...))
 			continue
 		}
 
+		// Check mode: try to match message against expectations
 		_, _ = conn.Write(KeepaliveMsg())
 
-		if !p.checker.Expected(msg) {
+		matched, silentAccept := p.checker.ExpectedOrKeepalive(msg)
+		if silentAccept {
+			// KEEPALIVE not in expectations, silently accept
+			continue
+		}
+
+		// Count and print non-silent messages
+		counter++
+		p.printPayload("msg  recv", header, body)
+
+		if !matched {
 			expected, received := p.checker.LastMismatch()
 			diff := Diff(expected, received)
 			return Result{Success: false, Error: fmt.Errorf("message mismatch%s", diff)}
@@ -734,6 +748,52 @@ func (c *Checker) Expected(msg *Message) bool {
 	}
 
 	return false
+}
+
+// ExpectedOrKeepalive checks if message matches expectations.
+// Returns (matched, silentAccept):
+//   - (true, false): message matched and was consumed
+//   - (false, true): KEEPALIVE not in expectations, silently accepted
+//   - (false, false): message doesn't match, should fail
+func (c *Checker) ExpectedOrKeepalive(msg *Message) (matched, silentAccept bool) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	// If no expectations, accept KEEPALIVE or EOR silently.
+	if len(c.sequences) == 0 && len(c.messages) == 0 {
+		if msg.IsKeepalive() || msg.IsEOR() {
+			return false, true
+		}
+		return false, false
+	}
+
+	stream := msg.Stream()
+
+	for i, check := range c.messages {
+		received := stream
+		if !strings.HasPrefix(check, strings.Repeat("F", 32)) && !strings.Contains(check, ":") {
+			received = received[32:]
+		}
+
+		if strings.EqualFold(check, received) {
+			c.messages = append(c.messages[:i], c.messages[i+1:]...)
+			c.updateMessagesIfRequired()
+			return true, false
+		}
+	}
+
+	// No match - if KEEPALIVE, silently accept
+	if msg.IsKeepalive() {
+		return false, true
+	}
+
+	// Store mismatch details for diff output.
+	c.lastReceived = stream
+	if len(c.messages) > 0 {
+		c.lastExpected = c.messages[0]
+	}
+
+	return false, false
 }
 
 // LastMismatch returns the expected and received values from the last mismatch.

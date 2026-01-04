@@ -1,5 +1,10 @@
 # Spec: Unified Handle + 4-Byte NLRI Design
 
+> **📍 LOCATION CHANGE:** This spec remains valid, but the pool now lives in
+> **API programs** instead of the ZeBGP engine. Use this design when implementing
+> RIB storage in API programs (Go: `pkg/rib/`, Python/Rust: implement equivalent).
+> See `plan/DESIGN_TRANSITION.md` for the overall architecture.
+
 ## MANDATORY READING (BEFORE IMPLEMENTATION)
 
 ```
