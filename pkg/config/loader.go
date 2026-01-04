@@ -438,6 +438,7 @@ func configToPeer(nc *PeerConfig, global *BGPConfig) (*reactor.PeerSettings, err
 			ReceiveKeepalive:    ab.Receive.Keepalive,
 			ReceiveRefresh:      ab.Receive.Refresh,
 			ReceiveState:        ab.Receive.State,
+			ReceiveSent:         ab.Receive.Sent,
 			SendUpdate:          ab.Send.Update,
 			SendRefresh:         ab.Send.Refresh,
 		})

@@ -169,8 +169,9 @@ func (r *Report) printMismatchReport(rec *Record) {
 	_, _ = fmt.Fprintf(r.output, "%s %d:\n", c.Cyan("EXPECTED MESSAGE"), msgIdx)
 	_, _ = fmt.Fprintln(r.output, c.LineSeparator())
 
-	if msgIdx <= len(rec.Messages) {
-		msg := rec.Messages[msgIdx-1]
+	// Use connection offset for API tests with multiple connections (A, B, C)
+	expectedIdx := rec.ConnectionOffset() + msgIdx
+	if msg := rec.GetMessage(expectedIdx); msg != nil {
 		if msg.Cmd != "" {
 			_, _ = fmt.Fprintf(r.output, "%s     %s\n", c.Yellow("cmd:"), msg.Cmd)
 		}
@@ -189,7 +190,13 @@ func (r *Report) printMismatchReport(rec *Record) {
 	_, _ = fmt.Fprintf(r.output, "%s %d:\n", c.Cyan("RECEIVED MESSAGE"), msgIdx)
 	_, _ = fmt.Fprintln(r.output, c.LineSeparator())
 
-	rcvIdx := rec.LastReceivedIdx
+	// For multi-connection tests, offset by messages from previous connections
+	rcvOffset := rec.ReceivedMessageOffset()
+	rcvIdx := rcvOffset + rec.LastReceivedIdx
+	// Fallback: if calculated index is out of bounds, use last available message
+	if rcvIdx >= len(rec.ReceivedRaw) && len(rec.ReceivedRaw) > 0 {
+		rcvIdx = len(rec.ReceivedRaw) - 1
+	}
 	if rcvIdx < len(rec.ReceivedRaw) {
 		rawHex := rec.ReceivedRaw[rcvIdx]
 		_, _ = fmt.Fprintf(r.output, "%s     %s\n", c.Yellow("raw:"), formatHex(rawHex))
@@ -205,10 +212,9 @@ func (r *Report) printMismatchReport(rec *Record) {
 	_, _ = fmt.Fprintln(r.output, c.Yellow("DIFF:"))
 	_, _ = fmt.Fprintln(r.output, c.LineSeparator())
 
-	if msgIdx <= len(rec.Messages) && rec.LastReceivedIdx < len(rec.ReceivedRaw) {
-		expected := rec.Messages[msgIdx-1].RawHex
-		received := rec.ReceivedRaw[rec.LastReceivedIdx]
-		diff := ColoredDiff(expected, received, c)
+	if msg := rec.GetMessage(expectedIdx); msg != nil && rcvIdx < len(rec.ReceivedRaw) {
+		received := rec.ReceivedRaw[rcvIdx]
+		diff := ColoredDiff(msg.RawHex, received, c)
 		_, _ = fmt.Fprint(r.output, diff)
 	}
 	_, _ = fmt.Fprintln(r.output)

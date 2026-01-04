@@ -527,6 +527,7 @@ type PeerReceiveConfig struct {
 	Keepalive    bool // Forward KEEPALIVE messages
 	Refresh      bool // Forward ROUTE-REFRESH messages
 	State        bool // Forward state change events
+	Sent         bool // Forward sent UPDATE events
 }
 
 // PeerSendConfig specifies which message types the process can send.
@@ -1541,6 +1542,7 @@ func parseReceiveConfig(tree *Tree) PeerReceiveConfig {
 		cfg.Keepalive = true
 		cfg.Refresh = true
 		cfg.State = true
+		cfg.Sent = true
 		return cfg
 	}
 
@@ -1551,6 +1553,7 @@ func parseReceiveConfig(tree *Tree) PeerReceiveConfig {
 	_, cfg.Keepalive = tree.Get("keepalive")
 	_, cfg.Refresh = tree.Get("refresh")
 	_, cfg.State = tree.Get("state")
+	_, cfg.Sent = tree.Get("sent")
 
 	return cfg
 }

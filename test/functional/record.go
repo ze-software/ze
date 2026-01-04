@@ -226,6 +226,71 @@ func (r *Record) getOrCreateMessage(idx int) *MessageExpect {
 	return nil
 }
 
+// ConnectionOffset returns the message index offset for API tests based on Nick.
+// Nick "A" or "1" → 0, "B" or "2" → 100, "C" or "3" → 200, etc.
+// Only applies to API tests with single-letter connection identifiers (A, B, C, D).
+func (r *Record) ConnectionOffset() int {
+	// Only apply for API tests with single-letter Nick (multi-connection tests)
+	if !r.IsAPI || len(r.Nick) != 1 {
+		return 0
+	}
+	first := r.Nick[0]
+	// Only A-D are valid connection letters
+	if first >= 'A' && first <= 'D' {
+		return int(first-'A') * 100
+	}
+	if first >= 'a' && first <= 'd' {
+		return int(first-'a') * 100
+	}
+	return 0
+}
+
+// ReceivedMessageOffset returns the offset into ReceivedRaw for the current connection.
+// For connection C, this counts messages from A and B to find where C's messages start.
+// Only applies to API tests with single-letter connection identifiers.
+func (r *Record) ReceivedMessageOffset() int {
+	// Only apply for API tests with single-letter Nick (multi-connection tests)
+	if !r.IsAPI || len(r.Nick) != 1 {
+		return 0
+	}
+	first := r.Nick[0]
+	var connIdx int
+	// Only A-D are valid connection letters
+	if first >= 'A' && first <= 'D' {
+		connIdx = int(first - 'A')
+	} else if first >= 'a' && first <= 'd' {
+		connIdx = int(first - 'a')
+	}
+	if connIdx == 0 {
+		return 0
+	}
+
+	// Count messages from preceding connections
+	offset := 0
+	for _, exp := range r.Expects {
+		parts := strings.SplitN(exp, ":", 2)
+		if len(parts) < 2 {
+			continue
+		}
+		prefix := parts[0]
+		if len(prefix) == 0 {
+			continue
+		}
+		expFirst := prefix[0]
+		var expConn int
+		if expFirst >= 'A' && expFirst <= 'D' {
+			expConn = int(expFirst - 'A')
+		} else if expFirst >= 'a' && expFirst <= 'd' {
+			expConn = int(expFirst - 'a')
+		}
+		// Count raw messages from connections before the current one
+		if expConn < connIdx && strings.Contains(exp, ":raw:") {
+			offset++
+		}
+	}
+	return offset
+}
+
 // Tests is a container for test records.
 type Tests struct {
 	byNick  map[string]*Record
@@ -437,6 +502,9 @@ func (et *EncodingTests) parseAndAdd(ciFile string) error {
 	r.CIFile = ciFile
 	r.Files = append(r.Files, ciFile)
 
+	// Track next available index for each base index (handles multiple C1:raw: lines)
+	nextAvailableIdx := make(map[int]int)
+
 	scanner := bufio.NewScanner(f)
 	for scanner.Scan() {
 		line := strings.TrimSpace(scanner.Text())
@@ -488,10 +556,18 @@ func (et *EncodingTests) parseAndAdd(ciFile string) error {
 			}
 
 		case strings.Contains(line, ":raw:"):
-			// Parse: "1:raw:FFFF..."
+			// Parse: "1:raw:FFFF..." or "C1:raw:FFFF..."
+			// Multiple lines with same prefix (e.g., C1, C1, C1, C1) get sequential indices
 			parts := strings.SplitN(line, ":", 3)
 			if len(parts) >= 3 {
-				idx := parseMessageIndex(parts[0])
+				baseIdx := parseMessageIndex(parts[0])
+				// Get or initialize the next available index for this base
+				if _, ok := nextAvailableIdx[baseIdx]; !ok {
+					nextAvailableIdx[baseIdx] = baseIdx
+				}
+				idx := nextAvailableIdx[baseIdx]
+				nextAvailableIdx[baseIdx]++
+
 				msg := r.getOrCreateMessage(idx)
 				msg.RawHex = strings.ReplaceAll(parts[2], ":", "")
 				if rawBytes, err := hex.DecodeString(msg.RawHex); err == nil {
