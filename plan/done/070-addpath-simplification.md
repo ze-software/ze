@@ -1,5 +1,23 @@
 # Spec: ADD-PATH Encoding Simplification
 
+## Required Reading (completed before implementation)
+
+- [x] `rfc/rfc7911.txt` - ADD-PATH capability and NLRI encoding
+- [x] `rfc/rfc4271.txt` Section 4.3 - Base NLRI encoding
+- [x] `rfc/rfc4760.txt` Section 5 - MP-BGP NLRI encoding
+- [x] `.claude/zebgp/wire/NLRI.md` - NLRI type architecture
+- [x] `.claude/zebgp/ENCODING_CONTEXT.md` - PackContext usage
+
+**Key insights from docs:**
+- RFC 7911 Section 3: Path ID is 4 bytes, prepended to NLRI when ADD-PATH negotiated
+- RFC 7911: Path ID 0 is valid (means "no specific path")
+- PackContext.AddPath controls when path ID is included in wire format
+
+## Current State
+
+- Tests: All pass (make test, make functional encoding)
+- Last commit: `aa27eb9` (Phase 4 cleanup)
+
 ## Problem
 
 Current ADD-PATH handling is inconsistent across NLRI types:
@@ -163,6 +181,33 @@ Key RFC sections:
 - RFC 7911 Section 4: Capability negotiation for ADD-PATH
 - RFC 4271 Section 4.3: Base NLRI encoding (<length, prefix>)
 - RFC 4760 Section 5: MP-BGP NLRI encoding
+
+### Phase 6: Update Architecture Docs (TODO)
+
+Update `.claude/zebgp/` docs to reflect new ADD-PATH encoding:
+
+1. `.claude/zebgp/wire/NLRI.md` - Document that:
+   - `Len()` returns payload-only length (no path ID)
+   - `WriteTo()` writes payload only
+   - Use `WriteNLRI()` for ADD-PATH aware encoding
+   - Use `LenWithContext()` for ADD-PATH aware length calculation
+
+2. `.claude/zebgp/ENCODING_CONTEXT.md` - Document:
+   - `PackContext.AddPath` controls path ID inclusion
+   - `WriteNLRI()` is the canonical way to encode NLRIs
+
+3. `.claude/zebgp/edge-cases/ADDPATH.md` - Verify current content matches implementation
+
+## Checklist
+
+- [x] Required docs read
+- [x] Test fails first (TDD)
+- [x] Test passes after impl
+- [x] make test passes
+- [x] make lint passes
+- [ ] Phase 5: RFC documentation in code
+- [ ] Phase 6: Update `.claude/zebgp/` docs
+- [x] Move to `plan/done/` when complete
 
 ## Test Strategy
 

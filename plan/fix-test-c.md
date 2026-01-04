@@ -1,10 +1,19 @@
 # Test C (Teardown) Fix - Analysis and Proposed Solution
 
-## Status: INCOMPLETE - Connection Lifecycle Issue
+## Status: INCOMPLETE - Stale Teardown + Test Design Issue
+
+**Commit:** `fc435f2` (2026-01-04)
 
 **Current Test Results:**
+- Unit tests: ✅ all pass
 - Encoding tests: 37/37 (100%) ✓
 - API tests: 13/14 (92.9%) - Only test C failing
+
+**Root Causes (from critical review):**
+1. **Stale teardown in opQueue** - Script's teardown arrives after test peer closed connection,
+   gets queued and executes on NEXT connection
+2. **Dual teardown mechanisms** - Script sends teardown AND test peer sends NOTIFICATION (race)
+3. **Route order mismatch** - EOR at 500ms, route2 at ~1.5s (secondary issue)
 
 ## Latest Session Progress (2026-01-04)
 
@@ -213,8 +222,142 @@ The test script sends route2/route3 AFTER teardown. For the test to pass:
    - Added persist plugin documentation
    - Added API sync protocol description
 
-## Recommended Next Steps
+## Critical Review (2026-01-04)
 
-1. **Implement proper session isolation** - Create new session per connection instead of reusing
-2. **Implement API sync mechanism** - Proper handshake between persist plugin and sendInitialRoutes
-3. **Update test design** - Make test C more robust with explicit sync points
+### Missed Root Cause: Stale Teardown in opQueue
+
+The current analysis missed a critical issue. Let me trace the ACTUAL flow:
+
+**Test Script vs Test Peer Conflict:**
+```
+Test script sends: teardown commands
+Test peer sends: NOTIFICATION after seeing expected messages
+```
+
+Both try to close connections! This creates a race.
+
+**Actual Timeline:**
+```
+T=-0.1: Connection A establishes
+T=-0.1: sendInitialRoutes starts, sleeps 500ms
+T=0:    Script sends route1
+T=0.4:  sendInitialRoutes wakes (500ms from T=-0.1), sends EOR
+T=0.4:  Test peer sees route1+EOR, matches A1
+T=0.4:  Test peer sends NOTIFICATION (A2 action)
+T=0.4:  ZeBGP receives NOTIFICATION, closes connection A
+T=0.4:  runOnce() returns, p.session = nil
+T=0.5:  Script sends teardown 1 (but connection A already closed!)
+T=0.5:  peer.Teardown() called, p.session == nil → teardown QUEUED to opQueue
+T=0.5:  Connection B establishes
+T=0.5:  sendInitialRoutes for B starts
+T=0.5:  sendInitialRoutes copies opQueue (HAS STALE TEARDOWN!)
+T=0.5:  Persist replays route1
+T=0.5:  sendInitialRoutes processes queue, finds teardown
+T=0.5:  Sends EOR, executes teardown → Connection B closes immediately!
+```
+
+**The Bug:** Script's teardown 1 (meant for connection A) arrives AFTER test peer
+already closed A. It gets queued and executed on connection B!
+
+### Why Current Fixes Don't Help
+
+1. **Flag reset in defer** - Ensures B's sendInitialRoutes can run, but doesn't prevent stale teardown
+2. **Queue teardown when sendInitialRoutes running** - Only helps if sendInitialRoutes IS running;
+   in this case, teardown arrives when p.session == nil, so it's queued unconditionally
+
+### The Real Fix
+
+**Option 1: Don't queue teardown when disconnected**
+```go
+func (p *Peer) Teardown(subcode uint8) {
+    p.mu.Lock()
+    session := p.session
+    if session == nil {
+        p.mu.Unlock()
+        return  // Already disconnected, ignore
+    }
+    // ... rest of teardown logic
+}
+```
+
+**Option 2: Clear opQueue when session ends**
+```go
+defer func() {
+    p.mu.Lock()
+    p.opQueue = p.opQueue[:0]  // Clear stale ops
+    p.session = nil
+    p.mu.Unlock()
+}()
+```
+
+But this doesn't help because teardown is queued AFTER session ends!
+
+**Option 3: Clear opQueue at start of new session**
+```go
+func (p *Peer) runOnce() error {
+    p.mu.Lock()
+    p.opQueue = p.opQueue[:0]  // Clear stale ops from previous session
+    p.mu.Unlock()
+
+    session := NewSession(p.settings)
+    // ...
+}
+```
+
+### Test Design Issue
+
+The test has DUAL teardown mechanisms:
+1. Test script sends `neighbor X teardown` commands
+2. Test peer sends NOTIFICATION after matching expected messages
+
+These RACE against each other. The test peer's NOTIFICATION usually wins (faster),
+leaving the script's teardown to affect the NEXT connection.
+
+**Recommendation:** Choose ONE teardown mechanism:
+- Either: Remove teardown commands from script, let test peer control via NOTIFICATION
+- Or: Remove notification actions from CI file, let script control teardown
+
+### Secondary Issue: Route Order
+
+Even after fixing stale teardown, there's still a route order mismatch:
+- Test expects: route1, route2, EOR
+- ZeBGP sends: route1, EOR, route2 (because 500ms delay ends before script sends route2)
+
+This requires either:
+1. Script sends route2 faster (within 500ms of connection B establishing)
+2. Extend sendInitialRoutes delay
+3. Use proper synchronization (API sync mechanism)
+
+## Implementation Plan
+
+### Phase 1: Fix stale teardown bug
+- Modify `peer.Teardown()` to NOT queue when `p.session == nil`
+- Teardown on disconnected peer is a no-op
+
+```go
+func (p *Peer) Teardown(subcode uint8) {
+    p.mu.Lock()
+    session := p.session
+    if session == nil {
+        p.mu.Unlock()
+        return  // Already disconnected, ignore
+    }
+    // ... rest of existing logic
+}
+```
+
+### Phase 2: Fix test design
+- Remove teardown commands from `teardown.run` script
+- Let test peer control teardown via NOTIFICATION (A2/B2 actions in CI)
+
+### Phase 3: Fix route timing
+- Adjust script to send route2/route3 immediately after each connection closes
+- Routes must arrive within 500ms of new connection establishing
+
+### Files to Modify
+- `pkg/reactor/peer.go` - Don't queue teardown when disconnected
+- `test/data/api/teardown.run` - Remove teardown commands, adjust timing
+
+### Design Rationale
+- **Don't queue teardown when disconnected**: Per FSM doc, IDLE state means no connection exists. Queueing teardown for next session violates session isolation.
+- **Let test peer control teardown**: CI file already has notification actions (A2, B2). Script teardown commands create race condition.
