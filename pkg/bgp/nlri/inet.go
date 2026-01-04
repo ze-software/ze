@@ -199,6 +199,35 @@ func (i *INET) Len() int {
 	return 1 + prefixBytes
 }
 
+// BaseLen returns the payload length WITHOUT path ID.
+// RFC 7911: This is the NLRI length excluding the 4-byte path identifier.
+// Used for ADD-PATH encoding where path ID is handled separately.
+func (i *INET) BaseLen() int {
+	prefixLen := i.prefix.Bits()
+	prefixBytes := (prefixLen + 7) / 8
+	return 1 + prefixBytes // length byte + prefix bytes, never includes path ID
+}
+
+// WritePayloadTo writes the NLRI payload (without path ID) into buf at offset.
+// Returns number of bytes written.
+// RFC 7911: ADD-PATH path identifier is NOT written by this method.
+func (i *INET) WritePayloadTo(buf []byte, off int) int {
+	prefixLen := i.prefix.Bits()
+	prefixBytes := (prefixLen + 7) / 8
+
+	pos := off
+
+	// Write prefix length
+	buf[pos] = byte(prefixLen)
+	pos++
+
+	// Write prefix bytes
+	copy(buf[pos:], i.prefix.Addr().AsSlice()[:prefixBytes])
+	pos += prefixBytes
+
+	return pos - off
+}
+
 // String returns a human-readable representation.
 func (i *INET) String() string {
 	if i.hasPath {

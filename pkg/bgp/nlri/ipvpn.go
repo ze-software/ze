@@ -452,6 +452,44 @@ func (v *IPVPN) Len() int {
 	return n
 }
 
+// BaseLen returns the payload length WITHOUT path ID.
+// RFC 7911: This is the NLRI length excluding the 4-byte path identifier.
+func (v *IPVPN) BaseLen() int {
+	prefixBytes := (v.prefix.Bits() + 7) / 8
+	return 1 + len(v.labels)*3 + 8 + prefixBytes
+}
+
+// WritePayloadTo writes the NLRI payload (without path ID) into buf at offset.
+// Returns number of bytes written.
+func (v *IPVPN) WritePayloadTo(buf []byte, off int) int {
+	prefixBits := v.prefix.Bits()
+	prefixBytes := (prefixBits + 7) / 8
+	labelCount := len(v.labels)
+
+	// RFC 3107: Length field = label bits + RD bits (64) + prefix bits
+	totalBits := labelCount*24 + 64 + prefixBits
+
+	pos := off
+
+	// Write length field
+	buf[pos] = byte(totalBits)
+	pos++
+
+	// Write MPLS labels
+	pos += writeLabelStack(buf, pos, v.labels)
+
+	// Write Route Distinguisher (8 bytes)
+	binary.BigEndian.PutUint16(buf[pos:], uint16(v.rd.Type))
+	copy(buf[pos+2:], v.rd.Value[:])
+	pos += 8
+
+	// Write IP prefix
+	copy(buf[pos:], v.prefix.Addr().AsSlice()[:prefixBytes])
+	pos += prefixBytes
+
+	return pos - off
+}
+
 // String returns a human-readable representation.
 func (v *IPVPN) String() string {
 	s := fmt.Sprintf("RD:%s %s", v.rd, v.prefix)

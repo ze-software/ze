@@ -163,7 +163,7 @@ func TestLenWithContext_MatchesWriteTo(t *testing.T) {
 	}
 }
 
-// Helper to create INET NLRI for testing
+// mustParseINET creates INET NLRI for testing.
 func mustParseINET(t *testing.T, prefix string, hasPath bool, pathID uint32) *INET {
 	t.Helper()
 	p := netip.MustParsePrefix(prefix)
@@ -175,7 +175,7 @@ func mustParseINET(t *testing.T, prefix string, hasPath bool, pathID uint32) *IN
 	return inet
 }
 
-// Helper to create IPVPN NLRI for testing
+// mustParseIPVPN creates IPVPN NLRI for testing.
 func mustParseIPVPN(t *testing.T, prefix string, hasPath bool, pathID uint32) *IPVPN {
 	t.Helper()
 	p := netip.MustParsePrefix(prefix)
@@ -188,7 +188,7 @@ func mustParseIPVPN(t *testing.T, prefix string, hasPath bool, pathID uint32) *I
 	}
 }
 
-// Helper to create LabeledUnicast NLRI for testing
+// mustParseLabeledUnicast creates LabeledUnicast NLRI for testing.
 func mustParseLabeledUnicast(t *testing.T, prefix string, hasPath bool, pathID uint32) *LabeledUnicast {
 	t.Helper()
 	p := netip.MustParsePrefix(prefix)
@@ -205,8 +205,8 @@ func mustParseLabeledUnicast(t *testing.T, prefix string, hasPath bool, pathID u
 	}
 }
 
-// Helper to create FlowSpec NLRI for testing
-// FlowSpec doesn't support ADD-PATH, so hasPath is always false
+// mustParseFlowSpec creates FlowSpec NLRI for testing.
+// FlowSpec doesn't support ADD-PATH, so hasPath is always false.
 func mustParseFlowSpec(t *testing.T, isIPv4 bool) *FlowSpec {
 	t.Helper()
 	family := Family{AFI: AFIIPv4, SAFI: SAFIFlowSpec}

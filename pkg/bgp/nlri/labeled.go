@@ -211,6 +211,51 @@ func (l *LabeledUnicast) Len() int {
 	return size
 }
 
+// BaseLen returns the payload length WITHOUT path ID.
+// RFC 7911: This is the NLRI length excluding the 4-byte path identifier.
+func (l *LabeledUnicast) BaseLen() int {
+	prefixBytes := (l.prefix.Bits() + 7) / 8
+	labelBytes := len(l.labels) * 3
+	return 1 + labelBytes + prefixBytes
+}
+
+// WritePayloadTo writes the NLRI payload (without path ID) into buf at offset.
+// Returns number of bytes written.
+func (l *LabeledUnicast) WritePayloadTo(buf []byte, off int) int {
+	prefixBits := l.prefix.Bits()
+	prefixBytes := (prefixBits + 7) / 8
+	labelCount := len(l.labels)
+
+	// Total bits: 24 per label + prefix bits
+	totalBits := labelCount*24 + prefixBits
+
+	pos := off
+
+	// Length byte
+	buf[pos] = byte(totalBits)
+	pos++
+
+	// Encode labels
+	for i, label := range l.labels {
+		bos := i == labelCount-1 // Last label has BOS=1
+		buf[pos] = byte(label >> 12)
+		buf[pos+1] = byte(label >> 4)
+		buf[pos+2] = byte(label<<4) & 0xF0
+		if bos {
+			buf[pos+2] |= 0x01
+		}
+		pos += 3
+	}
+
+	// Prefix bytes
+	if prefixBytes > 0 {
+		copy(buf[pos:], l.prefix.Addr().AsSlice()[:prefixBytes])
+		pos += prefixBytes
+	}
+
+	return pos - off
+}
+
 // String returns a human-readable representation.
 func (l *LabeledUnicast) String() string {
 	var sb strings.Builder
