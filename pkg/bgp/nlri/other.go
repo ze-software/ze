@@ -876,3 +876,9 @@ func (m *MVPN) Pack(ctx *PackContext) []byte { return m.Bytes() }
 func (v *VPLS) Pack(ctx *PackContext) []byte { return v.Bytes() }
 func (r *RTC) Pack(ctx *PackContext) []byte  { return r.Bytes() }
 func (m *MUP) Pack(ctx *PackContext) []byte  { return m.Bytes() }
+
+// WriteTo methods for other NLRI types.
+func (m *MVPN) WriteTo(buf []byte, off int, _ *PackContext) int { return copy(buf[off:], m.Bytes()) }
+func (v *VPLS) WriteTo(buf []byte, off int, _ *PackContext) int { return copy(buf[off:], v.Bytes()) }
+func (r *RTC) WriteTo(buf []byte, off int, _ *PackContext) int  { return copy(buf[off:], r.Bytes()) }
+func (m *MUP) WriteTo(buf []byte, off int, _ *PackContext) int  { return copy(buf[off:], m.Bytes()) }

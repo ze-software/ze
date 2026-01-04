@@ -145,8 +145,8 @@ func TestSessionBufferRemaining(t *testing.T) {
 func TestSessionBufferWriteByte(t *testing.T) {
 	sb := wire.NewSessionBuffer(false)
 
-	sb.WriteByte(0xFF)
-	sb.WriteByte(0xFE)
+	_ = sb.WriteByte(0xFF)
+	_ = sb.WriteByte(0xFE)
 
 	expected := []byte{0xFF, 0xFE}
 	if !bytes.Equal(sb.Bytes(), expected) {

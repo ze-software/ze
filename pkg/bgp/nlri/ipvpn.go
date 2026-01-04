@@ -483,3 +483,62 @@ func (v *IPVPN) Pack(ctx *PackContext) []byte {
 	}
 	return v.Bytes()
 }
+
+// WriteTo writes the NLRI wire-format into buf at offset.
+// Returns number of bytes written.
+func (v *IPVPN) WriteTo(buf []byte, off int, ctx *PackContext) int {
+	prefixBits := v.prefix.Bits()
+	prefixBytes := (prefixBits + 7) / 8
+	labelCount := len(v.labels)
+
+	// RFC 3107: Length field = label bits + RD bits (64) + prefix bits
+	totalBits := labelCount*24 + 64 + prefixBits
+
+	pos := off
+
+	// Handle ADD-PATH path identifier
+	if ctx != nil && ctx.AddPath {
+		if v.hasPath {
+			binary.BigEndian.PutUint32(buf[pos:], v.pathID)
+		} else {
+			binary.BigEndian.PutUint32(buf[pos:], 0) // NOPATH
+		}
+		pos += 4
+	} else if ctx == nil && v.hasPath {
+		binary.BigEndian.PutUint32(buf[pos:], v.pathID)
+		pos += 4
+	}
+
+	// Write length field
+	buf[pos] = byte(totalBits)
+	pos++
+
+	// Write MPLS labels
+	pos += writeLabelStack(buf, pos, v.labels)
+
+	// Write Route Distinguisher (8 bytes)
+	binary.BigEndian.PutUint16(buf[pos:], uint16(v.rd.Type))
+	copy(buf[pos+2:], v.rd.Value[:])
+	pos += 8
+
+	// Write IP prefix
+	copy(buf[pos:], v.prefix.Addr().AsSlice()[:prefixBytes])
+	pos += prefixBytes
+
+	return pos - off
+}
+
+// writeLabelStack writes MPLS labels to buf at offset.
+// Returns number of bytes written.
+func writeLabelStack(buf []byte, off int, labels []uint32) int {
+	for i, label := range labels {
+		pos := off + i*3
+		buf[pos] = byte(label >> 12)
+		buf[pos+1] = byte(label >> 4)
+		buf[pos+2] = byte(label<<4) & 0xF0
+		if i == len(labels)-1 {
+			buf[pos+2] |= 0x01 // RFC 3107: S (bottom-of-stack) bit
+		}
+	}
+	return len(labels) * 3
+}

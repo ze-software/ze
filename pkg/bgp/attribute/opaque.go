@@ -69,3 +69,13 @@ func (o *OpaqueAttribute) Pack() []byte {
 func (o *OpaqueAttribute) PackWithContext(_, _ *bgpctx.EncodingContext) []byte {
 	return o.data
 }
+
+// WriteTo writes the opaque attribute data into buf at offset.
+func (o *OpaqueAttribute) WriteTo(buf []byte, off int) int {
+	return copy(buf[off:], o.data)
+}
+
+// WriteToWithContext writes the opaque data - context-independent.
+func (o *OpaqueAttribute) WriteToWithContext(buf []byte, off int, _, _ *bgpctx.EncodingContext) int {
+	return o.WriteTo(buf, off)
+}

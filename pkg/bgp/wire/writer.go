@@ -64,9 +64,11 @@ func (sb *SessionBuffer) WriteBytes(data []byte) int {
 }
 
 // WriteByte writes a single byte to the buffer.
-func (sb *SessionBuffer) WriteByte(b byte) {
+// Always returns nil - signature matches io.ByteWriter.
+func (sb *SessionBuffer) WriteByte(b byte) error {
 	sb.buf[sb.offset] = b
 	sb.offset++
+	return nil
 }
 
 // WriteUint16 writes a 16-bit value in network byte order (big-endian).

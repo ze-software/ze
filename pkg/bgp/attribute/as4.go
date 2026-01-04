@@ -97,6 +97,36 @@ func (p *AS4Path) Pack() []byte {
 // PackWithContext returns Pack() - AS4_PATH always uses 4-byte ASNs (RFC 6793).
 func (p *AS4Path) PackWithContext(_, _ *bgpctx.EncodingContext) []byte { return p.Pack() }
 
+// WriteTo writes the AS4 path (always 4-byte ASN format) into buf at offset.
+func (p *AS4Path) WriteTo(buf []byte, off int) int {
+	if len(p.Segments) == 0 {
+		return 0
+	}
+
+	start := off
+	for _, seg := range p.Segments {
+		// RFC 6793 Section 3: confed segments MUST NOT be included
+		if seg.Type == ASConfedSequence || seg.Type == ASConfedSet {
+			continue
+		}
+
+		buf[off] = byte(seg.Type)
+		buf[off+1] = byte(len(seg.ASNs))
+		off += 2
+
+		for _, asn := range seg.ASNs {
+			binary.BigEndian.PutUint32(buf[off:], asn)
+			off += 4
+		}
+	}
+	return off - start
+}
+
+// WriteToWithContext writes AS4_PATH - always uses 4-byte ASNs.
+func (p *AS4Path) WriteToWithContext(buf []byte, off int, _, _ *bgpctx.EncodingContext) int {
+	return p.WriteTo(buf, off)
+}
+
 // FilterConfedSegments returns a new AS4Path with confederation segments removed.
 //
 // RFC 6793 Section 4.2.2:
@@ -283,6 +313,18 @@ func (a *AS4Aggregator) Pack() []byte {
 
 // PackWithContext returns Pack() - AS4_AGGREGATOR always uses 4-byte ASN (RFC 6793).
 func (a *AS4Aggregator) PackWithContext(_, _ *bgpctx.EncodingContext) []byte { return a.Pack() }
+
+// WriteTo writes the AS4_AGGREGATOR into buf at offset.
+func (a *AS4Aggregator) WriteTo(buf []byte, off int) int {
+	binary.BigEndian.PutUint32(buf[off:], a.ASN)
+	copy(buf[off+4:], a.Address.AsSlice())
+	return 8
+}
+
+// WriteToWithContext writes AS4_AGGREGATOR - always uses 4-byte ASN.
+func (a *AS4Aggregator) WriteToWithContext(buf []byte, off int, _, _ *bgpctx.EncodingContext) int {
+	return a.WriteTo(buf, off)
+}
 
 // ParseAS4Aggregator parses an AS4_AGGREGATOR attribute value.
 //

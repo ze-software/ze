@@ -94,6 +94,19 @@ func (c Communities) Pack() []byte {
 // PackWithContext returns Pack() - COMMUNITIES encoding is context-independent.
 func (c Communities) PackWithContext(_, _ *bgpctx.EncodingContext) []byte { return c.Pack() }
 
+// WriteTo writes the communities into buf at offset.
+func (c Communities) WriteTo(buf []byte, off int) int {
+	for i, comm := range c {
+		binary.BigEndian.PutUint32(buf[off+i*4:], uint32(comm))
+	}
+	return len(c) * 4
+}
+
+// WriteToWithContext writes communities - context-independent.
+func (c Communities) WriteToWithContext(buf []byte, off int, _, _ *bgpctx.EncodingContext) int {
+	return c.WriteTo(buf, off)
+}
+
 // ParseCommunities parses a COMMUNITIES attribute.
 //
 // RFC 1997: The attribute consists of a set of four octet values.
@@ -163,6 +176,19 @@ func (e ExtendedCommunities) Pack() []byte {
 
 // PackWithContext returns Pack() - EXT_COMMUNITIES encoding is context-independent.
 func (e ExtendedCommunities) PackWithContext(_, _ *bgpctx.EncodingContext) []byte { return e.Pack() }
+
+// WriteTo writes the extended communities into buf at offset.
+func (e ExtendedCommunities) WriteTo(buf []byte, off int) int {
+	for i, ec := range e {
+		copy(buf[off+i*8:], ec[:])
+	}
+	return len(e) * 8
+}
+
+// WriteToWithContext writes extended communities - context-independent.
+func (e ExtendedCommunities) WriteToWithContext(buf []byte, off int, _, _ *bgpctx.EncodingContext) int {
+	return e.WriteTo(buf, off)
+}
 
 // ParseExtendedCommunities parses an EXTENDED_COMMUNITIES attribute.
 //
@@ -252,6 +278,24 @@ func (l LargeCommunities) Pack() []byte {
 
 // PackWithContext returns Pack() - LARGE_COMMUNITIES encoding is context-independent.
 func (l LargeCommunities) PackWithContext(_, _ *bgpctx.EncodingContext) []byte { return l.Pack() }
+
+// WriteTo writes the large communities into buf at offset.
+// Per RFC 8092 Section 5, duplicate values are removed before transmission.
+func (l LargeCommunities) WriteTo(buf []byte, off int) int {
+	unique := l.deduplicate()
+	for i, lc := range unique {
+		pos := off + i*12
+		binary.BigEndian.PutUint32(buf[pos:], lc.GlobalAdmin)
+		binary.BigEndian.PutUint32(buf[pos+4:], lc.LocalData1)
+		binary.BigEndian.PutUint32(buf[pos+8:], lc.LocalData2)
+	}
+	return len(unique) * 12
+}
+
+// WriteToWithContext writes large communities - context-independent.
+func (l LargeCommunities) WriteToWithContext(buf []byte, off int, _, _ *bgpctx.EncodingContext) int {
+	return l.WriteTo(buf, off)
+}
 
 // deduplicate returns a new slice with duplicate communities removed.
 // Preserves order of first occurrence.
@@ -365,6 +409,19 @@ func (e IPv6ExtendedCommunities) Pack() []byte {
 // PackWithContext returns Pack() - IPV6_EXT_COMMUNITIES encoding is context-independent.
 func (e IPv6ExtendedCommunities) PackWithContext(_, _ *bgpctx.EncodingContext) []byte {
 	return e.Pack()
+}
+
+// WriteTo writes the IPv6 extended communities into buf at offset.
+func (e IPv6ExtendedCommunities) WriteTo(buf []byte, off int) int {
+	for i, ec := range e {
+		copy(buf[off+i*20:], ec[:])
+	}
+	return len(e) * 20
+}
+
+// WriteToWithContext writes IPv6 extended communities - context-independent.
+func (e IPv6ExtendedCommunities) WriteToWithContext(buf []byte, off int, _, _ *bgpctx.EncodingContext) int {
+	return e.WriteTo(buf, off)
 }
 
 // ParseIPv6ExtendedCommunities parses an IPV6_EXTENDED_COMMUNITIES attribute.

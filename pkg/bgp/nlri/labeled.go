@@ -193,6 +193,13 @@ func (l *LabeledUnicast) Pack(ctx *PackContext) []byte {
 	return l.Bytes()
 }
 
+// WriteTo writes the NLRI wire-format into buf at offset.
+// Returns number of bytes written.
+func (l *LabeledUnicast) WriteTo(buf []byte, off int, ctx *PackContext) int {
+	packed := l.Pack(ctx)
+	return copy(buf[off:], packed)
+}
+
 // Len returns the wire-format length in bytes.
 func (l *LabeledUnicast) Len() int {
 	prefixBytes := (l.prefix.Bits() + 7) / 8

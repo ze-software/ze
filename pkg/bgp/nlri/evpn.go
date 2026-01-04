@@ -993,6 +993,26 @@ func packEVPN(bytes []byte, hasPath bool, ctx *PackContext) []byte {
 	return bytes
 }
 
+// WriteTo methods for EVPN types.
+func (e *EVPNType1) WriteTo(buf []byte, off int, ctx *PackContext) int {
+	return copy(buf[off:], e.Pack(ctx))
+}
+func (e *EVPNType2) WriteTo(buf []byte, off int, ctx *PackContext) int {
+	return copy(buf[off:], e.Pack(ctx))
+}
+func (e *EVPNType3) WriteTo(buf []byte, off int, ctx *PackContext) int {
+	return copy(buf[off:], e.Pack(ctx))
+}
+func (e *EVPNType4) WriteTo(buf []byte, off int, ctx *PackContext) int {
+	return copy(buf[off:], e.Pack(ctx))
+}
+func (e *EVPNType5) WriteTo(buf []byte, off int, ctx *PackContext) int {
+	return copy(buf[off:], e.Pack(ctx))
+}
+func (e *EVPNGeneric) WriteTo(buf []byte, off int, ctx *PackContext) int {
+	return copy(buf[off:], e.Pack(ctx))
+}
+
 // NewEVPNType1 creates an Ethernet Auto-Discovery route (Type 1).
 // RFC 7432 Section 7.1.
 func NewEVPNType1(rd RouteDistinguisher, esi [10]byte, ethernetTag uint32, labels []uint32) *EVPNType1 {

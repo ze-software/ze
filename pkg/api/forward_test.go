@@ -84,6 +84,7 @@ func (m *mockReactorForward) ClearRIBOut() int                                 {
 func (m *mockReactorForward) FlushRIBOut() int                                 { return 0 }
 func (m *mockReactorForward) GetPeerAPIBindings(_ netip.Addr) []PeerAPIBinding { return nil }
 func (m *mockReactorForward) SignalAPIReady()                                  {}
+func (m *mockReactorForward) SignalPeerAPIReady(_ string)                      {}
 
 // TestForwardCommand verifies forward parsing and execution.
 //

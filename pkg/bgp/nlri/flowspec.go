@@ -968,3 +968,11 @@ func ParseFlowSpecVPN(family Family, data []byte) (*FlowSpecVPN, error) {
 
 func (f *FlowSpec) Pack(ctx *PackContext) []byte    { return f.Bytes() }
 func (f *FlowSpecVPN) Pack(ctx *PackContext) []byte { return f.Bytes() }
+
+// WriteTo methods for FlowSpec types.
+func (f *FlowSpec) WriteTo(buf []byte, off int, _ *PackContext) int {
+	return copy(buf[off:], f.Bytes())
+}
+func (f *FlowSpecVPN) WriteTo(buf []byte, off int, _ *PackContext) int {
+	return copy(buf[off:], f.Bytes())
+}

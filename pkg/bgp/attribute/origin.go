@@ -69,6 +69,18 @@ func (o Origin) Pack() []byte { return []byte{byte(o)} }
 // PackWithContext returns Pack() - ORIGIN encoding is context-independent.
 func (o Origin) PackWithContext(_, _ *bgpctx.EncodingContext) []byte { return o.Pack() }
 
+// WriteTo writes the origin value into buf at offset.
+// Returns 1 (number of bytes written).
+func (o Origin) WriteTo(buf []byte, off int) int {
+	buf[off] = byte(o)
+	return 1
+}
+
+// WriteToWithContext writes the origin value - context-independent.
+func (o Origin) WriteToWithContext(buf []byte, off int, _, _ *bgpctx.EncodingContext) int {
+	return o.WriteTo(buf, off)
+}
+
 // ParseOrigin parses an ORIGIN attribute value.
 //
 // RFC 4271 Section 6.3 (UPDATE Message Error Handling):

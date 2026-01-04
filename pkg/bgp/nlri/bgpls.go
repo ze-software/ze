@@ -819,3 +819,17 @@ func (n *BGPLSNode) Pack(ctx *PackContext) []byte    { return n.Bytes() }
 func (l *BGPLSLink) Pack(ctx *PackContext) []byte    { return l.Bytes() }
 func (p *BGPLSPrefix) Pack(ctx *PackContext) []byte  { return p.Bytes() }
 func (s *BGPLSSRv6SID) Pack(ctx *PackContext) []byte { return s.Bytes() }
+
+// WriteTo methods for BGP-LS types.
+func (n *BGPLSNode) WriteTo(buf []byte, off int, _ *PackContext) int {
+	return copy(buf[off:], n.Bytes())
+}
+func (l *BGPLSLink) WriteTo(buf []byte, off int, _ *PackContext) int {
+	return copy(buf[off:], l.Bytes())
+}
+func (p *BGPLSPrefix) WriteTo(buf []byte, off int, _ *PackContext) int {
+	return copy(buf[off:], p.Bytes())
+}
+func (s *BGPLSSRv6SID) WriteTo(buf []byte, off int, _ *PackContext) int {
+	return copy(buf[off:], s.Bytes())
+}

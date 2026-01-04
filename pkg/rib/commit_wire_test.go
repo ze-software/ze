@@ -477,6 +477,9 @@ func (m *mockEVPNNLRI) Len() int                        { return 2 }
 func (m *mockEVPNNLRI) String() string                  { return "evpn-type2" }
 func (m *mockEVPNNLRI) PathID() uint32                  { return 0 }
 func (m *mockEVPNNLRI) HasPathID() bool                 { return false }
+func (m *mockEVPNNLRI) WriteTo(buf []byte, off int, _ *nlri.PackContext) int {
+	return copy(buf[off:], m.Bytes())
+}
 
 // ==============================================================
 // Two-Level Grouping Wire Format Tests

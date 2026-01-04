@@ -148,6 +148,42 @@ func (m *MPReachNLRI) Pack() []byte {
 // Note: The NLRI bytes within are pre-packed with correct context (including ADD-PATH).
 func (m *MPReachNLRI) PackWithContext(_, _ *bgpctx.EncodingContext) []byte { return m.Pack() }
 
+// WriteTo writes the MP_REACH_NLRI attribute value into buf at offset.
+func (m *MPReachNLRI) WriteTo(buf []byte, off int) int {
+	nhLen := m.nextHopLen()
+
+	// RFC 4760 Section 3: Address Family Identifier (2 octets)
+	binary.BigEndian.PutUint16(buf[off:], uint16(m.AFI))
+
+	// RFC 4760 Section 3: Subsequent Address Family Identifier (1 octet)
+	buf[off+2] = byte(m.SAFI)
+
+	// RFC 4760 Section 3: Length of Next Hop Network Address (1 octet)
+	buf[off+3] = byte(nhLen)
+
+	// RFC 4760 Section 3: Network Address of Next Hop (variable)
+	pos := off + 4
+	for _, nh := range m.NextHops {
+		n := copy(buf[pos:], nh.AsSlice())
+		pos += n
+	}
+
+	// RFC 4760 Section 3: Reserved (1 octet) - "MUST be set to 0"
+	buf[pos] = 0
+	pos++
+
+	// RFC 4760 Section 3: Network Layer Reachability Information (variable)
+	n := copy(buf[pos:], m.NLRI)
+	pos += n
+
+	return pos - off
+}
+
+// WriteToWithContext writes MP_REACH_NLRI - context-independent.
+func (m *MPReachNLRI) WriteToWithContext(buf []byte, off int, _, _ *bgpctx.EncodingContext) int {
+	return m.WriteTo(buf, off)
+}
+
 // ParseMPReachNLRI parses an MP_REACH_NLRI attribute value per RFC 4760 Section 3.
 // The Reserved octet is ignored per RFC 4760.
 func ParseMPReachNLRI(data []byte) (*MPReachNLRI, error) {
@@ -401,6 +437,25 @@ func (m *MPUnreachNLRI) Pack() []byte {
 // PackWithContext returns Pack() - MP_UNREACH_NLRI header encoding is context-independent.
 // Note: The NLRI bytes within are pre-packed with correct context (including ADD-PATH).
 func (m *MPUnreachNLRI) PackWithContext(_, _ *bgpctx.EncodingContext) []byte { return m.Pack() }
+
+// WriteTo writes the MP_UNREACH_NLRI attribute value into buf at offset.
+func (m *MPUnreachNLRI) WriteTo(buf []byte, off int) int {
+	// RFC 4760 Section 4: Address Family Identifier (2 octets)
+	binary.BigEndian.PutUint16(buf[off:], uint16(m.AFI))
+
+	// RFC 4760 Section 4: Subsequent Address Family Identifier (1 octet)
+	buf[off+2] = byte(m.SAFI)
+
+	// RFC 4760 Section 4: Withdrawn Routes (variable)
+	n := copy(buf[off+3:], m.NLRI)
+
+	return 3 + n
+}
+
+// WriteToWithContext writes MP_UNREACH_NLRI - context-independent.
+func (m *MPUnreachNLRI) WriteToWithContext(buf []byte, off int, _, _ *bgpctx.EncodingContext) int {
+	return m.WriteTo(buf, off)
+}
 
 // ParseMPUnreachNLRI parses an MP_UNREACH_NLRI attribute value per RFC 4760 Section 4.
 func ParseMPUnreachNLRI(data []byte) (*MPUnreachNLRI, error) {

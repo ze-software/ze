@@ -386,6 +386,16 @@ func (r *rawAttribute) Pack() []byte                    { return r.data }
 // PackWithContext returns Pack() - raw attributes are pre-encoded.
 func (r *rawAttribute) PackWithContext(_, _ *bgpctx.EncodingContext) []byte { return r.data }
 
+// WriteTo writes the pre-encoded data into buf at offset.
+func (r *rawAttribute) WriteTo(buf []byte, off int) int {
+	return copy(buf[off:], r.data)
+}
+
+// WriteToWithContext writes pre-encoded data - context-independent.
+func (r *rawAttribute) WriteToWithContext(buf []byte, off int, _, _ *bgpctx.EncodingContext) int {
+	return r.WriteTo(buf, off)
+}
+
 // packAttributesNoSort packs attributes in the order provided (no sorting).
 // Used when ExaBGP ordering differs from RFC 4271 Appendix F.3.
 func packAttributesNoSort(attrs []attribute.Attribute) []byte {

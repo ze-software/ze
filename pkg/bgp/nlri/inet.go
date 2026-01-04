@@ -245,3 +245,37 @@ func (i *INET) Pack(ctx *PackContext) []byte {
 	}
 	return i.Bytes()
 }
+
+// WriteTo writes the NLRI wire-format into buf at offset.
+// Returns number of bytes written.
+func (i *INET) WriteTo(buf []byte, off int, ctx *PackContext) int {
+	prefixLen := i.prefix.Bits()
+	prefixBytes := (prefixLen + 7) / 8
+
+	pos := off
+
+	// Handle ADD-PATH path identifier
+	if ctx != nil && ctx.AddPath {
+		if i.hasPath {
+			binary.BigEndian.PutUint32(buf[pos:], i.pathID)
+		} else {
+			// Prepend NOPATH (4 zero bytes)
+			binary.BigEndian.PutUint32(buf[pos:], 0)
+		}
+		pos += 4
+	} else if ctx == nil && i.hasPath {
+		// No context but has path ID - include it
+		binary.BigEndian.PutUint32(buf[pos:], i.pathID)
+		pos += 4
+	}
+
+	// Write prefix length
+	buf[pos] = byte(prefixLen)
+	pos++
+
+	// Write prefix bytes
+	copy(buf[pos:], i.prefix.Addr().AsSlice()[:prefixBytes])
+	pos += prefixBytes
+
+	return pos - off
+}

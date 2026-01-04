@@ -163,7 +163,75 @@ func (p *ASPath) PackWithASN4(asn4 bool) []byte {
 	return buf[:offset]
 }
 
+// WriteTo writes the AS path (4-byte ASN format per RFC 6793) into buf at offset.
+func (p *ASPath) WriteTo(buf []byte, off int) int {
+	return p.WriteToWithASN4(buf, off, true)
+}
+
+// WriteToWithContext writes AS_PATH with context-dependent ASN size.
+func (p *ASPath) WriteToWithContext(buf []byte, off int, _, dstCtx *bgpctx.EncodingContext) int {
+	if dstCtx == nil || dstCtx.ASN4 {
+		return p.WriteToWithASN4(buf, off, true)
+	}
+	return p.WriteToWithASN4(buf, off, false)
+}
+
+// WriteToWithASN4 writes the AS path into buf at offset.
+func (p *ASPath) WriteToWithASN4(buf []byte, off int, asn4 bool) int {
+	if len(p.Segments) == 0 {
+		return 0
+	}
+
+	start := off
+	for _, seg := range p.Segments {
+		off = writeSegmentWithSplit(buf, off, seg.Type, seg.ASNs, asn4)
+	}
+	return off - start
+}
+
+// writeSegmentWithSplit writes a segment, splitting if it exceeds MaxASPathSegmentLength.
+//
+//nolint:dupl // Intentionally parallel to packSegmentWithSplit - different output mechanism
+func writeSegmentWithSplit(buf []byte, off int, segType ASPathSegmentType, asns []uint32, asn4 bool) int {
+	if len(asns) == 0 {
+		return off
+	}
+
+	count := len(asns)
+	if count > MaxASPathSegmentLength {
+		count = MaxASPathSegmentLength
+	}
+
+	buf[off] = byte(segType)
+	buf[off+1] = byte(count)
+	off += 2
+
+	for i := 0; i < count; i++ {
+		if asn4 {
+			binary.BigEndian.PutUint32(buf[off:], asns[i])
+			off += 4
+		} else {
+			var as16 uint16
+			if asns[i] > 65535 {
+				as16 = 23456 // AS_TRANS per RFC 6793 Section 9
+			} else {
+				as16 = uint16(asns[i]) //nolint:gosec // bounds checked above
+			}
+			binary.BigEndian.PutUint16(buf[off:], as16)
+			off += 2
+		}
+	}
+
+	if len(asns) > MaxASPathSegmentLength {
+		return writeSegmentWithSplit(buf, off, segType, asns[MaxASPathSegmentLength:], asn4)
+	}
+
+	return off
+}
+
 // packSegmentWithSplit encodes a segment, splitting if it exceeds MaxASPathSegmentLength.
+//
+//nolint:dupl // Intentionally parallel to writeSegmentWithSplit - different output mechanism
 func packSegmentWithSplit(buf []byte, offset int, segType ASPathSegmentType, asns []uint32, asn4 bool) int {
 	if len(asns) == 0 {
 		return offset

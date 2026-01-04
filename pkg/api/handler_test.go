@@ -249,6 +249,8 @@ func (m *mockReactor) DeleteUpdate(_ uint64) error {
 
 func (m *mockReactor) SignalAPIReady() {}
 
+func (m *mockReactor) SignalPeerAPIReady(_ string) {}
+
 // TestHandlerPeerList verifies peer list output.
 //
 // VALIDATES: All peers returned with state info.

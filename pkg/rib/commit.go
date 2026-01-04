@@ -388,6 +388,16 @@ func (m *vpnMPReachNLRI) Pack() []byte { return m.value }
 // PackWithContext returns Pack() - raw attribute value is pre-encoded.
 func (m *vpnMPReachNLRI) PackWithContext(_, _ *bgpctx.EncodingContext) []byte { return m.value }
 
+// WriteTo writes the pre-encoded value into buf at offset.
+func (m *vpnMPReachNLRI) WriteTo(buf []byte, off int) int {
+	return copy(buf[off:], m.value)
+}
+
+// WriteToWithContext writes pre-encoded value - context-independent.
+func (m *vpnMPReachNLRI) WriteToWithContext(buf []byte, off int, _, _ *bgpctx.EncodingContext) int {
+	return m.WriteTo(buf, off)
+}
+
 // isVPNSAFI returns true if the SAFI indicates a VPN family.
 func isVPNSAFI(safi nlri.SAFI) bool {
 	return safi == 128 // MPLS VPN (RFC 4364)

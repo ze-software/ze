@@ -16,6 +16,7 @@ import (
 	"github.com/exa-networks/zebgp/pkg/bgp/capability"
 	"github.com/exa-networks/zebgp/pkg/bgp/fsm"
 	"github.com/exa-networks/zebgp/pkg/bgp/message"
+	"github.com/exa-networks/zebgp/pkg/bgp/wire"
 	"github.com/exa-networks/zebgp/pkg/trace"
 )
 
@@ -61,6 +62,10 @@ type Session struct {
 	// Read buffer (reused).
 	readBuf []byte
 
+	// Write buffer for zero-allocation message building.
+	// Allocated at 4096 bytes initially, resized to 65535 if Extended Message negotiated.
+	writeBuf *wire.SessionBuffer
+
 	// Error channel for timer callbacks to signal errors.
 	errChan chan error
 
@@ -79,7 +84,8 @@ func NewSession(settings *PeerSettings) *Session {
 		fsm:      fsm.New(),
 		timers:   fsm.NewTimers(),
 		readBuf:  make([]byte, message.MaxMsgLen),
-		errChan:  make(chan error, 2), // Buffer 2: normal error + teardown
+		writeBuf: wire.NewSessionBuffer(false), // Start with 4096, resize if Extended Message
+		errChan:  make(chan error, 2),          // Buffer 2: normal error + teardown
 	}
 
 	// Configure FSM passive mode.
@@ -130,6 +136,12 @@ func (s *Session) Negotiated() *capability.Negotiated {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	return s.negotiated
+}
+
+// WriteBuf returns the session's write buffer for zero-allocation message building.
+// The buffer is sized based on negotiated Extended Message capability.
+func (s *Session) WriteBuf() *wire.SessionBuffer {
+	return s.writeBuf
 }
 
 // DetectCollision checks if an incoming connection causes a collision.
@@ -976,10 +988,13 @@ func (s *Session) negotiate() {
 		s.peerOpen.ASN4,
 	)
 
-	// RFC 8654: If extended message is negotiated, resize read buffer.
-	// MUST be capable of receiving messages up to 65535 octets.
-	if s.negotiated.ExtendedMessage && len(s.readBuf) < message.ExtMsgLen {
-		s.readBuf = make([]byte, message.ExtMsgLen)
+	// RFC 8654: If extended message is negotiated, resize buffers.
+	// MUST be capable of receiving/sending messages up to 65535 octets.
+	if s.negotiated.ExtendedMessage {
+		if len(s.readBuf) < message.ExtMsgLen {
+			s.readBuf = make([]byte, message.ExtMsgLen)
+		}
+		s.writeBuf.Resize(true) // Expand to 65535 if needed
 	}
 
 	// Negotiate hold time (minimum of both, but at least 3s if non-zero).

@@ -36,6 +36,16 @@ func (n *NextHop) Pack() []byte { return n.Addr.AsSlice() }
 // PackWithContext returns Pack() - NEXT_HOP encoding is context-independent.
 func (n *NextHop) PackWithContext(_, _ *bgpctx.EncodingContext) []byte { return n.Pack() }
 
+// WriteTo writes the NEXT_HOP value into buf at offset.
+func (n *NextHop) WriteTo(buf []byte, off int) int {
+	return copy(buf[off:], n.Addr.AsSlice())
+}
+
+// WriteToWithContext writes the NEXT_HOP value - context-independent.
+func (n *NextHop) WriteToWithContext(buf []byte, off int, _, _ *bgpctx.EncodingContext) int {
+	return n.WriteTo(buf, off)
+}
+
 // ParseNextHop parses a NEXT_HOP attribute.
 // RFC 4271 Section 5.1.3 specifies 4-octet length for IPv4.
 // 16-octet length is accepted for IPv6 compatibility (RFC 4760).
@@ -75,6 +85,17 @@ func (m MED) Pack() []byte {
 // PackWithContext returns Pack() - MED encoding is context-independent.
 func (m MED) PackWithContext(_, _ *bgpctx.EncodingContext) []byte { return m.Pack() }
 
+// WriteTo writes the MED value into buf at offset.
+func (m MED) WriteTo(buf []byte, off int) int {
+	binary.BigEndian.PutUint32(buf[off:], uint32(m))
+	return 4
+}
+
+// WriteToWithContext writes the MED value - context-independent.
+func (m MED) WriteToWithContext(buf []byte, off int, _, _ *bgpctx.EncodingContext) int {
+	return m.WriteTo(buf, off)
+}
+
 // ParseMED parses a MULTI_EXIT_DISC attribute.
 // RFC 4271 Section 5.1.4 specifies 4-octet length.
 func ParseMED(data []byte) (MED, error) {
@@ -109,6 +130,17 @@ func (l LocalPref) Pack() []byte {
 // PackWithContext returns Pack() - LOCAL_PREF encoding is context-independent.
 func (l LocalPref) PackWithContext(_, _ *bgpctx.EncodingContext) []byte { return l.Pack() }
 
+// WriteTo writes the LOCAL_PREF value into buf at offset.
+func (l LocalPref) WriteTo(buf []byte, off int) int {
+	binary.BigEndian.PutUint32(buf[off:], uint32(l))
+	return 4
+}
+
+// WriteToWithContext writes the LOCAL_PREF value - context-independent.
+func (l LocalPref) WriteToWithContext(buf []byte, off int, _, _ *bgpctx.EncodingContext) int {
+	return l.WriteTo(buf, off)
+}
+
 // ParseLocalPref parses a LOCAL_PREF attribute.
 // RFC 4271 Section 5.1.5 specifies 4-octet length.
 func ParseLocalPref(data []byte) (LocalPref, error) {
@@ -137,6 +169,14 @@ func (AtomicAggregate) Pack() []byte          { return nil }
 
 // PackWithContext returns Pack() - ATOMIC_AGGREGATE encoding is context-independent.
 func (AtomicAggregate) PackWithContext(_, _ *bgpctx.EncodingContext) []byte { return nil }
+
+// WriteTo writes nothing (ATOMIC_AGGREGATE has zero length).
+func (AtomicAggregate) WriteTo(_ []byte, _ int) int { return 0 }
+
+// WriteToWithContext writes nothing - context-independent.
+func (AtomicAggregate) WriteToWithContext(_ []byte, _ int, _, _ *bgpctx.EncodingContext) int {
+	return 0
+}
 
 // Aggregator represents the AGGREGATOR attribute.
 //
@@ -197,6 +237,32 @@ func (a *Aggregator) PackWithContext(_, dstCtx *bgpctx.EncodingContext) []byte {
 	return buf
 }
 
+// WriteTo writes the AGGREGATOR using 4-byte AS format (RFC 6793).
+func (a *Aggregator) WriteTo(buf []byte, off int) int {
+	binary.BigEndian.PutUint32(buf[off:], a.ASN)
+	copy(buf[off+4:], a.Address.AsSlice())
+	return 8
+}
+
+// WriteToWithContext writes AGGREGATOR with context-dependent format.
+func (a *Aggregator) WriteToWithContext(buf []byte, off int, _, dstCtx *bgpctx.EncodingContext) int {
+	if dstCtx == nil || dstCtx.ASN4 {
+		// 8-byte format: 4-byte ASN + 4-byte IP
+		binary.BigEndian.PutUint32(buf[off:], a.ASN)
+		copy(buf[off+4:], a.Address.AsSlice())
+		return 8
+	}
+
+	// 6-byte format: 2-byte ASN + 4-byte IP
+	asn := a.ASN
+	if asn > 65535 {
+		asn = 23456 // AS_TRANS per RFC 6793 Section 9
+	}
+	binary.BigEndian.PutUint16(buf[off:], uint16(asn)) //nolint:gosec // bounds checked above
+	copy(buf[off+2:], a.Address.AsSlice())
+	return 6
+}
+
 // ParseAggregator parses an AGGREGATOR attribute.
 //
 // RFC 4271 Section 5.1.7: Original 2-byte AS format (6 octets total).
@@ -237,6 +303,16 @@ func (o OriginatorID) Pack() []byte          { return netip.Addr(o).AsSlice() }
 // PackWithContext returns Pack() - ORIGINATOR_ID encoding is context-independent.
 func (o OriginatorID) PackWithContext(_, _ *bgpctx.EncodingContext) []byte { return o.Pack() }
 
+// WriteTo writes the ORIGINATOR_ID value into buf at offset.
+func (o OriginatorID) WriteTo(buf []byte, off int) int {
+	return copy(buf[off:], netip.Addr(o).AsSlice())
+}
+
+// WriteToWithContext writes the ORIGINATOR_ID value - context-independent.
+func (o OriginatorID) WriteToWithContext(buf []byte, off int, _, _ *bgpctx.EncodingContext) int {
+	return o.WriteTo(buf, off)
+}
+
 // ParseOriginatorID parses an ORIGINATOR_ID attribute (RFC 4456).
 // ORIGINATOR_ID is the Router ID (4 bytes) of the route reflector client
 // that originated the route.
@@ -267,6 +343,19 @@ func (c ClusterList) Pack() []byte {
 
 // PackWithContext returns Pack() - CLUSTER_LIST encoding is context-independent.
 func (c ClusterList) PackWithContext(_, _ *bgpctx.EncodingContext) []byte { return c.Pack() }
+
+// WriteTo writes the CLUSTER_LIST value into buf at offset.
+func (c ClusterList) WriteTo(buf []byte, off int) int {
+	for i, id := range c {
+		binary.BigEndian.PutUint32(buf[off+i*4:], id)
+	}
+	return len(c) * 4
+}
+
+// WriteToWithContext writes the CLUSTER_LIST value - context-independent.
+func (c ClusterList) WriteToWithContext(buf []byte, off int, _, _ *bgpctx.EncodingContext) int {
+	return c.WriteTo(buf, off)
+}
 
 // ParseClusterList parses a CLUSTER_LIST attribute.
 func ParseClusterList(data []byte) (ClusterList, error) {

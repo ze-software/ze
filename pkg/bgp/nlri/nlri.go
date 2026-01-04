@@ -260,4 +260,10 @@ type NLRI interface {
 	// HasPathID returns true if this NLRI has an ADD-PATH path ID.
 	// RFC 7911: Path ID is present when ADD-PATH capability is negotiated.
 	HasPathID() bool
+
+	// WriteTo writes the NLRI wire-format into buf at offset.
+	// Returns number of bytes written.
+	// Uses ctx for capability-aware encoding (ADD-PATH, etc.).
+	// Caller guarantees buf has sufficient capacity.
+	WriteTo(buf []byte, off int, ctx *PackContext) int
 }
