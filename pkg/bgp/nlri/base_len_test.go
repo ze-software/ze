@@ -1,4 +1,4 @@
-// Package nlri tests for ADD-PATH encoding simplification.
+// Package nlri tests for ADD-PATH encoding (Phase 4 cleanup).
 package nlri
 
 import (
@@ -6,46 +6,46 @@ import (
 	"testing"
 )
 
-// TestBaseLen_INET verifies BaseLen returns payload length without path ID.
+// TestLen_INET verifies Len returns payload length without path ID.
 //
-// VALIDATES: BaseLen equals Len() after Phase 3 simplification.
+// VALIDATES: Len() returns payload-only length after Phase 3 simplification.
 // PREVENTS: Size mismatch when building wire format with ADD-PATH.
-func TestBaseLen_INET(t *testing.T) {
+func TestLen_INET(t *testing.T) {
 	tests := []struct {
-		name     string
-		prefix   netip.Prefix
-		pathID   uint32
-		wantBase int // BaseLen (no path ID)
+		name    string
+		prefix  netip.Prefix
+		pathID  uint32
+		wantLen int
 	}{
 		{
-			name:     "IPv4/24 no path",
-			prefix:   netip.MustParsePrefix("10.0.0.0/24"),
-			pathID:   0,
-			wantBase: 1 + 3, // length byte + 3 prefix bytes
+			name:    "IPv4/24 no path",
+			prefix:  netip.MustParsePrefix("10.0.0.0/24"),
+			pathID:  0,
+			wantLen: 1 + 3, // length byte + 3 prefix bytes
 		},
 		{
-			name:     "IPv4/24 with path",
-			prefix:   netip.MustParsePrefix("10.0.0.0/24"),
-			pathID:   1,
-			wantBase: 1 + 3, // Same! Len() no longer includes path ID
+			name:    "IPv4/24 with path",
+			prefix:  netip.MustParsePrefix("10.0.0.0/24"),
+			pathID:  1,
+			wantLen: 1 + 3, // Same! Len() excludes path ID
 		},
 		{
-			name:     "IPv4/32 no path",
-			prefix:   netip.MustParsePrefix("192.168.1.1/32"),
-			pathID:   0,
-			wantBase: 1 + 4,
+			name:    "IPv4/32 no path",
+			prefix:  netip.MustParsePrefix("192.168.1.1/32"),
+			pathID:  0,
+			wantLen: 1 + 4,
 		},
 		{
-			name:     "IPv4/0 no path",
-			prefix:   netip.MustParsePrefix("0.0.0.0/0"),
-			pathID:   0,
-			wantBase: 1 + 0, // /0 = 0 prefix bytes
+			name:    "IPv4/0 no path",
+			prefix:  netip.MustParsePrefix("0.0.0.0/0"),
+			pathID:  0,
+			wantLen: 1 + 0, // /0 = 0 prefix bytes
 		},
 		{
-			name:     "IPv6/64 with path",
-			prefix:   netip.MustParsePrefix("2001:db8::/64"),
-			pathID:   100,
-			wantBase: 1 + 8, // length byte + 8 prefix bytes
+			name:    "IPv6/64 with path",
+			prefix:  netip.MustParsePrefix("2001:db8::/64"),
+			pathID:  100,
+			wantLen: 1 + 8, // length byte + 8 prefix bytes
 		},
 	}
 
@@ -58,53 +58,48 @@ func TestBaseLen_INET(t *testing.T) {
 
 			inet := NewINET(family, tt.prefix, tt.pathID)
 
-			got := inet.BaseLen()
-			if got != tt.wantBase {
-				t.Errorf("BaseLen() = %d, want %d", got, tt.wantBase)
-			}
-
-			// Phase 3: Len() = BaseLen() always (no path ID included)
-			if inet.Len() != got {
-				t.Errorf("Len() = %d, want BaseLen() = %d", inet.Len(), got)
+			got := inet.Len()
+			if got != tt.wantLen {
+				t.Errorf("Len() = %d, want %d", got, tt.wantLen)
 			}
 		})
 	}
 }
 
-// TestBaseLen_IPVPN verifies BaseLen returns payload length without path ID.
+// TestLen_IPVPN verifies Len returns payload length without path ID.
 //
-// VALIDATES: BaseLen equals Len() after Phase 3 simplification.
+// VALIDATES: Len() returns payload-only length for IPVPN.
 // PREVENTS: Size mismatch in VPN route encoding.
-func TestBaseLen_IPVPN(t *testing.T) {
+func TestLen_IPVPN(t *testing.T) {
 	rd, _ := ParseRDString("65000:100")
 
 	tests := []struct {
-		name     string
-		prefix   netip.Prefix
-		labels   []uint32
-		pathID   uint32
-		wantBase int
+		name    string
+		prefix  netip.Prefix
+		labels  []uint32
+		pathID  uint32
+		wantLen int
 	}{
 		{
-			name:     "VPNv4/24 one label no path",
-			prefix:   netip.MustParsePrefix("10.0.0.0/24"),
-			labels:   []uint32{16000},
-			pathID:   0,
-			wantBase: 1 + 3 + 8 + 3, // length + labels + RD + prefix
+			name:    "VPNv4/24 one label no path",
+			prefix:  netip.MustParsePrefix("10.0.0.0/24"),
+			labels:  []uint32{16000},
+			pathID:  0,
+			wantLen: 1 + 3 + 8 + 3, // length + labels + RD + prefix
 		},
 		{
-			name:     "VPNv4/24 one label with path",
-			prefix:   netip.MustParsePrefix("10.0.0.0/24"),
-			labels:   []uint32{16000},
-			pathID:   1,
-			wantBase: 1 + 3 + 8 + 3, // Same! Len() no longer includes path ID
+			name:    "VPNv4/24 one label with path",
+			prefix:  netip.MustParsePrefix("10.0.0.0/24"),
+			labels:  []uint32{16000},
+			pathID:  1,
+			wantLen: 1 + 3 + 8 + 3, // Same! Len() excludes path ID
 		},
 		{
-			name:     "VPNv4/32 two labels",
-			prefix:   netip.MustParsePrefix("192.168.1.1/32"),
-			labels:   []uint32{16000, 17000},
-			pathID:   0,
-			wantBase: 1 + 6 + 8 + 4, // length + 2*3 labels + RD + prefix
+			name:    "VPNv4/32 two labels",
+			prefix:  netip.MustParsePrefix("192.168.1.1/32"),
+			labels:  []uint32{16000, 17000},
+			pathID:  0,
+			wantLen: 1 + 6 + 8 + 4, // length + 2*3 labels + RD + prefix
 		},
 	}
 
@@ -117,44 +112,39 @@ func TestBaseLen_IPVPN(t *testing.T) {
 
 			vpn := NewIPVPN(family, rd, tt.labels, tt.prefix, tt.pathID)
 
-			got := vpn.BaseLen()
-			if got != tt.wantBase {
-				t.Errorf("BaseLen() = %d, want %d", got, tt.wantBase)
-			}
-
-			// Phase 3: Len() = BaseLen() always
-			if vpn.Len() != got {
-				t.Errorf("Len() = %d, want BaseLen() = %d", vpn.Len(), got)
+			got := vpn.Len()
+			if got != tt.wantLen {
+				t.Errorf("Len() = %d, want %d", got, tt.wantLen)
 			}
 		})
 	}
 }
 
-// TestBaseLen_LabeledUnicast verifies BaseLen returns payload length without path ID.
+// TestLen_LabeledUnicast verifies Len returns payload length without path ID.
 //
-// VALIDATES: BaseLen equals Len() after Phase 3 simplification.
+// VALIDATES: Len() returns payload-only length for labeled unicast.
 // PREVENTS: Size mismatch in MPLS-labeled route encoding.
-func TestBaseLen_LabeledUnicast(t *testing.T) {
+func TestLen_LabeledUnicast(t *testing.T) {
 	tests := []struct {
-		name     string
-		prefix   netip.Prefix
-		labels   []uint32
-		pathID   uint32
-		wantBase int
+		name    string
+		prefix  netip.Prefix
+		labels  []uint32
+		pathID  uint32
+		wantLen int
 	}{
 		{
-			name:     "IPv4/24 one label no path",
-			prefix:   netip.MustParsePrefix("10.0.0.0/24"),
-			labels:   []uint32{16000},
-			pathID:   0,
-			wantBase: 1 + 3 + 3, // length + labels + prefix
+			name:    "IPv4/24 one label no path",
+			prefix:  netip.MustParsePrefix("10.0.0.0/24"),
+			labels:  []uint32{16000},
+			pathID:  0,
+			wantLen: 1 + 3 + 3, // length + labels + prefix
 		},
 		{
-			name:     "IPv4/24 one label with path",
-			prefix:   netip.MustParsePrefix("10.0.0.0/24"),
-			labels:   []uint32{16000},
-			pathID:   1,
-			wantBase: 1 + 3 + 3, // Same! Len() no longer includes path ID
+			name:    "IPv4/24 one label with path",
+			prefix:  netip.MustParsePrefix("10.0.0.0/24"),
+			labels:  []uint32{16000},
+			pathID:  1,
+			wantLen: 1 + 3 + 3, // Same! Len() excludes path ID
 		},
 	}
 
@@ -167,24 +157,19 @@ func TestBaseLen_LabeledUnicast(t *testing.T) {
 
 			lu := NewLabeledUnicast(family, tt.prefix, tt.labels, tt.pathID)
 
-			got := lu.BaseLen()
-			if got != tt.wantBase {
-				t.Errorf("BaseLen() = %d, want %d", got, tt.wantBase)
-			}
-
-			// Phase 3: Len() = BaseLen() always
-			if lu.Len() != got {
-				t.Errorf("Len() = %d, want BaseLen() = %d", lu.Len(), got)
+			got := lu.Len()
+			if got != tt.wantLen {
+				t.Errorf("Len() = %d, want %d", got, tt.wantLen)
 			}
 		})
 	}
 }
 
-// TestWritePayloadTo_INET verifies WritePayloadTo writes payload without path ID.
+// TestWriteTo_INET verifies WriteTo writes payload without path ID.
 //
-// VALIDATES: WritePayloadTo produces bytes identical to Bytes().
+// VALIDATES: WriteTo produces bytes identical to Bytes().
 // PREVENTS: Wire format corruption when ADD-PATH is handled externally.
-func TestWritePayloadTo_INET(t *testing.T) {
+func TestWriteTo_INET(t *testing.T) {
 	tests := []struct {
 		name   string
 		prefix netip.Prefix
@@ -216,21 +201,21 @@ func TestWritePayloadTo_INET(t *testing.T) {
 
 			inet := NewINET(family, tt.prefix, tt.pathID)
 
-			// Write to buffer
+			// Write to buffer using WriteTo
 			buf := make([]byte, 100)
-			n := inet.WritePayloadTo(buf, 0)
+			n := inet.WriteTo(buf, 0, nil)
 
-			// Verify length matches BaseLen
-			if n != inet.BaseLen() {
-				t.Errorf("WritePayloadTo returned %d, want BaseLen() = %d", n, inet.BaseLen())
+			// Verify length matches Len()
+			if n != inet.Len() {
+				t.Errorf("WriteTo returned %d, want Len() = %d", n, inet.Len())
 			}
 
-			// Phase 3: Bytes() = payload only, should match WritePayloadTo
+			// Bytes() = payload only, should match WriteTo
 			expected := inet.Bytes()
 			got := buf[:n]
 
 			if len(got) != len(expected) {
-				t.Errorf("WritePayloadTo wrote %d bytes, want %d", len(got), len(expected))
+				t.Errorf("WriteTo wrote %d bytes, want %d", len(got), len(expected))
 			}
 			for i := range got {
 				if got[i] != expected[i] {
@@ -254,8 +239,8 @@ func TestWriteNLRI_AddPath(t *testing.T) {
 		buf := make([]byte, 100)
 		n := WriteNLRI(inet, buf, 0, ctx)
 
-		// Should be 4 (path ID) + BaseLen
-		wantLen := 4 + inet.BaseLen()
+		// Should be 4 (path ID) + Len()
+		wantLen := 4 + inet.Len()
 		if n != wantLen {
 			t.Errorf("WriteNLRI returned %d, want %d", n, wantLen)
 		}
@@ -271,9 +256,9 @@ func TestWriteNLRI_AddPath(t *testing.T) {
 		buf := make([]byte, 100)
 		n := WriteNLRI(inet, buf, 0, ctx)
 
-		// Should be just BaseLen
-		if n != inet.BaseLen() {
-			t.Errorf("WriteNLRI returned %d, want %d", n, inet.BaseLen())
+		// Should be just Len()
+		if n != inet.Len() {
+			t.Errorf("WriteNLRI returned %d, want %d", n, inet.Len())
 		}
 	})
 
@@ -281,9 +266,9 @@ func TestWriteNLRI_AddPath(t *testing.T) {
 		buf := make([]byte, 100)
 		n := WriteNLRI(inet, buf, 0, nil)
 
-		// Phase 3: nil context = payload only (no path ID)
-		if n != inet.BaseLen() {
-			t.Errorf("WriteNLRI returned %d, want %d", n, inet.BaseLen())
+		// nil context = payload only (no path ID)
+		if n != inet.Len() {
+			t.Errorf("WriteNLRI returned %d, want %d", n, inet.Len())
 		}
 	})
 }
@@ -305,8 +290,8 @@ func TestWriteNLRI_WithStoredPathID(t *testing.T) {
 		t.Errorf("path ID = %02x%02x%02x%02x, want 0000002a", buf[0], buf[1], buf[2], buf[3])
 	}
 
-	// Total length should be 4 + BaseLen
-	wantLen := 4 + inet.BaseLen()
+	// Total length should be 4 + Len()
+	wantLen := 4 + inet.Len()
 	if n != wantLen {
 		t.Errorf("WriteNLRI returned %d, want %d", n, wantLen)
 	}

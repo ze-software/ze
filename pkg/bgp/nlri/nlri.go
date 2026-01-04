@@ -311,51 +311,25 @@ func supportsAddPath(n NLRI) bool {
 	}
 }
 
-// PayloadWriter is implemented by NLRI types that support payload-only writing.
-// This interface enables zero-allocation ADD-PATH encoding by separating
-// path ID handling from payload encoding.
-type PayloadWriter interface {
-	// BaseLen returns payload length WITHOUT path ID.
-	BaseLen() int
-	// WritePayloadTo writes payload only (no path ID) into buf at offset.
-	WritePayloadTo(buf []byte, off int) int
-	// PathID returns the stored path identifier (0 if unset).
-	PathID() uint32
-}
-
 // WriteNLRI writes NLRI with ADD-PATH handling into buf at offset.
 //
 // RFC 7911 Section 3: ADD-PATH prepends 4-byte path identifier:
 //   - If ctx.AddPath=true: writes path ID + payload
 //   - If ctx.AddPath=false or ctx=nil: writes payload only
 //
-// For NLRI types implementing PayloadWriter, uses zero-allocation path.
-// For others, falls back to WriteTo.
+// This is the recommended way to encode NLRIs for wire format.
 func WriteNLRI(n NLRI, buf []byte, off int, ctx *PackContext) int {
-	// Try optimized path for types with PayloadWriter
-	if pw, ok := n.(PayloadWriter); ok {
-		return writeNLRIOptimized(pw, buf, off, ctx)
-	}
-	// Fallback for types without PayloadWriter
-	return n.WriteTo(buf, off, ctx)
-}
-
-// writeNLRIOptimized handles ADD-PATH encoding for PayloadWriter types.
-//
-// Phase 3: Path ID is only written when ctx.AddPath=true.
-// When ctx=nil or ctx.AddPath=false, only payload is written.
-func writeNLRIOptimized(pw PayloadWriter, buf []byte, off int, ctx *PackContext) int {
 	pos := off
 
 	// Handle ADD-PATH path identifier
 	// RFC 7911: Path ID only included when ctx.AddPath=true
 	if ctx != nil && ctx.AddPath {
-		binary.BigEndian.PutUint32(buf[pos:], pw.PathID())
+		binary.BigEndian.PutUint32(buf[pos:], n.PathID())
 		pos += 4
 	}
 
-	// Write payload
-	pos += pw.WritePayloadTo(buf, pos)
+	// Write payload (without path ID)
+	pos += n.WriteTo(buf, pos, nil) // ctx=nil since WriteTo ignores it after Phase 3
 
 	return pos - off
 }

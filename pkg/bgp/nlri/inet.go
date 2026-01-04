@@ -183,32 +183,6 @@ func (i *INET) Len() int {
 	return 1 + prefixBytes
 }
 
-// BaseLen returns the payload length WITHOUT path ID.
-// After Phase 3, this is identical to Len(). Kept for Phase 4 cleanup.
-func (i *INET) BaseLen() int {
-	return i.Len()
-}
-
-// WritePayloadTo writes the NLRI payload (without path ID) into buf at offset.
-// Returns number of bytes written.
-// After Phase 3, this is identical to WriteTo(buf, off, nil). Kept for Phase 4 cleanup.
-func (i *INET) WritePayloadTo(buf []byte, off int) int {
-	prefixLen := i.prefix.Bits()
-	prefixBytes := (prefixLen + 7) / 8
-
-	pos := off
-
-	// Write prefix length
-	buf[pos] = byte(prefixLen)
-	pos++
-
-	// Write prefix bytes
-	copy(buf[pos:], i.prefix.Addr().AsSlice()[:prefixBytes])
-	pos += prefixBytes
-
-	return pos - off
-}
-
 // String returns a human-readable representation.
 func (i *INET) String() string {
 	if i.pathID != 0 {
@@ -223,7 +197,20 @@ func (i *INET) String() string {
 // Note: Path ID is NOT written. Use WriteNLRI() for ADD-PATH encoding.
 // The ctx parameter is ignored (kept for interface compatibility).
 func (i *INET) WriteTo(buf []byte, off int, _ *PackContext) int {
-	return i.WritePayloadTo(buf, off)
+	prefixLen := i.prefix.Bits()
+	prefixBytes := (prefixLen + 7) / 8
+
+	pos := off
+
+	// Write prefix length
+	buf[pos] = byte(prefixLen)
+	pos++
+
+	// Write prefix bytes
+	copy(buf[pos:], i.prefix.Addr().AsSlice()[:prefixBytes])
+	pos += prefixBytes
+
+	return pos - off
 }
 
 // Pack returns wire-format bytes adapted for negotiated capabilities.

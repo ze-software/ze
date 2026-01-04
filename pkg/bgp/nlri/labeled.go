@@ -148,16 +148,12 @@ func (l *LabeledUnicast) Len() int {
 	return 1 + labelBytes + prefixBytes
 }
 
-// BaseLen returns the payload length WITHOUT path ID.
-// After Phase 3, this is identical to Len(). Kept for Phase 4 cleanup.
-func (l *LabeledUnicast) BaseLen() int {
-	return l.Len()
-}
-
-// WritePayloadTo writes the NLRI payload (without path ID) into buf at offset.
+// WriteTo writes the NLRI payload (without path ID) into buf at offset.
 // Returns number of bytes written.
-// After Phase 3, this is identical to WriteTo(buf, off, nil). Kept for Phase 4 cleanup.
-func (l *LabeledUnicast) WritePayloadTo(buf []byte, off int) int {
+//
+// Note: Path ID is NOT written. Use WriteNLRI() for ADD-PATH encoding.
+// The ctx parameter is ignored (kept for interface compatibility).
+func (l *LabeledUnicast) WriteTo(buf []byte, off int, _ *PackContext) int {
 	prefixBits := l.prefix.Bits()
 	prefixBytes := (prefixBits + 7) / 8
 	labelCount := len(l.labels)
@@ -190,15 +186,6 @@ func (l *LabeledUnicast) WritePayloadTo(buf []byte, off int) int {
 	}
 
 	return pos - off
-}
-
-// WriteTo writes the NLRI payload (without path ID) into buf at offset.
-// Returns number of bytes written.
-//
-// Note: Path ID is NOT written. Use WriteNLRI() for ADD-PATH encoding.
-// The ctx parameter is ignored (kept for interface compatibility).
-func (l *LabeledUnicast) WriteTo(buf []byte, off int, _ *PackContext) int {
-	return l.WritePayloadTo(buf, off)
 }
 
 // Pack returns wire-format bytes adapted for negotiated capabilities.

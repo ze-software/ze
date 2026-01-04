@@ -135,13 +135,16 @@ Commit: `daab7d6` (included in Phase 1 commit)
 
 Commit: `5516ddd` refactor(nlri): Phase 3 ADD-PATH simplification - payload-only encoding
 
-### Phase 4: Cleanup (TODO)
+### Phase 4: Cleanup ✅ COMPLETE
 
-1. Remove `BaseLen()` (now redundant with `Len()`)
-2. Remove `WritePayloadTo()` (now redundant with `WriteTo()`)
-3. Remove `Pack()` from interface (callers should use `WriteNLRI()`)
-4. Update EVPN types to match new pattern
-5. Update documentation
+1. ✅ Remove `BaseLen()` from INET, IPVPN, LabeledUnicast
+2. ✅ Remove `WritePayloadTo()` from INET, IPVPN, LabeledUnicast
+3. ✅ Remove `PayloadWriter` interface
+4. ✅ Simplify `WriteNLRI()` to use `WriteTo()` directly
+5. ✅ Update tests to use `Len()` and `WriteTo()` instead of removed methods
+6. Pack() kept as deprecated wrapper (many callers not yet migrated)
+
+Note: EVPN types not updated - they don't currently support ADD-PATH
 
 ## Test Strategy
 

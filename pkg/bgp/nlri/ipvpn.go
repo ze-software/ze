@@ -434,16 +434,24 @@ func (v *IPVPN) Len() int {
 	return 1 + len(v.labels)*3 + 8 + prefixBytes
 }
 
-// BaseLen returns the payload length WITHOUT path ID.
-// After Phase 3, this is identical to Len(). Kept for Phase 4 cleanup.
-func (v *IPVPN) BaseLen() int {
-	return v.Len()
+// String returns a human-readable representation.
+func (v *IPVPN) String() string {
+	s := fmt.Sprintf("RD:%s %s", v.rd, v.prefix)
+	if len(v.labels) > 0 {
+		s = fmt.Sprintf("%s labels=%v", s, v.labels)
+	}
+	if v.pathID != 0 {
+		s = fmt.Sprintf("%s path-id=%d", s, v.pathID)
+	}
+	return s
 }
 
-// WritePayloadTo writes the NLRI payload (without path ID) into buf at offset.
+// WriteTo writes the NLRI payload (without path ID) into buf at offset.
 // Returns number of bytes written.
-// After Phase 3, this is identical to WriteTo(buf, off, nil). Kept for Phase 4 cleanup.
-func (v *IPVPN) WritePayloadTo(buf []byte, off int) int {
+//
+// Note: Path ID is NOT written. Use WriteNLRI() for ADD-PATH encoding.
+// The ctx parameter is ignored (kept for interface compatibility).
+func (v *IPVPN) WriteTo(buf []byte, off int, _ *PackContext) int {
 	prefixBits := v.prefix.Bits()
 	prefixBytes := (prefixBits + 7) / 8
 	labelCount := len(v.labels)
@@ -470,27 +478,6 @@ func (v *IPVPN) WritePayloadTo(buf []byte, off int) int {
 	pos += prefixBytes
 
 	return pos - off
-}
-
-// String returns a human-readable representation.
-func (v *IPVPN) String() string {
-	s := fmt.Sprintf("RD:%s %s", v.rd, v.prefix)
-	if len(v.labels) > 0 {
-		s = fmt.Sprintf("%s labels=%v", s, v.labels)
-	}
-	if v.pathID != 0 {
-		s = fmt.Sprintf("%s path-id=%d", s, v.pathID)
-	}
-	return s
-}
-
-// WriteTo writes the NLRI payload (without path ID) into buf at offset.
-// Returns number of bytes written.
-//
-// Note: Path ID is NOT written. Use WriteNLRI() for ADD-PATH encoding.
-// The ctx parameter is ignored (kept for interface compatibility).
-func (v *IPVPN) WriteTo(buf []byte, off int, _ *PackContext) int {
-	return v.WritePayloadTo(buf, off)
 }
 
 // Pack returns wire-format bytes adapted for negotiated capabilities.
