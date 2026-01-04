@@ -245,6 +245,8 @@ type NLRI interface {
 	//   - If ctx.AddPath=true and HasPathID()=true: returns with path ID
 	//   - If ctx.AddPath=true and HasPathID()=false: prepends NOPATH (4 zeros)
 	//   - If ctx.AddPath=false: returns without path ID (strips if present)
+	//
+	// Deprecated: Use WriteTo for zero-allocation encoding.
 	Pack(ctx *PackContext) []byte
 
 	// Len returns the length in bytes of the wire encoding.
@@ -266,4 +268,56 @@ type NLRI interface {
 	// Uses ctx for capability-aware encoding (ADD-PATH, etc.).
 	// Caller guarantees buf has sufficient capacity.
 	WriteTo(buf []byte, off int, ctx *PackContext) int
+}
+
+// LenWithContext returns the wire-format length adjusted for context.
+//
+// RFC 7911: ADD-PATH adds/removes 4-byte path identifier based on context:
+//   - If ctx is nil: returns Len() (includes path ID if present)
+//   - If ctx.AddPath=true and !HasPathID(): adds 4 bytes for NOPATH
+//   - If ctx.AddPath=false and HasPathID(): subtracts 4 bytes
+//
+// Note: Some NLRI types (FlowSpec, BGPLS, etc.) don't support ADD-PATH
+// and ignore the context. For these, Len() is always returned.
+func LenWithContext(n NLRI, ctx *PackContext) int {
+	baseLen := n.Len()
+
+	// Types that don't support ADD-PATH - Pack() ignores context
+	if !supportsAddPath(n) {
+		return baseLen
+	}
+
+	hasPath := n.HasPathID()
+
+	if ctx == nil {
+		return baseLen
+	}
+
+	if ctx.AddPath {
+		if !hasPath {
+			return baseLen + 4 // Add NOPATH
+		}
+		return baseLen // Already has path ID
+	}
+
+	// ctx.AddPath == false
+	if hasPath {
+		return baseLen - 4 // Strip path ID
+	}
+	return baseLen
+}
+
+// supportsAddPath returns true if the NLRI type supports ADD-PATH encoding.
+// Types that don't support ADD-PATH have Pack() that ignores the context.
+func supportsAddPath(n NLRI) bool {
+	switch n.(type) {
+	case *FlowSpec, *FlowSpecVPN:
+		return false
+	case *BGPLSNode, *BGPLSLink, *BGPLSPrefix, *BGPLSSRv6SID:
+		return false
+	case *MVPN, *VPLS, *RTC, *MUP:
+		return false
+	default:
+		return true
+	}
 }

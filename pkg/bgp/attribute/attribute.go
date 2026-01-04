@@ -220,6 +220,9 @@ type Attribute interface {
 	Len() int
 
 	// Pack serializes the attribute value (excluding header).
+	//
+	// Deprecated: Use WriteTo for zero-allocation encoding.
+	// Pack allocates a new slice; WriteTo writes directly into a buffer.
 	Pack() []byte
 
 	// PackWithContext serializes the attribute value for transmission.
@@ -231,6 +234,8 @@ type Attribute interface {
 	// AS_PATH and AGGREGATOR use dstCtx.ASN4 for RFC 6793 encoding decisions.
 	//
 	// RFC 6793: ASN4 determines 2-byte vs 4-byte AS number encoding.
+	//
+	// Deprecated: Use WriteToWithContext for zero-allocation encoding.
 	PackWithContext(srcCtx, dstCtx *bgpctx.EncodingContext) []byte
 
 	// WriteTo writes the attribute value (excluding header) into buf at offset.
@@ -276,13 +281,37 @@ func WriteAttrTo(attr Attribute, buf []byte, off int) int {
 
 // WriteAttrToWithContext writes a complete attribute with context-dependent encoding.
 // Returns total bytes written.
+// Zero-allocation: calculates length without packing.
 func WriteAttrToWithContext(attr Attribute, buf []byte, off int, srcCtx, dstCtx *bgpctx.EncodingContext) int {
-	// Get context-dependent length by checking encoded size
-	// For most attributes this equals Len(), but AS_PATH may differ
-	packed := attr.PackWithContext(srcCtx, dstCtx)
-	valueLen := len(packed)
+	// Get context-dependent length
+	// For AS_PATH, length depends on ASN4 context; for others, Len() is sufficient
+	valueLen := attrLenWithContext(attr, dstCtx)
 
 	hdrLen := WriteHeaderTo(buf, off, attr.Flags(), attr.Code(), uint16(valueLen)) //nolint:gosec
 	n := attr.WriteToWithContext(buf, off+hdrLen, srcCtx, dstCtx)
 	return hdrLen + n
+}
+
+// attrLenWithContext returns the attribute value length accounting for context.
+//
+// Context-dependent attributes (RFC 6793):
+//   - AS_PATH: 2-byte vs 4-byte ASN encoding
+//   - AGGREGATOR: 6-byte vs 8-byte format
+//
+// For other attributes: returns Len() (context-independent).
+func attrLenWithContext(attr Attribute, dstCtx *bgpctx.EncodingContext) int {
+	asn4 := dstCtx == nil || dstCtx.ASN4
+
+	switch a := attr.(type) {
+	case *ASPath:
+		return a.LenWithASN4(asn4)
+	case *Aggregator:
+		// RFC 6793: 8-byte (4-byte ASN + 4-byte IP) or 6-byte (2-byte ASN + 4-byte IP)
+		if asn4 {
+			return 8
+		}
+		return 6
+	}
+	// All other attributes have context-independent length
+	return attr.Len()
 }

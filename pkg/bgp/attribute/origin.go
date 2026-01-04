@@ -2,6 +2,7 @@ package attribute
 
 import (
 	"fmt"
+	"log/slog"
 
 	bgpctx "github.com/exa-networks/zebgp/pkg/bgp/context"
 )
@@ -103,6 +104,8 @@ func ParseOrigin(data []byte) (Origin, error) {
 }
 
 // PackAttribute packs an attribute with its header.
+//
+// Deprecated: Use WriteAttrTo for zero-allocation encoding.
 func PackAttribute(attr Attribute) []byte {
 	value := attr.Pack()
 	header := PackHeader(attr.Flags(), attr.Code(), uint16(len(value))) //nolint:gosec // Attr max 65535
@@ -110,6 +113,8 @@ func PackAttribute(attr Attribute) []byte {
 }
 
 // PackASPathAttribute packs an AS_PATH attribute with optional 4-byte ASN support.
+//
+// Deprecated: Use WriteAttrTo with ASPath for zero-allocation encoding.
 func PackASPathAttribute(asPath *ASPath, asn4 bool) []byte {
 	value := asPath.PackWithASN4(asn4)
 	header := PackHeader(asPath.Flags(), asPath.Code(), uint16(len(value))) //nolint:gosec // Attr max 65535
@@ -159,6 +164,8 @@ func OrderAttributes(attrs []Attribute) []Attribute {
 //
 // RFC 4271 Appendix F.3: Order by type code for efficient comparison.
 // This combines OrderAttributes and PackAttribute for convenience.
+//
+// Deprecated: Use WriteAttributesOrdered for zero-allocation encoding.
 func PackAttributesOrdered(attrs []Attribute) []byte {
 	if len(attrs) == 0 {
 		return nil
@@ -178,11 +185,56 @@ func PackAttributesOrdered(attrs []Attribute) []byte {
 		}
 	}
 
-	// Pack all attributes
-	buf := make([]byte, 0, totalLen)
+	// Pack all attributes using copy (single allocation)
+	buf := make([]byte, totalLen)
+	off := 0
 	for _, attr := range ordered {
-		buf = append(buf, PackAttribute(attr)...)
+		off += WriteAttrTo(attr, buf, off)
+	}
+
+	// Sanity check: verify size calculation matches actual bytes written
+	if off != totalLen {
+		slog.Error("attribute size mismatch: Len disagrees with WriteTo",
+			"predicted", totalLen,
+			"actual", off,
+			"attrCount", len(attrs))
+		// Return actual bytes written to maintain correctness
+		return buf[:off]
 	}
 
 	return buf
+}
+
+// WriteAttributesOrdered writes attributes ordered by type code into buf.
+// Returns the number of bytes written.
+//
+// RFC 4271 Appendix F.3: Order by type code for efficient comparison.
+// Zero-allocation: writes directly into provided buffer.
+func WriteAttributesOrdered(attrs []Attribute, buf []byte, off int) int {
+	if len(attrs) == 0 {
+		return 0
+	}
+
+	ordered := OrderAttributes(attrs)
+	start := off
+	for _, attr := range ordered {
+		off += WriteAttrTo(attr, buf, off)
+	}
+
+	return off - start
+}
+
+// AttributesSize calculates the total wire size of attributes (header + value).
+// Used for pre-allocating buffers before calling WriteAttributesOrdered.
+func AttributesSize(attrs []Attribute) int {
+	totalLen := 0
+	for _, attr := range attrs {
+		attrLen := attr.Len()
+		if attrLen > 255 {
+			totalLen += 4 + attrLen // Extended length header
+		} else {
+			totalLen += 3 + attrLen // Normal header
+		}
+	}
+	return totalLen
 }

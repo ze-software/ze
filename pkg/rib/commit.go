@@ -2,6 +2,7 @@ package rib
 
 import (
 	"errors"
+	"log/slog"
 	"net/netip"
 	"sort"
 
@@ -209,75 +210,151 @@ func (c *CommitService) packContext(family nlri.Family) *nlri.PackContext {
 
 // packAttributesWithASPath packs path attributes with an explicit AS_PATH.
 // This is the preferred method for two-level grouping.
+// Zero-allocation: calculates size, pre-allocates, writes with copy.
 func (c *CommitService) packAttributesWithASPath(attrs []attribute.Attribute, asPath *attribute.ASPath, nextHop netip.Addr, family nlri.Family, nlriBytes []byte) []byte {
-	var result []byte
+	// Build encoding context for ASN4-aware encoding
+	var dstCtx *bgpctx.EncodingContext
+	if c.negotiated != nil {
+		dstCtx = &bgpctx.EncodingContext{ASN4: c.negotiated.ASN4}
+	}
 
-	// 1. ORIGIN (from provided attributes or default to IGP)
-	hasOrigin := false
+	// Phase 1: Identify attributes and calculate total size
+	var origin attribute.Attribute
+	var localPref attribute.Attribute
+	var otherAttrs []attribute.Attribute
+
 	for _, attr := range attrs {
-		if attr.Code() == attribute.AttrOrigin {
-			result = append(result, attribute.PackAttribute(attr)...)
-			hasOrigin = true
-			break
+		switch attr.Code() {
+		case attribute.AttrOrigin:
+			origin = attr
+		case attribute.AttrLocalPref:
+			localPref = attr
+		case attribute.AttrASPath, attribute.AttrNextHop:
+			// Skip - we handle these explicitly
+		default:
+			otherAttrs = append(otherAttrs, attr)
 		}
 	}
-	if !hasOrigin {
-		// Default to IGP origin
-		result = append(result, attribute.PackAttribute(attribute.Origin(0))...)
+
+	// Use defaults if not provided
+	if origin == nil {
+		origin = attribute.Origin(0) // IGP
 	}
 
-	// 2. AS_PATH (use explicit AS_PATH, apply eBGP/iBGP rules)
-	result = append(result, c.buildASPathFromExplicit(asPath)...)
+	// Build AS_PATH attribute
+	asPathAttr := c.buildASPathFromExplicit(asPath)
+
+	// Build NEXT_HOP or MP_REACH_NLRI
+	var nhAttr attribute.Attribute
+	if c.useTraditionalNLRI(family, nextHop) {
+		nhAttr = &attribute.NextHop{Addr: nextHop}
+	} else {
+		nhAttr = c.buildMPReachNLRI(family, nextHop, nlriBytes)
+	}
+
+	// For iBGP, ensure LOCAL_PREF
+	includeLocalPref := c.isIBGP()
+	if includeLocalPref && localPref == nil {
+		localPref = attribute.LocalPref(100)
+	}
+
+	// Phase 2: Calculate total size
+	totalLen := attrSize(origin) +
+		attrSizeWithContext(asPathAttr, dstCtx) +
+		attrSize(nhAttr)
+
+	if includeLocalPref {
+		totalLen += attrSize(localPref)
+	}
+
+	for _, attr := range otherAttrs {
+		totalLen += attrSize(attr)
+	}
+
+	// Phase 3: Pre-allocate and write using copy
+	buf := make([]byte, totalLen)
+	off := 0
+
+	// 1. ORIGIN
+	off += attribute.WriteAttrTo(origin, buf, off)
+
+	// 2. AS_PATH (context-dependent for ASN4)
+	off += attribute.WriteAttrToWithContext(asPathAttr, buf, off, nil, dstCtx)
 
 	// 3. NEXT_HOP or MP_REACH_NLRI
-	if c.useTraditionalNLRI(family, nextHop) {
-		// Traditional IPv4 unicast with IPv4 next-hop: NEXT_HOP attribute
-		nh := &attribute.NextHop{Addr: nextHop}
-		result = append(result, attribute.PackAttribute(nh)...)
-	} else {
-		// All other cases: MP_REACH_NLRI with next-hop and NLRI
-		mpReach := c.buildMPReachNLRI(family, nextHop, nlriBytes)
-		result = append(result, attribute.PackAttribute(mpReach)...)
-	}
+	off += attribute.WriteAttrTo(nhAttr, buf, off)
 
 	// 4. LOCAL_PREF for iBGP
-	if c.isIBGP() {
-		hasLocalPref := false
-		for _, attr := range attrs {
-			if attr.Code() == attribute.AttrLocalPref {
-				result = append(result, attribute.PackAttribute(attr)...)
-				hasLocalPref = true
-				break
-			}
-		}
-		if !hasLocalPref {
-			result = append(result, attribute.PackAttribute(attribute.LocalPref(100))...)
-		}
+	if includeLocalPref {
+		off += attribute.WriteAttrTo(localPref, buf, off)
 	}
 
-	// 5. Other attributes (MED, communities, etc.)
-	for _, attr := range attrs {
-		code := attr.Code()
-		// Skip attributes already handled above
-		if code == attribute.AttrOrigin || code == attribute.AttrASPath ||
-			code == attribute.AttrNextHop || code == attribute.AttrLocalPref {
-			continue
-		}
-		result = append(result, attribute.PackAttribute(attr)...)
+	// 5. Other attributes
+	for _, attr := range otherAttrs {
+		off += attribute.WriteAttrTo(attr, buf, off)
 	}
 
-	return result
+	// Sanity check: verify size calculation matches actual bytes written
+	if off != totalLen {
+		slog.Error("attribute size mismatch: attrSize disagrees with WriteAttrTo",
+			"predicted", totalLen,
+			"actual", off,
+			"attrCount", len(otherAttrs)+4) // origin, aspath, nh, localpref + others
+		// Return actual bytes written to maintain correctness
+		return buf[:off]
+	}
+
+	return buf
+}
+
+// attrSize returns the total wire size of an attribute (header + value).
+func attrSize(attr attribute.Attribute) int {
+	valueLen := attr.Len()
+	if valueLen > 255 {
+		return 4 + valueLen // Extended length header
+	}
+	return 3 + valueLen // Normal header
+}
+
+// attrSizeWithContext returns the total wire size with context-dependent encoding.
+//
+// Context-dependent attributes (RFC 6793):
+//   - AS_PATH: 2-byte vs 4-byte ASN encoding
+//   - AGGREGATOR: 6-byte vs 8-byte format
+func attrSizeWithContext(attr attribute.Attribute, dstCtx *bgpctx.EncodingContext) int {
+	asn4 := dstCtx == nil || dstCtx.ASN4
+
+	var valueLen int
+	switch a := attr.(type) {
+	case *attribute.ASPath:
+		valueLen = a.LenWithASN4(asn4)
+	case *attribute.Aggregator:
+		// RFC 6793: 8-byte (4-byte ASN + 4-byte IP) or 6-byte (2-byte ASN + 4-byte IP)
+		if asn4 {
+			valueLen = 8
+		} else {
+			valueLen = 6
+		}
+	default:
+		return attrSize(attr)
+	}
+
+	if valueLen > 255 {
+		return 4 + valueLen
+	}
+	return 3 + valueLen
 }
 
 // buildASPathFromExplicit builds AS_PATH from an explicit AS_PATH parameter.
 // For eBGP: prepends local AS. For iBGP: preserves as-is.
-func (c *CommitService) buildASPathFromExplicit(asPath *attribute.ASPath) []byte {
+// Returns the AS_PATH attribute object (not packed).
+func (c *CommitService) buildASPathFromExplicit(asPath *attribute.ASPath) *attribute.ASPath {
 	if c.isIBGP() {
 		// iBGP: preserve existing AS_PATH or use empty
 		if asPath != nil {
-			return attribute.PackASPathAttribute(asPath, c.negotiated.ASN4)
+			return asPath
 		}
-		return attribute.PackASPathAttribute(&attribute.ASPath{Segments: nil}, c.negotiated.ASN4)
+		return &attribute.ASPath{Segments: nil}
 	}
 
 	// eBGP: prepend local AS to existing path
@@ -298,16 +375,15 @@ func (c *CommitService) buildASPathFromExplicit(asPath *attribute.ASPath) []byte
 			newSegments = append([]attribute.ASPathSegment{newSeg}, newSegments...)
 		}
 
-		return attribute.PackASPathAttribute(&attribute.ASPath{Segments: newSegments}, c.negotiated.ASN4)
+		return &attribute.ASPath{Segments: newSegments}
 	}
 
 	// No existing AS_PATH: create new with just local AS
-	newPath := &attribute.ASPath{
+	return &attribute.ASPath{
 		Segments: []attribute.ASPathSegment{
 			{Type: attribute.ASSequence, ASNs: []uint32{c.negotiated.LocalAS}},
 		},
 	}
-	return attribute.PackASPathAttribute(newPath, c.negotiated.ASN4)
 }
 
 // buildMPReachNLRI builds an MP_REACH_NLRI attribute.

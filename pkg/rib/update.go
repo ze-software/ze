@@ -1,6 +1,7 @@
 package rib
 
 import (
+	"log/slog"
 	"net/netip"
 
 	"github.com/exa-networks/zebgp/pkg/bgp/attribute"
@@ -62,22 +63,34 @@ func buildPathAttributes(group *RouteGroup) []byte {
 }
 
 // buildNLRIBytes packs all NLRIs from the group into wire format.
-// RFC 7911: Uses Pack(ctx) for ADD-PATH aware encoding.
+// RFC 7911: Uses WriteTo(ctx) for ADD-PATH aware encoding.
+// Zero-allocation: calculates size then writes with copy.
 func buildNLRIBytes(group *RouteGroup, ctx *nlri.PackContext) []byte {
 	if len(group.Routes) == 0 {
 		return nil
 	}
 
-	// Calculate total size (using Pack for accurate length with ADD-PATH)
+	// Calculate total size
 	totalLen := 0
 	for _, route := range group.Routes {
-		totalLen += len(route.NLRI().Pack(ctx))
+		totalLen += nlri.LenWithContext(route.NLRI(), ctx)
 	}
 
-	// Pack all NLRIs
-	buf := make([]byte, 0, totalLen)
+	// Write all NLRIs using copy
+	buf := make([]byte, totalLen)
+	off := 0
 	for _, route := range group.Routes {
-		buf = append(buf, route.NLRI().Pack(ctx)...)
+		off += route.NLRI().WriteTo(buf, off, ctx)
+	}
+
+	// Sanity check: verify size calculation matches actual bytes written
+	if off != totalLen {
+		slog.Error("NLRI size mismatch: LenWithContext disagrees with WriteTo",
+			"predicted", totalLen,
+			"actual", off,
+			"routes", len(group.Routes))
+		// Return actual bytes written to maintain correctness
+		return buf[:off]
 	}
 
 	return buf
