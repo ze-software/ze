@@ -1,89 +1,86 @@
 # ZeBGP Pool Architecture
 
+> **Context:** This pool design is for **API programs** that implement RIB storage.
+> The ZeBGP engine does NOT use pools - it passes wire bytes to API programs.
+> See `plan/DESIGN_TRANSITION.md` for the overall architecture.
+
 ## TL;DR (Read This First)
 
 | Concept | Description |
 |---------|-------------|
-| **Purpose** | Deduplicate attributes/NLRIs across peers, zero-copy forwarding |
+| **Purpose** | Deduplicate attributes/NLRIs in API programs |
+| **Location** | API program (Go: `pkg/rib/`, Python/Rust: implement equivalent) |
 | **Key Pattern** | Double-buffer with MSB handles: `Handle = (bufferBit << 31) \| slotIndex` |
 | **Core Types** | `Handle`, `Pool`, `Slot`, `CompactionScheduler` |
 | **Key Functions** | `Pool.Intern()`, `Pool.Get()`, `Pool.AddRef()`, `Pool.Release()` |
-| **Zero-Copy** | Slice into message buffer; copy only when storing to pool |
+| **Input** | Base64-decoded wire bytes from engine events |
 
-**When to read full doc:** Pool storage, memory issues, compaction debugging, pass-through optimization.
+**When to read full doc:** Implementing RIB in Go, memory optimization, compaction.
+
+**For other languages:** Implement simpler dedup (hash map) or skip dedup entirely.
 
 ---
 
-Memory-efficient, zero-copy attribute and NLRI deduplication.
+Memory-efficient attribute and NLRI deduplication for API programs.
 
 ---
 
 ## Design Goals
 
 1. **Memory efficiency**: Deduplicate identical attributes/NLRIs across all peers
-2. **Zero-copy parsing**: Slice into message buffer, don't copy until storing
-3. **Non-blocking**: Incremental compaction, no stop-the-world pauses
-4. **Pass-through optimization**: Forward unchanged messages without parsing
-5. **Scalable**: Handle millions of routes with bounded memory
+2. **Non-blocking**: Incremental compaction, no stop-the-world pauses
+3. **Scalable**: Handle millions of routes with bounded memory
+4. **Simple API**: `Intern()`, `Get()`, `Release()` - easy to use
+5. **Polyglot friendly**: Design can be implemented in any language
 
 ---
 
-## Zero-Copy Flow (CRITICAL)
+## Data Flow
 
-The path from peer receive to RIB storage is zero-copy **until** Route creation:
+The pool lives in the **API program**, not the engine. Wire bytes flow from engine to API:
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│                           ZERO-COPY ZONE                                    │
+│                           ZeBGP ENGINE                                       │
 │                                                                             │
 │   Network recv()                                                            │
 │        │                                                                    │
 │        ▼                                                                    │
 │   ┌─────────────────────────────────────────────────────────────────┐      │
-│   │  Connection buffer (owned by TCP connection)                     │      │
-│   │  ┌─────────────────────────────────────────────────────────────┐│      │
-│   │  │ BGP Message: [header][attrs][nlri]                          ││      │
-│   │  └──────────────────────┬───────────────────────────────────────┘│      │
-│   └─────────────────────────┼────────────────────────────────────────┘      │
-│                             │                                               │
-│                             │ slice reference (no copy)                     │
-│                             ▼                                               │
-│   ┌─────────────────────────────────────────────────────────────────┐      │
-│   │  AttributesWire                                                  │      │
-│   │    packed []byte ──────► points into connection buffer          │      │
-│   │    (NO POOL, NO COPY)                                           │      │
+│   │  Parse UPDATE, extract wire bytes                                │      │
+│   │  Assign msg-id, cache wire bytes                                 │      │
 │   └─────────────────────────────────────────────────────────────────┘      │
-│                             │                                               │
-│                             │ slice reference (no copy)                     │
-│                             ▼                                               │
-│   ┌─────────────────────────────────────────────────────────────────┐      │
-│   │  API Processing (filters, transforms, etc.)                      │      │
-│   │    Uses AttributesWire.Packed() to read attribute bytes          │      │
-│   └─────────────────────────────────────────────────────────────────┘      │
-│                                                                             │
+│        │                                                                    │
+│        │ JSON event with base64 wire bytes                                  │
+│        ▼                                                                    │
 └─────────────────────────────────────────────────────────────────────────────┘
                               │
-════════════════════════════ COPY BOUNDARY ════════════════════════════════════
+════════════════════════════ PROCESS BOUNDARY ═════════════════════════════════
                               │
                               ▼
 ┌─────────────────────────────────────────────────────────────────────────────┐
-│                           POOL ZONE                                         │
+│                           API PROGRAM                                        │
 │                                                                             │
 │   ┌─────────────────────────────────────────────────────────────────┐      │
-│   │  Route.NewRouteWithWireCache(wireBytes, nlriBytes, ...)         │      │
-│   │                                                                  │      │
-│   │    attrHandle = pool.Attributes.Intern(wireBytes)  ◄── COPY     │      │
-│   │    nlriHandle = pool.NLRI.Intern(nlriBytes)        ◄── COPY     │      │
+│   │  Receive JSON event                                              │      │
+│   │  Decode base64: attrBytes, nlriBytes                             │      │
+│   └─────────────────────────────────────────────────────────────────┘      │
+│        │                                                                    │
+│        │ raw []byte                                                         │
+│        ▼                                                                    │
+│   ┌─────────────────────────────────────────────────────────────────┐      │
+│   │  Pool.Intern(attrBytes) → Handle                                 │      │
+│   │  Pool.Intern(nlriBytes) → Handle                                 │      │
 │   │                                                                  │      │
 │   │  Deduplication happens here:                                     │      │
 │   │    - Identical attributes → same handle (no new allocation)     │      │
 │   │    - New attributes → stored in pool buffer                      │      │
 │   └─────────────────────────────────────────────────────────────────┘      │
-│                             │                                               │
-│                             ▼                                               │
+│        │                                                                    │
+│        ▼                                                                    │
 │   ┌─────────────────────────────────────────────────────────────────┐      │
 │   │  RIB Storage                                                     │      │
-│   │    Route stores pool.Handle (4 bytes) not []byte                │      │
+│   │    Route stores pool.Handle (4 bytes) + msg-id                  │      │
 │   │    Multiple routes with same attrs → share storage              │      │
 │   └─────────────────────────────────────────────────────────────────┘      │
 │                                                                             │
@@ -92,33 +89,35 @@ The path from peer receive to RIB storage is zero-copy **until** Route creation:
 
 ### Key Principles
 
-| Component | Pool Interaction | Memory |
-|-----------|------------------|--------|
-| Connection buffer | None | Owned by TCP, temporary |
-| `AttributesWire` | **NONE** | Slice into connection buffer |
-| `Route` | `Intern()` at creation | Pool handles, permanent |
+| Component | Location | Purpose |
+|-----------|----------|---------|
+| Wire bytes | Engine → API (base64) | Raw BGP data |
+| Pool | API program | Deduplication |
+| RIB | API program | Route storage |
+| msg-id cache | Engine | Zero-copy forwarding |
 
-### Why AttributesWire Doesn't Use Pool
-
-1. **Lifetime mismatch**: AttributesWire is temporary (message processing), pool is long-lived
-2. **Zero-copy requirement**: Parsing must not copy; copy only at storage
-3. **Simplicity**: No Release() needed for AttributesWire
-
-### Copy Happens Exactly Once
+### API Program Usage
 
 ```go
-// WRONG: Copy at AttributesWire creation (breaks zero-copy)
-func NewAttributesWire(packed []byte, ctxID ContextID) *AttributesWire {
-    h := pool.Attributes.Intern(packed)  // ❌ DON'T DO THIS
-    ...
-}
+func (s *Server) handleUpdate(event *Event) {
+    // Decode base64 wire bytes from event
+    attrBytes, _ := base64.StdEncoding.DecodeString(event.RawAttributes)
+    nlriBytes, _ := base64.StdEncoding.DecodeString(event.RawNLRI)
 
-// CORRECT: Copy at Route creation (RIB storage)
-func NewRouteWithWireCache(..., wireBytes []byte, ...) *Route {
-    return &Route{
-        attrHandle: pool.Attributes.Intern(wireBytes),  // ✅ COPY HERE
-        ...
+    // Store in pool (deduplication)
+    attrHandle := s.pool.Intern(attrBytes)
+    nlriHandle := s.pool.Intern(nlriBytes)
+
+    // Create route with handles
+    route := &Route{
+        AttrHandle: attrHandle,
+        NLRIHandle: nlriHandle,
+        MsgID:      event.MsgID,
     }
+    s.rib.Insert(event.Peer, route)
+
+    // Tell engine to retain msg-id
+    s.send("msg-id %d retain", event.MsgID)
 }
 ```
 
@@ -988,11 +987,76 @@ func (p *Pool) Length(h Handle) int
 
 ---
 
-## Related Specs
+## Related Docs
 
-- `plan/spec-pool-handle-migration.md` - Implementation plan for pool integration
-- `plan/spec-attributes-wire.md` - AttributesWire (zero-copy reference, NO pool)
+- `plan/DESIGN_TRANSITION.md` - Overall architecture (RIB in API)
+- `plan/spec-api-rr.md` - Route Server implementation
+- `pkg/rib/` - Go reference implementation
 
 ---
 
-**Last Updated:** 2026-01-03
+## Polyglot Alternatives
+
+For non-Go API programs, simpler approaches work:
+
+### Python
+
+```python
+# Simple dict-based dedup
+class Pool:
+    def __init__(self):
+        self.data = {}  # bytes -> handle
+        self.handles = {}  # handle -> bytes
+        self.next_handle = 0
+
+    def intern(self, data: bytes) -> int:
+        key = data
+        if key in self.data:
+            return self.data[key]
+        handle = self.next_handle
+        self.next_handle += 1
+        self.data[key] = handle
+        self.handles[handle] = data
+        return handle
+
+    def get(self, handle: int) -> bytes:
+        return self.handles[handle]
+```
+
+### Rust
+
+```rust
+use std::collections::HashMap;
+
+struct Pool {
+    data: HashMap<Vec<u8>, u32>,
+    handles: HashMap<u32, Vec<u8>>,
+    next_handle: u32,
+}
+
+impl Pool {
+    fn intern(&mut self, data: Vec<u8>) -> u32 {
+        if let Some(&h) = self.data.get(&data) {
+            return h;
+        }
+        let handle = self.next_handle;
+        self.next_handle += 1;
+        self.data.insert(data.clone(), handle);
+        self.handles.insert(handle, data);
+        handle
+    }
+}
+```
+
+### No Dedup
+
+For simplicity, store raw bytes directly (higher memory, simpler code):
+
+```python
+# 1M routes × 200 bytes = ~200 MB
+routes = {}  # (peer, prefix) -> {'attrs': bytes, 'nlri': bytes, 'msg_id': int}
+```
+
+---
+
+**Last Updated:** 2026-01-04

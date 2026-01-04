@@ -1,22 +1,77 @@
 # API Architecture
 
-> **⚠️ PLANNED CHANGE:** Adj-RIB-Out will be removed from router core.
-> See `plan/spec-remove-adjrib-integration.md` and `.claude/zebgp/api/CAPABILITY_CONTRACT.md`.
-> Route refresh will be delegated to external API programs.
+> **ARCHITECTURE:** API programs own ALL RIB data and logic.
+> The ZeBGP engine is a minimal BGP speaker - no RIB, no best-path, no policy.
+> See `plan/DESIGN_TRANSITION.md` for the full architecture.
 
 ## TL;DR (Read This First)
 
 | Concept | Description |
 |---------|-------------|
-| **Purpose** | External route injection via Unix socket and subprocess |
-| **Flow** | `acceptLoop()` → `handleClient()` → `processCommand()` → Reactor |
-| **Key Types** | `Server`, `Client`, `Process`, `Dispatcher`, `RouteSpec` |
-| **Transactions** | `begin`/`commit`/`rollback` with Adj-RIB-Out queuing |
-| **Process binding** | Per-peer API binding with encoding/format config |
-| **Output syntax** | `announce nlri <family> <nlris>` (differs from ExaBGP) |
-| **Encoding** | Per-peer (correct: iBGP/eBGP differ, next-hop-self, ADD-PATH) |
+| **Engine Role** | FSM, parsing, wire I/O, msg-id cache |
+| **API Role** | RIB storage, policy, best-path, GR state |
+| **Communication** | JSON events + base64 wire bytes |
+| **Key Types** | `Server`, `Client`, `Process`, `Dispatcher` |
+| **RIB** | Owned by API program (use `pkg/rib/` as reference) |
+| **Polyglot** | API programs can be Go, Python, Rust, etc. |
+| **msg-id Control** | API controls cache lifetime (retain/release/expire) |
 
-**When to read full doc:** API commands, route injection, subprocess management.
+**When to read full doc:** Writing API programs, understanding engine/API split.
+
+---
+
+## RIB Ownership
+
+**API programs own all RIB data and logic.** The engine is a minimal BGP speaker.
+
+### Engine Responsibilities
+
+| Component | Description |
+|-----------|-------------|
+| FSM | Per-peer state machine (Connect, OpenSent, etc.) |
+| Parsing | Parse on demand (for API output) |
+| Wire I/O | Read/write BGP messages |
+| Capabilities | Negotiate with peers |
+| msg-id Cache | Store wire bytes, lifetime controlled by API |
+
+### API Program Responsibilities
+
+| Component | Description |
+|-----------|-------------|
+| RIB | Route storage (use `pkg/rib/` as reference) |
+| Pool | Attribute deduplication (see `POOL_ARCHITECTURE.md`) |
+| Policy | Import/export filters, route manipulation |
+| Best-path | Selection algorithm (if needed) |
+| GR/RR | Graceful restart, route refresh handling |
+| msg-id Control | Retain/release/expire cached messages |
+
+### Wire Bytes in Events
+
+Engine sends base64-encoded wire bytes to API:
+
+```json
+{
+  "type": "update",
+  "msg-id": 123,
+  "source-ctx-id": 42,
+  "raw-attributes": "AQEBAQECAQID...",
+  "raw-nlri": "GApAAA==",
+  "parsed": { ... }
+}
+```
+
+API decodes and stores in pool for deduplication.
+
+### msg-id Cache Control
+
+API controls msg-id lifetime:
+
+```
+msg-id 123 retain    # Keep until released
+msg-id 123 release   # Allow eviction
+msg-id 123 expire    # Remove immediately
+msg-id list          # List cached msg-ids
+```
 
 ---
 
@@ -475,24 +530,33 @@ type PendingRequests struct {
 
 See `PROCESS_PROTOCOL.md` for full protocol details.
 
-## Adj-RIB-Out
+## Adj-RIB-Out (API Owned)
+
+> **Note:** Adj-RIB-Out is now owned by API programs, not the engine.
+> The engine has no route storage - it delegates to API.
+
+API programs use `pkg/rib/` as reference implementation:
 
 ```go
-type OutgoingRIB struct {
-    pending   []*Route           // Queued for announcement
-    withdrawn []nlri.NLRI        // Queued for withdrawal
-    sent      map[string]*Route  // Already sent (cache)
+// In API program
+type RIB struct {
+    mu     sync.RWMutex
+    routes map[string]map[string]*Route  // peer → routeKey → route
+}
 
-    inTransaction    bool
-    transactionLabel string
+type Route struct {
+    AttrHandle  pool.Handle  // Interned attributes
+    NLRIHandle  pool.Handle  // Interned NLRI
+    MsgID       uint64       // For forward update-id
+    SourceCtxID uint16       // Encoding context
 }
 ```
 
-Key methods:
-- `QueueAnnounce(route)` - Queue for sending
-- `MarkSent(route)` - Move to sent cache
-- `BeginTransaction()` - Start batch mode
-- `CommitAndClear()` - Flush queued
+Key operations:
+- `Insert(peer, route)` - Store route from peer
+- `Remove(peer, prefix)` - Remove route
+- `GetPeerRoutes(peer)` - Get all routes from peer
+- `ClearPeer(peer)` - Remove all routes from peer
 
 ## Route Reflection via API (Update ID Pattern)
 
