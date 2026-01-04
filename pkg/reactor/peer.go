@@ -1240,9 +1240,19 @@ func buildRIBRouteUpdate(route *rib.Route, localAS uint32, isIBGP bool, ctx *nlr
 		nh := &attribute.NextHop{Addr: route.NextHop()}
 		attrBytes = append(attrBytes, attribute.PackAttribute(nh)...)
 
-		// 4. LOCAL_PREF for iBGP
+		// 4. LOCAL_PREF for iBGP - use stored value or default to 100
 		if isIBGP {
-			attrBytes = append(attrBytes, attribute.PackAttribute(attribute.LocalPref(100))...)
+			foundLocalPref := false
+			for _, attr := range route.Attributes() {
+				if lp, ok := attr.(attribute.LocalPref); ok {
+					attrBytes = append(attrBytes, attribute.PackAttribute(lp)...)
+					foundLocalPref = true
+					break
+				}
+			}
+			if !foundLocalPref {
+				attrBytes = append(attrBytes, attribute.PackAttribute(attribute.LocalPref(100))...)
+			}
 		}
 
 		// IPv4 unicast: use inline NLRI field
@@ -1260,9 +1270,19 @@ func buildRIBRouteUpdate(route *rib.Route, localAS uint32, isIBGP bool, ctx *nlr
 		}
 		attrBytes = append(attrBytes, attribute.PackAttribute(mpReach)...)
 
-		// LOCAL_PREF for iBGP
+		// LOCAL_PREF for iBGP - use stored value or default to 100
 		if isIBGP {
-			attrBytes = append(attrBytes, attribute.PackAttribute(attribute.LocalPref(100))...)
+			foundLocalPref := false
+			for _, attr := range route.Attributes() {
+				if lp, ok := attr.(attribute.LocalPref); ok {
+					attrBytes = append(attrBytes, attribute.PackAttribute(lp)...)
+					foundLocalPref = true
+					break
+				}
+			}
+			if !foundLocalPref {
+				attrBytes = append(attrBytes, attribute.PackAttribute(attribute.LocalPref(100))...)
+			}
 		}
 	}
 
