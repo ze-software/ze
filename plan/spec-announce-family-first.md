@@ -189,6 +189,54 @@ Shared Parser: parseUpdate() → parseEncoding() → parseAttr() → parseNlri()
 <nlri>        := <prefix> (text) | <encoded-bytes> (hex/b64/cbor)
 ```
 
+### Raw Passthrough Commands
+
+"Trust me bro" mode - send raw bytes with no validation.
+
+| Command | What's sent | Header |
+|---------|-------------|--------|
+| `peer X raw <type> <enc> <data>` | Message payload | ZeBGP adds |
+| `peer X raw <enc> <data>` | Full packet | User provides FF*16 |
+
+**Grammar:**
+```
+<raw-command> := peer <addr> raw [<msg-type>] <encoding> <data>
+<msg-type>    := open | update | notification | keepalive | route-refresh
+<encoding>    := hex | b64 | cbor
+<data>        := <encoded-bytes>
+```
+
+**Examples:**
+```bash
+# Message payload only (ZeBGP adds 16-byte BGP header)
+peer 10.0.0.1 raw update hex 0000000e40010100400200400304c0a80101180a00
+peer 10.0.0.1 raw notification hex 0602
+peer 10.0.0.1 raw notification b64 BgI=
+peer 10.0.0.1 raw keepalive hex       # empty payload OK
+peer 10.0.0.1 raw open hex 04ffdc...
+
+# Full packet (user provides FF*16 marker + length + type)
+peer 10.0.0.1 raw hex ffffffffffffffffffffffffffffffff001303
+peer 10.0.0.1 raw b64 //////////8AAAAAAAAAAAAAAAATAQ==
+```
+
+**Comparison with `update`:**
+
+| Aspect | `update` | `raw` |
+|--------|----------|-------|
+| Purpose | Build UPDATE | Send bytes |
+| Parsing | Full (attr, nlri, family) | None |
+| Validation | Yes | No |
+| Message types | UPDATE only | Any + full packet |
+
+**Validation:** None. Bytes sent exactly as provided.
+
+⚠️ **Risks:**
+- Can crash peer
+- Can violate FSM state
+- Can send malformed messages
+- Use for testing/debugging only
+
 ### Family Validation
 
 - `nlri ipv4/*` rejects IPv6 prefixes (parsed mode)
