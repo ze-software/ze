@@ -148,53 +148,52 @@ func backtrack(trace [][]int, a, b []rune, max int) []diff {
 	var diffs []diff
 	x, y := len(a), len(b)
 
-	for d := len(trace) - 1; d >= 0; d-- {
+	for d := len(trace) - 1; d > 0; d-- {
+		v := trace[d]
 		k := x - y
 
+		// Determine which direction we came from
 		var prevK int
-		var prevX, prevY int
+		kMinus := max + k - 1
+		kPlus := max + k + 1
 
-		if d == 0 {
-			// At d=0, we started at (0,0)
-			prevX, prevY = 0, 0
+		if k == -d || (k != d && kMinus >= 0 && kPlus < len(v) && v[kMinus] < v[kPlus]) {
+			prevK = k + 1 // came from above (insert)
 		} else {
-			v := trace[d-1]
-
-			// Bounds check for k-1 and k+1
-			kMinus := max + k - 1
-			kPlus := max + k + 1
-
-			if k == -d || (k != d && kMinus >= 0 && kPlus < len(v) && v[kMinus] < v[kPlus]) {
-				prevK = k + 1
-			} else {
-				prevK = k - 1
-			}
-
-			prevIdx := max + prevK
-			if prevIdx >= 0 && prevIdx < len(v) {
-				prevX = v[prevIdx]
-			}
-			prevY = prevX - prevK
+			prevK = k - 1 // came from left (delete)
 		}
 
-		// Diagonal moves (equals)
-		for x > prevX && y > prevY && x > 0 && y > 0 {
+		prevIdx := max + prevK
+		prevX := 0
+		if prevIdx >= 0 && prevIdx < len(v) {
+			prevX = v[prevIdx]
+		}
+		prevY := prevX - prevK
+
+		// Walk back diagonal (matches)
+		for x > prevX && y > prevY {
 			x--
 			y--
 			diffs = append([]diff{{diffEqual, string(a[x])}}, diffs...)
 		}
 
-		if d > 0 {
-			if x == prevX && y > 0 {
-				// Vertical move = insert
-				y--
-				diffs = append([]diff{{diffInsert, string(b[y])}}, diffs...)
-			} else if x > 0 {
-				// Horizontal move = delete
-				x--
-				diffs = append([]diff{{diffDelete, string(a[x])}}, diffs...)
-			}
+		// The edit that got us here
+		if prevK == k+1 {
+			// Vertical move = insert
+			y--
+			diffs = append([]diff{{diffInsert, string(b[y])}}, diffs...)
+		} else {
+			// Horizontal move = delete
+			x--
+			diffs = append([]diff{{diffDelete, string(a[x])}}, diffs...)
 		}
+	}
+
+	// Handle any remaining diagonal at the start
+	for x > 0 && y > 0 && a[x-1] == b[y-1] {
+		x--
+		y--
+		diffs = append([]diff{{diffEqual, string(a[x])}}, diffs...)
 	}
 
 	return diffs
@@ -217,25 +216,34 @@ func mergeDiffs(diffs []diff) []diff {
 	return result
 }
 
-// formatDiffs renders diffs with ANSI colors.
+// formatDiffs renders diffs in GitHub-style two-line format.
+// Line 1: expected with deletions highlighted (red).
+// Line 2: actual with insertions highlighted (green).
 func formatDiffs(diffs []diff) string {
 	const (
-		red   = "\033[31m"
-		green = "\033[32m"
-		reset = "\033[0m"
-		dim   = "\033[2m"
+		red     = "\033[31m"
+		green   = "\033[32m"
+		reset   = "\033[0m"
+		dim     = "\033[2m"
+		white   = "\033[97m"
+		redBg   = "\033[41m"
+		greenBg = "\033[42m"
 	)
 
-	var sb strings.Builder
+	var expected, actual strings.Builder
+
 	for _, d := range diffs {
 		switch d.Op {
 		case diffEqual:
-			sb.WriteString(dim + d.Text + reset)
+			expected.WriteString(dim + d.Text + reset)
+			actual.WriteString(dim + d.Text + reset)
 		case diffDelete:
-			sb.WriteString(red + d.Text + reset)
+			expected.WriteString(white + redBg + d.Text + reset)
 		case diffInsert:
-			sb.WriteString(green + d.Text + reset)
+			actual.WriteString(white + greenBg + d.Text + reset)
 		}
 	}
-	return sb.String()
+
+	return red + "- " + reset + expected.String() + "\n" +
+		green + "+ " + reset + actual.String()
 }
