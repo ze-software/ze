@@ -24,10 +24,12 @@ Read when working on specific areas:
 
 | Rule | Applies To |
 |------|------------|
+| `rules/planning.md` | `*` (non-trivial features) |
 | `rules/tdd.md` | `**/*.go` |
 | `rules/go-standards.md` | `**/*.go` |
 | `rules/rfc-compliance.md` | `pkg/bgp/**/*.go` |
 | `rules/git-safety.md` | `*` |
+| `rules/config-design.md` | Config changes |
 
 ## Edge Cases
 

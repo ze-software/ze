@@ -5,9 +5,11 @@
 ```
 .claude/
 ├── rules/              # Auto-loaded by file path
+│   ├── planning.md     # Pre-implementation planning (*)
 │   ├── tdd.md          # TDD rules (**/*.go)
 │   ├── go-standards.md # Go coding standards (**/*.go)
 │   ├── rfc-compliance.md # RFC rules (pkg/bgp/**/*.go)
+│   ├── config-design.md # Config design rules
 │   └── git-safety.md   # Git protection (*)
 ├── hooks/              # Automation scripts
 │   ├── session-start.sh # Git status check (SessionStart)
