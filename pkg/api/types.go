@@ -9,6 +9,7 @@ package api
 
 import (
 	"errors"
+	"fmt"
 	"net/netip"
 	"time"
 
@@ -451,6 +452,58 @@ const (
 	FormatFull   = "full"   // Both parsed content AND raw bytes
 )
 
+// WireEncoding specifies how wire bytes are encoded in API messages.
+// Controls encoding for both inbound (events to process) and outbound (commands from process).
+type WireEncoding uint8
+
+// Wire encoding constants.
+const (
+	WireEncodingHex  WireEncoding = iota // Hex string (default, human-readable)
+	WireEncodingB64                      // Base64 (33% overhead, compact)
+	WireEncodingCBOR                     // CBOR binary (0% overhead, native)
+	WireEncodingText                     // Parsed text (no wire bytes)
+)
+
+// Wire encoding name constants.
+const (
+	wireEncHex  = "hex"
+	wireEncB64  = "b64"
+	wireEncCBOR = "cbor"
+)
+
+// String returns the encoding name.
+func (e WireEncoding) String() string {
+	switch e {
+	case WireEncodingHex:
+		return wireEncHex
+	case WireEncodingB64:
+		return wireEncB64
+	case WireEncodingCBOR:
+		return wireEncCBOR
+	case WireEncodingText:
+		return EncodingText
+	default:
+		return wireEncHex
+	}
+}
+
+// ParseWireEncoding converts a string to WireEncoding.
+// Returns error for unknown encodings.
+func ParseWireEncoding(s string) (WireEncoding, error) {
+	switch s {
+	case wireEncHex:
+		return WireEncodingHex, nil
+	case wireEncB64, "base64":
+		return WireEncodingB64, nil
+	case wireEncCBOR:
+		return WireEncodingCBOR, nil
+	case EncodingText:
+		return WireEncodingText, nil
+	default:
+		return WireEncodingHex, fmt.Errorf("invalid wire encoding: %q (valid: hex, b64, cbor, text)", s)
+	}
+}
+
 // Status constants for API responses.
 const (
 	statusDone  = "done"
@@ -480,10 +533,11 @@ func (c ContentConfig) WithDefaults() ContentConfig {
 // RawMessage represents a BGP message sent or received.
 // Contains raw wire bytes for on-demand parsing based on format config.
 type RawMessage struct {
-	Type      message.MessageType // UPDATE, OPEN, NOTIFICATION, etc.
-	RawBytes  []byte              // Original wire bytes (without marker/header)
-	Timestamp time.Time
-	MessageID uint64                    // Unique ID for all message types
-	AttrsWire *attribute.AttributesWire // Lazy attribute parsing (nil if not UPDATE or parse failed)
-	Direction string                    // "sent" or "received"
+	Type       message.MessageType // UPDATE, OPEN, NOTIFICATION, etc.
+	RawBytes   []byte              // Original wire bytes (without marker/header)
+	Timestamp  time.Time
+	MessageID  uint64                    // Unique ID for all message types
+	AttrsWire  *attribute.AttributesWire // Lazy attribute parsing (nil if not UPDATE or parse failed)
+	WireUpdate *WireUpdate               // UPDATE wire wrapper (nil if not UPDATE)
+	Direction  string                    // "sent" or "received"
 }

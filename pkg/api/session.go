@@ -2,6 +2,7 @@ package api
 
 import (
 	"errors"
+	"fmt"
 	"os"
 )
 
@@ -18,6 +19,9 @@ func RegisterSessionHandlers(d *Dispatcher) {
 
 	// API startup synchronization
 	d.Register("session api ready", handleSessionAPIReady, "Signal API initialization complete")
+
+	// Wire encoding control
+	d.Register("session api encoding", handleSessionAPIEncoding, "Set wire encoding (hex|b64|cbor|text)")
 
 	// Session control
 	d.Register("session reset", handleSessionReset, "Reset session state")
@@ -54,11 +58,12 @@ func handleSessionSyncDisable(ctx *CommandContext, _ []string) (*Response, error
 }
 
 // handleSessionReset resets session state for this process.
-// Clears any pending async operations.
+// Clears any pending async operations, resets sync mode and encoding.
 func handleSessionReset(ctx *CommandContext, _ []string) (*Response, error) {
 	// Reset to defaults
 	if ctx.Process != nil {
 		ctx.Process.SetSync(false)
+		ctx.Process.SetWireEncoding(WireEncodingHex) // Default encoding
 	}
 	return &Response{
 		Status: "done",
@@ -89,6 +94,62 @@ func handleSessionBye(ctx *CommandContext, _ []string) (*Response, error) {
 		Data: map[string]any{
 			"status": "goodbye",
 		},
+	}, nil
+}
+
+// handleSessionAPIEncoding sets wire encoding for this process session.
+// Syntax:
+//   - session api encoding <format>          - sets both inbound and outbound
+//   - session api encoding inbound <format>  - sets inbound only
+//   - session api encoding outbound <format> - sets outbound only
+//
+// Formats: hex (default), b64, cbor, text.
+func handleSessionAPIEncoding(ctx *CommandContext, args []string) (*Response, error) {
+	if len(args) == 0 {
+		return nil, fmt.Errorf("missing encoding: session api encoding <hex|b64|cbor|text>")
+	}
+
+	// Check for direction specifier
+	direction := "both"
+	encodingArg := args[0]
+
+	if args[0] == "inbound" || args[0] == "outbound" {
+		if len(args) < 2 {
+			return nil, fmt.Errorf("missing encoding after %s", args[0])
+		}
+		direction = args[0]
+		encodingArg = args[1]
+	}
+
+	// Parse encoding
+	enc, err := ParseWireEncoding(encodingArg)
+	if err != nil {
+		return nil, err
+	}
+
+	// Apply to process
+	if ctx.Process != nil {
+		switch direction {
+		case "inbound":
+			ctx.Process.SetWireEncodingIn(enc)
+		case "outbound":
+			ctx.Process.SetWireEncodingOut(enc)
+		default: // both
+			ctx.Process.SetWireEncoding(enc)
+		}
+	}
+
+	// Build response data
+	data := map[string]any{
+		"encoding": enc.String(),
+	}
+	if direction != "both" {
+		data["direction"] = direction
+	}
+
+	return &Response{
+		Status: "done",
+		Data:   data,
 	}, nil
 }
 

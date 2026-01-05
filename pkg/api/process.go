@@ -67,6 +67,10 @@ type Process struct {
 	// Note: ACK is controlled by serial prefix (#N), not per-process state
 	syncEnabled atomic.Bool // Whether to wait for wire transmission (default: false)
 
+	// Wire encoding for API messages (default: WireEncodingHex = 0)
+	wireEncodingIn  atomic.Uint32 // Inbound: events ZeBGP→Process
+	wireEncodingOut atomic.Uint32 // Outbound: commands Process→ZeBGP
+
 	// ZeBGP→Process request tracking
 	nextSerial      atomic.Uint64          // Counter for alpha serial generation
 	pendingRequests map[string]chan string // serial -> response channel
@@ -104,6 +108,34 @@ func (p *Process) SyncEnabled() bool {
 // SetSync enables or disables sync mode for this process.
 func (p *Process) SetSync(enabled bool) {
 	p.syncEnabled.Store(enabled)
+}
+
+// WireEncodingIn returns the inbound wire encoding (events ZeBGP→Process).
+func (p *Process) WireEncodingIn() WireEncoding {
+	// Safe: only values 0-3 are ever stored (WireEncodingHex..WireEncodingText).
+	return WireEncoding(p.wireEncodingIn.Load()) //nolint:gosec // Bounded to 0-3
+}
+
+// WireEncodingOut returns the outbound wire encoding (commands Process→ZeBGP).
+func (p *Process) WireEncodingOut() WireEncoding {
+	// Safe: only values 0-3 are ever stored (WireEncodingHex..WireEncodingText).
+	return WireEncoding(p.wireEncodingOut.Load()) //nolint:gosec // Bounded to 0-3
+}
+
+// SetWireEncodingIn sets the inbound wire encoding.
+func (p *Process) SetWireEncodingIn(enc WireEncoding) {
+	p.wireEncodingIn.Store(uint32(enc))
+}
+
+// SetWireEncodingOut sets the outbound wire encoding.
+func (p *Process) SetWireEncodingOut(enc WireEncoding) {
+	p.wireEncodingOut.Store(uint32(enc))
+}
+
+// SetWireEncoding sets both inbound and outbound wire encoding.
+func (p *Process) SetWireEncoding(enc WireEncoding) {
+	p.wireEncodingIn.Store(uint32(enc))
+	p.wireEncodingOut.Store(uint32(enc))
 }
 
 // AddRegisteredCommand tracks a command registered by this process.
