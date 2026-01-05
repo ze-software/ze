@@ -14,20 +14,20 @@ Fix non-zero-alloc WriteTo in NLRI types. Currently several NLRI types allocate 
 - ADD-PATH adds/removes 4-byte path ID based on context
 - Some types cache wire bytes in `cached`/`data` fields
 
-## Current State
+## Current State (After Implementation)
 
 | NLRI Type | WriteTo Implementation | Allocates? | Has Cached Bytes? |
 |-----------|----------------------|------------|-------------------|
 | INET | Direct buffer write | ❌ No | N/A - computes |
 | IPVPN | Direct buffer write | ❌ No | N/A - computes |
-| LabeledUnicast | `copy(buf, Pack(ctx))` | ✅ Yes | No |
-| EVPN (all 6 types) | `copy(buf, Pack(ctx))` | ✅ Yes | No |
-| FlowSpec | `copy(buf, Bytes())` | ✅ Yes* | `cached []byte` |
-| FlowSpecVPN | `copy(buf, Bytes())` | ✅ Yes* | `cached []byte` |
-| BGPLS (4 types) | `copy(buf, Bytes())` | ✅ Yes* | `cached []byte` |
-| MVPN/VPLS/RTC/MUP | `copy(buf, Bytes())` | ✅ Yes* | `data []byte` stored |
+| LabeledUnicast | Direct buffer write | ❌ No | N/A - computes |
+| EVPN (all 6 types) | `copy(buf, Pack(ctx))` | ✅ Yes | No (needs separate fix) |
+| FlowSpec | Direct buffer write | ❌ No* | Fallback to cached |
+| FlowSpecVPN | Direct buffer write | ❌ No* | Fallback to cached |
+| BGPLS (4 types) | Direct buffer write | ❌ No* | Fallback to cached |
+| MVPN/VPLS/RTC/MUP | Direct buffer write | ❌ No* | Fallback to cached |
 
-*First call allocates/caches, subsequent calls return cached*
+*Uses fallback to cached bytes if components not populated (e.g., parsed NLRIs)*
 
 ## Files to Modify
 
@@ -80,9 +80,24 @@ This needs investigation and fixing before/during EVPN WriteTo implementation.
 ## Checklist
 
 - [x] Required docs read
-- [ ] Phase 1: Test fails first → passes
-- [ ] Phase 2: Test fails first → passes
-- [ ] Phase 3: Test fails first → passes (if in scope)
-- [ ] make test passes
-- [ ] make lint passes
-- [ ] Update `.claude/zebgp/wire/NLRI.md` if wire format docs need update
+- [x] Phase 1: Test fails first → passes (FlowSpec, BGPLS, MVPN/VPLS/RTC/MUP)
+- [x] Phase 2: LabeledUnicast already zero-alloc (confirmed during investigation)
+- [ ] Phase 3: EVPN skipped (separate PR for ADD-PATH bug fix)
+- [x] make test passes
+- [x] make lint passes (no new issues in nlri package)
+- [x] Update `.claude/zebgp/wire/NLRI.md` - no update needed, docs already accurate
+
+## Implementation Notes
+
+**Decision: Full zero-alloc WriteTo with fallback**
+- User requested full zero-alloc (not just copy from cache)
+- Added `Len()` and `WriteTo()` methods to FlowComponent, descriptors
+- WriteTo writes directly to buffer without allocating
+- Fallback: if cached bytes exist but components empty, use cached (for parsed NLRIs)
+
+**Files modified:**
+- `pkg/bgp/nlri/flowspec.go` - FlowSpec/FlowSpecVPN zero-alloc WriteTo
+- `pkg/bgp/nlri/bgpls.go` - BGPLS types zero-alloc WriteTo + descriptor WriteTo
+- `pkg/bgp/nlri/other.go` - MVPN/VPLS/RTC/MUP zero-alloc WriteTo
+- `pkg/bgp/nlri/ipvpn.go` - RouteDistinguisher.WriteTo helper
+- `pkg/bgp/nlri/writeto_test.go` - New tests verifying WriteTo matches Bytes()

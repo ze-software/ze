@@ -74,6 +74,14 @@ func (rd RouteDistinguisher) Bytes() []byte {
 	return buf
 }
 
+// WriteTo writes the RD directly to buf at offset (zero-alloc).
+// Returns bytes written (always 8).
+func (rd RouteDistinguisher) WriteTo(buf []byte, off int) int {
+	binary.BigEndian.PutUint16(buf[off:], uint16(rd.Type))
+	copy(buf[off+2:], rd.Value[:])
+	return 8
+}
+
 // String returns a human-readable representation.
 //
 // Per RFC 4364 Section 4.2, the string format depends on RD type:

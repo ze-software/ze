@@ -877,8 +877,141 @@ func (v *VPLS) Pack(ctx *PackContext) []byte { return v.Bytes() }
 func (r *RTC) Pack(ctx *PackContext) []byte  { return r.Bytes() }
 func (m *MUP) Pack(ctx *PackContext) []byte  { return m.Bytes() }
 
-// WriteTo methods for other NLRI types.
-func (m *MVPN) WriteTo(buf []byte, off int, _ *PackContext) int { return copy(buf[off:], m.Bytes()) }
-func (v *VPLS) WriteTo(buf []byte, off int, _ *PackContext) int { return copy(buf[off:], v.Bytes()) }
-func (r *RTC) WriteTo(buf []byte, off int, _ *PackContext) int  { return copy(buf[off:], r.Bytes()) }
-func (m *MUP) WriteTo(buf []byte, off int, _ *PackContext) int  { return copy(buf[off:], m.Bytes()) }
+// WriteTo methods for other NLRI types (zero-alloc).
+
+// hasRD returns true if the RD is non-zero.
+func hasRD(rd RouteDistinguisher) bool {
+	return rd.Type != 0 || rd.Value != [6]byte{}
+}
+
+// WriteTo writes the MVPN NLRI directly to buf at offset.
+func (m *MVPN) WriteTo(buf []byte, off int, _ *PackContext) int {
+	// Fallback: use cached bytes if present
+	if m.cached != nil {
+		return copy(buf[off:], m.cached)
+	}
+
+	pos := off
+
+	// Calculate data length
+	dataLen := len(m.data)
+	if hasRD(m.rd) {
+		dataLen += 8
+	}
+
+	// Write header
+	buf[pos] = byte(m.routeType)
+	buf[pos+1] = byte(dataLen)
+	pos += 2
+
+	// Write RD if present
+	if hasRD(m.rd) {
+		pos += m.rd.WriteTo(buf, pos)
+	}
+
+	// Write data
+	copy(buf[pos:], m.data)
+	pos += len(m.data)
+
+	return pos - off
+}
+
+// WriteTo writes the VPLS NLRI directly to buf at offset.
+func (v *VPLS) WriteTo(buf []byte, off int, _ *PackContext) int {
+	// Fallback: use cached bytes if present
+	if v.cached != nil {
+		return copy(buf[off:], v.cached)
+	}
+
+	pos := off
+
+	// RFC 4761 Section 3.2.2: Total = 19 bytes (2 len + 17 body)
+	binary.BigEndian.PutUint16(buf[pos:], 17) // length excludes length field
+	pos += 2
+
+	// Route Distinguisher (8 bytes)
+	pos += v.rd.WriteTo(buf, pos)
+
+	// VE ID (2 bytes)
+	binary.BigEndian.PutUint16(buf[pos:], v.veID)
+	pos += 2
+
+	// VE Block Offset (2 bytes)
+	binary.BigEndian.PutUint16(buf[pos:], v.veBlockOffset)
+	pos += 2
+
+	// VE Block Size (2 bytes)
+	binary.BigEndian.PutUint16(buf[pos:], v.veBlockSize)
+	pos += 2
+
+	// Label Base (3 bytes, 20-bit label with BOS bit)
+	buf[pos] = byte(v.labelBase >> 12)
+	buf[pos+1] = byte(v.labelBase >> 4)
+	buf[pos+2] = byte(v.labelBase<<4) | 0x01 // BOS bit set
+	pos += 3
+
+	return pos - off
+}
+
+// WriteTo writes the RTC NLRI directly to buf at offset.
+func (r *RTC) WriteTo(buf []byte, off int, _ *PackContext) int {
+	// Fallback: use cached bytes if present
+	if r.cached != nil {
+		return copy(buf[off:], r.cached)
+	}
+
+	// Default route (matches all RTs)
+	if r.IsDefault() {
+		buf[off] = 0
+		return 1
+	}
+
+	// Full RTC: prefix-length (1) + origin-as (4) + route-target (8) = 13 bytes
+	pos := off
+	buf[pos] = 96 // prefix-length in bits
+	pos++
+
+	binary.BigEndian.PutUint32(buf[pos:], r.originAS)
+	pos += 4
+
+	binary.BigEndian.PutUint16(buf[pos:], r.routeTarget.Type)
+	pos += 2
+
+	copy(buf[pos:], r.routeTarget.Value[:])
+	pos += 6
+
+	return pos - off
+}
+
+// WriteTo writes the MUP NLRI directly to buf at offset.
+func (m *MUP) WriteTo(buf []byte, off int, _ *PackContext) int {
+	// Fallback: use cached bytes if present
+	if m.cached != nil {
+		return copy(buf[off:], m.cached)
+	}
+
+	pos := off
+
+	// Calculate data length
+	dataLen := len(m.data)
+	if hasRD(m.rd) {
+		dataLen += 8
+	}
+
+	// Write header
+	buf[pos] = byte(m.archType)
+	binary.BigEndian.PutUint16(buf[pos+1:], uint16(m.routeType))
+	buf[pos+3] = byte(dataLen)
+	pos += 4
+
+	// Write RD if present
+	if hasRD(m.rd) {
+		pos += m.rd.WriteTo(buf, pos)
+	}
+
+	// Write data
+	copy(buf[pos:], m.data)
+	pos += len(m.data)
+
+	return pos - off
+}

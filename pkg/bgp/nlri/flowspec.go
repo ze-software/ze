@@ -151,6 +151,10 @@ type FlowFragmentFlag byte
 type FlowComponent interface {
 	Type() FlowComponentType
 	Bytes() []byte
+	// Len returns the wire-format length in bytes.
+	Len() int
+	// WriteTo writes the component to buf at offset, returning bytes written.
+	WriteTo(buf []byte, off int) int
 	String() string
 }
 
@@ -537,6 +541,44 @@ func (c *prefixComponent) String() string {
 	return fmt.Sprintf("%s=%s", c.compType, c.prefix)
 }
 
+// Len returns the wire-format length in bytes.
+func (c *prefixComponent) Len() int {
+	bits := c.prefix.Bits()
+	prefixBytes := (bits + 7) / 8
+	if c.prefix.Addr().Is6() {
+		return 3 + prefixBytes // type + length + offset + prefix
+	}
+	return 2 + prefixBytes // type + length + prefix
+}
+
+// WriteTo writes the component directly to buf at offset.
+// Returns bytes written.
+func (c *prefixComponent) WriteTo(buf []byte, off int) int {
+	bits := c.prefix.Bits()
+	addr := c.prefix.Addr()
+	prefixBytes := (bits + 7) / 8
+
+	pos := off
+	buf[pos] = byte(c.compType)
+	pos++
+	buf[pos] = byte(bits)
+	pos++
+
+	if addr.Is6() {
+		buf[pos] = c.offset
+		pos++
+		ip6 := addr.As16()
+		copy(buf[pos:], ip6[:prefixBytes])
+		pos += prefixBytes
+	} else {
+		ip4 := addr.As4()
+		copy(buf[pos:], ip4[:prefixBytes])
+		pos += prefixBytes
+	}
+
+	return pos - off
+}
+
 // Numeric components (Types 3-12)
 // RFC 8955 Section 4.2.2.3-12 defines numeric component types.
 // These use the numeric_op operator format from Section 4.2.1.1.
@@ -632,6 +674,73 @@ func (c *numericComponent) String() string {
 		}
 	}
 	return fmt.Sprintf("%s[%s]", c.compType, strings.Join(parts, " "))
+}
+
+// Len returns the wire-format length in bytes.
+func (c *numericComponent) Len() int {
+	n := 1 // type byte
+	for _, m := range c.matches {
+		n++ // operator byte
+		switch {
+		case m.Value <= 0xFF:
+			n++
+		case m.Value <= 0xFFFF:
+			n += 2
+		default:
+			n += 4
+		}
+	}
+	return n
+}
+
+// WriteTo writes the component directly to buf at offset.
+// Returns bytes written.
+func (c *numericComponent) WriteTo(buf []byte, off int) int {
+	pos := off
+	buf[pos] = byte(c.compType)
+	pos++
+
+	for i, m := range c.matches {
+		// Determine value length
+		var lenCode, valueLen byte
+		switch {
+		case m.Value <= 0xFF:
+			lenCode, valueLen = 0, 1
+		case m.Value <= 0xFFFF:
+			lenCode, valueLen = 1, 2
+		default:
+			lenCode, valueLen = 2, 4
+		}
+
+		// Build operator byte
+		op := lenCode << 4
+		if m.And {
+			op |= byte(FlowOpAnd)
+		}
+		if i == len(c.matches)-1 {
+			op |= byte(FlowOpEnd)
+		}
+		op |= byte(m.Op)
+
+		buf[pos] = op
+		pos++
+
+		// Encode value
+		switch valueLen {
+		case 1:
+			buf[pos] = byte(m.Value)
+			pos++
+		case 2:
+			buf[pos] = byte(m.Value >> 8)
+			buf[pos+1] = byte(m.Value)
+			pos += 2
+		case 4:
+			binary.BigEndian.PutUint32(buf[pos:], uint32(m.Value)) //nolint:gosec // Flowspec value size validated
+			pos += 4
+		}
+	}
+
+	return pos - off
 }
 
 // ============================================================================
@@ -969,10 +1078,91 @@ func ParseFlowSpecVPN(family Family, data []byte) (*FlowSpecVPN, error) {
 func (f *FlowSpec) Pack(ctx *PackContext) []byte    { return f.Bytes() }
 func (f *FlowSpecVPN) Pack(ctx *PackContext) []byte { return f.Bytes() }
 
-// WriteTo methods for FlowSpec types.
-func (f *FlowSpec) WriteTo(buf []byte, off int, _ *PackContext) int {
-	return copy(buf[off:], f.Bytes())
+// componentLen returns total length of all components in wire format.
+func (f *FlowSpec) componentLen() int {
+	n := 0
+	for _, c := range f.components {
+		n += c.Len()
+	}
+	return n
 }
+
+// writeComponentsSorted writes components in type order (RFC 8955 requirement).
+// Returns bytes written. Uses iteration over type IDs to avoid allocation.
+func (f *FlowSpec) writeComponentsSorted(buf []byte, off int) int {
+	pos := off
+	// RFC 8955 Section 4.2: Components MUST follow strict type ordering
+	// Iterate type IDs 1-13 to write in sorted order without allocating
+	for typeID := FlowComponentType(1); typeID <= FlowFlowLabel; typeID++ {
+		for _, c := range f.components {
+			if c.Type() == typeID {
+				pos += c.WriteTo(buf, pos)
+			}
+		}
+	}
+	return pos - off
+}
+
+// WriteTo writes the FlowSpec NLRI directly to buf at offset (zero-alloc).
+// RFC 8955 Section 4.1: Length encoding + sorted components.
+func (f *FlowSpec) WriteTo(buf []byte, off int, _ *PackContext) int {
+	// Fallback: if we have cached bytes but no components (parsed FlowSpec
+	// where components weren't reconstructed), use cached bytes
+	if len(f.components) == 0 && f.cached != nil {
+		return copy(buf[off:], f.cached)
+	}
+
+	pos := off
+
+	// Calculate component data length
+	dataLen := f.componentLen()
+
+	// Write NLRI length prefix per RFC 8955 Section 4.1
+	if dataLen < 240 {
+		buf[pos] = byte(dataLen)
+		pos++
+	} else {
+		// Extended length: 0xfnnn format
+		buf[pos] = 0xF0 | byte(dataLen>>8)
+		buf[pos+1] = byte(dataLen)
+		pos += 2
+	}
+
+	// Write components in sorted order
+	pos += f.writeComponentsSorted(buf, pos)
+
+	return pos - off
+}
+
+// WriteTo writes the FlowSpecVPN NLRI directly to buf at offset (zero-alloc).
+// RFC 8955 Section 8: Length + RD (8 bytes) + sorted components.
 func (f *FlowSpecVPN) WriteTo(buf []byte, off int, _ *PackContext) int {
-	return copy(buf[off:], f.Bytes())
+	// Fallback: if we have cached bytes but no components, use cached bytes
+	if len(f.flowSpec.components) == 0 && f.cached != nil {
+		return copy(buf[off:], f.cached)
+	}
+
+	pos := off
+
+	// Calculate payload length: RD (8) + components
+	compLen := f.flowSpec.componentLen()
+	payloadLen := 8 + compLen
+
+	// Write NLRI length prefix per RFC 8955 Section 4.1
+	if payloadLen < 240 {
+		buf[pos] = byte(payloadLen)
+		pos++
+	} else {
+		buf[pos] = 0xF0 | byte(payloadLen>>8)
+		buf[pos+1] = byte(payloadLen)
+		pos += 2
+	}
+
+	// Write Route Distinguisher (8 bytes)
+	pos += f.rd.WriteTo(buf, pos)
+
+	// Write components in sorted order
+	pos += f.flowSpec.writeComponentsSorted(buf, pos)
+
+	return pos - off
 }

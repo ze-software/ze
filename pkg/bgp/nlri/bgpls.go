@@ -241,6 +241,48 @@ func (nd *NodeDescriptor) Bytes() []byte {
 	return data
 }
 
+// Len returns the TLV-encoded length in bytes.
+func (nd *NodeDescriptor) Len() int {
+	n := 0
+	if nd.ASN != 0 {
+		n += 4 + 4 // TLV header + 4-byte value
+	}
+	if nd.BGPLSIdentifier != 0 {
+		n += 4 + 4
+	}
+	if nd.OSPFAreaID != 0 {
+		n += 4 + 4
+	}
+	if len(nd.IGPRouterID) > 0 {
+		n += 4 + len(nd.IGPRouterID)
+	}
+	return n
+}
+
+// WriteTo writes the node descriptor TLVs directly to buf at offset.
+// Returns bytes written.
+func (nd *NodeDescriptor) WriteTo(buf []byte, off int) int {
+	pos := off
+
+	if nd.ASN != 0 {
+		pos += writeTLV(buf, pos, TLVAutonomousSystem, 4)
+		binary.BigEndian.PutUint32(buf[pos-4:], nd.ASN)
+	}
+	if nd.BGPLSIdentifier != 0 {
+		pos += writeTLV(buf, pos, TLVBGPLSIdentifier, 4)
+		binary.BigEndian.PutUint32(buf[pos-4:], nd.BGPLSIdentifier)
+	}
+	if nd.OSPFAreaID != 0 {
+		pos += writeTLV(buf, pos, TLVOSPFAreaID, 4)
+		binary.BigEndian.PutUint32(buf[pos-4:], nd.OSPFAreaID)
+	}
+	if len(nd.IGPRouterID) > 0 {
+		pos += writeTLVBytes(buf, pos, TLVIGPRouterID, nd.IGPRouterID)
+	}
+
+	return pos - off
+}
+
 // LinkDescriptor contains link identification information.
 // RFC 7752 Section 3.2.2 defines the link descriptor TLVs.
 type LinkDescriptor struct {
@@ -284,6 +326,47 @@ func (ld *LinkDescriptor) Bytes() []byte {
 	return data
 }
 
+// Len returns the TLV-encoded length in bytes.
+func (ld *LinkDescriptor) Len() int {
+	n := 0
+	if ld.LinkLocalID != 0 || ld.LinkRemoteID != 0 {
+		n += 4 + 8 // TLV header + 8-byte value
+	}
+	if len(ld.LocalInterfaceAddr) > 0 {
+		n += 4 + len(ld.LocalInterfaceAddr)
+	}
+	if len(ld.NeighborAddr) > 0 {
+		n += 4 + len(ld.NeighborAddr)
+	}
+	return n
+}
+
+// WriteTo writes the link descriptor TLVs directly to buf at offset.
+// Returns bytes written.
+func (ld *LinkDescriptor) WriteTo(buf []byte, off int) int {
+	pos := off
+
+	if ld.LinkLocalID != 0 || ld.LinkRemoteID != 0 {
+		pos += writeTLV(buf, pos, TLVLinkLocalRemoteID, 8)
+		binary.BigEndian.PutUint32(buf[pos-8:], ld.LinkLocalID)
+		binary.BigEndian.PutUint32(buf[pos-4:], ld.LinkRemoteID)
+	}
+
+	if len(ld.LocalInterfaceAddr) == 4 {
+		pos += writeTLVBytes(buf, pos, TLVIPv4InterfaceAddr, ld.LocalInterfaceAddr)
+	} else if len(ld.LocalInterfaceAddr) == 16 {
+		pos += writeTLVBytes(buf, pos, TLVIPv6InterfaceAddr, ld.LocalInterfaceAddr)
+	}
+
+	if len(ld.NeighborAddr) == 4 {
+		pos += writeTLVBytes(buf, pos, TLVIPv4NeighborAddr, ld.NeighborAddr)
+	} else if len(ld.NeighborAddr) == 16 {
+		pos += writeTLVBytes(buf, pos, TLVIPv6NeighborAddr, ld.NeighborAddr)
+	}
+
+	return pos - off
+}
+
 // PrefixDescriptor contains prefix identification information.
 // RFC 7752 Section 3.2.3 defines the prefix descriptor TLVs.
 type PrefixDescriptor struct {
@@ -303,6 +386,23 @@ func (pd *PrefixDescriptor) Bytes() []byte {
 	}
 
 	return data
+}
+
+// Len returns the TLV-encoded length in bytes.
+func (pd *PrefixDescriptor) Len() int {
+	if len(pd.IPReachabilityInfo) > 0 {
+		return 4 + len(pd.IPReachabilityInfo)
+	}
+	return 0
+}
+
+// WriteTo writes the prefix descriptor TLVs directly to buf at offset.
+// Returns bytes written.
+func (pd *PrefixDescriptor) WriteTo(buf []byte, off int) int {
+	if len(pd.IPReachabilityInfo) > 0 {
+		return writeTLVBytes(buf, off, TLVIPReachabilityInfo, pd.IPReachabilityInfo)
+	}
+	return 0
 }
 
 // BGP-LS SAFI.
@@ -718,6 +818,24 @@ func uint32ToBytes(v uint32) []byte {
 	return b
 }
 
+// writeTLV writes a TLV header and reserves space for the value.
+// Returns total bytes written (4 + valueLen).
+// Caller must write value data to buf[off+4:off+4+valueLen].
+func writeTLV(buf []byte, off int, tlvType uint16, valueLen int) int {
+	binary.BigEndian.PutUint16(buf[off:], tlvType)
+	binary.BigEndian.PutUint16(buf[off+2:], uint16(valueLen)) //nolint:gosec // Length validated by caller
+	return 4 + valueLen
+}
+
+// writeTLVBytes writes a complete TLV with value bytes.
+// Returns total bytes written.
+func writeTLVBytes(buf []byte, off int, tlvType uint16, value []byte) int {
+	binary.BigEndian.PutUint16(buf[off:], tlvType)
+	binary.BigEndian.PutUint16(buf[off+2:], uint16(len(value))) //nolint:gosec // Length validated by caller
+	copy(buf[off+4:], value)
+	return 4 + len(value)
+}
+
 // ============================================================================
 // SRv6 SID NLRI (RFC 9514)
 // Note: This is NOT part of RFC 7752 but extends BGP-LS for Segment Routing v6.
@@ -741,6 +859,23 @@ func (sd *SRv6SIDDescriptor) Bytes() []byte {
 	}
 
 	return data
+}
+
+// Len returns the TLV-encoded length in bytes.
+func (sd *SRv6SIDDescriptor) Len() int {
+	if len(sd.SRv6SID) > 0 {
+		return 4 + len(sd.SRv6SID)
+	}
+	return 0
+}
+
+// WriteTo writes the SRv6 SID descriptor TLVs directly to buf at offset.
+// Returns bytes written.
+func (sd *SRv6SIDDescriptor) WriteTo(buf []byte, off int) int {
+	if len(sd.SRv6SID) > 0 {
+		return writeTLVBytes(buf, off, TLVSRv6SID, sd.SRv6SID)
+	}
+	return 0
 }
 
 // TLV types for SRv6.
@@ -820,16 +955,156 @@ func (l *BGPLSLink) Pack(ctx *PackContext) []byte    { return l.Bytes() }
 func (p *BGPLSPrefix) Pack(ctx *PackContext) []byte  { return p.Bytes() }
 func (s *BGPLSSRv6SID) Pack(ctx *PackContext) []byte { return s.Bytes() }
 
-// WriteTo methods for BGP-LS types.
+// WriteTo methods for BGP-LS types (zero-alloc).
+
+// WriteTo writes the Node NLRI directly to buf at offset.
 func (n *BGPLSNode) WriteTo(buf []byte, off int, _ *PackContext) int {
-	return copy(buf[off:], n.Bytes())
+	// Fallback: use cached bytes if present
+	if n.cached != nil {
+		return copy(buf[off:], n.cached)
+	}
+
+	pos := off
+
+	// Calculate body length: proto (1) + id (8) + local node TLV
+	localNodeLen := n.LocalNode.Len()
+	localNodeTLVLen := 4 + localNodeLen // TLV 256 header + content
+	bodyLen := 9 + localNodeTLVLen
+
+	// Write NLRI header
+	binary.BigEndian.PutUint16(buf[pos:], uint16(n.nlriType))
+	binary.BigEndian.PutUint16(buf[pos+2:], uint16(bodyLen)) //nolint:gosec // Length validated
+	pos += 4
+
+	// Write body: Protocol-ID + Identifier
+	buf[pos] = byte(n.protocolID)
+	binary.BigEndian.PutUint64(buf[pos+1:], n.identifier)
+	pos += 9
+
+	// Write Local Node TLV (256)
+	binary.BigEndian.PutUint16(buf[pos:], TLVLocalNodeDesc)
+	binary.BigEndian.PutUint16(buf[pos+2:], uint16(localNodeLen)) //nolint:gosec // Length validated
+	pos += 4
+	pos += n.LocalNode.WriteTo(buf, pos)
+
+	return pos - off
 }
+
+// WriteTo writes the Link NLRI directly to buf at offset.
 func (l *BGPLSLink) WriteTo(buf []byte, off int, _ *PackContext) int {
-	return copy(buf[off:], l.Bytes())
+	// Fallback: use cached bytes if present
+	if l.cached != nil {
+		return copy(buf[off:], l.cached)
+	}
+
+	pos := off
+
+	// Calculate body length
+	localNodeLen := l.LocalNode.Len()
+	remoteNodeLen := l.RemoteNode.Len()
+	linkDescLen := l.LinkDesc.Len()
+	bodyLen := 9 + (4 + localNodeLen) + (4 + remoteNodeLen) + linkDescLen
+
+	// Write NLRI header
+	binary.BigEndian.PutUint16(buf[pos:], uint16(l.nlriType))
+	binary.BigEndian.PutUint16(buf[pos+2:], uint16(bodyLen)) //nolint:gosec // Length validated
+	pos += 4
+
+	// Write body: Protocol-ID + Identifier
+	buf[pos] = byte(l.protocolID)
+	binary.BigEndian.PutUint64(buf[pos+1:], l.identifier)
+	pos += 9
+
+	// Write Local Node TLV (256)
+	binary.BigEndian.PutUint16(buf[pos:], TLVLocalNodeDesc)
+	binary.BigEndian.PutUint16(buf[pos+2:], uint16(localNodeLen)) //nolint:gosec // Length validated
+	pos += 4
+	pos += l.LocalNode.WriteTo(buf, pos)
+
+	// Write Remote Node TLV (257)
+	binary.BigEndian.PutUint16(buf[pos:], TLVRemoteNodeDesc)
+	binary.BigEndian.PutUint16(buf[pos+2:], uint16(remoteNodeLen)) //nolint:gosec // Length validated
+	pos += 4
+	pos += l.RemoteNode.WriteTo(buf, pos)
+
+	// Write Link Descriptor TLVs (directly, not wrapped)
+	pos += l.LinkDesc.WriteTo(buf, pos)
+
+	return pos - off
 }
+
+// WriteTo writes the Prefix NLRI directly to buf at offset.
+//
+//nolint:dupl // Similar structure to BGPLSSRv6SID.WriteTo is intentional
 func (p *BGPLSPrefix) WriteTo(buf []byte, off int, _ *PackContext) int {
-	return copy(buf[off:], p.Bytes())
+	// Fallback: use cached bytes if present
+	if p.cached != nil {
+		return copy(buf[off:], p.cached)
+	}
+
+	pos := off
+
+	// Calculate body length
+	localNodeLen := p.LocalNode.Len()
+	prefixDescLen := p.PrefixDesc.Len()
+	bodyLen := 9 + (4 + localNodeLen) + prefixDescLen
+
+	// Write NLRI header
+	binary.BigEndian.PutUint16(buf[pos:], uint16(p.nlriType))
+	binary.BigEndian.PutUint16(buf[pos+2:], uint16(bodyLen)) //nolint:gosec // Length validated
+	pos += 4
+
+	// Write body: Protocol-ID + Identifier
+	buf[pos] = byte(p.protocolID)
+	binary.BigEndian.PutUint64(buf[pos+1:], p.identifier)
+	pos += 9
+
+	// Write Local Node TLV (256)
+	binary.BigEndian.PutUint16(buf[pos:], TLVLocalNodeDesc)
+	binary.BigEndian.PutUint16(buf[pos+2:], uint16(localNodeLen)) //nolint:gosec // Length validated
+	pos += 4
+	pos += p.LocalNode.WriteTo(buf, pos)
+
+	// Write Prefix Descriptor TLVs (directly, not wrapped)
+	pos += p.PrefixDesc.WriteTo(buf, pos)
+
+	return pos - off
 }
+
+// WriteTo writes the SRv6 SID NLRI directly to buf at offset.
+//
+//nolint:dupl // Similar structure to BGPLSPrefix.WriteTo is intentional
 func (s *BGPLSSRv6SID) WriteTo(buf []byte, off int, _ *PackContext) int {
-	return copy(buf[off:], s.Bytes())
+	// Fallback: use cached bytes if present
+	if s.cached != nil {
+		return copy(buf[off:], s.cached)
+	}
+
+	pos := off
+
+	// Calculate body length
+	localNodeLen := s.LocalNode.Len()
+	sidDescLen := s.SRv6SID.Len()
+	bodyLen := 9 + (4 + localNodeLen) + sidDescLen
+
+	// Write NLRI header
+	binary.BigEndian.PutUint16(buf[pos:], uint16(s.nlriType))
+	binary.BigEndian.PutUint16(buf[pos+2:], uint16(bodyLen)) //nolint:gosec // Length validated
+	pos += 4
+
+	// Write body: Protocol-ID + Identifier
+	buf[pos] = byte(s.protocolID)
+	binary.BigEndian.PutUint64(buf[pos+1:], s.identifier)
+	pos += 9
+
+	// Write Local Node TLV (256)
+	binary.BigEndian.PutUint16(buf[pos:], TLVLocalNodeDesc)
+	binary.BigEndian.PutUint16(buf[pos+2:], uint16(localNodeLen)) //nolint:gosec // Length validated
+	pos += 4
+	pos += s.LocalNode.WriteTo(buf, pos)
+
+	// Write SRv6 SID Descriptor TLVs
+	pos += s.SRv6SID.WriteTo(buf, pos)
+
+	return pos - off
 }
