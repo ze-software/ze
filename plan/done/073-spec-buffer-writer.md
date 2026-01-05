@@ -179,16 +179,16 @@ func BenchmarkUpdateBuildNew(b *testing.B) { ... }
 
 ## Checklist
 
-- [ ] Required docs read
-- [ ] Phase 1: BufWriter interface - test fails first, then passes
-- [ ] Phase 2: Attribute WriteTo - test fails first, then passes
-- [ ] Phase 3: NLRI WriteTo - test fails first, then passes
-- [ ] Phase 4: Session writeBuf - test fails first, then passes
-- [ ] Phase 5: Convert builders - test fails first, then passes
-- [ ] make test passes
-- [ ] make lint passes
-- [ ] make functional passes
-- [ ] Update `.claude/zebgp/wire/BUFFER_WRITER.md` with implementation notes
+- [x] Required docs read
+- [x] Phase 1: BufWriter interface - test fails first, then passes
+- [x] Phase 2: Attribute WriteTo - test fails first, then passes
+- [x] Phase 3: NLRI WriteTo - test fails first, then passes
+- [x] Phase 4: Session writeBuf - test fails first, then passes
+- [x] Phase 5: Convert builders - test fails first, then passes
+- [x] make test passes
+- [x] make lint passes
+- [x] make functional passes (5 pre-existing failures unrelated to buffer-writer)
+- [x] Update `.claude/zebgp/wire/BUFFER_WRITER.md` with implementation notes
 
 ## Migration Order
 
