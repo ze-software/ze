@@ -282,3 +282,44 @@ func TestCLIClient_MultipleCommands(t *testing.T) {
 		}
 	}
 }
+
+// TestCmdCLI_RunFlag verifies cli --run executes a single command and exits.
+//
+// VALIDATES: cli --run "<command>" executes command and returns result.
+// PREVENTS: regression when run command is merged into cli.
+func TestCmdCLI_RunFlag(t *testing.T) {
+	server := newMockServer(t)
+	defer server.Close()
+
+	// Test successful command
+	var code int
+	output := captureOutput(t, false, func() {
+		code = cmdCLI([]string{"--socket", server.path, "--run", "system version"})
+	})
+
+	if code != 0 {
+		t.Errorf("cmdCLI(--run) returned %d, want 0", code)
+	}
+
+	if !strings.Contains(output, "version") {
+		t.Errorf("cmdCLI(--run) output = %q, want to contain 'version'", output)
+	}
+}
+
+// TestCmdCLI_RunFlagError verifies cli --run returns error code on failure.
+//
+// VALIDATES: cli --run returns non-zero on error.
+// PREVENTS: error status being swallowed.
+func TestCmdCLI_RunFlagError(t *testing.T) {
+	server := newMockServer(t)
+	defer server.Close()
+
+	var code int
+	_ = captureOutput(t, true, func() {
+		code = cmdCLI([]string{"--socket", server.path, "--run", "bad command"})
+	})
+
+	if code != 1 {
+		t.Errorf("cmdCLI(--run error) returned %d, want 1", code)
+	}
+}

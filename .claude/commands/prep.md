@@ -7,6 +7,40 @@ argument-hint: <task description>
 
 **CRITICAL:** You MUST read required docs and present your plan BEFORE implementing. User approval is required.
 
+## Pre-Flight Checklist
+
+Complete each item IN ORDER. Do not skip ahead.
+
+```
+[ ] 1. Check for existing spec: `plan/spec-<task>.md`
+      → If exists: read it, skip to "Report ready"
+      → If not: continue
+
+[ ] 2. Read `.claude/INDEX.md`
+      → List docs identified: ___
+
+[ ] 3. Scan `plan/spec-*.md` for related specs
+      → Related specs found: ___ (or "none")
+
+[ ] 4. Match task keywords to doc table below
+      → Docs to read: ___
+
+[ ] 5. Read ALL identified docs (step 2 + step 4)
+      → Key insights: ___
+
+[ ] 6. Read source code for affected area
+      → Files reviewed: ___
+
+[ ] 7. Present implementation plan to user
+      → WAIT for approval before continuing
+
+[ ] 8. Write spec to `plan/spec-<task>.md`
+
+[ ] 9. Report ready
+```
+
+**STOP at each checkbox. Do not proceed until complete.**
+
 ## Steps
 
 1. Check if spec exists: `plan/spec-<task>.md`

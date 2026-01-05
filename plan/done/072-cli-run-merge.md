@@ -46,10 +46,10 @@ Move the zebgp run command under cli --run
 - `zebgp run` removed entirely (breaking change, user approved)
 
 ## Checklist
-- [ ] Required docs read
-- [ ] Test fails first
-- [ ] Test passes after impl
-- [ ] make test passes
-- [ ] make lint passes
-- [ ] make functional passes
-- [ ] Update help text
+- [x] Required docs read
+- [x] Test fails first
+- [x] Test passes after impl
+- [x] make test passes
+- [x] make lint passes (pre-existing deprecated warnings only)
+- [x] make functional passes (test C failure pre-existing)
+- [x] Update help text

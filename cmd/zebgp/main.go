@@ -21,8 +21,6 @@ func main() {
 	switch arg {
 	case "server":
 		os.Exit(cmdServer(os.Args[2:]))
-	case "run":
-		os.Exit(cmdRun(os.Args[2:]))
 	case "cli":
 		os.Exit(cmdCLI(os.Args[2:]))
 	case "validate":
@@ -87,8 +85,8 @@ Usage:
 
 Commands:
   server <config>      Start the BGP daemon (same as zebgp <config>)
-  run <command>        Execute API command on running daemon
   cli                  Interactive CLI with autocomplete
+  cli --run <command>  Execute API command on running daemon
   validate <config>    Validate configuration file
   decode <hex>         Decode BGP message from hex to JSON
   encode <route>       Encode API route command to BGP hex
@@ -109,7 +107,7 @@ Config Subcommands:
 Examples:
   zebgp /etc/zebgp/config.conf
   zebgp server /etc/zebgp/config.conf
-  zebgp run peer list
+  zebgp cli --run "peer list"
   zebgp cli
   zebgp config edit /etc/zebgp/config.conf
   zebgp validate /etc/zebgp/config.conf
