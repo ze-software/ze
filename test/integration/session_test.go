@@ -8,9 +8,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/exa-networks/zebgp/pkg/bgp/capability"
-	"github.com/exa-networks/zebgp/pkg/bgp/fsm"
-	"github.com/exa-networks/zebgp/pkg/reactor"
+	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/capability"
+	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/fsm"
+	"codeberg.org/thomas-mangin/zebgp/pkg/reactor"
 )
 
 // TestDirectSession tests session establishment without reactor.

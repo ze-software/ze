@@ -4,7 +4,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/exa-networks/zebgp/pkg/config"
+	"codeberg.org/thomas-mangin/zebgp/pkg/config"
 )
 
 // TestMigrateNilTree verifies Migrate returns ErrNilTree for nil input.

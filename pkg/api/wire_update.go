@@ -4,8 +4,8 @@ import (
 	"encoding/binary"
 	"sync"
 
-	"github.com/exa-networks/zebgp/pkg/bgp/attribute"
-	bgpctx "github.com/exa-networks/zebgp/pkg/bgp/context"
+	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/attribute"
+	bgpctx "codeberg.org/thomas-mangin/zebgp/pkg/bgp/context"
 )
 
 // WireUpdate holds UPDATE message payload bytes for zero-copy lazy parsing.

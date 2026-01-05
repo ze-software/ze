@@ -4,7 +4,7 @@ import (
 	"net/netip"
 	"testing"
 
-	"github.com/exa-networks/zebgp/pkg/bgp/nlri"
+	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/nlri"
 )
 
 // TestMultipleIndependentTransactions verifies concurrent transactions don't interfere.

@@ -4,7 +4,7 @@ import (
 	"net/netip"
 	"testing"
 
-	bgpctx "github.com/exa-networks/zebgp/pkg/bgp/context"
+	bgpctx "codeberg.org/thomas-mangin/zebgp/pkg/bgp/context"
 )
 
 // TestAttrLenWithContext_MatchesPackWithContext verifies that attrLenWithContext

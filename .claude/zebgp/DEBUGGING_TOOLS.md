@@ -259,7 +259,7 @@ go run ./test/cmd/functional encoding 0
 To add tracing to new code:
 
 ```go
-import "github.com/exa-networks/zebgp/pkg/trace"
+import "codeberg.org/thomas-mangin/zebgp/pkg/trace"
 
 // Use existing helpers
 trace.RouteSent(addr, prefix, nextHop)

@@ -5,8 +5,8 @@ import (
 	"net/netip"
 	"testing"
 
-	"github.com/exa-networks/zebgp/pkg/bgp/nlri"
-	"github.com/exa-networks/zebgp/pkg/rib"
+	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/nlri"
+	"codeberg.org/thomas-mangin/zebgp/pkg/rib"
 )
 
 // errUpdateExpired is a test error matching reactor.ErrUpdateExpired.

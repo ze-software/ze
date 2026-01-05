@@ -6,9 +6,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/exa-networks/zebgp/pkg/api"
-	bgpctx "github.com/exa-networks/zebgp/pkg/bgp/context"
-	"github.com/exa-networks/zebgp/pkg/bgp/nlri"
+	"codeberg.org/thomas-mangin/zebgp/pkg/api"
+	bgpctx "codeberg.org/thomas-mangin/zebgp/pkg/bgp/context"
+	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/nlri"
 )
 
 // buildUpdatePayload builds an UPDATE message body from components.

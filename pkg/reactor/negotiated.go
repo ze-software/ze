@@ -3,8 +3,8 @@ package reactor
 import (
 	"sort"
 
-	"github.com/exa-networks/zebgp/pkg/bgp/capability"
-	"github.com/exa-networks/zebgp/pkg/bgp/nlri"
+	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/capability"
+	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/nlri"
 )
 
 // NegotiatedCapabilities tracks what was negotiated (not how to encode).

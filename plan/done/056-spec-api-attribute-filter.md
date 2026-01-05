@@ -182,7 +182,7 @@ package api
 import (
     "fmt"
 
-    "github.com/exa-networks/zebgp/pkg/bgp/attribute"
+    "codeberg.org/thomas-mangin/zebgp/pkg/bgp/attribute"
 )
 
 // FilterMode defines how attributes are selected.

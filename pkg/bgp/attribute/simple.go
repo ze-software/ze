@@ -4,7 +4,7 @@ import (
 	"encoding/binary"
 	"net/netip"
 
-	bgpctx "github.com/exa-networks/zebgp/pkg/bgp/context"
+	bgpctx "codeberg.org/thomas-mangin/zebgp/pkg/bgp/context"
 )
 
 // NextHop represents the NEXT_HOP attribute.

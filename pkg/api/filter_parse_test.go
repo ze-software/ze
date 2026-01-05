@@ -3,7 +3,7 @@ package api
 import (
 	"testing"
 
-	"github.com/exa-networks/zebgp/pkg/bgp/attribute"
+	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/attribute"
 )
 
 // TestParseAttributeFilterValid verifies valid parsing.

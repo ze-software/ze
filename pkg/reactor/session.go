@@ -12,14 +12,14 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/exa-networks/zebgp/pkg/api"
-	"github.com/exa-networks/zebgp/pkg/bgp/attribute"
-	"github.com/exa-networks/zebgp/pkg/bgp/capability"
-	bgpctx "github.com/exa-networks/zebgp/pkg/bgp/context"
-	"github.com/exa-networks/zebgp/pkg/bgp/fsm"
-	"github.com/exa-networks/zebgp/pkg/bgp/message"
-	"github.com/exa-networks/zebgp/pkg/bgp/wire"
-	"github.com/exa-networks/zebgp/pkg/trace"
+	"codeberg.org/thomas-mangin/zebgp/pkg/api"
+	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/attribute"
+	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/capability"
+	bgpctx "codeberg.org/thomas-mangin/zebgp/pkg/bgp/context"
+	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/fsm"
+	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/message"
+	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/wire"
+	"codeberg.org/thomas-mangin/zebgp/pkg/trace"
 )
 
 // readBufPool provides reusable read buffers for zero-copy UPDATE processing.

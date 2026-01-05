@@ -116,7 +116,7 @@ Existing parsers in `pkg/bgp/nlri/`:
 - `ParseBGPLS()` - BGP-LS NLRI
 
 ```go
-import "github.com/exa-networks/zebgp/pkg/bgp/nlri"
+import "codeberg.org/thomas-mangin/zebgp/pkg/bgp/nlri"
 
 // Parse MP_UNREACH_NLRI for l2vpn/evpn
 routes, err := nlri.ParseEVPN(nlriData, false)

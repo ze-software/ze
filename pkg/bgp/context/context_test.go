@@ -3,7 +3,7 @@ package context
 import (
 	"testing"
 
-	"github.com/exa-networks/zebgp/pkg/bgp/nlri"
+	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/nlri"
 )
 
 // TestEncodingContextHash_Deterministic verifies that identical contexts produce identical hashes.

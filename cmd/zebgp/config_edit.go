@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"os"
 
+	"codeberg.org/thomas-mangin/zebgp/pkg/editor"
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/exa-networks/zebgp/pkg/editor"
 )
 
 func cmdEdit(args []string) int {

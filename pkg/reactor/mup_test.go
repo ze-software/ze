@@ -5,8 +5,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/exa-networks/zebgp/pkg/api"
-	"github.com/exa-networks/zebgp/pkg/bgp/nlri"
+	"codeberg.org/thomas-mangin/zebgp/pkg/api"
+	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/nlri"
 )
 
 // TestBuildAPIMUPNLRI_FamilyValidation verifies family mismatch is rejected.

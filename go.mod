@@ -1,4 +1,4 @@
-module github.com/exa-networks/zebgp
+module codeberg.org/thomas-mangin/zebgp
 
 go 1.24.0
 

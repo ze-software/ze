@@ -5,10 +5,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/exa-networks/zebgp/pkg/api"
-	bgpctx "github.com/exa-networks/zebgp/pkg/bgp/context"
-	"github.com/exa-networks/zebgp/pkg/bgp/message"
-	"github.com/exa-networks/zebgp/pkg/bgp/nlri"
+	"codeberg.org/thomas-mangin/zebgp/pkg/api"
+	bgpctx "codeberg.org/thomas-mangin/zebgp/pkg/bgp/context"
+	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/message"
+	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/nlri"
 	"github.com/stretchr/testify/require"
 )
 

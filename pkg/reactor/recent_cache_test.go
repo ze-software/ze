@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/exa-networks/zebgp/pkg/api"
-	bgpctx "github.com/exa-networks/zebgp/pkg/bgp/context"
+	"codeberg.org/thomas-mangin/zebgp/pkg/api"
+	bgpctx "codeberg.org/thomas-mangin/zebgp/pkg/bgp/context"
 )
 
 // emptyPayload is a minimal valid UPDATE payload for cache tests.

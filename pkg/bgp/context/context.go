@@ -11,7 +11,7 @@ import (
 	"hash/fnv"
 	"sort"
 
-	"github.com/exa-networks/zebgp/pkg/bgp/nlri"
+	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/nlri"
 )
 
 // Family is an alias for nlri.Family. Use nlri.Family directly in new code.

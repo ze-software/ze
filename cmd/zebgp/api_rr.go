@@ -3,7 +3,7 @@ package main
 import (
 	"os"
 
-	"github.com/exa-networks/zebgp/pkg/api/rr"
+	"codeberg.org/thomas-mangin/zebgp/pkg/api/rr"
 )
 
 // cmdAPIRR runs the Route Server API plugin.

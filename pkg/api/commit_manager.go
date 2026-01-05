@@ -5,8 +5,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/exa-networks/zebgp/pkg/bgp/nlri"
-	"github.com/exa-networks/zebgp/pkg/rib"
+	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/nlri"
+	"codeberg.org/thomas-mangin/zebgp/pkg/rib"
 )
 
 // Transaction errors for named commits.

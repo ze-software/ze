@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"log/slog"
 
-	bgpctx "github.com/exa-networks/zebgp/pkg/bgp/context"
+	bgpctx "codeberg.org/thomas-mangin/zebgp/pkg/bgp/context"
 )
 
 // Origin represents the ORIGIN path attribute.

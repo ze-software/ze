@@ -7,7 +7,7 @@ import (
 	"net/netip"
 	"time"
 
-	"github.com/exa-networks/zebgp/pkg/bgp/capability"
+	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/capability"
 )
 
 // DefaultBGPPort is the standard BGP port per RFC 4271.

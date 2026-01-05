@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"testing"
 
-	"github.com/exa-networks/zebgp/pkg/bgp/wire"
+	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/wire"
 )
 
 // TestSessionBufferBasic verifies basic buffer operations.

@@ -3,7 +3,7 @@ package migration
 import (
 	"strings"
 
-	"github.com/exa-networks/zebgp/pkg/config"
+	"codeberg.org/thomas-mangin/zebgp/pkg/config"
 )
 
 // hasStaticBlocks returns true if any peer, neighbor, template.group, or template.match has a static block.

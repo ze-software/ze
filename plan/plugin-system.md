@@ -1948,7 +1948,7 @@ mode = "strict"
 Plugin receives parsed config. Use the config helper package for type-safe access:
 
 ```go
-import "github.com/exa-networks/zebgp/pkg/plugin/config"
+import "codeberg.org/thomas-mangin/zebgp/pkg/plugin/config"
 
 func (p *CustomPlugin) Init(ctx context.Context, reactor ReactorAPI, cfg map[string]any) error {
     // Type-safe config access with defaults and validation
@@ -2738,7 +2738,7 @@ import (
     "log"
     "net"
 
-    pb "github.com/exa-networks/zebgp/pkg/plugin/proto"
+    pb "codeberg.org/thomas-mangin/zebgp/pkg/plugin/proto"
     "google.golang.org/grpc"
 )
 
@@ -3177,9 +3177,9 @@ Testing a new draft RFC with experimental capability and attribute:
 package main
 
 import (
-    "github.com/exa-networks/zebgp/pkg/plugin"
-    "github.com/exa-networks/zebgp/pkg/bgp/capability"
-    "github.com/exa-networks/zebgp/pkg/bgp/message"
+    "codeberg.org/thomas-mangin/zebgp/pkg/plugin"
+    "codeberg.org/thomas-mangin/zebgp/pkg/bgp/capability"
+    "codeberg.org/thomas-mangin/zebgp/pkg/bgp/message"
 )
 
 // DraftRFCPlugin tests draft-ietf-idr-new-feature
@@ -3436,8 +3436,8 @@ import (
     "context"
     "testing"
 
-    "github.com/exa-networks/zebgp/pkg/plugin"
-    "github.com/exa-networks/zebgp/pkg/plugin/testing/mock"
+    "codeberg.org/thomas-mangin/zebgp/pkg/plugin"
+    "codeberg.org/thomas-mangin/zebgp/pkg/plugin/testing/mock"
 )
 
 func TestMyPlugin(t *testing.T) {

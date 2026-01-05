@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/exa-networks/zebgp/pkg/bgp/message"
+	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/message"
 	"github.com/stretchr/testify/require"
 )
 

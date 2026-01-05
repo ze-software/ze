@@ -13,7 +13,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/exa-networks/zebgp/test/functional"
+	"codeberg.org/thomas-mangin/zebgp/test/functional"
 )
 
 // errTestsFailed is returned when tests fail (not an error, but indicates exit code 1).

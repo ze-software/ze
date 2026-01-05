@@ -251,7 +251,7 @@ zebgp-peer --view qa/encoding/test.msg
 Use testpeer as a library for integration tests:
 
 ```go
-import "github.com/exa-networks/zebgp/pkg/testpeer"
+import "codeberg.org/thomas-mangin/zebgp/pkg/testpeer"
 
 // Create test peer
 peer := testpeer.New(&testpeer.Config{

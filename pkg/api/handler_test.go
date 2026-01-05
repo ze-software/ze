@@ -6,9 +6,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/exa-networks/zebgp/pkg/bgp/message"
-	"github.com/exa-networks/zebgp/pkg/bgp/nlri"
-	"github.com/exa-networks/zebgp/pkg/rib"
+	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/message"
+	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/nlri"
+	"codeberg.org/thomas-mangin/zebgp/pkg/rib"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

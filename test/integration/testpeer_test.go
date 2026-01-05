@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/exa-networks/zebgp/pkg/reactor"
-	"github.com/exa-networks/zebgp/pkg/testpeer"
+	"codeberg.org/thomas-mangin/zebgp/pkg/reactor"
+	"codeberg.org/thomas-mangin/zebgp/pkg/testpeer"
 )
 
 // runPeerTest runs a testpeer with the given config and connects a session.

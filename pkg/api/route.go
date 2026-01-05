@@ -11,10 +11,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/exa-networks/zebgp/pkg/bgp/attribute"
-	"github.com/exa-networks/zebgp/pkg/bgp/nlri"
-	"github.com/exa-networks/zebgp/pkg/parse"
-	"github.com/exa-networks/zebgp/pkg/rib"
+	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/attribute"
+	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/nlri"
+	"codeberg.org/thomas-mangin/zebgp/pkg/parse"
+	"codeberg.org/thomas-mangin/zebgp/pkg/rib"
 )
 
 // Errors for route parsing.

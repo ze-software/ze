@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/exa-networks/zebgp/pkg/config"
+	"codeberg.org/thomas-mangin/zebgp/pkg/config"
 )
 
 // ErrEmptyProcesses is returned when api block has no processes or processes-match.

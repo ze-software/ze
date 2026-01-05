@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/exa-networks/zebgp/pkg/config"
+	"codeberg.org/thomas-mangin/zebgp/pkg/config"
 )
 
 // Editor manages an editing session for a configuration file.

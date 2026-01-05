@@ -125,7 +125,7 @@ func FamilyLess(a, b Family) bool {
 
 **capability/capability.go** - use nlri.Family:
 ```go
-import "github.com/exa-networks/zebgp/pkg/bgp/nlri"
+import "codeberg.org/thomas-mangin/zebgp/pkg/bgp/nlri"
 
 // Family is an alias for nlri.Family for backward compatibility.
 type Family = nlri.Family
@@ -133,7 +133,7 @@ type Family = nlri.Family
 
 **context/context.go** - use nlri.Family:
 ```go
-import "github.com/exa-networks/zebgp/pkg/bgp/nlri"
+import "codeberg.org/thomas-mangin/zebgp/pkg/bgp/nlri"
 
 type EncodingContext struct {
     ASN4            bool

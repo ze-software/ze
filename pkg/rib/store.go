@@ -3,9 +3,9 @@ package rib
 import (
 	"sync"
 
-	"github.com/exa-networks/zebgp/internal/store"
-	"github.com/exa-networks/zebgp/pkg/bgp/attribute"
-	"github.com/exa-networks/zebgp/pkg/bgp/nlri"
+	"codeberg.org/thomas-mangin/zebgp/internal/store"
+	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/attribute"
+	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/nlri"
 )
 
 // RouteStore provides global deduplication for routes and their components.

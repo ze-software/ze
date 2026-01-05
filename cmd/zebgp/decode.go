@@ -12,9 +12,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/exa-networks/zebgp/pkg/bgp/capability"
-	"github.com/exa-networks/zebgp/pkg/bgp/message"
-	"github.com/exa-networks/zebgp/pkg/bgp/nlri"
+	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/capability"
+	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/message"
+	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/nlri"
 )
 
 // Message type constants.

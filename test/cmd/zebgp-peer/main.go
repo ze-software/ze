@@ -17,7 +17,7 @@ import (
 	"strconv"
 	"syscall"
 
-	"github.com/exa-networks/zebgp/pkg/testpeer"
+	"codeberg.org/thomas-mangin/zebgp/pkg/testpeer"
 )
 
 func main() {

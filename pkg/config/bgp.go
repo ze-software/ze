@@ -8,8 +8,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/exa-networks/zebgp/pkg/api"
-	"github.com/exa-networks/zebgp/pkg/bgp/message"
+	"codeberg.org/thomas-mangin/zebgp/pkg/api"
+	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/message"
 )
 
 const (

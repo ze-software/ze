@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"sync"
 
-	bgpctx "github.com/exa-networks/zebgp/pkg/bgp/context"
+	bgpctx "codeberg.org/thomas-mangin/zebgp/pkg/bgp/context"
 )
 
 // attrIndex caches attribute location within packed bytes.

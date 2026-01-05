@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/exa-networks/zebgp/pkg/parse"
+	"codeberg.org/thomas-mangin/zebgp/pkg/parse"
 )
 
 // Origin represents the ORIGIN path attribute.

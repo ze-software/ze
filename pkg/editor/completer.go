@@ -3,7 +3,7 @@ package editor
 import (
 	"strings"
 
-	"github.com/exa-networks/zebgp/pkg/config"
+	"codeberg.org/thomas-mangin/zebgp/pkg/config"
 )
 
 // Completion represents a single completion suggestion.

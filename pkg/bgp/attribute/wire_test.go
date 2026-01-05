@@ -5,7 +5,7 @@ import (
 	"sync"
 	"testing"
 
-	bgpctx "github.com/exa-networks/zebgp/pkg/bgp/context"
+	bgpctx "codeberg.org/thomas-mangin/zebgp/pkg/bgp/context"
 )
 
 // Helper to build packed attribute bytes.

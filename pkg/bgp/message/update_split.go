@@ -4,7 +4,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/exa-networks/zebgp/pkg/bgp/attribute"
+	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/attribute"
 )
 
 // Errors for UPDATE splitting.

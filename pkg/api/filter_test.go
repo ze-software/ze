@@ -5,8 +5,8 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/exa-networks/zebgp/pkg/bgp/attribute"
-	bgpctx "github.com/exa-networks/zebgp/pkg/bgp/context"
+	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/attribute"
+	bgpctx "codeberg.org/thomas-mangin/zebgp/pkg/bgp/context"
 )
 
 // testEncodingContext creates an encoding context for tests.

@@ -11,10 +11,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/exa-networks/zebgp/pkg/bgp/capability"
-	"github.com/exa-networks/zebgp/pkg/bgp/nlri"
-	"github.com/exa-networks/zebgp/pkg/reactor"
-	"github.com/exa-networks/zebgp/pkg/trace"
+	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/capability"
+	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/nlri"
+	"codeberg.org/thomas-mangin/zebgp/pkg/reactor"
+	"codeberg.org/thomas-mangin/zebgp/pkg/trace"
 )
 
 // Origin attribute values.

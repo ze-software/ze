@@ -6,8 +6,8 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/exa-networks/zebgp/pkg/bgp/fsm"
-	"github.com/exa-networks/zebgp/pkg/bgp/message"
+	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/fsm"
+	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/message"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

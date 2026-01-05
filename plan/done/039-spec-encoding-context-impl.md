@@ -114,7 +114,7 @@ func TestEncodingContextToPackContext(t *testing.T)
 ```go
 package context
 
-import "github.com/exa-networks/zebgp/pkg/bgp/nlri"
+import "codeberg.org/thomas-mangin/zebgp/pkg/bgp/nlri"
 
 // Family represents an AFI/SAFI combination.
 // Matches capability.Family but avoids circular import.

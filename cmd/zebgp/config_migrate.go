@@ -7,8 +7,8 @@ import (
 	"path/filepath"
 	"time"
 
-	"github.com/exa-networks/zebgp/pkg/config"
-	"github.com/exa-networks/zebgp/pkg/config/migration"
+	"codeberg.org/thomas-mangin/zebgp/pkg/config"
+	"codeberg.org/thomas-mangin/zebgp/pkg/config/migration"
 )
 
 // cmdConfigMigrateCLI is the CLI entry point for "zebgp config migrate".

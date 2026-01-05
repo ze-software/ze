@@ -1,8 +1,8 @@
 package message
 
 import (
-	"github.com/exa-networks/zebgp/pkg/bgp/attribute"
-	"github.com/exa-networks/zebgp/pkg/bgp/nlri"
+	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/attribute"
+	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/nlri"
 )
 
 // BuildEOR creates an End-of-RIB marker UPDATE for the given address family.

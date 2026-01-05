@@ -1,8 +1,8 @@
 package context
 
 import (
-	"github.com/exa-networks/zebgp/pkg/bgp/capability"
-	"github.com/exa-networks/zebgp/pkg/bgp/nlri"
+	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/capability"
+	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/nlri"
 )
 
 // addPathCheckFunc is a function type for checking ADD-PATH mode.

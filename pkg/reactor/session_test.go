@@ -10,9 +10,9 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/exa-networks/zebgp/pkg/bgp/capability"
-	"github.com/exa-networks/zebgp/pkg/bgp/fsm"
-	"github.com/exa-networks/zebgp/pkg/bgp/message"
+	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/capability"
+	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/fsm"
+	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/message"
 )
 
 // acceptWithReader handles net.Pipe's synchronous behavior by reading

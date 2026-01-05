@@ -1,7 +1,7 @@
 package migration
 
 import (
-	"github.com/exa-networks/zebgp/pkg/config"
+	"codeberg.org/thomas-mangin/zebgp/pkg/config"
 )
 
 // ExtractStaticRoutes transforms static blocks to announce blocks.
