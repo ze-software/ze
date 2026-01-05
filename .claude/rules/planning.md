@@ -135,7 +135,7 @@ Write to `plan/spec-<task-name>.md`:
 2. **Run tests** - Verify FAIL (paste output)
 3. **Implement** - Minimal code to pass
 4. **Run tests** - Verify PASS (paste output)
-5. **Verify all** - `make test && make lint && make functional`
+5. **Verify all** - `make lint && make test && make functional`
 6. **RFC refs** - Add RFC comments to protocol code
 
 ## RFC Documentation
@@ -151,8 +151,8 @@ Write to `plan/spec-<task-name>.md`:
 - [ ] Tests PASS (output below)
 
 ### Verification
-- [ ] `make test` passes
 - [ ] `make lint` passes
+- [ ] `make test` passes
 - [ ] `make functional` passes
 
 ### Documentation
