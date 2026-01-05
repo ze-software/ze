@@ -40,6 +40,7 @@ Complete each item IN ORDER. Do not skip ahead.
 ```
 
 **STOP at each checkbox. Do not proceed until complete.**
+**UPDATE the spec file after completing each step to track progress.**
 
 ## Steps
 
@@ -132,8 +133,10 @@ The following docs MUST be read before starting implementation:
 2. See test fail
 3. Implement
 4. See test pass
-5. Run `make test && make lint`
+5. Run `make test && make lint && make functional`
 6. Add RFC references to new/modified code
+
+**IMPORTANT:** Update this spec's progress after completing each step (check boxes, add notes).
 
 ## RFC Documentation
 For any BGP protocol code, add RFC comments explaining the logic:
@@ -149,8 +152,12 @@ For any BGP protocol code, add RFC comments explaining the logic:
 - [ ] Test passes after impl
 - [ ] make test passes
 - [ ] make lint passes
+- [ ] make functional passes
 - [ ] RFC references added to protocol code
 - [ ] Update `.claude/zebgp/` docs if schema/syntax changed
+- [ ] Move spec to `plan/done/NNN-<name>.md` (pick NNN at move time, not before)
+
+**UPDATE PROGRESS:** Check boxes and add notes as you complete each step above.
 ```
 
 7. Report ready:
@@ -186,6 +193,8 @@ If the implementation changed how ZeBGP works, update `.claude/zebgp/` docs:
 - Keep docs in sync with actual implementation
 
 ### Move Completed Spec
+
+**IMPORTANT:** Only determine the spec number NOW, at move time. Do NOT pre-assign numbers during spec creation.
 
 Find next free 3-digit number (starting from 001) and move:
 ```bash
