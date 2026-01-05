@@ -123,7 +123,7 @@ func parseTypeLine(line string) (msgType, family string) {
 	}
 
 	msgType = strings.ToLower(parts[0])
-	if len(parts) >= 3 {
+	if len(parts) >= 2 {
 		family = strings.Join(parts[1:], " ")
 	}
 	return msgType, family
@@ -302,7 +302,8 @@ func (r *DecodingRunner) compareJSON(test *DecodingTest) bool {
 	expectedBytes, _ := json.Marshal(expected)
 
 	if string(actualBytes) != string(expectedBytes) {
-		test.Error = fmt.Errorf("JSON mismatch")
+		diff := ColoredCharDiff(string(expectedBytes), string(actualBytes))
+		test.Error = fmt.Errorf("JSON mismatch\n%s", diff)
 		return false
 	}
 
