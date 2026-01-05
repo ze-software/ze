@@ -303,6 +303,25 @@ func (p *Peer) handleConnection(ctx context.Context, conn net.Conn) Result {
 		return Result{Success: true}
 	}
 
+	// Check for send action after OPEN handshake.
+	for {
+		ok, hexData := p.checker.NextSendAction()
+		if !ok {
+			break
+		}
+		data, err := hex.DecodeString(hexData)
+		if err != nil {
+			return Result{Success: false, Error: fmt.Errorf("invalid send hex: %w", err)}
+		}
+		p.printf("\nsending %d bytes to peer\n", len(data))
+		if _, err := conn.Write(data); err != nil {
+			return Result{Success: false, Error: fmt.Errorf("write send: %w", err)}
+		}
+		if p.checker.Completed() {
+			return Result{Success: true}
+		}
+	}
+
 	// Main message loop.
 	counter := 0
 	for {
@@ -387,6 +406,26 @@ func (p *Peer) handleConnection(ctx context.Context, conn net.Conn) Result {
 			}
 			// More sequences expected - connection will close and client should reconnect.
 			return Result{Success: true}
+		}
+
+		// Check for send action after matched message.
+		// Unlike notification, send doesn't close connection - continue loop.
+		for {
+			ok, hexData := p.checker.NextSendAction()
+			if !ok {
+				break
+			}
+			data, err := hex.DecodeString(hexData)
+			if err != nil {
+				return Result{Success: false, Error: fmt.Errorf("invalid send hex: %w", err)}
+			}
+			p.printf("\nsending %d bytes to peer\n", len(data))
+			if _, err := conn.Write(data); err != nil {
+				return Result{Success: false, Error: fmt.Errorf("write send: %w", err)}
+			}
+			if p.checker.Completed() {
+				return Result{Success: true}
+			}
 		}
 	}
 }
@@ -664,6 +703,14 @@ func (c *Checker) groupMessages(expected []string) ([][]string, []string) {
 			// Raw hex: uppercase, remove colons and spaces
 			content = strings.ToUpper(strings.ReplaceAll(strings.ReplaceAll(content, ":", ""), " ", ""))
 			groups[conn][seq] = append(groups[conn][seq], content)
+		case "send":
+			// send:raw:... - test peer sends to ZeBGP
+			// Extract the sub-encoding and content
+			subParts := strings.SplitN(content, ":", 2)
+			if len(subParts) == 2 && strings.ToLower(subParts[0]) == "raw" {
+				rawHex := strings.ToUpper(strings.ReplaceAll(strings.ReplaceAll(subParts[1], ":", ""), " ", ""))
+				groups[conn][seq] = append(groups[conn][seq], fmt.Sprintf("send:%s", rawHex))
+			}
 		case "notification":
 			// Preserve case for notification text (RFC 9003 message)
 			groups[conn][seq] = append(groups[conn][seq], fmt.Sprintf("notification:%s", content))
@@ -857,6 +904,30 @@ func (c *Checker) NextNotificationAction() (bool, string) {
 	c.updateMessagesIfRequired()
 
 	return true, text
+}
+
+// NextSendAction checks if the next expected item is a send: action.
+// If so, it returns (true, hexData) and removes the action from the queue.
+// If not, it returns (false, "").
+func (c *Checker) NextSendAction() (bool, string) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	if len(c.messages) == 0 {
+		return false, ""
+	}
+
+	msg := c.messages[0]
+	if !strings.HasPrefix(msg, "send:") {
+		return false, ""
+	}
+
+	// Extract the hex data (everything after "send:")
+	hexData := strings.TrimPrefix(msg, "send:")
+	c.messages = c.messages[1:]
+	c.updateMessagesIfRequired()
+
+	return true, hexData
 }
 
 // LoadExpectFile loads expected messages from a file.
