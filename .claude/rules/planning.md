@@ -183,8 +183,10 @@ If task changed any of these, update corresponding docs:
 Determine number at move time, not during creation:
 
 ```bash
-LAST=$(ls plan/done/ 2>/dev/null | grep -E "^[0-9]{3}-" | sort | tail -1 | cut -c1-3)
-NEXT=$(printf "%03d" $((10#${LAST:-0} + 1)))
+# Find highest existing number (use 'command ls' to bypass aliases)
+LAST=`command ls -1 plan/done/ 2>/dev/null | sort -n | tail -1 | cut -c1-3`
+test -z "$LAST" && LAST=0
+NEXT=`printf "%03d" \`expr $LAST + 1\``
 mv plan/spec-<name>.md plan/done/${NEXT}-<name>.md
 ```
 

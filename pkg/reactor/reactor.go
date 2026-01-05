@@ -1590,10 +1590,21 @@ func (a *reactorAPIAdapter) ForwardUpdate(sel *api.Selector, updateID uint64) er
 
 		// Check if UPDATE exceeds peer's max message size
 		if updateSize > maxMsgSize {
-			// TODO: Implement wire-level split (see spec-wireupdate-split.md)
-			errs = append(errs, fmt.Errorf("peer %s: UPDATE size %d exceeds max %d, wire-level split not yet implemented",
-				peer.Settings().Address, updateSize, maxMsgSize))
-			continue
+			// Wire-level split: get source context for per-family ADD-PATH lookup
+			srcCtxID := update.WireUpdate.SourceCtxID()
+			srcCtx := bgpctx.Registry.Get(srcCtxID) // May be nil if not registered
+
+			maxBodySize := maxMsgSize - message.HeaderLen
+			splits, err := api.SplitWireUpdate(update.WireUpdate, maxBodySize, srcCtx)
+			if err != nil {
+				errs = append(errs, fmt.Errorf("peer %s: split failed: %w", peer.Settings().Address, err))
+				continue
+			}
+			for _, split := range splits {
+				if err := peer.SendRawUpdateBody(split.Payload()); err != nil {
+					errs = append(errs, fmt.Errorf("peer %s: %w", peer.Settings().Address, err))
+				}
+			}
 		} else {
 			// Normal path: UPDATE fits based on original size
 			destCtxID := peer.SendContextID()
@@ -1620,9 +1631,23 @@ func (a *reactorAPIAdapter) ForwardUpdate(sel *api.Selector, updateID uint64) er
 				repackedSize := message.HeaderLen + 4 + len(parsedUpdate.WithdrawnRoutes) +
 					len(parsedUpdate.PathAttributes) + len(parsedUpdate.NLRI)
 				if repackedSize > maxMsgSize {
-					// TODO: Implement wire-level split (see spec-wireupdate-split.md)
-					errs = append(errs, fmt.Errorf("peer %s: re-encoded UPDATE size %d exceeds max %d, wire-level split not yet implemented",
-						peer.Settings().Address, repackedSize, maxMsgSize))
+					// Split via parsed UPDATE using destination's ADD-PATH state
+					// TODO: SplitUpdateWithAddPath uses single addPath for all families.
+					// For mixed-family UPDATEs, this may be incorrect. Consider updating
+					// SplitUpdateWithAddPath to accept EncodingContext in future.
+					destSendCtx := peer.SendContext()
+					addPath := destSendCtx != nil && destSendCtx.AddPathFor(nlri.IPv4Unicast)
+
+					chunks, splitErr := message.SplitUpdateWithAddPath(parsedUpdate, maxMsgSize, addPath)
+					if splitErr != nil {
+						errs = append(errs, fmt.Errorf("peer %s: split failed: %w", peer.Settings().Address, splitErr))
+					} else {
+						for _, chunk := range chunks {
+							if err := peer.SendUpdate(chunk); err != nil {
+								errs = append(errs, fmt.Errorf("peer %s: %w", peer.Settings().Address, err))
+							}
+						}
+					}
 				} else {
 					if err := peer.SendUpdate(parsedUpdate); err != nil {
 						errs = append(errs, fmt.Errorf("peer %s: %w", peer.Settings().Address, err))
