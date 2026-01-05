@@ -4,6 +4,29 @@ Zero-copy message handling with capability-based forwarding.
 
 ---
 
+> **Current vs. Future Design**
+>
+> This document describes a **future design** with `PassthroughMessage`, ref counting,
+> and capability masks. The current implementation uses a simpler approach:
+>
+> - **Ownership transfer** - callback returns `kept=true` to take buffer ownership
+> - **Two size-appropriate pools** - 4K (pre-OPEN) and 64K (Extended Message)
+> - **Zero-copy cache** - cache owns buffer, `Take()` transfers ownership
+> - **No ref counting** - single owner at a time (session → cache → caller)
+> - **Critical ordering** - callback executes BEFORE cache (prevents use-after-free)
+>
+> **Cache API:**
+> - `Add()` - cache takes ownership
+> - `Take(id)` - removes entry, transfers ownership (caller must `Release()`)
+> - `Contains(id)` - check existence without ownership transfer
+> - `Delete(id)` - remove and return buffer to pool
+>
+> See `ENCODING_CONTEXT.md` and `UPDATE_BUILDING.md` for current implementation.
+> This design may be implemented when high-volume route reflection requires
+> true zero-copy forwarding to multiple peers simultaneously.
+
+---
+
 ## Overview
 
 ```
@@ -472,4 +495,11 @@ func (p *Peer) writeLoop() {
 
 ---
 
-**Last Updated:** 2025-12-19
+## Related Specs
+
+- `plan/spec-wireupdate-buffer-lifecycle.md` - Buffer pool get/return lifecycle (current impl)
+- `plan/spec-wireupdate-split.md` - Wire-level UPDATE splitting (TODO)
+
+---
+
+**Last Updated:** 2025-01-05

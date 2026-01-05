@@ -148,38 +148,56 @@ destCtx := context.Registry.Get(destCtxID)
 
 ## WireUpdate: Zero-Copy Receive Path
 
-When UPDATE messages are received, the session creates a `WireUpdate` that owns the
-buffer, enabling zero-copy from read to API notification.
+When UPDATE messages are received, the session creates a `WireUpdate` for zero-copy
+from read to API notification. The buffer is returned to pool after processing.
 
-### Buffer Pool
+### Buffer Pools
+
+Two size-appropriate pools handle standard (4K) and extended (64K) messages:
 
 ```go
 // pkg/reactor/session.go
-var readBufPool = sync.Pool{
-    New: func() any {
-        return make([]byte, message.MaxMsgLen)
-    },
+var readBufPool4K = sync.Pool{
+    New: func() any { return make([]byte, message.MaxMsgLen) },  // 4096
 }
+var readBufPool64K = sync.Pool{
+    New: func() any { return make([]byte, message.ExtMsgLen) }, // 65535
+}
+
+// ReturnReadBuffer returns buffer to appropriate pool (exported for cache)
+func ReturnReadBuffer(buf []byte)
 ```
 
-### Session Flow
+### Session Flow (Zero-Copy with Ownership Transfer)
 
 ```go
-// 1. Session reads UPDATE into readBuf
-body := s.readBuf[HeaderLen:msgLen]
+// In readAndProcessMessage():
 
-// 2. Create WireUpdate that takes ownership of buffer slice
-wireUpdate := api.NewWireUpdate(body, s.recvCtxID)
+// 1. Get buffer from appropriate pool (4K before OPEN, 64K after Extended Message)
+buf := s.getReadBuffer()
 
-// 3. Get fresh buffer from pool (old buffer now owned by WireUpdate)
-s.readBuf = readBufPool.Get().([]byte)
+// 2. Read message into buffer
+conn.Read(buf[:HeaderLen])
+conn.Read(buf[HeaderLen:msgLen])
 
-// 4. Notify callback with WireUpdate - no copy needed
-s.onMessageReceived(addr, TypeUPDATE, body, wireUpdate, ctxID, "received")
+// 3. Process message - callback returns kept=true if it took buffer ownership
+err, kept := s.processMessage(&hdr, buf[HeaderLen:msgLen], buf)
 
-// 5. Process UPDATE
+// 4. Return buffer to pool only if callback didn't keep it
+if !kept {
+    s.returnReadBuffer(buf)
+}
+
+// In processMessage():
+// 5. For UPDATE: create WireUpdate, notify callback with buf
+wireUpdate := api.NewWireUpdate(body, ctxID)
+kept = s.onMessageReceived(addr, TypeUPDATE, body, wireUpdate, ctxID, "received", buf)
 s.handleUpdate(wireUpdate)
+return err, kept
 ```
+
+**Key principle:** Zero-copy ownership transfer. Cache takes buffer ownership for received UPDATEs;
+buffer returned to pool when cache entry is evicted or deleted.
 
 ### WireUpdate Structure
 
@@ -223,25 +241,38 @@ type RawMessage struct {
 }
 ```
 
-### Zero-Copy Flow
+### Zero-Copy Flow (Ownership Transfer)
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
 │                    RECEIVE PATH (Zero-Copy)                      │
 │                                                                 │
-│  conn.Read(readBuf) → WireUpdate(slice) → readBuf = pool.Get() │
-│         ↓                    ↓                                  │
-│    Original buffer      Owns the buffer   Fresh buffer for     │
-│                         (no copy!)        next read             │
-│                              ↓                                  │
-│                    callback(wireUpdate)                         │
-│                              ↓                                  │
-│                    RawMessage.WireUpdate = wireUpdate           │
-│                    RawMessage.RawBytes = wireUpdate.Payload()   │
-│                              ↓                                  │
-│                    API/Cache uses WireUpdate directly           │
+│  buf := s.getReadBuffer()  ← Get from appropriate pool (4K/64K) │
+│         ↓                                                       │
+│  conn.Read(buf)            ← Read directly into pool buffer     │
+│         ↓                                                       │
+│  processMessage(buf)       ← Callback + handler                 │
+│         ↓                                                       │
+│  For UPDATE: WireUpdate(slice) → callback(wireUpdate, buf)      │
+│         ↓                                                       │
+│  receiver.OnMessageReceived() ← Callback FIRST (buf valid)      │
+│         ↓                                                       │
+│  Cache.Add(buf)?  ─── YES ──→ Cache takes buf ownership         │
+│         │                     kept=true, buf NOT returned       │
+│         NO                              ↓                       │
+│         ↓                     Take() transfers ownership        │
+│  kept=false                             ↓                       │
+│         ↓                     caller.Release() → pool           │
+│  s.returnReadBuffer(buf)                                        │
 └─────────────────────────────────────────────────────────────────┘
 ```
+
+**Cache contract:**
+- Callback executes BEFORE caching (buffer always valid during callback)
+- Cache takes ownership via `Add()`, no copy
+- `Take(id)` removes entry and transfers ownership to caller
+- Caller MUST call `ReceivedUpdate.Release()` to return buffer to pool
+- `Contains(id)` checks existence without taking ownership
 
 ## Route Wire Cache
 
@@ -433,3 +464,9 @@ Context IDs must be registered via `Registry.Register()`:
 - `plan/spec-afi-safi-map-refactor.md` - NegotiatedCapabilities, Family consolidation
 - `plan/spec-attributes-wire.md` - Lazy-parsed wire attribute storage
 - `plan/spec-pool-handle-migration.md` - Future migration to pool handles
+- `plan/spec-wireupdate-buffer-lifecycle.md` - Buffer pool get/return lifecycle
+- `plan/spec-wireupdate-split.md` - Wire-level UPDATE splitting (TODO)
+
+---
+
+**Last Updated:** 2025-01-05

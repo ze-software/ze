@@ -36,10 +36,11 @@ func TestRecentUpdateCacheAdd(t *testing.T) {
 
 	cache.Add(update)
 
-	got, ok := cache.Get(1)
+	got, ok := cache.Take(1)
 	if !ok {
 		t.Fatal("expected to find update 1")
 	}
+	defer got.Release()
 	if got.WireUpdate.MessageID() != 1 {
 		t.Errorf("MessageID = %d, want 1", got.WireUpdate.MessageID())
 	}
@@ -52,7 +53,7 @@ func TestRecentUpdateCacheAdd(t *testing.T) {
 func TestRecentUpdateCacheNotFound(t *testing.T) {
 	cache := NewRecentUpdateCache(time.Minute, 100)
 
-	_, ok := cache.Get(999)
+	_, ok := cache.Take(999)
 	if ok {
 		t.Error("expected not found for non-existent ID")
 	}
@@ -69,7 +70,7 @@ func TestRecentUpdateCacheExpiry(t *testing.T) {
 	cache.Add(newTestUpdate(1))
 
 	// Should be found immediately
-	if _, ok := cache.Get(1); !ok {
+	if !cache.Contains(1) {
 		t.Fatal("expected to find update before TTL")
 	}
 
@@ -77,7 +78,7 @@ func TestRecentUpdateCacheExpiry(t *testing.T) {
 	time.Sleep(20 * time.Millisecond)
 
 	// Should be expired
-	if _, ok := cache.Get(1); ok {
+	if cache.Contains(1) {
 		t.Error("expected not found after TTL expiry")
 	}
 }
@@ -129,13 +130,13 @@ func TestRecentUpdateCacheMaxEntries(t *testing.T) {
 	}
 
 	// Update 4 should not exist
-	if _, ok := cache.Get(4); ok {
+	if cache.Contains(4) {
 		t.Error("expected update 4 to be dropped")
 	}
 
 	// Original 3 should still exist
 	for i := uint64(1); i <= 3; i++ {
-		if _, ok := cache.Get(i); !ok {
+		if !cache.Contains(i) {
 			t.Errorf("expected update %d to exist", i)
 		}
 	}
@@ -143,7 +144,7 @@ func TestRecentUpdateCacheMaxEntries(t *testing.T) {
 
 // TestRecentUpdateCacheConcurrency verifies thread safety.
 //
-// VALIDATES: Concurrent Add/Get are safe.
+// VALIDATES: Concurrent Add/Take are safe.
 // PREVENTS: Race conditions, data corruption.
 func TestRecentUpdateCacheConcurrency(t *testing.T) {
 	cache := NewRecentUpdateCache(time.Minute, 1000)
@@ -163,13 +164,13 @@ func TestRecentUpdateCacheConcurrency(t *testing.T) {
 		}(g)
 	}
 
-	// Concurrent readers
+	// Concurrent readers (using Contains to avoid removing entries)
 	for g := 0; g < goroutines; g++ {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
 			for i := 0; i < opsPerGoroutine; i++ {
-				cache.Get(uint64(i)) //nolint:gosec // G115: test values are small
+				cache.Contains(uint64(i)) //nolint:gosec // G115: test values are small
 				_ = cache.Len()
 			}
 		}()
@@ -193,7 +194,7 @@ func TestRecentUpdateCacheZeroTTL(t *testing.T) {
 	cache.Add(newTestUpdate(1))
 
 	// Should be expired immediately
-	if _, ok := cache.Get(1); ok {
+	if cache.Contains(1) {
 		t.Error("expected immediate expiry with zero TTL")
 	}
 }
@@ -208,7 +209,7 @@ func TestRecentUpdateCacheDelete(t *testing.T) {
 	cache.Add(newTestUpdate(1))
 
 	// Should exist
-	if _, ok := cache.Get(1); !ok {
+	if !cache.Contains(1) {
 		t.Fatal("expected to find update before delete")
 	}
 
@@ -218,7 +219,7 @@ func TestRecentUpdateCacheDelete(t *testing.T) {
 	}
 
 	// Should not exist
-	if _, ok := cache.Get(1); ok {
+	if cache.Contains(1) {
 		t.Error("expected not found after delete")
 	}
 
@@ -249,7 +250,7 @@ func TestRecentUpdateCacheResetTTL(t *testing.T) {
 	time.Sleep(15 * time.Millisecond)
 
 	// Should still exist (TTL was reset)
-	if _, ok := cache.Get(1); !ok {
+	if !cache.Contains(1) {
 		t.Error("expected entry to exist after TTL reset")
 	}
 
@@ -257,7 +258,7 @@ func TestRecentUpdateCacheResetTTL(t *testing.T) {
 	time.Sleep(10 * time.Millisecond)
 
 	// Now should be expired
-	if _, ok := cache.Get(1); ok {
+	if cache.Contains(1) {
 		t.Error("expected entry to expire after reset TTL elapsed")
 	}
 }
@@ -272,4 +273,37 @@ func TestRecentUpdateCacheResetTTLNotFound(t *testing.T) {
 	if cache.ResetTTL(999) {
 		t.Error("ResetTTL returned true for non-existent entry")
 	}
+}
+
+// TestRecentUpdateCacheTakeTransfersOwnership verifies Take() removes entry.
+//
+// VALIDATES: Take() removes entry from cache, caller owns buffer.
+// PREVENTS: Use-after-free, double-free.
+func TestRecentUpdateCacheTakeTransfersOwnership(t *testing.T) {
+	cache := NewRecentUpdateCache(time.Minute, 100)
+
+	cache.Add(newTestUpdate(1))
+
+	// Take should remove from cache
+	got, ok := cache.Take(1)
+	if !ok {
+		t.Fatal("expected to find update")
+	}
+
+	// Entry should no longer be in cache
+	if cache.Contains(1) {
+		t.Error("entry should be removed after Take")
+	}
+
+	// Second Take should return not found
+	_, ok2 := cache.Take(1)
+	if ok2 {
+		t.Error("second Take should return not found")
+	}
+
+	// Release the buffer
+	got.Release()
+
+	// Release is idempotent
+	got.Release() // should not panic
 }

@@ -224,7 +224,7 @@ func (p *Peer) SignalAPIReady() {
 	ready := p.apiSyncReady
 	p.mu.RUnlock()
 
-	if int32(count) >= expected && ready != nil {
+	if count >= expected && ready != nil {
 		p.mu.Lock()
 		p.apiSyncReadyOnce.Do(func() {
 			close(p.apiSyncReady)
@@ -235,6 +235,8 @@ func (p *Peer) SignalAPIReady() {
 
 // waitForAPISync blocks until all API processes signal ready or timeout.
 // Returns immediately if no API sync is expected.
+//
+//nolint:unused // Reserved for future API sync implementation
 func (p *Peer) waitForAPISync(timeout time.Duration) {
 	p.mu.RLock()
 	expected := p.apiSyncExpected

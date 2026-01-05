@@ -18,28 +18,47 @@
 
 ### Path 0: Receive Path (Zero-Copy Ingest)
 
-For incoming UPDATE messages from peers:
+For incoming messages from peers (applies to ALL message types):
 
 ```
-conn.Read(readBuf) → WireUpdate(owns buffer) → pool.Get() → callback → API
-       │                    │                      │            │
-       │                    │                      │            └── RawMessage.WireUpdate
-       │                    │                      └── Fresh buffer for next read
-       │                    └── Takes ownership of slice (no copy!)
-       └── Session's read buffer
+buf := s.getReadBuffer()  ← Get from appropriate pool (4K/64K)
+       ↓
+conn.Read(buf)            ← Read directly into pool buffer
+       ↓
+err, kept := processMessage(buf)  ← Callback returns kept=true if caching
+       ↓
+if !kept: s.returnReadBuffer(buf) ← Return only if not cached
+```
+
+**Buffer pools (size-appropriate):**
+```go
+// pkg/reactor/session.go
+var readBufPool4K = sync.Pool{...}   // 4096 bytes (before Extended Message)
+var readBufPool64K = sync.Pool{...}  // 65535 bytes (after Extended Message)
+
+func ReturnReadBuffer(buf []byte)    // Exported for cache eviction
 ```
 
 **Files involved:**
-- `pkg/reactor/session.go` - Buffer pool (`readBufPool`), `processMessage()`, `handleUpdate()`
+- `pkg/reactor/session.go` - `getReadBuffer()`, `returnReadBuffer()`, `ReturnReadBuffer()`, `readAndProcessMessage()`, `processMessage()`
 - `pkg/api/wire_update.go` - `WireUpdate` struct with derived accessors
-- `pkg/reactor/reactor.go` - `notifyMessageReceiver()` uses WireUpdate directly
+- `pkg/reactor/reactor.go` - `notifyMessageReceiver()` takes buf ownership when caching
+- `pkg/reactor/recent_cache.go` - Returns buf to pool on eviction
 
 **Key types:**
 ```go
 // pkg/api/wire_update.go
 type WireUpdate struct {
-    payload     []byte           // UPDATE body (owns buffer)
+    payload     []byte           // UPDATE body (slice into pool buffer)
     sourceCtxID bgpctx.ContextID
+}
+
+// pkg/reactor/received_update.go
+type ReceivedUpdate struct {
+    WireUpdate   *api.WireUpdate  // Slices into poolBuf
+    poolBuf      []byte           // Returned to pool on eviction
+    SourcePeerIP netip.Addr       // Peer that sent this UPDATE
+    ReceivedAt   time.Time        // When received
 }
 
 // Derived accessors (zero-copy slices)
@@ -50,12 +69,24 @@ func (u *WireUpdate) MPReach() MPReachWire
 func (u *WireUpdate) MPUnreach() MPUnreachWire
 ```
 
-**Zero-copy mechanism:**
-1. Session reads into `readBuf`
-2. Creates `WireUpdate` from slice (no copy)
-3. Gets fresh buffer from pool
-4. Callback receives `WireUpdate` - buffer ownership transferred
-5. `RawMessage.WireUpdate` set directly (no copy in `notifyMessageReceiver`)
+**Buffer lifecycle (ownership transfer):**
+1. Session gets buffer from appropriate pool (`getReadBuffer()`)
+2. Session reads message into buffer
+3. For UPDATE: creates `WireUpdate` from slice (no copy)
+4. **Callback executes FIRST** (buffer always valid during callback)
+5. Then cache `Add()` - returns `kept=true` if caching
+6. If cached: cache owns buf
+7. If not cached: session returns buffer to pool immediately
+
+**Cache API:**
+- `Add(update)` - cache takes ownership, returns buf to pool if full/rejected
+- `Take(id)` - removes entry, transfers ownership to caller
+- `Contains(id)` - check existence without taking ownership
+- `Delete(id)` - remove and return buffer to pool
+- `ReceivedUpdate.Release()` - caller returns buffer after `Take()`
+
+**Critical ordering:** Callback before cache ensures buffer is valid during callback.
+Cache `Take()` prevents use-after-free by transferring ownership.
 
 ### Path 1: Build Path (Local Origination)
 
@@ -314,6 +345,12 @@ update := buildRIBRouteUpdate(route, ...)
 peer.sendUpdateWithSplit(update, maxSize, family)
 ```
 
+> **Wire-Level Split (TODO)**
+>
+> Forward path currently returns error for oversized UPDATEs when forwarding
+> to non-Extended Message peers. Wire-level split (`SplitUpdate(*WireUpdate, maxSize)`)
+> is planned but not yet implemented. See `plan/spec-wireupdate-split.md`.
+
 **Files involved:**
 - `pkg/bgp/message/update_split.go` - `SplitUpdate()`, `SplitUpdateWithAddPath()`
 - `pkg/bgp/message/chunk_mp_nlri.go` - `ChunkMPNLRI()` for family-aware NLRI parsing
@@ -345,8 +382,10 @@ peer.sendUpdateWithSplit(update, maxSize, family)
 
 - `plan/spec-attributes-wire.md` - Lazy-parsed wire attribute storage (forward path)
 - `plan/spec-pool-handle-migration.md` - Future pool handle integration
+- `plan/spec-wireupdate-buffer-lifecycle.md` - Buffer pool get/return lifecycle
+- `plan/spec-wireupdate-split.md` - Wire-level UPDATE splitting (TODO)
 
 ---
 
 **Created:** 2026-01-01
-**Last Updated:** 2026-01-02
+**Last Updated:** 2025-01-05

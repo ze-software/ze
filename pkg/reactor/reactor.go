@@ -21,7 +21,6 @@ import (
 	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/message"
 	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/nlri"
 	"codeberg.org/thomas-mangin/zebgp/pkg/rib"
-	"codeberg.org/thomas-mangin/zebgp/pkg/trace"
 )
 
 // Reactor errors.
@@ -1544,11 +1543,13 @@ func (a *reactorAPIAdapter) sendWithdrawals(peer *Peer, withdrawals []nlri.NLRI)
 // (4096 without Extended Message, 65535 with), it is split into multiple
 // smaller UPDATEs that each fit within the limit.
 func (a *reactorAPIAdapter) ForwardUpdate(sel *api.Selector, updateID uint64) error {
-	// Look up update by ID from cache
-	update, ok := a.r.recentUpdates.Get(updateID)
+	// Take ownership of update from cache (removes from cache)
+	// Caller must call Release() when done
+	update, ok := a.r.recentUpdates.Take(updateID)
 	if !ok {
 		return ErrUpdateExpired
 	}
+	defer update.Release() // Return buffer to pool when done
 
 	// Get matching peers
 	a.r.mu.RLock()
@@ -1564,14 +1565,6 @@ func (a *reactorAPIAdapter) ForwardUpdate(sel *api.Selector, updateID uint64) er
 
 	if len(matchingPeers) == 0 {
 		return fmt.Errorf("no peers match selector %s", sel)
-	}
-
-	// Convert to routes for adj-rib-out persistence and splitting (parse once, reuse)
-	// Track error separately: non-fatal for adj-rib-out, fatal for split path
-	routes, routesErr := update.ConvertToRoutes()
-	if routesErr != nil {
-		// Warn about persistence failure - forwarding will work but routes won't survive reconnect
-		trace.Log(trace.Routes, "forward update %d: ConvertToRoutes failed: %v (routes will not persist)", updateID, routesErr)
 	}
 
 	// Calculate update size once (header + body)
@@ -1597,16 +1590,10 @@ func (a *reactorAPIAdapter) ForwardUpdate(sel *api.Selector, updateID uint64) er
 
 		// Check if UPDATE exceeds peer's max message size
 		if updateSize > maxMsgSize {
-			// Split path: UPDATE too large for this peer
-			// Requires routes from ConvertToRoutes - fail if conversion failed
-			if routesErr != nil {
-				errs = append(errs, fmt.Errorf("peer %s: cannot split UPDATE: %w",
-					peer.Settings().Address, routesErr))
-				continue
-			}
-			if err := a.sendSplitUpdate(peer, update, routes, maxMsgSize); err != nil {
-				errs = append(errs, fmt.Errorf("peer %s: %w", peer.Settings().Address, err))
-			}
+			// TODO: Implement wire-level split (see spec-wireupdate-split.md)
+			errs = append(errs, fmt.Errorf("peer %s: UPDATE size %d exceeds max %d, wire-level split not yet implemented",
+				peer.Settings().Address, updateSize, maxMsgSize))
+			continue
 		} else {
 			// Normal path: UPDATE fits based on original size
 			destCtxID := peer.SendContextID()
@@ -1633,13 +1620,9 @@ func (a *reactorAPIAdapter) ForwardUpdate(sel *api.Selector, updateID uint64) er
 				repackedSize := message.HeaderLen + 4 + len(parsedUpdate.WithdrawnRoutes) +
 					len(parsedUpdate.PathAttributes) + len(parsedUpdate.NLRI)
 				if repackedSize > maxMsgSize {
-					// Re-encoded UPDATE is too large, fall back to split path
-					if routesErr != nil {
-						errs = append(errs, fmt.Errorf("peer %s: re-encoded UPDATE size %d exceeds max %d and cannot split: %w",
-							peer.Settings().Address, repackedSize, maxMsgSize, routesErr))
-					} else if err := a.sendSplitUpdate(peer, update, routes, maxMsgSize); err != nil {
-						errs = append(errs, fmt.Errorf("peer %s: %w", peer.Settings().Address, err))
-					}
+					// TODO: Implement wire-level split (see spec-wireupdate-split.md)
+					errs = append(errs, fmt.Errorf("peer %s: re-encoded UPDATE size %d exceeds max %d, wire-level split not yet implemented",
+						peer.Settings().Address, repackedSize, maxMsgSize))
 				} else {
 					if err := peer.SendUpdate(parsedUpdate); err != nil {
 						errs = append(errs, fmt.Errorf("peer %s: %w", peer.Settings().Address, err))
@@ -1649,39 +1632,10 @@ func (a *reactorAPIAdapter) ForwardUpdate(sel *api.Selector, updateID uint64) er
 		}
 	}
 
-	// One-shot: delete from cache after forwarding (even on partial failure)
-	a.r.recentUpdates.Delete(updateID)
+	// Buffer released by deferred update.Release()
 
 	if sentCount == 0 {
 		return fmt.Errorf("no established peers to forward to")
-	}
-
-	if len(errs) > 0 {
-		return errors.Join(errs...)
-	}
-	return nil
-}
-
-// sendSplitUpdate sends an UPDATE split into multiple messages to fit maxMsgSize.
-// Used when forwarding from Extended Message peer to non-Extended peer.
-//
-// RFC 8654 compliance: Messages are split so each fits within the peer's
-// maximum message size (4096 without Extended Message capability).
-func (a *reactorAPIAdapter) sendSplitUpdate(peer *Peer, update *ReceivedUpdate, routes []*rib.Route, maxMsgSize int) error {
-	var errs []error
-
-	// Send announcements (routes) in batches
-	if len(routes) > 0 {
-		if err := a.sendRoutesWithLimit(peer, routes, maxMsgSize); err != nil {
-			errs = append(errs, fmt.Errorf("sending routes: %w", err))
-		}
-	}
-
-	// Send withdrawals in batches
-	if len(update.Withdraws) > 0 {
-		if err := a.sendWithdrawalsWithLimit(peer, update.Withdraws, maxMsgSize); err != nil {
-			errs = append(errs, fmt.Errorf("sending withdrawals: %w", err))
-		}
 	}
 
 	if len(errs) > 0 {
@@ -1697,6 +1651,8 @@ func (a *reactorAPIAdapter) sendSplitUpdate(peer *Peer, update *ReceivedUpdate, 
 // to O(routes/capacity), dramatically improving efficiency for large route sets.
 //
 // When GroupUpdates is disabled, routes are sent individually (legacy behavior).
+//
+//nolint:unused // Orphaned: was called by sendSplitUpdate (deleted), may be useful for future adj-rib-out features
 func (a *reactorAPIAdapter) sendRoutesWithLimit(peer *Peer, routes []*rib.Route, maxMsgSize int) error {
 	if len(routes) == 0 {
 		return nil
@@ -1726,6 +1682,8 @@ func (a *reactorAPIAdapter) sendRoutesWithLimit(peer *Peer, routes []*rib.Route,
 }
 
 // sendRoutesIndividually sends routes one at a time (legacy behavior).
+//
+//nolint:unused // Orphaned: was called by sendSplitUpdate (deleted), may be useful for future adj-rib-out features
 func (a *reactorAPIAdapter) sendRoutesIndividually(peer *Peer, routes []*rib.Route, maxMsgSize int) error {
 	var errs []error
 
@@ -1748,6 +1706,8 @@ func (a *reactorAPIAdapter) sendRoutesIndividually(peer *Peer, routes []*rib.Rou
 // sendASPathGroup sends routes in an AS_PATH group as efficiently as possible.
 // For IPv4 unicast: uses BuildGroupedUnicastWithLimit to pack multiple NLRIs.
 // For MP families: builds UPDATE with MP_REACH_NLRI containing grouped NLRIs.
+//
+//nolint:unused // Orphaned: was called by sendSplitUpdate (deleted), may be useful for future adj-rib-out features
 func (a *reactorAPIAdapter) sendASPathGroup(peer *Peer, attrGroup *rib.AttributeGroup, aspGroup *rib.ASPathGroup, maxMsgSize int) error {
 	if len(aspGroup.Routes) == 0 {
 		return nil
@@ -1766,6 +1726,8 @@ func (a *reactorAPIAdapter) sendASPathGroup(peer *Peer, attrGroup *rib.Attribute
 }
 
 // sendGroupedIPv4Unicast sends grouped IPv4 unicast routes using BuildGroupedUnicastWithLimit.
+//
+//nolint:unused // Orphaned: was called by sendSplitUpdate (deleted), may be useful for future adj-rib-out features
 func (a *reactorAPIAdapter) sendGroupedIPv4Unicast(peer *Peer, routes []*rib.Route, ctx *nlri.PackContext, maxMsgSize int) error {
 	// Check if any route has complex AS_PATH (AS_SET, CONFED, multiple segments)
 	// that can't be represented in UnicastParams.ASPath (which is just []uint32).
@@ -1823,6 +1785,8 @@ func hasComplexASPath(route *rib.Route) bool {
 
 // sendGroupedMPFamily sends grouped MP family routes (IPv6, VPN, etc.).
 // Packs multiple NLRIs into MP_REACH_NLRI attribute.
+//
+//nolint:unused // Orphaned: was called by sendSplitUpdate (deleted), may be useful for future adj-rib-out features
 func (a *reactorAPIAdapter) sendGroupedMPFamily(peer *Peer, routes []*rib.Route, family nlri.Family, ctx *nlri.PackContext, maxMsgSize int) error {
 	if len(routes) == 0 {
 		return nil
@@ -1881,6 +1845,8 @@ func (a *reactorAPIAdapter) sendGroupedMPFamily(peer *Peer, routes []*rib.Route,
 }
 
 // nextHopLength returns the wire length of next-hop for a given family.
+//
+//nolint:unused // Orphaned: was called by sendSplitUpdate (deleted), may be useful for future adj-rib-out features
 func nextHopLength(family nlri.Family, nh netip.Addr) int {
 	switch {
 	case family.AFI == nlri.AFIIPv4:
@@ -1905,6 +1871,8 @@ func nextHopLength(family nlri.Family, nh netip.Addr) int {
 }
 
 // buildGroupedMPUpdate builds an UPDATE with MP_REACH_NLRI containing multiple NLRIs.
+//
+//nolint:unused // Orphaned: was called by sendSplitUpdate (deleted), may be useful for future adj-rib-out features
 func (a *reactorAPIAdapter) buildGroupedMPUpdate(templateRoute *rib.Route, nlriBytes []byte, family nlri.Family, localAS uint32, isIBGP bool, ctx *nlri.PackContext) *message.Update {
 	var attrBytes []byte
 
@@ -2048,6 +2016,8 @@ func toRIBRouteUnicastParams(route *rib.Route) message.UnicastParams {
 // sendWithdrawalsWithLimit sends withdrawals using SplitUpdate for size limiting.
 // Groups withdrawals by family to ensure correct Add-Path detection for each.
 // Uses the same splitting infrastructure as announcements for consistency.
+//
+//nolint:unused // Orphaned: was called by sendSplitUpdate (deleted), may be useful for future adj-rib-out features
 func (a *reactorAPIAdapter) sendWithdrawalsWithLimit(peer *Peer, withdraws []nlri.NLRI, maxMsgSize int) error {
 	if len(withdraws) == 0 {
 		return nil
@@ -2385,7 +2355,9 @@ func (r *Reactor) notifyPeerClosed(peer *Peer, reason string) {
 // wireUpdate is non-nil for received UPDATE messages (zero-copy path).
 // ctxID is the encoding context for zero-copy decisions.
 // direction is "sent" or "received".
-func (r *Reactor) notifyMessageReceiver(peerAddr netip.Addr, msgType message.MessageType, rawBytes []byte, wireUpdate *api.WireUpdate, ctxID bgpctx.ContextID, direction string) {
+// buf is the pool buffer for received messages (nil for sent).
+// Returns true if buf ownership was taken (caller should not return to pool).
+func (r *Reactor) notifyMessageReceiver(peerAddr netip.Addr, msgType message.MessageType, rawBytes []byte, wireUpdate *api.WireUpdate, ctxID bgpctx.ContextID, direction string, buf []byte) bool {
 	r.mu.RLock()
 	receiver := r.messageReceiver
 	peer, hasPeer := r.peers[peerAddr.String()]
@@ -2408,7 +2380,7 @@ func (r *Reactor) notifyMessageReceiver(peerAddr netip.Addr, msgType message.Mes
 	r.mu.RUnlock()
 
 	if receiver == nil {
-		return
+		return false
 	}
 
 	// Assign message ID for all message types
@@ -2416,31 +2388,22 @@ func (r *Reactor) notifyMessageReceiver(peerAddr netip.Addr, msgType message.Mes
 	timestamp := time.Now()
 
 	var msg api.RawMessage
+	var kept bool
 
 	// Zero-copy path for received UPDATE messages
 	if wireUpdate != nil {
 		// Set messageID on WireUpdate (single source of truth for UPDATEs)
 		wireUpdate.SetMessageID(messageID)
 
-		// WireUpdate already owns the buffer - no copy needed
+		// RawMessage uses zero-copy for synchronous callback processing
 		msg = api.RawMessage{
 			Type:       msgType,
-			RawBytes:   wireUpdate.Payload(), // Zero-copy: slice from WireUpdate's buffer
+			RawBytes:   wireUpdate.Payload(), // Zero-copy: valid during callback
 			Timestamp:  timestamp,
 			Direction:  direction,
 			MessageID:  messageID,
 			WireUpdate: wireUpdate,
 			AttrsWire:  wireUpdate.Attrs(), // Derived from WireUpdate
-		}
-
-		// Cache for forwarding (only for received updates)
-		if direction == "received" {
-			r.recentUpdates.Add(&ReceivedUpdate{
-				// messageID accessed via WireUpdate.MessageID()
-				WireUpdate:   wireUpdate,
-				SourcePeerIP: peerAddr,
-				ReceivedAt:   timestamp,
-			})
 		}
 	} else {
 		// Non-UPDATE or sent messages: copy bytes for async processing safety
@@ -2456,12 +2419,26 @@ func (r *Reactor) notifyMessageReceiver(peerAddr netip.Addr, msgType message.Mes
 		}
 	}
 
-	// Route to appropriate handler based on direction
+	// Route to handler FIRST (while buf is definitely valid)
 	if direction == "sent" {
 		receiver.OnMessageSent(peerInfo, msg)
 	} else {
 		receiver.OnMessageReceived(peerInfo, msg)
 	}
+
+	// THEN cache for later forwarding (only received UPDATEs)
+	// Add() returns true if accepted (cache owns buf), false if rejected (caller keeps buf)
+	if direction == "received" && wireUpdate != nil && buf != nil {
+		kept = r.recentUpdates.Add(&ReceivedUpdate{
+			WireUpdate:   wireUpdate, // Zero-copy: slices into buf
+			poolBuf:      buf,        // Cache owns buf if accepted
+			SourcePeerIP: peerAddr,
+			ReceivedAt:   timestamp,
+		})
+		// If rejected (kept=false), session returns buf after handleUpdate completes
+	}
+
+	return kept
 }
 
 // AddPeer adds a peer to the reactor.

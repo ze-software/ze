@@ -47,9 +47,11 @@ func NewRecentUpdateCache(ttl time.Duration, maxEntries int) *RecentUpdateCache 
 }
 
 // Add inserts an update into the cache.
-// Triggers lazy cleanup of expired entries.
-// Drops the new entry if cache is full after eviction.
-func (c *RecentUpdateCache) Add(update *ReceivedUpdate) {
+// Triggers lazy cleanup of expired entries (returning their buffers to pool).
+// Returns true if accepted, false if rejected (cache full).
+// IMPORTANT: Does NOT return buffer when rejected - caller still needs it for handleUpdate().
+// Caller must check return value and handle buffer accordingly.
+func (c *RecentUpdateCache) Add(update *ReceivedUpdate) bool {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
@@ -59,48 +61,74 @@ func (c *RecentUpdateCache) Add(update *ReceivedUpdate) {
 	// BGP keepalives ensure regular Add activity
 	for id, e := range c.entries {
 		if now.After(e.expiresAt) {
+			// Return buffer to pool before deleting
+			ReturnReadBuffer(e.update.poolBuf)
 			delete(c.entries, id)
 		}
 	}
 
-	// Fixed size: drop new entry if still at capacity after eviction
+	// Fixed size: reject new entry if still at capacity after eviction
+	// DON'T return buffer here - caller still needs it for handleUpdate()
 	if c.maxEntries > 0 && len(c.entries) >= c.maxEntries {
-		return
+		return false // rejected, caller handles buffer
 	}
 
 	c.entries[update.WireUpdate.MessageID()] = &cacheEntry{
 		update:    update,
 		expiresAt: now.Add(c.ttl),
 	}
+	return true // accepted, cache owns buffer
 }
 
-// Get retrieves an update by ID.
+// Take retrieves and removes an update by ID, transferring ownership to caller.
+// Caller MUST call ReceivedUpdate.Release() when done to return buffer to pool.
 // Returns (nil, false) if not found or expired.
-func (c *RecentUpdateCache) Get(id uint64) (*ReceivedUpdate, bool) {
-	c.mu.RLock()
-	entry, ok := c.entries[id]
-	c.mu.RUnlock()
+func (c *RecentUpdateCache) Take(id uint64) (*ReceivedUpdate, bool) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
 
+	entry, ok := c.entries[id]
 	if !ok {
 		return nil, false
 	}
 
 	// Check expiry
 	if time.Now().After(entry.expiresAt) {
+		// Expired - return buffer and remove
+		ReturnReadBuffer(entry.update.poolBuf)
+		delete(c.entries, id)
 		return nil, false
 	}
 
+	// Remove from cache - caller now owns the buffer
+	delete(c.entries, id)
 	return entry.update, true
 }
 
-// Delete removes an update from the cache.
+// Contains checks if an entry exists and is not expired.
+// Does NOT remove the entry or transfer ownership.
+// Used primarily for testing cache state.
+func (c *RecentUpdateCache) Contains(id uint64) bool {
+	c.mu.RLock()
+	entry, ok := c.entries[id]
+	c.mu.RUnlock()
+
+	if !ok {
+		return false
+	}
+	return !time.Now().After(entry.expiresAt)
+}
+
+// Delete removes an update from the cache and returns its buffer to pool.
 // Called after forward completes or when controller acks without forwarding.
 // Returns true if the entry was found and deleted.
 func (c *RecentUpdateCache) Delete(id uint64) bool {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	if _, ok := c.entries[id]; ok {
+	if e, ok := c.entries[id]; ok {
+		// Return buffer to pool before deleting
+		ReturnReadBuffer(e.update.poolBuf)
 		delete(c.entries, id)
 		return true
 	}

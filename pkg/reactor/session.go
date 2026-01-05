@@ -22,13 +22,33 @@ import (
 	"codeberg.org/thomas-mangin/zebgp/pkg/trace"
 )
 
-// readBufPool provides reusable read buffers for zero-copy UPDATE processing.
-// When an UPDATE is received, the session's buffer is transferred to WireUpdate
-// and a fresh buffer is obtained from this pool.
-var readBufPool = sync.Pool{
+// readBufPool4K provides reusable 4K read buffers for standard messages.
+// Used before Extended Message capability is negotiated.
+var readBufPool4K = sync.Pool{
 	New: func() any {
-		return make([]byte, message.MaxMsgLen)
+		return make([]byte, message.MaxMsgLen) // 4096
 	},
+}
+
+// readBufPool64K provides reusable 64K read buffers for extended messages.
+// Used after Extended Message capability is negotiated (RFC 8654).
+var readBufPool64K = sync.Pool{
+	New: func() any {
+		return make([]byte, message.ExtMsgLen) // 65535
+	},
+}
+
+// ReturnReadBuffer returns a buffer to the appropriate pool based on capacity.
+// Used by cache to return buffers when entries are evicted.
+func ReturnReadBuffer(buf []byte) {
+	if buf == nil {
+		return
+	}
+	if cap(buf) >= message.ExtMsgLen {
+		readBufPool64K.Put(buf) //nolint:staticcheck // SA6002: slice in pool is idiomatic Go
+	} else {
+		readBufPool4K.Put(buf) //nolint:staticcheck // SA6002: slice in pool is idiomatic Go
+	}
 }
 
 // Session errors.
@@ -55,7 +75,9 @@ var (
 // direction is "sent" or "received".
 // wireUpdate is non-nil for UPDATE messages (zero-copy), nil for other types.
 // ctxID is the encoding context for zero-copy decisions.
-type MessageCallback func(peerAddr netip.Addr, msgType message.MessageType, rawBytes []byte, wireUpdate *api.WireUpdate, ctxID bgpctx.ContextID, direction string)
+// buf is the pool buffer for received messages (nil for sent).
+// Returns true if callback took ownership of buf (caller should not return to pool).
+type MessageCallback func(peerAddr netip.Addr, msgType message.MessageType, rawBytes []byte, wireUpdate *api.WireUpdate, ctxID bgpctx.ContextID, direction string, buf []byte) (kept bool)
 
 type Session struct {
 	mu sync.RWMutex
@@ -72,8 +94,11 @@ type Session struct {
 	// peerOpen stores the peer's OPEN for reference.
 	peerOpen *message.Open
 
-	// Read buffer (reused).
-	readBuf []byte
+	// extendedMessage tracks if Extended Message capability was negotiated.
+	// Thread safety: only accessed from session's read goroutine:
+	//   negotiate() ← handleOpen() ← processMessage() ← readAndProcessMessage()
+	// No synchronization needed.
+	extendedMessage bool
 
 	// Write buffer for zero-allocation message building.
 	// Allocated at 4096 bytes initially, resized to 65535 if Extended Message negotiated.
@@ -100,7 +125,6 @@ func NewSession(settings *PeerSettings) *Session {
 		settings: settings,
 		fsm:      fsm.New(),
 		timers:   fsm.NewTimers(),
-		readBuf:  make([]byte, message.MaxMsgLen),
 		writeBuf: wire.NewSessionBuffer(false), // Start with 4096, resize if Extended Message
 		errChan:  make(chan error, 2),          // Buffer 2: normal error + teardown
 	}
@@ -167,6 +191,30 @@ func (s *Session) SetRecvCtxID(ctxID bgpctx.ContextID) {
 // The buffer is sized based on negotiated Extended Message capability.
 func (s *Session) WriteBuf() *wire.SessionBuffer {
 	return s.writeBuf
+}
+
+// getReadBuffer gets an appropriately-sized buffer from pool.
+// Uses 4K pool before Extended Message negotiation, 64K after.
+func (s *Session) getReadBuffer() []byte {
+	if s.extendedMessage {
+		if buf, ok := readBufPool64K.Get().([]byte); ok {
+			return buf
+		}
+		return make([]byte, message.ExtMsgLen)
+	}
+	if buf, ok := readBufPool4K.Get().([]byte); ok {
+		return buf
+	}
+	return make([]byte, message.MaxMsgLen)
+}
+
+// returnReadBuffer returns buffer to the appropriate pool based on size.
+func (s *Session) returnReadBuffer(buf []byte) {
+	if cap(buf) >= message.ExtMsgLen {
+		readBufPool64K.Put(buf) //nolint:staticcheck // SA6002: slice in pool is idiomatic Go
+	} else {
+		readBufPool4K.Put(buf) //nolint:staticcheck // SA6002: slice in pool is idiomatic Go
+	}
 }
 
 // DetectCollision checks if an incoming connection causes a collision.
@@ -593,10 +641,15 @@ func (s *Session) ReadAndProcess() error {
 }
 
 // readAndProcessMessage reads a message from the connection and processes it.
+// Uses clean get/return pool pattern for buffer lifecycle.
 func (s *Session) readAndProcessMessage(conn net.Conn) error {
-	// Read header.
-	_, err := io.ReadFull(conn, s.readBuf[:message.HeaderLen])
+	// Get buffer from pool
+	buf := s.getReadBuffer()
+
+	// Read header
+	_, err := io.ReadFull(conn, buf[:message.HeaderLen])
 	if err != nil {
+		s.returnReadBuffer(buf)
 		if errors.Is(err, io.EOF) {
 			s.handleConnectionClose()
 			return ErrConnectionClosed
@@ -604,20 +657,20 @@ func (s *Session) readAndProcessMessage(conn net.Conn) error {
 		return err
 	}
 
-	hdr, err := message.ParseHeader(s.readBuf[:message.HeaderLen])
+	hdr, err := message.ParseHeader(buf[:message.HeaderLen])
 	if err != nil {
+		s.returnReadBuffer(buf)
 		_ = s.fsm.Event(fsm.EventBGPHeaderErr)
 		return fmt.Errorf("parse header: %w", err)
 	}
 
 	// RFC 8654: Validate message length against max (4096 or 65535 if extended).
-	// Get negotiated state to check if extended message is enabled.
 	s.mu.RLock()
 	neg := s.negotiated
 	s.mu.RUnlock()
 
-	extendedMessage := neg != nil && neg.ExtendedMessage
-	if err := hdr.ValidateLengthWithMax(extendedMessage); err != nil {
+	if err := hdr.ValidateLengthWithMax(s.extendedMessage); err != nil {
+		s.returnReadBuffer(buf)
 		// RFC 8654 Section 5: Send NOTIFICATION with Bad Message Length.
 		_ = s.sendNotification(conn, neg,
 			message.NotifyMessageHeader,
@@ -629,63 +682,61 @@ func (s *Session) readAndProcessMessage(conn net.Conn) error {
 		return fmt.Errorf("message length %d exceeds max for %s: %w", hdr.Length, hdr.Type, err)
 	}
 
-	// Read body.
+	// Read body
 	bodyLen := int(hdr.Length) - message.HeaderLen
 	if bodyLen > 0 {
-		_, err = io.ReadFull(conn, s.readBuf[message.HeaderLen:hdr.Length])
+		_, err = io.ReadFull(conn, buf[message.HeaderLen:hdr.Length])
 		if err != nil {
+			s.returnReadBuffer(buf)
 			return fmt.Errorf("read body: %w", err)
 		}
 	}
 
-	return s.processMessage(&hdr, s.readBuf[message.HeaderLen:hdr.Length])
+	// Process message - callback returns kept=true if it took buffer ownership
+	err, kept := s.processMessage(&hdr, buf[message.HeaderLen:hdr.Length], buf)
+
+	// Return buffer to pool only if callback didn't keep it
+	if !kept {
+		s.returnReadBuffer(buf)
+	}
+
+	return err
 }
 
 // processMessage handles a received BGP message.
-func (s *Session) processMessage(hdr *message.Header, body []byte) error {
+// Returns (error, kept) where kept indicates if callback took buffer ownership.
+func (s *Session) processMessage(hdr *message.Header, body []byte, buf []byte) (error, bool) {
 	s.mu.RLock()
 	ctxID := s.recvCtxID
 	s.mu.RUnlock()
 
-	// For UPDATE messages: zero-copy path with buffer ownership transfer
+	// For UPDATE: create WireUpdate once, use for callback and handler
+	var wireUpdate *api.WireUpdate
 	if hdr.Type == message.TypeUPDATE {
-		// Create WireUpdate that takes ownership of current buffer's slice
-		// Body is a slice into s.readBuf, we need to transfer ownership
-		wireUpdate := api.NewWireUpdate(body, ctxID)
-
-		// Notify callback with WireUpdate (zero-copy)
-		if s.onMessageReceived != nil {
-			s.onMessageReceived(s.settings.Address, hdr.Type, body, wireUpdate, ctxID, "received")
-		}
-
-		// Get fresh buffer from pool for next read
-		// The old buffer is now owned by WireUpdate
-		poolBuf := readBufPool.Get()
-		newBuf, ok := poolBuf.([]byte)
-		if !ok || len(newBuf) < len(s.readBuf) {
-			// If pool returns wrong type or buffer is smaller (e.g., extended messages), allocate new
-			newBuf = make([]byte, len(s.readBuf))
-		}
-		s.readBuf = newBuf
-
-		return s.handleUpdate(wireUpdate)
+		wireUpdate = api.NewWireUpdate(body, ctxID)
 	}
 
-	// For non-UPDATE messages: notify callback (no WireUpdate)
+	// Notify callback for all message types.
+	// Callback returns true if it took ownership of buf (e.g., cached it).
+	var kept bool
 	if s.onMessageReceived != nil {
-		s.onMessageReceived(s.settings.Address, hdr.Type, body, nil, ctxID, "received")
+		kept = s.onMessageReceived(s.settings.Address, hdr.Type, body, wireUpdate, ctxID, "received", buf)
 	}
 
-	switch hdr.Type { //nolint:exhaustive // UPDATE handled above, unknown in default
+	var err error
+	switch hdr.Type { //nolint:exhaustive // unknown in default
+	case message.TypeUPDATE:
+		err = s.handleUpdate(wireUpdate)
 	case message.TypeOPEN:
-		return s.handleOpen(body)
+		err = s.handleOpen(body)
 	case message.TypeKEEPALIVE:
-		return s.handleKeepalive()
+		err = s.handleKeepalive()
 	case message.TypeNOTIFICATION:
-		return s.handleNotification(body)
+		err = s.handleNotification(body)
 	default:
-		return s.handleUnknownType(hdr.Type)
+		err = s.handleUnknownType(hdr.Type)
 	}
+	return err, kept
 }
 
 // handleUnknownType handles unknown message types (exabgp-compatible).
@@ -1042,12 +1093,10 @@ func (s *Session) negotiate() {
 		s.peerOpen.ASN4,
 	)
 
-	// RFC 8654: If extended message is negotiated, resize buffers.
+	// RFC 8654: If extended message is negotiated, track for pool selection.
 	// MUST be capable of receiving/sending messages up to 65535 octets.
 	if s.negotiated.ExtendedMessage {
-		if len(s.readBuf) < message.ExtMsgLen {
-			s.readBuf = make([]byte, message.ExtMsgLen)
-		}
+		s.extendedMessage = true
 		s.writeBuf.Resize(true) // Expand to 65535 if needed
 	}
 
@@ -1181,7 +1230,7 @@ func (s *Session) writeMessage(conn net.Conn, neg *capability.Negotiated, msg me
 	// Body is data after the 19-byte header (16-byte marker + 2-byte length + 1-byte type).
 	if s.onMessageReceived != nil && len(data) >= message.HeaderLen {
 		body := data[message.HeaderLen:]
-		s.onMessageReceived(s.settings.Address, msg.Type(), body, nil, 0, "sent")
+		_ = s.onMessageReceived(s.settings.Address, msg.Type(), body, nil, 0, "sent", nil)
 	}
 
 	return nil
@@ -1298,7 +1347,7 @@ func (s *Session) SendUpdate(update *message.Update) error {
 	// Notify callback after successful send
 	if s.onMessageReceived != nil && len(data) >= message.HeaderLen {
 		body := data[message.HeaderLen:]
-		s.onMessageReceived(s.settings.Address, message.TypeUPDATE, body, nil, 0, "sent")
+		_ = s.onMessageReceived(s.settings.Address, message.TypeUPDATE, body, nil, 0, "sent", nil)
 	}
 
 	return nil

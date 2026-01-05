@@ -1236,7 +1236,8 @@ func TestNotifyMessageReceiverWireUpdate(t *testing.T) {
 
 	// Call notifyMessageReceiver directly (same package)
 	// In normal flow, session creates WireUpdate and passes it through
-	reactor.notifyMessageReceiver(peerAddr, message.TypeUPDATE, updatePayload, wireUpdate, 0, "received")
+	// Pass nil buf since we're not testing caching here
+	_ = reactor.notifyMessageReceiver(peerAddr, message.TypeUPDATE, updatePayload, wireUpdate, 0, "received", nil)
 
 	// Verify WireUpdate is set
 	require.NotNil(t, receivedMsg.WireUpdate, "WireUpdate should be set for UPDATE")
