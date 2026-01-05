@@ -14,6 +14,17 @@ import (
 // Format: WithdrawnLen(2)=0 + AttrLen(2)=0.
 var emptyPayload = []byte{0, 0, 0, 0}
 
+// newTestUpdate creates a ReceivedUpdate with messageID set on WireUpdate.
+func newTestUpdate(id uint64) *ReceivedUpdate {
+	wu := api.NewWireUpdate(emptyPayload, bgpctx.ContextID(1))
+	wu.SetMessageID(id)
+	return &ReceivedUpdate{
+		WireUpdate:   wu,
+		SourcePeerIP: netip.MustParseAddr("10.0.0.1"),
+		ReceivedAt:   time.Now(),
+	}
+}
+
 // TestRecentUpdateCacheAdd verifies cache insertion.
 //
 // VALIDATES: Updates are cached and retrievable.
@@ -21,12 +32,7 @@ var emptyPayload = []byte{0, 0, 0, 0}
 func TestRecentUpdateCacheAdd(t *testing.T) {
 	cache := NewRecentUpdateCache(time.Minute, 100)
 
-	update := &ReceivedUpdate{
-		UpdateID:     1,
-		WireUpdate:   api.NewWireUpdate(emptyPayload, bgpctx.ContextID(1)),
-		SourcePeerIP: netip.MustParseAddr("10.0.0.1"),
-		ReceivedAt:   time.Now(),
-	}
+	update := newTestUpdate(1)
 
 	cache.Add(update)
 
@@ -34,8 +40,8 @@ func TestRecentUpdateCacheAdd(t *testing.T) {
 	if !ok {
 		t.Fatal("expected to find update 1")
 	}
-	if got.UpdateID != 1 {
-		t.Errorf("UpdateID = %d, want 1", got.UpdateID)
+	if got.WireUpdate.MessageID() != 1 {
+		t.Errorf("MessageID = %d, want 1", got.WireUpdate.MessageID())
 	}
 }
 
@@ -60,14 +66,7 @@ func TestRecentUpdateCacheExpiry(t *testing.T) {
 	// Use very short TTL for test
 	cache := NewRecentUpdateCache(10*time.Millisecond, 100)
 
-	update := &ReceivedUpdate{
-		UpdateID:     1,
-		WireUpdate:   api.NewWireUpdate(emptyPayload, bgpctx.ContextID(1)),
-		SourcePeerIP: netip.MustParseAddr("10.0.0.1"),
-		ReceivedAt:   time.Now(),
-	}
-
-	cache.Add(update)
+	cache.Add(newTestUpdate(1))
 
 	// Should be found immediately
 	if _, ok := cache.Get(1); !ok {
@@ -91,23 +90,13 @@ func TestRecentUpdateCacheLazyCleanup(t *testing.T) {
 	cache := NewRecentUpdateCache(10*time.Millisecond, 100)
 
 	// Add first update
-	cache.Add(&ReceivedUpdate{
-		UpdateID:     1,
-		WireUpdate:   api.NewWireUpdate(emptyPayload, bgpctx.ContextID(1)),
-		SourcePeerIP: netip.MustParseAddr("10.0.0.1"),
-		ReceivedAt:   time.Now(),
-	})
+	cache.Add(newTestUpdate(1))
 
 	// Wait for expiry
 	time.Sleep(20 * time.Millisecond)
 
 	// Add second update - should trigger cleanup
-	cache.Add(&ReceivedUpdate{
-		UpdateID:     2,
-		WireUpdate:   api.NewWireUpdate(emptyPayload, bgpctx.ContextID(1)),
-		SourcePeerIP: netip.MustParseAddr("10.0.0.1"),
-		ReceivedAt:   time.Now(),
-	})
+	cache.Add(newTestUpdate(2))
 
 	// First should be cleaned up (internal check via Len)
 	if cache.Len() != 1 {
@@ -124,12 +113,7 @@ func TestRecentUpdateCacheMaxEntries(t *testing.T) {
 
 	// Fill cache
 	for i := uint64(1); i <= 3; i++ {
-		cache.Add(&ReceivedUpdate{
-			UpdateID:     i,
-			WireUpdate:   api.NewWireUpdate(emptyPayload, bgpctx.ContextID(1)),
-			SourcePeerIP: netip.MustParseAddr("10.0.0.1"),
-			ReceivedAt:   time.Now(),
-		})
+		cache.Add(newTestUpdate(i))
 	}
 
 	if cache.Len() != 3 {
@@ -137,12 +121,7 @@ func TestRecentUpdateCacheMaxEntries(t *testing.T) {
 	}
 
 	// Try to add one more - should be dropped
-	cache.Add(&ReceivedUpdate{
-		UpdateID:     4,
-		WireUpdate:   api.NewWireUpdate(emptyPayload, bgpctx.ContextID(1)),
-		SourcePeerIP: netip.MustParseAddr("10.0.0.1"),
-		ReceivedAt:   time.Now(),
-	})
+	cache.Add(newTestUpdate(4))
 
 	// Size should still be 3
 	if cache.Len() != 3 {
@@ -179,12 +158,7 @@ func TestRecentUpdateCacheConcurrency(t *testing.T) {
 		go func(base int) {
 			defer wg.Done()
 			for i := 0; i < opsPerGoroutine; i++ {
-				cache.Add(&ReceivedUpdate{
-					UpdateID:     uint64(base*opsPerGoroutine + i), //nolint:gosec // G115: test values are small
-					WireUpdate:   api.NewWireUpdate(emptyPayload, bgpctx.ContextID(1)),
-					SourcePeerIP: netip.MustParseAddr("10.0.0.1"),
-					ReceivedAt:   time.Now(),
-				})
+				cache.Add(newTestUpdate(uint64(base*opsPerGoroutine + i))) //nolint:gosec // G115: test values are small
 			}
 		}(g)
 	}
@@ -216,12 +190,7 @@ func TestRecentUpdateCacheConcurrency(t *testing.T) {
 func TestRecentUpdateCacheZeroTTL(t *testing.T) {
 	cache := NewRecentUpdateCache(0, 100)
 
-	cache.Add(&ReceivedUpdate{
-		UpdateID:     1,
-		WireUpdate:   api.NewWireUpdate(emptyPayload, bgpctx.ContextID(1)),
-		SourcePeerIP: netip.MustParseAddr("10.0.0.1"),
-		ReceivedAt:   time.Now(),
-	})
+	cache.Add(newTestUpdate(1))
 
 	// Should be expired immediately
 	if _, ok := cache.Get(1); ok {
@@ -236,12 +205,7 @@ func TestRecentUpdateCacheZeroTTL(t *testing.T) {
 func TestRecentUpdateCacheDelete(t *testing.T) {
 	cache := NewRecentUpdateCache(time.Minute, 100)
 
-	cache.Add(&ReceivedUpdate{
-		UpdateID:     1,
-		WireUpdate:   api.NewWireUpdate(emptyPayload, bgpctx.ContextID(1)),
-		SourcePeerIP: netip.MustParseAddr("10.0.0.1"),
-		ReceivedAt:   time.Now(),
-	})
+	cache.Add(newTestUpdate(1))
 
 	// Should exist
 	if _, ok := cache.Get(1); !ok {
@@ -271,12 +235,7 @@ func TestRecentUpdateCacheDelete(t *testing.T) {
 func TestRecentUpdateCacheResetTTL(t *testing.T) {
 	cache := NewRecentUpdateCache(20*time.Millisecond, 100)
 
-	cache.Add(&ReceivedUpdate{
-		UpdateID:     1,
-		WireUpdate:   api.NewWireUpdate(emptyPayload, bgpctx.ContextID(1)),
-		SourcePeerIP: netip.MustParseAddr("10.0.0.1"),
-		ReceivedAt:   time.Now(),
-	})
+	cache.Add(newTestUpdate(1))
 
 	// Wait 15ms (before original expiry)
 	time.Sleep(15 * time.Millisecond)

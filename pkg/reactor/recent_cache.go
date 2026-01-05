@@ -68,7 +68,7 @@ func (c *RecentUpdateCache) Add(update *ReceivedUpdate) {
 		return
 	}
 
-	c.entries[update.UpdateID] = &cacheEntry{
+	c.entries[update.WireUpdate.MessageID()] = &cacheEntry{
 		update:    update,
 		expiresAt: now.Add(c.ttl),
 	}

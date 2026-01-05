@@ -2419,6 +2419,9 @@ func (r *Reactor) notifyMessageReceiver(peerAddr netip.Addr, msgType message.Mes
 
 	// Zero-copy path for received UPDATE messages
 	if wireUpdate != nil {
+		// Set messageID on WireUpdate (single source of truth for UPDATEs)
+		wireUpdate.SetMessageID(messageID)
+
 		// WireUpdate already owns the buffer - no copy needed
 		msg = api.RawMessage{
 			Type:       msgType,
@@ -2433,7 +2436,7 @@ func (r *Reactor) notifyMessageReceiver(peerAddr netip.Addr, msgType message.Mes
 		// Cache for forwarding (only for received updates)
 		if direction == "received" {
 			r.recentUpdates.Add(&ReceivedUpdate{
-				UpdateID:     messageID,
+				// messageID accessed via WireUpdate.MessageID()
 				WireUpdate:   wireUpdate,
 				SourcePeerIP: peerAddr,
 				ReceivedAt:   timestamp,

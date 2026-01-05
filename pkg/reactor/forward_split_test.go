@@ -59,8 +59,8 @@ func TestForwardUpdateSplitting(t *testing.T) {
 
 	// Create ReceivedUpdate
 	wireUpdate := api.NewWireUpdate(rawBody, ctxID)
+	wireUpdate.SetMessageID(1)
 	update := &ReceivedUpdate{
-		UpdateID:     1,
 		WireUpdate:   wireUpdate,
 		Announces:    announces,
 		AnnounceWire: announceWire,
@@ -161,8 +161,8 @@ func TestForwardUpdateNoSplitWhenFits(t *testing.T) {
 		"test UPDATE should be under 4096 bytes, got %d", totalLen)
 
 	wireUpdate := api.NewWireUpdate(rawBody, ctxID)
+	wireUpdate.SetMessageID(2)
 	update := &ReceivedUpdate{
-		UpdateID:     2,
 		WireUpdate:   wireUpdate,
 		Announces:    announces,
 		AnnounceWire: announceWire,
@@ -217,8 +217,8 @@ func TestForwardUpdateSplittingExtendedPeer(t *testing.T) {
 	rawBody := buildRawUpdateBody(nil, attrBytes, announceWire)
 
 	wireUpdate := api.NewWireUpdate(rawBody, ctxID)
+	wireUpdate.SetMessageID(3)
 	update := &ReceivedUpdate{
-		UpdateID:     3,
 		WireUpdate:   wireUpdate,
 		Announces:    announces,
 		AnnounceWire: announceWire,
@@ -280,8 +280,8 @@ func TestForwardUpdateSplitWithConvertError(t *testing.T) {
 
 	// Create ReceivedUpdate with invalid attributes
 	wireUpdate := api.NewWireUpdate(rawBody, ctxID)
+	wireUpdate.SetMessageID(100)
 	update := &ReceivedUpdate{
-		UpdateID:     100,
 		WireUpdate:   wireUpdate,
 		Announces:    announces,
 		AnnounceWire: announceWire,

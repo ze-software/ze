@@ -42,7 +42,11 @@ func TestJSONEncoderStateUp(t *testing.T) {
 	assert.Equal(t, "testhost", result["host"])
 	assert.Equal(t, float64(12345), result["pid"])
 	assert.Equal(t, float64(1), result["ppid"])
-	assert.Equal(t, "state", result["type"])
+
+	// Check message wrapper
+	msgWrapper, ok := result["message"].(map[string]any)
+	require.True(t, ok, "message wrapper must exist")
+	assert.Equal(t, "state", msgWrapper["type"])
 
 	// Check neighbor structure
 	peerMap, ok := result["peer"].(map[string]any)
@@ -190,7 +194,7 @@ func TestJSONEncoderCounterPerPeer(t *testing.T) {
 
 // TestJSONEncoderTimestamp verifies timestamp format.
 //
-// VALIDATES: Unix timestamp with fractional seconds.
+// VALIDATES: Unix timestamp with fractional seconds in message wrapper.
 //
 // PREVENTS: Time parsing errors in clients expecting float timestamp.
 func TestJSONEncoderTimestamp(t *testing.T) {
@@ -212,9 +216,11 @@ func TestJSONEncoderTimestamp(t *testing.T) {
 	var result map[string]any
 	require.NoError(t, json.Unmarshal([]byte(msg), &result))
 
-	// Time should be Unix timestamp as float
-	timestamp, ok := result["time"].(float64)
-	require.True(t, ok, "time must be float64")
+	// Time should be in message wrapper
+	msgWrapper, ok := result["message"].(map[string]any)
+	require.True(t, ok, "message wrapper must exist")
+	timestamp, ok := msgWrapper["time"].(float64)
+	require.True(t, ok, "message.time must be float64")
 
 	// Verify it's in the right range (Unix timestamp)
 	assert.Greater(t, timestamp, float64(1700000000), "timestamp should be recent Unix time")
@@ -313,9 +319,9 @@ func TestJSONEncoderIPv6(t *testing.T) {
 	assert.True(t, strings.Contains(peerAddr, "2001:db8"))
 }
 
-// TestAPIOutputIncludesMsgID verifies API JSON has msg-id field.
+// TestAPIOutputIncludesMsgID verifies API JSON has message.id field.
 //
-// VALIDATES: API output contains msg-id for received UPDATEs.
+// VALIDATES: API output contains id in message wrapper for received UPDATEs.
 // PREVENTS: Controller can't reference updates for forwarding.
 func TestAPIOutputIncludesMsgID(t *testing.T) {
 	peer := PeerInfo{
@@ -349,16 +355,18 @@ func TestAPIOutputIncludesMsgID(t *testing.T) {
 	err := json.Unmarshal([]byte(output), &result)
 	require.NoError(t, err, "JSON must be valid: %s", output)
 
-	// Check msg-id present
-	msgID, ok := result["msg-id"]
-	require.True(t, ok, "msg-id must be present")
+	// Check message.id present
+	msgWrapper, ok := result["message"].(map[string]any)
+	require.True(t, ok, "message wrapper must be present")
+	msgID, ok := msgWrapper["id"]
+	require.True(t, ok, "message.id must be present")
 	assert.Equal(t, float64(12345), msgID)
 }
 
-// TestAPIOutputNoMsgIDWhenZero verifies msg-id omitted when zero.
+// TestAPIOutputNoMsgIDWhenZero verifies message.id omitted when zero.
 //
-// VALIDATES: Zero msg-id is not included in output.
-// PREVENTS: Cluttering output with meaningless msg-id:0.
+// VALIDATES: Zero message.id is not included in output.
+// PREVENTS: Cluttering output with meaningless id:0.
 func TestAPIOutputNoMsgIDWhenZero(t *testing.T) {
 	peer := PeerInfo{
 		Address: netip.MustParseAddr("10.0.0.1"),
@@ -383,7 +391,11 @@ func TestAPIOutputNoMsgIDWhenZero(t *testing.T) {
 	err := json.Unmarshal([]byte(output), &result)
 	require.NoError(t, err)
 
-	// msg-id should NOT be present
-	_, ok := result["msg-id"]
-	assert.False(t, ok, "msg-id should not be present when zero")
+	// message wrapper should exist
+	msgWrapper, ok := result["message"].(map[string]any)
+	require.True(t, ok, "message wrapper must exist")
+
+	// id should NOT be present in message wrapper when zero
+	_, ok = msgWrapper["id"]
+	assert.False(t, ok, "message.id should not be present when zero")
 }

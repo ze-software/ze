@@ -53,7 +53,7 @@ func FormatMessage(peer PeerInfo, msg RawMessage, content ContentConfig) string 
 // formatEmptyUpdate formats an empty UPDATE message.
 func formatEmptyUpdate(peer PeerInfo, content ContentConfig) string {
 	if content.Encoding == EncodingJSON {
-		return fmt.Sprintf(`{"type":"update","peer":{"address":"%s","asn":%d},"announce":{}}`+"\n",
+		return fmt.Sprintf(`{"message":{"type":"update"},"peer":{"address":"%s","asn":%d},"announce":{}}`+"\n",
 			peer.Address, peer.PeerAS)
 	}
 	return fmt.Sprintf("peer %s update\n", peer.Address)
@@ -80,7 +80,7 @@ func formatNonUpdate(peer PeerInfo, msg RawMessage, content ContentConfig) strin
 	rawHex := fmt.Sprintf("%x", msg.RawBytes)
 
 	if content.Encoding == EncodingJSON {
-		return fmt.Sprintf(`{"type":"%s","peer":"%s","raw":"%s"}`+"\n",
+		return fmt.Sprintf(`{"message":{"type":"%s"},"peer":"%s","raw":"%s"}`+"\n",
 			strings.ToLower(msg.Type.String()), peer.Address, rawHex)
 	}
 	return fmt.Sprintf("peer %s %s raw %s\n",
@@ -104,7 +104,7 @@ func formatFromFilterResult(peer PeerInfo, msg RawMessage, content ContentConfig
 func formatRawFromResult(peer PeerInfo, msg RawMessage, content ContentConfig) string {
 	rawHex := fmt.Sprintf("%x", msg.RawBytes)
 	if content.Encoding == EncodingJSON {
-		return fmt.Sprintf(`{"type":"update","direction":"%s","peer":{"address":"%s","asn":%d},"raw":"%s"}`+"\n",
+		return fmt.Sprintf(`{"message":{"type":"update"},"direction":"%s","peer":{"address":"%s","asn":%d},"raw":"%s"}`+"\n",
 			msg.Direction, peer.Address, peer.PeerAS, rawHex)
 	}
 	return fmt.Sprintf("peer %s %s update raw %s\n", peer.Address, msg.Direction, rawHex)
@@ -139,18 +139,19 @@ func formatFullFromResult(peer PeerInfo, msg RawMessage, content ContentConfig, 
 // Uses AnnouncedByFamily()/WithdrawnByFamily() for RFC 4760-correct next-hop per family.
 func formatFilterResultJSON(peer PeerInfo, result FilterResult, msgID uint64, direction string) string {
 	var sb strings.Builder
-	sb.WriteString(`{"type":"update"`)
+
+	// Message wrapper with type and optional id
+	sb.WriteString(`{"message":{"type":"update"`)
+	if msgID > 0 {
+		sb.WriteString(fmt.Sprintf(`,"id":%d`, msgID))
+	}
+	sb.WriteString(`}`)
 
 	// Include direction
 	if direction != "" {
 		sb.WriteString(`,"direction":"`)
 		sb.WriteString(direction)
 		sb.WriteString(`"`)
-	}
-
-	// Include msg-id if set
-	if msgID > 0 {
-		sb.WriteString(fmt.Sprintf(`,"msg-id":%d`, msgID))
 	}
 
 	sb.WriteString(`,"peer":{"address":"`)
@@ -526,8 +527,8 @@ func FormatStateChange(peer PeerInfo, state string, encoding string) string {
 }
 
 func formatStateChangeJSON(peer PeerInfo, state string) string {
-	// Manual JSON construction to match ExaBGP format
-	return fmt.Sprintf(`{"type":"state","peer":{"address":"%s","asn":%d},"state":"%s"}`+"\n",
+	// Manual JSON construction with message wrapper
+	return fmt.Sprintf(`{"message":{"type":"state"},"peer":{"address":"%s","asn":%d},"state":"%s"}`+"\n",
 		peer.Address, peer.PeerAS, state)
 }
 
@@ -546,6 +547,7 @@ func FormatSentMessage(peer PeerInfo, msg RawMessage, content ContentConfig) str
 	output := FormatMessage(peer, msg, content)
 
 	// Replace type indicator for JSON (text format uses direction field)
+	// New format has type in message wrapper: {"message":{"type":"update"...
 	if content.Encoding == EncodingJSON {
 		output = strings.Replace(output, `"type":"update"`, `"type":"sent"`, 1)
 	}

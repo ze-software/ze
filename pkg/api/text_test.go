@@ -43,13 +43,13 @@ func TestFormatStateChange(t *testing.T) {
 			name:     "json established",
 			state:    "established",
 			encoding: EncodingJSON,
-			want:     `{"type":"state","peer":{"address":"10.0.0.1","asn":65001},"state":"established"}` + "\n",
+			want:     `{"message":{"type":"state"},"peer":{"address":"10.0.0.1","asn":65001},"state":"established"}` + "\n",
 		},
 		{
 			name:     "json down",
 			state:    "down",
 			encoding: EncodingJSON,
-			want:     `{"type":"state","peer":{"address":"10.0.0.1","asn":65001},"state":"down"}` + "\n",
+			want:     `{"message":{"type":"state"},"peer":{"address":"10.0.0.1","asn":65001},"state":"down"}` + "\n",
 		},
 	}
 

@@ -128,12 +128,12 @@ ExaBGP outputs JSON messages to external processes via stdout. ZeBGP uses JSON e
 
 ### ZeBGP Format
 
-ZeBGP uses a simpler flat structure:
+ZeBGP uses a flat structure with a `message` wrapper for common fields:
 
 **JSON:**
 ```json
-{"type":"state","peer":{"address":"192.0.2.1","asn":65001},"state":"up"}
-{"type":"state","peer":{"address":"192.0.2.1","asn":65001},"state":"down"}
+{"message":{"type":"state"},"peer":{"address":"192.0.2.1","asn":65001},"state":"up"}
+{"message":{"type":"state"},"peer":{"address":"192.0.2.1","asn":65001},"state":"down"}
 ```
 
 **Text:**
@@ -143,7 +143,7 @@ peer 192.0.2.1 asn 65001 state down
 ```
 
 Key differences from ExaBGP:
-- No envelope (`exabgp`, `time`, `host`, `pid`)
+- `message` wrapper contains common fields (`type`, `time`, `id`)
 - Flat `peer` object (not nested `neighbor.address/asn`)
 - No `reason` field (close reason not included in message)
 
@@ -180,16 +180,20 @@ State messages are emitted by the `apiStateObserver` when peers transition to/fr
 
 ### Message ID and Direction (ZeBGP Extension)
 
-The `msg-id` field is a unique identifier assigned to every BGP message (OPEN, UPDATE, KEEPALIVE, NOTIFICATION).
-Used for route reflection via the `forward update-id` command (for UPDATE messages).
+The message ID is stored in the `message` wrapper as `id`:
 
+```json
+{"message":{"type":"update","id":12345},"direction":"received",...}
+```
+
+- Stored in `WireUpdate.MessageID()` (single source of truth for UPDATEs)
 - Assigned per-message (all types, not just UPDATE)
-- Included when non-zero
+- Included in `message` wrapper when non-zero
 - UPDATE messages cached for forwarding (expires after configurable TTL, default 60s)
 - See `plan/done/spec-message-direction.md` for implementation details
 
 The `direction` field indicates whether the message was `"sent"` or `"received"`.
-Included for all message types.
+Included for all message types at top level.
 
 ### Announce Section
 
@@ -449,13 +453,14 @@ Note: NOTIFICATION names are hyphenated for single-word parsing (e.g., "Administ
 
 **ZeBGP:**
 ```json
-{"type":"update","direction":"received","msg-id":1,"peer":{"address":"192.0.2.1","asn":65001},"announce":{"origin":"igp","as-path":[65001],"ipv4/unicast":{"192.0.2.1":["10.0.0.0/8"]}}}
+{"message":{"type":"update","id":1},"direction":"received","peer":{"address":"192.0.2.1","asn":65001},"announce":{"origin":"igp","as-path":[65001],"ipv4/unicast":{"192.0.2.1":["10.0.0.0/8"]}}}
 ```
 
 Key JSON differences:
-- No envelope (`exabgp`, `time`, `host`, `pid`) - external process can add if needed
+- `message` wrapper contains `type`, `id`, `time` (common fields)
 - Flat structure (no `neighbor.message.update` nesting)
-- Includes `direction` and `msg-id` for route decisions and reflection
+- Includes `direction` at top level for route decisions
+- Message ID in `message.id` for route reflection
 - Prefixes as strings, not objects (`"10.0.0.0/8"` not `{"nlri": "10.0.0.0/8"}`)
 
 ---
@@ -502,4 +507,4 @@ type JSONEncoder struct {
 
 ---
 
-**Last Updated:** 2026-01-03
+**Last Updated:** 2026-01-05

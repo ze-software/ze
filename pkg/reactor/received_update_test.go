@@ -42,9 +42,9 @@ func TestReceivedUpdateFields(t *testing.T) {
 	attrBytes := []byte{0x40, 0x01, 0x01, 0x00} // ORIGIN IGP
 	payload := buildUpdatePayload(attrBytes, nil)
 	wireUpdate := api.NewWireUpdate(payload, ctxID)
+	wireUpdate.SetMessageID(12345)
 
 	update := &ReceivedUpdate{
-		UpdateID:     12345,
 		WireUpdate:   wireUpdate,
 		Announces:    []nlri.NLRI{announceNLRI},
 		Withdraws:    []nlri.NLRI{withdrawNLRI},
@@ -54,8 +54,8 @@ func TestReceivedUpdateFields(t *testing.T) {
 		ReceivedAt:   now,
 	}
 
-	if update.UpdateID != 12345 {
-		t.Errorf("UpdateID = %d, want 12345", update.UpdateID)
+	if update.WireUpdate.MessageID() != 12345 {
+		t.Errorf("MessageID = %d, want 12345", update.WireUpdate.MessageID())
 	}
 	if update.WireUpdate.Attrs() == nil {
 		t.Error("WireUpdate.Attrs() should not be nil")
@@ -87,9 +87,9 @@ func TestReceivedUpdateWithdrawOnly(t *testing.T) {
 	// Withdraw-only: no attributes
 	payload := buildUpdatePayload(nil, nil)
 	wireUpdate := api.NewWireUpdate(payload, bgpctx.ContextID(1))
+	wireUpdate.SetMessageID(1)
 
 	update := &ReceivedUpdate{
-		UpdateID:     1,
 		WireUpdate:   wireUpdate,
 		Announces:    nil,
 		Withdraws:    []nlri.NLRI{withdrawNLRI},
@@ -164,11 +164,11 @@ func TestConvertToRoutesIPv4(t *testing.T) {
 
 	payload := buildUpdatePayload(attrBytes, nil)
 	wireUpdate := api.NewWireUpdate(payload, ctxID)
+	wireUpdate.SetMessageID(1)
 
 	announceNLRI := nlri.NewINET(nlri.IPv4Unicast, netip.MustParsePrefix("192.168.1.0/24"), 0)
 
 	update := &ReceivedUpdate{
-		UpdateID:     1,
 		WireUpdate:   wireUpdate,
 		Announces:    []nlri.NLRI{announceNLRI},
 		AnnounceWire: [][]byte{announceNLRI.Bytes()},
@@ -222,12 +222,12 @@ func TestConvertToRoutesIPv6(t *testing.T) {
 
 	payload := buildUpdatePayload(attrBytes, nil)
 	wireUpdate := api.NewWireUpdate(payload, ctxID)
+	wireUpdate.SetMessageID(1)
 
 	// IPv6 NLRI
 	announceNLRI := nlri.NewINET(nlri.IPv6Unicast, netip.MustParsePrefix("2001:db8:1::/48"), 0)
 
 	update := &ReceivedUpdate{
-		UpdateID:     1,
 		WireUpdate:   wireUpdate,
 		Announces:    []nlri.NLRI{announceNLRI},
 		AnnounceWire: [][]byte{announceNLRI.Bytes()},
@@ -258,9 +258,9 @@ func TestConvertToRoutesWithdrawOnly(t *testing.T) {
 	// Withdraw-only: no attributes
 	payload := buildUpdatePayload(nil, nil)
 	wireUpdate := api.NewWireUpdate(payload, bgpctx.ContextID(1))
+	wireUpdate.SetMessageID(1)
 
 	update := &ReceivedUpdate{
-		UpdateID:     1,
 		WireUpdate:   wireUpdate,
 		Announces:    nil,
 		Withdraws:    []nlri.NLRI{withdrawNLRI},
@@ -293,13 +293,13 @@ func TestConvertToRoutesMultipleNLRI(t *testing.T) {
 
 	payload := buildUpdatePayload(attrBytes, nil)
 	wireUpdate := api.NewWireUpdate(payload, ctxID)
+	wireUpdate.SetMessageID(1)
 
 	nlri1 := nlri.NewINET(nlri.IPv4Unicast, netip.MustParsePrefix("192.168.1.0/24"), 0)
 	nlri2 := nlri.NewINET(nlri.IPv4Unicast, netip.MustParsePrefix("192.168.2.0/24"), 0)
 	nlri3 := nlri.NewINET(nlri.IPv4Unicast, netip.MustParsePrefix("192.168.3.0/24"), 0)
 
 	update := &ReceivedUpdate{
-		UpdateID:     1,
 		WireUpdate:   wireUpdate,
 		Announces:    []nlri.NLRI{nlri1, nlri2, nlri3},
 		AnnounceWire: [][]byte{nlri1.Bytes(), nlri2.Bytes(), nlri3.Bytes()},

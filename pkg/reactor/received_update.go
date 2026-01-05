@@ -25,13 +25,10 @@ func nextMsgID() uint64 {
 // Each UPDATE gets a unique ID; updates to same NLRI create new IDs.
 //
 // Memory contract: WireUpdate owns the buffer; all derived slices share it.
+// Message ID is stored in WireUpdate, accessible via WireUpdate.MessageID().
 type ReceivedUpdate struct {
-	// UpdateID is a unique identifier for this UPDATE.
-	// Assigned at reception time, never changes.
-	UpdateID uint64
-
 	// WireUpdate contains the UPDATE payload with zero-copy accessors.
-	// Provides Payload(), Attrs(), NLRI(), MPReach(), MPUnreach(), SourceCtxID().
+	// Provides Payload(), Attrs(), NLRI(), MPReach(), MPUnreach(), SourceCtxID(), MessageID().
 	WireUpdate *api.WireUpdate
 
 	// Announces contains announced NLRIs from this UPDATE.

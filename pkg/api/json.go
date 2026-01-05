@@ -62,17 +62,30 @@ func (e *JSONEncoder) counter(peer PeerInfo) int {
 	return e.counters[key]
 }
 
-// message creates the base message structure.
+// message creates the base message structure with "message" wrapper.
+// The wrapper contains common fields: type, time.
+// Caller sets "id" in the wrapper when msgID > 0.
 func (e *JSONEncoder) message(peer PeerInfo, msgType string) map[string]any {
 	now := e.timeFunc()
 	return map[string]any{
 		"zebgp":   e.version,
-		"time":    float64(now.UnixNano()) / 1e9,
 		"host":    e.hostname,
 		"pid":     e.pid,
 		"ppid":    e.ppid,
 		"counter": e.counter(peer),
-		"type":    msgType,
+		"message": map[string]any{
+			"type": msgType,
+			"time": float64(now.UnixNano()) / 1e9,
+		},
+	}
+}
+
+// setMessageID sets the id field in the message wrapper if msgID > 0.
+func setMessageID(msg map[string]any, msgID uint64) {
+	if msgID > 0 {
+		if wrapper, ok := msg["message"].(map[string]any); ok {
+			wrapper["id"] = msgID
+		}
 	}
 }
 
@@ -210,13 +223,11 @@ func (e *JSONEncoder) EOR(peer PeerInfo, family string) string {
 
 // Notification returns JSON for a NOTIFICATION message.
 // ExaBGP fields: code, subcode, data (always present).
-// ZeBGP extensions: code_name, subcode_name, message, direction, msg-id.
+// ZeBGP extensions: code_name, subcode_name, message, direction, id in message wrapper.
 func (e *JSONEncoder) Notification(peer PeerInfo, notify DecodedNotification, direction string, msgID uint64) string {
 	msg := e.message(peer, "notification")
 	msg["direction"] = direction
-	if msgID > 0 {
-		msg["msg-id"] = msgID
-	}
+	setMessageID(msg, msgID)
 	peerObj := e.peerSection(peer)
 
 	// ExaBGP always includes data field (empty string if no data)
@@ -253,9 +264,7 @@ func (e *JSONEncoder) Notification(peer PeerInfo, notify DecodedNotification, di
 func (e *JSONEncoder) Open(peer PeerInfo, open DecodedOpen, direction string, msgID uint64) string {
 	msg := e.message(peer, "open")
 	msg["direction"] = direction
-	if msgID > 0 {
-		msg["msg-id"] = msgID
-	}
+	setMessageID(msg, msgID)
 	peerObj := e.peerSection(peer)
 
 	// Convert capabilities to structured JSON format
@@ -286,9 +295,7 @@ func (e *JSONEncoder) Open(peer PeerInfo, open DecodedOpen, direction string, ms
 func (e *JSONEncoder) Keepalive(peer PeerInfo, direction string, msgID uint64) string {
 	msg := e.message(peer, "keepalive")
 	msg["direction"] = direction
-	if msgID > 0 {
-		msg["msg-id"] = msgID
-	}
+	setMessageID(msg, msgID)
 	msg["peer"] = e.peerSection(peer)
 	return e.marshal(msg)
 }

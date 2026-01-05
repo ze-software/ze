@@ -29,6 +29,7 @@ import (
 type WireUpdate struct {
 	payload     []byte
 	sourceCtxID bgpctx.ContextID
+	messageID   uint64 // Unique ID set by reactor after creation
 
 	// Cached AttributesWire - lazily initialized, thread-safe
 	attrsOnce sync.Once
@@ -152,4 +153,15 @@ func (u *WireUpdate) SourceCtxID() bgpctx.ContextID {
 // Used for passthrough when forwarding unchanged.
 func (u *WireUpdate) Payload() []byte {
 	return u.payload
+}
+
+// MessageID returns the unique identifier for this UPDATE.
+// Set by reactor after creation via SetMessageID.
+func (u *WireUpdate) MessageID() uint64 {
+	return u.messageID
+}
+
+// SetMessageID sets the message ID. Called once by reactor after creation.
+func (u *WireUpdate) SetMessageID(id uint64) {
+	u.messageID = id
 }

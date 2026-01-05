@@ -71,8 +71,7 @@ Engine sends base64-encoded wire bytes to API:
 
 ```json
 {
-  "type": "update",
-  "msg-id": 123,
+  "message": { "type": "update", "id": 123 },
   "source-ctx-id": 42,
   "raw-attributes": "AQEBAQECAQID...",
   "raw-nlri": "GApAAA==",
@@ -387,9 +386,11 @@ type ReactorInterface interface {
 
 ```json
 {
-  "type": "update",
+  "message": {
+    "type": "update",
+    "id": 1
+  },
   "direction": "received",
-  "msg-id": 1,
   "peer": {
     "address": "10.0.0.1",
     "asn": 65001
@@ -419,7 +420,7 @@ peer 10.0.0.1 received update 1 announce origin igp as-path 65001 ipv4/unicast n
 JSON:
 ```json
 {
-  "type": "update",
+  "message": { "type": "update" },
   "peer": { "address": "10.0.0.1" },
   "withdraw": {
     "nlri": {
@@ -604,8 +605,9 @@ Peer B,C ← Send wire bytes directly ← Lookup update by ID
 
 | Concept | Description |
 |---------|-------------|
-| **Message ID** | Unique identifier per message (all types: OPEN, UPDATE, KEEPALIVE, NOTIFICATION) |
-| **Direction** | `"sent"` or `"received"` indicator for all messages |
+| **Message ID** | Unique identifier per message, stored in `WireUpdate.MessageID()` for UPDATEs |
+| **JSON Format** | `{"message":{"type":"update","id":N},...}` - common fields in `message` wrapper |
+| **Direction** | `"sent"` or `"received"` indicator at top level for all messages |
 | **Time-based cache** | Recent updates cached for fast lookup (TTL configurable) |
 | **Partial parsing** | Only parse attributes needed for API output |
 | **Forward by ID** | API references updates by ID, ZeBGP forwards wire bytes |
@@ -623,9 +625,11 @@ Peer B,C ← Send wire bytes directly ← Lookup update by ID
 
 ```json
 {
-  "type": "update",
+  "message": {
+    "type": "update",
+    "id": 12345
+  },
   "direction": "received",
-  "msg-id": 12345,
   "peer": { "address": "10.0.0.1" },
   "announce": {
     "nlri": { "ipv4/unicast": ["192.168.1.0/24"] },
@@ -748,8 +752,8 @@ peer 192.0.2.1 asn 65001 state down
 
 **JSON format:**
 ```json
-{"type":"state","peer":{"address":"192.0.2.1","asn":65001},"state":"up"}
-{"type":"state","peer":{"address":"192.0.2.1","asn":65001},"state":"down"}
+{"message":{"type":"state"},"peer":{"address":"192.0.2.1","asn":65001},"state":"up"}
+{"message":{"type":"state"},"peer":{"address":"192.0.2.1","asn":65001},"state":"down"}
 ```
 
 ### Close Reasons
