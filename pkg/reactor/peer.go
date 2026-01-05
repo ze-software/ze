@@ -309,6 +309,11 @@ func (p *Peer) setEncodingContexts(neg *capability.Negotiated) {
 	if p.sendCtx != nil {
 		p.sendCtxID = bgpctx.Registry.Register(p.sendCtx)
 	}
+
+	// Set recvCtxID on session for zero-copy WireUpdate creation
+	if p.session != nil {
+		p.session.SetRecvCtxID(p.recvCtxID)
+	}
 }
 
 // clearEncodingContexts clears the encoding contexts.

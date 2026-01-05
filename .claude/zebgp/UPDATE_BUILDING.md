@@ -4,16 +4,58 @@
 
 | Concept | Description |
 |---------|-------------|
-| **Two Paths** | Build path (local origination) vs Forward path (route reflection) |
+| **Three Paths** | Receive (zero-copy ingest) → Forward (reflection) → Build (origination) |
+| **Receive Path** | conn.Read → WireUpdate(owns buffer) → API/Cache (zero-copy) |
 | **Build Path** | Config → *Params → UpdateBuilder.Build*() → Update{[]byte} |
-| **Forward Path** | Receive → Route{wireBytes} → zero-copy if contexts match |
-| **Key Insight** | High-volume forwarding uses wire cache, not Build path |
+| **Forward Path** | Route{wireBytes} → zero-copy if contexts match |
+| **Key Insight** | Zero-copy from read buffer to API; high-volume forwarding uses wire cache |
 
 **When to read full doc:** Understanding message building, *Params design, FlowSpec differences.
 
 ---
 
-## Two Paths for UPDATE Messages
+## Three Paths for UPDATE Messages
+
+### Path 0: Receive Path (Zero-Copy Ingest)
+
+For incoming UPDATE messages from peers:
+
+```
+conn.Read(readBuf) → WireUpdate(owns buffer) → pool.Get() → callback → API
+       │                    │                      │            │
+       │                    │                      │            └── RawMessage.WireUpdate
+       │                    │                      └── Fresh buffer for next read
+       │                    └── Takes ownership of slice (no copy!)
+       └── Session's read buffer
+```
+
+**Files involved:**
+- `pkg/reactor/session.go` - Buffer pool (`readBufPool`), `processMessage()`, `handleUpdate()`
+- `pkg/api/wire_update.go` - `WireUpdate` struct with derived accessors
+- `pkg/reactor/reactor.go` - `notifyMessageReceiver()` uses WireUpdate directly
+
+**Key types:**
+```go
+// pkg/api/wire_update.go
+type WireUpdate struct {
+    payload     []byte           // UPDATE body (owns buffer)
+    sourceCtxID bgpctx.ContextID
+}
+
+// Derived accessors (zero-copy slices)
+func (u *WireUpdate) Withdrawn() []byte
+func (u *WireUpdate) Attrs() *AttributesWire
+func (u *WireUpdate) NLRI() []byte
+func (u *WireUpdate) MPReach() MPReachWire
+func (u *WireUpdate) MPUnreach() MPUnreachWire
+```
+
+**Zero-copy mechanism:**
+1. Session reads into `readBuf`
+2. Creates `WireUpdate` from slice (no copy)
+3. Gets fresh buffer from pool
+4. Callback receives `WireUpdate` - buffer ownership transferred
+5. `RawMessage.WireUpdate` set directly (no copy in `notifyMessageReceiver`)
 
 ### Path 1: Build Path (Local Origination)
 

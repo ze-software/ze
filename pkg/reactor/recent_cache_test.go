@@ -6,8 +6,13 @@ import (
 	"testing"
 	"time"
 
+	"github.com/exa-networks/zebgp/pkg/api"
 	bgpctx "github.com/exa-networks/zebgp/pkg/bgp/context"
 )
+
+// emptyPayload is a minimal valid UPDATE payload for cache tests.
+// Format: WithdrawnLen(2)=0 + AttrLen(2)=0.
+var emptyPayload = []byte{0, 0, 0, 0}
 
 // TestRecentUpdateCacheAdd verifies cache insertion.
 //
@@ -18,8 +23,8 @@ func TestRecentUpdateCacheAdd(t *testing.T) {
 
 	update := &ReceivedUpdate{
 		UpdateID:     1,
+		WireUpdate:   api.NewWireUpdate(emptyPayload, bgpctx.ContextID(1)),
 		SourcePeerIP: netip.MustParseAddr("10.0.0.1"),
-		SourceCtxID:  bgpctx.ContextID(1),
 		ReceivedAt:   time.Now(),
 	}
 
@@ -57,8 +62,8 @@ func TestRecentUpdateCacheExpiry(t *testing.T) {
 
 	update := &ReceivedUpdate{
 		UpdateID:     1,
+		WireUpdate:   api.NewWireUpdate(emptyPayload, bgpctx.ContextID(1)),
 		SourcePeerIP: netip.MustParseAddr("10.0.0.1"),
-		SourceCtxID:  bgpctx.ContextID(1),
 		ReceivedAt:   time.Now(),
 	}
 
@@ -88,8 +93,8 @@ func TestRecentUpdateCacheLazyCleanup(t *testing.T) {
 	// Add first update
 	cache.Add(&ReceivedUpdate{
 		UpdateID:     1,
+		WireUpdate:   api.NewWireUpdate(emptyPayload, bgpctx.ContextID(1)),
 		SourcePeerIP: netip.MustParseAddr("10.0.0.1"),
-		SourceCtxID:  bgpctx.ContextID(1),
 		ReceivedAt:   time.Now(),
 	})
 
@@ -99,8 +104,8 @@ func TestRecentUpdateCacheLazyCleanup(t *testing.T) {
 	// Add second update - should trigger cleanup
 	cache.Add(&ReceivedUpdate{
 		UpdateID:     2,
+		WireUpdate:   api.NewWireUpdate(emptyPayload, bgpctx.ContextID(1)),
 		SourcePeerIP: netip.MustParseAddr("10.0.0.1"),
-		SourceCtxID:  bgpctx.ContextID(1),
 		ReceivedAt:   time.Now(),
 	})
 
@@ -121,8 +126,8 @@ func TestRecentUpdateCacheMaxEntries(t *testing.T) {
 	for i := uint64(1); i <= 3; i++ {
 		cache.Add(&ReceivedUpdate{
 			UpdateID:     i,
+			WireUpdate:   api.NewWireUpdate(emptyPayload, bgpctx.ContextID(1)),
 			SourcePeerIP: netip.MustParseAddr("10.0.0.1"),
-			SourceCtxID:  bgpctx.ContextID(1),
 			ReceivedAt:   time.Now(),
 		})
 	}
@@ -134,8 +139,8 @@ func TestRecentUpdateCacheMaxEntries(t *testing.T) {
 	// Try to add one more - should be dropped
 	cache.Add(&ReceivedUpdate{
 		UpdateID:     4,
+		WireUpdate:   api.NewWireUpdate(emptyPayload, bgpctx.ContextID(1)),
 		SourcePeerIP: netip.MustParseAddr("10.0.0.1"),
-		SourceCtxID:  bgpctx.ContextID(1),
 		ReceivedAt:   time.Now(),
 	})
 
@@ -176,8 +181,8 @@ func TestRecentUpdateCacheConcurrency(t *testing.T) {
 			for i := 0; i < opsPerGoroutine; i++ {
 				cache.Add(&ReceivedUpdate{
 					UpdateID:     uint64(base*opsPerGoroutine + i), //nolint:gosec // G115: test values are small
+					WireUpdate:   api.NewWireUpdate(emptyPayload, bgpctx.ContextID(1)),
 					SourcePeerIP: netip.MustParseAddr("10.0.0.1"),
-					SourceCtxID:  bgpctx.ContextID(1),
 					ReceivedAt:   time.Now(),
 				})
 			}
@@ -213,8 +218,8 @@ func TestRecentUpdateCacheZeroTTL(t *testing.T) {
 
 	cache.Add(&ReceivedUpdate{
 		UpdateID:     1,
+		WireUpdate:   api.NewWireUpdate(emptyPayload, bgpctx.ContextID(1)),
 		SourcePeerIP: netip.MustParseAddr("10.0.0.1"),
-		SourceCtxID:  bgpctx.ContextID(1),
 		ReceivedAt:   time.Now(),
 	})
 
@@ -233,8 +238,8 @@ func TestRecentUpdateCacheDelete(t *testing.T) {
 
 	cache.Add(&ReceivedUpdate{
 		UpdateID:     1,
+		WireUpdate:   api.NewWireUpdate(emptyPayload, bgpctx.ContextID(1)),
 		SourcePeerIP: netip.MustParseAddr("10.0.0.1"),
-		SourceCtxID:  bgpctx.ContextID(1),
 		ReceivedAt:   time.Now(),
 	})
 
@@ -268,8 +273,8 @@ func TestRecentUpdateCacheResetTTL(t *testing.T) {
 
 	cache.Add(&ReceivedUpdate{
 		UpdateID:     1,
+		WireUpdate:   api.NewWireUpdate(emptyPayload, bgpctx.ContextID(1)),
 		SourcePeerIP: netip.MustParseAddr("10.0.0.1"),
-		SourceCtxID:  bgpctx.ContextID(1),
 		ReceivedAt:   time.Now(),
 	})
 

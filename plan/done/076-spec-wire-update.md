@@ -6,20 +6,66 @@ API-only mode. No pool, no RIB. Concrete wire types, no interface indirection.
 
 ## Task
 
-Implementation plan: `/Users/thomas/.claude/plans/sleepy-drifting-bachman.md`
+Implement zero-copy UPDATE message parsing using concrete wire types.
 
-## Required Reading
+## Required Reading (MUST complete before implementation)
 
 - [x] `.claude/zebgp/ENCODING_CONTEXT.md` - Zero-copy pattern, ContextID comparison
 - [x] `.claude/zebgp/UPDATE_BUILDING.md` - Forward path vs Build path (WireUpdate is Forward path)
 - [x] `pkg/bgp/attribute/wire.go` - AttributesWire pattern to follow
 - [x] `pkg/api/mpwire.go` - MPReachWire/MPUnreachWire already implemented
 
-**Key insights:**
+**Key insights from docs:**
 - Zero-copy rule: `sourceCtxID == destCtxID` → return original bytes
 - WireUpdate is receive-side (Forward path), not for building UPDATEs
 - AttributesWire already exists with lazy parsing + sync.Once pattern
 - MPReachWire/MPUnreachWire are `[]byte` type aliases with accessor methods
+
+---
+
+## 🧪 TDD Test Plan (MANDATORY - Write tests FIRST)
+
+### Unit Tests
+| Test | File | What it validates |
+|------|------|-------------------|
+| `TestWireUpdate_Derived` | `pkg/api/wire_update_test.go` | Withdrawn/Attrs/NLRI return correct slices |
+| `TestWireUpdate_Empty` | `pkg/api/wire_update_test.go` | Empty sections return nil |
+| `TestWireUpdate_Malformed` | `pkg/api/wire_update_test.go` | Truncated data returns nil gracefully |
+| `TestWireUpdate_MPReach` | `pkg/api/wire_update_test.go` | MP_REACH_NLRI extraction |
+| `TestWireUpdate_MPUnreach` | `pkg/api/wire_update_test.go` | MP_UNREACH_NLRI extraction |
+| `TestWireUpdate_SourceCtxID` | `pkg/api/wire_update_test.go` | Context ID preserved |
+| `TestWireUpdate_Payload` | `pkg/api/wire_update_test.go` | Raw payload access (zero-copy) |
+| `TestWireUpdate_AttrsCached` | `pkg/api/wire_update_test.go` | AttributesWire caching with sync.Once |
+
+### Integration Tests
+| Test | File | What it validates |
+|------|------|-------------------|
+| `TestNotifyMessageReceiverWireUpdate` | `pkg/reactor/reactor_test.go` | WireUpdate set in RawMessage |
+
+---
+
+## Files to Modify
+
+### New Files
+- `pkg/api/wire_update.go` - WireUpdate struct and methods
+- `pkg/api/wire_update_test.go` - Unit tests
+
+### Modified Files
+- `pkg/api/types.go` - Add WireUpdate field to RawMessage
+- `pkg/api/decode.go` - Remove ExtractAttributeBytes (replaced by WireUpdate)
+- `pkg/api/decode_test.go` - Remove ExtractAttributeBytes tests
+- `pkg/api/text_test.go` - Update to use WireUpdate
+- `pkg/api/filter_test.go` - Update to use WireUpdate
+- `pkg/reactor/reactor.go` - Create WireUpdate in notifyMessageReceiver
+- `pkg/reactor/reactor_test.go` - Add integration test
+
+---
+
+## Current State
+
+- **Last commit:** `26969b6` feat(api): implement WireUpdate for zero-copy UPDATE parsing
+- **Tests:** All pass (9 WireUpdate tests + integration test)
+- **Lint:** Clean (only pre-existing deprecation warnings)
 
 ---
 
@@ -89,8 +135,8 @@ func NewWireUpdate(payload []byte, ctxID ContextID) *WireUpdate
 func (u *WireUpdate) Withdrawn() []byte          // Returns nil if empty/malformed
 func (u *WireUpdate) Attrs() *AttributesWire     // Cached - same instance per WireUpdate
 func (u *WireUpdate) NLRI() []byte               // Returns nil if empty/malformed
-func (u *WireUpdate) MPReach() MPReachWire       // Uses cached Attrs()
-func (u *WireUpdate) MPUnreach() MPUnreachWire   // Uses cached Attrs()
+func (u *WireUpdate) MPReach() MPReachWire       // Uses cached Attrs(), returns []byte alias
+func (u *WireUpdate) MPUnreach() MPUnreachWire   // Uses cached Attrs(), returns []byte alias
 func (u *WireUpdate) SourceCtxID() ContextID
 func (u *WireUpdate) Payload() []byte
 ```
@@ -108,7 +154,7 @@ type AttributesWire struct {
     mu          sync.RWMutex
 }
 
-func (a *AttributesWire) GetRaw(code AttributeCode) ([]byte, bool)
+func (a *AttributesWire) GetRaw(code AttributeCode) ([]byte, error)
 func (a *AttributesWire) Get(code AttributeCode) (Attribute, error)
 func (a *AttributesWire) Has(code AttributeCode) bool
 func (a *AttributesWire) Packed() []byte
@@ -148,207 +194,62 @@ func (m MPUnreachWire) Withdrawn() []byte
 
 ## Implementation
 
-### Derived Accessors
-
-Use `uint32` for offset calculations to avoid overflow with extended messages (RFC 8654).
+### Actual Implementation (matches code)
 
 ```go
-// deriveWithdrawn extracts Withdrawn Routes from UPDATE payload
-func deriveWithdrawn(buf []byte) []byte {
-    if len(buf) < 2 {
-        return nil
-    }
-    wdLen := uint32(binary.BigEndian.Uint16(buf[0:2]))
-    if wdLen == 0 {
-        return nil
-    }
-    if uint32(len(buf)) < 2+wdLen {
-        return nil
-    }
-    return buf[2 : 2+wdLen]
-}
-
-// deriveAttrs extracts Path Attributes as *AttributesWire
-func deriveAttrs(buf []byte, ctxID ContextID) *AttributesWire {
-    if len(buf) < 2 {
-        return nil
-    }
-    wdLen := uint32(binary.BigEndian.Uint16(buf[0:2]))
-    attrLenOffset := 2 + wdLen
-    if uint32(len(buf)) < attrLenOffset+2 {
-        return nil
-    }
-    attrLen := uint32(binary.BigEndian.Uint16(buf[attrLenOffset:]))
-    if attrLen == 0 {
-        return nil
-    }
-    attrStart := attrLenOffset + 2
-    if uint32(len(buf)) < attrStart+attrLen {
-        return nil
-    }
-    return NewAttributesWire(buf[attrStart:attrStart+attrLen], ctxID)
-}
-
-// deriveNLRI extracts NLRI from UPDATE payload
-func deriveNLRI(buf []byte) []byte {
-    if len(buf) < 2 {
-        return nil
-    }
-    wdLen := uint32(binary.BigEndian.Uint16(buf[0:2]))
-    attrLenOffset := 2 + wdLen
-    if uint32(len(buf)) < attrLenOffset+2 {
-        return nil
-    }
-    attrLen := uint32(binary.BigEndian.Uint16(buf[attrLenOffset:]))
-    nlriStart := attrLenOffset + 2 + attrLen
-    if nlriStart >= uint32(len(buf)) {
-        return nil
-    }
-    return buf[nlriStart:]
-}
-
-// deriveMPReach extracts MP_REACH_NLRI as *MPReachWire
-func deriveMPReach(buf []byte, ctxID ContextID) *MPReachWire {
-    attrs := deriveAttrs(buf, ctxID)
+// MPReach extracts MP_REACH_NLRI as MPReachWire ([]byte alias)
+func (u *WireUpdate) MPReach() MPReachWire {
+    attrs := u.Attrs()  // Uses cached AttributesWire
     if attrs == nil {
         return nil
     }
-    raw, ok := attrs.GetRaw(14)  // MP_REACH_NLRI
-    if !ok || len(raw) < 5 {
+    raw, err := attrs.GetRaw(attribute.AttrMPReachNLRI)
+    if err != nil || len(raw) < 5 {
         return nil
     }
-    return &MPReachWire{raw: raw}
+    return MPReachWire(raw)  // Type conversion, not struct creation
 }
 
-// deriveMPUnreach extracts MP_UNREACH_NLRI as *MPUnreachWire
-func deriveMPUnreach(buf []byte, ctxID ContextID) *MPUnreachWire {
-    attrs := deriveAttrs(buf, ctxID)
+// MPUnreach extracts MP_UNREACH_NLRI as MPUnreachWire ([]byte alias)
+func (u *WireUpdate) MPUnreach() MPUnreachWire {
+    attrs := u.Attrs()  // Uses cached AttributesWire
     if attrs == nil {
         return nil
     }
-    raw, ok := attrs.GetRaw(15)  // MP_UNREACH_NLRI
-    if !ok || len(raw) < 3 {
+    raw, err := attrs.GetRaw(attribute.AttrMPUnreachNLRI)
+    if err != nil || len(raw) < 3 {
         return nil
     }
-    return &MPUnreachWire{raw: raw}
+    return MPUnreachWire(raw)  // Type conversion, not struct creation
 }
-```
-
-### MPReachWire Methods
-
-```go
-func (m *MPReachWire) AFI() uint16 {
-    if len(m.raw) < 2 {
-        return 0
-    }
-    return binary.BigEndian.Uint16(m.raw[0:2])
-}
-
-func (m *MPReachWire) SAFI() uint8 {
-    if len(m.raw) < 3 {
-        return 0
-    }
-    return m.raw[2]
-}
-
-func (m *MPReachWire) NextHop() []byte {
-    if len(m.raw) < 4 {
-        return nil
-    }
-    nhLen := m.raw[3]
-    if len(m.raw) < 4+int(nhLen) {
-        return nil
-    }
-    return m.raw[4 : 4+nhLen]
-}
-
-func (m *MPReachWire) NLRI() []byte {
-    if len(m.raw) < 4 {
-        return nil
-    }
-    nhLen := m.raw[3]
-    // Skip: AFI(2) + SAFI(1) + NH_Len(1) + NextHop(nhLen) + Reserved(1)
-    nlriStart := 4 + int(nhLen) + 1
-    if nlriStart >= len(m.raw) {
-        return nil
-    }
-    return m.raw[nlriStart:]
-}
-
-func (m *MPReachWire) Raw() []byte { return m.raw }
-```
-
-### MPUnreachWire Methods
-
-```go
-func (m *MPUnreachWire) AFI() uint16 {
-    if len(m.raw) < 2 {
-        return 0
-    }
-    return binary.BigEndian.Uint16(m.raw[0:2])
-}
-
-func (m *MPUnreachWire) SAFI() uint8 {
-    if len(m.raw) < 3 {
-        return 0
-    }
-    return m.raw[2]
-}
-
-func (m *MPUnreachWire) Withdrawn() []byte {
-    if len(m.raw) < 3 {
-        return nil
-    }
-    return m.raw[3:]
-}
-
-func (m *MPUnreachWire) Raw() []byte { return m.raw }
 ```
 
 ---
 
 ## Usage
 
-### Receiving Updates
+### Receiving Updates (API callback)
 
 ```go
-func (c *Connection) readUpdate() (*WireUpdate, error) {
-    // Allocate buffer for this message
-    buf := make([]byte, msgLen)
-    _, err := io.ReadFull(c.conn, buf)
-    if err != nil {
-        return nil, err
-    }
-    return NewWireUpdate(buf, c.ctxID), nil
+// In RawMessage (types.go)
+type RawMessage struct {
+    Type       message.MessageType
+    RawBytes   []byte
+    WireUpdate *WireUpdate  // Set for UPDATE messages
+    AttrsWire  *attribute.AttributesWire  // Derived from WireUpdate.Attrs()
+    // ...
 }
-```
 
-### Processing Updates
-
-```go
-func (peer *Peer) handleUpdate(update *WireUpdate) {
-    // Process withdrawals
-    if wd := update.Withdrawn(); wd != nil {
-        // Parse IPv4 withdrawn prefixes from wd
+// In message receiver callback
+func (h *Handler) OnMessageReceived(peer api.PeerInfo, msg api.RawMessage) {
+    if msg.WireUpdate != nil {
+        // Access UPDATE sections
+        withdrawn := msg.WireUpdate.Withdrawn()
+        nlri := msg.WireUpdate.NLRI()
+        attrs := msg.WireUpdate.Attrs()
+        mpReach := msg.WireUpdate.MPReach()
+        mpUnreach := msg.WireUpdate.MPUnreach()
     }
-    if mpu := update.MPUnreach(); mpu != nil {
-        // Parse MP withdrawn from mpu.Withdrawn()
-    }
-
-    // Process announcements
-    if nlri := update.NLRI(); nlri != nil {
-        attrs := update.Attrs()
-        // Parse IPv4 prefixes, pass to API with attrs
-    }
-    if mpr := update.MPReach(); mpr != nil {
-        attrs := update.Attrs()
-        // Parse MP NLRI, pass to API with attrs
-    }
-
-    // Pass to API callback
-    peer.api.OnUpdate(update)
-
-    // When function returns, GC can free update if API doesn't hold reference
 }
 ```
 
@@ -356,13 +257,20 @@ func (peer *Peer) handleUpdate(update *WireUpdate) {
 
 ## Checklist
 
+### 🧪 TDD (MUST complete in order)
+- [x] Unit tests written (`pkg/api/wire_update_test.go`)
+- [x] Integration test written (`pkg/reactor/reactor_test.go`)
+- [x] Tests run and FAIL (before implementation)
+- [x] Implementation complete
+- [x] Tests run and PASS (9 tests pass)
+
 ### Phase 1: Wire Types
 - [x] Implement `WireUpdate` struct and methods (`pkg/api/wire_update.go`)
 - [x] Implement `MPReachWire` struct and methods (already in `pkg/api/mpwire.go`)
 - [x] Implement `MPUnreachWire` struct and methods (already in `pkg/api/mpwire.go`)
 - [x] Implement derived accessors with bounds checking
 - [x] Ensure `AttributesWire` exists (already in `pkg/bgp/attribute/wire.go`)
-- [x] Unit tests: `pkg/api/wire_update_test.go` (7 tests pass)
+- [x] Unit tests: `pkg/api/wire_update_test.go` (9 tests pass)
 
 ### Phase 2: Integration
 - [x] Update connection read loop to create `*WireUpdate` (reactor.go:notifyMessageReceiver)
@@ -373,10 +281,36 @@ func (peer *Peer) handleUpdate(update *WireUpdate) {
 - [x] Remove redundant `ExtractAttributeBytes` (replaced by `WireUpdate.Attrs()`)
 - [x] Tests pass (existing tests + WireUpdate tests)
 
-### Phase 3: ReceivedUpdate Migration (Future)
-- [ ] Update `ReceivedUpdate` struct to use `*WireUpdate` instead of `RawBytes + Attrs`
-- [ ] Update `ReceivedUpdate.ConvertToRoutes()` to use `WireUpdate`
-- [ ] Update cache operations to use `WireUpdate`
+### Phase 2.5: Zero-Copy End-to-End
+- [x] Add buffer pool to session (`readBufPool sync.Pool` in session.go)
+- [x] Create `WireUpdate` in `session.processMessage()` for UPDATE messages
+- [x] Transfer buffer ownership to `WireUpdate` (session gets fresh buffer from pool)
+- [x] Update `MessageCallback` signature: add `wireUpdate *api.WireUpdate`, `ctxID bgpctx.ContextID`
+- [x] Add `session.recvCtxID` field (set by Peer via `SetRecvCtxID()` after negotiation)
+- [x] Update `handleUpdate(*api.WireUpdate)` signature
+- [x] Update `notifyMessageReceiver` - no copy for received UPDATE with WireUpdate
+- [x] All tests pass with race detector
+
+### Phase 3: ReceivedUpdate Migration
+- [x] Update `ReceivedUpdate` struct to use `*WireUpdate` instead of `RawBytes + Attrs + SourceCtxID`
+- [x] Update `ReceivedUpdate.ConvertToRoutes()` to use `WireUpdate`
+- [x] Update cache operations to use `WireUpdate`
+- [x] Update all tests to use new struct
+
+### Verification
+- [x] `make test` passes
+- [x] `make lint` passes
+- [x] `make functional` passes (18 tests)
+
+### Documentation
+- [x] Required docs read
+- [x] RFC references added to protocol code (RFC 4271 Section 4.3, RFC 4760)
+- [x] Updated `.claude/zebgp/ENCODING_CONTEXT.md` - added WireUpdate zero-copy receive path
+- [x] Updated `.claude/zebgp/UPDATE_BUILDING.md` - added Path 0: Receive Path
+
+### Completion
+- [x] All phases complete
+- [ ] Move spec to `plan/done/NNN-wire-update.md`
 
 ---
 
@@ -394,3 +328,6 @@ func (peer *Peer) handleUpdate(update *WireUpdate) {
 ---
 
 **Created:** 2025-01-03
+**Phase 1+2 Complete:** 2025-01-05
+**Phase 2.5+3 Complete:** 2026-01-05
+**Status:** Complete - ready for plan/done/

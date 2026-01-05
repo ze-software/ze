@@ -146,6 +146,103 @@ if route.CanForwardDirect(destCtxID) {
 destCtx := context.Registry.Get(destCtxID)
 ```
 
+## WireUpdate: Zero-Copy Receive Path
+
+When UPDATE messages are received, the session creates a `WireUpdate` that owns the
+buffer, enabling zero-copy from read to API notification.
+
+### Buffer Pool
+
+```go
+// pkg/reactor/session.go
+var readBufPool = sync.Pool{
+    New: func() any {
+        return make([]byte, message.MaxMsgLen)
+    },
+}
+```
+
+### Session Flow
+
+```go
+// 1. Session reads UPDATE into readBuf
+body := s.readBuf[HeaderLen:msgLen]
+
+// 2. Create WireUpdate that takes ownership of buffer slice
+wireUpdate := api.NewWireUpdate(body, s.recvCtxID)
+
+// 3. Get fresh buffer from pool (old buffer now owned by WireUpdate)
+s.readBuf = readBufPool.Get().([]byte)
+
+// 4. Notify callback with WireUpdate - no copy needed
+s.onMessageReceived(addr, TypeUPDATE, body, wireUpdate, ctxID, "received")
+
+// 5. Process UPDATE
+s.handleUpdate(wireUpdate)
+```
+
+### WireUpdate Structure
+
+```go
+// pkg/api/wire_update.go
+type WireUpdate struct {
+    payload     []byte           // UPDATE body bytes (owned, not copied)
+    sourceCtxID bgpctx.ContextID // Encoding context for zero-copy decisions
+}
+
+// Derived accessors (all zero-copy slices into payload)
+func (u *WireUpdate) Withdrawn() []byte     // RFC 4271 withdrawn routes
+func (u *WireUpdate) Attrs() *AttributesWire // Lazy-parsed attributes
+func (u *WireUpdate) NLRI() []byte          // RFC 4271 NLRI
+func (u *WireUpdate) MPReach() MPReachWire  // RFC 4760 MP_REACH_NLRI
+func (u *WireUpdate) MPUnreach() MPUnreachWire // RFC 4760 MP_UNREACH_NLRI
+```
+
+### Context Propagation
+
+The session's `recvCtxID` is set by Peer after capability negotiation:
+
+```go
+// pkg/reactor/peer.go - setEncodingContexts()
+p.recvCtxID = bgpctx.Registry.Register(recvCtx)
+p.session.SetRecvCtxID(p.recvCtxID)  // Propagate to session
+```
+
+This ensures WireUpdate carries the correct context for forwarding decisions.
+
+### RawMessage Integration
+
+```go
+// pkg/api/types.go
+type RawMessage struct {
+    Type       message.MessageType
+    RawBytes   []byte              // Zero-copy reference to WireUpdate.Payload()
+    WireUpdate *WireUpdate         // Non-nil for UPDATE messages
+    AttrsWire  *AttributesWire     // Derived from WireUpdate.Attrs()
+    // ...
+}
+```
+
+### Zero-Copy Flow
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                    RECEIVE PATH (Zero-Copy)                      │
+│                                                                 │
+│  conn.Read(readBuf) → WireUpdate(slice) → readBuf = pool.Get() │
+│         ↓                    ↓                                  │
+│    Original buffer      Owns the buffer   Fresh buffer for     │
+│                         (no copy!)        next read             │
+│                              ↓                                  │
+│                    callback(wireUpdate)                         │
+│                              ↓                                  │
+│                    RawMessage.WireUpdate = wireUpdate           │
+│                    RawMessage.RawBytes = wireUpdate.Payload()   │
+│                              ↓                                  │
+│                    API/Cache uses WireUpdate directly           │
+└─────────────────────────────────────────────────────────────────┘
+```
+
 ## Route Wire Cache
 
 Routes store original wire bytes for zero-copy forwarding:

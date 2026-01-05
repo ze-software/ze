@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/exa-networks/zebgp/pkg/bgp/attribute"
+	"github.com/exa-networks/zebgp/pkg/api"
 	bgpctx "github.com/exa-networks/zebgp/pkg/bgp/context"
 	"github.com/exa-networks/zebgp/pkg/bgp/message"
 	"github.com/exa-networks/zebgp/pkg/bgp/nlri"
@@ -58,14 +58,13 @@ func TestForwardUpdateSplitting(t *testing.T) {
 		"test UPDATE should exceed 4096 bytes, got %d", totalLen)
 
 	// Create ReceivedUpdate
+	wireUpdate := api.NewWireUpdate(rawBody, ctxID)
 	update := &ReceivedUpdate{
 		UpdateID:     1,
-		RawBytes:     rawBody,
-		Attrs:        attribute.NewAttributesWire(attrBytes, ctxID),
+		WireUpdate:   wireUpdate,
 		Announces:    announces,
 		AnnounceWire: announceWire,
 		SourcePeerIP: netip.MustParseAddr("10.0.0.1"),
-		SourceCtxID:  ctxID,
 		ReceivedAt:   time.Now(),
 	}
 
@@ -113,7 +112,7 @@ func TestForwardUpdateSplitting(t *testing.T) {
 		"peer without ExtendedMessage should have 4096 limit")
 
 	// Verify update size exceeds limit
-	updateSize := message.HeaderLen + len(update.RawBytes)
+	updateSize := message.HeaderLen + len(update.WireUpdate.Payload())
 	require.Greater(t, updateSize, int(maxMsgSize),
 		"update size %d should exceed max %d", updateSize, maxMsgSize)
 
@@ -161,14 +160,13 @@ func TestForwardUpdateNoSplitWhenFits(t *testing.T) {
 	require.Less(t, totalLen, message.MaxMsgLen,
 		"test UPDATE should be under 4096 bytes, got %d", totalLen)
 
+	wireUpdate := api.NewWireUpdate(rawBody, ctxID)
 	update := &ReceivedUpdate{
 		UpdateID:     2,
-		RawBytes:     rawBody,
-		Attrs:        attribute.NewAttributesWire(attrBytes, ctxID),
+		WireUpdate:   wireUpdate,
 		Announces:    announces,
 		AnnounceWire: announceWire,
 		SourcePeerIP: netip.MustParseAddr("10.0.0.1"),
-		SourceCtxID:  ctxID,
 		ReceivedAt:   time.Now(),
 	}
 
@@ -180,7 +178,7 @@ func TestForwardUpdateNoSplitWhenFits(t *testing.T) {
 	maxMsgSize := message.MaxMessageLength(message.TypeUPDATE, nc.ExtendedMessage)
 
 	// Verify update fits
-	updateSize := message.HeaderLen + len(update.RawBytes)
+	updateSize := message.HeaderLen + len(update.WireUpdate.Payload())
 	require.LessOrEqual(t, updateSize, int(maxMsgSize),
 		"update size %d should fit within max %d", updateSize, maxMsgSize)
 
@@ -218,14 +216,13 @@ func TestForwardUpdateSplittingExtendedPeer(t *testing.T) {
 
 	rawBody := buildRawUpdateBody(nil, attrBytes, announceWire)
 
+	wireUpdate := api.NewWireUpdate(rawBody, ctxID)
 	update := &ReceivedUpdate{
 		UpdateID:     3,
-		RawBytes:     rawBody,
-		Attrs:        attribute.NewAttributesWire(attrBytes, ctxID),
+		WireUpdate:   wireUpdate,
 		Announces:    announces,
 		AnnounceWire: announceWire,
 		SourcePeerIP: netip.MustParseAddr("10.0.0.1"),
-		SourceCtxID:  ctxID,
 		ReceivedAt:   time.Now(),
 	}
 
@@ -239,7 +236,7 @@ func TestForwardUpdateSplittingExtendedPeer(t *testing.T) {
 		"peer with ExtendedMessage should have 65535 limit")
 
 	// Verify update fits within extended limit
-	updateSize := message.HeaderLen + len(update.RawBytes)
+	updateSize := message.HeaderLen + len(update.WireUpdate.Payload())
 	require.LessOrEqual(t, updateSize, int(maxMsgSize),
 		"update size %d should fit within extended max %d", updateSize, maxMsgSize)
 
@@ -282,15 +279,13 @@ func TestForwardUpdateSplitWithConvertError(t *testing.T) {
 		"test UPDATE should exceed 4096 bytes")
 
 	// Create ReceivedUpdate with invalid attributes
-	invalidAttrs := attribute.NewAttributesWire(invalidAttrBytes, ctxID)
+	wireUpdate := api.NewWireUpdate(rawBody, ctxID)
 	update := &ReceivedUpdate{
 		UpdateID:     100,
-		RawBytes:     rawBody,
-		Attrs:        invalidAttrs,
+		WireUpdate:   wireUpdate,
 		Announces:    announces,
 		AnnounceWire: announceWire,
 		SourcePeerIP: netip.MustParseAddr("10.0.0.1"),
-		SourceCtxID:  ctxID,
 		ReceivedAt:   time.Now(),
 	}
 

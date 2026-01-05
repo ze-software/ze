@@ -16,6 +16,7 @@ import (
 
 	"github.com/exa-networks/zebgp/pkg/api"
 	"github.com/exa-networks/zebgp/pkg/bgp/attribute"
+	bgpctx "github.com/exa-networks/zebgp/pkg/bgp/context"
 	"github.com/exa-networks/zebgp/pkg/bgp/fsm"
 	"github.com/exa-networks/zebgp/pkg/bgp/message"
 	"github.com/exa-networks/zebgp/pkg/bgp/nlri"
@@ -1574,7 +1575,7 @@ func (a *reactorAPIAdapter) ForwardUpdate(sel *api.Selector, updateID uint64) er
 	}
 
 	// Calculate update size once (header + body)
-	updateSize := message.HeaderLen + len(update.RawBytes)
+	updateSize := message.HeaderLen + len(update.WireUpdate.Payload())
 
 	// Forward to all matching peers, collect errors
 	// Lazy parsing: only parse if we need to re-encode
@@ -1612,15 +1613,16 @@ func (a *reactorAPIAdapter) ForwardUpdate(sel *api.Selector, updateID uint64) er
 
 			// Zero-copy path: use raw bytes when contexts match
 			// Both must be non-zero (registered) and equal
-			if update.SourceCtxID != 0 && destCtxID != 0 && update.SourceCtxID == destCtxID {
-				if err := peer.SendRawUpdateBody(update.RawBytes); err != nil {
+			srcCtxID := update.WireUpdate.SourceCtxID()
+			if srcCtxID != 0 && destCtxID != 0 && srcCtxID == destCtxID {
+				if err := peer.SendRawUpdateBody(update.WireUpdate.Payload()); err != nil {
 					errs = append(errs, fmt.Errorf("peer %s: %w", peer.Settings().Address, err))
 				}
 			} else {
 				// Re-encode path: parse (lazily) and send
 				if parsedUpdate == nil {
 					var parseErr error
-					parsedUpdate, parseErr = message.UnpackUpdate(update.RawBytes)
+					parsedUpdate, parseErr = message.UnpackUpdate(update.WireUpdate.Payload())
 					if parseErr != nil {
 						return fmt.Errorf("parsing cached update: %w", parseErr)
 					}
@@ -2380,8 +2382,10 @@ func (r *Reactor) notifyPeerClosed(peer *Peer, reason string) {
 // notifyMessageReceiver notifies the message receiver of a raw BGP message.
 // Called from session when a BGP message is sent or received.
 // peerAddr is used to look up full PeerInfo from the peers map.
+// wireUpdate is non-nil for received UPDATE messages (zero-copy path).
+// ctxID is the encoding context for zero-copy decisions.
 // direction is "sent" or "received".
-func (r *Reactor) notifyMessageReceiver(peerAddr netip.Addr, msgType message.MessageType, rawBytes []byte, direction string) {
+func (r *Reactor) notifyMessageReceiver(peerAddr netip.Addr, msgType message.MessageType, rawBytes []byte, wireUpdate *api.WireUpdate, ctxID bgpctx.ContextID, direction string) {
 	r.mu.RLock()
 	receiver := r.messageReceiver
 	peer, hasPeer := r.peers[peerAddr.String()]
@@ -2407,43 +2411,45 @@ func (r *Reactor) notifyMessageReceiver(peerAddr netip.Addr, msgType message.Mes
 		return
 	}
 
-	// Copy raw bytes - the original slice is reused by session's read buffer.
-	// Without this copy, the data would be corrupted on next message read.
-	bytesCopy := make([]byte, len(rawBytes))
-	copy(bytesCopy, rawBytes)
-
 	// Assign message ID for all message types
 	messageID := nextMsgID()
+	timestamp := time.Now()
 
-	msg := api.RawMessage{
-		Type:      msgType,
-		RawBytes:  bytesCopy,
-		Timestamp: time.Now(),
-		Direction: direction,
-		MessageID: messageID,
-	}
+	var msg api.RawMessage
 
-	// UPDATE-specific: create WireUpdate for lazy parsing and caching
-	if msgType == message.TypeUPDATE && hasPeer {
-		ctxID := peer.RecvContextID()
+	// Zero-copy path for received UPDATE messages
+	if wireUpdate != nil {
+		// WireUpdate already owns the buffer - no copy needed
+		msg = api.RawMessage{
+			Type:       msgType,
+			RawBytes:   wireUpdate.Payload(), // Zero-copy: slice from WireUpdate's buffer
+			Timestamp:  timestamp,
+			Direction:  direction,
+			MessageID:  messageID,
+			WireUpdate: wireUpdate,
+			AttrsWire:  wireUpdate.Attrs(), // Derived from WireUpdate
+		}
 
-		// Create WireUpdate - wraps UPDATE payload with context
-		wireUpdate := api.NewWireUpdate(bytesCopy, ctxID)
-		msg.WireUpdate = wireUpdate
-
-		// Derive AttrsWire from WireUpdate for backward compatibility
-		msg.AttrsWire = wireUpdate.Attrs()
-
-		// Cache the update for forwarding (only for received updates)
+		// Cache for forwarding (only for received updates)
 		if direction == "received" {
 			r.recentUpdates.Add(&ReceivedUpdate{
 				UpdateID:     messageID,
-				RawBytes:     bytesCopy, // Already a copy, safe to store
-				Attrs:        msg.AttrsWire,
+				WireUpdate:   wireUpdate,
 				SourcePeerIP: peerAddr,
-				SourceCtxID:  ctxID,
-				ReceivedAt:   msg.Timestamp,
+				ReceivedAt:   timestamp,
 			})
+		}
+	} else {
+		// Non-UPDATE or sent messages: copy bytes for async processing safety
+		bytes := make([]byte, len(rawBytes))
+		copy(bytes, rawBytes)
+
+		msg = api.RawMessage{
+			Type:      msgType,
+			RawBytes:  bytes,
+			Timestamp: timestamp,
+			Direction: direction,
+			MessageID: messageID,
 		}
 	}
 

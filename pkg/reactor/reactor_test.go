@@ -10,6 +10,7 @@ import (
 
 	"github.com/exa-networks/zebgp/pkg/api"
 	"github.com/exa-networks/zebgp/pkg/bgp/attribute"
+	"github.com/exa-networks/zebgp/pkg/bgp/message"
 	"github.com/exa-networks/zebgp/pkg/bgp/nlri"
 	"github.com/stretchr/testify/require"
 )
@@ -1230,8 +1231,12 @@ func TestNotifyMessageReceiverWireUpdate(t *testing.T) {
 	copy(updatePayload[4:], attrs)
 	copy(updatePayload[4+len(attrs):], nlri)
 
+	// Create WireUpdate (as session would do)
+	wireUpdate := api.NewWireUpdate(updatePayload, 0)
+
 	// Call notifyMessageReceiver directly (same package)
-	reactor.notifyMessageReceiver(peerAddr, 2, updatePayload, "received") // 2 = TypeUPDATE
+	// In normal flow, session creates WireUpdate and passes it through
+	reactor.notifyMessageReceiver(peerAddr, message.TypeUPDATE, updatePayload, wireUpdate, 0, "received")
 
 	// Verify WireUpdate is set
 	require.NotNil(t, receivedMsg.WireUpdate, "WireUpdate should be set for UPDATE")

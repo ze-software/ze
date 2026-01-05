@@ -1,14 +1,29 @@
 package reactor
 
 import (
+	"encoding/binary"
 	"net/netip"
 	"testing"
 	"time"
 
-	"github.com/exa-networks/zebgp/pkg/bgp/attribute"
+	"github.com/exa-networks/zebgp/pkg/api"
 	bgpctx "github.com/exa-networks/zebgp/pkg/bgp/context"
 	"github.com/exa-networks/zebgp/pkg/bgp/nlri"
 )
+
+// buildUpdatePayload builds an UPDATE message body from components.
+// Format: WithdrawnLen(2) + Withdrawn + AttrLen(2) + Attrs + NLRI.
+func buildUpdatePayload(attrs, nlriBytes []byte) []byte {
+	attrLen := len(attrs)
+	payload := make([]byte, 2+0+2+attrLen+len(nlriBytes))
+
+	binary.BigEndian.PutUint16(payload[0:2], 0)               // No withdrawals in tests
+	binary.BigEndian.PutUint16(payload[2:4], uint16(attrLen)) //nolint:gosec // G115: test data
+	copy(payload[4:], attrs)
+	copy(payload[4+attrLen:], nlriBytes)
+
+	return payload
+}
 
 // TestReceivedUpdateFields verifies ReceivedUpdate stores all fields correctly.
 //
@@ -23,27 +38,27 @@ func TestReceivedUpdateFields(t *testing.T) {
 	announceNLRI := nlri.NewINET(nlri.IPv4Unicast, netip.MustParsePrefix("192.168.1.0/24"), 0)
 	withdrawNLRI := nlri.NewINET(nlri.IPv4Unicast, netip.MustParsePrefix("172.16.0.0/16"), 0)
 
-	// Create AttributesWire (minimal)
+	// Build UPDATE payload
 	attrBytes := []byte{0x40, 0x01, 0x01, 0x00} // ORIGIN IGP
-	attrs := attribute.NewAttributesWire(attrBytes, ctxID)
+	payload := buildUpdatePayload(attrBytes, nil)
+	wireUpdate := api.NewWireUpdate(payload, ctxID)
 
 	update := &ReceivedUpdate{
 		UpdateID:     12345,
-		Attrs:        attrs,
+		WireUpdate:   wireUpdate,
 		Announces:    []nlri.NLRI{announceNLRI},
 		Withdraws:    []nlri.NLRI{withdrawNLRI},
 		AnnounceWire: [][]byte{announceNLRI.Bytes()},
 		WithdrawWire: [][]byte{withdrawNLRI.Bytes()},
 		SourcePeerIP: sourcePeer,
-		SourceCtxID:  ctxID,
 		ReceivedAt:   now,
 	}
 
 	if update.UpdateID != 12345 {
 		t.Errorf("UpdateID = %d, want 12345", update.UpdateID)
 	}
-	if update.Attrs != attrs {
-		t.Error("Attrs mismatch")
+	if update.WireUpdate.Attrs() == nil {
+		t.Error("WireUpdate.Attrs() should not be nil")
 	}
 	if len(update.Announces) != 1 {
 		t.Errorf("Announces len = %d, want 1", len(update.Announces))
@@ -54,8 +69,8 @@ func TestReceivedUpdateFields(t *testing.T) {
 	if update.SourcePeerIP != sourcePeer {
 		t.Errorf("SourcePeerIP = %v, want %v", update.SourcePeerIP, sourcePeer)
 	}
-	if update.SourceCtxID != ctxID {
-		t.Errorf("SourceCtxID = %d, want %d", update.SourceCtxID, ctxID)
+	if update.WireUpdate.SourceCtxID() != ctxID {
+		t.Errorf("SourceCtxID = %d, want %d", update.WireUpdate.SourceCtxID(), ctxID)
 	}
 	if !update.ReceivedAt.Equal(now) {
 		t.Errorf("ReceivedAt = %v, want %v", update.ReceivedAt, now)
@@ -69,18 +84,21 @@ func TestReceivedUpdateFields(t *testing.T) {
 func TestReceivedUpdateWithdrawOnly(t *testing.T) {
 	withdrawNLRI := nlri.NewINET(nlri.IPv4Unicast, netip.MustParsePrefix("10.0.0.0/8"), 0)
 
+	// Withdraw-only: no attributes
+	payload := buildUpdatePayload(nil, nil)
+	wireUpdate := api.NewWireUpdate(payload, bgpctx.ContextID(1))
+
 	update := &ReceivedUpdate{
 		UpdateID:     1,
-		Attrs:        nil, // Withdraw-only has no attributes
+		WireUpdate:   wireUpdate,
 		Announces:    nil,
 		Withdraws:    []nlri.NLRI{withdrawNLRI},
 		WithdrawWire: [][]byte{withdrawNLRI.Bytes()},
 		SourcePeerIP: netip.MustParseAddr("10.0.0.1"),
-		SourceCtxID:  bgpctx.ContextID(1),
 		ReceivedAt:   time.Now(),
 	}
 
-	if update.Attrs != nil {
+	if update.WireUpdate.Attrs() != nil {
 		t.Error("withdraw-only UPDATE should have nil Attrs")
 	}
 	if len(update.Withdraws) != 1 {
@@ -138,24 +156,22 @@ func TestConvertToRoutesIPv4(t *testing.T) {
 	nextHopAddr := netip.MustParseAddr("10.0.0.1")
 
 	// Build attributes: ORIGIN + NEXT_HOP + AS_PATH
-	// ORIGIN IGP (type=1, flags=0x40 transitive, len=1, value=0)
-	// NEXT_HOP (type=3, flags=0x40 transitive, len=4, value=10.0.0.1)
-	// AS_PATH (type=2, flags=0x40 transitive, len=0, empty)
 	attrBytes := []byte{
 		0x40, 0x01, 0x01, 0x00, // ORIGIN IGP
 		0x40, 0x03, 0x04, 10, 0, 0, 1, // NEXT_HOP 10.0.0.1
 		0x40, 0x02, 0x00, // AS_PATH empty
 	}
-	attrs := attribute.NewAttributesWire(attrBytes, ctxID)
+
+	payload := buildUpdatePayload(attrBytes, nil)
+	wireUpdate := api.NewWireUpdate(payload, ctxID)
 
 	announceNLRI := nlri.NewINET(nlri.IPv4Unicast, netip.MustParsePrefix("192.168.1.0/24"), 0)
 
 	update := &ReceivedUpdate{
 		UpdateID:     1,
-		Attrs:        attrs,
+		WireUpdate:   wireUpdate,
 		Announces:    []nlri.NLRI{announceNLRI},
 		AnnounceWire: [][]byte{announceNLRI.Bytes()},
-		SourceCtxID:  ctxID,
 	}
 
 	routes, err := update.ConvertToRoutes()
@@ -187,8 +203,6 @@ func TestConvertToRoutesIPv6(t *testing.T) {
 	nextHopAddr := netip.MustParseAddr("2001:db8::1")
 
 	// Build attributes: ORIGIN + MP_REACH_NLRI with IPv6 next-hop
-	// ORIGIN IGP
-	// MP_REACH_NLRI: AFI=2 (IPv6), SAFI=1 (unicast), NH=2001:db8::1
 	mpReach := []byte{
 		0x00, 0x02, // AFI = 2 (IPv6)
 		0x01, // SAFI = 1 (Unicast)
@@ -197,27 +211,26 @@ func TestConvertToRoutesIPv6(t *testing.T) {
 		0x20, 0x01, 0x0d, 0xb8, 0x00, 0x00, 0x00, 0x00,
 		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01,
 		0x00, // Reserved
-		// No NLRI in MP_REACH (we add it separately)
 	}
 
 	attrBytes := []byte{
 		0x40, 0x01, 0x01, 0x00, // ORIGIN IGP
 	}
-	// Add MP_REACH_NLRI (optional non-transitive, extended length for >255 bytes safety)
+	// Add MP_REACH_NLRI (optional non-transitive)
 	attrBytes = append(attrBytes, 0x80, 0x0e, byte(len(mpReach)))
 	attrBytes = append(attrBytes, mpReach...)
 
-	attrs := attribute.NewAttributesWire(attrBytes, ctxID)
+	payload := buildUpdatePayload(attrBytes, nil)
+	wireUpdate := api.NewWireUpdate(payload, ctxID)
 
 	// IPv6 NLRI
 	announceNLRI := nlri.NewINET(nlri.IPv6Unicast, netip.MustParsePrefix("2001:db8:1::/48"), 0)
 
 	update := &ReceivedUpdate{
 		UpdateID:     1,
-		Attrs:        attrs,
+		WireUpdate:   wireUpdate,
 		Announces:    []nlri.NLRI{announceNLRI},
 		AnnounceWire: [][]byte{announceNLRI.Bytes()},
-		SourceCtxID:  ctxID,
 	}
 
 	routes, err := update.ConvertToRoutes()
@@ -242,13 +255,16 @@ func TestConvertToRoutesIPv6(t *testing.T) {
 func TestConvertToRoutesWithdrawOnly(t *testing.T) {
 	withdrawNLRI := nlri.NewINET(nlri.IPv4Unicast, netip.MustParsePrefix("10.0.0.0/8"), 0)
 
+	// Withdraw-only: no attributes
+	payload := buildUpdatePayload(nil, nil)
+	wireUpdate := api.NewWireUpdate(payload, bgpctx.ContextID(1))
+
 	update := &ReceivedUpdate{
 		UpdateID:     1,
-		Attrs:        nil, // Withdraw-only
+		WireUpdate:   wireUpdate,
 		Announces:    nil,
 		Withdraws:    []nlri.NLRI{withdrawNLRI},
 		WithdrawWire: [][]byte{withdrawNLRI.Bytes()},
-		SourceCtxID:  bgpctx.ContextID(1),
 	}
 
 	routes, err := update.ConvertToRoutes()
@@ -274,7 +290,9 @@ func TestConvertToRoutesMultipleNLRI(t *testing.T) {
 		0x40, 0x01, 0x01, 0x00, // ORIGIN IGP
 		0x40, 0x03, 0x04, 10, 0, 0, 1, // NEXT_HOP 10.0.0.1
 	}
-	attrs := attribute.NewAttributesWire(attrBytes, ctxID)
+
+	payload := buildUpdatePayload(attrBytes, nil)
+	wireUpdate := api.NewWireUpdate(payload, ctxID)
 
 	nlri1 := nlri.NewINET(nlri.IPv4Unicast, netip.MustParsePrefix("192.168.1.0/24"), 0)
 	nlri2 := nlri.NewINET(nlri.IPv4Unicast, netip.MustParsePrefix("192.168.2.0/24"), 0)
@@ -282,10 +300,9 @@ func TestConvertToRoutesMultipleNLRI(t *testing.T) {
 
 	update := &ReceivedUpdate{
 		UpdateID:     1,
-		Attrs:        attrs,
+		WireUpdate:   wireUpdate,
 		Announces:    []nlri.NLRI{nlri1, nlri2, nlri3},
 		AnnounceWire: [][]byte{nlri1.Bytes(), nlri2.Bytes(), nlri3.Bytes()},
-		SourceCtxID:  ctxID,
 	}
 
 	routes, err := update.ConvertToRoutes()

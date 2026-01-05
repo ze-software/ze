@@ -6,8 +6,8 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/exa-networks/zebgp/pkg/api"
 	"github.com/exa-networks/zebgp/pkg/bgp/attribute"
-	bgpctx "github.com/exa-networks/zebgp/pkg/bgp/context"
 	"github.com/exa-networks/zebgp/pkg/bgp/nlri"
 	"github.com/exa-networks/zebgp/pkg/rib"
 )
@@ -24,20 +24,15 @@ func nextMsgID() uint64 {
 // ReceivedUpdate represents an immutable snapshot of a received UPDATE.
 // Each UPDATE gets a unique ID; updates to same NLRI create new IDs.
 //
-// Memory contract: wire byte slices are NOT owned by ReceivedUpdate.
-// Caller must ensure the underlying buffers outlive this struct.
+// Memory contract: WireUpdate owns the buffer; all derived slices share it.
 type ReceivedUpdate struct {
 	// UpdateID is a unique identifier for this UPDATE.
 	// Assigned at reception time, never changes.
 	UpdateID uint64
 
-	// RawBytes contains the raw UPDATE message body (without BGP header).
-	// Used for simple forwarding without re-encoding.
-	RawBytes []byte
-
-	// Attrs contains path attributes in wire format with lazy parsing.
-	// nil for withdraw-only UPDATEs.
-	Attrs *attribute.AttributesWire
+	// WireUpdate contains the UPDATE payload with zero-copy accessors.
+	// Provides Payload(), Attrs(), NLRI(), MPReach(), MPUnreach(), SourceCtxID().
+	WireUpdate *api.WireUpdate
 
 	// Announces contains announced NLRIs from this UPDATE.
 	Announces []nlri.NLRI
@@ -56,10 +51,6 @@ type ReceivedUpdate struct {
 	// SourcePeerIP is the IP address of the peer that sent this UPDATE.
 	SourcePeerIP netip.Addr
 
-	// SourceCtxID is the encoding context of the source peer.
-	// Used for zero-copy forwarding when contexts match.
-	SourceCtxID bgpctx.ContextID
-
 	// ReceivedAt is when this UPDATE was received.
 	ReceivedAt time.Time
 }
@@ -74,12 +65,13 @@ func (ru *ReceivedUpdate) ConvertToRoutes() ([]*rib.Route, error) {
 		return nil, nil // Withdraw-only UPDATE
 	}
 
-	if ru.Attrs == nil {
+	attrsWire := ru.WireUpdate.Attrs()
+	if attrsWire == nil {
 		return nil, fmt.Errorf("no attributes for announcement")
 	}
 
 	// Parse all attributes
-	attrs, err := ru.Attrs.All()
+	attrs, err := attrsWire.All()
 	if err != nil {
 		return nil, fmt.Errorf("parsing attributes: %w", err)
 	}
@@ -125,9 +117,9 @@ func (ru *ReceivedUpdate) ConvertToRoutes() ([]*rib.Route, error) {
 			nextHop,
 			otherAttrs,
 			asPath,
-			ru.Attrs.Packed(), // Attribute wire cache
-			nlriWire,          // NLRI wire cache
-			ru.SourceCtxID,
+			attrsWire.Packed(), // Attribute wire cache
+			nlriWire,           // NLRI wire cache
+			ru.WireUpdate.SourceCtxID(),
 		)
 		routes = append(routes, route)
 	}

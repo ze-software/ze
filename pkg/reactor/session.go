@@ -12,13 +12,24 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/exa-networks/zebgp/pkg/api"
 	"github.com/exa-networks/zebgp/pkg/bgp/attribute"
 	"github.com/exa-networks/zebgp/pkg/bgp/capability"
+	bgpctx "github.com/exa-networks/zebgp/pkg/bgp/context"
 	"github.com/exa-networks/zebgp/pkg/bgp/fsm"
 	"github.com/exa-networks/zebgp/pkg/bgp/message"
 	"github.com/exa-networks/zebgp/pkg/bgp/wire"
 	"github.com/exa-networks/zebgp/pkg/trace"
 )
+
+// readBufPool provides reusable read buffers for zero-copy UPDATE processing.
+// When an UPDATE is received, the session's buffer is transferred to WireUpdate
+// and a fresh buffer is obtained from this pool.
+var readBufPool = sync.Pool{
+	New: func() any {
+		return make([]byte, message.MaxMsgLen)
+	},
+}
 
 // Session errors.
 var (
@@ -42,7 +53,9 @@ var (
 // MessageCallback is called when a BGP message is sent or received.
 // peerAddr is the peer's address, msgType is the message type, rawBytes is the body (without header).
 // direction is "sent" or "received".
-type MessageCallback func(peerAddr netip.Addr, msgType message.MessageType, rawBytes []byte, direction string)
+// wireUpdate is non-nil for UPDATE messages (zero-copy), nil for other types.
+// ctxID is the encoding context for zero-copy decisions.
+type MessageCallback func(peerAddr netip.Addr, msgType message.MessageType, rawBytes []byte, wireUpdate *api.WireUpdate, ctxID bgpctx.ContextID, direction string)
 
 type Session struct {
 	mu sync.RWMutex
@@ -75,6 +88,10 @@ type Session struct {
 	// onMessageReceived is called when any BGP message is received.
 	// Set by Peer to forward raw bytes to reactor.
 	onMessageReceived MessageCallback
+
+	// recvCtxID is the encoding context for received messages.
+	// Set by Peer after capability negotiation for zero-copy WireUpdate creation.
+	recvCtxID bgpctx.ContextID
 }
 
 // NewSession creates a new BGP session for a peer.
@@ -136,6 +153,14 @@ func (s *Session) Negotiated() *capability.Negotiated {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	return s.negotiated
+}
+
+// SetRecvCtxID sets the encoding context ID for received messages.
+// Called by Peer after capability negotiation for zero-copy WireUpdate creation.
+func (s *Session) SetRecvCtxID(ctxID bgpctx.ContextID) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.recvCtxID = ctxID
 }
 
 // WriteBuf returns the session's write buffer for zero-allocation message building.
@@ -618,19 +643,44 @@ func (s *Session) readAndProcessMessage(conn net.Conn) error {
 
 // processMessage handles a received BGP message.
 func (s *Session) processMessage(hdr *message.Header, body []byte) error {
-	// Notify raw message receiver before parsing.
-	// This allows receivers to access wire bytes for format=raw or format=full.
-	if s.onMessageReceived != nil {
-		s.onMessageReceived(s.settings.Address, hdr.Type, body, "received")
+	s.mu.RLock()
+	ctxID := s.recvCtxID
+	s.mu.RUnlock()
+
+	// For UPDATE messages: zero-copy path with buffer ownership transfer
+	if hdr.Type == message.TypeUPDATE {
+		// Create WireUpdate that takes ownership of current buffer's slice
+		// Body is a slice into s.readBuf, we need to transfer ownership
+		wireUpdate := api.NewWireUpdate(body, ctxID)
+
+		// Notify callback with WireUpdate (zero-copy)
+		if s.onMessageReceived != nil {
+			s.onMessageReceived(s.settings.Address, hdr.Type, body, wireUpdate, ctxID, "received")
+		}
+
+		// Get fresh buffer from pool for next read
+		// The old buffer is now owned by WireUpdate
+		poolBuf := readBufPool.Get()
+		newBuf, ok := poolBuf.([]byte)
+		if !ok || len(newBuf) < len(s.readBuf) {
+			// If pool returns wrong type or buffer is smaller (e.g., extended messages), allocate new
+			newBuf = make([]byte, len(s.readBuf))
+		}
+		s.readBuf = newBuf
+
+		return s.handleUpdate(wireUpdate)
 	}
 
-	switch hdr.Type { //nolint:exhaustive // Unknown types handled in default
+	// For non-UPDATE messages: notify callback (no WireUpdate)
+	if s.onMessageReceived != nil {
+		s.onMessageReceived(s.settings.Address, hdr.Type, body, nil, ctxID, "received")
+	}
+
+	switch hdr.Type { //nolint:exhaustive // UPDATE handled above, unknown in default
 	case message.TypeOPEN:
 		return s.handleOpen(body)
 	case message.TypeKEEPALIVE:
 		return s.handleKeepalive()
-	case message.TypeUPDATE:
-		return s.handleUpdate(body)
 	case message.TypeNOTIFICATION:
 		return s.handleNotification(body)
 	default:
@@ -764,9 +814,13 @@ func (s *Session) handleKeepalive() error {
 // handleUpdate processes a received UPDATE message.
 // RFC 4760 Section 6: validates AFI/SAFI in MP_REACH/MP_UNREACH against negotiated.
 // RFC 7606: validates path attributes with revised error handling.
-func (s *Session) handleUpdate(body []byte) error {
+// Accepts WireUpdate for zero-copy processing.
+func (s *Session) handleUpdate(wu *api.WireUpdate) error {
 	// Reset hold timer.
 	s.timers.ResetHoldTimer()
+
+	// Get raw payload for validation (zero-copy slice)
+	body := wu.Payload()
 
 	// Validate address families in UPDATE.
 	if err := s.validateUpdateFamilies(body); err != nil {
@@ -1127,7 +1181,7 @@ func (s *Session) writeMessage(conn net.Conn, neg *capability.Negotiated, msg me
 	// Body is data after the 19-byte header (16-byte marker + 2-byte length + 1-byte type).
 	if s.onMessageReceived != nil && len(data) >= message.HeaderLen {
 		body := data[message.HeaderLen:]
-		s.onMessageReceived(s.settings.Address, msg.Type(), body, "sent")
+		s.onMessageReceived(s.settings.Address, msg.Type(), body, nil, 0, "sent")
 	}
 
 	return nil
@@ -1244,7 +1298,7 @@ func (s *Session) SendUpdate(update *message.Update) error {
 	// Notify callback after successful send
 	if s.onMessageReceived != nil && len(data) >= message.HeaderLen {
 		body := data[message.HeaderLen:]
-		s.onMessageReceived(s.settings.Address, message.TypeUPDATE, body, "sent")
+		s.onMessageReceived(s.settings.Address, message.TypeUPDATE, body, nil, 0, "sent")
 	}
 
 	return nil
