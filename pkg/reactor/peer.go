@@ -961,6 +961,21 @@ func (p *Peer) SendRawUpdateBody(body []byte) error {
 	return session.SendRawUpdateBody(body)
 }
 
+// SendRawMessage sends raw bytes to the peer.
+// If msgType is 0, payload is a full BGP packet.
+// If msgType is non-zero, payload is message body only.
+func (p *Peer) SendRawMessage(msgType uint8, payload []byte) error {
+	p.mu.RLock()
+	session := p.session
+	p.mu.RUnlock()
+
+	if session == nil {
+		return ErrNotConnected
+	}
+
+	return session.SendRawMessage(msgType, payload)
+}
+
 // messageNegotiated returns message.Negotiated for use with CommitService.
 // Returns nil if session is not established.
 func (p *Peer) messageNegotiated() *message.Negotiated {

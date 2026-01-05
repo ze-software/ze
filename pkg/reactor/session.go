@@ -1290,6 +1290,46 @@ func (s *Session) SendRawUpdateBody(body []byte) error {
 	return err
 }
 
+// SendRawMessage sends raw bytes to the peer.
+// If msgType is 0, payload is a full BGP packet (user provides marker+header+body).
+// If msgType is non-zero, payload is message body only (we add the header).
+// ⚠️ No validation - bytes sent exactly as provided.
+func (s *Session) SendRawMessage(msgType uint8, payload []byte) error {
+	s.mu.RLock()
+	conn := s.conn
+	s.mu.RUnlock()
+
+	if conn == nil {
+		return ErrNotConnected
+	}
+
+	var data []byte
+	if msgType == 0 {
+		// Full packet mode - send as-is
+		data = payload
+	} else {
+		// Message body mode - add BGP header
+		totalLen := message.HeaderLen + len(payload)
+		data = make([]byte, totalLen)
+
+		// Marker (16 bytes of 0xFF)
+		copy(data[:message.MarkerLen], message.Marker[:])
+
+		// Length (2 bytes, big-endian)
+		data[16] = byte(totalLen >> 8)
+		data[17] = byte(totalLen)
+
+		// Type (1 byte)
+		data[18] = msgType
+
+		// Body
+		copy(data[message.HeaderLen:], payload)
+	}
+
+	_, err := conn.Write(data)
+	return err
+}
+
 // isTimeout checks if an error is a timeout.
 func isTimeout(err error) bool {
 	if err == nil {

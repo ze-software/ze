@@ -372,6 +372,12 @@ type ReactorInterface interface {
 	// SignalPeerAPIReady signals that a peer-specific API initialization is complete.
 	// Called when "peer <addr> session api ready" is received (e.g., after route replay).
 	SignalPeerAPIReady(peerAddr string)
+
+	// SendRawMessage sends raw bytes to a peer.
+	// If msgType is 0, payload is a full BGP packet (user provides marker+header).
+	// If msgType is non-zero, payload is message body (ZeBGP adds header).
+	// No validation - bytes sent exactly as provided.
+	SendRawMessage(peerAddr netip.Addr, msgType uint8, payload []byte) error
 }
 
 // PeerAPIBinding describes which process receives messages from a peer.

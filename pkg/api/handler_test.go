@@ -1,6 +1,7 @@
 package api
 
 import (
+	"errors"
 	"net/netip"
 	"testing"
 	"time"
@@ -11,6 +12,10 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+// ErrPeerNotFound is a test error matching reactor.ErrPeerNotFound.
+// Cannot import reactor due to import cycle (reactor imports api).
+var ErrPeerNotFound = errors.New("peer not found")
 
 // mockReactor implements ReactorInterface for testing.
 type mockReactor struct {
@@ -44,6 +49,11 @@ type mockReactor struct {
 	teardownCalls []struct {
 		addr    netip.Addr
 		subcode uint8
+	}
+	rawMessages []struct {
+		addr    netip.Addr
+		msgType uint8
+		payload []byte
 	}
 	// RIB operation tracking
 	ribInCleared  bool
@@ -250,6 +260,25 @@ func (m *mockReactor) DeleteUpdate(_ uint64) error {
 func (m *mockReactor) SignalAPIReady() {}
 
 func (m *mockReactor) SignalPeerAPIReady(_ string) {}
+
+func (m *mockReactor) SendRawMessage(addr netip.Addr, msgType uint8, payload []byte) error {
+	m.rawMessages = append(m.rawMessages, struct {
+		addr    netip.Addr
+		msgType uint8
+		payload []byte
+	}{addr, msgType, payload})
+	return nil
+}
+
+// mockReactorRawError embeds mockReactor but returns error from SendRawMessage.
+type mockReactorRawError struct {
+	mockReactor
+	err error
+}
+
+func (m *mockReactorRawError) SendRawMessage(_ netip.Addr, _ uint8, _ []byte) error {
+	return m.err
+}
 
 // TestHandlerPeerList verifies peer list output.
 //
@@ -1483,4 +1512,307 @@ func TestWantsMessageType(t *testing.T) {
 			assert.Equal(t, tt.want, got)
 		})
 	}
+}
+
+// =============================================================================
+// Raw Passthrough Tests
+// =============================================================================
+
+// TestHandleRaw_UpdateHex verifies raw UPDATE with hex encoding.
+//
+// VALIDATES: "peer X raw update hex <data>" sends UPDATE payload.
+//
+// PREVENTS: Raw bytes not being sent to peer.
+func TestHandleRaw_UpdateHex(t *testing.T) {
+	reactor := &mockReactor{}
+	ctx := &CommandContext{
+		Reactor: reactor,
+		Peer:    "10.0.0.1",
+	}
+
+	// raw update hex 0000000e40010100400200400304c0a80101180a00
+	args := []string{"update", "hex", "0000000e40010100400200400304c0a80101180a00"}
+	resp, err := handleRaw(ctx, args)
+
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	assert.Equal(t, "done", resp.Status)
+
+	require.Len(t, reactor.rawMessages, 1)
+	assert.Equal(t, netip.MustParseAddr("10.0.0.1"), reactor.rawMessages[0].addr)
+	assert.Equal(t, uint8(2), reactor.rawMessages[0].msgType) // UPDATE = 2
+	assert.NotEmpty(t, reactor.rawMessages[0].payload)
+}
+
+// TestHandleRaw_NotificationHex verifies raw NOTIFICATION.
+//
+// VALIDATES: "peer X raw notification hex 0602" sends NOTIFICATION.
+//
+// PREVENTS: Only UPDATE being supported.
+func TestHandleRaw_NotificationHex(t *testing.T) {
+	reactor := &mockReactor{}
+	ctx := &CommandContext{
+		Reactor: reactor,
+		Peer:    "10.0.0.1",
+	}
+
+	// raw notification hex 0602 (Cease/Admin Shutdown)
+	args := []string{"notification", "hex", "0602"}
+	resp, err := handleRaw(ctx, args)
+
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	assert.Equal(t, "done", resp.Status)
+
+	require.Len(t, reactor.rawMessages, 1)
+	assert.Equal(t, uint8(3), reactor.rawMessages[0].msgType) // NOTIFICATION = 3
+	assert.Equal(t, []byte{0x06, 0x02}, reactor.rawMessages[0].payload)
+}
+
+// TestHandleRaw_KeepaliveEmpty verifies raw KEEPALIVE with empty payload.
+//
+// VALIDATES: "peer X raw keepalive hex" sends empty KEEPALIVE.
+//
+// PREVENTS: Empty payload being rejected.
+func TestHandleRaw_KeepaliveEmpty(t *testing.T) {
+	reactor := &mockReactor{}
+	ctx := &CommandContext{
+		Reactor: reactor,
+		Peer:    "10.0.0.1",
+	}
+
+	// raw keepalive hex (empty payload is valid)
+	args := []string{"keepalive", "hex", ""}
+	resp, err := handleRaw(ctx, args)
+
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	assert.Equal(t, "done", resp.Status)
+
+	require.Len(t, reactor.rawMessages, 1)
+	assert.Equal(t, uint8(4), reactor.rawMessages[0].msgType) // KEEPALIVE = 4
+	assert.Empty(t, reactor.rawMessages[0].payload)
+}
+
+// TestHandleRaw_FullPacketHex verifies full packet mode (no type).
+//
+// VALIDATES: "peer X raw hex <marker+header+body>" sends full packet.
+//
+// PREVENTS: Full packet mode not working.
+func TestHandleRaw_FullPacketHex(t *testing.T) {
+	reactor := &mockReactor{}
+	ctx := &CommandContext{
+		Reactor: reactor,
+		Peer:    "10.0.0.1",
+	}
+
+	// raw hex ffffffffffffffffffffffffffffffff001304 (full KEEPALIVE packet)
+	// 16 bytes marker + 2 bytes length (19) + 1 byte type (4)
+	args := []string{"hex", "ffffffffffffffffffffffffffffffff001304"}
+	resp, err := handleRaw(ctx, args)
+
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	assert.Equal(t, "done", resp.Status)
+
+	require.Len(t, reactor.rawMessages, 1)
+	assert.Equal(t, uint8(0), reactor.rawMessages[0].msgType) // 0 = full packet
+	assert.Len(t, reactor.rawMessages[0].payload, 19)         // Full BGP header
+}
+
+// TestHandleRaw_B64Encoding verifies base64 encoding.
+//
+// VALIDATES: "peer X raw notification b64 BgI=" decodes correctly.
+//
+// PREVENTS: Base64 encoding not working.
+func TestHandleRaw_B64Encoding(t *testing.T) {
+	reactor := &mockReactor{}
+	ctx := &CommandContext{
+		Reactor: reactor,
+		Peer:    "10.0.0.1",
+	}
+
+	// raw notification b64 BgI= (0x0602 in base64)
+	args := []string{"notification", "b64", "BgI="}
+	resp, err := handleRaw(ctx, args)
+
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	assert.Equal(t, "done", resp.Status)
+
+	require.Len(t, reactor.rawMessages, 1)
+	assert.Equal(t, []byte{0x06, 0x02}, reactor.rawMessages[0].payload)
+}
+
+// TestHandleRaw_InvalidHex verifies invalid hex is rejected.
+//
+// VALIDATES: Invalid hex string returns error.
+//
+// PREVENTS: Malformed data being sent.
+func TestHandleRaw_InvalidHex(t *testing.T) {
+	reactor := &mockReactor{}
+	ctx := &CommandContext{
+		Reactor: reactor,
+		Peer:    "10.0.0.1",
+	}
+
+	args := []string{"update", "hex", "not-valid-hex"}
+	resp, err := handleRaw(ctx, args)
+
+	require.Error(t, err)
+	require.NotNil(t, resp)
+	assert.Equal(t, "error", resp.Status)
+}
+
+// TestHandleRaw_InvalidB64 verifies invalid base64 is rejected.
+//
+// VALIDATES: Invalid base64 string returns error.
+//
+// PREVENTS: Malformed data being sent.
+func TestHandleRaw_InvalidB64(t *testing.T) {
+	reactor := &mockReactor{}
+	ctx := &CommandContext{
+		Reactor: reactor,
+		Peer:    "10.0.0.1",
+	}
+
+	args := []string{"update", "b64", "not-valid-base64!!!"}
+	resp, err := handleRaw(ctx, args)
+
+	require.Error(t, err)
+	require.NotNil(t, resp)
+	assert.Equal(t, "error", resp.Status)
+}
+
+// TestHandleRaw_MissingPeer verifies error when no peer specified.
+//
+// VALIDATES: Raw without peer target returns error.
+//
+// PREVENTS: Sending to wrong peer.
+func TestHandleRaw_MissingPeer(t *testing.T) {
+	reactor := &mockReactor{}
+	ctx := &CommandContext{
+		Reactor: reactor,
+		Peer:    "", // No peer
+	}
+
+	args := []string{"update", "hex", "0000"}
+	resp, err := handleRaw(ctx, args)
+
+	require.Error(t, err)
+	require.NotNil(t, resp)
+	assert.Equal(t, "error", resp.Status)
+}
+
+// TestHandleRaw_InvalidMsgType verifies unknown message type is rejected.
+//
+// VALIDATES: Unknown type like "foo" returns error.
+//
+// PREVENTS: Typos being silently accepted.
+func TestHandleRaw_InvalidMsgType(t *testing.T) {
+	reactor := &mockReactor{}
+	ctx := &CommandContext{
+		Reactor: reactor,
+		Peer:    "10.0.0.1",
+	}
+
+	args := []string{"foo", "hex", "0000"}
+	resp, err := handleRaw(ctx, args)
+
+	require.Error(t, err)
+	require.NotNil(t, resp)
+	assert.Equal(t, "error", resp.Status)
+}
+
+// TestHandleRaw_AllMessageTypes verifies all BGP message types work.
+//
+// VALIDATES: open, update, notification, keepalive, route-refresh all work.
+//
+// PREVENTS: Missing message type support.
+func TestHandleRaw_AllMessageTypes(t *testing.T) {
+	tests := []struct {
+		name    string
+		msgType string
+		wantTyp uint8
+	}{
+		{"open", "open", 1},
+		{"update", "update", 2},
+		{"notification", "notification", 3},
+		{"keepalive", "keepalive", 4},
+		{"route-refresh", "route-refresh", 5},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			reactor := &mockReactor{}
+			ctx := &CommandContext{
+				Reactor: reactor,
+				Peer:    "10.0.0.1",
+			}
+
+			args := []string{tt.msgType, "hex", "00"}
+			resp, err := handleRaw(ctx, args)
+
+			require.NoError(t, err)
+			require.NotNil(t, resp)
+			assert.Equal(t, "done", resp.Status)
+			require.Len(t, reactor.rawMessages, 1)
+			assert.Equal(t, tt.wantTyp, reactor.rawMessages[0].msgType)
+		})
+	}
+}
+
+// TestHandleRaw_MissingEncoding verifies error when type given but no encoding.
+//
+// VALIDATES: "peer X raw keepalive" (no encoding) returns error.
+//
+// PREVENTS: Confusing behavior with partial arguments.
+func TestHandleRaw_MissingEncoding(t *testing.T) {
+	reactor := &mockReactor{}
+	ctx := &CommandContext{
+		Reactor: reactor,
+		Peer:    "10.0.0.1",
+	}
+
+	// Only type, no encoding
+	args := []string{"keepalive"}
+	resp, err := handleRaw(ctx, args)
+
+	require.Error(t, err)
+	require.NotNil(t, resp)
+	assert.Equal(t, "error", resp.Status)
+}
+
+// TestHandleRaw_PeerNotFound verifies error when peer doesn't exist.
+//
+// VALIDATES: Unknown peer returns error from reactor.
+//
+// PREVENTS: Silent failure when peer not configured.
+func TestHandleRaw_PeerNotFound(t *testing.T) {
+	reactor := &mockReactorRawError{err: ErrPeerNotFound}
+	ctx := &CommandContext{
+		Reactor: reactor,
+		Peer:    "10.0.0.99", // Non-existent peer
+	}
+
+	args := []string{"update", "hex", "0000"}
+	resp, err := handleRaw(ctx, args)
+
+	require.Error(t, err)
+	require.NotNil(t, resp)
+	assert.Equal(t, "error", resp.Status)
+	assert.Contains(t, resp.Data.(string), "send error") //nolint:forcetypeassert // test code
+}
+
+// TestHandleRawCommandRegistered verifies raw command is registered.
+//
+// VALIDATES: "raw" command is accessible via dispatcher.
+//
+// PREVENTS: Command not being wired up.
+func TestHandleRawCommandRegistered(t *testing.T) {
+	d := NewDispatcher()
+	RegisterDefaultHandlers(d)
+
+	c := d.Lookup("raw")
+	assert.NotNil(t, c, "raw command must be registered")
 }

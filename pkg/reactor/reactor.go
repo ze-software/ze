@@ -2097,6 +2097,21 @@ func (a *reactorAPIAdapter) SignalPeerAPIReady(peerAddr string) {
 	a.r.SignalPeerAPIReady(peerAddr)
 }
 
+// SendRawMessage sends raw bytes to a peer.
+// If msgType is 0, payload is a full BGP packet (user provides marker+header).
+// If msgType is non-zero, payload is message body (we add the header).
+func (a *reactorAPIAdapter) SendRawMessage(peerAddr netip.Addr, msgType uint8, payload []byte) error {
+	a.r.mu.RLock()
+	peer, exists := a.r.peers[peerAddr.String()]
+	a.r.mu.RUnlock()
+
+	if !exists {
+		return ErrPeerNotFound
+	}
+
+	return peer.SendRawMessage(msgType, payload)
+}
+
 // routeToAPIRoute converts a RIB route to an API route.
 func routeToAPIRoute(peerID string, route *rib.Route) api.RIBRoute {
 	apiRoute := api.RIBRoute{

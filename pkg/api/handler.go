@@ -48,6 +48,9 @@ func RegisterDefaultHandlers(d *Dispatcher) {
 
 	// Forward operations (route reflection via update-id)
 	RegisterForwardHandlers(d)
+
+	// Raw passthrough (send bytes without validation)
+	RegisterRawHandlers(d)
 }
 
 // handleDaemonShutdown signals the reactor to stop.
