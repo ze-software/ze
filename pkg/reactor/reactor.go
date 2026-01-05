@@ -2408,12 +2408,16 @@ func (r *Reactor) notifyMessageReceiver(peerAddr netip.Addr, msgType message.Mes
 		MessageID: messageID,
 	}
 
-	// UPDATE-specific: lazy parsing and caching for forwarding via API
+	// UPDATE-specific: create WireUpdate for lazy parsing and caching
 	if msgType == message.TypeUPDATE && hasPeer {
-		// Create AttributesWire for lazy parsing (nil if extraction fails)
-		if attrBytes := api.ExtractAttributeBytes(bytesCopy); attrBytes != nil {
-			msg.AttrsWire = attribute.NewAttributesWire(attrBytes, peer.RecvContextID())
-		}
+		ctxID := peer.RecvContextID()
+
+		// Create WireUpdate - wraps UPDATE payload with context
+		wireUpdate := api.NewWireUpdate(bytesCopy, ctxID)
+		msg.WireUpdate = wireUpdate
+
+		// Derive AttrsWire from WireUpdate for backward compatibility
+		msg.AttrsWire = wireUpdate.Attrs()
 
 		// Cache the update for forwarding (only for received updates)
 		if direction == "received" {
@@ -2422,7 +2426,7 @@ func (r *Reactor) notifyMessageReceiver(peerAddr netip.Addr, msgType message.Mes
 				RawBytes:     bytesCopy, // Already a copy, safe to store
 				Attrs:        msg.AttrsWire,
 				SourcePeerIP: peerAddr,
-				SourceCtxID:  peer.RecvContextID(),
+				SourceCtxID:  ctxID,
 				ReceivedAt:   msg.Timestamp,
 			})
 		}

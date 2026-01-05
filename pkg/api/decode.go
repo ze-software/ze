@@ -1,46 +1,12 @@
 package api
 
 import (
-	"encoding/binary"
 	"fmt"
 	"net/netip"
 
 	"github.com/exa-networks/zebgp/pkg/bgp/capability"
 	"github.com/exa-networks/zebgp/pkg/bgp/message"
 )
-
-// ExtractAttributeBytes extracts the path attributes section from UPDATE body.
-// Returns nil if body is malformed or has no attributes.
-//
-// UPDATE body format (RFC 4271 Section 4.3):
-//   - Withdrawn Routes Length: 2 octets
-//   - Withdrawn Routes: variable
-//   - Total Path Attribute Length: 2 octets
-//   - Path Attributes: variable
-//   - NLRI: variable
-func ExtractAttributeBytes(body []byte) []byte {
-	if len(body) < 4 {
-		return nil
-	}
-
-	// Skip withdrawn routes
-	withdrawnLen := int(binary.BigEndian.Uint16(body[0:2]))
-	offset := 2 + withdrawnLen
-
-	if offset+2 > len(body) {
-		return nil
-	}
-
-	// Read attribute length
-	attrLen := int(binary.BigEndian.Uint16(body[offset : offset+2]))
-	offset += 2
-
-	if attrLen == 0 || offset+attrLen > len(body) {
-		return nil
-	}
-
-	return body[offset : offset+attrLen]
-}
 
 // parseIPv4Prefixes parses a sequence of IPv4 prefixes.
 func parseIPv4Prefixes(data []byte) []netip.Prefix {

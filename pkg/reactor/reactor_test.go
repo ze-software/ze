@@ -1190,3 +1190,77 @@ func TestRemovePeerIPv4Mapped(t *testing.T) {
 	require.NoError(t, err, "RemovePeer should accept IPv4-mapped address")
 	require.Len(t, reactor.Peers(), 0, "peer should be removed")
 }
+
+// TestNotifyMessageReceiverWireUpdate verifies WireUpdate is set for UPDATE messages.
+//
+// VALIDATES: RawMessage.WireUpdate is populated for UPDATE messages.
+// PREVENTS: Missing WireUpdate field when API receives UPDATE.
+func TestNotifyMessageReceiverWireUpdate(t *testing.T) {
+	cfg := &Config{
+		ListenAddr: "127.0.0.1:0",
+	}
+	reactor := New(cfg)
+
+	// Add peer
+	peerAddr := mustParseAddr("10.0.0.1")
+	settings := NewPeerSettings(peerAddr, 65000, 65001, 0x01010101)
+	err := reactor.AddPeer(settings)
+	require.NoError(t, err)
+
+	// Track received messages
+	var receivedMsg api.RawMessage
+	var receivedPeer api.PeerInfo
+	receiver := &testMessageReceiver{
+		onReceived: func(peer api.PeerInfo, msg api.RawMessage) {
+			receivedPeer = peer
+			receivedMsg = msg
+		},
+	}
+	reactor.SetMessageReceiver(receiver)
+
+	// Build UPDATE payload: withdrawn(0) + attrs(ORIGIN) + nlri(/24)
+	// Format: wdLen(2) + attrLen(2) + attrs + nlri
+	attrs := []byte{0x40, 0x01, 0x01, 0x00} // ORIGIN IGP
+	nlri := []byte{0x18, 0xc0, 0xa8, 0x01}  // 192.168.1.0/24
+	updatePayload := make([]byte, 2+2+len(attrs)+len(nlri))
+	// withdrawn len = 0
+	updatePayload[0], updatePayload[1] = 0, 0
+	// attr len
+	updatePayload[2], updatePayload[3] = 0, byte(len(attrs))
+	copy(updatePayload[4:], attrs)
+	copy(updatePayload[4+len(attrs):], nlri)
+
+	// Call notifyMessageReceiver directly (same package)
+	reactor.notifyMessageReceiver(peerAddr, 2, updatePayload, "received") // 2 = TypeUPDATE
+
+	// Verify WireUpdate is set
+	require.NotNil(t, receivedMsg.WireUpdate, "WireUpdate should be set for UPDATE")
+	require.Equal(t, peerAddr, receivedPeer.Address, "peer address should match")
+
+	// Verify WireUpdate provides correct data
+	require.NotNil(t, receivedMsg.WireUpdate.Attrs(), "WireUpdate.Attrs() should return attributes")
+	require.NotNil(t, receivedMsg.WireUpdate.NLRI(), "WireUpdate.NLRI() should return NLRI")
+	require.Nil(t, receivedMsg.WireUpdate.Withdrawn(), "WireUpdate.Withdrawn() should be nil (no withdrawals)")
+
+	// Verify backward compat: AttrsWire is derived from WireUpdate
+	require.NotNil(t, receivedMsg.AttrsWire, "AttrsWire should be set for backward compat")
+	require.Equal(t, receivedMsg.WireUpdate.Attrs(), receivedMsg.AttrsWire, "AttrsWire should be same as WireUpdate.Attrs()")
+}
+
+// testMessageReceiver implements api.MessageReceiver for testing.
+type testMessageReceiver struct {
+	onReceived func(api.PeerInfo, api.RawMessage)
+	onSent     func(api.PeerInfo, api.RawMessage)
+}
+
+func (r *testMessageReceiver) OnMessageReceived(peer api.PeerInfo, msg api.RawMessage) {
+	if r.onReceived != nil {
+		r.onReceived(peer, msg)
+	}
+}
+
+func (r *testMessageReceiver) OnMessageSent(peer api.PeerInfo, msg api.RawMessage) {
+	if r.onSent != nil {
+		r.onSent(peer, msg)
+	}
+}

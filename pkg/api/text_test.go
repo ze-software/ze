@@ -85,12 +85,13 @@ func TestFormatMessageText(t *testing.T) {
 		[]uint32{65001, 65002},
 	)
 
-	attrBytes := ExtractAttributeBytes(body)
+	wireUpdate := NewWireUpdate(body, ctxID)
 	msg := RawMessage{
-		Type:      message.TypeUPDATE,
-		RawBytes:  body,
-		AttrsWire: attribute.NewAttributesWire(attrBytes, ctxID),
-		Direction: "received",
+		Type:       message.TypeUPDATE,
+		RawBytes:   body,
+		AttrsWire:  wireUpdate.Attrs(),
+		WireUpdate: wireUpdate,
+		Direction:  "received",
 	}
 
 	content := ContentConfig{
@@ -141,12 +142,13 @@ func TestFormatMessageJSON(t *testing.T) {
 		0, 0, nil,
 	)
 
-	attrBytes := ExtractAttributeBytes(body)
+	wireUpdate := NewWireUpdate(body, ctxID)
 	msg := RawMessage{
-		Type:      message.TypeUPDATE,
-		RawBytes:  body,
-		AttrsWire: attribute.NewAttributesWire(attrBytes, ctxID),
-		Direction: "received",
+		Type:       message.TypeUPDATE,
+		RawBytes:   body,
+		AttrsWire:  wireUpdate.Attrs(),
+		WireUpdate: wireUpdate,
+		Direction:  "received",
 	}
 
 	content := ContentConfig{
@@ -327,12 +329,12 @@ func TestFilterResultZeroValues(t *testing.T) {
 		0, // MED = 0 (valid)
 	)
 
-	// Create AttrsWire and apply filter
-	attrBytes := ExtractAttributeBytes(body)
-	if attrBytes == nil {
+	// Create WireUpdate and apply filter
+	wireUpdate := NewWireUpdate(body, ctxID)
+	wire := wireUpdate.Attrs()
+	if wire == nil {
 		t.Fatal("Failed to extract attribute bytes")
 	}
-	wire := attribute.NewAttributesWire(attrBytes, ctxID)
 
 	filter := NewFilterAll()
 	nlriFilter := NewNLRIFilterAll()
@@ -369,12 +371,12 @@ func TestFilterResultBothNextHops(t *testing.T) {
 		netip.MustParseAddr("2001:db8::1"),
 	)
 
-	// Create AttrsWire and apply filter
-	attrBytes := ExtractAttributeBytes(body)
-	if attrBytes == nil {
+	// Create WireUpdate and apply filter
+	wireUpdate := NewWireUpdate(body, ctxID)
+	wire := wireUpdate.Attrs()
+	if wire == nil {
 		t.Fatal("Failed to extract attribute bytes")
 	}
-	wire := attribute.NewAttributesWire(attrBytes, ctxID)
 
 	filter := NewFilterAll()
 	nlriFilter := NewNLRIFilterAll()
@@ -427,12 +429,12 @@ func TestFilterResultCommunities(t *testing.T) {
 		[]uint32{0xFDE80064}, // 65000:100
 	)
 
-	// Create AttrsWire and apply filter
-	attrBytes := ExtractAttributeBytes(body)
-	if attrBytes == nil {
+	// Create WireUpdate and apply filter
+	wireUpdate := NewWireUpdate(body, ctxID)
+	wire := wireUpdate.Attrs()
+	if wire == nil {
 		t.Fatal("Failed to extract attribute bytes")
 	}
-	wire := attribute.NewAttributesWire(attrBytes, ctxID)
 
 	filter := NewFilterAll()
 	nlriFilter := NewNLRIFilterAll()
