@@ -31,12 +31,17 @@ Complete each item IN ORDER. Do not skip ahead.
 [ ] 6. Read source code for affected area
       → Files reviewed: ___
 
-[ ] 7. Present implementation plan to user
+[ ] 7. **TDD PLANNING** - Identify tests BEFORE implementation
+      → Unit tests needed: ___
+      → Functional tests needed: ___
+      → Test file locations: ___
+
+[ ] 8. Present implementation plan to user (including test plan)
       → WAIT for approval before continuing
 
-[ ] 8. Write spec to `plan/spec-<task>.md`
+[ ] 9. Write spec to `plan/spec-<task>.md`
 
-[ ] 9. Report ready
+[ ] 10. Report ready
 ```
 
 **STOP at each checkbox. Do not proceed until complete.**
@@ -79,16 +84,30 @@ Complete each item IN ORDER. Do not skip ahead.
 
 4. Read source code for the affected area
 
-5. **MANDATORY: Present implementation plan to user**
+5. **MANDATORY: TDD Planning**
+
+   Identify ALL tests that must be written BEFORE implementation:
+   - Unit tests: What functions/methods need tests?
+   - Functional tests: What end-to-end scenarios need testing?
+   - Where do test files go? (existing `*_test.go` or new file?)
+
+6. **MANDATORY: Present implementation plan to user**
 
    Before writing spec or code, present a clear summary:
    ```
    ## 📋 Implementation Plan for <task>
 
+   ### 🧪 Tests First (TDD)
+   **Unit tests:**
+   - `pkg/.../xxx_test.go` - TestXxx: [what it validates]
+
+   **Functional tests:** (if needed)
+   - `qa/tests/xxx/` - [scenario description]
+
    ### What I'll do
-   - Phase 1: [description]
-   - Phase 2: [description]
-   ...
+   - Phase 1: Write tests, verify they FAIL
+   - Phase 2: Implement minimal code to pass tests
+   - Phase 3: [additional phases...]
 
    ### Files affected
    - `pkg/...` - [what changes]
@@ -102,7 +121,7 @@ Complete each item IN ORDER. Do not skip ahead.
 
    **WAIT FOR USER APPROVAL** before proceeding.
 
-6. Write spec to `plan/spec-<task-name>.md`:
+7. Write spec to `plan/spec-<task-name>.md`:
 
 ```markdown
 # Spec: <task-name>
@@ -121,6 +140,18 @@ The following docs MUST be read before starting implementation:
 - [insight 1 relevant to this task]
 - [insight 2 relevant to this task]
 
+## 🧪 TDD Test Plan (MANDATORY - Write tests FIRST)
+
+### Unit Tests
+| Test | File | What it validates |
+|------|------|-------------------|
+| `TestXxx` | `pkg/.../xxx_test.go` | [description] |
+
+### Functional Tests (if needed)
+| Test | Location | Scenario |
+|------|----------|----------|
+| `test-xxx` | `qa/tests/xxx/` | [description] |
+
 ## Files to Modify
 - [source files]
 
@@ -129,12 +160,12 @@ The following docs MUST be read before starting implementation:
 - Last commit: [hash]
 
 ## Implementation Steps
-1. Write test (TDD)
-2. See test fail
-3. Implement
-4. See test pass
-5. Run `make test && make lint && make functional`
-6. Add RFC references to new/modified code
+1. **Write tests** - Create unit tests (and functional tests if needed)
+2. **Run tests** - Verify they FAIL (paste output as proof)
+3. **Implement** - Write minimal code to pass tests
+4. **Run tests** - Verify they PASS (paste output as proof)
+5. **Verify all** - Run `make test && make lint && make functional`
+6. **Add RFC refs** - Add RFC references to new/modified code
 
 **IMPORTANT:** Update this spec's progress after completing each step (check boxes, add notes).
 
@@ -147,27 +178,41 @@ For any BGP protocol code, add RFC comments explaining the logic:
 - If RFC missing: `curl -o rfc/rfcNNNN.txt https://www.rfc-editor.org/rfc/rfcNNNN.txt`
 
 ## Checklist
+
+### 🧪 TDD (MUST complete in order)
+- [ ] Unit tests written
+- [ ] Functional tests written (if needed)
+- [ ] Tests run and FAIL (paste output below)
+- [ ] Implementation complete
+- [ ] Tests run and PASS (paste output below)
+
+### Verification
+- [ ] `make test` passes
+- [ ] `make lint` passes
+- [ ] `make functional` passes
+
+### Documentation
 - [ ] Required docs read
-- [ ] Test fails first
-- [ ] Test passes after impl
-- [ ] make test passes
-- [ ] make lint passes
-- [ ] make functional passes
 - [ ] RFC references added to protocol code
 - [ ] Update `.claude/zebgp/` docs if schema/syntax changed
+
+### Completion
 - [ ] Move spec to `plan/done/NNN-<name>.md` (pick NNN at move time, not before)
 
 **UPDATE PROGRESS:** Check boxes and add notes as you complete each step above.
 ```
 
-7. Report ready:
+8. Report ready:
 ```
 ✅ Spec: plan/spec-<name>.md
 📖 Required reading:
    - .claude/zebgp/<doc1>.md
    - .claude/zebgp/<doc2>.md
+🧪 Tests planned:
+   - [unit test files]
+   - [functional test dirs if any]
 🔑 Key insight: [one line summary from docs]
-🚀 Ready
+🚀 Ready - TDD: write tests first, see them fail, then implement
 ```
 
 ## After Implementation
