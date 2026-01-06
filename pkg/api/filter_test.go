@@ -295,7 +295,10 @@ func TestApplyToUpdateIPv4(t *testing.T) {
 
 	// Create WireUpdate to extract attributes
 	wireUpdate := NewWireUpdate(body, ctxID)
-	wire := wireUpdate.Attrs()
+	wire, err := wireUpdate.Attrs()
+	if err != nil {
+		t.Fatalf("Attrs() error = %v", err)
+	}
 
 	filter := NewFilterAll()
 	result, err := filter.ApplyToUpdate(wire, body, NewNLRIFilterAll())
@@ -447,7 +450,10 @@ func TestApplyToUpdate(t *testing.T) {
 	ctxID := testEncodingContext()
 	body := buildTestUpdateBody()
 	wireUpdate := NewWireUpdate(body, ctxID)
-	wire := wireUpdate.Attrs()
+	wire, err := wireUpdate.Attrs()
+	if err != nil {
+		t.Fatalf("Attrs() error = %v", err)
+	}
 
 	filter := NewFilterSelective([]attribute.AttributeCode{attribute.AttrOrigin})
 	result, err := filter.ApplyToUpdate(wire, body, NewNLRIFilterAll())

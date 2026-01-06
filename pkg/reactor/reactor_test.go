@@ -1244,13 +1244,21 @@ func TestNotifyMessageReceiverWireUpdate(t *testing.T) {
 	require.Equal(t, peerAddr, receivedPeer.Address, "peer address should match")
 
 	// Verify WireUpdate provides correct data
-	require.NotNil(t, receivedMsg.WireUpdate.Attrs(), "WireUpdate.Attrs() should return attributes")
-	require.NotNil(t, receivedMsg.WireUpdate.NLRI(), "WireUpdate.NLRI() should return NLRI")
-	require.Nil(t, receivedMsg.WireUpdate.Withdrawn(), "WireUpdate.Withdrawn() should be nil (no withdrawals)")
+	gotAttrs, attrsErr := receivedMsg.WireUpdate.Attrs()
+	require.NoError(t, attrsErr, "WireUpdate.Attrs() should not error")
+	require.NotNil(t, gotAttrs, "WireUpdate.Attrs() should return attributes")
+
+	gotNLRI, nlriErr := receivedMsg.WireUpdate.NLRI()
+	require.NoError(t, nlriErr, "WireUpdate.NLRI() should not error")
+	require.NotNil(t, gotNLRI, "WireUpdate.NLRI() should return NLRI")
+
+	withdrawn, wdErr := receivedMsg.WireUpdate.Withdrawn()
+	require.NoError(t, wdErr, "WireUpdate.Withdrawn() should not error")
+	require.Nil(t, withdrawn, "WireUpdate.Withdrawn() should be nil (no withdrawals)")
 
 	// Verify backward compat: AttrsWire is derived from WireUpdate
 	require.NotNil(t, receivedMsg.AttrsWire, "AttrsWire should be set for backward compat")
-	require.Equal(t, receivedMsg.WireUpdate.Attrs(), receivedMsg.AttrsWire, "AttrsWire should be same as WireUpdate.Attrs()")
+	require.Equal(t, gotAttrs, receivedMsg.AttrsWire, "AttrsWire should be same as WireUpdate.Attrs()")
 }
 
 // testMessageReceiver implements api.MessageReceiver for testing.

@@ -86,10 +86,14 @@ func TestFormatMessageText(t *testing.T) {
 	)
 
 	wireUpdate := NewWireUpdate(body, ctxID)
+	attrsWire, err := wireUpdate.Attrs()
+	if err != nil {
+		t.Fatalf("Attrs() error = %v", err)
+	}
 	msg := RawMessage{
 		Type:       message.TypeUPDATE,
 		RawBytes:   body,
-		AttrsWire:  wireUpdate.Attrs(),
+		AttrsWire:  attrsWire,
 		WireUpdate: wireUpdate,
 		Direction:  "received",
 	}
@@ -143,10 +147,14 @@ func TestFormatMessageJSON(t *testing.T) {
 	)
 
 	wireUpdate := NewWireUpdate(body, ctxID)
+	attrsWire, err := wireUpdate.Attrs()
+	if err != nil {
+		t.Fatalf("Attrs() error = %v", err)
+	}
 	msg := RawMessage{
 		Type:       message.TypeUPDATE,
 		RawBytes:   body,
-		AttrsWire:  wireUpdate.Attrs(),
+		AttrsWire:  attrsWire,
 		WireUpdate: wireUpdate,
 		Direction:  "received",
 	}
@@ -331,7 +339,10 @@ func TestFilterResultZeroValues(t *testing.T) {
 
 	// Create WireUpdate and apply filter
 	wireUpdate := NewWireUpdate(body, ctxID)
-	wire := wireUpdate.Attrs()
+	wire, err := wireUpdate.Attrs()
+	if err != nil {
+		t.Fatalf("Attrs() error = %v", err)
+	}
 	if wire == nil {
 		t.Fatal("Failed to extract attribute bytes")
 	}
@@ -373,7 +384,10 @@ func TestFilterResultBothNextHops(t *testing.T) {
 
 	// Create WireUpdate and apply filter
 	wireUpdate := NewWireUpdate(body, ctxID)
-	wire := wireUpdate.Attrs()
+	wire, err := wireUpdate.Attrs()
+	if err != nil {
+		t.Fatalf("Attrs() error = %v", err)
+	}
 	if wire == nil {
 		t.Fatal("Failed to extract attribute bytes")
 	}
@@ -431,7 +445,10 @@ func TestFilterResultCommunities(t *testing.T) {
 
 	// Create WireUpdate and apply filter
 	wireUpdate := NewWireUpdate(body, ctxID)
-	wire := wireUpdate.Attrs()
+	wire, err := wireUpdate.Attrs()
+	if err != nil {
+		t.Fatalf("Attrs() error = %v", err)
+	}
 	if wire == nil {
 		t.Fatal("Failed to extract attribute bytes")
 	}

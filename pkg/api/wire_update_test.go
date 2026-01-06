@@ -2,6 +2,7 @@ package api
 
 import (
 	"encoding/binary"
+	"errors"
 	"testing"
 
 	bgpctx "codeberg.org/thomas-mangin/zebgp/pkg/bgp/context"
@@ -31,7 +32,10 @@ func TestWireUpdate_Derived(t *testing.T) {
 	wu := NewWireUpdate(payload, 0)
 
 	// Test Withdrawn()
-	gotWithdrawn := wu.Withdrawn()
+	gotWithdrawn, err := wu.Withdrawn()
+	if err != nil {
+		t.Fatalf("Withdrawn() error = %v", err)
+	}
 	if len(gotWithdrawn) != len(withdrawn) {
 		t.Errorf("Withdrawn() len = %d, want %d", len(gotWithdrawn), len(withdrawn))
 	}
@@ -42,7 +46,10 @@ func TestWireUpdate_Derived(t *testing.T) {
 	}
 
 	// Test NLRI()
-	gotNLRI := wu.NLRI()
+	gotNLRI, err := wu.NLRI()
+	if err != nil {
+		t.Fatalf("NLRI() error = %v", err)
+	}
 	if len(gotNLRI) != len(nlri) {
 		t.Errorf("NLRI() len = %d, want %d", len(gotNLRI), len(nlri))
 	}
@@ -53,7 +60,10 @@ func TestWireUpdate_Derived(t *testing.T) {
 	}
 
 	// Test Attrs() returns non-nil AttributesWire
-	gotAttrs := wu.Attrs()
+	gotAttrs, err := wu.Attrs()
+	if err != nil {
+		t.Fatalf("Attrs() error = %v", err)
+	}
 	if gotAttrs == nil {
 		t.Fatal("Attrs() returned nil, want *AttributesWire")
 	}
@@ -63,31 +73,45 @@ func TestWireUpdate_Derived(t *testing.T) {
 	}
 }
 
-// TestWireUpdate_Empty verifies empty sections return nil.
+// TestWireUpdate_Empty verifies empty sections return nil,nil.
 //
-// VALIDATES: Empty withdrawn/attrs/NLRI return nil, not empty slice
-// PREVENTS: Nil pointer dereference on empty UPDATE.
+// VALIDATES: Empty withdrawn/attrs/NLRI return nil,nil (valid empty)
+// PREVENTS: False errors on valid empty UPDATE.
 func TestWireUpdate_Empty(t *testing.T) {
 	// Empty UPDATE: WithdrawnLen=0, AttrLen=0, no NLRI
 	payload := []byte{0x00, 0x00, 0x00, 0x00}
 
 	wu := NewWireUpdate(payload, 0)
 
-	if wu.Withdrawn() != nil {
-		t.Errorf("Withdrawn() = %v, want nil", wu.Withdrawn())
+	wd, err := wu.Withdrawn()
+	if err != nil {
+		t.Errorf("Withdrawn() error = %v, want nil", err)
 	}
-	if wu.Attrs() != nil {
-		t.Errorf("Attrs() = %v, want nil", wu.Attrs())
+	if wd != nil {
+		t.Errorf("Withdrawn() = %v, want nil", wd)
 	}
-	if wu.NLRI() != nil {
-		t.Errorf("NLRI() = %v, want nil", wu.NLRI())
+
+	attrs, err := wu.Attrs()
+	if err != nil {
+		t.Errorf("Attrs() error = %v, want nil", err)
+	}
+	if attrs != nil {
+		t.Errorf("Attrs() = %v, want nil", attrs)
+	}
+
+	nlri, err := wu.NLRI()
+	if err != nil {
+		t.Errorf("NLRI() error = %v, want nil", err)
+	}
+	if nlri != nil {
+		t.Errorf("NLRI() = %v, want nil", nlri)
 	}
 }
 
-// TestWireUpdate_Malformed verifies truncated data returns nil.
+// TestWireUpdate_Malformed verifies truncated data returns error.
 //
-// VALIDATES: Short/truncated payloads return nil gracefully
-// PREVENTS: Panic on malformed UPDATE.
+// VALIDATES: Short/truncated payloads return error
+// PREVENTS: Silent corruption from malformed UPDATE.
 func TestWireUpdate_Malformed(t *testing.T) {
 	tests := []struct {
 		name    string
@@ -102,14 +126,157 @@ func TestWireUpdate_Malformed(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			wu := NewWireUpdate(tt.payload, 0)
-			if wu.Withdrawn() != nil {
-				t.Errorf("Withdrawn() = %v, want nil", wu.Withdrawn())
+
+			_, err := wu.Withdrawn()
+			if err == nil {
+				t.Error("Withdrawn() should return error for malformed payload")
 			}
-			if wu.Attrs() != nil {
-				t.Errorf("Attrs() = %v, want nil", wu.Attrs())
+
+			_, err = wu.Attrs()
+			if err == nil {
+				t.Error("Attrs() should return error for malformed payload")
 			}
-			if wu.NLRI() != nil {
-				t.Errorf("NLRI() = %v, want nil", wu.NLRI())
+
+			_, err = wu.NLRI()
+			if err == nil {
+				t.Error("NLRI() should return error for malformed payload")
+			}
+		})
+	}
+}
+
+// TestWireUpdate_ErrorContext verifies error messages contain field context.
+//
+// VALIDATES: Errors include field name (withdrawn:, attrs:, nlri:, etc.)
+// PREVENTS: Ambiguous error messages that don't identify the problem location.
+func TestWireUpdate_ErrorContext(t *testing.T) {
+	tests := []struct {
+		name        string
+		payload     []byte
+		method      string
+		wantContext string
+	}{
+		{
+			name:        "withdrawn_truncated",
+			payload:     []byte{0x00, 0x05, 0x01}, // claims 5 bytes, has 1
+			method:      "Withdrawn",
+			wantContext: "withdrawn:",
+		},
+		{
+			name:        "attrs_truncated",
+			payload:     []byte{0x00, 0x00, 0x00, 0x10, 0x40}, // claims 16 bytes attrs, has 1
+			method:      "Attrs",
+			wantContext: "attrs:",
+		},
+		{
+			name:        "nlri_truncated",
+			payload:     []byte{0x00}, // too short for withdrawn len
+			method:      "NLRI",
+			wantContext: "nlri:",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			wu := NewWireUpdate(tt.payload, 0)
+
+			var err error
+			switch tt.method {
+			case "Withdrawn":
+				_, err = wu.Withdrawn()
+			case "Attrs":
+				_, err = wu.Attrs()
+			case "NLRI":
+				_, err = wu.NLRI()
+			}
+
+			if err == nil {
+				t.Fatalf("%s() should return error", tt.method)
+			}
+			if !errors.Is(err, ErrUpdateTruncated) {
+				t.Errorf("%s() error = %v, want ErrUpdateTruncated", tt.method, err)
+			}
+			errStr := err.Error()
+			if !contains(errStr, tt.wantContext) {
+				t.Errorf("%s() error = %q, want context %q", tt.method, errStr, tt.wantContext)
+			}
+		})
+	}
+}
+
+// contains checks if s contains substr (simple helper to avoid import).
+func contains(s, substr string) bool {
+	return len(s) >= len(substr) && (s == substr || len(s) > 0 && containsAt(s, substr))
+}
+
+func containsAt(s, substr string) bool {
+	for i := 0; i <= len(s)-len(substr); i++ {
+		if s[i:i+len(substr)] == substr {
+			return true
+		}
+	}
+	return false
+}
+
+// TestWireUpdate_BoundaryConditions verifies exact boundary behavior.
+//
+// VALIDATES: Edge cases at length boundaries handled correctly.
+// PREVENTS: Off-by-one errors in length validation.
+func TestWireUpdate_BoundaryConditions(t *testing.T) {
+	tests := []struct {
+		name      string
+		payload   []byte
+		wantWdErr bool
+		wantAtErr bool
+		wantNlErr bool
+	}{
+		{
+			name:      "exactly_1_byte",
+			payload:   []byte{0x00},
+			wantWdErr: true, // need 2 bytes for withdrawn len
+			wantAtErr: true,
+			wantNlErr: true,
+		},
+		{
+			name:      "exactly_2_bytes_wd0",
+			payload:   []byte{0x00, 0x00},
+			wantWdErr: false, // withdrawn len = 0, valid
+			wantAtErr: true,  // no room for attr len
+			wantNlErr: true,
+		},
+		{
+			name:      "exactly_4_bytes_valid_empty",
+			payload:   []byte{0x00, 0x00, 0x00, 0x00},
+			wantWdErr: false, // withdrawn len = 0, valid
+			wantAtErr: false, // attr len = 0, valid
+			wantNlErr: false, // no NLRI, valid
+		},
+		{
+			name:      "wd_len_points_to_exact_end",
+			payload:   []byte{0x00, 0x02, 0xAA, 0xBB}, // wd=2, exactly 2 bytes follow, but no attr len
+			wantWdErr: false,                          // withdrawn bytes present
+			wantAtErr: true,                           // no attr len field
+			wantNlErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			wu := NewWireUpdate(tt.payload, 0)
+
+			_, err := wu.Withdrawn()
+			if (err != nil) != tt.wantWdErr {
+				t.Errorf("Withdrawn() error = %v, wantErr = %v", err, tt.wantWdErr)
+			}
+
+			_, err = wu.Attrs()
+			if (err != nil) != tt.wantAtErr {
+				t.Errorf("Attrs() error = %v, wantErr = %v", err, tt.wantAtErr)
+			}
+
+			_, err = wu.NLRI()
+			if (err != nil) != tt.wantNlErr {
+				t.Errorf("NLRI() error = %v, wantErr = %v", err, tt.wantNlErr)
 			}
 		})
 	}
@@ -146,7 +313,10 @@ func TestWireUpdate_MPReach(t *testing.T) {
 
 	wu := NewWireUpdate(payload, 1) // ctxID=1
 
-	mpr := wu.MPReach()
+	mpr, err := wu.MPReach()
+	if err != nil {
+		t.Fatalf("MPReach() error = %v", err)
+	}
 	if mpr == nil {
 		t.Fatal("MPReach() returned nil")
 	}
@@ -184,7 +354,10 @@ func TestWireUpdate_MPUnreach(t *testing.T) {
 
 	wu := NewWireUpdate(payload, 1)
 
-	mpu := wu.MPUnreach()
+	mpu, err := wu.MPUnreach()
+	if err != nil {
+		t.Fatalf("MPUnreach() error = %v", err)
+	}
 	if mpu == nil {
 		t.Fatal("MPUnreach() returned nil")
 	}
@@ -227,11 +400,11 @@ func TestWireUpdate_Payload(t *testing.T) {
 	}
 }
 
-// TestWireUpdate_AttrsCached verifies AttributesWire is cached.
+// TestWireUpdate_AttrsConsistent verifies multiple Attrs() calls return same data.
 //
-// VALIDATES: Multiple Attrs() calls return same instance.
-// PREVENTS: Duplicate attribute parsing overhead.
-func TestWireUpdate_AttrsCached(t *testing.T) {
+// VALIDATES: Multiple Attrs() calls return consistent results.
+// PREVENTS: Data corruption on repeated access.
+func TestWireUpdate_AttrsConsistent(t *testing.T) {
 	// Build UPDATE with attributes
 	attrs := []byte{0x40, 0x01, 0x01, 0x00} // ORIGIN IGP
 	payload := make([]byte, 2+0+2+len(attrs))
@@ -242,22 +415,467 @@ func TestWireUpdate_AttrsCached(t *testing.T) {
 	wu := NewWireUpdate(payload, 1)
 
 	// First call
-	attrs1 := wu.Attrs()
+	attrs1, err := wu.Attrs()
+	if err != nil {
+		t.Fatalf("Attrs() error: %v", err)
+	}
 	if attrs1 == nil {
 		t.Fatal("Attrs() returned nil")
 	}
+	packed1 := attrs1.Packed()
 
-	// Second call should return same instance
-	attrs2 := wu.Attrs()
-	if attrs1 != attrs2 {
-		t.Error("Attrs() returned different instance, want same (cached)")
+	// Second call should return same data (new instance OK, data must match)
+	attrs2, err := wu.Attrs()
+	if err != nil {
+		t.Fatalf("Attrs() second call error: %v", err)
+	}
+	packed2 := attrs2.Packed()
+
+	// Verify data consistency
+	if len(packed1) != len(packed2) {
+		t.Errorf("Attrs() returned different lengths: %d vs %d", len(packed1), len(packed2))
+	}
+	for i := range packed1 {
+		if packed1[i] != packed2[i] {
+			t.Errorf("Attrs() data differs at byte %d", i)
+			break
+		}
+	}
+}
+
+// TestWireUpdate_Withdrawn_Error verifies truncated withdrawn returns error.
+//
+// VALIDATES: Truncated payload returns error, not nil
+// PREVENTS: Silent corruption from malformed UPDATE.
+func TestWireUpdate_Withdrawn_Error(t *testing.T) {
+	// Claims 5 bytes withdrawn, only has 1
+	payload := []byte{0x00, 0x05, 0x01}
+
+	wu := NewWireUpdate(payload, 0)
+
+	_, err := wu.Withdrawn()
+	if err == nil {
+		t.Fatal("Withdrawn() should return error for truncated payload")
+	}
+	if !errors.Is(err, ErrUpdateTruncated) {
+		t.Errorf("Withdrawn() error = %v, want ErrUpdateTruncated", err)
+	}
+}
+
+// TestWireUpdate_Withdrawn_Empty verifies empty withdrawn returns nil,nil.
+//
+// VALIDATES: wdLen=0 returns nil,nil (valid empty)
+// PREVENTS: False error on valid empty UPDATE.
+func TestWireUpdate_Withdrawn_Empty(t *testing.T) {
+	// Empty withdrawn, empty attrs, no NLRI
+	payload := []byte{0x00, 0x00, 0x00, 0x00}
+
+	wu := NewWireUpdate(payload, 0)
+
+	data, err := wu.Withdrawn()
+	if err != nil {
+		t.Errorf("Withdrawn() error = %v, want nil", err)
+	}
+	if data != nil {
+		t.Errorf("Withdrawn() = %v, want nil", data)
+	}
+}
+
+// TestWireUpdate_Attrs_Error verifies truncated attrs returns error.
+//
+// VALIDATES: Truncated attrs section returns error
+// PREVENTS: Silent corruption from malformed UPDATE.
+func TestWireUpdate_Attrs_Error(t *testing.T) {
+	// Claims 10 bytes attrs, only has 2
+	payload := []byte{0x00, 0x00, 0x00, 0x0a, 0x40, 0x01}
+
+	wu := NewWireUpdate(payload, 0)
+
+	_, err := wu.Attrs()
+	if err == nil {
+		t.Fatal("Attrs() should return error for truncated payload")
+	}
+	if !errors.Is(err, ErrUpdateTruncated) {
+		t.Errorf("Attrs() error = %v, want ErrUpdateTruncated", err)
+	}
+}
+
+// TestWireUpdate_Attrs_Empty verifies empty attrs returns nil,nil.
+//
+// VALIDATES: attrLen=0 returns nil,nil (valid empty)
+// PREVENTS: False error on withdraw-only UPDATE.
+func TestWireUpdate_Attrs_Empty(t *testing.T) {
+	// Empty withdrawn, empty attrs, no NLRI
+	payload := []byte{0x00, 0x00, 0x00, 0x00}
+
+	wu := NewWireUpdate(payload, 0)
+
+	data, err := wu.Attrs()
+	if err != nil {
+		t.Errorf("Attrs() error = %v, want nil", err)
+	}
+	if data != nil {
+		t.Errorf("Attrs() = %v, want nil", data)
+	}
+}
+
+// TestWireUpdate_NLRI_Error verifies truncated NLRI returns error.
+//
+// VALIDATES: Truncated payload before NLRI section returns error
+// PREVENTS: Silent corruption from malformed UPDATE.
+func TestWireUpdate_NLRI_Error(t *testing.T) {
+	// Missing attr length bytes entirely
+	payload := []byte{0x00, 0x00}
+
+	wu := NewWireUpdate(payload, 0)
+
+	_, err := wu.NLRI()
+	if err == nil {
+		t.Fatal("NLRI() should return error for truncated payload")
+	}
+	if !errors.Is(err, ErrUpdateTruncated) {
+		t.Errorf("NLRI() error = %v, want ErrUpdateTruncated", err)
+	}
+}
+
+// TestWireUpdate_NLRI_Empty verifies no trailing NLRI returns nil,nil.
+//
+// VALIDATES: No trailing bytes after attrs returns nil,nil (valid)
+// PREVENTS: False error on MP-BGP only UPDATE.
+func TestWireUpdate_NLRI_Empty(t *testing.T) {
+	// Empty withdrawn, empty attrs, no NLRI
+	payload := []byte{0x00, 0x00, 0x00, 0x00}
+
+	wu := NewWireUpdate(payload, 0)
+
+	data, err := wu.NLRI()
+	if err != nil {
+		t.Errorf("NLRI() error = %v, want nil", err)
+	}
+	if data != nil {
+		t.Errorf("NLRI() = %v, want nil", data)
+	}
+}
+
+// TestWireUpdate_MPReach_NotPresent verifies missing attr returns nil,nil.
+//
+// VALIDATES: Missing MP_REACH_NLRI attribute returns nil,nil
+// PREVENTS: False error on IPv4-only UPDATE.
+func TestWireUpdate_MPReach_NotPresent(t *testing.T) {
+	// UPDATE with ORIGIN only, no MP_REACH
+	attrs := []byte{0x40, 0x01, 0x01, 0x00} // ORIGIN IGP
+	payload := make([]byte, 2+0+2+len(attrs))
+	binary.BigEndian.PutUint16(payload[0:2], 0)
+	binary.BigEndian.PutUint16(payload[2:4], uint16(len(attrs))) //nolint:gosec // G115: test data
+	copy(payload[4:], attrs)
+
+	wu := NewWireUpdate(payload, 0)
+
+	data, err := wu.MPReach()
+	if err != nil {
+		t.Errorf("MPReach() error = %v, want nil", err)
+	}
+	if data != nil {
+		t.Errorf("MPReach() = %v, want nil", data)
+	}
+}
+
+// TestWireUpdate_MPReach_Malformed verifies short MP_REACH returns error.
+//
+// VALIDATES: MP_REACH_NLRI shorter than minimum (5 bytes) returns error
+// PREVENTS: Panic on malformed MP_REACH_NLRI.
+func TestWireUpdate_MPReach_Malformed(t *testing.T) {
+	// MP_REACH with only 3 bytes (need at least 5: AFI(2)+SAFI(1)+NHLen(1)+Reserved(1))
+	mpReachValue := []byte{0x00, 0x01, 0x01} // AFI + SAFI only
+	attrs := []byte{0x80, 0x0e, byte(len(mpReachValue))}
+	attrs = append(attrs, mpReachValue...)
+
+	payload := make([]byte, 2+0+2+len(attrs))
+	binary.BigEndian.PutUint16(payload[0:2], 0)
+	binary.BigEndian.PutUint16(payload[2:4], uint16(len(attrs))) //nolint:gosec // G115: test data
+	copy(payload[4:], attrs)
+
+	wu := NewWireUpdate(payload, 0)
+
+	_, err := wu.MPReach()
+	if err == nil {
+		t.Fatal("MPReach() should return error for malformed attribute")
+	}
+	if !errors.Is(err, ErrUpdateMalformed) {
+		t.Errorf("MPReach() error = %v, want ErrUpdateMalformed", err)
+	}
+}
+
+// TestWireUpdate_MPReach_AttrsError verifies MPReach propagates Attrs() error.
+//
+// VALIDATES: When Attrs() fails, MPReach wraps and returns that error
+// PREVENTS: Silent failure when underlying parse fails.
+func TestWireUpdate_MPReach_AttrsError(t *testing.T) {
+	// Truncated payload - Attrs() will fail
+	payload := []byte{0x00, 0x00, 0x00, 0x0a, 0x40, 0x01} // Claims 10 bytes attrs, only 2
+
+	wu := NewWireUpdate(payload, 0)
+
+	_, err := wu.MPReach()
+	if err == nil {
+		t.Fatal("MPReach() should return error when Attrs() fails")
+	}
+	if !errors.Is(err, ErrUpdateTruncated) {
+		t.Errorf("MPReach() error = %v, want ErrUpdateTruncated", err)
+	}
+}
+
+// TestWireUpdate_MPUnreach_AttrsError verifies MPUnreach propagates Attrs() error.
+//
+// VALIDATES: When Attrs() fails, MPUnreach wraps and returns that error
+// PREVENTS: Silent failure when underlying parse fails.
+func TestWireUpdate_MPUnreach_AttrsError(t *testing.T) {
+	// Truncated payload - Attrs() will fail
+	payload := []byte{0x00, 0x00, 0x00, 0x0a, 0x40, 0x01} // Claims 10 bytes attrs, only 2
+
+	wu := NewWireUpdate(payload, 0)
+
+	_, err := wu.MPUnreach()
+	if err == nil {
+		t.Fatal("MPUnreach() should return error when Attrs() fails")
+	}
+	if !errors.Is(err, ErrUpdateTruncated) {
+		t.Errorf("MPUnreach() error = %v, want ErrUpdateTruncated", err)
+	}
+}
+
+// TestWireUpdate_MPUnreach_NotPresent verifies missing attr returns nil,nil.
+//
+// VALIDATES: Missing MP_UNREACH_NLRI attribute returns nil,nil
+// PREVENTS: False error on IPv4-only UPDATE.
+func TestWireUpdate_MPUnreach_NotPresent(t *testing.T) {
+	// UPDATE with ORIGIN only, no MP_UNREACH
+	attrs := []byte{0x40, 0x01, 0x01, 0x00} // ORIGIN IGP
+	payload := make([]byte, 2+0+2+len(attrs))
+	binary.BigEndian.PutUint16(payload[0:2], 0)
+	binary.BigEndian.PutUint16(payload[2:4], uint16(len(attrs))) //nolint:gosec // G115: test data
+	copy(payload[4:], attrs)
+
+	wu := NewWireUpdate(payload, 0)
+
+	data, err := wu.MPUnreach()
+	if err != nil {
+		t.Errorf("MPUnreach() error = %v, want nil", err)
+	}
+	if data != nil {
+		t.Errorf("MPUnreach() = %v, want nil", data)
+	}
+}
+
+// TestWireUpdate_MPUnreach_Malformed verifies short MP_UNREACH returns error.
+//
+// VALIDATES: MP_UNREACH_NLRI shorter than minimum (3 bytes) returns error
+// PREVENTS: Panic on malformed MP_UNREACH_NLRI.
+func TestWireUpdate_MPUnreach_Malformed(t *testing.T) {
+	// MP_UNREACH with only 2 bytes (need at least 3: AFI(2)+SAFI(1))
+	mpUnreachValue := []byte{0x00, 0x01} // AFI only
+	attrs := []byte{0x80, 0x0f, byte(len(mpUnreachValue))}
+	attrs = append(attrs, mpUnreachValue...)
+
+	payload := make([]byte, 2+0+2+len(attrs))
+	binary.BigEndian.PutUint16(payload[0:2], 0)
+	binary.BigEndian.PutUint16(payload[2:4], uint16(len(attrs))) //nolint:gosec // G115: test data
+	copy(payload[4:], attrs)
+
+	wu := NewWireUpdate(payload, 0)
+
+	_, err := wu.MPUnreach()
+	if err == nil {
+		t.Fatal("MPUnreach() should return error for malformed attribute")
+	}
+	if !errors.Is(err, ErrUpdateMalformed) {
+		t.Errorf("MPUnreach() error = %v, want ErrUpdateMalformed", err)
+	}
+}
+
+// TestWireUpdate_WithdrawnOK_AttrsMissing verifies partial parse succeeds then fails.
+//
+// VALIDATES: Withdrawn() succeeds when withdrawn data present, Attrs()/NLRI() fail when attrLen missing
+// PREVENTS: False success when payload is truncated after withdrawn section.
+func TestWireUpdate_WithdrawnOK_AttrsMissing(t *testing.T) {
+	// wdLen=2, payload has exactly 4 bytes (2 for len + 2 for withdrawn data)
+	// No bytes remaining for attrLen field
+	payload := []byte{0x00, 0x02, 0xAA, 0xBB}
+
+	wu := NewWireUpdate(payload, 0)
+
+	// Withdrawn should succeed
+	wd, err := wu.Withdrawn()
+	if err != nil {
+		t.Errorf("Withdrawn() error = %v, want nil", err)
+	}
+	if len(wd) != 2 || wd[0] != 0xAA || wd[1] != 0xBB {
+		t.Errorf("Withdrawn() = %v, want [0xAA, 0xBB]", wd)
 	}
 
-	// MPReach uses cached Attrs internally
-	// (will return nil since no MP_REACH, but shouldn't create new AttributesWire)
-	_ = wu.MPReach()
-	attrs3 := wu.Attrs()
-	if attrs1 != attrs3 {
-		t.Error("Attrs() after MPReach() returned different instance")
+	// Attrs should fail - no attrLen bytes
+	_, err = wu.Attrs()
+	if err == nil {
+		t.Error("Attrs() should fail when attrLen bytes missing")
+	}
+	if !errors.Is(err, ErrUpdateTruncated) {
+		t.Errorf("Attrs() error = %v, want ErrUpdateTruncated", err)
+	}
+
+	// NLRI should fail - no attrLen bytes
+	_, err = wu.NLRI()
+	if err == nil {
+		t.Error("NLRI() should fail when attrLen bytes missing")
+	}
+	if !errors.Is(err, ErrUpdateTruncated) {
+		t.Errorf("NLRI() error = %v, want ErrUpdateTruncated", err)
+	}
+}
+
+// TestWireUpdate_Attrs_TruncatedByOne verifies off-by-one truncation detected.
+//
+// VALIDATES: attrLen=4 with only 3 bytes present returns error
+// PREVENTS: Reading beyond buffer on off-by-one truncation.
+func TestWireUpdate_Attrs_TruncatedByOne(t *testing.T) {
+	// wdLen=0, attrLen=4, but only 3 bytes of attrs present
+	payload := []byte{0x00, 0x00, 0x00, 0x04, 0x40, 0x01, 0x01}
+
+	wu := NewWireUpdate(payload, 0)
+
+	_, err := wu.Attrs()
+	if err == nil {
+		t.Fatal("Attrs() should fail when attrs truncated by one byte")
+	}
+	if !errors.Is(err, ErrUpdateTruncated) {
+		t.Errorf("Attrs() error = %v, want ErrUpdateTruncated", err)
+	}
+}
+
+// TestWireUpdate_NLRI_WithEmptyAttrs verifies NLRI extraction when attrLen=0.
+//
+// VALIDATES: When attrLen=0, trailing bytes are returned as NLRI
+// PREVENTS: Missing NLRI when attrs section is empty.
+func TestWireUpdate_NLRI_WithEmptyAttrs(t *testing.T) {
+	// wdLen=0, attrLen=0, then NLRI bytes
+	nlriBytes := []byte{0x18, 0x0A, 0x00, 0x00} // /24 prefix 10.0.0.x
+	payload := []byte{0x00, 0x00, 0x00, 0x00}
+	payload = append(payload, nlriBytes...)
+
+	wu := NewWireUpdate(payload, 0)
+
+	// Attrs should return nil (empty)
+	attrs, err := wu.Attrs()
+	if err != nil {
+		t.Errorf("Attrs() error = %v, want nil", err)
+	}
+	if attrs != nil {
+		t.Errorf("Attrs() = %v, want nil", attrs)
+	}
+
+	// NLRI should return the trailing bytes
+	nlri, err := wu.NLRI()
+	if err != nil {
+		t.Errorf("NLRI() error = %v, want nil", err)
+	}
+	if len(nlri) != len(nlriBytes) {
+		t.Errorf("NLRI() len = %d, want %d", len(nlri), len(nlriBytes))
+	}
+	for i, b := range nlriBytes {
+		if nlri[i] != b {
+			t.Errorf("NLRI()[%d] = %02x, want %02x", i, nlri[i], b)
+		}
+	}
+}
+
+// TestWireUpdate_NLRI_SingleByte verifies minimal NLRI (1 byte) is returned.
+//
+// VALIDATES: Single byte NLRI is correctly extracted
+// PREVENTS: Off-by-one in NLRI boundary detection.
+func TestWireUpdate_NLRI_SingleByte(t *testing.T) {
+	// wdLen=0, attrLen=0, single byte NLRI (e.g., /8 prefix length only)
+	payload := []byte{0x00, 0x00, 0x00, 0x00, 0x08}
+
+	wu := NewWireUpdate(payload, 0)
+
+	nlri, err := wu.NLRI()
+	if err != nil {
+		t.Errorf("NLRI() error = %v, want nil", err)
+	}
+	if len(nlri) != 1 {
+		t.Errorf("NLRI() len = %d, want 1", len(nlri))
+	}
+	if nlri[0] != 0x08 {
+		t.Errorf("NLRI()[0] = %02x, want 0x08", nlri[0])
+	}
+}
+
+// TestWireUpdate_NLRI_AttrLenTruncated verifies NLRI fails when attrLen claims too much.
+//
+// VALIDATES: When attrLen exceeds remaining payload, NLRI returns error
+// PREVENTS: Returning garbage NLRI from invalid offset.
+func TestWireUpdate_NLRI_AttrLenTruncated(t *testing.T) {
+	// wdLen=0, attrLen=10, but only 2 bytes of attrs present
+	// nlriStart would be 4 + 10 = 14, but payload is only 6 bytes
+	payload := []byte{0x00, 0x00, 0x00, 0x0a, 0x40, 0x01}
+
+	wu := NewWireUpdate(payload, 0)
+
+	_, err := wu.NLRI()
+	if err == nil {
+		t.Fatal("NLRI() should fail when attrLen exceeds payload")
+	}
+	if !errors.Is(err, ErrUpdateTruncated) {
+		t.Errorf("NLRI() error = %v, want ErrUpdateTruncated", err)
+	}
+}
+
+// TestWireUpdate_AllSections verifies all three sections parse correctly together.
+//
+// VALIDATES: Withdrawn, Attrs, and NLRI all return correct data from same payload
+// PREVENTS: Offset calculation errors affecting multiple sections.
+func TestWireUpdate_AllSections(t *testing.T) {
+	// Build payload with all sections populated
+	withdrawn := []byte{0x10, 0x0A}         // /16 10.x.x.x
+	attrs := []byte{0x40, 0x01, 0x01, 0x00} // ORIGIN IGP
+	nlri := []byte{0x18, 0xC0, 0xA8, 0x01}  // /24 192.168.1.x
+
+	payload := make([]byte, 2+len(withdrawn)+2+len(attrs)+len(nlri))
+	binary.BigEndian.PutUint16(payload[0:2], uint16(len(withdrawn)))
+	copy(payload[2:], withdrawn)
+	offset := 2 + len(withdrawn)
+	binary.BigEndian.PutUint16(payload[offset:], uint16(len(attrs)))
+	copy(payload[offset+2:], attrs)
+	copy(payload[offset+2+len(attrs):], nlri)
+
+	wu := NewWireUpdate(payload, 0)
+
+	// Verify Withdrawn
+	gotWd, err := wu.Withdrawn()
+	if err != nil {
+		t.Fatalf("Withdrawn() error = %v", err)
+	}
+	if len(gotWd) != len(withdrawn) {
+		t.Errorf("Withdrawn() len = %d, want %d", len(gotWd), len(withdrawn))
+	}
+
+	// Verify Attrs
+	gotAttrs, err := wu.Attrs()
+	if err != nil {
+		t.Fatalf("Attrs() error = %v", err)
+	}
+	if gotAttrs == nil {
+		t.Fatal("Attrs() = nil, want non-nil")
+	}
+	if len(gotAttrs.Packed()) != len(attrs) {
+		t.Errorf("Attrs().Packed() len = %d, want %d", len(gotAttrs.Packed()), len(attrs))
+	}
+
+	// Verify NLRI
+	gotNlri, err := wu.NLRI()
+	if err != nil {
+		t.Fatalf("NLRI() error = %v", err)
+	}
+	if len(gotNlri) != len(nlri) {
+		t.Errorf("NLRI() len = %d, want %d", len(gotNlri), len(nlri))
 	}
 }

@@ -21,6 +21,7 @@ import (
 	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/message"
 	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/nlri"
 	"codeberg.org/thomas-mangin/zebgp/pkg/rib"
+	"codeberg.org/thomas-mangin/zebgp/pkg/trace"
 )
 
 // Reactor errors.
@@ -2420,6 +2421,13 @@ func (r *Reactor) notifyMessageReceiver(peerAddr netip.Addr, msgType message.Mes
 		// Set messageID on WireUpdate (single source of truth for UPDATEs)
 		wireUpdate.SetMessageID(messageID)
 
+		// Derive AttrsWire for observation callback
+		// Errors logged but not fatal - handleUpdate() validates separately
+		attrsWire, err := wireUpdate.Attrs()
+		if err != nil {
+			trace.Log(trace.Session, "peer %s: WireUpdate.Attrs error: %v", peerAddr, err)
+		}
+
 		// RawMessage uses zero-copy for synchronous callback processing
 		msg = api.RawMessage{
 			Type:       msgType,
@@ -2428,7 +2436,7 @@ func (r *Reactor) notifyMessageReceiver(peerAddr netip.Addr, msgType message.Mes
 			Direction:  direction,
 			MessageID:  messageID,
 			WireUpdate: wireUpdate,
-			AttrsWire:  wireUpdate.Attrs(), // Derived from WireUpdate
+			AttrsWire:  attrsWire, // Derived from WireUpdate
 		}
 	} else {
 		// Non-UPDATE or sent messages: copy bytes for async processing safety

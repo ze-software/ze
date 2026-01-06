@@ -209,11 +209,12 @@ type WireUpdate struct {
 }
 
 // Derived accessors (all zero-copy slices into payload)
-func (u *WireUpdate) Withdrawn() []byte     // RFC 4271 withdrawn routes
-func (u *WireUpdate) Attrs() *AttributesWire // Lazy-parsed attributes
-func (u *WireUpdate) NLRI() []byte          // RFC 4271 NLRI
-func (u *WireUpdate) MPReach() MPReachWire  // RFC 4760 MP_REACH_NLRI
-func (u *WireUpdate) MPUnreach() MPUnreachWire // RFC 4760 MP_UNREACH_NLRI
+// Return (nil, nil) for valid empty, (nil, error) for malformed
+func (u *WireUpdate) Withdrawn() ([]byte, error)           // RFC 4271 withdrawn routes
+func (u *WireUpdate) Attrs() (*AttributesWire, error)      // Lazy-parsed attributes
+func (u *WireUpdate) NLRI() ([]byte, error)                // RFC 4271 NLRI
+func (u *WireUpdate) MPReach() (MPReachWire, error)        // RFC 4760 MP_REACH_NLRI
+func (u *WireUpdate) MPUnreach() (MPUnreachWire, error)    // RFC 4760 MP_UNREACH_NLRI
 ```
 
 ### Context Propagation

@@ -62,11 +62,12 @@ type ReceivedUpdate struct {
 }
 
 // Derived accessors (zero-copy slices)
-func (u *WireUpdate) Withdrawn() []byte
-func (u *WireUpdate) Attrs() *AttributesWire
-func (u *WireUpdate) NLRI() []byte
-func (u *WireUpdate) MPReach() MPReachWire
-func (u *WireUpdate) MPUnreach() MPUnreachWire
+// Return (nil, nil) for valid empty, (nil, error) for malformed
+func (u *WireUpdate) Withdrawn() ([]byte, error)
+func (u *WireUpdate) Attrs() (*AttributesWire, error)
+func (u *WireUpdate) NLRI() ([]byte, error)
+func (u *WireUpdate) MPReach() (MPReachWire, error)   // nil,nil if attr not present
+func (u *WireUpdate) MPUnreach() (MPUnreachWire, error) // nil,nil if attr not present
 ```
 
 **Buffer lifecycle (ownership transfer):**

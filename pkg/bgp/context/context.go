@@ -134,19 +134,19 @@ func hashFamilyAFIMap(h hash.Hash64, m map[nlri.Family]nlri.AFI) {
 }
 
 // AddPathFor returns whether ADD-PATH is enabled for the given family.
-// Returns false if the map is nil or family is not present.
+// Returns false if ctx is nil, map is nil, or family is not present.
 func (ctx *EncodingContext) AddPathFor(f nlri.Family) bool {
-	if ctx.AddPath == nil {
+	if ctx == nil || ctx.AddPath == nil {
 		return false
 	}
 	return ctx.AddPath[f]
 }
 
 // ExtendedNextHopFor returns the next-hop AFI for the given family.
-// Returns 0 if extended next-hop is not enabled for this family.
+// Returns 0 if ctx is nil or extended next-hop is not enabled for this family.
 // Example: ExtendedNextHopFor(IPv4Unicast) returns AFIIPv6 if IPv6 NH is enabled.
 func (ctx *EncodingContext) ExtendedNextHopFor(f nlri.Family) nlri.AFI {
-	if ctx.ExtendedNextHop == nil {
+	if ctx == nil || ctx.ExtendedNextHop == nil {
 		return 0
 	}
 	return ctx.ExtendedNextHop[f]

@@ -48,7 +48,11 @@ func TestReceivedUpdateFields(t *testing.T) {
 	if update.WireUpdate.MessageID() != 12345 {
 		t.Errorf("MessageID = %d, want 12345", update.WireUpdate.MessageID())
 	}
-	if update.WireUpdate.Attrs() == nil {
+	attrs, err := update.WireUpdate.Attrs()
+	if err != nil {
+		t.Errorf("WireUpdate.Attrs() error = %v", err)
+	}
+	if attrs == nil {
 		t.Error("WireUpdate.Attrs() should not be nil")
 	}
 	if update.SourcePeerIP != sourcePeer {
@@ -78,7 +82,11 @@ func TestReceivedUpdateWithdrawOnly(t *testing.T) {
 		ReceivedAt:   time.Now(),
 	}
 
-	if update.WireUpdate.Attrs() != nil {
+	attrs, err := update.WireUpdate.Attrs()
+	if err != nil {
+		t.Errorf("WireUpdate.Attrs() error = %v", err)
+	}
+	if attrs != nil {
 		t.Error("withdraw-only UPDATE should have nil Attrs")
 	}
 }

@@ -75,7 +75,9 @@ func TestSplitWireUpdate_IPv4NLRIOverflow(t *testing.T) {
 	// Verify all NLRIs preserved
 	var totalNLRI []byte
 	for _, chunk := range chunks {
-		totalNLRI = append(totalNLRI, chunk.NLRI()...)
+		nlri, err := chunk.NLRI()
+		require.NoError(t, err)
+		totalNLRI = append(totalNLRI, nlri...)
 	}
 	assert.Equal(t, nlriData, totalNLRI, "all NLRIs should be preserved")
 }
@@ -102,7 +104,9 @@ func TestSplitWireUpdate_WithdrawnOverflow(t *testing.T) {
 	// Verify all withdrawals preserved
 	var totalWithdrawn []byte
 	for _, chunk := range chunks {
-		totalWithdrawn = append(totalWithdrawn, chunk.Withdrawn()...)
+		wd, err := chunk.Withdrawn()
+		require.NoError(t, err)
+		totalWithdrawn = append(totalWithdrawn, wd...)
 	}
 	assert.Equal(t, withdrawn, totalWithdrawn)
 }
@@ -205,13 +209,16 @@ func TestSplitWireUpdate_AddPath(t *testing.T) {
 	// Verify all NLRIs preserved
 	var totalNLRI []byte
 	for _, chunk := range chunks {
-		totalNLRI = append(totalNLRI, chunk.NLRI()...)
+		nlri, err := chunk.NLRI()
+		require.NoError(t, err)
+		totalNLRI = append(totalNLRI, nlri...)
 	}
 	assert.Equal(t, nlriData, totalNLRI, "all Add-Path NLRIs should be preserved")
 
 	// Verify each chunk has valid Add-Path structure (8-byte aligned)
 	for i, chunk := range chunks {
-		chunkNLRI := chunk.NLRI()
+		chunkNLRI, err := chunk.NLRI()
+		require.NoError(t, err)
 		if len(chunkNLRI) > 0 {
 			assert.Equal(t, 0, len(chunkNLRI)%8, "chunk %d has invalid Add-Path alignment", i)
 		}
@@ -327,6 +334,242 @@ func TestSplitWireUpdate_AddPathPerFamily(t *testing.T) {
 	chunks, err := SplitWireUpdate(wu, 80, ctx)
 	require.NoError(t, err)
 	require.Greater(t, len(chunks), 1, "should split IPv6 MP_REACH")
+}
+
+// TestSplitWireUpdate_MalformedInput verifies error on truncated input.
+//
+// VALIDATES: Malformed input WireUpdate returns error when split is attempted.
+// PREVENTS: Silent corruption or panic on bad input.
+//
+// Note: SplitWireUpdate has a fast path that returns the original unchanged
+// when len(payload) <= maxBodySize. Validation only happens when split is
+// needed. Empty/nil payloads that fit are passed through - errors surface
+// when the caller uses the WireUpdate methods.
+func TestSplitWireUpdate_MalformedInput(t *testing.T) {
+	tests := []struct {
+		name        string
+		payload     []byte
+		maxBodySize int
+	}{
+		{
+			name:        "too_short_3bytes",
+			payload:     []byte{0x00, 0x00, 0x00},
+			maxBodySize: 2, // Force split path (payload > maxBodySize)
+		},
+		{
+			name:        "withdrawn_truncated",
+			payload:     []byte{0x00, 0x05, 0x01, 0x02}, // claims 5 bytes withdrawn, has 2
+			maxBodySize: 3,                              // Force split
+		},
+		{
+			name:        "attrs_truncated",
+			payload:     []byte{0x00, 0x00, 0x00, 0x10, 0x40, 0x01}, // claims 16 bytes attrs, has 2
+			maxBodySize: 5,                                          // Force split
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			wu := NewWireUpdate(tt.payload, 0)
+			_, err := SplitWireUpdate(wu, tt.maxBodySize, nil)
+			require.Error(t, err)
+			require.ErrorIs(t, err, ErrUpdateTruncated)
+		})
+	}
+}
+
+// TestSplitWireUpdate_FastPathNoValidation documents that fast path skips validation.
+//
+// VALIDATES: When no split needed, original is returned without validation.
+// This is intentional - validation happens when using WireUpdate methods.
+func TestSplitWireUpdate_FastPathNoValidation(t *testing.T) {
+	// Malformed payload that fits within maxBodySize
+	payload := []byte{0x00, 0x05, 0x01} // claims 5 bytes withdrawn, has 1
+	wu := NewWireUpdate(payload, 0)
+
+	// No error from SplitWireUpdate - fast path returns original
+	chunks, err := SplitWireUpdate(wu, 4096, nil)
+	require.NoError(t, err, "fast path should not validate")
+	require.Len(t, chunks, 1)
+	assert.Equal(t, payload, chunks[0].Payload())
+
+	// Error surfaces when using the result
+	_, err = chunks[0].Withdrawn()
+	require.Error(t, err, "validation happens on use")
+}
+
+// TestSplitWireUpdate_OutputChunksAccessible verifies all split chunks parse without error.
+//
+// VALIDATES: All output chunks from split pass Withdrawn(), Attrs(), NLRI() without error.
+// PREVENTS: Split producing malformed UPDATE payloads that fail on access.
+func TestSplitWireUpdate_OutputChunksAccessible(t *testing.T) {
+	// Create UPDATE with many NLRIs that will be split
+	var nlriData []byte
+	for i := 0; i < 100; i++ {
+		nlriData = append(nlriData, 0x18, 0xC0, 0xA8, byte(i)) // /24
+	}
+	attrs := []byte{0x40, 0x01, 0x01, 0x00} // ORIGIN IGP
+	payload := buildTestUpdatePayload(nil, attrs, nlriData)
+
+	wu := NewWireUpdate(payload, 0)
+
+	chunks, err := SplitWireUpdate(wu, 50, nil)
+	require.NoError(t, err)
+	require.Greater(t, len(chunks), 1, "should split into multiple chunks")
+
+	// Verify EVERY chunk's accessors work without error
+	for i, chunk := range chunks {
+		_, err := chunk.Withdrawn()
+		assert.NoError(t, err, "chunk %d Withdrawn() failed", i)
+
+		_, err = chunk.Attrs()
+		assert.NoError(t, err, "chunk %d Attrs() failed", i)
+
+		_, err = chunk.NLRI()
+		assert.NoError(t, err, "chunk %d NLRI() failed", i)
+	}
+}
+
+// TestSplitWireUpdate_BaseAttrsInAllChunks verifies base attributes replicated in all chunks.
+//
+// VALIDATES: All announcement chunks contain identical base attributes (ORIGIN, AS_PATH).
+// PREVENTS: Split dropping path attributes from subsequent chunks.
+func TestSplitWireUpdate_BaseAttrsInAllChunks(t *testing.T) {
+	// Create UPDATE with multiple base attributes and many NLRIs
+	// ORIGIN(4) + AS_PATH(9) = 13 bytes base attrs
+	origin := []byte{0x40, 0x01, 0x01, 0x00}                               // ORIGIN IGP
+	asPath := []byte{0x40, 0x02, 0x06, 0x02, 0x01, 0x00, 0x00, 0xFD, 0xE8} // AS_PATH: AS_SEQUENCE [65000], len=6
+	baseAttrs := make([]byte, 0, len(origin)+len(asPath))
+	baseAttrs = append(baseAttrs, origin...)
+	baseAttrs = append(baseAttrs, asPath...)
+
+	var nlriData []byte
+	for i := 0; i < 50; i++ {
+		nlriData = append(nlriData, 0x18, 0xC0, 0xA8, byte(i)) // /24
+	}
+
+	payload := buildTestUpdatePayload(nil, baseAttrs, nlriData)
+	wu := NewWireUpdate(payload, 0)
+
+	// Split with small max to force multiple chunks
+	// overhead = 4 (length fields) + 13 (attrs) = 17, leaving ~33 for NLRI
+	// Each /24 = 4 bytes, so ~8 per chunk
+	chunks, err := SplitWireUpdate(wu, 50, nil)
+	require.NoError(t, err)
+	require.Greater(t, len(chunks), 1, "should split into multiple chunks")
+
+	// Extract attrs from first chunk as reference
+	firstAttrs, err := chunks[0].Attrs()
+	require.NoError(t, err)
+	require.NotNil(t, firstAttrs, "first chunk should have attrs")
+	firstPacked := firstAttrs.Packed()
+
+	// All subsequent chunks with NLRI must have identical base attributes
+	for i, chunk := range chunks[1:] {
+		chunkNLRI, err := chunk.NLRI()
+		require.NoError(t, err)
+
+		if len(chunkNLRI) > 0 { // Only announcement chunks need attrs
+			chunkAttrs, err := chunk.Attrs()
+			require.NoError(t, err, "chunk %d Attrs() failed", i+1)
+			require.NotNil(t, chunkAttrs, "chunk %d should have attrs (has NLRI)", i+1)
+
+			chunkPacked := chunkAttrs.Packed()
+			assert.Equal(t, firstPacked, chunkPacked,
+				"chunk %d attrs differ from first chunk", i+1)
+		}
+	}
+}
+
+// TestSplitWireUpdate_MixedIPv4AndMP verifies splitting with both IPv4 and MP content.
+//
+// VALIDATES: UPDATE with IPv4 NLRI + MP_REACH_NLRI splits correctly, preserving both.
+// PREVENTS: MP content loss when IPv4 content also present.
+func TestSplitWireUpdate_MixedIPv4AndMP(t *testing.T) {
+	// Build MP_REACH_NLRI for IPv6 with several prefixes
+	// Keep it small: 5 /64s = 45 bytes NLRI
+	var mpNLRIs []byte
+	for i := 0; i < 5; i++ {
+		mpNLRIs = append(mpNLRIs, 0x40)                                              // /64
+		mpNLRIs = append(mpNLRIs, 0x20, 0x01, 0x0d, 0xb8, 0x00, byte(i), 0x00, 0x00) // prefix
+	}
+
+	mpReachValue := []byte{
+		0x00, 0x02, // AFI IPv6
+		0x01,                                                                               // SAFI unicast
+		0x10,                                                                               // NH length = 16
+		0x20, 0x01, 0x0d, 0xb8, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // NH
+		0x00, 0x01, // NH continued
+		0x00, // Reserved
+	}
+	mpReachValue = append(mpReachValue, mpNLRIs...)
+
+	mpReach := []byte{0x90, 0x0E} // Optional, Extended
+	mpReach = append(mpReach, byte(len(mpReachValue)>>8), byte(len(mpReachValue)))
+	mpReach = append(mpReach, mpReachValue...)
+
+	// Base attrs: ORIGIN + MP_REACH
+	origin := []byte{0x40, 0x01, 0x01, 0x00}
+	attrs := make([]byte, 0, len(origin)+len(mpReach))
+	attrs = append(attrs, origin...)
+	attrs = append(attrs, mpReach...)
+
+	// IPv4 NLRIs: 30 /24s = 120 bytes
+	var ipv4NLRI []byte
+	for i := 0; i < 30; i++ {
+		ipv4NLRI = append(ipv4NLRI, 0x18, 0xC0, 0xA8, byte(i)) // /24
+	}
+
+	// IPv4 withdrawals: 15 /24s = 60 bytes
+	var ipv4Withdrawn []byte
+	for i := 0; i < 15; i++ {
+		ipv4Withdrawn = append(ipv4Withdrawn, 0x18, 0x0A, 0x00, byte(i)) // /24
+	}
+
+	payload := buildTestUpdatePayload(ipv4Withdrawn, attrs, ipv4NLRI)
+	wu := NewWireUpdate(payload, 0)
+
+	// Total content:
+	// - ipv4Withdrawn: 60 bytes
+	// - mpReach: ~70 bytes (4 header + 21 fixed + 45 NLRIs)
+	// - origin: 4 bytes
+	// - ipv4NLRI: 120 bytes
+	// - length fields: 4 bytes
+	// Total: ~258 bytes
+	// Use maxBodySize=150 to force 2+ chunks while allowing all content types
+	chunks, err := SplitWireUpdate(wu, 150, nil)
+	require.NoError(t, err)
+	require.Greater(t, len(chunks), 1, "should split into multiple chunks")
+
+	// Collect all content from chunks
+	var totalIPv4Withdrawn, totalIPv4NLRI []byte
+	mpReachFound := false
+
+	for _, chunk := range chunks {
+		wd, err := chunk.Withdrawn()
+		require.NoError(t, err)
+		totalIPv4Withdrawn = append(totalIPv4Withdrawn, wd...)
+
+		nlri, err := chunk.NLRI()
+		require.NoError(t, err)
+		totalIPv4NLRI = append(totalIPv4NLRI, nlri...)
+
+		mpr, err := chunk.MPReach()
+		require.NoError(t, err)
+		if mpr != nil {
+			mpReachFound = true
+			// Verify it's IPv6 unicast
+			assert.Equal(t, uint16(2), mpr.AFI(), "MP_REACH should be IPv6")
+			assert.Equal(t, uint8(1), mpr.SAFI(), "MP_REACH should be unicast")
+		}
+	}
+
+	// Verify all IPv4 content preserved
+	assert.Equal(t, ipv4Withdrawn, totalIPv4Withdrawn, "IPv4 withdrawals should be preserved")
+	assert.Equal(t, ipv4NLRI, totalIPv4NLRI, "IPv4 NLRI should be preserved")
+
+	// Verify MP_REACH was included
+	assert.True(t, mpReachFound, "MP_REACH_NLRI should be present in at least one chunk")
 }
 
 // =============================================================================

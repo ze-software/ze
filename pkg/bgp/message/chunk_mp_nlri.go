@@ -98,6 +98,55 @@ func ChunkMPNLRI(nlri []byte, afi uint16, safi uint8, addPath bool, maxSize int)
 // ErrNLRIMalformed is returned when NLRI structure is invalid.
 var ErrNLRIMalformed = fmt.Errorf("malformed NLRI")
 
+// SplitMPNLRI splits MP family NLRIs, returning fitting slice and remaining.
+// Unlike ChunkMPNLRI which creates copies, this returns subslices for efficiency.
+// This enables O(n) splitting across multiple calls instead of O(n²).
+//
+// Returns:
+//   - (data, nil, nil) if all data fits within maxSize
+//   - (fitting, remaining, nil) if split was needed
+//   - (nil, nil, error) if NLRI is malformed or single NLRI exceeds maxSize
+func SplitMPNLRI(nlri []byte, afi uint16, safi uint8, addPath bool, maxSize int) (fitting, remaining []byte, err error) {
+	if maxSize <= 0 {
+		return nil, nil, fmt.Errorf("invalid maxSize: %d", maxSize)
+	}
+	if len(nlri) == 0 {
+		return nil, nil, nil
+	}
+	if len(nlri) <= maxSize {
+		return nlri, nil, nil
+	}
+
+	sizeFunc := getNLRISizeFunc(afi, safi, addPath)
+
+	offset := 0
+	for offset < len(nlri) {
+		size, err := sizeFunc(nlri[offset:])
+		if err != nil {
+			return nil, nil, fmt.Errorf("parsing NLRI at offset %d: %w", offset, err)
+		}
+		if offset+size > len(nlri) {
+			return nil, nil, fmt.Errorf("%w: NLRI at offset %d claims %d bytes, only %d available",
+				ErrNLRIMalformed, offset, size, len(nlri)-offset)
+		}
+		if size > maxSize {
+			return nil, nil, fmt.Errorf("%w: %d bytes, max %d", ErrNLRITooLarge, size, maxSize)
+		}
+		if offset+size > maxSize {
+			// This NLRI would exceed limit, stop here
+			break
+		}
+		offset += size
+	}
+
+	if offset == 0 {
+		// First NLRI alone exceeds maxSize - shouldn't happen since we check size > maxSize above
+		return nil, nil, fmt.Errorf("%w: first NLRI exceeds max %d", ErrNLRITooLarge, maxSize)
+	}
+
+	return nlri[:offset], nlri[offset:], nil
+}
+
 // nlriSizeFunc returns the size of the first NLRI in the buffer.
 type nlriSizeFunc func(data []byte) (int, error)
 

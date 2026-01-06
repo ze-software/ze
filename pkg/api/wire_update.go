@@ -2,7 +2,7 @@ package api
 
 import (
 	"encoding/binary"
-	"sync"
+	"fmt"
 
 	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/attribute"
 	bgpctx "codeberg.org/thomas-mangin/zebgp/pkg/bgp/context"
@@ -30,10 +30,6 @@ type WireUpdate struct {
 	payload     []byte
 	sourceCtxID bgpctx.ContextID
 	messageID   uint64 // Unique ID set by reactor after creation
-
-	// Cached AttributesWire - lazily initialized, thread-safe
-	attrsOnce sync.Once
-	attrs     *attribute.AttributesWire
 }
 
 // NewWireUpdate creates a WireUpdate from raw UPDATE payload bytes.
@@ -47,101 +43,119 @@ func NewWireUpdate(payload []byte, ctxID bgpctx.ContextID) *WireUpdate {
 
 // Withdrawn returns the Withdrawn Routes section.
 // RFC 4271 Section 4.3 - IPv4 prefixes being withdrawn.
-// Returns nil if empty or malformed.
-func (u *WireUpdate) Withdrawn() []byte {
+// Returns (nil, nil) if empty, (nil, error) if malformed.
+func (u *WireUpdate) Withdrawn() ([]byte, error) {
 	if len(u.payload) < 2 {
-		return nil
+		return nil, fmt.Errorf("withdrawn: %w", ErrUpdateTruncated)
 	}
 	wdLen := uint32(binary.BigEndian.Uint16(u.payload[0:2]))
 	if wdLen == 0 {
-		return nil
+		return nil, nil
 	}
 	if uint32(len(u.payload)) < 2+wdLen { //nolint:gosec // G115: len bounded by BGP max message size
-		return nil
+		return nil, fmt.Errorf("withdrawn: %w", ErrUpdateTruncated)
 	}
-	return u.payload[2 : 2+wdLen]
+	return u.payload[2 : 2+wdLen], nil
 }
 
 // Attrs returns the Path Attributes as an AttributesWire for lazy parsing.
 // RFC 4271 Section 4.3 - Path attribute sequence.
-// Returns nil if empty or malformed.
-// Result is cached - subsequent calls return the same instance.
-func (u *WireUpdate) Attrs() *attribute.AttributesWire {
-	u.attrsOnce.Do(func() {
-		u.attrs = u.deriveAttrs()
-	})
-	return u.attrs
+// Returns (nil, nil) if empty, (nil, error) if malformed.
+// AttributesWire is cheap to create (slice wrapper), so no caching needed.
+func (u *WireUpdate) Attrs() (*attribute.AttributesWire, error) {
+	return u.deriveAttrs()
 }
 
 // deriveAttrs extracts AttributesWire from payload.
-func (u *WireUpdate) deriveAttrs() *attribute.AttributesWire {
+func (u *WireUpdate) deriveAttrs() (*attribute.AttributesWire, error) {
 	if len(u.payload) < 2 {
-		return nil
+		return nil, fmt.Errorf("attrs: %w", ErrUpdateTruncated)
 	}
 	wdLen := uint32(binary.BigEndian.Uint16(u.payload[0:2]))
 	attrLenOffset := 2 + wdLen
 	if uint32(len(u.payload)) < attrLenOffset+2 { //nolint:gosec // G115: len bounded by BGP max message size
-		return nil
+		return nil, fmt.Errorf("attrs: %w", ErrUpdateTruncated)
 	}
 	attrLen := uint32(binary.BigEndian.Uint16(u.payload[attrLenOffset:]))
 	if attrLen == 0 {
-		return nil
+		return nil, nil //nolint:nilnil // nil,nil = valid empty (no attributes)
 	}
 	attrStart := attrLenOffset + 2
 	if uint32(len(u.payload)) < attrStart+attrLen { //nolint:gosec // G115: len bounded by BGP max message size
-		return nil
+		return nil, fmt.Errorf("attrs: %w", ErrUpdateTruncated)
 	}
-	return attribute.NewAttributesWire(u.payload[attrStart:attrStart+attrLen], u.sourceCtxID)
+	return attribute.NewAttributesWire(u.payload[attrStart:attrStart+attrLen], u.sourceCtxID), nil
 }
 
 // NLRI returns the Network Layer Reachability Information section.
 // RFC 4271 Section 4.3 - IPv4 prefixes being announced.
-// Returns nil if empty or malformed.
-func (u *WireUpdate) NLRI() []byte {
+// Returns (nil, nil) if empty, (nil, error) if malformed.
+func (u *WireUpdate) NLRI() ([]byte, error) {
 	if len(u.payload) < 2 {
-		return nil
+		return nil, fmt.Errorf("nlri: %w", ErrUpdateTruncated)
 	}
 	wdLen := uint32(binary.BigEndian.Uint16(u.payload[0:2]))
 	attrLenOffset := 2 + wdLen
 	if uint32(len(u.payload)) < attrLenOffset+2 { //nolint:gosec // G115: len bounded by BGP max message size
-		return nil
+		return nil, fmt.Errorf("nlri: %w", ErrUpdateTruncated)
 	}
 	attrLen := uint32(binary.BigEndian.Uint16(u.payload[attrLenOffset:]))
 	nlriStart := attrLenOffset + 2 + attrLen
-	if nlriStart >= uint32(len(u.payload)) { //nolint:gosec // G115: len bounded by BGP max message size
-		return nil
+	if nlriStart > uint32(len(u.payload)) { //nolint:gosec // G115: len bounded by BGP max message size
+		return nil, fmt.Errorf("nlri: %w", ErrUpdateTruncated)
 	}
-	return u.payload[nlriStart:]
+	if nlriStart == uint32(len(u.payload)) { //nolint:gosec // G115: len bounded by BGP max message size
+		return nil, nil // No NLRI section (valid)
+	}
+	return u.payload[nlriStart:], nil
 }
 
 // MPReach extracts MP_REACH_NLRI (attribute code 14) as MPReachWire.
 // RFC 4760 Section 3 - Multiprotocol reachability.
-// Returns nil if attribute not present or malformed.
-func (u *WireUpdate) MPReach() MPReachWire {
-	attrs := u.Attrs()
+// Returns (nil, nil) if attribute not present, (nil, error) if malformed.
+func (u *WireUpdate) MPReach() (MPReachWire, error) {
+	attrs, err := u.Attrs()
+	if err != nil {
+		return nil, fmt.Errorf("mp_reach: %w", err)
+	}
 	if attrs == nil {
-		return nil
+		return nil, nil // No attributes, so no MP_REACH
 	}
 	raw, err := attrs.GetRaw(attribute.AttrMPReachNLRI)
-	if err != nil || len(raw) < 5 {
-		return nil
+	if err != nil {
+		return nil, fmt.Errorf("mp_reach: %w", err)
 	}
-	return MPReachWire(raw)
+	if raw == nil {
+		return nil, nil // Attribute not present
+	}
+	if len(raw) < 5 {
+		return nil, fmt.Errorf("mp_reach: %w", ErrUpdateMalformed)
+	}
+	return MPReachWire(raw), nil
 }
 
 // MPUnreach extracts MP_UNREACH_NLRI (attribute code 15) as MPUnreachWire.
 // RFC 4760 Section 4 - Multiprotocol unreachability.
-// Returns nil if attribute not present or malformed.
-func (u *WireUpdate) MPUnreach() MPUnreachWire {
-	attrs := u.Attrs()
+// Returns (nil, nil) if attribute not present, (nil, error) if malformed.
+func (u *WireUpdate) MPUnreach() (MPUnreachWire, error) {
+	attrs, err := u.Attrs()
+	if err != nil {
+		return nil, fmt.Errorf("mp_unreach: %w", err)
+	}
 	if attrs == nil {
-		return nil
+		return nil, nil // No attributes, so no MP_UNREACH
 	}
 	raw, err := attrs.GetRaw(attribute.AttrMPUnreachNLRI)
-	if err != nil || len(raw) < 3 {
-		return nil
+	if err != nil {
+		return nil, fmt.Errorf("mp_unreach: %w", err)
 	}
-	return MPUnreachWire(raw)
+	if raw == nil {
+		return nil, nil // Attribute not present
+	}
+	if len(raw) < 3 {
+		return nil, fmt.Errorf("mp_unreach: %w", ErrUpdateMalformed)
+	}
+	return MPUnreachWire(raw), nil
 }
 
 // SourceCtxID returns the encoding context ID for zero-copy decisions.
