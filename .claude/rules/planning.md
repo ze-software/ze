@@ -37,6 +37,8 @@ Complete IN ORDER. Do not skip steps.
       → WAIT for approval before continuing
 
 [ ] 9. Write spec to `plan/spec-<task>.md`
+      → FIRST complete "Pre-Spec Verification" checklist below
+      → Match template format EXACTLY (not approximately)
 
 [ ] 10. Begin TDD cycle (test fails → implement → test passes)
 ```
@@ -98,6 +100,28 @@ Present to user BEFORE writing code:
 ```
 
 **WAIT FOR USER APPROVAL** before proceeding.
+
+## Pre-Spec Verification
+
+**BLOCKING: Before writing any spec file, complete this checklist:**
+
+```
+[ ] 1. Re-read this file (planning.md) - don't rely on memory
+[ ] 2. Keyword table checked - ALL matching docs identified
+[ ] 3. Template visible - match format exactly, not approximately
+[ ] 4. Checkboxes use [ ] not [x] - template shows unchecked
+[ ] 5. Each doc has "- [why relevant]" after the path
+[ ] 6. Section headers match template exactly (including 🧪 emoji)
+[ ] 7. Tables used for Unit Tests and Functional Tests (not prose)
+[ ] 8. Implementation steps include "(paste output)" where shown
+```
+
+**Common mistakes:**
+- `[x]` for read docs → use `[ ]` per template
+- Missing `🧪` in TDD Test Plan header
+- Skipping keyword→doc mapping table
+- Prose instead of table for Functional Tests
+- "- [description]" instead of "- [why relevant]" in Required Reading
 
 ## Spec File Template
 
@@ -189,6 +213,8 @@ test -z "$LAST" && LAST=0
 NEXT=`printf "%03d" \`expr $LAST + 1\``
 mv plan/spec-<name>.md plan/done/${NEXT}-<name>.md
 ```
+
+**IMPORTANT:** Include the moved spec file in the same commit as the code changes. Do NOT commit the spec separately.
 
 ## Why This Matters
 
