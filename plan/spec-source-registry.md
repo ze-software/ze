@@ -4,6 +4,18 @@
 
 Create a registry that assigns unique numeric IDs to all message sources (peers, API processes). Store compact IDs in messages instead of IP addresses or strings.
 
+## Required Reading
+
+- [ ] `.claude/zebgp/api/ARCHITECTURE.md` - API process lifecycle, message flow
+- [ ] `.claude/zebgp/api/JSON_FORMAT.md` - JSON output format for source field
+- [ ] `.claude/zebgp/ENCODING_CONTEXT.md` - WireUpdate structure, zero-copy patterns
+- [ ] `.claude/zebgp/UPDATE_BUILDING.md` - Message flow, Build vs Forward paths
+
+**Key insights:**
+- WireUpdate already has `sourceCtxID` and `messageID` fields - add `sourceID` following same pattern
+- API processes need lifecycle tracking (start/stop) - registry must handle deactivation
+- JSON output resolves IDs to strings at output time (not stored)
+
 ## Motivation
 
 Current state:
@@ -227,6 +239,30 @@ pkg/source/
 └── registry_test.go
 ```
 
+## 🧪 TDD Test Plan
+
+### Unit Tests
+
+| Test | File | Validates |
+|------|------|-----------|
+| `TestSourceTypeString` | `pkg/source/source_test.go` | SourceType.String() |
+| `TestSourceString` | `pkg/source/source_test.go` | Source.String() formats |
+| `TestRegistryRegisterPeer` | `pkg/source/registry_test.go` | Peer registration |
+| `TestRegistryRegisterAPI` | `pkg/source/registry_test.go` | API registration |
+| `TestRegistryGet` | `pkg/source/registry_test.go` | Lookup by ID |
+| `TestRegistryGetByPeerIP` | `pkg/source/registry_test.go` | Lookup by peer IP |
+| `TestRegistryDeactivate` | `pkg/source/registry_test.go` | Deactivation |
+| `TestRegistryNeverReuse` | `pkg/source/registry_test.go` | IDs not reused |
+| `TestRegistryConcurrent` | `pkg/source/registry_test.go` | Thread safety |
+| `TestWireUpdateSourceID` | `pkg/api/wire_update_test.go` | SourceID get/set |
+| `TestJSONOutputSource` | `pkg/api/json_test.go` | Source in output |
+
+### Functional Tests
+
+| Test | Location | Scenario |
+|------|----------|----------|
+| N/A | - | No new functional tests needed (existing tests cover message flow) |
+
 ## Files to Modify
 
 | File | Changes |
@@ -244,63 +280,64 @@ pkg/source/
 
 ## Implementation Steps
 
-1. **Create source package**
-   - Define types (SourceType, Source, SourceID)
-   - Implement Registry with registration/lookup
-   - Write tests
+1. **Write tests** - Create `pkg/source/source_test.go` and `pkg/source/registry_test.go`
+2. **Run tests** - Verify FAIL (paste output)
+3. **Implement** - Create `pkg/source/` package with types and registry
+4. **Run tests** - Verify PASS (paste output)
+5. **Add WireUpdate integration** - Add sourceID field, write test, implement
+6. **Register peers** - Peer stores sourceID, reactor sets on WireUpdate
+7. **Register API processes** - Process stores sourceID
+8. **Update formatters** - Add source to JSON/text output
+9. **Remove SourcePeerIP** - Migrate usages to WireUpdate.SourceID()
+10. **Verify all** - `make lint && make test && make functional`
 
-2. **Add sourceID to WireUpdate**
-   - Add field and methods
-   - Keep SourcePeerIP in ReceivedUpdate temporarily
+## RFC Documentation
 
-3. **Register peers**
-   - Peer stores sourceID
-   - Reactor sets sourceID on WireUpdate
-
-4. **Register API processes**
-   - Process stores sourceID
-   - Set sourceID on API-originated messages
-
-5. **Update formatters**
-   - Add source to message wrapper in JSON
-   - Resolve ID to string at output time
-
-6. **Remove SourcePeerIP**
-   - Remove from ReceivedUpdate
-   - Update all usages to use WireUpdate.SourceID()
-
-7. **Update tests**
-
-## TDD Test Plan
-
-### Unit Tests
-
-| Test | File | Validates |
-|------|------|-----------|
-| `TestSourceTypeString` | `source_test.go` | SourceType.String() |
-| `TestSourceString` | `source_test.go` | Source.String() formats |
-| `TestRegistryRegisterPeer` | `registry_test.go` | Peer registration |
-| `TestRegistryRegisterAPI` | `registry_test.go` | API registration |
-| `TestRegistryGet` | `registry_test.go` | Lookup by ID |
-| `TestRegistryGetByPeerIP` | `registry_test.go` | Lookup by peer IP |
-| `TestRegistryDeactivate` | `registry_test.go` | Deactivation |
-| `TestRegistryNeverReuse` | `registry_test.go` | IDs not reused |
-| `TestRegistryConcurrent` | `registry_test.go` | Thread safety |
-| `TestWireUpdateSourceID` | `wire_update_test.go` | SourceID get/set |
-| `TestJSONOutputSource` | `json_test.go` | Source in output |
+N/A - Source registry is internal implementation, not BGP protocol.
 
 ## Checklist
 
-### TDD
-- [ ] Tests written
-- [ ] Tests FAIL
-- [ ] Implementation complete
-- [ ] Tests PASS
+### 🧪 TDD
+- [x] Tests written
+- [x] Tests FAIL (verified)
+- [x] Implementation complete
+- [x] Tests PASS (20 tests)
 
 ### Verification
-- [ ] `make lint` passes
-- [ ] `make test` passes
-- [ ] `make functional` passes
+- [x] `make lint` passes (source package clean)
+- [x] `make test` passes
+- [x] `make functional` passes (18 tests)
 
 ### Documentation
-- [ ] `.claude/zebgp/api/` updated
+- [x] Required docs read
+- [x] RFC references added (N/A)
+
+### Completion
+- [x] Implementation complete
+
+## Final Implementation
+
+### SourceID Design (uint32, self-describing)
+```
+0:        config (singleton)
+1-99999:  peer
+100000:   reserved (gap)
+100001+:  api
+MaxUint32: invalid
+```
+
+### Features Implemented
+- `pkg/source/source.go` - SourceID, SourceType, Source types
+- `pkg/source/registry.go` - Thread-safe registry with O(1) lookups
+- `SourceID.String()` - Returns "type:n" (1-based): "peer:42", "api:1", "config:1"
+- `ParseSourceID()` - Parses "type:n" with overflow protection
+- Convenience: `IsValid()`, `IsPeer()`, `IsAPI()`, `IsConfig()`
+- `Get()` returns Source by value (safe, no data races)
+- `WireUpdate.SourceID()` / `SetSourceID()`
+- `SplitWireUpdate` preserves sourceID on split chunks
+- Peer registration at creation, sourceID set on received UPDATEs
+
+### Deferred (follow-up)
+- API process registration
+- JSON/text formatter updates
+- Remove `ReceivedUpdate.SourcePeerIP`

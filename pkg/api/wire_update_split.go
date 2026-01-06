@@ -106,6 +106,12 @@ func SplitWireUpdate(wu *WireUpdate, maxBodySize int, srcCtx *bgpctx.EncodingCon
 		return []*WireUpdate{wu}, nil
 	}
 
+	// Copy sourceID to all split chunks (messageID left unset - each chunk is a new message)
+	srcID := wu.SourceID()
+	for _, chunk := range results {
+		chunk.SetSourceID(srcID)
+	}
+
 	return results, nil
 }
 

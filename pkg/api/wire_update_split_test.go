@@ -481,6 +481,33 @@ func TestSplitWireUpdate_BaseAttrsInAllChunks(t *testing.T) {
 	}
 }
 
+// TestSplitWireUpdate_SourceIDPreserved verifies sourceID is copied to all split chunks.
+//
+// VALIDATES: All split chunks have same sourceID as original.
+// PREVENTS: Lost source identity after split.
+func TestSplitWireUpdate_SourceIDPreserved(t *testing.T) {
+	// Create UPDATE that will be split
+	var nlriData []byte
+	for i := 0; i < 100; i++ {
+		nlriData = append(nlriData, 0x18, 0xC0, 0xA8, byte(i)) // /24
+	}
+	attrs := []byte{0x40, 0x01, 0x01, 0x00} // ORIGIN IGP
+	payload := buildTestUpdatePayload(nil, attrs, nlriData)
+
+	wu := NewWireUpdate(payload, 0)
+	wu.SetSourceID(42)
+
+	chunks, err := SplitWireUpdate(wu, 50, nil)
+	require.NoError(t, err)
+	require.Greater(t, len(chunks), 1, "should split into multiple chunks")
+
+	// All chunks must have same sourceID
+	for i, chunk := range chunks {
+		assert.Equal(t, wu.SourceID(), chunk.SourceID(),
+			"chunk %d sourceID differs from original", i)
+	}
+}
+
 // TestSplitWireUpdate_MixedIPv4AndMP verifies splitting with both IPv4 and MP content.
 //
 // VALIDATES: UPDATE with IPv4 NLRI + MP_REACH_NLRI splits correctly, preserving both.

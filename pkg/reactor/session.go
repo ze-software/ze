@@ -19,6 +19,7 @@ import (
 	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/fsm"
 	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/message"
 	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/wire"
+	"codeberg.org/thomas-mangin/zebgp/pkg/source"
 	"codeberg.org/thomas-mangin/zebgp/pkg/trace"
 )
 
@@ -117,6 +118,10 @@ type Session struct {
 	// recvCtxID is the encoding context for received messages.
 	// Set by Peer after capability negotiation for zero-copy WireUpdate creation.
 	recvCtxID bgpctx.ContextID
+
+	// sourceID identifies the peer in the source registry.
+	// Set by Peer at creation time.
+	sourceID source.SourceID
 }
 
 // NewSession creates a new BGP session for a peer.
@@ -185,6 +190,14 @@ func (s *Session) SetRecvCtxID(ctxID bgpctx.ContextID) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.recvCtxID = ctxID
+}
+
+// SetSourceID sets the source ID identifying this peer.
+// Called by Peer at creation time.
+func (s *Session) SetSourceID(id source.SourceID) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.sourceID = id
 }
 
 // WriteBuf returns the session's write buffer for zero-allocation message building.
@@ -708,12 +721,14 @@ func (s *Session) readAndProcessMessage(conn net.Conn) error {
 func (s *Session) processMessage(hdr *message.Header, body []byte, buf []byte) (error, bool) {
 	s.mu.RLock()
 	ctxID := s.recvCtxID
+	sourceID := s.sourceID
 	s.mu.RUnlock()
 
 	// For UPDATE: create WireUpdate once, use for callback and handler
 	var wireUpdate *api.WireUpdate
 	if hdr.Type == message.TypeUPDATE {
 		wireUpdate = api.NewWireUpdate(body, ctxID)
+		wireUpdate.SetSourceID(sourceID)
 	}
 
 	// Notify callback for all message types.

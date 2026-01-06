@@ -385,6 +385,26 @@ func TestWireUpdate_SourceCtxID(t *testing.T) {
 	}
 }
 
+// TestWireUpdate_SourceID verifies source ID get/set.
+//
+// VALIDATES: SourceID() returns value set by SetSourceID()
+// PREVENTS: Lost source identity for message tracking.
+func TestWireUpdate_SourceID(t *testing.T) {
+	payload := []byte{0x00, 0x00, 0x00, 0x00}
+	wu := NewWireUpdate(payload, 0)
+
+	// Initially zero
+	if wu.SourceID() != 0 {
+		t.Errorf("SourceID() = %d, want 0 initially", wu.SourceID())
+	}
+
+	// Set and verify
+	wu.SetSourceID(42)
+	if wu.SourceID() != 42 {
+		t.Errorf("SourceID() = %d, want 42", wu.SourceID())
+	}
+}
+
 // TestWireUpdate_Payload verifies raw payload access.
 //
 // VALIDATES: Payload() returns original buffer

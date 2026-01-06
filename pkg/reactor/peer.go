@@ -19,6 +19,7 @@ import (
 	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/message"
 	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/nlri"
 	"codeberg.org/thomas-mangin/zebgp/pkg/rib"
+	"codeberg.org/thomas-mangin/zebgp/pkg/source"
 	"codeberg.org/thomas-mangin/zebgp/pkg/trace"
 )
 
@@ -169,6 +170,10 @@ type Peer struct {
 	// Used to notify reactor of state changes.
 	reactor *Reactor
 
+	// sourceID identifies this peer in the source registry.
+	// Assigned at creation, never changes.
+	sourceID source.SourceID
+
 	// Collision detection (RFC 4271 §6.8):
 	// When an incoming connection arrives while we're in OpenConfirm,
 	// we queue it here and wait for its OPEN to resolve the collision.
@@ -184,6 +189,7 @@ func NewPeer(settings *PeerSettings) *Peer {
 		reconnectMax:  DefaultReconnectMax,
 		opQueue:       make([]PeerOp, 0, 16), // Pre-allocate small capacity
 		watchdogState: make(map[string]map[string]bool),
+		sourceID:      source.DefaultRegistry.RegisterPeer(settings.Address, settings.PeerAS),
 	}
 
 	// Initialize watchdog state from config
@@ -201,6 +207,11 @@ func NewPeer(settings *PeerSettings) *Peer {
 // Settings returns the configured peer settings.
 func (p *Peer) Settings() *PeerSettings {
 	return p.settings
+}
+
+// SourceID returns the unique source ID for this peer.
+func (p *Peer) SourceID() source.SourceID {
+	return p.sourceID
 }
 
 // ResetAPISync resets the per-session API synchronization state.
@@ -723,6 +734,7 @@ func (p *Peer) runOnce() error {
 	// Create session
 	session := NewSession(p.settings)
 	session.onMessageReceived = p.messageCallback
+	session.SetSourceID(p.sourceID)
 
 	p.mu.Lock()
 	p.session = session

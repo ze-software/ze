@@ -6,6 +6,7 @@ import (
 
 	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/attribute"
 	bgpctx "codeberg.org/thomas-mangin/zebgp/pkg/bgp/context"
+	"codeberg.org/thomas-mangin/zebgp/pkg/source"
 )
 
 // WireUpdate holds UPDATE message payload bytes for zero-copy lazy parsing.
@@ -29,7 +30,8 @@ import (
 type WireUpdate struct {
 	payload     []byte
 	sourceCtxID bgpctx.ContextID
-	messageID   uint64 // Unique ID set by reactor after creation
+	messageID   uint64          // Unique ID set by reactor after creation
+	sourceID    source.SourceID // Source that sent/created this message
 }
 
 // NewWireUpdate creates a WireUpdate from raw UPDATE payload bytes.
@@ -178,4 +180,14 @@ func (u *WireUpdate) MessageID() uint64 {
 // SetMessageID sets the message ID. Called once by reactor after creation.
 func (u *WireUpdate) SetMessageID(id uint64) {
 	u.messageID = id
+}
+
+// SourceID returns the source that sent/created this message.
+func (u *WireUpdate) SourceID() source.SourceID {
+	return u.sourceID
+}
+
+// SetSourceID sets the source ID. Called once by reactor after creation.
+func (u *WireUpdate) SetSourceID(id source.SourceID) {
+	u.sourceID = id
 }
