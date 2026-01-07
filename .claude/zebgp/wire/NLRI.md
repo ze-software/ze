@@ -43,28 +43,52 @@ ExaBGP supports 42 AFI/SAFI combinations. Key ones:
 
 ## Class Hierarchy
 
+### ZeBGP Type Hierarchy (with Embedding)
+
 ```
-NLRI (base)
-├── INET (IPv4/IPv6 unicast/multicast)
-│   └── Label (MPLS labeled routes, RFC 3107)
-│       └── IPVPN (VPNv4/VPNv6, RFC 4364)
+NLRI (interface)
+├── PrefixNLRI [embedded: family, prefix, pathID]
+│   ├── INET (IPv4/IPv6 unicast/multicast)
+│   └── LabeledUnicast (SAFI 4) [+labels]
+├── RDNLRIBase [embedded: rd, data, cached]
+│   ├── MVPN (RFC 6514) [+afi, +routeType]
+│   └── MUP (Mobile User Plane) [+afi, +archType, +routeType]
+├── IPVPN (VPNv4/VPNv6) [standalone - field order: family, rd, labels, prefix, pathID]
 ├── EVPN (L2VPN EVPN, RFC 7432)
-│   ├── EthernetAD (Type 1)
-│   ├── MAC (Type 2)
-│   ├── Multicast (Type 3)
-│   ├── Segment (Type 4)
-│   └── Prefix (Type 5)
-├── Flow (FlowSpec, RFC 5575)
+│   ├── EVPNType1 (Ethernet Auto-Discovery)
+│   ├── EVPNType2 (MAC/IP Advertisement)
+│   ├── EVPNType3 (Inclusive Multicast)
+│   ├── EVPNType4 (Ethernet Segment)
+│   └── EVPNType5 (IP Prefix)
+├── FlowSpec (RFC 5575)
+├── FlowSpecVPN (RFC 8955)
 ├── BGPLS (BGP-LS, RFC 7752)
-│   ├── Node
-│   ├── Link
-│   ├── PrefixV4
-│   ├── PrefixV6
-│   └── SRv6SID
+│   ├── BGPLSNode
+│   ├── BGPLSLink
+│   ├── BGPLSPrefix
+│   └── BGPLSSRv6SID
 ├── VPLS (RFC 4761)
-├── RTC (Route Target Constraint, RFC 4684)
-└── MUP (Mobile User Plane)
+└── RTC (Route Target Constraint, RFC 4684)
 ```
+
+### Embedding Details
+
+**PrefixNLRI** (base.go) - Shared by prefix-based types:
+- `family` - AFI/SAFI address family
+- `prefix` - IP prefix (netip.Prefix)
+- `pathID` - RFC 7911 ADD-PATH identifier
+
+**RDNLRIBase** (base.go) - Shared by RD-based types:
+- `rd` - Route Distinguisher (8 bytes)
+- `data` - Route-type specific data after RD (zero-copy slice)
+- `cached` - Wire format cache (zero-copy slice from parsing)
+- `cacheOnce` - sync.Once for thread-safe lazy initialization
+
+**Zero-copy design:** Both `cached` and `data` are slices of the original wire buffer during parsing. No copies are made.
+
+**Thread safety:** `Bytes()` uses `sync.Once` for thread-safe cache initialization when called on constructed (not parsed) NLRIs.
+
+**Note:** IPVPN stays standalone because its field order differs (rd before prefix).
 
 ---
 
@@ -377,17 +401,15 @@ With ADD-PATH (RFC 7911):
 ```go
 // pkg/bgp/nlri/labeled.go
 type LabeledUnicast struct {
-    family  Family       // AFI + SAFI (SAFI always SAFIMPLSLabel)
-    prefix  netip.Prefix
+    PrefixNLRI           // Embeds family, prefix, pathID (Family(), Prefix(), PathID() inherited)
     labels  []uint32     // Label stack (BOS on last)
-    pathID  uint32       // RFC 7911: 0 means no path ID
 }
 
 // NLRI interface methods (payload-only, no path ID)
 func (l *LabeledUnicast) Len() int                              // Payload length only
-func (l *LabeledUnicast) WriteTo(buf []byte, off int, ctx) int  // Write payload only
-func (l *LabeledUnicast) Bytes() []byte                         // Payload bytes only
-func (l *LabeledUnicast) PathID() uint32                        // Stored path ID
+func (l *LabeledUnicast) WriteTo(buf []byte, off int, ctx) int  // Write payload only (uses WriteLabelStack)
+func (l *LabeledUnicast) Bytes() []byte                         // Payload bytes only (uses EncodeLabelStack)
+// Family(), Prefix(), PathID() inherited from PrefixNLRI
 
 // For ADD-PATH aware encoding, use package functions:
 nlri.LenWithContext(n, ctx)      // Adds 4 bytes when ctx.AddPath=true
@@ -442,11 +464,22 @@ type NLRI interface {
     String() string
 }
 
-// INET stores parsed data (not wire format)
+// PrefixNLRI base type (base.go) - embedded by INET and LabeledUnicast
+type PrefixNLRI struct {
+    family Family        // AFI/SAFI
+    prefix netip.Prefix  // IP prefix
+    pathID uint32        // RFC 7911: 0 means no path ID
+}
+
+// INET embeds PrefixNLRI
 type INET struct {
-    family Family
-    prefix netip.Prefix
-    pathID uint32  // RFC 7911: 0 means no path ID
+    PrefixNLRI  // Family(), Prefix(), PathID() inherited
+}
+
+// LabeledUnicast embeds PrefixNLRI + adds labels
+type LabeledUnicast struct {
+    PrefixNLRI           // Family(), Prefix(), PathID() inherited
+    labels []uint32      // Label stack (BOS on last)
 }
 ```
 
@@ -507,4 +540,4 @@ func (i *INET) Index() []byte {
 
 ---
 
-**Last Updated:** 2026-01-04
+**Last Updated:** 2026-01-07

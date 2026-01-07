@@ -27,10 +27,8 @@ import (
 // Path ID is stored but NOT included in Len()/Bytes()/WriteTo().
 // Use WriteNLRI() for ADD-PATH aware encoding.
 type LabeledUnicast struct {
-	family Family
-	prefix netip.Prefix
+	PrefixNLRI
 	labels []uint32 // Label stack per RFC 3032 (BOS on last)
-	pathID uint32   // RFC 7911: 0 means no path ID
 }
 
 // NewLabeledUnicast creates a new labeled unicast NLRI.
@@ -43,61 +41,20 @@ type LabeledUnicast struct {
 // The family's SAFI is overridden to SAFIMPLSLabel (4) regardless of input.
 func NewLabeledUnicast(family Family, prefix netip.Prefix, labels []uint32, pathID uint32) *LabeledUnicast {
 	return &LabeledUnicast{
-		family: Family{AFI: family.AFI, SAFI: SAFIMPLSLabel},
-		prefix: prefix,
+		PrefixNLRI: PrefixNLRI{
+			family: Family{AFI: family.AFI, SAFI: SAFIMPLSLabel},
+			prefix: prefix,
+			pathID: pathID,
+		},
 		labels: labels,
-		pathID: pathID,
 	}
 }
 
-// Family returns the AFI/SAFI for this NLRI.
-// SAFI is always SAFIMPLSLabel (4) per RFC 8277.
-func (l *LabeledUnicast) Family() Family {
-	return l.family
-}
-
-// Prefix returns the IP prefix.
-func (l *LabeledUnicast) Prefix() netip.Prefix {
-	return l.prefix
-}
+// Family, Prefix, PathID methods inherited from PrefixNLRI.
 
 // Labels returns the MPLS label stack.
 func (l *LabeledUnicast) Labels() []uint32 {
 	return l.labels
-}
-
-// PathID returns the ADD-PATH path identifier (0 if none).
-func (l *LabeledUnicast) PathID() uint32 {
-	return l.pathID
-}
-
-// encodeLabel encodes a single MPLS label to 3 bytes per RFC 3032.
-//
-// RFC 3032 - MPLS Label Stack Encoding:
-//
-//	 0                   1                   2
-//	 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3
-//	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-//	|          Label Value (20 bits)        |TC |S|
-//	+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
-//
-// Label Value: 20 bits (0-1048575)
-// TC: 3 bits (Traffic Class, set to 0)
-// S: 1 bit (Stack bit: 0=more labels, 1=bottom of stack)
-//
-// NOTE: RFC 3032 data plane uses 4 bytes (includes TTL).
-// BGP uses 3 bytes (no TTL) per RFC 8277.
-func encodeLabel(label uint32, bos bool) []byte {
-	// TC = 0, S = bos ? 1 : 0
-	s := byte(0)
-	if bos {
-		s = 1
-	}
-	return []byte{
-		byte(label >> 12),
-		byte(label >> 4),
-		byte(label<<4) | s,
-	}
 }
 
 // Bytes returns the wire-format encoding (payload only, no path ID).
@@ -108,33 +65,24 @@ func encodeLabel(label uint32, bos bool) []byte {
 // Note: Path ID is NOT included. Use WriteNLRI() for ADD-PATH encoding.
 func (l *LabeledUnicast) Bytes() []byte {
 	prefixBits := l.prefix.Bits()
-	prefixBytes := (prefixBits + 7) / 8
-	labelBytes := len(l.labels) * 3
+	prefixBytes := PrefixBytes(prefixBits)
+	labelBytes := EncodeLabelStack(l.labels)
 
 	// Total bits: 24 per label + prefix bits
 	totalBits := len(l.labels)*24 + prefixBits
 
-	// Calculate buffer size
-	size := 1 + labelBytes + prefixBytes // length + labels + prefix
-
-	buf := make([]byte, size)
-	offset := 0
+	// Calculate buffer size: length (1) + labels + prefix
+	buf := make([]byte, 1+len(labelBytes)+prefixBytes)
 
 	// Length byte
-	buf[offset] = byte(totalBits)
-	offset++
+	buf[0] = byte(totalBits)
 
-	// Encode labels
-	for i, label := range l.labels {
-		bos := i == len(l.labels)-1 // Last label has BOS=1
-		labelEncoded := encodeLabel(label, bos)
-		copy(buf[offset:offset+3], labelEncoded)
-		offset += 3
-	}
+	// Copy encoded labels
+	copy(buf[1:], labelBytes)
 
 	// Prefix bytes
 	if prefixBytes > 0 {
-		copy(buf[offset:], l.prefix.Addr().AsSlice()[:prefixBytes])
+		copy(buf[1+len(labelBytes):], l.prefix.Addr().AsSlice()[:prefixBytes])
 	}
 
 	return buf
@@ -143,9 +91,7 @@ func (l *LabeledUnicast) Bytes() []byte {
 // Len returns the wire-format length in bytes (payload only, no path ID).
 // Use LenWithContext() for ADD-PATH aware length calculation.
 func (l *LabeledUnicast) Len() int {
-	prefixBytes := (l.prefix.Bits() + 7) / 8
-	labelBytes := len(l.labels) * 3
-	return 1 + labelBytes + prefixBytes
+	return 1 + len(l.labels)*3 + PrefixBytes(l.prefix.Bits())
 }
 
 // WriteTo writes the NLRI payload (without path ID) into buf at offset.
@@ -158,11 +104,10 @@ func (l *LabeledUnicast) Len() int {
 // Use WriteNLRI() for ADD-PATH encoding with path identifier.
 func (l *LabeledUnicast) WriteTo(buf []byte, off int, _ *PackContext) int {
 	prefixBits := l.prefix.Bits()
-	prefixBytes := (prefixBits + 7) / 8
-	labelCount := len(l.labels)
+	prefixBytes := PrefixBytes(prefixBits)
 
 	// Total bits: 24 per label + prefix bits
-	totalBits := labelCount*24 + prefixBits
+	totalBits := len(l.labels)*24 + prefixBits
 
 	pos := off
 
@@ -170,17 +115,8 @@ func (l *LabeledUnicast) WriteTo(buf []byte, off int, _ *PackContext) int {
 	buf[pos] = byte(totalBits)
 	pos++
 
-	// Encode labels
-	for i, label := range l.labels {
-		bos := i == labelCount-1 // Last label has BOS=1
-		buf[pos] = byte(label >> 12)
-		buf[pos+1] = byte(label >> 4)
-		buf[pos+2] = byte(label<<4) & 0xF0
-		if bos {
-			buf[pos+2] |= 0x01
-		}
-		pos += 3
-	}
+	// Encode labels (zero-alloc)
+	pos += WriteLabelStack(buf, pos, l.labels)
 
 	// Prefix bytes
 	if prefixBytes > 0 {

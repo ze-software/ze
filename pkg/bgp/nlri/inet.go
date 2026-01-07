@@ -42,9 +42,7 @@ var (
 // Path ID is stored but NOT included in Len()/Bytes()/WriteTo().
 // Use WriteNLRI() for ADD-PATH aware encoding.
 type INET struct {
-	family Family
-	prefix netip.Prefix
-	pathID uint32 // RFC 7911: 0 means no path ID
+	PrefixNLRI
 }
 
 // NewINET creates a new INET NLRI.
@@ -52,9 +50,11 @@ type INET struct {
 // Use WriteNLRI() with PackContext.AddPath=true to encode with path ID.
 func NewINET(family Family, prefix netip.Prefix, pathID uint32) *INET {
 	return &INET{
-		family: family,
-		prefix: prefix,
-		pathID: pathID,
+		PrefixNLRI: PrefixNLRI{
+			family: family,
+			prefix: prefix,
+			pathID: pathID,
+		},
 	}
 }
 
@@ -110,7 +110,7 @@ func ParseINET(afi AFI, safi SAFI, data []byte, addpath bool) (NLRI, []byte, err
 	// RFC 4271 Section 4.3: Calculate minimum octets for prefix
 	// "The Prefix field contains an IP address prefix, followed by enough
 	// trailing bits to make the end of the field fall on an octet boundary."
-	prefixBytes := (prefixLen + 7) / 8
+	prefixBytes := PrefixBytes(prefixLen)
 
 	if offset+prefixBytes > len(data) {
 		return nil, nil, ErrShortRead
@@ -134,28 +134,17 @@ func ParseINET(afi AFI, safi SAFI, data []byte, addpath bool) (NLRI, []byte, err
 	}
 
 	inet := &INET{
-		family: Family{AFI: afi, SAFI: safi},
-		prefix: prefix,
-		pathID: pathID,
+		PrefixNLRI: PrefixNLRI{
+			family: Family{AFI: afi, SAFI: safi},
+			prefix: prefix,
+			pathID: pathID,
+		},
 	}
 
 	return inet, data[offset+prefixBytes:], nil
 }
 
-// Family returns the AFI/SAFI for this NLRI.
-func (i *INET) Family() Family {
-	return i.family
-}
-
-// Prefix returns the IP prefix.
-func (i *INET) Prefix() netip.Prefix {
-	return i.prefix
-}
-
-// PathID returns the ADD-PATH path identifier (0 if none).
-func (i *INET) PathID() uint32 {
-	return i.pathID
-}
+// Family, Prefix, PathID methods inherited from PrefixNLRI.
 
 // Bytes returns the wire-format encoding (payload only, no path ID).
 //
@@ -166,7 +155,7 @@ func (i *INET) PathID() uint32 {
 // Note: Path ID is NOT included. Use WriteNLRI() for ADD-PATH encoding.
 func (i *INET) Bytes() []byte {
 	prefixLen := i.prefix.Bits()
-	prefixBytes := (prefixLen + 7) / 8
+	prefixBytes := PrefixBytes(prefixLen)
 
 	buf := make([]byte, 1+prefixBytes)
 	buf[0] = byte(prefixLen)
@@ -178,9 +167,7 @@ func (i *INET) Bytes() []byte {
 // Len returns the wire-format length in bytes (payload only, no path ID).
 // Use LenWithContext() for ADD-PATH aware length calculation.
 func (i *INET) Len() int {
-	prefixLen := i.prefix.Bits()
-	prefixBytes := (prefixLen + 7) / 8
-	return 1 + prefixBytes
+	return 1 + PrefixBytes(i.prefix.Bits())
 }
 
 // String returns a human-readable representation.
@@ -202,7 +189,7 @@ func (i *INET) String() string {
 // Use WriteNLRI() for ADD-PATH encoding with path identifier.
 func (i *INET) WriteTo(buf []byte, off int, _ *PackContext) int {
 	prefixLen := i.prefix.Bits()
-	prefixBytes := (prefixLen + 7) / 8
+	prefixBytes := PrefixBytes(prefixLen)
 
 	pos := off
 

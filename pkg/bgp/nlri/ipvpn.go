@@ -353,7 +353,7 @@ func ParseIPVPN(afi AFI, safi SAFI, data []byte, addpath bool) (NLRI, []byte, er
 	if prefixBits < 0 {
 		return nil, nil, ErrInvalidPrefix
 	}
-	prefixBytes := (prefixBits + 7) / 8
+	prefixBytes := PrefixBytes(prefixBits)
 
 	if len(nlriData) < prefixBytes {
 		return nil, nil, ErrShortRead
@@ -421,7 +421,7 @@ func (v *IPVPN) Bytes() []byte {
 	rdBytes := v.rd.Bytes()
 
 	prefixBits := v.prefix.Bits()
-	prefixBytes := (prefixBits + 7) / 8
+	prefixBytes := PrefixBytes(prefixBits)
 
 	// RFC 3107: Length field = label bits + RD bits (64) + prefix bits
 	totalBits := len(labelBytes)*8 + 64 + prefixBits
@@ -438,8 +438,7 @@ func (v *IPVPN) Bytes() []byte {
 // Len returns the wire format length (payload only, no path ID).
 // Use LenWithContext() for ADD-PATH aware length calculation.
 func (v *IPVPN) Len() int {
-	prefixBytes := (v.prefix.Bits() + 7) / 8
-	return 1 + len(v.labels)*3 + 8 + prefixBytes
+	return 1 + len(v.labels)*3 + 8 + PrefixBytes(v.prefix.Bits())
 }
 
 // String returns a human-readable representation.
@@ -464,7 +463,7 @@ func (v *IPVPN) String() string {
 // Use WriteNLRI() for ADD-PATH encoding with path identifier.
 func (v *IPVPN) WriteTo(buf []byte, off int, _ *PackContext) int {
 	prefixBits := v.prefix.Bits()
-	prefixBytes := (prefixBits + 7) / 8
+	prefixBytes := PrefixBytes(prefixBits)
 	labelCount := len(v.labels)
 
 	// RFC 3107: Length field = label bits + RD bits (64) + prefix bits
@@ -477,7 +476,7 @@ func (v *IPVPN) WriteTo(buf []byte, off int, _ *PackContext) int {
 	pos++
 
 	// Write MPLS labels
-	pos += writeLabelStack(buf, pos, v.labels)
+	pos += WriteLabelStack(buf, pos, v.labels)
 
 	// Write Route Distinguisher (8 bytes)
 	binary.BigEndian.PutUint16(buf[pos:], uint16(v.rd.Type))
@@ -500,19 +499,4 @@ func (v *IPVPN) Pack(ctx *PackContext) []byte {
 	buf := make([]byte, size)
 	WriteNLRI(v, buf, 0, ctx)
 	return buf
-}
-
-// writeLabelStack writes MPLS labels to buf at offset.
-// Returns number of bytes written.
-func writeLabelStack(buf []byte, off int, labels []uint32) int {
-	for i, label := range labels {
-		pos := off + i*3
-		buf[pos] = byte(label >> 12)
-		buf[pos+1] = byte(label >> 4)
-		buf[pos+2] = byte(label<<4) & 0xF0
-		if i == len(labels)-1 {
-			buf[pos+2] |= 0x01 // RFC 3107: S (bottom-of-stack) bit
-		}
-	}
-	return len(labels) * 3
 }

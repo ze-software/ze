@@ -129,29 +129,26 @@ func (t MVPNRouteType) String() string {
 // RFC 6514 Section 4 defines the MCAST-VPN NLRI structure. Each route type
 // has its own specific format, but most include a Route Distinguisher.
 type MVPN struct {
+	RDNLRIBase
 	afi       AFI
 	routeType MVPNRouteType
-	rd        RouteDistinguisher
-	data      []byte // Route-type specific data after RD
-	cached    []byte
 }
 
 // NewMVPN creates a new MVPN NLRI.
 func NewMVPN(routeType MVPNRouteType, data []byte) *MVPN {
 	return &MVPN{
-		afi:       AFIIPv4,
-		routeType: routeType,
-		data:      data,
+		RDNLRIBase: RDNLRIBase{data: data},
+		afi:        AFIIPv4,
+		routeType:  routeType,
 	}
 }
 
 // NewMVPNWithRD creates a new MVPN NLRI with Route Distinguisher.
 func NewMVPNWithRD(afi AFI, routeType MVPNRouteType, rd RouteDistinguisher, data []byte) *MVPN {
 	return &MVPN{
-		afi:       afi,
-		routeType: routeType,
-		rd:        rd,
-		data:      data,
+		RDNLRIBase: RDNLRIBase{rd: rd, data: data},
+		afi:        afi,
+		routeType:  routeType,
 	}
 }
 
@@ -185,9 +182,9 @@ func ParseMVPN(afi AFI, data []byte) (*MVPN, []byte, error) {
 	nlriData := data[2 : 2+nlriLen]
 
 	mvpn := &MVPN{
-		afi:       afi,
-		routeType: routeType,
-		cached:    data[:2+nlriLen],
+		RDNLRIBase: RDNLRIBase{cached: data[:2+nlriLen]},
+		afi:        afi,
+		routeType:  routeType,
 	}
 
 	// Parse RD if present (all route types except default have RD)
@@ -195,15 +192,12 @@ func ParseMVPN(afi AFI, data []byte) (*MVPN, []byte, error) {
 		rd, err := ParseRouteDistinguisher(nlriData[:8])
 		if err == nil {
 			mvpn.rd = rd
-			mvpn.data = make([]byte, len(nlriData)-8)
-			copy(mvpn.data, nlriData[8:])
+			mvpn.data = nlriData[8:] // Zero-copy slice
 		} else {
-			mvpn.data = make([]byte, len(nlriData))
-			copy(mvpn.data, nlriData)
+			mvpn.data = nlriData
 		}
 	} else {
-		mvpn.data = make([]byte, len(nlriData))
-		copy(mvpn.data, nlriData)
+		mvpn.data = nlriData
 	}
 
 	return mvpn, data[2+nlriLen:], nil
@@ -217,8 +211,7 @@ func (m *MVPN) Family() Family {
 // RouteType returns the MVPN route type.
 func (m *MVPN) RouteType() MVPNRouteType { return m.routeType }
 
-// RD returns the Route Distinguisher.
-func (m *MVPN) RD() RouteDistinguisher { return m.rd }
+// RD method inherited from RDNLRIBase.
 
 // Bytes returns the wire-format encoding.
 func (m *MVPN) Bytes() []byte {
@@ -226,18 +219,13 @@ func (m *MVPN) Bytes() []byte {
 		return m.cached
 	}
 
-	// Calculate total data length
-	var totalData []byte
-	if m.rd.Type != 0 || m.rd.Value != [6]byte{} {
-		totalData = append(m.rd.Bytes(), m.data...)
-	} else {
-		totalData = m.data
-	}
-
-	m.cached = make([]byte, 2+len(totalData))
-	m.cached[0] = byte(m.routeType)
-	m.cached[1] = byte(len(totalData))
-	copy(m.cached[2:], totalData)
+	m.cacheOnce.Do(func() {
+		totalData := m.buildData()
+		m.cached = make([]byte, 2+len(totalData))
+		m.cached[0] = byte(m.routeType)
+		m.cached[1] = byte(len(totalData))
+		copy(m.cached[2:], totalData)
+	})
 
 	return m.cached
 }
@@ -253,7 +241,7 @@ func (m *MVPN) HasPathID() bool { return false }
 
 // String returns a human-readable representation.
 func (m *MVPN) String() string {
-	if m.rd.Type != 0 || m.rd.Value != [6]byte{} {
+	if hasRD(m.rd) {
 		return fmt.Sprintf("mvpn:%s rd=%s", m.routeType, m.rd)
 	}
 	return fmt.Sprintf("mvpn:%s", m.routeType)
@@ -728,32 +716,29 @@ const (
 // MUP enables SRv6-based mobile user plane signaling through BGP.
 // Each route type carries specific information for mobile network functions.
 type MUP struct {
+	RDNLRIBase
 	afi       AFI
 	archType  MUPArchType
 	routeType MUPRouteType
-	rd        RouteDistinguisher
-	data      []byte // Route-type specific data after RD
-	cached    []byte
 }
 
 // NewMUP creates a new MUP NLRI.
 func NewMUP(routeType MUPRouteType, data []byte) *MUP {
 	return &MUP{
-		afi:       AFIIPv4,
-		archType:  MUPArch3GPP5G,
-		routeType: routeType,
-		data:      data,
+		RDNLRIBase: RDNLRIBase{data: data},
+		afi:        AFIIPv4,
+		archType:   MUPArch3GPP5G,
+		routeType:  routeType,
 	}
 }
 
 // NewMUPFull creates a MUP NLRI with all fields.
 func NewMUPFull(afi AFI, archType MUPArchType, routeType MUPRouteType, rd RouteDistinguisher, data []byte) *MUP {
 	return &MUP{
-		afi:       afi,
-		archType:  archType,
-		routeType: routeType,
-		rd:        rd,
-		data:      data,
+		RDNLRIBase: RDNLRIBase{rd: rd, data: data},
+		afi:        afi,
+		archType:   archType,
+		routeType:  routeType,
 	}
 }
 
@@ -787,10 +772,10 @@ func ParseMUP(afi AFI, data []byte) (*MUP, []byte, error) {
 	}
 
 	mup := &MUP{
-		afi:       afi,
-		archType:  archType,
-		routeType: routeType,
-		cached:    data[:4+nlriLen],
+		RDNLRIBase: RDNLRIBase{cached: data[:4+nlriLen]},
+		afi:        afi,
+		archType:   archType,
+		routeType:  routeType,
 	}
 
 	nlriData := data[4 : 4+nlriLen]
@@ -800,15 +785,12 @@ func ParseMUP(afi AFI, data []byte) (*MUP, []byte, error) {
 		rd, err := ParseRouteDistinguisher(nlriData[:8])
 		if err == nil {
 			mup.rd = rd
-			mup.data = make([]byte, len(nlriData)-8)
-			copy(mup.data, nlriData[8:])
+			mup.data = nlriData[8:] // Zero-copy slice
 		} else {
-			mup.data = make([]byte, len(nlriData))
-			copy(mup.data, nlriData)
+			mup.data = nlriData
 		}
 	} else {
-		mup.data = make([]byte, len(nlriData))
-		copy(mup.data, nlriData)
+		mup.data = nlriData
 	}
 
 	return mup, data[4+nlriLen:], nil
@@ -825,8 +807,7 @@ func (m *MUP) ArchType() MUPArchType { return m.archType }
 // RouteType returns the MUP route type.
 func (m *MUP) RouteType() MUPRouteType { return m.routeType }
 
-// RD returns the Route Distinguisher.
-func (m *MUP) RD() RouteDistinguisher { return m.rd }
+// RD method inherited from RDNLRIBase.
 
 // Bytes returns the wire-format encoding.
 func (m *MUP) Bytes() []byte {
@@ -834,19 +815,14 @@ func (m *MUP) Bytes() []byte {
 		return m.cached
 	}
 
-	// Calculate total data length
-	var totalData []byte
-	if m.rd.Type != 0 || m.rd.Value != [6]byte{} {
-		totalData = append(m.rd.Bytes(), m.data...)
-	} else {
-		totalData = m.data
-	}
-
-	m.cached = make([]byte, 4+len(totalData))
-	m.cached[0] = byte(m.archType)
-	binary.BigEndian.PutUint16(m.cached[1:3], uint16(m.routeType))
-	m.cached[3] = byte(len(totalData))
-	copy(m.cached[4:], totalData)
+	m.cacheOnce.Do(func() {
+		totalData := m.buildData()
+		m.cached = make([]byte, 4+len(totalData))
+		m.cached[0] = byte(m.archType)
+		binary.BigEndian.PutUint16(m.cached[1:3], uint16(m.routeType))
+		m.cached[3] = byte(len(totalData))
+		copy(m.cached[4:], totalData)
+	})
 
 	return m.cached
 }
@@ -862,7 +838,7 @@ func (m *MUP) HasPathID() bool { return false }
 
 // String returns a human-readable representation.
 func (m *MUP) String() string {
-	if m.rd.Type != 0 || m.rd.Value != [6]byte{} {
+	if hasRD(m.rd) {
 		return fmt.Sprintf("mup:%s rd=%s", m.routeType, m.rd)
 	}
 	return fmt.Sprintf("mup:%s", m.routeType)
@@ -878,11 +854,7 @@ func (r *RTC) Pack(ctx *PackContext) []byte  { return r.Bytes() }
 func (m *MUP) Pack(ctx *PackContext) []byte  { return m.Bytes() }
 
 // WriteTo methods for other NLRI types (zero-alloc).
-
-// hasRD returns true if the RD is non-zero.
-func hasRD(rd RouteDistinguisher) bool {
-	return rd.Type != 0 || rd.Value != [6]byte{}
-}
+// hasRD is defined in base.go.
 
 // WriteTo writes the MVPN NLRI directly to buf at offset.
 func (m *MVPN) WriteTo(buf []byte, off int, _ *PackContext) int {

@@ -174,8 +174,10 @@ func mustParseINET(t *testing.T, prefix string, _ bool, pathID uint32) *INET {
 	t.Helper()
 	p := netip.MustParsePrefix(prefix)
 	return &INET{
-		prefix: p,
-		pathID: pathID,
+		PrefixNLRI: PrefixNLRI{
+			prefix: p,
+			pathID: pathID,
+		},
 	}
 }
 
@@ -202,10 +204,12 @@ func mustParseLabeledUnicast(t *testing.T, prefix string, _ bool, pathID uint32)
 		family = IPv6Unicast
 	}
 	return &LabeledUnicast{
-		family: family,
-		prefix: p,
+		PrefixNLRI: PrefixNLRI{
+			family: family,
+			prefix: p,
+			pathID: pathID,
+		},
 		labels: []uint32{16000}, // Single label
-		pathID: pathID,
 	}
 }
 
