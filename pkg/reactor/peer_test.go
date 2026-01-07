@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"codeberg.org/thomas-mangin/zebgp/pkg/api"
 	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/attribute"
 	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/capability"
 	bgpctx "codeberg.org/thomas-mangin/zebgp/pkg/bgp/context"
@@ -248,15 +249,16 @@ func TestPeerCallback(t *testing.T) {
 //
 // PREVENTS: IPv6 routes being sent with inline NLRI (which violates RFC 4760).
 func TestBuildStaticRouteUpdateIPv6(t *testing.T) {
+	nextHop := netip.MustParseAddr("2001:db8::ffff")
 	route := StaticRoute{
 		Prefix:          netip.MustParsePrefix("2001:db8::1/128"),
-		NextHop:         netip.MustParseAddr("2001:db8::ffff"),
+		NextHop:         api.NewNextHopExplicit(nextHop),
 		Origin:          0,
 		LocalPreference: 100,
 	}
 
 	ctx := &nlri.PackContext{ASN4: true}
-	update := buildStaticRouteUpdateNew(route, 65000, true, ctx, nil) // iBGP, ctx with ASN4, no ExtNH needed
+	update := buildStaticRouteUpdateNew(route, nextHop, 65000, true, ctx, nil) // iBGP, ctx with ASN4, no ExtNH needed
 
 	// IPv6 routes must NOT have inline NLRI
 	require.Empty(t, update.NLRI, "IPv6 route must not have inline NLRI")
@@ -305,15 +307,16 @@ func TestBuildStaticRouteUpdateIPv6(t *testing.T) {
 //
 // PREVENTS: Communities being silently dropped from announcements.
 func TestBuildStaticRouteUpdateWithCommunities(t *testing.T) {
+	nextHop := netip.MustParseAddr("192.0.2.1")
 	route := StaticRoute{
 		Prefix:      netip.MustParsePrefix("192.0.2.0/24"),
-		NextHop:     netip.MustParseAddr("192.0.2.1"),
+		NextHop:     api.NewNextHopExplicit(nextHop),
 		Origin:      0,
 		Communities: []uint32{0x78140000, 0x78147814}, // 30740:0, 30740:30740
 	}
 
 	ctx := &nlri.PackContext{ASN4: true}
-	update := buildStaticRouteUpdateNew(route, 65000, false, ctx, nil) // eBGP, ctx with ASN4, no ExtNH needed
+	update := buildStaticRouteUpdateNew(route, nextHop, 65000, false, ctx, nil) // eBGP, ctx with ASN4, no ExtNH needed
 	require.NotEmpty(t, update.PathAttributes, "must have path attributes")
 
 	// Look for COMMUNITIES (code 8) in attributes
@@ -509,17 +512,17 @@ func testWatchdogSettings() *PeerSettings {
 	settings.WatchdogGroups = map[string][]WatchdogRoute{
 		"health": {
 			{
-				StaticRoute:        StaticRoute{Prefix: netip.MustParsePrefix("10.0.0.0/24"), NextHop: netip.MustParseAddr("192.0.2.1")},
+				StaticRoute:        StaticRoute{Prefix: netip.MustParsePrefix("10.0.0.0/24"), NextHop: api.NewNextHopExplicit(netip.MustParseAddr("192.0.2.1"))},
 				InitiallyWithdrawn: false, // Starts announced
 			},
 			{
-				StaticRoute:        StaticRoute{Prefix: netip.MustParsePrefix("10.0.1.0/24"), NextHop: netip.MustParseAddr("192.0.2.1")},
+				StaticRoute:        StaticRoute{Prefix: netip.MustParsePrefix("10.0.1.0/24"), NextHop: api.NewNextHopExplicit(netip.MustParseAddr("192.0.2.1"))},
 				InitiallyWithdrawn: true, // Starts withdrawn
 			},
 		},
 		"backup": {
 			{
-				StaticRoute:        StaticRoute{Prefix: netip.MustParsePrefix("20.0.0.0/24"), NextHop: netip.MustParseAddr("192.0.2.2")},
+				StaticRoute:        StaticRoute{Prefix: netip.MustParsePrefix("20.0.0.0/24"), NextHop: api.NewNextHopExplicit(netip.MustParseAddr("192.0.2.2"))},
 				InitiallyWithdrawn: true,
 			},
 		},
@@ -726,7 +729,7 @@ func TestWatchdogRouteKeyIncludesPathID(t *testing.T) {
 func TestRouteFamilyIPv4Unicast(t *testing.T) {
 	route := StaticRoute{
 		Prefix:  netip.MustParsePrefix("192.0.2.0/24"),
-		NextHop: netip.MustParseAddr("192.0.2.1"),
+		NextHop: api.NewNextHopExplicit(netip.MustParseAddr("192.0.2.1")),
 	}
 
 	family := routeFamily(route)
@@ -743,7 +746,7 @@ func TestRouteFamilyIPv4Unicast(t *testing.T) {
 func TestRouteFamilyIPv6Unicast(t *testing.T) {
 	route := StaticRoute{
 		Prefix:  netip.MustParsePrefix("2001:db8::/32"),
-		NextHop: netip.MustParseAddr("2001:db8::1"),
+		NextHop: api.NewNextHopExplicit(netip.MustParseAddr("2001:db8::1")),
 	}
 
 	family := routeFamily(route)
@@ -760,7 +763,7 @@ func TestRouteFamilyIPv6Unicast(t *testing.T) {
 func TestRouteFamilyVPNv4(t *testing.T) {
 	route := StaticRoute{
 		Prefix:  netip.MustParsePrefix("10.0.0.0/24"),
-		NextHop: netip.MustParseAddr("192.0.2.1"),
+		NextHop: api.NewNextHopExplicit(netip.MustParseAddr("192.0.2.1")),
 		RD:      "100:100", // Has RD = VPN
 	}
 
@@ -778,7 +781,7 @@ func TestRouteFamilyVPNv4(t *testing.T) {
 func TestRouteFamilyVPNv6(t *testing.T) {
 	route := StaticRoute{
 		Prefix:  netip.MustParsePrefix("2001:db8::/32"),
-		NextHop: netip.MustParseAddr("2001:db8::1"),
+		NextHop: api.NewNextHopExplicit(netip.MustParseAddr("2001:db8::1")),
 		RD:      "100:100", // Has RD = VPN
 	}
 
@@ -799,10 +802,10 @@ func TestFamiliesSentTracking(t *testing.T) {
 
 	// Routes of various types
 	routes := []StaticRoute{
-		{Prefix: netip.MustParsePrefix("192.0.2.0/24"), NextHop: netip.MustParseAddr("10.0.0.1")},               // IPv4 Unicast
-		{Prefix: netip.MustParsePrefix("192.0.2.128/25"), NextHop: netip.MustParseAddr("10.0.0.1")},             // IPv4 Unicast (same family)
-		{Prefix: netip.MustParsePrefix("2001:db8::/32"), NextHop: netip.MustParseAddr("2001:db8::1")},           // IPv6 Unicast
-		{Prefix: netip.MustParsePrefix("10.0.0.0/24"), NextHop: netip.MustParseAddr("10.0.0.1"), RD: "100:100"}, // VPNv4
+		{Prefix: netip.MustParsePrefix("192.0.2.0/24"), NextHop: api.NewNextHopExplicit(netip.MustParseAddr("10.0.0.1"))},               // IPv4 Unicast
+		{Prefix: netip.MustParsePrefix("192.0.2.128/25"), NextHop: api.NewNextHopExplicit(netip.MustParseAddr("10.0.0.1"))},             // IPv4 Unicast (same family)
+		{Prefix: netip.MustParsePrefix("2001:db8::/32"), NextHop: api.NewNextHopExplicit(netip.MustParseAddr("2001:db8::1"))},           // IPv6 Unicast
+		{Prefix: netip.MustParsePrefix("10.0.0.0/24"), NextHop: api.NewNextHopExplicit(netip.MustParseAddr("10.0.0.1")), RD: "100:100"}, // VPNv4
 	}
 
 	// Track families as sendInitialRoutes does
@@ -845,8 +848,8 @@ func TestFamiliesSentOnlyVPN(t *testing.T) {
 
 	// Only VPN routes
 	routes := []StaticRoute{
-		{Prefix: netip.MustParsePrefix("10.0.0.0/24"), NextHop: netip.MustParseAddr("10.0.0.1"), RD: "100:100"},
-		{Prefix: netip.MustParsePrefix("10.0.1.0/24"), NextHop: netip.MustParseAddr("10.0.0.1"), RD: "100:101"},
+		{Prefix: netip.MustParsePrefix("10.0.0.0/24"), NextHop: api.NewNextHopExplicit(netip.MustParseAddr("10.0.0.1")), RD: "100:100"},
+		{Prefix: netip.MustParsePrefix("10.0.1.0/24"), NextHop: api.NewNextHopExplicit(netip.MustParseAddr("10.0.0.1")), RD: "100:101"},
 	}
 
 	for _, route := range routes {
@@ -1198,14 +1201,15 @@ func TestPeerEncodingContextAddPath(t *testing.T) {
 // VALIDATES: OriginatorID and ClusterList are copied to UnicastParams.
 // PREVENTS: Silent data loss for route reflector attributes.
 func TestToStaticRouteUnicastParams_CopiesReflectorAttrs(t *testing.T) {
+	nextHop := netip.MustParseAddr("192.168.1.1")
 	route := StaticRoute{
 		Prefix:       netip.MustParsePrefix("10.0.0.0/24"),
-		NextHop:      netip.MustParseAddr("192.168.1.1"),
+		NextHop:      api.NewNextHopExplicit(nextHop),
 		OriginatorID: 0xC0A80101,
 		ClusterList:  []uint32{0xC0A80102, 0xC0A80103},
 	}
 
-	params := toStaticRouteUnicastParams(route, nil) // nil sendCtx - no ExtNH needed
+	params := toStaticRouteUnicastParams(route, nextHop, nil) // nil sendCtx - no ExtNH needed
 
 	require.Equal(t, route.OriginatorID, params.OriginatorID,
 		"OriginatorID not copied: got %x, want %x", params.OriginatorID, route.OriginatorID)
@@ -1224,12 +1228,12 @@ func TestToStaticRouteUnicastParams_CopiesReflectorAttrs(t *testing.T) {
 func TestRouteGroupKey_IncludesReflectorAttrs(t *testing.T) {
 	route1 := StaticRoute{
 		Prefix:       netip.MustParsePrefix("10.0.0.0/24"),
-		NextHop:      netip.MustParseAddr("192.168.1.1"),
+		NextHop:      api.NewNextHopExplicit(netip.MustParseAddr("192.168.1.1")),
 		OriginatorID: 0xC0A80101,
 	}
 	route2 := StaticRoute{
 		Prefix:       netip.MustParsePrefix("10.0.1.0/24"),
-		NextHop:      netip.MustParseAddr("192.168.1.1"),
+		NextHop:      api.NewNextHopExplicit(netip.MustParseAddr("192.168.1.1")),
 		OriginatorID: 0xC0A80102, // Different!
 	}
 
@@ -1247,12 +1251,12 @@ func TestRouteGroupKey_IncludesReflectorAttrs(t *testing.T) {
 func TestRouteGroupKey_IncludesClusterList(t *testing.T) {
 	route1 := StaticRoute{
 		Prefix:      netip.MustParsePrefix("10.0.0.0/24"),
-		NextHop:     netip.MustParseAddr("192.168.1.1"),
+		NextHop:     api.NewNextHopExplicit(netip.MustParseAddr("192.168.1.1")),
 		ClusterList: []uint32{0xC0A80101},
 	}
 	route2 := StaticRoute{
 		Prefix:      netip.MustParsePrefix("10.0.1.0/24"),
-		NextHop:     netip.MustParseAddr("192.168.1.1"),
+		NextHop:     api.NewNextHopExplicit(netip.MustParseAddr("192.168.1.1")),
 		ClusterList: []uint32{0xC0A80101, 0xC0A80102}, // Different!
 	}
 
@@ -1445,4 +1449,158 @@ func TestMVPNRouteGroupKey_ClusterListOrderMatters(t *testing.T) {
 
 	require.NotEqual(t, key1, key2,
 		"Routes with different ClusterList order should have different keys (RFC 4456)")
+}
+
+// =============================================================================
+// RouteNextHop Resolution Tests
+// =============================================================================
+
+// TestResolveNextHop_Explicit verifies explicit next-hop resolution.
+//
+// VALIDATES: Explicit policy returns the configured address.
+// PREVENTS: Explicit addresses being modified or rejected.
+func TestResolveNextHop_Explicit(t *testing.T) {
+	settings := NewPeerSettings(mustParseAddr("192.0.2.1"), 65000, 65001, 0x01010101)
+	peer := NewPeer(settings)
+
+	addr := netip.MustParseAddr("10.0.0.1")
+	nh := api.NewNextHopExplicit(addr)
+
+	got, err := peer.resolveNextHop(nh, nlri.IPv4Unicast)
+	require.NoError(t, err)
+	require.Equal(t, addr, got)
+}
+
+// TestResolveNextHop_Self verifies self next-hop resolution.
+//
+// VALIDATES: Self policy returns LocalAddress from settings.
+// PREVENTS: Self policy using wrong address or failing unexpectedly.
+func TestResolveNextHop_Self(t *testing.T) {
+	settings := NewPeerSettings(mustParseAddr("192.0.2.1"), 65000, 65001, 0x01010101)
+	settings.LocalAddress = netip.MustParseAddr("10.0.0.100")
+	peer := NewPeer(settings)
+
+	nh := api.NewNextHopSelf()
+
+	got, err := peer.resolveNextHop(nh, nlri.IPv4Unicast)
+	require.NoError(t, err)
+	require.Equal(t, settings.LocalAddress, got)
+}
+
+// TestResolveNextHop_SelfNoLocal verifies error when Self without LocalAddress.
+//
+// VALIDATES: Self policy without LocalAddress returns ErrNextHopSelfNoLocal.
+// PREVENTS: Using invalid/zero address when LocalAddress not configured.
+func TestResolveNextHop_SelfNoLocal(t *testing.T) {
+	settings := NewPeerSettings(mustParseAddr("192.0.2.1"), 65000, 65001, 0x01010101)
+	// LocalAddress not set (zero value)
+	peer := NewPeer(settings)
+
+	nh := api.NewNextHopSelf()
+
+	_, err := peer.resolveNextHop(nh, nlri.IPv4Unicast)
+	require.ErrorIs(t, err, ErrNextHopSelfNoLocal)
+}
+
+// TestResolveNextHop_Unset verifies error for unset policy.
+//
+// VALIDATES: Unset policy returns ErrNextHopUnset.
+// PREVENTS: Using zero-value RouteNextHop silently.
+func TestResolveNextHop_Unset(t *testing.T) {
+	settings := NewPeerSettings(mustParseAddr("192.0.2.1"), 65000, 65001, 0x01010101)
+	peer := NewPeer(settings)
+
+	var nh api.RouteNextHop // zero value = NextHopUnset
+
+	_, err := peer.resolveNextHop(nh, nlri.IPv4Unicast)
+	require.ErrorIs(t, err, ErrNextHopUnset)
+}
+
+// TestResolveNextHop_ExplicitInvalid verifies explicit with invalid addr.
+//
+// VALIDATES: Explicit with invalid addr returns that addr (no error).
+// PREVENTS: Blocking explicit addresses unnecessarily.
+func TestResolveNextHop_ExplicitInvalid(t *testing.T) {
+	settings := NewPeerSettings(mustParseAddr("192.0.2.1"), 65000, 65001, 0x01010101)
+	peer := NewPeer(settings)
+
+	nh := api.NewNextHopExplicit(netip.Addr{}) // invalid addr
+
+	got, err := peer.resolveNextHop(nh, nlri.IPv4Unicast)
+	require.NoError(t, err, "explicit bypasses validation")
+	require.False(t, got.IsValid(), "should return invalid addr as-is")
+}
+
+// TestCanUseNextHopFor_IPv4Natural verifies IPv4 addr for IPv4 family.
+//
+// VALIDATES: IPv4 address is valid next-hop for IPv4 unicast.
+// PREVENTS: Natural match being rejected.
+func TestCanUseNextHopFor_IPv4Natural(t *testing.T) {
+	settings := NewPeerSettings(mustParseAddr("192.0.2.1"), 65000, 65001, 0x01010101)
+	peer := NewPeer(settings)
+
+	addr := netip.MustParseAddr("10.0.0.1")
+	ok := peer.canUseNextHopFor(addr, nlri.IPv4Unicast)
+	require.True(t, ok, "IPv4 addr should be valid for IPv4 family")
+}
+
+// TestCanUseNextHopFor_IPv6Natural verifies IPv6 addr for IPv6 family.
+//
+// VALIDATES: IPv6 address is valid next-hop for IPv6 unicast.
+// PREVENTS: Natural match being rejected.
+func TestCanUseNextHopFor_IPv6Natural(t *testing.T) {
+	settings := NewPeerSettings(mustParseAddr("192.0.2.1"), 65000, 65001, 0x01010101)
+	peer := NewPeer(settings)
+
+	addr := netip.MustParseAddr("2001:db8::1")
+	ok := peer.canUseNextHopFor(addr, nlri.IPv6Unicast)
+	require.True(t, ok, "IPv6 addr should be valid for IPv6 family")
+}
+
+// TestCanUseNextHopFor_ExtendedNH verifies cross-family with Extended NH.
+//
+// VALIDATES: IPv6 addr for IPv4 family allowed when Extended NH negotiated.
+// PREVENTS: Rejecting valid RFC 5549/8950 configuration.
+func TestCanUseNextHopFor_ExtendedNH(t *testing.T) {
+	settings := NewPeerSettings(mustParseAddr("192.0.2.1"), 65000, 65001, 0x01010101)
+	peer := NewPeer(settings)
+
+	// Set up sendCtx with Extended NH for IPv4 unicast → IPv6 next-hop
+	peer.sendCtx = &bgpctx.EncodingContext{
+		ExtendedNextHop: map[nlri.Family]nlri.AFI{
+			nlri.IPv4Unicast: nlri.AFIIPv6, // IPv4 family can use IPv6 next-hop
+		},
+	}
+
+	addr := netip.MustParseAddr("2001:db8::1") // IPv6 addr
+	ok := peer.canUseNextHopFor(addr, nlri.IPv4Unicast)
+	require.True(t, ok, "IPv6 addr should be valid for IPv4 family with Extended NH")
+}
+
+// TestCanUseNextHopFor_CrossFamilyNoCap verifies cross-family without cap fails.
+//
+// VALIDATES: IPv6 addr for IPv4 family rejected without Extended NH.
+// PREVENTS: Invalid next-hop going on wire.
+func TestCanUseNextHopFor_CrossFamilyNoCap(t *testing.T) {
+	settings := NewPeerSettings(mustParseAddr("192.0.2.1"), 65000, 65001, 0x01010101)
+	peer := NewPeer(settings)
+	// No sendCtx or ExtendedNextHop
+
+	addr := netip.MustParseAddr("2001:db8::1") // IPv6 addr
+	ok := peer.canUseNextHopFor(addr, nlri.IPv4Unicast)
+	require.False(t, ok, "cross-family should fail without Extended NH")
+}
+
+// TestCanUseNextHopFor_NilSendCtx verifies nil sendCtx cross-family fails.
+//
+// VALIDATES: Cross-family fails gracefully when sendCtx is nil.
+// PREVENTS: Panic on nil pointer dereference.
+func TestCanUseNextHopFor_NilSendCtx(t *testing.T) {
+	settings := NewPeerSettings(mustParseAddr("192.0.2.1"), 65000, 65001, 0x01010101)
+	peer := NewPeer(settings)
+	peer.sendCtx = nil
+
+	addr := netip.MustParseAddr("2001:db8::1") // IPv6 addr
+	ok := peer.canUseNextHopFor(addr, nlri.IPv4Unicast)
+	require.False(t, ok, "cross-family should fail with nil sendCtx")
 }

@@ -35,8 +35,8 @@ func TestParseUpdateText_AttrSetNextHop(t *testing.T) {
 	})
 	require.NoError(t, err)
 	require.Len(t, result.Groups, 1)
-	assert.Equal(t, netip.MustParseAddr("192.0.2.1"), result.Groups[0].NextHop)
-	assert.False(t, result.Groups[0].NextHopSelf)
+	assert.True(t, result.Groups[0].NextHop.IsExplicit())
+	assert.Equal(t, netip.MustParseAddr("192.0.2.1"), result.Groups[0].NextHop.Addr)
 }
 
 // TestParseUpdateText_AttrSetNextHopSelf verifies next-hop-self flag.
@@ -50,7 +50,7 @@ func TestParseUpdateText_AttrSetNextHopSelf(t *testing.T) {
 	})
 	require.NoError(t, err)
 	require.Len(t, result.Groups, 1)
-	assert.True(t, result.Groups[0].NextHopSelf)
+	assert.True(t, result.Groups[0].NextHop.IsSelf())
 }
 
 // TestParseUpdateText_AttrSetOrigin verifies origin attribute parsing.
@@ -414,7 +414,8 @@ func TestParseUpdateText_AttrAndNLRI(t *testing.T) {
 	require.Len(t, result.Groups, 1)
 
 	g := result.Groups[0]
-	assert.Equal(t, netip.MustParseAddr("192.0.2.1"), g.NextHop)
+	assert.True(t, g.NextHop.IsExplicit())
+	assert.Equal(t, netip.MustParseAddr("192.0.2.1"), g.NextHop.Addr)
 	require.NotNil(t, g.Attrs.Origin)
 	assert.Equal(t, uint8(0), *g.Attrs.Origin)
 	require.Len(t, g.Announce, 1)
@@ -582,7 +583,8 @@ func TestParseUpdateText_SpecExample(t *testing.T) {
 	// First group: ipv4/unicast with original attrs
 	g1 := result.Groups[0]
 	assert.Equal(t, nlri.IPv4Unicast, g1.Family)
-	assert.Equal(t, netip.MustParseAddr("192.0.2.1"), g1.NextHop)
+	assert.True(t, g1.NextHop.IsExplicit())
+	assert.Equal(t, netip.MustParseAddr("192.0.2.1"), g1.NextHop.Addr)
 	require.Len(t, g1.Attrs.Communities, 1)
 	require.Len(t, g1.Announce, 2)
 	require.Len(t, g1.Withdraw, 1)
@@ -590,7 +592,8 @@ func TestParseUpdateText_SpecExample(t *testing.T) {
 	// Second group: ipv6/unicast with modified attrs
 	g2 := result.Groups[1]
 	assert.Equal(t, nlri.IPv6Unicast, g2.Family)
-	assert.Equal(t, netip.MustParseAddr("2001:db8::1"), g2.NextHop)
+	assert.True(t, g2.NextHop.IsExplicit())
+	assert.Equal(t, netip.MustParseAddr("2001:db8::1"), g2.NextHop.Addr)
 	require.Len(t, g2.Attrs.Communities, 2) // 65000:100 + 65000:200
 	require.Len(t, g2.Announce, 1)
 	assert.Empty(t, g2.Withdraw)
@@ -609,7 +612,7 @@ func TestParsedAttrs_Snapshot_DeepCopy(t *testing.T) {
 		},
 	}
 
-	pa, _, _ := orig.snapshot()
+	pa, _ := orig.snapshot()
 
 	// Modify original
 	orig.Communities = append(orig.Communities, 4)
@@ -630,7 +633,7 @@ func TestParsedAttrs_Snapshot_DeepCopyPointers(t *testing.T) {
 		},
 	}
 
-	pa, _, _ := orig.snapshot()
+	pa, _ := orig.snapshot()
 
 	// Modify original pointer value
 	*orig.Origin = 2
@@ -1165,7 +1168,7 @@ func TestHandleUpdateText_NextHopSelf(t *testing.T) {
 	assert.Equal(t, "done", resp.Status)
 
 	require.Len(t, reactor.announceCalls, 1)
-	assert.True(t, reactor.announceCalls[0].NextHopSelf)
+	assert.True(t, reactor.announceCalls[0].NextHop.IsSelf())
 }
 
 // TestHandleUpdateText_FamilyNotAccepted verifies warning when no peers accept family.

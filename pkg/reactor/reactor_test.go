@@ -312,7 +312,7 @@ func TestReactorStats(t *testing.T) {
 func TestBuildAnnounceUpdateIPv6UsesMPReachNLRI(t *testing.T) {
 	route := api.RouteSpec{
 		Prefix:  netip.MustParsePrefix("2605::2/128"),
-		NextHop: netip.MustParseAddr("2001::1"),
+		NextHop: api.NewNextHopExplicit(netip.MustParseAddr("2001::1")),
 	}
 
 	// ctx with ASN4=true, AddPath=false

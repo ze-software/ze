@@ -12,6 +12,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"codeberg.org/thomas-mangin/zebgp/pkg/api"
 	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/attribute"
 	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/capability"
 	bgpctx "codeberg.org/thomas-mangin/zebgp/pkg/bgp/context"
@@ -60,6 +61,20 @@ func (s PeerState) String() string {
 const (
 	DefaultReconnectMin = 5 * time.Second
 	DefaultReconnectMax = 60 * time.Second
+)
+
+// Next-hop resolution errors.
+var (
+	// ErrNextHopUnset is returned when RouteNextHop has zero-value policy.
+	ErrNextHopUnset = errors.New("next-hop policy not set")
+
+	// ErrNextHopSelfNoLocal is returned when Self policy is used but
+	// LocalAddress is not configured in peer settings.
+	ErrNextHopSelfNoLocal = errors.New("next-hop self: no local address configured")
+
+	// ErrNextHopIncompatible is returned when Self address is incompatible
+	// with the NLRI family and Extended Next Hop is not negotiated.
+	ErrNextHopIncompatible = errors.New("next-hop incompatible with family")
 )
 
 // PeerCallback is called when peer state changes.
@@ -370,6 +385,66 @@ func (p *Peer) packContext(family nlri.Family) *nlri.PackContext {
 	return p.sendCtx.ToPackContext(family)
 }
 
+// resolveNextHop returns the actual IP address for a RouteNextHop policy.
+// Uses session's LocalAddress for Self, validates against Extended NH capability.
+//
+// RFC 4271 Section 5.1.3 - NEXT_HOP attribute.
+// RFC 5549/8950 - Extended Next Hop Encoding.
+func (p *Peer) resolveNextHop(nh api.RouteNextHop, family nlri.Family) (netip.Addr, error) {
+	switch nh.Policy {
+	case api.NextHopExplicit:
+		// Explicit addresses bypass validation - user is responsible.
+		// Returns invalid addr without error if that's what was configured.
+		return nh.Addr, nil
+
+	case api.NextHopSelf:
+		local := p.settings.LocalAddress
+		if !local.IsValid() {
+			return netip.Addr{}, ErrNextHopSelfNoLocal
+		}
+		// Validate: can we use this address for this NLRI family?
+		if !p.canUseNextHopFor(local, family) {
+			return netip.Addr{}, ErrNextHopIncompatible
+		}
+		return local, nil
+
+	case api.NextHopUnset:
+		return netip.Addr{}, ErrNextHopUnset
+
+	default:
+		return netip.Addr{}, ErrNextHopUnset
+	}
+}
+
+// canUseNextHopFor checks if addr is valid as next-hop for family.
+// Natural match (IPv4 for IPv4, IPv6 for IPv6) always allowed.
+// Cross-family allowed if Extended NH capability negotiated.
+//
+// RFC 5549/8950: Extended Next Hop Encoding for cross-family next-hops.
+func (p *Peer) canUseNextHopFor(addr netip.Addr, family nlri.Family) bool {
+	// Natural match - always allowed
+	if addr.Is4() && family.AFI == nlri.AFIIPv4 {
+		return true
+	}
+	if addr.Is6() && family.AFI == nlri.AFIIPv6 {
+		return true
+	}
+
+	// Cross-family via Extended NH (RFC 5549/8950)
+	if p.sendCtx != nil {
+		nhAFI := p.sendCtx.ExtendedNextHopFor(family)
+		if nhAFI != 0 {
+			if addr.Is6() && nhAFI == nlri.AFIIPv6 {
+				return true
+			}
+			if addr.Is4() && nhAFI == nlri.AFIIPv4 {
+				return true
+			}
+		}
+	}
+	return false
+}
+
 func toVPLSParams(r VPLSRoute) message.VPLSParams {
 	return message.VPLSParams{
 		RD: r.RD, Endpoint: r.Endpoint, Base: r.Base, Offset: r.Offset,
@@ -414,13 +489,14 @@ func toMVPNParams(routes []MVPNRoute) []message.MVPNParams {
 
 // toStaticRouteUnicastParams converts a StaticRoute to UnicastParams.
 // Used for IPv4/IPv6 unicast routes (not VPN).
-func toStaticRouteUnicastParams(r StaticRoute, sendCtx *bgpctx.EncodingContext) message.UnicastParams {
+// nextHop is the resolved next-hop address (from RouteNextHop policy).
+func toStaticRouteUnicastParams(r StaticRoute, nextHop netip.Addr, sendCtx *bgpctx.EncodingContext) message.UnicastParams {
 	// RFC 8950: Extended next-hop for cross-AFI next-hop
 	var useExtNH bool
 	if sendCtx != nil {
-		if r.Prefix.Addr().Is4() && r.NextHop.Is6() {
+		if r.Prefix.Addr().Is4() && nextHop.Is6() {
 			useExtNH = sendCtx.ExtendedNextHopFor(nlri.IPv4Unicast) != 0
-		} else if r.Prefix.Addr().Is6() && r.NextHop.Is4() {
+		} else if r.Prefix.Addr().Is6() && nextHop.Is4() {
 			useExtNH = sendCtx.ExtendedNextHopFor(nlri.IPv6Unicast) != 0
 		}
 	}
@@ -434,7 +510,7 @@ func toStaticRouteUnicastParams(r StaticRoute, sendCtx *bgpctx.EncodingContext) 
 	return message.UnicastParams{
 		Prefix:             r.Prefix,
 		PathID:             r.PathID,
-		NextHop:            r.NextHop,
+		NextHop:            nextHop,
 		Origin:             attribute.Origin(r.Origin),
 		ASPath:             r.ASPath,
 		MED:                r.MED,
@@ -455,7 +531,8 @@ func toStaticRouteUnicastParams(r StaticRoute, sendCtx *bgpctx.EncodingContext) 
 
 // toStaticRouteLabeledUnicastParams converts a StaticRoute to LabeledUnicastParams.
 // Used for labeled unicast routes (SAFI 4).
-func toStaticRouteLabeledUnicastParams(r StaticRoute) message.LabeledUnicastParams {
+// nextHop is the resolved next-hop address (from RouteNextHop policy).
+func toStaticRouteLabeledUnicastParams(r StaticRoute, nextHop netip.Addr) message.LabeledUnicastParams {
 	// Pack raw attributes
 	rawAttrs := make([][]byte, len(r.RawAttributes))
 	for i, ra := range r.RawAttributes {
@@ -465,7 +542,7 @@ func toStaticRouteLabeledUnicastParams(r StaticRoute) message.LabeledUnicastPara
 	return message.LabeledUnicastParams{
 		Prefix:            r.Prefix,
 		PathID:            r.PathID,
-		NextHop:           r.NextHop,
+		NextHop:           nextHop,
 		Label:             r.Label,
 		Origin:            attribute.Origin(r.Origin),
 		ASPath:            r.ASPath,
@@ -487,11 +564,12 @@ func toStaticRouteLabeledUnicastParams(r StaticRoute) message.LabeledUnicastPara
 
 // toStaticRouteVPNParams converts a StaticRoute to VPNParams.
 // Used for VPN routes (SAFI 128).
-func toStaticRouteVPNParams(r StaticRoute) message.VPNParams {
+// nextHop is the resolved next-hop address (from RouteNextHop policy).
+func toStaticRouteVPNParams(r StaticRoute, nextHop netip.Addr) message.VPNParams {
 	return message.VPNParams{
 		Prefix:            r.Prefix,
 		PathID:            r.PathID,
-		NextHop:           r.NextHop,
+		NextHop:           nextHop,
 		Label:             r.Label,
 		RDBytes:           r.RDBytes,
 		Origin:            attribute.Origin(r.Origin),
@@ -512,15 +590,16 @@ func toStaticRouteVPNParams(r StaticRoute) message.VPNParams {
 
 // buildStaticRouteUpdateNew builds an UPDATE for a static route using UpdateBuilder.
 // This is the new implementation that will replace buildStaticRouteUpdate.
-func buildStaticRouteUpdateNew(route StaticRoute, localAS uint32, isIBGP bool, ctx *nlri.PackContext, sendCtx *bgpctx.EncodingContext) *message.Update {
+// nextHop is the resolved next-hop address (from RouteNextHop policy).
+func buildStaticRouteUpdateNew(route StaticRoute, nextHop netip.Addr, localAS uint32, isIBGP bool, ctx *nlri.PackContext, sendCtx *bgpctx.EncodingContext) *message.Update {
 	ub := message.NewUpdateBuilder(localAS, isIBGP, ctx)
 	if route.IsVPN() {
-		return ub.BuildVPN(toStaticRouteVPNParams(route))
+		return ub.BuildVPN(toStaticRouteVPNParams(route, nextHop))
 	}
 	if route.IsLabeledUnicast() {
-		return ub.BuildLabeledUnicast(toStaticRouteLabeledUnicastParams(route))
+		return ub.BuildLabeledUnicast(toStaticRouteLabeledUnicastParams(route, nextHop))
 	}
-	return ub.BuildUnicast(toStaticRouteUnicastParams(route, sendCtx))
+	return ub.BuildUnicast(toStaticRouteUnicastParams(route, nextHop, sendCtx))
 }
 
 // State returns the current peer state.
@@ -1085,7 +1164,13 @@ func (p *Peer) sendInitialRoutes() {
 			ctx := p.packContext(routeFamily(routes[0]))
 			if len(routes) == 1 {
 				// Single-route group (IPv6, VPN, LabeledUnicast, or solo IPv4)
-				update := buildStaticRouteUpdateNew(routes[0], p.settings.LocalAS, p.settings.IsIBGP(), ctx, p.sendCtx)
+				// Resolve next-hop from RouteNextHop policy
+				nextHop, nhErr := p.resolveNextHop(routes[0].NextHop, routeFamily(routes[0]))
+				if nhErr != nil {
+					trace.Log(trace.Routes, "peer %s: next-hop resolution failed: %v", addr, nhErr)
+					continue
+				}
+				update := buildStaticRouteUpdateNew(routes[0], nextHop, p.settings.LocalAS, p.settings.IsIBGP(), ctx, p.sendCtx)
 				if err := p.sendUpdateWithSplit(update, maxMsgSize, routeFamily(routes[0])); err != nil {
 					trace.Log(trace.Routes, "peer %s: send error: %v", addr, err)
 					break
@@ -1094,9 +1179,17 @@ func (p *Peer) sendInitialRoutes() {
 				// Multi-route group - IPv4 unicast only (routeGroupKey ensures this)
 				// Use size-aware builder to respect max message size
 				ub := message.NewUpdateBuilder(p.settings.LocalAS, p.settings.IsIBGP(), ctx)
-				params := make([]message.UnicastParams, len(routes))
-				for i, r := range routes {
-					params[i] = toStaticRouteUnicastParams(r, p.sendCtx)
+				params := make([]message.UnicastParams, 0, len(routes))
+				for _, r := range routes {
+					nextHop, nhErr := p.resolveNextHop(r.NextHop, routeFamily(r))
+					if nhErr != nil {
+						trace.Log(trace.Routes, "peer %s: next-hop resolution failed for %s: %v", addr, r.Prefix, nhErr)
+						continue
+					}
+					params = append(params, toStaticRouteUnicastParams(r, nextHop, p.sendCtx))
+				}
+				if len(params) == 0 {
+					continue
 				}
 				updates, err := ub.BuildGroupedUnicastWithLimit(params, maxMsgSize)
 				if err != nil {
@@ -1117,8 +1210,14 @@ func (p *Peer) sendInitialRoutes() {
 	} else {
 		// Send each route in its own UPDATE.
 		for _, route := range p.settings.StaticRoutes {
+			// Resolve next-hop from RouteNextHop policy
+			nextHop, nhErr := p.resolveNextHop(route.NextHop, routeFamily(route))
+			if nhErr != nil {
+				trace.Log(trace.Routes, "peer %s: next-hop resolution failed for %s: %v", addr, route.Prefix, nhErr)
+				continue
+			}
 			ctx := p.packContext(routeFamily(route))
-			update := buildStaticRouteUpdateNew(route, p.settings.LocalAS, p.settings.IsIBGP(), ctx, p.sendCtx)
+			update := buildStaticRouteUpdateNew(route, nextHop, p.settings.LocalAS, p.settings.IsIBGP(), ctx, p.sendCtx)
 			if err := p.sendUpdateWithSplit(update, maxMsgSize, routeFamily(route)); err != nil {
 				trace.Log(trace.Routes, "peer %s: send error: %v", addr, err)
 				break
@@ -1145,14 +1244,19 @@ func (p *Peer) sendInitialRoutes() {
 					continue
 				}
 
-				// Send the route
+				// Send the route - resolve next-hop from RouteNextHop policy
+				nextHop, nhErr := p.resolveNextHop(wr.StaticRoute.NextHop, routeFamily(wr.StaticRoute))
+				if nhErr != nil {
+					trace.Log(trace.Routes, "peer %s: watchdog %s: next-hop resolution failed: %v", addr, name, nhErr)
+					continue
+				}
 				ctx := p.packContext(routeFamily(wr.StaticRoute))
-				update := buildStaticRouteUpdateNew(wr.StaticRoute, p.settings.LocalAS, p.settings.IsIBGP(), ctx, p.sendCtx)
+				update := buildStaticRouteUpdateNew(wr.StaticRoute, nextHop, p.settings.LocalAS, p.settings.IsIBGP(), ctx, p.sendCtx)
 				if err := p.sendUpdateWithSplit(update, maxMsgSize, routeFamily(wr.StaticRoute)); err != nil {
 					trace.Log(trace.Routes, "peer %s: send error: %v", addr, err)
 					break
 				}
-				trace.RouteSent(addr, routeKey, wr.NextHop.String())
+				trace.RouteSent(addr, routeKey, wr.StaticRoute.NextHop.String())
 			}
 		}
 		trace.Log(trace.Routes, "peer %s: sent watchdog routes from %d groups", addr, len(p.settings.WatchdogGroups))
@@ -1165,7 +1269,6 @@ func (p *Peer) sendInitialRoutes() {
 	p.mu.RUnlock()
 
 	if globalWatchdog != nil {
-		localAddr := p.settings.LocalAddress
 		poolNames := globalWatchdog.PoolNames()
 		for _, poolName := range poolNames {
 			pool := globalWatchdog.GetPool(poolName)
@@ -1176,16 +1279,15 @@ func (p *Peer) sendInitialRoutes() {
 				if !pr.IsAnnounced(addr) {
 					continue
 				}
-				// Resolve next-hop self if needed
-				nextHop := pr.NextHop
-				if pr.NextHopSelf && localAddr.IsValid() {
-					nextHop = localAddr
-				}
-				// Build route with resolved next-hop
+				// Resolve next-hop from RouteNextHop policy
 				route := pr.StaticRoute
-				route.NextHop = nextHop
+				nextHop, nhErr := p.resolveNextHop(route.NextHop, routeFamily(route))
+				if nhErr != nil {
+					trace.Log(trace.Routes, "peer %s: global pool %s: next-hop resolution failed: %v", addr, poolName, nhErr)
+					continue
+				}
 				ctx := p.packContext(routeFamily(route))
-				update := buildStaticRouteUpdateNew(route, p.settings.LocalAS, p.settings.IsIBGP(), ctx, p.sendCtx)
+				update := buildStaticRouteUpdateNew(route, nextHop, p.settings.LocalAS, p.settings.IsIBGP(), ctx, p.sendCtx)
 				if err := p.sendUpdateWithSplit(update, maxMsgSize, routeFamily(route)); err != nil {
 					trace.Log(trace.Routes, "peer %s: send error: %v", addr, err)
 					break
@@ -2161,10 +2263,15 @@ func (p *Peer) AnnounceWatchdog(name string) error {
 			continue // Already announced
 		}
 
-		// Send the route
+		// Send the route - resolve next-hop from RouteNextHop policy
+		nextHop, nhErr := p.resolveNextHop(wr.StaticRoute.NextHop, routeFamily(wr.StaticRoute))
+		if nhErr != nil {
+			trace.Log(trace.Routes, "peer %s: watchdog %s: next-hop resolution failed: %v", addr, name, nhErr)
+			continue
+		}
 		// RFC 7911: Get PackContext for ADD-PATH encoding
 		ctx := p.packContext(routeFamily(wr.StaticRoute))
-		update := buildStaticRouteUpdateNew(wr.StaticRoute, p.settings.LocalAS, p.settings.IsIBGP(), ctx, p.sendCtx)
+		update := buildStaticRouteUpdateNew(wr.StaticRoute, nextHop, p.settings.LocalAS, p.settings.IsIBGP(), ctx, p.sendCtx)
 		if err := p.SendUpdate(update); err != nil {
 			return err
 		}
@@ -2174,7 +2281,7 @@ func (p *Peer) AnnounceWatchdog(name string) error {
 		p.watchdogState[name][routeKey] = true
 		p.mu.Unlock()
 
-		trace.RouteSent(addr, routeKey, wr.NextHop.String())
+		trace.RouteSent(addr, routeKey, wr.StaticRoute.NextHop.String())
 		announced++
 	}
 

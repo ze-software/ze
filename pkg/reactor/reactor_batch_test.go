@@ -144,7 +144,7 @@ func TestAnnounceNLRIBatch_NoMatchingPeers(t *testing.T) {
 	batch := api.NLRIBatch{
 		Family:  nlri.IPv4Unicast,
 		NLRIs:   []nlri.NLRI{nlri.NewINET(nlri.IPv4Unicast, netip.MustParsePrefix("10.0.0.0/24"), 0)},
-		NextHop: netip.MustParseAddr("10.0.0.1"),
+		NextHop: api.NewNextHopExplicit(netip.MustParseAddr("10.0.0.1")),
 	}
 
 	err := adapter.AnnounceNLRIBatch("192.168.1.1", batch)
@@ -201,7 +201,7 @@ func TestAnnounceNLRIBatch_FamilyNotNegotiated(t *testing.T) {
 	batch := api.NLRIBatch{
 		Family:  nlri.IPv6Unicast,
 		NLRIs:   []nlri.NLRI{nlri.NewINET(nlri.IPv6Unicast, netip.MustParsePrefix("2001:db8::/32"), 0)},
-		NextHop: netip.MustParseAddr("2001:db8::1"),
+		NextHop: api.NewNextHopExplicit(netip.MustParseAddr("2001:db8::1")),
 	}
 
 	// Should return warning error when all peers skipped
@@ -273,7 +273,7 @@ func TestAnnounceNLRIBatch_QueueForNonEstablished(t *testing.T) {
 			nlri.NewINET(nlri.IPv4Unicast, netip.MustParsePrefix("10.0.0.0/24"), 0),
 			nlri.NewINET(nlri.IPv4Unicast, netip.MustParsePrefix("10.0.1.0/24"), 0),
 		},
-		NextHop: netip.MustParseAddr("10.0.0.1"),
+		NextHop: api.NewNextHopExplicit(netip.MustParseAddr("10.0.0.1")),
 	}
 
 	err := adapter.AnnounceNLRIBatch("*", batch)

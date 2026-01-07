@@ -11,6 +11,7 @@ import (
 	"strings"
 	"time"
 
+	"codeberg.org/thomas-mangin/zebgp/pkg/api"
 	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/capability"
 	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/nlri"
 	"codeberg.org/thomas-mangin/zebgp/pkg/reactor"
@@ -320,10 +321,12 @@ func configToPeer(nc *PeerConfig, global *BGPConfig) (*reactor.PeerSettings, err
 			return nil, fmt.Errorf("static route %s: %w", sr.Prefix, err)
 		}
 
-		// Resolve next-hop self to local address
-		nextHop := attrs.NextHop
-		if sr.NextHopSelf && nc.LocalAddress.IsValid() {
-			nextHop = nc.LocalAddress
+		// Create RouteNextHop from config
+		var nextHop api.RouteNextHop
+		if sr.NextHopSelf {
+			nextHop = api.NewNextHopSelf()
+		} else if attrs.NextHop.IsValid() {
+			nextHop = api.NewNextHopExplicit(attrs.NextHop)
 		}
 
 		// Convert raw attributes

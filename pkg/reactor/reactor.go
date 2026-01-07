@@ -309,6 +309,14 @@ func (a *reactorAPIAdapter) AnnounceRoute(peerSelector string, route api.RouteSp
 	for _, peer := range peers {
 		isIBGP := peer.Settings().IsIBGP()
 
+		// Resolve next-hop per peer using RouteNextHop policy
+		nextHopAddr, nhErr := peer.resolveNextHop(route.NextHop, n.Family())
+		if nhErr != nil {
+			// Log but continue - skip this peer if next-hop can't be resolved
+			trace.Log(trace.Routes, "peer %s: next-hop resolution failed: %v", peer.Settings().Address, nhErr)
+			continue
+		}
+
 		// Build AS_PATH: empty for iBGP, prepend LocalAS for eBGP
 		// RFC 4271 §5.1.2: iBGP SHALL NOT modify AS_PATH; eBGP prepends local AS
 		var asPath *attribute.ASPath
@@ -329,14 +337,18 @@ func (a *reactorAPIAdapter) AnnounceRoute(peerSelector string, route api.RouteSp
 			}
 		}
 
-		ribRoute := rib.NewRouteWithASPath(n, route.NextHop, attrs, asPath)
+		ribRoute := rib.NewRouteWithASPath(n, nextHopAddr, attrs, asPath)
+
+		// Create resolved route spec for buildAnnounceUpdate
+		resolvedRoute := route
+		resolvedRoute.NextHop = api.NewNextHopExplicit(nextHopAddr)
 
 		if peer.State() == PeerStateEstablished {
 			// Send immediately
 			// RFC 7911: Get PackContext for ADD-PATH encoding
 			// RFC 6793: ctx.ASN4 provides 4-byte AS capability
 			ctx := peer.packContext(n.Family())
-			update := buildAnnounceUpdate(route, a.r.config.LocalAS, isIBGP, ctx)
+			update := buildAnnounceUpdate(resolvedRoute, a.r.config.LocalAS, isIBGP, ctx)
 			if err := peer.SendUpdate(update); err != nil {
 				lastErr = err
 			}
@@ -477,8 +489,10 @@ func buildAnnounceUpdate(route api.RouteSpec, localAS uint32, isIBGP bool, ctx *
 
 	// 3. NEXT_HOP - RFC 4271 §5.1.3: Well-known mandatory attribute.
 	// RFC 4760: For non-IPv4 unicast, next-hop is carried in MP_REACH_NLRI.
+	// Extract address from RouteNextHop (must be resolved before calling this function)
+	nhAddr := route.NextHop.Addr
 	if !isIPv6 {
-		nextHop := &attribute.NextHop{Addr: route.NextHop}
+		nextHop := &attribute.NextHop{Addr: nhAddr}
 		attrBytes = append(attrBytes, attribute.PackAttribute(nextHop)...)
 	}
 
@@ -535,7 +549,7 @@ func buildAnnounceUpdate(route api.RouteSpec, localAS uint32, isIBGP bool, ctx *
 		mpReach := &attribute.MPReachNLRI{
 			AFI:      attribute.AFIIPv6,
 			SAFI:     attribute.SAFIUnicast,
-			NextHops: []netip.Addr{route.NextHop},
+			NextHops: []netip.Addr{nhAddr},
 			NLRI:     inet.Pack(ctx),
 		}
 		attrBytes = append(attrBytes, attribute.PackAttribute(mpReach)...)
@@ -946,10 +960,12 @@ func (a *reactorAPIAdapter) AnnounceNLRIBatch(peerSelector string, batch api.NLR
 	for _, peer := range peers {
 		isIBGP := peer.Settings().IsIBGP()
 
-		// Resolve next-hop per peer
-		nextHop := batch.NextHop
-		if batch.NextHopSelf {
-			nextHop = peer.settings.LocalAddress
+		// Resolve next-hop per peer using RouteNextHop policy
+		nextHop, nhErr := peer.resolveNextHop(batch.NextHop, batch.Family)
+		if nhErr != nil {
+			// Log but continue - skip this peer if next-hop can't be resolved
+			trace.Log(trace.Routes, "peer %s: next-hop resolution failed: %v", peer.Settings().Address, nhErr)
+			continue
 		}
 
 		// Build AS_PATH per peer (iBGP vs eBGP)
@@ -1393,9 +1409,8 @@ func (a *reactorAPIAdapter) WithdrawWatchdog(peerSelector, name string) error {
 func (a *reactorAPIAdapter) AddWatchdogRoute(route api.RouteSpec, poolName string) error {
 	// Convert api.RouteSpec to StaticRoute
 	sr := StaticRoute{
-		Prefix:      route.Prefix,
-		NextHop:     route.NextHop,
-		NextHopSelf: route.NextHopSelf,
+		Prefix:  route.Prefix,
+		NextHop: route.NextHop, // Already api.RouteNextHop
 	}
 	if route.Origin != nil {
 		sr.Origin = *route.Origin
@@ -1433,16 +1448,19 @@ func (a *reactorAPIAdapter) RemoveWatchdogRoute(routeKey, poolName string) error
 // localAddress is used to resolve "next-hop self" routes.
 // RFC 7911: ctx provides ADD-PATH capability state for NLRI encoding.
 func buildAnnounceUpdateFromStatic(route StaticRoute, localAS uint32, isIBGP bool, localAddress netip.Addr, ctx *nlri.PackContext) *message.Update {
-	// Resolve next-hop: use local address if NextHopSelf, otherwise use configured NextHop
-	nextHop := route.NextHop
-	if route.NextHopSelf && localAddress.IsValid() {
+	// Resolve next-hop from RouteNextHop policy
+	var nextHop netip.Addr
+	if route.NextHop.IsSelf() && localAddress.IsValid() {
 		nextHop = localAddress
+	} else if route.NextHop.IsExplicit() {
+		nextHop = route.NextHop.Addr
 	}
+	// If neither, nextHop remains zero value (invalid) - buildAnnounceUpdate handles this
 
 	// Convert StaticRoute to RouteSpec for buildAnnounceUpdate
 	spec := api.RouteSpec{
 		Prefix:  route.Prefix,
-		NextHop: nextHop,
+		NextHop: api.NewNextHopExplicit(nextHop), // Pass resolved address
 	}
 
 	// Copy optional attributes

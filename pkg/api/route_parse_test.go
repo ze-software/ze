@@ -1223,8 +1223,8 @@ func TestParseAttributesNlri(t *testing.T) {
 
 			// Check next-hop
 			wantNH := netip.MustParseAddr(tt.wantNextHop)
-			if attrs.NextHop != wantNH {
-				t.Errorf("parseAttributesNLRI(%q) NextHop = %v, want %v", tt.args, attrs.NextHop, wantNH)
+			if !attrs.NextHop.IsExplicit() || attrs.NextHop.Addr != wantNH {
+				t.Errorf("parseAttributesNLRI(%q) NextHop = %v, want explicit %v", tt.args, attrs.NextHop, wantNH)
 			}
 
 			// Check MED (pointer comparison)

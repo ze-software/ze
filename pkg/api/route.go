@@ -326,7 +326,7 @@ func announceRouteImpl(ctx *CommandContext, args []string) (*Response, error) {
 		}, err
 	}
 
-	if !parsed.NextHopSelf && !parsed.Route.NextHop.IsValid() {
+	if !parsed.Route.NextHop.IsValid() {
 		return &Response{
 			Status: "error",
 			Data:   "missing next-hop",
@@ -345,9 +345,6 @@ func announceRouteImpl(ctx *CommandContext, args []string) (*Response, error) {
 			}, err
 		}
 		nextHopStr := parsed.Route.NextHop.String()
-		if parsed.NextHopSelf {
-			nextHopStr = "self"
-		}
 		return &Response{
 			Status: "done",
 			Data: map[string]any{
@@ -431,8 +428,7 @@ var ErrInvalidKeyword = errors.New("invalid keyword for route family")
 
 // ParsedRoute holds the result of parsing route attributes.
 type ParsedRoute struct {
-	Route       RouteSpec
-	NextHopSelf bool // true if "next-hop self" was specified
+	Route RouteSpec
 }
 
 // ParseRouteAttributes parses route attributes from args with keyword validation.
@@ -584,14 +580,13 @@ func parseRouteAttributes(args []string, allowedKeywords KeywordSet) (ParsedRout
 			}
 			nhStr := args[i+1]
 			if strings.EqualFold(nhStr, "self") {
-				result.NextHopSelf = true
-				result.Route.NextHopSelf = true
+				result.Route.NextHop = NewNextHopSelf()
 			} else {
 				nh, err := netip.ParseAddr(nhStr)
 				if err != nil {
 					return ParsedRoute{}, fmt.Errorf("%w: %s", ErrInvalidNextHop, nhStr)
 				}
-				result.Route.NextHop = nh
+				result.Route.NextHop = NewNextHopExplicit(nh)
 			}
 			i++
 
@@ -1450,7 +1445,7 @@ func handleAnnounceUpdate(ctx *CommandContext, args []string) (*Response, error)
 
 // BatchAttributes holds parsed attributes for batch announcements.
 type BatchAttributes struct {
-	NextHop netip.Addr
+	NextHop RouteNextHop
 	PathAttributes
 }
 
@@ -1482,11 +1477,16 @@ func parseAttributesNLRI(args []string) (BatchAttributes, []netip.Prefix, error)
 			if i+1 >= nlriIndex {
 				return attrs, nil, ErrMissingNextHop
 			}
-			nh, err := netip.ParseAddr(args[i+1])
-			if err != nil {
-				return attrs, nil, fmt.Errorf("%w: %s", ErrInvalidNextHop, args[i+1])
+			nhStr := args[i+1]
+			if strings.EqualFold(nhStr, "self") {
+				attrs.NextHop = NewNextHopSelf()
+			} else {
+				nh, err := netip.ParseAddr(nhStr)
+				if err != nil {
+					return attrs, nil, fmt.Errorf("%w: %s", ErrInvalidNextHop, nhStr)
+				}
+				attrs.NextHop = NewNextHopExplicit(nh)
 			}
-			attrs.NextHop = nh
 			i++
 			continue
 		}
@@ -1561,11 +1561,16 @@ func parseUpdateCommand(args []string) (BatchAttributes, string, string, []netip
 			if i+1 >= familyIndex {
 				return attrs, "", "", nil, ErrMissingNextHop
 			}
-			nh, err := netip.ParseAddr(args[i+1])
-			if err != nil {
-				return attrs, "", "", nil, fmt.Errorf("%w: %s", ErrInvalidNextHop, args[i+1])
+			nhStr := args[i+1]
+			if strings.EqualFold(nhStr, "self") {
+				attrs.NextHop = NewNextHopSelf()
+			} else {
+				nh, err := netip.ParseAddr(nhStr)
+				if err != nil {
+					return attrs, "", "", nil, fmt.Errorf("%w: %s", ErrInvalidNextHop, nhStr)
+				}
+				attrs.NextHop = NewNextHopExplicit(nh)
 			}
-			attrs.NextHop = nh
 			i++
 			continue
 		}
@@ -1670,7 +1675,9 @@ func buildRoute(prefix netip.Prefix, attrs BatchAttributes, afiStr, safiStr stri
 		pathAttrs = append(pathAttrs, lc)
 	}
 
-	return rib.NewRoute(n, attrs.NextHop, pathAttrs)
+	// Extract address from RouteNextHop
+	// For "self" routes, Addr will be invalid - resolution happens at send time
+	return rib.NewRoute(n, attrs.NextHop.Addr, pathAttrs)
 }
 
 // queueRoutesToCommit queues routes to the active commit for the peer.
@@ -2271,14 +2278,14 @@ func ParseRouteArgs(args []string) (RouteSpec, error) {
 		switch key { //nolint:goconst,gocritic // String literals are clearer; switch for future cases
 		case "next-hop":
 			if strings.EqualFold(value, "self") {
-				// next-hop self is handled by the reactor
+				route.NextHop = NewNextHopSelf()
 				continue
 			}
 			nh, err := netip.ParseAddr(value)
 			if err != nil {
 				return route, fmt.Errorf("%w: %s", ErrInvalidNextHop, value)
 			}
-			route.NextHop = nh
+			route.NextHop = NewNextHopExplicit(nh)
 
 			// TODO: Add more attribute parsing
 			// case "origin":

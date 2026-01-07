@@ -245,13 +245,14 @@ func encodeUnicastRoute(ub *message.UpdateBuilder, routeCmd string, isIPv6 bool,
 }
 
 // routeSpecToUnicastParams converts a RouteSpec to UnicastParams.
+// Extracts address from RouteNextHop (must be explicit, not self).
 func routeSpecToUnicastParams(r api.RouteSpec) message.UnicastParams {
 	attrs := extractCommonAttrs(r.Origin, r.LocalPreference, r.MED, r.ASPath,
 		r.Communities, r.LargeCommunities, r.ExtendedCommunities)
 
 	return message.UnicastParams{
 		Prefix:            r.Prefix,
-		NextHop:           r.NextHop,
+		NextHop:           r.NextHop.Addr, // Extract address from RouteNextHop
 		Origin:            attrs.Origin,
 		LocalPreference:   attrs.LocalPreference,
 		MED:               attrs.MED,

@@ -136,7 +136,7 @@ func (a *parsedAttrs) applyDel(other parsedAttrs) error {
 
 // snapshot returns a deep copy of the current attribute state.
 // MUST deep copy slices AND pointers to isolate each group from later modifications.
-func (a *parsedAttrs) snapshot() (PathAttributes, netip.Addr, bool) {
+func (a *parsedAttrs) snapshot() (PathAttributes, RouteNextHop) {
 	var pa PathAttributes
 	// Deep copy pointer fields
 	if a.Origin != nil {
@@ -167,7 +167,14 @@ func (a *parsedAttrs) snapshot() (PathAttributes, netip.Addr, bool) {
 		pa.ExtendedCommunities = make([]attribute.ExtendedCommunity, len(a.ExtendedCommunities))
 		copy(pa.ExtendedCommunities, a.ExtendedCommunities)
 	}
-	return pa, a.NextHop, a.NextHopSelf
+	// Convert to RouteNextHop: Self takes precedence if set
+	var nh RouteNextHop
+	if a.NextHopSelf {
+		nh = NewNextHopSelf()
+	} else if a.NextHop.IsValid() {
+		nh = NewNextHopExplicit(a.NextHop)
+	}
+	return pa, nh
 }
 
 // removeFromSlice removes all elements in remove from slice.
@@ -220,14 +227,13 @@ func ParseUpdateText(args []string) (*UpdateTextResult, error) {
 				return nil, err
 			}
 
-			attrs, nh, nhSelf := accum.snapshot()
+			attrs, nh := accum.snapshot()
 			groups = append(groups, NLRIGroup{
-				Family:      family,
-				Announce:    announce,
-				Withdraw:    withdraw,
-				Attrs:       attrs,
-				NextHop:     nh,
-				NextHopSelf: nhSelf,
+				Family:   family,
+				Announce: announce,
+				Withdraw: withdraw,
+				Attrs:    attrs,
+				NextHop:  nh,
 			})
 			i += consumed
 
@@ -457,11 +463,10 @@ func handleUpdateText(ctx *CommandContext, args []string) (*Response, error) {
 	for _, group := range result.Groups {
 		if len(group.Announce) > 0 {
 			batch := NLRIBatch{
-				Family:      group.Family,
-				NLRIs:       group.Announce,
-				NextHop:     group.NextHop,
-				NextHopSelf: group.NextHopSelf,
-				Attrs:       group.Attrs,
+				Family:  group.Family,
+				NLRIs:   group.Announce,
+				NextHop: group.NextHop, // Already RouteNextHop
+				Attrs:   group.Attrs,
 			}
 			if err := ctx.Reactor.AnnounceNLRIBatch(peerSelector, batch); err != nil {
 				if errors.Is(err, ErrNoPeersAcceptedFamily) {

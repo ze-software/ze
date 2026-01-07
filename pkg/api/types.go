@@ -100,9 +100,8 @@ type PathAttributes struct {
 // be mutated after being passed to any reactor method. The reactor stores
 // shallow copies for efficiency; mutation would corrupt internal state.
 type RouteSpec struct {
-	Prefix      netip.Prefix
-	NextHop     netip.Addr
-	NextHopSelf bool // Use peer's local address as next-hop (resolved at send time)
+	Prefix  netip.Prefix
+	NextHop RouteNextHop // Encapsulates next-hop policy (explicit or self)
 	PathAttributes
 }
 
@@ -564,12 +563,11 @@ type RawMessage struct {
 // NLRIGroup represents a group of NLRIs sharing the same attributes.
 // Used by ParseUpdateText to capture attribute snapshots per NLRI section.
 type NLRIGroup struct {
-	Family      nlri.Family    // Address family (AFI/SAFI)
-	Announce    []nlri.NLRI    // NLRIs to announce
-	Withdraw    []nlri.NLRI    // NLRIs to withdraw
-	Attrs       PathAttributes // Snapshot of accumulated attributes
-	NextHop     netip.Addr     // Next-hop address
-	NextHopSelf bool           // Use peer's local address
+	Family   nlri.Family    // Address family (AFI/SAFI)
+	Announce []nlri.NLRI    // NLRIs to announce
+	Withdraw []nlri.NLRI    // NLRIs to withdraw
+	Attrs    PathAttributes // Snapshot of accumulated attributes
+	NextHop  RouteNextHop   // Encapsulates next-hop policy (explicit or self)
 }
 
 // UpdateTextResult is the parsed result of an update text command.
@@ -584,9 +582,8 @@ type UpdateTextResult struct {
 // RFC 4271 Section 4.3: UPDATE Message Format.
 // RFC 4760: MP_REACH_NLRI/MP_UNREACH_NLRI for non-IPv4-unicast families.
 type NLRIBatch struct {
-	Family      nlri.Family    // AFI/SAFI for all NLRIs
-	NLRIs       []nlri.NLRI    // NLRIs to announce or withdraw
-	NextHop     netip.Addr     // Next-hop (announce only)
-	NextHopSelf bool           // Use peer's local address (announce only)
-	Attrs       PathAttributes // Shared attributes (announce only)
+	Family  nlri.Family    // AFI/SAFI for all NLRIs
+	NLRIs   []nlri.NLRI    // NLRIs to announce or withdraw
+	NextHop RouteNextHop   // Next-hop policy (announce only)
+	Attrs   PathAttributes // Shared attributes (announce only)
 }

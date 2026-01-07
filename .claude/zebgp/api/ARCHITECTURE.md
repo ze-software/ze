@@ -321,10 +321,16 @@ Labeled-unicast correctly stores ALL attributes for proper queue replay.
 
 ```go
 type RouteSpec struct {
-    Prefix      netip.Prefix
-    NextHop     netip.Addr
-    NextHopSelf bool
+    Prefix  netip.Prefix
+    NextHop RouteNextHop  // Encapsulates next-hop policy (explicit or self)
     PathAttributes
+}
+
+// RouteNextHop encapsulates next-hop policy for route origination.
+// Resolution happens at peer level where negotiated capabilities are known.
+type RouteNextHop struct {
+    Policy NextHopPolicy  // NextHopUnset, NextHopExplicit, or NextHopSelf
+    Addr   netip.Addr     // Valid only when Policy == NextHopExplicit
 }
 
 type PathAttributes struct {
@@ -337,6 +343,23 @@ type PathAttributes struct {
     ExtendedCommunities []attribute.ExtendedCommunity
 }
 ```
+
+### Next-Hop Resolution
+
+`RouteNextHop` is resolved at **peer level** in `pkg/reactor/peer.go` via `resolveNextHop()`:
+
+| Policy | Behavior |
+|--------|----------|
+| `NextHopExplicit` | Returns configured address (no validation) |
+| `NextHopSelf` | Returns `peer.settings.LocalAddress`, validates capability |
+| `NextHopUnset` | Returns `ErrNextHopUnset` |
+
+**Errors:**
+- `ErrNextHopUnset` - zero value `RouteNextHop`
+- `ErrNextHopSelfNoLocal` - Self policy but `LocalAddress` not configured
+- `ErrNextHopIncompatible` - Self address incompatible with NLRI family (no Extended NH)
+
+**Extended Next Hop (RFC 5549/8950):** Cross-family next-hop (e.g., IPv6 next-hop for IPv4 NLRI) allowed when `peer.sendCtx.ExtendedNextHopFor(family) != 0`.
 
 ## Update Text Parser
 
@@ -355,12 +378,11 @@ type UpdateTextResult struct {
 }
 
 type NLRIGroup struct {
-    Family      nlri.Family    // ipv4/unicast, ipv6/unicast, etc.
-    Announce    []nlri.NLRI    // Prefixes to announce
-    Withdraw    []nlri.NLRI    // Prefixes to withdraw
-    Attrs       PathAttributes // Snapshot of attributes at this point
-    NextHop     netip.Addr     // Next-hop address
-    NextHopSelf bool           // Use peer's local address
+    Family   nlri.Family    // ipv4/unicast, ipv6/unicast, etc.
+    Announce []nlri.NLRI    // Prefixes to announce
+    Withdraw []nlri.NLRI    // Prefixes to withdraw
+    Attrs    PathAttributes // Snapshot of attributes at this point
+    NextHop  RouteNextHop   // Encapsulates next-hop policy (explicit or self)
 }
 ```
 

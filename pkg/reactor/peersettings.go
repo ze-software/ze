@@ -7,6 +7,7 @@ import (
 	"net/netip"
 	"time"
 
+	"codeberg.org/thomas-mangin/zebgp/pkg/api"
 	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/capability"
 )
 
@@ -23,9 +24,8 @@ const DefaultHoldTime = 90 * time.Second
 // be mutated after being stored. Watchdog pools and peer settings store shallow
 // copies for efficiency; mutation would corrupt internal state.
 type StaticRoute struct {
-	Prefix      netip.Prefix
-	NextHop     netip.Addr
-	NextHopSelf bool // Use peer's local address as next-hop (resolved at send time)
+	Prefix  netip.Prefix
+	NextHop api.RouteNextHop // Encapsulates next-hop policy (explicit or self)
 
 	Origin          uint8  // 0=IGP, 1=EGP, 2=INCOMPLETE
 	LocalPreference uint32 // For iBGP
