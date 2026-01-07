@@ -12,6 +12,7 @@ import (
 	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/attribute"
 	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/message"
 	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/nlri"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -650,6 +651,250 @@ func TestBuildLabeledUnicastRIBRouteEBGPPrependsAS(t *testing.T) {
 	require.NotNil(t, asPath, "AS_PATH must not be nil")
 	require.Len(t, asPath.Segments, 1, "AS_PATH must have 1 segment")
 	require.Equal(t, []uint32{65000}, asPath.Segments[0].ASNs, "LocalAS must be prepended")
+}
+
+// =============================================================================
+// L3VPN (MPLS VPN) Tests - RFC 4364
+// =============================================================================
+
+// TestBuildL3VPNParams verifies L3VPN params conversion.
+//
+// VALIDATES: api.L3VPNRoute correctly converts to message.VPNParams.
+//
+// PREVENTS: Lost attributes in L3VPN announcements.
+func TestBuildL3VPNParams(t *testing.T) {
+	cfg := &Config{
+		ListenAddr: "127.0.0.1:0",
+		LocalAS:    65000,
+	}
+	reactor := New(cfg)
+	adapter := &reactorAPIAdapter{reactor}
+
+	// Create route with all attributes
+	origin := uint8(1) // EGP
+	med := uint32(100)
+	localPref := uint32(200)
+	route := api.L3VPNRoute{
+		Prefix:  netip.MustParsePrefix("10.0.0.0/24"),
+		NextHop: netip.MustParseAddr("192.0.2.1"),
+		RD:      "100:100",
+		Labels:  []uint32{1000, 2000}, // Multi-label stack
+		RT:      "target:65000:100",
+		PathAttributes: api.PathAttributes{
+			Origin:          &origin,
+			MED:             &med,
+			LocalPreference: &localPref,
+			ASPath:          []uint32{65001, 65002},
+			Communities:     []uint32{0x12345678},
+		},
+	}
+
+	params, err := adapter.buildL3VPNParams(route)
+	require.NoError(t, err)
+
+	// Verify core fields
+	require.Equal(t, route.Prefix, params.Prefix)
+	require.Equal(t, route.NextHop, params.NextHop)
+	require.Equal(t, route.Labels, params.Labels)
+
+	// Verify RD bytes were parsed
+	require.NotEqual(t, [8]byte{}, params.RDBytes, "RDBytes must be populated")
+
+	// Verify attributes
+	require.Equal(t, attribute.Origin(1), params.Origin)
+	require.Equal(t, uint32(100), params.MED)
+	require.Equal(t, uint32(200), params.LocalPreference)
+	require.Equal(t, []uint32{65001, 65002}, params.ASPath)
+	require.Equal(t, []uint32{0x12345678}, params.Communities)
+
+	// Verify RT was converted to extended community
+	require.NotEmpty(t, params.ExtCommunityBytes, "RT must be in ExtCommunityBytes")
+}
+
+// TestBuildL3VPNParamsIPv6 verifies IPv6 L3VPN works.
+//
+// VALIDATES: IPv6 VPN routes (VPNv6/SAFI 128) are supported.
+//
+// PREVENTS: IPv6 VPN routes failing.
+func TestBuildL3VPNParamsIPv6(t *testing.T) {
+	cfg := &Config{
+		ListenAddr: "127.0.0.1:0",
+		LocalAS:    65000,
+	}
+	reactor := New(cfg)
+	adapter := &reactorAPIAdapter{reactor}
+
+	route := api.L3VPNRoute{
+		Prefix:  netip.MustParsePrefix("2001:db8::/32"),
+		NextHop: netip.MustParseAddr("2001::1"),
+		RD:      "100:100",
+		Labels:  []uint32{1000},
+	}
+
+	params, err := adapter.buildL3VPNParams(route)
+	require.NoError(t, err)
+	require.Equal(t, route.Prefix, params.Prefix)
+	require.True(t, params.Prefix.Addr().Is6(), "Must handle IPv6")
+}
+
+// TestBuildL3VPNRIBRoute verifies L3VPN RIB route building.
+//
+// VALIDATES: L3VPN routes can be queued via rib.Route with all attributes.
+//
+// PREVENTS: Attribute loss when L3VPN routes are queued.
+func TestBuildL3VPNRIBRoute(t *testing.T) {
+	cfg := &Config{
+		ListenAddr: "127.0.0.1:0",
+		LocalAS:    65000,
+	}
+	reactor := New(cfg)
+	adapter := &reactorAPIAdapter{reactor}
+
+	origin := uint8(0) // IGP
+	route := api.L3VPNRoute{
+		Prefix:  netip.MustParsePrefix("10.0.0.0/24"),
+		NextHop: netip.MustParseAddr("192.0.2.1"),
+		RD:      "100:100",
+		Labels:  []uint32{1000},
+		PathAttributes: api.PathAttributes{
+			Origin: &origin,
+		},
+	}
+
+	ribRoute, err := adapter.buildL3VPNRIBRoute(route, true) // iBGP
+	require.NoError(t, err)
+	require.NotNil(t, ribRoute)
+
+	// Verify NLRI family is VPN (SAFI 128)
+	require.Equal(t, nlri.SAFI(128), ribRoute.NLRI().Family().SAFI, "SAFI must be 128 (VPN)")
+
+	// Verify attributes present
+	attrs := ribRoute.Attributes()
+	require.NotEmpty(t, attrs)
+}
+
+// =============================================================================
+// parseRouteTarget Tests - RFC 4360
+// =============================================================================
+
+// TestParseRouteTarget_2ByteASN verifies 2-byte ASN Route Target encoding.
+//
+// VALIDATES: ASN:NN format with 2-byte ASN produces Type 0 extended community.
+//
+// PREVENTS: Wrong type code or byte order in RT encoding.
+func TestParseRouteTarget_2ByteASN(t *testing.T) {
+	// target:65000:100 -> Type 0x00, Subtype 0x02, ASN 65000, Value 100
+	rt, err := parseRouteTarget("65000:100")
+	require.NoError(t, err)
+	require.Len(t, rt, 8)
+
+	// Type 0 (2-byte AS) + Subtype 0x02 (Route Target)
+	assert.Equal(t, byte(0x00), rt[0], "Type should be 0x00 (2-byte AS)")
+	assert.Equal(t, byte(0x02), rt[1], "Subtype should be 0x02 (Route Target)")
+
+	// ASN 65000 = 0xFDE8 in big-endian
+	assert.Equal(t, byte(0xFD), rt[2])
+	assert.Equal(t, byte(0xE8), rt[3])
+
+	// Value 100 = 0x00000064 in big-endian (4 bytes for Type 0)
+	assert.Equal(t, byte(0x00), rt[4])
+	assert.Equal(t, byte(0x00), rt[5])
+	assert.Equal(t, byte(0x00), rt[6])
+	assert.Equal(t, byte(0x64), rt[7])
+}
+
+// TestParseRouteTarget_4ByteASN verifies 4-byte ASN Route Target encoding.
+//
+// VALIDATES: Large ASN produces Type 2 extended community.
+//
+// PREVENTS: 4-byte ASN being truncated to 2 bytes.
+func TestParseRouteTarget_4ByteASN(t *testing.T) {
+	// 4200000001:100 -> Type 0x02, Subtype 0x02, ASN 4200000001, Value 100
+	rt, err := parseRouteTarget("4200000001:100")
+	require.NoError(t, err)
+	require.Len(t, rt, 8)
+
+	// Type 2 (4-byte AS) + Subtype 0x02 (Route Target)
+	assert.Equal(t, byte(0x02), rt[0], "Type should be 0x02 (4-byte AS)")
+	assert.Equal(t, byte(0x02), rt[1], "Subtype should be 0x02 (Route Target)")
+
+	// ASN 4200000001 = 0xFA56EA01 in big-endian
+	assert.Equal(t, byte(0xFA), rt[2])
+	assert.Equal(t, byte(0x56), rt[3])
+	assert.Equal(t, byte(0xEA), rt[4])
+	assert.Equal(t, byte(0x01), rt[5])
+
+	// Value 100 = 0x0064 in big-endian (2 bytes for Type 2)
+	assert.Equal(t, byte(0x00), rt[6])
+	assert.Equal(t, byte(0x64), rt[7])
+}
+
+// TestParseRouteTarget_IPv4 verifies IPv4 Route Target encoding.
+//
+// VALIDATES: IP:NN format produces Type 1 extended community.
+//
+// PREVENTS: IP address not being recognized.
+func TestParseRouteTarget_IPv4(t *testing.T) {
+	// 192.0.2.1:100 -> Type 0x01, Subtype 0x02, IP, Value 100
+	rt, err := parseRouteTarget("192.0.2.1:100")
+	require.NoError(t, err)
+	require.Len(t, rt, 8)
+
+	// Type 1 (IPv4) + Subtype 0x02 (Route Target)
+	assert.Equal(t, byte(0x01), rt[0], "Type should be 0x01 (IPv4)")
+	assert.Equal(t, byte(0x02), rt[1], "Subtype should be 0x02 (Route Target)")
+
+	// IP 192.0.2.1
+	assert.Equal(t, byte(192), rt[2])
+	assert.Equal(t, byte(0), rt[3])
+	assert.Equal(t, byte(2), rt[4])
+	assert.Equal(t, byte(1), rt[5])
+
+	// Value 100 = 0x0064 (2 bytes for Type 1)
+	assert.Equal(t, byte(0x00), rt[6])
+	assert.Equal(t, byte(0x64), rt[7])
+}
+
+// TestParseRouteTarget_WithPrefix verifies "target:" prefix is stripped.
+//
+// VALIDATES: "target:ASN:NN" format works same as "ASN:NN".
+//
+// PREVENTS: Prefix not being stripped.
+func TestParseRouteTarget_WithPrefix(t *testing.T) {
+	rt1, err := parseRouteTarget("target:65000:100")
+	require.NoError(t, err)
+
+	rt2, err := parseRouteTarget("65000:100")
+	require.NoError(t, err)
+
+	assert.Equal(t, rt1, rt2, "target: prefix should be stripped")
+}
+
+// TestParseRouteTarget_Errors verifies error handling.
+//
+// VALIDATES: Invalid formats are rejected with clear errors.
+//
+// PREVENTS: Silent failures or panics on bad input.
+func TestParseRouteTarget_Errors(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+	}{
+		{"empty", ""},
+		{"no colon", "65000"},
+		{"too many colons", "65000:100:200"},
+		{"invalid ASN", "abc:100"},
+		{"negative ASN", "-1:100"},
+		{"4-byte ASN with large value", "4200000001:100000"}, // Value > 65535
+		{"IP with large value", "192.0.2.1:100000"},          // Value > 65535 for IP format
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := parseRouteTarget(tt.input)
+			assert.Error(t, err, "should reject %q", tt.input)
+		})
+	}
 }
 
 // =============================================================================

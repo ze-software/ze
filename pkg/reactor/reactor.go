@@ -637,15 +637,351 @@ func (a *reactorAPIAdapter) WithdrawL2VPN(_ string, _ api.L2VPNRoute) error {
 }
 
 // AnnounceL3VPN announces an L3VPN (MPLS VPN) route to matching peers.
-// TODO: Implement when L3VPN RIB integration is complete.
-func (a *reactorAPIAdapter) AnnounceL3VPN(_ string, _ api.L3VPNRoute) error {
-	return errors.New("l3vpn: not implemented")
+// RFC 4364 - BGP/MPLS IP Virtual Private Networks.
+//
+// Behavior:
+//   - Established peer: sends UPDATE immediately
+//   - Non-established peer: queues to peer's operation queue (sent on connect)
+func (a *reactorAPIAdapter) AnnounceL3VPN(peerSelector string, route api.L3VPNRoute) error {
+	// RFC 4364: L3VPN routes require RD
+	if route.RD == "" {
+		return errors.New("l3vpn route requires route-distinguisher (rd)")
+	}
+	// RFC 4364: L3VPN routes require labels
+	if len(route.Labels) == 0 {
+		return errors.New("l3vpn route requires at least one label")
+	}
+
+	peers := a.getMatchingPeers(peerSelector)
+	if len(peers) == 0 {
+		return errors.New("no peers match selector")
+	}
+
+	// Build VPNParams once (peer-independent)
+	params, err := a.buildL3VPNParams(route)
+	if err != nil {
+		return fmt.Errorf("invalid route: %w", err)
+	}
+
+	var lastErr error
+	for _, peer := range peers {
+		isIBGP := peer.Settings().IsIBGP()
+
+		if peer.State() == PeerStateEstablished {
+			// Send immediately
+			family := nlri.Family{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIVPN} // RFC 4364
+			if route.Prefix.Addr().Is6() {
+				family.AFI = nlri.AFIIPv6
+			}
+			ctx := peer.packContext(family)
+
+			// Build UPDATE using UpdateBuilder for immediate send
+			ub := message.NewUpdateBuilder(a.r.config.LocalAS, isIBGP, ctx)
+			update := ub.BuildVPN(params)
+
+			if err := peer.SendUpdate(update); err != nil {
+				lastErr = err
+			}
+		} else {
+			// Session not established: queue to peer's operation queue
+			ribRoute, err := a.buildL3VPNRIBRoute(route, isIBGP)
+			if err != nil {
+				lastErr = err
+				continue
+			}
+			peer.QueueAnnounce(ribRoute)
+		}
+	}
+	return lastErr
 }
 
 // WithdrawL3VPN withdraws an L3VPN route from matching peers.
-// TODO: Implement when L3VPN RIB integration is complete.
-func (a *reactorAPIAdapter) WithdrawL3VPN(_ string, _ api.L3VPNRoute) error {
-	return errors.New("l3vpn: not implemented")
+// RFC 4364 - Uses MP_UNREACH_NLRI with SAFI 128.
+//
+// Behavior:
+//   - Established peer: sends UPDATE with MP_UNREACH_NLRI immediately
+//   - Non-established peer: queues withdrawal (sent on connect)
+func (a *reactorAPIAdapter) WithdrawL3VPN(peerSelector string, route api.L3VPNRoute) error {
+	// RFC 4364: RD required to identify the VPN route
+	if route.RD == "" {
+		return errors.New("l3vpn withdrawal requires route-distinguisher (rd)")
+	}
+
+	peers := a.getMatchingPeers(peerSelector)
+	if len(peers) == 0 {
+		return errors.New("no peers match selector")
+	}
+
+	// Parse RD for NLRI
+	rd, err := nlri.ParseRDString(route.RD)
+	if err != nil {
+		return fmt.Errorf("invalid rd: %w", err)
+	}
+
+	// Use first label from stack for withdrawal (RFC allows - prefix identifies route)
+	labels := route.Labels
+	if len(labels) == 0 {
+		labels = []uint32{0x800000} // RFC 3107 withdrawal label
+	}
+
+	// Build NLRI for withdrawal
+	family := nlri.Family{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIVPN} // RFC 4364
+	if route.Prefix.Addr().Is6() {
+		family.AFI = nlri.AFIIPv6
+	}
+
+	n := nlri.NewIPVPN(family, rd, labels[:1], route.Prefix, 0) // Single label for withdrawal
+
+	// Build StaticRoute for withdrawal
+	staticRoute := StaticRoute{
+		Prefix: route.Prefix,
+		RD:     route.RD,
+		Labels: labels[:1],
+	}
+	copy(staticRoute.RDBytes[:], rd.Bytes())
+
+	var lastErr error
+	for _, peer := range peers {
+		if peer.State() == PeerStateEstablished {
+			// Build MP_UNREACH_NLRI for VPN
+			update := buildMPUnreachVPN(staticRoute)
+			if err := peer.SendUpdate(update); err != nil {
+				lastErr = err
+			}
+		} else {
+			// Queue withdrawal
+			peer.QueueWithdraw(n)
+		}
+	}
+	return lastErr
+}
+
+// buildL3VPNParams converts an api.L3VPNRoute to message.VPNParams.
+// RFC 4364 - VPN route parameters.
+func (a *reactorAPIAdapter) buildL3VPNParams(route api.L3VPNRoute) (message.VPNParams, error) {
+	// Parse RD
+	rd, err := nlri.ParseRDString(route.RD)
+	if err != nil {
+		return message.VPNParams{}, fmt.Errorf("invalid rd: %w", err)
+	}
+
+	params := message.VPNParams{
+		Prefix:  route.Prefix,
+		NextHop: route.NextHop,
+		Labels:  route.Labels,
+		Origin:  attribute.OriginIGP,
+	}
+
+	// Copy RD bytes
+	rdBytes := rd.Bytes()
+	copy(params.RDBytes[:], rdBytes)
+
+	// Set optional attributes
+	if route.Origin != nil {
+		params.Origin = attribute.Origin(*route.Origin)
+	}
+	if route.LocalPreference != nil {
+		params.LocalPreference = *route.LocalPreference
+	}
+	if route.MED != nil {
+		params.MED = *route.MED
+	}
+	if len(route.ASPath) > 0 {
+		params.ASPath = route.ASPath
+	}
+	if len(route.Communities) > 0 {
+		params.Communities = route.Communities
+	}
+	if len(route.LargeCommunities) > 0 {
+		lc := make([][3]uint32, len(route.LargeCommunities))
+		for i, c := range route.LargeCommunities {
+			lc[i] = [3]uint32{c.GlobalAdmin, c.LocalData1, c.LocalData2}
+		}
+		params.LargeCommunities = lc
+	}
+
+	// Handle RT (Route Target) - convert to extended community
+	if route.RT != "" {
+		rtBytes, err := parseRouteTarget(route.RT)
+		if err != nil {
+			return message.VPNParams{}, fmt.Errorf("invalid rt: %w", err)
+		}
+		params.ExtCommunityBytes = append(params.ExtCommunityBytes, rtBytes...)
+	}
+
+	// Add any other extended communities
+	if len(route.ExtendedCommunities) > 0 {
+		params.ExtCommunityBytes = append(params.ExtCommunityBytes,
+			attribute.ExtendedCommunities(route.ExtendedCommunities).Pack()...)
+	}
+
+	return params, nil
+}
+
+// buildL3VPNRIBRoute creates a rib.Route from an api.L3VPNRoute for queueing.
+// RFC 4364: VPN routes include RD + labels in NLRI.
+func (a *reactorAPIAdapter) buildL3VPNRIBRoute(route api.L3VPNRoute, isIBGP bool) (*rib.Route, error) {
+	// Parse RD
+	rd, err := nlri.ParseRDString(route.RD)
+	if err != nil {
+		return nil, fmt.Errorf("invalid rd: %w", err)
+	}
+
+	// Build NLRI
+	family := nlri.Family{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIVPN} // RFC 4364
+	if route.Prefix.Addr().Is6() {
+		family.AFI = nlri.AFIIPv6
+	}
+
+	n := nlri.NewIPVPN(family, rd, route.Labels, route.Prefix, 0)
+
+	// Build attributes
+	var attrs []attribute.Attribute
+
+	// Origin (required)
+	if route.Origin != nil {
+		attrs = append(attrs, attribute.Origin(*route.Origin))
+	} else {
+		attrs = append(attrs, attribute.OriginIGP)
+	}
+
+	// LocalPreference (iBGP only)
+	if route.LocalPreference != nil {
+		attrs = append(attrs, attribute.LocalPref(*route.LocalPreference))
+	}
+
+	// MED
+	if route.MED != nil {
+		attrs = append(attrs, attribute.MED(*route.MED))
+	}
+
+	// Communities
+	if len(route.Communities) > 0 {
+		comms := make(attribute.Communities, len(route.Communities))
+		for i, c := range route.Communities {
+			comms[i] = attribute.Community(c)
+		}
+		attrs = append(attrs, comms)
+	}
+
+	// LargeCommunities
+	if len(route.LargeCommunities) > 0 {
+		lcs := make(attribute.LargeCommunities, len(route.LargeCommunities))
+		copy(lcs, route.LargeCommunities)
+		attrs = append(attrs, lcs)
+	}
+
+	// Extended communities (RT + others)
+	var extComm []byte
+	if route.RT != "" {
+		rtBytes, err := parseRouteTarget(route.RT)
+		if err != nil {
+			return nil, fmt.Errorf("invalid rt: %w", err)
+		}
+		extComm = append(extComm, rtBytes...)
+	}
+	if len(route.ExtendedCommunities) > 0 {
+		extComm = append(extComm, attribute.ExtendedCommunities(route.ExtendedCommunities).Pack()...)
+	}
+	if len(extComm) > 0 {
+		// Parse raw bytes into ExtendedCommunities
+		ec, err := attribute.ParseExtendedCommunities(extComm)
+		if err != nil {
+			return nil, fmt.Errorf("invalid extended communities: %w", err)
+		}
+		attrs = append(attrs, ec)
+	}
+
+	// Build AS_PATH
+	var asPath *attribute.ASPath
+	switch {
+	case len(route.ASPath) > 0:
+		asPath = &attribute.ASPath{
+			Segments: []attribute.ASPathSegment{
+				{Type: attribute.ASSequence, ASNs: route.ASPath},
+			},
+		}
+	case isIBGP:
+		asPath = &attribute.ASPath{Segments: nil}
+	default:
+		asPath = &attribute.ASPath{
+			Segments: []attribute.ASPathSegment{
+				{Type: attribute.ASSequence, ASNs: []uint32{a.r.config.LocalAS}},
+			},
+		}
+	}
+
+	return rib.NewRouteWithASPath(n, route.NextHop, attrs, asPath), nil
+}
+
+// Extended community type codes per RFC 4360 Section 3.
+const (
+	ecTypeTransitive2ByteAS = 0x00 // 2-byte AS, transitive
+	ecTypeTransitiveIPv4    = 0x01 // IPv4 address, transitive
+	ecTypeTransitive4ByteAS = 0x02 // 4-byte AS, transitive
+	ecSubtypeRouteTarget    = 0x02 // Route Target subtype
+)
+
+// parseRouteTarget parses a Route Target string to extended community bytes.
+//
+// RFC 4360 Section 3 - Extended Community format.
+// Supported formats:
+//   - "target:ASN:NN" or "ASN:NN" - 2-byte ASN with 4-byte value
+//   - "target:IP:NN" or "IP:NN" - IPv4 address with 2-byte value
+//   - 4-byte ASN automatically uses Type 2 format
+func parseRouteTarget(s string) ([]byte, error) {
+	// Remove "target:" prefix if present
+	s = strings.TrimPrefix(s, "target:")
+
+	parts := strings.Split(s, ":")
+	if len(parts) != 2 {
+		return nil, fmt.Errorf("invalid rt format: %s (expected ASN:NN or IP:NN)", s)
+	}
+
+	// Check if first part is an IP address (Type 1 format)
+	if ip, err := netip.ParseAddr(parts[0]); err == nil && ip.Is4() {
+		val, err := strconv.ParseUint(parts[1], 10, 16)
+		if err != nil {
+			return nil, fmt.Errorf("invalid rt value %q (must be 0-65535 for IP:NN format)", parts[1])
+		}
+		b := ip.As4()
+		return []byte{
+			ecTypeTransitiveIPv4, ecSubtypeRouteTarget,
+			b[0], b[1], b[2], b[3],
+			byte(val >> 8), byte(val),
+		}, nil
+	}
+
+	// Parse as ASN:NN format
+	asn, err := strconv.ParseUint(parts[0], 10, 32)
+	if err != nil {
+		return nil, fmt.Errorf("invalid ASN in rt: %s", parts[0])
+	}
+
+	val, err := strconv.ParseUint(parts[1], 10, 32)
+	if err != nil {
+		return nil, fmt.Errorf("invalid value in rt: %s", parts[1])
+	}
+
+	// RFC 4360 Section 3 - Extended Community encoding
+	if asn <= 65535 {
+		// Type 0: 2-byte ASN, 4-byte value
+		return []byte{
+			ecTypeTransitive2ByteAS, ecSubtypeRouteTarget,
+			byte(asn >> 8), byte(asn),
+			byte(val >> 24), byte(val >> 16), byte(val >> 8), byte(val),
+		}, nil
+	}
+
+	// ASN > 65535: Use Type 2 (4-byte ASN) if value fits in 16 bits
+	if val > 65535 {
+		return nil, fmt.Errorf("invalid rt: 4-byte ASN requires value <= 65535, got %d", val)
+	}
+	return []byte{
+		ecTypeTransitive4ByteAS, ecSubtypeRouteTarget,
+		byte(asn >> 24), byte(asn >> 16), byte(asn >> 8), byte(asn),
+		byte(val >> 8), byte(val),
+	}, nil
 }
 
 // AnnounceLabeledUnicast announces an MPLS labeled unicast route (SAFI 4).
