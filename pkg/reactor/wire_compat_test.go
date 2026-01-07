@@ -137,7 +137,7 @@ func TestWireCompat_VPNIPv4(t *testing.T) {
 		Prefix:            netip.MustParsePrefix("10.0.0.0/24"),
 		NextHop:           netip.MustParseAddr("192.168.1.1"),
 		Origin:            attribute.OriginIGP,
-		Label:             100,
+		Labels:            []uint32{100},
 		RDBytes:           [8]byte{0, 1, 0, 0, 0, 100, 0, 100}, // Type 1: 100:100
 		LocalPreference:   150,
 		ExtCommunityBytes: []byte{0x00, 0x02, 0xfd, 0xe9, 0x00, 0x00, 0x00, 0x64}, // RT 65001:100

@@ -656,6 +656,11 @@ func (a *reactorAPIAdapter) WithdrawL3VPN(_ string, _ api.L3VPNRoute) error {
 //   - Established: sends immediately and tracks for re-announcement
 //   - Not established: queues to peer's operation queue.
 func (a *reactorAPIAdapter) AnnounceLabeledUnicast(peerSelector string, route api.LabeledUnicastRoute) error {
+	// RFC 8277: Labeled unicast routes require at least one label
+	if len(route.Labels) == 0 {
+		return errors.New("labeled unicast route requires at least one label")
+	}
+
 	peers := a.getMatchingPeers(peerSelector)
 	if len(peers) == 0 {
 		return errors.New("no peers match selector")
@@ -695,17 +700,11 @@ func (a *reactorAPIAdapter) AnnounceLabeledUnicast(peerSelector string, route ap
 
 // buildLabeledUnicastParams converts an API route to message.LabeledUnicastParams.
 func (a *reactorAPIAdapter) buildLabeledUnicastParams(route api.LabeledUnicastRoute) message.LabeledUnicastParams {
-	// Default label if not specified
-	label := uint32(0)
-	if len(route.Labels) > 0 {
-		label = route.Labels[0]
-	}
-
 	params := message.LabeledUnicastParams{
 		Prefix:  route.Prefix,
 		PathID:  route.PathID, // RFC 7911 ADD-PATH
 		NextHop: route.NextHop,
-		Label:   label,
+		Labels:  route.Labels, // RFC 8277: Multi-label support
 		Origin:  attribute.OriginIGP,
 	}
 
@@ -860,7 +859,7 @@ func (a *reactorAPIAdapter) WithdrawLabeledUnicast(peerSelector string, route ap
 			// Build withdrawal using existing helper
 			staticRoute := StaticRoute{
 				Prefix: route.Prefix,
-				Label:  labels[0],
+				Labels: labels,
 			}
 
 			update := buildMPUnreachLabeledUnicast(staticRoute, ctx)

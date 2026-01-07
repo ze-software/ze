@@ -377,7 +377,8 @@ announce {
     ipv4 {
         mpls-vpn <prefix> {
             rd <route-distinguisher>;
-            label <mpls-label>;
+            label <mpls-label>;              # Single label
+            labels [ <label> <label> ... ];  # Multiple labels (RFC 8277)
             next-hop <ip>;
             origin igp;
             local-preference <int>;

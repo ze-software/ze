@@ -156,6 +156,7 @@ func routeAttributes() []FieldDef {
 		Field("as-path", ValueOrArray(TypeString)),
 		Field("path-information", Leaf(TypeString)),
 		Field("label", Leaf(TypeString)),
+		Field("labels", ValueOrArray(TypeString)), // RFC 8277: Multi-label support
 		Field("rd", Leaf(TypeString)),
 		Field("aggregator", Leaf(TypeString)),
 		Field("atomic-aggregate", Flex()), // Can be standalone or followed by aggregator
@@ -576,15 +577,16 @@ type StaticRouteConfig struct {
 	ExtendedCommunity string
 	LargeCommunity    string
 	ASPath            string
-	PathInformation   string // path-id for add-path
-	Label             string // MPLS label
-	RD                string // Route Distinguisher
-	Aggregator        string // ASN:IP format
-	AtomicAggregate   bool   // ATOMIC_AGGREGATE attribute
-	Attribute         string // Raw attribute hex: [ code flags value ]
-	OriginatorID      string // ORIGINATOR_ID (RFC 4456)
-	ClusterList       string // CLUSTER_LIST (RFC 4456)
-	PrefixSID         string // BGP Prefix-SID (RFC 8669) - can be number or "N, [(base,range),...]"
+	PathInformation   string   // path-id for add-path
+	Label             string   // MPLS label (backward compat, single)
+	Labels            []string // RFC 8277: MPLS label stack (multiple)
+	RD                string   // Route Distinguisher
+	Aggregator        string   // ASN:IP format
+	AtomicAggregate   bool     // ATOMIC_AGGREGATE attribute
+	Attribute         string   // Raw attribute hex: [ code flags value ]
+	OriginatorID      string   // ORIGINATOR_ID (RFC 4456)
+	ClusterList       string   // CLUSTER_LIST (RFC 4456)
+	PrefixSID         string   // BGP Prefix-SID (RFC 8669) - can be number or "N, [(base,range),...]"
 
 	// Split prefix into more-specific routes (e.g., "/25" splits /24 into two /25s)
 	Split string
@@ -1808,6 +1810,10 @@ func parseRouteConfig(prefix string, route *Tree) (StaticRouteConfig, error) {
 	if v, ok := route.Get("label"); ok {
 		sr.Label = v
 	}
+	// RFC 8277: Multi-label support via `labels [100 200 300]` syntax
+	if v, ok := route.Get("labels"); ok {
+		sr.Labels = parseLabelsArray(v)
+	}
 	if v, ok := route.Get("rd"); ok {
 		sr.RD = v
 	}
@@ -1843,6 +1849,32 @@ func parseRouteConfig(prefix string, route *Tree) (StaticRouteConfig, error) {
 	}
 
 	return sr, nil
+}
+
+// parseLabelsArray parses labels from schema.
+// RFC 8277: Multi-label support.
+// Input can be:
+//   - "[100 200 300]" (from parseKeyValuesFromTokens, inline parsing)
+//   - "100 200 300" (from ValueOrArray schema node, space-separated)
+//   - "100" (single label)
+func parseLabelsArray(s string) []string {
+	s = strings.TrimSpace(s)
+	if s == "" {
+		return nil
+	}
+
+	// Strip brackets if present (from inline parsing)
+	if strings.HasPrefix(s, "[") && strings.HasSuffix(s, "]") {
+		s = strings.TrimPrefix(s, "[")
+		s = strings.TrimSuffix(s, "]")
+		s = strings.TrimSpace(s)
+		if s == "" {
+			return nil
+		}
+	}
+
+	// Split by whitespace (handles both "100" and "100 200 300")
+	return strings.Fields(s)
 }
 
 // extractMVPNRoutes extracts MVPN routes from announce { ipv4/ipv6 { mcast-vpn ... } }.

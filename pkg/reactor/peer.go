@@ -543,7 +543,7 @@ func toStaticRouteLabeledUnicastParams(r StaticRoute, nextHop netip.Addr) messag
 		Prefix:            r.Prefix,
 		PathID:            r.PathID,
 		NextHop:           nextHop,
-		Label:             r.Label,
+		Labels:            r.Labels,
 		Origin:            attribute.Origin(r.Origin),
 		ASPath:            r.ASPath,
 		MED:               r.MED,
@@ -570,7 +570,7 @@ func toStaticRouteVPNParams(r StaticRoute, nextHop netip.Addr) message.VPNParams
 		Prefix:            r.Prefix,
 		PathID:            r.PathID,
 		NextHop:           nextHop,
-		Label:             r.Label,
+		Labels:            r.Labels,
 		RDBytes:           r.RDBytes,
 		Origin:            attribute.Origin(r.Origin),
 		ASPath:            r.ASPath,
@@ -1687,8 +1687,9 @@ func buildMPUnreachVPN(route StaticRoute) *message.Update {
 	// Build labeled VPN NLRI: label (3 bytes) + RD (8 bytes) + prefix
 	var nlriBytes []byte
 
-	// Label: use route.Label or withdraw label (0x800000)
-	label := route.Label
+	// Label: use route.SingleLabel() or withdraw label (0x800000)
+	// RFC 8277: Withdrawal uses single label regardless of original stack
+	label := route.SingleLabel()
 	if label == 0 {
 		label = 0x800000 // Withdraw label
 	}
@@ -1738,8 +1739,9 @@ func buildMPUnreachLabeledUnicast(route StaticRoute, ctx *nlri.PackContext) *mes
 	// Build labeled unicast NLRI: label (3 bytes) + prefix
 	var nlriBytes []byte
 
-	// Label: use route.Label or withdraw label (0x800000)
-	label := route.Label
+	// Label: use route.SingleLabel() or withdraw label (0x800000)
+	// RFC 8277: Withdrawal uses single label regardless of original stack
+	label := route.SingleLabel()
 	if label == 0 {
 		label = 0x800000 // Withdraw label
 	}

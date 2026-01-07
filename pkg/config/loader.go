@@ -347,6 +347,12 @@ func configToPeer(nc *PeerConfig, global *BGPConfig) (*reactor.PeerSettings, err
 
 		// Create a route for each prefix (usually just one, unless split)
 		for _, prefix := range prefixes {
+			// Convert labels from MPLSLabel to uint32
+			labels := make([]uint32, len(attrs.Labels))
+			for i, l := range attrs.Labels {
+				labels[i] = uint32(l)
+			}
+
 			route := reactor.StaticRoute{
 				Prefix:            prefix,
 				NextHop:           nextHop,
@@ -358,7 +364,7 @@ func configToPeer(nc *PeerConfig, global *BGPConfig) (*reactor.PeerSettings, err
 				ExtCommunity:      attrs.ExtendedCommunity.Raw,
 				ExtCommunityBytes: attrs.ExtendedCommunity.Bytes,
 				PathID:            uint32(attrs.PathID),
-				Label:             uint32(attrs.Label),
+				Labels:            labels,
 				RD:                attrs.RD.Raw,
 				RDBytes:           attrs.RD.Bytes,
 				ASPath:            attrs.ASPath.Values,
@@ -370,6 +376,12 @@ func configToPeer(nc *PeerConfig, global *BGPConfig) (*reactor.PeerSettings, err
 				ClusterList:       attrs.ClusterList,
 				PrefixSIDBytes:    attrs.PrefixSID.Bytes,
 				RawAttributes:     rawAttrs,
+			}
+
+			// Validate: VPN routes require at least one label
+			// RFC 4364: MPLS label is required for VPN routes
+			if route.IsVPN() && len(route.Labels) == 0 {
+				return nil, fmt.Errorf("VPN route %s requires at least one label", prefix)
 			}
 
 			// Route to correct bucket based on watchdog field

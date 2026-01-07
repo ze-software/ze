@@ -420,9 +420,10 @@ type VPNParams struct {
 	// NextHop is the next-hop address (PE address).
 	NextHop netip.Addr
 
-	// Label is the MPLS label (20-bit value).
-	// RFC 4364 Section 4.3 - Label for VPN route.
-	Label uint32
+	// Labels is the MPLS label stack (20-bit values per RFC 8277 Section 2).
+	// RFC 4364 Section 4.3 - Labels for VPN route.
+	// RFC 8277 Section 2 - Multiple labels support.
+	Labels []uint32
 
 	// RDBytes is the Route Distinguisher in wire format (8 bytes).
 	// RFC 4364 Section 4.2 - RD makes VPN routes unique.
@@ -636,45 +637,42 @@ func (ub *UpdateBuilder) buildMPReachVPN(p VPNParams) *rawAttribute {
 // buildVPNNLRIBytes builds the VPN NLRI bytes.
 //
 // RFC 4364 Section 4.3.4 - VPN-IPv4 NLRI:
-// Length (1 octet) + Label (3 octets) + RD (8 octets) + Prefix (variable).
+// Length (1 octet) + Labels (3 octets each) + RD (8 octets) + Prefix (variable).
+// RFC 8277 Section 2 - Multiple labels support.
 func (ub *UpdateBuilder) buildVPNNLRIBytes(p VPNParams) []byte {
-	// Label encoding: 20-bit label, 3-bit TC=0, 1-bit BOS=1
-	label := p.Label
-	labelBytes := []byte{
-		byte(label >> 12),
-		byte(label >> 4),
-		byte(label<<4) | 0x01, // BOS = 1
-	}
+	// RFC 8277 Section 2: Encode label stack with BOS bit on last label
+	labelBytes := nlri.EncodeLabelStack(p.Labels)
 
 	// Prefix bytes
 	prefixBits := p.Prefix.Bits()
 	prefixBytes := (prefixBits + 7) / 8
 	prefixData := p.Prefix.Addr().AsSlice()[:prefixBytes]
 
-	// Total bits: 24 (label) + 64 (RD) + prefix bits
-	totalBits := 24 + 64 + prefixBits
+	// Total bits: labels*24 + 64 (RD) + prefix bits
+	// RFC 8277: Each label contributes 24 bits
+	totalBits := len(p.Labels)*24 + 64 + prefixBits
 
-	// Build: [path-id] + length + label + RD + prefix
+	// Build: [path-id] + length + labels + RD + prefix
 	ctx := ub.Ctx
 	hasAddPath := ctx != nil && ctx.AddPath
 
 	var buf []byte
 	if hasAddPath && p.PathID != 0 {
-		buf = make([]byte, 4+1+3+8+prefixBytes)
+		buf = make([]byte, 4+1+len(labelBytes)+8+prefixBytes)
 		buf[0] = byte(p.PathID >> 24)
 		buf[1] = byte(p.PathID >> 16)
 		buf[2] = byte(p.PathID >> 8)
 		buf[3] = byte(p.PathID)
 		buf[4] = byte(totalBits)
-		copy(buf[5:8], labelBytes)
-		copy(buf[8:16], p.RDBytes[:])
-		copy(buf[16:], prefixData)
+		copy(buf[5:5+len(labelBytes)], labelBytes)
+		copy(buf[5+len(labelBytes):5+len(labelBytes)+8], p.RDBytes[:])
+		copy(buf[5+len(labelBytes)+8:], prefixData)
 	} else {
-		buf = make([]byte, 1+3+8+prefixBytes)
+		buf = make([]byte, 1+len(labelBytes)+8+prefixBytes)
 		buf[0] = byte(totalBits)
-		copy(buf[1:4], labelBytes)
-		copy(buf[4:12], p.RDBytes[:])
-		copy(buf[12:], prefixData)
+		copy(buf[1:1+len(labelBytes)], labelBytes)
+		copy(buf[1+len(labelBytes):1+len(labelBytes)+8], p.RDBytes[:])
+		copy(buf[1+len(labelBytes)+8:], prefixData)
 	}
 
 	return buf
@@ -693,8 +691,9 @@ type LabeledUnicastParams struct {
 	// NextHop is the next-hop address.
 	NextHop netip.Addr
 
-	// Label is the MPLS label (20-bit value).
-	Label uint32
+	// Labels is the MPLS label stack (20-bit values per RFC 8277 Section 2).
+	// RFC 8277 Section 2 - Multiple labels support.
+	Labels []uint32
 
 	// Origin is the origin type.
 	Origin attribute.Origin
@@ -910,25 +909,22 @@ func (ub *UpdateBuilder) buildMPReachLabeledUnicast(p LabeledUnicastParams) *raw
 // buildLabeledUnicastNLRIBytes builds the labeled unicast NLRI bytes.
 //
 // RFC 8277 Section 2 - NLRI format:
-// Length (1 octet, bits) + Label (3 octets) + Prefix (variable).
+// Length (1 octet, bits) + Labels (3 octets each) + Prefix (variable).
+// RFC 8277 Section 2 - Multiple labels support.
 func (ub *UpdateBuilder) buildLabeledUnicastNLRIBytes(p LabeledUnicastParams) []byte {
-	// Label encoding: 20-bit label, 3-bit TC=0, 1-bit BOS=1
-	label := p.Label
-	labelBytes := []byte{
-		byte(label >> 12),
-		byte(label >> 4),
-		byte(label<<4) | 0x01, // BOS = 1
-	}
+	// RFC 8277 Section 2: Encode label stack with BOS bit on last label
+	labelBytes := nlri.EncodeLabelStack(p.Labels)
 
 	// Prefix bytes
 	prefixBits := p.Prefix.Bits()
 	prefixBytes := (prefixBits + 7) / 8
 	prefixData := p.Prefix.Addr().AsSlice()[:prefixBytes]
 
-	// Total bits: 24 (label) + prefix bits
-	totalBits := 24 + prefixBits
+	// Total bits: labels*24 + prefix bits
+	// RFC 8277: Each label contributes 24 bits
+	totalBits := len(p.Labels)*24 + prefixBits
 
-	// Build: [path-id] + length + label + prefix
+	// Build: [path-id] + length + labels + prefix
 	// RFC 7911: Path Identifier MUST be included when ADD-PATH is negotiated
 	ctx := ub.Ctx
 	hasAddPath := ctx != nil && ctx.AddPath
@@ -936,19 +932,19 @@ func (ub *UpdateBuilder) buildLabeledUnicastNLRIBytes(p LabeledUnicastParams) []
 	var buf []byte
 	if hasAddPath {
 		// RFC 7911: Always include 4-byte path ID when ADD-PATH negotiated
-		buf = make([]byte, 4+1+3+prefixBytes)
+		buf = make([]byte, 4+1+len(labelBytes)+prefixBytes)
 		buf[0] = byte(p.PathID >> 24)
 		buf[1] = byte(p.PathID >> 16)
 		buf[2] = byte(p.PathID >> 8)
 		buf[3] = byte(p.PathID)
 		buf[4] = byte(totalBits)
-		copy(buf[5:8], labelBytes)
-		copy(buf[8:], prefixData)
+		copy(buf[5:5+len(labelBytes)], labelBytes)
+		copy(buf[5+len(labelBytes):], prefixData)
 	} else {
-		buf = make([]byte, 1+3+prefixBytes)
+		buf = make([]byte, 1+len(labelBytes)+prefixBytes)
 		buf[0] = byte(totalBits)
-		copy(buf[1:4], labelBytes)
-		copy(buf[4:], prefixData)
+		copy(buf[1:1+len(labelBytes)], labelBytes)
+		copy(buf[1+len(labelBytes):], prefixData)
 	}
 
 	return buf

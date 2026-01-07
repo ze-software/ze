@@ -82,7 +82,7 @@ func TestLabeledUnicastWireConsistency(t *testing.T) {
 			params := LabeledUnicastParams{
 				Prefix: tt.prefix,
 				PathID: tt.pathID,
-				Label:  tt.label,
+				Labels: []uint32{tt.label},
 			}
 			expected := ub.buildLabeledUnicastNLRIBytes(params)
 
@@ -114,7 +114,7 @@ func TestLabeledUnicastWireConsistency_AddPathZero(t *testing.T) {
 	params := LabeledUnicastParams{
 		Prefix: prefix,
 		PathID: pathID,
-		Label:  label,
+		Labels: []uint32{label},
 	}
 	builderBytes := ub.buildLabeledUnicastNLRIBytes(params)
 

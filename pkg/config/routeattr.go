@@ -1145,7 +1145,7 @@ type ParsedRouteAttributes struct {
 	ExtendedCommunity ExtendedCommunity
 	LargeCommunity    LargeCommunity
 	PathID            PathID
-	Label             MPLSLabel
+	Labels            []MPLSLabel // RFC 8277: MPLS label stack
 	RD                RouteDistinguisher
 	ASPath            ASPath
 	Aggregator        Aggregator
@@ -1208,12 +1208,24 @@ func ParseRouteAttributes(src StaticRouteConfig) (*ParsedRouteAttributes, error)
 	}
 	attrs.PathID = pid
 
-	// Label
-	label, err := ParseMPLSLabel(src.Label)
-	if err != nil {
-		return nil, err
+	// Labels - RFC 8277 multi-label support
+	// `labels [...]` takes precedence if both specified (user error, but deterministic)
+	if len(src.Labels) > 0 {
+		attrs.Labels = make([]MPLSLabel, len(src.Labels))
+		for i, ls := range src.Labels {
+			label, err := ParseMPLSLabel(ls)
+			if err != nil {
+				return nil, fmt.Errorf("label[%d]: %w", i, err)
+			}
+			attrs.Labels[i] = label
+		}
+	} else if src.Label != "" {
+		label, err := ParseMPLSLabel(src.Label)
+		if err != nil {
+			return nil, err
+		}
+		attrs.Labels = []MPLSLabel{label}
 	}
-	attrs.Label = label
 
 	// RD
 	rd, err := ParseRouteDistinguisher(src.RD)

@@ -526,10 +526,8 @@ func l3vpnRouteToVPNParams(r api.L3VPNRoute, rd nlri.RouteDistinguisher) message
 	rdBytes := rd.Bytes()
 	copy(p.RDBytes[:], rdBytes)
 
-	// Label (first label from stack)
-	if len(r.Labels) > 0 {
-		p.Label = r.Labels[0]
-	}
+	// Labels (copy from route)
+	p.Labels = r.Labels
 
 	return p
 }
@@ -600,10 +598,8 @@ func labeledUnicastRouteToParams(r api.LabeledUnicastRoute) message.LabeledUnica
 		ExtCommunityBytes: attrs.ExtCommunityBytes,
 	}
 
-	// Label (first label from stack)
-	if len(r.Labels) > 0 {
-		p.Label = r.Labels[0]
-	}
+	// Labels (copy from route)
+	p.Labels = r.Labels
 
 	return p
 }

@@ -41,8 +41,8 @@ type StaticRoute struct {
 	ExtCommunity      string // Original string (e.g., "target:72:1")
 	ExtCommunityBytes []byte // Wire-format (8 bytes each, sorted)
 
-	PathID uint32 // ADD-PATH path identifier
-	Label  uint32 // MPLS label (20-bit value)
+	PathID uint32   // ADD-PATH path identifier
+	Labels []uint32 // RFC 8277: MPLS label stack (20-bit values)
 
 	// Route Distinguisher - both forms for serialization and wire encoding
 	RD      string  // Original string (e.g., "100:100")
@@ -82,9 +82,19 @@ func (r StaticRoute) IsVPN() bool {
 	return r.RD != ""
 }
 
-// IsLabeledUnicast returns true if this is a labeled unicast route (has label but no RD).
+// IsLabeledUnicast returns true if this is a labeled unicast route (has labels but no RD).
+// RFC 8277 Section 2: Labeled routes have MPLS label stack but no Route Distinguisher.
 func (r StaticRoute) IsLabeledUnicast() bool {
-	return r.Label != 0 && r.RD == ""
+	return len(r.Labels) > 0 && r.RD == ""
+}
+
+// SingleLabel returns the first label from the label stack for backward compatibility.
+// Returns 0 if no labels are present.
+func (r StaticRoute) SingleLabel() uint32 {
+	if len(r.Labels) > 0 {
+		return r.Labels[0]
+	}
+	return 0
 }
 
 // RouteKey returns a unique key for this route, suitable for use as a map key.

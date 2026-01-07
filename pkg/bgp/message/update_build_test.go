@@ -295,7 +295,7 @@ func TestUpdateBuilder_BuildVPN_IPv4(t *testing.T) {
 		Prefix:  netip.MustParsePrefix("10.0.0.0/24"),
 		NextHop: netip.MustParseAddr("192.168.1.1"),
 		Origin:  attribute.OriginIGP,
-		Label:   100,
+		Labels:  []uint32{100},
 		RDBytes: [8]byte{0, 1, 0, 0, 0, 100, 0, 100}, // Type 1 RD: 100:100
 	}
 
@@ -340,7 +340,7 @@ func TestUpdateBuilder_BuildVPN_IPv6(t *testing.T) {
 		Prefix:  netip.MustParsePrefix("2001:db8::/32"),
 		NextHop: netip.MustParseAddr("2001:db8::1"),
 		Origin:  attribute.OriginIGP,
-		Label:   200,
+		Labels:  []uint32{200},
 		RDBytes: [8]byte{0, 1, 0, 0, 0, 100, 0, 100},
 	}
 
@@ -373,7 +373,7 @@ func TestUpdateBuilder_BuildVPN_AttributeOrder(t *testing.T) {
 		Prefix:          netip.MustParsePrefix("10.0.0.0/24"),
 		NextHop:         netip.MustParseAddr("192.168.1.1"),
 		Origin:          attribute.OriginIGP,
-		Label:           100,
+		Labels:          []uint32{100},
 		RDBytes:         [8]byte{0, 1, 0, 0, 0, 100, 0, 100},
 		MED:             50,
 		LocalPreference: 150,
@@ -414,7 +414,7 @@ func TestUpdateBuilder_BuildVPN_ExtCommunity(t *testing.T) {
 		Prefix:            netip.MustParsePrefix("10.0.0.0/24"),
 		NextHop:           netip.MustParseAddr("192.168.1.1"),
 		Origin:            attribute.OriginIGP,
-		Label:             100,
+		Labels:            []uint32{100},
 		RDBytes:           [8]byte{0, 1, 0, 0, 0, 100, 0, 100},
 		ExtCommunityBytes: rtBytes,
 	}
@@ -961,7 +961,7 @@ func TestBuildVPN_ASN4Disabled(t *testing.T) {
 		Prefix:  netip.MustParsePrefix("10.0.0.0/24"),
 		NextHop: netip.MustParseAddr("192.168.1.1"),
 		Origin:  attribute.OriginIGP,
-		Label:   100,
+		Labels:  []uint32{100},
 		RDBytes: [8]byte{0, 1, 0, 0, 0, 100, 0, 100},
 	}
 
@@ -995,7 +995,7 @@ func TestBuildLabeledUnicast_ASN4Disabled(t *testing.T) {
 		Prefix:  netip.MustParsePrefix("10.0.0.0/24"),
 		NextHop: netip.MustParseAddr("192.168.1.1"),
 		Origin:  attribute.OriginIGP,
-		Label:   100,
+		Labels:  []uint32{100},
 	}
 
 	update := ub.BuildLabeledUnicast(params)
@@ -1182,7 +1182,7 @@ func TestBuildVPN_Aggregator_ASN4Disabled(t *testing.T) {
 		Prefix:        netip.MustParsePrefix("10.0.0.0/24"),
 		NextHop:       netip.MustParseAddr("192.168.1.1"),
 		Origin:        attribute.OriginIGP,
-		Label:         100,
+		Labels:        []uint32{100},
 		RDBytes:       [8]byte{0, 1, 0, 0, 0, 100, 0, 100},
 		HasAggregator: true,
 		AggregatorASN: 100,
@@ -1210,7 +1210,7 @@ func TestBuildLabeledUnicast_Aggregator_ASN4Disabled(t *testing.T) {
 		Prefix:        netip.MustParsePrefix("10.0.0.0/24"),
 		NextHop:       netip.MustParseAddr("192.168.1.1"),
 		Origin:        attribute.OriginIGP,
-		Label:         100,
+		Labels:        []uint32{100},
 		HasAggregator: true,
 		AggregatorASN: 100,
 		AggregatorIP:  [4]byte{192, 168, 1, 1},
