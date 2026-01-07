@@ -860,10 +860,10 @@ func TestWireUpdate_AllSections(t *testing.T) {
 	nlri := []byte{0x18, 0xC0, 0xA8, 0x01}  // /24 192.168.1.x
 
 	payload := make([]byte, 2+len(withdrawn)+2+len(attrs)+len(nlri))
-	binary.BigEndian.PutUint16(payload[0:2], uint16(len(withdrawn)))
+	binary.BigEndian.PutUint16(payload[0:2], uint16(len(withdrawn))) //nolint:gosec // test data, small fixed slice
 	copy(payload[2:], withdrawn)
 	offset := 2 + len(withdrawn)
-	binary.BigEndian.PutUint16(payload[offset:], uint16(len(attrs)))
+	binary.BigEndian.PutUint16(payload[offset:], uint16(len(attrs))) //nolint:gosec // test data, small fixed slice
 	copy(payload[offset+2:], attrs)
 	copy(payload[offset+2+len(attrs):], nlri)
 

@@ -153,7 +153,8 @@ func (l *Listener) acceptLoop() {
 		conn, err := l.listener.Accept()
 		if err != nil {
 			// Check for timeout (expected during normal polling)
-			if ne, ok := err.(net.Error); ok && ne.Timeout() {
+			var ne net.Error
+			if errors.As(err, &ne) && ne.Timeout() {
 				continue
 			}
 			// Check if we're shutting down

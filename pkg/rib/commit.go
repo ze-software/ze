@@ -225,7 +225,7 @@ func (c *CommitService) packAttributesWithASPath(attrs []attribute.Attribute, as
 	var otherAttrs []attribute.Attribute
 
 	for _, attr := range attrs {
-		switch attr.Code() {
+		switch attr.Code() { //nolint:exhaustive // default handles all other attributes
 		case attribute.AttrOrigin:
 			origin = attr
 		case attribute.AttrLocalPref:

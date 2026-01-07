@@ -185,8 +185,8 @@ func TestWriteAttrToWithContext_MatchesPack(t *testing.T) {
 
 				// Pack using old method
 				value := attr.PackWithContext(nil, ctx)
-				header := PackHeader(attr.Flags(), attr.Code(), uint16(len(value)))
-				expected := append(header, value...)
+				header := PackHeader(attr.Flags(), attr.Code(), uint16(len(value))) //nolint:gosec // test data, overflow not possible
+				expected := append(header, value...)                                //nolint:gocritic // intentional: create new slice for comparison
 
 				// Write using new method
 				buf := make([]byte, len(expected)+10)

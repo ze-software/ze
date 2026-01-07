@@ -219,7 +219,7 @@ func (p *Peer) SourceID() source.SourceID {
 // expectedCount is the number of API processes with SendUpdate permission.
 func (p *Peer) ResetAPISync(expectedCount int) {
 	p.mu.Lock()
-	p.apiSyncExpected = int32(expectedCount)
+	p.apiSyncExpected = int32(expectedCount) //nolint:gosec // API process count will never overflow int32
 	p.apiSyncReady = make(chan struct{})
 	p.apiSyncReadyOnce = sync.Once{}
 	p.apiSyncCount.Store(0)
