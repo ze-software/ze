@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/attribute"
+	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/nlri"
 )
 
 // Errors for UPDATE splitting.
@@ -320,14 +321,14 @@ func splitUpdateIPv4(u *Update, maxSize int, addPath bool) ([]*Update, error) {
 // Returns ErrNLRIMalformed if NLRI structure is invalid.
 //
 // AFI=1 (IPv4), SAFI=1 (Unicast) is used for ChunkMPNLRI.
-func chunkIPv4NLRI(nlri []byte, maxSize int, addPath bool) ([][]byte, error) {
-	if len(nlri) == 0 {
+func chunkIPv4NLRI(nlriData []byte, maxSize int, addPath bool) ([][]byte, error) {
+	if len(nlriData) == 0 {
 		return nil, nil
 	}
 
 	// Use family-aware chunker for both cases (it handles Add-Path correctly)
-	// AFI=1 (IPv4), SAFI=1 (Unicast)
-	return ChunkMPNLRI(nlri, 1, 1, addPath, maxSize)
+	// AFI=IPv4, SAFI=Unicast
+	return ChunkMPNLRI(nlriData, nlri.AFIIPv4, nlri.SAFIUnicast, addPath, maxSize)
 }
 
 // =============================================================================
@@ -377,7 +378,7 @@ func SplitMPReachNLRIWithAddPath(mp *attribute.MPReachNLRI, maxAttrSize int, add
 	nlriSpace := maxAttrSize - overhead
 
 	// Use family-aware chunking
-	nlriChunks, err := ChunkMPNLRI(mp.NLRI, uint16(mp.AFI), uint8(mp.SAFI), addPath, nlriSpace)
+	nlriChunks, err := ChunkMPNLRI(mp.NLRI, nlri.AFI(mp.AFI), nlri.SAFI(mp.SAFI), addPath, nlriSpace)
 	if err != nil {
 		return nil, fmt.Errorf("chunking MP_REACH_NLRI: %w", err)
 	}
@@ -435,7 +436,7 @@ func SplitMPUnreachNLRIWithAddPath(mp *attribute.MPUnreachNLRI, maxAttrSize int,
 	nlriSpace := maxAttrSize - overhead
 
 	// Use family-aware chunking
-	nlriChunks, err := ChunkMPNLRI(mp.NLRI, uint16(mp.AFI), uint8(mp.SAFI), addPath, nlriSpace)
+	nlriChunks, err := ChunkMPNLRI(mp.NLRI, nlri.AFI(mp.AFI), nlri.SAFI(mp.SAFI), addPath, nlriSpace)
 	if err != nil {
 		return nil, fmt.Errorf("chunking MP_UNREACH_NLRI: %w", err)
 	}

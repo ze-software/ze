@@ -1464,9 +1464,22 @@ func (a *reactorAPIAdapter) buildBatchASPath(userASPath []uint32, isIBGP bool) *
 // RFC 4271 Section 4.3: UPDATE Message Format.
 // RFC 4760: MP_REACH_NLRI for non-IPv4-unicast families.
 func (a *reactorAPIAdapter) buildBatchAnnounceUpdate(batch api.NLRIBatch, nextHop netip.Addr, isIBGP bool, ctx *nlri.PackContext) *message.Update {
-	asn4 := ctx == nil || ctx.ASN4
 	attrs := batch.Attrs
+	isIPv4Unicast := batch.Family == nlri.IPv4Unicast
 
+	// Pack NLRIs first (used by both paths)
+	var nlriBytes []byte
+	for _, n := range batch.NLRIs {
+		nlriBytes = append(nlriBytes, n.Pack(ctx)...)
+	}
+
+	// Wire mode: use raw attribute bytes, only add NEXT_HOP or MP_REACH_NLRI
+	if attrs.Wire != nil {
+		return a.buildWireModeUpdate(attrs.Wire.Packed(), nlriBytes, batch.Family, nextHop)
+	}
+
+	// Semantic mode: build attributes from fields
+	asn4 := ctx == nil || ctx.ASN4
 	var attrBytes []byte
 
 	// 1. ORIGIN - RFC 4271 §5.1.1
@@ -1495,8 +1508,6 @@ func (a *reactorAPIAdapter) buildBatchAnnounceUpdate(batch api.NLRIBatch, nextHo
 		}
 	}
 	attrBytes = append(attrBytes, attribute.PackASPathAttribute(asPath, asn4)...)
-
-	isIPv4Unicast := batch.Family == nlri.IPv4Unicast
 
 	// 3. NEXT_HOP - RFC 4271 §5.1.3 (IPv4 unicast only)
 	if isIPv4Unicast {
@@ -1539,12 +1550,6 @@ func (a *reactorAPIAdapter) buildBatchAnnounceUpdate(batch api.NLRIBatch, nextHo
 		attrBytes = append(attrBytes, attribute.PackAttribute(extComms)...)
 	}
 
-	// Pack NLRIs
-	var nlriBytes []byte
-	for _, n := range batch.NLRIs {
-		nlriBytes = append(nlriBytes, n.Pack(ctx)...)
-	}
-
 	if isIPv4Unicast {
 		// IPv4 unicast: NLRI goes in the NLRI field
 		return &message.Update{
@@ -1560,6 +1565,41 @@ func (a *reactorAPIAdapter) buildBatchAnnounceUpdate(batch api.NLRIBatch, nextHo
 		NextHops: []netip.Addr{nextHop},
 		NLRI:     nlriBytes,
 	}
+	attrBytes = append(attrBytes, attribute.PackAttribute(mpReach)...)
+
+	return &message.Update{
+		PathAttributes: attrBytes,
+	}
+}
+
+// buildWireModeUpdate builds UPDATE using raw wire attribute bytes.
+// Adds NEXT_HOP (IPv4 unicast) or MP_REACH_NLRI (other families) to wire attrs.
+// Wire attrs are assumed to NOT contain NEXT_HOP or MP_REACH_NLRI.
+func (a *reactorAPIAdapter) buildWireModeUpdate(wireAttrs, nlriBytes []byte, family nlri.Family, nextHop netip.Addr) *message.Update {
+	isIPv4Unicast := family == nlri.IPv4Unicast
+
+	if isIPv4Unicast {
+		// IPv4 unicast: append NEXT_HOP to wire attrs, NLRI in NLRI field
+		nh := &attribute.NextHop{Addr: nextHop}
+		attrBytes := make([]byte, 0, len(wireAttrs)+8)
+		attrBytes = append(attrBytes, wireAttrs...)
+		attrBytes = append(attrBytes, attribute.PackAttribute(nh)...)
+
+		return &message.Update{
+			PathAttributes: attrBytes,
+			NLRI:           nlriBytes,
+		}
+	}
+
+	// Non-IPv4 unicast: append MP_REACH_NLRI to wire attrs
+	mpReach := &attribute.MPReachNLRI{
+		AFI:      attribute.AFI(family.AFI),
+		SAFI:     attribute.SAFI(family.SAFI),
+		NextHops: []netip.Addr{nextHop},
+		NLRI:     nlriBytes,
+	}
+	attrBytes := make([]byte, 0, len(wireAttrs)+len(nlriBytes)+32)
+	attrBytes = append(attrBytes, wireAttrs...)
 	attrBytes = append(attrBytes, attribute.PackAttribute(mpReach)...)
 
 	return &message.Update{
@@ -2524,7 +2564,7 @@ func (a *reactorAPIAdapter) sendGroupedMPFamily(peer *Peer, routes []*rib.Route,
 	// Split NLRIs into chunks
 	sendCtx := peer.SendContext()
 	addPath := sendCtx != nil && sendCtx.AddPathFor(family)
-	chunks, err := message.ChunkMPNLRI(nlriBytes, uint16(family.AFI), uint8(family.SAFI), addPath, availableNLRISpace)
+	chunks, err := message.ChunkMPNLRI(nlriBytes, family.AFI, family.SAFI, addPath, availableNLRISpace)
 	if err != nil {
 		return fmt.Errorf("chunking MP NLRI: %w", err)
 	}

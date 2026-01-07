@@ -91,6 +91,11 @@ type PathAttributes struct {
 	Communities         []uint32                      // Standard communities (2-byte ASN:2-byte value)
 	LargeCommunities    []LargeCommunity              // RFC 8092 large communities
 	ExtendedCommunities []attribute.ExtendedCommunity // RFC 4360 extended communities
+
+	// Wire mode: lazy-parsed wire bytes (excludes NEXT_HOP/MP_REACH).
+	// If set, semantic fields above are ignored.
+	// Uses APIContextID as source context (ASN4=true).
+	Wire *attribute.AttributesWire
 }
 
 // RouteSpec specifies a route for announcement.

@@ -1,6 +1,7 @@
 package reactor
 
 import (
+	"bytes"
 	"net/netip"
 	"testing"
 
@@ -325,4 +326,101 @@ func TestWithdrawNLRIBatch_QueueForNonEstablished(t *testing.T) {
 	peer.mu.Unlock()
 
 	assert.Equal(t, 2, queueLen, "should queue 2 withdrawals for non-established peer")
+}
+
+// =============================================================================
+// Phase 5: Wire mode tests
+// =============================================================================
+
+// TestBuildBatchAnnounceUpdate_WireMode_IPv4 verifies wire mode for IPv4 unicast.
+//
+// VALIDATES: Wire attrs used when PathAttributes.Wire is set.
+// PREVENTS: Wire bytes being ignored or re-encoded.
+func TestBuildBatchAnnounceUpdate_WireMode_IPv4(t *testing.T) {
+	r := &Reactor{config: &Config{LocalAS: 65000}}
+	adapter := &reactorAPIAdapter{r: r}
+
+	// Wire attributes: ORIGIN IGP (0x40 0x01 0x01 0x00) + AS_PATH empty (0x40 0x02 0x00)
+	wireAttrs := []byte{0x40, 0x01, 0x01, 0x00, 0x40, 0x02, 0x00}
+	attrsWire := attribute.NewAttributesWire(wireAttrs, 0)
+
+	// Create wire NLRI (10.0.0.0/24)
+	wn, err := nlri.NewWireNLRI(nlri.IPv4Unicast, []byte{0x18, 0x0a, 0x00, 0x00}, false)
+	require.NoError(t, err)
+
+	batch := api.NLRIBatch{
+		Family:  nlri.IPv4Unicast,
+		NLRIs:   []nlri.NLRI{wn},
+		NextHop: api.NewNextHopExplicit(netip.MustParseAddr("10.0.0.1")),
+		Attrs:   api.PathAttributes{Wire: attrsWire},
+	}
+
+	// Use nil context (default ASN4=true, no ADD-PATH)
+	update := adapter.buildBatchAnnounceUpdate(batch, netip.MustParseAddr("10.0.0.1"), false, nil)
+
+	require.NotNil(t, update)
+
+	// Wire mode: PathAttributes should contain wire bytes + NEXT_HOP
+	// The wire bytes should be preserved (wire attrs come first)
+	assert.True(t, bytes.HasPrefix(update.PathAttributes, wireAttrs), "wire attrs should be preserved at start")
+	assert.Len(t, update.NLRI, 4, "IPv4 unicast NLRI should be in NLRI field")
+}
+
+// TestBuildBatchAnnounceUpdate_WireMode_IPv6 verifies wire mode for IPv6 unicast.
+//
+// VALIDATES: Wire mode uses MP_REACH_NLRI for non-IPv4 families.
+// PREVENTS: Wrong attribute construction for MP families.
+func TestBuildBatchAnnounceUpdate_WireMode_IPv6(t *testing.T) {
+	r := &Reactor{config: &Config{LocalAS: 65000}}
+	adapter := &reactorAPIAdapter{r: r}
+
+	// Wire attributes: ORIGIN IGP
+	wireAttrs := []byte{0x40, 0x01, 0x01, 0x00}
+	attrsWire := attribute.NewAttributesWire(wireAttrs, 0)
+
+	// Create wire NLRI for IPv6 (2001:db8::/32)
+	wn, err := nlri.NewWireNLRI(nlri.IPv6Unicast, []byte{0x20, 0x20, 0x01, 0x0d, 0xb8}, false)
+	require.NoError(t, err)
+
+	batch := api.NLRIBatch{
+		Family:  nlri.IPv6Unicast,
+		NLRIs:   []nlri.NLRI{wn},
+		NextHop: api.NewNextHopExplicit(netip.MustParseAddr("2001:db8::1")),
+		Attrs:   api.PathAttributes{Wire: attrsWire},
+	}
+
+	update := adapter.buildBatchAnnounceUpdate(batch, netip.MustParseAddr("2001:db8::1"), false, nil)
+
+	require.NotNil(t, update)
+
+	// IPv6: NLRI field should be empty (NLRIs go in MP_REACH_NLRI)
+	assert.Empty(t, update.NLRI, "IPv6 unicast should use MP_REACH_NLRI, not NLRI field")
+	// PathAttributes should contain wire attrs + MP_REACH_NLRI
+	assert.NotEmpty(t, update.PathAttributes)
+}
+
+// TestBuildBatchWithdrawUpdate_WireMode verifies wire mode for withdrawals.
+//
+// VALIDATES: Wire NLRIs correctly packed for withdrawal.
+// PREVENTS: Withdrawal parsing failures.
+func TestBuildBatchWithdrawUpdate_WireMode(t *testing.T) {
+	r := &Reactor{config: &Config{LocalAS: 65000}}
+	adapter := &reactorAPIAdapter{r: r}
+
+	// Create wire NLRI (10.0.0.0/24)
+	wn, err := nlri.NewWireNLRI(nlri.IPv4Unicast, []byte{0x18, 0x0a, 0x00, 0x00}, false)
+	require.NoError(t, err)
+
+	batch := api.NLRIBatch{
+		Family: nlri.IPv4Unicast,
+		NLRIs:  []nlri.NLRI{wn},
+	}
+
+	update := adapter.buildBatchWithdrawUpdate(batch, nil)
+
+	require.NotNil(t, update)
+	// IPv4 unicast: withdrawals go in WithdrawnRoutes field
+	assert.Equal(t, []byte{0x18, 0x0a, 0x00, 0x00}, update.WithdrawnRoutes)
+	assert.Empty(t, update.PathAttributes)
+	assert.Empty(t, update.NLRI)
 }

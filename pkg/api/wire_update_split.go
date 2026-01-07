@@ -170,7 +170,7 @@ func separateMPAttributes(attrs []byte) (base []byte, mpReaches, mpUnreaches [][
 // splitIPv4NLRIs splits IPv4 unicast NLRIs (legacy UPDATE fields).
 func splitIPv4NLRIs(data []byte, maxBytes int, ctx *bgpctx.EncodingContext) (fitting, remaining []byte, err error) {
 	addPath := ctx.AddPathFor(nlri.IPv4Unicast)
-	return message.SplitMPNLRI(data, 1, 1, addPath, maxBytes)
+	return message.SplitMPNLRI(data, nlri.AFIIPv4, nlri.SAFIUnicast, addPath, maxBytes)
 }
 
 // buildCombinedUpdates builds UPDATEs with mixed components, splitting if needed.
@@ -330,7 +330,7 @@ func splitMPReach(attr []byte, maxBytes int, srcCtx *bgpctx.EncodingContext) (fi
 	// Get ADD-PATH state for this specific AFI/SAFI
 	addPath := srcCtx.AddPathFor(nlri.Family{AFI: nlri.AFI(afi), SAFI: nlri.SAFI(safi)})
 
-	fitNLRI, restNLRI, err := message.SplitMPNLRI(nlris, afi, safi, addPath, availableForNLRI)
+	fitNLRI, restNLRI, err := message.SplitMPNLRI(nlris, nlri.AFI(afi), nlri.SAFI(safi), addPath, availableForNLRI)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -385,7 +385,7 @@ func splitMPUnreach(attr []byte, maxBytes int, srcCtx *bgpctx.EncodingContext) (
 	// Get ADD-PATH state for this specific AFI/SAFI
 	addPath := srcCtx.AddPathFor(nlri.Family{AFI: nlri.AFI(afi), SAFI: nlri.SAFI(safi)})
 
-	fitNLRI, restNLRI, err := message.SplitMPNLRI(nlris, afi, safi, addPath, availableForNLRI)
+	fitNLRI, restNLRI, err := message.SplitMPNLRI(nlris, nlri.AFI(afi), nlri.SAFI(safi), addPath, availableForNLRI)
 	if err != nil {
 		return nil, nil, err
 	}

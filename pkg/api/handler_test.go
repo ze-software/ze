@@ -59,6 +59,16 @@ type mockReactor struct {
 	ribInCleared  bool
 	ribOutCleared bool
 	ribOutFlushed bool
+
+	// NLRI batch tracking for wire mode tests
+	announcedBatches []struct {
+		selector string
+		batch    NLRIBatch
+	}
+	withdrawnBatches []struct {
+		selector string
+		batch    NLRIBatch
+	}
 }
 
 func (m *mockReactor) Peers() []PeerInfo {
@@ -261,9 +271,21 @@ func (m *mockReactor) SignalAPIReady() {}
 
 func (m *mockReactor) SignalPeerAPIReady(_ string) {}
 
-func (m *mockReactor) AnnounceNLRIBatch(_ string, _ NLRIBatch) error { return nil }
+func (m *mockReactor) AnnounceNLRIBatch(selector string, batch NLRIBatch) error {
+	m.announcedBatches = append(m.announcedBatches, struct {
+		selector string
+		batch    NLRIBatch
+	}{selector, batch})
+	return nil
+}
 
-func (m *mockReactor) WithdrawNLRIBatch(_ string, _ NLRIBatch) error { return nil }
+func (m *mockReactor) WithdrawNLRIBatch(selector string, batch NLRIBatch) error {
+	m.withdrawnBatches = append(m.withdrawnBatches, struct {
+		selector string
+		batch    NLRIBatch
+	}{selector, batch})
+	return nil
+}
 
 func (m *mockReactor) SendRawMessage(addr netip.Addr, msgType uint8, payload []byte) error {
 	m.rawMessages = append(m.rawMessages, struct {

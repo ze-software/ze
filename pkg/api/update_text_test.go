@@ -24,33 +24,32 @@ func TestParseUpdateText_EmptyInput(t *testing.T) {
 	assert.Empty(t, result.WatchdogName)
 }
 
-// TestParseUpdateText_AttrSetNextHop verifies next-hop parsing.
+// TestParseUpdateText_AttrSetNextHop_Deprecated verifies old syntax returns migration hint.
 //
-// VALIDATES: attr set next-hop <addr> stores the address
-// PREVENTS: Next-hop parsing failures.
-func TestParseUpdateText_AttrSetNextHop(t *testing.T) {
-	result, err := ParseUpdateText([]string{
+// VALIDATES: Old attr set next-hop returns error with hint
+// PREVENTS: Silent acceptance of deprecated syntax.
+func TestParseUpdateText_AttrSetNextHop_Deprecated(t *testing.T) {
+	_, err := ParseUpdateText([]string{
 		"attr", "set", "next-hop", "192.0.2.1",
 		"nlri", "ipv4/unicast", "add", "10.0.0.0/24",
 	})
-	require.NoError(t, err)
-	require.Len(t, result.Groups, 1)
-	assert.True(t, result.Groups[0].NextHop.IsExplicit())
-	assert.Equal(t, netip.MustParseAddr("192.0.2.1"), result.Groups[0].NextHop.Addr)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "deprecated")
+	assert.Contains(t, err.Error(), "nhop set")
 }
 
-// TestParseUpdateText_AttrSetNextHopSelf verifies next-hop-self flag.
+// TestParseUpdateText_AttrSetNextHopSelf_Deprecated verifies old syntax returns migration hint.
 //
-// VALIDATES: attr set next-hop-self sets the flag
-// PREVENTS: Missing next-hop-self handling.
-func TestParseUpdateText_AttrSetNextHopSelf(t *testing.T) {
-	result, err := ParseUpdateText([]string{
+// VALIDATES: Old attr set next-hop-self returns error with hint
+// PREVENTS: Silent acceptance of deprecated syntax.
+func TestParseUpdateText_AttrSetNextHopSelf_Deprecated(t *testing.T) {
+	_, err := ParseUpdateText([]string{
 		"attr", "set", "next-hop-self",
 		"nlri", "ipv4/unicast", "add", "10.0.0.0/24",
 	})
-	require.NoError(t, err)
-	require.Len(t, result.Groups, 1)
-	assert.True(t, result.Groups[0].NextHop.IsSelf())
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "deprecated")
+	assert.Contains(t, err.Error(), "nhop set self")
 }
 
 // TestParseUpdateText_AttrSetOrigin verifies origin attribute parsing.
@@ -230,8 +229,7 @@ func TestParseUpdateText_AttrAddScalarError(t *testing.T) {
 		{"origin", []string{"attr", "add", "origin", "igp", "nlri", "ipv4/unicast", "add", "10.0.0.0/24"}},
 		{"med", []string{"attr", "add", "med", "100", "nlri", "ipv4/unicast", "add", "10.0.0.0/24"}},
 		{"local-preference", []string{"attr", "add", "local-preference", "100", "nlri", "ipv4/unicast", "add", "10.0.0.0/24"}},
-		{"next-hop", []string{"attr", "add", "next-hop", "1.2.3.4", "nlri", "ipv4/unicast", "add", "10.0.0.0/24"}},
-		{"next-hop-self", []string{"attr", "add", "next-hop-self", "nlri", "ipv4/unicast", "add", "10.0.0.0/24"}},
+		// Note: next-hop and next-hop-self now return "deprecated" error, tested separately
 	}
 
 	for _, tc := range tests {
@@ -407,7 +405,8 @@ func TestParseUpdateText_NLRIMissingAddDel(t *testing.T) {
 // PREVENTS: Attribute/NLRI disconnection.
 func TestParseUpdateText_AttrAndNLRI(t *testing.T) {
 	result, err := ParseUpdateText([]string{
-		"attr", "set", "next-hop", "192.0.2.1", "origin", "igp",
+		"attr", "set", "origin", "igp",
+		"nhop", "set", "192.0.2.1",
 		"nlri", "ipv4/unicast", "add", "10.0.0.0/24",
 	})
 	require.NoError(t, err)
@@ -569,11 +568,12 @@ func TestParseUpdateText_WatchdogOnly(t *testing.T) {
 func TestParseUpdateText_SpecExample(t *testing.T) {
 	// Example: set attrs, add ipv4 routes, modify attrs, add ipv6 routes
 	result, err := ParseUpdateText([]string{
-		"attr", "set", "origin", "igp", "next-hop", "192.0.2.1",
+		"attr", "set", "origin", "igp",
+		"nhop", "set", "192.0.2.1",
 		"attr", "set", "community", "[65000:100]",
 		"nlri", "ipv4/unicast", "add", "10.0.0.0/24", "10.0.1.0/24", "del", "10.0.2.0/24",
 		"attr", "add", "community", "[65000:200]",
-		"attr", "set", "next-hop", "2001:db8::1",
+		"nhop", "set", "2001:db8::1",
 		"nlri", "ipv6/unicast", "add", "2001:db8:1::/48",
 		"watchdog", "test-pool",
 	})
@@ -612,7 +612,7 @@ func TestParsedAttrs_Snapshot_DeepCopy(t *testing.T) {
 		},
 	}
 
-	pa, _ := orig.snapshot()
+	pa, _, _ := orig.snapshot()
 
 	// Modify original
 	orig.Communities = append(orig.Communities, 4)
@@ -633,7 +633,7 @@ func TestParsedAttrs_Snapshot_DeepCopyPointers(t *testing.T) {
 		},
 	}
 
-	pa, _ := orig.snapshot()
+	pa, _, _ := orig.snapshot()
 
 	// Modify original pointer value
 	*orig.Origin = 2
@@ -682,9 +682,9 @@ func TestParseUpdateText_IPv6InIPv4Family(t *testing.T) {
 	assert.ErrorIs(t, err, ErrFamilyMismatch)
 }
 
-// TestParseUpdateText_AttrDelNextHopError verifies del on next-hop fails.
+// TestParseUpdateText_AttrDelNextHopError verifies del on next-hop fails with deprecated.
 //
-// VALIDATES: attr del next-hop returns error.
+// VALIDATES: attr del next-hop returns deprecated error.
 // PREVENTS: Silent next-hop deletion.
 func TestParseUpdateText_AttrDelNextHopError(t *testing.T) {
 	_, err := ParseUpdateText([]string{
@@ -692,12 +692,12 @@ func TestParseUpdateText_AttrDelNextHopError(t *testing.T) {
 		"nlri", "ipv4/unicast", "add", "10.0.0.0/24",
 	})
 	require.Error(t, err)
-	assert.ErrorIs(t, err, ErrDelOnScalar)
+	assert.Contains(t, err.Error(), "deprecated")
 }
 
-// TestParseUpdateText_AttrDelNextHopSelfError verifies del on next-hop-self fails.
+// TestParseUpdateText_AttrDelNextHopSelfError verifies del on next-hop-self fails with deprecated.
 //
-// VALIDATES: attr del next-hop-self returns error.
+// VALIDATES: attr del next-hop-self returns deprecated error.
 // PREVENTS: Silent next-hop-self deletion.
 func TestParseUpdateText_AttrDelNextHopSelfError(t *testing.T) {
 	_, err := ParseUpdateText([]string{
@@ -705,7 +705,7 @@ func TestParseUpdateText_AttrDelNextHopSelfError(t *testing.T) {
 		"nlri", "ipv4/unicast", "add", "10.0.0.0/24",
 	})
 	require.Error(t, err)
-	assert.ErrorIs(t, err, ErrDelOnScalar)
+	assert.Contains(t, err.Error(), "deprecated")
 }
 
 // TestParseUpdateText_MulticastFamily verifies multicast family support.
@@ -909,7 +909,8 @@ func TestHandleUpdateText_SimpleAnnounce(t *testing.T) {
 	}
 
 	args := []string{
-		"attr", "set", "next-hop", "10.0.0.1", "origin", "igp",
+		"attr", "set", "origin", "igp",
+		"nhop", "set", "10.0.0.1",
 		"nlri", "ipv4/unicast", "add", "10.0.0.0/24",
 	}
 
@@ -937,7 +938,7 @@ func TestHandleUpdateText_MultipleRoutes(t *testing.T) {
 	}
 
 	args := []string{
-		"attr", "set", "next-hop", "10.0.0.1",
+		"nhop", "set", "10.0.0.1",
 		"nlri", "ipv4/unicast", "add", "10.0.0.0/24", "10.0.1.0/24", "10.0.2.0/24",
 	}
 
@@ -962,7 +963,7 @@ func TestHandleUpdateText_MixedAnnounceWithdraw(t *testing.T) {
 	}
 
 	args := []string{
-		"attr", "set", "next-hop", "10.0.0.1",
+		"nhop", "set", "10.0.0.1",
 		"nlri", "ipv4/unicast", "add", "10.0.0.0/24", "del", "10.0.1.0/24",
 	}
 
@@ -989,7 +990,8 @@ func TestHandleUpdateText_MultipleGroups(t *testing.T) {
 	}
 
 	args := []string{
-		"attr", "set", "next-hop", "10.0.0.1", "community", "[65000:100]",
+		"nhop", "set", "10.0.0.1",
+		"attr", "set", "community", "[65000:100]",
 		"nlri", "ipv4/unicast", "add", "10.0.0.0/24",
 		"attr", "add", "community", "[65000:200]",
 		"nlri", "ipv4/unicast", "add", "10.0.1.0/24",
@@ -1067,7 +1069,7 @@ func TestHandleUpdateText_PeerNotFound(t *testing.T) {
 	}
 
 	args := []string{
-		"attr", "set", "next-hop", "10.0.0.1",
+		"nhop", "set", "10.0.0.1",
 		"nlri", "ipv4/unicast", "add", "10.0.0.0/24",
 	}
 
@@ -1088,7 +1090,7 @@ func TestHandleUpdateText_WatchdogDeferred(t *testing.T) {
 	}
 
 	args := []string{
-		"attr", "set", "next-hop", "10.0.0.1",
+		"nhop", "set", "10.0.0.1",
 		"nlri", "ipv4/unicast", "add", "10.0.0.0/24",
 		"watchdog", "my-pool",
 	}
@@ -1112,9 +1114,9 @@ func TestHandleUpdateText_EmptyResult(t *testing.T) {
 		Peer:    "*",
 	}
 
-	// Just attr set, no nlri section
+	// Just nhop set, no nlri section
 	args := []string{
-		"attr", "set", "next-hop", "10.0.0.1",
+		"nhop", "set", "10.0.0.1",
 	}
 
 	resp, err := handleUpdateText(ctx, args)
@@ -1135,7 +1137,7 @@ func TestHandleUpdateText_IPv6Announce(t *testing.T) {
 	}
 
 	args := []string{
-		"attr", "set", "next-hop", "2001:db8::1",
+		"nhop", "set", "2001:db8::1",
 		"nlri", "ipv6/unicast", "add", "2001:db8:1::/48",
 	}
 
@@ -1147,7 +1149,7 @@ func TestHandleUpdateText_IPv6Announce(t *testing.T) {
 	assert.Equal(t, nlri.IPv6Unicast, reactor.announceCalls[0].Family)
 }
 
-// TestHandleUpdateText_NextHopSelf verifies next-hop-self flag passed to batch.
+// TestHandleUpdateText_NextHopSelf verifies nhop set self flag passed to batch.
 //
 // VALIDATES: NextHopSelf flag propagated to reactor.
 // PREVENTS: Flag loss in handler.
@@ -1159,7 +1161,7 @@ func TestHandleUpdateText_NextHopSelf(t *testing.T) {
 	}
 
 	args := []string{
-		"attr", "set", "next-hop-self",
+		"nhop", "set", "self",
 		"nlri", "ipv4/unicast", "add", "10.0.0.0/24",
 	}
 
@@ -1183,7 +1185,7 @@ func TestHandleUpdateText_FamilyNotAccepted(t *testing.T) {
 	}
 
 	args := []string{
-		"attr", "set", "next-hop", "10.0.0.1",
+		"nhop", "set", "10.0.0.1",
 		"nlri", "ipv4/unicast", "add", "10.0.0.0/24",
 	}
 
@@ -1205,11 +1207,11 @@ func TestHandleUpdateText_PartialFamilyAccepted(t *testing.T) {
 		Peer:    "*",
 	}
 
-	// Use separate attr sections with correct next-hops per family
+	// Use separate nhop sections with correct next-hops per family
 	args := []string{
-		"attr", "set", "next-hop", "10.0.0.1",
+		"nhop", "set", "10.0.0.1",
 		"nlri", "ipv4/unicast", "add", "10.0.0.0/24",
-		"attr", "set", "next-hop", "2001:db8::1",
+		"nhop", "set", "2001:db8::1",
 		"nlri", "ipv6/unicast", "add", "2001:db8:1::/48",
 	}
 
@@ -1237,7 +1239,7 @@ func TestHandleUpdate_TextSubcommand(t *testing.T) {
 
 	args := []string{
 		"text",
-		"attr", "set", "next-hop", "10.0.0.1",
+		"nhop", "set", "10.0.0.1",
 		"nlri", "ipv4/unicast", "add", "10.0.0.0/24",
 	}
 
@@ -1265,23 +1267,172 @@ func TestHandleUpdate_UnknownEncoding(t *testing.T) {
 	assert.Contains(t, err.Error(), "unknown encoding")
 }
 
-// TestHandleUpdate_HexNotImplemented verifies hex encoding returns not-implemented.
-//
-// VALIDATES: Wire encodings documented as not-yet-implemented.
-// PREVENTS: Silent failure on wire encodings.
-func TestHandleUpdate_HexNotImplemented(t *testing.T) {
-	reactor := &mockReactorBatch{}
-	ctx := &CommandContext{
-		Reactor: reactor,
-		Peer:    "*",
-	}
+// =============================================================================
+// Phase 1: nhop and path-information tests
+// =============================================================================
 
-	for _, enc := range []string{"hex", "b64", "cbor"} {
-		t.Run(enc, func(t *testing.T) {
-			args := []string{enc, "deadbeef"}
-			_, err := handleUpdate(ctx, args)
-			require.Error(t, err)
-			assert.Contains(t, err.Error(), "not yet implemented")
-		})
-	}
+// TestParseUpdateText_NhopSet verifies nhop set <addr> syntax.
+//
+// VALIDATES: nhop set <addr> stores next-hop as explicit
+// PREVENTS: Missing nhop keyword support
+func TestParseUpdateText_NhopSet(t *testing.T) {
+	result, err := ParseUpdateText([]string{
+		"nhop", "set", "192.0.2.1",
+		"nlri", "ipv4/unicast", "add", "10.0.0.0/24",
+	})
+	require.NoError(t, err)
+	require.Len(t, result.Groups, 1)
+	assert.True(t, result.Groups[0].NextHop.IsExplicit())
+	assert.Equal(t, netip.MustParseAddr("192.0.2.1"), result.Groups[0].NextHop.Addr)
+}
+
+// TestParseUpdateText_NhopSetSelf verifies nhop set self syntax.
+//
+// VALIDATES: nhop set self stores next-hop as self policy
+// PREVENTS: Missing self keyword support
+func TestParseUpdateText_NhopSetSelf(t *testing.T) {
+	result, err := ParseUpdateText([]string{
+		"nhop", "set", "self",
+		"nlri", "ipv4/unicast", "add", "10.0.0.0/24",
+	})
+	require.NoError(t, err)
+	require.Len(t, result.Groups, 1)
+	assert.True(t, result.Groups[0].NextHop.IsSelf())
+}
+
+// TestParseUpdateText_NhopDel verifies nhop del syntax.
+//
+// VALIDATES: nhop del unsets next-hop for subsequent nlri
+// PREVENTS: Missing nhop del support
+func TestParseUpdateText_NhopDel(t *testing.T) {
+	result, err := ParseUpdateText([]string{
+		"nhop", "set", "192.0.2.1",
+		"nlri", "ipv4/unicast", "add", "10.0.0.0/24",
+		"nhop", "del",
+		"nlri", "ipv4/unicast", "add", "10.0.1.0/24",
+	})
+	require.NoError(t, err)
+	require.Len(t, result.Groups, 2)
+
+	// First group: has next-hop
+	assert.True(t, result.Groups[0].NextHop.IsExplicit())
+
+	// Second group: next-hop cleared
+	assert.False(t, result.Groups[1].NextHop.IsExplicit())
+	assert.False(t, result.Groups[1].NextHop.IsSelf())
+}
+
+// TestParseUpdateText_NhopDelWithArg verifies nhop del rejects arguments.
+//
+// VALIDATES: nhop del takes no arguments
+// PREVENTS: Silent ignore of extra args
+func TestParseUpdateText_NhopDelWithArg(t *testing.T) {
+	_, err := ParseUpdateText([]string{
+		"nhop", "del", "192.0.2.1",
+		"nlri", "ipv4/unicast", "add", "10.0.0.0/24",
+	})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "nhop del takes no arguments")
+}
+
+// TestParseUpdateText_NhopPerFamily verifies nhop accumulates correctly.
+//
+// VALIDATES: nhop changes affect only subsequent nlri sections
+// PREVENTS: nhop applying retroactively
+func TestParseUpdateText_NhopPerFamily(t *testing.T) {
+	result, err := ParseUpdateText([]string{
+		"nhop", "set", "192.0.2.1",
+		"nlri", "ipv4/unicast", "add", "10.0.0.0/24",
+		"nhop", "set", "2001:db8::1",
+		"nlri", "ipv6/unicast", "add", "2001:db8::/32",
+	})
+	require.NoError(t, err)
+	require.Len(t, result.Groups, 2)
+
+	// IPv4 group: uses first nhop
+	assert.Equal(t, netip.MustParseAddr("192.0.2.1"), result.Groups[0].NextHop.Addr)
+
+	// IPv6 group: uses second nhop
+	assert.Equal(t, netip.MustParseAddr("2001:db8::1"), result.Groups[1].NextHop.Addr)
+}
+
+// TestParseUpdateText_PathInfo verifies path-information as accumulator.
+//
+// VALIDATES: path-information <id> sets path-id for subsequent NLRIs
+// PREVENTS: Missing ADD-PATH support
+func TestParseUpdateText_PathInfo(t *testing.T) {
+	result, err := ParseUpdateText([]string{
+		"nhop", "set", "192.0.2.1",
+		"path-information", "1",
+		"nlri", "ipv4/unicast", "add", "10.0.0.0/24",
+	})
+	require.NoError(t, err)
+	require.Len(t, result.Groups, 1)
+	require.Len(t, result.Groups[0].Announce, 1)
+	// Path-id should be set on NLRI
+	assert.Equal(t, uint32(1), result.Groups[0].Announce[0].PathID())
+}
+
+// TestParseUpdateText_PathInfoChange verifies path-information changes mid-command.
+//
+// VALIDATES: path-information can be changed between nlri sections
+// PREVENTS: Path-id applying retroactively
+func TestParseUpdateText_PathInfoChange(t *testing.T) {
+	result, err := ParseUpdateText([]string{
+		"nhop", "set", "192.0.2.1",
+		"path-information", "1",
+		"nlri", "ipv4/unicast", "add", "10.0.0.0/24",
+		"path-information", "2",
+		"nlri", "ipv4/unicast", "add", "10.0.1.0/24",
+	})
+	require.NoError(t, err)
+	require.Len(t, result.Groups, 2)
+
+	// First group: path-id=1
+	assert.Equal(t, uint32(1), result.Groups[0].Announce[0].PathID())
+
+	// Second group: path-id=2
+	assert.Equal(t, uint32(2), result.Groups[1].Announce[0].PathID())
+}
+
+// TestParseUpdateText_PathInfoInvalid verifies invalid path-information fails.
+//
+// VALIDATES: Non-numeric path-information returns error
+// PREVENTS: Silent ignore of invalid path-id
+func TestParseUpdateText_PathInfoInvalid(t *testing.T) {
+	_, err := ParseUpdateText([]string{
+		"nhop", "set", "192.0.2.1",
+		"path-information", "not-a-number",
+		"nlri", "ipv4/unicast", "add", "10.0.0.0/24",
+	})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "invalid path-information")
+}
+
+// TestParseUpdateText_OldNextHopSyntaxError verifies old syntax returns migration hint.
+//
+// VALIDATES: next-hop inside attr section returns error with hint
+// PREVENTS: Silent acceptance of deprecated syntax
+func TestParseUpdateText_OldNextHopSyntaxError(t *testing.T) {
+	_, err := ParseUpdateText([]string{
+		"attr", "set", "next-hop", "192.0.2.1",
+		"nlri", "ipv4/unicast", "add", "10.0.0.0/24",
+	})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "deprecated")
+	assert.Contains(t, err.Error(), "nhop set")
+}
+
+// TestParseUpdateText_OldNextHopSelfSyntaxError verifies old syntax returns migration hint.
+//
+// VALIDATES: next-hop-self inside attr section returns error with hint
+// PREVENTS: Silent acceptance of deprecated syntax
+func TestParseUpdateText_OldNextHopSelfSyntaxError(t *testing.T) {
+	_, err := ParseUpdateText([]string{
+		"attr", "set", "next-hop-self",
+		"nlri", "ipv4/unicast", "add", "10.0.0.0/24",
+	})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "deprecated")
+	assert.Contains(t, err.Error(), "nhop set self")
 }

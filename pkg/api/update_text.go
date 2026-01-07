@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"net/netip"
 	"slices"
+	"strconv"
 	"strings"
 
 	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/attribute"
@@ -26,20 +27,24 @@ const (
 	kwAdd         = "add"
 	kwDel         = "del"
 	kwSet         = "set"
-	kwNextHop     = "next-hop"
-	kwNextHopSelf = "next-hop-self"
+	kwNhop        = "nhop"             // New: top-level next-hop accumulator
+	kwPathInfo    = "path-information" // New: ADD-PATH path-id accumulator
+	kwNextHop     = "next-hop"         // Deprecated: use nhop set
+	kwNextHopSelf = "next-hop-self"    // Deprecated: use nhop set self
 )
 
 // isBoundaryKeyword returns true if token starts a new section.
 func isBoundaryKeyword(token string) bool {
-	return token == kwAttr || token == kwNLRI || token == kwWatchdog
+	return token == kwAttr || token == kwNLRI || token == kwWatchdog ||
+		token == kwNhop || token == kwPathInfo
 }
 
 // parsedAttrs tracks attribute state during parsing.
-// Includes next-hop which is NOT part of PathAttributes.
+// Includes next-hop and path-id which are NOT part of PathAttributes.
 type parsedAttrs struct {
 	NextHop     netip.Addr
 	NextHopSelf bool
+	PathID      uint32 // ADD-PATH path identifier (0 = not set)
 	PathAttributes
 }
 
@@ -136,7 +141,8 @@ func (a *parsedAttrs) applyDel(other parsedAttrs) error {
 
 // snapshot returns a deep copy of the current attribute state.
 // MUST deep copy slices AND pointers to isolate each group from later modifications.
-func (a *parsedAttrs) snapshot() (PathAttributes, RouteNextHop) {
+// Also returns the current pathID for ADD-PATH support.
+func (a *parsedAttrs) snapshot() (PathAttributes, RouteNextHop, uint32) {
 	var pa PathAttributes
 	// Deep copy pointer fields
 	if a.Origin != nil {
@@ -174,7 +180,7 @@ func (a *parsedAttrs) snapshot() (PathAttributes, RouteNextHop) {
 	} else if a.NextHop.IsValid() {
 		nh = NewNextHopExplicit(a.NextHop)
 	}
-	return pa, nh
+	return pa, nh, a.PathID
 }
 
 // removeFromSlice removes all elements in remove from slice.
@@ -221,13 +227,27 @@ func ParseUpdateText(args []string) (*UpdateTextResult, error) {
 			}
 			i += consumed
 
+		case kwNhop:
+			consumed, err := parseNhopSection(args[i:], &accum)
+			if err != nil {
+				return nil, err
+			}
+			i += consumed
+
+		case kwPathInfo:
+			consumed, err := parsePathInfoSection(args[i:], &accum)
+			if err != nil {
+				return nil, err
+			}
+			i += consumed
+
 		case kwNLRI:
-			family, announce, withdraw, consumed, err := parseNLRISection(args[i:])
+			attrs, nh, pathID := accum.snapshot()
+			family, announce, withdraw, consumed, err := parseNLRISection(args[i:], pathID)
 			if err != nil {
 				return nil, err
 			}
 
-			attrs, nh := accum.snapshot()
 			groups = append(groups, NLRIGroup{
 				Family:   family,
 				Announce: announce,
@@ -250,6 +270,63 @@ func ParseUpdateText(args []string) (*UpdateTextResult, error) {
 	}
 
 	return &UpdateTextResult{Groups: groups, WatchdogName: watchdog}, nil
+}
+
+// parseNhopSection parses nhop <set <addr>|del> section.
+// Returns consumed token count and error.
+func parseNhopSection(args []string, accum *parsedAttrs) (int, error) {
+	// args[0] = "nhop"
+	if len(args) < 2 {
+		return 0, errors.New("nhop requires set or del")
+	}
+
+	switch args[1] {
+	case kwSet:
+		if len(args) < 3 {
+			return 0, errors.New("nhop set requires data")
+		}
+		value := args[2]
+		if value == "self" {
+			accum.NextHopSelf = true
+			accum.NextHop = netip.Addr{} // Clear any explicit address
+			return 3, nil
+		}
+		addr, err := netip.ParseAddr(value)
+		if err != nil {
+			return 0, fmt.Errorf("invalid next-hop: %w", err)
+		}
+		accum.NextHop = addr
+		accum.NextHopSelf = false
+		return 3, nil
+
+	case kwDel:
+		// nhop del must not have additional arguments (before next keyword)
+		if len(args) > 2 && !isBoundaryKeyword(args[2]) {
+			return 0, errors.New("nhop del takes no arguments")
+		}
+		accum.NextHop = netip.Addr{}
+		accum.NextHopSelf = false
+		return 2, nil
+
+	default:
+		return 0, fmt.Errorf("nhop requires set or del, got: %s", args[1])
+	}
+}
+
+// parsePathInfoSection parses path-information <id> section.
+// Returns consumed token count and error.
+func parsePathInfoSection(args []string, accum *parsedAttrs) (int, error) {
+	// args[0] = "path-information"
+	if len(args) < 2 {
+		return 0, errors.New("path-information requires id")
+	}
+
+	id, err := strconv.ParseUint(args[1], 10, 32)
+	if err != nil {
+		return 0, fmt.Errorf("invalid path-information: %w", err)
+	}
+	accum.PathID = uint32(id) //nolint:gosec // G115: bounded by ParseUint 32-bit
+	return 2, nil
 }
 
 // parseAttrSection parses attr <mode> <key> <value>... until boundary keyword.
@@ -276,26 +353,13 @@ func parseAttrSection(args []string) (string, parsedAttrs, int, error) {
 			break
 		}
 
-		// Try next-hop (not in parseCommonAttribute)
+		// Reject deprecated next-hop keywords inside attr section
 		switch key {
 		case kwNextHop:
-			if i+1 >= len(args) {
-				return "", parsedAttrs{}, 0, fmt.Errorf("missing next-hop value")
-			}
-			addr, err := netip.ParseAddr(args[i+1])
-			if err != nil {
-				return "", parsedAttrs{}, 0, fmt.Errorf("invalid next-hop: %w", err)
-			}
-			attrs.NextHop = addr
-			i += 2
-			consumed += 2
-			continue
+			return "", parsedAttrs{}, 0, errors.New("next-hop inside attr is deprecated, use: nhop set <addr>")
 
 		case kwNextHopSelf:
-			attrs.NextHopSelf = true
-			i++
-			consumed++
-			continue
+			return "", parsedAttrs{}, 0, errors.New("next-hop-self inside attr is deprecated, use: nhop set self")
 		}
 
 		// Try parseCommonAttribute for standard attrs
@@ -317,8 +381,9 @@ func parseAttrSection(args []string) (string, parsedAttrs, int, error) {
 }
 
 // parseNLRISection parses nlri <family> [add <prefix>...]... [del <prefix>...]...
+// pathID is the ADD-PATH path identifier to use for NLRIs (0 = not set).
 // Returns family, announce list, withdraw list, consumed token count, and any error.
-func parseNLRISection(args []string) (nlri.Family, []nlri.NLRI, []nlri.NLRI, int, error) {
+func parseNLRISection(args []string, pathID uint32) (nlri.Family, []nlri.NLRI, []nlri.NLRI, int, error) {
 	// args[0] = "nlri"
 	if len(args) < 2 {
 		return nlri.Family{}, nil, nil, 0, ErrInvalidFamily
@@ -367,7 +432,7 @@ func parseNLRISection(args []string) (nlri.Family, []nlri.NLRI, []nlri.NLRI, int
 		}
 
 		// Parse prefix based on family
-		n, extra, err := parseINETNLRI(token, family)
+		n, extra, err := parseINETNLRI(token, family, pathID)
 		if err != nil {
 			return nlri.Family{}, nil, nil, 0, err
 		}
@@ -390,12 +455,13 @@ func parseNLRISection(args []string) (nlri.Family, []nlri.NLRI, []nlri.NLRI, int
 }
 
 // parseINETNLRI parses a single prefix for unicast/multicast families.
+// pathID is the ADD-PATH path identifier (0 = not set).
 // Returns the NLRI, extra args consumed (always 0 for INET), and any error.
 // The second return value exists for future family parsers (labeled, VPN)
 // that consume additional arguments.
 //
 //nolint:unparam // int return value reserved for future families
-func parseINETNLRI(token string, family nlri.Family) (nlri.NLRI, int, error) {
+func parseINETNLRI(token string, family nlri.Family, pathID uint32) (nlri.NLRI, int, error) {
 	prefix, err := netip.ParsePrefix(token)
 	if err != nil {
 		return nil, 0, fmt.Errorf("%w: %s", ErrInvalidPrefix, token)
@@ -410,7 +476,7 @@ func parseINETNLRI(token string, family nlri.Family) (nlri.NLRI, int, error) {
 		return nil, 0, fmt.Errorf("%w: IPv6 prefix for %s", ErrFamilyMismatch, family)
 	}
 
-	return nlri.NewINET(family, prefix, 0), 0, nil // 0 extra args consumed
+	return nlri.NewINET(family, prefix, pathID), 0, nil // 0 extra args consumed
 }
 
 // isSupportedFamily returns true if the family is supported in text mode.
@@ -427,15 +493,17 @@ func isSupportedFamily(f nlri.Family) bool {
 // Syntax: peer <addr> update <encoding> ...
 func handleUpdate(ctx *CommandContext, args []string) (*Response, error) {
 	if len(args) < 1 {
-		return nil, fmt.Errorf("usage: peer <addr> update <text|hex|b64|cbor>")
+		return nil, fmt.Errorf("usage: peer <addr> update <text|hex|b64>")
 	}
 
 	encoding := strings.ToLower(args[0])
 	switch encoding {
 	case "text":
 		return handleUpdateText(ctx, args[1:])
-	case "hex", "b64", "cbor":
-		return nil, fmt.Errorf("wire encoding %s not yet implemented", encoding)
+	case "hex":
+		return handleUpdateHex(ctx, args[1:])
+	case "b64":
+		return handleUpdateB64(ctx, args[1:])
 	default:
 		return nil, fmt.Errorf("unknown encoding: %s", encoding)
 	}

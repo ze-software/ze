@@ -3,6 +3,8 @@ package message
 import (
 	"encoding/binary"
 	"fmt"
+
+	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/nlri"
 )
 
 // ChunkMPNLRI splits MP family NLRIs respecting maxSize.
@@ -28,47 +30,47 @@ import (
 //
 // RFC 4760 (MP), RFC 7911 (Add-Path), RFC 8277 (Labeled), RFC 4364 (VPN),
 // RFC 7432 (EVPN), RFC 5575 (FlowSpec), RFC 7752 (BGP-LS).
-func ChunkMPNLRI(nlri []byte, afi uint16, safi uint8, addPath bool, maxSize int) ([][]byte, error) {
-	if len(nlri) == 0 {
+func ChunkMPNLRI(nlriData []byte, afi nlri.AFI, safi nlri.SAFI, addPath bool, maxSize int) ([][]byte, error) {
+	if len(nlriData) == 0 {
 		return nil, nil
 	}
 
 	// Select size calculator based on family
-	sizeFunc := getNLRISizeFunc(afi, safi, addPath)
+	sizeFunc := GetNLRISizeFunc(afi, safi, addPath)
 
 	// Validate NLRI structure and check if fits in fast path
-	if len(nlri) <= maxSize {
+	if len(nlriData) <= maxSize {
 		// Still need to validate structure
 		offset := 0
-		for offset < len(nlri) {
-			size, err := sizeFunc(nlri[offset:])
+		for offset < len(nlriData) {
+			size, err := sizeFunc(nlriData[offset:])
 			if err != nil {
 				return nil, fmt.Errorf("parsing NLRI at offset %d: %w", offset, err)
 			}
-			if offset+size > len(nlri) {
+			if offset+size > len(nlriData) {
 				return nil, fmt.Errorf("%w: NLRI at offset %d claims %d bytes, only %d available",
-					ErrNLRIMalformed, offset, size, len(nlri)-offset)
+					ErrNLRIMalformed, offset, size, len(nlriData)-offset)
 			}
 			offset += size
 		}
-		return [][]byte{nlri}, nil
+		return [][]byte{nlriData}, nil
 	}
 
 	var chunks [][]byte
 	var current []byte
 	offset := 0
 
-	for offset < len(nlri) {
+	for offset < len(nlriData) {
 		// Calculate size of current NLRI
-		nlriSize, err := sizeFunc(nlri[offset:])
+		nlriSize, err := sizeFunc(nlriData[offset:])
 		if err != nil {
 			return nil, fmt.Errorf("parsing NLRI at offset %d: %w", offset, err)
 		}
 
 		// Bounds check
-		if offset+nlriSize > len(nlri) {
+		if offset+nlriSize > len(nlriData) {
 			return nil, fmt.Errorf("%w: NLRI at offset %d claims %d bytes, only %d available",
-				ErrNLRIMalformed, offset, nlriSize, len(nlri)-offset)
+				ErrNLRIMalformed, offset, nlriSize, len(nlriData)-offset)
 		}
 
 		// Single NLRI too large?
@@ -83,7 +85,7 @@ func ChunkMPNLRI(nlri []byte, afi uint16, safi uint8, addPath bool, maxSize int)
 		}
 
 		// Add this NLRI to current chunk
-		current = append(current, nlri[offset:offset+nlriSize]...)
+		current = append(current, nlriData[offset:offset+nlriSize]...)
 		offset += nlriSize
 	}
 
@@ -106,28 +108,28 @@ var ErrNLRIMalformed = fmt.Errorf("malformed NLRI")
 //   - (data, nil, nil) if all data fits within maxSize
 //   - (fitting, remaining, nil) if split was needed
 //   - (nil, nil, error) if NLRI is malformed or single NLRI exceeds maxSize
-func SplitMPNLRI(nlri []byte, afi uint16, safi uint8, addPath bool, maxSize int) (fitting, remaining []byte, err error) {
+func SplitMPNLRI(nlriData []byte, afi nlri.AFI, safi nlri.SAFI, addPath bool, maxSize int) (fitting, remaining []byte, err error) {
 	if maxSize <= 0 {
 		return nil, nil, fmt.Errorf("invalid maxSize: %d", maxSize)
 	}
-	if len(nlri) == 0 {
+	if len(nlriData) == 0 {
 		return nil, nil, nil
 	}
-	if len(nlri) <= maxSize {
-		return nlri, nil, nil
+	if len(nlriData) <= maxSize {
+		return nlriData, nil, nil
 	}
 
-	sizeFunc := getNLRISizeFunc(afi, safi, addPath)
+	sizeFunc := GetNLRISizeFunc(afi, safi, addPath)
 
 	offset := 0
-	for offset < len(nlri) {
-		size, err := sizeFunc(nlri[offset:])
+	for offset < len(nlriData) {
+		size, err := sizeFunc(nlriData[offset:])
 		if err != nil {
 			return nil, nil, fmt.Errorf("parsing NLRI at offset %d: %w", offset, err)
 		}
-		if offset+size > len(nlri) {
+		if offset+size > len(nlriData) {
 			return nil, nil, fmt.Errorf("%w: NLRI at offset %d claims %d bytes, only %d available",
-				ErrNLRIMalformed, offset, size, len(nlri)-offset)
+				ErrNLRIMalformed, offset, size, len(nlriData)-offset)
 		}
 		if size > maxSize {
 			return nil, nil, fmt.Errorf("%w: %d bytes, max %d", ErrNLRITooLarge, size, maxSize)
@@ -144,40 +146,41 @@ func SplitMPNLRI(nlri []byte, afi uint16, safi uint8, addPath bool, maxSize int)
 		return nil, nil, fmt.Errorf("%w: first NLRI exceeds max %d", ErrNLRITooLarge, maxSize)
 	}
 
-	return nlri[:offset], nlri[offset:], nil
+	return nlriData[:offset], nlriData[offset:], nil
 }
 
-// nlriSizeFunc returns the size of the first NLRI in the buffer.
-type nlriSizeFunc func(data []byte) (int, error)
+// NLRISizeFunc returns the size of the first NLRI in the buffer.
+type NLRISizeFunc func(data []byte) (int, error)
 
-// getNLRISizeFunc returns the appropriate size function for the family.
-func getNLRISizeFunc(afi uint16, safi uint8, addPath bool) nlriSizeFunc {
+// GetNLRISizeFunc returns the appropriate size function for the family.
+// Exported for wire mode API input to split concatenated NLRIs.
+func GetNLRISizeFunc(afi nlri.AFI, safi nlri.SAFI, addPath bool) NLRISizeFunc {
 	switch {
-	case safi == 70: // EVPN
+	case safi == nlri.SAFIEVPN: // EVPN
 		if addPath {
 			return addPathEVPNNLRISize
 		}
 		return evpnNLRISize
 
-	case safi == 133 || safi == 134: // FlowSpec
+	case safi == nlri.SAFIFlowSpec || safi == 134: // FlowSpec (133=IPv4, 134=IPv6)
 		if addPath {
 			return addPathFlowSpecNLRISize
 		}
 		return flowSpecNLRISize
 
-	case afi == 16388 && safi == 71: // BGP-LS
+	case afi == nlri.AFIBGPLS && safi == 71: // BGP-LS
 		if addPath {
 			return addPathBGPLSNLRISize
 		}
 		return bgpLSNLRISize
 
-	case safi == 128: // VPN (MPLS VPN)
+	case safi == nlri.SAFIVPN: // VPN (MPLS VPN)
 		if addPath {
 			return addPathVPNNLRISize
 		}
 		return vpnNLRISize
 
-	case safi == 4: // Labeled unicast
+	case safi == nlri.SAFIMPLSLabel: // Labeled unicast
 		if addPath {
 			return addPathLabeledNLRISize
 		}
