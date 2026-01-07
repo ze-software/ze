@@ -250,6 +250,9 @@ func RegisterRouteHandlers(d *Dispatcher) {
 	d.Register("announce nlri", handleAnnounceNLRI, "Queue routes to active commit with explicit AFI/SAFI")
 	d.Register("announce update", handleAnnounceUpdate, "Auto-commit wrapper: announce routes with explicit AFI/SAFI")
 
+	// Update text command (multi-family batch with attr accumulation)
+	d.Register("update", handleUpdate, "Batch UPDATE with text/hex/b64/cbor encoding")
+
 	// Withdraw commands
 	d.Register("withdraw route", handleWithdrawRoute, "Withdraw a route from peers")
 	d.Register("withdraw flow", handleWithdrawFlow, "Withdraw a FlowSpec route")

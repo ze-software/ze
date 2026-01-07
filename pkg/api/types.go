@@ -262,6 +262,19 @@ type ReactorInterface interface {
 	// WithdrawMUPRoute withdraws a MUP route from peers.
 	WithdrawMUPRoute(peerSelector string, route MUPRouteSpec) error
 
+	// AnnounceNLRIBatch announces a batch of NLRIs with shared attributes.
+	// Builds wire-format UPDATE(s), splits if exceeding peer's max message size.
+	// RFC 4271 Section 4.3: UPDATE Message Format
+	// RFC 4760: MP_REACH_NLRI for non-IPv4-unicast families
+	// RFC 8654: Respects peer's max message size (4096 or 65535)
+	AnnounceNLRIBatch(peerSelector string, batch NLRIBatch) error
+
+	// WithdrawNLRIBatch withdraws a batch of NLRIs.
+	// Builds wire-format UPDATE(s), splits if exceeding peer's max message size.
+	// RFC 4271 Section 4.3: Withdrawn Routes field
+	// RFC 4760: MP_UNREACH_NLRI for non-IPv4-unicast families
+	WithdrawNLRIBatch(peerSelector string, batch NLRIBatch) error
+
 	// TeardownPeer gracefully closes a peer session with NOTIFICATION.
 	// Sends Cease (6) with the specified subcode per RFC 4486.
 	// Common subcodes: 2=Admin Shutdown, 3=Peer De-configured, 4=Admin Reset.
@@ -546,4 +559,34 @@ type RawMessage struct {
 	AttrsWire  *attribute.AttributesWire // Lazy attribute parsing (nil if not UPDATE or parse failed)
 	WireUpdate *WireUpdate               // UPDATE wire wrapper (nil if not UPDATE)
 	Direction  string                    // "sent" or "received"
+}
+
+// NLRIGroup represents a group of NLRIs sharing the same attributes.
+// Used by ParseUpdateText to capture attribute snapshots per NLRI section.
+type NLRIGroup struct {
+	Family      nlri.Family    // Address family (AFI/SAFI)
+	Announce    []nlri.NLRI    // NLRIs to announce
+	Withdraw    []nlri.NLRI    // NLRIs to withdraw
+	Attrs       PathAttributes // Snapshot of accumulated attributes
+	NextHop     netip.Addr     // Next-hop address
+	NextHopSelf bool           // Use peer's local address
+}
+
+// UpdateTextResult is the parsed result of an update text command.
+type UpdateTextResult struct {
+	Groups       []NLRIGroup
+	WatchdogName string
+}
+
+// NLRIBatch represents a batch of NLRIs with shared attributes.
+// Used for efficient UPDATE message generation - reactor builds wire format
+// and splits into multiple messages if exceeding peer's max size.
+// RFC 4271 Section 4.3: UPDATE Message Format.
+// RFC 4760: MP_REACH_NLRI/MP_UNREACH_NLRI for non-IPv4-unicast families.
+type NLRIBatch struct {
+	Family      nlri.Family    // AFI/SAFI for all NLRIs
+	NLRIs       []nlri.NLRI    // NLRIs to announce or withdraw
+	NextHop     netip.Addr     // Next-hop (announce only)
+	NextHopSelf bool           // Use peer's local address (announce only)
+	Attrs       PathAttributes // Shared attributes (announce only)
 }

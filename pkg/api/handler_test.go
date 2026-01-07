@@ -261,6 +261,10 @@ func (m *mockReactor) SignalAPIReady() {}
 
 func (m *mockReactor) SignalPeerAPIReady(_ string) {}
 
+func (m *mockReactor) AnnounceNLRIBatch(_ string, _ NLRIBatch) error { return nil }
+
+func (m *mockReactor) WithdrawNLRIBatch(_ string, _ NLRIBatch) error { return nil }
+
 func (m *mockReactor) SendRawMessage(addr netip.Addr, msgType uint8, payload []byte) error {
 	m.rawMessages = append(m.rawMessages, struct {
 		addr    netip.Addr

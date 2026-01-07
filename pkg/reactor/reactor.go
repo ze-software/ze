@@ -927,6 +927,326 @@ func (a *reactorAPIAdapter) sendMUPRoute(peerSelector string, spec api.MUPRouteS
 	return lastErr
 }
 
+// AnnounceNLRIBatch announces a batch of NLRIs with shared attributes.
+// RFC 4271 Section 4.3: UPDATE Message Format.
+// RFC 4760: MP_REACH_NLRI for non-IPv4-unicast families.
+// RFC 8654: Respects peer's max message size (4096 or 65535).
+func (a *reactorAPIAdapter) AnnounceNLRIBatch(peerSelector string, batch api.NLRIBatch) error {
+	peers := a.getMatchingPeers(peerSelector)
+	if len(peers) == 0 {
+		return api.ErrNoPeersMatch
+	}
+
+	// Build attributes for RIB route (used for queueing non-established peers)
+	attrs := a.buildBatchAttributes(batch.Attrs)
+
+	var lastErr error
+	var acceptedCount int
+
+	for _, peer := range peers {
+		isIBGP := peer.Settings().IsIBGP()
+
+		// Resolve next-hop per peer
+		nextHop := batch.NextHop
+		if batch.NextHopSelf {
+			nextHop = peer.settings.LocalAddress
+		}
+
+		// Build AS_PATH per peer (iBGP vs eBGP)
+		asPath := a.buildBatchASPath(batch.Attrs.ASPath, isIBGP)
+
+		if peer.State() == PeerStateEstablished {
+			// Check family negotiation
+			nc := peer.negotiated.Load()
+			if nc == nil || !nc.Has(batch.Family) {
+				continue // Skip peer that doesn't support this family
+			}
+
+			// Get max message size from capabilities
+			// RFC 8654: 65535 if ExtendedMessage, else 4096
+			maxMsgSize := int(message.MaxMessageLength(message.TypeUPDATE, nc.ExtendedMessage))
+			ctx := peer.packContext(batch.Family)
+
+			// Build UPDATE message for this batch
+			update := a.buildBatchAnnounceUpdate(batch, nextHop, isIBGP, ctx)
+
+			// Send with splitting for large batches
+			// RFC 4271: Each split UPDATE is self-contained with full attributes
+			if err := peer.sendUpdateWithSplit(update, maxMsgSize, batch.Family); err != nil {
+				lastErr = err
+			} else {
+				acceptedCount++
+			}
+		} else {
+			// Session not established: queue routes for replay on connect
+			// Build rib.Route for each NLRI to maintain order with pending ops
+			for _, n := range batch.NLRIs {
+				ribRoute := rib.NewRouteWithASPath(n, nextHop, attrs, asPath)
+				peer.QueueAnnounce(ribRoute)
+			}
+			acceptedCount++ // Queued counts as accepted
+		}
+	}
+
+	// Return warning-level error if no peers accepted (all skipped due to family)
+	if acceptedCount == 0 {
+		return api.ErrNoPeersAcceptedFamily
+	}
+	return lastErr
+}
+
+// WithdrawNLRIBatch withdraws a batch of NLRIs.
+// RFC 4271 Section 4.3: Withdrawn Routes field.
+// RFC 4760: MP_UNREACH_NLRI for non-IPv4-unicast families.
+func (a *reactorAPIAdapter) WithdrawNLRIBatch(peerSelector string, batch api.NLRIBatch) error {
+	peers := a.getMatchingPeers(peerSelector)
+	if len(peers) == 0 {
+		return api.ErrNoPeersMatch
+	}
+
+	var lastErr error
+	var acceptedCount int
+
+	for _, peer := range peers {
+		if peer.State() == PeerStateEstablished {
+			// Check family negotiation
+			nc := peer.negotiated.Load()
+			if nc == nil || !nc.Has(batch.Family) {
+				continue // Skip peer that doesn't support this family
+			}
+
+			// Get max message size from capabilities
+			maxMsgSize := int(message.MaxMessageLength(message.TypeUPDATE, nc.ExtendedMessage))
+			ctx := peer.packContext(batch.Family)
+
+			// Build withdraw UPDATE for this batch
+			update := a.buildBatchWithdrawUpdate(batch, ctx)
+
+			// Send with splitting for large batches
+			if err := peer.sendUpdateWithSplit(update, maxMsgSize, batch.Family); err != nil {
+				lastErr = err
+			} else {
+				acceptedCount++
+			}
+		} else {
+			// Session not established: queue withdrawals for replay
+			for _, n := range batch.NLRIs {
+				peer.QueueWithdraw(n)
+			}
+			acceptedCount++ // Queued counts as accepted
+		}
+	}
+
+	// Return warning-level error if no peers accepted (all skipped due to family)
+	if acceptedCount == 0 {
+		return api.ErrNoPeersAcceptedFamily
+	}
+	return lastErr
+}
+
+// buildBatchAttributes converts PathAttributes to attribute.Attribute slice.
+// Used for building rib.Route for queue operations.
+func (a *reactorAPIAdapter) buildBatchAttributes(attrs api.PathAttributes) []attribute.Attribute {
+	var result []attribute.Attribute
+
+	// ORIGIN
+	if attrs.Origin != nil {
+		result = append(result, attribute.Origin(*attrs.Origin))
+	} else {
+		result = append(result, attribute.OriginIGP)
+	}
+
+	// MED
+	if attrs.MED != nil {
+		result = append(result, attribute.MED(*attrs.MED))
+	}
+
+	// LOCAL_PREF (will be filtered at send time for eBGP)
+	if attrs.LocalPreference != nil {
+		result = append(result, attribute.LocalPref(*attrs.LocalPreference))
+	}
+
+	// COMMUNITY
+	if len(attrs.Communities) > 0 {
+		comms := make(attribute.Communities, len(attrs.Communities))
+		for i, c := range attrs.Communities {
+			comms[i] = attribute.Community(c)
+		}
+		result = append(result, comms)
+	}
+
+	// LARGE_COMMUNITY
+	if len(attrs.LargeCommunities) > 0 {
+		result = append(result, attribute.LargeCommunities(attrs.LargeCommunities))
+	}
+
+	// EXTENDED_COMMUNITIES
+	if len(attrs.ExtendedCommunities) > 0 {
+		result = append(result, attribute.ExtendedCommunities(attrs.ExtendedCommunities))
+	}
+
+	return result
+}
+
+// buildBatchASPath builds AS_PATH for batch operations.
+// RFC 4271 §5.1.2: iBGP SHALL NOT modify AS_PATH; eBGP prepends local AS.
+func (a *reactorAPIAdapter) buildBatchASPath(userASPath []uint32, isIBGP bool) *attribute.ASPath {
+	switch {
+	case len(userASPath) > 0:
+		return &attribute.ASPath{
+			Segments: []attribute.ASPathSegment{
+				{Type: attribute.ASSequence, ASNs: userASPath},
+			},
+		}
+	case isIBGP:
+		return &attribute.ASPath{Segments: nil}
+	default:
+		return &attribute.ASPath{
+			Segments: []attribute.ASPathSegment{
+				{Type: attribute.ASSequence, ASNs: []uint32{a.r.config.LocalAS}},
+			},
+		}
+	}
+}
+
+// buildBatchAnnounceUpdate builds an UPDATE message for a batch of NLRIs.
+// RFC 4271 Section 4.3: UPDATE Message Format.
+// RFC 4760: MP_REACH_NLRI for non-IPv4-unicast families.
+func (a *reactorAPIAdapter) buildBatchAnnounceUpdate(batch api.NLRIBatch, nextHop netip.Addr, isIBGP bool, ctx *nlri.PackContext) *message.Update {
+	asn4 := ctx == nil || ctx.ASN4
+	attrs := batch.Attrs
+
+	var attrBytes []byte
+
+	// 1. ORIGIN - RFC 4271 §5.1.1
+	if attrs.Origin != nil {
+		attrBytes = append(attrBytes, attribute.PackAttribute(attribute.Origin(*attrs.Origin))...)
+	} else {
+		attrBytes = append(attrBytes, attribute.PackAttribute(attribute.OriginIGP)...)
+	}
+
+	// 2. AS_PATH - RFC 4271 §5.1.2
+	var asPath *attribute.ASPath
+	switch {
+	case len(attrs.ASPath) > 0:
+		asPath = &attribute.ASPath{
+			Segments: []attribute.ASPathSegment{
+				{Type: attribute.ASSequence, ASNs: attrs.ASPath},
+			},
+		}
+	case isIBGP:
+		asPath = &attribute.ASPath{Segments: nil}
+	default:
+		asPath = &attribute.ASPath{
+			Segments: []attribute.ASPathSegment{
+				{Type: attribute.ASSequence, ASNs: []uint32{a.r.config.LocalAS}},
+			},
+		}
+	}
+	attrBytes = append(attrBytes, attribute.PackASPathAttribute(asPath, asn4)...)
+
+	isIPv4Unicast := batch.Family == nlri.IPv4Unicast
+
+	// 3. NEXT_HOP - RFC 4271 §5.1.3 (IPv4 unicast only)
+	if isIPv4Unicast {
+		nh := &attribute.NextHop{Addr: nextHop}
+		attrBytes = append(attrBytes, attribute.PackAttribute(nh)...)
+	}
+
+	// 4. MED - RFC 4271 §5.1.4
+	if attrs.MED != nil {
+		attrBytes = append(attrBytes, attribute.PackAttribute(attribute.MED(*attrs.MED))...)
+	}
+
+	// 5. LOCAL_PREF - RFC 4271 §5.1.5 (iBGP only)
+	if isIBGP {
+		if attrs.LocalPreference != nil {
+			attrBytes = append(attrBytes, attribute.PackAttribute(attribute.LocalPref(*attrs.LocalPreference))...)
+		} else {
+			attrBytes = append(attrBytes, attribute.PackAttribute(attribute.LocalPref(100))...)
+		}
+	}
+
+	// 6. COMMUNITY - RFC 1997
+	if len(attrs.Communities) > 0 {
+		comms := make(attribute.Communities, len(attrs.Communities))
+		for i, c := range attrs.Communities {
+			comms[i] = attribute.Community(c)
+		}
+		attrBytes = append(attrBytes, attribute.PackAttribute(comms)...)
+	}
+
+	// 7. LARGE_COMMUNITY - RFC 8092
+	if len(attrs.LargeCommunities) > 0 {
+		lcomms := attribute.LargeCommunities(attrs.LargeCommunities)
+		attrBytes = append(attrBytes, attribute.PackAttribute(lcomms)...)
+	}
+
+	// 8. EXTENDED_COMMUNITIES - RFC 4360
+	if len(attrs.ExtendedCommunities) > 0 {
+		extComms := attribute.ExtendedCommunities(attrs.ExtendedCommunities)
+		attrBytes = append(attrBytes, attribute.PackAttribute(extComms)...)
+	}
+
+	// Pack NLRIs
+	var nlriBytes []byte
+	for _, n := range batch.NLRIs {
+		nlriBytes = append(nlriBytes, n.Pack(ctx)...)
+	}
+
+	if isIPv4Unicast {
+		// IPv4 unicast: NLRI goes in the NLRI field
+		return &message.Update{
+			PathAttributes: attrBytes,
+			NLRI:           nlriBytes,
+		}
+	}
+
+	// Non-IPv4 unicast: Use MP_REACH_NLRI (RFC 4760)
+	mpReach := &attribute.MPReachNLRI{
+		AFI:      attribute.AFI(batch.Family.AFI),
+		SAFI:     attribute.SAFI(batch.Family.SAFI),
+		NextHops: []netip.Addr{nextHop},
+		NLRI:     nlriBytes,
+	}
+	attrBytes = append(attrBytes, attribute.PackAttribute(mpReach)...)
+
+	return &message.Update{
+		PathAttributes: attrBytes,
+	}
+}
+
+// buildBatchWithdrawUpdate builds an UPDATE message for withdrawing a batch of NLRIs.
+// RFC 4271 Section 4.3: Withdrawn Routes field.
+// RFC 4760: MP_UNREACH_NLRI for non-IPv4-unicast families.
+func (a *reactorAPIAdapter) buildBatchWithdrawUpdate(batch api.NLRIBatch, ctx *nlri.PackContext) *message.Update {
+	// Pack NLRIs
+	var nlriBytes []byte
+	for _, n := range batch.NLRIs {
+		nlriBytes = append(nlriBytes, n.Pack(ctx)...)
+	}
+
+	isIPv4Unicast := batch.Family == nlri.IPv4Unicast
+
+	if isIPv4Unicast {
+		// IPv4 unicast: Use WithdrawnRoutes field
+		return &message.Update{
+			WithdrawnRoutes: nlriBytes,
+		}
+	}
+
+	// Non-IPv4 unicast: Use MP_UNREACH_NLRI (RFC 4760)
+	mpUnreach := &attribute.MPUnreachNLRI{
+		AFI:  attribute.AFI(batch.Family.AFI),
+		SAFI: attribute.SAFI(batch.Family.SAFI),
+		NLRI: nlriBytes,
+	}
+
+	return &message.Update{
+		PathAttributes: attribute.PackAttribute(mpUnreach),
+	}
+}
+
 // TeardownPeer gracefully closes a peer session with NOTIFICATION.
 // Sends Cease (6) with the specified subcode per RFC 4486.
 func (a *reactorAPIAdapter) TeardownPeer(addr netip.Addr, subcode uint8) error {

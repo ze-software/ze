@@ -338,6 +338,54 @@ type PathAttributes struct {
 }
 ```
 
+## Update Text Parser
+
+The `ParseUpdateText` function parses the "update text" command format for batch route operations:
+
+```
+[attr <set|add|del> <attributes>]... [nlri <family> add <nlri>... [del <nlri>...]]... [watchdog <name>]
+```
+
+### Result Types
+
+```go
+type UpdateTextResult struct {
+    Groups       []NLRIGroup  // Each nlri section produces a group
+    WatchdogName string       // Optional watchdog pool name
+}
+
+type NLRIGroup struct {
+    Family      nlri.Family    // ipv4/unicast, ipv6/unicast, etc.
+    Announce    []nlri.NLRI    // Prefixes to announce
+    Withdraw    []nlri.NLRI    // Prefixes to withdraw
+    Attrs       PathAttributes // Snapshot of attributes at this point
+    NextHop     netip.Addr     // Next-hop address
+    NextHopSelf bool           // Use peer's local address
+}
+```
+
+### Key Semantics
+
+- **Attribute accumulation:** `attr` sections accumulate; each `nlri` section captures a snapshot
+- **Deep copy:** Each group gets independent copies of attributes (slices AND pointers)
+- **Supported families:** `ipv4/unicast`, `ipv6/unicast`, `ipv4/multicast`, `ipv6/multicast`
+- **Case-sensitive:** Family strings must be lowercase
+
+### Example
+
+```
+attr set origin igp next-hop 192.0.2.1
+attr set community [65000:100]
+nlri ipv4/unicast add 10.0.0.0/24 10.0.1.0/24 del 10.0.2.0/24
+attr add community [65000:200]
+nlri ipv6/unicast add 2001:db8::/32
+watchdog pool1
+```
+
+Produces 2 groups:
+1. IPv4 group with community `[65000:100]`, 2 announce, 1 withdraw
+2. IPv6 group with communities `[65000:100, 65000:200]`, 1 announce
+
 ## Transaction Support
 
 ```go
@@ -489,11 +537,20 @@ Response format:
 ```go
 type Response struct {
     Serial  string `json:"serial,omitempty"`  // Correlation ID
-    Status  string `json:"status"`            // "done", "error", or streaming
+    Status  string `json:"status"`            // "done", "error", "warning", or streaming
     Partial bool   `json:"partial,omitempty"` // True for streaming chunks
     Data    any    `json:"data,omitempty"`    // Payload
 }
 ```
+
+### Response Status Values
+
+| Status | Meaning |
+|--------|---------|
+| `done` | Command succeeded |
+| `error` | Command failed |
+| `warning` | Partial success or non-fatal issue (e.g., no peers accepted family) |
+| `ack` | Streaming: more data coming |
 
 ## Plugin Commands
 
