@@ -5,6 +5,7 @@ import (
 	"errors"
 	"net"
 	"sync"
+	"time"
 )
 
 // Listener errors.
@@ -132,6 +133,12 @@ func (l *Listener) acceptLoop() {
 	defer l.wg.Done()
 	defer l.cleanup()
 
+	// Type assert to set deadline - required for context cancellation
+	tcpListener, ok := l.listener.(*net.TCPListener)
+	if !ok {
+		return
+	}
+
 	for {
 		// Check context before accepting
 		select {
@@ -140,8 +147,15 @@ func (l *Listener) acceptLoop() {
 		default:
 		}
 
+		// Set short deadline to allow context polling
+		_ = tcpListener.SetDeadline(time.Now().Add(100 * time.Millisecond))
+
 		conn, err := l.listener.Accept()
 		if err != nil {
+			// Check for timeout (expected during normal polling)
+			if ne, ok := err.(net.Error); ok && ne.Timeout() {
+				continue
+			}
 			// Check if we're shutting down
 			select {
 			case <-l.ctx.Done():
