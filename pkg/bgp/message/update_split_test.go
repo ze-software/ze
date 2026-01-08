@@ -900,3 +900,174 @@ func TestSplitUpdate_RoundTrip_Withdrawals(t *testing.T) {
 
 	assert.Equal(t, withdrawn, reassembledWithdrawn, "withdrawals lost in round-trip")
 }
+
+// =============================================================================
+// Spec: spec-writeto-bounds-safety.md Test Cases
+// =============================================================================
+
+// TestSplitUpdate_CheckAfterWrite verifies check-after-write splitting logic.
+//
+// VALIDATES: Split occurs when next NLRI would exceed maxSize.
+// PREVENTS: Buffer overflow by splitting before adding oversized NLRI.
+func TestSplitUpdate_CheckAfterWrite(t *testing.T) {
+	// Create NLRIs where the 6th prefix would overflow 30-byte limit
+	// 5 /24 prefixes = 20 bytes, 6th would make 24 bytes
+	// With overhead = 27, available = 30 - 27 = 3 bytes - too small for /24
+	// So use maxSize = 50: overhead = 27, available = 23 bytes (5 prefixes = 20, 6th would be 24)
+	var nlri []byte
+	for i := 0; i < 10; i++ {
+		nlri = append(nlri, 24, 10, 0, byte(i)) // /24 = 4 bytes each
+	}
+
+	u := &Update{
+		PathAttributes: []byte{0x40, 0x01, 0x01, 0x00}, // 4 bytes ORIGIN
+		NLRI:           nlri,
+	}
+
+	// maxSize = 50: overhead(23) + attrs(4) = 27, leaving 23 for NLRI
+	// 5 /24 = 20 bytes fits, 6th would be 24 > 23
+	chunks, err := SplitUpdate(u, 50)
+	require.NoError(t, err)
+
+	// Should split: first chunk has 5 prefixes (20 bytes), rest in subsequent chunks
+	require.Greater(t, len(chunks), 1, "should split when next NLRI exceeds space")
+
+	// Verify first chunk doesn't exceed maxSize
+	firstSize := HeaderLen + 4 + len(chunks[0].PathAttributes) + len(chunks[0].NLRI)
+	assert.LessOrEqual(t, firstSize, 50, "first chunk exceeds maxSize")
+
+	// Verify all NLRIs preserved
+	var total []byte
+	for _, chunk := range chunks {
+		total = append(total, chunk.NLRI...)
+	}
+	assert.Equal(t, nlri, total)
+}
+
+// TestSplitUpdate_IPv4Field verifies IPv4 NLRI field (not MP) handled correctly.
+//
+// VALIDATES: Update.NLRI (IPv4 unicast) field splits correctly.
+// PREVENTS: IPv4-only UPDATE corruption during splitting.
+func TestSplitUpdate_IPv4Field(t *testing.T) {
+	// Create many IPv4 /24 prefixes
+	var nlri []byte
+	for i := 0; i < 50; i++ {
+		nlri = append(nlri, 24, 192, 168, byte(i)) // /24
+	}
+
+	u := &Update{
+		PathAttributes: []byte{0x40, 0x01, 0x01, 0x00}, // ORIGIN
+		NLRI:           nlri,
+	}
+
+	chunks, err := SplitUpdate(u, 80)
+	require.NoError(t, err)
+	require.Greater(t, len(chunks), 1, "should split IPv4 NLRI field")
+
+	// Verify each chunk has attributes (IPv4 announcements need them)
+	for i, chunk := range chunks {
+		if len(chunk.NLRI) > 0 {
+			assert.NotEmpty(t, chunk.PathAttributes, "chunk %d should have attrs", i)
+		}
+	}
+
+	// Verify all NLRIs preserved
+	var total []byte
+	for _, chunk := range chunks {
+		total = append(total, chunk.NLRI...)
+	}
+	assert.Equal(t, nlri, total)
+}
+
+// TestSplitUpdate_FlowSpec_Split verifies FlowSpec NLRI splitting.
+//
+// VALIDATES: FlowSpec NLRIs (variable length) split at NLRI boundaries.
+// PREVENTS: Split in middle of FlowSpec rule.
+func TestSplitUpdate_FlowSpec_Split(t *testing.T) {
+	// Create FlowSpec NLRIs via MP_REACH_NLRI
+	// Each FlowSpec NLRI: [length:1][components:length]
+	var fsNLRI []byte
+	for i := 0; i < 20; i++ {
+		// Simple FlowSpec NLRI: length=10, 10 bytes of components
+		fsNLRI = append(fsNLRI, 10)
+		for j := 0; j < 10; j++ {
+			fsNLRI = append(fsNLRI, byte(j+i))
+		}
+	}
+	// Each: 11 bytes, total: 220 bytes
+
+	mp := &attribute.MPReachNLRI{
+		AFI:      attribute.AFI(1),    // IPv4
+		SAFI:     attribute.SAFI(133), // FlowSpec
+		NextHops: []netip.Addr{netip.MustParseAddr("192.168.1.1")},
+		NLRI:     fsNLRI,
+	}
+
+	// Use ChunkMPNLRI to verify FlowSpec splitting
+	// maxSize = 50, each FlowSpec = 11 bytes, fits 4 per chunk
+	chunks, err := ChunkMPNLRI(fsNLRI, 1, 133, false, 50)
+	require.NoError(t, err)
+	require.Greater(t, len(chunks), 1, "FlowSpec should split")
+
+	// Verify all bytes preserved
+	var reassembled []byte
+	for _, chunk := range chunks {
+		reassembled = append(reassembled, chunk...)
+	}
+	assert.Equal(t, fsNLRI, reassembled)
+
+	// Also test via SplitMPReachNLRI
+	mpChunks, err := SplitMPReachNLRI(mp, 80)
+	require.NoError(t, err)
+	require.Greater(t, len(mpChunks), 1, "MP_REACH FlowSpec should split")
+}
+
+// TestSplitUpdate_BGPLS_TooLarge verifies error on oversized BGP-LS NLRI.
+//
+// VALIDATES: Single BGP-LS NLRI > maxSize returns ErrNLRITooLarge.
+// PREVENTS: Silent truncation of large BGP-LS topology data.
+func TestSplitUpdate_BGPLS_TooLarge(t *testing.T) {
+	// BGP-LS NLRI: [type:2][length:2][payload]
+	// Create single large NLRI that exceeds typical message size
+	var bgplsNLRI []byte
+	bgplsNLRI = append(bgplsNLRI, 0, 1)                 // type = Node (2 bytes)
+	bgplsNLRI = append(bgplsNLRI, 0x01, 0x00)           // length = 256 bytes (2 bytes)
+	bgplsNLRI = append(bgplsNLRI, make([]byte, 256)...) // payload
+	// Total: 4 + 256 = 260 bytes
+
+	// Try to split with maxSize smaller than single NLRI
+	_, err := ChunkMPNLRI(bgplsNLRI, 16388, 71, false, 200)
+	require.Error(t, err, "should error on oversized BGP-LS NLRI")
+	assert.ErrorIs(t, err, ErrNLRITooLarge)
+
+	// Also verify SplitMPNLRI returns same error
+	_, _, err = SplitMPNLRI(bgplsNLRI, 16388, 71, false, 200)
+	require.Error(t, err)
+	assert.ErrorIs(t, err, ErrNLRITooLarge)
+}
+
+// TestSplitUpdate_EmptyNLRI verifies empty NLRI list handling.
+//
+// VALIDATES: UPDATE with empty NLRI field returns single UPDATE unchanged.
+// PREVENTS: Panic or incorrect splitting of empty data.
+func TestSplitUpdate_EmptyNLRI(t *testing.T) {
+	// Withdrawal-only UPDATE (empty NLRI)
+	u := &Update{
+		WithdrawnRoutes: []byte{24, 10, 0, 1}, // 10.0.1.0/24
+	}
+
+	chunks, err := SplitUpdate(u, 100)
+	require.NoError(t, err)
+	require.Len(t, chunks, 1)
+	assert.Empty(t, chunks[0].NLRI)
+	assert.Equal(t, u.WithdrawnRoutes, chunks[0].WithdrawnRoutes)
+
+	// Attributes-only UPDATE (empty NLRI and WithdrawnRoutes)
+	// This is unusual but valid (could be EoR marker)
+	u2 := &Update{}
+
+	chunks, err = SplitUpdate(u2, 100)
+	require.NoError(t, err)
+	require.Len(t, chunks, 1)
+	assert.True(t, chunks[0].IsEndOfRIB())
+}

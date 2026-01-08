@@ -28,8 +28,15 @@ import (
 //   - Single NLRI exceeds maxSize (ErrNLRITooLarge)
 //   - NLRI is truncated/malformed (ErrNLRIMalformed)
 //
-// RFC 4760 (MP), RFC 7911 (Add-Path), RFC 8277 (Labeled), RFC 4364 (VPN),
-// RFC 7432 (EVPN), RFC 5575 (FlowSpec), RFC 7752 (BGP-LS).
+// RFC 4271 Section 4.3 - UPDATE message format, max 4096 bytes.
+// RFC 8654 - Extended Message raises max to 65535 bytes.
+// RFC 4760 - MP_REACH_NLRI / MP_UNREACH_NLRI wire format.
+// RFC 7911 - ADD-PATH adds 4-byte path-id before each NLRI.
+// RFC 8277 - Labeled unicast: length includes label bits.
+// RFC 4364 - VPN: labels + 8-byte RD + prefix.
+// RFC 7432 - EVPN: [route-type:1][length:1][payload].
+// RFC 5575 - FlowSpec: max 4095 bytes per NLRI (CAN split).
+// RFC 7752 - BGP-LS: 2-byte length, single NLRI can exceed 4096.
 func ChunkMPNLRI(nlriData []byte, afi nlri.AFI, safi nlri.SAFI, addPath bool, maxSize int) ([][]byte, error) {
 	if len(nlriData) == 0 {
 		return nil, nil
@@ -73,7 +80,9 @@ func ChunkMPNLRI(nlriData []byte, afi nlri.AFI, safi nlri.SAFI, addPath bool, ma
 				ErrNLRIMalformed, offset, nlriSize, len(nlriData)-offset)
 		}
 
-		// Single NLRI too large?
+		// RFC 7752 Section 3.2: BGP-LS NLRI uses 2-byte length field.
+		// Single NLRI can exceed standard 4096-byte message size.
+		// MUST return error if single NLRI > maxSize (cannot split).
 		if nlriSize > maxSize {
 			return nil, fmt.Errorf("%w: %d bytes, max %d", ErrNLRITooLarge, nlriSize, maxSize)
 		}
@@ -104,10 +113,18 @@ var ErrNLRIMalformed = fmt.Errorf("malformed NLRI")
 // Unlike ChunkMPNLRI which creates copies, this returns subslices for efficiency.
 // This enables O(n) splitting across multiple calls instead of O(n²).
 //
+// Used when forwarding wire UPDATEs to peers with smaller buffers:
+// - Extended Message peer (RFC 8654: 65535) → standard peer (RFC 4271: 4096)
+//
 // Returns:
 //   - (data, nil, nil) if all data fits within maxSize
 //   - (fitting, remaining, nil) if split was needed
 //   - (nil, nil, error) if NLRI is malformed or single NLRI exceeds maxSize
+//
+// RFC 4271 Section 4.3 - UPDATE max 4096 bytes.
+// RFC 8654 - Extended Message raises to 65535 bytes.
+// RFC 4760 - MP_REACH_NLRI / MP_UNREACH_NLRI wire format.
+// RFC 7911 - ADD-PATH: 4-byte path-id before each NLRI.
 func SplitMPNLRI(nlriData []byte, afi nlri.AFI, safi nlri.SAFI, addPath bool, maxSize int) (fitting, remaining []byte, err error) {
 	if maxSize <= 0 {
 		return nil, nil, fmt.Errorf("invalid maxSize: %d", maxSize)
@@ -131,6 +148,8 @@ func SplitMPNLRI(nlriData []byte, afi nlri.AFI, safi nlri.SAFI, addPath bool, ma
 			return nil, nil, fmt.Errorf("%w: NLRI at offset %d claims %d bytes, only %d available",
 				ErrNLRIMalformed, offset, size, len(nlriData)-offset)
 		}
+		// RFC 7752 Section 3.2: BGP-LS can have single NLRI > 4096 bytes.
+		// MUST error if single NLRI exceeds maxSize (cannot split one NLRI).
 		if size > maxSize {
 			return nil, nil, fmt.Errorf("%w: %d bytes, max %d", ErrNLRITooLarge, size, maxSize)
 		}
@@ -200,6 +219,7 @@ func GetNLRISizeFunc(afi nlri.AFI, safi nlri.SAFI, addPath bool) NLRISizeFunc {
 
 // basicNLRISize calculates size of basic IPv4/IPv6 unicast NLRI.
 // Format: [prefix-len-bits:1][prefix-bytes:ceil(len/8)].
+// RFC 4271 Section 4.3 - NLRI encoding.
 func basicNLRISize(data []byte) (int, error) {
 	if len(data) < 1 {
 		return 0, ErrNLRIMalformed
@@ -211,6 +231,7 @@ func basicNLRISize(data []byte) (int, error) {
 
 // addPathNLRISize calculates size of Add-Path NLRI.
 // Format: [path-id:4][prefix-len-bits:1][prefix-bytes].
+// RFC 7911 Section 3 - ADD-PATH NLRI encoding.
 func addPathNLRISize(data []byte) (int, error) {
 	if len(data) < 5 {
 		return 0, ErrNLRIMalformed
@@ -223,6 +244,7 @@ func addPathNLRISize(data []byte) (int, error) {
 // labeledNLRISize calculates size of labeled unicast NLRI (SAFI 4).
 // Format: [total-bits:1][labels:3*N][prefix-bytes]
 // The total-bits includes label bits + prefix bits.
+// RFC 8277 Section 2 - Labeled unicast NLRI encoding.
 func labeledNLRISize(data []byte) (int, error) {
 	if len(data) < 1 {
 		return 0, ErrNLRIMalformed
@@ -234,6 +256,7 @@ func labeledNLRISize(data []byte) (int, error) {
 
 // addPathLabeledNLRISize calculates size of Add-Path labeled unicast NLRI.
 // Format: [path-id:4][total-bits:1][labels:3*N][prefix-bytes].
+// RFC 7911 Section 3 - ADD-PATH encoding; RFC 8277 Section 2 - labeled unicast.
 func addPathLabeledNLRISize(data []byte) (int, error) {
 	if len(data) < 5 {
 		return 0, ErrNLRIMalformed
@@ -246,6 +269,7 @@ func addPathLabeledNLRISize(data []byte) (int, error) {
 // vpnNLRISize calculates size of VPN NLRI (SAFI 128).
 // Format: [total-bits:1][labels:3*N][RD:8][prefix-bytes]
 // The total-bits includes labels + RD (64 bits) + prefix bits.
+// RFC 4364 Section 4.3.4 - VPN-IPv4 NLRI encoding.
 func vpnNLRISize(data []byte) (int, error) {
 	if len(data) < 1 {
 		return 0, ErrNLRIMalformed
@@ -257,6 +281,7 @@ func vpnNLRISize(data []byte) (int, error) {
 
 // addPathVPNNLRISize calculates size of Add-Path VPN NLRI.
 // Format: [path-id:4][total-bits:1][labels:3*N][RD:8][prefix-bytes].
+// RFC 7911 Section 3 - ADD-PATH encoding; RFC 4364 Section 4.3.4 - VPN NLRI.
 func addPathVPNNLRISize(data []byte) (int, error) {
 	if len(data) < 5 {
 		return 0, ErrNLRIMalformed
@@ -268,6 +293,7 @@ func addPathVPNNLRISize(data []byte) (int, error) {
 
 // evpnNLRISize calculates size of EVPN NLRI.
 // Format: [route-type:1][length:1][payload:length].
+// RFC 7432 Section 7 - EVPN NLRI encoding.
 func evpnNLRISize(data []byte) (int, error) {
 	if len(data) < 2 {
 		return 0, ErrNLRIMalformed
@@ -279,6 +305,7 @@ func evpnNLRISize(data []byte) (int, error) {
 
 // addPathEVPNNLRISize calculates size of Add-Path EVPN NLRI.
 // Format: [path-id:4][route-type:1][length:1][payload:length].
+// RFC 7911 Section 3 - ADD-PATH encoding; RFC 7432 Section 7 - EVPN NLRI.
 func addPathEVPNNLRISize(data []byte) (int, error) {
 	if len(data) < 6 {
 		return 0, ErrNLRIMalformed
@@ -292,6 +319,7 @@ func addPathEVPNNLRISize(data []byte) (int, error) {
 // Format: [length:1-2][components:length]
 // Length < 240: 1 byte
 // Length >= 240: 2 bytes (0xF0|high, low).
+// RFC 5575 Section 4 - FlowSpec NLRI encoding (max 4095 bytes).
 func flowSpecNLRISize(data []byte) (int, error) {
 	if len(data) < 1 {
 		return 0, ErrNLRIMalformed
@@ -313,6 +341,7 @@ func flowSpecNLRISize(data []byte) (int, error) {
 
 // addPathFlowSpecNLRISize calculates size of Add-Path FlowSpec NLRI.
 // Format: [path-id:4][length:1-2][components:length].
+// RFC 7911 Section 3 - ADD-PATH encoding; RFC 5575 Section 4 - FlowSpec NLRI.
 func addPathFlowSpecNLRISize(data []byte) (int, error) {
 	if len(data) < 5 {
 		return 0, ErrNLRIMalformed
@@ -335,6 +364,7 @@ func addPathFlowSpecNLRISize(data []byte) (int, error) {
 
 // bgpLSNLRISize calculates size of BGP-LS NLRI.
 // Format: [nlri-type:2][total-length:2][payload:total-length].
+// RFC 7752 Section 3.2 - BGP-LS NLRI encoding (2-byte length, can exceed 4096).
 func bgpLSNLRISize(data []byte) (int, error) {
 	if len(data) < 4 {
 		return 0, ErrNLRIMalformed
@@ -346,6 +376,7 @@ func bgpLSNLRISize(data []byte) (int, error) {
 
 // addPathBGPLSNLRISize calculates size of Add-Path BGP-LS NLRI.
 // Format: [path-id:4][nlri-type:2][total-length:2][payload:total-length].
+// RFC 7911 Section 3 - ADD-PATH encoding; RFC 7752 Section 3.2 - BGP-LS NLRI.
 func addPathBGPLSNLRISize(data []byte) (int, error) {
 	if len(data) < 8 {
 		return 0, ErrNLRIMalformed

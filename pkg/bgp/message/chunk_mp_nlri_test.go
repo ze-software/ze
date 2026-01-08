@@ -706,6 +706,189 @@ func TestChunkMPNLRI_BGPLS_AddPath(t *testing.T) {
 }
 
 // =============================================================================
+// SplitMPNLRI Tests (Subslice-Based Splitting)
+// =============================================================================
+
+// TestSplitMPNLRI_Subslice verifies SplitMPNLRI returns subslices of original buffer.
+//
+// VALIDATES: fitting and remaining are subslices of original nlriData (not copies).
+// PREVENTS: Unnecessary allocation/copying in hot path.
+func TestSplitMPNLRI_Subslice(t *testing.T) {
+	// Create NLRI buffer with 10 /24 prefixes (4 bytes each = 40 bytes)
+	nlri := make([]byte, 40)
+	for i := 0; i < 10; i++ {
+		nlri[i*4] = 24 // /24
+		nlri[i*4+1] = 10
+		nlri[i*4+2] = 0
+		nlri[i*4+3] = byte(i)
+	}
+
+	// maxSize = 20, fits 5 prefixes
+	fitting, remaining, err := SplitMPNLRI(nlri, 1, 1, false, 20)
+	require.NoError(t, err)
+
+	// Verify fitting is a subslice (same underlying array)
+	require.NotNil(t, fitting)
+	require.NotNil(t, remaining)
+
+	// Check that fitting points to start of original buffer
+	assert.Equal(t, &nlri[0], &fitting[0], "fitting should be subslice of original")
+
+	// Check that remaining points to middle of original buffer
+	assert.Equal(t, &nlri[len(fitting)], &remaining[0], "remaining should be subslice of original")
+
+	// Verify no gap between fitting and remaining
+	assert.Equal(t, len(nlri), len(fitting)+len(remaining), "fitting+remaining should cover all data")
+}
+
+// TestSplitMPNLRI_NoAllocHotPath verifies no allocations in split loop.
+//
+// VALIDATES: testing.AllocsPerRun returns 0 for SplitMPNLRI calls.
+// PREVENTS: Hidden allocations degrading forwarding performance.
+func TestSplitMPNLRI_NoAllocHotPath(t *testing.T) {
+	// Create NLRI buffer with 10 /24 prefixes
+	nlri := make([]byte, 40)
+	for i := 0; i < 10; i++ {
+		nlri[i*4] = 24
+		nlri[i*4+1] = 10
+		nlri[i*4+2] = 0
+		nlri[i*4+3] = byte(i)
+	}
+
+	// Warm up
+	_, _, _ = SplitMPNLRI(nlri, 1, 1, false, 20)
+
+	// Measure allocations
+	allocs := testing.AllocsPerRun(100, func() {
+		_, _, _ = SplitMPNLRI(nlri, 1, 1, false, 20)
+	})
+
+	assert.Equal(t, float64(0), allocs, "SplitMPNLRI should not allocate in hot path")
+}
+
+// TestSplitMPNLRI_BoundaryExact verifies exact maxSize boundary handling.
+//
+// VALIDATES: NLRI data exactly at maxSize returns all as fitting, nil remaining.
+// PREVENTS: Off-by-one errors at exact boundaries.
+func TestSplitMPNLRI_BoundaryExact(t *testing.T) {
+	// 5 /24 prefixes = exactly 20 bytes
+	nlri := make([]byte, 20)
+	for i := 0; i < 5; i++ {
+		nlri[i*4] = 24
+		nlri[i*4+1] = 10
+		nlri[i*4+2] = 0
+		nlri[i*4+3] = byte(i)
+	}
+
+	// maxSize = 20, exactly fits all
+	fitting, remaining, err := SplitMPNLRI(nlri, 1, 1, false, 20)
+	require.NoError(t, err)
+
+	assert.Equal(t, nlri, fitting, "should return all data as fitting")
+	assert.Nil(t, remaining, "remaining should be nil when all fits")
+}
+
+// TestSplitMPNLRI_SingleNLRIFillsBuffer verifies single NLRI at exact limit.
+//
+// VALIDATES: Single NLRI exactly at maxSize handled correctly.
+// PREVENTS: Edge case where one NLRI equals maxSize.
+func TestSplitMPNLRI_SingleNLRIFillsBuffer(t *testing.T) {
+	// Single /128 IPv6 = 17 bytes (1 len + 16 prefix)
+	nlri := make([]byte, 17)
+	nlri[0] = 128
+	for i := 1; i < 17; i++ {
+		nlri[i] = byte(i)
+	}
+
+	// maxSize = 17, exactly fits one /128
+	fitting, remaining, err := SplitMPNLRI(nlri, 2, 1, false, 17)
+	require.NoError(t, err)
+
+	assert.Equal(t, nlri, fitting, "should return single NLRI as fitting")
+	assert.Nil(t, remaining, "remaining should be nil")
+}
+
+// TestSplitMPNLRI_InvalidMaxSize verifies error on invalid maxSize.
+//
+// VALIDATES: maxSize <= 0 returns error.
+// PREVENTS: Panic or infinite loop on invalid input.
+func TestSplitMPNLRI_InvalidMaxSize(t *testing.T) {
+	nlri := []byte{24, 10, 0, 0}
+
+	_, _, err := SplitMPNLRI(nlri, 1, 1, false, 0)
+	require.Error(t, err)
+
+	_, _, err = SplitMPNLRI(nlri, 1, 1, false, -1)
+	require.Error(t, err)
+}
+
+// TestSplitMPNLRI_EmptyInput verifies empty/nil handling.
+//
+// VALIDATES: Empty input returns nil, nil, nil.
+// PREVENTS: Panic on empty input.
+func TestSplitMPNLRI_EmptyInput(t *testing.T) {
+	fitting, remaining, err := SplitMPNLRI(nil, 1, 1, false, 100)
+	require.NoError(t, err)
+	assert.Nil(t, fitting)
+	assert.Nil(t, remaining)
+
+	fitting, remaining, err = SplitMPNLRI([]byte{}, 1, 1, false, 100)
+	require.NoError(t, err)
+	assert.Nil(t, fitting)
+	assert.Nil(t, remaining)
+}
+
+// TestSplitMPNLRI_SingleTooLarge verifies error on oversized single NLRI.
+//
+// VALIDATES: Single NLRI > maxSize returns error.
+// PREVENTS: Silent truncation or infinite loop.
+func TestSplitMPNLRI_SingleTooLarge(t *testing.T) {
+	// /128 IPv6 = 17 bytes
+	nlri := make([]byte, 17)
+	nlri[0] = 128
+
+	_, _, err := SplitMPNLRI(nlri, 2, 1, false, 10)
+	require.Error(t, err)
+	assert.ErrorIs(t, err, ErrNLRITooLarge)
+}
+
+// TestSplitMPNLRI_MultipleSplits verifies iterative splitting.
+//
+// VALIDATES: Repeated SplitMPNLRI calls correctly split large buffer.
+// PREVENTS: Incorrect offset tracking across multiple splits.
+func TestSplitMPNLRI_MultipleSplits(t *testing.T) {
+	// 20 /24 prefixes = 80 bytes
+	nlri := make([]byte, 80)
+	for i := 0; i < 20; i++ {
+		nlri[i*4] = 24
+		nlri[i*4+1] = 10
+		nlri[i*4+2] = 0
+		nlri[i*4+3] = byte(i)
+	}
+
+	// maxSize = 20, fits 5 prefixes per chunk
+	var chunks [][]byte
+	remaining := nlri
+	for len(remaining) > 0 {
+		fitting, rem, err := SplitMPNLRI(remaining, 1, 1, false, 20)
+		require.NoError(t, err)
+		require.NotNil(t, fitting)
+		chunks = append(chunks, fitting)
+		remaining = rem
+	}
+
+	// Should have 4 chunks
+	require.Len(t, chunks, 4)
+
+	// Reassemble and verify
+	var reassembled []byte
+	for _, chunk := range chunks {
+		reassembled = append(reassembled, chunk...)
+	}
+	assert.Equal(t, nlri, reassembled)
+}
+
+// =============================================================================
 // Error Cases
 // =============================================================================
 
