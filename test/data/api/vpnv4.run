@@ -9,8 +9,8 @@ def main() -> None:
     ready()
 
     messages = [
-        'neighbor 127.0.0.1 announce route 1.4.0.0/16 rd 65000:1 next-hop 101.1.101.1 community 100:1 extended-community 0x0002FDE900000001 label 1000',
-        'neighbor 127.0.0.1 withdraw route 1.4.0.0/16 rd 65000:1 next-hop 101.1.101.1 community 100:1 extended-community 0x0002FDE900000001 label 1000',
+        'neighbor 127.0.0.1 announce ipv4/mpls-vpn 1.4.0.0/16 rd 65000:1 label 1000 next-hop 101.1.101.1 community 100:1 extended-community 0x0002FDE900000001',
+        'neighbor 127.0.0.1 withdraw ipv4/mpls-vpn 1.4.0.0/16 rd 65000:1',
     ]
 
     for message in messages:

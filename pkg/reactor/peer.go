@@ -1226,7 +1226,7 @@ func (p *Peer) sendInitialRoutes() {
 		}
 	}
 
-	// Handle watchdog routes (routes controlled via "announce/withdraw watchdog" API).
+	// Handle watchdog routes (routes controlled via "watchdog announce/withdraw" API).
 	// State is eagerly initialized in NewPeer() and persists across reconnects.
 	// Send routes based on current state (which may have been modified by API while disconnected).
 	if len(p.settings.WatchdogGroups) > 0 {

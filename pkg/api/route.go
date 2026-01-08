@@ -225,7 +225,7 @@ func parseSAFI(args []string) (safi string, rest []string, err error) {
 // RegisterRouteHandlers registers route-related command handlers.
 func RegisterRouteHandlers(d *Dispatcher) {
 	// Announce commands
-	d.Register("announce route", handleAnnounceRoute, "Announce a route to peers")
+	// NOTE: "announce route" removed in favor of "update text" (new-syntax.md)
 	d.Register("announce eor", handleAnnounceEOR, "Send End-of-RIB marker")
 	d.Register("announce flow", handleAnnounceFlow, "Announce a FlowSpec route")
 	d.Register("announce vpls", handleAnnounceVPLS, "Announce a VPLS route")
@@ -246,7 +246,7 @@ func RegisterRouteHandlers(d *Dispatcher) {
 	d.Register("announce ipv6/mup", handleAnnounceIPv6MUP, "Announce IPv6 MUP route")
 
 	// Batch announce commands (multiple NLRIs per UPDATE)
-	d.Register("announce attributes", handleAnnounceAttributes, "Announce routes with shared attributes (ExaBGP compat)")
+	// NOTE: "announce attributes" removed in favor of "update text" (new-syntax.md)
 	d.Register("announce nlri", handleAnnounceNLRI, "Queue routes to active commit with explicit AFI/SAFI")
 	d.Register("announce update", handleAnnounceUpdate, "Auto-commit wrapper: announce routes with explicit AFI/SAFI")
 
@@ -274,8 +274,8 @@ func RegisterRouteHandlers(d *Dispatcher) {
 	d.Register("withdraw ipv6/mup", handleWithdrawIPv6MUP, "Withdraw IPv6 MUP route")
 
 	// Watchdog commands - control routes by watchdog group
-	d.Register("announce watchdog", handleAnnounceWatchdog, "Announce routes in watchdog group")
-	d.Register("withdraw watchdog", handleWithdrawWatchdog, "Withdraw routes in watchdog group")
+	d.Register("watchdog announce", handleWatchdogAnnounce, "Announce routes in watchdog group")
+	d.Register("watchdog withdraw", handleWatchdogWithdraw, "Withdraw routes in watchdog group")
 }
 
 // handleAnnounceRoute handles: announce route <prefix> next-hop <addr> [attributes...] [split /N].
@@ -1241,60 +1241,6 @@ func handleAFIRoute(ctx *CommandContext, args []string, isIPv6, isWithdraw bool)
 
 // ErrMissingNLRI is returned when nlri keyword or prefixes are missing.
 var ErrMissingNLRI = errors.New("missing nlri")
-
-// handleAnnounceAttributes handles: announce attributes <attrs>... nlri <prefix>...
-// This is the ExaBGP-compatible syntax for announcing multiple NLRIs with shared attributes.
-// Example: announce attributes next-hop 10.11.12.13 origin igp nlri 16.17.18.19/32 20.21.22.23/32
-// Example: announce attributes med 100 next-hop 10.0.0.1 nlri 1.0.0.0/24 2.0.0.0/24.
-func handleAnnounceAttributes(ctx *CommandContext, args []string) (*Response, error) {
-	if len(args) < 3 {
-		return &Response{
-			Status: "error",
-			Data:   "usage: announce attributes <attrs>... nlri <prefix>...",
-		}, ErrMissingNLRI
-	}
-
-	// Parse attributes and NLRIs
-	attrs, prefixes, err := parseAttributesNLRI(args)
-	if err != nil {
-		return &Response{Status: "error", Data: err.Error()}, err
-	}
-
-	if len(prefixes) == 0 {
-		return &Response{Status: "error", Data: "no prefixes after nlri keyword"}, ErrMissingNLRI
-	}
-
-	// Validate next-hop is present
-	if !attrs.NextHop.IsValid() {
-		return &Response{Status: "error", Data: "missing next-hop"}, ErrMissingNextHop
-	}
-
-	peerSelector := ctx.PeerSelector()
-
-	// Announce each prefix with shared attributes
-	for _, prefix := range prefixes {
-		route := RouteSpec{
-			Prefix:         prefix,
-			NextHop:        attrs.NextHop,
-			PathAttributes: attrs.PathAttributes,
-		}
-		if err := ctx.Reactor.AnnounceRoute(peerSelector, route); err != nil {
-			return &Response{
-				Status: "error",
-				Data:   fmt.Sprintf("failed to announce %s: %v", prefix.String(), err),
-			}, err
-		}
-	}
-
-	return &Response{
-		Status: "done",
-		Data: map[string]any{
-			"peer":     peerSelector,
-			"prefixes": len(prefixes),
-			"next_hop": attrs.NextHop.String(),
-		},
-	}, nil
-}
 
 // handleAnnounceNLRI handles: announce nlri <attrs>... <afi> <safi> [nlri] <prefix>...
 // Queues routes to an active commit. Requires commit to be started first.
@@ -2833,9 +2779,9 @@ func parseL2VPNArgs(args []string) (L2VPNRoute, error) {
 	return route, nil
 }
 
-// handleAnnounceWatchdog handles: announce watchdog <name>
+// handleWatchdogAnnounce handles: watchdog announce <name>
 // Announces all routes in the named watchdog group that are currently withdrawn.
-func handleAnnounceWatchdog(ctx *CommandContext, args []string) (*Response, error) {
+func handleWatchdogAnnounce(ctx *CommandContext, args []string) (*Response, error) {
 	if len(args) < 1 {
 		return &Response{
 			Status: "error",
@@ -2862,9 +2808,9 @@ func handleAnnounceWatchdog(ctx *CommandContext, args []string) (*Response, erro
 	}, nil
 }
 
-// handleWithdrawWatchdog handles: withdraw watchdog <name>
+// handleWatchdogWithdraw handles: watchdog withdraw <name>
 // Withdraws all routes in the named watchdog group that are currently announced.
-func handleWithdrawWatchdog(ctx *CommandContext, args []string) (*Response, error) {
+func handleWatchdogWithdraw(ctx *CommandContext, args []string) (*Response, error) {
 	if len(args) < 1 {
 		return &Response{
 			Status: "error",

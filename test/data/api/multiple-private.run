@@ -9,7 +9,7 @@ def main() -> None:
     ready()
 
     messages = [
-        'announce route 2.2.2.2/32 next-hop 127.0.0.1',
+        'update text nhop set 127.0.0.1 nlri ipv4/unicast add 2.2.2.2/32',
         'shutdown',
     ]
 

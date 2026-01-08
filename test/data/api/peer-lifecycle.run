@@ -17,10 +17,10 @@ def main() -> None:
             'create neighbor 127.0.0.1 local-address 127.0.0.1 local-as 1 peer-as 1 router-id 1.2.3.4 api peer-lifecycle',
             # 2. Announce route to dynamic peer (127.0.0.1)
             #    This route will be sent and validated by test server
-            'announce route 1.1.0.0/24 next-hop 101.101.101.101',
+            'update text nhop set 101.101.101.101 nlri ipv4/unicast add 1.1.0.0/24',
             # 3. Add invalid announce to force server to show what it received
             #    The test server will stop after receiving expected messages and show output
-            'announce route 999.999.999.999/32 next-hop 1.1.1.1',
+            'update text nhop set 1.1.1.1 nlri ipv4/unicast add 999.999.999.999/32',
         ]
 
         for message in messages:

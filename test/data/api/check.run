@@ -26,12 +26,12 @@ def main() -> None:
                 and 'origin igp' in line
                 and 'local-preference 100' in line
             ):
-                flush('peer 127.0.0.1 announce route 0.0.0.0/0 next-hop 255.255.255.255\n')
+                flush('peer 127.0.0.1 update text nhop set 255.255.255.255 nlri ipv4/unicast add 0.0.0.0/0\n')
                 time.sleep(1)
                 sys.exit(1)
             break
 
-        flush('peer 127.0.0.1 announce route 1.2.3.4/32 next-hop 5.6.7.8 origin igp local-preference 100\n')
+        flush('peer 127.0.0.1 update text origin set igp local-preference set 100 nhop set 5.6.7.8 nlri ipv4/unicast add 1.2.3.4/32\n')
         if not wait_for_ack():
             # ACK not received, continuing anyway (ACKs may be disabled in config)
             pass

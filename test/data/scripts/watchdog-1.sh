@@ -15,22 +15,22 @@ do
 sleep 10
 
 # without name exabgp will use the name of the service as watchdog name
-echo "withdraw watchdog"
+echo "watchdog withdraw"
 sleep 5
 
 # specify a watchdog name (which may be the same or different each time)
-echo "withdraw watchdog watchdog-one"
+echo "watchdog withdraw watchdog-one"
 sleep 5
 
-echo "announce watchdog"
+echo "watchdog announce"
 sleep 5
 
-echo "announce watchdog watchdog-one"
+echo "watchdog announce watchdog-one"
 sleep 5
 
 # we have no route with that watchdog but it does not matter, we could have after a configuration reload
 
-echo "announce watchdog watchdog-two"
-echo "withdraw watchdog watchdog-two"
+echo "watchdog announce watchdog-two"
+echo "watchdog withdraw watchdog-two"
 
 done

@@ -27,8 +27,11 @@ import requests_file
 #
 
 delay = 600
-specs4 = ' next-hop 192.0.2.1 community [65535:666 no-advertise]'
-specs6 = ' next-hop 100::1 community [65535:666 no-advertise]'
+# New per-attribute syntax for update text commands
+announce_specs4 = 'update text community set [65535:666 no-advertise] nhop set 192.0.2.1 nlri ipv4/unicast add '
+announce_specs6 = 'update text community set [65535:666 no-advertise] nhop set 100::1 nlri ipv6/unicast add '
+withdraw_specs4 = 'update text nlri ipv4/unicast del '
+withdraw_specs6 = 'update text nlri ipv6/unicast del '
 
 #
 # Blocklists mostly currated from:
@@ -215,18 +218,18 @@ if __name__ == '__main__':
 
         for prefix in currentBlocklist:
             if prefix not in newBlocklist:
-                specs = specs4
+                withdraw_spec = withdraw_specs4
                 if ipaddress.ip_network(prefix).version == 6:
-                    specs = specs6
-                sys.stdout.write('withdraw route ' + str(prefix) + specs + '\n')
+                    withdraw_spec = withdraw_specs6
+                sys.stdout.write(withdraw_spec + str(prefix) + '\n')
                 sys.stdout.flush()
 
         for prefix in newBlocklist:
             if prefix not in currentBlocklist:
-                specs = specs4
+                announce_spec = announce_specs4
                 if ipaddress.ip_network(prefix).version == 6:
-                    specs = specs6
-                sys.stdout.write('announce route ' + str(prefix) + specs + '\n')
+                    announce_spec = announce_specs6
+                sys.stdout.write(announce_spec + str(prefix) + '\n')
                 sys.stdout.flush()
 
         currentBlocklist = newBlocklist.copy()

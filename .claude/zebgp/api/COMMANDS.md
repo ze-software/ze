@@ -143,7 +143,18 @@ peer <selector> withdraw ipv4/unicast <prefix> [attributes...]
 peer <selector> withdraw ipv6/unicast <prefix> [attributes...]
 peer <selector> withdraw flow <flow-spec>
 peer <selector> withdraw vpls <name>
-peer <selector> withdraw watchdog <name>
+```
+
+### Watchdog Commands
+
+```
+watchdog announce <name>   # Send all routes in pool to peers
+watchdog withdraw <name>   # Withdraw all routes in pool from peers
+```
+
+Routes are tagged with a pool when announced:
+```bash
+update text nhop set 10.0.0.1 nlri ipv4/unicast add 1.0.0.0/24 watchdog set mypool
 ```
 
 ### RIB Commands

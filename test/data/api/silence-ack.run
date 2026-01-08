@@ -23,7 +23,7 @@ def main() -> None:
     ready()
 
     # Step 1: Baseline - send command and expect ACK
-    send('announce route 2.1.0.0/24 next-hop 102.1.102.1')
+    send('update text nhop set 102.1.102.1 nlri ipv4/unicast add 2.1.0.0/24')
     time.sleep(0.1)
 
     if not wait_for_ack(expected_count=1):
@@ -39,7 +39,7 @@ def main() -> None:
         sys.exit(1)
 
     # Step 3: Send command and expect NO ACK (should still be silent)
-    send('announce route 2.2.0.0/24 next-hop 102.1.102.1')
+    send('update text nhop set 102.1.102.1 nlri ipv4/unicast add 2.2.0.0/24')
     time.sleep(0.1)
 
     if wait_for_ack(expected_count=1, timeout=1):
@@ -55,7 +55,7 @@ def main() -> None:
         sys.exit(1)
 
     # Step 5: Send final command and expect ACK (verify re-enabled)
-    send('announce route 2.3.0.0/24 next-hop 102.1.102.1')
+    send('update text nhop set 102.1.102.1 nlri ipv4/unicast add 2.3.0.0/24')
     time.sleep(0.1)
 
     if not wait_for_ack(expected_count=1):

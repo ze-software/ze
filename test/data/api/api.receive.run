@@ -30,13 +30,13 @@ def main() -> None:
                 fail('   (ok) api.receive 0.0.0.0/32 received\n%s\n' % line)
                 sys.stdout.flush()
                 time.sleep(2)  # make sure the other process is faster if it gets any data
-                flush('announce route 6.6.6.0/24 next-hop 1.1.1.1\n')
+                flush('update text nhop set 1.1.1.1 nlri ipv4/unicast add 6.6.6.0/24\n')
                 if not wait_for_ack():
                     # ACK not received, continuing anyway (ACKs may be disabled in config)
                     pass
             else:
                 fail('   (failure) api.receive received unexpected data:\n%s' % line)
-                flush('announce route 6.6.6.0/24 next-hop 9.9.9.9\n')
+                flush('update text nhop set 9.9.9.9 nlri ipv4/unicast add 6.6.6.0/24\n')
                 if not wait_for_ack():
                     # ACK not received, continuing anyway (ACKs may be disabled in config)
                     pass

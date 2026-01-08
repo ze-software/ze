@@ -17,7 +17,7 @@ def main() -> None:
         sys.exit(1)
 
     fail('  (failure) api.noting received data: %s\n' % line)
-    flush('announce route 6.6.6.0/24 next-hop 9.9.9.9\n')
+    flush('update text nhop set 9.9.9.9 nlri ipv4/unicast add 6.6.6.0/24\n')
     if not wait_for_ack():
         # ACK not received, continuing anyway (ACKs may be disabled in config)
         pass

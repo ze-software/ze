@@ -10,10 +10,10 @@ def main() -> None:
     ready()
 
     while os.getppid() != 1:
-        send('announce watchdog dnsr')
+        send('watchdog announce dnsr')
         time.sleep(0.2)
 
-        send('withdraw watchdog dnsr')
+        send('watchdog withdraw dnsr')
         time.sleep(0.2)
 
     time.sleep(1)  # time for configuration routes to pass

@@ -8,13 +8,13 @@ from exabgp_api import ready, send, wait_for_shutdown
 def main() -> None:
     ready()
 
-    send('neighbor 127.0.0.1 announce route 2605::2/128 next-hop 2001::1 local-preference 500')
+    send('neighbor 127.0.0.1 update text local-preference set 500 nhop set 2001::1 nlri ipv6/unicast add 2605::2/128')
     time.sleep(0.2)
 
-    send('neighbor 127.0.0.1 announce route 2605::2/128 next-hop 2001::2 local-preference 500')
+    send('neighbor 127.0.0.1 update text local-preference set 500 nhop set 2001::2 nlri ipv6/unicast add 2605::2/128')
     time.sleep(0.2)
 
-    send('neighbor 127.0.0.1 announce route 2605::2/128 next-hop 2001::1 local-preference 500')
+    send('neighbor 127.0.0.1 update text local-preference set 500 nhop set 2001::1 nlri ipv6/unicast add 2605::2/128')
 
     wait_for_shutdown()
 

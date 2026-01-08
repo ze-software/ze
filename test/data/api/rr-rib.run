@@ -9,27 +9,27 @@ def main() -> None:
     ready()
 
     try:
-        send('announce route 192.168.0.0/32 next-hop 10.0.0.0')
+        send('update text nhop set 10.0.0.0 nlri ipv4/unicast add 192.168.0.0/32')
         send('clear adj-rib out')
         wait_for_ack(expected_count=2)
         time.sleep(0.1)  # Allow async mode to process before next command
 
-        send('announce route 192.168.0.1/32 next-hop 10.0.0.1')
+        send('update text nhop set 10.0.0.1 nlri ipv4/unicast add 192.168.0.1/32')
         wait_for_ack()
         time.sleep(0.1)  # Allow async mode to process before next command
         send('clear adj-rib out')
         wait_for_ack()
         time.sleep(0.1)  # Allow async mode to process before next command
 
-        send('announce route 192.168.0.2/32 next-hop 10.0.0.2')
-        send('announce route 192.168.0.3/32 next-hop 10.0.0.3')
+        send('update text nhop set 10.0.0.2 nlri ipv4/unicast add 192.168.0.2/32')
+        send('update text nhop set 10.0.0.3 nlri ipv4/unicast add 192.168.0.3/32')
         wait_for_ack(expected_count=2)
         time.sleep(0.1)  # Allow async mode to process before next command
         send('flush adj-rib out')
         wait_for_ack()
         time.sleep(0.1)  # Allow async mode to process before next command
 
-        send('announce route 192.168.0.4/32 next-hop 10.0.0.4')
+        send('update text nhop set 10.0.0.4 nlri ipv4/unicast add 192.168.0.4/32')
         wait_for_ack()
         time.sleep(0.1)  # Allow async mode to process before next command
         send('flush adj-rib out')
@@ -39,7 +39,7 @@ def main() -> None:
         send('clear adj-rib out')
         wait_for_ack()
         time.sleep(0.1)  # Allow async mode to process before next command
-        send('announce route 192.168.0.5/32 next-hop 10.0.0.5')
+        send('update text nhop set 10.0.0.5 nlri ipv4/unicast add 192.168.0.5/32')
         wait_for_ack()
 
         wait_for_shutdown(timeout=7.0)

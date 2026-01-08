@@ -253,27 +253,36 @@ api foo { receive { state; } }
 
 New unified syntax for announcing routes with chained attribute modifications.
 
-### Syntax
+### Grammar
 
 ```
-update {
-    <encoding> {
-        attr {
-            <set|add|del> <attribute>;
-            ...
-            nlri <family> add <nlri>... [del <nlri>...];
-            ...
-        }
-        attr { ... }  # Each top-level attr block = clean state
-    }
-}
+<section>*
+<section>     := <scalar-attr> | <list-attr> | <nlri-section> | <wire-attr>
+
+<scalar-attr> := <scalar-name> (set <value> | del [<value>])
+<scalar-name> := origin | med | local-preference | nhop | path-information | rd | label
+
+<list-attr>   := <list-name> (set <list> | add <list> | del [<list>])
+<list-name>   := as-path | community | large-community | extended-community
+
+<nlri-section> := nlri <family> <nlri-op>+
+<nlri-op>      := add <prefix>+ [watchdog set <name>] | del <prefix>+
+
+<wire-attr>    := attr (set <bytes> | del [<bytes>])   # hex/b64 mode only
 ```
 
-- `attr { }` block = clean state (no inherited attributes)
-- `set <attr>` = replace value (`k = v`)
-- `add <attr>` = append to list (`k.append(v)`) - community, large-community, extended-community
-- `del <attr>` = remove from list (`k.remove(v)`)
-- `nlri` uses current accumulated attributes
+### Scalar `del [<value>]` Semantics
+
+- `<scalar> del` - remove attribute unconditionally
+- `<scalar> del <value>` - remove only if current value matches, else error
+
+### Accumulator → Family Restrictions
+
+| Accumulator | Valid for | Error for |
+|-------------|-----------|-----------|
+| `rd` | `*-vpn` families | All others |
+| `label` | `*-vpn`, `*-labeled` families | All others |
+| `path-information` | Any (if ADD-PATH negotiated) | Ignored if not negotiated |
 
 ### Encodings
 
@@ -290,27 +299,20 @@ update {
 update {
     text {
         # Route group 1
-        attr {
-            set next-hop 10.0.0.1;
-            set origin igp;
-            set community [65000:1 65000:2];
+        origin set igp;
+        nhop set 10.0.0.1;
+        community set [65000:1 65000:2];
 
-            nlri ipv4/unicast add 1.0.0.0/24 2.0.0.0/24;
+        nlri ipv4/unicast add 1.0.0.0/24 2.0.0.0/24;
 
-            add community [65000:3];
-            nlri ipv4/unicast add 3.0.0.0/24;
+        community add [65000:3];
+        nlri ipv4/unicast add 3.0.0.0/24;
 
-            del community [65000:1];
-            nlri ipv4/unicast add 4.0.0.0/24 del 5.0.0.0/24;
-        }
+        community del [65000:1];
+        nlri ipv4/unicast add 4.0.0.0/24 del 5.0.0.0/24;
 
-        # Route group 2 - clean state
-        attr {
-            set next-hop 10.0.0.2;
-            set med 200;
-
-            nlri ipv4/unicast add 6.0.0.0/24;
-        }
+        # With watchdog tagging
+        nlri ipv4/unicast add 7.0.0.0/24 watchdog set mypool;
     }
 }
 ```
@@ -320,13 +322,19 @@ update {
 ```
 update {
     hex {
-        attr {
-            set 400101400206020100001f94400304050607;
-            # Spaces help track NLRI boundaries for UPDATE size splitting
-            nlri ipv4/unicast add 18010a00 18020b00;
-        }
+        attr set 400101400206020100001f94;
+        nhop set 05060708;
+        # Spaces help track NLRI boundaries for UPDATE size splitting
+        nlri ipv4/unicast add 18010a00 18020b00;
     }
 }
+```
+
+### Standalone Watchdog Commands
+
+```
+watchdog announce <name>   # send all routes in pool to peers
+watchdog withdraw <name>   # withdraw all routes in pool from peers
 ```
 
 See `.claude/zebgp/api/UPDATE_SYNTAX.md` for full specification.

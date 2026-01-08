@@ -2915,7 +2915,7 @@ func (r *Reactor) WatchdogManager() *WatchdogManager {
 
 // AddWatchdogRoute adds a route to a global watchdog pool.
 // Creates the pool if it doesn't exist.
-// The route will be announced to all peers when "announce watchdog <name>" is called.
+// The route will be announced to all peers when "watchdog announce <name>" is called.
 // Returns ErrRouteExists if a route with the same key already exists in the pool.
 func (r *Reactor) AddWatchdogRoute(route StaticRoute, poolName string) error {
 	_, err := r.watchdog.AddRoute(poolName, route)

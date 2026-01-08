@@ -7,7 +7,7 @@ def main() -> None:
     ready()
 
     # Send a route first
-    send('announce route 1.1.0.0/16 next-hop 1.1.1.1')
+    send('update text nhop set 1.1.1.1 nlri ipv4/unicast add 1.1.0.0/16')
 
     # Wait for route to be processed
     wait_for_ack(expected_count=1)

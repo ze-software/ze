@@ -17,14 +17,14 @@ def main() -> None:
         time.sleep(0.2)  # let the EOR pass
 
         # Announce first route
-        flush('announce route 192.168.0.0/32 next-hop 10.0.0.0\n')
+        flush('update text nhop set 10.0.0.0 nlri ipv4/unicast add 192.168.0.0/32\n')
         time.sleep(0.2)
         if not check_ack():
             signal_failure()
             return
 
         # Announce second route
-        flush('announce route 192.168.0.1/32 next-hop 10.0.0.1\n')
+        flush('update text nhop set 10.0.0.1 nlri ipv4/unicast add 192.168.0.1/32\n')
         time.sleep(0.2)
         if not check_ack():
             signal_failure()
@@ -51,7 +51,7 @@ def main() -> None:
             fail(f'ERROR: Expected nlri 192.168.0.1/32, got: {rr}\n')
 
         if valid:
-            flush('announce route 192.168.0.2/32 next-hop 10.0.0.1\n')
+            flush('update text nhop set 10.0.0.1 nlri ipv4/unicast add 192.168.0.2/32\n')
         else:
             signal_failure()
 
@@ -83,7 +83,7 @@ def wait_for_shutdown(timeout: int = 15) -> None:
 
 def signal_failure() -> None:
     """Send error route to signal test failure."""
-    flush('announce route 255.255.255.255/32 next-hop 255.255.255.255\n')
+    flush('update text nhop set 255.255.255.255 nlri ipv4/unicast add 255.255.255.255/32\n')
 
 
 def flush(msg: str) -> None:

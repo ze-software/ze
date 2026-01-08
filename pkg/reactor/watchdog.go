@@ -9,7 +9,7 @@ import (
 
 // WatchdogManager manages global watchdog pools.
 // Provides a centralized store for API-created routes that can be
-// announced/withdrawn in bulk via "announce/withdraw watchdog <name>".
+// announced/withdrawn in bulk via "watchdog announce/withdraw <name>".
 //
 // Thread-safe for concurrent access from API handlers and peer goroutines.
 type WatchdogManager struct {

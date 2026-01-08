@@ -112,7 +112,7 @@ func (r StaticRoute) RouteKey() string {
 // Stored separately from StaticRoutes to avoid bloating that struct.
 type WatchdogRoute struct {
 	StaticRoute             // Embed existing type
-	InitiallyWithdrawn bool // Start in '-' state (held until "announce watchdog")
+	InitiallyWithdrawn bool // Start in '-' state (held until "watchdog announce")
 }
 
 // MVPNRoute represents an MVPN route (RFC 6514).

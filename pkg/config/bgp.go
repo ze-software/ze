@@ -593,7 +593,7 @@ type StaticRouteConfig struct {
 
 	// Watchdog support - routes can be grouped and controlled via API
 	Watchdog         string // Watchdog group name (empty = no watchdog)
-	WatchdogWithdraw bool   // Start in withdrawn state (held until "announce watchdog")
+	WatchdogWithdraw bool   // Start in withdrawn state (held until "watchdog announce")
 }
 
 // MVPNRouteConfig holds an MVPN route configuration.

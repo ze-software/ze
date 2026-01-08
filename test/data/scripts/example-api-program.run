@@ -165,7 +165,7 @@ def read(timeout):
 
 
 def main() -> None:
-    announce = ['announce route 192.0.2.%d next-hop 10.0.0.1\n' % ip for ip in range(1, 255)]
+    announce = ['update text nhop set 10.0.0.1 nlri ipv4/unicast add 192.0.2.%d\n' % ip for ip in range(1, 255)]
 
     leftover = False
     try:

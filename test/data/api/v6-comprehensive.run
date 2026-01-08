@@ -373,7 +373,7 @@ class APITest:
 
         # Basic route announcement
         self.expect(
-            'peer 127.0.0.1 announce route 10.0.0.0/24 next-hop 1.2.3.4',
+            'peer 127.0.0.1 update text nhop set 1.2.3.4 nlri ipv4/unicast add 10.0.0.0/24',
             {'answer': 'done'},
             'announce route succeeds',
         )
@@ -404,9 +404,9 @@ class APITest:
         self.log('\n=== Phase 6: Withdraw Commands ===')
 
         self.expect(
-            'peer 127.0.0.1 withdraw route 10.0.0.0/24',
+            'peer 127.0.0.1 update text nlri ipv4/unicast del 10.0.0.0/24',
             {'answer': 'done'},
-            'withdraw route succeeds',
+            'update text nlri ipv4/unicast del succeeds',
         )
 
         self.expect(
@@ -486,7 +486,7 @@ class APITest:
     def send_kill_route(self) -> None:
         """Phase 10: Send kill route for clean shutdown."""
         self.log('\n=== Phase 10: Cleanup (Kill Route) ===')
-        self.flush('peer 127.0.0.1 announce route 255.255.255.255/32 next-hop 255.255.255.255\n')
+        self.flush('peer 127.0.0.1 update text nhop set 255.255.255.255 nlri ipv4/unicast add 255.255.255.255/32\n')
         time.sleep(0.5)
         self.log('Kill route sent')
 

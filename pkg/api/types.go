@@ -348,7 +348,7 @@ type ReactorInterface interface {
 	WithdrawWatchdog(peerSelector, name string) error
 
 	// AddWatchdogRoute adds a route to a global watchdog pool.
-	// The route will be announced when "announce watchdog <name>" is called.
+	// The route will be announced when "watchdog announce <name>" is called.
 	AddWatchdogRoute(route RouteSpec, poolName string) error
 
 	// RemoveWatchdogRoute removes a route from a global watchdog pool.
@@ -568,11 +568,12 @@ type RawMessage struct {
 // NLRIGroup represents a group of NLRIs sharing the same attributes.
 // Used by ParseUpdateText to capture attribute snapshots per NLRI section.
 type NLRIGroup struct {
-	Family   nlri.Family    // Address family (AFI/SAFI)
-	Announce []nlri.NLRI    // NLRIs to announce
-	Withdraw []nlri.NLRI    // NLRIs to withdraw
-	Attrs    PathAttributes // Snapshot of accumulated attributes
-	NextHop  RouteNextHop   // Encapsulates next-hop policy (explicit or self)
+	Family       nlri.Family    // Address family (AFI/SAFI)
+	Announce     []nlri.NLRI    // NLRIs to announce
+	Withdraw     []nlri.NLRI    // NLRIs to withdraw
+	Attrs        PathAttributes // Snapshot of accumulated attributes
+	NextHop      RouteNextHop   // Encapsulates next-hop policy (explicit or self)
+	WatchdogName string         // Watchdog pool name for announce routes (empty = none)
 }
 
 // UpdateTextResult is the parsed result of an update text command.

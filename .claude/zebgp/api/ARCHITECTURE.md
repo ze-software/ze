@@ -366,7 +366,25 @@ type PathAttributes struct {
 The `ParseUpdateText` function parses the "update text" command format for batch route operations:
 
 ```
-[attr <set|add|del> <attributes>]... [nlri <family> add <nlri>... [del <nlri>...]]... [watchdog <name>]
+<section>*
+<section>     := <scalar-attr> | <list-attr> | <nlri-section> | <wire-attr>
+
+<scalar-attr> := <scalar-name> (set <value> | del [<value>])
+<scalar-name> := origin | med | local-preference | nhop | path-information | rd | label
+
+<list-attr>   := <list-name> (set <list> | add <list> | del [<list>])
+<list-name>   := as-path | community | large-community | extended-community
+
+<nlri-section> := nlri <family> <nlri-op>+
+<nlri-op>      := add <prefix>+ [watchdog set <name>] | del <prefix>+
+
+<wire-attr>    := attr (set <bytes> | del [<bytes>])   # hex/b64 mode only
+```
+
+Standalone watchdog commands (separate from update text):
+```
+watchdog announce <name>   # send all routes in pool to peers
+watchdog withdraw <name>   # withdraw all routes in pool from peers
 ```
 
 ### Result Types

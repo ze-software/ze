@@ -9,8 +9,8 @@ def main() -> None:
     ready()
 
     messages = [
-        'announce route 2.2.2.2/32 next-hop 22.22.22.22',
-        'announce route 3.3.3.3/32 next-hop 33.33.33.33',
+        'update text nhop set 22.22.22.22 nlri ipv4/unicast add 2.2.2.2/32',
+        'update text nhop set 33.33.33.33 nlri ipv4/unicast add 3.3.3.3/32',
     ]
 
     for message in messages:

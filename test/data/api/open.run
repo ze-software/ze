@@ -40,7 +40,7 @@ def main() -> None:
             sys.exit(1)
 
     try:
-        flush('announce route 1.1.1.1/32 next-hop 101.1.101.1 med 200\n')
+        flush('update text med set 200 nhop set 101.1.101.1 nlri ipv4/unicast add 1.1.1.1/32\n')
         if not wait_for_ack():
             # ACK not received, continuing anyway (ACKs may be disabled in config)
             pass
