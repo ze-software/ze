@@ -229,6 +229,85 @@ func TestChunkNLRI_Empty(t *testing.T) {
 	assert.Len(t, chunks, 0, "empty NLRI should produce no chunks")
 }
 
+// TestUpdateWriteTo verifies zero-allocation buffer writing.
+//
+// VALIDATES: WriteTo produces identical bytes to Pack.
+//
+// PREVENTS: Allocation overhead from Pack(); wire format mismatch.
+func TestUpdateWriteTo(t *testing.T) {
+	tests := []struct {
+		name   string
+		update *Update
+	}{
+		{
+			name:   "empty (EOR)",
+			update: &Update{},
+		},
+		{
+			name: "withdrawn only",
+			update: &Update{
+				WithdrawnRoutes: []byte{0x08, 0x0A}, // 10.0.0.0/8
+			},
+		},
+		{
+			name: "NLRI only",
+			update: &Update{
+				NLRI: []byte{0x18, 0xC0, 0xA8, 0x01}, // 192.168.1.0/24
+			},
+		},
+		{
+			name: "full update",
+			update: &Update{
+				WithdrawnRoutes: []byte{0x08, 0x0A},
+				PathAttributes:  []byte{0x40, 0x01, 0x01, 0x00}, // ORIGIN IGP
+				NLRI:            []byte{0x18, 0xC0, 0xA8, 0x01},
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Get expected from Pack
+			expected, err := tt.update.Pack(nil)
+			require.NoError(t, err)
+
+			// Use WriteTo with pre-allocated buffer
+			buf := make([]byte, 4096)
+			n := tt.update.WriteTo(buf, 0)
+
+			assert.Equal(t, len(expected), n, "length mismatch")
+			assert.Equal(t, expected, buf[:n], "content mismatch")
+		})
+	}
+}
+
+// TestUpdateWriteToOffset verifies WriteTo with non-zero offset.
+//
+// VALIDATES: WriteTo respects offset parameter.
+//
+// PREVENTS: Buffer corruption when writing at non-zero offset.
+func TestUpdateWriteToOffset(t *testing.T) {
+	u := &Update{
+		NLRI: []byte{0x18, 0xC0, 0xA8, 0x01},
+	}
+
+	expected, err := u.Pack(nil)
+	require.NoError(t, err)
+
+	// Write at offset 100
+	buf := make([]byte, 4096)
+	offset := 100
+	n := u.WriteTo(buf, offset)
+
+	assert.Equal(t, len(expected), n, "length mismatch")
+	assert.Equal(t, expected, buf[offset:offset+n], "content mismatch")
+
+	// Verify bytes before offset are untouched
+	for i := 0; i < offset; i++ {
+		assert.Equal(t, byte(0), buf[i], "byte %d should be untouched", i)
+	}
+}
+
 // TestChunkNLRI_VariablePrefixLengths tests chunking with mixed prefix sizes.
 //
 // VALIDATES: Correct handling of variable-length prefixes.

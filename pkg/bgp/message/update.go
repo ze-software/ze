@@ -147,6 +147,57 @@ func (u *Update) RawData() []byte {
 	return u.rawData
 }
 
+// WriteTo writes the complete UPDATE message (header + body) into buf.
+// Returns total bytes written. Implements wire.BufWriter interface.
+//
+// RFC 4271 Section 4.3 - UPDATE message format with 19-byte header.
+// This is the zero-allocation path for sending UPDATEs.
+func (u *Update) WriteTo(buf []byte, off int) int {
+	start := off
+
+	// RFC 4271 Section 4.1 - BGP Header: 16-byte marker (all 0xFF)
+	for i := 0; i < MarkerLen; i++ {
+		buf[off+i] = 0xFF
+	}
+	off += MarkerLen
+
+	// Length placeholder (fill after body is written)
+	lengthPos := off
+	off += 2
+
+	// Type
+	buf[off] = byte(TypeUPDATE)
+	off++
+
+	// RFC 4271 Section 4.3 - Withdrawn Routes Length (2 octets)
+	withdrawnLen := len(u.WithdrawnRoutes)
+	buf[off] = byte(withdrawnLen >> 8)
+	buf[off+1] = byte(withdrawnLen)
+	off += 2
+
+	// RFC 4271 Section 4.3 - Withdrawn Routes
+	off += copy(buf[off:], u.WithdrawnRoutes)
+
+	// RFC 4271 Section 4.3 - Total Path Attribute Length (2 octets)
+	attrLen := len(u.PathAttributes)
+	buf[off] = byte(attrLen >> 8)
+	buf[off+1] = byte(attrLen)
+	off += 2
+
+	// RFC 4271 Section 4.3 - Path Attributes
+	off += copy(buf[off:], u.PathAttributes)
+
+	// RFC 4271 Section 4.3 - NLRI
+	off += copy(buf[off:], u.NLRI)
+
+	// Backfill total length
+	totalLen := off - start
+	buf[lengthPos] = byte(totalLen >> 8)
+	buf[lengthPos+1] = byte(totalLen)
+
+	return totalLen
+}
+
 // IsEndOfRIB returns true if this is an End-of-RIB marker.
 //
 // RFC 4271 Section 4.3 - An UPDATE message with Withdrawn Routes Length = 0

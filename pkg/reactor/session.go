@@ -1312,10 +1312,12 @@ func buildOptionalParams(caps []capability.Capability) []byte {
 
 // SendUpdate sends a BGP UPDATE message.
 // Returns ErrInvalidState if the session is not established.
+//
+// Uses zero-allocation path via Update.WriteTo and session write buffer.
+// Note: Concurrent calls to SendUpdate must be externally synchronized.
 func (s *Session) SendUpdate(update *message.Update) error {
 	s.mu.RLock()
 	conn := s.conn
-	neg := s.negotiated
 	state := s.fsm.State()
 	s.mu.RUnlock()
 
@@ -1327,41 +1329,18 @@ func (s *Session) SendUpdate(update *message.Update) error {
 		return ErrNotConnected
 	}
 
-	// Convert capability.Negotiated to message.Negotiated for packing.
-	var msgNeg *message.Negotiated
-	if neg != nil {
-		msgNeg = &message.Negotiated{
-			ASN4:            neg.ASN4,
-			ExtendedMessage: neg.ExtendedMessage,
-			LocalAS:         neg.LocalASN,
-			PeerAS:          neg.PeerASN,
-			HoldTime:        neg.HoldTime,
-		}
-		// Populate ADD-PATH send capability per family (RFC 7911)
-		for _, f := range neg.Families() {
-			mode := neg.AddPathMode(f)
-			if mode == capability.AddPathSend || mode == capability.AddPathBoth {
-				if msgNeg.AddPath == nil {
-					msgNeg.AddPath = make(map[message.Family]bool)
-				}
-				msgNeg.AddPath[message.Family{AFI: uint16(f.AFI), SAFI: uint8(f.SAFI)}] = true
-			}
-		}
-	}
+	// Zero-allocation path: write directly to session buffer
+	s.writeBuf.Reset()
+	n := update.WriteTo(s.writeBuf.Buffer(), 0)
 
-	data, err := update.Pack(msgNeg)
-	if err != nil {
-		return fmt.Errorf("pack UPDATE: %w", err)
-	}
-
-	_, err = conn.Write(data)
+	_, err := conn.Write(s.writeBuf.Buffer()[:n])
 	if err != nil {
 		return err
 	}
 
 	// Notify callback after successful send
-	if s.onMessageReceived != nil && len(data) >= message.HeaderLen {
-		body := data[message.HeaderLen:]
+	if s.onMessageReceived != nil && n >= message.HeaderLen {
+		body := s.writeBuf.Buffer()[message.HeaderLen:n]
 		_ = s.onMessageReceived(s.settings.Address, message.TypeUPDATE, body, nil, 0, "sent", nil)
 	}
 
