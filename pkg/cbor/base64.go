@@ -282,6 +282,9 @@ func (b Base64Blob) EncodeBase64URL(buf []byte, off int) int {
 	return Base64EncodeURL(buf, off, b)
 }
 
+// Len returns the raw byte length (not base64-encoded length).
+func (b Base64Blob) Len() int { return len(b) }
+
 // WriteTo implements BufWriter by writing raw bytes (not base64).
 func (b Base64Blob) WriteTo(buf []byte, off int) int {
 	return copy(buf[off:], b)

@@ -147,6 +147,14 @@ func (u *Update) RawData() []byte {
 	return u.rawData
 }
 
+// Len returns the total message length (header + body) in bytes.
+//
+// RFC 4271 Section 4.3 - UPDATE message format:
+// Header(19) + WithdrawnLen(2) + Withdrawn + AttrLen(2) + Attrs + NLRI
+func (u *Update) Len() int {
+	return HeaderLen + 2 + len(u.WithdrawnRoutes) + 2 + len(u.PathAttributes) + len(u.NLRI)
+}
+
 // WriteTo writes the complete UPDATE message (header + body) into buf.
 // Returns total bytes written. Implements wire.BufWriter interface.
 //

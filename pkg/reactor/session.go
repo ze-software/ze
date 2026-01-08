@@ -18,6 +18,7 @@ import (
 	bgpctx "codeberg.org/thomas-mangin/zebgp/pkg/bgp/context"
 	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/fsm"
 	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/message"
+	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/nlri"
 	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/wire"
 	"codeberg.org/thomas-mangin/zebgp/pkg/source"
 	"codeberg.org/thomas-mangin/zebgp/pkg/trace"
@@ -1329,9 +1330,92 @@ func (s *Session) SendUpdate(update *message.Update) error {
 		return ErrNotConnected
 	}
 
-	// Zero-allocation path: write directly to session buffer
+	// RFC 4271 Section 4.3 - Zero-allocation: write UPDATE directly to session buffer
 	s.writeBuf.Reset()
 	n := update.WriteTo(s.writeBuf.Buffer(), 0)
+
+	_, err := conn.Write(s.writeBuf.Buffer()[:n])
+	if err != nil {
+		return err
+	}
+
+	// Notify callback after successful send
+	if s.onMessageReceived != nil && n >= message.HeaderLen {
+		body := s.writeBuf.Buffer()[message.HeaderLen:n]
+		_ = s.onMessageReceived(s.settings.Address, message.TypeUPDATE, body, nil, 0, "sent", nil)
+	}
+
+	return nil
+}
+
+// SendAnnounce sends a BGP UPDATE message for announcing a route.
+// Eliminates large buffer allocations by writing directly to session buffer.
+// Returns ErrInvalidState if the session is not established.
+//
+// RFC 4271 Section 4.3 - UPDATE Message Format.
+// RFC 4760 Section 3 - MP_REACH_NLRI for IPv6 routes.
+// RFC 7911 - ADD-PATH encoding when ctx.AddPath is true.
+// RFC 6793 - 4-byte AS encoding when ctx.ASN4 is true.
+//
+// Note: Concurrent calls must be externally synchronized.
+func (s *Session) SendAnnounce(route api.RouteSpec, localAS uint32, isIBGP bool, ctx *nlri.PackContext) error {
+	s.mu.RLock()
+	conn := s.conn
+	state := s.fsm.State()
+	s.mu.RUnlock()
+
+	if state != fsm.StateEstablished {
+		return ErrInvalidState
+	}
+
+	if conn == nil {
+		return ErrNotConnected
+	}
+
+	// RFC 4271 Section 4.3 - Zero-allocation: write UPDATE directly to session buffer
+	s.writeBuf.Reset()
+	n := WriteAnnounceUpdate(s.writeBuf.Buffer(), 0, route, localAS, isIBGP, ctx)
+
+	_, err := conn.Write(s.writeBuf.Buffer()[:n])
+	if err != nil {
+		return err
+	}
+
+	// Notify callback after successful send
+	if s.onMessageReceived != nil && n >= message.HeaderLen {
+		body := s.writeBuf.Buffer()[message.HeaderLen:n]
+		_ = s.onMessageReceived(s.settings.Address, message.TypeUPDATE, body, nil, 0, "sent", nil)
+	}
+
+	return nil
+}
+
+// SendWithdraw sends a BGP UPDATE message for withdrawing a route.
+// Eliminates large buffer allocations by writing directly to session buffer.
+// Returns ErrInvalidState if the session is not established.
+//
+// RFC 4271 Section 4.3 - UPDATE Message Format (Withdrawn Routes for IPv4).
+// RFC 4760 Section 4 - MP_UNREACH_NLRI for IPv6 withdrawals.
+// RFC 7911 - ADD-PATH encoding when ctx.AddPath is true.
+//
+// Note: Concurrent calls must be externally synchronized.
+func (s *Session) SendWithdraw(prefix netip.Prefix, ctx *nlri.PackContext) error {
+	s.mu.RLock()
+	conn := s.conn
+	state := s.fsm.State()
+	s.mu.RUnlock()
+
+	if state != fsm.StateEstablished {
+		return ErrInvalidState
+	}
+
+	if conn == nil {
+		return ErrNotConnected
+	}
+
+	// RFC 4271 Section 4.3 - Zero-allocation: write UPDATE directly to session buffer
+	s.writeBuf.Reset()
+	n := WriteWithdrawUpdate(s.writeBuf.Buffer(), 0, prefix, ctx)
 
 	_, err := conn.Write(s.writeBuf.Buffer()[:n])
 	if err != nil {

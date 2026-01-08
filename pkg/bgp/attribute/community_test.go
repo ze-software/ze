@@ -233,3 +233,318 @@ func TestIPv6ExtendedCommunitiesRoundTrip(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, original, parsed)
 }
+
+// TestCommunitiesWriteToMatchesPack verifies WriteTo produces identical bytes to Pack.
+//
+// VALIDATES: Zero-allocation WriteTo path matches allocating Pack path.
+//
+// PREVENTS: Wire format divergence between Pack and WriteTo implementations.
+func TestCommunitiesWriteToMatchesPack(t *testing.T) {
+	tests := []struct {
+		name  string
+		comms Communities
+	}{
+		{
+			name:  "empty",
+			comms: Communities{},
+		},
+		{
+			name:  "single",
+			comms: Communities{Community(0xFDE90064)},
+		},
+		{
+			name:  "multiple",
+			comms: Communities{Community(0xFDE90064), CommunityNoExport, CommunityNoAdvertise},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			expected := tt.comms.Pack()
+
+			buf := make([]byte, 4096)
+			n := tt.comms.WriteTo(buf, 0)
+
+			assert.Equal(t, len(expected), n, "length mismatch")
+			assert.Equal(t, expected, buf[:n], "content mismatch")
+		})
+	}
+}
+
+// TestCommunitiesWriteToExtendedLength verifies WriteTo handles >63 communities (>255 bytes).
+//
+// RFC 4271 Section 4.3: Extended Length flag (0x10) required when value > 255 bytes.
+// Each community is 4 bytes, so 64 communities = 256 bytes (needs extended length).
+//
+// VALIDATES: WriteTo handles large community lists requiring extended length.
+//
+// PREVENTS: Length byte overflow causing malformed COMMUNITIES (bug found in code review).
+func TestCommunitiesWriteToExtendedLength(t *testing.T) {
+	tests := []struct {
+		name     string
+		numComms int
+		wantLen  int
+	}{
+		{
+			name:     "63 communities (252 bytes - fits in 1-byte length)",
+			numComms: 63,
+			wantLen:  252,
+		},
+		{
+			name:     "64 communities (256 bytes - needs extended length)",
+			numComms: 64,
+			wantLen:  256,
+		},
+		{
+			name:     "100 communities (400 bytes)",
+			numComms: 100,
+			wantLen:  400,
+		},
+		{
+			name:     "255 communities (1020 bytes)",
+			numComms: 255,
+			wantLen:  1020,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			comms := make(Communities, tt.numComms)
+			for i := range comms {
+				comms[i] = Community(uint32(0xFFFF0000 | i))
+			}
+
+			// Verify Pack
+			packed := comms.Pack()
+			assert.Equal(t, tt.wantLen, len(packed), "Pack length")
+
+			// Verify WriteTo matches Pack
+			buf := make([]byte, 4096)
+			n := comms.WriteTo(buf, 0)
+			assert.Equal(t, len(packed), n, "WriteTo length should match Pack")
+			assert.Equal(t, packed, buf[:n], "WriteTo content should match Pack")
+
+			// Parse back and verify count
+			parsed, err := ParseCommunities(packed)
+			require.NoError(t, err)
+			assert.Len(t, parsed, tt.numComms, "community count preserved")
+		})
+	}
+}
+
+// TestCommunitiesWriteToOffset verifies WriteTo respects offset parameter.
+//
+// VALIDATES: WriteTo writes at correct offset without corrupting adjacent data.
+//
+// PREVENTS: Buffer corruption when writing at non-zero offset.
+func TestCommunitiesWriteToOffset(t *testing.T) {
+	comms := Communities{Community(0xFDE90064), CommunityNoExport}
+	expected := comms.Pack()
+	offset := 100
+
+	buf := make([]byte, 4096)
+	for i := range buf {
+		buf[i] = 0xAA
+	}
+
+	n := comms.WriteTo(buf, offset)
+
+	assert.Equal(t, len(expected), n)
+	assert.Equal(t, expected, buf[offset:offset+n])
+
+	for i := 0; i < offset; i++ {
+		assert.Equal(t, byte(0xAA), buf[i], "byte %d should be untouched", i)
+	}
+}
+
+// TestExtendedCommunitiesWriteToMatchesPack verifies WriteTo for extended communities.
+//
+// VALIDATES: Zero-allocation WriteTo path matches allocating Pack path.
+func TestExtendedCommunitiesWriteToMatchesPack(t *testing.T) {
+	ecs := ExtendedCommunities{
+		{0x00, 0x02, 0xFD, 0xE9, 0x00, 0x00, 0x00, 0x64},
+		{0x00, 0x02, 0xFD, 0xEA, 0x00, 0x00, 0x00, 0x65},
+	}
+
+	expected := ecs.Pack()
+
+	buf := make([]byte, 4096)
+	n := ecs.WriteTo(buf, 0)
+
+	assert.Equal(t, len(expected), n)
+	assert.Equal(t, expected, buf[:n])
+}
+
+// TestExtendedCommunitiesWriteToExtendedLength verifies WriteTo handles >31 ext communities.
+//
+// RFC 4271 Section 4.3: Extended Length flag required when value > 255 bytes.
+// Each extended community is 8 bytes, so 32 = 256 bytes (needs extended length).
+//
+// VALIDATES: WriteTo handles large extended community lists.
+//
+// PREVENTS: Length byte overflow causing malformed attribute.
+func TestExtendedCommunitiesWriteToExtendedLength(t *testing.T) {
+	tests := []struct {
+		name     string
+		numComms int
+		wantLen  int
+	}{
+		{
+			name:     "31 ext communities (248 bytes)",
+			numComms: 31,
+			wantLen:  248,
+		},
+		{
+			name:     "32 ext communities (256 bytes - needs extended length)",
+			numComms: 32,
+			wantLen:  256,
+		},
+		{
+			name:     "100 ext communities (800 bytes)",
+			numComms: 100,
+			wantLen:  800,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ecs := make(ExtendedCommunities, tt.numComms)
+			for i := range ecs {
+				ecs[i] = ExtendedCommunity{0x00, 0x02, byte(i >> 8), byte(i), 0x00, 0x00, 0x00, byte(i)}
+			}
+
+			packed := ecs.Pack()
+			assert.Equal(t, tt.wantLen, len(packed), "Pack length")
+
+			buf := make([]byte, 4096)
+			n := ecs.WriteTo(buf, 0)
+			assert.Equal(t, len(packed), n, "WriteTo length should match Pack")
+			assert.Equal(t, packed, buf[:n], "WriteTo content should match Pack")
+		})
+	}
+}
+
+// TestLargeCommunitiesWriteToMatchesPack verifies WriteTo for large communities.
+//
+// VALIDATES: Zero-allocation WriteTo path matches allocating Pack path.
+func TestLargeCommunitiesWriteToMatchesPack(t *testing.T) {
+	lcs := LargeCommunities{
+		{GlobalAdmin: 65001, LocalData1: 100, LocalData2: 200},
+		{GlobalAdmin: 65002, LocalData1: 101, LocalData2: 201},
+	}
+
+	expected := lcs.Pack()
+
+	buf := make([]byte, 4096)
+	n := lcs.WriteTo(buf, 0)
+
+	assert.Equal(t, len(expected), n)
+	assert.Equal(t, expected, buf[:n])
+}
+
+// TestLargeCommunitiesWriteToExtendedLength verifies WriteTo handles >21 large communities.
+//
+// RFC 4271 Section 4.3: Extended Length flag required when value > 255 bytes.
+// Each large community is 12 bytes, so 22 = 264 bytes (needs extended length).
+//
+// VALIDATES: WriteTo handles large community lists requiring extended length.
+//
+// PREVENTS: Length byte overflow causing malformed attribute.
+func TestLargeCommunitiesWriteToExtendedLength(t *testing.T) {
+	tests := []struct {
+		name     string
+		numComms int
+		wantLen  int
+	}{
+		{
+			name:     "21 large communities (252 bytes)",
+			numComms: 21,
+			wantLen:  252,
+		},
+		{
+			name:     "22 large communities (264 bytes - needs extended length)",
+			numComms: 22,
+			wantLen:  264,
+		},
+		{
+			name:     "100 large communities (1200 bytes)",
+			numComms: 100,
+			wantLen:  1200,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			lcs := make(LargeCommunities, tt.numComms)
+			for i := range lcs {
+				lcs[i] = LargeCommunity{
+					GlobalAdmin: uint32(65000 + i),
+					LocalData1:  uint32(i),
+					LocalData2:  uint32(i * 2),
+				}
+			}
+
+			packed := lcs.Pack()
+			assert.Equal(t, tt.wantLen, len(packed), "Pack length")
+
+			buf := make([]byte, 4096)
+			n := lcs.WriteTo(buf, 0)
+			assert.Equal(t, len(packed), n, "WriteTo length should match Pack")
+			assert.Equal(t, packed, buf[:n], "WriteTo content should match Pack")
+		})
+	}
+}
+
+// TestIPv6ExtendedCommunitiesWriteToExtendedLength verifies WriteTo handles >12 IPv6 ext communities.
+//
+// RFC 4271 Section 4.3: Extended Length flag required when value > 255 bytes.
+// Each IPv6 extended community is 20 bytes, so 13 = 260 bytes (needs extended length).
+//
+// VALIDATES: WriteTo handles large IPv6 extended community lists.
+//
+// PREVENTS: Length byte overflow causing malformed attribute.
+func TestIPv6ExtendedCommunitiesWriteToExtendedLength(t *testing.T) {
+	tests := []struct {
+		name     string
+		numComms int
+		wantLen  int
+	}{
+		{
+			name:     "12 IPv6 ext communities (240 bytes)",
+			numComms: 12,
+			wantLen:  240,
+		},
+		{
+			name:     "13 IPv6 ext communities (260 bytes - needs extended length)",
+			numComms: 13,
+			wantLen:  260,
+		},
+		{
+			name:     "50 IPv6 ext communities (1000 bytes)",
+			numComms: 50,
+			wantLen:  1000,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ecs := make(IPv6ExtendedCommunities, tt.numComms)
+			for i := range ecs {
+				ecs[i] = IPv6ExtendedCommunity{
+					0x00, byte(i), // Type + Sub-type
+					0x20, 0x01, 0x0d, 0xb8, 0x00, 0x00, 0x00, 0x00,
+					0x00, 0x00, 0x00, 0x00, 0x00, 0x00, byte(i >> 8), byte(i),
+					0x00, byte(i),
+				}
+			}
+
+			packed := ecs.Pack()
+			assert.Equal(t, tt.wantLen, len(packed), "Pack length")
+
+			buf := make([]byte, 4096)
+			n := ecs.WriteTo(buf, 0)
+			assert.Equal(t, len(packed), n, "WriteTo length should match Pack")
+			assert.Equal(t, packed, buf[:n], "WriteTo content should match Pack")
+		})
+	}
+}

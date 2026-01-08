@@ -418,6 +418,599 @@ func TestBuildWithdrawUpdateIPv6UsesMPUnreachNLRI(t *testing.T) {
 	require.True(t, foundMPUnreach, "IPv6 withdrawals must have MP_UNREACH_NLRI attribute")
 }
 
+// TestWriteAnnounceUpdateIPv4 verifies WriteAnnounceUpdate produces correct wire format for IPv4.
+//
+// VALIDATES: Zero-allocation WriteAnnounceUpdate produces valid BGP UPDATE message
+// with correct header, attributes, and NLRI for IPv4 unicast routes.
+//
+// PREVENTS: Wire format regression when using zero-allocation path.
+func TestWriteAnnounceUpdateIPv4(t *testing.T) {
+	route := api.RouteSpec{
+		Prefix:  netip.MustParsePrefix("10.0.0.0/24"),
+		NextHop: api.NewNextHopExplicit(netip.MustParseAddr("192.168.1.1")),
+	}
+
+	ctx := &nlri.PackContext{ASN4: true}
+	buf := make([]byte, 4096)
+	n := WriteAnnounceUpdate(buf, 0, route, 65000, false, ctx)
+
+	require.Greater(t, n, message.HeaderLen, "message must be larger than header")
+
+	// Verify BGP header
+	// RFC 4271 Section 4.1 - Marker must be all 0xFF
+	for i := 0; i < 16; i++ {
+		require.Equal(t, byte(0xFF), buf[i], "marker byte %d must be 0xFF", i)
+	}
+
+	// RFC 4271 Section 4.1 - Length field
+	length := int(buf[16])<<8 | int(buf[17])
+	require.Equal(t, n, length, "length field must match actual message length")
+
+	// RFC 4271 Section 4.1 - Type must be UPDATE (2)
+	require.Equal(t, byte(message.TypeUPDATE), buf[18], "type must be UPDATE")
+
+	// RFC 4271 Section 4.3 - Withdrawn Routes Length (should be 0 for announce)
+	withdrawnLen := int(buf[19])<<8 | int(buf[20])
+	require.Equal(t, 0, withdrawnLen, "withdrawn routes length must be 0 for announce")
+
+	// RFC 4271 Section 4.3 - Total Path Attribute Length
+	attrLen := int(buf[21])<<8 | int(buf[22])
+	require.Greater(t, attrLen, 0, "path attributes length must be > 0")
+
+	// RFC 4271 Section 4.3 - NLRI must be present for IPv4
+	nlriStart := 23 + attrLen
+	require.Less(t, nlriStart, n, "NLRI must be present after attributes")
+}
+
+// TestWriteAnnounceUpdateIPv6 verifies WriteAnnounceUpdate produces correct wire format for IPv6.
+//
+// VALIDATES: Zero-allocation WriteAnnounceUpdate uses MP_REACH_NLRI for IPv6 routes.
+//
+// PREVENTS: IPv6 routes being sent with IPv4-style encoding (RFC 4760 violation).
+func TestWriteAnnounceUpdateIPv6(t *testing.T) {
+	route := api.RouteSpec{
+		Prefix:  netip.MustParsePrefix("2001:db8::/32"),
+		NextHop: api.NewNextHopExplicit(netip.MustParseAddr("2001:db8::1")),
+	}
+
+	ctx := &nlri.PackContext{ASN4: true}
+	buf := make([]byte, 4096)
+	n := WriteAnnounceUpdate(buf, 0, route, 65000, true, ctx)
+
+	require.Greater(t, n, message.HeaderLen, "message must be larger than header")
+
+	// Verify BGP header
+	require.Equal(t, byte(message.TypeUPDATE), buf[18], "type must be UPDATE")
+
+	// RFC 4271 Section 4.3 - Withdrawn Routes Length = 0
+	withdrawnLen := int(buf[19])<<8 | int(buf[20])
+	require.Equal(t, 0, withdrawnLen, "withdrawn routes length must be 0")
+
+	// RFC 4271 Section 4.3 - Path Attribute Length
+	attrLen := int(buf[21])<<8 | int(buf[22])
+	require.Greater(t, attrLen, 0, "path attributes must contain MP_REACH_NLRI")
+
+	// RFC 4760 - No inline NLRI for IPv6 (all in MP_REACH_NLRI)
+	nlriStart := 23 + attrLen
+	require.Equal(t, n, nlriStart, "no inline NLRI for IPv6 routes")
+
+	// Scan for MP_REACH_NLRI (type 14) in attributes
+	foundMPReach := false
+	data := buf[23 : 23+attrLen]
+	for len(data) >= 3 {
+		flags := data[0]
+		code := attribute.AttributeCode(data[1])
+		var length int
+		var hdrLen int
+		if flags&0x10 != 0 {
+			if len(data) < 4 {
+				break
+			}
+			length = int(data[2])<<8 | int(data[3])
+			hdrLen = 4
+		} else {
+			length = int(data[2])
+			hdrLen = 3
+		}
+
+		if code == attribute.AttrMPReachNLRI {
+			foundMPReach = true
+			// RFC 4760 Section 3 - Verify AFI=2 (IPv6), SAFI=1 (Unicast)
+			if len(data) >= hdrLen+3 {
+				afi := uint16(data[hdrLen])<<8 | uint16(data[hdrLen+1])
+				safi := data[hdrLen+2]
+				require.Equal(t, uint16(2), afi, "MP_REACH_NLRI AFI must be 2 (IPv6)")
+				require.Equal(t, uint8(1), safi, "MP_REACH_NLRI SAFI must be 1 (Unicast)")
+			}
+		}
+
+		if len(data) < hdrLen+length {
+			break
+		}
+		data = data[hdrLen+length:]
+	}
+
+	require.True(t, foundMPReach, "IPv6 routes must have MP_REACH_NLRI attribute")
+}
+
+// TestWriteWithdrawUpdateIPv4 verifies WriteWithdrawUpdate produces correct wire format for IPv4.
+//
+// VALIDATES: Zero-allocation WriteWithdrawUpdate uses WithdrawnRoutes field for IPv4.
+//
+// PREVENTS: Wire format regression when using zero-allocation path.
+func TestWriteWithdrawUpdateIPv4(t *testing.T) {
+	prefix := netip.MustParsePrefix("10.0.0.0/24")
+
+	buf := make([]byte, 4096)
+	n := WriteWithdrawUpdate(buf, 0, prefix, nil)
+
+	require.Greater(t, n, message.HeaderLen, "message must be larger than header")
+
+	// Verify BGP header
+	require.Equal(t, byte(message.TypeUPDATE), buf[18], "type must be UPDATE")
+
+	// RFC 4271 Section 4.3 - Withdrawn Routes Length > 0 for IPv4 withdrawal
+	withdrawnLen := int(buf[19])<<8 | int(buf[20])
+	require.Greater(t, withdrawnLen, 0, "withdrawn routes length must be > 0 for IPv4")
+
+	// RFC 4271 Section 4.3 - Path Attribute Length = 0 for pure withdrawal
+	attrLen := int(buf[21+withdrawnLen])<<8 | int(buf[22+withdrawnLen])
+	require.Equal(t, 0, attrLen, "path attributes length must be 0 for withdrawal")
+}
+
+// TestWriteWithdrawUpdateIPv6 verifies WriteWithdrawUpdate produces correct wire format for IPv6.
+//
+// VALIDATES: Zero-allocation WriteWithdrawUpdate uses MP_UNREACH_NLRI for IPv6.
+//
+// PREVENTS: IPv6 withdrawals being sent with IPv4-style encoding (RFC 4760 violation).
+func TestWriteWithdrawUpdateIPv6(t *testing.T) {
+	prefix := netip.MustParsePrefix("2001:db8::/32")
+
+	buf := make([]byte, 4096)
+	n := WriteWithdrawUpdate(buf, 0, prefix, nil)
+
+	require.Greater(t, n, message.HeaderLen, "message must be larger than header")
+
+	// Verify BGP header
+	require.Equal(t, byte(message.TypeUPDATE), buf[18], "type must be UPDATE")
+
+	// RFC 4760 Section 4 - Withdrawn Routes Length = 0 for IPv6
+	withdrawnLen := int(buf[19])<<8 | int(buf[20])
+	require.Equal(t, 0, withdrawnLen, "withdrawn routes length must be 0 for IPv6")
+
+	// RFC 4760 Section 4 - Path Attributes must contain MP_UNREACH_NLRI
+	attrLen := int(buf[21])<<8 | int(buf[22])
+	require.Greater(t, attrLen, 0, "path attributes must contain MP_UNREACH_NLRI")
+
+	// Scan for MP_UNREACH_NLRI (type 15) in attributes
+	foundMPUnreach := false
+	data := buf[23 : 23+attrLen]
+	for len(data) >= 3 {
+		flags := data[0]
+		code := attribute.AttributeCode(data[1])
+		var length int
+		var hdrLen int
+		if flags&0x10 != 0 {
+			if len(data) < 4 {
+				break
+			}
+			length = int(data[2])<<8 | int(data[3])
+			hdrLen = 4
+		} else {
+			length = int(data[2])
+			hdrLen = 3
+		}
+
+		if code == attribute.AttrMPUnreachNLRI {
+			foundMPUnreach = true
+			// RFC 4760 Section 4 - Verify AFI=2 (IPv6), SAFI=1 (Unicast)
+			if len(data) >= hdrLen+3 {
+				afi := uint16(data[hdrLen])<<8 | uint16(data[hdrLen+1])
+				safi := data[hdrLen+2]
+				require.Equal(t, uint16(2), afi, "MP_UNREACH_NLRI AFI must be 2 (IPv6)")
+				require.Equal(t, uint8(1), safi, "MP_UNREACH_NLRI SAFI must be 1 (Unicast)")
+			}
+		}
+
+		if len(data) < hdrLen+length {
+			break
+		}
+		data = data[hdrLen+length:]
+	}
+
+	require.True(t, foundMPUnreach, "IPv6 withdrawals must have MP_UNREACH_NLRI attribute")
+}
+
+// TestWriteAnnounceUpdateMatchesBuildAnnounceUpdate verifies wire format equivalence.
+//
+// VALIDATES: WriteAnnounceUpdate produces identical UPDATE body as buildAnnounceUpdate.
+//
+// PREVENTS: Behavioral regression when switching to zero-allocation path.
+func TestWriteAnnounceUpdateMatchesBuildAnnounceUpdate(t *testing.T) {
+	route := api.RouteSpec{
+		Prefix:  netip.MustParsePrefix("10.0.0.0/24"),
+		NextHop: api.NewNextHopExplicit(netip.MustParseAddr("192.168.1.1")),
+	}
+
+	ctx := &nlri.PackContext{ASN4: true}
+
+	// Build using old function
+	oldUpdate := buildAnnounceUpdate(route, 65000, false, ctx)
+
+	// Build using new function
+	buf := make([]byte, 4096)
+	n := WriteAnnounceUpdate(buf, 0, route, 65000, false, ctx)
+
+	// Extract body from new function (skip header)
+	newWithdrawnLen := int(buf[19])<<8 | int(buf[20])
+	newAttrLen := int(buf[21])<<8 | int(buf[22])
+	newAttrs := buf[23 : 23+newAttrLen]
+	newNLRI := buf[23+newAttrLen : n]
+
+	// Compare
+	require.Equal(t, 0, newWithdrawnLen, "withdrawn length must match")
+	require.Equal(t, oldUpdate.PathAttributes, newAttrs, "path attributes must match")
+	require.Equal(t, oldUpdate.NLRI, newNLRI, "NLRI must match")
+}
+
+// TestWriteWithdrawUpdateMatchesBuildWithdrawUpdate verifies wire format equivalence.
+//
+// VALIDATES: WriteWithdrawUpdate produces identical UPDATE body as buildWithdrawUpdate.
+//
+// PREVENTS: Behavioral regression when switching to zero-allocation path.
+func TestWriteWithdrawUpdateMatchesBuildWithdrawUpdate(t *testing.T) {
+	prefix := netip.MustParsePrefix("10.0.0.0/24")
+
+	// Build using old function
+	oldUpdate := buildWithdrawUpdate(prefix, nil)
+
+	// Build using new function
+	buf := make([]byte, 4096)
+	n := WriteWithdrawUpdate(buf, 0, prefix, nil)
+
+	// Extract body from new function (skip header)
+	newWithdrawnLen := int(buf[19])<<8 | int(buf[20])
+	newWithdrawn := buf[21 : 21+newWithdrawnLen]
+	newAttrLen := int(buf[21+newWithdrawnLen])<<8 | int(buf[22+newWithdrawnLen])
+
+	// Compare
+	require.Equal(t, oldUpdate.WithdrawnRoutes, newWithdrawn, "withdrawn routes must match")
+	require.Equal(t, 0, newAttrLen, "attr length must be 0")
+	require.Equal(t, len(oldUpdate.PathAttributes), newAttrLen, "path attributes length must match")
+	_ = n // Used for bounds checking
+}
+
+// TestWriteAnnounceUpdateIPv6MatchesBuildAnnounceUpdate verifies IPv6 wire format equivalence.
+//
+// VALIDATES: WriteAnnounceUpdate produces identical MP_REACH_NLRI as buildAnnounceUpdate for IPv6.
+//
+// PREVENTS: IPv6-specific regression when switching to direct buffer write.
+func TestWriteAnnounceUpdateIPv6MatchesBuildAnnounceUpdate(t *testing.T) {
+	route := api.RouteSpec{
+		Prefix:  netip.MustParsePrefix("2001:db8::/32"),
+		NextHop: api.NewNextHopExplicit(netip.MustParseAddr("2001:db8::1")),
+	}
+
+	ctx := &nlri.PackContext{ASN4: true}
+
+	// Build using old function
+	oldUpdate := buildAnnounceUpdate(route, 65000, true, ctx)
+
+	// Build using new function
+	buf := make([]byte, 4096)
+	n := WriteAnnounceUpdate(buf, 0, route, 65000, true, ctx)
+
+	// Extract body from new function (skip header)
+	// IPv6: no inline NLRI, all in path attributes
+	newWithdrawnLen := int(buf[19])<<8 | int(buf[20])
+	require.Equal(t, 0, newWithdrawnLen, "withdrawn length must be 0")
+
+	newAttrLen := int(buf[21])<<8 | int(buf[22])
+	newAttrs := buf[23 : 23+newAttrLen]
+
+	// For IPv6, NLRI field should be empty
+	nlriStart := 23 + newAttrLen
+	require.Equal(t, n, nlriStart, "no inline NLRI for IPv6")
+
+	// Compare path attributes (includes MP_REACH_NLRI)
+	require.Equal(t, oldUpdate.PathAttributes, newAttrs, "path attributes must match")
+	require.Empty(t, oldUpdate.NLRI, "old function NLRI must be empty for IPv6")
+}
+
+// TestWriteWithdrawUpdateIPv6MatchesBuildWithdrawUpdate verifies IPv6 withdrawal equivalence.
+//
+// VALIDATES: WriteWithdrawUpdate produces identical MP_UNREACH_NLRI as buildWithdrawUpdate.
+//
+// PREVENTS: IPv6 withdrawal regression when switching to direct buffer write.
+func TestWriteWithdrawUpdateIPv6MatchesBuildWithdrawUpdate(t *testing.T) {
+	prefix := netip.MustParsePrefix("2001:db8::/32")
+
+	// Build using old function
+	oldUpdate := buildWithdrawUpdate(prefix, nil)
+
+	// Build using new function
+	buf := make([]byte, 4096)
+	_ = WriteWithdrawUpdate(buf, 0, prefix, nil)
+
+	// Extract body from new function (skip header)
+	// IPv6: withdrawn in MP_UNREACH_NLRI attribute, not WithdrawnRoutes field
+	newWithdrawnLen := int(buf[19])<<8 | int(buf[20])
+	require.Equal(t, 0, newWithdrawnLen, "withdrawn routes length must be 0 for IPv6")
+
+	newAttrLen := int(buf[21])<<8 | int(buf[22])
+	newAttrs := buf[23 : 23+newAttrLen]
+
+	// Compare path attributes (includes MP_UNREACH_NLRI)
+	require.Equal(t, oldUpdate.PathAttributes, newAttrs, "path attributes must match")
+	require.Empty(t, oldUpdate.WithdrawnRoutes, "old function WithdrawnRoutes must be empty for IPv6")
+}
+
+// TestWriteAnnounceUpdateWithAddPath verifies ADD-PATH encoding.
+//
+// VALIDATES: WriteAnnounceUpdate correctly encodes path identifier when ADD-PATH enabled.
+//
+// PREVENTS: ADD-PATH encoding being silently skipped (RFC 7911 violation).
+func TestWriteAnnounceUpdateWithAddPath(t *testing.T) {
+	route := api.RouteSpec{
+		Prefix:  netip.MustParsePrefix("10.0.0.0/24"),
+		NextHop: api.NewNextHopExplicit(netip.MustParseAddr("192.168.1.1")),
+	}
+
+	// With ADD-PATH enabled
+	ctxAddPath := &nlri.PackContext{ASN4: true, AddPath: true}
+	bufAddPath := make([]byte, 4096)
+	nAddPath := WriteAnnounceUpdate(bufAddPath, 0, route, 65000, false, ctxAddPath)
+
+	// Without ADD-PATH
+	ctxNoAddPath := &nlri.PackContext{ASN4: true, AddPath: false}
+	bufNoAddPath := make([]byte, 4096)
+	nNoAddPath := WriteAnnounceUpdate(bufNoAddPath, 0, route, 65000, false, ctxNoAddPath)
+
+	// RFC 7911: ADD-PATH adds 4-byte path identifier before each NLRI
+	// Message with ADD-PATH should be 4 bytes longer
+	require.Equal(t, nNoAddPath+4, nAddPath, "ADD-PATH should add 4 bytes for path identifier")
+
+	// Verify path attributes are same length (ADD-PATH only affects NLRI)
+	attrLenAddPath := int(bufAddPath[21])<<8 | int(bufAddPath[22])
+	attrLenNoAddPath := int(bufNoAddPath[21])<<8 | int(bufNoAddPath[22])
+	require.Equal(t, attrLenNoAddPath, attrLenAddPath, "path attributes length must be same")
+}
+
+// TestWriteAnnounceUpdateASN4False verifies 2-byte AS encoding.
+//
+// VALIDATES: WriteAnnounceUpdate uses 2-byte AS numbers when ASN4=false.
+//
+// PREVENTS: 4-byte AS numbers being sent to peers without ASN4 capability (RFC 6793).
+func TestWriteAnnounceUpdateASN4False(t *testing.T) {
+	route := api.RouteSpec{
+		Prefix:  netip.MustParsePrefix("10.0.0.0/24"),
+		NextHop: api.NewNextHopExplicit(netip.MustParseAddr("192.168.1.1")),
+	}
+
+	// With ASN4=true (4-byte AS)
+	ctxASN4 := &nlri.PackContext{ASN4: true}
+	bufASN4 := make([]byte, 4096)
+	nASN4 := WriteAnnounceUpdate(bufASN4, 0, route, 65000, false, ctxASN4)
+
+	// With ASN4=false (2-byte AS)
+	ctxASN2 := &nlri.PackContext{ASN4: false}
+	bufASN2 := make([]byte, 4096)
+	nASN2 := WriteAnnounceUpdate(bufASN2, 0, route, 65000, false, ctxASN2)
+
+	// RFC 6793: 2-byte AS encoding is shorter
+	// AS_PATH with single ASN: 4-byte = 3+4=7, 2-byte = 3+2=5, diff = 2
+	require.Equal(t, nASN4-2, nASN2, "ASN4=false should be 2 bytes shorter (2-byte AS vs 4-byte AS)")
+}
+
+// TestWriteASPathLongSegmentSplitting verifies AS_PATH segment splitting for >255 ASNs.
+//
+// VALIDATES: AS_PATH with >255 ASNs is split into multiple segments.
+//
+// PREVENTS: Count byte overflow causing malformed AS_PATH (RFC 4271 violation).
+func TestWriteASPathLongSegmentSplitting(t *testing.T) {
+	// Create route with 300 ASNs (requires splitting: 255 + 45)
+	asPath := make([]uint32, 300)
+	for i := range asPath {
+		asPath[i] = uint32(65000 + i)
+	}
+
+	route := api.RouteSpec{
+		Prefix:  netip.MustParsePrefix("10.0.0.0/24"),
+		NextHop: api.NewNextHopExplicit(netip.MustParseAddr("192.168.1.1")),
+		PathAttributes: api.PathAttributes{
+			ASPath: asPath,
+		},
+	}
+
+	ctx := &nlri.PackContext{ASN4: true}
+	buf := make([]byte, 8192)
+	n := WriteAnnounceUpdate(buf, 0, route, 65000, false, ctx)
+
+	require.Greater(t, n, message.HeaderLen, "message must be larger than header")
+
+	// Parse the AS_PATH attribute to verify structure
+	// Skip header (19) + withdrawn len (2) + attr len (2) = 23
+	attrLen := int(buf[21])<<8 | int(buf[22])
+	require.Greater(t, attrLen, 255, "AS_PATH should use extended length")
+
+	// Find AS_PATH attribute (code 2)
+	data := buf[23 : 23+attrLen]
+	for len(data) >= 3 {
+		flags := data[0]
+		code := attribute.AttributeCode(data[1])
+		var length int
+		var hdrLen int
+		if flags&0x10 != 0 { // Extended length
+			if len(data) < 4 {
+				break
+			}
+			length = int(data[2])<<8 | int(data[3])
+			hdrLen = 4
+		} else {
+			length = int(data[2])
+			hdrLen = 3
+		}
+
+		if code == attribute.AttrASPath {
+			// RFC 4271: Extended length flag should be set for >255 bytes
+			require.True(t, flags&0x10 != 0, "AS_PATH should use extended length flag")
+
+			// Parse segments - should be 2 segments (255 + 45 ASNs)
+			segData := data[hdrLen : hdrLen+length]
+			segCount := 0
+			totalASNs := 0
+			for len(segData) >= 2 {
+				segType := segData[0]
+				segLen := int(segData[1])
+				require.Equal(t, byte(attribute.ASSequence), segType, "segment type should be AS_SEQUENCE")
+				require.LessOrEqual(t, segLen, 255, "segment count must not exceed 255")
+				totalASNs += segLen
+				segCount++
+				segData = segData[2+segLen*4:] // 4-byte ASNs
+			}
+
+			require.Equal(t, 2, segCount, "should have 2 segments (255+45)")
+			require.Equal(t, 300, totalASNs, "total ASNs should be 300")
+			break
+		}
+
+		if len(data) < hdrLen+length {
+			break
+		}
+		data = data[hdrLen+length:]
+	}
+}
+
+// TestWriteCommunitiesExtendedLength verifies COMMUNITIES extended length for >63 communities.
+//
+// VALIDATES: COMMUNITIES with >63 entries uses extended length format.
+//
+// PREVENTS: Length byte overflow causing malformed attribute (RFC 4271 violation).
+func TestWriteCommunitiesExtendedLength(t *testing.T) {
+	// Create route with 100 communities (400 bytes, requires extended length)
+	communities := make([]uint32, 100)
+	for i := range communities {
+		communities[i] = uint32(0xFFFF0000 | i)
+	}
+
+	route := api.RouteSpec{
+		Prefix:  netip.MustParsePrefix("10.0.0.0/24"),
+		NextHop: api.NewNextHopExplicit(netip.MustParseAddr("192.168.1.1")),
+		PathAttributes: api.PathAttributes{
+			Communities: communities,
+		},
+	}
+
+	ctx := &nlri.PackContext{ASN4: true}
+	buf := make([]byte, 4096)
+	n := WriteAnnounceUpdate(buf, 0, route, 65000, false, ctx)
+
+	require.Greater(t, n, message.HeaderLen, "message must be larger than header")
+
+	// Find COMMUNITIES attribute (code 8)
+	attrLen := int(buf[21])<<8 | int(buf[22])
+	data := buf[23 : 23+attrLen]
+	for len(data) >= 3 {
+		flags := data[0]
+		code := attribute.AttributeCode(data[1])
+		var length int
+		var hdrLen int
+		if flags&0x10 != 0 { // Extended length
+			if len(data) < 4 {
+				break
+			}
+			length = int(data[2])<<8 | int(data[3])
+			hdrLen = 4
+		} else {
+			length = int(data[2])
+			hdrLen = 3
+		}
+
+		if code == attribute.AttrCommunity {
+			// RFC 4271: Extended length flag should be set for >255 bytes
+			require.True(t, flags&0x10 != 0, "COMMUNITIES should use extended length flag")
+			require.Equal(t, 400, length, "COMMUNITIES length should be 400 (100*4)")
+			break
+		}
+
+		if len(data) < hdrLen+length {
+			break
+		}
+		data = data[hdrLen+length:]
+	}
+}
+
+// BenchmarkWriteAnnounceUpdateIPv4 measures allocations for IPv4 announce.
+// Run with: go test -bench=BenchmarkWriteAnnounce -benchmem ./pkg/reactor/...
+func BenchmarkWriteAnnounceUpdateIPv4(b *testing.B) {
+	route := api.RouteSpec{
+		Prefix:  netip.MustParsePrefix("10.0.0.0/24"),
+		NextHop: api.NewNextHopExplicit(netip.MustParseAddr("192.168.1.1")),
+	}
+	ctx := &nlri.PackContext{ASN4: true}
+	buf := make([]byte, 4096)
+
+	b.ReportAllocs()
+	b.ResetTimer()
+
+	for b.Loop() {
+		WriteAnnounceUpdate(buf, 0, route, 65000, false, ctx)
+	}
+}
+
+// BenchmarkWriteAnnounceUpdateIPv4WithCommunities measures allocations with communities.
+func BenchmarkWriteAnnounceUpdateIPv4WithCommunities(b *testing.B) {
+	route := api.RouteSpec{
+		Prefix:  netip.MustParsePrefix("10.0.0.0/24"),
+		NextHop: api.NewNextHopExplicit(netip.MustParseAddr("192.168.1.1")),
+		PathAttributes: api.PathAttributes{
+			Communities: []uint32{0xFFFF0001, 0xFFFF0002, 0xFFFF0003},
+		},
+	}
+	ctx := &nlri.PackContext{ASN4: true}
+	buf := make([]byte, 4096)
+
+	b.ReportAllocs()
+	b.ResetTimer()
+
+	for b.Loop() {
+		WriteAnnounceUpdate(buf, 0, route, 65000, false, ctx)
+	}
+}
+
+// BenchmarkWriteAnnounceUpdateIPv6 measures allocations for IPv6 announce.
+func BenchmarkWriteAnnounceUpdateIPv6(b *testing.B) {
+	route := api.RouteSpec{
+		Prefix:  netip.MustParsePrefix("2001:db8::/32"),
+		NextHop: api.NewNextHopExplicit(netip.MustParseAddr("2001:db8::1")),
+	}
+	ctx := &nlri.PackContext{ASN4: true}
+	buf := make([]byte, 4096)
+
+	b.ReportAllocs()
+	b.ResetTimer()
+
+	for b.Loop() {
+		WriteAnnounceUpdate(buf, 0, route, 65000, true, ctx)
+	}
+}
+
+// BenchmarkBuildAnnounceUpdateIPv4 measures allocations for old function (comparison).
+func BenchmarkBuildAnnounceUpdateIPv4(b *testing.B) {
+	route := api.RouteSpec{
+		Prefix:  netip.MustParsePrefix("10.0.0.0/24"),
+		NextHop: api.NewNextHopExplicit(netip.MustParseAddr("192.168.1.1")),
+	}
+	ctx := &nlri.PackContext{ASN4: true}
+
+	b.ReportAllocs()
+	b.ResetTimer()
+
+	for b.Loop() {
+		buildAnnounceUpdate(route, 65000, false, ctx)
+	}
+}
+
 // TestGetPeerAPIBindingsEncodingInheritance verifies encoding inheritance chain.
 //
 // VALIDATES: Empty peer encoding inherits from process, empty process defaults to "text".

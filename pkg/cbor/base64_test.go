@@ -314,3 +314,32 @@ func TestBase64URLRoundTrip(t *testing.T) {
 		t.Errorf("round-trip = %v, want %v", binBuf[:binLen], original)
 	}
 }
+
+// TestBase64BlobLenMatchesWriteTo verifies Len() == WriteTo() bytes.
+//
+// VALIDATES: Len() accurately predicts WriteTo output size.
+//
+// PREVENTS: Buffer overflow from undersized allocation.
+func TestBase64BlobLenMatchesWriteTo(t *testing.T) {
+	tests := []Base64Blob{
+		{},
+		{0x00},
+		{0xDE, 0xAD, 0xBE, 0xEF},
+		make([]byte, 100),
+		make([]byte, 1000),
+	}
+
+	for i, blob := range tests {
+		expectedLen := blob.Len()
+
+		buf := make([]byte, 2000)
+		n := blob.WriteTo(buf, 0)
+
+		if expectedLen != n {
+			t.Errorf("test %d: Len()=%d but WriteTo()=%d", i, expectedLen, n)
+		}
+		if expectedLen != len(blob) {
+			t.Errorf("test %d: Len()=%d but len(blob)=%d", i, expectedLen, len(blob))
+		}
+	}
+}

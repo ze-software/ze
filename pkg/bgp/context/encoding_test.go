@@ -219,7 +219,7 @@ func TestNLRIEncodingWithAddPath(t *testing.T) {
 
 	// Context with AddPath=true
 	ctx := &nlri.PackContext{AddPath: true, ASN4: true}
-	packed := n.Pack(ctx)
+	packed := func() []byte { b := make([]byte, nlri.LenWithContext(n, ctx)); nlri.WriteNLRI(n, b, 0, ctx); return b }()
 
 	// Format with AddPath: [pathID:4][prefixLen:1][prefix:3]
 	require.Len(t, packed, 8, "should be 8 bytes: pathID(4)+prefixLen(1)+prefix(3)")
@@ -248,7 +248,7 @@ func TestNLRIEncodingWithoutAddPath(t *testing.T) {
 
 	// Context with AddPath=false
 	ctx := &nlri.PackContext{AddPath: false, ASN4: true}
-	packed := n.Pack(ctx)
+	packed := func() []byte { b := make([]byte, nlri.LenWithContext(n, ctx)); nlri.WriteNLRI(n, b, 0, ctx); return b }()
 
 	// Format without AddPath: [prefixLen:1][prefix:3]
 	require.Len(t, packed, 4, "should be 4 bytes: prefixLen(1)+prefix(3)")
@@ -277,7 +277,8 @@ func TestNLRIEncodingContextIntegration(t *testing.T) {
 		AddPath: map[bgpctx.Family]bool{{AFI: 1, SAFI: 1}: true},
 	}
 	packCtxAddPath := ctxAddPath.ToPackContext(bgpctx.Family{AFI: 1, SAFI: 1})
-	packedWithPath := n.Pack(packCtxAddPath)
+	packedWithPath := make([]byte, nlri.LenWithContext(n, packCtxAddPath))
+	nlri.WriteNLRI(n, packedWithPath, 0, packCtxAddPath)
 
 	// Context with AddPath=false
 	ctxNoAddPath := &bgpctx.EncodingContext{
@@ -285,7 +286,8 @@ func TestNLRIEncodingContextIntegration(t *testing.T) {
 		AddPath: map[bgpctx.Family]bool{{AFI: 1, SAFI: 1}: false},
 	}
 	packCtxNoAddPath := ctxNoAddPath.ToPackContext(bgpctx.Family{AFI: 1, SAFI: 1})
-	packedWithoutPath := n.Pack(packCtxNoAddPath)
+	packedWithoutPath := make([]byte, nlri.LenWithContext(n, packCtxNoAddPath))
+	nlri.WriteNLRI(n, packedWithoutPath, 0, packCtxNoAddPath)
 
 	// With AddPath: 4 bytes longer due to path ID
 	require.Equal(t, len(packedWithPath), len(packedWithoutPath)+4,
@@ -355,7 +357,7 @@ func TestAddPathEncodingPermutations(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			n := nlri.NewINET(nlri.Family{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast}, prefix, tt.pathID)
 			ctx := &nlri.PackContext{AddPath: tt.addPath, ASN4: true}
-			packed := n.Pack(ctx)
+			packed := func() []byte { b := make([]byte, nlri.LenWithContext(n, ctx)); nlri.WriteNLRI(n, b, 0, ctx); return b }()
 
 			if tt.addPath {
 				// With AddPath: [pathID:4][prefixLen:1][prefix:3] = 8 bytes
@@ -426,7 +428,7 @@ func TestAddPathEncodingPrefixLengths(t *testing.T) {
 			prefix := netip.MustParsePrefix(tt.prefix)
 			n := nlri.NewINET(nlri.Family{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast}, prefix, tt.pathID)
 			ctx := &nlri.PackContext{AddPath: true, ASN4: true}
-			packed := n.Pack(ctx)
+			packed := func() []byte { b := make([]byte, nlri.LenWithContext(n, ctx)); nlri.WriteNLRI(n, b, 0, ctx); return b }()
 
 			require.Len(t, packed, tt.expectedLen, "total wire length")
 
@@ -481,7 +483,7 @@ func TestAddPathEncodingIPv6(t *testing.T) {
 			prefix := netip.MustParsePrefix(tt.prefix)
 			n := nlri.NewINET(nlri.Family{AFI: nlri.AFIIPv6, SAFI: nlri.SAFIUnicast}, prefix, tt.pathID)
 			ctx := &nlri.PackContext{AddPath: tt.addPath, ASN4: true}
-			packed := n.Pack(ctx)
+			packed := func() []byte { b := make([]byte, nlri.LenWithContext(n, ctx)); nlri.WriteNLRI(n, b, 0, ctx); return b }()
 
 			require.Len(t, packed, tt.expectedLen, "total wire length")
 

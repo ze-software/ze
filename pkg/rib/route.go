@@ -194,10 +194,15 @@ func (r *Route) PackNLRIFor(destCtxID bgpctx.ContextID) []byte {
 	// Slow path: re-encode with destination context
 	destCtx := bgpctx.Registry.Get(destCtxID)
 	if destCtx == nil {
-		return r.nlri.Pack(nil)
+		buf := make([]byte, r.nlri.Len())
+		r.nlri.WriteTo(buf, 0, nil)
+		return buf
 	}
 	packCtx := destCtx.ToPackContext(r.nlri.Family())
-	return r.nlri.Pack(packCtx)
+	nlriLen := nlri.LenWithContext(r.nlri, packCtx)
+	buf := make([]byte, nlriLen)
+	nlri.WriteNLRI(r.nlri, buf, 0, packCtx)
+	return buf
 }
 
 // packAttributesWithContext packs attributes using the given encoding context.
@@ -220,26 +225,14 @@ func packAttributesWithContext(attrs []attribute.Attribute, asPath *attribute.AS
 	// Order by type code per RFC 4271 Appendix F.3
 	ordered := attribute.OrderAttributes(allAttrs)
 
-	// Pre-calculate total size
-	totalSize := 0
-	for _, attr := range ordered {
-		attrLen := attr.Len()
-		if attrLen > 255 {
-			totalSize += 4 + attrLen // Extended header
-		} else {
-			totalSize += 3 + attrLen // Normal header
-		}
-	}
+	// Pre-calculate total size with context
+	totalSize := attribute.AttributesSizeWithContext(ordered, ctx)
 
-	// Pre-allocate result buffer
-	result := make([]byte, 0, totalSize)
-
-	// Pack with context
+	// Pre-allocate result buffer and write
+	result := make([]byte, totalSize)
+	off := 0
 	for _, attr := range ordered {
-		packed := attr.PackWithContext(nil, ctx)
-		header := attribute.PackHeader(attr.Flags(), attr.Code(), uint16(len(packed))) //nolint:gosec // Attr max 65535
-		result = append(result, header...)
-		result = append(result, packed...)
+		off += attribute.WriteAttrToWithContext(attr, result, off, nil, ctx)
 	}
 
 	return result
@@ -256,13 +249,13 @@ func (r *Route) Index() []byte {
 	}
 
 	family := r.nlri.Family()
-	// Phase 3: Pack(nil) returns payload only, need to include path ID separately
-	nlriBytes := r.nlri.Pack(nil)
+	// Phase 3: WriteTo(nil) returns payload only, need to include path ID separately
+	nlriLen := r.nlri.Len()
 	pathID := r.nlri.PathID()
 	hasPathID := pathID != 0
 
 	// Calculate index size
-	size := 3 + len(nlriBytes) // AFI(2) + SAFI(1) + NLRI
+	size := 3 + nlriLen // AFI(2) + SAFI(1) + NLRI
 	if hasPathID {
 		size += 4 // Path ID
 	}
@@ -285,9 +278,9 @@ func (r *Route) Index() []byte {
 		offset += 4
 	}
 
-	// NLRI bytes
-	copy(buf[offset:], nlriBytes)
-	offset += len(nlriBytes)
+	// NLRI bytes - write directly into buffer
+	r.nlri.WriteTo(buf, offset, nil)
+	offset += nlriLen
 
 	// AS-PATH hash (if present)
 	if r.asPath != nil {

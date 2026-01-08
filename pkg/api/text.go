@@ -326,7 +326,9 @@ func formatAttributeJSON(sb *strings.Builder, code attribute.AttributeCode, attr
 		}
 	default:
 		// Unknown attribute: attr-N as hex
-		fmt.Fprintf(sb, `"attr-%d":"%x"`, code, attr.Pack())
+		attrBuf := make([]byte, attr.Len())
+		attr.WriteTo(attrBuf, 0)
+		fmt.Fprintf(sb, `"attr-%d":"%x"`, code, attrBuf)
 	}
 }
 
@@ -468,7 +470,9 @@ func formatAttributeText(sb *strings.Builder, code attribute.AttributeCode, attr
 		}
 	default:
 		// Unknown attribute: attr-N hex
-		fmt.Fprintf(sb, "attr-%d %x", code, attr.Pack())
+		attrBuf := make([]byte, attr.Len())
+		attr.WriteTo(attrBuf, 0)
+		fmt.Fprintf(sb, "attr-%d %x", code, attrBuf)
 	}
 }
 

@@ -470,3 +470,247 @@ func TestParseASPath2ByteValidation(t *testing.T) {
 	require.Error(t, err)
 	require.ErrorIs(t, err, ErrMalformedASPath)
 }
+
+// TestASPathWriteToMatchesPack verifies WriteTo produces identical bytes to Pack.
+//
+// VALIDATES: Zero-allocation WriteTo path matches allocating Pack path.
+//
+// PREVENTS: Wire format divergence between Pack and WriteTo implementations.
+func TestASPathWriteToMatchesPack(t *testing.T) {
+	tests := []struct {
+		name string
+		path *ASPath
+		asn4 bool
+	}{
+		{
+			name: "empty",
+			path: &ASPath{},
+			asn4: true,
+		},
+		{
+			name: "simple sequence 4-byte",
+			path: &ASPath{
+				Segments: []ASPathSegment{
+					{Type: ASSequence, ASNs: []uint32{65001, 65002, 65003}},
+				},
+			},
+			asn4: true,
+		},
+		{
+			name: "simple sequence 2-byte",
+			path: &ASPath{
+				Segments: []ASPathSegment{
+					{Type: ASSequence, ASNs: []uint32{65001, 65002, 65003}},
+				},
+			},
+			asn4: false,
+		},
+		{
+			name: "multiple segments",
+			path: &ASPath{
+				Segments: []ASPathSegment{
+					{Type: ASSequence, ASNs: []uint32{65001, 65002}},
+					{Type: ASSet, ASNs: []uint32{65003, 65004}},
+				},
+			},
+			asn4: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			expected := tt.path.PackWithASN4(tt.asn4)
+
+			buf := make([]byte, 4096)
+			n := tt.path.WriteToWithASN4(buf, 0, tt.asn4)
+
+			assert.Equal(t, len(expected), n, "length mismatch")
+			assert.Equal(t, expected, buf[:n], "content mismatch")
+		})
+	}
+}
+
+// TestASPathWriteToExtendedLength4Byte verifies WriteTo handles >255 bytes (4-byte ASN).
+//
+// RFC 4271 Section 4.3: Extended Length flag (0x10) required when value > 255 bytes.
+// With 4-byte ASNs: 255 bytes / 4 = 63.75, so >63 ASNs requires extended length.
+// Actually: segment header is 2 bytes, so 85 ASNs = 2 + 85*4 = 342 bytes.
+//
+// VALIDATES: WriteTo handles large AS paths requiring extended length.
+//
+// PREVENTS: Length byte overflow causing malformed AS_PATH (bug found in code review).
+func TestASPathWriteToExtendedLength4Byte(t *testing.T) {
+	tests := []struct {
+		name     string
+		numASNs  int
+		wantLen  int
+		segments int
+	}{
+		{
+			name:     "84 ASNs (under 255 segment limit)",
+			numASNs:  84,
+			wantLen:  2 + 84*4, // 338 bytes (1 segment)
+			segments: 1,
+		},
+		{
+			name:     "100 ASNs",
+			numASNs:  100,
+			wantLen:  2 + 100*4, // 402 bytes (1 segment)
+			segments: 1,
+		},
+		{
+			name:     "255 ASNs (max single segment)",
+			numASNs:  255,
+			wantLen:  2 + 255*4, // 1022 bytes (1 segment)
+			segments: 1,
+		},
+		{
+			name:     "256 ASNs (requires split)",
+			numASNs:  256,
+			wantLen:  2 + 255*4 + 2 + 1*4, // 1028 bytes (2 segments)
+			segments: 2,
+		},
+		{
+			name:     "300 ASNs (split into 255+45)",
+			numASNs:  300,
+			wantLen:  2 + 255*4 + 2 + 45*4, // 1204 bytes (2 segments)
+			segments: 2,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			asns := make([]uint32, tt.numASNs)
+			for i := range asns {
+				asns[i] = uint32(65000 + i)
+			}
+
+			path := &ASPath{
+				Segments: []ASPathSegment{
+					{Type: ASSequence, ASNs: asns},
+				},
+			}
+
+			// Verify Pack
+			packed := path.Pack()
+			assert.Equal(t, tt.wantLen, len(packed), "Pack length")
+
+			// Verify WriteTo matches Pack
+			buf := make([]byte, 4096)
+			n := path.WriteTo(buf, 0)
+			assert.Equal(t, len(packed), n, "WriteTo length should match Pack")
+			assert.Equal(t, packed, buf[:n], "WriteTo content should match Pack")
+
+			// Parse back and verify segment count
+			parsed, err := ParseASPath(packed, true)
+			require.NoError(t, err)
+			assert.Len(t, parsed.Segments, tt.segments, "segment count after split")
+
+			// Verify all ASNs preserved
+			totalASNs := 0
+			for _, seg := range parsed.Segments {
+				totalASNs += len(seg.ASNs)
+			}
+			assert.Equal(t, tt.numASNs, totalASNs, "total ASNs preserved")
+		})
+	}
+}
+
+// TestASPathWriteToExtendedLength2Byte verifies WriteTo handles >255 bytes (2-byte ASN).
+//
+// With 2-byte ASNs: segment can hold 255 ASNs = 2 + 255*2 = 512 bytes.
+// Extended length needed when attribute value > 255 bytes, so >126 ASNs.
+//
+// VALIDATES: WriteTo handles large AS paths in 2-byte ASN mode.
+//
+// PREVENTS: Length byte overflow in legacy 2-byte ASN mode.
+func TestASPathWriteToExtendedLength2Byte(t *testing.T) {
+	tests := []struct {
+		name    string
+		numASNs int
+		wantLen int
+	}{
+		{
+			name:    "126 ASNs (254 bytes value)",
+			numASNs: 126,
+			wantLen: 2 + 126*2, // 254 bytes
+		},
+		{
+			name:    "127 ASNs (256 bytes value - needs extended length)",
+			numASNs: 127,
+			wantLen: 2 + 127*2, // 256 bytes
+		},
+		{
+			name:    "200 ASNs",
+			numASNs: 200,
+			wantLen: 2 + 200*2, // 402 bytes
+		},
+		{
+			name:    "255 ASNs (max segment)",
+			numASNs: 255,
+			wantLen: 2 + 255*2, // 512 bytes
+		},
+		{
+			name:    "300 ASNs (split)",
+			numASNs: 300,
+			wantLen: 2 + 255*2 + 2 + 45*2, // 604 bytes
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			asns := make([]uint32, tt.numASNs)
+			for i := range asns {
+				asns[i] = uint32(i + 1) // Use small ASNs for 2-byte mode
+			}
+
+			path := &ASPath{
+				Segments: []ASPathSegment{
+					{Type: ASSequence, ASNs: asns},
+				},
+			}
+
+			// Verify Pack
+			packed := path.PackWithASN4(false)
+			assert.Equal(t, tt.wantLen, len(packed), "Pack length")
+
+			// Verify WriteTo matches Pack
+			buf := make([]byte, 4096)
+			n := path.WriteToWithASN4(buf, 0, false)
+			assert.Equal(t, len(packed), n, "WriteTo length should match Pack")
+			assert.Equal(t, packed, buf[:n], "WriteTo content should match Pack")
+		})
+	}
+}
+
+// TestASPathWriteToOffset verifies WriteTo respects offset parameter.
+//
+// VALIDATES: WriteTo writes at correct offset without corrupting adjacent data.
+//
+// PREVENTS: Buffer corruption when writing at non-zero offset.
+func TestASPathWriteToOffset(t *testing.T) {
+	path := &ASPath{
+		Segments: []ASPathSegment{
+			{Type: ASSequence, ASNs: []uint32{65001, 65002}},
+		},
+	}
+
+	expected := path.Pack()
+	offset := 100
+
+	buf := make([]byte, 4096)
+	// Pre-fill with sentinel value
+	for i := range buf {
+		buf[i] = 0xAA
+	}
+
+	n := path.WriteTo(buf, offset)
+
+	assert.Equal(t, len(expected), n)
+	assert.Equal(t, expected, buf[offset:offset+n])
+
+	// Verify bytes before offset are untouched
+	for i := 0; i < offset; i++ {
+		assert.Equal(t, byte(0xAA), buf[i], "byte %d should be untouched", i)
+	}
+}

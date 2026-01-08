@@ -229,7 +229,8 @@ func (ub *UpdateBuilder) BuildUnicast(p UnicastParams) *Update {
 		if ctx == nil {
 			ctx = &nlri.PackContext{}
 		}
-		inlineNLRI = inet.Pack(ctx)
+		inlineNLRI = make([]byte, nlri.LenWithContext(inet, ctx))
+		nlri.WriteNLRI(inet, inlineNLRI, 0, ctx)
 	}
 
 	// 16. EXTENDED_COMMUNITIES (type 16) - RFC 4360
@@ -262,11 +263,18 @@ func (ub *UpdateBuilder) BuildUnicast(p UnicastParams) *Update {
 	})
 
 	// Pack sorted attributes
-	attrBytes := attribute.PackAttributesOrdered(attrs)
+	attrSize := attribute.AttributesSize(attrs)
+	// Calculate raw attributes size
+	rawSize := 0
+	for _, raw := range p.RawAttributeBytes {
+		rawSize += len(raw)
+	}
+	attrBytes := make([]byte, attrSize+rawSize)
+	off := attribute.WriteAttributesOrdered(attrs, attrBytes, 0)
 
 	// Append raw attributes (already packed, pass-through from config)
 	for _, raw := range p.RawAttributeBytes {
-		attrBytes = append(attrBytes, raw...)
+		off += copy(attrBytes[off:], raw)
 	}
 
 	return &Update{
@@ -361,7 +369,8 @@ func (ub *UpdateBuilder) buildMPReachUnicast(p UnicastParams) *attribute.MPReach
 	if ctx == nil {
 		ctx = &nlri.PackContext{}
 	}
-	nlriBytes := inet.Pack(ctx)
+	nlriBytes := make([]byte, nlri.LenWithContext(inet, ctx))
+	nlri.WriteNLRI(inet, nlriBytes, 0, ctx)
 
 	return &attribute.MPReachNLRI{
 		AFI:      afi,
@@ -399,9 +408,12 @@ func (r *rawAttribute) WriteToWithContext(buf []byte, off int, _, _ *bgpctx.Enco
 // packAttributesNoSort packs attributes in the order provided (no sorting).
 // Used when ExaBGP ordering differs from RFC 4271 Appendix F.3.
 func packAttributesNoSort(attrs []attribute.Attribute) []byte {
-	var result []byte
+	// Calculate total size
+	totalSize := attribute.AttributesSize(attrs)
+	result := make([]byte, totalSize)
+	off := 0
 	for _, attr := range attrs {
-		result = append(result, attribute.PackAttribute(attr)...)
+		off += attribute.WriteAttrTo(attr, result, off)
 	}
 	return result
 }
@@ -1078,7 +1090,8 @@ func (ub *UpdateBuilder) BuildMVPN(routes []MVPNParams) *Update {
 		return attrs[i].Code() < attrs[j].Code()
 	})
 
-	attrBytes := attribute.PackAttributesOrdered(attrs)
+	attrBytes := make([]byte, attribute.AttributesSize(attrs))
+	attribute.WriteAttributesOrdered(attrs, attrBytes, 0)
 
 	return &Update{
 		PathAttributes: attrBytes,
@@ -1294,7 +1307,8 @@ func (ub *UpdateBuilder) BuildVPLS(p VPLSParams) *Update {
 		return attrs[i].Code() < attrs[j].Code()
 	})
 
-	attrBytes := attribute.PackAttributesOrdered(attrs)
+	attrBytes := make([]byte, attribute.AttributesSize(attrs))
+	attribute.WriteAttributesOrdered(attrs, attrBytes, 0)
 
 	return &Update{
 		PathAttributes: attrBytes,
@@ -1446,7 +1460,8 @@ func (ub *UpdateBuilder) BuildFlowSpec(p FlowSpecParams) *Update {
 		return attrs[i].Code() < attrs[j].Code()
 	})
 
-	attrBytes := attribute.PackAttributesOrdered(attrs)
+	attrBytes := make([]byte, attribute.AttributesSize(attrs))
+	attribute.WriteAttributesOrdered(attrs, attrBytes, 0)
 
 	return &Update{
 		PathAttributes: attrBytes,
@@ -1710,12 +1725,12 @@ func (ub *UpdateBuilder) buildMPReachEVPN(p EVPNParams) *rawAttribute {
 		}
 	}
 
-	// Pack NLRI
+	// Calculate NLRI size
 	ctx := ub.Ctx
 	if ctx == nil {
 		ctx = &nlri.PackContext{}
 	}
-	nlriBytes := evpnNLRI.Pack(ctx)
+	nlriLen := nlri.LenWithContext(evpnNLRI, ctx)
 
 	// Build next-hop bytes
 	var nhBytes []byte
@@ -1729,14 +1744,14 @@ func (ub *UpdateBuilder) buildMPReachEVPN(p EVPNParams) *rawAttribute {
 
 	// MP_REACH_NLRI format:
 	// AFI (2) + SAFI (1) + NH Len (1) + NH + Reserved (1) + NLRI
-	value := make([]byte, 2+1+1+nhLen+1+len(nlriBytes))
+	value := make([]byte, 2+1+1+nhLen+1+nlriLen)
 	value[0] = 0x00
 	value[1] = byte(nlri.AFIL2VPN) // AFI 25
 	value[2] = byte(nlri.SAFIEVPN) // SAFI 70
 	value[3] = byte(nhLen)
 	copy(value[4:4+nhLen], nhBytes)
 	value[4+nhLen] = 0 // reserved
-	copy(value[5+nhLen:], nlriBytes)
+	nlri.WriteNLRI(evpnNLRI, value, 5+nhLen, ctx)
 
 	return &rawAttribute{
 		flags: attribute.FlagOptional,
@@ -1834,7 +1849,8 @@ func (ub *UpdateBuilder) BuildMUP(p MUPParams) *Update {
 		return attrs[i].Code() < attrs[j].Code()
 	})
 
-	attrBytes := attribute.PackAttributesOrdered(attrs)
+	attrBytes := make([]byte, attribute.AttributesSize(attrs))
+	attribute.WriteAttributesOrdered(attrs, attrBytes, 0)
 
 	return &Update{
 		PathAttributes: attrBytes,
@@ -1935,7 +1951,8 @@ func (ub *UpdateBuilder) BuildMUPWithdraw(p MUPParams) *Update {
 		return attrs[i].Code() < attrs[j].Code()
 	})
 
-	attrBytes := attribute.PackAttributesOrdered(attrs)
+	attrBytes := make([]byte, attribute.AttributesSize(attrs))
+	attribute.WriteAttributesOrdered(attrs, attrBytes, 0)
 
 	return &Update{
 		PathAttributes: attrBytes,
@@ -2083,11 +2100,19 @@ func (ub *UpdateBuilder) BuildGroupedUnicast(routes []UnicastParams) *Update {
 	sort.Slice(attrs, func(i, j int) bool {
 		return attrs[i].Code() < attrs[j].Code()
 	})
-	attrBytes := attribute.PackAttributesOrdered(attrs)
+
+	// Calculate total size including raw attributes
+	attrSize := attribute.AttributesSize(attrs)
+	rawSize := 0
+	for _, raw := range first.RawAttributeBytes {
+		rawSize += len(raw)
+	}
+	attrBytes := make([]byte, attrSize+rawSize)
+	off := attribute.WriteAttributesOrdered(attrs, attrBytes, 0)
 
 	// Append raw attributes from first route (pass-through from config)
 	for _, raw := range first.RawAttributeBytes {
-		attrBytes = append(attrBytes, raw...)
+		off += copy(attrBytes[off:], raw)
 	}
 
 	// Build NLRI for all routes
@@ -2095,10 +2120,20 @@ func (ub *UpdateBuilder) BuildGroupedUnicast(routes []UnicastParams) *Update {
 	if ctx == nil {
 		ctx = &nlri.PackContext{}
 	}
-	var nlriBytes []byte
+
+	// Calculate total NLRI size
+	totalNLRISize := 0
 	for _, r := range routes {
 		inet := nlri.NewINET(nlri.Family{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast}, r.Prefix, r.PathID)
-		nlriBytes = append(nlriBytes, inet.Pack(ctx)...)
+		totalNLRISize += nlri.LenWithContext(inet, ctx)
+	}
+
+	// Allocate and write all NLRIs
+	nlriBytes := make([]byte, totalNLRISize)
+	nlriOff := 0
+	for _, r := range routes {
+		inet := nlri.NewINET(nlri.Family{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast}, r.Prefix, r.PathID)
+		nlriOff += nlri.WriteNLRI(inet, nlriBytes, nlriOff, ctx)
 	}
 
 	return &Update{
@@ -2145,9 +2180,11 @@ func (ub *UpdateBuilder) BuildGroupedUnicastWithLimit(routes []UnicastParams, ma
 	var currentNLRI []byte
 
 	for _, r := range routes {
-		// Pack this NLRI
+		// Calculate NLRI size and pack
 		inet := nlri.NewINET(nlri.Family{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast}, r.Prefix, r.PathID)
-		nlriBytes := inet.Pack(ctx)
+		nlriLen := nlri.LenWithContext(inet, ctx)
+		nlriBytes := make([]byte, nlriLen)
+		nlri.WriteNLRI(inet, nlriBytes, 0, ctx)
 
 		// Check if single NLRI is too large
 		if len(nlriBytes) > nlriSpace {
@@ -2283,11 +2320,19 @@ func (ub *UpdateBuilder) packGroupedAttributes(first UnicastParams) []byte {
 	sort.Slice(attrs, func(i, j int) bool {
 		return attrs[i].Code() < attrs[j].Code()
 	})
-	attrBytes := attribute.PackAttributesOrdered(attrs)
+
+	// Calculate total size including raw attributes
+	attrSize := attribute.AttributesSize(attrs)
+	rawSize := 0
+	for _, raw := range first.RawAttributeBytes {
+		rawSize += len(raw)
+	}
+	attrBytes := make([]byte, attrSize+rawSize)
+	off := attribute.WriteAttributesOrdered(attrs, attrBytes, 0)
 
 	// Append raw attributes from first route (pass-through from config)
 	for _, raw := range first.RawAttributeBytes {
-		attrBytes = append(attrBytes, raw...)
+		off += copy(attrBytes[off:], raw)
 	}
 
 	return attrBytes

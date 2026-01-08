@@ -1044,6 +1044,57 @@ func (p *Peer) SendUpdate(update *message.Update) error {
 	return session.SendUpdate(update)
 }
 
+// SendAnnounce sends a BGP UPDATE message for announcing a route.
+// Eliminates large buffer allocations by writing directly to session buffer.
+// Returns ErrNotConnected if no session is active.
+//
+// RFC 4271 Section 4.3 - UPDATE Message Format.
+// RFC 4760 Section 3 - MP_REACH_NLRI for IPv6 routes.
+// RFC 7911 - ADD-PATH encoding based on negotiated capabilities.
+func (p *Peer) SendAnnounce(route api.RouteSpec, localAS uint32) error {
+	p.mu.RLock()
+	session := p.session
+	p.mu.RUnlock()
+
+	if session == nil {
+		return ErrNotConnected
+	}
+
+	isIBGP := p.settings.IsIBGP()
+	family := nlri.Family{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast}
+	if route.Prefix.Addr().Is6() {
+		family = nlri.Family{AFI: nlri.AFIIPv6, SAFI: nlri.SAFIUnicast}
+	}
+	ctx := p.packContext(family)
+
+	return session.SendAnnounce(route, localAS, isIBGP, ctx)
+}
+
+// SendWithdraw sends a BGP UPDATE message for withdrawing a route.
+// Eliminates large buffer allocations by writing directly to session buffer.
+// Returns ErrNotConnected if no session is active.
+//
+// RFC 4271 Section 4.3 - UPDATE Message Format (Withdrawn Routes for IPv4).
+// RFC 4760 Section 4 - MP_UNREACH_NLRI for IPv6 withdrawals.
+// RFC 7911 - ADD-PATH encoding based on negotiated capabilities.
+func (p *Peer) SendWithdraw(prefix netip.Prefix) error {
+	p.mu.RLock()
+	session := p.session
+	p.mu.RUnlock()
+
+	if session == nil {
+		return ErrNotConnected
+	}
+
+	family := nlri.Family{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast}
+	if prefix.Addr().Is6() {
+		family = nlri.Family{AFI: nlri.AFIIPv6, SAFI: nlri.SAFIUnicast}
+	}
+	ctx := p.packContext(family)
+
+	return session.SendWithdraw(prefix, ctx)
+}
+
 // SendRawUpdateBody sends a pre-encoded UPDATE message body (without BGP header).
 // Used for zero-copy forwarding when encoding contexts match.
 // Returns ErrNotConnected if no session is active.

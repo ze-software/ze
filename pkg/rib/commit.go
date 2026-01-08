@@ -139,9 +139,15 @@ func (c *CommitService) buildGroupedUpdateTwoLevel(attrGroup *AttributeGroup, as
 	ctx := c.packContext(family)
 
 	// Collect all NLRIs from the ASPathGroup
-	var nlriBytes []byte
+	// Calculate total size first
+	totalSize := 0
 	for _, route := range aspGroup.Routes {
-		nlriBytes = append(nlriBytes, route.NLRI().Pack(ctx)...)
+		totalSize += nlri.LenWithContext(route.NLRI(), ctx)
+	}
+	nlriBytes := make([]byte, totalSize)
+	off := 0
+	for _, route := range aspGroup.Routes {
+		off += nlri.WriteNLRI(route.NLRI(), nlriBytes, off, ctx)
 	}
 
 	// Build path attributes with explicit AS_PATH
@@ -168,7 +174,9 @@ func (c *CommitService) buildSingleUpdate(route *Route) *message.Update {
 
 	// Create PackContext for capability-aware NLRI encoding (RFC 7911 ADD-PATH)
 	ctx := c.packContext(family)
-	nlriBytes := route.NLRI().Pack(ctx)
+	nlriLen := nlri.LenWithContext(route.NLRI(), ctx)
+	nlriBytes := make([]byte, nlriLen)
+	nlri.WriteNLRI(route.NLRI(), nlriBytes, 0, ctx)
 
 	// Use getRouteASPath to get AS_PATH (explicit field or from attrs)
 	asPath := getRouteASPath(route)

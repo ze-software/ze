@@ -129,7 +129,9 @@ func buildGroupKey(route *Route) string {
 				continue // AS_PATH is handled at level 2
 			}
 			buf.WriteByte(byte(attr.Code()))
-			buf.Write(attr.Pack())
+			attrBuf := make([]byte, attr.Len())
+			attr.WriteTo(attrBuf, 0)
+			buf.Write(attrBuf)
 		}
 	}
 

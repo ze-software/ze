@@ -772,7 +772,11 @@ func TestSplitUpdate_DetectsMPReach(t *testing.T) {
 	}
 
 	// Pack MP_REACH_NLRI as attribute
-	pathAttrs := attribute.PackAttribute(mpReach)
+	pathAttrs := make([]byte, 3+mpReach.Len())
+	if mpReach.Len() > 255 {
+		pathAttrs = make([]byte, 4+mpReach.Len())
+	}
+	attribute.WriteAttrTo(mpReach, pathAttrs, 0)
 
 	u := &Update{
 		PathAttributes: pathAttrs,
@@ -809,7 +813,13 @@ func TestSplitUpdate_DetectsMPUnreach(t *testing.T) {
 		NLRI: mpNLRI,
 	}
 
-	pathAttrs := attribute.PackAttribute(mpUnreach)
+	attrLen := mpUnreach.Len()
+	hdrLen := 3
+	if attrLen > 255 {
+		hdrLen = 4
+	}
+	pathAttrs := make([]byte, hdrLen+attrLen)
+	attribute.WriteAttrTo(mpUnreach, pathAttrs, 0)
 
 	u := &Update{
 		PathAttributes: pathAttrs,
@@ -846,7 +856,14 @@ func TestSplitUpdate_PreservesOtherAttrs(t *testing.T) {
 		NextHops: []netip.Addr{netip.MustParseAddr("2001:db8::1")},
 		NLRI:     mpNLRI,
 	}
-	attrs = append(attrs, attribute.PackAttribute(mpReach)...)
+	mpReachLen := mpReach.Len()
+	mpReachHdr := 3
+	if mpReachLen > 255 {
+		mpReachHdr = 4
+	}
+	mpReachBuf := make([]byte, mpReachHdr+mpReachLen)
+	attribute.WriteAttrTo(mpReach, mpReachBuf, 0)
+	attrs = append(attrs, mpReachBuf...)
 
 	u := &Update{PathAttributes: attrs}
 
@@ -893,7 +910,14 @@ func TestSplitUpdate_BothMPReachAndUnreach(t *testing.T) {
 		SAFI: attribute.SAFI(1),
 		NLRI: unreachNLRI,
 	}
-	attrs = append(attrs, attribute.PackAttribute(mpUnreach)...)
+	mpUnreachLen := mpUnreach.Len()
+	mpUnreachHdr := 3
+	if mpUnreachLen > 255 {
+		mpUnreachHdr = 4
+	}
+	mpUnreachBuf := make([]byte, mpUnreachHdr+mpUnreachLen)
+	attribute.WriteAttrTo(mpUnreach, mpUnreachBuf, 0)
+	attrs = append(attrs, mpUnreachBuf...)
 
 	// MP_REACH_NLRI with many prefixes (announcements)
 	var reachNLRI []byte
@@ -907,7 +931,14 @@ func TestSplitUpdate_BothMPReachAndUnreach(t *testing.T) {
 		NextHops: []netip.Addr{netip.MustParseAddr("2001:db8::1")},
 		NLRI:     reachNLRI,
 	}
-	attrs = append(attrs, attribute.PackAttribute(mpReach)...)
+	mpReachLen := mpReach.Len()
+	mpReachHdr := 3
+	if mpReachLen > 255 {
+		mpReachHdr = 4
+	}
+	mpReachBuf := make([]byte, mpReachHdr+mpReachLen)
+	attribute.WriteAttrTo(mpReach, mpReachBuf, 0)
+	attrs = append(attrs, mpReachBuf...)
 
 	u := &Update{PathAttributes: attrs}
 

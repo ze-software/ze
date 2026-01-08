@@ -59,6 +59,31 @@ func TestRouteDistinguisherType2(t *testing.T) {
 	assert.Equal(t, "65536:100", rd.String())
 }
 
+// TestRouteDistinguisherLenMatchesWriteTo verifies Len() == WriteTo() bytes.
+//
+// VALIDATES: Len() accurately predicts WriteTo output size.
+//
+// PREVENTS: Buffer overflow from undersized allocation.
+func TestRouteDistinguisherLenMatchesWriteTo(t *testing.T) {
+	tests := []RouteDistinguisher{
+		{Type: RDType0, Value: [6]byte{0xFD, 0xE8, 0x00, 0x00, 0x00, 0x64}}, // 65000:100
+		{Type: RDType1, Value: [6]byte{0x0A, 0x00, 0x00, 0x01, 0x00, 0x64}}, // 10.0.0.1:100
+		{Type: RDType2, Value: [6]byte{0x00, 0x01, 0x00, 0x00, 0x00, 0x64}}, // 65536:100
+	}
+
+	for _, rd := range tests {
+		t.Run(rd.String(), func(t *testing.T) {
+			expectedLen := rd.Len()
+
+			buf := make([]byte, 100)
+			n := rd.WriteTo(buf, 0)
+
+			assert.Equal(t, expectedLen, n, "Len()=%d but WriteTo()=%d", expectedLen, n)
+			assert.Equal(t, 8, n, "RD should always be 8 bytes")
+		})
+	}
+}
+
 // TestLabelStackSingle verifies single label parsing.
 //
 // VALIDATES: MPLS label parsing with bottom-of-stack bit.

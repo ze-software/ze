@@ -215,3 +215,250 @@ func TestPackAttributesOrdered(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, AttrOrigin, code1, "first attribute should be ORIGIN")
 }
+
+// TestWriteHeaderToBoundary verifies 255/256 byte boundary handling.
+//
+// RFC 4271 Section 4.3: Extended Length flag (0x10) required when length > 255.
+//
+// VALIDATES: WriteHeaderTo auto-sets extended length flag at boundary.
+//
+// PREVENTS: Length byte overflow causing malformed attribute header.
+func TestWriteHeaderToBoundary(t *testing.T) {
+	tests := []struct {
+		name       string
+		length     uint16
+		wantHdrLen int
+		wantExtLen bool
+	}{
+		{
+			name:       "length 0",
+			length:     0,
+			wantHdrLen: 3,
+			wantExtLen: false,
+		},
+		{
+			name:       "length 254",
+			length:     254,
+			wantHdrLen: 3,
+			wantExtLen: false,
+		},
+		{
+			name:       "length 255 (max 1-byte)",
+			length:     255,
+			wantHdrLen: 3,
+			wantExtLen: false,
+		},
+		{
+			name:       "length 256 (requires extended)",
+			length:     256,
+			wantHdrLen: 4,
+			wantExtLen: true,
+		},
+		{
+			name:       "length 1000",
+			length:     1000,
+			wantHdrLen: 4,
+			wantExtLen: true,
+		},
+		{
+			name:       "length 65535 (max)",
+			length:     65535,
+			wantHdrLen: 4,
+			wantExtLen: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			buf := make([]byte, 10)
+			n := WriteHeaderTo(buf, 0, FlagTransitive, AttrASPath, tt.length)
+
+			assert.Equal(t, tt.wantHdrLen, n, "header length")
+
+			// Verify extended length flag
+			flags := AttributeFlags(buf[0])
+			assert.Equal(t, tt.wantExtLen, flags.IsExtLength(), "extended length flag")
+
+			// Verify length value can be read back correctly
+			_, _, parsedLen, _, err := ParseHeader(buf[:n])
+			require.NoError(t, err)
+			assert.Equal(t, tt.length, parsedLen, "parsed length")
+		})
+	}
+}
+
+// TestWriteHeaderToMatchesPack verifies WriteHeaderTo matches PackHeader.
+//
+// VALIDATES: Zero-allocation WriteHeaderTo matches allocating PackHeader.
+//
+// PREVENTS: Wire format divergence between Pack and WriteTo header implementations.
+func TestWriteHeaderToMatchesPack(t *testing.T) {
+	tests := []struct {
+		flags  AttributeFlags
+		code   AttributeCode
+		length uint16
+	}{
+		{FlagTransitive, AttrOrigin, 1},
+		{FlagOptional | FlagTransitive, AttrCommunity, 100},
+		{FlagTransitive, AttrASPath, 255},
+		{FlagTransitive, AttrASPath, 256},
+		{FlagTransitive, AttrASPath, 1000},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.code.String(), func(t *testing.T) {
+			expected := PackHeader(tt.flags, tt.code, tt.length)
+
+			buf := make([]byte, 10)
+			n := WriteHeaderTo(buf, 0, tt.flags, tt.code, tt.length)
+
+			assert.Equal(t, len(expected), n, "length mismatch")
+			assert.Equal(t, expected, buf[:n], "content mismatch")
+		})
+	}
+}
+
+// TestWriteHeaderToOffset verifies WriteHeaderTo respects offset.
+//
+// VALIDATES: WriteHeaderTo writes at correct offset.
+//
+// PREVENTS: Buffer corruption when writing at non-zero offset.
+func TestWriteHeaderToOffset(t *testing.T) {
+	buf := make([]byte, 100)
+	for i := range buf {
+		buf[i] = 0xAA
+	}
+
+	offset := 50
+	n := WriteHeaderTo(buf, offset, FlagTransitive, AttrASPath, 300)
+
+	assert.Equal(t, 4, n) // Extended length header
+
+	// Verify bytes before offset are untouched
+	for i := 0; i < offset; i++ {
+		assert.Equal(t, byte(0xAA), buf[i], "byte %d should be untouched", i)
+	}
+
+	// Verify header written correctly
+	flags, code, length, _, err := ParseHeader(buf[offset:])
+	require.NoError(t, err)
+	assert.Equal(t, FlagTransitive|FlagExtLength, flags)
+	assert.Equal(t, AttrASPath, code)
+	assert.Equal(t, uint16(300), length)
+}
+
+// TestWriteAttrToExtendedLength verifies WriteAttrTo handles large attributes.
+//
+// RFC 4271 Section 4.3: Extended Length flag required when value > 255 bytes.
+//
+// VALIDATES: WriteAttrTo correctly sets extended length for large attributes.
+//
+// PREVENTS: Length byte overflow causing malformed attribute (bug found in code review).
+func TestWriteAttrToExtendedLength(t *testing.T) {
+	tests := []struct {
+		name       string
+		attr       Attribute
+		wantExtLen bool
+	}{
+		{
+			name:       "small COMMUNITIES (4 bytes)",
+			attr:       Communities{Community(0xFDE90064)},
+			wantExtLen: false,
+		},
+		{
+			name:       "63 communities (252 bytes - no extended)",
+			attr:       makeCommunities(63),
+			wantExtLen: false,
+		},
+		{
+			name:       "64 communities (256 bytes - extended)",
+			attr:       makeCommunities(64),
+			wantExtLen: true,
+		},
+		{
+			name:       "100 communities (400 bytes - extended)",
+			attr:       makeCommunities(100),
+			wantExtLen: true,
+		},
+		{
+			name:       "small AS_PATH",
+			attr:       &ASPath{Segments: []ASPathSegment{{Type: ASSequence, ASNs: []uint32{65001}}}},
+			wantExtLen: false,
+		},
+		{
+			name:       "large AS_PATH (100 ASNs = 402 bytes)",
+			attr:       makeASPath(100),
+			wantExtLen: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			buf := make([]byte, 4096)
+			n := WriteAttrTo(tt.attr, buf, 0)
+
+			// Check extended length flag
+			flags := AttributeFlags(buf[0])
+			assert.Equal(t, tt.wantExtLen, flags.IsExtLength(), "extended length flag")
+
+			// Parse back to verify correctness
+			parsedFlags, parsedCode, parsedLen, hdrLen, err := ParseHeader(buf[:n])
+			require.NoError(t, err)
+			assert.Equal(t, tt.attr.Code(), parsedCode, "attribute code")
+			assert.Equal(t, tt.attr.Len(), int(parsedLen), "attribute length")
+			assert.Equal(t, n, hdrLen+int(parsedLen), "total bytes")
+
+			// Verify transitive flag preserved
+			if tt.attr.Flags()&FlagTransitive != 0 {
+				assert.True(t, parsedFlags.IsTransitive(), "transitive flag should be preserved")
+			}
+		})
+	}
+}
+
+// TestWriteAttrToMatchesPackAttribute verifies WriteAttrTo matches PackAttribute.
+//
+// VALIDATES: Zero-allocation WriteAttrTo matches allocating PackAttribute.
+//
+// PREVENTS: Wire format divergence between Pack and WriteTo implementations.
+func TestWriteAttrToMatchesPackAttribute(t *testing.T) {
+	attrs := []Attribute{
+		OriginIGP,
+		Communities{Community(0xFDE90064), CommunityNoExport},
+		makeCommunities(100), // Large to test extended length
+		&ASPath{Segments: []ASPathSegment{{Type: ASSequence, ASNs: []uint32{65001, 65002}}}},
+		makeASPath(100), // Large to test extended length
+	}
+
+	for _, attr := range attrs {
+		t.Run(attr.Code().String(), func(t *testing.T) {
+			expected := PackAttribute(attr)
+
+			buf := make([]byte, 4096)
+			n := WriteAttrTo(attr, buf, 0)
+
+			assert.Equal(t, len(expected), n, "length mismatch")
+			assert.Equal(t, expected, buf[:n], "content mismatch")
+		})
+	}
+}
+
+// Helper to create large Communities for testing.
+func makeCommunities(n int) Communities {
+	comms := make(Communities, n)
+	for i := range comms {
+		comms[i] = Community(uint32(0xFFFF0000 | i))
+	}
+	return comms
+}
+
+// Helper to create large ASPath for testing.
+func makeASPath(n int) *ASPath {
+	asns := make([]uint32, n)
+	for i := range asns {
+		asns[i] = uint32(65000 + i)
+	}
+	return &ASPath{
+		Segments: []ASPathSegment{{Type: ASSequence, ASNs: asns}},
+	}
+}

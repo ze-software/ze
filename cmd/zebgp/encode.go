@@ -224,11 +224,15 @@ func encodeUnicastRoute(ub *message.UpdateBuilder, routeCmd string, isIPv6 bool,
 		// For IPv6, NLRI is in MP_REACH_NLRI - extract from path attributes
 		// For now, just pack the prefix directly
 		inet := nlri.NewINET(nlri.Family{AFI: nlri.AFIIPv6, SAFI: nlri.SAFIUnicast}, parsed.Route.Prefix, 0)
-		nlriBytes = inet.Pack(ctx)
+		nlriLen := nlri.LenWithContext(inet, ctx)
+		nlriBytes = make([]byte, nlriLen)
+		nlri.WriteNLRI(inet, nlriBytes, 0, ctx)
 	} else {
 		// For IPv4, NLRI is inline
 		inet := nlri.NewINET(nlri.Family{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast}, parsed.Route.Prefix, 0)
-		nlriBytes = inet.Pack(ctx)
+		nlriLen := nlri.LenWithContext(inet, ctx)
+		nlriBytes = make([]byte, nlriLen)
+		nlri.WriteNLRI(inet, nlriBytes, 0, ctx)
 	}
 
 	// Pack UPDATE body - create minimal Negotiated for packing
@@ -377,7 +381,9 @@ func encodeEVPNRoute(ub *message.UpdateBuilder, routeCmd string, ctx *nlri.PackC
 	case 5:
 		evpnNLRI = nlri.NewEVPNType5(params.RD, params.ESI, params.EthernetTag, params.Prefix, params.Gateway, params.Labels)
 	}
-	nlriBytes := evpnNLRI.Pack(ctx)
+	nlriLen := nlri.LenWithContext(evpnNLRI, ctx)
+	nlriBytes := make([]byte, nlriLen)
+	nlri.WriteNLRI(evpnNLRI, nlriBytes, 0, ctx)
 
 	return updateBody, nlriBytes, nil
 }

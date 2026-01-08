@@ -90,6 +90,9 @@ func (h HexBlob) EncodeHex(buf []byte, off int) int {
 	return HexEncode(buf, off, h)
 }
 
+// Len returns the raw byte length (not hex-encoded length).
+func (h HexBlob) Len() int { return len(h) }
+
 // WriteTo implements BufWriter by writing raw bytes (not hex).
 func (h HexBlob) WriteTo(buf []byte, off int) int {
 	return copy(buf[off:], h)

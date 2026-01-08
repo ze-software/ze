@@ -4,6 +4,7 @@ package reactor
 
 import (
 	"context"
+	"encoding/binary"
 	"errors"
 	"fmt"
 	"io"
@@ -344,12 +345,8 @@ func (a *reactorAPIAdapter) AnnounceRoute(peerSelector string, route api.RouteSp
 		resolvedRoute.NextHop = api.NewNextHopExplicit(nextHopAddr)
 
 		if peer.State() == PeerStateEstablished {
-			// Send immediately
-			// RFC 7911: Get PackContext for ADD-PATH encoding
-			// RFC 6793: ctx.ASN4 provides 4-byte AS capability
-			ctx := peer.packContext(n.Family())
-			update := buildAnnounceUpdate(resolvedRoute, a.r.config.LocalAS, isIBGP, ctx)
-			if err := peer.SendUpdate(update); err != nil {
+			// RFC 4271 Section 4.3 - Send UPDATE immediately (zero-allocation path)
+			if err := peer.SendAnnounce(resolvedRoute, a.r.config.LocalAS); err != nil {
 				lastErr = err
 			}
 		} else {
@@ -379,11 +376,8 @@ func (a *reactorAPIAdapter) WithdrawRoute(peerSelector string, prefix netip.Pref
 	var lastErr error
 	for _, peer := range peers {
 		if peer.State() == PeerStateEstablished {
-			// Send immediately
-			// RFC 7911: Get PackContext for ADD-PATH encoding
-			ctx := peer.packContext(n.Family())
-			update := buildWithdrawUpdate(prefix, ctx)
-			if err := peer.SendUpdate(update); err != nil {
+			// RFC 4271 Section 4.3 - Send UPDATE immediately (zero-allocation path)
+			if err := peer.SendWithdraw(prefix); err != nil {
 				lastErr = err
 			}
 		} else {
@@ -445,6 +439,8 @@ func (a *reactorAPIAdapter) sendToMatchingPeers(selector string, update *message
 //
 // RFC 7911: ctx provides ADD-PATH capability state for NLRI encoding.
 // RFC 6793: ctx.ASN4 determines 2-byte vs 4-byte AS numbers in AS_PATH.
+//
+// Deprecated: Use WriteAnnounceUpdate or peer.SendAnnounce for zero-allocation path.
 func buildAnnounceUpdate(route api.RouteSpec, localAS uint32, isIBGP bool, ctx *nlri.PackContext) *message.Update {
 	// Pre-allocate buffer for attributes (4KB typical BGP max)
 	attrBuf := make([]byte, 4096)
@@ -571,6 +567,8 @@ func buildAnnounceUpdate(route api.RouteSpec, localAS uint32, isIBGP bool, ctx *
 // buildWithdrawUpdate builds an UPDATE message for withdrawing a route.
 // RFC 4760 Section 4: IPv6 withdrawals use MP_UNREACH_NLRI attribute.
 // RFC 7911: ctx provides ADD-PATH capability state for NLRI encoding.
+//
+// Deprecated: Use WriteWithdrawUpdate or peer.SendWithdraw for zero-allocation path.
 func buildWithdrawUpdate(prefix netip.Prefix, ctx *nlri.PackContext) *message.Update {
 	if prefix.Addr().Is4() {
 		// IPv4: Use WithdrawnRoutes field
@@ -603,6 +601,411 @@ func buildWithdrawUpdate(prefix netip.Prefix, ctx *nlri.PackContext) *message.Up
 	return &message.Update{
 		PathAttributes: attrBuf[:attrLen],
 	}
+}
+
+// Zero-allocation attribute writers.
+// These functions write attributes directly to the buffer without allocating structs.
+
+// writeOriginAttr writes ORIGIN attribute directly to buf.
+// RFC 4271 §5.1.1: Well-known mandatory, 1 byte value.
+func writeOriginAttr(buf []byte, off int, origin uint8) int {
+	// Header: Transitive(0x40) | code(1) | len(1)
+	buf[off] = byte(attribute.FlagTransitive)
+	buf[off+1] = byte(attribute.AttrOrigin)
+	buf[off+2] = 1
+	buf[off+3] = origin
+	return 4
+}
+
+// writeASPathAttr writes AS_PATH attribute directly to buf.
+// RFC 4271 §5.1.2: Well-known mandatory.
+// RFC 6793: asn4 determines 2-byte vs 4-byte AS numbers.
+// RFC 4271 §4.3: Handles segment splitting for >255 ASNs and extended length.
+func writeASPathAttr(buf []byte, off int, asns []uint32, asn4 bool) int {
+	start := off
+	asnSize := 2
+	if asn4 {
+		asnSize = 4
+	}
+
+	// RFC 4271: Max 255 ASNs per segment, split if needed
+	// Calculate total value length accounting for segment splitting
+	var valueLen int
+	remaining := len(asns)
+	for remaining > 0 {
+		chunk := remaining
+		if chunk > attribute.MaxASPathSegmentLength {
+			chunk = attribute.MaxASPathSegmentLength
+		}
+		valueLen += 2 + chunk*asnSize // type(1) + count(1) + asns
+		remaining -= chunk
+	}
+	// Empty AS_PATH for iBGP has valueLen=0
+
+	// RFC 4271 §4.3: Use extended length if > 255 bytes
+	if valueLen > 255 {
+		buf[off] = byte(attribute.FlagTransitive | attribute.FlagExtLength)
+		buf[off+1] = byte(attribute.AttrASPath)
+		binary.BigEndian.PutUint16(buf[off+2:], uint16(valueLen)) //nolint:gosec
+		off += 4
+	} else {
+		buf[off] = byte(attribute.FlagTransitive)
+		buf[off+1] = byte(attribute.AttrASPath)
+		buf[off+2] = byte(valueLen)
+		off += 3
+	}
+
+	// Value: write segments, splitting at 255 ASNs
+	remaining = len(asns)
+	idx := 0
+	for remaining > 0 {
+		chunk := remaining
+		if chunk > attribute.MaxASPathSegmentLength {
+			chunk = attribute.MaxASPathSegmentLength
+		}
+
+		buf[off] = byte(attribute.ASSequence) // Type
+		buf[off+1] = byte(chunk)              // Count
+		off += 2
+
+		for i := 0; i < chunk; i++ {
+			asn := asns[idx+i]
+			if asn4 {
+				binary.BigEndian.PutUint32(buf[off:], asn)
+				off += 4
+			} else {
+				// RFC 6793: Map to AS_TRANS if > 65535
+				if asn > 65535 {
+					binary.BigEndian.PutUint16(buf[off:], 23456) // AS_TRANS
+				} else {
+					binary.BigEndian.PutUint16(buf[off:], uint16(asn)) //nolint:gosec
+				}
+				off += 2
+			}
+		}
+
+		idx += chunk
+		remaining -= chunk
+	}
+
+	return off - start
+}
+
+// writeNextHopAttr writes NEXT_HOP attribute directly to buf.
+// RFC 4271 §5.1.3: Well-known mandatory, 4 bytes for IPv4.
+func writeNextHopAttr(buf []byte, off int, addr netip.Addr) int {
+	// Header: Transitive(0x40) | code(3) | len(4)
+	buf[off] = byte(attribute.FlagTransitive)
+	buf[off+1] = byte(attribute.AttrNextHop)
+	buf[off+2] = 4
+	a4 := addr.As4()
+	copy(buf[off+3:], a4[:])
+	return 7
+}
+
+// writeMEDAttr writes MED attribute directly to buf.
+// RFC 4271 §5.1.4: Optional non-transitive, 4 bytes.
+func writeMEDAttr(buf []byte, off int, med uint32) int {
+	// Header: Optional(0x80) | code(4) | len(4)
+	buf[off] = byte(attribute.FlagOptional)
+	buf[off+1] = byte(attribute.AttrMED)
+	buf[off+2] = 4
+	binary.BigEndian.PutUint32(buf[off+3:], med)
+	return 7
+}
+
+// writeLocalPrefAttr writes LOCAL_PREF attribute directly to buf.
+// RFC 4271 §5.1.5: Well-known for iBGP, 4 bytes.
+func writeLocalPrefAttr(buf []byte, off int, localPref uint32) int {
+	// Header: Transitive(0x40) | code(5) | len(4)
+	buf[off] = byte(attribute.FlagTransitive)
+	buf[off+1] = byte(attribute.AttrLocalPref)
+	buf[off+2] = 4
+	binary.BigEndian.PutUint32(buf[off+3:], localPref)
+	return 7
+}
+
+// writeCommunitiesAttr writes COMMUNITIES attribute directly to buf.
+// RFC 1997: Optional transitive, 4 bytes per community.
+// RFC 4271 §4.3: Uses extended length for >63 communities (>255 bytes).
+func writeCommunitiesAttr(buf []byte, off int, communities []uint32) int {
+	start := off
+	valueLen := len(communities) * 4
+
+	// RFC 4271 §4.3: Use extended length if > 255 bytes
+	flags := attribute.FlagOptional | attribute.FlagTransitive
+	if valueLen > 255 {
+		buf[off] = byte(flags | attribute.FlagExtLength)
+		buf[off+1] = byte(attribute.AttrCommunity)
+		binary.BigEndian.PutUint16(buf[off+2:], uint16(valueLen)) //nolint:gosec
+		off += 4
+	} else {
+		buf[off] = byte(flags)
+		buf[off+1] = byte(attribute.AttrCommunity)
+		buf[off+2] = byte(valueLen)
+		off += 3
+	}
+
+	for _, c := range communities {
+		binary.BigEndian.PutUint32(buf[off:], c)
+		off += 4
+	}
+
+	return off - start
+}
+
+// WriteAnnounceUpdate writes a complete BGP UPDATE message for announcing a route
+// directly into buf at offset off. Returns total bytes written.
+//
+// True zero-allocation: writes all attributes directly to the buffer.
+//
+// RFC 4271 Section 4.3 - UPDATE message format.
+// RFC 7911: ctx provides ADD-PATH capability state for NLRI encoding.
+// RFC 6793: ctx.ASN4 determines 2-byte vs 4-byte AS numbers in AS_PATH.
+func WriteAnnounceUpdate(buf []byte, off int, route api.RouteSpec, localAS uint32, isIBGP bool, ctx *nlri.PackContext) int {
+	start := off
+
+	// RFC 4271 Section 4.1 - BGP Header: 16-byte marker (all 0xFF)
+	for i := 0; i < message.MarkerLen; i++ {
+		buf[off+i] = 0xFF
+	}
+	off += message.MarkerLen
+
+	// Length placeholder (backfill after body)
+	lengthPos := off
+	off += 2
+
+	// Type = UPDATE
+	buf[off] = byte(message.TypeUPDATE)
+	off++
+
+	// RFC 4271 Section 4.3 - Withdrawn Routes Length = 0 (announce, not withdraw)
+	buf[off] = 0
+	buf[off+1] = 0
+	off += 2
+
+	// Path Attributes Length placeholder (backfill after attrs)
+	attrLenPos := off
+	off += 2
+	attrStart := off
+
+	// Determine ASN4 mode from context
+	asn4 := ctx == nil || ctx.ASN4
+
+	// 1. ORIGIN - RFC 4271 §5.1.1: Well-known mandatory attribute.
+	var origin uint8 = uint8(attribute.OriginIGP)
+	if route.Origin != nil {
+		origin = *route.Origin
+	}
+	off += writeOriginAttr(buf, off, origin)
+
+	// 2. AS_PATH - RFC 4271 §5.1.2: Well-known mandatory attribute.
+	// Zero-alloc: write directly without creating ASPath struct.
+	var asPathASNs []uint32
+	switch {
+	case len(route.ASPath) > 0:
+		asPathASNs = route.ASPath // Use caller's slice directly
+	case isIBGP:
+		asPathASNs = nil // Empty AS_PATH for iBGP
+	default:
+		// eBGP: prepend local AS - use stack-allocated array
+		asPathASNs = []uint32{localAS}
+	}
+	off += writeASPathAttr(buf, off, asPathASNs, asn4)
+
+	isIPv6 := route.Prefix.Addr().Is6()
+	nhAddr := route.NextHop.Addr
+
+	// 3. NEXT_HOP - RFC 4271 §5.1.3 (IPv4 only; IPv6 uses MP_REACH_NLRI)
+	if !isIPv6 {
+		off += writeNextHopAttr(buf, off, nhAddr)
+	}
+
+	// 4. MED - RFC 4271 §5.1.4: Optional non-transitive attribute.
+	if route.MED != nil {
+		off += writeMEDAttr(buf, off, *route.MED)
+	}
+
+	// 5. LOCAL_PREF - RFC 4271 §5.1.5: Well-known attribute for iBGP only.
+	if isIBGP {
+		localPref := uint32(100)
+		if route.LocalPreference != nil {
+			localPref = *route.LocalPreference
+		}
+		off += writeLocalPrefAttr(buf, off, localPref)
+	}
+
+	// 6. COMMUNITY - RFC 1997: Optional transitive attribute.
+	if len(route.Communities) > 0 {
+		off += writeCommunitiesAttr(buf, off, route.Communities)
+	}
+
+	// 7. LARGE_COMMUNITY - RFC 8092: Optional transitive attribute.
+	// Type conversion only, no allocation.
+	if len(route.LargeCommunities) > 0 {
+		lcomms := attribute.LargeCommunities(route.LargeCommunities)
+		off += attribute.WriteAttrTo(lcomms, buf, off)
+	}
+
+	// 8. EXTENDED_COMMUNITIES - RFC 4360: Optional transitive attribute.
+	// Type conversion only, no allocation.
+	if len(route.ExtendedCommunities) > 0 {
+		extComms := attribute.ExtendedCommunities(route.ExtendedCommunities)
+		off += attribute.WriteAttrTo(extComms, buf, off)
+	}
+
+	// NLRI handling - MP_REACH_NLRI (14) goes at end per our pattern
+	if !isIPv6 {
+		// IPv4: Write NLRI directly after attributes (zero-alloc)
+		// Backfill attr length first
+		attrLen := off - attrStart
+		buf[attrLenPos] = byte(attrLen >> 8)
+		buf[attrLenPos+1] = byte(attrLen)
+
+		// RFC 7911: WriteNLRI handles ADD-PATH encoding
+		inet := nlri.NewINET(nlri.Family{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast}, route.Prefix, 0)
+		off += nlri.WriteNLRI(inet, buf, off, ctx)
+	} else {
+		// RFC 4760 Section 3 - IPv6: Write MP_REACH_NLRI directly (zero-alloc)
+		// Wire format: AFI(2) + SAFI(1) + NH_Len(1) + NextHop(16) + Reserved(1) + NLRI(var)
+		inet := nlri.NewINET(nlri.Family{AFI: nlri.AFIIPv6, SAFI: nlri.SAFIUnicast}, route.Prefix, 0)
+		nlriPayloadLen := nlri.LenWithContext(inet, ctx)
+		nhLen := 16 // IPv6 next-hop
+		mpValueLen := 2 + 1 + 1 + nhLen + 1 + nlriPayloadLen
+
+		// RFC 4760 Section 3 - Attribute header (Optional, non-transitive)
+		off += attribute.WriteHeaderTo(buf, off, attribute.FlagOptional, attribute.AttrMPReachNLRI, uint16(mpValueLen)) //nolint:gosec
+
+		// RFC 4760 Section 3 - AFI (2 octets)
+		buf[off] = 0
+		buf[off+1] = byte(attribute.AFIIPv6)
+		off += 2
+
+		// RFC 4760 Section 3 - SAFI (1 octet)
+		buf[off] = byte(attribute.SAFIUnicast)
+		off++
+
+		// RFC 4760 Section 3 - Length of Next Hop (1 octet)
+		buf[off] = byte(nhLen)
+		off++
+
+		// RFC 4760 Section 3 - Network Address of Next Hop (variable)
+		off += copy(buf[off:], nhAddr.AsSlice())
+
+		// RFC 4760 Section 3 - Reserved (1 octet, MUST be 0)
+		buf[off] = 0
+		off++
+
+		// RFC 4760 Section 3 - NLRI (variable)
+		// RFC 7911: WriteNLRI handles ADD-PATH encoding when negotiated
+		off += nlri.WriteNLRI(inet, buf, off, ctx)
+
+		// Backfill attr length (no inline NLRI for IPv6)
+		attrLen := off - attrStart
+		buf[attrLenPos] = byte(attrLen >> 8)
+		buf[attrLenPos+1] = byte(attrLen)
+	}
+
+	// Backfill total message length
+	totalLen := off - start
+	buf[lengthPos] = byte(totalLen >> 8)
+	buf[lengthPos+1] = byte(totalLen)
+
+	return totalLen
+}
+
+// WriteWithdrawUpdate writes a complete BGP UPDATE message for withdrawing a route
+// directly into buf at offset off. Returns total bytes written.
+//
+// Eliminates large buffer allocations by writing directly to the provided buffer.
+//
+// RFC 4271 Section 4.3 - UPDATE message format.
+// RFC 4760 Section 4: IPv6 withdrawals use MP_UNREACH_NLRI attribute.
+// RFC 7911: ctx provides ADD-PATH capability state for NLRI encoding.
+func WriteWithdrawUpdate(buf []byte, off int, prefix netip.Prefix, ctx *nlri.PackContext) int {
+	start := off
+
+	// RFC 4271 Section 4.1 - BGP Header: 16-byte marker (all 0xFF)
+	for i := 0; i < message.MarkerLen; i++ {
+		buf[off+i] = 0xFF
+	}
+	off += message.MarkerLen
+
+	// Length placeholder
+	lengthPos := off
+	off += 2
+
+	// Type = UPDATE
+	buf[off] = byte(message.TypeUPDATE)
+	off++
+
+	if prefix.Addr().Is4() {
+		// RFC 4271 Section 4.3 - IPv4: Use WithdrawnRoutes field (zero-alloc)
+		// Withdrawn Routes Length placeholder
+		withdrawnLenPos := off
+		off += 2
+		withdrawnStart := off
+
+		// RFC 4271 Section 4.3 - Withdrawn Routes: list of IP address prefixes
+		// RFC 7911: WriteNLRI handles ADD-PATH encoding when negotiated
+		inet := nlri.NewINET(nlri.Family{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast}, prefix, 0)
+		off += nlri.WriteNLRI(inet, buf, off, ctx)
+
+		// RFC 4271 Section 4.3 - Backfill Withdrawn Routes Length
+		withdrawnLen := off - withdrawnStart
+		buf[withdrawnLenPos] = byte(withdrawnLen >> 8)
+		buf[withdrawnLenPos+1] = byte(withdrawnLen)
+
+		// RFC 4271 Section 4.3 - Total Path Attribute Length = 0 (withdrawal only)
+		buf[off] = 0
+		buf[off+1] = 0
+		off += 2
+	} else {
+		// RFC 4760 Section 4 - IPv6: Use MP_UNREACH_NLRI attribute (zero-alloc)
+		// RFC 4271 Section 4.3 - Withdrawn Routes Length = 0 (using MP_UNREACH instead)
+		buf[off] = 0
+		buf[off+1] = 0
+		off += 2
+
+		// RFC 4271 Section 4.3 - Path Attributes Length placeholder
+		attrLenPos := off
+		off += 2
+		attrStart := off
+
+		// RFC 4760 Section 4 - MP_UNREACH_NLRI wire format:
+		//   AFI(2) + SAFI(1) + Withdrawn_NLRI(var)
+		inet := nlri.NewINET(nlri.Family{AFI: nlri.AFIIPv6, SAFI: nlri.SAFIUnicast}, prefix, 0)
+		nlriPayloadLen := nlri.LenWithContext(inet, ctx)
+		mpValueLen := 2 + 1 + nlriPayloadLen
+
+		// RFC 4760 Section 4 - Attribute header (Optional, non-transitive)
+		off += attribute.WriteHeaderTo(buf, off, attribute.FlagOptional, attribute.AttrMPUnreachNLRI, uint16(mpValueLen)) //nolint:gosec
+
+		// RFC 4760 Section 4 - AFI (2 octets)
+		buf[off] = 0
+		buf[off+1] = byte(attribute.AFIIPv6)
+		off += 2
+
+		// RFC 4760 Section 4 - SAFI (1 octet)
+		buf[off] = byte(attribute.SAFIUnicast)
+		off++
+
+		// RFC 4760 Section 4 - Withdrawn Routes (variable)
+		// RFC 7911: WriteNLRI handles ADD-PATH encoding when negotiated
+		off += nlri.WriteNLRI(inet, buf, off, ctx)
+
+		// Backfill attr length
+		attrLen := off - attrStart
+		buf[attrLenPos] = byte(attrLen >> 8)
+		buf[attrLenPos+1] = byte(attrLen)
+	}
+
+	// Backfill total message length
+	totalLen := off - start
+	buf[lengthPos] = byte(totalLen >> 8)
+	buf[lengthPos+1] = byte(totalLen)
+
+	return totalLen
 }
 
 // Reload reloads the configuration.
@@ -1720,10 +2123,9 @@ func (a *reactorAPIAdapter) AnnounceWatchdog(peerSelector, name string) error {
 			localAddr := peer.Settings().LocalAddress
 			routes := a.r.watchdog.AnnouncePool(name, peerAddr)
 			for _, pr := range routes {
-				// RFC 7911: Get PackContext for ADD-PATH encoding
-				ctx := peer.packContext(routeFamily(pr.StaticRoute))
-				update := buildAnnounceUpdateFromStatic(pr.StaticRoute, a.r.config.LocalAS, peer.Settings().IsIBGP(), localAddr, ctx)
-				if err := peer.SendUpdate(update); err != nil {
+				// RFC 4271 Section 4.3 - Send UPDATE (zero-allocation path)
+				spec := staticRouteToSpec(pr.StaticRoute, localAddr)
+				if err := peer.SendAnnounce(spec, a.r.config.LocalAS); err != nil {
 					lastErr = err
 				}
 			}
@@ -1776,14 +2178,8 @@ func (a *reactorAPIAdapter) WithdrawWatchdog(peerSelector, name string) error {
 			peerAddr := peer.Settings().Address.String()
 			routes := a.r.watchdog.WithdrawPool(name, peerAddr)
 			for _, pr := range routes {
-				// RFC 7911: Get PackContext for ADD-PATH encoding
-				family := nlri.IPv4Unicast
-				if pr.Prefix.Addr().Is6() {
-					family = nlri.IPv6Unicast
-				}
-				ctx := peer.packContext(family)
-				update := buildWithdrawUpdate(pr.Prefix, ctx)
-				if err := peer.SendUpdate(update); err != nil {
+				// RFC 4271 Section 4.3 - Send withdrawal UPDATE (zero-allocation path)
+				if err := peer.SendWithdraw(pr.Prefix); err != nil {
 					lastErr = err
 				}
 			}
@@ -1854,11 +2250,9 @@ func (a *reactorAPIAdapter) RemoveWatchdogRoute(routeKey, poolName string) error
 	return a.r.RemoveWatchdogRoute(routeKey, poolName)
 }
 
-// buildAnnounceUpdateFromStatic builds an UPDATE message from a StaticRoute.
-// Uses the route's attributes, with defaults for missing values.
+// staticRouteToSpec converts a StaticRoute to api.RouteSpec.
 // localAddress is used to resolve "next-hop self" routes.
-// RFC 7911: ctx provides ADD-PATH capability state for NLRI encoding.
-func buildAnnounceUpdateFromStatic(route StaticRoute, localAS uint32, isIBGP bool, localAddress netip.Addr, ctx *nlri.PackContext) *message.Update {
+func staticRouteToSpec(route StaticRoute, localAddress netip.Addr) api.RouteSpec {
 	// Resolve next-hop from RouteNextHop policy
 	var nextHop netip.Addr
 	if route.NextHop.IsSelf() && localAddress.IsValid() {
@@ -1866,12 +2260,11 @@ func buildAnnounceUpdateFromStatic(route StaticRoute, localAS uint32, isIBGP boo
 	} else if route.NextHop.IsExplicit() {
 		nextHop = route.NextHop.Addr
 	}
-	// If neither, nextHop remains zero value (invalid) - buildAnnounceUpdate handles this
+	// If neither, nextHop remains zero value (invalid)
 
-	// Convert StaticRoute to RouteSpec for buildAnnounceUpdate
 	spec := api.RouteSpec{
 		Prefix:  route.Prefix,
-		NextHop: api.NewNextHopExplicit(nextHop), // Pass resolved address
+		NextHop: api.NewNextHopExplicit(nextHop),
 	}
 
 	// Copy optional attributes
@@ -1904,7 +2297,17 @@ func buildAnnounceUpdateFromStatic(route StaticRoute, localAS uint32, isIBGP boo
 		}
 	}
 
-	// ctx provides ASN4 and ADD-PATH capability state
+	return spec
+}
+
+// buildAnnounceUpdateFromStatic builds an UPDATE message from a StaticRoute.
+// Uses the route's attributes, with defaults for missing values.
+// localAddress is used to resolve "next-hop self" routes.
+// RFC 7911: ctx provides ADD-PATH capability state for NLRI encoding.
+//
+// Deprecated: Use staticRouteToSpec + peer.SendAnnounce for zero-allocation path.
+func buildAnnounceUpdateFromStatic(route StaticRoute, localAS uint32, isIBGP bool, localAddress netip.Addr, ctx *nlri.PackContext) *message.Update {
+	spec := staticRouteToSpec(route, localAddress)
 	return buildAnnounceUpdate(spec, localAS, isIBGP, ctx)
 }
 
@@ -2995,14 +3398,9 @@ func (r *Reactor) RemoveWatchdogRoute(routeKey, poolName string) error {
 		// Note: removedRoute.announced is no longer protected by pool mutex,
 		// but it's safe because the route is now orphaned (no concurrent access)
 		if removedRoute.announced[peerAddr] {
-			// RFC 7911: Get PackContext for ADD-PATH encoding
-			family := nlri.IPv4Unicast
-			if removedRoute.Prefix.Addr().Is6() {
-				family = nlri.IPv6Unicast
-			}
-			ctx := peer.packContext(family)
-			update := buildWithdrawUpdate(removedRoute.Prefix, ctx)
-			_ = peer.SendUpdate(update) // Best effort, continue on error
+			// RFC 4271 Section 4.3 - Send withdrawal UPDATE (zero-allocation path)
+			// Best effort, continue on error
+			_ = peer.SendWithdraw(removedRoute.Prefix)
 		}
 	}
 	r.mu.RUnlock()

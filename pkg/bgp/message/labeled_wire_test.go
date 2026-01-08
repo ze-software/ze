@@ -92,7 +92,7 @@ func TestLabeledUnicastWireConsistency(t *testing.T) {
 				family.AFI = nlri.AFIIPv6
 			}
 			n := nlri.NewLabeledUnicast(family, tt.prefix, []uint32{tt.label}, tt.pathID)
-			actual := n.Pack(ctx)
+			actual := func() []byte { b := make([]byte, nlri.LenWithContext(n, ctx)); nlri.WriteNLRI(n, b, 0, ctx); return b }()
 
 			assert.Equal(t, expected, actual,
 				"Wire format mismatch: buildLabeledUnicastNLRIBytes vs nlri.LabeledUnicast.Pack")
@@ -120,7 +120,7 @@ func TestLabeledUnicastWireConsistency_AddPathZero(t *testing.T) {
 
 	family := nlri.Family{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIMPLSLabel}
 	n := nlri.NewLabeledUnicast(family, prefix, []uint32{label}, pathID)
-	nlriBytes := n.Pack(ctx)
+	nlriBytes := func() []byte { b := make([]byte, nlri.LenWithContext(n, ctx)); nlri.WriteNLRI(n, b, 0, ctx); return b }()
 
 	// RFC 7911: Both should include 4-byte path ID (even if 0)
 	// Format: [0,0,0,0][length][label][prefix]

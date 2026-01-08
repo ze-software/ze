@@ -41,7 +41,9 @@ type hashableAttr struct {
 
 func (h hashableAttr) Hash() uint64 {
 	// Hash the packed bytes
-	return store.HashBytes(h.attr.Pack())
+	buf := make([]byte, h.attr.Len())
+	h.attr.WriteTo(buf, 0)
+	return store.HashBytes(buf)
 }
 
 func (h hashableAttr) Equal(other any) bool {
@@ -53,11 +55,15 @@ func (h hashableAttr) Equal(other any) bool {
 	if h.attr.Code() != o.attr.Code() {
 		return false
 	}
-	hBytes := h.attr.Pack()
-	oBytes := o.attr.Pack()
-	if len(hBytes) != len(oBytes) {
+	hLen := h.attr.Len()
+	oLen := o.attr.Len()
+	if hLen != oLen {
 		return false
 	}
+	hBytes := make([]byte, hLen)
+	h.attr.WriteTo(hBytes, 0)
+	oBytes := make([]byte, oLen)
+	o.attr.WriteTo(oBytes, 0)
 	for i := range hBytes {
 		if hBytes[i] != oBytes[i] {
 			return false
@@ -78,19 +84,21 @@ type hashableNLRI struct {
 
 func (h hashableNLRI) Key() []byte {
 	// Phase 3: Include path ID in key for uniqueness
-	// Pack(nil) returns payload only, so prepend path ID if non-zero
-	payload := h.n.Pack(nil)
+	// WriteNLRI with nil context returns payload only, so prepend path ID if non-zero
+	payloadLen := h.n.Len()
 	pathID := h.n.PathID()
 	if pathID == 0 {
+		payload := make([]byte, payloadLen)
+		h.n.WriteTo(payload, 0, nil)
 		return payload
 	}
 	// Prepend 4-byte path ID to payload
-	key := make([]byte, 4+len(payload))
+	key := make([]byte, 4+payloadLen)
 	key[0] = byte(pathID >> 24)
 	key[1] = byte(pathID >> 16)
 	key[2] = byte(pathID >> 8)
 	key[3] = byte(pathID)
-	copy(key[4:], payload)
+	h.n.WriteTo(key, 4, nil)
 	return key
 }
 

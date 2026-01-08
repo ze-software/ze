@@ -238,3 +238,19 @@ func AttributesSize(attrs []Attribute) int {
 	}
 	return totalLen
 }
+
+// AttributesSizeWithContext calculates the total wire size with context-dependent encoding.
+// Context affects AS_PATH (ASN4 encoding) and AGGREGATOR (6 vs 8 byte format).
+// Used for pre-allocating buffers before calling WriteAttrToWithContext.
+func AttributesSizeWithContext(attrs []Attribute, ctx *bgpctx.EncodingContext) int {
+	totalLen := 0
+	for _, attr := range attrs {
+		attrLen := attrLenWithContext(attr, ctx)
+		if attrLen > 255 {
+			totalLen += 4 + attrLen // Extended length header
+		} else {
+			totalLen += 3 + attrLen // Normal header
+		}
+	}
+	return totalLen
+}

@@ -74,6 +74,10 @@ func (rd RouteDistinguisher) Bytes() []byte {
 	return buf
 }
 
+// Len returns the RD length in bytes (always 8).
+// RFC 4364 Section 4.2: RD is 8 octets (2-byte type + 6-byte value).
+func (rd RouteDistinguisher) Len() int { return 8 }
+
 // WriteTo writes the RD directly to buf at offset (zero-alloc).
 // Returns bytes written (always 8).
 func (rd RouteDistinguisher) WriteTo(buf []byte, off int) int {

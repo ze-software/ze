@@ -281,6 +281,69 @@ func TestUpdateWriteTo(t *testing.T) {
 	}
 }
 
+// TestUpdateLenMatchesWriteTo verifies Len() returns exact bytes WriteTo will use.
+//
+// VALIDATES: Len() accurately predicts WriteTo output size.
+//
+// PREVENTS: Buffer overflow from undersized allocation.
+func TestUpdateLenMatchesWriteTo(t *testing.T) {
+	tests := []struct {
+		name   string
+		update *Update
+	}{
+		{
+			name:   "empty",
+			update: &Update{},
+		},
+		{
+			name: "NLRI only",
+			update: &Update{
+				NLRI: []byte{0x18, 0xC0, 0xA8, 0x01}, // 192.168.1.0/24
+			},
+		},
+		{
+			name: "withdrawn only",
+			update: &Update{
+				WithdrawnRoutes: []byte{0x18, 0xC0, 0xA8, 0x02}, // 192.168.2.0/24
+			},
+		},
+		{
+			name: "attributes only",
+			update: &Update{
+				PathAttributes: []byte{0x40, 0x01, 0x01, 0x00}, // ORIGIN IGP
+			},
+		},
+		{
+			name: "full update",
+			update: &Update{
+				WithdrawnRoutes: []byte{0x18, 0xC0, 0xA8, 0x02},
+				PathAttributes:  []byte{0x40, 0x01, 0x01, 0x00, 0x40, 0x02, 0x00},
+				NLRI:            []byte{0x18, 0xC0, 0xA8, 0x01},
+			},
+		},
+		{
+			name: "large update",
+			update: &Update{
+				WithdrawnRoutes: make([]byte, 100),
+				PathAttributes:  make([]byte, 500),
+				NLRI:            make([]byte, 200),
+			},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			expectedLen := tt.update.Len()
+
+			buf := make([]byte, 65536)
+			n := tt.update.WriteTo(buf, 0)
+
+			assert.Equal(t, expectedLen, n,
+				"Len()=%d but WriteTo()=%d", expectedLen, n)
+		})
+	}
+}
+
 // TestUpdateWriteToOffset verifies WriteTo with non-zero offset.
 //
 // VALIDATES: WriteTo respects offset parameter.

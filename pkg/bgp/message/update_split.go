@@ -196,7 +196,15 @@ func splitUpdateWithMP(u *Update, maxSize int, mpReachInfo, mpUnreachInfo mpAttr
 		// Create UPDATE for each chunk
 		for _, chunk := range mpChunks {
 			chunkAttrs := append([]byte(nil), baseAttrs...)
-			chunkAttrs = append(chunkAttrs, attribute.PackAttribute(chunk)...)
+			// Write attribute with header
+			attrLen := chunk.Len()
+			hdrLen := 3
+			if attrLen > 255 {
+				hdrLen = 4
+			}
+			attrBuf := make([]byte, hdrLen+attrLen)
+			attribute.WriteAttrTo(chunk, attrBuf, 0)
+			chunkAttrs = append(chunkAttrs, attrBuf...)
 			updates = append(updates, &Update{
 				PathAttributes: chunkAttrs,
 			})
@@ -229,7 +237,15 @@ func splitUpdateWithMP(u *Update, maxSize int, mpReachInfo, mpUnreachInfo mpAttr
 		// Create UPDATE for each chunk
 		for _, chunk := range mpChunks {
 			chunkAttrs := append([]byte(nil), baseAttrs...)
-			chunkAttrs = append(chunkAttrs, attribute.PackAttribute(chunk)...)
+			// Write attribute with header
+			attrLen := chunk.Len()
+			hdrLen := 3
+			if attrLen > 255 {
+				hdrLen = 4
+			}
+			attrBuf := make([]byte, hdrLen+attrLen)
+			attribute.WriteAttrTo(chunk, attrBuf, 0)
+			chunkAttrs = append(chunkAttrs, attrBuf...)
 			updates = append(updates, &Update{
 				PathAttributes: chunkAttrs,
 			})

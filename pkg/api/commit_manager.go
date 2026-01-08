@@ -83,14 +83,14 @@ func (t *Transaction) QueueWithdraw(n nlri.NLRI) {
 // nlriIndex builds an index key for an NLRI.
 func (t *Transaction) nlriIndex(n nlri.NLRI) string {
 	family := n.Family()
-	// Use Pack(nil) for consistent API - returns same bytes as Bytes()
-	nlriBytes := n.Pack(nil)
+	// Use WriteTo for consistent API - writes same bytes as Bytes()
+	nlriLen := n.Len()
 
-	buf := make([]byte, 3+len(nlriBytes))
+	buf := make([]byte, 3+nlriLen)
 	buf[0] = byte(family.AFI >> 8)
 	buf[1] = byte(family.AFI)
 	buf[2] = byte(family.SAFI)
-	copy(buf[3:], nlriBytes)
+	n.WriteTo(buf, 3, nil)
 
 	return string(buf)
 }

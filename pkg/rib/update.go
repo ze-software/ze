@@ -60,7 +60,9 @@ func buildPathAttributes(group *RouteGroup) []byte {
 	}
 
 	// Pack attributes in order (RFC 4271 Appendix F.3 recommends ordering by code)
-	return attribute.PackAttributesOrdered(attrs)
+	attrBytes := make([]byte, attribute.AttributesSize(attrs))
+	attribute.WriteAttributesOrdered(attrs, attrBytes, 0)
+	return attrBytes
 }
 
 // buildNLRIBytes packs all NLRIs from the group into wire format.
