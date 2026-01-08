@@ -1,31 +1,18 @@
-# ZeBGP Documentation Index
+# Claude Documentation Setup
 
-Project documentation and session notes.
-
----
-
-## Project Reference
-
-| Document | Purpose |
-|----------|---------|
-| `../ZE_IMPLEMENTATION_PLAN.md` | Complete implementation plan |
-| `../zebgp/CODEBASE_ARCHITECTURE.md` | Code organization |
-| `../zebgp/DATA_FLOW_GUIDE.md` | BGP data flow |
-| `../zebgp/WIRE_FORMAT_PATTERNS.md` | Zero-copy patterns |
-
----
+This folder is for Claude-specific documentation.
 
 ## Documentation Placement
 
 | Type | Location |
 |------|----------|
-| Implementation plans | Project root (`ZE_IMPLEMENTATION_PLAN.md`) |
-| Protocol docs | `.claude/` |
-| Codebase reference | `.claude/zebgp/` |
-| Session notes | `.claude/docs/` |
-| Active work | `plan/` (when created) |
-
----
+| Architecture docs | `docs/architecture/` |
+| RFC summaries | `docs/rfc/` |
+| ExaBGP comparison | `docs/exabgp/` |
+| Claude rules | `.claude/rules/` |
+| Claude commands | `.claude/commands/` |
+| Implementation plans | `docs/plan/` |
+| Completed plans | `docs/plan/done/` |
 
 ## ExaBGP Reference
 
@@ -35,7 +22,3 @@ Key reference paths:
 - `qa/encoding/` - Encoding test vectors
 - `qa/decoding/` - Decoding test vectors
 - `src/exabgp/bgp/message/` - Message implementation reference
-
----
-
-**Last Updated:** 2025-12-19

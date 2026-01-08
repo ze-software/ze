@@ -6,19 +6,19 @@ Read when working on specific areas:
 
 | Area | Doc |
 |------|-----|
-| Wire formats | `zebgp/wire/MESSAGES.md` |
-| NLRI types | `zebgp/wire/NLRI.md` |
-| Attributes | `zebgp/wire/ATTRIBUTES.md` |
-| Capabilities | `zebgp/wire/CAPABILITIES.md` |
-| UPDATE building | `zebgp/UPDATE_BUILDING.md` |
-| Memory pools | `zebgp/POOL_ARCHITECTURE.md` |
-| Zero-copy | `zebgp/ENCODING_CONTEXT.md` |
-| ExaBGP mapping | `zebgp/EXABGP_CODE_MAP.md` |
-| ExaBGP compat | `zebgp/EXABGP_COMPATIBILITY.md` |
-| FSM | `zebgp/behavior/FSM.md` |
-| API | `zebgp/api/ARCHITECTURE.md` |
-| API Capabilities | `zebgp/api/CAPABILITY_CONTRACT.md` |
-| Config syntax | `zebgp/config/SYNTAX.md` |
+| Wire formats | `docs/architecture/wire/MESSAGES.md` |
+| NLRI types | `docs/architecture/wire/NLRI.md` |
+| Attributes | `docs/architecture/wire/ATTRIBUTES.md` |
+| Capabilities | `docs/architecture/wire/CAPABILITIES.md` |
+| UPDATE building | `docs/architecture/UPDATE_BUILDING.md` |
+| Memory pools | `docs/architecture/POOL_ARCHITECTURE.md` |
+| Zero-copy | `docs/architecture/ENCODING_CONTEXT.md` |
+| ExaBGP mapping | `docs/exabgp/EXABGP_CODE_MAP.md` |
+| ExaBGP compat | `docs/exabgp/EXABGP_COMPATIBILITY.md` |
+| FSM | `docs/architecture/behavior/FSM.md` |
+| API | `docs/architecture/api/ARCHITECTURE.md` |
+| API Capabilities | `docs/architecture/api/CAPABILITY_CONTRACT.md` |
+| Config syntax | `docs/architecture/config/SYNTAX.md` |
 
 ## Rules (auto-loaded by path)
 
@@ -26,22 +26,24 @@ Read when working on specific areas:
 |------|------------|
 | `rules/planning.md` | `*` (non-trivial features) |
 | `rules/tdd.md` | `**/*.go` |
+| `rules/testing.md` | `*` (CI, functional tests) |
 | `rules/go-standards.md` | `**/*.go` |
 | `rules/rfc-compliance.md` | `pkg/bgp/**/*.go` |
 | `rules/git-safety.md` | `*` |
 | `rules/config-design.md` | Config changes |
+| `rules/documentation.md` | `**/*.md` |
 
 ## Edge Cases
 
 | Topic | Doc |
 |-------|-----|
-| ASN4 handling | `zebgp/edge-cases/AS4.md` |
-| ADD-PATH | `zebgp/edge-cases/ADDPATH.md` |
-| Extended messages | `zebgp/edge-cases/EXTENDED_MESSAGE.md` |
+| ASN4 handling | `docs/architecture/edge-cases/AS4.md` |
+| ADD-PATH | `docs/architecture/edge-cases/ADDPATH.md` |
+| Extended messages | `docs/architecture/edge-cases/EXTENDED_MESSAGE.md` |
 
 ## RFC Summaries
 
-Implementation-ready RFC summaries in `zebgp/rfc/`. Use keyword table to find relevant RFCs.
+Implementation-ready RFC summaries in `docs/rfc/`. Use keyword table to find relevant RFCs.
 
 ### By Topic
 
@@ -134,7 +136,7 @@ Implementation-ready RFC summaries in `zebgp/rfc/`. Use keyword table to find re
 
 ## Reference
 
-- Current state: `plan/CLAUDE_CONTINUATION.md`
+- Current state: `docs/plan/CLAUDE_CONTINUATION.md`
 - RFC folder: `rfc/`
-- RFC summaries: `zebgp/rfc/`
+- RFC summaries: `docs/rfc/`
 - ExaBGP: `/Users/thomas/Code/github.com/exa-networks/exabgp/main/src/exabgp/`

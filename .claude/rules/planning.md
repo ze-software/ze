@@ -14,13 +14,13 @@
 Complete IN ORDER. Do not skip steps.
 
 ```
-[ ] 1. Check existing spec: `plan/spec-<task>.md`
+[ ] 1. Check existing spec: `docs/plan/spec-<task>.md`
       → If exists: read it, resume from last progress
       → If not: continue
 
 [ ] 2. Read `.claude/INDEX.md` for doc navigation
 
-[ ] 3. Scan `plan/spec-*.md` for related specs
+[ ] 3. Scan `docs/plan/spec-*.md` for related specs
 
 [ ] 4. Match task keywords to docs (see table below)
 
@@ -29,7 +29,7 @@ Complete IN ORDER. Do not skip steps.
 [ ] 6. RFC Summary Check (for protocol work)
       → Identify ALL RFCs needed for implementation
       → For each RFC:
-        a. Check if `.claude/zebgp/rfc/rfcNNNN.md` exists
+        a. Check if `docs/rfc/rfcNNNN.md` exists
         b. If missing summary: run agent with `/rfc-summarisation rfcNNNN`
         c. If missing RFC: `curl -o rfc/rfcNNNN.txt https://www.rfc-editor.org/rfc/rfcNNNN.txt`
       → Read ALL relevant RFC summaries
@@ -44,7 +44,7 @@ Complete IN ORDER. Do not skip steps.
 [ ] 9. Present implementation plan to user
       → WAIT for approval before continuing
 
-[ ] 10. Write spec to `plan/spec-<task>.md`
+[ ] 10. Write spec to `docs/plan/spec-<task>.md`
        → FIRST complete "Pre-Spec Verification" checklist below
        → Match template format EXACTLY (not approximately)
 
@@ -53,27 +53,27 @@ Complete IN ORDER. Do not skip steps.
 
 ## Keyword → Documentation Mapping
 
-| Keywords in task | Required docs | RFC summaries (see INDEX.md) |
-|------------------|---------------|------------------------------|
-| UPDATE, message, build, route, announce | `UPDATE_BUILDING.md`, `ENCODING_CONTEXT.md` | `rfc4271.md`, `rfc4760.md` |
-| attribute, community, AS_PATH, NEXT_HOP | `wire/ATTRIBUTES.md`, `UPDATE_BUILDING.md` | `rfc4271.md`, `rfc1997.md`, `rfc4360.md` |
-| NLRI, prefix, MP_REACH, MP_UNREACH | `wire/NLRI.md` | `rfc4760.md` |
-| capability, OPEN, negotiate | `wire/CAPABILITIES.md` | `rfc5492.md`, `rfc9072.md` |
-| pool, memory, dedup, zero-copy | `POOL_ARCHITECTURE.md`, `ENCODING_CONTEXT.md` | |
-| forward, reflect, wire cache | `ENCODING_CONTEXT.md`, `UPDATE_BUILDING.md` | |
-| FSM, state, session, peer | `behavior/FSM.md` | `rfc4271.md`, `rfc4724.md` |
-| API, command, announce, withdraw | `api/ARCHITECTURE.md`, `api/CAPABILITY_CONTRACT.md` | |
-| config, YAML, load | `config/SYNTAX.md` | |
-| FlowSpec | `wire/NLRI.md`, `wire/NLRI_FLOWSPEC.md` | `rfc8955.md`, `rfc8956.md` |
-| VPN, L3VPN, MPLS-VPN | `wire/NLRI.md` | `rfc4364.md`, `rfc4659.md`, `rfc8277.md` |
-| EVPN | `wire/NLRI.md`, `wire/NLRI_EVPN.md` | `rfc7432.md`, `rfc9136.md` |
-| BGP-LS, link-state | `wire/NLRI_BGPLS.md` | `rfc7752.md`, `rfc9085.md`, `rfc9514.md` |
-| ExaBGP, compatibility | `EXABGP_CODE_MAP.md`, `EXABGP_COMPATIBILITY.md` | |
-| design, transition, architecture | `plan/DESIGN_TRANSITION.md` | |
-| ASN4, AS4, 4-byte AS | `edge-cases/AS4.md` | `rfc6793.md` |
-| ADD-PATH, path-id | `edge-cases/ADDPATH.md` | `rfc7911.md` |
-| extended message | `edge-cases/EXTENDED_MESSAGE.md` | `rfc8654.md` |
-| graceful restart, GR | `behavior/FSM.md` | `rfc4724.md` |
+| Keywords in task | Required docs | RFC summaries |
+|------------------|---------------|---------------|
+| UPDATE, message, build, route, announce | `docs/architecture/UPDATE_BUILDING.md`, `ENCODING_CONTEXT.md` | `rfc4271.md`, `rfc4760.md` |
+| attribute, community, AS_PATH, NEXT_HOP | `docs/architecture/wire/ATTRIBUTES.md`, `UPDATE_BUILDING.md` | `rfc4271.md`, `rfc1997.md`, `rfc4360.md` |
+| NLRI, prefix, MP_REACH, MP_UNREACH | `docs/architecture/wire/NLRI.md` | `rfc4760.md` |
+| capability, OPEN, negotiate | `docs/architecture/wire/CAPABILITIES.md` | `rfc5492.md`, `rfc9072.md` |
+| pool, memory, dedup, zero-copy | `docs/architecture/POOL_ARCHITECTURE.md`, `ENCODING_CONTEXT.md` | |
+| forward, reflect, wire cache | `docs/architecture/ENCODING_CONTEXT.md`, `UPDATE_BUILDING.md` | |
+| FSM, state, session, peer | `docs/architecture/behavior/FSM.md` | `rfc4271.md`, `rfc4724.md` |
+| API, command, announce, withdraw | `docs/architecture/api/ARCHITECTURE.md`, `api/CAPABILITY_CONTRACT.md` | |
+| config, YAML, load | `docs/architecture/config/SYNTAX.md` | |
+| FlowSpec | `docs/architecture/wire/NLRI.md`, `wire/NLRI_FLOWSPEC.md` | `rfc8955.md`, `rfc8956.md` |
+| VPN, L3VPN, MPLS-VPN | `docs/architecture/wire/NLRI.md` | `rfc4364.md`, `rfc4659.md`, `rfc8277.md` |
+| EVPN | `docs/architecture/wire/NLRI.md`, `wire/NLRI_EVPN.md` | `rfc7432.md`, `rfc9136.md` |
+| BGP-LS, link-state | `docs/architecture/wire/NLRI_BGPLS.md` | `rfc7752.md`, `rfc9085.md`, `rfc9514.md` |
+| ExaBGP, compatibility | `docs/exabgp/EXABGP_CODE_MAP.md`, `EXABGP_COMPATIBILITY.md` | |
+| design, transition, architecture | `docs/architecture/rib-transition.md` | |
+| ASN4, AS4, 4-byte AS | `docs/architecture/edge-cases/AS4.md` | `rfc6793.md` |
+| ADD-PATH, path-id | `docs/architecture/edge-cases/ADDPATH.md` | `rfc7911.md` |
+| extended message | `docs/architecture/edge-cases/EXTENDED_MESSAGE.md` | `rfc8654.md` |
+| graceful restart, GR | `docs/architecture/behavior/FSM.md` | `rfc4724.md` |
 | route-refresh | | `rfc2918.md`, `rfc7313.md` |
 | error handling, notification | | `rfc7606.md`, `rfc9003.md` |
 | large community | | `rfc8092.md` |
@@ -82,8 +82,8 @@ Complete IN ORDER. Do not skip steps.
 | IPv6 next hop | | `rfc8950.md` |
 | labeled unicast, label | | `rfc8277.md`, `rfc3032.md` |
 
-All architecture docs are in `.claude/zebgp/` unless otherwise specified.
-All RFC summaries are in `.claude/zebgp/rfc/`.
+All architecture docs are in `docs/architecture/` unless otherwise specified.
+All RFC summaries are in `docs/rfc/`.
 For complete RFC keyword mapping, see `.claude/INDEX.md` → "RFC Summaries" section.
 
 ## Implementation Plan Format
@@ -94,10 +94,10 @@ Present to user BEFORE writing code:
 ## 📋 Implementation Plan for <task>
 
 ### Docs Read
-- `.claude/zebgp/<doc>.md` - [key insight]
+- `docs/architecture/<doc>.md` - [key insight]
 
 ### RFC Summaries (MUST for protocol work)
-- `.claude/zebgp/rfc/rfcNNNN.md` - [key insight]
+- `docs/rfc/rfcNNNN.md` - [key insight]
 
 ### 🧪 Tests First (TDD)
 **Unit tests:**
@@ -151,7 +151,7 @@ Present to user BEFORE writing code:
 
 ## Spec File Template
 
-Write to `plan/spec-<task-name>.md`:
+Write to `docs/plan/spec-<task-name>.md`:
 
 ```markdown
 # Spec: <task-name>
@@ -162,10 +162,10 @@ Write to `plan/spec-<task-name>.md`:
 ## Required Reading
 
 ### Architecture Docs
-- [ ] `.claude/zebgp/<doc>.md` - [why relevant]
+- [ ] `docs/architecture/<doc>.md` - [why relevant]
 
 ### RFC Summaries (MUST for protocol work)
-- [ ] `.claude/zebgp/rfc/rfcNNNN.md` - [why relevant]
+- [ ] `docs/rfc/rfcNNNN.md` - [why relevant]
 
 **Key insights:**
 - [insight from docs]
@@ -203,22 +203,22 @@ Write to `plan/spec-<task-name>.md`:
 ### Constraint Comments (CRITICAL)
 When code enforces an RFC rule/constraint, document it ABOVE the code:
 
-```go
+\`\`\`go
 // RFC 4271 Section 6.3: "If the UPDATE message is received from an external peer"
 // MUST check that AS_PATH first segment is neighbor's AS
 if peer.IsExternal() && path.FirstAS() != peer.RemoteAS {
     return ErrInvalidASPath
 }
-```
+\`\`\`
 
 **Why:** Prevents accidental regression during refactoring. Future editors must understand WHY the constraint exists before modifying.
 
 **Format:**
-```
+\`\`\`
 // RFC NNNN Section X.Y: "<quoted requirement>"
 // <brief explanation if not obvious>
 <code that enforces it>
-```
+\`\`\`
 
 **MUST document:**
 - Validation rules (field ranges, required values)
@@ -246,10 +246,10 @@ if peer.IsExternal() && path.FirstAS() != peer.RemoteAS {
 - [ ] RFC summaries read (all referenced RFCs)
 - [ ] RFC references added to code
 - [ ] RFC constraint comments added (quoted requirement + explanation)
-- [ ] `.claude/zebgp/` updated if schema changed
+- [ ] `docs/` updated if schema changed
 
 ### Completion
-- [ ] Spec moved to `plan/done/NNN-<name>.md`
+- [ ] Spec moved to `docs/plan/done/NNN-<name>.md`
 ```
 
 ## Post-Implementation Updates
@@ -258,13 +258,13 @@ If task changed any of these, update corresponding docs:
 
 | Changed | Update |
 |---------|--------|
-| Config schema | `config/SYNTAX.md` |
-| Wire format | `wire/MESSAGES.md`, `wire/ATTRIBUTES.md` |
-| NLRI types | `wire/NLRI.md` |
-| Capabilities | `wire/CAPABILITIES.md` |
-| UPDATE building | `UPDATE_BUILDING.md` |
-| Pool/memory | `POOL_ARCHITECTURE.md` |
-| API commands | `api/ARCHITECTURE.md` |
+| Config schema | `docs/architecture/config/SYNTAX.md` |
+| Wire format | `docs/architecture/wire/MESSAGES.md`, `ATTRIBUTES.md` |
+| NLRI types | `docs/architecture/wire/NLRI.md` |
+| Capabilities | `docs/architecture/wire/CAPABILITIES.md` |
+| UPDATE building | `docs/architecture/UPDATE_BUILDING.md` |
+| Pool/memory | `docs/architecture/POOL_ARCHITECTURE.md` |
+| API commands | `docs/architecture/api/ARCHITECTURE.md` |
 
 ## Moving Completed Specs
 
@@ -272,10 +272,10 @@ Determine number at move time, not during creation:
 
 ```bash
 # Find highest existing number (use 'command ls' to bypass aliases)
-LAST=`command ls -1 plan/done/ 2>/dev/null | sort -n | tail -1 | cut -c1-3`
+LAST=`command ls -1 docs/plan/done/ 2>/dev/null | sort -n | tail -1 | cut -c1-3`
 test -z "$LAST" && LAST=0
 NEXT=`printf "%03d" \`expr $LAST + 1\``
-mv plan/spec-<name>.md plan/done/${NEXT}-<name>.md
+mv docs/plan/spec-<name>.md docs/plan/done/${NEXT}-<name>.md
 ```
 
 **IMPORTANT:** Include the moved spec file in the same commit as the code changes. Do NOT commit the spec separately.

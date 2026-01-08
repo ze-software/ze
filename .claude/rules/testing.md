@@ -1,0 +1,112 @@
+---
+paths:
+  - "*"
+---
+
+# Testing Commands
+
+## Required Test Sequence
+
+```bash
+make test && make lint && make functional  # Full verification
+```
+
+| Target | Command | Purpose |
+|--------|---------|---------|
+| `make test` | `go test -race -v ./...` | Unit tests |
+| `make lint` | `golangci-lint run` | Linting |
+| `make functional` | Run qa/tests/* | Functional tests (37) |
+| `make ci` | lint + test + build | Full CI check |
+
+## Individual Commands
+
+```bash
+go test -race ./pkg/bgp/message/... -v       # Single package
+go test -race ./... -run TestName -v          # Single test
+go test -race -cover ./...                    # Coverage
+go test -bench=. -benchmem ./pkg/...          # Benchmarks
+```
+
+## Fuzzing
+
+```bash
+go test -fuzz=FuzzParseHeader -fuzztime=30s ./pkg/bgp/message/...
+go test -fuzz=. -fuzztime=10s ./pkg/bgp/...  # All fuzz tests (CI)
+go test -list='Fuzz.*' ./...                  # List fuzz tests
+```
+
+Corpus location: `test/data/fuzz/<FuzzName>/`
+
+## Functional Testing
+
+### zebgp-peer (BGP Test Peer)
+
+```bash
+zebgp-peer --sink --port 1790              # Accept any, reply keepalive
+zebgp-peer --echo --port 1790              # Echo messages back
+zebgp-peer --port 1790 qa/encoding/test.msg # Check mode
+zebgp-peer --view qa/encoding/test.msg      # View rules only
+```
+
+| Flag | Description |
+|------|-------------|
+| `--port` | Listen port (default: 179) |
+| `--sink` | Accept any, reply keepalive |
+| `--echo` | Echo messages back |
+| `--ipv6` | Bind IPv6 |
+| `--asn` | Override ASN (0 = mirror) |
+
+### functional (Test Runner)
+
+```bash
+go run ./test/cmd/functional encoding --list      # List tests
+go run ./test/cmd/functional encoding --all       # Run all
+go run ./test/cmd/functional encoding 0 1 2       # By index
+go run ./test/cmd/functional encoding --count 10 0 # Stress test
+```
+
+### testpeer (Library)
+
+```go
+import "codeberg.org/thomas-mangin/zebgp/pkg/testpeer"
+
+peer := testpeer.New(&testpeer.Config{
+    Port: 1790, Sink: true, Output: &bytes.Buffer{},
+})
+ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+defer cancel()
+result := peer.Run(ctx)
+```
+
+## ExaBGP Compatibility
+
+```bash
+# ZeBGP peer against ExaBGP test file
+zebgp-peer --port 1790 ../5.0/qa/encoding/api-announce.msg
+
+# ExaBGP against zebgp-peer
+cd ../5.0
+env exabgp_tcp_port=1790 ./sbin/exabgp etc/exabgp/api-announce.conf
+```
+
+## Coverage
+
+```bash
+go test -race -coverprofile=coverage.out ./...
+go tool cover -html=coverage.out              # HTML report
+go tool cover -func=coverage.out              # Summary
+```
+
+| Code Type | Target |
+|-----------|--------|
+| Wire format | 90%+ |
+| Public functions | 100% |
+
+## Pre-Commit Checklist
+
+- [ ] `make test` passes
+- [ ] `make lint` passes
+- [ ] `make functional` passes
+- [ ] User approval
+
+**If ANY unchecked: DO NOT COMMIT**

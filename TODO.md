@@ -28,7 +28,7 @@
 
 **Goal:** Unify API and config parsing for `update` commands via shared tokenizer interface.
 
-**Prerequisite:** `new-syntax.md` - ✅ COMPLETED (plan/done/089-new-syntax.md)
+**Prerequisite:** `new-syntax.md` - ✅ COMPLETED (docs/plan/done/089-new-syntax.md)
 
 **Status:** Design doc only. Core architecture not built.
 
@@ -177,7 +177,7 @@ func TestParseUpdate_ScalarDelConditional(t *testing.T)
 #### Resolution Options
 
 1. **Complete the spec** - Build tokenizer interface, adapt both parsers (~2-3 days)
-2. **Abandon unification** - Move spec to `plan/abandoned/`, document decision
+2. **Abandon unification** - Move spec to `docs/plan/abandoned/`, document decision
 3. **Partial unification** - Extract more shared code to `pkg/parse/` without full tokenizer interface
 
 ---
@@ -210,7 +210,7 @@ func TestParseUpdate_ScalarDelConditional(t *testing.T)
 
 ## ✅ Complete But Not Moved to done/
 
-These specs should be moved to `plan/done/`:
+These specs should be moved to `docs/plan/done/`:
 
 | Spec | Next Number |
 |------|-------------|
@@ -221,9 +221,9 @@ These specs should be moved to `plan/done/`:
 
 **Command to move:**
 ```bash
-LAST=$(command ls -1 plan/done/ 2>/dev/null | sort -n | tail -1 | cut -c1-3)
+LAST=$(command ls -1 docs/plan/done/ 2>/dev/null | sort -n | tail -1 | cut -c1-3)
 test -z "$LAST" && LAST=0
-# Then: mv plan/spec-<name>.md plan/done/$(printf "%03d" $((LAST + 1)))-<name>.md
+# Then: mv docs/plan/spec-<name>.md docs/plan/done/$(printf "%03d" $((LAST + 1)))-<name>.md
 ```
 
 ---
@@ -289,7 +289,7 @@ Need review:
 - Second `inherit` statement overwrites first
 - Workaround: use single template with multiple api blocks
 
-**Related spec:** `plan/spec-api-test-features.md`
+**Related spec:** `docs/plan/spec-api-test-features.md`
 
 ---
 
@@ -311,13 +311,13 @@ go.mod:33:28 - golang.org/x/term should be direct (go mod tidy)
 Modified:
   M pkg/bgp/message/chunk_mp_nlri_test.go
   M pkg/bgp/message/update_split_test.go
-  M plan/spec-parser-unification.md
+  M docs/plan/spec-parser-unification.md
 
 Untracked:
   ? .claude/commands/code-review.md
   ? package-lock.json
-  ? plan/spec-async-api-parser.md
-  ? plan/spec-writeto-bounds-safety.md
+  ? docs/plan/spec-async-api-parser.md
+  ? docs/plan/spec-writeto-bounds-safety.md
   ? scripts/analyze-writeto.go
   ? scripts/check-buffer-overflow.sh
   ? scripts/migrate-api-syntax.py
@@ -331,7 +331,7 @@ Untracked:
 ## Housekeeping Tasks
 
 1. [ ] Run `go mod tidy` to fix linter warning
-2. [ ] Move completed specs to `plan/done/`
+2. [ ] Move completed specs to `docs/plan/done/`
 3. [ ] Review unknown status specs
 4. [ ] Decide on spec-parser-unification.md (implement/abandon)
 5. [ ] Clean up untracked files
