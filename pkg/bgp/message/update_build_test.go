@@ -9,6 +9,23 @@ import (
 	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/nlri"
 )
 
+// mustBuildGrouped is a test helper that calls BuildGroupedUnicastWithLimit with max size
+// and returns the first UPDATE, failing the test if there's an error or unexpected split.
+func mustBuildGrouped(t *testing.T, ub *UpdateBuilder, routes []UnicastParams) *Update {
+	t.Helper()
+	updates, err := ub.BuildGroupedUnicastWithLimit(routes, 65535)
+	if err != nil {
+		t.Fatalf("BuildGroupedUnicastWithLimit failed: %v", err)
+	}
+	if len(updates) == 0 {
+		t.Fatal("BuildGroupedUnicastWithLimit returned no updates")
+	}
+	if len(updates) > 1 {
+		t.Fatalf("BuildGroupedUnicastWithLimit unexpectedly split into %d updates", len(updates))
+	}
+	return updates[0]
+}
+
 // TestUpdateBuilder_NewBuilder verifies UpdateBuilder creation.
 //
 // VALIDATES: UpdateBuilder stores LocalAS, IsIBGP, and PackContext correctly.
@@ -793,7 +810,7 @@ func TestBuildGroupedUnicast_ASN4Disabled(t *testing.T) {
 		},
 	}
 
-	update := ub.BuildGroupedUnicast(routes)
+	update := mustBuildGrouped(t, ub, routes)
 
 	// AS_PATH with 2-byte ASN
 	expected2ByteAS := []byte{0x40, 0x02, 0x04, 0x02, 0x01, 0x00, 0x64}
@@ -831,7 +848,7 @@ func TestBuildGroupedUnicast_MultipleNLRIs(t *testing.T) {
 		},
 	}
 
-	update := ub.BuildGroupedUnicast(routes)
+	update := mustBuildGrouped(t, ub, routes)
 
 	if update == nil {
 		t.Fatal("BuildGroupedUnicast returned nil")
@@ -873,7 +890,7 @@ func TestBuildGroupedUnicast_IncludesReflectorAttrs(t *testing.T) {
 		},
 	}
 
-	update := ub.BuildGroupedUnicast(routes)
+	update := mustBuildGrouped(t, ub, routes)
 	if update == nil {
 		t.Fatal("BuildGroupedUnicast returned nil")
 	}
@@ -917,7 +934,7 @@ func TestBuildGroupedUnicast_WithAddPath(t *testing.T) {
 		},
 	}
 
-	update := ub.BuildGroupedUnicast(routes)
+	update := mustBuildGrouped(t, ub, routes)
 	if update == nil {
 		t.Fatal("BuildGroupedUnicast returned nil")
 	}
@@ -930,18 +947,17 @@ func TestBuildGroupedUnicast_WithAddPath(t *testing.T) {
 	}
 }
 
-// TestBuildGroupedUnicast_EmptySlice verifies empty input handling.
-func TestBuildGroupedUnicast_EmptySlice(t *testing.T) {
+// TestBuildGroupedUnicastWithLimit_EmptySlice verifies empty input handling.
+func TestBuildGroupedUnicastWithLimit_EmptySlice(t *testing.T) {
 	ctx := &nlri.PackContext{ASN4: true}
 	ub := NewUpdateBuilder(65001, true, ctx)
 
-	update := ub.BuildGroupedUnicast(nil)
-
-	if update == nil {
-		t.Fatal("BuildGroupedUnicast returned nil for empty input")
+	updates, err := ub.BuildGroupedUnicastWithLimit(nil, 65535)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
 	}
-	if len(update.PathAttributes) != 0 || len(update.NLRI) != 0 {
-		t.Error("Expected empty update for empty input")
+	if updates != nil {
+		t.Error("Expected nil updates for empty input")
 	}
 }
 
@@ -1275,7 +1291,7 @@ func TestBuildGroupedUnicast_Aggregator_ASN4Disabled(t *testing.T) {
 		},
 	}
 
-	update := ub.BuildGroupedUnicast(routes)
+	update := mustBuildGrouped(t, ub, routes)
 
 	expected6Byte := []byte{0xC0, 0x07, 0x06, 0x00, 0x64, 0xC0, 0xA8, 0x01, 0x01}
 	if !bytes.Contains(update.PathAttributes, expected6Byte) {
