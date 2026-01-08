@@ -2,6 +2,7 @@ package message
 
 import (
 	"bytes"
+	"errors"
 	"net/netip"
 	"testing"
 
@@ -1616,5 +1617,442 @@ func TestBuildWithLimit_AttributesShared(t *testing.T) {
 		if !bytes.Equal(u.PathAttributes, firstAttrs) {
 			t.Errorf("update %d has different attributes", i+1)
 		}
+	}
+}
+
+// =============================================================================
+// API Bounds Safety Tests (spec-api-bounds-safety.md)
+// =============================================================================
+
+// TestBuildFlowSpec_MaxSize_Fits verifies FlowSpec within limit succeeds.
+//
+// VALIDATES: BuildFlowSpec returns UPDATE when size <= maxSize.
+// PREVENTS: False positives on valid FlowSpec routes.
+func TestBuildFlowSpec_MaxSize_Fits(t *testing.T) {
+	ctx := &nlri.PackContext{ASN4: true}
+	ub := NewUpdateBuilder(65001, false, ctx)
+
+	// Simple FlowSpec NLRI (destination prefix 10.0.0.0/24)
+	params := FlowSpecParams{
+		IsIPv6:  false,
+		NLRI:    []byte{0x03, 0x01, 0x18, 0x0a}, // dest 10.0.0.0/24
+		NextHop: netip.MustParseAddr("192.168.1.1"),
+	}
+
+	// Large maxSize - should fit
+	update, err := ub.BuildFlowSpecWithMaxSize(params, 4096)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if update == nil {
+		t.Fatal("expected non-nil UPDATE")
+	}
+}
+
+// TestBuildFlowSpec_MaxSize_TooLarge verifies error when FlowSpec > maxSize.
+//
+// VALIDATES: BuildFlowSpec returns ErrUpdateTooLarge when route + attrs > maxSize.
+// PREVENTS: Oversized UPDATE generation for FlowSpec.
+// RFC 5575 Section 4: Single FlowSpec rule is atomic - cannot be split.
+func TestBuildFlowSpec_MaxSize_TooLarge(t *testing.T) {
+	ctx := &nlri.PackContext{ASN4: true}
+	ub := NewUpdateBuilder(65001, false, ctx)
+
+	params := FlowSpecParams{
+		IsIPv6:  false,
+		NLRI:    []byte{0x03, 0x01, 0x18, 0x0a},
+		NextHop: netip.MustParseAddr("192.168.1.1"),
+	}
+
+	// Very small maxSize - should fail
+	_, err := ub.BuildFlowSpecWithMaxSize(params, 30)
+	if err == nil {
+		t.Fatal("expected ErrUpdateTooLarge, got nil")
+	}
+	if !errors.Is(err, ErrUpdateTooLarge) {
+		t.Errorf("expected ErrUpdateTooLarge, got %v", err)
+	}
+}
+
+// TestBuildMVPNWithLimit_AllFit verifies MVPN batch fits in single UPDATE.
+//
+// VALIDATES: BuildMVPNWithLimit returns single UPDATE when all routes fit.
+// PREVENTS: Unnecessary splitting of small batches.
+func TestBuildMVPNWithLimit_AllFit(t *testing.T) {
+	ctx := &nlri.PackContext{ASN4: true}
+	ub := NewUpdateBuilder(65001, true, ctx)
+
+	// Two small MVPN routes that should fit
+	routes := []MVPNParams{
+		{
+			RouteType: 5,
+			IsIPv6:    false,
+			RD:        [8]byte{0, 1, 0, 0, 0, 100, 0, 100},
+			Source:    netip.MustParseAddr("10.0.0.1"),
+			Group:     netip.MustParseAddr("239.1.1.1"),
+			NextHop:   netip.MustParseAddr("192.168.1.1"),
+			Origin:    attribute.OriginIGP,
+		},
+		{
+			RouteType: 5,
+			IsIPv6:    false,
+			RD:        [8]byte{0, 1, 0, 0, 0, 100, 0, 101},
+			Source:    netip.MustParseAddr("10.0.0.2"),
+			Group:     netip.MustParseAddr("239.1.1.2"),
+			NextHop:   netip.MustParseAddr("192.168.1.1"),
+			Origin:    attribute.OriginIGP,
+		},
+	}
+
+	updates, err := ub.BuildMVPNWithLimit(routes, 4096)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(updates) != 1 {
+		t.Errorf("expected 1 UPDATE (all fit), got %d", len(updates))
+	}
+}
+
+// TestBuildMVPNWithLimit_Split verifies MVPN batch splits across UPDATEs.
+//
+// VALIDATES: BuildMVPNWithLimit returns multiple UPDATEs when routes overflow.
+// PREVENTS: Single oversized UPDATE for large MVPN batches.
+func TestBuildMVPNWithLimit_Split(t *testing.T) {
+	ctx := &nlri.PackContext{ASN4: true}
+	ub := NewUpdateBuilder(65001, true, ctx)
+
+	// Create 20 MVPN routes - should overflow with small maxSize
+	var routes []MVPNParams
+	for i := 0; i < 20; i++ {
+		routes = append(routes, MVPNParams{
+			RouteType: 5,
+			IsIPv6:    false,
+			RD:        [8]byte{0, 1, 0, 0, 0, 100, 0, byte(i)},
+			Source:    netip.MustParseAddr("10.0.0.1"),
+			Group:     netip.MustParseAddr("239.1.1.1"),
+			NextHop:   netip.MustParseAddr("192.168.1.1"),
+			Origin:    attribute.OriginIGP,
+		})
+	}
+
+	// Small maxSize to force splitting
+	updates, err := ub.BuildMVPNWithLimit(routes, 200)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(updates) <= 1 {
+		t.Errorf("expected multiple UPDATEs for overflow, got %d", len(updates))
+	}
+
+	// Verify each update is within size limit
+	for i, u := range updates {
+		size := HeaderLen + 4 + len(u.PathAttributes)
+		if size > 200 {
+			t.Errorf("update %d exceeds maxSize: %d > 200", i, size)
+		}
+	}
+}
+
+// TestBuildUnicast_MaxSize_TooLarge verifies error when unicast > maxSize.
+//
+// VALIDATES: BuildUnicastWithMaxSize returns ErrUpdateTooLarge when route + attrs > maxSize.
+// PREVENTS: Oversized UPDATE generation for unicast.
+func TestBuildUnicast_MaxSize_TooLarge(t *testing.T) {
+	ctx := &nlri.PackContext{ASN4: true}
+	ub := NewUpdateBuilder(65001, true, ctx)
+
+	params := UnicastParams{
+		Prefix:  netip.MustParsePrefix("10.0.0.0/24"),
+		NextHop: netip.MustParseAddr("192.168.1.1"),
+		Origin:  attribute.OriginIGP,
+	}
+
+	// Very small maxSize - should fail
+	_, err := ub.BuildUnicastWithMaxSize(params, 30)
+	if err == nil {
+		t.Fatal("expected ErrUpdateTooLarge, got nil")
+	}
+	if !errors.Is(err, ErrUpdateTooLarge) {
+		t.Errorf("expected ErrUpdateTooLarge, got %v", err)
+	}
+}
+
+// TestBuildUnicast_MaxSize_Fits verifies unicast within limit succeeds.
+//
+// VALIDATES: BuildUnicastWithMaxSize returns UPDATE when size <= maxSize.
+// PREVENTS: False positives on valid unicast routes.
+func TestBuildUnicast_MaxSize_Fits(t *testing.T) {
+	ctx := &nlri.PackContext{ASN4: true}
+	ub := NewUpdateBuilder(65001, true, ctx)
+
+	params := UnicastParams{
+		Prefix:  netip.MustParsePrefix("10.0.0.0/24"),
+		NextHop: netip.MustParseAddr("192.168.1.1"),
+		Origin:  attribute.OriginIGP,
+	}
+
+	// Large maxSize - should fit
+	update, err := ub.BuildUnicastWithMaxSize(params, 4096)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if update == nil {
+		t.Fatal("expected non-nil UPDATE")
+	}
+}
+
+// TestBuildVPN_MaxSize_Fits verifies VPN within limit succeeds.
+//
+// VALIDATES: BuildVPNWithMaxSize returns UPDATE when size <= maxSize.
+// PREVENTS: False positives on valid VPN routes.
+func TestBuildVPN_MaxSize_Fits(t *testing.T) {
+	ctx := &nlri.PackContext{ASN4: true}
+	ub := NewUpdateBuilder(65001, false, ctx)
+
+	params := VPNParams{
+		Prefix:  netip.MustParsePrefix("10.0.0.0/24"),
+		NextHop: netip.MustParseAddr("192.168.1.1"),
+		Origin:  attribute.OriginIGP,
+		Labels:  []uint32{100},
+		RDBytes: [8]byte{0, 1, 0, 0, 0, 100, 0, 100},
+	}
+
+	update, err := ub.BuildVPNWithMaxSize(params, 4096)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if update == nil {
+		t.Fatal("expected non-nil UPDATE")
+	}
+}
+
+// TestBuildVPN_MaxSize_TooLarge verifies error when VPN > maxSize.
+//
+// VALIDATES: BuildVPNWithMaxSize returns ErrUpdateTooLarge when route + attrs > maxSize.
+// PREVENTS: Oversized UPDATE generation for VPN routes.
+func TestBuildVPN_MaxSize_TooLarge(t *testing.T) {
+	ctx := &nlri.PackContext{ASN4: true}
+	ub := NewUpdateBuilder(65001, false, ctx)
+
+	params := VPNParams{
+		Prefix:  netip.MustParsePrefix("10.0.0.0/24"),
+		NextHop: netip.MustParseAddr("192.168.1.1"),
+		Origin:  attribute.OriginIGP,
+		Labels:  []uint32{100},
+		RDBytes: [8]byte{0, 1, 0, 0, 0, 100, 0, 100},
+	}
+
+	_, err := ub.BuildVPNWithMaxSize(params, 30)
+	if err == nil {
+		t.Fatal("expected ErrUpdateTooLarge, got nil")
+	}
+	if !errors.Is(err, ErrUpdateTooLarge) {
+		t.Errorf("expected ErrUpdateTooLarge, got %v", err)
+	}
+}
+
+// TestBuildLabeledUnicast_MaxSize_Fits verifies labeled unicast within limit succeeds.
+//
+// VALIDATES: BuildLabeledUnicastWithMaxSize returns UPDATE when size <= maxSize.
+// PREVENTS: False positives on valid labeled unicast routes.
+func TestBuildLabeledUnicast_MaxSize_Fits(t *testing.T) {
+	ctx := &nlri.PackContext{ASN4: true}
+	ub := NewUpdateBuilder(65001, false, ctx)
+
+	params := LabeledUnicastParams{
+		Prefix:  netip.MustParsePrefix("10.0.0.0/24"),
+		NextHop: netip.MustParseAddr("192.168.1.1"),
+		Origin:  attribute.OriginIGP,
+		Labels:  []uint32{100},
+	}
+
+	update, err := ub.BuildLabeledUnicastWithMaxSize(params, 4096)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if update == nil {
+		t.Fatal("expected non-nil UPDATE")
+	}
+}
+
+// TestBuildLabeledUnicast_MaxSize_TooLarge verifies error when labeled unicast > maxSize.
+//
+// VALIDATES: BuildLabeledUnicastWithMaxSize returns ErrUpdateTooLarge when route + attrs > maxSize.
+// PREVENTS: Oversized UPDATE generation for labeled unicast routes.
+func TestBuildLabeledUnicast_MaxSize_TooLarge(t *testing.T) {
+	ctx := &nlri.PackContext{ASN4: true}
+	ub := NewUpdateBuilder(65001, false, ctx)
+
+	params := LabeledUnicastParams{
+		Prefix:  netip.MustParsePrefix("10.0.0.0/24"),
+		NextHop: netip.MustParseAddr("192.168.1.1"),
+		Origin:  attribute.OriginIGP,
+		Labels:  []uint32{100},
+	}
+
+	_, err := ub.BuildLabeledUnicastWithMaxSize(params, 30)
+	if err == nil {
+		t.Fatal("expected ErrUpdateTooLarge, got nil")
+	}
+	if !errors.Is(err, ErrUpdateTooLarge) {
+		t.Errorf("expected ErrUpdateTooLarge, got %v", err)
+	}
+}
+
+// TestBuildVPLS_MaxSize_Fits verifies VPLS within limit succeeds.
+//
+// VALIDATES: BuildVPLSWithMaxSize returns UPDATE when size <= maxSize.
+// PREVENTS: False positives on valid VPLS routes.
+func TestBuildVPLS_MaxSize_Fits(t *testing.T) {
+	ctx := &nlri.PackContext{ASN4: true}
+	ub := NewUpdateBuilder(65001, false, ctx)
+
+	params := VPLSParams{
+		RD:       [8]byte{0, 1, 0, 0, 0, 100, 0, 100},
+		Endpoint: 1,
+		Base:     100,
+		Offset:   0,
+		Size:     10,
+		NextHop:  netip.MustParseAddr("192.168.1.1"),
+		Origin:   attribute.OriginIGP,
+	}
+
+	update, err := ub.BuildVPLSWithMaxSize(params, 4096)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if update == nil {
+		t.Fatal("expected non-nil UPDATE")
+	}
+}
+
+// TestBuildVPLS_MaxSize_TooLarge verifies error when VPLS > maxSize.
+//
+// VALIDATES: BuildVPLSWithMaxSize returns ErrUpdateTooLarge when route + attrs > maxSize.
+// PREVENTS: Oversized UPDATE generation for VPLS routes.
+func TestBuildVPLS_MaxSize_TooLarge(t *testing.T) {
+	ctx := &nlri.PackContext{ASN4: true}
+	ub := NewUpdateBuilder(65001, false, ctx)
+
+	params := VPLSParams{
+		RD:       [8]byte{0, 1, 0, 0, 0, 100, 0, 100},
+		Endpoint: 1,
+		Base:     100,
+		Offset:   0,
+		Size:     10,
+		NextHop:  netip.MustParseAddr("192.168.1.1"),
+		Origin:   attribute.OriginIGP,
+	}
+
+	_, err := ub.BuildVPLSWithMaxSize(params, 30)
+	if err == nil {
+		t.Fatal("expected ErrUpdateTooLarge, got nil")
+	}
+	if !errors.Is(err, ErrUpdateTooLarge) {
+		t.Errorf("expected ErrUpdateTooLarge, got %v", err)
+	}
+}
+
+// TestBuildEVPN_MaxSize_Fits verifies EVPN within limit succeeds.
+//
+// VALIDATES: BuildEVPNWithMaxSize returns UPDATE when size <= maxSize.
+// PREVENTS: False positives on valid EVPN routes.
+func TestBuildEVPN_MaxSize_Fits(t *testing.T) {
+	ctx := &nlri.PackContext{ASN4: true}
+	ub := NewUpdateBuilder(65001, false, ctx)
+
+	params := EVPNParams{
+		RouteType:   2, // MAC/IP Advertisement
+		RD:          nlri.RouteDistinguisher{Type: 1, Value: [6]byte{0, 0, 0, 100, 0, 100}},
+		NextHop:     netip.MustParseAddr("192.168.1.1"),
+		ESI:         [10]byte{},
+		EthernetTag: 0,
+		MAC:         [6]byte{0x00, 0x11, 0x22, 0x33, 0x44, 0x55},
+		Labels:      []uint32{100},
+		Origin:      attribute.OriginIGP,
+	}
+
+	update, err := ub.BuildEVPNWithMaxSize(params, 4096)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if update == nil {
+		t.Fatal("expected non-nil UPDATE")
+	}
+}
+
+// TestBuildEVPN_MaxSize_TooLarge verifies error when EVPN > maxSize.
+//
+// VALIDATES: BuildEVPNWithMaxSize returns ErrUpdateTooLarge when route + attrs > maxSize.
+// PREVENTS: Oversized UPDATE generation for EVPN routes.
+func TestBuildEVPN_MaxSize_TooLarge(t *testing.T) {
+	ctx := &nlri.PackContext{ASN4: true}
+	ub := NewUpdateBuilder(65001, false, ctx)
+
+	params := EVPNParams{
+		RouteType:   2,
+		RD:          nlri.RouteDistinguisher{Type: 1, Value: [6]byte{0, 0, 0, 100, 0, 100}},
+		NextHop:     netip.MustParseAddr("192.168.1.1"),
+		ESI:         [10]byte{},
+		EthernetTag: 0,
+		MAC:         [6]byte{0x00, 0x11, 0x22, 0x33, 0x44, 0x55},
+		Labels:      []uint32{100},
+		Origin:      attribute.OriginIGP,
+	}
+
+	_, err := ub.BuildEVPNWithMaxSize(params, 30)
+	if err == nil {
+		t.Fatal("expected ErrUpdateTooLarge, got nil")
+	}
+	if !errors.Is(err, ErrUpdateTooLarge) {
+		t.Errorf("expected ErrUpdateTooLarge, got %v", err)
+	}
+}
+
+// TestBuildMUP_MaxSize_Fits verifies MUP within limit succeeds.
+//
+// VALIDATES: BuildMUPWithMaxSize returns UPDATE when size <= maxSize.
+// PREVENTS: False positives on valid MUP routes.
+func TestBuildMUP_MaxSize_Fits(t *testing.T) {
+	ctx := &nlri.PackContext{ASN4: true}
+	ub := NewUpdateBuilder(65001, false, ctx)
+
+	params := MUPParams{
+		RouteType: 1,
+		IsIPv6:    false,
+		NLRI:      []byte{0x01, 0x02, 0x03, 0x04},
+		NextHop:   netip.MustParseAddr("192.168.1.1"),
+	}
+
+	update, err := ub.BuildMUPWithMaxSize(params, 4096)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if update == nil {
+		t.Fatal("expected non-nil UPDATE")
+	}
+}
+
+// TestBuildMUP_MaxSize_TooLarge verifies error when MUP > maxSize.
+//
+// VALIDATES: BuildMUPWithMaxSize returns ErrUpdateTooLarge when route + attrs > maxSize.
+// PREVENTS: Oversized UPDATE generation for MUP routes.
+func TestBuildMUP_MaxSize_TooLarge(t *testing.T) {
+	ctx := &nlri.PackContext{ASN4: true}
+	ub := NewUpdateBuilder(65001, false, ctx)
+
+	params := MUPParams{
+		RouteType: 1,
+		IsIPv6:    false,
+		NLRI:      []byte{0x01, 0x02, 0x03, 0x04},
+		NextHop:   netip.MustParseAddr("192.168.1.1"),
+	}
+
+	_, err := ub.BuildMUPWithMaxSize(params, 30)
+	if err == nil {
+		t.Fatal("expected ErrUpdateTooLarge, got nil")
+	}
+	if !errors.Is(err, ErrUpdateTooLarge) {
+		t.Errorf("expected ErrUpdateTooLarge, got %v", err)
 	}
 }

@@ -8,7 +8,7 @@ import (
 	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/nlri"
 )
 
-// Errors for UPDATE splitting.
+// Errors for UPDATE splitting and bounds checking.
 var (
 	// ErrAttributesTooLarge is returned when path attributes alone exceed maxSize.
 	ErrAttributesTooLarge = errors.New("attributes exceed max message size")
@@ -18,6 +18,12 @@ var (
 
 	// ErrMPOverheadTooLarge is returned when MP attribute overhead exceeds maxAttrSize.
 	ErrMPOverheadTooLarge = errors.New("MP attribute overhead exceeds max size")
+
+	// ErrUpdateTooLarge is returned when a single-route UPDATE exceeds maxSize.
+	// RFC 4271 Section 4.3: UPDATE max 4096 bytes (standard).
+	// RFC 8654: Extended Message raises max to 65535 bytes.
+	// Single-route builders return this when the atomic route cannot fit.
+	ErrUpdateTooLarge = errors.New("UPDATE message exceeds max size")
 )
 
 // SplitUpdate splits an UPDATE into chunks respecting maxSize.

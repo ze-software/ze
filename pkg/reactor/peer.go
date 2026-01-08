@@ -2030,6 +2030,9 @@ func (p *Peer) sendMVPNRoutes() {
 		trace.Log(trace.Routes, "peer %s: skipping %d IPv6 MVPN routes (not negotiated)", addr, skippedIPv6)
 	}
 
+	// RFC 8654: Respect peer's max message size (4096 or 65535)
+	maxMsgSize := int(message.MaxMessageLength(message.TypeUPDATE, nc.ExtendedMessage))
+
 	// Send IPv4 MVPN routes grouped by attributes (sorted for deterministic order)
 	if len(ipv4Routes) > 0 {
 		ipv4MVPNFamily := nlri.Family{AFI: 1, SAFI: 5} // IPv4 MVPN
@@ -2038,12 +2041,19 @@ func (p *Peer) sendMVPNRoutes() {
 		ipv4Groups := groupMVPNRoutesByKey(ipv4Routes)
 		for _, key := range sortedKeys(ipv4Groups) {
 			routes := ipv4Groups[key]
-			update := ub.BuildMVPN(toMVPNParams(routes))
-			if err := p.SendUpdate(update); err != nil {
-				trace.Log(trace.Routes, "peer %s: MVPN send error: %v", addr, err)
-			} else {
-				trace.Log(trace.Routes, "peer %s: sent %d IPv4 MVPN routes", addr, len(routes))
+			// Use size-aware builder to respect max message size
+			updates, err := ub.BuildMVPNWithLimit(toMVPNParams(routes), maxMsgSize)
+			if err != nil {
+				trace.Log(trace.Routes, "peer %s: MVPN build error: %v", addr, err)
+				continue
 			}
+			for _, update := range updates {
+				if err := p.SendUpdate(update); err != nil {
+					trace.Log(trace.Routes, "peer %s: MVPN send error: %v", addr, err)
+					break
+				}
+			}
+			trace.Log(trace.Routes, "peer %s: sent %d IPv4 MVPN routes in %d UPDATEs", addr, len(routes), len(updates))
 		}
 	}
 
@@ -2055,12 +2065,19 @@ func (p *Peer) sendMVPNRoutes() {
 		ipv6Groups := groupMVPNRoutesByKey(ipv6Routes)
 		for _, key := range sortedKeys(ipv6Groups) {
 			routes := ipv6Groups[key]
-			update := ub.BuildMVPN(toMVPNParams(routes))
-			if err := p.SendUpdate(update); err != nil {
-				trace.Log(trace.Routes, "peer %s: MVPN send error: %v", addr, err)
-			} else {
-				trace.Log(trace.Routes, "peer %s: sent %d IPv6 MVPN routes", addr, len(routes))
+			// Use size-aware builder to respect max message size
+			updates, err := ub.BuildMVPNWithLimit(toMVPNParams(routes), maxMsgSize)
+			if err != nil {
+				trace.Log(trace.Routes, "peer %s: MVPN build error: %v", addr, err)
+				continue
 			}
+			for _, update := range updates {
+				if err := p.SendUpdate(update); err != nil {
+					trace.Log(trace.Routes, "peer %s: MVPN send error: %v", addr, err)
+					break
+				}
+			}
+			trace.Log(trace.Routes, "peer %s: sent %d IPv6 MVPN routes in %d UPDATEs", addr, len(routes), len(updates))
 		}
 	}
 	// Note: EORs are sent by the generic loop in sendInitialRoutes() for ALL
@@ -2161,6 +2178,9 @@ func (p *Peer) sendFlowSpecRoutes() {
 
 	addr := p.settings.Address.String()
 
+	// RFC 8654: Respect peer's max message size (4096 or 65535)
+	maxMsgSize := int(message.MaxMessageLength(message.TypeUPDATE, nc.ExtendedMessage))
+
 	// Send routes only for negotiated families
 	var sentCount int
 	for _, route := range p.settings.FlowSpecRoutes {
@@ -2196,7 +2216,13 @@ func (p *Peer) sendFlowSpecRoutes() {
 		}
 		ctx := p.packContext(nlri.Family{AFI: nlri.AFI(afi), SAFI: nlri.SAFI(safi)})
 		ub := message.NewUpdateBuilder(p.settings.LocalAS, p.settings.IsIBGP(), ctx)
-		update := ub.BuildFlowSpec(toFlowSpecParams(route))
+		// RFC 5575 Section 4: FlowSpec NLRI max 4095 bytes.
+		// Single FlowSpec rule is atomic - cannot be split across UPDATEs.
+		update, err := ub.BuildFlowSpecWithMaxSize(toFlowSpecParams(route), maxMsgSize)
+		if err != nil {
+			trace.Log(trace.Routes, "peer %s: FlowSpec build error (too large?): %v", addr, err)
+			continue
+		}
 		if err := p.SendUpdate(update); err != nil {
 			trace.Log(trace.Routes, "peer %s: FlowSpec send error: %v", addr, err)
 			continue
