@@ -446,19 +446,20 @@ func (a *reactorAPIAdapter) sendToMatchingPeers(selector string, update *message
 // RFC 7911: ctx provides ADD-PATH capability state for NLRI encoding.
 // RFC 6793: ctx.ASN4 determines 2-byte vs 4-byte AS numbers in AS_PATH.
 func buildAnnounceUpdate(route api.RouteSpec, localAS uint32, isIBGP bool, ctx *nlri.PackContext) *message.Update {
-	// Build path attributes
-	var attrBytes []byte
+	// Pre-allocate buffer for attributes (4KB typical BGP max)
+	attrBuf := make([]byte, 4096)
+	off := 0
 
-	// Extract ASN4 from context (default to true if nil)
-	asn4 := ctx == nil || ctx.ASN4
+	// Create encoding context for ASPath encoding
+	dstCtx := &bgpctx.EncodingContext{ASN4: ctx == nil || ctx.ASN4}
 
 	// 1. ORIGIN - RFC 4271 §5.1.1: Well-known mandatory attribute.
 	// Default to IGP (0) for locally originated routes.
+	var origin attribute.Origin = attribute.OriginIGP
 	if route.Origin != nil {
-		attrBytes = append(attrBytes, attribute.PackAttribute(attribute.Origin(*route.Origin))...)
-	} else {
-		attrBytes = append(attrBytes, attribute.PackAttribute(attribute.OriginIGP)...)
+		origin = attribute.Origin(*route.Origin)
 	}
+	off += attribute.WriteAttrTo(origin, attrBuf, off)
 
 	// 2. AS_PATH - RFC 4271 §5.1.2: Well-known mandatory attribute.
 	// RFC 4271 §5.1.2(a): "When a given BGP speaker advertises the route to an
@@ -483,7 +484,7 @@ func buildAnnounceUpdate(route api.RouteSpec, localAS uint32, isIBGP bool, ctx *
 			},
 		}
 	}
-	attrBytes = append(attrBytes, attribute.PackASPathAttribute(asPath, asn4)...)
+	off += attribute.WriteAttrToWithContext(asPath, attrBuf, off, nil, dstCtx)
 
 	isIPv6 := route.Prefix.Addr().Is6()
 
@@ -493,13 +494,13 @@ func buildAnnounceUpdate(route api.RouteSpec, localAS uint32, isIBGP bool, ctx *
 	nhAddr := route.NextHop.Addr
 	if !isIPv6 {
 		nextHop := &attribute.NextHop{Addr: nhAddr}
-		attrBytes = append(attrBytes, attribute.PackAttribute(nextHop)...)
+		off += attribute.WriteAttrTo(nextHop, attrBuf, off)
 	}
 
 	// 4. MED - RFC 4271 §5.1.4: Optional non-transitive attribute.
 	// Only include if explicitly specified.
 	if route.MED != nil {
-		attrBytes = append(attrBytes, attribute.PackAttribute(attribute.MED(*route.MED))...)
+		off += attribute.WriteAttrTo(attribute.MED(*route.MED), attrBuf, off)
 	}
 
 	// 5. LOCAL_PREF - RFC 4271 §5.1.5: Well-known attribute for iBGP only.
@@ -507,11 +508,11 @@ func buildAnnounceUpdate(route api.RouteSpec, localAS uint32, isIBGP bool, ctx *
 	// messages it sends to external peers". User-specified LOCAL_PREF for
 	// eBGP sessions is silently ignored per RFC.
 	if isIBGP {
+		var localPref attribute.LocalPref = 100
 		if route.LocalPreference != nil {
-			attrBytes = append(attrBytes, attribute.PackAttribute(attribute.LocalPref(*route.LocalPreference))...)
-		} else {
-			attrBytes = append(attrBytes, attribute.PackAttribute(attribute.LocalPref(100))...)
+			localPref = attribute.LocalPref(*route.LocalPreference)
 		}
+		off += attribute.WriteAttrTo(localPref, attrBuf, off)
 	}
 
 	// 6. COMMUNITY - RFC 1997: Optional transitive attribute.
@@ -520,43 +521,49 @@ func buildAnnounceUpdate(route api.RouteSpec, localAS uint32, isIBGP bool, ctx *
 		for i, c := range route.Communities {
 			comms[i] = attribute.Community(c)
 		}
-		attrBytes = append(attrBytes, attribute.PackAttribute(comms)...)
+		off += attribute.WriteAttrTo(comms, attrBuf, off)
 	}
 
 	// 7. LARGE_COMMUNITY - RFC 8092: Optional transitive attribute.
 	if len(route.LargeCommunities) > 0 {
 		lcomms := attribute.LargeCommunities(route.LargeCommunities)
-		attrBytes = append(attrBytes, attribute.PackAttribute(lcomms)...)
+		off += attribute.WriteAttrTo(lcomms, attrBuf, off)
 	}
 
 	// 8. EXTENDED_COMMUNITIES - RFC 4360: Optional transitive attribute.
 	if len(route.ExtendedCommunities) > 0 {
 		extComms := attribute.ExtendedCommunities(route.ExtendedCommunities)
-		attrBytes = append(attrBytes, attribute.PackAttribute(extComms)...)
+		off += attribute.WriteAttrTo(extComms, attrBuf, off)
 	}
 
 	// Build NLRI
-	// RFC 7911: Pack uses ADD-PATH encoding when negotiated
+	// RFC 7911: WriteNLRI uses ADD-PATH encoding when negotiated
 	var nlriBytes []byte
 	if !isIPv6 {
 		// IPv4: Use regular NLRI field
 		inet := nlri.NewINET(nlri.Family{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast}, route.Prefix, 0)
-		nlriBytes = inet.Pack(ctx)
+		nlriLen := nlri.LenWithContext(inet, ctx)
+		nlriBytes = make([]byte, nlriLen)
+		nlri.WriteNLRI(inet, nlriBytes, 0, ctx)
 	} else {
 		// IPv6: Use MP_REACH_NLRI attribute (RFC 4760)
 		// Build NLRI bytes for the prefix
 		inet := nlri.NewINET(nlri.Family{AFI: nlri.AFIIPv6, SAFI: nlri.SAFIUnicast}, route.Prefix, 0)
+		nlriLen := nlri.LenWithContext(inet, ctx)
+		nlriData := make([]byte, nlriLen)
+		nlri.WriteNLRI(inet, nlriData, 0, ctx)
+
 		mpReach := &attribute.MPReachNLRI{
 			AFI:      attribute.AFIIPv6,
 			SAFI:     attribute.SAFIUnicast,
 			NextHops: []netip.Addr{nhAddr},
-			NLRI:     inet.Pack(ctx),
+			NLRI:     nlriData,
 		}
-		attrBytes = append(attrBytes, attribute.PackAttribute(mpReach)...)
+		off += attribute.WriteAttrTo(mpReach, attrBuf, off)
 	}
 
 	return &message.Update{
-		PathAttributes: attrBytes,
+		PathAttributes: attrBuf[:off],
 		NLRI:           nlriBytes,
 	}
 }
@@ -567,24 +574,34 @@ func buildAnnounceUpdate(route api.RouteSpec, localAS uint32, isIBGP bool, ctx *
 func buildWithdrawUpdate(prefix netip.Prefix, ctx *nlri.PackContext) *message.Update {
 	if prefix.Addr().Is4() {
 		// IPv4: Use WithdrawnRoutes field
-		// RFC 7911: Pack uses ADD-PATH encoding when negotiated
+		// RFC 7911: WriteNLRI uses ADD-PATH encoding when negotiated
 		inet := nlri.NewINET(nlri.Family{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast}, prefix, 0)
+		nlriLen := nlri.LenWithContext(inet, ctx)
+		nlriData := make([]byte, nlriLen)
+		nlri.WriteNLRI(inet, nlriData, 0, ctx)
 		return &message.Update{
-			WithdrawnRoutes: inet.Pack(ctx),
+			WithdrawnRoutes: nlriData,
 		}
 	}
 
 	// IPv6: Use MP_UNREACH_NLRI attribute (RFC 4760 Section 4)
-	// RFC 7911: Pack uses ADD-PATH encoding when negotiated
+	// RFC 7911: WriteNLRI uses ADD-PATH encoding when negotiated
 	inet := nlri.NewINET(nlri.Family{AFI: nlri.AFIIPv6, SAFI: nlri.SAFIUnicast}, prefix, 0)
+	nlriLen := nlri.LenWithContext(inet, ctx)
+	nlriData := make([]byte, nlriLen)
+	nlri.WriteNLRI(inet, nlriData, 0, ctx)
+
 	mpUnreach := &attribute.MPUnreachNLRI{
 		AFI:  attribute.AFIIPv6,
 		SAFI: attribute.SAFIUnicast,
-		NLRI: inet.Pack(ctx),
+		NLRI: nlriData,
 	}
 
+	// Buffer: header(4) + AFI(2) + SAFI(1) + NLRI
+	attrBuf := make([]byte, 8+len(nlriData))
+	attrLen := attribute.WriteAttrTo(mpUnreach, attrBuf, 0)
 	return &message.Update{
-		PathAttributes: attribute.PackAttribute(mpUnreach),
+		PathAttributes: attrBuf[:attrLen],
 	}
 }
 
@@ -1468,9 +1485,15 @@ func (a *reactorAPIAdapter) buildBatchAnnounceUpdate(batch api.NLRIBatch, nextHo
 	isIPv4Unicast := batch.Family == nlri.IPv4Unicast
 
 	// Pack NLRIs first (used by both paths)
-	var nlriBytes []byte
+	// Calculate total NLRI size
+	totalNLRILen := 0
 	for _, n := range batch.NLRIs {
-		nlriBytes = append(nlriBytes, n.Pack(ctx)...)
+		totalNLRILen += nlri.LenWithContext(n, ctx)
+	}
+	nlriBytes := make([]byte, totalNLRILen)
+	nlriOff := 0
+	for _, n := range batch.NLRIs {
+		nlriOff += nlri.WriteNLRI(n, nlriBytes, nlriOff, ctx)
 	}
 
 	// Wire mode: use raw attribute bytes, only add NEXT_HOP or MP_REACH_NLRI
@@ -1479,15 +1502,19 @@ func (a *reactorAPIAdapter) buildBatchAnnounceUpdate(batch api.NLRIBatch, nextHo
 	}
 
 	// Semantic mode: build attributes from fields
-	asn4 := ctx == nil || ctx.ASN4
-	var attrBytes []byte
+	// Pre-allocate buffer for attributes (4KB typical BGP max)
+	attrBuf := make([]byte, 4096)
+	off := 0
+
+	// Create encoding context for ASPath encoding
+	dstCtx := &bgpctx.EncodingContext{ASN4: ctx == nil || ctx.ASN4}
 
 	// 1. ORIGIN - RFC 4271 §5.1.1
+	var origin attribute.Origin = attribute.OriginIGP
 	if attrs.Origin != nil {
-		attrBytes = append(attrBytes, attribute.PackAttribute(attribute.Origin(*attrs.Origin))...)
-	} else {
-		attrBytes = append(attrBytes, attribute.PackAttribute(attribute.OriginIGP)...)
+		origin = attribute.Origin(*attrs.Origin)
 	}
+	off += attribute.WriteAttrTo(origin, attrBuf, off)
 
 	// 2. AS_PATH - RFC 4271 §5.1.2
 	var asPath *attribute.ASPath
@@ -1507,26 +1534,26 @@ func (a *reactorAPIAdapter) buildBatchAnnounceUpdate(batch api.NLRIBatch, nextHo
 			},
 		}
 	}
-	attrBytes = append(attrBytes, attribute.PackASPathAttribute(asPath, asn4)...)
+	off += attribute.WriteAttrToWithContext(asPath, attrBuf, off, nil, dstCtx)
 
 	// 3. NEXT_HOP - RFC 4271 §5.1.3 (IPv4 unicast only)
 	if isIPv4Unicast {
 		nh := &attribute.NextHop{Addr: nextHop}
-		attrBytes = append(attrBytes, attribute.PackAttribute(nh)...)
+		off += attribute.WriteAttrTo(nh, attrBuf, off)
 	}
 
 	// 4. MED - RFC 4271 §5.1.4
 	if attrs.MED != nil {
-		attrBytes = append(attrBytes, attribute.PackAttribute(attribute.MED(*attrs.MED))...)
+		off += attribute.WriteAttrTo(attribute.MED(*attrs.MED), attrBuf, off)
 	}
 
 	// 5. LOCAL_PREF - RFC 4271 §5.1.5 (iBGP only)
 	if isIBGP {
+		var localPref attribute.LocalPref = 100
 		if attrs.LocalPreference != nil {
-			attrBytes = append(attrBytes, attribute.PackAttribute(attribute.LocalPref(*attrs.LocalPreference))...)
-		} else {
-			attrBytes = append(attrBytes, attribute.PackAttribute(attribute.LocalPref(100))...)
+			localPref = attribute.LocalPref(*attrs.LocalPreference)
 		}
+		off += attribute.WriteAttrTo(localPref, attrBuf, off)
 	}
 
 	// 6. COMMUNITY - RFC 1997
@@ -1535,25 +1562,25 @@ func (a *reactorAPIAdapter) buildBatchAnnounceUpdate(batch api.NLRIBatch, nextHo
 		for i, c := range attrs.Communities {
 			comms[i] = attribute.Community(c)
 		}
-		attrBytes = append(attrBytes, attribute.PackAttribute(comms)...)
+		off += attribute.WriteAttrTo(comms, attrBuf, off)
 	}
 
 	// 7. LARGE_COMMUNITY - RFC 8092
 	if len(attrs.LargeCommunities) > 0 {
 		lcomms := attribute.LargeCommunities(attrs.LargeCommunities)
-		attrBytes = append(attrBytes, attribute.PackAttribute(lcomms)...)
+		off += attribute.WriteAttrTo(lcomms, attrBuf, off)
 	}
 
 	// 8. EXTENDED_COMMUNITIES - RFC 4360
 	if len(attrs.ExtendedCommunities) > 0 {
 		extComms := attribute.ExtendedCommunities(attrs.ExtendedCommunities)
-		attrBytes = append(attrBytes, attribute.PackAttribute(extComms)...)
+		off += attribute.WriteAttrTo(extComms, attrBuf, off)
 	}
 
 	if isIPv4Unicast {
 		// IPv4 unicast: NLRI goes in the NLRI field
 		return &message.Update{
-			PathAttributes: attrBytes,
+			PathAttributes: attrBuf[:off],
 			NLRI:           nlriBytes,
 		}
 	}
@@ -1565,10 +1592,10 @@ func (a *reactorAPIAdapter) buildBatchAnnounceUpdate(batch api.NLRIBatch, nextHo
 		NextHops: []netip.Addr{nextHop},
 		NLRI:     nlriBytes,
 	}
-	attrBytes = append(attrBytes, attribute.PackAttribute(mpReach)...)
+	off += attribute.WriteAttrTo(mpReach, attrBuf, off)
 
 	return &message.Update{
-		PathAttributes: attrBytes,
+		PathAttributes: attrBuf[:off],
 	}
 }
 
@@ -1581,12 +1608,12 @@ func (a *reactorAPIAdapter) buildWireModeUpdate(wireAttrs, nlriBytes []byte, fam
 	if isIPv4Unicast {
 		// IPv4 unicast: append NEXT_HOP to wire attrs, NLRI in NLRI field
 		nh := &attribute.NextHop{Addr: nextHop}
-		attrBytes := make([]byte, 0, len(wireAttrs)+8)
-		attrBytes = append(attrBytes, wireAttrs...)
-		attrBytes = append(attrBytes, attribute.PackAttribute(nh)...)
+		attrBytes := make([]byte, len(wireAttrs)+8) // NEXT_HOP is 7 bytes (3 header + 4 IP)
+		copy(attrBytes, wireAttrs)
+		attrLen := len(wireAttrs) + attribute.WriteAttrTo(nh, attrBytes, len(wireAttrs))
 
 		return &message.Update{
-			PathAttributes: attrBytes,
+			PathAttributes: attrBytes[:attrLen],
 			NLRI:           nlriBytes,
 		}
 	}
@@ -1598,12 +1625,13 @@ func (a *reactorAPIAdapter) buildWireModeUpdate(wireAttrs, nlriBytes []byte, fam
 		NextHops: []netip.Addr{nextHop},
 		NLRI:     nlriBytes,
 	}
-	attrBytes := make([]byte, 0, len(wireAttrs)+len(nlriBytes)+32)
-	attrBytes = append(attrBytes, wireAttrs...)
-	attrBytes = append(attrBytes, attribute.PackAttribute(mpReach)...)
+	// MP_REACH_NLRI size: 4 header + 2 AFI + 1 SAFI + 1 NH-len + 32 NH (IPv6 global+link-local) + 1 reserved + NLRI
+	attrBytes := make([]byte, len(wireAttrs)+len(nlriBytes)+48)
+	copy(attrBytes, wireAttrs)
+	attrLen := len(wireAttrs) + attribute.WriteAttrTo(mpReach, attrBytes, len(wireAttrs))
 
 	return &message.Update{
-		PathAttributes: attrBytes,
+		PathAttributes: attrBytes[:attrLen],
 	}
 }
 
@@ -1611,10 +1639,15 @@ func (a *reactorAPIAdapter) buildWireModeUpdate(wireAttrs, nlriBytes []byte, fam
 // RFC 4271 Section 4.3: Withdrawn Routes field.
 // RFC 4760: MP_UNREACH_NLRI for non-IPv4-unicast families.
 func (a *reactorAPIAdapter) buildBatchWithdrawUpdate(batch api.NLRIBatch, ctx *nlri.PackContext) *message.Update {
-	// Pack NLRIs
-	var nlriBytes []byte
+	// Calculate total NLRI size and pack
+	totalNLRILen := 0
 	for _, n := range batch.NLRIs {
-		nlriBytes = append(nlriBytes, n.Pack(ctx)...)
+		totalNLRILen += nlri.LenWithContext(n, ctx)
+	}
+	nlriBytes := make([]byte, totalNLRILen)
+	nlriOff := 0
+	for _, n := range batch.NLRIs {
+		nlriOff += nlri.WriteNLRI(n, nlriBytes, nlriOff, ctx)
 	}
 
 	isIPv4Unicast := batch.Family == nlri.IPv4Unicast
@@ -1633,8 +1666,11 @@ func (a *reactorAPIAdapter) buildBatchWithdrawUpdate(batch api.NLRIBatch, ctx *n
 		NLRI: nlriBytes,
 	}
 
+	// Buffer: header(4) + AFI(2) + SAFI(1) + NLRI
+	attrBuf := make([]byte, 8+len(nlriBytes))
+	attrLen := attribute.WriteAttrTo(mpUnreach, attrBuf, 0)
 	return &message.Update{
-		PathAttributes: attribute.PackAttribute(mpUnreach),
+		PathAttributes: attrBuf[:attrLen],
 	}
 }
 
@@ -2191,7 +2227,7 @@ func (a *reactorAPIAdapter) SendRoutes(peerSelector string, routes []*rib.Route,
 
 // sendWithdrawals sends withdrawal UPDATE messages for the given NLRIs.
 // Groups by family for efficient packing.
-// RFC 7911: Uses Pack(ctx) for ADD-PATH aware encoding.
+// RFC 7911: Uses WriteNLRI for ADD-PATH aware encoding.
 func (a *reactorAPIAdapter) sendWithdrawals(peer *Peer, withdrawals []nlri.NLRI) int {
 	if len(withdrawals) == 0 {
 		return 0
@@ -2212,28 +2248,34 @@ func (a *reactorAPIAdapter) sendWithdrawals(peer *Peer, withdrawals []nlri.NLRI)
 		ctx := peer.packContext(family)
 		var update *message.Update
 
+		// Calculate total NLRI size
+		totalLen := 0
+		for _, n := range nlris {
+			totalLen += nlri.LenWithContext(n, ctx)
+		}
+		nlriBytes := make([]byte, totalLen)
+		off := 0
+		for _, n := range nlris {
+			off += nlri.WriteNLRI(n, nlriBytes, off, ctx)
+		}
+
 		if family == ipv4Unicast {
 			// IPv4 unicast: use WithdrawnRoutes field
-			var withdrawnBytes []byte
-			for _, n := range nlris {
-				withdrawnBytes = append(withdrawnBytes, n.Pack(ctx)...)
-			}
 			update = &message.Update{
-				WithdrawnRoutes: withdrawnBytes,
+				WithdrawnRoutes: nlriBytes,
 			}
 		} else {
 			// Other families: use MP_UNREACH_NLRI attribute
-			var nlriBytes []byte
-			for _, n := range nlris {
-				nlriBytes = append(nlriBytes, n.Pack(ctx)...)
-			}
 			mpUnreach := &attribute.MPUnreachNLRI{
 				AFI:  attribute.AFI(family.AFI),
 				SAFI: attribute.SAFI(family.SAFI),
 				NLRI: nlriBytes,
 			}
+			// Buffer: header(4) + AFI(2) + SAFI(1) + NLRI
+			attrBuf := make([]byte, 8+len(nlriBytes))
+			attrLen := attribute.WriteAttrTo(mpUnreach, attrBuf, 0)
 			update = &message.Update{
-				PathAttributes: attribute.PackAttribute(mpUnreach),
+				PathAttributes: attrBuf[:attrLen],
 			}
 		}
 
@@ -2532,9 +2574,14 @@ func (a *reactorAPIAdapter) sendGroupedMPFamily(peer *Peer, routes []*rib.Route,
 	}
 
 	// Pack all NLRIs
-	var nlriBytes []byte
+	totalLen := 0
 	for _, route := range routes {
-		nlriBytes = append(nlriBytes, route.NLRI().Pack(ctx)...)
+		totalLen += nlri.LenWithContext(route.NLRI(), ctx)
+	}
+	nlriBytes := make([]byte, totalLen)
+	off := 0
+	for _, route := range routes {
+		off += nlri.WriteNLRI(route.NLRI(), nlriBytes, off, ctx)
 	}
 
 	// Build grouped UPDATE with all NLRIs
@@ -2613,43 +2660,42 @@ func nextHopLength(family nlri.Family, nh netip.Addr) int {
 //
 //nolint:unused // Orphaned: was called by sendSplitUpdate (deleted), may be useful for future adj-rib-out features
 func (a *reactorAPIAdapter) buildGroupedMPUpdate(templateRoute *rib.Route, nlriBytes []byte, family nlri.Family, localAS uint32, isIBGP bool, ctx *nlri.PackContext) *message.Update {
-	var attrBytes []byte
+	// Pre-allocate buffer for attributes (4KB typical BGP max)
+	attrBuf := make([]byte, 4096)
+	off := 0
 
-	// Extract ASN4 from context
-	asn4 := ctx == nil || ctx.ASN4
+	// Create encoding context for ASPath encoding
+	dstCtx := &bgpctx.EncodingContext{ASN4: ctx == nil || ctx.ASN4}
 
 	// 1. ORIGIN
-	foundOrigin := false
+	var origin attribute.Origin = attribute.OriginIGP
 	for _, attr := range templateRoute.Attributes() {
-		if _, ok := attr.(attribute.Origin); ok {
-			attrBytes = append(attrBytes, attribute.PackAttribute(attr)...)
-			foundOrigin = true
+		if o, ok := attr.(attribute.Origin); ok {
+			origin = o
 			break
 		}
 	}
-	if !foundOrigin {
-		attrBytes = append(attrBytes, attribute.PackAttribute(attribute.OriginIGP)...)
-	}
+	off += attribute.WriteAttrTo(origin, attrBuf, off)
 
 	// 2. AS_PATH
 	storedASPath := templateRoute.ASPath()
 	hasStoredASPath := storedASPath != nil && len(storedASPath.Segments) > 0
 
+	var asPath *attribute.ASPath
 	switch {
 	case hasStoredASPath:
-		attrBytes = append(attrBytes, attribute.PackASPathAttribute(storedASPath, asn4)...)
+		asPath = storedASPath
 	case isIBGP || localAS == 0:
-		emptyASPath := &attribute.ASPath{Segments: nil}
-		attrBytes = append(attrBytes, attribute.PackASPathAttribute(emptyASPath, asn4)...)
+		asPath = &attribute.ASPath{Segments: nil}
 	default:
-		ebgpASPath := &attribute.ASPath{
+		asPath = &attribute.ASPath{
 			Segments: []attribute.ASPathSegment{{
 				Type: attribute.ASSequence,
 				ASNs: []uint32{localAS},
 			}},
 		}
-		attrBytes = append(attrBytes, attribute.PackASPathAttribute(ebgpASPath, asn4)...)
 	}
+	off += attribute.WriteAttrToWithContext(asPath, attrBuf, off, nil, dstCtx)
 
 	// MP_REACH_NLRI with grouped NLRIs
 	mpReach := &attribute.MPReachNLRI{
@@ -2658,11 +2704,11 @@ func (a *reactorAPIAdapter) buildGroupedMPUpdate(templateRoute *rib.Route, nlriB
 		NextHops: []netip.Addr{templateRoute.NextHop()},
 		NLRI:     nlriBytes,
 	}
-	attrBytes = append(attrBytes, attribute.PackAttribute(mpReach)...)
+	off += attribute.WriteAttrTo(mpReach, attrBuf, off)
 
 	// LOCAL_PREF for iBGP
 	if isIBGP {
-		attrBytes = append(attrBytes, attribute.PackAttribute(attribute.LocalPref(100))...)
+		off += attribute.WriteAttrTo(attribute.LocalPref(100), attrBuf, off)
 	}
 
 	// Copy optional attributes
@@ -2675,12 +2721,12 @@ func (a *reactorAPIAdapter) buildGroupedMPUpdate(templateRoute *rib.Route, nlriB
 			attribute.IPv6ExtendedCommunities,
 			attribute.AtomicAggregate, *attribute.Aggregator,
 			attribute.OriginatorID, attribute.ClusterList:
-			attrBytes = append(attrBytes, attribute.PackAttribute(attr)...)
+			off += attribute.WriteAttrTo(attr, attrBuf, off)
 		}
 	}
 
 	return &message.Update{
-		PathAttributes: attrBytes,
+		PathAttributes: attrBuf[:off],
 	}
 }
 
