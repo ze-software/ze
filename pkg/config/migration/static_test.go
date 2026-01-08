@@ -190,16 +190,15 @@ neighbor 192.0.2.1 {
 
 // TestExtractStaticRoutesMPLSVPN verifies MPLS-VPN route detection.
 //
-// VALIDATES: Routes with rd/label go to .<afi>.mpls-vpn.
+// VALIDATES: Routes with rd go to .<afi>.mpls-vpn (SAFI 128).
 //
-// PREVENTS: VPN routes being classified as unicast.
+// PREVENTS: L3VPN routes being classified as unicast.
 func TestExtractStaticRoutesMPLSVPN(t *testing.T) {
 	input := `
 neighbor 192.0.2.1 {
     local-as 65000;
     static {
         route 10.0.0.0/8 rd 65000:1 next-hop self;
-        route 172.16.0.0/12 label 100 next-hop self;
         route 192.168.0.0/16 next-hop self;
     }
 }
@@ -213,16 +212,58 @@ neighbor 192.0.2.1 {
 	announce := neighbor.GetContainer("announce")
 	ipv4 := announce.GetContainer("ipv4")
 
-	// MPLS-VPN routes
+	// MPLS-VPN route (has rd)
 	mplsVPN := ipv4.GetList("mpls-vpn")
-	require.Len(t, mplsVPN, 2)
+	require.Len(t, mplsVPN, 1)
 	require.NotNil(t, mplsVPN["10.0.0.0/8"])
-	require.NotNil(t, mplsVPN["172.16.0.0/12"])
 
 	// Unicast route
 	unicast := ipv4.GetList("unicast")
 	require.Len(t, unicast, 1)
 	require.NotNil(t, unicast["192.168.0.0/16"])
+}
+
+// TestExtractStaticRoutesLabeledUnicast verifies labeled unicast detection.
+//
+// VALIDATES: Routes with label only (no rd) go to .<afi>.nlri-mpls (SAFI 4).
+// RFC 8277: Labeled unicast uses SAFI 4.
+//
+// PREVENTS: Labeled unicast routes being misclassified as L3VPN (SAFI 128).
+func TestExtractStaticRoutesLabeledUnicast(t *testing.T) {
+	input := `
+neighbor 192.0.2.1 {
+    local-as 65000;
+    static {
+        route 172.16.0.0/12 label 100 next-hop self;
+        route 2001:db8::/32 label 200 next-hop self;
+        route 10.0.0.0/8 next-hop self;
+    }
+}
+`
+	tree := parseWithBGPSchema(t, input)
+
+	result, err := ExtractStaticRoutes(tree)
+	require.NoError(t, err)
+
+	neighbor := result.GetList("neighbor")["192.0.2.1"]
+	announce := neighbor.GetContainer("announce")
+
+	// IPv4 labeled unicast (label only, no rd)
+	ipv4 := announce.GetContainer("ipv4")
+	nlriMpls := ipv4.GetList("nlri-mpls")
+	require.Len(t, nlriMpls, 1)
+	require.NotNil(t, nlriMpls["172.16.0.0/12"])
+
+	// IPv4 unicast (no label, no rd)
+	unicast := ipv4.GetList("unicast")
+	require.Len(t, unicast, 1)
+	require.NotNil(t, unicast["10.0.0.0/8"])
+
+	// IPv6 labeled unicast
+	ipv6 := announce.GetContainer("ipv6")
+	ipv6NlriMpls := ipv6.GetList("nlri-mpls")
+	require.Len(t, ipv6NlriMpls, 1)
+	require.NotNil(t, ipv6NlriMpls["2001:db8::/32"])
 }
 
 // TestExtractStaticRoutesMergeExisting verifies merging with existing announce.

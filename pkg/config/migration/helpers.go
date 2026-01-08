@@ -42,17 +42,26 @@ func isMulticastPrefix(prefix string) bool {
 //
 // Detection order:
 //  1. Multicast range → "multicast"
-//  2. Has rd or label → "mpls-vpn"
-//  3. Default → "unicast"
+//  2. Has rd → "mpls-vpn" (SAFI 128, L3VPN)
+//  3. Has label only → "nlri-mpls" (SAFI 4, labeled unicast)
+//  4. Default → "unicast"
+//
+// RFC 8277: Labeled unicast uses SAFI 4 (prefix + label, no RD).
+// RFC 4364: L3VPN uses SAFI 128 (RD:prefix + label).
 func detectSAFI(prefix string, hasRD, hasLabel bool) string {
 	// Check multicast first (takes precedence)
 	if isMulticastPrefix(prefix) {
 		return "multicast"
 	}
 
-	// Check VPN indicators
-	if hasRD || hasLabel {
+	// RFC 4364: RD present = L3VPN (SAFI 128)
+	if hasRD {
 		return "mpls-vpn"
+	}
+
+	// RFC 8277: Label only (no RD) = labeled unicast (SAFI 4)
+	if hasLabel {
+		return "nlri-mpls"
 	}
 
 	return "unicast"
