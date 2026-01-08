@@ -426,6 +426,104 @@ Produces 2 groups:
 1. IPv4 group with community `[65000:100]`, 2 announce, 1 withdraw
 2. IPv6 group with communities `[65000:100, 65000:200]`, 1 announce
 
+### FlowSpec NLRI (RFC 8955)
+
+FlowSpec uses a different syntax than prefix-based families. Instead of prefixes,
+it uses match components that describe traffic flows.
+
+**Grammar:**
+```
+<nlri-section>     := nlri <flowspec-family> [rd <value>] <flowspec-op>+
+<flowspec-op>      := add <component>+ | del <component>+
+
+<flowspec-family>  := ipv4/flowspec | ipv6/flowspec
+                    | ipv4/flowspec-vpn | ipv6/flowspec-vpn
+
+<component>        := destination <prefix>
+                    | source <prefix>
+                    | protocol <proto>+
+                    | port <op><value>+
+                    | destination-port <op><value>+
+                    | source-port <op><value>+
+                    | icmp-type <value>+
+                    | icmp-code <value>+
+                    | tcp-flags <bitmask-match>+
+                    | packet-length <op><value>+
+                    | dscp <value>+
+                    | fragment <bitmask-match>+
+
+<op>               := = | > | >= | < | <=    # default is =
+<proto>            := tcp | udp | icmp | gre | <number>
+
+<bitmask-match>    := [&][!][=]<flag>[&<flag>...]
+<flag>             := syn | ack | fin | rst | psh | push | urg | ece | cwr  # tcp-flags
+                    | dont-fragment | is-fragment | first-fragment | last-fragment  # fragment
+```
+
+**Value Ranges (validated at parse time):**
+
+| Component | Range | Bits |
+|-----------|-------|------|
+| protocol, icmp-type, icmp-code | 0-255 | 8 |
+| port, destination-port, source-port, packet-length | 0-65535 | 16 |
+| dscp | 0-63 | 6 |
+
+**Bitmask Operators (RFC 8955 Section 4.2.1.2):**
+
+| Syntax | Meaning | Wire Op |
+|--------|---------|---------|
+| `flag` | match if ANY of the flags are set | 0x00 (INCLUDE) |
+| `=flag` | match if EXACTLY these flags are set | 0x01 (Match) |
+| `!flag` | match if flag is NOT set | 0x02 (Not) |
+| `!=flag` | match if NOT exactly these flags | 0x03 (Not+Match) |
+| `flag1&flag2` | combine flags in same match | combined value |
+| `&flag` | AND with previous match (vs OR) | 0x40 (And bit) |
+
+**Examples:**
+```
+# Basic FlowSpec: match TCP port 80 to destination
+nlri ipv4/flowspec add destination 10.0.0.0/24 protocol tcp destination-port =80
+
+# Multiple components (AND logic)
+nlri ipv4/flowspec add destination 10.0.0.0/24 source 192.168.0.0/16 protocol tcp
+
+# FlowSpec VPN with RD
+nlri ipv4/flowspec-vpn rd 65000:100 add destination 10.0.0.0/24
+
+# Port range (>=1024 AND <=65535)
+nlri ipv4/flowspec add destination-port >=1024 <=65535
+
+# TCP flags with operators
+nlri ipv4/flowspec add tcp-flags syn          # SYN is set (any)
+nlri ipv4/flowspec add tcp-flags =syn         # ONLY SYN is set (exact)
+nlri ipv4/flowspec add tcp-flags !rst         # RST is NOT set
+nlri ipv4/flowspec add tcp-flags =syn&ack     # exactly SYN+ACK
+
+# Fragment matching
+nlri ipv4/flowspec add fragment !is-fragment  # NOT a fragment
+nlri ipv4/flowspec add fragment dont-fragment # DF bit set
+
+# Withdraw
+nlri ipv4/flowspec del destination 10.0.0.0/24 protocol tcp
+```
+
+**FlowSpec Extended Community Actions (RFC 5575 Section 7):**
+
+Actions are specified via extended-community with function syntax:
+
+```
+extended-community set traffic-rate <asn> <rate>   # Rate limit (bytes/sec)
+extended-community set discard                      # Drop traffic (rate=0)
+extended-community set redirect <asn> <target>      # Redirect to VRF
+extended-community set traffic-marking <dscp>       # Set DSCP value
+```
+
+**Complete FlowSpec Rule Example:**
+```
+extended-community set traffic-rate 65000 1000000
+nlri ipv4/flowspec add destination 10.0.0.0/24 protocol tcp destination-port =80
+```
+
 ## Transaction Support
 
 ```go

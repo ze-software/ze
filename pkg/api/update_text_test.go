@@ -2,6 +2,7 @@ package api
 
 import (
 	"net/netip"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -590,9 +591,9 @@ func TestParseUpdateText_UnknownAttribute(t *testing.T) {
 // VALIDATES: Unsupported family returns error
 // PREVENTS: Silent ignore of unsupported families.
 func TestParseUpdateText_UnsupportedFamily(t *testing.T) {
-	// FlowSpec is a valid family but not supported in text mode
+	// EVPN is a valid family but not supported in text mode
 	_, err := ParseUpdateText([]string{
-		"nlri", "ipv4/flowspec", "add", "10.0.0.0/24",
+		"nlri", "l2vpn/evpn", "add", "10.0.0.0/24",
 	})
 	require.Error(t, err)
 	assert.ErrorIs(t, err, ErrFamilyNotSupported)
@@ -2068,4 +2069,1217 @@ func TestParseUpdateText_InNLRIModifierScopeIsSectionOnly(t *testing.T) {
 
 	// Second group: unicast (no VPN requirements)
 	assert.Equal(t, nlri.IPv4Unicast, result.Groups[1].Family)
+}
+
+// ============================================================================
+// FlowSpec Text Mode Tests (RFC 8955)
+// ============================================================================
+
+// TestParseUpdateText_FlowSpecBasic verifies basic FlowSpec with destination only.
+//
+// VALIDATES: FlowSpec NLRI with single destination prefix component
+// PREVENTS: FlowSpec family not being recognized
+func TestParseUpdateText_FlowSpecBasic(t *testing.T) {
+	result, err := ParseUpdateText([]string{
+		"nlri", "ipv4/flowspec", "add", "destination", "10.0.0.0/24",
+	})
+	require.NoError(t, err)
+	require.Len(t, result.Groups, 1)
+	require.Len(t, result.Groups[0].Announce, 1)
+
+	fs, ok := result.Groups[0].Announce[0].(*nlri.FlowSpec)
+	require.True(t, ok, "expected FlowSpec NLRI")
+	require.Len(t, fs.Components(), 1)
+	assert.Equal(t, nlri.FlowDestPrefix, fs.Components()[0].Type())
+}
+
+// TestParseUpdateText_FlowSpecProtocol verifies protocol component parsing.
+//
+// VALIDATES: Protocol names (tcp/udp/icmp) and numbers translate correctly
+// PREVENTS: Protocol component not parsed
+func TestParseUpdateText_FlowSpecProtocol(t *testing.T) {
+	tests := []struct {
+		name     string
+		protocol string
+		want     uint8
+	}{
+		{"tcp", "tcp", 6},
+		{"udp", "udp", 17},
+		{"icmp", "icmp", 1},
+		{"gre", "gre", 47},
+		{"numeric", "89", 89}, // OSPF
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			result, err := ParseUpdateText([]string{
+				"nlri", "ipv4/flowspec", "add", "protocol", tc.protocol,
+			})
+			require.NoError(t, err)
+			require.Len(t, result.Groups, 1)
+			require.Len(t, result.Groups[0].Announce, 1)
+
+			fs, ok := result.Groups[0].Announce[0].(*nlri.FlowSpec)
+			require.True(t, ok)
+			require.Len(t, fs.Components(), 1)
+			assert.Equal(t, nlri.FlowIPProtocol, fs.Components()[0].Type())
+		})
+	}
+}
+
+// TestParseUpdateText_FlowSpecPort verifies port with operators.
+//
+// VALIDATES: Port operators (=, >, <, >=, <=) parsed correctly
+// PREVENTS: Port operator syntax errors
+func TestParseUpdateText_FlowSpecPort(t *testing.T) {
+	tests := []struct {
+		name string
+		port string
+		op   nlri.FlowOperator
+		val  uint64
+	}{
+		{"equal", "=80", nlri.FlowOpEqual, 80},
+		{"gt", ">1024", nlri.FlowOpGreater, 1024},
+		{"lt", "<1024", nlri.FlowOpLess, 1024},
+		{"ge", ">=1024", nlri.FlowOpGreater | nlri.FlowOpEqual, 1024},
+		{"le", "<=1024", nlri.FlowOpLess | nlri.FlowOpEqual, 1024},
+		{"bare", "80", nlri.FlowOpEqual, 80}, // default to equal
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			result, err := ParseUpdateText([]string{
+				"nlri", "ipv4/flowspec", "add", "destination-port", tc.port,
+			})
+			require.NoError(t, err)
+			require.Len(t, result.Groups, 1)
+
+			fs, ok := result.Groups[0].Announce[0].(*nlri.FlowSpec)
+			require.True(t, ok)
+			require.Len(t, fs.Components(), 1)
+			assert.Equal(t, nlri.FlowDestPort, fs.Components()[0].Type())
+		})
+	}
+}
+
+// TestParseUpdateText_FlowSpecPortRange verifies port range syntax.
+//
+// VALIDATES: Port range (>=1 <=1023) creates two matches with AND
+// PREVENTS: Port range not being parsed as AND condition
+func TestParseUpdateText_FlowSpecPortRange(t *testing.T) {
+	result, err := ParseUpdateText([]string{
+		"nlri", "ipv4/flowspec", "add", "destination-port", ">=1", "<=1023",
+	})
+	require.NoError(t, err)
+	require.Len(t, result.Groups, 1)
+
+	fs, ok := result.Groups[0].Announce[0].(*nlri.FlowSpec)
+	require.True(t, ok)
+	require.Len(t, fs.Components(), 1)
+	assert.Equal(t, nlri.FlowDestPort, fs.Components()[0].Type())
+}
+
+// TestParseUpdateText_FlowSpecMultipleComponents verifies multiple components.
+//
+// VALIDATES: Multiple match components combine with AND logic
+// PREVENTS: Only first component being parsed
+func TestParseUpdateText_FlowSpecMultipleComponents(t *testing.T) {
+	result, err := ParseUpdateText([]string{
+		"nlri", "ipv4/flowspec", "add",
+		"destination", "10.0.0.0/24",
+		"protocol", "tcp",
+		"destination-port", "=80",
+	})
+	require.NoError(t, err)
+	require.Len(t, result.Groups, 1)
+
+	fs, ok := result.Groups[0].Announce[0].(*nlri.FlowSpec)
+	require.True(t, ok)
+	require.Len(t, fs.Components(), 3)
+
+	// Verify all three components present (order may vary due to sorting)
+	types := make(map[nlri.FlowComponentType]bool)
+	for _, c := range fs.Components() {
+		types[c.Type()] = true
+	}
+	assert.True(t, types[nlri.FlowDestPrefix])
+	assert.True(t, types[nlri.FlowIPProtocol])
+	assert.True(t, types[nlri.FlowDestPort])
+}
+
+// TestParseUpdateText_FlowSpecWithdraw verifies del syntax for FlowSpec.
+//
+// VALIDATES: del creates withdrawal for FlowSpec rule
+// PREVENTS: FlowSpec withdraw not working
+func TestParseUpdateText_FlowSpecWithdraw(t *testing.T) {
+	result, err := ParseUpdateText([]string{
+		"nlri", "ipv4/flowspec", "del", "destination", "10.0.0.0/24",
+	})
+	require.NoError(t, err)
+	require.Len(t, result.Groups, 1)
+	require.Len(t, result.Groups[0].Withdraw, 1)
+	require.Empty(t, result.Groups[0].Announce)
+
+	fs, ok := result.Groups[0].Withdraw[0].(*nlri.FlowSpec)
+	require.True(t, ok)
+	require.Len(t, fs.Components(), 1)
+}
+
+// TestParseUpdateText_FlowSpecVPN verifies FlowSpec VPN with rd.
+//
+// VALIDATES: flowspec-vpn creates FlowSpecVPN NLRI with RD
+// PREVENTS: FlowSpec VPN not parsing RD
+func TestParseUpdateText_FlowSpecVPN(t *testing.T) {
+	result, err := ParseUpdateText([]string{
+		"nlri", "ipv4/flowspec-vpn", "rd", "65000:100", "add",
+		"destination", "10.0.0.0/24",
+	})
+	require.NoError(t, err)
+	require.Len(t, result.Groups, 1)
+
+	fsv, ok := result.Groups[0].Announce[0].(*nlri.FlowSpecVPN)
+	require.True(t, ok, "expected FlowSpecVPN NLRI")
+	assert.Equal(t, "65000:100", fsv.RD().String())
+	require.Len(t, fsv.Components(), 1)
+}
+
+// TestParseUpdateText_FlowSpecIPv6 verifies IPv6 FlowSpec.
+//
+// VALIDATES: ipv6/flowspec with IPv6 prefix works
+// PREVENTS: IPv6 FlowSpec not being parsed
+func TestParseUpdateText_FlowSpecIPv6(t *testing.T) {
+	result, err := ParseUpdateText([]string{
+		"nlri", "ipv6/flowspec", "add", "destination", "2001:db8::/32",
+	})
+	require.NoError(t, err)
+	require.Len(t, result.Groups, 1)
+
+	fs, ok := result.Groups[0].Announce[0].(*nlri.FlowSpec)
+	require.True(t, ok)
+	assert.Equal(t, nlri.IPv6FlowSpec, fs.Family())
+}
+
+// TestParseUpdateText_FlowSpecTCPFlags verifies TCP flags matching.
+//
+// VALIDATES: tcp-flags component with flag names
+// PREVENTS: TCP flags not parsed
+func TestParseUpdateText_FlowSpecTCPFlags(t *testing.T) {
+	result, err := ParseUpdateText([]string{
+		"nlri", "ipv4/flowspec", "add", "tcp-flags", "syn", "ack",
+	})
+	require.NoError(t, err)
+	require.Len(t, result.Groups, 1)
+
+	fs, ok := result.Groups[0].Announce[0].(*nlri.FlowSpec)
+	require.True(t, ok)
+	require.Len(t, fs.Components(), 1)
+	assert.Equal(t, nlri.FlowTCPFlags, fs.Components()[0].Type())
+}
+
+// TestParseUpdateText_FlowSpecFragment verifies fragment component.
+//
+// VALIDATES: fragment component with fragment flags
+// PREVENTS: Fragment component not parsed
+func TestParseUpdateText_FlowSpecFragment(t *testing.T) {
+	result, err := ParseUpdateText([]string{
+		"nlri", "ipv4/flowspec", "add", "fragment", "dont-fragment",
+	})
+	require.NoError(t, err)
+	require.Len(t, result.Groups, 1)
+
+	fs, ok := result.Groups[0].Announce[0].(*nlri.FlowSpec)
+	require.True(t, ok)
+	require.Len(t, fs.Components(), 1)
+	assert.Equal(t, nlri.FlowFragment, fs.Components()[0].Type())
+}
+
+// TestParseUpdateText_FlowSpecTCPFlagsOperators verifies bitmask operators.
+//
+// VALIDATES: !, =, & operators work per RFC 8955 Section 4.2.1.2
+// PREVENTS: Bitmask operators not parsed correctly
+func TestParseUpdateText_FlowSpecTCPFlagsOperators(t *testing.T) {
+	tests := []struct {
+		name   string
+		flags  []string
+		wantOp nlri.FlowOperator
+		wantV  uint8
+	}{
+		{"bare_flag", []string{"syn"}, 0, 0x02},
+		{"match_exact", []string{"=syn"}, nlri.FlowOpMatch, 0x02},
+		{"not_flag", []string{"!rst"}, nlri.FlowOpNot, 0x04},
+		{"not_match", []string{"!=ack"}, nlri.FlowOpNot | nlri.FlowOpMatch, 0x10},
+		{"combined_flags", []string{"syn&ack"}, 0, 0x12},                 // SYN + ACK
+		{"exact_combined", []string{"=syn&ack"}, nlri.FlowOpMatch, 0x12}, // exact SYN+ACK
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			args := append([]string{"nlri", "ipv4/flowspec", "add", "tcp-flags"}, tc.flags...)
+			result, err := ParseUpdateText(args)
+			require.NoError(t, err)
+			require.Len(t, result.Groups, 1)
+
+			fs, ok := result.Groups[0].Announce[0].(*nlri.FlowSpec)
+			require.True(t, ok)
+			require.Len(t, fs.Components(), 1)
+			assert.Equal(t, nlri.FlowTCPFlags, fs.Components()[0].Type())
+		})
+	}
+}
+
+// TestParseUpdateText_FlowSpecFragmentOperators verifies fragment bitmask operators.
+//
+// VALIDATES: !, =, & operators work for fragment component
+// PREVENTS: Fragment operators not parsed correctly
+func TestParseUpdateText_FlowSpecFragmentOperators(t *testing.T) {
+	tests := []struct {
+		name  string
+		flags []string
+	}{
+		{"bare_flag", []string{"dont-fragment"}},
+		{"not_flag", []string{"!is-fragment"}},
+		{"match_exact", []string{"=first-fragment"}},
+		{"combined", []string{"dont-fragment&first-fragment"}},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			args := append([]string{"nlri", "ipv4/flowspec", "add", "fragment"}, tc.flags...)
+			result, err := ParseUpdateText(args)
+			require.NoError(t, err)
+			require.Len(t, result.Groups, 1)
+
+			fs, ok := result.Groups[0].Announce[0].(*nlri.FlowSpec)
+			require.True(t, ok)
+			require.Len(t, fs.Components(), 1)
+			assert.Equal(t, nlri.FlowFragment, fs.Components()[0].Type())
+		})
+	}
+}
+
+// TestParseUpdateText_FlowSpecMissingAdd verifies error without add/del.
+//
+// VALIDATES: FlowSpec without add/del returns appropriate error
+// PREVENTS: Components parsed without mode
+func TestParseUpdateText_FlowSpecMissingAdd(t *testing.T) {
+	_, err := ParseUpdateText([]string{
+		"nlri", "ipv4/flowspec", "destination", "10.0.0.0/24",
+	})
+	require.Error(t, err)
+	assert.ErrorIs(t, err, ErrMissingAddDel)
+}
+
+// TestParseUpdateText_FlowSpecVPNMissingRD verifies VPN requires RD.
+//
+// VALIDATES: flowspec-vpn without rd returns error
+// PREVENTS: FlowSpec VPN created without RD
+func TestParseUpdateText_FlowSpecVPNMissingRD(t *testing.T) {
+	_, err := ParseUpdateText([]string{
+		"nlri", "ipv4/flowspec-vpn", "add", "destination", "10.0.0.0/24",
+	})
+	require.Error(t, err)
+	assert.ErrorIs(t, err, ErrMissingRD)
+}
+
+// ============================================================================
+// Extended Community Function Syntax Tests
+// ============================================================================
+
+// TestParseUpdateText_ExtCommTrafficRate verifies traffic-rate function.
+//
+// VALIDATES: extended-community set traffic-rate <asn> <rate> creates correct extcomm
+// PREVENTS: Traffic-rate function not parsed
+func TestParseUpdateText_ExtCommTrafficRate(t *testing.T) {
+	result, err := ParseUpdateText([]string{
+		"extended-community", "set", "traffic-rate", "65000", "1000000",
+		"nlri", "ipv4/flowspec", "add", "destination", "10.0.0.0/24",
+	})
+	require.NoError(t, err)
+	require.Len(t, result.Groups, 1)
+	require.Len(t, result.Groups[0].Attrs.ExtendedCommunities, 1)
+}
+
+// TestParseUpdateText_ExtCommDiscard verifies discard sugar.
+//
+// VALIDATES: discard creates traffic-rate 0 0
+// PREVENTS: Discard sugar not working
+func TestParseUpdateText_ExtCommDiscard(t *testing.T) {
+	result, err := ParseUpdateText([]string{
+		"extended-community", "set", "discard",
+		"nlri", "ipv4/flowspec", "add", "destination", "10.0.0.0/24",
+	})
+	require.NoError(t, err)
+	require.Len(t, result.Groups, 1)
+	require.Len(t, result.Groups[0].Attrs.ExtendedCommunities, 1)
+}
+
+// TestParseUpdateText_ExtCommRedirect verifies redirect function.
+//
+// VALIDATES: extended-community set redirect <asn> <value> creates redirect RT
+// PREVENTS: Redirect function not parsed
+func TestParseUpdateText_ExtCommRedirect(t *testing.T) {
+	result, err := ParseUpdateText([]string{
+		"extended-community", "set", "redirect", "65000", "100",
+		"nlri", "ipv4/flowspec", "add", "destination", "10.0.0.0/24",
+	})
+	require.NoError(t, err)
+	require.Len(t, result.Groups, 1)
+	require.Len(t, result.Groups[0].Attrs.ExtendedCommunities, 1)
+}
+
+// TestParseUpdateText_ExtCommTrafficMarking verifies traffic-marking function.
+//
+// VALIDATES: extended-community set traffic-marking <dscp> creates correct extcomm
+// PREVENTS: Traffic-marking function not parsed
+func TestParseUpdateText_ExtCommTrafficMarking(t *testing.T) {
+	result, err := ParseUpdateText([]string{
+		"extended-community", "set", "traffic-marking", "46",
+		"nlri", "ipv4/flowspec", "add", "destination", "10.0.0.0/24",
+	})
+	require.NoError(t, err)
+	require.Len(t, result.Groups, 1)
+	require.Len(t, result.Groups[0].Attrs.ExtendedCommunities, 1)
+}
+
+// TestParseUpdateText_FlowSpecSourcePrefix verifies source prefix component.
+//
+// VALIDATES: source prefix component parsed correctly
+// PREVENTS: Only destination prefix working
+func TestParseUpdateText_FlowSpecSourcePrefix(t *testing.T) {
+	result, err := ParseUpdateText([]string{
+		"nlri", "ipv4/flowspec", "add", "source", "192.168.1.0/24",
+	})
+	require.NoError(t, err)
+	require.Len(t, result.Groups, 1)
+
+	fs, ok := result.Groups[0].Announce[0].(*nlri.FlowSpec)
+	require.True(t, ok)
+	require.Len(t, fs.Components(), 1)
+	assert.Equal(t, nlri.FlowSourcePrefix, fs.Components()[0].Type())
+}
+
+// TestParseUpdateText_FlowSpecICMPType verifies ICMP type component.
+//
+// VALIDATES: icmp-type component parsed
+// PREVENTS: ICMP type not recognized
+func TestParseUpdateText_FlowSpecICMPType(t *testing.T) {
+	result, err := ParseUpdateText([]string{
+		"nlri", "ipv4/flowspec", "add", "icmp-type", "8", // Echo request
+	})
+	require.NoError(t, err)
+	require.Len(t, result.Groups, 1)
+
+	fs, ok := result.Groups[0].Announce[0].(*nlri.FlowSpec)
+	require.True(t, ok)
+	require.Len(t, fs.Components(), 1)
+	assert.Equal(t, nlri.FlowICMPType, fs.Components()[0].Type())
+}
+
+// TestParseUpdateText_FlowSpecICMPCode verifies ICMP code component.
+//
+// VALIDATES: icmp-code component parsed
+// PREVENTS: ICMP code not recognized
+func TestParseUpdateText_FlowSpecICMPCode(t *testing.T) {
+	result, err := ParseUpdateText([]string{
+		"nlri", "ipv4/flowspec", "add", "icmp-code", "0",
+	})
+	require.NoError(t, err)
+	require.Len(t, result.Groups, 1)
+
+	fs, ok := result.Groups[0].Announce[0].(*nlri.FlowSpec)
+	require.True(t, ok)
+	require.Len(t, fs.Components(), 1)
+	assert.Equal(t, nlri.FlowICMPCode, fs.Components()[0].Type())
+}
+
+// TestParseUpdateText_FlowSpecDSCP verifies DSCP component.
+//
+// VALIDATES: dscp component parsed
+// PREVENTS: DSCP not recognized
+func TestParseUpdateText_FlowSpecDSCP(t *testing.T) {
+	result, err := ParseUpdateText([]string{
+		"nlri", "ipv4/flowspec", "add", "dscp", "46", // EF
+	})
+	require.NoError(t, err)
+	require.Len(t, result.Groups, 1)
+
+	fs, ok := result.Groups[0].Announce[0].(*nlri.FlowSpec)
+	require.True(t, ok)
+	require.Len(t, fs.Components(), 1)
+	assert.Equal(t, nlri.FlowDSCP, fs.Components()[0].Type())
+}
+
+// TestParseUpdateText_FlowSpecPacketLength verifies packet-length component.
+//
+// VALIDATES: packet-length component parsed
+// PREVENTS: Packet length not recognized
+func TestParseUpdateText_FlowSpecPacketLength(t *testing.T) {
+	result, err := ParseUpdateText([]string{
+		"nlri", "ipv4/flowspec", "add", "packet-length", ">=100", "<=1500",
+	})
+	require.NoError(t, err)
+	require.Len(t, result.Groups, 1)
+
+	fs, ok := result.Groups[0].Announce[0].(*nlri.FlowSpec)
+	require.True(t, ok)
+	require.Len(t, fs.Components(), 1)
+	assert.Equal(t, nlri.FlowPacketLength, fs.Components()[0].Type())
+}
+
+// TestParseUpdateText_FlowSpecSourcePort verifies source-port component.
+//
+// VALIDATES: source-port component parsed
+// PREVENTS: Source port not recognized
+func TestParseUpdateText_FlowSpecSourcePort(t *testing.T) {
+	result, err := ParseUpdateText([]string{
+		"nlri", "ipv4/flowspec", "add", "source-port", "=443",
+	})
+	require.NoError(t, err)
+	require.Len(t, result.Groups, 1)
+
+	fs, ok := result.Groups[0].Announce[0].(*nlri.FlowSpec)
+	require.True(t, ok)
+	require.Len(t, fs.Components(), 1)
+	assert.Equal(t, nlri.FlowSourcePort, fs.Components()[0].Type())
+}
+
+// TestParseUpdateText_FlowSpecPort verifies port (any) component.
+//
+// VALIDATES: port component (matches src OR dst) parsed
+// PREVENTS: Generic port component not recognized
+func TestParseUpdateText_FlowSpecPortComponent(t *testing.T) {
+	result, err := ParseUpdateText([]string{
+		"nlri", "ipv4/flowspec", "add", "port", "=22",
+	})
+	require.NoError(t, err)
+	require.Len(t, result.Groups, 1)
+
+	fs, ok := result.Groups[0].Announce[0].(*nlri.FlowSpec)
+	require.True(t, ok)
+	require.Len(t, fs.Components(), 1)
+	assert.Equal(t, nlri.FlowPort, fs.Components()[0].Type())
+}
+
+// ============================================================================
+// Comprehensive FlowSpec Component Combination Tests
+// ============================================================================
+
+// TestParseUpdateText_FlowSpecAllComponentTypes verifies all 12 component types.
+//
+// VALIDATES: Every RFC 8955 component type is parseable
+// PREVENTS: Missing component implementations
+func TestParseUpdateText_FlowSpecAllComponentTypes(t *testing.T) {
+	tests := []struct {
+		name      string
+		component []string
+		wantType  nlri.FlowComponentType
+	}{
+		{"destination", []string{"destination", "10.0.0.0/24"}, nlri.FlowDestPrefix},
+		{"source", []string{"source", "192.168.0.0/16"}, nlri.FlowSourcePrefix},
+		{"protocol_tcp", []string{"protocol", "tcp"}, nlri.FlowIPProtocol},
+		{"protocol_udp", []string{"protocol", "udp"}, nlri.FlowIPProtocol},
+		{"protocol_icmp", []string{"protocol", "icmp"}, nlri.FlowIPProtocol},
+		{"protocol_gre", []string{"protocol", "gre"}, nlri.FlowIPProtocol},
+		{"protocol_numeric", []string{"protocol", "47"}, nlri.FlowIPProtocol},
+		{"port", []string{"port", "=80"}, nlri.FlowPort},
+		{"destination-port", []string{"destination-port", "=443"}, nlri.FlowDestPort},
+		{"source-port", []string{"source-port", ">=1024"}, nlri.FlowSourcePort},
+		{"icmp-type", []string{"icmp-type", "8"}, nlri.FlowICMPType},
+		{"icmp-code", []string{"icmp-code", "0"}, nlri.FlowICMPCode},
+		{"tcp-flags", []string{"tcp-flags", "syn"}, nlri.FlowTCPFlags},
+		{"packet-length", []string{"packet-length", ">=64"}, nlri.FlowPacketLength},
+		{"dscp", []string{"dscp", "46"}, nlri.FlowDSCP},
+		{"fragment", []string{"fragment", "dont-fragment"}, nlri.FlowFragment},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			args := append([]string{"nlri", "ipv4/flowspec", "add"}, tc.component...)
+			result, err := ParseUpdateText(args)
+			require.NoError(t, err, "component %s failed", tc.name)
+			require.Len(t, result.Groups, 1)
+			require.Len(t, result.Groups[0].Announce, 1)
+
+			fs, ok := result.Groups[0].Announce[0].(*nlri.FlowSpec)
+			require.True(t, ok)
+			require.Len(t, fs.Components(), 1, "expected 1 component for %s", tc.name)
+			assert.Equal(t, tc.wantType, fs.Components()[0].Type())
+		})
+	}
+}
+
+// TestParseUpdateText_FlowSpecNumericOperators verifies all numeric operators.
+//
+// VALIDATES: =, >, <, >=, <= operators work for numeric components
+// PREVENTS: Operator parsing failures
+func TestParseUpdateText_FlowSpecNumericOperators(t *testing.T) {
+	operators := []string{"=80", ">80", "<80", ">=80", "<=80", "80"}
+	components := []string{"port", "destination-port", "source-port", "packet-length"}
+
+	for _, comp := range components {
+		for _, op := range operators {
+			t.Run(comp+"_"+op, func(t *testing.T) {
+				result, err := ParseUpdateText([]string{
+					"nlri", "ipv4/flowspec", "add", comp, op,
+				})
+				require.NoError(t, err, "%s %s failed", comp, op)
+				require.Len(t, result.Groups, 1)
+				require.Len(t, result.Groups[0].Announce, 1)
+
+				fs, ok := result.Groups[0].Announce[0].(*nlri.FlowSpec)
+				require.True(t, ok)
+				require.Len(t, fs.Components(), 1)
+			})
+		}
+	}
+}
+
+// TestParseUpdateText_FlowSpecBitmaskWireEncoding verifies wire encoding of bitmask operators.
+//
+// VALIDATES: Operator bytes encode correctly per RFC 8955 Section 4.2.1.2
+// PREVENTS: Wrong bit positions for NOT/Match/And operators
+func TestParseUpdateText_FlowSpecBitmaskWireEncoding(t *testing.T) {
+	tests := []struct {
+		name     string
+		flags    []string
+		wantOps  []nlri.FlowOperator // Expected Op field per match
+		wantAnds []bool              // Expected And field per match
+		wantVals []uint64            // Expected Value field per match
+	}{
+		{
+			name:     "bare_syn",
+			flags:    []string{"syn"},
+			wantOps:  []nlri.FlowOperator{0}, // INCLUDE = 0x00
+			wantAnds: []bool{false},
+			wantVals: []uint64{0x02},
+		},
+		{
+			name:     "match_syn",
+			flags:    []string{"=syn"},
+			wantOps:  []nlri.FlowOperator{nlri.FlowOpMatch}, // 0x01
+			wantAnds: []bool{false},
+			wantVals: []uint64{0x02},
+		},
+		{
+			name:     "not_syn",
+			flags:    []string{"!syn"},
+			wantOps:  []nlri.FlowOperator{nlri.FlowOpNot}, // 0x02
+			wantAnds: []bool{false},
+			wantVals: []uint64{0x02},
+		},
+		{
+			name:     "not_match_syn",
+			flags:    []string{"!=syn"},
+			wantOps:  []nlri.FlowOperator{nlri.FlowOpNot | nlri.FlowOpMatch}, // 0x03
+			wantAnds: []bool{false},
+			wantVals: []uint64{0x02},
+		},
+		{
+			name:     "syn_and_ack",
+			flags:    []string{"syn&ack"},
+			wantOps:  []nlri.FlowOperator{0}, // Combined in single match
+			wantAnds: []bool{false},
+			wantVals: []uint64{0x12}, // SYN(0x02) | ACK(0x10) = 0x12
+		},
+		{
+			name:     "syn_or_ack_tokens",
+			flags:    []string{"syn", "ack"},
+			wantOps:  []nlri.FlowOperator{0, 0}, // Two matches, OR logic (And=false)
+			wantAnds: []bool{false, false},
+			wantVals: []uint64{0x02, 0x10},
+		},
+		{
+			name:     "syn_and_not_rst",
+			flags:    []string{"syn", "&!rst"},
+			wantOps:  []nlri.FlowOperator{0, nlri.FlowOpNot}, // syn=0, !rst=0x02
+			wantAnds: []bool{false, true},                    // Second has And=true
+			wantVals: []uint64{0x02, 0x04},
+		},
+		{
+			name:     "match_syn_and_not_rst",
+			flags:    []string{"=syn", "&!rst"},
+			wantOps:  []nlri.FlowOperator{nlri.FlowOpMatch, nlri.FlowOpNot}, // =syn=0x01, !rst=0x02
+			wantAnds: []bool{false, true},
+			wantVals: []uint64{0x02, 0x04},
+		},
+		{
+			name:     "ece_cwr",
+			flags:    []string{"ece&cwr"},
+			wantOps:  []nlri.FlowOperator{0},
+			wantAnds: []bool{false},
+			wantVals: []uint64{0xC0}, // ECE(0x40) | CWR(0x80) = 0xC0
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			args := append([]string{"nlri", "ipv4/flowspec", "add", "tcp-flags"}, tc.flags...)
+			result, err := ParseUpdateText(args)
+			require.NoError(t, err)
+
+			fs, ok := result.Groups[0].Announce[0].(*nlri.FlowSpec)
+			require.True(t, ok)
+			require.Len(t, fs.Components(), 1)
+
+			comp := fs.Components()[0]
+			assert.Equal(t, nlri.FlowTCPFlags, comp.Type())
+
+			// Get the matches from the component
+			type matchGetter interface {
+				Matches() []nlri.FlowMatch
+			}
+			mg, ok := comp.(matchGetter)
+			require.True(t, ok, "component should have Matches() method")
+
+			matches := mg.Matches()
+			require.Len(t, matches, len(tc.wantOps), "wrong number of matches")
+
+			for i, m := range matches {
+				assert.Equal(t, tc.wantOps[i], m.Op, "match[%d] Op mismatch", i)
+				assert.Equal(t, tc.wantAnds[i], m.And, "match[%d] And mismatch", i)
+				assert.Equal(t, tc.wantVals[i], m.Value, "match[%d] Value mismatch", i)
+			}
+		})
+	}
+}
+
+// TestParseUpdateText_FlowSpecBitmaskWireBytes verifies actual wire bytes output.
+//
+// VALIDATES: Full wire encoding matches RFC 8955 Section 4.2.1.2
+// PREVENTS: Incorrect operator byte assembly
+func TestParseUpdateText_FlowSpecBitmaskWireBytes(t *testing.T) {
+	tests := []struct {
+		name      string
+		flags     []string
+		wantBytes []byte // Expected component bytes (type + [op, value]+)
+	}{
+		{
+			name:  "bare_syn",
+			flags: []string{"syn"},
+			// Type=9, Op=0x80 (End), Value=0x02
+			wantBytes: []byte{0x09, 0x80, 0x02},
+		},
+		{
+			name:  "match_syn",
+			flags: []string{"=syn"},
+			// Type=9, Op=0x81 (End|Match), Value=0x02
+			wantBytes: []byte{0x09, 0x81, 0x02},
+		},
+		{
+			name:  "not_syn",
+			flags: []string{"!syn"},
+			// Type=9, Op=0x82 (End|Not), Value=0x02
+			wantBytes: []byte{0x09, 0x82, 0x02},
+		},
+		{
+			name:  "not_match_syn",
+			flags: []string{"!=syn"},
+			// Type=9, Op=0x83 (End|Not|Match), Value=0x02
+			wantBytes: []byte{0x09, 0x83, 0x02},
+		},
+		{
+			name:  "syn_and_not_rst",
+			flags: []string{"syn", "&!rst"},
+			// Type=9, Op1=0x00 (no End), Value1=0x02, Op2=0xC2 (End|And|Not), Value2=0x04
+			wantBytes: []byte{0x09, 0x00, 0x02, 0xC2, 0x04},
+		},
+		{
+			name:  "match_syn_and_not_match_rst",
+			flags: []string{"=syn", "&!=rst"},
+			// Type=9, Op1=0x01 (Match), Value1=0x02, Op2=0xC3 (End|And|Not|Match), Value2=0x04
+			wantBytes: []byte{0x09, 0x01, 0x02, 0xC3, 0x04},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			args := append([]string{"nlri", "ipv4/flowspec", "add", "tcp-flags"}, tc.flags...)
+			result, err := ParseUpdateText(args)
+			require.NoError(t, err)
+
+			fs, ok := result.Groups[0].Announce[0].(*nlri.FlowSpec)
+			require.True(t, ok)
+			require.Len(t, fs.Components(), 1)
+
+			// Get component bytes
+			gotBytes := fs.Components()[0].Bytes()
+			assert.Equal(t, tc.wantBytes, gotBytes,
+				"wire bytes mismatch\nwant: %02x\ngot:  %02x", tc.wantBytes, gotBytes)
+		})
+	}
+}
+
+// TestParseUpdateText_FlowSpecTCPFlagsAllOperators verifies all bitmask operators for tcp-flags.
+//
+// VALIDATES: All RFC 8955 Section 4.2.1.2 bitmask operators
+// PREVENTS: Bitmask operator combinations not working
+func TestParseUpdateText_FlowSpecTCPFlagsAllOperators(t *testing.T) {
+	tests := []struct {
+		name  string
+		flags []string
+	}{
+		// Single flag with different operators
+		{"bare_syn", []string{"syn"}},
+		{"bare_ack", []string{"ack"}},
+		{"bare_fin", []string{"fin"}},
+		{"bare_rst", []string{"rst"}},
+		{"bare_psh", []string{"psh"}},
+		{"bare_urg", []string{"urg"}},
+		// Match operator (exact)
+		{"match_syn", []string{"=syn"}},
+		{"match_ack", []string{"=ack"}},
+		// NOT operator
+		{"not_syn", []string{"!syn"}},
+		{"not_rst", []string{"!rst"}},
+		// NOT + Match
+		{"not_match_syn", []string{"!=syn"}},
+		{"not_match_ack", []string{"!=ack"}},
+		// Combined flags (single token)
+		{"syn_ack", []string{"syn&ack"}},
+		{"match_syn_ack", []string{"=syn&ack"}},
+		{"not_syn_ack", []string{"!syn&ack"}},
+		{"syn_ack_fin", []string{"syn&ack&fin"}},
+		// Multiple tokens (OR between them)
+		{"syn_or_ack", []string{"syn", "ack"}},
+		{"syn_or_rst", []string{"syn", "rst"}},
+		// AND between tokens
+		{"syn_and_ack", []string{"syn", "&ack"}},
+		{"syn_and_not_rst", []string{"syn", "&!rst"}},
+		// Complex combinations
+		{"match_syn_and_not_rst", []string{"=syn", "&!rst"}},
+		{"syn_ack_and_not_fin", []string{"syn&ack", "&!fin"}},
+		// ECN flags (RFC 3168)
+		{"ece_flag", []string{"ece"}},
+		{"cwr_flag", []string{"cwr"}},
+		{"ece_cwr", []string{"ece&cwr"}},
+		{"syn_ece_cwr", []string{"syn&ece&cwr"}},
+		{"match_ece", []string{"=ece"}},
+		{"not_cwr", []string{"!cwr"}},
+		// ExaBGP compatibility
+		{"push_alias", []string{"push"}}, // alias for psh
+		{"push_ack", []string{"push&ack"}},
+		{"match_push", []string{"=push"}},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			args := append([]string{"nlri", "ipv4/flowspec", "add", "tcp-flags"}, tc.flags...)
+			result, err := ParseUpdateText(args)
+			require.NoError(t, err, "tcp-flags %v failed", tc.flags)
+			require.Len(t, result.Groups, 1)
+			require.Len(t, result.Groups[0].Announce, 1)
+
+			fs, ok := result.Groups[0].Announce[0].(*nlri.FlowSpec)
+			require.True(t, ok)
+			require.Len(t, fs.Components(), 1)
+			assert.Equal(t, nlri.FlowTCPFlags, fs.Components()[0].Type())
+		})
+	}
+}
+
+// TestParseUpdateText_FlowSpecFragmentAllOperators verifies all bitmask operators for fragment.
+//
+// VALIDATES: All RFC 8955 Section 4.2.1.2 bitmask operators for fragment
+// PREVENTS: Fragment operator combinations not working
+func TestParseUpdateText_FlowSpecFragmentAllOperators(t *testing.T) {
+	tests := []struct {
+		name  string
+		flags []string
+	}{
+		// Single flag
+		{"dont_fragment", []string{"dont-fragment"}},
+		{"is_fragment", []string{"is-fragment"}},
+		{"first_fragment", []string{"first-fragment"}},
+		{"last_fragment", []string{"last-fragment"}},
+		// Match operator
+		{"match_df", []string{"=dont-fragment"}},
+		{"match_isf", []string{"=is-fragment"}},
+		// NOT operator
+		{"not_df", []string{"!dont-fragment"}},
+		{"not_isf", []string{"!is-fragment"}},
+		{"not_ff", []string{"!first-fragment"}},
+		// NOT + Match
+		{"not_match_df", []string{"!=dont-fragment"}},
+		// Combined flags
+		{"df_ff", []string{"dont-fragment&first-fragment"}},
+		{"not_df_ff", []string{"!dont-fragment&first-fragment"}},
+		// Multiple tokens
+		{"df_or_isf", []string{"dont-fragment", "is-fragment"}},
+		{"df_and_not_isf", []string{"dont-fragment", "&!is-fragment"}},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			args := append([]string{"nlri", "ipv4/flowspec", "add", "fragment"}, tc.flags...)
+			result, err := ParseUpdateText(args)
+			require.NoError(t, err, "fragment %v failed", tc.flags)
+			require.Len(t, result.Groups, 1)
+			require.Len(t, result.Groups[0].Announce, 1)
+
+			fs, ok := result.Groups[0].Announce[0].(*nlri.FlowSpec)
+			require.True(t, ok)
+			require.Len(t, fs.Components(), 1)
+			assert.Equal(t, nlri.FlowFragment, fs.Components()[0].Type())
+		})
+	}
+}
+
+// TestParseUpdateText_FlowSpecMultiComponent verifies multiple components combine with AND.
+//
+// VALIDATES: Multiple components create single rule with AND logic
+// PREVENTS: Component combination failures
+func TestParseUpdateText_FlowSpecMultiComponent(t *testing.T) {
+	tests := []struct {
+		name       string
+		components []string
+		wantCount  int
+	}{
+		{
+			name:       "dest_proto",
+			components: []string{"destination", "10.0.0.0/24", "protocol", "tcp"},
+			wantCount:  2,
+		},
+		{
+			name:       "dest_proto_port",
+			components: []string{"destination", "10.0.0.0/24", "protocol", "tcp", "destination-port", "=80"},
+			wantCount:  3,
+		},
+		{
+			name:       "dest_src_proto_port",
+			components: []string{"destination", "10.0.0.0/24", "source", "192.168.0.0/16", "protocol", "tcp", "destination-port", "=443"},
+			wantCount:  4,
+		},
+		{
+			name:       "dest_proto_flags",
+			components: []string{"destination", "10.0.0.0/24", "protocol", "tcp", "tcp-flags", "syn"},
+			wantCount:  3,
+		},
+		{
+			name:       "dest_proto_port_dscp",
+			components: []string{"destination", "10.0.0.0/24", "protocol", "tcp", "destination-port", "=80", "dscp", "46"},
+			wantCount:  4,
+		},
+		{
+			name:       "icmp_rule",
+			components: []string{"destination", "10.0.0.0/24", "protocol", "icmp", "icmp-type", "8", "icmp-code", "0"},
+			wantCount:  4,
+		},
+		{
+			name:       "fragment_rule",
+			components: []string{"destination", "10.0.0.0/24", "fragment", "!is-fragment"},
+			wantCount:  2,
+		},
+		{
+			name:       "port_range",
+			components: []string{"protocol", "tcp", "destination-port", ">=1", "<=1023"},
+			wantCount:  2, // protocol + port (with range)
+		},
+		{
+			name:       "full_tcp_rule",
+			components: []string{"destination", "10.0.0.0/24", "source", "192.168.0.0/16", "protocol", "tcp", "destination-port", "=80", "tcp-flags", "=syn", "packet-length", ">=64", "<=1500"},
+			wantCount:  6,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			args := append([]string{"nlri", "ipv4/flowspec", "add"}, tc.components...)
+			result, err := ParseUpdateText(args)
+			require.NoError(t, err, "components %v failed", tc.components)
+			require.Len(t, result.Groups, 1)
+			require.Len(t, result.Groups[0].Announce, 1)
+
+			fs, ok := result.Groups[0].Announce[0].(*nlri.FlowSpec)
+			require.True(t, ok)
+			assert.Len(t, fs.Components(), tc.wantCount, "expected %d components", tc.wantCount)
+		})
+	}
+}
+
+// TestParseUpdateText_FlowSpecIPv6Variants verifies IPv6 FlowSpec families.
+//
+// VALIDATES: IPv6 FlowSpec with IPv6 prefixes
+// PREVENTS: IPv6 family handling failures
+func TestParseUpdateText_FlowSpecIPv6Variants(t *testing.T) {
+	tests := []struct {
+		name       string
+		family     string
+		components []string
+	}{
+		{"ipv6_dest", "ipv6/flowspec", []string{"destination", "2001:db8::/32"}},
+		{"ipv6_src", "ipv6/flowspec", []string{"source", "2001:db8:1::/48"}},
+		{"ipv6_dest_proto", "ipv6/flowspec", []string{"destination", "2001:db8::/32", "protocol", "tcp"}},
+		{"ipv6_dest_proto_port", "ipv6/flowspec", []string{"destination", "2001:db8::/32", "protocol", "tcp", "destination-port", "=80"}},
+		{"ipv6_tcp_flags", "ipv6/flowspec", []string{"protocol", "tcp", "tcp-flags", "syn"}},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			args := append([]string{"nlri", tc.family, "add"}, tc.components...)
+			result, err := ParseUpdateText(args)
+			require.NoError(t, err, "IPv6 %s failed", tc.name)
+			require.Len(t, result.Groups, 1)
+			require.Len(t, result.Groups[0].Announce, 1)
+
+			fs, ok := result.Groups[0].Announce[0].(*nlri.FlowSpec)
+			require.True(t, ok)
+			assert.Equal(t, nlri.IPv6FlowSpec, fs.Family())
+		})
+	}
+}
+
+// TestParseUpdateText_FlowSpecVPNVariants verifies FlowSpec VPN with RD.
+//
+// VALIDATES: FlowSpec VPN requires and uses RD correctly
+// PREVENTS: VPN variant handling failures
+func TestParseUpdateText_FlowSpecVPNVariants(t *testing.T) {
+	tests := []struct {
+		name       string
+		family     string
+		rd         string
+		components []string
+	}{
+		{"ipv4_vpn_basic", "ipv4/flowspec-vpn", "65000:100", []string{"destination", "10.0.0.0/24"}},
+		{"ipv4_vpn_full", "ipv4/flowspec-vpn", "1.2.3.4:100", []string{"destination", "10.0.0.0/24", "protocol", "tcp", "destination-port", "=80"}},
+		{"ipv6_vpn_basic", "ipv6/flowspec-vpn", "65000:200", []string{"destination", "2001:db8::/32"}},
+		{"ipv6_vpn_full", "ipv6/flowspec-vpn", "65000:300", []string{"destination", "2001:db8::/32", "protocol", "tcp"}},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			args := append([]string{"nlri", tc.family, "rd", tc.rd, "add"}, tc.components...)
+			result, err := ParseUpdateText(args)
+			require.NoError(t, err, "VPN %s failed", tc.name)
+			require.Len(t, result.Groups, 1)
+			require.Len(t, result.Groups[0].Announce, 1)
+
+			fsv, ok := result.Groups[0].Announce[0].(*nlri.FlowSpecVPN)
+			require.True(t, ok, "expected FlowSpecVPN, got %T", result.Groups[0].Announce[0])
+			assert.Equal(t, tc.rd, fsv.RD().String())
+		})
+	}
+}
+
+// TestParseUpdateText_FlowSpecWithdraw verifies del syntax for all components.
+//
+// VALIDATES: Withdrawal works for all component types
+// PREVENTS: Withdraw handling failures
+func TestParseUpdateText_FlowSpecWithdrawVariants(t *testing.T) {
+	tests := []struct {
+		name       string
+		components []string
+	}{
+		{"dest_only", []string{"destination", "10.0.0.0/24"}},
+		{"dest_proto", []string{"destination", "10.0.0.0/24", "protocol", "tcp"}},
+		{"dest_proto_port", []string{"destination", "10.0.0.0/24", "protocol", "tcp", "destination-port", "=80"}},
+		{"full_rule", []string{"destination", "10.0.0.0/24", "source", "192.168.0.0/16", "protocol", "tcp", "tcp-flags", "syn"}},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			args := append([]string{"nlri", "ipv4/flowspec", "del"}, tc.components...)
+			result, err := ParseUpdateText(args)
+			require.NoError(t, err, "withdraw %s failed", tc.name)
+			require.Len(t, result.Groups, 1)
+			require.Empty(t, result.Groups[0].Announce)
+			require.Len(t, result.Groups[0].Withdraw, 1)
+
+			fs, ok := result.Groups[0].Withdraw[0].(*nlri.FlowSpec)
+			require.True(t, ok)
+			assert.Greater(t, len(fs.Components()), 0)
+		})
+	}
+}
+
+// TestParseUpdateText_FlowSpecErrors verifies error handling.
+//
+// VALIDATES: Appropriate errors for invalid inputs
+// PREVENTS: Silent failures or panics on bad input
+func TestParseUpdateText_FlowSpecErrors(t *testing.T) {
+	tests := []struct {
+		name    string
+		args    []string
+		wantErr string
+	}{
+		{
+			name:    "missing_add_del",
+			args:    []string{"nlri", "ipv4/flowspec", "destination", "10.0.0.0/24"},
+			wantErr: "add' or 'del",
+		},
+		{
+			name:    "vpn_missing_rd",
+			args:    []string{"nlri", "ipv4/flowspec-vpn", "add", "destination", "10.0.0.0/24"},
+			wantErr: "rd required",
+		},
+		{
+			name:    "invalid_prefix",
+			args:    []string{"nlri", "ipv4/flowspec", "add", "destination", "not-a-prefix"},
+			wantErr: "invalid",
+		},
+		{
+			name:    "ipv4_prefix_for_ipv6",
+			args:    []string{"nlri", "ipv6/flowspec", "add", "destination", "10.0.0.0/24"},
+			wantErr: "IPv4",
+		},
+		{
+			name:    "ipv6_prefix_for_ipv4",
+			args:    []string{"nlri", "ipv4/flowspec", "add", "destination", "2001:db8::/32"},
+			wantErr: "IPv6",
+		},
+		{
+			name:    "unknown_protocol",
+			args:    []string{"nlri", "ipv4/flowspec", "add", "protocol", "unknown"},
+			wantErr: "invalid protocol",
+		},
+		{
+			name:    "invalid_tcp_flag",
+			args:    []string{"nlri", "ipv4/flowspec", "add", "tcp-flags", "unknown"},
+			wantErr: "unknown flag",
+		},
+		{
+			name:    "invalid_fragment_type",
+			args:    []string{"nlri", "ipv4/flowspec", "add", "fragment", "unknown"},
+			wantErr: "unknown flag",
+		},
+		{
+			name:    "missing_destination_value",
+			args:    []string{"nlri", "ipv4/flowspec", "add", "destination"},
+			wantErr: "requires prefix",
+		},
+		{
+			name:    "missing_protocol_value",
+			args:    []string{"nlri", "ipv4/flowspec", "add", "protocol"},
+			wantErr: "requires",
+		},
+		{
+			name:    "empty_flowspec",
+			args:    []string{"nlri", "ipv4/flowspec", "add"},
+			wantErr: "no prefixes", // FlowSpec requires at least one component
+		},
+		{
+			name:    "port_value_overflow",
+			args:    []string{"nlri", "ipv4/flowspec", "add", "destination-port", "99999"},
+			wantErr: "exceeds maximum",
+		},
+		{
+			name:    "dscp_value_overflow",
+			args:    []string{"nlri", "ipv4/flowspec", "add", "dscp", "64"},
+			wantErr: "exceeds maximum",
+		},
+		{
+			name:    "protocol_value_overflow",
+			args:    []string{"nlri", "ipv4/flowspec", "add", "protocol", "256"},
+			wantErr: "invalid protocol", // ParseUint with 8-bit limit catches this
+		},
+		{
+			name:    "icmp_type_overflow",
+			args:    []string{"nlri", "ipv4/flowspec", "add", "icmp-type", "256"},
+			wantErr: "exceeds maximum",
+		},
+		{
+			name:    "icmp_code_overflow",
+			args:    []string{"nlri", "ipv4/flowspec", "add", "icmp-code", "256"},
+			wantErr: "exceeds maximum",
+		},
+		{
+			name:    "source_port_overflow",
+			args:    []string{"nlri", "ipv4/flowspec", "add", "source-port", "65536"},
+			wantErr: "exceeds maximum",
+		},
+		{
+			name:    "packet_length_overflow",
+			args:    []string{"nlri", "ipv4/flowspec", "add", "packet-length", "65536"},
+			wantErr: "exceeds maximum",
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := ParseUpdateText(tc.args)
+			require.Error(t, err, "expected error for %s", tc.name)
+			assert.Contains(t, strings.ToLower(err.Error()), strings.ToLower(tc.wantErr),
+				"error %q should contain %q", err.Error(), tc.wantErr)
+		})
+	}
+}
+
+// TestParseUpdateText_FlowSpecBoundaryValues verifies max valid values are accepted.
+//
+// VALIDATES: Maximum valid values for each component type parse correctly
+// PREVENTS: Off-by-one errors in range validation
+func TestParseUpdateText_FlowSpecBoundaryValues(t *testing.T) {
+	tests := []struct {
+		name      string
+		component string
+		value     string
+	}{
+		{"port_max", "destination-port", "65535"},
+		{"port_zero", "destination-port", "0"},
+		{"dscp_max", "dscp", "63"},
+		{"dscp_zero", "dscp", "0"},
+		{"icmp_type_max", "icmp-type", "255"},
+		{"icmp_code_max", "icmp-code", "255"},
+		{"packet_length_max", "packet-length", "65535"},
+		{"source_port_max", "source-port", "65535"},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			result, err := ParseUpdateText([]string{
+				"nlri", "ipv4/flowspec", "add", tc.component, tc.value,
+			})
+			require.NoError(t, err, "%s=%s should be valid", tc.component, tc.value)
+			require.Len(t, result.Groups, 1)
+			require.Len(t, result.Groups[0].Announce, 1)
+		})
+	}
+}
+
+// TestParseUpdateText_FlowSpecWithExtComm verifies FlowSpec with actions.
+//
+// VALIDATES: Extended community actions combined with FlowSpec NLRI
+// PREVENTS: Action + NLRI combination failures
+func TestParseUpdateText_FlowSpecWithExtComm(t *testing.T) {
+	tests := []struct {
+		name       string
+		extcomm    []string
+		components []string
+	}{
+		{
+			name:       "traffic_rate",
+			extcomm:    []string{"extended-community", "set", "traffic-rate", "65000", "1000000"},
+			components: []string{"destination", "10.0.0.0/24", "protocol", "tcp", "destination-port", "=80"},
+		},
+		{
+			name:       "discard",
+			extcomm:    []string{"extended-community", "set", "discard"},
+			components: []string{"destination", "10.0.0.0/24", "protocol", "udp"},
+		},
+		{
+			name:       "redirect",
+			extcomm:    []string{"extended-community", "set", "redirect", "65000", "100"},
+			components: []string{"destination", "10.0.0.0/24"},
+		},
+		{
+			name:       "traffic_marking",
+			extcomm:    []string{"extended-community", "set", "traffic-marking", "46"},
+			components: []string{"destination", "10.0.0.0/24", "protocol", "tcp"},
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			nlriPart := append([]string{"nlri", "ipv4/flowspec", "add"}, tc.components...)
+			args := append(tc.extcomm, nlriPart...) //nolint:gocritic // appendAssign: intentional
+			result, err := ParseUpdateText(args)
+			require.NoError(t, err, "extcomm+flowspec %s failed", tc.name)
+			require.Len(t, result.Groups, 1)
+			require.Len(t, result.Groups[0].Announce, 1)
+			require.Len(t, result.Groups[0].Attrs.ExtendedCommunities, 1)
+
+			fs, ok := result.Groups[0].Announce[0].(*nlri.FlowSpec)
+			require.True(t, ok)
+			assert.Greater(t, len(fs.Components()), 0)
+		})
+	}
 }

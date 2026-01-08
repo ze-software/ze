@@ -912,6 +912,12 @@ func parseNLRISection(args []string, accum nlriAccum) (nlri.Family, []nlri.NLRI,
 		return nlri.Family{}, nil, nil, "", 0, fmt.Errorf("%w: %s", ErrFamilyNotSupported, args[1])
 	}
 
+	// FlowSpec families use different parsing (components instead of prefixes)
+	// RFC 8955 Section 4: FlowSpec NLRI = ordered list of match components
+	if family.SAFI == nlri.SAFIFlowSpec || family.SAFI == nlri.SAFIFlowSpecVPN {
+		return parseFlowSpecSection(args, family, accum)
+	}
+
 	consumed := 2 // "nlri" + family
 	i := 2
 
@@ -1065,12 +1071,16 @@ func parseINETNLRI(token string, family nlri.Family, pathID uint32) (nlri.NLRI, 
 
 // parseNLRI dispatches to the appropriate NLRI parser based on family.
 // Returns NLRI, extra args consumed, and any error.
+// For FlowSpec families, this function is not used - see parseFlowSpecSection.
 func parseNLRI(token string, family nlri.Family, accum nlriAccum) (nlri.NLRI, int, error) {
 	switch family.SAFI { //nolint:exhaustive // Other SAFIs use INET parser via default
 	case nlri.SAFIVPN: // SAFI 128 - MPLS VPN
 		return parseVPNNLRI(token, family, accum)
 	case nlri.SAFIMPLSLabel: // SAFI 4 - Labeled Unicast
 		return parseLabeledNLRI(token, family, accum)
+	case nlri.SAFIFlowSpec, nlri.SAFIFlowSpecVPN:
+		// FlowSpec uses special parsing - should not reach here
+		return nil, 0, fmt.Errorf("flowspec parsing requires parseFlowSpecSection")
 	default:
 		return parseINETNLRI(token, family, accum.PathID)
 	}
@@ -1133,6 +1143,643 @@ func parseLabeledNLRI(token string, family nlri.Family, accum nlriAccum) (nlri.N
 	return nlri.NewLabeledUnicast(family, prefix, accum.Labels, accum.PathID), 0, nil
 }
 
+// ============================================================================
+// FlowSpec Parsing (RFC 8955)
+// ============================================================================
+
+// FlowSpec component keywords per RFC 8955 Section 4.2.2.
+// Each component type has a specific type code in the wire format:
+//
+//	Type 1:  Destination Prefix (RFC 8955 §4.2.2.1)
+//	Type 2:  Source Prefix (RFC 8955 §4.2.2.2)
+//	Type 3:  IP Protocol (RFC 8955 §4.2.2.3)
+//	Type 4:  Port (RFC 8955 §4.2.2.4)
+//	Type 5:  Destination Port (RFC 8955 §4.2.2.5)
+//	Type 6:  Source Port (RFC 8955 §4.2.2.6)
+//	Type 7:  ICMP Type (RFC 8955 §4.2.2.7)
+//	Type 8:  ICMP Code (RFC 8955 §4.2.2.8)
+//	Type 9:  TCP Flags (RFC 8955 §4.2.2.9) - uses bitmask_op
+//	Type 10: Packet Length (RFC 8955 §4.2.2.10)
+//	Type 11: DSCP (RFC 8955 §4.2.2.11)
+//	Type 12: Fragment (RFC 8955 §4.2.2.12) - uses bitmask_op
+const (
+	kwFSDestination  = "destination"      // Type 1
+	kwFSSource       = "source"           // Type 2
+	kwFSProtocol     = "protocol"         // Type 3
+	kwFSPort         = "port"             // Type 4
+	kwFSDestPort     = "destination-port" // Type 5
+	kwFSSourcePort   = "source-port"      // Type 6
+	kwFSICMPType     = "icmp-type"        // Type 7
+	kwFSICMPCode     = "icmp-code"        // Type 8
+	kwFSTCPFlags     = "tcp-flags"        // Type 9
+	kwFSPacketLength = "packet-length"    // Type 10
+	kwFSDSCP         = "dscp"             // Type 11
+	kwFSFragment     = "fragment"         // Type 12
+	kwFSNot          = "not"              // Modifier for bitmask_op (RFC 8955 §4.2.1.2)
+)
+
+// isFlowSpecComponentKeyword returns true if token is a FlowSpec component keyword.
+func isFlowSpecComponentKeyword(token string) bool {
+	switch token {
+	case kwFSDestination, kwFSSource, kwFSProtocol, kwFSPort,
+		kwFSDestPort, kwFSSourcePort, kwFSICMPType, kwFSICMPCode,
+		kwFSTCPFlags, kwFSPacketLength, kwFSDSCP, kwFSFragment:
+		return true
+	}
+	return false
+}
+
+// parseFlowSpecSection parses nlri <flowspec-family> [rd <value>] add <components>+ | del <components>+
+// RFC 8955 Section 4: FlowSpec NLRI = ordered list of match components.
+// Returns family, announce list, withdraw list, watchdog name, consumed tokens, and error.
+func parseFlowSpecSection(args []string, family nlri.Family, accum nlriAccum) (nlri.Family, []nlri.NLRI, []nlri.NLRI, string, int, error) {
+	// args[0] = "nlri", args[1] = family string
+	consumed := 2
+	i := 2
+
+	// Parse in-NLRI modifiers: rd <value> (for flowspec-vpn)
+	for i < len(args) {
+		token := args[i] //nolint:gosec // G602 false positive: loop condition guards access
+
+		if token == kwRD {
+			if i+1 >= len(args) {
+				return nlri.Family{}, nil, nil, "", 0, errors.New("rd requires value (ASN:NN or IP:NN)")
+			}
+			next := args[i+1]
+			if next == kwSet {
+				break // Accumulator syntax, not in-NLRI modifier
+			}
+			rd, err := nlri.ParseRDString(next)
+			if err != nil {
+				return nlri.Family{}, nil, nil, "", 0, fmt.Errorf("invalid rd: %w", err)
+			}
+			accum.RD = rd
+			i += 2
+			consumed += 2
+			continue
+		}
+		break
+	}
+
+	// Parse add/del + components
+	mode := "" // "", "add", or "del"
+	var announce, withdraw []nlri.NLRI
+
+	for i < len(args) {
+		token := args[i] //nolint:gosec // G602 false positive: loop condition guards access
+
+		// Boundary keywords end this section
+		if isBoundaryKeyword(token) {
+			break
+		}
+
+		// Mode switches
+		if token == kwAdd {
+			// Create a new FlowSpec for this add block
+			// (consecutive add tokens are implicit continuation)
+			mode = kwAdd
+			i++
+			consumed++
+			continue
+		}
+		if token == kwDel {
+			// (consecutive del tokens are implicit continuation)
+			mode = kwDel
+			i++
+			consumed++
+			continue
+		}
+
+		// Must have a mode before components
+		if mode == "" {
+			return nlri.Family{}, nil, nil, "", 0, fmt.Errorf("%w: got %q", ErrMissingAddDel, token)
+		}
+
+		// Parse FlowSpec components for this rule
+		fs, extra, err := parseFlowSpecComponents(args[i:], family, accum)
+		if err != nil {
+			return nlri.Family{}, nil, nil, "", 0, err
+		}
+
+		if mode == kwAdd {
+			announce = append(announce, fs)
+		} else {
+			withdraw = append(withdraw, fs)
+		}
+		i += extra
+		consumed += extra
+	}
+
+	if len(announce) == 0 && len(withdraw) == 0 {
+		return nlri.Family{}, nil, nil, "", 0, ErrEmptyNLRISection
+	}
+
+	return family, announce, withdraw, "", consumed, nil
+}
+
+// parseFlowSpecComponents parses FlowSpec components until boundary or mode switch.
+// One add/del = one FlowSpec rule with all its components.
+// RFC 8955: Components are ANDed together.
+func parseFlowSpecComponents(args []string, family nlri.Family, accum nlriAccum) (nlri.NLRI, int, error) {
+	var fs *nlri.FlowSpec
+	var fsv *nlri.FlowSpecVPN
+
+	// Create appropriate FlowSpec type
+	if family.SAFI == nlri.SAFIFlowSpecVPN {
+		// Require RD for VPN families
+		if accum.RD.Type == 0 && accum.RD.Value == [6]byte{} {
+			return nil, 0, fmt.Errorf("%w: rd required for %s", ErrMissingRD, family)
+		}
+		fsv = nlri.NewFlowSpecVPN(family, accum.RD)
+	} else {
+		fs = nlri.NewFlowSpec(family)
+	}
+
+	addComponent := func(c nlri.FlowComponent) {
+		if fsv != nil {
+			fsv.AddComponent(c)
+		} else {
+			fs.AddComponent(c)
+		}
+	}
+
+	consumed := 0
+	i := 0
+
+	for i < len(args) {
+		token := args[i] //nolint:gosec // G602 false positive: loop condition guards access
+
+		// Stop at boundary keywords or mode switches
+		if isBoundaryKeyword(token) || token == kwAdd || token == kwDel {
+			break
+		}
+
+		// Parse component by type
+		comp, extra, err := parseFlowSpecComponent(args[i:], family)
+		if err != nil {
+			return nil, 0, err
+		}
+
+		addComponent(comp)
+		i += extra
+		consumed += extra
+	}
+
+	if consumed == 0 {
+		return nil, 0, errors.New("flowspec requires at least one component")
+	}
+
+	if fsv != nil {
+		return fsv, consumed, nil
+	}
+	return fs, consumed, nil
+}
+
+// parseFlowSpecComponent parses a single FlowSpec component.
+// Returns the component, tokens consumed, and any error.
+func parseFlowSpecComponent(args []string, family nlri.Family) (nlri.FlowComponent, int, error) {
+	if len(args) == 0 {
+		return nil, 0, errors.New("expected flowspec component")
+	}
+
+	compType := args[0]
+
+	switch compType {
+	case kwFSDestination:
+		if len(args) < 2 {
+			return nil, 0, errors.New("destination requires prefix")
+		}
+		prefix, err := netip.ParsePrefix(args[1])
+		if err != nil {
+			return nil, 0, fmt.Errorf("invalid destination prefix: %w", err)
+		}
+		// Validate AFI match
+		if prefix.Addr().Is4() && family.AFI != nlri.AFIIPv4 {
+			return nil, 0, fmt.Errorf("IPv4 prefix for IPv6 flowspec")
+		}
+		if prefix.Addr().Is6() && family.AFI != nlri.AFIIPv6 {
+			return nil, 0, fmt.Errorf("IPv6 prefix for IPv4 flowspec")
+		}
+		return nlri.NewFlowDestPrefixComponent(prefix), 2, nil
+
+	case kwFSSource:
+		if len(args) < 2 {
+			return nil, 0, errors.New("source requires prefix")
+		}
+		prefix, err := netip.ParsePrefix(args[1])
+		if err != nil {
+			return nil, 0, fmt.Errorf("invalid source prefix: %w", err)
+		}
+		if prefix.Addr().Is4() && family.AFI != nlri.AFIIPv4 {
+			return nil, 0, fmt.Errorf("IPv4 prefix for IPv6 flowspec")
+		}
+		if prefix.Addr().Is6() && family.AFI != nlri.AFIIPv6 {
+			return nil, 0, fmt.Errorf("IPv6 prefix for IPv4 flowspec")
+		}
+		return nlri.NewFlowSourcePrefixComponent(prefix), 2, nil
+
+	case kwFSProtocol:
+		return parseFlowSpecProtocol(args[1:])
+
+	case kwFSPort:
+		return parseFlowSpecNumeric(args[1:], nlri.FlowPort)
+
+	case kwFSDestPort:
+		return parseFlowSpecNumeric(args[1:], nlri.FlowDestPort)
+
+	case kwFSSourcePort:
+		return parseFlowSpecNumeric(args[1:], nlri.FlowSourcePort)
+
+	case kwFSICMPType:
+		return parseFlowSpecNumeric(args[1:], nlri.FlowICMPType)
+
+	case kwFSICMPCode:
+		return parseFlowSpecNumeric(args[1:], nlri.FlowICMPCode)
+
+	case kwFSTCPFlags:
+		return parseFlowSpecTCPFlags(args[1:])
+
+	case kwFSPacketLength:
+		return parseFlowSpecNumeric(args[1:], nlri.FlowPacketLength)
+
+	case kwFSDSCP:
+		return parseFlowSpecNumeric(args[1:], nlri.FlowDSCP)
+
+	case kwFSFragment:
+		return parseFlowSpecFragment(args[1:])
+
+	default:
+		return nil, 0, fmt.Errorf("unknown flowspec component: %s", compType)
+	}
+}
+
+// Protocol name to number mapping.
+// IANA Protocol Numbers: https://www.iana.org/assignments/protocol-numbers
+// RFC 8955 Section 4.2.2.3: IP Protocol component uses these values.
+var protocolNameToNumber = map[string]uint8{
+	"icmp":   1,   // RFC 792
+	"igmp":   2,   // RFC 1112
+	"tcp":    6,   // RFC 793
+	"udp":    17,  // RFC 768
+	"gre":    47,  // RFC 2784
+	"icmpv6": 58,  // RFC 4443
+	"ospf":   89,  // RFC 2328
+	"sctp":   132, // RFC 4960
+}
+
+// parseFlowSpecProtocol parses protocol component values.
+// RFC 8955 Section 4.2.2.3: IP Protocol (Type 3) uses numeric_op format.
+// Accepts: tcp, udp, icmp, gre, or numeric (0-255).
+func parseFlowSpecProtocol(args []string) (nlri.FlowComponent, int, error) {
+	if len(args) == 0 {
+		return nil, 0, errors.New("protocol requires value")
+	}
+
+	var protocols []uint8
+	consumed := 0
+
+	for i := 0; i < len(args); i++ {
+		token := args[i]
+
+		// Stop at boundary/mode keywords or next component
+		if isBoundaryKeyword(token) || token == kwAdd || token == kwDel || isFlowSpecComponentKeyword(token) {
+			break
+		}
+
+		// Try protocol name first
+		if num, ok := protocolNameToNumber[strings.ToLower(token)]; ok {
+			protocols = append(protocols, num)
+			consumed++
+			continue
+		}
+
+		// Try numeric
+		num, err := strconv.ParseUint(token, 10, 8)
+		if err != nil {
+			if consumed == 0 {
+				return nil, 0, fmt.Errorf("invalid protocol: %s", token)
+			}
+			break // End of protocol values
+		}
+		protocols = append(protocols, uint8(num)) //nolint:gosec // G115: bounded by ParseUint
+		consumed++
+	}
+
+	if len(protocols) == 0 {
+		return nil, 0, errors.New("protocol requires at least one value")
+	}
+
+	return nlri.NewFlowIPProtocolComponent(protocols...), consumed + 1, nil // +1 for "protocol" keyword
+}
+
+// flowSpecComponentMaxValue returns the maximum valid value for a component type.
+// RFC 8955 Section 4.2.2 defines value sizes per component type:
+//
+//	Type 3 (Protocol):      8-bit (0-255)    - RFC 8955 §4.2.2.3
+//	Type 4-6 (Ports):       16-bit (0-65535) - RFC 8955 §4.2.2.4-6
+//	Type 7-8 (ICMP):        8-bit (0-255)    - RFC 8955 §4.2.2.7-8
+//	Type 10 (Packet Len):   16-bit (0-65535) - RFC 8955 §4.2.2.10
+//	Type 11 (DSCP):         6-bit (0-63)     - RFC 8955 §4.2.2.11, RFC 2474
+func flowSpecComponentMaxValue(compType nlri.FlowComponentType) uint64 {
+	switch compType { //nolint:exhaustive // Prefix/bitmask types handled separately
+	case nlri.FlowIPProtocol, nlri.FlowICMPType, nlri.FlowICMPCode:
+		return 255 // 8-bit per RFC 8955
+	case nlri.FlowPort, nlri.FlowDestPort, nlri.FlowSourcePort, nlri.FlowPacketLength:
+		return 65535 // 16-bit per RFC 8955
+	case nlri.FlowDSCP:
+		return 63 // 6-bit per RFC 2474 (DSCP uses 6 bits of TOS byte)
+	default:
+		return 0xFFFFFFFF // 32-bit default
+	}
+}
+
+// parseFlowSpecNumeric parses numeric component values with operators.
+// RFC 8955 Section 4.2.1.1: Numeric operator format (numeric_op).
+// Syntax: <op><value>+ where op is optional (=, >, <, >=, <=).
+// Multiple values are ANDed together for range matching.
+func parseFlowSpecNumeric(args []string, compType nlri.FlowComponentType) (nlri.FlowComponent, int, error) {
+	if len(args) == 0 {
+		return nil, 0, fmt.Errorf("%s requires value", compType)
+	}
+
+	maxValue := flowSpecComponentMaxValue(compType)
+	var matches []nlri.FlowMatch
+	consumed := 0
+
+	for i := 0; i < len(args); i++ {
+		token := args[i]
+
+		// Stop at boundary/mode keywords or next component
+		if isBoundaryKeyword(token) || token == kwAdd || token == kwDel || isFlowSpecComponentKeyword(token) {
+			break
+		}
+
+		// Parse operator and value
+		op, value, err := parseNumericOperator(token)
+		if err != nil {
+			if consumed == 0 {
+				return nil, 0, fmt.Errorf("invalid %s value: %w", compType, err)
+			}
+			break // End of values
+		}
+
+		// Validate value range
+		if value > maxValue {
+			return nil, 0, fmt.Errorf("%s value %d exceeds maximum %d", compType, value, maxValue)
+		}
+
+		// Second and subsequent values have AND logic for range matching
+		match := nlri.FlowMatch{Op: op, Value: value, And: consumed > 0}
+		matches = append(matches, match)
+		consumed++
+	}
+
+	if len(matches) == 0 {
+		return nil, 0, fmt.Errorf("%s requires at least one value", compType)
+	}
+
+	return nlri.NewFlowNumericComponent(compType, matches), consumed + 1, nil // +1 for component keyword
+}
+
+// parseNumericOperator parses <op><value> syntax.
+// RFC 8955 Section 4.2.1.1 Table 1: Numeric operator bit combinations:
+//
+//	lt=0 gt=0 eq=1: == (equal)      -> 0x01
+//	lt=0 gt=1 eq=0: >  (greater)    -> 0x02
+//	lt=0 gt=1 eq=1: >= (greater-eq) -> 0x03
+//	lt=1 gt=0 eq=0: <  (less)       -> 0x04
+//	lt=1 gt=0 eq=1: <= (less-eq)    -> 0x05
+//
+// Returns operator, value, and error.
+func parseNumericOperator(token string) (nlri.FlowOperator, uint64, error) {
+	op := nlri.FlowOpEqual // default
+	valueStr := token
+
+	// Check for operator prefix (order matters: >= before >, <= before <)
+	//nolint:gocritic // ifElseChain: order matters here, can't use switch
+	if strings.HasPrefix(token, ">=") {
+		op = nlri.FlowOpGreater | nlri.FlowOpEqual
+		valueStr = token[2:]
+	} else if strings.HasPrefix(token, "<=") {
+		op = nlri.FlowOpLess | nlri.FlowOpEqual
+		valueStr = token[2:]
+	} else if strings.HasPrefix(token, ">") {
+		op = nlri.FlowOpGreater
+		valueStr = token[1:]
+	} else if strings.HasPrefix(token, "<") {
+		op = nlri.FlowOpLess
+		valueStr = token[1:]
+	} else if strings.HasPrefix(token, "=") {
+		op = nlri.FlowOpEqual
+		valueStr = token[1:]
+	}
+	// No operator = default equal
+
+	value, err := strconv.ParseUint(valueStr, 10, 64)
+	if err != nil {
+		return 0, 0, err
+	}
+
+	return op, value, nil
+}
+
+// TCP flag name to bitmask mapping.
+// RFC 8955 Section 4.2.2.9: TCP flags (Type 9) uses bitmask_op format.
+// RFC 793 Section 3.1 defines the TCP header flags field:
+//
+//	Bit 0: FIN  - No more data from sender
+//	Bit 1: SYN  - Synchronize sequence numbers
+//	Bit 2: RST  - Reset the connection
+//	Bit 3: PSH  - Push function
+//	Bit 4: ACK  - Acknowledgment field significant
+//	Bit 5: URG  - Urgent pointer field significant
+//	Bit 6: ECE  - ECN-Echo (RFC 3168)
+//	Bit 7: CWR  - Congestion Window Reduced (RFC 3168)
+var tcpFlagNameToValue = map[string]uint8{
+	"fin":  0x01, // RFC 793
+	"syn":  0x02, // RFC 793
+	"rst":  0x04, // RFC 793
+	"psh":  0x08, // RFC 793
+	"push": 0x08, // ExaBGP compatibility alias for psh
+	"ack":  0x10, // RFC 793
+	"urg":  0x20, // RFC 793
+	"ece":  0x40, // RFC 3168 ECN-Echo
+	"cwr":  0x80, // RFC 3168 Congestion Window Reduced
+}
+
+// parseFlowSpecTCPFlags parses tcp-flags component.
+// RFC 8955 Section 4.2.1.2: Bitmask operator format.
+//
+// Syntax: tcp-flags <match>+ where match is [!][=]<flag>[&<flag>...]
+// Operators:
+//   - (none): match if ANY of the flags are set in the packet
+//   - =     : match if EXACTLY these flags are set (match bit)
+//   - !     : negate the match (NOT operator)
+//   - &     : AND with previous match (vs OR)
+//
+// Examples:
+//   - tcp-flags syn           -> match if SYN is set
+//   - tcp-flags =syn          -> match if ONLY SYN is set
+//   - tcp-flags !rst          -> match if RST is NOT set
+//   - tcp-flags syn &ack      -> match if SYN OR (previous AND ACK)
+//   - tcp-flags =syn&ack      -> match if exactly SYN+ACK
+func parseFlowSpecTCPFlags(args []string) (nlri.FlowComponent, int, error) {
+	if len(args) == 0 {
+		return nil, 0, errors.New("tcp-flags requires flag names")
+	}
+
+	var matches []nlri.FlowMatch
+	consumed := 0
+
+	for i := 0; i < len(args); i++ {
+		token := strings.ToLower(args[i])
+
+		// Stop at boundary/mode keywords or next component
+		if isBoundaryKeyword(token) || token == kwAdd || token == kwDel || isFlowSpecComponentKeyword(token) {
+			break
+		}
+
+		match, err := parseBitmaskMatch(token, tcpFlagNameToValue)
+		if err != nil {
+			if consumed == 0 {
+				return nil, 0, fmt.Errorf("invalid tcp-flags: %w", err)
+			}
+			break // End of flags
+		}
+
+		// RFC 8955: AND bit is N/A for first operand
+		if consumed == 0 {
+			match.And = false
+		}
+
+		matches = append(matches, match)
+		consumed++
+	}
+
+	if consumed == 0 {
+		return nil, 0, errors.New("tcp-flags requires at least one flag")
+	}
+
+	return nlri.NewFlowTCPFlagsMatchComponent(matches), consumed + 1, nil // +1 for "tcp-flags" keyword
+}
+
+// parseBitmaskMatch parses a single bitmask match expression.
+// Format: [&][!][=]<flag>[&<flag>...]
+// Returns FlowMatch with Op set to bitmask operator bits (NOT, Match).
+func parseBitmaskMatch[T ~uint8](token string, flagMap map[string]T) (nlri.FlowMatch, error) {
+	var op nlri.FlowOperator
+	var and bool
+	s := token
+
+	// Parse leading & (AND with previous)
+	if strings.HasPrefix(s, "&") {
+		and = true
+		s = s[1:]
+	}
+
+	// Parse ! (NOT operator)
+	if strings.HasPrefix(s, "!") {
+		op |= nlri.FlowOpNot
+		s = s[1:]
+		// Handle != (NOT + Match)
+		if strings.HasPrefix(s, "=") {
+			op |= nlri.FlowOpMatch
+			s = s[1:]
+		}
+	} else if strings.HasPrefix(s, "=") {
+		// Parse = (Match operator - exact match)
+		op |= nlri.FlowOpMatch
+		s = s[1:]
+	}
+	// No prefix = INCLUDE (any bit set)
+
+	// Parse flags joined by &
+	var value uint8
+	flagParts := strings.Split(s, "&")
+	for _, part := range flagParts {
+		part = strings.TrimSpace(part)
+		if part == "" {
+			continue
+		}
+		if v, ok := flagMap[part]; ok {
+			value |= uint8(v)
+		} else {
+			return nlri.FlowMatch{}, fmt.Errorf("unknown flag: %s", part)
+		}
+	}
+
+	if value == 0 {
+		return nlri.FlowMatch{}, errors.New("no valid flags specified")
+	}
+
+	return nlri.FlowMatch{Op: op, Value: uint64(value), And: and}, nil
+}
+
+// Fragment flag name to value mapping.
+// RFC 8955 Section 4.2.2.12: Fragment (Type 12) uses bitmask_op format.
+// The bitmask operand encodes IP fragmentation status:
+//
+//	Bit 0: DF  - Don't Fragment (IP header flags bit 1)
+//	Bit 1: IsF - Is a Fragment (fragment offset != 0)
+//	Bit 2: FF  - First Fragment (fragment offset == 0, MF == 1)
+//	Bit 3: LF  - Last Fragment (fragment offset != 0, MF == 0)
+var fragmentNameToValue = map[string]nlri.FlowFragmentFlag{
+	"dont-fragment":  nlri.FlowFragDontFragment,  // DF bit (RFC 791)
+	"is-fragment":    nlri.FlowFragIsFragment,    // Fragment offset != 0
+	"first-fragment": nlri.FlowFragFirstFragment, // First of fragmented packet
+	"last-fragment":  nlri.FlowFragLastFragment,  // Last of fragmented packet
+}
+
+// parseFlowSpecFragment parses fragment component.
+// RFC 8955 Section 4.2.1.2: Bitmask operator format.
+//
+// Syntax: fragment <match>+ where match is [!][=]<type>[&<type>...]
+// Operators same as tcp-flags (!, =, &).
+//
+// Examples:
+//   - fragment dont-fragment        -> match if DF is set
+//   - fragment !is-fragment         -> match if NOT a fragment
+//   - fragment =first-fragment      -> match if EXACTLY first-fragment
+func parseFlowSpecFragment(args []string) (nlri.FlowComponent, int, error) {
+	if len(args) == 0 {
+		return nil, 0, errors.New("fragment requires type")
+	}
+
+	var matches []nlri.FlowMatch
+	consumed := 0
+
+	for i := 0; i < len(args); i++ {
+		token := strings.ToLower(args[i])
+
+		// Stop at boundary/mode keywords or next component
+		if isBoundaryKeyword(token) || token == kwAdd || token == kwDel || isFlowSpecComponentKeyword(token) {
+			break
+		}
+
+		match, err := parseBitmaskMatch(token, fragmentNameToValue)
+		if err != nil {
+			if consumed == 0 {
+				return nil, 0, fmt.Errorf("invalid fragment: %w", err)
+			}
+			break
+		}
+
+		// RFC 8955: AND bit is N/A for first operand
+		if consumed == 0 {
+			match.And = false
+		}
+
+		matches = append(matches, match)
+		consumed++
+	}
+
+	if len(matches) == 0 {
+		return nil, 0, errors.New("fragment requires at least one type")
+	}
+
+	return nlri.NewFlowFragmentMatchComponent(matches), consumed + 1, nil // +1 for "fragment" keyword
+}
+
 // isSupportedFamily returns true if the family is supported in text mode.
 func isSupportedFamily(f nlri.Family) bool {
 	switch f {
@@ -1141,6 +1788,10 @@ func isSupportedFamily(f nlri.Family) bool {
 	case nlri.IPv4VPN, nlri.IPv6VPN: // VPN families (SAFI 128)
 		return true
 	case nlri.IPv4LabeledUnicast, nlri.IPv6LabeledUnicast: // Labeled unicast (SAFI 4)
+		return true
+	case nlri.IPv4FlowSpec, nlri.IPv6FlowSpec: // FlowSpec (SAFI 133) - RFC 8955
+		return true
+	case nlri.IPv4FlowSpecVPN, nlri.IPv6FlowSpecVPN: // FlowSpec VPN (SAFI 134) - RFC 8955
 		return true
 	default:
 		return false

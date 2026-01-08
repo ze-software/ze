@@ -779,15 +779,39 @@ func parseLargeCommunity(s string) (LargeCommunity, error) {
 // RFC 4360 (Extended Communities), RFC 5575 (FlowSpec Actions).
 //
 // Supported formats:
+//   - List syntax: [origin:ASN:IP] or [redirect:ASN:target] etc.
+//   - Function syntax: traffic-rate <asn> <rate>, redirect <asn> <target>, etc.
+//
+// List format types:
 //   - origin:ASN:IP (Type 0x00, Subtype 0x03) - 2-byte ASN + IPv4
 //   - origin:IP:ASN (Type 0x01, Subtype 0x03) - IPv4 + 2-byte ASN
 //   - redirect:ASN:target (Type 0x80, Subtype 0x08) - Traffic redirect
 //   - rate-limit:bps (Type 0x80, Subtype 0x06) - Traffic rate limit
+//
+// Function format types (RFC 5575 FlowSpec actions):
+//   - traffic-rate <asn> <rate> - Rate limit in bytes/sec
+//   - discard - Sugar for traffic-rate 0 0
+//   - redirect <asn> <target> - Redirect to VRF
+//   - traffic-marking <dscp> - Set DSCP value
 func parseExtendedCommunities(args []string) ([]attribute.ExtendedCommunity, int, error) {
 	if len(args) == 0 {
 		return nil, 0, fmt.Errorf("missing extended-community value")
 	}
 
+	// Check for function-style syntax (FlowSpec actions)
+	firstToken := strings.ToLower(args[0])
+	switch firstToken {
+	case "traffic-rate":
+		return parseTrafficRateFunction(args)
+	case "discard":
+		return parseDiscardFunction()
+	case "redirect":
+		return parseRedirectFunction(args)
+	case "traffic-marking":
+		return parseTrafficMarkingFunction(args)
+	}
+
+	// Fall back to list syntax
 	tokens, consumed := parseBracketedList(args)
 	comms := make([]attribute.ExtendedCommunity, 0, len(tokens))
 	for _, tok := range tokens {
@@ -799,6 +823,101 @@ func parseExtendedCommunities(args []string) ([]attribute.ExtendedCommunity, int
 	}
 
 	return comms, consumed, nil
+}
+
+// parseTrafficRateFunction parses: traffic-rate <asn> <rate>
+// RFC 5575 Section 7.2: Traffic-rate action (Type 0x80, Subtype 0x06).
+// Format: 2-byte ASN + 4-byte IEEE 754 float (rate in bytes/sec).
+// Rate of 0 means discard (drop all matching traffic).
+func parseTrafficRateFunction(args []string) ([]attribute.ExtendedCommunity, int, error) {
+	if len(args) < 3 {
+		return nil, 0, fmt.Errorf("traffic-rate requires <asn> <rate>")
+	}
+
+	asn, err := strconv.ParseUint(args[1], 10, 16)
+	if err != nil {
+		return nil, 0, fmt.Errorf("invalid ASN in traffic-rate: %s", args[1])
+	}
+
+	rate, err := strconv.ParseFloat(args[2], 32)
+	if err != nil {
+		return nil, 0, fmt.Errorf("invalid rate in traffic-rate: %s", args[2])
+	}
+
+	bits := math.Float32bits(float32(rate))
+	ec := attribute.ExtendedCommunity{
+		0x80, 0x06, // Type=0x80 (transitive), Subtype=0x06 (traffic-rate)
+		byte(asn >> 8), byte(asn), // 2-byte ASN
+		byte(bits >> 24), byte(bits >> 16), byte(bits >> 8), byte(bits), // IEEE 754 float
+	}
+
+	return []attribute.ExtendedCommunity{ec}, 3, nil
+}
+
+// parseDiscardFunction parses: discard
+// RFC 5575 Section 7.2: Sugar for traffic-rate 0 0.
+// Sets rate to 0.0 which means drop all matching traffic.
+func parseDiscardFunction() ([]attribute.ExtendedCommunity, int, error) {
+	ec := attribute.ExtendedCommunity{
+		0x80, 0x06, // Type=0x80 (transitive), Subtype=0x06 (traffic-rate)
+		0x00, 0x00, // ASN = 0
+		0x00, 0x00, 0x00, 0x00, // Rate = 0.0 (IEEE 754)
+	}
+	return []attribute.ExtendedCommunity{ec}, 1, nil
+}
+
+// parseRedirectFunction parses: redirect <asn> <target>
+// RFC 5575 Section 7.5: Redirect action (Type 0x80, Subtype 0x08).
+// Format: 2-byte ASN + 4-byte local administrator (target VRF).
+// Note: 4-byte ASN redirect (Type 0x82) not yet supported.
+func parseRedirectFunction(args []string) ([]attribute.ExtendedCommunity, int, error) {
+	if len(args) < 3 {
+		return nil, 0, fmt.Errorf("redirect requires <asn> <target>")
+	}
+
+	asn, err := strconv.ParseUint(args[1], 10, 16)
+	if err != nil {
+		return nil, 0, fmt.Errorf("invalid ASN in redirect: %s", args[1])
+	}
+
+	target, err := strconv.ParseUint(args[2], 10, 32)
+	if err != nil {
+		return nil, 0, fmt.Errorf("invalid target in redirect: %s", args[2])
+	}
+
+	ec := attribute.ExtendedCommunity{
+		0x80, 0x08, // Type=0x80 (transitive), Subtype=0x08 (redirect)
+		byte(asn >> 8), byte(asn), // 2-byte ASN
+		byte(target >> 24), byte(target >> 16), byte(target >> 8), byte(target), // 4-byte target
+	}
+
+	return []attribute.ExtendedCommunity{ec}, 3, nil
+}
+
+// parseTrafficMarkingFunction parses: traffic-marking <dscp>
+// RFC 5575 Section 7.6: Traffic-marking action (Type 0x80, Subtype 0x09).
+// Format: 5 reserved bytes + 1-byte DSCP value (0-63 per RFC 2474).
+// Sets the DSCP bits in the IP TOS/Traffic Class field.
+func parseTrafficMarkingFunction(args []string) ([]attribute.ExtendedCommunity, int, error) {
+	if len(args) < 2 {
+		return nil, 0, fmt.Errorf("traffic-marking requires <dscp>")
+	}
+
+	dscp, err := strconv.ParseUint(args[1], 10, 8)
+	if err != nil {
+		return nil, 0, fmt.Errorf("invalid DSCP in traffic-marking: %s", args[1])
+	}
+	if dscp > 63 {
+		return nil, 0, fmt.Errorf("DSCP must be 0-63, got %d", dscp)
+	}
+
+	ec := attribute.ExtendedCommunity{
+		0x80, 0x09, // Type=0x80 (transitive), Subtype=0x09 (traffic-marking)
+		0x00, 0x00, 0x00, 0x00, 0x00, // Reserved
+		byte(dscp), // DSCP value
+	}
+
+	return []attribute.ExtendedCommunity{ec}, 2, nil
 }
 
 // parseExtendedCommunity parses a single extended community string.

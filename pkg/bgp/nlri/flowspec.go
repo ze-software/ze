@@ -114,6 +114,23 @@ const (
 	FlowOpNotEq   FlowOperator = 0x06 // LT | GT = Not equal (RFC 8955 Table 1)
 )
 
+// Bitmask operator flags per RFC 8955 Section 4.2.1.2.
+// Used for TCP flags (Type 9) and Fragment (Type 12) components.
+//
+//	Byte format: [e][a][len][0][0][not][m]
+//	- e, a, len: same as numeric operator (bits 0-3)
+//	- not (bit 5): logical negation of operation
+//	- m (bit 6): Match bit - exact match vs any-bit-set
+//
+// Match semantics:
+//   - m=0: (data AND value) != 0 (any bit set)
+//   - m=1: (data AND value) == value (exact match)
+//   - not=1: logical negation of the above
+const (
+	FlowOpNot   FlowOperator = 0x02 // Bit 5: NOT operator (negate result)
+	FlowOpMatch FlowOperator = 0x01 // Bit 6: Match operator (exact match vs any-bit-set)
+)
+
 // FlowMatch represents a single {operator, value} pair in a numeric component.
 // RFC 8955 Section 4.2.1.1 defines the encoding as operator byte followed by value.
 // Multiple FlowMatch entries form a logical expression evaluated left-to-right,
@@ -889,6 +906,12 @@ func NewFlowFragmentComponent(flags ...FlowFragmentFlag) FlowComponent {
 		matches[i] = FlowMatch{Op: 0, Value: uint64(f)} // bitmask_op, not numeric_op
 	}
 	return &numericComponent{compType: FlowFragment, matches: matches}
+}
+
+// NewFlowFragmentMatchComponent creates a fragment component with explicit matches.
+// Allows specifying bitmask operator bits (NOT, Match) per RFC 8955 Section 4.2.1.2.
+func NewFlowFragmentMatchComponent(matchList []FlowMatch) FlowComponent {
+	return &numericComponent{compType: FlowFragment, matches: matchList}
 }
 
 // NewFlowFlowLabelComponent creates a flow-label component (Type 13, IPv6 only).
