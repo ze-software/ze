@@ -26,44 +26,65 @@ Complete IN ORDER. Do not skip steps.
 
 [ ] 5. Read ALL identified architecture docs
 
-[ ] 6. Read source code for affected area
+[ ] 6. RFC Summary Check (for protocol work)
+      → Identify ALL RFCs needed for implementation
+      → For each RFC:
+        a. Check if `.claude/zebgp/rfc/rfcNNNN.md` exists
+        b. If missing summary: run agent with `/rfc-summarisation rfcNNNN`
+        c. If missing RFC: `curl -o rfc/rfcNNNN.txt https://www.rfc-editor.org/rfc/rfcNNNN.txt`
+      → Read ALL relevant RFC summaries
 
-[ ] 7. TDD Planning - identify tests BEFORE implementation
+[ ] 7. Read source code for affected area
+
+[ ] 8. TDD Planning - identify tests BEFORE implementation
       → Unit tests needed
       → Functional tests needed
       → Test file locations
 
-[ ] 8. Present implementation plan to user
+[ ] 9. Present implementation plan to user
       → WAIT for approval before continuing
 
-[ ] 9. Write spec to `plan/spec-<task>.md`
-      → FIRST complete "Pre-Spec Verification" checklist below
-      → Match template format EXACTLY (not approximately)
+[ ] 10. Write spec to `plan/spec-<task>.md`
+       → FIRST complete "Pre-Spec Verification" checklist below
+       → Match template format EXACTLY (not approximately)
 
-[ ] 10. Begin TDD cycle (test fails → implement → test passes)
+[ ] 11. Begin TDD cycle (test fails → implement → test passes)
 ```
 
 ## Keyword → Documentation Mapping
 
-| Keywords in task | Required docs |
-|------------------|---------------|
-| UPDATE, message, build, route, announce | `UPDATE_BUILDING.md`, `ENCODING_CONTEXT.md` |
-| attribute, community, AS_PATH, NEXT_HOP | `wire/ATTRIBUTES.md`, `UPDATE_BUILDING.md` |
-| NLRI, prefix, MP_REACH, MP_UNREACH | `wire/NLRI.md` |
-| capability, OPEN, negotiate | `wire/CAPABILITIES.md` |
-| pool, memory, dedup, zero-copy | `POOL_ARCHITECTURE.md`, `ENCODING_CONTEXT.md` |
-| forward, reflect, wire cache | `ENCODING_CONTEXT.md`, `UPDATE_BUILDING.md` |
-| FSM, state, session, peer | `behavior/FSM.md` |
-| API, command, announce, withdraw | `api/ARCHITECTURE.md`, `api/CAPABILITY_CONTRACT.md` |
-| config, YAML, load | `config/SYNTAX.md` |
-| FlowSpec, VPN, EVPN, MPLS | `wire/NLRI.md`, `UPDATE_BUILDING.md` |
-| ExaBGP, compatibility | `EXABGP_CODE_MAP.md`, `EXABGP_COMPATIBILITY.md` |
-| design, transition, architecture | `plan/DESIGN_TRANSITION.md` |
-| ASN4, AS4, 4-byte AS | `edge-cases/AS4.md` |
-| ADD-PATH, path-id | `edge-cases/ADDPATH.md` |
-| extended message | `edge-cases/EXTENDED_MESSAGE.md` |
+| Keywords in task | Required docs | RFC summaries (see INDEX.md) |
+|------------------|---------------|------------------------------|
+| UPDATE, message, build, route, announce | `UPDATE_BUILDING.md`, `ENCODING_CONTEXT.md` | `rfc4271.md`, `rfc4760.md` |
+| attribute, community, AS_PATH, NEXT_HOP | `wire/ATTRIBUTES.md`, `UPDATE_BUILDING.md` | `rfc4271.md`, `rfc1997.md`, `rfc4360.md` |
+| NLRI, prefix, MP_REACH, MP_UNREACH | `wire/NLRI.md` | `rfc4760.md` |
+| capability, OPEN, negotiate | `wire/CAPABILITIES.md` | `rfc5492.md`, `rfc9072.md` |
+| pool, memory, dedup, zero-copy | `POOL_ARCHITECTURE.md`, `ENCODING_CONTEXT.md` | |
+| forward, reflect, wire cache | `ENCODING_CONTEXT.md`, `UPDATE_BUILDING.md` | |
+| FSM, state, session, peer | `behavior/FSM.md` | `rfc4271.md`, `rfc4724.md` |
+| API, command, announce, withdraw | `api/ARCHITECTURE.md`, `api/CAPABILITY_CONTRACT.md` | |
+| config, YAML, load | `config/SYNTAX.md` | |
+| FlowSpec | `wire/NLRI.md`, `wire/NLRI_FLOWSPEC.md` | `rfc8955.md`, `rfc8956.md` |
+| VPN, L3VPN, MPLS-VPN | `wire/NLRI.md` | `rfc4364.md`, `rfc4659.md`, `rfc8277.md` |
+| EVPN | `wire/NLRI.md`, `wire/NLRI_EVPN.md` | `rfc7432.md`, `rfc9136.md` |
+| BGP-LS, link-state | `wire/NLRI_BGPLS.md` | `rfc7752.md`, `rfc9085.md`, `rfc9514.md` |
+| ExaBGP, compatibility | `EXABGP_CODE_MAP.md`, `EXABGP_COMPATIBILITY.md` | |
+| design, transition, architecture | `plan/DESIGN_TRANSITION.md` | |
+| ASN4, AS4, 4-byte AS | `edge-cases/AS4.md` | `rfc6793.md` |
+| ADD-PATH, path-id | `edge-cases/ADDPATH.md` | `rfc7911.md` |
+| extended message | `edge-cases/EXTENDED_MESSAGE.md` | `rfc8654.md` |
+| graceful restart, GR | `behavior/FSM.md` | `rfc4724.md` |
+| route-refresh | | `rfc2918.md`, `rfc7313.md` |
+| error handling, notification | | `rfc7606.md`, `rfc9003.md` |
+| large community | | `rfc8092.md` |
+| extended community, RT | | `rfc4360.md`, `rfc5701.md` |
+| role, OTC, route leak | | `rfc9234.md` |
+| IPv6 next hop | | `rfc8950.md` |
+| labeled unicast, label | | `rfc8277.md`, `rfc3032.md` |
 
-All docs are in `.claude/zebgp/` unless otherwise specified.
+All architecture docs are in `.claude/zebgp/` unless otherwise specified.
+All RFC summaries are in `.claude/zebgp/rfc/`.
+For complete RFC keyword mapping, see `.claude/INDEX.md` → "RFC Summaries" section.
 
 ## Implementation Plan Format
 
@@ -74,6 +95,9 @@ Present to user BEFORE writing code:
 
 ### Docs Read
 - `.claude/zebgp/<doc>.md` - [key insight]
+
+### RFC Summaries (MUST for protocol work)
+- `.claude/zebgp/rfc/rfcNNNN.md` - [key insight]
 
 ### 🧪 Tests First (TDD)
 **Unit tests:**
@@ -108,12 +132,13 @@ Present to user BEFORE writing code:
 ```
 [ ] 1. Re-read this file (planning.md) - don't rely on memory
 [ ] 2. Keyword table checked - ALL matching docs identified
-[ ] 3. Template visible - match format exactly, not approximately
-[ ] 4. Checkboxes use [ ] not [x] - template shows unchecked
-[ ] 5. Each doc has "- [why relevant]" after the path
-[ ] 6. Section headers match template exactly (including 🧪 emoji)
-[ ] 7. Tables used for Unit Tests and Functional Tests (not prose)
-[ ] 8. Implementation steps include "(paste output)" where shown
+[ ] 3. RFC summaries exist for all referenced RFCs (create if missing)
+[ ] 4. Template visible - match format exactly, not approximately
+[ ] 5. Checkboxes use [ ] not [x] - template shows unchecked
+[ ] 6. Each doc has "- [why relevant]" after the path
+[ ] 7. Section headers match template exactly (including 🧪 emoji)
+[ ] 8. Tables used for Unit Tests and Functional Tests (not prose)
+[ ] 9. Implementation steps include "(paste output)" where shown
 ```
 
 **Common mistakes:**
@@ -122,6 +147,7 @@ Present to user BEFORE writing code:
 - Skipping keyword→doc mapping table
 - Prose instead of table for Functional Tests
 - "- [description]" instead of "- [why relevant]" in Required Reading
+- Missing RFC summaries for protocol work (MUST exist before implementation)
 
 ## Spec File Template
 
@@ -134,7 +160,12 @@ Write to `plan/spec-<task-name>.md`:
 <description>
 
 ## Required Reading
+
+### Architecture Docs
 - [ ] `.claude/zebgp/<doc>.md` - [why relevant]
+
+### RFC Summaries (MUST for protocol work)
+- [ ] `.claude/zebgp/rfc/rfcNNNN.md` - [why relevant]
 
 **Key insights:**
 - [insight from docs]
@@ -160,11 +191,42 @@ Write to `plan/spec-<task-name>.md`:
 3. **Implement** - Minimal code to pass
 4. **Run tests** - Verify PASS (paste output)
 5. **Verify all** - `make lint && make test && make functional`
-6. **RFC refs** - Add RFC comments to protocol code
+6. **RFC refs** - Add RFC reference comments
+7. **RFC constraints** - Add constraint comments with quoted requirements (see RFC Documentation)
 
 ## RFC Documentation
-- Add `// RFC NNNN Section X.Y` comments
+
+### Reference Comments
+- Add `// RFC NNNN Section X.Y` comments for protocol code
 - If RFC missing: `curl -o rfc/rfcNNNN.txt https://www.rfc-editor.org/rfc/rfcNNNN.txt`
+
+### Constraint Comments (CRITICAL)
+When code enforces an RFC rule/constraint, document it ABOVE the code:
+
+```go
+// RFC 4271 Section 6.3: "If the UPDATE message is received from an external peer"
+// MUST check that AS_PATH first segment is neighbor's AS
+if peer.IsExternal() && path.FirstAS() != peer.RemoteAS {
+    return ErrInvalidASPath
+}
+```
+
+**Why:** Prevents accidental regression during refactoring. Future editors must understand WHY the constraint exists before modifying.
+
+**Format:**
+```
+// RFC NNNN Section X.Y: "<quoted requirement>"
+// <brief explanation if not obvious>
+<code that enforces it>
+```
+
+**MUST document:**
+- Validation rules (field ranges, required values)
+- Error conditions and responses
+- State machine transitions
+- Timer constraints
+- Message ordering requirements
+- Any MUST/MUST NOT from RFC
 
 ## Checklist
 
@@ -181,7 +243,9 @@ Write to `plan/spec-<task-name>.md`:
 
 ### Documentation
 - [ ] Required docs read
-- [ ] RFC references added
+- [ ] RFC summaries read (all referenced RFCs)
+- [ ] RFC references added to code
+- [ ] RFC constraint comments added (quoted requirement + explanation)
 - [ ] `.claude/zebgp/` updated if schema changed
 
 ### Completion

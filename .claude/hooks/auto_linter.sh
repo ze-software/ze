@@ -1,6 +1,6 @@
 #!/bin/bash
 # PostToolUse hook: Auto-lint Go files after Write/Edit operations.
-# Advisory mode: shows warnings but doesn't block.
+# BLOCKING: Rejects changes with lint issues.
 
 set -e
 
@@ -85,9 +85,9 @@ if command -v golangci-lint &> /dev/null; then
             echo -e "   ${DIM}... and $((TOTAL - 5)) more${RESET}" >&2
         fi
 
-        echo -e "   ${GREEN}Run: golangci-lint run ${REL_PATH}${RESET}" >&2
+        echo -e "${RED}${BOLD}Fix lint issues before continuing.${RESET}" >&2
 
-        # Non-blocking exit (advisory)
+        # BLOCKING: reject until lint passes
         exit 1
     fi
 fi
