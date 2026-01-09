@@ -80,10 +80,12 @@ Implement a plugin registration protocol where plugins proactively declare their
 | `pkg/api/server.go` | Added coordinator, registry, capInjector; stage handling; `deliverConfig()` |
 | `pkg/api/process.go` | Added stage tracking fields, `index` field for plugin ID |
 | `pkg/api/types.go` | Added `PeerCapabilityConfig`, `GetPeerCapabilityConfigs()` interface method |
+| `pkg/api/persist/persist.go` | Updated to use 5-stage registration protocol |
 | `pkg/reactor/reactor.go` | Implemented `GetPeerCapabilityConfigs()` via ConfigProvider |
 | `pkg/reactor/session.go` | Added `pluginCapGetter` callback, `SetPluginCapabilityGetter()` |
 | `pkg/reactor/peer.go` | Added `getPluginCapabilities()`, wires callback in `runOnce()` |
-| `pkg/bgp/capability/capability.go` | Added `ConfigProvider` interface, implemented on all capabilities |
+| `pkg/bgp/capability/capability.go` | Added `ConfigProvider` interface, implemented on 8 capabilities |
+| `test/data/scripts/zebgp_api.py` | Updated `ready()` to perform minimal 5-stage protocol |
 
 ## Implementation Steps
 1. **Write tests** - Create unit tests for registration parsing
@@ -124,7 +126,7 @@ Implement a plugin registration protocol where plugins proactively declare their
 
 ## Implementation Status
 
-**Progress: 90%** - Core protocol complete, functional tests pending
+**Progress: 100%** - Core protocol complete, all tests passing
 
 ### ✅ Completed
 | Feature | Notes |

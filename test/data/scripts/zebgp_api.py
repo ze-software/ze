@@ -519,10 +519,27 @@ def ready() -> None:
     MUST be called at the start of every API script before sending commands.
     ZeBGP waits for all API processes to signal ready before starting BGP peers.
 
+    This function performs the minimal 5-stage protocol:
+    - Stage 1: registration done (no registrations)
+    - Stage 2: wait for config
+    - Stage 3: open done (no capabilities)
+    - Stage 4: wait for registry
+    - Stage 5: ready
+
     For full protocol support, use the API class directly with the
     registration methods.
     """
-    _get_api().ready()
+    api = _get_api()
+    # Stage 1: Empty registration
+    api.registration_done()
+    # Stage 2: Receive config (discard)
+    api.wait_for_config(timeout=5.0)
+    # Stage 3: No capabilities
+    api.capability_done()
+    # Stage 4: Receive registry (discard)
+    api.wait_for_registry(timeout=5.0)
+    # Stage 5: Ready
+    api.ready()
 
 
 def flush(msg: str) -> None:

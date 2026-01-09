@@ -53,11 +53,8 @@ func NewPersister(input io.Reader, output io.Writer) *Persister {
 
 // Run starts the persister event loop.
 func (p *Persister) Run() int {
-	// Register plugin commands
-	p.registerCommands()
-
-	// Signal ready - ZeBGP can start peer connections
-	p.sendCommand("session api ready")
+	// 5-stage plugin registration protocol
+	p.doStartupProtocol()
 
 	for p.input.Scan() {
 		line := p.input.Bytes()
@@ -80,10 +77,34 @@ func (p *Persister) Run() int {
 	return 0
 }
 
-// registerCommands outputs startup commands.
-func (p *Persister) registerCommands() {
-	p.sendCommand(`register command "persist status" description "Show persist status"`)
-	p.sendCommand(`register command "persist routes" description "Show stored routes"`)
+// doStartupProtocol performs the 5-stage plugin registration protocol.
+func (p *Persister) doStartupProtocol() {
+	// Stage 1: Registration
+	p.send("cmd add persist status")
+	p.send("cmd add persist routes")
+	p.send("registration done")
+
+	// Stage 2: Wait for config (discard)
+	p.waitForLine("configuration done")
+
+	// Stage 3: No capabilities
+	p.send("open done")
+
+	// Stage 4: Wait for registry (discard)
+	p.waitForLine("api done")
+
+	// Stage 5: Ready
+	p.send("ready")
+}
+
+// waitForLine reads lines until one matches the expected line.
+func (p *Persister) waitForLine(expected string) {
+	for p.input.Scan() {
+		line := p.input.Text()
+		if line == expected {
+			return
+		}
+	}
 }
 
 // sendCommand sends a numbered command to ZeBGP.
