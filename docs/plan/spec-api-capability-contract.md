@@ -1,398 +1,488 @@
-# API Capability Contract
+# Spec: api-capability-contract
 
-## Problem
+## Task
 
-Some BGP capabilities require API process cooperation:
-- **Graceful Restart**: API must resend routes on reconnection
-- **Route Refresh**: API must resend routes on refresh request
-- **Enhanced Route Refresh**: API must handle BoRR/EoRR markers
+Implement a plugin registration protocol where plugins proactively declare their capabilities, commands, config hooks, and address families at startup. This replaces the previous capability confirmation model.
 
-Router MUST NOT advertise capabilities it cannot fulfill.
+## Required Reading
 
-## Solution
+### Architecture Docs
+- [ ] `docs/architecture/api/ARCHITECTURE.md` - current API design
+- [ ] `docs/architecture/api/CAPABILITY_CONTRACT.md` - existing capability contract
+- [ ] `docs/architecture/config/SYNTAX.md` - config parsing requirements
 
-Two-phase capability declaration:
-1. **Config declares requirements** - what capabilities API should support
-2. **Process confirms support** - runtime confirmation before peer sessions start
+### RFC Summaries (MUST for protocol work)
+- [ ] `docs/rfc/rfc4271.md` - BGP-4 base protocol
+- [ ] `docs/rfc/rfc4724.md` - Graceful Restart
+- [ ] `docs/rfc/rfc2918.md` - Route Refresh
+- [ ] `docs/rfc/rfc7313.md` - Enhanced Route Refresh
 
-## Config Syntax
+**Key insights:**
+- API section must be parsed first in config
+- Plugins start in parallel, stages synchronized
+- Capability bytes provided by plugins for OPEN messages
 
-Capabilities configured at **peer level** (unchanged):
+## 🧪 TDD Test Plan
 
-```
-peer 192.168.1.1 {
-  capability {
-    graceful-restart 120;
-    route-refresh;
-  }
-  api announce-routes {
-    send { update; }
-  }
-}
-```
+### Unit Tests
+| Test | File | Validates |
+|------|------|-----------|
+| `TestParseRegistration` | `pkg/api/registration_test.go` | Parse registration commands |
+| `TestParseConfigPattern` | `pkg/api/registration_test.go` | Config pattern with regex captures |
+| `TestConflictDetection` | `pkg/api/registry_test.go` | Command and capability conflicts |
+| `TestConfigDelivery` | `pkg/api/config_test.go` | Config matching and delivery format |
+| `TestCapabilityInjection` | `pkg/api/capability_test.go` | Capability bytes added to OPEN |
+| `TestStageSynchronization` | `pkg/api/startup_test.go` | All plugins complete stage before next |
 
-Router derives required API capabilities from peer config + API binding.
+### Functional Tests
+| Test | Location | Scenario |
+|------|----------|----------|
+| `plugin-registration` | `qa/tests/api/` | Full 5-stage startup sequence |
+| `plugin-conflict` | `qa/tests/api/` | Command conflict refuses to start |
+| `plugin-timeout` | `qa/tests/api/` | Stage timeout kills plugin |
+| `plugin-failed` | `qa/tests/api/` | Plugin sends failed, startup aborts |
 
-## Protocol
+## Files to Modify
+- `pkg/api/registration.go` - registration command parsing
+- `pkg/api/registry.go` - command/capability registry with conflict detection
+- `pkg/api/process.go` - staged startup protocol
+- `pkg/api/config.go` - config pattern matching and delivery
+- `pkg/reactor/reactor.go` - API section first, capability injection
+- `pkg/bgp/message/open.go` - accept plugin-provided capability bytes
 
-### Startup Sequence
+## Implementation Steps
+1. **Write tests** - Create unit tests for registration parsing
+2. **Run tests** - Verify FAIL (paste output)
+3. **Implement registration parser** - Parse all registration commands
+4. **Run tests** - Verify PASS (paste output)
+5. **Write conflict tests** - Test command/capability conflict detection
+6. **Implement registry** - Track registrations, detect conflicts
+7. **Write config delivery tests** - Test pattern matching
+8. **Implement config delivery** - Match patterns, format output
+9. **Write capability tests** - Test OPEN injection
+10. **Implement capability injection** - Add plugin bytes to OPEN
+11. **Write startup tests** - Test stage synchronization
+12. **Implement staged startup** - Synchronize all plugins per stage
+13. **Verify all** - `make lint && make test && make functional`
 
-```
-┌─────────┐                      ┌─────────┐
-│ Router  │                      │ Process │
-└────┬────┘                      └────┬────┘
-     │                                │
-     │──── spawn process ────────────>│
-     │                                │
-     │──── capability route-refresh ──│  (router states what it needs)
-     │                                │
-     │<─── capability route-refresh ──│  (process confirms, within 5s)
-     │                                │
-     │──── validate ──────────────────│
-     │     required ⊆ confirmed?      │
-     │                                │
-     │──── (if OK) start peers ──────>│
-     │                                │
-```
+## Checklist
 
-### Capability Query
+### 🧪 TDD
+- [ ] Tests written
+- [ ] Tests FAIL (output below)
+- [ ] Implementation complete
+- [ ] Tests PASS (output below)
 
-Router sends required capabilities to process stdin.
+### Verification
+- [ ] `make lint` passes
+- [ ] `make test` passes
+- [ ] `make functional` passes
 
-**Text format:**
-```
-capability route-refresh
-capability route-refresh enhanced-route-refresh
-```
+### Documentation
+- [ ] Required docs read
+- [ ] RFC summaries read (all referenced RFCs)
+- [ ] `docs/architecture/api/ARCHITECTURE.md` updated
+- [ ] `docs/architecture/config/SYNTAX.md` updated
 
-**JSON format:**
-```json
-{"type": "capability", "require": ["route-refresh"]}
-{"type": "capability", "require": ["route-refresh", "enhanced-route-refresh"]}
-```
+### Completion
+- [ ] Spec moved to `docs/plan/done/NNN-api-capability-contract.md`
 
-### Capability Response
+---
 
-Process responds on stdout (single line).
+# Protocol Specification
 
-**Text format:**
-```
-capability route-refresh
-capability route-refresh enhanced-route-refresh
-```
+## Overview
 
-**JSON format:**
-```json
-{"type": "capability", "support": ["route-refresh"]}
-{"type": "capability", "support": ["route-refresh", "enhanced-route-refresh"]}
-```
+Plugins register capabilities, commands, and configuration hooks with ZeBGP at startup.
+This replaces the previous capability confirmation model with a proactive registration system.
 
-**Rules:**
-- Must respond within **5 seconds** of query
-- Single line response
-- Order doesn't matter
-- Process confirms what it supports (may include extras, can lie)
-- Empty response means no API-dependent capabilities supported:
-  - Text: `capability`
-  - JSON: `{"type": "capability", "support": []}`
-- Router validates: all required caps present in response
-- Encoding (text/JSON) determined by process config `encoder` setting
+## Key Concepts
 
-### Validation
+| Concept | Description |
+|---------|-------------|
+| **Plugin** | External process communicating via stdin/stdout |
+| **Registration** | Plugin declares what it handles/needs |
+| **Staged startup** | Synchronized phases, all plugins complete each stage |
+| **RFC grouping** | Features identified by RFC number for human readability |
 
-Router validates: `config_required ⊆ process_confirmed`
-
-| Router Sends | Process Responds | Result |
-|-------------|------------------|--------|
-| `capability route-refresh` | `capability route-refresh enhanced-route-refresh` | ✅ OK (extras) |
-| `capability route-refresh enhanced-route-refresh` | `capability enhanced-route-refresh route-refresh` | ✅ OK (order differs) |
-| `capability route-refresh enhanced-route-refresh` | `capability route-refresh` | ❌ FAIL (missing enhanced-route-refresh) |
-| `capability route-refresh` | `capability` | ❌ FAIL (missing route-refresh) |
-| `capability` | `capability route-refresh` | ✅ OK (no requirements) |
-
-### Failure Behavior
-
-On mismatch or timeout:
-1. Log error with details (required vs confirmed)
-2. Kill process
-3. Do NOT start peer sessions bound to this process
-4. Reactor startup fails if any required process fails
+## Startup Sequence
 
 ```
-ERROR: process "announce-routes" capability mismatch
-  required: [route-refresh]
-  confirmed: []
-  missing: [route-refresh]
+┌─────────────────────────────────────────────────────────────────┐
+│ 1. Parse API section of config ONLY                             │
+│ 2. Start all plugins (parallel)                                 │
+│ 3. Stage 1: Registration      (Plugin → ZeBGP) - all parallel   │
+│ 4. Stage 2: Config Delivery   (ZeBGP → Plugin)                  │
+│ 5. Stage 3: Capability Decl   (Plugin → ZeBGP)                  │
+│ 6. Stage 4: Registry Sharing  (ZeBGP → Plugin)                  │
+│ 7. Stage 5: Ready             (Plugin → ZeBGP)                  │
+│ 8. Parse rest of config                                         │
+│ 9. Start peer sessions                                          │
+└─────────────────────────────────────────────────────────────────┘
 ```
 
-## API-Dependent Capabilities
+- Plugins start in parallel
+- Each stage synchronized: ZeBGP waits for ALL plugins to complete before next stage
+- Timeout: configurable per API, default 1s per stage
+- Any conflict (command or capability type) → refuse to start
 
-Only two capabilities require API confirmation:
+## Protocol Stages
 
-| Capability | Config Key | API Contract |
-|------------|------------|--------------|
-| Route Refresh | `route-refresh` | Resend routes on `peer X refresh` command |
-| Enhanced Route Refresh | `enhanced-route-refresh` | Send `borr`/`eorr` markers around route resend |
+### Stage 1: Registration (Plugin → ZeBGP)
 
-**Note:** Graceful Restart uses the same `peer X refresh` mechanism as Route Refresh.
-If API confirms `route-refresh`, it implicitly supports GR resend behavior.
-GR just triggers refresh for all negotiated families on reconnect.
-
-All other capabilities (ADD-PATH, 4-byte AS, Extended Message, etc.) are router-handled.
-ADD-PATH: if API omits path-id, router defaults to 0.
-
-## Capability Behavior Contracts
-
-### graceful-restart
-
-When peer reconnects after session drop:
-1. Router sends to API (one per negotiated family):
-
-   **Text:**
-   ```
-   peer 192.168.1.1 refresh ipv4/unicast
-   peer 192.168.1.1 refresh ipv6/unicast
-   ```
-   **JSON:**
-   ```json
-   {"type": "refresh", "peer": "192.168.1.1", "afi": "ipv4", "safi": "unicast"}
-   {"type": "refresh", "peer": "192.168.1.1", "afi": "ipv6", "safi": "unicast"}
-   ```
-
-2. Process resends routes using borr/eorr markers:
-
-   **Text:**
-   ```
-   peer 192.168.1.1 borr ipv4/unicast
-   announce route 10.0.0.0/24 next-hop self
-   peer 192.168.1.1 eorr ipv4/unicast
-   ```
-   **JSON:** (borr/eorr are JSON, announce remains text command)
-   ```json
-   {"type": "borr", "peer": "192.168.1.1", "afi": "ipv4", "safi": "unicast"}
-   ```
-   ```
-   announce route 10.0.0.0/24 next-hop self
-   ```
-   ```json
-   {"type": "eorr", "peer": "192.168.1.1", "afi": "ipv4", "safi": "unicast"}
-   ```
-
-   **Note:** Route announce/withdraw commands use existing text format regardless of encoder setting. Only control messages (capability, refresh, borr, eorr) use JSON when `encoder json`.
-
-3. Router tracks completion internally (borr/eorr NOT sent on wire for GR)
-4. When all families complete, router sends End-of-RIB markers
-
-**Note:** Same API commands as enhanced-route-refresh, different wire behavior.
-GR: borr/eorr are internal signals. ERR: borr/eorr are sent on wire.
-
-**Completion tracking:**
-- If API sends borr/eorr: router knows exactly when each family is done
-- If API only confirms `route-refresh` (not `enhanced-route-refresh`):
-  - API may not send borr/eorr markers
-  - Router uses restart-time from GR capability as timeout
-  - After timeout, send End-of-RIB for remaining families
-
-### route-refresh
-
-When router receives ROUTE-REFRESH from peer:
-1. Router sends to API:
-
-   **Text:** `peer 192.168.1.1 refresh ipv4/unicast`
-
-   **JSON:** `{"type": "refresh", "peer": "192.168.1.1", "afi": "ipv4", "safi": "unicast"}`
-
-2. Process MUST resend all routes for that peer/family
-3. Router forwards routes to peer as they arrive
-
-**Note:** Router doesn't wait for completion - routes are forwarded immediately.
-For bounded refresh (knowing when done), use `enhanced-route-refresh`.
-
-### enhanced-route-refresh
-
-When router receives ROUTE-REFRESH from peer:
-1. Router sends: `peer 192.168.1.1 refresh ipv4/unicast`
-2. Process sends: `peer 192.168.1.1 borr ipv4/unicast`
-3. Router sends BoRR to peer
-4. Process resends routes
-5. Process sends: `peer 192.168.1.1 eorr ipv4/unicast`
-6. Router sends EoRR to peer
-
-API commands for Enhanced RR:
-
-**Text:**
-```
-peer 192.168.1.1 borr ipv4/unicast
-peer 192.168.1.1 eorr ipv4/unicast
-```
-
-**JSON:**
-```json
-{"type": "borr", "peer": "192.168.1.1", "afi": "ipv4", "safi": "unicast"}
-{"type": "eorr", "peer": "192.168.1.1", "afi": "ipv4", "safi": "unicast"}
-```
-
-## Implementation
-
-### Capability Derivation
-
-Router derives required API capabilities per process from peer config:
-
-```go
-// pkg/reactor/reactor.go
-
-func (r *Reactor) deriveAPICapabilities(peer *PeerConfig, binding *APIBinding) []string {
-    // Only processes that can send updates need capability confirmation
-    if !binding.Send.Update {
-        return nil
-    }
-
-    var caps []string
-    // GR requires route-refresh (same mechanism)
-    if peer.Capabilities.GracefulRestart || peer.Capabilities.RouteRefresh {
-        caps = append(caps, "route-refresh")
-    }
-    if peer.Capabilities.EnhancedRouteRefresh {
-        caps = append(caps, "enhanced-route-refresh")
-    }
-    return caps
-}
-```
-
-### Process Manager
-
-```go
-// pkg/api/process.go
-
-type Process struct {
-    // ... existing fields
-    confirmedCaps map[string]bool  // runtime confirmed capabilities
-}
-
-func (p *Process) QueryCapability(ctx context.Context, required []string) error {
-    // 1. Send "capability cap1 cap2 ...\n" to process stdin
-    // 2. Wait for "capability ..." response (5s timeout)
-    // 3. Parse response into set of confirmed caps
-    // 4. Validate: all required caps present in response
-    // 5. Return error on mismatch or timeout
-}
-```
-
-### Reactor Integration
-
-```go
-// pkg/reactor/reactor.go
-
-func (r *Reactor) Start(ctx context.Context) error {
-    // 1. Spawn all processes
-    // 2. Derive required caps per process from peer configs
-    // 3. Query capability from each process (parallel)
-    //    - Send "capability cap1 cap2 ..." to each
-    //    - Wait for responses (5s timeout each)
-    // 4. Validate: each process confirms all required caps
-    // 5. ONLY THEN start peer sessions
-}
-```
-
-## Peer Capability Advertisement
-
-Router advertises capability to peer ONLY IF:
-1. Config enables the capability for that peer
-2. ALL API processes with `send { update; }` bound to peer confirm support
+Plugin declares RFCs, encodings, families, config patterns, and commands.
 
 ```
-peer 192.168.1.1 {
-  capability {
-    graceful-restart 120;  # Enabled in config
-  }
-  api announce-routes {    # Bound process
-    send { update; }
-  }
-}
+rfc add 4271
+rfc add 9234
+encoding add text
+encoding add b64
+family add ipv4 unicast
+family add ipv6 unicast
+family add all
+conf add peer * capability hostname <hostname:.*>
+cmd add rib adjacent in show
+cmd add rib adjacent out show
+cmd add rib adjacent out clear
+registration done
 ```
 
-If process `announce-routes` doesn't confirm `route-refresh`:
-- Peer session does NOT start
-- Error logged
+#### Syntax Reference
 
-## Edge Cases
+| Command | Description |
+|---------|-------------|
+| `rfc add <number>` | Declare RFC implementation (for human info) |
+| `encoding add <enc>` | Declare supported encoding (text, b64, hex) |
+| `family add <afi> <safi>` | Register to receive updates for family |
+| `family add all` | Receive all updates |
+| `conf add <pattern>` | Register config hook with regex captures |
+| `cmd add <command>` | Register command handler |
+| `registration done` | Signal stage complete |
 
-### No API Binding
-
-If peer has `graceful-restart`, `route-refresh`, or `enhanced-route-refresh` configured but no `api` block with `send { update; }`:
-- **Refuse to start** - configuration error
-- Router does not integrate Adj-RIB-Out, cannot fulfill refresh contract
-- User must either:
-  - Remove the capability from peer config, OR
-  - Add API binding with `send { update; }`
+#### Config Pattern Syntax
 
 ```
-ERROR: peer 192.168.1.1 has graceful-restart but no API to resend routes
-  hint: add "api <process> { send { update; } }" or remove capability
+conf add peer * capability hostname <hostname:.*>
+         │    │             │        └─ <name:regex> capture
+         │    │             └─ literal path
+         │    └─ glob wildcard
+         └─ config section
 ```
 
-### Architecture Note
+- `*` matches any single path element
+- `<name:regex>` captures value with validation
+- Multiple plugins can match same config (both receive it)
+- Multiple captures per pattern supported
 
-ZeBGP keeps Adj-RIB code separate from router core. A reference API program (`zebgp-rr` or similar) will be provided that:
-- Maintains Adj-RIB-Out per peer
-- Confirms `route-refresh` capability
-- Handles `peer X refresh` commands by resending from Adj-RIB
+#### Multiple Captures Example
 
-Users who need GR/RR can use this program or implement their own.
+**Registration:**
+```
+conf add peer * capability graceful-restart <restart-time:\d+> <forwarding:(true|false)>
+```
 
-### Multiple API Bindings
+**Config Delivery:**
+```
+configuration peer 192.168.1.1 restart-time set 120
+configuration peer 192.168.1.1 forwarding set true
+configuration peer 192.168.1.2 restart-time set 90
+configuration peer 192.168.1.2 forwarding set false
+configuration done
+```
 
-If peer has multiple `api` blocks:
-- Only processes with `send { update; }` need capability confirmation
-- Receive-only processes don't inject routes, can't resend
+Each `<name:regex>` becomes a separate line: `configuration <context> <name> set <value>`.
 
-### Receive-Only Process
+### Stage 2: Config Delivery (ZeBGP → Plugin)
 
-If process only has `receive { ... }` (no `send`):
-- No capability confirmation required
-- Process cannot inject routes, so refresh doesn't apply
+ZeBGP sends matching config lines with captured values.
 
-### Process Bound to Multiple Peers
+```
+configuration peer 192.168.1.1 hostname set router1.example.com
+configuration peer 192.168.1.2 hostname set router1.example.com
+configuration done
+```
 
-If process is bound to multiple peers with different capability requirements:
-- Router aggregates: process must confirm union of all required caps
-- Example: peer A needs `route-refresh`, peer B needs `route-refresh enhanced-route-refresh`
-- Router queries: `capability route-refresh enhanced-route-refresh`
+- Only lines matching registered patterns
+- Each capture: `configuration <context> <name> set <value>`
+- Ends with `configuration done`
 
-### Proactive borr/eorr
+### Stage 3: Open Capability (Plugin → ZeBGP)
 
-API can send `borr`/`eorr` without explicit refresh request:
-- Initial route announcement after session establishment
-- Triggered updates (e.g., policy change)
-- Router behavior depends on peer capability:
-  - Peer supports ERR → send BoRR/EoRR on wire
-  - Peer doesn't support ERR → silently ignore borr/eorr (just forward routes)
+Plugin provides capability bytes for OPEN messages.
 
-### Invalid Response Handling
+```
+open b64 capability 73 set <base64-encoded-payload>
+open b64 capability 74 set <base64-encoded-payload>
+open done
+```
 
-If process sends invalid/malformed capability response:
-- Treat as timeout (5s passes with no valid response)
-- Log parsing error
-- Fail startup (same as missing capability)
+- Multiple capabilities allowed
+- Payload includes actual data (e.g., hostname from config)
+- Capability type conflict between plugins → refuse to start
+
+#### Capability Syntax
+
+```
+open <encoding> capability <code> set <payload>
+     │                     │          └─ encoded capability value
+     │                     └─ capability type code
+     └─ b64, hex, or text
+```
+
+### Stage 4: Registry Sharing (ZeBGP → Plugin)
+
+ZeBGP tells each plugin its name and all registered commands.
+
+```
+api name announce-routes
+api announce-routes text cmd rib adjacent out show
+api announce-routes text cmd rib adjacent out clear
+api route-reflector text cmd rib adjacent in show
+api done
+```
+
+- Plugin learns its configured name
+- Plugin learns all commands from all plugins with their encoding
+- Enables cross-plugin command invocation
+
+### Stage 5: Ready (Plugin → ZeBGP)
+
+Plugin signals startup complete or failure.
+
+**Success:**
+```
+ready
+```
+
+**Failure:**
+```
+failed text error message here
+failed b64 <base64-encoded-message>
+```
+
+**Note:** `failed` can be sent at ANY stage, not just Stage 5. Sending `failed` immediately terminates startup.
+
+## Conflict Rules
+
+| Conflict Type | Behavior |
+|---------------|----------|
+| Command conflict | Two plugins register same command → refuse to start |
+| Capability type conflict | Two plugins register same type code → refuse to start |
+| Config pattern overlap | Both plugins receive matching config (allowed) |
+| Family overlap | Both plugins receive updates (allowed) |
+
+## Update Delivery
+
+Updates delivered using existing format (unchanged from current implementation).
+
+- Plugin receives updates for registered families only
+- If update contains only unregistered families → not delivered
+- If update contains mixed families → delivered, plugin ignores unknown
+- ZeBGP does NOT modify update wire format
+- Binary-mode plugins may fail if unknown families negotiated (acceptable)
+
+## Timeout and Errors
+
+### Timeout Handling
+
+- Default: 1s per stage
+- Configurable per API in config
+- On timeout: kill plugin, refuse to start
+
+### Error Conditions
+
+| Condition | Result |
+|-----------|--------|
+| Stage timeout | Kill plugin, startup fails |
+| Command conflict | Log error, refuse to start |
+| Capability conflict | Log error, refuse to start |
+| `failed` response | Log message, startup fails |
+| Invalid syntax | Treat as timeout |
+
+## Cross-Plugin Commands
+
+Plugins can invoke commands registered by other plugins:
+
+```
+api route-reflector cmd rib adjacent out show
+```
+
+ZeBGP routes command to the plugin that registered it.
+
+## Example: Hostname Capability Plugin
+
+### Stage 1: Registration
+```
+rfc add 9234
+encoding add text
+encoding add b64
+conf add peer * capability hostname <hostname:.*>
+registration done
+```
+
+### Stage 2: Config Received
+```
+configuration peer 192.168.1.1 hostname set router1.example.com
+configuration peer 192.168.1.2 hostname set router1.example.com
+configuration done
+```
+
+### Stage 3: Open Capability
+```
+open b64 capability 73 set cm91dGVyMS5leGFtcGxlLmNvbQ==
+open done
+```
+
+### Stage 4: Registry Received
+```
+api name hostname-plugin
+api done
+```
+
+### Stage 5: Ready
+```
+ready
+```
+
+## Example: RIB Plugin (RFC 4271)
+
+### Stage 1: Registration
+```
+rfc add 4271
+encoding add text
+family add ipv4 unicast
+family add ipv6 unicast
+cmd add rib adjacent in show
+cmd add rib adjacent out show
+cmd add rib adjacent out clear
+cmd add rib loc show
+registration done
+```
+
+### Stage 2: Config Received
+```
+configuration done
+```
+(No config patterns registered)
+
+### Stage 3: Open Capability
+```
+open done
+```
+(No capabilities to add)
+
+### Stage 4: Registry Received
+```
+api name rib-manager
+api rib-manager text cmd rib adjacent in show
+api rib-manager text cmd rib adjacent out show
+api rib-manager text cmd rib adjacent out clear
+api rib-manager text cmd rib loc show
+api done
+```
+
+### Stage 5: Ready
+```
+ready
+```
+
+## Example: Graceful Restart Plugin
+
+### Stage 1: Registration
+```
+rfc add 4724
+encoding add text
+family add ipv4 unicast
+family add ipv6 unicast
+conf add peer * capability graceful-restart <restart-time:\d+>
+cmd add peer * refresh
+registration done
+```
+
+### Stage 2: Config Received
+```
+configuration peer 192.168.1.1 restart-time set 120
+configuration peer 192.168.1.2 restart-time set 120
+configuration done
+```
+
+### Stage 3: Open Capability
+```
+open b64 capability 64 set <gr-capability-bytes>
+open done
+```
+
+### Stage 4: Registry Received
+```
+api name graceful-restart
+api graceful-restart text cmd peer * refresh
+api rib-manager text cmd rib adjacent out show
+api done
+```
+
+### Stage 5: Ready
+```
+ready
+```
 
 ## Design Decisions
 
-1. **Timeout**: 5 seconds (fixed, not configurable)
-2. **Partial startup**: All-or-nothing (any process failure = reactor startup fails)
-3. **Respawn**: Re-confirm on every spawn (no caching)
+| Decision | Rationale |
+|----------|-----------|
+| Proactive registration | Plugin declares capabilities, not router |
+| RFC-based grouping | Human-readable feature organization |
+| Staged sync startup | All plugins ready before peers start |
+| Config-first API section | Plugins must be ready for config validation |
+| No plugin dependencies | Out of scope; plugins receive all commands in registry |
+| Negotiation feedback | Out of scope; ZeBGP SHOULD implement later |
 
-### Respawn Failure Handling
+## Configuration
 
-If respawned process fails capability confirmation:
-1. Log error
-2. Tear down all peer sessions bound to this process
-3. Mark process as failed (no further respawn attempts)
-4. Router continues running with remaining peers (graceful degradation at runtime)
+### API Section (Must Be First)
 
-**Rationale**: Startup is strict (all-or-nothing), but runtime failures degrade gracefully to avoid cascading outages.
+```
+api announce-routes {
+    run ./plugins/announce-routes;
+    timeout 2s;  # per-stage timeout, default 1s
+}
+
+api route-reflector {
+    run ./plugins/route-reflector;
+    timeout 5s;
+}
+```
+
+### Peer Binding (After API Section)
+
+```
+peer 192.168.1.1 {
+    capability {
+        hostname router1.example.com;
+        graceful-restart 120;
+    }
+    api announce-routes {
+        send { update; }
+    }
+}
+```
+
+## ZeBGP Internal Commands
+
+ZeBGP provides built-in commands to inspect registered features:
+
+```
+show api plugins           # List all plugins and status
+show api commands          # List all registered commands
+show api capabilities      # List all registered capability types
+show api families          # List family registrations per plugin
+show rfc                   # List known RFCs with descriptions
+```
 
 ## References
 
+- RFC 4271: A Border Gateway Protocol 4 (BGP-4)
 - RFC 4724: Graceful Restart Mechanism for BGP
 - RFC 2918: Route Refresh Capability for BGP-4
 - RFC 7313: Enhanced Route Refresh Capability for BGP-4
+- RFC 9234: Route Leak Prevention and Detection Using Roles
+- draft-ietf-idr-bgp-hostname: Hostname Capability for BGP
