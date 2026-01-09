@@ -89,6 +89,20 @@ type Capability interface {
 	Pack() []byte
 }
 
+// ConfigProvider is an optional interface for capabilities that provide
+// configuration values for plugin delivery (Stage 2 of plugin protocol).
+// Capabilities implement this to expose their config to plugins.
+//
+// Keys must be scoped to prevent collisions:
+//   - "rfc<num>:<field>" for RFC-based capabilities
+//   - "draft-<name>:<field>" for draft-based capabilities
+//
+// Example: FQDN capability returns {"draft-walton-bgp-hostname:hostname": "router1"}.
+type ConfigProvider interface {
+	// ConfigValues returns scoped key-value pairs for config delivery.
+	ConfigValues() map[string]string
+}
+
 // AFI is an alias for nlri.AFI for backward compatibility.
 // RFC 4760 Section 3: Address Family Identifier (AFI) is a 16-bit value.
 type AFI = nlri.AFI
@@ -321,6 +335,11 @@ func (r *RouteRefresh) Pack() []byte {
 	return packCapability(CodeRouteRefresh, nil)
 }
 
+// ConfigValues implements ConfigProvider for plugin config delivery.
+func (r *RouteRefresh) ConfigValues() map[string]string {
+	return map[string]string{"rfc2918:enabled": "true"}
+}
+
 // ExtendedMessage represents Extended Message capability (RFC 8654).
 //
 // RFC 8654 Section 3: Capability Code 6 with Capability Length 0.
@@ -336,6 +355,11 @@ func (e *ExtendedMessage) Pack() []byte {
 	return packCapability(CodeExtendedMessage, nil)
 }
 
+// ConfigValues implements ConfigProvider for plugin config delivery.
+func (e *ExtendedMessage) ConfigValues() map[string]string {
+	return map[string]string{"rfc8654:enabled": "true"}
+}
+
 // EnhancedRouteRefresh represents Enhanced Route Refresh capability (RFC 7313).
 //
 // RFC 7313 Section 3.1: Capability Code 70 with Capability Length 0.
@@ -349,6 +373,11 @@ func (e *EnhancedRouteRefresh) Code() Code { return CodeEnhancedRouteRefresh }
 // RFC 7313 Section 3.1: Capability length is 0 (no value field).
 func (e *EnhancedRouteRefresh) Pack() []byte {
 	return packCapability(CodeEnhancedRouteRefresh, nil)
+}
+
+// ConfigValues implements ConfigProvider for plugin config delivery.
+func (e *EnhancedRouteRefresh) ConfigValues() map[string]string {
+	return map[string]string{"rfc7313:enabled": "true"}
 }
 
 // AddPathMode indicates send/receive capability for ADD-PATH.
@@ -397,6 +426,20 @@ func (a *AddPath) Pack() []byte {
 		data[offset+3] = byte(f.Mode)
 	}
 	return packCapability(CodeAddPath, data)
+}
+
+// ConfigValues implements ConfigProvider for plugin config delivery.
+func (a *AddPath) ConfigValues() map[string]string {
+	result := make(map[string]string)
+	for _, f := range a.Families {
+		if f.Mode == AddPathSend || f.Mode == AddPathBoth {
+			result["rfc7911:send"] = "true"
+		}
+		if f.Mode == AddPathReceive || f.Mode == AddPathBoth {
+			result["rfc7911:receive"] = "true"
+		}
+	}
+	return result
 }
 
 // parseAddPath parses an ADD-PATH capability.
@@ -475,6 +518,14 @@ func (g *GracefulRestart) Pack() []byte {
 	return packCapability(CodeGracefulRestart, data)
 }
 
+// ConfigValues implements ConfigProvider for plugin config delivery.
+// Returns scoped keys per RFC 4724.
+func (g *GracefulRestart) ConfigValues() map[string]string {
+	return map[string]string{
+		"rfc4724:restart-time": fmt.Sprintf("%d", g.RestartTime),
+	}
+}
+
 // parseGracefulRestart parses a Graceful Restart capability.
 //
 // RFC 4724 Section 3: Minimum length is 2 bytes (flags + restart time).
@@ -547,6 +598,14 @@ func (e *ExtendedNextHop) Pack() []byte {
 	return packCapability(CodeExtendedNextHop, data)
 }
 
+// ConfigValues implements ConfigProvider for plugin config delivery.
+func (e *ExtendedNextHop) ConfigValues() map[string]string {
+	if len(e.Families) == 0 {
+		return nil
+	}
+	return map[string]string{"rfc8950:enabled": "true"}
+}
+
 // parseExtendedNextHop parses an Extended Next Hop capability.
 //
 // RFC 8950 Section 4: Capability value length must be a multiple of 6.
@@ -606,6 +665,19 @@ func (f *FQDN) Pack() []byte {
 	return packCapability(CodeFQDN, data)
 }
 
+// ConfigValues implements ConfigProvider for plugin config delivery.
+// Returns scoped keys per draft-walton-bgp-hostname.
+func (f *FQDN) ConfigValues() map[string]string {
+	result := make(map[string]string)
+	if f.Hostname != "" {
+		result["draft-walton-bgp-hostname:hostname"] = f.Hostname
+	}
+	if f.DomainName != "" {
+		result["draft-walton-bgp-hostname:domain"] = f.DomainName
+	}
+	return result
+}
+
 // parseFQDN parses an FQDN capability.
 //
 // RFC 8516 Section 3: Minimum length is 2 bytes (two length fields).
@@ -661,6 +733,14 @@ func (s *SoftwareVersion) Pack() []byte {
 	copy(data[1:], s.Version[:verLen])
 
 	return packCapability(CodeSoftwareVersion, data)
+}
+
+// ConfigValues implements ConfigProvider for plugin config delivery.
+func (s *SoftwareVersion) ConfigValues() map[string]string {
+	if s.Version == "" {
+		return nil
+	}
+	return map[string]string{"draft-ietf-idr-software-version:version": s.Version}
 }
 
 // parseSoftwareVersion parses a Software Version capability.

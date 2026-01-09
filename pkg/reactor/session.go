@@ -123,6 +123,11 @@ type Session struct {
 	// sourceID identifies the peer in the source registry.
 	// Set by Peer at creation time.
 	sourceID source.SourceID
+
+	// pluginCapGetter retrieves plugin-declared capabilities for OPEN messages.
+	// Set by Peer to link to api.Server.GetPluginCapabilities().
+	// Called in sendOpen() to inject plugin capabilities into OPEN.
+	pluginCapGetter func() []capability.Capability
 }
 
 // NewSession creates a new BGP session for a peer.
@@ -199,6 +204,12 @@ func (s *Session) SetSourceID(id source.SourceID) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.sourceID = id
+}
+
+// SetPluginCapabilityGetter sets the callback for retrieving plugin capabilities.
+// Called by Peer at creation time to link to api.Server.GetPluginCapabilities().
+func (s *Session) SetPluginCapabilityGetter(getter func() []capability.Capability) {
+	s.pluginCapGetter = getter
 }
 
 // WriteBuf returns the session's write buffer for zero-allocation message building.
@@ -1144,6 +1155,7 @@ func (s *Session) sendOpen(conn net.Conn) error {
 	// 1. Multiprotocol (from settings.Capabilities)
 	// 2. ASN4
 	// 3. Other capabilities (FQDN, SoftwareVersion, etc.)
+	// 4. Plugin-declared capabilities
 	var caps []capability.Capability
 	var otherCaps []capability.Capability
 
@@ -1163,6 +1175,11 @@ func (s *Session) sendOpen(conn net.Conn) error {
 
 	// Add remaining capabilities.
 	caps = append(caps, otherCaps...)
+
+	// Add plugin-declared capabilities (e.g., hostname from RFC 9234 plugin).
+	if s.pluginCapGetter != nil {
+		caps = append(caps, s.pluginCapGetter()...)
+	}
 
 	// Build optional parameters (capabilities).
 	optParams := buildOptionalParams(caps)

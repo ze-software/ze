@@ -2,7 +2,7 @@
 
 import time
 
-from exabgp_api import ready, send, wait_for_ack
+from zebgp_api import ready, send, wait_for_ack
 
 
 def main() -> None:

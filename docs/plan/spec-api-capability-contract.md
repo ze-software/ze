@@ -25,30 +25,65 @@ Implement a plugin registration protocol where plugins proactively declare their
 ## 🧪 TDD Test Plan
 
 ### Unit Tests
-| Test | File | Validates |
-|------|------|-----------|
-| `TestParseRegistration` | `pkg/api/registration_test.go` | Parse registration commands |
-| `TestParseConfigPattern` | `pkg/api/registration_test.go` | Config pattern with regex captures |
-| `TestConflictDetection` | `pkg/api/registry_test.go` | Command and capability conflicts |
-| `TestConfigDelivery` | `pkg/api/config_test.go` | Config matching and delivery format |
-| `TestCapabilityInjection` | `pkg/api/capability_test.go` | Capability bytes added to OPEN |
-| `TestStageSynchronization` | `pkg/api/startup_test.go` | All plugins complete stage before next |
+| Test | File | Status |
+|------|------|--------|
+| `TestParseRFCAdd` | `pkg/api/registration_test.go` | ✅ |
+| `TestParseEncodingAdd` | `pkg/api/registration_test.go` | ✅ |
+| `TestParseFamilyAdd` | `pkg/api/registration_test.go` | ✅ |
+| `TestParseConfigPattern` | `pkg/api/registration_test.go` | ✅ |
+| `TestParseCommandAdd` | `pkg/api/registration_test.go` | ✅ |
+| `TestParseRegistrationDone` | `pkg/api/registration_test.go` | ✅ |
+| `TestParseCapabilitySet` | `pkg/api/registration_test.go` | ✅ |
+| `TestConfigPatternMatching` | `pkg/api/registration_test.go` | ✅ |
+| `TestConflictDetection` | `pkg/api/registration_test.go` | ✅ |
+| `TestCapabilityConflictDetection` | `pkg/api/registration_test.go` | ✅ |
+| `TestStageSynchronization` | `pkg/api/startup_test.go` | ✅ |
+| `TestStartupCoordinatorTimeout` | `pkg/api/startup_test.go` | ✅ |
+| `TestStartupCoordinatorFailed` | `pkg/api/startup_test.go` | ✅ |
+| `TestConfigDeliveryMatching` | `pkg/api/config_delivery_test.go` | ✅ |
+| `TestConfigDeliveryFormat` | `pkg/api/config_delivery_test.go` | ✅ |
+| `TestCapabilityDecoding` | `pkg/api/capability_injection_test.go` | ✅ |
+| `TestCapabilityInjection` | `pkg/api/capability_injection_test.go` | ✅ |
+| `TestCapabilityConflictAtInjection` | `pkg/api/capability_injection_test.go` | ✅ |
+| `TestRegistrySharingFormat` | `pkg/api/registry_sharing_test.go` | ✅ |
+| `TestRegistryBuildFromPlugins` | `pkg/api/registry_sharing_test.go` | ✅ |
+| `TestRegistryCommandConflict` | `pkg/api/registry_sharing_test.go` | ✅ |
+| `TestRegistryCommandLookup` | `pkg/api/registry_sharing_test.go` | ✅ |
 
 ### Functional Tests
-| Test | Location | Scenario |
-|------|----------|----------|
-| `plugin-registration` | `qa/tests/api/` | Full 5-stage startup sequence |
-| `plugin-conflict` | `qa/tests/api/` | Command conflict refuses to start |
-| `plugin-timeout` | `qa/tests/api/` | Stage timeout kills plugin |
-| `plugin-failed` | `qa/tests/api/` | Plugin sends failed, startup aborts |
+| Test | Location | Status |
+|------|----------|--------|
+| `plugin-registration` | `qa/tests/api/` | ⏸️ Not written |
+| `plugin-conflict` | `qa/tests/api/` | ⏸️ Not written |
+| `plugin-timeout` | `qa/tests/api/` | ⏸️ Not written |
+| `plugin-failed` | `qa/tests/api/` | ⏸️ Not written |
 
-## Files to Modify
-- `pkg/api/registration.go` - registration command parsing
-- `pkg/api/registry.go` - command/capability registry with conflict detection
-- `pkg/api/process.go` - staged startup protocol
-- `pkg/api/config.go` - config pattern matching and delivery
-- `pkg/reactor/reactor.go` - API section first, capability injection
-- `pkg/bgp/message/open.go` - accept plugin-provided capability bytes
+## Files Modified/Created
+
+### Created
+| File | Purpose |
+|------|---------|
+| `pkg/api/registration.go` | Registration parsing, CapabilityInjector, PluginRegistry |
+| `pkg/api/registration_test.go` | Registration parsing tests |
+| `pkg/api/startup_coordinator.go` | Stage barrier synchronization |
+| `pkg/api/startup_test.go` | Coordinator tests |
+| `pkg/api/config_delivery_test.go` | Config matching tests |
+| `pkg/api/capability_injection_test.go` | Capability injection tests |
+| `pkg/api/registry_sharing_test.go` | Registry sharing tests |
+| `pkg/bgp/capability/plugin.go` | Plugin capability adapter for OPEN |
+| `test/data/scripts/zebgp_api.py` | Python client library (renamed from exabgp_api.py) |
+| `.claude/rules/no-backwards-compat.md` | No backwards compatibility rule |
+
+### Modified
+| File | Changes |
+|------|---------|
+| `pkg/api/server.go` | Added coordinator, registry, capInjector; stage handling; `deliverConfig()` |
+| `pkg/api/process.go` | Added stage tracking fields, `index` field for plugin ID |
+| `pkg/api/types.go` | Added `PeerCapabilityConfig`, `GetPeerCapabilityConfigs()` interface method |
+| `pkg/reactor/reactor.go` | Implemented `GetPeerCapabilityConfigs()` via ConfigProvider |
+| `pkg/reactor/session.go` | Added `pluginCapGetter` callback, `SetPluginCapabilityGetter()` |
+| `pkg/reactor/peer.go` | Added `getPluginCapabilities()`, wires callback in `runOnce()` |
+| `pkg/bgp/capability/capability.go` | Added `ConfigProvider` interface, implemented on all capabilities |
 
 ## Implementation Steps
 1. **Write tests** - Create unit tests for registration parsing
@@ -68,15 +103,15 @@ Implement a plugin registration protocol where plugins proactively declare their
 ## Checklist
 
 ### 🧪 TDD
-- [ ] Tests written
-- [ ] Tests FAIL (output below)
-- [ ] Implementation complete
-- [ ] Tests PASS (output below)
+- [x] Tests written (22 unit tests)
+- [x] Tests FAIL verified
+- [x] Implementation complete
+- [x] Tests PASS
 
 ### Verification
-- [ ] `make lint` passes
-- [ ] `make test` passes
-- [ ] `make functional` passes
+- [x] `make lint` passes (94 pre-existing issues, 0 new)
+- [x] `make test` passes
+- [x] `make functional` passes
 
 ### Documentation
 - [ ] Required docs read
@@ -86,6 +121,105 @@ Implement a plugin registration protocol where plugins proactively declare their
 
 ### Completion
 - [ ] Spec moved to `docs/plan/done/NNN-api-capability-contract.md`
+
+## Implementation Status
+
+**Progress: 90%** - Core protocol complete, functional tests pending
+
+### ✅ Completed
+| Feature | Notes |
+|---------|-------|
+| Registration parsing | `rfc`, `encoding`, `family`, `conf`, `cmd` commands |
+| Config pattern matching | Glob wildcards, regex captures |
+| Command conflict detection | Via `PluginRegistry` |
+| Capability conflict detection | Via `CapabilityInjector` |
+| Stage barrier synchronization | `StartupCoordinator` with `StageComplete()`/`WaitForStage()` |
+| Stage timeout enforcement | 5s default per stage via `context.WithTimeout()` |
+| Config delivery (Stage 2) | Via `ConfigProvider` interface - extensible |
+| Registry sharing (Stage 4) | Full implementation |
+| Capability decoding | b64, hex, text encodings |
+| `Server.GetPluginCapabilities()` | For reactor integration |
+| `capability.Plugin` adapter | For OPEN message building |
+| Python client library | `zebgp_api.py` with full protocol support |
+| Server wiring | `coordinator`, `registry`, `capInjector` in Server |
+| Reactor integration | `Session.SetPluginCapabilityGetter()` called in `Peer.runOnce()` |
+| Plugin ID tracking | `Process.index` field, used in `coordinator.PluginFailed()` |
+| `ConfigProvider` interface | Capabilities self-describe config values with RFC/draft scoping |
+| `PluginStage.String()` method | Human-readable stage names for logging |
+| `handlePluginFailed()` | Proper error logging with slog, coordinator notification |
+| Error path consistency | All 8 error paths call `PluginFailed()` + `proc.Stop()` |
+
+### 🔄 In Progress
+| Feature | Notes | Status |
+|---------|-------|--------|
+| Functional tests | 4 plugin protocol tests | Next up |
+
+### ⏸️ Future Work
+| Feature | Notes | Effort |
+|---------|-------|--------|
+| Overall startup timeout | Single timeout for all stages combined | Low |
+
+### Integration Details
+
+**Stage Synchronization Flow:**
+
+Each stage uses `StageComplete()` + `WaitForStage()` barrier pattern:
+
+```go
+// In handleRegistrationLine (after "registration done"):
+s.coordinator.StageComplete(proc.Index(), StageRegistration)
+s.coordinator.WaitForStage(ctx, StageConfig)    // Wait for ALL plugins
+// deliver config...
+s.coordinator.StageComplete(proc.Index(), StageConfig)
+s.coordinator.WaitForStage(ctx, StageCapability) // Wait for ALL plugins
+```
+
+All 5 stages are synchronized this way. Timeout: 5s per stage (configurable).
+
+**Plugin Capability Injection:**
+
+Capabilities are injected into OPEN via callback pattern:
+
+1. `Session.pluginCapGetter func() []capability.Capability` - callback field
+2. `Session.SetPluginCapabilityGetter()` - setter called by Peer
+3. `Peer.getPluginCapabilities()` - converts `api.InjectedCapability` → `capability.Capability`
+4. `Session.sendOpen()` - appends plugin capabilities to OPEN message
+
+```go
+// In session.go sendOpen():
+if s.pluginCapGetter != nil {
+    caps = append(caps, s.pluginCapGetter()...)
+}
+
+// In peer.go runOnce():
+session.SetPluginCapabilityGetter(p.getPluginCapabilities)
+```
+
+### Config Delivery Design
+
+Capabilities implement `ConfigProvider` interface to expose config values:
+
+```go
+// capability/capability.go
+type ConfigProvider interface {
+    ConfigValues() map[string]string
+}
+```
+
+Keys use RFC/draft scoping to prevent collisions:
+
+| Capability | Config Key |
+|------------|-----------|
+| FQDN | `draft-walton-bgp-hostname:hostname` |
+| GracefulRestart | `rfc4724:restart-time` |
+| RouteRefresh | `rfc2918:enabled` |
+| AddPath | `rfc7911:send`, `rfc7911:receive` |
+| ExtendedMessage | `rfc8654:enabled` |
+| ExtendedNextHop | `rfc8950:enabled` |
+| EnhancedRouteRefresh | `rfc7313:enabled` |
+| SoftwareVersion | `draft-ietf-idr-software-version:version` |
+
+New capabilities just implement `ConfigValues()` - no reactor changes needed.
 
 ---
 

@@ -42,6 +42,7 @@ var (
 // Process represents an external subprocess.
 type Process struct {
 	config ProcessConfig
+	index  int // Plugin index for coordinator (0-based)
 	cmd    *exec.Cmd
 
 	stdin  io.WriteCloser
@@ -80,6 +81,13 @@ type Process struct {
 	registeredCommands []string
 	registeredMu       sync.Mutex
 
+	// Plugin registration protocol (5-stage startup)
+	stage        atomic.Int32        // Current stage (PluginStage)
+	registration *PluginRegistration // Stage 1 registration data
+	capabilities *PluginCapabilities // Stage 3 capability declarations
+	stageCh      chan struct{}       // Signals stage completion
+	stageMu      sync.Mutex          // Protects stage transitions
+
 	ctx    context.Context
 	cancel context.CancelFunc
 	wg     sync.WaitGroup
@@ -91,7 +99,55 @@ func NewProcess(config ProcessConfig) *Process {
 	return &Process{
 		config:          config,
 		pendingRequests: make(map[string]chan string),
+		registration:    &PluginRegistration{},
+		capabilities:    &PluginCapabilities{},
+		stageCh:         make(chan struct{}),
 	}
+}
+
+// Stage returns the current plugin startup stage.
+func (p *Process) Stage() PluginStage {
+	return PluginStage(p.stage.Load())
+}
+
+// SetStage sets the current stage and notifies waiters.
+func (p *Process) SetStage(stage PluginStage) {
+	p.stageMu.Lock()
+	defer p.stageMu.Unlock()
+	p.stage.Store(int32(stage))
+	// Close and recreate channel to notify all waiters
+	close(p.stageCh)
+	p.stageCh = make(chan struct{})
+}
+
+// WaitForStage waits for the process to reach or pass the given stage.
+// Returns error on context cancellation or timeout.
+func (p *Process) WaitForStage(ctx context.Context, stage PluginStage) error {
+	for {
+		if p.Stage() >= stage {
+			return nil
+		}
+		p.stageMu.Lock()
+		ch := p.stageCh
+		p.stageMu.Unlock()
+
+		select {
+		case <-ch:
+			// Stage changed, check again
+		case <-ctx.Done():
+			return ctx.Err()
+		}
+	}
+}
+
+// Registration returns the plugin registration data (Stage 1).
+func (p *Process) Registration() *PluginRegistration {
+	return p.registration
+}
+
+// Capabilities returns the plugin capability declarations (Stage 3).
+func (p *Process) Capabilities() *PluginCapabilities {
+	return p.capabilities
 }
 
 // Running returns true if the process is running.
@@ -169,6 +225,11 @@ func (p *Process) RegisteredCommands() []string {
 // Name returns the process name from config.
 func (p *Process) Name() string {
 	return p.config.Name
+}
+
+// Index returns the plugin index for coordinator tracking.
+func (p *Process) Index() int {
+	return p.index
 }
 
 // QueueSize returns the current number of items in the write queue.
@@ -564,8 +625,9 @@ func (pm *ProcessManager) Start() error {
 func (pm *ProcessManager) StartWithContext(ctx context.Context) error {
 	pm.ctx, pm.cancel = context.WithCancel(ctx)
 
-	for _, cfg := range pm.configs {
+	for i, cfg := range pm.configs {
 		proc := NewProcess(cfg)
+		proc.index = i // Set plugin index for coordinator
 		if err := proc.StartWithContext(pm.ctx); err != nil {
 			// Stop already started processes
 			pm.Stop()

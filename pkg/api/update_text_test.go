@@ -967,6 +967,7 @@ func (m *mockReactorBatch) ClearRIBIn() int                                  { r
 func (m *mockReactorBatch) ClearRIBOut() int                                 { return 0 }
 func (m *mockReactorBatch) FlushRIBOut() int                                 { return 0 }
 func (m *mockReactorBatch) GetPeerAPIBindings(_ netip.Addr) []PeerAPIBinding { return nil }
+func (m *mockReactorBatch) GetPeerCapabilityConfigs() []PeerCapabilityConfig { return nil }
 func (m *mockReactorBatch) ForwardUpdate(_ *Selector, _ uint64) error        { return nil }
 func (m *mockReactorBatch) DeleteUpdate(_ uint64) error                      { return nil }
 func (m *mockReactorBatch) SignalAPIReady()                                  {}

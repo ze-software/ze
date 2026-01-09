@@ -17,6 +17,7 @@ import (
 
 	"codeberg.org/thomas-mangin/zebgp/pkg/api"
 	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/attribute"
+	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/capability"
 	bgpctx "codeberg.org/thomas-mangin/zebgp/pkg/bgp/context"
 	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/fsm"
 	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/message"
@@ -231,6 +232,38 @@ func (a *reactorAPIAdapter) Peers() []api.PeerInfo {
 			info.Uptime = time.Since(a.r.startTime) // TODO: track per-peer
 		}
 		result = append(result, info)
+	}
+	return result
+}
+
+// GetPeerCapabilityConfigs returns capability configurations for all peers.
+// Used by plugin protocol Stage 2 to deliver matching config.
+// Extracts known capability values into a flexible map for pattern matching.
+func (a *reactorAPIAdapter) GetPeerCapabilityConfigs() []api.PeerCapabilityConfig {
+	a.r.mu.RLock()
+	defer a.r.mu.RUnlock()
+
+	result := make([]api.PeerCapabilityConfig, 0, len(a.r.peers))
+	for _, p := range a.r.peers {
+		s := p.Settings()
+		cfg := api.PeerCapabilityConfig{
+			Address: s.Address.String(),
+			Values:  make(map[string]string),
+		}
+
+		// Extract capability values via ConfigProvider interface.
+		// Each capability that implements ConfigProvider returns its own
+		// scoped key-value pairs (e.g., "rfc4724:restart-time" or "draft-xxx:field").
+		// This allows new capabilities to be added without modifying this code.
+		for _, cap := range s.Capabilities {
+			if provider, ok := cap.(capability.ConfigProvider); ok {
+				for k, v := range provider.ConfigValues() {
+					cfg.Values[k] = v
+				}
+			}
+		}
+
+		result = append(result, cfg)
 	}
 	return result
 }

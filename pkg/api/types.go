@@ -73,6 +73,14 @@ type PeerInfo struct {
 	RoutesSent       uint32
 }
 
+// PeerCapabilityConfig holds capability configuration for a peer.
+// Used by plugin protocol Stage 2 to deliver matching config.
+// Values is a flexible map allowing any capability to be represented.
+type PeerCapabilityConfig struct {
+	Address string            // Peer IP address
+	Values  map[string]string // capability-name → value (e.g., "hostname" → "router1.example.com")
+}
+
 // ReactorStats holds reactor-level statistics.
 type ReactorStats struct {
 	StartTime time.Time
@@ -395,6 +403,10 @@ type ReactorInterface interface {
 	// If msgType is non-zero, payload is message body (ZeBGP adds header).
 	// No validation - bytes sent exactly as provided.
 	SendRawMessage(peerAddr netip.Addr, msgType uint8, payload []byte) error
+
+	// GetPeerCapabilityConfigs returns capability configurations for all peers.
+	// Used by plugin protocol Stage 2 to deliver matching config.
+	GetPeerCapabilityConfigs() []PeerCapabilityConfig
 }
 
 // PeerAPIBinding describes which process receives messages from a peer.

@@ -206,6 +206,10 @@ func (m *mockReactor) GetPeerAPIBindings(_ netip.Addr) []PeerAPIBinding {
 	return nil // Mock: no API bindings configured
 }
 
+func (m *mockReactor) GetPeerCapabilityConfigs() []PeerCapabilityConfig {
+	return nil // Mock: no capability configs
+}
+
 func (m *mockReactor) WithdrawL2VPN(_ string, _ L2VPNRoute) error {
 	return nil
 }

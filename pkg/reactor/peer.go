@@ -372,6 +372,30 @@ func (p *Peer) SetReactor(r *Reactor) {
 	p.reactor = r
 }
 
+// getPluginCapabilities returns capabilities declared by API plugins.
+// Used as callback for Session.SetPluginCapabilityGetter().
+// Converts api.InjectedCapability to capability.Capability for OPEN injection.
+func (p *Peer) getPluginCapabilities() []capability.Capability {
+	p.mu.RLock()
+	r := p.reactor
+	p.mu.RUnlock()
+
+	if r == nil || r.api == nil {
+		return nil
+	}
+
+	injected := r.api.GetPluginCapabilities()
+	if len(injected) == 0 {
+		return nil
+	}
+
+	caps := make([]capability.Capability, len(injected))
+	for i, ic := range injected {
+		caps[i] = capability.NewPlugin(ic.Code, ic.Value)
+	}
+	return caps
+}
+
 // packContext returns a PackContext for capability-aware encoding.
 // RFC 7911: ADD-PATH requires 4-byte path identifier prefix on NLRI.
 // RFC 6793: ASN4 determines 2-byte vs 4-byte AS numbers in AS_PATH.
@@ -814,6 +838,7 @@ func (p *Peer) runOnce() error {
 	session := NewSession(p.settings)
 	session.onMessageReceived = p.messageCallback
 	session.SetSourceID(p.sourceID)
+	session.SetPluginCapabilityGetter(p.getPluginCapabilities)
 
 	p.mu.Lock()
 	p.session = session

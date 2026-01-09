@@ -83,6 +83,7 @@ func (m *mockReactorForward) ClearRIBIn() int                                  {
 func (m *mockReactorForward) ClearRIBOut() int                                 { return 0 }
 func (m *mockReactorForward) FlushRIBOut() int                                 { return 0 }
 func (m *mockReactorForward) GetPeerAPIBindings(_ netip.Addr) []PeerAPIBinding { return nil }
+func (m *mockReactorForward) GetPeerCapabilityConfigs() []PeerCapabilityConfig { return nil }
 func (m *mockReactorForward) SignalAPIReady()                                  {}
 func (m *mockReactorForward) SignalPeerAPIReady(_ string)                      {}
 func (m *mockReactorForward) AnnounceNLRIBatch(_ string, _ NLRIBatch) error    { return nil }

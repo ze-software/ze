@@ -3,7 +3,7 @@
 import os
 import time
 
-from exabgp_api import ready, send
+from zebgp_api import ready, send
 
 
 def main() -> None:

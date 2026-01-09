@@ -12,7 +12,7 @@ Flow:
 
 import time
 
-from exabgp_api import ready, send, wait_for_ack, wait_for_shutdown
+from zebgp_api import ready, send, wait_for_ack, wait_for_shutdown
 
 
 def main() -> None:
