@@ -14,7 +14,7 @@ import (
 func TestConfigDeliveryMatching(t *testing.T) {
 	t.Run("hostname_pattern_matches", func(t *testing.T) {
 		reg := &PluginRegistration{}
-		require.NoError(t, reg.ParseLine("conf add peer * capability hostname <hostname:.*>"))
+		require.NoError(t, reg.ParseLine("declare conf peer * capability hostname <hostname:.*>"))
 
 		// Simulated config entries (as would come from parser)
 		configEntries := []ConfigEntry{
@@ -32,7 +32,7 @@ func TestConfigDeliveryMatching(t *testing.T) {
 
 	t.Run("multiple_captures", func(t *testing.T) {
 		reg := &PluginRegistration{}
-		require.NoError(t, reg.ParseLine("conf add peer * capability graceful-restart <restart-time:\\d+> <forwarding:(true|false)>"))
+		require.NoError(t, reg.ParseLine("declare conf peer * capability graceful-restart <restart-time:\\d+> <forwarding:(true|false)>"))
 
 		configEntries := []ConfigEntry{
 			{Path: "peer 192.168.1.1 capability graceful-restart 120 true", Value: ""},
@@ -62,7 +62,7 @@ func TestConfigDeliveryMatching(t *testing.T) {
 
 	t.Run("pattern_no_match", func(t *testing.T) {
 		reg := &PluginRegistration{}
-		require.NoError(t, reg.ParseLine("conf add peer * capability hostname <hostname:.*>"))
+		require.NoError(t, reg.ParseLine("declare conf peer * capability hostname <hostname:.*>"))
 
 		configEntries := []ConfigEntry{
 			{Path: "peer 192.168.1.1 capability graceful-restart", Value: "120"},
@@ -87,7 +87,7 @@ func TestConfigDeliveryFormat(t *testing.T) {
 		lines := FormatConfigDeliveryLines(match)
 
 		require.Len(t, lines, 1)
-		assert.Equal(t, "configuration peer 192.168.1.1 hostname set router1.example.com", lines[0])
+		assert.Equal(t, "config peer 192.168.1.1 hostname router1.example.com", lines[0])
 	})
 
 	t.Run("multiple_captures_format", func(t *testing.T) {
@@ -107,17 +107,17 @@ func TestConfigDeliveryFormat(t *testing.T) {
 		for _, line := range lines {
 			found[line] = true
 		}
-		assert.True(t, found["configuration peer 192.168.1.1 restart-time set 120"])
-		assert.True(t, found["configuration peer 192.168.1.1 forwarding set true"])
+		assert.True(t, found["config peer 192.168.1.1 restart-time 120"])
+		assert.True(t, found["config peer 192.168.1.1 forwarding true"])
 	})
 
 	t.Run("done_marker", func(t *testing.T) {
 		lines := []string{
-			"configuration peer 192.168.1.1 hostname set router1",
+			"config peer 192.168.1.1 hostname router1",
 		}
-		lines = append(lines, "configuration done")
+		lines = append(lines, "config done")
 
-		assert.Equal(t, "configuration done", lines[len(lines)-1])
+		assert.Equal(t, "config done", lines[len(lines)-1])
 	})
 }
 
@@ -127,10 +127,10 @@ func TestConfigDeliveryFormat(t *testing.T) {
 // PREVENTS: One plugin's pattern blocking another's.
 func TestConfigDeliveryMultiplePlugins(t *testing.T) {
 	reg1 := &PluginRegistration{Name: "plugin1"}
-	require.NoError(t, reg1.ParseLine("conf add peer * capability hostname <hostname:.*>"))
+	require.NoError(t, reg1.ParseLine("declare conf peer * capability hostname <hostname:.*>"))
 
 	reg2 := &PluginRegistration{Name: "plugin2"}
-	require.NoError(t, reg2.ParseLine("conf add peer * capability hostname <hostname:.*>"))
+	require.NoError(t, reg2.ParseLine("declare conf peer * capability hostname <hostname:.*>"))
 
 	configEntries := []ConfigEntry{
 		{Path: "peer 192.168.1.1 capability hostname", Value: "router1.example.com"},

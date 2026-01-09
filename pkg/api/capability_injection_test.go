@@ -18,7 +18,7 @@ func TestCapabilityDecoding(t *testing.T) {
 		caps := &PluginCapabilities{}
 		// "router1.example.com" in base64
 		payload := base64.StdEncoding.EncodeToString([]byte("router1.example.com"))
-		require.NoError(t, caps.ParseLine("open b64 capability 73 set "+payload))
+		require.NoError(t, caps.ParseLine("capability b64 73 "+payload))
 
 		decoded, err := DecodeCapabilityPayload(caps.Capabilities[0])
 		require.NoError(t, err)
@@ -29,7 +29,7 @@ func TestCapabilityDecoding(t *testing.T) {
 		caps := &PluginCapabilities{}
 		// "test" in hex
 		payload := hex.EncodeToString([]byte("test"))
-		require.NoError(t, caps.ParseLine("open hex capability 73 set "+payload))
+		require.NoError(t, caps.ParseLine("capability hex 73 "+payload))
 
 		decoded, err := DecodeCapabilityPayload(caps.Capabilities[0])
 		require.NoError(t, err)
@@ -38,7 +38,7 @@ func TestCapabilityDecoding(t *testing.T) {
 
 	t.Run("text_encoding", func(t *testing.T) {
 		caps := &PluginCapabilities{}
-		require.NoError(t, caps.ParseLine("open text capability 73 set router1.example.com"))
+		require.NoError(t, caps.ParseLine("capability text 73 router1.example.com"))
 
 		decoded, err := DecodeCapabilityPayload(caps.Capabilities[0])
 		require.NoError(t, err)
@@ -76,8 +76,8 @@ func TestCapabilityInjection(t *testing.T) {
 	t.Run("single_capability", func(t *testing.T) {
 		caps := &PluginCapabilities{PluginName: "hostname-plugin"}
 		hostname := base64.StdEncoding.EncodeToString([]byte("router1.example.com"))
-		require.NoError(t, caps.ParseLine("open b64 capability 73 set "+hostname))
-		require.NoError(t, caps.ParseLine("open done"))
+		require.NoError(t, caps.ParseLine("capability b64 73 "+hostname))
+		require.NoError(t, caps.ParseLine("capability done"))
 
 		injector := NewCapabilityInjector()
 		require.NoError(t, injector.AddPluginCapabilities(caps))
@@ -91,9 +91,9 @@ func TestCapabilityInjection(t *testing.T) {
 
 	t.Run("multiple_capabilities_same_plugin", func(t *testing.T) {
 		caps := &PluginCapabilities{PluginName: "multi-cap-plugin"}
-		require.NoError(t, caps.ParseLine("open b64 capability 73 set "+base64.StdEncoding.EncodeToString([]byte("host1"))))
-		require.NoError(t, caps.ParseLine("open b64 capability 64 set "+base64.StdEncoding.EncodeToString([]byte{0x00, 0x78})))
-		require.NoError(t, caps.ParseLine("open done"))
+		require.NoError(t, caps.ParseLine("capability b64 73 "+base64.StdEncoding.EncodeToString([]byte("host1"))))
+		require.NoError(t, caps.ParseLine("capability b64 64 "+base64.StdEncoding.EncodeToString([]byte{0x00, 0x78})))
+		require.NoError(t, caps.ParseLine("capability done"))
 
 		injector := NewCapabilityInjector()
 		require.NoError(t, injector.AddPluginCapabilities(caps))
@@ -122,13 +122,13 @@ func TestCapabilityInjection(t *testing.T) {
 		injector := NewCapabilityInjector()
 
 		caps1 := &PluginCapabilities{PluginName: "plugin1"}
-		require.NoError(t, caps1.ParseLine("open b64 capability 73 set "+base64.StdEncoding.EncodeToString([]byte("host"))))
-		require.NoError(t, caps1.ParseLine("open done"))
+		require.NoError(t, caps1.ParseLine("capability b64 73 "+base64.StdEncoding.EncodeToString([]byte("host"))))
+		require.NoError(t, caps1.ParseLine("capability done"))
 		require.NoError(t, injector.AddPluginCapabilities(caps1))
 
 		caps2 := &PluginCapabilities{PluginName: "plugin2"}
-		require.NoError(t, caps2.ParseLine("open b64 capability 64 set "+base64.StdEncoding.EncodeToString([]byte{0x01})))
-		require.NoError(t, caps2.ParseLine("open done"))
+		require.NoError(t, caps2.ParseLine("capability b64 64 "+base64.StdEncoding.EncodeToString([]byte{0x01})))
+		require.NoError(t, caps2.ParseLine("capability done"))
 		require.NoError(t, injector.AddPluginCapabilities(caps2))
 
 		toInject := injector.GetCapabilities()
@@ -144,14 +144,14 @@ func TestCapabilityConflictAtInjection(t *testing.T) {
 	injector := NewCapabilityInjector()
 
 	caps1 := &PluginCapabilities{PluginName: "plugin1"}
-	require.NoError(t, caps1.ParseLine("open b64 capability 73 set "+base64.StdEncoding.EncodeToString([]byte("host1"))))
-	require.NoError(t, caps1.ParseLine("open done"))
+	require.NoError(t, caps1.ParseLine("capability b64 73 "+base64.StdEncoding.EncodeToString([]byte("host1"))))
+	require.NoError(t, caps1.ParseLine("capability done"))
 	require.NoError(t, injector.AddPluginCapabilities(caps1))
 
 	// Second plugin tries same capability code
 	caps2 := &PluginCapabilities{PluginName: "plugin2"}
-	require.NoError(t, caps2.ParseLine("open b64 capability 73 set "+base64.StdEncoding.EncodeToString([]byte("host2"))))
-	require.NoError(t, caps2.ParseLine("open done"))
+	require.NoError(t, caps2.ParseLine("capability b64 73 "+base64.StdEncoding.EncodeToString([]byte("host2"))))
+	require.NoError(t, caps2.ParseLine("capability done"))
 
 	err := injector.AddPluginCapabilities(caps2)
 	require.Error(t, err)
@@ -161,11 +161,11 @@ func TestCapabilityConflictAtInjection(t *testing.T) {
 
 // TestNoCapabilities verifies plugins with no capabilities work.
 //
-// VALIDATES: Plugin sending only "open done" works correctly.
+// VALIDATES: Plugin sending only "capability done" works correctly.
 // PREVENTS: Crash when plugin declares no capabilities.
 func TestNoCapabilities(t *testing.T) {
 	caps := &PluginCapabilities{PluginName: "no-caps-plugin"}
-	require.NoError(t, caps.ParseLine("open done"))
+	require.NoError(t, caps.ParseLine("capability done"))
 
 	injector := NewCapabilityInjector()
 	require.NoError(t, injector.AddPluginCapabilities(caps))

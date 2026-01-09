@@ -58,7 +58,7 @@ Implement a plugin registration protocol where plugins proactively declare their
 | `plugin-timeout` | `qa/tests/api/` | ⏸️ Not written |
 | `plugin-failed` | `qa/tests/api/` | ⏸️ Not written |
 
-## Files Modified/Created
+## Files to Modify
 
 ### Created
 | File | Purpose |
@@ -131,7 +131,7 @@ Implement a plugin registration protocol where plugins proactively declare their
 ### ✅ Completed
 | Feature | Notes |
 |---------|-------|
-| Registration parsing | `rfc`, `encoding`, `family`, `conf`, `cmd` commands |
+| Declaration parsing | `declare rfc`, `declare encoding`, `declare family`, `declare conf`, `declare cmd` commands |
 | Config pattern matching | Glob wildcards, regex captures |
 | Command conflict detection | Via `PluginRegistry` |
 | Capability conflict detection | Via `CapabilityInjector` |
@@ -168,8 +168,8 @@ Implement a plugin registration protocol where plugins proactively declare their
 Each stage uses `StageComplete()` + `WaitForStage()` barrier pattern:
 
 ```go
-// In handleRegistrationLine (after "registration done"):
-s.coordinator.StageComplete(proc.Index(), StageRegistration)
+// In handleDeclarationLine (after "declare done"):
+s.coordinator.StageComplete(proc.Index(), StageDeclaration)
 s.coordinator.WaitForStage(ctx, StageConfig)    // Wait for ALL plugins
 // deliver config...
 s.coordinator.StageComplete(proc.Index(), StageConfig)
@@ -247,9 +247,9 @@ This replaces the previous capability confirmation model with a proactive regist
 ┌─────────────────────────────────────────────────────────────────┐
 │ 1. Parse API section of config ONLY                             │
 │ 2. Start all plugins (parallel)                                 │
-│ 3. Stage 1: Registration      (Plugin → ZeBGP) - all parallel   │
+│ 3. Stage 1: Declaration       (Plugin → ZeBGP) - all parallel   │
 │ 4. Stage 2: Config Delivery   (ZeBGP → Plugin)                  │
-│ 5. Stage 3: Capability Decl   (Plugin → ZeBGP)                  │
+│ 5. Stage 3: Capability        (Plugin → ZeBGP)                  │
 │ 6. Stage 4: Registry Sharing  (ZeBGP → Plugin)                  │
 │ 7. Stage 5: Ready             (Plugin → ZeBGP)                  │
 │ 8. Parse rest of config                                         │
@@ -264,45 +264,45 @@ This replaces the previous capability confirmation model with a proactive regist
 
 ## Protocol Stages
 
-### Stage 1: Registration (Plugin → ZeBGP)
+### Stage 1: Declaration (Plugin → ZeBGP)
 
 Plugin declares RFCs, encodings, families, config patterns, and commands.
 
 ```
-rfc add 4271
-rfc add 9234
-encoding add text
-encoding add b64
-family add ipv4 unicast
-family add ipv6 unicast
-family add all
-conf add peer * capability hostname <hostname:.*>
-cmd add rib adjacent in show
-cmd add rib adjacent out show
-cmd add rib adjacent out clear
-registration done
+declare rfc 4271
+declare rfc 9234
+declare encoding text
+declare encoding b64
+declare family ipv4 unicast
+declare family ipv6 unicast
+declare family all
+declare conf peer * capability hostname <hostname:.*>
+declare cmd rib adjacent in show
+declare cmd rib adjacent out show
+declare cmd rib adjacent out clear
+declare done
 ```
 
 #### Syntax Reference
 
 | Command | Description |
 |---------|-------------|
-| `rfc add <number>` | Declare RFC implementation (for human info) |
-| `encoding add <enc>` | Declare supported encoding (text, b64, hex) |
-| `family add <afi> <safi>` | Register to receive updates for family |
-| `family add all` | Receive all updates |
-| `conf add <pattern>` | Register config hook with regex captures |
-| `cmd add <command>` | Register command handler |
-| `registration done` | Signal stage complete |
+| `declare rfc <number>` | Declare RFC implementation (for human info) |
+| `declare encoding <enc>` | Declare supported encoding (text, b64, hex) |
+| `declare family <afi> <safi>` | Register to receive updates for family |
+| `declare family all` | Receive all updates |
+| `declare conf <pattern>` | Register config hook with regex captures |
+| `declare cmd <command>` | Register command handler |
+| `declare done` | Signal stage complete |
 
 #### Config Pattern Syntax
 
 ```
-conf add peer * capability hostname <hostname:.*>
-         │    │             │        └─ <name:regex> capture
-         │    │             └─ literal path
-         │    └─ glob wildcard
-         └─ config section
+declare conf peer * capability hostname <hostname:.*>
+             │    │             │        └─ <name:regex> capture
+             │    │             └─ literal path
+             │    └─ glob wildcard
+             └─ config section
 ```
 
 - `*` matches any single path element
@@ -312,44 +312,44 @@ conf add peer * capability hostname <hostname:.*>
 
 #### Multiple Captures Example
 
-**Registration:**
+**Declaration:**
 ```
-conf add peer * capability graceful-restart <restart-time:\d+> <forwarding:(true|false)>
+declare conf peer * capability graceful-restart <restart-time:\d+> <forwarding:(true|false)>
 ```
 
 **Config Delivery:**
 ```
-configuration peer 192.168.1.1 restart-time set 120
-configuration peer 192.168.1.1 forwarding set true
-configuration peer 192.168.1.2 restart-time set 90
-configuration peer 192.168.1.2 forwarding set false
-configuration done
+config peer 192.168.1.1 restart-time 120
+config peer 192.168.1.1 forwarding true
+config peer 192.168.1.2 restart-time 90
+config peer 192.168.1.2 forwarding false
+config done
 ```
 
-Each `<name:regex>` becomes a separate line: `configuration <context> <name> set <value>`.
+Each `<name:regex>` becomes a separate line: `config <context> <name> <value>`.
 
 ### Stage 2: Config Delivery (ZeBGP → Plugin)
 
 ZeBGP sends matching config lines with captured values.
 
 ```
-configuration peer 192.168.1.1 hostname set router1.example.com
-configuration peer 192.168.1.2 hostname set router1.example.com
-configuration done
+config peer 192.168.1.1 hostname router1.example.com
+config peer 192.168.1.2 hostname router1.example.com
+config done
 ```
 
 - Only lines matching registered patterns
-- Each capture: `configuration <context> <name> set <value>`
-- Ends with `configuration done`
+- Each capture: `config <context> <name> <value>`
+- Ends with `config done`
 
-### Stage 3: Open Capability (Plugin → ZeBGP)
+### Stage 3: Capability (Plugin → ZeBGP)
 
 Plugin provides capability bytes for OPEN messages.
 
 ```
-open b64 capability 73 set <base64-encoded-payload>
-open b64 capability 74 set <base64-encoded-payload>
-open done
+capability b64 73 <base64-encoded-payload>
+capability b64 74 <base64-encoded-payload>
+capability done
 ```
 
 - Multiple capabilities allowed
@@ -359,10 +359,10 @@ open done
 #### Capability Syntax
 
 ```
-open <encoding> capability <code> set <payload>
-     │                     │          └─ encoded capability value
-     │                     └─ capability type code
-     └─ b64, hex, or text
+capability <encoding> <code> <payload>
+           │          │      └─ encoded capability value
+           │          └─ capability type code
+           └─ b64, hex, or text
 ```
 
 ### Stage 4: Registry Sharing (ZeBGP → Plugin)
@@ -370,11 +370,11 @@ open <encoding> capability <code> set <payload>
 ZeBGP tells each plugin its name and all registered commands.
 
 ```
-api name announce-routes
-api announce-routes text cmd rib adjacent out show
-api announce-routes text cmd rib adjacent out clear
-api route-reflector text cmd rib adjacent in show
-api done
+registry name announce-routes
+registry announce-routes text cmd rib adjacent out show
+registry announce-routes text cmd rib adjacent out clear
+registry route-reflector text cmd rib adjacent in show
+registry done
 ```
 
 - Plugin learns its configured name
@@ -392,11 +392,11 @@ ready
 
 **Failure:**
 ```
-failed text error message here
-failed b64 <base64-encoded-message>
+ready failed text error message here
+ready failed b64 <base64-encoded-message>
 ```
 
-**Note:** `failed` can be sent at ANY stage, not just Stage 5. Sending `failed` immediately terminates startup.
+**Note:** `ready failed` can be sent at ANY stage, not just Stage 5. Sending `ready failed` immediately terminates startup.
 
 ## Conflict Rules
 
@@ -432,7 +432,7 @@ Updates delivered using existing format (unchanged from current implementation).
 | Stage timeout | Kill plugin, startup fails |
 | Command conflict | Log error, refuse to start |
 | Capability conflict | Log error, refuse to start |
-| `failed` response | Log message, startup fails |
+| `ready failed` response | Log message, startup fails |
 | Invalid syntax | Treat as timeout |
 
 ## Cross-Plugin Commands
@@ -440,39 +440,39 @@ Updates delivered using existing format (unchanged from current implementation).
 Plugins can invoke commands registered by other plugins:
 
 ```
-api route-reflector cmd rib adjacent out show
+registry route-reflector cmd rib adjacent out show
 ```
 
 ZeBGP routes command to the plugin that registered it.
 
 ## Example: Hostname Capability Plugin
 
-### Stage 1: Registration
+### Stage 1: Declaration
 ```
-rfc add 9234
-encoding add text
-encoding add b64
-conf add peer * capability hostname <hostname:.*>
-registration done
+declare rfc 9234
+declare encoding text
+declare encoding b64
+declare conf peer * capability hostname <hostname:.*>
+declare done
 ```
 
 ### Stage 2: Config Received
 ```
-configuration peer 192.168.1.1 hostname set router1.example.com
-configuration peer 192.168.1.2 hostname set router1.example.com
-configuration done
+config peer 192.168.1.1 hostname router1.example.com
+config peer 192.168.1.2 hostname router1.example.com
+config done
 ```
 
-### Stage 3: Open Capability
+### Stage 3: Capability
 ```
-open b64 capability 73 set cm91dGVyMS5leGFtcGxlLmNvbQ==
-open done
+capability b64 73 cm91dGVyMS5leGFtcGxlLmNvbQ==
+capability done
 ```
 
 ### Stage 4: Registry Received
 ```
-api name hostname-plugin
-api done
+registry name hostname-plugin
+registry done
 ```
 
 ### Stage 5: Ready
@@ -482,39 +482,39 @@ ready
 
 ## Example: RIB Plugin (RFC 4271)
 
-### Stage 1: Registration
+### Stage 1: Declaration
 ```
-rfc add 4271
-encoding add text
-family add ipv4 unicast
-family add ipv6 unicast
-cmd add rib adjacent in show
-cmd add rib adjacent out show
-cmd add rib adjacent out clear
-cmd add rib loc show
-registration done
+declare rfc 4271
+declare encoding text
+declare family ipv4 unicast
+declare family ipv6 unicast
+declare cmd rib adjacent in show
+declare cmd rib adjacent out show
+declare cmd rib adjacent out clear
+declare cmd rib loc show
+declare done
 ```
 
 ### Stage 2: Config Received
 ```
-configuration done
+config done
 ```
 (No config patterns registered)
 
-### Stage 3: Open Capability
+### Stage 3: Capability
 ```
-open done
+capability done
 ```
 (No capabilities to add)
 
 ### Stage 4: Registry Received
 ```
-api name rib-manager
-api rib-manager text cmd rib adjacent in show
-api rib-manager text cmd rib adjacent out show
-api rib-manager text cmd rib adjacent out clear
-api rib-manager text cmd rib loc show
-api done
+registry name rib-manager
+registry rib-manager text cmd rib adjacent in show
+registry rib-manager text cmd rib adjacent out show
+registry rib-manager text cmd rib adjacent out clear
+registry rib-manager text cmd rib loc show
+registry done
 ```
 
 ### Stage 5: Ready
@@ -524,36 +524,36 @@ ready
 
 ## Example: Graceful Restart Plugin
 
-### Stage 1: Registration
+### Stage 1: Declaration
 ```
-rfc add 4724
-encoding add text
-family add ipv4 unicast
-family add ipv6 unicast
-conf add peer * capability graceful-restart <restart-time:\d+>
-cmd add peer * refresh
-registration done
+declare rfc 4724
+declare encoding text
+declare family ipv4 unicast
+declare family ipv6 unicast
+declare conf peer * capability graceful-restart <restart-time:\d+>
+declare cmd peer * refresh
+declare done
 ```
 
 ### Stage 2: Config Received
 ```
-configuration peer 192.168.1.1 restart-time set 120
-configuration peer 192.168.1.2 restart-time set 120
-configuration done
+config peer 192.168.1.1 restart-time 120
+config peer 192.168.1.2 restart-time 120
+config done
 ```
 
-### Stage 3: Open Capability
+### Stage 3: Capability
 ```
-open b64 capability 64 set <gr-capability-bytes>
-open done
+capability b64 64 <gr-capability-bytes>
+capability done
 ```
 
 ### Stage 4: Registry Received
 ```
-api name graceful-restart
-api graceful-restart text cmd peer * refresh
-api rib-manager text cmd rib adjacent out show
-api done
+registry name graceful-restart
+registry graceful-restart text cmd peer * refresh
+registry rib-manager text cmd rib adjacent out show
+registry done
 ```
 
 ### Stage 5: Ready

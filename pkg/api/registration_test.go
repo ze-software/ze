@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// TestParseRFCAdd verifies parsing of "rfc add <number>" command.
+// TestParseRFCAdd verifies parsing of "declare rfc <number>" command.
 //
 // VALIDATES: RFC numbers are parsed correctly for human-readable feature tracking.
 // PREVENTS: Plugin registration failures due to RFC command parsing errors.
@@ -20,27 +20,27 @@ func TestParseRFCAdd(t *testing.T) {
 	}{
 		{
 			name:    "basic_rfc_4271",
-			input:   "rfc add 4271",
+			input:   "declare rfc 4271",
 			wantRFC: 4271,
 		},
 		{
 			name:    "rfc_9234",
-			input:   "rfc add 9234",
+			input:   "declare rfc 9234",
 			wantRFC: 9234,
 		},
 		{
 			name:    "missing_number",
-			input:   "rfc add",
+			input:   "declare rfc",
 			wantErr: true,
 		},
 		{
 			name:    "invalid_number",
-			input:   "rfc add notanumber",
+			input:   "declare rfc notanumber",
 			wantErr: true,
 		},
 		{
 			name:    "negative_number",
-			input:   "rfc add -1",
+			input:   "declare rfc -1",
 			wantErr: true,
 		},
 	}
@@ -59,7 +59,7 @@ func TestParseRFCAdd(t *testing.T) {
 	}
 }
 
-// TestParseEncodingAdd verifies parsing of "encoding add <enc>" command.
+// TestParseEncodingAdd verifies parsing of "declare encoding <enc>" command.
 //
 // VALIDATES: Supported encodings (text, b64, hex) are tracked per plugin.
 // PREVENTS: Invalid encoding names being accepted.
@@ -72,27 +72,27 @@ func TestParseEncodingAdd(t *testing.T) {
 	}{
 		{
 			name:         "text_encoding",
-			input:        "encoding add text",
+			input:        "declare encoding text",
 			wantEncoding: "text",
 		},
 		{
 			name:         "b64_encoding",
-			input:        "encoding add b64",
+			input:        "declare encoding b64",
 			wantEncoding: "b64",
 		},
 		{
 			name:         "hex_encoding",
-			input:        "encoding add hex",
+			input:        "declare encoding hex",
 			wantEncoding: "hex",
 		},
 		{
 			name:    "missing_encoding",
-			input:   "encoding add",
+			input:   "declare encoding",
 			wantErr: true,
 		},
 		{
 			name:    "invalid_encoding",
-			input:   "encoding add xml",
+			input:   "declare encoding xml",
 			wantErr: true,
 		},
 	}
@@ -111,7 +111,7 @@ func TestParseEncodingAdd(t *testing.T) {
 	}
 }
 
-// TestParseFamilyAdd verifies parsing of "family add <afi> <safi>" command.
+// TestParseFamilyAdd verifies parsing of "declare family <afi> <safi>" command.
 //
 // VALIDATES: Address families are parsed and tracked for update delivery.
 // PREVENTS: Plugin missing updates due to family registration errors.
@@ -124,27 +124,27 @@ func TestParseFamilyAdd(t *testing.T) {
 	}{
 		{
 			name:       "ipv4_unicast",
-			input:      "family add ipv4 unicast",
+			input:      "declare family ipv4 unicast",
 			wantFamily: "ipv4/unicast",
 		},
 		{
 			name:       "ipv6_unicast",
-			input:      "family add ipv6 unicast",
+			input:      "declare family ipv6 unicast",
 			wantFamily: "ipv6/unicast",
 		},
 		{
 			name:       "all_families",
-			input:      "family add all",
+			input:      "declare family all",
 			wantFamily: "all",
 		},
 		{
 			name:    "missing_safi",
-			input:   "family add ipv4",
+			input:   "declare family ipv4",
 			wantErr: true,
 		},
 		{
 			name:    "invalid_afi",
-			input:   "family add ipv12 unicast",
+			input:   "declare family ipv12 unicast",
 			wantErr: true,
 		},
 	}
@@ -163,7 +163,7 @@ func TestParseFamilyAdd(t *testing.T) {
 	}
 }
 
-// TestParseConfigPattern verifies parsing of "conf add <pattern>" command.
+// TestParseConfigPattern verifies parsing of "declare conf <pattern>" command.
 //
 // VALIDATES: Config patterns with globs and regex captures are parsed correctly.
 // PREVENTS: Invalid patterns causing startup failures.
@@ -176,17 +176,17 @@ func TestParseConfigPattern(t *testing.T) {
 	}{
 		{
 			name:        "hostname_pattern",
-			input:       "conf add peer * capability hostname <hostname:.*>",
+			input:       "declare conf peer * capability hostname <hostname:.*>",
 			wantPattern: "peer * capability hostname <hostname:.*>",
 		},
 		{
 			name:        "graceful_restart_pattern",
-			input:       "conf add peer * capability graceful-restart <restart-time:\\d+>",
+			input:       "declare conf peer * capability graceful-restart <restart-time:\\d+>",
 			wantPattern: "peer * capability graceful-restart <restart-time:\\d+>",
 		},
 		{
 			name:    "missing_pattern",
-			input:   "conf add",
+			input:   "declare conf",
 			wantErr: true,
 		},
 	}
@@ -206,7 +206,7 @@ func TestParseConfigPattern(t *testing.T) {
 	}
 }
 
-// TestParseCommandAdd verifies parsing of "cmd add <command>" command.
+// TestParseCommandAdd verifies parsing of "declare cmd <command>" command.
 //
 // VALIDATES: Commands are registered for routing to plugins.
 // PREVENTS: Command conflict detection failures.
@@ -219,17 +219,17 @@ func TestParseCommandAdd(t *testing.T) {
 	}{
 		{
 			name:    "rib_show_command",
-			input:   "cmd add rib adjacent in show",
+			input:   "declare cmd rib adjacent in show",
 			wantCmd: "rib adjacent in show",
 		},
 		{
 			name:    "peer_refresh_command",
-			input:   "cmd add peer * refresh",
+			input:   "declare cmd peer * refresh",
 			wantCmd: "peer * refresh",
 		},
 		{
 			name:    "missing_command",
-			input:   "cmd add",
+			input:   "declare cmd",
 			wantErr: true,
 		},
 	}
@@ -248,7 +248,7 @@ func TestParseCommandAdd(t *testing.T) {
 	}
 }
 
-// TestParseRegistrationDone verifies "registration done" signals completion.
+// TestParseRegistrationDone verifies "declare done" signals completion.
 //
 // VALIDATES: Stage 1 completion is signaled correctly.
 // PREVENTS: Startup hangs waiting for registration.
@@ -256,17 +256,17 @@ func TestParseRegistrationDone(t *testing.T) {
 	reg := &PluginRegistration{}
 
 	// Add some registrations first
-	require.NoError(t, reg.ParseLine("rfc add 4271"))
-	require.NoError(t, reg.ParseLine("encoding add text"))
-	require.NoError(t, reg.ParseLine("family add ipv4 unicast"))
+	require.NoError(t, reg.ParseLine("declare rfc 4271"))
+	require.NoError(t, reg.ParseLine("declare encoding text"))
+	require.NoError(t, reg.ParseLine("declare family ipv4 unicast"))
 
 	// Then signal done
-	err := reg.ParseLine("registration done")
+	err := reg.ParseLine("declare done")
 	require.NoError(t, err)
 	assert.True(t, reg.Done)
 }
 
-// TestParseCapabilitySet verifies "open <enc> capability <code> set <payload>" command.
+// TestParseCapabilitySet verifies "capability <enc> <code> <payload>" command.
 //
 // VALIDATES: Plugin capability bytes are captured for OPEN message injection.
 // PREVENTS: Malformed capability declarations.
@@ -280,24 +280,24 @@ func TestParseCapabilitySet(t *testing.T) {
 	}{
 		{
 			name:        "hostname_capability",
-			input:       "open b64 capability 73 set cm91dGVyMS5leGFtcGxlLmNvbQ==",
+			input:       "capability b64 73 cm91dGVyMS5leGFtcGxlLmNvbQ==",
 			wantCode:    73,
 			wantPayload: "cm91dGVyMS5leGFtcGxlLmNvbQ==",
 		},
 		{
 			name:        "gr_capability",
-			input:       "open b64 capability 64 set AAAA",
+			input:       "capability b64 64 AAAA",
 			wantCode:    64,
 			wantPayload: "AAAA",
 		},
 		{
 			name:    "missing_payload",
-			input:   "open b64 capability 64 set",
+			input:   "capability b64 64",
 			wantErr: true,
 		},
 		{
 			name:    "invalid_code",
-			input:   "open b64 capability abc set AAAA",
+			input:   "capability b64 abc AAAA",
 			wantErr: true,
 		},
 	}
@@ -318,14 +318,14 @@ func TestParseCapabilitySet(t *testing.T) {
 	}
 }
 
-// TestParseOpenDone verifies "open done" signals capability stage completion.
+// TestParseCapabilityDone verifies "capability done" signals capability stage completion.
 //
 // VALIDATES: Stage 3 completion is signaled correctly.
 // PREVENTS: Startup hangs waiting for capabilities.
-func TestParseOpenDone(t *testing.T) {
+func TestParseCapabilityDone(t *testing.T) {
 	caps := &PluginCapabilities{}
 
-	err := caps.ParseLine("open done")
+	err := caps.ParseLine("capability done")
 	require.NoError(t, err)
 	assert.True(t, caps.Done)
 }

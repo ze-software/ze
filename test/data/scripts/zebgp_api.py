@@ -5,10 +5,10 @@ Provides buffered I/O for reliable communication with ZeBGP daemon.
 Handles both text and JSON API response formats.
 
 5-stage plugin registration protocol:
-  - Stage 1: Registration (rfc, encoding, family, conf, cmd)
-  - Stage 2: Config Delivery (receive configuration lines)
-  - Stage 3: Capability (open capability)
-  - Stage 4: Registry Sharing (receive api commands)
+  - Stage 1: Declaration (declare rfc, encoding, family, conf, cmd)
+  - Stage 2: Config Delivery (receive config lines)
+  - Stage 3: Capability (capability bytes for OPEN)
+  - Stage 4: Registry Sharing (receive registry commands)
   - Stage 5: Ready (ready signal)
 
 Simple usage:
@@ -22,11 +22,11 @@ Full protocol usage:
     from zebgp_api import API
 
     api = API()
-    # Stage 1: Register capabilities
-    api.register_rfc(4271)
-    api.register_encoding('text')
-    api.register_family('ipv4', 'unicast')
-    api.registration_done()
+    # Stage 1: Declare capabilities
+    api.declare_rfc(4271)
+    api.declare_encoding('text')
+    api.declare_family('ipv4', 'unicast')
+    api.declare_done()
 
     # Stage 2: Receive config
     config = api.wait_for_config()
@@ -298,41 +298,41 @@ class API:
             pass
 
     # ==================================================================
-    # Stage 1: Registration Protocol
+    # Stage 1: Declaration Protocol
     # ==================================================================
 
-    def register_rfc(self, rfc_number: int) -> None:
-        """Register an RFC number (Stage 1).
+    def declare_rfc(self, rfc_number: int) -> None:
+        """Declare an RFC number (Stage 1).
 
         Used for human-readable feature tracking.
 
         Args:
             rfc_number: RFC number (e.g., 4271 for BGP-4)
         """
-        self.send(f'rfc add {rfc_number}')
+        self.send(f'declare rfc {rfc_number}')
 
-    def register_encoding(self, encoding: str) -> None:
-        """Register a supported encoding (Stage 1).
+    def declare_encoding(self, encoding: str) -> None:
+        """Declare a supported encoding (Stage 1).
 
         Args:
             encoding: Encoding name (text, b64, or hex)
         """
-        self.send(f'encoding add {encoding}')
+        self.send(f'declare encoding {encoding}')
 
-    def register_family(self, afi: str, safi: str | None = None) -> None:
-        """Register an address family (Stage 1).
+    def declare_family(self, afi: str, safi: str | None = None) -> None:
+        """Declare an address family (Stage 1).
 
         Args:
             afi: Address Family Identifier (ipv4, ipv6, l2vpn, or 'all')
             safi: Subsequent AFI (unicast, multicast, etc.) - not needed for 'all'
         """
         if afi == 'all':
-            self.send('family add all')
+            self.send('declare family all')
         else:
-            self.send(f'family add {afi} {safi}')
+            self.send(f'declare family {afi} {safi}')
 
-    def register_config(self, pattern: str) -> None:
-        """Register a config pattern hook (Stage 1).
+    def declare_config(self, pattern: str) -> None:
+        """Declare a config pattern hook (Stage 1).
 
         Pattern syntax:
           - '*' matches any single path element
@@ -343,22 +343,22 @@ class API:
         Args:
             pattern: Config pattern to match
         """
-        self.send(f'conf add {pattern}')
+        self.send(f'declare conf {pattern}')
 
-    def register_command(self, command: str) -> None:
-        """Register a command handler (Stage 1).
+    def declare_command(self, command: str) -> None:
+        """Declare a command handler (Stage 1).
 
         Args:
             command: Command name to register (e.g., "rib adjacent in show")
         """
-        self.send(f'cmd add {command}')
+        self.send(f'declare cmd {command}')
 
-    def registration_done(self) -> None:
-        """Signal Stage 1 registration complete.
+    def declare_done(self) -> None:
+        """Signal Stage 1 declaration complete.
 
         After calling this, wait for config delivery (Stage 2).
         """
-        self.send('registration done')
+        self.send('declare done')
 
     # ==================================================================
     # Stage 2: Config Delivery
@@ -367,7 +367,7 @@ class API:
     def wait_for_config(self, timeout: float = 5.0) -> list[dict]:
         """Wait for config delivery from ZeBGP (Stage 2).
 
-        Reads configuration lines until "configuration done".
+        Reads configuration lines until "config done".
 
         Args:
             timeout: Maximum time to wait
@@ -383,25 +383,20 @@ class API:
             if line is None:
                 continue
 
-            if line == 'configuration done':
+            if line == 'config done':
                 break
 
-            # Parse: "configuration <context> <name> set <value>"
-            if line.startswith('configuration '):
-                rest = line[len('configuration '):]
-                # Find ' set ' to split context/name from value
-                set_idx = rest.find(' set ')
-                if set_idx >= 0:
-                    context_name = rest[:set_idx]
-                    value = rest[set_idx + 5:]
-                    # Last word of context_name is the capture name
-                    parts = context_name.rsplit(' ', 1)
-                    if len(parts) == 2:
-                        configs.append({
-                            'context': parts[0],
-                            'name': parts[1],
-                            'value': value
-                        })
+            # Parse: "config <context> <name> <value>"
+            if line.startswith('config '):
+                rest = line[len('config '):]
+                # Split into parts - last is value, second-to-last is name, rest is context
+                parts = rest.rsplit(' ', 2)
+                if len(parts) >= 3:
+                    configs.append({
+                        'context': parts[0],
+                        'name': parts[1],
+                        'value': parts[2]
+                    })
 
         return configs
 
@@ -417,14 +412,14 @@ class API:
             payload: Encoded capability value
             encoding: Encoding of payload (b64, hex, or text)
         """
-        self.send(f'open {encoding} capability {code} set {payload}')
+        self.send(f'capability {encoding} {code} {payload}')
 
     def capability_done(self) -> None:
         """Signal Stage 3 capability declaration complete.
 
         After calling this, wait for registry sharing (Stage 4).
         """
-        self.send('open done')
+        self.send('capability done')
 
     # ==================================================================
     # Stage 4: Registry Sharing
@@ -433,7 +428,7 @@ class API:
     def wait_for_registry(self, timeout: float = 5.0) -> dict:
         """Wait for registry sharing from ZeBGP (Stage 4).
 
-        Reads registry lines until "api done".
+        Reads registry lines until "registry done".
 
         Args:
             timeout: Maximum time to wait
@@ -449,15 +444,15 @@ class API:
             if line is None:
                 continue
 
-            if line == 'api done':
+            if line == 'registry done':
                 break
 
-            # Parse: "api name <name>" or "api <plugin> <encoding> cmd <command>"
-            if line.startswith('api name '):
-                result['name'] = line[len('api name '):]
+            # Parse: "registry name <name>" or "registry <plugin> <encoding> cmd <command>"
+            if line.startswith('registry name '):
+                result['name'] = line[len('registry name '):]
                 self._plugin_name = result['name']
-            elif line.startswith('api '):
-                # "api <plugin> <encoding> cmd <command>"
+            elif line.startswith('registry '):
+                # "registry <plugin> <encoding> cmd <command>"
                 parts = line.split(' ', 4)
                 if len(parts) >= 5 and parts[3] == 'cmd':
                     result['commands'].append({
@@ -497,7 +492,7 @@ class API:
             message: Error message
             encoding: Encoding of message (text, b64, or hex)
         """
-        self.send(f'failed {encoding} {message}')
+        self.send(f'ready failed {encoding} {message}')
 
 
 # Convenience functions for simple scripts that don't need the class
@@ -520,18 +515,18 @@ def ready() -> None:
     ZeBGP waits for all API processes to signal ready before starting BGP peers.
 
     This function performs the minimal 5-stage protocol:
-    - Stage 1: registration done (no registrations)
+    - Stage 1: declare done (no declarations)
     - Stage 2: wait for config
-    - Stage 3: open done (no capabilities)
+    - Stage 3: capability done (no capabilities)
     - Stage 4: wait for registry
     - Stage 5: ready
 
     For full protocol support, use the API class directly with the
-    registration methods.
+    declare methods.
     """
     api = _get_api()
-    # Stage 1: Empty registration
-    api.registration_done()
+    # Stage 1: Empty declaration
+    api.declare_done()
     # Stage 2: Receive config (discard)
     api.wait_for_config(timeout=5.0)
     # Stage 3: No capabilities
@@ -574,34 +569,34 @@ def wait_for_shutdown(timeout: float = 5.0) -> None:
 
 # New protocol convenience functions
 
-def register_rfc(rfc_number: int) -> None:
-    """Register an RFC number (Stage 1)."""
-    _get_api().register_rfc(rfc_number)
+def declare_rfc(rfc_number: int) -> None:
+    """Declare an RFC number (Stage 1)."""
+    _get_api().declare_rfc(rfc_number)
 
 
-def register_encoding(encoding: str) -> None:
-    """Register a supported encoding (Stage 1)."""
-    _get_api().register_encoding(encoding)
+def declare_encoding(encoding: str) -> None:
+    """Declare a supported encoding (Stage 1)."""
+    _get_api().declare_encoding(encoding)
 
 
-def register_family(afi: str, safi: str | None = None) -> None:
-    """Register an address family (Stage 1)."""
-    _get_api().register_family(afi, safi)
+def declare_family(afi: str, safi: str | None = None) -> None:
+    """Declare an address family (Stage 1)."""
+    _get_api().declare_family(afi, safi)
 
 
-def register_config(pattern: str) -> None:
-    """Register a config pattern hook (Stage 1)."""
-    _get_api().register_config(pattern)
+def declare_config(pattern: str) -> None:
+    """Declare a config pattern hook (Stage 1)."""
+    _get_api().declare_config(pattern)
 
 
-def register_command(command: str) -> None:
-    """Register a command handler (Stage 1)."""
-    _get_api().register_command(command)
+def declare_command(command: str) -> None:
+    """Declare a command handler (Stage 1)."""
+    _get_api().declare_command(command)
 
 
-def registration_done() -> None:
-    """Signal Stage 1 registration complete."""
-    _get_api().registration_done()
+def declare_done() -> None:
+    """Signal Stage 1 declaration complete."""
+    _get_api().declare_done()
 
 
 def wait_for_config(timeout: float = 5.0) -> list[dict]:

@@ -1,10 +1,10 @@
 // Package api implements plugin registration protocol for ZeBGP.
 //
 // This file implements the 5-stage plugin registration protocol:
-//   - Stage 1: Registration (Plugin → ZeBGP) - rfc, encoding, family, conf, cmd
-//   - Stage 2: Config Delivery (ZeBGP → Plugin) - configuration lines
-//   - Stage 3: Open Capability (Plugin → ZeBGP) - capability bytes for OPEN
-//   - Stage 4: Registry Sharing (ZeBGP → Plugin) - api name, all commands
+//   - Stage 1: Declaration (Plugin → ZeBGP) - declare rfc, encoding, family, conf, cmd
+//   - Stage 2: Config Delivery (ZeBGP → Plugin) - config lines
+//   - Stage 3: Capability (Plugin → ZeBGP) - capability bytes for OPEN
+//   - Stage 4: Registry Sharing (ZeBGP → Plugin) - registry name, all commands
 //   - Stage 5: Ready (Plugin → ZeBGP) - ready signal
 package api
 
@@ -180,6 +180,7 @@ func (r *PluginRegistry) RegisterCapabilities(caps *PluginCapabilities) error {
 }
 
 // ParseLine parses a single registration command line.
+// Stage 1 commands: "declare rfc|encoding|family|conf|cmd|done ..."
 func (reg *PluginRegistration) ParseLine(line string) error {
 	line = strings.TrimSpace(line)
 	if line == "" {
@@ -191,67 +192,69 @@ func (reg *PluginRegistration) ParseLine(line string) error {
 		return fmt.Errorf("invalid registration command: %s", line)
 	}
 
-	switch parts[0] {
+	// All Stage 1 commands start with "declare"
+	if parts[0] != "declare" {
+		return fmt.Errorf("expected 'declare' command, got: %s", parts[0])
+	}
+
+	switch parts[1] {
 	case "rfc":
-		return reg.parseRFC(parts[1:])
+		return reg.parseRFC(parts[2:])
 	case "encoding":
-		return reg.parseEncoding(parts[1:])
+		return reg.parseEncoding(parts[2:])
 	case "family":
-		return reg.parseFamily(parts[1:])
+		return reg.parseFamily(parts[2:])
 	case "conf":
-		return reg.parseConf(parts[1:], line)
+		return reg.parseConf(parts[2:], line)
 	case "cmd":
-		return reg.parseCmd(parts[1:], line)
-	case "registration":
-		if len(parts) >= 2 && parts[1] == "done" {
-			reg.Done = true
-			return nil
-		}
-		return fmt.Errorf("expected 'registration done', got: %s", line)
+		return reg.parseCmd(parts[2:], line)
+	case "done":
+		reg.Done = true
+		return nil
 	default:
-		return fmt.Errorf("unknown registration command: %s", parts[0])
+		return fmt.Errorf("unknown declare command: %s", parts[1])
 	}
 }
 
-// parseRFC handles "rfc add <number>".
+// parseRFC handles "declare rfc <number>".
 func (reg *PluginRegistration) parseRFC(args []string) error {
-	if len(args) < 2 || args[0] != "add" {
-		return fmt.Errorf("expected 'rfc add <number>'")
+	if len(args) < 1 {
+		return fmt.Errorf("expected 'declare rfc <number>'")
 	}
 
-	n, err := strconv.ParseUint(args[1], 10, 16)
+	n, err := strconv.ParseUint(args[0], 10, 16)
 	if err != nil {
-		return fmt.Errorf("invalid RFC number: %s", args[1])
+		return fmt.Errorf("invalid RFC number: %s", args[0])
 	}
 
 	reg.RFCs = append(reg.RFCs, uint16(n))
 	return nil
 }
 
-// parseEncoding handles "encoding add <enc>".
+// parseEncoding handles "declare encoding <enc>".
 func (reg *PluginRegistration) parseEncoding(args []string) error {
-	if len(args) < 2 || args[0] != "add" {
-		return fmt.Errorf("expected 'encoding add <text|b64|hex>'")
+	if len(args) < 1 {
+		return fmt.Errorf("expected 'declare encoding <text|b64|hex>'")
 	}
 
-	enc := strings.ToLower(args[1])
+	enc := strings.ToLower(args[0])
 	if !validEncodings[enc] {
-		return fmt.Errorf("invalid encoding: %s (valid: text, b64, hex)", args[1])
+		return fmt.Errorf("invalid encoding: %s (valid: text, b64, hex)", args[0])
 	}
 
 	reg.Encodings = append(reg.Encodings, enc)
 	return nil
 }
 
-// parseFamily handles "family add <afi> <safi>" or "family add all".
+// parseFamily handles "declare family <afi> <safi>" or "declare family all".
 func (reg *PluginRegistration) parseFamily(args []string) error {
-	if len(args) < 2 || args[0] != "add" {
-		return fmt.Errorf("expected 'family add <afi> <safi>' or 'family add all'")
+	if len(args) < 1 {
+		return fmt.Errorf("expected 'declare family <afi> <safi>' or 'declare family all'")
 	}
 
-	afi := strings.ToLower(args[1])
+	afi := strings.ToLower(args[0])
 
-	// Handle "family add all"
+	// Handle "declare family all"
 	if afi == "all" {
 		reg.Families = append(reg.Families, "all")
 		return nil
@@ -259,35 +262,35 @@ func (reg *PluginRegistration) parseFamily(args []string) error {
 
 	// Validate AFI
 	if !validAFIs[afi] {
-		return fmt.Errorf("invalid AFI: %s (valid: ipv4, ipv6, l2vpn, all)", args[1])
+		return fmt.Errorf("invalid AFI: %s (valid: ipv4, ipv6, l2vpn, all)", args[0])
 	}
 
 	// Need SAFI for non-all
-	if len(args) < 3 {
-		return fmt.Errorf("expected 'family add %s <safi>'", afi)
+	if len(args) < 2 {
+		return fmt.Errorf("expected 'declare family %s <safi>'", afi)
 	}
 
-	safi := strings.ToLower(args[2])
+	safi := strings.ToLower(args[1])
 	if !validSAFIs[safi] {
-		return fmt.Errorf("invalid SAFI: %s", args[2])
+		return fmt.Errorf("invalid SAFI: %s", args[1])
 	}
 
 	reg.Families = append(reg.Families, afi+"/"+safi)
 	return nil
 }
 
-// parseConf handles "conf add <pattern>".
+// parseConf handles "declare conf <pattern>".
 func (reg *PluginRegistration) parseConf(args []string, line string) error {
-	if len(args) < 2 || args[0] != "add" {
-		return fmt.Errorf("expected 'conf add <pattern>'")
+	if len(args) < 1 {
+		return fmt.Errorf("expected 'declare conf <pattern>'")
 	}
 
 	// Extract pattern from original line to preserve spacing
-	idx := strings.Index(line, "conf add ")
+	idx := strings.Index(line, "declare conf ")
 	if idx < 0 {
 		return fmt.Errorf("malformed conf command")
 	}
-	patternStr := strings.TrimSpace(line[idx+len("conf add "):])
+	patternStr := strings.TrimSpace(line[idx+len("declare conf "):])
 
 	pat, err := CompileConfigPattern(patternStr)
 	if err != nil {
@@ -298,18 +301,18 @@ func (reg *PluginRegistration) parseConf(args []string, line string) error {
 	return nil
 }
 
-// parseCmd handles "cmd add <command>".
+// parseCmd handles "declare cmd <command>".
 func (reg *PluginRegistration) parseCmd(args []string, line string) error {
-	if len(args) < 2 || args[0] != "add" {
-		return fmt.Errorf("expected 'cmd add <command>'")
+	if len(args) < 1 {
+		return fmt.Errorf("expected 'declare cmd <command>'")
 	}
 
 	// Extract command from original line to preserve spacing
-	idx := strings.Index(line, "cmd add ")
+	idx := strings.Index(line, "declare cmd ")
 	if idx < 0 {
 		return fmt.Errorf("malformed cmd command")
 	}
-	cmd := strings.TrimSpace(line[idx+len("cmd add "):])
+	cmd := strings.TrimSpace(line[idx+len("declare cmd "):])
 
 	reg.Commands = append(reg.Commands, cmd)
 	return nil
@@ -437,6 +440,7 @@ func (pat *ConfigPattern) Match(config string) *ConfigMatch {
 }
 
 // ParseLine parses a Stage 3 capability command.
+// Commands: "capability <enc> <code> <payload>" or "capability done"
 func (caps *PluginCapabilities) ParseLine(line string) error {
 	line = strings.TrimSpace(line)
 	if line == "" {
@@ -448,19 +452,19 @@ func (caps *PluginCapabilities) ParseLine(line string) error {
 		return fmt.Errorf("invalid capability command: %s", line)
 	}
 
-	if parts[0] != "open" {
-		return fmt.Errorf("expected 'open' command, got: %s", parts[0])
+	if parts[0] != "capability" {
+		return fmt.Errorf("expected 'capability' command, got: %s", parts[0])
 	}
 
-	// Handle "open done"
+	// Handle "capability done"
 	if parts[1] == "done" {
 		caps.Done = true
 		return nil
 	}
 
-	// Parse "open <enc> capability <code> set <payload>"
-	if len(parts) < 6 {
-		return fmt.Errorf("expected 'open <enc> capability <code> set <payload>'")
+	// Parse "capability <enc> <code> <payload>"
+	if len(parts) < 4 {
+		return fmt.Errorf("expected 'capability <enc> <code> <payload>'")
 	}
 
 	enc := parts[1]
@@ -468,24 +472,12 @@ func (caps *PluginCapabilities) ParseLine(line string) error {
 		return fmt.Errorf("invalid encoding: %s", enc)
 	}
 
-	if parts[2] != "capability" {
-		return fmt.Errorf("expected 'capability', got: %s", parts[2])
-	}
-
-	code, err := strconv.ParseUint(parts[3], 10, 8)
+	code, err := strconv.ParseUint(parts[2], 10, 8)
 	if err != nil {
-		return fmt.Errorf("invalid capability code: %s", parts[3])
+		return fmt.Errorf("invalid capability code: %s", parts[2])
 	}
 
-	if parts[4] != "set" {
-		return fmt.Errorf("expected 'set', got: %s", parts[4])
-	}
-
-	if len(parts) < 6 {
-		return fmt.Errorf("missing capability payload")
-	}
-
-	payload := parts[5]
+	payload := parts[3]
 
 	caps.Capabilities = append(caps.Capabilities, PluginCapability{
 		Code:     uint8(code),
@@ -497,9 +489,9 @@ func (caps *PluginCapabilities) ParseLine(line string) error {
 }
 
 // FormatConfigDelivery formats a config match for delivery to plugin.
-// Format: "configuration <context> <name> set <value>"
+// Format: "config <context> <name> <value>"
 func FormatConfigDelivery(context, name, value string) string {
-	return fmt.Sprintf("configuration %s %s set %s", context, name, value)
+	return fmt.Sprintf("config %s %s %s", context, name, value)
 }
 
 // FormatRegistrySharing formats the registry sharing messages for Stage 4.
@@ -507,18 +499,18 @@ func FormatConfigDelivery(context, name, value string) string {
 func FormatRegistrySharing(pluginName string, allCommands map[string][]PluginCommandInfo) []string {
 	lines := make([]string, 0)
 
-	// First line: api name <plugin-name>
-	lines = append(lines, "api name "+pluginName)
+	// First line: registry name <plugin-name>
+	lines = append(lines, "registry name "+pluginName)
 
 	// Then all commands from all plugins
 	for pname, cmds := range allCommands {
 		for _, cmd := range cmds {
-			lines = append(lines, fmt.Sprintf("api %s %s cmd %s", pname, cmd.Encoding, cmd.Command))
+			lines = append(lines, fmt.Sprintf("registry %s %s cmd %s", pname, cmd.Encoding, cmd.Command))
 		}
 	}
 
 	// End marker
-	lines = append(lines, "api done")
+	lines = append(lines, "registry done")
 
 	return lines
 }

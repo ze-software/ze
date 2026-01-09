@@ -79,19 +79,19 @@ func (p *Persister) Run() int {
 
 // doStartupProtocol performs the 5-stage plugin registration protocol.
 func (p *Persister) doStartupProtocol() {
-	// Stage 1: Registration
-	p.send("cmd add persist status")
-	p.send("cmd add persist routes")
-	p.send("registration done")
+	// Stage 1: Declaration
+	p.send("declare cmd persist status")
+	p.send("declare cmd persist routes")
+	p.send("declare done")
 
 	// Stage 2: Wait for config (discard)
-	p.waitForLine("configuration done")
+	p.waitForLine("config done")
 
 	// Stage 3: No capabilities
-	p.send("open done")
+	p.send("capability done")
 
 	// Stage 4: Wait for registry (discard)
-	p.waitForLine("api done")
+	p.waitForLine("registry done")
 
 	// Stage 5: Ready
 	p.send("ready")

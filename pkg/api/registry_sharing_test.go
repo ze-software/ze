@@ -22,9 +22,9 @@ func TestRegistrySharingFormat(t *testing.T) {
 		lines := FormatRegistrySharing("rib-plugin", allCommands)
 
 		require.Len(t, lines, 3)
-		assert.Equal(t, "api name rib-plugin", lines[0])
-		assert.Equal(t, "api rib-plugin text cmd rib show", lines[1])
-		assert.Equal(t, "api done", lines[2])
+		assert.Equal(t, "registry name rib-plugin", lines[0])
+		assert.Equal(t, "registry rib-plugin text cmd rib show", lines[1])
+		assert.Equal(t, "registry done", lines[2])
 	})
 
 	t.Run("single_plugin_multiple_commands", func(t *testing.T) {
@@ -39,17 +39,17 @@ func TestRegistrySharingFormat(t *testing.T) {
 		lines := FormatRegistrySharing("rib-plugin", allCommands)
 
 		require.Len(t, lines, 5) // name + 3 commands + done
-		assert.Equal(t, "api name rib-plugin", lines[0])
-		assert.Equal(t, "api done", lines[len(lines)-1])
+		assert.Equal(t, "registry name rib-plugin", lines[0])
+		assert.Equal(t, "registry done", lines[len(lines)-1])
 
 		// Check commands are present (order may vary)
 		found := make(map[string]bool)
 		for _, line := range lines[1 : len(lines)-1] {
 			found[line] = true
 		}
-		assert.True(t, found["api rib-plugin text cmd rib adjacent in show"])
-		assert.True(t, found["api rib-plugin text cmd rib adjacent out show"])
-		assert.True(t, found["api rib-plugin b64 cmd rib loc show"])
+		assert.True(t, found["registry rib-plugin text cmd rib adjacent in show"])
+		assert.True(t, found["registry rib-plugin text cmd rib adjacent out show"])
+		assert.True(t, found["registry rib-plugin b64 cmd rib loc show"])
 	})
 
 	t.Run("multiple_plugins", func(t *testing.T) {
@@ -65,16 +65,16 @@ func TestRegistrySharingFormat(t *testing.T) {
 		// Each plugin gets its own name but sees all commands
 		lines := FormatRegistrySharing("rib-plugin", allCommands)
 
-		assert.Equal(t, "api name rib-plugin", lines[0])
-		assert.Equal(t, "api done", lines[len(lines)-1])
+		assert.Equal(t, "registry name rib-plugin", lines[0])
+		assert.Equal(t, "registry done", lines[len(lines)-1])
 
 		// Should see commands from both plugins
 		allLines := make(map[string]bool)
 		for _, line := range lines {
 			allLines[line] = true
 		}
-		assert.True(t, allLines["api rib-plugin text cmd rib show"])
-		assert.True(t, allLines["api gr-plugin text cmd peer * refresh"])
+		assert.True(t, allLines["registry rib-plugin text cmd rib show"])
+		assert.True(t, allLines["registry gr-plugin text cmd peer * refresh"])
 	})
 
 	t.Run("no_commands", func(t *testing.T) {
@@ -83,8 +83,8 @@ func TestRegistrySharingFormat(t *testing.T) {
 		lines := FormatRegistrySharing("passive-plugin", allCommands)
 
 		require.Len(t, lines, 2)
-		assert.Equal(t, "api name passive-plugin", lines[0])
-		assert.Equal(t, "api done", lines[1])
+		assert.Equal(t, "registry name passive-plugin", lines[0])
+		assert.Equal(t, "registry done", lines[1])
 	})
 }
 
@@ -95,10 +95,10 @@ func TestRegistrySharingFormat(t *testing.T) {
 func TestRegistryBuildFromPlugins(t *testing.T) {
 	t.Run("build_from_single_plugin", func(t *testing.T) {
 		reg := &PluginRegistration{Name: "rib-plugin"}
-		require.NoError(t, reg.ParseLine("encoding add text"))
-		require.NoError(t, reg.ParseLine("cmd add rib show"))
-		require.NoError(t, reg.ParseLine("cmd add rib clear"))
-		require.NoError(t, reg.ParseLine("registration done"))
+		require.NoError(t, reg.ParseLine("declare encoding text"))
+		require.NoError(t, reg.ParseLine("declare cmd rib show"))
+		require.NoError(t, reg.ParseLine("declare cmd rib clear"))
+		require.NoError(t, reg.ParseLine("declare done"))
 
 		registry := NewPluginRegistry()
 		require.NoError(t, registry.Register(reg))
@@ -115,15 +115,15 @@ func TestRegistryBuildFromPlugins(t *testing.T) {
 		registry := NewPluginRegistry()
 
 		reg1 := &PluginRegistration{Name: "plugin1"}
-		require.NoError(t, reg1.ParseLine("encoding add text"))
-		require.NoError(t, reg1.ParseLine("cmd add cmd1"))
-		require.NoError(t, reg1.ParseLine("registration done"))
+		require.NoError(t, reg1.ParseLine("declare encoding text"))
+		require.NoError(t, reg1.ParseLine("declare cmd cmd1"))
+		require.NoError(t, reg1.ParseLine("declare done"))
 		require.NoError(t, registry.Register(reg1))
 
 		reg2 := &PluginRegistration{Name: "plugin2"}
-		require.NoError(t, reg2.ParseLine("encoding add b64"))
-		require.NoError(t, reg2.ParseLine("cmd add cmd2"))
-		require.NoError(t, reg2.ParseLine("registration done"))
+		require.NoError(t, reg2.ParseLine("declare encoding b64"))
+		require.NoError(t, reg2.ParseLine("declare cmd cmd2"))
+		require.NoError(t, reg2.ParseLine("declare done"))
 		require.NoError(t, registry.Register(reg2))
 
 		allCommands := registry.BuildCommandInfo()
@@ -141,14 +141,14 @@ func TestRegistryCommandConflict(t *testing.T) {
 	registry := NewPluginRegistry()
 
 	reg1 := &PluginRegistration{Name: "plugin1"}
-	require.NoError(t, reg1.ParseLine("cmd add rib show"))
-	require.NoError(t, reg1.ParseLine("registration done"))
+	require.NoError(t, reg1.ParseLine("declare cmd rib show"))
+	require.NoError(t, reg1.ParseLine("declare done"))
 	require.NoError(t, registry.Register(reg1))
 
 	// Second plugin tries same command
 	reg2 := &PluginRegistration{Name: "plugin2"}
-	require.NoError(t, reg2.ParseLine("cmd add rib show"))
-	require.NoError(t, reg2.ParseLine("registration done"))
+	require.NoError(t, reg2.ParseLine("declare cmd rib show"))
+	require.NoError(t, reg2.ParseLine("declare done"))
 
 	err := registry.Register(reg2)
 	require.Error(t, err)
@@ -164,9 +164,9 @@ func TestRegistryCommandLookup(t *testing.T) {
 	registry := NewPluginRegistry()
 
 	reg := &PluginRegistration{Name: "rib-plugin"}
-	require.NoError(t, reg.ParseLine("cmd add rib show"))
-	require.NoError(t, reg.ParseLine("cmd add rib clear"))
-	require.NoError(t, reg.ParseLine("registration done"))
+	require.NoError(t, reg.ParseLine("declare cmd rib show"))
+	require.NoError(t, reg.ParseLine("declare cmd rib clear"))
+	require.NoError(t, reg.ParseLine("declare done"))
 	require.NoError(t, registry.Register(reg))
 
 	plugin := registry.LookupCommand("rib show")

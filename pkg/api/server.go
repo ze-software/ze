@@ -356,8 +356,8 @@ func (s *Server) handleSingleProcessCommands(proc *Process) {
 			continue
 		}
 
-		// Handle "failed" at any stage - plugin is signaling startup failure
-		if strings.HasPrefix(line, "failed ") {
+		// Handle "ready failed" at any stage - plugin is signaling startup failure
+		if strings.HasPrefix(line, "ready failed ") {
 			s.handlePluginFailed(proc, line)
 			return
 		}
@@ -590,7 +590,7 @@ func (s *Server) GetPluginCapabilities() []InjectedCapability {
 func (s *Server) deliverConfig(proc *Process) {
 	reg := proc.Registration()
 	if len(reg.ConfigPatterns) == 0 || s.reactor == nil {
-		_ = proc.WriteEvent("configuration done")
+		_ = proc.WriteEvent("config done")
 		return
 	}
 
@@ -613,7 +613,7 @@ func (s *Server) deliverConfig(proc *Process) {
 		}
 	}
 
-	_ = proc.WriteEvent("configuration done")
+	_ = proc.WriteEvent("config done")
 }
 
 // matchConfigPattern tries to match a config pattern against peer config.
@@ -654,15 +654,15 @@ func (s *Server) deliverRegistry(proc *Process) {
 	}
 }
 
-// handlePluginFailed handles a "failed" message from a plugin.
+// handlePluginFailed handles a "ready failed" message from a plugin.
 // This can occur at any stage and indicates startup failure.
 // Signals the coordinator to abort startup for all plugins.
 func (s *Server) handlePluginFailed(proc *Process, line string) {
-	// Parse: "failed text <message>" or "failed b64 <message>"
-	parts := strings.SplitN(line, " ", 3)
+	// Parse: "ready failed text <message>" or "ready failed b64 <message>"
+	parts := strings.SplitN(line, " ", 4)
 	errMsg := "plugin startup failed"
-	if len(parts) >= 3 {
-		errMsg = parts[2]
+	if len(parts) >= 4 {
+		errMsg = parts[3]
 	}
 
 	// Log the failure with structured logging

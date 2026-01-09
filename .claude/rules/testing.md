@@ -105,8 +105,8 @@ go tool cover -func=coverage.out              # Summary
 ## Pre-Commit Checklist
 
 - [ ] `make test` passes
-- [ ] `make lint` passes
+- [ ] `make lint` passes with **zero issues** (fix pre-existing issues first)
 - [ ] `make functional` passes
 - [ ] User approval
 
-**If ANY unchecked: DO NOT COMMIT**
+**BLOCKING:** Never commit with ANY lint issues, even pre-existing ones. Fix lint issues first or ask user for guidance.

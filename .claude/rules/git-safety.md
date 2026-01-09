@@ -12,10 +12,12 @@ paths:
 
 ## Before Any Commit
 ```bash
-make test && make lint && make functional  # Must pass
+make test && make lint && make functional  # ALL must pass with zero issues
 git status              # Review changes
 git diff --staged       # Review what's staged
 ```
+
+**BLOCKING:** Never commit with ANY lint issues, even pre-existing ones. Fix lint issues first or ask user for guidance.
 
 ## Forbidden Without Explicit Permission
 - `git reset` (any form)
