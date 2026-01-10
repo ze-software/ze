@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/attribute"
+	bgpctx "codeberg.org/thomas-mangin/zebgp/pkg/bgp/context"
 	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/message"
 	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/nlri"
 )
@@ -203,40 +204,48 @@ func (f NLRIFilter) IsEmpty() bool {
 	return f.Mode == FilterModeNone || (f.Mode == FilterModeSelective && len(f.Families) == 0)
 }
 
-// FamilyNLRI groups prefixes with their next-hop and family.
+// FamilyNLRI groups NLRIs with their next-hop and family.
 // This is the RFC-correct structure: each AFI/SAFI has its own next-hop.
+// RFC 7911: NLRIs preserve path-id when ADD-PATH is negotiated.
 type FamilyNLRI struct {
-	Family   string         // e.g., "ipv4/unicast", "ipv6/unicast"
-	NextHop  netip.Addr     // next-hop for this family
-	Prefixes []netip.Prefix // prefixes in this family
+	Family  string      // e.g., "ipv4/unicast", "ipv6/unicast"
+	NextHop netip.Addr  // next-hop for this family
+	NLRIs   []nlri.NLRI // NLRIs with path-id (replaces Prefixes)
 }
 
 // AnnouncedByFamily returns announced NLRI grouped by address family.
 // Each FamilyNLRI has its own next-hop per RFC 4760.
 // Returns entries from both MP-BGP path and legacy IPv4 path.
-func (r FilterResult) AnnouncedByFamily() []FamilyNLRI {
+// RFC 7911: ctx provides ADD-PATH state per family.
+func (r FilterResult) AnnouncedByFamily(ctx *bgpctx.EncodingContext) []FamilyNLRI {
 	var result []FamilyNLRI
 
 	// MP-BGP path
 	for _, mp := range r.MPReach {
-		prefixes := mp.Prefixes()
-		if len(prefixes) > 0 {
-			result = append(result, FamilyNLRI{
-				Family:   mp.Family().String(),
-				NextHop:  mp.NextHop(),
-				Prefixes: prefixes,
-			})
+		family := mp.Family()
+		hasAddPath := ctx.AddPathFor(family)
+		nlris, err := mp.NLRIs(hasAddPath)
+		if err != nil || len(nlris) == 0 {
+			continue
 		}
+		result = append(result, FamilyNLRI{
+			Family:  family.String(),
+			NextHop: mp.NextHop(),
+			NLRIs:   nlris,
+		})
 	}
 
 	// Legacy IPv4 path (body NLRI)
 	if r.IPv4Announced != nil {
-		prefixes := r.IPv4Announced.Prefixes()
-		if len(prefixes) > 0 {
+		hasAddPath := ctx.AddPathFor(nlri.IPv4Unicast)
+		nlris, err := r.IPv4Announced.NLRIs(hasAddPath)
+		if err != nil || len(nlris) == 0 {
+			// Fallback: no NLRIs parsed
+		} else {
 			result = append(result, FamilyNLRI{
-				Family:   nlri.IPv4Unicast.String(),
-				NextHop:  r.IPv4Announced.NextHop(),
-				Prefixes: prefixes,
+				Family:  nlri.IPv4Unicast.String(),
+				NextHop: r.IPv4Announced.NextHop(),
+				NLRIs:   nlris,
 			})
 		}
 	}
@@ -246,27 +255,34 @@ func (r FilterResult) AnnouncedByFamily() []FamilyNLRI {
 
 // WithdrawnByFamily returns withdrawn NLRI grouped by address family.
 // Withdrawn NLRI has no next-hop (NextHop will be invalid).
-func (r FilterResult) WithdrawnByFamily() []FamilyNLRI {
+// RFC 7911: ctx provides ADD-PATH state per family.
+func (r FilterResult) WithdrawnByFamily(ctx *bgpctx.EncodingContext) []FamilyNLRI {
 	var result []FamilyNLRI
 
 	// MP-BGP path
 	for _, mp := range r.MPUnreach {
-		prefixes := mp.Prefixes()
-		if len(prefixes) > 0 {
-			result = append(result, FamilyNLRI{
-				Family:   mp.Family().String(),
-				Prefixes: prefixes,
-			})
+		family := mp.Family()
+		hasAddPath := ctx.AddPathFor(family)
+		nlris, err := mp.NLRIs(hasAddPath)
+		if err != nil || len(nlris) == 0 {
+			continue
 		}
+		result = append(result, FamilyNLRI{
+			Family: family.String(),
+			NLRIs:  nlris,
+		})
 	}
 
 	// Legacy IPv4 path (body withdrawn)
 	if r.IPv4Withdrawn != nil {
-		prefixes := r.IPv4Withdrawn.Prefixes()
-		if len(prefixes) > 0 {
+		hasAddPath := ctx.AddPathFor(nlri.IPv4Unicast)
+		nlris, err := r.IPv4Withdrawn.NLRIs(hasAddPath)
+		if err != nil || len(nlris) == 0 {
+			// Fallback: no NLRIs parsed
+		} else {
 			result = append(result, FamilyNLRI{
-				Family:   nlri.IPv4Unicast.String(),
-				Prefixes: prefixes,
+				Family: nlri.IPv4Unicast.String(),
+				NLRIs:  nlris,
 			})
 		}
 	}

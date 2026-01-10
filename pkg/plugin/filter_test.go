@@ -9,6 +9,12 @@ import (
 	bgpctx "codeberg.org/thomas-mangin/zebgp/pkg/bgp/context"
 )
 
+// testPrefix10 is a test prefix used across filter tests.
+const testPrefix10 = "10.0.0.0/24"
+
+// emptyEncCtx is an empty encoding context for tests (no ADD-PATH).
+var emptyEncCtx = &bgpctx.EncodingContext{}
+
 // testEncodingContext creates an encoding context for tests.
 func testEncodingContext() bgpctx.ContextID {
 	ctx := &bgpctx.EncodingContext{
@@ -307,14 +313,14 @@ func TestApplyToUpdateIPv4(t *testing.T) {
 	}
 
 	// Check announced via FamilyNLRI
-	announced := result.AnnouncedByFamily()
+	announced := result.AnnouncedByFamily(emptyEncCtx)
 	if len(announced) != 1 {
 		t.Fatalf("AnnouncedByFamily len = %d, want 1", len(announced))
 	}
-	if len(announced[0].Prefixes) != 1 {
-		t.Errorf("Prefixes len = %d, want 1", len(announced[0].Prefixes))
-	} else if announced[0].Prefixes[0].String() != "10.0.0.0/24" {
-		t.Errorf("Prefix = %s, want 10.0.0.0/24", announced[0].Prefixes[0])
+	if len(announced[0].NLRIs) != 1 {
+		t.Errorf("NLRIs len = %d, want 1", len(announced[0].NLRIs))
+	} else if announced[0].NLRIs[0].String() != testPrefix10 {
+		t.Errorf("NLRI = %s, want %s", announced[0].NLRIs[0], testPrefix10)
 	}
 
 	// Check next-hop (IPv4)
@@ -323,7 +329,7 @@ func TestApplyToUpdateIPv4(t *testing.T) {
 	}
 
 	// Check withdrawn is empty
-	withdrawn := result.WithdrawnByFamily()
+	withdrawn := result.WithdrawnByFamily(emptyEncCtx)
 	if len(withdrawn) != 0 {
 		t.Errorf("WithdrawnByFamily len = %d, want 0", len(withdrawn))
 	}
@@ -350,18 +356,18 @@ func TestApplyToUpdateWithdrawn(t *testing.T) {
 	}
 
 	// Check withdrawn via FamilyNLRI
-	withdrawn := result.WithdrawnByFamily()
+	withdrawn := result.WithdrawnByFamily(emptyEncCtx)
 	if len(withdrawn) != 1 {
 		t.Fatalf("WithdrawnByFamily len = %d, want 1", len(withdrawn))
 	}
-	if len(withdrawn[0].Prefixes) != 1 {
-		t.Errorf("Prefixes len = %d, want 1", len(withdrawn[0].Prefixes))
-	} else if withdrawn[0].Prefixes[0].String() != "10.0.0.0/24" {
-		t.Errorf("Prefix = %s, want 10.0.0.0/24", withdrawn[0].Prefixes[0])
+	if len(withdrawn[0].NLRIs) != 1 {
+		t.Errorf("NLRIs len = %d, want 1", len(withdrawn[0].NLRIs))
+	} else if withdrawn[0].NLRIs[0].String() != testPrefix10 {
+		t.Errorf("NLRI = %s, want %s", withdrawn[0].NLRIs[0], testPrefix10)
 	}
 
 	// Check announced is empty
-	announced := result.AnnouncedByFamily()
+	announced := result.AnnouncedByFamily(emptyEncCtx)
 	if len(announced) != 0 {
 		t.Errorf("AnnouncedByFamily len = %d, want 0", len(announced))
 	}
@@ -473,14 +479,14 @@ func TestApplyToUpdate(t *testing.T) {
 	}
 
 	// Check NLRI via FamilyNLRI
-	announced := result.AnnouncedByFamily()
+	announced := result.AnnouncedByFamily(emptyEncCtx)
 	if len(announced) != 1 {
 		t.Fatalf("len(AnnouncedByFamily) = %d, want 1", len(announced))
 	}
-	if len(announced[0].Prefixes) != 1 {
-		t.Errorf("len(Prefixes) = %d, want 1", len(announced[0].Prefixes))
-	} else if announced[0].Prefixes[0].String() != "192.168.1.0/24" {
-		t.Errorf("Prefix = %s, want 192.168.1.0/24", announced[0].Prefixes[0])
+	if len(announced[0].NLRIs) != 1 {
+		t.Errorf("len(NLRIs) = %d, want 1", len(announced[0].NLRIs))
+	} else if announced[0].NLRIs[0].String() != "192.168.1.0/24" {
+		t.Errorf("NLRI = %s, want 192.168.1.0/24", announced[0].NLRIs[0])
 	}
 }
 

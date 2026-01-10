@@ -31,8 +31,9 @@ type Event struct {
 	State string `json:"state,omitempty"`
 
 	// UPDATE fields - announce/withdraw are at top level for both formats
+	// RFC 7911: NLRIs can be {"prefix":"...", "path-id":N} or legacy string format
 	Announce map[string]map[string]any `json:"announce,omitempty"`
-	Withdraw map[string][]string       `json:"withdraw,omitempty"`
+	Withdraw map[string][]any          `json:"withdraw,omitempty"`
 
 	// Request fields
 	Serial  string `json:"serial,omitempty"`

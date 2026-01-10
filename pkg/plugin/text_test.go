@@ -7,8 +7,13 @@ import (
 	"testing"
 
 	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/attribute"
+	bgpctx "codeberg.org/thomas-mangin/zebgp/pkg/bgp/context"
 	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/message"
+	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/nlri"
 )
+
+// testEncCtx is an empty encoding context for tests (no ADD-PATH).
+var testEncCtx = &bgpctx.EncodingContext{}
 
 // TestFormatStateChange tests state event formatting.
 //
@@ -401,7 +406,7 @@ func TestFilterResultBothNextHops(t *testing.T) {
 	}
 
 	// Check next-hops via FamilyNLRI iteration
-	announced := result.AnnouncedByFamily()
+	announced := result.AnnouncedByFamily(testEncCtx)
 	if len(announced) != 2 {
 		t.Fatalf("AnnouncedByFamily len = %d, want 2 (IPv4 + IPv6)", len(announced))
 	}
@@ -700,6 +705,54 @@ func TestFormatNotificationWithDirection(t *testing.T) {
 	}
 }
 
+// TestFormatNLRIJSONWithPathID verifies JSON includes path-id when present.
+//
+// VALIDATES: RFC 7911 path-id is included in structured JSON.
+// PREVENTS: Path-id being lost in JSON output.
+func TestFormatNLRIJSONWithPathID(t *testing.T) {
+	n := NewTestNLRI(netip.MustParsePrefix("10.0.0.0/24"), 42)
+
+	var sb strings.Builder
+	formatNLRIJSON(&sb, n)
+
+	want := `{"prefix":"10.0.0.0/24","path-id":42}`
+	if got := sb.String(); got != want {
+		t.Errorf("formatNLRIJSON() = %q, want %q", got, want)
+	}
+}
+
+// TestFormatNLRIJSONNoPathID verifies JSON omits path-id when zero.
+//
+// VALIDATES: path-id field omitted when 0 (no ADD-PATH).
+// PREVENTS: Unnecessary path-id:0 in output.
+func TestFormatNLRIJSONNoPathID(t *testing.T) {
+	n := NewTestNLRI(netip.MustParsePrefix("10.0.0.0/24"), 0)
+
+	var sb strings.Builder
+	formatNLRIJSON(&sb, n)
+
+	want := `{"prefix":"10.0.0.0/24"}`
+	if got := sb.String(); got != want {
+		t.Errorf("formatNLRIJSON() = %q, want %q", got, want)
+	}
+}
+
+// TestFormatNLRIJSONPathIDMax verifies max uint32 path-id works.
+//
+// VALIDATES: Max path-id value (0xFFFFFFFF) handled correctly.
+// PREVENTS: Integer overflow issues.
+func TestFormatNLRIJSONPathIDMax(t *testing.T) {
+	n := NewTestNLRI(netip.MustParsePrefix("192.168.1.0/24"), 4294967295)
+
+	var sb strings.Builder
+	formatNLRIJSON(&sb, n)
+
+	want := `{"prefix":"192.168.1.0/24","path-id":4294967295}`
+	if got := sb.String(); got != want {
+		t.Errorf("formatNLRIJSON() = %q, want %q", got, want)
+	}
+}
+
 // buildTestUpdateBodyWithCommunities builds UPDATE with COMMUNITY attribute.
 func buildTestUpdateBodyWithCommunities(prefix netip.Prefix, nextHop netip.Addr, communities []uint32) []byte {
 	var attrs []byte
@@ -728,21 +781,30 @@ func buildTestUpdateBodyWithCommunities(prefix netip.Prefix, nextHop netip.Addr,
 	}
 
 	// NLRI (IPv4)
-	var nlri []byte
+	var nlriBytes []byte
 	if prefix.Addr().Is4() {
 		bits := prefix.Bits()
-		nlri = append(nlri, byte(bits))
+		nlriBytes = append(nlriBytes, byte(bits))
 		prefixBytes := (bits + 7) / 8
 		addr := prefix.Addr().As4()
-		nlri = append(nlri, addr[:prefixBytes]...)
+		nlriBytes = append(nlriBytes, addr[:prefixBytes]...)
 	}
 
 	// Build body
-	body := make([]byte, 4+len(attrs)+len(nlri))
+	body := make([]byte, 4+len(attrs)+len(nlriBytes))
 	binary.BigEndian.PutUint16(body[0:2], 0)                  // withdrawn len
 	binary.BigEndian.PutUint16(body[2:4], uint16(len(attrs))) //nolint:gosec // test data
 	copy(body[4:], attrs)
-	copy(body[4+len(attrs):], nlri)
+	copy(body[4+len(attrs):], nlriBytes)
 
 	return body
+}
+
+// NewTestNLRI creates a test NLRI with prefix and optional path-id.
+func NewTestNLRI(prefix netip.Prefix, pathID uint32) nlri.NLRI {
+	family := nlri.IPv4Unicast
+	if prefix.Addr().Is6() {
+		family = nlri.IPv6Unicast
+	}
+	return nlri.NewINET(family, prefix, pathID)
 }

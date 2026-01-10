@@ -127,7 +127,7 @@ func TestHandleSent_Withdraw(t *testing.T) {
 	withdraw := &Event{
 		Type: "sent",
 		Peer: mustMarshal(t, PeerInfoFlat{Address: "10.0.0.1", ASN: 65001}),
-		Withdraw: map[string][]string{
+		Withdraw: map[string][]any{
 			"ipv4/unicast": {"10.0.0.0/24"},
 		},
 	}
@@ -188,7 +188,7 @@ func TestHandleReceived_Withdraw(t *testing.T) {
 	withdraw := &Event{
 		Message: &MessageInfo{Type: "update", ID: 201},
 		Peer:    nestedPeer,
-		Withdraw: map[string][]string{
+		Withdraw: map[string][]any{
 			"ipv4/unicast": {"10.0.0.0/24"},
 		},
 	}
@@ -403,6 +403,109 @@ func TestHandleState_ConcurrentUpDown(t *testing.T) {
 
 	// ribOut should always exist (we never delete it)
 	assert.True(t, hasRibOut, "ribOut should persist through state changes")
+}
+
+// TestRIBRouteKeyWithPathID verifies path-id creates unique route keys.
+//
+// VALIDATES: Same prefix with different path-ids stored separately.
+// PREVENTS: ADD-PATH routes overwriting each other.
+func TestRIBRouteKeyWithPathID(t *testing.T) {
+	tests := []struct {
+		family string
+		prefix string
+		pathID uint32
+		want   string
+	}{
+		{"ipv4/unicast", "10.0.0.0/24", 0, "ipv4/unicast:10.0.0.0/24"},
+		{"ipv4/unicast", "10.0.0.0/24", 1, "ipv4/unicast:10.0.0.0/24:1"},
+		{"ipv4/unicast", "10.0.0.0/24", 2, "ipv4/unicast:10.0.0.0/24:2"},
+		{"ipv6/unicast", "2001:db8::/32", 0, "ipv6/unicast:2001:db8::/32"},
+		{"ipv6/unicast", "2001:db8::/32", 100, "ipv6/unicast:2001:db8::/32:100"},
+	}
+
+	for _, tt := range tests {
+		got := routeKey(tt.family, tt.prefix, tt.pathID)
+		assert.Equal(t, tt.want, got, "routeKey(%q, %q, %d)", tt.family, tt.prefix, tt.pathID)
+	}
+}
+
+// TestRIBParseStructuredJSON verifies structured NLRI format parsing.
+//
+// VALIDATES: Both object and legacy string formats parsed correctly.
+// PREVENTS: JSON format change breaking RIB storage.
+func TestRIBParseStructuredJSON(t *testing.T) {
+	tests := []struct {
+		name       string
+		input      any
+		wantPrefix string
+		wantPathID uint32
+	}{
+		{
+			name:       "object_with_path_id",
+			input:      map[string]any{"prefix": "10.0.0.0/24", "path-id": float64(1)},
+			wantPrefix: "10.0.0.0/24",
+			wantPathID: 1,
+		},
+		{
+			name:       "object_without_path_id",
+			input:      map[string]any{"prefix": "10.0.0.0/24"},
+			wantPrefix: "10.0.0.0/24",
+			wantPathID: 0,
+		},
+		{
+			name:       "legacy_string_format",
+			input:      "10.0.0.0/24",
+			wantPrefix: "10.0.0.0/24",
+			wantPathID: 0,
+		},
+		{
+			name:       "object_with_large_path_id",
+			input:      map[string]any{"prefix": "192.168.1.0/24", "path-id": float64(4294967295)},
+			wantPrefix: "192.168.1.0/24",
+			wantPathID: 4294967295,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			gotPrefix, gotPathID := parseNLRIValue(tt.input)
+			assert.Equal(t, tt.wantPrefix, gotPrefix, "prefix")
+			assert.Equal(t, tt.wantPathID, gotPathID, "pathID")
+		})
+	}
+}
+
+// TestReplayRoutesWithPathID verifies path-id is included in replay commands.
+//
+// VALIDATES: Replayed routes include path-id when non-zero.
+// PREVENTS: Path-id being lost during session restart replay.
+func TestReplayRoutesWithPathID(t *testing.T) {
+	var out bytes.Buffer
+	r := NewRIBManager(strings.NewReader(""), &out)
+
+	// Pre-populate ribOut with routes, some with path-id
+	r.ribOut["10.0.0.1"] = map[string]*Route{
+		"ipv4/unicast:10.0.0.0/24":   {MsgID: 1, Family: "ipv4/unicast", Prefix: "10.0.0.0/24", NextHop: "1.1.1.1", PathID: 0},
+		"ipv4/unicast:10.0.0.0/24:1": {MsgID: 2, Family: "ipv4/unicast", Prefix: "10.0.0.0/24", NextHop: "1.1.1.1", PathID: 1},
+		"ipv4/unicast:10.0.0.0/24:2": {MsgID: 3, Family: "ipv4/unicast", Prefix: "10.0.0.0/24", NextHop: "2.2.2.2", PathID: 2},
+	}
+
+	event := &Event{
+		Type:  "state",
+		Peer:  mustMarshal(t, PeerInfoFlat{Address: "10.0.0.1", ASN: 65001}),
+		State: "up",
+	}
+
+	r.handleState(event)
+
+	output := out.String()
+
+	// Route without path-id should NOT have path-id in command
+	assert.Contains(t, output, "peer 10.0.0.1 announce route 10.0.0.0/24 next-hop 1.1.1.1\n")
+
+	// Routes with path-id MUST have path-id in command
+	assert.Contains(t, output, "peer 10.0.0.1 announce route 10.0.0.0/24 path-id 1 next-hop 1.1.1.1")
+	assert.Contains(t, output, "peer 10.0.0.1 announce route 10.0.0.0/24 path-id 2 next-hop 2.2.2.2")
 }
 
 // mustMarshal marshals v to json.RawMessage, failing test on error.

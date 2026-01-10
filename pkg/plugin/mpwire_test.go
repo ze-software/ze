@@ -325,3 +325,258 @@ func TestIPv4ReachEmpty(t *testing.T) {
 		t.Errorf("Prefixes() len = %d, want 0", len(prefixes))
 	}
 }
+
+// TestMPReachWireNLRIs verifies NLRI parsing with ADD-PATH support.
+// RFC 7911 Section 3: Path Identifier is 4-octet field prepended to each NLRI.
+//
+// VALIDATES: NLRIs() returns nlri.NLRI with correct PathID when hasAddPath=true.
+// PREVENTS: Path-id loss when forwarding to RIB plugin.
+func TestMPReachWireNLRIs(t *testing.T) {
+	// MP_REACH_NLRI with ADD-PATH: path-id=1, prefix=10.0.0.0/24, next-hop=1.1.1.1
+	// Wire format (RFC 4760 + RFC 7911):
+	// AFI(2) + SAFI(1) + NH_Len(1) + NextHop(4) + Reserved(1) + PathID(4) + PrefixLen(1) + Prefix(3)
+	mpReachAddPath := []byte{
+		0x00, 0x01, // AFI: IPv4
+		0x01,                   // SAFI: unicast
+		0x04,                   // NH length: 4
+		0x01, 0x01, 0x01, 0x01, // Next-hop: 1.1.1.1
+		0x00,                   // Reserved
+		0x00, 0x00, 0x00, 0x01, // Path ID: 1
+		0x18,             // Prefix length: 24
+		0x0A, 0x00, 0x00, // Prefix: 10.0.0.0
+	}
+
+	wire := MPReachWire(mpReachAddPath)
+	nlris, err := wire.NLRIs(true) // hasAddPath=true
+
+	if err != nil {
+		t.Fatalf("NLRIs(true) error: %v", err)
+	}
+
+	if len(nlris) != 1 {
+		t.Fatalf("NLRIs(true) len = %d, want 1", len(nlris))
+	}
+
+	n := nlris[0]
+	if n.PathID() != 1 {
+		t.Errorf("PathID() = %d, want 1", n.PathID())
+	}
+
+	want := "10.0.0.0/24"
+	if n.String() != "10.0.0.0/24 path-id=1" {
+		t.Errorf("String() = %q, want prefix %s with path-id=1", n.String(), want)
+	}
+
+	// Verify family
+	wantFamily := nlri.IPv4Unicast
+	if n.Family() != wantFamily {
+		t.Errorf("Family() = %v, want %v", n.Family(), wantFamily)
+	}
+}
+
+// TestMPReachWireNLRIs_NoAddPath verifies NLRI parsing without ADD-PATH.
+//
+// VALIDATES: NLRIs() works correctly when hasAddPath=false.
+// PREVENTS: Wrong parsing when ADD-PATH is not negotiated.
+func TestMPReachWireNLRIs_NoAddPath(t *testing.T) {
+	// Same without ADD-PATH
+	mpReachNoAddPath := []byte{
+		0x00, 0x01, // AFI: IPv4
+		0x01,                   // SAFI: unicast
+		0x04,                   // NH length: 4
+		0x01, 0x01, 0x01, 0x01, // Next-hop: 1.1.1.1
+		0x00,             // Reserved
+		0x18,             // Prefix length: 24
+		0x0A, 0x00, 0x00, // Prefix: 10.0.0.0
+	}
+
+	wire := MPReachWire(mpReachNoAddPath)
+	nlris, err := wire.NLRIs(false) // hasAddPath=false
+
+	if err != nil {
+		t.Fatalf("NLRIs(false) error: %v", err)
+	}
+
+	if len(nlris) != 1 {
+		t.Fatalf("NLRIs(false) len = %d, want 1", len(nlris))
+	}
+
+	n := nlris[0]
+	if n.PathID() != 0 {
+		t.Errorf("PathID() = %d, want 0", n.PathID())
+	}
+
+	if n.String() != "10.0.0.0/24" {
+		t.Errorf("String() = %q, want 10.0.0.0/24", n.String())
+	}
+}
+
+// TestMPReachWireNLRIs_Multiple verifies multiple NLRIs with ADD-PATH.
+//
+// VALIDATES: All NLRIs parsed correctly, each with its own path-id.
+// PREVENTS: Only first NLRI returned, path-ids mixed up.
+func TestMPReachWireNLRIs_Multiple(t *testing.T) {
+	// Two NLRIs with different path-ids
+	data := []byte{
+		0x00, 0x01, // AFI: IPv4
+		0x01,                   // SAFI: unicast
+		0x04,                   // NH length: 4
+		0x01, 0x01, 0x01, 0x01, // Next-hop: 1.1.1.1
+		0x00, // Reserved
+		// NLRI 1: path-id=1, 10.0.0.0/24
+		0x00, 0x00, 0x00, 0x01, // Path ID: 1
+		0x18,             // Prefix length: 24
+		0x0A, 0x00, 0x00, // 10.0.0.0
+		// NLRI 2: path-id=2, 10.0.0.0/24 (same prefix, different path)
+		0x00, 0x00, 0x00, 0x02, // Path ID: 2
+		0x18,             // Prefix length: 24
+		0x0A, 0x00, 0x00, // 10.0.0.0
+	}
+
+	wire := MPReachWire(data)
+	nlris, err := wire.NLRIs(true)
+
+	if err != nil {
+		t.Fatalf("NLRIs(true) error: %v", err)
+	}
+
+	if len(nlris) != 2 {
+		t.Fatalf("NLRIs(true) len = %d, want 2", len(nlris))
+	}
+
+	// Both should be 10.0.0.0/24 but with different path-ids
+	if nlris[0].PathID() != 1 {
+		t.Errorf("nlris[0].PathID() = %d, want 1", nlris[0].PathID())
+	}
+	if nlris[1].PathID() != 2 {
+		t.Errorf("nlris[1].PathID() = %d, want 2", nlris[1].PathID())
+	}
+}
+
+// TestMPReachWireNLRIs_Error verifies error handling for malformed data.
+//
+// VALIDATES: Error returned for malformed wire bytes.
+// PREVENTS: Silent data corruption.
+func TestMPReachWireNLRIs_Error(t *testing.T) {
+	tests := []struct {
+		name       string
+		data       []byte
+		hasAddPath bool
+	}{
+		{"too short", []byte{0x00, 0x01, 0x01}, false},
+		{"truncated nlri", []byte{
+			0x00, 0x01, 0x01, 0x04, // AFI, SAFI, NH len
+			0x01, 0x01, 0x01, 0x01, // NH
+			0x00,       // Reserved
+			0x18, 0x0A, // Prefix len + truncated prefix
+		}, false},
+		{"truncated path-id", []byte{
+			0x00, 0x01, 0x01, 0x04,
+			0x01, 0x01, 0x01, 0x01,
+			0x00,
+			0x00, 0x00, // Only 2 bytes of path-id
+		}, true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			wire := MPReachWire(tt.data)
+			_, err := wire.NLRIs(tt.hasAddPath)
+			if err == nil {
+				t.Error("NLRIs() should return error for malformed data")
+			}
+		})
+	}
+}
+
+// TestMPUnreachWireNLRIs verifies NLRI parsing for withdrawals with ADD-PATH.
+//
+// VALIDATES: MP_UNREACH_NLRI correctly parsed with path-id.
+// PREVENTS: Path-id loss in withdrawal path.
+func TestMPUnreachWireNLRIs(t *testing.T) {
+	// MP_UNREACH_NLRI with ADD-PATH
+	// Wire format (RFC 4760 Section 4 + RFC 7911):
+	// AFI(2) + SAFI(1) + PathID(4) + PrefixLen(1) + Prefix(variable)
+	data := []byte{
+		0x00, 0x01, // AFI: IPv4
+		0x01,                   // SAFI: unicast
+		0x00, 0x00, 0x00, 0x01, // Path ID: 1
+		0x18,             // Prefix length: 24
+		0x0A, 0x00, 0x00, // Prefix: 10.0.0.0
+	}
+
+	wire := MPUnreachWire(data)
+	nlris, err := wire.NLRIs(true)
+
+	if err != nil {
+		t.Fatalf("NLRIs(true) error: %v", err)
+	}
+
+	if len(nlris) != 1 {
+		t.Fatalf("NLRIs(true) len = %d, want 1", len(nlris))
+	}
+
+	if nlris[0].PathID() != 1 {
+		t.Errorf("PathID() = %d, want 1", nlris[0].PathID())
+	}
+}
+
+// TestIPv4ReachNLRIs verifies IPv4 body NLRI parsing with ADD-PATH.
+//
+// VALIDATES: Legacy IPv4 path correctly handles ADD-PATH.
+// PREVENTS: Path-id loss for IPv4 unicast in UPDATE body.
+func TestIPv4ReachNLRIs(t *testing.T) {
+	// IPv4 NLRI with ADD-PATH in body
+	nlriBytes := []byte{
+		0x00, 0x00, 0x00, 0x01, // Path ID: 1
+		0x18,             // Prefix length: 24
+		0xC0, 0xA8, 0x01, // 192.168.1.0
+	}
+
+	reach := IPv4Reach{
+		nh:   []byte{10, 0, 0, 1},
+		nlri: nlriBytes,
+	}
+
+	nlris, err := reach.NLRIs(true)
+	if err != nil {
+		t.Fatalf("NLRIs(true) error: %v", err)
+	}
+
+	if len(nlris) != 1 {
+		t.Fatalf("NLRIs(true) len = %d, want 1", len(nlris))
+	}
+
+	if nlris[0].PathID() != 1 {
+		t.Errorf("PathID() = %d, want 1", nlris[0].PathID())
+	}
+}
+
+// TestIPv4WithdrawNLRIs verifies IPv4 body withdrawal parsing with ADD-PATH.
+//
+// VALIDATES: Legacy IPv4 withdraw path correctly handles ADD-PATH.
+// PREVENTS: Path-id loss for IPv4 unicast withdrawals in UPDATE body.
+func TestIPv4WithdrawNLRIs(t *testing.T) {
+	withdrawnBytes := []byte{
+		0x00, 0x00, 0x00, 0x01, // Path ID: 1
+		0x18,             // Prefix length: 24
+		0xC0, 0xA8, 0x01, // 192.168.1.0
+	}
+
+	withdraw := IPv4Withdraw{
+		withdrawn: withdrawnBytes,
+	}
+
+	nlris, err := withdraw.NLRIs(true)
+	if err != nil {
+		t.Fatalf("NLRIs(true) error: %v", err)
+	}
+
+	if len(nlris) != 1 {
+		t.Fatalf("NLRIs(true) len = %d, want 1", len(nlris))
+	}
+
+	if nlris[0].PathID() != 1 {
+		t.Errorf("PathID() = %d, want 1", nlris[0].PathID())
+	}
+}

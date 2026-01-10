@@ -1,10 +1,8 @@
 // Package rib implements a RIB (Routing Information Base) plugin for ZeBGP.
 // It tracks routes received from peers (Adj-RIB-In) and sent to peers (Adj-RIB-Out).
 //
-// Known Limitation: ADD-PATH (RFC 7911) path-id is NOT included in route keys.
-// The plugin system formats prefixes as strings without path-id, so multiple
-// paths to the same prefix will overwrite each other. Full ADD-PATH support
-// requires changes to the plugin event format (FamilyNLRI in filter.go).
+// RFC 7911: ADD-PATH path-id is included in route keys when present.
+// Multiple paths to the same prefix with different path-ids are stored separately.
 package rib
 
 import (
@@ -47,17 +45,23 @@ type RIBManager struct {
 }
 
 // Route represents a stored route.
+// RFC 7911: PathID is included when ADD-PATH is negotiated.
 type Route struct {
 	MsgID     uint64    `json:"msg-id,omitempty"`
 	Family    string    `json:"family"`
 	Prefix    string    `json:"prefix"`
+	PathID    uint32    `json:"path-id,omitempty"` // RFC 7911: ADD-PATH path identifier
 	NextHop   string    `json:"next-hop"`
 	Timestamp time.Time `json:"timestamp,omitempty"`
 }
 
 // routeKey creates a unique key for a route.
-func routeKey(family, prefix string) string {
-	return family + ":" + prefix
+// RFC 7911: When ADD-PATH is negotiated, path-id is part of the key.
+func routeKey(family, prefix string, pathID uint32) string {
+	if pathID == 0 {
+		return family + ":" + prefix
+	}
+	return fmt.Sprintf("%s:%s:%d", family, prefix, pathID)
 }
 
 // MaxLineSize is the maximum size of a single JSON event line (1MB).
@@ -191,8 +195,8 @@ func (r *RIBManager) handleSent(event *Event) {
 	}
 
 	// Process announcements - store routes
-	// Sent format: {"ipv4/unicast": {"1.1.1.1": ["1.1.0.0/16", "2.2.0.0/16"]}}
-	// family -> nexthop -> [prefixes]
+	// Format: {"ipv4/unicast": {"1.1.1.1": [{"prefix":"10.0.0.0/24","path-id":1}, ...]}}
+	// Also supports legacy string format: {"ipv4/unicast": {"1.1.1.1": ["10.0.0.0/24", ...]}}
 	for family, nexthops := range event.Announce {
 		for nexthop, prefixes := range nexthops {
 			prefixList, ok := prefixes.([]any)
@@ -203,17 +207,18 @@ func (r *RIBManager) handleSent(event *Event) {
 				continue
 			}
 			for _, pv := range prefixList {
-				prefix, ok := pv.(string)
-				if !ok {
-					slog.Warn("sent: prefix not string",
+				prefix, pathID := parseNLRIValue(pv)
+				if prefix == "" {
+					slog.Warn("sent: invalid nlri value",
 						"peer", peerAddr, "family", family, "got", fmt.Sprintf("%T", pv))
 					continue
 				}
-				key := routeKey(family, prefix)
+				key := routeKey(family, prefix, pathID)
 				r.ribOut[peerAddr][key] = &Route{
 					MsgID:   msgID,
 					Family:  family,
 					Prefix:  prefix,
+					PathID:  pathID,
 					NextHop: nexthop,
 				}
 			}
@@ -221,11 +226,38 @@ func (r *RIBManager) handleSent(event *Event) {
 	}
 
 	// Process withdrawals - remove routes
-	for family, prefixes := range event.Withdraw {
-		for _, prefix := range prefixes {
-			key := routeKey(family, prefix)
+	// Format: {"ipv4/unicast": [{"prefix":"10.0.0.0/24","path-id":1}, ...]}
+	// Also supports legacy string format: {"ipv4/unicast": ["10.0.0.0/24", ...]}
+	for family, nlris := range event.Withdraw {
+		for _, nlriVal := range nlris {
+			prefix, pathID := parseNLRIValue(nlriVal)
+			if prefix == "" {
+				continue
+			}
+			key := routeKey(family, prefix, pathID)
 			delete(r.ribOut[peerAddr], key)
 		}
+	}
+}
+
+// parseNLRIValue extracts prefix and path-id from an NLRI value.
+// Handles both new format {"prefix":"...", "path-id":N} and legacy string format.
+func parseNLRIValue(v any) (prefix string, pathID uint32) {
+	switch val := v.(type) {
+	case string:
+		// Legacy string format: just the prefix
+		return val, 0
+	case map[string]any:
+		// New structured format: {"prefix":"...", "path-id":N}
+		if p, ok := val["prefix"].(string); ok {
+			prefix = p
+		}
+		if pid, ok := val["path-id"].(float64); ok {
+			pathID = uint32(pid)
+		}
+		return prefix, pathID
+	default:
+		return "", 0
 	}
 }
 
@@ -254,9 +286,8 @@ func (r *RIBManager) handleReceived(event *Event) {
 	}
 
 	// Process announcements - store routes
-	// Format: {"ipv4/unicast": {"1.1.1.1": ["10.0.0.0/24", "10.0.1.0/24"]}}
-	// family -> nexthop -> [prefixes]
-	// Note: Attributes are at top level of event, shared by all prefixes
+	// Format: {"ipv4/unicast": {"1.1.1.1": [{"prefix":"10.0.0.0/24","path-id":1}, ...]}}
+	// Also supports legacy string format
 	for family, nexthops := range event.Announce {
 		for nexthop, prefixes := range nexthops {
 			prefixList, ok := prefixes.([]any)
@@ -267,17 +298,18 @@ func (r *RIBManager) handleReceived(event *Event) {
 				continue
 			}
 			for _, pv := range prefixList {
-				prefix, ok := pv.(string)
-				if !ok {
-					slog.Warn("received: prefix not string",
+				prefix, pathID := parseNLRIValue(pv)
+				if prefix == "" {
+					slog.Warn("received: invalid nlri value",
 						"peer", peerAddr, "family", family, "got", fmt.Sprintf("%T", pv))
 					continue
 				}
-				key := routeKey(family, prefix)
+				key := routeKey(family, prefix, pathID)
 				r.ribIn[peerAddr][key] = &Route{
 					MsgID:     msgID,
 					Family:    family,
 					Prefix:    prefix,
+					PathID:    pathID,
 					NextHop:   nexthop,
 					Timestamp: now,
 				}
@@ -286,9 +318,15 @@ func (r *RIBManager) handleReceived(event *Event) {
 	}
 
 	// Process withdrawals - remove routes
-	for family, prefixes := range event.Withdraw {
-		for _, prefix := range prefixes {
-			key := routeKey(family, prefix)
+	// Format: {"ipv4/unicast": [{"prefix":"10.0.0.0/24","path-id":1}, ...]}
+	// Also supports legacy string format
+	for family, nlris := range event.Withdraw {
+		for _, nlriVal := range nlris {
+			prefix, pathID := parseNLRIValue(nlriVal)
+			if prefix == "" {
+				continue
+			}
+			key := routeKey(family, prefix, pathID)
 			delete(r.ribIn[peerAddr], key)
 		}
 	}
@@ -335,8 +373,13 @@ func (r *RIBManager) replayRoutes(peerAddr string, routes []*Route) {
 	})
 
 	// Replay all stored routes
+	// RFC 7911: Include path-id when present
 	for _, route := range routes {
-		r.send("peer %s announce route %s next-hop %s", peerAddr, route.Prefix, route.NextHop)
+		if route.PathID != 0 {
+			r.send("peer %s announce route %s path-id %d next-hop %s", peerAddr, route.Prefix, route.PathID, route.NextHop)
+		} else {
+			r.send("peer %s announce route %s next-hop %s", peerAddr, route.Prefix, route.NextHop)
+		}
 	}
 
 	// Signal done with peer-specific ready - ZeBGP can now send EOR for this peer
@@ -436,6 +479,7 @@ func (r *RIBManager) routesOutJSON() string {
 }
 
 // buildRoutesMap converts a RIB to a map for JSON serialization.
+// RFC 7911: Includes path-id when non-zero.
 func (r *RIBManager) buildRoutesMap(rib map[string]map[string]*Route) map[string][]map[string]any {
 	result := make(map[string][]map[string]any)
 
@@ -446,6 +490,9 @@ func (r *RIBManager) buildRoutesMap(rib map[string]map[string]*Route) map[string
 				"family":   rt.Family,
 				"prefix":   rt.Prefix,
 				"next-hop": rt.NextHop,
+			}
+			if rt.PathID != 0 {
+				routeMap["path-id"] = rt.PathID
 			}
 			routeList = append(routeList, routeMap)
 		}

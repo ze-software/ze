@@ -2,6 +2,7 @@ package plugin
 
 import (
 	"encoding/binary"
+	"fmt"
 	"net/netip"
 
 	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/nlri"
@@ -75,6 +76,8 @@ func (m MPReachWire) NextHop() netip.Addr {
 // Prefixes parses and returns all NLRI prefixes from the attribute.
 // RFC 4760 Section 3: NLRI field follows NextHop + Reserved byte.
 // Returns nil if data is malformed.
+//
+// Note: This method does NOT preserve ADD-PATH path-id. Use NLRIs() instead.
 func (m MPReachWire) Prefixes() []netip.Prefix {
 	if len(m) < 4 {
 		return nil
@@ -98,6 +101,27 @@ func (m MPReachWire) Prefixes() []netip.Prefix {
 	default:
 		return nil
 	}
+}
+
+// NLRIs parses and returns all NLRIs from the attribute, preserving path-id.
+// RFC 7911 Section 3: When hasAddPath is true, each NLRI is prefixed with 4-byte path-id.
+// Returns error if wire bytes are malformed.
+func (m MPReachWire) NLRIs(hasAddPath bool) ([]nlri.NLRI, error) {
+	if len(m) < 5 {
+		return nil, fmt.Errorf("MP_REACH_NLRI too short: %d bytes", len(m))
+	}
+
+	nhLen := int(m[3])
+	// NLRI starts after: AFI(2) + SAFI(1) + NHLen(1) + NextHop(nhLen) + Reserved(1)
+	nlriOffset := 4 + nhLen + 1
+	if nlriOffset > len(m) {
+		return nil, fmt.Errorf("invalid next-hop length: %d", nhLen)
+	}
+
+	nlriBytes := m[nlriOffset:]
+	family := m.Family()
+
+	return parseNLRIs(nlriBytes, family, hasAddPath)
 }
 
 // MPUnreachWire wraps MP_UNREACH_NLRI attribute bytes for zero-copy lazy parsing.
@@ -135,6 +159,8 @@ func (m MPUnreachWire) Family() nlri.Family {
 // Prefixes parses and returns all withdrawn prefixes from the attribute.
 // RFC 4760 Section 4: Withdrawn Routes field follows AFI + SAFI.
 // Returns nil if data is malformed.
+//
+// Note: This method does NOT preserve ADD-PATH path-id. Use NLRIs() instead.
 func (m MPUnreachWire) Prefixes() []netip.Prefix {
 	if len(m) < 3 {
 		return nil
@@ -152,6 +178,21 @@ func (m MPUnreachWire) Prefixes() []netip.Prefix {
 	default:
 		return nil
 	}
+}
+
+// NLRIs parses and returns all withdrawn NLRIs, preserving path-id.
+// RFC 7911 Section 3: When hasAddPath is true, each NLRI is prefixed with 4-byte path-id.
+// Returns error if wire bytes are malformed.
+func (m MPUnreachWire) NLRIs(hasAddPath bool) ([]nlri.NLRI, error) {
+	if len(m) < 3 {
+		return nil, fmt.Errorf("MP_UNREACH_NLRI too short: %d bytes", len(m))
+	}
+
+	// Withdrawn routes start after AFI(2) + SAFI(1)
+	withdrawnBytes := m[3:]
+	family := m.Family()
+
+	return parseNLRIs(withdrawnBytes, family, hasAddPath)
 }
 
 // IPv4Reach holds zero-copy slices into UPDATE body for legacy IPv4 unicast.
@@ -174,11 +215,23 @@ func (r IPv4Reach) NextHop() netip.Addr {
 
 // Prefixes parses and returns all IPv4 prefixes from the NLRI section.
 // Returns nil if nlri is nil or empty.
+//
+// Note: This method does NOT preserve ADD-PATH path-id. Use NLRIs() instead.
 func (r IPv4Reach) Prefixes() []netip.Prefix {
 	if len(r.nlri) == 0 {
 		return nil
 	}
 	return parseIPv4Prefixes(r.nlri)
+}
+
+// NLRIs parses and returns all NLRIs, preserving path-id.
+// RFC 7911 Section 3: When hasAddPath is true, each NLRI is prefixed with 4-byte path-id.
+// Returns error if bytes are malformed.
+func (r IPv4Reach) NLRIs(hasAddPath bool) ([]nlri.NLRI, error) {
+	if len(r.nlri) == 0 {
+		return nil, nil
+	}
+	return parseNLRIs(r.nlri, nlri.IPv4Unicast, hasAddPath)
 }
 
 // IPv4Withdraw holds zero-copy slice into UPDATE body for withdrawn routes.
@@ -187,9 +240,58 @@ type IPv4Withdraw struct {
 }
 
 // Prefixes parses and returns all withdrawn IPv4 prefixes.
+//
+// Note: This method does NOT preserve ADD-PATH path-id. Use NLRIs() instead.
 func (w IPv4Withdraw) Prefixes() []netip.Prefix {
 	if len(w.withdrawn) == 0 {
 		return nil
 	}
 	return parseIPv4Prefixes(w.withdrawn)
+}
+
+// NLRIs parses and returns all withdrawn NLRIs, preserving path-id.
+// RFC 7911 Section 3: When hasAddPath is true, each NLRI is prefixed with 4-byte path-id.
+// Returns error if bytes are malformed.
+func (w IPv4Withdraw) NLRIs(hasAddPath bool) ([]nlri.NLRI, error) {
+	if len(w.withdrawn) == 0 {
+		return nil, nil
+	}
+	return parseNLRIs(w.withdrawn, nlri.IPv4Unicast, hasAddPath)
+}
+
+// parseNLRIs parses a sequence of NLRIs using the nlri package.
+// RFC 7911 Section 3: When hasAddPath is true, each NLRI is prefixed with 4-byte path-id.
+// Supports IPv4/IPv6 unicast. Other families return error.
+func parseNLRIs(data []byte, family nlri.Family, hasAddPath bool) ([]nlri.NLRI, error) {
+	var result []nlri.NLRI
+
+	for len(data) > 0 {
+		var n nlri.NLRI
+		var rest []byte
+		var err error
+
+		switch {
+		case family.AFI == nlri.AFIIPv4 && family.SAFI == nlri.SAFIUnicast:
+			n, rest, err = nlri.ParseINET(nlri.AFIIPv4, nlri.SAFIUnicast, data, hasAddPath)
+		case family.AFI == nlri.AFIIPv6 && family.SAFI == nlri.SAFIUnicast:
+			n, rest, err = nlri.ParseINET(nlri.AFIIPv6, nlri.SAFIUnicast, data, hasAddPath)
+		case family.AFI == nlri.AFIIPv4 && family.SAFI == nlri.SAFIMulticast:
+			n, rest, err = nlri.ParseINET(nlri.AFIIPv4, nlri.SAFIMulticast, data, hasAddPath)
+		case family.AFI == nlri.AFIIPv6 && family.SAFI == nlri.SAFIMulticast:
+			n, rest, err = nlri.ParseINET(nlri.AFIIPv6, nlri.SAFIMulticast, data, hasAddPath)
+		default:
+			// For other families, return what we have so far
+			// TODO: Add support for VPN, EVPN, FlowSpec, etc.
+			return result, fmt.Errorf("unsupported family for NLRI parsing: %s", family)
+		}
+
+		if err != nil {
+			return result, fmt.Errorf("parsing NLRI at offset %d: %w", len(data)-len(rest), err)
+		}
+
+		result = append(result, n)
+		data = rest
+	}
+
+	return result, nil
 }

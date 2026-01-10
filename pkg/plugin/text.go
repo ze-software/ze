@@ -2,10 +2,13 @@ package plugin
 
 import (
 	"fmt"
+	"net/netip"
 	"strings"
 
 	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/attribute"
+	bgpctx "codeberg.org/thomas-mangin/zebgp/pkg/bgp/context"
 	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/message"
+	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/nlri"
 )
 
 // Encoding constants for process output formatting.
@@ -43,7 +46,13 @@ func FormatMessage(peer PeerInfo, msg RawMessage, content ContentConfig) string 
 			return formatEmptyUpdate(peer, content)
 		}
 
-		return formatFromFilterResult(peer, msg, content, result)
+		// Get encoding context for ADD-PATH state
+		var encCtx *bgpctx.EncodingContext
+		if msg.AttrsWire != nil {
+			encCtx = bgpctx.Registry.Get(msg.AttrsWire.SourceContext())
+		}
+
+		return formatFromFilterResult(peer, msg, content, result, encCtx)
 	}
 
 	// Non-UPDATE messages: format as raw
@@ -89,14 +98,15 @@ func formatNonUpdate(peer PeerInfo, msg RawMessage, content ContentConfig) strin
 
 // formatFromFilterResult formats UPDATE using lazy-parsed FilterResult.
 // This is the optimized path that only parses requested attributes.
-func formatFromFilterResult(peer PeerInfo, msg RawMessage, content ContentConfig, result FilterResult) string {
+// ctx provides ADD-PATH state per family (nil means no ADD-PATH).
+func formatFromFilterResult(peer PeerInfo, msg RawMessage, content ContentConfig, result FilterResult, ctx *bgpctx.EncodingContext) string {
 	switch content.Format {
 	case FormatRaw:
 		return formatRawFromResult(peer, msg, content)
 	case FormatFull:
-		return formatFullFromResult(peer, msg, content, result)
+		return formatFullFromResult(peer, msg, content, result, ctx)
 	default: // FormatParsed
-		return formatParsedFromResult(peer, msg, content, result)
+		return formatParsedFromResult(peer, msg, content, result, ctx)
 	}
 }
 
@@ -111,17 +121,19 @@ func formatRawFromResult(peer PeerInfo, msg RawMessage, content ContentConfig) s
 }
 
 // formatParsedFromResult formats parsed UPDATE using FilterResult.
-func formatParsedFromResult(peer PeerInfo, msg RawMessage, content ContentConfig, result FilterResult) string {
+// ctx provides ADD-PATH state per family.
+func formatParsedFromResult(peer PeerInfo, msg RawMessage, content ContentConfig, result FilterResult, ctx *bgpctx.EncodingContext) string {
 	if content.Encoding == EncodingJSON {
-		return formatFilterResultJSON(peer, result, msg.MessageID, msg.Direction)
+		return formatFilterResultJSON(peer, result, msg.MessageID, msg.Direction, ctx)
 	}
-	return formatFilterResultText(peer, result, msg.MessageID, msg.Direction)
+	return formatFilterResultText(peer, result, msg.MessageID, msg.Direction, ctx)
 }
 
 // formatFullFromResult formats both parsed content AND raw hex.
-func formatFullFromResult(peer PeerInfo, msg RawMessage, content ContentConfig, result FilterResult) string {
+// ctx provides ADD-PATH state per family.
+func formatFullFromResult(peer PeerInfo, msg RawMessage, content ContentConfig, result FilterResult, ctx *bgpctx.EncodingContext) string {
 	rawHex := fmt.Sprintf("%x", msg.RawBytes)
-	parsed := formatParsedFromResult(peer, msg, content, result)
+	parsed := formatParsedFromResult(peer, msg, content, result, ctx)
 
 	if content.Encoding == EncodingJSON {
 		// Inject raw bytes into JSON: replace trailing "}\n" with ,"raw":"hex"}\n
@@ -137,7 +149,8 @@ func formatFullFromResult(peer PeerInfo, msg RawMessage, content ContentConfig, 
 
 // formatFilterResultJSON formats FilterResult as JSON.
 // Uses AnnouncedByFamily()/WithdrawnByFamily() for RFC 4760-correct next-hop per family.
-func formatFilterResultJSON(peer PeerInfo, result FilterResult, msgID uint64, direction string) string {
+// ctx provides ADD-PATH state per family.
+func formatFilterResultJSON(peer PeerInfo, result FilterResult, msgID uint64, direction string, ctx *bgpctx.EncodingContext) string {
 	var sb strings.Builder
 
 	// Message wrapper with type and optional id
@@ -167,7 +180,7 @@ func formatFilterResultJSON(peer PeerInfo, result FilterResult, msgID uint64, di
 	}
 
 	// Announced routes - grouped by family with per-family next-hop
-	announced := result.AnnouncedByFamily()
+	announced := result.AnnouncedByFamily(ctx)
 	if len(announced) > 0 {
 		sb.WriteString(`,"announce":{`)
 
@@ -183,13 +196,11 @@ func formatFilterResultJSON(peer PeerInfo, result FilterResult, msgID uint64, di
 			sb.WriteString(`":{"`)
 			sb.WriteString(fam.NextHop.String())
 			sb.WriteString(`":[`)
-			for i, p := range fam.Prefixes {
+			for i, n := range fam.NLRIs {
 				if i > 0 {
 					sb.WriteString(",")
 				}
-				sb.WriteString(`"`)
-				sb.WriteString(p.String())
-				sb.WriteString(`"`)
+				formatNLRIJSON(&sb, n)
 			}
 			sb.WriteString("]}")
 			first = false
@@ -198,8 +209,8 @@ func formatFilterResultJSON(peer PeerInfo, result FilterResult, msgID uint64, di
 		sb.WriteString(`}`)
 	}
 
-	// Withdrawn routes - no attributes, just family -> [prefixes]
-	withdrawn := result.WithdrawnByFamily()
+	// Withdrawn routes - no attributes, just family -> [nlris]
+	withdrawn := result.WithdrawnByFamily(ctx)
 	if len(withdrawn) > 0 {
 		sb.WriteString(`,"withdraw":{`)
 		first := true
@@ -211,13 +222,11 @@ func formatFilterResultJSON(peer PeerInfo, result FilterResult, msgID uint64, di
 			sb.WriteString(`"`)
 			sb.WriteString(familyKey)
 			sb.WriteString(`":[`)
-			for i, p := range fam.Prefixes {
+			for i, n := range fam.NLRIs {
 				if i > 0 {
 					sb.WriteString(",")
 				}
-				sb.WriteString(`"`)
-				sb.WriteString(p.String())
-				sb.WriteString(`"`)
+				formatNLRIJSON(&sb, n)
 			}
 			sb.WriteString("]")
 			first = false
@@ -227,6 +236,33 @@ func formatFilterResultJSON(peer PeerInfo, result FilterResult, msgID uint64, di
 
 	sb.WriteString("}\n")
 	return sb.String()
+}
+
+// prefixer is implemented by NLRI types that have a Prefix() method.
+type prefixer interface {
+	Prefix() netip.Prefix
+}
+
+// formatNLRIJSON formats a single NLRI as JSON.
+// RFC 7911: Outputs structured format with path-id when present.
+// Format: {"prefix":"10.0.0.0/24"} or {"prefix":"10.0.0.0/24","path-id":1}.
+func formatNLRIJSON(sb *strings.Builder, n nlri.NLRI) {
+	sb.WriteString(`{"prefix":"`)
+
+	// Use type assertion to get prefix cleanly
+	if p, ok := n.(prefixer); ok {
+		sb.WriteString(p.Prefix().String())
+	} else {
+		// Fallback for complex NLRI types (EVPN, FlowSpec, etc.)
+		sb.WriteString(n.String())
+	}
+	sb.WriteString(`"`)
+
+	if pathID := n.PathID(); pathID != 0 {
+		fmt.Fprintf(sb, `,"path-id":%d`, pathID)
+	}
+
+	sb.WriteString(`}`)
 }
 
 // formatAttributesJSON formats attributes from FilterResult for JSON.
@@ -334,14 +370,15 @@ func formatAttributeJSON(sb *strings.Builder, code attribute.AttributeCode, attr
 
 // formatFilterResultText formats FilterResult as text.
 // Uses AnnouncedByFamily()/WithdrawnByFamily() for RFC 4760-correct next-hop per family.
-func formatFilterResultText(peer PeerInfo, result FilterResult, msgID uint64, direction string) string {
+// ctx provides ADD-PATH state per family.
+func formatFilterResultText(peer PeerInfo, result FilterResult, msgID uint64, direction string, ctx *bgpctx.EncodingContext) string {
 	var sb strings.Builder
 
 	// Build prefix: peer <ip> <direction> update <id>
 	prefix := fmt.Sprintf("peer %s %s update %d", peer.Address, direction, msgID)
 
 	// Announced routes - grouped by family with per-family next-hop
-	announced := result.AnnouncedByFamily()
+	announced := result.AnnouncedByFamily(ctx)
 	if len(announced) > 0 {
 		sb.WriteString(prefix)
 		sb.WriteString(" announce")
@@ -357,9 +394,9 @@ func formatFilterResultText(peer PeerInfo, result FilterResult, msgID uint64, di
 			sb.WriteString(" next-hop ")
 			sb.WriteString(fam.NextHop.String())
 			sb.WriteString(" nlri")
-			for _, p := range fam.Prefixes {
+			for _, n := range fam.NLRIs {
 				sb.WriteString(" ")
-				sb.WriteString(p.String())
+				sb.WriteString(n.String())
 			}
 		}
 
@@ -367,7 +404,7 @@ func formatFilterResultText(peer PeerInfo, result FilterResult, msgID uint64, di
 	}
 
 	// Withdrawn routes - no attributes
-	withdrawn := result.WithdrawnByFamily()
+	withdrawn := result.WithdrawnByFamily(ctx)
 	if len(withdrawn) > 0 {
 		sb.WriteString(prefix)
 		sb.WriteString(" withdraw")
@@ -377,9 +414,9 @@ func formatFilterResultText(peer PeerInfo, result FilterResult, msgID uint64, di
 			sb.WriteString(" ")
 			sb.WriteString(familyKey)
 			sb.WriteString(" nlri")
-			for _, p := range fam.Prefixes {
+			for _, n := range fam.NLRIs {
 				sb.WriteString(" ")
-				sb.WriteString(p.String())
+				sb.WriteString(n.String())
 			}
 		}
 
