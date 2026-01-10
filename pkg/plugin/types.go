@@ -92,6 +92,11 @@ type ReactorStats struct {
 // PathAttributes holds BGP path attributes common to all route types.
 // These attributes are optional - nil values use protocol defaults.
 // Embedding this struct in route types ensures consistency and reduces duplication.
+//
+// DEPRECATED: This parsed representation will be removed in a future version.
+// Use WireUpdate.AttrIterator() for zero-copy attribute access, and
+// format functions from format_buffer.go for direct output formatting.
+// See docs/architecture/buffer-architecture.md for the migration path.
 type PathAttributes struct {
 	Origin              *uint8                        // 0=IGP, 1=EGP, 2=INCOMPLETE (nil = use default)
 	LocalPreference     *uint32                       // LOCAL_PREF (nil = use default 100 for iBGP)
@@ -439,6 +444,11 @@ type StateChangeReceiver interface {
 }
 
 // RIBRoute is an API-friendly representation of a route.
+//
+// Deprecated: This parsed representation will be removed in a future version.
+// Use Route.AttrIterator() for zero-copy attribute access, and format
+// functions from format_buffer.go for direct output formatting.
+// See docs/architecture/buffer-architecture.md for the migration path.
 type RIBRoute struct {
 	Peer    string `json:"peer,omitempty"`
 	Prefix  string `json:"prefix"`

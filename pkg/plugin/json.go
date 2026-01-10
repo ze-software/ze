@@ -311,6 +311,11 @@ func (e *JSONEncoder) marshal(msg map[string]any) string {
 }
 
 // RouteUpdate represents a route for JSON encoding.
+//
+// Deprecated: This parsed representation will be removed in a future version.
+// Use format functions from format_buffer.go (FormatPrefixFromBytes,
+// FormatASPathJSON, etc.) to format directly from wire bytes.
+// See docs/architecture/buffer-architecture.md for the migration path.
 type RouteUpdate struct {
 	Prefix  string // e.g., "10.0.0.0/24"
 	NextHop string // e.g., "192.168.1.1"

@@ -401,6 +401,10 @@ type MessageInfo struct {
 }
 
 // UpdateInfo contains UPDATE message details.
+//
+// Deprecated: This parsed representation will be removed in a future version.
+// Use WireUpdate with iterator methods for zero-copy access.
+// See docs/architecture/buffer-architecture.md for the migration path.
 type UpdateInfo struct {
 	Announce map[string]map[string]any `json:"announce,omitempty"`
 	Withdraw map[string][]string       `json:"withdraw,omitempty"`

@@ -195,15 +195,18 @@ Removal deferred to Phase 6 after verifying no code depends on it.
 ### Phase 5: Deprecate Parsed Types
 
 Mark for removal:
-- `plugin.PathAttributes` struct
-- `plugin.RouteUpdate` struct
-- Slice-returning methods
+- `plugin.PathAttributes` struct ✅ (types.go:96-98)
+- `plugin.RouteUpdate` struct ✅ (json.go:315-317)
+- `rr.UpdateInfo` struct ✅ (server.go:405-407)
 
-Add deprecation comments:
-```go
-// Deprecated: Use AttrIterator instead. Will be removed.
-func (u *Update) Attributes() []attribute.Attribute
-```
+**Already deprecated with comments pointing to:**
+- `WireUpdate.AttrIterator()` for zero-copy attribute access
+- `format_buffer.go` functions for direct output formatting
+- `docs/architecture/buffer-architecture.md` for migration path
+
+**Verification (2026-01-10):**
+- [x] All target types have deprecation comments
+- [x] Comments reference replacement APIs
 
 ### Phase 6: Remove Deprecated Code
 
