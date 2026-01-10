@@ -322,3 +322,39 @@ func (r *Route) Release() bool {
 	newCount := r.refCount.Add(-1)
 	return newCount <= 0
 }
+
+// AttrIterator returns an iterator over the cached attribute wire bytes.
+// Returns nil if route has no wire cache (wireBytes is empty).
+//
+// The iterator provides zero-copy access to path attributes stored in wireBytes.
+// Use this instead of Attributes() when you only need to iterate without
+// building a slice of parsed Attribute objects.
+func (r *Route) AttrIterator() *attribute.AttrIterator {
+	if len(r.wireBytes) == 0 {
+		return nil
+	}
+	return attribute.NewAttrIterator(r.wireBytes)
+}
+
+// ASPathIterator returns an iterator over the AS-PATH attribute in wireBytes.
+// Returns nil if route has no wire cache or no AS_PATH attribute.
+// Set asn4=true for 4-byte ASN encoding, false for 2-byte.
+//
+// The iterator provides zero-copy access to AS-PATH segments.
+// Use this instead of ASPath() when you only need to iterate without
+// building parsed ASPathSegment slices.
+func (r *Route) ASPathIterator(asn4 bool) *attribute.ASPathIterator {
+	if len(r.wireBytes) == 0 {
+		return nil
+	}
+
+	// Find AS_PATH attribute in wireBytes
+	iter := attribute.NewAttrIterator(r.wireBytes)
+	for typeCode, _, value, ok := iter.Next(); ok; typeCode, _, value, ok = iter.Next() {
+		if typeCode == attribute.AttrASPath {
+			asPathBytes := value.Slice(r.wireBytes)
+			return attribute.NewASPathIterator(asPathBytes, asn4)
+		}
+	}
+	return nil
+}

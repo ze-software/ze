@@ -180,12 +180,17 @@ func (r *Route) AttrIterator() *attribute.AttrIterator
 func (r *Route) ASPathIterator(asn4 bool) *attribute.ASPathIterator
 ```
 
-Remove parsed attribute storage (if safe):
-- [ ] Verify no code depends on `r.attributes` slice
-- [ ] Keep wire bytes only
+**Files modified:**
+- `pkg/rib/route.go` ✅
+- `pkg/rib/route_iter_test.go` ✅ (5 tests)
 
-**Files to modify:**
-- `pkg/rib/route.go`
+**Note:** Parsed attribute storage (`attributes` slice) kept for now.
+Removal deferred to Phase 6 after verifying no code depends on it.
+
+**Verification (2026-01-10):**
+- [x] `make test` passes
+- [x] `make lint` passes (0 issues)
+- [x] `make functional` passes (80 tests)
 
 ### Phase 5: Deprecate Parsed Types
 
@@ -258,8 +263,8 @@ After all consumers migrated:
 - [x] Phase 2 implementation complete, tests PASS
 - [x] Phase 3 tests written and FAIL
 - [x] Phase 3 implementation complete, tests PASS
-- [ ] Phase 4 tests written and FAIL
-- [ ] Phase 4 implementation complete, tests PASS
+- [x] Phase 4 tests written and FAIL
+- [x] Phase 4 implementation complete, tests PASS
 
 ### Verification
 - [x] `make lint` passes
