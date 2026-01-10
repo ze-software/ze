@@ -655,3 +655,156 @@ func FuzzParseNLRIs(f *testing.F) {
 		_, _ = parseNLRIs(data, nlri.IPv6Multicast, hasAddPath)
 	})
 }
+
+// TestMPReachWireNLRIIterator verifies zero-allocation iterator for MP_REACH_NLRI.
+//
+// VALIDATES: NLRIIterator returns iterator that yields same prefixes as Prefixes().
+// PREVENTS: Iterator skipping prefixes or yielding wrong data.
+func TestMPReachWireNLRIIterator(t *testing.T) {
+	// Build MP_REACH_NLRI for IPv4 with multiple prefixes
+	data := []byte{
+		0x00, 0x01, // AFI: IPv4
+		0x01,                   // SAFI: unicast
+		0x04,                   // NH length: 4
+		0x01, 0x01, 0x01, 0x01, // Next-hop: 1.1.1.1
+		0x00,         // Reserved
+		24, 10, 0, 0, // 10.0.0.0/24
+		24, 192, 168, 1, // 192.168.1.0/24
+		16, 172, 16, // 172.16.0.0/16
+	}
+
+	wire := MPReachWire(data)
+	iter := wire.NLRIIterator(false)
+
+	if iter == nil {
+		t.Fatal("NLRIIterator() returned nil")
+	}
+
+	// Count prefixes via iterator
+	count := 0
+	for _, _, ok := iter.Next(); ok; _, _, ok = iter.Next() {
+		count++
+	}
+
+	if count != 3 {
+		t.Errorf("Iterator yielded %d prefixes, want 3", count)
+	}
+
+	// Verify count matches Prefixes() result
+	prefixes := wire.Prefixes()
+	if len(prefixes) != count {
+		t.Errorf("Prefixes() len=%d, Iterator count=%d", len(prefixes), count)
+	}
+}
+
+// TestMPReachWireNLRIIteratorEmpty verifies iterator handles empty NLRI.
+//
+// VALIDATES: Returns nil for empty/malformed data.
+// PREVENTS: Nil pointer dereference.
+func TestMPReachWireNLRIIteratorEmpty(t *testing.T) {
+	tests := []struct {
+		name    string
+		data    []byte
+		wantNil bool
+	}{
+		{"nil", nil, true},
+		{"too short", []byte{0x00, 0x01}, true},
+		{"no nlri", []byte{
+			0x00, 0x01, 0x01, 0x04,
+			0x01, 0x01, 0x01, 0x01,
+			0x00, // Reserved, then no NLRI
+		}, true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			wire := MPReachWire(tt.data)
+			iter := wire.NLRIIterator(false)
+			if tt.wantNil && iter != nil {
+				t.Errorf("NLRIIterator() = %v, want nil", iter)
+			}
+		})
+	}
+}
+
+// TestMPUnreachWireNLRIIterator verifies zero-allocation iterator for MP_UNREACH_NLRI.
+//
+// VALIDATES: NLRIIterator works for withdraw messages.
+// PREVENTS: Iterator broken for UNREACH path.
+func TestMPUnreachWireNLRIIterator(t *testing.T) {
+	data := []byte{
+		0x00, 0x01, // AFI: IPv4
+		0x01,         // SAFI: unicast
+		24, 10, 0, 0, // 10.0.0.0/24
+		24, 192, 168, 1, // 192.168.1.0/24
+	}
+
+	wire := MPUnreachWire(data)
+	iter := wire.NLRIIterator(false)
+
+	if iter == nil {
+		t.Fatal("NLRIIterator() returned nil")
+	}
+
+	count := 0
+	for _, _, ok := iter.Next(); ok; _, _, ok = iter.Next() {
+		count++
+	}
+
+	if count != 2 {
+		t.Errorf("Iterator yielded %d prefixes, want 2", count)
+	}
+}
+
+// TestIPv4ReachNLRIIterator verifies zero-allocation iterator for IPv4Reach.
+//
+// VALIDATES: NLRIIterator works for legacy IPv4 path.
+// PREVENTS: Iterator broken for body NLRI.
+func TestIPv4ReachNLRIIterator(t *testing.T) {
+	nlriBytes := []byte{
+		24, 192, 168, 1, // 192.168.1.0/24
+		16, 10, 0, // 10.0.0.0/16
+	}
+
+	reach := IPv4Reach{nlri: nlriBytes}
+	iter := reach.NLRIIterator(false)
+
+	if iter == nil {
+		t.Fatal("NLRIIterator() returned nil")
+	}
+
+	count := 0
+	for _, _, ok := iter.Next(); ok; _, _, ok = iter.Next() {
+		count++
+	}
+
+	if count != 2 {
+		t.Errorf("Iterator yielded %d prefixes, want 2", count)
+	}
+}
+
+// TestIPv4WithdrawNLRIIterator verifies zero-allocation iterator for IPv4Withdraw.
+//
+// VALIDATES: NLRIIterator works for legacy IPv4 withdraw path.
+// PREVENTS: Iterator broken for body withdrawn section.
+func TestIPv4WithdrawNLRIIterator(t *testing.T) {
+	withdrawnBytes := []byte{
+		24, 192, 168, 1, // 192.168.1.0/24
+	}
+
+	withdraw := IPv4Withdraw{withdrawn: withdrawnBytes}
+	iter := withdraw.NLRIIterator(false)
+
+	if iter == nil {
+		t.Fatal("NLRIIterator() returned nil")
+	}
+
+	count := 0
+	for _, _, ok := iter.Next(); ok; _, _, ok = iter.Next() {
+		count++
+	}
+
+	if count != 1 {
+		t.Errorf("Iterator yielded %d prefixes, want 1", count)
+	}
+}

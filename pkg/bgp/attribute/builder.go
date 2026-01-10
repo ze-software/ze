@@ -2,6 +2,7 @@ package attribute
 
 import (
 	"encoding/binary"
+	"net/netip"
 )
 
 // Builder accumulates path attributes and produces wire-format bytes.
@@ -16,6 +17,7 @@ import (
 //	wireBytes := b.Build()
 type Builder struct {
 	origin           *uint8
+	nextHop          *[4]byte // IPv4 next-hop (type 3)
 	localPref        *uint32
 	med              *uint32
 	asPath           []uint32
@@ -49,6 +51,26 @@ func (b *Builder) SetLocalPref(pref uint32) *Builder {
 // SetMED sets the MULTI_EXIT_DISC attribute.
 func (b *Builder) SetMED(med uint32) *Builder {
 	b.med = &med
+	return b
+}
+
+// SetNextHop sets the NEXT_HOP attribute from raw bytes (IPv4 only, type code 3).
+// RFC 4271 Section 5.1.3 - well-known mandatory for IPv4 unicast.
+// For IPv6, use MP_REACH_NLRI instead.
+// The bytes are copied as-is (network byte order).
+func (b *Builder) SetNextHop(ip [4]byte) *Builder {
+	b.nextHop = &ip
+	return b
+}
+
+// SetNextHopAddr sets the NEXT_HOP attribute from netip.Addr.
+// Only IPv4 addresses are valid; IPv6 returns the builder unchanged.
+func (b *Builder) SetNextHopAddr(addr netip.Addr) *Builder {
+	if !addr.Is4() {
+		return b
+	}
+	ip := addr.As4()
+	b.nextHop = &ip
 	return b
 }
 
@@ -121,6 +143,11 @@ func (b *Builder) Build() []byte {
 		} else {
 			size += 3 + asPathLen
 		}
+	}
+
+	// NEXT_HOP (type 3) - well-known mandatory for IPv4 unicast
+	if b.nextHop != nil {
+		size += 7 // header(3) + value(4)
 	}
 
 	// MED
@@ -204,6 +231,16 @@ func (b *Builder) Build() []byte {
 			binary.BigEndian.PutUint32(buf[off:], asn)
 			off += 4
 		}
+	}
+
+	// NEXT_HOP (type 3) - well-known mandatory for IPv4 unicast
+	// RFC 4271 Section 5.1.3
+	if b.nextHop != nil {
+		buf[off] = 0x40 // Transitive
+		buf[off+1] = 3  // NEXT_HOP
+		buf[off+2] = 4  // Length (IPv4)
+		copy(buf[off+3:], b.nextHop[:])
+		off += 7
 	}
 
 	// MED (type 4) - optional non-transitive
@@ -300,6 +337,7 @@ func (b *Builder) Build() []byte {
 // IsEmpty returns true if no attributes have been set.
 func (b *Builder) IsEmpty() bool {
 	return b.origin == nil &&
+		b.nextHop == nil &&
 		b.localPref == nil &&
 		b.med == nil &&
 		len(b.asPath) == 0 &&
@@ -313,6 +351,7 @@ func (b *Builder) IsEmpty() bool {
 // Reset clears all attributes.
 func (b *Builder) Reset() {
 	b.origin = nil
+	b.nextHop = nil
 	b.localPref = nil
 	b.med = nil
 	b.asPath = nil

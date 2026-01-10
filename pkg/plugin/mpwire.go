@@ -124,6 +124,31 @@ func (m MPReachWire) NLRIs(hasAddPath bool) ([]nlri.NLRI, error) {
 	return parseNLRIs(nlriBytes, family, hasAddPath)
 }
 
+// NLRIIterator returns a zero-allocation iterator over the NLRI section.
+// RFC 7911 Section 3: When addPath is true, each NLRI is prefixed with 4-byte path-id.
+// Returns nil if data is malformed or empty.
+//
+// Use this for zero-copy iteration instead of NLRIs() which allocates a slice.
+func (m MPReachWire) NLRIIterator(addPath bool) *nlri.NLRIIterator {
+	if len(m) < 5 {
+		return nil
+	}
+
+	nhLen := int(m[3])
+	// NLRI starts after: AFI(2) + SAFI(1) + NHLen(1) + NextHop(nhLen) + Reserved(1)
+	nlriOffset := 4 + nhLen + 1
+	if nlriOffset > len(m) {
+		return nil
+	}
+
+	nlriBytes := m[nlriOffset:]
+	if len(nlriBytes) == 0 {
+		return nil
+	}
+
+	return nlri.NewNLRIIterator(nlriBytes, addPath)
+}
+
 // MPUnreachWire wraps MP_UNREACH_NLRI attribute bytes for zero-copy lazy parsing.
 // RFC 4760 Section 4: AFI(2) + SAFI(1) + Withdrawn Routes
 //
@@ -195,6 +220,25 @@ func (m MPUnreachWire) NLRIs(hasAddPath bool) ([]nlri.NLRI, error) {
 	return parseNLRIs(withdrawnBytes, family, hasAddPath)
 }
 
+// NLRIIterator returns a zero-allocation iterator over the withdrawn NLRI section.
+// RFC 7911 Section 3: When addPath is true, each NLRI is prefixed with 4-byte path-id.
+// Returns nil if data is malformed or empty.
+//
+// Use this for zero-copy iteration instead of NLRIs() which allocates a slice.
+func (m MPUnreachWire) NLRIIterator(addPath bool) *nlri.NLRIIterator {
+	if len(m) < 3 {
+		return nil
+	}
+
+	// Withdrawn routes start after AFI(2) + SAFI(1)
+	withdrawnBytes := m[3:]
+	if len(withdrawnBytes) == 0 {
+		return nil
+	}
+
+	return nlri.NewNLRIIterator(withdrawnBytes, addPath)
+}
+
 // IPv4Reach holds zero-copy slices into UPDATE body for legacy IPv4 unicast.
 // RFC 4271: IPv4 unicast uses body structure, not MP attributes.
 type IPv4Reach struct {
@@ -234,6 +278,15 @@ func (r IPv4Reach) NLRIs(hasAddPath bool) ([]nlri.NLRI, error) {
 	return parseNLRIs(r.nlri, nlri.IPv4Unicast, hasAddPath)
 }
 
+// NLRIIterator returns a zero-allocation iterator over the NLRI section.
+// Returns nil if nlri is empty.
+func (r IPv4Reach) NLRIIterator(addPath bool) *nlri.NLRIIterator {
+	if len(r.nlri) == 0 {
+		return nil
+	}
+	return nlri.NewNLRIIterator(r.nlri, addPath)
+}
+
 // IPv4Withdraw holds zero-copy slice into UPDATE body for withdrawn routes.
 type IPv4Withdraw struct {
 	withdrawn []byte // slice to body withdrawn section
@@ -257,6 +310,15 @@ func (w IPv4Withdraw) NLRIs(hasAddPath bool) ([]nlri.NLRI, error) {
 		return nil, nil
 	}
 	return parseNLRIs(w.withdrawn, nlri.IPv4Unicast, hasAddPath)
+}
+
+// NLRIIterator returns a zero-allocation iterator over the withdrawn section.
+// Returns nil if withdrawn is empty.
+func (w IPv4Withdraw) NLRIIterator(addPath bool) *nlri.NLRIIterator {
+	if len(w.withdrawn) == 0 {
+		return nil
+	}
+	return nlri.NewNLRIIterator(w.withdrawn, addPath)
 }
 
 // parseNLRIs parses a sequence of NLRIs using the nlri package.

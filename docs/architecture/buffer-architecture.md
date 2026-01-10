@@ -12,7 +12,7 @@
 | Phase 3 | ✅ Done | Direct formatting functions (FormatPrefixFromBytes, FormatASPathJSON, etc.) |
 | Phase 4 | ✅ Done | RIB migration (Route.AttrIterator, Route.ASPathIterator) |
 | Phase 5 | ✅ Done | Deprecate parsed types (PathAttributes, RouteUpdate, UpdateInfo) |
-| Phase 6 | ⏳ Pending | Remove deprecated code |
+| Phase 6 | ⚠️ Partial | RouteJSON, Builder done; PathAttributes removal deferred (see `spec-pathattributes-removal.md`) |
 
 See `docs/plan/spec-buffer-first-migration.md` for detailed implementation plan.
 

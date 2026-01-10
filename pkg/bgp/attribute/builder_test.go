@@ -1,6 +1,7 @@
 package attribute
 
 import (
+	"net/netip"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -190,5 +191,55 @@ func TestBuilderReset(t *testing.T) {
 	assert.True(t, b.IsEmpty())
 	wire := b.Build()
 	// Should just have default ORIGIN
+	assert.Len(t, wire, 4)
+}
+
+// TestBuilderNextHop verifies NEXT_HOP attribute encoding.
+//
+// VALIDATES: Builder produces correct NEXT_HOP wire format.
+// PREVENTS: Routing failures from malformed next-hop.
+func TestBuilderNextHop(t *testing.T) {
+	b := NewBuilder()
+	b.SetNextHop([4]byte{192, 168, 1, 1})
+
+	wire := b.Build()
+
+	// ORIGIN (4) + NEXT_HOP (7) = 11
+	require.Len(t, wire, 11)
+
+	// Check NEXT_HOP at offset 4
+	assert.Equal(t, byte(0x40), wire[4])              // Transitive
+	assert.Equal(t, byte(3), wire[5])                 // NEXT_HOP
+	assert.Equal(t, byte(4), wire[6])                 // Length
+	assert.Equal(t, []byte{192, 168, 1, 1}, wire[7:]) // IP address
+}
+
+// TestBuilderNextHopAddr verifies NEXT_HOP from netip.Addr.
+//
+// VALIDATES: SetNextHopAddr correctly converts netip.Addr.
+// PREVENTS: Address conversion errors.
+func TestBuilderNextHopAddr(t *testing.T) {
+	b := NewBuilder()
+	addr := netip.MustParseAddr("10.0.0.1")
+	b.SetNextHopAddr(addr)
+
+	wire := b.Build()
+
+	// Check NEXT_HOP value
+	assert.Equal(t, []byte{10, 0, 0, 1}, wire[7:11])
+}
+
+// TestBuilderNextHopAddrIPv6Ignored verifies IPv6 is ignored for NEXT_HOP.
+//
+// VALIDATES: IPv6 addresses don't set NEXT_HOP attribute.
+// PREVENTS: Invalid NEXT_HOP encoding for IPv6 routes.
+func TestBuilderNextHopAddrIPv6Ignored(t *testing.T) {
+	b := NewBuilder()
+	addr := netip.MustParseAddr("2001:db8::1")
+	b.SetNextHopAddr(addr)
+
+	wire := b.Build()
+
+	// Should only have ORIGIN (no NEXT_HOP for IPv6)
 	assert.Len(t, wire, 4)
 }

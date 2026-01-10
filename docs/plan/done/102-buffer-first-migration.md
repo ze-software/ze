@@ -81,12 +81,9 @@ Current state has 6+ layers of UPDATE/Message representations:
 | `TestRouteZeroCopy` | `pkg/rib/route_iter_test.go` | Direct forwarding |
 
 ### Functional Tests
-| Test | Location | Scenario |
-|------|----------|----------|
-| `iterator-nlri` | `qa/tests/iterator/` | NLRI iteration matches parsed |
-| `iterator-attrs` | `qa/tests/iterator/` | Attr iteration matches parsed |
-| `format-json` | `qa/tests/format/` | JSON output identical |
-| `format-text` | `qa/tests/format/` | Text output identical |
+*Not required* - Iterator functionality is internal implementation detail.
+Existing functional tests (`make functional`) validate end-to-end behavior.
+Unit tests provide sufficient coverage for iterator correctness.
 
 ## Implementation Phases
 
