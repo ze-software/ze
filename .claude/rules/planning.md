@@ -2,6 +2,27 @@
 
 **BLOCKING:** Before implementing ANY non-trivial feature, complete this planning process.
 
+## No Code Without Understanding
+
+**CRITICAL:** You are NOT ALLOWED to write any code until you:
+
+1. **Search the codebase** - Find similar patterns, related code, existing solutions
+2. **Read relevant files** - Understand current implementation and architecture
+3. **Identify reuse opportunities** - Extend existing code, don't duplicate
+4. **Understand data flow** - Know how data moves through the system
+5. **Check architecture docs** - Read docs matching your task keywords (see table below)
+
+**Why this matters:**
+- Prevents duplicate code and conflicting patterns
+- Avoids breaking existing functionality
+- Ensures changes fit the architecture
+- Saves time by reusing existing solutions
+
+**Verification:** Before writing code, you should be able to explain:
+- What existing code does this relate to?
+- What patterns does the codebase use for this?
+- How will your changes integrate with existing code?
+
 ## When Planning is Required
 
 - New features or significant changes

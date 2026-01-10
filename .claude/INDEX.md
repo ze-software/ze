@@ -24,6 +24,7 @@ Read when working on specific areas:
 
 | Rule | Applies To |
 |------|------------|
+| `rules/understand-first.md` | `*` (BLOCKING - before any code) |
 | `rules/planning.md` | `*` (non-trivial features) |
 | `rules/tdd.md` | `**/*.go` |
 | `rules/testing.md` | `*` (CI, functional tests) |
