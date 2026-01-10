@@ -256,7 +256,7 @@ See [msg-id Cache Control](#msg-id-cache-control) for details.
         ↓
 4. API: Update zebgp plugin rr to use wire bytes + pool
         ↓
-5. API: Update zebgp plugin persist with msg-id control
+5. API: Update zebgp plugin rib with msg-id control
         ↓
 6. Engine: Remove RIB storage from reactor (API owns)
         ↓

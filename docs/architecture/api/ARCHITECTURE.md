@@ -18,7 +18,7 @@
 | Session sync | ✅ Done | `session.go` |
 | JSON/text encoding | ✅ Done | `json.go`, `text.go` |
 | RR plugin | ✅ Done | `rr/server.go` |
-| Persist plugin | ✅ Done | `persist/persist.go` |
+| RIB plugin | ✅ Done | `rib/rib.go` |
 | msg-id cache control | ❌ Not impl | Documented but no handlers |
 | borr/eorr markers | ❌ Not impl | Enhanced RR incomplete |
 
@@ -978,32 +978,39 @@ Process stdin
 
 ---
 
-## Persist Plugin and Route Replay
+## RIB Plugin and Route Replay
 
-The persist plugin (`pkg/plugin/persist/`) tracks routes sent to peers and replays them on session re-establishment.
+The RIB plugin (`pkg/plugin/rib/`) tracks routes received from peers (Adj-RIB-In) and sent to peers (Adj-RIB-Out), replaying outgoing routes on session re-establishment.
 
-### Persist Flow
+### RIB Plugin Features
+
+| RIB | Purpose | Events |
+|-----|---------|--------|
+| Adj-RIB-In | Routes received FROM peers | `update` (received) |
+| Adj-RIB-Out | Routes sent TO peers | `sent` |
+
+### RIB Flow
 
 ```
 Session A established
     │ API sends route1
     ▼
 Engine sends UPDATE to peer
-    │ Persist receives "sent" event with route1
+    │ RIB receives "sent" event with route1
     ▼
-Persist stores: ribOut[peerAddr][prefix] = route1
+RIB stores: ribOut[peerAddr][prefix] = route1
     │
     ▼ Session A teardown
     │
     ▼ Session B establishes
     │
-Persist receives "state up"
+RIB receives "state up"
     │ Looks up ribOut[peerAddr]
     ▼
-Persist replays: "peer <addr> announce route <prefix> ..."
+RIB replays: "peer <addr> announce route <prefix> ..."
     │
     ▼
-Persist signals: "peer <addr> session api ready"
+RIB signals: "peer <addr> session api ready"
 ```
 
 ### API Sync Protocol
@@ -1012,8 +1019,8 @@ To ensure routes are replayed before EOR is sent, the engine uses an API sync pr
 
 1. **Session establishment:** Engine counts API bindings with `SendUpdate` permission
 2. **ResetAPISync(count):** Peer initializes sync state with expected signal count
-3. **Persist replays routes:** After "state up", replays stored routes
-4. **Persist signals ready:** `"peer <addr> session api ready"`
+3. **RIB replays routes:** After "state up", replays stored routes
+4. **RIB signals ready:** `"peer <addr> session api ready"`
 5. **SignalPeerAPIReady:** Engine decrements counter, closes channel when all received
 6. **sendInitialRoutes:** Waits up to 500ms for API sync before sending EOR
 
@@ -1040,7 +1047,7 @@ if needsAPIWait {
 | `pkg/plugin/types.go` | ReactorInterface, RouteSpec |
 | `pkg/plugin/text.go` | Text/JSON formatting including FormatStateChange |
 | `pkg/plugin/commit_manager.go` | Transaction management |
-| `pkg/plugin/persist/persist.go` | Route persistence and replay plugin |
+| `pkg/plugin/rib/rib.go` | RIB plugin (Adj-RIB-In/Out, route replay) |
 | `pkg/reactor/reactor.go` | AnnounceRoute, PeerLifecycleObserver |
 | `pkg/reactor/peer.go` | FSM callback, reactor notification, API sync |
 | `pkg/reactor/session.go` | Session lifecycle, teardown handling |

@@ -11,6 +11,20 @@ paths:
 - Error wrapping: `fmt.Errorf("context: %w", err)`
 - Context for cancellation: `context.Context` as first param
 
+## Logging
+
+Use `log/slog` for all logging. Do NOT use the legacy `log` package.
+
+```go
+// GOOD: structured logging with slog
+slog.Warn("unexpected format", "peer", peerAddr, "expected", "[]any", "got", fmt.Sprintf("%T", v))
+
+// BAD: legacy log package
+log.Printf("unexpected format for peer %s", peerAddr)  // FORBIDDEN
+```
+
+Prefer structured key-value pairs over formatted strings.
+
 ## Error Handling
 
 ```go

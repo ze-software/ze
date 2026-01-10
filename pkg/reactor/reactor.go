@@ -107,7 +107,7 @@ type MessageReceiver interface {
 
 	// OnMessageSent is called when a BGP message is sent to a peer.
 	// Only UPDATE messages trigger sent events.
-	// Used by persist plugin to track routes for replay on reconnect.
+	// Used by RIB plugin to track routes for replay on reconnect.
 	OnMessageSent(peer plugin.PeerInfo, msg plugin.RawMessage)
 }
 

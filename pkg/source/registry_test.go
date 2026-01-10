@@ -48,7 +48,7 @@ func TestRegistryRegisterAPI(t *testing.T) {
 	r := NewRegistry()
 
 	id1 := r.RegisterAPI("rr-plugin")
-	id2 := r.RegisterAPI("persist")
+	id2 := r.RegisterAPI("rib")
 
 	if id1 == InvalidSourceID {
 		t.Error("RegisterAPI returned InvalidSourceID")

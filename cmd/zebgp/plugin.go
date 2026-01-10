@@ -15,8 +15,8 @@ func cmdPlugin(args []string) int {
 	switch args[0] {
 	case "rr":
 		return cmdPluginRR(args[1:])
-	case "persist":
-		return cmdPluginPersist(args[1:])
+	case "rib":
+		return cmdPluginRib(args[1:])
 	case "help", "-h", "--help": //nolint:goconst // consistent with main.go, config.go
 		pluginUsage()
 		return 0
@@ -32,7 +32,7 @@ func pluginUsage() {
 
 Plugin Subcommands:
   rr           Run as Route Server (IX route server plugin)
-  persist      Run as route persistence plugin (replays routes on reconnect)
+  rib          Run as RIB plugin (tracks Adj-RIB-In/Out, replays on reconnect)
   help         Show this help
 
 The plugin subcommands run as API processes that communicate with the
@@ -45,8 +45,8 @@ Example config:
       encoder json;
   }
 
-  plugin persist {
-      run "zebgp plugin persist";
+  plugin rib {
+      run "zebgp plugin rib";
       encoder json;
   }
 `)

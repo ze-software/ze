@@ -160,7 +160,7 @@ func formatFilterResultJSON(peer PeerInfo, result FilterResult, msgID uint64, di
 	sb.WriteString(fmt.Sprintf("%d", peer.PeerAS))
 	sb.WriteString(`}`)
 
-	// Attributes at top level (not inside announce - that breaks JSON parsing for persist plugin)
+	// Attributes at top level (not inside announce - that breaks JSON parsing for RIB plugin)
 	if len(result.Attributes) > 0 {
 		sb.WriteString(",")
 		formatAttributesJSON(&sb, result)
