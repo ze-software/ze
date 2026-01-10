@@ -121,51 +121,37 @@ func (b *Builder) SetWire(wire []byte) *Builder {
 	return b
 }
 
-// Build produces the wire-format bytes for all attributes.
-// Attributes are ordered per RFC 4271 (by type code).
-func (b *Builder) Build() []byte {
-	// Fast path: pre-built wire bytes
+// Len returns the wire-format length in bytes.
+// Use this to pre-allocate buffers before calling WriteTo.
+func (b *Builder) Len() int {
 	if len(b.wire) > 0 {
-		return b.wire
+		return len(b.wire)
 	}
 
-	// Calculate total size
-	size := 0
+	size := 4 // ORIGIN (always present)
 
-	// ORIGIN (always present, default IGP)
-	size += 4 // header(3) + value(1)
-
-	// AS_PATH (max 255 ASNs per segment = 1022 bytes, fits in uint16)
 	if len(b.asPath) > 0 {
-		asPathLen := 2 + len(b.asPath)*4 // type(1) + count(1) + ASNs
+		asPathLen := 2 + len(b.asPath)*4
 		if asPathLen > 255 {
-			size += 4 + asPathLen // extended header
+			size += 4 + asPathLen
 		} else {
 			size += 3 + asPathLen
 		}
 	}
 
-	// NEXT_HOP (type 3) - well-known mandatory for IPv4 unicast
 	if b.nextHop != nil {
-		size += 7 // header(3) + value(4)
+		size += 7
 	}
-
-	// MED
 	if b.med != nil {
-		size += 7 // header(3) + value(4)
+		size += 7
 	}
-
-	// LOCAL_PREF
 	if b.localPref != nil {
-		size += 7 // header(3) + value(4)
+		size += 7
 	}
-
-	// ATOMIC_AGGREGATE
 	if b.atomicAggregate {
-		size += 3 // header(3) + no value
+		size += 3
 	}
 
-	// COMMUNITY
 	if len(b.communities) > 0 {
 		commLen := len(b.communities) * 4
 		if commLen > 255 {
@@ -175,7 +161,6 @@ func (b *Builder) Build() []byte {
 		}
 	}
 
-	// EXTENDED_COMMUNITIES
 	if len(b.extCommunities) > 0 {
 		extLen := len(b.extCommunities) * 8
 		if extLen > 255 {
@@ -185,7 +170,6 @@ func (b *Builder) Build() []byte {
 		}
 	}
 
-	// LARGE_COMMUNITY
 	if len(b.largeCommunities) > 0 {
 		largeLen := len(b.largeCommunities) * 12
 		if largeLen > 255 {
@@ -195,32 +179,41 @@ func (b *Builder) Build() []byte {
 		}
 	}
 
-	// Build buffer
-	buf := make([]byte, size)
+	return size
+}
+
+// WriteTo writes wire-format bytes to buf, returning bytes written.
+// The buffer must be at least Len() bytes. Use this for zero-allocation encoding.
+// Returns the number of bytes written.
+func (b *Builder) WriteTo(buf []byte) int {
+	if len(b.wire) > 0 {
+		return copy(buf, b.wire)
+	}
+
 	off := 0
 
-	// ORIGIN (type 1) - well-known mandatory
-	origin := uint8(0) // IGP default
+	// ORIGIN (type 1)
+	origin := uint8(0)
 	if b.origin != nil {
 		origin = *b.origin
 	}
-	buf[off] = 0x40 // Transitive
-	buf[off+1] = 1  // ORIGIN
-	buf[off+2] = 1  // Length
+	buf[off] = 0x40
+	buf[off+1] = 1
+	buf[off+2] = 1
 	buf[off+3] = origin
 	off += 4
 
-	// AS_PATH (type 2) - well-known mandatory
+	// AS_PATH (type 2)
 	if len(b.asPath) > 0 {
 		asPathLen := 2 + len(b.asPath)*4
 		if asPathLen > 255 {
-			buf[off] = 0x50                                            // Transitive + Extended Length
-			buf[off+1] = 2                                             // AS_PATH
-			binary.BigEndian.PutUint16(buf[off+2:], uint16(asPathLen)) //nolint:gosec // max 255*4+2=1022, fits uint16
+			buf[off] = 0x50
+			buf[off+1] = 2
+			binary.BigEndian.PutUint16(buf[off+2:], uint16(asPathLen)) //nolint:gosec // bounded
 			off += 4
 		} else {
-			buf[off] = 0x40 // Transitive
-			buf[off+1] = 2  // AS_PATH
+			buf[off] = 0x40
+			buf[off+1] = 2
 			buf[off+2] = byte(asPathLen)
 			off += 3
 		}
@@ -233,53 +226,52 @@ func (b *Builder) Build() []byte {
 		}
 	}
 
-	// NEXT_HOP (type 3) - well-known mandatory for IPv4 unicast
-	// RFC 4271 Section 5.1.3
+	// NEXT_HOP (type 3)
 	if b.nextHop != nil {
-		buf[off] = 0x40 // Transitive
-		buf[off+1] = 3  // NEXT_HOP
-		buf[off+2] = 4  // Length (IPv4)
+		buf[off] = 0x40
+		buf[off+1] = 3
+		buf[off+2] = 4
 		copy(buf[off+3:], b.nextHop[:])
 		off += 7
 	}
 
-	// MED (type 4) - optional non-transitive
+	// MED (type 4)
 	if b.med != nil {
-		buf[off] = 0x80 // Optional
-		buf[off+1] = 4  // MED
-		buf[off+2] = 4  // Length
+		buf[off] = 0x80
+		buf[off+1] = 4
+		buf[off+2] = 4
 		binary.BigEndian.PutUint32(buf[off+3:], *b.med)
 		off += 7
 	}
 
-	// LOCAL_PREF (type 5) - well-known (for iBGP)
+	// LOCAL_PREF (type 5)
 	if b.localPref != nil {
-		buf[off] = 0x40 // Transitive
-		buf[off+1] = 5  // LOCAL_PREF
-		buf[off+2] = 4  // Length
+		buf[off] = 0x40
+		buf[off+1] = 5
+		buf[off+2] = 4
 		binary.BigEndian.PutUint32(buf[off+3:], *b.localPref)
 		off += 7
 	}
 
-	// ATOMIC_AGGREGATE (type 6) - well-known discretionary
+	// ATOMIC_AGGREGATE (type 6)
 	if b.atomicAggregate {
-		buf[off] = 0x40 // Transitive
-		buf[off+1] = 6  // ATOMIC_AGGREGATE
-		buf[off+2] = 0  // Length (no value)
+		buf[off] = 0x40
+		buf[off+1] = 6
+		buf[off+2] = 0
 		off += 3
 	}
 
-	// COMMUNITY (type 8) - optional transitive
+	// COMMUNITY (type 8)
 	if len(b.communities) > 0 {
 		commLen := len(b.communities) * 4
 		if commLen > 255 {
-			buf[off] = 0xD0                                          // Optional + Transitive + Extended
-			buf[off+1] = 8                                           // COMMUNITY
-			binary.BigEndian.PutUint16(buf[off+2:], uint16(commLen)) //nolint:gosec // bounded by slice capacity
+			buf[off] = 0xD0
+			buf[off+1] = 8
+			binary.BigEndian.PutUint16(buf[off+2:], uint16(commLen)) //nolint:gosec // bounded
 			off += 4
 		} else {
-			buf[off] = 0xC0 // Optional + Transitive
-			buf[off+1] = 8  // COMMUNITY
+			buf[off] = 0xC0
+			buf[off+1] = 8
 			buf[off+2] = byte(commLen)
 			off += 3
 		}
@@ -289,17 +281,17 @@ func (b *Builder) Build() []byte {
 		}
 	}
 
-	// EXTENDED_COMMUNITIES (type 16) - optional transitive
+	// EXTENDED_COMMUNITIES (type 16)
 	if len(b.extCommunities) > 0 {
 		extLen := len(b.extCommunities) * 8
 		if extLen > 255 {
-			buf[off] = 0xD0                                         // Optional + Transitive + Extended
-			buf[off+1] = 16                                         // EXTENDED_COMMUNITIES
-			binary.BigEndian.PutUint16(buf[off+2:], uint16(extLen)) //nolint:gosec // bounded by slice capacity
+			buf[off] = 0xD0
+			buf[off+1] = 16
+			binary.BigEndian.PutUint16(buf[off+2:], uint16(extLen)) //nolint:gosec // bounded
 			off += 4
 		} else {
-			buf[off] = 0xC0 // Optional + Transitive
-			buf[off+1] = 16 // EXTENDED_COMMUNITIES
+			buf[off] = 0xC0
+			buf[off+1] = 16
 			buf[off+2] = byte(extLen)
 			off += 3
 		}
@@ -309,17 +301,17 @@ func (b *Builder) Build() []byte {
 		}
 	}
 
-	// LARGE_COMMUNITY (type 32) - optional transitive
+	// LARGE_COMMUNITY (type 32)
 	if len(b.largeCommunities) > 0 {
 		largeLen := len(b.largeCommunities) * 12
 		if largeLen > 255 {
-			buf[off] = 0xD0                                           // Optional + Transitive + Extended
-			buf[off+1] = 32                                           // LARGE_COMMUNITY
-			binary.BigEndian.PutUint16(buf[off+2:], uint16(largeLen)) //nolint:gosec // bounded by slice capacity
+			buf[off] = 0xD0
+			buf[off+1] = 32
+			binary.BigEndian.PutUint16(buf[off+2:], uint16(largeLen)) //nolint:gosec // bounded
 			off += 4
 		} else {
-			buf[off] = 0xC0 // Optional + Transitive
-			buf[off+1] = 32 // LARGE_COMMUNITY
+			buf[off] = 0xC0
+			buf[off+1] = 32
 			buf[off+2] = byte(largeLen)
 			off += 3
 		}
@@ -331,7 +323,20 @@ func (b *Builder) Build() []byte {
 		}
 	}
 
-	return buf[:off]
+	return off
+}
+
+// Build produces the wire-format bytes for all attributes.
+// Attributes are ordered per RFC 4271 (by type code).
+// For zero-allocation encoding, use Len() + WriteTo() instead.
+func (b *Builder) Build() []byte {
+	if len(b.wire) > 0 {
+		return b.wire
+	}
+
+	buf := make([]byte, b.Len())
+	b.WriteTo(buf)
+	return buf
 }
 
 // IsEmpty returns true if no attributes have been set.

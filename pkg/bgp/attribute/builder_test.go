@@ -243,3 +243,78 @@ func TestBuilderNextHopAddrIPv6Ignored(t *testing.T) {
 	// Should only have ORIGIN (no NEXT_HOP for IPv6)
 	assert.Len(t, wire, 4)
 }
+
+// TestBuilderLen verifies Len() returns correct size.
+//
+// VALIDATES: Len() matches Build() output length.
+// PREVENTS: Buffer size mismatches in zero-allocation encoding.
+func TestBuilderLen(t *testing.T) {
+	tests := []struct {
+		name  string
+		setup func(*Builder)
+	}{
+		{"empty", func(b *Builder) {}},
+		{"origin_only", func(b *Builder) { b.SetOrigin(1) }},
+		{"all_attrs", func(b *Builder) {
+			b.SetOrigin(0).SetLocalPref(100).SetMED(50)
+			b.SetASPath([]uint32{65001, 65002})
+			b.AddCommunity(65000, 100)
+			b.AddLargeCommunity(65000, 1, 2)
+			b.AddExtendedCommunity(ExtendedCommunity{0x00, 0x02, 0xFD, 0xE8, 0, 0, 0, 100})
+		}},
+		{"wire_passthrough", func(b *Builder) {
+			b.SetWire([]byte{0x40, 0x01, 0x01, 0x00})
+		}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			b := NewBuilder()
+			tt.setup(b)
+
+			expectedLen := len(b.Build())
+			actualLen := b.Len()
+
+			assert.Equal(t, expectedLen, actualLen)
+		})
+	}
+}
+
+// TestBuilderWriteTo verifies WriteTo produces same output as Build.
+//
+// VALIDATES: WriteTo produces identical wire format as Build.
+// PREVENTS: Inconsistency between Build and WriteTo.
+func TestBuilderWriteTo(t *testing.T) {
+	b := NewBuilder()
+	b.SetOrigin(0).SetLocalPref(200).SetMED(100)
+	b.SetASPath([]uint32{65001, 65002, 65003})
+	b.AddCommunity(65000, 100)
+	b.AddCommunity(65000, 200)
+	b.AddLargeCommunity(65000, 1, 2)
+
+	// Get expected output from Build
+	expected := b.Build()
+
+	// Use WriteTo with pre-allocated buffer
+	buf := make([]byte, b.Len())
+	written := b.WriteTo(buf)
+
+	assert.Equal(t, len(expected), written)
+	assert.Equal(t, expected, buf[:written])
+}
+
+// TestBuilderWriteToWire verifies WriteTo with wire passthrough.
+//
+// VALIDATES: WriteTo correctly handles pre-built wire bytes.
+// PREVENTS: Wire passthrough failing with WriteTo.
+func TestBuilderWriteToWire(t *testing.T) {
+	wire := []byte{0x40, 0x01, 0x01, 0x00, 0x40, 0x05, 0x04, 0x00, 0x00, 0x00, 0x64}
+	b := NewBuilder()
+	b.SetWire(wire)
+
+	buf := make([]byte, b.Len())
+	written := b.WriteTo(buf)
+
+	assert.Equal(t, len(wire), written)
+	assert.Equal(t, wire, buf[:written])
+}

@@ -87,26 +87,27 @@ func (rb *RouteBuilder) Build() (*rib.Route, error) {
 
 	// Create NLRI based on family
 	// For unicast/multicast, use INET; other SAFIs would need specific NLRI types
+	family := rb.family
+	if family.AFI == 0 {
+		// Infer AFI from prefix (don't mutate builder state)
+		if rb.prefix.Addr().Is4() {
+			family = nlri.IPv4Unicast
+		} else {
+			family = nlri.IPv6Unicast
+		}
+	}
+
 	var n nlri.NLRI
-	switch rb.family.SAFI {
+	switch family.SAFI {
 	case nlri.SAFIUnicast, nlri.SAFIMulticast:
-		n = nlri.NewINET(rb.family, rb.prefix, rb.pathID)
+		n = nlri.NewINET(family, rb.prefix, rb.pathID)
 	case nlri.SAFIMPLSLabel, nlri.SAFIEVPN, nlri.SAFIVPN, nlri.SAFIFlowSpec,
 		nlri.SAFIFlowSpecVPN, nlri.SAFIMVPN, nlri.SAFIVPLS, nlri.SAFIMUP,
 		nlri.SAFIRTC, nlri.SAFIBGPLinkState:
 		// These SAFIs need specific NLRI types, not supported by RouteBuilder
-		return nil, fmt.Errorf("SAFI %d not supported by RouteBuilder", rb.family.SAFI)
+		return nil, fmt.Errorf("SAFI %d not supported by RouteBuilder", family.SAFI)
 	default:
-		// Default to unicast INET
-		if rb.family.AFI == 0 {
-			// Infer AFI from prefix
-			if rb.prefix.Addr().Is4() {
-				rb.family = nlri.IPv4Unicast
-			} else {
-				rb.family = nlri.IPv6Unicast
-			}
-		}
-		n = nlri.NewINET(rb.family, rb.prefix, rb.pathID)
+		n = nlri.NewINET(family, rb.prefix, rb.pathID)
 	}
 
 	// Convert Builder to []attribute.Attribute

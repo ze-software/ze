@@ -71,7 +71,7 @@ func (b *Builder) ParseASPath(s string) error {
 
 	if s == "" {
 		// Empty brackets: []
-		b.asPath = nil
+		b.SetASPath(nil)
 		return nil
 	}
 
