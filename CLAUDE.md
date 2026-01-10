@@ -3,7 +3,7 @@
 ## Commands
 - `make test` - Run unit tests
 - `make lint` - Run golangci-lint
-- `make functional` - Run functional tests (37 tests)
+- `make functional` - Run functional tests (80 tests)
 
 ## Workflow
 0. **DESIGN FIRST** - Search for existing code. Extend, don't duplicate. Think deeply.

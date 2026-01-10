@@ -1,4 +1,4 @@
-.PHONY: all build test lint clean fmt vet tidy functional functional-encoding functional-api functional-decoding functional-parsing help
+.PHONY: all build test lint clean fmt vet tidy functional functional-encoding functional-plugin functional-decoding functional-parsing help
 
 # Environment: keep build caches within CURDIR (not TMPDIR - breaks Unix socket tests)
 export GOCACHE := $(CURDIR)/tmp/go-cache
@@ -58,7 +58,7 @@ test-all: test functional
 	@echo "All tests passed"
 
 # Run functional tests (all types)
-functional: functional-encoding functional-api functional-parsing functional-decoding
+functional: functional-encoding functional-plugin functional-parsing functional-decoding
 	@echo "All functional tests passed"
 
 # Run encoding functional tests
@@ -66,10 +66,10 @@ functional-encoding:
 	@echo "Running encoding functional tests..."
 	go run ./test/cmd/functional encoding --all
 
-# Run API functional tests
-functional-api:
-	@echo "Running API functional tests..."
-	go run ./test/cmd/functional api --all
+# Run plugin functional tests
+functional-plugin:
+	@echo "Running plugin functional tests..."
+	go run ./test/cmd/functional plugin --all
 
 # Run decoding functional tests (may fail - JSON format alignment WIP)
 functional-decoding:
@@ -100,7 +100,7 @@ help:
 	@echo "  test-cover           - Run tests with coverage report"
 	@echo "  functional           - Run all functional tests"
 	@echo "  functional-encoding  - Run encoding functional tests only"
-	@echo "  functional-api       - Run API functional tests only"
+	@echo "  functional-plugin    - Run plugin functional tests only"
 	@echo "  functional-decoding  - Run decoding functional tests only"
 	@echo "  functional-parsing   - Run parsing functional tests only"
 	@echo "  lint                 - Run golangci-lint"
