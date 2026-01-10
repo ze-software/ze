@@ -531,6 +531,85 @@ func parseCommonAttribute(key string, args []string, idx int, attrs *PathAttribu
 	return 0, nil
 }
 
+// parseCommonAttributeBuilder parses a common BGP attribute by keyword into a Builder.
+// This is the wire-first version of parseCommonAttribute.
+// Returns the number of args consumed (0 if keyword not handled), or error.
+func parseCommonAttributeBuilder(key string, args []string, idx int, b *attribute.Builder) (int, error) {
+	switch key {
+	case "origin":
+		if idx+1 >= len(args) {
+			return 0, fmt.Errorf("missing origin value")
+		}
+		if err := b.ParseOrigin(args[idx+1]); err != nil {
+			return 0, err
+		}
+		return 1, nil
+
+	case "local-preference":
+		if idx+1 >= len(args) {
+			return 0, fmt.Errorf("missing local-preference value")
+		}
+		if err := b.ParseLocalPref(args[idx+1]); err != nil {
+			return 0, err
+		}
+		return 1, nil
+
+	case "med":
+		if idx+1 >= len(args) {
+			return 0, fmt.Errorf("missing med value")
+		}
+		if err := b.ParseMED(args[idx+1]); err != nil {
+			return 0, err
+		}
+		return 1, nil
+
+	case "as-path":
+		if idx+1 >= len(args) {
+			return 0, fmt.Errorf("missing as-path value")
+		}
+		// Collect tokens until boundary or end
+		tokens, consumed := parseBracketedList(args[idx+1:])
+		if err := b.ParseASPath(strings.Join(tokens, " ")); err != nil {
+			return 0, err
+		}
+		return consumed, nil
+
+	case "community":
+		if idx+1 >= len(args) {
+			return 0, fmt.Errorf("missing community value")
+		}
+		// Collect tokens until boundary or end
+		tokens, consumed := parseBracketedList(args[idx+1:])
+		if err := b.ParseCommunity(strings.Join(tokens, " ")); err != nil {
+			return 0, err
+		}
+		return consumed, nil
+
+	case "large-community":
+		if idx+1 >= len(args) {
+			return 0, fmt.Errorf("missing large-community value")
+		}
+		tokens, consumed := parseBracketedList(args[idx+1:])
+		if err := b.ParseLargeCommunity(strings.Join(tokens, " ")); err != nil {
+			return 0, err
+		}
+		return consumed, nil
+
+	case "extended-community":
+		if idx+1 >= len(args) {
+			return 0, fmt.Errorf("missing extended-community value")
+		}
+		tokens, consumed := parseBracketedList(args[idx+1:])
+		if err := b.ParseExtCommunity(strings.Join(tokens, " ")); err != nil {
+			return 0, err
+		}
+		return consumed, nil
+	}
+
+	// Not a common attribute
+	return 0, nil
+}
+
 // parseRouteAttributes parses route attributes from args with keyword validation.
 // The allowedKeywords set defines which keywords are valid for the route family.
 // Returns error for unknown or invalid keywords.
@@ -548,9 +627,13 @@ func parseRouteAttributes(args []string, allowedKeywords KeywordSet) (ParsedRout
 		return ParsedRoute{}, fmt.Errorf("%w: %s", ErrInvalidPrefix, args[0])
 	}
 
+	// Use wire-first Builder for attribute parsing
+	builder := attribute.NewBuilder()
+
 	result := ParsedRoute{
 		Route: RouteSpec{
 			Prefix: prefix,
+			Attrs:  builder,
 		},
 	}
 
@@ -563,8 +646,8 @@ func parseRouteAttributes(args []string, allowedKeywords KeywordSet) (ParsedRout
 			return ParsedRoute{}, fmt.Errorf("%w: '%s' not valid for this route family", ErrInvalidKeyword, key)
 		}
 
-		// Try common attribute parsing first
-		consumed, err := parseCommonAttribute(key, args, i, &result.Route.PathAttributes)
+		// Try common attribute parsing with Builder (wire-first)
+		consumed, err := parseCommonAttributeBuilder(key, args, i, builder)
 		if err != nil {
 			return ParsedRoute{}, err
 		}

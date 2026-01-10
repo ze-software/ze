@@ -361,3 +361,77 @@ func (b *Builder) Reset() {
 	b.atomicAggregate = false
 	b.wire = nil
 }
+
+// ToAttributes converts Builder state to []Attribute slice.
+// Used for transition compatibility with code that expects parsed attributes.
+// Note: Does not include NEXT_HOP or AS_PATH (handled separately by reactor).
+func (b *Builder) ToAttributes() []Attribute {
+	var result []Attribute
+
+	// ORIGIN (always present, default IGP)
+	if b.origin != nil {
+		result = append(result, Origin(*b.origin))
+	} else {
+		result = append(result, OriginIGP)
+	}
+
+	// MED
+	if b.med != nil {
+		result = append(result, MED(*b.med))
+	}
+
+	// LOCAL_PREF (filtered at send time for eBGP)
+	if b.localPref != nil {
+		result = append(result, LocalPref(*b.localPref))
+	}
+
+	// ATOMIC_AGGREGATE
+	if b.atomicAggregate {
+		result = append(result, AtomicAggregate{})
+	}
+
+	// COMMUNITY
+	if len(b.communities) > 0 {
+		comms := make(Communities, len(b.communities))
+		for i, c := range b.communities {
+			comms[i] = Community(c)
+		}
+		result = append(result, comms)
+	}
+
+	// LARGE_COMMUNITY
+	if len(b.largeCommunities) > 0 {
+		result = append(result, LargeCommunities(b.largeCommunities))
+	}
+
+	// EXTENDED_COMMUNITIES
+	if len(b.extCommunities) > 0 {
+		result = append(result, ExtendedCommunities(b.extCommunities))
+	}
+
+	return result
+}
+
+// ToASPath returns the AS_PATH as an ASPath attribute.
+// Returns nil if no AS_PATH was set.
+func (b *Builder) ToASPath() *ASPath {
+	if len(b.asPath) == 0 {
+		return nil
+	}
+	return &ASPath{
+		Segments: []ASPathSegment{
+			{Type: ASSequence, ASNs: b.asPath},
+		},
+	}
+}
+
+// ASPathSlice returns a copy of the raw AS_PATH slice.
+// Returns nil if no AS_PATH was set.
+func (b *Builder) ASPathSlice() []uint32 {
+	if len(b.asPath) == 0 {
+		return nil
+	}
+	result := make([]uint32, len(b.asPath))
+	copy(result, b.asPath)
+	return result
+}

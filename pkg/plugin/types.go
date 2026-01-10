@@ -93,6 +93,18 @@ type ReactorStats struct {
 // These attributes are optional - nil values use protocol defaults.
 // Embedding this struct in route types ensures consistency and reduces duplication.
 //
+// Deprecated: Use attribute.Builder instead for wire-first attribute construction.
+// Route types now have an Attrs *attribute.Builder field that takes precedence
+// over PathAttributes when set. Migration:
+//
+//	// Old:
+//	route := RouteSpec{PathAttributes: PathAttributes{Origin: ptr(0)}}
+//
+//	// New:
+//	b := attribute.NewBuilder()
+//	b.SetOrigin(0)
+//	route := RouteSpec{Attrs: b}
+//
 // Used for API input (announce commands). For reading received attributes,
 // use WireUpdate.AttrIterator() for zero-copy access.
 type PathAttributes struct {
@@ -116,10 +128,17 @@ type PathAttributes struct {
 // IMMUTABILITY: RouteSpec and its slices (ASPath, Communities, etc.) must not
 // be mutated after being passed to any reactor method. The reactor stores
 // shallow copies for efficiency; mutation would corrupt internal state.
+//
+// Migration: When Attrs is set, it takes precedence over embedded PathAttributes.
+// Eventually PathAttributes will be removed in favor of Attrs.
 type RouteSpec struct {
 	Prefix  netip.Prefix
 	NextHop RouteNextHop // Encapsulates next-hop policy (explicit or self)
 	PathAttributes
+
+	// Attrs is the wire-first attribute builder.
+	// When set, takes precedence over embedded PathAttributes.
+	Attrs *attribute.Builder
 }
 
 // LargeCommunity is an alias for attribute.LargeCommunity (RFC 8092).
@@ -188,6 +207,10 @@ type L3VPNRoute struct {
 	Labels  []uint32     // MPLS label stack (supports multiple labels per RFC 3032)
 	RT      string       // Route Target (extended community, optional)
 	PathAttributes
+
+	// Attrs is the wire-first attribute builder.
+	// When set, takes precedence over embedded PathAttributes.
+	Attrs *attribute.Builder
 }
 
 // LabeledUnicastRoute specifies an MPLS labeled unicast route (SAFI 4).
@@ -200,6 +223,10 @@ type LabeledUnicastRoute struct {
 	Labels  []uint32     // MPLS label stack
 	PathID  uint32       // ADD-PATH path identifier (RFC 7911), 0 means not set
 	PathAttributes
+
+	// Attrs is the wire-first attribute builder.
+	// When set, takes precedence over embedded PathAttributes.
+	Attrs *attribute.Builder
 }
 
 // MUPRouteSpec specifies a MUP route for announcement (SAFI 85).
@@ -218,6 +245,10 @@ type MUPRouteSpec struct {
 	ExtCommunity string // Extended communities (e.g., "[target:10:10]")
 	PrefixSID    string // SRv6 Prefix SID (e.g., "l3-service 2001:db8::1 0x48 [64,24,16,0,0,0]")
 	PathAttributes
+
+	// Attrs is the wire-first attribute builder.
+	// When set, takes precedence over embedded PathAttributes.
+	Attrs *attribute.Builder
 }
 
 // ReactorInterface defines what the API needs from the reactor.
@@ -591,6 +622,10 @@ type NLRIGroup struct {
 	Attrs        PathAttributes // Snapshot of accumulated attributes
 	NextHop      RouteNextHop   // Encapsulates next-hop policy (explicit or self)
 	WatchdogName string         // Watchdog pool name for announce routes (empty = none)
+
+	// AttrsBuilder is the wire-first attribute builder.
+	// When set, takes precedence over Attrs (PathAttributes).
+	AttrsBuilder *attribute.Builder
 }
 
 // UpdateTextResult is the parsed result of an update text command.
@@ -609,4 +644,8 @@ type NLRIBatch struct {
 	NLRIs   []nlri.NLRI    // NLRIs to announce or withdraw
 	NextHop RouteNextHop   // Next-hop policy (announce only)
 	Attrs   PathAttributes // Shared attributes (announce only)
+
+	// AttrsBuilder is the wire-first attribute builder.
+	// When set, takes precedence over Attrs (PathAttributes).
+	AttrsBuilder *attribute.Builder
 }

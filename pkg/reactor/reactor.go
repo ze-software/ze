@@ -301,43 +301,55 @@ func (a *reactorAPIAdapter) AnnounceRoute(peerSelector string, route plugin.Rout
 	}
 
 	// Build attributes from RouteSpec
-	// Order matches buildAnnounceUpdate: ORIGIN, MED, LOCAL_PREF, communities
+	// Prefer Attrs (Builder) when set, fall back to PathAttributes
 	var attrs []attribute.Attribute
+	var userASPath []uint32
 
-	// 1. ORIGIN
-	if route.Origin != nil {
-		attrs = append(attrs, attribute.Origin(*route.Origin))
+	if route.Attrs != nil {
+		// Use wire-first Builder
+		attrs = route.Attrs.ToAttributes()
+		userASPath = route.Attrs.ASPathSlice()
 	} else {
-		attrs = append(attrs, attribute.OriginIGP)
-	}
+		// Fall back to PathAttributes (deprecated)
+		// Order matches buildAnnounceUpdate: ORIGIN, MED, LOCAL_PREF, communities
 
-	// 2. MED (RFC 4271 §5.1.4: optional non-transitive)
-	if route.MED != nil {
-		attrs = append(attrs, attribute.MED(*route.MED))
-	}
-
-	// 3. LOCAL_PREF (will be filtered by isIBGP check at send time)
-	if route.LocalPreference != nil {
-		attrs = append(attrs, attribute.LocalPref(*route.LocalPreference))
-	}
-
-	// 4. Communities
-	if len(route.Communities) > 0 {
-		comms := make(attribute.Communities, len(route.Communities))
-		for i, c := range route.Communities {
-			comms[i] = attribute.Community(c)
+		// 1. ORIGIN
+		if route.Origin != nil {
+			attrs = append(attrs, attribute.Origin(*route.Origin))
+		} else {
+			attrs = append(attrs, attribute.OriginIGP)
 		}
-		attrs = append(attrs, comms)
-	}
 
-	// 5. Large Communities
-	if len(route.LargeCommunities) > 0 {
-		attrs = append(attrs, attribute.LargeCommunities(route.LargeCommunities))
-	}
+		// 2. MED (RFC 4271 §5.1.4: optional non-transitive)
+		if route.MED != nil {
+			attrs = append(attrs, attribute.MED(*route.MED))
+		}
 
-	// 6. Extended Communities
-	if len(route.ExtendedCommunities) > 0 {
-		attrs = append(attrs, attribute.ExtendedCommunities(route.ExtendedCommunities))
+		// 3. LOCAL_PREF (will be filtered by isIBGP check at send time)
+		if route.LocalPreference != nil {
+			attrs = append(attrs, attribute.LocalPref(*route.LocalPreference))
+		}
+
+		// 4. Communities
+		if len(route.Communities) > 0 {
+			comms := make(attribute.Communities, len(route.Communities))
+			for i, c := range route.Communities {
+				comms[i] = attribute.Community(c)
+			}
+			attrs = append(attrs, comms)
+		}
+
+		// 5. Large Communities
+		if len(route.LargeCommunities) > 0 {
+			attrs = append(attrs, attribute.LargeCommunities(route.LargeCommunities))
+		}
+
+		// 6. Extended Communities
+		if len(route.ExtendedCommunities) > 0 {
+			attrs = append(attrs, attribute.ExtendedCommunities(route.ExtendedCommunities))
+		}
+
+		userASPath = route.ASPath
 	}
 
 	var lastErr error
@@ -356,10 +368,10 @@ func (a *reactorAPIAdapter) AnnounceRoute(peerSelector string, route plugin.Rout
 		// RFC 4271 §5.1.2: iBGP SHALL NOT modify AS_PATH; eBGP prepends local AS
 		var asPath *attribute.ASPath
 		switch {
-		case len(route.ASPath) > 0:
+		case len(userASPath) > 0:
 			asPath = &attribute.ASPath{
 				Segments: []attribute.ASPathSegment{
-					{Type: attribute.ASSequence, ASNs: route.ASPath},
+					{Type: attribute.ASSequence, ASNs: userASPath},
 				},
 			}
 		case isIBGP:
@@ -1562,7 +1574,16 @@ func (a *reactorAPIAdapter) AnnounceNLRIBatch(peerSelector string, batch plugin.
 	}
 
 	// Build attributes for RIB route (used for queueing non-established peers)
-	attrs := a.buildBatchAttributes(batch.Attrs)
+	// Prefer AttrsBuilder (wire-first) over PathAttributes when available
+	var attrs []attribute.Attribute
+	var userASPath []uint32
+	if batch.AttrsBuilder != nil {
+		attrs = batch.AttrsBuilder.ToAttributes()
+		userASPath = batch.AttrsBuilder.ASPathSlice()
+	} else {
+		attrs = a.buildBatchAttributes(batch.Attrs)
+		userASPath = batch.Attrs.ASPath
+	}
 
 	var lastErr error
 	var acceptedCount int
@@ -1579,7 +1600,7 @@ func (a *reactorAPIAdapter) AnnounceNLRIBatch(peerSelector string, batch plugin.
 		}
 
 		// Build AS_PATH per peer (iBGP vs eBGP)
-		asPath := a.buildBatchASPath(batch.Attrs.ASPath, isIBGP)
+		asPath := a.buildBatchASPath(userASPath, isIBGP)
 
 		if peer.State() == PeerStateEstablished {
 			// Check family negotiation
@@ -1672,6 +1693,10 @@ func (a *reactorAPIAdapter) WithdrawNLRIBatch(peerSelector string, batch plugin.
 
 // buildBatchAttributes converts PathAttributes to attribute.Attribute slice.
 // Used for building rib.Route for queue operations.
+//
+// Deprecated: Use attribute.Builder.ToAttributes() instead. The AnnounceNLRIBatch
+// function now prefers NLRIBatch.AttrsBuilder when set. This function remains
+// as a fallback for code that still uses PathAttributes.
 func (a *reactorAPIAdapter) buildBatchAttributes(attrs plugin.PathAttributes) []attribute.Attribute {
 	var result []attribute.Attribute
 

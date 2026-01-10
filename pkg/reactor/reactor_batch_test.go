@@ -25,7 +25,7 @@ func TestBuildBatchAttributes(t *testing.T) {
 	med := uint32(100)
 	localPref := uint32(200)
 
-	attrs := plugin.PathAttributes{
+	attrs := plugin.PathAttributes{ //nolint:staticcheck // Testing deprecated fallback path
 		Origin:          &origin,
 		MED:             &med,
 		LocalPreference: &localPref,
@@ -72,7 +72,7 @@ func TestBuildBatchAttributes_Minimal(t *testing.T) {
 	r := &Reactor{config: &Config{LocalAS: 65000}}
 	adapter := &reactorAPIAdapter{r: r}
 
-	attrs := plugin.PathAttributes{}
+	attrs := plugin.PathAttributes{} //nolint:staticcheck // Testing deprecated fallback path
 	result := adapter.buildBatchAttributes(attrs)
 
 	// Should have just ORIGIN IGP
@@ -352,7 +352,7 @@ func TestBuildBatchAnnounceUpdate_WireMode_IPv4(t *testing.T) {
 		Family:  nlri.IPv4Unicast,
 		NLRIs:   []nlri.NLRI{wn},
 		NextHop: plugin.NewNextHopExplicit(netip.MustParseAddr("10.0.0.1")),
-		Attrs:   plugin.PathAttributes{Wire: attrsWire},
+		Attrs:   plugin.PathAttributes{Wire: attrsWire}, //nolint:staticcheck // Testing wire passthrough
 	}
 
 	// Use nil context (default ASN4=true, no ADD-PATH)
@@ -386,7 +386,7 @@ func TestBuildBatchAnnounceUpdate_WireMode_IPv6(t *testing.T) {
 		Family:  nlri.IPv6Unicast,
 		NLRIs:   []nlri.NLRI{wn},
 		NextHop: plugin.NewNextHopExplicit(netip.MustParseAddr("2001:db8::1")),
-		Attrs:   plugin.PathAttributes{Wire: attrsWire},
+		Attrs:   plugin.PathAttributes{Wire: attrsWire}, //nolint:staticcheck // Testing wire passthrough
 	}
 
 	update := adapter.buildBatchAnnounceUpdate(batch, netip.MustParseAddr("2001:db8::1"), false, nil)

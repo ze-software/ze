@@ -250,9 +250,18 @@ func encodeUnicastRoute(ub *message.UpdateBuilder, routeCmd string, isIPv6 bool,
 
 // routeSpecToUnicastParams converts a RouteSpec to UnicastParams.
 // Extracts address from RouteNextHop (must be explicit, not self).
+// Prefers r.Attrs (Builder) when set, falls back to PathAttributes.
 func routeSpecToUnicastParams(r plugin.RouteSpec) message.UnicastParams {
-	attrs := extractCommonAttrs(r.Origin, r.LocalPreference, r.MED, r.ASPath,
-		r.Communities, r.LargeCommunities, r.ExtendedCommunities)
+	var attrs commonAttrs
+
+	if r.Attrs != nil {
+		// Use wire-first Builder
+		attrs = extractAttrsFromBuilder(r.Attrs)
+	} else {
+		// Fall back to PathAttributes
+		attrs = extractCommonAttrs(r.Origin, r.LocalPreference, r.MED, r.ASPath,
+			r.Communities, r.LargeCommunities, r.ExtendedCommunities)
+	}
 
 	return message.UnicastParams{
 		Prefix:            r.Prefix,
@@ -265,6 +274,42 @@ func routeSpecToUnicastParams(r plugin.RouteSpec) message.UnicastParams {
 		LargeCommunities:  attrs.LargeCommunities,
 		ExtCommunityBytes: attrs.ExtCommunityBytes,
 	}
+}
+
+// extractAttrsFromBuilder extracts commonAttrs from an attribute.Builder.
+func extractAttrsFromBuilder(b *attribute.Builder) commonAttrs {
+	attrs := commonAttrs{
+		Origin: attribute.OriginIGP,
+	}
+
+	// Convert Builder to []Attribute and extract values
+	for _, a := range b.ToAttributes() {
+		switch v := a.(type) {
+		case attribute.Origin:
+			attrs.Origin = v
+		case attribute.LocalPref:
+			attrs.LocalPreference = uint32(v)
+		case attribute.MED:
+			attrs.MED = uint32(v)
+		case attribute.Communities:
+			attrs.Communities = make([]uint32, len(v))
+			for i, c := range v {
+				attrs.Communities[i] = uint32(c)
+			}
+		case attribute.LargeCommunities:
+			attrs.LargeCommunities = make([][3]uint32, len(v))
+			for i, lc := range v {
+				attrs.LargeCommunities[i] = [3]uint32{lc.GlobalAdmin, lc.LocalData1, lc.LocalData2}
+			}
+		case attribute.ExtendedCommunities:
+			attrs.ExtCommunityBytes = packExtendedCommunities(v)
+		}
+	}
+
+	// Get AS_PATH from Builder
+	attrs.ASPath = b.ASPathSlice()
+
+	return attrs
 }
 
 // packExtendedCommunities packs extended communities to wire format.

@@ -551,7 +551,7 @@ func TestWriteASPathLongSegmentSplitting(t *testing.T) {
 	route := plugin.RouteSpec{
 		Prefix:  netip.MustParsePrefix("10.0.0.0/24"),
 		NextHop: plugin.NewNextHopExplicit(netip.MustParseAddr("192.168.1.1")),
-		PathAttributes: plugin.PathAttributes{
+		PathAttributes: plugin.PathAttributes{ //nolint:staticcheck // Testing deprecated fallback
 			ASPath: asPath,
 		},
 	}
@@ -630,7 +630,7 @@ func TestWriteCommunitiesExtendedLength(t *testing.T) {
 	route := plugin.RouteSpec{
 		Prefix:  netip.MustParsePrefix("10.0.0.0/24"),
 		NextHop: plugin.NewNextHopExplicit(netip.MustParseAddr("192.168.1.1")),
-		PathAttributes: plugin.PathAttributes{
+		PathAttributes: plugin.PathAttributes{ //nolint:staticcheck // Testing deprecated fallback
 			Communities: communities,
 		},
 	}
@@ -697,7 +697,7 @@ func BenchmarkWriteAnnounceUpdateIPv4WithCommunities(b *testing.B) {
 	route := plugin.RouteSpec{
 		Prefix:  netip.MustParsePrefix("10.0.0.0/24"),
 		NextHop: plugin.NewNextHopExplicit(netip.MustParseAddr("192.168.1.1")),
-		PathAttributes: plugin.PathAttributes{
+		PathAttributes: plugin.PathAttributes{ //nolint:staticcheck // Testing deprecated fallback
 			Communities: []uint32{0xFFFF0001, 0xFFFF0002, 0xFFFF0003},
 		},
 	}
@@ -819,7 +819,7 @@ func TestBuildLabeledUnicastRIBRouteAllAttributes(t *testing.T) {
 		NextHop: netip.MustParseAddr("192.0.2.1"),
 		Labels:  []uint32{100, 200}, // Label stack
 		PathID:  42,
-		PathAttributes: plugin.PathAttributes{
+		PathAttributes: plugin.PathAttributes{ //nolint:staticcheck // Testing deprecated fallback
 			Origin:          &origin,
 			MED:             &med,
 			LocalPreference: &localPref,
@@ -991,7 +991,7 @@ func TestBuildL3VPNParams(t *testing.T) {
 		RD:      "100:100",
 		Labels:  []uint32{1000, 2000}, // Multi-label stack
 		RT:      "target:65000:100",
-		PathAttributes: plugin.PathAttributes{
+		PathAttributes: plugin.PathAttributes{ //nolint:staticcheck // Testing deprecated fallback
 			Origin:          &origin,
 			MED:             &med,
 			LocalPreference: &localPref,
@@ -1067,7 +1067,7 @@ func TestBuildL3VPNRIBRoute(t *testing.T) {
 		NextHop: netip.MustParseAddr("192.0.2.1"),
 		RD:      "100:100",
 		Labels:  []uint32{1000},
-		PathAttributes: plugin.PathAttributes{
+		PathAttributes: plugin.PathAttributes{ //nolint:staticcheck // Testing deprecated fallback
 			Origin: &origin,
 		},
 	}
