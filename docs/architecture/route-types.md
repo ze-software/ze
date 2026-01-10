@@ -10,9 +10,12 @@ ZeBGP has multiple route representations serving different purposes in the data 
 |--------|----------|---------|------------|
 | `RouteSpec` | `pkg/plugin/types.go` | API input for announce/withdraw | Prefix, NextHop, PathAttributes |
 | `PathAttributes` | `pkg/plugin/types.go` | Shared BGP attributes | Origin, ASPath, MED, LocalPref, Communities |
-| `rib.Route` | `pkg/plugin/rib/rib.go` | Full storage for replay/resend | All attributes + MsgID |
+| `rib.Route` | `pkg/plugin/rib/rib.go` | Plugin storage for replay/resend | All attributes as strings + MsgID |
 | `rr.Route` | `pkg/plugin/rr/rib.go` | Minimal for zero-copy forwarding | MsgID, Family, Prefix only |
-| `RIBRoute` | `pkg/plugin/types.go` | Query output | Peer, Prefix, NextHop, ASPath |
+| `RIBRoute` | `pkg/plugin/types.go` | Query output | Peer, Prefix, NextHop, ASPath (strings) |
+| `rib.Route` | `pkg/rib/route.go` | Core engine storage | NLRI, Attrs, ASPath, wire cache, refcount |
+
+**Note:** Two different `rib.Route` types exist - one in `pkg/plugin/rib/` (plugin) and one in `pkg/rib/` (core engine).
 
 ## Route Type Families
 
@@ -95,10 +98,23 @@ pkg/bgp/attribute/
 └── *.go              # Wire format encoding/decoding
 ```
 
+## Design Principles
+
+### Modularity for Plugins
+Route types are intentionally flexible to support diverse plugin needs:
+- Zero-copy plugins need only MsgID + Family + Prefix
+- Full RIB plugins need all attributes for replay
+- Custom plugins can define their own storage
+
+### Stability Guarantee
+**Only text and JSON APIs are stable.** Go package structure, types, and interfaces may change without notice. Plugins should communicate via text/JSON protocol, not by importing Go packages.
+
+See `docs/architecture/rib-transition.md` → "Stability Guarantees" for details.
+
 ## Consolidation Opportunities
 
 ### Current Issue
-4 Route structs represent the same logical concept differently.
+Multiple Route structs represent the same logical concept differently.
 
 ### Recommended Approach
 Single `rib.Route` as source of truth with view methods:
@@ -126,6 +142,7 @@ func (r *Route) MarshalJSON() ([]byte, error) { ... }
 
 ## Related Documentation
 
-- `docs/architecture/UPDATE_BUILDING.md` - Wire format construction
-- `docs/architecture/ENCODING_CONTEXT.md` - Zero-copy patterns
-- `docs/architecture/api/ARCHITECTURE.md` - Plugin API design
+- `docs/architecture/update-building.md` - Wire format construction
+- `docs/architecture/encoding-context.md` - Zero-copy patterns
+- `docs/architecture/api/architecture.md` - Plugin API design
+- `docs/architecture/rib-transition.md` - RIB → API transition

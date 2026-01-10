@@ -1,0 +1,417 @@
+# Buffer-First Architecture
+
+**Status:** Target Architecture (all development should follow this pattern)
+**Date:** 2026-01-10
+
+---
+
+## Executive Summary
+
+ZeBGP uses a **buffer-first** architecture where BGP messages are represented as byte buffers with iterators and partial parsers. This eliminates duplication between wire format and parsed representations, enables zero-copy operations, and provides a single source of truth.
+
+**Core principle:** One representation (bytes). Everything else is views/iterators.
+
+---
+
+## Architecture Overview
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                      Message Buffer                          │
+│  ┌──────────┬───────────┬──────────────┬─────────────────┐  │
+│  │  Header  │ Withdrawn │  Attributes  │      NLRI       │  │
+│  │ 19 bytes │   (var)   │    (var)     │     (var)       │  │
+│  └──────────┴───────────┴──────────────┴─────────────────┘  │
+└─────────────────────────────────────────────────────────────┘
+                              │
+            ┌─────────────────┼─────────────────┐
+            ▼                 ▼                 ▼
+      ┌───────────┐    ┌───────────┐     ┌───────────┐
+      │ AttrIter  │    │ NLRIIter  │     │ASPathIter │
+      │ (offset)  │    │ (offset)  │     │ (offset)  │
+      └───────────┘    └───────────┘     └───────────┘
+            │                 │                 │
+            ▼                 ▼                 ▼
+      ┌───────────┐    ┌───────────┐     ┌───────────┐
+      │  Accessor │    │  Accessor │     │  Accessor │
+      │ (no alloc)│    │ (no alloc)│     │ (no alloc)│
+      └───────────┘    └───────────┘     └───────────┘
+```
+
+---
+
+## Design Principles
+
+### 1. Bytes Are the Source of Truth
+
+- Store wire bytes, not parsed structs
+- Parse on demand via iterators
+- Never duplicate data in different representations
+
+### 2. Iterators Instead of Slices
+
+```go
+// ❌ OLD: Allocates slice
+func (u *Update) NLRIs() []nlri.NLRI
+
+// ✅ NEW: Iterator, zero allocation
+func (u *Update) NLRIIterator() *NLRIIterator
+
+type NLRIIterator struct {
+    data    []byte
+    offset  int
+    family  Family
+    addPath bool
+}
+
+func (it *NLRIIterator) Next() (prefix []byte, pathID uint32, ok bool)
+```
+
+### 3. Partial Parsers (Stateless Functions)
+
+```go
+// Parse only what you need, where you need it
+func ParseUpdateOffsets(buf []byte) (withdrawn, attrs, nlri Span, err error)
+func ParseAttrHeader(buf []byte, off int) (typeCode, flags uint8, value Span, err error)
+func ParseNLRI(buf []byte, off int, addPath bool) (prefix []byte, pathID uint32, nextOff int, err error)
+func ParseASPathSegment(buf []byte, off int) (segType uint8, asns []byte, nextOff int, err error)
+
+type Span struct {
+    Start int
+    Len   int
+}
+
+func (s Span) Slice(buf []byte) []byte {
+    return buf[s.Start : s.Start+s.Len]
+}
+```
+
+### 4. Context-Aware Parsing
+
+Parsing depends on negotiated capabilities (ADD-PATH, ASN4):
+
+```go
+type ParseContext struct {
+    AddPath bool   // NLRI includes 4-byte path-id
+    ASN4    bool   // AS numbers are 4 bytes (not 2)
+}
+
+func (it *NLRIIterator) WithContext(ctx ParseContext) *NLRIIterator
+func (it *ASPathIterator) WithContext(ctx ParseContext) *ASPathIterator
+```
+
+### 5. Direct Formatting (No Intermediate Structs)
+
+```go
+// ❌ OLD: Parse to struct, then marshal
+attrs := parseAttributes(buf)
+json.Marshal(attrs)
+
+// ✅ NEW: Format directly from buffer
+func FormatAttributesJSON(buf []byte, ctx ParseContext, w io.Writer) error {
+    iter := NewAttrIterator(buf)
+    for typeCode, value, ok := iter.Next(); ok; typeCode, value, ok = iter.Next() {
+        switch typeCode {
+        case ORIGIN:
+            fmt.Fprintf(w, `"origin":%d`, value[0])
+        case AS_PATH:
+            formatASPathJSON(value, ctx, w)
+        // ...
+        }
+    }
+}
+```
+
+---
+
+## Component Design
+
+### Message Buffer
+
+The core type wrapping raw BGP message bytes:
+
+```go
+// WireUpdate wraps UPDATE message payload (after BGP header)
+type WireUpdate struct {
+    payload     []byte
+    sourceCtxID ContextID  // For zero-copy decisions
+    messageID   uint64     // Unique identifier
+}
+
+// Section accessors return views, not copies
+func (u *WireUpdate) WithdrawnSpan() Span
+func (u *WireUpdate) AttrsSpan() Span
+func (u *WireUpdate) NLRISpan() Span
+
+// Iterators for list sections
+func (u *WireUpdate) WithdrawnIterator(ctx ParseContext) *NLRIIterator
+func (u *WireUpdate) AttrIterator() *AttrIterator
+func (u *WireUpdate) NLRIIterator(ctx ParseContext) *NLRIIterator
+```
+
+### Attribute Iterator
+
+```go
+type AttrIterator struct {
+    data   []byte
+    offset int
+}
+
+func NewAttrIterator(data []byte) *AttrIterator
+
+// Next returns the next attribute
+// Returns (0, 0, Span{}, false) when exhausted
+func (it *AttrIterator) Next() (typeCode uint8, flags uint8, value Span, ok bool)
+
+// Convenience: find specific attribute
+func (it *AttrIterator) Find(typeCode uint8) (Span, bool)
+```
+
+### NLRI Iterator
+
+```go
+type NLRIIterator struct {
+    data    []byte
+    offset  int
+    addPath bool
+}
+
+func NewNLRIIterator(data []byte, addPath bool) *NLRIIterator
+
+// Next returns next NLRI
+// prefix is a view into the buffer (not a copy)
+// pathID is 0 if addPath is false
+// Returns (nil, 0, false) when exhausted
+func (it *NLRIIterator) Next() (prefix []byte, pathID uint32, ok bool)
+```
+
+### AS-PATH Iterator
+
+```go
+type ASPathIterator struct {
+    data   []byte
+    offset int
+    asn4   bool
+}
+
+func NewASPathIterator(data []byte, asn4 bool) *ASPathIterator
+
+// Next returns next segment
+// asns is a view into buffer (raw bytes, 2 or 4 bytes per ASN)
+// Returns (0, nil, false) when exhausted
+func (it *ASPathIterator) Next() (segType uint8, asns []byte, ok bool)
+
+// Convenience: iterate ASNs within current segment
+func (it *ASPathIterator) ASNIterator(asns []byte) *ASNIterator
+```
+
+### Update Builder (For Creating Messages)
+
+```go
+type UpdateBuilder struct {
+    buf       []byte
+    attrsOff  int
+    nlriOff   int
+    ctx       BuildContext
+}
+
+type BuildContext struct {
+    ASN4      bool
+    AddPath   bool
+    MaxSize   int  // 4096 or 65535
+}
+
+func NewUpdateBuilder(ctx BuildContext) *UpdateBuilder
+
+// Attribute writers
+func (b *UpdateBuilder) WriteOrigin(origin uint8) error
+func (b *UpdateBuilder) WriteASPath(segments []ASPathSegment) error
+func (b *UpdateBuilder) WriteNextHop(addr netip.Addr) error
+func (b *UpdateBuilder) WriteMED(med uint32) error
+func (b *UpdateBuilder) WriteLocalPref(pref uint32) error
+func (b *UpdateBuilder) WriteCommunities(comms []uint32) error
+
+// NLRI writers
+func (b *UpdateBuilder) WriteNLRI(prefix netip.Prefix, pathID uint32) error
+func (b *UpdateBuilder) WriteWithdrawn(prefix netip.Prefix, pathID uint32) error
+
+// Finalize
+func (b *UpdateBuilder) Build() ([]byte, error)
+func (b *UpdateBuilder) Reset()
+```
+
+---
+
+## RIB Storage
+
+Routes store wire bytes as source of truth:
+
+```go
+type Route struct {
+    // Wire bytes (source of truth)
+    attrBytes     []byte
+    nlriBytes     []byte
+    sourceCtxID   ContextID
+
+    // Cached offsets (optional optimization)
+    asPathOffset  int16  // -1 = not cached, else offset into attrBytes
+    nextHopOffset int16  // -1 = not cached
+
+    // Reference counting
+    refCount      atomic.Int32
+}
+
+// Access via iterators - parse on demand
+func (r *Route) AttrIterator() *AttrIterator {
+    return NewAttrIterator(r.attrBytes)
+}
+
+func (r *Route) ASPathIterator(asn4 bool) *ASPathIterator {
+    if r.asPathOffset < 0 {
+        // Find AS_PATH attribute
+        span, ok := r.AttrIterator().Find(AS_PATH_TYPE)
+        if !ok {
+            return nil
+        }
+        r.asPathOffset = int16(span.Start)
+    }
+    return NewASPathIterator(r.attrBytes[r.asPathOffset:], asn4)
+}
+
+// Zero-copy forwarding
+func (r *Route) CanForwardDirect(destCtxID ContextID) bool {
+    return r.sourceCtxID == destCtxID
+}
+
+func (r *Route) AttrBytes() []byte {
+    return r.attrBytes
+}
+```
+
+---
+
+## API Layer
+
+### JSON Formatting (Direct from Buffer)
+
+```go
+// Format UPDATE event directly to JSON writer
+func FormatUpdateEventJSON(u *WireUpdate, ctx ParseContext, w io.Writer) error {
+    w.Write([]byte(`{"type":"update"`))
+
+    // Announce section
+    w.Write([]byte(`,"announce":{`))
+    nlriIter := u.NLRIIterator(ctx)
+    first := true
+    for prefix, pathID, ok := nlriIter.Next(); ok; prefix, pathID, ok = nlriIter.Next() {
+        if !first {
+            w.Write([]byte(`,`))
+        }
+        formatPrefixJSON(prefix, pathID, w)
+        first = false
+    }
+    w.Write([]byte(`}`))
+
+    // Attributes
+    w.Write([]byte(`,"attributes":{`))
+    formatAttributesJSON(u.AttrsSpan().Slice(u.payload), ctx, w)
+    w.Write([]byte(`}}`))
+
+    return nil
+}
+```
+
+### Text Formatting
+
+```go
+func FormatUpdateText(u *WireUpdate, ctx ParseContext, w io.Writer) error {
+    // "announce route 10.0.0.0/24 next-hop 192.168.1.1 as-path [65001 65002]"
+    // Format directly from buffer bytes
+}
+```
+
+---
+
+## Migration Path
+
+### Phase 1: Add Iterators (Non-Breaking)
+
+Add iterator types alongside existing slice-returning methods:
+
+```go
+// Keep existing (deprecated)
+func (u *Update) NLRIs() []nlri.NLRI
+
+// Add new
+func (u *Update) NLRIIterator() *NLRIIterator
+```
+
+### Phase 2: Migrate Internal Code
+
+Update internal consumers to use iterators:
+- RIB storage
+- Route forwarding
+- UPDATE building
+
+### Phase 3: Migrate API Layer
+
+Update API formatting to use direct buffer access:
+- JSON encoder
+- Text encoder
+
+### Phase 4: Remove Parsed Types
+
+Once all consumers migrated:
+- Remove `PathAttributes` struct
+- Remove `RouteUpdate` struct
+- Remove slice-returning methods
+
+---
+
+## What Gets Removed
+
+| Current Type | Replacement |
+|--------------|-------------|
+| `plugin.PathAttributes` | `AttrIterator` over buffer |
+| `plugin.RouteUpdate` | Direct formatting from buffer |
+| `[]attribute.Attribute` | `AttrIterator` |
+| `[]nlri.NLRI` | `NLRIIterator` |
+| `[]uint32` (AS-PATH) | `ASPathIterator` |
+| `rr.UpdateInfo` | `WireUpdate` + iterators |
+| `plugin.RawMessage` | Simplified to buffer ref |
+
+---
+
+## Benefits
+
+| Benefit | Description |
+|---------|-------------|
+| **Zero-copy passthrough** | Route reflection = memcpy of buffer |
+| **Single source of truth** | No sync between wire/parsed representations |
+| **Parse on demand** | Only parse attributes API actually needs |
+| **Memory efficient** | No slice allocations for AS-PATH, communities |
+| **Consistent** | API and wire code use identical primitives |
+| **Simpler code** | One way to do things, not three |
+
+---
+
+## Guidelines for New Code
+
+1. **Never store parsed slices** - Store wire bytes, iterate on demand
+2. **Never return slices from iterators** - Return views (subslices) or format directly
+3. **Use builders for construction** - `UpdateBuilder` for new messages
+4. **Pass ParseContext** - Context-dependent parsing (ADD-PATH, ASN4)
+5. **Format directly to Writer** - No intermediate JSON structs
+
+---
+
+## Related Documentation
+
+- `docs/architecture/encoding-context.md` - Context-dependent encoding
+- `docs/architecture/update-building.md` - Wire format construction
+- `docs/architecture/rib-transition.md` - RIB ownership model
+- `docs/plan/spec-buffer-first-migration.md` - Implementation spec
+
+---
+
+**Last Updated:** 2026-01-10

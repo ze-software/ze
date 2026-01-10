@@ -6,6 +6,7 @@ Read when working on specific areas:
 
 | Area | Doc |
 |------|-----|
+| **Buffer-first** | `docs/architecture/buffer-architecture.md` **(TARGET ARCHITECTURE)** |
 | Wire formats | `docs/architecture/wire/messages.md` |
 | NLRI types | `docs/architecture/wire/nlri.md` |
 | Attributes | `docs/architecture/wire/attributes.md` |
@@ -13,6 +14,8 @@ Read when working on specific areas:
 | UPDATE building | `docs/architecture/update-building.md` |
 | Memory pools | `docs/architecture/pool-architecture.md` |
 | Zero-copy | `docs/architecture/encoding-context.md` |
+| RIB transition | `docs/architecture/rib-transition.md` |
+| Route types | `docs/architecture/route-types.md` |
 | ExaBGP mapping | `docs/exabgp/exabgp-code-map.md` |
 | ExaBGP compat | `docs/exabgp/exabgp-compatibility.md` |
 | FSM | `docs/architecture/behavior/fsm.md` |

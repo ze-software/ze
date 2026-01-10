@@ -436,6 +436,28 @@ Family is required for proper UPDATE construction. This allows API to rebuild UP
 
 ---
 
+## Stability Guarantees
+
+### Stable (API Contract)
+
+| Component | Guarantee |
+|-----------|-----------|
+| Text command protocol | Stable - backwards compatible changes only |
+| JSON event format | Stable - additive changes only |
+| Plugin lifecycle protocol | Stable - 5-stage registration |
+
+### Unstable (Internal)
+
+| Component | Status |
+|-----------|--------|
+| Go package structure | May change without notice |
+| Go types and interfaces | May change without notice |
+| Internal wire representations | May change without notice |
+
+**Implication:** Plugins should communicate via text/JSON protocol over stdin/stdout, not by importing ZeBGP Go packages. This enables polyglot plugins and avoids coupling to internal structure.
+
+---
+
 ## References
 
 - `POOL_ARCHITECTURE.md` - Pool design for API programs

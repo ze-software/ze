@@ -6,21 +6,26 @@ Consolidate multiple Route struct representations into a unified architecture.
 
 ## Problem
 
-4 Route structs represent the same logical concept differently:
+5 Route structs represent the same logical concept differently:
 
 | Struct | Location | Purpose | Issue |
 |--------|----------|---------|-------|
-| `RouteSpec` | `pkg/plugin/types.go` | API input | Full attributes |
-| `rib.Route` | `pkg/plugin/rib/rib.go` | Storage | Full attributes (duplicate) |
-| `rr.Route` | `pkg/plugin/rr/rib.go` | Zero-copy | Minimal fields |
-| `RIBRoute` | `pkg/plugin/types.go` | Query output | Minimal fields |
+| `RouteSpec` | `pkg/plugin/types.go` | API input | Full attributes (parsed) |
+| `PathAttributes` | `pkg/plugin/types.go` | Embedded attrs | Shared by RouteSpec, L3VPNRoute, etc. |
+| `rib.Route` | `pkg/plugin/rib/rib.go` | Plugin storage | Full attributes as strings |
+| `rr.Route` | `pkg/plugin/rr/rib.go` | Zero-copy | Minimal (MsgID, Family, Prefix) |
+| `RIBRoute` | `pkg/plugin/types.go` | Query output | Minimal strings for JSON |
+| `rib.Route` | `pkg/rib/route.go` | Core engine | NLRI, Attrs, wire cache, refcount |
+
+**Note:** Two different `rib.Route` types exist in different packages.
 
 ## Required Reading
 
 ### Architecture Docs
-- [ ] `docs/architecture/ROUTE_TYPES.md` - Current state analysis
-- [ ] `docs/architecture/ENCODING_CONTEXT.md` - Zero-copy patterns
-- [ ] `docs/architecture/UPDATE_BUILDING.md` - Wire format building
+- [ ] `docs/architecture/route-types.md` - Current state analysis
+- [ ] `docs/architecture/encoding-context.md` - Zero-copy patterns
+- [ ] `docs/architecture/update-building.md` - Wire format building
+- [ ] `docs/architecture/rib-transition.md` - RIB → API transition (affects scope)
 
 ## Proposed Solution
 
@@ -72,11 +77,21 @@ type RouteBase interface {
 | `TestRouteForAPI` | `pkg/plugin/rib/route_test.go` | API view |
 | `TestRouteMarshalJSON` | `pkg/plugin/rib/route_test.go` | JSON encoding |
 
+## Scope Decision
+
+**Question:** Given `docs/architecture/rib-transition.md` (RIB moves to API programs), should this consolidation:
+
+1. **Plugin-only** - Consolidate `pkg/plugin/` routes only (RouteSpec, rib.Route, rr.Route, RIBRoute)
+2. **Full** - Also include `pkg/rib/route.go` (core engine Route)
+
+The RIB transition suggests plugin routes become the primary storage, making option 1 more relevant.
+
 ## Files to Modify
 
 - `pkg/plugin/rib/rib.go` - Add view methods to Route
 - `pkg/plugin/rr/rib.go` - Use rib.Route.ForZeroCopy()
 - `pkg/plugin/types.go` - Possibly remove duplicate RIBRoute
+- `pkg/rib/route.go` - (if full scope) Align with plugin Route
 
 ## Implementation Steps
 
@@ -86,6 +101,15 @@ type RouteBase interface {
 4. **Update API output** - Use ForAPI() view
 5. **Remove duplicates** - If safe
 6. **Run tests** - `make test && make lint && make functional`
+
+## Design Principles
+
+**Modularity for plugins:** Route types should be designed so any plugin can easily:
+- Store routes in whatever structure suits its needs
+- Convert between representations without coupling to engine internals
+- Use only the fields it needs (zero-copy uses MsgID only, full RIB uses all attrs)
+
+**API stability guarantee:** Only the text and JSON APIs are stable. Go package structure, types, and interfaces may change without notice. Plugins should communicate via text/JSON protocol, not by importing Go packages.
 
 ## Priority
 

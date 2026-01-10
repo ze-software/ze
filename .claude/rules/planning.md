@@ -76,12 +76,14 @@ Complete IN ORDER. Do not skip steps.
 
 | Keywords in task | Required docs | RFC summaries |
 |------------------|---------------|---------------|
-| UPDATE, message, build, route, announce | `docs/architecture/update-building.md`, `encoding-context.md` | `rfc4271.md`, `rfc4760.md` |
+| buffer, iterator, parse, wire, zero-copy | `docs/architecture/buffer-architecture.md` **(TARGET)** | |
+| UPDATE, message, build, route, announce | `docs/architecture/update-building.md`, `encoding-context.md`, `buffer-architecture.md` | `rfc4271.md`, `rfc4760.md` |
 | attribute, community, AS_PATH, NEXT_HOP | `docs/architecture/wire/attributes.md`, `update-building.md` | `rfc4271.md`, `rfc1997.md`, `rfc4360.md` |
 | NLRI, prefix, MP_REACH, MP_UNREACH | `docs/architecture/wire/nlri.md` | `rfc4760.md` |
 | capability, OPEN, negotiate | `docs/architecture/wire/capabilities.md` | `rfc5492.md`, `rfc9072.md` |
-| pool, memory, dedup, zero-copy | `docs/architecture/pool-architecture.md`, `encoding-context.md` | |
-| forward, reflect, wire cache | `docs/architecture/encoding-context.md`, `update-building.md` | |
+| pool, memory, dedup, zero-copy | `docs/architecture/pool-architecture.md`, `encoding-context.md`, `buffer-architecture.md` | |
+| forward, reflect, wire cache | `docs/architecture/encoding-context.md`, `update-building.md`, `buffer-architecture.md` | |
+| route, rib, storage, duplication | `docs/architecture/route-types.md`, `rib-transition.md`, `buffer-architecture.md` | |
 | FSM, state, session, peer | `docs/architecture/behavior/fsm.md` | `rfc4271.md`, `rfc4724.md` |
 | API, command, announce, withdraw | `docs/architecture/api/architecture.md`, `api/capability-contract.md` | |
 | config, YAML, load | `docs/architecture/config/syntax.md` | |
