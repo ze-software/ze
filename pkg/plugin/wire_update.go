@@ -6,6 +6,7 @@ import (
 
 	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/attribute"
 	bgpctx "codeberg.org/thomas-mangin/zebgp/pkg/bgp/context"
+	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/nlri"
 	"codeberg.org/thomas-mangin/zebgp/pkg/source"
 )
 
@@ -190,4 +191,48 @@ func (u *WireUpdate) SourceID() source.SourceID {
 // SetSourceID sets the source ID. Called once by reactor after creation.
 func (u *WireUpdate) SetSourceID(id source.SourceID) {
 	u.sourceID = id
+}
+
+// NLRIIterator returns an iterator over the NLRI section.
+// Set addPath=true when ADD-PATH is negotiated (RFC 7911).
+// Returns (nil, nil) if NLRI section is empty.
+// Returns (nil, error) if payload is malformed.
+func (u *WireUpdate) NLRIIterator(addPath bool) (*nlri.NLRIIterator, error) {
+	data, err := u.NLRI()
+	if err != nil {
+		return nil, err
+	}
+	if len(data) == 0 {
+		return nil, nil //nolint:nilnil // nil,nil = valid empty
+	}
+	return nlri.NewNLRIIterator(data, addPath), nil
+}
+
+// WithdrawnIterator returns an iterator over the Withdrawn Routes section.
+// Set addPath=true when ADD-PATH is negotiated (RFC 7911).
+// Returns (nil, nil) if withdrawn section is empty.
+// Returns (nil, error) if payload is malformed.
+func (u *WireUpdate) WithdrawnIterator(addPath bool) (*nlri.NLRIIterator, error) {
+	data, err := u.Withdrawn()
+	if err != nil {
+		return nil, err
+	}
+	if len(data) == 0 {
+		return nil, nil //nolint:nilnil // nil,nil = valid empty
+	}
+	return nlri.NewNLRIIterator(data, addPath), nil
+}
+
+// AttrIterator returns an iterator over the Path Attributes section.
+// Returns (nil, nil) if attributes section is empty.
+// Returns (nil, error) if payload is malformed.
+func (u *WireUpdate) AttrIterator() (*attribute.AttrIterator, error) {
+	attrs, err := u.Attrs()
+	if err != nil {
+		return nil, err
+	}
+	if attrs == nil {
+		return nil, nil //nolint:nilnil // nil,nil = valid empty
+	}
+	return attribute.NewAttrIterator(attrs.Packed()), nil
 }

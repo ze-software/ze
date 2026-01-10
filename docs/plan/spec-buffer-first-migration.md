@@ -133,17 +133,19 @@ Add iterator methods to `WireUpdate`:
 
 ```go
 // pkg/plugin/wire_update.go
-func (u *WireUpdate) NLRIIterator(ctx ParseContext) *nlri.NLRIIterator
-func (u *WireUpdate) WithdrawnIterator(ctx ParseContext) *nlri.NLRIIterator
-func (u *WireUpdate) AttrIterator() *attribute.AttrIterator
+func (u *WireUpdate) NLRIIterator(addPath bool) (*nlri.NLRIIterator, error)
+func (u *WireUpdate) WithdrawnIterator(addPath bool) (*nlri.NLRIIterator, error)
+func (u *WireUpdate) AttrIterator() (*attribute.AttrIterator, error)
 ```
 
-**Files to modify:**
-- `pkg/plugin/wire_update.go`
+**Files modified:**
+- `pkg/plugin/wire_update.go` ✅
+- `pkg/plugin/wire_update_test.go` ✅ (6 new tests)
 
-**Verification:**
-- [ ] `make test` passes
-- [ ] `make functional` passes
+**Verification (2026-01-10):**
+- [x] `make test` passes
+- [x] `make lint` passes (0 issues)
+- [x] `make functional` passes (80 tests)
 
 ### Phase 3: Direct Formatting
 
@@ -248,8 +250,8 @@ After all consumers migrated:
 ### 🧪 TDD
 - [x] Phase 1 tests written and FAIL
 - [x] Phase 1 implementation complete, tests PASS
-- [ ] Phase 2 tests written and FAIL
-- [ ] Phase 2 implementation complete, tests PASS
+- [x] Phase 2 tests written and FAIL
+- [x] Phase 2 implementation complete, tests PASS
 - [ ] Phase 3 tests written and FAIL
 - [ ] Phase 3 implementation complete, tests PASS
 - [ ] Phase 4 tests written and FAIL

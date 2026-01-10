@@ -904,3 +904,216 @@ func TestWireUpdate_AllSections(t *testing.T) {
 		t.Errorf("NLRI() len = %d, want %d", len(gotNlri), len(nlri))
 	}
 }
+
+// TestWireUpdate_NLRIIterator verifies NLRI iteration via iterator.
+//
+// VALIDATES: NLRIIterator returns iterator over NLRI section.
+// PREVENTS: Incorrect NLRI traversal.
+func TestWireUpdate_NLRIIterator(t *testing.T) {
+	// Build UPDATE with multiple NLRIs: 10.0.0.0/8, 192.168.1.0/24
+	nlriBytes := []byte{
+		0x08, 0x0A, // 10.0.0.0/8
+		0x18, 0xC0, 0xA8, 0x01, // 192.168.1.0/24
+	}
+	payload := make([]byte, 4+len(nlriBytes))
+	binary.BigEndian.PutUint16(payload[0:2], 0) // withdrawn len
+	binary.BigEndian.PutUint16(payload[2:4], 0) // attr len
+	copy(payload[4:], nlriBytes)
+
+	wu := NewWireUpdate(payload, 0)
+
+	iter, err := wu.NLRIIterator(false)
+	if err != nil {
+		t.Fatalf("NLRIIterator() error = %v", err)
+	}
+	if iter == nil {
+		t.Fatal("NLRIIterator() returned nil")
+	}
+
+	// First prefix: 10.0.0.0/8
+	prefix, pathID, ok := iter.Next()
+	if !ok {
+		t.Fatal("expected first NLRI")
+	}
+	if len(prefix) != 2 || prefix[0] != 0x08 || prefix[1] != 0x0A {
+		t.Errorf("first prefix = %v, want [0x08, 0x0A]", prefix)
+	}
+	if pathID != 0 {
+		t.Errorf("first pathID = %d, want 0", pathID)
+	}
+
+	// Second prefix: 192.168.1.0/24
+	prefix, _, ok = iter.Next()
+	if !ok {
+		t.Fatal("expected second NLRI")
+	}
+	if len(prefix) != 4 {
+		t.Errorf("second prefix len = %d, want 4", len(prefix))
+	}
+
+	// No more
+	_, _, ok = iter.Next()
+	if ok {
+		t.Error("expected no more NLRIs")
+	}
+}
+
+// TestWireUpdate_NLRIIteratorEmpty verifies empty NLRI returns nil iterator.
+//
+// VALIDATES: Empty NLRI section returns nil iterator (not error).
+// PREVENTS: False error on MP-BGP only UPDATE.
+func TestWireUpdate_NLRIIteratorEmpty(t *testing.T) {
+	payload := []byte{0x00, 0x00, 0x00, 0x00} // empty update
+
+	wu := NewWireUpdate(payload, 0)
+
+	iter, err := wu.NLRIIterator(false)
+	if err != nil {
+		t.Errorf("NLRIIterator() error = %v, want nil", err)
+	}
+	if iter != nil {
+		t.Error("NLRIIterator() should return nil for empty NLRI")
+	}
+}
+
+// TestWireUpdate_WithdrawnIterator verifies withdrawn routes iteration.
+//
+// VALIDATES: WithdrawnIterator returns iterator over withdrawn section.
+// PREVENTS: Incorrect withdrawn route traversal.
+func TestWireUpdate_WithdrawnIterator(t *testing.T) {
+	// Build UPDATE with withdrawn: 10.0.0.0/8, 172.16.0.0/16
+	wdBytes := []byte{
+		0x08, 0x0A, // 10.0.0.0/8
+		0x10, 0xAC, 0x10, // 172.16.0.0/16
+	}
+	payload := make([]byte, 2+len(wdBytes)+2)
+	binary.BigEndian.PutUint16(payload[0:2], uint16(len(wdBytes))) //nolint:gosec // test
+	copy(payload[2:], wdBytes)
+	binary.BigEndian.PutUint16(payload[2+len(wdBytes):], 0) // attr len
+
+	wu := NewWireUpdate(payload, 0)
+
+	iter, err := wu.WithdrawnIterator(false)
+	if err != nil {
+		t.Fatalf("WithdrawnIterator() error = %v", err)
+	}
+	if iter == nil {
+		t.Fatal("WithdrawnIterator() returned nil")
+	}
+
+	// First: 10.0.0.0/8
+	prefix, _, ok := iter.Next()
+	if !ok {
+		t.Fatal("expected first withdrawn")
+	}
+	if len(prefix) != 2 {
+		t.Errorf("first prefix len = %d, want 2", len(prefix))
+	}
+
+	// Second: 172.16.0.0/16
+	prefix, _, ok = iter.Next()
+	if !ok {
+		t.Fatal("expected second withdrawn")
+	}
+	if len(prefix) != 3 {
+		t.Errorf("second prefix len = %d, want 3", len(prefix))
+	}
+
+	// No more
+	_, _, ok = iter.Next()
+	if ok {
+		t.Error("expected no more withdrawn")
+	}
+}
+
+// TestWireUpdate_WithdrawnIteratorEmpty verifies empty withdrawn returns nil.
+//
+// VALIDATES: Empty withdrawn section returns nil iterator.
+// PREVENTS: False error on announce-only UPDATE.
+func TestWireUpdate_WithdrawnIteratorEmpty(t *testing.T) {
+	payload := []byte{0x00, 0x00, 0x00, 0x00}
+
+	wu := NewWireUpdate(payload, 0)
+
+	iter, err := wu.WithdrawnIterator(false)
+	if err != nil {
+		t.Errorf("WithdrawnIterator() error = %v, want nil", err)
+	}
+	if iter != nil {
+		t.Error("WithdrawnIterator() should return nil for empty withdrawn")
+	}
+}
+
+// TestWireUpdate_AttrIterator verifies attribute iteration.
+//
+// VALIDATES: AttrIterator returns iterator over path attributes.
+// PREVENTS: Incorrect attribute traversal.
+func TestWireUpdate_AttrIterator(t *testing.T) {
+	// Build UPDATE with ORIGIN + MED
+	attrs := []byte{
+		0x40, 0x01, 0x01, 0x00, // ORIGIN IGP
+		0x80, 0x04, 0x04, 0x00, 0x00, 0x00, 0x64, // MED 100
+	}
+	payload := make([]byte, 4+len(attrs))
+	binary.BigEndian.PutUint16(payload[0:2], 0)                  // withdrawn len
+	binary.BigEndian.PutUint16(payload[2:4], uint16(len(attrs))) //nolint:gosec // test
+	copy(payload[4:], attrs)
+
+	wu := NewWireUpdate(payload, 0)
+
+	iter, err := wu.AttrIterator()
+	if err != nil {
+		t.Fatalf("AttrIterator() error = %v", err)
+	}
+	if iter == nil {
+		t.Fatal("AttrIterator() returned nil")
+	}
+
+	// First: ORIGIN
+	typeCode, _, value, ok := iter.Next()
+	if !ok {
+		t.Fatal("expected first attribute")
+	}
+	if typeCode != 1 { // ORIGIN
+		t.Errorf("first typeCode = %d, want 1", typeCode)
+	}
+	if value.Len != 1 {
+		t.Errorf("first value.Len = %d, want 1", value.Len)
+	}
+
+	// Second: MED
+	typeCode, _, value, ok = iter.Next()
+	if !ok {
+		t.Fatal("expected second attribute")
+	}
+	if typeCode != 4 { // MED
+		t.Errorf("second typeCode = %d, want 4", typeCode)
+	}
+	if value.Len != 4 {
+		t.Errorf("second value.Len = %d, want 4", value.Len)
+	}
+
+	// No more
+	_, _, _, ok = iter.Next()
+	if ok {
+		t.Error("expected no more attributes")
+	}
+}
+
+// TestWireUpdate_AttrIteratorEmpty verifies empty attrs returns nil.
+//
+// VALIDATES: Empty attributes section returns nil iterator.
+// PREVENTS: False error on withdraw-only UPDATE.
+func TestWireUpdate_AttrIteratorEmpty(t *testing.T) {
+	payload := []byte{0x00, 0x00, 0x00, 0x00}
+
+	wu := NewWireUpdate(payload, 0)
+
+	iter, err := wu.AttrIterator()
+	if err != nil {
+		t.Errorf("AttrIterator() error = %v, want nil", err)
+	}
+	if iter != nil {
+		t.Error("AttrIterator() should return nil for empty attrs")
+	}
+}
