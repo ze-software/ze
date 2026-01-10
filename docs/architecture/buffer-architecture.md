@@ -9,7 +9,7 @@
 |-------|--------|-------------|
 | Phase 1 | ✅ Done | Core iterator types (`Span`, `NLRIIterator`, `AttrIterator`, `ASPathIterator`) |
 | Phase 2 | ✅ Done | WireUpdate integration (iterator methods) |
-| Phase 3 | ⏳ Pending | Direct formatting functions |
+| Phase 3 | ✅ Done | Direct formatting functions (FormatPrefixFromBytes, FormatASPathJSON, etc.) |
 | Phase 4 | ⏳ Pending | RIB migration to iterators |
 | Phase 5 | ⏳ Pending | Deprecate parsed types |
 | Phase 6 | ⏳ Pending | Remove deprecated code |

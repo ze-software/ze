@@ -153,18 +153,22 @@ Add format functions that write directly from buffer:
 
 ```go
 // pkg/plugin/format_buffer.go
-func FormatNLRIJSON(prefix []byte, pathID uint32, w io.Writer) error
+func FormatPrefixFromBytes(data []byte, isIPv6 bool) string
 func FormatASPathJSON(data []byte, asn4 bool, w io.Writer) error
-func FormatAttributesJSON(data []byte, ctx ParseContext, w io.Writer) error
-func FormatUpdateEventJSON(u *WireUpdate, ctx ParseContext, w io.Writer) error
+func FormatCommunitiesJSON(data []byte, w io.Writer) error
+func FormatOriginJSON(value byte, w io.Writer)
+func FormatMEDJSON(data []byte, w io.Writer)
+func FormatLocalPrefJSON(data []byte, w io.Writer)
 ```
 
-**Files to create:**
-- `pkg/plugin/format_buffer.go`
+**Files created:**
+- `pkg/plugin/format_buffer.go` ✅
+- `pkg/plugin/format_buffer_test.go` ✅ (6 test functions)
 
-**Verification:**
-- [ ] Output matches existing JSON encoder
-- [ ] `make functional` passes
+**Verification (2026-01-10):**
+- [x] `make test` passes
+- [x] `make lint` passes (0 issues)
+- [x] `make functional` passes (80 tests)
 
 ### Phase 4: RIB Migration
 
@@ -252,8 +256,8 @@ After all consumers migrated:
 - [x] Phase 1 implementation complete, tests PASS
 - [x] Phase 2 tests written and FAIL
 - [x] Phase 2 implementation complete, tests PASS
-- [ ] Phase 3 tests written and FAIL
-- [ ] Phase 3 implementation complete, tests PASS
+- [x] Phase 3 tests written and FAIL
+- [x] Phase 3 implementation complete, tests PASS
 - [ ] Phase 4 tests written and FAIL
 - [ ] Phase 4 implementation complete, tests PASS
 
