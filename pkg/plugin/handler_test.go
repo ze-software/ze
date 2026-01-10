@@ -9,6 +9,7 @@ import (
 	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/message"
 	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/nlri"
 	"codeberg.org/thomas-mangin/zebgp/pkg/rib"
+	"codeberg.org/thomas-mangin/zebgp/pkg/selector"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -263,7 +264,7 @@ func (m *mockReactor) RemoveWatchdogRoute(_, _ string) error {
 	return nil
 }
 
-func (m *mockReactor) ForwardUpdate(_ *Selector, _ uint64) error {
+func (m *mockReactor) ForwardUpdate(_ *selector.Selector, _ uint64) error {
 	return nil
 }
 

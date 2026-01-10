@@ -64,14 +64,14 @@ func TestParseEvent_StateFormat(t *testing.T) {
 // VALIDATES: CLI command requests are parsed correctly.
 // PREVENTS: Commands being ignored.
 func TestParseEvent_RequestFormat(t *testing.T) {
-	input := `{"type":"request","serial":"abc123","command":"rib status"}`
+	input := `{"type":"request","serial":"abc123","command":"rib adjacent status"}`
 
 	event, err := parseEvent([]byte(input))
 	require.NoError(t, err)
 
 	assert.Equal(t, "request", event.GetEventType())
 	assert.Equal(t, "abc123", event.Serial)
-	assert.Equal(t, "rib status", event.Command)
+	assert.Equal(t, "rib adjacent status", event.Command)
 }
 
 // TestHandleSent_StoresRoutes verifies routes are stored in Adj-RIB-Out.
@@ -275,31 +275,6 @@ func TestStatusJSON(t *testing.T) {
 	assert.Contains(t, status, `"peers":2`)
 	assert.Contains(t, status, `"routes_in":2`)
 	assert.Contains(t, status, `"routes_out":1`)
-}
-
-// TestRoutesJSON verifies routes command output.
-//
-// VALIDATES: Routes output includes both RIBs.
-// PREVENTS: Missing route data in output.
-func TestRoutesJSON(t *testing.T) {
-	r := NewRIBManager(strings.NewReader(""), &bytes.Buffer{})
-
-	r.ribIn["10.0.0.1"] = map[string]*Route{
-		"ipv4/unicast:10.0.0.0/24": {Family: "ipv4/unicast", Prefix: "10.0.0.0/24", NextHop: "1.1.1.1"},
-	}
-	r.ribOut["10.0.0.2"] = map[string]*Route{
-		"ipv4/unicast:10.0.1.0/24": {Family: "ipv4/unicast", Prefix: "10.0.1.0/24", NextHop: "2.2.2.2"},
-	}
-
-	output := r.routesJSON()
-
-	// Parse and verify structure
-	var result map[string]any
-	err := json.Unmarshal([]byte(output), &result)
-	require.NoError(t, err)
-
-	assert.Contains(t, result, "adj_rib_in")
-	assert.Contains(t, result, "adj_rib_out")
 }
 
 // TestDispatch_RoutesToCorrectHandler verifies event routing.
@@ -514,4 +489,229 @@ func mustMarshal(t *testing.T, v any) json.RawMessage {
 	data, err := json.Marshal(v)
 	require.NoError(t, err)
 	return data
+}
+
+// TestHandleRequest_RIBAdjacentStatus verifies renamed status command.
+//
+// VALIDATES: "rib adjacent status" returns status JSON.
+// PREVENTS: Command rename breaking status queries.
+func TestHandleRequest_RIBAdjacentStatus(t *testing.T) {
+	var out bytes.Buffer
+	r := NewRIBManager(strings.NewReader(""), &out)
+
+	r.peerUp["10.0.0.1"] = true
+	r.ribIn["10.0.0.1"] = map[string]*Route{"a": {}}
+	r.ribOut["10.0.0.1"] = map[string]*Route{"b": {}, "c": {}}
+
+	event := &Event{
+		Type:    "request",
+		Serial:  "test123",
+		Command: "rib adjacent status",
+	}
+	r.handleRequest(event)
+
+	output := out.String()
+	assert.Contains(t, output, "@test123 done")
+	assert.Contains(t, output, `"running":true`)
+	assert.Contains(t, output, `"routes_in":1`)
+	assert.Contains(t, output, `"routes_out":2`)
+}
+
+// TestHandleRequest_RIBAdjacentInboundShow verifies inbound show with selector.
+//
+// VALIDATES: "rib adjacent inbound show" filters by peer selector.
+// PREVENTS: Wrong routes returned for filtered queries.
+func TestHandleRequest_RIBAdjacentInboundShow(t *testing.T) {
+	var out bytes.Buffer
+	r := NewRIBManager(strings.NewReader(""), &out)
+
+	r.ribIn["10.0.0.1"] = map[string]*Route{
+		"ipv4/unicast:10.0.0.0/24": {Family: "ipv4/unicast", Prefix: "10.0.0.0/24", NextHop: "1.1.1.1"},
+	}
+	r.ribIn["10.0.0.2"] = map[string]*Route{
+		"ipv4/unicast:10.0.1.0/24": {Family: "ipv4/unicast", Prefix: "10.0.1.0/24", NextHop: "2.2.2.2"},
+	}
+
+	tests := []struct {
+		name        string
+		selector    string // peer selector (JSON string format)
+		wantPeer1   bool
+		wantPeer2   bool
+		wantSuccess bool
+	}{
+		{
+			name:        "all_peers",
+			selector:    "*",
+			wantPeer1:   true,
+			wantPeer2:   true,
+			wantSuccess: true,
+		},
+		{
+			name:        "specific_peer",
+			selector:    "10.0.0.1",
+			wantPeer1:   true,
+			wantPeer2:   false,
+			wantSuccess: true,
+		},
+		{
+			name:        "multi_peer",
+			selector:    "10.0.0.1,10.0.0.2",
+			wantPeer1:   true,
+			wantPeer2:   true,
+			wantSuccess: true,
+		},
+		{
+			name:        "negation",
+			selector:    "!10.0.0.2",
+			wantPeer1:   true,
+			wantPeer2:   false,
+			wantSuccess: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			out.Reset()
+			// Peer selector is sent as JSON string in "peer" field
+			peerJSON, _ := json.Marshal(tt.selector)
+			event := &Event{
+				Type:    "request",
+				Serial:  "inshow",
+				Command: "rib adjacent inbound show",
+				Peer:    peerJSON,
+			}
+			r.handleRequest(event)
+
+			output := out.String()
+			if tt.wantSuccess {
+				assert.Contains(t, output, "@inshow done")
+			}
+			if tt.wantPeer1 {
+				assert.Contains(t, output, "10.0.0.1")
+			} else {
+				assert.NotContains(t, output, "10.0.0.1")
+			}
+			if tt.wantPeer2 {
+				assert.Contains(t, output, "10.0.0.2")
+			} else {
+				assert.NotContains(t, output, "10.0.0.2")
+			}
+		})
+	}
+}
+
+// TestHandleRequest_RIBAdjacentInboundEmpty verifies inbound empty with selector.
+//
+// VALIDATES: "rib adjacent inbound empty" empties matching peers only.
+// PREVENTS: Emptying wrong peers' routes.
+func TestHandleRequest_RIBAdjacentInboundEmpty(t *testing.T) {
+	var out bytes.Buffer
+	r := NewRIBManager(strings.NewReader(""), &out)
+
+	r.ribIn["10.0.0.1"] = map[string]*Route{
+		"ipv4/unicast:10.0.0.0/24": {Family: "ipv4/unicast", Prefix: "10.0.0.0/24"},
+	}
+	r.ribIn["10.0.0.2"] = map[string]*Route{
+		"ipv4/unicast:10.0.1.0/24": {Family: "ipv4/unicast", Prefix: "10.0.1.0/24"},
+	}
+
+	peerJSON, _ := json.Marshal("10.0.0.1")
+	event := &Event{
+		Type:    "request",
+		Serial:  "empty1",
+		Command: "rib adjacent inbound empty",
+		Peer:    peerJSON,
+	}
+	r.handleRequest(event)
+
+	// 10.0.0.1 should be emptied
+	assert.Len(t, r.ribIn["10.0.0.1"], 0)
+	// 10.0.0.2 should remain
+	assert.Len(t, r.ribIn["10.0.0.2"], 1)
+	assert.Contains(t, out.String(), "@empty1 done")
+}
+
+// TestHandleRequest_RIBAdjacentOutboundShow verifies outbound show with selector.
+//
+// VALIDATES: "rib adjacent outbound show" filters by peer selector.
+// PREVENTS: Wrong routes returned for outbound queries.
+func TestHandleRequest_RIBAdjacentOutboundShow(t *testing.T) {
+	var out bytes.Buffer
+	r := NewRIBManager(strings.NewReader(""), &out)
+
+	r.ribOut["10.0.0.1"] = map[string]*Route{
+		"ipv4/unicast:10.0.0.0/24": {Family: "ipv4/unicast", Prefix: "10.0.0.0/24", NextHop: "1.1.1.1"},
+	}
+	r.ribOut["10.0.0.2"] = map[string]*Route{
+		"ipv4/unicast:10.0.1.0/24": {Family: "ipv4/unicast", Prefix: "10.0.1.0/24", NextHop: "2.2.2.2"},
+	}
+
+	peerJSON, _ := json.Marshal("10.0.0.1")
+	event := &Event{
+		Type:    "request",
+		Serial:  "outshow",
+		Command: "rib adjacent outbound show",
+		Peer:    peerJSON,
+	}
+	r.handleRequest(event)
+
+	output := out.String()
+	assert.Contains(t, output, "@outshow done")
+	assert.Contains(t, output, "10.0.0.1")
+	assert.NotContains(t, output, "10.0.0.2")
+}
+
+// TestHandleRequest_RIBAdjacentOutboundResend verifies outbound resend.
+//
+// VALIDATES: "rib adjacent outbound resend" replays routes to matching peers.
+// PREVENTS: Resend failing or targeting wrong peers.
+func TestHandleRequest_RIBAdjacentOutboundResend(t *testing.T) {
+	var out bytes.Buffer
+	r := NewRIBManager(strings.NewReader(""), &out)
+
+	r.ribOut["10.0.0.1"] = map[string]*Route{
+		"ipv4/unicast:10.0.0.0/24": {MsgID: 1, Family: "ipv4/unicast", Prefix: "10.0.0.0/24", NextHop: "1.1.1.1"},
+	}
+	r.ribOut["10.0.0.2"] = map[string]*Route{
+		"ipv4/unicast:10.0.1.0/24": {MsgID: 2, Family: "ipv4/unicast", Prefix: "10.0.1.0/24", NextHop: "2.2.2.2"},
+	}
+	r.peerUp["10.0.0.1"] = true
+	r.peerUp["10.0.0.2"] = true
+
+	peerJSON, _ := json.Marshal("10.0.0.1")
+	event := &Event{
+		Type:    "request",
+		Serial:  "resend1",
+		Command: "rib adjacent outbound resend",
+		Peer:    peerJSON,
+	}
+	r.handleRequest(event)
+
+	output := out.String()
+	assert.Contains(t, output, "@resend1 done")
+	// Should have replayed routes for 10.0.0.1
+	assert.Contains(t, output, "peer 10.0.0.1 announce route 10.0.0.0/24")
+	// Should NOT have replayed routes for 10.0.0.2
+	assert.NotContains(t, output, "peer 10.0.0.2 announce route")
+	// Should NOT send "session api ready" - that's only for reconnect
+	assert.NotContains(t, output, "session api ready")
+}
+
+// TestHandleRequest_UnknownCommand verifies unknown commands are rejected.
+//
+// VALIDATES: Unknown commands return error response.
+// PREVENTS: Silent failures on typos.
+func TestHandleRequest_UnknownCommand(t *testing.T) {
+	var out bytes.Buffer
+	r := NewRIBManager(strings.NewReader(""), &out)
+
+	event := &Event{
+		Type:    "request",
+		Serial:  "unknown",
+		Command: "rib unknown command",
+	}
+	r.handleRequest(event)
+
+	output := out.String()
+	assert.Contains(t, output, "@unknown error")
 }

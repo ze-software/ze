@@ -23,6 +23,7 @@ import (
 	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/nlri"
 	"codeberg.org/thomas-mangin/zebgp/pkg/plugin"
 	"codeberg.org/thomas-mangin/zebgp/pkg/rib"
+	"codeberg.org/thomas-mangin/zebgp/pkg/selector"
 	"codeberg.org/thomas-mangin/zebgp/pkg/trace"
 )
 
@@ -2544,7 +2545,7 @@ func (a *reactorAPIAdapter) sendWithdrawals(peer *Peer, withdrawals []nlri.NLRI)
 // RFC 8654 compliance: If the UPDATE exceeds a peer's max message size
 // (4096 without Extended Message, 65535 with), it is split into multiple
 // smaller UPDATEs that each fit within the limit.
-func (a *reactorAPIAdapter) ForwardUpdate(sel *plugin.Selector, updateID uint64) error {
+func (a *reactorAPIAdapter) ForwardUpdate(sel *selector.Selector, updateID uint64) error {
 	// Take ownership of update from cache (removes from cache)
 	// Caller must call Release() when done
 	update, ok := a.r.recentUpdates.Take(updateID)

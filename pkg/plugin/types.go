@@ -17,6 +17,7 @@ import (
 	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/message"
 	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/nlri"
 	"codeberg.org/thomas-mangin/zebgp/pkg/rib"
+	"codeberg.org/thomas-mangin/zebgp/pkg/selector"
 )
 
 // AFI name constants for API use.
@@ -384,7 +385,7 @@ type ReactorInterface interface {
 	// ForwardUpdate forwards a cached UPDATE to peers matching the selector.
 	// One-shot: deletes from cache after forwarding.
 	// Returns error if update-id is expired or not found.
-	ForwardUpdate(sel *Selector, updateID uint64) error
+	ForwardUpdate(sel *selector.Selector, updateID uint64) error
 
 	// DeleteUpdate removes an update from the cache without forwarding.
 	// Used when controller decides not to forward (filtering).

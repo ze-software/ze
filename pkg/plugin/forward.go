@@ -3,6 +3,8 @@ package plugin
 import (
 	"fmt"
 	"strconv"
+
+	"codeberg.org/thomas-mangin/zebgp/pkg/selector"
 )
 
 // RegisterForwardHandlers registers forward-related command handlers.
@@ -37,7 +39,7 @@ func handleForwardUpdateID(ctx *CommandContext, args []string) (*Response, error
 
 	// Parse peer selector from context
 	selectorStr := ctx.PeerSelector()
-	selector, err := ParseSelector(selectorStr)
+	sel, err := selector.Parse(selectorStr)
 	if err != nil {
 		return &Response{
 			Status: "error",
@@ -46,7 +48,7 @@ func handleForwardUpdateID(ctx *CommandContext, args []string) (*Response, error
 	}
 
 	// Forward the update
-	if err := ctx.Reactor.ForwardUpdate(selector, updateID); err != nil {
+	if err := ctx.Reactor.ForwardUpdate(sel, updateID); err != nil {
 		return &Response{
 			Status: "error",
 			Data:   fmt.Sprintf("forward failed: %v", err),
@@ -57,7 +59,7 @@ func handleForwardUpdateID(ctx *CommandContext, args []string) (*Response, error
 		Status: "done",
 		Data: map[string]any{
 			"update_id": updateID,
-			"selector":  selector.String(),
+			"selector":  sel.String(),
 		},
 	}, nil
 }

@@ -36,8 +36,9 @@ type Event struct {
 	Withdraw map[string][]any          `json:"withdraw,omitempty"`
 
 	// Request fields
-	Serial  string `json:"serial,omitempty"`
-	Command string `json:"command,omitempty"`
+	Serial  string   `json:"serial,omitempty"`
+	Command string   `json:"command,omitempty"`
+	Args    []string `json:"args,omitempty"`
 }
 
 // MessageInfo contains message wrapper for received events.
@@ -139,6 +140,23 @@ func (e *Event) GetPeerState() string {
 	var nested PeerInfoNested
 	if err := json.Unmarshal(e.Peer, &nested); err == nil && nested.State != "" {
 		return nested.State
+	}
+
+	return ""
+}
+
+// GetPeerSelector extracts peer selector string for request events.
+// For request events, ZeBGP sends peer as a JSON string (the selector).
+// Returns empty string if not a request event or no selector specified.
+func (e *Event) GetPeerSelector() string {
+	if len(e.Peer) == 0 {
+		return ""
+	}
+
+	// For request events, peer is a JSON string
+	var selector string
+	if err := json.Unmarshal(e.Peer, &selector); err == nil {
+		return selector
 	}
 
 	return ""

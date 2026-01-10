@@ -338,10 +338,14 @@ func tokenize(input string) []string {
 }
 
 // looksLikeIPOrGlob returns true if s looks like an IP address or glob pattern.
-// Examples: "*", "192.168.1.1", "192.168.*.*", "2001:db8::1".
+// Examples: "*", "192.168.1.1", "192.168.*.*", "2001:db8::1", "10.0.0.1,10.0.0.2".
 func looksLikeIPOrGlob(s string) bool {
 	// Wildcard all
 	if s == "*" {
+		return true
+	}
+	// Contains comma (multi-IP: ip,ip,ip)
+	if strings.Contains(s, ",") {
 		return true
 	}
 	// Contains dots (IPv4 or IPv4 glob)

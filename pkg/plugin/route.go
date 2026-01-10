@@ -13,7 +13,6 @@ import (
 
 	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/attribute"
 	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/nlri"
-	"codeberg.org/thomas-mangin/zebgp/pkg/parse"
 	"codeberg.org/thomas-mangin/zebgp/pkg/rib"
 )
 
@@ -739,9 +738,9 @@ func parseCommunities(args []string) ([]uint32, int, error) {
 }
 
 // parseCommunity parses a single community value.
-// Delegates to parse.Community for shared parsing logic.
+// Delegates to attribute.ParseCommunity for shared parsing logic.
 func parseCommunity(s string) (uint32, error) {
-	return parse.Community(s)
+	return attribute.ParseCommunity(s)
 }
 
 // parseLargeCommunities parses large communities in format [GA:LD1:LD2 ...].
@@ -764,17 +763,9 @@ func parseLargeCommunities(args []string) ([]LargeCommunity, int, error) {
 }
 
 // parseLargeCommunity parses a single large community GA:LD1:LD2.
-// Delegates to parse.LargeCommunity for shared parsing logic.
+// Delegates to attribute.ParseLargeCommunity for shared parsing logic.
 func parseLargeCommunity(s string) (LargeCommunity, error) {
-	vals, err := parse.LargeCommunity(s)
-	if err != nil {
-		return LargeCommunity{}, err
-	}
-	return LargeCommunity{
-		GlobalAdmin: vals[0],
-		LocalData1:  vals[1],
-		LocalData2:  vals[2],
-	}, nil
+	return attribute.ParseLargeCommunity(s)
 }
 
 // parseExtendedCommunities parses extended communities in format [type:value:value ...].

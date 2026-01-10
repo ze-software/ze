@@ -13,6 +13,7 @@ import (
 	"log/slog"
 	"os"
 	"sort"
+	"strings"
 	"sync"
 	"time"
 )
@@ -110,10 +111,11 @@ func (r *RIBManager) Run() int {
 // doStartupProtocol performs the 5-stage plugin registration protocol.
 func (r *RIBManager) doStartupProtocol() {
 	// Stage 1: Declaration
-	r.send("declare cmd rib status")
-	r.send("declare cmd rib routes")
-	r.send("declare cmd rib routes in")
-	r.send("declare cmd rib routes out")
+	r.send("declare cmd rib adjacent status")
+	r.send("declare cmd rib adjacent inbound show")
+	r.send("declare cmd rib adjacent inbound empty")
+	r.send("declare cmd rib adjacent outbound show")
+	r.send("declare cmd rib adjacent outbound resend")
 	r.send("declare done")
 
 	// Stage 2: Wait for config (discard)
@@ -390,18 +392,177 @@ func (r *RIBManager) replayRoutes(peerAddr string, routes []*Route) {
 func (r *RIBManager) handleRequest(event *Event) {
 	serial := event.Serial
 	command := event.Command
+	selector := event.GetPeerSelector()
 
 	switch command {
-	case "rib status":
+	case "rib adjacent status":
 		r.respondDone(serial, r.statusJSON())
-	case "rib routes":
-		r.respondDone(serial, r.routesJSON())
-	case "rib routes in":
-		r.respondDone(serial, r.routesInJSON())
-	case "rib routes out":
-		r.respondDone(serial, r.routesOutJSON())
+	case "rib adjacent inbound show":
+		r.handleInboundShow(serial, selector)
+	case "rib adjacent inbound empty":
+		r.handleInboundEmpty(serial, selector)
+	case "rib adjacent outbound show":
+		r.handleOutboundShow(serial, selector)
+	case "rib adjacent outbound resend":
+		r.handleOutboundResend(serial, selector)
 	default:
 		r.respondError(serial, "unknown command: "+command)
+	}
+}
+
+// matchesPeer returns true if peerAddr matches the selector string.
+// Supports: *, IP, !IP (negation), IP,IP,IP (multi-IP).
+func matchesPeer(peerAddr, selector string) bool {
+	selector = strings.TrimSpace(selector)
+
+	if selector == "" || selector == "*" {
+		return true
+	}
+
+	// Negation: !IP matches all except that IP
+	if strings.HasPrefix(selector, "!") {
+		excludeIP := strings.TrimSpace(selector[1:])
+		return peerAddr != excludeIP
+	}
+
+	// Multi-IP: IP,IP,IP matches any in list
+	if strings.Contains(selector, ",") {
+		for _, s := range strings.Split(selector, ",") {
+			if strings.TrimSpace(s) == peerAddr {
+				return true
+			}
+		}
+		return false
+	}
+
+	// Single IP
+	return peerAddr == selector
+}
+
+// handleInboundShow returns Adj-RIB-In routes filtered by selector.
+func (r *RIBManager) handleInboundShow(serial, selector string) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	result := make(map[string][]map[string]any)
+	for peer, routes := range r.ribIn {
+		if !matchesPeer(peer, selector) {
+			continue
+		}
+		routeList := make([]map[string]any, 0, len(routes))
+		for _, rt := range routes {
+			routeMap := map[string]any{
+				"family":   rt.Family,
+				"prefix":   rt.Prefix,
+				"next-hop": rt.NextHop,
+			}
+			if rt.PathID != 0 {
+				routeMap["path-id"] = rt.PathID
+			}
+			routeList = append(routeList, routeMap)
+		}
+		result[peer] = routeList
+	}
+
+	data, _ := json.Marshal(map[string]any{"adj_rib_in": result})
+	r.respondDone(serial, string(data))
+}
+
+// handleInboundEmpty clears Adj-RIB-In routes for matching peers.
+func (r *RIBManager) handleInboundEmpty(serial, selector string) {
+	r.mu.Lock()
+	cleared := 0
+	for peer, routes := range r.ribIn {
+		if !matchesPeer(peer, selector) {
+			continue
+		}
+		cleared += len(routes)
+		delete(r.ribIn, peer)
+	}
+	r.mu.Unlock()
+
+	data, _ := json.Marshal(map[string]any{"cleared": cleared})
+	r.respondDone(serial, string(data))
+}
+
+// handleOutboundShow returns Adj-RIB-Out routes filtered by selector.
+func (r *RIBManager) handleOutboundShow(serial, selector string) {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+
+	result := make(map[string][]map[string]any)
+	for peer, routes := range r.ribOut {
+		if !matchesPeer(peer, selector) {
+			continue
+		}
+		routeList := make([]map[string]any, 0, len(routes))
+		for _, rt := range routes {
+			routeMap := map[string]any{
+				"family":   rt.Family,
+				"prefix":   rt.Prefix,
+				"next-hop": rt.NextHop,
+			}
+			if rt.PathID != 0 {
+				routeMap["path-id"] = rt.PathID
+			}
+			routeList = append(routeList, routeMap)
+		}
+		result[peer] = routeList
+	}
+
+	data, _ := json.Marshal(map[string]any{"adj_rib_out": result})
+	r.respondDone(serial, string(data))
+}
+
+// handleOutboundResend replays Adj-RIB-Out routes for matching peers.
+// Does NOT send "session api ready" - that's only for initial reconnect.
+func (r *RIBManager) handleOutboundResend(serial, selector string) {
+	r.mu.RLock()
+	var peersToResend []string
+	var routesToResend = make(map[string][]*Route)
+
+	for peer, routes := range r.ribOut {
+		if !matchesPeer(peer, selector) {
+			continue
+		}
+		if !r.peerUp[peer] {
+			continue // Only resend to up peers
+		}
+		peersToResend = append(peersToResend, peer)
+		routesCopy := make([]*Route, 0, len(routes))
+		for _, rt := range routes {
+			routesCopy = append(routesCopy, rt)
+		}
+		routesToResend[peer] = routesCopy
+	}
+	r.mu.RUnlock()
+
+	// Replay routes outside lock - use sendRoutes, not replayRoutes
+	resent := 0
+	for _, peer := range peersToResend {
+		routes := routesToResend[peer]
+		r.sendRoutes(peer, routes)
+		resent += len(routes)
+	}
+
+	data, _ := json.Marshal(map[string]any{"resent": resent, "peers": len(peersToResend)})
+	r.respondDone(serial, string(data))
+}
+
+// sendRoutes sends routes to a peer without the "session api ready" signal.
+// Used for manual resend operations.
+func (r *RIBManager) sendRoutes(peerAddr string, routes []*Route) {
+	// Sort by MsgID to send in original announcement order
+	sort.Slice(routes, func(i, j int) bool {
+		return routes[i].MsgID < routes[j].MsgID
+	})
+
+	for _, route := range routes {
+		if route.PathID != 0 {
+			r.send("peer %s announce route %s path-id %d next-hop %s", peerAddr, route.Prefix, route.PathID, route.NextHop)
+		} else {
+			r.send("peer %s announce route %s next-hop %s", peerAddr, route.Prefix, route.NextHop)
+		}
 	}
 }
 
@@ -436,68 +597,4 @@ func (r *RIBManager) statusJSON() string {
 
 	return fmt.Sprintf(`{"running":true,"peers":%d,"routes_in":%d,"routes_out":%d}`,
 		len(r.peerUp), routesIn, routesOut)
-}
-
-// routesJSON returns all stored routes as JSON.
-func (r *RIBManager) routesJSON() string {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
-
-	result := map[string]any{
-		"adj_rib_in":  r.buildRoutesMap(r.ribIn),
-		"adj_rib_out": r.buildRoutesMap(r.ribOut),
-	}
-
-	data, _ := json.Marshal(result)
-	return string(data)
-}
-
-// routesInJSON returns Adj-RIB-In routes as JSON.
-func (r *RIBManager) routesInJSON() string {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
-
-	result := map[string]any{
-		"adj_rib_in": r.buildRoutesMap(r.ribIn),
-	}
-
-	data, _ := json.Marshal(result)
-	return string(data)
-}
-
-// routesOutJSON returns Adj-RIB-Out routes as JSON.
-func (r *RIBManager) routesOutJSON() string {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
-
-	result := map[string]any{
-		"adj_rib_out": r.buildRoutesMap(r.ribOut),
-	}
-
-	data, _ := json.Marshal(result)
-	return string(data)
-}
-
-// buildRoutesMap converts a RIB to a map for JSON serialization.
-// RFC 7911: Includes path-id when non-zero.
-func (r *RIBManager) buildRoutesMap(rib map[string]map[string]*Route) map[string][]map[string]any {
-	result := make(map[string][]map[string]any)
-
-	for peer, routes := range rib {
-		routeList := make([]map[string]any, 0, len(routes))
-		for _, rt := range routes {
-			routeMap := map[string]any{
-				"family":   rt.Family,
-				"prefix":   rt.Prefix,
-				"next-hop": rt.NextHop,
-			}
-			if rt.PathID != 0 {
-				routeMap["path-id"] = rt.PathID
-			}
-			routeList = append(routeList, routeMap)
-		}
-		result[peer] = routeList
-	}
-
-	return result
 }

@@ -7,6 +7,7 @@ import (
 
 	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/nlri"
 	"codeberg.org/thomas-mangin/zebgp/pkg/rib"
+	"codeberg.org/thomas-mangin/zebgp/pkg/selector"
 )
 
 // errUpdateExpired is a test error matching reactor.ErrUpdateExpired.
@@ -16,12 +17,12 @@ var errUpdateExpired = errors.New("update-id expired or not found")
 // mockReactorForward implements ReactorInterface for forward command testing.
 type mockReactorForward struct {
 	forwardCalled bool
-	forwardSel    *Selector
+	forwardSel    *selector.Selector
 	forwardID     uint64
 	forwardErr    error
 }
 
-func (m *mockReactorForward) ForwardUpdate(sel *Selector, updateID uint64) error {
+func (m *mockReactorForward) ForwardUpdate(sel *selector.Selector, updateID uint64) error {
 	m.forwardCalled = true
 	m.forwardSel = sel
 	m.forwardID = updateID

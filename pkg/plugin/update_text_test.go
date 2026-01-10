@@ -11,6 +11,7 @@ import (
 	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/attribute"
 	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/nlri"
 	"codeberg.org/thomas-mangin/zebgp/pkg/rib"
+	"codeberg.org/thomas-mangin/zebgp/pkg/selector"
 )
 
 // TestParseUpdateText_EmptyInput verifies empty args returns empty result.
@@ -968,7 +969,7 @@ func (m *mockReactorBatch) ClearRIBOut() int                                    
 func (m *mockReactorBatch) FlushRIBOut() int                                         { return 0 }
 func (m *mockReactorBatch) GetPeerProcessBindings(_ netip.Addr) []PeerProcessBinding { return nil }
 func (m *mockReactorBatch) GetPeerCapabilityConfigs() []PeerCapabilityConfig         { return nil }
-func (m *mockReactorBatch) ForwardUpdate(_ *Selector, _ uint64) error                { return nil }
+func (m *mockReactorBatch) ForwardUpdate(_ *selector.Selector, _ uint64) error       { return nil }
 func (m *mockReactorBatch) DeleteUpdate(_ uint64) error                              { return nil }
 func (m *mockReactorBatch) SignalAPIReady()                                          {}
 func (m *mockReactorBatch) SignalPeerAPIReady(_ string)                              {}

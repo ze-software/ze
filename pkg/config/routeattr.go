@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"strings"
 
-	"codeberg.org/thomas-mangin/zebgp/pkg/parse"
+	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/attribute"
 )
 
 // Origin represents the ORIGIN path attribute.
@@ -84,9 +84,9 @@ func ParseCommunity(s string) (Community, error) {
 }
 
 // parseOneCommunity parses a single community string to uint32.
-// Delegates to parse.Community for shared logic.
+// Delegates to attribute.ParseCommunity for shared logic.
 func parseOneCommunity(s string) (uint32, error) {
-	return parse.Community(s)
+	return attribute.ParseCommunity(s)
 }
 
 // LargeCommunity represents large BGP communities (RFC 8092).
@@ -132,9 +132,13 @@ func ParseLargeCommunity(s string) (LargeCommunity, error) {
 }
 
 // parseOneLargeCommunity parses a single large community to [3]uint32.
-// Delegates to parse.LargeCommunity for shared logic.
+// Delegates to attribute.ParseLargeCommunity for shared logic.
 func parseOneLargeCommunity(s string) ([3]uint32, error) {
-	return parse.LargeCommunity(s)
+	lc, err := attribute.ParseLargeCommunity(s)
+	if err != nil {
+		return [3]uint32{}, err
+	}
+	return [3]uint32{lc.GlobalAdmin, lc.LocalData1, lc.LocalData2}, nil
 }
 
 // ExtendedCommunity represents one or more extended communities (RFC 4360).
