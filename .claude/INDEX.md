@@ -6,19 +6,19 @@ Read when working on specific areas:
 
 | Area | Doc |
 |------|-----|
-| Wire formats | `docs/architecture/wire/MESSAGES.md` |
-| NLRI types | `docs/architecture/wire/NLRI.md` |
-| Attributes | `docs/architecture/wire/ATTRIBUTES.md` |
-| Capabilities | `docs/architecture/wire/CAPABILITIES.md` |
-| UPDATE building | `docs/architecture/UPDATE_BUILDING.md` |
-| Memory pools | `docs/architecture/POOL_ARCHITECTURE.md` |
-| Zero-copy | `docs/architecture/ENCODING_CONTEXT.md` |
-| ExaBGP mapping | `docs/exabgp/EXABGP_CODE_MAP.md` |
-| ExaBGP compat | `docs/exabgp/EXABGP_COMPATIBILITY.md` |
-| FSM | `docs/architecture/behavior/FSM.md` |
-| API | `docs/architecture/api/ARCHITECTURE.md` |
-| API Capabilities | `docs/architecture/api/CAPABILITY_CONTRACT.md` |
-| Config syntax | `docs/architecture/config/SYNTAX.md` |
+| Wire formats | `docs/architecture/wire/messages.md` |
+| NLRI types | `docs/architecture/wire/nlri.md` |
+| Attributes | `docs/architecture/wire/attributes.md` |
+| Capabilities | `docs/architecture/wire/capabilities.md` |
+| UPDATE building | `docs/architecture/update-building.md` |
+| Memory pools | `docs/architecture/pool-architecture.md` |
+| Zero-copy | `docs/architecture/encoding-context.md` |
+| ExaBGP mapping | `docs/exabgp/exabgp-code-map.md` |
+| ExaBGP compat | `docs/exabgp/exabgp-compatibility.md` |
+| FSM | `docs/architecture/behavior/fsm.md` |
+| API | `docs/architecture/api/architecture.md` |
+| API Capabilities | `docs/architecture/api/capability-contract.md` |
+| Config syntax | `docs/architecture/config/syntax.md` |
 
 ## Rules (auto-loaded by path)
 
@@ -37,9 +37,9 @@ Read when working on specific areas:
 
 | Topic | Doc |
 |-------|-----|
-| ASN4 handling | `docs/architecture/edge-cases/AS4.md` |
-| ADD-PATH | `docs/architecture/edge-cases/ADDPATH.md` |
-| Extended messages | `docs/architecture/edge-cases/EXTENDED_MESSAGE.md` |
+| ASN4 handling | `docs/architecture/edge-cases/as4.md` |
+| ADD-PATH | `docs/architecture/edge-cases/addpath.md` |
+| Extended messages | `docs/architecture/edge-cases/extended-message.md` |
 
 ## RFC Summaries
 

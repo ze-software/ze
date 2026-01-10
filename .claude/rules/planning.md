@@ -55,25 +55,25 @@ Complete IN ORDER. Do not skip steps.
 
 | Keywords in task | Required docs | RFC summaries |
 |------------------|---------------|---------------|
-| UPDATE, message, build, route, announce | `docs/architecture/UPDATE_BUILDING.md`, `ENCODING_CONTEXT.md` | `rfc4271.md`, `rfc4760.md` |
-| attribute, community, AS_PATH, NEXT_HOP | `docs/architecture/wire/ATTRIBUTES.md`, `UPDATE_BUILDING.md` | `rfc4271.md`, `rfc1997.md`, `rfc4360.md` |
-| NLRI, prefix, MP_REACH, MP_UNREACH | `docs/architecture/wire/NLRI.md` | `rfc4760.md` |
-| capability, OPEN, negotiate | `docs/architecture/wire/CAPABILITIES.md` | `rfc5492.md`, `rfc9072.md` |
-| pool, memory, dedup, zero-copy | `docs/architecture/POOL_ARCHITECTURE.md`, `ENCODING_CONTEXT.md` | |
-| forward, reflect, wire cache | `docs/architecture/ENCODING_CONTEXT.md`, `UPDATE_BUILDING.md` | |
-| FSM, state, session, peer | `docs/architecture/behavior/FSM.md` | `rfc4271.md`, `rfc4724.md` |
-| API, command, announce, withdraw | `docs/architecture/api/ARCHITECTURE.md`, `api/CAPABILITY_CONTRACT.md` | |
-| config, YAML, load | `docs/architecture/config/SYNTAX.md` | |
-| FlowSpec | `docs/architecture/wire/NLRI.md`, `wire/NLRI_FLOWSPEC.md` | `rfc8955.md`, `rfc8956.md` |
-| VPN, L3VPN, MPLS-VPN | `docs/architecture/wire/NLRI.md` | `rfc4364.md`, `rfc4659.md`, `rfc8277.md` |
-| EVPN | `docs/architecture/wire/NLRI.md`, `wire/NLRI_EVPN.md` | `rfc7432.md`, `rfc9136.md` |
-| BGP-LS, link-state | `docs/architecture/wire/NLRI_BGPLS.md` | `rfc7752.md`, `rfc9085.md`, `rfc9514.md` |
-| ExaBGP, compatibility | `docs/exabgp/EXABGP_CODE_MAP.md`, `EXABGP_COMPATIBILITY.md` | |
+| UPDATE, message, build, route, announce | `docs/architecture/update-building.md`, `encoding-context.md` | `rfc4271.md`, `rfc4760.md` |
+| attribute, community, AS_PATH, NEXT_HOP | `docs/architecture/wire/attributes.md`, `update-building.md` | `rfc4271.md`, `rfc1997.md`, `rfc4360.md` |
+| NLRI, prefix, MP_REACH, MP_UNREACH | `docs/architecture/wire/nlri.md` | `rfc4760.md` |
+| capability, OPEN, negotiate | `docs/architecture/wire/capabilities.md` | `rfc5492.md`, `rfc9072.md` |
+| pool, memory, dedup, zero-copy | `docs/architecture/pool-architecture.md`, `encoding-context.md` | |
+| forward, reflect, wire cache | `docs/architecture/encoding-context.md`, `update-building.md` | |
+| FSM, state, session, peer | `docs/architecture/behavior/fsm.md` | `rfc4271.md`, `rfc4724.md` |
+| API, command, announce, withdraw | `docs/architecture/api/architecture.md`, `api/capability-contract.md` | |
+| config, YAML, load | `docs/architecture/config/syntax.md` | |
+| FlowSpec | `docs/architecture/wire/nlri.md`, `wire/nlri-flowspec.md` | `rfc8955.md`, `rfc8956.md` |
+| VPN, L3VPN, MPLS-VPN | `docs/architecture/wire/nlri.md` | `rfc4364.md`, `rfc4659.md`, `rfc8277.md` |
+| EVPN | `docs/architecture/wire/nlri.md`, `wire/nlri-evpn.md` | `rfc7432.md`, `rfc9136.md` |
+| BGP-LS, link-state | `docs/architecture/wire/nlri-bgpls.md` | `rfc7752.md`, `rfc9085.md`, `rfc9514.md` |
+| ExaBGP, compatibility | `docs/exabgp/exabgp-code-map.md`, `exabgp-compatibility.md` | |
 | design, transition, architecture | `docs/architecture/rib-transition.md` | |
-| ASN4, AS4, 4-byte AS | `docs/architecture/edge-cases/AS4.md` | `rfc6793.md` |
-| ADD-PATH, path-id | `docs/architecture/edge-cases/ADDPATH.md` | `rfc7911.md` |
-| extended message | `docs/architecture/edge-cases/EXTENDED_MESSAGE.md` | `rfc8654.md` |
-| graceful restart, GR | `docs/architecture/behavior/FSM.md` | `rfc4724.md` |
+| ASN4, AS4, 4-byte AS | `docs/architecture/edge-cases/as4.md` | `rfc6793.md` |
+| ADD-PATH, path-id | `docs/architecture/edge-cases/addpath.md` | `rfc7911.md` |
+| extended message | `docs/architecture/edge-cases/extended-message.md` | `rfc8654.md` |
+| graceful restart, GR | `docs/architecture/behavior/fsm.md` | `rfc4724.md` |
 | route-refresh | | `rfc2918.md`, `rfc7313.md` |
 | error handling, notification | | `rfc7606.md`, `rfc9003.md` |
 | large community | | `rfc8092.md` |
@@ -258,13 +258,13 @@ If task changed any of these, update corresponding docs:
 
 | Changed | Update |
 |---------|--------|
-| Config schema | `docs/architecture/config/SYNTAX.md` |
-| Wire format | `docs/architecture/wire/MESSAGES.md`, `ATTRIBUTES.md` |
-| NLRI types | `docs/architecture/wire/NLRI.md` |
-| Capabilities | `docs/architecture/wire/CAPABILITIES.md` |
-| UPDATE building | `docs/architecture/UPDATE_BUILDING.md` |
-| Pool/memory | `docs/architecture/POOL_ARCHITECTURE.md` |
-| API commands | `docs/architecture/api/ARCHITECTURE.md` |
+| Config schema | `docs/architecture/config/syntax.md` |
+| Wire format | `docs/architecture/wire/messages.md`, `attributes.md` |
+| NLRI types | `docs/architecture/wire/nlri.md` |
+| Capabilities | `docs/architecture/wire/capabilities.md` |
+| UPDATE building | `docs/architecture/update-building.md` |
+| Pool/memory | `docs/architecture/pool-architecture.md` |
+| API commands | `docs/architecture/api/architecture.md` |
 
 ## Moving Completed Specs
 

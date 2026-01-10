@@ -26,18 +26,18 @@
 
 ## Architecture Docs
 Read when working on specific areas:
-- Wire formats: `docs/architecture/wire/MESSAGES.md`
-- NLRI types: `docs/architecture/wire/NLRI.md`
-- Attributes: `docs/architecture/wire/ATTRIBUTES.md`
-- Capabilities: `docs/architecture/wire/CAPABILITIES.md`
-- UPDATE building: `docs/architecture/UPDATE_BUILDING.md` (Build vs Forward paths)
-- Memory pools: `docs/architecture/POOL_ARCHITECTURE.md`
-- Zero-copy: `docs/architecture/ENCODING_CONTEXT.md`
-- ExaBGP compat: `docs/exabgp/EXABGP_CODE_MAP.md`
-- FSM: `docs/architecture/behavior/FSM.md`
-- API: `docs/architecture/api/ARCHITECTURE.md`
-- API Capabilities: `docs/architecture/api/CAPABILITY_CONTRACT.md`
-- Config: `docs/architecture/config/SYNTAX.md`
+- Wire formats: `docs/architecture/wire/messages.md`
+- NLRI types: `docs/architecture/wire/nlri.md`
+- Attributes: `docs/architecture/wire/attributes.md`
+- Capabilities: `docs/architecture/wire/capabilities.md`
+- UPDATE building: `docs/architecture/update-building.md` (Build vs Forward paths)
+- Memory pools: `docs/architecture/pool-architecture.md`
+- Zero-copy: `docs/architecture/encoding-context.md`
+- ExaBGP compat: `docs/exabgp/exabgp-code-map.md`
+- FSM: `docs/architecture/behavior/fsm.md`
+- API: `docs/architecture/api/architecture.md`
+- API Capabilities: `docs/architecture/api/capability-contract.md`
+- Config: `docs/architecture/config/syntax.md`
 
 ## Style
 - Terse, emoji-prefixed status lines
