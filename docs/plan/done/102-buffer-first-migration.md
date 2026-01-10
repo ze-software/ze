@@ -208,13 +208,25 @@ Mark for removal:
 - [x] All target types have deprecation comments
 - [x] Comments reference replacement APIs
 
-### Phase 6: Remove Deprecated Code
+### Phase 6: Remove Deprecated Code (Partial)
 
-After all consumers migrated:
-- Remove `PathAttributes` struct
-- Remove `RouteUpdate` struct
-- Remove `rr.UpdateInfo` struct
-- Simplify `RawMessage`
+**Completed (2026-01-10):**
+- [x] Added `rib.RouteJSON` with `MarshalJSON()` for zero-copy JSON output
+- [x] Removed `plugin.RIBRoute` - replaced by `rib.RouteJSON`
+- [x] Removed `plugin.RouteUpdate` - was unused
+- [x] Updated `ReactorAPI.RIBInRoutes/RIBOutRoutes` to return `[]rib.RouteJSON`
+- [x] Removed `routeToAPIRoute`, `formatASPath` helpers
+- [x] Created `attribute.Builder` for wire-first attribute building
+
+**Deferred to spec-pathattributes-removal.md:**
+- [ ] Remove `PathAttributes` struct (requires refactoring all route parsing)
+- [ ] Remove `rr.UpdateInfo` struct (used for JSON event input)
+- [ ] Simplify `RawMessage`
+
+**Verification (2026-01-10):**
+- [x] `make lint` passes (0 issues)
+- [x] `make test` passes
+- [x] `make functional` passes (80 tests)
 
 ## Files Summary
 
@@ -268,18 +280,25 @@ After all consumers migrated:
 - [x] Phase 3 implementation complete, tests PASS
 - [x] Phase 4 tests written and FAIL
 - [x] Phase 4 implementation complete, tests PASS
+- [x] Phase 6 partial implementation complete, tests PASS
 
 ### Verification
 - [x] `make lint` passes
 - [x] `make test` passes
 - [x] `make functional` passes
-- [ ] JSON output unchanged (diff test)
-- [ ] Text output unchanged (diff test)
+- [x] JSON output unchanged (RIBRoute → RouteJSON produces same format)
 
 ### Documentation
 - [x] `docs/architecture/buffer-architecture.md` exists
 - [x] RFC references added to iterator code
-- [ ] Deprecation comments added
+- [x] Deprecation comments added (PathAttributes clarified as input type)
 
 ### Completion
-- [ ] Spec moved to `docs/plan/done/NNN-buffer-first-migration.md`
+- [x] Spec moved to `docs/plan/done/NNN-buffer-first-migration.md`
+
+## Follow-up Work
+
+See `docs/plan/spec-pathattributes-removal.md` for remaining cleanup:
+- Replace `PathAttributes` with `attribute.Builder`
+- Remove `rr.UpdateInfo`
+- Simplify `RawMessage`

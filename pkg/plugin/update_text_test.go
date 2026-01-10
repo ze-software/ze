@@ -942,8 +942,8 @@ func (m *mockReactorBatch) AnnounceMUPRoute(_ string, _ MUPRouteSpec) error { re
 func (m *mockReactorBatch) WithdrawMUPRoute(_ string, _ MUPRouteSpec) error { return nil }
 func (m *mockReactorBatch) TeardownPeer(_ netip.Addr, _ uint8) error        { return nil }
 func (m *mockReactorBatch) AnnounceEOR(_ string, _ uint16, _ uint8) error   { return nil }
-func (m *mockReactorBatch) RIBInRoutes(_ string) []RIBRoute                 { return nil }
-func (m *mockReactorBatch) RIBOutRoutes() []RIBRoute                        { return nil }
+func (m *mockReactorBatch) RIBInRoutes(_ string) []rib.RouteJSON            { return nil }
+func (m *mockReactorBatch) RIBOutRoutes() []rib.RouteJSON                   { return nil }
 func (m *mockReactorBatch) RIBStats() RIBStatsInfo                          { return RIBStatsInfo{} }
 func (m *mockReactorBatch) BeginTransaction(_, _ string) error              { return nil }
 func (m *mockReactorBatch) CommitTransaction(_ string) (TransactionResult, error) {

@@ -176,11 +176,11 @@ func (m *mockReactor) AnnounceEOR(_ string, _ uint16, _ uint8) error {
 	return nil
 }
 
-func (m *mockReactor) RIBInRoutes(_ string) []RIBRoute {
+func (m *mockReactor) RIBInRoutes(_ string) []rib.RouteJSON {
 	return nil
 }
 
-func (m *mockReactor) RIBOutRoutes() []RIBRoute {
+func (m *mockReactor) RIBOutRoutes() []rib.RouteJSON {
 	return nil
 }
 

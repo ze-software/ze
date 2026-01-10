@@ -93,10 +93,8 @@ type ReactorStats struct {
 // These attributes are optional - nil values use protocol defaults.
 // Embedding this struct in route types ensures consistency and reduces duplication.
 //
-// DEPRECATED: This parsed representation will be removed in a future version.
-// Use WireUpdate.AttrIterator() for zero-copy attribute access, and
-// format functions from format_buffer.go for direct output formatting.
-// See docs/architecture/buffer-architecture.md for the migration path.
+// Used for API input (announce commands). For reading received attributes,
+// use WireUpdate.AttrIterator() for zero-copy access.
 type PathAttributes struct {
 	Origin              *uint8                        // 0=IGP, 1=EGP, 2=INCOMPLETE (nil = use default)
 	LocalPreference     *uint32                       // LOCAL_PREF (nil = use default 100 for iBGP)
@@ -303,12 +301,13 @@ type ReactorInterface interface {
 
 	// RIBInRoutes returns routes from Adj-RIB-In for the given peer.
 	// If peerID is empty, returns routes from all peers.
-	RIBInRoutes(peerID string) []RIBRoute
+	// Returns rib.RouteJSON which implements json.Marshaler for efficient output.
+	RIBInRoutes(peerID string) []rib.RouteJSON
 
 	// RIBOutRoutes returns routes from Adj-RIB-Out.
 	//
 	// Deprecated: Adj-RIB-Out tracking removed. Always returns nil.
-	RIBOutRoutes() []RIBRoute
+	RIBOutRoutes() []rib.RouteJSON
 
 	// RIBStats returns RIB statistics.
 	// Note: OutPending/OutWithdrawls/OutSent always 0 (Adj-RIB-Out removed).
@@ -441,19 +440,6 @@ type PeerProcessBinding struct {
 // State events are separate from BGP protocol messages.
 type StateChangeReceiver interface {
 	OnPeerStateChange(peer PeerInfo, state string)
-}
-
-// RIBRoute is an API-friendly representation of a route.
-//
-// Deprecated: This parsed representation will be removed in a future version.
-// Use Route.AttrIterator() for zero-copy attribute access, and format
-// functions from format_buffer.go for direct output formatting.
-// See docs/architecture/buffer-architecture.md for the migration path.
-type RIBRoute struct {
-	Peer    string `json:"peer,omitempty"`
-	Prefix  string `json:"prefix"`
-	NextHop string `json:"next_hop"`
-	ASPath  string `json:"as_path,omitempty"`
 }
 
 // RIBStatsInfo holds RIB statistics.

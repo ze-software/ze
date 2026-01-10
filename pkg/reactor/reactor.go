@@ -2156,17 +2156,17 @@ func staticRouteToSpec(route StaticRoute, localAddress netip.Addr) plugin.RouteS
 }
 
 // RIBInRoutes returns routes from Adj-RIB-In.
-func (a *reactorAPIAdapter) RIBInRoutes(peerID string) []plugin.RIBRoute {
+func (a *reactorAPIAdapter) RIBInRoutes(peerID string) []rib.RouteJSON {
 	if a.r.ribIn == nil {
 		return nil
 	}
 
-	var routes []plugin.RIBRoute
+	var routes []rib.RouteJSON
 
 	// If peerID specified, get routes for that peer only
 	if peerID != "" {
 		for _, route := range a.r.ribIn.GetPeerRoutes(peerID) {
-			routes = append(routes, routeToAPIRoute(peerID, route))
+			routes = append(routes, route.JSON(peerID))
 		}
 		return routes
 	}
@@ -2181,7 +2181,7 @@ func (a *reactorAPIAdapter) RIBInRoutes(peerID string) []plugin.RIBRoute {
 
 	for _, id := range peerIDs {
 		for _, route := range a.r.ribIn.GetPeerRoutes(id) {
-			routes = append(routes, routeToAPIRoute(id, route))
+			routes = append(routes, route.JSON(id))
 		}
 	}
 
@@ -2191,7 +2191,7 @@ func (a *reactorAPIAdapter) RIBInRoutes(peerID string) []plugin.RIBRoute {
 // RIBOutRoutes returns routes from Adj-RIB-Out.
 //
 // Deprecated: Adj-RIB-Out tracking removed. Returns nil.
-func (a *reactorAPIAdapter) RIBOutRoutes() []plugin.RIBRoute {
+func (a *reactorAPIAdapter) RIBOutRoutes() []rib.RouteJSON {
 	return nil
 }
 
@@ -3114,68 +3114,6 @@ func (a *reactorAPIAdapter) SendRawMessage(peerAddr netip.Addr, msgType uint8, p
 	}
 
 	return peer.SendRawMessage(msgType, payload)
-}
-
-// routeToAPIRoute converts a RIB route to an API route.
-func routeToAPIRoute(peerID string, route *rib.Route) plugin.RIBRoute {
-	apiRoute := plugin.RIBRoute{
-		Peer: peerID,
-	}
-
-	if route.NLRI() != nil {
-		apiRoute.Prefix = route.NLRI().String()
-	}
-
-	if route.NextHop().IsValid() {
-		apiRoute.NextHop = route.NextHop().String()
-	}
-
-	if asPath := route.ASPath(); asPath != nil {
-		apiRoute.ASPath = formatASPath(asPath)
-	}
-
-	return apiRoute
-}
-
-// formatASPath formats an AS path for display.
-func formatASPath(asPath *attribute.ASPath) string {
-	if asPath == nil || len(asPath.Segments) == 0 {
-		return ""
-	}
-
-	var result string
-	for i, seg := range asPath.Segments {
-		if i > 0 {
-			result += " "
-		}
-		switch seg.Type {
-		case attribute.ASSet:
-			result += "{"
-			for j, asn := range seg.ASNs {
-				if j > 0 {
-					result += ","
-				}
-				result += fmt.Sprintf("%d", asn)
-			}
-			result += "}"
-		case attribute.ASSequence:
-			for j, asn := range seg.ASNs {
-				if j > 0 {
-					result += " "
-				}
-				result += fmt.Sprintf("%d", asn)
-			}
-		case attribute.ASConfedSet, attribute.ASConfedSequence:
-			// Confederation segments - format similar to regular segments
-			for j, asn := range seg.ASNs {
-				if j > 0 {
-					result += " "
-				}
-				result += fmt.Sprintf("%d", asn)
-			}
-		}
-	}
-	return result
 }
 
 // New creates a new reactor with the given configuration.

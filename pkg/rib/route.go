@@ -323,6 +323,105 @@ func (r *Route) Release() bool {
 	return newCount <= 0
 }
 
+// RouteJSON is a JSON-serializable view of a Route with optional peer info.
+// Used for API output. Implements json.Marshaler for efficient serialization.
+type RouteJSON struct {
+	Route  *Route
+	PeerID string
+}
+
+// MarshalJSON implements json.Marshaler.
+// Output format: {"peer":"...", "prefix":"...", "next_hop":"...", "as_path":"..."}.
+func (rj RouteJSON) MarshalJSON() ([]byte, error) {
+	// Pre-allocate buffer for efficiency
+	buf := make([]byte, 0, 128)
+	buf = append(buf, '{')
+
+	// Peer (optional)
+	if rj.PeerID != "" {
+		buf = append(buf, `"peer":"`...)
+		buf = append(buf, rj.PeerID...)
+		buf = append(buf, `",`...)
+	}
+
+	// Prefix
+	buf = append(buf, `"prefix":"`...)
+	if rj.Route.nlri != nil {
+		buf = append(buf, rj.Route.nlri.String()...)
+	}
+	buf = append(buf, `",`...)
+
+	// NextHop
+	buf = append(buf, `"next_hop":"`...)
+	if rj.Route.nextHop.IsValid() {
+		buf = append(buf, rj.Route.nextHop.String()...)
+	}
+	buf = append(buf, '"')
+
+	// ASPath (optional)
+	if rj.Route.asPath != nil {
+		buf = append(buf, `,"as_path":"`...)
+		buf = appendASPath(buf, rj.Route.asPath)
+		buf = append(buf, '"')
+	}
+
+	buf = append(buf, '}')
+	return buf, nil
+}
+
+// appendASPath appends formatted AS-PATH to buffer.
+func appendASPath(buf []byte, asPath *attribute.ASPath) []byte {
+	buf = append(buf, '[')
+	first := true
+	for _, seg := range asPath.Segments {
+		if seg.Type == attribute.ASSequence {
+			for _, asn := range seg.ASNs {
+				if !first {
+					buf = append(buf, ' ')
+				}
+				buf = appendUint32(buf, asn)
+				first = false
+			}
+		} else {
+			// AS_SET: { asn asn }
+			if !first {
+				buf = append(buf, ' ')
+			}
+			buf = append(buf, '{')
+			for i, asn := range seg.ASNs {
+				if i > 0 {
+					buf = append(buf, ' ')
+				}
+				buf = appendUint32(buf, asn)
+			}
+			buf = append(buf, '}')
+			first = false
+		}
+	}
+	buf = append(buf, ']')
+	return buf
+}
+
+// appendUint32 appends a uint32 as decimal string.
+func appendUint32(buf []byte, n uint32) []byte {
+	if n == 0 {
+		return append(buf, '0')
+	}
+	var digits [10]byte
+	i := len(digits)
+	for n > 0 {
+		i--
+		digits[i] = byte('0' + n%10)
+		n /= 10
+	}
+	return append(buf, digits[i:]...)
+}
+
+// JSON returns a JSON-serializable view of the route.
+func (r *Route) JSON(peerID string) RouteJSON {
+	return RouteJSON{Route: r, PeerID: peerID}
+}
+
 // AttrIterator returns an iterator over the cached attribute wire bytes.
 // Returns nil if route has no wire cache (wireBytes is empty).
 //

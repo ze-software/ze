@@ -58,8 +58,8 @@ func (m *mockReactorForward) AnnounceMUPRoute(_ string, _ MUPRouteSpec) error { 
 func (m *mockReactorForward) WithdrawMUPRoute(_ string, _ MUPRouteSpec) error { return nil }
 func (m *mockReactorForward) TeardownPeer(_ netip.Addr, _ uint8) error        { return nil }
 func (m *mockReactorForward) AnnounceEOR(_ string, _ uint16, _ uint8) error   { return nil }
-func (m *mockReactorForward) RIBInRoutes(_ string) []RIBRoute                 { return nil }
-func (m *mockReactorForward) RIBOutRoutes() []RIBRoute                        { return nil }
+func (m *mockReactorForward) RIBInRoutes(_ string) []rib.RouteJSON            { return nil }
+func (m *mockReactorForward) RIBOutRoutes() []rib.RouteJSON                   { return nil }
 func (m *mockReactorForward) RIBStats() RIBStatsInfo                          { return RIBStatsInfo{} }
 func (m *mockReactorForward) BeginTransaction(_, _ string) error              { return nil }
 func (m *mockReactorForward) CommitTransaction(_ string) (TransactionResult, error) {
