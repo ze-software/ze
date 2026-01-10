@@ -255,7 +255,7 @@ func join(parts []string, sep string) string {
 }
 
 // FormatConfigDeliveryLines formats a config match into delivery lines.
-// Each capture becomes: "configuration <context> <name> set <value>"
+// Each capture becomes: "configuration <context> <name> set <value>".
 func FormatConfigDeliveryLines(match *ConfigMatch) []string {
 	var lines []string
 	for name, value := range match.Captures {

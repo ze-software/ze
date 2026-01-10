@@ -16,6 +16,44 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// findMPAttribute scans attribute bytes for an MP attribute and validates AFI/SAFI.
+// Returns true if found and validates expected AFI/SAFI values.
+func findMPAttribute(t *testing.T, data []byte, targetCode attribute.AttributeCode, expectedAFI uint16, expectedSAFI uint8) bool {
+	t.Helper()
+	for len(data) >= 3 {
+		flags := data[0]
+		code := attribute.AttributeCode(data[1])
+		var length int
+		var hdrLen int
+		if flags&0x10 != 0 {
+			if len(data) < 4 {
+				break
+			}
+			length = int(data[2])<<8 | int(data[3])
+			hdrLen = 4
+		} else {
+			length = int(data[2])
+			hdrLen = 3
+		}
+
+		if code == targetCode {
+			if len(data) >= hdrLen+3 {
+				afi := uint16(data[hdrLen])<<8 | uint16(data[hdrLen+1])
+				safi := data[hdrLen+2]
+				require.Equal(t, expectedAFI, afi, "%s AFI", targetCode)
+				require.Equal(t, expectedSAFI, safi, "%s SAFI", targetCode)
+			}
+			return true
+		}
+
+		if len(data) < hdrLen+length {
+			break
+		}
+		data = data[hdrLen+length:]
+	}
+	return false
+}
+
 // TestReactorNew verifies Reactor creation with correct initial state.
 //
 // VALIDATES: Reactor is created with config and not running.
@@ -380,42 +418,9 @@ func TestWriteAnnounceUpdateIPv6(t *testing.T) {
 	nlriStart := 23 + attrLen
 	require.Equal(t, n, nlriStart, "no inline NLRI for IPv6 routes")
 
-	// Scan for MP_REACH_NLRI (type 14) in attributes
-	foundMPReach := false
+	// Scan for MP_REACH_NLRI (type 14) in attributes - RFC 4760 Section 3
 	data := buf[23 : 23+attrLen]
-	for len(data) >= 3 {
-		flags := data[0]
-		code := attribute.AttributeCode(data[1])
-		var length int
-		var hdrLen int
-		if flags&0x10 != 0 {
-			if len(data) < 4 {
-				break
-			}
-			length = int(data[2])<<8 | int(data[3])
-			hdrLen = 4
-		} else {
-			length = int(data[2])
-			hdrLen = 3
-		}
-
-		if code == attribute.AttrMPReachNLRI {
-			foundMPReach = true
-			// RFC 4760 Section 3 - Verify AFI=2 (IPv6), SAFI=1 (Unicast)
-			if len(data) >= hdrLen+3 {
-				afi := uint16(data[hdrLen])<<8 | uint16(data[hdrLen+1])
-				safi := data[hdrLen+2]
-				require.Equal(t, uint16(2), afi, "MP_REACH_NLRI AFI must be 2 (IPv6)")
-				require.Equal(t, uint8(1), safi, "MP_REACH_NLRI SAFI must be 1 (Unicast)")
-			}
-		}
-
-		if len(data) < hdrLen+length {
-			break
-		}
-		data = data[hdrLen+length:]
-	}
-
+	foundMPReach := findMPAttribute(t, data, attribute.AttrMPReachNLRI, 2, 1) // AFI=2 (IPv6), SAFI=1 (Unicast)
 	require.True(t, foundMPReach, "IPv6 routes must have MP_REACH_NLRI attribute")
 }
 
@@ -468,42 +473,9 @@ func TestWriteWithdrawUpdateIPv6(t *testing.T) {
 	attrLen := int(buf[21])<<8 | int(buf[22])
 	require.Greater(t, attrLen, 0, "path attributes must contain MP_UNREACH_NLRI")
 
-	// Scan for MP_UNREACH_NLRI (type 15) in attributes
-	foundMPUnreach := false
+	// Scan for MP_UNREACH_NLRI (type 15) in attributes - RFC 4760 Section 4
 	data := buf[23 : 23+attrLen]
-	for len(data) >= 3 {
-		flags := data[0]
-		code := attribute.AttributeCode(data[1])
-		var length int
-		var hdrLen int
-		if flags&0x10 != 0 {
-			if len(data) < 4 {
-				break
-			}
-			length = int(data[2])<<8 | int(data[3])
-			hdrLen = 4
-		} else {
-			length = int(data[2])
-			hdrLen = 3
-		}
-
-		if code == attribute.AttrMPUnreachNLRI {
-			foundMPUnreach = true
-			// RFC 4760 Section 4 - Verify AFI=2 (IPv6), SAFI=1 (Unicast)
-			if len(data) >= hdrLen+3 {
-				afi := uint16(data[hdrLen])<<8 | uint16(data[hdrLen+1])
-				safi := data[hdrLen+2]
-				require.Equal(t, uint16(2), afi, "MP_UNREACH_NLRI AFI must be 2 (IPv6)")
-				require.Equal(t, uint8(1), safi, "MP_UNREACH_NLRI SAFI must be 1 (Unicast)")
-			}
-		}
-
-		if len(data) < hdrLen+length {
-			break
-		}
-		data = data[hdrLen+length:]
-	}
-
+	foundMPUnreach := findMPAttribute(t, data, attribute.AttrMPUnreachNLRI, 2, 1) // AFI=2 (IPv6), SAFI=1 (Unicast)
 	require.True(t, foundMPUnreach, "IPv6 withdrawals must have MP_UNREACH_NLRI attribute")
 }
 
@@ -573,7 +545,7 @@ func TestWriteASPathLongSegmentSplitting(t *testing.T) {
 	// Create route with 300 ASNs (requires splitting: 255 + 45)
 	asPath := make([]uint32, 300)
 	for i := range asPath {
-		asPath[i] = uint32(65000 + i)
+		asPath[i] = uint32(65000 + i) //nolint:gosec // G115: test data, i bounded by 300
 	}
 
 	route := api.RouteSpec{
@@ -652,7 +624,7 @@ func TestWriteCommunitiesExtendedLength(t *testing.T) {
 	// Create route with 100 communities (400 bytes, requires extended length)
 	communities := make([]uint32, 100)
 	for i := range communities {
-		communities[i] = uint32(0xFFFF0000 | i)
+		communities[i] = uint32(0xFFFF0000 | i) //nolint:gosec // G115: test data, i bounded by 100
 	}
 
 	route := api.RouteSpec{

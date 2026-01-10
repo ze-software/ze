@@ -582,7 +582,7 @@ func TestASPathWriteToExtendedLength4Byte(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			asns := make([]uint32, tt.numASNs)
 			for i := range asns {
-				asns[i] = uint32(65000 + i)
+				asns[i] = uint32(65000 + i) //nolint:gosec // G115: test data, i bounded by small test values
 			}
 
 			path := &ASPath{
@@ -661,7 +661,7 @@ func TestASPathWriteToExtendedLength2Byte(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			asns := make([]uint32, tt.numASNs)
 			for i := range asns {
-				asns[i] = uint32(i + 1) // Use small ASNs for 2-byte mode
+				asns[i] = uint32(i + 1) //nolint:gosec // G115: test data, i bounded by small test values
 			}
 
 			path := &ASPath{

@@ -180,7 +180,7 @@ func (r *PluginRegistry) RegisterCapabilities(caps *PluginCapabilities) error {
 }
 
 // ParseLine parses a single registration command line.
-// Stage 1 commands: "declare rfc|encoding|family|conf|cmd|done ..."
+// Stage 1 commands: "declare rfc|encoding|family|conf|cmd|done ...".
 func (reg *PluginRegistration) ParseLine(line string) error {
 	line = strings.TrimSpace(line)
 	if line == "" {
@@ -208,7 +208,7 @@ func (reg *PluginRegistration) ParseLine(line string) error {
 		return reg.parseConf(parts[2:], line)
 	case "cmd":
 		return reg.parseCmd(parts[2:], line)
-	case "done":
+	case statusDone:
 		reg.Done = true
 		return nil
 	default:
@@ -323,7 +323,7 @@ func (reg *PluginRegistration) parseCmd(args []string, line string) error {
 //   - "*" matches any single path element (not slashes/spaces)
 //   - "<name:regex>" is a named capture with validation regex
 //
-// Example: "peer * capability hostname <hostname:.*>"
+// Example: "peer * capability hostname <hostname:.*>".
 func CompileConfigPattern(pattern string) (*ConfigPattern, error) {
 	pat := &ConfigPattern{
 		Pattern:  pattern,
@@ -440,7 +440,7 @@ func (pat *ConfigPattern) Match(config string) *ConfigMatch {
 }
 
 // ParseLine parses a Stage 3 capability command.
-// Commands: "capability <enc> <code> <payload>" or "capability done"
+// Commands: "capability <enc> <code> <payload>" or "capability done".
 func (caps *PluginCapabilities) ParseLine(line string) error {
 	line = strings.TrimSpace(line)
 	if line == "" {
@@ -489,7 +489,7 @@ func (caps *PluginCapabilities) ParseLine(line string) error {
 }
 
 // FormatConfigDelivery formats a config match for delivery to plugin.
-// Format: "config <context> <name> <value>"
+// Format: "config <context> <name> <value>".
 func FormatConfigDelivery(context, name, value string) string {
 	return fmt.Sprintf("config %s %s %s", context, name, value)
 }
@@ -531,7 +531,7 @@ func (r *PluginRegistry) BuildCommandInfo() map[string][]PluginCommandInfo {
 	for name, reg := range r.plugins {
 		var cmds []PluginCommandInfo
 		// Use first encoding as default
-		encoding := "text"
+		encoding := EncodingText
 		if len(reg.Encodings) > 0 {
 			encoding = reg.Encodings[0]
 		}
@@ -616,11 +616,11 @@ func (ci *CapabilityInjector) GetCapabilities() []InjectedCapability {
 // DecodeCapabilityPayload decodes a plugin capability payload.
 func DecodeCapabilityPayload(cap PluginCapability) ([]byte, error) {
 	switch cap.Encoding {
-	case "b64":
+	case wireEncB64:
 		return base64.StdEncoding.DecodeString(cap.Payload)
-	case "hex":
+	case wireEncHex:
 		return hex.DecodeString(cap.Payload)
-	case "text":
+	case EncodingText:
 		return []byte(cap.Payload), nil
 	default:
 		return nil, fmt.Errorf("unknown encoding: %s", cap.Encoding)

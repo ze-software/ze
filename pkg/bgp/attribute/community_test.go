@@ -311,7 +311,7 @@ func TestCommunitiesWriteToExtendedLength(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			comms := make(Communities, tt.numComms)
 			for i := range comms {
-				comms[i] = Community(uint32(0xFFFF0000 | i))
+				comms[i] = Community(uint32(0xFFFF0000 | i)) //nolint:gosec // G115: test data, i bounded
 			}
 
 			// Verify Pack
@@ -478,9 +478,9 @@ func TestLargeCommunitiesWriteToExtendedLength(t *testing.T) {
 			lcs := make(LargeCommunities, tt.numComms)
 			for i := range lcs {
 				lcs[i] = LargeCommunity{
-					GlobalAdmin: uint32(65000 + i),
-					LocalData1:  uint32(i),
-					LocalData2:  uint32(i * 2),
+					GlobalAdmin: uint32(65000 + i), //nolint:gosec // G115: test data, i bounded
+					LocalData1:  uint32(i),         //nolint:gosec // G115: test data, i bounded
+					LocalData2:  uint32(i * 2),     //nolint:gosec // G115: test data, i bounded
 				}
 			}
 

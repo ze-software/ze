@@ -241,9 +241,9 @@ func makeLargeCommunities(n int) LargeCommunities {
 	lcs := make(LargeCommunities, n)
 	for i := range lcs {
 		lcs[i] = LargeCommunity{
-			GlobalAdmin: uint32(65000 + i),
-			LocalData1:  uint32(i),
-			LocalData2:  uint32(i * 2),
+			GlobalAdmin: uint32(65000 + i), //nolint:gosec // G115: test helper, i bounded
+			LocalData1:  uint32(i),         //nolint:gosec // G115: test helper, i bounded
+			LocalData2:  uint32(i * 2),     //nolint:gosec // G115: test helper, i bounded
 		}
 	}
 	return lcs

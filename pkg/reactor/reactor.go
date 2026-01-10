@@ -647,7 +647,7 @@ func WriteAnnounceUpdate(buf []byte, off int, route api.RouteSpec, localAS uint3
 	asn4 := ctx == nil || ctx.ASN4
 
 	// 1. ORIGIN - RFC 4271 §5.1.1: Well-known mandatory attribute.
-	var origin uint8 = uint8(attribute.OriginIGP)
+	origin := uint8(attribute.OriginIGP)
 	if route.Origin != nil {
 		origin = *route.Origin
 	}
@@ -1767,7 +1767,7 @@ func (a *reactorAPIAdapter) buildBatchAnnounceUpdate(batch api.NLRIBatch, nextHo
 	dstCtx := &bgpctx.EncodingContext{ASN4: ctx == nil || ctx.ASN4}
 
 	// 1. ORIGIN - RFC 4271 §5.1.1
-	var origin attribute.Origin = attribute.OriginIGP
+	origin := attribute.OriginIGP
 	if attrs.Origin != nil {
 		origin = attribute.Origin(*attrs.Origin)
 	}
@@ -2914,7 +2914,7 @@ func (a *reactorAPIAdapter) buildGroupedMPUpdate(templateRoute *rib.Route, nlriB
 	dstCtx := &bgpctx.EncodingContext{ASN4: ctx == nil || ctx.ASN4}
 
 	// 1. ORIGIN
-	var origin attribute.Origin = attribute.OriginIGP
+	origin := attribute.OriginIGP
 	for _, attr := range templateRoute.Attributes() {
 		if o, ok := attr.(attribute.Origin); ok {
 			origin = o

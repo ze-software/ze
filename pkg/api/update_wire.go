@@ -116,9 +116,10 @@ func decoderForEncoding(enc WireEncoding) decodeFunc {
 		return decodeHex
 	case WireEncodingB64:
 		return decodeB64
-	default:
-		return decodeHex // Default fallback
+	case WireEncodingCBOR, WireEncodingText:
+		return decodeHex // Default fallback for non-wire encodings
 	}
+	return decodeHex // Default fallback
 }
 
 // decodeHex decodes hex string, stripping whitespace.

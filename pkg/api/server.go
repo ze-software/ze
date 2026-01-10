@@ -21,6 +21,63 @@ import (
 // Each stage must complete within this duration.
 const defaultStageTimeout = 5 * time.Second
 
+// stageTransition handles coordinator stage completion and waiting.
+// Returns true if transition succeeded, false if failed (caller should return true to stop processing).
+func (s *Server) stageTransition(proc *Process, pluginName string, completeStage, waitStage PluginStage) bool {
+	if s.coordinator == nil {
+		return true
+	}
+
+	s.coordinator.StageComplete(proc.Index(), completeStage)
+
+	stageCtx, cancel := context.WithTimeout(s.ctx, defaultStageTimeout)
+	err := s.coordinator.WaitForStage(stageCtx, waitStage)
+	cancel()
+
+	if err != nil {
+		slog.Error("stage timeout", "plugin", pluginName, "waiting_for", waitStage, "error", err)
+		s.coordinator.PluginFailed(proc.Index(), fmt.Sprintf("stage timeout: %v", err))
+		proc.Stop()
+		return false
+	}
+	return true
+}
+
+// stageProgression defines a two-step stage transition with an intermediate delivery.
+type stageProgression struct {
+	from, mid, to PluginStage
+	deliver       func(*Process)
+}
+
+// progressThroughStages handles the common pattern of two stage transitions with delivery between.
+func (s *Server) progressThroughStages(proc *Process, name string, p stageProgression) {
+	// First transition: from → mid
+	if !s.stageTransition(proc, name, p.from, p.mid) {
+		return
+	}
+	proc.SetStage(p.mid)
+
+	// Deliver content
+	if p.deliver != nil {
+		p.deliver(proc)
+	}
+
+	// Second transition: mid → to
+	if !s.stageTransition(proc, name, p.mid, p.to) {
+		return
+	}
+	proc.SetStage(p.to)
+}
+
+// handlePluginConflict logs and handles plugin registration conflicts.
+func (s *Server) handlePluginConflict(proc *Process, name, msg string, err error) {
+	if s.coordinator != nil {
+		s.coordinator.PluginFailed(proc.Index(), err.Error())
+	}
+	slog.Error(msg, "plugin", name, "error", err)
+	proc.Stop()
+}
+
 // Server manages API connections and command dispatch.
 type Server struct {
 	config        *ServerConfig
@@ -382,6 +439,9 @@ func (s *Server) handleSingleProcessCommands(proc *Process) {
 				continue
 			}
 			// Fall through to normal dispatch if not a capability command
+
+		case StageInit, StageConfig, StageRegistry, StageReady, StageRunning:
+			// Other stages: fall through to normal dispatch
 		}
 
 		// Check for register/unregister before normal dispatch (legacy/runtime)
@@ -444,68 +504,23 @@ func (s *Server) handleSingleProcessCommands(proc *Process) {
 // Returns true if line was handled, false if should fall through to normal dispatch.
 func (s *Server) handleRegistrationLine(proc *Process, line string) bool {
 	reg := proc.Registration()
-
-	// Parse the line
 	if err := reg.ParseLine(line); err != nil {
-		// Not a registration command or error - fall through
 		return false
 	}
-
-	// Check if registration complete
-	if reg.Done {
-		// Set plugin name from config
-		reg.Name = proc.config.Name
-
-		// Register with global registry (checks for conflicts)
-		if err := s.registry.Register(reg); err != nil {
-			// Conflict detected - signal failure
-			if s.coordinator != nil {
-				s.coordinator.PluginFailed(proc.Index(), err.Error())
-			}
-			slog.Error("plugin registration conflict", "plugin", reg.Name, "error", err)
-			proc.Stop() // Stop process to exit command loop
-			return true
-		}
-
-		// Signal Stage 1 complete and wait for all plugins
-		if s.coordinator != nil {
-			s.coordinator.StageComplete(proc.Index(), StageRegistration)
-
-			// Wait for all plugins to complete Stage 1 before delivering config
-			stageCtx, cancel := context.WithTimeout(s.ctx, defaultStageTimeout)
-			err := s.coordinator.WaitForStage(stageCtx, StageConfig)
-			cancel()
-			if err != nil {
-				slog.Error("stage timeout waiting for config stage", "plugin", reg.Name, "error", err)
-				s.coordinator.PluginFailed(proc.Index(), fmt.Sprintf("stage timeout: %v", err))
-				proc.Stop() // Stop process to exit command loop
-				return true
-			}
-		}
-
-		// Move to Stage 2: Config Delivery
-		proc.SetStage(StageConfig)
-		s.deliverConfig(proc)
-
-		// Signal Stage 2 (Config) complete - ZeBGP-driven stage
-		if s.coordinator != nil {
-			s.coordinator.StageComplete(proc.Index(), StageConfig)
-
-			// Wait for all plugins to receive config before moving to capability stage
-			stageCtx, cancel := context.WithTimeout(s.ctx, defaultStageTimeout)
-			err := s.coordinator.WaitForStage(stageCtx, StageCapability)
-			cancel()
-			if err != nil {
-				slog.Error("stage timeout waiting for capability stage", "plugin", reg.Name, "error", err)
-				s.coordinator.PluginFailed(proc.Index(), fmt.Sprintf("stage timeout: %v", err))
-				proc.Stop() // Stop process to exit command loop
-				return true
-			}
-		}
-
-		proc.SetStage(StageCapability)
+	if !reg.Done {
+		return true
 	}
 
+	reg.Name = proc.config.Name
+	if err := s.registry.Register(reg); err != nil {
+		s.handlePluginConflict(proc, reg.Name, "plugin registration conflict", err)
+		return true
+	}
+
+	s.progressThroughStages(proc, reg.Name, stageProgression{
+		from: StageRegistration, mid: StageConfig, to: StageCapability,
+		deliver: s.deliverConfig,
+	})
 	return true
 }
 
@@ -513,67 +528,23 @@ func (s *Server) handleRegistrationLine(proc *Process, line string) bool {
 // Returns true if line was handled, false if should fall through to normal dispatch.
 func (s *Server) handleCapabilityLine(proc *Process, line string) bool {
 	caps := proc.Capabilities()
-
-	// Parse the line
 	if err := caps.ParseLine(line); err != nil {
-		// Not a capability command or error - fall through
 		return false
 	}
-
-	// Check if capabilities complete
-	if caps.Done {
-		caps.PluginName = proc.config.Name
-
-		// Add to capability injector (checks for conflicts)
-		if err := s.capInjector.AddPluginCapabilities(caps); err != nil {
-			// Conflict detected - signal failure
-			if s.coordinator != nil {
-				s.coordinator.PluginFailed(proc.Index(), err.Error())
-			}
-			slog.Error("plugin capability conflict", "plugin", caps.PluginName, "error", err)
-			proc.Stop() // Stop process to exit command loop
-			return true
-		}
-
-		// Signal Stage 3 complete and wait for all plugins
-		if s.coordinator != nil {
-			s.coordinator.StageComplete(proc.Index(), StageCapability)
-
-			// Wait for all plugins to complete Stage 3 before sharing registry
-			stageCtx, cancel := context.WithTimeout(s.ctx, defaultStageTimeout)
-			err := s.coordinator.WaitForStage(stageCtx, StageRegistry)
-			cancel()
-			if err != nil {
-				slog.Error("stage timeout waiting for registry stage", "plugin", caps.PluginName, "error", err)
-				s.coordinator.PluginFailed(proc.Index(), fmt.Sprintf("stage timeout: %v", err))
-				proc.Stop() // Stop process to exit command loop
-				return true
-			}
-		}
-
-		// Move to Stage 4: Registry Sharing
-		proc.SetStage(StageRegistry)
-		s.deliverRegistry(proc)
-
-		// Signal Stage 4 (Registry) complete - ZeBGP-driven stage
-		if s.coordinator != nil {
-			s.coordinator.StageComplete(proc.Index(), StageRegistry)
-
-			// Wait for all plugins to receive registry before moving to ready stage
-			stageCtx, cancel := context.WithTimeout(s.ctx, defaultStageTimeout)
-			err := s.coordinator.WaitForStage(stageCtx, StageReady)
-			cancel()
-			if err != nil {
-				slog.Error("stage timeout waiting for ready stage", "plugin", caps.PluginName, "error", err)
-				s.coordinator.PluginFailed(proc.Index(), fmt.Sprintf("stage timeout: %v", err))
-				proc.Stop() // Stop process to exit command loop
-				return true
-			}
-		}
-
-		proc.SetStage(StageReady)
+	if !caps.Done {
+		return true
 	}
 
+	caps.PluginName = proc.config.Name
+	if err := s.capInjector.AddPluginCapabilities(caps); err != nil {
+		s.handlePluginConflict(proc, caps.PluginName, "plugin capability conflict", err)
+		return true
+	}
+
+	s.progressThroughStages(proc, caps.PluginName, stageProgression{
+		from: StageCapability, mid: StageRegistry, to: StageReady,
+		deliver: s.deliverRegistry,
+	})
 	return true
 }
 

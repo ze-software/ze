@@ -1321,7 +1321,7 @@ func (p *Peer) sendInitialRoutes() {
 				}
 
 				// Send the route - resolve next-hop from RouteNextHop policy
-				nextHop, nhErr := p.resolveNextHop(wr.StaticRoute.NextHop, routeFamily(wr.StaticRoute))
+				nextHop, nhErr := p.resolveNextHop(wr.NextHop, routeFamily(wr.StaticRoute))
 				if nhErr != nil {
 					trace.Log(trace.Routes, "peer %s: watchdog %s: next-hop resolution failed: %v", addr, name, nhErr)
 					continue
@@ -1332,7 +1332,7 @@ func (p *Peer) sendInitialRoutes() {
 					trace.Log(trace.Routes, "peer %s: send error: %v", addr, err)
 					break
 				}
-				trace.RouteSent(addr, routeKey, wr.StaticRoute.NextHop.String())
+				trace.RouteSent(addr, routeKey, wr.NextHop.String())
 			}
 		}
 		trace.Log(trace.Routes, "peer %s: sent watchdog routes from %d groups", addr, len(p.settings.WatchdogGroups))
@@ -1533,7 +1533,7 @@ func buildRIBRouteUpdate(route *rib.Route, localAS uint32, isIBGP bool, ctx *nlr
 	dstCtx := &bgpctx.EncodingContext{ASN4: ctx == nil || ctx.ASN4}
 
 	// 1. ORIGIN - use stored or default to IGP
-	var origin attribute.Origin = attribute.OriginIGP
+	origin := attribute.OriginIGP
 	for _, attr := range route.Attributes() {
 		if o, ok := attr.(attribute.Origin); ok {
 			origin = o
@@ -2390,7 +2390,7 @@ func (p *Peer) AnnounceWatchdog(name string) error {
 		}
 
 		// Send the route - resolve next-hop from RouteNextHop policy
-		nextHop, nhErr := p.resolveNextHop(wr.StaticRoute.NextHop, routeFamily(wr.StaticRoute))
+		nextHop, nhErr := p.resolveNextHop(wr.NextHop, routeFamily(wr.StaticRoute))
 		if nhErr != nil {
 			trace.Log(trace.Routes, "peer %s: watchdog %s: next-hop resolution failed: %v", addr, name, nhErr)
 			continue
@@ -2407,7 +2407,7 @@ func (p *Peer) AnnounceWatchdog(name string) error {
 		p.watchdogState[name][routeKey] = true
 		p.mu.Unlock()
 
-		trace.RouteSent(addr, routeKey, wr.StaticRoute.NextHop.String())
+		trace.RouteSent(addr, routeKey, wr.NextHop.String())
 		announced++
 	}
 

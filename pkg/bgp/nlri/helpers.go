@@ -7,7 +7,7 @@ package nlri
 //
 // RFC 4271 Section 4.3 - UPDATE Message Format:
 // "The Prefix field contains an IP address prefix, followed by enough
-// trailing bits to make the end of the field fall on an octet boundary."
+// trailing bits to make the end of the field fall on an octet boundary.".
 func PrefixBytes(bits int) int {
 	return (bits + 7) / 8
 }

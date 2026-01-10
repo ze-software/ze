@@ -7,8 +7,8 @@ import (
 
 // TestPrefixBytes verifies PrefixBytes returns correct byte count.
 //
-// VALIDATES: PrefixBytes(bits) == (bits+7)/8 for various bit lengths
-// PREVENTS: Off-by-one errors in prefix byte calculation
+// VALIDATES: PrefixBytes(bits) == (bits+7)/8 for various bit lengths.
+// PREVENTS: Off-by-one errors in prefix byte calculation.
 func TestPrefixBytes(t *testing.T) {
 	tests := []struct {
 		bits int
@@ -38,8 +38,8 @@ func TestPrefixBytes(t *testing.T) {
 
 // TestWriteLabelStack verifies WriteLabelStack encodes labels with BOS.
 //
-// VALIDATES: Labels encoded per RFC 3032/8277: 20-bit label + TC=0 + S bit
-// PREVENTS: Incorrect label encoding, missing BOS bit on last label
+// VALIDATES: Labels encoded per RFC 3032/8277: 20-bit label + TC=0 + S bit.
+// PREVENTS: Incorrect label encoding, missing BOS bit on last label.
 func TestWriteLabelStack(t *testing.T) {
 	tests := []struct {
 		name   string
@@ -87,8 +87,8 @@ func TestWriteLabelStack(t *testing.T) {
 
 // TestWriteLabelStackOffset verifies WriteLabelStack respects offset.
 //
-// VALIDATES: Labels written at correct buffer offset
-// PREVENTS: Buffer overwrite bugs
+// VALIDATES: Labels written at correct buffer offset.
+// PREVENTS: Buffer overwrite bugs.
 func TestWriteLabelStackOffset(t *testing.T) {
 	buf := make([]byte, 10)
 	buf[0] = 0xFF // Should not be overwritten
@@ -98,7 +98,7 @@ func TestWriteLabelStackOffset(t *testing.T) {
 		t.Errorf("wrote %d bytes, want 3", n)
 	}
 	if buf[0] != 0xFF {
-		t.Errorf("offset not respected: buf[0] = %x, want 0xFF", buf[0])
+		t.Errorf("offset not respected: buf[0] = %x, want 0xFF", buf[0]) //nolint:gosec // G602: buf[0] valid, checked on line 100
 	}
 	want := []byte{0x00, 0x06, 0x41}
 	if !bytes.Equal(buf[1:4], want) {

@@ -58,7 +58,7 @@ func TestStageSynchronization(t *testing.T) {
 		}()
 
 		// Coordinator advances stages when all complete
-		go coordinator.Run(context.Background())
+		go func() { _ = coordinator.Run(context.Background()) }()
 
 		wg.Wait()
 		assert.Equal(t, int32(2), stage1Complete.Load())
@@ -105,7 +105,7 @@ func TestStageSynchronization(t *testing.T) {
 			}(i)
 		}
 
-		go coordinator.Run(ctx)
+		go func() { _ = coordinator.Run(ctx) }()
 		wg.Wait()
 
 		// All plugins should complete all 5 stages

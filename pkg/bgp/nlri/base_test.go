@@ -7,8 +7,8 @@ import (
 
 // TestRDNLRIBaseBuildDataNoAlias verifies buildData returns independent slice.
 //
-// VALIDATES: Modifying returned slice doesn't affect original data
-// PREVENTS: Slice aliasing bugs when caller mutates buildData result
+// VALIDATES: Modifying returned slice doesn't affect original data.
+// PREVENTS: Slice aliasing bugs when caller mutates buildData result.
 func TestRDNLRIBaseBuildDataNoAlias(t *testing.T) {
 	original := []byte{0x01, 0x02, 0x03}
 	base := RDNLRIBase{data: original}
@@ -23,8 +23,8 @@ func TestRDNLRIBaseBuildDataNoAlias(t *testing.T) {
 
 // TestRDNLRIBaseBuildData verifies buildData returns rd+data or data only.
 //
-// VALIDATES: buildData() prepends RD bytes only when RD is non-zero
-// PREVENTS: Incorrect wire format for MVPN/MUP types
+// VALIDATES: buildData() prepends RD bytes only when RD is non-zero.
+// PREVENTS: Incorrect wire format for MVPN/MUP types.
 func TestRDNLRIBaseBuildData(t *testing.T) {
 	tests := []struct {
 		name string

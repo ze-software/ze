@@ -114,7 +114,8 @@ func (p *Process) Stage() PluginStage {
 func (p *Process) SetStage(stage PluginStage) {
 	p.stageMu.Lock()
 	defer p.stageMu.Unlock()
-	p.stage.Store(int32(stage))
+	// Safe: PluginStage has only values 0-6 (StageInit..StageRunning).
+	p.stage.Store(int32(stage)) //nolint:gosec // G115: bounded enum
 	// Close and recreate channel to notify all waiters
 	close(p.stageCh)
 	p.stageCh = make(chan struct{})

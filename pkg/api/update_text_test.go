@@ -15,7 +15,7 @@ import (
 
 // TestParseUpdateText_EmptyInput verifies empty args returns empty result.
 //
-// VALIDATES: Empty args produces empty Groups, no error
+// VALIDATES: Empty args produces empty Groups, no error.
 // PREVENTS: Panic on nil/empty input.
 func TestParseUpdateText_EmptyInput(t *testing.T) {
 	result, err := ParseUpdateText([]string{})
@@ -27,7 +27,7 @@ func TestParseUpdateText_EmptyInput(t *testing.T) {
 
 // TestParseUpdateText_OriginSet verifies origin attribute parsing.
 //
-// VALIDATES: origin set igp/egp/incomplete stores correct value
+// VALIDATES: origin set igp/egp/incomplete stores correct value.
 // PREVENTS: Origin value misinterpretation.
 func TestParseUpdateText_OriginSet(t *testing.T) {
 	tests := []struct {
@@ -56,7 +56,7 @@ func TestParseUpdateText_OriginSet(t *testing.T) {
 
 // TestParseUpdateText_MultipleAttrs verifies multiple attrs in sequence.
 //
-// VALIDATES: Multiple per-attribute sections parsed correctly
+// VALIDATES: Multiple per-attribute sections parsed correctly.
 // PREVENTS: Only first attribute being parsed.
 func TestParseUpdateText_MultipleAttrs(t *testing.T) {
 	result, err := ParseUpdateText([]string{
@@ -79,7 +79,7 @@ func TestParseUpdateText_MultipleAttrs(t *testing.T) {
 
 // TestParseUpdateText_CommunitySet verifies community parsing.
 //
-// VALIDATES: Community list parsed in various formats
+// VALIDATES: Community list parsed in various formats.
 // PREVENTS: Community parsing failures.
 func TestParseUpdateText_CommunitySet(t *testing.T) {
 	result, err := ParseUpdateText([]string{
@@ -97,7 +97,7 @@ func TestParseUpdateText_CommunitySet(t *testing.T) {
 
 // TestParseUpdateText_CommunityAdd verifies community append.
 //
-// VALIDATES: community add prepends to existing list
+// VALIDATES: community add prepends to existing list.
 // PREVENTS: Community replacement instead of prepend.
 func TestParseUpdateText_CommunityAdd(t *testing.T) {
 	result, err := ParseUpdateText([]string{
@@ -116,7 +116,7 @@ func TestParseUpdateText_CommunityAdd(t *testing.T) {
 
 // TestParseUpdateText_CommunityDel verifies community removal.
 //
-// VALIDATES: community del removes matching values
+// VALIDATES: community del removes matching values.
 // PREVENTS: Community deletion failures.
 func TestParseUpdateText_CommunityDel(t *testing.T) {
 	result, err := ParseUpdateText([]string{
@@ -135,7 +135,7 @@ func TestParseUpdateText_CommunityDel(t *testing.T) {
 
 // TestParseUpdateText_CommunityNotFoundDel verifies error on del non-existing.
 //
-// VALIDATES: community del [value] errors if value not in list
+// VALIDATES: community del [value] errors if value not in list.
 // PREVENTS: Silent ignore of non-existing delete targets.
 func TestParseUpdateText_CommunityNotFoundDel(t *testing.T) {
 	_, err := ParseUpdateText([]string{
@@ -150,7 +150,7 @@ func TestParseUpdateText_CommunityNotFoundDel(t *testing.T) {
 
 // TestParseUpdateText_EmptyListOKDel verifies del [] always succeeds.
 //
-// VALIDATES: community del [] is a no-op (doesn't error)
+// VALIDATES: community del [] is a no-op (doesn't error).
 // PREVENTS: False errors on empty delete list.
 func TestParseUpdateText_EmptyListOKDel(t *testing.T) {
 	result, err := ParseUpdateText([]string{
@@ -167,7 +167,7 @@ func TestParseUpdateText_EmptyListOKDel(t *testing.T) {
 
 // TestParseUpdateText_FirstInstanceOnlyDel verifies del removes first instance only.
 //
-// VALIDATES: community del [X] removes only first X, leaves duplicates
+// VALIDATES: community del [X] removes only first X, leaves duplicates.
 // PREVENTS: Removing all instances of a value.
 func TestParseUpdateText_FirstInstanceOnlyDel(t *testing.T) {
 	result, err := ParseUpdateText([]string{
@@ -186,7 +186,7 @@ func TestParseUpdateText_FirstInstanceOnlyDel(t *testing.T) {
 
 // TestParseUpdateText_ThenAddSet verifies set-then-add accumulation.
 //
-// VALIDATES: set replaces, then add prepends (65000:400 before 65000:300)
+// VALIDATES: set replaces, then add prepends (65000:400 before 65000:300).
 // PREVENTS: Wrong accumulation order (append instead of prepend).
 func TestParseUpdateText_ThenAddSet(t *testing.T) {
 	result, err := ParseUpdateText([]string{
@@ -207,7 +207,7 @@ func TestParseUpdateText_ThenAddSet(t *testing.T) {
 
 // TestParseUpdateText_LargeCommunity verifies large community parsing.
 //
-// VALIDATES: Large community (ASN:value1:value2) parsed correctly
+// VALIDATES: Large community (ASN:value1:value2) parsed correctly.
 // PREVENTS: Large community format errors.
 func TestParseUpdateText_LargeCommunity(t *testing.T) {
 	result, err := ParseUpdateText([]string{
@@ -224,7 +224,7 @@ func TestParseUpdateText_LargeCommunity(t *testing.T) {
 
 // TestParseUpdateText_ExtendedCommunity verifies extended community parsing.
 //
-// VALIDATES: Extended community parsed correctly
+// VALIDATES: Extended community parsed correctly.
 // PREVENTS: Extended community format errors.
 func TestParseUpdateText_ExtendedCommunity(t *testing.T) {
 	// Parser supports: origin:ASN:IP, redirect:ASN:target, rate-limit:bps
@@ -245,7 +245,7 @@ func TestParseUpdateText_ExtendedCommunity(t *testing.T) {
 
 // TestParseUpdateText_ScalarErrorAdd verifies add on scalar fails.
 //
-// VALIDATES: origin add/med/local-pref returns error
+// VALIDATES: origin add/med/local-pref returns error.
 // PREVENTS: Silent scalar modification via add.
 func TestParseUpdateText_ScalarErrorAdd(t *testing.T) {
 	tests := []struct {
@@ -269,7 +269,7 @@ func TestParseUpdateText_ScalarErrorAdd(t *testing.T) {
 
 // TestParseUpdateText_ScalarDelConditional verifies del with value is conditional for scalars.
 //
-// VALIDATES: origin del <value> succeeds if current matches, fails otherwise
+// VALIDATES: origin del <value> succeeds if current matches, fails otherwise.
 // PREVENTS: Confusion about scalar conditional deletion semantics.
 func TestParseUpdateText_ScalarDelConditional(t *testing.T) {
 	// Conditional delete succeeds when value matches
@@ -301,7 +301,7 @@ func TestParseUpdateText_ScalarDelConditional(t *testing.T) {
 
 // TestParseUpdateText_ScalarDelClearsAttribute verifies del without value clears scalar.
 //
-// VALIDATES: origin del (no value) clears the attribute
+// VALIDATES: origin del (no value) clears the attribute.
 // PREVENTS: Scalar del being a no-op.
 func TestParseUpdateText_ScalarDelClearsAttribute(t *testing.T) {
 	result, err := ParseUpdateText([]string{
@@ -322,7 +322,7 @@ func TestParseUpdateText_ScalarDelClearsAttribute(t *testing.T) {
 
 // TestParseUpdateText_ASPathAdd verifies add on as-path prepends.
 //
-// VALIDATES: as-path add prepends ASNs to existing path
+// VALIDATES: as-path add prepends ASNs to existing path.
 // PREVENTS: AS-PATH prepend not working.
 func TestParseUpdateText_ASPathAdd(t *testing.T) {
 	result, err := ParseUpdateText([]string{
@@ -342,7 +342,7 @@ func TestParseUpdateText_ASPathAdd(t *testing.T) {
 
 // TestParseUpdateText_ASPathDelValue verifies del on as-path removes specific ASN.
 //
-// VALIDATES: as-path del [ASN] removes first occurrence
+// VALIDATES: as-path del [ASN] removes first occurrence.
 // PREVENTS: AS-PATH del not removing ASN.
 func TestParseUpdateText_ASPathDelValue(t *testing.T) {
 	result, err := ParseUpdateText([]string{
@@ -361,7 +361,7 @@ func TestParseUpdateText_ASPathDelValue(t *testing.T) {
 
 // TestParseUpdateText_ASPathDelClear verifies del without value clears as-path.
 //
-// VALIDATES: as-path del (no value) clears entire path
+// VALIDATES: as-path del (no value) clears entire path.
 // PREVENTS: AS-PATH del not clearing.
 func TestParseUpdateText_ASPathDelClear(t *testing.T) {
 	result, err := ParseUpdateText([]string{
@@ -377,7 +377,7 @@ func TestParseUpdateText_ASPathDelClear(t *testing.T) {
 
 // TestParseUpdateText_ASPathDelNotFound verifies error when ASN not in path.
 //
-// VALIDATES: as-path del [ASN] errors if ASN not present
+// VALIDATES: as-path del [ASN] errors if ASN not present.
 // PREVENTS: Silent ignore of non-existent ASN deletion.
 func TestParseUpdateText_ASPathDelNotFound(t *testing.T) {
 	_, err := ParseUpdateText([]string{
@@ -392,7 +392,7 @@ func TestParseUpdateText_ASPathDelNotFound(t *testing.T) {
 
 // TestParseUpdateText_NLRISectionBasic verifies basic NLRI add.
 //
-// VALIDATES: nlri <family> add <prefix> creates group
+// VALIDATES: nlri <family> add <prefix> creates group.
 // PREVENTS: Basic NLRI parsing failures.
 func TestParseUpdateText_NLRISectionBasic(t *testing.T) {
 	result, err := ParseUpdateText([]string{
@@ -410,7 +410,7 @@ func TestParseUpdateText_NLRISectionBasic(t *testing.T) {
 
 // TestParseUpdateText_NLRIMultiplePrefixes verifies multiple prefixes.
 //
-// VALIDATES: Multiple prefixes in single nlri section
+// VALIDATES: Multiple prefixes in single nlri section.
 // PREVENTS: Only first prefix being parsed.
 func TestParseUpdateText_NLRIMultiplePrefixes(t *testing.T) {
 	result, err := ParseUpdateText([]string{
@@ -423,7 +423,7 @@ func TestParseUpdateText_NLRIMultiplePrefixes(t *testing.T) {
 
 // TestParseUpdateText_NLRIMixedAddDel verifies mixed add/del.
 //
-// VALIDATES: add X del Y in same section produces both lists
+// VALIDATES: add X del Y in same section produces both lists.
 // PREVENTS: add/del mode confusion.
 func TestParseUpdateText_NLRIMixedAddDel(t *testing.T) {
 	result, err := ParseUpdateText([]string{
@@ -441,7 +441,7 @@ func TestParseUpdateText_NLRIMixedAddDel(t *testing.T) {
 
 // TestParseUpdateText_NLRIWithdrawOnly verifies del-only section.
 //
-// VALIDATES: nlri <family> del <prefix> works without add
+// VALIDATES: nlri <family> del <prefix> works without add.
 // PREVENTS: Requiring add before del.
 func TestParseUpdateText_NLRIWithdrawOnly(t *testing.T) {
 	result, err := ParseUpdateText([]string{
@@ -458,7 +458,7 @@ func TestParseUpdateText_NLRIWithdrawOnly(t *testing.T) {
 
 // TestParseUpdateText_NLRIMultipleAddDel verifies multiple add/del switches.
 //
-// VALIDATES: add X Y del Z add W produces correct lists
+// VALIDATES: add X Y del Z add W produces correct lists.
 // PREVENTS: Mode switching errors.
 func TestParseUpdateText_NLRIMultipleAddDel(t *testing.T) {
 	result, err := ParseUpdateText([]string{
@@ -476,7 +476,7 @@ func TestParseUpdateText_NLRIMultipleAddDel(t *testing.T) {
 
 // TestParseUpdateText_NLRIEmptyError verifies empty section fails.
 //
-// VALIDATES: nlri <family> with no prefixes returns error
+// VALIDATES: nlri <family> with no prefixes returns error.
 // PREVENTS: Empty groups in result.
 func TestParseUpdateText_NLRIEmptyError(t *testing.T) {
 	_, err := ParseUpdateText([]string{
@@ -488,7 +488,7 @@ func TestParseUpdateText_NLRIEmptyError(t *testing.T) {
 
 // TestParseUpdateText_NLRIMissingAddDel verifies missing add/del fails.
 //
-// VALIDATES: Prefix without add/del mode returns error
+// VALIDATES: Prefix without add/del mode returns error.
 // PREVENTS: Silent default behavior.
 func TestParseUpdateText_NLRIMissingAddDel(t *testing.T) {
 	_, err := ParseUpdateText([]string{
@@ -500,7 +500,7 @@ func TestParseUpdateText_NLRIMissingAddDel(t *testing.T) {
 
 // TestParseUpdateText_AttrAndNLRI verifies combined attr + nlri.
 //
-// VALIDATES: Attributes applied to NLRI group
+// VALIDATES: Attributes applied to NLRI group.
 // PREVENTS: Attribute/NLRI disconnection.
 func TestParseUpdateText_AttrAndNLRI(t *testing.T) {
 	result, err := ParseUpdateText([]string{
@@ -521,7 +521,7 @@ func TestParseUpdateText_AttrAndNLRI(t *testing.T) {
 
 // TestParseUpdateText_MultipleGroups verifies snapshot deep copy.
 //
-// VALIDATES: Each group has independent attribute snapshot
+// VALIDATES: Each group has independent attribute snapshot.
 // PREVENTS: Shared slice mutation between groups.
 func TestParseUpdateText_MultipleGroups(t *testing.T) {
 	result, err := ParseUpdateText([]string{
@@ -545,7 +545,7 @@ func TestParseUpdateText_MultipleGroups(t *testing.T) {
 
 // TestParseUpdateText_IPv6 verifies IPv6 support.
 //
-// VALIDATES: IPv6 prefixes parsed correctly
+// VALIDATES: IPv6 prefixes parsed correctly.
 // PREVENTS: IPv6 parsing failures.
 func TestParseUpdateText_IPv6(t *testing.T) {
 	result, err := ParseUpdateText([]string{
@@ -562,7 +562,7 @@ func TestParseUpdateText_IPv6(t *testing.T) {
 
 // TestParseUpdateText_FamilyMismatch verifies family/prefix validation.
 //
-// VALIDATES: IPv4 prefix in ipv6/unicast returns error
+// VALIDATES: IPv4 prefix in ipv6/unicast returns error.
 // PREVENTS: Family/prefix mismatches.
 func TestParseUpdateText_FamilyMismatch(t *testing.T) {
 	_, err := ParseUpdateText([]string{
@@ -574,7 +574,7 @@ func TestParseUpdateText_FamilyMismatch(t *testing.T) {
 
 // TestParseUpdateText_UnknownAttribute verifies unknown attr fails with valid list.
 //
-// VALIDATES: Unknown attribute keyword returns error listing valid options
+// VALIDATES: Unknown attribute keyword returns error listing valid options.
 // PREVENTS: Silent ignore of typos.
 func TestParseUpdateText_UnknownAttribute(t *testing.T) {
 	_, err := ParseUpdateText([]string{
@@ -588,7 +588,7 @@ func TestParseUpdateText_UnknownAttribute(t *testing.T) {
 
 // TestParseUpdateText_UnsupportedFamily verifies unsupported family fails.
 //
-// VALIDATES: Unsupported family returns error
+// VALIDATES: Unsupported family returns error.
 // PREVENTS: Silent ignore of unsupported families.
 func TestParseUpdateText_UnsupportedFamily(t *testing.T) {
 	// EVPN is a valid family but not supported in text mode
@@ -601,7 +601,7 @@ func TestParseUpdateText_UnsupportedFamily(t *testing.T) {
 
 // TestParseUpdateText_InvalidFamilyString verifies invalid family fails.
 //
-// VALIDATES: Invalid family string returns error
+// VALIDATES: Invalid family string returns error.
 // PREVENTS: Panic on invalid family.
 func TestParseUpdateText_InvalidFamilyString(t *testing.T) {
 	_, err := ParseUpdateText([]string{
@@ -613,7 +613,7 @@ func TestParseUpdateText_InvalidFamilyString(t *testing.T) {
 
 // TestParseUpdateText_InvalidPrefix verifies invalid prefix fails.
 //
-// VALIDATES: Invalid prefix format returns error
+// VALIDATES: Invalid prefix format returns error.
 // PREVENTS: Panic on invalid prefix.
 func TestParseUpdateText_InvalidPrefix(t *testing.T) {
 	_, err := ParseUpdateText([]string{
@@ -625,7 +625,7 @@ func TestParseUpdateText_InvalidPrefix(t *testing.T) {
 
 // TestParseUpdateText_MissingPrefixAfterAdd verifies add without prefix fails.
 //
-// VALIDATES: nlri <family> add (no prefix) returns error
+// VALIDATES: nlri <family> add (no prefix) returns error.
 // PREVENTS: Empty announce list.
 func TestParseUpdateText_MissingPrefixAfterAdd(t *testing.T) {
 	_, err := ParseUpdateText([]string{
@@ -637,7 +637,7 @@ func TestParseUpdateText_MissingPrefixAfterAdd(t *testing.T) {
 
 // TestParseUpdateText_Watchdog verifies watchdog inside nlri section.
 //
-// VALIDATES: nlri ... add ... watchdog set <name> stored in group
+// VALIDATES: nlri ... add ... watchdog set <name> stored in group.
 // PREVENTS: Watchdog name loss.
 func TestParseUpdateText_Watchdog(t *testing.T) {
 	result, err := ParseUpdateText([]string{
@@ -651,7 +651,7 @@ func TestParseUpdateText_Watchdog(t *testing.T) {
 
 // TestParseUpdateText_WatchdogLegacy verifies legacy standalone watchdog still works.
 //
-// VALIDATES: watchdog <name> (standalone) still works for backward compat
+// VALIDATES: watchdog <name> (standalone) still works for backward compat.
 // PREVENTS: Breaking existing scripts.
 func TestParseUpdateText_WatchdogLegacy(t *testing.T) {
 	result, err := ParseUpdateText([]string{
@@ -664,7 +664,7 @@ func TestParseUpdateText_WatchdogLegacy(t *testing.T) {
 
 // TestParseUpdateText_SpecExample verifies full chained example from spec.
 //
-// VALIDATES: Complex multi-section command parses correctly
+// VALIDATES: Complex multi-section command parses correctly.
 // PREVENTS: Inter-section interaction bugs.
 func TestParseUpdateText_SpecExample(t *testing.T) {
 	// Example: set attrs, add ipv4 routes, modify attrs, add ipv6 routes with watchdog
@@ -705,7 +705,7 @@ func TestParseUpdateText_SpecExample(t *testing.T) {
 
 // TestParsedAttrs_Snapshot_DeepCopy verifies snapshot creates independent copies.
 //
-// VALIDATES: Modifying original after snapshot doesn't affect copy
+// VALIDATES: Modifying original after snapshot doesn't affect copy.
 // PREVENTS: Shared slice bugs.
 func TestParsedAttrs_Snapshot_DeepCopy(t *testing.T) {
 	orig := parsedAttrs{
@@ -1352,8 +1352,8 @@ func TestHandleUpdate_UnknownEncoding(t *testing.T) {
 
 // TestParseUpdateText_NhopSet verifies nhop set <addr> syntax.
 //
-// VALIDATES: nhop set <addr> stores next-hop as explicit
-// PREVENTS: Missing nhop keyword support
+// VALIDATES: nhop set <addr> stores next-hop as explicit.
+// PREVENTS: Missing nhop keyword support.
 func TestParseUpdateText_NhopSet(t *testing.T) {
 	result, err := ParseUpdateText([]string{
 		"nhop", "set", "192.0.2.1",
@@ -1367,8 +1367,8 @@ func TestParseUpdateText_NhopSet(t *testing.T) {
 
 // TestParseUpdateText_NhopSetSelf verifies nhop set self syntax.
 //
-// VALIDATES: nhop set self stores next-hop as self policy
-// PREVENTS: Missing self keyword support
+// VALIDATES: nhop set self stores next-hop as self policy.
+// PREVENTS: Missing self keyword support.
 func TestParseUpdateText_NhopSetSelf(t *testing.T) {
 	result, err := ParseUpdateText([]string{
 		"nhop", "set", "self",
@@ -1381,8 +1381,8 @@ func TestParseUpdateText_NhopSetSelf(t *testing.T) {
 
 // TestParseUpdateText_NhopDel verifies nhop del syntax.
 //
-// VALIDATES: nhop del unsets next-hop for subsequent nlri
-// PREVENTS: Missing nhop del support
+// VALIDATES: nhop del unsets next-hop for subsequent nlri.
+// PREVENTS: Missing nhop del support.
 func TestParseUpdateText_NhopDel(t *testing.T) {
 	result, err := ParseUpdateText([]string{
 		"nhop", "set", "192.0.2.1",
@@ -1403,8 +1403,8 @@ func TestParseUpdateText_NhopDel(t *testing.T) {
 
 // TestParseUpdateText_NhopDelConditional verifies nhop del with value is conditional.
 //
-// VALIDATES: nhop del <value> succeeds if matches, fails otherwise
-// PREVENTS: Wrong next-hop being deleted
+// VALIDATES: nhop del <value> succeeds if matches, fails otherwise.
+// PREVENTS: Wrong next-hop being deleted.
 func TestParseUpdateText_NhopDelConditional(t *testing.T) {
 	// Conditional delete succeeds when value matches
 	result, err := ParseUpdateText([]string{
@@ -1427,8 +1427,8 @@ func TestParseUpdateText_NhopDelConditional(t *testing.T) {
 
 // TestParseUpdateText_NhopPerFamily verifies nhop accumulates correctly.
 //
-// VALIDATES: nhop changes affect only subsequent nlri sections
-// PREVENTS: nhop applying retroactively
+// VALIDATES: nhop changes affect only subsequent nlri sections.
+// PREVENTS: nhop applying retroactively.
 func TestParseUpdateText_NhopPerFamily(t *testing.T) {
 	result, err := ParseUpdateText([]string{
 		"nhop", "set", "192.0.2.1",
@@ -1448,8 +1448,8 @@ func TestParseUpdateText_NhopPerFamily(t *testing.T) {
 
 // TestParseUpdateText_PathInfo verifies path-information as accumulator.
 //
-// VALIDATES: path-information set <id> sets path-id for subsequent NLRIs
-// PREVENTS: Missing ADD-PATH support
+// VALIDATES: path-information set <id> sets path-id for subsequent NLRIs.
+// PREVENTS: Missing ADD-PATH support.
 func TestParseUpdateText_PathInfo(t *testing.T) {
 	result, err := ParseUpdateText([]string{
 		"nhop", "set", "192.0.2.1",
@@ -1465,8 +1465,8 @@ func TestParseUpdateText_PathInfo(t *testing.T) {
 
 // TestParseUpdateText_PathInfoChange verifies path-information changes mid-command.
 //
-// VALIDATES: path-information can be changed between nlri sections
-// PREVENTS: Path-id applying retroactively
+// VALIDATES: path-information can be changed between nlri sections.
+// PREVENTS: Path-id applying retroactively.
 func TestParseUpdateText_PathInfoChange(t *testing.T) {
 	result, err := ParseUpdateText([]string{
 		"nhop", "set", "192.0.2.1",
@@ -1487,8 +1487,8 @@ func TestParseUpdateText_PathInfoChange(t *testing.T) {
 
 // TestParseUpdateText_PathInfoInvalid verifies invalid path-information fails.
 //
-// VALIDATES: Non-numeric path-information set returns error
-// PREVENTS: Silent ignore of invalid path-id
+// VALIDATES: Non-numeric path-information set returns error.
+// PREVENTS: Silent ignore of invalid path-id.
 func TestParseUpdateText_PathInfoInvalid(t *testing.T) {
 	_, err := ParseUpdateText([]string{
 		"nhop", "set", "192.0.2.1",
@@ -1501,8 +1501,8 @@ func TestParseUpdateText_PathInfoInvalid(t *testing.T) {
 
 // TestParseUpdateText_PathInfoDel verifies path-information del.
 //
-// VALIDATES: path-information del clears path-id
-// PREVENTS: Path-id persisting unexpectedly
+// VALIDATES: path-information del clears path-id.
+// PREVENTS: Path-id persisting unexpectedly.
 func TestParseUpdateText_PathInfoDel(t *testing.T) {
 	result, err := ParseUpdateText([]string{
 		"nhop", "set", "192.0.2.1",
@@ -1527,8 +1527,8 @@ func TestParseUpdateText_PathInfoDel(t *testing.T) {
 
 // TestParseUpdateText_RDSet verifies rd set <value> syntax.
 //
-// VALIDATES: rd set <ASN:value> stores RD for subsequent VPN NLRIs
-// PREVENTS: Missing RD accumulator support
+// VALIDATES: rd set <ASN:value> stores RD for subsequent VPN NLRIs.
+// PREVENTS: Missing RD accumulator support.
 func TestParseUpdateText_RDSet(t *testing.T) {
 	result, err := ParseUpdateText([]string{
 		"nhop", "set", "192.0.2.1",
@@ -1548,8 +1548,8 @@ func TestParseUpdateText_RDSet(t *testing.T) {
 
 // TestParseUpdateText_RDSetIPFormat verifies rd set with IP:value format.
 //
-// VALIDATES: rd set <IP:value> stores Type 1 RD (IP:assigned)
-// PREVENTS: Only ASN:value format working
+// VALIDATES: rd set <IP:value> stores Type 1 RD (IP:assigned).
+// PREVENTS: Only ASN:value format working.
 func TestParseUpdateText_RDSetIPFormat(t *testing.T) {
 	result, err := ParseUpdateText([]string{
 		"nhop", "set", "192.0.2.1",
@@ -1567,8 +1567,8 @@ func TestParseUpdateText_RDSetIPFormat(t *testing.T) {
 
 // TestParseUpdateText_RDDel verifies rd del clears RD.
 //
-// VALIDATES: rd del clears accumulated RD
-// PREVENTS: RD persisting unexpectedly
+// VALIDATES: rd del clears accumulated RD.
+// PREVENTS: RD persisting unexpectedly.
 func TestParseUpdateText_RDDel(t *testing.T) {
 	result, err := ParseUpdateText([]string{
 		"nhop", "set", "192.0.2.1",
@@ -1592,8 +1592,8 @@ func TestParseUpdateText_RDDel(t *testing.T) {
 
 // TestParseUpdateText_RDDelConditional verifies rd del with value is conditional.
 //
-// VALIDATES: rd del <value> succeeds if matches, fails otherwise
-// PREVENTS: Wrong RD being deleted
+// VALIDATES: rd del <value> succeeds if matches, fails otherwise.
+// PREVENTS: Wrong RD being deleted.
 func TestParseUpdateText_RDDelConditional(t *testing.T) {
 	// Conditional delete succeeds when value matches
 	result, err := ParseUpdateText([]string{
@@ -1618,8 +1618,8 @@ func TestParseUpdateText_RDDelConditional(t *testing.T) {
 
 // TestParseUpdateText_LabelSet verifies label set <value> syntax.
 //
-// VALIDATES: label set <value> stores label for VPN/labeled NLRIs
-// PREVENTS: Missing label accumulator support
+// VALIDATES: label set <value> stores label for VPN/labeled NLRIs.
+// PREVENTS: Missing label accumulator support.
 func TestParseUpdateText_LabelSet(t *testing.T) {
 	result, err := ParseUpdateText([]string{
 		"nhop", "set", "192.0.2.1",
@@ -1638,8 +1638,8 @@ func TestParseUpdateText_LabelSet(t *testing.T) {
 
 // TestParseUpdateText_LabelSetZero verifies label=0 (Explicit Null) is valid.
 //
-// VALIDATES: label set 0 is accepted (RFC 3032 Explicit Null)
-// PREVENTS: Zero label rejection
+// VALIDATES: label set 0 is accepted (RFC 3032 Explicit Null).
+// PREVENTS: Zero label rejection.
 func TestParseUpdateText_LabelSetZero(t *testing.T) {
 	result, err := ParseUpdateText([]string{
 		"nhop", "set", "192.0.2.1",
@@ -1658,8 +1658,8 @@ func TestParseUpdateText_LabelSetZero(t *testing.T) {
 
 // TestParseUpdateText_LabelSetMax verifies max label value (20-bit).
 //
-// VALIDATES: label set 1048575 (max 20-bit) is accepted
-// PREVENTS: Valid max label rejection
+// VALIDATES: label set 1048575 (max 20-bit) is accepted.
+// PREVENTS: Valid max label rejection.
 func TestParseUpdateText_LabelSetMax(t *testing.T) {
 	result, err := ParseUpdateText([]string{
 		"nhop", "set", "192.0.2.1",
@@ -1677,8 +1677,8 @@ func TestParseUpdateText_LabelSetMax(t *testing.T) {
 
 // TestParseUpdateText_LabelSetOverflow verifies label > 20-bit fails.
 //
-// VALIDATES: label set 1048576+ returns error
-// PREVENTS: Invalid label values accepted
+// VALIDATES: label set 1048576+ returns error.
+// PREVENTS: Invalid label values accepted.
 func TestParseUpdateText_LabelSetOverflow(t *testing.T) {
 	_, err := ParseUpdateText([]string{
 		"nhop", "set", "192.0.2.1",
@@ -1692,8 +1692,8 @@ func TestParseUpdateText_LabelSetOverflow(t *testing.T) {
 
 // TestParseUpdateText_LabelDel verifies label del clears label.
 //
-// VALIDATES: label del clears accumulated label
-// PREVENTS: Label persisting unexpectedly
+// VALIDATES: label del clears accumulated label.
+// PREVENTS: Label persisting unexpectedly.
 func TestParseUpdateText_LabelDel(t *testing.T) {
 	result, err := ParseUpdateText([]string{
 		"nhop", "set", "192.0.2.1",
@@ -1719,8 +1719,8 @@ func TestParseUpdateText_LabelDel(t *testing.T) {
 
 // TestParseUpdateText_LabelDelConditional verifies label del with value is conditional.
 //
-// VALIDATES: label del <value> succeeds if matches, fails otherwise
-// PREVENTS: Wrong label being deleted
+// VALIDATES: label del <value> succeeds if matches, fails otherwise.
+// PREVENTS: Wrong label being deleted.
 func TestParseUpdateText_LabelDelConditional(t *testing.T) {
 	// Conditional delete succeeds when value matches
 	result, err := ParseUpdateText([]string{
@@ -1745,8 +1745,8 @@ func TestParseUpdateText_LabelDelConditional(t *testing.T) {
 
 // TestParseUpdateText_VPNMissingRD verifies VPN family requires RD.
 //
-// VALIDATES: ipv4/mpls-vpn without rd returns error
-// PREVENTS: VPN NLRI created without RD
+// VALIDATES: ipv4/mpls-vpn without rd returns error.
+// PREVENTS: VPN NLRI created without RD.
 func TestParseUpdateText_VPNMissingRD(t *testing.T) {
 	_, err := ParseUpdateText([]string{
 		"nhop", "set", "192.0.2.1",
@@ -1759,8 +1759,8 @@ func TestParseUpdateText_VPNMissingRD(t *testing.T) {
 
 // TestParseUpdateText_VPNMissingLabel verifies VPN family requires label.
 //
-// VALIDATES: ipv4/mpls-vpn without label returns error
-// PREVENTS: VPN NLRI created without label
+// VALIDATES: ipv4/mpls-vpn without label returns error.
+// PREVENTS: VPN NLRI created without label.
 func TestParseUpdateText_VPNMissingLabel(t *testing.T) {
 	_, err := ParseUpdateText([]string{
 		"nhop", "set", "192.0.2.1",
@@ -1773,8 +1773,8 @@ func TestParseUpdateText_VPNMissingLabel(t *testing.T) {
 
 // TestParseUpdateText_LabeledUnicast verifies labeled unicast family.
 //
-// VALIDATES: ipv4/nlri-mpls creates LabeledUnicast NLRI with label
-// PREVENTS: Wrong NLRI type for labeled unicast
+// VALIDATES: ipv4/nlri-mpls creates LabeledUnicast NLRI with label.
+// PREVENTS: Wrong NLRI type for labeled unicast.
 func TestParseUpdateText_LabeledUnicast(t *testing.T) {
 	result, err := ParseUpdateText([]string{
 		"nhop", "set", "192.0.2.1",
@@ -1793,8 +1793,8 @@ func TestParseUpdateText_LabeledUnicast(t *testing.T) {
 
 // TestParseUpdateText_LabeledUnicastMissingLabel verifies labeled unicast requires label.
 //
-// VALIDATES: ipv4/nlri-mpls without label returns error
-// PREVENTS: LabeledUnicast NLRI created without label
+// VALIDATES: ipv4/nlri-mpls without label returns error.
+// PREVENTS: LabeledUnicast NLRI created without label.
 func TestParseUpdateText_LabeledUnicastMissingLabel(t *testing.T) {
 	_, err := ParseUpdateText([]string{
 		"nhop", "set", "192.0.2.1",
@@ -1807,8 +1807,8 @@ func TestParseUpdateText_LabeledUnicastMissingLabel(t *testing.T) {
 
 // TestParseUpdateText_IPv6VPN verifies IPv6 VPN family.
 //
-// VALIDATES: ipv6/mpls-vpn creates IPVPN NLRI with IPv6 prefix
-// PREVENTS: IPv6 VPN family not working
+// VALIDATES: ipv6/mpls-vpn creates IPVPN NLRI with IPv6 prefix.
+// PREVENTS: IPv6 VPN family not working.
 func TestParseUpdateText_IPv6VPN(t *testing.T) {
 	result, err := ParseUpdateText([]string{
 		"nhop", "set", "2001:db8::1",
@@ -1827,8 +1827,8 @@ func TestParseUpdateText_IPv6VPN(t *testing.T) {
 
 // TestParseUpdateText_IPv6LabeledUnicast verifies IPv6 labeled unicast family.
 //
-// VALIDATES: ipv6/nlri-mpls creates LabeledUnicast NLRI with IPv6 prefix
-// PREVENTS: IPv6 labeled unicast not working
+// VALIDATES: ipv6/nlri-mpls creates LabeledUnicast NLRI with IPv6 prefix.
+// PREVENTS: IPv6 labeled unicast not working.
 func TestParseUpdateText_IPv6LabeledUnicast(t *testing.T) {
 	result, err := ParseUpdateText([]string{
 		"nhop", "set", "2001:db8::1",
@@ -1845,8 +1845,8 @@ func TestParseUpdateText_IPv6LabeledUnicast(t *testing.T) {
 
 // TestParseUpdateText_VPNWithPathInfo verifies VPN with ADD-PATH.
 //
-// VALIDATES: VPN NLRI includes path-id when specified
-// PREVENTS: Path-id lost for VPN families
+// VALIDATES: VPN NLRI includes path-id when specified.
+// PREVENTS: Path-id lost for VPN families.
 func TestParseUpdateText_VPNWithPathInfo(t *testing.T) {
 	result, err := ParseUpdateText([]string{
 		"nhop", "set", "192.0.2.1",
@@ -1865,8 +1865,8 @@ func TestParseUpdateText_VPNWithPathInfo(t *testing.T) {
 
 // TestParseUpdateText_RDChangesBetweenSections verifies RD can change.
 //
-// VALIDATES: Different RD values for different VPN nlri sections
-// PREVENTS: RD changes not taking effect
+// VALIDATES: Different RD values for different VPN nlri sections.
+// PREVENTS: RD changes not taking effect.
 func TestParseUpdateText_RDChangesBetweenSections(t *testing.T) {
 	result, err := ParseUpdateText([]string{
 		"nhop", "set", "192.0.2.1",
@@ -1892,8 +1892,8 @@ func TestParseUpdateText_RDChangesBetweenSections(t *testing.T) {
 
 // TestParseUpdateText_LabelChangesBetweenSections verifies label can change.
 //
-// VALIDATES: Different label values for different VPN nlri sections
-// PREVENTS: Label changes not taking effect
+// VALIDATES: Different label values for different VPN nlri sections.
+// PREVENTS: Label changes not taking effect.
 func TestParseUpdateText_LabelChangesBetweenSections(t *testing.T) {
 	result, err := ParseUpdateText([]string{
 		"nhop", "set", "192.0.2.1",
@@ -1923,8 +1923,8 @@ func TestParseUpdateText_LabelChangesBetweenSections(t *testing.T) {
 
 // TestParseUpdateText_InNLRIModifierSyntax verifies rd/label inside nlri section.
 //
-// VALIDATES: nlri ipv4/mpls-vpn rd 65000:100 label 1000 add 10.0.0.0/24 works
-// PREVENTS: Requiring accumulator syntax for VPN routes
+// VALIDATES: nlri ipv4/mpls-vpn rd 65000:100 label 1000 add 10.0.0.0/24 works.
+// PREVENTS: Requiring accumulator syntax for VPN routes.
 func TestParseUpdateText_InNLRIModifierSyntax(t *testing.T) {
 	result, err := ParseUpdateText([]string{
 		"nhop", "set", "192.0.2.1",
@@ -1944,8 +1944,8 @@ func TestParseUpdateText_InNLRIModifierSyntax(t *testing.T) {
 
 // TestParseUpdateText_InNLRIModifierMultiplePrefixes verifies in-NLRI modifiers apply to all prefixes.
 //
-// VALIDATES: rd/label in nlri section applies to all prefixes in that section
-// PREVENTS: Modifiers only applying to first prefix
+// VALIDATES: rd/label in nlri section applies to all prefixes in that section.
+// PREVENTS: Modifiers only applying to first prefix.
 func TestParseUpdateText_InNLRIModifierMultiplePrefixes(t *testing.T) {
 	result, err := ParseUpdateText([]string{
 		"nhop", "set", "192.0.2.1",
@@ -1967,8 +1967,8 @@ func TestParseUpdateText_InNLRIModifierMultiplePrefixes(t *testing.T) {
 
 // TestParseUpdateText_InNLRIModifierOverridesAccumulator verifies in-NLRI modifiers override accumulated.
 //
-// VALIDATES: In-NLRI rd/label overrides accumulated values for that section
-// PREVENTS: Accumulator values not being overridable
+// VALIDATES: In-NLRI rd/label overrides accumulated values for that section.
+// PREVENTS: Accumulator values not being overridable.
 func TestParseUpdateText_InNLRIModifierOverridesAccumulator(t *testing.T) {
 	result, err := ParseUpdateText([]string{
 		"nhop", "set", "192.0.2.1",
@@ -1989,8 +1989,8 @@ func TestParseUpdateText_InNLRIModifierOverridesAccumulator(t *testing.T) {
 
 // TestParseUpdateText_InNLRIModifierIPv6VPN verifies IPv6 VPN with in-NLRI modifiers.
 //
-// VALIDATES: nlri ipv6/mpls-vpn rd ... label ... add ... works
-// PREVENTS: IPv6 VPN not supporting in-NLRI modifier syntax
+// VALIDATES: nlri ipv6/mpls-vpn rd ... label ... add ... works.
+// PREVENTS: IPv6 VPN not supporting in-NLRI modifier syntax.
 func TestParseUpdateText_InNLRIModifierIPv6VPN(t *testing.T) {
 	result, err := ParseUpdateText([]string{
 		"nhop", "set", "2001:db8::1",
@@ -2008,8 +2008,8 @@ func TestParseUpdateText_InNLRIModifierIPv6VPN(t *testing.T) {
 
 // TestParseUpdateText_InNLRIModifierLabelOnly verifies label-only in-NLRI modifier.
 //
-// VALIDATES: nlri ipv4/nlri-mpls label 1000 add ... works (labeled unicast)
-// PREVENTS: Label-only modifier not working
+// VALIDATES: nlri ipv4/nlri-mpls label 1000 add ... works (labeled unicast).
+// PREVENTS: Label-only modifier not working.
 func TestParseUpdateText_InNLRIModifierLabelOnly(t *testing.T) {
 	result, err := ParseUpdateText([]string{
 		"nhop", "set", "192.0.2.1",
@@ -2026,8 +2026,8 @@ func TestParseUpdateText_InNLRIModifierLabelOnly(t *testing.T) {
 
 // TestParseUpdateText_InNLRIModifierRDOnlyStillNeedsLabel verifies rd-only still requires label.
 //
-// VALIDATES: nlri ipv4/mpls-vpn rd ... add ... fails (missing label)
-// PREVENTS: VPN routes created without label
+// VALIDATES: nlri ipv4/mpls-vpn rd ... add ... fails (missing label).
+// PREVENTS: VPN routes created without label.
 func TestParseUpdateText_InNLRIModifierRDOnlyStillNeedsLabel(t *testing.T) {
 	_, err := ParseUpdateText([]string{
 		"nhop", "set", "192.0.2.1",
@@ -2039,8 +2039,8 @@ func TestParseUpdateText_InNLRIModifierRDOnlyStillNeedsLabel(t *testing.T) {
 
 // TestParseUpdateText_InNLRIModifierLabelOnlyStillNeedsRDForVPN verifies label-only still requires rd for VPN.
 //
-// VALIDATES: nlri ipv4/mpls-vpn label ... add ... fails (missing rd)
-// PREVENTS: VPN routes created without RD
+// VALIDATES: nlri ipv4/mpls-vpn label ... add ... fails (missing rd).
+// PREVENTS: VPN routes created without RD.
 func TestParseUpdateText_InNLRIModifierLabelOnlyStillNeedsRDForVPN(t *testing.T) {
 	_, err := ParseUpdateText([]string{
 		"nhop", "set", "192.0.2.1",
@@ -2052,8 +2052,8 @@ func TestParseUpdateText_InNLRIModifierLabelOnlyStillNeedsRDForVPN(t *testing.T)
 
 // TestParseUpdateText_InNLRIModifierScopeIsSectionOnly verifies modifiers don't leak to next section.
 //
-// VALIDATES: In-NLRI modifiers only affect that section, not subsequent sections
-// PREVENTS: Modifier values leaking across sections
+// VALIDATES: In-NLRI modifiers only affect that section, not subsequent sections.
+// PREVENTS: Modifier values leaking across sections.
 func TestParseUpdateText_InNLRIModifierScopeIsSectionOnly(t *testing.T) {
 	result, err := ParseUpdateText([]string{
 		"nhop", "set", "192.0.2.1",
@@ -2078,8 +2078,8 @@ func TestParseUpdateText_InNLRIModifierScopeIsSectionOnly(t *testing.T) {
 
 // TestParseUpdateText_FlowSpecBasic verifies basic FlowSpec with destination only.
 //
-// VALIDATES: FlowSpec NLRI with single destination prefix component
-// PREVENTS: FlowSpec family not being recognized
+// VALIDATES: FlowSpec NLRI with single destination prefix component.
+// PREVENTS: FlowSpec family not being recognized.
 func TestParseUpdateText_FlowSpecBasic(t *testing.T) {
 	result, err := ParseUpdateText([]string{
 		"nlri", "ipv4/flowspec", "add", "destination", "10.0.0.0/24",
@@ -2096,8 +2096,8 @@ func TestParseUpdateText_FlowSpecBasic(t *testing.T) {
 
 // TestParseUpdateText_FlowSpecProtocol verifies protocol component parsing.
 //
-// VALIDATES: Protocol names (tcp/udp/icmp) and numbers translate correctly
-// PREVENTS: Protocol component not parsed
+// VALIDATES: Protocol names (tcp/udp/icmp) and numbers translate correctly.
+// PREVENTS: Protocol component not parsed.
 func TestParseUpdateText_FlowSpecProtocol(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -2130,8 +2130,8 @@ func TestParseUpdateText_FlowSpecProtocol(t *testing.T) {
 
 // TestParseUpdateText_FlowSpecPort verifies port with operators.
 //
-// VALIDATES: Port operators (=, >, <, >=, <=) parsed correctly
-// PREVENTS: Port operator syntax errors
+// VALIDATES: Port operators (=, >, <, >=, <=) parsed correctly.
+// PREVENTS: Port operator syntax errors.
 func TestParseUpdateText_FlowSpecPort(t *testing.T) {
 	tests := []struct {
 		name string
@@ -2165,8 +2165,8 @@ func TestParseUpdateText_FlowSpecPort(t *testing.T) {
 
 // TestParseUpdateText_FlowSpecPortRange verifies port range syntax.
 //
-// VALIDATES: Port range (>=1 <=1023) creates two matches with AND
-// PREVENTS: Port range not being parsed as AND condition
+// VALIDATES: Port range (>=1 <=1023) creates two matches with AND.
+// PREVENTS: Port range not being parsed as AND condition.
 func TestParseUpdateText_FlowSpecPortRange(t *testing.T) {
 	result, err := ParseUpdateText([]string{
 		"nlri", "ipv4/flowspec", "add", "destination-port", ">=1", "<=1023",
@@ -2182,8 +2182,8 @@ func TestParseUpdateText_FlowSpecPortRange(t *testing.T) {
 
 // TestParseUpdateText_FlowSpecMultipleComponents verifies multiple components.
 //
-// VALIDATES: Multiple match components combine with AND logic
-// PREVENTS: Only first component being parsed
+// VALIDATES: Multiple match components combine with AND logic.
+// PREVENTS: Only first component being parsed.
 func TestParseUpdateText_FlowSpecMultipleComponents(t *testing.T) {
 	result, err := ParseUpdateText([]string{
 		"nlri", "ipv4/flowspec", "add",
@@ -2210,8 +2210,8 @@ func TestParseUpdateText_FlowSpecMultipleComponents(t *testing.T) {
 
 // TestParseUpdateText_FlowSpecWithdraw verifies del syntax for FlowSpec.
 //
-// VALIDATES: del creates withdrawal for FlowSpec rule
-// PREVENTS: FlowSpec withdraw not working
+// VALIDATES: del creates withdrawal for FlowSpec rule.
+// PREVENTS: FlowSpec withdraw not working.
 func TestParseUpdateText_FlowSpecWithdraw(t *testing.T) {
 	result, err := ParseUpdateText([]string{
 		"nlri", "ipv4/flowspec", "del", "destination", "10.0.0.0/24",
@@ -2228,8 +2228,8 @@ func TestParseUpdateText_FlowSpecWithdraw(t *testing.T) {
 
 // TestParseUpdateText_FlowSpecVPN verifies FlowSpec VPN with rd.
 //
-// VALIDATES: flowspec-vpn creates FlowSpecVPN NLRI with RD
-// PREVENTS: FlowSpec VPN not parsing RD
+// VALIDATES: flowspec-vpn creates FlowSpecVPN NLRI with RD.
+// PREVENTS: FlowSpec VPN not parsing RD.
 func TestParseUpdateText_FlowSpecVPN(t *testing.T) {
 	result, err := ParseUpdateText([]string{
 		"nlri", "ipv4/flowspec-vpn", "rd", "65000:100", "add",
@@ -2246,8 +2246,8 @@ func TestParseUpdateText_FlowSpecVPN(t *testing.T) {
 
 // TestParseUpdateText_FlowSpecIPv6 verifies IPv6 FlowSpec.
 //
-// VALIDATES: ipv6/flowspec with IPv6 prefix works
-// PREVENTS: IPv6 FlowSpec not being parsed
+// VALIDATES: ipv6/flowspec with IPv6 prefix works.
+// PREVENTS: IPv6 FlowSpec not being parsed.
 func TestParseUpdateText_FlowSpecIPv6(t *testing.T) {
 	result, err := ParseUpdateText([]string{
 		"nlri", "ipv6/flowspec", "add", "destination", "2001:db8::/32",
@@ -2262,8 +2262,8 @@ func TestParseUpdateText_FlowSpecIPv6(t *testing.T) {
 
 // TestParseUpdateText_FlowSpecTCPFlags verifies TCP flags matching.
 //
-// VALIDATES: tcp-flags component with flag names
-// PREVENTS: TCP flags not parsed
+// VALIDATES: tcp-flags component with flag names.
+// PREVENTS: TCP flags not parsed.
 func TestParseUpdateText_FlowSpecTCPFlags(t *testing.T) {
 	result, err := ParseUpdateText([]string{
 		"nlri", "ipv4/flowspec", "add", "tcp-flags", "syn", "ack",
@@ -2279,8 +2279,8 @@ func TestParseUpdateText_FlowSpecTCPFlags(t *testing.T) {
 
 // TestParseUpdateText_FlowSpecFragment verifies fragment component.
 //
-// VALIDATES: fragment component with fragment flags
-// PREVENTS: Fragment component not parsed
+// VALIDATES: fragment component with fragment flags.
+// PREVENTS: Fragment component not parsed.
 func TestParseUpdateText_FlowSpecFragment(t *testing.T) {
 	result, err := ParseUpdateText([]string{
 		"nlri", "ipv4/flowspec", "add", "fragment", "dont-fragment",
@@ -2296,8 +2296,8 @@ func TestParseUpdateText_FlowSpecFragment(t *testing.T) {
 
 // TestParseUpdateText_FlowSpecTCPFlagsOperators verifies bitmask operators.
 //
-// VALIDATES: !, =, & operators work per RFC 8955 Section 4.2.1.2
-// PREVENTS: Bitmask operators not parsed correctly
+// VALIDATES: !, =, & operators work per RFC 8955 Section 4.2.1.2.
+// PREVENTS: Bitmask operators not parsed correctly.
 func TestParseUpdateText_FlowSpecTCPFlagsOperators(t *testing.T) {
 	tests := []struct {
 		name   string
@@ -2330,8 +2330,8 @@ func TestParseUpdateText_FlowSpecTCPFlagsOperators(t *testing.T) {
 
 // TestParseUpdateText_FlowSpecFragmentOperators verifies fragment bitmask operators.
 //
-// VALIDATES: !, =, & operators work for fragment component
-// PREVENTS: Fragment operators not parsed correctly
+// VALIDATES: !, =, & operators work for fragment component.
+// PREVENTS: Fragment operators not parsed correctly.
 func TestParseUpdateText_FlowSpecFragmentOperators(t *testing.T) {
 	tests := []struct {
 		name  string
@@ -2360,8 +2360,8 @@ func TestParseUpdateText_FlowSpecFragmentOperators(t *testing.T) {
 
 // TestParseUpdateText_FlowSpecMissingAdd verifies error without add/del.
 //
-// VALIDATES: FlowSpec without add/del returns appropriate error
-// PREVENTS: Components parsed without mode
+// VALIDATES: FlowSpec without add/del returns appropriate error.
+// PREVENTS: Components parsed without mode.
 func TestParseUpdateText_FlowSpecMissingAdd(t *testing.T) {
 	_, err := ParseUpdateText([]string{
 		"nlri", "ipv4/flowspec", "destination", "10.0.0.0/24",
@@ -2372,8 +2372,8 @@ func TestParseUpdateText_FlowSpecMissingAdd(t *testing.T) {
 
 // TestParseUpdateText_FlowSpecVPNMissingRD verifies VPN requires RD.
 //
-// VALIDATES: flowspec-vpn without rd returns error
-// PREVENTS: FlowSpec VPN created without RD
+// VALIDATES: flowspec-vpn without rd returns error.
+// PREVENTS: FlowSpec VPN created without RD.
 func TestParseUpdateText_FlowSpecVPNMissingRD(t *testing.T) {
 	_, err := ParseUpdateText([]string{
 		"nlri", "ipv4/flowspec-vpn", "add", "destination", "10.0.0.0/24",
@@ -2388,8 +2388,8 @@ func TestParseUpdateText_FlowSpecVPNMissingRD(t *testing.T) {
 
 // TestParseUpdateText_ExtCommTrafficRate verifies traffic-rate function.
 //
-// VALIDATES: extended-community set traffic-rate <asn> <rate> creates correct extcomm
-// PREVENTS: Traffic-rate function not parsed
+// VALIDATES: extended-community set traffic-rate <asn> <rate> creates correct extcomm.
+// PREVENTS: Traffic-rate function not parsed.
 func TestParseUpdateText_ExtCommTrafficRate(t *testing.T) {
 	result, err := ParseUpdateText([]string{
 		"extended-community", "set", "traffic-rate", "65000", "1000000",
@@ -2402,8 +2402,8 @@ func TestParseUpdateText_ExtCommTrafficRate(t *testing.T) {
 
 // TestParseUpdateText_ExtCommDiscard verifies discard sugar.
 //
-// VALIDATES: discard creates traffic-rate 0 0
-// PREVENTS: Discard sugar not working
+// VALIDATES: discard creates traffic-rate 0 0.
+// PREVENTS: Discard sugar not working.
 func TestParseUpdateText_ExtCommDiscard(t *testing.T) {
 	result, err := ParseUpdateText([]string{
 		"extended-community", "set", "discard",
@@ -2416,8 +2416,8 @@ func TestParseUpdateText_ExtCommDiscard(t *testing.T) {
 
 // TestParseUpdateText_ExtCommRedirect verifies redirect function.
 //
-// VALIDATES: extended-community set redirect <asn> <value> creates redirect RT
-// PREVENTS: Redirect function not parsed
+// VALIDATES: extended-community set redirect <asn> <value> creates redirect RT.
+// PREVENTS: Redirect function not parsed.
 func TestParseUpdateText_ExtCommRedirect(t *testing.T) {
 	result, err := ParseUpdateText([]string{
 		"extended-community", "set", "redirect", "65000", "100",
@@ -2430,8 +2430,8 @@ func TestParseUpdateText_ExtCommRedirect(t *testing.T) {
 
 // TestParseUpdateText_ExtCommTrafficMarking verifies traffic-marking function.
 //
-// VALIDATES: extended-community set traffic-marking <dscp> creates correct extcomm
-// PREVENTS: Traffic-marking function not parsed
+// VALIDATES: extended-community set traffic-marking <dscp> creates correct extcomm.
+// PREVENTS: Traffic-marking function not parsed.
 func TestParseUpdateText_ExtCommTrafficMarking(t *testing.T) {
 	result, err := ParseUpdateText([]string{
 		"extended-community", "set", "traffic-marking", "46",
@@ -2444,8 +2444,8 @@ func TestParseUpdateText_ExtCommTrafficMarking(t *testing.T) {
 
 // TestParseUpdateText_FlowSpecSourcePrefix verifies source prefix component.
 //
-// VALIDATES: source prefix component parsed correctly
-// PREVENTS: Only destination prefix working
+// VALIDATES: source prefix component parsed correctly.
+// PREVENTS: Only destination prefix working.
 func TestParseUpdateText_FlowSpecSourcePrefix(t *testing.T) {
 	result, err := ParseUpdateText([]string{
 		"nlri", "ipv4/flowspec", "add", "source", "192.168.1.0/24",
@@ -2461,8 +2461,8 @@ func TestParseUpdateText_FlowSpecSourcePrefix(t *testing.T) {
 
 // TestParseUpdateText_FlowSpecICMPType verifies ICMP type component.
 //
-// VALIDATES: icmp-type component parsed
-// PREVENTS: ICMP type not recognized
+// VALIDATES: icmp-type component parsed.
+// PREVENTS: ICMP type not recognized.
 func TestParseUpdateText_FlowSpecICMPType(t *testing.T) {
 	result, err := ParseUpdateText([]string{
 		"nlri", "ipv4/flowspec", "add", "icmp-type", "8", // Echo request
@@ -2478,8 +2478,8 @@ func TestParseUpdateText_FlowSpecICMPType(t *testing.T) {
 
 // TestParseUpdateText_FlowSpecICMPCode verifies ICMP code component.
 //
-// VALIDATES: icmp-code component parsed
-// PREVENTS: ICMP code not recognized
+// VALIDATES: icmp-code component parsed.
+// PREVENTS: ICMP code not recognized.
 func TestParseUpdateText_FlowSpecICMPCode(t *testing.T) {
 	result, err := ParseUpdateText([]string{
 		"nlri", "ipv4/flowspec", "add", "icmp-code", "0",
@@ -2495,8 +2495,8 @@ func TestParseUpdateText_FlowSpecICMPCode(t *testing.T) {
 
 // TestParseUpdateText_FlowSpecDSCP verifies DSCP component.
 //
-// VALIDATES: dscp component parsed
-// PREVENTS: DSCP not recognized
+// VALIDATES: dscp component parsed.
+// PREVENTS: DSCP not recognized.
 func TestParseUpdateText_FlowSpecDSCP(t *testing.T) {
 	result, err := ParseUpdateText([]string{
 		"nlri", "ipv4/flowspec", "add", "dscp", "46", // EF
@@ -2512,8 +2512,8 @@ func TestParseUpdateText_FlowSpecDSCP(t *testing.T) {
 
 // TestParseUpdateText_FlowSpecPacketLength verifies packet-length component.
 //
-// VALIDATES: packet-length component parsed
-// PREVENTS: Packet length not recognized
+// VALIDATES: packet-length component parsed.
+// PREVENTS: Packet length not recognized.
 func TestParseUpdateText_FlowSpecPacketLength(t *testing.T) {
 	result, err := ParseUpdateText([]string{
 		"nlri", "ipv4/flowspec", "add", "packet-length", ">=100", "<=1500",
@@ -2529,8 +2529,8 @@ func TestParseUpdateText_FlowSpecPacketLength(t *testing.T) {
 
 // TestParseUpdateText_FlowSpecSourcePort verifies source-port component.
 //
-// VALIDATES: source-port component parsed
-// PREVENTS: Source port not recognized
+// VALIDATES: source-port component parsed.
+// PREVENTS: Source port not recognized.
 func TestParseUpdateText_FlowSpecSourcePort(t *testing.T) {
 	result, err := ParseUpdateText([]string{
 		"nlri", "ipv4/flowspec", "add", "source-port", "=443",
@@ -2546,8 +2546,8 @@ func TestParseUpdateText_FlowSpecSourcePort(t *testing.T) {
 
 // TestParseUpdateText_FlowSpecPort verifies port (any) component.
 //
-// VALIDATES: port component (matches src OR dst) parsed
-// PREVENTS: Generic port component not recognized
+// VALIDATES: port component (matches src OR dst) parsed.
+// PREVENTS: Generic port component not recognized.
 func TestParseUpdateText_FlowSpecPortComponent(t *testing.T) {
 	result, err := ParseUpdateText([]string{
 		"nlri", "ipv4/flowspec", "add", "port", "=22",
@@ -2567,8 +2567,8 @@ func TestParseUpdateText_FlowSpecPortComponent(t *testing.T) {
 
 // TestParseUpdateText_FlowSpecAllComponentTypes verifies all 12 component types.
 //
-// VALIDATES: Every RFC 8955 component type is parseable
-// PREVENTS: Missing component implementations
+// VALIDATES: Every RFC 8955 component type is parseable.
+// PREVENTS: Missing component implementations.
 func TestParseUpdateText_FlowSpecAllComponentTypes(t *testing.T) {
 	tests := []struct {
 		name      string
@@ -2611,8 +2611,8 @@ func TestParseUpdateText_FlowSpecAllComponentTypes(t *testing.T) {
 
 // TestParseUpdateText_FlowSpecNumericOperators verifies all numeric operators.
 //
-// VALIDATES: =, >, <, >=, <= operators work for numeric components
-// PREVENTS: Operator parsing failures
+// VALIDATES: =, >, <, >=, <= operators work for numeric components.
+// PREVENTS: Operator parsing failures.
 func TestParseUpdateText_FlowSpecNumericOperators(t *testing.T) {
 	operators := []string{"=80", ">80", "<80", ">=80", "<=80", "80"}
 	components := []string{"port", "destination-port", "source-port", "packet-length"}
@@ -2637,8 +2637,8 @@ func TestParseUpdateText_FlowSpecNumericOperators(t *testing.T) {
 
 // TestParseUpdateText_FlowSpecBitmaskWireEncoding verifies wire encoding of bitmask operators.
 //
-// VALIDATES: Operator bytes encode correctly per RFC 8955 Section 4.2.1.2
-// PREVENTS: Wrong bit positions for NOT/Match/And operators
+// VALIDATES: Operator bytes encode correctly per RFC 8955 Section 4.2.1.2.
+// PREVENTS: Wrong bit positions for NOT/Match/And operators.
 func TestParseUpdateText_FlowSpecBitmaskWireEncoding(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -2746,8 +2746,8 @@ func TestParseUpdateText_FlowSpecBitmaskWireEncoding(t *testing.T) {
 
 // TestParseUpdateText_FlowSpecBitmaskWireBytes verifies actual wire bytes output.
 //
-// VALIDATES: Full wire encoding matches RFC 8955 Section 4.2.1.2
-// PREVENTS: Incorrect operator byte assembly
+// VALIDATES: Full wire encoding matches RFC 8955 Section 4.2.1.2.
+// PREVENTS: Incorrect operator byte assembly.
 func TestParseUpdateText_FlowSpecBitmaskWireBytes(t *testing.T) {
 	tests := []struct {
 		name      string
@@ -2812,8 +2812,8 @@ func TestParseUpdateText_FlowSpecBitmaskWireBytes(t *testing.T) {
 
 // TestParseUpdateText_FlowSpecTCPFlagsAllOperators verifies all bitmask operators for tcp-flags.
 //
-// VALIDATES: All RFC 8955 Section 4.2.1.2 bitmask operators
-// PREVENTS: Bitmask operator combinations not working
+// VALIDATES: All RFC 8955 Section 4.2.1.2 bitmask operators.
+// PREVENTS: Bitmask operator combinations not working.
 func TestParseUpdateText_FlowSpecTCPFlagsAllOperators(t *testing.T) {
 	tests := []struct {
 		name  string
@@ -2880,8 +2880,8 @@ func TestParseUpdateText_FlowSpecTCPFlagsAllOperators(t *testing.T) {
 
 // TestParseUpdateText_FlowSpecFragmentAllOperators verifies all bitmask operators for fragment.
 //
-// VALIDATES: All RFC 8955 Section 4.2.1.2 bitmask operators for fragment
-// PREVENTS: Fragment operator combinations not working
+// VALIDATES: All RFC 8955 Section 4.2.1.2 bitmask operators for fragment.
+// PREVENTS: Fragment operator combinations not working.
 func TestParseUpdateText_FlowSpecFragmentAllOperators(t *testing.T) {
 	tests := []struct {
 		name  string
@@ -2927,8 +2927,8 @@ func TestParseUpdateText_FlowSpecFragmentAllOperators(t *testing.T) {
 
 // TestParseUpdateText_FlowSpecMultiComponent verifies multiple components combine with AND.
 //
-// VALIDATES: Multiple components create single rule with AND logic
-// PREVENTS: Component combination failures
+// VALIDATES: Multiple components create single rule with AND logic.
+// PREVENTS: Component combination failures.
 func TestParseUpdateText_FlowSpecMultiComponent(t *testing.T) {
 	tests := []struct {
 		name       string
@@ -2999,8 +2999,8 @@ func TestParseUpdateText_FlowSpecMultiComponent(t *testing.T) {
 
 // TestParseUpdateText_FlowSpecIPv6Variants verifies IPv6 FlowSpec families.
 //
-// VALIDATES: IPv6 FlowSpec with IPv6 prefixes
-// PREVENTS: IPv6 family handling failures
+// VALIDATES: IPv6 FlowSpec with IPv6 prefixes.
+// PREVENTS: IPv6 family handling failures.
 func TestParseUpdateText_FlowSpecIPv6Variants(t *testing.T) {
 	tests := []struct {
 		name       string
@@ -3031,8 +3031,8 @@ func TestParseUpdateText_FlowSpecIPv6Variants(t *testing.T) {
 
 // TestParseUpdateText_FlowSpecVPNVariants verifies FlowSpec VPN with RD.
 //
-// VALIDATES: FlowSpec VPN requires and uses RD correctly
-// PREVENTS: VPN variant handling failures
+// VALIDATES: FlowSpec VPN requires and uses RD correctly.
+// PREVENTS: VPN variant handling failures.
 func TestParseUpdateText_FlowSpecVPNVariants(t *testing.T) {
 	tests := []struct {
 		name       string
@@ -3063,8 +3063,8 @@ func TestParseUpdateText_FlowSpecVPNVariants(t *testing.T) {
 
 // TestParseUpdateText_FlowSpecWithdraw verifies del syntax for all components.
 //
-// VALIDATES: Withdrawal works for all component types
-// PREVENTS: Withdraw handling failures
+// VALIDATES: Withdrawal works for all component types.
+// PREVENTS: Withdraw handling failures.
 func TestParseUpdateText_FlowSpecWithdrawVariants(t *testing.T) {
 	tests := []struct {
 		name       string
@@ -3094,8 +3094,8 @@ func TestParseUpdateText_FlowSpecWithdrawVariants(t *testing.T) {
 
 // TestParseUpdateText_FlowSpecErrors verifies error handling.
 //
-// VALIDATES: Appropriate errors for invalid inputs
-// PREVENTS: Silent failures or panics on bad input
+// VALIDATES: Appropriate errors for invalid inputs.
+// PREVENTS: Silent failures or panics on bad input.
 func TestParseUpdateText_FlowSpecErrors(t *testing.T) {
 	tests := []struct {
 		name    string
@@ -3206,8 +3206,8 @@ func TestParseUpdateText_FlowSpecErrors(t *testing.T) {
 
 // TestParseUpdateText_FlowSpecBoundaryValues verifies max valid values are accepted.
 //
-// VALIDATES: Maximum valid values for each component type parse correctly
-// PREVENTS: Off-by-one errors in range validation
+// VALIDATES: Maximum valid values for each component type parse correctly.
+// PREVENTS: Off-by-one errors in range validation.
 func TestParseUpdateText_FlowSpecBoundaryValues(t *testing.T) {
 	tests := []struct {
 		name      string
@@ -3238,8 +3238,8 @@ func TestParseUpdateText_FlowSpecBoundaryValues(t *testing.T) {
 
 // TestParseUpdateText_FlowSpecWithExtComm verifies FlowSpec with actions.
 //
-// VALIDATES: Extended community actions combined with FlowSpec NLRI
-// PREVENTS: Action + NLRI combination failures
+// VALIDATES: Extended community actions combined with FlowSpec NLRI.
+// PREVENTS: Action + NLRI combination failures.
 func TestParseUpdateText_FlowSpecWithExtComm(t *testing.T) {
 	tests := []struct {
 		name       string

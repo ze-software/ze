@@ -7,6 +7,8 @@ import (
 	bgpctx "codeberg.org/thomas-mangin/zebgp/pkg/bgp/context"
 )
 
+const ctxNameNil = "nil"
+
 // TestAttrLenWithContext_MatchesPackWithContext verifies that attrLenWithContext
 // returns the same length as len(attr.PackWithContext(nil, ctx)) for all
 // context-dependent attributes.
@@ -114,7 +116,7 @@ func TestAttrLenWithContext_MatchesWriteToWithContext(t *testing.T) {
 
 	for _, tc := range testCases {
 		for _, ctx := range contexts {
-			ctxName := "nil"
+			ctxName := ctxNameNil
 			if ctx != nil {
 				if ctx.ASN4 {
 					ctxName = "ASN4=true"
@@ -170,7 +172,7 @@ func TestWriteAttrToWithContext_MatchesPack(t *testing.T) {
 
 	for _, tc := range testCases {
 		for _, ctx := range contexts {
-			ctxName := "nil"
+			ctxName := ctxNameNil
 			if ctx != nil {
 				if ctx.ASN4 {
 					ctxName = "ASN4=true"

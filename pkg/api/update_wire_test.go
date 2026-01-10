@@ -16,8 +16,8 @@ import (
 
 // TestParseUpdateWire_HexAttrs verifies hex attribute decoding.
 //
-// VALIDATES: Hex-encoded attributes are decoded and stored in PathAttributes.Wire
-// PREVENTS: Attribute decoding failures
+// VALIDATES: Hex-encoded attributes are decoded and stored in PathAttributes.Wire.
+// PREVENTS: Attribute decoding failures.
 func TestParseUpdateWire_HexAttrs(t *testing.T) {
 	// 400101 = ORIGIN IGP (flags=0x40, type=1, len=1, value=0)
 	result, err := ParseUpdateWire([]string{
@@ -33,8 +33,8 @@ func TestParseUpdateWire_HexAttrs(t *testing.T) {
 
 // TestParseUpdateWire_HexNLRI verifies hex NLRI decoding and splitting.
 //
-// VALIDATES: Hex-encoded NLRIs are decoded and split correctly
-// PREVENTS: NLRI splitting failures
+// VALIDATES: Hex-encoded NLRIs are decoded and split correctly.
+// PREVENTS: NLRI splitting failures.
 func TestParseUpdateWire_HexNLRI(t *testing.T) {
 	result, err := ParseUpdateWire([]string{
 		"attr", "set", "400101",
@@ -53,8 +53,8 @@ func TestParseUpdateWire_HexNLRI(t *testing.T) {
 
 // TestParseUpdateWire_HexNhop verifies hex next-hop decoding.
 //
-// VALIDATES: Hex-encoded next-hop is decoded correctly
-// PREVENTS: Next-hop decoding failures
+// VALIDATES: Hex-encoded next-hop is decoded correctly.
+// PREVENTS: Next-hop decoding failures.
 func TestParseUpdateWire_HexNhop(t *testing.T) {
 	result, err := ParseUpdateWire([]string{
 		"attr", "set", "400101",
@@ -69,8 +69,8 @@ func TestParseUpdateWire_HexNhop(t *testing.T) {
 
 // TestParseUpdateWire_NhopDel verifies nhop del unsets next-hop.
 //
-// VALIDATES: nhop del clears next-hop for subsequent sections
-// PREVENTS: Next-hop bleeding between families
+// VALIDATES: nhop del clears next-hop for subsequent sections.
+// PREVENTS: Next-hop bleeding between families.
 func TestParseUpdateWire_NhopDel(t *testing.T) {
 	result, err := ParseUpdateWire([]string{
 		"attr", "set", "400101",
@@ -92,8 +92,8 @@ func TestParseUpdateWire_NhopDel(t *testing.T) {
 
 // TestParseUpdateWire_NhopSetSelf verifies nhop set self.
 //
-// VALIDATES: nhop set self sets next-hop policy to self
-// PREVENTS: Missing self support in wire mode
+// VALIDATES: nhop set self sets next-hop policy to self.
+// PREVENTS: Missing self support in wire mode.
 func TestParseUpdateWire_NhopSetSelf(t *testing.T) {
 	result, err := ParseUpdateWire([]string{
 		"attr", "set", "400101",
@@ -107,8 +107,8 @@ func TestParseUpdateWire_NhopSetSelf(t *testing.T) {
 
 // TestParseUpdateWire_B64Attrs verifies base64 attribute decoding.
 //
-// VALIDATES: Base64-encoded attributes are decoded correctly
-// PREVENTS: Base64 decoding failures
+// VALIDATES: Base64-encoded attributes are decoded correctly.
+// PREVENTS: Base64 decoding failures.
 func TestParseUpdateWire_B64Attrs(t *testing.T) {
 	// QAEB = 400101 = ORIGIN IGP
 	result, err := ParseUpdateWire([]string{
@@ -124,8 +124,8 @@ func TestParseUpdateWire_B64Attrs(t *testing.T) {
 
 // TestParseUpdateWire_B64NLRI verifies base64 NLRI decoding.
 //
-// VALIDATES: Base64-encoded NLRIs are decoded correctly
-// PREVENTS: Base64 NLRI decoding failures
+// VALIDATES: Base64-encoded NLRIs are decoded correctly.
+// PREVENTS: Base64 NLRI decoding failures.
 func TestParseUpdateWire_B64NLRI(t *testing.T) {
 	result, err := ParseUpdateWire([]string{
 		"attr", "set", "QAEB",
@@ -143,8 +143,8 @@ func TestParseUpdateWire_B64NLRI(t *testing.T) {
 
 // TestParseUpdateWire_B64Nhop verifies base64 next-hop decoding.
 //
-// VALIDATES: Base64-encoded next-hop is decoded correctly
-// PREVENTS: Base64 next-hop decoding failures
+// VALIDATES: Base64-encoded next-hop is decoded correctly.
+// PREVENTS: Base64 next-hop decoding failures.
 func TestParseUpdateWire_B64Nhop(t *testing.T) {
 	result, err := ParseUpdateWire([]string{
 		"attr", "set", "QAEB",
@@ -159,8 +159,8 @@ func TestParseUpdateWire_B64Nhop(t *testing.T) {
 
 // TestParseUpdateWire_InvalidHex verifies invalid hex is rejected.
 //
-// VALIDATES: Invalid hex encoding returns error
-// PREVENTS: Silent corruption of data
+// VALIDATES: Invalid hex encoding returns error.
+// PREVENTS: Silent corruption of data.
 func TestParseUpdateWire_InvalidHex(t *testing.T) {
 	tests := []struct {
 		name string
@@ -181,8 +181,8 @@ func TestParseUpdateWire_InvalidHex(t *testing.T) {
 
 // TestParseUpdateWire_InvalidB64 verifies invalid base64 is rejected.
 //
-// VALIDATES: Invalid base64 encoding returns error
-// PREVENTS: Silent corruption of data
+// VALIDATES: Invalid base64 encoding returns error.
+// PREVENTS: Silent corruption of data.
 func TestParseUpdateWire_InvalidB64(t *testing.T) {
 	tests := []struct {
 		name string
@@ -203,8 +203,8 @@ func TestParseUpdateWire_InvalidB64(t *testing.T) {
 
 // TestParseUpdateWire_SpacesStripped verifies whitespace is stripped before decode.
 //
-// VALIDATES: Spaces in hex data are stripped
-// PREVENTS: Decode failures due to formatting
+// VALIDATES: Spaces in hex data are stripped.
+// PREVENTS: Decode failures due to formatting.
 func TestParseUpdateWire_SpacesStripped(t *testing.T) {
 	// Spaces should be stripped: "40 01 01" -> "400101"
 	result, err := ParseUpdateWire([]string{
@@ -219,8 +219,8 @@ func TestParseUpdateWire_SpacesStripped(t *testing.T) {
 
 // TestParseUpdateWire_MultipleNLRI verifies concatenated NLRIs are split.
 //
-// VALIDATES: Multiple NLRIs in one hex string are split correctly
-// PREVENTS: NLRI boundary detection failures
+// VALIDATES: Multiple NLRIs in one hex string are split correctly.
+// PREVENTS: NLRI boundary detection failures.
 func TestParseUpdateWire_MultipleNLRI(t *testing.T) {
 	// Two NLRIs concatenated: 10.0.0.0/24 + 11.0.0.0/24
 	result, err := ParseUpdateWire([]string{
@@ -245,8 +245,8 @@ func TestParseUpdateWire_MultipleNLRI(t *testing.T) {
 
 // TestParseUpdateWire_AddDel verifies mixed add/del in wire mode.
 //
-// VALIDATES: Both add and del NLRIs in same section
-// PREVENTS: Missing del support
+// VALIDATES: Both add and del NLRIs in same section.
+// PREVENTS: Missing del support.
 func TestParseUpdateWire_AddDel(t *testing.T) {
 	result, err := ParseUpdateWire([]string{
 		"attr", "set", "400101",
@@ -261,8 +261,8 @@ func TestParseUpdateWire_AddDel(t *testing.T) {
 
 // TestParseUpdateWire_NhopPerFamily verifies nhop snapshot per nlri section.
 //
-// VALIDATES: Each nlri section gets its own nhop snapshot
-// PREVENTS: nhop applying retroactively
+// VALIDATES: Each nlri section gets its own nhop snapshot.
+// PREVENTS: nhop applying retroactively.
 func TestParseUpdateWire_NhopPerFamily(t *testing.T) {
 	result, err := ParseUpdateWire([]string{
 		"attr", "set", "400101",
@@ -283,8 +283,8 @@ func TestParseUpdateWire_NhopPerFamily(t *testing.T) {
 
 // TestParseUpdateWire_AddPath verifies addpath flag enables path-id in split.
 //
-// VALIDATES: addpath keyword triggers ADD-PATH aware splitting
-// PREVENTS: Missing addpath support
+// VALIDATES: addpath keyword triggers ADD-PATH aware splitting.
+// PREVENTS: Missing addpath support.
 func TestParseUpdateWire_AddPath(t *testing.T) {
 	// With addpath: [path-id:4][prefix-len][prefix]
 	// path-id=1, 10.0.0.0/24 = 00000001 18 0a0000
@@ -305,8 +305,8 @@ func TestParseUpdateWire_AddPath(t *testing.T) {
 
 // TestParseUpdateWire_AddPathSplit verifies correct NLRI splitting with addpath.
 //
-// VALIDATES: Multiple ADD-PATH NLRIs split correctly
-// PREVENTS: Wrong boundary detection with path-ids
+// VALIDATES: Multiple ADD-PATH NLRIs split correctly.
+// PREVENTS: Wrong boundary detection with path-ids.
 func TestParseUpdateWire_AddPathSplit(t *testing.T) {
 	// Two ADD-PATH NLRIs: path-id=1 10.0.0.0/24 + path-id=2 11.0.0.0/24
 	result, err := ParseUpdateWire([]string{
@@ -329,8 +329,8 @@ func TestParseUpdateWire_AddPathSplit(t *testing.T) {
 
 // TestParseUpdateWire_NoAttrsAnnounce verifies error when announce without attr set.
 //
-// VALIDATES: Wire mode requires attr set for announce
-// PREVENTS: Silent missing attributes
+// VALIDATES: Wire mode requires attr set for announce.
+// PREVENTS: Silent missing attributes.
 func TestParseUpdateWire_NoAttrsAnnounce(t *testing.T) {
 	_, err := ParseUpdateWire([]string{
 		"nhop", "set", "0a000001",
@@ -342,8 +342,8 @@ func TestParseUpdateWire_NoAttrsAnnounce(t *testing.T) {
 
 // TestParseUpdateWire_NoAttrsWithdraw verifies OK when withdraw-only without attr set.
 //
-// VALIDATES: Withdraw-only commands don't need attributes
-// PREVENTS: False positive errors on valid withdrawals
+// VALIDATES: Withdraw-only commands don't need attributes.
+// PREVENTS: False positive errors on valid withdrawals.
 func TestParseUpdateWire_NoAttrsWithdraw(t *testing.T) {
 	result, err := ParseUpdateWire([]string{
 		"nlri", "ipv4/unicast", "del", "180a0000",
@@ -356,8 +356,8 @@ func TestParseUpdateWire_NoAttrsWithdraw(t *testing.T) {
 
 // TestParseUpdateWire_IPv6 verifies IPv6 unicast parsing.
 //
-// VALIDATES: IPv6 family with hex data
-// PREVENTS: IPv6 parsing failures
+// VALIDATES: IPv6 family with hex data.
+// PREVENTS: IPv6 parsing failures.
 func TestParseUpdateWire_IPv6(t *testing.T) {
 	// 2001:db8::/32 = 20 20 01 0d b8
 	result, err := ParseUpdateWire([]string{
@@ -373,8 +373,8 @@ func TestParseUpdateWire_IPv6(t *testing.T) {
 
 // TestParseUpdateWire_PathInfoError verifies path-information rejected in wire mode.
 //
-// VALIDATES: path-information only valid in text mode
-// PREVENTS: Confusion between text and wire mode
+// VALIDATES: path-information only valid in text mode.
+// PREVENTS: Confusion between text and wire mode.
 func TestParseUpdateWire_PathInfoError(t *testing.T) {
 	_, err := ParseUpdateWire([]string{
 		"attr", "set", "400101",
@@ -388,8 +388,8 @@ func TestParseUpdateWire_PathInfoError(t *testing.T) {
 
 // TestParseUpdateWire_MultipleAttrSetError verifies attr set can only appear once.
 //
-// VALIDATES: attr set can only appear once
-// PREVENTS: Ambiguous attribute handling
+// VALIDATES: attr set can only appear once.
+// PREVENTS: Ambiguous attribute handling.
 func TestParseUpdateWire_MultipleAttrSetError(t *testing.T) {
 	_, err := ParseUpdateWire([]string{
 		"attr", "set", "400101",
@@ -407,8 +407,8 @@ func TestParseUpdateWire_MultipleAttrSetError(t *testing.T) {
 
 // TestHandleUpdateHex_Integration verifies full handleUpdateHex flow.
 //
-// VALIDATES: Hex-encoded update command dispatches to reactor
-// PREVENTS: Handler integration failures
+// VALIDATES: Hex-encoded update command dispatches to reactor.
+// PREVENTS: Handler integration failures.
 func TestHandleUpdateHex_Integration(t *testing.T) {
 	reactor := &mockReactor{}
 	ctx := &CommandContext{
@@ -441,8 +441,8 @@ func TestHandleUpdateHex_Integration(t *testing.T) {
 
 // TestHandleUpdateB64_Integration verifies full handleUpdateB64 flow.
 //
-// VALIDATES: Base64-encoded update command dispatches to reactor
-// PREVENTS: Handler integration failures
+// VALIDATES: Base64-encoded update command dispatches to reactor.
+// PREVENTS: Handler integration failures.
 func TestHandleUpdateB64_Integration(t *testing.T) {
 	reactor := &mockReactor{}
 	ctx := &CommandContext{
@@ -472,8 +472,8 @@ func TestHandleUpdateB64_Integration(t *testing.T) {
 
 // TestHandleUpdateHex_WithdrawOnly verifies withdrawal-only hex command.
 //
-// VALIDATES: Withdrawal without attributes works
-// PREVENTS: Withdrawal failures
+// VALIDATES: Withdrawal without attributes works.
+// PREVENTS: Withdrawal failures.
 func TestHandleUpdateHex_WithdrawOnly(t *testing.T) {
 	reactor := &mockReactor{}
 	ctx := &CommandContext{
@@ -497,8 +497,8 @@ func TestHandleUpdateHex_WithdrawOnly(t *testing.T) {
 
 // TestHandleUpdateHex_MixedAddDel verifies mixed announce/withdraw in hex.
 //
-// VALIDATES: Both announce and withdraw in same command
-// PREVENTS: Missing operations
+// VALIDATES: Both announce and withdraw in same command.
+// PREVENTS: Missing operations.
 func TestHandleUpdateHex_MixedAddDel(t *testing.T) {
 	reactor := &mockReactor{}
 	ctx := &CommandContext{

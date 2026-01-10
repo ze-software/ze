@@ -447,7 +447,7 @@ func TestWriteAttrToMatchesPackAttribute(t *testing.T) {
 func makeCommunities(n int) Communities {
 	comms := make(Communities, n)
 	for i := range comms {
-		comms[i] = Community(uint32(0xFFFF0000 | i))
+		comms[i] = Community(uint32(0xFFFF0000 | i)) //nolint:gosec // G115: test helper, i bounded
 	}
 	return comms
 }
@@ -456,7 +456,7 @@ func makeCommunities(n int) Communities {
 func makeASPath(n int) *ASPath {
 	asns := make([]uint32, n)
 	for i := range asns {
-		asns[i] = uint32(65000 + i)
+		asns[i] = uint32(65000 + i) //nolint:gosec // G115: test helper, i bounded
 	}
 	return &ASPath{
 		Segments: []ASPathSegment{{Type: ASSequence, ASNs: asns}},
