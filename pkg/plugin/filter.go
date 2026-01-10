@@ -3,6 +3,7 @@ package plugin
 import (
 	"encoding/binary"
 	"fmt"
+	"log/slog"
 	"net/netip"
 	"sort"
 	"strconv"
@@ -216,16 +217,25 @@ type FamilyNLRI struct {
 // AnnouncedByFamily returns announced NLRI grouped by address family.
 // Each FamilyNLRI has its own next-hop per RFC 4760.
 // Returns entries from both MP-BGP path and legacy IPv4 path.
-// RFC 7911: ctx provides ADD-PATH state per family.
+// RFC 7911: ctx provides ADD-PATH state per family. If ctx is nil, ADD-PATH is disabled.
 func (r FilterResult) AnnouncedByFamily(ctx *bgpctx.EncodingContext) []FamilyNLRI {
 	var result []FamilyNLRI
+
+	// Nil-safe: treat nil ctx as no ADD-PATH
+	if ctx == nil {
+		ctx = &bgpctx.EncodingContext{}
+	}
 
 	// MP-BGP path
 	for _, mp := range r.MPReach {
 		family := mp.Family()
 		hasAddPath := ctx.AddPathFor(family)
 		nlris, err := mp.NLRIs(hasAddPath)
-		if err != nil || len(nlris) == 0 {
+		if err != nil {
+			slog.Debug("NLRI parse error", "family", family, "error", err)
+			continue
+		}
+		if len(nlris) == 0 {
 			continue
 		}
 		result = append(result, FamilyNLRI{
@@ -239,9 +249,9 @@ func (r FilterResult) AnnouncedByFamily(ctx *bgpctx.EncodingContext) []FamilyNLR
 	if r.IPv4Announced != nil {
 		hasAddPath := ctx.AddPathFor(nlri.IPv4Unicast)
 		nlris, err := r.IPv4Announced.NLRIs(hasAddPath)
-		if err != nil || len(nlris) == 0 {
-			// Fallback: no NLRIs parsed
-		} else {
+		if err != nil {
+			slog.Debug("IPv4 NLRI parse error", "error", err)
+		} else if len(nlris) > 0 {
 			result = append(result, FamilyNLRI{
 				Family:  nlri.IPv4Unicast.String(),
 				NextHop: r.IPv4Announced.NextHop(),
@@ -255,16 +265,25 @@ func (r FilterResult) AnnouncedByFamily(ctx *bgpctx.EncodingContext) []FamilyNLR
 
 // WithdrawnByFamily returns withdrawn NLRI grouped by address family.
 // Withdrawn NLRI has no next-hop (NextHop will be invalid).
-// RFC 7911: ctx provides ADD-PATH state per family.
+// RFC 7911: ctx provides ADD-PATH state per family. If ctx is nil, ADD-PATH is disabled.
 func (r FilterResult) WithdrawnByFamily(ctx *bgpctx.EncodingContext) []FamilyNLRI {
 	var result []FamilyNLRI
+
+	// Nil-safe: treat nil ctx as no ADD-PATH
+	if ctx == nil {
+		ctx = &bgpctx.EncodingContext{}
+	}
 
 	// MP-BGP path
 	for _, mp := range r.MPUnreach {
 		family := mp.Family()
 		hasAddPath := ctx.AddPathFor(family)
 		nlris, err := mp.NLRIs(hasAddPath)
-		if err != nil || len(nlris) == 0 {
+		if err != nil {
+			slog.Debug("NLRI parse error", "family", family, "error", err)
+			continue
+		}
+		if len(nlris) == 0 {
 			continue
 		}
 		result = append(result, FamilyNLRI{
@@ -277,9 +296,9 @@ func (r FilterResult) WithdrawnByFamily(ctx *bgpctx.EncodingContext) []FamilyNLR
 	if r.IPv4Withdrawn != nil {
 		hasAddPath := ctx.AddPathFor(nlri.IPv4Unicast)
 		nlris, err := r.IPv4Withdrawn.NLRIs(hasAddPath)
-		if err != nil || len(nlris) == 0 {
-			// Fallback: no NLRIs parsed
-		} else {
+		if err != nil {
+			slog.Debug("IPv4 withdrawn parse error", "error", err)
+		} else if len(nlris) > 0 {
 			result = append(result, FamilyNLRI{
 				Family: nlri.IPv4Unicast.String(),
 				NLRIs:  nlris,

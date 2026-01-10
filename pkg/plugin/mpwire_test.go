@@ -580,3 +580,72 @@ func TestIPv4WithdrawNLRIs(t *testing.T) {
 		t.Errorf("PathID() = %d, want 1", nlris[0].PathID())
 	}
 }
+
+// TestMPReachWireNLRIs_IPv6AddPath verifies IPv6 NLRI parsing with ADD-PATH.
+//
+// VALIDATES: IPv6 unicast correctly handles ADD-PATH path-id.
+// PREVENTS: IPv6 ADD-PATH being broken while IPv4 works.
+func TestMPReachWireNLRIs_IPv6AddPath(t *testing.T) {
+	// MP_REACH_NLRI for IPv6 with ADD-PATH
+	// Wire format: AFI(2) + SAFI(1) + NH_Len(1) + NextHop(16) + Reserved(1) + PathID(4) + PrefixLen(1) + Prefix
+	nextHop := netip.MustParseAddr("2001:db8::1")
+	nhBytes := nextHop.As16()
+
+	data := make([]byte, 0, 64)
+	data = append(data, 0x00, 0x02) // AFI: IPv6
+	data = append(data, 0x01)       // SAFI: unicast
+	data = append(data, 0x10)       // NH length: 16
+	data = append(data, nhBytes[:]...)
+	data = append(data, 0x00)                   // Reserved
+	data = append(data, 0x00, 0x00, 0x00, 0x05) // Path ID: 5
+	data = append(data, 48)                     // Prefix length: 48
+	data = append(data, 0x20, 0x01, 0x0d, 0xb8, 0x00, 0x01)
+
+	wire := MPReachWire(data)
+	nlris, err := wire.NLRIs(true)
+
+	if err != nil {
+		t.Fatalf("NLRIs(true) error: %v", err)
+	}
+
+	if len(nlris) != 1 {
+		t.Fatalf("NLRIs(true) len = %d, want 1", len(nlris))
+	}
+
+	n := nlris[0]
+	if n.PathID() != 5 {
+		t.Errorf("PathID() = %d, want 5", n.PathID())
+	}
+
+	wantFamily := nlri.IPv6Unicast
+	if n.Family() != wantFamily {
+		t.Errorf("Family() = %v, want %v", n.Family(), wantFamily)
+	}
+
+	if n.String() != "2001:db8:1::/48 path-id=5" {
+		t.Errorf("String() = %q, want prefix with path-id=5", n.String())
+	}
+}
+
+// FuzzParseNLRIs tests NLRI parsing robustness against arbitrary input.
+//
+// VALIDATES: parseNLRIs handles arbitrary bytes without panicking.
+// PREVENTS: Remote crash via malformed UPDATE with ADD-PATH.
+// SECURITY: Critical - parses untrusted network data.
+func FuzzParseNLRIs(f *testing.F) {
+	// Seed corpus with valid NLRIs
+	f.Add([]byte{24, 10, 0, 0}, false)                           // 10.0.0.0/24 without ADD-PATH
+	f.Add([]byte{0, 0, 0, 1, 24, 10, 0, 0}, true)                // 10.0.0.0/24 with path-id=1
+	f.Add([]byte{}, false)                                       // Empty
+	f.Add([]byte{33, 10, 0, 0, 0}, false)                        // Invalid prefix length
+	f.Add([]byte{0, 0, 0, 1}, true)                              // Truncated (only path-id)
+	f.Add([]byte{48, 0x20, 0x01, 0x0d, 0xb8, 0x00, 0x01}, false) // IPv6 prefix
+
+	f.Fuzz(func(t *testing.T, data []byte, hasAddPath bool) {
+		// Test IPv4 unicast - MUST NOT panic
+		_, _ = parseNLRIs(data, nlri.IPv4Unicast, hasAddPath)
+
+		// Test IPv6 unicast - MUST NOT panic
+		_, _ = parseNLRIs(data, nlri.IPv6Unicast, hasAddPath)
+	})
+}

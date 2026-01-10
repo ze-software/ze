@@ -254,7 +254,8 @@ func formatNLRIJSON(sb *strings.Builder, n nlri.NLRI) {
 		sb.WriteString(p.Prefix().String())
 	} else {
 		// Fallback for complex NLRI types (EVPN, FlowSpec, etc.)
-		sb.WriteString(n.String())
+		// Escape for JSON safety (handles quotes, backslashes, control chars)
+		writeJSONEscapedString(sb, n.String())
 	}
 	sb.WriteString(`"`)
 
@@ -263,6 +264,32 @@ func formatNLRIJSON(sb *strings.Builder, n nlri.NLRI) {
 	}
 
 	sb.WriteString(`}`)
+}
+
+// writeJSONEscapedString writes s to sb with JSON string escaping.
+// Escapes: \ " and control characters (0x00-0x1F).
+func writeJSONEscapedString(sb *strings.Builder, s string) {
+	for _, r := range s {
+		switch r {
+		case '\\':
+			sb.WriteString(`\\`)
+		case '"':
+			sb.WriteString(`\"`)
+		case '\n':
+			sb.WriteString(`\n`)
+		case '\r':
+			sb.WriteString(`\r`)
+		case '\t':
+			sb.WriteString(`\t`)
+		default:
+			if r < 0x20 {
+				// Control character - use \uXXXX
+				fmt.Fprintf(sb, `\u%04x`, r)
+			} else {
+				sb.WriteRune(r)
+			}
+		}
+	}
 }
 
 // formatAttributesJSON formats attributes from FilterResult for JSON.
