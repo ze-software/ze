@@ -30,21 +30,21 @@ extended-community set discard
 ### Unit Tests
 | Test | File | Validates |
 |------|------|-----------|
-| `TestParseUpdateText_FlowSpecBasic` | `pkg/api/update_text_test.go` | Basic flowspec with destination only |
-| `TestParseUpdateText_FlowSpecProtocol` | `pkg/api/update_text_test.go` | Protocol component (tcp/udp/icmp/number) |
-| `TestParseUpdateText_FlowSpecPort` | `pkg/api/update_text_test.go` | Port with operators (=, >, <, >=, <=) |
-| `TestParseUpdateText_FlowSpecPortRange` | `pkg/api/update_text_test.go` | Port range (>=1 <=1023) |
-| `TestParseUpdateText_FlowSpecMultipleComponents` | `pkg/api/update_text_test.go` | Multiple match components (AND logic) |
-| `TestParseUpdateText_FlowSpecWithdraw` | `pkg/api/update_text_test.go` | del syntax for flowspec |
-| `TestParseUpdateText_FlowSpecVPN` | `pkg/api/update_text_test.go` | flowspec-vpn with rd |
-| `TestParseUpdateText_FlowSpecIPv6` | `pkg/api/update_text_test.go` | ipv6/flowspec family |
-| `TestParseUpdateText_FlowSpecTCPFlags` | `pkg/api/update_text_test.go` | TCP flags matching |
-| `TestParseUpdateText_FlowSpecFragment` | `pkg/api/update_text_test.go` | Fragment component |
-| `TestParseUpdateText_FlowSpecMissingAdd` | `pkg/api/update_text_test.go` | Error: components without add/del |
-| `TestParseUpdateText_ExtCommTrafficRate` | `pkg/api/update_text_test.go` | traffic-rate function syntax |
-| `TestParseUpdateText_ExtCommDiscard` | `pkg/api/update_text_test.go` | discard sugar |
-| `TestParseUpdateText_ExtCommRedirect` | `pkg/api/update_text_test.go` | redirect function syntax |
-| `TestParseUpdateText_ExtCommTrafficMarking` | `pkg/api/update_text_test.go` | traffic-marking function syntax |
+| `TestParseUpdateText_FlowSpecBasic` | `pkg/plugin/update_text_test.go` | Basic flowspec with destination only |
+| `TestParseUpdateText_FlowSpecProtocol` | `pkg/plugin/update_text_test.go` | Protocol component (tcp/udp/icmp/number) |
+| `TestParseUpdateText_FlowSpecPort` | `pkg/plugin/update_text_test.go` | Port with operators (=, >, <, >=, <=) |
+| `TestParseUpdateText_FlowSpecPortRange` | `pkg/plugin/update_text_test.go` | Port range (>=1 <=1023) |
+| `TestParseUpdateText_FlowSpecMultipleComponents` | `pkg/plugin/update_text_test.go` | Multiple match components (AND logic) |
+| `TestParseUpdateText_FlowSpecWithdraw` | `pkg/plugin/update_text_test.go` | del syntax for flowspec |
+| `TestParseUpdateText_FlowSpecVPN` | `pkg/plugin/update_text_test.go` | flowspec-vpn with rd |
+| `TestParseUpdateText_FlowSpecIPv6` | `pkg/plugin/update_text_test.go` | ipv6/flowspec family |
+| `TestParseUpdateText_FlowSpecTCPFlags` | `pkg/plugin/update_text_test.go` | TCP flags matching |
+| `TestParseUpdateText_FlowSpecFragment` | `pkg/plugin/update_text_test.go` | Fragment component |
+| `TestParseUpdateText_FlowSpecMissingAdd` | `pkg/plugin/update_text_test.go` | Error: components without add/del |
+| `TestParseUpdateText_ExtCommTrafficRate` | `pkg/plugin/update_text_test.go` | traffic-rate function syntax |
+| `TestParseUpdateText_ExtCommDiscard` | `pkg/plugin/update_text_test.go` | discard sugar |
+| `TestParseUpdateText_ExtCommRedirect` | `pkg/plugin/update_text_test.go` | redirect function syntax |
+| `TestParseUpdateText_ExtCommTrafficMarking` | `pkg/plugin/update_text_test.go` | traffic-marking function syntax |
 
 ### Functional Tests
 | Test | Location | Scenario |
@@ -52,9 +52,9 @@ extended-community set discard
 | `flowspec.run` | `test/data/api/` | End-to-end flowspec announce/withdraw |
 
 ## Files to Modify
-- `pkg/api/update_text.go` - Add flowspec parsing to `parseNLRISection`
-- `pkg/api/update_text_test.go` - Add tests
-- `pkg/api/types.go` - Add FlowSpec-related types if needed
+- `pkg/plugin/update_text.go` - Add flowspec parsing to `parseNLRISection`
+- `pkg/plugin/update_text_test.go` - Add tests
+- `pkg/plugin/types.go` - Add FlowSpec-related types if needed
 - `pkg/bgp/attribute/extcomm.go` - Add extended community function constructors (if not exists)
 
 ## Grammar
@@ -197,9 +197,9 @@ fragment !is-fragment  # NOT a fragment
 
 | File | Changes |
 |------|---------|
-| `pkg/api/update_text.go` | +550 lines: FlowSpec parsing, bitmask operators, value validation |
-| `pkg/api/update_text_test.go` | +550 lines: 130+ test cases |
-| `pkg/api/route.go` | +100 lines: ExtComm function syntax |
+| `pkg/plugin/update_text.go` | +550 lines: FlowSpec parsing, bitmask operators, value validation |
+| `pkg/plugin/update_text_test.go` | +550 lines: 130+ test cases |
+| `pkg/plugin/route.go` | +100 lines: ExtComm function syntax |
 | `pkg/bgp/nlri/flowspec.go` | +20 lines: FlowOpNot, FlowOpMatch, NewFlowFragmentMatchComponent |
 
 ### Bug Fixes from Critical Review

@@ -45,14 +45,14 @@ Router integrated Adj-RIB-Out for tracking sent routes. Delegated to external AP
 - Removed `convertRIBError()` (unused)
 - `ForwardUpdate()` no longer tracks in Adj-RIB-Out
 
-### pkg/api/handler.go
+### pkg/plugin/handler.go
 - Removed `rib show out`, `rib clear out`, `rib flush out` commands
 - Updated help text
 
-### pkg/api/types.go
+### pkg/plugin/types.go
 - Added deprecation notices to interface methods
 
-### pkg/api/handler_test.go
+### pkg/plugin/handler_test.go
 - Removed `TestRIBClearOut`, `TestRIBFlushOut`
 - Updated `TestRIBCommandsRegistered` to check only `rib show in`, `rib clear in`
 
@@ -65,8 +65,8 @@ Router integrated Adj-RIB-Out for tracking sent routes. Delegated to external AP
 |------|--------|
 | `pkg/rib/` package | Used by external `zebgp-rr` program |
 | `pkg/rib/outgoing.go` | Adj-RIB-Out implementation for external use |
-| `pkg/api/commit.go` | CommitManager for batching |
-| `pkg/api/commit_manager.go` | Transaction batching via `commit <name>` |
+| `pkg/plugin/commit.go` | CommitManager for batching |
+| `pkg/plugin/commit_manager.go` | Transaction batching via `commit <name>` |
 
 ## Commit Batching
 

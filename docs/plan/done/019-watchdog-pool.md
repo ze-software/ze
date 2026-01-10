@@ -127,7 +127,7 @@ func (r *Reactor) WithdrawWatchdogPool(peerSelector, poolName string) error
 
 ### Phase 4: API Integration
 
-**File:** `pkg/api/route.go`
+**File:** `pkg/plugin/route.go`
 
 Modify route parsing to detect `watchdog <name>` suffix:
 

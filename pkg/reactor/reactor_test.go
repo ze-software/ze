@@ -8,10 +8,10 @@ import (
 	"testing"
 	"time"
 
-	"codeberg.org/thomas-mangin/zebgp/pkg/api"
 	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/attribute"
 	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/message"
 	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/nlri"
+	"codeberg.org/thomas-mangin/zebgp/pkg/plugin"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
@@ -349,9 +349,9 @@ func TestReactorStats(t *testing.T) {
 //
 // PREVENTS: Wire format regression when using zero-allocation path.
 func TestWriteAnnounceUpdateIPv4(t *testing.T) {
-	route := api.RouteSpec{
+	route := plugin.RouteSpec{
 		Prefix:  netip.MustParsePrefix("10.0.0.0/24"),
-		NextHop: api.NewNextHopExplicit(netip.MustParseAddr("192.168.1.1")),
+		NextHop: plugin.NewNextHopExplicit(netip.MustParseAddr("192.168.1.1")),
 	}
 
 	ctx := &nlri.PackContext{ASN4: true}
@@ -392,9 +392,9 @@ func TestWriteAnnounceUpdateIPv4(t *testing.T) {
 //
 // PREVENTS: IPv6 routes being sent with IPv4-style encoding (RFC 4760 violation).
 func TestWriteAnnounceUpdateIPv6(t *testing.T) {
-	route := api.RouteSpec{
+	route := plugin.RouteSpec{
 		Prefix:  netip.MustParsePrefix("2001:db8::/32"),
-		NextHop: api.NewNextHopExplicit(netip.MustParseAddr("2001:db8::1")),
+		NextHop: plugin.NewNextHopExplicit(netip.MustParseAddr("2001:db8::1")),
 	}
 
 	ctx := &nlri.PackContext{ASN4: true}
@@ -485,9 +485,9 @@ func TestWriteWithdrawUpdateIPv6(t *testing.T) {
 //
 // PREVENTS: ADD-PATH encoding being silently skipped (RFC 7911 violation).
 func TestWriteAnnounceUpdateWithAddPath(t *testing.T) {
-	route := api.RouteSpec{
+	route := plugin.RouteSpec{
 		Prefix:  netip.MustParsePrefix("10.0.0.0/24"),
-		NextHop: api.NewNextHopExplicit(netip.MustParseAddr("192.168.1.1")),
+		NextHop: plugin.NewNextHopExplicit(netip.MustParseAddr("192.168.1.1")),
 	}
 
 	// With ADD-PATH enabled
@@ -516,9 +516,9 @@ func TestWriteAnnounceUpdateWithAddPath(t *testing.T) {
 //
 // PREVENTS: 4-byte AS numbers being sent to peers without ASN4 capability (RFC 6793).
 func TestWriteAnnounceUpdateASN4False(t *testing.T) {
-	route := api.RouteSpec{
+	route := plugin.RouteSpec{
 		Prefix:  netip.MustParsePrefix("10.0.0.0/24"),
-		NextHop: api.NewNextHopExplicit(netip.MustParseAddr("192.168.1.1")),
+		NextHop: plugin.NewNextHopExplicit(netip.MustParseAddr("192.168.1.1")),
 	}
 
 	// With ASN4=true (4-byte AS)
@@ -548,10 +548,10 @@ func TestWriteASPathLongSegmentSplitting(t *testing.T) {
 		asPath[i] = uint32(65000 + i) //nolint:gosec // G115: test data, i bounded by 300
 	}
 
-	route := api.RouteSpec{
+	route := plugin.RouteSpec{
 		Prefix:  netip.MustParsePrefix("10.0.0.0/24"),
-		NextHop: api.NewNextHopExplicit(netip.MustParseAddr("192.168.1.1")),
-		PathAttributes: api.PathAttributes{
+		NextHop: plugin.NewNextHopExplicit(netip.MustParseAddr("192.168.1.1")),
+		PathAttributes: plugin.PathAttributes{
 			ASPath: asPath,
 		},
 	}
@@ -627,10 +627,10 @@ func TestWriteCommunitiesExtendedLength(t *testing.T) {
 		communities[i] = uint32(0xFFFF0000 | i) //nolint:gosec // G115: test data, i bounded by 100
 	}
 
-	route := api.RouteSpec{
+	route := plugin.RouteSpec{
 		Prefix:  netip.MustParsePrefix("10.0.0.0/24"),
-		NextHop: api.NewNextHopExplicit(netip.MustParseAddr("192.168.1.1")),
-		PathAttributes: api.PathAttributes{
+		NextHop: plugin.NewNextHopExplicit(netip.MustParseAddr("192.168.1.1")),
+		PathAttributes: plugin.PathAttributes{
 			Communities: communities,
 		},
 	}
@@ -677,9 +677,9 @@ func TestWriteCommunitiesExtendedLength(t *testing.T) {
 // BenchmarkWriteAnnounceUpdateIPv4 measures allocations for IPv4 announce.
 // Run with: go test -bench=BenchmarkWriteAnnounce -benchmem ./pkg/reactor/...
 func BenchmarkWriteAnnounceUpdateIPv4(b *testing.B) {
-	route := api.RouteSpec{
+	route := plugin.RouteSpec{
 		Prefix:  netip.MustParsePrefix("10.0.0.0/24"),
-		NextHop: api.NewNextHopExplicit(netip.MustParseAddr("192.168.1.1")),
+		NextHop: plugin.NewNextHopExplicit(netip.MustParseAddr("192.168.1.1")),
 	}
 	ctx := &nlri.PackContext{ASN4: true}
 	buf := make([]byte, 4096)
@@ -694,10 +694,10 @@ func BenchmarkWriteAnnounceUpdateIPv4(b *testing.B) {
 
 // BenchmarkWriteAnnounceUpdateIPv4WithCommunities measures allocations with communities.
 func BenchmarkWriteAnnounceUpdateIPv4WithCommunities(b *testing.B) {
-	route := api.RouteSpec{
+	route := plugin.RouteSpec{
 		Prefix:  netip.MustParsePrefix("10.0.0.0/24"),
-		NextHop: api.NewNextHopExplicit(netip.MustParseAddr("192.168.1.1")),
-		PathAttributes: api.PathAttributes{
+		NextHop: plugin.NewNextHopExplicit(netip.MustParseAddr("192.168.1.1")),
+		PathAttributes: plugin.PathAttributes{
 			Communities: []uint32{0xFFFF0001, 0xFFFF0002, 0xFFFF0003},
 		},
 	}
@@ -714,9 +714,9 @@ func BenchmarkWriteAnnounceUpdateIPv4WithCommunities(b *testing.B) {
 
 // BenchmarkWriteAnnounceUpdateIPv6 measures allocations for IPv6 announce.
 func BenchmarkWriteAnnounceUpdateIPv6(b *testing.B) {
-	route := api.RouteSpec{
+	route := plugin.RouteSpec{
 		Prefix:  netip.MustParsePrefix("2001:db8::/32"),
-		NextHop: api.NewNextHopExplicit(netip.MustParseAddr("2001:db8::1")),
+		NextHop: plugin.NewNextHopExplicit(netip.MustParseAddr("2001:db8::1")),
 	}
 	ctx := &nlri.PackContext{ASN4: true}
 	buf := make([]byte, 4096)
@@ -814,18 +814,18 @@ func TestBuildLabeledUnicastRIBRouteAllAttributes(t *testing.T) {
 	origin := uint8(1) // EGP
 	med := uint32(100)
 	localPref := uint32(200)
-	route := api.LabeledUnicastRoute{
+	route := plugin.LabeledUnicastRoute{
 		Prefix:  netip.MustParsePrefix("10.0.0.0/8"),
 		NextHop: netip.MustParseAddr("192.0.2.1"),
 		Labels:  []uint32{100, 200}, // Label stack
 		PathID:  42,
-		PathAttributes: api.PathAttributes{
+		PathAttributes: plugin.PathAttributes{
 			Origin:          &origin,
 			MED:             &med,
 			LocalPreference: &localPref,
 			ASPath:          []uint32{65001, 65002},
 			Communities:     []uint32{0x12345678},
-			LargeCommunities: []api.LargeCommunity{
+			LargeCommunities: []plugin.LargeCommunity{
 				{GlobalAdmin: 65000, LocalData1: 1, LocalData2: 2},
 			},
 			ExtendedCommunities: []attribute.ExtendedCommunity{{0x00, 0x02, 0xFD, 0xE9, 0x00, 0x00, 0x00, 0x64}},
@@ -910,7 +910,7 @@ func TestBuildLabeledUnicastRIBRouteIBGPDefaults(t *testing.T) {
 	adapter := &reactorAPIAdapter{reactor}
 
 	// Minimal route - no attributes set
-	route := api.LabeledUnicastRoute{
+	route := plugin.LabeledUnicastRoute{
 		Prefix:  netip.MustParsePrefix("10.0.0.0/8"),
 		NextHop: netip.MustParseAddr("192.0.2.1"),
 		Labels:  []uint32{100},
@@ -949,7 +949,7 @@ func TestBuildLabeledUnicastRIBRouteEBGPPrependsAS(t *testing.T) {
 	adapter := &reactorAPIAdapter{reactor}
 
 	// Route without AS_PATH
-	route := api.LabeledUnicastRoute{
+	route := plugin.LabeledUnicastRoute{
 		Prefix:  netip.MustParsePrefix("10.0.0.0/8"),
 		NextHop: netip.MustParseAddr("192.0.2.1"),
 		Labels:  []uint32{100},
@@ -970,7 +970,7 @@ func TestBuildLabeledUnicastRIBRouteEBGPPrependsAS(t *testing.T) {
 
 // TestBuildL3VPNParams verifies L3VPN params conversion.
 //
-// VALIDATES: api.L3VPNRoute correctly converts to message.VPNParams.
+// VALIDATES: plugin.L3VPNRoute correctly converts to message.VPNParams.
 //
 // PREVENTS: Lost attributes in L3VPN announcements.
 func TestBuildL3VPNParams(t *testing.T) {
@@ -985,13 +985,13 @@ func TestBuildL3VPNParams(t *testing.T) {
 	origin := uint8(1) // EGP
 	med := uint32(100)
 	localPref := uint32(200)
-	route := api.L3VPNRoute{
+	route := plugin.L3VPNRoute{
 		Prefix:  netip.MustParsePrefix("10.0.0.0/24"),
 		NextHop: netip.MustParseAddr("192.0.2.1"),
 		RD:      "100:100",
 		Labels:  []uint32{1000, 2000}, // Multi-label stack
 		RT:      "target:65000:100",
-		PathAttributes: api.PathAttributes{
+		PathAttributes: plugin.PathAttributes{
 			Origin:          &origin,
 			MED:             &med,
 			LocalPreference: &localPref,
@@ -1035,7 +1035,7 @@ func TestBuildL3VPNParamsIPv6(t *testing.T) {
 	reactor := New(cfg)
 	adapter := &reactorAPIAdapter{reactor}
 
-	route := api.L3VPNRoute{
+	route := plugin.L3VPNRoute{
 		Prefix:  netip.MustParsePrefix("2001:db8::/32"),
 		NextHop: netip.MustParseAddr("2001::1"),
 		RD:      "100:100",
@@ -1062,12 +1062,12 @@ func TestBuildL3VPNRIBRoute(t *testing.T) {
 	adapter := &reactorAPIAdapter{reactor}
 
 	origin := uint8(0) // IGP
-	route := api.L3VPNRoute{
+	route := plugin.L3VPNRoute{
 		Prefix:  netip.MustParsePrefix("10.0.0.0/24"),
 		NextHop: netip.MustParseAddr("192.0.2.1"),
 		RD:      "100:100",
 		Labels:  []uint32{1000},
-		PathAttributes: api.PathAttributes{
+		PathAttributes: plugin.PathAttributes{
 			Origin: &origin,
 		},
 	}
@@ -1765,10 +1765,10 @@ func TestNotifyMessageReceiverWireUpdate(t *testing.T) {
 	require.NoError(t, err)
 
 	// Track received messages
-	var receivedMsg api.RawMessage
-	var receivedPeer api.PeerInfo
+	var receivedMsg plugin.RawMessage
+	var receivedPeer plugin.PeerInfo
 	receiver := &testMessageReceiver{
-		onReceived: func(peer api.PeerInfo, msg api.RawMessage) {
+		onReceived: func(peer plugin.PeerInfo, msg plugin.RawMessage) {
 			receivedPeer = peer
 			receivedMsg = msg
 		},
@@ -1788,7 +1788,7 @@ func TestNotifyMessageReceiverWireUpdate(t *testing.T) {
 	copy(updatePayload[4+len(attrs):], nlri)
 
 	// Create WireUpdate (as session would do)
-	wireUpdate := api.NewWireUpdate(updatePayload, 0)
+	wireUpdate := plugin.NewWireUpdate(updatePayload, 0)
 
 	// Call notifyMessageReceiver directly (same package)
 	// In normal flow, session creates WireUpdate and passes it through
@@ -1817,19 +1817,19 @@ func TestNotifyMessageReceiverWireUpdate(t *testing.T) {
 	require.Equal(t, gotAttrs, receivedMsg.AttrsWire, "AttrsWire should be same as WireUpdate.Attrs()")
 }
 
-// testMessageReceiver implements api.MessageReceiver for testing.
+// testMessageReceiver implements plugin.MessageReceiver for testing.
 type testMessageReceiver struct {
-	onReceived func(api.PeerInfo, api.RawMessage)
-	onSent     func(api.PeerInfo, api.RawMessage)
+	onReceived func(plugin.PeerInfo, plugin.RawMessage)
+	onSent     func(plugin.PeerInfo, plugin.RawMessage)
 }
 
-func (r *testMessageReceiver) OnMessageReceived(peer api.PeerInfo, msg api.RawMessage) {
+func (r *testMessageReceiver) OnMessageReceived(peer plugin.PeerInfo, msg plugin.RawMessage) {
 	if r.onReceived != nil {
 		r.onReceived(peer, msg)
 	}
 }
 
-func (r *testMessageReceiver) OnMessageSent(peer api.PeerInfo, msg api.RawMessage) {
+func (r *testMessageReceiver) OnMessageSent(peer plugin.PeerInfo, msg plugin.RawMessage) {
 	if r.onSent != nil {
 		r.onSent(peer, msg)
 	}

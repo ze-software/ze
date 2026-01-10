@@ -31,18 +31,18 @@ Wire Chunk 1's parser to reactor via `peer <addr> update text ...` handler.
 
 | Test | File | Validates |
 |------|------|-----------|
-| `TestHandleUpdateText_SimpleAnnounce` | `pkg/api/update_text_test.go` | Single route announced |
-| `TestHandleUpdateText_MultipleRoutes` | `pkg/api/update_text_test.go` | Multiple NLRIs batched in one group |
-| `TestHandleUpdateText_MixedAnnounceWithdraw` | `pkg/api/update_text_test.go` | Add and del in same call |
-| `TestHandleUpdateText_MultipleGroups` | `pkg/api/update_text_test.go` | Different attrs per group |
-| `TestHandleUpdateText_WithdrawUnicast` | `pkg/api/update_text_test.go` | Unicast withdrawal batch |
-| `TestHandleUpdateText_WithdrawLabeled` | `pkg/api/update_text_test.go` | Labeled unicast withdrawal |
-| `TestHandleUpdateText_WithdrawL3VPN` | `pkg/api/update_text_test.go` | L3VPN withdrawal batch |
-| `TestHandleUpdateText_ParseError` | `pkg/api/update_text_test.go` | Invalid input returns error |
-| `TestHandleUpdateText_PeerNotFound` | `pkg/api/update_text_test.go` | Reactor returns no peers error |
-| `TestHandleUpdateText_InvalidFamily` | `pkg/api/update_text_test.go` | Unsupported family error |
-| `TestHandleUpdateText_WatchdogDeferred` | `pkg/api/update_text_test.go` | Watchdog returns error (deferred) |
-| `TestHandleUpdateText_EmptyResult` | `pkg/api/update_text_test.go` | Empty groups returns warning |
+| `TestHandleUpdateText_SimpleAnnounce` | `pkg/plugin/update_text_test.go` | Single route announced |
+| `TestHandleUpdateText_MultipleRoutes` | `pkg/plugin/update_text_test.go` | Multiple NLRIs batched in one group |
+| `TestHandleUpdateText_MixedAnnounceWithdraw` | `pkg/plugin/update_text_test.go` | Add and del in same call |
+| `TestHandleUpdateText_MultipleGroups` | `pkg/plugin/update_text_test.go` | Different attrs per group |
+| `TestHandleUpdateText_WithdrawUnicast` | `pkg/plugin/update_text_test.go` | Unicast withdrawal batch |
+| `TestHandleUpdateText_WithdrawLabeled` | `pkg/plugin/update_text_test.go` | Labeled unicast withdrawal |
+| `TestHandleUpdateText_WithdrawL3VPN` | `pkg/plugin/update_text_test.go` | L3VPN withdrawal batch |
+| `TestHandleUpdateText_ParseError` | `pkg/plugin/update_text_test.go` | Invalid input returns error |
+| `TestHandleUpdateText_PeerNotFound` | `pkg/plugin/update_text_test.go` | Reactor returns no peers error |
+| `TestHandleUpdateText_InvalidFamily` | `pkg/plugin/update_text_test.go` | Unsupported family error |
+| `TestHandleUpdateText_WatchdogDeferred` | `pkg/plugin/update_text_test.go` | Watchdog returns error (deferred) |
+| `TestHandleUpdateText_EmptyResult` | `pkg/plugin/update_text_test.go` | Empty groups returns warning |
 | `TestAnnounceNLRIBatch_LargeBatch` | `pkg/reactor/reactor_batch_test.go` | Batch exceeding wire limit splits |
 | `TestAnnounceNLRIBatch_PeerCapabilities` | `pkg/reactor/reactor_batch_test.go` | Respects ExtendedMessage |
 | `TestWithdrawNLRIBatch_MultipleNLRIs` | `pkg/reactor/reactor_batch_test.go` | Batched withdraw |
@@ -57,10 +57,10 @@ Wire Chunk 1's parser to reactor via `peer <addr> update text ...` handler.
 
 ## Files to Modify
 
-- `pkg/api/types.go` - Add `NLRIBatch` type, add methods to `ReactorInterface`
-- `pkg/api/update_text.go` - Add handler functions, batch dispatch
-- `pkg/api/update_text_test.go` - **CREATE** Handler tests
-- `pkg/api/route.go` - Register "update" command in `RegisterRouteHandlers`
+- `pkg/plugin/types.go` - Add `NLRIBatch` type, add methods to `ReactorInterface`
+- `pkg/plugin/update_text.go` - Add handler functions, batch dispatch
+- `pkg/plugin/update_text_test.go` - **CREATE** Handler tests
+- `pkg/plugin/route.go` - Register "update" command in `RegisterRouteHandlers`
 - `pkg/reactor/reactor.go` - Add `AnnounceNLRIBatch`, `WithdrawNLRIBatch` methods
 - `pkg/reactor/reactor_batch_test.go` - **CREATE** Batch method tests
 
@@ -68,14 +68,14 @@ Wire Chunk 1's parser to reactor via `peer <addr> update text ...` handler.
 
 ## Implementation Steps
 
-1. **Write tests** - Create `pkg/api/update_text_test.go` and `pkg/reactor/reactor_batch_test.go`
+1. **Write tests** - Create `pkg/plugin/update_text_test.go` and `pkg/reactor/reactor_batch_test.go`
 2. **Run tests** - Verify FAIL (paste output)
-3. **Add types** - Add `NLRIBatch` to `pkg/api/types.go`
+3. **Add types** - Add `NLRIBatch` to `pkg/plugin/types.go`
 4. **Add interface** - Add `AnnounceNLRIBatch`, `WithdrawNLRIBatch` to `ReactorInterface`
 5. **Implement reactor** - Add methods to `pkg/reactor/reactor.go`
 6. **Run reactor tests** - Verify PASS (paste output)
-7. **Implement handler** - Add functions to `pkg/api/update_text.go`
-8. **Register command** - Add to `RegisterRouteHandlers` in `pkg/api/route.go`
+7. **Implement handler** - Add functions to `pkg/plugin/update_text.go`
+8. **Register command** - Add to `RegisterRouteHandlers` in `pkg/plugin/route.go`
 9. **Run handler tests** - Verify PASS (paste output)
 10. **Verify all** - `make lint && make test && make functional`
 11. **RFC refs** - Add RFC comments to protocol code
@@ -339,13 +339,13 @@ func handleUpdateText(ctx *CommandContext, args []string) (*Response, error) {
 
 | File | Changes |
 |------|---------|
-| `pkg/api/errors.go` | +`ErrNoPeersAcceptedFamily` |
-| `pkg/api/types.go` | +`NLRIBatch`, +interface methods |
-| `pkg/api/update_text.go` | +handlers, +warning logic |
-| `pkg/api/update_text_test.go` | +18 handler tests |
-| `pkg/api/route.go` | +register "update" command |
+| `pkg/plugin/errors.go` | +`ErrNoPeersAcceptedFamily` |
+| `pkg/plugin/types.go` | +`NLRIBatch`, +interface methods |
+| `pkg/plugin/update_text.go` | +handlers, +warning logic |
+| `pkg/plugin/update_text_test.go` | +18 handler tests |
+| `pkg/plugin/route.go` | +register "update" command |
 | `pkg/reactor/reactor.go` | +batch methods with splitting, family check, queue |
 | `pkg/reactor/reactor_batch_test.go` | +12 reactor tests |
-| `pkg/api/handler_test.go` | +interface stubs |
-| `pkg/api/forward_test.go` | +interface stubs |
+| `pkg/plugin/handler_test.go` | +interface stubs |
+| `pkg/plugin/forward_test.go` | +interface stubs |
 | `.claude/zebgp/api/ARCHITECTURE.md` | +warning status docs |

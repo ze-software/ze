@@ -458,6 +458,6 @@ exabgp-api = true   # Enable ExaBGP API plugin (default: true)
 ## References
 
 - Current architecture: `pkg/reactor/`
-- API types: `pkg/api/types.go`
+- API types: `pkg/plugin/types.go`
 - RIB: `pkg/rib/`
 - Encoding contexts: `pkg/bgp/context/`

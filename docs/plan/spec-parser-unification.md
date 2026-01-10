@@ -90,7 +90,7 @@ pkg/parse/
 
 ```
 ┌─────────────────────────────────────────────────────┐
-│   API (pkg/api/)       │   Config (pkg/config/)    │
+│   API (pkg/plugin/)       │   Config (pkg/config/)    │
 │   Flat keyword parser  │   Nested block parser     │
 ├────────────────────────┴────────────────────────────┤
 │           Shared Value Parsers (pkg/parse/)         │
@@ -106,7 +106,7 @@ pkg/parse/
 2. [ ] Write test → FAIL
 3. [ ] Implement `parse.Origin(s string) (uint8, error)`
 4. [ ] Test → PASS
-5. [ ] Update `pkg/api/route.go` to use `parse.Origin()`
+5. [ ] Update `pkg/plugin/route.go` to use `parse.Origin()`
 6. [ ] Update `pkg/config/routeattr.go` to use `parse.Origin()`
 7. [ ] Delete duplicate code
 
@@ -178,15 +178,15 @@ Decision: TBD based on usage patterns.
 - `pkg/parse/aspath.go` + `aspath_test.go`
 
 ### Modified Files
-- `pkg/api/route.go` - use `parse.Origin()`, `parse.ExtendedCommunity()`, `parse.ASPath()`
+- `pkg/plugin/route.go` - use `parse.Origin()`, `parse.ExtendedCommunity()`, `parse.ASPath()`
 - `pkg/config/routeattr.go` - use shared parsers, delete duplicate implementations
 
 ### Deleted Code
 - `pkg/config/routeattr.go`: `ParseOrigin()` body (keep wrapper if needed)
 - `pkg/config/routeattr.go`: `parseOneExtCommunity()` body
 - `pkg/config/routeattr.go`: `ParseASPath()` body
-- `pkg/api/route.go`: inline origin switch in `parseCommonAttribute()`
-- `pkg/api/route.go`: inline ext-community parsing
+- `pkg/plugin/route.go`: inline origin switch in `parseCommonAttribute()`
+- `pkg/plugin/route.go`: inline ext-community parsing
 
 ## Checklist
 

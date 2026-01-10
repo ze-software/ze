@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"codeberg.org/thomas-mangin/zebgp/pkg/api"
 	bgpctx "codeberg.org/thomas-mangin/zebgp/pkg/bgp/context"
+	"codeberg.org/thomas-mangin/zebgp/pkg/plugin"
 )
 
 // buildUpdatePayload builds an UPDATE message body from components.
@@ -36,7 +36,7 @@ func TestReceivedUpdateFields(t *testing.T) {
 	// Build UPDATE payload
 	attrBytes := []byte{0x40, 0x01, 0x01, 0x00} // ORIGIN IGP
 	payload := buildUpdatePayload(attrBytes, nil)
-	wireUpdate := api.NewWireUpdate(payload, ctxID)
+	wireUpdate := plugin.NewWireUpdate(payload, ctxID)
 	wireUpdate.SetMessageID(12345)
 
 	update := &ReceivedUpdate{
@@ -73,7 +73,7 @@ func TestReceivedUpdateFields(t *testing.T) {
 func TestReceivedUpdateWithdrawOnly(t *testing.T) {
 	// Withdraw-only: no attributes
 	payload := buildUpdatePayload(nil, nil)
-	wireUpdate := api.NewWireUpdate(payload, bgpctx.ContextID(1))
+	wireUpdate := plugin.NewWireUpdate(payload, bgpctx.ContextID(1))
 	wireUpdate.SetMessageID(1)
 
 	update := &ReceivedUpdate{

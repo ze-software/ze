@@ -74,8 +74,8 @@ Complete migration from allocating `Pack()` methods to zero-allocation `WriteTo(
 | File | Changes |
 |------|---------|
 | `cmd/zebgp/encode.go` | Use WriteTo in CLI |
-| `pkg/api/commit_manager.go` | Use WriteTo |
-| `pkg/api/text.go` | Use WriteTo |
+| `pkg/plugin/commit_manager.go` | Use WriteTo |
+| `pkg/plugin/text.go` | Use WriteTo |
 | `pkg/cbor/base64.go`, `hex.go` | Add WriteTo helpers |
 | `pkg/bgp/nlri/ipvpn.go` | Add RD WriteTo |
 

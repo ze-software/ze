@@ -413,7 +413,7 @@ cat /var/run/zebgp.sock
 |------|---------|
 | `pkg/reactor/reactor.go` | Add observer interface, methods, apiStateObserver |
 | `pkg/reactor/peer.go` | Add reactor field, SetReactor, modify FSM callback |
-| `pkg/api/server.go` | Add EmitPeerState method |
+| `pkg/plugin/server.go` | Add EmitPeerState method |
 | `pkg/reactor/reactor_test.go` | Add callback tests |
 
 ---

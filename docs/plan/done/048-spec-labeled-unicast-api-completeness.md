@@ -12,7 +12,7 @@
 │  4. pkg/reactor/reactor.go:522-630 - Current labeled-unicast    │
 │  5. pkg/reactor/peer.go:1341-1439 - buildRIBRouteUpdate (SAFI-aware) │
 │  6. pkg/rib/outgoing.go - Adj-RIB-Out methods                   │
-│  7. pkg/api/types.go:175-183 - LabeledUnicastRoute type         │
+│  7. pkg/plugin/types.go:175-183 - LabeledUnicastRoute type         │
 │  8. .claude/zebgp/wire/NLRI.md - Label NLRI wire format         │
 │  9. .claude/zebgp/api/ARCHITECTURE.md - Route injection flow    │
 │                                                                 │
@@ -45,10 +45,10 @@ Complete labeled-unicast API to match AnnounceRoute pattern:
   - `pkg/bgp/nlri/labeled_test.go` - NEW: NLRI tests
   - `pkg/bgp/message/labeled_wire_test.go` - NEW: Wire consistency tests
   - `pkg/bgp/message/update_build.go` - Fixed ADD-PATH pathID=0 bug
-  - `pkg/api/types.go` - Added PathID to LabeledUnicastRoute
-  - `pkg/api/route_keywords.go` - Added path-id keyword
-  - `pkg/api/route.go` - Added path-id parsing
-  - `pkg/api/route_parse_test.go` - Added path-id tests
+  - `pkg/plugin/types.go` - Added PathID to LabeledUnicastRoute
+  - `pkg/plugin/route_keywords.go` - Added path-id keyword
+  - `pkg/plugin/route.go` - Added path-id parsing
+  - `pkg/plugin/route_parse_test.go` - Added path-id tests
   - `pkg/reactor/reactor.go` - Refactored Announce/Withdraw with 3-way switch
 
 ## Context Loaded
@@ -85,7 +85,7 @@ Source code with line numbers:
   - pkg/reactor/peer.go:1341-1439 - buildRIBRouteUpdate
     - Line 1387-1417: SAFI-aware dispatch (MP_REACH_NLRI for SAFI 4) ✅
     - Line 1419-1432: Copies optional attrs from route.Attributes()
-  - pkg/api/types.go:175-183 - LabeledUnicastRoute
+  - pkg/plugin/types.go:175-183 - LabeledUnicastRoute
     - Has: Prefix, NextHop, Labels, PathAttributes
     - Missing: PathID for ADD-PATH (gap)
 

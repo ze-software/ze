@@ -131,7 +131,7 @@ if hasRD && len(labels) == 0 {
 ```
 
 ### API Impact
-If API text handler (`pkg/api/`) creates routes with labels:
+If API text handler (`pkg/plugin/`) creates routes with labels:
 1. Update to support `labels` array syntax
 2. Apply same validation: VPN routes require ≥1 label
 

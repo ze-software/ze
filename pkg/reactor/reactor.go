@@ -15,13 +15,13 @@ import (
 	"sync"
 	"time"
 
-	"codeberg.org/thomas-mangin/zebgp/pkg/api"
 	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/attribute"
 	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/capability"
 	bgpctx "codeberg.org/thomas-mangin/zebgp/pkg/bgp/context"
 	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/fsm"
 	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/message"
 	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/nlri"
+	"codeberg.org/thomas-mangin/zebgp/pkg/plugin"
 	"codeberg.org/thomas-mangin/zebgp/pkg/rib"
 	"codeberg.org/thomas-mangin/zebgp/pkg/trace"
 )
@@ -103,12 +103,12 @@ type MessageReceiver interface {
 	// OnMessageReceived is called when a BGP message is received from a peer.
 	// peer contains full peer information for proper JSON encoding.
 	// msg contains raw wire bytes - parsing is done by receiver based on format config.
-	OnMessageReceived(peer api.PeerInfo, msg api.RawMessage)
+	OnMessageReceived(peer plugin.PeerInfo, msg plugin.RawMessage)
 
 	// OnMessageSent is called when a BGP message is sent to a peer.
 	// Only UPDATE messages trigger sent events.
 	// Used by persist plugin to track routes for replay on reconnect.
-	OnMessageSent(peer api.PeerInfo, msg api.RawMessage)
+	OnMessageSent(peer plugin.PeerInfo, msg plugin.RawMessage)
 }
 
 // PeerLifecycleObserver receives peer state change notifications.
@@ -121,7 +121,7 @@ type PeerLifecycleObserver interface {
 
 // apiStateObserver emits ExaBGP-compatible state messages to API server.
 type apiStateObserver struct {
-	server  *api.Server
+	server  *plugin.Server
 	reactor *Reactor
 }
 
@@ -130,7 +130,7 @@ func (o *apiStateObserver) OnPeerEstablished(peer *Peer) {
 		return
 	}
 	s := peer.Settings()
-	peerInfo := api.PeerInfo{
+	peerInfo := plugin.PeerInfo{
 		Address:      s.Address,
 		LocalAddress: s.LocalAddress,
 		LocalAS:      s.LocalAS,
@@ -146,7 +146,7 @@ func (o *apiStateObserver) OnPeerClosed(peer *Peer, reason string) {
 		return
 	}
 	s := peer.Settings()
-	peerInfo := api.PeerInfo{
+	peerInfo := plugin.PeerInfo{
 		Address:      s.Address,
 		LocalAddress: s.LocalAddress,
 		LocalAS:      s.LocalAS,
@@ -174,7 +174,7 @@ type Reactor struct {
 	listener  *Listener                // deprecated: single listener for backward compat
 	listeners map[netip.Addr]*Listener // one listener per unique LocalAddress
 	signals   *SignalHandler
-	api       *api.Server // API server for CLI and external processes
+	api       *plugin.Server // API server for CLI and external processes
 
 	// RIB components
 	ribIn    *rib.IncomingRIB // Adj-RIB-In
@@ -207,20 +207,20 @@ type Reactor struct {
 	APISyncState
 }
 
-// reactorAPIAdapter implements api.ReactorInterface for the Reactor.
+// reactorAPIAdapter implements plugin.ReactorInterface for the Reactor.
 type reactorAPIAdapter struct {
 	r *Reactor
 }
 
 // Peers returns peer information for the API.
-func (a *reactorAPIAdapter) Peers() []api.PeerInfo {
+func (a *reactorAPIAdapter) Peers() []plugin.PeerInfo {
 	a.r.mu.RLock()
 	defer a.r.mu.RUnlock()
 
-	result := make([]api.PeerInfo, 0, len(a.r.peers))
+	result := make([]plugin.PeerInfo, 0, len(a.r.peers))
 	for _, p := range a.r.peers {
 		s := p.Settings()
-		info := api.PeerInfo{
+		info := plugin.PeerInfo{
 			Address:      s.Address,
 			LocalAddress: netip.Addr{}, // TODO: get from session
 			LocalAS:      s.LocalAS,
@@ -239,14 +239,14 @@ func (a *reactorAPIAdapter) Peers() []api.PeerInfo {
 // GetPeerCapabilityConfigs returns capability configurations for all peers.
 // Used by plugin protocol Stage 2 to deliver matching config.
 // Extracts known capability values into a flexible map for pattern matching.
-func (a *reactorAPIAdapter) GetPeerCapabilityConfigs() []api.PeerCapabilityConfig {
+func (a *reactorAPIAdapter) GetPeerCapabilityConfigs() []plugin.PeerCapabilityConfig {
 	a.r.mu.RLock()
 	defer a.r.mu.RUnlock()
 
-	result := make([]api.PeerCapabilityConfig, 0, len(a.r.peers))
+	result := make([]plugin.PeerCapabilityConfig, 0, len(a.r.peers))
 	for _, p := range a.r.peers {
 		s := p.Settings()
-		cfg := api.PeerCapabilityConfig{
+		cfg := plugin.PeerCapabilityConfig{
 			Address: s.Address.String(),
 			Values:  make(map[string]string),
 		}
@@ -269,9 +269,9 @@ func (a *reactorAPIAdapter) GetPeerCapabilityConfigs() []api.PeerCapabilityConfi
 }
 
 // Stats returns reactor statistics for the API.
-func (a *reactorAPIAdapter) Stats() api.ReactorStats {
+func (a *reactorAPIAdapter) Stats() plugin.ReactorStats {
 	stats := a.r.Stats()
-	return api.ReactorStats{
+	return plugin.ReactorStats{
 		StartTime: stats.StartTime,
 		Uptime:    stats.Uptime,
 		PeerCount: stats.PeerCount,
@@ -285,7 +285,7 @@ func (a *reactorAPIAdapter) Stop() {
 
 // AnnounceRoute announces a route to matching peers.
 // If a peer is in transaction, queues to its Adj-RIB-Out; otherwise sends immediately.
-func (a *reactorAPIAdapter) AnnounceRoute(peerSelector string, route api.RouteSpec) error {
+func (a *reactorAPIAdapter) AnnounceRoute(peerSelector string, route plugin.RouteSpec) error {
 	peers := a.getMatchingPeers(peerSelector)
 	if len(peers) == 0 {
 		return errors.New("no peers match selector")
@@ -375,7 +375,7 @@ func (a *reactorAPIAdapter) AnnounceRoute(peerSelector string, route api.RouteSp
 
 		// Create resolved route spec for buildAnnounceUpdate
 		resolvedRoute := route
-		resolvedRoute.NextHop = api.NewNextHopExplicit(nextHopAddr)
+		resolvedRoute.NextHop = plugin.NewNextHopExplicit(nextHopAddr)
 
 		if peer.State() == PeerStateEstablished {
 			// RFC 4271 Section 4.3 - Send UPDATE immediately (zero-allocation path)
@@ -616,7 +616,7 @@ func writeCommunitiesAttr(buf []byte, off int, communities []uint32) int {
 // RFC 4271 Section 4.3 - UPDATE message format.
 // RFC 7911: ctx provides ADD-PATH capability state for NLRI encoding.
 // RFC 6793: ctx.ASN4 determines 2-byte vs 4-byte AS numbers in AS_PATH.
-func WriteAnnounceUpdate(buf []byte, off int, route api.RouteSpec, localAS uint32, isIBGP bool, ctx *nlri.PackContext) int {
+func WriteAnnounceUpdate(buf []byte, off int, route plugin.RouteSpec, localAS uint32, isIBGP bool, ctx *nlri.PackContext) int {
 	start := off
 
 	// RFC 4271 Section 4.1 - BGP Header: 16-byte marker (all 0xFF)
@@ -876,37 +876,37 @@ func (a *reactorAPIAdapter) Reload() error {
 
 // AnnounceFlowSpec announces a FlowSpec route to matching peers.
 // TODO: Implement when FlowSpec RIB integration is complete.
-func (a *reactorAPIAdapter) AnnounceFlowSpec(_ string, _ api.FlowSpecRoute) error {
+func (a *reactorAPIAdapter) AnnounceFlowSpec(_ string, _ plugin.FlowSpecRoute) error {
 	return errors.New("flowspec: not implemented")
 }
 
 // WithdrawFlowSpec withdraws a FlowSpec route from matching peers.
 // TODO: Implement when FlowSpec RIB integration is complete.
-func (a *reactorAPIAdapter) WithdrawFlowSpec(_ string, _ api.FlowSpecRoute) error {
+func (a *reactorAPIAdapter) WithdrawFlowSpec(_ string, _ plugin.FlowSpecRoute) error {
 	return errors.New("flowspec: not implemented")
 }
 
 // AnnounceVPLS announces a VPLS route to matching peers.
 // TODO: Implement when VPLS RIB integration is complete.
-func (a *reactorAPIAdapter) AnnounceVPLS(_ string, _ api.VPLSRoute) error {
+func (a *reactorAPIAdapter) AnnounceVPLS(_ string, _ plugin.VPLSRoute) error {
 	return errors.New("vpls: not implemented")
 }
 
 // WithdrawVPLS withdraws a VPLS route from matching peers.
 // TODO: Implement when VPLS RIB integration is complete.
-func (a *reactorAPIAdapter) WithdrawVPLS(_ string, _ api.VPLSRoute) error {
+func (a *reactorAPIAdapter) WithdrawVPLS(_ string, _ plugin.VPLSRoute) error {
 	return errors.New("vpls: not implemented")
 }
 
 // AnnounceL2VPN announces an L2VPN/EVPN route to matching peers.
 // TODO: Implement when L2VPN/EVPN RIB integration is complete.
-func (a *reactorAPIAdapter) AnnounceL2VPN(_ string, _ api.L2VPNRoute) error {
+func (a *reactorAPIAdapter) AnnounceL2VPN(_ string, _ plugin.L2VPNRoute) error {
 	return errors.New("l2vpn: not implemented")
 }
 
 // WithdrawL2VPN withdraws an L2VPN/EVPN route from matching peers.
 // TODO: Implement when L2VPN/EVPN RIB integration is complete.
-func (a *reactorAPIAdapter) WithdrawL2VPN(_ string, _ api.L2VPNRoute) error {
+func (a *reactorAPIAdapter) WithdrawL2VPN(_ string, _ plugin.L2VPNRoute) error {
 	return errors.New("l2vpn: not implemented")
 }
 
@@ -916,7 +916,7 @@ func (a *reactorAPIAdapter) WithdrawL2VPN(_ string, _ api.L2VPNRoute) error {
 // Behavior:
 //   - Established peer: sends UPDATE immediately
 //   - Non-established peer: queues to peer's operation queue (sent on connect)
-func (a *reactorAPIAdapter) AnnounceL3VPN(peerSelector string, route api.L3VPNRoute) error {
+func (a *reactorAPIAdapter) AnnounceL3VPN(peerSelector string, route plugin.L3VPNRoute) error {
 	// RFC 4364: L3VPN routes require RD
 	if route.RD == "" {
 		return errors.New("l3vpn route requires route-distinguisher (rd)")
@@ -975,7 +975,7 @@ func (a *reactorAPIAdapter) AnnounceL3VPN(peerSelector string, route api.L3VPNRo
 // Behavior:
 //   - Established peer: sends UPDATE with MP_UNREACH_NLRI immediately
 //   - Non-established peer: queues withdrawal (sent on connect)
-func (a *reactorAPIAdapter) WithdrawL3VPN(peerSelector string, route api.L3VPNRoute) error {
+func (a *reactorAPIAdapter) WithdrawL3VPN(peerSelector string, route plugin.L3VPNRoute) error {
 	// RFC 4364: RD required to identify the VPN route
 	if route.RD == "" {
 		return errors.New("l3vpn withdrawal requires route-distinguisher (rd)")
@@ -1030,9 +1030,9 @@ func (a *reactorAPIAdapter) WithdrawL3VPN(peerSelector string, route api.L3VPNRo
 	return lastErr
 }
 
-// buildL3VPNParams converts an api.L3VPNRoute to message.VPNParams.
+// buildL3VPNParams converts an plugin.L3VPNRoute to message.VPNParams.
 // RFC 4364 - VPN route parameters.
-func (a *reactorAPIAdapter) buildL3VPNParams(route api.L3VPNRoute) (message.VPNParams, error) {
+func (a *reactorAPIAdapter) buildL3VPNParams(route plugin.L3VPNRoute) (message.VPNParams, error) {
 	// Parse RD
 	rd, err := nlri.ParseRDString(route.RD)
 	if err != nil {
@@ -1092,9 +1092,9 @@ func (a *reactorAPIAdapter) buildL3VPNParams(route api.L3VPNRoute) (message.VPNP
 	return params, nil
 }
 
-// buildL3VPNRIBRoute creates a rib.Route from an api.L3VPNRoute for queueing.
+// buildL3VPNRIBRoute creates a rib.Route from an plugin.L3VPNRoute for queueing.
 // RFC 4364: VPN routes include RD + labels in NLRI.
-func (a *reactorAPIAdapter) buildL3VPNRIBRoute(route api.L3VPNRoute, isIBGP bool) (*rib.Route, error) {
+func (a *reactorAPIAdapter) buildL3VPNRIBRoute(route plugin.L3VPNRoute, isIBGP bool) (*rib.Route, error) {
 	// Parse RD
 	rd, err := nlri.ParseRDString(route.RD)
 	if err != nil {
@@ -1265,7 +1265,7 @@ func parseRouteTarget(s string) ([]byte, error) {
 //   - Transaction mode: queues to Adj-RIB-Out (sent on commit)
 //   - Established: sends immediately and tracks for re-announcement
 //   - Not established: queues to peer's operation queue.
-func (a *reactorAPIAdapter) AnnounceLabeledUnicast(peerSelector string, route api.LabeledUnicastRoute) error {
+func (a *reactorAPIAdapter) AnnounceLabeledUnicast(peerSelector string, route plugin.LabeledUnicastRoute) error {
 	// RFC 8277: Labeled unicast routes require at least one label
 	if len(route.Labels) == 0 {
 		return errors.New("labeled unicast route requires at least one label")
@@ -1309,7 +1309,7 @@ func (a *reactorAPIAdapter) AnnounceLabeledUnicast(peerSelector string, route ap
 }
 
 // buildLabeledUnicastParams converts an API route to message.LabeledUnicastParams.
-func (a *reactorAPIAdapter) buildLabeledUnicastParams(route api.LabeledUnicastRoute) message.LabeledUnicastParams {
+func (a *reactorAPIAdapter) buildLabeledUnicastParams(route plugin.LabeledUnicastRoute) message.LabeledUnicastParams {
 	params := message.LabeledUnicastParams{
 		Prefix:  route.Prefix,
 		PathID:  route.PathID, // RFC 7911 ADD-PATH
@@ -1354,7 +1354,7 @@ func (a *reactorAPIAdapter) buildLabeledUnicastParams(route api.LabeledUnicastRo
 //
 // RFC 8277: Labeled unicast routes include MPLS labels in the NLRI.
 // RFC 7911: PathID is included when ADD-PATH is negotiated.
-func (a *reactorAPIAdapter) buildLabeledUnicastRIBRoute(route api.LabeledUnicastRoute, isIBGP bool) *rib.Route {
+func (a *reactorAPIAdapter) buildLabeledUnicastRIBRoute(route plugin.LabeledUnicastRoute, isIBGP bool) *rib.Route {
 	// 1. Build NLRI with nlri.LabeledUnicast
 	family := nlri.Family{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIMPLSLabel}
 	if route.Prefix.Addr().Is6() {
@@ -1440,7 +1440,7 @@ func (a *reactorAPIAdapter) buildLabeledUnicastRIBRoute(route api.LabeledUnicast
 //   - Transaction mode: queues to Adj-RIB-Out (sent on commit)
 //   - Established: sends immediately and removes from sent cache
 //   - Not established: queues to peer's operation queue.
-func (a *reactorAPIAdapter) WithdrawLabeledUnicast(peerSelector string, route api.LabeledUnicastRoute) error {
+func (a *reactorAPIAdapter) WithdrawLabeledUnicast(peerSelector string, route plugin.LabeledUnicastRoute) error {
 	peers := a.getMatchingPeers(peerSelector)
 	if len(peers) == 0 {
 		return errors.New("no peers match selector")
@@ -1487,18 +1487,18 @@ func (a *reactorAPIAdapter) WithdrawLabeledUnicast(peerSelector string, route ap
 
 // AnnounceMUPRoute announces a MUP route (SAFI 85) to matching peers.
 // draft-mpmz-bess-mup-safi - Mobile User Plane.
-func (a *reactorAPIAdapter) AnnounceMUPRoute(peerSelector string, spec api.MUPRouteSpec) error {
+func (a *reactorAPIAdapter) AnnounceMUPRoute(peerSelector string, spec plugin.MUPRouteSpec) error {
 	return a.sendMUPRoute(peerSelector, spec, false)
 }
 
 // WithdrawMUPRoute withdraws a MUP route from matching peers.
 // Uses MP_UNREACH_NLRI with SAFI 85.
-func (a *reactorAPIAdapter) WithdrawMUPRoute(peerSelector string, spec api.MUPRouteSpec) error {
+func (a *reactorAPIAdapter) WithdrawMUPRoute(peerSelector string, spec plugin.MUPRouteSpec) error {
 	return a.sendMUPRoute(peerSelector, spec, true)
 }
 
 // sendMUPRoute is a common helper for announce/withdraw MUP routes.
-func (a *reactorAPIAdapter) sendMUPRoute(peerSelector string, spec api.MUPRouteSpec, isWithdraw bool) error {
+func (a *reactorAPIAdapter) sendMUPRoute(peerSelector string, spec plugin.MUPRouteSpec, isWithdraw bool) error {
 	peers := a.getMatchingPeers(peerSelector)
 	if len(peers) == 0 {
 		return errors.New("no peers match selector")
@@ -1554,10 +1554,10 @@ func (a *reactorAPIAdapter) sendMUPRoute(peerSelector string, spec api.MUPRouteS
 // RFC 4271 Section 4.3: UPDATE Message Format.
 // RFC 4760: MP_REACH_NLRI for non-IPv4-unicast families.
 // RFC 8654: Respects peer's max message size (4096 or 65535).
-func (a *reactorAPIAdapter) AnnounceNLRIBatch(peerSelector string, batch api.NLRIBatch) error {
+func (a *reactorAPIAdapter) AnnounceNLRIBatch(peerSelector string, batch plugin.NLRIBatch) error {
 	peers := a.getMatchingPeers(peerSelector)
 	if len(peers) == 0 {
-		return api.ErrNoPeersMatch
+		return plugin.ErrNoPeersMatch
 	}
 
 	// Build attributes for RIB route (used for queueing non-established peers)
@@ -1615,7 +1615,7 @@ func (a *reactorAPIAdapter) AnnounceNLRIBatch(peerSelector string, batch api.NLR
 
 	// Return warning-level error if no peers accepted (all skipped due to family)
 	if acceptedCount == 0 {
-		return api.ErrNoPeersAcceptedFamily
+		return plugin.ErrNoPeersAcceptedFamily
 	}
 	return lastErr
 }
@@ -1623,10 +1623,10 @@ func (a *reactorAPIAdapter) AnnounceNLRIBatch(peerSelector string, batch api.NLR
 // WithdrawNLRIBatch withdraws a batch of NLRIs.
 // RFC 4271 Section 4.3: Withdrawn Routes field.
 // RFC 4760: MP_UNREACH_NLRI for non-IPv4-unicast families.
-func (a *reactorAPIAdapter) WithdrawNLRIBatch(peerSelector string, batch api.NLRIBatch) error {
+func (a *reactorAPIAdapter) WithdrawNLRIBatch(peerSelector string, batch plugin.NLRIBatch) error {
 	peers := a.getMatchingPeers(peerSelector)
 	if len(peers) == 0 {
-		return api.ErrNoPeersMatch
+		return plugin.ErrNoPeersMatch
 	}
 
 	var lastErr error
@@ -1664,14 +1664,14 @@ func (a *reactorAPIAdapter) WithdrawNLRIBatch(peerSelector string, batch api.NLR
 
 	// Return warning-level error if no peers accepted (all skipped due to family)
 	if acceptedCount == 0 {
-		return api.ErrNoPeersAcceptedFamily
+		return plugin.ErrNoPeersAcceptedFamily
 	}
 	return lastErr
 }
 
 // buildBatchAttributes converts PathAttributes to attribute.Attribute slice.
 // Used for building rib.Route for queue operations.
-func (a *reactorAPIAdapter) buildBatchAttributes(attrs api.PathAttributes) []attribute.Attribute {
+func (a *reactorAPIAdapter) buildBatchAttributes(attrs plugin.PathAttributes) []attribute.Attribute {
 	var result []attribute.Attribute
 
 	// ORIGIN
@@ -1737,7 +1737,7 @@ func (a *reactorAPIAdapter) buildBatchASPath(userASPath []uint32, isIBGP bool) *
 // buildBatchAnnounceUpdate builds an UPDATE message for a batch of NLRIs.
 // RFC 4271 Section 4.3: UPDATE Message Format.
 // RFC 4760: MP_REACH_NLRI for non-IPv4-unicast families.
-func (a *reactorAPIAdapter) buildBatchAnnounceUpdate(batch api.NLRIBatch, nextHop netip.Addr, isIBGP bool, ctx *nlri.PackContext) *message.Update {
+func (a *reactorAPIAdapter) buildBatchAnnounceUpdate(batch plugin.NLRIBatch, nextHop netip.Addr, isIBGP bool, ctx *nlri.PackContext) *message.Update {
 	attrs := batch.Attrs
 	isIPv4Unicast := batch.Family == nlri.IPv4Unicast
 
@@ -1895,7 +1895,7 @@ func (a *reactorAPIAdapter) buildWireModeUpdate(wireAttrs, nlriBytes []byte, fam
 // buildBatchWithdrawUpdate builds an UPDATE message for withdrawing a batch of NLRIs.
 // RFC 4271 Section 4.3: Withdrawn Routes field.
 // RFC 4760: MP_UNREACH_NLRI for non-IPv4-unicast families.
-func (a *reactorAPIAdapter) buildBatchWithdrawUpdate(batch api.NLRIBatch, ctx *nlri.PackContext) *message.Update {
+func (a *reactorAPIAdapter) buildBatchWithdrawUpdate(batch plugin.NLRIBatch, ctx *nlri.PackContext) *message.Update {
 	// Calculate total NLRI size and pack
 	totalNLRILen := 0
 	for _, n := range batch.NLRIs {
@@ -2066,12 +2066,12 @@ func (a *reactorAPIAdapter) WithdrawWatchdog(peerSelector, name string) error {
 }
 
 // AddWatchdogRoute adds a route to a global watchdog pool.
-// Implements api.ReactorInterface.
-func (a *reactorAPIAdapter) AddWatchdogRoute(route api.RouteSpec, poolName string) error {
-	// Convert api.RouteSpec to StaticRoute
+// Implements plugin.ReactorInterface.
+func (a *reactorAPIAdapter) AddWatchdogRoute(route plugin.RouteSpec, poolName string) error {
+	// Convert plugin.RouteSpec to StaticRoute
 	sr := StaticRoute{
 		Prefix:  route.Prefix,
-		NextHop: route.NextHop, // Already api.RouteNextHop
+		NextHop: route.NextHop, // Already plugin.RouteNextHop
 	}
 	if route.Origin != nil {
 		sr.Origin = *route.Origin
@@ -2099,14 +2099,14 @@ func (a *reactorAPIAdapter) AddWatchdogRoute(route api.RouteSpec, poolName strin
 }
 
 // RemoveWatchdogRoute removes a route from a global watchdog pool.
-// Implements api.ReactorInterface.
+// Implements plugin.ReactorInterface.
 func (a *reactorAPIAdapter) RemoveWatchdogRoute(routeKey, poolName string) error {
 	return a.r.RemoveWatchdogRoute(routeKey, poolName)
 }
 
-// staticRouteToSpec converts a StaticRoute to api.RouteSpec.
+// staticRouteToSpec converts a StaticRoute to plugin.RouteSpec.
 // localAddress is used to resolve "next-hop self" routes.
-func staticRouteToSpec(route StaticRoute, localAddress netip.Addr) api.RouteSpec {
+func staticRouteToSpec(route StaticRoute, localAddress netip.Addr) plugin.RouteSpec {
 	// Resolve next-hop from RouteNextHop policy
 	var nextHop netip.Addr
 	if route.NextHop.IsSelf() && localAddress.IsValid() {
@@ -2116,9 +2116,9 @@ func staticRouteToSpec(route StaticRoute, localAddress netip.Addr) api.RouteSpec
 	}
 	// If neither, nextHop remains zero value (invalid)
 
-	spec := api.RouteSpec{
+	spec := plugin.RouteSpec{
 		Prefix:  route.Prefix,
-		NextHop: api.NewNextHopExplicit(nextHop),
+		NextHop: plugin.NewNextHopExplicit(nextHop),
 	}
 
 	// Copy optional attributes
@@ -2155,12 +2155,12 @@ func staticRouteToSpec(route StaticRoute, localAddress netip.Addr) api.RouteSpec
 }
 
 // RIBInRoutes returns routes from Adj-RIB-In.
-func (a *reactorAPIAdapter) RIBInRoutes(peerID string) []api.RIBRoute {
+func (a *reactorAPIAdapter) RIBInRoutes(peerID string) []plugin.RIBRoute {
 	if a.r.ribIn == nil {
 		return nil
 	}
 
-	var routes []api.RIBRoute
+	var routes []plugin.RIBRoute
 
 	// If peerID specified, get routes for that peer only
 	if peerID != "" {
@@ -2190,13 +2190,13 @@ func (a *reactorAPIAdapter) RIBInRoutes(peerID string) []api.RIBRoute {
 // RIBOutRoutes returns routes from Adj-RIB-Out.
 //
 // Deprecated: Adj-RIB-Out tracking removed. Returns nil.
-func (a *reactorAPIAdapter) RIBOutRoutes() []api.RIBRoute {
+func (a *reactorAPIAdapter) RIBOutRoutes() []plugin.RIBRoute {
 	return nil
 }
 
 // RIBStats returns RIB statistics.
-func (a *reactorAPIAdapter) RIBStats() api.RIBStatsInfo {
-	stats := api.RIBStatsInfo{}
+func (a *reactorAPIAdapter) RIBStats() plugin.RIBStatsInfo {
+	stats := plugin.RIBStatsInfo{}
 
 	if a.r.ribIn != nil {
 		inStats := a.r.ribIn.Stats()
@@ -2234,7 +2234,7 @@ func (a *reactorAPIAdapter) FlushRIBOut() int {
 // GetPeerAPIBindings returns API bindings for a specific peer.
 // Returns nil if peer not found.
 // Resolves encoding inheritance: peer binding → process encoder → "text" default.
-func (a *reactorAPIAdapter) GetPeerAPIBindings(peerAddr netip.Addr) []api.PeerAPIBinding {
+func (a *reactorAPIAdapter) GetPeerAPIBindings(peerAddr netip.Addr) []plugin.PeerAPIBinding {
 	a.r.mu.RLock()
 	defer a.r.mu.RUnlock()
 
@@ -2244,7 +2244,7 @@ func (a *reactorAPIAdapter) GetPeerAPIBindings(peerAddr netip.Addr) []api.PeerAP
 	}
 
 	settings := peer.Settings()
-	result := make([]api.PeerAPIBinding, 0, len(settings.APIBindings))
+	result := make([]plugin.PeerAPIBinding, 0, len(settings.APIBindings))
 	for _, b := range settings.APIBindings {
 		// Resolve encoding: peer override → process default → "text"
 		encoding := b.Encoding
@@ -2261,7 +2261,7 @@ func (a *reactorAPIAdapter) GetPeerAPIBindings(peerAddr netip.Addr) []api.PeerAP
 			format = "parsed"
 		}
 
-		result = append(result, api.PeerAPIBinding{
+		result = append(result, plugin.PeerAPIBinding{
 			ProcessName:         b.ProcessName,
 			Encoding:            encoding,
 			Format:              format,
@@ -2302,22 +2302,22 @@ func (a *reactorAPIAdapter) BeginTransaction(peerSelector, label string) error {
 // CommitTransaction commits the current transaction.
 //
 // Deprecated: Per-peer Adj-RIB-Out removed. Use CommitManager via "commit <name> end".
-func (a *reactorAPIAdapter) CommitTransaction(peerSelector string) (api.TransactionResult, error) {
-	return api.TransactionResult{}, errors.New("per-peer transactions removed; use 'commit <name> end' instead")
+func (a *reactorAPIAdapter) CommitTransaction(peerSelector string) (plugin.TransactionResult, error) {
+	return plugin.TransactionResult{}, errors.New("per-peer transactions removed; use 'commit <name> end' instead")
 }
 
 // CommitTransactionWithLabel commits, verifying the label matches.
 //
 // Deprecated: Per-peer Adj-RIB-Out removed. Use CommitManager via "commit <name> end".
-func (a *reactorAPIAdapter) CommitTransactionWithLabel(peerSelector, label string) (api.TransactionResult, error) {
-	return api.TransactionResult{}, errors.New("per-peer transactions removed; use 'commit <name> end' instead")
+func (a *reactorAPIAdapter) CommitTransactionWithLabel(peerSelector, label string) (plugin.TransactionResult, error) {
+	return plugin.TransactionResult{}, errors.New("per-peer transactions removed; use 'commit <name> end' instead")
 }
 
 // RollbackTransaction discards all queued routes in the transaction.
 //
 // Deprecated: Per-peer Adj-RIB-Out removed. Use CommitManager via "commit <name> rollback".
-func (a *reactorAPIAdapter) RollbackTransaction(peerSelector string) (api.TransactionResult, error) {
-	return api.TransactionResult{}, errors.New("per-peer transactions removed; use 'commit <name> rollback' instead")
+func (a *reactorAPIAdapter) RollbackTransaction(peerSelector string) (plugin.TransactionResult, error) {
+	return plugin.TransactionResult{}, errors.New("per-peer transactions removed; use 'commit <name> rollback' instead")
 }
 
 // getMatchingPeers returns peers matching the selector.
@@ -2400,13 +2400,13 @@ func (a *reactorAPIAdapter) TransactionID(peerSelector string) string {
 
 // SendRoutes sends routes directly to matching peers using CommitService.
 // This bypasses OutgoingRIB transaction and is used for named commits.
-func (a *reactorAPIAdapter) SendRoutes(peerSelector string, routes []*rib.Route, withdrawals []nlri.NLRI, sendEOR bool) (api.TransactionResult, error) {
+func (a *reactorAPIAdapter) SendRoutes(peerSelector string, routes []*rib.Route, withdrawals []nlri.NLRI, sendEOR bool) (plugin.TransactionResult, error) {
 	peers := a.getMatchingPeers(peerSelector)
 	if len(peers) == 0 {
-		return api.TransactionResult{}, errors.New("no peers match selector")
+		return plugin.TransactionResult{}, errors.New("no peers match selector")
 	}
 
-	var totalResult api.TransactionResult
+	var totalResult plugin.TransactionResult
 
 	// Collect families for EOR (from both routes and withdrawals)
 	seen := make(map[nlri.Family]bool)
@@ -2544,7 +2544,7 @@ func (a *reactorAPIAdapter) sendWithdrawals(peer *Peer, withdrawals []nlri.NLRI)
 // RFC 8654 compliance: If the UPDATE exceeds a peer's max message size
 // (4096 without Extended Message, 65535 with), it is split into multiple
 // smaller UPDATEs that each fit within the limit.
-func (a *reactorAPIAdapter) ForwardUpdate(sel *api.Selector, updateID uint64) error {
+func (a *reactorAPIAdapter) ForwardUpdate(sel *plugin.Selector, updateID uint64) error {
 	// Take ownership of update from cache (removes from cache)
 	// Caller must call Release() when done
 	update, ok := a.r.recentUpdates.Take(updateID)
@@ -2597,7 +2597,7 @@ func (a *reactorAPIAdapter) ForwardUpdate(sel *api.Selector, updateID uint64) er
 			srcCtx := bgpctx.Registry.Get(srcCtxID) // May be nil if not registered
 
 			maxBodySize := maxMsgSize - message.HeaderLen
-			splits, err := api.SplitWireUpdate(update.WireUpdate, maxBodySize, srcCtx)
+			splits, err := plugin.SplitWireUpdate(update.WireUpdate, maxBodySize, srcCtx)
 			if err != nil {
 				errs = append(errs, fmt.Errorf("peer %s: split failed: %w", peer.Settings().Address, err))
 				continue
@@ -3116,8 +3116,8 @@ func (a *reactorAPIAdapter) SendRawMessage(peerAddr netip.Addr, msgType uint8, p
 }
 
 // routeToAPIRoute converts a RIB route to an API route.
-func routeToAPIRoute(peerID string, route *rib.Route) api.RIBRoute {
-	apiRoute := api.RIBRoute{
+func routeToAPIRoute(peerID string, route *rib.Route) plugin.RIBRoute {
+	apiRoute := plugin.RIBRoute{
 		Peer: peerID,
 	}
 
@@ -3383,16 +3383,16 @@ func (r *Reactor) notifyPeerClosed(peer *Peer, reason string) {
 // direction is "sent" or "received".
 // buf is the pool buffer for received messages (nil for sent).
 // Returns true if buf ownership was taken (caller should not return to pool).
-func (r *Reactor) notifyMessageReceiver(peerAddr netip.Addr, msgType message.MessageType, rawBytes []byte, wireUpdate *api.WireUpdate, ctxID bgpctx.ContextID, direction string, buf []byte) bool {
+func (r *Reactor) notifyMessageReceiver(peerAddr netip.Addr, msgType message.MessageType, rawBytes []byte, wireUpdate *plugin.WireUpdate, ctxID bgpctx.ContextID, direction string, buf []byte) bool {
 	r.mu.RLock()
 	receiver := r.messageReceiver
 	peer, hasPeer := r.peers[peerAddr.String()]
 
 	// Build PeerInfo while holding lock to avoid race on state
-	var peerInfo api.PeerInfo
+	var peerInfo plugin.PeerInfo
 	if hasPeer {
 		s := peer.Settings()
-		peerInfo = api.PeerInfo{
+		peerInfo = plugin.PeerInfo{
 			Address:      s.Address,
 			LocalAddress: s.LocalAddress,
 			LocalAS:      s.LocalAS,
@@ -3401,7 +3401,7 @@ func (r *Reactor) notifyMessageReceiver(peerAddr netip.Addr, msgType message.Mes
 			State:        peer.State().String(),
 		}
 	} else {
-		peerInfo = api.PeerInfo{Address: peerAddr}
+		peerInfo = plugin.PeerInfo{Address: peerAddr}
 	}
 	r.mu.RUnlock()
 
@@ -3413,7 +3413,7 @@ func (r *Reactor) notifyMessageReceiver(peerAddr netip.Addr, msgType message.Mes
 	messageID := nextMsgID()
 	timestamp := time.Now()
 
-	var msg api.RawMessage
+	var msg plugin.RawMessage
 	var kept bool
 
 	// Zero-copy path for received UPDATE messages
@@ -3429,7 +3429,7 @@ func (r *Reactor) notifyMessageReceiver(peerAddr netip.Addr, msgType message.Mes
 		}
 
 		// RawMessage uses zero-copy for synchronous callback processing
-		msg = api.RawMessage{
+		msg = plugin.RawMessage{
 			Type:       msgType,
 			RawBytes:   wireUpdate.Payload(), // Zero-copy: valid during callback
 			Timestamp:  timestamp,
@@ -3443,7 +3443,7 @@ func (r *Reactor) notifyMessageReceiver(peerAddr netip.Addr, msgType message.Mes
 		bytes := make([]byte, len(rawBytes))
 		copy(bytes, rawBytes)
 
-		msg = api.RawMessage{
+		msg = plugin.RawMessage{
 			Type:      msgType,
 			RawBytes:  bytes,
 			Timestamp: timestamp,
@@ -3635,12 +3635,12 @@ func (r *Reactor) StartWithContext(ctx context.Context) error {
 
 	// Start API server if configured
 	if r.config.APISocketPath != "" {
-		apiConfig := &api.ServerConfig{
+		apiConfig := &plugin.ServerConfig{
 			SocketPath: r.config.APISocketPath,
 		}
 		// Convert process configs
 		for _, pc := range r.config.APIProcesses {
-			apiConfig.Processes = append(apiConfig.Processes, api.ProcessConfig{
+			apiConfig.Processes = append(apiConfig.Processes, plugin.ProcessConfig{
 				Name:          pc.Name,
 				Run:           pc.Run,
 				Encoder:       pc.Encoder,
@@ -3649,7 +3649,7 @@ func (r *Reactor) StartWithContext(ctx context.Context) error {
 				ReceiveUpdate: pc.ReceiveUpdate,
 			})
 		}
-		r.api = api.NewServer(apiConfig, &reactorAPIAdapter{r})
+		r.api = plugin.NewServer(apiConfig, &reactorAPIAdapter{r})
 		// Set API server as message receiver for raw byte access
 		r.messageReceiver = r.api
 		// Register API state observer for peer lifecycle events
@@ -4045,9 +4045,9 @@ func (r *Reactor) acceptPendingConnection(peer *Peer, conn net.Conn, open *messa
 	}
 }
 
-// convertAPIMUPRoute converts an api.MUPRouteSpec to a reactor.MUPRoute.
+// convertAPIMUPRoute converts an plugin.MUPRouteSpec to a reactor.MUPRoute.
 // This function parses the string fields in the API spec into wire-format bytes.
-func convertAPIMUPRoute(spec api.MUPRouteSpec) (MUPRoute, error) {
+func convertAPIMUPRoute(spec plugin.MUPRouteSpec) (MUPRoute, error) {
 	route := MUPRoute{
 		IsIPv6: spec.IsIPv6,
 	}
@@ -4104,7 +4104,7 @@ func convertAPIMUPRoute(spec api.MUPRouteSpec) (MUPRoute, error) {
 }
 
 // buildAPIMUPNLRI builds MUP NLRI bytes from API spec.
-func buildAPIMUPNLRI(spec api.MUPRouteSpec) ([]byte, error) {
+func buildAPIMUPNLRI(spec plugin.MUPRouteSpec) ([]byte, error) {
 	// Determine route type code
 	var routeType nlri.MUPRouteType
 	switch spec.RouteType {

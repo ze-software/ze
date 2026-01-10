@@ -54,7 +54,7 @@ func run() error {
 
 	// Route to appropriate handler
 	switch cli.command {
-	case "encoding", "api":
+	case "encoding", "plugin":
 		return runEncodingOrAPI(ctx, cli, baseDir)
 	case "decoding":
 		return runSimpleTests(ctx, cli, baseDir, newDecodingTestSuite)
@@ -251,8 +251,8 @@ func runEncodingOrAPI(ctx context.Context, cli *cliFlags, baseDir string) error 
 	// Discover tests
 	tests := functional.NewEncodingTests(baseDir)
 	testDir := filepath.Join(baseDir, "test/data/encode")
-	if cli.command == "api" {
-		testDir = filepath.Join(baseDir, "test/data/api")
+	if cli.command == "plugin" {
+		testDir = filepath.Join(baseDir, "test/data/plugin")
 	}
 
 	if err := tests.Discover(testDir); err != nil {
@@ -413,7 +413,7 @@ func parseCLI() *cliFlags {
 
 	validCommands := map[string]bool{
 		"encoding": true,
-		"api":      true,
+		"plugin":   true,
 		"decoding": true,
 		"parsing":  true,
 	}
@@ -462,7 +462,7 @@ func printUsage() {
 
 Commands:
   encoding    Run encoding tests (static routes)
-  api         Run API tests (dynamic routes via .run scripts)
+  plugin      Run plugin tests (dynamic routes via .run scripts)
   decoding    Run decoding tests (BGP message hex to JSON)
   parsing     Run parsing tests (config file validation)
 
@@ -488,7 +488,7 @@ Examples:
   functional encoding -l
   functional encoding -a
   functional encoding 0 1 2
-  functional api -a -q
+  functional plugin -a -q
   functional decoding -a
   functional parsing -a
   functional encoding -c 10 0 1    # stress test: run tests 0,1 ten times

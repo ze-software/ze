@@ -32,7 +32,7 @@
 | `application/` | 20+ | `cmd/` | Entry points |
 | `protocol/` | 15+ | `pkg/wire/` | Wire utilities |
 | `environment/` | 5+ | `pkg/config/` | Env vars |
-| `cli/` | 10+ | `pkg/api/` | CLI interface |
+| `cli/` | 10+ | `pkg/plugin/` | CLI interface |
 | `logger/` | 8 | `slog` (stdlib) | Logging |
 | `util/` | 12 | `internal/` | Utilities |
 | `data/` | 2 | N/A | Data files |
@@ -246,12 +246,12 @@
 
 | ExaBGP File | Purpose | ZeBGP File |
 |-------------|---------|------------|
-| `api/__init__.py` | API server | `pkg/api/server.go` |
-| `api/processes.py` | External processes | `pkg/api/process.go` |
-| `api/error.py` | API errors | `pkg/api/error.go` |
-| `api/command/*.py` | Command handlers | `pkg/api/command/*.go` |
-| `api/dispatch/*.py` | Command dispatch | `pkg/api/dispatch.go` |
-| `api/response/*.py` | Response encoding | `pkg/api/response.go` |
+| `api/__init__.py` | API server | `pkg/plugin/server.go` |
+| `api/processes.py` | External processes | `pkg/plugin/process.go` |
+| `api/error.py` | API errors | `pkg/plugin/error.go` |
+| `api/command/*.py` | Command handlers | `pkg/plugin/command/*.go` |
+| `api/dispatch/*.py` | Command dispatch | `pkg/plugin/dispatch.go` |
+| `api/response/*.py` | Response encoding | `pkg/plugin/response.go` |
 | `api/response/v4/*.py` | Legacy API format | N/A |
 
 ---
@@ -323,7 +323,7 @@
 | `encode.py` | Message encoder | `cmd/zebgp-decode/encode.go` |
 | `validate.py` | Config validator | `cmd/zebgp/validate.go` |
 | `healthcheck.py` | Health checking | N/A (Kubernetes probes) |
-| `pipe.py` | Pipe handling | `pkg/api/pipe.go` |
+| `pipe.py` | Pipe handling | `pkg/plugin/pipe.go` |
 | `server.py` | Server mode | `cmd/zebgp/server.go` |
 | `flow.py` | Flow generator | N/A (separate tool) |
 | `netlink.py` | Netlink interface | N/A (no FIB) |

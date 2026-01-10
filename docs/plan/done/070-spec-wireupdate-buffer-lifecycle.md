@@ -232,7 +232,7 @@ Separate pools ensure each session gets appropriately-sized buffers.
 - [x] Update `NewSession()` to not allocate readBuf
 
 ### Verification
-- [x] `make test` passes (pkg/reactor tests pass; unrelated pkg/api/process_test.go failures)
+- [x] `make test` passes (pkg/reactor tests pass; unrelated pkg/plugin/process_test.go failures)
 - [x] `make lint` passes (no session.go lint errors)
 - [x] `make functional` passes (37 tests)
 

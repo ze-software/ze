@@ -147,7 +147,7 @@ func (r *OutgoingRIB) InTransaction() bool
 
 **1.2 Add commit commands to API**
 ```go
-// pkg/api/commit.go
+// pkg/plugin/commit.go
 func handleCommitStart(ctx *Context, args []string) Response
 func handleCommitEnd(ctx *Context, args []string) Response
 func handleCommitRollback(ctx *Context, args []string) Response
@@ -155,7 +155,7 @@ func handleCommitRollback(ctx *Context, args []string) Response
 
 **1.3 Wire to dispatcher**
 ```go
-// pkg/api/dispatcher.go
+// pkg/plugin/dispatcher.go
 dispatcher.Register("commit", handleCommit)  // routes to start/end/rollback
 ```
 
@@ -399,13 +399,13 @@ commit rollback [label]
 - `pkg/rib/transaction.go` - Transaction state management
 - `pkg/rib/grouping.go` - Attribute-based route grouping
 - `pkg/rib/timer.go` - Auto-commit timer
-- `pkg/api/commit.go` - Commit command handlers
+- `pkg/plugin/commit.go` - Commit command handlers
 - `cmd/zebgp-fmt/main.go` - Config formatter (or integrate in zebgp)
 
 ### Modified Files
 - `pkg/rib/outgoing.go` - Add transaction support
-- `pkg/api/dispatcher.go` - Register commit commands
-- `pkg/api/types.go` - Add CommitStats type
+- `pkg/plugin/dispatcher.go` - Register commit commands
+- `pkg/plugin/types.go` - Add CommitStats type
 - `pkg/config/bgp.go` - Add rib section schema
 - `pkg/config/loader.go` - Load rib config, deprecation warnings
 - `pkg/reactor/reactor.go` - Wire RIB config to peers
@@ -442,7 +442,7 @@ Total: ~2-3 focused sessions
 
 ### Completed (2025-12-22)
 
-1. ✅ **Process spawning infrastructure** - `pkg/api/process.go` updated to set working directory
+1. ✅ **Process spawning infrastructure** - `pkg/plugin/process.go` updated to set working directory
 2. ✅ **API server process integration** - Server now starts ProcessManager and handles commands
 3. ✅ **Config loader** - Passes processes and config directory to reactor
 4. ✅ **Socket path configuration** - `zebgp_api_socketpath` env var for testing
@@ -807,7 +807,7 @@ The `.run` script communicates with zebgp via the process API:
 └──────────────┘                      └──────────────┘
 ```
 
-ZeBGP's process manager (`pkg/api/process.go`) handles:
+ZeBGP's process manager (`pkg/plugin/process.go`) handles:
 - Spawning the script
 - Piping stdin/stdout
 - Delivering API responses
@@ -907,7 +907,7 @@ done
                                   ▼
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │                           PROCESS MANAGER                                    │
-│                         (pkg/api/process.go)                                │
+│                         (pkg/plugin/process.go)                                │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │  Reads lines from script stdout                                             │
 │  Dispatches to command handlers                                             │
@@ -916,7 +916,7 @@ done
                                   ▼
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │                           API DISPATCHER                                     │
-│                         (pkg/api/dispatcher.go)                             │
+│                         (pkg/plugin/dispatcher.go)                             │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │  "commit start" → handleCommitStart()                                       │
 │  "announce route" → handleAnnounceRoute() [queues in RIB]                   │
@@ -1145,5 +1145,5 @@ With commit batching:
 - ZeBGP OutgoingRIB: `pkg/rib/outgoing.go`
 - ZeBGP config schema: `pkg/config/bgp.go`
 - ZeBGP self-check: `test/cmd/self-check/main.go`
-- ZeBGP process manager: `pkg/api/process.go`
+- ZeBGP process manager: `pkg/plugin/process.go`
 - Self-check system docs: `.claude/zebgp/SELF_CHECK_SYSTEM.md`

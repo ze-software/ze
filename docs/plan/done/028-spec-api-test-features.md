@@ -10,7 +10,7 @@
 │  2. .claude/INDEX.md - Find what docs to load                   │
 │  3. docs/plan/CLAUDE_CONTINUATION.md - Current state                 │
 │  4. THIS SPEC FILE - Design requirements                        │
-│  5. pkg/api/*.go, test/data/api/*.ci - Current implementation   │
+│  5. pkg/plugin/*.go, test/data/api/*.ci - Current implementation   │
 │                                                                 │
 │  DO NOT PROCEED until all are read and understood.              │
 └─────────────────────────────────────────────────────────────────┘
@@ -81,10 +81,10 @@ Implement remaining API features required to pass ExaBGP-compatible tests.
 
 | Feature | Files |
 |---------|-------|
-| teardown | `pkg/api/command.go`, `pkg/reactor/reactor.go` |
+| teardown | `pkg/plugin/command.go`, `pkg/reactor/reactor.go` |
 | notification | `test/cmd/zebgp-peer/main.go`, verify `pkg/reactor/session.go` |
-| receive updates | `pkg/reactor/session.go`, `pkg/api/process.go` |
-| watchdog | `pkg/api/watchdog.go` (new), `pkg/reactor/reactor.go` |
+| receive updates | `pkg/reactor/session.go`, `pkg/plugin/process.go` |
+| watchdog | `pkg/plugin/watchdog.go` (new), `pkg/reactor/reactor.go` |
 
 ## Implementation Steps
 
@@ -120,7 +120,7 @@ Implement remaining API features required to pass ExaBGP-compatible tests.
 
 1. Check ExaBGP watchdog implementation
 2. Write test for watchdog commands - MUST FAIL
-3. Create `pkg/api/watchdog.go`
+3. Create `pkg/plugin/watchdog.go`
 4. Register handlers for `announce watchdog`, `withdraw watchdog`
 5. Maintain watchdog state (name -> last_seen timestamp)
 6. Background goroutine checks for expired watchdogs

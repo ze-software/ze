@@ -12,13 +12,13 @@ import (
 	"sync/atomic"
 	"time"
 
-	"codeberg.org/thomas-mangin/zebgp/pkg/api"
 	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/attribute"
 	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/capability"
 	bgpctx "codeberg.org/thomas-mangin/zebgp/pkg/bgp/context"
 	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/fsm"
 	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/message"
 	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/nlri"
+	"codeberg.org/thomas-mangin/zebgp/pkg/plugin"
 	"codeberg.org/thomas-mangin/zebgp/pkg/rib"
 	"codeberg.org/thomas-mangin/zebgp/pkg/source"
 	"codeberg.org/thomas-mangin/zebgp/pkg/trace"
@@ -374,7 +374,7 @@ func (p *Peer) SetReactor(r *Reactor) {
 
 // getPluginCapabilities returns capabilities declared by API plugins.
 // Used as callback for Session.SetPluginCapabilityGetter().
-// Converts api.InjectedCapability to capability.Capability for OPEN injection.
+// Converts plugin.InjectedCapability to capability.Capability for OPEN injection.
 func (p *Peer) getPluginCapabilities() []capability.Capability {
 	p.mu.RLock()
 	r := p.reactor
@@ -414,14 +414,14 @@ func (p *Peer) packContext(family nlri.Family) *nlri.PackContext {
 //
 // RFC 4271 Section 5.1.3 - NEXT_HOP attribute.
 // RFC 5549/8950 - Extended Next Hop Encoding.
-func (p *Peer) resolveNextHop(nh api.RouteNextHop, family nlri.Family) (netip.Addr, error) {
+func (p *Peer) resolveNextHop(nh plugin.RouteNextHop, family nlri.Family) (netip.Addr, error) {
 	switch nh.Policy {
-	case api.NextHopExplicit:
+	case plugin.NextHopExplicit:
 		// Explicit addresses bypass validation - user is responsible.
 		// Returns invalid addr without error if that's what was configured.
 		return nh.Addr, nil
 
-	case api.NextHopSelf:
+	case plugin.NextHopSelf:
 		local := p.settings.LocalAddress
 		if !local.IsValid() {
 			return netip.Addr{}, ErrNextHopSelfNoLocal
@@ -432,7 +432,7 @@ func (p *Peer) resolveNextHop(nh api.RouteNextHop, family nlri.Family) (netip.Ad
 		}
 		return local, nil
 
-	case api.NextHopUnset:
+	case plugin.NextHopUnset:
 		return netip.Addr{}, ErrNextHopUnset
 
 	default:
@@ -1076,7 +1076,7 @@ func (p *Peer) SendUpdate(update *message.Update) error {
 // RFC 4271 Section 4.3 - UPDATE Message Format.
 // RFC 4760 Section 3 - MP_REACH_NLRI for IPv6 routes.
 // RFC 7911 - ADD-PATH encoding based on negotiated capabilities.
-func (p *Peer) SendAnnounce(route api.RouteSpec, localAS uint32) error {
+func (p *Peer) SendAnnounce(route plugin.RouteSpec, localAS uint32) error {
 	p.mu.RLock()
 	session := p.session
 	p.mu.RUnlock()

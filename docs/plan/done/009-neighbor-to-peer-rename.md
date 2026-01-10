@@ -310,7 +310,7 @@ pkg/config/bgp.go           # Schema + parsing
 pkg/config/bgp_test.go      # Tests
 pkg/reactor/reactor.go      # Reactor uses neighbor terminology
 pkg/reactor/peer.go         # Peer management
-pkg/api/json.go             # API output (update to use "peer")
+pkg/plugin/json.go             # API output (update to use "peer")
 ```
 
 ### API Changes
@@ -326,7 +326,7 @@ peer * withdraw route 10.0.0.0/8
 **JSON output also uses `peer`:**
 
 ```go
-// pkg/api/json.go - Updated to use "peer"
+// pkg/plugin/json.go - Updated to use "peer"
 msg["peer"] = peerSection(peer)  // ZeBGP native API
 ```
 
@@ -386,7 +386,7 @@ peer 192.0.2.1 { }
 | 3.1 | Rename `NeighborConfig` → `PeerConfig` | `pkg/config/bgp.go` |
 | 3.2 | Rename `neighborFields()` → `peerFields()` | `pkg/config/bgp.go` |
 | 3.3 | Update all references | `pkg/config/*.go`, `pkg/reactor/*.go` |
-| 3.4 | Update API JSON output to use `peer` | `pkg/api/json.go` |
+| 3.4 | Update API JSON output to use `peer` | `pkg/plugin/json.go` |
 | 3.5 | Update serializer to output v3 format | `pkg/config/serialize.go` |
 | 3.6 | Update `zebgp config dump` command | `cmd/zebgp/config_dump.go` |
 | 3.7 | Update tests | `*_test.go` |

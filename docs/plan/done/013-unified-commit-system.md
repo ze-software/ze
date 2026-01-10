@@ -19,7 +19,7 @@
 
 | Task | Description | Status |
 |------|-------------|--------|
-| 3.1 | CommitManager for concurrent commits | ✅ `pkg/api/commit_manager.go` |
+| 3.1 | CommitManager for concurrent commits | ✅ `pkg/plugin/commit_manager.go` |
 | 3.2 | `commit <name> start` | ✅ |
 | 3.3 | `commit <name> end` (no EOR) | ✅ |
 | 3.4 | `commit <name> eor` (with EOR) | ✅ |
@@ -33,7 +33,7 @@
 
 ### Key Implementation Details
 
-- **SendRoutes method** added to ReactorInterface (`pkg/api/types.go:200`)
+- **SendRoutes method** added to ReactorInterface (`pkg/plugin/types.go:200`)
 - **SendRoutes implementation** in reactor uses CommitService (`pkg/reactor/reactor.go:672-740`)
 - **handleNamedCommitEnd** wired to call SendRoutes with routes from Transaction
 - **Announce/Withdraw handlers** parse routes and queue to Transaction
@@ -261,7 +261,7 @@ commit batch1 eor   # → 1 grouped UPDATE + EOR
 ```
 
 ```go
-// pkg/api/commit.go
+// pkg/plugin/commit.go
 
 // CommitManager tracks multiple concurrent commits
 type CommitManager struct {
@@ -376,17 +376,17 @@ func handleCommit(ctx *APIContext, args []string) Response {
 
 | # | Task | Files |
 |---|------|-------|
-| 3.1 | Create CommitManager for multiple concurrent commits | `pkg/api/commit.go` |
-| 3.2 | Implement `commit [name] start` | `pkg/api/commit.go` |
-| 3.3 | Implement `commit [name] end` (no EOR) | `pkg/api/commit.go` |
-| 3.4 | Implement `commit [name] eor` (with EOR) | `pkg/api/commit.go` |
-| 3.5 | Implement `commit [name] rollback` | `pkg/api/commit.go` |
-| 3.6 | Handle `commit <name> announce/withdraw` routing | `pkg/api/commit.go` |
-| 3.7 | Implement `commit list` (introspection) | `pkg/api/commit.go` |
-| 3.8 | Implement `commit <name> show` (introspection) | `pkg/api/commit.go` |
-| 3.9 | Handle route conflicts (replace) and cancel (withdraw after announce) | `pkg/api/commit.go` |
-| 3.10 | Register commands in dispatcher | `pkg/api/dispatcher.go` |
-| 3.11 | Tests for API commit commands | `pkg/api/commit_test.go` |
+| 3.1 | Create CommitManager for multiple concurrent commits | `pkg/plugin/commit.go` |
+| 3.2 | Implement `commit [name] start` | `pkg/plugin/commit.go` |
+| 3.3 | Implement `commit [name] end` (no EOR) | `pkg/plugin/commit.go` |
+| 3.4 | Implement `commit [name] eor` (with EOR) | `pkg/plugin/commit.go` |
+| 3.5 | Implement `commit [name] rollback` | `pkg/plugin/commit.go` |
+| 3.6 | Handle `commit <name> announce/withdraw` routing | `pkg/plugin/commit.go` |
+| 3.7 | Implement `commit list` (introspection) | `pkg/plugin/commit.go` |
+| 3.8 | Implement `commit <name> show` (introspection) | `pkg/plugin/commit.go` |
+| 3.9 | Handle route conflicts (replace) and cancel (withdraw after announce) | `pkg/plugin/commit.go` |
+| 3.10 | Register commands in dispatcher | `pkg/plugin/dispatcher.go` |
+| 3.11 | Tests for API commit commands | `pkg/plugin/commit_test.go` |
 
 **Command syntax:**
 ```

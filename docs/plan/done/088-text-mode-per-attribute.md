@@ -66,8 +66,8 @@ Note: `rd` and `label` not yet implemented.
 - [x] `.claude/zebgp/api/ARCHITECTURE.md` - API command structure, UpdateText parser
 - [x] `.claude/zebgp/wire/ATTRIBUTES.md` - attribute types (scalar vs list) for set/add/del validation
 - [x] `.claude/zebgp/UPDATE_BUILDING.md` - Build path for API routes
-- [x] `pkg/api/update_text.go` - current parser implementation
-- [x] `pkg/api/update_text_test.go` - existing tests to update
+- [x] `pkg/plugin/update_text.go` - current parser implementation
+- [x] `pkg/plugin/update_text_test.go` - existing tests to update
 
 **Key insights:**
 - Spec defines text mode as per-attribute keywords: `origin set igp`, `med set 100`
@@ -84,14 +84,14 @@ Note: `rd` and `label` not yet implemented.
 
 | Test | File | Validates |
 |------|------|-----------|
-| `TestParseUpdateText_OriginSetIGP` | `pkg/api/update_text_test.go` | `origin set igp` parses to Origin=0 |
-| `TestParseUpdateText_MedSet` | `pkg/api/update_text_test.go` | `med set 100` parses to MED=100 |
-| `TestParseUpdateText_LocalPrefSet` | `pkg/api/update_text_test.go` | `local-preference set 200` parses |
-| `TestParseUpdateText_CommunitySet` | `pkg/api/update_text_test.go` | `community set [65000:1]` replaces |
-| `TestParseUpdateText_CommunityAdd` | `pkg/api/update_text_test.go` | `community add [65000:2]` appends |
-| `TestParseUpdateText_CommunityDel` | `pkg/api/update_text_test.go` | `community del [65000:1]` removes |
-| `TestParseUpdateText_MultipleAttrs` | `pkg/api/update_text_test.go` | `origin set igp med set 100` both parsed |
-| `TestParseUpdateText_OldAttrSetRejected` | `pkg/api/update_text_test.go` | `attr set origin igp` returns error for text mode |
+| `TestParseUpdateText_OriginSetIGP` | `pkg/plugin/update_text_test.go` | `origin set igp` parses to Origin=0 |
+| `TestParseUpdateText_MedSet` | `pkg/plugin/update_text_test.go` | `med set 100` parses to MED=100 |
+| `TestParseUpdateText_LocalPrefSet` | `pkg/plugin/update_text_test.go` | `local-preference set 200` parses |
+| `TestParseUpdateText_CommunitySet` | `pkg/plugin/update_text_test.go` | `community set [65000:1]` replaces |
+| `TestParseUpdateText_CommunityAdd` | `pkg/plugin/update_text_test.go` | `community add [65000:2]` appends |
+| `TestParseUpdateText_CommunityDel` | `pkg/plugin/update_text_test.go` | `community del [65000:1]` removes |
+| `TestParseUpdateText_MultipleAttrs` | `pkg/plugin/update_text_test.go` | `origin set igp med set 100` both parsed |
+| `TestParseUpdateText_OldAttrSetRejected` | `pkg/plugin/update_text_test.go` | `attr set origin igp` returns error for text mode |
 
 ### Functional Tests
 
@@ -101,8 +101,8 @@ Note: `rd` and `label` not yet implemented.
 
 ## Files to Modify
 
-- `pkg/api/update_text.go` - add attribute keywords as section starters
-- `pkg/api/update_text_test.go` - update 50+ tests to new syntax
+- `pkg/plugin/update_text.go` - add attribute keywords as section starters
+- `pkg/plugin/update_text_test.go` - update 50+ tests to new syntax
 - `scripts/migrate-api-syntax.py` - fix to generate per-attribute format
 - `test/data/api/*.run` - re-migrate using fixed script
 

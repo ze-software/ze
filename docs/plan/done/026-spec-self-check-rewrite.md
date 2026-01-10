@@ -347,7 +347,7 @@ Examples:
 | test/pkg/tests.go | qa/bin/functional:Tests class |
 | test/pkg/timing.go | qa/bin/functional:timing functions |
 | test/pkg/encoding.go | qa/bin/functional:EncodingTests |
-| test/pkg/api.go | qa/bin/functional:APITests |
+| test/pkg/plugin.go | qa/bin/functional:APITests |
 | test/cmd/functional | qa/bin/functional (main) |
 | test/cmd/test-everything | qa/bin/test_everything |
 

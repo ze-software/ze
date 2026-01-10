@@ -11,8 +11,8 @@ Add config option to limit which attributes are parsed and output in API message
 - [x] `.claude/zebgp/config/SYNTAX.md` - API block syntax
 - [x] `.claude/zebgp/EXABGP_COMPATIBILITY.md` - Compatibility philosophy
 - [x] `pkg/bgp/attribute/wire.go` - AttributesWire implementation
-- [x] `pkg/api/decode.go` - UPDATE parsing, attribute extraction pattern
-- [x] `pkg/api/types.go` - ContentConfig, RawMessage structures
+- [x] `pkg/plugin/decode.go` - UPDATE parsing, attribute extraction pattern
+- [x] `pkg/plugin/types.go` - ContentConfig, RawMessage structures
 
 **Key insights from docs:**
 
@@ -21,7 +21,7 @@ Add config option to limit which attributes are parsed and output in API message
 3. AttributesWire has lazy parsing: `GetMultiple()` returns `map[Code]Attribute`
 4. AttributesWire.All() returns `[]Attribute` (NOT map) - need conversion
 5. AttributesWire has internal `sync.RWMutex` - no external mutex needed
-6. Attribute bytes extraction pattern in `pkg/api/decode.go:43-49`
+6. Attribute bytes extraction pattern in `pkg/plugin/decode.go:43-49`
 7. **Gap:** RawMessage needs AttrsWire field for lazy parsing
 8. ZeBGP uses plural `communities`, ExaBGP uses singular (documented difference)
 
@@ -29,23 +29,23 @@ Add config option to limit which attributes are parsed and output in API message
 
 - Tests: `make test` PASS, `make lint` 0 issues, `make functional` 37/37
 - AttributesWire: `pkg/bgp/attribute/wire.go`
-- Existing decode: `pkg/api/decode.go`
+- Existing decode: `pkg/plugin/decode.go`
 
 ## Files to Modify
 
 | File | Change |
 |------|--------|
-| `pkg/api/filter.go` | NEW: AttributeFilter type with FilterMode enum |
-| `pkg/api/types.go` | Add `AttrsWire` to RawMessage, `Attributes` to ContentConfig |
-| `pkg/api/types.go` | REMOVE: `ContentConfig.Version`, `PeerAPIBinding.Version`, `APIVersionLegacy`, `APIVersionNLRI` |
-| `pkg/api/text.go` | REMOVE: `formatMessageV6()`, `formatMessageV7()` and related |
-| `pkg/api/text.go` | ADD: `formatGroupedJSON()`, `formatParsedText()`, etc. |
-| `pkg/api/decode.go` | Add `ExtractAttributeBytes()` helper |
+| `pkg/plugin/filter.go` | NEW: AttributeFilter type with FilterMode enum |
+| `pkg/plugin/types.go` | Add `AttrsWire` to RawMessage, `Attributes` to ContentConfig |
+| `pkg/plugin/types.go` | REMOVE: `ContentConfig.Version`, `PeerAPIBinding.Version`, `APIVersionLegacy`, `APIVersionNLRI` |
+| `pkg/plugin/text.go` | REMOVE: `formatMessageV6()`, `formatMessageV7()` and related |
+| `pkg/plugin/text.go` | ADD: `formatGroupedJSON()`, `formatParsedText()`, etc. |
+| `pkg/plugin/decode.go` | Add `ExtractAttributeBytes()` helper |
 | `pkg/bgp/attribute/wire.go` | Add `GetMPReachPrefixes()`, `GetMPUnreachPrefixes()` if not present |
 | `pkg/config/api.go` | Add `parseAttributeFilter()` |
 | `pkg/config/bgp.go` | Add `Attributes` to PeerContentConfig |
 | `pkg/reactor/reactor.go` | Create AttrsWire, pass in RawMessage |
-| `pkg/api/*_test.go` | Update tests to remove Version references |
+| `pkg/plugin/*_test.go` | Update tests to remove Version references |
 
 ## Problem
 
@@ -175,7 +175,7 @@ This format groups NLRI by address family with shared attributes, matching BGP U
 ### AttributeFilter Type (No Invalid States, No Mutex)
 
 ```go
-// pkg/api/filter.go
+// pkg/plugin/filter.go
 
 package api
 
@@ -344,7 +344,7 @@ func (w *AttributesWire) GetMPUnreachPrefixes() []netip.Prefix
 ### Attribute Bytes Extraction
 
 ```go
-// pkg/api/decode.go - add helper function
+// pkg/plugin/decode.go - add helper function
 
 // ExtractAttributeBytes extracts the path attributes section from UPDATE body.
 // Returns nil if body is malformed or has no attributes.
@@ -474,7 +474,7 @@ func validAttributeNames() string {
 ### RawMessage Extension
 
 ```go
-// pkg/api/types.go - add to RawMessage
+// pkg/plugin/types.go - add to RawMessage
 
 type RawMessage struct {
     Type      message.MessageType
@@ -488,7 +488,7 @@ type RawMessage struct {
 ### ContentConfig Cleanup
 
 ```go
-// pkg/api/types.go - modify ContentConfig
+// pkg/plugin/types.go - modify ContentConfig
 // REMOVE: Version field, APIVersionLegacy, APIVersionNLRI constants
 
 type ContentConfig struct {
@@ -530,7 +530,7 @@ if msgType == message.TypeUPDATE && hasPeer {
 ### Grouped JSON Formatter
 
 ```go
-// pkg/api/text.go
+// pkg/plugin/text.go
 
 // formatGroupedJSON formats UPDATE in grouped format (ZeBGP extension).
 // NLRI grouped by family as string arrays, attributes shared at announce level.
@@ -773,7 +773,7 @@ func writeAttributeValue(sb *strings.Builder, attr attribute.Attribute) {
 ### FormatMessage Integration
 
 ```go
-// pkg/api/text.go - modify FormatMessage
+// pkg/plugin/text.go - modify FormatMessage
 
 func FormatMessage(peer PeerInfo, msg RawMessage, content ContentConfig) string {
     content = content.WithDefaults()
@@ -817,7 +817,7 @@ func FormatMessage(peer PeerInfo, msg RawMessage, content ContentConfig) string 
 ### Raw and Full JSON Formats
 
 ```go
-// pkg/api/text.go
+// pkg/plugin/text.go
 
 // formatRawJSON outputs UPDATE as hex bytes in JSON wrapper.
 func formatRawJSON(peer PeerInfo, msg RawMessage) string {
@@ -888,7 +888,7 @@ func formatFullJSON(peer PeerInfo, msg RawMessage, fr FilterResult) string {
 ### Text Format Definitions
 
 ```go
-// pkg/api/text.go
+// pkg/plugin/text.go
 
 // formatParsedText formats UPDATE as human-readable text.
 // Format: peer <ip> update announce <family> <prefix> [<prefix>...] attributes <attr>=<value> ...
@@ -1150,7 +1150,7 @@ The functional test framework tests ZeBGP→peer direction, not peer→ZeBGP→A
 Use unit tests for attribute filtering:
 
 ```go
-// pkg/api/filter_test.go
+// pkg/plugin/filter_test.go
 
 // TestAttributeFilterModeAll verifies all attributes included.
 // VALIDATES: Apply() with FilterModeAll returns all attrs as map.
@@ -1228,7 +1228,7 @@ func TestParseAttributeFilterCommunityCompat(t *testing.T)
 ```
 
 ```go
-// pkg/api/text_test.go
+// pkg/plugin/text_test.go
 
 // TestFormatGroupedJSON verifies grouped output format.
 // VALIDATES: NLRI as string arrays, attributes at announce level.
@@ -1257,7 +1257,7 @@ func TestFormatGroupedJSONWithdraw(t *testing.T)
 ```
 
 ```go
-// pkg/api/decode_test.go
+// pkg/plugin/decode_test.go
 
 // TestExtractAttributeBytes verifies extraction.
 // VALIDATES: Correct byte range returned.
@@ -1276,7 +1276,7 @@ func TestExtractAttributeBytesMalformed(t *testing.T)
 ```
 
 ```go
-// pkg/api/text_test.go
+// pkg/plugin/text_test.go
 
 // TestWriteAttributeValue verifies JSON attribute serialization.
 // VALIDATES: Each attribute type serializes correctly.
@@ -1312,11 +1312,11 @@ For end-to-end validation, manually test with real BGP session:
 
 1. Write test for ExtractAttributeBytes (TDD)
 2. See test FAIL
-3. Implement `pkg/api/decode.go:ExtractAttributeBytes()`
+3. Implement `pkg/plugin/decode.go:ExtractAttributeBytes()`
 4. See test PASS
 5. Write test for AttributeFilter type (TDD)
 6. See test FAIL
-7. Implement `pkg/api/filter.go`
+7. Implement `pkg/plugin/filter.go`
 8. See test PASS
 9. Write test for parseAttributeFilter (TDD)
 10. See test FAIL
@@ -1412,7 +1412,7 @@ For end-to-end validation, manually test with real BGP session:
 
 #### 🔴 Issue 1: String comparison for message type
 
-**Location:** `pkg/api/text.go:169`
+**Location:** `pkg/plugin/text.go:169`
 
 ```go
 if msg.Type.String() == "UPDATE" && msg.AttrsWire != nil {
@@ -1424,7 +1424,7 @@ if msg.Type.String() == "UPDATE" && msg.AttrsWire != nil {
 
 #### 🔴 Issue 2: formatFullFromResult JSON incomplete
 
-**Location:** `pkg/api/text.go:228-231`
+**Location:** `pkg/plugin/text.go:228-231`
 
 ```go
 if content.Encoding == EncodingJSON {
@@ -1442,7 +1442,7 @@ return strings.TrimSuffix(parsed, "}\n") + fmt.Sprintf(`,"raw":"%s"}`+"\n", rawH
 
 #### 🟡 Issue 3: Single NextHop for all prefixes
 
-**Location:** `pkg/api/filter.go` FilterResult struct
+**Location:** `pkg/plugin/filter.go` FilterResult struct
 
 ```go
 NextHop netip.Addr  // Single next-hop for all prefixes
@@ -1470,7 +1470,7 @@ Then in formatters, use appropriate next-hop based on prefix family.
 RawMessage with AttrsWire → FormatMessage → verify formatted output
 ```
 
-**Fix:** Add test in `pkg/api/text_test.go`:
+**Fix:** Add test in `pkg/plugin/text_test.go`:
 ```go
 func TestFormatMessageWithAttrsWire(t *testing.T) {
     // Build UPDATE with known attributes
@@ -1698,9 +1698,9 @@ type FilterResult struct {
 
 ### Tasks
 
-- [x] Add `MPReachWire` type with methods (`pkg/api/mpwire.go`)
-- [x] Add `MPUnreachWire` type with methods (`pkg/api/mpwire.go`)
-- [x] Add `IPv4Reach` / `IPv4Withdraw` structs (`pkg/api/mpwire.go`)
+- [x] Add `MPReachWire` type with methods (`pkg/plugin/mpwire.go`)
+- [x] Add `MPUnreachWire` type with methods (`pkg/plugin/mpwire.go`)
+- [x] Add `IPv4Reach` / `IPv4Withdraw` structs (`pkg/plugin/mpwire.go`)
 - [x] Update `FilterResult` with new fields (MPReach, MPUnreach, IPv4Announced, IPv4Withdrawn)
 - [x] Remove legacy fields: `NextHopIPv4`, `NextHopIPv6`, `Announced`, `Withdrawn`, `NextHopFor()`
 - [x] Add `AttributesWire.GetRaw(code)` - zero-copy raw attr bytes (`pkg/bgp/attribute/wire.go`)

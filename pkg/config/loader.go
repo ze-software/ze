@@ -11,9 +11,9 @@ import (
 	"strings"
 	"time"
 
-	"codeberg.org/thomas-mangin/zebgp/pkg/api"
 	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/capability"
 	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/nlri"
+	"codeberg.org/thomas-mangin/zebgp/pkg/plugin"
 	"codeberg.org/thomas-mangin/zebgp/pkg/reactor"
 	"codeberg.org/thomas-mangin/zebgp/pkg/trace"
 )
@@ -322,11 +322,11 @@ func configToPeer(nc *PeerConfig, global *BGPConfig) (*reactor.PeerSettings, err
 		}
 
 		// Create RouteNextHop from config
-		var nextHop api.RouteNextHop
+		var nextHop plugin.RouteNextHop
 		if sr.NextHopSelf {
-			nextHop = api.NewNextHopSelf()
+			nextHop = plugin.NewNextHopSelf()
 		} else if attrs.NextHop.IsValid() {
-			nextHop = api.NewNextHopExplicit(attrs.NextHop)
+			nextHop = plugin.NewNextHopExplicit(attrs.NextHop)
 		}
 
 		// Convert raw attributes

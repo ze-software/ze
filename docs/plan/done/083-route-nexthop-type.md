@@ -28,7 +28,7 @@ Replace the dual-field pattern (`NextHop netip.Addr` + `NextHopSelf bool`) with 
 ### RouteNextHop Type
 
 ```go
-// pkg/api/nexthop.go
+// pkg/plugin/nexthop.go
 
 // NextHopPolicy specifies how next-hop is determined for a route.
 type NextHopPolicy uint8
@@ -122,12 +122,12 @@ func (p *Peer) canUseNextHopFor(addr netip.Addr, family nlri.Family) bool {
 
 | Test | File | Validates |
 |------|------|-----------|
-| `TestRouteNextHop_Constructors` | `pkg/api/nexthop_test.go` | NewNextHopExplicit, NewNextHopSelf |
-| `TestRouteNextHop_ZeroValue` | `pkg/api/nexthop_test.go` | Zero value is invalid |
-| `TestRouteNextHop_IsSelf` | `pkg/api/nexthop_test.go` | IsSelf() returns correct bool |
-| `TestRouteNextHop_IsExplicit` | `pkg/api/nexthop_test.go` | IsExplicit() returns correct bool |
-| `TestRouteNextHop_IsValid` | `pkg/api/nexthop_test.go` | IsValid(): Self=true, Explicit+valid=true, Explicit+invalid=false, Unset=false |
-| `TestRouteNextHop_String` | `pkg/api/nexthop_test.go` | String(): Self="self", Explicit=IP, Unset="", Explicit+invalid="" |
+| `TestRouteNextHop_Constructors` | `pkg/plugin/nexthop_test.go` | NewNextHopExplicit, NewNextHopSelf |
+| `TestRouteNextHop_ZeroValue` | `pkg/plugin/nexthop_test.go` | Zero value is invalid |
+| `TestRouteNextHop_IsSelf` | `pkg/plugin/nexthop_test.go` | IsSelf() returns correct bool |
+| `TestRouteNextHop_IsExplicit` | `pkg/plugin/nexthop_test.go` | IsExplicit() returns correct bool |
+| `TestRouteNextHop_IsValid` | `pkg/plugin/nexthop_test.go` | IsValid(): Self=true, Explicit+valid=true, Explicit+invalid=false, Unset=false |
+| `TestRouteNextHop_String` | `pkg/plugin/nexthop_test.go` | String(): Self="self", Explicit=IP, Unset="", Explicit+invalid="" |
 | `TestResolveNextHop_Explicit` | `pkg/reactor/peer_test.go` | Explicit returns configured addr |
 | `TestResolveNextHop_Self` | `pkg/reactor/peer_test.go` | Self returns LocalAddress |
 | `TestResolveNextHop_SelfNoLocal` | `pkg/reactor/peer_test.go` | Self with no LocalAddress errors |
@@ -147,11 +147,11 @@ func (p *Peer) canUseNextHopFor(addr netip.Addr, family nlri.Family) bool {
 
 ## Files to Modify
 
-- `pkg/api/nexthop.go` - **NEW** RouteNextHop type and constructors
-- `pkg/api/nexthop_test.go` - **NEW** Unit tests
-- `pkg/api/types.go` - Update RouteSpec, NLRIGroup, NLRIBatch to use RouteNextHop
-- `pkg/api/route.go` - Update parsing to create RouteNextHop
-- `pkg/api/update_text.go` - Update parsedAttrs and parsing to use RouteNextHop
+- `pkg/plugin/nexthop.go` - **NEW** RouteNextHop type and constructors
+- `pkg/plugin/nexthop_test.go` - **NEW** Unit tests
+- `pkg/plugin/types.go` - Update RouteSpec, NLRIGroup, NLRIBatch to use RouteNextHop
+- `pkg/plugin/route.go` - Update parsing to create RouteNextHop
+- `pkg/plugin/update_text.go` - Update parsedAttrs and parsing to use RouteNextHop
 - `pkg/reactor/peersettings.go` - Update StaticRoute to use RouteNextHop
 - `pkg/reactor/peer.go` - Add resolveNextHop(), canUseNextHopFor(), error vars
 - `pkg/reactor/peer_test.go` - Add resolution tests
@@ -161,7 +161,7 @@ func (p *Peer) canUseNextHopFor(addr netip.Addr, family nlri.Family) bool {
 
 ## Implementation Steps
 
-1. **Write tests** - Create `pkg/api/nexthop_test.go` and `pkg/reactor/peer_test.go` additions
+1. **Write tests** - Create `pkg/plugin/nexthop_test.go` and `pkg/reactor/peer_test.go` additions
 2. **Run tests** - Verify FAIL (paste output)
 3. **Implement** - Minimal code: nexthop.go, peer.go resolution methods
 4. **Run tests** - Verify PASS (paste output)
@@ -181,10 +181,10 @@ func (p *Peer) canUseNextHopFor(addr netip.Addr, family nlri.Family) bool {
 
 | Type | Location | Fields |
 |------|----------|--------|
-| `RouteSpec` | `pkg/api/types.go` | `NextHop`, `NextHopSelf` |
-| `NLRIGroup` | `pkg/api/types.go` | `NextHop`, `NextHopSelf` |
-| `NLRIBatch` | `pkg/api/types.go` | `NextHop`, `NextHopSelf` |
-| `parsedAttrs` | `pkg/api/update_text.go` | `NextHop`, `NextHopSelf` |
+| `RouteSpec` | `pkg/plugin/types.go` | `NextHop`, `NextHopSelf` |
+| `NLRIGroup` | `pkg/plugin/types.go` | `NextHop`, `NextHopSelf` |
+| `NLRIBatch` | `pkg/plugin/types.go` | `NextHop`, `NextHopSelf` |
+| `parsedAttrs` | `pkg/plugin/update_text.go` | `NextHop`, `NextHopSelf` |
 | `StaticRoute` | `pkg/reactor/peersettings.go` | `NextHop`, `NextHopSelf` |
 
 ### Before

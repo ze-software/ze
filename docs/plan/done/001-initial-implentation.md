@@ -1703,7 +1703,7 @@ func (c *CLI) Run() error {
 ### 12.1 Unix Socket API
 
 ```go
-// pkg/api/server.go
+// pkg/plugin/server.go
 
 type Server struct {
     reactor    *Reactor
@@ -1749,7 +1749,7 @@ func (s *Server) acceptLoop(ctx context.Context) {
 ### 12.2 API Commands
 
 ```go
-// pkg/api/command/commands.go
+// pkg/plugin/command/commands.go
 
 type CommandRegistry struct {
     commands map[string]CommandHandler
@@ -1784,7 +1784,7 @@ func showNeighborSummary(r *Reactor, args []string) (string, error) {
 ### 12.3 JSON Output Format
 
 ```go
-// pkg/api/json.go
+// pkg/plugin/json.go
 
 // JSONEncoder produces ExaBGP-compatible JSON output
 type JSONEncoder struct {
@@ -1818,7 +1818,7 @@ func (e *JSONEncoder) EncodeUpdate(update *Update, neighbor *Neighbor) ([]byte, 
 ### 12.4 External Process Communication
 
 ```go
-// pkg/api/process.go
+// pkg/plugin/process.go
 
 // ProcessManager handles external API processes
 type ProcessManager struct {

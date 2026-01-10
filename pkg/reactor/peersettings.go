@@ -7,8 +7,8 @@ import (
 	"net/netip"
 	"time"
 
-	"codeberg.org/thomas-mangin/zebgp/pkg/api"
 	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/capability"
+	"codeberg.org/thomas-mangin/zebgp/pkg/plugin"
 )
 
 // DefaultBGPPort is the standard BGP port per RFC 4271.
@@ -25,7 +25,7 @@ const DefaultHoldTime = 90 * time.Second
 // copies for efficiency; mutation would corrupt internal state.
 type StaticRoute struct {
 	Prefix  netip.Prefix
-	NextHop api.RouteNextHop // Encapsulates next-hop policy (explicit or self)
+	NextHop plugin.RouteNextHop // Encapsulates next-hop policy (explicit or self)
 
 	Origin          uint8  // 0=IGP, 1=EGP, 2=INCOMPLETE
 	LocalPreference uint32 // For iBGP

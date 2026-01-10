@@ -8,9 +8,9 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"codeberg.org/thomas-mangin/zebgp/pkg/api"
 	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/attribute"
 	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/nlri"
+	"codeberg.org/thomas-mangin/zebgp/pkg/plugin"
 )
 
 // TestBuildBatchAttributes verifies attribute conversion for RIB routes.
@@ -25,12 +25,12 @@ func TestBuildBatchAttributes(t *testing.T) {
 	med := uint32(100)
 	localPref := uint32(200)
 
-	attrs := api.PathAttributes{
+	attrs := plugin.PathAttributes{
 		Origin:          &origin,
 		MED:             &med,
 		LocalPreference: &localPref,
 		Communities:     []uint32{65000<<16 | 100, 65000<<16 | 200},
-		LargeCommunities: []api.LargeCommunity{
+		LargeCommunities: []plugin.LargeCommunity{
 			{GlobalAdmin: 65000, LocalData1: 1, LocalData2: 2},
 		},
 		ExtendedCommunities: []attribute.ExtendedCommunity{
@@ -72,7 +72,7 @@ func TestBuildBatchAttributes_Minimal(t *testing.T) {
 	r := &Reactor{config: &Config{LocalAS: 65000}}
 	adapter := &reactorAPIAdapter{r: r}
 
-	attrs := api.PathAttributes{}
+	attrs := plugin.PathAttributes{}
 	result := adapter.buildBatchAttributes(attrs)
 
 	// Should have just ORIGIN IGP
@@ -142,14 +142,14 @@ func TestAnnounceNLRIBatch_NoMatchingPeers(t *testing.T) {
 	}
 	adapter := &reactorAPIAdapter{r: r}
 
-	batch := api.NLRIBatch{
+	batch := plugin.NLRIBatch{
 		Family:  nlri.IPv4Unicast,
 		NLRIs:   []nlri.NLRI{nlri.NewINET(nlri.IPv4Unicast, netip.MustParsePrefix("10.0.0.0/24"), 0)},
-		NextHop: api.NewNextHopExplicit(netip.MustParseAddr("10.0.0.1")),
+		NextHop: plugin.NewNextHopExplicit(netip.MustParseAddr("10.0.0.1")),
 	}
 
 	err := adapter.AnnounceNLRIBatch("192.168.1.1", batch)
-	assert.ErrorIs(t, err, api.ErrNoPeersMatch)
+	assert.ErrorIs(t, err, plugin.ErrNoPeersMatch)
 }
 
 // TestWithdrawNLRIBatch_NoMatchingPeers verifies error when no peers match.
@@ -163,13 +163,13 @@ func TestWithdrawNLRIBatch_NoMatchingPeers(t *testing.T) {
 	}
 	adapter := &reactorAPIAdapter{r: r}
 
-	batch := api.NLRIBatch{
+	batch := plugin.NLRIBatch{
 		Family: nlri.IPv4Unicast,
 		NLRIs:  []nlri.NLRI{nlri.NewINET(nlri.IPv4Unicast, netip.MustParsePrefix("10.0.0.0/24"), 0)},
 	}
 
 	err := adapter.WithdrawNLRIBatch("192.168.1.1", batch)
-	assert.ErrorIs(t, err, api.ErrNoPeersMatch)
+	assert.ErrorIs(t, err, plugin.ErrNoPeersMatch)
 }
 
 // TestAnnounceNLRIBatch_FamilyNotNegotiated verifies warning when family not negotiated.
@@ -199,15 +199,15 @@ func TestAnnounceNLRIBatch_FamilyNotNegotiated(t *testing.T) {
 	adapter := &reactorAPIAdapter{r: r}
 
 	// Try to announce IPv6 - all peers skipped
-	batch := api.NLRIBatch{
+	batch := plugin.NLRIBatch{
 		Family:  nlri.IPv6Unicast,
 		NLRIs:   []nlri.NLRI{nlri.NewINET(nlri.IPv6Unicast, netip.MustParsePrefix("2001:db8::/32"), 0)},
-		NextHop: api.NewNextHopExplicit(netip.MustParseAddr("2001:db8::1")),
+		NextHop: plugin.NewNextHopExplicit(netip.MustParseAddr("2001:db8::1")),
 	}
 
 	// Should return warning error when all peers skipped
 	err := adapter.AnnounceNLRIBatch("*", batch)
-	assert.ErrorIs(t, err, api.ErrNoPeersAcceptedFamily)
+	assert.ErrorIs(t, err, plugin.ErrNoPeersAcceptedFamily)
 }
 
 // TestWithdrawNLRIBatch_FamilyNotNegotiated verifies warning when family not negotiated.
@@ -237,14 +237,14 @@ func TestWithdrawNLRIBatch_FamilyNotNegotiated(t *testing.T) {
 	adapter := &reactorAPIAdapter{r: r}
 
 	// Try to withdraw IPv6 - all peers skipped
-	batch := api.NLRIBatch{
+	batch := plugin.NLRIBatch{
 		Family: nlri.IPv6Unicast,
 		NLRIs:  []nlri.NLRI{nlri.NewINET(nlri.IPv6Unicast, netip.MustParsePrefix("2001:db8::/32"), 0)},
 	}
 
 	// Should return warning error when all peers skipped
 	err := adapter.WithdrawNLRIBatch("*", batch)
-	assert.ErrorIs(t, err, api.ErrNoPeersAcceptedFamily)
+	assert.ErrorIs(t, err, plugin.ErrNoPeersAcceptedFamily)
 }
 
 // TestAnnounceNLRIBatch_QueueForNonEstablished verifies queueing behavior.
@@ -268,13 +268,13 @@ func TestAnnounceNLRIBatch_QueueForNonEstablished(t *testing.T) {
 	}
 	adapter := &reactorAPIAdapter{r: r}
 
-	batch := api.NLRIBatch{
+	batch := plugin.NLRIBatch{
 		Family: nlri.IPv4Unicast,
 		NLRIs: []nlri.NLRI{
 			nlri.NewINET(nlri.IPv4Unicast, netip.MustParsePrefix("10.0.0.0/24"), 0),
 			nlri.NewINET(nlri.IPv4Unicast, netip.MustParsePrefix("10.0.1.0/24"), 0),
 		},
-		NextHop: api.NewNextHopExplicit(netip.MustParseAddr("10.0.0.1")),
+		NextHop: plugin.NewNextHopExplicit(netip.MustParseAddr("10.0.0.1")),
 	}
 
 	err := adapter.AnnounceNLRIBatch("*", batch)
@@ -309,7 +309,7 @@ func TestWithdrawNLRIBatch_QueueForNonEstablished(t *testing.T) {
 	}
 	adapter := &reactorAPIAdapter{r: r}
 
-	batch := api.NLRIBatch{
+	batch := plugin.NLRIBatch{
 		Family: nlri.IPv4Unicast,
 		NLRIs: []nlri.NLRI{
 			nlri.NewINET(nlri.IPv4Unicast, netip.MustParsePrefix("10.0.0.0/24"), 0),
@@ -348,11 +348,11 @@ func TestBuildBatchAnnounceUpdate_WireMode_IPv4(t *testing.T) {
 	wn, err := nlri.NewWireNLRI(nlri.IPv4Unicast, []byte{0x18, 0x0a, 0x00, 0x00}, false)
 	require.NoError(t, err)
 
-	batch := api.NLRIBatch{
+	batch := plugin.NLRIBatch{
 		Family:  nlri.IPv4Unicast,
 		NLRIs:   []nlri.NLRI{wn},
-		NextHop: api.NewNextHopExplicit(netip.MustParseAddr("10.0.0.1")),
-		Attrs:   api.PathAttributes{Wire: attrsWire},
+		NextHop: plugin.NewNextHopExplicit(netip.MustParseAddr("10.0.0.1")),
+		Attrs:   plugin.PathAttributes{Wire: attrsWire},
 	}
 
 	// Use nil context (default ASN4=true, no ADD-PATH)
@@ -382,11 +382,11 @@ func TestBuildBatchAnnounceUpdate_WireMode_IPv6(t *testing.T) {
 	wn, err := nlri.NewWireNLRI(nlri.IPv6Unicast, []byte{0x20, 0x20, 0x01, 0x0d, 0xb8}, false)
 	require.NoError(t, err)
 
-	batch := api.NLRIBatch{
+	batch := plugin.NLRIBatch{
 		Family:  nlri.IPv6Unicast,
 		NLRIs:   []nlri.NLRI{wn},
-		NextHop: api.NewNextHopExplicit(netip.MustParseAddr("2001:db8::1")),
-		Attrs:   api.PathAttributes{Wire: attrsWire},
+		NextHop: plugin.NewNextHopExplicit(netip.MustParseAddr("2001:db8::1")),
+		Attrs:   plugin.PathAttributes{Wire: attrsWire},
 	}
 
 	update := adapter.buildBatchAnnounceUpdate(batch, netip.MustParseAddr("2001:db8::1"), false, nil)
@@ -411,7 +411,7 @@ func TestBuildBatchWithdrawUpdate_WireMode(t *testing.T) {
 	wn, err := nlri.NewWireNLRI(nlri.IPv4Unicast, []byte{0x18, 0x0a, 0x00, 0x00}, false)
 	require.NoError(t, err)
 
-	batch := api.NLRIBatch{
+	batch := plugin.NLRIBatch{
 		Family: nlri.IPv4Unicast,
 		NLRIs:  []nlri.NLRI{wn},
 	}

@@ -186,7 +186,7 @@ The ZeBGP API system enables external route injection and daemon control via:
 ## Package Structure
 
 ```
-pkg/api/
+pkg/plugin/
 ├── server.go         # Server, Client, socket listener, plugin response handling
 ├── process.go        # Process, subprocess management
 ├── command.go        # Dispatcher, CommandContext, plugin routing
@@ -980,7 +980,7 @@ Process stdin
 
 ## Persist Plugin and Route Replay
 
-The persist plugin (`pkg/api/persist/`) tracks routes sent to peers and replays them on session re-establishment.
+The persist plugin (`pkg/plugin/persist/`) tracks routes sent to peers and replays them on session re-establishment.
 
 ### Persist Flow
 
@@ -1034,13 +1034,13 @@ if needsAPIWait {
 
 | File | Purpose |
 |------|---------|
-| `pkg/api/server.go` | Server, Client, socket handling |
-| `pkg/api/process.go` | Subprocess management |
-| `pkg/api/route.go` | Route announce/withdraw handlers |
-| `pkg/api/types.go` | ReactorInterface, RouteSpec |
-| `pkg/api/text.go` | Text/JSON formatting including FormatStateChange |
-| `pkg/api/commit_manager.go` | Transaction management |
-| `pkg/api/persist/persist.go` | Route persistence and replay plugin |
+| `pkg/plugin/server.go` | Server, Client, socket handling |
+| `pkg/plugin/process.go` | Subprocess management |
+| `pkg/plugin/route.go` | Route announce/withdraw handlers |
+| `pkg/plugin/types.go` | ReactorInterface, RouteSpec |
+| `pkg/plugin/text.go` | Text/JSON formatting including FormatStateChange |
+| `pkg/plugin/commit_manager.go` | Transaction management |
+| `pkg/plugin/persist/persist.go` | Route persistence and replay plugin |
 | `pkg/reactor/reactor.go` | AnnounceRoute, PeerLifecycleObserver |
 | `pkg/reactor/peer.go` | FSM callback, reactor notification, API sync |
 | `pkg/reactor/session.go` | Session lifecycle, teardown handling |

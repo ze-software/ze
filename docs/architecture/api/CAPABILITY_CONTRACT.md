@@ -52,7 +52,7 @@
 └─────────────────────────────────────────────────────────────────────┘
 ```
 
-Engine delegates all route storage to API. Reference implementations: `zebgp api rr`, `zebgp api persist`.
+Engine delegates all route storage to API. Reference implementations: `zebgp plugin rr`, `zebgp plugin persist`.
 
 ---
 
@@ -177,8 +177,8 @@ When `encoder json`:
 
 | Plugin | Use Case | RIB Type |
 |--------|----------|----------|
-| `zebgp api rr` | Route Server (multi-peer) | ribIn (routes FROM peers) |
-| `zebgp api persist` | State persistence | ribOut (routes TO peers) |
+| `zebgp plugin rr` | Route Server (multi-peer) | ribIn (routes FROM peers) |
+| `zebgp plugin persist` | State persistence | ribOut (routes TO peers) |
 
 See `docs/plan/spec-api-rr.md` for implementation details.
 

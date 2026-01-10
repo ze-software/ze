@@ -115,7 +115,7 @@ All families fully tested.
 
 ### Modified
 - `cmd/zebgp/main.go` - Add encode command
-- `pkg/api/route.go` - Exported `ParseRouteAttributes()`, `ParseL2VPNArgs()`
+- `pkg/plugin/route.go` - Exported `ParseRouteAttributes()`, `ParseL2VPNArgs()`
 - `pkg/bgp/message/update_build.go` - Added `EVPNParams`, `BuildEVPN()`
 - `pkg/bgp/nlri/evpn.go` - Added `NewEVPNType1-5()` constructors
 

@@ -13,12 +13,12 @@ Remove ALL version number references from the codebase. No v6, v7, v2, v3, "lega
 
 | File | Action | Status |
 |------|--------|--------|
-| `pkg/api/types.go` | Delete `APIVersionLegacy`, `APIVersionNLRI` constants | ✅ Done |
-| `pkg/api/types.go` | Delete `Version int` from `ContentConfig` | ✅ Done |
-| `pkg/api/text.go` | Remove all version comparison branches | ✅ Done |
-| `pkg/api/text_test.go` | Remove version test cases | ✅ Done |
-| `pkg/api/json_test.go` | Remove version test cases | ✅ Done |
-| `pkg/api/handler.go` | Remove `"api": "v6"` from response | ✅ Done |
+| `pkg/plugin/types.go` | Delete `APIVersionLegacy`, `APIVersionNLRI` constants | ✅ Done |
+| `pkg/plugin/types.go` | Delete `Version int` from `ContentConfig` | ✅ Done |
+| `pkg/plugin/text.go` | Remove all version comparison branches | ✅ Done |
+| `pkg/plugin/text_test.go` | Remove version test cases | ✅ Done |
+| `pkg/plugin/json_test.go` | Remove version test cases | ✅ Done |
+| `pkg/plugin/handler.go` | Remove `"api": "v6"` from response | ✅ Done |
 | `pkg/reactor/peersettings.go` | Delete `Version int` field | ✅ Done |
 | `pkg/config/bgp.go` | Delete `Version int` field | ✅ Done |
 | `pkg/reactor/reactor.go` | Remove version default assignment | ✅ Done |

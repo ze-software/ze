@@ -243,7 +243,7 @@ func (flowspecNLRISplitter) NextNLRI(data []byte, addPath bool) (int, error) {
 ### 3. Split Functions
 
 ```go
-// pkg/api/wire_update_split.go
+// pkg/plugin/wire_update_split.go
 
 // SplitUpdate splits a WireUpdate into multiple RFC-compliant UPDATEs.
 // Each output fits within maxBodySize (excludes 19-byte header).
@@ -724,8 +724,8 @@ if updateSize > maxMsgSize {
 
 - `pkg/bgp/message/nlri_split.go` - **NEW:** NLRI splitter registry and implementations
 - `pkg/bgp/message/nlri_split_test.go` - **NEW:** Tests for NLRI splitters
-- `pkg/api/wire_update_split.go` - **NEW:** SplitUpdate and helpers
-- `pkg/api/wire_update_split_test.go` - **NEW:** Split function tests
+- `pkg/plugin/wire_update_split.go` - **NEW:** SplitUpdate and helpers
+- `pkg/plugin/wire_update_split_test.go` - **NEW:** Split function tests
 - `pkg/reactor/reactor.go` - Update ForwardUpdateByID to use SplitUpdate
 - `pkg/reactor/received_update.go` - Delete `ConvertToRoutes()` and related fields
 - `pkg/reactor/received_update_test.go` - Delete `ConvertToRoutes` tests
@@ -827,13 +827,13 @@ Existing `make functional` should pass - split behavior tested via ForwardUpdate
 
 **Tests FAIL (before implementation):**
 ```
-pkg/api/wire_update_split_test.go:26:15: undefined: SplitWireUpdate
-FAIL    codeberg.org/thomas-mangin/zebgp/pkg/api [build failed]
+pkg/plugin/wire_update_split_test.go:26:15: undefined: SplitWireUpdate
+FAIL    codeberg.org/thomas-mangin/zebgp/pkg/plugin [build failed]
 ```
 
 **Tests PASS (after implementation):**
 ```
-ok      codeberg.org/thomas-mangin/zebgp/pkg/api    0.585s
+ok      codeberg.org/thomas-mangin/zebgp/pkg/plugin    0.585s
 ```
 
 **Verification:**
@@ -887,8 +887,8 @@ ok      codeberg.org/thomas-mangin/zebgp/pkg/api    0.585s
 ## Files Created/Modified
 
 **New files:**
-- `pkg/api/wire_update_split.go` - Main split implementation
-- `pkg/api/wire_update_split_test.go` - 28 tests
+- `pkg/plugin/wire_update_split.go` - Main split implementation
+- `pkg/plugin/wire_update_split_test.go` - 28 tests
 
 **Modified files:**
 - `pkg/reactor/reactor.go` - ForwardUpdate uses SplitWireUpdate

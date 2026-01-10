@@ -254,8 +254,8 @@ pkg/source/
 | `TestRegistryDeactivate` | `pkg/source/registry_test.go` | Deactivation |
 | `TestRegistryNeverReuse` | `pkg/source/registry_test.go` | IDs not reused |
 | `TestRegistryConcurrent` | `pkg/source/registry_test.go` | Thread safety |
-| `TestWireUpdateSourceID` | `pkg/api/wire_update_test.go` | SourceID get/set |
-| `TestJSONOutputSource` | `pkg/api/json_test.go` | Source in output |
+| `TestWireUpdateSourceID` | `pkg/plugin/wire_update_test.go` | SourceID get/set |
+| `TestJSONOutputSource` | `pkg/plugin/json_test.go` | Source in output |
 
 ### Functional Tests
 
@@ -270,13 +270,13 @@ pkg/source/
 | `pkg/source/source.go` | NEW: types |
 | `pkg/source/registry.go` | NEW: registry |
 | `pkg/source/registry_test.go` | NEW: tests |
-| `pkg/api/wire_update.go` | Add sourceID field |
-| `pkg/api/json.go` | Add source to message wrapper |
-| `pkg/api/text.go` | Add source to output |
+| `pkg/plugin/wire_update.go` | Add sourceID field |
+| `pkg/plugin/json.go` | Add source to message wrapper |
+| `pkg/plugin/text.go` | Add source to output |
 | `pkg/reactor/peer.go` | Register peer, store sourceID |
 | `pkg/reactor/reactor.go` | Set sourceID on WireUpdate |
 | `pkg/reactor/received_update.go` | Remove SourcePeerIP |
-| `pkg/api/process.go` | Register API, store sourceID |
+| `pkg/plugin/process.go` | Register API, store sourceID |
 
 ## Implementation Steps
 

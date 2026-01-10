@@ -41,13 +41,13 @@ func ReturnReadBuffer(buf []byte)    // Exported for cache eviction
 
 **Files involved:**
 - `pkg/reactor/session.go` - `getReadBuffer()`, `returnReadBuffer()`, `ReturnReadBuffer()`, `readAndProcessMessage()`, `processMessage()`
-- `pkg/api/wire_update.go` - `WireUpdate` struct with derived accessors
+- `pkg/plugin/wire_update.go` - `WireUpdate` struct with derived accessors
 - `pkg/reactor/reactor.go` - `notifyMessageReceiver()` takes buf ownership when caching
 - `pkg/reactor/recent_cache.go` - Returns buf to pool on eviction
 
 **Key types:**
 ```go
-// pkg/api/wire_update.go
+// pkg/plugin/wire_update.go
 type WireUpdate struct {
     payload     []byte           // UPDATE body (slice into pool buffer)
     sourceCtxID bgpctx.ContextID

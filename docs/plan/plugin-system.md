@@ -1688,7 +1688,7 @@ type UpdateWriter interface {
 
 ### 1. ExaBGP API Plugin (Default)
 
-Wraps current `pkg/api` as a plugin:
+Wraps current `pkg/plugin` as a plugin:
 
 ```go
 // ExaBGPAPIPlugin provides ExaBGP-compatible Unix socket API.
@@ -3325,7 +3325,7 @@ Protocol:
 Week 1-2:
 ├── Define Plugin, PeerPlugin interfaces (minimal)
 ├── Implement simple Registry (no deps, no ordering)
-├── Wrap pkg/api as ExaBGPAPIPlugin
+├── Wrap pkg/plugin as ExaBGPAPIPlugin
 └── Wire OnEstablished → UpdateHandler into reactor
 
 Week 3:

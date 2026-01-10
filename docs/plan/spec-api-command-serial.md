@@ -155,6 +155,6 @@ Process stdout:
 
 ## Implementation Reference
 
-- `pkg/api/server.go`: `parseSerial()`, `encodeAlphaSerial()`, `isAlphaSerial()`
-- `pkg/api/process.go`: `SendRequest()`, `parseResponseSerial()`
-- Serial in Response: `pkg/api/types.go` - `Response.Serial`
+- `pkg/plugin/server.go`: `parseSerial()`, `encodeAlphaSerial()`, `isAlphaSerial()`
+- `pkg/plugin/process.go`: `SendRequest()`, `parseResponseSerial()`
+- Serial in Response: `pkg/plugin/types.go` - `Response.Serial`

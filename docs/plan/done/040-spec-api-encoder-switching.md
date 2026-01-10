@@ -10,7 +10,7 @@
 │  2. .claude/INDEX.md - Find what docs to load                   │
 │  3. docs/plan/CLAUDE_CONTINUATION.md - Current state                 │
 │  4. THIS SPEC FILE - Design requirements                        │
-│  5. pkg/api/*.go, pkg/config/bgp.go - Current implementation    │
+│  5. pkg/plugin/*.go, pkg/config/bgp.go - Current implementation    │
 │                                                                 │
 │  DO NOT PROCEED until all are read and understood.              │
 └─────────────────────────────────────────────────────────────────┘
@@ -657,7 +657,7 @@ for _, ab := range nc.APIBindings {
 ```
 
 #### 1.9 Add ReactorInterface method
-**File:** `pkg/api/types.go` (ReactorInterface)
+**File:** `pkg/plugin/types.go` (ReactorInterface)
 
 ```go
 type ReactorInterface interface {
@@ -909,7 +909,7 @@ func TestEmptyAPIBinding(t *testing.T) {
 ### Phase 2: Message Routing with Per-Peer Format
 
 #### 2.1 Add GetProcess to ProcessManager
-**File:** `pkg/api/process.go`
+**File:** `pkg/plugin/process.go`
 
 ```go
 // GetProcess returns a process by name, or nil if not found.
@@ -921,7 +921,7 @@ func (pm *ProcessManager) GetProcess(name string) *Process {
 ```
 
 #### 2.2 Add ProcessWriter interface for testability
-**File:** `pkg/api/process.go`
+**File:** `pkg/plugin/process.go`
 
 ```go
 // ProcessWriter is the interface for writing events to a process.
@@ -935,7 +935,7 @@ var _ ProcessWriter = (*Process)(nil)
 ```
 
 #### 2.3 Update Server.OnMessageReceived
-**File:** `pkg/api/server.go`
+**File:** `pkg/plugin/server.go`
 
 ```go
 func (s *Server) OnMessageReceived(peer PeerInfo, msg RawMessage) {
@@ -990,7 +990,7 @@ func wantsMessageType(recv ReceiveConfig, msgType message.MessageType) bool {
 ```
 
 #### 2.4 Handle state events separately
-**File:** `pkg/api/server.go`
+**File:** `pkg/plugin/server.go`
 
 State events (up/down/connected) are NOT BGP messages - they're session lifecycle events. Add a separate handler:
 
@@ -1032,7 +1032,7 @@ type StateChangeReceiver interface {
 ```
 
 #### 2.5 Add FormatStateChange function
-**File:** `pkg/api/text.go`
+**File:** `pkg/plugin/text.go`
 
 ```go
 // FormatStateChange formats a peer state change event.
@@ -1062,7 +1062,7 @@ func formatStateChangeText(peer PeerInfo, state string) string {
 ```
 
 #### 2.6 Remove old forwarding functions
-**File:** `pkg/api/server.go`
+**File:** `pkg/plugin/server.go`
 
 Remove or deprecate:
 - `forwardUpdateToProcesses`
@@ -1074,7 +1074,7 @@ Remove or deprecate:
 All replaced by unified `OnMessageReceived` with per-binding config.
 
 #### 2.7 Tests
-**File:** `pkg/api/server_test.go`
+**File:** `pkg/plugin/server_test.go`
 
 ```go
 // mockReactor implements ReactorInterface for testing.
@@ -1320,12 +1320,12 @@ if version == 0 {
 ```
 
 #### 3.2 Add JSON v7 encoder
-**File:** `pkg/api/json.go`
+**File:** `pkg/plugin/json.go`
 
 New methods for v7 format with `announce.nlri` structure.
 
 #### 3.3 Add Text v7 encoder
-**File:** `pkg/api/text.go`
+**File:** `pkg/plugin/text.go`
 
 New format: `peer <addr> update announce nlri <family> <prefix> [attrs...]`
 

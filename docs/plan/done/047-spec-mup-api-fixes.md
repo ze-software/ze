@@ -8,7 +8,7 @@
 │                                                                 │
 │  1. pkg/reactor/reactor.go:2146-2230 - buildAPIMUPNLRI()        │
 │  2. pkg/config/routeattr.go:1009-1135 - ParsePrefixSIDSRv6()    │
-│  3. pkg/api/route.go:2845-2990 - parseMUPArgs()                 │
+│  3. pkg/plugin/route.go:2845-2990 - parseMUPArgs()                 │
 │  4. test/data/api/mup4.ci - expected wire format                │
 │                                                                 │
 │  ON COMPLETION: Update docs/plan/CLAUDE_CONTINUATION.md              │

@@ -502,7 +502,7 @@ func (p *Pool) Release(h Handle)
 func (p *Pool) AddRef(h Handle)
 ```
 
-### 4.6 API (pkg/api/)
+### 4.6 API (pkg/plugin/)
 
 **Responsibility:** External process communication, CLI
 
@@ -968,7 +968,7 @@ type Pool interface {
 2. **Layer 1:** `pkg/bgp/capability`, `pkg/bgp/attribute`, `pkg/bgp/nlri`
 3. **Layer 2:** `pkg/bgp/message`, `internal/store`
 4. **Layer 3:** `pkg/bgp/fsm`, `pkg/rib`
-5. **Layer 4:** `pkg/config`, `pkg/api`
+5. **Layer 4:** `pkg/config`, `pkg/plugin`
 6. **Layer 5:** `pkg/reactor`
 7. **Layer 6:** `cmd/*`
 

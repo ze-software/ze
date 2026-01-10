@@ -166,20 +166,20 @@ Returns same `UpdateTextResult` as `ParseUpdateText()`. For wire mode:
 
 | File | Change |
 |------|--------|
-| `pkg/api/types.go` | Add `Wire *attribute.AttributesWire` to `PathAttributes` |
+| `pkg/plugin/types.go` | Add `Wire *attribute.AttributesWire` to `PathAttributes` |
 | `pkg/bgp/context/api.go` | **New:** `APIContextID` with ASN4=true |
 | `pkg/bgp/nlri/wire.go` | **New:** `WireNLRI` type implementing `NLRI` interface |
 | `pkg/bgp/nlri/wire_test.go` | **New:** Tests for `WireNLRI` |
 | `pkg/bgp/message/chunk_mp_nlri.go` | Export `GetNLRISizeFunc` (rename from `getNLRISizeFunc`) |
-| `pkg/api/update_wire.go` | **New:** `ParseUpdateWire()`, wire handlers |
-| `pkg/api/update_wire_test.go` | **New:** Tests for wire parsing |
-| `pkg/api/update_text.go` | Replace `next-hop`/`next-hop-self` with `nhop` keyword; update dispatcher |
+| `pkg/plugin/update_wire.go` | **New:** `ParseUpdateWire()`, wire handlers |
+| `pkg/plugin/update_wire_test.go` | **New:** Tests for wire parsing |
+| `pkg/plugin/update_text.go` | Replace `next-hop`/`next-hop-self` with `nhop` keyword; update dispatcher |
 | `pkg/reactor/announce.go` | Handle `PathAttributes.Wire` in `AnnounceNLRIBatch()` (see Reactor Changes) |
 
 ### Type Changes
 
 ```go
-// pkg/api/types.go - Add Wire field to PathAttributes
+// pkg/plugin/types.go - Add Wire field to PathAttributes
 type PathAttributes struct {
     Origin              *uint8
     LocalPreference     *uint32
@@ -494,7 +494,7 @@ Watchdog tags routes for bulk withdrawal. When `withdraw watchdog <name>` is cal
 
 ### Phase 0: Type Setup
 
-1. Add `Wire *attribute.AttributesWire` field to `PathAttributes` in `pkg/api/types.go`
+1. Add `Wire *attribute.AttributesWire` field to `PathAttributes` in `pkg/plugin/types.go`
 2. Create `pkg/bgp/context/api.go` with `APIContextID` (ASN4=true)
 3. Create `pkg/bgp/nlri/wire.go` with `WireNLRI` type (TDD: write tests first)
 4. Export `GetNLRISizeFunc` in `pkg/bgp/message/chunk_mp_nlri.go` (rename from `getNLRISizeFunc`)
@@ -604,8 +604,8 @@ If RFC missing: `curl -o rfc/rfcNNNN.txt https://www.rfc-editor.org/rfc/rfcNNNN.
 - [x] Test passes after impl
 - [x] Test fails first (invalid input)
 - [x] Test passes after impl
-- [x] `ParseUpdateWire()` implemented in `pkg/api/update_wire.go`
-- [x] 22 tests in `pkg/api/update_wire_test.go`
+- [x] `ParseUpdateWire()` implemented in `pkg/plugin/update_wire.go`
+- [x] 22 tests in `pkg/plugin/update_wire_test.go`
 
 ### Phase 3: Handlers
 - [x] Test fails first (handleUpdateHex)

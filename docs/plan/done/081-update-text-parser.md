@@ -27,40 +27,40 @@ Parser infrastructure for `update text` command format:
 
 | Test | File | Validates |
 |------|------|-----------|
-| `TestParseUpdateText_EmptyInput` | `pkg/api/update_text_test.go` | Empty args → empty result |
-| `TestParseUpdateText_AttrSetNextHop` | `pkg/api/update_text_test.go` | next-hop parsing |
-| `TestParseUpdateText_AttrSetNextHopSelf` | `pkg/api/update_text_test.go` | next-hop-self flag |
-| `TestParseUpdateText_AttrSetOrigin` | `pkg/api/update_text_test.go` | origin attribute |
-| `TestParseUpdateText_AttrSetMultiple` | `pkg/api/update_text_test.go` | Multiple attrs in one section |
-| `TestParseUpdateText_AttrSetCommunity` | `pkg/api/update_text_test.go` | Community list parsing |
-| `TestParseUpdateText_AttrAddCommunity` | `pkg/api/update_text_test.go` | Community append |
-| `TestParseUpdateText_AttrDelCommunity` | `pkg/api/update_text_test.go` | Community removal |
-| `TestParseUpdateText_AttrSetThenAdd` | `pkg/api/update_text_test.go` | Set then add accumulation |
-| `TestParseUpdateText_LargeCommunity` | `pkg/api/update_text_test.go` | Large community parsing |
-| `TestParseUpdateText_ExtendedCommunity` | `pkg/api/update_text_test.go` | Extended community parsing |
-| `TestParseUpdateText_AttrAddScalarError` | `pkg/api/update_text_test.go` | add on scalar → error |
-| `TestParseUpdateText_AttrDelScalarError` | `pkg/api/update_text_test.go` | del on scalar → error |
-| `TestParseUpdateText_AttrAddASPathError` | `pkg/api/update_text_test.go` | add as-path → error |
-| `TestParseUpdateText_AttrDelASPathError` | `pkg/api/update_text_test.go` | del as-path → error |
-| `TestParseUpdateText_NLRISectionBasic` | `pkg/api/update_text_test.go` | Basic NLRI add |
-| `TestParseUpdateText_NLRIMultiplePrefixes` | `pkg/api/update_text_test.go` | Multiple prefixes |
-| `TestParseUpdateText_NLRIMixedAddDel` | `pkg/api/update_text_test.go` | Mixed add/del |
-| `TestParseUpdateText_NLRIWithdrawOnly` | `pkg/api/update_text_test.go` | Del-only section |
-| `TestParseUpdateText_NLRIMultipleAddDel` | `pkg/api/update_text_test.go` | Multiple add/del switches |
-| `TestParseUpdateText_NLRIEmptyError` | `pkg/api/update_text_test.go` | Empty section → error |
-| `TestParseUpdateText_NLRIMissingAddDel` | `pkg/api/update_text_test.go` | Missing add/del → error |
-| `TestParseUpdateText_AttrAndNLRI` | `pkg/api/update_text_test.go` | Combined attr + nlri |
-| `TestParseUpdateText_MultipleGroups` | `pkg/api/update_text_test.go` | Snapshot deep copy verification |
-| `TestParseUpdateText_IPv6` | `pkg/api/update_text_test.go` | IPv6 support |
-| `TestParseUpdateText_FamilyMismatch` | `pkg/api/update_text_test.go` | IPv4 prefix in ipv6/unicast |
-| `TestParseUpdateText_UnknownAttribute` | `pkg/api/update_text_test.go` | Unknown attr → error |
-| `TestParseUpdateText_UnsupportedFamily` | `pkg/api/update_text_test.go` | Unsupported family → error |
-| `TestParseUpdateText_InvalidFamilyString` | `pkg/api/update_text_test.go` | Invalid family string |
-| `TestParseUpdateText_InvalidPrefix` | `pkg/api/update_text_test.go` | Invalid prefix format |
-| `TestParseUpdateText_MissingPrefixAfterAdd` | `pkg/api/update_text_test.go` | add with no prefixes |
-| `TestParseUpdateText_Watchdog` | `pkg/api/update_text_test.go` | Watchdog name capture |
-| `TestParseUpdateText_WatchdogOnly` | `pkg/api/update_text_test.go` | Watchdog without routes |
-| `TestParseUpdateText_SpecExample` | `pkg/api/update_text_test.go` | Full chained example |
+| `TestParseUpdateText_EmptyInput` | `pkg/plugin/update_text_test.go` | Empty args → empty result |
+| `TestParseUpdateText_AttrSetNextHop` | `pkg/plugin/update_text_test.go` | next-hop parsing |
+| `TestParseUpdateText_AttrSetNextHopSelf` | `pkg/plugin/update_text_test.go` | next-hop-self flag |
+| `TestParseUpdateText_AttrSetOrigin` | `pkg/plugin/update_text_test.go` | origin attribute |
+| `TestParseUpdateText_AttrSetMultiple` | `pkg/plugin/update_text_test.go` | Multiple attrs in one section |
+| `TestParseUpdateText_AttrSetCommunity` | `pkg/plugin/update_text_test.go` | Community list parsing |
+| `TestParseUpdateText_AttrAddCommunity` | `pkg/plugin/update_text_test.go` | Community append |
+| `TestParseUpdateText_AttrDelCommunity` | `pkg/plugin/update_text_test.go` | Community removal |
+| `TestParseUpdateText_AttrSetThenAdd` | `pkg/plugin/update_text_test.go` | Set then add accumulation |
+| `TestParseUpdateText_LargeCommunity` | `pkg/plugin/update_text_test.go` | Large community parsing |
+| `TestParseUpdateText_ExtendedCommunity` | `pkg/plugin/update_text_test.go` | Extended community parsing |
+| `TestParseUpdateText_AttrAddScalarError` | `pkg/plugin/update_text_test.go` | add on scalar → error |
+| `TestParseUpdateText_AttrDelScalarError` | `pkg/plugin/update_text_test.go` | del on scalar → error |
+| `TestParseUpdateText_AttrAddASPathError` | `pkg/plugin/update_text_test.go` | add as-path → error |
+| `TestParseUpdateText_AttrDelASPathError` | `pkg/plugin/update_text_test.go` | del as-path → error |
+| `TestParseUpdateText_NLRISectionBasic` | `pkg/plugin/update_text_test.go` | Basic NLRI add |
+| `TestParseUpdateText_NLRIMultiplePrefixes` | `pkg/plugin/update_text_test.go` | Multiple prefixes |
+| `TestParseUpdateText_NLRIMixedAddDel` | `pkg/plugin/update_text_test.go` | Mixed add/del |
+| `TestParseUpdateText_NLRIWithdrawOnly` | `pkg/plugin/update_text_test.go` | Del-only section |
+| `TestParseUpdateText_NLRIMultipleAddDel` | `pkg/plugin/update_text_test.go` | Multiple add/del switches |
+| `TestParseUpdateText_NLRIEmptyError` | `pkg/plugin/update_text_test.go` | Empty section → error |
+| `TestParseUpdateText_NLRIMissingAddDel` | `pkg/plugin/update_text_test.go` | Missing add/del → error |
+| `TestParseUpdateText_AttrAndNLRI` | `pkg/plugin/update_text_test.go` | Combined attr + nlri |
+| `TestParseUpdateText_MultipleGroups` | `pkg/plugin/update_text_test.go` | Snapshot deep copy verification |
+| `TestParseUpdateText_IPv6` | `pkg/plugin/update_text_test.go` | IPv6 support |
+| `TestParseUpdateText_FamilyMismatch` | `pkg/plugin/update_text_test.go` | IPv4 prefix in ipv6/unicast |
+| `TestParseUpdateText_UnknownAttribute` | `pkg/plugin/update_text_test.go` | Unknown attr → error |
+| `TestParseUpdateText_UnsupportedFamily` | `pkg/plugin/update_text_test.go` | Unsupported family → error |
+| `TestParseUpdateText_InvalidFamilyString` | `pkg/plugin/update_text_test.go` | Invalid family string |
+| `TestParseUpdateText_InvalidPrefix` | `pkg/plugin/update_text_test.go` | Invalid prefix format |
+| `TestParseUpdateText_MissingPrefixAfterAdd` | `pkg/plugin/update_text_test.go` | add with no prefixes |
+| `TestParseUpdateText_Watchdog` | `pkg/plugin/update_text_test.go` | Watchdog name capture |
+| `TestParseUpdateText_WatchdogOnly` | `pkg/plugin/update_text_test.go` | Watchdog without routes |
+| `TestParseUpdateText_SpecExample` | `pkg/plugin/update_text_test.go` | Full chained example |
 
 ### Functional Tests
 
@@ -70,10 +70,10 @@ Parser infrastructure for `update text` command format:
 
 ## Files to Modify
 
-- `pkg/api/update_text.go` - **CREATE** - Parser implementation
-- `pkg/api/update_text_test.go` - **CREATE** - TDD tests (34 tests)
-- `pkg/api/types.go` - **MODIFY** - Add NLRIGroup, UpdateTextResult
-- `pkg/api/errors.go` - **MODIFY** - Add new error types
+- `pkg/plugin/update_text.go` - **CREATE** - Parser implementation
+- `pkg/plugin/update_text_test.go` - **CREATE** - TDD tests (34 tests)
+- `pkg/plugin/types.go` - **MODIFY** - Add NLRIGroup, UpdateTextResult
+- `pkg/plugin/errors.go` - **MODIFY** - Add new error types
 
 ## Implementation Steps
 
@@ -156,7 +156,7 @@ Using `label` or `rd` in `attr` section → error "unknown attribute".
 
 ## Data Structures
 
-### New in `pkg/api/types.go`
+### New in `pkg/plugin/types.go`
 
 ```go
 // NLRIGroup represents a group of NLRIs sharing the same attributes.
@@ -176,7 +176,7 @@ type UpdateTextResult struct {
 }
 ```
 
-### New in `pkg/api/update_text.go`
+### New in `pkg/plugin/update_text.go`
 
 ```go
 // parsedAttrs tracks attribute state during parsing.
@@ -587,7 +587,7 @@ func isSupportedFamily(f nlri.Family) bool {
 
 ---
 
-## New Errors in `pkg/api/errors.go`
+## New Errors in `pkg/plugin/errors.go`
 
 ```go
 var (

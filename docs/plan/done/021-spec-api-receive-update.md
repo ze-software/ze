@@ -45,8 +45,8 @@ neighbor 127.0.0.1 receive update end
 | File | Purpose |
 |------|---------|
 | `pkg/reactor/session.go` | `handleUpdate()` - hook point for forwarding |
-| `pkg/api/process.go` | `WriteEvent()` - sends to process stdin |
-| `pkg/api/types.go` | `ProcessConfig` - needs receive config |
+| `pkg/plugin/process.go` | `WriteEvent()` - sends to process stdin |
+| `pkg/plugin/types.go` | `ProcessConfig` - needs receive config |
 | `pkg/reactor/reactor.go` | `APIProcessConfig` - needs receive config |
 | `pkg/config/loader.go` | Parses api block |
 
@@ -60,7 +60,7 @@ neighbor 127.0.0.1 receive update end
 
 1. **Add receive config to APIProcessConfig**
    - Add `ReceiveUpdate bool` field to `pkg/reactor/reactor.go:APIProcessConfig`
-   - Add `ReceiveUpdate bool` field to `pkg/api/types.go:ProcessConfig`
+   - Add `ReceiveUpdate bool` field to `pkg/plugin/types.go:ProcessConfig`
 
 2. **Parse receive block in config**
    - In `pkg/config/loader.go`, parse `api { receive { update; } }`

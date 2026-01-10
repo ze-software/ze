@@ -420,10 +420,10 @@ Completion timeout: 500ms (non-configurable).
 
 | File | Purpose |
 |------|---------|
-| `pkg/api/registry.go` | CommandRegistry type |
-| `pkg/api/pending.go` | PendingRequests tracker |
-| `pkg/api/plugin.go` | Parse register/unregister/response |
-| `pkg/api/server.go` | handleRegisterCommand, handlePluginResponse |
+| `pkg/plugin/registry.go` | CommandRegistry type |
+| `pkg/plugin/pending.go` | PendingRequests tracker |
+| `pkg/plugin/plugin.go` | Parse register/unregister/response |
+| `pkg/plugin/server.go` | handleRegisterCommand, handlePluginResponse |
 
 ---
 

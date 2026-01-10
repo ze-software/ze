@@ -51,7 +51,7 @@ Implement non-blocking API parsing with goroutine-based dispatcher/gatherer patt
 - `pkg/engine/api/gatherer.go` - new: ordering logic
 - `pkg/engine/api/worker.go` - new: parser worker pool
 - `pkg/engine/reactor.go` - integration point
-- `pkg/api/parse.go` - may need interface changes
+- `pkg/plugin/parse.go` - may need interface changes
 
 ## Implementation Steps
 

@@ -8,8 +8,8 @@ import (
 	"strings"
 	"time"
 
-	"codeberg.org/thomas-mangin/zebgp/pkg/api"
 	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/message"
+	"codeberg.org/thomas-mangin/zebgp/pkg/plugin"
 )
 
 const (
@@ -514,10 +514,10 @@ type PeerAPIBinding struct {
 
 // PeerContentConfig controls message formatting (encoding + format).
 type PeerContentConfig struct {
-	Encoding   string               // "json" | "text" (empty = inherit from process)
-	Format     string               // "parsed" | "raw" | "full" (empty = "parsed")
-	Attributes *api.AttributeFilter // Which attrs to include (nil = all)
-	NLRI       *api.NLRIFilter      // Which families to include (nil = all)
+	Encoding   string                  // "json" | "text" (empty = inherit from process)
+	Format     string                  // "parsed" | "raw" | "full" (empty = "parsed")
+	Attributes *plugin.AttributeFilter // Which attrs to include (nil = all)
+	NLRI       *plugin.NLRIFilter      // Which families to include (nil = all)
 }
 
 // PeerReceiveConfig specifies which message types to forward to the process.
@@ -1463,7 +1463,7 @@ func parseNewAPIBinding(processName string, apiTree *Tree) (PeerAPIBinding, erro
 			binding.Content.Format = strings.ToLower(v) // Normalize case
 		}
 		if v, ok := content.Get("attribute"); ok {
-			filter, err := api.ParseAttributeFilter(v)
+			filter, err := plugin.ParseAttributeFilter(v)
 			if err != nil {
 				return PeerAPIBinding{}, fmt.Errorf("api %s: invalid attribute filter: %w", processName, err)
 			}
@@ -1495,19 +1495,19 @@ func parseNewAPIBinding(processName string, apiTree *Tree) (PeerAPIBinding, erro
 // parseNLRIEntries parses multiple "nlri <afi> <safi>;" entries into NLRIFilter.
 // Each entry is a space-separated string like "ipv4/unicast" or "ipv6/unicast".
 // Special values: "all" includes all families, "none" excludes all.
-func parseNLRIEntries(entries []string) (api.NLRIFilter, error) {
+func parseNLRIEntries(entries []string) (plugin.NLRIFilter, error) {
 	if len(entries) == 0 {
-		return api.NewNLRIFilterAll(), nil
+		return plugin.NewNLRIFilterAll(), nil
 	}
 
 	// Check for special keywords
 	if len(entries) == 1 {
 		entry := strings.TrimSpace(strings.ToLower(entries[0]))
 		if entry == "all" {
-			return api.NewNLRIFilterAll(), nil
+			return plugin.NewNLRIFilterAll(), nil
 		}
 		if entry == "none" {
-			return api.NewNLRIFilterNone(), nil
+			return plugin.NewNLRIFilterNone(), nil
 		}
 	}
 
@@ -1522,13 +1522,13 @@ func parseNLRIEntries(entries []string) (api.NLRIFilter, error) {
 		// Validate against known families (format: afi/safi)
 		canonical, ok := message.FamilyConfigNames[strings.ToLower(entry)]
 		if !ok {
-			return api.NLRIFilter{}, fmt.Errorf("unknown family %q, valid: %s",
+			return plugin.NLRIFilter{}, fmt.Errorf("unknown family %q, valid: %s",
 				entry, message.ValidFamilyConfigNames())
 		}
 		families[canonical] = true
 	}
 
-	return api.NewNLRIFilterSelective(families), nil
+	return plugin.NewNLRIFilterSelective(families), nil
 }
 
 // parseReceiveConfig parses a Freeform receive block.

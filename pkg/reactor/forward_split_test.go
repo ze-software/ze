@@ -5,10 +5,10 @@ import (
 	"testing"
 	"time"
 
-	"codeberg.org/thomas-mangin/zebgp/pkg/api"
 	bgpctx "codeberg.org/thomas-mangin/zebgp/pkg/bgp/context"
 	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/message"
 	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/nlri"
+	"codeberg.org/thomas-mangin/zebgp/pkg/plugin"
 	"github.com/stretchr/testify/require"
 )
 
@@ -45,7 +45,7 @@ func TestForwardUpdateSplitting(t *testing.T) {
 		"test UPDATE should exceed 4096 bytes, got %d", totalLen)
 
 	// Create ReceivedUpdate
-	wireUpdate := api.NewWireUpdate(rawBody, ctxID)
+	wireUpdate := plugin.NewWireUpdate(rawBody, ctxID)
 	wireUpdate.SetMessageID(1)
 	update := &ReceivedUpdate{
 		WireUpdate:   wireUpdate,
@@ -124,7 +124,7 @@ func TestForwardUpdateNoSplitWhenFits(t *testing.T) {
 	require.Less(t, totalLen, message.MaxMsgLen,
 		"test UPDATE should be under 4096 bytes, got %d", totalLen)
 
-	wireUpdate := api.NewWireUpdate(rawBody, ctxID)
+	wireUpdate := plugin.NewWireUpdate(rawBody, ctxID)
 	wireUpdate.SetMessageID(2)
 	update := &ReceivedUpdate{
 		WireUpdate:   wireUpdate,
@@ -169,7 +169,7 @@ func TestForwardUpdateSplittingExtendedPeer(t *testing.T) {
 
 	rawBody := buildRawUpdateBody(nil, attrBytes, announceWire)
 
-	wireUpdate := api.NewWireUpdate(rawBody, ctxID)
+	wireUpdate := plugin.NewWireUpdate(rawBody, ctxID)
 	wireUpdate.SetMessageID(3)
 	update := &ReceivedUpdate{
 		WireUpdate:   wireUpdate,

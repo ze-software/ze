@@ -42,7 +42,7 @@ Implement RIB flush/clear API commands:
 ## Codebase Context
 
 **Existing files:**
-- `pkg/api/handler.go` - Already has `handleRIBShowIn`, `handleRIBShowOut`
+- `pkg/plugin/handler.go` - Already has `handleRIBShowIn`, `handleRIBShowOut`
 - `pkg/rib/incoming.go` - `IncomingRIB` with `ClearPeer()` method
 - `pkg/rib/outgoing.go` - `OutgoingRIB` with `FlushAllPending()`, `GetSentRoutes()`
 - `pkg/reactor/reactor.go` - Has `ribIn` and `ribOut` fields
@@ -86,7 +86,7 @@ func (r *Reactor) FlushRibOut() int
 
 ### Step 2: Add API handlers
 
-**File:** `pkg/api/handler.go`
+**File:** `pkg/plugin/handler.go`
 
 Add handlers:
 ```go
@@ -97,7 +97,7 @@ func handleRIBClearOut(ctx *CommandContext, _ []string) (*Response, error)
 
 ### Step 3: Register commands
 
-**File:** `pkg/api/handler.go`
+**File:** `pkg/plugin/handler.go`
 
 Add to `RegisterHandlers`:
 ```go
@@ -108,7 +108,7 @@ d.Register("rib clear out", handleRIBClearOut, "Withdraw all routes from peers")
 
 ## Test Specification
 
-**Test file:** `pkg/api/handler_test.go`
+**Test file:** `pkg/plugin/handler_test.go`
 
 ### Test Cases
 

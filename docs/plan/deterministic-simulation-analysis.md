@@ -1603,10 +1603,10 @@ pkg/reactor/peer.go:446,462,471,490
 pkg/reactor/session.go:90,434,458
 pkg/reactor/reactor.go:1537
 pkg/reactor/signal.go:119,133
-pkg/api/server.go:140,155,169,249,323
-pkg/api/process.go:245,272,311,439
+pkg/plugin/server.go:140,155,169,249,323
+pkg/plugin/process.go:245,272,311,439
 pkg/testpeer/peer.go:179,195,207,304
-pkg/api/process_test.go:422
+pkg/plugin/process_test.go:422
 pkg/bgp/fsm/timer_test.go:44,74,82,131,180
 ```
 
@@ -1624,9 +1624,9 @@ pkg/reactor/peer.go:440        done = make(chan struct{})
 pkg/reactor/reactor.go:1531    done = make(chan struct{})
 pkg/reactor/signal.go:38       sigChan = make(chan os.Signal, 1)
 pkg/reactor/signal.go:113      done = make(chan struct{})
-pkg/api/process.go:182         lines = make(chan string, 100)
-pkg/api/process.go:185         writeQueue = make(chan []byte, WriteQueueHighWater)
-pkg/api/server.go:134          done = make(chan struct{})
+pkg/plugin/process.go:182         lines = make(chan string, 100)
+pkg/plugin/process.go:185         writeQueue = make(chan []byte, WriteQueueHighWater)
+pkg/plugin/server.go:134          done = make(chan struct{})
 ... (19 total)
 ```
 

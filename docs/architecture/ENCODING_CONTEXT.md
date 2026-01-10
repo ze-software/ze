@@ -202,7 +202,7 @@ buffer returned to pool when cache entry is evicted or deleted.
 ### WireUpdate Structure
 
 ```go
-// pkg/api/wire_update.go
+// pkg/plugin/wire_update.go
 type WireUpdate struct {
     payload     []byte           // UPDATE body bytes (owned, not copied)
     sourceCtxID bgpctx.ContextID // Encoding context for zero-copy decisions
@@ -232,7 +232,7 @@ This ensures WireUpdate carries the correct context for forwarding decisions.
 ### RawMessage Integration
 
 ```go
-// pkg/api/types.go
+// pkg/plugin/types.go
 type RawMessage struct {
     Type       message.MessageType
     RawBytes   []byte              // Zero-copy reference to WireUpdate.Payload()

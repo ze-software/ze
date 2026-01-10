@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"codeberg.org/thomas-mangin/zebgp/pkg/api"
 	bgpctx "codeberg.org/thomas-mangin/zebgp/pkg/bgp/context"
+	"codeberg.org/thomas-mangin/zebgp/pkg/plugin"
 )
 
 // emptyPayload is a minimal valid UPDATE payload for cache tests.
@@ -16,7 +16,7 @@ var emptyPayload = []byte{0, 0, 0, 0}
 
 // newTestUpdate creates a ReceivedUpdate with messageID set on WireUpdate.
 func newTestUpdate(id uint64) *ReceivedUpdate {
-	wu := api.NewWireUpdate(emptyPayload, bgpctx.ContextID(1))
+	wu := plugin.NewWireUpdate(emptyPayload, bgpctx.ContextID(1))
 	wu.SetMessageID(id)
 	return &ReceivedUpdate{
 		WireUpdate:   wu,

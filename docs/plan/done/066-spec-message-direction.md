@@ -24,9 +24,9 @@ Add `direction` ("sent"/"received") to BGP message API output for OPEN, NOTIFICA
 | `pkg/reactor/session.go:1021` | Fire callback with `"sent"` after `sendNotification()` |
 | `pkg/reactor/peer.go` | Signature update propagates automatically |
 | `pkg/reactor/reactor.go:2415` | Update `notifyMessageReceiver` to accept/set direction |
-| `pkg/api/types.go:448` | Add `Direction string` to `RawMessage` |
-| `pkg/api/text.go` | Update `FormatOpen`, `FormatNotification`, `FormatKeepalive` to use direction |
-| `pkg/api/server.go:452-488` | Pass `msg.Direction` to formatters |
+| `pkg/plugin/types.go:448` | Add `Direction string` to `RawMessage` |
+| `pkg/plugin/text.go` | Update `FormatOpen`, `FormatNotification`, `FormatKeepalive` to use direction |
+| `pkg/plugin/server.go:452-488` | Pass `msg.Direction` to formatters |
 
 ## Current State
 - Tests: `make test` PASS, `make lint` 0 issues, `make functional` 37/37

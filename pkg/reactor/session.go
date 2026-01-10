@@ -12,7 +12,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	"codeberg.org/thomas-mangin/zebgp/pkg/api"
 	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/attribute"
 	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/capability"
 	bgpctx "codeberg.org/thomas-mangin/zebgp/pkg/bgp/context"
@@ -20,6 +19,7 @@ import (
 	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/message"
 	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/nlri"
 	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/wire"
+	"codeberg.org/thomas-mangin/zebgp/pkg/plugin"
 	"codeberg.org/thomas-mangin/zebgp/pkg/source"
 	"codeberg.org/thomas-mangin/zebgp/pkg/trace"
 )
@@ -79,7 +79,7 @@ var (
 // ctxID is the encoding context for zero-copy decisions.
 // buf is the pool buffer for received messages (nil for sent).
 // Returns true if callback took ownership of buf (caller should not return to pool).
-type MessageCallback func(peerAddr netip.Addr, msgType message.MessageType, rawBytes []byte, wireUpdate *api.WireUpdate, ctxID bgpctx.ContextID, direction string, buf []byte) (kept bool)
+type MessageCallback func(peerAddr netip.Addr, msgType message.MessageType, rawBytes []byte, wireUpdate *plugin.WireUpdate, ctxID bgpctx.ContextID, direction string, buf []byte) (kept bool)
 
 type Session struct {
 	mu sync.RWMutex
@@ -125,7 +125,7 @@ type Session struct {
 	sourceID source.SourceID
 
 	// pluginCapGetter retrieves plugin-declared capabilities for OPEN messages.
-	// Set by Peer to link to api.Server.GetPluginCapabilities().
+	// Set by Peer to link to plugin.Server.GetPluginCapabilities().
 	// Called in sendOpen() to inject plugin capabilities into OPEN.
 	pluginCapGetter func() []capability.Capability
 }
@@ -207,7 +207,7 @@ func (s *Session) SetSourceID(id source.SourceID) {
 }
 
 // SetPluginCapabilityGetter sets the callback for retrieving plugin capabilities.
-// Called by Peer at creation time to link to api.Server.GetPluginCapabilities().
+// Called by Peer at creation time to link to plugin.Server.GetPluginCapabilities().
 func (s *Session) SetPluginCapabilityGetter(getter func() []capability.Capability) {
 	s.pluginCapGetter = getter
 }
@@ -737,9 +737,9 @@ func (s *Session) processMessage(hdr *message.Header, body []byte, buf []byte) (
 	s.mu.RUnlock()
 
 	// For UPDATE: create WireUpdate once, use for callback and handler
-	var wireUpdate *api.WireUpdate
+	var wireUpdate *plugin.WireUpdate
 	if hdr.Type == message.TypeUPDATE {
-		wireUpdate = api.NewWireUpdate(body, ctxID)
+		wireUpdate = plugin.NewWireUpdate(body, ctxID)
 		wireUpdate.SetSourceID(sourceID)
 	}
 
@@ -893,7 +893,7 @@ func (s *Session) handleKeepalive() error {
 // RFC 4760 Section 6: validates AFI/SAFI in MP_REACH/MP_UNREACH against negotiated.
 // RFC 7606: validates path attributes with revised error handling.
 // Accepts WireUpdate for zero-copy processing.
-func (s *Session) handleUpdate(wu *api.WireUpdate) error {
+func (s *Session) handleUpdate(wu *plugin.WireUpdate) error {
 	// Reset hold timer.
 	s.timers.ResetHoldTimer()
 
@@ -1375,7 +1375,7 @@ func (s *Session) SendUpdate(update *message.Update) error {
 // RFC 6793 - 4-byte AS encoding when ctx.ASN4 is true.
 //
 // Note: Concurrent calls must be externally synchronized.
-func (s *Session) SendAnnounce(route api.RouteSpec, localAS uint32, isIBGP bool, ctx *nlri.PackContext) error {
+func (s *Session) SendAnnounce(route plugin.RouteSpec, localAS uint32, isIBGP bool, ctx *nlri.PackContext) error {
 	s.mu.RLock()
 	conn := s.conn
 	state := s.fsm.State()

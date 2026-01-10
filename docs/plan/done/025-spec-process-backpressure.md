@@ -30,8 +30,8 @@ Implement process backpressure queue and respawn limits for API processes
 ## Codebase Context
 
 ### Existing Files
-- `pkg/api/process.go` - Current Process and ProcessManager
-- `pkg/api/types.go` - ProcessConfig struct
+- `pkg/plugin/process.go` - Current Process and ProcessManager
+- `pkg/plugin/types.go` - ProcessConfig struct
 
 ### ExaBGP Reference
 - `/Users/thomas/Code/github.com/exa-networks/exabgp/main/src/exabgp/reactor/api/processes.py`

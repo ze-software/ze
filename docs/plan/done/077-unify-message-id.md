@@ -50,20 +50,20 @@ RawMessage                    ReceivedUpdate
 
 | File | Changes |
 |------|---------|
-| `pkg/api/wire_update.go` | Add `messageID uint64` field, `MessageID()` accessor, `SetMessageID()` |
+| `pkg/plugin/wire_update.go` | Add `messageID uint64` field, `MessageID()` accessor, `SetMessageID()` |
 | `pkg/reactor/received_update.go` | Remove `UpdateID` field |
 | `pkg/reactor/recent_cache.go` | Use `update.WireUpdate.MessageID()` as key |
 | `pkg/reactor/reactor.go` | Call `wireUpdate.SetMessageID(messageID)` after creation |
-| `pkg/api/json.go` | Restructure all encoders: wrap content in `"message":{...}` with `id`, `time` |
-| `pkg/api/text.go` | Update JSON formatting for UPDATEs to use new structure |
-| `pkg/api/json_test.go` | Update expected JSON format |
+| `pkg/plugin/json.go` | Restructure all encoders: wrap content in `"message":{...}` with `id`, `time` |
+| `pkg/plugin/text.go` | Update JSON formatting for UPDATEs to use new structure |
+| `pkg/plugin/json_test.go` | Update expected JSON format |
 | `pkg/reactor/*_test.go` | Update tests that set `UpdateID` |
 
 ## Implementation Steps
 
 ### Step 1: Add messageID to WireUpdate
 
-**pkg/api/wire_update.go:**
+**pkg/plugin/wire_update.go:**
 ```go
 type WireUpdate struct {
     payload     []byte
@@ -151,7 +151,7 @@ func (e *JSONEncoder) messageWrapper(msgType string, msgID uint64) map[string]an
 }
 ```
 
-**pkg/api/json.go - all message types:**
+**pkg/plugin/json.go - all message types:**
 ```go
 // Before:
 msg := e.message(peer, "notification")
@@ -181,9 +181,9 @@ msg["peer"] = peerObj
 | `pkg/reactor/received_update_test.go` | Remove `UpdateID:` from struct literals |
 | `pkg/reactor/recent_cache_test.go` | Use `WireUpdate.MessageID()` where needed |
 | `pkg/reactor/forward_split_test.go` | Same |
-| `pkg/api/json_test.go` | Update expected JSON: `"message":{"id":...}` structure |
-| `pkg/api/text_test.go` | Update expected output strings if needed |
-| `pkg/api/wire_update_test.go` | Add tests for `MessageID()` and `SetMessageID()` |
+| `pkg/plugin/json_test.go` | Update expected JSON: `"message":{"id":...}` structure |
+| `pkg/plugin/text_test.go` | Update expected output strings if needed |
+| `pkg/plugin/wire_update_test.go` | Add tests for `MessageID()` and `SetMessageID()` |
 
 ## Verification
 

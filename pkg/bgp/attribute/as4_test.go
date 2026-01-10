@@ -340,7 +340,11 @@ func TestMergeAS4Path(t *testing.T) {
 			}
 
 			// Flatten ASNs for comparison
-			var gotASNs []uint32
+			totalASNs := 0
+			for _, seg := range merged.Segments {
+				totalASNs += len(seg.ASNs)
+			}
+			gotASNs := make([]uint32, 0, totalASNs)
 			for _, seg := range merged.Segments {
 				gotASNs = append(gotASNs, seg.ASNs...)
 			}
@@ -389,7 +393,11 @@ func TestMergeAS4PathWithASSet(t *testing.T) {
 	merged := MergeAS4Path(asPath, as4Path)
 
 	// Flatten result
-	var gotASNs []uint32
+	totalASNs := 0
+	for _, seg := range merged.Segments {
+		totalASNs += len(seg.ASNs)
+	}
+	gotASNs := make([]uint32, 0, totalASNs)
 	for _, seg := range merged.Segments {
 		gotASNs = append(gotASNs, seg.ASNs...)
 	}
@@ -438,7 +446,11 @@ func TestMergeAS4PathWithConfed(t *testing.T) {
 	merged := MergeAS4Path(asPath, as4Path)
 
 	// Flatten result
-	var gotASNs []uint32
+	totalASNs := 0
+	for _, seg := range merged.Segments {
+		totalASNs += len(seg.ASNs)
+	}
+	gotASNs := make([]uint32, 0, totalASNs)
 	for _, seg := range merged.Segments {
 		gotASNs = append(gotASNs, seg.ASNs...)
 	}

@@ -5,8 +5,8 @@ import (
 	"strings"
 	"testing"
 
-	"codeberg.org/thomas-mangin/zebgp/pkg/api"
 	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/nlri"
+	"codeberg.org/thomas-mangin/zebgp/pkg/plugin"
 )
 
 // TestBuildAPIMUPNLRI_FamilyValidation verifies family mismatch is rejected.
@@ -18,12 +18,12 @@ import (
 func TestBuildAPIMUPNLRI_FamilyValidation(t *testing.T) {
 	tests := []struct {
 		name    string
-		spec    api.MUPRouteSpec
+		spec    plugin.MUPRouteSpec
 		wantErr string
 	}{
 		{
 			name: "ISD IPv6 prefix with IPv4 AFI",
-			spec: api.MUPRouteSpec{
+			spec: plugin.MUPRouteSpec{
 				RouteType: "mup-isd",
 				IsIPv6:    false, // IPv4 AFI
 				Prefix:    "2001:db8::/32",
@@ -33,7 +33,7 @@ func TestBuildAPIMUPNLRI_FamilyValidation(t *testing.T) {
 		},
 		{
 			name: "ISD IPv4 prefix with IPv6 AFI",
-			spec: api.MUPRouteSpec{
+			spec: plugin.MUPRouteSpec{
 				RouteType: "mup-isd",
 				IsIPv6:    true, // IPv6 AFI
 				Prefix:    "10.0.1.0/24",
@@ -43,7 +43,7 @@ func TestBuildAPIMUPNLRI_FamilyValidation(t *testing.T) {
 		},
 		{
 			name: "DSD IPv6 address with IPv4 AFI",
-			spec: api.MUPRouteSpec{
+			spec: plugin.MUPRouteSpec{
 				RouteType: "mup-dsd",
 				IsIPv6:    false, // IPv4 AFI
 				Address:   "2001:db8::1",
@@ -53,7 +53,7 @@ func TestBuildAPIMUPNLRI_FamilyValidation(t *testing.T) {
 		},
 		{
 			name: "DSD IPv4 address with IPv6 AFI",
-			spec: api.MUPRouteSpec{
+			spec: plugin.MUPRouteSpec{
 				RouteType: "mup-dsd",
 				IsIPv6:    true, // IPv6 AFI
 				Address:   "10.0.0.1",
@@ -63,7 +63,7 @@ func TestBuildAPIMUPNLRI_FamilyValidation(t *testing.T) {
 		},
 		{
 			name: "T1ST IPv6 prefix with IPv4 AFI",
-			spec: api.MUPRouteSpec{
+			spec: plugin.MUPRouteSpec{
 				RouteType: "mup-t1st",
 				IsIPv6:    false, // IPv4 AFI
 				Prefix:    "2001:db8::/32",
@@ -73,7 +73,7 @@ func TestBuildAPIMUPNLRI_FamilyValidation(t *testing.T) {
 		},
 		{
 			name: "T2ST IPv6 address with IPv4 AFI",
-			spec: api.MUPRouteSpec{
+			spec: plugin.MUPRouteSpec{
 				RouteType: "mup-t2st",
 				IsIPv6:    false, // IPv4 AFI
 				Address:   "2001:db8::1",
@@ -84,7 +84,7 @@ func TestBuildAPIMUPNLRI_FamilyValidation(t *testing.T) {
 		// Valid cases - should NOT error
 		{
 			name: "ISD IPv4 prefix with IPv4 AFI (valid)",
-			spec: api.MUPRouteSpec{
+			spec: plugin.MUPRouteSpec{
 				RouteType: "mup-isd",
 				IsIPv6:    false,
 				Prefix:    "10.0.1.0/24",
@@ -94,7 +94,7 @@ func TestBuildAPIMUPNLRI_FamilyValidation(t *testing.T) {
 		},
 		{
 			name: "ISD IPv6 prefix with IPv6 AFI (valid)",
-			spec: api.MUPRouteSpec{
+			spec: plugin.MUPRouteSpec{
 				RouteType: "mup-isd",
 				IsIPv6:    true,
 				Prefix:    "2001:db8::/32",
@@ -104,7 +104,7 @@ func TestBuildAPIMUPNLRI_FamilyValidation(t *testing.T) {
 		},
 		{
 			name: "DSD IPv4 address with IPv4 AFI (valid)",
-			spec: api.MUPRouteSpec{
+			spec: plugin.MUPRouteSpec{
 				RouteType: "mup-dsd",
 				IsIPv6:    false,
 				Address:   "10.0.0.1",
@@ -114,7 +114,7 @@ func TestBuildAPIMUPNLRI_FamilyValidation(t *testing.T) {
 		},
 		{
 			name: "DSD IPv6 address with IPv6 AFI (valid)",
-			spec: api.MUPRouteSpec{
+			spec: plugin.MUPRouteSpec{
 				RouteType: "mup-dsd",
 				IsIPv6:    true,
 				Address:   "2001:db8::1",

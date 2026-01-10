@@ -11,10 +11,10 @@ import (
 	"strconv"
 	"strings"
 
-	"codeberg.org/thomas-mangin/zebgp/pkg/api"
 	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/attribute"
 	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/message"
 	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/nlri"
+	"codeberg.org/thomas-mangin/zebgp/pkg/plugin"
 )
 
 // encodeStdout, encodeStderr, and encodeStdin allow tests to capture I/O.
@@ -207,7 +207,7 @@ func encodeUnicastRoute(ub *message.UpdateBuilder, routeCmd string, isIPv6 bool,
 	}
 
 	// Parse using API parser
-	parsed, err := api.ParseRouteAttributes(args[1:], api.UnicastKeywords)
+	parsed, err := plugin.ParseRouteAttributes(args[1:], plugin.UnicastKeywords)
 	if err != nil {
 		return nil, nil, fmt.Errorf("parse error: %w", err)
 	}
@@ -250,7 +250,7 @@ func encodeUnicastRoute(ub *message.UpdateBuilder, routeCmd string, isIPv6 bool,
 
 // routeSpecToUnicastParams converts a RouteSpec to UnicastParams.
 // Extracts address from RouteNextHop (must be explicit, not self).
-func routeSpecToUnicastParams(r api.RouteSpec) message.UnicastParams {
+func routeSpecToUnicastParams(r plugin.RouteSpec) message.UnicastParams {
 	attrs := extractCommonAttrs(r.Origin, r.LocalPreference, r.MED, r.ASPath,
 		r.Communities, r.LargeCommunities, r.ExtendedCommunities)
 
@@ -300,7 +300,7 @@ func extractCommonAttrs(
 	med *uint32,
 	asPath []uint32,
 	communities []uint32,
-	largeCommunities []api.LargeCommunity,
+	largeCommunities []plugin.LargeCommunity,
 	extCommunities []attribute.ExtendedCommunity,
 ) commonAttrs {
 	attrs := commonAttrs{
@@ -343,7 +343,7 @@ func encodeEVPNRoute(ub *message.UpdateBuilder, routeCmd string, ctx *nlri.PackC
 	}
 
 	// Parse using API parser
-	parsed, err := api.ParseL2VPNArgs(args)
+	parsed, err := plugin.ParseL2VPNArgs(args)
 	if err != nil {
 		return nil, nil, fmt.Errorf("parse error: %w", err)
 	}
@@ -389,7 +389,7 @@ func encodeEVPNRoute(ub *message.UpdateBuilder, routeCmd string, ctx *nlri.PackC
 }
 
 // l2vpnRouteToEVPNParams converts L2VPNRoute to EVPNParams.
-func l2vpnRouteToEVPNParams(r api.L2VPNRoute) (message.EVPNParams, error) {
+func l2vpnRouteToEVPNParams(r plugin.L2VPNRoute) (message.EVPNParams, error) {
 	p := message.EVPNParams{
 		NextHop:     r.NextHop,
 		EthernetTag: r.EthernetTag,
@@ -463,7 +463,7 @@ func encodeL3VPNRoute(ub *message.UpdateBuilder, routeCmd string, isIPv6 bool, c
 	}
 
 	// Parse using API parser
-	parsed, err := api.ParseL3VPNAttributes(args)
+	parsed, err := plugin.ParseL3VPNAttributes(args)
 	if err != nil {
 		return nil, nil, fmt.Errorf("parse error: %w", err)
 	}
@@ -512,7 +512,7 @@ func encodeL3VPNRoute(ub *message.UpdateBuilder, routeCmd string, isIPv6 bool, c
 
 // l3vpnRouteToVPNParams converts L3VPNRoute to VPNParams.
 // Takes pre-parsed RD to avoid double parsing.
-func l3vpnRouteToVPNParams(r api.L3VPNRoute, rd nlri.RouteDistinguisher) message.VPNParams {
+func l3vpnRouteToVPNParams(r plugin.L3VPNRoute, rd nlri.RouteDistinguisher) message.VPNParams {
 	attrs := extractCommonAttrs(r.Origin, r.LocalPreference, r.MED, r.ASPath,
 		r.Communities, r.LargeCommunities, r.ExtendedCommunities)
 
@@ -548,7 +548,7 @@ func encodeLabeledUnicastRoute(ub *message.UpdateBuilder, routeCmd string, isIPv
 	}
 
 	// Parse using API parser
-	parsed, err := api.ParseLabeledUnicastAttributes(args)
+	parsed, err := plugin.ParseLabeledUnicastAttributes(args)
 	if err != nil {
 		return nil, nil, fmt.Errorf("parse error: %w", err)
 	}
@@ -587,7 +587,7 @@ func encodeLabeledUnicastRoute(ub *message.UpdateBuilder, routeCmd string, isIPv
 }
 
 // labeledUnicastRouteToParams converts LabeledUnicastRoute to LabeledUnicastParams.
-func labeledUnicastRouteToParams(r api.LabeledUnicastRoute) message.LabeledUnicastParams {
+func labeledUnicastRouteToParams(r plugin.LabeledUnicastRoute) message.LabeledUnicastParams {
 	attrs := extractCommonAttrs(r.Origin, r.LocalPreference, r.MED, r.ASPath,
 		r.Communities, r.LargeCommunities, r.ExtendedCommunities)
 
@@ -645,7 +645,7 @@ func encodeFlowSpecRoute(ub *message.UpdateBuilder, routeCmd string, isIPv6 bool
 	}
 
 	// Parse using API parser
-	parsed, err := api.ParseFlowSpecArgs(args)
+	parsed, err := plugin.ParseFlowSpecArgs(args)
 	if err != nil {
 		return nil, nil, fmt.Errorf("parse error: %w", err)
 	}
@@ -706,9 +706,9 @@ func encodeFlowSpecRoute(ub *message.UpdateBuilder, routeCmd string, isIPv6 bool
 }
 
 // flowSpecRouteToParams converts FlowSpecRoute to FlowSpecParams.
-func flowSpecRouteToParams(r api.FlowSpecRoute, nlriBytes []byte) (message.FlowSpecParams, error) {
+func flowSpecRouteToParams(r plugin.FlowSpecRoute, nlriBytes []byte) (message.FlowSpecParams, error) {
 	p := message.FlowSpecParams{
-		IsIPv6: r.Family == api.AFINameIPv6,
+		IsIPv6: r.Family == plugin.AFINameIPv6,
 		NLRI:   nlriBytes,
 	}
 
@@ -769,7 +769,7 @@ func encodeVPLSRoute(ub *message.UpdateBuilder, routeCmd string, ctx *nlri.PackC
 	}
 
 	// Parse using API parser
-	parsed, err := api.ParseVPLSArgs(args)
+	parsed, err := plugin.ParseVPLSArgs(args)
 	if err != nil {
 		return nil, nil, fmt.Errorf("parse error: %w", err)
 	}
@@ -813,7 +813,7 @@ func encodeMUPRoute(ub *message.UpdateBuilder, routeCmd string, isIPv6 bool, ctx
 	}
 
 	// Parse using API parser
-	parsed, err := api.ParseMUPArgs(args, isIPv6)
+	parsed, err := plugin.ParseMUPArgs(args, isIPv6)
 	if err != nil {
 		return nil, nil, fmt.Errorf("parse error: %w", err)
 	}
@@ -859,17 +859,17 @@ func encodeMUPRoute(ub *message.UpdateBuilder, routeCmd string, isIPv6 bool, ctx
 
 // buildMUPNLRI builds MUP NLRI bytes from MUPRouteSpec.
 // Returns (nlri bytes, route type code, error).
-func buildMUPNLRI(spec api.MUPRouteSpec) ([]byte, uint8, error) {
+func buildMUPNLRI(spec plugin.MUPRouteSpec) ([]byte, uint8, error) {
 	// Determine route type code
 	var routeType nlri.MUPRouteType
 	switch spec.RouteType {
-	case api.MUPRouteTypeISD:
+	case plugin.MUPRouteTypeISD:
 		routeType = nlri.MUPISD
-	case api.MUPRouteTypeDSD:
+	case plugin.MUPRouteTypeDSD:
 		routeType = nlri.MUPDSD
-	case api.MUPRouteTypeT1ST:
+	case plugin.MUPRouteTypeT1ST:
 		routeType = nlri.MUPT1ST
-	case api.MUPRouteTypeT2ST:
+	case plugin.MUPRouteTypeT2ST:
 		routeType = nlri.MUPT2ST
 	default:
 		return nil, 0, fmt.Errorf("unknown MUP route type: %s", spec.RouteType)
@@ -956,7 +956,7 @@ func buildMUPPrefixBytes(prefix netip.Prefix) []byte {
 }
 
 // vplsRouteToParams converts VPLSRoute to VPLSParams.
-func vplsRouteToParams(r api.VPLSRoute, rd nlri.RouteDistinguisher) message.VPLSParams {
+func vplsRouteToParams(r plugin.VPLSRoute, rd nlri.RouteDistinguisher) message.VPLSParams {
 	p := message.VPLSParams{
 		NextHop:  r.NextHop,
 		Offset:   r.VEBlockOffset,

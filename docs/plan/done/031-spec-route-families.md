@@ -60,8 +60,8 @@ Complete keyword validation for remaining BGP address families (FlowSpec, VPLS, 
 
 | File | Changes |
 |------|---------|
-| `pkg/api/route.go` | Add keyword sets, update handlers |
-| `pkg/api/route_parse_test.go` | Add validation tests |
+| `pkg/plugin/route.go` | Add keyword sets, update handlers |
+| `pkg/plugin/route_parse_test.go` | Add validation tests |
 
 ### Keyword Sets to Implement
 

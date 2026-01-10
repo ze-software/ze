@@ -6,8 +6,8 @@
 ┌─────────────────────────────────────────────────────────────────┐
 │  Read these source files before implementing:                   │
 │                                                                 │
-│  1. pkg/api/route.go - parseSAFI(), handleAnnounceIPv4/IPv6     │
-│  2. pkg/api/types.go - ReactorInterface                         │
+│  1. pkg/plugin/route.go - parseSAFI(), handleAnnounceIPv4/IPv6     │
+│  2. pkg/plugin/types.go - ReactorInterface                         │
 │  3. pkg/reactor/reactor.go - AnnounceRoute implementation       │
 │  4. pkg/reactor/peer.go:2473 - sendMUPRoutes() for reference    │
 │  5. pkg/config/loader.go:1397 - convertMUPRoute(), buildMUPNLRI │
@@ -38,8 +38,8 @@ Add MUP SAFI support to API parser to fix mup4/mup6 tests.
 ```
 📖 Context Loading Verification
 ├── .claude/zebgp/api/ARCHITECTURE.md - API structure, command dispatch
-├── pkg/api/route.go:207 - parseSAFI() only supports unicast/nlri-mpls/mpls-vpn
-├── pkg/api/route.go:951 - handleAnnounceIPv4() routes by SAFI
+├── pkg/plugin/route.go:207 - parseSAFI() only supports unicast/nlri-mpls/mpls-vpn
+├── pkg/plugin/route.go:951 - handleAnnounceIPv4() routes by SAFI
 ├── pkg/config/bgp.go:2138 - parseMUPFromInline() parses MUP text format
 ├── pkg/config/loader.go:1397 - convertMUPRoute() builds reactor.MUPRoute
 ├── pkg/reactor/peer.go:2474 - sendMUPRoutes() sends MUP routes
@@ -98,10 +98,10 @@ API Command: announce ipv4/mup mup-isd 10.0.1.0/24 rd 100:100 next-hop 2001::1 .
 
 | File | Changes |
 |------|---------|
-| `pkg/api/route.go` | Add "mup" to parseSAFI(), add announceMUPImpl() |
-| `pkg/api/types.go` | Add AnnounceMUPRoute() to ReactorInterface |
+| `pkg/plugin/route.go` | Add "mup" to parseSAFI(), add announceMUPImpl() |
+| `pkg/plugin/types.go` | Add AnnounceMUPRoute() to ReactorInterface |
 | `pkg/reactor/reactor.go` | Implement AnnounceMUPRoute() |
-| `pkg/api/route_test.go` | Add tests for MUP parsing |
+| `pkg/plugin/route_test.go` | Add tests for MUP parsing |
 
 ## Goal Achievement
 

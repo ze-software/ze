@@ -40,9 +40,9 @@ Session commands are per-connection state (not BGP session state):
 ## Codebase Context
 
 **Existing patterns to follow:**
-- `pkg/api/handler.go` - command registration, handler signature
-- `pkg/api/types.go` - ProcessConfig struct
-- `pkg/api/process.go` - Process struct
+- `pkg/plugin/handler.go` - command registration, handler signature
+- `pkg/plugin/types.go` - ProcessConfig struct
+- `pkg/plugin/process.go` - Process struct
 
 **Key observation:**
 ZeBGP uses Process-based API (stdin/stdout), not socket connections.
@@ -112,7 +112,7 @@ Add session commands to `handleSystemHelp`
 
 ## Test Specification
 
-**Test file:** `pkg/api/session_test.go`
+**Test file:** `pkg/plugin/session_test.go`
 
 **Test cases:**
 ```go
