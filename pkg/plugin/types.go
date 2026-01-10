@@ -575,6 +575,14 @@ type RawMessage struct {
 	AttrsWire  *attribute.AttributesWire // Lazy attribute parsing (nil if not UPDATE or parse failed)
 	WireUpdate *WireUpdate               // UPDATE wire wrapper (nil if not UPDATE)
 	Direction  string                    // "sent" or "received"
+	ParseError error                     // Non-nil if lazy parsing failed
+}
+
+// IsAsyncSafe reports whether this message's RawBytes can be safely used after
+// the callback returns. Returns false for zero-copy received UPDATEs where
+// RawBytes points to a buffer that may be reused.
+func (m *RawMessage) IsAsyncSafe() bool {
+	return m.WireUpdate == nil
 }
 
 // NLRIGroup represents a group of NLRIs sharing the same attributes.

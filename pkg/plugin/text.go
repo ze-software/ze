@@ -20,8 +20,15 @@ const (
 // FormatMessage formats a RawMessage based on ContentConfig.
 // Uses lazy parsing via AttrsWire when available for optimal performance.
 // Handles encoding (json/text), format (parsed/raw/full), and attribute filtering.
-func FormatMessage(peer PeerInfo, msg RawMessage, content ContentConfig) string {
+// If overrideDir is non-empty, it overrides msg.Direction for formatting.
+func FormatMessage(peer PeerInfo, msg RawMessage, content ContentConfig, overrideDir string) string {
 	content = content.WithDefaults()
+
+	// Compute effective direction
+	direction := msg.Direction
+	if overrideDir != "" {
+		direction = overrideDir
+	}
 
 	// Get attribute filter (nil means all)
 	filter := content.Attributes
@@ -52,11 +59,11 @@ func FormatMessage(peer PeerInfo, msg RawMessage, content ContentConfig) string 
 			encCtx = bgpctx.Registry.Get(msg.AttrsWire.SourceContext())
 		}
 
-		return formatFromFilterResult(peer, msg, content, result, encCtx)
+		return formatFromFilterResult(peer, msg, content, result, encCtx, direction)
 	}
 
 	// Non-UPDATE messages: format as raw
-	return formatNonUpdate(peer, msg, content)
+	return formatNonUpdate(peer, msg, content, direction)
 }
 
 // formatEmptyUpdate formats an empty UPDATE message.
@@ -70,18 +77,18 @@ func formatEmptyUpdate(peer PeerInfo, content ContentConfig) string {
 
 // formatNonUpdate formats non-UPDATE messages (OPEN, NOTIFICATION, KEEPALIVE).
 // Routes to dedicated formatters for parsed output, falls back to raw for unknown types.
-func formatNonUpdate(peer PeerInfo, msg RawMessage, content ContentConfig) string {
+func formatNonUpdate(peer PeerInfo, msg RawMessage, content ContentConfig, direction string) string {
 	// For parsed format, use dedicated formatters
 	if content.Format != FormatRaw {
 		switch msg.Type { //nolint:exhaustive // only specific types have dedicated formatters
 		case message.TypeOPEN:
 			decoded := DecodeOpen(msg.RawBytes)
-			return FormatOpen(peer, decoded, msg.Direction, msg.MessageID)
+			return FormatOpen(peer, decoded, direction, msg.MessageID)
 		case message.TypeNOTIFICATION:
 			decoded := DecodeNotification(msg.RawBytes)
-			return FormatNotification(peer, decoded, msg.Direction, msg.MessageID)
+			return FormatNotification(peer, decoded, direction, msg.MessageID)
 		case message.TypeKEEPALIVE:
-			return FormatKeepalive(peer, msg.Direction, msg.MessageID)
+			return FormatKeepalive(peer, direction, msg.MessageID)
 		}
 	}
 
@@ -99,41 +106,41 @@ func formatNonUpdate(peer PeerInfo, msg RawMessage, content ContentConfig) strin
 // formatFromFilterResult formats UPDATE using lazy-parsed FilterResult.
 // This is the optimized path that only parses requested attributes.
 // ctx provides ADD-PATH state per family (nil means no ADD-PATH).
-func formatFromFilterResult(peer PeerInfo, msg RawMessage, content ContentConfig, result FilterResult, ctx *bgpctx.EncodingContext) string {
+func formatFromFilterResult(peer PeerInfo, msg RawMessage, content ContentConfig, result FilterResult, ctx *bgpctx.EncodingContext, direction string) string {
 	switch content.Format {
 	case FormatRaw:
-		return formatRawFromResult(peer, msg, content)
+		return formatRawFromResult(peer, msg, content, direction)
 	case FormatFull:
-		return formatFullFromResult(peer, msg, content, result, ctx)
+		return formatFullFromResult(peer, msg, content, result, ctx, direction)
 	default: // FormatParsed
-		return formatParsedFromResult(peer, msg, content, result, ctx)
+		return formatParsedFromResult(peer, msg, content, result, ctx, direction)
 	}
 }
 
 // formatRawFromResult formats raw hex (doesn't need FilterResult attributes).
-func formatRawFromResult(peer PeerInfo, msg RawMessage, content ContentConfig) string {
+func formatRawFromResult(peer PeerInfo, msg RawMessage, content ContentConfig, direction string) string {
 	rawHex := fmt.Sprintf("%x", msg.RawBytes)
 	if content.Encoding == EncodingJSON {
 		return fmt.Sprintf(`{"message":{"type":"update"},"direction":"%s","peer":{"address":"%s","asn":%d},"raw":"%s"}`+"\n",
-			msg.Direction, peer.Address, peer.PeerAS, rawHex)
+			direction, peer.Address, peer.PeerAS, rawHex)
 	}
-	return fmt.Sprintf("peer %s %s update raw %s\n", peer.Address, msg.Direction, rawHex)
+	return fmt.Sprintf("peer %s %s update raw %s\n", peer.Address, direction, rawHex)
 }
 
 // formatParsedFromResult formats parsed UPDATE using FilterResult.
 // ctx provides ADD-PATH state per family.
-func formatParsedFromResult(peer PeerInfo, msg RawMessage, content ContentConfig, result FilterResult, ctx *bgpctx.EncodingContext) string {
+func formatParsedFromResult(peer PeerInfo, msg RawMessage, content ContentConfig, result FilterResult, ctx *bgpctx.EncodingContext, direction string) string {
 	if content.Encoding == EncodingJSON {
-		return formatFilterResultJSON(peer, result, msg.MessageID, msg.Direction, ctx)
+		return formatFilterResultJSON(peer, result, msg.MessageID, direction, ctx)
 	}
-	return formatFilterResultText(peer, result, msg.MessageID, msg.Direction, ctx)
+	return formatFilterResultText(peer, result, msg.MessageID, direction, ctx)
 }
 
 // formatFullFromResult formats both parsed content AND raw hex.
 // ctx provides ADD-PATH state per family.
-func formatFullFromResult(peer PeerInfo, msg RawMessage, content ContentConfig, result FilterResult, ctx *bgpctx.EncodingContext) string {
+func formatFullFromResult(peer PeerInfo, msg RawMessage, content ContentConfig, result FilterResult, ctx *bgpctx.EncodingContext, direction string) string {
 	rawHex := fmt.Sprintf("%x", msg.RawBytes)
-	parsed := formatParsedFromResult(peer, msg, content, result, ctx)
+	parsed := formatParsedFromResult(peer, msg, content, result, ctx, direction)
 
 	if content.Encoding == EncodingJSON {
 		// Inject raw bytes into JSON: replace trailing "}\n" with ,"raw":"hex"}\n
@@ -144,7 +151,7 @@ func formatFullFromResult(peer PeerInfo, msg RawMessage, content ContentConfig, 
 	}
 
 	// For text, append raw line
-	return parsed + fmt.Sprintf("peer %s %s update raw %s\n", peer.Address, msg.Direction, rawHex)
+	return parsed + fmt.Sprintf("peer %s %s update raw %s\n", peer.Address, direction, rawHex)
 }
 
 // formatFilterResultJSON formats FilterResult as JSON.
@@ -608,11 +615,8 @@ func formatStateChangeText(peer PeerInfo, state string) string {
 // Uses "type":"sent" instead of "type":"update" to distinguish from received messages.
 // For text format, uses "sent update" instead of "received update".
 func FormatSentMessage(peer PeerInfo, msg RawMessage, content ContentConfig) string {
-	// Force direction to "sent" for sent messages
-	msg.Direction = "sent"
-
-	// Format as regular update message
-	output := FormatMessage(peer, msg, content)
+	// Format with direction override (no mutation of msg)
+	output := FormatMessage(peer, msg, content, "sent")
 
 	// Replace type indicator for JSON (text format uses direction field)
 	// New format has type in message wrapper: {"message":{"type":"update"...

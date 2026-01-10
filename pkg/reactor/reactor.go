@@ -3423,9 +3423,9 @@ func (r *Reactor) notifyMessageReceiver(peerAddr netip.Addr, msgType message.Mes
 
 		// Derive AttrsWire for observation callback
 		// Errors logged but not fatal - handleUpdate() validates separately
-		attrsWire, err := wireUpdate.Attrs()
-		if err != nil {
-			trace.Log(trace.Session, "peer %s: WireUpdate.Attrs error: %v", peerAddr, err)
+		attrsWire, parseErr := wireUpdate.Attrs()
+		if parseErr != nil {
+			trace.Log(trace.Session, "peer %s: WireUpdate.Attrs error: %v", peerAddr, parseErr)
 		}
 
 		// RawMessage uses zero-copy for synchronous callback processing
@@ -3437,6 +3437,7 @@ func (r *Reactor) notifyMessageReceiver(peerAddr netip.Addr, msgType message.Mes
 			MessageID:  messageID,
 			WireUpdate: wireUpdate,
 			AttrsWire:  attrsWire, // Derived from WireUpdate
+			ParseError: parseErr,  // Propagate parse error to plugins
 		}
 	} else {
 		// Non-UPDATE or sent messages: copy bytes for async processing safety

@@ -885,8 +885,8 @@ func (s *Server) OnMessageReceived(peer PeerInfo, msg RawMessage) {
 			continue
 		}
 
-		// Format using THIS BINDING's config
-		output := s.formatMessage(peer, msg, binding)
+		// Format using THIS BINDING's config (empty overrideDir = use msg.Direction)
+		output := s.formatMessage(peer, msg, binding, "")
 		_ = proc.WriteEvent(output)
 	}
 }
@@ -909,38 +909,45 @@ func wantsMessageType(binding PeerProcessBinding, msgType message.MessageType) b
 }
 
 // formatMessage formats a BGP message using the binding's encoding and format.
-func (s *Server) formatMessage(peer PeerInfo, msg RawMessage, binding PeerProcessBinding) string {
+// overrideDir overrides msg.Direction if non-empty (used for sent messages).
+func (s *Server) formatMessage(peer PeerInfo, msg RawMessage, binding PeerProcessBinding, overrideDir string) string {
 	// Build ContentConfig from binding
 	content := ContentConfig{
 		Encoding: binding.Encoding,
 		Format:   binding.Format,
 	}.WithDefaults()
 
+	// Compute effective direction
+	direction := msg.Direction
+	if overrideDir != "" {
+		direction = overrideDir
+	}
+
 	switch msg.Type { //nolint:exhaustive // Only handle supported types
 	case message.TypeUPDATE:
 		// UPDATE messages support format (parsed/raw/full)
-		return FormatMessage(peer, msg, content)
+		return FormatMessage(peer, msg, content, overrideDir)
 
 	case message.TypeOPEN:
 		// Other message types only use encoding (json/text)
 		decoded := DecodeOpen(msg.RawBytes)
 		if content.Encoding == EncodingJSON {
-			return s.encoder.Open(peer, decoded, msg.Direction, msg.MessageID)
+			return s.encoder.Open(peer, decoded, direction, msg.MessageID)
 		}
-		return FormatOpen(peer, decoded, msg.Direction, msg.MessageID)
+		return FormatOpen(peer, decoded, direction, msg.MessageID)
 
 	case message.TypeNOTIFICATION:
 		decoded := DecodeNotification(msg.RawBytes)
 		if content.Encoding == EncodingJSON {
-			return s.encoder.Notification(peer, decoded, msg.Direction, msg.MessageID)
+			return s.encoder.Notification(peer, decoded, direction, msg.MessageID)
 		}
-		return FormatNotification(peer, decoded, msg.Direction, msg.MessageID)
+		return FormatNotification(peer, decoded, direction, msg.MessageID)
 
 	case message.TypeKEEPALIVE:
 		if content.Encoding == EncodingJSON {
-			return s.encoder.Keepalive(peer, msg.Direction, msg.MessageID)
+			return s.encoder.Keepalive(peer, direction, msg.MessageID)
 		}
-		return FormatKeepalive(peer, msg.Direction, msg.MessageID)
+		return FormatKeepalive(peer, direction, msg.MessageID)
 
 	default:
 		return ""

@@ -108,7 +108,7 @@ func TestFormatMessageText(t *testing.T) {
 		Format:   FormatParsed,
 	}
 
-	got := FormatMessage(peer, msg, content)
+	got := FormatMessage(peer, msg, content, "")
 
 	// Format: peer <ip> <direction> update <id> announce <attrs> <family> next-hop <ip> nlri <prefixes>
 	if !strings.Contains(got, "peer 10.0.0.1 received update") {
@@ -169,7 +169,7 @@ func TestFormatMessageJSON(t *testing.T) {
 		Format:   FormatParsed,
 	}
 
-	got := FormatMessage(peer, msg, content)
+	got := FormatMessage(peer, msg, content, "")
 
 	// Check key parts of the JSON structure
 	if !strings.Contains(got, `"type":"update"`) {
@@ -284,7 +284,7 @@ func TestFormatNonUpdateRoutesToDedicatedFormatters(t *testing.T) {
 		Format:   FormatParsed,
 	}
 
-	got := FormatMessage(peer, msg, content)
+	got := FormatMessage(peer, msg, content, "")
 
 	// Should use FormatOpen with new format: peer X received open <msg-id> asn Y router-id R hold-time T cap ...
 	if !strings.Contains(got, "peer 10.0.0.1 received open") || !strings.Contains(got, "asn 42") {
@@ -319,7 +319,7 @@ func TestFormatNonUpdateKeepalive(t *testing.T) {
 		Format:   FormatParsed,
 	}
 
-	got := FormatMessage(peer, msg, content)
+	got := FormatMessage(peer, msg, content, "")
 
 	// Should use new format: peer X received keepalive
 	if !strings.Contains(got, "peer 10.0.0.1 received keepalive") {

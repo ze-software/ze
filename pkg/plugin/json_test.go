@@ -348,7 +348,7 @@ func TestAPIOutputIncludesMsgID(t *testing.T) {
 		Format:   FormatParsed,
 	}
 
-	output := FormatMessage(peer, msg, content)
+	output := FormatMessage(peer, msg, content, "")
 
 	// Parse JSON
 	var result map[string]any
@@ -384,7 +384,7 @@ func TestAPIOutputNoMsgIDWhenZero(t *testing.T) {
 		Format:   FormatParsed,
 	}
 
-	output := FormatMessage(peer, msg, content)
+	output := FormatMessage(peer, msg, content, "")
 
 	// Parse JSON
 	var result map[string]any
