@@ -190,7 +190,7 @@ Write to `docs/plan/spec-<task-name>.md`:
 2. **Run tests** - Verify FAIL (paste output)
 3. **Implement** - Minimal code to pass
 4. **Run tests** - Verify PASS (paste output)
-5. **Verify all** - `make lint && make test && make functional`
+5. **Verify all** - `make lint && make test && make functional` (lint includes govet + 25 other linters)
 6. **RFC refs** - Add RFC reference comments
 7. **RFC constraints** - Add constraint comments with quoted requirements (see RFC Documentation)
 
@@ -237,7 +237,7 @@ if peer.IsExternal() && path.FirstAS() != peer.RemoteAS {
 - [ ] Tests PASS (output below)
 
 ### Verification
-- [ ] `make lint` passes
+- [ ] `make lint` passes (26 linters including `govet`, `staticcheck`, `gosec`, `gocritic`)
 - [ ] `make test` passes
 - [ ] `make functional` passes
 

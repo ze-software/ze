@@ -14,9 +14,27 @@ make test && make lint && make functional  # Full verification
 | Target | Command | Purpose |
 |--------|---------|---------|
 | `make test` | `go test -race -v ./...` | Unit tests |
-| `make lint` | `golangci-lint run` | Linting |
+| `make lint` | `golangci-lint run` | Linting (26 linters, see below) |
+| `make vet` | `go vet ./...` | Go vet only (subset of lint) |
 | `make functional` | Run qa/tests/* | Functional tests (37) |
 | `make ci` | lint + test + build | Full CI check |
+
+### Linters in `make lint`
+
+`golangci-lint` runs 26 linters including `govet`. Key linters:
+
+| Linter | Checks |
+|--------|--------|
+| `govet` | Suspicious constructs (printf args, struct tags, etc.) |
+| `staticcheck` | Static analysis, bugs, simplifications |
+| `errcheck` | Unchecked error returns |
+| `gosec` | Security issues |
+| `gocritic` | Performance (`hugeParam`, `rangeValCopy`), style, diagnostics |
+| `prealloc` | Slice preallocation opportunities |
+| `exhaustive` | Missing switch cases |
+| `dupl` | Duplicate code blocks |
+
+Full list: `errcheck`, `govet`, `ineffassign`, `staticcheck`, `unused`, `gocritic`, `gosec`, `misspell`, `unconvert`, `unparam`, `nakedret`, `prealloc`, `noctx`, `bodyclose`, `dupl`, `errorlint`, `exhaustive`, `forcetypeassert`, `goconst`, `godot`, `nilerr`, `nilnil`, `tparallel`, `wastedassign`, `gofmt`, `goimports`
 
 ## Individual Commands
 

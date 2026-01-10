@@ -1,5 +1,9 @@
 .PHONY: all build test lint clean fmt vet tidy functional functional-encoding functional-api functional-decoding functional-parsing help
 
+# Environment: keep build caches within CURDIR (not TMPDIR - breaks Unix socket tests)
+export GOCACHE := $(CURDIR)/tmp/go-cache
+export GOLANGCI_LINT_CACHE := $(CURDIR)/tmp/golangci-lint-cache
+
 # Default target
 all: lint test build
 
@@ -25,7 +29,7 @@ test-cover:
 # Run linter
 lint:
 	@echo "Running linter..."
-	golangci-lint run
+	@golangci-lint run
 
 # Format code
 fmt:

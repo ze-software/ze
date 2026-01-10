@@ -3,7 +3,6 @@ version: "2"
 
 run:
   timeout: 5m
-  modules-download-mode: readonly
 
 linters:
   enable:
@@ -56,6 +55,14 @@ linters-settings:
       - diagnostic
       - style
       - performance
+    enabled-checks:
+      - hugeParam
+      - rangeValCopy
+    settings:
+      hugeParam:
+        sizeThreshold: 80
+      rangeValCopy:
+        sizeThreshold: 128
 
   gosec:
     excludes:

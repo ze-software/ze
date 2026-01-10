@@ -2,6 +2,7 @@
 bin/
 /zebgp
 /functional
+tmp/
 
 # MRT data files (large, downloaded)
 test/internet/*.gz
