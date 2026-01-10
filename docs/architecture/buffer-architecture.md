@@ -3,6 +3,19 @@
 **Status:** Target Architecture (all development should follow this pattern)
 **Date:** 2026-01-10
 
+## Implementation Progress
+
+| Phase | Status | Description |
+|-------|--------|-------------|
+| Phase 1 | ✅ Done | Core iterator types (`Span`, `NLRIIterator`, `AttrIterator`, `ASPathIterator`) |
+| Phase 2 | ✅ Done | WireUpdate integration (iterator methods) |
+| Phase 3 | ⏳ Pending | Direct formatting functions |
+| Phase 4 | ⏳ Pending | RIB migration to iterators |
+| Phase 5 | ⏳ Pending | Deprecate parsed types |
+| Phase 6 | ⏳ Pending | Remove deprecated code |
+
+See `docs/plan/spec-buffer-first-migration.md` for detailed implementation plan.
+
 ---
 
 ## Executive Summary
@@ -138,15 +151,15 @@ type WireUpdate struct {
     messageID   uint64     // Unique identifier
 }
 
-// Section accessors return views, not copies
-func (u *WireUpdate) WithdrawnSpan() Span
-func (u *WireUpdate) AttrsSpan() Span
-func (u *WireUpdate) NLRISpan() Span
+// Existing section accessors (return raw bytes)
+func (u *WireUpdate) Withdrawn() ([]byte, error)
+func (u *WireUpdate) Attrs() (*AttributesWire, error)
+func (u *WireUpdate) NLRI() ([]byte, error)
 
-// Iterators for list sections
-func (u *WireUpdate) WithdrawnIterator(ctx ParseContext) *NLRIIterator
-func (u *WireUpdate) AttrIterator() *AttrIterator
-func (u *WireUpdate) NLRIIterator(ctx ParseContext) *NLRIIterator
+// Iterator accessors (Phase 2 - implemented)
+func (u *WireUpdate) WithdrawnIterator(addPath bool) (*nlri.NLRIIterator, error)
+func (u *WireUpdate) AttrIterator() (*attribute.AttrIterator, error)
+func (u *WireUpdate) NLRIIterator(addPath bool) (*nlri.NLRIIterator, error)
 ```
 
 ### Attribute Iterator
