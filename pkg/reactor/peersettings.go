@@ -236,17 +236,17 @@ type PeerSettings struct {
 	FlowSpecRoutes []FlowSpecRoute
 	MUPRoutes      []MUPRoute
 
-	// API bindings - which processes receive messages from this peer.
-	APIBindings []APIBinding
+	// Process bindings - which plugins receive messages from this peer.
+	ProcessBindings []ProcessBinding
 }
 
-// APIBinding represents a binding between this peer and an API process.
+// ProcessBinding represents a binding between this peer and a plugin.
 // Controls what messages are forwarded and in what format.
-type APIBinding struct {
-	ProcessName string // Reference to process name
+type ProcessBinding struct {
+	PluginName string // Reference to plugin name
 
 	// Content settings (HOW messages are formatted)
-	Encoding string // "json" | "text" (empty = inherit from process)
+	Encoding string // "json" | "text" (empty = inherit from plugin)
 	Format   string // "parsed" | "raw" | "full" (empty = "parsed")
 
 	// Receive settings (WHAT message types to forward)
@@ -258,7 +258,7 @@ type APIBinding struct {
 	ReceiveState        bool
 	ReceiveSent         bool // Forward sent UPDATE events
 
-	// Send settings (WHAT message types process can send)
+	// Send settings (WHAT message types plugin can send)
 	SendUpdate  bool
 	SendRefresh bool
 }

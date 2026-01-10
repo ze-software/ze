@@ -41,7 +41,7 @@ var (
 
 // Process represents an external subprocess.
 type Process struct {
-	config ProcessConfig
+	config PluginConfig
 	index  int // Plugin index for coordinator (0-based)
 	cmd    *exec.Cmd
 
@@ -95,7 +95,7 @@ type Process struct {
 }
 
 // NewProcess creates a new process with the given configuration.
-func NewProcess(config ProcessConfig) *Process {
+func NewProcess(config PluginConfig) *Process {
 	return &Process{
 		config:          config,
 		pendingRequests: make(map[string]chan string),
@@ -577,7 +577,7 @@ func (p *Process) monitor() {
 
 // ProcessManager manages multiple external processes.
 type ProcessManager struct {
-	configs   []ProcessConfig
+	configs   []PluginConfig
 	processes map[string]*Process
 
 	// Respawn tracking: name -> list of respawn timestamps
@@ -601,7 +601,7 @@ type ProcessWriter interface {
 var _ ProcessWriter = (*Process)(nil)
 
 // NewProcessManager creates a new process manager.
-func NewProcessManager(configs []ProcessConfig) *ProcessManager {
+func NewProcessManager(configs []PluginConfig) *ProcessManager {
 	return &ProcessManager{
 		configs:      configs,
 		processes:    make(map[string]*Process),
@@ -753,7 +753,7 @@ func (pm *ProcessManager) Respawn(name string) error {
 	}
 
 	// Find config
-	var cfg *ProcessConfig
+	var cfg *PluginConfig
 	for i := range pm.configs {
 		if pm.configs[i].Name == name {
 			cfg = &pm.configs[i]

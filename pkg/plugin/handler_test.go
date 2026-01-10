@@ -202,7 +202,7 @@ func (m *mockReactor) FlushRIBOut() int {
 	return 7 // Mock: pretend we flushed 7 routes
 }
 
-func (m *mockReactor) GetPeerAPIBindings(_ netip.Addr) []PeerAPIBinding {
+func (m *mockReactor) GetPeerProcessBindings(_ netip.Addr) []PeerProcessBinding {
 	return nil // Mock: no API bindings configured
 }
 
@@ -1494,43 +1494,43 @@ func TestRIBCommandsRegistered(t *testing.T) {
 func TestWantsMessageType(t *testing.T) {
 	tests := []struct {
 		name    string
-		binding PeerAPIBinding
+		binding PeerProcessBinding
 		msgType message.MessageType
 		want    bool
 	}{
 		{
 			name:    "update subscribed",
-			binding: PeerAPIBinding{ReceiveUpdate: true},
+			binding: PeerProcessBinding{ReceiveUpdate: true},
 			msgType: message.TypeUPDATE,
 			want:    true,
 		},
 		{
 			name:    "update not subscribed",
-			binding: PeerAPIBinding{ReceiveUpdate: false},
+			binding: PeerProcessBinding{ReceiveUpdate: false},
 			msgType: message.TypeUPDATE,
 			want:    false,
 		},
 		{
 			name:    "open subscribed",
-			binding: PeerAPIBinding{ReceiveOpen: true},
+			binding: PeerProcessBinding{ReceiveOpen: true},
 			msgType: message.TypeOPEN,
 			want:    true,
 		},
 		{
 			name:    "notification subscribed",
-			binding: PeerAPIBinding{ReceiveNotification: true},
+			binding: PeerProcessBinding{ReceiveNotification: true},
 			msgType: message.TypeNOTIFICATION,
 			want:    true,
 		},
 		{
 			name:    "keepalive subscribed",
-			binding: PeerAPIBinding{ReceiveKeepalive: true},
+			binding: PeerProcessBinding{ReceiveKeepalive: true},
 			msgType: message.TypeKEEPALIVE,
 			want:    true,
 		},
 		{
 			name:    "mixed flags - only update",
-			binding: PeerAPIBinding{ReceiveUpdate: true, ReceiveOpen: false},
+			binding: PeerProcessBinding{ReceiveUpdate: true, ReceiveOpen: false},
 			msgType: message.TypeOPEN,
 			want:    false,
 		},

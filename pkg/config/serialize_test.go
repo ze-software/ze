@@ -89,13 +89,13 @@ func TestSerializeFamily(t *testing.T) {
 	require.True(t, TreeEqual(tree, tree2), "trees should be equal after roundtrip")
 }
 
-// TestSerializeProcess verifies process block serialization.
+// TestSerializePlugin verifies plugin block serialization.
 //
-// VALIDATES: Process configs serialize correctly.
+// VALIDATES: Plugin configs serialize correctly.
 //
-// PREVENTS: Lost API process settings.
-func TestSerializeProcess(t *testing.T) {
-	input := `process watcher {
+// PREVENTS: Lost plugin settings.
+func TestSerializePlugin(t *testing.T) {
+	input := `plugin watcher {
     run "/usr/bin/watcher";
     encoder json;
 }

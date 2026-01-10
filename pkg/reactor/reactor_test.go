@@ -729,15 +729,15 @@ func BenchmarkWriteAnnounceUpdateIPv6(b *testing.B) {
 	}
 }
 
-// TestGetPeerAPIBindingsEncodingInheritance verifies encoding inheritance chain.
+// TestGetPeerProcessBindingsEncodingInheritance verifies encoding inheritance chain.
 //
 // VALIDATES: Empty peer encoding inherits from process, empty process defaults to "text".
 //
 // PREVENTS: Empty encoding causing silent failures in message dispatch.
-func TestGetPeerAPIBindingsEncodingInheritance(t *testing.T) {
+func TestGetPeerProcessBindingsEncodingInheritance(t *testing.T) {
 	cfg := &Config{
 		ListenAddr: "127.0.0.1:0",
-		APIProcesses: []APIProcessConfig{
+		Plugins: []PluginConfig{
 			{Name: "json-proc", Run: "./test", Encoder: "json"},
 			{Name: "text-proc", Run: "./test", Encoder: "text"},
 			{Name: "empty-proc", Run: "./test", Encoder: ""},
@@ -751,11 +751,11 @@ func TestGetPeerAPIBindingsEncodingInheritance(t *testing.T) {
 		mustParseAddr("192.0.2.1"),
 		65000, 65001, 0x01010101,
 	)
-	settings.APIBindings = []APIBinding{
-		{ProcessName: "json-proc", Encoding: "text"}, // Explicit override
-		{ProcessName: "json-proc", Encoding: ""},     // Inherit from process (json)
-		{ProcessName: "text-proc", Encoding: ""},     // Inherit from process (text)
-		{ProcessName: "empty-proc", Encoding: ""},    // Process empty, default to text
+	settings.ProcessBindings = []ProcessBinding{
+		{PluginName: "json-proc", Encoding: "text"}, // Explicit override
+		{PluginName: "json-proc", Encoding: ""},     // Inherit from process (json)
+		{PluginName: "text-proc", Encoding: ""},     // Inherit from process (text)
+		{PluginName: "empty-proc", Encoding: ""},    // Process empty, default to text
 	}
 
 	err := reactor.AddPeer(settings)
@@ -763,7 +763,7 @@ func TestGetPeerAPIBindingsEncodingInheritance(t *testing.T) {
 
 	// Get bindings through API adapter
 	adapter := &reactorAPIAdapter{reactor}
-	bindings := adapter.GetPeerAPIBindings(mustParseAddr("192.0.2.1"))
+	bindings := adapter.GetPeerProcessBindings(mustParseAddr("192.0.2.1"))
 
 	require.Len(t, bindings, 4)
 
@@ -777,12 +777,12 @@ func TestGetPeerAPIBindingsEncodingInheritance(t *testing.T) {
 	require.Equal(t, "parsed", bindings[0].Format, "format should default to parsed")
 }
 
-// TestGetPeerAPIBindingsNotFound verifies nil return for unknown peer.
+// TestGetPeerProcessBindingsNotFound verifies nil return for unknown peer.
 //
-// VALIDATES: GetPeerAPIBindings returns nil for non-existent peer.
+// VALIDATES: GetPeerProcessBindings returns nil for non-existent peer.
 //
 // PREVENTS: Panic on unknown peer lookup.
-func TestGetPeerAPIBindingsNotFound(t *testing.T) {
+func TestGetPeerProcessBindingsNotFound(t *testing.T) {
 	cfg := &Config{
 		ListenAddr: "127.0.0.1:0",
 	}
@@ -790,7 +790,7 @@ func TestGetPeerAPIBindingsNotFound(t *testing.T) {
 	reactor := New(cfg)
 
 	adapter := &reactorAPIAdapter{reactor}
-	bindings := adapter.GetPeerAPIBindings(mustParseAddr("192.0.2.99"))
+	bindings := adapter.GetPeerProcessBindings(mustParseAddr("192.0.2.99"))
 
 	require.Nil(t, bindings, "unknown peer should return nil")
 }

@@ -228,14 +228,14 @@ peer 192.0.2.1 {
 	require.Equal(t, "true", val)
 }
 
-// TestArraySyntax verifies array parsing.
+// TestArraySyntax verifies array parsing in old migration syntax.
 //
 // VALIDATES: "processes [ name1 name2 ];" parses as array.
 //
 // PREVENTS: Breaking on bracket syntax.
 func TestArraySyntax(t *testing.T) {
 	input := `
-process watcher {
+plugin watcher {
     run "/usr/bin/watcher";
     encoder json;
 }
@@ -243,7 +243,7 @@ process watcher {
 peer 192.0.2.1 {
     local-as 65000;
     peer-as 65001;
-    api {
+    process {
         processes [ watcher ];
     }
 }
@@ -256,13 +256,13 @@ peer 192.0.2.1 {
 	neighbors := tree.GetList("peer")
 	n := neighbors["192.0.2.1"]
 
-	// api is now List(TypeString, ...), so use GetList with KeyDefault key
-	apiList := n.GetList("api")
-	require.NotNil(t, apiList)
-	api := apiList[KeyDefault]
-	require.NotNil(t, api, "anonymous api block should exist")
+	// process is now List(TypeString, ...), so use GetList with KeyDefault key
+	processList := n.GetList("process")
+	require.NotNil(t, processList)
+	processBlock := processList[KeyDefault]
+	require.NotNil(t, processBlock, "anonymous process block should exist")
 
-	val, ok := api.Get("processes")
+	val, ok := processBlock.Get("processes")
 	require.True(t, ok)
 	require.Equal(t, "watcher", val)
 }
@@ -277,7 +277,7 @@ func TestArrayMultipleValues(t *testing.T) {
 peer 192.0.2.1 {
     local-as 65000;
     peer-as 65001;
-    api {
+    process {
         processes [ watcher announcer receiver ];
     }
 }
@@ -291,10 +291,10 @@ peer 192.0.2.1 {
 	n := neighbors["192.0.2.1"]
 
 	// api is now List(TypeString, ...), so use GetList with KeyDefault key
-	apiList := n.GetList("api")
+	apiList := n.GetList("process")
 	require.NotNil(t, apiList)
 	api := apiList[KeyDefault]
-	require.NotNil(t, api, "anonymous api block should exist")
+	require.NotNil(t, api, "anonymous process block should exist")
 
 	val, ok := api.Get("processes")
 	require.True(t, ok)
@@ -311,7 +311,7 @@ func TestArrayRoundtrip(t *testing.T) {
 peer 192.0.2.1 {
     local-as 65000;
     peer-as 65001;
-    api {
+    process {
         processes [ watcher ];
     }
 }

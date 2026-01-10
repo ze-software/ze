@@ -272,11 +272,11 @@ func peerFields() []FieldDef {
 		// Add-path per-family configuration
 		Field("add-path", Freeform()),
 
-		// API configuration - supports both old and new syntax:
-		// Old: api { processes [ foo ]; } or api <label> { processes [...]; receive {...}; }
-		// New: api <process-name> { content { encoding json; }; receive { update; }; }
-		Field("api", List(TypeString,
-			// Old syntax fields (ExaBGP compatibility)
+		// Process bindings - connects peer to plugin processes:
+		// Old: process { processes [ foo ]; } (ExaBGP compat, via migration)
+		// New: process <plugin-name> { content { encoding json; }; receive { update; }; }
+		Field("process", List(TypeString,
+			// Old syntax fields (ExaBGP compatibility, migrated from "api")
 			Field("processes", ArrayLeaf(TypeString)),       // processes [ foo bar ]
 			Field("processes-match", ArrayLeaf(TypeString)), // processes-match [ "^pattern" ]
 			Field("neighbor-changes", Flex()),               // neighbor-changes; (flag)
@@ -321,8 +321,8 @@ func BGPSchema() *Schema {
 	schema.Define("local-as", Leaf(TypeUint32))
 	schema.Define("listen", MultiLeaf(TypeString)) // "address port"
 
-	// Process definitions (API)
-	schema.Define("process", List(TypeString,
+	// Plugin definitions (external processes)
+	schema.Define("plugin", List(TypeString,
 		Field("run", MultiLeaf(TypeString)), // command with args
 		Field("encoder", Leaf(TypeString)),  // json, text
 		Field("respawn", Leaf(TypeBool)),    // respawn on exit
@@ -469,7 +469,7 @@ type BGPConfig struct {
 	LocalAS   uint32
 	Listen    string
 	Peers     []PeerConfig
-	Processes []ProcessConfig
+	Plugins   []PluginConfig
 	ConfigDir string                       // Directory containing config file (set by LoadReactorFile)
 	EnvValues map[string]map[string]string // Environment block values (ZeBGP-specific)
 }
@@ -500,16 +500,16 @@ type PeerConfig struct {
 	VPLSRoutes           []VPLSRouteConfig
 	FlowSpecRoutes       []FlowSpecRouteConfig
 	MUPRoutes            []MUPRouteConfig
-	APIBindings          []PeerAPIBinding // Per-peer API process bindings
+	ProcessBindings      []PeerProcessBinding // Per-peer process bindings
 }
 
-// PeerAPIBinding binds a peer to an API process with specific content and message config.
+// PeerProcessBinding binds a peer to a plugin process with specific content and message config.
 // This separates WHAT messages to send/receive from HOW they are formatted.
-type PeerAPIBinding struct {
-	ProcessName string            // Reference to process name (must exist)
-	Content     PeerContentConfig // HOW: encoding and format
-	Receive     PeerReceiveConfig // WHAT: which message types to receive
-	Send        PeerSendConfig    // WHAT: which message types to send
+type PeerProcessBinding struct {
+	PluginName string            // Reference to plugin name (must exist)
+	Content    PeerContentConfig // HOW: encoding and format
+	Receive    PeerReceiveConfig // WHAT: which message types to receive
+	Send       PeerSendConfig    // WHAT: which message types to send
 }
 
 // PeerContentConfig controls message formatting (encoding + format).
@@ -659,12 +659,12 @@ type MUPRouteConfig struct {
 	PrefixSID         string
 }
 
-// ProcessConfig holds process configuration.
-type ProcessConfig struct {
+// PluginConfig holds plugin configuration.
+type PluginConfig struct {
 	Name          string
 	Run           string
 	Encoder       string
-	ReceiveUpdate bool // Forward received UPDATEs to process stdin
+	ReceiveUpdate bool // Forward received UPDATEs to plugin stdin
 }
 
 // TreeToConfig converts a parsed tree to a typed BGPConfig.
@@ -692,25 +692,25 @@ func TreeToConfig(tree *Tree) (*BGPConfig, error) {
 		cfg.Listen = v
 	}
 
-	// Processes
-	for name, proc := range tree.GetList("process") {
+	// Plugins
+	for name, proc := range tree.GetList("plugin") {
 		// Reject reserved names (underscore prefix used internally)
 		if strings.HasPrefix(name, "_") {
-			return nil, fmt.Errorf("process name %q: names starting with underscore are reserved", name)
+			return nil, fmt.Errorf("plugin name %q: names starting with underscore are reserved", name)
 		}
-		pc := ProcessConfig{Name: name}
+		pc := PluginConfig{Name: name}
 		if v, ok := proc.Get("run"); ok {
 			pc.Run = v
 		}
 		if v, ok := proc.Get("encoder"); ok {
 			pc.Encoder = v
 		}
-		// Default: text encoder processes receive updates
-		// TODO: Parse api { receive { update; } } from peer/template for proper config
+		// Default: text encoder plugins receive updates
+		// TODO: Parse process { receive { update; } } from peer/template for proper config
 		if pc.Encoder == encoderText {
 			pc.ReceiveUpdate = true
 		}
-		cfg.Processes = append(cfg.Processes, pc)
+		cfg.Plugins = append(cfg.Plugins, pc)
 	}
 
 	// Parse templates first (for inheritance)
@@ -792,10 +792,10 @@ func TreeToConfig(tree *Tree) (*BGPConfig, error) {
 		cfg.Peers = append(cfg.Peers, nc)
 	}
 
-	// Build set of defined process names for validation
-	processNames := make(map[string]bool)
-	for _, p := range cfg.Processes {
-		processNames[p.Name] = true
+	// Build set of defined plugin names for validation
+	pluginNames := make(map[string]bool)
+	for _, p := range cfg.Plugins {
+		pluginNames[p.Name] = true
 	}
 
 	// V3: peer <IP> { ... } - parse IPs as neighbors
@@ -807,10 +807,10 @@ func TreeToConfig(tree *Tree) (*BGPConfig, error) {
 				return nil, fmt.Errorf("peer %s: %w", addr, err)
 			}
 
-			// Validate API binding process references
-			for _, binding := range nc.APIBindings {
-				if !processNames[binding.ProcessName] {
-					return nil, fmt.Errorf("peer %s: undefined process %q in api binding", addr, binding.ProcessName)
+			// Validate process binding plugin references
+			for _, binding := range nc.ProcessBindings {
+				if !pluginNames[binding.PluginName] {
+					return nil, fmt.Errorf("peer %s: undefined plugin %q in process binding", addr, binding.PluginName)
 				}
 			}
 
@@ -1287,36 +1287,36 @@ func parsePeerConfig(addr string, tree *Tree, templates map[string]*Tree, peerGl
 	}
 
 	// Parse API bindings - supports both old and new syntax:
-	// Old: api { processes [ foo bar ]; receive { ... } }
-	// New: api <process-name> { content { encoding json; } receive { update; } }
+	// Old: process { processes [ foo bar ]; receive { ... } } (migrated from "api")
+	// New: process <plugin-name> { content { encoding json; } receive { update; } }
 	//
 	// Precedence: match templates → inherited templates → peer config
 	// Each layer can override the previous.
 
 	// Layer 1: Match templates (collected earlier in matchingTrees)
 	for _, matchTree := range matchingTrees {
-		matchBindings, err := parseAPIBindings(matchTree)
+		matchBindings, err := parseProcessBindings(matchTree)
 		if err != nil {
 			return PeerConfig{}, fmt.Errorf("peer %s: %w", addr, err)
 		}
-		nc.APIBindings = mergeAPIBindings(nc.APIBindings, matchBindings)
+		nc.ProcessBindings = mergeProcessBindings(nc.ProcessBindings, matchBindings)
 	}
 
 	// Layer 2: Inherited templates (later templates override earlier ones)
 	for _, tmpl := range inheritedTemplates {
-		tmplBindings, err := parseAPIBindings(tmpl)
+		tmplBindings, err := parseProcessBindings(tmpl)
 		if err != nil {
 			return PeerConfig{}, fmt.Errorf("peer %s: %w", addr, err)
 		}
-		nc.APIBindings = mergeAPIBindings(nc.APIBindings, tmplBindings)
+		nc.ProcessBindings = mergeProcessBindings(nc.ProcessBindings, tmplBindings)
 	}
 
 	// Layer 3: Peer bindings override all templates
-	peerBindings, err := parseAPIBindings(tree)
+	peerBindings, err := parseProcessBindings(tree)
 	if err != nil {
 		return PeerConfig{}, fmt.Errorf("peer %s: %w", addr, err)
 	}
-	nc.APIBindings = mergeAPIBindings(nc.APIBindings, peerBindings)
+	nc.ProcessBindings = mergeProcessBindings(nc.ProcessBindings, peerBindings)
 
 	return nc, nil
 }
@@ -1384,34 +1384,34 @@ func applyRIBOutParseResult(cfg *RIBOutConfig, parsed ribOutParseResult) {
 	}
 }
 
-// parseAPIBindings parses API bindings from a peer tree.
+// parseProcessBindings parses process bindings from a peer tree.
 // Supports both old and new syntax:
-//   - Old: api { processes [ foo bar ]; } - uses KeyDefault
-//   - New: api <process-name> { content { encoding json; } receive { update; } }
-func parseAPIBindings(tree *Tree) ([]PeerAPIBinding, error) {
-	var bindings []PeerAPIBinding
+//   - Old: process { processes [ foo bar ]; } - uses KeyDefault (migrated from "api")
+//   - New: process <plugin-name> { content { encoding json; } receive { update; } }
+func parseProcessBindings(tree *Tree) ([]PeerProcessBinding, error) {
+	var bindings []PeerProcessBinding
 
-	// Schema defines api as List(TypeString, ...) - use GetList
-	apiList := tree.GetList("api")
-	if len(apiList) == 0 {
+	// Schema defines process as List(TypeString, ...) - use GetList
+	processList := tree.GetList("process")
+	if len(processList) == 0 {
 		return nil, nil
 	}
 
 	// Sort keys for deterministic order (maps iterate randomly)
-	keys := make([]string, 0, len(apiList))
-	for k := range apiList {
+	keys := make([]string, 0, len(processList))
+	for k := range processList {
 		keys = append(keys, k)
 	}
 	sort.Strings(keys)
 
 	for _, key := range keys {
-		apiTree := apiList[key]
+		processTree := processList[key]
 		if key == KeyDefault {
-			// Old syntax: api { processes [ foo bar ]; }
-			bindings = append(bindings, parseOldAPIBindings(apiTree)...)
+			// Old syntax: process { processes [ foo bar ]; }
+			bindings = append(bindings, parseOldProcessBindings(processTree)...)
 		} else {
-			// New syntax: api <process-name> { content {...} receive {...} send {...} }
-			binding, err := parseNewAPIBinding(key, apiTree)
+			// New syntax: process <plugin-name> { content {...} receive {...} send {...} }
+			binding, err := parseNewProcessBinding(key, processTree)
 			if err != nil {
 				return nil, err
 			}
@@ -1422,24 +1422,25 @@ func parseAPIBindings(tree *Tree) ([]PeerAPIBinding, error) {
 	return bindings, nil
 }
 
-// parseOldAPIBindings parses the old api { processes [...] } syntax.
+// parseOldProcessBindings parses the old process { processes [...] } syntax.
 // Also handles neighbor-changes flag which maps to receive.State.
-func parseOldAPIBindings(apiTree *Tree) []PeerAPIBinding {
-	var bindings []PeerAPIBinding
+func parseOldProcessBindings(processTree *Tree) []PeerProcessBinding {
+	var bindings []PeerProcessBinding
 
 	// Check for neighbor-changes flag (maps to receive.State)
 	// Flex stores "neighbor-changes;" as GetFlex returning "true" or "enable"
 	neighborChanges := false
-	if v, ok := apiTree.GetFlex("neighbor-changes"); ok {
+	if v, ok := processTree.GetFlex("neighbor-changes"); ok {
 		neighborChanges = v == configTrue || v == configEnable || v == ""
 	}
 
 	// Look for "processes" key with array value like "[ foo bar ]"
-	if processesValue, ok := apiTree.Get("processes"); ok {
-		// Parse process names from "[ foo bar ]" or "foo bar" format
-		processesValue = strings.Trim(processesValue, "[]")
-		for _, processName := range strings.Fields(processesValue) {
-			binding := PeerAPIBinding{ProcessName: processName}
+	// (old syntax referenced plugin names as "processes")
+	if pluginsValue, ok := processTree.Get("processes"); ok {
+		// Parse plugin names from "[ foo bar ]" or "foo bar" format
+		pluginsValue = strings.Trim(pluginsValue, "[]")
+		for _, pluginName := range strings.Fields(pluginsValue) {
+			binding := PeerProcessBinding{PluginName: pluginName}
 			if neighborChanges {
 				binding.Receive.State = true
 			}
@@ -1450,12 +1451,12 @@ func parseOldAPIBindings(apiTree *Tree) []PeerAPIBinding {
 	return bindings
 }
 
-// parseNewAPIBinding parses a single api <name> { ... } binding.
-func parseNewAPIBinding(processName string, apiTree *Tree) (PeerAPIBinding, error) {
-	binding := PeerAPIBinding{ProcessName: processName}
+// parseNewProcessBinding parses a single process <plugin-name> { ... } binding.
+func parseNewProcessBinding(pluginName string, processTree *Tree) (PeerProcessBinding, error) {
+	binding := PeerProcessBinding{PluginName: pluginName}
 
 	// Parse content block: content { encoding json; format full; attribute ...; nlri ...; }
-	if content := apiTree.GetContainer("content"); content != nil {
+	if content := processTree.GetContainer("content"); content != nil {
 		if v, ok := content.Get("encoding"); ok {
 			binding.Content.Encoding = strings.ToLower(v) // Normalize case
 		}
@@ -1465,7 +1466,7 @@ func parseNewAPIBinding(processName string, apiTree *Tree) (PeerAPIBinding, erro
 		if v, ok := content.Get("attribute"); ok {
 			filter, err := plugin.ParseAttributeFilter(v)
 			if err != nil {
-				return PeerAPIBinding{}, fmt.Errorf("api %s: invalid attribute filter: %w", processName, err)
+				return PeerProcessBinding{}, fmt.Errorf("process %s: invalid attribute filter: %w", pluginName, err)
 			}
 			binding.Content.Attributes = &filter
 		}
@@ -1473,19 +1474,19 @@ func parseNewAPIBinding(processName string, apiTree *Tree) (PeerAPIBinding, erro
 		if nlriEntries := content.GetMultiValues("nlri"); len(nlriEntries) > 0 {
 			filter, err := parseNLRIEntries(nlriEntries)
 			if err != nil {
-				return PeerAPIBinding{}, fmt.Errorf("api %s: invalid nlri filter: %w", processName, err)
+				return PeerProcessBinding{}, fmt.Errorf("process %s: invalid nlri filter: %w", pluginName, err)
 			}
 			binding.Content.NLRI = &filter
 		}
 	}
 
 	// Parse receive block: receive { update; notification; all; }
-	if recv := apiTree.GetContainer("receive"); recv != nil {
+	if recv := processTree.GetContainer("receive"); recv != nil {
 		binding.Receive = parseReceiveConfig(recv)
 	}
 
 	// Parse send block: send { update; refresh; all; }
-	if send := apiTree.GetContainer("send"); send != nil {
+	if send := processTree.GetContainer("send"); send != nil {
 		binding.Send = parseSendConfig(send)
 	}
 
@@ -1578,10 +1579,10 @@ func parseSendConfig(tree *Tree) PeerSendConfig {
 	return cfg
 }
 
-// mergeAPIBindings merges new bindings into existing bindings.
-// Bindings with the same process name are replaced (new overrides existing).
-// Bindings with different process names are appended.
-func mergeAPIBindings(existing, new []PeerAPIBinding) []PeerAPIBinding {
+// mergeProcessBindings merges new bindings into existing bindings.
+// Bindings with the same plugin name are replaced (new overrides existing).
+// Bindings with different plugin names are appended.
+func mergeProcessBindings(existing, new []PeerProcessBinding) []PeerProcessBinding {
 	if len(new) == 0 {
 		return existing
 	}
@@ -1589,24 +1590,24 @@ func mergeAPIBindings(existing, new []PeerAPIBinding) []PeerAPIBinding {
 		return new
 	}
 
-	// Build map of existing bindings by process name
-	result := make([]PeerAPIBinding, 0, len(existing)+len(new))
-	seen := make(map[string]int) // process name -> index in result
+	// Build map of existing bindings by plugin name
+	result := make([]PeerProcessBinding, 0, len(existing)+len(new))
+	seen := make(map[string]int) // plugin name -> index in result
 
 	// Add existing bindings
 	for _, b := range existing {
-		seen[b.ProcessName] = len(result)
+		seen[b.PluginName] = len(result)
 		result = append(result, b)
 	}
 
 	// Merge new bindings (replace or append)
 	for _, b := range new {
-		if idx, exists := seen[b.ProcessName]; exists {
+		if idx, exists := seen[b.PluginName]; exists {
 			// Replace existing binding
 			result[idx] = b
 		} else {
 			// Append new binding
-			seen[b.ProcessName] = len(result)
+			seen[b.PluginName] = len(result)
 			result = append(result, b)
 		}
 	}

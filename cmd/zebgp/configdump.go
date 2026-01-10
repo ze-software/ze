@@ -173,10 +173,10 @@ func printConfig(cfg *config.BGPConfig) {
 		fmt.Println()
 	}
 
-	// Processes
-	if len(cfg.Processes) > 0 {
-		fmt.Printf("processes:\n")
-		for _, p := range cfg.Processes {
+	// Plugins
+	if len(cfg.Plugins) > 0 {
+		fmt.Printf("plugins:\n")
+		for _, p := range cfg.Plugins {
 			fmt.Printf("  - name: %s\n", p.Name)
 			if p.Run != "" {
 				fmt.Printf("    run: %s\n", p.Run)

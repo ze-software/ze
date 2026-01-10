@@ -37,15 +37,15 @@ Plugin Subcommands:
 
 The plugin subcommands run as API processes that communicate with the
 ZeBGP router via stdin/stdout. They are spawned by the router based
-on process configuration.
+on plugin configuration.
 
 Example config:
-  process rr {
+  plugin rr {
       run "zebgp plugin rr";
       encoder json;
   }
 
-  process persist {
+  plugin persist {
       run "zebgp plugin persist";
       encoder json;
   }

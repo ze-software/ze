@@ -154,12 +154,12 @@ func (s *Server) Start() error {
 func (s *Server) StartWithContext(ctx context.Context) error {
 	s.ctx, s.cancel = context.WithCancel(ctx)
 
-	// Start external processes if configured
-	if len(s.config.Processes) > 0 {
+	// Start external plugins if configured
+	if len(s.config.Plugins) > 0 {
 		// Create coordinator for staged startup
-		s.coordinator = NewStartupCoordinator(len(s.config.Processes))
+		s.coordinator = NewStartupCoordinator(len(s.config.Plugins))
 
-		s.procManager = NewProcessManager(s.config.Processes)
+		s.procManager = NewProcessManager(s.config.Plugins)
 		if err := s.procManager.StartWithContext(s.ctx); err != nil {
 			return err
 		}
@@ -870,7 +870,7 @@ func (s *Server) OnMessageReceived(peer PeerInfo, msg RawMessage) {
 	}
 
 	// Get peer-specific API bindings from reactor
-	bindings := s.reactor.GetPeerAPIBindings(peer.Address)
+	bindings := s.reactor.GetPeerProcessBindings(peer.Address)
 	if len(bindings) == 0 {
 		return
 	}
@@ -880,7 +880,7 @@ func (s *Server) OnMessageReceived(peer PeerInfo, msg RawMessage) {
 			continue
 		}
 
-		proc := s.procManager.GetProcess(binding.ProcessName)
+		proc := s.procManager.GetProcess(binding.PluginName)
 		if proc == nil {
 			continue
 		}
@@ -893,7 +893,7 @@ func (s *Server) OnMessageReceived(peer PeerInfo, msg RawMessage) {
 
 // wantsMessageType checks if binding wants this message type.
 // State events are NOT BGP messages - handled separately via OnPeerStateChange.
-func wantsMessageType(binding PeerAPIBinding, msgType message.MessageType) bool {
+func wantsMessageType(binding PeerProcessBinding, msgType message.MessageType) bool {
 	switch msgType { //nolint:exhaustive // Only handle supported types
 	case message.TypeUPDATE:
 		return binding.ReceiveUpdate
@@ -909,7 +909,7 @@ func wantsMessageType(binding PeerAPIBinding, msgType message.MessageType) bool 
 }
 
 // formatMessage formats a BGP message using the binding's encoding and format.
-func (s *Server) formatMessage(peer PeerInfo, msg RawMessage, binding PeerAPIBinding) string {
+func (s *Server) formatMessage(peer PeerInfo, msg RawMessage, binding PeerProcessBinding) string {
 	// Build ContentConfig from binding
 	content := ContentConfig{
 		Encoding: binding.Encoding,
@@ -955,13 +955,13 @@ func (s *Server) OnPeerStateChange(peer PeerInfo, state string) {
 		return
 	}
 
-	bindings := s.reactor.GetPeerAPIBindings(peer.Address)
+	bindings := s.reactor.GetPeerProcessBindings(peer.Address)
 	for _, binding := range bindings {
 		if !binding.ReceiveState {
 			continue
 		}
 
-		proc := s.procManager.GetProcess(binding.ProcessName)
+		proc := s.procManager.GetProcess(binding.PluginName)
 		if proc == nil {
 			continue
 		}
@@ -990,7 +990,7 @@ func (s *Server) OnMessageSent(peer PeerInfo, msg RawMessage) {
 	}
 
 	// Get peer-specific API bindings from reactor
-	bindings := s.reactor.GetPeerAPIBindings(peer.Address)
+	bindings := s.reactor.GetPeerProcessBindings(peer.Address)
 	if len(bindings) == 0 {
 		return
 	}
@@ -1000,7 +1000,7 @@ func (s *Server) OnMessageSent(peer PeerInfo, msg RawMessage) {
 			continue
 		}
 
-		proc := s.procManager.GetProcess(binding.ProcessName)
+		proc := s.procManager.GetProcess(binding.PluginName)
 		if proc == nil {
 			continue
 		}
@@ -1012,7 +1012,7 @@ func (s *Server) OnMessageSent(peer PeerInfo, msg RawMessage) {
 }
 
 // formatSentMessage formats a sent UPDATE message.
-func (s *Server) formatSentMessage(peer PeerInfo, msg RawMessage, binding PeerAPIBinding) string {
+func (s *Server) formatSentMessage(peer PeerInfo, msg RawMessage, binding PeerProcessBinding) string {
 	// Build ContentConfig from binding
 	content := ContentConfig{
 		Encoding: binding.Encoding,

@@ -108,14 +108,14 @@ func TestMigrateSkipsAlreadyMigrated(t *testing.T) {
 // VALIDATES: Original tree unchanged when migration fails.
 // PREVENTS: Partial migration leaving corrupted state.
 func TestMigrateOriginalUnchangedOnError(t *testing.T) {
-	// Create tree with api block that will cause duplicate error
+	// Create tree with process block that will cause duplicate error
 	tree := config.NewTree()
 	peer := config.NewTree()
 
 	// Create old-style api with duplicate processes
 	api := config.NewTree()
 	api.Set("processes", "[ foo foo ]") // Duplicate!
-	peer.AddListEntry("api", config.KeyDefault, api)
+	peer.AddListEntry("process", config.KeyDefault, api)
 
 	tree.AddListEntry("peer", "10.0.0.1", peer)
 
@@ -205,13 +205,13 @@ func TestDryRunWouldApply(t *testing.T) {
 // VALIDATES: DryRun captures failure info in result, not as error.
 // PREVENTS: DryRun returning error instead of analysis.
 func TestDryRunCapturesFailure(t *testing.T) {
-	// Create tree with api block that will cause duplicate error
+	// Create tree with process block that will cause duplicate error
 	tree := config.NewTree()
 	peer := config.NewTree()
 
 	api := config.NewTree()
 	api.Set("processes", "[ foo foo ]") // Duplicate!
-	peer.AddListEntry("api", config.KeyDefault, api)
+	peer.AddListEntry("process", config.KeyDefault, api)
 
 	tree.AddListEntry("peer", "10.0.0.1", peer)
 

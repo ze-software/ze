@@ -62,8 +62,8 @@ type Config struct {
 	// If empty, API server is not started.
 	APISocketPath string
 
-	// APIProcesses defines external processes for API communication.
-	APIProcesses []APIProcessConfig
+	// Plugins defines external plugin processes for API communication.
+	Plugins []PluginConfig
 
 	// ConfigDir is the directory containing the config file.
 	// Used as working directory for process execution.
@@ -78,13 +78,13 @@ type Config struct {
 	RecentUpdateMax int
 }
 
-// APIProcessConfig holds external process configuration for the API.
-type APIProcessConfig struct {
+// PluginConfig holds external plugin configuration.
+type PluginConfig struct {
 	Name          string
 	Run           string
 	Encoder       string
 	Respawn       bool
-	ReceiveUpdate bool // Forward received UPDATEs to process stdin
+	ReceiveUpdate bool // Forward received UPDATEs to plugin stdin
 }
 
 // Stats holds reactor statistics.
@@ -2231,10 +2231,10 @@ func (a *reactorAPIAdapter) FlushRIBOut() int {
 	return 0
 }
 
-// GetPeerAPIBindings returns API bindings for a specific peer.
+// GetPeerProcessBindings returns process bindings for a specific peer.
 // Returns nil if peer not found.
-// Resolves encoding inheritance: peer binding → process encoder → "text" default.
-func (a *reactorAPIAdapter) GetPeerAPIBindings(peerAddr netip.Addr) []plugin.PeerAPIBinding {
+// Resolves encoding inheritance: peer binding → plugin encoder → "text" default.
+func (a *reactorAPIAdapter) GetPeerProcessBindings(peerAddr netip.Addr) []plugin.PeerProcessBinding {
 	a.r.mu.RLock()
 	defer a.r.mu.RUnlock()
 
@@ -2244,12 +2244,12 @@ func (a *reactorAPIAdapter) GetPeerAPIBindings(peerAddr netip.Addr) []plugin.Pee
 	}
 
 	settings := peer.Settings()
-	result := make([]plugin.PeerAPIBinding, 0, len(settings.APIBindings))
-	for _, b := range settings.APIBindings {
-		// Resolve encoding: peer override → process default → "text"
+	result := make([]plugin.PeerProcessBinding, 0, len(settings.ProcessBindings))
+	for _, b := range settings.ProcessBindings {
+		// Resolve encoding: peer override → plugin default → "text"
 		encoding := b.Encoding
 		if encoding == "" {
-			encoding = a.getProcessEncoder(b.ProcessName)
+			encoding = a.getPluginEncoder(b.PluginName)
 		}
 		if encoding == "" {
 			encoding = "text"
@@ -2261,8 +2261,8 @@ func (a *reactorAPIAdapter) GetPeerAPIBindings(peerAddr netip.Addr) []plugin.Pee
 			format = "parsed"
 		}
 
-		result = append(result, plugin.PeerAPIBinding{
-			ProcessName:         b.ProcessName,
+		result = append(result, plugin.PeerProcessBinding{
+			PluginName:          b.PluginName,
 			Encoding:            encoding,
 			Format:              format,
 			ReceiveUpdate:       b.ReceiveUpdate,
@@ -2279,9 +2279,9 @@ func (a *reactorAPIAdapter) GetPeerAPIBindings(peerAddr netip.Addr) []plugin.Pee
 	return result
 }
 
-// getProcessEncoder returns the encoder for a process, or empty if not found.
-func (a *reactorAPIAdapter) getProcessEncoder(name string) string {
-	for _, pc := range a.r.config.APIProcesses {
+// getPluginEncoder returns the encoder for a plugin, or empty if not found.
+func (a *reactorAPIAdapter) getPluginEncoder(name string) string {
+	for _, pc := range a.r.config.Plugins {
 		if pc.Name == name {
 			return pc.Encoder
 		}
@@ -3638,9 +3638,9 @@ func (r *Reactor) StartWithContext(ctx context.Context) error {
 		apiConfig := &plugin.ServerConfig{
 			SocketPath: r.config.APISocketPath,
 		}
-		// Convert process configs
-		for _, pc := range r.config.APIProcesses {
-			apiConfig.Processes = append(apiConfig.Processes, plugin.ProcessConfig{
+		// Convert plugin configs
+		for _, pc := range r.config.Plugins {
+			apiConfig.Plugins = append(apiConfig.Plugins, plugin.PluginConfig{
 				Name:          pc.Name,
 				Run:           pc.Run,
 				Encoder:       pc.Encoder,
@@ -3655,8 +3655,8 @@ func (r *Reactor) StartWithContext(ctx context.Context) error {
 		// Register API state observer for peer lifecycle events
 		r.AddPeerObserver(&apiStateObserver{server: r.api, reactor: r})
 
-		// Set process count for API sync - wait for all processes to send "api ready"
-		r.SetAPIProcessCount(len(r.config.APIProcesses))
+		// Set plugin count for API sync - wait for all plugins to send "api ready"
+		r.SetAPIProcessCount(len(r.config.Plugins))
 
 		if err := r.api.StartWithContext(r.ctx); err != nil {
 			r.stopAllListeners()

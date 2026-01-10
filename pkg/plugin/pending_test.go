@@ -12,7 +12,7 @@ import (
 // PREVENTS: Lost responses, misrouted requests.
 func TestPendingRequests_AddComplete(t *testing.T) {
 	pending := NewPendingRequests()
-	proc := &Process{config: ProcessConfig{Name: "test-proc"}}
+	proc := &Process{config: PluginConfig{Name: "test-proc"}}
 
 	// Mock client - we'll check response delivery
 	respCh := make(chan *Response, 1)
@@ -63,7 +63,7 @@ func TestPendingRequests_AddComplete(t *testing.T) {
 // PREVENTS: Memory leaks from stuck requests, clients waiting forever.
 func TestPendingRequests_Timeout(t *testing.T) {
 	pending := NewPendingRequests()
-	proc := &Process{config: ProcessConfig{Name: "test-proc"}}
+	proc := &Process{config: PluginConfig{Name: "test-proc"}}
 
 	respCh := make(chan *Response, 1)
 
@@ -105,8 +105,8 @@ func TestPendingRequests_Timeout(t *testing.T) {
 // PREVENTS: Clients waiting forever when process dies.
 func TestPendingRequests_CancelAll(t *testing.T) {
 	pending := NewPendingRequests()
-	proc1 := &Process{config: ProcessConfig{Name: "proc1"}}
-	proc2 := &Process{config: ProcessConfig{Name: "proc2"}}
+	proc1 := &Process{config: PluginConfig{Name: "proc1"}}
+	proc2 := &Process{config: PluginConfig{Name: "proc2"}}
 
 	respCh1 := make(chan *Response, 1)
 	respCh2 := make(chan *Response, 1)
@@ -175,7 +175,7 @@ func TestPendingRequests_CancelAll(t *testing.T) {
 // PREVENTS: Memory exhaustion from stuck process.
 func TestPendingRequests_Limit(t *testing.T) {
 	pending := NewPendingRequests()
-	proc := &Process{config: ProcessConfig{Name: "test-proc"}}
+	proc := &Process{config: PluginConfig{Name: "test-proc"}}
 
 	// Fill up to limit
 	for i := 0; i < MaxPendingPerProcess; i++ {
@@ -220,7 +220,7 @@ func TestPendingRequests_Limit(t *testing.T) {
 // PREVENTS: Collisions between concurrent requests.
 func TestPendingRequests_SerialUniqueness(t *testing.T) {
 	pending := NewPendingRequests()
-	proc := &Process{config: ProcessConfig{Name: "test-proc"}}
+	proc := &Process{config: PluginConfig{Name: "test-proc"}}
 
 	serials := make(map[string]bool)
 	for i := 0; i < 100; i++ {
@@ -247,7 +247,7 @@ func TestPendingRequests_SerialUniqueness(t *testing.T) {
 // PREVENTS: Timeout during large data transfers.
 func TestPendingRequests_StreamingResponse(t *testing.T) {
 	pending := NewPendingRequests()
-	proc := &Process{config: ProcessConfig{Name: "test-proc"}}
+	proc := &Process{config: PluginConfig{Name: "test-proc"}}
 
 	respCh := make(chan *Response, 10)
 
@@ -295,7 +295,7 @@ func TestPendingRequests_StreamingResponse(t *testing.T) {
 // PREVENTS: Race conditions in production use.
 func TestPendingRequests_ConcurrentAccess(t *testing.T) {
 	pending := NewPendingRequests()
-	proc := &Process{config: ProcessConfig{Name: "test-proc"}}
+	proc := &Process{config: PluginConfig{Name: "test-proc"}}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()

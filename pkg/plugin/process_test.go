@@ -30,7 +30,7 @@ func TestProcessStart(t *testing.T) {
 	script := filepath.Join(t.TempDir(), "test.sh")
 	writeScript(t, script, "#!/bin/sh\nexit 0\n")
 
-	proc := NewProcess(ProcessConfig{
+	proc := NewProcess(PluginConfig{
 		Name:    "test",
 		Run:     script,
 		Encoder: "json",
@@ -55,7 +55,7 @@ func TestProcessWriteEvent(t *testing.T) {
 	script := filepath.Join(t.TempDir(), "echo.sh")
 	writeScript(t, script, "#!/bin/sh\nread line\necho \"GOT:$line\"\n")
 
-	proc := NewProcess(ProcessConfig{
+	proc := NewProcess(PluginConfig{
 		Name:    "echo",
 		Run:     script,
 		Encoder: "json",
@@ -89,7 +89,7 @@ func TestProcessReadCommand(t *testing.T) {
 	script := filepath.Join(t.TempDir(), "cmd.sh")
 	writeScript(t, script, "#!/bin/sh\necho 'peer show'\nsleep 1\n")
 
-	proc := NewProcess(ProcessConfig{
+	proc := NewProcess(PluginConfig{
 		Name:    "cmd",
 		Run:     script,
 		Encoder: "json",
@@ -118,7 +118,7 @@ func TestProcessShutdown(t *testing.T) {
 	script := filepath.Join(t.TempDir(), "sleep.sh")
 	writeScript(t, script, "#!/bin/sh\nsleep 3600\n")
 
-	proc := NewProcess(ProcessConfig{
+	proc := NewProcess(PluginConfig{
 		Name:    "sleep",
 		Run:     script,
 		Encoder: "json",
@@ -152,7 +152,7 @@ func TestProcessManagerStartAll(t *testing.T) {
 		writeScript(t, s, "#!/bin/sh\nsleep 10\n")
 	}
 
-	pm := NewProcessManager([]ProcessConfig{
+	pm := NewProcessManager([]PluginConfig{
 		{Name: "p1", Run: script1, Encoder: "json"},
 		{Name: "p2", Run: script2, Encoder: "json"},
 	})
@@ -175,7 +175,7 @@ func TestProcessManagerStopAll(t *testing.T) {
 	script := filepath.Join(t.TempDir(), "sleep.sh")
 	writeScript(t, script, "#!/bin/sh\nsleep 3600\n")
 
-	pm := NewProcessManager([]ProcessConfig{
+	pm := NewProcessManager([]PluginConfig{
 		{Name: "p1", Run: script, Encoder: "json"},
 		{Name: "p2", Run: script, Encoder: "json"},
 	})
@@ -199,7 +199,7 @@ func TestProcessManagerStopAll(t *testing.T) {
 //
 // PREVENTS: Silent failures from misconfigured processes.
 func TestProcessNotFound(t *testing.T) {
-	proc := NewProcess(ProcessConfig{
+	proc := NewProcess(PluginConfig{
 		Name:    "missing",
 		Run:     "/nonexistent/path/to/script",
 		Encoder: "json",
@@ -242,7 +242,7 @@ func TestProcessManagerNoProcesses(t *testing.T) {
 // PREVENTS: Missing sync state, incorrect default, sync always on
 // causing unnecessary waits.
 func TestProcessSyncState(t *testing.T) {
-	proc := NewProcess(ProcessConfig{
+	proc := NewProcess(PluginConfig{
 		Name:    "test",
 		Run:     "echo test",
 		Encoder: "json",
@@ -271,7 +271,7 @@ func TestProcessWriteQueueBackpressure(t *testing.T) {
 	script := filepath.Join(t.TempDir(), "slow.sh")
 	writeScript(t, script, "#!/bin/sh\nsleep 3600\n")
 
-	proc := NewProcess(ProcessConfig{
+	proc := NewProcess(PluginConfig{
 		Name:    "slow",
 		Run:     script,
 		Encoder: "json",
@@ -306,7 +306,7 @@ func TestProcessQueueStats(t *testing.T) {
 	script := filepath.Join(t.TempDir(), "stats.sh")
 	writeScript(t, script, "#!/bin/sh\nsleep 3600\n")
 
-	proc := NewProcess(ProcessConfig{
+	proc := NewProcess(PluginConfig{
 		Name:    "stats",
 		Run:     script,
 		Encoder: "json",
@@ -341,7 +341,7 @@ func TestProcessManagerRespawnLimit(t *testing.T) {
 	script := filepath.Join(t.TempDir(), "crash.sh")
 	writeScript(t, script, "#!/bin/sh\nexit 1\n")
 
-	pm := NewProcessManager([]ProcessConfig{
+	pm := NewProcessManager([]PluginConfig{
 		{Name: "crash", Run: script, Encoder: "json", RespawnEnabled: true},
 	})
 
@@ -374,7 +374,7 @@ func TestProcessWriteEventRaceCondition(t *testing.T) {
 
 	// Run multiple iterations to increase chance of hitting race
 	for i := 0; i < 10; i++ {
-		proc := NewProcess(ProcessConfig{
+		proc := NewProcess(PluginConfig{
 			Name:    "race",
 			Run:     script,
 			Encoder: "json",
@@ -418,7 +418,7 @@ func TestProcessWriteLoopHandlesErrors(t *testing.T) {
 	script := filepath.Join(t.TempDir(), "exit.sh")
 	writeScript(t, script, "#!/bin/sh\nexit 0\n")
 
-	proc := NewProcess(ProcessConfig{
+	proc := NewProcess(PluginConfig{
 		Name:    "exit",
 		Run:     script,
 		Encoder: "json",
@@ -450,7 +450,7 @@ func TestProcessWriteLoopHandlesErrors(t *testing.T) {
 //
 // PREVENTS: Panic from nil context in StartWithContext.
 func TestProcessManagerRespawnNotStarted(t *testing.T) {
-	pm := NewProcessManager([]ProcessConfig{
+	pm := NewProcessManager([]PluginConfig{
 		{Name: "test", Run: "echo test", Encoder: "json", RespawnEnabled: true},
 	})
 
@@ -471,7 +471,7 @@ func TestProcessManagerRespawnSuccess(t *testing.T) {
 	script := filepath.Join(t.TempDir(), "run.sh")
 	writeScript(t, script, "#!/bin/sh\nsleep 3600\n")
 
-	pm := NewProcessManager([]ProcessConfig{
+	pm := NewProcessManager([]PluginConfig{
 		{Name: "run", Run: script, Encoder: "json", RespawnEnabled: true},
 	})
 
@@ -543,7 +543,7 @@ while IFS= read -r line; do
 done
 `)
 
-	proc := NewProcess(ProcessConfig{
+	proc := NewProcess(PluginConfig{
 		Name:    "echo",
 		Run:     script,
 		Encoder: "json",
@@ -575,7 +575,7 @@ func TestProcessSendRequestTimeout(t *testing.T) {
 	script := filepath.Join(t.TempDir(), "silent.sh")
 	writeScript(t, script, "#!/bin/sh\ncat > /dev/null\n")
 
-	proc := NewProcess(ProcessConfig{
+	proc := NewProcess(PluginConfig{
 		Name:    "silent",
 		Run:     script,
 		Encoder: "json",
@@ -614,7 +614,7 @@ while IFS= read -r line; do
 done
 `)
 
-	proc := NewProcess(ProcessConfig{
+	proc := NewProcess(PluginConfig{
 		Name:    "multi",
 		Run:     script,
 		Encoder: "json",

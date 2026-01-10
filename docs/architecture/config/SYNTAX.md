@@ -30,7 +30,7 @@ ExaBGP configuration uses a JUNOS-like hierarchical syntax with sections, keywor
 
 ```
 # Comment
-process <name> {
+plugin <name> {
     ...
 }
 
@@ -59,12 +59,12 @@ environment {
 }
 ```
 
-### process
+### plugin
 
-Defines an external process for API communication.
+Defines an external plugin for API communication.
 
 ```
-process <name> {
+plugin <name> {
     run <path>;
     encoder json;           # or text (v4 only)
 }

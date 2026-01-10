@@ -888,10 +888,10 @@ func (p *Peer) runOnce() error {
 			p.setState(PeerStateEstablished)
 			trace.SessionEstablished(addr, p.settings.LocalAS, p.settings.PeerAS)
 
-			// Reset per-session API sync: count processes with SendUpdate permission.
+			// Reset per-session API sync: count plugins with SendUpdate permission.
 			// They will signal "session api ready" after replaying routes.
 			apiSendCount := 0
-			for _, binding := range p.settings.APIBindings {
+			for _, binding := range p.settings.ProcessBindings {
 				if binding.SendUpdate {
 					apiSendCount++
 				}

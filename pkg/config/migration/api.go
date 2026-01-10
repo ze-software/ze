@@ -8,20 +8,20 @@ import (
 	"codeberg.org/thomas-mangin/zebgp/pkg/config"
 )
 
-// ErrEmptyProcesses is returned when api block has no processes or processes-match.
-var ErrEmptyProcesses = errors.New("api block requires processes or processes-match")
+// ErrEmptyProcesses is returned when process block has no processes or processes-match.
+var ErrEmptyProcesses = errors.New("process block requires processes or processes-match")
 
 // ErrDuplicateProcess is returned when the same process appears multiple times.
-var ErrDuplicateProcess = errors.New("duplicate process in api block")
+var ErrDuplicateProcess = errors.New("duplicate process in process block")
 
-// ErrAPICollision is returned when migration would overwrite an existing named api block.
-var ErrAPICollision = errors.New("api block collision: old syntax process conflicts with existing named block")
+// ErrAPICollision is returned when migration would overwrite an existing named process block.
+var ErrAPICollision = errors.New("process block collision: old syntax process conflicts with existing named block")
 
 // MigrateAPIBlocks transforms old api syntax to new named syntax.
 //
 // Handles two cases:
 //
-// 1. Anonymous api blocks:
+// 1. Anonymous process blocks:
 //
 //	api { processes [ foo ]; neighbor-changes; }
 //
@@ -29,7 +29,7 @@ var ErrAPICollision = errors.New("api block collision: old syntax process confli
 //
 //	api foo { receive { state; } }
 //
-// 2. Named api blocks with processes inside:
+// 2. Named process blocks with processes inside:
 //
 //	api speaking {
 //	    processes [ foo ];
@@ -91,7 +91,7 @@ func migrateAPIFromPeer(location string, peer *config.Tree) error {
 		return nil
 	}
 
-	apiList := peer.GetListOrdered("api")
+	apiList := peer.GetListOrdered("process")
 	if len(apiList) == 0 {
 		return nil
 	}
@@ -123,13 +123,13 @@ func migrateAPIFromPeer(location string, peer *config.Tree) error {
 	return nil
 }
 
-// needsMigration returns true if the api block uses old syntax.
+// needsMigration returns true if the process block uses old syntax.
 // Delegates to isOldStyleAPIBlock in detect.go to avoid duplication.
 func needsMigration(apiTree *config.Tree) bool {
 	return isOldStyleAPIBlock(apiTree)
 }
 
-// migrateAPIBlock migrates a single api block (anonymous or named).
+// migrateAPIBlock migrates a single process block (anonymous or named).
 func migrateAPIBlock(location string, peer *config.Tree, key string, apiTree *config.Tree) error {
 	// Extract process names
 	processNames := extractProcessNames(apiTree)
@@ -159,8 +159,8 @@ func migrateAPIBlock(location string, peer *config.Tree, key string, apiTree *co
 		seen[pattern] = true
 	}
 
-	// Check for collision with existing named api blocks
-	apiList := peer.GetList("api")
+	// Check for collision with existing named process blocks
+	apiList := peer.GetList("process")
 	for name := range seen {
 		if name == key {
 			continue // Same block, will be replaced
@@ -174,22 +174,22 @@ func migrateAPIBlock(location string, peer *config.Tree, key string, apiTree *co
 	cfg := extractAPIConfig(apiTree)
 
 	// Remove the old block
-	peer.RemoveListEntry("api", key)
+	peer.RemoveListEntry("process", key)
 
 	// Create new named blocks for each process
 	for _, procName := range processNames {
 		newAPI := buildNewAPIBlock(cfg)
-		peer.AddListEntry("api", procName, newAPI)
+		peer.AddListEntry("process", procName, newAPI)
 	}
 	for _, procName := range matchPatterns {
 		newAPI := buildNewAPIBlock(cfg)
-		peer.AddListEntry("api", procName, newAPI)
+		peer.AddListEntry("process", procName, newAPI)
 	}
 
 	return nil
 }
 
-// apiConfig holds extracted configuration from old api block.
+// apiConfig holds extracted configuration from old process block.
 type apiConfig struct {
 	// Format from receive block (parsed/packets/consolidate)
 	format string
@@ -212,7 +212,7 @@ type apiConfig struct {
 	sendOperational bool
 }
 
-// extractAPIConfig extracts configuration from old-style api block.
+// extractAPIConfig extracts configuration from old-style process block.
 func extractAPIConfig(apiTree *config.Tree) apiConfig {
 	cfg := apiConfig{}
 
@@ -283,7 +283,7 @@ func hasFlag(tree *config.Tree, flag string) bool {
 	return false
 }
 
-// buildNewAPIBlock creates a new api block from extracted config.
+// buildNewAPIBlock creates a new process block from extracted config.
 func buildNewAPIBlock(cfg apiConfig) *config.Tree {
 	newAPI := config.NewTree()
 

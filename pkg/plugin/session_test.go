@@ -13,7 +13,7 @@ import (
 //
 // PREVENTS: Sync remaining disabled when user requests it.
 func TestSessionSyncEnable(t *testing.T) {
-	proc := NewProcess(ProcessConfig{
+	proc := NewProcess(PluginConfig{
 		Name:    "test",
 		Run:     "echo test",
 		Encoder: "json",
@@ -39,7 +39,7 @@ func TestSessionSyncEnable(t *testing.T) {
 //
 // PREVENTS: Sync remaining enabled when user disables it.
 func TestSessionSyncDisable(t *testing.T) {
-	proc := NewProcess(ProcessConfig{
+	proc := NewProcess(PluginConfig{
 		Name:    "test",
 		Run:     "echo test",
 		Encoder: "json",
@@ -66,7 +66,7 @@ func TestSessionSyncDisable(t *testing.T) {
 //
 // PREVENTS: Stale state persisting after reset request.
 func TestSessionReset(t *testing.T) {
-	proc := NewProcess(ProcessConfig{
+	proc := NewProcess(PluginConfig{
 		Name:    "test",
 		Run:     "echo test",
 		Encoder: "json",
@@ -89,7 +89,7 @@ func TestSessionReset(t *testing.T) {
 //
 // PREVENTS: Missing health check endpoint.
 func TestSessionPing(t *testing.T) {
-	proc := NewProcess(ProcessConfig{
+	proc := NewProcess(PluginConfig{
 		Name:    "test",
 		Run:     "echo test",
 		Encoder: "json",
@@ -116,7 +116,7 @@ func TestSessionPing(t *testing.T) {
 //
 // PREVENTS: Error on client disconnect cleanup.
 func TestSessionBye(t *testing.T) {
-	proc := NewProcess(ProcessConfig{
+	proc := NewProcess(PluginConfig{
 		Name:    "test",
 		Run:     "echo test",
 		Encoder: "json",
@@ -165,7 +165,7 @@ func TestSessionCommandsRegistered(t *testing.T) {
 //
 // PREVENTS: Encoding not applied to both directions.
 func TestSessionAPIEncodingBoth(t *testing.T) {
-	proc := NewProcess(ProcessConfig{
+	proc := NewProcess(PluginConfig{
 		Name:    "test",
 		Run:     "echo test",
 		Encoder: "json",
@@ -218,7 +218,7 @@ func TestSessionAPIEncodingBoth(t *testing.T) {
 //
 // PREVENTS: Outbound being modified when only inbound specified.
 func TestSessionAPIEncodingInbound(t *testing.T) {
-	proc := NewProcess(ProcessConfig{
+	proc := NewProcess(PluginConfig{
 		Name:    "test",
 		Run:     "echo test",
 		Encoder: "json",
@@ -244,7 +244,7 @@ func TestSessionAPIEncodingInbound(t *testing.T) {
 //
 // PREVENTS: Inbound being modified when only outbound specified.
 func TestSessionAPIEncodingOutbound(t *testing.T) {
-	proc := NewProcess(ProcessConfig{
+	proc := NewProcess(PluginConfig{
 		Name:    "test",
 		Run:     "echo test",
 		Encoder: "json",
@@ -270,7 +270,7 @@ func TestSessionAPIEncodingOutbound(t *testing.T) {
 //
 // PREVENTS: Accepting unknown encoding formats silently.
 func TestSessionAPIEncodingInvalid(t *testing.T) {
-	proc := NewProcess(ProcessConfig{
+	proc := NewProcess(PluginConfig{
 		Name:    "test",
 		Run:     "echo test",
 		Encoder: "json",
@@ -298,7 +298,7 @@ func TestSessionAPIEncodingInvalid(t *testing.T) {
 //
 // PREVENTS: Stale encoding persisting after reset.
 func TestSessionResetClearsEncoding(t *testing.T) {
-	proc := NewProcess(ProcessConfig{
+	proc := NewProcess(PluginConfig{
 		Name:    "test",
 		Run:     "echo test",
 		Encoder: "json",

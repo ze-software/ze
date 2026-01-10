@@ -251,7 +251,7 @@ peer 192.0.2.1 {
 
 // TestDetectPeerWithAnonymousAPI verifies peer with old-style anonymous api needs migration.
 //
-// VALIDATES: "peer { api { processes [...] } }" needs migration to named api.
+// VALIDATES: "peer { process { processes [...] } }" needs migration to named api.
 //
 // PREVENTS: Old API syntax being skipped during migration.
 func TestDetectPeerWithAnonymousAPI(t *testing.T) {
@@ -262,21 +262,21 @@ process foo {
 peer 192.0.2.1 {
     local-as 65000;
     peer-as 65001;
-    api {
+    process {
         processes [ foo ];
     }
 }
 `
 	tree := parseWithBGPSchema(t, input)
 	needsMigration := NeedsMigration(tree)
-	require.True(t, needsMigration, "peer with anonymous api block needs migration")
+	require.True(t, needsMigration, "peer with anonymous process block needs migration")
 }
 
-// TestDetectTemplateGroupWithAnonymousAPI verifies template.group with old api needs migration.
+// TestDetectTemplateGroupWithAnonymousAPI verifies template.group with old process needs migration.
 //
-// VALIDATES: "template { group { api { processes [...] } } }" needs migration.
+// VALIDATES: "template { group { process { processes [...] } } }" needs migration.
 //
-// PREVENTS: Template anonymous API blocks being skipped.
+// PREVENTS: Template anonymous process blocks being skipped.
 func TestDetectTemplateGroupWithAnonymousAPI(t *testing.T) {
 	input := `
 process collector {
@@ -284,7 +284,7 @@ process collector {
 }
 template {
     group collectors {
-        api {
+        process {
             processes [ collector ];
         }
     }
@@ -311,13 +311,13 @@ process foo {
 peer 192.0.2.1 {
     local-as 65000;
     peer-as 65001;
-    api foo {
+    process foo {
     }
 }
 `
 	tree := parseWithBGPSchema(t, input)
 	needsMigration := NeedsMigration(tree)
-	require.False(t, needsMigration, "peer with named api block does not need migration")
+	require.False(t, needsMigration, "peer with named process block does not need migration")
 }
 
 // TestDetectNamedAPIWithProcesses verifies named api with processes field needs migration.
@@ -333,7 +333,7 @@ process foo {
 peer 192.0.2.1 {
     local-as 65000;
     peer-as 65001;
-    api speaking {
+    process speaking {
         processes [ foo ];
     }
 }
@@ -356,7 +356,7 @@ process foo {
 peer 192.0.2.1 {
     local-as 65000;
     peer-as 65001;
-    api foo {
+    process foo {
         receive {
             parsed;
             update;
@@ -382,7 +382,7 @@ process foo {
 peer 192.0.2.1 {
     local-as 65000;
     peer-as 65001;
-    api foo {
+    process foo {
         content { format parsed; }
         receive { update; }
     }

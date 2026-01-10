@@ -959,19 +959,19 @@ func (m *mockReactorBatch) TransactionID(_ string) string { return "" }
 func (m *mockReactorBatch) SendRoutes(_ string, _ []*rib.Route, _ []nlri.NLRI, _ bool) (TransactionResult, error) {
 	return TransactionResult{}, nil
 }
-func (m *mockReactorBatch) AnnounceWatchdog(_, _ string) error               { return nil }
-func (m *mockReactorBatch) WithdrawWatchdog(_, _ string) error               { return nil }
-func (m *mockReactorBatch) AddWatchdogRoute(_ RouteSpec, _ string) error     { return nil }
-func (m *mockReactorBatch) RemoveWatchdogRoute(_, _ string) error            { return nil }
-func (m *mockReactorBatch) ClearRIBIn() int                                  { return 0 }
-func (m *mockReactorBatch) ClearRIBOut() int                                 { return 0 }
-func (m *mockReactorBatch) FlushRIBOut() int                                 { return 0 }
-func (m *mockReactorBatch) GetPeerAPIBindings(_ netip.Addr) []PeerAPIBinding { return nil }
-func (m *mockReactorBatch) GetPeerCapabilityConfigs() []PeerCapabilityConfig { return nil }
-func (m *mockReactorBatch) ForwardUpdate(_ *Selector, _ uint64) error        { return nil }
-func (m *mockReactorBatch) DeleteUpdate(_ uint64) error                      { return nil }
-func (m *mockReactorBatch) SignalAPIReady()                                  {}
-func (m *mockReactorBatch) SignalPeerAPIReady(_ string)                      {}
+func (m *mockReactorBatch) AnnounceWatchdog(_, _ string) error                       { return nil }
+func (m *mockReactorBatch) WithdrawWatchdog(_, _ string) error                       { return nil }
+func (m *mockReactorBatch) AddWatchdogRoute(_ RouteSpec, _ string) error             { return nil }
+func (m *mockReactorBatch) RemoveWatchdogRoute(_, _ string) error                    { return nil }
+func (m *mockReactorBatch) ClearRIBIn() int                                          { return 0 }
+func (m *mockReactorBatch) ClearRIBOut() int                                         { return 0 }
+func (m *mockReactorBatch) FlushRIBOut() int                                         { return 0 }
+func (m *mockReactorBatch) GetPeerProcessBindings(_ netip.Addr) []PeerProcessBinding { return nil }
+func (m *mockReactorBatch) GetPeerCapabilityConfigs() []PeerCapabilityConfig         { return nil }
+func (m *mockReactorBatch) ForwardUpdate(_ *Selector, _ uint64) error                { return nil }
+func (m *mockReactorBatch) DeleteUpdate(_ uint64) error                              { return nil }
+func (m *mockReactorBatch) SignalAPIReady()                                          {}
+func (m *mockReactorBatch) SignalPeerAPIReady(_ string)                              {}
 func (m *mockReactorBatch) SendRawMessage(_ netip.Addr, _ uint8, _ []byte) error {
 	return nil
 }

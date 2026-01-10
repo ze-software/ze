@@ -377,9 +377,9 @@ type ReactorInterface interface {
 	// Deprecated: Adj-RIB-Out tracking removed. Always returns 0.
 	FlushRIBOut() int
 
-	// GetPeerAPIBindings returns API bindings for a specific peer.
-	// Used to determine which processes receive messages from this peer.
-	GetPeerAPIBindings(peerAddr netip.Addr) []PeerAPIBinding
+	// GetPeerProcessBindings returns process bindings for a specific peer.
+	// Used to determine which plugins receive messages from this peer.
+	GetPeerProcessBindings(peerAddr netip.Addr) []PeerProcessBinding
 
 	// ForwardUpdate forwards a cached UPDATE to peers matching the selector.
 	// One-shot: deletes from cache after forwarding.
@@ -409,12 +409,12 @@ type ReactorInterface interface {
 	GetPeerCapabilityConfigs() []PeerCapabilityConfig
 }
 
-// PeerAPIBinding describes which process receives messages from a peer.
-type PeerAPIBinding struct {
-	ProcessName string // Reference to process name
+// PeerProcessBinding describes which plugin receives messages from a peer.
+type PeerProcessBinding struct {
+	PluginName string // Reference to plugin name
 
 	// Content settings (HOW messages are formatted)
-	Encoding string // "json" | "text" (empty = inherit from process)
+	Encoding string // "json" | "text" (empty = inherit from plugin)
 	Format   string // "parsed" | "raw" | "full" (empty = "parsed")
 
 	// Receive settings (WHAT message types to forward)
@@ -426,7 +426,7 @@ type PeerAPIBinding struct {
 	ReceiveState        bool
 	ReceiveSent         bool // Forward sent UPDATE events
 
-	// Send settings (WHAT message types process can send)
+	// Send settings (WHAT message types plugin can send)
 	SendUpdate  bool
 	SendRefresh bool
 }
@@ -463,21 +463,21 @@ type Response struct {
 	Data    any    `json:"data,omitempty"`    // Payload (success data or error message)
 }
 
-// ProcessConfig holds external process configuration.
-type ProcessConfig struct {
-	Name           string // Process identifier
+// PluginConfig holds external plugin configuration.
+type PluginConfig struct {
+	Name           string // Plugin identifier
 	Run            string // Command to execute
 	Encoder        string // "json" or "text"
 	Respawn        bool   // ExaBGP compat (prefer RespawnEnabled)
 	RespawnEnabled bool   // Respawn with limit enforcement (5/60s)
-	WorkDir        string // Working directory for process execution
-	ReceiveUpdate  bool   // Forward received UPDATEs to process stdin
+	WorkDir        string // Working directory for plugin execution
+	ReceiveUpdate  bool   // Forward received UPDATEs to plugin stdin
 }
 
 // ServerConfig holds API server configuration.
 type ServerConfig struct {
-	SocketPath string          // Path to Unix socket
-	Processes  []ProcessConfig // External processes to spawn
+	SocketPath string         // Path to Unix socket
+	Plugins    []PluginConfig // External plugins to spawn
 }
 
 // Format constants for process output formatting.

@@ -9,7 +9,7 @@ import (
 
 // TestMigrateAPIBlocksSingleProcess verifies single process migration.
 //
-// VALIDATES: api { processes [ foo ]; } → api foo { }
+// VALIDATES: process { processes [ foo ]; } → api foo { }
 //
 // PREVENTS: Lost process bindings during migration.
 func TestMigrateAPIBlocksSingleProcess(t *testing.T) {
@@ -19,7 +19,7 @@ peer 10.0.0.1 {
     router-id 1.2.3.4;
     local-as 65001;
     peer-as 65002;
-    api {
+    process {
         processes [ foo ];
     }
 }
@@ -28,18 +28,18 @@ peer 10.0.0.1 {
 	migrated, err := MigrateAPIBlocks(tree)
 	require.NoError(t, err)
 
-	// Check that old anonymous api block is removed
+	// Check that old anonymous process block is removed
 	peer := migrated.GetList("peer")["10.0.0.1"]
 	require.NotNil(t, peer)
 
-	apiList := peer.GetList("api")
+	apiList := peer.GetList("process")
 	require.NotContains(t, apiList, config.KeyDefault, "old anonymous block should be removed")
 	require.Contains(t, apiList, "foo", "new named block should exist")
 }
 
 // TestMigrateAPIBlocksMultipleProcesses verifies multiple process migration.
 //
-// VALIDATES: api { processes [ foo bar ]; } → api foo { }; api bar { }
+// VALIDATES: process { processes [ foo bar ]; } → api foo { }; api bar { }
 //
 // PREVENTS: Lost processes when multiple are specified.
 func TestMigrateAPIBlocksMultipleProcesses(t *testing.T) {
@@ -50,7 +50,7 @@ peer 10.0.0.1 {
     router-id 1.2.3.4;
     local-as 65001;
     peer-as 65002;
-    api {
+    process {
         processes [ foo bar ];
     }
 }
@@ -60,7 +60,7 @@ peer 10.0.0.1 {
 	require.NoError(t, err)
 
 	peer := migrated.GetList("peer")["10.0.0.1"]
-	apiList := peer.GetList("api")
+	apiList := peer.GetList("process")
 
 	require.NotContains(t, apiList, config.KeyDefault)
 	require.Contains(t, apiList, "foo", "foo binding should exist")
@@ -79,7 +79,7 @@ peer 10.0.0.1 {
     router-id 1.2.3.4;
     local-as 65001;
     peer-as 65002;
-    api {
+    process {
         processes [ watcher ];
         neighbor-changes;
     }
@@ -90,7 +90,7 @@ peer 10.0.0.1 {
 	require.NoError(t, err)
 
 	peer := migrated.GetList("peer")["10.0.0.1"]
-	apiList := peer.GetList("api")
+	apiList := peer.GetList("process")
 	watcherAPI := apiList["watcher"]
 	require.NotNil(t, watcherAPI)
 
@@ -115,7 +115,7 @@ peer 10.0.0.1 {
     router-id 1.2.3.4;
     local-as 65001;
     peer-as 65002;
-    api {
+    process {
         processes [ foo ];
     }
 }
@@ -125,7 +125,7 @@ peer 10.0.0.1 {
 	require.NoError(t, err)
 
 	peer := migrated.GetList("peer")["10.0.0.1"]
-	fooAPI := peer.GetList("api")["foo"]
+	fooAPI := peer.GetList("process")["foo"]
 	require.NotNil(t, fooAPI)
 
 	// No neighbor-changes → no receive block
@@ -145,7 +145,7 @@ peer 10.0.0.1 {
     router-id 1.2.3.4;
     local-as 65001;
     peer-as 65002;
-    api foo {
+    process foo {
         receive { update; }
     }
 }
@@ -155,7 +155,7 @@ peer 10.0.0.1 {
 	require.NoError(t, err)
 
 	peer := migrated.GetList("peer")["10.0.0.1"]
-	apiList := peer.GetList("api")
+	apiList := peer.GetList("process")
 
 	require.NotContains(t, apiList, config.KeyDefault, "no anonymous block")
 	require.Contains(t, apiList, "foo", "foo binding preserved")
@@ -170,15 +170,15 @@ peer 10.0.0.1 {
 
 // TestMigrateAPIBlocksInTemplate verifies migration in template blocks.
 //
-// VALIDATES: api blocks in template.group are migrated.
+// VALIDATES: process blocks in template.group are migrated.
 //
-// PREVENTS: Template api blocks being ignored.
+// PREVENTS: Template process blocks being ignored.
 func TestMigrateAPIBlocksInTemplate(t *testing.T) {
 	input := `
 process collector { run ./collector; }
 template {
     group default {
-        api {
+        process {
             processes [ collector ];
             neighbor-changes;
         }
@@ -195,7 +195,7 @@ template {
 	defaultGroup := tmpl.GetList("group")["default"]
 	require.NotNil(t, defaultGroup)
 
-	apiList := defaultGroup.GetList("api")
+	apiList := defaultGroup.GetList("process")
 	require.NotContains(t, apiList, config.KeyDefault)
 	require.Contains(t, apiList, "collector")
 
@@ -217,9 +217,9 @@ func TestMigrateAPIBlocksNil(t *testing.T) {
 	require.ErrorIs(t, err, ErrNilTree)
 }
 
-// TestMigrateAPIBlocksNoAPIBlock verifies no-op when no api block.
+// TestMigrateAPIBlocksNoAPIBlock verifies no-op when no process block.
 //
-// VALIDATES: Peers without api blocks are unchanged.
+// VALIDATES: Peers without process blocks are unchanged.
 //
 // PREVENTS: Spurious modifications.
 func TestMigrateAPIBlocksNoAPIBlock(t *testing.T) {
@@ -237,8 +237,8 @@ peer 10.0.0.1 {
 	peer := migrated.GetList("peer")["10.0.0.1"]
 	require.NotNil(t, peer)
 
-	apiList := peer.GetList("api")
-	require.Empty(t, apiList, "no api blocks should exist")
+	apiList := peer.GetList("process")
+	require.Empty(t, apiList, "no process blocks should exist")
 }
 
 // TestMigrateAPIBlocksProcessesMatch verifies processes-match migration.
@@ -252,7 +252,7 @@ peer 10.0.0.1 {
     router-id 1.2.3.4;
     local-as 65001;
     peer-as 65002;
-    api {
+    process {
         processes-match [ "^collector.*" ];
     }
 }
@@ -262,7 +262,7 @@ peer 10.0.0.1 {
 	require.NoError(t, err)
 
 	peer := migrated.GetList("peer")["10.0.0.1"]
-	apiList := peer.GetList("api")
+	apiList := peer.GetList("process")
 
 	require.NotContains(t, apiList, config.KeyDefault)
 	require.Contains(t, apiList, "^collector.*", "pattern should be migrated as api key")
@@ -280,7 +280,7 @@ peer 10.0.0.1 {
     router-id 1.2.3.4;
     local-as 65001;
     peer-as 65002;
-    api {
+    process {
         processes [ foo ];
         processes-match [ "^bar.*" ];
         neighbor-changes;
@@ -292,7 +292,7 @@ peer 10.0.0.1 {
 	require.NoError(t, err)
 
 	peer := migrated.GetList("peer")["10.0.0.1"]
-	apiList := peer.GetList("api")
+	apiList := peer.GetList("process")
 
 	require.Contains(t, apiList, "foo", "process should be migrated")
 	require.Contains(t, apiList, "^bar.*", "pattern should be migrated")
@@ -307,7 +307,7 @@ peer 10.0.0.1 {
 
 // TestMigrateAPIBlocksEmptyProcessesError verifies error on empty processes.
 //
-// VALIDATES: api { } without processes or processes-match returns error.
+// VALIDATES: process { } without processes or processes-match returns error.
 //
 // PREVENTS: Silent acceptance of invalid config.
 func TestMigrateAPIBlocksEmptyProcessesError(t *testing.T) {
@@ -316,7 +316,7 @@ peer 10.0.0.1 {
     router-id 1.2.3.4;
     local-as 65001;
     peer-as 65002;
-    api {
+    process {
         neighbor-changes;
     }
 }
@@ -329,7 +329,7 @@ peer 10.0.0.1 {
 
 // TestMigrateAPIBlocksEmptyArrayError verifies error on empty processes array.
 //
-// VALIDATES: api { processes [ ]; } returns error.
+// VALIDATES: process { processes [ ]; } returns error.
 //
 // PREVENTS: Silent acceptance of empty array.
 func TestMigrateAPIBlocksEmptyArrayError(t *testing.T) {
@@ -338,7 +338,7 @@ peer 10.0.0.1 {
     router-id 1.2.3.4;
     local-as 65001;
     peer-as 65002;
-    api {
+    process {
         processes [ ];
     }
 }
@@ -351,7 +351,7 @@ peer 10.0.0.1 {
 
 // TestMigrateAPIBlocksDuplicateProcessError verifies error on duplicate process.
 //
-// VALIDATES: api { processes [ foo foo ]; } returns error.
+// VALIDATES: process { processes [ foo foo ]; } returns error.
 //
 // PREVENTS: Silent deduplication or overwriting.
 func TestMigrateAPIBlocksDuplicateProcessError(t *testing.T) {
@@ -361,7 +361,7 @@ peer 10.0.0.1 {
     router-id 1.2.3.4;
     local-as 65001;
     peer-as 65002;
-    api {
+    process {
         processes [ foo foo ];
     }
 }
@@ -385,7 +385,7 @@ peer 10.0.0.1 {
     router-id 1.2.3.4;
     local-as 65001;
     peer-as 65002;
-    api {
+    process {
         processes [ foo ];
         processes-match [ foo ];
     }
@@ -399,7 +399,7 @@ peer 10.0.0.1 {
 
 // TestMigrateAPIBlocksCollisionError verifies error when old syntax conflicts with new.
 //
-// VALIDATES: api { processes [ foo ]; } with existing api foo { } returns error.
+// VALIDATES: process { processes [ foo ]; } with existing api foo { } returns error.
 //
 // PREVENTS: Silent data loss from overwriting existing named blocks.
 func TestMigrateAPIBlocksCollisionError(t *testing.T) {
@@ -409,10 +409,10 @@ peer 10.0.0.1 {
     router-id 1.2.3.4;
     local-as 65001;
     peer-as 65002;
-    api {
+    process {
         processes [ foo ];
     }
-    api foo {
+    process foo {
         receive { update; }
     }
 }
@@ -427,9 +427,9 @@ peer 10.0.0.1 {
 
 // TestMigrateAPIBlocksNeighborIntegration verifies full migration.
 //
-// VALIDATES: neighbor X { api {...} } → peer X { api name {...} }
+// VALIDATES: neighbor X { process {...} } → peer X { api name {...} }
 //
-// PREVENTS: API blocks lost during neighbor→peer rename.
+// PREVENTS: process blocks lost during neighbor→peer rename.
 func TestMigrateAPIBlocksNeighborIntegration(t *testing.T) {
 	input := `
 process watcher { run ./watcher; }
@@ -437,7 +437,7 @@ neighbor 10.0.0.1 {
     router-id 1.2.3.4;
     local-as 65001;
     peer-as 65002;
-    api {
+    process {
         processes [ watcher ];
         neighbor-changes;
     }
@@ -456,7 +456,7 @@ neighbor 10.0.0.1 {
 	require.NotNil(t, peer)
 
 	// API should be migrated to new syntax
-	apiList := peer.GetList("api")
+	apiList := peer.GetList("process")
 	require.NotContains(t, apiList, config.KeyDefault)
 	require.Contains(t, apiList, "watcher")
 
@@ -467,7 +467,7 @@ neighbor 10.0.0.1 {
 	require.True(t, ok)
 }
 
-// TestMigrateAPIBlocksNamedWithProcesses verifies named api blocks with processes field.
+// TestMigrateAPIBlocksNamedWithProcesses verifies named process blocks with processes field.
 //
 // VALIDATES: "api speaking { processes [...] }" migrates to "api foo { }".
 //
@@ -476,7 +476,7 @@ func TestMigrateAPIBlocksNamedWithProcesses(t *testing.T) {
 	input := `
 process foo { run ./test; }
 peer 10.0.0.1 {
-    api speaking {
+    process speaking {
         processes [ foo ];
         receive {
             update;
@@ -491,7 +491,7 @@ peer 10.0.0.1 {
 	peer := migrated.GetList("peer")["10.0.0.1"]
 	require.NotNil(t, peer)
 
-	apiList := peer.GetList("api")
+	apiList := peer.GetList("process")
 	require.NotContains(t, apiList, "speaking", "old named block should be removed")
 	require.Contains(t, apiList, "foo", "process name should become api key")
 
@@ -511,7 +511,7 @@ func TestMigrateAPIBlocksFormatParsed(t *testing.T) {
 	input := `
 process foo { run ./test; }
 peer 10.0.0.1 {
-    api foo {
+    process foo {
         receive {
             parsed;
             update;
@@ -524,7 +524,7 @@ peer 10.0.0.1 {
 	require.NoError(t, err)
 
 	peer := migrated.GetList("peer")["10.0.0.1"]
-	apiList := peer.GetList("api")
+	apiList := peer.GetList("process")
 	fooAPI := apiList["foo"]
 
 	// Check content block with format
@@ -552,7 +552,7 @@ func TestMigrateAPIBlocksFormatFull(t *testing.T) {
 	input := `
 process foo { run ./test; }
 peer 10.0.0.1 {
-    api foo {
+    process foo {
         receive {
             consolidate;
             parsed;
@@ -567,7 +567,7 @@ peer 10.0.0.1 {
 	require.NoError(t, err)
 
 	peer := migrated.GetList("peer")["10.0.0.1"]
-	apiList := peer.GetList("api")
+	apiList := peer.GetList("process")
 	fooAPI := apiList["foo"]
 
 	content := fooAPI.GetContainer("content")
@@ -586,7 +586,7 @@ func TestMigrateAPIBlocksFormatRaw(t *testing.T) {
 	input := `
 process foo { run ./test; }
 peer 10.0.0.1 {
-    api foo {
+    process foo {
         receive {
             packets;
             update;
@@ -599,7 +599,7 @@ peer 10.0.0.1 {
 	require.NoError(t, err)
 
 	peer := migrated.GetList("peer")["10.0.0.1"]
-	apiList := peer.GetList("api")
+	apiList := peer.GetList("process")
 	fooAPI := apiList["foo"]
 
 	content := fooAPI.GetContainer("content")
@@ -618,7 +618,7 @@ func TestMigrateAPIBlocksSendBlock(t *testing.T) {
 	input := `
 process foo { run ./test; }
 peer 10.0.0.1 {
-    api foo {
+    process foo {
         receive {
             update;
         }
@@ -634,7 +634,7 @@ peer 10.0.0.1 {
 	require.NoError(t, err)
 
 	peer := migrated.GetList("peer")["10.0.0.1"]
-	apiList := peer.GetList("api")
+	apiList := peer.GetList("process")
 	fooAPI := apiList["foo"]
 
 	send := fooAPI.GetContainer("send")
@@ -654,7 +654,7 @@ func TestMigrateAPIBlocksNeighborChanges(t *testing.T) {
 	input := `
 process foo { run ./test; }
 peer 10.0.0.1 {
-    api {
+    process {
         processes [ foo ];
         neighbor-changes;
     }
@@ -665,7 +665,7 @@ peer 10.0.0.1 {
 	require.NoError(t, err)
 
 	peer := migrated.GetList("peer")["10.0.0.1"]
-	apiList := peer.GetList("api")
+	apiList := peer.GetList("process")
 	fooAPI := apiList["foo"]
 
 	receive := fooAPI.GetContainer("receive")

@@ -11,7 +11,7 @@ import (
 // PREVENTS: Silent failures on registration, missing metadata.
 func TestCommandRegistry_Register(t *testing.T) {
 	registry := NewCommandRegistry()
-	proc := &Process{config: ProcessConfig{Name: "test-proc"}}
+	proc := &Process{config: PluginConfig{Name: "test-proc"}}
 
 	results := registry.Register(proc, []CommandDef{
 		{Name: "myapp status", Description: "Show status"},
@@ -59,7 +59,7 @@ func TestCommandRegistry_Register(t *testing.T) {
 // PREVENTS: Security issues from shadowing daemon shutdown, etc.
 func TestCommandRegistry_BuiltinConflict(t *testing.T) {
 	registry := NewCommandRegistry()
-	proc := &Process{config: ProcessConfig{Name: "test-proc"}}
+	proc := &Process{config: PluginConfig{Name: "test-proc"}}
 
 	// Add a builtin
 	registry.AddBuiltin("daemon status")
@@ -85,8 +85,8 @@ func TestCommandRegistry_BuiltinConflict(t *testing.T) {
 // PREVENTS: Later processes from stealing commands.
 func TestCommandRegistry_ProcessConflict(t *testing.T) {
 	registry := NewCommandRegistry()
-	proc1 := &Process{config: ProcessConfig{Name: "proc1"}}
-	proc2 := &Process{config: ProcessConfig{Name: "proc2"}}
+	proc1 := &Process{config: PluginConfig{Name: "proc1"}}
+	proc2 := &Process{config: PluginConfig{Name: "proc2"}}
 
 	// First process registers
 	results := registry.Register(proc1, []CommandDef{
@@ -117,8 +117,8 @@ func TestCommandRegistry_ProcessConflict(t *testing.T) {
 // PREVENTS: One process unregistering another's commands.
 func TestCommandRegistry_Unregister(t *testing.T) {
 	registry := NewCommandRegistry()
-	proc1 := &Process{config: ProcessConfig{Name: "proc1"}}
-	proc2 := &Process{config: ProcessConfig{Name: "proc2"}}
+	proc1 := &Process{config: PluginConfig{Name: "proc1"}}
+	proc2 := &Process{config: PluginConfig{Name: "proc2"}}
 
 	registry.Register(proc1, []CommandDef{
 		{Name: "myapp status", Description: "Status"},
@@ -146,7 +146,7 @@ func TestCommandRegistry_Unregister(t *testing.T) {
 // PREVENTS: Orphaned commands after process exits.
 func TestCommandRegistry_UnregisterAll(t *testing.T) {
 	registry := NewCommandRegistry()
-	proc := &Process{config: ProcessConfig{Name: "test-proc"}}
+	proc := &Process{config: PluginConfig{Name: "test-proc"}}
 
 	registry.Register(proc, []CommandDef{
 		{Name: "myapp status", Description: "Status"},
@@ -171,7 +171,7 @@ func TestCommandRegistry_UnregisterAll(t *testing.T) {
 // PREVENTS: CLI completion failing to find plugin commands.
 func TestCommandRegistry_Complete(t *testing.T) {
 	registry := NewCommandRegistry()
-	proc := &Process{config: ProcessConfig{Name: "test-proc"}}
+	proc := &Process{config: PluginConfig{Name: "test-proc"}}
 
 	registry.Register(proc, []CommandDef{
 		{Name: "myapp status", Description: "Show status"},
@@ -204,7 +204,7 @@ func TestCommandRegistry_Complete(t *testing.T) {
 // PREVENTS: Case sensitivity issues in command lookup.
 func TestCommandRegistry_CaseInsensitive(t *testing.T) {
 	registry := NewCommandRegistry()
-	proc := &Process{config: ProcessConfig{Name: "test-proc"}}
+	proc := &Process{config: PluginConfig{Name: "test-proc"}}
 
 	registry.Register(proc, []CommandDef{
 		{Name: "myapp status", Description: "Show status"},
@@ -225,7 +225,7 @@ func TestCommandRegistry_CaseInsensitive(t *testing.T) {
 // PREVENTS: Missing completion support for arg-completing commands.
 func TestCommandRegistry_Completable(t *testing.T) {
 	registry := NewCommandRegistry()
-	proc := &Process{config: ProcessConfig{Name: "test-proc"}}
+	proc := &Process{config: PluginConfig{Name: "test-proc"}}
 
 	registry.Register(proc, []CommandDef{
 		{Name: "myapp status", Description: "Show status", Args: "<component>", Completable: true},

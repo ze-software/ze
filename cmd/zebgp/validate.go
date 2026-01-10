@@ -94,7 +94,7 @@ type ValidationSummary struct {
 	LocalAS     uint32
 	Listen      string
 	Peers       int
-	Processes   int
+	Plugins     int
 	PeerDetails []PeerSummary
 }
 
@@ -135,10 +135,10 @@ func validateConfig(input, path string) *ValidationResult {
 
 	// Build summary
 	result.Config = &ValidationSummary{
-		LocalAS:   cfg.LocalAS,
-		Listen:    cfg.Listen,
-		Peers:     len(cfg.Peers),
-		Processes: len(cfg.Processes),
+		LocalAS: cfg.LocalAS,
+		Listen:  cfg.Listen,
+		Peers:   len(cfg.Peers),
+		Plugins: len(cfg.Plugins),
 	}
 
 	if cfg.RouterID != 0 {
@@ -222,7 +222,7 @@ func outputText(result *ValidationResult, verbose, quiet bool) int {
 				fmt.Printf("  listen:    %s\n", result.Config.Listen)
 			}
 			fmt.Printf("  peers: %d\n", result.Config.Peers)
-			fmt.Printf("  processes: %d\n", result.Config.Processes)
+			fmt.Printf("  plugins: %d\n", result.Config.Plugins)
 
 			if len(result.Config.PeerDetails) > 0 {
 				fmt.Println()

@@ -108,8 +108,8 @@ func CreateReactorWithDir(cfg *BGPConfig, configDir string) (*reactor.Reactor, e
 		ConfigDir:  configDir,
 	}
 
-	// Set API socket path if processes are configured
-	if len(cfg.Processes) > 0 {
+	// Set API socket path if plugins are configured
+	if len(cfg.Plugins) > 0 {
 		// Load environment with config block values (if any)
 		env, err := LoadEnvironmentWithConfig(cfg.EnvValues)
 		if err != nil {
@@ -117,9 +117,9 @@ func CreateReactorWithDir(cfg *BGPConfig, configDir string) (*reactor.Reactor, e
 		}
 		reactorCfg.APISocketPath = env.SocketPath()
 
-		// Convert process configs
-		for _, pc := range cfg.Processes {
-			reactorCfg.APIProcesses = append(reactorCfg.APIProcesses, reactor.APIProcessConfig{
+		// Convert plugin configs
+		for _, pc := range cfg.Plugins {
+			reactorCfg.Plugins = append(reactorCfg.Plugins, reactor.PluginConfig{
 				Name:          pc.Name,
 				Run:           pc.Run,
 				Encoder:       pc.Encoder,
@@ -441,21 +441,21 @@ func configToPeer(nc *PeerConfig, global *BGPConfig) (*reactor.PeerSettings, err
 		trace.PeerRoutes(nc.Address.String(), len(n.StaticRoutes))
 	}
 
-	// Convert API bindings
-	for _, ab := range nc.APIBindings {
-		n.APIBindings = append(n.APIBindings, reactor.APIBinding{
-			ProcessName:         ab.ProcessName,
-			Encoding:            ab.Content.Encoding,
-			Format:              ab.Content.Format,
-			ReceiveUpdate:       ab.Receive.Update,
-			ReceiveOpen:         ab.Receive.Open,
-			ReceiveNotification: ab.Receive.Notification,
-			ReceiveKeepalive:    ab.Receive.Keepalive,
-			ReceiveRefresh:      ab.Receive.Refresh,
-			ReceiveState:        ab.Receive.State,
-			ReceiveSent:         ab.Receive.Sent,
-			SendUpdate:          ab.Send.Update,
-			SendRefresh:         ab.Send.Refresh,
+	// Convert process bindings
+	for _, pb := range nc.ProcessBindings {
+		n.ProcessBindings = append(n.ProcessBindings, reactor.ProcessBinding{
+			PluginName:          pb.PluginName,
+			Encoding:            pb.Content.Encoding,
+			Format:              pb.Content.Format,
+			ReceiveUpdate:       pb.Receive.Update,
+			ReceiveOpen:         pb.Receive.Open,
+			ReceiveNotification: pb.Receive.Notification,
+			ReceiveKeepalive:    pb.Receive.Keepalive,
+			ReceiveRefresh:      pb.Receive.Refresh,
+			ReceiveState:        pb.Receive.State,
+			ReceiveSent:         pb.Receive.Sent,
+			SendUpdate:          pb.Send.Update,
+			SendRefresh:         pb.Send.Refresh,
 		})
 	}
 
