@@ -16,6 +16,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/attribute"
 )
 
 func init() {
@@ -45,7 +47,7 @@ type RIBManager struct {
 	serial   int
 }
 
-// Route represents a stored route.
+// Route represents a stored route with full path attributes.
 // RFC 7911: PathID is included when ADD-PATH is negotiated.
 type Route struct {
 	MsgID     uint64    `json:"msg-id,omitempty"`
@@ -54,6 +56,15 @@ type Route struct {
 	PathID    uint32    `json:"path-id,omitempty"` // RFC 7911: ADD-PATH path identifier
 	NextHop   string    `json:"next-hop"`
 	Timestamp time.Time `json:"timestamp,omitempty"`
+
+	// Path attributes for full route resend
+	Origin              string   `json:"origin,omitempty"`
+	ASPath              []uint32 `json:"as-path,omitempty"`
+	MED                 *uint32  `json:"med,omitempty"`
+	LocalPreference     *uint32  `json:"local-preference,omitempty"`
+	Communities         []string `json:"communities,omitempty"`
+	LargeCommunities    []string `json:"large-communities,omitempty"`
+	ExtendedCommunities []string `json:"extended-communities,omitempty"`
 }
 
 // routeKey creates a unique key for a route.
@@ -217,11 +228,18 @@ func (r *RIBManager) handleSent(event *Event) {
 				}
 				key := routeKey(family, prefix, pathID)
 				r.ribOut[peerAddr][key] = &Route{
-					MsgID:   msgID,
-					Family:  family,
-					Prefix:  prefix,
-					PathID:  pathID,
-					NextHop: nexthop,
+					MsgID:               msgID,
+					Family:              family,
+					Prefix:              prefix,
+					PathID:              pathID,
+					NextHop:             nexthop,
+					Origin:              event.Origin,
+					ASPath:              event.ASPath,
+					MED:                 event.MED,
+					LocalPreference:     event.LocalPreference,
+					Communities:         event.Communities,
+					LargeCommunities:    event.LargeCommunities,
+					ExtendedCommunities: event.ExtendedCommunities,
 				}
 			}
 		}
@@ -308,12 +326,19 @@ func (r *RIBManager) handleReceived(event *Event) {
 				}
 				key := routeKey(family, prefix, pathID)
 				r.ribIn[peerAddr][key] = &Route{
-					MsgID:     msgID,
-					Family:    family,
-					Prefix:    prefix,
-					PathID:    pathID,
-					NextHop:   nexthop,
-					Timestamp: now,
+					MsgID:               msgID,
+					Family:              family,
+					Prefix:              prefix,
+					PathID:              pathID,
+					NextHop:             nexthop,
+					Timestamp:           now,
+					Origin:              event.Origin,
+					ASPath:              event.ASPath,
+					MED:                 event.MED,
+					LocalPreference:     event.LocalPreference,
+					Communities:         event.Communities,
+					LargeCommunities:    event.LargeCommunities,
+					ExtendedCommunities: event.ExtendedCommunities,
 				}
 			}
 		}
@@ -550,7 +575,7 @@ func (r *RIBManager) handleOutboundResend(serial, selector string) {
 }
 
 // sendRoutes sends routes to a peer without the "session api ready" signal.
-// Used for manual resend operations.
+// Used for manual resend operations. Includes full path attributes.
 func (r *RIBManager) sendRoutes(peerAddr string, routes []*Route) {
 	// Sort by MsgID to send in original announcement order
 	sort.Slice(routes, func(i, j int) bool {
@@ -558,12 +583,90 @@ func (r *RIBManager) sendRoutes(peerAddr string, routes []*Route) {
 	})
 
 	for _, route := range routes {
-		if route.PathID != 0 {
-			r.send("peer %s announce route %s path-id %d next-hop %s", peerAddr, route.Prefix, route.PathID, route.NextHop)
+		cmd := r.formatRouteCommand(peerAddr, route)
+		r.send(cmd)
+	}
+}
+
+// formatRouteCommand builds the announce command with full attributes.
+// Format: peer <addr> announce route <prefix> [path-id <id>] next-hop <nh> [attrs].
+func (r *RIBManager) formatRouteCommand(peerAddr string, route *Route) string {
+	var sb strings.Builder
+
+	// Base command
+	sb.WriteString("peer ")
+	sb.WriteString(peerAddr)
+	sb.WriteString(" announce route ")
+	sb.WriteString(route.Prefix)
+
+	// Path-ID (RFC 7911)
+	if route.PathID != 0 {
+		fmt.Fprintf(&sb, " path-id %d", route.PathID)
+	}
+
+	// Next-hop (required)
+	sb.WriteString(" next-hop ")
+	sb.WriteString(route.NextHop)
+
+	// Origin
+	if route.Origin != "" {
+		sb.WriteString(" origin ")
+		sb.WriteString(route.Origin)
+	}
+
+	// AS-Path (use [] if >1 rule)
+	if len(route.ASPath) > 0 {
+		sb.WriteString(" as-path ")
+		sb.WriteString(attribute.FormatASPath(route.ASPath))
+	}
+
+	// MED
+	if route.MED != nil {
+		fmt.Fprintf(&sb, " med %d", *route.MED)
+	}
+
+	// Local-Preference
+	if route.LocalPreference != nil {
+		fmt.Fprintf(&sb, " local-preference %d", *route.LocalPreference)
+	}
+
+	// Communities (use [] if >1 rule)
+	if len(route.Communities) > 0 {
+		sb.WriteString(" community ")
+		if len(route.Communities) == 1 {
+			sb.WriteString(route.Communities[0])
 		} else {
-			r.send("peer %s announce route %s next-hop %s", peerAddr, route.Prefix, route.NextHop)
+			sb.WriteString("[")
+			sb.WriteString(strings.Join(route.Communities, " "))
+			sb.WriteString("]")
 		}
 	}
+
+	// Large Communities (use [] if >1 rule)
+	if len(route.LargeCommunities) > 0 {
+		sb.WriteString(" large-community ")
+		if len(route.LargeCommunities) == 1 {
+			sb.WriteString(route.LargeCommunities[0])
+		} else {
+			sb.WriteString("[")
+			sb.WriteString(strings.Join(route.LargeCommunities, " "))
+			sb.WriteString("]")
+		}
+	}
+
+	// Extended Communities (use [] if >1 rule)
+	if len(route.ExtendedCommunities) > 0 {
+		sb.WriteString(" extended-community ")
+		if len(route.ExtendedCommunities) == 1 {
+			sb.WriteString(route.ExtendedCommunities[0])
+		} else {
+			sb.WriteString("[")
+			sb.WriteString(strings.Join(route.ExtendedCommunities, " "))
+			sb.WriteString("]")
+		}
+	}
+
+	return sb.String()
 }
 
 // respondDone sends a successful response.

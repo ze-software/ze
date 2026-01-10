@@ -35,6 +35,15 @@ type Event struct {
 	Announce map[string]map[string]any `json:"announce,omitempty"`
 	Withdraw map[string][]any          `json:"withdraw,omitempty"`
 
+	// Path attributes at top level (same level as announce/withdraw)
+	Origin              string   `json:"origin,omitempty"`
+	ASPath              []uint32 `json:"as-path,omitempty"`
+	MED                 *uint32  `json:"med,omitempty"`
+	LocalPreference     *uint32  `json:"local-preference,omitempty"`
+	Communities         []string `json:"communities,omitempty"`
+	LargeCommunities    []string `json:"large-communities,omitempty"`
+	ExtendedCommunities []string `json:"extended-communities,omitempty"`
+
 	// Request fields
 	Serial  string   `json:"serial,omitempty"`
 	Command string   `json:"command,omitempty"`
