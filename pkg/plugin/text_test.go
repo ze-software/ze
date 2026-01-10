@@ -753,6 +753,40 @@ func TestFormatNLRIJSONPathIDMax(t *testing.T) {
 	}
 }
 
+// TestWriteJSONEscapedString verifies JSON string escaping.
+//
+// VALIDATES: Special characters escaped per JSON spec.
+// PREVENTS: Invalid JSON output from complex NLRI String().
+func TestWriteJSONEscapedString(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+		want  string
+	}{
+		{"empty", "", ""},
+		{"simple", "hello", "hello"},
+		{"backslash", `a\b`, `a\\b`},
+		{"quote", `a"b`, `a\"b`},
+		{"newline", "a\nb", `a\nb`},
+		{"carriage_return", "a\rb", `a\rb`},
+		{"tab", "a\tb", `a\tb`},
+		{"control_char", "a\x00b", `a\u0000b`},
+		{"mixed", "line1\nline2\ttab", `line1\nline2\ttab`},
+		{"ip_prefix", "10.0.0.0/24", "10.0.0.0/24"},
+		{"ipv6_prefix", "2001:db8::/32", "2001:db8::/32"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var sb strings.Builder
+			writeJSONEscapedString(&sb, tt.input)
+			if got := sb.String(); got != tt.want {
+				t.Errorf("writeJSONEscapedString(%q) = %q, want %q", tt.input, got, tt.want)
+			}
+		})
+	}
+}
+
 // buildTestUpdateBodyWithCommunities builds UPDATE with COMMUNITY attribute.
 func buildTestUpdateBodyWithCommunities(prefix netip.Prefix, nextHop netip.Addr, communities []uint32) []byte {
 	var attrs []byte

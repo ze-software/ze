@@ -490,6 +490,80 @@ func TestApplyToUpdate(t *testing.T) {
 	}
 }
 
+// TestAnnouncedByFamilyNilCtx verifies nil ctx doesn't panic.
+//
+// VALIDATES: Nil ctx treated as no ADD-PATH.
+// PREVENTS: Nil pointer dereference crash.
+func TestAnnouncedByFamilyNilCtx(t *testing.T) {
+	// Create a FilterResult with MP_REACH data
+	mpReach := buildTestMPReachIPv4()
+	result := FilterResult{
+		MPReach: []MPReachWire{mpReach},
+	}
+
+	// Should not panic with nil ctx
+	announced := result.AnnouncedByFamily(nil)
+
+	// Should still return results
+	if len(announced) != 1 {
+		t.Fatalf("len(AnnouncedByFamily(nil)) = %d, want 1", len(announced))
+	}
+}
+
+// TestWithdrawnByFamilyNilCtx verifies nil ctx doesn't panic.
+//
+// VALIDATES: Nil ctx treated as no ADD-PATH.
+// PREVENTS: Nil pointer dereference crash.
+func TestWithdrawnByFamilyNilCtx(t *testing.T) {
+	// Create a FilterResult with MP_UNREACH data
+	mpUnreach := buildTestMPUnreachIPv4()
+	result := FilterResult{
+		MPUnreach: []MPUnreachWire{mpUnreach},
+	}
+
+	// Should not panic with nil ctx
+	withdrawn := result.WithdrawnByFamily(nil)
+
+	// Should still return results
+	if len(withdrawn) != 1 {
+		t.Fatalf("len(WithdrawnByFamily(nil)) = %d, want 1", len(withdrawn))
+	}
+}
+
+// buildTestMPReachIPv4 builds MP_REACH_NLRI wire bytes for IPv4 unicast.
+// Returns wire bytes for 192.168.1.0/24 with next-hop 10.0.0.1.
+func buildTestMPReachIPv4() MPReachWire {
+	data := make([]byte, 0, 32)
+	data = append(data, 0x00, 0x01) // AFI: IPv4
+	data = append(data, 0x01)       // SAFI: unicast
+	data = append(data, 0x04)       // NH length: 4
+
+	// Next-hop: 10.0.0.1
+	nh := [4]byte{10, 0, 0, 1}
+	data = append(data, nh[:]...)
+	data = append(data, 0x00) // Reserved
+
+	// NLRI: 192.168.1.0/24
+	data = append(data, 24)          // prefix length
+	data = append(data, 192, 168, 1) // prefix bytes
+
+	return MPReachWire(data)
+}
+
+// buildTestMPUnreachIPv4 builds MP_UNREACH_NLRI wire bytes for IPv4 unicast.
+// Returns wire bytes for 192.168.1.0/24.
+func buildTestMPUnreachIPv4() MPUnreachWire {
+	data := make([]byte, 0, 16)
+	data = append(data, 0x00, 0x01) // AFI: IPv4
+	data = append(data, 0x01)       // SAFI: unicast
+
+	// NLRI: 192.168.1.0/24
+	data = append(data, 24)          // prefix length
+	data = append(data, 192, 168, 1) // prefix bytes
+
+	return MPUnreachWire(data)
+}
+
 // TODO: TestFormatMessageBothPaths disabled pending new API format implementation
 // Will be replaced with tests for new format:
 //   peer X update announce <attrs> <afi> <safi> next-hop <ip> nlri <prefixes>...

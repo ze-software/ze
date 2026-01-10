@@ -261,11 +261,13 @@ func (w IPv4Withdraw) NLRIs(hasAddPath bool) ([]nlri.NLRI, error) {
 
 // parseNLRIs parses a sequence of NLRIs using the nlri package.
 // RFC 7911 Section 3: When hasAddPath is true, each NLRI is prefixed with 4-byte path-id.
-// Supports IPv4/IPv6 unicast. Other families return error.
+// Supports IPv4/IPv6 unicast/multicast. Other families return error.
 func parseNLRIs(data []byte, family nlri.Family, hasAddPath bool) ([]nlri.NLRI, error) {
 	var result []nlri.NLRI
+	originalLen := len(data)
 
 	for len(data) > 0 {
+		offset := originalLen - len(data)
 		var n nlri.NLRI
 		var rest []byte
 		var err error
@@ -286,7 +288,7 @@ func parseNLRIs(data []byte, family nlri.Family, hasAddPath bool) ([]nlri.NLRI, 
 		}
 
 		if err != nil {
-			return result, fmt.Errorf("parsing NLRI at offset %d: %w", len(data)-len(rest), err)
+			return result, fmt.Errorf("parsing NLRI at offset %d: %w", offset, err)
 		}
 
 		result = append(result, n)

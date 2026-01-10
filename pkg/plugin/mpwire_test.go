@@ -647,5 +647,11 @@ func FuzzParseNLRIs(f *testing.F) {
 
 		// Test IPv6 unicast - MUST NOT panic
 		_, _ = parseNLRIs(data, nlri.IPv6Unicast, hasAddPath)
+
+		// Test IPv4 multicast - MUST NOT panic
+		_, _ = parseNLRIs(data, nlri.IPv4Multicast, hasAddPath)
+
+		// Test IPv6 multicast - MUST NOT panic
+		_, _ = parseNLRIs(data, nlri.IPv6Multicast, hasAddPath)
 	})
 }
