@@ -1123,12 +1123,14 @@ func ParsePrefixSIDSRv6(s string) (PrefixSID, error) {
 
 	// Build inner sub-TLV header (Type 1)
 	innerLen := len(innerValue)
-	innerTLV := []byte{0, 1, byte(innerLen >> 8), byte(innerLen)}
+	innerTLV := make([]byte, 0, 4+len(innerValue))
+	innerTLV = append(innerTLV, 0, 1, byte(innerLen>>8), byte(innerLen))
 	innerTLV = append(innerTLV, innerValue...)
 
 	// Build outer TLV header (Type 5 or 6)
 	outerLen := len(innerTLV)
-	result := []byte{serviceType, byte(outerLen >> 8), byte(outerLen)}
+	result := make([]byte, 0, 3+len(innerTLV))
+	result = append(result, serviceType, byte(outerLen>>8), byte(outerLen))
 	result = append(result, innerTLV...)
 
 	return PrefixSID{Bytes: result}, nil

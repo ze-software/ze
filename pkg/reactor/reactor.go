@@ -4368,11 +4368,13 @@ func parseAPIPrefixSIDSRv6(s string) ([]byte, error) {
 	}
 
 	innerLen := len(innerValue)
-	innerTLV := []byte{0, 1, byte(innerLen >> 8), byte(innerLen)}
+	innerTLV := make([]byte, 0, 4+innerLen)
+	innerTLV = append(innerTLV, 0, 1, byte(innerLen>>8), byte(innerLen))
 	innerTLV = append(innerTLV, innerValue...)
 
 	outerLen := len(innerTLV)
-	result := []byte{serviceType, byte(outerLen >> 8), byte(outerLen)}
+	result := make([]byte, 0, 3+outerLen)
+	result = append(result, serviceType, byte(outerLen>>8), byte(outerLen))
 	result = append(result, innerTLV...)
 
 	return result, nil

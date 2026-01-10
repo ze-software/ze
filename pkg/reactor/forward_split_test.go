@@ -258,7 +258,7 @@ func TestSplitUpdateEndToEnd(t *testing.T) {
 			"chunk %d size %d exceeds max %d", i, chunkSize, message.MaxMsgLen)
 	}
 
-	var totalNLRI []byte
+	totalNLRI := make([]byte, 0, len(nlriBytes))
 	for _, chunk := range chunks {
 		totalNLRI = append(totalNLRI, chunk.NLRI...)
 	}
@@ -296,7 +296,7 @@ func TestSplitUpdateAddPathEndToEnd(t *testing.T) {
 	require.NoError(t, err)
 	require.Greater(t, len(chunks), 1, "should split Add-Path NLRIs")
 
-	var totalNLRI []byte
+	totalNLRI := make([]byte, 0, len(nlriBytes))
 	for _, chunk := range chunks {
 		totalNLRI = append(totalNLRI, chunk.NLRI...)
 	}

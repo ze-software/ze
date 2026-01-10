@@ -16,7 +16,11 @@ func packAttr(flags AttributeFlags, code AttributeCode, value []byte) []byte {
 
 // Helper to build multiple attributes into packed bytes.
 func packAttrs(attrs ...[]byte) []byte {
-	var buf []byte
+	total := 0
+	for _, a := range attrs {
+		total += len(a)
+	}
+	buf := make([]byte, 0, total)
 	for _, a := range attrs {
 		buf = append(buf, a...)
 	}

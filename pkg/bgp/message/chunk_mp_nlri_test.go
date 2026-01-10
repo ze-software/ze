@@ -83,7 +83,7 @@ func TestChunkMPNLRI_IPv6_MultiplePrefixes(t *testing.T) {
 	}
 
 	// Verify all bytes preserved
-	var reassembled []byte
+	reassembled := make([]byte, 0, len(nlri))
 	for _, chunk := range chunks {
 		reassembled = append(reassembled, chunk...)
 	}
@@ -95,7 +95,7 @@ func TestChunkMPNLRI_IPv6_MultiplePrefixes(t *testing.T) {
 // VALIDATES: /48, /64, /128 all parsed correctly.
 // PREVENTS: Size miscalculation for non-/64 prefixes.
 func TestChunkMPNLRI_IPv6_VariableLengths(t *testing.T) {
-	var nlri []byte
+	nlri := make([]byte, 0, 33) // /48 (7) + /64 (9) + /128 (17) = 33 bytes
 	// /48 = 1 + 6 = 7 bytes
 	nlri = append(nlri, 48, 0x20, 0x01, 0x0d, 0xb8, 0x00, 0x01)
 	// /64 = 1 + 8 = 9 bytes
@@ -222,7 +222,7 @@ func TestChunkMPNLRI_AddPath_Split(t *testing.T) {
 // PREVENTS: AFI-specific parsing errors with Add-Path.
 func TestChunkMPNLRI_AddPath_IPv6(t *testing.T) {
 	// Path-ID=100, 2001:db8::/64
-	var nlri []byte
+	nlri := make([]byte, 0, 13)       // path-id (4) + prefix-len (1) + prefix (8) = 13
 	nlri = append(nlri, 0, 0, 0, 100) // path-id
 	nlri = append(nlri, 64)           // prefix-len
 	nlri = append(nlri, 0x20, 0x01, 0x0d, 0xb8, 0x00, 0x00, 0x00, 0x00)
@@ -262,7 +262,7 @@ func TestChunkMPNLRI_AddPath_LargePathID(t *testing.T) {
 func TestChunkMPNLRI_VPN_SinglePrefix(t *testing.T) {
 	// VPNv4: label=100, RD=65000:1, 10.0.0.0/24
 	// total-bits = 24 (label) + 64 (RD) + 24 (prefix) = 112
-	var nlri []byte
+	nlri := make([]byte, 0, 15)                       // total-bits (1) + label (3) + RD (8) + prefix (3) = 15
 	nlri = append(nlri, 112)                          // total-bits
 	nlri = append(nlri, 0x00, 0x06, 0x41)             // label 100 with BoS
 	nlri = append(nlri, 0, 0, 0xFD, 0xE8, 0, 0, 0, 1) // RD type 0, ASN 65000, assigned 1
@@ -296,7 +296,7 @@ func TestChunkMPNLRI_VPN_MultipleWithSplit(t *testing.T) {
 	require.Greater(t, len(chunks), 1)
 
 	// Verify all bytes preserved
-	var reassembled []byte
+	reassembled := make([]byte, 0, len(nlri))
 	for _, chunk := range chunks {
 		reassembled = append(reassembled, chunk...)
 	}
@@ -309,7 +309,7 @@ func TestChunkMPNLRI_VPN_MultipleWithSplit(t *testing.T) {
 // PREVENTS: Label stack split.
 func TestChunkMPNLRI_VPN_LabelStack(t *testing.T) {
 	// VPNv4 with 2 labels: total-bits = 48 (2 labels) + 64 (RD) + 24 = 136
-	var nlri []byte
+	nlri := make([]byte, 0, 18)                       // total-bits (1) + 2 labels (6) + RD (8) + prefix (3) = 18
 	nlri = append(nlri, 136)                          // total-bits
 	nlri = append(nlri, 0x00, 0x06, 0x40)             // label 100, no BoS
 	nlri = append(nlri, 0x00, 0x0C, 0x81)             // label 200, BoS
@@ -330,7 +330,7 @@ func TestChunkMPNLRI_VPN_LabelStack(t *testing.T) {
 func TestChunkMPNLRI_VPN_IPv6(t *testing.T) {
 	// VPNv6: label=100, RD=65000:1, 2001:db8::/64
 	// total-bits = 24 + 64 + 64 = 152
-	var nlri []byte
+	nlri := make([]byte, 0, 20)                             // total-bits (1) + label (3) + RD (8) + prefix (8) = 20
 	nlri = append(nlri, 152)                                // total-bits
 	nlri = append(nlri, 0x00, 0x06, 0x41)                   // label 100 with BoS
 	nlri = append(nlri, 0, 0, 0xFD, 0xE8, 0, 0, 0, 1)       // RD
@@ -354,7 +354,7 @@ func TestChunkMPNLRI_VPN_IPv6(t *testing.T) {
 func TestChunkMPNLRI_Labeled_Single(t *testing.T) {
 	// Labeled IPv4: label=100, 10.0.0.0/24
 	// total-bits = 24 (label) + 24 (prefix) = 48
-	var nlri []byte
+	nlri := make([]byte, 0, 7)            // total-bits (1) + label (3) + prefix (3) = 7
 	nlri = append(nlri, 48)               // total-bits
 	nlri = append(nlri, 0x00, 0x06, 0x41) // label 100 with BoS
 	nlri = append(nlri, 10, 0, 0)         // 10.0.0.0/24
@@ -373,7 +373,7 @@ func TestChunkMPNLRI_Labeled_Single(t *testing.T) {
 func TestChunkMPNLRI_Labeled_IPv6(t *testing.T) {
 	// Labeled IPv6: label=100, 2001:db8::/64
 	// total-bits = 24 + 64 = 88
-	var nlri []byte
+	nlri := make([]byte, 0, 12)                             // total-bits (1) + label (3) + prefix (8) = 12
 	nlri = append(nlri, 88)                                 // total-bits
 	nlri = append(nlri, 0x00, 0x06, 0x41)                   // label 100 with BoS
 	nlri = append(nlri, 0x20, 0x01, 0x0d, 0xb8, 0, 0, 0, 0) // 2001:db8::/64
@@ -396,7 +396,7 @@ func TestChunkMPNLRI_Labeled_IPv6(t *testing.T) {
 func TestChunkMPNLRI_EVPN_Type2(t *testing.T) {
 	// EVPN Type 2 (MAC/IP Advertisement)
 	// route-type=2, length=33 (typical MAC+IPv4)
-	var nlri []byte
+	nlri := make([]byte, 0, 35)              // route-type (1) + length (1) + payload (33) = 35
 	nlri = append(nlri, 2)                   // route-type
 	nlri = append(nlri, 33)                  // length
 	nlri = append(nlri, make([]byte, 33)...) // payload (zeros for test)
@@ -415,7 +415,7 @@ func TestChunkMPNLRI_EVPN_Type2(t *testing.T) {
 func TestChunkMPNLRI_EVPN_Type5(t *testing.T) {
 	// EVPN Type 5 (IP Prefix)
 	// route-type=5, length=34
-	var nlri []byte
+	nlri := make([]byte, 0, 36)              // route-type (1) + length (1) + payload (34) = 36
 	nlri = append(nlri, 5)                   // route-type
 	nlri = append(nlri, 34)                  // length
 	nlri = append(nlri, make([]byte, 34)...) // payload
@@ -448,7 +448,7 @@ func TestChunkMPNLRI_EVPN_MultipleSplit(t *testing.T) {
 	require.Greater(t, len(chunks), 1)
 
 	// Verify all bytes preserved
-	var reassembled []byte
+	reassembled := make([]byte, 0, len(nlri))
 	for _, chunk := range chunks {
 		reassembled = append(reassembled, chunk...)
 	}
@@ -465,7 +465,7 @@ func TestChunkMPNLRI_EVPN_MultipleSplit(t *testing.T) {
 // PREVENTS: Length misparse.
 func TestChunkMPNLRI_FlowSpec_ShortLength(t *testing.T) {
 	// FlowSpec with length=50 (1-byte encoding)
-	var nlri []byte
+	nlri := make([]byte, 0, 51)              // length (1) + flow components (50) = 51
 	nlri = append(nlri, 50)                  // length (1 byte)
 	nlri = append(nlri, make([]byte, 50)...) // flow components
 	// Total: 51 bytes
@@ -483,7 +483,7 @@ func TestChunkMPNLRI_FlowSpec_ShortLength(t *testing.T) {
 func TestChunkMPNLRI_FlowSpec_LongLength(t *testing.T) {
 	// FlowSpec with length=300 (2-byte encoding)
 	// Encoding: 0xF0 | (300 >> 8) = 0xF1, 300 & 0xFF = 0x2C
-	var nlri []byte
+	nlri := make([]byte, 0, 302)              // length (2) + flow components (300) = 302
 	nlri = append(nlri, 0xF1, 0x2C)           // length (2 bytes)
 	nlri = append(nlri, make([]byte, 300)...) // flow components
 	// Total: 302 bytes
@@ -524,7 +524,7 @@ func TestChunkMPNLRI_FlowSpec_Boundary(t *testing.T) {
 // PREVENTS: 2-byte type/length misparse.
 func TestChunkMPNLRI_BGPLS_Node(t *testing.T) {
 	// BGP-LS Node: type=1, length=20
-	var nlri []byte
+	nlri := make([]byte, 0, 24)              // type (2) + length (2) + payload (20) = 24
 	nlri = append(nlri, 0, 1)                // type (2 bytes) = 1 (Node)
 	nlri = append(nlri, 0, 20)               // length (2 bytes) = 20
 	nlri = append(nlri, make([]byte, 20)...) // payload
@@ -542,9 +542,9 @@ func TestChunkMPNLRI_BGPLS_Node(t *testing.T) {
 // PREVENTS: Type-specific parsing errors.
 func TestChunkMPNLRI_BGPLS_Link(t *testing.T) {
 	// BGP-LS Link: type=2, length=50
-	var nlri []byte
-	nlri = append(nlri, 0, 2)  // type = 2 (Link)
-	nlri = append(nlri, 0, 50) // length = 50
+	nlri := make([]byte, 0, 54) // type (2) + length (2) + payload (50) = 54
+	nlri = append(nlri, 0, 2)   // type = 2 (Link)
+	nlri = append(nlri, 0, 50)  // length = 50
 	nlri = append(nlri, make([]byte, 50)...)
 	// Total: 54 bytes
 
@@ -575,7 +575,7 @@ func TestChunkMPNLRI_BGPLS_Split(t *testing.T) {
 	require.Greater(t, len(chunks), 1)
 
 	// Verify all bytes preserved
-	var reassembled []byte
+	reassembled := make([]byte, 0, len(nlri))
 	for _, chunk := range chunks {
 		reassembled = append(reassembled, chunk...)
 	}
@@ -612,7 +612,7 @@ func TestChunkMPNLRI_EVPN_AddPath(t *testing.T) {
 	require.Greater(t, len(chunks), 1, "should split")
 
 	// Verify all bytes preserved
-	var reassembled []byte
+	reassembled := make([]byte, 0, len(nlri))
 	for _, chunk := range chunks {
 		reassembled = append(reassembled, chunk...)
 	}
@@ -642,7 +642,7 @@ func TestChunkMPNLRI_FlowSpec_AddPath(t *testing.T) {
 	require.NoError(t, err)
 	require.Greater(t, len(chunks), 1, "should split")
 
-	var reassembled []byte
+	reassembled := make([]byte, 0, len(nlri))
 	for _, chunk := range chunks {
 		reassembled = append(reassembled, chunk...)
 	}
@@ -698,7 +698,7 @@ func TestChunkMPNLRI_BGPLS_AddPath(t *testing.T) {
 	require.NoError(t, err)
 	require.Greater(t, len(chunks), 1, "should split")
 
-	var reassembled []byte
+	reassembled := make([]byte, 0, len(nlri))
 	for _, chunk := range chunks {
 		reassembled = append(reassembled, chunk...)
 	}
@@ -881,7 +881,7 @@ func TestSplitMPNLRI_MultipleSplits(t *testing.T) {
 	require.Len(t, chunks, 4)
 
 	// Reassemble and verify
-	var reassembled []byte
+	reassembled := make([]byte, 0, len(nlri))
 	for _, chunk := range chunks {
 		reassembled = append(reassembled, chunk...)
 	}
@@ -1019,16 +1019,9 @@ func TestSplitUpdate_DetectsMPUnreach(t *testing.T) {
 // PREVENTS: Attribute loss or corruption during MP split.
 func TestSplitUpdate_PreservesOtherAttrs(t *testing.T) {
 	// Build UPDATE with ORIGIN + AS_PATH + MP_REACH_NLRI
-	var attrs []byte
-
-	// ORIGIN = IGP
-	attrs = append(attrs, 0x40, 0x01, 0x01, 0x00)
-
-	// AS_PATH = [65001]
-	attrs = append(attrs, 0x40, 0x02, 0x04, 0x02, 0x01, 0xFD, 0xE9)
 
 	// MP_REACH_NLRI with many prefixes
-	var mpNLRI []byte
+	mpNLRI := make([]byte, 0, 50*9) // 50 /64 prefixes at 9 bytes each
 	for i := 0; i < 50; i++ {
 		mpNLRI = append(mpNLRI, 64)
 		mpNLRI = append(mpNLRI, 0x20, 0x01, 0x0d, 0xb8, byte(i), 0, 0, 0)
@@ -1046,6 +1039,16 @@ func TestSplitUpdate_PreservesOtherAttrs(t *testing.T) {
 	}
 	mpReachBuf := make([]byte, mpReachHdr+mpReachLen)
 	attribute.WriteAttrTo(mpReach, mpReachBuf, 0)
+
+	// Now we know the size, preallocate attrs
+	attrs := make([]byte, 0, 11+len(mpReachBuf)) // ORIGIN (4) + AS_PATH (7) + mpReachBuf
+
+	// ORIGIN = IGP
+	attrs = append(attrs, 0x40, 0x01, 0x01, 0x00)
+
+	// AS_PATH = [65001]
+	attrs = append(attrs, 0x40, 0x02, 0x04, 0x02, 0x01, 0xFD, 0xE9)
+
 	attrs = append(attrs, mpReachBuf...)
 
 	u := &Update{PathAttributes: attrs}
@@ -1074,16 +1077,9 @@ func TestSplitUpdate_PreservesOtherAttrs(t *testing.T) {
 // PREVENTS: Index corruption when both MP attributes are present and need removal.
 func TestSplitUpdate_BothMPReachAndUnreach(t *testing.T) {
 	// Build UPDATE with ORIGIN + AS_PATH + MP_UNREACH_NLRI + MP_REACH_NLRI
-	var attrs []byte
-
-	// ORIGIN = IGP
-	attrs = append(attrs, 0x40, 0x01, 0x01, 0x00)
-
-	// AS_PATH = [65001]
-	attrs = append(attrs, 0x40, 0x02, 0x04, 0x02, 0x01, 0xFD, 0xE9)
 
 	// MP_UNREACH_NLRI with many prefixes (withdrawals)
-	var unreachNLRI []byte
+	unreachNLRI := make([]byte, 0, 20*9) // 20 /64 prefixes at 9 bytes each
 	for i := 0; i < 20; i++ {
 		unreachNLRI = append(unreachNLRI, 64)
 		unreachNLRI = append(unreachNLRI, 0x20, 0x01, 0x0d, 0xb8, 0xFF, byte(i), 0, 0)
@@ -1100,10 +1096,9 @@ func TestSplitUpdate_BothMPReachAndUnreach(t *testing.T) {
 	}
 	mpUnreachBuf := make([]byte, mpUnreachHdr+mpUnreachLen)
 	attribute.WriteAttrTo(mpUnreach, mpUnreachBuf, 0)
-	attrs = append(attrs, mpUnreachBuf...)
 
 	// MP_REACH_NLRI with many prefixes (announcements)
-	var reachNLRI []byte
+	reachNLRI := make([]byte, 0, 30*9) // 30 /64 prefixes at 9 bytes each
 	for i := 0; i < 30; i++ {
 		reachNLRI = append(reachNLRI, 64)
 		reachNLRI = append(reachNLRI, 0x20, 0x01, 0x0d, 0xb8, byte(i), 0, 0, 0)
@@ -1121,6 +1116,18 @@ func TestSplitUpdate_BothMPReachAndUnreach(t *testing.T) {
 	}
 	mpReachBuf := make([]byte, mpReachHdr+mpReachLen)
 	attribute.WriteAttrTo(mpReach, mpReachBuf, 0)
+
+	// Now we know the sizes, preallocate attrs
+	// ORIGIN (4) + AS_PATH (7) + mpUnreachBuf + mpReachBuf
+	attrs := make([]byte, 0, 11+len(mpUnreachBuf)+len(mpReachBuf))
+
+	// ORIGIN = IGP
+	attrs = append(attrs, 0x40, 0x01, 0x01, 0x00)
+
+	// AS_PATH = [65001]
+	attrs = append(attrs, 0x40, 0x02, 0x04, 0x02, 0x01, 0xFD, 0xE9)
+
+	attrs = append(attrs, mpUnreachBuf...)
 	attrs = append(attrs, mpReachBuf...)
 
 	u := &Update{PathAttributes: attrs}

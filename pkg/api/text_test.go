@@ -199,7 +199,8 @@ func buildTestUpdateBodyWithAttrs(prefix netip.Prefix, nextHop netip.Addr, origi
 
 	// AS_PATH
 	if len(asPath) > 0 {
-		asPathData := []byte{0x02, byte(len(asPath))} // AS_SEQUENCE
+		asPathData := make([]byte, 0, 2+4*len(asPath))
+		asPathData = append(asPathData, 0x02, byte(len(asPath))) // AS_SEQUENCE
 		for _, asn := range asPath {
 			b := make([]byte, 4)
 			binary.BigEndian.PutUint32(b, asn)
@@ -534,11 +535,11 @@ func buildTestUpdateBodyWithBothFamilies(ipv4Prefix netip.Prefix, ipv4NextHop ne
 
 	// MP_REACH_NLRI for IPv6
 	// AFI=2 (IPv6), SAFI=1 (unicast), NH len=16, next-hop, reserved=0, NLRI
-	mpReach := []byte{
-		0x00, 0x02, // AFI IPv6
-		0x01, // SAFI unicast
-		0x10, // NH len = 16
-	}
+	// Capacity: 4 (header) + 16 (NH) + 1 (reserved) + 1 (prefix len) + 16 (max prefix) = 38
+	mpReach := make([]byte, 0, 38)
+	mpReach = append(mpReach, 0x00, 0x02) // AFI IPv6
+	mpReach = append(mpReach, 0x01)       // SAFI unicast
+	mpReach = append(mpReach, 0x10)       // NH len = 16
 	nhBytes := ipv6NextHop.As16()
 	mpReach = append(mpReach, nhBytes[:]...)
 	mpReach = append(mpReach, 0x00) // reserved
@@ -556,7 +557,8 @@ func buildTestUpdateBodyWithBothFamilies(ipv4Prefix netip.Prefix, ipv4NextHop ne
 	attrs = append(attrs, mpReach...)
 
 	// IPv4 NLRI
-	var nlri []byte
+	// Capacity: 1 (prefix len) + 4 (max IPv4 prefix bytes) = 5
+	nlri := make([]byte, 0, 5)
 	bits = ipv4Prefix.Bits()
 	nlri = append(nlri, byte(bits))
 	prefixBytes = (bits + 7) / 8

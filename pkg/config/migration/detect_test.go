@@ -7,18 +7,21 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// legacyNeighborBlock is a common test fixture for old-style neighbor config.
+const legacyNeighborBlock = `
+neighbor 192.0.2.1 {
+    local-as 65000;
+    peer-as 65001;
+}
+`
+
 // TestDetectLegacyNeighborAtRoot verifies detection of neighbor at root.
 //
 // VALIDATES: Config with "neighbor <IP>" needs migration.
 //
 // PREVENTS: Old configs being treated as current.
 func TestDetectLegacyNeighborAtRoot(t *testing.T) {
-	input := `
-neighbor 192.0.2.1 {
-    local-as 65000;
-    peer-as 65001;
-}
-`
+	input := legacyNeighborBlock
 	tree := parseWithBGPSchema(t, input)
 	needsMigration := NeedsMigration(tree)
 	require.True(t, needsMigration, "neighbor at root needs migration")

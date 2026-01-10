@@ -497,7 +497,12 @@ func FormatConfigDelivery(context, name, value string) string {
 // FormatRegistrySharing formats the registry sharing messages for Stage 4.
 // Returns lines to send to the plugin.
 func FormatRegistrySharing(pluginName string, allCommands map[string][]PluginCommandInfo) []string {
-	lines := make([]string, 0)
+	// Calculate capacity: 1 (name) + sum(commands) + 1 (done)
+	totalCmds := 0
+	for _, cmds := range allCommands {
+		totalCmds += len(cmds)
+	}
+	lines := make([]string, 0, 2+totalCmds)
 
 	// First line: registry name <plugin-name>
 	lines = append(lines, "registry name "+pluginName)
@@ -529,7 +534,7 @@ func (r *PluginRegistry) BuildCommandInfo() map[string][]PluginCommandInfo {
 	result := make(map[string][]PluginCommandInfo)
 
 	for name, reg := range r.plugins {
-		var cmds []PluginCommandInfo
+		cmds := make([]PluginCommandInfo, 0, len(reg.Commands))
 		// Use first encoding as default
 		encoding := EncodingText
 		if len(reg.Encodings) > 0 {

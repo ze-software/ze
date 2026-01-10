@@ -302,7 +302,8 @@ func TestWireUpdate_MPReach(t *testing.T) {
 	}
 
 	// Attribute header: Optional+Transitive (0x80), code 14, extended length
-	attrs := []byte{0x90, 0x0e, 0x00, byte(len(mpReachValue))}
+	attrs := make([]byte, 0, 4+len(mpReachValue))
+	attrs = append(attrs, 0x90, 0x0e, 0x00, byte(len(mpReachValue)))
 	attrs = append(attrs, mpReachValue...)
 
 	// Build UPDATE: no withdrawn, attrs with MP_REACH, no legacy NLRI
@@ -343,7 +344,8 @@ func TestWireUpdate_MPUnreach(t *testing.T) {
 	}
 
 	// Attribute header: Optional+non-transitive (0x80), code 15
-	attrs := []byte{0x80, 0x0f, byte(len(mpUnreachValue))}
+	attrs := make([]byte, 0, 3+len(mpUnreachValue))
+	attrs = append(attrs, 0x80, 0x0f, byte(len(mpUnreachValue)))
 	attrs = append(attrs, mpUnreachValue...)
 
 	// Build UPDATE: no withdrawn, attrs with MP_UNREACH, no legacy NLRI
@@ -607,7 +609,8 @@ func TestWireUpdate_MPReach_NotPresent(t *testing.T) {
 func TestWireUpdate_MPReach_Malformed(t *testing.T) {
 	// MP_REACH with only 3 bytes (need at least 5: AFI(2)+SAFI(1)+NHLen(1)+Reserved(1))
 	mpReachValue := []byte{0x00, 0x01, 0x01} // AFI + SAFI only
-	attrs := []byte{0x80, 0x0e, byte(len(mpReachValue))}
+	attrs := make([]byte, 0, 3+len(mpReachValue))
+	attrs = append(attrs, 0x80, 0x0e, byte(len(mpReachValue)))
 	attrs = append(attrs, mpReachValue...)
 
 	payload := make([]byte, 2+0+2+len(attrs))
@@ -694,7 +697,8 @@ func TestWireUpdate_MPUnreach_NotPresent(t *testing.T) {
 func TestWireUpdate_MPUnreach_Malformed(t *testing.T) {
 	// MP_UNREACH with only 2 bytes (need at least 3: AFI(2)+SAFI(1))
 	mpUnreachValue := []byte{0x00, 0x01} // AFI only
-	attrs := []byte{0x80, 0x0f, byte(len(mpUnreachValue))}
+	attrs := make([]byte, 0, 3+len(mpUnreachValue))
+	attrs = append(attrs, 0x80, 0x0f, byte(len(mpUnreachValue)))
 	attrs = append(attrs, mpUnreachValue...)
 
 	payload := make([]byte, 2+0+2+len(attrs))
@@ -778,7 +782,8 @@ func TestWireUpdate_Attrs_TruncatedByOne(t *testing.T) {
 func TestWireUpdate_NLRI_WithEmptyAttrs(t *testing.T) {
 	// wdLen=0, attrLen=0, then NLRI bytes
 	nlriBytes := []byte{0x18, 0x0A, 0x00, 0x00} // /24 prefix 10.0.0.x
-	payload := []byte{0x00, 0x00, 0x00, 0x00}
+	payload := make([]byte, 0, 4+len(nlriBytes))
+	payload = append(payload, 0x00, 0x00, 0x00, 0x00)
 	payload = append(payload, nlriBytes...)
 
 	wu := NewWireUpdate(payload, 0)

@@ -232,7 +232,12 @@ func (r *OutgoingRIB) FlushAllPending() []*Route {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	var routes []*Route
+	// Estimate capacity from pending map sizes
+	total := 0
+	for _, familyPending := range r.pending {
+		total += len(familyPending)
+	}
+	routes := make([]*Route, 0, total)
 
 	for family, familyPending := range r.pending {
 		for idx, route := range familyPending {
@@ -312,7 +317,12 @@ func (r *OutgoingRIB) GetSentRoutes() []*Route {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
-	var routes []*Route
+	// Estimate capacity from sent map sizes
+	total := 0
+	for _, familySent := range r.sent {
+		total += len(familySent)
+	}
+	routes := make([]*Route, 0, total)
 	for _, familySent := range r.sent {
 		for _, route := range familySent {
 			routes = append(routes, route)

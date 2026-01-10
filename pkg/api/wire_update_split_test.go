@@ -73,7 +73,7 @@ func TestSplitWireUpdate_IPv4NLRIOverflow(t *testing.T) {
 	}
 
 	// Verify all NLRIs preserved
-	var totalNLRI []byte
+	totalNLRI := make([]byte, 0, len(nlriData))
 	for _, chunk := range chunks {
 		nlri, err := chunk.NLRI()
 		require.NoError(t, err)
@@ -102,7 +102,7 @@ func TestSplitWireUpdate_WithdrawnOverflow(t *testing.T) {
 	require.Greater(t, len(chunks), 1, "should split withdrawals")
 
 	// Verify all withdrawals preserved
-	var totalWithdrawn []byte
+	totalWithdrawn := make([]byte, 0, len(withdrawn))
 	for _, chunk := range chunks {
 		wd, err := chunk.Withdrawn()
 		require.NoError(t, err)
@@ -207,7 +207,7 @@ func TestSplitWireUpdate_AddPath(t *testing.T) {
 	require.Greater(t, len(chunks), 1, "should split Add-Path NLRI")
 
 	// Verify all NLRIs preserved
-	var totalNLRI []byte
+	totalNLRI := make([]byte, 0, len(nlriData))
 	for _, chunk := range chunks {
 		nlri, err := chunk.NLRI()
 		require.NoError(t, err)
@@ -264,7 +264,8 @@ func TestSplitWireUpdate_BaseAttrsTooLarge(t *testing.T) {
 	asPathValue[1] = 20             // 20 ASNs
 	// ASNs are zeros (valid AS 0)
 
-	largeASPath := []byte{0x40, 0x02, 82} // flags, type, length
+	largeASPath := make([]byte, 0, 3+len(asPathValue))
+	largeASPath = append(largeASPath, 0x40, 0x02, 82) // flags, type, length
 	largeASPath = append(largeASPath, asPathValue...)
 
 	attrs := make([]byte, 0, 4+len(largeASPath))
@@ -299,7 +300,7 @@ func TestSplitWireUpdate_AddPathPerFamily(t *testing.T) {
 	}
 
 	// Build MP_REACH attribute
-	mpReachValue := []byte{
+	mpReachHeader := []byte{
 		0x00, 0x02, // AFI IPv6
 		0x01,                                                                               // SAFI unicast
 		0x10,                                                                               // NH length = 16
@@ -307,9 +308,12 @@ func TestSplitWireUpdate_AddPathPerFamily(t *testing.T) {
 		0x00, 0x01, // NH continued
 		0x00, // Reserved
 	}
+	mpReachValue := make([]byte, 0, len(mpReachHeader)+len(mpNLRIs))
+	mpReachValue = append(mpReachValue, mpReachHeader...)
 	mpReachValue = append(mpReachValue, mpNLRIs...)
 
-	mpReach := []byte{0x90, 0x0E} // Optional, Extended
+	mpReach := make([]byte, 0, 4+len(mpReachValue))
+	mpReach = append(mpReach, 0x90, 0x0E) // Optional, Extended
 	mpReach = append(mpReach, byte(len(mpReachValue)>>8), byte(len(mpReachValue)))
 	mpReach = append(mpReach, mpReachValue...)
 
@@ -515,13 +519,13 @@ func TestSplitWireUpdate_SourceIDPreserved(t *testing.T) {
 func TestSplitWireUpdate_MixedIPv4AndMP(t *testing.T) {
 	// Build MP_REACH_NLRI for IPv6 with several prefixes
 	// Keep it small: 5 /64s = 45 bytes NLRI
-	var mpNLRIs []byte
+	mpNLRIs := make([]byte, 0, 5*9) // 5 * (1 prefix len + 8 prefix bytes)
 	for i := 0; i < 5; i++ {
 		mpNLRIs = append(mpNLRIs, 0x40)                                              // /64
 		mpNLRIs = append(mpNLRIs, 0x20, 0x01, 0x0d, 0xb8, 0x00, byte(i), 0x00, 0x00) // prefix
 	}
 
-	mpReachValue := []byte{
+	mpReachHdr := []byte{
 		0x00, 0x02, // AFI IPv6
 		0x01,                                                                               // SAFI unicast
 		0x10,                                                                               // NH length = 16
@@ -529,9 +533,12 @@ func TestSplitWireUpdate_MixedIPv4AndMP(t *testing.T) {
 		0x00, 0x01, // NH continued
 		0x00, // Reserved
 	}
+	mpReachValue := make([]byte, 0, len(mpReachHdr)+len(mpNLRIs))
+	mpReachValue = append(mpReachValue, mpReachHdr...)
 	mpReachValue = append(mpReachValue, mpNLRIs...)
 
-	mpReach := []byte{0x90, 0x0E} // Optional, Extended
+	mpReach := make([]byte, 0, 4+len(mpReachValue))
+	mpReach = append(mpReach, 0x90, 0x0E) // Optional, Extended
 	mpReach = append(mpReach, byte(len(mpReachValue)>>8), byte(len(mpReachValue)))
 	mpReach = append(mpReach, mpReachValue...)
 
@@ -542,13 +549,13 @@ func TestSplitWireUpdate_MixedIPv4AndMP(t *testing.T) {
 	attrs = append(attrs, mpReach...)
 
 	// IPv4 NLRIs: 30 /24s = 120 bytes
-	var ipv4NLRI []byte
+	ipv4NLRI := make([]byte, 0, 30*4) // 30 * 4 bytes per /24
 	for i := 0; i < 30; i++ {
 		ipv4NLRI = append(ipv4NLRI, 0x18, 0xC0, 0xA8, byte(i)) // /24
 	}
 
 	// IPv4 withdrawals: 15 /24s = 60 bytes
-	var ipv4Withdrawn []byte
+	ipv4Withdrawn := make([]byte, 0, 15*4) // 15 * 4 bytes per /24
 	for i := 0; i < 15; i++ {
 		ipv4Withdrawn = append(ipv4Withdrawn, 0x18, 0x0A, 0x00, byte(i)) // /24
 	}
@@ -569,7 +576,8 @@ func TestSplitWireUpdate_MixedIPv4AndMP(t *testing.T) {
 	require.Greater(t, len(chunks), 1, "should split into multiple chunks")
 
 	// Collect all content from chunks
-	var totalIPv4Withdrawn, totalIPv4NLRI []byte
+	totalIPv4Withdrawn := make([]byte, 0, len(ipv4Withdrawn))
+	totalIPv4NLRI := make([]byte, 0, len(ipv4NLRI))
 	mpReachFound := false
 
 	for _, chunk := range chunks {
@@ -707,7 +715,8 @@ func TestSeparateMPAttributes_MultipleMPReach(t *testing.T) {
 // PREVENTS: Truncation of large attributes.
 func TestSeparateMPAttributes_ExtendedLength(t *testing.T) {
 	// Large MP_REACH with extended length
-	mpReach := []byte{0x90, 0x0E, 0x01, 0x00} // Extended, type 14, len 256
+	mpReach := make([]byte, 0, 4+256)
+	mpReach = append(mpReach, 0x90, 0x0E, 0x01, 0x00) // Extended, type 14, len 256
 	mpReach = append(mpReach, make([]byte, 256)...)
 
 	_, mpReaches, _, err := separateMPAttributes(mpReach)
@@ -822,7 +831,7 @@ func TestSplitMPReach_Split(t *testing.T) {
 		nlris = append(nlris, 0x20, 0x01, 0x0d, 0xb8, 0x00, byte(i), 0x00, 0x00) // prefix
 	}
 
-	mpReachValue := []byte{
+	mpReachHeaderData := []byte{
 		0x00, 0x02, // AFI IPv6
 		0x01,                                                                               // SAFI unicast
 		0x10,                                                                               // NH length = 16
@@ -830,9 +839,12 @@ func TestSplitMPReach_Split(t *testing.T) {
 		0x00, 0x01, // NH part 2
 		0x00, // Reserved
 	}
+	mpReachValue := make([]byte, 0, len(mpReachHeaderData)+len(nlris))
+	mpReachValue = append(mpReachValue, mpReachHeaderData...)
 	mpReachValue = append(mpReachValue, nlris...)
 
-	mpReach := []byte{0x90, 0x0E}
+	mpReach := make([]byte, 0, 4+len(mpReachValue))
+	mpReach = append(mpReach, 0x90, 0x0E)
 	mpReach = append(mpReach, byte(len(mpReachValue)>>8), byte(len(mpReachValue)))
 	mpReach = append(mpReach, mpReachValue...)
 
@@ -910,13 +922,16 @@ func TestSplitMPUnreach_Split(t *testing.T) {
 		nlris = append(nlris, 0x20, 0x01, 0x0d, 0xb8, 0x00, byte(i), 0x00, 0x00) // prefix
 	}
 
-	mpUnreachValue := []byte{
+	mpUnreachHeaderData := []byte{
 		0x00, 0x02, // AFI IPv6
 		0x01, // SAFI unicast
 	}
+	mpUnreachValue := make([]byte, 0, len(mpUnreachHeaderData)+len(nlris))
+	mpUnreachValue = append(mpUnreachValue, mpUnreachHeaderData...)
 	mpUnreachValue = append(mpUnreachValue, nlris...)
 
-	mpUnreach := []byte{0x90, 0x0F}
+	mpUnreach := make([]byte, 0, 4+len(mpUnreachValue))
+	mpUnreach = append(mpUnreach, 0x90, 0x0F)
 	mpUnreach = append(mpUnreach, byte(len(mpUnreachValue)>>8), byte(len(mpUnreachValue)))
 	mpUnreach = append(mpUnreach, mpUnreachValue...)
 

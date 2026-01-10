@@ -8,6 +8,20 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// buildEVPNData builds EVPN test data with pre-allocated capacity.
+func buildEVPNData(routeType EVPNRouteType, length byte, components ...[]byte) []byte {
+	total := 2 // type + length bytes
+	for _, c := range components {
+		total += len(c)
+	}
+	data := make([]byte, 0, total)
+	data = append(data, byte(routeType), length)
+	for _, c := range components {
+		data = append(data, c...)
+	}
+	return data
+}
+
 // TestEVPNType2MACOnly verifies Type 2 MAC-only route parsing.
 //
 // VALIDATES: Basic MAC advertisement without IP.
@@ -24,15 +38,8 @@ func TestEVPNType2MACOnly(t *testing.T) {
 	ipLen := byte(0)                  // No IP
 	label := []byte{0x00, 0x01, 0x01} // Label 16
 
-	data := []byte{byte(EVPNRouteType2)}
-	data = append(data, byte(8+10+4+1+6+1+3)) // Length
-	data = append(data, rd...)
-	data = append(data, esi...)
-	data = append(data, ethTag...)
-	data = append(data, macLen)
-	data = append(data, mac...)
-	data = append(data, ipLen)
-	data = append(data, label...)
+	data := buildEVPNData(EVPNRouteType2, byte(8+10+4+1+6+1+3),
+		rd, esi, ethTag, []byte{macLen}, mac, []byte{ipLen}, label)
 
 	nlri, remaining, err := ParseEVPN(data, false)
 	require.NoError(t, err)
@@ -63,16 +70,8 @@ func TestEVPNType2MACIPv4(t *testing.T) {
 	ip := []byte{10, 0, 0, 1}
 	label := []byte{0x00, 0x01, 0x01}
 
-	data := []byte{byte(EVPNRouteType2)}
-	data = append(data, byte(8+10+4+1+6+1+4+3)) // Length
-	data = append(data, rd...)
-	data = append(data, esi...)
-	data = append(data, ethTag...)
-	data = append(data, macLen)
-	data = append(data, mac...)
-	data = append(data, ipLen)
-	data = append(data, ip...)
-	data = append(data, label...)
+	data := buildEVPNData(EVPNRouteType2, byte(8+10+4+1+6+1+4+3),
+		rd, esi, ethTag, []byte{macLen}, mac, []byte{ipLen}, ip, label)
 
 	nlri, _, err := ParseEVPN(data, false)
 	require.NoError(t, err)
@@ -97,16 +96,8 @@ func TestEVPNType2MACIPv6(t *testing.T) {
 	ip := []byte{0x20, 0x01, 0x0d, 0xb8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1} // 2001:db8::1
 	label := []byte{0x00, 0x01, 0x01}
 
-	data := []byte{byte(EVPNRouteType2)}
-	data = append(data, byte(8+10+4+1+6+1+16+3)) // Length
-	data = append(data, rd...)
-	data = append(data, esi...)
-	data = append(data, ethTag...)
-	data = append(data, macLen)
-	data = append(data, mac...)
-	data = append(data, ipLen)
-	data = append(data, ip...)
-	data = append(data, label...)
+	data := buildEVPNData(EVPNRouteType2, byte(8+10+4+1+6+1+16+3),
+		rd, esi, ethTag, []byte{macLen}, mac, []byte{ipLen}, ip, label)
 
 	nlri, _, err := ParseEVPN(data, false)
 	require.NoError(t, err)
@@ -129,12 +120,8 @@ func TestEVPNType3(t *testing.T) {
 	ipLen := byte(32)
 	ip := []byte{10, 0, 0, 1}
 
-	data := []byte{byte(EVPNRouteType3)}
-	data = append(data, byte(8+4+1+4)) // Length
-	data = append(data, rd...)
-	data = append(data, ethTag...)
-	data = append(data, ipLen)
-	data = append(data, ip...)
+	data := buildEVPNData(EVPNRouteType3, byte(8+4+1+4),
+		rd, ethTag, []byte{ipLen}, ip)
 
 	nlri, _, err := ParseEVPN(data, false)
 	require.NoError(t, err)
@@ -163,15 +150,8 @@ func TestEVPNType5IPv4(t *testing.T) {
 	gw := []byte{0, 0, 0, 0}          // No gateway - FIXED 4 bytes
 	label := []byte{0x00, 0x01, 0x01} // Label 16
 
-	data := []byte{byte(EVPNRouteType5)}
-	data = append(data, byte(34)) // Length = 34 per RFC 9136 for IPv4
-	data = append(data, rd...)
-	data = append(data, esi...)
-	data = append(data, ethTag...)
-	data = append(data, ipLen)
-	data = append(data, ip...)
-	data = append(data, gw...)
-	data = append(data, label...)
+	data := buildEVPNData(EVPNRouteType5, byte(34), // Length = 34 per RFC 9136 for IPv4
+		rd, esi, ethTag, []byte{ipLen}, ip, gw, label)
 
 	nlri, remaining, err := ParseEVPN(data, false)
 	require.NoError(t, err)
@@ -205,15 +185,8 @@ func TestEVPNType5IPv6(t *testing.T) {
 	gw := make([]byte, 16) // No gateway - FIXED 16 bytes
 	label := []byte{0x00, 0x01, 0x01}
 
-	data := []byte{byte(EVPNRouteType5)}
-	data = append(data, byte(58)) // Length = 58 per RFC 9136 for IPv6
-	data = append(data, rd...)
-	data = append(data, esi...)
-	data = append(data, ethTag...)
-	data = append(data, ipLen)
-	data = append(data, ip...)
-	data = append(data, gw...)
-	data = append(data, label...)
+	data := buildEVPNData(EVPNRouteType5, byte(58), // Length = 58 per RFC 9136 for IPv6
+		rd, esi, ethTag, []byte{ipLen}, ip, gw, label)
 
 	nlri, _, err := ParseEVPN(data, false)
 	require.NoError(t, err)
@@ -239,15 +212,8 @@ func TestEVPNType5InvalidLength(t *testing.T) {
 	gw := []byte{0, 0, 0, 0}
 	label := []byte{0x00, 0x01, 0x01}
 
-	data := []byte{byte(EVPNRouteType5)}
-	data = append(data, byte(8+10+4+1+3+4+3)) // Length = 33, not 34
-	data = append(data, rd...)
-	data = append(data, esi...)
-	data = append(data, ethTag...)
-	data = append(data, ipLen)
-	data = append(data, ip...)
-	data = append(data, gw...)
-	data = append(data, label...)
+	data := buildEVPNData(EVPNRouteType5, byte(8+10+4+1+3+4+3), // Length = 33, not 34
+		rd, esi, ethTag, []byte{ipLen}, ip, gw, label)
 
 	_, _, err := ParseEVPN(data, false)
 	require.Error(t, err, "should reject non-standard Type 5 length")
@@ -277,12 +243,8 @@ func TestEVPNType1(t *testing.T) {
 	ethTag := []byte{0x00, 0x00, 0x00, 0x0A} // Tag 10
 	label := []byte{0x00, 0x01, 0x01}        // Label 16
 
-	data := []byte{byte(EVPNRouteType1)}
-	data = append(data, byte(8+10+4+3)) // Length = 25
-	data = append(data, rd...)
-	data = append(data, esi...)
-	data = append(data, ethTag...)
-	data = append(data, label...)
+	data := buildEVPNData(EVPNRouteType1, byte(8+10+4+3), // Length = 25
+		rd, esi, ethTag, label)
 
 	nlri, remaining, err := ParseEVPN(data, false)
 	require.NoError(t, err)
@@ -343,12 +305,8 @@ func TestEVPNType4IPv4(t *testing.T) {
 	ipLen := byte(32) // IPv4 = 32 bits
 	ip := []byte{10, 0, 0, 1}
 
-	data := []byte{byte(EVPNRouteType4)}
-	data = append(data, byte(8+10+1+4)) // Length = 23
-	data = append(data, rd...)
-	data = append(data, esi...)
-	data = append(data, ipLen)
-	data = append(data, ip...)
+	data := buildEVPNData(EVPNRouteType4, byte(8+10+1+4), // Length = 23
+		rd, esi, []byte{ipLen}, ip)
 
 	nlri, remaining, err := ParseEVPN(data, false)
 	require.NoError(t, err)
@@ -376,12 +334,8 @@ func TestEVPNType4IPv6(t *testing.T) {
 	ipLen := byte(128)                                                       // IPv6 = 128 bits
 	ip := []byte{0x20, 0x01, 0x0d, 0xb8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1} // 2001:db8::1
 
-	data := []byte{byte(EVPNRouteType4)}
-	data = append(data, byte(8+10+1+16)) // Length = 35
-	data = append(data, rd...)
-	data = append(data, esi...)
-	data = append(data, ipLen)
-	data = append(data, ip...)
+	data := buildEVPNData(EVPNRouteType4, byte(8+10+1+16), // Length = 35
+		rd, esi, []byte{ipLen}, ip)
 
 	nlri, _, err := ParseEVPN(data, false)
 	require.NoError(t, err)
@@ -402,12 +356,8 @@ func TestEVPNType4InvalidIPLen(t *testing.T) {
 	ipLen := byte(64) // Invalid: must be 32 or 128
 	ip := make([]byte, 8)
 
-	data := []byte{byte(EVPNRouteType4)}
-	data = append(data, byte(8+10+1+8))
-	data = append(data, rd...)
-	data = append(data, esi...)
-	data = append(data, ipLen)
-	data = append(data, ip...)
+	data := buildEVPNData(EVPNRouteType4, byte(8+10+1+8),
+		rd, esi, []byte{ipLen}, ip)
 
 	_, _, err := ParseEVPN(data, false)
 	require.Error(t, err, "should reject invalid IP length")
@@ -446,11 +396,8 @@ func TestEVPNType1RoundTrip(t *testing.T) {
 	ethTag := []byte{0x00, 0x00, 0x00, 0x0A} // Tag 10
 	label := []byte{0x00, 0x01, 0x01}        // Label 16 with BOS
 
-	original := []byte{byte(EVPNRouteType1), byte(8 + 10 + 4 + 3)}
-	original = append(original, rd...)
-	original = append(original, esi...)
-	original = append(original, ethTag...)
-	original = append(original, label...)
+	original := buildEVPNData(EVPNRouteType1, byte(8+10+4+3),
+		rd, esi, ethTag, label)
 
 	nlri, _, err := ParseEVPN(original, false)
 	require.NoError(t, err)
@@ -478,14 +425,8 @@ func TestEVPNType2RoundTripMACOnly(t *testing.T) {
 	ipLen := byte(0)
 	label := []byte{0x00, 0x01, 0x01}
 
-	original := []byte{byte(EVPNRouteType2), byte(8 + 10 + 4 + 1 + 6 + 1 + 3)}
-	original = append(original, rd...)
-	original = append(original, esi...)
-	original = append(original, ethTag...)
-	original = append(original, macLen)
-	original = append(original, mac...)
-	original = append(original, ipLen)
-	original = append(original, label...)
+	original := buildEVPNData(EVPNRouteType2, byte(8+10+4+1+6+1+3),
+		rd, esi, ethTag, []byte{macLen}, mac, []byte{ipLen}, label)
 
 	nlri, _, err := ParseEVPN(original, false)
 	require.NoError(t, err)
@@ -512,15 +453,8 @@ func TestEVPNType2RoundTripWithIPv4(t *testing.T) {
 	ip := []byte{10, 0, 0, 1}
 	label := []byte{0x00, 0x01, 0x01}
 
-	original := []byte{byte(EVPNRouteType2), byte(8 + 10 + 4 + 1 + 6 + 1 + 4 + 3)}
-	original = append(original, rd...)
-	original = append(original, esi...)
-	original = append(original, ethTag...)
-	original = append(original, macLen)
-	original = append(original, mac...)
-	original = append(original, ipLen)
-	original = append(original, ip...)
-	original = append(original, label...)
+	original := buildEVPNData(EVPNRouteType2, byte(8+10+4+1+6+1+4+3),
+		rd, esi, ethTag, []byte{macLen}, mac, []byte{ipLen}, ip, label)
 
 	nlri, _, err := ParseEVPN(original, false)
 	require.NoError(t, err)
@@ -545,11 +479,8 @@ func TestEVPNType3RoundTripIPv4(t *testing.T) {
 	ipLen := byte(32)
 	ip := []byte{10, 0, 0, 1}
 
-	original := []byte{byte(EVPNRouteType3), byte(8 + 4 + 1 + 4)}
-	original = append(original, rd...)
-	original = append(original, ethTag...)
-	original = append(original, ipLen)
-	original = append(original, ip...)
+	original := buildEVPNData(EVPNRouteType3, byte(8+4+1+4),
+		rd, ethTag, []byte{ipLen}, ip)
 
 	nlri, _, err := ParseEVPN(original, false)
 	require.NoError(t, err)
@@ -574,11 +505,8 @@ func TestEVPNType4RoundTripIPv4(t *testing.T) {
 	ipLen := byte(32)
 	ip := []byte{10, 0, 0, 1}
 
-	original := []byte{byte(EVPNRouteType4), byte(8 + 10 + 1 + 4)}
-	original = append(original, rd...)
-	original = append(original, esi...)
-	original = append(original, ipLen)
-	original = append(original, ip...)
+	original := buildEVPNData(EVPNRouteType4, byte(8+10+1+4),
+		rd, esi, []byte{ipLen}, ip)
 
 	nlri, _, err := ParseEVPN(original, false)
 	require.NoError(t, err)
@@ -607,14 +535,8 @@ func TestEVPNType5RoundTripIPv4(t *testing.T) {
 	gw := []byte{0, 0, 0, 0}
 	label := []byte{0x00, 0x01, 0x01}
 
-	original := []byte{byte(EVPNRouteType5), byte(34)}
-	original = append(original, rd...)
-	original = append(original, esi...)
-	original = append(original, ethTag...)
-	original = append(original, prefixLen)
-	original = append(original, prefix...)
-	original = append(original, gw...)
-	original = append(original, label...)
+	original := buildEVPNData(EVPNRouteType5, byte(34),
+		rd, esi, ethTag, []byte{prefixLen}, prefix, gw, label)
 
 	nlri, _, err := ParseEVPN(original, false)
 	require.NoError(t, err)
@@ -642,14 +564,8 @@ func TestEVPNType5RoundTripIPv6(t *testing.T) {
 	gw := make([]byte, 16)
 	label := []byte{0x00, 0x01, 0x01}
 
-	original := []byte{byte(EVPNRouteType5), byte(58)}
-	original = append(original, rd...)
-	original = append(original, esi...)
-	original = append(original, ethTag...)
-	original = append(original, prefixLen)
-	original = append(original, prefix...)
-	original = append(original, gw...)
-	original = append(original, label...)
+	original := buildEVPNData(EVPNRouteType5, byte(58),
+		rd, esi, ethTag, []byte{prefixLen}, prefix, gw, label)
 
 	nlri, _, err := ParseEVPN(original, false)
 	require.NoError(t, err)
@@ -676,15 +592,8 @@ func TestEVPNType2RoundTripWithIPv6(t *testing.T) {
 	ip := []byte{0x20, 0x01, 0x0d, 0xb8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1}
 	label := []byte{0x00, 0x01, 0x01}
 
-	original := []byte{byte(EVPNRouteType2), byte(8 + 10 + 4 + 1 + 6 + 1 + 16 + 3)}
-	original = append(original, rd...)
-	original = append(original, esi...)
-	original = append(original, ethTag...)
-	original = append(original, macLen)
-	original = append(original, mac...)
-	original = append(original, ipLen)
-	original = append(original, ip...)
-	original = append(original, label...)
+	original := buildEVPNData(EVPNRouteType2, byte(8+10+4+1+6+1+16+3),
+		rd, esi, ethTag, []byte{macLen}, mac, []byte{ipLen}, ip, label)
 
 	nlri, _, err := ParseEVPN(original, false)
 	require.NoError(t, err)
@@ -707,11 +616,8 @@ func TestEVPNType3RoundTripIPv6(t *testing.T) {
 	ipLen := byte(128)
 	ip := []byte{0x20, 0x01, 0x0d, 0xb8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1}
 
-	original := []byte{byte(EVPNRouteType3), byte(8 + 4 + 1 + 16)}
-	original = append(original, rd...)
-	original = append(original, ethTag...)
-	original = append(original, ipLen)
-	original = append(original, ip...)
+	original := buildEVPNData(EVPNRouteType3, byte(8+4+1+16),
+		rd, ethTag, []byte{ipLen}, ip)
 
 	nlri, _, err := ParseEVPN(original, false)
 	require.NoError(t, err)
@@ -734,11 +640,8 @@ func TestEVPNType4RoundTripIPv6(t *testing.T) {
 	ipLen := byte(128)
 	ip := []byte{0x20, 0x01, 0x0d, 0xb8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1}
 
-	original := []byte{byte(EVPNRouteType4), byte(8 + 10 + 1 + 16)}
-	original = append(original, rd...)
-	original = append(original, esi...)
-	original = append(original, ipLen)
-	original = append(original, ip...)
+	original := buildEVPNData(EVPNRouteType4, byte(8+10+1+16),
+		rd, esi, []byte{ipLen}, ip)
 
 	nlri, _, err := ParseEVPN(original, false)
 	require.NoError(t, err)
@@ -763,11 +666,8 @@ func TestEVPNType1RoundTripMultiLabel(t *testing.T) {
 	// Label 100 = 0x000640 (no BOS), Label 200 = 0x000C81 (with BOS)
 	labels := []byte{0x00, 0x06, 0x40, 0x00, 0x0C, 0x81}
 
-	original := []byte{byte(EVPNRouteType1), byte(8 + 10 + 4 + 6)}
-	original = append(original, rd...)
-	original = append(original, esi...)
-	original = append(original, ethTag...)
-	original = append(original, labels...)
+	original := buildEVPNData(EVPNRouteType1, byte(8+10+4+6),
+		rd, esi, ethTag, labels)
 
 	nlri, _, err := ParseEVPN(original, false)
 	require.NoError(t, err)

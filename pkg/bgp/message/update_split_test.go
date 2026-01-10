@@ -84,7 +84,7 @@ func TestSplitUpdate_NLRIOverflow(t *testing.T) {
 	}
 
 	// Verify all NLRIs preserved
-	var totalNLRI []byte
+	totalNLRI := make([]byte, 0, len(nlri))
 	for _, chunk := range chunks {
 		totalNLRI = append(totalNLRI, chunk.NLRI...)
 	}
@@ -120,7 +120,7 @@ func TestSplitUpdate_WithdrawnOverflow(t *testing.T) {
 	}
 
 	// Verify all withdrawals preserved
-	var totalWithdrawn []byte
+	totalWithdrawn := make([]byte, 0, len(withdrawn))
 	for _, chunk := range chunks {
 		totalWithdrawn = append(totalWithdrawn, chunk.WithdrawnRoutes...)
 	}
@@ -379,7 +379,7 @@ func TestSplitMPReachNLRI_Overflow(t *testing.T) {
 	}
 
 	// Verify all NLRIs preserved
-	var totalNLRI []byte
+	totalNLRI := make([]byte, 0, len(nlri))
 	for _, chunk := range chunks {
 		totalNLRI = append(totalNLRI, chunk.NLRI...)
 	}
@@ -451,7 +451,7 @@ func TestSplitMPUnreachNLRI_Overflow(t *testing.T) {
 	}
 
 	// Verify all NLRIs preserved
-	var totalNLRI []byte
+	totalNLRI := make([]byte, 0, len(nlri))
 	for _, chunk := range chunks {
 		totalNLRI = append(totalNLRI, chunk.NLRI...)
 	}
@@ -488,7 +488,7 @@ func TestSplitMPReachNLRI_VPN(t *testing.T) {
 	require.Greater(t, len(chunks), 1)
 
 	// Verify all NLRI bytes preserved
-	var totalNLRI []byte
+	totalNLRI := make([]byte, 0, len(nlri))
 	for _, chunk := range chunks {
 		totalNLRI = append(totalNLRI, chunk.NLRI...)
 	}
@@ -526,7 +526,7 @@ func TestSplitUpdateWithAddPath_IPv4(t *testing.T) {
 	require.Greater(t, len(chunks), 1, "should split Add-Path NLRI")
 
 	// Verify all NLRIs preserved
-	var totalNLRI []byte
+	totalNLRI := make([]byte, 0, len(nlri))
 	for _, chunk := range chunks {
 		totalNLRI = append(totalNLRI, chunk.NLRI...)
 	}
@@ -568,7 +568,7 @@ func TestSplitUpdateWithAddPath_IPv6(t *testing.T) {
 	require.Greater(t, len(chunks), 1, "should split Add-Path MP_REACH_NLRI")
 
 	// Verify all NLRIs preserved
-	var totalNLRI []byte
+	totalNLRI := make([]byte, 0, len(nlri))
 	for _, chunk := range chunks {
 		totalNLRI = append(totalNLRI, chunk.NLRI...)
 	}
@@ -600,7 +600,7 @@ func TestSplitUpdateWithAddPath_Withdrawal(t *testing.T) {
 	require.Greater(t, len(chunks), 1, "should split Add-Path withdrawals")
 
 	// Verify all withdrawals preserved
-	var totalWithdrawn []byte
+	totalWithdrawn := make([]byte, 0, len(withdrawn))
 	for _, chunk := range chunks {
 		totalWithdrawn = append(totalWithdrawn, chunk.WithdrawnRoutes...)
 	}
@@ -630,7 +630,7 @@ func TestSplitUpdateWithAddPath_FalseDoesNotAssumePathId(t *testing.T) {
 	require.Greater(t, len(chunks), 1)
 
 	// Verify all NLRIs preserved
-	var totalNLRI []byte
+	totalNLRI := make([]byte, 0, len(nlri))
 	for _, chunk := range chunks {
 		totalNLRI = append(totalNLRI, chunk.NLRI...)
 	}
@@ -770,7 +770,7 @@ func TestSplitUpdate_RoundTrip_PackUnpack(t *testing.T) {
 	require.Greater(t, len(chunks), 5, "should create multiple chunks")
 
 	// Pack each chunk, then unpack and verify
-	var reassembledNLRI []byte
+	reassembledNLRI := make([]byte, 0, len(nlri))
 	for i, chunk := range chunks {
 		// Pack to wire format
 		packed, err := chunk.Pack(nil)
@@ -807,29 +807,31 @@ func TestSplitUpdate_RoundTrip_PackUnpack(t *testing.T) {
 func TestSplitUpdate_RoundTrip_LargeAttributes(t *testing.T) {
 	// Build realistic large attributes:
 	// - ORIGIN (4 bytes)
-	// - AS_PATH with 50 ASNs (4 + 50*4 = 204 bytes)
-	// - COMMUNITIES with 20 communities (4 + 20*4 = 84 bytes)
-	attrs := []byte{
-		0x40, 0x01, 0x01, 0x00, // ORIGIN IGP
-	}
+	// - AS_PATH with 50 ASNs (3 + 2 + 50*4 = 205 bytes)
+	// - COMMUNITIES with 20 communities (3 + 20*4 = 83 bytes)
+	// Total: 4 + 205 + 83 = 292 bytes
+	attrs := make([]byte, 0, 292)
+	attrs = append(attrs, 0x40, 0x01, 0x01, 0x00) // ORIGIN IGP
 
 	// AS_PATH: 50 ASNs = 200 bytes of AS numbers
-	asPath := []byte{0x40, 0x02, 0xC8}  // Extended length, code 2, length 200
-	asPath = append(asPath, 0x02, 0x32) // AS_SEQUENCE, 50 ASNs
+	asPath := make([]byte, 0, 205)
+	asPath = append(asPath, 0x40, 0x02, 0xC8) // Extended length, code 2, length 200
+	asPath = append(asPath, 0x02, 0x32)       // AS_SEQUENCE, 50 ASNs
 	for i := 0; i < 50; i++ {
 		asPath = append(asPath, 0x00, 0x00, byte(i>>8), byte(i))
 	}
 	attrs = append(attrs, asPath...)
 
 	// COMMUNITIES: 20 communities
-	communities := []byte{0xC0, 0x08, 0x50} // Optional transitive, code 8, length 80
+	communities := make([]byte, 0, 83)
+	communities = append(communities, 0xC0, 0x08, 0x50) // Optional transitive, code 8, length 80
 	for i := 0; i < 20; i++ {
 		communities = append(communities, 0xFD, 0xE9, byte(i>>8), byte(i))
 	}
 	attrs = append(attrs, communities...)
 
 	// Add some NLRIs
-	var nlri []byte
+	nlri := make([]byte, 0, 50*4) // 50 /24 prefixes at 4 bytes each
 	for i := 0; i < 50; i++ {
 		nlri = append(nlri, 0x18, 0xC0, 0xA8, byte(i))
 	}
@@ -855,7 +857,7 @@ func TestSplitUpdate_RoundTrip_LargeAttributes(t *testing.T) {
 	}
 
 	// Verify all NLRIs preserved
-	var totalNLRI []byte
+	totalNLRI := make([]byte, 0, len(nlri))
 	for _, chunk := range chunks {
 		totalNLRI = append(totalNLRI, chunk.NLRI...)
 	}
@@ -883,7 +885,7 @@ func TestSplitUpdate_RoundTrip_Withdrawals(t *testing.T) {
 	require.Greater(t, len(chunks), 5)
 
 	// Pack, unpack, reassemble
-	var reassembledWithdrawn []byte
+	reassembledWithdrawn := make([]byte, 0, len(withdrawn))
 	for i, chunk := range chunks {
 		packed, err := chunk.Pack(nil)
 		require.NoError(t, err, "chunk %d pack failed", i)
@@ -937,7 +939,7 @@ func TestSplitUpdate_CheckAfterWrite(t *testing.T) {
 	assert.LessOrEqual(t, firstSize, 50, "first chunk exceeds maxSize")
 
 	// Verify all NLRIs preserved
-	var total []byte
+	total := make([]byte, 0, len(nlri))
 	for _, chunk := range chunks {
 		total = append(total, chunk.NLRI...)
 	}
@@ -972,7 +974,7 @@ func TestSplitUpdate_IPv4Field(t *testing.T) {
 	}
 
 	// Verify all NLRIs preserved
-	var total []byte
+	total := make([]byte, 0, len(nlri))
 	for _, chunk := range chunks {
 		total = append(total, chunk.NLRI...)
 	}
@@ -1010,7 +1012,7 @@ func TestSplitUpdate_FlowSpec_Split(t *testing.T) {
 	require.Greater(t, len(chunks), 1, "FlowSpec should split")
 
 	// Verify all bytes preserved
-	var reassembled []byte
+	reassembled := make([]byte, 0, len(fsNLRI))
 	for _, chunk := range chunks {
 		reassembled = append(reassembled, chunk...)
 	}
@@ -1029,7 +1031,7 @@ func TestSplitUpdate_FlowSpec_Split(t *testing.T) {
 func TestSplitUpdate_BGPLS_TooLarge(t *testing.T) {
 	// BGP-LS NLRI: [type:2][length:2][payload]
 	// Create single large NLRI that exceeds typical message size
-	var bgplsNLRI []byte
+	bgplsNLRI := make([]byte, 0, 260)
 	bgplsNLRI = append(bgplsNLRI, 0, 1)                 // type = Node (2 bytes)
 	bgplsNLRI = append(bgplsNLRI, 0x01, 0x00)           // length = 256 bytes (2 bytes)
 	bgplsNLRI = append(bgplsNLRI, make([]byte, 256)...) // payload

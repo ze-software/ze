@@ -479,12 +479,13 @@ func TestSessionFamilyValidation(t *testing.T) {
 	}
 
 	// Path attributes: ORIGIN IGP (required), MP_REACH_NLRI
-	pathAttrs := []byte{
+	pathAttrs := make([]byte, 0, 7+len(mpReach))
+	pathAttrs = append(pathAttrs,
 		// ORIGIN = IGP
 		0x40, 0x01, 0x01, 0x00,
 		// MP_REACH_NLRI (optional non-transitive)
 		0x80, 0x0e, byte(len(mpReach)),
-	}
+	)
 	pathAttrs = append(pathAttrs, mpReach...)
 
 	// Build UPDATE message
@@ -832,7 +833,8 @@ func TestSessionFamilyValidationIgnoreMismatch(t *testing.T) {
 		0x00, 0x20, 0x20, 0x01, 0x0d, 0xb8,
 	}
 
-	pathAttrs := []byte{0x40, 0x01, 0x01, 0x00, 0x80, 0x0e, byte(len(mpReach))}
+	pathAttrs := make([]byte, 0, 7+len(mpReach))
+	pathAttrs = append(pathAttrs, 0x40, 0x01, 0x01, 0x00, 0x80, 0x0e, byte(len(mpReach)))
 	pathAttrs = append(pathAttrs, mpReach...)
 
 	update := make([]byte, 0, 100)
@@ -1028,7 +1030,7 @@ func TestSessionRFC7606MalformedOriginTreatAsWithdraw(t *testing.T) {
 	update = append(update, 0x08, 0x0a) // NLRI: 10.0.0.0/8
 
 	// Pack as BGP message
-	hdr := make([]byte, 19)
+	hdr := make([]byte, 19, 19+len(update))
 	for i := 0; i < 16; i++ {
 		hdr[i] = 0xff
 	}
@@ -1129,7 +1131,7 @@ func TestSessionRFC7606MalformedCommunityTreatAsWithdraw(t *testing.T) {
 	update = append(update, pathAttrs...)
 	update = append(update, 0x08, 0x0a) // NLRI: 10.0.0.0/8
 
-	hdr := make([]byte, 19)
+	hdr := make([]byte, 19, 19+len(update))
 	for i := 0; i < 16; i++ {
 		hdr[i] = 0xff
 	}
@@ -1225,7 +1227,7 @@ func TestSessionRFC7606MissingMandatoryTreatAsWithdraw(t *testing.T) {
 	update = append(update, pathAttrs...)
 	update = append(update, 0x08, 0x0a) // NLRI: 10.0.0.0/8
 
-	hdr := make([]byte, 19)
+	hdr := make([]byte, 19, 19+len(update))
 	for i := 0; i < 16; i++ {
 		hdr[i] = 0xff
 	}

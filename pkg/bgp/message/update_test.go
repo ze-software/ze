@@ -174,7 +174,7 @@ func TestChunkNLRI_LargeChunked(t *testing.T) {
 	}
 
 	// Reassembled chunks should equal original
-	var reassembled []byte
+	reassembled := make([]byte, 0, len(nlri))
 	for _, chunk := range chunks {
 		reassembled = append(reassembled, chunk...)
 	}
@@ -399,7 +399,7 @@ func TestChunkNLRI_VariablePrefixLengths(t *testing.T) {
 	}
 
 	// Reassemble and verify
-	var reassembled []byte
+	reassembled := make([]byte, 0, len(nlri))
 	for _, chunk := range chunks {
 		reassembled = append(reassembled, chunk...)
 	}

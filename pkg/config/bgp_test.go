@@ -1934,7 +1934,7 @@ peer 10.0.0.1 {
 	require.Len(t, cfg.Peers[0].APIBindings, 2)
 
 	// Find bindings by name
-	names := make([]string, 0)
+	names := make([]string, 0, len(cfg.Peers[0].APIBindings))
 	for _, b := range cfg.Peers[0].APIBindings {
 		names = append(names, b.ProcessName)
 	}

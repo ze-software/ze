@@ -115,7 +115,7 @@ func serializeNode(b *strings.Builder, tree *Tree, name string, node Node, inden
 	case *ListNode:
 		if entries := tree.lists[name]; entries != nil {
 			// Sort keys for deterministic output
-			var keys []string
+			keys := make([]string, 0, len(entries))
 			for k := range entries {
 				keys = append(keys, k)
 			}
@@ -192,7 +192,7 @@ func serializeNode(b *strings.Builder, tree *Tree, name string, node Node, inden
 		}
 		// Also serialize list entries (e.g., vpls site5 { ... })
 		if entries := tree.lists[name]; entries != nil {
-			var keys []string
+			keys := make([]string, 0, len(entries))
 			for k := range entries {
 				keys = append(keys, k)
 			}
@@ -212,7 +212,7 @@ func serializeNode(b *strings.Builder, tree *Tree, name string, node Node, inden
 
 	case *InlineListNode:
 		if entries := tree.lists[name]; entries != nil {
-			var keys []string
+			keys := make([]string, 0, len(entries))
 			for k := range entries {
 				keys = append(keys, k)
 			}

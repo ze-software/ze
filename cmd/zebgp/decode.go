@@ -1359,8 +1359,10 @@ func formatFragmentFlags(value uint64) string {
 
 // formatFlowSpecString returns the full flowspec string in ExaBGP format.
 func formatFlowSpecString(fs *nlri.FlowSpec) string {
-	parts := []string{"flow"}
-	for _, comp := range fs.Components() {
+	components := fs.Components()
+	parts := make([]string, 0, 1+len(components))
+	parts = append(parts, "flow")
+	for _, comp := range components {
 		parts = append(parts, formatFlowComponentString(comp, fs.Family()))
 	}
 	return strings.Join(parts, " ")

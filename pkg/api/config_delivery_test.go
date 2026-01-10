@@ -112,9 +112,8 @@ func TestConfigDeliveryFormat(t *testing.T) {
 	})
 
 	t.Run("done_marker", func(t *testing.T) {
-		lines := []string{
-			"config peer 192.168.1.1 hostname router1",
-		}
+		lines := make([]string, 0, 2)
+		lines = append(lines, "config peer 192.168.1.1 hostname router1")
 		lines = append(lines, "config done")
 
 		assert.Equal(t, "config done", lines[len(lines)-1])
@@ -257,7 +256,7 @@ func join(parts []string, sep string) string {
 // FormatConfigDeliveryLines formats a config match into delivery lines.
 // Each capture becomes: "configuration <context> <name> set <value>".
 func FormatConfigDeliveryLines(match *ConfigMatch) []string {
-	var lines []string
+	lines := make([]string, 0, len(match.Captures))
 	for name, value := range match.Captures {
 		lines = append(lines, FormatConfigDelivery(match.Context, name, value))
 	}

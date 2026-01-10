@@ -198,7 +198,7 @@ func TestIPVPNWithPathID(t *testing.T) {
 	rd := []byte{0x00, 0x00, 0xFD, 0xE8, 0x00, 0x00, 0x00, 0x64}
 	prefix := []byte{10}
 
-	var data []byte
+	data := make([]byte, 0, len(pathID)+1+len(label)+len(rd)+len(prefix))
 	data = append(data, pathID...)
 	data = append(data, 96) // prefix length
 	data = append(data, label...)

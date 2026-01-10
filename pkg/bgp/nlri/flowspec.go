@@ -229,7 +229,9 @@ func (f *FlowSpec) ComponentBytes() []byte {
 		return int(a.Type()) - int(b.Type())
 	})
 
-	var data []byte
+	// Estimate capacity: each component has at least 2 bytes (type + operator/value)
+	// but typically more. We use 4 bytes per component as a reasonable estimate.
+	data := make([]byte, 0, len(sorted)*4)
 	for _, c := range sorted {
 		data = append(data, c.Bytes()...)
 	}
