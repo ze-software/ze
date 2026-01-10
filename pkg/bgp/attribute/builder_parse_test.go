@@ -156,19 +156,62 @@ func TestBuilderParseExtCommunity(t *testing.T) {
 		wantErr bool
 	}{
 		{
-			name:  "target_2byte",
+			name:  "target_2byte_asn",
 			input: "target:65000:100",
 			want:  []ExtendedCommunity{{0x00, 0x02, 0xFD, 0xE8, 0x00, 0x00, 0x00, 0x64}},
 		},
 		{
-			name:  "origin_2byte",
+			name:  "origin_2byte_asn",
 			input: "origin:65000:100",
 			want:  []ExtendedCommunity{{0x00, 0x03, 0xFD, 0xE8, 0x00, 0x00, 0x00, 0x64}},
+		},
+		{
+			name:  "rt_alias",
+			input: "rt:65000:100",
+			want:  []ExtendedCommunity{{0x00, 0x02, 0xFD, 0xE8, 0x00, 0x00, 0x00, 0x64}},
+		},
+		{
+			name:  "soo_alias",
+			input: "soo:65000:100",
+			want:  []ExtendedCommunity{{0x00, 0x03, 0xFD, 0xE8, 0x00, 0x00, 0x00, 0x64}},
+		},
+		{
+			name:  "target_ipv4",
+			input: "target:1.2.3.4:100",
+			// Type 0x01 (IPv4), Subtype 0x02 (RT), IP 1.2.3.4, Value 100
+			want: []ExtendedCommunity{{0x01, 0x02, 0x01, 0x02, 0x03, 0x04, 0x00, 0x64}},
+		},
+		{
+			name:  "origin_ipv4",
+			input: "origin:192.168.1.1:200",
+			// Type 0x01 (IPv4), Subtype 0x03 (SOO), IP 192.168.1.1, Value 200
+			want: []ExtendedCommunity{{0x01, 0x03, 0xC0, 0xA8, 0x01, 0x01, 0x00, 0xC8}},
+		},
+		{
+			name:  "target_4byte_asn",
+			input: "target:4200000001:100",
+			// Type 0x02 (4-byte AS), Subtype 0x02 (RT), ASN 4200000001, Value 100
+			want: []ExtendedCommunity{{0x02, 0x02, 0xFA, 0x56, 0xEA, 0x01, 0x00, 0x64}},
 		},
 		{
 			name:    "invalid_type",
 			input:   "invalid:65000:100",
 			wantErr: true,
+		},
+		{
+			name:    "invalid_ipv4",
+			input:   "target:999.999.999.999:100",
+			wantErr: true,
+		},
+		{
+			name:    "ipv4_value_overflow",
+			input:   "target:1.2.3.4:99999",
+			wantErr: true, // IPv4 format max value is 65535
+		},
+		{
+			name:    "4byte_asn_value_overflow",
+			input:   "target:4200000001:99999",
+			wantErr: true, // 4-byte ASN format max value is 65535
 		},
 	}
 

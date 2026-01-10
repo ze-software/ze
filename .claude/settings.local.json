@@ -94,7 +94,8 @@
       "Bash(go build:*)",
       "Bash(xargs:*)",
       "Bash(./download.sh:*)",
-      "Bash(/tmp/mrt-analyze:*)"
+      "Bash(/tmp/mrt-analyze:*)",
+      "Bash(git mv:*)"
     ],
     "deny": [
       "Bash(git reset:*)",
@@ -111,6 +112,7 @@
     ]
   },
   "enableAllProjectMcpServers": false,
+  "outputStyle": "ZeBGP Terse",
   "sandbox": {
     "enabled": true,
     "autoAllowBashIfSandboxed": false

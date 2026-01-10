@@ -93,9 +93,12 @@ type ReactorStats struct {
 // These attributes are optional - nil values use protocol defaults.
 // Embedding this struct in route types ensures consistency and reduces duplication.
 //
-// Deprecated: Use attribute.Builder instead for wire-first attribute construction.
+// Deprecated: Use attribute.Builder instead for attribute construction.
 // Route types now have an Attrs *attribute.Builder field that takes precedence
-// over PathAttributes when set. Migration:
+// over PathAttributes when set. This is a migration step toward wire-first
+// encoding (Builder currently converts to []Attribute via ToAttributes()).
+//
+// Migration:
 //
 //	// Old:
 //	route := RouteSpec{PathAttributes: PathAttributes{Origin: ptr(0)}}

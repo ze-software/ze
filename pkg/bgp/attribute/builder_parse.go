@@ -3,6 +3,7 @@ package attribute
 import (
 	"encoding/binary"
 	"fmt"
+	"net"
 	"strconv"
 	"strings"
 )
@@ -15,6 +16,7 @@ const (
 )
 
 // ParseOrigin parses an origin string: "igp", "egp", "incomplete", or "?".
+// Replaces any previously set origin value.
 func (b *Builder) ParseOrigin(s string) error {
 	if s == "" {
 		return fmt.Errorf("empty origin value")
@@ -33,6 +35,7 @@ func (b *Builder) ParseOrigin(s string) error {
 }
 
 // ParseMED parses a MED value from string.
+// Replaces any previously set MED value.
 func (b *Builder) ParseMED(s string) error {
 	med, err := strconv.ParseUint(s, 10, 32)
 	if err != nil {
@@ -43,6 +46,7 @@ func (b *Builder) ParseMED(s string) error {
 }
 
 // ParseLocalPref parses a LOCAL_PREF value from string.
+// Replaces any previously set LOCAL_PREF value.
 func (b *Builder) ParseLocalPref(s string) error {
 	lp, err := strconv.ParseUint(s, 10, 32)
 	if err != nil {
@@ -53,6 +57,7 @@ func (b *Builder) ParseLocalPref(s string) error {
 }
 
 // ParseASPath parses an AS_PATH from string.
+// Replaces any previously set AS_PATH.
 // Supports formats:
 //   - "[65001 65002]" - bracketed with spaces
 //   - "[65001,65002]" - bracketed with commas
@@ -110,6 +115,7 @@ var wellKnownCommunities = map[string]uint32{
 }
 
 // ParseCommunity parses a community string.
+// APPENDS to any previously set communities (does not replace).
 // Supports formats:
 //   - "65000:100" - ASN:value
 //   - "no-export" - well-known community
@@ -164,6 +170,7 @@ func parseSingleCommunity(s string) (uint32, error) {
 }
 
 // ParseLargeCommunity parses a large community string.
+// APPENDS to any previously set large communities (does not replace).
 // Supports formats:
 //   - "65000:1:2" - global:local1:local2
 //   - "[65000:1:2 65001:3:4]" - bracketed list
@@ -220,9 +227,12 @@ func parseSingleLargeCommunity(s string) (LargeCommunity, error) {
 }
 
 // ParseExtCommunity parses an extended community string.
+// APPENDS to any previously set extended communities (does not replace).
 // Supports formats:
-//   - "target:65000:100" - Route Target (2-byte ASN)
-//   - "origin:65000:100" - Route Origin (2-byte ASN)
+//   - "target:65000:100" or "rt:65000:100" - Route Target (2-byte ASN)
+//   - "origin:65000:100" or "soo:65000:100" - Route Origin (2-byte ASN)
+//   - "target:1.2.3.4:100" - Route Target (IPv4 address)
+//   - "origin:1.2.3.4:100" - Route Origin (IPv4 address)
 func (b *Builder) ParseExtCommunity(s string) error {
 	s = strings.TrimSpace(s)
 	if s == "" {
@@ -249,37 +259,79 @@ func (b *Builder) ParseExtCommunity(s string) error {
 func parseSingleExtCommunity(s string) (ExtendedCommunity, error) {
 	parts := strings.SplitN(s, ":", 3)
 	if len(parts) != 3 {
-		return ExtendedCommunity{}, fmt.Errorf("invalid extended-community format: %s (expected type:ASN:value)", s)
+		return ExtendedCommunity{}, fmt.Errorf("invalid extended-community format: %s (expected type:admin:value)", s)
 	}
 
 	var ec ExtendedCommunity
 
-	// Determine type and subtype
-	// RFC 4360: Type 0x00 = 2-byte ASN, Type 0x01 = IPv4, Type 0x02 = 4-byte ASN
+	// Determine subtype from keyword
+	// RFC 4360: Subtype 0x02 = Route Target, Subtype 0x03 = Route Origin
+	var subtype byte
 	switch strings.ToLower(parts[0]) {
 	case "target", "rt":
-		ec[0] = 0x00 // 2-byte ASN
-		ec[1] = 0x02 // Route Target
+		subtype = 0x02 // Route Target
 	case "origin", "soo":
-		ec[0] = 0x00 // 2-byte ASN
-		ec[1] = 0x03 // Route Origin
+		subtype = 0x03 // Route Origin
 	default:
 		return ExtendedCommunity{}, fmt.Errorf("unknown extended-community type: %s (expected target or origin)", parts[0])
 	}
 
-	// Parse ASN (2-byte)
-	asn, err := strconv.ParseUint(parts[1], 10, 16)
-	if err != nil {
-		return ExtendedCommunity{}, fmt.Errorf("invalid extended-community ASN: %s", parts[1])
-	}
-	binary.BigEndian.PutUint16(ec[2:4], uint16(asn)) //nolint:gosec // G115: bounded by ParseUint 16-bit
+	// Detect admin field format: IPv4 address or ASN
+	// RFC 4360: Type 0x00 = 2-byte ASN, Type 0x01 = IPv4, Type 0x02 = 4-byte ASN
+	if strings.Contains(parts[1], ".") {
+		// IPv4 address format: target:1.2.3.4:100
+		// Type 0x01 (IPv4 Address), 4-byte IP, 2-byte value
+		ip := net.ParseIP(parts[1])
+		if ip == nil {
+			return ExtendedCommunity{}, fmt.Errorf("invalid extended-community IPv4 address: %s", parts[1])
+		}
+		ip4 := ip.To4()
+		if ip4 == nil {
+			return ExtendedCommunity{}, fmt.Errorf("extended-community requires IPv4 address, got: %s", parts[1])
+		}
 
-	// Parse value (4-byte)
-	val, err := strconv.ParseUint(parts[2], 10, 32)
-	if err != nil {
-		return ExtendedCommunity{}, fmt.Errorf("invalid extended-community value: %s", parts[2])
+		val, err := strconv.ParseUint(parts[2], 10, 16)
+		if err != nil {
+			return ExtendedCommunity{}, fmt.Errorf("invalid extended-community value (IPv4 format max 65535): %s", parts[2])
+		}
+
+		ec[0] = 0x01 // Type: IPv4 Address
+		ec[1] = subtype
+		copy(ec[2:6], ip4)
+		binary.BigEndian.PutUint16(ec[6:8], uint16(val)) //nolint:gosec // G115: bounded by ParseUint 16-bit
+	} else {
+		// ASN format: try to determine 2-byte vs 4-byte
+		asn, err := strconv.ParseUint(parts[1], 10, 32)
+		if err != nil {
+			return ExtendedCommunity{}, fmt.Errorf("invalid extended-community ASN: %s", parts[1])
+		}
+
+		if asn <= 65535 {
+			// 2-byte ASN format: target:65000:100
+			// Type 0x00 (2-byte AS), 2-byte ASN, 4-byte value
+			val, err := strconv.ParseUint(parts[2], 10, 32)
+			if err != nil {
+				return ExtendedCommunity{}, fmt.Errorf("invalid extended-community value: %s", parts[2])
+			}
+
+			ec[0] = 0x00 // Type: 2-byte ASN
+			ec[1] = subtype
+			binary.BigEndian.PutUint16(ec[2:4], uint16(asn)) //nolint:gosec // G115: bounded by check
+			binary.BigEndian.PutUint32(ec[4:8], uint32(val)) //nolint:gosec // G115: bounded by ParseUint 32-bit
+		} else {
+			// 4-byte ASN format: target:4200000001:100
+			// Type 0x02 (4-byte AS), 4-byte ASN, 2-byte value
+			val, err := strconv.ParseUint(parts[2], 10, 16)
+			if err != nil {
+				return ExtendedCommunity{}, fmt.Errorf("invalid extended-community value (4-byte ASN format max 65535): %s", parts[2])
+			}
+
+			ec[0] = 0x02 // Type: 4-byte ASN
+			ec[1] = subtype
+			binary.BigEndian.PutUint32(ec[2:6], uint32(asn)) //nolint:gosec // G115: bounded by ParseUint 32-bit
+			binary.BigEndian.PutUint16(ec[6:8], uint16(val)) //nolint:gosec // G115: bounded by ParseUint 16-bit
+		}
 	}
-	binary.BigEndian.PutUint32(ec[4:8], uint32(val)) //nolint:gosec // G115: bounded by ParseUint 32-bit
 
 	return ec, nil
 }

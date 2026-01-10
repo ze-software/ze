@@ -368,7 +368,8 @@ func (b *Builder) Reset() {
 }
 
 // ToAttributes converts Builder state to []Attribute slice.
-// Used for transition compatibility with code that expects parsed attributes.
+// This is a transition method for compatibility with code that expects parsed
+// attributes. For true wire-first encoding, use Build() to get wire bytes directly.
 // Note: Does not include NEXT_HOP or AS_PATH (handled separately by reactor).
 func (b *Builder) ToAttributes() []Attribute {
 	var result []Attribute

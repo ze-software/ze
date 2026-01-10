@@ -186,6 +186,10 @@ func TestParseCommonAttributeBuilderEquivalence(t *testing.T) {
 		{name: "med", args: []string{"med", "100"}},
 		{name: "local_pref", args: []string{"local-preference", "200"}},
 		{name: "community", args: []string{"community", "65000:100"}},
+		{name: "as_path", args: []string{"as-path", "[65001", "65002]"}},
+		{name: "large_community", args: []string{"large-community", "65000:1:2"}},
+		// Note: extended-community intentionally omitted - old and new parsers
+		// support different formats (old=FlowSpec style, new=RT/SOO style)
 	}
 
 	for _, tt := range tests {
@@ -207,7 +211,6 @@ func TestParseCommonAttributeBuilderEquivalence(t *testing.T) {
 			switch tt.args[0] {
 			case "origin":
 				require.NotNil(t, pa.Origin)
-				// Builder produces ORIGIN in attrs
 				for _, a := range builderAttrs {
 					if o, ok := a.(attribute.Origin); ok {
 						assert.Equal(t, *pa.Origin, uint8(o))
@@ -248,7 +251,64 @@ func TestParseCommonAttributeBuilderEquivalence(t *testing.T) {
 					}
 				}
 				t.Fatal("COMMUNITY not found in builder output")
+
+			case "as-path":
+				require.NotEmpty(t, pa.ASPath)
+				asPath := b.ASPathSlice()
+				assert.Equal(t, pa.ASPath, asPath)
+
+			case "large-community":
+				require.NotEmpty(t, pa.LargeCommunities)
+				for _, a := range builderAttrs {
+					if lc, ok := a.(attribute.LargeCommunities); ok {
+						require.Len(t, lc, len(pa.LargeCommunities))
+						for i, c := range pa.LargeCommunities {
+							assert.Equal(t, c, lc[i])
+						}
+						return
+					}
+				}
+				t.Fatal("LARGE_COMMUNITY not found in builder output")
 			}
 		})
 	}
+}
+
+// TestParseASPathEmptyString verifies empty AS_PATH behavior.
+//
+// VALIDATES: Empty string doesn't modify Builder state.
+// PREVENTS: Regression from old PathAttributes behavior.
+func TestParseASPathEmptyString(t *testing.T) {
+	b := attribute.NewBuilder()
+	b.SetASPath([]uint32{65001}) // Set initial value
+
+	err := b.ParseASPath("")
+	require.NoError(t, err)
+
+	// Empty string should not modify existing AS_PATH
+	asPath := b.ASPathSlice()
+	assert.Equal(t, []uint32{65001}, asPath)
+}
+
+// TestParseCommunityAppendBehavior verifies community append semantics.
+//
+// VALIDATES: ParseCommunity appends, not replaces.
+// PREVENTS: Unexpected behavior when parsing multiple communities.
+func TestParseCommunityAppendBehavior(t *testing.T) {
+	b := attribute.NewBuilder()
+
+	err := b.ParseCommunity("65000:100")
+	require.NoError(t, err)
+
+	err = b.ParseCommunity("65000:200")
+	require.NoError(t, err)
+
+	attrs := b.ToAttributes()
+	for _, a := range attrs {
+		if comms, ok := a.(attribute.Communities); ok {
+			assert.Len(t, comms, 2, "Should have both communities")
+			return
+		}
+	}
+	t.Fatal("COMMUNITY not found")
 }
