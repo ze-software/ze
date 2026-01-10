@@ -320,10 +320,4 @@ Single `main.go` with CLI parsing.
 
 ---
 
-## Test Status
-
-See `docs/plan/CLAUDE_CONTINUATION.md` for current pass/fail status.
-
----
-
 **Updated:** 2026-01-01

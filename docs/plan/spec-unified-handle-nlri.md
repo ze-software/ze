@@ -13,9 +13,8 @@
 │                                                                 │
 │  1. .claude/ESSENTIAL_PROTOCOLS.md - Session rules, TDD         │
 │  2. .claude/INDEX.md - Find what docs to load                   │
-│  3. docs/plan/CLAUDE_CONTINUATION.md - Current state                 │
-│  4. THIS SPEC FILE - Design requirements                        │
-│  5. internal/pool/*.go, pkg/bgp/nlri/*.go                       │
+│  3. THIS SPEC FILE - Design requirements                        │
+│  4. internal/pool/*.go, pkg/bgp/nlri/*.go                       │
 │                                                                 │
 │  DO NOT PROCEED until all are read and understood.              │
 └─────────────────────────────────────────────────────────────────┘
@@ -168,7 +167,6 @@ func (h hashableNLRI) FamilyKey() uint32 {
 ### Default Rules (ALL tasks)
 
 - **FIRST:** Run `git status` - if modified files exist, ASK user before proceeding
-- **FIRST:** Read `docs/plan/CLAUDE_CONTINUATION.md` for current state
 - Tests MUST exist and FAIL before implementation code exists
 - Run `make test && make lint` before claiming done
 - NEVER discard uncommitted work without explicit user permission

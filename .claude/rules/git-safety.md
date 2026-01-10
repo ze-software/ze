@@ -8,7 +8,6 @@ paths:
 ## Commit Rules
 - ONLY commit when user explicitly says "commit"
 - Run `make test && make lint && make functional` before commit - ALL must pass
-- Update `docs/plan/CLAUDE_CONTINUATION.md` after commit
 
 ## Before Any Commit
 ```bash

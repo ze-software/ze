@@ -8,9 +8,8 @@
 │                                                                 │
 │  1. .claude/ESSENTIAL_PROTOCOLS.md - Session rules, TDD         │
 │  2. .claude/INDEX.md - Find what docs to load                   │
-│  3. docs/plan/CLAUDE_CONTINUATION.md - Current state                 │
-│  4. THIS SPEC FILE - Design requirements                        │
-│  5. pkg/bgp/attribute/validate.go - Current implementation      │
+│  3. THIS SPEC FILE - Design requirements                        │
+│  4. pkg/bgp/attribute/validate.go - Current implementation      │
 │                                                                 │
 │  DO NOT PROCEED until all are read and understood.              │
 └─────────────────────────────────────────────────────────────────┘
@@ -30,7 +29,6 @@ Implement optional LRU cache for RFC 7606 validation results to optimize repeate
 
 ### Default Rules (ALL tasks)
 - **FIRST:** Run `git status` - if modified files exist, ASK user before proceeding
-- **FIRST:** Read `docs/plan/CLAUDE_CONTINUATION.md` for current state
 - **FIRST:** Read `.claude/ESSENTIAL_PROTOCOLS.md` for session rules
 - Tests MUST exist and FAIL before implementation code exists
 - Run `make test && make lint` before claiming done

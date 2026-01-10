@@ -23,7 +23,6 @@
 - ExaBGP: `/Users/thomas/Code/github.com/exa-networks/exabgp/main/src/exabgp/`
 - RFCs: `rfc/` directory
 - RFC summaries: `docs/rfc/`
-- Current state: `docs/plan/CLAUDE_CONTINUATION.md`
 
 ## Architecture Docs
 Read when working on specific areas:

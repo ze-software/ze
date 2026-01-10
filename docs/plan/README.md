@@ -62,7 +62,6 @@
 |------|-------------|
 | `../architecture/overview.md` | System architecture |
 | `exabgp-alignment.md` | Review decisions (18 ALIGN, 7 KEEP, 2 SKIP, 9 DONE) |
-| `CLAUDE_CONTINUATION.md` | Session state and priorities |
 | `deterministic-simulation-analysis.md` | Simulation testing research |
 
 ---
@@ -80,7 +79,6 @@ All implementation specs follow the format defined in `.claude/commands/prep.md`
 ## Embedded Protocol Requirements
 ### Default Rules (ALL tasks)
 - **FIRST:** Run `git status` - if modified files exist, ASK user before proceeding
-- **FIRST:** Read `docs/plan/CLAUDE_CONTINUATION.md` for current state
 - **FIRST:** Read `.claude/ESSENTIAL_PROTOCOLS.md` for session rules
 - Tests MUST exist and FAIL before implementation code exists
 - ...
@@ -106,7 +104,6 @@ plan/
 ├── spec-<name>.md     # Active implementation specs
 ├── <name>.md          # Feature plans (not yet specs)
 ├── (moved to ../architecture/overview.md)
-├── CLAUDE_CONTINUATION.md  # Session state
 └── README.md          # This index
 ```
 

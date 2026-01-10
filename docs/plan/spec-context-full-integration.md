@@ -13,9 +13,8 @@
 │                                                                 │
 │  1. .claude/ESSENTIAL_PROTOCOLS.md - Session rules, TDD         │
 │  2. .claude/INDEX.md - Find what docs to load                   │
-│  3. docs/plan/CLAUDE_CONTINUATION.md - Current state                 │
-│  4. THIS SPEC FILE - Design requirements                        │
-│  5. pkg/bgp/context/*.go - Current implementation               │
+│  3. THIS SPEC FILE - Design requirements                        │
+│  4. pkg/bgp/context/*.go - Current implementation               │
 │                                                                 │
 │  DO NOT PROCEED until all are read and understood.              │
 └─────────────────────────────────────────────────────────────────┘

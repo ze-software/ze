@@ -136,7 +136,6 @@ Implementation-ready RFC summaries in `docs/rfc/`. Use keyword table to find rel
 
 ## Reference
 
-- Current state: `docs/plan/CLAUDE_CONTINUATION.md`
 - RFC folder: `rfc/`
 - RFC summaries: `docs/rfc/`
 - ExaBGP: `/Users/thomas/Code/github.com/exa-networks/exabgp/main/src/exabgp/`
