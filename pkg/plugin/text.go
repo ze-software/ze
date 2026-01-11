@@ -591,6 +591,14 @@ func FormatKeepalive(peer PeerInfo, direction string, msgID uint64) string {
 	return fmt.Sprintf("peer %s %s keepalive %d\n", peer.Address, direction, msgID)
 }
 
+// FormatRouteRefresh formats a ROUTE-REFRESH message as text output.
+// RFC 7313: Type is "refresh" (subtype 0), "borr" (subtype 1), or "eorr" (subtype 2).
+// Format: peer <ip> <direction> <type> <msg-id> family <family>.
+func FormatRouteRefresh(peer PeerInfo, decoded DecodedRouteRefresh, direction string, msgID uint64) string {
+	return fmt.Sprintf("peer %s %s %s %d family %s\n",
+		peer.Address, direction, decoded.SubtypeName, msgID, decoded.Family)
+}
+
 // FormatStateChange formats a peer state change event.
 // State events are separate from BGP protocol messages.
 // Common states: "up", "down", "connected", "established".

@@ -716,3 +716,189 @@ func TestHandleRequest_UnknownCommand(t *testing.T) {
 	output := out.String()
 	assert.Contains(t, output, "@unknown error")
 }
+
+// =============================================================================
+// RFC 7313 - Enhanced Route Refresh Tests
+// =============================================================================
+
+// TestHandleRefresh_SendsMarkersAndRoutes verifies route refresh response.
+//
+// RFC 7313 Section 3: Upon receiving a route refresh request, the speaker
+// SHOULD send BoRR, re-advertise Adj-RIB-Out, then send EoRR.
+//
+// VALIDATES: Refresh triggers BoRR, routes, EoRR sequence.
+// PREVENTS: Missing markers or routes in refresh response.
+func TestHandleRefresh_SendsMarkersAndRoutes(t *testing.T) {
+	var out bytes.Buffer
+	r := NewRIBManager(strings.NewReader(""), &out)
+
+	// Pre-populate ribOut with routes
+	r.ribOut["10.0.0.1"] = map[string]*Route{
+		"ipv4/unicast:10.0.0.0/24":   {MsgID: 1, Family: "ipv4/unicast", Prefix: "10.0.0.0/24", NextHop: "1.1.1.1"},
+		"ipv4/unicast:10.0.1.0/24":   {MsgID: 2, Family: "ipv4/unicast", Prefix: "10.0.1.0/24", NextHop: "1.1.1.1"},
+		"ipv6/unicast:2001:db8::/32": {MsgID: 3, Family: "ipv6/unicast", Prefix: "2001:db8::/32", NextHop: "::1"},
+	}
+	r.peerUp["10.0.0.1"] = true
+
+	// Simulate refresh request for IPv4 unicast
+	event := &Event{
+		Message: &MessageInfo{Type: "refresh"},
+		Peer:    mustMarshal(t, map[string]any{"address": map[string]string{"local": "10.0.0.2", "peer": "10.0.0.1"}, "asn": map[string]uint32{"local": 65002, "peer": 65001}}),
+		AFI:     "ipv4",
+		SAFI:    "unicast",
+	}
+
+	r.handleRefresh(event)
+
+	output := out.String()
+	lines := strings.Split(strings.TrimSpace(output), "\n")
+
+	// Verify sequence: BoRR, routes (in order), EoRR
+	require.GreaterOrEqual(t, len(lines), 4, "expected at least 4 output lines")
+
+	// First line should be BoRR
+	assert.Contains(t, lines[0], "borr ipv4/unicast", "first line should be BoRR")
+
+	// Last line should be EoRR
+	assert.Contains(t, lines[len(lines)-1], "eorr ipv4/unicast", "last line should be EoRR")
+
+	// Middle lines should contain IPv4 routes only
+	assert.Contains(t, output, "nlri ipv4/unicast add 10.0.0.0/24")
+	assert.Contains(t, output, "nlri ipv4/unicast add 10.0.1.0/24")
+
+	// IPv6 route should NOT be included (wrong family)
+	assert.NotContains(t, output, "2001:db8::/32")
+}
+
+// TestHandleRefresh_EmptyRibOut verifies refresh with no routes.
+//
+// RFC 7313: BoRR and EoRR should still be sent even if no routes to advertise.
+//
+// VALIDATES: Empty Adj-RIB-Out still sends BoRR and EoRR markers.
+// PREVENTS: Missing markers when no routes exist.
+func TestHandleRefresh_EmptyRibOut(t *testing.T) {
+	var out bytes.Buffer
+	r := NewRIBManager(strings.NewReader(""), &out)
+
+	// Peer is up but has no routes in ribOut
+	r.peerUp["10.0.0.1"] = true
+
+	event := &Event{
+		Message: &MessageInfo{Type: "refresh"},
+		Peer:    mustMarshal(t, map[string]any{"address": map[string]string{"local": "10.0.0.2", "peer": "10.0.0.1"}, "asn": map[string]uint32{"local": 65002, "peer": 65001}}),
+		AFI:     "ipv4",
+		SAFI:    "unicast",
+	}
+
+	r.handleRefresh(event)
+
+	output := out.String()
+	lines := strings.Split(strings.TrimSpace(output), "\n")
+
+	// Should have exactly 2 lines: BoRR and EoRR
+	require.Len(t, lines, 2, "expected 2 output lines for empty RIB")
+	assert.Contains(t, lines[0], "borr ipv4/unicast")
+	assert.Contains(t, lines[1], "eorr ipv4/unicast")
+}
+
+// TestHandleRefresh_PeerNotUp verifies refresh is ignored for down peers.
+//
+// VALIDATES: Refresh request ignored if peer is not up.
+// PREVENTS: Sending routes to disconnected peer.
+func TestHandleRefresh_PeerNotUp(t *testing.T) {
+	var out bytes.Buffer
+	r := NewRIBManager(strings.NewReader(""), &out)
+
+	// Peer has routes but is not up
+	r.ribOut["10.0.0.1"] = map[string]*Route{
+		"ipv4/unicast:10.0.0.0/24": {Family: "ipv4/unicast", Prefix: "10.0.0.0/24", NextHop: "1.1.1.1"},
+	}
+	// peerUp["10.0.0.1"] is NOT set (peer is down)
+
+	event := &Event{
+		Message: &MessageInfo{Type: "refresh"},
+		Peer:    mustMarshal(t, map[string]any{"address": map[string]string{"local": "10.0.0.2", "peer": "10.0.0.1"}, "asn": map[string]uint32{"local": 65002, "peer": 65001}}),
+		AFI:     "ipv4",
+		SAFI:    "unicast",
+	}
+
+	r.handleRefresh(event)
+
+	// Should produce no output (peer is down)
+	assert.Empty(t, out.String(), "should not send anything to down peer")
+}
+
+// TestHandleRefresh_IPv6Family verifies refresh for IPv6 unicast.
+//
+// VALIDATES: IPv6 routes are filtered correctly by family.
+// PREVENTS: Wrong family routes being sent.
+func TestHandleRefresh_IPv6Family(t *testing.T) {
+	var out bytes.Buffer
+	r := NewRIBManager(strings.NewReader(""), &out)
+
+	r.ribOut["10.0.0.1"] = map[string]*Route{
+		"ipv4/unicast:10.0.0.0/24":   {Family: "ipv4/unicast", Prefix: "10.0.0.0/24", NextHop: "1.1.1.1"},
+		"ipv6/unicast:2001:db8::/32": {MsgID: 1, Family: "ipv6/unicast", Prefix: "2001:db8::/32", NextHop: "::1"},
+	}
+	r.peerUp["10.0.0.1"] = true
+
+	event := &Event{
+		Message: &MessageInfo{Type: "refresh"},
+		Peer:    mustMarshal(t, map[string]any{"address": map[string]string{"local": "10.0.0.2", "peer": "10.0.0.1"}, "asn": map[string]uint32{"local": 65002, "peer": 65001}}),
+		AFI:     "ipv6",
+		SAFI:    "unicast",
+	}
+
+	r.handleRefresh(event)
+
+	output := out.String()
+	assert.Contains(t, output, "borr ipv6/unicast")
+	assert.Contains(t, output, "eorr ipv6/unicast")
+	assert.Contains(t, output, "2001:db8::/32")
+	// IPv4 route should NOT be included
+	assert.NotContains(t, output, "10.0.0.0/24")
+}
+
+// TestDispatch_RefreshEvents verifies refresh event types are routed correctly.
+//
+// VALIDATES: refresh, borr, eorr events are dispatched to correct handlers.
+// PREVENTS: Events being ignored or misrouted.
+func TestDispatch_RefreshEvents(t *testing.T) {
+	var out bytes.Buffer
+	r := NewRIBManager(strings.NewReader(""), &out)
+
+	r.ribOut["10.0.0.1"] = map[string]*Route{
+		"ipv4/unicast:10.0.0.0/24": {Family: "ipv4/unicast", Prefix: "10.0.0.0/24", NextHop: "1.1.1.1"},
+	}
+	r.peerUp["10.0.0.1"] = true
+
+	tests := []struct {
+		name      string
+		eventType string
+		wantOut   bool // Whether we expect output
+	}{
+		{"refresh triggers response", "refresh", true},
+		{"borr is logged only", "borr", false},
+		{"eorr is logged only", "eorr", false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			out.Reset()
+			event := &Event{
+				Message: &MessageInfo{Type: tt.eventType},
+				Peer:    mustMarshal(t, map[string]any{"address": map[string]string{"local": "10.0.0.2", "peer": "10.0.0.1"}, "asn": map[string]uint32{"local": 65002, "peer": 65001}}),
+				AFI:     "ipv4",
+				SAFI:    "unicast",
+			}
+
+			r.dispatch(event)
+
+			if tt.wantOut {
+				assert.NotEmpty(t, out.String(), "expected output for %s", tt.eventType)
+			} else {
+				assert.Empty(t, out.String(), "expected no output for %s", tt.eventType)
+			}
+		})
+	}
+}

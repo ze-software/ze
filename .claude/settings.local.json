@@ -95,7 +95,8 @@
       "Bash(xargs:*)",
       "Bash(./download.sh:*)",
       "Bash(/tmp/mrt-analyze:*)",
-      "Bash(git mv:*)"
+      "Bash(git mv:*)",
+      "Bash(git stash:*)"
     ],
     "deny": [
       "Bash(git reset:*)",

@@ -278,6 +278,16 @@ type ReactorInterface interface {
 	// AnnounceEOR sends an End-of-RIB marker for the given address family.
 	AnnounceEOR(peerSelector string, afi uint16, safi uint8) error
 
+	// SendBoRR sends a Beginning of Route Refresh marker to matching peers.
+	// RFC 7313 Section 4: "Before the speaker starts a route refresh...
+	// the speaker MUST send a BoRR message."
+	SendBoRR(peerSelector string, afi uint16, safi uint8) error
+
+	// SendEoRR sends an End of Route Refresh marker to matching peers.
+	// RFC 7313 Section 4: "After the speaker completes the re-advertisement
+	// of the entire Adj-RIB-Out to the peer, it MUST send an EoRR message."
+	SendEoRR(peerSelector string, afi uint16, safi uint8) error
+
 	// RIBInRoutes returns routes from Adj-RIB-In for the given peer.
 	// If peerID is empty, returns routes from all peers.
 	// Returns rib.RouteJSON which implements json.Marshaler for efficient output.

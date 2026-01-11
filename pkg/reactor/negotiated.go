@@ -13,8 +13,9 @@ import (
 // This struct answers "what families are enabled?" while EncodingContext
 // answers "how do we encode for this peer?".
 type NegotiatedCapabilities struct {
-	families        map[nlri.Family]bool // private for O(1) lookup
-	ExtendedMessage bool                 // RFC 8654: Extended message support
+	families             map[nlri.Family]bool // private for O(1) lookup
+	ExtendedMessage      bool                 // RFC 8654: Extended message support
+	EnhancedRouteRefresh bool                 // RFC 7313: Enhanced route refresh
 }
 
 // NewNegotiatedCapabilities creates from capability negotiation result.
@@ -24,8 +25,9 @@ func NewNegotiatedCapabilities(neg *capability.Negotiated) *NegotiatedCapabiliti
 	}
 
 	nc := &NegotiatedCapabilities{
-		families:        make(map[nlri.Family]bool),
-		ExtendedMessage: neg.ExtendedMessage,
+		families:             make(map[nlri.Family]bool),
+		ExtendedMessage:      neg.ExtendedMessage,
+		EnhancedRouteRefresh: neg.EnhancedRouteRefresh,
 	}
 
 	for _, f := range neg.Families() {

@@ -106,6 +106,8 @@ func (m *mockReactorMsgID) SignalPeerAPIReady(_ string)                         
 func (m *mockReactorMsgID) AnnounceNLRIBatch(_ string, _ NLRIBatch) error            { return nil }
 func (m *mockReactorMsgID) WithdrawNLRIBatch(_ string, _ NLRIBatch) error            { return nil }
 func (m *mockReactorMsgID) SendRawMessage(_ netip.Addr, _ uint8, _ []byte) error     { return nil }
+func (m *mockReactorMsgID) SendBoRR(_ string, _ uint16, _ uint8) error               { return nil }
+func (m *mockReactorMsgID) SendEoRR(_ string, _ uint16, _ uint8) error               { return nil }
 
 // TestMsgIDRetain verifies msg-id retain command.
 //

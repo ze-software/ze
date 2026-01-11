@@ -1107,6 +1107,9 @@ func (m *mockReactorBatch) SendRawMessage(_ netip.Addr, _ uint8, _ []byte) error
 	return nil
 }
 
+func (m *mockReactorBatch) SendBoRR(_ string, _ uint16, _ uint8) error { return nil }
+func (m *mockReactorBatch) SendEoRR(_ string, _ uint16, _ uint8) error { return nil }
+
 // TestHandleUpdateText_SimpleAnnounce verifies single route announcement.
 //
 // VALIDATES: Single NLRI announced via reactor batch method.

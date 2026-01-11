@@ -760,6 +760,8 @@ func (s *Session) processMessage(hdr *message.Header, body []byte, buf []byte) (
 		err = s.handleKeepalive()
 	case message.TypeNOTIFICATION:
 		err = s.handleNotification(body)
+	case message.TypeROUTEREFRESH:
+		err = s.handleRouteRefresh(body)
 	default:
 		err = s.handleUnknownType(hdr.Type)
 	}
@@ -1090,6 +1092,56 @@ func (s *Session) handleNotification(body []byte) error {
 	s.closeConn()
 
 	return fmt.Errorf("%w: %s", ErrNotificationRecv, notif.String())
+}
+
+// handleRouteRefresh processes a received ROUTE-REFRESH message.
+// RFC 2918: Base Route Refresh capability.
+// RFC 7313: Enhanced Route Refresh with BoRR/EoRR markers.
+func (s *Session) handleRouteRefresh(body []byte) error {
+	// RFC 7313 Section 5: "If the length... is not 4, then the BGP speaker
+	// MUST send a NOTIFICATION message with Error Code 'ROUTE-REFRESH Message Error'
+	// and subcode 'Invalid Message Length'."
+	if len(body) != 4 {
+		s.mu.RLock()
+		conn := s.conn
+		neg := s.negotiated
+		s.mu.RUnlock()
+
+		_ = s.sendNotification(conn, neg,
+			message.NotifyRouteRefresh,
+			message.NotifyRouteRefreshInvalidLength,
+			body,
+		)
+		_ = s.fsm.Event(fsm.EventBGPHeaderErr)
+		s.closeConn()
+		return fmt.Errorf("%w: ROUTE-REFRESH invalid length %d", ErrInvalidMessage, len(body))
+	}
+
+	rr, err := message.UnpackRouteRefresh(body)
+	if err != nil {
+		return fmt.Errorf("unpack ROUTE-REFRESH: %w", err)
+	}
+
+	// RFC 7313 Section 5: "When the BGP speaker receives a ROUTE-REFRESH message
+	// with a 'Message Subtype' field other than 0, 1, or 2, it MUST ignore
+	// the received ROUTE-REFRESH message."
+	if rr.Subtype > 2 && rr.Subtype != 255 {
+		trace.Log(trace.Session, "peer %s: ignoring unknown route-refresh subtype %d",
+			s.settings.Address, rr.Subtype)
+		return nil
+	}
+
+	// Subtype 255 is reserved - also ignore
+	if rr.Subtype == 255 {
+		trace.Log(trace.Session, "peer %s: ignoring reserved route-refresh subtype 255",
+			s.settings.Address)
+		return nil
+	}
+
+	// Valid subtypes 0, 1, 2 are handled via onMessageReceived callback
+	// which already forwarded the message to the API before this handler runs.
+	// No additional action needed here - the API processes refresh/borr/eorr events.
+	return nil
 }
 
 // handleConnectionClose handles TCP connection close.

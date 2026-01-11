@@ -1377,3 +1377,283 @@ func TestSendRawUpdateBodyNotEstablished(t *testing.T) {
 	err := session.SendRawUpdateBody(rawBody)
 	require.ErrorIs(t, err, ErrInvalidState)
 }
+
+// =============================================================================
+// RFC 7313 - Enhanced Route Refresh Tests
+// =============================================================================
+
+// buildRouteRefreshMsg creates a ROUTE-REFRESH message with the given body.
+// Handles BGP header construction safely.
+func buildRouteRefreshMsg(body []byte) []byte {
+	msg := make([]byte, 19+len(body))
+	// Marker
+	for i := 0; i < 16; i++ {
+		msg[i] = 0xff
+	}
+	// Length
+	msgLen := 19 + len(body)
+	msg[16] = byte(msgLen >> 8)
+	msg[17] = byte(msgLen)
+	// Type
+	msg[18] = byte(message.TypeROUTEREFRESH)
+	// Body
+	copy(msg[19:], body)
+	return msg
+}
+
+// setupEstablishedSession creates an established BGP session for testing.
+// Returns session, client conn, and a cleanup function.
+func setupEstablishedSession(t *testing.T) (*Session, net.Conn, func()) {
+	t.Helper()
+
+	settings := NewPeerSettings(
+		netip.MustParseAddr("192.0.2.1"),
+		65001, 65002, 0x01020301,
+	)
+	settings.Passive = true
+	settings.Capabilities = []capability.Capability{
+		&capability.ASN4{ASN: 65001},
+		&capability.Multiprotocol{AFI: capability.AFIIPv4, SAFI: capability.SAFIUnicast},
+		&capability.RouteRefresh{},
+		&capability.EnhancedRouteRefresh{},
+	}
+
+	session := NewSession(settings)
+	_ = session.Start()
+
+	client, server := net.Pipe()
+
+	cleanup := func() {
+		_ = client.Close()
+		_ = server.Close()
+	}
+
+	// Accept connection
+	_ = acceptWithReader(t, session, server, client)
+
+	// Peer's OPEN with Route Refresh and Enhanced Route Refresh
+	peerOpen := &message.Open{
+		Version: 4, MyAS: 65002, HoldTime: 90, BGPIdentifier: 0x01020302,
+		OptionalParams: []byte{
+			2, 16, // Capability param
+			65, 4, 0, 0, 0xFD, 0xEA, // ASN4 = 65002
+			1, 4, 0, 1, 0, 1, // Multiprotocol IPv4/Unicast
+			2, 0, // Route Refresh (code=2, len=0)
+			70, 0, // Enhanced Route Refresh (code=70, len=0)
+		},
+	}
+	openBytes, _ := peerOpen.Pack(nil)
+
+	go func() {
+		_, _ = client.Write(openBytes)
+		buf := make([]byte, 4096)
+		_, _ = client.Read(buf) // Drain KEEPALIVE
+	}()
+
+	err := session.ReadAndProcess()
+	require.NoError(t, err)
+	require.Equal(t, fsm.StateOpenConfirm, session.State())
+
+	// Exchange KEEPALIVE to reach Established
+	keepalive := message.NewKeepalive()
+	keepaliveBytes, _ := keepalive.Pack(nil)
+
+	go func() {
+		_, _ = client.Write(keepaliveBytes)
+	}()
+
+	err = session.ReadAndProcess()
+	require.NoError(t, err)
+	require.Equal(t, fsm.StateEstablished, session.State())
+
+	return session, client, cleanup
+}
+
+// TestHandleRouteRefreshNormal verifies normal ROUTE-REFRESH (subtype 0) handling.
+//
+// RFC 2918: Normal route refresh request triggers re-advertisement.
+//
+// VALIDATES: ROUTE-REFRESH with subtype 0 is processed without error.
+// PREVENTS: Session reset on valid route refresh request.
+func TestHandleRouteRefreshNormal(t *testing.T) {
+	session, client, cleanup := setupEstablishedSession(t)
+	defer cleanup()
+
+	// Build ROUTE-REFRESH message: AFI=1, Subtype=0, SAFI=1
+	// RFC 2918: 4 bytes = AFI(2) + Reserved/Subtype(1) + SAFI(1)
+	rrBody := []byte{
+		0x00, 0x01, // AFI = 1 (IPv4)
+		0x00, // Subtype = 0 (normal)
+		0x01, // SAFI = 1 (Unicast)
+	}
+	rrMsg := buildRouteRefreshMsg(rrBody)
+
+	go func() {
+		_, _ = client.Write(rrMsg)
+	}()
+
+	err := session.ReadAndProcess()
+	require.NoError(t, err, "normal ROUTE-REFRESH should be processed without error")
+	require.Equal(t, fsm.StateEstablished, session.State(), "session should remain Established")
+}
+
+// TestHandleRouteRefreshBoRR verifies BoRR (subtype 1) handling.
+//
+// RFC 7313 Section 4: BoRR marks the beginning of route refresh.
+//
+// VALIDATES: ROUTE-REFRESH with subtype 1 (BoRR) is processed without error.
+// PREVENTS: Session reset on valid BoRR marker.
+func TestHandleRouteRefreshBoRR(t *testing.T) {
+	session, client, cleanup := setupEstablishedSession(t)
+	defer cleanup()
+
+	// Build ROUTE-REFRESH message: AFI=1, Subtype=1 (BoRR), SAFI=1
+	rrBody := []byte{
+		0x00, 0x01, // AFI = 1 (IPv4)
+		0x01, // Subtype = 1 (BoRR)
+		0x01, // SAFI = 1 (Unicast)
+	}
+	rrMsg := buildRouteRefreshMsg(rrBody)
+
+	go func() {
+		_, _ = client.Write(rrMsg)
+	}()
+
+	err := session.ReadAndProcess()
+	require.NoError(t, err, "BoRR should be processed without error")
+	require.Equal(t, fsm.StateEstablished, session.State())
+}
+
+// TestHandleRouteRefreshEoRR verifies EoRR (subtype 2) handling.
+//
+// RFC 7313 Section 4: EoRR marks the end of route refresh.
+//
+// VALIDATES: ROUTE-REFRESH with subtype 2 (EoRR) is processed without error.
+// PREVENTS: Session reset on valid EoRR marker.
+func TestHandleRouteRefreshEoRR(t *testing.T) {
+	session, client, cleanup := setupEstablishedSession(t)
+	defer cleanup()
+
+	// Build ROUTE-REFRESH message: AFI=1, Subtype=2 (EoRR), SAFI=1
+	rrBody := []byte{
+		0x00, 0x01, // AFI = 1 (IPv4)
+		0x02, // Subtype = 2 (EoRR)
+		0x01, // SAFI = 1 (Unicast)
+	}
+	rrMsg := buildRouteRefreshMsg(rrBody)
+
+	go func() {
+		_, _ = client.Write(rrMsg)
+	}()
+
+	err := session.ReadAndProcess()
+	require.NoError(t, err, "EoRR should be processed without error")
+	require.Equal(t, fsm.StateEstablished, session.State())
+}
+
+// TestHandleRouteRefreshUnknown verifies unknown subtype is ignored.
+//
+// RFC 7313 Section 5: "When the BGP speaker receives a ROUTE-REFRESH message
+// with a 'Message Subtype' field other than 0, 1, or 2, it MUST ignore
+// the received ROUTE-REFRESH message."
+//
+// VALIDATES: Unknown subtype (e.g., 42) is silently ignored.
+// PREVENTS: Error or session reset on unknown subtype.
+func TestHandleRouteRefreshUnknown(t *testing.T) {
+	session, client, cleanup := setupEstablishedSession(t)
+	defer cleanup()
+
+	// Build ROUTE-REFRESH message with unknown subtype 42
+	rrBody := []byte{
+		0x00, 0x01, // AFI = 1 (IPv4)
+		0x2A, // Subtype = 42 (unknown)
+		0x01, // SAFI = 1 (Unicast)
+	}
+	rrMsg := buildRouteRefreshMsg(rrBody)
+
+	go func() {
+		_, _ = client.Write(rrMsg)
+	}()
+
+	err := session.ReadAndProcess()
+	require.NoError(t, err, "RFC 7313: unknown subtype MUST be ignored")
+	require.Equal(t, fsm.StateEstablished, session.State())
+}
+
+// TestHandleRouteRefreshReserved verifies reserved subtype 255 is ignored.
+//
+// RFC 7313: Subtype 255 is reserved.
+//
+// VALIDATES: Reserved subtype 255 is silently ignored.
+// PREVENTS: Error or session reset on reserved subtype.
+func TestHandleRouteRefreshReserved(t *testing.T) {
+	session, client, cleanup := setupEstablishedSession(t)
+	defer cleanup()
+
+	// Build ROUTE-REFRESH message with reserved subtype 255
+	rrBody := []byte{
+		0x00, 0x01, // AFI = 1 (IPv4)
+		0xFF, // Subtype = 255 (reserved)
+		0x01, // SAFI = 1 (Unicast)
+	}
+	rrMsg := buildRouteRefreshMsg(rrBody)
+
+	go func() {
+		_, _ = client.Write(rrMsg)
+	}()
+
+	err := session.ReadAndProcess()
+	require.NoError(t, err, "reserved subtype 255 should be ignored")
+	require.Equal(t, fsm.StateEstablished, session.State())
+}
+
+// TestHandleRouteRefreshBadLen verifies invalid length triggers NOTIFICATION.
+//
+// RFC 7313 Section 5: "If the length... is not 4, then the BGP speaker
+// MUST send a NOTIFICATION message with Error Code 'ROUTE-REFRESH Message Error'
+// and subcode 'Invalid Message Length'."
+//
+// VALIDATES: ROUTE-REFRESH with body length != 4 triggers NOTIFICATION 7/1.
+// PREVENTS: Processing malformed ROUTE-REFRESH messages.
+//
+// Note: Cases where total message length < 23 bytes are caught by header validation
+// (tested separately), not by handleRouteRefresh. Here we test only body lengths
+// that pass header validation but fail in handleRouteRefresh.
+func TestHandleRouteRefreshBadLen(t *testing.T) {
+	tests := []struct {
+		name    string
+		bodyLen int
+	}{
+		{"too_long_5", 5},
+		{"too_long_8", 8},
+		{"too_long_100", 100},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			session, client, cleanup := setupEstablishedSession(t)
+			defer cleanup()
+
+			// Build malformed ROUTE-REFRESH message with body > 4 bytes
+			rrBody := make([]byte, tt.bodyLen)
+			// Fill with valid-looking header data
+			rrBody[0] = 0x00
+			rrBody[1] = 0x01
+			rrBody[2] = 0x00
+			rrBody[3] = 0x01
+
+			rrMsg := buildRouteRefreshMsg(rrBody)
+
+			go func() {
+				_, _ = client.Write(rrMsg)
+				// Drain NOTIFICATION response
+				buf := make([]byte, 4096)
+				_, _ = client.Read(buf)
+			}()
+
+			err := session.ReadAndProcess()
+			require.Error(t, err, "RFC 7313: invalid length must trigger error")
+			require.Contains(t, err.Error(), "invalid length", "error should mention invalid length")
+		})
+	}
+}

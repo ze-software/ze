@@ -903,6 +903,8 @@ func wantsMessageType(binding PeerProcessBinding, msgType message.MessageType) b
 		return binding.ReceiveNotification
 	case message.TypeKEEPALIVE:
 		return binding.ReceiveKeepalive
+	case message.TypeROUTEREFRESH:
+		return binding.ReceiveRefresh
 	default:
 		return false
 	}
@@ -948,6 +950,13 @@ func (s *Server) formatMessage(peer PeerInfo, msg RawMessage, binding PeerProces
 			return s.encoder.Keepalive(peer, direction, msg.MessageID)
 		}
 		return FormatKeepalive(peer, direction, msg.MessageID)
+
+	case message.TypeROUTEREFRESH:
+		decoded := DecodeRouteRefresh(msg.RawBytes)
+		if content.Encoding == EncodingJSON {
+			return s.encoder.RouteRefresh(peer, decoded, direction, msg.MessageID)
+		}
+		return FormatRouteRefresh(peer, decoded, direction, msg.MessageID)
 
 	default:
 		return ""

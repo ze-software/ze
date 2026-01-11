@@ -59,25 +59,22 @@ But code at `pkg/plugin/route.go:229` explicitly states:
 
 ## Medium Issues (P1)
 
-### 3. borr/eorr Markers Not Implemented
+### 3. borr/eorr Markers Partially Implemented
 
 **Location:** `docs/architecture/api/capability-contract.md:120-134`
 
-**Problem:** Documentation shows Enhanced Route Refresh markers:
-```json
-{"type": "borr", "peer": "192.168.1.1", "afi": "ipv4", "safi": "unicast"}
-{"type": "eorr", "peer": "192.168.1.1", "afi": "ipv4", "safi": "unicast"}
-```
+**Status:** ⚠️ Partial - Commands exist but incomplete RFC 7313 support
 
-**Reality:**
-- API can *receive* `refresh` events (implemented)
-- API cannot *send* `borr`/`eorr` markers (not implemented)
+**What's Done:**
+- `pkg/plugin/refresh.go` - borr/eorr command handlers
+- Commands: `peer <selector> borr/eorr <family>`
 
-**Impact:** Enhanced Route Refresh (RFC 7313) flow incomplete.
+**What's Missing:**
+1. **Level 1:** `sendRouteRefresh` doesn't check Enhanced RR capability (sends to ALL peers)
+2. **Level 2:** ROUTE-REFRESH receive not implemented (falls through to `handleUnknownType`, sends error!)
+3. **Level 3:** RIB plugin doesn't respond to refresh events
 
-**Recommended Fix Options:**
-1. **Option A:** Implement borr/eorr handlers
-2. **Option B:** Mark as "Future - Receive only implemented"
+See `docs/plan/spec-borr-eorr.md` for full implementation plan.
 
 ---
 

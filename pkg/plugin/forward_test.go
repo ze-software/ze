@@ -105,6 +105,14 @@ func (m *mockReactorForward) SendRawMessage(_ netip.Addr, _ uint8, _ []byte) err
 	return nil
 }
 
+func (m *mockReactorForward) SendBoRR(_ string, _ uint16, _ uint8) error {
+	return nil
+}
+
+func (m *mockReactorForward) SendEoRR(_ string, _ uint16, _ uint8) error {
+	return nil
+}
+
 // TestForwardCommand verifies forward parsing and execution.
 //
 // VALIDATES: Forward command works end-to-end.

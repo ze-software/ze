@@ -181,6 +181,15 @@ func (r *RIBManager) dispatch(event *Event) {
 		r.handleState(event)
 	case "request":
 		r.handleRequest(event)
+	case "refresh":
+		// RFC 7313: Normal route refresh request - resend Adj-RIB-Out with markers
+		r.handleRefresh(event)
+	case "borr":
+		// RFC 7313: Beginning of Route Refresh from peer - log only
+		slog.Debug("received BoRR marker", "peer", event.GetPeerAddress())
+	case "eorr":
+		// RFC 7313: End of Route Refresh from peer - log only
+		slog.Debug("received EoRR marker", "peer", event.GetPeerAddress())
 	}
 }
 
@@ -357,6 +366,45 @@ func (r *RIBManager) handleReceived(event *Event) {
 			delete(r.ribIn[peerAddr], key)
 		}
 	}
+}
+
+// handleRefresh processes a normal route refresh request from a peer.
+// RFC 7313 Section 3: When receiving a route refresh request, the speaker
+// SHOULD send BoRR, re-advertise Adj-RIB-Out, then send EoRR.
+func (r *RIBManager) handleRefresh(event *Event) {
+	peerAddr := event.GetPeerAddress()
+	family := event.AFI + "/" + event.SAFI
+
+	if peerAddr == "" {
+		slog.Warn("refresh event: empty peer address")
+		return
+	}
+
+	r.mu.RLock()
+	if !r.peerUp[peerAddr] {
+		r.mu.RUnlock()
+		slog.Debug("refresh request for down peer", "peer", peerAddr)
+		return
+	}
+
+	// Copy routes for the requested family while holding lock
+	var routesToSend []*Route
+	if routes := r.ribOut[peerAddr]; routes != nil {
+		for _, rt := range routes {
+			if rt.Family == family {
+				routesToSend = append(routesToSend, rt)
+			}
+		}
+	}
+	r.mu.RUnlock()
+
+	// RFC 7313 Section 4: Send BoRR, routes, EoRR sequence
+	// Use send() not sendCommand() - consistent with route sending, no serial overhead
+	r.send("peer %s borr %s", peerAddr, family)
+	r.sendRoutes(peerAddr, routesToSend)
+	r.send("peer %s eorr %s", peerAddr, family)
+
+	slog.Debug("completed route refresh", "peer", peerAddr, "family", family, "routes", len(routesToSend))
 }
 
 // handleState processes peer state changes.

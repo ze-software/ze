@@ -314,6 +314,14 @@ func (m *mockReactor) SendRawMessage(addr netip.Addr, msgType uint8, payload []b
 	return nil
 }
 
+func (m *mockReactor) SendBoRR(_ string, _ uint16, _ uint8) error {
+	return nil
+}
+
+func (m *mockReactor) SendEoRR(_ string, _ uint16, _ uint8) error {
+	return nil
+}
+
 // mockReactorRawError embeds mockReactor but returns error from SendRawMessage.
 type mockReactorRawError struct {
 	mockReactor

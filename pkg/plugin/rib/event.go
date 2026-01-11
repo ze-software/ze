@@ -48,6 +48,10 @@ type Event struct {
 	Serial  string   `json:"serial,omitempty"`
 	Command string   `json:"command,omitempty"`
 	Args    []string `json:"args,omitempty"`
+
+	// Route refresh fields (RFC 7313)
+	AFI  string `json:"afi,omitempty"`
+	SAFI string `json:"safi,omitempty"`
 }
 
 // MessageInfo contains message wrapper for received events.

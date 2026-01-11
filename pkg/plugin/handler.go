@@ -54,6 +54,9 @@ func RegisterDefaultHandlers(d *Dispatcher) {
 
 	// Raw passthrough (send bytes without validation)
 	RegisterRawHandlers(d)
+
+	// Route refresh markers (RFC 7313 Enhanced Route Refresh)
+	RegisterRefreshHandlers(d)
 }
 
 // handleDaemonShutdown signals the reactor to stop.

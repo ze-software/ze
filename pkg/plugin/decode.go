@@ -351,3 +351,72 @@ func fsmSubcodeString(subcode uint8) string {
 		return fmt.Sprintf("Subcode(%d)", subcode)
 	}
 }
+
+// DecodedRouteRefresh holds parsed ROUTE-REFRESH message data.
+// RFC 2918 (base) and RFC 7313 (Enhanced Route Refresh with subtypes).
+type DecodedRouteRefresh struct {
+	AFI         uint16 // Address Family Identifier
+	SAFI        uint8  // Subsequent AFI
+	Subtype     uint8  // RFC 7313: 0=Normal, 1=BoRR, 2=EoRR
+	SubtypeName string // "refresh", "borr", or "eorr"
+	Family      string // Combined family name (e.g., "ipv4/unicast")
+}
+
+// DecodeRouteRefresh parses raw ROUTE-REFRESH message bytes.
+// Returns zero-value DecodedRouteRefresh on invalid input (never panics).
+// RFC 7313 Section 3.2: Message Subtype field values.
+func DecodeRouteRefresh(body []byte) DecodedRouteRefresh {
+	rr, err := message.UnpackRouteRefresh(body)
+	if err != nil {
+		return DecodedRouteRefresh{}
+	}
+
+	var subtypeName string
+	switch rr.Subtype {
+	case message.RouteRefreshNormal:
+		subtypeName = "refresh"
+	case message.RouteRefreshBoRR:
+		subtypeName = "borr"
+	case message.RouteRefreshEoRR:
+		subtypeName = "eorr"
+	default:
+		subtypeName = fmt.Sprintf("unknown(%d)", rr.Subtype)
+	}
+
+	return DecodedRouteRefresh{
+		AFI:         uint16(rr.AFI),
+		SAFI:        uint8(rr.SAFI),
+		Subtype:     uint8(rr.Subtype),
+		SubtypeName: subtypeName,
+		Family:      afiSafiToFamily(uint16(rr.AFI), uint8(rr.SAFI)),
+	}
+}
+
+// afiSafiToFamily converts AFI/SAFI to family string.
+func afiSafiToFamily(afi uint16, safi uint8) string {
+	var afiName string
+	switch afi {
+	case 1:
+		afiName = "ipv4"
+	case 2:
+		afiName = "ipv6"
+	default:
+		afiName = fmt.Sprintf("afi(%d)", afi)
+	}
+
+	var safiName string
+	switch safi {
+	case 1:
+		safiName = "unicast"
+	case 2:
+		safiName = "multicast"
+	case 4:
+		safiName = "mpls-labels"
+	case 128:
+		safiName = "mpls-vpn"
+	default:
+		safiName = fmt.Sprintf("safi(%d)", safi)
+	}
+
+	return afiName + "/" + safiName
+}

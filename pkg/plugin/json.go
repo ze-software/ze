@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"strings"
 	"sync"
 	"time"
 )
@@ -222,6 +223,27 @@ func (e *JSONEncoder) Keepalive(peer PeerInfo, direction string, msgID uint64) s
 	msg["direction"] = direction
 	setMessageID(msg, msgID)
 	msg["peer"] = e.peerSection(peer)
+	return e.marshal(msg)
+}
+
+// RouteRefresh returns JSON for a ROUTE-REFRESH message.
+// RFC 7313: Type is "refresh" (subtype 0), "borr" (subtype 1), or "eorr" (subtype 2).
+func (e *JSONEncoder) RouteRefresh(peer PeerInfo, decoded DecodedRouteRefresh, direction string, msgID uint64) string {
+	// Use subtype name as event type for proper dispatch
+	msg := e.message(peer, decoded.SubtypeName)
+	msg["direction"] = direction
+	setMessageID(msg, msgID)
+	msg["peer"] = e.peerSection(peer)
+
+	// Parse family "afi/safi" into separate fields
+	if idx := strings.Index(decoded.Family, "/"); idx >= 0 {
+		msg["afi"] = decoded.Family[:idx]
+		msg["safi"] = decoded.Family[idx+1:]
+	} else {
+		// Fallback if format is unexpected
+		msg["afi"] = decoded.Family
+		msg["safi"] = ""
+	}
 	return e.marshal(msg)
 }
 

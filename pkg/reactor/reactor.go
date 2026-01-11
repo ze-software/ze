@@ -2134,6 +2134,75 @@ func (a *reactorAPIAdapter) AnnounceEOR(peerSelector string, afi uint16, safi ui
 	return a.sendToMatchingPeers(peerSelector, update)
 }
 
+// SendBoRR sends a Beginning of Route Refresh marker to matching peers.
+// RFC 7313 Section 4: "Before the speaker starts a route refresh...
+// the speaker MUST send a BoRR message.".
+func (a *reactorAPIAdapter) SendBoRR(peerSelector string, afi uint16, safi uint8) error {
+	return a.sendRouteRefresh(peerSelector, afi, safi, message.RouteRefreshBoRR)
+}
+
+// SendEoRR sends an End of Route Refresh marker to matching peers.
+// RFC 7313 Section 4: "After the speaker completes the re-advertisement
+// of the entire Adj-RIB-Out to the peer, it MUST send an EoRR message.".
+func (a *reactorAPIAdapter) SendEoRR(peerSelector string, afi uint16, safi uint8) error {
+	return a.sendRouteRefresh(peerSelector, afi, safi, message.RouteRefreshEoRR)
+}
+
+// sendRouteRefresh sends a ROUTE-REFRESH message with the specified subtype.
+// RFC 7313 Section 3.2 - Message Subtype values:
+//   - 0: Normal Route Refresh (RFC 2918)
+//   - 1: Beginning of Route Refresh (BoRR)
+//   - 2: End of Route Refresh (EoRR)
+//
+// RFC 7313: "If peer did not advertise Enhanced Route Refresh Capability:
+// Do NOT send BoRR or EoRR." Only subtype 0 is allowed without Enhanced RR.
+func (a *reactorAPIAdapter) sendRouteRefresh(peerSelector string, afi uint16, safi uint8, subtype message.RouteRefreshSubtype) error {
+	// RFC 7313: BoRR/EoRR require Enhanced Route Refresh capability
+	requiresEnhancedRR := subtype == message.RouteRefreshBoRR || subtype == message.RouteRefreshEoRR
+
+	rr := &message.RouteRefresh{
+		AFI:     message.AFI(afi),
+		SAFI:    message.SAFI(safi),
+		Subtype: subtype,
+	}
+
+	// Pack includes the BGP header
+	data, err := rr.Pack(nil)
+	if err != nil {
+		return err
+	}
+
+	a.r.mu.RLock()
+	defer a.r.mu.RUnlock()
+
+	var lastErr error
+	for addrStr, peer := range a.r.peers {
+		if !ipGlobMatch(peerSelector, addrStr) {
+			continue
+		}
+
+		if peer.State() != PeerStateEstablished {
+			continue
+		}
+
+		// RFC 7313: "If peer did not advertise Enhanced Route Refresh Capability:
+		// Do NOT send BoRR or EoRR."
+		if requiresEnhancedRR {
+			neg := peer.negotiated.Load()
+			if neg == nil || !neg.EnhancedRouteRefresh {
+				continue // Skip peers without Enhanced Route Refresh
+			}
+		}
+
+		// Send full packet (msgType=0 means data includes header)
+		if err := peer.SendRawMessage(0, data); err != nil {
+			lastErr = err
+		}
+	}
+
+	return lastErr
+}
+
 // AnnounceWatchdog announces all routes in the named watchdog group.
 // Routes are moved from withdrawn (-) to announced (+) state.
 // Checks global pools first, then per-peer WatchdogGroups.
