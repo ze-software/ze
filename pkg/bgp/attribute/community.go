@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	bgpctx "codeberg.org/thomas-mangin/zebgp/pkg/bgp/context"
+	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/wire"
 )
 
 // Community represents a standard BGP community.
@@ -107,6 +108,15 @@ func (c Communities) WriteToWithContext(buf []byte, off int, _, _ *bgpctx.Encodi
 	return c.WriteTo(buf, off)
 }
 
+// CheckedWriteTo validates capacity before writing.
+func (c Communities) CheckedWriteTo(buf []byte, off int) (int, error) {
+	needed := c.Len()
+	if len(buf) < off+needed {
+		return 0, wire.ErrBufferTooSmall
+	}
+	return c.WriteTo(buf, off), nil
+}
+
 // ParseCommunities parses a COMMUNITIES attribute.
 //
 // RFC 1997: The attribute consists of a set of four octet values.
@@ -188,6 +198,15 @@ func (e ExtendedCommunities) WriteTo(buf []byte, off int) int {
 // WriteToWithContext writes extended communities - context-independent.
 func (e ExtendedCommunities) WriteToWithContext(buf []byte, off int, _, _ *bgpctx.EncodingContext) int {
 	return e.WriteTo(buf, off)
+}
+
+// CheckedWriteTo validates capacity before writing.
+func (e ExtendedCommunities) CheckedWriteTo(buf []byte, off int) (int, error) {
+	needed := e.Len()
+	if len(buf) < off+needed {
+		return 0, wire.ErrBufferTooSmall
+	}
+	return e.WriteTo(buf, off), nil
 }
 
 // ParseExtendedCommunities parses an EXTENDED_COMMUNITIES attribute.
@@ -295,6 +314,15 @@ func (l LargeCommunities) WriteTo(buf []byte, off int) int {
 // WriteToWithContext writes large communities - context-independent.
 func (l LargeCommunities) WriteToWithContext(buf []byte, off int, _, _ *bgpctx.EncodingContext) int {
 	return l.WriteTo(buf, off)
+}
+
+// CheckedWriteTo validates capacity before writing.
+func (l LargeCommunities) CheckedWriteTo(buf []byte, off int) (int, error) {
+	needed := l.Len()
+	if len(buf) < off+needed {
+		return 0, wire.ErrBufferTooSmall
+	}
+	return l.WriteTo(buf, off), nil
 }
 
 // deduplicate returns a new slice with duplicate communities removed.
@@ -422,6 +450,15 @@ func (e IPv6ExtendedCommunities) WriteTo(buf []byte, off int) int {
 // WriteToWithContext writes IPv6 extended communities - context-independent.
 func (e IPv6ExtendedCommunities) WriteToWithContext(buf []byte, off int, _, _ *bgpctx.EncodingContext) int {
 	return e.WriteTo(buf, off)
+}
+
+// CheckedWriteTo validates capacity before writing.
+func (e IPv6ExtendedCommunities) CheckedWriteTo(buf []byte, off int) (int, error) {
+	needed := e.Len()
+	if len(buf) < off+needed {
+		return 0, wire.ErrBufferTooSmall
+	}
+	return e.WriteTo(buf, off), nil
 }
 
 // ParseIPv6ExtendedCommunities parses an IPV6_EXTENDED_COMMUNITIES attribute.

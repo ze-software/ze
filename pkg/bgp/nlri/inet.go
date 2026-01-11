@@ -23,6 +23,8 @@ import (
 	"errors"
 	"fmt"
 	"net/netip"
+
+	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/wire"
 )
 
 // Errors for INET parsing.
@@ -213,4 +215,13 @@ func (i *INET) Pack(ctx *PackContext) []byte {
 	buf := make([]byte, size)
 	WriteNLRI(i, buf, 0, ctx)
 	return buf
+}
+
+// CheckedWriteTo validates capacity before writing.
+func (i *INET) CheckedWriteTo(buf []byte, off int, ctx *PackContext) (int, error) {
+	needed := i.Len()
+	if len(buf) < off+needed {
+		return 0, wire.ErrBufferTooSmall
+	}
+	return i.WriteTo(buf, off, ctx), nil
 }

@@ -21,6 +21,16 @@ type BufWriter interface {
 	WriteTo(buf []byte, off int) int
 }
 
+// CheckedBufWriter extends BufWriter with capacity validation.
+type CheckedBufWriter interface {
+	BufWriter
+	// CheckedWriteTo validates capacity before writing.
+	// Returns (bytesWritten, error). On error, buffer state is undefined.
+	CheckedWriteTo(buf []byte, off int) (int, error)
+	// Len returns the number of bytes WriteTo will write.
+	Len() int
+}
+
 // SessionBuffer wraps a fixed buffer for message building.
 // Allocated once per session, reused for all messages.
 type SessionBuffer struct {
@@ -61,6 +71,17 @@ func (sb *SessionBuffer) WriteBytes(data []byte) int {
 	n := copy(sb.buf[sb.offset:], data)
 	sb.offset += n
 	return n
+}
+
+// CheckedWrite validates capacity before copying data.
+// Returns ErrBufferTooSmall if data exceeds remaining capacity.
+func (sb *SessionBuffer) CheckedWrite(data []byte) (int, error) {
+	if len(data) > sb.Remaining() {
+		return 0, ErrBufferTooSmall
+	}
+	n := copy(sb.buf[sb.offset:], data)
+	sb.offset += n
+	return n, nil
 }
 
 // WriteByte writes a single byte to the buffer.

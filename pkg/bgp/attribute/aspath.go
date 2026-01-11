@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 
 	bgpctx "codeberg.org/thomas-mangin/zebgp/pkg/bgp/context"
+	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/wire"
 )
 
 // ASPathSegmentType identifies the type of AS path segment.
@@ -187,6 +188,33 @@ func (p *ASPath) WriteToWithASN4(buf []byte, off int, asn4 bool) int {
 		off = writeSegmentWithSplit(buf, off, seg.Type, seg.ASNs, asn4)
 	}
 	return off - start
+}
+
+// CheckedWriteTo validates capacity before writing.
+func (p *ASPath) CheckedWriteTo(buf []byte, off int) (int, error) {
+	needed := p.Len()
+	if len(buf) < off+needed {
+		return 0, wire.ErrBufferTooSmall
+	}
+	return p.WriteTo(buf, off), nil
+}
+
+// LenWithContext returns length based on encoding context.
+// RFC 6793: 4-byte ASNs for ASN4 peers, 2-byte for legacy.
+func (p *ASPath) LenWithContext(_, dstCtx *bgpctx.EncodingContext) int {
+	if dstCtx == nil || dstCtx.ASN4 {
+		return p.LenWithASN4(true)
+	}
+	return p.LenWithASN4(false)
+}
+
+// CheckedWriteToWithContext validates capacity before writing with context.
+func (p *ASPath) CheckedWriteToWithContext(buf []byte, off int, srcCtx, dstCtx *bgpctx.EncodingContext) (int, error) {
+	needed := p.LenWithContext(srcCtx, dstCtx)
+	if len(buf) < off+needed {
+		return 0, wire.ErrBufferTooSmall
+	}
+	return p.WriteToWithContext(buf, off, srcCtx, dstCtx), nil
 }
 
 // writeSegmentWithSplit writes a segment, splitting if it exceeds MaxASPathSegmentLength.

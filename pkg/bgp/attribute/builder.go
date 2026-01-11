@@ -3,6 +3,8 @@ package attribute
 import (
 	"encoding/binary"
 	"net/netip"
+
+	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/wire"
 )
 
 // Builder accumulates path attributes and produces wire-format bytes.
@@ -324,6 +326,15 @@ func (b *Builder) WriteTo(buf []byte) int {
 	}
 
 	return off
+}
+
+// CheckedWriteTo validates capacity before writing.
+func (b *Builder) CheckedWriteTo(buf []byte) (int, error) {
+	needed := b.Len()
+	if len(buf) < needed {
+		return 0, wire.ErrBufferTooSmall
+	}
+	return b.WriteTo(buf), nil
 }
 
 // Build produces the wire-format bytes for all attributes.

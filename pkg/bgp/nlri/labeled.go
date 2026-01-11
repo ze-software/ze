@@ -8,6 +8,8 @@ import (
 	"fmt"
 	"net/netip"
 	"strings"
+
+	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/wire"
 )
 
 // LabeledUnicast represents a labeled unicast NLRI (SAFI 4).
@@ -136,6 +138,15 @@ func (l *LabeledUnicast) Pack(ctx *PackContext) []byte {
 	buf := make([]byte, size)
 	WriteNLRI(l, buf, 0, ctx)
 	return buf
+}
+
+// CheckedWriteTo validates capacity before writing.
+func (l *LabeledUnicast) CheckedWriteTo(buf []byte, off int, ctx *PackContext) (int, error) {
+	needed := l.Len()
+	if len(buf) < off+needed {
+		return 0, wire.ErrBufferTooSmall
+	}
+	return l.WriteTo(buf, off, ctx), nil
 }
 
 // String returns a human-readable representation.

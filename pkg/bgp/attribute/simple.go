@@ -5,6 +5,7 @@ import (
 	"net/netip"
 
 	bgpctx "codeberg.org/thomas-mangin/zebgp/pkg/bgp/context"
+	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/wire"
 )
 
 // NextHop represents the NEXT_HOP attribute.
@@ -44,6 +45,15 @@ func (n *NextHop) WriteTo(buf []byte, off int) int {
 // WriteToWithContext writes the NEXT_HOP value - context-independent.
 func (n *NextHop) WriteToWithContext(buf []byte, off int, _, _ *bgpctx.EncodingContext) int {
 	return n.WriteTo(buf, off)
+}
+
+// CheckedWriteTo validates capacity before writing.
+func (n *NextHop) CheckedWriteTo(buf []byte, off int) (int, error) {
+	needed := n.Len()
+	if len(buf) < off+needed {
+		return 0, wire.ErrBufferTooSmall
+	}
+	return n.WriteTo(buf, off), nil
 }
 
 // ParseNextHop parses a NEXT_HOP attribute.
@@ -96,6 +106,14 @@ func (m MED) WriteToWithContext(buf []byte, off int, _, _ *bgpctx.EncodingContex
 	return m.WriteTo(buf, off)
 }
 
+// CheckedWriteTo validates capacity before writing.
+func (m MED) CheckedWriteTo(buf []byte, off int) (int, error) {
+	if len(buf) < off+4 {
+		return 0, wire.ErrBufferTooSmall
+	}
+	return m.WriteTo(buf, off), nil
+}
+
 // ParseMED parses a MULTI_EXIT_DISC attribute.
 // RFC 4271 Section 5.1.4 specifies 4-octet length.
 func ParseMED(data []byte) (MED, error) {
@@ -141,6 +159,14 @@ func (l LocalPref) WriteToWithContext(buf []byte, off int, _, _ *bgpctx.Encoding
 	return l.WriteTo(buf, off)
 }
 
+// CheckedWriteTo validates capacity before writing.
+func (l LocalPref) CheckedWriteTo(buf []byte, off int) (int, error) {
+	if len(buf) < off+4 {
+		return 0, wire.ErrBufferTooSmall
+	}
+	return l.WriteTo(buf, off), nil
+}
+
 // ParseLocalPref parses a LOCAL_PREF attribute.
 // RFC 4271 Section 5.1.5 specifies 4-octet length.
 func ParseLocalPref(data []byte) (LocalPref, error) {
@@ -176,6 +202,11 @@ func (AtomicAggregate) WriteTo(_ []byte, _ int) int { return 0 }
 // WriteToWithContext writes nothing - context-independent.
 func (AtomicAggregate) WriteToWithContext(_ []byte, _ int, _, _ *bgpctx.EncodingContext) int {
 	return 0
+}
+
+// CheckedWriteTo validates capacity before writing (always succeeds, zero length).
+func (AtomicAggregate) CheckedWriteTo(_ []byte, _ int) (int, error) {
+	return 0, nil
 }
 
 // Aggregator represents the AGGREGATOR attribute.
@@ -263,6 +294,32 @@ func (a *Aggregator) WriteToWithContext(buf []byte, off int, _, dstCtx *bgpctx.E
 	return 6
 }
 
+// CheckedWriteTo validates capacity before writing.
+func (a *Aggregator) CheckedWriteTo(buf []byte, off int) (int, error) {
+	if len(buf) < off+8 {
+		return 0, wire.ErrBufferTooSmall
+	}
+	return a.WriteTo(buf, off), nil
+}
+
+// LenWithContext returns length based on encoding context.
+// RFC 6793: 8 bytes for 4-byte ASN, 6 bytes for 2-byte ASN.
+func (a *Aggregator) LenWithContext(_, dstCtx *bgpctx.EncodingContext) int {
+	if dstCtx == nil || dstCtx.ASN4 {
+		return 8
+	}
+	return 6
+}
+
+// CheckedWriteToWithContext validates capacity before writing with context.
+func (a *Aggregator) CheckedWriteToWithContext(buf []byte, off int, srcCtx, dstCtx *bgpctx.EncodingContext) (int, error) {
+	needed := a.LenWithContext(srcCtx, dstCtx)
+	if len(buf) < off+needed {
+		return 0, wire.ErrBufferTooSmall
+	}
+	return a.WriteToWithContext(buf, off, srcCtx, dstCtx), nil
+}
+
 // ParseAggregator parses an AGGREGATOR attribute.
 //
 // RFC 4271 Section 5.1.7: Original 2-byte AS format (6 octets total).
@@ -313,6 +370,14 @@ func (o OriginatorID) WriteToWithContext(buf []byte, off int, _, _ *bgpctx.Encod
 	return o.WriteTo(buf, off)
 }
 
+// CheckedWriteTo validates capacity before writing.
+func (o OriginatorID) CheckedWriteTo(buf []byte, off int) (int, error) {
+	if len(buf) < off+4 {
+		return 0, wire.ErrBufferTooSmall
+	}
+	return o.WriteTo(buf, off), nil
+}
+
 // ParseOriginatorID parses an ORIGINATOR_ID attribute (RFC 4456).
 // ORIGINATOR_ID is the Router ID (4 bytes) of the route reflector client
 // that originated the route.
@@ -355,6 +420,15 @@ func (c ClusterList) WriteTo(buf []byte, off int) int {
 // WriteToWithContext writes the CLUSTER_LIST value - context-independent.
 func (c ClusterList) WriteToWithContext(buf []byte, off int, _, _ *bgpctx.EncodingContext) int {
 	return c.WriteTo(buf, off)
+}
+
+// CheckedWriteTo validates capacity before writing.
+func (c ClusterList) CheckedWriteTo(buf []byte, off int) (int, error) {
+	needed := c.Len()
+	if len(buf) < off+needed {
+		return 0, wire.ErrBufferTooSmall
+	}
+	return c.WriteTo(buf, off), nil
 }
 
 // ParseClusterList parses a CLUSTER_LIST attribute.

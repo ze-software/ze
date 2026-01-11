@@ -7,6 +7,8 @@ import (
 	"net/netip"
 	"strconv"
 	"strings"
+
+	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/wire"
 )
 
 // RDType represents Route Distinguisher type.
@@ -84,6 +86,15 @@ func (rd RouteDistinguisher) WriteTo(buf []byte, off int) int {
 	binary.BigEndian.PutUint16(buf[off:], uint16(rd.Type))
 	copy(buf[off+2:], rd.Value[:])
 	return 8
+}
+
+// CheckedWriteTo validates capacity before writing.
+func (rd RouteDistinguisher) CheckedWriteTo(buf []byte, off int) (int, error) {
+	needed := rd.Len()
+	if len(buf) < off+needed {
+		return 0, wire.ErrBufferTooSmall
+	}
+	return rd.WriteTo(buf, off), nil
 }
 
 // String returns a human-readable representation.
@@ -492,6 +503,15 @@ func (v *IPVPN) WriteTo(buf []byte, off int, _ *PackContext) int {
 	pos += prefixBytes
 
 	return pos - off
+}
+
+// CheckedWriteTo validates capacity before writing.
+func (v *IPVPN) CheckedWriteTo(buf []byte, off int, ctx *PackContext) (int, error) {
+	needed := v.Len()
+	if len(buf) < off+needed {
+		return 0, wire.ErrBufferTooSmall
+	}
+	return v.WriteTo(buf, off, ctx), nil
 }
 
 // Pack returns wire-format bytes adapted for negotiated capabilities.

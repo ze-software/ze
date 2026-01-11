@@ -12,6 +12,8 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+
+	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/wire"
 )
 
 // Additional SAFI values for specialized NLRI types.
@@ -888,6 +890,15 @@ func (m *MVPN) WriteTo(buf []byte, off int, _ *PackContext) int {
 	return pos - off
 }
 
+// CheckedWriteTo validates capacity before writing.
+func (m *MVPN) CheckedWriteTo(buf []byte, off int, ctx *PackContext) (int, error) {
+	needed := m.Len()
+	if len(buf) < off+needed {
+		return 0, wire.ErrBufferTooSmall
+	}
+	return m.WriteTo(buf, off, ctx), nil
+}
+
 // WriteTo writes the VPLS NLRI directly to buf at offset.
 func (v *VPLS) WriteTo(buf []byte, off int, _ *PackContext) int {
 	// Fallback: use cached bytes if present
@@ -925,6 +936,15 @@ func (v *VPLS) WriteTo(buf []byte, off int, _ *PackContext) int {
 	return pos - off
 }
 
+// CheckedWriteTo validates capacity before writing.
+func (v *VPLS) CheckedWriteTo(buf []byte, off int, ctx *PackContext) (int, error) {
+	needed := v.Len()
+	if len(buf) < off+needed {
+		return 0, wire.ErrBufferTooSmall
+	}
+	return v.WriteTo(buf, off, ctx), nil
+}
+
 // WriteTo writes the RTC NLRI directly to buf at offset.
 func (r *RTC) WriteTo(buf []byte, off int, _ *PackContext) int {
 	// Fallback: use cached bytes if present
@@ -953,6 +973,15 @@ func (r *RTC) WriteTo(buf []byte, off int, _ *PackContext) int {
 	pos += 6
 
 	return pos - off
+}
+
+// CheckedWriteTo validates capacity before writing.
+func (r *RTC) CheckedWriteTo(buf []byte, off int, ctx *PackContext) (int, error) {
+	needed := r.Len()
+	if len(buf) < off+needed {
+		return 0, wire.ErrBufferTooSmall
+	}
+	return r.WriteTo(buf, off, ctx), nil
 }
 
 // WriteTo writes the MUP NLRI directly to buf at offset.
@@ -986,4 +1015,13 @@ func (m *MUP) WriteTo(buf []byte, off int, _ *PackContext) int {
 	pos += len(m.data)
 
 	return pos - off
+}
+
+// CheckedWriteTo validates capacity before writing.
+func (m *MUP) CheckedWriteTo(buf []byte, off int, ctx *PackContext) (int, error) {
+	needed := m.Len()
+	if len(buf) < off+needed {
+		return 0, wire.ErrBufferTooSmall
+	}
+	return m.WriteTo(buf, off, ctx), nil
 }

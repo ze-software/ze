@@ -1,6 +1,10 @@
 package message
 
-import "encoding/binary"
+import (
+	"encoding/binary"
+
+	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/wire"
+)
 
 // Update represents a BGP UPDATE message (RFC 4271 Section 4.3).
 //
@@ -204,6 +208,15 @@ func (u *Update) WriteTo(buf []byte, off int) int {
 	buf[lengthPos+1] = byte(totalLen)
 
 	return totalLen
+}
+
+// CheckedWriteTo validates capacity before writing.
+func (u *Update) CheckedWriteTo(buf []byte, off int) (int, error) {
+	needed := u.Len()
+	if len(buf) < off+needed {
+		return 0, wire.ErrBufferTooSmall
+	}
+	return u.WriteTo(buf, off), nil
 }
 
 // IsEndOfRIB returns true if this is an End-of-RIB marker.

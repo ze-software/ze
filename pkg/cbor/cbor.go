@@ -9,6 +9,8 @@ package cbor
 import (
 	"encoding/binary"
 	"errors"
+
+	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/wire"
 )
 
 // CBOR major types (3 high bits of initial byte).
@@ -61,6 +63,15 @@ func (b Blob) WriteTo(buf []byte, off int) int {
 // Len returns the length of the CBOR blob.
 func (b Blob) Len() int {
 	return len(b)
+}
+
+// CheckedWriteTo validates capacity before writing.
+func (b Blob) CheckedWriteTo(buf []byte, off int) (int, error) {
+	needed := b.Len()
+	if len(buf) < off+needed {
+		return 0, wire.ErrBufferTooSmall
+	}
+	return b.WriteTo(buf, off), nil
 }
 
 // encodeHead writes CBOR type header (major type + additional info + value).

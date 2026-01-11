@@ -8,6 +8,8 @@ import (
 	"net/netip"
 	"slices"
 	"strings"
+
+	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/wire"
 )
 
 // FlowSpec errors.
@@ -598,6 +600,15 @@ func (c *prefixComponent) WriteTo(buf []byte, off int) int {
 	return pos - off
 }
 
+// CheckedWriteTo validates capacity before writing.
+func (c *prefixComponent) CheckedWriteTo(buf []byte, off int) (int, error) {
+	needed := c.Len()
+	if len(buf) < off+needed {
+		return 0, wire.ErrBufferTooSmall
+	}
+	return c.WriteTo(buf, off), nil
+}
+
 // Numeric components (Types 3-12)
 // RFC 8955 Section 4.2.2.3-12 defines numeric component types.
 // These use the numeric_op operator format from Section 4.2.1.1.
@@ -760,6 +771,15 @@ func (c *numericComponent) WriteTo(buf []byte, off int) int {
 	}
 
 	return pos - off
+}
+
+// CheckedWriteTo validates capacity before writing.
+func (c *numericComponent) CheckedWriteTo(buf []byte, off int) (int, error) {
+	needed := c.Len()
+	if len(buf) < off+needed {
+		return 0, wire.ErrBufferTooSmall
+	}
+	return c.WriteTo(buf, off), nil
 }
 
 // ============================================================================
@@ -1159,6 +1179,15 @@ func (f *FlowSpec) WriteTo(buf []byte, off int, _ *PackContext) int {
 	return pos - off
 }
 
+// CheckedWriteTo validates capacity before writing.
+func (f *FlowSpec) CheckedWriteTo(buf []byte, off int, ctx *PackContext) (int, error) {
+	needed := f.Len()
+	if len(buf) < off+needed {
+		return 0, wire.ErrBufferTooSmall
+	}
+	return f.WriteTo(buf, off, ctx), nil
+}
+
 // WriteTo writes the FlowSpecVPN NLRI directly to buf at offset (zero-alloc).
 // RFC 8955 Section 8: Length + RD (8 bytes) + sorted components.
 func (f *FlowSpecVPN) WriteTo(buf []byte, off int, _ *PackContext) int {
@@ -1190,4 +1219,13 @@ func (f *FlowSpecVPN) WriteTo(buf []byte, off int, _ *PackContext) int {
 	pos += f.flowSpec.writeComponentsSorted(buf, pos)
 
 	return pos - off
+}
+
+// CheckedWriteTo validates capacity before writing.
+func (f *FlowSpecVPN) CheckedWriteTo(buf []byte, off int, ctx *PackContext) (int, error) {
+	needed := f.Len()
+	if len(buf) < off+needed {
+		return 0, wire.ErrBufferTooSmall
+	}
+	return f.WriteTo(buf, off, ctx), nil
 }

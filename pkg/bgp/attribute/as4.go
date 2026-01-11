@@ -5,6 +5,7 @@ import (
 	"net/netip"
 
 	bgpctx "codeberg.org/thomas-mangin/zebgp/pkg/bgp/context"
+	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/wire"
 )
 
 // AS4Path represents the AS4_PATH attribute for 4-byte AS number support.
@@ -125,6 +126,15 @@ func (p *AS4Path) WriteTo(buf []byte, off int) int {
 // WriteToWithContext writes AS4_PATH - always uses 4-byte ASNs.
 func (p *AS4Path) WriteToWithContext(buf []byte, off int, _, _ *bgpctx.EncodingContext) int {
 	return p.WriteTo(buf, off)
+}
+
+// CheckedWriteTo validates capacity before writing.
+func (p *AS4Path) CheckedWriteTo(buf []byte, off int) (int, error) {
+	needed := p.Len()
+	if len(buf) < off+needed {
+		return 0, wire.ErrBufferTooSmall
+	}
+	return p.WriteTo(buf, off), nil
 }
 
 // FilterConfedSegments returns a new AS4Path with confederation segments removed.
@@ -324,6 +334,14 @@ func (a *AS4Aggregator) WriteTo(buf []byte, off int) int {
 // WriteToWithContext writes AS4_AGGREGATOR - always uses 4-byte ASN.
 func (a *AS4Aggregator) WriteToWithContext(buf []byte, off int, _, _ *bgpctx.EncodingContext) int {
 	return a.WriteTo(buf, off)
+}
+
+// CheckedWriteTo validates capacity before writing.
+func (a *AS4Aggregator) CheckedWriteTo(buf []byte, off int) (int, error) {
+	if len(buf) < off+8 {
+		return 0, wire.ErrBufferTooSmall
+	}
+	return a.WriteTo(buf, off), nil
 }
 
 // ParseAS4Aggregator parses an AS4_AGGREGATOR attribute value.

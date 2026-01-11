@@ -5,6 +5,7 @@ import (
 	"log/slog"
 
 	bgpctx "codeberg.org/thomas-mangin/zebgp/pkg/bgp/context"
+	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/wire"
 )
 
 // Origin represents the ORIGIN path attribute.
@@ -80,6 +81,15 @@ func (o Origin) WriteTo(buf []byte, off int) int {
 // WriteToWithContext writes the origin value - context-independent.
 func (o Origin) WriteToWithContext(buf []byte, off int, _, _ *bgpctx.EncodingContext) int {
 	return o.WriteTo(buf, off)
+}
+
+// CheckedWriteTo validates capacity before writing.
+// Returns ErrBufferTooSmall if buffer is insufficient.
+func (o Origin) CheckedWriteTo(buf []byte, off int) (int, error) {
+	if len(buf) < off+1 {
+		return 0, wire.ErrBufferTooSmall
+	}
+	return o.WriteTo(buf, off), nil
 }
 
 // ParseOrigin parses an ORIGIN attribute value.

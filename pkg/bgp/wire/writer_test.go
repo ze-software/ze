@@ -237,3 +237,49 @@ func TestSessionBufferPutUint16At(t *testing.T) {
 		t.Errorf("Offset() = %d, want 5", sb.Offset())
 	}
 }
+
+// TestCheckedWriteReturnsErrBufferTooSmall verifies CheckedWrite returns error on overflow.
+//
+// VALIDATES: CheckedWrite validates buffer capacity before writing.
+// PREVENTS: Buffer overflow from unchecked writes.
+func TestCheckedWriteReturnsErrBufferTooSmall(t *testing.T) {
+	sb := wire.NewSessionBuffer(false)
+	buf := sb.Buffer()
+
+	// Write data larger than remaining capacity - this uses CheckedWrite
+	n, err := sb.CheckedWrite(make([]byte, 5000))
+	if err != wire.ErrBufferTooSmall {
+		t.Errorf("CheckedWrite() error = %v, want ErrBufferTooSmall", err)
+	}
+	if n != 0 {
+		t.Errorf("CheckedWrite() n = %d, want 0", n)
+	}
+
+	// Buffer should not have been modified
+	if sb.Offset() != 0 {
+		t.Errorf("Offset() = %d, want 0", sb.Offset())
+	}
+
+	_ = buf
+}
+
+// TestCheckedWriteSuccess verifies CheckedWrite succeeds when capacity is sufficient.
+//
+// VALIDATES: CheckedWrite writes data and returns correct count.
+// PREVENTS: False negatives in capacity checks.
+func TestCheckedWriteSuccess(t *testing.T) {
+	sb := wire.NewSessionBuffer(false)
+
+	data := []byte{1, 2, 3, 4, 5}
+	n, err := sb.CheckedWrite(data)
+	if err != nil {
+		t.Errorf("CheckedWrite() error = %v, want nil", err)
+	}
+	if n != 5 {
+		t.Errorf("CheckedWrite() n = %d, want 5", n)
+	}
+
+	if !bytes.Equal(sb.Bytes(), data) {
+		t.Errorf("Bytes() = %v, want %v", sb.Bytes(), data)
+	}
+}

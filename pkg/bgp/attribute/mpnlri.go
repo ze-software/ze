@@ -7,6 +7,7 @@ import (
 	"net/netip"
 
 	bgpctx "codeberg.org/thomas-mangin/zebgp/pkg/bgp/context"
+	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/wire"
 )
 
 // Errors for MP NLRI parsing.
@@ -182,6 +183,15 @@ func (m *MPReachNLRI) WriteTo(buf []byte, off int) int {
 // WriteToWithContext writes MP_REACH_NLRI - context-independent.
 func (m *MPReachNLRI) WriteToWithContext(buf []byte, off int, _, _ *bgpctx.EncodingContext) int {
 	return m.WriteTo(buf, off)
+}
+
+// CheckedWriteTo validates capacity before writing.
+func (m *MPReachNLRI) CheckedWriteTo(buf []byte, off int) (int, error) {
+	needed := m.Len()
+	if len(buf) < off+needed {
+		return 0, wire.ErrBufferTooSmall
+	}
+	return m.WriteTo(buf, off), nil
 }
 
 // ParseMPReachNLRI parses an MP_REACH_NLRI attribute value per RFC 4760 Section 3.
@@ -455,6 +465,15 @@ func (m *MPUnreachNLRI) WriteTo(buf []byte, off int) int {
 // WriteToWithContext writes MP_UNREACH_NLRI - context-independent.
 func (m *MPUnreachNLRI) WriteToWithContext(buf []byte, off int, _, _ *bgpctx.EncodingContext) int {
 	return m.WriteTo(buf, off)
+}
+
+// CheckedWriteTo validates capacity before writing.
+func (m *MPUnreachNLRI) CheckedWriteTo(buf []byte, off int) (int, error) {
+	needed := m.Len()
+	if len(buf) < off+needed {
+		return 0, wire.ErrBufferTooSmall
+	}
+	return m.WriteTo(buf, off), nil
 }
 
 // ParseMPUnreachNLRI parses an MP_UNREACH_NLRI attribute value per RFC 4760 Section 4.

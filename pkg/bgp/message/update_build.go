@@ -11,6 +11,7 @@ import (
 	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/attribute"
 	bgpctx "codeberg.org/thomas-mangin/zebgp/pkg/bgp/context"
 	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/nlri"
+	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/wire"
 )
 
 // UpdateBuilder provides context for building UPDATE messages.
@@ -403,6 +404,15 @@ func (r *rawAttribute) WriteTo(buf []byte, off int) int {
 // WriteToWithContext writes pre-encoded data - context-independent.
 func (r *rawAttribute) WriteToWithContext(buf []byte, off int, _, _ *bgpctx.EncodingContext) int {
 	return r.WriteTo(buf, off)
+}
+
+// CheckedWriteTo validates capacity before writing.
+func (r *rawAttribute) CheckedWriteTo(buf []byte, off int) (int, error) {
+	needed := r.Len()
+	if len(buf) < off+needed {
+		return 0, wire.ErrBufferTooSmall
+	}
+	return r.WriteTo(buf, off), nil
 }
 
 // packAttributesNoSort packs attributes in the order provided (no sorting).

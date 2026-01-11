@@ -1,6 +1,10 @@
 package cbor
 
-import "errors"
+import (
+	"errors"
+
+	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/wire"
+)
 
 // Hex encoding errors.
 var (
@@ -96,4 +100,13 @@ func (h HexBlob) Len() int { return len(h) }
 // WriteTo implements BufWriter by writing raw bytes (not hex).
 func (h HexBlob) WriteTo(buf []byte, off int) int {
 	return copy(buf[off:], h)
+}
+
+// CheckedWriteTo validates capacity before writing.
+func (h HexBlob) CheckedWriteTo(buf []byte, off int) (int, error) {
+	needed := h.Len()
+	if len(buf) < off+needed {
+		return 0, wire.ErrBufferTooSmall
+	}
+	return h.WriteTo(buf, off), nil
 }

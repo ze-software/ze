@@ -11,6 +11,7 @@ import (
 	bgpctx "codeberg.org/thomas-mangin/zebgp/pkg/bgp/context"
 	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/message"
 	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/nlri"
+	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/wire"
 )
 
 // ErrNilNegotiated is returned when CommitService is used with nil Negotiated.
@@ -480,6 +481,15 @@ func (m *vpnMPReachNLRI) WriteTo(buf []byte, off int) int {
 // WriteToWithContext writes pre-encoded value - context-independent.
 func (m *vpnMPReachNLRI) WriteToWithContext(buf []byte, off int, _, _ *bgpctx.EncodingContext) int {
 	return m.WriteTo(buf, off)
+}
+
+// CheckedWriteTo validates capacity before writing.
+func (m *vpnMPReachNLRI) CheckedWriteTo(buf []byte, off int) (int, error) {
+	needed := m.Len()
+	if len(buf) < off+needed {
+		return 0, wire.ErrBufferTooSmall
+	}
+	return m.WriteTo(buf, off), nil
 }
 
 // isVPNSAFI returns true if the SAFI indicates a VPN family.

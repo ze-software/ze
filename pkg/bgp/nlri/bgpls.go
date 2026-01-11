@@ -10,6 +10,8 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+
+	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/wire"
 )
 
 // BGP-LS errors.
@@ -283,6 +285,15 @@ func (nd *NodeDescriptor) WriteTo(buf []byte, off int) int {
 	return pos - off
 }
 
+// CheckedWriteTo validates capacity before writing.
+func (nd *NodeDescriptor) CheckedWriteTo(buf []byte, off int) (int, error) {
+	needed := nd.Len()
+	if len(buf) < off+needed {
+		return 0, wire.ErrBufferTooSmall
+	}
+	return nd.WriteTo(buf, off), nil
+}
+
 // LinkDescriptor contains link identification information.
 // RFC 7752 Section 3.2.2 defines the link descriptor TLVs.
 type LinkDescriptor struct {
@@ -367,6 +378,15 @@ func (ld *LinkDescriptor) WriteTo(buf []byte, off int) int {
 	return pos - off
 }
 
+// CheckedWriteTo validates capacity before writing.
+func (ld *LinkDescriptor) CheckedWriteTo(buf []byte, off int) (int, error) {
+	needed := ld.Len()
+	if len(buf) < off+needed {
+		return 0, wire.ErrBufferTooSmall
+	}
+	return ld.WriteTo(buf, off), nil
+}
+
 // PrefixDescriptor contains prefix identification information.
 // RFC 7752 Section 3.2.3 defines the prefix descriptor TLVs.
 type PrefixDescriptor struct {
@@ -403,6 +423,15 @@ func (pd *PrefixDescriptor) WriteTo(buf []byte, off int) int {
 		return writeTLVBytes(buf, off, TLVIPReachabilityInfo, pd.IPReachabilityInfo)
 	}
 	return 0
+}
+
+// CheckedWriteTo validates capacity before writing.
+func (pd *PrefixDescriptor) CheckedWriteTo(buf []byte, off int) (int, error) {
+	needed := pd.Len()
+	if len(buf) < off+needed {
+		return 0, wire.ErrBufferTooSmall
+	}
+	return pd.WriteTo(buf, off), nil
 }
 
 // BGP-LS SAFI.
@@ -878,6 +907,15 @@ func (sd *SRv6SIDDescriptor) WriteTo(buf []byte, off int) int {
 	return 0
 }
 
+// CheckedWriteTo validates capacity before writing.
+func (sd *SRv6SIDDescriptor) CheckedWriteTo(buf []byte, off int) (int, error) {
+	needed := sd.Len()
+	if len(buf) < off+needed {
+		return 0, wire.ErrBufferTooSmall
+	}
+	return sd.WriteTo(buf, off), nil
+}
+
 // TLV types for SRv6.
 // Note: These are defined in RFC 9514, not RFC 7752.
 const (
@@ -990,6 +1028,15 @@ func (n *BGPLSNode) WriteTo(buf []byte, off int, _ *PackContext) int {
 	return pos - off
 }
 
+// CheckedWriteTo validates capacity before writing.
+func (n *BGPLSNode) CheckedWriteTo(buf []byte, off int, ctx *PackContext) (int, error) {
+	needed := n.Len()
+	if len(buf) < off+needed {
+		return 0, wire.ErrBufferTooSmall
+	}
+	return n.WriteTo(buf, off, ctx), nil
+}
+
 // WriteTo writes the Link NLRI directly to buf at offset.
 func (l *BGPLSLink) WriteTo(buf []byte, off int, _ *PackContext) int {
 	// Fallback: use cached bytes if present
@@ -1033,6 +1080,15 @@ func (l *BGPLSLink) WriteTo(buf []byte, off int, _ *PackContext) int {
 	return pos - off
 }
 
+// CheckedWriteTo validates capacity before writing.
+func (l *BGPLSLink) CheckedWriteTo(buf []byte, off int, ctx *PackContext) (int, error) {
+	needed := l.Len()
+	if len(buf) < off+needed {
+		return 0, wire.ErrBufferTooSmall
+	}
+	return l.WriteTo(buf, off, ctx), nil
+}
+
 // WriteTo writes the Prefix NLRI directly to buf at offset.
 //
 //nolint:dupl // Similar structure to BGPLSSRv6SID.WriteTo is intentional
@@ -1071,6 +1127,15 @@ func (p *BGPLSPrefix) WriteTo(buf []byte, off int, _ *PackContext) int {
 	return pos - off
 }
 
+// CheckedWriteTo validates capacity before writing.
+func (p *BGPLSPrefix) CheckedWriteTo(buf []byte, off int, ctx *PackContext) (int, error) {
+	needed := p.Len()
+	if len(buf) < off+needed {
+		return 0, wire.ErrBufferTooSmall
+	}
+	return p.WriteTo(buf, off, ctx), nil
+}
+
 // WriteTo writes the SRv6 SID NLRI directly to buf at offset.
 //
 //nolint:dupl // Similar structure to BGPLSPrefix.WriteTo is intentional
@@ -1107,4 +1172,13 @@ func (s *BGPLSSRv6SID) WriteTo(buf []byte, off int, _ *PackContext) int {
 	pos += s.SRv6SID.WriteTo(buf, pos)
 
 	return pos - off
+}
+
+// CheckedWriteTo validates capacity before writing.
+func (s *BGPLSSRv6SID) CheckedWriteTo(buf []byte, off int, ctx *PackContext) (int, error) {
+	needed := s.Len()
+	if len(buf) < off+needed {
+		return 0, wire.ErrBufferTooSmall
+	}
+	return s.WriteTo(buf, off, ctx), nil
 }

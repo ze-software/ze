@@ -18,6 +18,8 @@ import (
 	"net/netip"
 	"strconv"
 	"strings"
+
+	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/wire"
 )
 
 // EVPNRouteType identifies the EVPN route type.
@@ -1018,6 +1020,60 @@ func (e *EVPNType5) WriteTo(buf []byte, off int, ctx *PackContext) int {
 }
 func (e *EVPNGeneric) WriteTo(buf []byte, off int, ctx *PackContext) int {
 	return copy(buf[off:], e.Pack(ctx))
+}
+
+// CheckedWriteTo validates capacity before writing.
+func (e *EVPNType1) CheckedWriteTo(buf []byte, off int, ctx *PackContext) (int, error) {
+	needed := e.Len()
+	if len(buf) < off+needed {
+		return 0, wire.ErrBufferTooSmall
+	}
+	return e.WriteTo(buf, off, ctx), nil
+}
+
+// CheckedWriteTo validates capacity before writing.
+func (e *EVPNType2) CheckedWriteTo(buf []byte, off int, ctx *PackContext) (int, error) {
+	needed := e.Len()
+	if len(buf) < off+needed {
+		return 0, wire.ErrBufferTooSmall
+	}
+	return e.WriteTo(buf, off, ctx), nil
+}
+
+// CheckedWriteTo validates capacity before writing.
+func (e *EVPNType3) CheckedWriteTo(buf []byte, off int, ctx *PackContext) (int, error) {
+	needed := e.Len()
+	if len(buf) < off+needed {
+		return 0, wire.ErrBufferTooSmall
+	}
+	return e.WriteTo(buf, off, ctx), nil
+}
+
+// CheckedWriteTo validates capacity before writing.
+func (e *EVPNType4) CheckedWriteTo(buf []byte, off int, ctx *PackContext) (int, error) {
+	needed := e.Len()
+	if len(buf) < off+needed {
+		return 0, wire.ErrBufferTooSmall
+	}
+	return e.WriteTo(buf, off, ctx), nil
+}
+
+// CheckedWriteTo validates capacity before writing.
+func (e *EVPNType5) CheckedWriteTo(buf []byte, off int, ctx *PackContext) (int, error) {
+	needed := e.Len()
+	if len(buf) < off+needed {
+		return 0, wire.ErrBufferTooSmall
+	}
+	return e.WriteTo(buf, off, ctx), nil
+}
+
+// CheckedWriteTo validates capacity before writing.
+func (e *EVPNGeneric) CheckedWriteTo(buf []byte, off int, ctx *PackContext) (int, error) {
+	needed := e.Len()
+	if len(buf) < off+needed {
+		return 0, wire.ErrBufferTooSmall
+	}
+	return e.WriteTo(buf, off, ctx), nil
 }
 
 // NewEVPNType1 creates an Ethernet Auto-Discovery route (Type 1).

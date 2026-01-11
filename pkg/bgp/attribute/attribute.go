@@ -300,17 +300,11 @@ func WriteAttrToWithContext(attr Attribute, buf []byte, off int, srcCtx, dstCtx 
 //
 // For other attributes: returns Len() (context-independent).
 func attrLenWithContext(attr Attribute, dstCtx *bgpctx.EncodingContext) int {
-	asn4 := dstCtx == nil || dstCtx.ASN4
-
 	switch a := attr.(type) {
 	case *ASPath:
-		return a.LenWithASN4(asn4)
+		return a.LenWithContext(nil, dstCtx)
 	case *Aggregator:
-		// RFC 6793: 8-byte (4-byte ASN + 4-byte IP) or 6-byte (2-byte ASN + 4-byte IP)
-		if asn4 {
-			return 8
-		}
-		return 6
+		return a.LenWithContext(nil, dstCtx)
 	}
 	// All other attributes have context-independent length
 	return attr.Len()

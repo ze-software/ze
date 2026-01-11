@@ -1,6 +1,10 @@
 package cbor
 
-import "errors"
+import (
+	"errors"
+
+	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/wire"
+)
 
 // Base64 encoding errors.
 var (
@@ -288,4 +292,13 @@ func (b Base64Blob) Len() int { return len(b) }
 // WriteTo implements BufWriter by writing raw bytes (not base64).
 func (b Base64Blob) WriteTo(buf []byte, off int) int {
 	return copy(buf[off:], b)
+}
+
+// CheckedWriteTo validates capacity before writing.
+func (b Base64Blob) CheckedWriteTo(buf []byte, off int) (int, error) {
+	needed := b.Len()
+	if len(buf) < off+needed {
+		return 0, wire.ErrBufferTooSmall
+	}
+	return b.WriteTo(buf, off), nil
 }

@@ -2,6 +2,7 @@ package attribute
 
 import (
 	bgpctx "codeberg.org/thomas-mangin/zebgp/pkg/bgp/context"
+	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/wire"
 )
 
 // OpaqueAttribute represents an unknown or unrecognized BGP path attribute.
@@ -78,4 +79,13 @@ func (o *OpaqueAttribute) WriteTo(buf []byte, off int) int {
 // WriteToWithContext writes the opaque data - context-independent.
 func (o *OpaqueAttribute) WriteToWithContext(buf []byte, off int, _, _ *bgpctx.EncodingContext) int {
 	return o.WriteTo(buf, off)
+}
+
+// CheckedWriteTo validates capacity before writing.
+func (o *OpaqueAttribute) CheckedWriteTo(buf []byte, off int) (int, error) {
+	needed := o.Len()
+	if len(buf) < off+needed {
+		return 0, wire.ErrBufferTooSmall
+	}
+	return o.WriteTo(buf, off), nil
 }
