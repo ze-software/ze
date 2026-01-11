@@ -46,9 +46,9 @@ Implement complete RFC 7313 Enhanced Route Refresh support:
 | `TestDispatch_RefreshEvents` | `pkg/plugin/rib/rib_test.go` | event routing for refresh/borr/eorr | ✅ added |
 
 ### Functional Tests
-| Test | Location | Scenario |
-|------|----------|----------|
-| `route-refresh` | `qa/tests/plugin/` | End-to-end: peer sends ROUTE-REFRESH → RIB responds with BoRR/routes/EoRR |
+| Test | Location | Scenario | Status |
+|------|----------|----------|--------|
+| `refresh` | `test/data/plugin/refresh.ci` | End-to-end: peer sends ROUTE-REFRESH → RIB responds with BoRR/routes/EoRR | ✅ added |
 
 ### Future: Integration Test (not yet implemented)
 - Verify session generates correct JSON event when ROUTE-REFRESH received
@@ -96,6 +96,14 @@ Implement complete RFC 7313 Enhanced Route Refresh support:
 4. **Text formatter for ROUTE-REFRESH** - `FormatRouteRefresh()` function
 5. **AFI/SAFI fields in Event struct** - For refresh event parsing
 
+### Bug Fix (found during functional test)
+6. **RouteRefresh capabilities in loader** - `pkg/config/loader.go` now adds `RouteRefresh{}` and `EnhancedRouteRefresh{}` capabilities when `route-refresh` is enabled in config. Without this, BoRR/EoRR were never sent because negotiation failed.
+
+### Functional Test Files Added
+- `test/data/plugin/refresh.conf` - Config with RIB plugin and route-refresh capability
+- `test/data/plugin/refresh.run` - Python plugin that announces a route
+- `test/data/plugin/refresh.ci` - Test file: send ROUTE-REFRESH, expect BoRR/route/EoRR
+
 ## RFC Documentation
 
 ### Reference Comments
@@ -140,8 +148,8 @@ if rr.Subtype > message.RouteRefreshEoRR {
 ### Verification
 - [x] `make lint` passes (0 issues)
 - [x] `make test` passes
-- [x] `make functional` passes (15+10+18 tests)
-- [ ] `route-refresh` functional test (TODO: add to qa/tests/plugin/)
+- [x] `make functional` passes (16+37+10+18 tests)
+- [x] `refresh` functional test passes
 
 ### Documentation
 - [x] Required docs read
@@ -151,4 +159,4 @@ if rr.Subtype > message.RouteRefreshEoRR {
 - [x] `docs/architecture/api/capability-contract.md` already documented borr/eorr
 
 ### Completion
-- [ ] Spec moved to `docs/plan/done/NNN-borr-eorr.md`
+- [x] Spec moved to `docs/plan/done/NNN-borr-eorr.md`

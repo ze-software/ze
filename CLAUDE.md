@@ -125,6 +125,22 @@ Both produce WireUpdate with wire bytes.
 4. Run `make test && make lint && make functional` before claiming done
 5. Only commit when explicitly requested
 
+## Planning (see `.claude/rules/planning.md` for full details)
+
+**Re-read planning.md before starting AND before asking to commit.**
+
+1. Write spec to `docs/plan/spec-<task>.md`
+2. `git add` the spec immediately (track early)
+3. Unit tests BEFORE implementation (strict TDD)
+4. Functional tests AFTER feature works
+5. On completion:
+   - Update architecture docs with learnings
+   - Update spec with Implementation Summary
+   - Move spec to `docs/plan/done/NNN-<name>.md`
+   - Commit ALL files together (code + tests + docs + spec)
+
+**Investigation → Test Rule:** If you investigate/debug something, add a test so future devs don't have to re-investigate.
+
 ## Key Rules
 - **No code without understanding** - BLOCKING: Do not write any code until you have read relevant existing code and understand the architecture. Search, read, analyze BEFORE proposing changes.
 - **Design before code** - Search codebase first. Reuse/extend existing code. Think deeply before implementing.

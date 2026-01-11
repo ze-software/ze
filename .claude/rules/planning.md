@@ -2,6 +2,14 @@
 
 **BLOCKING:** Before implementing ANY non-trivial feature, complete this planning process.
 
+## Meta-Rule: Re-read Before Start and End
+
+**CRITICAL:** Always re-read this file (planning.md):
+1. **Before starting work** - Ensure you follow current rules
+2. **Before asking to commit** - Verify rules weren't updated; if they were, ensure work follows updated rules
+
+This prevents drift between rules and practice.
+
 ## No Code Without Understanding
 
 **CRITICAL:** You are NOT ALLOWED to write any code until you:
@@ -58,8 +66,8 @@ Complete IN ORDER. Do not skip steps.
 [ ] 7. Read source code for affected area
 
 [ ] 8. TDD Planning - identify tests BEFORE implementation
-      → Unit tests needed
-      → Functional tests needed
+      → Unit tests needed (write BEFORE implementation - strict TDD)
+      → Functional tests needed (write AFTER feature works - end of plan)
       → Test file locations
 
 [ ] 9. Present implementation plan to user
@@ -69,7 +77,13 @@ Complete IN ORDER. Do not skip steps.
        → FIRST complete "Pre-Spec Verification" checklist below
        → Match template format EXACTLY (not approximately)
 
-[ ] 11. Begin TDD cycle (test fails → implement → test passes)
+[ ] 11. Track spec with git
+       → `git add docs/plan/spec-<task>.md`
+       → Ensures spec is not lost if session ends
+
+[ ] 12. Begin TDD cycle (test fails → implement → test passes)
+
+[ ] 13. Post-implementation completion (see "Completion Checklist" below)
 ```
 
 ## Keyword → Documentation Mapping
@@ -199,26 +213,34 @@ Write to `docs/plan/spec-<task-name>.md`:
 ## 🧪 TDD Test Plan
 
 ### Unit Tests
-| Test | File | Validates |
-|------|------|-----------|
-| `TestXxx` | `pkg/.../xxx_test.go` | [description] |
+| Test | File | Validates | Status |
+|------|------|-----------|--------|
+| `TestXxx` | `pkg/.../xxx_test.go` | [description] | |
 
 ### Functional Tests
-| Test | Location | Scenario |
-|------|----------|----------|
-| `test-xxx` | `qa/tests/xxx/` | [description] |
+| Test | Location | Scenario | Status |
+|------|----------|----------|--------|
+| `test-xxx` | `test/data/.../*.ci` | [description] | |
+
+### Future (if deferring any tests)
+- [Tests to add later and why deferred]
 
 ## Files to Modify
 - `pkg/...` - [changes]
 
+## Files to Create
+- `pkg/...` - [new file purpose]
+- `test/data/...` - [test files]
+
 ## Implementation Steps
-1. **Write tests** - Create tests
+1. **Write unit tests** - Create unit tests BEFORE implementation (strict TDD)
 2. **Run tests** - Verify FAIL (paste output)
 3. **Implement** - Minimal code to pass
 4. **Run tests** - Verify PASS (paste output)
-5. **Verify all** - `make lint && make test && make functional` (lint includes govet + 25 other linters)
-6. **RFC refs** - Add RFC reference comments
-7. **RFC constraints** - Add constraint comments with quoted requirements (see RFC Documentation)
+5. **RFC refs** - Add RFC reference comments
+6. **RFC constraints** - Add constraint comments with quoted requirements (see RFC Documentation)
+7. **Functional tests** - Create functional tests AFTER feature works
+8. **Verify all** - `make lint && make test && make functional` (paste output)
 
 ## RFC Documentation
 
@@ -254,6 +276,29 @@ if peer.IsExternal() && path.FirstAS() != peer.RemoteAS {
 - Message ordering requirements
 - Any MUST/MUST NOT from RFC
 
+## Implementation Summary
+
+<!-- Fill this section AFTER implementation, before moving to done -->
+
+### What Was Implemented
+- [List actual changes made]
+
+### Bugs Found/Fixed
+- [Any bugs discovered during implementation]
+- **For each bug:** Add test that would have caught it (prevents re-investigation)
+
+### Investigation → Test Rule
+If you had to investigate/debug something, ask:
+- Why wasn't this obvious from tests/docs?
+- Add a test that makes the expected behavior explicit
+- Future devs should never have to re-investigate the same issue
+
+### Design Insights
+- [Key learnings that should be documented elsewhere]
+
+### Deviations from Plan
+- [Any differences from original plan and why]
+
 ## Checklist
 
 ### 🧪 TDD
@@ -267,16 +312,54 @@ if peer.IsExternal() && path.FirstAS() != peer.RemoteAS {
 - [ ] `make test` passes
 - [ ] `make functional` passes
 
-### Documentation
+### Documentation (during implementation)
 - [ ] Required docs read
 - [ ] RFC summaries read (all referenced RFCs)
 - [ ] RFC references added to code
 - [ ] RFC constraint comments added (quoted requirement + explanation)
-- [ ] `docs/` updated if schema changed
 
-### Completion
+### Completion (after tests pass - see Completion Checklist)
+- [ ] Architecture docs updated with learnings
+- [ ] Spec updated with Implementation Summary
 - [ ] Spec moved to `docs/plan/done/NNN-<name>.md`
+- [ ] All files committed together
 ```
+
+## Completion Checklist
+
+**BLOCKING:** After implementation passes all tests, complete these steps IN ORDER:
+
+```
+[ ] 1. Review architecture docs
+      → Did we learn something not documented?
+      → Add design insights, gotchas, or patterns discovered
+      → Update docs in "Post-Implementation Updates" table below
+
+[ ] 2. Update spec to reflect reality
+      → Mark all checklist items with actual status
+      → Add "Implementation Summary" section if missing
+      → Document any bugs found/fixed
+      → Document any deviations from original plan
+
+[ ] 3. Move spec to done folder
+      → Use the "Moving Completed Specs" script below
+      → Spec number determined at move time
+
+[ ] 4. Verify all changes
+      → `git status` to see all modified files
+      → `git diff` to review changes
+      → Ensure no unintended modifications
+
+[ ] 5. Commit (when user approves)
+      → Include ALL modified files in ONE commit:
+        - Code changes
+        - Test files
+        - Documentation updates
+        - Moved spec file
+      → Use descriptive commit message
+```
+
+**Why single commit:** All changes for a feature belong together. The spec documents what was done; it should be committed with the code it describes.
 
 ## Post-Implementation Updates
 

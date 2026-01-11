@@ -13,7 +13,7 @@
 | `msg-id list` | ✅ Done | `msgid.go` |
 | 5s startup timeout | ❌ Not impl | No validation |
 | Config validation (GR→API) | ❌ Not impl | No fail-fast check |
-| `borr`/`eorr` markers | ⚠️ Partial | Commands exist, capability check missing, receive not impl |
+| `borr`/`eorr` markers | ✅ Done | RFC 7313 full support, RIB plugin responds to refresh |
 
 ---
 
@@ -138,15 +138,15 @@ ERROR: peer 192.168.1.1 has graceful-restart but no API to resend routes
 peer 192.168.1.1 refresh ipv4/unicast
 ```
 
-**API → Router:** ⚠️ Partial (`refresh.go`)
+**API → Router:** ✅ Done (`refresh.go`, `reactor.go`)
 ```
 peer 192.168.1.1 borr ipv4/unicast
 announce route 10.0.0.0/24 next-hop self
 peer 192.168.1.1 eorr ipv4/unicast
 ```
-**Issues:**
-- Missing Enhanced Route Refresh capability check (sends to all peers)
-- ROUTE-REFRESH receive falls through to `handleUnknownType` (sends error!)
+**RFC 7313 compliance:**
+- Enhanced Route Refresh capability check before sending BoRR/EoRR
+- Config `route-refresh` enables both RouteRefresh and EnhancedRouteRefresh capabilities
 
 ---
 

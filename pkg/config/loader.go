@@ -304,6 +304,13 @@ func configToPeer(nc *PeerConfig, global *BGPConfig) (*reactor.PeerSettings, err
 		}
 	}
 
+	// RFC 2918/7313: Add RouteRefresh and EnhancedRouteRefresh capabilities.
+	// Both are needed for RFC 7313 BoRR/EoRR support.
+	if nc.Capabilities.RouteRefresh {
+		n.Capabilities = append(n.Capabilities, &capability.RouteRefresh{})
+		n.Capabilities = append(n.Capabilities, &capability.EnhancedRouteRefresh{})
+	}
+
 	// ASN4 is enabled by default, disable if explicitly set to false in config.
 	n.DisableASN4 = !nc.Capabilities.ASN4
 

@@ -93,6 +93,47 @@ peer 192.0.2.1 {
 	require.True(t, n.Passive)
 }
 
+// TestLoadReactorRouteRefreshCapabilities verifies route-refresh capability loading.
+//
+// VALIDATES: route-refresh config creates both RouteRefresh and EnhancedRouteRefresh capabilities.
+//
+// PREVENTS: RFC 7313 BoRR/EoRR failing due to missing EnhancedRouteRefresh capability.
+func TestLoadReactorRouteRefreshCapabilities(t *testing.T) {
+	input := `
+router-id 10.0.0.1;
+local-as 65000;
+
+peer 192.0.2.1 {
+    peer-as 65001;
+    capability {
+        route-refresh;
+    }
+}
+`
+
+	r, err := LoadReactor(input)
+	require.NoError(t, err)
+
+	peers := r.Peers()
+	require.Len(t, peers, 1)
+
+	settings := peers[0].Settings()
+
+	// Check both capabilities are present
+	var hasRouteRefresh, hasEnhancedRouteRefresh bool
+	for _, cap := range settings.Capabilities {
+		switch cap.Code() { //nolint:exhaustive // Only checking specific capabilities
+		case 2: // RouteRefresh
+			hasRouteRefresh = true
+		case 70: // EnhancedRouteRefresh
+			hasEnhancedRouteRefresh = true
+		}
+	}
+
+	require.True(t, hasRouteRefresh, "RouteRefresh capability (code 2) should be present")
+	require.True(t, hasEnhancedRouteRefresh, "EnhancedRouteRefresh capability (code 70) should be present")
+}
+
 // TestLoadReactorConfig verifies reactor config settings.
 //
 // VALIDATES: Listen address and router-id are set.
