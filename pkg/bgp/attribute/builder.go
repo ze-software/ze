@@ -23,6 +23,7 @@ type Builder struct {
 	localPref        *uint32
 	med              *uint32
 	asPath           []uint32
+	hasASPath        bool // true if SetASPath was called (even with nil/empty)
 	communities      []uint32
 	largeCommunities []LargeCommunity
 	extCommunities   []ExtendedCommunity
@@ -79,6 +80,7 @@ func (b *Builder) SetNextHopAddr(addr netip.Addr) *Builder {
 // SetASPath sets the AS_PATH as a sequence of ASNs.
 func (b *Builder) SetASPath(asns []uint32) *Builder {
 	b.asPath = asns
+	b.hasASPath = true // Mark AS_PATH as explicitly set (even if empty)
 	return b
 }
 
@@ -135,22 +137,27 @@ func (b *Builder) Len() int {
 		size += 4 // ORIGIN
 	}
 
-	if len(b.asPath) > 0 {
-		// RFC 4271: Max 255 ASNs per segment, split if needed
-		var asPathLen int
-		remaining := len(b.asPath)
-		for remaining > 0 {
-			chunk := remaining
-			if chunk > MaxASPathSegmentLength {
-				chunk = MaxASPathSegmentLength
+	if b.hasASPath {
+		if len(b.asPath) > 0 {
+			// RFC 4271: Max 255 ASNs per segment, split if needed
+			var asPathLen int
+			remaining := len(b.asPath)
+			for remaining > 0 {
+				chunk := remaining
+				if chunk > MaxASPathSegmentLength {
+					chunk = MaxASPathSegmentLength
+				}
+				asPathLen += 2 + chunk*4 // type(1) + count(1) + asns
+				remaining -= chunk
 			}
-			asPathLen += 2 + chunk*4 // type(1) + count(1) + asns
-			remaining -= chunk
-		}
-		if asPathLen > 255 {
-			size += 4 + asPathLen
+			if asPathLen > 255 {
+				size += 4 + asPathLen
+			} else {
+				size += 3 + asPathLen
+			}
 		} else {
-			size += 3 + asPathLen
+			// Empty AS_PATH: just header (flag + type + length=0)
+			size += 3
 		}
 	}
 
@@ -217,50 +224,59 @@ func (b *Builder) WriteTo(buf []byte) int {
 	}
 
 	// AS_PATH (type 2)
-	// RFC 4271: Max 255 ASNs per segment, split if needed
-	if len(b.asPath) > 0 {
-		// Calculate value length with segment splitting
-		var asPathLen int
-		remaining := len(b.asPath)
-		for remaining > 0 {
-			chunk := remaining
-			if chunk > MaxASPathSegmentLength {
-				chunk = MaxASPathSegmentLength
+	// RFC 4271: AS_PATH is well-known mandatory, output if hasASPath is set
+	if b.hasASPath {
+		if len(b.asPath) > 0 {
+			// RFC 4271: Max 255 ASNs per segment, split if needed
+			// Calculate value length with segment splitting
+			var asPathLen int
+			remaining := len(b.asPath)
+			for remaining > 0 {
+				chunk := remaining
+				if chunk > MaxASPathSegmentLength {
+					chunk = MaxASPathSegmentLength
+				}
+				asPathLen += 2 + chunk*4 // type(1) + count(1) + asns
+				remaining -= chunk
 			}
-			asPathLen += 2 + chunk*4 // type(1) + count(1) + asns
-			remaining -= chunk
-		}
 
-		// Write header with extended length if needed
-		if asPathLen > 255 {
-			buf[off] = 0x50                                            // Transitive + Extended Length
-			buf[off+1] = 2                                             // AS_PATH
-			binary.BigEndian.PutUint16(buf[off+2:], uint16(asPathLen)) //nolint:gosec // bounded
-			off += 4
+			// Write header with extended length if needed
+			if asPathLen > 255 {
+				buf[off] = 0x50                                            // Transitive + Extended Length
+				buf[off+1] = 2                                             // AS_PATH
+				binary.BigEndian.PutUint16(buf[off+2:], uint16(asPathLen)) //nolint:gosec // bounded
+				off += 4
+			} else {
+				buf[off] = 0x40 // Transitive
+				buf[off+1] = 2  // AS_PATH
+				buf[off+2] = byte(asPathLen)
+				off += 3
+			}
+
+			// Write segments, splitting at 255 ASNs
+			remaining = len(b.asPath)
+			idx := 0
+			for remaining > 0 {
+				chunk := remaining
+				if chunk > MaxASPathSegmentLength {
+					chunk = MaxASPathSegmentLength
+				}
+				buf[off] = byte(ASSequence)
+				buf[off+1] = byte(chunk)
+				off += 2
+				for i := 0; i < chunk; i++ {
+					binary.BigEndian.PutUint32(buf[off:], b.asPath[idx+i])
+					off += 4
+				}
+				idx += chunk
+				remaining -= chunk
+			}
 		} else {
+			// Empty AS_PATH: just header with length 0
 			buf[off] = 0x40 // Transitive
 			buf[off+1] = 2  // AS_PATH
-			buf[off+2] = byte(asPathLen)
+			buf[off+2] = 0  // Length = 0
 			off += 3
-		}
-
-		// Write segments, splitting at 255 ASNs
-		remaining = len(b.asPath)
-		idx := 0
-		for remaining > 0 {
-			chunk := remaining
-			if chunk > MaxASPathSegmentLength {
-				chunk = MaxASPathSegmentLength
-			}
-			buf[off] = byte(ASSequence)
-			buf[off+1] = byte(chunk)
-			off += 2
-			for i := 0; i < chunk; i++ {
-				binary.BigEndian.PutUint32(buf[off:], b.asPath[idx+i])
-				off += 4
-			}
-			idx += chunk
-			remaining -= chunk
 		}
 	}
 

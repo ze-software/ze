@@ -327,19 +327,24 @@ type nlriAccum struct {
 // Also returns the current NLRI accumulators (pathID, RD, labels).
 func (a *parsedAttrs) snapshot() (*attribute.AttributesWire, RouteNextHop, nlriAccum) {
 	// Build wire-format attributes
+	// RFC 4271: ORIGIN and AS_PATH are well-known mandatory attributes.
+	// Always include them in wire output even if not explicitly set.
 	b := attribute.NewBuilder()
 
+	// ORIGIN: default to IGP if not specified
 	if a.Origin != nil {
 		b.SetOrigin(*a.Origin)
+	} else {
+		b.SetOrigin(0) // IGP
 	}
+	// AS_PATH: always include (empty for locally originated routes)
+	// The Builder will output an empty AS_PATH attribute
+	b.SetASPath(a.ASPath) // nil or empty slice -> empty AS_PATH
 	if a.LocalPreference != nil {
 		b.SetLocalPref(*a.LocalPreference)
 	}
 	if a.MED != nil {
 		b.SetMED(*a.MED)
-	}
-	if len(a.ASPath) > 0 {
-		b.SetASPath(a.ASPath)
 	}
 	for _, c := range a.Communities {
 		b.AddCommunityValue(c)
