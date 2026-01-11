@@ -327,15 +327,16 @@ type nlriAccum struct {
 // Also returns the current NLRI accumulators (pathID, RD, labels).
 func (a *parsedAttrs) snapshot() (*attribute.AttributesWire, RouteNextHop, nlriAccum) {
 	// Build wire-format attributes.
-	// Note: ORIGIN is not forced here; reactor adds mandatory attributes if missing.
+	// Note: ORIGIN and AS_PATH are not forced here; reactor adds mandatory
+	// attributes if missing (with correct iBGP/eBGP AS_PATH handling).
 	b := attribute.NewBuilder()
 
 	if a.Origin != nil {
 		b.SetOrigin(*a.Origin)
 	}
-	// AS_PATH: always set (even if empty) so Builder outputs the attribute.
-	// Empty AS_PATH is valid for locally originated routes (iBGP).
-	b.SetASPath(a.ASPath)
+	if len(a.ASPath) > 0 {
+		b.SetASPath(a.ASPath)
+	}
 	if a.LocalPreference != nil {
 		b.SetLocalPref(*a.LocalPreference)
 	}

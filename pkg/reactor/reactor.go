@@ -1840,25 +1840,77 @@ func (a *reactorAPIAdapter) buildWireModeUpdate(wireAttrs, nlriBytes []byte, fam
 	}
 }
 
-// ensureMandatoryAttrs ensures ORIGIN is present in wire attributes.
+// ensureMandatoryAttrs ensures ORIGIN and AS_PATH are present in wire attributes.
 // RFC 4271 Section 5.1.1: ORIGIN is a well-known mandatory attribute.
-// If missing, prepends ORIGIN=IGP to the wire bytes.
-// AS_PATH is handled by the Builder (always output via hasASPath flag).
-func (a *reactorAPIAdapter) ensureMandatoryAttrs(wire *attribute.AttributesWire, _, _ bool) []byte {
-	// Check if ORIGIN is present
+// RFC 4271 Section 5.1.2: AS_PATH is a well-known mandatory attribute.
+// If missing, prepends with defaults: ORIGIN=IGP, AS_PATH per iBGP/eBGP rules.
+func (a *reactorAPIAdapter) ensureMandatoryAttrs(wire *attribute.AttributesWire, isIBGP, asn4 bool) []byte {
 	hasOrigin, _ := wire.Has(attribute.AttrOrigin)
-	if hasOrigin {
-		return wire.Packed() // Already has ORIGIN
+	hasASPath, _ := wire.Has(attribute.AttrASPath)
+
+	if hasOrigin && hasASPath {
+		return wire.Packed()
 	}
 
-	// Prepend ORIGIN=IGP (4 bytes: flag + type + len + value)
 	packed := wire.Packed()
-	result := make([]byte, 4+len(packed))
-	result[0] = 0x40 // Transitive
-	result[1] = 1    // ORIGIN
-	result[2] = 1    // Length
-	result[3] = 0    // IGP
-	copy(result[4:], packed)
+
+	// Calculate prepend size
+	var prependSize int
+	if !hasOrigin {
+		prependSize += 4 // ORIGIN: flag + type + len + value
+	}
+	if !hasASPath {
+		switch {
+		case isIBGP:
+			prependSize += 3 // Empty AS_PATH: flag + type + len(0)
+		case asn4:
+			prependSize += 3 + 2 + 4 // Header + segment header + 4-byte AS
+		default:
+			prependSize += 3 + 2 + 2 // Header + segment header + 2-byte AS
+		}
+	}
+
+	result := make([]byte, prependSize+len(packed))
+	off := 0
+
+	// Prepend ORIGIN=IGP if missing
+	if !hasOrigin {
+		result[off] = 0x40 // Transitive
+		result[off+1] = 1  // ORIGIN
+		result[off+2] = 1  // Length
+		result[off+3] = 0  // IGP
+		off += 4
+	}
+
+	// Prepend AS_PATH if missing
+	// RFC 4271 §5.1.2: iBGP = empty, eBGP = prepend local AS
+	if !hasASPath {
+		switch {
+		case isIBGP:
+			result[off] = 0x40 // Transitive
+			result[off+1] = 2  // AS_PATH
+			result[off+2] = 0  // Length = 0 (empty)
+			off += 3
+		case asn4:
+			result[off] = 0x40 // Transitive
+			result[off+1] = 2  // AS_PATH
+			result[off+2] = 6  // Length: 2 (segment header) + 4 (ASN)
+			result[off+3] = byte(attribute.ASSequence)
+			result[off+4] = 1 // Count = 1
+			binary.BigEndian.PutUint32(result[off+5:], a.r.config.LocalAS)
+			off += 9
+		default:
+			result[off] = 0x40 // Transitive
+			result[off+1] = 2  // AS_PATH
+			result[off+2] = 4  // Length: 2 (segment header) + 2 (ASN)
+			result[off+3] = byte(attribute.ASSequence)
+			result[off+4] = 1                                                      // Count = 1
+			binary.BigEndian.PutUint16(result[off+5:], uint16(a.r.config.LocalAS)) //nolint:gosec
+			off += 7
+		}
+	}
+
+	copy(result[off:], packed)
 	return result
 }
 
