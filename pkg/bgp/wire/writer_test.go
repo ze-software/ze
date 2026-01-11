@@ -2,6 +2,7 @@ package wire_test
 
 import (
 	"bytes"
+	"errors"
 	"testing"
 
 	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/wire"
@@ -248,7 +249,7 @@ func TestCheckedWriteReturnsErrBufferTooSmall(t *testing.T) {
 
 	// Write data larger than remaining capacity - this uses CheckedWrite
 	n, err := sb.CheckedWrite(make([]byte, 5000))
-	if err != wire.ErrBufferTooSmall {
+	if !errors.Is(err, wire.ErrBufferTooSmall) {
 		t.Errorf("CheckedWrite() error = %v, want ErrBufferTooSmall", err)
 	}
 	if n != 0 {

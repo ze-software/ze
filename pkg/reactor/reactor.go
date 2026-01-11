@@ -630,7 +630,7 @@ func WriteAnnounceUpdate(buf []byte, off int, route plugin.RouteSpec, localAS ui
 	asn4 := ctx == nil || ctx.ASN4
 
 	// Extract attributes from Wire (wire-first approach)
-	var origin uint8 = uint8(attribute.OriginIGP)
+	origin := uint8(attribute.OriginIGP)
 	var med *uint32
 	var localPref *uint32
 	var communities []uint32
@@ -640,24 +640,32 @@ func WriteAnnounceUpdate(buf []byte, off int, route plugin.RouteSpec, localAS ui
 
 	if route.Wire != nil {
 		// Extract ORIGIN
-		if originAttr, err := route.Wire.Get(attribute.AttrOrigin); err == nil {
-			origin = uint8(originAttr.(attribute.Origin))
+		if originAttr, err := route.Wire.Get(attribute.AttrOrigin); err == nil && originAttr != nil {
+			if o, ok := originAttr.(attribute.Origin); ok {
+				origin = uint8(o)
+			}
 		}
-		// Extract AS_PATH
+		// Extract AS_PATH (all segments)
 		if asPathAttr, err := route.Wire.Get(attribute.AttrASPath); err == nil {
-			if asp, ok := asPathAttr.(*attribute.ASPath); ok && len(asp.Segments) > 0 {
-				userASPath = asp.Segments[0].ASNs
+			if asp, ok := asPathAttr.(*attribute.ASPath); ok {
+				for _, seg := range asp.Segments {
+					userASPath = append(userASPath, seg.ASNs...)
+				}
 			}
 		}
 		// Extract MED
-		if medAttr, err := route.Wire.Get(attribute.AttrMED); err == nil {
-			v := uint32(medAttr.(attribute.MED))
-			med = &v
+		if medAttr, err := route.Wire.Get(attribute.AttrMED); err == nil && medAttr != nil {
+			if m, ok := medAttr.(attribute.MED); ok {
+				v := uint32(m)
+				med = &v
+			}
 		}
 		// Extract LOCAL_PREF
-		if lpAttr, err := route.Wire.Get(attribute.AttrLocalPref); err == nil {
-			v := uint32(lpAttr.(attribute.LocalPref))
-			localPref = &v
+		if lpAttr, err := route.Wire.Get(attribute.AttrLocalPref); err == nil && lpAttr != nil {
+			if lp, ok := lpAttr.(attribute.LocalPref); ok {
+				v := uint32(lp)
+				localPref = &v
+			}
 		}
 		// Extract COMMUNITY
 		if commAttr, err := route.Wire.Get(attribute.AttrCommunity); err == nil {
@@ -1086,15 +1094,21 @@ func (a *reactorAPIAdapter) buildL3VPNParams(route plugin.L3VPNRoute) (message.V
 	if route.Wire != nil {
 		// Extract ORIGIN
 		if originAttr, err := route.Wire.Get(attribute.AttrOrigin); err == nil {
-			params.Origin = originAttr.(attribute.Origin)
+			if o, ok := originAttr.(attribute.Origin); ok {
+				params.Origin = o
+			}
 		}
 		// Extract LOCAL_PREF
 		if lpAttr, err := route.Wire.Get(attribute.AttrLocalPref); err == nil {
-			params.LocalPreference = uint32(lpAttr.(attribute.LocalPref))
+			if lp, ok := lpAttr.(attribute.LocalPref); ok {
+				params.LocalPreference = uint32(lp)
+			}
 		}
 		// Extract MED
 		if medAttr, err := route.Wire.Get(attribute.AttrMED); err == nil {
-			params.MED = uint32(medAttr.(attribute.MED))
+			if m, ok := medAttr.(attribute.MED); ok {
+				params.MED = uint32(m)
+			}
 		}
 		// Extract AS_PATH
 		if asPathAttr, err := route.Wire.Get(attribute.AttrASPath); err == nil {
@@ -1351,15 +1365,21 @@ func (a *reactorAPIAdapter) buildLabeledUnicastParams(route plugin.LabeledUnicas
 	if route.Wire != nil {
 		// Extract ORIGIN
 		if originAttr, err := route.Wire.Get(attribute.AttrOrigin); err == nil {
-			params.Origin = originAttr.(attribute.Origin)
+			if o, ok := originAttr.(attribute.Origin); ok {
+				params.Origin = o
+			}
 		}
 		// Extract LOCAL_PREF
 		if lpAttr, err := route.Wire.Get(attribute.AttrLocalPref); err == nil {
-			params.LocalPreference = uint32(lpAttr.(attribute.LocalPref))
+			if lp, ok := lpAttr.(attribute.LocalPref); ok {
+				params.LocalPreference = uint32(lp)
+			}
 		}
 		// Extract MED
 		if medAttr, err := route.Wire.Get(attribute.AttrMED); err == nil {
-			params.MED = uint32(medAttr.(attribute.MED))
+			if m, ok := medAttr.(attribute.MED); ok {
+				params.MED = uint32(m)
+			}
 		}
 		// Extract AS_PATH
 		if asPathAttr, err := route.Wire.Get(attribute.AttrASPath); err == nil {
@@ -1594,7 +1614,8 @@ func (a *reactorAPIAdapter) AnnounceNLRIBatch(peerSelector string, batch plugin.
 	var attrs []attribute.Attribute
 	var userASPath []uint32
 
-	if batch.Wire != nil {
+	switch {
+	case batch.Wire != nil:
 		// Parse attributes from wire format
 		var err error
 		attrs, err = batch.Wire.All()
@@ -1607,11 +1628,11 @@ func (a *reactorAPIAdapter) AnnounceNLRIBatch(peerSelector string, batch plugin.
 				userASPath = asp.Segments[0].ASNs
 			}
 		}
-	} else if batch.Attrs != nil {
+	case batch.Attrs != nil:
 		// Use Builder for new routes
 		attrs = batch.Attrs.ToAttributes()
 		userASPath = batch.Attrs.ASPathSlice()
-	} else {
+	default:
 		// No attributes - use defaults
 		attrs = append(attrs, attribute.OriginIGP)
 	}
@@ -2003,15 +2024,21 @@ func (a *reactorAPIAdapter) AddWatchdogRoute(route plugin.RouteSpec, poolName st
 	if route.Wire != nil {
 		// Extract ORIGIN
 		if originAttr, err := route.Wire.Get(attribute.AttrOrigin); err == nil {
-			sr.Origin = uint8(originAttr.(attribute.Origin))
+			if o, ok := originAttr.(attribute.Origin); ok {
+				sr.Origin = uint8(o)
+			}
 		}
 		// Extract LOCAL_PREF
 		if lpAttr, err := route.Wire.Get(attribute.AttrLocalPref); err == nil {
-			sr.LocalPreference = uint32(lpAttr.(attribute.LocalPref))
+			if lp, ok := lpAttr.(attribute.LocalPref); ok {
+				sr.LocalPreference = uint32(lp)
+			}
 		}
 		// Extract MED
 		if medAttr, err := route.Wire.Get(attribute.AttrMED); err == nil {
-			sr.MED = uint32(medAttr.(attribute.MED))
+			if m, ok := medAttr.(attribute.MED); ok {
+				sr.MED = uint32(m)
+			}
 		}
 		// Extract AS_PATH
 		if asPathAttr, err := route.Wire.Get(attribute.AttrASPath); err == nil {

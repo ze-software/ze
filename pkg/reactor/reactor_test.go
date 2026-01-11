@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/attribute"
+	bgpctx "codeberg.org/thomas-mangin/zebgp/pkg/bgp/context"
 	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/message"
 	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/nlri"
 	"codeberg.org/thomas-mangin/zebgp/pkg/plugin"
@@ -556,7 +557,7 @@ func TestWriteASPathLongSegmentSplitting(t *testing.T) {
 	route := plugin.RouteSpec{
 		Prefix:  netip.MustParsePrefix("10.0.0.0/24"),
 		NextHop: plugin.NewNextHopExplicit(netip.MustParseAddr("192.168.1.1")),
-		Wire:    attribute.NewAttributesWire(wireBytes, 0),
+		Wire:    attribute.NewAttributesWire(wireBytes, bgpctx.APIContextID),
 	}
 
 	ctx := &nlri.PackContext{ASN4: true}
@@ -640,7 +641,7 @@ func TestWriteCommunitiesExtendedLength(t *testing.T) {
 	route := plugin.RouteSpec{
 		Prefix:  netip.MustParsePrefix("10.0.0.0/24"),
 		NextHop: plugin.NewNextHopExplicit(netip.MustParseAddr("192.168.1.1")),
-		Wire:    attribute.NewAttributesWire(wireBytes, 0),
+		Wire:    attribute.NewAttributesWire(wireBytes, bgpctx.APIContextID),
 	}
 
 	ctx := &nlri.PackContext{ASN4: true}
@@ -712,7 +713,7 @@ func BenchmarkWriteAnnounceUpdateIPv4WithCommunities(b *testing.B) {
 	route := plugin.RouteSpec{
 		Prefix:  netip.MustParsePrefix("10.0.0.0/24"),
 		NextHop: plugin.NewNextHopExplicit(netip.MustParseAddr("192.168.1.1")),
-		Wire:    attribute.NewAttributesWire(wireBytes, 0),
+		Wire:    attribute.NewAttributesWire(wireBytes, bgpctx.APIContextID),
 	}
 	ctx := &nlri.PackContext{ASN4: true}
 	buf := make([]byte, 4096)
@@ -839,7 +840,7 @@ func TestBuildLabeledUnicastRIBRouteAllAttributes(t *testing.T) {
 		NextHop: netip.MustParseAddr("192.0.2.1"),
 		Labels:  []uint32{100, 200}, // Label stack
 		PathID:  42,
-		Wire:    attribute.NewAttributesWire(wireBytes, 0),
+		Wire:    attribute.NewAttributesWire(wireBytes, bgpctx.APIContextID),
 	}
 
 	ribRoute, _ := adapter.buildLabeledUnicastRIBRoute(route, false) // eBGP
@@ -1007,7 +1008,7 @@ func TestBuildL3VPNParams(t *testing.T) {
 		RD:      "100:100",
 		Labels:  []uint32{1000, 2000}, // Multi-label stack
 		RT:      "target:65000:100",
-		Wire:    attribute.NewAttributesWire(wireBytes, 0),
+		Wire:    attribute.NewAttributesWire(wireBytes, bgpctx.APIContextID),
 	}
 
 	params, err := adapter.buildL3VPNParams(route)
@@ -1081,7 +1082,7 @@ func TestBuildL3VPNRIBRoute(t *testing.T) {
 		NextHop: netip.MustParseAddr("192.0.2.1"),
 		RD:      "100:100",
 		Labels:  []uint32{1000},
-		Wire:    attribute.NewAttributesWire(wireBytes, 0),
+		Wire:    attribute.NewAttributesWire(wireBytes, bgpctx.APIContextID),
 	}
 
 	ribRoute, err := adapter.buildL3VPNRIBRoute(route, true) // iBGP

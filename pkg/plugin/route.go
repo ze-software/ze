@@ -42,28 +42,6 @@ func respondError(msg string, err error) (*Response, error) {
 	return &Response{Status: "error", Data: msg}, err
 }
 
-// parsePrefixWithDefault parses a prefix string, defaulting to /32 for IPv4
-// and /128 for IPv6 if no prefix length is specified.
-// This matches ExaBGP behavior where "1.2.3.4" means "1.2.3.4/32".
-func parsePrefixWithDefault(s string) (netip.Prefix, error) {
-	// First try parsing as a prefix with length
-	if prefix, err := netip.ParsePrefix(s); err == nil {
-		return prefix, nil
-	}
-
-	// If that fails, try parsing as an address and default the prefix length
-	addr, err := netip.ParseAddr(s)
-	if err != nil {
-		return netip.Prefix{}, fmt.Errorf("%w: %s", ErrInvalidPrefix, s)
-	}
-
-	// Default to /32 for IPv4, /128 for IPv6
-	if addr.Is4() {
-		return netip.PrefixFrom(addr, 32), nil
-	}
-	return netip.PrefixFrom(addr, 128), nil
-}
-
 // splitPrefix splits a prefix into more-specific prefixes with the given length.
 // For example, 10.0.0.0/21 split to /23 produces 4 prefixes.
 // Returns error if targetLen is less than prefix length or exceeds address size.

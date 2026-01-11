@@ -124,6 +124,9 @@ func testHasMED(t *testing.T, wire *attribute.AttributesWire) bool {
 // testExtractASPath extracts AS_PATH as []uint32 from Wire for testing.
 func testExtractASPath(t *testing.T, wire *attribute.AttributesWire) []uint32 {
 	t.Helper()
+	if wire == nil {
+		return nil
+	}
 	attrs, err := wire.All()
 	require.NoError(t, err)
 	for _, a := range attrs {
@@ -1208,24 +1211,12 @@ func TestHandleUpdateText_MultipleGroups(t *testing.T) {
 	require.Len(t, reactor.announceCalls, 2)
 
 	// First group: 1 community
-	attrs0 := reactor.announceCalls[0].Attrs.ToAttributes()
-	var comms0Count int
-	for _, a := range attrs0 {
-		if c, ok := a.(attribute.Communities); ok {
-			comms0Count = len(c)
-		}
-	}
-	assert.Equal(t, 1, comms0Count)
+	comms0 := testExtractCommunities(t, reactor.announceCalls[0].Wire)
+	assert.Equal(t, 1, len(comms0))
 
 	// Second group: 2 communities
-	attrs1 := reactor.announceCalls[1].Attrs.ToAttributes()
-	var comms1Count int
-	for _, a := range attrs1 {
-		if c, ok := a.(attribute.Communities); ok {
-			comms1Count = len(c)
-		}
-	}
-	assert.Equal(t, 2, comms1Count)
+	comms1 := testExtractCommunities(t, reactor.announceCalls[1].Wire)
+	assert.Equal(t, 2, len(comms1))
 }
 
 // TestHandleUpdateText_WithdrawUnicast verifies unicast withdrawal batch.

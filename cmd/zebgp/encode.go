@@ -338,55 +338,6 @@ func extractAttrsFromWire(wire *attribute.AttributesWire) commonAttrs {
 	return attrs
 }
 
-// extractAttrsFromBuilder extracts commonAttrs from an attribute.Builder.
-func extractAttrsFromBuilder(b *attribute.Builder) commonAttrs {
-	attrs := commonAttrs{
-		Origin: attribute.OriginIGP,
-	}
-
-	// Convert Builder to []Attribute and extract values
-	for _, a := range b.ToAttributes() {
-		switch v := a.(type) {
-		case attribute.Origin:
-			attrs.Origin = v
-		case attribute.LocalPref:
-			attrs.LocalPreference = uint32(v)
-		case attribute.MED:
-			attrs.MED = uint32(v)
-		case attribute.Communities:
-			attrs.Communities = make([]uint32, len(v))
-			for i, c := range v {
-				attrs.Communities[i] = uint32(c)
-			}
-		case attribute.LargeCommunities:
-			attrs.LargeCommunities = make([][3]uint32, len(v))
-			for i, lc := range v {
-				attrs.LargeCommunities[i] = [3]uint32{lc.GlobalAdmin, lc.LocalData1, lc.LocalData2}
-			}
-		case attribute.ExtendedCommunities:
-			attrs.ExtCommunityBytes = packExtendedCommunities(v)
-		}
-	}
-
-	// Get AS_PATH from Builder
-	attrs.ASPath = b.ASPathSlice()
-
-	return attrs
-}
-
-// packExtendedCommunities packs extended communities to wire format.
-// ExtendedCommunity is [8]byte, so we just copy the bytes directly.
-func packExtendedCommunities(comms []attribute.ExtendedCommunity) []byte {
-	if len(comms) == 0 {
-		return nil
-	}
-	buf := make([]byte, len(comms)*8)
-	for i, c := range comms {
-		copy(buf[i*8:], c[:])
-	}
-	return buf
-}
-
 // commonAttrs holds extracted common BGP path attributes.
 // Used to avoid duplicate code in route-to-params conversion functions.
 type commonAttrs struct {
@@ -397,47 +348,6 @@ type commonAttrs struct {
 	Communities       []uint32
 	LargeCommunities  [][3]uint32
 	ExtCommunityBytes []byte
-}
-
-// extractCommonAttrs extracts common attributes from API route types.
-// Handles: Origin, LocalPreference, MED, ASPath, Communities, LargeCommunities, ExtendedCommunities.
-func extractCommonAttrs(
-	origin *uint8,
-	localPref *uint32,
-	med *uint32,
-	asPath []uint32,
-	communities []uint32,
-	largeCommunities []plugin.LargeCommunity,
-	extCommunities []attribute.ExtendedCommunity,
-) commonAttrs {
-	attrs := commonAttrs{
-		Origin:      attribute.OriginIGP,
-		ASPath:      asPath,
-		Communities: communities,
-	}
-
-	if origin != nil {
-		attrs.Origin = attribute.Origin(*origin)
-	}
-	if localPref != nil {
-		attrs.LocalPreference = *localPref
-	}
-	if med != nil {
-		attrs.MED = *med
-	}
-
-	if len(largeCommunities) > 0 {
-		attrs.LargeCommunities = make([][3]uint32, len(largeCommunities))
-		for i, lc := range largeCommunities {
-			attrs.LargeCommunities[i] = [3]uint32{lc.GlobalAdmin, lc.LocalData1, lc.LocalData2}
-		}
-	}
-
-	if len(extCommunities) > 0 {
-		attrs.ExtCommunityBytes = packExtendedCommunities(extCommunities)
-	}
-
-	return attrs
 }
 
 // encodeEVPNRoute parses and encodes an EVPN route command.

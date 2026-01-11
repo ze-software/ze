@@ -129,11 +129,11 @@ func TestServer_HandleStateDown(t *testing.T) {
 	rs.handleState(event)
 
 	output := out.String()
-	// Should have 2 withdraw commands (order may vary)
-	if !strings.Contains(output, "peer !10.0.0.1 withdraw route 10.0.0.0/24 ipv4/unicast") {
+	// Should have 2 withdraw commands using update text syntax (order may vary)
+	if !strings.Contains(output, "peer !10.0.0.1 update text nlri ipv4/unicast del 10.0.0.0/24") {
 		t.Errorf("missing withdraw for 10.0.0.0/24: %s", output)
 	}
-	if !strings.Contains(output, "peer !10.0.0.1 withdraw route 10.0.1.0/24 ipv4/unicast") {
+	if !strings.Contains(output, "peer !10.0.0.1 update text nlri ipv4/unicast del 10.0.1.0/24") {
 		t.Errorf("missing withdraw for 10.0.1.0/24: %s", output)
 	}
 

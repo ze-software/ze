@@ -219,8 +219,8 @@ func TestHandleState_PeerUp(t *testing.T) {
 	r.handleState(event)
 
 	output := out.String()
-	assert.Contains(t, output, "peer 10.0.0.1 announce route 10.0.0.0/24 next-hop 1.1.1.1")
-	assert.Contains(t, output, "peer 10.0.0.1 announce route 10.0.1.0/24 next-hop 1.1.1.1")
+	assert.Contains(t, output, "peer 10.0.0.1 update text nhop set 1.1.1.1 nlri ipv4/unicast add 10.0.0.0/24")
+	assert.Contains(t, output, "peer 10.0.0.1 update text nhop set 1.1.1.1 nlri ipv4/unicast add 10.0.1.0/24")
 	assert.Contains(t, output, "session api ready")
 }
 
@@ -475,12 +475,12 @@ func TestReplayRoutesWithPathID(t *testing.T) {
 
 	output := out.String()
 
-	// Route without path-id should NOT have path-id in command
-	assert.Contains(t, output, "peer 10.0.0.1 announce route 10.0.0.0/24 next-hop 1.1.1.1\n")
+	// Route without path-id should NOT have path-information in command
+	assert.Contains(t, output, "peer 10.0.0.1 update text nhop set 1.1.1.1 nlri ipv4/unicast add 10.0.0.0/24\n")
 
-	// Routes with path-id MUST have path-id in command
-	assert.Contains(t, output, "peer 10.0.0.1 announce route 10.0.0.0/24 path-id 1 next-hop 1.1.1.1")
-	assert.Contains(t, output, "peer 10.0.0.1 announce route 10.0.0.0/24 path-id 2 next-hop 2.2.2.2")
+	// Routes with path-id MUST have path-information in command
+	assert.Contains(t, output, "peer 10.0.0.1 update text path-information set 1 nhop set 1.1.1.1 nlri ipv4/unicast add 10.0.0.0/24")
+	assert.Contains(t, output, "peer 10.0.0.1 update text path-information set 2 nhop set 2.2.2.2 nlri ipv4/unicast add 10.0.0.0/24")
 }
 
 // mustMarshal marshals v to json.RawMessage, failing test on error.
@@ -690,9 +690,10 @@ func TestHandleRequest_RIBAdjacentOutboundResend(t *testing.T) {
 	output := out.String()
 	assert.Contains(t, output, "@resend1 done")
 	// Should have replayed routes for 10.0.0.1
-	assert.Contains(t, output, "peer 10.0.0.1 announce route 10.0.0.0/24")
+	assert.Contains(t, output, "peer 10.0.0.1 update text")
+	assert.Contains(t, output, "nlri ipv4/unicast add 10.0.0.0/24")
 	// Should NOT have replayed routes for 10.0.0.2
-	assert.NotContains(t, output, "peer 10.0.0.2 announce route")
+	assert.NotContains(t, output, "peer 10.0.0.2 update text")
 	// Should NOT send "session api ready" - that's only for reconnect
 	assert.NotContains(t, output, "session api ready")
 }

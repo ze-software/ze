@@ -114,7 +114,7 @@
   "enableAllProjectMcpServers": false,
   "outputStyle": "ZeBGP Terse",
   "sandbox": {
-    "enabled": true,
+    "enabled": false,
     "autoAllowBashIfSandboxed": false
   }
 }

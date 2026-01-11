@@ -27,7 +27,6 @@ package plugin
 import (
 	"errors"
 	"fmt"
-	"net"
 	"net/netip"
 	"strconv"
 	"strings"
@@ -529,14 +528,11 @@ func parseCommonAttributeText(key string, args []string, idx int, attrs *parsedA
 		if idx+1 >= len(args) {
 			return 0, fmt.Errorf("missing extended-community value")
 		}
-		tokens, consumed := parseBracketedListText(args[idx+1:])
-		ecs := make([]attribute.ExtendedCommunity, 0, len(tokens))
-		for _, tok := range tokens {
-			ec, err := parseExtendedCommunityText(tok)
-			if err != nil {
-				return 0, err
-			}
-			ecs = append(ecs, ec)
+		// Use parseExtendedCommunities which handles both function syntax
+		// (traffic-rate, discard, redirect, traffic-marking) and list syntax.
+		ecs, consumed, err := parseExtendedCommunities(args[idx+1:])
+		if err != nil {
+			return 0, err
 		}
 		attrs.ExtendedCommunities = ecs
 		return consumed, nil
@@ -566,8 +562,10 @@ func parseBracketedListText(args []string) ([]string, int) {
 		return nil, 0
 	}
 
-	// Check for opening bracket
-	if args[0] == "[" {
+	first := args[0]
+
+	// Case 1: "[" as separate token
+	if first == "[" {
 		var tokens []string
 		consumed := 1
 		for i := 1; i < len(args); i++ {
@@ -586,9 +584,61 @@ func parseBracketedListText(args []string) ([]string, int) {
 		return tokens, consumed
 	}
 
-	// Single value or comma-separated list
+	// Case 2: "[value]" as single token (entire list in one arg)
+	if strings.HasPrefix(first, "[") && strings.HasSuffix(first, "]") {
+		inner := first[1 : len(first)-1]
+		var tokens []string
+		for _, tok := range strings.Split(inner, " ") {
+			tok = strings.TrimSpace(tok)
+			if tok != "" {
+				tokens = append(tokens, tok)
+			}
+		}
+		return tokens, 1
+	}
+
+	// Case 3: "[value" followed by more tokens then "value]" (brackets attached)
+	if strings.HasPrefix(first, "[") {
+		var tokens []string
+		// First token without leading bracket
+		firstVal := strings.TrimPrefix(first, "[")
+		for _, tok := range strings.Split(firstVal, ",") {
+			tok = strings.TrimSpace(tok)
+			if tok != "" {
+				tokens = append(tokens, tok)
+			}
+		}
+		consumed := 1
+
+		// Continue until we find closing bracket
+		for i := 1; i < len(args); i++ {
+			consumed = i + 1
+			arg := args[i]
+			if strings.HasSuffix(arg, "]") {
+				// Last token - strip trailing bracket
+				lastVal := strings.TrimSuffix(arg, "]")
+				for _, tok := range strings.Split(lastVal, ",") {
+					tok = strings.TrimSpace(tok)
+					if tok != "" {
+						tokens = append(tokens, tok)
+					}
+				}
+				return tokens, consumed
+			}
+			// Middle tokens
+			for _, tok := range strings.Split(arg, ",") {
+				tok = strings.TrimSpace(tok)
+				if tok != "" {
+					tokens = append(tokens, tok)
+				}
+			}
+		}
+		return tokens, consumed
+	}
+
+	// Case 4: Single value or comma-separated list without brackets
 	var tokens []string
-	for _, tok := range strings.Split(args[0], ",") {
+	for _, tok := range strings.Split(first, ",") {
 		tok = strings.TrimSpace(tok)
 		if tok != "" {
 			tokens = append(tokens, tok)
@@ -644,105 +694,6 @@ func parseLargeCommunityText(s string) (LargeCommunity, error) {
 		return LargeCommunity{}, fmt.Errorf("invalid large-community local-data-2: %s", parts[2])
 	}
 	return LargeCommunity{GlobalAdmin: uint32(ga), LocalData1: uint32(ld1), LocalData2: uint32(ld2)}, nil
-}
-
-// parseExtendedCommunityText parses extended community in type:value format.
-func parseExtendedCommunityText(s string) (attribute.ExtendedCommunity, error) {
-	// Try target:ASN:value or target:IP:value format
-	if strings.HasPrefix(strings.ToLower(s), "target:") {
-		rest := s[7:]
-		return parseRouteTargetText(rest)
-	}
-	// Try origin:ASN:value format
-	if strings.HasPrefix(strings.ToLower(s), "origin:") {
-		rest := s[7:]
-		return parseRouteOriginText(rest)
-	}
-	// Default: try as route target
-	return parseRouteTargetText(s)
-}
-
-// parseRouteTargetText parses route target in ASN:value or IP:value format.
-// ExtendedCommunity is [8]byte: [type, subtype, value[0:6]]
-func parseRouteTargetText(s string) (attribute.ExtendedCommunity, error) {
-	parts := strings.SplitN(s, ":", 2)
-	if len(parts) != 2 {
-		return attribute.ExtendedCommunity{}, fmt.Errorf("invalid route-target format: %s", s)
-	}
-
-	// Try IP:value first
-	ip := net.ParseIP(parts[0])
-	if ip != nil && ip.To4() != nil {
-		val, err := strconv.ParseUint(parts[1], 10, 16)
-		if err != nil {
-			return attribute.ExtendedCommunity{}, fmt.Errorf("invalid route-target value: %s", parts[1])
-		}
-		ipBytes := ip.To4()
-		// IPv4-specific RT: type=0x01, subtype=0x02
-		return attribute.ExtendedCommunity{
-			0x01, 0x02,
-			ipBytes[0], ipBytes[1], ipBytes[2], ipBytes[3],
-			byte(val >> 8), byte(val),
-		}, nil
-	}
-
-	// ASN:value format
-	asn, err := strconv.ParseUint(parts[0], 10, 32)
-	if err != nil {
-		return attribute.ExtendedCommunity{}, fmt.Errorf("invalid route-target ASN: %s", parts[0])
-	}
-	val, err := strconv.ParseUint(parts[1], 10, 32)
-	if err != nil {
-		return attribute.ExtendedCommunity{}, fmt.Errorf("invalid route-target value: %s", parts[1])
-	}
-
-	if asn <= 0xFFFF {
-		// 2-byte ASN : 4-byte value (type=0x00, subtype=0x02)
-		return attribute.ExtendedCommunity{
-			0x00, 0x02,
-			byte(asn >> 8), byte(asn),
-			byte(val >> 24), byte(val >> 16), byte(val >> 8), byte(val),
-		}, nil
-	}
-	// 4-byte ASN : 2-byte value (type=0x02, subtype=0x02)
-	return attribute.ExtendedCommunity{
-		0x02, 0x02,
-		byte(asn >> 24), byte(asn >> 16), byte(asn >> 8), byte(asn),
-		byte(val >> 8), byte(val),
-	}, nil
-}
-
-// parseRouteOriginText parses route origin in ASN:value format.
-// ExtendedCommunity is [8]byte: [type, subtype, value[0:6]]
-func parseRouteOriginText(s string) (attribute.ExtendedCommunity, error) {
-	parts := strings.SplitN(s, ":", 2)
-	if len(parts) != 2 {
-		return attribute.ExtendedCommunity{}, fmt.Errorf("invalid route-origin format: %s", s)
-	}
-
-	asn, err := strconv.ParseUint(parts[0], 10, 32)
-	if err != nil {
-		return attribute.ExtendedCommunity{}, fmt.Errorf("invalid route-origin ASN: %s", parts[0])
-	}
-	val, err := strconv.ParseUint(parts[1], 10, 32)
-	if err != nil {
-		return attribute.ExtendedCommunity{}, fmt.Errorf("invalid route-origin value: %s", parts[1])
-	}
-
-	if asn <= 0xFFFF {
-		// 2-byte ASN : 4-byte value (type=0x00, subtype=0x03)
-		return attribute.ExtendedCommunity{
-			0x00, 0x03,
-			byte(asn >> 8), byte(asn),
-			byte(val >> 24), byte(val >> 16), byte(val >> 8), byte(val),
-		}, nil
-	}
-	// 4-byte ASN : 2-byte value (type=0x02, subtype=0x03)
-	return attribute.ExtendedCommunity{
-		0x02, 0x03,
-		byte(asn >> 24), byte(asn >> 16), byte(asn >> 8), byte(asn),
-		byte(val >> 8), byte(val),
-	}, nil
 }
 
 // ParseUpdateText parses the "update text" command format.

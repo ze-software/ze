@@ -289,40 +289,11 @@ func TestCommitConcurrent(t *testing.T) {
 	require.NoError(t, err)
 }
 
-// TestCommitAnnounceRoute verifies queuing routes to a commit.
-//
-// VALIDATES: Route is queued to transaction.
-// PREVENTS: Routes being lost or sent prematurely.
-func TestCommitAnnounceRoute(t *testing.T) {
-	ctx := testCommitContext()
+// TestCommitAnnounceRoute removed: "commit announce route" syntax removed.
+// Use "update text" syntax instead for route announcements.
 
-	_, err := handleCommit(ctx, []string{"batch1", "start"})
-	require.NoError(t, err)
-
-	resp, err := handleCommit(ctx, []string{"batch1", "announce", "route", "10.0.0.0/24", "next-hop", "192.168.1.1"})
-	require.NoError(t, err)
-	assert.Equal(t, "done", resp.Status)
-
-	// Verify route queued
-	tx, _ := ctx.CommitManager.Get("batch1")
-	assert.Equal(t, 1, tx.Count())
-}
-
-// TestCommitAnnounceMultipleRoutes verifies multiple routes can be queued.
-//
-// VALIDATES: Multiple routes accumulate in transaction.
-// PREVENTS: Routes overwriting each other incorrectly.
-func TestCommitAnnounceMultipleRoutes(t *testing.T) {
-	ctx := testCommitContext()
-
-	_, _ = handleCommit(ctx, []string{"batch1", "start"})
-	_, _ = handleCommit(ctx, []string{"batch1", "announce", "route", "10.0.0.0/24", "next-hop", "192.168.1.1"})
-	_, _ = handleCommit(ctx, []string{"batch1", "announce", "route", "10.1.0.0/24", "next-hop", "192.168.1.1"})
-	_, _ = handleCommit(ctx, []string{"batch1", "announce", "route", "10.2.0.0/24", "next-hop", "192.168.1.1"})
-
-	tx, _ := ctx.CommitManager.Get("batch1")
-	assert.Equal(t, 3, tx.Count())
-}
+// TestCommitAnnounceMultipleRoutes removed: "commit announce route" syntax removed.
+// Use "update text" syntax instead for route announcements.
 
 // TestCommitWithdrawRoute verifies queuing withdrawals to a commit.
 //
@@ -343,56 +314,12 @@ func TestCommitWithdrawRoute(t *testing.T) {
 	assert.Equal(t, 1, tx.WithdrawalCount())
 }
 
-// TestCommitAnnounceNoCommit verifies error when commit doesn't exist.
-//
-// VALIDATES: Error returned for non-existent commit.
-// PREVENTS: Routes being lost silently.
-func TestCommitAnnounceNoCommit(t *testing.T) {
-	ctx := testCommitContext()
+// TestCommitAnnounceNoCommit removed: "commit announce route" syntax removed.
+// Use "update text" syntax instead for route announcements.
 
-	resp, err := handleCommit(ctx, []string{"nonexistent", "announce", "route", "10.0.0.0/24", "next-hop", "192.168.1.1"})
+// TestCommitAnnounceMissingNextHop removed: "commit announce route" syntax removed.
+// Use "update text" syntax instead for route announcements.
 
-	require.Error(t, err)
-	assert.Equal(t, "error", resp.Status)
-	assert.Contains(t, resp.Data.(string), "not found") //nolint:forcetypeassert // test code
-}
-
-// TestCommitAnnounceMissingNextHop verifies error when next-hop is missing.
-//
-// VALIDATES: Error returned for missing next-hop.
-// PREVENTS: Invalid routes being queued.
-func TestCommitAnnounceMissingNextHop(t *testing.T) {
-	ctx := testCommitContext()
-
-	_, _ = handleCommit(ctx, []string{"batch1", "start"})
-
-	resp, err := handleCommit(ctx, []string{"batch1", "announce", "route", "10.0.0.0/24"})
-
-	require.Error(t, err)
-	assert.Equal(t, "error", resp.Status)
-}
-
-// TestCommitEndWithRoutes verifies routes are sent on commit end.
-//
-// VALIDATES: Routes sent via SendRoutes on commit end.
-// PREVENTS: Routes being queued but never sent.
-func TestCommitEndWithRoutes(t *testing.T) {
-	ctx := testCommitContext()
-
-	_, _ = handleCommit(ctx, []string{"batch1", "start"})
-	_, _ = handleCommit(ctx, []string{"batch1", "announce", "route", "10.0.0.0/24", "next-hop", "192.168.1.1"})
-	_, _ = handleCommit(ctx, []string{"batch1", "announce", "route", "10.1.0.0/24", "next-hop", "192.168.1.1"})
-
-	resp, err := handleCommit(ctx, []string{"batch1", "end"})
-
-	require.NoError(t, err)
-	assert.Equal(t, "done", resp.Status)
-
-	data, ok := resp.Data.(map[string]any)
-	require.True(t, ok)
-	assert.Equal(t, 2, data["routes_announced"])
-
-	// Commit should be removed
-	_, err = ctx.CommitManager.Get("batch1")
-	require.Error(t, err)
-}
+// TestCommitEndWithRoutes removed: "commit announce route" syntax removed.
+// Use "update text" syntax instead for route announcements.
+// Commit end with withdrawals is tested in TestCommitWithdrawRoute.

@@ -36,15 +36,15 @@ func TestBuilderLocalPref(t *testing.T) {
 
 	wire := b.Build()
 
-	// Should have ORIGIN (4 bytes) + LOCAL_PREF (7 bytes)
-	require.Len(t, wire, 11)
+	// Should have LOCAL_PREF (7 bytes) only
+	require.Len(t, wire, 7)
 
-	// Check LOCAL_PREF at offset 4
-	assert.Equal(t, byte(0x40), wire[4]) // Transitive
-	assert.Equal(t, byte(5), wire[5])    // LOCAL_PREF
-	assert.Equal(t, byte(4), wire[6])    // Length
+	// Check LOCAL_PREF at offset 0
+	assert.Equal(t, byte(0x40), wire[0]) // Transitive
+	assert.Equal(t, byte(5), wire[1])    // LOCAL_PREF
+	assert.Equal(t, byte(4), wire[2])    // Length
 	// Value: 200 = 0x000000C8
-	assert.Equal(t, []byte{0, 0, 0, 200}, wire[7:11])
+	assert.Equal(t, []byte{0, 0, 0, 200}, wire[3:7])
 }
 
 // TestBuilderMED verifies MED attribute encoding.
@@ -57,14 +57,14 @@ func TestBuilderMED(t *testing.T) {
 
 	wire := b.Build()
 
-	// Should have ORIGIN (4 bytes) + MED (7 bytes)
-	require.Len(t, wire, 11)
+	// Should have MED (7 bytes) only
+	require.Len(t, wire, 7)
 
-	// Check MED at offset 4
-	assert.Equal(t, byte(0x80), wire[4]) // Optional
-	assert.Equal(t, byte(4), wire[5])    // MED
-	assert.Equal(t, byte(4), wire[6])    // Length
-	assert.Equal(t, []byte{0, 0, 0, 100}, wire[7:11])
+	// Check MED at offset 0
+	assert.Equal(t, byte(0x80), wire[0]) // Optional
+	assert.Equal(t, byte(4), wire[1])    // MED
+	assert.Equal(t, byte(4), wire[2])    // Length
+	assert.Equal(t, []byte{0, 0, 0, 100}, wire[3:7])
 }
 
 // TestBuilderASPath verifies AS_PATH attribute encoding.
@@ -77,17 +77,17 @@ func TestBuilderASPath(t *testing.T) {
 
 	wire := b.Build()
 
-	// ORIGIN (4) + AS_PATH header (3) + segment header (2) + 2 ASNs (8) = 17
-	require.Len(t, wire, 17)
+	// AS_PATH header (3) + segment header (2) + 2 ASNs (8) = 13
+	require.Len(t, wire, 13)
 
-	// Check AS_PATH starts at offset 4
-	assert.Equal(t, byte(0x40), wire[4])                   // Transitive
-	assert.Equal(t, byte(2), wire[5])                      // AS_PATH
-	assert.Equal(t, byte(10), wire[6])                     // Length: 2 + 4*2 = 10
-	assert.Equal(t, byte(ASSequence), wire[7])             // Segment type
-	assert.Equal(t, byte(2), wire[8])                      // Segment count
-	assert.Equal(t, []byte{0, 0, 0xFD, 0xE9}, wire[9:13])  // 65001
-	assert.Equal(t, []byte{0, 0, 0xFD, 0xEA}, wire[13:17]) // 65002
+	// Check AS_PATH starts at offset 0
+	assert.Equal(t, byte(0x40), wire[0])                  // Transitive
+	assert.Equal(t, byte(2), wire[1])                     // AS_PATH
+	assert.Equal(t, byte(10), wire[2])                    // Length: 2 + 4*2 = 10
+	assert.Equal(t, byte(ASSequence), wire[3])            // Segment type
+	assert.Equal(t, byte(2), wire[4])                     // Segment count
+	assert.Equal(t, []byte{0, 0, 0xFD, 0xE9}, wire[5:9])  // 65001
+	assert.Equal(t, []byte{0, 0, 0xFD, 0xEA}, wire[9:13]) // 65002
 }
 
 // TestBuilderCommunities verifies COMMUNITY attribute encoding.
@@ -101,17 +101,17 @@ func TestBuilderCommunities(t *testing.T) {
 
 	wire := b.Build()
 
-	// ORIGIN (4) + COMMUNITY header (3) + 2 communities (8) = 15
-	require.Len(t, wire, 15)
+	// COMMUNITY header (3) + 2 communities (8) = 11
+	require.Len(t, wire, 11)
 
-	// Check COMMUNITY starts at offset 4
-	assert.Equal(t, byte(0xC0), wire[4]) // Optional + Transitive
-	assert.Equal(t, byte(8), wire[5])    // COMMUNITY
-	assert.Equal(t, byte(8), wire[6])    // Length: 2 * 4 = 8
+	// Check COMMUNITY starts at offset 0
+	assert.Equal(t, byte(0xC0), wire[0]) // Optional + Transitive
+	assert.Equal(t, byte(8), wire[1])    // COMMUNITY
+	assert.Equal(t, byte(8), wire[2])    // Length: 2 * 4 = 8
 	// First community: 65000:100 = 0xFDE80064
-	assert.Equal(t, []byte{0xFD, 0xE8, 0, 100}, wire[7:11])
+	assert.Equal(t, []byte{0xFD, 0xE8, 0, 100}, wire[3:7])
 	// Second community: 65000:200 = 0xFDE800C8
-	assert.Equal(t, []byte{0xFD, 0xE8, 0, 200}, wire[11:15])
+	assert.Equal(t, []byte{0xFD, 0xE8, 0, 200}, wire[7:11])
 }
 
 // TestBuilderLargeCommunities verifies LARGE_COMMUNITY encoding.
@@ -124,13 +124,13 @@ func TestBuilderLargeCommunities(t *testing.T) {
 
 	wire := b.Build()
 
-	// ORIGIN (4) + LARGE_COMMUNITY header (3) + 1 large community (12) = 19
-	require.Len(t, wire, 19)
+	// LARGE_COMMUNITY header (3) + 1 large community (12) = 15
+	require.Len(t, wire, 15)
 
-	// Check LARGE_COMMUNITY starts at offset 4
-	assert.Equal(t, byte(0xC0), wire[4]) // Optional + Transitive
-	assert.Equal(t, byte(32), wire[5])   // LARGE_COMMUNITY
-	assert.Equal(t, byte(12), wire[6])   // Length
+	// Check LARGE_COMMUNITY starts at offset 0
+	assert.Equal(t, byte(0xC0), wire[0]) // Optional + Transitive
+	assert.Equal(t, byte(32), wire[1])   // LARGE_COMMUNITY
+	assert.Equal(t, byte(12), wire[2])   // Length
 }
 
 // TestBuilderChaining verifies method chaining.
@@ -152,15 +152,14 @@ func TestBuilderChaining(t *testing.T) {
 
 // TestBuilderEmpty verifies empty builder behavior.
 //
-// VALIDATES: Empty builder still produces ORIGIN.
-// PREVENTS: Missing mandatory attributes.
+// VALIDATES: Empty builder produces no attributes.
+// PREVENTS: Unexpected default attributes.
 func TestBuilderEmpty(t *testing.T) {
 	b := NewBuilder()
 	wire := b.Build()
 
-	// Should have ORIGIN with default IGP
-	require.Len(t, wire, 4)
-	assert.Equal(t, byte(0), wire[3]) // IGP
+	// Empty builder produces no wire bytes
+	require.Len(t, wire, 0)
 }
 
 // TestBuilderWirePassthrough verifies wire passthrough.
@@ -190,8 +189,8 @@ func TestBuilderReset(t *testing.T) {
 
 	assert.True(t, b.IsEmpty())
 	wire := b.Build()
-	// Should just have default ORIGIN
-	assert.Len(t, wire, 4)
+	// Should produce empty wire after reset
+	assert.Len(t, wire, 0)
 }
 
 // TestBuilderNextHop verifies NEXT_HOP attribute encoding.
@@ -204,14 +203,14 @@ func TestBuilderNextHop(t *testing.T) {
 
 	wire := b.Build()
 
-	// ORIGIN (4) + NEXT_HOP (7) = 11
-	require.Len(t, wire, 11)
+	// NEXT_HOP (7) only
+	require.Len(t, wire, 7)
 
-	// Check NEXT_HOP at offset 4
-	assert.Equal(t, byte(0x40), wire[4])              // Transitive
-	assert.Equal(t, byte(3), wire[5])                 // NEXT_HOP
-	assert.Equal(t, byte(4), wire[6])                 // Length
-	assert.Equal(t, []byte{192, 168, 1, 1}, wire[7:]) // IP address
+	// Check NEXT_HOP at offset 0
+	assert.Equal(t, byte(0x40), wire[0])              // Transitive
+	assert.Equal(t, byte(3), wire[1])                 // NEXT_HOP
+	assert.Equal(t, byte(4), wire[2])                 // Length
+	assert.Equal(t, []byte{192, 168, 1, 1}, wire[3:]) // IP address
 }
 
 // TestBuilderNextHopAddr verifies NEXT_HOP from netip.Addr.
@@ -225,8 +224,10 @@ func TestBuilderNextHopAddr(t *testing.T) {
 
 	wire := b.Build()
 
+	// NEXT_HOP (7) only
+	require.Len(t, wire, 7)
 	// Check NEXT_HOP value
-	assert.Equal(t, []byte{10, 0, 0, 1}, wire[7:11])
+	assert.Equal(t, []byte{10, 0, 0, 1}, wire[3:7])
 }
 
 // TestBuilderNextHopAddrIPv6Ignored verifies IPv6 is ignored for NEXT_HOP.
@@ -240,8 +241,8 @@ func TestBuilderNextHopAddrIPv6Ignored(t *testing.T) {
 
 	wire := b.Build()
 
-	// Should only have ORIGIN (no NEXT_HOP for IPv6)
-	assert.Len(t, wire, 4)
+	// Should produce empty wire (no NEXT_HOP for IPv6)
+	assert.Len(t, wire, 0)
 }
 
 // TestBuilderLen verifies Len() returns correct size.
