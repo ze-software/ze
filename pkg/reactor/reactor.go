@@ -1786,7 +1786,7 @@ func (a *reactorAPIAdapter) buildBatchAnnounceUpdate(batch plugin.NLRIBatch, nex
 	// Wire mode: ensure mandatory attributes present, then add NEXT_HOP or MP_REACH_NLRI
 	if batch.Wire != nil {
 		wireAttrs := a.ensureMandatoryAttrs(batch.Wire, isIBGP, asn4)
-		return a.buildWireModeUpdate(wireAttrs, nlriBytes, batch.Family, nextHop)
+		return a.buildWireModeUpdate(wireAttrs, nlriBytes, batch.Family, nextHop, isIBGP)
 	}
 
 	// Builder mode or default: build attributes from Builder or defaults
@@ -1800,50 +1800,140 @@ func (a *reactorAPIAdapter) buildBatchAnnounceUpdate(batch plugin.NLRIBatch, nex
 		attrBytes = b.Build()
 	}
 
+	// Ensure ORIGIN and AS_PATH are present (Builder may not include AS_PATH)
+	wire := attribute.NewAttributesWire(attrBytes, 0)
+	wireAttrs := a.ensureMandatoryAttrs(wire, isIBGP, asn4)
+
 	// Add NEXT_HOP or MP_REACH_NLRI
-	return a.buildWireModeUpdate(attrBytes, nlriBytes, batch.Family, nextHop)
+	return a.buildWireModeUpdate(wireAttrs, nlriBytes, batch.Family, nextHop, isIBGP)
 }
 
 // buildWireModeUpdate builds UPDATE using raw wire attribute bytes.
 // Adds NEXT_HOP (IPv4 unicast) or MP_REACH_NLRI (other families) to wire attrs.
 // Wire attrs are assumed to NOT contain NEXT_HOP or MP_REACH_NLRI.
-func (a *reactorAPIAdapter) buildWireModeUpdate(wireAttrs, nlriBytes []byte, family nlri.Family, nextHop netip.Addr) *message.Update {
+// RFC 4271: NEXT_HOP (type 3) must come after AS_PATH (type 2) but before other attrs.
+// RFC 4271 §5.1.5: LOCAL_PREF is well-known mandatory for iBGP sessions.
+func (a *reactorAPIAdapter) buildWireModeUpdate(wireAttrs, nlriBytes []byte, family nlri.Family, nextHop netip.Addr, isIBGP bool) *message.Update {
 	isIPv4Unicast := family == nlri.IPv4Unicast
 
 	if isIPv4Unicast {
-		// IPv4 unicast: append NEXT_HOP to wire attrs, NLRI in NLRI field
+		// IPv4 unicast: insert NEXT_HOP after AS_PATH for correct type code order
+		// Wire attrs from ensureMandatoryAttrs: ORIGIN (4) + AS_PATH (variable) + rest
+		insertPos := a.findNextHopInsertPosition(wireAttrs)
+
+		// Check if LOCAL_PREF is already present in wireAttrs
+		hasLocalPref := a.hasAttribute(wireAttrs, attribute.AttrLocalPref)
+
 		nh := &attribute.NextHop{Addr: nextHop}
-		attrBytes := make([]byte, len(wireAttrs)+8) // NEXT_HOP is 7 bytes (3 header + 4 IP)
-		copy(attrBytes, wireAttrs)
-		attrLen := len(wireAttrs) + attribute.WriteAttrTo(nh, attrBytes, len(wireAttrs))
+		nhSize := 7 // NEXT_HOP is 7 bytes (3 header + 4 IP)
+
+		// For iBGP without LOCAL_PREF, add default LOCAL_PREF=100
+		lpSize := 0
+		if isIBGP && !hasLocalPref {
+			lpSize = 7 // LOCAL_PREF is 7 bytes (3 header + 4 value)
+		}
+
+		attrBytes := make([]byte, len(wireAttrs)+nhSize+lpSize)
+
+		// Copy attrs before NEXT_HOP position
+		copy(attrBytes, wireAttrs[:insertPos])
+		off := insertPos
+
+		// Write NEXT_HOP
+		attribute.WriteAttrTo(nh, attrBytes, off)
+		off += nhSize
+
+		// Copy remaining attrs (after insert position)
+		copy(attrBytes[off:], wireAttrs[insertPos:])
+		off += len(wireAttrs) - insertPos
+
+		// Append LOCAL_PREF=100 at end if needed for iBGP
+		// Note: LOCAL_PREF (type 5) comes after NEXT_HOP (type 3) and MED (type 4)
+		if isIBGP && !hasLocalPref {
+			lp := attribute.LocalPref(100)
+			attribute.WriteAttrTo(lp, attrBytes, off)
+		}
 
 		return &message.Update{
-			PathAttributes: attrBytes[:attrLen],
+			PathAttributes: attrBytes,
 			NLRI:           nlriBytes,
 		}
 	}
 
-	// Non-IPv4 unicast: append MP_REACH_NLRI to wire attrs
+	// Non-IPv4 unicast: append MP_REACH_NLRI and LOCAL_PREF to wire attrs
 	mpReach := &attribute.MPReachNLRI{
 		AFI:      attribute.AFI(family.AFI),
 		SAFI:     attribute.SAFI(family.SAFI),
 		NextHops: []netip.Addr{nextHop},
 		NLRI:     nlriBytes,
 	}
+
+	// Check if LOCAL_PREF is already present
+	hasLocalPref := a.hasAttribute(wireAttrs, attribute.AttrLocalPref)
+
+	// For iBGP without LOCAL_PREF, add default LOCAL_PREF=100
+	lpSize := 0
+	if isIBGP && !hasLocalPref {
+		lpSize = 7 // LOCAL_PREF is 7 bytes (3 header + 4 value)
+	}
+
 	// MP_REACH_NLRI size: 4 header + 2 AFI + 1 SAFI + 1 NH-len + 32 NH (IPv6 global+link-local) + 1 reserved + NLRI
-	attrBytes := make([]byte, len(wireAttrs)+len(nlriBytes)+48)
+	attrBytes := make([]byte, len(wireAttrs)+len(nlriBytes)+48+lpSize)
 	copy(attrBytes, wireAttrs)
-	attrLen := len(wireAttrs) + attribute.WriteAttrTo(mpReach, attrBytes, len(wireAttrs))
+	off := len(wireAttrs)
+
+	// Add LOCAL_PREF for iBGP before MP_REACH_NLRI
+	if isIBGP && !hasLocalPref {
+		lp := attribute.LocalPref(100)
+		off += attribute.WriteAttrTo(lp, attrBytes, off)
+	}
+
+	// MP_REACH_NLRI at end
+	attrLen := off + attribute.WriteAttrTo(mpReach, attrBytes, off)
 
 	return &message.Update{
 		PathAttributes: attrBytes[:attrLen],
 	}
 }
 
+// hasAttribute checks if an attribute type is present in wire attrs.
+func (a *reactorAPIAdapter) hasAttribute(wireAttrs []byte, typeCode attribute.AttributeCode) bool {
+	pos := 0
+	for pos < len(wireAttrs) {
+		if pos+2 > len(wireAttrs) {
+			break
+		}
+		flags := wireAttrs[pos]
+		tc := wireAttrs[pos+1]
+		_ = flags // used for length calculation below
+
+		if attribute.AttributeCode(tc) == typeCode {
+			return true
+		}
+
+		// Calculate attribute length to skip to next
+		var attrLen int
+		if flags&0x10 != 0 { // Extended length
+			if pos+4 > len(wireAttrs) {
+				break
+			}
+			attrLen = 4 + int(binary.BigEndian.Uint16(wireAttrs[pos+2:]))
+		} else {
+			if pos+3 > len(wireAttrs) {
+				break
+			}
+			attrLen = 3 + int(wireAttrs[pos+2])
+		}
+		pos += attrLen
+	}
+	return false
+}
+
 // ensureMandatoryAttrs ensures ORIGIN and AS_PATH are present in wire attributes.
 // RFC 4271 Section 5.1.1: ORIGIN is a well-known mandatory attribute.
 // RFC 4271 Section 5.1.2: AS_PATH is a well-known mandatory attribute.
-// If missing, prepends with defaults: ORIGIN=IGP, AS_PATH per iBGP/eBGP rules.
+// RFC 4271 Section 5.1: Attributes must appear in type code order.
+// If missing, adds defaults: ORIGIN=IGP, AS_PATH per iBGP/eBGP rules.
 func (a *reactorAPIAdapter) ensureMandatoryAttrs(wire *attribute.AttributesWire, isIBGP, asn4 bool) []byte {
 	hasOrigin, _ := wire.Has(attribute.AttrOrigin)
 	hasASPath, _ := wire.Has(attribute.AttrASPath)
@@ -1854,64 +1944,131 @@ func (a *reactorAPIAdapter) ensureMandatoryAttrs(wire *attribute.AttributesWire,
 
 	packed := wire.Packed()
 
-	// Calculate prepend size
-	var prependSize int
-	if !hasOrigin {
-		prependSize += 4 // ORIGIN: flag + type + len + value
-	}
+	// Calculate AS_PATH size
+	var asPathSize int
 	if !hasASPath {
 		switch {
 		case isIBGP:
-			prependSize += 3 // Empty AS_PATH: flag + type + len(0)
+			asPathSize = 3 // Empty AS_PATH: flag + type + len(0)
 		case asn4:
-			prependSize += 3 + 2 + 4 // Header + segment header + 4-byte AS
+			asPathSize = 3 + 2 + 4 // Header + segment header + 4-byte AS
 		default:
-			prependSize += 3 + 2 + 2 // Header + segment header + 2-byte AS
+			asPathSize = 3 + 2 + 2 // Header + segment header + 2-byte AS
 		}
 	}
 
-	result := make([]byte, prependSize+len(packed))
-	off := 0
+	// Case 1: Both missing - prepend ORIGIN + AS_PATH
+	if !hasOrigin && !hasASPath {
+		result := make([]byte, 4+asPathSize+len(packed))
+		off := 0
 
-	// Prepend ORIGIN=IGP if missing
-	if !hasOrigin {
+		// ORIGIN=IGP
 		result[off] = 0x40 // Transitive
 		result[off+1] = 1  // ORIGIN
 		result[off+2] = 1  // Length
 		result[off+3] = 0  // IGP
 		off += 4
+
+		// AS_PATH
+		off += a.writeASPath(result[off:], isIBGP, asn4)
+
+		copy(result[off:], packed)
+		return result
 	}
 
-	// Prepend AS_PATH if missing
-	// RFC 4271 §5.1.2: iBGP = empty, eBGP = prepend local AS
-	if !hasASPath {
-		switch {
-		case isIBGP:
-			result[off] = 0x40 // Transitive
-			result[off+1] = 2  // AS_PATH
-			result[off+2] = 0  // Length = 0 (empty)
-			off += 3
-		case asn4:
-			result[off] = 0x40 // Transitive
-			result[off+1] = 2  // AS_PATH
-			result[off+2] = 6  // Length: 2 (segment header) + 4 (ASN)
-			result[off+3] = byte(attribute.ASSequence)
-			result[off+4] = 1 // Count = 1
-			binary.BigEndian.PutUint32(result[off+5:], a.r.config.LocalAS)
-			off += 9
-		default:
-			result[off] = 0x40 // Transitive
-			result[off+1] = 2  // AS_PATH
-			result[off+2] = 4  // Length: 2 (segment header) + 2 (ASN)
-			result[off+3] = byte(attribute.ASSequence)
-			result[off+4] = 1                                                      // Count = 1
-			binary.BigEndian.PutUint16(result[off+5:], uint16(a.r.config.LocalAS)) //nolint:gosec
-			off += 7
-		}
+	// Case 2: Only ORIGIN missing - prepend ORIGIN, copy rest
+	if !hasOrigin {
+		result := make([]byte, 4+len(packed))
+		result[0] = 0x40 // Transitive
+		result[1] = 1    // ORIGIN
+		result[2] = 1    // Length
+		result[3] = 0    // IGP
+		copy(result[4:], packed)
+		return result
 	}
 
-	copy(result[off:], packed)
+	// Case 3: Only AS_PATH missing - insert after ORIGIN
+	// RFC 4271: attributes must be in type code order (ORIGIN=1, AS_PATH=2)
+	// Find the end of ORIGIN attribute (4 bytes: flag + type + len + value)
+	originEnd := 4 // ORIGIN is always 4 bytes
+
+	result := make([]byte, len(packed)+asPathSize)
+	off := 0
+
+	// Copy ORIGIN
+	copy(result[off:], packed[:originEnd])
+	off += originEnd
+
+	// Insert AS_PATH
+	off += a.writeASPath(result[off:], isIBGP, asn4)
+
+	// Copy remaining attributes
+	copy(result[off:], packed[originEnd:])
 	return result
+}
+
+// findNextHopInsertPosition finds where to insert NEXT_HOP (type 3) in wire attrs.
+// RFC 4271: attributes should be in type code order.
+// Returns position after AS_PATH (type 2) or at end if no attrs with type > 2.
+func (a *reactorAPIAdapter) findNextHopInsertPosition(wireAttrs []byte) int {
+	pos := 0
+	for pos < len(wireAttrs) {
+		if pos+2 > len(wireAttrs) {
+			break
+		}
+		flags := wireAttrs[pos]
+		typeCode := wireAttrs[pos+1]
+
+		// If we find an attr with type >= 3, insert NEXT_HOP here
+		if typeCode >= 3 {
+			return pos
+		}
+
+		// Calculate attribute length
+		var attrLen int
+		if flags&0x10 != 0 { // Extended length
+			if pos+4 > len(wireAttrs) {
+				break
+			}
+			attrLen = 4 + int(binary.BigEndian.Uint16(wireAttrs[pos+2:]))
+		} else {
+			if pos+3 > len(wireAttrs) {
+				break
+			}
+			attrLen = 3 + int(wireAttrs[pos+2])
+		}
+
+		pos += attrLen
+	}
+	// No attr with type >= 3 found, insert at end
+	return pos
+}
+
+// writeASPath writes AS_PATH attribute to buf, returning bytes written.
+func (a *reactorAPIAdapter) writeASPath(buf []byte, isIBGP, asn4 bool) int {
+	switch {
+	case isIBGP:
+		buf[0] = 0x40 // Transitive
+		buf[1] = 2    // AS_PATH
+		buf[2] = 0    // Length = 0 (empty)
+		return 3
+	case asn4:
+		buf[0] = 0x40 // Transitive
+		buf[1] = 2    // AS_PATH
+		buf[2] = 6    // Length: 2 (segment header) + 4 (ASN)
+		buf[3] = byte(attribute.ASSequence)
+		buf[4] = 1 // Count = 1
+		binary.BigEndian.PutUint32(buf[5:], a.r.config.LocalAS)
+		return 9
+	default:
+		buf[0] = 0x40 // Transitive
+		buf[1] = 2    // AS_PATH
+		buf[2] = 4    // Length: 2 (segment header) + 2 (ASN)
+		buf[3] = byte(attribute.ASSequence)
+		buf[4] = 1                                                      // Count = 1
+		binary.BigEndian.PutUint16(buf[5:], uint16(a.r.config.LocalAS)) //nolint:gosec
+		return 7
+	}
 }
 
 // buildBatchWithdrawUpdate builds an UPDATE message for withdrawing a batch of NLRIs.
