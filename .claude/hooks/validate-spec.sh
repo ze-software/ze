@@ -115,7 +115,7 @@ if [[ ${#ERRORS[@]} -gt 0 ]]; then
     fi
     echo "" >&2
     echo -e "  ${YELLOW}See: .claude/rules/planning.md${RESET}" >&2
-    exit 1
+    exit 2  # Exit 2 = BLOCKING (stops the operation)
 fi
 
 if [[ ${#WARNINGS[@]} -gt 0 ]]; then
