@@ -27,8 +27,8 @@ func TestParseUpdateWire_HexAttrs(t *testing.T) {
 	}, WireEncodingHex)
 	require.NoError(t, err)
 	require.Len(t, result.Groups, 1)
-	require.NotNil(t, result.Groups[0].Attrs.Wire)
-	assert.Equal(t, []byte{0x40, 0x01, 0x01}, result.Groups[0].Attrs.Wire.Packed())
+	require.NotNil(t, result.Groups[0].Wire)
+	assert.Equal(t, []byte{0x40, 0x01, 0x01}, result.Groups[0].Wire.Packed())
 }
 
 // TestParseUpdateWire_HexNLRI verifies hex NLRI decoding and splitting.
@@ -118,8 +118,8 @@ func TestParseUpdateWire_B64Attrs(t *testing.T) {
 	}, WireEncodingB64)
 	require.NoError(t, err)
 	require.Len(t, result.Groups, 1)
-	require.NotNil(t, result.Groups[0].Attrs.Wire)
-	assert.Equal(t, []byte{0x40, 0x01, 0x01}, result.Groups[0].Attrs.Wire.Packed())
+	require.NotNil(t, result.Groups[0].Wire)
+	assert.Equal(t, []byte{0x40, 0x01, 0x01}, result.Groups[0].Wire.Packed())
 }
 
 // TestParseUpdateWire_B64NLRI verifies base64 NLRI decoding.
@@ -214,7 +214,7 @@ func TestParseUpdateWire_SpacesStripped(t *testing.T) {
 	}, WireEncodingHex)
 	require.NoError(t, err)
 	require.Len(t, result.Groups, 1)
-	assert.Equal(t, []byte{0x40, 0x01, 0x01}, result.Groups[0].Attrs.Wire.Packed())
+	assert.Equal(t, []byte{0x40, 0x01, 0x01}, result.Groups[0].Wire.Packed())
 }
 
 // TestParseUpdateWire_MultipleNLRI verifies concatenated NLRIs are split.
@@ -432,8 +432,8 @@ func TestHandleUpdateHex_Integration(t *testing.T) {
 	require.Len(t, reactor.announcedBatches, 1)
 	batch := reactor.announcedBatches[0].batch
 	assert.Equal(t, nlri.IPv4Unicast, batch.Family)
-	require.NotNil(t, batch.Attrs.Wire, "Wire attrs should be set")
-	assert.Equal(t, []byte{0x40, 0x01, 0x01}, batch.Attrs.Wire.Packed())
+	require.NotNil(t, batch.Wire, "Wire attrs should be set")
+	assert.Equal(t, []byte{0x40, 0x01, 0x01}, batch.Wire.Packed())
 	assert.True(t, batch.NextHop.IsExplicit())
 	assert.Equal(t, netip.MustParseAddr("10.0.0.1"), batch.NextHop.Addr)
 	require.Len(t, batch.NLRIs, 1)
@@ -466,8 +466,8 @@ func TestHandleUpdateB64_Integration(t *testing.T) {
 	require.Len(t, reactor.announcedBatches, 1)
 	batch := reactor.announcedBatches[0].batch
 	assert.Equal(t, nlri.IPv4Unicast, batch.Family)
-	require.NotNil(t, batch.Attrs.Wire, "Wire attrs should be set")
-	assert.Equal(t, []byte{0x40, 0x01, 0x01}, batch.Attrs.Wire.Packed())
+	require.NotNil(t, batch.Wire, "Wire attrs should be set")
+	assert.Equal(t, []byte{0x40, 0x01, 0x01}, batch.Wire.Packed())
 }
 
 // TestHandleUpdateHex_WithdrawOnly verifies withdrawal-only hex command.

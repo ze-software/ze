@@ -548,12 +548,15 @@ func TestWriteASPathLongSegmentSplitting(t *testing.T) {
 		asPath[i] = uint32(65000 + i) //nolint:gosec // G115: test data, i bounded by 300
 	}
 
+	// Build attributes with AS_PATH
+	builder := attribute.NewBuilder()
+	builder.SetASPath(asPath)
+	wireBytes := builder.Build()
+
 	route := plugin.RouteSpec{
 		Prefix:  netip.MustParsePrefix("10.0.0.0/24"),
 		NextHop: plugin.NewNextHopExplicit(netip.MustParseAddr("192.168.1.1")),
-		PathAttributes: plugin.PathAttributes{ //nolint:staticcheck // Testing deprecated fallback
-			ASPath: asPath,
-		},
+		Wire:    attribute.NewAttributesWire(wireBytes, 0),
 	}
 
 	ctx := &nlri.PackContext{ASN4: true}
@@ -627,12 +630,17 @@ func TestWriteCommunitiesExtendedLength(t *testing.T) {
 		communities[i] = uint32(0xFFFF0000 | i) //nolint:gosec // G115: test data, i bounded by 100
 	}
 
+	// Build attributes with communities
+	builder := attribute.NewBuilder()
+	for _, c := range communities {
+		builder.AddCommunityValue(c)
+	}
+	wireBytes := builder.Build()
+
 	route := plugin.RouteSpec{
 		Prefix:  netip.MustParsePrefix("10.0.0.0/24"),
 		NextHop: plugin.NewNextHopExplicit(netip.MustParseAddr("192.168.1.1")),
-		PathAttributes: plugin.PathAttributes{ //nolint:staticcheck // Testing deprecated fallback
-			Communities: communities,
-		},
+		Wire:    attribute.NewAttributesWire(wireBytes, 0),
 	}
 
 	ctx := &nlri.PackContext{ASN4: true}
@@ -694,12 +702,17 @@ func BenchmarkWriteAnnounceUpdateIPv4(b *testing.B) {
 
 // BenchmarkWriteAnnounceUpdateIPv4WithCommunities measures allocations with communities.
 func BenchmarkWriteAnnounceUpdateIPv4WithCommunities(b *testing.B) {
+	// Build attributes with communities
+	builder := attribute.NewBuilder()
+	builder.AddCommunityValue(0xFFFF0001)
+	builder.AddCommunityValue(0xFFFF0002)
+	builder.AddCommunityValue(0xFFFF0003)
+	wireBytes := builder.Build()
+
 	route := plugin.RouteSpec{
 		Prefix:  netip.MustParsePrefix("10.0.0.0/24"),
 		NextHop: plugin.NewNextHopExplicit(netip.MustParseAddr("192.168.1.1")),
-		PathAttributes: plugin.PathAttributes{ //nolint:staticcheck // Testing deprecated fallback
-			Communities: []uint32{0xFFFF0001, 0xFFFF0002, 0xFFFF0003},
-		},
+		Wire:    attribute.NewAttributesWire(wireBytes, 0),
 	}
 	ctx := &nlri.PackContext{ASN4: true}
 	buf := make([]byte, 4096)
@@ -811,28 +824,25 @@ func TestBuildLabeledUnicastRIBRouteAllAttributes(t *testing.T) {
 	adapter := &reactorAPIAdapter{reactor}
 
 	// Create route with ALL attributes populated
-	origin := uint8(1) // EGP
-	med := uint32(100)
-	localPref := uint32(200)
+	builder := attribute.NewBuilder()
+	builder.SetOrigin(1) // EGP
+	builder.SetMED(100)
+	builder.SetLocalPref(200)
+	builder.SetASPath([]uint32{65001, 65002})
+	builder.AddCommunityValue(0x12345678)
+	builder.AddLargeCommunity(65000, 1, 2)
+	builder.AddExtendedCommunity(attribute.ExtendedCommunity{0x00, 0x02, 0xFD, 0xE9, 0x00, 0x00, 0x00, 0x64})
+	wireBytes := builder.Build()
+
 	route := plugin.LabeledUnicastRoute{
 		Prefix:  netip.MustParsePrefix("10.0.0.0/8"),
 		NextHop: netip.MustParseAddr("192.0.2.1"),
 		Labels:  []uint32{100, 200}, // Label stack
 		PathID:  42,
-		PathAttributes: plugin.PathAttributes{ //nolint:staticcheck // Testing deprecated fallback
-			Origin:          &origin,
-			MED:             &med,
-			LocalPreference: &localPref,
-			ASPath:          []uint32{65001, 65002},
-			Communities:     []uint32{0x12345678},
-			LargeCommunities: []plugin.LargeCommunity{
-				{GlobalAdmin: 65000, LocalData1: 1, LocalData2: 2},
-			},
-			ExtendedCommunities: []attribute.ExtendedCommunity{{0x00, 0x02, 0xFD, 0xE9, 0x00, 0x00, 0x00, 0x64}},
-		},
+		Wire:    attribute.NewAttributesWire(wireBytes, 0),
 	}
 
-	ribRoute := adapter.buildLabeledUnicastRIBRoute(route, false) // eBGP
+	ribRoute, _ := adapter.buildLabeledUnicastRIBRoute(route, false) // eBGP
 
 	// Verify NLRI
 	require.NotNil(t, ribRoute.NLRI(), "NLRI must not be nil")
@@ -916,7 +926,7 @@ func TestBuildLabeledUnicastRIBRouteIBGPDefaults(t *testing.T) {
 		Labels:  []uint32{100},
 	}
 
-	ribRoute := adapter.buildLabeledUnicastRIBRoute(route, true) // iBGP
+	ribRoute, _ := adapter.buildLabeledUnicastRIBRoute(route, true) // iBGP
 
 	// Verify AS_PATH is empty for iBGP
 	asPath := ribRoute.ASPath()
@@ -955,7 +965,7 @@ func TestBuildLabeledUnicastRIBRouteEBGPPrependsAS(t *testing.T) {
 		Labels:  []uint32{100},
 	}
 
-	ribRoute := adapter.buildLabeledUnicastRIBRoute(route, false) // eBGP
+	ribRoute, _ := adapter.buildLabeledUnicastRIBRoute(route, false) // eBGP
 
 	// Verify LocalAS is prepended for eBGP
 	asPath := ribRoute.ASPath()
@@ -982,22 +992,22 @@ func TestBuildL3VPNParams(t *testing.T) {
 	adapter := &reactorAPIAdapter{reactor}
 
 	// Create route with all attributes
-	origin := uint8(1) // EGP
-	med := uint32(100)
-	localPref := uint32(200)
+	// Build attributes
+	builder := attribute.NewBuilder()
+	builder.SetOrigin(1) // EGP
+	builder.SetMED(100)
+	builder.SetLocalPref(200)
+	builder.SetASPath([]uint32{65001, 65002})
+	builder.AddCommunityValue(0x12345678)
+	wireBytes := builder.Build()
+
 	route := plugin.L3VPNRoute{
 		Prefix:  netip.MustParsePrefix("10.0.0.0/24"),
 		NextHop: netip.MustParseAddr("192.0.2.1"),
 		RD:      "100:100",
 		Labels:  []uint32{1000, 2000}, // Multi-label stack
 		RT:      "target:65000:100",
-		PathAttributes: plugin.PathAttributes{ //nolint:staticcheck // Testing deprecated fallback
-			Origin:          &origin,
-			MED:             &med,
-			LocalPreference: &localPref,
-			ASPath:          []uint32{65001, 65002},
-			Communities:     []uint32{0x12345678},
-		},
+		Wire:    attribute.NewAttributesWire(wireBytes, 0),
 	}
 
 	params, err := adapter.buildL3VPNParams(route)
@@ -1061,15 +1071,17 @@ func TestBuildL3VPNRIBRoute(t *testing.T) {
 	reactor := New(cfg)
 	adapter := &reactorAPIAdapter{reactor}
 
-	origin := uint8(0) // IGP
+	// Build attributes with Origin IGP
+	builder := attribute.NewBuilder()
+	builder.SetOrigin(0) // IGP
+	wireBytes := builder.Build()
+
 	route := plugin.L3VPNRoute{
 		Prefix:  netip.MustParsePrefix("10.0.0.0/24"),
 		NextHop: netip.MustParseAddr("192.0.2.1"),
 		RD:      "100:100",
 		Labels:  []uint32{1000},
-		PathAttributes: plugin.PathAttributes{ //nolint:staticcheck // Testing deprecated fallback
-			Origin: &origin,
-		},
+		Wire:    attribute.NewAttributesWire(wireBytes, 0),
 	}
 
 	ribRoute, err := adapter.buildL3VPNRIBRoute(route, true) // iBGP

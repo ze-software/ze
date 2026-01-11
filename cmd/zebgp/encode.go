@@ -250,17 +250,18 @@ func encodeUnicastRoute(ub *message.UpdateBuilder, routeCmd string, isIPv6 bool,
 
 // routeSpecToUnicastParams converts a RouteSpec to UnicastParams.
 // Extracts address from RouteNextHop (must be explicit, not self).
-// Prefers r.Attrs (Builder) when set, falls back to PathAttributes.
+// Uses wire-first approach: prefers Wire, then Attrs (Builder).
 func routeSpecToUnicastParams(r plugin.RouteSpec) message.UnicastParams {
 	var attrs commonAttrs
 
-	if r.Attrs != nil {
-		// Use wire-first Builder
-		attrs = extractAttrsFromBuilder(r.Attrs)
+	if r.Wire != nil {
+		// Extract attributes from wire format
+		attrs = extractAttrsFromWire(r.Wire)
 	} else {
-		// Fall back to PathAttributes
-		attrs = extractCommonAttrs(r.Origin, r.LocalPreference, r.MED, r.ASPath,
-			r.Communities, r.LargeCommunities, r.ExtendedCommunities)
+		// Use defaults
+		attrs = commonAttrs{
+			Origin: attribute.OriginIGP,
+		}
 	}
 
 	return message.UnicastParams{
@@ -274,6 +275,67 @@ func routeSpecToUnicastParams(r plugin.RouteSpec) message.UnicastParams {
 		LargeCommunities:  attrs.LargeCommunities,
 		ExtCommunityBytes: attrs.ExtCommunityBytes,
 	}
+}
+
+// extractAttrsFromWire extracts commonAttrs from AttributesWire.
+func extractAttrsFromWire(wire *attribute.AttributesWire) commonAttrs {
+	var attrs commonAttrs
+	attrs.Origin = attribute.OriginIGP // default
+
+	if wire == nil {
+		return attrs
+	}
+
+	// Extract ORIGIN
+	if originAttr, err := wire.Get(attribute.AttrOrigin); err == nil && originAttr != nil {
+		if o, ok := originAttr.(attribute.Origin); ok {
+			attrs.Origin = o
+		}
+	}
+	// Extract LOCAL_PREF
+	if lpAttr, err := wire.Get(attribute.AttrLocalPref); err == nil && lpAttr != nil {
+		if lp, ok := lpAttr.(attribute.LocalPref); ok {
+			attrs.LocalPreference = uint32(lp)
+		}
+	}
+	// Extract MED
+	if medAttr, err := wire.Get(attribute.AttrMED); err == nil && medAttr != nil {
+		if med, ok := medAttr.(attribute.MED); ok {
+			attrs.MED = uint32(med)
+		}
+	}
+	// Extract AS_PATH
+	if asPathAttr, err := wire.Get(attribute.AttrASPath); err == nil {
+		if asp, ok := asPathAttr.(*attribute.ASPath); ok && len(asp.Segments) > 0 {
+			attrs.ASPath = asp.Segments[0].ASNs
+		}
+	}
+	// Extract COMMUNITY
+	if commAttr, err := wire.Get(attribute.AttrCommunity); err == nil {
+		if comms, ok := commAttr.(attribute.Communities); ok {
+			attrs.Communities = make([]uint32, len(comms))
+			for i, c := range comms {
+				attrs.Communities[i] = uint32(c)
+			}
+		}
+	}
+	// Extract LARGE_COMMUNITY
+	if lcAttr, err := wire.Get(attribute.AttrLargeCommunity); err == nil {
+		if lcs, ok := lcAttr.(attribute.LargeCommunities); ok {
+			attrs.LargeCommunities = make([][3]uint32, len(lcs))
+			for i, c := range lcs {
+				attrs.LargeCommunities[i] = [3]uint32{c.GlobalAdmin, c.LocalData1, c.LocalData2}
+			}
+		}
+	}
+	// Extract EXTENDED_COMMUNITIES
+	if ecAttr, err := wire.Get(attribute.AttrExtCommunity); err == nil {
+		if ecs, ok := ecAttr.(attribute.ExtendedCommunities); ok {
+			attrs.ExtCommunityBytes = ecs.Pack()
+		}
+	}
+
+	return attrs
 }
 
 // extractAttrsFromBuilder extracts commonAttrs from an attribute.Builder.
@@ -558,8 +620,7 @@ func encodeL3VPNRoute(ub *message.UpdateBuilder, routeCmd string, isIPv6 bool, c
 // l3vpnRouteToVPNParams converts L3VPNRoute to VPNParams.
 // Takes pre-parsed RD to avoid double parsing.
 func l3vpnRouteToVPNParams(r plugin.L3VPNRoute, rd nlri.RouteDistinguisher) message.VPNParams {
-	attrs := extractCommonAttrs(r.Origin, r.LocalPreference, r.MED, r.ASPath,
-		r.Communities, r.LargeCommunities, r.ExtendedCommunities)
+	attrs := extractAttrsFromWire(r.Wire)
 
 	p := message.VPNParams{
 		Prefix:            r.Prefix,
@@ -633,8 +694,7 @@ func encodeLabeledUnicastRoute(ub *message.UpdateBuilder, routeCmd string, isIPv
 
 // labeledUnicastRouteToParams converts LabeledUnicastRoute to LabeledUnicastParams.
 func labeledUnicastRouteToParams(r plugin.LabeledUnicastRoute) message.LabeledUnicastParams {
-	attrs := extractCommonAttrs(r.Origin, r.LocalPreference, r.MED, r.ASPath,
-		r.Communities, r.LargeCommunities, r.ExtendedCommunities)
+	attrs := extractAttrsFromWire(r.Wire)
 
 	p := message.LabeledUnicastParams{
 		Prefix:            r.Prefix,

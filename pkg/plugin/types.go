@@ -89,59 +89,16 @@ type ReactorStats struct {
 	PeerCount int
 }
 
-// PathAttributes holds BGP path attributes common to all route types.
-// These attributes are optional - nil values use protocol defaults.
-// Embedding this struct in route types ensures consistency and reduces duplication.
-//
-// Deprecated: Use attribute.Builder instead for attribute construction.
-// Route types now have an Attrs *attribute.Builder field that takes precedence
-// over PathAttributes when set. This is a migration step toward wire-first
-// encoding (Builder currently converts to []Attribute via ToAttributes()).
-//
-// Migration:
-//
-//	// Old:
-//	route := RouteSpec{PathAttributes: PathAttributes{Origin: ptr(0)}}
-//
-//	// New:
-//	b := attribute.NewBuilder()
-//	b.SetOrigin(0)
-//	route := RouteSpec{Attrs: b}
-//
-// Used for API input (announce commands). For reading received attributes,
-// use WireUpdate.AttrIterator() for zero-copy access.
-type PathAttributes struct {
-	Origin              *uint8                        // 0=IGP, 1=EGP, 2=INCOMPLETE (nil = use default)
-	LocalPreference     *uint32                       // LOCAL_PREF (nil = use default 100 for iBGP)
-	MED                 *uint32                       // MULTI_EXIT_DISC (nil = not sent)
-	ASPath              []uint32                      // AS_PATH segments (nil = empty for iBGP)
-	Communities         []uint32                      // Standard communities (2-byte ASN:2-byte value)
-	LargeCommunities    []LargeCommunity              // RFC 8092 large communities
-	ExtendedCommunities []attribute.ExtendedCommunity // RFC 4360 extended communities
-
-	// Wire mode: lazy-parsed wire bytes (excludes NEXT_HOP/MP_REACH).
-	// If set, semantic fields above are ignored.
-	// Uses APIContextID as source context (ASN4=true).
-	Wire *attribute.AttributesWire
-}
-
 // RouteSpec specifies a route for announcement.
 // Supports optional BGP path attributes that override iBGP defaults.
 //
-// IMMUTABILITY: RouteSpec and its slices (ASPath, Communities, etc.) must not
-// be mutated after being passed to any reactor method. The reactor stores
-// shallow copies for efficiency; mutation would corrupt internal state.
-//
-// Migration: When Attrs is set, it takes precedence over embedded PathAttributes.
-// Eventually PathAttributes will be removed in favor of Attrs.
+// IMMUTABILITY: RouteSpec and Wire must not be mutated after being passed
+// to any reactor method. The reactor stores shallow copies for efficiency;
+// mutation would corrupt internal state.
 type RouteSpec struct {
 	Prefix  netip.Prefix
-	NextHop RouteNextHop // Encapsulates next-hop policy (explicit or self)
-	PathAttributes
-
-	// Attrs is the wire-first attribute builder.
-	// When set, takes precedence over embedded PathAttributes.
-	Attrs *attribute.Builder
+	NextHop RouteNextHop              // Encapsulates next-hop policy (explicit or self)
+	Wire    *attribute.AttributesWire // Path attributes in wire format
 }
 
 // LargeCommunity is an alias for attribute.LargeCommunity (RFC 8092).
@@ -204,16 +161,12 @@ type L2VPNRoute struct {
 // L3VPNRoute specifies an L3VPN (MPLS VPN) route for announcement.
 // Supports VPNv4 (AFI=1, SAFI=128) and VPNv6 (AFI=2, SAFI=128) per RFC 4364.
 type L3VPNRoute struct {
-	Prefix  netip.Prefix // IP prefix
-	NextHop netip.Addr   // Next-hop address
-	RD      string       // Route Distinguisher (e.g., "100:100" or "1.2.3.4:100")
-	Labels  []uint32     // MPLS label stack (supports multiple labels per RFC 3032)
-	RT      string       // Route Target (extended community, optional)
-	PathAttributes
-
-	// Attrs is the wire-first attribute builder.
-	// When set, takes precedence over embedded PathAttributes.
-	Attrs *attribute.Builder
+	Prefix  netip.Prefix              // IP prefix
+	NextHop netip.Addr                // Next-hop address
+	RD      string                    // Route Distinguisher (e.g., "100:100" or "1.2.3.4:100")
+	Labels  []uint32                  // MPLS label stack (supports multiple labels per RFC 3032)
+	RT      string                    // Route Target (extended community, optional)
+	Wire    *attribute.AttributesWire // Path attributes in wire format
 }
 
 // LabeledUnicastRoute specifies an MPLS labeled unicast route (SAFI 4).
@@ -221,37 +174,29 @@ type L3VPNRoute struct {
 // RFC 8277: Using BGP to Bind MPLS Labels to Address Prefixes.
 // RFC 7911: ADD-PATH support via PathID field.
 type LabeledUnicastRoute struct {
-	Prefix  netip.Prefix // IP prefix
-	NextHop netip.Addr   // Next-hop address
-	Labels  []uint32     // MPLS label stack
-	PathID  uint32       // ADD-PATH path identifier (RFC 7911), 0 means not set
-	PathAttributes
-
-	// Attrs is the wire-first attribute builder.
-	// When set, takes precedence over embedded PathAttributes.
-	Attrs *attribute.Builder
+	Prefix  netip.Prefix              // IP prefix
+	NextHop netip.Addr                // Next-hop address
+	Labels  []uint32                  // MPLS label stack
+	PathID  uint32                    // ADD-PATH path identifier (RFC 7911), 0 means not set
+	Wire    *attribute.AttributesWire // Path attributes in wire format
 }
 
 // MUPRouteSpec specifies a MUP route for announcement (SAFI 85).
 // Per draft-mpmz-bess-mup-safi for Mobile User Plane.
 type MUPRouteSpec struct {
-	RouteType    string // mup-isd, mup-dsd, mup-t1st, mup-t2st
-	IsIPv6       bool   // AFI: false=IPv4, true=IPv6
-	Prefix       string // For ISD, T1ST (e.g., "10.0.1.0/24")
-	Address      string // For DSD, T2ST (e.g., "10.0.0.1")
-	RD           string // Route Distinguisher
-	TEID         string // Tunnel Endpoint ID (for T1ST/T2ST)
-	QFI          uint8  // QoS Flow Identifier
-	Endpoint     string // GTP endpoint address
-	Source       string // Source address (optional)
-	NextHop      string // Next-hop address (IPv6 for SRv6)
-	ExtCommunity string // Extended communities (e.g., "[target:10:10]")
-	PrefixSID    string // SRv6 Prefix SID (e.g., "l3-service 2001:db8::1 0x48 [64,24,16,0,0,0]")
-	PathAttributes
-
-	// Attrs is the wire-first attribute builder.
-	// When set, takes precedence over embedded PathAttributes.
-	Attrs *attribute.Builder
+	RouteType    string                    // mup-isd, mup-dsd, mup-t1st, mup-t2st
+	IsIPv6       bool                      // AFI: false=IPv4, true=IPv6
+	Prefix       string                    // For ISD, T1ST (e.g., "10.0.1.0/24")
+	Address      string                    // For DSD, T2ST (e.g., "10.0.0.1")
+	RD           string                    // Route Distinguisher
+	TEID         string                    // Tunnel Endpoint ID (for T1ST/T2ST)
+	QFI          uint8                     // QoS Flow Identifier
+	Endpoint     string                    // GTP endpoint address
+	Source       string                    // Source address (optional)
+	NextHop      string                    // Next-hop address (IPv6 for SRv6)
+	ExtCommunity string                    // Extended communities (e.g., "[target:10:10]")
+	PrefixSID    string                    // SRv6 Prefix SID (e.g., "l3-service 2001:db8::1 0x48 [64,24,16,0,0,0]")
+	Wire         *attribute.AttributesWire // Path attributes in wire format
 }
 
 // ReactorInterface defines what the API needs from the reactor.
@@ -619,16 +564,12 @@ func (m *RawMessage) IsAsyncSafe() bool {
 // NLRIGroup represents a group of NLRIs sharing the same attributes.
 // Used by ParseUpdateText to capture attribute snapshots per NLRI section.
 type NLRIGroup struct {
-	Family       nlri.Family    // Address family (AFI/SAFI)
-	Announce     []nlri.NLRI    // NLRIs to announce
-	Withdraw     []nlri.NLRI    // NLRIs to withdraw
-	Attrs        PathAttributes // Snapshot of accumulated attributes
-	NextHop      RouteNextHop   // Encapsulates next-hop policy (explicit or self)
-	WatchdogName string         // Watchdog pool name for announce routes (empty = none)
-
-	// AttrsBuilder is the wire-first attribute builder.
-	// When set, takes precedence over Attrs (PathAttributes).
-	AttrsBuilder *attribute.Builder
+	Family       nlri.Family               // Address family (AFI/SAFI)
+	Announce     []nlri.NLRI               // NLRIs to announce
+	Withdraw     []nlri.NLRI               // NLRIs to withdraw
+	Wire         *attribute.AttributesWire // Path attributes in wire format
+	NextHop      RouteNextHop              // Encapsulates next-hop policy (explicit or self)
+	WatchdogName string                    // Watchdog pool name for announce routes (empty = none)
 }
 
 // UpdateTextResult is the parsed result of an update text command.
@@ -643,12 +584,9 @@ type UpdateTextResult struct {
 // RFC 4271 Section 4.3: UPDATE Message Format.
 // RFC 4760: MP_REACH_NLRI/MP_UNREACH_NLRI for non-IPv4-unicast families.
 type NLRIBatch struct {
-	Family  nlri.Family    // AFI/SAFI for all NLRIs
-	NLRIs   []nlri.NLRI    // NLRIs to announce or withdraw
-	NextHop RouteNextHop   // Next-hop policy (announce only)
-	Attrs   PathAttributes // Shared attributes (announce only)
-
-	// AttrsBuilder is the wire-first attribute builder.
-	// When set, takes precedence over Attrs (PathAttributes).
-	AttrsBuilder *attribute.Builder
+	Family  nlri.Family               // AFI/SAFI for all NLRIs
+	NLRIs   []nlri.NLRI               // NLRIs to announce or withdraw
+	NextHop RouteNextHop              // Next-hop policy (announce only)
+	Attrs   *attribute.Builder        // Attribute builder (for new routes)
+	Wire    *attribute.AttributesWire // Wire passthrough (for forwarding)
 }

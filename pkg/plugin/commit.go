@@ -5,9 +5,7 @@ import (
 	"net/netip"
 	"strings"
 
-	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/attribute"
 	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/nlri"
-	"codeberg.org/thomas-mangin/zebgp/pkg/rib"
 )
 
 // Commit action constants.
@@ -65,15 +63,6 @@ func handleCommit(ctx *CommandContext, args []string) (*Response, error) {
 		return handleNamedCommitRollback(ctx, name)
 	case "show":
 		return handleNamedCommitShow(ctx, name)
-	case "announce":
-		// commit <name> announce route <prefix> next-hop <addr>
-		if len(args) < 3 {
-			return &Response{
-				Status: "error",
-				Data:   "usage: commit <name> announce route <prefix> next-hop <addr>",
-			}, fmt.Errorf("missing announce arguments")
-		}
-		return handleNamedCommitAnnounce(ctx, name, args[2:])
 	case "withdraw":
 		// commit <name> withdraw route <prefix>
 		if len(args) < 3 {
@@ -229,88 +218,6 @@ func handleNamedCommitShow(ctx *CommandContext, name string) (*Response, error) 
 			"queued":      tx.Count(),
 			"withdrawals": tx.WithdrawalCount(),
 			"families":    familyStrs,
-		},
-	}, nil
-}
-
-// handleNamedCommitAnnounce queues a route announcement to a named commit.
-// Syntax: commit <name> announce route <prefix> next-hop <addr>.
-func handleNamedCommitAnnounce(ctx *CommandContext, name string, args []string) (*Response, error) {
-	tx, err := ctx.CommitManager.Get(name)
-	if err != nil {
-		return &Response{
-			Status: "error",
-			Data:   fmt.Sprintf("commit not found: %v", err),
-		}, err
-	}
-
-	// args[0] should be "route"
-	if len(args) < 1 || !strings.EqualFold(args[0], "route") {
-		return &Response{
-			Status: "error",
-			Data:   "usage: commit <name> announce route <prefix> next-hop <addr>",
-		}, fmt.Errorf("expected 'route' keyword")
-	}
-
-	if len(args) < 4 {
-		return &Response{
-			Status: "error",
-			Data:   "usage: commit <name> announce route <prefix> next-hop <addr>",
-		}, fmt.Errorf("missing route arguments")
-	}
-
-	// Parse prefix (args[1])
-	prefix, err := netip.ParsePrefix(args[1])
-	if err != nil {
-		return &Response{
-			Status: "error",
-			Data:   fmt.Sprintf("invalid prefix: %s", args[1]),
-		}, err
-	}
-
-	// Parse next-hop (after "next-hop" keyword)
-	var nextHop netip.Addr
-	for i := 2; i < len(args); i++ {
-		if strings.EqualFold(args[i], "next-hop") && i+1 < len(args) { //nolint:gosec // bounds checked
-			nextHop, err = netip.ParseAddr(args[i+1])
-			if err != nil {
-				return &Response{
-					Status: "error",
-					Data:   fmt.Sprintf("invalid next-hop: %s", args[i+1]),
-				}, err
-			}
-			break
-		}
-	}
-
-	if !nextHop.IsValid() {
-		return &Response{
-			Status: "error",
-			Data:   "missing next-hop",
-		}, fmt.Errorf("missing next-hop")
-	}
-
-	// Build NLRI and route
-	var n nlri.NLRI
-	if prefix.Addr().Is4() {
-		n = nlri.NewINET(nlri.Family{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast}, prefix, 0)
-	} else {
-		n = nlri.NewINET(nlri.Family{AFI: nlri.AFIIPv6, SAFI: nlri.SAFIUnicast}, prefix, 0)
-	}
-
-	attrs := []attribute.Attribute{attribute.OriginIGP}
-	route := rib.NewRoute(n, nextHop, attrs)
-
-	// Queue to transaction
-	tx.QueueAnnounce(route)
-
-	return &Response{
-		Status: "done",
-		Data: map[string]any{
-			"commit":   name,
-			"prefix":   prefix.String(),
-			"next_hop": nextHop.String(),
-			"queued":   tx.Count(),
 		},
 	}, nil
 }

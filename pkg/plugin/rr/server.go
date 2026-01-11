@@ -202,9 +202,9 @@ func (rs *RouteServer) handleStateDown(peerAddr string) {
 	// Get and clear all routes from this peer
 	routes := rs.rib.ClearPeer(peerAddr)
 
-	// Send withdrawals for each route to other peers
+	// Send withdrawals for each route to other peers using update text syntax
 	for _, route := range routes {
-		rs.send("peer !%s withdraw route %s %s", peerAddr, route.Prefix, route.Family)
+		rs.send("peer !%s update text nlri %s del %s", peerAddr, route.Family, route.Prefix)
 	}
 }
 

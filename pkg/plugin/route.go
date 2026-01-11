@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/attribute"
+	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/context"
 	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/nlri"
 	"codeberg.org/thomas-mangin/zebgp/pkg/rib"
 )
@@ -279,42 +280,28 @@ func RegisterRouteHandlers(d *Dispatcher) {
 	d.Register("watchdog withdraw", handleWatchdogWithdraw, "Withdraw routes in watchdog group")
 }
 
-// handleAnnounceRoute handles: announce route <prefix> next-hop <addr> [attributes...] [split /N].
-// This is a convenience command that auto-detects the address family from the prefix.
-// Example: announce route 10.0.0.0/24 next-hop 192.168.1.1.
-// Example: announce route 2001:db8::/32 next-hop 2001::1.
-func handleAnnounceRoute(ctx *CommandContext, args []string) (*Response, error) {
-	// Auto-detect family from prefix and delegate to shared implementation
-	if len(args) < 1 {
-		return respondError("missing prefix", ErrMissingPrefix)
+// parseOrigin parses origin value: igp, egp, or incomplete.
+func parseOrigin(s string) (uint8, error) {
+	switch strings.ToLower(s) {
+	case "igp":
+		return 0, nil
+	case "egp":
+		return 1, nil
+	case "incomplete", "?":
+		return 2, nil
+	default:
+		return 0, fmt.Errorf("invalid origin: %s (expected igp, egp, or incomplete)", s)
 	}
-
-	// Parse prefix, allowing bare IP addresses (defaults to /32 for IPv4, /128 for IPv6)
-	prefix, err := parsePrefixWithDefault(args[0])
-	if err != nil {
-		return respondError(fmt.Sprintf("invalid prefix: %s", args[0]), ErrInvalidPrefix)
-	}
-
-	// Normalize args to include prefix length for downstream processing
-	normalizedArgs := make([]string, len(args))
-	copy(normalizedArgs, args)
-	normalizedArgs[0] = prefix.String()
-
-	// Delegate to shared implementation (wire encoding is determined by prefix in reactor)
-	return announceRouteImpl(ctx, normalizedArgs)
 }
 
 // announceRouteImpl is the shared implementation for route announcements.
 // Handles: <prefix> next-hop <addr> [attributes...] [split /N].
-// Example: 10.0.0.0/24 next-hop 192.168.1.1.
-// Example: 10.0.0.0/24 next-hop self.
-// Example: 10.0.0.0/24 next-hop 1.2.3.4 origin igp local-preference 100 med 200 community [2:1].
-// Example: 10.0.0.0/21 next-hop 1.2.3.4 split /23 (announces 4 /23 prefixes).
+// Used internally by announce ipv4/ipv6 handlers for unicast SAFI.
 func announceRouteImpl(ctx *CommandContext, args []string) (*Response, error) {
 	if len(args) < 3 {
 		return &Response{
 			Status: "error",
-			Data:   "usage: announce route <prefix> next-hop <addr|self>",
+			Data:   "usage: announce <family> <prefix> next-hop <addr|self>",
 		}, ErrMissingPrefix
 	}
 
@@ -410,20 +397,6 @@ func announceRouteImpl(ctx *CommandContext, args []string) (*Response, error) {
 	}, nil
 }
 
-// parseOrigin parses origin value: igp, egp, or incomplete.
-func parseOrigin(s string) (uint8, error) {
-	switch strings.ToLower(s) {
-	case "igp":
-		return 0, nil
-	case "egp":
-		return 1, nil
-	case "incomplete", "?":
-		return 2, nil
-	default:
-		return 0, fmt.Errorf("invalid origin: %s (expected igp, egp, or incomplete)", s)
-	}
-}
-
 // ErrInvalidKeyword is returned when a keyword is not valid for the route family.
 var ErrInvalidKeyword = errors.New("invalid keyword for route family")
 
@@ -439,96 +412,6 @@ type ParsedRoute struct {
 // Example: 10.0.0.0/24 next-hop 1.2.3.4 origin igp.
 func ParseRouteAttributes(args []string, allowedKeywords KeywordSet) (ParsedRoute, error) {
 	return parseRouteAttributes(args, allowedKeywords)
-}
-
-// parseCommonAttribute parses a common BGP attribute by keyword.
-// Returns the number of args consumed (0 if keyword not handled), or error.
-// This centralizes parsing logic for origin, med, local-preference, as-path,
-// community, and large-community to avoid duplication across route types.
-func parseCommonAttribute(key string, args []string, idx int, attrs *PathAttributes) (int, error) {
-	switch key {
-	case "origin":
-		if idx+1 >= len(args) {
-			return 0, fmt.Errorf("missing origin value")
-		}
-		origin, err := parseOrigin(args[idx+1])
-		if err != nil {
-			return 0, err
-		}
-		attrs.Origin = &origin
-		return 1, nil
-
-	case "local-preference":
-		if idx+1 >= len(args) {
-			return 0, fmt.Errorf("missing local-preference value")
-		}
-		lp, err := strconv.ParseUint(args[idx+1], 10, 32)
-		if err != nil {
-			return 0, fmt.Errorf("invalid local-preference: %s", args[idx+1])
-		}
-		lpVal := uint32(lp)
-		attrs.LocalPreference = &lpVal
-		return 1, nil
-
-	case "med":
-		if idx+1 >= len(args) {
-			return 0, fmt.Errorf("missing med value")
-		}
-		med, err := strconv.ParseUint(args[idx+1], 10, 32)
-		if err != nil {
-			return 0, fmt.Errorf("invalid med: %s", args[idx+1])
-		}
-		medVal := uint32(med)
-		attrs.MED = &medVal
-		return 1, nil
-
-	case "as-path":
-		if idx+1 >= len(args) {
-			return 0, fmt.Errorf("missing as-path value")
-		}
-		asPath, consumed, err := parseASPath(args[idx+1:])
-		if err != nil {
-			return 0, err
-		}
-		attrs.ASPath = asPath
-		return consumed, nil
-
-	case "community":
-		if idx+1 >= len(args) {
-			return 0, fmt.Errorf("missing community value")
-		}
-		comms, consumed, err := parseCommunities(args[idx+1:])
-		if err != nil {
-			return 0, err
-		}
-		attrs.Communities = comms
-		return consumed, nil
-
-	case "large-community":
-		if idx+1 >= len(args) {
-			return 0, fmt.Errorf("missing large-community value")
-		}
-		lcomms, consumed, err := parseLargeCommunities(args[idx+1:])
-		if err != nil {
-			return 0, err
-		}
-		attrs.LargeCommunities = lcomms
-		return consumed, nil
-
-	case "extended-community":
-		if idx+1 >= len(args) {
-			return 0, fmt.Errorf("missing extended-community value")
-		}
-		extcomms, consumed, err := parseExtendedCommunities(args[idx+1:])
-		if err != nil {
-			return 0, err
-		}
-		attrs.ExtendedCommunities = extcomms
-		return consumed, nil
-	}
-
-	// Not a common attribute
-	return 0, nil
 }
 
 // parseCommonAttributeBuilder parses a common BGP attribute by keyword into a Builder.
@@ -633,7 +516,6 @@ func parseRouteAttributes(args []string, allowedKeywords KeywordSet) (ParsedRout
 	result := ParsedRoute{
 		Route: RouteSpec{
 			Prefix: prefix,
-			Attrs:  builder,
 		},
 	}
 
@@ -680,6 +562,12 @@ func parseRouteAttributes(args []string, allowedKeywords KeywordSet) (ParsedRout
 				i++
 			}
 		}
+	}
+
+	// Build wire-format attributes
+	wireBytes := builder.Build()
+	if len(wireBytes) > 0 {
+		result.Route.Wire = attribute.NewAttributesWire(wireBytes, context.APIContextID)
 	}
 
 	return result, nil
@@ -1505,13 +1393,15 @@ func handleAnnounceUpdate(ctx *CommandContext, args []string) (*Response, error)
 // BatchAttributes holds parsed attributes for batch announcements.
 type BatchAttributes struct {
 	NextHop RouteNextHop
-	PathAttributes
+	Attrs   *attribute.Builder
 }
 
 // parseAttributesNLRI parses: <attrs>... nlri <prefix>...
 // Returns the parsed attributes and list of prefixes.
 func parseAttributesNLRI(args []string) (BatchAttributes, []netip.Prefix, error) {
-	var attrs BatchAttributes
+	attrs := BatchAttributes{
+		Attrs: attribute.NewBuilder(),
+	}
 	var prefixes []netip.Prefix
 	nlriIndex := -1
 
@@ -1551,7 +1441,7 @@ func parseAttributesNLRI(args []string) (BatchAttributes, []netip.Prefix, error)
 		}
 
 		// Try common attribute parsing
-		consumed, err := parseCommonAttribute(key, args, i, &attrs.PathAttributes)
+		consumed, err := parseCommonAttributeBuilder(key, args, i, attrs.Attrs)
 		if err != nil {
 			return attrs, nil, err
 		}
@@ -1582,7 +1472,7 @@ func parseAttributesNLRI(args []string) (BatchAttributes, []netip.Prefix, error)
 // parseUpdateCommand parses: <attrs>... <afi> <safi> [nlri] <prefix>...
 // Returns attributes, AFI, SAFI, and list of prefixes.
 func parseUpdateCommand(args []string) (BatchAttributes, string, string, []netip.Prefix, error) {
-	var attrs BatchAttributes
+	attrs := BatchAttributes{Attrs: attribute.NewBuilder()}
 	var prefixes []netip.Prefix
 	var afi, safi string
 
@@ -1635,7 +1525,7 @@ func parseUpdateCommand(args []string) (BatchAttributes, string, string, []netip
 		}
 
 		// Try common attribute parsing
-		consumed, err := parseCommonAttribute(key, args, i, &attrs.PathAttributes)
+		consumed, err := parseCommonAttributeBuilder(key, args, i, attrs.Attrs)
 		if err != nil {
 			return attrs, "", "", nil, err
 		}
@@ -1696,42 +1586,13 @@ func buildRoute(prefix netip.Prefix, attrs BatchAttributes, afiStr, safiStr stri
 	// Build NLRI
 	n := nlri.NewINET(nlri.Family{AFI: afi, SAFI: safi}, prefix, 0)
 
-	// Build attributes - start with default Origin IGP
+	// Build attributes from Builder (ToAttributes handles defaults)
 	var pathAttrs []attribute.Attribute
-
-	// Add Origin - use specified or default to IGP
-	if attrs.Origin != nil {
-		pathAttrs = append(pathAttrs, attribute.Origin(*attrs.Origin))
+	if attrs.Attrs != nil {
+		pathAttrs = attrs.Attrs.ToAttributes()
 	} else {
-		pathAttrs = append(pathAttrs, attribute.OriginIGP)
-	}
-
-	// Add optional attributes
-	if attrs.LocalPreference != nil {
-		pathAttrs = append(pathAttrs, attribute.LocalPref(*attrs.LocalPreference))
-	}
-	if attrs.MED != nil {
-		pathAttrs = append(pathAttrs, attribute.MED(*attrs.MED))
-	}
-	if len(attrs.ASPath) > 0 {
-		pathAttrs = append(pathAttrs, &attribute.ASPath{
-			Segments: []attribute.ASPathSegment{{
-				Type: attribute.ASSequence,
-				ASNs: attrs.ASPath,
-			}},
-		})
-	}
-	if len(attrs.Communities) > 0 {
-		comms := make(attribute.Communities, len(attrs.Communities))
-		for i, c := range attrs.Communities {
-			comms[i] = attribute.Community(c)
-		}
-		pathAttrs = append(pathAttrs, comms)
-	}
-	if len(attrs.LargeCommunities) > 0 {
-		lc := make(attribute.LargeCommunities, len(attrs.LargeCommunities))
-		copy(lc, attrs.LargeCommunities)
-		pathAttrs = append(pathAttrs, lc)
+		// No attributes provided - use default Origin IGP
+		pathAttrs = []attribute.Attribute{attribute.OriginIGP}
 	}
 
 	// Extract address from RouteNextHop
@@ -2073,6 +1934,9 @@ func parseLabeledUnicastAttributes(args []string) (LabeledUnicastRoute, error) {
 		Prefix: prefix,
 	}
 
+	// Use wire-first Builder for attribute parsing
+	builder := attribute.NewBuilder()
+
 	// Parse remaining args as key-value pairs
 	for i := 1; i < len(args); i++ {
 		key := strings.ToLower(args[i])
@@ -2082,8 +1946,8 @@ func parseLabeledUnicastAttributes(args []string) (LabeledUnicastRoute, error) {
 			return LabeledUnicastRoute{}, fmt.Errorf("%w: '%s' not valid for labeled-unicast", ErrInvalidKeyword, key)
 		}
 
-		// Try common attribute parsing first (writes directly to embedded PathAttributes)
-		consumed, err := parseCommonAttribute(key, args, i, &route.PathAttributes)
+		// Try common attribute parsing with Builder (wire-first)
+		consumed, err := parseCommonAttributeBuilder(key, args, i, builder)
 		if err != nil {
 			return LabeledUnicastRoute{}, err
 		}
@@ -2137,6 +2001,12 @@ func parseLabeledUnicastAttributes(args []string) (LabeledUnicastRoute, error) {
 		}
 	}
 
+	// Build wire-format attributes
+	wireBytes := builder.Build()
+	if len(wireBytes) > 0 {
+		route.Wire = attribute.NewAttributesWire(wireBytes, context.APIContextID)
+	}
+
 	return route, nil
 }
 
@@ -2158,6 +2028,9 @@ func parseL3VPNAttributes(args []string) (L3VPNRoute, error) {
 		Prefix: prefix,
 	}
 
+	// Use wire-first Builder for attribute parsing
+	builder := attribute.NewBuilder()
+
 	// Parse remaining args as key-value pairs
 	for i := 1; i < len(args); i++ {
 		key := strings.ToLower(args[i])
@@ -2167,8 +2040,8 @@ func parseL3VPNAttributes(args []string) (L3VPNRoute, error) {
 			return L3VPNRoute{}, fmt.Errorf("%w: '%s' not valid for L3VPN", ErrInvalidKeyword, key)
 		}
 
-		// Try common attribute parsing first (writes directly to embedded PathAttributes)
-		consumed, err := parseCommonAttribute(key, args, i, &route.PathAttributes)
+		// Try common attribute parsing with Builder (wire-first)
+		consumed, err := parseCommonAttributeBuilder(key, args, i, builder)
 		if err != nil {
 			return L3VPNRoute{}, err
 		}
@@ -2215,6 +2088,12 @@ func parseL3VPNAttributes(args []string) (L3VPNRoute, error) {
 			route.NextHop = nh
 			i++
 		}
+	}
+
+	// Build wire-format attributes
+	wireBytes := builder.Build()
+	if len(wireBytes) > 0 {
+		route.Wire = attribute.NewAttributesWire(wireBytes, context.APIContextID)
 	}
 
 	return route, nil
@@ -2985,9 +2864,22 @@ func ParseMUPArgs(args []string, isIPv6 bool) (MUPRouteSpec, error) {
 		spec.Address = args[1]
 	}
 
+	// Use wire-first Builder for attribute parsing
+	builder := attribute.NewBuilder()
+
 	// Parse remaining args as key-value pairs
 	for i := 2; i < len(args); i++ {
 		key := strings.ToLower(args[i])
+
+		// Try common attribute parsing with Builder (wire-first)
+		consumed, err := parseCommonAttributeBuilder(key, args, i, builder)
+		if err != nil {
+			return spec, err
+		}
+		if consumed > 0 {
+			i += consumed
+			continue
+		}
 
 		switch key {
 		case "rd":
@@ -3057,46 +2949,15 @@ func ParseMUPArgs(args []string, isIPv6 bool) (MUPRouteSpec, error) {
 			spec.PrefixSID = value
 			i += consumed
 
-		case "origin":
-			if i+1 >= len(args) {
-				return spec, fmt.Errorf("missing origin value")
-			}
-			origin, err := parseOrigin(args[i+1])
-			if err != nil {
-				return spec, err
-			}
-			spec.Origin = &origin
-			i++
-
-		case "local-preference":
-			if i+1 >= len(args) {
-				return spec, fmt.Errorf("missing local-preference value")
-			}
-			lp, err := strconv.ParseUint(args[i+1], 10, 32)
-			if err != nil {
-				return spec, fmt.Errorf("invalid local-preference: %s", args[i+1])
-			}
-			lpVal := uint32(lp)
-			spec.LocalPreference = &lpVal
-			i++
-
-		case "as-path":
-			if i+1 >= len(args) {
-				return spec, fmt.Errorf("missing as-path value")
-			}
-			tokens, consumed := parseBracketedList(args[i+1:])
-			for _, tok := range tokens {
-				asn, err := strconv.ParseUint(tok, 10, 32)
-				if err != nil {
-					return spec, fmt.Errorf("invalid ASN in as-path: %s", tok)
-				}
-				spec.ASPath = append(spec.ASPath, uint32(asn))
-			}
-			i += consumed
-
 		default:
 			// Unknown keyword - could be future extension, skip silently
 		}
+	}
+
+	// Build wire-format attributes
+	wireBytes := builder.Build()
+	if len(wireBytes) > 0 {
+		spec.Wire = attribute.NewAttributesWire(wireBytes, context.APIContextID)
 	}
 
 	return spec, nil

@@ -27,11 +27,13 @@ package plugin
 import (
 	"errors"
 	"fmt"
+	"net"
 	"net/netip"
 	"strconv"
 	"strings"
 
 	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/attribute"
+	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/context"
 	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/nlri"
 )
 
@@ -98,14 +100,22 @@ func isBoundaryKeyword(token string) bool {
 }
 
 // parsedAttrs tracks attribute state during parsing.
-// Includes next-hop and path-id which are NOT part of PathAttributes.
+// Includes next-hop and path-id which are NOT part of path attributes.
 // Clear* fields signal "del without value" to remove the attribute entirely.
 // Del*Expected fields signal "del <value>" conditional delete (must match current).
 type parsedAttrs struct {
 	NextHop     netip.Addr
 	NextHopSelf bool
 	PathID      uint32 // ADD-PATH path identifier (0 = not set)
-	PathAttributes
+
+	// Path attributes (wire-first: build directly to wire format)
+	Origin              *uint8
+	LocalPreference     *uint32
+	MED                 *uint32
+	ASPath              []uint32
+	Communities         []uint32
+	LargeCommunities    []LargeCommunity
+	ExtendedCommunities []attribute.ExtendedCommunity
 
 	// VPN/labeled NLRI accumulators
 	RD     nlri.RouteDistinguisher // Route Distinguisher for VPN families
@@ -313,40 +323,42 @@ type nlriAccum struct {
 	Labels []uint32
 }
 
-// snapshot returns a deep copy of the current attribute state.
-// MUST deep copy slices AND pointers to isolate each group from later modifications.
+// snapshot returns a wire-format snapshot of the current attribute state.
+// Builds attributes using Builder for wire-first encoding.
 // Also returns the current NLRI accumulators (pathID, RD, labels).
-func (a *parsedAttrs) snapshot() (PathAttributes, RouteNextHop, nlriAccum) {
-	var pa PathAttributes
-	// Deep copy pointer fields
+func (a *parsedAttrs) snapshot() (*attribute.AttributesWire, RouteNextHop, nlriAccum) {
+	// Build wire-format attributes
+	b := attribute.NewBuilder()
+
 	if a.Origin != nil {
-		v := *a.Origin
-		pa.Origin = &v
+		b.SetOrigin(*a.Origin)
 	}
 	if a.LocalPreference != nil {
-		v := *a.LocalPreference
-		pa.LocalPreference = &v
+		b.SetLocalPref(*a.LocalPreference)
 	}
 	if a.MED != nil {
-		v := *a.MED
-		pa.MED = &v
+		b.SetMED(*a.MED)
 	}
-	if a.ASPath != nil {
-		pa.ASPath = make([]uint32, len(a.ASPath))
-		copy(pa.ASPath, a.ASPath)
+	if len(a.ASPath) > 0 {
+		b.SetASPath(a.ASPath)
 	}
-	if a.Communities != nil {
-		pa.Communities = make([]uint32, len(a.Communities))
-		copy(pa.Communities, a.Communities)
+	for _, c := range a.Communities {
+		b.AddCommunityValue(c)
 	}
-	if a.LargeCommunities != nil {
-		pa.LargeCommunities = make([]LargeCommunity, len(a.LargeCommunities))
-		copy(pa.LargeCommunities, a.LargeCommunities)
+	for _, lc := range a.LargeCommunities {
+		b.AddLargeCommunity(lc.GlobalAdmin, lc.LocalData1, lc.LocalData2)
 	}
-	if a.ExtendedCommunities != nil {
-		pa.ExtendedCommunities = make([]attribute.ExtendedCommunity, len(a.ExtendedCommunities))
-		copy(pa.ExtendedCommunities, a.ExtendedCommunities)
+	for _, ec := range a.ExtendedCommunities {
+		b.AddExtendedCommunity(ec)
 	}
+
+	// Build wire bytes and wrap
+	wireBytes := b.Build()
+	var wire *attribute.AttributesWire
+	if len(wireBytes) > 0 {
+		wire = attribute.NewAttributesWire(wireBytes, context.APIContextID)
+	}
+
 	// Convert to RouteNextHop: Self takes precedence if set
 	var nh RouteNextHop
 	if a.NextHopSelf {
@@ -354,13 +366,14 @@ func (a *parsedAttrs) snapshot() (PathAttributes, RouteNextHop, nlriAccum) {
 	} else if a.NextHop.IsValid() {
 		nh = NewNextHopExplicit(a.NextHop)
 	}
+
 	// Deep copy labels slice
 	var labels []uint32
 	if a.Labels != nil {
 		labels = make([]uint32, len(a.Labels))
 		copy(labels, a.Labels)
 	}
-	return pa, nh, nlriAccum{PathID: a.PathID, RD: a.RD, Labels: labels}
+	return wire, nh, nlriAccum{PathID: a.PathID, RD: a.RD, Labels: labels}
 }
 
 // removeFromSliceStrict removes first instance of each element in remove from slice.
@@ -425,6 +438,313 @@ func originToString(o uint8) string {
 	}
 }
 
+// parseCommonAttributeText parses a common BGP attribute by keyword into parsedAttrs.
+// Returns the number of args consumed (0 if keyword not handled), or error.
+func parseCommonAttributeText(key string, args []string, idx int, attrs *parsedAttrs) (int, error) {
+	switch key {
+	case "origin":
+		if idx+1 >= len(args) {
+			return 0, fmt.Errorf("missing origin value")
+		}
+		origin, err := parseOriginText(args[idx+1])
+		if err != nil {
+			return 0, err
+		}
+		attrs.Origin = &origin
+		return 1, nil
+
+	case "local-preference":
+		if idx+1 >= len(args) {
+			return 0, fmt.Errorf("missing local-preference value")
+		}
+		lp, err := strconv.ParseUint(args[idx+1], 10, 32)
+		if err != nil {
+			return 0, fmt.Errorf("invalid local-preference: %w", err)
+		}
+		lpVal := uint32(lp)
+		attrs.LocalPreference = &lpVal
+		return 1, nil
+
+	case "med":
+		if idx+1 >= len(args) {
+			return 0, fmt.Errorf("missing med value")
+		}
+		med, err := strconv.ParseUint(args[idx+1], 10, 32)
+		if err != nil {
+			return 0, fmt.Errorf("invalid med: %w", err)
+		}
+		medVal := uint32(med)
+		attrs.MED = &medVal
+		return 1, nil
+
+	case "as-path":
+		if idx+1 >= len(args) {
+			return 0, fmt.Errorf("missing as-path value")
+		}
+		tokens, consumed := parseBracketedListText(args[idx+1:])
+		asPath := make([]uint32, 0, len(tokens))
+		for _, tok := range tokens {
+			asn, err := strconv.ParseUint(tok, 10, 32)
+			if err != nil {
+				return 0, fmt.Errorf("invalid ASN in as-path: %s", tok)
+			}
+			asPath = append(asPath, uint32(asn))
+		}
+		attrs.ASPath = asPath
+		return consumed, nil
+
+	case "community":
+		if idx+1 >= len(args) {
+			return 0, fmt.Errorf("missing community value")
+		}
+		tokens, consumed := parseBracketedListText(args[idx+1:])
+		communities := make([]uint32, 0, len(tokens))
+		for _, tok := range tokens {
+			c, err := parseCommunityText(tok)
+			if err != nil {
+				return 0, err
+			}
+			communities = append(communities, c)
+		}
+		attrs.Communities = communities
+		return consumed, nil
+
+	case "large-community":
+		if idx+1 >= len(args) {
+			return 0, fmt.Errorf("missing large-community value")
+		}
+		tokens, consumed := parseBracketedListText(args[idx+1:])
+		lcs := make([]LargeCommunity, 0, len(tokens))
+		for _, tok := range tokens {
+			lc, err := parseLargeCommunityText(tok)
+			if err != nil {
+				return 0, err
+			}
+			lcs = append(lcs, lc)
+		}
+		attrs.LargeCommunities = lcs
+		return consumed, nil
+
+	case "extended-community":
+		if idx+1 >= len(args) {
+			return 0, fmt.Errorf("missing extended-community value")
+		}
+		tokens, consumed := parseBracketedListText(args[idx+1:])
+		ecs := make([]attribute.ExtendedCommunity, 0, len(tokens))
+		for _, tok := range tokens {
+			ec, err := parseExtendedCommunityText(tok)
+			if err != nil {
+				return 0, err
+			}
+			ecs = append(ecs, ec)
+		}
+		attrs.ExtendedCommunities = ecs
+		return consumed, nil
+	}
+
+	return 0, nil
+}
+
+// parseOriginText parses origin string to value.
+func parseOriginText(s string) (uint8, error) {
+	switch strings.ToLower(s) {
+	case "igp":
+		return 0, nil
+	case "egp":
+		return 1, nil
+	case "incomplete":
+		return 2, nil
+	default:
+		return 0, fmt.Errorf("invalid origin: %s (valid: igp, egp, incomplete)", s)
+	}
+}
+
+// parseBracketedListText parses [ v1 v2 ] or v1,v2 or [ v1, v2 ] style lists.
+// Returns tokens and consumed arg count.
+func parseBracketedListText(args []string) ([]string, int) {
+	if len(args) == 0 {
+		return nil, 0
+	}
+
+	// Check for opening bracket
+	if args[0] == "[" {
+		var tokens []string
+		consumed := 1
+		for i := 1; i < len(args); i++ {
+			if args[i] == "]" {
+				return tokens, i + 1
+			}
+			// Split by comma if present
+			for _, tok := range strings.Split(args[i], ",") {
+				tok = strings.TrimSpace(tok)
+				if tok != "" {
+					tokens = append(tokens, tok)
+				}
+			}
+			consumed = i + 1
+		}
+		return tokens, consumed
+	}
+
+	// Single value or comma-separated list
+	var tokens []string
+	for _, tok := range strings.Split(args[0], ",") {
+		tok = strings.TrimSpace(tok)
+		if tok != "" {
+			tokens = append(tokens, tok)
+		}
+	}
+	return tokens, 1
+}
+
+// parseCommunityText parses community in ASN:value or well-known format.
+func parseCommunityText(s string) (uint32, error) {
+	// Well-known communities
+	switch strings.ToLower(s) {
+	case "no-export":
+		return 0xFFFFFF01, nil
+	case "no-advertise":
+		return 0xFFFFFF02, nil
+	case "no-export-subconfed":
+		return 0xFFFFFF03, nil
+	}
+
+	// ASN:value format
+	parts := strings.SplitN(s, ":", 2)
+	if len(parts) != 2 {
+		return 0, fmt.Errorf("invalid community format: %s (expected ASN:value)", s)
+	}
+	high, err := strconv.ParseUint(parts[0], 10, 16)
+	if err != nil {
+		return 0, fmt.Errorf("invalid community ASN: %s", parts[0])
+	}
+	low, err := strconv.ParseUint(parts[1], 10, 16)
+	if err != nil {
+		return 0, fmt.Errorf("invalid community value: %s", parts[1])
+	}
+	return uint32(high)<<16 | uint32(low), nil
+}
+
+// parseLargeCommunityText parses large community in GA:LD1:LD2 format.
+func parseLargeCommunityText(s string) (LargeCommunity, error) {
+	parts := strings.SplitN(s, ":", 3)
+	if len(parts) != 3 {
+		return LargeCommunity{}, fmt.Errorf("invalid large-community format: %s (expected GA:LD1:LD2)", s)
+	}
+	ga, err := strconv.ParseUint(parts[0], 10, 32)
+	if err != nil {
+		return LargeCommunity{}, fmt.Errorf("invalid large-community global-admin: %s", parts[0])
+	}
+	ld1, err := strconv.ParseUint(parts[1], 10, 32)
+	if err != nil {
+		return LargeCommunity{}, fmt.Errorf("invalid large-community local-data-1: %s", parts[1])
+	}
+	ld2, err := strconv.ParseUint(parts[2], 10, 32)
+	if err != nil {
+		return LargeCommunity{}, fmt.Errorf("invalid large-community local-data-2: %s", parts[2])
+	}
+	return LargeCommunity{GlobalAdmin: uint32(ga), LocalData1: uint32(ld1), LocalData2: uint32(ld2)}, nil
+}
+
+// parseExtendedCommunityText parses extended community in type:value format.
+func parseExtendedCommunityText(s string) (attribute.ExtendedCommunity, error) {
+	// Try target:ASN:value or target:IP:value format
+	if strings.HasPrefix(strings.ToLower(s), "target:") {
+		rest := s[7:]
+		return parseRouteTargetText(rest)
+	}
+	// Try origin:ASN:value format
+	if strings.HasPrefix(strings.ToLower(s), "origin:") {
+		rest := s[7:]
+		return parseRouteOriginText(rest)
+	}
+	// Default: try as route target
+	return parseRouteTargetText(s)
+}
+
+// parseRouteTargetText parses route target in ASN:value or IP:value format.
+// ExtendedCommunity is [8]byte: [type, subtype, value[0:6]]
+func parseRouteTargetText(s string) (attribute.ExtendedCommunity, error) {
+	parts := strings.SplitN(s, ":", 2)
+	if len(parts) != 2 {
+		return attribute.ExtendedCommunity{}, fmt.Errorf("invalid route-target format: %s", s)
+	}
+
+	// Try IP:value first
+	ip := net.ParseIP(parts[0])
+	if ip != nil && ip.To4() != nil {
+		val, err := strconv.ParseUint(parts[1], 10, 16)
+		if err != nil {
+			return attribute.ExtendedCommunity{}, fmt.Errorf("invalid route-target value: %s", parts[1])
+		}
+		ipBytes := ip.To4()
+		// IPv4-specific RT: type=0x01, subtype=0x02
+		return attribute.ExtendedCommunity{
+			0x01, 0x02,
+			ipBytes[0], ipBytes[1], ipBytes[2], ipBytes[3],
+			byte(val >> 8), byte(val),
+		}, nil
+	}
+
+	// ASN:value format
+	asn, err := strconv.ParseUint(parts[0], 10, 32)
+	if err != nil {
+		return attribute.ExtendedCommunity{}, fmt.Errorf("invalid route-target ASN: %s", parts[0])
+	}
+	val, err := strconv.ParseUint(parts[1], 10, 32)
+	if err != nil {
+		return attribute.ExtendedCommunity{}, fmt.Errorf("invalid route-target value: %s", parts[1])
+	}
+
+	if asn <= 0xFFFF {
+		// 2-byte ASN : 4-byte value (type=0x00, subtype=0x02)
+		return attribute.ExtendedCommunity{
+			0x00, 0x02,
+			byte(asn >> 8), byte(asn),
+			byte(val >> 24), byte(val >> 16), byte(val >> 8), byte(val),
+		}, nil
+	}
+	// 4-byte ASN : 2-byte value (type=0x02, subtype=0x02)
+	return attribute.ExtendedCommunity{
+		0x02, 0x02,
+		byte(asn >> 24), byte(asn >> 16), byte(asn >> 8), byte(asn),
+		byte(val >> 8), byte(val),
+	}, nil
+}
+
+// parseRouteOriginText parses route origin in ASN:value format.
+// ExtendedCommunity is [8]byte: [type, subtype, value[0:6]]
+func parseRouteOriginText(s string) (attribute.ExtendedCommunity, error) {
+	parts := strings.SplitN(s, ":", 2)
+	if len(parts) != 2 {
+		return attribute.ExtendedCommunity{}, fmt.Errorf("invalid route-origin format: %s", s)
+	}
+
+	asn, err := strconv.ParseUint(parts[0], 10, 32)
+	if err != nil {
+		return attribute.ExtendedCommunity{}, fmt.Errorf("invalid route-origin ASN: %s", parts[0])
+	}
+	val, err := strconv.ParseUint(parts[1], 10, 32)
+	if err != nil {
+		return attribute.ExtendedCommunity{}, fmt.Errorf("invalid route-origin value: %s", parts[1])
+	}
+
+	if asn <= 0xFFFF {
+		// 2-byte ASN : 4-byte value (type=0x00, subtype=0x03)
+		return attribute.ExtendedCommunity{
+			0x00, 0x03,
+			byte(asn >> 8), byte(asn),
+			byte(val >> 24), byte(val >> 16), byte(val >> 8), byte(val),
+		}, nil
+	}
+	// 4-byte ASN : 2-byte value (type=0x02, subtype=0x03)
+	return attribute.ExtendedCommunity{
+		0x02, 0x03,
+		byte(asn >> 24), byte(asn >> 16), byte(asn >> 8), byte(asn),
+		byte(val >> 8), byte(val),
+	}, nil
+}
+
 // ParseUpdateText parses the "update text" command format.
 // Returns the parsed result or an error.
 func ParseUpdateText(args []string) (*UpdateTextResult, error) {
@@ -484,7 +804,7 @@ func ParseUpdateText(args []string) (*UpdateTextResult, error) {
 			i += consumed
 
 		case kwNLRI:
-			attrs, nh, nlriAcc := accum.snapshot()
+			wire, nh, nlriAcc := accum.snapshot()
 			family, announce, withdraw, nlriWatchdog, consumed, err := parseNLRISection(args[i:], nlriAcc)
 			if err != nil {
 				return nil, err
@@ -494,7 +814,7 @@ func ParseUpdateText(args []string) (*UpdateTextResult, error) {
 				Family:       family,
 				Announce:     announce,
 				Withdraw:     withdraw,
-				Attrs:        attrs,
+				Wire:         wire,
 				NextHop:      nh,
 				WatchdogName: nlriWatchdog,
 			})
@@ -775,8 +1095,8 @@ func parseAttrSection(args []string) (string, parsedAttrs, int, error) {
 			break
 		}
 
-		// Try parseCommonAttribute for standard attrs
-		extra, err := parseCommonAttribute(key, args, i, &attrs.PathAttributes)
+		// Try parseCommonAttributeText for standard attrs
+		extra, err := parseCommonAttributeText(key, args, i, &attrs)
 		if err != nil {
 			return "", parsedAttrs{}, 0, err
 		}
@@ -853,8 +1173,8 @@ func parsePerAttributeSection(args []string) (string, parsedAttrs, int, error) {
 		if isScalarAttribute(attrName) {
 			// Parse the value and set Del*Expected field
 			valueArgs := append([]string{attrName}, args[2:]...)
-			var tempAttrs PathAttributes
-			extra, err := parseCommonAttribute(attrName, valueArgs, 0, &tempAttrs)
+			var tempAttrs parsedAttrs
+			extra, err := parseCommonAttributeText(attrName, valueArgs, 0, &tempAttrs)
 			if err != nil {
 				return "", parsedAttrs{}, 0, err
 			}
@@ -875,11 +1195,11 @@ func parsePerAttributeSection(args []string) (string, parsedAttrs, int, error) {
 		// For list attrs, fall through to regular parsing
 	}
 
-	// Parse the value using parseCommonAttribute
+	// Parse the value using parseCommonAttributeText
 	// Build args slice: [attrName, value1, value2, ...] (skip mode keyword)
-	// parseCommonAttribute expects: args[idx]=attrName, args[idx+1]=value
+	// parseCommonAttributeText expects: args[idx]=attrName, args[idx+1]=value
 	valueArgs := append([]string{attrName}, args[2:]...)
-	extra, err := parseCommonAttribute(attrName, valueArgs, 0, &attrs.PathAttributes)
+	extra, err := parseCommonAttributeText(attrName, valueArgs, 0, &attrs)
 	if err != nil {
 		return "", parsedAttrs{}, 0, err
 	}
@@ -1848,7 +2168,7 @@ func dispatchNLRIGroups(ctx *CommandContext, groups []NLRIGroup) (*Response, err
 				Family:  group.Family,
 				NLRIs:   group.Announce,
 				NextHop: group.NextHop,
-				Attrs:   group.Attrs,
+				Wire:    group.Wire,
 			}
 			if err := ctx.Reactor.AnnounceNLRIBatch(peerSelector, batch); err != nil {
 				if errors.Is(err, ErrNoPeersAcceptedFamily) {

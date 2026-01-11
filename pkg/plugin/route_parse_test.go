@@ -4,6 +4,8 @@ import (
 	"net/netip"
 	"strings"
 	"testing"
+
+	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/attribute"
 )
 
 // TestSplitPrefix tests prefix splitting for the 'split /N' syntax.
@@ -878,31 +880,95 @@ func TestParseAttributesNLRI(t *testing.T) {
 			if tt.wantNextHop != "" && attrs.NextHop.String() != tt.wantNextHop {
 				t.Errorf("parseAttributesNLRI(%v) NextHop = %v, want %v", tt.args, attrs.NextHop, tt.wantNextHop)
 			}
-			if tt.wantOrigin != nil && (attrs.Origin == nil || *attrs.Origin != *tt.wantOrigin) {
-				t.Errorf("parseAttributesNLRI(%v) Origin = %v, want %v", tt.args, attrs.Origin, tt.wantOrigin)
+
+			// Extract attributes from Builder for validation
+			builderAttrs := attrs.Attrs.ToAttributes()
+
+			// Check Origin
+			if tt.wantOrigin != nil {
+				var foundOrigin *uint8
+				for _, a := range builderAttrs {
+					if o, ok := a.(attribute.Origin); ok {
+						v := uint8(o)
+						foundOrigin = &v
+						break
+					}
+				}
+				if foundOrigin == nil || *foundOrigin != *tt.wantOrigin {
+					t.Errorf("parseAttributesNLRI(%v) Origin = %v, want %v", tt.args, foundOrigin, tt.wantOrigin)
+				}
 			}
-			if tt.wantLP != nil && (attrs.LocalPreference == nil || *attrs.LocalPreference != *tt.wantLP) {
-				t.Errorf("parseAttributesNLRI(%v) LocalPreference = %v, want %v", tt.args, attrs.LocalPreference, tt.wantLP)
+
+			// Check LocalPref
+			if tt.wantLP != nil {
+				var foundLP *uint32
+				for _, a := range builderAttrs {
+					if lp, ok := a.(attribute.LocalPref); ok {
+						v := uint32(lp)
+						foundLP = &v
+						break
+					}
+				}
+				if foundLP == nil || *foundLP != *tt.wantLP {
+					t.Errorf("parseAttributesNLRI(%v) LocalPreference = %v, want %v", tt.args, foundLP, tt.wantLP)
+				}
 			}
-			if tt.wantMED != nil && (attrs.MED == nil || *attrs.MED != *tt.wantMED) {
-				t.Errorf("parseAttributesNLRI(%v) MED = %v, want %v", tt.args, attrs.MED, tt.wantMED)
+
+			// Check MED
+			if tt.wantMED != nil {
+				var foundMED *uint32
+				for _, a := range builderAttrs {
+					if m, ok := a.(attribute.MED); ok {
+						v := uint32(m)
+						foundMED = &v
+						break
+					}
+				}
+				if foundMED == nil || *foundMED != *tt.wantMED {
+					t.Errorf("parseAttributesNLRI(%v) MED = %v, want %v", tt.args, foundMED, tt.wantMED)
+				}
 			}
+
+			// Check AS_PATH
 			if tt.wantASPath != nil {
-				if len(attrs.ASPath) != len(tt.wantASPath) {
-					t.Errorf("parseAttributesNLRI(%v) ASPath len = %d, want %d", tt.args, len(attrs.ASPath), len(tt.wantASPath))
+				asPath := attrs.Attrs.ASPathSlice()
+				if len(asPath) != len(tt.wantASPath) {
+					t.Errorf("parseAttributesNLRI(%v) ASPath len = %d, want %d", tt.args, len(asPath), len(tt.wantASPath))
 				} else {
 					for i, asn := range tt.wantASPath {
-						if attrs.ASPath[i] != asn {
-							t.Errorf("parseAttributesNLRI(%v) ASPath[%d] = %d, want %d", tt.args, i, attrs.ASPath[i], asn)
+						if asPath[i] != asn {
+							t.Errorf("parseAttributesNLRI(%v) ASPath[%d] = %d, want %d", tt.args, i, asPath[i], asn)
 						}
 					}
 				}
 			}
-			if tt.wantCommunities > 0 && len(attrs.Communities) != tt.wantCommunities {
-				t.Errorf("parseAttributesNLRI(%v) Communities = %d, want %d", tt.args, len(attrs.Communities), tt.wantCommunities)
+
+			// Check Communities
+			if tt.wantCommunities > 0 {
+				var commCount int
+				for _, a := range builderAttrs {
+					if comms, ok := a.(attribute.Communities); ok {
+						commCount = len(comms)
+						break
+					}
+				}
+				if commCount != tt.wantCommunities {
+					t.Errorf("parseAttributesNLRI(%v) Communities = %d, want %d", tt.args, commCount, tt.wantCommunities)
+				}
 			}
-			if tt.wantLargeCommunities > 0 && len(attrs.LargeCommunities) != tt.wantLargeCommunities {
-				t.Errorf("parseAttributesNLRI(%v) LargeCommunities = %d, want %d", tt.args, len(attrs.LargeCommunities), tt.wantLargeCommunities)
+
+			// Check Large Communities
+			if tt.wantLargeCommunities > 0 {
+				var lcCount int
+				for _, a := range builderAttrs {
+					if lcs, ok := a.(attribute.LargeCommunities); ok {
+						lcCount = len(lcs)
+						break
+					}
+				}
+				if lcCount != tt.wantLargeCommunities {
+					t.Errorf("parseAttributesNLRI(%v) LargeCommunities = %d, want %d", tt.args, lcCount, tt.wantLargeCommunities)
+				}
 			}
 		})
 	}
@@ -1227,39 +1293,67 @@ func TestParseAttributesNlri(t *testing.T) {
 				t.Errorf("parseAttributesNLRI(%q) NextHop = %v, want explicit %v", tt.args, attrs.NextHop, wantNH)
 			}
 
-			// Check MED (pointer comparison)
+			// Extract attributes from Builder
+			builderAttrs := attrs.Attrs.ToAttributes()
+
+			// Check MED
 			if tt.wantMED != nil {
-				if attrs.MED == nil {
+				var foundMED *uint32
+				for _, a := range builderAttrs {
+					if m, ok := a.(attribute.MED); ok {
+						v := uint32(m)
+						foundMED = &v
+						break
+					}
+				}
+				if foundMED == nil {
 					t.Errorf("parseAttributesNLRI(%q) MED = nil, want %d", tt.args, *tt.wantMED)
-				} else if *attrs.MED != *tt.wantMED {
-					t.Errorf("parseAttributesNLRI(%q) MED = %d, want %d", tt.args, *attrs.MED, *tt.wantMED)
+				} else if *foundMED != *tt.wantMED {
+					t.Errorf("parseAttributesNLRI(%q) MED = %d, want %d", tt.args, *foundMED, *tt.wantMED)
 				}
 			}
 
-			// Check LocalPreference (pointer comparison)
+			// Check LocalPreference
 			if tt.wantLP != nil {
-				if attrs.LocalPreference == nil {
+				var foundLP *uint32
+				for _, a := range builderAttrs {
+					if lp, ok := a.(attribute.LocalPref); ok {
+						v := uint32(lp)
+						foundLP = &v
+						break
+					}
+				}
+				if foundLP == nil {
 					t.Errorf("parseAttributesNLRI(%q) LocalPreference = nil, want %d", tt.args, *tt.wantLP)
-				} else if *attrs.LocalPreference != *tt.wantLP {
-					t.Errorf("parseAttributesNLRI(%q) LocalPreference = %d, want %d", tt.args, *attrs.LocalPreference, *tt.wantLP)
+				} else if *foundLP != *tt.wantLP {
+					t.Errorf("parseAttributesNLRI(%q) LocalPreference = %d, want %d", tt.args, *foundLP, *tt.wantLP)
 				}
 			}
 
-			// Check Origin (pointer comparison)
+			// Check Origin
 			if tt.wantOrigin != nil {
-				if attrs.Origin == nil {
+				var foundOrigin *uint8
+				for _, a := range builderAttrs {
+					if o, ok := a.(attribute.Origin); ok {
+						v := uint8(o)
+						foundOrigin = &v
+						break
+					}
+				}
+				if foundOrigin == nil {
 					t.Errorf("parseAttributesNLRI(%q) Origin = nil, want %d", tt.args, *tt.wantOrigin)
-				} else if *attrs.Origin != *tt.wantOrigin {
-					t.Errorf("parseAttributesNLRI(%q) Origin = %d, want %d", tt.args, *attrs.Origin, *tt.wantOrigin)
+				} else if *foundOrigin != *tt.wantOrigin {
+					t.Errorf("parseAttributesNLRI(%q) Origin = %d, want %d", tt.args, *foundOrigin, *tt.wantOrigin)
 				}
 			}
 
 			// Check ASPath
 			if tt.wantASPath != nil {
-				if len(attrs.ASPath) != len(tt.wantASPath) {
-					t.Errorf("parseAttributesNLRI(%q) ASPath = %v, want %v", tt.args, attrs.ASPath, tt.wantASPath)
+				asPath := attrs.Attrs.ASPathSlice()
+				if len(asPath) != len(tt.wantASPath) {
+					t.Errorf("parseAttributesNLRI(%q) ASPath = %v, want %v", tt.args, asPath, tt.wantASPath)
 				} else {
-					for i, asn := range attrs.ASPath {
+					for i, asn := range asPath {
 						if asn != tt.wantASPath[i] {
 							t.Errorf("parseAttributesNLRI(%q) ASPath[%d] = %d, want %d", tt.args, i, asn, tt.wantASPath[i])
 						}
@@ -1269,10 +1363,19 @@ func TestParseAttributesNlri(t *testing.T) {
 
 			// Check Communities
 			if tt.wantComms != nil {
-				if len(attrs.Communities) != len(tt.wantComms) {
-					t.Errorf("parseAttributesNLRI(%q) Communities = %v, want %v", tt.args, attrs.Communities, tt.wantComms)
+				var comms []uint32
+				for _, a := range builderAttrs {
+					if c, ok := a.(attribute.Communities); ok {
+						for _, comm := range c {
+							comms = append(comms, uint32(comm))
+						}
+						break
+					}
+				}
+				if len(comms) != len(tt.wantComms) {
+					t.Errorf("parseAttributesNLRI(%q) Communities = %v, want %v", tt.args, comms, tt.wantComms)
 				} else {
-					for i, comm := range attrs.Communities {
+					for i, comm := range comms {
 						if comm != tt.wantComms[i] {
 							t.Errorf("parseAttributesNLRI(%q) Communities[%d] = %08x, want %08x", tt.args, i, comm, tt.wantComms[i])
 						}

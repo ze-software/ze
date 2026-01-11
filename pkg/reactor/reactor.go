@@ -300,56 +300,26 @@ func (a *reactorAPIAdapter) AnnounceRoute(peerSelector string, route plugin.Rout
 		n = nlri.NewINET(nlri.Family{AFI: nlri.AFIIPv6, SAFI: nlri.SAFIUnicast}, route.Prefix, 0)
 	}
 
-	// Build attributes from RouteSpec
-	// Prefer Attrs (Builder) when set, fall back to PathAttributes
+	// Build attributes from RouteSpec.Wire (wire-first approach)
 	var attrs []attribute.Attribute
 	var userASPath []uint32
 
-	if route.Attrs != nil {
-		// Use wire-first Builder
-		attrs = route.Attrs.ToAttributes()
-		userASPath = route.Attrs.ASPathSlice()
-	} else {
-		// Fall back to PathAttributes (deprecated)
-		// Order matches buildAnnounceUpdate: ORIGIN, MED, LOCAL_PREF, communities
-
-		// 1. ORIGIN
-		if route.Origin != nil {
-			attrs = append(attrs, attribute.Origin(*route.Origin))
-		} else {
-			attrs = append(attrs, attribute.OriginIGP)
+	if route.Wire != nil {
+		// Parse attributes from wire format
+		var err error
+		attrs, err = route.Wire.All()
+		if err != nil {
+			return fmt.Errorf("failed to parse route attributes: %w", err)
 		}
-
-		// 2. MED (RFC 4271 §5.1.4: optional non-transitive)
-		if route.MED != nil {
-			attrs = append(attrs, attribute.MED(*route.MED))
-		}
-
-		// 3. LOCAL_PREF (will be filtered by isIBGP check at send time)
-		if route.LocalPreference != nil {
-			attrs = append(attrs, attribute.LocalPref(*route.LocalPreference))
-		}
-
-		// 4. Communities
-		if len(route.Communities) > 0 {
-			comms := make(attribute.Communities, len(route.Communities))
-			for i, c := range route.Communities {
-				comms[i] = attribute.Community(c)
+		// Extract AS_PATH if present
+		if asPathAttr, err := route.Wire.Get(attribute.AttrASPath); err == nil {
+			if asp, ok := asPathAttr.(*attribute.ASPath); ok && len(asp.Segments) > 0 {
+				userASPath = asp.Segments[0].ASNs
 			}
-			attrs = append(attrs, comms)
 		}
-
-		// 5. Large Communities
-		if len(route.LargeCommunities) > 0 {
-			attrs = append(attrs, attribute.LargeCommunities(route.LargeCommunities))
-		}
-
-		// 6. Extended Communities
-		if len(route.ExtendedCommunities) > 0 {
-			attrs = append(attrs, attribute.ExtendedCommunities(route.ExtendedCommunities))
-		}
-
-		userASPath = route.ASPath
+	} else {
+		// No wire attributes - use defaults
+		attrs = append(attrs, attribute.OriginIGP)
 	}
 
 	var lastErr error
@@ -659,19 +629,68 @@ func WriteAnnounceUpdate(buf []byte, off int, route plugin.RouteSpec, localAS ui
 	// Determine ASN4 mode from context
 	asn4 := ctx == nil || ctx.ASN4
 
-	// 1. ORIGIN - RFC 4271 §5.1.1: Well-known mandatory attribute.
-	origin := uint8(attribute.OriginIGP)
-	if route.Origin != nil {
-		origin = *route.Origin
+	// Extract attributes from Wire (wire-first approach)
+	var origin uint8 = uint8(attribute.OriginIGP)
+	var med *uint32
+	var localPref *uint32
+	var communities []uint32
+	var largeCommunities []attribute.LargeCommunity
+	var extCommunities []attribute.ExtendedCommunity
+	var userASPath []uint32
+
+	if route.Wire != nil {
+		// Extract ORIGIN
+		if originAttr, err := route.Wire.Get(attribute.AttrOrigin); err == nil {
+			origin = uint8(originAttr.(attribute.Origin))
+		}
+		// Extract AS_PATH
+		if asPathAttr, err := route.Wire.Get(attribute.AttrASPath); err == nil {
+			if asp, ok := asPathAttr.(*attribute.ASPath); ok && len(asp.Segments) > 0 {
+				userASPath = asp.Segments[0].ASNs
+			}
+		}
+		// Extract MED
+		if medAttr, err := route.Wire.Get(attribute.AttrMED); err == nil {
+			v := uint32(medAttr.(attribute.MED))
+			med = &v
+		}
+		// Extract LOCAL_PREF
+		if lpAttr, err := route.Wire.Get(attribute.AttrLocalPref); err == nil {
+			v := uint32(lpAttr.(attribute.LocalPref))
+			localPref = &v
+		}
+		// Extract COMMUNITY
+		if commAttr, err := route.Wire.Get(attribute.AttrCommunity); err == nil {
+			if comms, ok := commAttr.(attribute.Communities); ok {
+				communities = make([]uint32, len(comms))
+				for i, c := range comms {
+					communities[i] = uint32(c)
+				}
+			}
+		}
+		// Extract LARGE_COMMUNITY
+		if lcAttr, err := route.Wire.Get(attribute.AttrLargeCommunity); err == nil {
+			if lc, ok := lcAttr.(attribute.LargeCommunities); ok {
+				largeCommunities = lc
+			}
+		}
+		// Extract EXTENDED_COMMUNITIES
+		if ecAttr, err := route.Wire.Get(attribute.AttrExtCommunity); err == nil {
+			if ec, ok := ecAttr.(attribute.ExtendedCommunities); ok {
+				extCommunities = ec
+			}
+		}
 	}
+
+	// 1. ORIGIN - RFC 4271 §5.1.1: Well-known mandatory attribute.
 	off += writeOriginAttr(buf, off, origin)
 
 	// 2. AS_PATH - RFC 4271 §5.1.2: Well-known mandatory attribute.
 	// Zero-alloc: write directly without creating ASPath struct.
 	var asPathASNs []uint32
 	switch {
-	case len(route.ASPath) > 0:
-		asPathASNs = route.ASPath // Use caller's slice directly
+	case len(userASPath) > 0:
+		asPathASNs = userASPath // Use caller's slice directly
 	case isIBGP:
 		asPathASNs = nil // Empty AS_PATH for iBGP
 	default:
@@ -689,35 +708,35 @@ func WriteAnnounceUpdate(buf []byte, off int, route plugin.RouteSpec, localAS ui
 	}
 
 	// 4. MED - RFC 4271 §5.1.4: Optional non-transitive attribute.
-	if route.MED != nil {
-		off += writeMEDAttr(buf, off, *route.MED)
+	if med != nil {
+		off += writeMEDAttr(buf, off, *med)
 	}
 
 	// 5. LOCAL_PREF - RFC 4271 §5.1.5: Well-known attribute for iBGP only.
 	if isIBGP {
-		localPref := uint32(100)
-		if route.LocalPreference != nil {
-			localPref = *route.LocalPreference
+		lpVal := uint32(100)
+		if localPref != nil {
+			lpVal = *localPref
 		}
-		off += writeLocalPrefAttr(buf, off, localPref)
+		off += writeLocalPrefAttr(buf, off, lpVal)
 	}
 
 	// 6. COMMUNITY - RFC 1997: Optional transitive attribute.
-	if len(route.Communities) > 0 {
-		off += writeCommunitiesAttr(buf, off, route.Communities)
+	if len(communities) > 0 {
+		off += writeCommunitiesAttr(buf, off, communities)
 	}
 
 	// 7. LARGE_COMMUNITY - RFC 8092: Optional transitive attribute.
 	// Type conversion only, no allocation.
-	if len(route.LargeCommunities) > 0 {
-		lcomms := attribute.LargeCommunities(route.LargeCommunities)
+	if len(largeCommunities) > 0 {
+		lcomms := attribute.LargeCommunities(largeCommunities)
 		off += attribute.WriteAttrTo(lcomms, buf, off)
 	}
 
 	// 8. EXTENDED_COMMUNITIES - RFC 4360: Optional transitive attribute.
 	// Type conversion only, no allocation.
-	if len(route.ExtendedCommunities) > 0 {
-		extComms := attribute.ExtendedCommunities(route.ExtendedCommunities)
+	if len(extCommunities) > 0 {
+		extComms := attribute.ExtendedCommunities(extCommunities)
 		off += attribute.WriteAttrTo(extComms, buf, off)
 	}
 
@@ -1063,28 +1082,50 @@ func (a *reactorAPIAdapter) buildL3VPNParams(route plugin.L3VPNRoute) (message.V
 	rdBytes := rd.Bytes()
 	copy(params.RDBytes[:], rdBytes)
 
-	// Set optional attributes
-	if route.Origin != nil {
-		params.Origin = attribute.Origin(*route.Origin)
-	}
-	if route.LocalPreference != nil {
-		params.LocalPreference = *route.LocalPreference
-	}
-	if route.MED != nil {
-		params.MED = *route.MED
-	}
-	if len(route.ASPath) > 0 {
-		params.ASPath = route.ASPath
-	}
-	if len(route.Communities) > 0 {
-		params.Communities = route.Communities
-	}
-	if len(route.LargeCommunities) > 0 {
-		lc := make([][3]uint32, len(route.LargeCommunities))
-		for i, c := range route.LargeCommunities {
-			lc[i] = [3]uint32{c.GlobalAdmin, c.LocalData1, c.LocalData2}
+	// Extract optional attributes from Wire (wire-first approach)
+	if route.Wire != nil {
+		// Extract ORIGIN
+		if originAttr, err := route.Wire.Get(attribute.AttrOrigin); err == nil {
+			params.Origin = originAttr.(attribute.Origin)
 		}
-		params.LargeCommunities = lc
+		// Extract LOCAL_PREF
+		if lpAttr, err := route.Wire.Get(attribute.AttrLocalPref); err == nil {
+			params.LocalPreference = uint32(lpAttr.(attribute.LocalPref))
+		}
+		// Extract MED
+		if medAttr, err := route.Wire.Get(attribute.AttrMED); err == nil {
+			params.MED = uint32(medAttr.(attribute.MED))
+		}
+		// Extract AS_PATH
+		if asPathAttr, err := route.Wire.Get(attribute.AttrASPath); err == nil {
+			if asp, ok := asPathAttr.(*attribute.ASPath); ok && len(asp.Segments) > 0 {
+				params.ASPath = asp.Segments[0].ASNs
+			}
+		}
+		// Extract COMMUNITY
+		if commAttr, err := route.Wire.Get(attribute.AttrCommunity); err == nil {
+			if comms, ok := commAttr.(attribute.Communities); ok {
+				params.Communities = make([]uint32, len(comms))
+				for i, c := range comms {
+					params.Communities[i] = uint32(c)
+				}
+			}
+		}
+		// Extract LARGE_COMMUNITY
+		if lcAttr, err := route.Wire.Get(attribute.AttrLargeCommunity); err == nil {
+			if lcs, ok := lcAttr.(attribute.LargeCommunities); ok {
+				params.LargeCommunities = make([][3]uint32, len(lcs))
+				for i, c := range lcs {
+					params.LargeCommunities[i] = [3]uint32{c.GlobalAdmin, c.LocalData1, c.LocalData2}
+				}
+			}
+		}
+		// Extract EXTENDED_COMMUNITIES
+		if ecAttr, err := route.Wire.Get(attribute.AttrExtCommunity); err == nil {
+			if ecs, ok := ecAttr.(attribute.ExtendedCommunities); ok {
+				params.ExtCommunityBytes = append(params.ExtCommunityBytes, ecs.Pack()...)
+			}
+		}
 	}
 
 	// Handle RT (Route Target) - convert to extended community
@@ -1094,12 +1135,6 @@ func (a *reactorAPIAdapter) buildL3VPNParams(route plugin.L3VPNRoute) (message.V
 			return message.VPNParams{}, fmt.Errorf("invalid rt: %w", err)
 		}
 		params.ExtCommunityBytes = append(params.ExtCommunityBytes, rtBytes...)
-	}
-
-	// Add any other extended communities
-	if len(route.ExtendedCommunities) > 0 {
-		params.ExtCommunityBytes = append(params.ExtCommunityBytes,
-			attribute.ExtendedCommunities(route.ExtendedCommunities).Pack()...)
 	}
 
 	return params, nil
@@ -1122,59 +1157,36 @@ func (a *reactorAPIAdapter) buildL3VPNRIBRoute(route plugin.L3VPNRoute, isIBGP b
 
 	n := nlri.NewIPVPN(family, rd, route.Labels, route.Prefix, 0)
 
-	// Build attributes
+	// Build attributes from Wire (wire-first approach)
 	var attrs []attribute.Attribute
+	var userASPath []uint32
 
-	// Origin (required)
-	if route.Origin != nil {
-		attrs = append(attrs, attribute.Origin(*route.Origin))
+	if route.Wire != nil {
+		// Parse attributes from wire format
+		attrs, err = route.Wire.All()
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse route attributes: %w", err)
+		}
+		// Extract AS_PATH if present
+		if asPathAttr, err := route.Wire.Get(attribute.AttrASPath); err == nil {
+			if asp, ok := asPathAttr.(*attribute.ASPath); ok && len(asp.Segments) > 0 {
+				userASPath = asp.Segments[0].ASNs
+			}
+		}
 	} else {
+		// No wire attributes - use defaults
 		attrs = append(attrs, attribute.OriginIGP)
 	}
 
-	// LocalPreference (iBGP only)
-	if route.LocalPreference != nil {
-		attrs = append(attrs, attribute.LocalPref(*route.LocalPreference))
-	}
-
-	// MED
-	if route.MED != nil {
-		attrs = append(attrs, attribute.MED(*route.MED))
-	}
-
-	// Communities
-	if len(route.Communities) > 0 {
-		comms := make(attribute.Communities, len(route.Communities))
-		for i, c := range route.Communities {
-			comms[i] = attribute.Community(c)
-		}
-		attrs = append(attrs, comms)
-	}
-
-	// LargeCommunities
-	if len(route.LargeCommunities) > 0 {
-		lcs := make(attribute.LargeCommunities, len(route.LargeCommunities))
-		copy(lcs, route.LargeCommunities)
-		attrs = append(attrs, lcs)
-	}
-
-	// Extended communities (RT + others)
-	var extComm []byte
+	// Handle RT (Route Target) - convert to extended community
 	if route.RT != "" {
 		rtBytes, err := parseRouteTarget(route.RT)
 		if err != nil {
 			return nil, fmt.Errorf("invalid rt: %w", err)
 		}
-		extComm = append(extComm, rtBytes...)
-	}
-	if len(route.ExtendedCommunities) > 0 {
-		extComm = append(extComm, attribute.ExtendedCommunities(route.ExtendedCommunities).Pack()...)
-	}
-	if len(extComm) > 0 {
-		// Parse raw bytes into ExtendedCommunities
-		ec, err := attribute.ParseExtendedCommunities(extComm)
+		ec, err := attribute.ParseExtendedCommunities(rtBytes)
 		if err != nil {
-			return nil, fmt.Errorf("invalid extended communities: %w", err)
+			return nil, fmt.Errorf("invalid rt extended community: %w", err)
 		}
 		attrs = append(attrs, ec)
 	}
@@ -1182,10 +1194,10 @@ func (a *reactorAPIAdapter) buildL3VPNRIBRoute(route plugin.L3VPNRoute, isIBGP b
 	// Build AS_PATH
 	var asPath *attribute.ASPath
 	switch {
-	case len(route.ASPath) > 0:
+	case len(userASPath) > 0:
 		asPath = &attribute.ASPath{
 			Segments: []attribute.ASPathSegment{
-				{Type: attribute.ASSequence, ASNs: route.ASPath},
+				{Type: attribute.ASSequence, ASNs: userASPath},
 			},
 		}
 	case isIBGP:
@@ -1294,7 +1306,11 @@ func (a *reactorAPIAdapter) AnnounceLabeledUnicast(peerSelector string, route pl
 		isIBGP := peer.Settings().IsIBGP()
 
 		// Build rib.Route with ALL attributes (not just Origin like AnnounceRoute bug)
-		ribRoute := a.buildLabeledUnicastRIBRoute(route, isIBGP)
+		ribRoute, err := a.buildLabeledUnicastRIBRoute(route, isIBGP)
+		if err != nil {
+			lastErr = err
+			continue
+		}
 
 		if peer.State() == PeerStateEstablished {
 			// Send immediately
@@ -1331,31 +1347,50 @@ func (a *reactorAPIAdapter) buildLabeledUnicastParams(route plugin.LabeledUnicas
 		Origin:  attribute.OriginIGP,
 	}
 
-	// Set optional attributes
-	if route.Origin != nil {
-		params.Origin = attribute.Origin(*route.Origin)
-	}
-	if route.LocalPreference != nil {
-		params.LocalPreference = *route.LocalPreference
-	}
-	if route.MED != nil {
-		params.MED = *route.MED
-	}
-	if len(route.ASPath) > 0 {
-		params.ASPath = route.ASPath
-	}
-	if len(route.Communities) > 0 {
-		params.Communities = route.Communities
-	}
-	if len(route.LargeCommunities) > 0 {
-		lc := make([][3]uint32, len(route.LargeCommunities))
-		for i, c := range route.LargeCommunities {
-			lc[i] = [3]uint32{c.GlobalAdmin, c.LocalData1, c.LocalData2}
+	// Extract optional attributes from Wire (wire-first approach)
+	if route.Wire != nil {
+		// Extract ORIGIN
+		if originAttr, err := route.Wire.Get(attribute.AttrOrigin); err == nil {
+			params.Origin = originAttr.(attribute.Origin)
 		}
-		params.LargeCommunities = lc
-	}
-	if len(route.ExtendedCommunities) > 0 {
-		params.ExtCommunityBytes = attribute.ExtendedCommunities(route.ExtendedCommunities).Pack()
+		// Extract LOCAL_PREF
+		if lpAttr, err := route.Wire.Get(attribute.AttrLocalPref); err == nil {
+			params.LocalPreference = uint32(lpAttr.(attribute.LocalPref))
+		}
+		// Extract MED
+		if medAttr, err := route.Wire.Get(attribute.AttrMED); err == nil {
+			params.MED = uint32(medAttr.(attribute.MED))
+		}
+		// Extract AS_PATH
+		if asPathAttr, err := route.Wire.Get(attribute.AttrASPath); err == nil {
+			if asp, ok := asPathAttr.(*attribute.ASPath); ok && len(asp.Segments) > 0 {
+				params.ASPath = asp.Segments[0].ASNs
+			}
+		}
+		// Extract COMMUNITY
+		if commAttr, err := route.Wire.Get(attribute.AttrCommunity); err == nil {
+			if comms, ok := commAttr.(attribute.Communities); ok {
+				params.Communities = make([]uint32, len(comms))
+				for i, c := range comms {
+					params.Communities[i] = uint32(c)
+				}
+			}
+		}
+		// Extract LARGE_COMMUNITY
+		if lcAttr, err := route.Wire.Get(attribute.AttrLargeCommunity); err == nil {
+			if lcs, ok := lcAttr.(attribute.LargeCommunities); ok {
+				params.LargeCommunities = make([][3]uint32, len(lcs))
+				for i, c := range lcs {
+					params.LargeCommunities[i] = [3]uint32{c.GlobalAdmin, c.LocalData1, c.LocalData2}
+				}
+			}
+		}
+		// Extract EXTENDED_COMMUNITIES
+		if ecAttr, err := route.Wire.Get(attribute.AttrExtCommunity); err == nil {
+			if ecs, ok := ecAttr.(attribute.ExtendedCommunities); ok {
+				params.ExtCommunityBytes = ecs.Pack()
+			}
+		}
 	}
 
 	return params
@@ -1367,7 +1402,7 @@ func (a *reactorAPIAdapter) buildLabeledUnicastParams(route plugin.LabeledUnicas
 //
 // RFC 8277: Labeled unicast routes include MPLS labels in the NLRI.
 // RFC 7911: PathID is included when ADD-PATH is negotiated.
-func (a *reactorAPIAdapter) buildLabeledUnicastRIBRoute(route plugin.LabeledUnicastRoute, isIBGP bool) *rib.Route {
+func (a *reactorAPIAdapter) buildLabeledUnicastRIBRoute(route plugin.LabeledUnicastRoute, isIBGP bool) (*rib.Route, error) {
 	// 1. Build NLRI with nlri.LabeledUnicast
 	family := nlri.Family{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIMPLSLabel}
 	if route.Prefix.Addr().Is6() {
@@ -1382,55 +1417,36 @@ func (a *reactorAPIAdapter) buildLabeledUnicastRIBRoute(route plugin.LabeledUnic
 
 	n := nlri.NewLabeledUnicast(family, route.Prefix, labels, route.PathID)
 
-	// 2. Build attributes - MUST INCLUDE ALL (unlike AnnounceRoute bug)
+	// 2. Build attributes from Wire (wire-first approach)
 	var attrs []attribute.Attribute
+	var userASPath []uint32
 
-	// Origin (required)
-	if route.Origin != nil {
-		attrs = append(attrs, attribute.Origin(*route.Origin))
-	} else {
-		attrs = append(attrs, attribute.OriginIGP)
-	}
-
-	// LocalPreference (optional, iBGP only per RFC 4271)
-	if route.LocalPreference != nil {
-		attrs = append(attrs, attribute.LocalPref(*route.LocalPreference))
-	}
-
-	// MED (optional)
-	if route.MED != nil {
-		attrs = append(attrs, attribute.MED(*route.MED))
-	}
-
-	// Communities (optional)
-	if len(route.Communities) > 0 {
-		comms := make(attribute.Communities, len(route.Communities))
-		for i, c := range route.Communities {
-			comms[i] = attribute.Community(c)
+	if route.Wire != nil {
+		// Parse attributes from wire format
+		var err error
+		attrs, err = route.Wire.All()
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse route attributes: %w", err)
 		}
-		attrs = append(attrs, comms)
-	}
-
-	// LargeCommunities (optional)
-	if len(route.LargeCommunities) > 0 {
-		lcs := make(attribute.LargeCommunities, len(route.LargeCommunities))
-		copy(lcs, route.LargeCommunities)
-		attrs = append(attrs, lcs)
-	}
-
-	// ExtendedCommunities (optional)
-	if len(route.ExtendedCommunities) > 0 {
-		attrs = append(attrs, attribute.ExtendedCommunities(route.ExtendedCommunities))
+		// Extract AS_PATH if present
+		if asPathAttr, err := route.Wire.Get(attribute.AttrASPath); err == nil {
+			if asp, ok := asPathAttr.(*attribute.ASPath); ok && len(asp.Segments) > 0 {
+				userASPath = asp.Segments[0].ASNs
+			}
+		}
+	} else {
+		// No wire attributes - use defaults
+		attrs = append(attrs, attribute.OriginIGP)
 	}
 
 	// 3. Build AS-PATH
 	// RFC 4271 §5.1.2: iBGP SHALL NOT modify AS_PATH; eBGP prepends local AS
 	var asPath *attribute.ASPath
 	switch {
-	case len(route.ASPath) > 0:
+	case len(userASPath) > 0:
 		asPath = &attribute.ASPath{
 			Segments: []attribute.ASPathSegment{
-				{Type: attribute.ASSequence, ASNs: route.ASPath},
+				{Type: attribute.ASSequence, ASNs: userASPath},
 			},
 		}
 	case isIBGP:
@@ -1443,7 +1459,7 @@ func (a *reactorAPIAdapter) buildLabeledUnicastRIBRoute(route plugin.LabeledUnic
 		}
 	}
 
-	return rib.NewRouteWithASPath(n, route.NextHop, attrs, asPath)
+	return rib.NewRouteWithASPath(n, route.NextHop, attrs, asPath), nil
 }
 
 // WithdrawLabeledUnicast withdraws an MPLS labeled unicast route.
@@ -1574,15 +1590,30 @@ func (a *reactorAPIAdapter) AnnounceNLRIBatch(peerSelector string, batch plugin.
 	}
 
 	// Build attributes for RIB route (used for queueing non-established peers)
-	// Prefer AttrsBuilder (wire-first) over PathAttributes when available
+	// Prefer Wire (forwarding) over Attrs (builder) when available
 	var attrs []attribute.Attribute
 	var userASPath []uint32
-	if batch.AttrsBuilder != nil {
-		attrs = batch.AttrsBuilder.ToAttributes()
-		userASPath = batch.AttrsBuilder.ASPathSlice()
+
+	if batch.Wire != nil {
+		// Parse attributes from wire format
+		var err error
+		attrs, err = batch.Wire.All()
+		if err != nil {
+			return fmt.Errorf("failed to parse batch attributes: %w", err)
+		}
+		// Extract AS_PATH if present
+		if asPathAttr, err := batch.Wire.Get(attribute.AttrASPath); err == nil {
+			if asp, ok := asPathAttr.(*attribute.ASPath); ok && len(asp.Segments) > 0 {
+				userASPath = asp.Segments[0].ASNs
+			}
+		}
+	} else if batch.Attrs != nil {
+		// Use Builder for new routes
+		attrs = batch.Attrs.ToAttributes()
+		userASPath = batch.Attrs.ASPathSlice()
 	} else {
-		attrs = a.buildBatchAttributes(batch.Attrs)
-		userASPath = batch.Attrs.ASPath
+		// No attributes - use defaults
+		attrs = append(attrs, attribute.OriginIGP)
 	}
 
 	var lastErr error
@@ -1691,54 +1722,6 @@ func (a *reactorAPIAdapter) WithdrawNLRIBatch(peerSelector string, batch plugin.
 	return lastErr
 }
 
-// buildBatchAttributes converts PathAttributes to attribute.Attribute slice.
-// Used for building rib.Route for queue operations.
-//
-// Deprecated: Use attribute.Builder.ToAttributes() instead. The AnnounceNLRIBatch
-// function now prefers NLRIBatch.AttrsBuilder when set. This function remains
-// as a fallback for code that still uses PathAttributes.
-func (a *reactorAPIAdapter) buildBatchAttributes(attrs plugin.PathAttributes) []attribute.Attribute {
-	var result []attribute.Attribute
-
-	// ORIGIN
-	if attrs.Origin != nil {
-		result = append(result, attribute.Origin(*attrs.Origin))
-	} else {
-		result = append(result, attribute.OriginIGP)
-	}
-
-	// MED
-	if attrs.MED != nil {
-		result = append(result, attribute.MED(*attrs.MED))
-	}
-
-	// LOCAL_PREF (will be filtered at send time for eBGP)
-	if attrs.LocalPreference != nil {
-		result = append(result, attribute.LocalPref(*attrs.LocalPreference))
-	}
-
-	// COMMUNITY
-	if len(attrs.Communities) > 0 {
-		comms := make(attribute.Communities, len(attrs.Communities))
-		for i, c := range attrs.Communities {
-			comms[i] = attribute.Community(c)
-		}
-		result = append(result, comms)
-	}
-
-	// LARGE_COMMUNITY
-	if len(attrs.LargeCommunities) > 0 {
-		result = append(result, attribute.LargeCommunities(attrs.LargeCommunities))
-	}
-
-	// EXTENDED_COMMUNITIES
-	if len(attrs.ExtendedCommunities) > 0 {
-		result = append(result, attribute.ExtendedCommunities(attrs.ExtendedCommunities))
-	}
-
-	return result
-}
-
 // buildBatchASPath builds AS_PATH for batch operations.
 // RFC 4271 §5.1.2: iBGP SHALL NOT modify AS_PATH; eBGP prepends local AS.
 func (a *reactorAPIAdapter) buildBatchASPath(userASPath []uint32, isIBGP bool) *attribute.ASPath {
@@ -1763,9 +1746,8 @@ func (a *reactorAPIAdapter) buildBatchASPath(userASPath []uint32, isIBGP bool) *
 // buildBatchAnnounceUpdate builds an UPDATE message for a batch of NLRIs.
 // RFC 4271 Section 4.3: UPDATE Message Format.
 // RFC 4760: MP_REACH_NLRI for non-IPv4-unicast families.
-func (a *reactorAPIAdapter) buildBatchAnnounceUpdate(batch plugin.NLRIBatch, nextHop netip.Addr, isIBGP bool, ctx *nlri.PackContext) *message.Update {
-	attrs := batch.Attrs
-	isIPv4Unicast := batch.Family == nlri.IPv4Unicast
+func (a *reactorAPIAdapter) buildBatchAnnounceUpdate(batch plugin.NLRIBatch, nextHop netip.Addr, _ bool, ctx *nlri.PackContext) *message.Update {
+	_ = batch.Family == nlri.IPv4Unicast // isIBGP parameter no longer used
 
 	// Pack NLRIs first (used by both paths)
 	// Calculate total NLRI size
@@ -1780,106 +1762,23 @@ func (a *reactorAPIAdapter) buildBatchAnnounceUpdate(batch plugin.NLRIBatch, nex
 	}
 
 	// Wire mode: use raw attribute bytes, only add NEXT_HOP or MP_REACH_NLRI
-	if attrs.Wire != nil {
-		return a.buildWireModeUpdate(attrs.Wire.Packed(), nlriBytes, batch.Family, nextHop)
+	if batch.Wire != nil {
+		return a.buildWireModeUpdate(batch.Wire.Packed(), nlriBytes, batch.Family, nextHop)
 	}
 
-	// Semantic mode: build attributes from fields
-	// Pre-allocate buffer for attributes (4KB typical BGP max)
-	attrBuf := make([]byte, 4096)
-	off := 0
-
-	// Create encoding context for ASPath encoding
-	dstCtx := &bgpctx.EncodingContext{ASN4: ctx == nil || ctx.ASN4}
-
-	// 1. ORIGIN - RFC 4271 §5.1.1
-	origin := attribute.OriginIGP
-	if attrs.Origin != nil {
-		origin = attribute.Origin(*attrs.Origin)
-	}
-	off += attribute.WriteAttrTo(origin, attrBuf, off)
-
-	// 2. AS_PATH - RFC 4271 §5.1.2
-	var asPath *attribute.ASPath
-	switch {
-	case len(attrs.ASPath) > 0:
-		asPath = &attribute.ASPath{
-			Segments: []attribute.ASPathSegment{
-				{Type: attribute.ASSequence, ASNs: attrs.ASPath},
-			},
-		}
-	case isIBGP:
-		asPath = &attribute.ASPath{Segments: nil}
-	default:
-		asPath = &attribute.ASPath{
-			Segments: []attribute.ASPathSegment{
-				{Type: attribute.ASSequence, ASNs: []uint32{a.r.config.LocalAS}},
-			},
-		}
-	}
-	off += attribute.WriteAttrToWithContext(asPath, attrBuf, off, nil, dstCtx)
-
-	// 3. NEXT_HOP - RFC 4271 §5.1.3 (IPv4 unicast only)
-	if isIPv4Unicast {
-		nh := &attribute.NextHop{Addr: nextHop}
-		off += attribute.WriteAttrTo(nh, attrBuf, off)
+	// Builder mode or default: build attributes from Builder or defaults
+	var attrBytes []byte
+	if batch.Attrs != nil {
+		attrBytes = batch.Attrs.Build()
+	} else {
+		// Default: just ORIGIN=IGP
+		b := attribute.NewBuilder()
+		b.SetOrigin(uint8(attribute.OriginIGP))
+		attrBytes = b.Build()
 	}
 
-	// 4. MED - RFC 4271 §5.1.4
-	if attrs.MED != nil {
-		off += attribute.WriteAttrTo(attribute.MED(*attrs.MED), attrBuf, off)
-	}
-
-	// 5. LOCAL_PREF - RFC 4271 §5.1.5 (iBGP only)
-	if isIBGP {
-		var localPref attribute.LocalPref = 100
-		if attrs.LocalPreference != nil {
-			localPref = attribute.LocalPref(*attrs.LocalPreference)
-		}
-		off += attribute.WriteAttrTo(localPref, attrBuf, off)
-	}
-
-	// 6. COMMUNITY - RFC 1997
-	if len(attrs.Communities) > 0 {
-		comms := make(attribute.Communities, len(attrs.Communities))
-		for i, c := range attrs.Communities {
-			comms[i] = attribute.Community(c)
-		}
-		off += attribute.WriteAttrTo(comms, attrBuf, off)
-	}
-
-	// 7. LARGE_COMMUNITY - RFC 8092
-	if len(attrs.LargeCommunities) > 0 {
-		lcomms := attribute.LargeCommunities(attrs.LargeCommunities)
-		off += attribute.WriteAttrTo(lcomms, attrBuf, off)
-	}
-
-	// 8. EXTENDED_COMMUNITIES - RFC 4360
-	if len(attrs.ExtendedCommunities) > 0 {
-		extComms := attribute.ExtendedCommunities(attrs.ExtendedCommunities)
-		off += attribute.WriteAttrTo(extComms, attrBuf, off)
-	}
-
-	if isIPv4Unicast {
-		// IPv4 unicast: NLRI goes in the NLRI field
-		return &message.Update{
-			PathAttributes: attrBuf[:off],
-			NLRI:           nlriBytes,
-		}
-	}
-
-	// Non-IPv4 unicast: Use MP_REACH_NLRI (RFC 4760)
-	mpReach := &attribute.MPReachNLRI{
-		AFI:      attribute.AFI(batch.Family.AFI),
-		SAFI:     attribute.SAFI(batch.Family.SAFI),
-		NextHops: []netip.Addr{nextHop},
-		NLRI:     nlriBytes,
-	}
-	off += attribute.WriteAttrTo(mpReach, attrBuf, off)
-
-	return &message.Update{
-		PathAttributes: attrBuf[:off],
-	}
+	// Add NEXT_HOP or MP_REACH_NLRI
+	return a.buildWireModeUpdate(attrBytes, nlriBytes, batch.Family, nextHop)
 }
 
 // buildWireModeUpdate builds UPDATE using raw wire attribute bytes.
@@ -2099,25 +1998,44 @@ func (a *reactorAPIAdapter) AddWatchdogRoute(route plugin.RouteSpec, poolName st
 		Prefix:  route.Prefix,
 		NextHop: route.NextHop, // Already plugin.RouteNextHop
 	}
-	if route.Origin != nil {
-		sr.Origin = *route.Origin
-	}
-	if route.LocalPreference != nil {
-		sr.LocalPreference = *route.LocalPreference
-	}
-	if route.MED != nil {
-		sr.MED = *route.MED
-	}
-	if len(route.ASPath) > 0 {
-		sr.ASPath = route.ASPath
-	}
-	if len(route.Communities) > 0 {
-		sr.Communities = route.Communities
-	}
-	if len(route.LargeCommunities) > 0 {
-		sr.LargeCommunities = make([][3]uint32, len(route.LargeCommunities))
-		for i, lc := range route.LargeCommunities {
-			sr.LargeCommunities[i] = [3]uint32{lc.GlobalAdmin, lc.LocalData1, lc.LocalData2}
+
+	// Extract attributes from Wire (wire-first approach)
+	if route.Wire != nil {
+		// Extract ORIGIN
+		if originAttr, err := route.Wire.Get(attribute.AttrOrigin); err == nil {
+			sr.Origin = uint8(originAttr.(attribute.Origin))
+		}
+		// Extract LOCAL_PREF
+		if lpAttr, err := route.Wire.Get(attribute.AttrLocalPref); err == nil {
+			sr.LocalPreference = uint32(lpAttr.(attribute.LocalPref))
+		}
+		// Extract MED
+		if medAttr, err := route.Wire.Get(attribute.AttrMED); err == nil {
+			sr.MED = uint32(medAttr.(attribute.MED))
+		}
+		// Extract AS_PATH
+		if asPathAttr, err := route.Wire.Get(attribute.AttrASPath); err == nil {
+			if asp, ok := asPathAttr.(*attribute.ASPath); ok && len(asp.Segments) > 0 {
+				sr.ASPath = asp.Segments[0].ASNs
+			}
+		}
+		// Extract COMMUNITY
+		if commAttr, err := route.Wire.Get(attribute.AttrCommunity); err == nil {
+			if comms, ok := commAttr.(attribute.Communities); ok {
+				sr.Communities = make([]uint32, len(comms))
+				for i, c := range comms {
+					sr.Communities[i] = uint32(c)
+				}
+			}
+		}
+		// Extract LARGE_COMMUNITY
+		if lcAttr, err := route.Wire.Get(attribute.AttrLargeCommunity); err == nil {
+			if lcs, ok := lcAttr.(attribute.LargeCommunities); ok {
+				sr.LargeCommunities = make([][3]uint32, len(lcs))
+				for i, c := range lcs {
+					sr.LargeCommunities[i] = [3]uint32{c.GlobalAdmin, c.LocalData1, c.LocalData2}
+				}
+			}
 		}
 	}
 
@@ -2147,34 +2065,41 @@ func staticRouteToSpec(route StaticRoute, localAddress netip.Addr) plugin.RouteS
 		NextHop: plugin.NewNextHopExplicit(nextHop),
 	}
 
-	// Copy optional attributes
-	if route.Origin != 0 {
-		origin := route.Origin
-		spec.Origin = &origin
-	}
+	// Build wire-format attributes using Builder (wire-first approach)
+	b := attribute.NewBuilder()
+
+	// Origin (0=IGP by default)
+	b.SetOrigin(route.Origin)
+
+	// LocalPreference
 	if route.LocalPreference != 0 {
-		lp := route.LocalPreference
-		spec.LocalPreference = &lp
+		b.SetLocalPref(route.LocalPreference)
 	}
+
+	// MED
 	if route.MED != 0 {
-		med := route.MED
-		spec.MED = &med
+		b.SetMED(route.MED)
 	}
+
+	// ASPath
 	if len(route.ASPath) > 0 {
-		spec.ASPath = route.ASPath
+		b.SetASPath(route.ASPath)
 	}
-	if len(route.Communities) > 0 {
-		spec.Communities = route.Communities
+
+	// Communities
+	for _, c := range route.Communities {
+		b.AddCommunityValue(c)
 	}
-	if len(route.LargeCommunities) > 0 {
-		spec.LargeCommunities = make([]attribute.LargeCommunity, len(route.LargeCommunities))
-		for i, lc := range route.LargeCommunities {
-			spec.LargeCommunities[i] = attribute.LargeCommunity{
-				GlobalAdmin: lc[0],
-				LocalData1:  lc[1],
-				LocalData2:  lc[2],
-			}
-		}
+
+	// LargeCommunities
+	for _, lc := range route.LargeCommunities {
+		b.AddLargeCommunity(lc[0], lc[1], lc[2])
+	}
+
+	// Build wire bytes and wrap
+	wireBytes := b.Build()
+	if len(wireBytes) > 0 {
+		spec.Wire = attribute.NewAttributesWire(wireBytes, bgpctx.APIContextID)
 	}
 
 	return spec

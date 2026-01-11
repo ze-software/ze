@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/attribute"
 	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/message"
 	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/nlri"
 	"codeberg.org/thomas-mangin/zebgp/pkg/rib"
@@ -615,24 +616,6 @@ func TestHandleAnnounceIPv6_RejectsVPNKeywords(t *testing.T) {
 	}
 }
 
-// TestHandleAnnounceRoute_RejectsVPNKeywords verifies that VPN-only keywords are rejected.
-//
-// VALIDATES: Auto-detect route handler also validates keywords.
-//
-// PREVENTS: Bypassing validation by using 'announce route' instead of 'announce ipv4'.
-func TestHandleAnnounceRoute_RejectsVPNKeywords(t *testing.T) {
-	reactor := &mockReactor{}
-	ctx := &CommandContext{Reactor: reactor}
-
-	// rd should be rejected
-	resp, err := handleAnnounceRoute(ctx, []string{"10.0.0.0/24", "next-hop", "1.2.3.4", "rd", "100:100"})
-
-	require.Error(t, err)
-	require.NotNil(t, resp)
-	assert.Equal(t, "error", resp.Status)
-	assert.Contains(t, resp.Data.(string), "rd") //nolint:forcetypeassert // test code
-}
-
 // TestHandleAnnounceIPv4_ValidKeywords verifies valid unicast keywords work.
 //
 // VALIDATES: All unicast keywords are accepted.
@@ -982,10 +965,19 @@ func TestHandleAnnounceL3VPN_WithAttributes(t *testing.T) {
 	require.Len(t, reactor.announcedL3VPNRoutes, 1)
 
 	route := reactor.announcedL3VPNRoutes[0].route
-	require.NotNil(t, route.Origin)
-	assert.Equal(t, uint8(0), *route.Origin) // IGP
-	require.NotNil(t, route.LocalPreference)
-	assert.Equal(t, uint32(200), *route.LocalPreference)
+	require.NotNil(t, route.Wire, "Wire field should be set")
+
+	// Verify Origin = IGP
+	origin, err := route.Wire.Get(attribute.AttrOrigin)
+	require.NoError(t, err)
+	require.NotNil(t, origin)
+	assert.Equal(t, attribute.OriginIGP, origin.(attribute.Origin)) //nolint:forcetypeassert // test code
+
+	// Verify LocalPref = 200
+	lp, err := route.Wire.Get(attribute.AttrLocalPref)
+	require.NoError(t, err)
+	require.NotNil(t, lp)
+	assert.Equal(t, attribute.LocalPref(200), lp.(attribute.LocalPref)) //nolint:forcetypeassert // test code
 }
 
 // TestHandleWithdrawL3VPN_IPv4 verifies L3VPN IPv4 route withdrawal.
@@ -1147,10 +1139,19 @@ func TestHandleAnnounceLabeledUnicast_WithAttributes(t *testing.T) {
 	require.Len(t, reactor.announcedLabeledUnicastRoutes, 1)
 
 	route := reactor.announcedLabeledUnicastRoutes[0].route
-	require.NotNil(t, route.Origin)
-	assert.Equal(t, uint8(0), *route.Origin) // IGP
-	require.NotNil(t, route.LocalPreference)
-	assert.Equal(t, uint32(200), *route.LocalPreference)
+	require.NotNil(t, route.Wire, "Wire field should be set")
+
+	// Verify Origin = IGP
+	origin, err := route.Wire.Get(attribute.AttrOrigin)
+	require.NoError(t, err)
+	require.NotNil(t, origin)
+	assert.Equal(t, attribute.OriginIGP, origin.(attribute.Origin)) //nolint:forcetypeassert // test code
+
+	// Verify LocalPref = 200
+	lp, err := route.Wire.Get(attribute.AttrLocalPref)
+	require.NoError(t, err)
+	require.NotNil(t, lp)
+	assert.Equal(t, attribute.LocalPref(200), lp.(attribute.LocalPref)) //nolint:forcetypeassert // test code
 }
 
 // TestHandleWithdrawLabeledUnicast_IPv4 verifies labeled unicast IPv4 route withdrawal.
@@ -1422,25 +1423,49 @@ func TestHandleAnnounceLabeledUnicast_AttributeValues(t *testing.T) {
 	require.Len(t, reactor.announcedLabeledUnicastRoutes, 1)
 
 	route := reactor.announcedLabeledUnicastRoutes[0].route
+	require.NotNil(t, route.Wire, "Wire field should be set")
 
-	// Verify all attribute values
-	require.NotNil(t, route.Origin)
-	assert.Equal(t, uint8(1), *route.Origin) // EGP = 1
+	// Verify Origin = EGP
+	origin, err := route.Wire.Get(attribute.AttrOrigin)
+	require.NoError(t, err)
+	require.NotNil(t, origin)
+	assert.Equal(t, attribute.OriginEGP, origin.(attribute.Origin)) //nolint:forcetypeassert // test code
 
-	require.NotNil(t, route.MED)
-	assert.Equal(t, uint32(500), *route.MED)
+	// Verify MED = 500
+	med, err := route.Wire.Get(attribute.AttrMED)
+	require.NoError(t, err)
+	require.NotNil(t, med)
+	assert.Equal(t, attribute.MED(500), med.(attribute.MED)) //nolint:forcetypeassert // test code
 
-	require.NotNil(t, route.LocalPreference)
-	assert.Equal(t, uint32(150), *route.LocalPreference)
+	// Verify LocalPref = 150
+	lp, err := route.Wire.Get(attribute.AttrLocalPref)
+	require.NoError(t, err)
+	require.NotNil(t, lp)
+	assert.Equal(t, attribute.LocalPref(150), lp.(attribute.LocalPref)) //nolint:forcetypeassert // test code
 
-	require.Len(t, route.ASPath, 2)
-	assert.Equal(t, uint32(65001), route.ASPath[0])
-	assert.Equal(t, uint32(65002), route.ASPath[1])
+	// Verify AS_PATH = [65001, 65002]
+	asPath, err := route.Wire.Get(attribute.AttrASPath)
+	require.NoError(t, err)
+	require.NotNil(t, asPath)
+	asp := asPath.(*attribute.ASPath) //nolint:forcetypeassert // test code
+	require.Len(t, asp.Segments, 1)
+	require.Len(t, asp.Segments[0].ASNs, 2)
+	assert.Equal(t, uint32(65001), asp.Segments[0].ASNs[0])
+	assert.Equal(t, uint32(65002), asp.Segments[0].ASNs[1])
 
-	require.Len(t, route.Communities, 2)
+	// Verify Communities (2 communities)
+	comms, err := route.Wire.Get(attribute.AttrCommunity)
+	require.NoError(t, err)
+	require.NotNil(t, comms)
+	assert.Len(t, comms.(attribute.Communities), 2) //nolint:forcetypeassert // test code
 
-	require.Len(t, route.LargeCommunities, 1)
-	assert.Equal(t, uint32(65000), route.LargeCommunities[0].GlobalAdmin)
+	// Verify Large Communities (1 large community)
+	largeComms, err := route.Wire.Get(attribute.AttrLargeCommunity)
+	require.NoError(t, err)
+	require.NotNil(t, largeComms)
+	lcs := largeComms.(attribute.LargeCommunities) //nolint:forcetypeassert // test code
+	require.Len(t, lcs, 1)
+	assert.Equal(t, uint32(65000), lcs[0].GlobalAdmin)
 }
 
 // TestRIBClearIn verifies clearing Adj-RIB-In removes all received routes.

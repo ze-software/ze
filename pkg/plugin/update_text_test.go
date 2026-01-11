@@ -14,6 +14,130 @@ import (
 	"codeberg.org/thomas-mangin/zebgp/pkg/selector"
 )
 
+// testExtractOrigin extracts Origin from Wire for testing.
+func testExtractOrigin(t *testing.T, wire *attribute.AttributesWire) uint8 {
+	t.Helper()
+	attrs, err := wire.All()
+	require.NoError(t, err)
+	for _, a := range attrs {
+		if o, ok := a.(attribute.Origin); ok {
+			return uint8(o)
+		}
+	}
+	t.Fatal("Origin not found in Wire")
+	return 0
+}
+
+// testExtractMED extracts MED from Wire for testing.
+func testExtractMED(t *testing.T, wire *attribute.AttributesWire) uint32 {
+	t.Helper()
+	attrs, err := wire.All()
+	require.NoError(t, err)
+	for _, a := range attrs {
+		if m, ok := a.(attribute.MED); ok {
+			return uint32(m)
+		}
+	}
+	t.Fatal("MED not found in Wire")
+	return 0
+}
+
+// testExtractLocalPref extracts LocalPref from Wire for testing.
+func testExtractLocalPref(t *testing.T, wire *attribute.AttributesWire) uint32 {
+	t.Helper()
+	attrs, err := wire.All()
+	require.NoError(t, err)
+	for _, a := range attrs {
+		if lp, ok := a.(attribute.LocalPref); ok {
+			return uint32(lp)
+		}
+	}
+	t.Fatal("LocalPref not found in Wire")
+	return 0
+}
+
+// testExtractCommunities extracts Communities from Wire for testing.
+func testExtractCommunities(t *testing.T, wire *attribute.AttributesWire) []uint32 {
+	t.Helper()
+	attrs, err := wire.All()
+	require.NoError(t, err)
+	for _, a := range attrs {
+		if comms, ok := a.(attribute.Communities); ok {
+			result := make([]uint32, len(comms))
+			for i, c := range comms {
+				result[i] = uint32(c)
+			}
+			return result
+		}
+	}
+	return nil
+}
+
+// testExtractLargeCommunities extracts LargeCommunities from Wire for testing.
+func testExtractLargeCommunities(t *testing.T, wire *attribute.AttributesWire) []LargeCommunity {
+	t.Helper()
+	attrs, err := wire.All()
+	require.NoError(t, err)
+	for _, a := range attrs {
+		if lcs, ok := a.(attribute.LargeCommunities); ok {
+			return lcs
+		}
+	}
+	return nil
+}
+
+// testExtractExtCommunities extracts ExtendedCommunities from Wire for testing.
+func testExtractExtCommunities(t *testing.T, wire *attribute.AttributesWire) []attribute.ExtendedCommunity {
+	t.Helper()
+	attrs, err := wire.All()
+	require.NoError(t, err)
+	for _, a := range attrs {
+		if ecs, ok := a.(attribute.ExtendedCommunities); ok {
+			return ecs
+		}
+	}
+	return nil
+}
+
+// testHasOrigin checks if Origin exists in Wire.
+func testHasOrigin(t *testing.T, wire *attribute.AttributesWire) bool {
+	t.Helper()
+	if wire == nil {
+		return false
+	}
+	has, err := wire.Has(attribute.AttrOrigin)
+	require.NoError(t, err)
+	return has
+}
+
+// testHasMED checks if MED exists in Wire.
+func testHasMED(t *testing.T, wire *attribute.AttributesWire) bool {
+	t.Helper()
+	if wire == nil {
+		return false
+	}
+	has, err := wire.Has(attribute.AttrMED)
+	require.NoError(t, err)
+	return has
+}
+
+// testExtractASPath extracts AS_PATH as []uint32 from Wire for testing.
+func testExtractASPath(t *testing.T, wire *attribute.AttributesWire) []uint32 {
+	t.Helper()
+	attrs, err := wire.All()
+	require.NoError(t, err)
+	for _, a := range attrs {
+		if asp, ok := a.(*attribute.ASPath); ok {
+			var result []uint32
+			for _, seg := range asp.Segments {
+				result = append(result, seg.ASNs...)
+			}
+			return result
+		}
+	}
+	return nil
+}
+
 // TestParseUpdateText_EmptyInput verifies empty args returns empty result.
 //
 // VALIDATES: Empty args produces empty Groups, no error.
@@ -49,8 +173,8 @@ func TestParseUpdateText_OriginSet(t *testing.T) {
 			})
 			require.NoError(t, err)
 			require.Len(t, result.Groups, 1)
-			require.NotNil(t, result.Groups[0].Attrs.Origin)
-			assert.Equal(t, tc.want, *result.Groups[0].Attrs.Origin)
+			require.NotNil(t, result.Groups[0].Wire)
+			assert.Equal(t, tc.want, testExtractOrigin(t, result.Groups[0].Wire))
 		})
 	}
 }
@@ -69,13 +193,11 @@ func TestParseUpdateText_MultipleAttrs(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, result.Groups, 1)
 
-	attrs := result.Groups[0].Attrs
-	require.NotNil(t, attrs.Origin)
-	assert.Equal(t, uint8(0), *attrs.Origin)
-	require.NotNil(t, attrs.MED)
-	assert.Equal(t, uint32(100), *attrs.MED)
-	require.NotNil(t, attrs.LocalPreference)
-	assert.Equal(t, uint32(200), *attrs.LocalPreference)
+	wire := result.Groups[0].Wire
+	require.NotNil(t, wire)
+	assert.Equal(t, uint8(0), testExtractOrigin(t, wire))
+	assert.Equal(t, uint32(100), testExtractMED(t, wire))
+	assert.Equal(t, uint32(200), testExtractLocalPref(t, wire))
 }
 
 // TestParseUpdateText_CommunitySet verifies community parsing.
@@ -90,7 +212,7 @@ func TestParseUpdateText_CommunitySet(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, result.Groups, 1)
 
-	comms := result.Groups[0].Attrs.Communities
+	comms := testExtractCommunities(t, result.Groups[0].Wire)
 	require.Len(t, comms, 2)
 	assert.Equal(t, uint32(65000<<16|100), comms[0])
 	assert.Equal(t, uint32(65000<<16|200), comms[1])
@@ -109,7 +231,7 @@ func TestParseUpdateText_CommunityAdd(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, result.Groups, 1)
 
-	comms := result.Groups[0].Attrs.Communities
+	comms := testExtractCommunities(t, result.Groups[0].Wire)
 	require.Len(t, comms, 2)
 	assert.Equal(t, uint32(65000<<16|200), comms[0]) // prepended first
 	assert.Equal(t, uint32(65000<<16|100), comms[1])
@@ -128,7 +250,7 @@ func TestParseUpdateText_CommunityDel(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, result.Groups, 1)
 
-	comms := result.Groups[0].Attrs.Communities
+	comms := testExtractCommunities(t, result.Groups[0].Wire)
 	require.Len(t, comms, 2)
 	assert.Equal(t, uint32(65000<<16|100), comms[0])
 	assert.Equal(t, uint32(65000<<16|300), comms[1])
@@ -162,8 +284,9 @@ func TestParseUpdateText_EmptyListOKDel(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, result.Groups, 1)
 	// Original community preserved
-	require.Len(t, result.Groups[0].Attrs.Communities, 1)
-	assert.Equal(t, uint32(65000<<16|100), result.Groups[0].Attrs.Communities[0])
+	comms := testExtractCommunities(t, result.Groups[0].Wire)
+	require.Len(t, comms, 1)
+	assert.Equal(t, uint32(65000<<16|100), comms[0])
 }
 
 // TestParseUpdateText_FirstInstanceOnlyDel verifies del removes first instance only.
@@ -179,7 +302,7 @@ func TestParseUpdateText_FirstInstanceOnlyDel(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, result.Groups, 1)
 
-	comms := result.Groups[0].Attrs.Communities
+	comms := testExtractCommunities(t, result.Groups[0].Wire)
 	require.Len(t, comms, 2) // 200 and second 100 remain
 	assert.Equal(t, uint32(65000<<16|200), comms[0])
 	assert.Equal(t, uint32(65000<<16|100), comms[1]) // second 100 still there
@@ -200,7 +323,7 @@ func TestParseUpdateText_ThenAddSet(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, result.Groups, 1)
 
-	comms := result.Groups[0].Attrs.Communities
+	comms := testExtractCommunities(t, result.Groups[0].Wire)
 	require.Len(t, comms, 2)
 	assert.Equal(t, uint32(65000<<16|400), comms[0]) // prepended first
 	assert.Equal(t, uint32(65000<<16|300), comms[1])
@@ -218,7 +341,7 @@ func TestParseUpdateText_LargeCommunity(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, result.Groups, 1)
 
-	lcomms := result.Groups[0].Attrs.LargeCommunities
+	lcomms := testExtractLargeCommunities(t, result.Groups[0].Wire)
 	require.Len(t, lcomms, 1)
 	assert.Equal(t, LargeCommunity{GlobalAdmin: 65000, LocalData1: 1, LocalData2: 2}, lcomms[0])
 }
@@ -236,7 +359,7 @@ func TestParseUpdateText_ExtendedCommunity(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, result.Groups, 1)
 
-	extcomms := result.Groups[0].Attrs.ExtendedCommunities
+	extcomms := testExtractExtCommunities(t, result.Groups[0].Wire)
 	require.Len(t, extcomms, 1)
 	// Origin: Type 0x00, Subtype 0x03, 2-byte ASN + IPv4
 	// 65000 = 0xFDE8 → bytes [0xFD, 0xE8]
@@ -280,7 +403,7 @@ func TestParseUpdateText_ScalarDelConditional(t *testing.T) {
 		"nlri", "ipv4/unicast", "add", "10.0.0.0/24",
 	})
 	require.NoError(t, err)
-	assert.Nil(t, result.Groups[0].Attrs.Origin) // Should be cleared
+	assert.False(t, testHasOrigin(t, result.Groups[0].Wire)) // Should be cleared
 
 	// Conditional delete fails when value doesn't match
 	_, err = ParseUpdateText([]string{
@@ -314,11 +437,11 @@ func TestParseUpdateText_ScalarDelClearsAttribute(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, result.Groups, 1)
 
-	// Origin should be cleared (nil)
-	assert.Nil(t, result.Groups[0].Attrs.Origin, "origin should be cleared by del")
+	// Origin should be cleared (not present)
+	assert.False(t, testHasOrigin(t, result.Groups[0].Wire), "origin should be cleared by del")
 	// MED should still be set
-	require.NotNil(t, result.Groups[0].Attrs.MED)
-	assert.Equal(t, uint32(100), *result.Groups[0].Attrs.MED)
+	assert.True(t, testHasMED(t, result.Groups[0].Wire))
+	assert.Equal(t, uint32(100), testExtractMED(t, result.Groups[0].Wire))
 }
 
 // TestParseUpdateText_ASPathAdd verifies add on as-path prepends.
@@ -334,7 +457,7 @@ func TestParseUpdateText_ASPathAdd(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, result.Groups, 1)
 
-	asPath := result.Groups[0].Attrs.ASPath
+	asPath := testExtractASPath(t, result.Groups[0].Wire)
 	require.Len(t, asPath, 3)
 	assert.Equal(t, uint32(65000), asPath[0]) // prepended
 	assert.Equal(t, uint32(65001), asPath[1])
@@ -354,7 +477,7 @@ func TestParseUpdateText_ASPathDelValue(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, result.Groups, 1)
 
-	asPath := result.Groups[0].Attrs.ASPath
+	asPath := testExtractASPath(t, result.Groups[0].Wire)
 	require.Len(t, asPath, 2)
 	assert.Equal(t, uint32(65000), asPath[0])
 	assert.Equal(t, uint32(65002), asPath[1])
@@ -373,7 +496,8 @@ func TestParseUpdateText_ASPathDelClear(t *testing.T) {
 	require.NoError(t, err)
 	require.Len(t, result.Groups, 1)
 
-	assert.Nil(t, result.Groups[0].Attrs.ASPath)
+	asPath := testExtractASPath(t, result.Groups[0].Wire)
+	assert.Empty(t, asPath)
 }
 
 // TestParseUpdateText_ASPathDelNotFound verifies error when ASN not in path.
@@ -515,8 +639,8 @@ func TestParseUpdateText_AttrAndNLRI(t *testing.T) {
 	g := result.Groups[0]
 	assert.True(t, g.NextHop.IsExplicit())
 	assert.Equal(t, netip.MustParseAddr("192.0.2.1"), g.NextHop.Addr)
-	require.NotNil(t, g.Attrs.Origin)
-	assert.Equal(t, uint8(0), *g.Attrs.Origin)
+	assert.True(t, testHasOrigin(t, g.Wire))
+	assert.Equal(t, uint8(0), testExtractOrigin(t, g.Wire))
 	require.Len(t, g.Announce, 1)
 }
 
@@ -535,13 +659,15 @@ func TestParseUpdateText_MultipleGroups(t *testing.T) {
 	require.Len(t, result.Groups, 2)
 
 	// First group: only 65000:100
-	require.Len(t, result.Groups[0].Attrs.Communities, 1)
-	assert.Equal(t, uint32(65000<<16|100), result.Groups[0].Attrs.Communities[0])
+	comms0 := testExtractCommunities(t, result.Groups[0].Wire)
+	require.Len(t, comms0, 1)
+	assert.Equal(t, uint32(65000<<16|100), comms0[0])
 
 	// Second group: 65000:200 prepended + 65000:100
-	require.Len(t, result.Groups[1].Attrs.Communities, 2)
-	assert.Equal(t, uint32(65000<<16|200), result.Groups[1].Attrs.Communities[0]) // prepended
-	assert.Equal(t, uint32(65000<<16|100), result.Groups[1].Attrs.Communities[1])
+	comms1 := testExtractCommunities(t, result.Groups[1].Wire)
+	require.Len(t, comms1, 2)
+	assert.Equal(t, uint32(65000<<16|200), comms1[0]) // prepended
+	assert.Equal(t, uint32(65000<<16|100), comms1[1])
 }
 
 // TestParseUpdateText_IPv6 verifies IPv6 support.
@@ -686,7 +812,7 @@ func TestParseUpdateText_SpecExample(t *testing.T) {
 	assert.Equal(t, nlri.IPv4Unicast, g1.Family)
 	assert.True(t, g1.NextHop.IsExplicit())
 	assert.Equal(t, netip.MustParseAddr("192.0.2.1"), g1.NextHop.Addr)
-	require.Len(t, g1.Attrs.Communities, 1)
+	require.Len(t, testExtractCommunities(t, g1.Wire), 1)
 	require.Len(t, g1.Announce, 2)
 	require.Len(t, g1.Withdraw, 1)
 	assert.Empty(t, g1.WatchdogName) // No watchdog on first group
@@ -696,7 +822,7 @@ func TestParseUpdateText_SpecExample(t *testing.T) {
 	assert.Equal(t, nlri.IPv6Unicast, g2.Family)
 	assert.True(t, g2.NextHop.IsExplicit())
 	assert.Equal(t, netip.MustParseAddr("2001:db8::1"), g2.NextHop.Addr)
-	require.Len(t, g2.Attrs.Communities, 2) // 65000:100 + 65000:200
+	require.Len(t, testExtractCommunities(t, g2.Wire), 2) // 65000:100 + 65000:200
 	require.Len(t, g2.Announce, 1)
 	assert.Empty(t, g2.Withdraw)
 	assert.Equal(t, "test-pool", g2.WatchdogName)
@@ -710,18 +836,17 @@ func TestParseUpdateText_SpecExample(t *testing.T) {
 // PREVENTS: Shared slice bugs.
 func TestParsedAttrs_Snapshot_DeepCopy(t *testing.T) {
 	orig := parsedAttrs{
-		PathAttributes: PathAttributes{
-			Communities: []uint32{1, 2, 3},
-		},
+		Communities: []uint32{1, 2, 3},
 	}
 
-	pa, _, _ := orig.snapshot()
+	wire, _, _ := orig.snapshot()
 
 	// Modify original
 	orig.Communities = append(orig.Communities, 4)
 
-	// Snapshot should be unaffected
-	assert.Len(t, pa.Communities, 3)
+	// Snapshot should be unaffected (Wire is built at snapshot time)
+	comms := testExtractCommunities(t, wire)
+	assert.Len(t, comms, 3)
 }
 
 // TestParsedAttrs_Snapshot_DeepCopyPointers verifies pointer fields are deep copied.
@@ -731,19 +856,17 @@ func TestParsedAttrs_Snapshot_DeepCopy(t *testing.T) {
 func TestParsedAttrs_Snapshot_DeepCopyPointers(t *testing.T) {
 	origin := uint8(0)
 	orig := parsedAttrs{
-		PathAttributes: PathAttributes{
-			Origin: &origin,
-		},
+		Origin: &origin,
 	}
 
-	pa, _, _ := orig.snapshot()
+	wire, _, _ := orig.snapshot()
 
 	// Modify original pointer value
 	*orig.Origin = 2
 
-	// Snapshot should be unaffected
-	require.NotNil(t, pa.Origin)
-	assert.Equal(t, uint8(0), *pa.Origin)
+	// Snapshot should be unaffected (Wire built at snapshot time with origin=0)
+	extractedOrigin := testExtractOrigin(t, wire)
+	assert.Equal(t, uint8(0), extractedOrigin)
 }
 
 // TestParseUpdateText_EmptyAttrSection verifies empty attr section is valid.
@@ -868,12 +991,12 @@ func TestParseUpdateText_AttrBetweenNLRISections(t *testing.T) {
 	require.Len(t, result.Groups, 2)
 
 	// First group: origin=IGP (0)
-	require.NotNil(t, result.Groups[0].Attrs.Origin)
-	assert.Equal(t, uint8(0), *result.Groups[0].Attrs.Origin)
+	assert.True(t, testHasOrigin(t, result.Groups[0].Wire))
+	assert.Equal(t, uint8(0), testExtractOrigin(t, result.Groups[0].Wire))
 
 	// Second group: origin=EGP (1)
-	require.NotNil(t, result.Groups[1].Attrs.Origin)
-	assert.Equal(t, uint8(1), *result.Groups[1].Attrs.Origin)
+	assert.True(t, testHasOrigin(t, result.Groups[1].Wire))
+	assert.Equal(t, uint8(1), testExtractOrigin(t, result.Groups[1].Wire))
 }
 
 // =============================================================================
@@ -1085,10 +1208,24 @@ func TestHandleUpdateText_MultipleGroups(t *testing.T) {
 	require.Len(t, reactor.announceCalls, 2)
 
 	// First group: 1 community
-	assert.Len(t, reactor.announceCalls[0].Attrs.Communities, 1)
+	attrs0 := reactor.announceCalls[0].Attrs.ToAttributes()
+	var comms0Count int
+	for _, a := range attrs0 {
+		if c, ok := a.(attribute.Communities); ok {
+			comms0Count = len(c)
+		}
+	}
+	assert.Equal(t, 1, comms0Count)
 
 	// Second group: 2 communities
-	assert.Len(t, reactor.announceCalls[1].Attrs.Communities, 2)
+	attrs1 := reactor.announceCalls[1].Attrs.ToAttributes()
+	var comms1Count int
+	for _, a := range attrs1 {
+		if c, ok := a.(attribute.Communities); ok {
+			comms1Count = len(c)
+		}
+	}
+	assert.Equal(t, 2, comms1Count)
 }
 
 // TestHandleUpdateText_WithdrawUnicast verifies unicast withdrawal batch.
@@ -2398,7 +2535,7 @@ func TestParseUpdateText_ExtCommTrafficRate(t *testing.T) {
 	})
 	require.NoError(t, err)
 	require.Len(t, result.Groups, 1)
-	require.Len(t, result.Groups[0].Attrs.ExtendedCommunities, 1)
+	require.Len(t, testExtractExtCommunities(t, result.Groups[0].Wire), 1)
 }
 
 // TestParseUpdateText_ExtCommDiscard verifies discard sugar.
@@ -2412,7 +2549,7 @@ func TestParseUpdateText_ExtCommDiscard(t *testing.T) {
 	})
 	require.NoError(t, err)
 	require.Len(t, result.Groups, 1)
-	require.Len(t, result.Groups[0].Attrs.ExtendedCommunities, 1)
+	require.Len(t, testExtractExtCommunities(t, result.Groups[0].Wire), 1)
 }
 
 // TestParseUpdateText_ExtCommRedirect verifies redirect function.
@@ -2426,7 +2563,7 @@ func TestParseUpdateText_ExtCommRedirect(t *testing.T) {
 	})
 	require.NoError(t, err)
 	require.Len(t, result.Groups, 1)
-	require.Len(t, result.Groups[0].Attrs.ExtendedCommunities, 1)
+	require.Len(t, testExtractExtCommunities(t, result.Groups[0].Wire), 1)
 }
 
 // TestParseUpdateText_ExtCommTrafficMarking verifies traffic-marking function.
@@ -2440,7 +2577,7 @@ func TestParseUpdateText_ExtCommTrafficMarking(t *testing.T) {
 	})
 	require.NoError(t, err)
 	require.Len(t, result.Groups, 1)
-	require.Len(t, result.Groups[0].Attrs.ExtendedCommunities, 1)
+	require.Len(t, testExtractExtCommunities(t, result.Groups[0].Wire), 1)
 }
 
 // TestParseUpdateText_FlowSpecSourcePrefix verifies source prefix component.
@@ -3277,7 +3414,7 @@ func TestParseUpdateText_FlowSpecWithExtComm(t *testing.T) {
 			require.NoError(t, err, "extcomm+flowspec %s failed", tc.name)
 			require.Len(t, result.Groups, 1)
 			require.Len(t, result.Groups[0].Announce, 1)
-			require.Len(t, result.Groups[0].Attrs.ExtendedCommunities, 1)
+			require.Len(t, testExtractExtCommunities(t, result.Groups[0].Wire), 1)
 
 			fs, ok := result.Groups[0].Announce[0].(*nlri.FlowSpec)
 			require.True(t, ok)

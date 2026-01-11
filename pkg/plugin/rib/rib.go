@@ -399,13 +399,15 @@ func (r *RIBManager) replayRoutes(peerAddr string, routes []*Route) {
 		return routes[i].MsgID < routes[j].MsgID
 	})
 
-	// Replay all stored routes
-	// RFC 7911: Include path-id when present
+	// Replay all stored routes using update text syntax
+	// RFC 7911: Include path-information when present
 	for _, route := range routes {
 		if route.PathID != 0 {
-			r.send("peer %s announce route %s path-id %d next-hop %s", peerAddr, route.Prefix, route.PathID, route.NextHop)
+			r.send("peer %s update text path-information set %d nhop set %s nlri %s add %s",
+				peerAddr, route.PathID, route.NextHop, route.Family, route.Prefix)
 		} else {
-			r.send("peer %s announce route %s next-hop %s", peerAddr, route.Prefix, route.NextHop)
+			r.send("peer %s update text nhop set %s nlri %s add %s",
+				peerAddr, route.NextHop, route.Family, route.Prefix)
 		}
 	}
 
@@ -588,83 +590,73 @@ func (r *RIBManager) sendRoutes(peerAddr string, routes []*Route) {
 	}
 }
 
-// formatRouteCommand builds the announce command with full attributes.
-// Format: peer <addr> announce route <prefix> [path-id <id>] next-hop <nh> [attrs].
+// formatRouteCommand builds the update text command with full attributes.
+// Format: peer <addr> update text [attrs...] nhop set <nh> nlri <family> add <prefix>.
 func (r *RIBManager) formatRouteCommand(peerAddr string, route *Route) string {
 	var sb strings.Builder
 
 	// Base command
 	sb.WriteString("peer ")
 	sb.WriteString(peerAddr)
-	sb.WriteString(" announce route ")
-	sb.WriteString(route.Prefix)
+	sb.WriteString(" update text")
 
-	// Path-ID (RFC 7911)
+	// Path-ID (RFC 7911) - must come before nlri
 	if route.PathID != 0 {
-		fmt.Fprintf(&sb, " path-id %d", route.PathID)
+		fmt.Fprintf(&sb, " path-information set %d", route.PathID)
 	}
-
-	// Next-hop (required)
-	sb.WriteString(" next-hop ")
-	sb.WriteString(route.NextHop)
 
 	// Origin
 	if route.Origin != "" {
-		sb.WriteString(" origin ")
+		sb.WriteString(" origin set ")
 		sb.WriteString(route.Origin)
 	}
 
-	// AS-Path (use [] if >1 rule)
+	// AS-Path (use [] for list)
 	if len(route.ASPath) > 0 {
-		sb.WriteString(" as-path ")
+		sb.WriteString(" as-path set ")
 		sb.WriteString(attribute.FormatASPath(route.ASPath))
 	}
 
 	// MED
 	if route.MED != nil {
-		fmt.Fprintf(&sb, " med %d", *route.MED)
+		fmt.Fprintf(&sb, " med set %d", *route.MED)
 	}
 
 	// Local-Preference
 	if route.LocalPreference != nil {
-		fmt.Fprintf(&sb, " local-preference %d", *route.LocalPreference)
+		fmt.Fprintf(&sb, " local-preference set %d", *route.LocalPreference)
 	}
 
-	// Communities (use [] if >1 rule)
+	// Communities (use [] for list)
 	if len(route.Communities) > 0 {
-		sb.WriteString(" community ")
-		if len(route.Communities) == 1 {
-			sb.WriteString(route.Communities[0])
-		} else {
-			sb.WriteString("[")
-			sb.WriteString(strings.Join(route.Communities, " "))
-			sb.WriteString("]")
-		}
+		sb.WriteString(" community set [")
+		sb.WriteString(strings.Join(route.Communities, " "))
+		sb.WriteString("]")
 	}
 
-	// Large Communities (use [] if >1 rule)
+	// Large Communities (use [] for list)
 	if len(route.LargeCommunities) > 0 {
-		sb.WriteString(" large-community ")
-		if len(route.LargeCommunities) == 1 {
-			sb.WriteString(route.LargeCommunities[0])
-		} else {
-			sb.WriteString("[")
-			sb.WriteString(strings.Join(route.LargeCommunities, " "))
-			sb.WriteString("]")
-		}
+		sb.WriteString(" large-community set [")
+		sb.WriteString(strings.Join(route.LargeCommunities, " "))
+		sb.WriteString("]")
 	}
 
-	// Extended Communities (use [] if >1 rule)
+	// Extended Communities (use [] for list)
 	if len(route.ExtendedCommunities) > 0 {
-		sb.WriteString(" extended-community ")
-		if len(route.ExtendedCommunities) == 1 {
-			sb.WriteString(route.ExtendedCommunities[0])
-		} else {
-			sb.WriteString("[")
-			sb.WriteString(strings.Join(route.ExtendedCommunities, " "))
-			sb.WriteString("]")
-		}
+		sb.WriteString(" extended-community set [")
+		sb.WriteString(strings.Join(route.ExtendedCommunities, " "))
+		sb.WriteString("]")
 	}
+
+	// Next-hop (required)
+	sb.WriteString(" nhop set ")
+	sb.WriteString(route.NextHop)
+
+	// NLRI with family
+	sb.WriteString(" nlri ")
+	sb.WriteString(route.Family)
+	sb.WriteString(" add ")
+	sb.WriteString(route.Prefix)
 
 	return sb.String()
 }

@@ -76,17 +76,17 @@ func ParseUpdateWire(args []string, encoding WireEncoding) (*UpdateTextResult, e
 				return nil, ErrWireModeRequiresAttr
 			}
 
-			// Build PathAttributes with Wire field
-			pa := PathAttributes{}
+			// Use wire directly (attrsWire may be nil for withdrawals)
+			var wire *attribute.AttributesWire
 			if attrsSet {
-				pa.Wire = attrsWire
+				wire = attrsWire
 			}
 
 			groups = append(groups, NLRIGroup{
 				Family:   family,
 				Announce: announce,
 				Withdraw: withdraw,
-				Attrs:    pa,
+				Wire:     wire,
 				NextHop:  nhop, // Snapshot current nhop
 			})
 			i += consumed

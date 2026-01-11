@@ -13,75 +13,6 @@ import (
 	"codeberg.org/thomas-mangin/zebgp/pkg/plugin"
 )
 
-// TestBuildBatchAttributes verifies attribute conversion for RIB routes.
-//
-// VALIDATES: PathAttributes correctly converted to attribute.Attribute slice.
-// PREVENTS: Attribute loss when queueing routes.
-func TestBuildBatchAttributes(t *testing.T) {
-	r := &Reactor{config: &Config{LocalAS: 65000}}
-	adapter := &reactorAPIAdapter{r: r}
-
-	origin := uint8(0)
-	med := uint32(100)
-	localPref := uint32(200)
-
-	attrs := plugin.PathAttributes{ //nolint:staticcheck // Testing deprecated fallback path
-		Origin:          &origin,
-		MED:             &med,
-		LocalPreference: &localPref,
-		Communities:     []uint32{65000<<16 | 100, 65000<<16 | 200},
-		LargeCommunities: []plugin.LargeCommunity{
-			{GlobalAdmin: 65000, LocalData1: 1, LocalData2: 2},
-		},
-		ExtendedCommunities: []attribute.ExtendedCommunity{
-			{0x00, 0x02, 0x00, 0x00, 0x00, 0x64, 0x00, 0x65},
-		},
-	}
-
-	result := adapter.buildBatchAttributes(attrs)
-
-	// Should have 6 attributes: ORIGIN, MED, LOCAL_PREF, COMMUNITY, LARGE_COMMUNITY, EXTENDED_COMMUNITY
-	require.Len(t, result, 6)
-
-	// Check ORIGIN
-	originAttr, ok := result[0].(attribute.Origin)
-	require.True(t, ok, "first attribute should be Origin")
-	assert.Equal(t, attribute.Origin(0), originAttr)
-
-	// Check MED
-	medAttr, ok := result[1].(attribute.MED)
-	require.True(t, ok, "second attribute should be MED")
-	assert.Equal(t, attribute.MED(100), medAttr)
-
-	// Check LOCAL_PREF
-	lpAttr, ok := result[2].(attribute.LocalPref)
-	require.True(t, ok, "third attribute should be LocalPref")
-	assert.Equal(t, attribute.LocalPref(200), lpAttr)
-
-	// Check COMMUNITY
-	comms, ok := result[3].(attribute.Communities)
-	require.True(t, ok, "fourth attribute should be Communities")
-	assert.Len(t, comms, 2)
-}
-
-// TestBuildBatchAttributes_Minimal verifies default attributes.
-//
-// VALIDATES: Empty PathAttributes produces default ORIGIN IGP.
-// PREVENTS: Missing required attributes.
-func TestBuildBatchAttributes_Minimal(t *testing.T) {
-	r := &Reactor{config: &Config{LocalAS: 65000}}
-	adapter := &reactorAPIAdapter{r: r}
-
-	attrs := plugin.PathAttributes{} //nolint:staticcheck // Testing deprecated fallback path
-	result := adapter.buildBatchAttributes(attrs)
-
-	// Should have just ORIGIN IGP
-	require.Len(t, result, 1)
-	originAttr, ok := result[0].(attribute.Origin)
-	require.True(t, ok, "should be Origin")
-	assert.Equal(t, attribute.OriginIGP, originAttr)
-}
-
 // TestBuildBatchASPath_eBGP verifies AS_PATH for eBGP peers.
 //
 // VALIDATES: LocalAS prepended for eBGP when no explicit AS_PATH.
@@ -334,7 +265,7 @@ func TestWithdrawNLRIBatch_QueueForNonEstablished(t *testing.T) {
 
 // TestBuildBatchAnnounceUpdate_WireMode_IPv4 verifies wire mode for IPv4 unicast.
 //
-// VALIDATES: Wire attrs used when PathAttributes.Wire is set.
+// VALIDATES: Wire attrs used when batch.Wire is set.
 // PREVENTS: Wire bytes being ignored or re-encoded.
 func TestBuildBatchAnnounceUpdate_WireMode_IPv4(t *testing.T) {
 	r := &Reactor{config: &Config{LocalAS: 65000}}
@@ -352,7 +283,7 @@ func TestBuildBatchAnnounceUpdate_WireMode_IPv4(t *testing.T) {
 		Family:  nlri.IPv4Unicast,
 		NLRIs:   []nlri.NLRI{wn},
 		NextHop: plugin.NewNextHopExplicit(netip.MustParseAddr("10.0.0.1")),
-		Attrs:   plugin.PathAttributes{Wire: attrsWire}, //nolint:staticcheck // Testing wire passthrough
+		Wire:    attrsWire,
 	}
 
 	// Use nil context (default ASN4=true, no ADD-PATH)
@@ -386,7 +317,7 @@ func TestBuildBatchAnnounceUpdate_WireMode_IPv6(t *testing.T) {
 		Family:  nlri.IPv6Unicast,
 		NLRIs:   []nlri.NLRI{wn},
 		NextHop: plugin.NewNextHopExplicit(netip.MustParseAddr("2001:db8::1")),
-		Attrs:   plugin.PathAttributes{Wire: attrsWire}, //nolint:staticcheck // Testing wire passthrough
+		Wire:    attrsWire,
 	}
 
 	update := adapter.buildBatchAnnounceUpdate(batch, netip.MustParseAddr("2001:db8::1"), false, nil)
