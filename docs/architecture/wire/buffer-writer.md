@@ -169,3 +169,142 @@ func (sb *SessionBuffer) BuildUpdate(attrs []Attribute, nlris []NLRI) []byte {
 - Interface is additive - old code continues to work
 - Can migrate incrementally per message type
 - Tests can verify old vs new produce identical bytes
+
+---
+
+## CheckedWriteTo: Safe Path with Error Returns
+
+### Motivation
+
+`WriteTo()` assumes the caller guarantees buffer capacity. While efficient, this can lead to:
+- Buffer overflows if capacity calculation is wrong
+- Undefined behavior on undersized buffers
+- Silent data corruption
+
+`CheckedWriteTo()` provides a safe path with explicit error handling:
+
+```go
+// CheckedBufWriter extends BufWriter with capacity validation.
+type CheckedBufWriter interface {
+    BufWriter
+    // CheckedWriteTo validates capacity before writing.
+    // Returns (bytesWritten, error). On error, buffer state is undefined.
+    CheckedWriteTo(buf []byte, off int) (int, error)
+    // Len returns the number of bytes WriteTo will write.
+    Len() int
+}
+```
+
+### Error Types
+
+```go
+// pkg/bgp/wire/errors.go
+var ErrBufferTooSmall = errors.New("wire: buffer too small")
+```
+
+### Implementation Pattern
+
+```go
+// CheckedWriteTo validates capacity before delegating to WriteTo.
+func (x *Foo) CheckedWriteTo(buf []byte, off int) (int, error) {
+    needed := x.Len()
+    if len(buf) < off+needed {
+        return 0, wire.ErrBufferTooSmall
+    }
+    return x.WriteTo(buf, off), nil
+}
+
+// WriteTo unchanged - caller guarantees capacity.
+func (x *Foo) WriteTo(buf []byte, off int) int {
+    buf[off] = x.value
+    return 1
+}
+```
+
+### Usage Guidelines
+
+| Use Case | Method | Rationale |
+|----------|--------|-----------|
+| Internal iteration | `WriteTo()` | Capacity pre-validated at top level |
+| Entry points | `CheckedWriteTo()` | Validates before committing to write |
+| Performance critical | `WriteTo()` | Skip redundant checks |
+| Defensive code | `CheckedWriteTo()` | Safety over speed |
+
+### Composite Types
+
+Composite types validate total capacity once, then use `WriteTo()` internally:
+
+```go
+func (c *Composite) CheckedWriteTo(buf []byte, off int) (int, error) {
+    needed := c.Len()  // Sum of all children
+    if len(buf) < off+needed {
+        return 0, wire.ErrBufferTooSmall
+    }
+    return c.WriteTo(buf, off), nil
+}
+
+func (c *Composite) WriteTo(buf []byte, off int) int {
+    pos := off
+    pos += c.child1.WriteTo(buf, pos)  // Unchecked - capacity guaranteed
+    pos += c.child2.WriteTo(buf, pos)
+    return pos - off
+}
+```
+
+### Context-Dependent Types
+
+Some types have different wire lengths depending on encoding context (e.g., ASN4 capability).
+These require `CheckedWriteToWithContext`:
+
+```go
+// Aggregator: 8 bytes with ASN4, 6 bytes with legacy 2-byte ASN
+func (a *Aggregator) LenWithContext(_, dstCtx *EncodingContext) int {
+    if dstCtx == nil || dstCtx.ASN4 {
+        return 8
+    }
+    return 6
+}
+
+func (a *Aggregator) CheckedWriteToWithContext(buf []byte, off int, srcCtx, dstCtx *EncodingContext) (int, error) {
+    needed := a.LenWithContext(srcCtx, dstCtx)
+    if len(buf) < off+needed {
+        return 0, wire.ErrBufferTooSmall
+    }
+    return a.WriteToWithContext(buf, off, srcCtx, dstCtx), nil
+}
+```
+
+**Types with context-dependent lengths:**
+- `Aggregator` - 6 or 8 bytes based on ASN4
+- `ASPath` - 2 or 4 bytes per ASN based on ASN4
+- `WireNLRI` - varies based on ADD-PATH context (path-id added/stripped)
+
+### WireNLRI Zero-Allocation Pattern
+
+`WireNLRI` adapts raw bytes for ADD-PATH context. The pattern ensures no allocation in `WriteTo`:
+
+```go
+// LenWithContext calculates length without allocation
+func (w *WireNLRI) LenWithContext(ctx *PackContext) int {
+    targetAddPath := ctx != nil && ctx.AddPath
+    if w.hasAddPath && !targetAddPath {
+        return len(w.data) - 4  // Strip path-id
+    }
+    if !w.hasAddPath && targetAddPath {
+        return len(w.data) + 4  // Add path-id
+    }
+    return len(w.data)
+}
+
+// WriteTo writes directly without allocation
+func (w *WireNLRI) WriteTo(buf []byte, off int, ctx *PackContext) int {
+    // ... writes directly to buf
+}
+
+// Pack allocates and calls WriteTo (for convenience)
+func (w *WireNLRI) Pack(ctx *PackContext) []byte {
+    buf := make([]byte, w.LenWithContext(ctx))
+    w.WriteTo(buf, 0, ctx)
+    return buf
+}
+```

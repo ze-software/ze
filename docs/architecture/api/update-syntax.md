@@ -680,3 +680,7 @@ Routes are tagged with a pool when announced:
 ```bash
 update text nhop set 10.0.0.1 nlri ipv4/unicast add 1.0.0.0/24 watchdog set mypool
 ```
+
+> **Note:** `watchdog set <name>` in `update text` commands is not yet implemented.
+> The parser recognizes the syntax but the handler returns an error.
+> Standalone `watchdog announce/withdraw` commands work as expected.

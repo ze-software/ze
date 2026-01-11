@@ -54,7 +54,6 @@ All BGP messages share a common 19-byte header:
 | 3 | NOTIFICATION | RFC 4271 |
 | 4 | KEEPALIVE | RFC 4271 |
 | 5 | ROUTE-REFRESH | RFC 2918 |
-| 6 | OPERATIONAL | ExaBGP internal |
 
 ### Message Length Constraints
 

@@ -3,6 +3,9 @@
 **Status:** Target Architecture (all development should follow this pattern)
 **Date:** 2026-01-10
 
+> **See also:** `docs/architecture/core-design.md` for the canonical architecture reference
+> covering WireUpdate, RIB storage model, factory pattern, and type consolidation.
+
 ## Implementation Progress
 
 | Phase | Status | Description |

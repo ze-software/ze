@@ -1,0 +1,517 @@
+# ZeBGP Core Design
+
+**Status:** Canonical Architecture Reference
+**Date:** 2026-01-11
+
+This document captures the fundamental design principles for ZeBGP.
+All new code MUST follow these patterns.
+
+---
+
+## Executive Summary
+
+| Concept | Description |
+|---------|-------------|
+| **Transport Unit** | `WireUpdate` - BGP UPDATE message as bytes |
+| **Storage Unit** | NLRI → Attribute references (not WireUpdate) |
+| **Deduplication** | Per-attribute-type pools + per-family NLRI pools |
+| **API Model** | Pipe communication with text OR raw wire bytes |
+| **Route Building** | Unified parser with family-specific NLRI builders |
+
+---
+
+## 1. System Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                              ZeBGP ENGINE                                    │
+│                                                                             │
+│   ┌─────────┐  ┌─────────┐  ┌─────────┐                                    │
+│   │ Peer 1  │  │ Peer 2  │  │ Peer N  │   (BGP sessions)                   │
+│   │  FSM    │  │  FSM    │  │  FSM    │                                    │
+│   └────┬────┘  └────┬────┘  └────┬────┘                                    │
+│        │            │            │                                          │
+│        └────────────┼────────────┘                                          │
+│                     ▼                                                       │
+│              ┌─────────────┐                                                │
+│              │   Reactor   │  (event loop, msg-id cache)                   │
+│              └─────────────┘                                                │
+└─────────────────────────────────────────────────────────────────────────────┘
+                              │                 ▲
+          JSON events (down)  │                 │  commands (up)
+          + base64 wire bytes │                 │  update/forward/withdraw
+                              ▼                 │
+═══════════════════════ PROCESS BOUNDARY (stdin/stdout pipes) ════════════════
+                              │                 ▲
+                              ▼                 │
+                      ┌───────────────┐
+                      │    Plugin     │  (Go/Python/Rust/etc.)
+                      │  (RIB / RR)   │
+                      └───────────────┘
+```
+
+**Key principles:**
+- **Engine** handles BGP protocol, TCP, FSM, message parsing
+- **Plugins** implement RIB storage, policy, route reflection
+- **Pipes** carry JSON events (with base64 wire bytes) and text commands
+- **msg-id cache** enables zero-copy forwarding (`forward update-id 123`)
+
+---
+
+## 2. Peer Context & Negotiated Capabilities
+
+Decoding/encoding BGP messages requires **negotiated capabilities** from OPEN exchange:
+
+```go
+// Simplified view - see pkg/bgp/capability/negotiated.go for full struct
+type Negotiated struct {
+    ASN4            bool                   // AS_PATH: 2-byte or 4-byte ASNs
+    AddPath         map[Family]AddPathMode // NLRI: Receive/Send/Both path-id
+    ExtendedMessage bool                   // Max message: 4096 or 65535 bytes
+    ExtendedNextHop map[Family]AFI         // Per-family next-hop AFI mapping
+    Families()      []Family               // Method returning negotiated families
+    GracefulRestart *GracefulRestart       // RFC 4724 graceful restart state
+    RouteRefresh    bool                   // RFC 2918 route refresh support
+}
+```
+
+**Why it matters:**
+- Same wire bytes parse differently based on negotiated caps
+- `AS_PATH [00 01 FD E8]` = ASN 65000 (ASN4) or two ASNs 1, 64488 (ASN2)
+- NLRI `[00 00 00 01 18 0a 00 00]` = path-id + prefix (ADD-PATH) or two prefixes (no ADD-PATH)
+
+**ContextID:** Identifies encoding context for zero-copy forwarding decisions.
+- Same ContextID = same negotiated caps = can forward wire bytes unchanged
+- Different ContextID = must re-encode for target peer's capabilities
+
+```go
+type ContextID uint16  // Unique ID per distinct capability set (65535 max)
+
+// Zero-copy decision
+if sourceCtxID == destCtxID {
+    // Forward wire bytes directly
+} else {
+    // Parse and re-encode for destination caps
+}
+```
+
+---
+
+## 3. BGP UPDATE as Container
+
+BGP UPDATE is an **encapsulation format**. It contains:
+
+```
+UPDATE Message (wire bytes)
+├── Header (19 bytes: marker + length + type)
+├── Withdrawn Routes Length (2 bytes)
+├── Withdrawn Routes (IPv4 unicast only)
+├── Path Attributes Length (2 bytes)
+├── Path Attributes
+│   ├── ORIGIN, AS_PATH, NEXT_HOP, MED, LOCAL_PREF, ...
+│   ├── MP_REACH_NLRI (NLRI for non-IPv4-unicast families)
+│   └── MP_UNREACH_NLRI (withdrawals for non-IPv4-unicast)
+└── NLRI (IPv4 unicast announce only)
+```
+
+**Key insight:** Attributes are WITHIN the UPDATE. NLRI location depends on family:
+- IPv4 unicast: NLRI in trailing section, NEXT_HOP as attribute
+- All other families: NLRI inside MP_REACH_NLRI attribute
+
+### WireUpdate Type
+
+```go
+type WireUpdate struct {
+    payload     []byte           // UPDATE body (after BGP header)
+    sourceCtxID bgpctx.ContextID // For zero-copy forwarding decisions
+    messageID   uint64           // Unique ID for forward-by-id
+}
+
+// Lazy-parsed views into payload (zero-copy)
+func (u *WireUpdate) Withdrawn() ([]byte, error)
+func (u *WireUpdate) Attrs() (*AttributesWire, error)
+func (u *WireUpdate) NLRI() ([]byte, error)
+func (u *WireUpdate) MPReach() (MPReachWire, error)
+func (u *WireUpdate) MPUnreach() (MPUnreachWire, error)
+
+// Iterators (parse on demand)
+func (u *WireUpdate) AttrIterator() (*AttrIterator, error)
+func (u *WireUpdate) NLRIIterator(addPath bool) (*NLRIIterator, error)
+```
+
+---
+
+## 4. RIB Storage Model (TARGET DESIGN)
+
+> **Note:** This describes the TARGET architecture. Current implementation may differ.
+
+**RIB does NOT store WireUpdate.** It stores individual routes with deduplicated attributes.
+
+### Why Not Store WireUpdate?
+
+A single WireUpdate contains multiple NLRIs sharing the same attributes:
+```
+WireUpdate:
+  Attributes: {ORIGIN=IGP, AS_PATH=[65001], LOCAL_PREF=100}
+  NLRIs: [10.0.0.0/24, 10.0.1.0/24, 10.0.2.0/24]
+```
+
+In the RIB, we need:
+- Individual NLRI lookup (route key)
+- Attribute deduplication (many routes share same attrs)
+- Per-attribute-type deduplication (many routes share same LOCAL_PREF)
+
+### RIB Structure
+
+```go
+type RIB struct {
+    // Routes: NLRI key → attribute references
+    routes map[NLRIKey]*RouteEntry
+
+    // NLRI pools - one per family (different wire formats)
+    nlriPools map[nlri.Family]*Pool[nlri.NLRI]
+
+    // Attribute pools - per-type deduplication
+    originPool         *Pool[Origin]
+    asPathPool         *Pool[ASPath]
+    localPrefPool      *Pool[uint32]
+    medPool            *Pool[uint32]
+    communityPool      *Pool[Communities]
+    largeCommunityPool *Pool[LargeCommunities]
+    extCommunityPool   *Pool[ExtendedCommunities]
+    clusterListPool    *Pool[ClusterList]
+    originatorPool     *Pool[OriginatorID]
+
+    // Next-hop: pooled but special encoding rules
+    nextHopPool *Pool[NextHop]
+}
+```
+
+### Route Entry (References, Not Copies)
+
+```go
+type RouteEntry struct {
+    // All fields are references into pools (not copies)
+    nlri        nlri.NLRI    // from nlriPools[family]
+    origin      *Origin      // from originPool
+    asPath      *ASPath      // from asPathPool
+    localPref   *uint32      // from localPrefPool
+    med         *uint32      // from medPool
+    communities *Communities // from communityPool
+    // ... other attributes
+
+    // Next-hop: special encoding (attribute vs MP_REACH_NLRI)
+    nextHop     *NextHop
+
+    // For zero-copy forwarding
+    sourceCtxID bgpctx.ContextID
+}
+```
+
+### Per-Attribute-Type Deduplication
+
+Each attribute type has its own pool because:
+- ORIGIN has only 3 possible values (IGP, EGP, INCOMPLETE)
+- LOCAL_PREF typically has few unique values (100, 200, etc.)
+- AS_PATH has many unique values but still shares across routes
+- Communities have moderate sharing
+
+```
+Route 1: 10.0.0.0/24          Route 2: 10.0.1.0/24
+  │                              │
+  ├─ ORIGIN ──────────────────────┼──→ Pool: IGP (shared)
+  ├─ AS_PATH ─→ [65001,65002]    │
+  │                              ├─ AS_PATH ─→ [65001,65003] (different)
+  ├─ LOCAL_PREF ──────────────────┼──→ Pool: 100 (shared)
+  └─ COMMUNITY ───────────────────┴──→ Pool: [65000:100] (shared)
+```
+
+### NLRI Pools by Family
+
+Different families have different NLRI wire formats:
+
+```go
+nlriPools map[nlri.Family]*Pool[nlri.NLRI]
+
+// Contents:
+//   ipv4/unicast  → Pool[*INETPrefix]
+//   ipv6/unicast  → Pool[*INETPrefix]
+//   ipv4/mpls     → Pool[*LabeledPrefix]
+//   ipv4/mpls-vpn → Pool[*VPNPrefix]
+//   ipv4/flowspec → Pool[*FlowSpecRule]
+//   l2vpn/evpn    → Pool[*EVPNRoute]
+//   ...
+```
+
+All NLRI types implement the wire writer interfaces:
+
+```go
+// Base interface - caller guarantees buffer capacity
+type BufWriter interface {
+    WriteTo(buf []byte, off int) int
+}
+
+// Checked interface - validates capacity before writing
+type CheckedBufWriter interface {
+    BufWriter
+    CheckedWriteTo(buf []byte, off int) (int, error)
+    Len() int
+}
+
+// Context-dependent types (NLRI, ASPath, Aggregator) use:
+type WireNLRI interface {
+    Family() Family
+    Len() int
+    LenWithContext(ctx *PackContext) int                        // ADD-PATH aware
+    WriteTo(buf []byte, off int, ctx *PackContext) int          // context-aware write
+    CheckedWriteTo(buf []byte, off int, ctx *PackContext) (int, error)
+}
+```
+
+**PackContext** carries negotiated capabilities for encoding:
+- `AddPath bool` - include 4-byte path-id prefix?
+- `ASN4 bool` - use 4-byte ASNs in AS_PATH?
+
+---
+
+## 5. Next-Hop Special Handling
+
+Next-hop encoding varies by family:
+
+| Family | Next-Hop Location |
+|--------|-------------------|
+| IPv4 unicast | NEXT_HOP attribute (type 3) |
+| IPv6 unicast | Inside MP_REACH_NLRI |
+| VPNv4/VPNv6 | Inside MP_REACH_NLRI |
+| FlowSpec | Inside MP_REACH_NLRI |
+| EVPN | Inside MP_REACH_NLRI |
+
+The NextHop type must handle this context-dependent encoding.
+
+---
+
+## 6. API Pipe Communication
+
+ZeBGP engine communicates with plugins via stdin/stdout pipes.
+
+### Two Input Modes
+
+**Mode A: Text (human readable, attributes parsed)**
+```
+"update text origin set igp as-path set [65001] community set [65000:100]
+        nhop set 1.1.1.1 nlri ipv4/unicast add 10.0.0.0/24"
+                    │
+                    ▼
+             Parser → family NLRI builder → builds wire
+                    │
+                    ▼
+             WireUpdate{payload: [wire bytes]}
+```
+
+**Mode B: Binary (raw wire bytes, hex/base64)**
+```
+"update hex attr set 400101... nlri ipv4/unicast add 180a00"
+                    │
+                    ▼
+             Direct decode (no parsing)
+                    │
+                    ▼
+             WireUpdate{payload: [wire bytes]}
+```
+
+Both modes produce the same result: `WireUpdate` with wire bytes.
+
+See `docs/architecture/api/update-syntax.md` for full syntax specification.
+
+### JSON Events (Engine → Plugin)
+
+Engine sends events with base64-encoded wire bytes:
+
+```json
+{
+  "message": {"type": "update", "id": 12345},
+  "direction": "received",
+  "peer": {"address": "10.0.0.1", "context-id": 42},
+  "raw-attributes": "QAEBAQA=",
+  "raw-nlri": "GApAAA==",
+  "parsed": { ... }
+}
+```
+
+**`context-id`**: Plugin uses this for zero-copy forwarding decisions. If source and dest peers have same context-id, forward wire bytes unchanged.
+
+Plugin can:
+- Use `parsed` for decisions
+- Store `raw-*` bytes directly (for forwarding)
+- Forward by ID: `"peer !10.0.0.1 forward update-id 12345"`
+
+### What Engine Stores vs Plugin Stores
+
+| Component | Engine Stores | Plugin Stores |
+|-----------|---------------|---------------|
+| **msg-id cache** | WireUpdate by ID (for forward-by-id) | - |
+| **Peer state** | Negotiated caps, FSM state | - |
+| **RIB** | - | NLRI → attribute refs (with pools) |
+| **Policy** | - | Route filters, preferences |
+
+Engine is stateless for routes. It forwards wire bytes to plugins and caches for zero-copy forwarding.
+
+---
+
+## 7. Route Building
+
+### Unified Parser with Family Dispatch
+
+One parser handles all families. Family is determined by `nlri <family>` keyword:
+
+```go
+// Single entry point
+func ParseUpdate(cmd string, ctx *PackContext) (*WireUpdate, error) {
+    // 1. Tokenize command
+    // 2. Parse attributes (origin, as-path, community, nhop, etc.)
+    // 3. On "nlri <family>", dispatch to family-specific NLRI builder
+    // 4. Build wire bytes
+    // 5. Return WireUpdate
+}
+```
+
+### Family-Specific NLRI Builders
+
+Each family has different NLRI wire format:
+
+```go
+// NLRI builders - called by parser when it sees "nlri <family>"
+func buildIPv4UnicastNLRI(prefixes []string, ctx *PackContext) ([]byte, error)
+func buildFlowSpecNLRI(rules []FlowSpecRule, ctx *PackContext) ([]byte, error)
+func buildL3VPNNLRI(rd string, labels []uint32, prefix string, ctx *PackContext) ([]byte, error)
+// etc.
+```
+
+### Intermediate Structs (Parsing Only)
+
+Family-specific structs exist for complex NLRI types during parsing:
+
+```go
+// Used during parsing only - NOT stored
+type FlowSpecRule struct {
+    DestPrefix   *netip.Prefix
+    SourcePrefix *netip.Prefix
+    Protocols    []uint8
+    Ports        []uint16
+    Actions      FlowSpecActions
+}
+
+// Parsed → built to wire → struct discarded
+```
+
+**Key point:** These structs are temporary. Only wire bytes are stored/transmitted.
+
+---
+
+## 8. Attribute Handling (TARGET DESIGN)
+
+> **Note:** This describes the TARGET architecture. Current code has separate `Builder` and `AttributesWire` types.
+
+### Merged Builder/Wire Type
+
+The `attribute.Builder` and `attribute.AttributesWire` should merge:
+
+```go
+type Attributes struct {
+    // Wire bytes (source of truth)
+    wire      []byte
+    sourceCtx bgpctx.ContextID
+
+    // Build state (for constructing new attributes)
+    building  bool
+    origin    *uint8
+    asPath    []uint32
+    // ... other fields
+}
+
+// Reading (from received wire)
+func (a *Attributes) Get(code AttributeCode) (Attribute, error)
+func (a *Attributes) Iterator() *AttrIterator
+func (a *Attributes) Packed() []byte
+
+// Building (to wire)
+func (a *Attributes) SetOrigin(o uint8) *Attributes
+func (a *Attributes) SetASPath(asns []uint32) *Attributes
+func (a *Attributes) AddCommunity(c uint32) *Attributes
+func (a *Attributes) Build() []byte
+func (a *Attributes) WriteTo(buf []byte, off int) int           // pre-allocated buffer
+func (a *Attributes) CheckedWriteTo(buf []byte, off int) (int, error)
+```
+
+---
+
+## 9. Data Flow Summary
+
+### Receive Path
+
+```
+Network recv() → WireUpdate → Parse (lazy) → RIB storage
+                                    │
+                                    ├─ Extract NLRIs (iterator)
+                                    ├─ Extract attributes (iterator)
+                                    ├─ Intern each in pools
+                                    └─ Create RouteEntry with refs
+```
+
+### API Announce Path
+
+```
+Text command → ParseUpdate() → WireUpdate → Send to peer
+                    │
+                    ├─ Parse text → intermediate struct
+                    ├─ Build wire bytes
+                    └─ Create WireUpdate (struct discarded)
+```
+
+### Forwarding Path
+
+```
+Receive UPDATE → Assign msg-id → Cache WireUpdate → API event
+                                                        │
+                                                        ▼
+                                               Plugin decides
+                                                        │
+                                                        ▼
+                          "forward update-id 123" → Lookup cache → Send wire
+```
+
+---
+
+## 10. What Gets Eliminated
+
+| Current Type | Status | Replacement |
+|--------------|--------|-------------|
+| `message.Update` | Remove | `WireUpdate` |
+| `rib.Route` with parsed attrs | Refactor | `RouteEntry` with pool refs |
+| `plugin/rib.Route` (strings) | Remove | Use core RIB |
+| `plugin/rr.Route` | Remove | Use core RIB |
+| `RouteSpec`, `FlowSpecRoute`, etc. | Keep | Parsing intermediates (not stored) |
+| `attribute.AttributesWire` | Merge | `Attributes` (read + write) |
+| `attribute.Builder` | Merge | `Attributes` (read + write) |
+
+---
+
+## 11. Implementation Priority
+
+1. **Merge Attributes types** - Single type for read + write
+2. **Implement RIB with pools** - Per-attribute-type deduplication
+3. **Unified parser** - Family-specific NLRI builders
+4. **Remove duplicates** - plugin/rib, plugin/rr, message.Update
+
+---
+
+## Related Documents
+
+- `buffer-architecture.md` - Iterators and lazy parsing
+- `pool-architecture.md` - Deduplication pool design
+- `update-building.md` - Wire format construction
+- `api/architecture.md` - Pipe communication protocol
+
+---
+
+**Last Updated:** 2026-01-11

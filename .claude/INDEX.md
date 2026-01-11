@@ -6,7 +6,8 @@ Read when working on specific areas:
 
 | Area | Doc |
 |------|-----|
-| **Buffer-first** | `docs/architecture/buffer-architecture.md` **(TARGET ARCHITECTURE)** |
+| **Core Design** | `docs/architecture/core-design.md` **(START HERE - CANONICAL REFERENCE)** |
+| **Buffer-first** | `docs/architecture/buffer-architecture.md` |
 | Wire formats | `docs/architecture/wire/messages.md` |
 | NLRI types | `docs/architecture/wire/nlri.md` |
 | Attributes | `docs/architecture/wire/attributes.md` |

@@ -2,6 +2,7 @@
 
 > **Context:** This pool design is for **API programs** that implement RIB storage.
 > The ZeBGP engine does NOT use pools - it passes wire bytes to API programs.
+> See `docs/architecture/core-design.md` for the canonical architecture reference.
 > See `docs/architecture/rib-transition.md` for the overall architecture.
 
 ## TL;DR (Read This First)
