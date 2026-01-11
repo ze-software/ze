@@ -407,13 +407,13 @@ func afiSafiToFamily(afi uint16, safi uint8) string {
 	var safiName string
 	switch safi {
 	case 1:
-		safiName = "unicast"
+		safiName = SAFINameUnicast
 	case 2:
-		safiName = "multicast"
+		safiName = SAFINameMulticast
 	case 4:
 		safiName = "mpls-labels"
 	case 128:
-		safiName = "mpls-vpn"
+		safiName = SAFINameMPLSVPN
 	default:
 		safiName = fmt.Sprintf("safi(%d)", safi)
 	}

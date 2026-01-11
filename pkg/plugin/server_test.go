@@ -3,16 +3,36 @@ package plugin
 import (
 	"bufio"
 	"context"
+	"encoding/json"
 	"net"
+	"net/netip"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 	"time"
 
+	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/message"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
+
+// mustParseAddr parses an IP address or fails the test.
+func mustParseAddr(t *testing.T, s string) netip.Addr {
+	t.Helper()
+	addr, err := netip.ParseAddr(s)
+	require.NoError(t, err)
+	return addr
+}
+
+// parseJSON unmarshals JSON string into a map.
+func parseJSON(t *testing.T, s string, result *map[string]any) error {
+	t.Helper()
+	return json.Unmarshal([]byte(s), result)
+}
+
+// TypeNOTIFICATION is message.TypeNOTIFICATION for test convenience.
+const TypeNOTIFICATION = message.TypeNOTIFICATION
 
 // dialUnix connects to a Unix socket with context.
 func dialUnix(t *testing.T, sockPath string) net.Conn {
@@ -475,4 +495,157 @@ func TestServerSerialCommand(t *testing.T) {
 	// Should have serial in JSON body (no @prefix for JSON)
 	assert.Contains(t, response, `"serial":"42"`)
 	assert.Contains(t, response, `"status":"done"`)
+}
+
+// TestServerFormatMessageNotificationJSON verifies Server.formatMessage with NOTIFICATION+JSON.
+//
+// VALIDATES: Notification JSON output uses shared encoder with proper counter.
+// PREVENTS: Plugin receiving malformed JSON or missing fields for NOTIFICATION events.
+func TestServerFormatMessageNotificationJSON(t *testing.T) {
+	reactor := &mockReactor{}
+	server := NewServer(&ServerConfig{SocketPath: "/tmp/unused.sock"}, reactor)
+
+	peer := PeerInfo{
+		Address:      mustParseAddr(t, "10.0.0.1"),
+		LocalAddress: mustParseAddr(t, "10.0.0.2"),
+		LocalAS:      65001,
+		PeerAS:       65002,
+	}
+
+	// NOTIFICATION: Cease/Administrative Shutdown with message "goodbye"
+	rawBytes := []byte{
+		0x06, // Error code: Cease (6)
+		0x02, // Subcode: Administrative Shutdown (2)
+		0x07, // Message length: 7
+		'g', 'o', 'o', 'd', 'b', 'y', 'e',
+	}
+
+	msg := RawMessage{
+		Type:      TypeNOTIFICATION,
+		RawBytes:  rawBytes,
+		MessageID: 42,
+		Direction: "received",
+	}
+
+	binding := PeerProcessBinding{
+		Encoding:            EncodingJSON,
+		Format:              FormatParsed,
+		ReceiveNotification: true,
+	}
+
+	output := server.formatMessage(peer, msg, binding, "")
+
+	// Parse JSON
+	var result map[string]any
+	err := parseJSON(t, output, &result)
+	require.NoError(t, err, "JSON must be valid: %s", output)
+
+	// Check message wrapper
+	msgWrapper, ok := result["message"].(map[string]any)
+	require.True(t, ok, "message wrapper must exist")
+	assert.Equal(t, "notification", msgWrapper["type"])
+	assert.Equal(t, float64(42), msgWrapper["id"])
+
+	// Check direction
+	assert.Equal(t, "received", result["direction"])
+
+	// Check notification object
+	peerMap, ok := result["peer"].(map[string]any)
+	require.True(t, ok, "peer must be object")
+	notifObj, ok := peerMap["notification"].(map[string]any)
+	require.True(t, ok, "notification must be object")
+
+	// Verify all fields
+	assert.Equal(t, float64(6), notifObj["code"])
+	assert.Equal(t, float64(2), notifObj["subcode"])
+	assert.Equal(t, "Cease", notifObj["code_name"])
+	assert.Equal(t, "Administrative Shutdown", notifObj["subcode_name"])
+	assert.Equal(t, "goodbye", notifObj["message"])
+
+	// Verify counter increments (using same encoder)
+	output2 := server.formatMessage(peer, msg, binding, "")
+	var result2 map[string]any
+	require.NoError(t, parseJSON(t, output2, &result2))
+	counter1, ok := result["counter"].(float64)
+	require.True(t, ok, "counter must be float64")
+	counter2, ok := result2["counter"].(float64)
+	require.True(t, ok, "counter must be float64")
+	assert.Equal(t, counter1+1, counter2, "counter should increment")
+}
+
+// TestServerFormatMessageNotificationText verifies Server.formatMessage with NOTIFICATION+text.
+//
+// VALIDATES: Notification text output is parseable.
+// PREVENTS: Plugin receiving malformed text for NOTIFICATION events.
+func TestServerFormatMessageNotificationText(t *testing.T) {
+	reactor := &mockReactor{}
+	server := NewServer(&ServerConfig{SocketPath: "/tmp/unused.sock"}, reactor)
+
+	peer := PeerInfo{
+		Address: mustParseAddr(t, "10.0.0.1"),
+		PeerAS:  65002,
+	}
+
+	// NOTIFICATION: Hold Timer Expired
+	rawBytes := []byte{0x04, 0x00}
+
+	msg := RawMessage{
+		Type:      TypeNOTIFICATION,
+		RawBytes:  rawBytes,
+		MessageID: 99,
+		Direction: "received",
+	}
+
+	binding := PeerProcessBinding{
+		Encoding:            EncodingText,
+		Format:              FormatParsed,
+		ReceiveNotification: true,
+	}
+
+	output := server.formatMessage(peer, msg, binding, "")
+
+	// Verify text format
+	assert.Contains(t, output, "peer 10.0.0.1")
+	assert.Contains(t, output, "received")
+	assert.Contains(t, output, "notification")
+	assert.Contains(t, output, "99")     // msg-id
+	assert.Contains(t, output, "code 4") // error code
+	assert.Contains(t, output, "subcode 0")
+}
+
+// TestServerFormatMessageOverrideDir verifies overrideDir parameter works.
+//
+// VALIDATES: overrideDir overrides msg.Direction in formatted output.
+// PREVENTS: Incorrect direction in forwarded/echoed messages.
+func TestServerFormatMessageOverrideDir(t *testing.T) {
+	reactor := &mockReactor{}
+	server := NewServer(&ServerConfig{SocketPath: "/tmp/unused.sock"}, reactor)
+
+	peer := PeerInfo{
+		Address: mustParseAddr(t, "10.0.0.1"),
+		PeerAS:  65002,
+	}
+
+	msg := RawMessage{
+		Type:      TypeNOTIFICATION,
+		RawBytes:  []byte{0x04, 0x00},
+		MessageID: 1,
+		Direction: "received", // Original direction
+	}
+
+	binding := PeerProcessBinding{
+		Encoding:            EncodingText,
+		Format:              FormatParsed,
+		ReceiveNotification: true,
+	}
+
+	// Without override - uses msg.Direction
+	output1 := server.formatMessage(peer, msg, binding, "")
+	assert.Contains(t, output1, "received")
+	assert.NotContains(t, output1, "sent")
+
+	// With override - uses overrideDir
+	output2 := server.formatMessage(peer, msg, binding, "sent")
+	assert.Contains(t, output2, "sent")
+	assert.NotContains(t, output2, "received")
 }

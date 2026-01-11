@@ -77,8 +77,13 @@ func formatEmptyUpdate(peer PeerInfo, content ContentConfig) string {
 
 // formatNonUpdate formats non-UPDATE messages (OPEN, NOTIFICATION, KEEPALIVE).
 // Routes to dedicated formatters for parsed output, falls back to raw for unknown types.
+//
+// NOTE: For PARSED format, this function ignores content.Encoding and always returns TEXT.
+// For RAW format, it respects Encoding (JSON or text with raw hex).
+// For structured JSON output of non-UPDATE messages, use Server.formatMessage()
+// which has access to the shared JSONEncoder with proper counter semantics.
 func formatNonUpdate(peer PeerInfo, msg RawMessage, content ContentConfig, direction string) string {
-	// For parsed format, use dedicated formatters
+	// For parsed format, use dedicated text formatters
 	if content.Format != FormatRaw {
 		switch msg.Type { //nolint:exhaustive // only specific types have dedicated formatters
 		case message.TypeOPEN:

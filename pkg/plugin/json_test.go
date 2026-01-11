@@ -363,6 +363,238 @@ func TestAPIOutputIncludesMsgID(t *testing.T) {
 	assert.Equal(t, float64(12345), msgID)
 }
 
+// TestJSONEncoderNotification verifies JSON output for NOTIFICATION message.
+//
+// VALIDATES: NOTIFICATION JSON contains code, subcode, data, and ZeBGP extensions.
+// PREVENTS: Plugin can't parse notification events or missing error context.
+func TestJSONEncoderNotification(t *testing.T) {
+	enc := NewJSONEncoder("6.0.0")
+	enc.SetHostname("testhost")
+	enc.SetPID(12345, 1)
+
+	peer := PeerInfo{
+		Address:      netip.MustParseAddr("192.168.1.2"),
+		LocalAddress: netip.MustParseAddr("192.168.1.1"),
+		LocalAS:      65001,
+		PeerAS:       65002,
+	}
+
+	notify := DecodedNotification{
+		ErrorCode:        6, // Cease
+		ErrorSubcode:     2, // Administrative Shutdown
+		ErrorCodeName:    "Cease",
+		ErrorSubcodeName: "Administrative Shutdown",
+		ShutdownMessage:  "maintenance window",
+		Data:             []byte{0x12, 0x6d, 0x61, 0x69, 0x6e, 0x74, 0x65, 0x6e, 0x61, 0x6e, 0x63, 0x65, 0x20, 0x77, 0x69, 0x6e, 0x64, 0x6f, 0x77},
+	}
+
+	msg := enc.Notification(peer, notify, "received", 42)
+
+	// Parse JSON to verify structure
+	var result map[string]any
+	err := json.Unmarshal([]byte(msg), &result)
+	require.NoError(t, err, "JSON must be valid: %s", msg)
+
+	// Check standard fields
+	assert.Equal(t, "6.0.0", result["zebgp"])
+	assert.Equal(t, "testhost", result["host"])
+	assert.Equal(t, "received", result["direction"])
+
+	// Check message wrapper
+	msgWrapper, ok := result["message"].(map[string]any)
+	require.True(t, ok, "message wrapper must exist")
+	assert.Equal(t, "notification", msgWrapper["type"])
+	assert.Equal(t, float64(42), msgWrapper["id"])
+
+	// Check peer structure
+	peerMap, ok := result["peer"].(map[string]any)
+	require.True(t, ok, "peer must be object")
+
+	// Check notification object
+	notifObj, ok := peerMap["notification"].(map[string]any)
+	require.True(t, ok, "notification must be object")
+
+	// ExaBGP required fields
+	assert.Equal(t, float64(6), notifObj["code"])
+	assert.Equal(t, float64(2), notifObj["subcode"])
+	assert.NotEmpty(t, notifObj["data"], "data field must be present")
+
+	// ZeBGP extensions
+	assert.Equal(t, "Cease", notifObj["code_name"])
+	assert.Equal(t, "Administrative Shutdown", notifObj["subcode_name"])
+	assert.Equal(t, "maintenance window", notifObj["message"])
+}
+
+// TestJSONEncoderNotificationMinimal verifies minimal NOTIFICATION JSON.
+//
+// VALIDATES: NOTIFICATION without shutdown message still has required fields.
+// PREVENTS: Crash or missing fields on minimal notifications.
+func TestJSONEncoderNotificationMinimal(t *testing.T) {
+	enc := NewJSONEncoder("6.0.0")
+
+	peer := PeerInfo{
+		Address:      netip.MustParseAddr("10.0.0.1"),
+		LocalAddress: netip.MustParseAddr("10.0.0.2"),
+		LocalAS:      65001,
+		PeerAS:       65002,
+	}
+
+	notify := DecodedNotification{
+		ErrorCode:        4, // Hold Timer Expired
+		ErrorSubcode:     0,
+		ErrorCodeName:    "Hold Timer Expired",
+		ErrorSubcodeName: "Unspecific",
+		Data:             nil, // No data
+	}
+
+	msg := enc.Notification(peer, notify, "received", 0)
+
+	var result map[string]any
+	err := json.Unmarshal([]byte(msg), &result)
+	require.NoError(t, err)
+
+	peerMap, ok := result["peer"].(map[string]any)
+	require.True(t, ok, "peer must be object")
+	notifObj, ok := peerMap["notification"].(map[string]any)
+	require.True(t, ok, "notification must be object")
+
+	// Required fields still present
+	assert.Equal(t, float64(4), notifObj["code"])
+	assert.Equal(t, float64(0), notifObj["subcode"])
+	assert.Equal(t, "", notifObj["data"]) // Empty string, not nil
+
+	// Extensions present
+	assert.Equal(t, "Hold Timer Expired", notifObj["code_name"])
+
+	// message field should NOT be present when empty
+	_, hasMessage := notifObj["message"]
+	assert.False(t, hasMessage, "message should not be present when empty")
+
+	// message.id should NOT be present when zero
+	msgWrapper, ok := result["message"].(map[string]any)
+	require.True(t, ok, "message wrapper must exist")
+	_, hasID := msgWrapper["id"]
+	assert.False(t, hasID, "message.id should not be present when zero")
+}
+
+// TestJSONEncoderNotificationSent verifies NOTIFICATION with "sent" direction.
+//
+// VALIDATES: Sent notifications include direction field correctly.
+// PREVENTS: Direction field missing or incorrect for outbound notifications.
+func TestJSONEncoderNotificationSent(t *testing.T) {
+	enc := NewJSONEncoder("6.0.0")
+
+	peer := PeerInfo{
+		Address:      netip.MustParseAddr("10.0.0.1"),
+		LocalAddress: netip.MustParseAddr("10.0.0.2"),
+		LocalAS:      65001,
+		PeerAS:       65002,
+	}
+
+	notify := DecodedNotification{
+		ErrorCode:        6,
+		ErrorSubcode:     3, // Peer De-configured
+		ErrorCodeName:    "Cease",
+		ErrorSubcodeName: "Peer De-configured",
+	}
+
+	msg := enc.Notification(peer, notify, "sent", 100)
+
+	var result map[string]any
+	require.NoError(t, json.Unmarshal([]byte(msg), &result))
+
+	assert.Equal(t, "sent", result["direction"])
+
+	msgWrapper, ok := result["message"].(map[string]any)
+	require.True(t, ok, "message wrapper must exist")
+	assert.Equal(t, float64(100), msgWrapper["id"])
+}
+
+// TestFormatMessageNotificationText verifies FormatMessage returns text for NOTIFICATION.
+//
+// NOTE: FormatMessage only returns TEXT for non-UPDATE messages. For JSON format,
+// Server.formatMessage() should be used (see TestServerFormatMessageNotificationJSON).
+//
+// VALIDATES: FormatMessage returns parseable text for NOTIFICATION.
+// PREVENTS: Crashes or malformed output from FormatMessage with NOTIFICATION.
+func TestFormatMessageNotificationText_Parsed(t *testing.T) {
+	peer := PeerInfo{
+		Address:      netip.MustParseAddr("10.0.0.1"),
+		LocalAddress: netip.MustParseAddr("10.0.0.2"),
+		LocalAS:      65001,
+		PeerAS:       65002,
+	}
+
+	// NOTIFICATION: Cease/Administrative Shutdown with message "goodbye"
+	rawBytes := []byte{
+		0x06,                              // Error code: Cease (6)
+		0x02,                              // Subcode: Administrative Shutdown (2)
+		0x07,                              // Message length: 7
+		'g', 'o', 'o', 'd', 'b', 'y', 'e', // "goodbye"
+	}
+
+	msg := RawMessage{
+		Type:      message.TypeNOTIFICATION,
+		RawBytes:  rawBytes,
+		MessageID: 42,
+		Direction: "received",
+	}
+
+	// Even with EncodingJSON, FormatMessage returns text for non-UPDATE
+	// This is by design - JSON encoding for non-UPDATE uses Server.formatMessage()
+	content := ContentConfig{
+		Encoding: EncodingText,
+		Format:   FormatParsed,
+	}
+
+	output := FormatMessage(peer, msg, content, "")
+
+	// Verify text format
+	assert.Contains(t, output, "peer 10.0.0.1")
+	assert.Contains(t, output, "received")
+	assert.Contains(t, output, "notification")
+	assert.Contains(t, output, "42")     // msg-id
+	assert.Contains(t, output, "code 6") // error code
+	assert.Contains(t, output, "subcode 2")
+	assert.Contains(t, output, "Cease")
+}
+
+// TestFormatMessageIgnoresEncodingForParsedNonUpdate documents that FormatMessage
+// ignores Encoding for parsed non-UPDATE messages.
+//
+// This is by design: Server.formatMessage() handles JSON encoding for non-UPDATE
+// messages using the shared JSONEncoder with proper counter semantics.
+//
+// VALIDATES: FormatMessage with EncodingJSON + FormatParsed + NOTIFICATION returns TEXT.
+// PREVENTS: Confusion about why JSON encoding is ignored.
+func TestFormatMessageIgnoresEncodingForParsedNonUpdate(t *testing.T) {
+	peer := PeerInfo{
+		Address: netip.MustParseAddr("10.0.0.1"),
+		PeerAS:  65002,
+	}
+
+	msg := RawMessage{
+		Type:      message.TypeNOTIFICATION,
+		RawBytes:  []byte{0x04, 0x00}, // Hold Timer Expired
+		MessageID: 1,
+		Direction: "received",
+	}
+
+	// Request JSON encoding with parsed format
+	content := ContentConfig{
+		Encoding: EncodingJSON, // Requested JSON...
+		Format:   FormatParsed,
+	}
+
+	output := FormatMessage(peer, msg, content, "")
+
+	// ...but we get TEXT because FormatMessage ignores Encoding for parsed non-UPDATE
+	assert.True(t, strings.HasPrefix(output, "peer "),
+		"Expected text format starting with 'peer ', got: %s", output)
+	assert.False(t, strings.HasPrefix(output, "{"),
+		"Should NOT be JSON for parsed non-UPDATE")
+}
+
 // TestAPIOutputNoMsgIDWhenZero verifies message.id omitted when zero.
 //
 // VALIDATES: Zero message.id is not included in output.
