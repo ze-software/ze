@@ -326,20 +326,16 @@ type nlriAccum struct {
 // Builds attributes using Builder for wire-first encoding.
 // Also returns the current NLRI accumulators (pathID, RD, labels).
 func (a *parsedAttrs) snapshot() (*attribute.AttributesWire, RouteNextHop, nlriAccum) {
-	// Build wire-format attributes
-	// RFC 4271: ORIGIN and AS_PATH are well-known mandatory attributes.
-	// Always include them in wire output even if not explicitly set.
+	// Build wire-format attributes.
+	// Note: ORIGIN is not forced here; reactor adds mandatory attributes if missing.
 	b := attribute.NewBuilder()
 
-	// ORIGIN: default to IGP if not specified
 	if a.Origin != nil {
 		b.SetOrigin(*a.Origin)
-	} else {
-		b.SetOrigin(0) // IGP
 	}
-	// AS_PATH: always include (empty for locally originated routes)
-	// The Builder will output an empty AS_PATH attribute
-	b.SetASPath(a.ASPath) // nil or empty slice -> empty AS_PATH
+	// AS_PATH: always set (even if empty) so Builder outputs the attribute.
+	// Empty AS_PATH is valid for locally originated routes (iBGP).
+	b.SetASPath(a.ASPath)
 	if a.LocalPreference != nil {
 		b.SetLocalPref(*a.LocalPreference)
 	}

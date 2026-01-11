@@ -398,19 +398,16 @@ func TestParseUpdateText_ScalarErrorAdd(t *testing.T) {
 //
 // VALIDATES: origin del <value> succeeds if current matches, fails otherwise.
 // PREVENTS: Confusion about scalar conditional deletion semantics.
-// NOTE: RFC 4271 requires ORIGIN in all UPDATEs, so del resets to default IGP.
 func TestParseUpdateText_ScalarDelConditional(t *testing.T) {
 	// Conditional delete succeeds when value matches
-	// RFC 4271: ORIGIN is mandatory, so after del it defaults to IGP
 	result, err := ParseUpdateText([]string{
 		"origin", "set", "igp",
 		"origin", "del", "igp", // Matches current value
 		"nlri", "ipv4/unicast", "add", "10.0.0.0/24",
 	})
 	require.NoError(t, err)
-	// ORIGIN still present (mandatory per RFC 4271), defaults to IGP
-	assert.True(t, testHasOrigin(t, result.Groups[0].Wire))
-	assert.Equal(t, uint8(0), testExtractOrigin(t, result.Groups[0].Wire)) // IGP
+	// Parser clears ORIGIN; reactor adds it when building UPDATE (RFC 4271 compliance)
+	assert.False(t, testHasOrigin(t, result.Groups[0].Wire))
 
 	// Conditional delete fails when value doesn't match
 	_, err = ParseUpdateText([]string{
@@ -432,22 +429,20 @@ func TestParseUpdateText_ScalarDelConditional(t *testing.T) {
 
 // TestParseUpdateText_ScalarDelClearsAttribute verifies del without value clears scalar.
 //
-// VALIDATES: origin del (no value) clears user-set value, defaults to IGP.
+// VALIDATES: origin del (no value) clears the attribute from wire.
 // PREVENTS: Scalar del being a no-op.
-// NOTE: RFC 4271 requires ORIGIN in all UPDATEs, so del resets to default IGP.
 func TestParseUpdateText_ScalarDelClearsAttribute(t *testing.T) {
 	result, err := ParseUpdateText([]string{
-		"origin", "set", "egp", // Set to EGP first
+		"origin", "set", "igp",
 		"med", "set", "100",
-		"origin", "del", // del without value - clears user value, defaults to IGP
+		"origin", "del", // del without value - clears origin from wire
 		"nlri", "ipv4/unicast", "add", "10.0.0.0/24",
 	})
 	require.NoError(t, err)
 	require.Len(t, result.Groups, 1)
 
-	// RFC 4271: ORIGIN is mandatory, so after del it defaults to IGP (not cleared)
-	assert.True(t, testHasOrigin(t, result.Groups[0].Wire), "origin must be present (RFC 4271)")
-	assert.Equal(t, uint8(0), testExtractOrigin(t, result.Groups[0].Wire)) // IGP default
+	// Parser clears ORIGIN; reactor adds it when building UPDATE (RFC 4271 compliance)
+	assert.False(t, testHasOrigin(t, result.Groups[0].Wire), "origin should be cleared by del")
 	// MED should still be set
 	assert.True(t, testHasMED(t, result.Groups[0].Wire))
 	assert.Equal(t, uint32(100), testExtractMED(t, result.Groups[0].Wire))

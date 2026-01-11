@@ -1767,9 +1767,7 @@ func (a *reactorAPIAdapter) buildBatchASPath(userASPath []uint32, isIBGP bool) *
 // buildBatchAnnounceUpdate builds an UPDATE message for a batch of NLRIs.
 // RFC 4271 Section 4.3: UPDATE Message Format.
 // RFC 4760: MP_REACH_NLRI for non-IPv4-unicast families.
-func (a *reactorAPIAdapter) buildBatchAnnounceUpdate(batch plugin.NLRIBatch, nextHop netip.Addr, _ bool, ctx *nlri.PackContext) *message.Update {
-	_ = batch.Family == nlri.IPv4Unicast // isIBGP parameter no longer used
-
+func (a *reactorAPIAdapter) buildBatchAnnounceUpdate(batch plugin.NLRIBatch, nextHop netip.Addr, isIBGP bool, ctx *nlri.PackContext) *message.Update {
 	// Pack NLRIs first (used by both paths)
 	// Calculate total NLRI size
 	totalNLRILen := 0
@@ -1782,9 +1780,13 @@ func (a *reactorAPIAdapter) buildBatchAnnounceUpdate(batch plugin.NLRIBatch, nex
 		nlriOff += nlri.WriteNLRI(n, nlriBytes, nlriOff, ctx)
 	}
 
-	// Wire mode: use raw attribute bytes, only add NEXT_HOP or MP_REACH_NLRI
+	// Determine ASN4 mode from context
+	asn4 := ctx == nil || ctx.ASN4
+
+	// Wire mode: ensure mandatory attributes present, then add NEXT_HOP or MP_REACH_NLRI
 	if batch.Wire != nil {
-		return a.buildWireModeUpdate(batch.Wire.Packed(), nlriBytes, batch.Family, nextHop)
+		wireAttrs := a.ensureMandatoryAttrs(batch.Wire, isIBGP, asn4)
+		return a.buildWireModeUpdate(wireAttrs, nlriBytes, batch.Family, nextHop)
 	}
 
 	// Builder mode or default: build attributes from Builder or defaults
@@ -1836,6 +1838,28 @@ func (a *reactorAPIAdapter) buildWireModeUpdate(wireAttrs, nlriBytes []byte, fam
 	return &message.Update{
 		PathAttributes: attrBytes[:attrLen],
 	}
+}
+
+// ensureMandatoryAttrs ensures ORIGIN is present in wire attributes.
+// RFC 4271 Section 5.1.1: ORIGIN is a well-known mandatory attribute.
+// If missing, prepends ORIGIN=IGP to the wire bytes.
+// AS_PATH is handled by the Builder (always output via hasASPath flag).
+func (a *reactorAPIAdapter) ensureMandatoryAttrs(wire *attribute.AttributesWire, _, _ bool) []byte {
+	// Check if ORIGIN is present
+	hasOrigin, _ := wire.Has(attribute.AttrOrigin)
+	if hasOrigin {
+		return wire.Packed() // Already has ORIGIN
+	}
+
+	// Prepend ORIGIN=IGP (4 bytes: flag + type + len + value)
+	packed := wire.Packed()
+	result := make([]byte, 4+len(packed))
+	result[0] = 0x40 // Transitive
+	result[1] = 1    // ORIGIN
+	result[2] = 1    // Length
+	result[3] = 0    // IGP
+	copy(result[4:], packed)
+	return result
 }
 
 // buildBatchWithdrawUpdate builds an UPDATE message for withdrawing a batch of NLRIs.
