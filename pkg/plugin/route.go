@@ -2849,16 +2849,8 @@ func ParseMUPArgs(args []string, isIPv6 bool) (MUPRouteSpec, error) {
 	for i := 2; i < len(args); i++ {
 		key := strings.ToLower(args[i])
 
-		// Try common attribute parsing with Builder (wire-first)
-		consumed, err := parseCommonAttributeBuilder(key, args, i, builder)
-		if err != nil {
-			return spec, err
-		}
-		if consumed > 0 {
-			i += consumed
-			continue
-		}
-
+		// Handle MUP-specific attributes BEFORE common attribute parsing.
+		// These must be set in MUPRouteSpec fields, not just in the builder.
 		switch key {
 		case "rd":
 			if i+1 >= len(args) {
@@ -2866,6 +2858,7 @@ func ParseMUPArgs(args []string, isIPv6 bool) (MUPRouteSpec, error) {
 			}
 			spec.RD = args[i+1]
 			i++
+			continue
 
 		case "next-hop":
 			if i+1 >= len(args) {
@@ -2873,6 +2866,7 @@ func ParseMUPArgs(args []string, isIPv6 bool) (MUPRouteSpec, error) {
 			}
 			spec.NextHop = args[i+1]
 			i++
+			continue
 
 		case "teid":
 			if i+1 >= len(args) {
@@ -2880,6 +2874,7 @@ func ParseMUPArgs(args []string, isIPv6 bool) (MUPRouteSpec, error) {
 			}
 			spec.TEID = args[i+1]
 			i++
+			continue
 
 		case "qfi":
 			if i+1 >= len(args) {
@@ -2891,6 +2886,7 @@ func ParseMUPArgs(args []string, isIPv6 bool) (MUPRouteSpec, error) {
 			}
 			spec.QFI = uint8(qfi)
 			i++
+			continue
 
 		case "endpoint":
 			if i+1 >= len(args) {
@@ -2898,6 +2894,7 @@ func ParseMUPArgs(args []string, isIPv6 bool) (MUPRouteSpec, error) {
 			}
 			spec.Endpoint = args[i+1]
 			i++
+			continue
 
 		case "source":
 			if i+1 >= len(args) {
@@ -2905,15 +2902,17 @@ func ParseMUPArgs(args []string, isIPv6 bool) (MUPRouteSpec, error) {
 			}
 			spec.Source = args[i+1]
 			i++
+			continue
 
 		case "extended-community":
 			if i+1 >= len(args) {
 				return spec, fmt.Errorf("missing extended-community value")
 			}
-			// Collect bracketed value
+			// Collect bracketed value - must set spec.ExtCommunity for MUP
 			tokens, consumed := parseBracketedList(args[i+1:])
 			spec.ExtCommunity = "[" + strings.Join(tokens, " ") + "]"
 			i += consumed
+			continue
 
 		case "bgp-prefix-sid-srv6":
 			if i+1 >= len(args) {
@@ -2926,10 +2925,21 @@ func ParseMUPArgs(args []string, isIPv6 bool) (MUPRouteSpec, error) {
 			}
 			spec.PrefixSID = value
 			i += consumed
-
-		default:
-			// Unknown keyword - could be future extension, skip silently
+			continue
 		}
+
+		// Try common attribute parsing with Builder (wire-first)
+		// for attributes that are NOT MUP-specific (origin, local-preference, etc.)
+		consumed, err := parseCommonAttributeBuilder(key, args, i, builder)
+		if err != nil {
+			return spec, err
+		}
+		if consumed > 0 {
+			i += consumed
+			continue
+		}
+
+		// Unknown keyword - could be future extension, skip silently
 	}
 
 	// Build wire-format attributes
