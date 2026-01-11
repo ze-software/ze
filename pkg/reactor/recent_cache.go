@@ -25,10 +25,11 @@ type RecentUpdateCache struct {
 	maxEntries int
 }
 
-// cacheEntry wraps an update with expiration time.
+// cacheEntry wraps an update with expiration time and retention state.
 type cacheEntry struct {
 	update    *ReceivedUpdate
 	expiresAt time.Time
+	retained  bool // If true, entry survives TTL expiry until explicitly released
 }
 
 // NewRecentUpdateCache creates a cache with the given TTL and max size.
@@ -59,8 +60,9 @@ func (c *RecentUpdateCache) Add(update *ReceivedUpdate) bool {
 
 	// Lazy cleanup: evict expired entries on each Add
 	// BGP keepalives ensure regular Add activity
+	// Skip retained entries - they survive until explicitly released
 	for id, e := range c.entries {
-		if now.After(e.expiresAt) {
+		if !e.retained && now.After(e.expiresAt) {
 			// Return buffer to pool before deleting
 			ReturnReadBuffer(e.update.poolBuf)
 			delete(c.entries, id)
@@ -82,7 +84,7 @@ func (c *RecentUpdateCache) Add(update *ReceivedUpdate) bool {
 
 // Take retrieves and removes an update by ID, transferring ownership to caller.
 // Caller MUST call ReceivedUpdate.Release() when done to return buffer to pool.
-// Returns (nil, false) if not found or expired.
+// Returns (nil, false) if not found or expired (unless retained).
 func (c *RecentUpdateCache) Take(id uint64) (*ReceivedUpdate, bool) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -92,8 +94,8 @@ func (c *RecentUpdateCache) Take(id uint64) (*ReceivedUpdate, bool) {
 		return nil, false
 	}
 
-	// Check expiry
-	if time.Now().After(entry.expiresAt) {
+	// Check expiry (retained entries never expire)
+	if !entry.retained && time.Now().After(entry.expiresAt) {
 		// Expired - return buffer and remove
 		ReturnReadBuffer(entry.update.poolBuf)
 		delete(c.entries, id)
@@ -105,7 +107,7 @@ func (c *RecentUpdateCache) Take(id uint64) (*ReceivedUpdate, bool) {
 	return entry.update, true
 }
 
-// Contains checks if an entry exists and is not expired.
+// Contains checks if an entry exists and is valid (not expired or retained).
 // Does NOT remove the entry or transfer ownership.
 // Used primarily for testing cache state.
 func (c *RecentUpdateCache) Contains(id uint64) bool {
@@ -116,7 +118,8 @@ func (c *RecentUpdateCache) Contains(id uint64) bool {
 	if !ok {
 		return false
 	}
-	return !time.Now().After(entry.expiresAt)
+	// Retained entries are always valid; others must not be expired
+	return entry.retained || !time.Now().After(entry.expiresAt)
 }
 
 // Delete removes an update from the cache and returns its buffer to pool.
@@ -149,19 +152,65 @@ func (c *RecentUpdateCache) ResetTTL(id uint64) bool {
 	return false
 }
 
-// Len returns the current number of entries (including expired but not yet cleaned).
+// Len returns the current number of valid entries.
+// Counts retained entries and non-expired entries.
 // Used primarily for testing.
 func (c *RecentUpdateCache) Len() int {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
 
-	// Count only non-expired entries for accuracy
+	// Count retained entries and non-expired entries
 	now := time.Now()
 	count := 0
 	for _, e := range c.entries {
-		if !now.After(e.expiresAt) {
+		if e.retained || !now.After(e.expiresAt) {
 			count++
 		}
 	}
 	return count
+}
+
+// Retain marks an entry to survive TTL expiry until explicitly released.
+// Used by API for graceful restart - retain routes for replay.
+// Returns true if entry found (valid or expired), false if not found.
+func (c *RecentUpdateCache) Retain(id uint64) bool {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	if e, ok := c.entries[id]; ok {
+		e.retained = true
+		return true
+	}
+	return false
+}
+
+// Release clears the retained flag and resets TTL.
+// Entry will expire normally after TTL elapses.
+// Returns true if entry found, false if not found.
+func (c *RecentUpdateCache) Release(id uint64) bool {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	if e, ok := c.entries[id]; ok {
+		e.retained = false
+		e.expiresAt = time.Now().Add(c.ttl)
+		return true
+	}
+	return false
+}
+
+// List returns all valid msg-ids (retained or non-expired).
+// Used by API to show cached updates.
+func (c *RecentUpdateCache) List() []uint64 {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+
+	now := time.Now()
+	var ids []uint64
+	for id, e := range c.entries {
+		if e.retained || !now.After(e.expiresAt) {
+			ids = append(ids, id)
+		}
+	}
+	return ids
 }

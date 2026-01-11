@@ -33,6 +33,18 @@ func (m *mockReactorForward) DeleteUpdate(_ uint64) error {
 	return nil
 }
 
+func (m *mockReactorForward) RetainUpdate(_ uint64) error {
+	return nil
+}
+
+func (m *mockReactorForward) ReleaseUpdate(_ uint64) error {
+	return nil
+}
+
+func (m *mockReactorForward) ListUpdates() []uint64 {
+	return nil
+}
+
 // Implement all other ReactorInterface methods as stubs.
 func (m *mockReactorForward) Peers() []PeerInfo                                { return nil }
 func (m *mockReactorForward) Stats() ReactorStats                              { return ReactorStats{} }

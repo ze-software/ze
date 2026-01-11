@@ -307,3 +307,280 @@ func TestRecentUpdateCacheTakeTransfersOwnership(t *testing.T) {
 	// Release is idempotent
 	got.Release() // should not panic
 }
+
+// TestRecentUpdateCacheRetain verifies retained entries skip lazy eviction.
+//
+// VALIDATES: Retained entries persist beyond TTL during lazy cleanup.
+// PREVENTS: Premature eviction of routes needed for graceful restart.
+func TestRecentUpdateCacheRetain(t *testing.T) {
+	cache := NewRecentUpdateCache(10*time.Millisecond, 100)
+
+	cache.Add(newTestUpdate(1))
+
+	// Retain the entry
+	if !cache.Retain(1) {
+		t.Fatal("Retain returned false for existing entry")
+	}
+
+	// Wait for TTL to expire
+	time.Sleep(20 * time.Millisecond)
+
+	// Add another entry to trigger lazy cleanup
+	cache.Add(newTestUpdate(2))
+
+	// Retained entry should still exist despite TTL expiry
+	if !cache.Contains(1) {
+		t.Error("retained entry should survive lazy cleanup")
+	}
+
+	// Non-retained entry should also exist (just added)
+	if !cache.Contains(2) {
+		t.Error("new entry should exist")
+	}
+}
+
+// TestRecentUpdateCacheRetainNotFound verifies Retain on missing entry.
+//
+// VALIDATES: Retain returns false for non-existent entry.
+// PREVENTS: Silent failures on invalid msg-ids.
+func TestRecentUpdateCacheRetainNotFound(t *testing.T) {
+	cache := NewRecentUpdateCache(time.Minute, 100)
+
+	if cache.Retain(999) {
+		t.Error("Retain returned true for non-existent entry")
+	}
+}
+
+// TestRecentUpdateCacheRelease verifies release clears retained flag and resets TTL.
+//
+// VALIDATES: Release allows eviction after TTL expires.
+// PREVENTS: Memory leaks from permanently retained entries.
+func TestRecentUpdateCacheRelease(t *testing.T) {
+	cache := NewRecentUpdateCache(15*time.Millisecond, 100)
+
+	cache.Add(newTestUpdate(1))
+
+	// Retain the entry
+	if !cache.Retain(1) {
+		t.Fatal("Retain failed")
+	}
+
+	// Wait for original TTL
+	time.Sleep(20 * time.Millisecond)
+
+	// Should still exist (retained)
+	if !cache.Contains(1) {
+		t.Fatal("retained entry should exist")
+	}
+
+	// Release the entry
+	if !cache.Release(1) {
+		t.Fatal("Release returned false for existing entry")
+	}
+
+	// Should still exist (TTL reset on release)
+	if !cache.Contains(1) {
+		t.Error("entry should exist immediately after release")
+	}
+
+	// Wait for new TTL to expire
+	time.Sleep(20 * time.Millisecond)
+
+	// Now should be expired (no longer retained)
+	if cache.Contains(1) {
+		t.Error("released entry should expire after TTL")
+	}
+}
+
+// TestRecentUpdateCacheReleaseNotFound verifies Release on missing entry.
+//
+// VALIDATES: Release returns false for non-existent entry.
+// PREVENTS: Silent failures on invalid msg-ids.
+func TestRecentUpdateCacheReleaseNotFound(t *testing.T) {
+	cache := NewRecentUpdateCache(time.Minute, 100)
+
+	if cache.Release(999) {
+		t.Error("Release returned true for non-existent entry")
+	}
+}
+
+// TestRecentUpdateCacheList verifies List returns all valid msg-ids.
+//
+// VALIDATES: List returns IDs of all non-expired entries.
+// PREVENTS: Missing entries in API response.
+func TestRecentUpdateCacheList(t *testing.T) {
+	cache := NewRecentUpdateCache(time.Minute, 100)
+
+	// Empty cache
+	ids := cache.List()
+	if len(ids) != 0 {
+		t.Errorf("List() = %v, want empty", ids)
+	}
+
+	// Add entries
+	cache.Add(newTestUpdate(10))
+	cache.Add(newTestUpdate(20))
+	cache.Add(newTestUpdate(30))
+
+	ids = cache.List()
+	if len(ids) != 3 {
+		t.Errorf("List() len = %d, want 3", len(ids))
+	}
+
+	// Check all IDs present (order not guaranteed)
+	found := make(map[uint64]bool)
+	for _, id := range ids {
+		found[id] = true
+	}
+	for _, want := range []uint64{10, 20, 30} {
+		if !found[want] {
+			t.Errorf("List() missing id %d", want)
+		}
+	}
+}
+
+// TestRecentUpdateCacheListExcludesExpired verifies List excludes expired entries.
+//
+// VALIDATES: List only returns non-expired entries.
+// PREVENTS: Stale IDs in API response.
+func TestRecentUpdateCacheListExcludesExpired(t *testing.T) {
+	cache := NewRecentUpdateCache(10*time.Millisecond, 100)
+
+	cache.Add(newTestUpdate(1))
+
+	// Should have one entry
+	if len(cache.List()) != 1 {
+		t.Fatal("expected 1 entry before expiry")
+	}
+
+	// Wait for expiry
+	time.Sleep(20 * time.Millisecond)
+
+	// List should exclude expired
+	ids := cache.List()
+	if len(ids) != 0 {
+		t.Errorf("List() = %v, want empty after expiry", ids)
+	}
+}
+
+// TestRecentUpdateCacheRetainedSurvivesExpiry verifies retained entries in List.
+//
+// VALIDATES: List includes retained entries even after TTL.
+// PREVENTS: Missing retained IDs in API response.
+func TestRecentUpdateCacheRetainedSurvivesExpiry(t *testing.T) {
+	cache := NewRecentUpdateCache(10*time.Millisecond, 100)
+
+	cache.Add(newTestUpdate(1))
+	cache.Add(newTestUpdate(2))
+	cache.Retain(1) // Retain only entry 1
+
+	// Wait for TTL
+	time.Sleep(20 * time.Millisecond)
+
+	// List should include only retained entry
+	ids := cache.List()
+	if len(ids) != 1 {
+		t.Errorf("List() len = %d, want 1", len(ids))
+	}
+	if len(ids) > 0 && ids[0] != 1 {
+		t.Errorf("List()[0] = %d, want 1", ids[0])
+	}
+}
+
+// TestRecentUpdateCacheRetainIdempotent verifies double retain is safe.
+//
+// VALIDATES: Calling Retain twice on same entry is idempotent.
+// PREVENTS: State corruption on duplicate retain calls.
+func TestRecentUpdateCacheRetainIdempotent(t *testing.T) {
+	cache := NewRecentUpdateCache(time.Minute, 100)
+
+	cache.Add(newTestUpdate(1))
+
+	// Retain twice
+	if !cache.Retain(1) {
+		t.Fatal("first Retain failed")
+	}
+	if !cache.Retain(1) {
+		t.Fatal("second Retain failed")
+	}
+
+	// Entry should still be valid
+	if !cache.Contains(1) {
+		t.Error("entry should exist after double retain")
+	}
+}
+
+// TestRecentUpdateCacheReleaseNonRetained verifies release on non-retained entry.
+//
+// VALIDATES: Release on non-retained entry resets TTL (extends lifetime).
+// PREVENTS: Unexpected behavior when release called without prior retain.
+func TestRecentUpdateCacheReleaseNonRetained(t *testing.T) {
+	cache := NewRecentUpdateCache(15*time.Millisecond, 100)
+
+	cache.Add(newTestUpdate(1))
+
+	// Wait partial TTL
+	time.Sleep(10 * time.Millisecond)
+
+	// Release without prior retain - should reset TTL
+	if !cache.Release(1) {
+		t.Fatal("Release failed on non-retained entry")
+	}
+
+	// Wait another partial TTL (would have expired without release)
+	time.Sleep(10 * time.Millisecond)
+
+	// Should still exist (TTL was reset)
+	if !cache.Contains(1) {
+		t.Error("entry should exist after release reset TTL")
+	}
+}
+
+// TestRecentUpdateCacheTakeRetained verifies Take works on retained entries.
+//
+// VALIDATES: Retained entries can be taken (forwarded).
+// PREVENTS: Retained entries becoming stuck/unfetchable.
+func TestRecentUpdateCacheTakeRetained(t *testing.T) {
+	cache := NewRecentUpdateCache(10*time.Millisecond, 100)
+
+	cache.Add(newTestUpdate(1))
+	cache.Retain(1)
+
+	// Wait for TTL to expire
+	time.Sleep(20 * time.Millisecond)
+
+	// Take should succeed (retained)
+	got, ok := cache.Take(1)
+	if !ok {
+		t.Fatal("Take failed on retained entry")
+	}
+	defer got.Release()
+
+	// Entry should be removed after Take
+	if cache.Contains(1) {
+		t.Error("entry should be removed after Take")
+	}
+}
+
+// TestRecentUpdateCacheReleaseAfterTake verifies release fails after take.
+//
+// VALIDATES: Release returns false for taken (removed) entry.
+// PREVENTS: False success on release of non-existent entry.
+func TestRecentUpdateCacheReleaseAfterTake(t *testing.T) {
+	cache := NewRecentUpdateCache(time.Minute, 100)
+
+	cache.Add(newTestUpdate(1))
+	cache.Retain(1)
+
+	// Take the entry
+	got, ok := cache.Take(1)
+	if !ok {
+		t.Fatal("Take failed")
+	}
+	got.Release()
+
+	// Release should fail (entry no longer exists)
+	if cache.Release(1) {
+		t.Error("Release should return false for taken entry")
+	}
+}

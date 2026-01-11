@@ -374,6 +374,19 @@ type ReactorInterface interface {
 	// Used when controller decides not to forward (filtering).
 	DeleteUpdate(updateID uint64) error
 
+	// RetainUpdate prevents eviction of a cached UPDATE.
+	// Used by API for graceful restart - retain routes for replay.
+	// Returns error if update-id is not found.
+	RetainUpdate(updateID uint64) error
+
+	// ReleaseUpdate allows eviction of a previously retained UPDATE.
+	// Resets TTL to default expiration time.
+	// Returns error if update-id is not found.
+	ReleaseUpdate(updateID uint64) error
+
+	// ListUpdates returns all cached msg-ids (retained or non-expired).
+	ListUpdates() []uint64
+
 	// SignalAPIReady signals that an API process is ready.
 	// When all processes have signaled, WaitForAPIReady returns.
 	SignalAPIReady()

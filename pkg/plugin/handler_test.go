@@ -273,6 +273,18 @@ func (m *mockReactor) DeleteUpdate(_ uint64) error {
 	return nil
 }
 
+func (m *mockReactor) RetainUpdate(_ uint64) error {
+	return nil
+}
+
+func (m *mockReactor) ReleaseUpdate(_ uint64) error {
+	return nil
+}
+
+func (m *mockReactor) ListUpdates() []uint64 {
+	return nil
+}
+
 func (m *mockReactor) SignalAPIReady() {}
 
 func (m *mockReactor) SignalPeerAPIReady(_ string) {}

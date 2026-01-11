@@ -13,6 +13,13 @@ import (
 	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/nlri"
 )
 
+// Origin string constants for ORIGIN attribute formatting.
+const (
+	originIGP        = "igp"
+	originEGP        = "egp"
+	originIncomplete = "incomplete"
+)
+
 // FormatPrefixFromBytes formats an NLRI prefix from raw wire bytes.
 // data format: [prefixLen (1 byte), prefix bytes (variable)]
 // Returns empty string on invalid data.
@@ -181,11 +188,11 @@ func FormatOriginJSON(value byte, w io.Writer) {
 	var origin string
 	switch value {
 	case 0:
-		origin = "igp"
+		origin = originIGP
 	case 1:
-		origin = "egp"
+		origin = originEGP
 	case 2:
-		origin = "incomplete"
+		origin = originIncomplete
 	default:
 		origin = "unknown"
 	}

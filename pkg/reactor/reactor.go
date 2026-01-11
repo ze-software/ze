@@ -3301,6 +3301,29 @@ func (a *reactorAPIAdapter) DeleteUpdate(updateID uint64) error {
 	return nil
 }
 
+// RetainUpdate prevents eviction of a cached UPDATE.
+// Used by API for graceful restart - retain routes for replay.
+func (a *reactorAPIAdapter) RetainUpdate(updateID uint64) error {
+	if !a.r.recentUpdates.Retain(updateID) {
+		return ErrUpdateExpired
+	}
+	return nil
+}
+
+// ReleaseUpdate allows eviction of a previously retained UPDATE.
+// Resets TTL to default expiration time.
+func (a *reactorAPIAdapter) ReleaseUpdate(updateID uint64) error {
+	if !a.r.recentUpdates.Release(updateID) {
+		return ErrUpdateExpired
+	}
+	return nil
+}
+
+// ListUpdates returns all cached msg-ids (retained or non-expired).
+func (a *reactorAPIAdapter) ListUpdates() []uint64 {
+	return a.r.recentUpdates.List()
+}
+
 // SignalAPIReady signals that an API process is ready.
 func (a *reactorAPIAdapter) SignalAPIReady() {
 	a.r.SignalAPIReady()

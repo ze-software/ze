@@ -49,6 +49,9 @@ func RegisterDefaultHandlers(d *Dispatcher) {
 	// Forward operations (route reflection via update-id)
 	RegisterForwardHandlers(d)
 
+	// Msg-ID cache control (retain/release/expire/list)
+	RegisterMsgIDHandlers(d)
+
 	// Raw passthrough (send bytes without validation)
 	RegisterRawHandlers(d)
 }

@@ -59,32 +59,9 @@ But code at `pkg/plugin/route.go:229` explicitly states:
 
 ## Medium Issues (P1)
 
-### 3. msg-id Cache Control Commands Not Implemented
+### 3. borr/eorr Markers Not Implemented
 
-**Location:** `docs/architecture/api/capability-contract.md:71-96`
-
-**Problem:** Documentation shows these commands for API programs to control message cache:
-```
-msg-id 123 retain    # Keep until released
-msg-id 123 release   # Allow eviction
-msg-id 123 expire    # Remove immediately
-msg-id list          # List cached msg-ids
-```
-
-**Reality:** No handlers registered for these commands. Search for `msg-id` in `pkg/plugin/` returns zero handler matches.
-
-**Impact:** API programs cannot prevent route eviction across peer restarts.
-
-**Recommended Fix Options:**
-1. **Option A:** Implement the handlers
-2. **Option B:** Mark section as "Future - Not Yet Implemented"
-3. **Option C:** Remove from docs until implemented
-
----
-
-### 4. borr/eorr Markers Not Implemented
-
-**Location:** `docs/architecture/api/capability-contract.md:135-149`
+**Location:** `docs/architecture/api/capability-contract.md:120-134`
 
 **Problem:** Documentation shows Enhanced Route Refresh markers:
 ```json
@@ -104,7 +81,7 @@ msg-id list          # List cached msg-ids
 
 ---
 
-### 5. Negotiated Capabilities Struct Simplified in Docs
+### 4. Negotiated Capabilities Struct Simplified in Docs
 
 **Location:** `CLAUDE.md`, `docs/architecture/core-design.md`
 
@@ -139,7 +116,6 @@ RouteRefresh    bool                    // Not mentioned in docs
 |-------|----------|---------------|
 | Pool architecture mismatch | Major | High (rewrite or add header) |
 | announce route removed | Major | Low (update docs) |
-| msg-id commands missing | Medium | Medium (implement) or Low (mark future) |
 | borr/eorr missing | Medium | Medium (implement) or Low (mark future) |
 | Negotiated struct simplified | Medium | Low (update examples) |
 

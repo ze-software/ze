@@ -494,7 +494,7 @@ func parseCommonAttributeText(key string, args []string, idx int, attrs *parsedA
 		attrs.ASPath = asPath
 		return consumed, nil
 
-	case "community":
+	case kwCommunity:
 		if idx+1 >= len(args) {
 			return 0, fmt.Errorf("missing community value")
 		}
@@ -510,7 +510,7 @@ func parseCommonAttributeText(key string, args []string, idx int, attrs *parsedA
 		attrs.Communities = communities
 		return consumed, nil
 
-	case "large-community":
+	case kwLargeCommunity:
 		if idx+1 >= len(args) {
 			return 0, fmt.Errorf("missing large-community value")
 		}
@@ -526,7 +526,7 @@ func parseCommonAttributeText(key string, args []string, idx int, attrs *parsedA
 		attrs.LargeCommunities = lcs
 		return consumed, nil
 
-	case "extended-community":
+	case kwExtendedCommunity:
 		if idx+1 >= len(args) {
 			return 0, fmt.Errorf("missing extended-community value")
 		}
