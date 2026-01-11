@@ -59,26 +59,7 @@ But code at `pkg/plugin/route.go:229` explicitly states:
 
 ## Medium Issues (P1)
 
-### 3. borr/eorr Markers Partially Implemented
-
-**Location:** `docs/architecture/api/capability-contract.md:120-134`
-
-**Status:** ⚠️ Partial - Commands exist but incomplete RFC 7313 support
-
-**What's Done:**
-- `pkg/plugin/refresh.go` - borr/eorr command handlers
-- Commands: `peer <selector> borr/eorr <family>`
-
-**What's Missing:**
-1. **Level 1:** `sendRouteRefresh` doesn't check Enhanced RR capability (sends to ALL peers)
-2. **Level 2:** ROUTE-REFRESH receive not implemented (falls through to `handleUnknownType`, sends error!)
-3. **Level 3:** RIB plugin doesn't respond to refresh events
-
-See `docs/plan/spec-borr-eorr.md` for full implementation plan.
-
----
-
-### 4. Negotiated Capabilities Struct Simplified in Docs
+### 3. Negotiated Capabilities Struct Simplified in Docs
 
 **Location:** `CLAUDE.md`, `docs/architecture/core-design.md`
 
@@ -94,8 +75,8 @@ Families        []Family          // Docs
 addPath         map[Family]AddPathMode  // More specific enum
 extendedNextHop map[Family]AFI          // Per-family mapping
 families        map[Family]bool         // Map, not slice
-GracefulRestart *GracefulRestart        // Not mentioned in docs
-RouteRefresh    bool                    // Not mentioned in docs
+GracefulRestart *GracefulRestart        // Not mentioned in core-design.md
+RouteRefresh    bool                    // Added to CLAUDE.md
 ```
 
 **Impact:** Type mismatches when developers code against documentation.
@@ -113,15 +94,20 @@ RouteRefresh    bool                    // Not mentioned in docs
 |-------|----------|---------------|
 | Pool architecture mismatch | Major | High (rewrite or add header) |
 | announce route removed | Major | Low (update docs) |
-| borr/eorr missing | Medium | Medium (implement) or Low (mark future) |
 | Negotiated struct simplified | Medium | Low (update examples) |
 
 ---
 
 ## Minor Issues (Fixed)
 
-The following minor issues have been fixed in this commit:
+The following minor issues have been fixed:
 
 1. **ContextID type** - Changed from `uint32` to `uint16` in docs
 2. **Type 6 OPERATIONAL** - Removed from messages.md (never implemented)
 3. **Watchdog limitation** - Added note that `watchdog set` in `update text` returns error
+4. **borr/eorr RFC 7313** - Full implementation complete (was Medium P1):
+   - Level 1: Capability check in sendRouteRefresh ✅
+   - Level 2: ROUTE-REFRESH receive handler ✅
+   - Level 3: RIB plugin responds to refresh events ✅
+   - Bug fixed: RouteRefresh/EnhancedRouteRefresh capabilities now added in loader.go
+   - See `docs/plan/done/107-borr-eorr.md`
