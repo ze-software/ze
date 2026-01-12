@@ -239,16 +239,7 @@ func runEncodingOrAPI(ctx context.Context, cli *cliFlags, baseDir string) error 
 	colors := functional.NewColors()
 	functional.ResetNickCounter()
 
-	// Check ulimit
-	limitCheck, err := functional.CheckUlimit(cli.parallel)
-	if err != nil {
-		return fmt.Errorf("ulimit check: %w", err)
-	}
-	if limitCheck.Raised && !cli.quiet {
-		fmt.Printf("%s raised to %d\n", colors.Yellow("ulimit:"), limitCheck.RaisedTo)
-	}
-
-	// Discover tests
+	// Discover tests first (needed for --server/--client modes)
 	tests := functional.NewEncodingTests(baseDir)
 	testDir := filepath.Join(baseDir, "test/data/encode")
 	if cli.command == "plugin" {
@@ -257,6 +248,23 @@ func runEncodingOrAPI(ctx context.Context, cli *cliFlags, baseDir string) error 
 
 	if err := tests.Discover(testDir); err != nil {
 		return fmt.Errorf("discover tests: %w", err)
+	}
+
+	// Handle --server or --client debug modes
+	if cli.server != "" {
+		return runServerOnly(ctx, cli, tests, baseDir)
+	}
+	if cli.client != "" {
+		return runClientOnly(ctx, cli, tests, baseDir)
+	}
+
+	// Check ulimit (only for normal test runs)
+	limitCheck, err := functional.CheckUlimit(cli.parallel)
+	if err != nil {
+		return fmt.Errorf("ulimit check: %w", err)
+	}
+	if limitCheck.Raised && !cli.quiet {
+		fmt.Printf("%s raised to %d\n", colors.Yellow("ulimit:"), limitCheck.RaisedTo)
 	}
 
 	// Handle list mode
@@ -361,6 +369,142 @@ func runEncodingOrAPI(ctx context.Context, cli *cliFlags, baseDir string) error 
 	}
 
 	return nil
+}
+
+// runServerOnly runs only the zebgp-peer (server) for manual debugging.
+func runServerOnly(ctx context.Context, cli *cliFlags, tests *functional.EncodingTests, baseDir string) error {
+	rec := tests.GetByNick(cli.server)
+	if rec == nil {
+		// Try by name
+		for _, r := range tests.Registered() {
+			if r.Name == cli.server {
+				rec = r
+				break
+			}
+		}
+	}
+	if rec == nil {
+		return fmt.Errorf("test not found: %s", cli.server)
+	}
+
+	// Build zebgp-peer
+	tmpDir, err := os.MkdirTemp("", "zebgp-functional-*")
+	if err != nil {
+		return fmt.Errorf("create temp dir: %w", err)
+	}
+	defer func() { _ = os.RemoveAll(tmpDir) }()
+
+	peerPath := filepath.Join(tmpDir, "zebgp-peer")
+	cmd := exec.CommandContext(ctx, "go", "build", "-o", peerPath, "./test/cmd/zebgp-peer") //nolint:gosec // test runner, paths from temp dir
+	cmd.Dir = baseDir
+	cmd.Env = append(os.Environ(), "CGO_ENABLED=0")
+	if output, err := cmd.CombinedOutput(); err != nil {
+		return fmt.Errorf("build zebgp-peer: %w: %s", err, output)
+	}
+
+	// Write expects to temp file
+	expectFile := filepath.Join(tmpDir, "expects.msg")
+	f, err := os.Create(expectFile) //nolint:gosec // test runner, path from temp dir
+	if err != nil {
+		return fmt.Errorf("create expect file: %w", err)
+	}
+	for _, opt := range rec.Options {
+		_, _ = fmt.Fprintln(f, opt)
+	}
+	for _, exp := range rec.Expects {
+		_, _ = fmt.Fprintln(f, exp)
+	}
+	_ = f.Close()
+
+	// Print info
+	port := cli.port
+	if rec.Port != 0 {
+		port = rec.Port
+	}
+	fmt.Printf("🔧 Server mode for test: %s (%s)\n", rec.Nick, rec.Name)
+	fmt.Printf("📁 Config: %s\n", rec.ConfigFile)
+	fmt.Printf("🔌 Port: %d\n", port)
+	fmt.Printf("⏳ Waiting for client connection...\n")
+	fmt.Printf("\n💡 Run client in another terminal:\n")
+	fmt.Printf("   go run ./test/cmd/functional %s --client %s --port %d\n\n", cli.command, cli.server, port)
+
+	// Build peer args
+	peerArgs := []string{"--port", fmt.Sprintf("%d", port)}
+	if asn, ok := rec.Extra["asn"]; ok {
+		peerArgs = append(peerArgs, "--asn", asn)
+	}
+	if rec.Extra["bind"] == "ipv6" {
+		peerArgs = append(peerArgs, "--ipv6")
+	}
+	peerArgs = append(peerArgs, expectFile)
+
+	// Run peer (blocks until client connects and test completes or Ctrl+C)
+	peerCmd := exec.CommandContext(ctx, peerPath, peerArgs...) //nolint:gosec // test runner, paths from temp dir
+	peerCmd.Env = append(os.Environ(), fmt.Sprintf("zebgp_tcp_port=%d", port))
+	peerCmd.Stdout = os.Stdout
+	peerCmd.Stderr = os.Stderr
+
+	return peerCmd.Run()
+}
+
+// runClientOnly runs only zebgp (client) for manual debugging.
+func runClientOnly(ctx context.Context, cli *cliFlags, tests *functional.EncodingTests, baseDir string) error {
+	rec := tests.GetByNick(cli.client)
+	if rec == nil {
+		// Try by name
+		for _, r := range tests.Registered() {
+			if r.Name == cli.client {
+				rec = r
+				break
+			}
+		}
+	}
+	if rec == nil {
+		return fmt.Errorf("test not found: %s", cli.client)
+	}
+
+	configPath, ok := rec.Conf["config"].(string)
+	if !ok || configPath == "" {
+		return fmt.Errorf("test %s has no config file", cli.client)
+	}
+
+	// Build zebgp
+	zebgpPath, err := buildZebgp(ctx, baseDir)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = os.Remove(zebgpPath) }()
+
+	// Print info
+	port := cli.port
+	if rec.Port != 0 {
+		port = rec.Port
+	}
+	fmt.Printf("🔧 Client mode for test: %s (%s)\n", rec.Nick, rec.Name)
+	fmt.Printf("📁 Config: %s\n", configPath)
+	fmt.Printf("🔌 Port: %d\n", port)
+	fmt.Printf("⏳ Starting zebgp client...\n")
+	fmt.Printf("\n💡 Server should be running. If not:\n")
+	fmt.Printf("   go run ./test/cmd/functional %s --server %s --port %d\n\n", cli.command, cli.client, port)
+
+	// Build client env
+	// Set tcp.attempts=1 so zebgp exits after the session ends (instead of reconnecting)
+	zebgpDir := filepath.Dir(zebgpPath)
+	existingPath := os.Getenv("PATH")
+	clientEnv := append(os.Environ(),
+		fmt.Sprintf("zebgp_tcp_port=%d", port),
+		fmt.Sprintf("zebgp_api_socketpath=%s", filepath.Join(os.TempDir(), fmt.Sprintf("zebgp-debug-%d.sock", port))),
+		fmt.Sprintf("PATH=%s:%s", zebgpDir, existingPath),
+		"zebgp_tcp_attempts=1", // Exit after first session ends
+	)
+
+	// Run zebgp (blocks until stopped)
+	clientCmd := exec.CommandContext(ctx, zebgpPath, "server", configPath) //nolint:gosec // test runner, paths from temp dir
+	clientCmd.Env = clientEnv
+	clientCmd.Stdout = os.Stdout
+	clientCmd.Stderr = os.Stderr
+
+	return clientCmd.Run()
 }
 
 // buildZebgp builds the zebgp binary and returns its path.

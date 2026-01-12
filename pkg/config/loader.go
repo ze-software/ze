@@ -100,21 +100,23 @@ func CreateReactor(cfg *BGPConfig) (*reactor.Reactor, error) {
 // CreateReactorWithDir creates a Reactor with a specific config directory.
 // The configDir is used as the working directory for spawned processes.
 func CreateReactorWithDir(cfg *BGPConfig, configDir string) (*reactor.Reactor, error) {
+	// Load environment with config block values (if any)
+	env, err := LoadEnvironmentWithConfig(cfg.EnvValues)
+	if err != nil {
+		return nil, fmt.Errorf("load environment: %w", err)
+	}
+
 	// Build reactor config
 	reactorCfg := &reactor.Config{
-		ListenAddr: cfg.Listen,
-		RouterID:   cfg.RouterID,
-		LocalAS:    cfg.LocalAS,
-		ConfigDir:  configDir,
+		ListenAddr:  cfg.Listen,
+		RouterID:    cfg.RouterID,
+		LocalAS:     cfg.LocalAS,
+		ConfigDir:   configDir,
+		MaxSessions: env.TCP.Attempts, // tcp.attempts: exit after N sessions (0=unlimited)
 	}
 
 	// Set API socket path if plugins are configured
 	if len(cfg.Plugins) > 0 {
-		// Load environment with config block values (if any)
-		env, err := LoadEnvironmentWithConfig(cfg.EnvValues)
-		if err != nil {
-			return nil, fmt.Errorf("load environment: %w", err)
-		}
 		reactorCfg.APISocketPath = env.SocketPath()
 
 		// Convert plugin configs

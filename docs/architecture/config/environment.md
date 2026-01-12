@@ -103,12 +103,14 @@ Priority: `exabgp.x.y` > `exabgp_x_y` > INI file > default
 
 | Variable | Type | Default | Description |
 |----------|------|---------|-------------|
-| exabgp.tcp.once | bool | false | One connection attempt (deprecated) |
-| exabgp.tcp.attempts | int | 0 | Max connection attempts (0 = unlimited) |
+| exabgp.tcp.once | bool | false | One session then exit (deprecated, use attempts=1) |
+| exabgp.tcp.attempts | int | 0 | Exit after N sessions complete (0 = unlimited) |
 | exabgp.tcp.delay | int | 0 | Delay announcements by N minutes |
 | exabgp.tcp.bind | list | [] | IPs to bind when listening |
 | exabgp.tcp.port | int | 179 | Port to bind |
 | exabgp.tcp.acl | bool | false | Experimental ACL |
+
+**tcp.attempts behavior:** When set to N > 0, ZeBGP exits after N peer sessions have disconnected (after reaching ESTABLISHED state). Useful for testing scenarios where you want ZeBGP to exit after completing a test exchange.
 
 ### bgp
 
@@ -229,10 +231,14 @@ def syslog_value(value: str) -> str:
 
 ### tcp.once → tcp.attempts
 
+The legacy `tcp.once` boolean is converted to `tcp.attempts=1`:
+
 ```python
 if env.tcp.once and not env.tcp.attempts:
     env.tcp.attempts = 1
 ```
+
+**Effect:** ZeBGP exits after the first peer session disconnects (after reaching ESTABLISHED).
 
 ### tcp.connections → tcp.attempts
 

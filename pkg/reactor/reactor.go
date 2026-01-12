@@ -77,6 +77,11 @@ type Config struct {
 	// RecentUpdateMax is the maximum number of cached updates.
 	// Default: 100000. Zero means no limit (not recommended).
 	RecentUpdateMax int
+
+	// MaxSessions limits how many peer sessions can complete before shutdown.
+	// When > 0, reactor stops after this many sessions end (useful for testing).
+	// Default: 0 (unlimited - run forever).
+	MaxSessions int
 }
 
 // PluginConfig holds external plugin configuration.
@@ -195,8 +200,10 @@ type Reactor struct {
 	peerObservers []PeerLifecycleObserver
 	observersMu   sync.RWMutex
 
-	running   bool
-	startTime time.Time
+	running        bool
+	startTime      time.Time
+	sessionCount   int32 // Number of completed sessions (for MaxSessions)
+	sessionCountMu sync.Mutex
 
 	ctx    context.Context
 	cancel context.CancelFunc
@@ -3614,6 +3621,19 @@ func (r *Reactor) notifyPeerClosed(peer *Peer, reason string) {
 
 	for _, obs := range observers {
 		obs.OnPeerClosed(peer, reason)
+	}
+
+	// Track session count for MaxSessions feature (tcp.once/tcp.attempts)
+	if r.config.MaxSessions > 0 {
+		r.sessionCountMu.Lock()
+		r.sessionCount++
+		count := r.sessionCount
+		r.sessionCountMu.Unlock()
+
+		if int(count) >= r.config.MaxSessions {
+			// MaxSessions reached - trigger shutdown
+			go r.Stop()
+		}
 	}
 }
 

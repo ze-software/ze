@@ -68,16 +68,26 @@ Examples:
 		return 1
 	}
 
-	// Wait for signals
+	// Wait for signals or reactor self-stop (e.g., tcp.attempts reached)
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, syscall.SIGTERM, syscall.SIGINT)
 
 	fmt.Println("ZeBGP running. Press Ctrl+C to stop.")
 
-	<-sigChan
-	fmt.Println("\nShutting down...")
+	// Wait for either signal or reactor to stop itself
+	doneChan := make(chan struct{})
+	go func() {
+		_ = reactor.Wait(context.Background())
+		close(doneChan)
+	}()
 
-	reactor.Stop()
+	select {
+	case <-sigChan:
+		fmt.Println("\nShutting down...")
+		reactor.Stop()
+	case <-doneChan:
+		fmt.Println("\nShutting down...")
+	}
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*1e9)
 	defer cancel()

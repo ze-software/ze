@@ -8,6 +8,7 @@ import (
 	"io"
 	"net"
 	"net/netip"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -675,7 +676,8 @@ func (s *Session) readAndProcessMessage(conn net.Conn) error {
 	_, err := io.ReadFull(conn, buf[:message.HeaderLen])
 	if err != nil {
 		s.returnReadBuffer(buf)
-		if errors.Is(err, io.EOF) {
+		// Handle connection close: EOF or connection reset by peer
+		if errors.Is(err, io.EOF) || isConnectionReset(err) {
 			s.handleConnectionClose()
 			return ErrConnectionClosed
 		}
@@ -1149,6 +1151,23 @@ func (s *Session) handleConnectionClose() {
 	s.timers.StopAll()
 	_ = s.fsm.Event(fsm.EventTCPConnectionFails)
 	s.closeConn()
+}
+
+// isConnectionReset checks if an error is a connection reset by peer.
+// This happens when the remote side closes the connection abruptly.
+func isConnectionReset(err error) bool {
+	if err == nil {
+		return false
+	}
+	// Check for common connection close errors
+	if errors.Is(err, net.ErrClosed) {
+		return true
+	}
+	// Check error message for connection reset indicators
+	errStr := err.Error()
+	return strings.Contains(errStr, "connection reset by peer") ||
+		strings.Contains(errStr, "broken pipe") ||
+		strings.Contains(errStr, "use of closed network connection")
 }
 
 // negotiate performs capability negotiation between local and peer OPEN.

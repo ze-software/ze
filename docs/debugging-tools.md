@@ -10,6 +10,7 @@ This document describes the debugging tools available in ZeBGP for troubleshooti
 | `zebgp-peer --decode` | Decode BGP messages | `zebgp-peer --decode --sink` |
 | `ZEBGP_TRACE` | Pipeline tracing | `ZEBGP_TRACE=all zebgp server config.conf` |
 | Functional test diff | Test failure analysis | Automatic on message mismatch |
+| `--server N` / `--client N` | Interactive test debugging | `functional encoding --server 0` |
 
 ---
 
@@ -250,6 +251,30 @@ go run ./test/cmd/functional encoding 0
 
 # Output now includes decoded diff automatically
 # Look at "Differences:" section to see what's wrong
+```
+
+### 5. Interactive Functional Test Debugging
+
+Run server and client separately to see live output:
+
+```bash
+# Terminal 1: Start test server (zebgp-peer)
+go run ./test/cmd/functional encoding --server 0
+
+# Terminal 2: Start test client (zebgp)
+go run ./test/cmd/functional encoding --client 0
+```
+
+**Behavior:**
+- Server waits for client, prints messages received, exits when test completes
+- Client connects, sends configured messages, exits when server disconnects
+
+The client uses `zebgp_tcp_attempts=1` automatically, so zebgp exits after the session ends instead of reconnecting.
+
+**Use `--port` to avoid conflicts:**
+```bash
+go run ./test/cmd/functional encoding --server 0 --port 11790
+go run ./test/cmd/functional encoding --client 0 --port 11790
 ```
 
 ---
