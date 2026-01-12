@@ -1,7 +1,7 @@
 option:file:ipv6.conf
-1:cmd:announce ipv6/unicast fc00:1::/64 next-hop 2001::11 local-preference 200
+1:cmd:update text origin set igp local-preference set 200 nhop set 2001::11 nlri ipv6/unicast add fc00:1::/64
 1:raw:FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF:0046:02:0000002F40010100400200400504000000C8800E1E00020110200100000000000000000000000000110040FC00000100000000
 2:cmd:announce eor ipv6/unicast
 2:raw:FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF:001E:02:00000007900F0003000201
-3:cmd:withdraw ipv6/unicast fc00:1::/64
+3:cmd:update text nlri ipv6/unicast del fc00:1::/64
 3:raw:FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF:0026:02:0000000F800F0C00020140FC00000100000000

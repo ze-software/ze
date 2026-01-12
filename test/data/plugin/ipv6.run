@@ -8,9 +8,9 @@ from zebgp_api import ready, send, wait_for_ack, wait_for_shutdown
 def main() -> None:
     ready()
 
-    # Simplified test: unicast only (no MUP)
-    announce_unicast = 'announce ipv6/unicast fc00:1::/64 next-hop 2001::11 local-preference 200'
-    withdraw_unicast = 'withdraw ipv6/unicast fc00:1::/64'
+    # Test unicast functionality using update text syntax
+    announce_unicast = 'update text origin set igp local-preference set 200 nhop set 2001::11 nlri ipv6/unicast add fc00:1::/64'
+    withdraw_unicast = 'update text nlri ipv6/unicast del fc00:1::/64'
 
     messages = [
         announce_unicast,

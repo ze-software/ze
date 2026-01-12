@@ -1,7 +1,7 @@
 option:file:ipv4.conf
-1:cmd:announce ipv4/unicast 10.0.1.0/24 next-hop 10.0.1.254 local-preference 200
+1:cmd:update text origin set igp local-preference set 200 nhop set 10.0.1.254 nlri ipv4/unicast add 10.0.1.0/24
 1:raw:FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF:0030:02:00000015400101004002004003040A0001FE400504000000C8180A0001
 2:cmd:announce eor ipv4/unicast
 2:raw:FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF:0017:02:00000000
-3:cmd:withdraw ipv4/unicast 10.0.1.0/24
+3:cmd:update text nlri ipv4/unicast del 10.0.1.0/24
 3:raw:FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF:001B:02:0004180A00010000
