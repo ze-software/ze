@@ -10,7 +10,7 @@ Serials enable request/response correlation between ZeBGP and external processes
 
 | Direction | Serial Type | Format | Example |
 |-----------|-------------|--------|---------|
-| Process → ZeBGP | Numeric | `#N command` | `#1 announce route ...` |
+| Process → ZeBGP | Numeric | `#N command` | `#1 update text ...` |
 | ZeBGP → Process | Alpha | `#abc command` | `#a request ...` |
 | Response | Echo | `@serial result` | `@a done {"status": "ok"}` |
 
@@ -25,8 +25,8 @@ This avoids collision: process uses `#1`, `#2`; ZeBGP uses `#a`, `#b`.
 Optional `#N` prefix for correlation:
 
 ```
-#1 announce route 10.0.0.0/24 next-hop 1.2.3.4
-#2 withdraw route 10.0.0.0/24
+#1 update text nhop set 1.2.3.4 nlri ipv4/unicast add 10.0.0.0/24
+#2 update text nlri ipv4/unicast del 10.0.0.0/24
 #3 register command "myapp status" description "Show status"
 ```
 
@@ -116,9 +116,9 @@ func encodeAlphaSerial(n uint64) string {
 
 ```
 Process stdout:
-#1 announce route 10.0.0.0/24 next-hop 1.2.3.4
-#2 announce route 10.0.1.0/24 next-hop 1.2.3.4
-#3 withdraw route 10.0.2.0/24
+#1 update text nhop set 1.2.3.4 nlri ipv4/unicast add 10.0.0.0/24
+#2 update text nhop set 1.2.3.4 nlri ipv4/unicast add 10.0.1.0/24
+#3 update text nlri ipv4/unicast del 10.0.2.0/24
 
 Process stdin (may arrive out of order):
 {"serial": "2", "status": "done"}

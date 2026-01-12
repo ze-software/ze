@@ -58,9 +58,9 @@ ZeBGP:   ORIGIN, AS_PATH, LOCAL_PREF, LARGE_COMMUNITY, MP_REACH_NLRI
 - Enables targeting specific sessions when multiple sessions exist to same peer
 
 **ZeBGP behavior:**
-- Only supports basic neighbor selector: `neighbor <IP> announce route ...`
+- Uses `peer` keyword: `peer <IP> update text ...`
 - Does NOT support multi-session qualifier syntax
-- Commands apply to all sessions matching the neighbor IP
+- Commands apply to all sessions matching the peer IP
 
 **RFC compliance:**
 - N/A - This is API syntax, not BGP protocol

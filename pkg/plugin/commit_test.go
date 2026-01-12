@@ -289,12 +289,6 @@ func TestCommitConcurrent(t *testing.T) {
 	require.NoError(t, err)
 }
 
-// TestCommitAnnounceRoute removed: "commit announce route" syntax removed.
-// Use "update text" syntax instead for route announcements.
-
-// TestCommitAnnounceMultipleRoutes removed: "commit announce route" syntax removed.
-// Use "update text" syntax instead for route announcements.
-
 // TestCommitWithdrawRoute verifies queuing withdrawals to a commit.
 //
 // VALIDATES: Withdrawal is queued to transaction.
@@ -313,13 +307,3 @@ func TestCommitWithdrawRoute(t *testing.T) {
 	tx, _ := ctx.CommitManager.Get("batch1")
 	assert.Equal(t, 1, tx.WithdrawalCount())
 }
-
-// TestCommitAnnounceNoCommit removed: "commit announce route" syntax removed.
-// Use "update text" syntax instead for route announcements.
-
-// TestCommitAnnounceMissingNextHop removed: "commit announce route" syntax removed.
-// Use "update text" syntax instead for route announcements.
-
-// TestCommitEndWithRoutes removed: "commit announce route" syntax removed.
-// Use "update text" syntax instead for route announcements.
-// Commit end with withdrawals is tested in TestCommitWithdrawRoute.

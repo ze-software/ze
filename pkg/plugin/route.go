@@ -205,7 +205,6 @@ func parseSAFI(args []string) (safi string, rest []string, err error) {
 // RegisterRouteHandlers registers route-related command handlers.
 func RegisterRouteHandlers(d *Dispatcher) {
 	// Announce commands
-	// NOTE: "announce route" removed in favor of "update text" (new-syntax.md)
 	d.Register("announce eor", handleAnnounceEOR, "Send End-of-RIB marker")
 	d.Register("announce flow", handleAnnounceFlow, "Announce a FlowSpec route")
 	d.Register("announce vpls", handleAnnounceVPLS, "Announce a VPLS route")

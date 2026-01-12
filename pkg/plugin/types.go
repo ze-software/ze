@@ -593,7 +593,7 @@ type NLRIGroup struct {
 	Withdraw     []nlri.NLRI               // NLRIs to withdraw
 	Wire         *attribute.AttributesWire // Path attributes in wire format
 	NextHop      RouteNextHop              // Encapsulates next-hop policy (explicit or self)
-	WatchdogName string                    // Watchdog pool name for announce routes (empty = none)
+	WatchdogName string                    // Watchdog pool name for routes (empty = none)
 }
 
 // UpdateTextResult is the parsed result of an update text command.

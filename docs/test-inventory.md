@@ -29,7 +29,7 @@ Each line contains:
 **Example (`conf-addpath.ci`):**
 ```
 option:file:conf-addpath.conf
-1:cmd:announce route 193.0.2.1/32 next-hop 10.0.0.1 path-information 1.2.3.4 origin igp local-preference 100 extended-community [target:72:1]
+1:cmd:update text path-information 1.2.3.4 origin set igp local-preference set 100 extended-community set [target:72:1] nhop set 10.0.0.1 nlri ipv4/unicast add 193.0.2.1/32
 1:raw:FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF:0040:02:00000020...
 1:json:{"exabgp":"6.0.0","type":"update",...}
 ```
@@ -345,7 +345,7 @@ func TestEncodingConfAddpath(t *testing.T) {
     }{
         {
             name:    "route with path-information",
-            command: "announce route 193.0.2.1/32 ...",
+            command: "update text nhop set ... nlri ipv4/unicast add 193.0.2.1/32",
             wantRaw: mustDecodeHex("FFFFFFFF..."),
             wantJSON: map[string]any{...},
         },

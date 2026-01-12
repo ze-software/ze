@@ -147,7 +147,7 @@ peer <address> {
 | Keyword | `neighbor {` | `peer {` |
 | API binding | `api { processes [foo]; }` | `api foo { ... }` in peer |
 | Format location | `receive { parsed; packets; }` | `content { format ...; }` per binding |
-| Output syntax | `neighbor X announce route ...` | `announce nlri <family> <nlris>` |
+| Output syntax | `neighbor X announce route ...` | `update text nlri <family> ...` |
 
 ### Data Flow: Config → Server
 
@@ -248,9 +248,9 @@ Features:
 
 ```
 API Client
-    │ "announce route 10.0.0.0/24 next-hop 1.2.3.4"
+    │ "update text nhop set 1.2.3.4 nlri ipv4/unicast add 10.0.0.0/24"
     ▼
-Dispatcher.handleAnnounceRoute()
+Dispatcher.handleUpdate()
     │ Parse attributes, validate keywords
     ▼
 Reactor.AnnounceRoute(peerSelector, RouteSpec)
@@ -660,10 +660,10 @@ ACK is controlled by serial prefix, not session commands:
 
 ```
 # No serial = fire-and-forget (no response)
-announce route 10.0.0.0/24 next-hop 1.2.3.4
+update text nhop set 1.2.3.4 nlri ipv4/unicast add 10.0.0.0/24
 
 # With serial = get response
-#1 announce route 10.0.0.0/24 next-hop 1.2.3.4
+#1 update text nhop set 1.2.3.4 nlri ipv4/unicast add 10.0.0.0/24
 → {"serial":"1","status":"done"}
 
 # Error response
@@ -1007,7 +1007,7 @@ RIB stores: ribOut[peerAddr][prefix] = route1
 RIB receives "state up"
     │ Looks up ribOut[peerAddr]
     ▼
-RIB replays: "peer <addr> announce route <prefix> ..."
+RIB replays: "peer <addr> update text nhop set <nh> nlri <family> add <prefix>"
     │
     ▼
 RIB signals: "peer <addr> session api ready"

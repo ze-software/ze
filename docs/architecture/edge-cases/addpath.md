@@ -228,10 +228,10 @@ peer 192.168.1.2 {
 
 ```
 # Announce with path ID
-announce route 10.0.0.0/8 next-hop 1.1.1.1 path-information 0.0.0.1
+update text path-information 0.0.0.1 nhop set 1.1.1.1 nlri ipv4/unicast add 10.0.0.0/8
 
 # Withdraw specific path
-withdraw route 10.0.0.0/8 path-information 0.0.0.1
+update text nlri ipv4/unicast del 10.0.0.0/8 path-information 0.0.0.1
 ```
 
 ---

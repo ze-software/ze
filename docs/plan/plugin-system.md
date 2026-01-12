@@ -1581,7 +1581,7 @@ Plugins generate outbound UPDATEs through the RIB and export policy chain:
 
 1. Route Source (one of):
    │
-   ├─ API command: "announce route 10.0.0.0/24 next-hop self"
+   ├─ API command: "update text nhop set self nlri ipv4/unicast add 10.0.0.0/24"
    │
    ├─ Config static route
    │

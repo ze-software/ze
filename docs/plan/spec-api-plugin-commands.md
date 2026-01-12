@@ -49,12 +49,12 @@ External processes cannot extend ZeBGP's command set. All commands are hardcoded
 │ Process │◄────────────────────►│ Server  │
 └─────────┘                      └─────────┘
     │
-    └── stdout: "announce route ..." (commands TO ZeBGP)
+    └── stdout: "update text ..." (commands TO ZeBGP)
     └── stdin:  JSON events (notifications FROM ZeBGP)
 ```
 
 **Current process protocol (stdout → ZeBGP):**
-- Text commands: `announce route ...`, `withdraw route ...`
+- Text commands: `update text nhop set ... nlri ... add ...`, `update text nlri ... del ...`
 - Process is command SOURCE, not handler
 
 **Current process protocol (ZeBGP → stdin):**

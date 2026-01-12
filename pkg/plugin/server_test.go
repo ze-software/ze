@@ -337,7 +337,7 @@ func TestParseSerial(t *testing.T) {
 	}{
 		{"no prefix", "system version", "", "system version"},
 		{"numeric serial", "#1 system version", "1", "system version"},
-		{"multi-digit serial", "#123 announce route", "123", "announce route"},
+		{"multi-digit serial", "#123 update text", "123", "update text"},
 		{"comment not serial", "# this is a comment", "", "# this is a comment"},
 		{"alpha not serial", "#abc command", "", "#abc command"},
 		{"hash only", "#", "", "#"},

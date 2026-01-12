@@ -108,8 +108,8 @@ api {
 Commands are newline-delimited text:
 
 ```
-announce route 10.0.0.0/8 next-hop 192.168.1.1
-withdraw route 10.0.0.0/8
+update text nhop set 192.168.1.1 nlri ipv4/unicast add 10.0.0.0/8
+update text nlri ipv4/unicast del 10.0.0.0/8
 ```
 
 ### Command Processing
@@ -125,10 +125,10 @@ ACK is controlled by `#N` serial prefix on commands:
 
 ```
 # No serial = fire-and-forget (no response)
-announce route 10.0.0.0/8 next-hop 192.168.1.1
+update text nhop set 192.168.1.1 nlri ipv4/unicast add 10.0.0.0/8
 
 # With serial = get JSON response
-#1 announce route 10.0.0.0/8 next-hop 192.168.1.1
+#1 update text nhop set 192.168.1.1 nlri ipv4/unicast add 10.0.0.0/8
 ```
 
 **Response format:**

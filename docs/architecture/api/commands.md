@@ -122,23 +122,29 @@ peer !10.0.0.1 forward update-id 12345
 > **Note:** Filter selectors (`[local-as ...]`, `[peer-as ...]`) from ExaBGP multi-session
 > draft are not supported — the draft never became an RFC.
 
-### Announce Commands
+### Route Commands (update text)
+
+The canonical syntax for route announcements and withdrawals is `update text`:
 
 ```
-peer <selector> announce route <prefix> next-hop <ip> [attributes...]
+peer <selector> update text nhop set <ip> [attributes...] nlri <family> add <prefix>
+peer <selector> update text nlri <family> del <prefix>
+```
+
+### Announce Commands (family-explicit)
+
+```
 peer <selector> announce ipv4/unicast <prefix> next-hop <ip> [attributes...]
 peer <selector> announce ipv6/unicast <prefix> next-hop <ip> [attributes...]
 peer <selector> announce flow <flow-spec> [attributes...]
 peer <selector> announce vpls <name> endpoint <id> ... [attributes...]
 peer <selector> announce eor <afi> <safi>
 peer <selector> announce route-refresh <afi> <safi>
-peer <selector> announce operational <type> <afi> <safi>
 ```
 
-### Withdraw Commands
+### Withdraw Commands (family-explicit)
 
 ```
-peer <selector> withdraw route <prefix> [attributes...]
 peer <selector> withdraw ipv4/unicast <prefix> [attributes...]
 peer <selector> withdraw ipv6/unicast <prefix> [attributes...]
 peer <selector> withdraw flow <flow-spec>
@@ -171,8 +177,8 @@ rib clear out                     # Clear Adj-RIB-Out
 
 ```
 group start [attributes ...]     # Start batch with shared attributes
-peer <selector> announce route ...
-peer <selector> announce route ...
+peer <selector> update text ...
+peer <selector> update text ...
 group end                         # End batch, send all
 ```
 
@@ -191,8 +197,8 @@ show adj-rib out [<afi> <safi>]
 ### Announce/Withdraw
 
 ```
-announce route <prefix> next-hop <ip> [attributes...]
-withdraw route <prefix>
+update text nhop set <ip> [attributes...] nlri <family> add <prefix>
+update text nlri <family> del <prefix>
 announce ipv4/unicast <prefix> next-hop <ip>
 announce ipv6/unicast <prefix> next-hop <ip>
 announce flow <flow-spec>
@@ -329,7 +335,7 @@ split /<target-length>
 
 ```
 # Announce 2 prefixes with one command
-announce route 10.0.0.0/23 next-hop 1.2.3.4 split /24
+update text nhop set 1.2.3.4 nlri ipv4/unicast add 10.0.0.0/23 split /24
 # → 10.0.0.0/24 next-hop 1.2.3.4
 # → 10.0.1.0/24 next-hop 1.2.3.4
 
@@ -544,7 +550,7 @@ func ParseSelector(s string) (*Selector, error) {
 ```go
 var Commands = []CommandInfo{
     {"daemon shutdown", false, nil},
-    {"peer * announce route", true, []string{"next-hop", "origin", ...}},
+    {"peer * update text", true, []string{"nhop", "origin", ...}},
     // ...
 }
 ```

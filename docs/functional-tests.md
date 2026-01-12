@@ -141,7 +141,7 @@ The `.ci` file is the **source of truth** for bidirectional testing:
 ```
 option:file:test.conf           # Config file to use
 option:asn:65000                # Override peer ASN
-1:cmd:announce route ...        # API command
+1:cmd:update text ...           # API command
 1:raw:FFFF...:0017:02:...       # Raw bytes produced by command
 1:json:{...}                    # JSON representation
 ```
@@ -308,7 +308,7 @@ peer 127.0.0.1 {
 ```
 # test/data/encode/mytest.ci
 option:file:mytest.conf
-1:cmd:announce route 10.0.0.0/24 next-hop 1.2.3.4
+1:cmd:update text nhop set 1.2.3.4 nlri ipv4/unicast add 10.0.0.0/24
 1:raw:FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF:002D:02:0000001540010100...
 ```
 

@@ -245,7 +245,7 @@ func TestParseResponseLine(t *testing.T) {
 		},
 		{
 			name:   "not a response",
-			input:  "announce route 10.0.0.0/24",
+			input:  "update text nlri ipv4/unicast add 10.0.0.0/24",
 			wantOK: false,
 		},
 		{

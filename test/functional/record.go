@@ -547,7 +547,7 @@ func (et *EncodingTests) parseAndAdd(ciFile string) error {
 			r.Options = append(r.Options, line)
 
 		case strings.Contains(line, ":cmd:"):
-			// Parse: "1:cmd:announce route..."
+			// Parse: "1:cmd:update text..." (command documentation)
 			parts := strings.SplitN(line, ":", 3)
 			if len(parts) >= 3 {
 				idx := parseMessageIndex(parts[0])

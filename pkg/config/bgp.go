@@ -143,7 +143,7 @@ func vplsAttributes() []FieldDef {
 }
 
 // routeAttributes returns the common route attribute field definitions.
-// Used by both static and announce route schemas.
+// Used by static route config schema.
 func routeAttributes() []FieldDef {
 	return []FieldDef{
 		Field("next-hop", Leaf(TypeString)),

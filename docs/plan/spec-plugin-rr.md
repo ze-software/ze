@@ -249,7 +249,7 @@ routes := ribIn.GetPeerRoutes("10.0.0.1")
 
 // Withdraw all routes from downed peer to other peers
 for _, route := range routes {
-    send("peer !10.0.0.1 withdraw route %s %s", route.Prefix, route.Family)
+    send("peer !10.0.0.1 update text nlri ipv4/unicast del %s %s", route.Prefix, route.Family)
     // Release msg-id - route no longer valid
     send("msg-id %d release", route.MsgID)
 }
@@ -530,7 +530,7 @@ Requires ZeBGP engine support for:
 |---------|-------------|
 | `peer <sel> forward update-id <id>` | Zero-copy forward cached UPDATE |
 | `peer !<addr>` | Send to all except specified peer |
-| `peer <sel> withdraw route <nlri>` | Send withdrawal |
+| `peer <sel> update text nlri ipv4/unicast del <nlri>` | Send withdrawal |
 | `peer <addr> eor <family>` | Send End-of-RIB marker |
 | `peer <addr> announce raw <attrs> nlri <family> <nlri>` | Announce from wire bytes |
 | `msg-id <id> retain` | Keep msg-id in cache |
@@ -619,7 +619,7 @@ cmd/zebgp/
 
 Test C (teardown) expects routes announced via API to be replayed on peer reconnect:
 ```
-1. teardown.run sends "announce route 1.1.0.0/16"
+1. teardown.run sends "update text nhop set ... nlri ipv4/unicast add 1.1.0.0/16"
 2. Peer teardown
 3. Peer reconnects → expects route 1.1.0.0/16 replayed
 ```
@@ -755,7 +755,7 @@ func (ps *PersistServer) handleStateUp(peerAddr string) {
 │  (announcer)    │     │  (state keeper)   │
 └────────┬────────┘     └────────┬──────────┘
          │                       │
-         │ announce route ...    │ receive { sent; state; }
+         │ update text ...       │ receive { sent; state; }
          ▼                       ▼
 ┌─────────────────────────────────────────────┐
 │               ZeBGP                         │

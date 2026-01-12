@@ -96,7 +96,10 @@
       "Bash(./download.sh:*)",
       "Bash(/tmp/mrt-analyze:*)",
       "Bash(git mv:*)",
-      "Bash(git stash:*)"
+      "Bash(echo:*)",
+      "Bash(command ls -1 docs/plan/done/)",
+      "Bash(pkill:*)",
+      "Bash(python3:*)"
     ],
     "deny": [
       "Bash(git reset:*)",
@@ -105,6 +108,7 @@
       "Bash(git checkout HEAD:*)",
       "Bash(git restore:*)",
       "Bash(git revert:*)",
+      "Bash(git stash:*)",
       "Bash(git stash drop:*)",
       "Bash(git stash clear:*)",
       "Bash(git clean:*)",

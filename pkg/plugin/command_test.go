@@ -158,7 +158,7 @@ func TestDispatcherTokenize(t *testing.T) {
 		{"peer  show", []string{"peer", "show"}},
 		{"  peer show  ", []string{"peer", "show"}},
 		{"peer\tshow", []string{"peer", "show"}},
-		{"announce route 10.0.0.0/24", []string{"announce", "route", "10.0.0.0/24"}},
+		{"update text nlri ipv4/unicast add 10.0.0.0/24", []string{"update", "text", "nlri", "ipv4/unicast", "add", "10.0.0.0/24"}},
 		// Quoted strings
 		{`myapp check "hello world"`, []string{"myapp", "check", "hello world"}},
 		{`register command "myapp status" description "Show status"`, []string{"register", "command", "myapp status", "description", "Show status"}},

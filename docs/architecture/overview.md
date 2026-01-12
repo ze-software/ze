@@ -516,8 +516,8 @@ type Server struct {
 
 // Command examples
 // "show neighbor summary"
-// "announce route 10.0.0.0/24 next-hop 1.1.1.1"
-// "withdraw route 10.0.0.0/24"
+// "update text nhop set 1.1.1.1 nlri ipv4/unicast add 10.0.0.0/24"
+// "update text nlri ipv4/unicast del 10.0.0.0/24"
 ```
 
 ### 4.7 Config Editor (pkg/config/editor/)
@@ -713,7 +713,7 @@ set neighbor 192.168.1.2 peer-as 65002
 └─────────────────────────────────────────────────────────────────────────┘
 
 ┌─────────────┐
-│  API Input  │  "announce route 10.0.0.0/24 next-hop 1.1.1.1"
+│  API Input  │  "update text nhop set 1.1.1.1 nlri ipv4/unicast add 10.0.0.0/24"
 └──────┬──────┘
        │
        ▼
@@ -1020,8 +1020,8 @@ Must support all ExaBGP commands:
 | show neighbor summary | P0 |
 | show adj-rib in | P0 |
 | show adj-rib out | P0 |
-| announce route | P0 |
-| withdraw route | P0 |
+| update text | P0 |
+| update text nlri ipv4/unicast del | P0 |
 | announce eor | P0 |
 | teardown | P0 |
 | shutdown | P0 |
