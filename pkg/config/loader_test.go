@@ -103,11 +103,14 @@ func TestLoadReactorRouteRefreshCapabilities(t *testing.T) {
 router-id 10.0.0.1;
 local-as 65000;
 
+plugin rib { run ./rib; }
+
 peer 192.0.2.1 {
     peer-as 65001;
     capability {
         route-refresh;
     }
+    process rib { send { update; } }
 }
 `
 

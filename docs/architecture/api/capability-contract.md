@@ -12,7 +12,7 @@
 | `msg-id retain/release/expire` | ✅ Done | `msgid.go` |
 | `msg-id list` | ✅ Done | `msgid.go` |
 | 5s startup timeout | ❌ Not impl | No validation |
-| Config validation (GR→API) | ❌ Not impl | No fail-fast check |
+| Config validation (GR/RR→API) | ✅ Done | `bgp.go:validateProcessCapabilities` |
 | `borr`/`eorr` markers | ✅ Done | RFC 7313 full support, RIB plugin responds to refresh |
 
 ---
@@ -116,22 +116,29 @@ peer A announce raw <base64-attrs> nlri ipv4/unicast <base64-nlri>
 
 ---
 
-## Config Validation (❌ NOT IMPLEMENTED)
+## Config Validation (✅ DONE)
 
-> **Status:** No validation exists. Config loader accepts GR/RR without API.
+> **Status:** Implemented in `pkg/config/bgp.go:validateProcessCapabilities`.
 
-If peer has `graceful-restart`, `route-refresh`, or `enhanced-route-refresh` but no API with `send { update; }`:
+If peer has `graceful-restart` or `route-refresh` but no process with `send { update; }`:
 
 ```
-ERROR: peer 192.168.1.1 has graceful-restart but no API to resend routes
-  hint: add "api <process> { send { update; } }" or remove capability
+peer 192.168.1.1: route-refresh requires process with send { update; }
+  no process bindings configured
+```
+
+Or if process bindings exist but none have `send { update; }`:
+
+```
+peer 192.168.1.1: route-refresh requires process with send { update; }
+  configured: process logger, process monitor - none have send { update; }
 ```
 
 ---
 
-## Refresh Commands (⚠️ PARTIAL)
+## Refresh Commands (✅ DONE)
 
-> **Status:** Commands exist but missing capability check. ROUTE-REFRESH receive not implemented.
+> **Status:** Full RFC 7313 Enhanced Route Refresh support implemented.
 
 **Router → API:** ✅ Implemented
 ```

@@ -12,7 +12,8 @@ ZeBGP's functional test tool only supports `encoding` and `api` commands. ExaBGP
 
 Test data already exists:
 - `test/data/decode/*.test` - 18 decoding test files
-- `test/data/parse/*.conf` - 10 parsing test configs
+- `test/data/parse/valid/*.conf` - 10 positive parsing test configs
+- `test/data/parse/invalid/*.conf` + `.expect` - negative parsing tests
 
 ## Current Status
 

@@ -104,8 +104,8 @@ peer <ip-address> {
     # Address families
     family { ... }
 
-    # API bindings
-    api <process-name> { ... }
+    # Process bindings
+    process <plugin-name> { ... }
 
     # Static routes (use announce block)
     announce { ... }
@@ -197,13 +197,13 @@ add-path {
 }
 ```
 
-### API Section (ZeBGP New Syntax)
+### Process Section (ZeBGP New Syntax)
 
 ```
-# Named API binding (preferred)
-api <process-name> {
+# Named process binding (preferred)
+process <plugin-name> {
     content {
-        encoding json;       # json | text (default: inherit from process)
+        encoding json;       # json | text (default: inherit from plugin)
         format parsed;       # parsed | raw | full (default: parsed)
         attribute all;       # all | none | "as-path next-hop ..." (default: all)
         nlri ipv4/unicast;   # <afi> <safi>; (can have multiple)
@@ -224,25 +224,6 @@ api <process-name> {
         all;                 # shorthand for all
     }
 }
-```
-
-### API Section (Old Syntax - Still Supported)
-
-```
-# Anonymous API block (ExaBGP compatibility)
-api {
-    processes [ <process-name>, ... ];
-    neighbor-changes;        # maps to receive { state; }
-}
-```
-
-The migration tool (`zebgp config migrate`) converts old syntax to new:
-```
-# Old:
-api { processes [ foo ]; neighbor-changes; }
-
-# Becomes:
-api foo { receive { state; } }
 ```
 
 ---
@@ -832,7 +813,7 @@ var sectionParsers = map[string]func(*Parser, []string) error{
     "capability":   parseCapability,
     "family":       parseFamily,
     "add-path":     parseAddPath,
-    "api":          parseAPI,
+    "process":      parseProcess,
     "static":       parseStatic,
     "flow":         parseFlow,
     "l2vpn":        parseL2VPN,

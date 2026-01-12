@@ -438,7 +438,7 @@ peer 192.0.2.1 {
     peer-as 65001;
     capability {
         asn4 true;
-        route-refresh true;
+        route-refresh;
         graceful-restart {
             restart-time 120;
         }
@@ -600,7 +600,7 @@ peer 192.0.2.1 {
     }
     capability {
         asn4 true;
-        route-refresh true;
+        route-refresh;
     }
 }
 
@@ -1284,11 +1284,13 @@ func TestIPGlobMatch(t *testing.T) {
 // PREVENTS: Unable to use group syntax for named templates.
 func TestTemplateGroupBasic(t *testing.T) {
 	input := `
+plugin rib { run ./rib; }
 template {
     group ibgp-rr {
         peer-as 65000;
         hold-time 60;
         capability { route-refresh; }
+        process rib { send { update; } }
     }
 }
 
@@ -1542,11 +1544,13 @@ peer 192.0.2.1 {
 // PREVENTS: Template inheritance not working.
 func TestSingleInheritance(t *testing.T) {
 	input := `
+plugin rib { run ./rib; }
 template {
     group ibgp-defaults {
         hold-time 60;
         peer-as 65000;
-        capability { route-refresh true; }
+        capability { route-refresh; }
+        process rib { send { update; } }
     }
 }
 
@@ -2921,4 +2925,183 @@ peer 10.0.0.1 {
 	_, err = TreeToConfig(tree)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "invalid nlri filter")
+}
+
+// TestConfigValidationRouteRefreshRequiresProcess verifies route-refresh without process fails.
+//
+// VALIDATES: Config with route-refresh capability but no process binding is rejected.
+// PREVENTS: Silent runtime failure when route-refresh request arrives with no plugin to handle it.
+func TestConfigValidationRouteRefreshRequiresProcess(t *testing.T) {
+	input := `
+peer 10.0.0.1 {
+    router-id 1.2.3.4;
+    local-as 65001;
+    peer-as 65002;
+    capability { route-refresh; }
+}
+`
+	p := NewParser(BGPSchema())
+	tree, err := p.Parse(input)
+	require.NoError(t, err)
+	_, err = TreeToConfig(tree)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "route-refresh requires process with send { update; }")
+	require.Contains(t, err.Error(), "no process bindings configured")
+}
+
+// TestConfigValidationGracefulRestartRequiresProcess verifies graceful-restart without process fails.
+//
+// VALIDATES: Config with graceful-restart capability but no process binding is rejected.
+// PREVENTS: Silent runtime failure when peer reconnects and expects routes to be replayed.
+func TestConfigValidationGracefulRestartRequiresProcess(t *testing.T) {
+	input := `
+peer 10.0.0.1 {
+    router-id 1.2.3.4;
+    local-as 65001;
+    peer-as 65002;
+    capability { graceful-restart { restart-time 120; } }
+}
+`
+	p := NewParser(BGPSchema())
+	tree, err := p.Parse(input)
+	require.NoError(t, err)
+	_, err = TreeToConfig(tree)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "graceful-restart requires process with send { update; }")
+	require.Contains(t, err.Error(), "no process bindings configured")
+}
+
+// TestConfigValidationRouteRefreshWithProcess verifies route-refresh with proper process succeeds.
+//
+// VALIDATES: Config with route-refresh and process with send { update; } is accepted.
+// PREVENTS: False positives rejecting valid configurations.
+func TestConfigValidationRouteRefreshWithProcess(t *testing.T) {
+	input := `
+plugin rib { run ./rib; }
+peer 10.0.0.1 {
+    router-id 1.2.3.4;
+    local-as 65001;
+    peer-as 65002;
+    capability { route-refresh; }
+    process rib { send { update; } }
+}
+`
+	cfg := parseConfig(t, input)
+	require.Len(t, cfg.Peers, 1)
+	require.True(t, cfg.Peers[0].Capabilities.RouteRefresh)
+}
+
+// TestConfigValidationGracefulRestartWithProcess verifies graceful-restart with proper process succeeds.
+//
+// VALIDATES: Config with graceful-restart and process with send { update; } is accepted.
+// PREVENTS: False positives rejecting valid configurations.
+func TestConfigValidationGracefulRestartWithProcess(t *testing.T) {
+	input := `
+plugin rib { run ./rib; }
+peer 10.0.0.1 {
+    router-id 1.2.3.4;
+    local-as 65001;
+    peer-as 65002;
+    capability { graceful-restart { restart-time 120; } }
+    process rib { send { update; } }
+}
+`
+	cfg := parseConfig(t, input)
+	require.Len(t, cfg.Peers, 1)
+	require.True(t, cfg.Peers[0].Capabilities.GracefulRestart)
+}
+
+// TestConfigValidationRouteRefreshProcessNoSendUpdate verifies route-refresh with process lacking send { update; } fails.
+//
+// VALIDATES: Config with route-refresh and process without send { update; } is rejected.
+// PREVENTS: Misconfiguration where process cannot respond to route-refresh.
+func TestConfigValidationRouteRefreshProcessNoSendUpdate(t *testing.T) {
+	input := `
+plugin logger { run ./logger; }
+peer 10.0.0.1 {
+    router-id 1.2.3.4;
+    local-as 65001;
+    peer-as 65002;
+    capability { route-refresh; }
+    process logger { receive { update; } }
+}
+`
+	p := NewParser(BGPSchema())
+	tree, err := p.Parse(input)
+	require.NoError(t, err)
+	_, err = TreeToConfig(tree)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "route-refresh requires process with send { update; }")
+	require.Contains(t, err.Error(), "configured: process logger")
+	require.Contains(t, err.Error(), "none have send { update; }")
+}
+
+// TestConfigValidationBothCapabilitiesWithProcess verifies both capabilities with proper process succeeds.
+//
+// VALIDATES: Config with both route-refresh and graceful-restart with proper process is accepted.
+// PREVENTS: False positives when multiple capabilities are configured.
+func TestConfigValidationBothCapabilitiesWithProcess(t *testing.T) {
+	input := `
+plugin rib { run ./rib; }
+peer 10.0.0.1 {
+    router-id 1.2.3.4;
+    local-as 65001;
+    peer-as 65002;
+    capability {
+        route-refresh;
+        graceful-restart { restart-time 120; }
+    }
+    process rib { send { update; } }
+}
+`
+	cfg := parseConfig(t, input)
+	require.Len(t, cfg.Peers, 1)
+	require.True(t, cfg.Peers[0].Capabilities.RouteRefresh)
+	require.True(t, cfg.Peers[0].Capabilities.GracefulRestart)
+}
+
+// TestConfigValidationRouteRefreshFromTemplate verifies template with route-refresh, peer without process fails.
+//
+// VALIDATES: Config where peer inherits route-refresh from template but has no process is rejected.
+// PREVENTS: Misconfiguration through template inheritance.
+func TestConfigValidationRouteRefreshFromTemplate(t *testing.T) {
+	input := `
+template {
+    group rr {
+        capability { route-refresh; }
+    }
+}
+peer 10.0.0.1 {
+    inherit rr;
+    router-id 1.2.3.4;
+    local-as 65001;
+    peer-as 65002;
+}
+`
+	p := NewParser(BGPSchema())
+	tree, err := p.Parse(input)
+	require.NoError(t, err)
+	_, err = TreeToConfig(tree)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "route-refresh requires process with send { update; }")
+}
+
+// TestConfigValidationSendAllSatisfiesRequirement verifies send { all; } satisfies the requirement.
+//
+// VALIDATES: Config with route-refresh and process with send { all; } is accepted.
+// PREVENTS: False rejection when using "all" keyword.
+func TestConfigValidationSendAllSatisfiesRequirement(t *testing.T) {
+	input := `
+plugin rib { run ./rib; }
+peer 10.0.0.1 {
+    router-id 1.2.3.4;
+    local-as 65001;
+    peer-as 65002;
+    capability { route-refresh; }
+    process rib { send { all; } }
+}
+`
+	cfg := parseConfig(t, input)
+	require.Len(t, cfg.Peers, 1)
+	require.True(t, cfg.Peers[0].Capabilities.RouteRefresh)
 }

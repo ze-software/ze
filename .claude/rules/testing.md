@@ -5,6 +5,49 @@ paths:
 
 # Testing Commands
 
+## No Throw-Away Tests
+
+**BLOCKING:** Never write temporary/throw-away test code to verify behavior.
+
+If you need to check that code behaves correctly:
+1. **Add a functional test** - permanent, runs in CI
+2. **Add a unit test** - if testing internal logic
+
+### Examples
+
+❌ **Wrong:** Write a quick `main()` to test config parsing
+```go
+// /tmp/test_config.go - FORBIDDEN
+func main() {
+    cfg, err := config.Load("test.conf")
+    fmt.Println(cfg.Peers[0].Capabilities.RouteRefresh)
+}
+```
+
+✅ **Right:** Add to functional tests
+```
+# test/data/parse/valid/my-feature.conf (positive test)
+# test/data/parse/invalid/my-error.conf + .expect (negative test)
+# .expect can use "regex:" prefix for pattern matching
+```
+
+### Why This Matters
+
+- Throw-away tests are lost knowledge
+- Future devs will re-investigate the same questions
+- CI doesn't catch regressions if tests don't exist
+- Functional tests document expected behavior
+
+### When to Add Tests
+
+| Situation | Action |
+|-----------|--------|
+| Checking valid config parses | Add to `test/data/parse/valid/` |
+| Checking invalid config fails | Add to `test/data/parse/invalid/` with `.expect` |
+| Checking BGP message encoding | Add to `test/data/encode/` |
+| Checking API behavior | Add to `test/data/plugin/` |
+| Checking wire format parsing | Add to `test/data/decode/` |
+
 ## Required Test Sequence
 
 ```bash

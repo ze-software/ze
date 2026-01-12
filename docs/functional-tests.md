@@ -43,7 +43,34 @@ Static route tests - routes defined in config, sent at session establishment.
 - `*.ci` - Expected messages and config reference
 - `*.conf` - ZeBGP configuration
 
-### 2. API Tests (`test/data/api/`)
+### 2. Parse Tests (`test/data/parse/`)
+
+Config parsing tests - verify configurations parse correctly.
+
+**Positive tests** (expect success) in `valid/` subdirectory:
+- `valid/*.conf` - Valid config that should parse
+
+**Negative tests** (expect failure) in `invalid/` subdirectory:
+- `invalid/*.conf` - Invalid config that should fail
+- `invalid/*.expect` - Expected error substring (or `regex:` pattern)
+
+**Example negative test:**
+```
+# test/data/parse/invalid/route-refresh-no-process.conf
+peer 10.0.0.1 {
+    router-id 1.2.3.4;
+    local-as 65001;
+    peer-as 65002;
+    capability { route-refresh; }
+}
+```
+
+```
+# test/data/parse/invalid/route-refresh-no-process.expect
+route-refresh requires process with send { update; }
+```
+
+### 3. API Tests (`test/data/api/`)
 
 Dynamic route tests - routes injected via scripts using the process API.
 
@@ -288,6 +315,36 @@ option:file:mytest.conf
 ### 3. Generate expected bytes
 
 Run with ExaBGP first to capture correct bytes, or use `zebgp decode` to verify.
+
+### Adding Negative Parsing Tests
+
+To test that invalid configs are rejected with specific errors:
+
+**1. Create invalid config:**
+```
+# test/data/parse/invalid/my-error.conf
+peer 10.0.0.1 {
+    # ... invalid configuration ...
+}
+```
+
+**2. Create .expect file with expected error:**
+
+**Substring match (default):**
+```
+# test/data/parse/invalid/my-error.expect
+specific error message substring
+```
+
+**Regex match (for variable parts like IPs, line numbers):**
+```
+# test/data/parse/invalid/my-error.expect
+regex:peer \d+\.\d+\.\d+\.\d+: route-refresh requires
+```
+
+The test passes if:
+- `zebgp validate` exits with non-zero status
+- Output contains the expected substring OR matches the regex pattern
 
 ---
 

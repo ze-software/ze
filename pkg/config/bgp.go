@@ -818,7 +818,59 @@ func TreeToConfig(tree *Tree) (*BGPConfig, error) {
 		}
 	}
 
+	// Validate process-dependent capabilities
+	if err := validateProcessCapabilities(cfg.Peers); err != nil {
+		return nil, err
+	}
+
 	return cfg, nil
+}
+
+// validateProcessCapabilities checks that peers with route-refresh or graceful-restart
+// capabilities have a process binding with Send.Update = true.
+// These capabilities require a process to resend routes, and without one the engine
+// cannot fulfill route-refresh requests or graceful restart route replay.
+func validateProcessCapabilities(peers []PeerConfig) error {
+	for _, peer := range peers {
+		needsProcess := peer.Capabilities.RouteRefresh || peer.Capabilities.GracefulRestart
+		if !needsProcess {
+			continue
+		}
+
+		// Check if any process binding has Send.Update = true
+		hasValidProcess := false
+		for _, binding := range peer.ProcessBindings {
+			if binding.Send.Update {
+				hasValidProcess = true
+				break
+			}
+		}
+
+		if hasValidProcess {
+			continue
+		}
+
+		// Determine which capability requires the process
+		capName := "route-refresh"
+		if !peer.Capabilities.RouteRefresh {
+			capName = "graceful-restart"
+		}
+
+		// Build error message
+		if len(peer.ProcessBindings) == 0 {
+			return fmt.Errorf("peer %s: %s requires process with send { update; }\n  no process bindings configured",
+				peer.Address, capName)
+		}
+
+		// List configured processes
+		var names []string
+		for _, binding := range peer.ProcessBindings {
+			names = append(names, "process "+binding.PluginName)
+		}
+		return fmt.Errorf("peer %s: %s requires process with send { update; }\n  configured: %s - none have send { update; }",
+			peer.Address, capName, strings.Join(names, ", "))
+	}
+	return nil
 }
 
 // sortPeerGlobs sorts peer globs by specificity (ascending).
