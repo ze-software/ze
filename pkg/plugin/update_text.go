@@ -43,7 +43,6 @@ const (
 	kwWatchdog = "watchdog"
 	kwNhop     = "nhop"             // New: top-level next-hop accumulator
 	kwPathInfo = "path-information" // New: ADD-PATH path-id accumulator
-	kwEOR      = "eor"              // End-of-RIB marker (RFC 4724)
 )
 
 // UpdateText action keywords.
@@ -51,6 +50,7 @@ const (
 	kwAdd = "add"
 	kwDel = "del"
 	kwSet = "set"
+	kwEOR = "eor" // End-of-RIB marker (RFC 4724)
 )
 
 // Attribute keywords for per-attribute syntax.
@@ -96,7 +96,7 @@ func isScalarAttribute(token string) bool {
 func isBoundaryKeyword(token string) bool {
 	return token == kwAttr || token == kwNLRI || token == kwWatchdog ||
 		token == kwNhop || token == kwPathInfo || token == kwRD || token == kwLabel ||
-		token == kwEOR || isAttributeKeyword(token)
+		isAttributeKeyword(token)
 }
 
 // parsedAttrs tracks attribute state during parsing.
@@ -710,19 +710,6 @@ func ParseUpdateText(args []string) (*UpdateTextResult, error) {
 
 	for i < len(args) {
 		switch args[i] { //nolint:gosec // G602 false positive: loop condition guards access
-		case kwEOR:
-			// RFC 4724: End-of-RIB marker parsing
-			// Format: eor <family>
-			if i+1 >= len(args) {
-				return nil, errors.New("eor requires family (e.g., ipv4/unicast)")
-			}
-			family, ok := nlri.ParseFamily(args[i+1])
-			if !ok {
-				return nil, fmt.Errorf("invalid eor family: %s", args[i+1])
-			}
-			eorFamilies = append(eorFamilies, family)
-			i += 2
-
 		case kwAttr:
 			mode, attrs, consumed, err := parseAttrSection(args[i:])
 			if err != nil {
@@ -778,17 +765,22 @@ func ParseUpdateText(args []string) (*UpdateTextResult, error) {
 				return nil, err
 			}
 
-			groups = append(groups, NLRIGroup{
-				Family:       family,
-				Announce:     announce,
-				Withdraw:     withdraw,
-				Wire:         wire,
-				NextHop:      nh,
-				WatchdogName: nlriWatchdog,
-			})
-			// Also set global watchdog if specified in nlri section (for backward compat)
-			if nlriWatchdog != "" {
-				watchdog = nlriWatchdog
+			// RFC 4724: EOR is signaled by valid family with empty announce/withdraw lists
+			if len(announce) == 0 && len(withdraw) == 0 && family.AFI != 0 {
+				eorFamilies = append(eorFamilies, family)
+			} else {
+				groups = append(groups, NLRIGroup{
+					Family:       family,
+					Announce:     announce,
+					Withdraw:     withdraw,
+					Wire:         wire,
+					NextHop:      nh,
+					WatchdogName: nlriWatchdog,
+				})
+				// Also set global watchdog if specified in nlri section (for backward compat)
+				if nlriWatchdog != "" {
+					watchdog = nlriWatchdog
+				}
 			}
 			i += consumed
 
@@ -824,7 +816,7 @@ func ParseUpdateText(args []string) (*UpdateTextResult, error) {
 				i += consumed
 				continue
 			}
-			return nil, fmt.Errorf("unexpected token '%s'; valid: origin, med, local-preference, as-path, community, large-community, extended-community, nhop, nlri, eor, watchdog", args[i]) //nolint:gosec // G602 false positive: loop guards access
+			return nil, fmt.Errorf("unexpected token '%s'; valid: origin, med, local-preference, as-path, community, large-community, extended-community, nhop, nlri, watchdog", args[i]) //nolint:gosec // G602 false positive: loop guards access
 		}
 	}
 
@@ -1195,9 +1187,16 @@ func parseNLRISection(args []string, accum nlriAccum) (nlri.Family, []nlri.NLRI,
 		return nlri.Family{}, nil, nil, "", 0, fmt.Errorf("%w: %s", ErrInvalidFamily, args[1])
 	}
 
-	// Check if family is supported
-	if !isSupportedFamily(family) {
+	// Check if family is supported (EOR is supported for all families)
+	isEOR := len(args) > 2 && args[2] == kwEOR
+	if !isEOR && !isSupportedFamily(family) {
 		return nlri.Family{}, nil, nil, "", 0, fmt.Errorf("%w: %s", ErrFamilyNotSupported, args[1])
+	}
+
+	// RFC 4724: End-of-RIB marker
+	// Syntax: nlri <family> eor
+	if isEOR {
+		return family, nil, nil, "", 3, nil // Return empty lists with family set - signals EOR
 	}
 
 	// FlowSpec families use different parsing (components instead of prefixes)

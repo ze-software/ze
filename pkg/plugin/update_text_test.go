@@ -3423,11 +3423,11 @@ func TestParseUpdateText_FlowSpecWithExtComm(t *testing.T) {
 
 // TestParseUpdateText_EORIPv4Unicast verifies EOR parsing for IPv4 unicast.
 //
-// VALIDATES: "eor ipv4/unicast" produces EORFamilies with correct family.
+// VALIDATES: "nlri ipv4/unicast eor" produces EORFamilies with correct family.
 // PREVENTS: EOR command being rejected or parsed incorrectly.
 // RFC 4724 Section 2: End-of-RIB marker.
 func TestParseUpdateText_EORIPv4Unicast(t *testing.T) {
-	result, err := ParseUpdateText([]string{"eor", "ipv4/unicast"})
+	result, err := ParseUpdateText([]string{"nlri", "ipv4/unicast", "eor"})
 	require.NoError(t, err)
 	require.Len(t, result.EORFamilies, 1)
 	assert.Equal(t, nlri.IPv4Unicast, result.EORFamilies[0])
@@ -3436,11 +3436,11 @@ func TestParseUpdateText_EORIPv4Unicast(t *testing.T) {
 
 // TestParseUpdateText_EORIPv6Unicast verifies EOR parsing for IPv6 unicast.
 //
-// VALIDATES: "eor ipv6/unicast" produces EORFamilies with correct family.
+// VALIDATES: "nlri ipv6/unicast eor" produces EORFamilies with correct family.
 // PREVENTS: IPv6 family being rejected.
 // RFC 4724 Section 2: End-of-RIB marker.
 func TestParseUpdateText_EORIPv6Unicast(t *testing.T) {
-	result, err := ParseUpdateText([]string{"eor", "ipv6/unicast"})
+	result, err := ParseUpdateText([]string{"nlri", "ipv6/unicast", "eor"})
 	require.NoError(t, err)
 	require.Len(t, result.EORFamilies, 1)
 	assert.Equal(t, nlri.IPv6Unicast, result.EORFamilies[0])
@@ -3448,11 +3448,11 @@ func TestParseUpdateText_EORIPv6Unicast(t *testing.T) {
 
 // TestParseUpdateText_EORL2VPNEVPN verifies EOR parsing for L2VPN/EVPN.
 //
-// VALIDATES: "eor l2vpn/evpn" produces EORFamilies with correct family.
+// VALIDATES: "nlri l2vpn/evpn eor" produces EORFamilies with correct family.
 // PREVENTS: EVPN EOR being rejected.
 // RFC 4724 Section 2: End-of-RIB marker.
 func TestParseUpdateText_EORL2VPNEVPN(t *testing.T) {
-	result, err := ParseUpdateText([]string{"eor", "l2vpn/evpn"})
+	result, err := ParseUpdateText([]string{"nlri", "l2vpn/evpn", "eor"})
 	require.NoError(t, err)
 	require.Len(t, result.EORFamilies, 1)
 	assert.Equal(t, nlri.L2VPNEVPN, result.EORFamilies[0])
@@ -3460,43 +3460,24 @@ func TestParseUpdateText_EORL2VPNEVPN(t *testing.T) {
 
 // TestParseUpdateText_EORL2VPNVPLS verifies EOR parsing for L2VPN/VPLS.
 //
-// VALIDATES: "eor l2vpn/vpls" produces EORFamilies with correct family.
+// VALIDATES: "nlri l2vpn/vpls eor" produces EORFamilies with correct family.
 // PREVENTS: VPLS EOR being rejected.
 // RFC 4724 Section 2: End-of-RIB marker.
 func TestParseUpdateText_EORL2VPNVPLS(t *testing.T) {
-	result, err := ParseUpdateText([]string{"eor", "l2vpn/vpls"})
+	result, err := ParseUpdateText([]string{"nlri", "l2vpn/vpls", "eor"})
 	require.NoError(t, err)
 	require.Len(t, result.EORFamilies, 1)
 	assert.Equal(t, nlri.L2VPNVPLS, result.EORFamilies[0])
 }
 
-// TestParseUpdateText_EORMissingFamily verifies EOR requires a family.
-//
-// VALIDATES: "eor" without family returns error.
-// PREVENTS: Silent default behavior that might surprise users.
-func TestParseUpdateText_EORMissingFamily(t *testing.T) {
-	_, err := ParseUpdateText([]string{"eor"})
-	require.Error(t, err)
-	assert.Contains(t, err.Error(), "family")
-}
-
-// TestParseUpdateText_EORInvalidFamily verifies EOR rejects invalid families.
-//
-// VALIDATES: "eor invalid/family" returns error.
-// PREVENTS: Silent failures on invalid input.
-func TestParseUpdateText_EORInvalidFamily(t *testing.T) {
-	_, err := ParseUpdateText([]string{"eor", "invalid/family"})
-	require.Error(t, err)
-}
-
 // TestParseUpdateText_EORMultipleFamilies verifies multiple EOR families.
 //
-// VALIDATES: Multiple "eor <family>" sections accumulate.
+// VALIDATES: Multiple "nlri <family> eor" sections accumulate.
 // PREVENTS: Only first EOR being parsed.
 func TestParseUpdateText_EORMultipleFamilies(t *testing.T) {
 	result, err := ParseUpdateText([]string{
-		"eor", "ipv4/unicast",
-		"eor", "ipv6/unicast",
+		"nlri", "ipv4/unicast", "eor",
+		"nlri", "ipv6/unicast", "eor",
 	})
 	require.NoError(t, err)
 	require.Len(t, result.EORFamilies, 2)
@@ -3510,7 +3491,7 @@ func TestParseUpdateText_EORMultipleFamilies(t *testing.T) {
 // PREVENTS: EOR breaking NLRI parsing or vice versa.
 func TestParseUpdateText_EORWithNLRI(t *testing.T) {
 	result, err := ParseUpdateText([]string{
-		"eor", "ipv6/unicast",
+		"nlri", "ipv6/unicast", "eor",
 		"origin", "set", "igp",
 		"nlri", "ipv4/unicast", "add", "10.0.0.0/24",
 	})
