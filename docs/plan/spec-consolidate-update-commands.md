@@ -54,13 +54,13 @@ Remove redundant `announce`/`withdraw` command handlers and consolidate all rout
 | `withdraw ipv6/mup` | `update text nlri ipv6/mup del` |
 | `withdraw flow` | `update text nlri ipv4/flow del` |
 
-### Handlers Requiring New Support (Phase 2)
+### Handlers Requiring New Support (Phase 2) ✅ COMPLETED
 
 | Handler | New Syntax | Work Required |
 |---------|------------|---------------|
-| `announce eor` | `update text eor <family>` | Add EOR support |
-| `announce vpls` | `update text nlri vpls add` | Add VPLS family |
-| `withdraw vpls` | `update text nlri vpls del` | Add VPLS family |
+| `announce eor` | `update text nlri <family> eor` | Add EOR support |
+| `announce vpls` | `update text nlri l2vpn/vpls add` | Add VPLS family |
+| `withdraw vpls` | `update text nlri l2vpn/vpls del` | Add VPLS family |
 | `announce l2vpn` | `update text nlri l2vpn/evpn add` | Add EVPN family |
 | `withdraw l2vpn` | `update text nlri l2vpn/evpn del` | Add EVPN family |
 
@@ -98,19 +98,30 @@ Remove redundant `announce`/`withdraw` command handlers and consolidate all rout
 
 **Verification:** `make lint && make test && make functional` all pass
 
-### Phase 2: Add Missing Support
+### Phase 2: Add Missing Support ✅ COMPLETED
+
+**Commits:**
+- `41fce7f` - feat(api): add EOR, VPLS, EVPN support to update text (Phase 2)
+- `3defec0` - fix(api): correct EOR syntax to use nlri section
 
 **Goal:** Add EOR, VPLS, EVPN support to `update text`, then remove remaining legacy handlers.
 
-#### Step 2.1: Add EOR to `update text`
+#### Step 2.1: Add EOR to `update text` ✅
 
-**Syntax:** `update text eor <family>`
+**Syntax:** `update text nlri <family> eor`
+
+EOR is an action keyword within the NLRI section (like `add`/`del`):
+```bash
+update text nlri ipv4/unicast eor
+update text nlri ipv6/unicast eor
+update text nlri l2vpn/evpn eor
+```
 
 **Implementation in `pkg/plugin/update_text.go`:**
-1. Add `eor` keyword recognition after `update text`
-2. Parse family argument (e.g., `ipv4/unicast`, `ipv6/mpls-vpn`)
-3. Build empty UPDATE with MP_UNREACH_NLRI for non-IPv4-unicast families
-4. For IPv4 unicast: empty UPDATE (withdrawn=0, attrs=0, nlri=0)
+1. Added `kwEOR = "eor"` as action keyword (alongside `add`, `del`, `set`)
+2. In `parseNLRISection()`, detect `eor` after family and return empty lists
+3. In `ParseUpdateText()`, detect EOR (valid family with empty lists) → add to `EORFamilies`
+4. In `handleUpdateText()`, dispatch EOR via `ctx.Reactor.AnnounceEOR()`
 
 **Wire format (RFC 4724 Section 2):**
 ```
@@ -118,66 +129,84 @@ IPv4 unicast EOR:  UPDATE with withdrawn=0, total_path_attr=0, nlri=0
 Other families:    UPDATE with MP_UNREACH_NLRI containing AFI/SAFI, no prefixes
 ```
 
-**Test cases:**
-- `update text eor ipv4/unicast` → empty UPDATE
-- `update text eor ipv6/unicast` → MP_UNREACH_NLRI with AFI=2, SAFI=1
-- `update text eor ipv4/mpls-vpn` → MP_UNREACH_NLRI with AFI=1, SAFI=128
+**Tests added:**
+- `TestParseUpdateText_EORIPv4Unicast`
+- `TestParseUpdateText_EORIPv6Unicast`
+- `TestParseUpdateText_EORL2VPNEVPN`
+- `TestParseUpdateText_EORL2VPNVPLS`
+- `TestParseUpdateText_EORMultipleFamilies`
+- `TestParseUpdateText_EORWithNLRI`
 
-#### Step 2.2: Add VPLS family (SAFI 65)
+#### Step 2.2: Add VPLS family (SAFI 65) ✅
 
 **Syntax:** `update text nlri l2vpn/vpls add <args>... | del <args>...`
 
-**VPLS NLRI format (RFC 4761 Section 3.2.2):**
-```
-+------------------------------------+
-| Length (2 octets)                  |
-+------------------------------------+
-| Route Distinguisher (8 octets)     |
-+------------------------------------+
-| VE ID (2 octets)                   |
-+------------------------------------+
-| VE Block Offset (2 octets)         |
-+------------------------------------+
-| VE Block Size (2 octets)           |
-+------------------------------------+
-| Label Base (3 octets)              |
-+------------------------------------+
+```bash
+update text nlri l2vpn/vpls add rd 1:1 ve-id 1 ve-block-offset 0 ve-block-size 10 label-base 1000
+update text nlri l2vpn/vpls del rd 1:1 ve-id 1 ve-block-offset 0 ve-block-size 10 label-base 1000
 ```
 
 **Implementation:**
-1. Add `nlri.VPLS` type if not exists
-2. Add `l2vpn/vpls` to `parseFamilyString()`
-3. Add `isSupportedFamily()` case for VPLS
-4. Implement `parseVPLSSection()` for NLRI parsing
-5. Keywords: `rd`, `ve-id`, `ve-block-offset`, `ve-block-size`, `label-base`
+1. Added `L2VPNVPLS` to `isSupportedFamily()`
+2. Implemented `parseVPLSSection()` for VPLS NLRI parsing
+3. Added `isVPLSBoundary()` helper for section boundary detection
+4. Keywords: `rd`, `ve-id`, `ve-block-offset`, `ve-block-size`, `label-base`
 
-#### Step 2.3: Add EVPN family (SAFI 70)
+**Tests added:**
+- `TestParseUpdateText_VPLSBasic`
+- `TestParseUpdateText_VPLSWithdraw`
+- `TestParseUpdateText_VPLSMissingRD`
+
+#### Step 2.3: Add EVPN family (SAFI 70) ✅
 
 **Syntax:** `update text nlri l2vpn/evpn add <route-type> <args>... | del <args>...`
 
-**EVPN route types (RFC 7432):**
-- Type 1: Ethernet Auto-Discovery
-- Type 2: MAC/IP Advertisement
-- Type 3: Inclusive Multicast Ethernet Tag
-- Type 4: Ethernet Segment
-- Type 5: IP Prefix (RFC 9136)
+```bash
+# Type 2: MAC/IP Advertisement
+update text nlri l2vpn/evpn add mac-ip rd 1:1 mac 00:11:22:33:44:55 label 100
+
+# Type 2 with IP
+update text nlri l2vpn/evpn add mac-ip rd 1:1 mac 00:11:22:33:44:55 ip 192.168.1.1 label 100
+
+# Type 5: IP Prefix
+update text nlri l2vpn/evpn add ip-prefix rd 1:1 prefix 10.0.0.0/24 label 100
+
+# Type 3: Multicast
+update text nlri l2vpn/evpn add multicast rd 1:1 ip 192.168.1.1
+```
+
+**EVPN route types implemented (RFC 7432):**
+- Type 2: MAC/IP Advertisement (`mac-ip`)
+- Type 3: Inclusive Multicast Ethernet Tag (`multicast`)
+- Type 5: IP Prefix (`ip-prefix`) (RFC 9136)
 
 **Implementation:**
-1. Add `nlri.EVPN` type if not exists
-2. Add `l2vpn/evpn` to `parseFamilyString()`
-3. Add `isSupportedFamily()` case for EVPN
-4. Implement `parseEVPNSection()` for NLRI parsing
-5. Route type keywords: `mac-ip`, `imet`, `ethernet-segment`, `ip-prefix`
+1. Added `L2VPNEVPN` to `isSupportedFamily()`
+2. Implemented `parseEVPNSection()` for EVPN NLRI parsing
+3. Added `isEVPNBoundary()` helper for section boundary detection
+4. Added `parseMAC()` and `parseESI()` helper functions
+5. Route type keywords: `mac-ip`, `ip-prefix`, `multicast`
+6. Field keywords: `rd`, `mac`, `ip`, `prefix`, `label`, `esi`, `etag`
 
-**Note:** EVPN is complex - may implement subset (Type 2, Type 5) first.
+**Tests added:**
+- `TestParseUpdateText_EVPNType2Basic`
+- `TestParseUpdateText_EVPNType2WithIP`
+- `TestParseUpdateText_EVPNType5Basic`
+- `TestParseUpdateText_EVPNMissingType`
 
-#### Step 2.4: Remove legacy handlers
+#### Step 2.4: Remove legacy handlers ✅
 
-Once EOR/VPLS/EVPN work via `update text`:
-1. Remove `handleAnnounceEOR` from `route.go`
-2. Remove `handleAnnounceVPLS`, `handleWithdrawVPLS`
-3. Remove `handleAnnounceL2VPN`, `handleWithdrawL2VPN`
-4. Update `RegisterRouteHandlers()` to only register `update` and `watchdog` commands
+Removed from `pkg/plugin/route.go`:
+- `handleAnnounceEOR`
+- `handleAnnounceVPLS`, `handleWithdrawVPLS`
+- `handleAnnounceL2VPN`, `handleWithdrawL2VPN`
+- `ParseVPLSArgs`, `parseL2VPNArgs`
+
+Updated `RegisterRouteHandlers()` to only register:
+- `update` - primary route interface
+- `watchdog announce`, `watchdog withdraw` - watchdog group control
+
+Added local parsers to `cmd/zebgp/encode.go` for CLI encode command.
 
 #### Step 2.5: Add MUP support (deferred)
 
@@ -207,15 +236,18 @@ Consider implementing after core Phase 2 is complete.
 | `test/data/plugin/mup6.run` | Simplified - MUP commands commented out |
 | `test/data/encode/extended-nexthop.ci` | Updated to `update text` syntax |
 
-### Phase 2
+### Phase 2 ✅ COMPLETED
 
 | File | Changes |
 |------|---------|
-| `pkg/plugin/update_text.go` | Add EOR keyword, VPLS/EVPN family support |
-| `pkg/plugin/update_text_test.go` | Add tests for EOR, VPLS, EVPN |
-| `pkg/plugin/route.go` | Remove `handleAnnounceEOR`, VPLS, L2VPN handlers |
-| `docs/architecture/api/update-syntax.md` | Document new EOR/VPLS/EVPN syntax |
-| `docs/architecture/api/commands.md` | Remove deprecated commands |
+| `pkg/plugin/update_text.go` | Add EOR action, VPLS/EVPN family support, parseVPLSSection, parseEVPNSection |
+| `pkg/plugin/update_text_test.go` | Add 13 tests for EOR, VPLS, EVPN |
+| `pkg/plugin/route.go` | Remove handleAnnounceEOR, VPLS, L2VPN handlers |
+| `pkg/plugin/route_parse_test.go` | Remove unused test helpers |
+| `pkg/plugin/types.go` | Add EORFamilies to UpdateTextResult |
+| `cmd/zebgp/encode.go` | Add local parseVPLSArgs, parseL2VPNArgs for encode CLI |
+| `test/data/plugin/eor.ci` | Update to `update text nlri <family> eor` syntax |
+| `test/data/plugin/eor.run` | Update to new EOR syntax |
 
 ## 🧪 TDD Test Plan
 
@@ -236,49 +268,56 @@ Consider implementing after core Phase 2 is complete.
 ### EOR (End-of-RIB)
 
 ```bash
-# Current (to be removed)
+# Current (removed)
 announce eor ipv4/unicast
 
-# New
-update text eor ipv4/unicast
-update text eor ipv6/unicast
-update text eor ipv4/mpls-vpn
+# New - EOR is an action within nlri section
+update text nlri ipv4/unicast eor
+update text nlri ipv6/unicast eor
+update text nlri ipv4/mpls-vpn eor
+update text nlri l2vpn/evpn eor
 ```
 
 ### VPLS
 
 ```bash
-# Current (to be removed)
-announce vpls <name> endpoint <id> base <offset> offset <range> size <mtu>
+# Current (removed)
+announce vpls rd <rd> ve-block-offset <n> ve-block-size <n> label <n> next-hop <addr>
 
 # New
-update text nlri vpls add <name> endpoint <id> base <offset> offset <range> size <mtu>
-update text nlri vpls del <name>
+update text nlri l2vpn/vpls add rd 1:1 ve-id 1 ve-block-offset 0 ve-block-size 10 label-base 1000
+update text nlri l2vpn/vpls del rd 1:1 ve-id 1 ve-block-offset 0 ve-block-size 10 label-base 1000
 ```
 
 ### L2VPN/EVPN
 
 ```bash
-# Current (to be removed)
-announce l2vpn rd <rd> esi <esi> ...
+# Current (removed)
+announce l2vpn mac-ip rd <rd> mac <mac> ...
 
-# New
-update text nlri l2vpn/evpn add rd <rd> esi <esi> ...
-update text nlri l2vpn/evpn del rd <rd> ...
+# New - Type 2 (MAC/IP)
+update text nlri l2vpn/evpn add mac-ip rd 1:1 mac 00:11:22:33:44:55 label 100
+update text nlri l2vpn/evpn add mac-ip rd 1:1 mac 00:11:22:33:44:55 ip 192.168.1.1 label 100
+
+# New - Type 5 (IP Prefix)
+update text nlri l2vpn/evpn add ip-prefix rd 1:1 prefix 10.0.0.0/24 label 100
+
+# New - Type 3 (Multicast)
+update text nlri l2vpn/evpn add multicast rd 1:1 ip 192.168.1.1
 ```
 
 ## Checklist
 
 ### 🧪 TDD
-- [ ] Tests written
-- [ ] Tests FAIL (output below)
-- [ ] Implementation complete
-- [ ] Tests PASS (output below)
+- [x] Tests written
+- [x] Tests FAIL (verified before implementation)
+- [x] Implementation complete
+- [x] Tests PASS
 
 ### Verification
-- [ ] `make lint` passes
-- [ ] `make test` passes
-- [ ] `make functional` passes
+- [x] `make lint` passes
+- [x] `make test` passes
+- [x] `make functional` passes
 
 ### Documentation
 - [ ] `commands.md` updated
@@ -301,8 +340,14 @@ withdraw route 10.0.0.0/24
   → update text nlri ipv4/unicast del 10.0.0.0/24
 
 announce eor ipv4/unicast
-  → update text eor ipv4/unicast
+  → update text nlri ipv4/unicast eor
 
 announce flow destination 10.0.0.0/8 then discard
-  → update text nlri ipv4/flow add destination 10.0.0.0/8 then discard
+  → update text nlri ipv4/flowspec add destination 10.0.0.0/8 then discard
+
+announce vpls rd 1:1 ve-block-offset 0 ve-block-size 10 label 1000 next-hop 1.2.3.4
+  → update text nlri l2vpn/vpls add rd 1:1 ve-id 0 ve-block-offset 0 ve-block-size 10 label-base 1000
+
+announce l2vpn mac-ip rd 1:1 mac 00:11:22:33:44:55 label 100 next-hop 1.2.3.4
+  → update text nlri l2vpn/evpn add mac-ip rd 1:1 mac 00:11:22:33:44:55 label 100
 ```
