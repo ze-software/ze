@@ -600,6 +600,7 @@ type NLRIGroup struct {
 type UpdateTextResult struct {
 	Groups       []NLRIGroup
 	WatchdogName string
+	EORFamilies  []nlri.Family // EOR markers to send (RFC 4724)
 }
 
 // NLRIBatch represents a batch of NLRIs with shared attributes.

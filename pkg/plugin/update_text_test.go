@@ -722,9 +722,9 @@ func TestParseUpdateText_UnknownAttribute(t *testing.T) {
 // VALIDATES: Unsupported family returns error.
 // PREVENTS: Silent ignore of unsupported families.
 func TestParseUpdateText_UnsupportedFamily(t *testing.T) {
-	// EVPN is a valid family but not supported in text mode
+	// MVPN is a valid family but not supported in text mode
 	_, err := ParseUpdateText([]string{
-		"nlri", "l2vpn/evpn", "add", "10.0.0.0/24",
+		"nlri", "ipv4/mvpn", "add", "10.0.0.0/24",
 	})
 	require.Error(t, err)
 	assert.ErrorIs(t, err, ErrFamilyNotSupported)
@@ -3419,4 +3419,244 @@ func TestParseUpdateText_FlowSpecWithExtComm(t *testing.T) {
 			assert.Greater(t, len(fs.Components()), 0)
 		})
 	}
+}
+
+// TestParseUpdateText_EORIPv4Unicast verifies EOR parsing for IPv4 unicast.
+//
+// VALIDATES: "eor ipv4/unicast" produces EORFamilies with correct family.
+// PREVENTS: EOR command being rejected or parsed incorrectly.
+// RFC 4724 Section 2: End-of-RIB marker.
+func TestParseUpdateText_EORIPv4Unicast(t *testing.T) {
+	result, err := ParseUpdateText([]string{"eor", "ipv4/unicast"})
+	require.NoError(t, err)
+	require.Len(t, result.EORFamilies, 1)
+	assert.Equal(t, nlri.IPv4Unicast, result.EORFamilies[0])
+	assert.Empty(t, result.Groups, "EOR should not produce NLRI groups")
+}
+
+// TestParseUpdateText_EORIPv6Unicast verifies EOR parsing for IPv6 unicast.
+//
+// VALIDATES: "eor ipv6/unicast" produces EORFamilies with correct family.
+// PREVENTS: IPv6 family being rejected.
+// RFC 4724 Section 2: End-of-RIB marker.
+func TestParseUpdateText_EORIPv6Unicast(t *testing.T) {
+	result, err := ParseUpdateText([]string{"eor", "ipv6/unicast"})
+	require.NoError(t, err)
+	require.Len(t, result.EORFamilies, 1)
+	assert.Equal(t, nlri.IPv6Unicast, result.EORFamilies[0])
+}
+
+// TestParseUpdateText_EORL2VPNEVPN verifies EOR parsing for L2VPN/EVPN.
+//
+// VALIDATES: "eor l2vpn/evpn" produces EORFamilies with correct family.
+// PREVENTS: EVPN EOR being rejected.
+// RFC 4724 Section 2: End-of-RIB marker.
+func TestParseUpdateText_EORL2VPNEVPN(t *testing.T) {
+	result, err := ParseUpdateText([]string{"eor", "l2vpn/evpn"})
+	require.NoError(t, err)
+	require.Len(t, result.EORFamilies, 1)
+	assert.Equal(t, nlri.L2VPNEVPN, result.EORFamilies[0])
+}
+
+// TestParseUpdateText_EORL2VPNVPLS verifies EOR parsing for L2VPN/VPLS.
+//
+// VALIDATES: "eor l2vpn/vpls" produces EORFamilies with correct family.
+// PREVENTS: VPLS EOR being rejected.
+// RFC 4724 Section 2: End-of-RIB marker.
+func TestParseUpdateText_EORL2VPNVPLS(t *testing.T) {
+	result, err := ParseUpdateText([]string{"eor", "l2vpn/vpls"})
+	require.NoError(t, err)
+	require.Len(t, result.EORFamilies, 1)
+	assert.Equal(t, nlri.L2VPNVPLS, result.EORFamilies[0])
+}
+
+// TestParseUpdateText_EORMissingFamily verifies EOR requires a family.
+//
+// VALIDATES: "eor" without family returns error.
+// PREVENTS: Silent default behavior that might surprise users.
+func TestParseUpdateText_EORMissingFamily(t *testing.T) {
+	_, err := ParseUpdateText([]string{"eor"})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "family")
+}
+
+// TestParseUpdateText_EORInvalidFamily verifies EOR rejects invalid families.
+//
+// VALIDATES: "eor invalid/family" returns error.
+// PREVENTS: Silent failures on invalid input.
+func TestParseUpdateText_EORInvalidFamily(t *testing.T) {
+	_, err := ParseUpdateText([]string{"eor", "invalid/family"})
+	require.Error(t, err)
+}
+
+// TestParseUpdateText_EORMultipleFamilies verifies multiple EOR families.
+//
+// VALIDATES: Multiple "eor <family>" sections accumulate.
+// PREVENTS: Only first EOR being parsed.
+func TestParseUpdateText_EORMultipleFamilies(t *testing.T) {
+	result, err := ParseUpdateText([]string{
+		"eor", "ipv4/unicast",
+		"eor", "ipv6/unicast",
+	})
+	require.NoError(t, err)
+	require.Len(t, result.EORFamilies, 2)
+	assert.Equal(t, nlri.IPv4Unicast, result.EORFamilies[0])
+	assert.Equal(t, nlri.IPv6Unicast, result.EORFamilies[1])
+}
+
+// TestParseUpdateText_EORWithNLRI verifies EOR can coexist with NLRI.
+//
+// VALIDATES: EOR and NLRI sections in same command both work.
+// PREVENTS: EOR breaking NLRI parsing or vice versa.
+func TestParseUpdateText_EORWithNLRI(t *testing.T) {
+	result, err := ParseUpdateText([]string{
+		"eor", "ipv6/unicast",
+		"origin", "set", "igp",
+		"nlri", "ipv4/unicast", "add", "10.0.0.0/24",
+	})
+	require.NoError(t, err)
+	require.Len(t, result.EORFamilies, 1)
+	assert.Equal(t, nlri.IPv6Unicast, result.EORFamilies[0])
+	require.Len(t, result.Groups, 1)
+	require.Len(t, result.Groups[0].Announce, 1)
+}
+
+// TestParseUpdateText_VPLSBasic verifies basic VPLS parsing.
+//
+// VALIDATES: "nlri l2vpn/vpls add rd ... ve-id ... label ..." produces correct VPLS NLRI.
+// PREVENTS: VPLS family being rejected.
+// RFC 4761 Section 3.2.2: VPLS BGP NLRI format.
+func TestParseUpdateText_VPLSBasic(t *testing.T) {
+	result, err := ParseUpdateText([]string{
+		"nlri", "l2vpn/vpls", "add",
+		"rd", "1:1",
+		"ve-id", "1",
+		"ve-block-offset", "0",
+		"ve-block-size", "10",
+		"label-base", "1000",
+	})
+	require.NoError(t, err)
+	require.Len(t, result.Groups, 1)
+	require.Len(t, result.Groups[0].Announce, 1)
+	assert.Equal(t, nlri.L2VPNVPLS, result.Groups[0].Family)
+
+	vpls, ok := result.Groups[0].Announce[0].(*nlri.VPLS)
+	require.True(t, ok, "expected VPLS NLRI, got %T", result.Groups[0].Announce[0])
+	assert.Equal(t, uint16(1), vpls.VEID())
+	assert.Equal(t, uint16(0), vpls.VEBlockOffset())
+	assert.Equal(t, uint16(10), vpls.VEBlockSize())
+	assert.Equal(t, uint32(1000), vpls.LabelBase())
+}
+
+// TestParseUpdateText_VPLSWithdraw verifies VPLS withdrawal parsing.
+//
+// VALIDATES: "nlri l2vpn/vpls del rd ..." produces correct withdrawal.
+// PREVENTS: VPLS withdrawals being rejected.
+func TestParseUpdateText_VPLSWithdraw(t *testing.T) {
+	result, err := ParseUpdateText([]string{
+		"nlri", "l2vpn/vpls", "del",
+		"rd", "1:1",
+		"ve-id", "1",
+		"ve-block-offset", "0",
+		"ve-block-size", "10",
+		"label-base", "1000",
+	})
+	require.NoError(t, err)
+	require.Len(t, result.Groups, 1)
+	require.Len(t, result.Groups[0].Withdraw, 1)
+	assert.Equal(t, nlri.L2VPNVPLS, result.Groups[0].Family)
+}
+
+// TestParseUpdateText_VPLSMissingRD verifies VPLS requires RD.
+//
+// VALIDATES: VPLS without rd returns error.
+// PREVENTS: Silent failures on missing required fields.
+func TestParseUpdateText_VPLSMissingRD(t *testing.T) {
+	_, err := ParseUpdateText([]string{
+		"nlri", "l2vpn/vpls", "add",
+		"ve-id", "1",
+		"ve-block-offset", "0",
+		"ve-block-size", "10",
+		"label-base", "1000",
+	})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "rd")
+}
+
+// TestParseUpdateText_EVPNType2Basic verifies EVPN Type 2 (MAC/IP) parsing.
+//
+// VALIDATES: "nlri l2vpn/evpn add mac-ip rd ... mac ... label ..." produces correct EVPN NLRI.
+// PREVENTS: EVPN family being rejected.
+// RFC 7432 Section 7.2: MAC/IP Advertisement Route.
+func TestParseUpdateText_EVPNType2Basic(t *testing.T) {
+	result, err := ParseUpdateText([]string{
+		"nlri", "l2vpn/evpn", "add", "mac-ip",
+		"rd", "1:1",
+		"mac", "00:11:22:33:44:55",
+		"label", "100",
+	})
+	require.NoError(t, err)
+	require.Len(t, result.Groups, 1)
+	require.Len(t, result.Groups[0].Announce, 1)
+	assert.Equal(t, nlri.L2VPNEVPN, result.Groups[0].Family)
+
+	evpn, ok := result.Groups[0].Announce[0].(*nlri.EVPNType2)
+	require.True(t, ok, "expected EVPNType2 NLRI, got %T", result.Groups[0].Announce[0])
+	assert.Equal(t, [6]byte{0x00, 0x11, 0x22, 0x33, 0x44, 0x55}, evpn.MAC())
+}
+
+// TestParseUpdateText_EVPNType2WithIP verifies EVPN Type 2 with IP parsing.
+//
+// VALIDATES: "nlri l2vpn/evpn add mac-ip rd ... mac ... ip ... label ..." works.
+// PREVENTS: EVPN MAC/IP with IP being rejected.
+// RFC 7432 Section 7.2: IP Address Length can be 0, 32, or 128.
+func TestParseUpdateText_EVPNType2WithIP(t *testing.T) {
+	result, err := ParseUpdateText([]string{
+		"nlri", "l2vpn/evpn", "add", "mac-ip",
+		"rd", "1:1",
+		"mac", "00:11:22:33:44:55",
+		"ip", "192.168.1.1",
+		"label", "100",
+	})
+	require.NoError(t, err)
+	require.Len(t, result.Groups, 1)
+	require.Len(t, result.Groups[0].Announce, 1)
+
+	evpn, ok := result.Groups[0].Announce[0].(*nlri.EVPNType2)
+	require.True(t, ok, "expected EVPNType2 NLRI, got %T", result.Groups[0].Announce[0])
+	assert.True(t, evpn.IP().IsValid())
+}
+
+// TestParseUpdateText_EVPNType5Basic verifies EVPN Type 5 (IP Prefix) parsing.
+//
+// VALIDATES: "nlri l2vpn/evpn add ip-prefix rd ... prefix ... label ..." works.
+// PREVENTS: EVPN IP Prefix routes being rejected.
+// RFC 9136 Section 3: IP Prefix Route.
+func TestParseUpdateText_EVPNType5Basic(t *testing.T) {
+	result, err := ParseUpdateText([]string{
+		"nlri", "l2vpn/evpn", "add", "ip-prefix",
+		"rd", "1:1",
+		"prefix", "10.0.0.0/24",
+		"label", "100",
+	})
+	require.NoError(t, err)
+	require.Len(t, result.Groups, 1)
+	require.Len(t, result.Groups[0].Announce, 1)
+	assert.Equal(t, nlri.L2VPNEVPN, result.Groups[0].Family)
+
+	evpn, ok := result.Groups[0].Announce[0].(*nlri.EVPNType5)
+	require.True(t, ok, "expected EVPNType5 NLRI, got %T", result.Groups[0].Announce[0])
+	assert.Equal(t, "10.0.0.0/24", evpn.Prefix().String())
+}
+
+// TestParseUpdateText_EVPNMissingType verifies EVPN requires route type.
+//
+// VALIDATES: EVPN without route type returns error.
+// PREVENTS: Silent failures on missing required fields.
+func TestParseUpdateText_EVPNMissingType(t *testing.T) {
+	_, err := ParseUpdateText([]string{
+		"nlri", "l2vpn/evpn", "add",
+		"rd", "1:1",
+	})
+	require.Error(t, err)
 }

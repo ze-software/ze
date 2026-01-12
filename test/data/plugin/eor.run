@@ -9,9 +9,9 @@ def main() -> None:
     ready()
 
     messages = [
-        'announce eor',
-        'announce eor ipv6/unicast',
-        'announce eor ipv4/unicast',
+        'update text eor ipv4/unicast',
+        'update text eor ipv6/unicast',
+        'update text eor ipv4/unicast',
     ]
 
     for message in messages:

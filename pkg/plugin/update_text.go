@@ -43,6 +43,7 @@ const (
 	kwWatchdog = "watchdog"
 	kwNhop     = "nhop"             // New: top-level next-hop accumulator
 	kwPathInfo = "path-information" // New: ADD-PATH path-id accumulator
+	kwEOR      = "eor"              // End-of-RIB marker (RFC 4724)
 )
 
 // UpdateText action keywords.
@@ -95,7 +96,7 @@ func isScalarAttribute(token string) bool {
 func isBoundaryKeyword(token string) bool {
 	return token == kwAttr || token == kwNLRI || token == kwWatchdog ||
 		token == kwNhop || token == kwPathInfo || token == kwRD || token == kwLabel ||
-		isAttributeKeyword(token)
+		token == kwEOR || isAttributeKeyword(token)
 }
 
 // parsedAttrs tracks attribute state during parsing.
@@ -703,11 +704,25 @@ func parseLargeCommunityText(s string) (LargeCommunity, error) {
 func ParseUpdateText(args []string) (*UpdateTextResult, error) {
 	var accum parsedAttrs
 	var groups []NLRIGroup
+	var eorFamilies []nlri.Family
 	var watchdog string
 	i := 0
 
 	for i < len(args) {
 		switch args[i] { //nolint:gosec // G602 false positive: loop condition guards access
+		case kwEOR:
+			// RFC 4724: End-of-RIB marker parsing
+			// Format: eor <family>
+			if i+1 >= len(args) {
+				return nil, errors.New("eor requires family (e.g., ipv4/unicast)")
+			}
+			family, ok := nlri.ParseFamily(args[i+1])
+			if !ok {
+				return nil, fmt.Errorf("invalid eor family: %s", args[i+1])
+			}
+			eorFamilies = append(eorFamilies, family)
+			i += 2
+
 		case kwAttr:
 			mode, attrs, consumed, err := parseAttrSection(args[i:])
 			if err != nil {
@@ -809,11 +824,11 @@ func ParseUpdateText(args []string) (*UpdateTextResult, error) {
 				i += consumed
 				continue
 			}
-			return nil, fmt.Errorf("unexpected token '%s'; valid: origin, med, local-preference, as-path, community, large-community, extended-community, nhop, nlri, watchdog", args[i]) //nolint:gosec // G602 false positive: loop guards access
+			return nil, fmt.Errorf("unexpected token '%s'; valid: origin, med, local-preference, as-path, community, large-community, extended-community, nhop, nlri, eor, watchdog", args[i]) //nolint:gosec // G602 false positive: loop guards access
 		}
 	}
 
-	return &UpdateTextResult{Groups: groups, WatchdogName: watchdog}, nil
+	return &UpdateTextResult{Groups: groups, WatchdogName: watchdog, EORFamilies: eorFamilies}, nil
 }
 
 // parseNhopSection parses nhop <set <addr>|del> section.
@@ -1189,6 +1204,18 @@ func parseNLRISection(args []string, accum nlriAccum) (nlri.Family, []nlri.NLRI,
 	// RFC 8955 Section 4: FlowSpec NLRI = ordered list of match components
 	if family.SAFI == nlri.SAFIFlowSpec || family.SAFI == nlri.SAFIFlowSpecVPN {
 		return parseFlowSpecSection(args, family, accum)
+	}
+
+	// VPLS families use different parsing (multi-field NLRI)
+	// RFC 4761 Section 3.2.2: VPLS BGP NLRI format
+	if family.SAFI == nlri.SAFIVPLS {
+		return parseVPLSSection(args, family, accum)
+	}
+
+	// EVPN families use different parsing (route-type based)
+	// RFC 7432: EVPN route types
+	if family.SAFI == nlri.SAFIEVPN {
+		return parseEVPNSection(args, family, accum)
 	}
 
 	consumed := 2 // "nlri" + family
@@ -2066,6 +2093,10 @@ func isSupportedFamily(f nlri.Family) bool {
 		return true
 	case nlri.IPv4FlowSpecVPN, nlri.IPv6FlowSpecVPN: // FlowSpec VPN (SAFI 134) - RFC 8955
 		return true
+	case nlri.L2VPNVPLS: // VPLS (SAFI 65) - RFC 4761
+		return true
+	case nlri.L2VPNEVPN: // EVPN (SAFI 70) - RFC 7432
+		return true
 	default:
 		return false
 	}
@@ -2094,6 +2125,7 @@ func handleUpdate(ctx *CommandContext, args []string) (*Response, error) {
 // handleUpdateText handles: peer <addr> update text ...
 // Parses the update text format and dispatches to reactor batch methods.
 // RFC 4271 Section 4.3: UPDATE Message Format.
+// RFC 4724 Section 2: End-of-RIB marker.
 func handleUpdateText(ctx *CommandContext, args []string) (*Response, error) {
 	result, err := ParseUpdateText(args)
 	if err != nil {
@@ -2105,7 +2137,45 @@ func handleUpdateText(ctx *CommandContext, args []string) (*Response, error) {
 		return &Response{Status: statusError, Data: errMsg}, errors.New(errMsg)
 	}
 
-	return dispatchNLRIGroups(ctx, result.Groups)
+	// Handle EOR markers (RFC 4724)
+	peerSelector := ctx.PeerSelector()
+	var eorSent int
+	for _, family := range result.EORFamilies {
+		if err := ctx.Reactor.AnnounceEOR(peerSelector, uint16(family.AFI), uint8(family.SAFI)); err != nil {
+			return &Response{Status: statusError, Data: err.Error()}, err
+		}
+		eorSent++
+	}
+
+	// If only EOR (no NLRI groups), return early
+	if len(result.Groups) == 0 {
+		if eorSent > 0 {
+			return &Response{
+				Status: statusDone,
+				Data: map[string]any{
+					"eor": eorSent,
+				},
+			}, nil
+		}
+		return &Response{
+			Status: "warning",
+			Data:   "no routes or EOR markers to send",
+		}, nil
+	}
+
+	resp, err := dispatchNLRIGroups(ctx, result.Groups)
+	if err != nil {
+		return resp, err
+	}
+
+	// Add EOR count to response if both were sent
+	if eorSent > 0 {
+		if respData, ok := resp.Data.(map[string]any); ok {
+			respData["eor"] = eorSent
+		}
+	}
+
+	return resp, nil
 }
 
 // dispatchNLRIGroups sends NLRI groups to the reactor for announce/withdraw.
@@ -2171,4 +2241,430 @@ func dispatchNLRIGroups(ctx *CommandContext, groups []NLRIGroup) (*Response, err
 		Status: statusDone,
 		Data:   respData,
 	}, nil
+}
+
+// VPLS NLRI keywords for text parsing.
+const (
+	kwVEID          = "ve-id"
+	kwVEBlockOffset = "ve-block-offset"
+	kwVEBlockSize   = "ve-block-size"
+	kwLabelBase     = "label-base"
+)
+
+// isVPLSBoundary returns true if token ends VPLS section (next section starts).
+// VPLS-specific keywords (rd, label, ve-*) are NOT boundaries.
+func isVPLSBoundary(token string) bool {
+	switch token {
+	case kwRD, kwLabel, kwVEID, kwVEBlockOffset, kwVEBlockSize, kwLabelBase:
+		return false // These are valid within VPLS
+	}
+	return isBoundaryKeyword(token)
+}
+
+// parseVPLSSection parses VPLS NLRI section.
+// RFC 4761 Section 3.2.2: VPLS BGP NLRI format.
+// Syntax: nlri l2vpn/vpls add rd <rd> ve-id <n> ve-block-offset <n> ve-block-size <n> label-base <n>
+// Returns family, announce list, withdraw list, watchdog name, consumed count, error.
+func parseVPLSSection(args []string, family nlri.Family, _ nlriAccum) (nlri.Family, []nlri.NLRI, []nlri.NLRI, string, int, error) {
+	// args[0] = "nlri", args[1] = "l2vpn/vpls"
+	consumed := 2
+	i := 2
+
+	mode := "" // "", "add", or "del"
+	var announce, withdraw []nlri.NLRI
+
+	// VPLS fields
+	var rd nlri.RouteDistinguisher
+	var veID, veBlockOffset, veBlockSize uint16
+	var labelBase uint32
+	hasRD := false
+
+	for i < len(args) {
+		token := args[i]
+
+		// Boundary keywords end this section (except VPLS-specific keywords)
+		if isVPLSBoundary(token) {
+			break
+		}
+
+		// Mode switches
+		if token == kwAdd {
+			mode = kwAdd
+			i++
+			consumed++
+			continue
+		}
+		if token == kwDel {
+			mode = kwDel
+			i++
+			consumed++
+			continue
+		}
+
+		// Must have mode before VPLS fields
+		if mode == "" {
+			return nlri.Family{}, nil, nil, "", 0, fmt.Errorf("%w: got %q", ErrMissingAddDel, token)
+		}
+
+		// Parse VPLS-specific fields
+		switch token {
+		case kwRD:
+			if i+1 >= len(args) {
+				return nlri.Family{}, nil, nil, "", 0, errors.New("rd requires value")
+			}
+			var err error
+			rd, err = nlri.ParseRDString(args[i+1])
+			if err != nil {
+				return nlri.Family{}, nil, nil, "", 0, fmt.Errorf("invalid rd: %w", err)
+			}
+			hasRD = true
+			i += 2
+			consumed += 2
+
+		case kwVEID:
+			if i+1 >= len(args) {
+				return nlri.Family{}, nil, nil, "", 0, errors.New("ve-id requires value")
+			}
+			val, err := strconv.ParseUint(args[i+1], 10, 16)
+			if err != nil {
+				return nlri.Family{}, nil, nil, "", 0, fmt.Errorf("invalid ve-id: %w", err)
+			}
+			veID = uint16(val)
+			i += 2
+			consumed += 2
+
+		case kwVEBlockOffset:
+			if i+1 >= len(args) {
+				return nlri.Family{}, nil, nil, "", 0, errors.New("ve-block-offset requires value")
+			}
+			val, err := strconv.ParseUint(args[i+1], 10, 16)
+			if err != nil {
+				return nlri.Family{}, nil, nil, "", 0, fmt.Errorf("invalid ve-block-offset: %w", err)
+			}
+			veBlockOffset = uint16(val)
+			i += 2
+			consumed += 2
+
+		case kwVEBlockSize:
+			if i+1 >= len(args) {
+				return nlri.Family{}, nil, nil, "", 0, errors.New("ve-block-size requires value")
+			}
+			val, err := strconv.ParseUint(args[i+1], 10, 16)
+			if err != nil {
+				return nlri.Family{}, nil, nil, "", 0, fmt.Errorf("invalid ve-block-size: %w", err)
+			}
+			veBlockSize = uint16(val)
+			i += 2
+			consumed += 2
+
+		case kwLabelBase, kwLabel:
+			if i+1 >= len(args) {
+				return nlri.Family{}, nil, nil, "", 0, errors.New("label-base requires value")
+			}
+			val, err := strconv.ParseUint(args[i+1], 10, 32)
+			if err != nil {
+				return nlri.Family{}, nil, nil, "", 0, fmt.Errorf("invalid label-base: %w", err)
+			}
+			labelBase = uint32(val)
+			i += 2
+			consumed += 2
+
+		default:
+			return nlri.Family{}, nil, nil, "", 0, fmt.Errorf("unknown vpls keyword: %s", token)
+		}
+	}
+
+	// Validate required fields
+	if !hasRD {
+		return nlri.Family{}, nil, nil, "", 0, errors.New("vpls requires rd")
+	}
+
+	// Create VPLS NLRI
+	vplsNLRI := nlri.NewVPLSFull(rd, veID, veBlockOffset, veBlockSize, labelBase)
+
+	// Add to appropriate list
+	switch mode {
+	case kwAdd:
+		announce = append(announce, vplsNLRI)
+	case kwDel:
+		withdraw = append(withdraw, vplsNLRI)
+	}
+
+	if len(announce) == 0 && len(withdraw) == 0 {
+		return nlri.Family{}, nil, nil, "", 0, ErrEmptyNLRISection
+	}
+
+	return family, announce, withdraw, "", consumed, nil
+}
+
+// EVPN route type keywords.
+const (
+	kwMACIP     = "mac-ip"
+	kwIPPrefix  = "ip-prefix"
+	kwMulticast = "multicast"
+	kwMAC       = "mac"
+	kwIP        = "ip"
+	kwPrefix    = "prefix"
+	kwESI       = "esi"
+	kwEtag      = "etag"
+)
+
+// isEVPNBoundary returns true if token ends EVPN section (next section starts).
+// EVPN-specific keywords (rd, label, mac, ip, etc.) are NOT boundaries.
+func isEVPNBoundary(token string) bool {
+	switch token {
+	case kwRD, kwLabel, kwMAC, kwIP, kwPrefix, kwESI, kwEtag:
+		return false // These are valid within EVPN
+	case kwMACIP, kwIPPrefix, kwMulticast:
+		return false // Route type keywords
+	}
+	return isBoundaryKeyword(token)
+}
+
+// parseEVPNSection parses EVPN NLRI section.
+// RFC 7432: EVPN route types.
+// Syntax: nlri l2vpn/evpn add <route-type> rd <rd> ...
+// Returns family, announce list, withdraw list, watchdog name, consumed count, error.
+func parseEVPNSection(args []string, family nlri.Family, _ nlriAccum) (nlri.Family, []nlri.NLRI, []nlri.NLRI, string, int, error) {
+	// args[0] = "nlri", args[1] = "l2vpn/evpn"
+	consumed := 2
+	i := 2
+
+	mode := "" // "", "add", or "del"
+	var announce, withdraw []nlri.NLRI
+
+	// EVPN common fields
+	var rd nlri.RouteDistinguisher
+	var esi [10]byte
+	var ethernetTag uint32
+	var labels []uint32
+	hasRD := false
+
+	// Type 2 specific
+	var mac [6]byte
+	var ip netip.Addr
+	hasMAC := false
+
+	// Type 5 specific
+	var prefix netip.Prefix
+	var gateway netip.Addr
+
+	routeType := ""
+
+	for i < len(args) {
+		token := args[i]
+
+		// Boundary keywords end this section (except EVPN-specific keywords)
+		if isEVPNBoundary(token) {
+			break
+		}
+
+		// Mode switches
+		if token == kwAdd {
+			mode = kwAdd
+			i++
+			consumed++
+			continue
+		}
+		if token == kwDel {
+			mode = kwDel
+			i++
+			consumed++
+			continue
+		}
+
+		// Must have mode before route type and fields
+		if mode == "" {
+			return nlri.Family{}, nil, nil, "", 0, fmt.Errorf("%w: got %q", ErrMissingAddDel, token)
+		}
+
+		// Route type (after add/del)
+		if routeType == "" {
+			switch token {
+			case kwMACIP, kwIPPrefix, kwMulticast:
+				routeType = token
+				i++
+				consumed++
+				continue
+			default:
+				return nlri.Family{}, nil, nil, "", 0, fmt.Errorf("evpn requires route type (mac-ip, ip-prefix, multicast), got: %s", token)
+			}
+		}
+
+		// Parse EVPN-specific fields
+		switch token {
+		case kwRD:
+			if i+1 >= len(args) {
+				return nlri.Family{}, nil, nil, "", 0, errors.New("rd requires value")
+			}
+			var err error
+			rd, err = nlri.ParseRDString(args[i+1])
+			if err != nil {
+				return nlri.Family{}, nil, nil, "", 0, fmt.Errorf("invalid rd: %w", err)
+			}
+			hasRD = true
+			i += 2
+			consumed += 2
+
+		case kwMAC:
+			if i+1 >= len(args) {
+				return nlri.Family{}, nil, nil, "", 0, errors.New("mac requires value")
+			}
+			macBytes, err := parseMAC(args[i+1])
+			if err != nil {
+				return nlri.Family{}, nil, nil, "", 0, fmt.Errorf("invalid mac: %w", err)
+			}
+			mac = macBytes
+			hasMAC = true
+			i += 2
+			consumed += 2
+
+		case kwIP:
+			if i+1 >= len(args) {
+				return nlri.Family{}, nil, nil, "", 0, errors.New("ip requires value")
+			}
+			var err error
+			ip, err = netip.ParseAddr(args[i+1])
+			if err != nil {
+				return nlri.Family{}, nil, nil, "", 0, fmt.Errorf("invalid ip: %w", err)
+			}
+			i += 2
+			consumed += 2
+
+		case kwPrefix:
+			if i+1 >= len(args) {
+				return nlri.Family{}, nil, nil, "", 0, errors.New("prefix requires value")
+			}
+			var err error
+			prefix, err = netip.ParsePrefix(args[i+1])
+			if err != nil {
+				return nlri.Family{}, nil, nil, "", 0, fmt.Errorf("invalid prefix: %w", err)
+			}
+			i += 2
+			consumed += 2
+
+		case kwLabel:
+			if i+1 >= len(args) {
+				return nlri.Family{}, nil, nil, "", 0, errors.New("label requires value")
+			}
+			val, err := strconv.ParseUint(args[i+1], 10, 32)
+			if err != nil {
+				return nlri.Family{}, nil, nil, "", 0, fmt.Errorf("invalid label: %w", err)
+			}
+			labels = append(labels, uint32(val))
+			i += 2
+			consumed += 2
+
+		case kwESI:
+			if i+1 >= len(args) {
+				return nlri.Family{}, nil, nil, "", 0, errors.New("esi requires value")
+			}
+			esiBytes, err := parseESI(args[i+1])
+			if err != nil {
+				return nlri.Family{}, nil, nil, "", 0, fmt.Errorf("invalid esi: %w", err)
+			}
+			esi = esiBytes
+			i += 2
+			consumed += 2
+
+		case kwEtag:
+			if i+1 >= len(args) {
+				return nlri.Family{}, nil, nil, "", 0, errors.New("etag requires value")
+			}
+			val, err := strconv.ParseUint(args[i+1], 10, 32)
+			if err != nil {
+				return nlri.Family{}, nil, nil, "", 0, fmt.Errorf("invalid etag: %w", err)
+			}
+			ethernetTag = uint32(val)
+			i += 2
+			consumed += 2
+
+		default:
+			return nlri.Family{}, nil, nil, "", 0, fmt.Errorf("unknown evpn keyword: %s", token)
+		}
+	}
+
+	// Validate required fields
+	if routeType == "" {
+		return nlri.Family{}, nil, nil, "", 0, errors.New("evpn requires route type")
+	}
+	if !hasRD {
+		return nlri.Family{}, nil, nil, "", 0, errors.New("evpn requires rd")
+	}
+
+	// Create EVPN NLRI based on route type
+	var evpnNLRI nlri.NLRI
+	switch routeType {
+	case kwMACIP:
+		if !hasMAC {
+			return nlri.Family{}, nil, nil, "", 0, errors.New("mac-ip route requires mac")
+		}
+		evpnNLRI = nlri.NewEVPNType2(rd, esi, ethernetTag, mac, ip, labels)
+
+	case kwIPPrefix:
+		if !prefix.IsValid() {
+			return nlri.Family{}, nil, nil, "", 0, errors.New("ip-prefix route requires prefix")
+		}
+		evpnNLRI = nlri.NewEVPNType5(rd, esi, ethernetTag, prefix, gateway, labels)
+
+	case kwMulticast:
+		// Type 3: Inclusive Multicast Ethernet Tag route
+		originatorIP := ip
+		if !originatorIP.IsValid() {
+			return nlri.Family{}, nil, nil, "", 0, errors.New("multicast route requires ip (originator)")
+		}
+		evpnNLRI = nlri.NewEVPNType3(rd, ethernetTag, originatorIP)
+	}
+
+	// Add to appropriate list
+	switch mode {
+	case kwAdd:
+		announce = append(announce, evpnNLRI)
+	case kwDel:
+		withdraw = append(withdraw, evpnNLRI)
+	}
+
+	if len(announce) == 0 && len(withdraw) == 0 {
+		return nlri.Family{}, nil, nil, "", 0, ErrEmptyNLRISection
+	}
+
+	return family, announce, withdraw, "", consumed, nil
+}
+
+// parseMAC parses a MAC address string (e.g., "00:11:22:33:44:55").
+func parseMAC(s string) ([6]byte, error) {
+	var mac [6]byte
+	parts := strings.Split(s, ":")
+	if len(parts) != 6 {
+		// Try dash separator
+		parts = strings.Split(s, "-")
+		if len(parts) != 6 {
+			return mac, fmt.Errorf("invalid mac format: %s", s)
+		}
+	}
+	for i, p := range parts {
+		val, err := strconv.ParseUint(p, 16, 8)
+		if err != nil {
+			return mac, fmt.Errorf("invalid mac byte: %s", p)
+		}
+		mac[i] = byte(val)
+	}
+	return mac, nil
+}
+
+// parseESI parses an ESI string (10 bytes, colon-separated hex).
+func parseESI(s string) ([10]byte, error) {
+	var esi [10]byte
+	parts := strings.Split(s, ":")
+	if len(parts) != 10 {
+		return esi, fmt.Errorf("invalid esi format (need 10 bytes): %s", s)
+	}
+	for i, p := range parts {
+		val, err := strconv.ParseUint(p, 16, 8)
+		if err != nil {
+			return esi, fmt.Errorf("invalid esi byte: %s", p)
+		}
+		esi[i] = byte(val)
+	}
+	return esi, nil
 }

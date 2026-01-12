@@ -360,7 +360,7 @@ func encodeEVPNRoute(ub *message.UpdateBuilder, routeCmd string, ctx *nlri.PackC
 	}
 
 	// Parse using API parser
-	parsed, err := plugin.ParseL2VPNArgs(args)
+	parsed, err := parseL2VPNArgs(args)
 	if err != nil {
 		return nil, nil, fmt.Errorf("parse error: %w", err)
 	}
@@ -406,6 +406,8 @@ func encodeEVPNRoute(ub *message.UpdateBuilder, routeCmd string, ctx *nlri.PackC
 }
 
 // l2vpnRouteToEVPNParams converts L2VPNRoute to EVPNParams.
+//
+//nolint:goconst // String literals are clearer for route type matching
 func l2vpnRouteToEVPNParams(r plugin.L2VPNRoute) (message.EVPNParams, error) {
 	p := message.EVPNParams{
 		NextHop:     r.NextHop,
@@ -784,7 +786,7 @@ func encodeVPLSRoute(ub *message.UpdateBuilder, routeCmd string, ctx *nlri.PackC
 	}
 
 	// Parse using API parser
-	parsed, err := plugin.ParseVPLSArgs(args)
+	parsed, err := parseVPLSArgs(args)
 	if err != nil {
 		return nil, nil, fmt.Errorf("parse error: %w", err)
 	}
@@ -968,6 +970,158 @@ func buildMUPPrefixBytes(prefix netip.Prefix) []byte {
 	result[0] = byte(bits)
 	copy(result[1:], addrBytes[:prefixBytes])
 	return result
+}
+
+// parseVPLSArgs parses VPLS command arguments for encode command.
+// Format: rd <rd> ve-block-offset <n> ve-block-size <n> label <n> next-hop <addr>.
+func parseVPLSArgs(args []string) (plugin.VPLSRoute, error) {
+	var route plugin.VPLSRoute
+
+	for i := 0; i < len(args)-1; i += 2 {
+		key := strings.ToLower(args[i])
+		value := args[i+1]
+
+		switch key {
+		case "rd":
+			route.RD = value
+		case "ve-block-offset":
+			n, err := strconv.ParseUint(value, 10, 16)
+			if err != nil {
+				return route, fmt.Errorf("invalid ve-block-offset: %s", value)
+			}
+			route.VEBlockOffset = uint16(n)
+		case "ve-block-size":
+			n, err := strconv.ParseUint(value, 10, 16)
+			if err != nil {
+				return route, fmt.Errorf("invalid ve-block-size: %s", value)
+			}
+			route.VEBlockSize = uint16(n)
+		case "label-base", "label":
+			n, err := strconv.ParseUint(value, 10, 32)
+			if err != nil {
+				return route, fmt.Errorf("invalid label: %s", value)
+			}
+			route.LabelBase = uint32(n)
+		case "next-hop":
+			nh, err := netip.ParseAddr(value)
+			if err != nil {
+				return route, fmt.Errorf("invalid next-hop: %s", value)
+			}
+			route.NextHop = nh
+
+		default:
+			return route, fmt.Errorf("unknown vpls keyword: %s", key)
+		}
+	}
+
+	if route.RD == "" {
+		return route, fmt.Errorf("missing route-distinguisher")
+	}
+
+	return route, nil
+}
+
+// parseL2VPNArgs parses L2VPN/EVPN command arguments for encode command.
+//
+//nolint:goconst // String literals are clearer for route type parsing
+func parseL2VPNArgs(args []string) (plugin.L2VPNRoute, error) {
+	var route plugin.L2VPNRoute
+
+	if len(args) < 1 {
+		return route, fmt.Errorf("missing route type")
+	}
+
+	// First argument is route type
+	routeType := strings.ToLower(args[0])
+	switch routeType {
+	case "mac-ip", "macip", "type2":
+		route.RouteType = "mac-ip"
+	case "ip-prefix", "ipprefix", "type5":
+		route.RouteType = "ip-prefix"
+	case "multicast", "inclusive-multicast", "type3":
+		route.RouteType = "multicast"
+	case "ethernet-segment", "es", "type4":
+		route.RouteType = "ethernet-segment"
+	case "ethernet-ad", "ead", "type1":
+		route.RouteType = "ethernet-ad"
+	default:
+		return route, fmt.Errorf("invalid route type: %s", routeType)
+	}
+
+	// Parse remaining key-value pairs
+	for i := 1; i < len(args)-1; i += 2 {
+		key := strings.ToLower(args[i])
+		value := args[i+1]
+
+		switch key {
+		case "rd":
+			route.RD = value
+		case "esi":
+			route.ESI = value
+		case "ethernet-tag", "etag":
+			n, err := strconv.ParseUint(value, 10, 32)
+			if err != nil {
+				return route, fmt.Errorf("invalid ethernet-tag: %s", value)
+			}
+			route.EthernetTag = uint32(n)
+		case "mac":
+			route.MAC = value
+		case "ip":
+			ip, err := netip.ParseAddr(value)
+			if err != nil {
+				return route, fmt.Errorf("invalid ip: %s", value)
+			}
+			route.IP = ip
+		case "prefix":
+			prefix, err := netip.ParsePrefix(value)
+			if err != nil {
+				return route, fmt.Errorf("invalid prefix: %s", value)
+			}
+			route.Prefix = prefix
+		case "gateway", "gw":
+			gw, err := netip.ParseAddr(value)
+			if err != nil {
+				return route, fmt.Errorf("invalid gateway: %s", value)
+			}
+			route.Gateway = gw
+		case "label", "label1":
+			n, err := strconv.ParseUint(value, 10, 32)
+			if err != nil {
+				return route, fmt.Errorf("invalid label: %s", value)
+			}
+			route.Label1 = uint32(n)
+		case "label2":
+			n, err := strconv.ParseUint(value, 10, 32)
+			if err != nil {
+				return route, fmt.Errorf("invalid label2: %s", value)
+			}
+			route.Label2 = uint32(n)
+		case "next-hop":
+			nh, err := netip.ParseAddr(value)
+			if err != nil {
+				return route, fmt.Errorf("invalid next-hop: %s", value)
+			}
+			route.NextHop = nh
+
+		default:
+			return route, fmt.Errorf("unknown l2vpn keyword: %s", key)
+		}
+	}
+
+	// Validate required fields based on route type
+	if route.RD == "" {
+		return route, fmt.Errorf("missing route-distinguisher")
+	}
+
+	if route.RouteType == "mac-ip" && route.MAC == "" {
+		return route, fmt.Errorf("missing mac address")
+	}
+
+	if route.RouteType == "ip-prefix" && !route.Prefix.IsValid() {
+		return route, fmt.Errorf("missing prefix")
+	}
+
+	return route, nil
 }
 
 // vplsRouteToParams converts VPLSRoute to VPLSParams.
