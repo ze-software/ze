@@ -30,7 +30,13 @@ func (s *Server) stageTransition(proc *Process, pluginName string, completeStage
 
 	s.coordinator.StageComplete(proc.Index(), completeStage)
 
-	stageCtx, cancel := context.WithTimeout(s.ctx, defaultStageTimeout)
+	// Use per-plugin timeout if configured, else default
+	timeout := proc.config.StageTimeout
+	if timeout == 0 {
+		timeout = defaultStageTimeout
+	}
+
+	stageCtx, cancel := context.WithTimeout(s.ctx, timeout)
 	err := s.coordinator.WaitForStage(stageCtx, waitStage)
 	cancel()
 
@@ -463,8 +469,14 @@ func (s *Server) handleSingleProcessCommands(proc *Process) {
 			if s.coordinator != nil {
 				s.coordinator.StageComplete(proc.Index(), StageReady)
 
+				// Use per-plugin timeout if configured, else default
+				timeout := proc.config.StageTimeout
+				if timeout == 0 {
+					timeout = defaultStageTimeout
+				}
+
 				// Wait for all plugins to be ready before signaling reactor
-				stageCtx, cancel := context.WithTimeout(s.ctx, defaultStageTimeout)
+				stageCtx, cancel := context.WithTimeout(s.ctx, timeout)
 				err := s.coordinator.WaitForStage(stageCtx, StageRunning)
 				cancel()
 				if err != nil {

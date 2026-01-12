@@ -124,6 +124,7 @@ func CreateReactorWithDir(cfg *BGPConfig, configDir string) (*reactor.Reactor, e
 				Run:           pc.Run,
 				Encoder:       pc.Encoder,
 				ReceiveUpdate: pc.ReceiveUpdate,
+				StageTimeout:  pc.StageTimeout,
 			})
 		}
 	}

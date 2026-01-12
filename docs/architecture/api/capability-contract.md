@@ -11,7 +11,7 @@
 | Refresh event handling | ✅ Done | `rr/server.go`, `decode.go` |
 | `msg-id retain/release/expire` | ✅ Done | `msgid.go` |
 | `msg-id list` | ✅ Done | `msgid.go` |
-| 5s startup timeout | ❌ Not impl | No validation |
+| Stage timeout | ✅ Done | Configurable per-plugin, default 5s |
 | Config validation (GR/RR→API) | ✅ Done | `bgp.go:validateProcessCapabilities` |
 | `borr`/`eorr` markers | ✅ Done | RFC 7313 full support, RIB plugin responds to refresh |
 
@@ -102,17 +102,25 @@ peer A announce raw <base64-attrs> nlri ipv4/unicast <base64-nlri>
 
 ---
 
-## Startup Protocol (⚠️ PARTIAL)
+## Startup Protocol (✅ DONE)
 
-> **Status:** `session api ready` exists but no 5s timeout validation.
-> Process can advertise capabilities but engine doesn't validate or fail-fast.
+> **Status:** 5-stage startup with configurable per-plugin timeout.
 
 1. Engine spawns process
-2. Process advertises: `capability route-refresh` (within 5s) ❌ no timeout
-3. Engine collects all process capabilities ❌ not collected
-4. Engine validates: config requirements ⊆ process capabilities ❌ no validation
-5. If OK: start peer sessions
-6. If mismatch/timeout: refuse to start ❌ no fail-fast
+2. Process completes 5 stages: Declaration → Config → Capability → Registry → Running
+3. Each stage must complete within timeout (default 5s, configurable per-plugin)
+4. All plugins must complete each stage before any can proceed
+5. On timeout/failure: plugin marked failed, startup aborted
+
+**Timeout configuration:**
+```
+plugin myapp {
+    run ./myapp;
+    timeout 10s;    # per-stage timeout (default: 5s)
+}
+```
+
+See `docs/architecture/config/syntax.md` for full plugin config options.
 
 ---
 
@@ -171,7 +179,7 @@ When `encoder json`:
 
 ## Design Decisions
 
-1. **Timeout**: 5 seconds for capability advertisement
+1. **Timeout**: Default 5s per stage, configurable per-plugin via `timeout` keyword
 2. **Startup**: All-or-nothing (any process failure = reactor fails)
 3. **Respawn**: Re-confirm capability on every spawn
 4. **RIB in API**: Engine has NO route storage - API owns all
@@ -191,4 +199,4 @@ See `docs/plan/spec-api-rr.md` for implementation details.
 
 ---
 
-**Last Updated:** 2026-01-11 (msg-id cache control implemented)
+**Last Updated:** 2026-01-12 (configurable per-plugin stage timeout)

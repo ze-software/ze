@@ -464,13 +464,14 @@ type Response struct {
 
 // PluginConfig holds external plugin configuration.
 type PluginConfig struct {
-	Name           string // Plugin identifier
-	Run            string // Command to execute
-	Encoder        string // "json" or "text"
-	Respawn        bool   // ExaBGP compat (prefer RespawnEnabled)
-	RespawnEnabled bool   // Respawn with limit enforcement (5/60s)
-	WorkDir        string // Working directory for plugin execution
-	ReceiveUpdate  bool   // Forward received UPDATEs to plugin stdin
+	Name           string        // Plugin identifier
+	Run            string        // Command to execute
+	Encoder        string        // "json" or "text"
+	Respawn        bool          // ExaBGP compat (prefer RespawnEnabled)
+	RespawnEnabled bool          // Respawn with limit enforcement (5/60s)
+	WorkDir        string        // Working directory for plugin execution
+	ReceiveUpdate  bool          // Forward received UPDATEs to plugin stdin
+	StageTimeout   time.Duration // Per-stage timeout (0 = use default 5s)
 }
 
 // ServerConfig holds API server configuration.

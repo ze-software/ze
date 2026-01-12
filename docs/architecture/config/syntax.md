@@ -67,8 +67,17 @@ Defines an external plugin for API communication.
 plugin <name> {
     run <path>;
     encoder json;           # or text (v4 only)
+    timeout 10s;            # stage timeout (default: 5s)
 }
 ```
+
+| Keyword | Type | Description |
+|---------|------|-------------|
+| run | string | Command to execute |
+| encoder | string | `json` or `text` |
+| timeout | duration | Per-stage timeout (e.g., `5s`, `1m`, `500ms`). Default: 5s. 0 = use default. Negative rejected. |
+
+**Timeout semantics:** During startup, all plugins synchronize at each stage. The timeout controls how long this plugin waits for all plugins to complete each stage. With multiple plugins, use the same timeout for all, or set the longest timeout on all plugins to avoid fast plugins timing out while waiting for slow ones.
 
 ### template
 

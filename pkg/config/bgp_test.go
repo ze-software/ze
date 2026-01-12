@@ -3105,3 +3105,107 @@ peer 10.0.0.1 {
 	require.Len(t, cfg.Peers, 1)
 	require.True(t, cfg.Peers[0].Capabilities.RouteRefresh)
 }
+
+// TestPluginConfigTimeout verifies plugin timeout configuration parsing.
+//
+// VALIDATES: "timeout 10s;" in plugin block parses to 10 seconds.
+// PREVENTS: Plugin timeout config being ignored.
+func TestPluginConfigTimeout(t *testing.T) {
+	input := `
+plugin myapp {
+    run ./myapp;
+    encoder json;
+    timeout 10s;
+}
+`
+	cfg := parseConfig(t, input)
+	require.Len(t, cfg.Plugins, 1)
+	require.Equal(t, "myapp", cfg.Plugins[0].Name)
+	require.Equal(t, 10*time.Second, cfg.Plugins[0].StageTimeout)
+}
+
+// TestPluginConfigTimeoutDefault verifies default timeout when not specified.
+//
+// VALIDATES: Missing timeout → 0 (use default in server).
+// PREVENTS: Non-zero default breaking existing configs.
+func TestPluginConfigTimeoutDefault(t *testing.T) {
+	input := `
+plugin myapp {
+    run ./myapp;
+}
+`
+	cfg := parseConfig(t, input)
+	require.Len(t, cfg.Plugins, 1)
+	require.Equal(t, time.Duration(0), cfg.Plugins[0].StageTimeout)
+}
+
+// TestPluginConfigTimeoutInvalid verifies invalid timeout is rejected.
+//
+// VALIDATES: "timeout abc;" produces parse error.
+// PREVENTS: Invalid durations being silently ignored.
+func TestPluginConfigTimeoutInvalid(t *testing.T) {
+	input := `
+plugin myapp {
+    run ./myapp;
+    timeout abc;
+}
+`
+	p := NewParser(BGPSchema())
+	tree, err := p.Parse(input)
+	require.NoError(t, err) // Parsing succeeds (schema accepts string)
+
+	_, err = TreeToConfig(tree)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "invalid timeout")
+}
+
+// TestPluginConfigTimeoutNegative verifies negative timeout is rejected.
+//
+// VALIDATES: "timeout -5s;" produces error (not silently accepted).
+// PREVENTS: Negative duration causing immediate context expiration.
+func TestPluginConfigTimeoutNegative(t *testing.T) {
+	input := `
+plugin myapp {
+    run ./myapp;
+    timeout -5s;
+}
+`
+	p := NewParser(BGPSchema())
+	tree, err := p.Parse(input)
+	require.NoError(t, err) // Parsing succeeds (schema accepts string)
+
+	_, err = TreeToConfig(tree)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "must be positive")
+}
+
+// TestPluginConfigTimeoutVariants verifies various duration formats.
+//
+// VALIDATES: Various Go duration formats parse correctly.
+// PREVENTS: Only some formats working.
+func TestPluginConfigTimeoutVariants(t *testing.T) {
+	tests := []struct {
+		name     string
+		timeout  string
+		expected time.Duration
+	}{
+		{"seconds", "5s", 5 * time.Second},
+		{"milliseconds", "500ms", 500 * time.Millisecond},
+		{"minutes", "2m", 2 * time.Minute},
+		{"combined", "1m30s", 90 * time.Second},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			input := `
+plugin myapp {
+    run ./myapp;
+    timeout ` + tt.timeout + `;
+}
+`
+			cfg := parseConfig(t, input)
+			require.Len(t, cfg.Plugins, 1)
+			require.Equal(t, tt.expected, cfg.Plugins[0].StageTimeout)
+		})
+	}
+}

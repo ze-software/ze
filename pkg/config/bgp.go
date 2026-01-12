@@ -326,6 +326,7 @@ func BGPSchema() *Schema {
 		Field("run", MultiLeaf(TypeString)), // command with args
 		Field("encoder", Leaf(TypeString)),  // json, text
 		Field("respawn", Leaf(TypeBool)),    // respawn on exit
+		Field("timeout", Leaf(TypeString)),  // stage timeout (e.g., "10s", "1m")
 	))
 
 	// Template definitions - named templates and glob patterns
@@ -664,7 +665,8 @@ type PluginConfig struct {
 	Name          string
 	Run           string
 	Encoder       string
-	ReceiveUpdate bool // Forward received UPDATEs to plugin stdin
+	ReceiveUpdate bool          // Forward received UPDATEs to plugin stdin
+	StageTimeout  time.Duration // Per-stage timeout (0 = use default 5s)
 }
 
 // TreeToConfig converts a parsed tree to a typed BGPConfig.
@@ -704,6 +706,16 @@ func TreeToConfig(tree *Tree) (*BGPConfig, error) {
 		}
 		if v, ok := proc.Get("encoder"); ok {
 			pc.Encoder = v
+		}
+		if v, ok := proc.Get("timeout"); ok {
+			d, err := time.ParseDuration(v)
+			if err != nil {
+				return nil, fmt.Errorf("plugin %q: invalid timeout %q: %w", name, v, err)
+			}
+			if d < 0 {
+				return nil, fmt.Errorf("plugin %q: timeout must be positive, got %q", name, v)
+			}
+			pc.StageTimeout = d
 		}
 		// Default: text encoder plugins receive updates
 		// TODO: Parse process { receive { update; } } from peer/template for proper config

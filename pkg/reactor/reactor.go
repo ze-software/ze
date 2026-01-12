@@ -85,7 +85,8 @@ type PluginConfig struct {
 	Run           string
 	Encoder       string
 	Respawn       bool
-	ReceiveUpdate bool // Forward received UPDATEs to plugin stdin
+	ReceiveUpdate bool          // Forward received UPDATEs to plugin stdin
+	StageTimeout  time.Duration // Per-stage timeout (0 = use default 5s)
 }
 
 // Stats holds reactor statistics.
@@ -3889,6 +3890,7 @@ func (r *Reactor) StartWithContext(ctx context.Context) error {
 				Respawn:       pc.Respawn,
 				WorkDir:       r.config.ConfigDir,
 				ReceiveUpdate: pc.ReceiveUpdate,
+				StageTimeout:  pc.StageTimeout,
 			})
 		}
 		r.api = plugin.NewServer(apiConfig, &reactorAPIAdapter{r})
