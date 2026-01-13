@@ -429,3 +429,100 @@ Per-peer attribute caching with pre-configured or learned defaults can reduce pa
 2. **Full solution:** Per-peer LRU cache with bundle hashing
    - Catches remaining 27%
    - 96.7% overall hit rate
+
+---
+
+## Attribute Count Per Route
+
+**Date:** 2026-01-13
+**Data Sources:**
+- rib.20251222 (19M routes - RIPE RIS)
+- rib.20251201 (37M routes - LINX)
+- latest-bview (56M routes - RouteViews)
+- **Total: 112M routes analyzed**
+
+### Distribution Summary
+
+| Attrs | Typical % | Cumulative |
+|-------|-----------|------------|
+| 3 | 23% | 23% |
+| 4 | 35% | 58% |
+| 5 | 31% | **89%** |
+| 6 | 7% | **96%** |
+| 7 | 3% | **99.6%** |
+| 8 | 0.3% | **99.9%** |
+| 9 | 0.05% | 99.95% |
+| 10 | 0.001% | 100% |
+| 11+ | 0 | - |
+
+**Maximum observed: 10 attributes**
+
+### Per-File Details
+
+**rib.20251222** (19M routes - RIPE RIS)
+
+| Attrs | Count | % | Cumulative |
+|-------|-------|---|------------|
+| 3 | 4,550,673 | 23.94% | 23.94% |
+| 4 | 7,296,730 | 38.38% | 62.32% |
+| 5 | 5,155,599 | 27.12% | 89.43% |
+| 6 | 1,661,292 | 8.74% | 98.17% |
+| 7 | 292,138 | 1.54% | 99.71% |
+| 8 | 55,513 | 0.29% | 100.00% |
+| 9 | 9 | 0.00% | 100.00% |
+
+**rib.20251201** (37M routes - LINX)
+
+| Attrs | Count | % | Cumulative |
+|-------|-------|---|------------|
+| 3 | 8,562,773 | 22.85% | 22.85% |
+| 4 | 10,052,410 | 26.83% | 49.68% |
+| 5 | 14,609,918 | 38.99% | 88.67% |
+| 6 | 2,805,250 | 7.49% | 96.16% |
+| 7 | 1,308,956 | 3.49% | 99.65% |
+| 8 | 110,328 | 0.29% | 99.95% |
+| 9 | 19,779 | 0.05% | 100.00% |
+
+**latest-bview** (56M routes - RouteViews)
+
+| Attrs | Count | % | Cumulative |
+|-------|-------|---|------------|
+| 3 | 12,507,005 | 22.48% | 22.48% |
+| 4 | 22,803,432 | 40.99% | 63.47% |
+| 5 | 15,052,499 | 27.06% | 90.53% |
+| 6 | 2,893,027 | 5.20% | 95.73% |
+| 7 | 2,174,448 | 3.91% | 99.63% |
+| 8 | 124,788 | 0.22% | 99.86% |
+| 9 | 78,359 | 0.14% | 100.00% |
+| 10 | 458 | 0.00% | 100.00% |
+
+### Typical Attribute Composition
+
+Routes with **3 attributes** (23%):
+- ORIGIN, AS_PATH, NEXT_HOP (IPv4 unicast minimum)
+
+Routes with **4-5 attributes** (66%):
+- Above + LOCAL_PREF, MED, or COMMUNITY
+
+Routes with **6-7 attributes** (10%):
+- Above + LARGE_COMMUNITY, EXT_COMMUNITY, AGGREGATOR
+
+Routes with **8+ attributes** (<1%):
+- Full set including ORIGINATOR_ID, CLUSTER_LIST (route reflection)
+
+### Implementation Impact
+
+**For `AttributesWire.attrIndex` slice sizing:**
+
+```go
+// Current: capacity 8 covers 99.9% without reallocation
+index := make([]attrIndex, 0, 8)
+```
+
+| Capacity | Coverage | Memory (24 bytes/entry) |
+|----------|----------|-------------------------|
+| 6 | 96% | 144 bytes |
+| 8 | 99.9% | 192 bytes |
+| 10 | 100% | 240 bytes |
+
+**Recommendation:** Capacity 8 is optimal - covers 99.9% of real-world routes.
