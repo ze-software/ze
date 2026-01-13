@@ -3641,3 +3641,90 @@ func TestParseUpdateText_EVPNMissingType(t *testing.T) {
 	})
 	require.Error(t, err)
 }
+
+// TestParseUpdateText_EVPNType3Multicast verifies EVPN Type 3 parsing.
+//
+// VALIDATES: RFC 7432 Section 7.3 - Inclusive Multicast Ethernet Tag route.
+// PREVENTS: Type 3 routes silently failing.
+func TestParseUpdateText_EVPNType3Multicast(t *testing.T) {
+	result, err := ParseUpdateText([]string{
+		"nlri", "l2vpn/evpn", "add", "multicast",
+		"rd", "1:1",
+		"ip", "192.168.1.1",
+	})
+	require.NoError(t, err)
+	require.Len(t, result.Groups, 1)
+	require.Len(t, result.Groups[0].Announce, 1)
+	assert.Equal(t, nlri.L2VPNEVPN, result.Groups[0].Family)
+
+	evpn, ok := result.Groups[0].Announce[0].(*nlri.EVPNType3)
+	require.True(t, ok, "expected EVPNType3 NLRI, got %T", result.Groups[0].Announce[0])
+	assert.Equal(t, "192.168.1.1", evpn.OriginatorIP().String())
+}
+
+// TestParseUpdateText_EVPNType5WithGateway verifies EVPN Type 5 with GW IP Overlay Index.
+//
+// VALIDATES: RFC 9136 Section 3.1 - GW IP Address for recursive resolution.
+// PREVENTS: Gateway field not being parsed.
+func TestParseUpdateText_EVPNType5WithGateway(t *testing.T) {
+	result, err := ParseUpdateText([]string{
+		"nlri", "l2vpn/evpn", "add", "ip-prefix",
+		"rd", "1:1",
+		"prefix", "10.0.0.0/24",
+		"gateway", "192.168.1.254",
+		"label", "100",
+	})
+	require.NoError(t, err)
+	require.Len(t, result.Groups, 1)
+	require.Len(t, result.Groups[0].Announce, 1)
+
+	evpn, ok := result.Groups[0].Announce[0].(*nlri.EVPNType5)
+	require.True(t, ok, "expected EVPNType5 NLRI, got %T", result.Groups[0].Announce[0])
+	assert.Equal(t, "10.0.0.0/24", evpn.Prefix().String())
+	assert.Equal(t, "192.168.1.254", evpn.Gateway().String())
+}
+
+// TestParseUpdateText_EVPNType5ESIGatewayMutualExclusion verifies RFC 9136 constraint.
+//
+// VALIDATES: RFC 9136 Section 3.2 - ESI and GW IP MUST NOT both be non-zero.
+// PREVENTS: Invalid routes being created that violate the RFC.
+func TestParseUpdateText_EVPNType5ESIGatewayMutualExclusion(t *testing.T) {
+	_, err := ParseUpdateText([]string{
+		"nlri", "l2vpn/evpn", "add", "ip-prefix",
+		"rd", "1:1",
+		"prefix", "10.0.0.0/24",
+		"esi", "00:01:02:03:04:05:06:07:08:09",
+		"gateway", "192.168.1.254",
+		"label", "100",
+	})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "mutually exclusive")
+}
+
+// TestParseUpdateText_EVPNType5GatewayFamilyMismatch verifies RFC 9136 family constraint.
+//
+// VALIDATES: RFC 9136 Section 3.1 - prefix and gateway MUST be same IP family.
+// PREVENTS: Invalid routes with mismatched address families.
+func TestParseUpdateText_EVPNType5GatewayFamilyMismatch(t *testing.T) {
+	// IPv4 prefix with IPv6 gateway - invalid
+	_, err := ParseUpdateText([]string{
+		"nlri", "l2vpn/evpn", "add", "ip-prefix",
+		"rd", "1:1",
+		"prefix", "10.0.0.0/24",
+		"gateway", "2001:db8::1",
+		"label", "100",
+	})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "same IP family")
+
+	// IPv6 prefix with IPv4 gateway - invalid
+	_, err = ParseUpdateText([]string{
+		"nlri", "l2vpn/evpn", "add", "ip-prefix",
+		"rd", "1:1",
+		"prefix", "2001:db8::/32",
+		"gateway", "192.168.1.1",
+		"label", "100",
+	})
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "same IP family")
+}

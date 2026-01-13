@@ -722,21 +722,31 @@ peer 10.0.0.1 update text nlri l2vpn/evpn add multicast rd 1:1 ip 192.168.1.1
 ### Type 5: IP Prefix Route
 
 ```bash
-update text nlri l2vpn/evpn add ip-prefix rd <rd> prefix <prefix> label <n>
+update text nlri l2vpn/evpn add ip-prefix rd <rd> prefix <prefix> [gateway <ip>] label <n>
 ```
 
 | Field | Type | Description |
 |-------|------|-------------|
 | `prefix` | IP prefix | Required. IPv4 or IPv6 prefix |
+| `gateway` | IP address | Optional. GW IP Overlay Index (RFC 9136) |
+
+**Overlay Index (RFC 9136):** Either `esi` OR `gateway` can be specified, but not both.
+If neither is specified, direct forwarding via label is used.
 
 **Examples:**
 
 ```bash
-# IPv4 prefix
+# IPv4 prefix (direct forwarding)
 peer 10.0.0.1 update text nlri l2vpn/evpn add ip-prefix rd 1:1 prefix 10.0.0.0/24 label 100
 
 # IPv6 prefix
 peer 10.0.0.1 update text nlri l2vpn/evpn add ip-prefix rd 1:1 prefix 2001:db8::/32 label 100
+
+# With GW IP Overlay Index (recursive resolution via RT-2)
+peer 10.0.0.1 update text nlri l2vpn/evpn add ip-prefix rd 1:1 prefix 10.0.0.0/24 gateway 192.168.1.254 label 100
+
+# With ESI Overlay Index (recursive resolution via RT-1)
+peer 10.0.0.1 update text nlri l2vpn/evpn add ip-prefix rd 1:1 prefix 10.0.0.0/24 esi 00:01:02:03:04:05:06:07:08:09 label 100
 ```
 
 ### EVPN EOR

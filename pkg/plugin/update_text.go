@@ -2406,13 +2406,14 @@ const (
 	kwPrefix    = "prefix"
 	kwESI       = "esi"
 	kwEtag      = "etag"
+	kwGateway   = "gateway" // RFC 9136: GW IP Overlay Index for Type 5
 )
 
 // isEVPNBoundary returns true if token ends EVPN section (next section starts).
 // EVPN-specific keywords (rd, label, mac, ip, etc.) are NOT boundaries.
 func isEVPNBoundary(token string) bool {
 	switch token {
-	case kwRD, kwLabel, kwMAC, kwIP, kwPrefix, kwESI, kwEtag:
+	case kwRD, kwLabel, kwMAC, kwIP, kwPrefix, kwESI, kwEtag, kwGateway:
 		return false // These are valid within EVPN
 	case kwMACIP, kwIPPrefix, kwMulticast:
 		return false // Route type keywords
@@ -2578,6 +2579,19 @@ func parseEVPNSection(args []string, family nlri.Family, _ nlriAccum) (nlri.Fami
 			i += 2
 			consumed += 2
 
+		case kwGateway:
+			// RFC 9136 Section 3.1: GW IP Address for Overlay Index resolution
+			if i+1 >= len(args) {
+				return nlri.Family{}, nil, nil, "", 0, errors.New("gateway requires value")
+			}
+			var err error
+			gateway, err = netip.ParseAddr(args[i+1])
+			if err != nil {
+				return nlri.Family{}, nil, nil, "", 0, fmt.Errorf("invalid gateway: %w", err)
+			}
+			i += 2
+			consumed += 2
+
 		default:
 			return nlri.Family{}, nil, nil, "", 0, fmt.Errorf("unknown evpn keyword: %s", token)
 		}
@@ -2603,6 +2617,15 @@ func parseEVPNSection(args []string, family nlri.Family, _ nlriAccum) (nlri.Fami
 	case kwIPPrefix:
 		if !prefix.IsValid() {
 			return nlri.Family{}, nil, nil, "", 0, errors.New("ip-prefix route requires prefix")
+		}
+		// RFC 9136 Section 3.1: prefix and gateway MUST be same IP address family
+		if gateway.IsValid() && prefix.Addr().Is4() != gateway.Is4() {
+			return nlri.Family{}, nil, nil, "", 0, errors.New("ip-prefix route: gateway must be same IP family as prefix (RFC 9136)")
+		}
+		// RFC 9136 Section 3.2: ESI and GW IP MUST NOT both be non-zero
+		esiNonZero := esi != [10]byte{}
+		if esiNonZero && gateway.IsValid() {
+			return nlri.Family{}, nil, nil, "", 0, errors.New("ip-prefix route: esi and gateway are mutually exclusive (RFC 9136)")
 		}
 		evpnNLRI = nlri.NewEVPNType5(rd, esi, ethernetTag, prefix, gateway, labels)
 
