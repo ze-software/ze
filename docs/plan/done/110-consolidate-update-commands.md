@@ -320,11 +320,11 @@ update text nlri l2vpn/evpn add multicast rd 1:1 ip 192.168.1.1
 - [x] `make functional` passes
 
 ### Documentation
-- [ ] `commands.md` updated
-- [ ] `update-syntax.md` updated
+- [x] `commands.md` updated
+- [x] `update-syntax.md` updated
 
 ### Completion
-- [ ] Spec moved to `docs/plan/done/NNN-<name>.md`
+- [x] Spec moved to `docs/plan/done/NNN-<name>.md`
 - [ ] All files committed together
 
 ## Migration Notes

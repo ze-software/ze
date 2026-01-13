@@ -8,15 +8,11 @@ from zebgp_api import ready, send, wait_for_ack, wait_for_shutdown
 def main() -> None:
     ready()
 
-    messages = [
-        'update text nlri ipv4/unicast eor',
-        'update text nlri ipv6/unicast eor',
-        'update text nlri ipv4/unicast eor',
-    ]
-
-    for message in messages:
-        send(message)
-        time.sleep(0.1)
+    # Test EOR for both IPv4 and IPv6 families
+    send('update text nlri ipv4/unicast eor')
+    time.sleep(0.2)
+    send('update text nlri ipv6/unicast eor')
+    time.sleep(0.2)
 
     wait_for_ack(expected_count=2)
     wait_for_shutdown()

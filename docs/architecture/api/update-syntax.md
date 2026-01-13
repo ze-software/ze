@@ -492,7 +492,7 @@ session api encoding inbound hex outbound b64  # Mixed
 <list-name>   := as-path | community | large-community | extended-community
 
 <nlri-section> := nlri <family> <nlri-op>+
-<nlri-op>      := add <prefix>+ [watchdog set <name>] | del <prefix>+
+<nlri-op>      := add <prefix>+ [watchdog set <name>] | del <prefix>+ | eor
 
 <wire-attr>    := attr (set <bytes> | del [<bytes>])   # hex/b64 mode only
 
@@ -541,6 +541,8 @@ watchdog withdraw <name>   # withdraw all routes in pool from peers
 | ipv6/unicast | ✅ | From MP_REACH_NLRI |
 | ipv4/mpls-vpn | ✅ | From MP_REACH_NLRI |
 | ipv6/mpls-vpn | ✅ | From MP_REACH_NLRI |
+| l2vpn/vpls | ✅ | RFC 4761 VPLS |
+| l2vpn/evpn | ✅ | RFC 7432 EVPN (Type 2, 3, 5) |
 | flowspec | ❌ | Complex encoding, use text |
 
 ## Attribute Wire Bytes
@@ -585,6 +587,163 @@ nlri ipv4/mpls-vpn rd 65000:100 label 1000 add 10.0.0.0/24 10.0.1.0/24
 |----------|--------|---------|
 | `rd` | `rd <asn>:<num>` or `rd <ip>:<num>` | `rd 65000:100` |
 | `label` | `label <num>` | `label 1000` |
+
+## End-of-RIB (EOR)
+
+RFC 4724 End-of-RIB marker signals completion of initial routing table exchange.
+
+### Syntax
+
+```bash
+update text nlri <family> eor
+```
+
+### Examples
+
+```bash
+# IPv4 unicast EOR
+peer 10.0.0.1 update text nlri ipv4/unicast eor
+
+# IPv6 unicast EOR
+peer 10.0.0.1 update text nlri ipv6/unicast eor
+
+# Multiple families in one command
+peer 10.0.0.1 update text nlri ipv4/unicast eor nlri ipv6/unicast eor
+
+# EOR with NLRI in same command
+peer 10.0.0.1 update text nlri ipv6/unicast eor nhop set 10.0.0.1 nlri ipv4/unicast add 10.0.0.0/24
+```
+
+### Wire Format
+
+| Family | Wire Bytes |
+|--------|------------|
+| IPv4 unicast | Empty UPDATE: `withdrawn=0, path_attr=0, nlri=0` |
+| Other families | MP_UNREACH_NLRI with AFI/SAFI, no prefixes |
+
+## VPLS (L2VPN/VPLS)
+
+RFC 4761 Virtual Private LAN Service.
+
+### Syntax
+
+```bash
+update text nlri l2vpn/vpls add rd <rd> ve-id <n> ve-block-offset <n> ve-block-size <n> label-base <n>
+update text nlri l2vpn/vpls del rd <rd> ve-id <n> ve-block-offset <n> ve-block-size <n> label-base <n>
+```
+
+### Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `rd` | Route Distinguisher | Required. Format: `ASN:NN` or `IP:NN` |
+| `ve-id` | uint16 | VE identifier |
+| `ve-block-offset` | uint16 | Starting VE ID in block |
+| `ve-block-size` | uint16 | Number of VE IDs in block |
+| `label-base` | uint32 | Base MPLS label |
+
+### Examples
+
+```bash
+# Announce VPLS
+peer 10.0.0.1 update text nlri l2vpn/vpls add rd 1:1 ve-id 1 ve-block-offset 0 ve-block-size 10 label-base 1000
+
+# Withdraw VPLS
+peer 10.0.0.1 update text nlri l2vpn/vpls del rd 1:1 ve-id 1 ve-block-offset 0 ve-block-size 10 label-base 1000
+
+# EOR for VPLS
+peer 10.0.0.1 update text nlri l2vpn/vpls eor
+```
+
+## EVPN (L2VPN/EVPN)
+
+RFC 7432 Ethernet VPN.
+
+### Route Types
+
+| Type | Keyword | Description | RFC |
+|------|---------|-------------|-----|
+| 2 | `mac-ip` | MAC/IP Advertisement | RFC 7432 §7.2 |
+| 3 | `multicast` | Inclusive Multicast Ethernet Tag | RFC 7432 §7.3 |
+| 5 | `ip-prefix` | IP Prefix Route | RFC 9136 §3 |
+
+### Common Fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `rd` | Route Distinguisher | Required. Format: `ASN:NN` or `IP:NN` |
+| `esi` | 10-byte hex | Ethernet Segment Identifier (colon-separated) |
+| `etag` | uint32 | Ethernet Tag ID |
+| `label` | uint32 | MPLS label (can repeat for multiple labels) |
+
+### Type 2: MAC/IP Advertisement
+
+```bash
+update text nlri l2vpn/evpn add mac-ip rd <rd> mac <mac> [ip <ip>] label <n>
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `mac` | MAC address | Required. Format: `00:11:22:33:44:55` |
+| `ip` | IP address | Optional. IPv4 or IPv6 |
+
+**Examples:**
+
+```bash
+# MAC only
+peer 10.0.0.1 update text nlri l2vpn/evpn add mac-ip rd 1:1 mac 00:11:22:33:44:55 label 100
+
+# MAC with IPv4
+peer 10.0.0.1 update text nlri l2vpn/evpn add mac-ip rd 1:1 mac 00:11:22:33:44:55 ip 192.168.1.1 label 100
+
+# MAC with IPv6
+peer 10.0.0.1 update text nlri l2vpn/evpn add mac-ip rd 1:1 mac 00:11:22:33:44:55 ip 2001:db8::1 label 100
+
+# With ESI and Ethernet Tag
+peer 10.0.0.1 update text nlri l2vpn/evpn add mac-ip rd 1:1 esi 00:01:02:03:04:05:06:07:08:09 etag 100 mac 00:11:22:33:44:55 label 100
+```
+
+### Type 3: Inclusive Multicast Ethernet Tag
+
+```bash
+update text nlri l2vpn/evpn add multicast rd <rd> ip <originator-ip>
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `ip` | IP address | Required. Originator IP |
+
+**Example:**
+
+```bash
+peer 10.0.0.1 update text nlri l2vpn/evpn add multicast rd 1:1 ip 192.168.1.1
+```
+
+### Type 5: IP Prefix Route
+
+```bash
+update text nlri l2vpn/evpn add ip-prefix rd <rd> prefix <prefix> label <n>
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `prefix` | IP prefix | Required. IPv4 or IPv6 prefix |
+
+**Examples:**
+
+```bash
+# IPv4 prefix
+peer 10.0.0.1 update text nlri l2vpn/evpn add ip-prefix rd 1:1 prefix 10.0.0.0/24 label 100
+
+# IPv6 prefix
+peer 10.0.0.1 update text nlri l2vpn/evpn add ip-prefix rd 1:1 prefix 2001:db8::/32 label 100
+```
+
+### EVPN EOR
+
+```bash
+peer 10.0.0.1 update text nlri l2vpn/evpn eor
+```
 
 ## Conditional nhop del
 

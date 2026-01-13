@@ -124,32 +124,42 @@ peer !10.0.0.1 forward update-id 12345
 
 ### Route Commands (update text)
 
-The canonical syntax for route announcements and withdrawals is `update text`:
+All route operations use unified `update text` syntax:
 
-```
-peer <selector> update text nhop set <ip> [attributes...] nlri <family> add <prefix>
-peer <selector> update text nlri <family> del <prefix>
+```bash
+# Announce routes
+peer <selector> update text nhop set <ip> [attributes...] nlri <family> add <prefix>...
+
+# Withdraw routes
+peer <selector> update text nlri <family> del <prefix>...
+
+# End-of-RIB marker (RFC 4724)
+peer <selector> update text nlri <family> eor
+
+# VPLS (L2VPN/VPLS)
+peer <selector> update text nlri l2vpn/vpls add rd <rd> ve-id <n> ve-block-offset <n> ve-block-size <n> label-base <n>
+
+# EVPN (L2VPN/EVPN)
+peer <selector> update text nlri l2vpn/evpn add mac-ip rd <rd> mac <mac> [ip <ip>] label <n>
+peer <selector> update text nlri l2vpn/evpn add ip-prefix rd <rd> prefix <prefix> label <n>
+peer <selector> update text nlri l2vpn/evpn add multicast rd <rd> ip <ip>
 ```
 
-### Announce Commands (family-explicit)
+### Removed Commands (use update text instead)
 
-```
-peer <selector> announce ipv4/unicast <prefix> next-hop <ip> [attributes...]
-peer <selector> announce ipv6/unicast <prefix> next-hop <ip> [attributes...]
-peer <selector> announce flow <flow-spec> [attributes...]
-peer <selector> announce vpls <name> endpoint <id> ... [attributes...]
-peer <selector> announce eor <afi> <safi>
-peer <selector> announce route-refresh <afi> <safi>
-```
+The following legacy commands have been removed:
 
-### Withdraw Commands (family-explicit)
-
-```
-peer <selector> withdraw ipv4/unicast <prefix> [attributes...]
-peer <selector> withdraw ipv6/unicast <prefix> [attributes...]
-peer <selector> withdraw flow <flow-spec>
-peer <selector> withdraw vpls <name>
-```
+| Old Command | Replacement |
+|-------------|-------------|
+| `announce ipv4/unicast <p> next-hop <nh>` | `update text nhop set <nh> nlri ipv4/unicast add <p>` |
+| `announce ipv6/unicast <p> next-hop <nh>` | `update text nhop set <nh> nlri ipv6/unicast add <p>` |
+| `announce eor <afi> <safi>` | `update text nlri <family> eor` |
+| `announce vpls ...` | `update text nlri l2vpn/vpls add ...` |
+| `announce l2vpn ...` | `update text nlri l2vpn/evpn add ...` |
+| `withdraw ipv4/unicast <p>` | `update text nlri ipv4/unicast del <p>` |
+| `withdraw ipv6/unicast <p>` | `update text nlri ipv6/unicast del <p>` |
+| `withdraw vpls ...` | `update text nlri l2vpn/vpls del ...` |
+| `withdraw l2vpn ...` | `update text nlri l2vpn/evpn del ...` |
 
 ### Watchdog Commands
 
@@ -196,15 +206,16 @@ show adj-rib out [<afi> <safi>]
 
 ### Announce/Withdraw
 
-```
+All route operations now use `update text` syntax:
+
+```bash
 update text nhop set <ip> [attributes...] nlri <family> add <prefix>
 update text nlri <family> del <prefix>
-announce ipv4/unicast <prefix> next-hop <ip>
-announce ipv6/unicast <prefix> next-hop <ip>
-announce flow <flow-spec>
-announce eor <afi> <safi>
-announce route-refresh <afi> <safi>
+update text nlri <family> eor
 ```
+
+> **Note:** Legacy `announce`/`withdraw` commands have been removed.
+> See "Removed Commands" section above for migration table.
 
 ### Control
 
