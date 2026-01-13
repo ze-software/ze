@@ -2,12 +2,10 @@ package attribute
 
 import (
 	"encoding/binary"
-
-	"codeberg.org/thomas-mangin/zebgp/pkg/bgp"
 )
 
 // AttrIterator iterates over concatenated path attribute wire bytes.
-// Zero-allocation: returns Span views into the underlying buffer.
+// Zero-allocation: returns []byte views into the underlying buffer.
 //
 // Wire format (RFC 4271 Section 4.3):
 //
@@ -25,7 +23,7 @@ import (
 //
 //	iter := NewAttrIterator(data)
 //	for typeCode, flags, value, ok := iter.Next(); ok; typeCode, flags, value, ok = iter.Next() {
-//	    valueBytes := value.Slice(data)
+//	    // value is []byte - use directly
 //	    // process attribute
 //	}
 type AttrIterator struct {
@@ -35,7 +33,7 @@ type AttrIterator struct {
 
 // NewAttrIterator creates an iterator over path attribute wire bytes.
 //
-// The iterator does not copy data - it returns Span views into the original buffer.
+// The iterator does not copy data - it returns []byte slices into the original buffer.
 // Caller must not modify the buffer while iterating.
 func NewAttrIterator(data []byte) *AttrIterator {
 	return &AttrIterator{
@@ -49,18 +47,18 @@ func NewAttrIterator(data []byte) *AttrIterator {
 // Returns:
 //   - typeCode: attribute type code (ORIGIN=1, AS_PATH=2, etc.)
 //   - flags: attribute flags byte
-//   - value: Span pointing to attribute value in the buffer
+//   - value: []byte slice of attribute value in the buffer
 //   - ok: false when iteration is complete or on malformed data
 //
-// The value Span references the original buffer. Use value.Slice(data) to get bytes.
-func (it *AttrIterator) Next() (typeCode AttributeCode, flags AttributeFlags, value bgp.Span, ok bool) {
+// The value is a view into the original buffer - do not modify.
+func (it *AttrIterator) Next() (typeCode AttributeCode, flags AttributeFlags, value []byte, ok bool) {
 	if it.offset >= len(it.data) {
-		return 0, 0, bgp.Span{}, false
+		return 0, 0, nil, false
 	}
 
 	// Need at least 3 bytes for header (flags + code + 1-byte length)
 	if it.offset+3 > len(it.data) {
-		return 0, 0, bgp.Span{}, false
+		return 0, 0, nil, false
 	}
 
 	flags = AttributeFlags(it.data[it.offset])
@@ -71,7 +69,7 @@ func (it *AttrIterator) Next() (typeCode AttributeCode, flags AttributeFlags, va
 	var hdrLen int
 	if flags&FlagExtLength != 0 {
 		if it.offset+4 > len(it.data) {
-			return 0, 0, bgp.Span{}, false // malformed
+			return 0, 0, nil, false // malformed
 		}
 		length = int(binary.BigEndian.Uint16(it.data[it.offset+2:]))
 		hdrLen = 4
@@ -83,10 +81,10 @@ func (it *AttrIterator) Next() (typeCode AttributeCode, flags AttributeFlags, va
 	// Validate we have enough data
 	valueStart := it.offset + hdrLen
 	if valueStart+length > len(it.data) {
-		return 0, 0, bgp.Span{}, false // malformed
+		return 0, 0, nil, false // malformed
 	}
 
-	value = bgp.Span{Start: valueStart, Len: length}
+	value = it.data[valueStart : valueStart+length]
 	it.offset = valueStart + length
 
 	return typeCode, flags, value, true
@@ -98,15 +96,15 @@ func (it *AttrIterator) Reset() {
 }
 
 // Find searches for an attribute by type code.
-// Returns the value span and true if found, or empty span and false if not found.
+// Returns the value bytes and true if found, or nil and false if not found.
 // Consumes the iterator up to (and including) the found attribute.
-func (it *AttrIterator) Find(code AttributeCode) (bgp.Span, bool) {
+func (it *AttrIterator) Find(code AttributeCode) ([]byte, bool) {
 	for typeCode, _, value, ok := it.Next(); ok; typeCode, _, value, ok = it.Next() {
 		if typeCode == code {
 			return value, true
 		}
 	}
-	return bgp.Span{}, false
+	return nil, false
 }
 
 // Count returns the total number of attributes without consuming the iterator.

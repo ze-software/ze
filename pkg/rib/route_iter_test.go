@@ -34,13 +34,13 @@ func TestRouteAttrIterator(t *testing.T) {
 	typeCode, _, value, ok := iter.Next()
 	require.True(t, ok, "expected first attribute")
 	assert.Equal(t, attribute.AttrOrigin, typeCode)
-	assert.Equal(t, 1, value.Len)
+	assert.Equal(t, 1, len(value))
 
 	// Second: MED
 	typeCode, _, value, ok = iter.Next()
 	require.True(t, ok, "expected second attribute")
 	assert.Equal(t, attribute.AttrMED, typeCode)
-	assert.Equal(t, 4, value.Len)
+	assert.Equal(t, 4, len(value))
 
 	// No more
 	_, _, _, ok = iter.Next()
@@ -151,13 +151,12 @@ func TestRouteZeroCopy(t *testing.T) {
 	_, _, value, ok := iter.Next()
 	require.True(t, ok)
 
-	// Get the value bytes and verify they point into original wireBytes
+	// Verify value is a view into original wireBytes
 	// Value should be at offset 3 (after flags+type+len), length 1
-	valueBytes := value.Slice(route.WireBytes())
-	assert.Equal(t, byte(0x00), valueBytes[0], "value should be IGP (0)")
+	assert.Equal(t, byte(0x00), value[0], "value should be IGP (0)")
 
-	// Modify original wireBytes and verify iterator sees change (zero-copy proof)
+	// Modify original wireBytes and verify iterator slice reflects change (zero-copy proof)
+	// Since value is a slice into wireBytes, modifying wireBytes[3] should affect value[0]
 	route.WireBytes()[3] = 0x02 // Change ORIGIN to INCOMPLETE
-	valueBytes2 := value.Slice(route.WireBytes())
-	assert.Equal(t, byte(0x02), valueBytes2[0], "iterator should see modified value (zero-copy)")
+	assert.Equal(t, byte(0x02), value[0], "iterator should see modified value (zero-copy)")
 }

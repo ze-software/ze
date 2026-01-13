@@ -10,7 +10,7 @@
 
 | Phase | Status | Description |
 |-------|--------|-------------|
-| Phase 1 | ✅ Done | Core iterator types (`Span`, `NLRIIterator`, `AttrIterator`, `ASPathIterator`) |
+| Phase 1 | ✅ Done | Core iterator types (`NLRIIterator`, `AttrIterator`, `ASPathIterator`) |
 | Phase 2 | ✅ Done | WireUpdate integration (iterator methods) |
 | Phase 3 | ✅ Done | Direct formatting functions (FormatPrefixFromBytes, FormatASPathJSON, etc.) |
 | Phase 4 | ✅ Done | RIB migration (Route.AttrIterator, Route.ASPathIterator) |
@@ -87,19 +87,10 @@ func (it *NLRIIterator) Next() (prefix []byte, pathID uint32, ok bool)
 
 ```go
 // Parse only what you need, where you need it
-func ParseUpdateOffsets(buf []byte) (withdrawn, attrs, nlri Span, err error)
-func ParseAttrHeader(buf []byte, off int) (typeCode, flags uint8, value Span, err error)
 func ParseNLRI(buf []byte, off int, addPath bool) (prefix []byte, pathID uint32, nextOff int, err error)
 func ParseASPathSegment(buf []byte, off int) (segType uint8, asns []byte, nextOff int, err error)
 
-type Span struct {
-    Start int
-    Len   int
-}
-
-func (s Span) Slice(buf []byte) []byte {
-    return buf[s.Start : s.Start+s.Len]
-}
+// Iterators return []byte views directly - no intermediate Span type
 ```
 
 ### 4. Context-Aware Parsing
@@ -176,11 +167,11 @@ type AttrIterator struct {
 func NewAttrIterator(data []byte) *AttrIterator
 
 // Next returns the next attribute
-// Returns (0, 0, Span{}, false) when exhausted
-func (it *AttrIterator) Next() (typeCode uint8, flags uint8, value Span, ok bool)
+// Returns (0, 0, nil, false) when exhausted
+func (it *AttrIterator) Next() (typeCode uint8, flags uint8, value []byte, ok bool)
 
 // Convenience: find specific attribute
-func (it *AttrIterator) Find(typeCode uint8) (Span, bool)
+func (it *AttrIterator) Find(typeCode uint8) ([]byte, bool)
 ```
 
 ### NLRI Iterator
@@ -283,15 +274,14 @@ func (r *Route) AttrIterator() *AttrIterator {
 }
 
 func (r *Route) ASPathIterator(asn4 bool) *ASPathIterator {
-    if r.asPathOffset < 0 {
-        // Find AS_PATH attribute
-        span, ok := r.AttrIterator().Find(AS_PATH_TYPE)
-        if !ok {
-            return nil
+    // Find AS_PATH attribute
+    iter := r.AttrIterator()
+    for typeCode, _, value, ok := iter.Next(); ok; typeCode, _, value, ok = iter.Next() {
+        if typeCode == AS_PATH_TYPE {
+            return NewASPathIterator(value, asn4)
         }
-        r.asPathOffset = int16(span.Start)
     }
-    return NewASPathIterator(r.attrBytes[r.asPathOffset:], asn4)
+    return nil
 }
 
 // Zero-copy forwarding
@@ -330,7 +320,8 @@ func FormatUpdateEventJSON(u *WireUpdate, ctx ParseContext, w io.Writer) error {
 
     // Attributes
     w.Write([]byte(`,"attributes":{`))
-    formatAttributesJSON(u.AttrsSpan().Slice(u.payload), ctx, w)
+    iter, _ := u.AttrIterator()
+    formatAttributesJSON(iter, ctx, w)
     w.Write([]byte(`}}`))
 
     return nil

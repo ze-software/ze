@@ -451,8 +451,7 @@ func (r *Route) ASPathIterator(asn4 bool) *attribute.ASPathIterator {
 	iter := attribute.NewAttrIterator(r.wireBytes)
 	for typeCode, _, value, ok := iter.Next(); ok; typeCode, _, value, ok = iter.Next() {
 		if typeCode == attribute.AttrASPath {
-			asPathBytes := value.Slice(r.wireBytes)
-			return attribute.NewASPathIterator(asPathBytes, asn4)
+			return attribute.NewASPathIterator(value, asn4)
 		}
 	}
 	return nil

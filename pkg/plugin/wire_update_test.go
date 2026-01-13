@@ -1077,8 +1077,8 @@ func TestWireUpdate_AttrIterator(t *testing.T) {
 	if typeCode != 1 { // ORIGIN
 		t.Errorf("first typeCode = %d, want 1", typeCode)
 	}
-	if value.Len != 1 {
-		t.Errorf("first value.Len = %d, want 1", value.Len)
+	if len(value) != 1 {
+		t.Errorf("first len(value) = %d, want 1", len(value))
 	}
 
 	// Second: MED
@@ -1089,8 +1089,8 @@ func TestWireUpdate_AttrIterator(t *testing.T) {
 	if typeCode != 4 { // MED
 		t.Errorf("second typeCode = %d, want 4", typeCode)
 	}
-	if value.Len != 4 {
-		t.Errorf("second value.Len = %d, want 4", value.Len)
+	if len(value) != 4 {
+		t.Errorf("second len(value) = %d, want 4", len(value))
 	}
 
 	// No more

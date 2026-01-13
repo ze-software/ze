@@ -27,14 +27,14 @@ func TestAttrIterator(t *testing.T) {
 	require.True(t, ok)
 	assert.Equal(t, AttrOrigin, typeCode)
 	assert.Equal(t, AttributeFlags(0x40), flags)
-	assert.Equal(t, []byte{0x00}, value.Slice(data))
+	assert.Equal(t, []byte{0x00}, value)
 
 	// Second attribute: MED
 	typeCode, flags, value, ok = iter.Next()
 	require.True(t, ok)
 	assert.Equal(t, AttrMED, typeCode)
 	assert.Equal(t, AttributeFlags(0x80), flags)
-	assert.Equal(t, []byte{0x00, 0x00, 0x00, 0x64}, value.Slice(data))
+	assert.Equal(t, []byte{0x00, 0x00, 0x00, 0x64}, value)
 
 	// No more
 	_, _, _, ok = iter.Next()
@@ -64,7 +64,7 @@ func TestAttrIteratorExtendedLength(t *testing.T) {
 	require.True(t, ok)
 	assert.Equal(t, AttrASPath, typeCode)
 	assert.Equal(t, AttributeFlags(0x50), flags)
-	assert.Equal(t, 256, value.Len)
+	assert.Equal(t, 256, len(value))
 
 	_, _, _, ok = iter.Next()
 	assert.False(t, ok)
@@ -100,13 +100,13 @@ func TestAttrIteratorFind(t *testing.T) {
 	// Find MED
 	value, ok := iter.Find(AttrMED)
 	require.True(t, ok)
-	assert.Equal(t, []byte{0x00, 0x00, 0x00, 0x64}, value.Slice(data))
+	assert.Equal(t, []byte{0x00, 0x00, 0x00, 0x64}, value)
 
 	// Reset and find LOCAL_PREF
 	iter.Reset()
 	value, ok = iter.Find(AttrLocalPref)
 	require.True(t, ok)
-	assert.Equal(t, []byte{0x00, 0x00, 0x00, 0xC8}, value.Slice(data))
+	assert.Equal(t, []byte{0x00, 0x00, 0x00, 0xC8}, value)
 
 	// Find non-existent
 	iter.Reset()
@@ -154,11 +154,11 @@ func TestAttrIteratorCount(t *testing.T) {
 	assert.Equal(t, 3, iter.Count())
 }
 
-// TestAttrIteratorSpanValid verifies returned spans are valid.
+// TestAttrIteratorValueSlices verifies returned slices are correct.
 //
-// VALIDATES: Returned spans point to correct buffer regions
-// PREVENTS: Buffer overrun from invalid spans.
-func TestAttrIteratorSpanValid(t *testing.T) {
+// VALIDATES: Returned slices point to correct buffer regions
+// PREVENTS: Buffer overrun from invalid slicing.
+func TestAttrIteratorValueSlices(t *testing.T) {
 	data := []byte{
 		0x40, 0x01, 0x01, 0x00, // ORIGIN: value at offset 3, len 1
 		0x80, 0x04, 0x04, 0x00, 0x00, 0x00, 0x64, // MED: value at offset 7, len 4
@@ -168,13 +168,11 @@ func TestAttrIteratorSpanValid(t *testing.T) {
 
 	_, _, value, ok := iter.Next()
 	require.True(t, ok)
-	assert.True(t, value.Valid(len(data)))
-	assert.Equal(t, 3, value.Start)
-	assert.Equal(t, 1, value.Len)
+	assert.Equal(t, []byte{0x00}, value)
+	assert.Equal(t, 1, len(value))
 
 	_, _, value, ok = iter.Next()
 	require.True(t, ok)
-	assert.True(t, value.Valid(len(data)))
-	assert.Equal(t, 7, value.Start)
-	assert.Equal(t, 4, value.Len)
+	assert.Equal(t, []byte{0x00, 0x00, 0x00, 0x64}, value)
+	assert.Equal(t, 4, len(value))
 }
