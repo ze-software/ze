@@ -67,6 +67,7 @@ Complete IN ORDER. Do not skip steps.
 
 [ ] 8. TDD Planning - identify tests BEFORE implementation
       → Unit tests needed (write BEFORE implementation - strict TDD)
+      → Boundary tests for all numeric inputs (see tdd.md for 3-point rule)
       → Functional tests needed (write AFTER feature works - end of plan)
       → Test file locations
 
@@ -143,6 +144,11 @@ Present to user BEFORE writing code:
 **Unit tests:**
 - `pkg/.../xxx_test.go` - TestXxx: [what it validates]
 
+**Boundary tests:** (MANDATORY for numeric inputs)
+| Field | Last Valid | Invalid Below | Invalid Above |
+|-------|------------|---------------|---------------|
+| [field] | [value] | [value/N/A] | [value/N/A] |
+
 **Functional tests:** (if needed)
 - `qa/tests/xxx/` - [scenario description]
 
@@ -216,6 +222,11 @@ Write to `docs/plan/spec-<task-name>.md`:
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
 | `TestXxx` | `pkg/.../xxx_test.go` | [description] | |
+
+### Boundary Tests (MANDATORY for numeric inputs)
+| Field | Range | Last Valid | Invalid Below | Invalid Above |
+|-------|-------|------------|---------------|---------------|
+| [field] | [min-max] | [value] | [value or N/A] | [value or N/A] |
 
 ### Functional Tests
 | Test | Location | Scenario | Status |
@@ -306,6 +317,7 @@ If you had to investigate/debug something, ask:
 - [ ] Tests FAIL (output below)
 - [ ] Implementation complete
 - [ ] Tests PASS (output below)
+- [ ] Boundary tests cover all numeric inputs (last valid, first invalid above/below)
 
 ### Verification
 - [ ] `make lint` passes (26 linters including `govet`, `staticcheck`, `gosec`, `gocritic`)
