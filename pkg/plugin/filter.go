@@ -223,7 +223,7 @@ func (r FilterResult) AnnouncedByFamily(ctx *bgpctx.EncodingContext) []FamilyNLR
 
 	// Nil-safe: treat nil ctx as no ADD-PATH
 	if ctx == nil {
-		ctx = &bgpctx.EncodingContext{}
+		ctx = bgpctx.EncodingContextForASN4(false)
 	}
 
 	// MP-BGP path
@@ -271,7 +271,7 @@ func (r FilterResult) WithdrawnByFamily(ctx *bgpctx.EncodingContext) []FamilyNLR
 
 	// Nil-safe: treat nil ctx as no ADD-PATH
 	if ctx == nil {
-		ctx = &bgpctx.EncodingContext{}
+		ctx = bgpctx.EncodingContextForASN4(false)
 	}
 
 	// MP-BGP path

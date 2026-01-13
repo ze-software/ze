@@ -128,8 +128,8 @@ func TestLenMatchesWriteTo(t *testing.T) {
 func TestLenMatchesWriteToWithContext(t *testing.T) {
 	contexts := []*bgpctx.EncodingContext{
 		nil,
-		{ASN4: true},
-		{ASN4: false},
+		bgpctx.EncodingContextForASN4(true),
+		bgpctx.EncodingContextForASN4(false),
 	}
 
 	// AS_PATH - context-dependent
@@ -144,11 +144,11 @@ func TestLenMatchesWriteToWithContext(t *testing.T) {
 		for _, ctx := range contexts {
 			name := "nil"
 			if ctx != nil {
-				name = "ASN4=" + boolStr(ctx.ASN4)
+				name = "ASN4=" + boolStr(ctx.ASN4())
 			}
 
 			t.Run("ASPath_"+name, func(t *testing.T) {
-				asn4 := ctx == nil || ctx.ASN4
+				asn4 := ctx == nil || ctx.ASN4()
 				expectedLen := path.LenWithASN4(asn4)
 
 				buf := make([]byte, 65536)
@@ -167,8 +167,8 @@ func TestLenMatchesWriteToWithContext(t *testing.T) {
 		name := "nil"
 		expectedLen := 8 // Default ASN4
 		if ctx != nil {
-			name = "ASN4=" + boolStr(ctx.ASN4)
-			if !ctx.ASN4 {
+			name = "ASN4=" + boolStr(ctx.ASN4())
+			if !ctx.ASN4() {
 				expectedLen = 6
 			}
 		}

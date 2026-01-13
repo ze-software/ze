@@ -1530,7 +1530,7 @@ func buildRIBRouteUpdate(route *rib.Route, localAS uint32, isIBGP bool, ctx *nlr
 	off := 0
 
 	// Create encoding context for ASPath encoding
-	dstCtx := &bgpctx.EncodingContext{ASN4: ctx == nil || ctx.ASN4}
+	dstCtx := bgpctx.EncodingContextForASN4(ctx == nil || ctx.ASN4)
 
 	// 1. ORIGIN - use stored or default to IGP
 	origin := attribute.OriginIGP
@@ -1671,7 +1671,7 @@ func buildRIBRouteUpdate(route *rib.Route, localAS uint32, isIBGP bool, ctx *nlr
 func (p *Peer) sendUpdateWithSplit(update *message.Update, maxSize int, family nlri.Family) error {
 	// Determine Add-Path state for this family using sendCtx
 	// RFC 7911: Add-Path is negotiated per AFI/SAFI
-	addPath := p.sendCtx != nil && p.sendCtx.AddPath[family]
+	addPath := p.sendCtx != nil && p.sendCtx.AddPath(family)
 
 	chunks, err := message.SplitUpdateWithAddPath(update, maxSize, addPath)
 	if err != nil {

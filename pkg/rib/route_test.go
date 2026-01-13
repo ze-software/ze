@@ -273,7 +273,7 @@ func TestPackAttributesFor_ZeroCopy(t *testing.T) {
 	nextHop := netip.MustParseAddr("192.168.1.1")
 
 	// Create a context and register it
-	ctx := &bgpctx.EncodingContext{ASN4: true}
+	ctx := bgpctx.EncodingContextForASN4(true)
 	ctxID := bgpctx.Registry.Register(ctx)
 
 	// Simulated wire bytes (ORIGIN IGP attribute)
@@ -298,11 +298,11 @@ func TestPackAttributesFor_Reencode(t *testing.T) {
 	nextHop := netip.MustParseAddr("192.168.1.1")
 
 	// Source context (ASN4=true)
-	srcCtx := &bgpctx.EncodingContext{ASN4: true}
+	srcCtx := bgpctx.EncodingContextForASN4(true)
 	srcCtxID := bgpctx.Registry.Register(srcCtx)
 
 	// Destination context (ASN4=false) - different!
-	dstCtx := &bgpctx.EncodingContext{ASN4: false}
+	dstCtx := bgpctx.EncodingContextForASN4(false)
 	dstCtxID := bgpctx.Registry.Register(dstCtx)
 
 	// Route with attributes
@@ -334,7 +334,7 @@ func TestPackAttributesFor_NoCache(t *testing.T) {
 	nextHop := netip.MustParseAddr("192.168.1.1")
 
 	// Create dest context
-	dstCtx := &bgpctx.EncodingContext{ASN4: true}
+	dstCtx := bgpctx.EncodingContextForASN4(true)
 	dstCtxID := bgpctx.Registry.Register(dstCtx)
 
 	// Route without wire cache
@@ -360,7 +360,7 @@ func TestPackAttributesFor_WithASPath(t *testing.T) {
 	nextHop := netip.MustParseAddr("192.168.1.1")
 
 	// Dest context with ASN4
-	dstCtx := &bgpctx.EncodingContext{ASN4: true}
+	dstCtx := bgpctx.EncodingContextForASN4(true)
 	dstCtxID := bgpctx.Registry.Register(dstCtx)
 
 	// Route with AS_PATH
@@ -392,10 +392,7 @@ func TestPackNLRIFor_NoAddPath(t *testing.T) {
 	nextHop := netip.MustParseAddr("192.168.1.1")
 
 	// Context without ADD-PATH
-	ctx := &bgpctx.EncodingContext{
-		ASN4:    true,
-		AddPath: make(map[bgpctx.Family]bool),
-	}
+	ctx := bgpctx.EncodingContextWithAddPath(true, make(map[nlri.Family]bool))
 	ctxID := bgpctx.Registry.Register(ctx)
 
 	route := NewRoute(inet, nextHop, nil)
@@ -416,12 +413,9 @@ func TestPackNLRIFor_WithAddPath(t *testing.T) {
 	nextHop := netip.MustParseAddr("192.168.1.1")
 
 	// Context with ADD-PATH for IPv4 unicast
-	ctx := &bgpctx.EncodingContext{
-		ASN4: true,
-		AddPath: map[bgpctx.Family]bool{
-			{AFI: 1, SAFI: 1}: true, // IPv4 unicast
-		},
-	}
+	ctx := bgpctx.EncodingContextWithAddPath(true, map[nlri.Family]bool{
+		{AFI: 1, SAFI: 1}: true, // IPv4 unicast
+	})
 	ctxID := bgpctx.Registry.Register(ctx)
 
 	route := NewRoute(inet, nextHop, nil)
@@ -446,7 +440,7 @@ func TestPackNLRIFor_ZeroCopy(t *testing.T) {
 	inet := nlri.NewINET(nlri.IPv4Unicast, prefix, 42)
 	nextHop := netip.MustParseAddr("192.168.1.1")
 
-	ctx := &bgpctx.EncodingContext{ASN4: true}
+	ctx := bgpctx.EncodingContextForASN4(true)
 	ctxID := bgpctx.Registry.Register(ctx)
 
 	// Cached NLRI wire bytes
@@ -469,15 +463,12 @@ func TestPackNLRIFor_ReencodeOnMismatch(t *testing.T) {
 	inet := nlri.NewINET(nlri.IPv4Unicast, prefix, 42)
 	nextHop := netip.MustParseAddr("192.168.1.1")
 
-	srcCtx := &bgpctx.EncodingContext{ASN4: true}
+	srcCtx := bgpctx.EncodingContextForASN4(true)
 	srcCtxID := bgpctx.Registry.Register(srcCtx)
 
-	dstCtx := &bgpctx.EncodingContext{
-		ASN4: true,
-		AddPath: map[bgpctx.Family]bool{
-			{AFI: 1, SAFI: 1}: true,
-		},
-	}
+	dstCtx := bgpctx.EncodingContextWithAddPath(true, map[nlri.Family]bool{
+		{AFI: 1, SAFI: 1}: true,
+	})
 	dstCtxID := bgpctx.Registry.Register(dstCtx)
 
 	// Cached without ADD-PATH
@@ -517,7 +508,7 @@ func TestPackAttributesFor_ZeroContextID(t *testing.T) {
 	require.Equal(t, wireBytes, result, "same ID=0 should use cache")
 
 	// Request with registered ID - should re-encode (not use invalid cache)
-	ctx := &bgpctx.EncodingContext{ASN4: true}
+	ctx := bgpctx.EncodingContextForASN4(true)
 	ctxID := bgpctx.Registry.Register(ctx)
 	result2 := route.PackAttributesFor(ctxID)
 	require.NotEqual(t, wireBytes, result2, "different ID should re-encode, not use cache")
@@ -535,7 +526,7 @@ func TestPackAttributesFor_EmptyAttributes(t *testing.T) {
 	inet := nlri.NewINET(nlri.IPv4Unicast, prefix, 0)
 	nextHop := netip.MustParseAddr("192.168.1.1")
 
-	ctx := &bgpctx.EncodingContext{ASN4: true}
+	ctx := bgpctx.EncodingContextForASN4(true)
 	ctxID := bgpctx.Registry.Register(ctx)
 
 	// Route with no attributes and no AS_PATH
@@ -555,7 +546,7 @@ func TestPackNLRIFor_IPv6(t *testing.T) {
 	inet := nlri.NewINET(nlri.IPv6Unicast, prefix, 0)
 	nextHop := netip.MustParseAddr("192.168.1.1")
 
-	ctx := &bgpctx.EncodingContext{ASN4: true}
+	ctx := bgpctx.EncodingContextForASN4(true)
 	ctxID := bgpctx.Registry.Register(ctx)
 
 	route := NewRoute(inet, nextHop, nil)

@@ -355,7 +355,7 @@ func parseKnownAttribute(code AttributeCode, data []byte, ctx *bgpctx.EncodingCo
 	if ctx == nil {
 		return nil, fmt.Errorf("nil encoding context")
 	}
-	fourByteAS := ctx.ASN4
+	fourByteAS := ctx.ASN4()
 
 	switch code {
 	case AttrOrigin:

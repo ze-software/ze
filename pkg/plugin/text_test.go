@@ -13,7 +13,7 @@ import (
 )
 
 // testEncCtx is an empty encoding context for tests (no ADD-PATH).
-var testEncCtx = &bgpctx.EncodingContext{}
+var testEncCtx = bgpctx.EncodingContextForASN4(true)
 
 // TestFormatStateChange tests state event formatting.
 //

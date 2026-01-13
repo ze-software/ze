@@ -112,10 +112,10 @@ func TestFromNegotiatedRecv_Basic(t *testing.T) {
 	ctx := bgpctx.FromNegotiatedRecv(neg)
 
 	require.NotNil(t, ctx, "context should not be nil")
-	require.True(t, ctx.ASN4, "ASN4 should be true when both support it")
-	require.False(t, ctx.IsIBGP, "should be EBGP (different ASNs)")
-	require.Equal(t, uint32(65000), ctx.LocalAS)
-	require.Equal(t, uint32(65001), ctx.PeerAS)
+	require.True(t, ctx.ASN4(), "ASN4 should be true when both support it")
+	require.False(t, ctx.IsIBGP(), "should be EBGP (different ASNs)")
+	require.Equal(t, uint32(65000), ctx.LocalASN())
+	require.Equal(t, uint32(65001), ctx.PeerASN())
 }
 
 // TestFromNegotiatedSend_Basic verifies basic context creation for sending.
@@ -128,10 +128,10 @@ func TestFromNegotiatedSend_Basic(t *testing.T) {
 	ctx := bgpctx.FromNegotiatedSend(neg)
 
 	require.NotNil(t, ctx, "context should not be nil")
-	require.True(t, ctx.ASN4, "ASN4 should be true")
-	require.True(t, ctx.IsIBGP, "should be IBGP (same ASN)")
-	require.Equal(t, uint32(65000), ctx.LocalAS)
-	require.Equal(t, uint32(65000), ctx.PeerAS)
+	require.True(t, ctx.ASN4(), "ASN4 should be true")
+	require.True(t, ctx.IsIBGP(), "should be IBGP (same ASN)")
+	require.Equal(t, uint32(65000), ctx.LocalASN())
+	require.Equal(t, uint32(65000), ctx.PeerASN())
 }
 
 // TestFromNegotiatedNil verifies nil input handling.

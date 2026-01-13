@@ -45,13 +45,13 @@ func (m Mismatch) String() string {
 // advertise it in their OPEN messages.
 //
 // This struct uses a composite pattern with sub-components:
-//   - Identity: Peer identification (ASNs, Router IDs) - shared with WireContexts
-//   - Encoding: Wire encoding caps (ASN4, families, ADD-PATH) - shared with WireContexts
+//   - Identity: Peer identification (ASNs, Router IDs) - shared with EncodingContexts
+//   - Encoding: Wire encoding caps (ASN4, families, ADD-PATH) - shared with EncodingContexts
 //   - Session: Session-level caps (ExtendedMessage, GR) - owned by Negotiated only
 type Negotiated struct {
 	// Composite sub-components (new structure)
-	Identity *PeerIdentity // Shared with WireContexts
-	Encoding *EncodingCaps // Shared with WireContexts
+	Identity *PeerIdentity // Shared with EncodingContexts
+	Encoding *EncodingCaps // Shared with EncodingContexts
 	Session  *SessionCaps  // Owned by Negotiated only
 
 	// Backward compatibility fields (delegating to sub-components)

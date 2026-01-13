@@ -18,7 +18,7 @@ import (
 // PREVENTS: Oversized UPDATE messages being sent (until wire-level split implemented).
 func TestForwardUpdateSplitting(t *testing.T) {
 	// Create a large UPDATE that exceeds 4096 bytes
-	ctx := &bgpctx.EncodingContext{ASN4: true}
+	ctx := bgpctx.EncodingContextForASN4(true)
 	ctxID := bgpctx.Registry.Register(ctx)
 
 	attrBytes := []byte{
@@ -99,7 +99,7 @@ func TestForwardUpdateSplitting(t *testing.T) {
 // VALIDATES: Small UPDATE forwarded as-is (zero-copy preserved).
 // PREVENTS: Unnecessary splitting overhead.
 func TestForwardUpdateNoSplitWhenFits(t *testing.T) {
-	ctx := &bgpctx.EncodingContext{ASN4: true}
+	ctx := bgpctx.EncodingContextForASN4(true)
 	ctxID := bgpctx.Registry.Register(ctx)
 
 	attrBytes := []byte{
@@ -149,7 +149,7 @@ func TestForwardUpdateNoSplitWhenFits(t *testing.T) {
 // VALIDATES: Large UPDATE not split when peer supports Extended Message.
 // PREVENTS: Unnecessary splitting when destination can handle large messages.
 func TestForwardUpdateSplittingExtendedPeer(t *testing.T) {
-	ctx := &bgpctx.EncodingContext{ASN4: true}
+	ctx := bgpctx.EncodingContextForASN4(true)
 	ctxID := bgpctx.Registry.Register(ctx)
 
 	attrBytes := []byte{

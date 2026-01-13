@@ -8,7 +8,5 @@ package context
 var APIContextID ContextID
 
 func init() {
-	APIContextID = Registry.Register(&EncodingContext{
-		ASN4: true,
-	})
+	APIContextID = Registry.Register(EncodingContextForASN4(true))
 }

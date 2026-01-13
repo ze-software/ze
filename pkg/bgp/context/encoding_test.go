@@ -184,12 +184,12 @@ func TestASPathEncodingContextIntegration(t *testing.T) {
 	}
 
 	// Context with ASN4=true (NEW speaker)
-	ctxASN4 := &bgpctx.EncodingContext{ASN4: true}
-	packedASN4 := asPath.PackWithASN4(ctxASN4.ASN4)
+	ctxASN4 := bgpctx.EncodingContextForASN4(true)
+	packedASN4 := asPath.PackWithASN4(ctxASN4.ASN4())
 
 	// Context with ASN4=false (OLD speaker)
-	ctxNoASN4 := &bgpctx.EncodingContext{ASN4: false}
-	packedNoASN4 := asPath.PackWithASN4(ctxNoASN4.ASN4)
+	ctxNoASN4 := bgpctx.EncodingContextForASN4(false)
+	packedNoASN4 := asPath.PackWithASN4(ctxNoASN4.ASN4())
 
 	// ASN4 encoding should be 6 bytes (4-byte ASN)
 	require.Len(t, packedASN4, 6, "ASN4=true should produce 6-byte encoding")
@@ -272,19 +272,13 @@ func TestNLRIEncodingContextIntegration(t *testing.T) {
 	n := nlri.NewINET(nlri.Family{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast}, prefix, pathID)
 
 	// Context with AddPath=true
-	ctxAddPath := &bgpctx.EncodingContext{
-		ASN4:    true,
-		AddPath: map[bgpctx.Family]bool{{AFI: 1, SAFI: 1}: true},
-	}
+	ctxAddPath := bgpctx.EncodingContextWithAddPath(true, map[bgpctx.Family]bool{{AFI: 1, SAFI: 1}: true})
 	packCtxAddPath := ctxAddPath.ToPackContext(bgpctx.Family{AFI: 1, SAFI: 1})
 	packedWithPath := make([]byte, nlri.LenWithContext(n, packCtxAddPath))
 	nlri.WriteNLRI(n, packedWithPath, 0, packCtxAddPath)
 
 	// Context with AddPath=false
-	ctxNoAddPath := &bgpctx.EncodingContext{
-		ASN4:    true,
-		AddPath: map[bgpctx.Family]bool{{AFI: 1, SAFI: 1}: false},
-	}
+	ctxNoAddPath := bgpctx.EncodingContextWithAddPath(true, map[bgpctx.Family]bool{{AFI: 1, SAFI: 1}: false})
 	packCtxNoAddPath := ctxNoAddPath.ToPackContext(bgpctx.Family{AFI: 1, SAFI: 1})
 	packedWithoutPath := make([]byte, nlri.LenWithContext(n, packCtxNoAddPath))
 	nlri.WriteNLRI(n, packedWithoutPath, 0, packCtxNoAddPath)

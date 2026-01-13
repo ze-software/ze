@@ -130,7 +130,7 @@ func (p *ASPath) Pack() []byte {
 // Note: AS4_PATH merge/generation is handled at UPDATE processing level.
 // This method handles the encoding format based on dstCtx.ASN4.
 func (p *ASPath) PackWithContext(_, dstCtx *bgpctx.EncodingContext) []byte {
-	if dstCtx == nil || dstCtx.ASN4 {
+	if dstCtx == nil || dstCtx.ASN4() {
 		return p.PackWithASN4(true)
 	}
 	return p.PackWithASN4(false)
@@ -171,7 +171,7 @@ func (p *ASPath) WriteTo(buf []byte, off int) int {
 
 // WriteToWithContext writes AS_PATH with context-dependent ASN size.
 func (p *ASPath) WriteToWithContext(buf []byte, off int, _, dstCtx *bgpctx.EncodingContext) int {
-	if dstCtx == nil || dstCtx.ASN4 {
+	if dstCtx == nil || dstCtx.ASN4() {
 		return p.WriteToWithASN4(buf, off, true)
 	}
 	return p.WriteToWithASN4(buf, off, false)
@@ -202,7 +202,7 @@ func (p *ASPath) CheckedWriteTo(buf []byte, off int) (int, error) {
 // LenWithContext returns length based on encoding context.
 // RFC 6793: 4-byte ASNs for ASN4 peers, 2-byte for legacy.
 func (p *ASPath) LenWithContext(_, dstCtx *bgpctx.EncodingContext) int {
-	if dstCtx == nil || dstCtx.ASN4 {
+	if dstCtx == nil || dstCtx.ASN4() {
 		return p.LenWithASN4(true)
 	}
 	return p.LenWithASN4(false)

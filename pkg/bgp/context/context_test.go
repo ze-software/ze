@@ -3,276 +3,253 @@ package context
 import (
 	"testing"
 
+	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/capability"
 	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/nlri"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
-// TestEncodingContextHash_Deterministic verifies that identical contexts produce identical hashes.
+// TestEncodingContextDelegation verifies methods delegate to sub-components.
 //
-// VALIDATES: Hash() returns same value for structurally identical contexts.
+// VALIDATES: EncodingContext accessors return values from referenced sub-components.
 //
-// PREVENTS: Registry deduplication failures from non-deterministic hashing.
-func TestEncodingContextHash_Deterministic(t *testing.T) {
-	ctx1 := &EncodingContext{
-		ASN4:    true,
-		IsIBGP:  false,
-		LocalAS: 65000,
-		PeerAS:  65001,
-		AddPath: map[nlri.Family]bool{
-			{AFI: 1, SAFI: 1}: true,
-			{AFI: 2, SAFI: 1}: false,
-		},
-		ExtendedNextHop: map[nlri.Family]nlri.AFI{
-			{AFI: 1, SAFI: 1}: nlri.AFIIPv6, // IPv4 unicast can use IPv6 NH
-		},
+// PREVENTS: Wrong capability values due to failed delegation.
+func TestEncodingContextDelegation(t *testing.T) {
+	identity := &capability.PeerIdentity{
+		LocalASN:      65001,
+		PeerASN:       65002,
+		LocalRouterID: 0x0a000001,
+		PeerRouterID:  0x0a000002,
 	}
-
-	ctx2 := &EncodingContext{
-		ASN4:    true,
-		IsIBGP:  false,
-		LocalAS: 65000,
-		PeerAS:  65001,
-		AddPath: map[nlri.Family]bool{
-			{AFI: 1, SAFI: 1}: true,
-			{AFI: 2, SAFI: 1}: false,
+	encoding := &capability.EncodingCaps{
+		ASN4: true,
+		Families: []capability.Family{
+			{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast},
+			{AFI: nlri.AFIIPv6, SAFI: nlri.SAFIUnicast},
 		},
-		ExtendedNextHop: map[nlri.Family]nlri.AFI{
-			{AFI: 1, SAFI: 1}: nlri.AFIIPv6,
+		AddPathMode: map[capability.Family]capability.AddPathMode{
+			{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast}: capability.AddPathBoth,
+		},
+		ExtendedNextHop: map[capability.Family]capability.AFI{
+			{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast}: nlri.AFIIPv6,
 		},
 	}
 
-	hash1 := ctx1.Hash()
-	hash2 := ctx2.Hash()
+	ctx := NewEncodingContext(identity, encoding, DirectionRecv)
 
-	if hash1 != hash2 {
-		t.Errorf("identical contexts have different hashes: %x != %x", hash1, hash2)
-	}
+	// Test delegation to Identity
+	assert.Equal(t, uint32(65001), ctx.LocalASN())
+	assert.Equal(t, uint32(65002), ctx.PeerASN())
+	assert.False(t, ctx.IsIBGP())
 
-	// Same context should return same hash on multiple calls
-	h1 := ctx1.Hash()
-	h2 := ctx1.Hash()
-	if h1 != h2 {
-		t.Error("same context returns different hashes on multiple calls")
-	}
+	// Test delegation to Encoding
+	assert.True(t, ctx.ASN4())
+	assert.Len(t, ctx.Families(), 2)
+	assert.Equal(t, nlri.AFIIPv6, ctx.ExtendedNextHopFor(nlri.Family{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast}))
 }
 
-// TestEncodingContextHash_Different verifies that different contexts produce different hashes.
+// TestEncodingContextAddPath verifies ADD-PATH direction handling.
 //
-// VALIDATES: Hash() returns different values for structurally different contexts.
+// RFC 7911 Section 4: ADD-PATH mode is asymmetric
+//   - Receive: check for Receive or Both mode
+//   - Send: check for Send or Both mode
 //
-// PREVENTS: False deduplication of distinct contexts.
-func TestEncodingContextHash_Different(t *testing.T) {
-	base := &EncodingContext{
-		ASN4:    true,
-		IsIBGP:  false,
-		LocalAS: 65000,
-		PeerAS:  65001,
-		AddPath: map[nlri.Family]bool{
-			{AFI: 1, SAFI: 1}: true,
+// VALIDATES: AddPath returns correct result based on mode and direction.
+//
+// PREVENTS: Wrong path ID handling when ADD-PATH is negotiated.
+func TestEncodingContextAddPath(t *testing.T) {
+	identity := &capability.PeerIdentity{LocalASN: 65001, PeerASN: 65002}
+	encoding := &capability.EncodingCaps{
+		Families: []capability.Family{
+			{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast},
+			{AFI: nlri.AFIIPv6, SAFI: nlri.SAFIUnicast},
+			{AFI: nlri.AFIL2VPN, SAFI: nlri.SAFIEVPN},
+		},
+		AddPathMode: map[capability.Family]capability.AddPathMode{
+			{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast}: capability.AddPathReceive, // Recv only
+			{AFI: nlri.AFIIPv6, SAFI: nlri.SAFIUnicast}: capability.AddPathSend,    // Send only
+			{AFI: nlri.AFIL2VPN, SAFI: nlri.SAFIEVPN}:   capability.AddPathBoth,    // Both
 		},
 	}
 
 	tests := []struct {
-		name   string
-		modify func(*EncodingContext)
+		name      string
+		direction Direction
+		expects   map[nlri.Family]bool
 	}{
 		{
-			name: "different ASN4",
-			modify: func(ctx *EncodingContext) {
-				ctx.ASN4 = false
+			name:      "receive direction",
+			direction: DirectionRecv,
+			expects: map[nlri.Family]bool{
+				{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast}: true,  // Receive mode
+				{AFI: nlri.AFIIPv6, SAFI: nlri.SAFIUnicast}: false, // Send mode = no recv
+				{AFI: nlri.AFIL2VPN, SAFI: nlri.SAFIEVPN}:   true,  // Both mode
 			},
 		},
 		{
-			name: "different IsIBGP",
-			modify: func(ctx *EncodingContext) {
-				ctx.IsIBGP = true
-			},
-		},
-		{
-			name: "different LocalAS",
-			modify: func(ctx *EncodingContext) {
-				ctx.LocalAS = 65002
-			},
-		},
-		{
-			name: "different PeerAS",
-			modify: func(ctx *EncodingContext) {
-				ctx.PeerAS = 65002
-			},
-		},
-		{
-			name: "different AddPath",
-			modify: func(ctx *EncodingContext) {
-				ctx.AddPath = map[nlri.Family]bool{
-					{AFI: 1, SAFI: 1}: false,
-				}
-			},
-		},
-		{
-			name: "additional family",
-			modify: func(ctx *EncodingContext) {
-				ctx.AddPath = map[nlri.Family]bool{
-					{AFI: 1, SAFI: 1}: true,
-					{AFI: 2, SAFI: 1}: true,
-				}
+			name:      "send direction",
+			direction: DirectionSend,
+			expects: map[nlri.Family]bool{
+				{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast}: false, // Receive mode = no send
+				{AFI: nlri.AFIIPv6, SAFI: nlri.SAFIUnicast}: true,  // Send mode
+				{AFI: nlri.AFIL2VPN, SAFI: nlri.SAFIEVPN}:   true,  // Both mode
 			},
 		},
 	}
 
-	baseHash := base.Hash()
-
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			// Create a modified copy
-			modified := &EncodingContext{
-				ASN4:    base.ASN4,
-				IsIBGP:  base.IsIBGP,
-				LocalAS: base.LocalAS,
-				PeerAS:  base.PeerAS,
-				AddPath: make(map[nlri.Family]bool),
-			}
-			for k, v := range base.AddPath {
-				modified.AddPath[k] = v
-			}
-			tc.modify(modified)
-
-			if modified.Hash() == baseHash {
-				t.Errorf("modified context has same hash as base")
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			ctx := NewEncodingContext(identity, encoding, tt.direction)
+			for f, want := range tt.expects {
+				assert.Equal(t, want, ctx.AddPath(f), "AddPath(%v)", f)
 			}
 		})
 	}
 }
 
-// TestEncodingContextAddPathFor_True verifies AddPathFor returns true when enabled.
+// TestEncodingContextHash verifies hash consistency.
 //
-// VALIDATES: AddPathFor returns true for family with ADD-PATH enabled.
+// VALIDATES: Same parameters produce same hash.
 //
-// PREVENTS: Wrong encoding that omits path ID when ADD-PATH is negotiated.
-func TestEncodingContextAddPathFor_True(t *testing.T) {
-	ctx := &EncodingContext{
-		AddPath: map[nlri.Family]bool{
-			{AFI: 1, SAFI: 1}:   true,
-			{AFI: 2, SAFI: 1}:   false,
-			{AFI: 1, SAFI: 128}: true,
+// PREVENTS: Registry deduplication failures.
+func TestEncodingContextHash(t *testing.T) {
+	identity := &capability.PeerIdentity{LocalASN: 65001, PeerASN: 65002}
+	encoding := &capability.EncodingCaps{
+		ASN4: true,
+		Families: []capability.Family{
+			{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast},
+		},
+		AddPathMode: map[capability.Family]capability.AddPathMode{
+			{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast}: capability.AddPathBoth,
 		},
 	}
 
-	if !ctx.AddPathFor(nlri.Family{AFI: 1, SAFI: 1}) {
-		t.Error("AddPathFor should return true for IPv4 unicast")
-	}
+	ctx1 := NewEncodingContext(identity, encoding, DirectionRecv)
+	ctx2 := NewEncodingContext(identity, encoding, DirectionRecv)
 
-	if !ctx.AddPathFor(nlri.Family{AFI: 1, SAFI: 128}) {
-		t.Error("AddPathFor should return true for IPv4 MPLS VPN")
-	}
+	require.NotZero(t, ctx1.Hash())
+	assert.Equal(t, ctx1.Hash(), ctx2.Hash(), "Same params should produce same hash")
 }
 
-// TestEncodingContextAddPathFor_False verifies AddPathFor returns false when disabled.
+// TestEncodingContextHashDiffersByDirection verifies direction affects hash.
 //
-// VALIDATES: AddPathFor returns false for family with ADD-PATH disabled or absent.
+// VALIDATES: Recv and Send contexts have different hashes.
 //
-// PREVENTS: Wrong encoding that includes path ID when ADD-PATH is not negotiated.
-func TestEncodingContextAddPathFor_False(t *testing.T) {
-	ctx := &EncodingContext{
-		AddPath: map[nlri.Family]bool{
-			{AFI: 1, SAFI: 1}: true,
-			{AFI: 2, SAFI: 1}: false,
+// PREVENTS: Incorrect zero-copy when directions differ.
+func TestEncodingContextHashDiffersByDirection(t *testing.T) {
+	identity := &capability.PeerIdentity{LocalASN: 65001, PeerASN: 65002}
+	encoding := &capability.EncodingCaps{
+		ASN4: true,
+		Families: []capability.Family{
+			{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast},
+		},
+		AddPathMode: map[capability.Family]capability.AddPathMode{
+			{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast}: capability.AddPathBoth,
 		},
 	}
 
-	if ctx.AddPathFor(nlri.Family{AFI: 2, SAFI: 1}) {
-		t.Error("AddPathFor should return false for IPv6 unicast (explicitly false)")
-	}
+	recvCtx := NewEncodingContext(identity, encoding, DirectionRecv)
+	sendCtx := NewEncodingContext(identity, encoding, DirectionSend)
 
-	// Family not in map at all
-	if ctx.AddPathFor(nlri.Family{AFI: 1, SAFI: 2}) {
-		t.Error("AddPathFor should return false for family not in map")
-	}
+	assert.NotEqual(t, recvCtx.Hash(), sendCtx.Hash(),
+		"Different directions should produce different hashes")
 }
 
-// TestEncodingContextAddPathFor_NilMap verifies AddPathFor handles nil map safely.
+// TestEncodingContextHashDiffersByAddPath verifies addPath map affects hash.
 //
-// VALIDATES: AddPathFor returns false when AddPath map is nil.
+// VALIDATES: Different addPath produces different hash.
 //
-// PREVENTS: Panic from nil map access.
-func TestEncodingContextAddPathFor_NilMap(t *testing.T) {
-	ctx := &EncodingContext{
-		AddPath: nil,
+// PREVENTS: Wrong zero-copy decision when ADD-PATH differs.
+func TestEncodingContextHashDiffersByAddPath(t *testing.T) {
+	identity := &capability.PeerIdentity{LocalASN: 65001, PeerASN: 65002}
+
+	encoding1 := &capability.EncodingCaps{
+		ASN4: true,
+		Families: []capability.Family{
+			{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast},
+		},
+		AddPathMode: map[capability.Family]capability.AddPathMode{
+			{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast}: capability.AddPathBoth,
+		},
+	}
+	encoding2 := &capability.EncodingCaps{
+		ASN4: true,
+		Families: []capability.Family{
+			{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast},
+		},
+		AddPathMode: map[capability.Family]capability.AddPathMode{},
 	}
 
-	if ctx.AddPathFor(nlri.Family{AFI: 1, SAFI: 1}) {
-		t.Error("AddPathFor should return false for nil map")
-	}
+	ctx1 := NewEncodingContext(identity, encoding1, DirectionRecv)
+	ctx2 := NewEncodingContext(identity, encoding2, DirectionRecv)
+
+	assert.NotEqual(t, ctx1.Hash(), ctx2.Hash(),
+		"Different addPath should produce different hashes")
 }
 
 // TestEncodingContextToPackContext verifies PackContext conversion.
 //
-// VALIDATES: ToPackContext creates correct nlri.PackContext for given family.
+// VALIDATES: ToPackContext creates correct nlri.PackContext.
 //
 // PREVENTS: NLRI encoding with wrong ADD-PATH or ASN4 setting.
 func TestEncodingContextToPackContext(t *testing.T) {
-	ctx := &EncodingContext{
+	identity := &capability.PeerIdentity{LocalASN: 65001, PeerASN: 65002}
+	encoding := &capability.EncodingCaps{
 		ASN4: true,
-		AddPath: map[nlri.Family]bool{
-			{AFI: 1, SAFI: 1}: true,
-			{AFI: 2, SAFI: 1}: false,
+		Families: []capability.Family{
+			{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast},
+			{AFI: nlri.AFIIPv6, SAFI: nlri.SAFIUnicast},
+		},
+		AddPathMode: map[capability.Family]capability.AddPathMode{
+			{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast}: capability.AddPathBoth,
 		},
 	}
+
+	ctx := NewEncodingContext(identity, encoding, DirectionSend)
 
 	// IPv4 unicast with ADD-PATH
-	pc := ctx.ToPackContext(nlri.Family{AFI: 1, SAFI: 1})
-	if pc == nil {
-		t.Fatal("ToPackContext returned nil")
-	}
-	if !pc.ASN4 {
-		t.Error("PackContext.ASN4 should be true")
-	}
-	if !pc.AddPath {
-		t.Error("PackContext.AddPath should be true for IPv4 unicast")
-	}
+	pc := ctx.ToPackContext(nlri.Family{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast})
+	require.NotNil(t, pc)
+	assert.True(t, pc.ASN4)
+	assert.True(t, pc.AddPath, "IPv4 unicast should have ADD-PATH enabled")
 
 	// IPv6 unicast without ADD-PATH
-	pc2 := ctx.ToPackContext(nlri.Family{AFI: 2, SAFI: 1})
-	if pc2 == nil {
-		t.Fatal("ToPackContext returned nil")
-	}
-	if !pc2.ASN4 {
-		t.Error("PackContext.ASN4 should be true")
-	}
-	if pc2.AddPath {
-		t.Error("PackContext.AddPath should be false for IPv6 unicast")
-	}
+	pc2 := ctx.ToPackContext(nlri.Family{AFI: nlri.AFIIPv6, SAFI: nlri.SAFIUnicast})
+	require.NotNil(t, pc2)
+	assert.True(t, pc2.ASN4)
+	assert.False(t, pc2.AddPath, "IPv6 unicast should NOT have ADD-PATH enabled")
 }
 
-// TestEncodingContextExtendedNextHopFor verifies ExtendedNextHopFor lookup.
+// TestEncodingContextForASN4 verifies the helper constructor.
 //
-// VALIDATES: ExtendedNextHopFor returns correct next-hop AFI per family.
+// VALIDATES: EncodingContextForASN4 creates context with correct ASN4 setting.
 //
-// PREVENTS: Wrong next-hop encoding when RFC 8950 is negotiated.
-func TestEncodingContextExtendedNextHopFor(t *testing.T) {
-	ctx := &EncodingContext{
-		ExtendedNextHop: map[nlri.Family]nlri.AFI{
-			{AFI: 1, SAFI: 1}: nlri.AFIIPv6, // IPv4 unicast can use IPv6 NH
+// PREVENTS: Wrong ASN encoding in attribute packing.
+func TestEncodingContextForASN4(t *testing.T) {
+	ctx4 := EncodingContextForASN4(true)
+	require.NotNil(t, ctx4)
+	assert.True(t, ctx4.ASN4())
+
+	ctx2 := EncodingContextForASN4(false)
+	require.NotNil(t, ctx2)
+	assert.False(t, ctx2.ASN4())
+}
+
+// TestEncodingContextAddPathFor verifies the AddPathFor alias.
+//
+// VALIDATES: AddPathFor returns same result as AddPath.
+//
+// PREVENTS: API compatibility issues.
+func TestEncodingContextAddPathFor(t *testing.T) {
+	identity := &capability.PeerIdentity{LocalASN: 65001, PeerASN: 65002}
+	encoding := &capability.EncodingCaps{
+		AddPathMode: map[capability.Family]capability.AddPathMode{
+			{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast}: capability.AddPathSend,
 		},
 	}
 
-	// IPv4 unicast should return AFIIPv6 (can use IPv6 next-hop)
-	nhAFI := ctx.ExtendedNextHopFor(nlri.Family{AFI: 1, SAFI: 1})
-	if nhAFI != nlri.AFIIPv6 {
-		t.Errorf("ExtendedNextHopFor should return AFIIPv6 for IPv4 unicast, got %v", nhAFI)
-	}
+	ctx := NewEncodingContext(identity, encoding, DirectionSend)
+	f := nlri.Family{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast}
 
-	// Family not in map should return 0
-	nhAFI2 := ctx.ExtendedNextHopFor(nlri.Family{AFI: 2, SAFI: 1})
-	if nhAFI2 != 0 {
-		t.Errorf("ExtendedNextHopFor should return 0 for family not in map, got %v", nhAFI2)
-	}
-
-	// Nil map should return 0
-	ctx2 := &EncodingContext{}
-	nhAFI3 := ctx2.ExtendedNextHopFor(nlri.Family{AFI: 1, SAFI: 1})
-	if nhAFI3 != 0 {
-		t.Errorf("ExtendedNextHopFor should return 0 for nil map, got %v", nhAFI3)
-	}
+	assert.Equal(t, ctx.AddPath(f), ctx.AddPathFor(f))
 }
-
-// Ensure PackContext import is used.
-var _ = nlri.PackContext{}

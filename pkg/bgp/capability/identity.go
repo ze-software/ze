@@ -1,7 +1,7 @@
 package capability
 
 // PeerIdentity holds peer identification data from OPEN message exchange.
-// Shared between Negotiated and both WireContexts (recv/send).
+// Shared between Negotiated and EncodingContexts (recv/send).
 // Immutable after session creation.
 type PeerIdentity struct {
 	// LocalASN is our AS number.

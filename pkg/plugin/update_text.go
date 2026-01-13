@@ -430,11 +430,11 @@ func formatLargeCommunity(lc LargeCommunity) string {
 func originToString(o uint8) string {
 	switch o {
 	case 0:
-		return "igp"
+		return originIGP
 	case 1:
-		return "egp"
+		return originEGP
 	case 2:
-		return "incomplete"
+		return originIncomplete
 	default:
 		return fmt.Sprintf("%d", o)
 	}
@@ -444,7 +444,7 @@ func originToString(o uint8) string {
 // Returns the number of args consumed (0 if keyword not handled), or error.
 func parseCommonAttributeText(key string, args []string, idx int, attrs *parsedAttrs) (int, error) {
 	switch key {
-	case "origin":
+	case kwOrigin:
 		if idx+1 >= len(args) {
 			return 0, fmt.Errorf("missing origin value")
 		}

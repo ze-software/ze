@@ -66,8 +66,8 @@ func TestAttrLenWithContext_MatchesPackWithContext(t *testing.T) {
 		ctx  *bgpctx.EncodingContext
 	}{
 		{"nil", nil},
-		{"ASN4=true", &bgpctx.EncodingContext{ASN4: true}},
-		{"ASN4=false", &bgpctx.EncodingContext{ASN4: false}},
+		{"ASN4=true", bgpctx.EncodingContextForASN4(true)},
+		{"ASN4=false", bgpctx.EncodingContextForASN4(false)},
 	}
 
 	for _, tc := range testCases {
@@ -110,15 +110,15 @@ func TestAttrLenWithContext_MatchesWriteToWithContext(t *testing.T) {
 
 	contexts := []*bgpctx.EncodingContext{
 		nil,
-		{ASN4: true},
-		{ASN4: false},
+		bgpctx.EncodingContextForASN4(true),
+		bgpctx.EncodingContextForASN4(false),
 	}
 
 	for _, tc := range testCases {
 		for _, ctx := range contexts {
 			ctxName := ctxNameNil
 			if ctx != nil {
-				if ctx.ASN4 {
+				if ctx.ASN4() {
 					ctxName = "ASN4=true"
 				} else {
 					ctxName = "ASN4=false"
@@ -166,15 +166,15 @@ func TestWriteAttrToWithContext_MatchesPack(t *testing.T) {
 
 	contexts := []*bgpctx.EncodingContext{
 		nil,
-		{ASN4: true},
-		{ASN4: false},
+		bgpctx.EncodingContextForASN4(true),
+		bgpctx.EncodingContextForASN4(false),
 	}
 
 	for _, tc := range testCases {
 		for _, ctx := range contexts {
 			ctxName := ctxNameNil
 			if ctx != nil {
-				if ctx.ASN4 {
+				if ctx.ASN4() {
 					ctxName = "ASN4=true"
 				} else {
 					ctxName = "ASN4=false"

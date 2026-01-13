@@ -249,7 +249,7 @@ func (a *Aggregator) Pack() []byte {
 // 6-byte format (2-byte ASN + 4-byte IP) when dstCtx.ASN4=false.
 // Large ASNs (>65535) are encoded as AS_TRANS (23456) in 2-byte format.
 func (a *Aggregator) PackWithContext(_, dstCtx *bgpctx.EncodingContext) []byte {
-	if dstCtx == nil || dstCtx.ASN4 {
+	if dstCtx == nil || dstCtx.ASN4() {
 		// 8-byte format: 4-byte ASN + 4-byte IP
 		buf := make([]byte, 8)
 		binary.BigEndian.PutUint32(buf[0:4], a.ASN)
@@ -277,7 +277,7 @@ func (a *Aggregator) WriteTo(buf []byte, off int) int {
 
 // WriteToWithContext writes AGGREGATOR with context-dependent format.
 func (a *Aggregator) WriteToWithContext(buf []byte, off int, _, dstCtx *bgpctx.EncodingContext) int {
-	if dstCtx == nil || dstCtx.ASN4 {
+	if dstCtx == nil || dstCtx.ASN4() {
 		// 8-byte format: 4-byte ASN + 4-byte IP
 		binary.BigEndian.PutUint32(buf[off:], a.ASN)
 		copy(buf[off+4:], a.Address.AsSlice())
@@ -305,7 +305,7 @@ func (a *Aggregator) CheckedWriteTo(buf []byte, off int) (int, error) {
 // LenWithContext returns length based on encoding context.
 // RFC 6793: 8 bytes for 4-byte ASN, 6 bytes for 2-byte ASN.
 func (a *Aggregator) LenWithContext(_, dstCtx *bgpctx.EncodingContext) int {
-	if dstCtx == nil || dstCtx.ASN4 {
+	if dstCtx == nil || dstCtx.ASN4() {
 		return 8
 	}
 	return 6

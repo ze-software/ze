@@ -12,16 +12,8 @@ import (
 
 // Test contexts for PackWithContext tests.
 var (
-	ctxASN4 = &bgpctx.EncodingContext{
-		ASN4:    true,
-		LocalAS: 65001,
-		PeerAS:  65002,
-	}
-	ctxASN2 = &bgpctx.EncodingContext{
-		ASN4:    false,
-		LocalAS: 65001,
-		PeerAS:  65002,
-	}
+	ctxASN4 = bgpctx.EncodingContextForASN4(true)
+	ctxASN2 = bgpctx.EncodingContextForASN4(false)
 )
 
 // =============================================================================

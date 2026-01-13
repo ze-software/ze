@@ -29,7 +29,7 @@ func packAttrs(attrs ...[]byte) []byte {
 
 // setupTestContext registers a test context and returns its ID.
 func setupTestContext(asn4 bool) bgpctx.ContextID {
-	ctx := &bgpctx.EncodingContext{ASN4: asn4}
+	ctx := bgpctx.EncodingContextForASN4(asn4)
 	return bgpctx.Registry.Register(ctx)
 }
 

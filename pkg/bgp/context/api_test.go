@@ -19,7 +19,7 @@ func TestAPIContextID(t *testing.T) {
 	}
 
 	// ASN4 must be true for API input (modern encoding)
-	if !ctx.ASN4 {
+	if !ctx.ASN4() {
 		t.Error("APIContextID: want ASN4=true, got false")
 	}
 }

@@ -225,7 +225,7 @@ func (c *CommitService) packAttributesWithASPath(attrs []attribute.Attribute, as
 	// Build encoding context for ASN4-aware encoding
 	var dstCtx *bgpctx.EncodingContext
 	if c.negotiated != nil {
-		dstCtx = &bgpctx.EncodingContext{ASN4: c.negotiated.ASN4}
+		dstCtx = bgpctx.EncodingContextForASN4(c.negotiated.ASN4)
 	}
 
 	// Phase 1: Identify attributes and calculate total size
@@ -331,7 +331,7 @@ func attrSize(attr attribute.Attribute) int {
 //   - AS_PATH: 2-byte vs 4-byte ASN encoding
 //   - AGGREGATOR: 6-byte vs 8-byte format
 func attrSizeWithContext(attr attribute.Attribute, dstCtx *bgpctx.EncodingContext) int {
-	asn4 := dstCtx == nil || dstCtx.ASN4
+	asn4 := dstCtx == nil || dstCtx.ASN4()
 
 	var valueLen int
 	switch a := attr.(type) {

@@ -3,6 +3,9 @@ package context
 import (
 	"sync"
 	"testing"
+
+	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/capability"
+	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/nlri"
 )
 
 // TestRegistryRegister_NewContext verifies that Register returns a new ID.
@@ -13,17 +16,17 @@ import (
 func TestRegistryRegister_NewContext(t *testing.T) {
 	r := NewRegistry()
 
-	ctx1 := &EncodingContext{
-		ASN4:    true,
-		LocalAS: 65000,
-		PeerAS:  65001,
-	}
+	ctx1 := NewEncodingContext(
+		&capability.PeerIdentity{LocalASN: 65000, PeerASN: 65001},
+		&capability.EncodingCaps{ASN4: true},
+		DirectionRecv,
+	)
 
-	ctx2 := &EncodingContext{
-		ASN4:    false,
-		LocalAS: 65002,
-		PeerAS:  65003,
-	}
+	ctx2 := NewEncodingContext(
+		&capability.PeerIdentity{LocalASN: 65002, PeerASN: 65003},
+		&capability.EncodingCaps{ASN4: false},
+		DirectionRecv,
+	)
 
 	id1 := r.Register(ctx1)
 	id2 := r.Register(ctx2)
@@ -41,23 +44,16 @@ func TestRegistryRegister_NewContext(t *testing.T) {
 func TestRegistryRegister_Dedup(t *testing.T) {
 	r := NewRegistry()
 
-	ctx1 := &EncodingContext{
-		ASN4:    true,
-		LocalAS: 65000,
-		PeerAS:  65001,
-		AddPath: map[Family]bool{
-			{AFI: 1, SAFI: 1}: true,
+	identity := &capability.PeerIdentity{LocalASN: 65000, PeerASN: 65001}
+	encoding := &capability.EncodingCaps{
+		ASN4: true,
+		AddPathMode: map[capability.Family]capability.AddPathMode{
+			{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast}: capability.AddPathBoth,
 		},
 	}
 
-	ctx2 := &EncodingContext{
-		ASN4:    true,
-		LocalAS: 65000,
-		PeerAS:  65001,
-		AddPath: map[Family]bool{
-			{AFI: 1, SAFI: 1}: true,
-		},
-	}
+	ctx1 := NewEncodingContext(identity, encoding, DirectionRecv)
+	ctx2 := NewEncodingContext(identity, encoding, DirectionRecv)
 
 	id1 := r.Register(ctx1)
 	id2 := r.Register(ctx2)
@@ -75,11 +71,11 @@ func TestRegistryRegister_Dedup(t *testing.T) {
 func TestRegistryGet_Exists(t *testing.T) {
 	r := NewRegistry()
 
-	ctx := &EncodingContext{
-		ASN4:    true,
-		LocalAS: 65000,
-		PeerAS:  65001,
-	}
+	ctx := NewEncodingContext(
+		&capability.PeerIdentity{LocalASN: 65000, PeerASN: 65001},
+		&capability.EncodingCaps{ASN4: true},
+		DirectionRecv,
+	)
 
 	id := r.Register(ctx)
 	retrieved := r.Get(id)
@@ -88,14 +84,14 @@ func TestRegistryGet_Exists(t *testing.T) {
 		t.Fatal("Get returned nil for registered context")
 	}
 
-	if retrieved.ASN4 != ctx.ASN4 {
-		t.Errorf("ASN4 mismatch: got %v, want %v", retrieved.ASN4, ctx.ASN4)
+	if retrieved.ASN4() != ctx.ASN4() {
+		t.Errorf("ASN4 mismatch: got %v, want %v", retrieved.ASN4(), ctx.ASN4())
 	}
-	if retrieved.LocalAS != ctx.LocalAS {
-		t.Errorf("LocalAS mismatch: got %d, want %d", retrieved.LocalAS, ctx.LocalAS)
+	if retrieved.LocalASN() != ctx.LocalASN() {
+		t.Errorf("LocalASN mismatch: got %d, want %d", retrieved.LocalASN(), ctx.LocalASN())
 	}
-	if retrieved.PeerAS != ctx.PeerAS {
-		t.Errorf("PeerAS mismatch: got %d, want %d", retrieved.PeerAS, ctx.PeerAS)
+	if retrieved.PeerASN() != ctx.PeerASN() {
+		t.Errorf("PeerASN mismatch: got %d, want %d", retrieved.PeerASN(), ctx.PeerASN())
 	}
 }
 
@@ -131,11 +127,14 @@ func TestRegistryConcurrent(t *testing.T) {
 		go func(seed int) {
 			defer wg.Done()
 			for j := 0; j < numOps; j++ {
-				ctx := &EncodingContext{
-					ASN4:    (seed+j)%2 == 0,
-					LocalAS: uint32(seed % 65536),     //nolint:gosec // test-only, no security risk
-					PeerAS:  uint32((j % 10) + 65000), //nolint:gosec // test-only, no security risk
-				}
+				ctx := NewEncodingContext(
+					&capability.PeerIdentity{
+						LocalASN: uint32(seed % 65536),     //nolint:gosec // test-only
+						PeerASN:  uint32((j % 10) + 65000), //nolint:gosec // test-only
+					},
+					&capability.EncodingCaps{ASN4: (seed+j)%2 == 0},
+					DirectionRecv,
+				)
 				id := r.Register(ctx)
 				retrieved := r.Get(id)
 				if retrieved == nil {
@@ -160,9 +159,22 @@ func TestRegistryCount(t *testing.T) {
 		t.Errorf("new registry should have 0 contexts, got %d", r.Count())
 	}
 
-	ctx1 := &EncodingContext{LocalAS: 65000}
-	ctx2 := &EncodingContext{LocalAS: 65001}
-	ctx3 := &EncodingContext{LocalAS: 65000} // Same as ctx1
+	ctx1 := NewEncodingContext(
+		&capability.PeerIdentity{LocalASN: 65000, PeerASN: 65001},
+		nil,
+		DirectionRecv,
+	)
+	ctx2 := NewEncodingContext(
+		&capability.PeerIdentity{LocalASN: 65001, PeerASN: 65002},
+		nil,
+		DirectionRecv,
+	)
+	// ctx3 has same params as ctx1, should deduplicate
+	ctx3 := NewEncodingContext(
+		&capability.PeerIdentity{LocalASN: 65000, PeerASN: 65001},
+		nil,
+		DirectionRecv,
+	)
 
 	r.Register(ctx1)
 	if r.Count() != 1 {

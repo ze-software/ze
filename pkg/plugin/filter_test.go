@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/attribute"
+	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/capability"
 	bgpctx "codeberg.org/thomas-mangin/zebgp/pkg/bgp/context"
 )
 
@@ -13,16 +14,20 @@ import (
 const testPrefix10 = "10.0.0.0/24"
 
 // emptyEncCtx is an empty encoding context for tests (no ADD-PATH).
-var emptyEncCtx = &bgpctx.EncodingContext{}
+var emptyEncCtx = bgpctx.EncodingContextForASN4(true)
 
 // testEncodingContext creates an encoding context for tests.
 func testEncodingContext() bgpctx.ContextID {
-	ctx := &bgpctx.EncodingContext{
-		ASN4:    true,
-		LocalAS: 65001,
-		PeerAS:  65001,
-		IsIBGP:  true,
-	}
+	ctx := bgpctx.NewEncodingContext(
+		&capability.PeerIdentity{
+			LocalASN: 65001,
+			PeerASN:  65001,
+		},
+		&capability.EncodingCaps{
+			ASN4: true,
+		},
+		bgpctx.DirectionRecv,
+	)
 	return bgpctx.Registry.Register(ctx)
 }
 

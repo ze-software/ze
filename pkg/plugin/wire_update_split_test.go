@@ -10,6 +10,9 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// noAddPathCtx is an encoding context without ADD-PATH, for tests that don't need ADD-PATH.
+var noAddPathCtx = bgpctx.EncodingContextForASN4(true)
+
 // =============================================================================
 // SplitWireUpdate Tests
 // =============================================================================
@@ -24,7 +27,7 @@ func TestSplitWireUpdate_SmallFits(t *testing.T) {
 
 	wu := NewWireUpdate(payload, 0)
 
-	chunks, err := SplitWireUpdate(wu, 4096, nil)
+	chunks, err := SplitWireUpdate(wu, 4096, noAddPathCtx)
 	require.NoError(t, err)
 	require.Len(t, chunks, 1)
 	assert.Equal(t, payload, chunks[0].Payload())
@@ -42,7 +45,7 @@ func TestSplitWireUpdate_ExactFit(t *testing.T) {
 
 	wu := NewWireUpdate(payload, 0)
 
-	chunks, err := SplitWireUpdate(wu, 12, nil)
+	chunks, err := SplitWireUpdate(wu, 12, noAddPathCtx)
 	require.NoError(t, err)
 	require.Len(t, chunks, 1, "exact fit should not split")
 }
@@ -63,7 +66,7 @@ func TestSplitWireUpdate_IPv4NLRIOverflow(t *testing.T) {
 	wu := NewWireUpdate(payload, 0)
 
 	// maxBodySize = 50 bytes
-	chunks, err := SplitWireUpdate(wu, 50, nil)
+	chunks, err := SplitWireUpdate(wu, 50, noAddPathCtx)
 	require.NoError(t, err)
 	require.Greater(t, len(chunks), 1, "should split into multiple chunks")
 
@@ -97,7 +100,7 @@ func TestSplitWireUpdate_WithdrawnOverflow(t *testing.T) {
 	wu := NewWireUpdate(payload, 0)
 
 	// maxBodySize = 50 bytes
-	chunks, err := SplitWireUpdate(wu, 50, nil)
+	chunks, err := SplitWireUpdate(wu, 50, noAddPathCtx)
 	require.NoError(t, err)
 	require.Greater(t, len(chunks), 1, "should split withdrawals")
 
@@ -120,7 +123,7 @@ func TestSplitWireUpdate_EndOfRIB(t *testing.T) {
 	payload := buildTestUpdatePayload(nil, nil, nil)
 	wu := NewWireUpdate(payload, 0)
 
-	chunks, err := SplitWireUpdate(wu, 4096, nil)
+	chunks, err := SplitWireUpdate(wu, 4096, noAddPathCtx)
 	require.NoError(t, err)
 	require.Len(t, chunks, 1)
 	assert.Equal(t, payload, chunks[0].Payload())
@@ -139,7 +142,7 @@ func TestSplitWireUpdate_SingleNLRITooLarge(t *testing.T) {
 
 	wu := NewWireUpdate(payload, 0)
 
-	_, err := SplitWireUpdate(wu, 10, nil)
+	_, err := SplitWireUpdate(wu, 10, noAddPathCtx)
 	require.Error(t, err)
 }
 
@@ -157,7 +160,7 @@ func TestSplitWireUpdate_AllChunksValid(t *testing.T) {
 
 	wu := NewWireUpdate(payload, 0)
 
-	chunks, err := SplitWireUpdate(wu, 50, nil)
+	chunks, err := SplitWireUpdate(wu, 50, noAddPathCtx)
 	require.NoError(t, err)
 
 	// Each chunk should have valid structure
@@ -194,11 +197,9 @@ func TestSplitWireUpdate_AddPath(t *testing.T) {
 	wu := NewWireUpdate(payload, 0)
 
 	// Context with ADD-PATH enabled for IPv4 unicast
-	ctx := &bgpctx.EncodingContext{
-		AddPath: map[nlri.Family]bool{
-			{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast}: true,
-		},
-	}
+	ctx := bgpctx.EncodingContextWithAddPath(true, map[nlri.Family]bool{
+		{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast}: true,
+	})
 
 	// maxBodySize = 50, overhead ~8, leaves ~42 for NLRI
 	// Each Add-Path /24 = 8 bytes, so ~5 per chunk
@@ -230,7 +231,7 @@ func TestSplitWireUpdate_AddPath(t *testing.T) {
 // VALIDATES: All split chunks preserve source context ID.
 // PREVENTS: Context loss breaking zero-copy forwarding.
 func TestSplitWireUpdate_SourceCtxIDPreserved(t *testing.T) {
-	ctx := &bgpctx.EncodingContext{ASN4: true}
+	ctx := bgpctx.EncodingContextForASN4(true)
 	ctxID := bgpctx.Registry.Register(ctx)
 
 	var nlriData []byte
@@ -242,7 +243,7 @@ func TestSplitWireUpdate_SourceCtxIDPreserved(t *testing.T) {
 
 	wu := NewWireUpdate(payload, ctxID)
 
-	chunks, err := SplitWireUpdate(wu, 50, nil)
+	chunks, err := SplitWireUpdate(wu, 50, noAddPathCtx)
 	require.NoError(t, err)
 	require.Greater(t, len(chunks), 1)
 
@@ -278,7 +279,7 @@ func TestSplitWireUpdate_BaseAttrsTooLarge(t *testing.T) {
 	wu := NewWireUpdate(payload, 0)
 
 	// maxSize = 50, but baseAttrs = 89 bytes (4 ORIGIN + 85 AS_PATH)
-	_, err := SplitWireUpdate(wu, 50, nil)
+	_, err := SplitWireUpdate(wu, 50, noAddPathCtx)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "base attributes")
 }
@@ -327,12 +328,10 @@ func TestSplitWireUpdate_AddPathPerFamily(t *testing.T) {
 	wu := NewWireUpdate(payload, 0)
 
 	// Context with ADD-PATH enabled for IPv6 unicast ONLY (not IPv4)
-	ctx := &bgpctx.EncodingContext{
-		AddPath: map[nlri.Family]bool{
-			{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast}: false,
-			{AFI: nlri.AFIIPv6, SAFI: nlri.SAFIUnicast}: true,
-		},
-	}
+	ctx := bgpctx.EncodingContextWithAddPath(true, map[nlri.Family]bool{
+		{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast}: false,
+		{AFI: nlri.AFIIPv6, SAFI: nlri.SAFIUnicast}: true,
+	})
 
 	// Should split successfully using IPv6 ADD-PATH state
 	chunks, err := SplitWireUpdate(wu, 80, ctx)
@@ -375,7 +374,7 @@ func TestSplitWireUpdate_MalformedInput(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			wu := NewWireUpdate(tt.payload, 0)
-			_, err := SplitWireUpdate(wu, tt.maxBodySize, nil)
+			_, err := SplitWireUpdate(wu, tt.maxBodySize, noAddPathCtx)
 			require.Error(t, err)
 			require.ErrorIs(t, err, ErrUpdateTruncated)
 		})
@@ -392,7 +391,7 @@ func TestSplitWireUpdate_FastPathNoValidation(t *testing.T) {
 	wu := NewWireUpdate(payload, 0)
 
 	// No error from SplitWireUpdate - fast path returns original
-	chunks, err := SplitWireUpdate(wu, 4096, nil)
+	chunks, err := SplitWireUpdate(wu, 4096, noAddPathCtx)
 	require.NoError(t, err, "fast path should not validate")
 	require.Len(t, chunks, 1)
 	assert.Equal(t, payload, chunks[0].Payload())
@@ -417,7 +416,7 @@ func TestSplitWireUpdate_OutputChunksAccessible(t *testing.T) {
 
 	wu := NewWireUpdate(payload, 0)
 
-	chunks, err := SplitWireUpdate(wu, 50, nil)
+	chunks, err := SplitWireUpdate(wu, 50, noAddPathCtx)
 	require.NoError(t, err)
 	require.Greater(t, len(chunks), 1, "should split into multiple chunks")
 
@@ -458,7 +457,7 @@ func TestSplitWireUpdate_BaseAttrsInAllChunks(t *testing.T) {
 	// Split with small max to force multiple chunks
 	// overhead = 4 (length fields) + 13 (attrs) = 17, leaving ~33 for NLRI
 	// Each /24 = 4 bytes, so ~8 per chunk
-	chunks, err := SplitWireUpdate(wu, 50, nil)
+	chunks, err := SplitWireUpdate(wu, 50, noAddPathCtx)
 	require.NoError(t, err)
 	require.Greater(t, len(chunks), 1, "should split into multiple chunks")
 
@@ -501,7 +500,7 @@ func TestSplitWireUpdate_SourceIDPreserved(t *testing.T) {
 	wu := NewWireUpdate(payload, 0)
 	wu.SetSourceID(42)
 
-	chunks, err := SplitWireUpdate(wu, 50, nil)
+	chunks, err := SplitWireUpdate(wu, 50, noAddPathCtx)
 	require.NoError(t, err)
 	require.Greater(t, len(chunks), 1, "should split into multiple chunks")
 
@@ -571,7 +570,7 @@ func TestSplitWireUpdate_MixedIPv4AndMP(t *testing.T) {
 	// - length fields: 4 bytes
 	// Total: ~258 bytes
 	// Use maxBodySize=150 to force 2+ chunks while allowing all content types
-	chunks, err := SplitWireUpdate(wu, 150, nil)
+	chunks, err := SplitWireUpdate(wu, 150, noAddPathCtx)
 	require.NoError(t, err)
 	require.Greater(t, len(chunks), 1, "should split into multiple chunks")
 
@@ -736,7 +735,7 @@ func TestSeparateMPAttributes_ExtendedLength(t *testing.T) {
 func TestSplitIPv4NLRIs_AllFit(t *testing.T) {
 	nlriData := []byte{0x18, 0xC0, 0xA8, 0x01, 0x18, 0xC0, 0xA8, 0x02} // 8 bytes
 
-	fitting, remaining, err := splitIPv4NLRIs(nlriData, 100, nil)
+	fitting, remaining, err := splitIPv4NLRIs(nlriData, 100, noAddPathCtx)
 	require.NoError(t, err)
 	assert.Equal(t, nlriData, fitting)
 	assert.Empty(t, remaining)
@@ -754,7 +753,7 @@ func TestSplitIPv4NLRIs_Partial(t *testing.T) {
 		0x18, 0xC0, 0xA8, 0x03, // /24 #3
 	}
 
-	fitting, remaining, err := splitIPv4NLRIs(nlriData, 10, nil)
+	fitting, remaining, err := splitIPv4NLRIs(nlriData, 10, noAddPathCtx)
 	require.NoError(t, err)
 	assert.Equal(t, nlriData[:8], fitting) // 2 /24s fit
 	assert.Equal(t, nlriData[8:], remaining)
@@ -767,7 +766,7 @@ func TestSplitIPv4NLRIs_Partial(t *testing.T) {
 func TestSplitIPv4NLRIs_FirstTooLarge(t *testing.T) {
 	nlriData := []byte{0x20, 0x0A, 0x00, 0x00, 0x01} // /32 = 5 bytes
 
-	_, _, err := splitIPv4NLRIs(nlriData, 3, nil)
+	_, _, err := splitIPv4NLRIs(nlriData, 3, noAddPathCtx)
 	require.Error(t, err)
 }
 
@@ -782,11 +781,9 @@ func TestSplitIPv4NLRIs_AddPath(t *testing.T) {
 		0x00, 0x00, 0x00, 0x02, 0x18, 0xC0, 0xA8, 0x02, // path-id=2, /24
 	}
 
-	ctx := &bgpctx.EncodingContext{
-		AddPath: map[nlri.Family]bool{
-			{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast}: true,
-		},
-	}
+	ctx := bgpctx.EncodingContextWithAddPath(true, map[nlri.Family]bool{
+		{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast}: true,
+	})
 
 	fitting, remaining, err := splitIPv4NLRIs(nlriData, 10, ctx)
 	require.NoError(t, err)
@@ -813,7 +810,7 @@ func TestSplitMPReach_NoSplit(t *testing.T) {
 		0x40, 0x20, 0x01, 0x0d, 0xb8, 0x00, 0x00, // /64
 	}
 
-	fitting, remaining, err := splitMPReach(mpReach, 100, nil)
+	fitting, remaining, err := splitMPReach(mpReach, 100, noAddPathCtx)
 	require.NoError(t, err)
 	assert.Equal(t, mpReach, fitting)
 	assert.Empty(t, remaining)
@@ -849,7 +846,7 @@ func TestSplitMPReach_Split(t *testing.T) {
 	mpReach = append(mpReach, mpReachValue...)
 
 	// Split with small maxBytes
-	fitting, remaining, err := splitMPReach(mpReach, 60, nil)
+	fitting, remaining, err := splitMPReach(mpReach, 60, noAddPathCtx)
 	require.NoError(t, err)
 	require.NotEmpty(t, fitting)
 	require.NotEmpty(t, remaining)
@@ -880,11 +877,11 @@ func TestSplitMPReach_Split(t *testing.T) {
 func TestSplitMPReach_InvalidMaxBytes(t *testing.T) {
 	mpReach := []byte{0x90, 0x0E, 0x00, 0x05, 0x00, 0x02, 0x01, 0x00, 0x00}
 
-	_, _, err := splitMPReach(mpReach, 0, nil)
+	_, _, err := splitMPReach(mpReach, 0, noAddPathCtx)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "invalid maxBytes")
 
-	_, _, err = splitMPReach(mpReach, -1, nil)
+	_, _, err = splitMPReach(mpReach, -1, noAddPathCtx)
 	require.Error(t, err)
 }
 
@@ -904,7 +901,7 @@ func TestSplitMPUnreach_NoSplit(t *testing.T) {
 		0x40, 0x20, 0x01, 0x0d, 0xb8, 0x00, 0x00, 0x00, // /64
 	}
 
-	fitting, remaining, err := splitMPUnreach(mpUnreach, 100, nil)
+	fitting, remaining, err := splitMPUnreach(mpUnreach, 100, noAddPathCtx)
 	require.NoError(t, err)
 	assert.Equal(t, mpUnreach, fitting)
 	assert.Empty(t, remaining)
@@ -936,7 +933,7 @@ func TestSplitMPUnreach_Split(t *testing.T) {
 	mpUnreach = append(mpUnreach, mpUnreachValue...)
 
 	// Split with small maxBytes
-	fitting, remaining, err := splitMPUnreach(mpUnreach, 40, nil)
+	fitting, remaining, err := splitMPUnreach(mpUnreach, 40, noAddPathCtx)
 	require.NoError(t, err)
 	require.NotEmpty(t, fitting)
 	require.NotEmpty(t, remaining)
@@ -959,7 +956,7 @@ func TestSplitMPUnreach_Split(t *testing.T) {
 func TestSplitMPUnreach_InvalidMaxBytes(t *testing.T) {
 	mpUnreach := []byte{0x90, 0x0F, 0x00, 0x05, 0x00, 0x02, 0x01, 0x00, 0x00}
 
-	_, _, err := splitMPUnreach(mpUnreach, 0, nil)
+	_, _, err := splitMPUnreach(mpUnreach, 0, noAddPathCtx)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "invalid maxBytes")
 }

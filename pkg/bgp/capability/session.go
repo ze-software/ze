@@ -1,7 +1,7 @@
 package capability
 
 // SessionCaps holds session-level capabilities (not encoding-related).
-// Owned by Negotiated only (not shared with WireContexts).
+// Owned by Negotiated only (not shared with EncodingContexts).
 // Immutable after session creation.
 type SessionCaps struct {
 	// RFC 8654: Extended Message Support for BGP.

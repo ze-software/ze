@@ -1,7 +1,7 @@
 package capability
 
 // EncodingCaps holds capabilities that affect wire encoding.
-// Shared between Negotiated and both WireContexts (recv/send).
+// Shared between Negotiated and EncodingContexts (recv/send).
 // Immutable after session creation.
 type EncodingCaps struct {
 	// RFC 6793: Use 4-byte AS numbers when true.

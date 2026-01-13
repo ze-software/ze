@@ -3199,7 +3199,7 @@ func (a *reactorAPIAdapter) buildGroupedMPUpdate(templateRoute *rib.Route, nlriB
 	off := 0
 
 	// Create encoding context for ASPath encoding
-	dstCtx := &bgpctx.EncodingContext{ASN4: ctx == nil || ctx.ASN4}
+	dstCtx := bgpctx.EncodingContextForASN4(ctx == nil || ctx.ASN4)
 
 	// 1. ORIGIN
 	origin := attribute.OriginIGP

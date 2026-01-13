@@ -69,7 +69,7 @@ func TestOpaqueAttributePackWithContext(t *testing.T) {
 	}
 
 	// With actual contexts - should still return data unchanged
-	ctx := &bgpctx.EncodingContext{ASN4: true}
+	ctx := bgpctx.EncodingContextForASN4(true)
 	packed2 := attr.PackWithContext(ctx, ctx)
 
 	if len(packed2) != len(data) {
