@@ -23,20 +23,16 @@ func BuildEOR(family nlri.Family) *Update {
 
 	// RFC 4724/4760: Other families use MP_UNREACH_NLRI with AFI/SAFI only
 	// MP_UNREACH_NLRI format: AFI(2) + SAFI(1) + Withdrawn NLRI (empty for EOR)
-	mpUnreachValue := []byte{
-		byte(family.AFI >> 8), byte(family.AFI), // AFI (big-endian)
-		byte(family.SAFI), // SAFI
-		// No withdrawn NLRI = End-of-RIB
-	}
-
-	// Pack attribute header: optional + extended length flags, MP_UNREACH_NLRI code, length
-	// Use extended length format for consistency with existing wire format tests.
-	attrBytes := attribute.PackHeader(
+	// Header (4 bytes with extended length) + Value (3 bytes) = 7 bytes total
+	attrBytes := make([]byte, 7)
+	attribute.WriteHeaderTo(attrBytes, 0,
 		attribute.FlagOptional|attribute.FlagExtLength,
 		attribute.AttrMPUnreachNLRI,
-		uint16(len(mpUnreachValue)), //nolint:gosec // Length is 3 bytes
+		3, // AFI(2) + SAFI(1)
 	)
-	attrBytes = append(attrBytes, mpUnreachValue...)
+	attrBytes[4] = byte(family.AFI >> 8)
+	attrBytes[5] = byte(family.AFI)
+	attrBytes[6] = byte(family.SAFI)
 
 	return &Update{
 		PathAttributes: attrBytes,
