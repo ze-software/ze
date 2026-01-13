@@ -7,20 +7,21 @@ import (
 	bgpctx "codeberg.org/thomas-mangin/zebgp/pkg/bgp/context"
 )
 
-// attrIndex caches attribute location within packed bytes.
+// attrIndex caches attribute location and parsed value within packed bytes.
 // Built lazily on first scan, reused for subsequent lookups.
 // hdrLen is retained to locate original flags for unknown attributes.
 type attrIndex struct {
 	code   AttributeCode
 	offset uint16 // Points to value (after header)
 	length uint16
-	hdrLen uint8 // 3 or 4; flags at packed[offset-hdrLen]
+	hdrLen uint8     // 3 or 4; flags at packed[offset-hdrLen]
+	parsed Attribute // nil until parsed on demand
 }
 
 // AttributesWire stores path attributes in wire format with lazy parsing.
 //
 // Wire bytes are the canonical representation. Parsed attributes are
-// cached on demand. Thread-safe for concurrent read access.
+// cached in the index on demand. Thread-safe for concurrent read access.
 //
 // Memory contract: packed is NOT owned by AttributesWire. Caller must
 // ensure the underlying buffer outlives this struct and is not modified.
@@ -28,8 +29,7 @@ type AttributesWire struct {
 	mu          sync.RWMutex
 	packed      []byte
 	sourceCtxID bgpctx.ContextID
-	index       []attrIndex                 // nil until first scan
-	parsed      map[AttributeCode]Attribute // nil until first parse
+	index       []attrIndex // nil until first scan; parsed cached in each entry
 }
 
 // NewAttributesWire creates from raw packed bytes.
@@ -56,64 +56,77 @@ func (a *AttributesWire) SourceContext() bgpctx.ContextID {
 // Returns (nil, nil) if attribute is not present.
 func (a *AttributesWire) Get(code AttributeCode) (Attribute, error) {
 	a.mu.RLock()
-	// Check parse cache
-	if a.parsed != nil {
-		if attr, ok := a.parsed[code]; ok {
-			a.mu.RUnlock()
-			return attr, nil
+	if a.index != nil {
+		for i := range a.index {
+			if a.index[i].code == code {
+				if attr := a.index[i].parsed; attr != nil {
+					a.mu.RUnlock()
+					return attr, nil
+				}
+				// Found but not parsed - need write lock
+				a.mu.RUnlock()
+				return a.getAndParse(i, code)
+			}
 		}
+		// Index exists but code not found
+		a.mu.RUnlock()
+		return nil, nil //nolint:nilnil // nil means not found
 	}
 	a.mu.RUnlock()
 
+	// Index not built yet
+	return a.getAndParse(-1, code)
+}
+
+// getAndParse acquires write lock and parses attribute.
+// If hint >= 0, it's the index position from RLock scan (still needs double-check).
+// If hint < 0, index needs to be built first.
+func (a *AttributesWire) getAndParse(hint int, code AttributeCode) (Attribute, error) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 
-	// Double-check after acquiring write lock
-	if a.parsed != nil {
-		if attr, ok := a.parsed[code]; ok {
-			return attr, nil
-		}
-	}
-
-	// Build index if needed
 	if err := a.ensureIndexLocked(); err != nil {
 		return nil, err
 	}
 
-	// Find attribute in index
-	for _, idx := range a.index {
-		if idx.code == code {
-			attr, err := a.parseAtLocked(idx)
+	// If we have a hint, check that position first (double-check after lock upgrade)
+	if hint >= 0 && hint < len(a.index) && a.index[hint].code == code {
+		if attr := a.index[hint].parsed; attr != nil {
+			return attr, nil
+		}
+		attr, err := a.parseAtLocked(a.index[hint])
+		if err != nil {
+			return nil, err
+		}
+		a.index[hint].parsed = attr
+		return attr, nil
+	}
+
+	// Full search (hint invalid or index was rebuilt)
+	for i := range a.index {
+		if a.index[i].code == code {
+			if attr := a.index[i].parsed; attr != nil {
+				return attr, nil
+			}
+			attr, err := a.parseAtLocked(a.index[i])
 			if err != nil {
 				return nil, err
 			}
-			if a.parsed == nil {
-				a.parsed = make(map[AttributeCode]Attribute)
-			}
-			a.parsed[code] = attr
+			a.index[i].parsed = attr
 			return attr, nil
 		}
 	}
 
-	return nil, nil //nolint:nilnil // nil means not found, not an error
+	return nil, nil //nolint:nilnil // nil means not found
 }
 
 // Has checks if attribute exists without parsing value.
 // Returns error if wire bytes are malformed.
 func (a *AttributesWire) Has(code AttributeCode) (bool, error) {
 	a.mu.RLock()
-	// Check parse cache first
-	if a.parsed != nil {
-		if _, ok := a.parsed[code]; ok {
-			a.mu.RUnlock()
-			return true, nil
-		}
-	}
-
-	// Check index if built
 	if a.index != nil {
-		for _, idx := range a.index {
-			if idx.code == code {
+		for i := range a.index {
+			if a.index[i].code == code {
 				a.mu.RUnlock()
 				return true, nil
 			}
@@ -131,8 +144,8 @@ func (a *AttributesWire) Has(code AttributeCode) (bool, error) {
 		return false, err
 	}
 
-	for _, idx := range a.index {
-		if idx.code == code {
+	for i := range a.index {
+		if a.index[i].code == code {
 			return true, nil
 		}
 	}
@@ -159,12 +172,11 @@ func (a *AttributesWire) GetMultiple(codes []AttributeCode) (map[AttributeCode]A
 // Returns (nil, nil) if attribute is not present.
 // Use this for attributes that need custom handling (e.g., MP_REACH_NLRI for MPReachWire).
 func (a *AttributesWire) GetRaw(code AttributeCode) ([]byte, error) {
-	// Fast path: check if index already built
 	a.mu.RLock()
 	if a.index != nil {
-		for _, idx := range a.index {
-			if idx.code == code {
-				result := a.packed[idx.offset : idx.offset+idx.length]
+		for i := range a.index {
+			if a.index[i].code == code {
+				result := a.packed[a.index[i].offset : a.index[i].offset+a.index[i].length]
 				a.mu.RUnlock()
 				return result, nil
 			}
@@ -174,7 +186,7 @@ func (a *AttributesWire) GetRaw(code AttributeCode) ([]byte, error) {
 	}
 	a.mu.RUnlock()
 
-	// Slow path: build index
+	// Index not built yet
 	a.mu.Lock()
 	defer a.mu.Unlock()
 
@@ -182,13 +194,13 @@ func (a *AttributesWire) GetRaw(code AttributeCode) ([]byte, error) {
 		return nil, err
 	}
 
-	for _, idx := range a.index {
-		if idx.code == code {
-			return a.packed[idx.offset : idx.offset+idx.length], nil
+	for i := range a.index {
+		if a.index[i].code == code {
+			return a.packed[a.index[i].offset : a.index[i].offset+a.index[i].length], nil
 		}
 	}
 
-	return nil, nil //nolint:nilnil // nil means not found, not an error
+	return nil, nil //nolint:nilnil // nil means not found
 }
 
 // All returns all attributes (full parse).
@@ -202,25 +214,17 @@ func (a *AttributesWire) All() ([]Attribute, error) {
 	}
 
 	result := make([]Attribute, 0, len(a.index))
-	for _, idx := range a.index {
-		// Check cache first
-		if a.parsed != nil {
-			if attr, ok := a.parsed[idx.code]; ok {
-				result = append(result, attr)
-				continue
-			}
+	for i := range a.index {
+		if a.index[i].parsed != nil {
+			result = append(result, a.index[i].parsed)
+			continue
 		}
 
-		attr, err := a.parseAtLocked(idx)
+		attr, err := a.parseAtLocked(a.index[i])
 		if err != nil {
 			return nil, err
 		}
-
-		// Cache it
-		if a.parsed == nil {
-			a.parsed = make(map[AttributeCode]Attribute)
-		}
-		a.parsed[idx.code] = attr
+		a.index[i].parsed = attr
 		result = append(result, attr)
 	}
 
