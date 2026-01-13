@@ -74,7 +74,7 @@ func TestFlowSpecWriteToMatchesBytes(t *testing.T) {
 			expected := tt.fs.Bytes()
 
 			buf := make([]byte, len(expected)+10) // Extra space to verify no overflow
-			n := tt.fs.WriteTo(buf, 0, nil)
+			n := tt.fs.WriteTo(buf, 0)
 
 			assert.Equal(t, len(expected), n, "WriteTo returned wrong length")
 			assert.Equal(t, expected, buf[:n], "WriteTo output differs from Bytes()")
@@ -118,7 +118,7 @@ func TestFlowSpecVPNWriteToMatchesBytes(t *testing.T) {
 			expected := tt.fsv.Bytes()
 
 			buf := make([]byte, len(expected)+10)
-			n := tt.fsv.WriteTo(buf, 0, nil)
+			n := tt.fsv.WriteTo(buf, 0)
 
 			assert.Equal(t, len(expected), n, "WriteTo returned wrong length")
 			assert.Equal(t, expected, buf[:n], "WriteTo output differs from Bytes()")
@@ -158,7 +158,7 @@ func TestBGPLSNodeWriteToMatchesBytes(t *testing.T) {
 			expected := tt.node.Bytes()
 
 			buf := make([]byte, len(expected)+10)
-			n := tt.node.WriteTo(buf, 0, nil)
+			n := tt.node.WriteTo(buf, 0)
 
 			assert.Equal(t, len(expected), n, "WriteTo returned wrong length")
 			assert.Equal(t, expected, buf[:n], "WriteTo output differs from Bytes()")
@@ -201,7 +201,7 @@ func TestBGPLSLinkWriteToMatchesBytes(t *testing.T) {
 			expected := tt.link.Bytes()
 
 			buf := make([]byte, len(expected)+10)
-			n := tt.link.WriteTo(buf, 0, nil)
+			n := tt.link.WriteTo(buf, 0)
 
 			assert.Equal(t, len(expected), n, "WriteTo returned wrong length")
 			assert.Equal(t, expected, buf[:n], "WriteTo output differs from Bytes()")
@@ -239,7 +239,7 @@ func TestBGPLSPrefixWriteToMatchesBytes(t *testing.T) {
 			expected := tt.prefix.Bytes()
 
 			buf := make([]byte, len(expected)+10)
-			n := tt.prefix.WriteTo(buf, 0, nil)
+			n := tt.prefix.WriteTo(buf, 0)
 
 			assert.Equal(t, len(expected), n, "WriteTo returned wrong length")
 			assert.Equal(t, expected, buf[:n], "WriteTo output differs from Bytes()")
@@ -260,7 +260,7 @@ func TestBGPLSSRv6SIDWriteToMatchesBytes(t *testing.T) {
 	expected := srv6.Bytes()
 
 	buf := make([]byte, len(expected)+10)
-	n := srv6.WriteTo(buf, 0, nil)
+	n := srv6.WriteTo(buf, 0)
 
 	assert.Equal(t, len(expected), n, "WriteTo returned wrong length")
 	assert.Equal(t, expected, buf[:n], "WriteTo output differs from Bytes()")
@@ -295,7 +295,7 @@ func TestMVPNWriteToMatchesBytes(t *testing.T) {
 			expected := tt.mvpn.Bytes()
 
 			buf := make([]byte, len(expected)+10)
-			n := tt.mvpn.WriteTo(buf, 0, nil)
+			n := tt.mvpn.WriteTo(buf, 0)
 
 			assert.Equal(t, len(expected), n, "WriteTo returned wrong length")
 			assert.Equal(t, expected, buf[:n], "WriteTo output differs from Bytes()")
@@ -332,7 +332,7 @@ func TestVPLSWriteToMatchesBytes(t *testing.T) {
 			expected := tt.vpls.Bytes()
 
 			buf := make([]byte, len(expected)+10)
-			n := tt.vpls.WriteTo(buf, 0, nil)
+			n := tt.vpls.WriteTo(buf, 0)
 
 			assert.Equal(t, len(expected), n, "WriteTo returned wrong length")
 			assert.Equal(t, expected, buf[:n], "WriteTo output differs from Bytes()")
@@ -367,7 +367,7 @@ func TestRTCWriteToMatchesBytes(t *testing.T) {
 			expected := tt.rtc.Bytes()
 
 			buf := make([]byte, len(expected)+10)
-			n := tt.rtc.WriteTo(buf, 0, nil)
+			n := tt.rtc.WriteTo(buf, 0)
 
 			assert.Equal(t, len(expected), n, "WriteTo returned wrong length")
 			assert.Equal(t, expected, buf[:n], "WriteTo output differs from Bytes()")
@@ -404,7 +404,7 @@ func TestMUPWriteToMatchesBytes(t *testing.T) {
 			expected := tt.mup.Bytes()
 
 			buf := make([]byte, len(expected)+10)
-			n := tt.mup.WriteTo(buf, 0, nil)
+			n := tt.mup.WriteTo(buf, 0)
 
 			assert.Equal(t, len(expected), n, "WriteTo returned wrong length")
 			assert.Equal(t, expected, buf[:n], "WriteTo output differs from Bytes()")
@@ -430,7 +430,7 @@ func TestWriteToAtOffset(t *testing.T) {
 	buf[3] = 0xEF
 	buf[4] = 0x00
 
-	n := fs.WriteTo(buf, 5, nil)
+	n := fs.WriteTo(buf, 5)
 
 	// Verify prefix bytes unchanged
 	assert.Equal(t, []byte{0xDE, 0xAD, 0xBE, 0xEF, 0x00}, buf[:5])
@@ -460,7 +460,7 @@ func TestWriteToZeroAlloc(t *testing.T) {
 
 	// Now WriteTo should work without having called Bytes() first
 	buf := make([]byte, 256)
-	n := fs.WriteTo(buf, 0, nil)
+	n := fs.WriteTo(buf, 0)
 
 	require.Equal(t, len(expected), n, "WriteTo length mismatch")
 	assert.True(t, bytes.Equal(expected, buf[:n]), "WriteTo output mismatch")

@@ -606,53 +606,31 @@ func TestCommitService_NoGrouping_PreservesExplicitASPath(t *testing.T) {
 	}
 }
 
-// TestCommitServicePackContextASN4 verifies packContext includes ASN4 from negotiated.
+// TestCommitServiceAddPathFor verifies addPathFor returns correct ADD-PATH status.
 //
-// VALIDATES: CommitService.packContext returns PackContext with ASN4 from session.
-// RFC 6793: Correct ASN4 propagation ensures AS_PATH encoded with right ASN size.
+// VALIDATES: CommitService.addPathFor returns true when ADD-PATH negotiated for family.
+// RFC 7911: ADD-PATH encoding requires negotiation per address family.
 //
-// PREVENTS: AS_PATH encoded with 2-byte ASNs when 4-byte was negotiated.
-func TestCommitServicePackContextASN4(t *testing.T) {
+// PREVENTS: Missing path ID when ADD-PATH was negotiated.
+func TestCommitServiceAddPathFor(t *testing.T) {
 	sender := &mockUpdateSender{}
 
-	// Test with ASN4=true
+	// Test with ADD-PATH enabled for IPv4 unicast
 	neg := &message.Negotiated{
 		ASN4:    true,
 		LocalAS: 65000,
 		PeerAS:  65001,
 		AddPath: map[message.Family]bool{
-			{AFI: 1, SAFI: 1}: true, // IPv4 unicast with ADD-PATH
+			{AFI: 1, SAFI: 1}: true,  // IPv4 unicast with ADD-PATH
+			{AFI: 2, SAFI: 1}: false, // IPv6 unicast without ADD-PATH
 		},
 	}
 	cs := NewCommitService(sender, neg, false)
 
-	ctx := cs.packContext(nlri.IPv4Unicast)
-	if ctx == nil {
-		t.Fatal("expected non-nil context")
+	if !cs.addPathFor(nlri.IPv4Unicast) {
+		t.Error("addPathFor should be true for IPv4 unicast when negotiated")
 	}
-	if !ctx.ASN4 {
-		t.Error("ASN4 should be true when negotiated")
-	}
-	if !ctx.AddPath {
-		t.Error("AddPath should be true when negotiated for family")
-	}
-
-	// Test with ASN4=false (OLD speaker)
-	neg = &message.Negotiated{
-		ASN4:    false,
-		LocalAS: 65000,
-		PeerAS:  65001,
-		AddPath: map[message.Family]bool{
-			{AFI: 1, SAFI: 1}: false,
-		},
-	}
-	cs = NewCommitService(sender, neg, false)
-
-	ctx = cs.packContext(nlri.IPv4Unicast)
-	if ctx == nil {
-		t.Fatal("expected non-nil context")
-	}
-	if ctx.ASN4 {
-		t.Error("ASN4 should be false for OLD speaker")
+	if cs.addPathFor(nlri.IPv6Unicast) {
+		t.Error("addPathFor should be false for IPv6 unicast when not negotiated")
 	}
 }

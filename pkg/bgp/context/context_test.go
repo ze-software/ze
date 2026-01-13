@@ -187,12 +187,12 @@ func TestEncodingContextHashDiffersByAddPath(t *testing.T) {
 		"Different addPath should produce different hashes")
 }
 
-// TestEncodingContextToPackContext verifies PackContext conversion.
+// TestEncodingContextAddPathAndASN4 verifies ADD-PATH and ASN4 accessor methods.
 //
-// VALIDATES: ToPackContext creates correct nlri.PackContext.
+// VALIDATES: ASN4() and AddPath(family) return correct values.
 //
 // PREVENTS: NLRI encoding with wrong ADD-PATH or ASN4 setting.
-func TestEncodingContextToPackContext(t *testing.T) {
+func TestEncodingContextAddPathAndASN4(t *testing.T) {
 	identity := &capability.PeerIdentity{LocalASN: 65001, PeerASN: 65002}
 	encoding := &capability.EncodingCaps{
 		ASN4: true,
@@ -207,17 +207,14 @@ func TestEncodingContextToPackContext(t *testing.T) {
 
 	ctx := NewEncodingContext(identity, encoding, DirectionSend)
 
+	// Check ASN4
+	assert.True(t, ctx.ASN4())
+
 	// IPv4 unicast with ADD-PATH
-	pc := ctx.ToPackContext(nlri.Family{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast})
-	require.NotNil(t, pc)
-	assert.True(t, pc.ASN4)
-	assert.True(t, pc.AddPath, "IPv4 unicast should have ADD-PATH enabled")
+	assert.True(t, ctx.AddPath(nlri.Family{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast}), "IPv4 unicast should have ADD-PATH enabled")
 
 	// IPv6 unicast without ADD-PATH
-	pc2 := ctx.ToPackContext(nlri.Family{AFI: nlri.AFIIPv6, SAFI: nlri.SAFIUnicast})
-	require.NotNil(t, pc2)
-	assert.True(t, pc2.ASN4)
-	assert.False(t, pc2.AddPath, "IPv6 unicast should NOT have ADD-PATH enabled")
+	assert.False(t, ctx.AddPath(nlri.Family{AFI: nlri.AFIIPv6, SAFI: nlri.SAFIUnicast}), "IPv6 unicast should NOT have ADD-PATH enabled")
 }
 
 // TestEncodingContextForASN4 verifies the helper constructor.

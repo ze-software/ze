@@ -68,9 +68,9 @@ func TestWireNLRI_Bytes_WithAddPath(t *testing.T) {
 	}
 }
 
-// TestWireNLRI_Len verifies Len() returns full data length.
+// TestWireNLRI_Len verifies Len() returns payload length (without path-id).
 //
-// VALIDATES: Len returns correct byte count.
+// VALIDATES: Len returns payload byte count per NLRI interface contract.
 // PREVENTS: Wrong length calculation.
 func TestWireNLRI_Len(t *testing.T) {
 	tests := []struct {
@@ -78,8 +78,8 @@ func TestWireNLRI_Len(t *testing.T) {
 		addp   bool
 		expect int
 	}{
-		{[]byte{24, 10, 0, 0}, false, 4},
-		{[]byte{0, 0, 0, 1, 24, 10, 0, 0}, true, 8},
+		{[]byte{24, 10, 0, 0}, false, 4},            // No path-id: payload = 4
+		{[]byte{0, 0, 0, 1, 24, 10, 0, 0}, true, 4}, // With path-id: payload = 8 - 4 = 4
 	}
 	for _, tt := range tests {
 		w, _ := NewWireNLRI(IPv4Unicast, tt.data, tt.addp)
@@ -114,57 +114,54 @@ func TestWireNLRI_PathID_WithAddPath(t *testing.T) {
 	}
 }
 
-// TestWireNLRI_Pack_NoMismatch verifies Pack() returns data when no mismatch.
+// TestWireNLRI_WriteNLRI_NoMismatch verifies WriteNLRI returns data when no mismatch.
 //
-// VALIDATES: Pack passes through when source and target match.
+// VALIDATES: WriteNLRI passes through when source and target match.
 // PREVENTS: Unnecessary modification.
-func TestWireNLRI_Pack_NoMismatch(t *testing.T) {
+func TestWireNLRI_WriteNLRI_NoMismatch(t *testing.T) {
 	data := []byte{24, 10, 0, 0}
 	w, _ := NewWireNLRI(IPv4Unicast, data, false)
 
-	// nil context = no ADD-PATH, matches source
-	packed := w.Pack(nil)
-	if !bytes.Equal(packed, data) {
-		t.Errorf("Pack(nil): want %x, got %x", data, packed)
-	}
-
-	// explicit no ADD-PATH, matches source
-	packed = w.Pack(&PackContext{AddPath: false})
-	if !bytes.Equal(packed, data) {
-		t.Errorf("Pack(!AddPath): want %x, got %x", data, packed)
+	// no ADD-PATH, matches source
+	buf := make([]byte, 100)
+	n := WriteNLRI(w, buf, 0, false)
+	if !bytes.Equal(buf[:n], data) {
+		t.Errorf("WriteNLRI(false): want %x, got %x", data, buf[:n])
 	}
 }
 
-// TestWireNLRI_Pack_StripPathID verifies Pack() strips path-id when src has, target doesn't.
+// TestWireNLRI_WriteNLRI_StripPathID verifies WriteNLRI strips path-id when src has, target doesn't.
 //
 // VALIDATES: RFC 7911 path-id stripping works.
 // PREVENTS: Path-id leaked to non-ADD-PATH peer.
-func TestWireNLRI_Pack_StripPathID(t *testing.T) {
+func TestWireNLRI_WriteNLRI_StripPathID(t *testing.T) {
 	// path-id=1 + 10.0.0.0/24
 	data := []byte{0, 0, 0, 1, 24, 10, 0, 0}
 	w, _ := NewWireNLRI(IPv4Unicast, data, true)
 
 	// Target has no ADD-PATH -> strip path-id
-	packed := w.Pack(&PackContext{AddPath: false})
+	buf := make([]byte, 100)
+	n := WriteNLRI(w, buf, 0, false)
 	expect := []byte{24, 10, 0, 0}
-	if !bytes.Equal(packed, expect) {
-		t.Errorf("Pack(!AddPath): want %x, got %x", expect, packed)
+	if !bytes.Equal(buf[:n], expect) {
+		t.Errorf("WriteNLRI(false): want %x, got %x", expect, buf[:n])
 	}
 }
 
-// TestWireNLRI_Pack_PrependNOPATH verifies Pack() prepends NOPATH when src lacks, target expects.
+// TestWireNLRI_WriteNLRI_PrependNOPATH verifies WriteNLRI prepends NOPATH when src lacks, target expects.
 //
 // VALIDATES: RFC 7911 NOPATH prepending works.
 // PREVENTS: Missing path-id for ADD-PATH peer.
-func TestWireNLRI_Pack_PrependNOPATH(t *testing.T) {
+func TestWireNLRI_WriteNLRI_PrependNOPATH(t *testing.T) {
 	data := []byte{24, 10, 0, 0}
 	w, _ := NewWireNLRI(IPv4Unicast, data, false)
 
 	// Target expects ADD-PATH -> prepend NOPATH (0x00000000)
-	packed := w.Pack(&PackContext{AddPath: true})
+	buf := make([]byte, 100)
+	n := WriteNLRI(w, buf, 0, true)
 	expect := []byte{0, 0, 0, 0, 24, 10, 0, 0}
-	if !bytes.Equal(packed, expect) {
-		t.Errorf("Pack(AddPath): want %x, got %x", expect, packed)
+	if !bytes.Equal(buf[:n], expect) {
+		t.Errorf("WriteNLRI(true): want %x, got %x", expect, buf[:n])
 	}
 }
 
@@ -190,7 +187,7 @@ func TestWireNLRI_WriteTo(t *testing.T) {
 	w, _ := NewWireNLRI(IPv4Unicast, data, false)
 
 	buf := make([]byte, 10)
-	n := w.WriteTo(buf, 2, nil)
+	n := w.WriteTo(buf, 2)
 	if n != 4 {
 		t.Errorf("WriteTo: want 4 bytes, wrote %d", n)
 	}

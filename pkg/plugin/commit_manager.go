@@ -90,7 +90,7 @@ func (t *Transaction) nlriIndex(n nlri.NLRI) string {
 	buf[0] = byte(family.AFI >> 8)
 	buf[1] = byte(family.AFI)
 	buf[2] = byte(family.SAFI)
-	n.WriteTo(buf, 3, nil)
+	n.WriteTo(buf, 3)
 
 	return string(buf)
 }

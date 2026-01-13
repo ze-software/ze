@@ -25,7 +25,7 @@ func TestBuildGroupedUpdate_SingleRoute(t *testing.T) {
 	}
 
 	// ctx=nil means no ADD-PATH encoding
-	update, err := BuildGroupedUpdate(&groups[0], nil)
+	update, err := BuildGroupedUpdate(&groups[0], false)
 	if err != nil {
 		t.Fatalf("BuildGroupedUpdate failed: %v", err)
 	}
@@ -65,7 +65,7 @@ func TestBuildGroupedUpdate_MultipleRoutes(t *testing.T) {
 	}
 
 	// ctx=nil means no ADD-PATH encoding
-	update, err := BuildGroupedUpdate(&groups[0], nil)
+	update, err := BuildGroupedUpdate(&groups[0], false)
 	if err != nil {
 		t.Fatalf("BuildGroupedUpdate failed: %v", err)
 	}
@@ -91,7 +91,7 @@ func TestBuildGroupedUpdate_IncludesNextHop(t *testing.T) {
 
 	groups := GroupByAttributes(routes)
 	// ctx=nil means no ADD-PATH encoding
-	update, err := BuildGroupedUpdate(&groups[0], nil)
+	update, err := BuildGroupedUpdate(&groups[0], false)
 	if err != nil {
 		t.Fatalf("BuildGroupedUpdate failed: %v", err)
 	}
@@ -141,7 +141,7 @@ func TestBuildGroupedUpdate_IncludesOrigin(t *testing.T) {
 
 	groups := GroupByAttributes(routes)
 	// ctx=nil means no ADD-PATH encoding
-	update, err := BuildGroupedUpdate(&groups[0], nil)
+	update, err := BuildGroupedUpdate(&groups[0], false)
 	if err != nil {
 		t.Fatalf("BuildGroupedUpdate failed: %v", err)
 	}
@@ -186,7 +186,7 @@ func TestBuildGroupedUpdate_EmptyGroup(t *testing.T) {
 	}
 
 	// ctx=nil means no ADD-PATH encoding
-	update, err := BuildGroupedUpdate(group, nil)
+	update, err := BuildGroupedUpdate(group, false)
 
 	// Either error or empty UPDATE is acceptable
 	if err == nil && len(update.NLRI) > 0 {

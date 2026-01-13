@@ -18,8 +18,8 @@ import (
 //
 // RFC 4271 Section 4.3: An UPDATE message can advertise multiple routes
 // that share the same path attributes to a peer.
-// RFC 7911: ctx provides ADD-PATH capability state for NLRI encoding.
-func BuildGroupedUpdate(group *RouteGroup, ctx *nlri.PackContext) (*message.Update, error) {
+// RFC 7911: addPath indicates if ADD-PATH is negotiated for NLRI encoding.
+func BuildGroupedUpdate(group *RouteGroup, addPath bool) (*message.Update, error) {
 	if len(group.Routes) == 0 {
 		return &message.Update{}, nil
 	}
@@ -29,7 +29,7 @@ func BuildGroupedUpdate(group *RouteGroup, ctx *nlri.PackContext) (*message.Upda
 
 	// Build NLRI bytes
 	// RFC 7911: Pack uses ADD-PATH encoding when negotiated
-	nlriBytes := buildNLRIBytes(group, ctx)
+	nlriBytes := buildNLRIBytes(group, addPath)
 
 	return &message.Update{
 		PathAttributes: pathAttrs,
@@ -68,7 +68,7 @@ func buildPathAttributes(group *RouteGroup) []byte {
 // buildNLRIBytes packs all NLRIs from the group into wire format.
 // RFC 7911: Uses WriteNLRI for centralized ADD-PATH handling.
 // Zero-allocation: calculates size then writes with copy.
-func buildNLRIBytes(group *RouteGroup, ctx *nlri.PackContext) []byte {
+func buildNLRIBytes(group *RouteGroup, addPath bool) []byte {
 	if len(group.Routes) == 0 {
 		return nil
 	}
@@ -76,14 +76,14 @@ func buildNLRIBytes(group *RouteGroup, ctx *nlri.PackContext) []byte {
 	// Calculate total size
 	totalLen := 0
 	for _, route := range group.Routes {
-		totalLen += nlri.LenWithContext(route.NLRI(), ctx)
+		totalLen += nlri.LenWithContext(route.NLRI(), addPath)
 	}
 
 	// Write all NLRIs using WriteNLRI for centralized ADD-PATH handling
 	buf := make([]byte, totalLen)
 	off := 0
 	for _, route := range group.Routes {
-		off += nlri.WriteNLRI(route.NLRI(), buf, off, ctx)
+		off += nlri.WriteNLRI(route.NLRI(), buf, off, addPath)
 	}
 
 	// Invariant: LenWithContext must match WriteNLRI
@@ -100,15 +100,15 @@ func buildNLRIBytes(group *RouteGroup, ctx *nlri.PackContext) []byte {
 
 // BuildGroupedUpdates creates UPDATE messages from multiple RouteGroups.
 // Returns one UPDATE per group.
-// RFC 7911: ctx provides ADD-PATH capability state for NLRI encoding.
-func BuildGroupedUpdates(groups []RouteGroup, ctx *nlri.PackContext) ([]*message.Update, error) {
+// RFC 7911: addPath indicates if ADD-PATH is negotiated for NLRI encoding.
+func BuildGroupedUpdates(groups []RouteGroup, addPath bool) ([]*message.Update, error) {
 	if len(groups) == 0 {
 		return nil, nil
 	}
 
 	updates := make([]*message.Update, 0, len(groups))
 	for i := range groups {
-		update, err := BuildGroupedUpdate(&groups[i], ctx)
+		update, err := BuildGroupedUpdate(&groups[i], addPath)
 		if err != nil {
 			return nil, err
 		}

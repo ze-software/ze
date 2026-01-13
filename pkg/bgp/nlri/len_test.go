@@ -63,32 +63,30 @@ func TestLenWithContext_MatchesPack(t *testing.T) {
 	}
 
 	// Test all context combinations
-	contexts := []struct {
-		name string
-		ctx  *PackContext
+	addPathValues := []struct {
+		name    string
+		addPath bool
 	}{
-		{"nil", nil},
-		{"AddPath=false", &PackContext{AddPath: false}},
-		{"AddPath=true", &PackContext{AddPath: true}},
+		{"AddPath=false", false},
+		{"AddPath=true", true},
 	}
 
 	for _, tc := range testCases {
-		for _, ctxCase := range contexts {
-			name := tc.name + "_" + ctxCase.name
+		for _, ap := range addPathValues {
+			name := tc.name + "_" + ap.name
 			t.Run(name, func(t *testing.T) {
 				nlri := tc.nlri
-				ctx := ctxCase.ctx
 
 				// Get length via LenWithContext
-				lenFromFunc := LenWithContext(nlri, ctx)
+				lenFromFunc := LenWithContext(nlri, ap.addPath)
 
-				// Get length via Pack
-				packed := nlri.Pack(ctx)
-				lenFromPack := len(packed)
+				// Get length via WriteNLRI
+				buf := make([]byte, 100)
+				written := WriteNLRI(nlri, buf, 0, ap.addPath)
 
-				if lenFromFunc != lenFromPack {
-					t.Errorf("LenWithContext=%d but len(Pack)=%d for %s",
-						lenFromFunc, lenFromPack, name)
+				if lenFromFunc != written {
+					t.Errorf("LenWithContext=%d but WriteNLRI wrote %d for %s",
+						lenFromFunc, written, name)
 				}
 			})
 		}
@@ -126,26 +124,18 @@ func TestLenWithContext_MatchesWriteNLRI_AllTypes(t *testing.T) {
 		{"EVPNType5_Prefix", mustParseEVPNType5(t), true},
 	}
 
-	contexts := []*PackContext{
-		nil,
-		{AddPath: false},
-		{AddPath: true},
-	}
+	addPathValues := []bool{false, true}
 
 	for _, tc := range testCases {
-		for _, ctx := range contexts {
+		for _, addPath := range addPathValues {
 			// Skip ADD-PATH tests for NLRI types that don't support it
-			if ctx != nil && ctx.AddPath && !tc.supportsAddPath {
+			if addPath && !tc.supportsAddPath {
 				continue
 			}
 
-			ctxName := "nil"
-			if ctx != nil {
-				if ctx.AddPath {
-					ctxName = "AddPath=true"
-				} else {
-					ctxName = "AddPath=false"
-				}
+			ctxName := "AddPath=false"
+			if addPath {
+				ctxName = "AddPath=true"
 			}
 			name := tc.name + "_" + ctxName
 
@@ -153,11 +143,11 @@ func TestLenWithContext_MatchesWriteNLRI_AllTypes(t *testing.T) {
 				nlri := tc.nlri
 
 				// Get predicted length
-				predictedLen := LenWithContext(nlri, ctx)
+				predictedLen := LenWithContext(nlri, addPath)
 
 				// Allocate buffer and write using WriteNLRI (not WriteTo)
 				buf := make([]byte, predictedLen+10) // Extra space to detect overflow
-				written := WriteNLRI(nlri, buf, 0, ctx)
+				written := WriteNLRI(nlri, buf, 0, addPath)
 
 				if written != predictedLen {
 					t.Errorf("LenWithContext=%d but WriteNLRI wrote %d bytes",

@@ -8,8 +8,6 @@ import (
 	"fmt"
 	"net/netip"
 	"strings"
-
-	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/wire"
 )
 
 // LabeledUnicast represents a labeled unicast NLRI (SAFI 4).
@@ -39,7 +37,7 @@ type LabeledUnicast struct {
 // The last label has S=1 (Bottom of Stack).
 //
 // pathID=0 means no path identifier; pathID>0 stores the path ID.
-// Use WriteNLRI() with PackContext.AddPath=true to encode with path ID.
+// Use WriteNLRI() with addPath=true to encode with path ID.
 // The family's SAFI is overridden to SAFIMPLSLabel (4) regardless of input.
 func NewLabeledUnicast(family Family, prefix netip.Prefix, labels []uint32, pathID uint32) *LabeledUnicast {
 	return &LabeledUnicast{
@@ -104,7 +102,7 @@ func (l *LabeledUnicast) Len() int {
 //
 // RFC 7911 Section 3: Path ID is NOT written by this method.
 // Use WriteNLRI() for ADD-PATH encoding with path identifier.
-func (l *LabeledUnicast) WriteTo(buf []byte, off int, _ *PackContext) int {
+func (l *LabeledUnicast) WriteTo(buf []byte, off int) int {
 	prefixBits := l.prefix.Bits()
 	prefixBytes := PrefixBytes(prefixBits)
 
@@ -127,26 +125,6 @@ func (l *LabeledUnicast) WriteTo(buf []byte, off int, _ *PackContext) int {
 	}
 
 	return pos - off
-}
-
-// Pack returns wire-format bytes adapted for negotiated capabilities.
-//
-// Deprecated: Use WriteNLRI() for zero-allocation encoding.
-// This method allocates a new slice; prefer WriteNLRI() with pre-allocated buffer.
-func (l *LabeledUnicast) Pack(ctx *PackContext) []byte {
-	size := LenWithContext(l, ctx)
-	buf := make([]byte, size)
-	WriteNLRI(l, buf, 0, ctx)
-	return buf
-}
-
-// CheckedWriteTo validates capacity before writing.
-func (l *LabeledUnicast) CheckedWriteTo(buf []byte, off int, ctx *PackContext) (int, error) {
-	needed := l.Len()
-	if len(buf) < off+needed {
-		return 0, wire.ErrBufferTooSmall
-	}
-	return l.WriteTo(buf, off, ctx), nil
 }
 
 // String returns a human-readable representation.

@@ -84,12 +84,12 @@ type hashableNLRI struct {
 
 func (h hashableNLRI) Key() []byte {
 	// Phase 3: Include path ID in key for uniqueness
-	// WriteNLRI with nil context returns payload only, so prepend path ID if non-zero
+	// WriteTo returns payload only, so prepend path ID if non-zero
 	payloadLen := h.n.Len()
 	pathID := h.n.PathID()
 	if pathID == 0 {
 		payload := make([]byte, payloadLen)
-		h.n.WriteTo(payload, 0, nil)
+		h.n.WriteTo(payload, 0)
 		return payload
 	}
 	// Prepend 4-byte path ID to payload
@@ -98,7 +98,7 @@ func (h hashableNLRI) Key() []byte {
 	key[1] = byte(pathID >> 16)
 	key[2] = byte(pathID >> 8)
 	key[3] = byte(pathID)
-	h.n.WriteTo(key, 4, nil)
+	h.n.WriteTo(key, 4)
 	return key
 }
 

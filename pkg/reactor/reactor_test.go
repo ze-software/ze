@@ -355,9 +355,8 @@ func TestWriteAnnounceUpdateIPv4(t *testing.T) {
 		NextHop: plugin.NewNextHopExplicit(netip.MustParseAddr("192.168.1.1")),
 	}
 
-	ctx := &nlri.PackContext{ASN4: true}
 	buf := make([]byte, 4096)
-	n := WriteAnnounceUpdate(buf, 0, route, 65000, false, ctx)
+	n := WriteAnnounceUpdate(buf, 0, route, 65000, false, true, false)
 
 	require.Greater(t, n, message.HeaderLen, "message must be larger than header")
 
@@ -398,9 +397,8 @@ func TestWriteAnnounceUpdateIPv6(t *testing.T) {
 		NextHop: plugin.NewNextHopExplicit(netip.MustParseAddr("2001:db8::1")),
 	}
 
-	ctx := &nlri.PackContext{ASN4: true}
 	buf := make([]byte, 4096)
-	n := WriteAnnounceUpdate(buf, 0, route, 65000, true, ctx)
+	n := WriteAnnounceUpdate(buf, 0, route, 65000, true, true, false)
 
 	require.Greater(t, n, message.HeaderLen, "message must be larger than header")
 
@@ -434,7 +432,7 @@ func TestWriteWithdrawUpdateIPv4(t *testing.T) {
 	prefix := netip.MustParsePrefix("10.0.0.0/24")
 
 	buf := make([]byte, 4096)
-	n := WriteWithdrawUpdate(buf, 0, prefix, nil)
+	n := WriteWithdrawUpdate(buf, 0, prefix, false)
 
 	require.Greater(t, n, message.HeaderLen, "message must be larger than header")
 
@@ -459,7 +457,7 @@ func TestWriteWithdrawUpdateIPv6(t *testing.T) {
 	prefix := netip.MustParsePrefix("2001:db8::/32")
 
 	buf := make([]byte, 4096)
-	n := WriteWithdrawUpdate(buf, 0, prefix, nil)
+	n := WriteWithdrawUpdate(buf, 0, prefix, false)
 
 	require.Greater(t, n, message.HeaderLen, "message must be larger than header")
 
@@ -492,14 +490,12 @@ func TestWriteAnnounceUpdateWithAddPath(t *testing.T) {
 	}
 
 	// With ADD-PATH enabled
-	ctxAddPath := &nlri.PackContext{ASN4: true, AddPath: true}
 	bufAddPath := make([]byte, 4096)
-	nAddPath := WriteAnnounceUpdate(bufAddPath, 0, route, 65000, false, ctxAddPath)
+	nAddPath := WriteAnnounceUpdate(bufAddPath, 0, route, 65000, false, true, true)
 
 	// Without ADD-PATH
-	ctxNoAddPath := &nlri.PackContext{ASN4: true, AddPath: false}
 	bufNoAddPath := make([]byte, 4096)
-	nNoAddPath := WriteAnnounceUpdate(bufNoAddPath, 0, route, 65000, false, ctxNoAddPath)
+	nNoAddPath := WriteAnnounceUpdate(bufNoAddPath, 0, route, 65000, false, true, false)
 
 	// RFC 7911: ADD-PATH adds 4-byte path identifier before each NLRI
 	// Message with ADD-PATH should be 4 bytes longer
@@ -523,14 +519,12 @@ func TestWriteAnnounceUpdateASN4False(t *testing.T) {
 	}
 
 	// With ASN4=true (4-byte AS)
-	ctxASN4 := &nlri.PackContext{ASN4: true}
 	bufASN4 := make([]byte, 4096)
-	nASN4 := WriteAnnounceUpdate(bufASN4, 0, route, 65000, false, ctxASN4)
+	nASN4 := WriteAnnounceUpdate(bufASN4, 0, route, 65000, false, true, false)
 
 	// With ASN4=false (2-byte AS)
-	ctxASN2 := &nlri.PackContext{ASN4: false}
 	bufASN2 := make([]byte, 4096)
-	nASN2 := WriteAnnounceUpdate(bufASN2, 0, route, 65000, false, ctxASN2)
+	nASN2 := WriteAnnounceUpdate(bufASN2, 0, route, 65000, false, false, false)
 
 	// RFC 6793: 2-byte AS encoding is shorter
 	// AS_PATH with single ASN: 4-byte = 3+4=7, 2-byte = 3+2=5, diff = 2
@@ -560,9 +554,8 @@ func TestWriteASPathLongSegmentSplitting(t *testing.T) {
 		Wire:    attribute.NewAttributesWire(wireBytes, bgpctx.APIContextID),
 	}
 
-	ctx := &nlri.PackContext{ASN4: true}
 	buf := make([]byte, 8192)
-	n := WriteAnnounceUpdate(buf, 0, route, 65000, false, ctx)
+	n := WriteAnnounceUpdate(buf, 0, route, 65000, false, true, false)
 
 	require.Greater(t, n, message.HeaderLen, "message must be larger than header")
 
@@ -644,9 +637,8 @@ func TestWriteCommunitiesExtendedLength(t *testing.T) {
 		Wire:    attribute.NewAttributesWire(wireBytes, bgpctx.APIContextID),
 	}
 
-	ctx := &nlri.PackContext{ASN4: true}
 	buf := make([]byte, 4096)
-	n := WriteAnnounceUpdate(buf, 0, route, 65000, false, ctx)
+	n := WriteAnnounceUpdate(buf, 0, route, 65000, false, true, false)
 
 	require.Greater(t, n, message.HeaderLen, "message must be larger than header")
 
@@ -690,14 +682,13 @@ func BenchmarkWriteAnnounceUpdateIPv4(b *testing.B) {
 		Prefix:  netip.MustParsePrefix("10.0.0.0/24"),
 		NextHop: plugin.NewNextHopExplicit(netip.MustParseAddr("192.168.1.1")),
 	}
-	ctx := &nlri.PackContext{ASN4: true}
 	buf := make([]byte, 4096)
 
 	b.ReportAllocs()
 	b.ResetTimer()
 
 	for b.Loop() {
-		WriteAnnounceUpdate(buf, 0, route, 65000, false, ctx)
+		WriteAnnounceUpdate(buf, 0, route, 65000, false, true, false)
 	}
 }
 
@@ -715,14 +706,13 @@ func BenchmarkWriteAnnounceUpdateIPv4WithCommunities(b *testing.B) {
 		NextHop: plugin.NewNextHopExplicit(netip.MustParseAddr("192.168.1.1")),
 		Wire:    attribute.NewAttributesWire(wireBytes, bgpctx.APIContextID),
 	}
-	ctx := &nlri.PackContext{ASN4: true}
 	buf := make([]byte, 4096)
 
 	b.ReportAllocs()
 	b.ResetTimer()
 
 	for b.Loop() {
-		WriteAnnounceUpdate(buf, 0, route, 65000, false, ctx)
+		WriteAnnounceUpdate(buf, 0, route, 65000, false, true, false)
 	}
 }
 
@@ -732,14 +722,13 @@ func BenchmarkWriteAnnounceUpdateIPv6(b *testing.B) {
 		Prefix:  netip.MustParsePrefix("2001:db8::/32"),
 		NextHop: plugin.NewNextHopExplicit(netip.MustParseAddr("2001:db8::1")),
 	}
-	ctx := &nlri.PackContext{ASN4: true}
 	buf := make([]byte, 4096)
 
 	b.ReportAllocs()
 	b.ResetTimer()
 
 	for b.Loop() {
-		WriteAnnounceUpdate(buf, 0, route, 65000, true, ctx)
+		WriteAnnounceUpdate(buf, 0, route, 65000, true, true, false)
 	}
 }
 

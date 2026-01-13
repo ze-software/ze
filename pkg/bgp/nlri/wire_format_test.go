@@ -18,52 +18,52 @@ func TestWireFormat_AddPath(t *testing.T) {
 	tests := []struct {
 		name    string
 		nlri    NLRI
-		ctx     *PackContext
+		addPath bool
 		wantHex string // Expected wire format in hex
 	}{
 		// INET - IPv4
 		{
 			name:    "INET_10.0.0.0/24_noAddPath",
 			nlri:    NewINET(IPv4Unicast, netip.MustParsePrefix("10.0.0.0/24"), 0),
-			ctx:     &PackContext{AddPath: false},
+			addPath: false,
 			wantHex: "180a0000", // [prefixLen=24][10.0.0]
 		},
 		{
 			name:    "INET_10.0.0.0/24_withAddPath_pathID0",
 			nlri:    NewINET(IPv4Unicast, netip.MustParsePrefix("10.0.0.0/24"), 0),
-			ctx:     &PackContext{AddPath: true},
+			addPath: true,
 			wantHex: "00000000180a0000", // [pathID=0][prefixLen=24][10.0.0]
 		},
 		{
 			name:    "INET_10.0.0.0/24_withAddPath_pathID42",
 			nlri:    NewINET(IPv4Unicast, netip.MustParsePrefix("10.0.0.0/24"), 42),
-			ctx:     &PackContext{AddPath: true},
+			addPath: true,
 			wantHex: "0000002a180a0000", // [pathID=42][prefixLen=24][10.0.0]
 		},
 		// INET - IPv6
 		{
 			name:    "INET_2001:db8::/32_noAddPath",
 			nlri:    NewINET(IPv6Unicast, netip.MustParsePrefix("2001:db8::/32"), 0),
-			ctx:     &PackContext{AddPath: false},
+			addPath: false,
 			wantHex: "2020010db8", // [prefixLen=32][2001:0db8]
 		},
 		{
 			name:    "INET_2001:db8::/32_withAddPath_pathID100",
 			nlri:    NewINET(IPv6Unicast, netip.MustParsePrefix("2001:db8::/32"), 100),
-			ctx:     &PackContext{AddPath: true},
+			addPath: true,
 			wantHex: "000000642020010db8", // [pathID=100][prefixLen=32][2001:0db8]
 		},
 		// INET edge cases
 		{
 			name:    "INET_0.0.0.0/0_noAddPath",
 			nlri:    NewINET(IPv4Unicast, netip.MustParsePrefix("0.0.0.0/0"), 0),
-			ctx:     &PackContext{AddPath: false},
+			addPath: false,
 			wantHex: "00", // [prefixLen=0]
 		},
 		{
 			name:    "INET_192.168.1.128/32_withAddPath",
 			nlri:    NewINET(IPv4Unicast, netip.MustParsePrefix("192.168.1.128/32"), 1),
-			ctx:     &PackContext{AddPath: true},
+			addPath: true,
 			wantHex: "0000000120c0a80180", // [pathID=1][prefixLen=32][192.168.1.128]
 		},
 	}
@@ -71,7 +71,7 @@ func TestWireFormat_AddPath(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			buf := make([]byte, 100)
-			n := WriteNLRI(tt.nlri, buf, 0, tt.ctx)
+			n := WriteNLRI(tt.nlri, buf, 0, tt.addPath)
 			got := hex.EncodeToString(buf[:n])
 			if got != tt.wantHex {
 				t.Errorf("wire format:\n  got:  %s\n  want: %s", got, tt.wantHex)
@@ -94,19 +94,19 @@ func TestWireFormat_IPVPN(t *testing.T) {
 	tests := []struct {
 		name    string
 		nlri    NLRI
-		ctx     *PackContext
+		addPath bool
 		wantHex string
 	}{
 		{
 			name:    "IPVPN_10.0.0.0/24_noAddPath",
 			nlri:    NewIPVPN(IPv4VPN, rd, []uint32{16000}, netip.MustParsePrefix("10.0.0.0/24"), 0),
-			ctx:     &PackContext{AddPath: false},
+			addPath: false,
 			wantHex: "70" + "03e801" + "0000000000000001" + "0a0000", // [len=112][label 3B][RD 8B][prefix 3B]
 		},
 		{
 			name:    "IPVPN_10.0.0.0/24_withAddPath",
 			nlri:    NewIPVPN(IPv4VPN, rd, []uint32{16000}, netip.MustParsePrefix("10.0.0.0/24"), 42),
-			ctx:     &PackContext{AddPath: true},
+			addPath: true,
 			wantHex: "0000002a" + "70" + "03e801" + "0000000000000001" + "0a0000", // [pathID 4B][len][label][RD][prefix]
 		},
 	}
@@ -114,7 +114,7 @@ func TestWireFormat_IPVPN(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			buf := make([]byte, 100)
-			n := WriteNLRI(tt.nlri, buf, 0, tt.ctx)
+			n := WriteNLRI(tt.nlri, buf, 0, tt.addPath)
 			got := hex.EncodeToString(buf[:n])
 			if got != tt.wantHex {
 				t.Errorf("wire format:\n  got:  %s\n  want: %s", got, tt.wantHex)
@@ -135,19 +135,19 @@ func TestWireFormat_LabeledUnicast(t *testing.T) {
 	tests := []struct {
 		name    string
 		nlri    NLRI
-		ctx     *PackContext
+		addPath bool
 		wantHex string
 	}{
 		{
 			name:    "LabeledUnicast_10.0.0.0/24_noAddPath",
 			nlri:    NewLabeledUnicast(IPv4LabeledUnicast, netip.MustParsePrefix("10.0.0.0/24"), []uint32{16000}, 0),
-			ctx:     &PackContext{AddPath: false},
+			addPath: false,
 			wantHex: "30" + "03e801" + "0a0000", // [len=48][label 3B][prefix 3B]
 		},
 		{
 			name:    "LabeledUnicast_10.0.0.0/24_withAddPath",
 			nlri:    NewLabeledUnicast(IPv4LabeledUnicast, netip.MustParsePrefix("10.0.0.0/24"), []uint32{16000}, 77),
-			ctx:     &PackContext{AddPath: true},
+			addPath: true,
 			wantHex: "0000004d" + "30" + "03e801" + "0a0000", // [pathID=77 4B][len][label][prefix]
 		},
 	}
@@ -155,7 +155,7 @@ func TestWireFormat_LabeledUnicast(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			buf := make([]byte, 100)
-			n := WriteNLRI(tt.nlri, buf, 0, tt.ctx)
+			n := WriteNLRI(tt.nlri, buf, 0, tt.addPath)
 			got := hex.EncodeToString(buf[:n])
 			if got != tt.wantHex {
 				t.Errorf("wire format:\n  got:  %s\n  want: %s", got, tt.wantHex)
@@ -188,31 +188,31 @@ func TestWireFormat_EVPN(t *testing.T) {
 	tests := []struct {
 		name    string
 		nlri    NLRI
-		ctx     *PackContext
+		addPath bool
 		wantLen int // Verify length matches
 	}{
 		{
 			name:    "EVPNType2_noAddPath",
 			nlri:    NewEVPNType2(rd, ESI{}, 0, mac, netip.MustParseAddr("10.0.0.1"), []uint32{100}),
-			ctx:     &PackContext{AddPath: false},
+			addPath: false,
 			wantLen: 39, // type(1) + len(1) + payload(37)
 		},
 		{
 			name:    "EVPNType2_withAddPath",
 			nlri:    NewEVPNType2(rd, ESI{}, 0, mac, netip.MustParseAddr("10.0.0.1"), []uint32{100}),
-			ctx:     &PackContext{AddPath: true},
+			addPath: true,
 			wantLen: 43, // pathID(4) + type(1) + len(1) + payload(37)
 		},
 		{
 			name:    "EVPNType5_noAddPath",
 			nlri:    NewEVPNType5(rd, ESI{}, 0, netip.MustParsePrefix("10.0.0.0/24"), netip.Addr{}, []uint32{100}),
-			ctx:     &PackContext{AddPath: false},
+			addPath: false,
 			wantLen: 36, // type(1) + len(1) + payload(34)
 		},
 		{
 			name:    "EVPNType5_withAddPath",
 			nlri:    NewEVPNType5(rd, ESI{}, 0, netip.MustParsePrefix("10.0.0.0/24"), netip.Addr{}, []uint32{100}),
-			ctx:     &PackContext{AddPath: true},
+			addPath: true,
 			wantLen: 40, // pathID(4) + type(1) + len(1) + payload(34)
 		},
 	}
@@ -220,14 +220,14 @@ func TestWireFormat_EVPN(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			buf := make([]byte, 100)
-			n := WriteNLRI(tt.nlri, buf, 0, tt.ctx)
+			n := WriteNLRI(tt.nlri, buf, 0, tt.addPath)
 
 			if n != tt.wantLen {
 				t.Errorf("length = %d, want %d", n, tt.wantLen)
 			}
 
 			// Verify path ID position when ADD-PATH enabled
-			if tt.ctx != nil && tt.ctx.AddPath {
+			if tt.addPath {
 				// First 4 bytes should be path ID (0 for these test cases)
 				pathID := buf[0:4]
 				if !bytes.Equal(pathID, []byte{0, 0, 0, 0}) {
@@ -265,12 +265,12 @@ func TestRoundTrip_INET(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			ctx := &PackContext{AddPath: tt.addPath}
+			// addPath is already a bool
 			family := tt.nlri.Family()
 
 			// Encode
 			buf := make([]byte, 100)
-			n := WriteNLRI(tt.nlri, buf, 0, ctx)
+			n := WriteNLRI(tt.nlri, buf, 0, tt.addPath)
 			wire := buf[:n]
 
 			// Decode - ParseINET returns (NLRI, remaining, error)
@@ -285,7 +285,7 @@ func TestRoundTrip_INET(t *testing.T) {
 
 			// Re-encode
 			buf2 := make([]byte, 100)
-			n2 := WriteNLRI(parsed, buf2, 0, ctx)
+			n2 := WriteNLRI(parsed, buf2, 0, tt.addPath)
 			wire2 := buf2[:n2]
 
 			// Compare
@@ -320,12 +320,12 @@ func TestRoundTrip_IPVPN(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			ctx := &PackContext{AddPath: tt.addPath}
+			// addPath is already a bool
 			family := tt.nlri.Family()
 
 			// Encode
 			buf := make([]byte, 100)
-			n := WriteNLRI(tt.nlri, buf, 0, ctx)
+			n := WriteNLRI(tt.nlri, buf, 0, tt.addPath)
 			wire := buf[:n]
 
 			// Decode - ParseIPVPN returns (NLRI, remaining, error)
@@ -340,7 +340,7 @@ func TestRoundTrip_IPVPN(t *testing.T) {
 
 			// Re-encode
 			buf2 := make([]byte, 100)
-			n2 := WriteNLRI(parsed, buf2, 0, ctx)
+			n2 := WriteNLRI(parsed, buf2, 0, tt.addPath)
 			wire2 := buf2[:n2]
 
 			// Compare
@@ -372,11 +372,11 @@ func TestRoundTrip_EVPN(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			ctx := &PackContext{AddPath: tt.addPath}
+			// addPath is already a bool
 
 			// Encode
 			buf := make([]byte, 100)
-			n := WriteNLRI(tt.nlri, buf, 0, ctx)
+			n := WriteNLRI(tt.nlri, buf, 0, tt.addPath)
 			wire := buf[:n]
 
 			// Decode - ParseEVPN returns (NLRI, remaining, error)
@@ -391,7 +391,7 @@ func TestRoundTrip_EVPN(t *testing.T) {
 
 			// Re-encode
 			buf2 := make([]byte, 100)
-			n2 := WriteNLRI(parsed, buf2, 0, ctx)
+			n2 := WriteNLRI(parsed, buf2, 0, tt.addPath)
 			wire2 := buf2[:n2]
 
 			// Compare

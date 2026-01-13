@@ -396,17 +396,24 @@ func (p *Peer) getPluginCapabilities() []capability.Capability {
 	return caps
 }
 
-// packContext returns a PackContext for capability-aware encoding.
+// addPathFor returns whether ADD-PATH is negotiated for the given family.
 // RFC 7911: ADD-PATH requires 4-byte path identifier prefix on NLRI.
-// RFC 6793: ASN4 determines 2-byte vs 4-byte AS numbers in AS_PATH.
-//
-// Returns nil only if session not established.
-// Uses sendCtx for encoding parameters (ASN4, AddPath per family).
-func (p *Peer) packContext(family nlri.Family) *nlri.PackContext {
+// Returns false if session not established.
+func (p *Peer) addPathFor(family nlri.Family) bool {
 	if p.sendCtx == nil {
-		return nil
+		return false
 	}
-	return p.sendCtx.ToPackContext(family)
+	return p.sendCtx.AddPath(family)
+}
+
+// asn4 returns whether 4-byte ASN is negotiated.
+// RFC 6793: ASN4 determines 2-byte vs 4-byte AS numbers in AS_PATH.
+// Returns true if session not established (default to modern).
+func (p *Peer) asn4() bool {
+	if p.sendCtx == nil {
+		return true
+	}
+	return p.sendCtx.ASN4()
 }
 
 // resolveNextHop returns the actual IP address for a RouteNextHop policy.
@@ -615,8 +622,8 @@ func toStaticRouteVPNParams(r StaticRoute, nextHop netip.Addr) message.VPNParams
 // buildStaticRouteUpdateNew builds an UPDATE for a static route using UpdateBuilder.
 // This is the new implementation that will replace buildStaticRouteUpdate.
 // nextHop is the resolved next-hop address (from RouteNextHop policy).
-func buildStaticRouteUpdateNew(route StaticRoute, nextHop netip.Addr, localAS uint32, isIBGP bool, ctx *nlri.PackContext, sendCtx *bgpctx.EncodingContext) *message.Update {
-	ub := message.NewUpdateBuilder(localAS, isIBGP, ctx)
+func buildStaticRouteUpdateNew(route StaticRoute, nextHop netip.Addr, localAS uint32, isIBGP bool, asn4, addPath bool, sendCtx *bgpctx.EncodingContext) *message.Update {
+	ub := message.NewUpdateBuilder(localAS, isIBGP, asn4, addPath)
 	if route.IsVPN() {
 		return ub.BuildVPN(toStaticRouteVPNParams(route, nextHop))
 	}
@@ -1090,9 +1097,10 @@ func (p *Peer) SendAnnounce(route plugin.RouteSpec, localAS uint32) error {
 	if route.Prefix.Addr().Is6() {
 		family = nlri.Family{AFI: nlri.AFIIPv6, SAFI: nlri.SAFIUnicast}
 	}
-	ctx := p.packContext(family)
+	asn4 := p.asn4()
+	addPath := p.addPathFor(family)
 
-	return session.SendAnnounce(route, localAS, isIBGP, ctx)
+	return session.SendAnnounce(route, localAS, isIBGP, asn4, addPath)
 }
 
 // SendWithdraw sends a BGP UPDATE message for withdrawing a route.
@@ -1115,9 +1123,9 @@ func (p *Peer) SendWithdraw(prefix netip.Prefix) error {
 	if prefix.Addr().Is6() {
 		family = nlri.Family{AFI: nlri.AFIIPv6, SAFI: nlri.SAFIUnicast}
 	}
-	ctx := p.packContext(family)
+	addPath := p.addPathFor(family)
 
-	return session.SendWithdraw(prefix, ctx)
+	return session.SendWithdraw(prefix, addPath)
 }
 
 // SendRawUpdateBody sends a pre-encoded UPDATE message body (without BGP header).
@@ -1237,7 +1245,7 @@ func (p *Peer) sendInitialRoutes() {
 		groups := groupRoutesByAttributes(p.settings.StaticRoutes)
 
 		for _, routes := range groups {
-			ctx := p.packContext(routeFamily(routes[0]))
+			addPath := p.addPathFor(routeFamily(routes[0]))
 			if len(routes) == 1 {
 				// Single-route group (IPv6, VPN, LabeledUnicast, or solo IPv4)
 				// Resolve next-hop from RouteNextHop policy
@@ -1246,7 +1254,7 @@ func (p *Peer) sendInitialRoutes() {
 					trace.Log(trace.Routes, "peer %s: next-hop resolution failed: %v", addr, nhErr)
 					continue
 				}
-				update := buildStaticRouteUpdateNew(routes[0], nextHop, p.settings.LocalAS, p.settings.IsIBGP(), ctx, p.sendCtx)
+				update := buildStaticRouteUpdateNew(routes[0], nextHop, p.settings.LocalAS, p.settings.IsIBGP(), p.asn4(), addPath, p.sendCtx)
 				if err := p.sendUpdateWithSplit(update, maxMsgSize, routeFamily(routes[0])); err != nil {
 					trace.Log(trace.Routes, "peer %s: send error: %v", addr, err)
 					break
@@ -1254,7 +1262,7 @@ func (p *Peer) sendInitialRoutes() {
 			} else {
 				// Multi-route group - IPv4 unicast only (routeGroupKey ensures this)
 				// Use size-aware builder to respect max message size
-				ub := message.NewUpdateBuilder(p.settings.LocalAS, p.settings.IsIBGP(), ctx)
+				ub := message.NewUpdateBuilder(p.settings.LocalAS, p.settings.IsIBGP(), p.asn4(), addPath)
 				params := make([]message.UnicastParams, 0, len(routes))
 				for _, r := range routes {
 					nextHop, nhErr := p.resolveNextHop(r.NextHop, routeFamily(r))
@@ -1292,8 +1300,8 @@ func (p *Peer) sendInitialRoutes() {
 				trace.Log(trace.Routes, "peer %s: next-hop resolution failed for %s: %v", addr, route.Prefix, nhErr)
 				continue
 			}
-			ctx := p.packContext(routeFamily(route))
-			update := buildStaticRouteUpdateNew(route, nextHop, p.settings.LocalAS, p.settings.IsIBGP(), ctx, p.sendCtx)
+			addPath := p.addPathFor(routeFamily(route))
+			update := buildStaticRouteUpdateNew(route, nextHop, p.settings.LocalAS, p.settings.IsIBGP(), p.asn4(), addPath, p.sendCtx)
 			if err := p.sendUpdateWithSplit(update, maxMsgSize, routeFamily(route)); err != nil {
 				trace.Log(trace.Routes, "peer %s: send error: %v", addr, err)
 				break
@@ -1326,8 +1334,8 @@ func (p *Peer) sendInitialRoutes() {
 					trace.Log(trace.Routes, "peer %s: watchdog %s: next-hop resolution failed: %v", addr, name, nhErr)
 					continue
 				}
-				ctx := p.packContext(routeFamily(wr.StaticRoute))
-				update := buildStaticRouteUpdateNew(wr.StaticRoute, nextHop, p.settings.LocalAS, p.settings.IsIBGP(), ctx, p.sendCtx)
+				addPath := p.addPathFor(routeFamily(wr.StaticRoute))
+				update := buildStaticRouteUpdateNew(wr.StaticRoute, nextHop, p.settings.LocalAS, p.settings.IsIBGP(), p.asn4(), addPath, p.sendCtx)
 				if err := p.sendUpdateWithSplit(update, maxMsgSize, routeFamily(wr.StaticRoute)); err != nil {
 					trace.Log(trace.Routes, "peer %s: send error: %v", addr, err)
 					break
@@ -1362,8 +1370,8 @@ func (p *Peer) sendInitialRoutes() {
 					trace.Log(trace.Routes, "peer %s: global pool %s: next-hop resolution failed: %v", addr, poolName, nhErr)
 					continue
 				}
-				ctx := p.packContext(routeFamily(route))
-				update := buildStaticRouteUpdateNew(route, nextHop, p.settings.LocalAS, p.settings.IsIBGP(), ctx, p.sendCtx)
+				addPath := p.addPathFor(routeFamily(route))
+				update := buildStaticRouteUpdateNew(route, nextHop, p.settings.LocalAS, p.settings.IsIBGP(), p.asn4(), addPath, p.sendCtx)
 				if err := p.sendUpdateWithSplit(update, maxMsgSize, routeFamily(route)); err != nil {
 					trace.Log(trace.Routes, "peer %s: send error: %v", addr, err)
 					break
@@ -1411,8 +1419,8 @@ func (p *Peer) sendInitialRoutes() {
 		case PeerOpAnnounce:
 			// Send route, splitting if needed.
 			family := op.Route.NLRI().Family()
-			ctx := p.packContext(family)
-			update := buildRIBRouteUpdate(op.Route, p.settings.LocalAS, p.settings.IsIBGP(), ctx)
+			addPath := p.addPathFor(family)
+			update := buildRIBRouteUpdate(op.Route, p.settings.LocalAS, p.settings.IsIBGP(), p.asn4(), addPath)
 			p.mu.Unlock()
 			if err := p.sendUpdateWithSplit(update, opMaxMsgSize, family); err != nil {
 				trace.Log(trace.Routes, "peer %s: send error for queued route %s: %v", addr, op.Route.NLRI(), err)
@@ -1433,8 +1441,8 @@ func (p *Peer) sendInitialRoutes() {
 			// Send withdrawal.
 			// Use sendUpdateWithSplit for consistency, though single withdrawals rarely need splitting
 			family := op.NLRI.Family()
-			ctx := p.packContext(family)
-			update := buildWithdrawNLRI(op.NLRI, ctx)
+			addPath := p.addPathFor(family)
+			update := buildWithdrawNLRI(op.NLRI, addPath)
 			p.mu.Unlock()
 			if err := p.sendUpdateWithSplit(update, opMaxMsgSize, family); err != nil {
 				trace.Log(trace.Routes, "peer %s: send error for withdrawal %s: %v", addr, op.NLRI, err)
@@ -1522,15 +1530,15 @@ func (p *Peer) sendInitialRoutes() {
 // buildRIBRouteUpdate builds an UPDATE message from a RIB route.
 // Used for re-announcing routes from Adj-RIB-Out on session re-establishment.
 // Rebuilds the full set of required attributes since rib.Route may not store all.
-// RFC 7911: ctx provides ADD-PATH capability state for NLRI encoding.
-// RFC 6793: ctx.ASN4 determines 2-byte vs 4-byte AS numbers in AS_PATH.
-func buildRIBRouteUpdate(route *rib.Route, localAS uint32, isIBGP bool, ctx *nlri.PackContext) *message.Update {
+// RFC 7911: addPath indicates ADD-PATH capability for NLRI encoding.
+// RFC 6793: asn4 determines 2-byte vs 4-byte AS numbers in AS_PATH.
+func buildRIBRouteUpdate(route *rib.Route, localAS uint32, isIBGP bool, asn4, addPath bool) *message.Update {
 	// Pre-allocate buffer for attributes (4KB typical BGP max)
 	attrBuf := make([]byte, 4096)
 	off := 0
 
 	// Create encoding context for ASPath encoding
-	dstCtx := bgpctx.EncodingContextForASN4(ctx == nil || ctx.ASN4)
+	dstCtx := bgpctx.EncodingContextForASN4(asn4)
 
 	// 1. ORIGIN - use stored or default to IGP
 	origin := attribute.OriginIGP
@@ -1597,15 +1605,15 @@ func buildRIBRouteUpdate(route *rib.Route, localAS uint32, isIBGP bool, ctx *nlr
 
 		// IPv4 unicast: use inline NLRI field
 		// RFC 7911: WriteNLRI uses ADD-PATH encoding when negotiated
-		nlriLen := nlri.LenWithContext(routeNLRI, ctx)
+		nlriLen := nlri.LenWithContext(routeNLRI, addPath)
 		nlriBytes = make([]byte, nlriLen)
-		nlri.WriteNLRI(routeNLRI, nlriBytes, 0, ctx)
+		nlri.WriteNLRI(routeNLRI, nlriBytes, 0, addPath)
 	default:
 		// Other families: MP_REACH_NLRI goes at end (after all other attributes)
 		// Build NLRI bytes first
-		nlriLen := nlri.LenWithContext(routeNLRI, ctx)
+		nlriLen := nlri.LenWithContext(routeNLRI, addPath)
 		nlriData := make([]byte, nlriLen)
-		nlri.WriteNLRI(routeNLRI, nlriData, 0, ctx)
+		nlri.WriteNLRI(routeNLRI, nlriData, 0, addPath)
 
 		mpReach := &attribute.MPReachNLRI{
 			AFI:      attribute.AFI(family.AFI),
@@ -1689,14 +1697,14 @@ func (p *Peer) sendUpdateWithSplit(update *message.Update, maxSize int, family n
 
 // buildWithdrawNLRI builds an UPDATE message to withdraw an NLRI.
 // RFC 4760: IPv4 unicast uses WithdrawnRoutes, others use MP_UNREACH_NLRI.
-// RFC 7911: ctx provides ADD-PATH capability state for NLRI encoding.
-func buildWithdrawNLRI(n nlri.NLRI, ctx *nlri.PackContext) *message.Update {
+// RFC 7911: addPath indicates ADD-PATH capability for NLRI encoding.
+func buildWithdrawNLRI(n nlri.NLRI, addPath bool) *message.Update {
 	family := n.Family()
 
 	// Pre-allocate NLRI buffer
-	nlriLen := nlri.LenWithContext(n, ctx)
+	nlriLen := nlri.LenWithContext(n, addPath)
 	nlriData := make([]byte, nlriLen)
-	nlri.WriteNLRI(n, nlriData, 0, ctx)
+	nlri.WriteNLRI(n, nlriData, 0, addPath)
 
 	if family.AFI == nlri.AFIIPv4 && family.SAFI == nlri.SAFIUnicast {
 		// IPv4 unicast: use WithdrawnRoutes field
@@ -1723,8 +1731,8 @@ func buildWithdrawNLRI(n nlri.NLRI, ctx *nlri.PackContext) *message.Update {
 
 // buildStaticRouteWithdraw builds a withdrawal UPDATE for a static route.
 // Handles VPN, labeled-unicast, IPv4 unicast, and IPv6 unicast correctly.
-// RFC 7911: ctx provides ADD-PATH capability state for NLRI encoding.
-func buildStaticRouteWithdraw(route StaticRoute, ctx *nlri.PackContext) *message.Update {
+// RFC 7911: addPath indicates ADD-PATH capability for NLRI encoding.
+func buildStaticRouteWithdraw(route StaticRoute, addPath bool) *message.Update {
 	switch {
 	case route.IsVPN():
 		// VPN route: use MP_UNREACH_NLRI with RD + prefix
@@ -1732,14 +1740,14 @@ func buildStaticRouteWithdraw(route StaticRoute, ctx *nlri.PackContext) *message
 		return buildMPUnreachVPN(route)
 	case route.IsLabeledUnicast():
 		// Labeled unicast: use MP_UNREACH_NLRI with label + prefix
-		return buildMPUnreachLabeledUnicast(route, ctx)
+		return buildMPUnreachLabeledUnicast(route, addPath)
 	case route.Prefix.Addr().Is4():
 		// IPv4 unicast: use WithdrawnRoutes field
 		// RFC 7911: WriteNLRI uses ADD-PATH encoding when negotiated
 		inet := nlri.NewINET(nlri.Family{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast}, route.Prefix, route.PathID)
-		nlriLen := nlri.LenWithContext(inet, ctx)
+		nlriLen := nlri.LenWithContext(inet, addPath)
 		nlriData := make([]byte, nlriLen)
-		nlri.WriteNLRI(inet, nlriData, 0, ctx)
+		nlri.WriteNLRI(inet, nlriData, 0, addPath)
 		return &message.Update{
 			WithdrawnRoutes: nlriData,
 		}
@@ -1747,9 +1755,9 @@ func buildStaticRouteWithdraw(route StaticRoute, ctx *nlri.PackContext) *message
 		// IPv6 unicast: use MP_UNREACH_NLRI
 		// RFC 7911: WriteNLRI uses ADD-PATH encoding when negotiated
 		inet := nlri.NewINET(nlri.Family{AFI: nlri.AFIIPv6, SAFI: nlri.SAFIUnicast}, route.Prefix, route.PathID)
-		nlriLen := nlri.LenWithContext(inet, ctx)
+		nlriLen := nlri.LenWithContext(inet, addPath)
 		nlriData := make([]byte, nlriLen)
-		nlri.WriteNLRI(inet, nlriData, 0, ctx)
+		nlri.WriteNLRI(inet, nlriData, 0, addPath)
 
 		mpUnreach := &attribute.MPUnreachNLRI{
 			AFI:  attribute.AFI(nlri.AFIIPv6),
@@ -1822,7 +1830,7 @@ func buildMPUnreachVPN(route StaticRoute) *message.Update {
 
 // buildMPUnreachLabeledUnicast builds MP_UNREACH_NLRI for labeled unicast withdrawal.
 // RFC 8277: Labeled unicast uses SAFI 4 with label + prefix.
-func buildMPUnreachLabeledUnicast(route StaticRoute, ctx *nlri.PackContext) *message.Update {
+func buildMPUnreachLabeledUnicast(route StaticRoute, addPath bool) *message.Update {
 	// Determine AFI from prefix
 	var afi nlri.AFI
 	if route.Prefix.Addr().Is4() {
@@ -1859,8 +1867,7 @@ func buildMPUnreachLabeledUnicast(route StaticRoute, ctx *nlri.PackContext) *mes
 	var nlriWithLen []byte
 
 	// Handle ADD-PATH if enabled
-	hasAddPath := ctx != nil && ctx.AddPath
-	if hasAddPath && route.PathID != 0 {
+	if addPath && route.PathID != 0 {
 		nlriWithLen = make([]byte, 4+1+len(nlriBytes))
 		nlriWithLen[0] = byte(route.PathID >> 24)
 		nlriWithLen[1] = byte(route.PathID >> 16)
@@ -2061,8 +2068,8 @@ func (p *Peer) sendMVPNRoutes() {
 	// Send IPv4 MVPN routes grouped by attributes (sorted for deterministic order)
 	if len(ipv4Routes) > 0 {
 		ipv4MVPNFamily := nlri.Family{AFI: 1, SAFI: 5} // IPv4 MVPN
-		ctx := p.packContext(ipv4MVPNFamily)
-		ub := message.NewUpdateBuilder(p.settings.LocalAS, p.settings.IsIBGP(), ctx)
+		addPath := p.addPathFor(ipv4MVPNFamily)
+		ub := message.NewUpdateBuilder(p.settings.LocalAS, p.settings.IsIBGP(), p.asn4(), addPath)
 		ipv4Groups := groupMVPNRoutesByKey(ipv4Routes)
 		for _, key := range sortedKeys(ipv4Groups) {
 			routes := ipv4Groups[key]
@@ -2085,8 +2092,8 @@ func (p *Peer) sendMVPNRoutes() {
 	// Send IPv6 MVPN routes grouped by attributes (sorted for deterministic order)
 	if len(ipv6Routes) > 0 {
 		ipv6MVPNFamily := nlri.Family{AFI: 2, SAFI: 5} // IPv6 MVPN
-		ctx := p.packContext(ipv6MVPNFamily)
-		ub := message.NewUpdateBuilder(p.settings.LocalAS, p.settings.IsIBGP(), ctx)
+		addPath := p.addPathFor(ipv6MVPNFamily)
+		ub := message.NewUpdateBuilder(p.settings.LocalAS, p.settings.IsIBGP(), p.asn4(), addPath)
 		ipv6Groups := groupMVPNRoutesByKey(ipv6Routes)
 		for _, key := range sortedKeys(ipv6Groups) {
 			routes := ipv6Groups[key]
@@ -2176,10 +2183,10 @@ func (p *Peer) sendVPLSRoutes() {
 	if len(p.settings.VPLSRoutes) > 0 {
 		trace.Log(trace.Routes, "peer %s: sending %d VPLS routes", addr, len(p.settings.VPLSRoutes))
 		// VPLS family: AFI=25 (L2VPN), SAFI=65 (VPLS)
-		// Note: VPLS doesn't support ADD-PATH, but we use Pack(ctx) for consistency
+		// Note: VPLS doesn't support ADD-PATH
 		vplsFamily := nlri.Family{AFI: 25, SAFI: 65}
-		ctx := p.packContext(vplsFamily)
-		ub := message.NewUpdateBuilder(p.settings.LocalAS, p.settings.IsIBGP(), ctx)
+		addPath := p.addPathFor(vplsFamily)
+		ub := message.NewUpdateBuilder(p.settings.LocalAS, p.settings.IsIBGP(), p.asn4(), addPath)
 		for _, route := range p.settings.VPLSRoutes {
 			update := ub.BuildVPLS(toVPLSParams(route))
 			if err := p.SendUpdate(update); err != nil {
@@ -2239,8 +2246,8 @@ func (p *Peer) sendFlowSpecRoutes() {
 		if isVPN {
 			safi = 134
 		}
-		ctx := p.packContext(nlri.Family{AFI: nlri.AFI(afi), SAFI: nlri.SAFI(safi)})
-		ub := message.NewUpdateBuilder(p.settings.LocalAS, p.settings.IsIBGP(), ctx)
+		addPath := p.addPathFor(nlri.Family{AFI: nlri.AFI(afi), SAFI: nlri.SAFI(safi)})
+		ub := message.NewUpdateBuilder(p.settings.LocalAS, p.settings.IsIBGP(), p.asn4(), addPath)
 		// RFC 5575 Section 4: FlowSpec NLRI max 4095 bytes.
 		// Single FlowSpec rule is atomic - cannot be split across UPDATEs.
 		update, err := ub.BuildFlowSpecWithMaxSize(toFlowSpecParams(route), maxMsgSize)
@@ -2302,8 +2309,8 @@ func (p *Peer) sendMUPRoutes() {
 	if len(ipv4Routes) > 0 {
 		trace.Log(trace.Routes, "peer %s: sending %d IPv4 MUP routes", addr, len(ipv4Routes))
 		ipv4MUPFamily := nlri.Family{AFI: 1, SAFI: 85}
-		ctx := p.packContext(ipv4MUPFamily)
-		ub := message.NewUpdateBuilder(p.settings.LocalAS, p.settings.IsIBGP(), ctx)
+		addPath := p.addPathFor(ipv4MUPFamily)
+		ub := message.NewUpdateBuilder(p.settings.LocalAS, p.settings.IsIBGP(), p.asn4(), addPath)
 		for _, route := range ipv4Routes {
 			update := ub.BuildMUP(toMUPParams(route))
 			if err := p.SendUpdate(update); err != nil {
@@ -2316,8 +2323,8 @@ func (p *Peer) sendMUPRoutes() {
 	if len(ipv6Routes) > 0 {
 		trace.Log(trace.Routes, "peer %s: sending %d IPv6 MUP routes", addr, len(ipv6Routes))
 		ipv6MUPFamily := nlri.Family{AFI: 2, SAFI: 85}
-		ctx := p.packContext(ipv6MUPFamily)
-		ub := message.NewUpdateBuilder(p.settings.LocalAS, p.settings.IsIBGP(), ctx)
+		addPath := p.addPathFor(ipv6MUPFamily)
+		ub := message.NewUpdateBuilder(p.settings.LocalAS, p.settings.IsIBGP(), p.asn4(), addPath)
 		for _, route := range ipv6Routes {
 			update := ub.BuildMUP(toMUPParams(route))
 			if err := p.SendUpdate(update); err != nil {
@@ -2395,9 +2402,9 @@ func (p *Peer) AnnounceWatchdog(name string) error {
 			trace.Log(trace.Routes, "peer %s: watchdog %s: next-hop resolution failed: %v", addr, name, nhErr)
 			continue
 		}
-		// RFC 7911: Get PackContext for ADD-PATH encoding
-		ctx := p.packContext(routeFamily(wr.StaticRoute))
-		update := buildStaticRouteUpdateNew(wr.StaticRoute, nextHop, p.settings.LocalAS, p.settings.IsIBGP(), ctx, p.sendCtx)
+		// RFC 7911: Get ADD-PATH encoding state
+		addPath := p.addPathFor(routeFamily(wr.StaticRoute))
+		update := buildStaticRouteUpdateNew(wr.StaticRoute, nextHop, p.settings.LocalAS, p.settings.IsIBGP(), p.asn4(), addPath, p.sendCtx)
 		if err := p.SendUpdate(update); err != nil {
 			return err
 		}
@@ -2475,9 +2482,9 @@ func (p *Peer) WithdrawWatchdog(name string) error {
 		}
 
 		// Build withdrawal - handles VPN, IPv4 unicast, IPv6 unicast correctly
-		// RFC 7911: Get PackContext for ADD-PATH encoding
-		ctx := p.packContext(routeFamily(wr.StaticRoute))
-		update := buildStaticRouteWithdraw(wr.StaticRoute, ctx)
+		// RFC 7911: Get ADD-PATH encoding state
+		addPath := p.addPathFor(routeFamily(wr.StaticRoute))
+		update := buildStaticRouteWithdraw(wr.StaticRoute, addPath)
 		if err := p.SendUpdate(update); err != nil {
 			return err
 		}

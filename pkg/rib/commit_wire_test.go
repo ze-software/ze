@@ -470,14 +470,12 @@ func newEVPNNLRI() *mockEVPNNLRI {
 // mockEVPNNLRI is a minimal EVPN NLRI for testing.
 type mockEVPNNLRI struct{}
 
-func (m *mockEVPNNLRI) Family() nlri.Family             { return nlri.L2VPNEVPN }
-func (m *mockEVPNNLRI) Bytes() []byte                   { return []byte{0x02, 0x21} } // Type 2, length 33
-func (m *mockEVPNNLRI) Pack(_ *nlri.PackContext) []byte { return m.Bytes() }
-func (m *mockEVPNNLRI) Len() int                        { return 2 }
-func (m *mockEVPNNLRI) String() string                  { return "evpn-type2" }
-func (m *mockEVPNNLRI) PathID() uint32                  { return 0 }
-func (m *mockEVPNNLRI) HasPathID() bool                 { return false }
-func (m *mockEVPNNLRI) WriteTo(buf []byte, off int, _ *nlri.PackContext) int {
+func (m *mockEVPNNLRI) Family() nlri.Family { return nlri.L2VPNEVPN }
+func (m *mockEVPNNLRI) Bytes() []byte       { return []byte{0x02, 0x21} } // Type 2, length 33
+func (m *mockEVPNNLRI) Len() int            { return 2 }
+func (m *mockEVPNNLRI) String() string      { return "evpn-type2" }
+func (m *mockEVPNNLRI) PathID() uint32      { return 0 }
+func (m *mockEVPNNLRI) WriteTo(buf []byte, off int) int {
 	return copy(buf[off:], m.Bytes())
 }
 

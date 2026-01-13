@@ -47,8 +47,7 @@ func TestBuildVPNNLRIBytes_MultiLabel(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			ctx := &nlri.PackContext{AddPath: false}
-			ub := NewUpdateBuilder(65001, false, ctx)
+			ub := NewUpdateBuilder(65001, false, true, false)
 
 			params := VPNParams{
 				Prefix:  tt.prefix,
@@ -118,8 +117,7 @@ func TestBuildLabeledUnicastNLRIBytes_MultiLabel(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			ctx := &nlri.PackContext{AddPath: false}
-			ub := NewUpdateBuilder(65001, false, ctx)
+			ub := NewUpdateBuilder(65001, false, true, false)
 
 			params := LabeledUnicastParams{
 				Prefix: tt.prefix,
@@ -154,8 +152,7 @@ func TestBuildLabeledUnicastNLRIBytes_MultiLabel(t *testing.T) {
 // VALIDATES: Complete VPN UPDATE message building with label stacks.
 // PREVENTS: UPDATE message corruption for multi-label VPN routes.
 func TestBuildVPN_MultiLabel(t *testing.T) {
-	ctx := &nlri.PackContext{AddPath: false}
-	ub := NewUpdateBuilder(65001, false, ctx)
+	ub := NewUpdateBuilder(65001, false, true, false)
 
 	params := VPNParams{
 		Prefix:  netip.MustParsePrefix("10.0.0.0/8"),
@@ -174,8 +171,7 @@ func TestBuildVPN_MultiLabel(t *testing.T) {
 // VALIDATES: Complete labeled unicast UPDATE message building with label stacks.
 // PREVENTS: UPDATE message corruption for multi-label labeled unicast routes.
 func TestBuildLabeledUnicast_MultiLabel(t *testing.T) {
-	ctx := &nlri.PackContext{AddPath: false}
-	ub := NewUpdateBuilder(65001, false, ctx)
+	ub := NewUpdateBuilder(65001, false, true, false)
 
 	params := LabeledUnicastParams{
 		Prefix:  netip.MustParsePrefix("10.0.0.0/8"),

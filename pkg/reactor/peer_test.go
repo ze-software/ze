@@ -257,8 +257,7 @@ func TestBuildStaticRouteUpdateIPv6(t *testing.T) {
 		LocalPreference: 100,
 	}
 
-	ctx := &nlri.PackContext{ASN4: true}
-	update := buildStaticRouteUpdateNew(route, nextHop, 65000, true, ctx, nil) // iBGP, ctx with ASN4, no ExtNH needed
+	update := buildStaticRouteUpdateNew(route, nextHop, 65000, true, true, false, nil) // iBGP, ASN4, no ADD-PATH, no ExtNH needed
 
 	// IPv6 routes must NOT have inline NLRI
 	require.Empty(t, update.NLRI, "IPv6 route must not have inline NLRI")
@@ -315,8 +314,7 @@ func TestBuildStaticRouteUpdateWithCommunities(t *testing.T) {
 		Communities: []uint32{0x78140000, 0x78147814}, // 30740:0, 30740:30740
 	}
 
-	ctx := &nlri.PackContext{ASN4: true}
-	update := buildStaticRouteUpdateNew(route, nextHop, 65000, false, ctx, nil) // eBGP, ctx with ASN4, no ExtNH needed
+	update := buildStaticRouteUpdateNew(route, nextHop, 65000, false, true, false, nil) // eBGP, ASN4, no ADD-PATH, no ExtNH needed
 	require.NotEmpty(t, update.PathAttributes, "must have path attributes")
 
 	// Look for COMMUNITIES (code 8) in attributes
@@ -863,32 +861,31 @@ func TestFamiliesSentOnlyVPN(t *testing.T) {
 }
 
 // =============================================================================
-// PackContext Tests (RFC 7911 ADD-PATH)
+// ADD-PATH Tests (RFC 7911)
 // =============================================================================
 
-// TestPeerPackContextNilFamilies verifies nil families returns nil context.
+// TestPeerAddPathNilSendCtx verifies AddPath returns false when sendCtx is nil.
 //
-// VALIDATES: packContext returns nil when no negotiated families exist.
+// VALIDATES: AddPath returns false when session not established (nil sendCtx).
 //
 // PREVENTS: Nil pointer dereference when building NLRI before session established.
-func TestPeerPackContextNilFamilies(t *testing.T) {
+func TestPeerAddPathNilSendCtx(t *testing.T) {
 	settings := NewPeerSettings(
 		mustParseAddr("192.0.2.1"),
 		65000, 65001, 0x01010101,
 	)
 	peer := NewPeer(settings)
 
-	// No families set (session not established)
-	ctx := peer.packContext(nlri.IPv4Unicast)
-	require.Nil(t, ctx, "nil families should return nil context")
+	// No sendCtx set (session not established)
+	require.Nil(t, peer.sendCtx, "sendCtx should be nil")
 }
 
-// TestPeerPackContextIPv4AddPath verifies IPv4 unicast ADD-PATH context.
+// TestPeerAddPathIPv4Unicast verifies IPv4 unicast ADD-PATH context.
 //
-// VALIDATES: packContext returns AddPath=true for IPv4 unicast when negotiated.
+// VALIDATES: sendCtx.AddPath returns true for IPv4 unicast when negotiated.
 //
 // PREVENTS: Missing path ID in IPv4 unicast NLRI when ADD-PATH is negotiated.
-func TestPeerPackContextIPv4AddPath(t *testing.T) {
+func TestPeerAddPathIPv4Unicast(t *testing.T) {
 	settings := NewPeerSettings(
 		mustParseAddr("192.0.2.1"),
 		65000, 65001, 0x01010101,
@@ -901,17 +898,16 @@ func TestPeerPackContextIPv4AddPath(t *testing.T) {
 		nlri.IPv6Unicast: false,
 	})
 
-	ctx := peer.packContext(nlri.IPv4Unicast)
-	require.NotNil(t, ctx, "should return non-nil context")
-	require.True(t, ctx.AddPath, "AddPath should be true for IPv4 unicast")
+	addPath := peer.sendCtx.AddPath(nlri.IPv4Unicast)
+	require.True(t, addPath, "AddPath should be true for IPv4 unicast")
 }
 
-// TestPeerPackContextIPv6AddPath verifies IPv6 unicast ADD-PATH context.
+// TestPeerAddPathIPv6Unicast verifies IPv6 unicast ADD-PATH context.
 //
-// VALIDATES: packContext returns AddPath=true for IPv6 unicast when negotiated.
+// VALIDATES: sendCtx.AddPath returns true for IPv6 unicast when negotiated.
 //
 // PREVENTS: Missing path ID in IPv6 unicast NLRI when ADD-PATH is negotiated.
-func TestPeerPackContextIPv6AddPath(t *testing.T) {
+func TestPeerAddPathIPv6Unicast(t *testing.T) {
 	settings := NewPeerSettings(
 		mustParseAddr("192.0.2.1"),
 		65000, 65001, 0x01010101,
@@ -924,17 +920,16 @@ func TestPeerPackContextIPv6AddPath(t *testing.T) {
 		nlri.IPv6Unicast: true,
 	})
 
-	ctx := peer.packContext(nlri.IPv6Unicast)
-	require.NotNil(t, ctx, "should return non-nil context")
-	require.True(t, ctx.AddPath, "AddPath should be true for IPv6 unicast")
+	addPath := peer.sendCtx.AddPath(nlri.IPv6Unicast)
+	require.True(t, addPath, "AddPath should be true for IPv6 unicast")
 }
 
-// TestPeerPackContextLabeledUnicastAddPath verifies labeled-unicast ADD-PATH context.
+// TestPeerAddPathLabeledUnicast verifies labeled-unicast ADD-PATH context.
 //
-// VALIDATES: packContext returns AddPath=true for labeled-unicast when negotiated.
+// VALIDATES: sendCtx.AddPath returns true for labeled-unicast when negotiated.
 //
 // PREVENTS: Missing path ID in labeled-unicast NLRI when ADD-PATH is negotiated.
-func TestPeerPackContextLabeledUnicastAddPath(t *testing.T) {
+func TestPeerAddPathLabeledUnicast(t *testing.T) {
 	settings := NewPeerSettings(
 		mustParseAddr("192.0.2.1"),
 		65000, 65001, 0x01010101,
@@ -948,22 +943,20 @@ func TestPeerPackContextLabeledUnicastAddPath(t *testing.T) {
 	})
 
 	// IPv4 labeled-unicast (SAFI 4)
-	ctx4 := peer.packContext(nlri.Family{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIMPLSLabel})
-	require.NotNil(t, ctx4, "should return non-nil context")
-	require.True(t, ctx4.AddPath, "AddPath should be true for IPv4 labeled-unicast")
+	addPath4 := peer.sendCtx.AddPath(nlri.Family{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIMPLSLabel})
+	require.True(t, addPath4, "AddPath should be true for IPv4 labeled-unicast")
 
 	// IPv6 labeled-unicast (SAFI 4)
-	ctx6 := peer.packContext(nlri.Family{AFI: nlri.AFIIPv6, SAFI: nlri.SAFIMPLSLabel})
-	require.NotNil(t, ctx6, "should return non-nil context")
-	require.True(t, ctx6.AddPath, "AddPath should be true for IPv6 labeled-unicast")
+	addPath6 := peer.sendCtx.AddPath(nlri.Family{AFI: nlri.AFIIPv6, SAFI: nlri.SAFIMPLSLabel})
+	require.True(t, addPath6, "AddPath should be true for IPv6 labeled-unicast")
 }
 
-// TestPeerPackContextNoAddPath verifies non-ADD-PATH families return AddPath=false.
+// TestPeerAddPathNoAddPath verifies non-ADD-PATH families return AddPath=false.
 //
-// VALIDATES: packContext returns AddPath=false for families without ADD-PATH.
+// VALIDATES: sendCtx.AddPath returns false for families without ADD-PATH.
 //
 // PREVENTS: Spurious path ID prepended to NLRI for non-ADD-PATH sessions.
-func TestPeerPackContextNoAddPath(t *testing.T) {
+func TestPeerAddPathNoAddPath(t *testing.T) {
 	settings := NewPeerSettings(
 		mustParseAddr("192.0.2.1"),
 		65000, 65001, 0x01010101,
@@ -976,21 +969,19 @@ func TestPeerPackContextNoAddPath(t *testing.T) {
 		nlri.IPv6Unicast: false,
 	})
 
-	ctx4 := peer.packContext(nlri.IPv4Unicast)
-	require.NotNil(t, ctx4, "should return non-nil context")
-	require.False(t, ctx4.AddPath, "AddPath should be false for IPv4 unicast without ADD-PATH")
+	addPath4 := peer.sendCtx.AddPath(nlri.IPv4Unicast)
+	require.False(t, addPath4, "AddPath should be false for IPv4 unicast without ADD-PATH")
 
-	ctx6 := peer.packContext(nlri.IPv6Unicast)
-	require.NotNil(t, ctx6, "should return non-nil context")
-	require.False(t, ctx6.AddPath, "AddPath should be false for IPv6 unicast without ADD-PATH")
+	addPath6 := peer.sendCtx.AddPath(nlri.IPv6Unicast)
+	require.False(t, addPath6, "AddPath should be false for IPv6 unicast without ADD-PATH")
 }
 
-// TestPeerPackContextOtherFamilies verifies non-unicast families return context with AddPath=false.
+// TestPeerAddPathOtherFamilies verifies non-unicast families return AddPath=false.
 //
-// VALIDATES: packContext returns context with ASN4 but AddPath=false for non-unicast.
+// VALIDATES: sendCtx.AddPath returns false for families not in AddPath map.
 //
-// PREVENTS: Missing ASN4 for non-unicast families while correctly omitting ADD-PATH.
-func TestPeerPackContextOtherFamilies(t *testing.T) {
+// PREVENTS: Spurious path ID in NLRI for families without ADD-PATH negotiated.
+func TestPeerAddPathOtherFamilies(t *testing.T) {
 	settings := NewPeerSettings(
 		mustParseAddr("192.0.2.1"),
 		65000, 65001, 0x01010101,
@@ -1004,19 +995,18 @@ func TestPeerPackContextOtherFamilies(t *testing.T) {
 
 	// VPN family - not in AddPath map so should be false
 	vpnFamily := nlri.Family{AFI: nlri.AFIIPv4, SAFI: 128}
-	ctx := peer.packContext(vpnFamily)
-	require.NotNil(t, ctx, "VPN family should return context (for ASN4)")
-	require.False(t, ctx.AddPath, "VPN family should have AddPath=false")
-	require.True(t, ctx.ASN4, "VPN family should have ASN4 from session")
+	addPath := peer.sendCtx.AddPath(vpnFamily)
+	require.False(t, addPath, "VPN family should have AddPath=false")
+	require.True(t, peer.sendCtx.ASN4(), "ASN4 should still be accessible from sendCtx")
 }
 
-// TestPeerPackContextASN4 verifies packContext includes ASN4 from negotiated state.
+// TestPeerEncodingContextASN4 verifies sendCtx includes ASN4 from negotiated state.
 //
-// VALIDATES: PackContext.ASN4 reflects negotiated 4-byte AS number capability.
+// VALIDATES: sendCtx.ASN4() reflects negotiated 4-byte AS number capability.
 // RFC 6793 Section 4.1: NEW speakers use 4-byte AS numbers when both support it.
 //
 // PREVENTS: AS_PATH encoded with wrong ASN size, causing protocol violations.
-func TestPeerPackContextASN4(t *testing.T) {
+func TestPeerEncodingContextASN4(t *testing.T) {
 	settings := NewPeerSettings(
 		mustParseAddr("192.0.2.1"),
 		65000, 65001, 0x01010101,
@@ -1025,17 +1015,11 @@ func TestPeerPackContextASN4(t *testing.T) {
 
 	// Session with ASN4=true
 	peer.sendCtx = bgpctx.EncodingContextForASN4(true)
-
-	ctx := peer.packContext(nlri.IPv4Unicast)
-	require.NotNil(t, ctx, "should return non-nil context")
-	require.True(t, ctx.ASN4, "ASN4 should be true when negotiated")
+	require.True(t, peer.sendCtx.ASN4(), "ASN4 should be true when negotiated")
 
 	// Session with ASN4=false (OLD speaker)
 	peer.sendCtx = bgpctx.EncodingContextForASN4(false)
-
-	ctx = peer.packContext(nlri.IPv4Unicast)
-	require.NotNil(t, ctx, "should return non-nil context")
-	require.False(t, ctx.ASN4, "ASN4 should be false for OLD speaker")
+	require.False(t, peer.sendCtx.ASN4(), "ASN4 should be false for OLD speaker")
 }
 
 // =============================================================================

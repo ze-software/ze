@@ -605,9 +605,9 @@ func writeCommunitiesAttr(buf []byte, off int, communities []uint32) int {
 // True zero-allocation: writes all attributes directly to the buffer.
 //
 // RFC 4271 Section 4.3 - UPDATE message format.
-// RFC 7911: ctx provides ADD-PATH capability state for NLRI encoding.
-// RFC 6793: ctx.ASN4 determines 2-byte vs 4-byte AS numbers in AS_PATH.
-func WriteAnnounceUpdate(buf []byte, off int, route plugin.RouteSpec, localAS uint32, isIBGP bool, ctx *nlri.PackContext) int {
+// RFC 7911: addPath indicates ADD-PATH capability for NLRI encoding.
+// RFC 6793: asn4 determines 2-byte vs 4-byte AS numbers in AS_PATH.
+func WriteAnnounceUpdate(buf []byte, off int, route plugin.RouteSpec, localAS uint32, isIBGP bool, asn4, addPath bool) int {
 	start := off
 
 	// RFC 4271 Section 4.1 - BGP Header: 16-byte marker (all 0xFF)
@@ -633,9 +633,6 @@ func WriteAnnounceUpdate(buf []byte, off int, route plugin.RouteSpec, localAS ui
 	attrLenPos := off
 	off += 2
 	attrStart := off
-
-	// Determine ASN4 mode from context
-	asn4 := ctx == nil || ctx.ASN4
 
 	// Extract attributes from Wire (wire-first approach)
 	origin := uint8(attribute.OriginIGP)
@@ -766,12 +763,12 @@ func WriteAnnounceUpdate(buf []byte, off int, route plugin.RouteSpec, localAS ui
 
 		// RFC 7911: WriteNLRI handles ADD-PATH encoding
 		inet := nlri.NewINET(nlri.Family{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast}, route.Prefix, 0)
-		off += nlri.WriteNLRI(inet, buf, off, ctx)
+		off += nlri.WriteNLRI(inet, buf, off, addPath)
 	} else {
 		// RFC 4760 Section 3 - IPv6: Write MP_REACH_NLRI directly (zero-alloc)
 		// Wire format: AFI(2) + SAFI(1) + NH_Len(1) + NextHop(16) + Reserved(1) + NLRI(var)
 		inet := nlri.NewINET(nlri.Family{AFI: nlri.AFIIPv6, SAFI: nlri.SAFIUnicast}, route.Prefix, 0)
-		nlriPayloadLen := nlri.LenWithContext(inet, ctx)
+		nlriPayloadLen := nlri.LenWithContext(inet, addPath)
 		nhLen := 16 // IPv6 next-hop
 		mpValueLen := 2 + 1 + 1 + nhLen + 1 + nlriPayloadLen
 
@@ -800,7 +797,7 @@ func WriteAnnounceUpdate(buf []byte, off int, route plugin.RouteSpec, localAS ui
 
 		// RFC 4760 Section 3 - NLRI (variable)
 		// RFC 7911: WriteNLRI handles ADD-PATH encoding when negotiated
-		off += nlri.WriteNLRI(inet, buf, off, ctx)
+		off += nlri.WriteNLRI(inet, buf, off, addPath)
 
 		// Backfill attr length (no inline NLRI for IPv6)
 		attrLen := off - attrStart
@@ -823,8 +820,8 @@ func WriteAnnounceUpdate(buf []byte, off int, route plugin.RouteSpec, localAS ui
 //
 // RFC 4271 Section 4.3 - UPDATE message format.
 // RFC 4760 Section 4: IPv6 withdrawals use MP_UNREACH_NLRI attribute.
-// RFC 7911: ctx provides ADD-PATH capability state for NLRI encoding.
-func WriteWithdrawUpdate(buf []byte, off int, prefix netip.Prefix, ctx *nlri.PackContext) int {
+// RFC 7911: addPath indicates ADD-PATH capability for NLRI encoding.
+func WriteWithdrawUpdate(buf []byte, off int, prefix netip.Prefix, addPath bool) int {
 	start := off
 
 	// RFC 4271 Section 4.1 - BGP Header: 16-byte marker (all 0xFF)
@@ -851,7 +848,7 @@ func WriteWithdrawUpdate(buf []byte, off int, prefix netip.Prefix, ctx *nlri.Pac
 		// RFC 4271 Section 4.3 - Withdrawn Routes: list of IP address prefixes
 		// RFC 7911: WriteNLRI handles ADD-PATH encoding when negotiated
 		inet := nlri.NewINET(nlri.Family{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast}, prefix, 0)
-		off += nlri.WriteNLRI(inet, buf, off, ctx)
+		off += nlri.WriteNLRI(inet, buf, off, addPath)
 
 		// RFC 4271 Section 4.3 - Backfill Withdrawn Routes Length
 		withdrawnLen := off - withdrawnStart
@@ -877,7 +874,7 @@ func WriteWithdrawUpdate(buf []byte, off int, prefix netip.Prefix, ctx *nlri.Pac
 		// RFC 4760 Section 4 - MP_UNREACH_NLRI wire format:
 		//   AFI(2) + SAFI(1) + Withdrawn_NLRI(var)
 		inet := nlri.NewINET(nlri.Family{AFI: nlri.AFIIPv6, SAFI: nlri.SAFIUnicast}, prefix, 0)
-		nlriPayloadLen := nlri.LenWithContext(inet, ctx)
+		nlriPayloadLen := nlri.LenWithContext(inet, addPath)
 		mpValueLen := 2 + 1 + nlriPayloadLen
 
 		// RFC 4760 Section 4 - Attribute header (Optional, non-transitive)
@@ -894,7 +891,7 @@ func WriteWithdrawUpdate(buf []byte, off int, prefix netip.Prefix, ctx *nlri.Pac
 
 		// RFC 4760 Section 4 - Withdrawn Routes (variable)
 		// RFC 7911: WriteNLRI handles ADD-PATH encoding when negotiated
-		off += nlri.WriteNLRI(inet, buf, off, ctx)
+		off += nlri.WriteNLRI(inet, buf, off, addPath)
 
 		// Backfill attr length
 		attrLen := off - attrStart
@@ -995,10 +992,11 @@ func (a *reactorAPIAdapter) AnnounceL3VPN(peerSelector string, route plugin.L3VP
 			if route.Prefix.Addr().Is6() {
 				family.AFI = nlri.AFIIPv6
 			}
-			ctx := peer.packContext(family)
+			asn4 := peer.asn4()
+			addPath := peer.addPathFor(family)
 
 			// Build UPDATE using UpdateBuilder for immediate send
-			ub := message.NewUpdateBuilder(a.r.config.LocalAS, isIBGP, ctx)
+			ub := message.NewUpdateBuilder(a.r.config.LocalAS, isIBGP, asn4, addPath)
 			update := ub.BuildVPN(params)
 
 			if err := peer.SendUpdate(update); err != nil {
@@ -1340,10 +1338,11 @@ func (a *reactorAPIAdapter) AnnounceLabeledUnicast(peerSelector string, route pl
 			if route.Prefix.Addr().Is6() {
 				family.AFI = nlri.AFIIPv6
 			}
-			ctx := peer.packContext(family)
+			addPath := peer.addPathFor(family)
+			asn4 := peer.asn4()
 
 			// Build UPDATE using UpdateBuilder for immediate send
-			ub := message.NewUpdateBuilder(a.r.config.LocalAS, isIBGP, ctx)
+			ub := message.NewUpdateBuilder(a.r.config.LocalAS, isIBGP, asn4, addPath)
 			params := a.buildLabeledUnicastParams(route)
 			update := ub.BuildLabeledUnicast(params)
 
@@ -1521,7 +1520,7 @@ func (a *reactorAPIAdapter) WithdrawLabeledUnicast(peerSelector string, route pl
 	for _, peer := range peers {
 		if peer.State() == PeerStateEstablished {
 			// Send immediately
-			ctx := peer.packContext(family)
+			addPath := peer.addPathFor(family)
 
 			// Build withdrawal using existing helper
 			staticRoute := StaticRoute{
@@ -1529,7 +1528,7 @@ func (a *reactorAPIAdapter) WithdrawLabeledUnicast(peerSelector string, route pl
 				Labels: labels,
 			}
 
-			update := buildMPUnreachLabeledUnicast(staticRoute, ctx)
+			update := buildMPUnreachLabeledUnicast(staticRoute, addPath)
 			if err := peer.SendUpdate(update); err != nil {
 				lastErr = err
 			}
@@ -1589,10 +1588,11 @@ func (a *reactorAPIAdapter) sendMUPRoute(peerSelector string, spec plugin.MUPRou
 		if spec.IsIPv6 {
 			family.AFI = nlri.AFIIPv6
 		}
-		ctx := peer.packContext(family)
+		addPath := peer.addPathFor(family)
+		asn4 := peer.asn4()
 
 		// Build UPDATE using UpdateBuilder
-		ub := message.NewUpdateBuilder(peer.settings.LocalAS, peer.settings.IsIBGP(), ctx)
+		ub := message.NewUpdateBuilder(peer.settings.LocalAS, peer.settings.IsIBGP(), asn4, addPath)
 		var update *message.Update
 		if isWithdraw {
 			update = ub.BuildMUPWithdraw(toMUPParams(mupRoute))
@@ -1672,10 +1672,11 @@ func (a *reactorAPIAdapter) AnnounceNLRIBatch(peerSelector string, batch plugin.
 			// Get max message size from capabilities
 			// RFC 8654: 65535 if ExtendedMessage, else 4096
 			maxMsgSize := int(message.MaxMessageLength(message.TypeUPDATE, nc.ExtendedMessage))
-			ctx := peer.packContext(batch.Family)
+			addPath := peer.addPathFor(batch.Family)
+			asn4 := peer.asn4()
 
 			// Build UPDATE message for this batch
-			update := a.buildBatchAnnounceUpdate(batch, nextHop, isIBGP, ctx)
+			update := a.buildBatchAnnounceUpdate(batch, nextHop, isIBGP, asn4, addPath)
 
 			// Send with splitting for large batches
 			// RFC 4271: Each split UPDATE is self-contained with full attributes
@@ -1724,10 +1725,10 @@ func (a *reactorAPIAdapter) WithdrawNLRIBatch(peerSelector string, batch plugin.
 
 			// Get max message size from capabilities
 			maxMsgSize := int(message.MaxMessageLength(message.TypeUPDATE, nc.ExtendedMessage))
-			ctx := peer.packContext(batch.Family)
+			addPath := peer.addPathFor(batch.Family)
 
 			// Build withdraw UPDATE for this batch
-			update := a.buildBatchWithdrawUpdate(batch, ctx)
+			update := a.buildBatchWithdrawUpdate(batch, addPath)
 
 			// Send with splitting for large batches
 			if err := peer.sendUpdateWithSplit(update, maxMsgSize, batch.Family); err != nil {
@@ -1775,21 +1776,18 @@ func (a *reactorAPIAdapter) buildBatchASPath(userASPath []uint32, isIBGP bool) *
 // buildBatchAnnounceUpdate builds an UPDATE message for a batch of NLRIs.
 // RFC 4271 Section 4.3: UPDATE Message Format.
 // RFC 4760: MP_REACH_NLRI for non-IPv4-unicast families.
-func (a *reactorAPIAdapter) buildBatchAnnounceUpdate(batch plugin.NLRIBatch, nextHop netip.Addr, isIBGP bool, ctx *nlri.PackContext) *message.Update {
+func (a *reactorAPIAdapter) buildBatchAnnounceUpdate(batch plugin.NLRIBatch, nextHop netip.Addr, isIBGP bool, asn4, addPath bool) *message.Update {
 	// Pack NLRIs first (used by both paths)
 	// Calculate total NLRI size
 	totalNLRILen := 0
 	for _, n := range batch.NLRIs {
-		totalNLRILen += nlri.LenWithContext(n, ctx)
+		totalNLRILen += nlri.LenWithContext(n, addPath)
 	}
 	nlriBytes := make([]byte, totalNLRILen)
 	nlriOff := 0
 	for _, n := range batch.NLRIs {
-		nlriOff += nlri.WriteNLRI(n, nlriBytes, nlriOff, ctx)
+		nlriOff += nlri.WriteNLRI(n, nlriBytes, nlriOff, addPath)
 	}
-
-	// Determine ASN4 mode from context
-	asn4 := ctx == nil || ctx.ASN4
 
 	// Wire mode: ensure mandatory attributes present, then add NEXT_HOP or MP_REACH_NLRI
 	if batch.Wire != nil {
@@ -2082,16 +2080,16 @@ func (a *reactorAPIAdapter) writeASPath(buf []byte, isIBGP, asn4 bool) int {
 // buildBatchWithdrawUpdate builds an UPDATE message for withdrawing a batch of NLRIs.
 // RFC 4271 Section 4.3: Withdrawn Routes field.
 // RFC 4760: MP_UNREACH_NLRI for non-IPv4-unicast families.
-func (a *reactorAPIAdapter) buildBatchWithdrawUpdate(batch plugin.NLRIBatch, ctx *nlri.PackContext) *message.Update {
+func (a *reactorAPIAdapter) buildBatchWithdrawUpdate(batch plugin.NLRIBatch, addPath bool) *message.Update {
 	// Calculate total NLRI size and pack
 	totalNLRILen := 0
 	for _, n := range batch.NLRIs {
-		totalNLRILen += nlri.LenWithContext(n, ctx)
+		totalNLRILen += nlri.LenWithContext(n, addPath)
 	}
 	nlriBytes := make([]byte, totalNLRILen)
 	nlriOff := 0
 	for _, n := range batch.NLRIs {
-		nlriOff += nlri.WriteNLRI(n, nlriBytes, nlriOff, ctx)
+		nlriOff += nlri.WriteNLRI(n, nlriBytes, nlriOff, addPath)
 	}
 
 	isIPv4Unicast := batch.Family == nlri.IPv4Unicast
@@ -2775,19 +2773,19 @@ func (a *reactorAPIAdapter) sendWithdrawals(peer *Peer, withdrawals []nlri.NLRI)
 	ipv4Unicast := nlri.Family{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast}
 
 	for family, nlris := range byFamily {
-		// RFC 7911: Get PackContext for ADD-PATH encoding
-		ctx := peer.packContext(family)
+		// RFC 7911: Get ADD-PATH encoding setting
+		addPath := peer.addPathFor(family)
 		var update *message.Update
 
 		// Calculate total NLRI size
 		totalLen := 0
 		for _, n := range nlris {
-			totalLen += nlri.LenWithContext(n, ctx)
+			totalLen += nlri.LenWithContext(n, addPath)
 		}
 		nlriBytes := make([]byte, totalLen)
 		off := 0
 		for _, n := range nlris {
-			off += nlri.WriteNLRI(n, nlriBytes, off, ctx)
+			off += nlri.WriteNLRI(n, nlriBytes, off, addPath)
 		}
 
 		if family == ipv4Unicast {
@@ -3001,8 +2999,9 @@ func (a *reactorAPIAdapter) sendRoutesIndividually(peer *Peer, routes []*rib.Rou
 
 	for _, route := range routes {
 		family := route.NLRI().Family()
-		ctx := peer.packContext(family)
-		update := buildRIBRouteUpdate(route, peer.settings.LocalAS, peer.settings.IsIBGP(), ctx)
+		addPath := peer.addPathFor(family)
+		asn4 := peer.asn4()
+		update := buildRIBRouteUpdate(route, peer.settings.LocalAS, peer.settings.IsIBGP(), asn4, addPath)
 
 		if err := peer.sendUpdateWithSplit(update, maxMsgSize, family); err != nil {
 			errs = append(errs, fmt.Errorf("route %s: %w", route.NLRI(), err))
@@ -3026,21 +3025,22 @@ func (a *reactorAPIAdapter) sendASPathGroup(peer *Peer, attrGroup *rib.Attribute
 	}
 
 	family := attrGroup.Family
-	ctx := peer.packContext(family)
+	addPath := peer.addPathFor(family)
+	asn4 := peer.asn4()
 
 	// IPv4 unicast: use BuildGroupedUnicastWithLimit
 	if family.AFI == nlri.AFIIPv4 && family.SAFI == nlri.SAFIUnicast {
-		return a.sendGroupedIPv4Unicast(peer, aspGroup.Routes, ctx, maxMsgSize)
+		return a.sendGroupedIPv4Unicast(peer, aspGroup.Routes, asn4, addPath, maxMsgSize)
 	}
 
 	// MP families: build UPDATE with MP_REACH_NLRI containing grouped NLRIs
-	return a.sendGroupedMPFamily(peer, aspGroup.Routes, family, ctx, maxMsgSize)
+	return a.sendGroupedMPFamily(peer, aspGroup.Routes, family, asn4, addPath, maxMsgSize)
 }
 
 // sendGroupedIPv4Unicast sends grouped IPv4 unicast routes using BuildGroupedUnicastWithLimit.
 //
 //nolint:unused // Orphaned: was called by sendSplitUpdate (deleted), may be useful for future adj-rib-out features
-func (a *reactorAPIAdapter) sendGroupedIPv4Unicast(peer *Peer, routes []*rib.Route, ctx *nlri.PackContext, maxMsgSize int) error {
+func (a *reactorAPIAdapter) sendGroupedIPv4Unicast(peer *Peer, routes []*rib.Route, asn4, addPath bool, maxMsgSize int) error {
 	// Check if any route has complex AS_PATH (AS_SET, CONFED, multiple segments)
 	// that can't be represented in UnicastParams.ASPath (which is just []uint32).
 	// Fall back to individual sending for such routes.
@@ -3057,7 +3057,7 @@ func (a *reactorAPIAdapter) sendGroupedIPv4Unicast(peer *Peer, routes []*rib.Rou
 	}
 
 	// Build grouped UPDATEs respecting size limits
-	ub := message.NewUpdateBuilder(peer.settings.LocalAS, peer.settings.IsIBGP(), ctx)
+	ub := message.NewUpdateBuilder(peer.settings.LocalAS, peer.settings.IsIBGP(), asn4, addPath)
 	updates, err := ub.BuildGroupedUnicastWithLimit(params, maxMsgSize)
 	if err != nil {
 		return fmt.Errorf("building grouped IPv4 unicast: %w", err)
@@ -3099,7 +3099,7 @@ func hasComplexASPath(route *rib.Route) bool {
 // Packs multiple NLRIs into MP_REACH_NLRI attribute.
 //
 //nolint:unused // Orphaned: was called by sendSplitUpdate (deleted), may be useful for future adj-rib-out features
-func (a *reactorAPIAdapter) sendGroupedMPFamily(peer *Peer, routes []*rib.Route, family nlri.Family, ctx *nlri.PackContext, maxMsgSize int) error {
+func (a *reactorAPIAdapter) sendGroupedMPFamily(peer *Peer, routes []*rib.Route, family nlri.Family, asn4, addPath bool, maxMsgSize int) error {
 	if len(routes) == 0 {
 		return nil
 	}
@@ -3107,17 +3107,17 @@ func (a *reactorAPIAdapter) sendGroupedMPFamily(peer *Peer, routes []*rib.Route,
 	// Pack all NLRIs
 	totalLen := 0
 	for _, route := range routes {
-		totalLen += nlri.LenWithContext(route.NLRI(), ctx)
+		totalLen += nlri.LenWithContext(route.NLRI(), addPath)
 	}
 	nlriBytes := make([]byte, totalLen)
 	off := 0
 	for _, route := range routes {
-		off += nlri.WriteNLRI(route.NLRI(), nlriBytes, off, ctx)
+		off += nlri.WriteNLRI(route.NLRI(), nlriBytes, off, addPath)
 	}
 
 	// Build grouped UPDATE with all NLRIs
 	firstRoute := routes[0]
-	groupedUpdate := a.buildGroupedMPUpdate(firstRoute, nlriBytes, family, peer.settings.LocalAS, peer.settings.IsIBGP(), ctx)
+	groupedUpdate := a.buildGroupedMPUpdate(firstRoute, nlriBytes, family, peer.settings.LocalAS, peer.settings.IsIBGP(), asn4)
 
 	// Check actual size of grouped update
 	msgSize := message.HeaderLen + 4 + len(groupedUpdate.PathAttributes)
@@ -3140,8 +3140,6 @@ func (a *reactorAPIAdapter) sendGroupedMPFamily(peer *Peer, routes []*rib.Route,
 	}
 
 	// Split NLRIs into chunks
-	sendCtx := peer.SendContext()
-	addPath := sendCtx != nil && sendCtx.AddPathFor(family)
 	chunks, err := message.ChunkMPNLRI(nlriBytes, family.AFI, family.SAFI, addPath, availableNLRISpace)
 	if err != nil {
 		return fmt.Errorf("chunking MP NLRI: %w", err)
@@ -3149,7 +3147,7 @@ func (a *reactorAPIAdapter) sendGroupedMPFamily(peer *Peer, routes []*rib.Route,
 
 	var errs []error
 	for _, chunk := range chunks {
-		chunkUpdate := a.buildGroupedMPUpdate(firstRoute, chunk, family, peer.settings.LocalAS, peer.settings.IsIBGP(), ctx)
+		chunkUpdate := a.buildGroupedMPUpdate(firstRoute, chunk, family, peer.settings.LocalAS, peer.settings.IsIBGP(), asn4)
 		if err := peer.SendUpdate(chunkUpdate); err != nil {
 			errs = append(errs, err)
 		}
@@ -3190,13 +3188,13 @@ func nextHopLength(family nlri.Family, nh netip.Addr) int {
 // buildGroupedMPUpdate builds an UPDATE with MP_REACH_NLRI containing multiple NLRIs.
 //
 //nolint:unused // Orphaned: was called by sendSplitUpdate (deleted), may be useful for future adj-rib-out features
-func (a *reactorAPIAdapter) buildGroupedMPUpdate(templateRoute *rib.Route, nlriBytes []byte, family nlri.Family, localAS uint32, isIBGP bool, ctx *nlri.PackContext) *message.Update {
+func (a *reactorAPIAdapter) buildGroupedMPUpdate(templateRoute *rib.Route, nlriBytes []byte, family nlri.Family, localAS uint32, isIBGP bool, asn4 bool) *message.Update {
 	// Pre-allocate buffer for attributes (4KB typical BGP max)
 	attrBuf := make([]byte, 4096)
 	off := 0
 
 	// Create encoding context for ASPath encoding
-	dstCtx := bgpctx.EncodingContextForASN4(ctx == nil || ctx.ASN4)
+	dstCtx := bgpctx.EncodingContextForASN4(asn4)
 
 	// 1. ORIGIN
 	origin := attribute.OriginIGP
@@ -4476,7 +4474,9 @@ func buildAPIMUPNLRI(spec plugin.MUPRouteSpec) ([]byte, error) {
 	}
 
 	mup := nlri.NewMUPFull(afi, nlri.MUPArch3GPP5G, routeType, rd, data)
-	return mup.Pack(nil), nil
+	buf := make([]byte, mup.Len())
+	mup.WriteTo(buf, 0)
+	return buf, nil
 }
 
 // buildMUPPrefix encodes a prefix for MUP NLRI.

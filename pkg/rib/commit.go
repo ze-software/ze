@@ -136,19 +136,19 @@ func (c *CommitService) buildGroupedUpdateTwoLevel(attrGroup *AttributeGroup, as
 	family := attrGroup.Family
 	nextHop := bytesToAddr(attrGroup.NextHop)
 
-	// Create PackContext for capability-aware NLRI encoding (RFC 7911 ADD-PATH)
-	ctx := c.packContext(family)
+	// Check if ADD-PATH is negotiated for capability-aware NLRI encoding (RFC 7911)
+	addPath := c.addPathFor(family)
 
 	// Collect all NLRIs from the ASPathGroup
 	// Calculate total size first
 	totalSize := 0
 	for _, route := range aspGroup.Routes {
-		totalSize += nlri.LenWithContext(route.NLRI(), ctx)
+		totalSize += nlri.LenWithContext(route.NLRI(), addPath)
 	}
 	nlriBytes := make([]byte, totalSize)
 	off := 0
 	for _, route := range aspGroup.Routes {
-		off += nlri.WriteNLRI(route.NLRI(), nlriBytes, off, ctx)
+		off += nlri.WriteNLRI(route.NLRI(), nlriBytes, off, addPath)
 	}
 
 	// Build path attributes with explicit AS_PATH
@@ -173,11 +173,11 @@ func (c *CommitService) buildSingleUpdate(route *Route) *message.Update {
 	family := route.NLRI().Family()
 	nextHop := route.NextHop()
 
-	// Create PackContext for capability-aware NLRI encoding (RFC 7911 ADD-PATH)
-	ctx := c.packContext(family)
-	nlriLen := nlri.LenWithContext(route.NLRI(), ctx)
+	// Check if ADD-PATH is negotiated for capability-aware NLRI encoding (RFC 7911)
+	addPath := c.addPathFor(family)
+	nlriLen := nlri.LenWithContext(route.NLRI(), addPath)
 	nlriBytes := make([]byte, nlriLen)
-	nlri.WriteNLRI(route.NLRI(), nlriBytes, 0, ctx)
+	nlri.WriteNLRI(route.NLRI(), nlriBytes, 0, addPath)
 
 	// Use getRouteASPath to get AS_PATH (explicit field or from attrs)
 	asPath := getRouteASPath(route)
@@ -204,18 +204,14 @@ func (c *CommitService) useTraditionalNLRI(family nlri.Family, nextHop netip.Add
 	return family.AFI == 1 && family.SAFI == 1 && nextHop.Is4()
 }
 
-// packContext creates a PackContext for capability-aware NLRI encoding.
-// RFC 7911: Checks if ADD-PATH is negotiated for the given family.
-// RFC 6793: Includes ASN4 for attribute encoding decisions.
-func (c *CommitService) packContext(family nlri.Family) *nlri.PackContext {
+// addPathFor returns whether ADD-PATH is negotiated for the given family.
+// RFC 7911: Checks if ADD-PATH is negotiated.
+func (c *CommitService) addPathFor(family nlri.Family) bool {
 	if c.negotiated == nil || c.negotiated.AddPath == nil {
-		return nil
+		return false
 	}
 	msgFamily := message.Family{AFI: uint16(family.AFI), SAFI: uint8(family.SAFI)}
-	return &nlri.PackContext{
-		AddPath: c.negotiated.AddPath[msgFamily],
-		ASN4:    c.negotiated.ASN4,
-	}
+	return c.negotiated.AddPath[msgFamily]
 }
 
 // packAttributesWithASPath packs path attributes with an explicit AS_PATH.

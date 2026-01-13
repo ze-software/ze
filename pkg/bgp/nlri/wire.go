@@ -3,8 +3,6 @@ package nlri
 import (
 	"encoding/binary"
 	"fmt"
-
-	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/wire"
 )
 
 // WireNLRI wraps raw wire-encoded NLRI bytes.
@@ -34,18 +32,10 @@ func NewWireNLRI(family Family, data []byte, hasAddPath bool) (*WireNLRI, error)
 // Family returns the AFI/SAFI for this NLRI.
 func (w *WireNLRI) Family() Family { return w.family }
 
-// Len returns the full raw length in bytes (including path-id if present).
-func (w *WireNLRI) Len() int { return len(w.data) }
-
-// LenWithContext returns the wire length adapted for context.
-// Accounts for ADD-PATH path-id addition/removal.
-func (w *WireNLRI) LenWithContext(ctx *PackContext) int {
-	targetAddPath := ctx != nil && ctx.AddPath
-	if w.hasAddPath && !targetAddPath {
-		return len(w.data) - 4 // Strip path-id
-	}
-	if !w.hasAddPath && targetAddPath {
-		return len(w.data) + 4 // Add path-id
+// Len returns the payload length in bytes (without path-id).
+func (w *WireNLRI) Len() int {
+	if w.hasAddPath {
+		return len(w.data) - 4
 	}
 	return len(w.data)
 }
@@ -72,46 +62,15 @@ func (w *WireNLRI) Bytes() []byte {
 	return w.data
 }
 
-// WriteTo writes the NLRI into buf at offset, adapting for context.
+// WriteTo writes the NLRI payload (without path-id) into buf at offset.
 // Returns number of bytes written.
-// Writes directly to buf without allocation.
-func (w *WireNLRI) WriteTo(buf []byte, off int, ctx *PackContext) int {
-	targetAddPath := ctx != nil && ctx.AddPath
-
-	if w.hasAddPath && !targetAddPath {
+//
+// RFC 7911 Section 3: Path ID is NOT written by this method.
+// Use WriteNLRI() for ADD-PATH encoding with path identifier.
+func (w *WireNLRI) WriteTo(buf []byte, off int) int {
+	if w.hasAddPath {
 		// Strip 4-byte path-id (RFC 7911)
 		return copy(buf[off:], w.data[4:])
 	}
-
-	if !w.hasAddPath && targetAddPath {
-		// Prepend NOPATH (path-id = 0)
-		// buf[off:off+4] = 0 (NOPATH)
-		buf[off] = 0
-		buf[off+1] = 0
-		buf[off+2] = 0
-		buf[off+3] = 0
-		copy(buf[off+4:], w.data)
-		return 4 + len(w.data)
-	}
-
 	return copy(buf[off:], w.data)
-}
-
-// CheckedWriteTo validates capacity before writing.
-func (w *WireNLRI) CheckedWriteTo(buf []byte, off int, ctx *PackContext) (int, error) {
-	needed := w.LenWithContext(ctx)
-	if len(buf) < off+needed {
-		return 0, wire.ErrBufferTooSmall
-	}
-	return w.WriteTo(buf, off, ctx), nil
-}
-
-// Pack returns wire bytes adapted for context.
-// Allocates a new buffer and calls WriteTo.
-// For zero-allocation, use WriteTo directly with pre-allocated buffer.
-func (w *WireNLRI) Pack(ctx *PackContext) []byte {
-	size := w.LenWithContext(ctx)
-	buf := make([]byte, size)
-	w.WriteTo(buf, 0, ctx)
-	return buf
 }

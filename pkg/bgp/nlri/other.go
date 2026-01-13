@@ -12,8 +12,6 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
-
-	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/wire"
 )
 
 // Additional SAFI values for specialized NLRI types.
@@ -846,20 +844,11 @@ func (m *MUP) String() string {
 	return fmt.Sprintf("mup:%s", m.routeType)
 }
 
-// Pack methods for other NLRI types.
-// These types don't support ADD-PATH (HasPathID() always false).
-// Pack returns Bytes() directly since no path ID handling is needed.
-
-func (m *MVPN) Pack(ctx *PackContext) []byte { return m.Bytes() }
-func (v *VPLS) Pack(ctx *PackContext) []byte { return v.Bytes() }
-func (r *RTC) Pack(ctx *PackContext) []byte  { return r.Bytes() }
-func (m *MUP) Pack(ctx *PackContext) []byte  { return m.Bytes() }
-
 // WriteTo methods for other NLRI types (zero-alloc).
 // hasRD is defined in base.go.
 
 // WriteTo writes the MVPN NLRI directly to buf at offset.
-func (m *MVPN) WriteTo(buf []byte, off int, _ *PackContext) int {
+func (m *MVPN) WriteTo(buf []byte, off int) int {
 	// Fallback: use cached bytes if present
 	if m.cached != nil {
 		return copy(buf[off:], m.cached)
@@ -890,17 +879,8 @@ func (m *MVPN) WriteTo(buf []byte, off int, _ *PackContext) int {
 	return pos - off
 }
 
-// CheckedWriteTo validates capacity before writing.
-func (m *MVPN) CheckedWriteTo(buf []byte, off int, ctx *PackContext) (int, error) {
-	needed := m.Len()
-	if len(buf) < off+needed {
-		return 0, wire.ErrBufferTooSmall
-	}
-	return m.WriteTo(buf, off, ctx), nil
-}
-
 // WriteTo writes the VPLS NLRI directly to buf at offset.
-func (v *VPLS) WriteTo(buf []byte, off int, _ *PackContext) int {
+func (v *VPLS) WriteTo(buf []byte, off int) int {
 	// Fallback: use cached bytes if present
 	if v.cached != nil {
 		return copy(buf[off:], v.cached)
@@ -936,17 +916,8 @@ func (v *VPLS) WriteTo(buf []byte, off int, _ *PackContext) int {
 	return pos - off
 }
 
-// CheckedWriteTo validates capacity before writing.
-func (v *VPLS) CheckedWriteTo(buf []byte, off int, ctx *PackContext) (int, error) {
-	needed := v.Len()
-	if len(buf) < off+needed {
-		return 0, wire.ErrBufferTooSmall
-	}
-	return v.WriteTo(buf, off, ctx), nil
-}
-
 // WriteTo writes the RTC NLRI directly to buf at offset.
-func (r *RTC) WriteTo(buf []byte, off int, _ *PackContext) int {
+func (r *RTC) WriteTo(buf []byte, off int) int {
 	// Fallback: use cached bytes if present
 	if r.cached != nil {
 		return copy(buf[off:], r.cached)
@@ -975,17 +946,8 @@ func (r *RTC) WriteTo(buf []byte, off int, _ *PackContext) int {
 	return pos - off
 }
 
-// CheckedWriteTo validates capacity before writing.
-func (r *RTC) CheckedWriteTo(buf []byte, off int, ctx *PackContext) (int, error) {
-	needed := r.Len()
-	if len(buf) < off+needed {
-		return 0, wire.ErrBufferTooSmall
-	}
-	return r.WriteTo(buf, off, ctx), nil
-}
-
 // WriteTo writes the MUP NLRI directly to buf at offset.
-func (m *MUP) WriteTo(buf []byte, off int, _ *PackContext) int {
+func (m *MUP) WriteTo(buf []byte, off int) int {
 	// Fallback: use cached bytes if present
 	if m.cached != nil {
 		return copy(buf[off:], m.cached)
@@ -1015,13 +977,4 @@ func (m *MUP) WriteTo(buf []byte, off int, _ *PackContext) int {
 	pos += len(m.data)
 
 	return pos - off
-}
-
-// CheckedWriteTo validates capacity before writing.
-func (m *MUP) CheckedWriteTo(buf []byte, off int, ctx *PackContext) (int, error) {
-	needed := m.Len()
-	if len(buf) < off+needed {
-		return 0, wire.ErrBufferTooSmall
-	}
-	return m.WriteTo(buf, off, ctx), nil
 }

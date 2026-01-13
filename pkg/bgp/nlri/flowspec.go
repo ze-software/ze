@@ -1116,13 +1116,6 @@ func ParseFlowSpecVPN(family Family, data []byte) (*FlowSpecVPN, error) {
 	}, nil
 }
 
-// Pack methods for FlowSpec types.
-// FlowSpec doesn't support ADD-PATH (HasPathID() always false).
-// Pack returns Bytes() directly since no path ID handling is needed.
-
-func (f *FlowSpec) Pack(ctx *PackContext) []byte    { return f.Bytes() }
-func (f *FlowSpecVPN) Pack(ctx *PackContext) []byte { return f.Bytes() }
-
 // componentLen returns total length of all components in wire format.
 func (f *FlowSpec) componentLen() int {
 	n := 0
@@ -1150,7 +1143,7 @@ func (f *FlowSpec) writeComponentsSorted(buf []byte, off int) int {
 
 // WriteTo writes the FlowSpec NLRI directly to buf at offset (zero-alloc).
 // RFC 8955 Section 4.1: Length encoding + sorted components.
-func (f *FlowSpec) WriteTo(buf []byte, off int, _ *PackContext) int {
+func (f *FlowSpec) WriteTo(buf []byte, off int) int {
 	// Fallback: if we have cached bytes but no components (parsed FlowSpec
 	// where components weren't reconstructed), use cached bytes
 	if len(f.components) == 0 && f.cached != nil {
@@ -1179,18 +1172,9 @@ func (f *FlowSpec) WriteTo(buf []byte, off int, _ *PackContext) int {
 	return pos - off
 }
 
-// CheckedWriteTo validates capacity before writing.
-func (f *FlowSpec) CheckedWriteTo(buf []byte, off int, ctx *PackContext) (int, error) {
-	needed := f.Len()
-	if len(buf) < off+needed {
-		return 0, wire.ErrBufferTooSmall
-	}
-	return f.WriteTo(buf, off, ctx), nil
-}
-
 // WriteTo writes the FlowSpecVPN NLRI directly to buf at offset (zero-alloc).
 // RFC 8955 Section 8: Length + RD (8 bytes) + sorted components.
-func (f *FlowSpecVPN) WriteTo(buf []byte, off int, _ *PackContext) int {
+func (f *FlowSpecVPN) WriteTo(buf []byte, off int) int {
 	// Fallback: if we have cached bytes but no components, use cached bytes
 	if len(f.flowSpec.components) == 0 && f.cached != nil {
 		return copy(buf[off:], f.cached)
@@ -1219,13 +1203,4 @@ func (f *FlowSpecVPN) WriteTo(buf []byte, off int, _ *PackContext) int {
 	pos += f.flowSpec.writeComponentsSorted(buf, pos)
 
 	return pos - off
-}
-
-// CheckedWriteTo validates capacity before writing.
-func (f *FlowSpecVPN) CheckedWriteTo(buf []byte, off int, ctx *PackContext) (int, error) {
-	needed := f.Len()
-	if len(buf) < off+needed {
-		return 0, wire.ErrBufferTooSmall
-	}
-	return f.WriteTo(buf, off, ctx), nil
 }

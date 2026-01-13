@@ -984,19 +984,10 @@ func (s *BGPLSSRv6SID) String() string {
 	return fmt.Sprintf("bgp-ls:srv6-sid(asn=%d)", s.LocalNode.ASN)
 }
 
-// Pack methods for BGP-LS types.
-// BGP-LS types don't currently support ADD-PATH (HasPathID() always false).
-// Pack returns Bytes() directly since no path ID handling is needed.
-
-func (n *BGPLSNode) Pack(ctx *PackContext) []byte    { return n.Bytes() }
-func (l *BGPLSLink) Pack(ctx *PackContext) []byte    { return l.Bytes() }
-func (p *BGPLSPrefix) Pack(ctx *PackContext) []byte  { return p.Bytes() }
-func (s *BGPLSSRv6SID) Pack(ctx *PackContext) []byte { return s.Bytes() }
-
 // WriteTo methods for BGP-LS types (zero-alloc).
 
 // WriteTo writes the Node NLRI directly to buf at offset.
-func (n *BGPLSNode) WriteTo(buf []byte, off int, _ *PackContext) int {
+func (n *BGPLSNode) WriteTo(buf []byte, off int) int {
 	// Fallback: use cached bytes if present
 	if n.cached != nil {
 		return copy(buf[off:], n.cached)
@@ -1028,17 +1019,8 @@ func (n *BGPLSNode) WriteTo(buf []byte, off int, _ *PackContext) int {
 	return pos - off
 }
 
-// CheckedWriteTo validates capacity before writing.
-func (n *BGPLSNode) CheckedWriteTo(buf []byte, off int, ctx *PackContext) (int, error) {
-	needed := n.Len()
-	if len(buf) < off+needed {
-		return 0, wire.ErrBufferTooSmall
-	}
-	return n.WriteTo(buf, off, ctx), nil
-}
-
 // WriteTo writes the Link NLRI directly to buf at offset.
-func (l *BGPLSLink) WriteTo(buf []byte, off int, _ *PackContext) int {
+func (l *BGPLSLink) WriteTo(buf []byte, off int) int {
 	// Fallback: use cached bytes if present
 	if l.cached != nil {
 		return copy(buf[off:], l.cached)
@@ -1080,19 +1062,10 @@ func (l *BGPLSLink) WriteTo(buf []byte, off int, _ *PackContext) int {
 	return pos - off
 }
 
-// CheckedWriteTo validates capacity before writing.
-func (l *BGPLSLink) CheckedWriteTo(buf []byte, off int, ctx *PackContext) (int, error) {
-	needed := l.Len()
-	if len(buf) < off+needed {
-		return 0, wire.ErrBufferTooSmall
-	}
-	return l.WriteTo(buf, off, ctx), nil
-}
-
 // WriteTo writes the Prefix NLRI directly to buf at offset.
 //
 //nolint:dupl // Similar structure to BGPLSSRv6SID.WriteTo is intentional
-func (p *BGPLSPrefix) WriteTo(buf []byte, off int, _ *PackContext) int {
+func (p *BGPLSPrefix) WriteTo(buf []byte, off int) int {
 	// Fallback: use cached bytes if present
 	if p.cached != nil {
 		return copy(buf[off:], p.cached)
@@ -1127,19 +1100,10 @@ func (p *BGPLSPrefix) WriteTo(buf []byte, off int, _ *PackContext) int {
 	return pos - off
 }
 
-// CheckedWriteTo validates capacity before writing.
-func (p *BGPLSPrefix) CheckedWriteTo(buf []byte, off int, ctx *PackContext) (int, error) {
-	needed := p.Len()
-	if len(buf) < off+needed {
-		return 0, wire.ErrBufferTooSmall
-	}
-	return p.WriteTo(buf, off, ctx), nil
-}
-
 // WriteTo writes the SRv6 SID NLRI directly to buf at offset.
 //
 //nolint:dupl // Similar structure to BGPLSPrefix.WriteTo is intentional
-func (s *BGPLSSRv6SID) WriteTo(buf []byte, off int, _ *PackContext) int {
+func (s *BGPLSSRv6SID) WriteTo(buf []byte, off int) int {
 	// Fallback: use cached bytes if present
 	if s.cached != nil {
 		return copy(buf[off:], s.cached)
@@ -1172,13 +1136,4 @@ func (s *BGPLSSRv6SID) WriteTo(buf []byte, off int, _ *PackContext) int {
 	pos += s.SRv6SID.WriteTo(buf, pos)
 
 	return pos - off
-}
-
-// CheckedWriteTo validates capacity before writing.
-func (s *BGPLSSRv6SID) CheckedWriteTo(buf []byte, off int, ctx *PackContext) (int, error) {
-	needed := s.Len()
-	if len(buf) < off+needed {
-		return 0, wire.ErrBufferTooSmall
-	}
-	return s.WriteTo(buf, off, ctx), nil
 }

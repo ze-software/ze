@@ -29,12 +29,11 @@ func mustBuildGrouped(t *testing.T, ub *UpdateBuilder, routes []UnicastParams) *
 
 // TestUpdateBuilder_NewBuilder verifies UpdateBuilder creation.
 //
-// VALIDATES: UpdateBuilder stores LocalAS, IsIBGP, and PackContext correctly.
+// VALIDATES: UpdateBuilder stores LocalAS, IsIBGP, ASN4, and AddPath correctly.
 //
 // PREVENTS: Missing fields or incorrect initialization causing encode failures.
 func TestUpdateBuilder_NewBuilder(t *testing.T) {
-	ctx := &nlri.PackContext{AddPath: true, ASN4: true}
-	ub := NewUpdateBuilder(65001, true, ctx)
+	ub := NewUpdateBuilder(65001, true, true, true)
 
 	if ub.LocalAS != 65001 {
 		t.Errorf("LocalAS = %d, want 65001", ub.LocalAS)
@@ -42,8 +41,11 @@ func TestUpdateBuilder_NewBuilder(t *testing.T) {
 	if !ub.IsIBGP {
 		t.Error("IsIBGP = false, want true")
 	}
-	if ub.Ctx != ctx {
-		t.Error("Ctx not set correctly")
+	if !ub.ASN4 {
+		t.Error("ASN4 = false, want true")
+	}
+	if !ub.AddPath {
+		t.Error("AddPath = false, want true")
 	}
 }
 
@@ -53,8 +55,8 @@ func TestUpdateBuilder_NewBuilder(t *testing.T) {
 //
 // PREVENTS: IPv4 routes incorrectly using MP_REACH_NLRI instead of inline NLRI.
 func TestUpdateBuilder_BuildUnicast_IPv4(t *testing.T) {
-	ctx := &nlri.PackContext{ASN4: true}
-	ub := NewUpdateBuilder(65001, false, ctx)
+
+	ub := NewUpdateBuilder(65001, false, true, false)
 
 	params := UnicastParams{
 		Prefix:  netip.MustParsePrefix("10.0.0.0/24"),
@@ -84,8 +86,8 @@ func TestUpdateBuilder_BuildUnicast_IPv4(t *testing.T) {
 //
 // PREVENTS: IPv6 routes incorrectly using inline NLRI (RFC 4760 violation).
 func TestUpdateBuilder_BuildUnicast_IPv6(t *testing.T) {
-	ctx := &nlri.PackContext{ASN4: true}
-	ub := NewUpdateBuilder(65001, false, ctx)
+
+	ub := NewUpdateBuilder(65001, false, true, false)
 
 	params := UnicastParams{
 		Prefix:  netip.MustParsePrefix("2001:db8::/32"),
@@ -134,8 +136,8 @@ func extractAttributeCodes(data []byte) ([]attribute.AttributeCode, error) {
 //
 // PREVENTS: Attribute ordering violations that may cause peer rejection.
 func TestUpdateBuilder_BuildUnicast_AttributeOrder(t *testing.T) {
-	ctx := &nlri.PackContext{ASN4: true}
-	ub := NewUpdateBuilder(65001, true, ctx) // iBGP to include LOCAL_PREF
+
+	ub := NewUpdateBuilder(65001, true, true, false) // iBGP to include LOCAL_PREF
 
 	params := UnicastParams{
 		Prefix:          netip.MustParsePrefix("10.0.0.0/24"),
@@ -186,8 +188,8 @@ func TestUpdateBuilder_BuildUnicast_AttributeOrder(t *testing.T) {
 //
 // PREVENTS: Missing local AS prepend causing BGP loop detection failures.
 func TestUpdateBuilder_BuildUnicast_ASPath_EBGP(t *testing.T) {
-	ctx := &nlri.PackContext{ASN4: true}
-	ub := NewUpdateBuilder(65001, false, ctx) // eBGP
+
+	ub := NewUpdateBuilder(65001, false, true, false) // eBGP
 
 	params := UnicastParams{
 		Prefix:  netip.MustParsePrefix("10.0.0.0/24"),
@@ -255,8 +257,8 @@ func TestUpdateBuilder_BuildUnicast_ASPath_EBGP(t *testing.T) {
 //
 // PREVENTS: Incorrect AS prepend breaking iBGP path selection.
 func TestUpdateBuilder_BuildUnicast_ASPath_IBGP(t *testing.T) {
-	ctx := &nlri.PackContext{ASN4: true}
-	ub := NewUpdateBuilder(65001, true, ctx) // iBGP
+
+	ub := NewUpdateBuilder(65001, true, true, false) // iBGP
 
 	params := UnicastParams{
 		Prefix:  netip.MustParsePrefix("10.0.0.0/24"),
@@ -306,8 +308,8 @@ func TestUpdateBuilder_BuildUnicast_ASPath_IBGP(t *testing.T) {
 //
 // PREVENTS: VPN routes using wrong SAFI or missing label/RD encoding.
 func TestUpdateBuilder_BuildVPN_IPv4(t *testing.T) {
-	ctx := &nlri.PackContext{ASN4: true}
-	ub := NewUpdateBuilder(65001, false, ctx)
+
+	ub := NewUpdateBuilder(65001, false, true, false)
 
 	params := VPNParams{
 		Prefix:  netip.MustParsePrefix("10.0.0.0/24"),
@@ -351,8 +353,8 @@ func TestUpdateBuilder_BuildVPN_IPv4(t *testing.T) {
 //
 // PREVENTS: IPv6 VPN using wrong AFI.
 func TestUpdateBuilder_BuildVPN_IPv6(t *testing.T) {
-	ctx := &nlri.PackContext{ASN4: true}
-	ub := NewUpdateBuilder(65001, false, ctx)
+
+	ub := NewUpdateBuilder(65001, false, true, false)
 
 	params := VPNParams{
 		Prefix:  netip.MustParsePrefix("2001:db8::/32"),
@@ -384,8 +386,8 @@ func TestUpdateBuilder_BuildVPN_IPv6(t *testing.T) {
 //
 // PREVENTS: Attribute ordering violations in VPN updates.
 func TestUpdateBuilder_BuildVPN_AttributeOrder(t *testing.T) {
-	ctx := &nlri.PackContext{ASN4: true}
-	ub := NewUpdateBuilder(65001, true, ctx) // iBGP
+
+	ub := NewUpdateBuilder(65001, true, true, false) // iBGP
 
 	params := VPNParams{
 		Prefix:          netip.MustParsePrefix("10.0.0.0/24"),
@@ -422,8 +424,8 @@ func TestUpdateBuilder_BuildVPN_AttributeOrder(t *testing.T) {
 //
 // PREVENTS: Missing route targets causing VPN route import failures.
 func TestUpdateBuilder_BuildVPN_ExtCommunity(t *testing.T) {
-	ctx := &nlri.PackContext{ASN4: true}
-	ub := NewUpdateBuilder(65001, false, ctx)
+
+	ub := NewUpdateBuilder(65001, false, true, false)
 
 	// Route target: 65001:100
 	rtBytes := []byte{0x00, 0x02, 0xfd, 0xe9, 0x00, 0x00, 0x00, 0x64}
@@ -465,8 +467,8 @@ func TestUpdateBuilder_BuildVPN_ExtCommunity(t *testing.T) {
 //
 // PREVENTS: MVPN routes using wrong SAFI or missing route type encoding.
 func TestUpdateBuilder_BuildMVPN_Basic(t *testing.T) {
-	ctx := &nlri.PackContext{ASN4: true}
-	ub := NewUpdateBuilder(65001, false, ctx)
+
+	ub := NewUpdateBuilder(65001, false, true, false)
 
 	params := MVPNParams{
 		RouteType: 5, // Source Active A-D
@@ -512,8 +514,8 @@ func TestUpdateBuilder_BuildMVPN_Basic(t *testing.T) {
 //
 // PREVENTS: Attribute ordering violations in MVPN updates.
 func TestUpdateBuilder_BuildMVPN_AttributeOrder(t *testing.T) {
-	ctx := &nlri.PackContext{ASN4: true}
-	ub := NewUpdateBuilder(65001, true, ctx) // iBGP
+
+	ub := NewUpdateBuilder(65001, true, true, false) // iBGP
 
 	params := MVPNParams{
 		RouteType:       5,
@@ -551,8 +553,8 @@ func TestUpdateBuilder_BuildMVPN_AttributeOrder(t *testing.T) {
 //
 // PREVENTS: VPLS routes using wrong AFI/SAFI.
 func TestUpdateBuilder_BuildVPLS_Basic(t *testing.T) {
-	ctx := &nlri.PackContext{ASN4: true}
-	ub := NewUpdateBuilder(65001, false, ctx)
+
+	ub := NewUpdateBuilder(65001, false, true, false)
 
 	params := VPLSParams{
 		RD:       [8]byte{0, 1, 0, 0, 0, 100, 0, 100},
@@ -596,8 +598,8 @@ func TestUpdateBuilder_BuildVPLS_Basic(t *testing.T) {
 //
 // PREVENTS: FlowSpec routes missing required attributes.
 func TestUpdateBuilder_BuildFlowSpec_Basic(t *testing.T) {
-	ctx := &nlri.PackContext{ASN4: true}
-	ub := NewUpdateBuilder(65001, false, ctx)
+
+	ub := NewUpdateBuilder(65001, false, true, false)
 
 	// Simple FlowSpec NLRI (destination prefix)
 	params := FlowSpecParams{
@@ -638,8 +640,8 @@ func TestUpdateBuilder_BuildFlowSpec_Basic(t *testing.T) {
 //
 // PREVENTS: MUP routes using wrong SAFI.
 func TestUpdateBuilder_BuildMUP_Basic(t *testing.T) {
-	ctx := &nlri.PackContext{ASN4: true}
-	ub := NewUpdateBuilder(65001, false, ctx)
+
+	ub := NewUpdateBuilder(65001, false, true, false)
 
 	params := MUPParams{
 		RouteType: 1,
@@ -679,8 +681,8 @@ func TestUpdateBuilder_BuildMUP_Basic(t *testing.T) {
 // VALIDATES: ORIGINATOR_ID and CLUSTER_LIST are encoded in PathAttributes.
 // PREVENTS: Data loss for route reflector configurations.
 func TestBuildUnicast_EncodesReflectorAttrs(t *testing.T) {
-	ctx := &nlri.PackContext{ASN4: true}
-	ub := NewUpdateBuilder(65001, true, ctx)
+
+	ub := NewUpdateBuilder(65001, true, true, false)
 
 	params := UnicastParams{
 		Prefix:          netip.MustParsePrefix("10.0.0.0/24"),
@@ -713,8 +715,8 @@ func TestBuildUnicast_EncodesReflectorAttrs(t *testing.T) {
 // VALIDATES: LOCAL_PREF not present in eBGP UPDATE.
 // PREVENTS: RFC violation - LOCAL_PREF is iBGP only.
 func TestBuildUnicast_eBGP_NoLocalPref(t *testing.T) {
-	ctx := &nlri.PackContext{ASN4: true}
-	ub := NewUpdateBuilder(65001, false, ctx) // isIBGP=false
+
+	ub := NewUpdateBuilder(65001, false, true, false) // isIBGP=false
 
 	params := UnicastParams{
 		Prefix:          netip.MustParsePrefix("10.0.0.0/24"),
@@ -737,8 +739,7 @@ func TestBuildUnicast_eBGP_NoLocalPref(t *testing.T) {
 // VALIDATES: AS_PATH uses 2-byte ASN format when ctx.ASN4=false.
 // PREVENTS: RFC 6793 violation for legacy peers with asn4 disable.
 func TestBuildUnicast_ASN4Disabled(t *testing.T) {
-	ctx := &nlri.PackContext{ASN4: false}   // 2-byte mode
-	ub := NewUpdateBuilder(100, false, ctx) // eBGP, AS 100
+	ub := NewUpdateBuilder(100, false, false, false) // eBGP, AS 100, 2-byte mode
 
 	params := UnicastParams{
 		Prefix:  netip.MustParsePrefix("10.0.0.0/24"),
@@ -769,8 +770,7 @@ func TestBuildUnicast_ASN4Disabled(t *testing.T) {
 // VALIDATES: AS_PATH uses 4-byte ASN format when ctx.ASN4=true.
 // PREVENTS: Regression in standard 4-byte AS encoding.
 func TestBuildUnicast_ASN4Enabled(t *testing.T) {
-	ctx := &nlri.PackContext{ASN4: true}      // 4-byte mode (default)
-	ub := NewUpdateBuilder(65001, false, ctx) // eBGP, AS 65001
+	ub := NewUpdateBuilder(65001, false, true, false) // eBGP, AS 65001, 4-byte mode
 
 	params := UnicastParams{
 		Prefix:  netip.MustParsePrefix("10.0.0.0/24"),
@@ -795,8 +795,7 @@ func TestBuildUnicast_ASN4Enabled(t *testing.T) {
 // VALIDATES: BuildGroupedUnicast uses 2-byte ASN format when ctx.ASN4=false.
 // PREVENTS: Grouped updates ignoring ASN4 capability.
 func TestBuildGroupedUnicast_ASN4Disabled(t *testing.T) {
-	ctx := &nlri.PackContext{ASN4: false}   // 2-byte mode
-	ub := NewUpdateBuilder(100, false, ctx) // eBGP, AS 100
+	ub := NewUpdateBuilder(100, false, false, false) // eBGP, AS 100, 2-byte mode
 
 	routes := []UnicastParams{
 		{
@@ -826,8 +825,8 @@ func TestBuildGroupedUnicast_ASN4Disabled(t *testing.T) {
 // VALIDATES: Multiple prefixes packed into single UPDATE with shared attributes.
 // PREVENTS: Regression in GroupUpdates=true performance optimization.
 func TestBuildGroupedUnicast_MultipleNLRIs(t *testing.T) {
-	ctx := &nlri.PackContext{ASN4: true}
-	ub := NewUpdateBuilder(65001, true, ctx)
+
+	ub := NewUpdateBuilder(65001, true, true, false)
 
 	routes := []UnicastParams{
 		{
@@ -872,8 +871,8 @@ func TestBuildGroupedUnicast_MultipleNLRIs(t *testing.T) {
 // VALIDATES: ORIGINATOR_ID and CLUSTER_LIST from first route are encoded.
 // PREVENTS: Data loss for route reflector attributes in grouped updates.
 func TestBuildGroupedUnicast_IncludesReflectorAttrs(t *testing.T) {
-	ctx := &nlri.PackContext{ASN4: true}
-	ub := NewUpdateBuilder(65001, true, ctx)
+
+	ub := NewUpdateBuilder(65001, true, true, false)
 
 	routes := []UnicastParams{
 		{
@@ -917,8 +916,8 @@ func TestBuildGroupedUnicast_IncludesReflectorAttrs(t *testing.T) {
 // VALIDATES: PathID is encoded when ADD-PATH is negotiated.
 // PREVENTS: Missing path identifiers in grouped updates.
 func TestBuildGroupedUnicast_WithAddPath(t *testing.T) {
-	ctx := &nlri.PackContext{ASN4: true, AddPath: true}
-	ub := NewUpdateBuilder(65001, true, ctx)
+
+	ub := NewUpdateBuilder(65001, true, true, true) // AddPath=true for path ID encoding
 
 	routes := []UnicastParams{
 		{
@@ -950,8 +949,8 @@ func TestBuildGroupedUnicast_WithAddPath(t *testing.T) {
 
 // TestBuildGroupedUnicastWithLimit_EmptySlice verifies empty input handling.
 func TestBuildGroupedUnicastWithLimit_EmptySlice(t *testing.T) {
-	ctx := &nlri.PackContext{ASN4: true}
-	ub := NewUpdateBuilder(65001, true, ctx)
+
+	ub := NewUpdateBuilder(65001, true, true, false)
 
 	updates, err := ub.BuildGroupedUnicastWithLimit(nil, 65535)
 	if err != nil {
@@ -971,8 +970,7 @@ func TestBuildGroupedUnicastWithLimit_EmptySlice(t *testing.T) {
 // VALIDATES: AS_PATH uses 2-byte ASN format when ctx.ASN4=false.
 // PREVENTS: RFC 6793 violation for legacy peers with VPN routes.
 func TestBuildVPN_ASN4Disabled(t *testing.T) {
-	ctx := &nlri.PackContext{ASN4: false} // 2-byte mode
-	ub := NewUpdateBuilder(100, false, ctx)
+	ub := NewUpdateBuilder(100, false, false, false) // 2-byte mode
 
 	params := VPNParams{
 		Prefix:  netip.MustParsePrefix("10.0.0.0/24"),
@@ -1005,8 +1003,8 @@ func TestBuildVPN_ASN4Disabled(t *testing.T) {
 // VALIDATES: AS_PATH uses 2-byte ASN format when ctx.ASN4=false.
 // PREVENTS: RFC 6793 violation for legacy peers with labeled unicast routes.
 func TestBuildLabeledUnicast_ASN4Disabled(t *testing.T) {
-	ctx := &nlri.PackContext{ASN4: false}
-	ub := NewUpdateBuilder(100, false, ctx)
+
+	ub := NewUpdateBuilder(100, false, false, false)
 
 	params := LabeledUnicastParams{
 		Prefix:  netip.MustParsePrefix("10.0.0.0/24"),
@@ -1029,8 +1027,8 @@ func TestBuildLabeledUnicast_ASN4Disabled(t *testing.T) {
 // VALIDATES: AS_PATH uses 2-byte ASN format when ctx.ASN4=false.
 // PREVENTS: RFC 6793 violation for legacy peers with MVPN routes.
 func TestBuildMVPN_ASN4Disabled(t *testing.T) {
-	ctx := &nlri.PackContext{ASN4: false}
-	ub := NewUpdateBuilder(100, false, ctx)
+
+	ub := NewUpdateBuilder(100, false, false, false)
 
 	params := MVPNParams{
 		RouteType: 5,
@@ -1056,8 +1054,8 @@ func TestBuildMVPN_ASN4Disabled(t *testing.T) {
 // VALIDATES: AS_PATH uses 2-byte ASN format when ctx.ASN4=false.
 // PREVENTS: RFC 6793 violation for legacy peers with VPLS routes.
 func TestBuildVPLS_ASN4Disabled(t *testing.T) {
-	ctx := &nlri.PackContext{ASN4: false}
-	ub := NewUpdateBuilder(100, false, ctx)
+
+	ub := NewUpdateBuilder(100, false, false, false)
 
 	params := VPLSParams{
 		RD:       [8]byte{0, 1, 0, 0, 0, 100, 0, 100},
@@ -1083,8 +1081,8 @@ func TestBuildVPLS_ASN4Disabled(t *testing.T) {
 // VALIDATES: AS_PATH uses 2-byte ASN format when ctx.ASN4=false.
 // PREVENTS: RFC 6793 violation for legacy peers with FlowSpec routes.
 func TestBuildFlowSpec_ASN4Disabled(t *testing.T) {
-	ctx := &nlri.PackContext{ASN4: false}
-	ub := NewUpdateBuilder(100, false, ctx)
+
+	ub := NewUpdateBuilder(100, false, false, false)
 
 	params := FlowSpecParams{
 		IsIPv6:  false,
@@ -1106,8 +1104,8 @@ func TestBuildFlowSpec_ASN4Disabled(t *testing.T) {
 // VALIDATES: AS_PATH uses 2-byte ASN format when ctx.ASN4=false.
 // PREVENTS: RFC 6793 violation for legacy peers with MUP routes.
 func TestBuildMUP_ASN4Disabled(t *testing.T) {
-	ctx := &nlri.PackContext{ASN4: false}
-	ub := NewUpdateBuilder(100, false, ctx)
+
+	ub := NewUpdateBuilder(100, false, false, false)
 
 	params := MUPParams{
 		RouteType: 1,
@@ -1130,8 +1128,8 @@ func TestBuildMUP_ASN4Disabled(t *testing.T) {
 // VALIDATES: AS_PATH uses 2-byte ASN format when ctx.ASN4=false.
 // PREVENTS: RFC 6793 violation for legacy peers with MUP withdrawals.
 func TestBuildMUPWithdraw_ASN4Disabled(t *testing.T) {
-	ctx := &nlri.PackContext{ASN4: false}
-	ub := NewUpdateBuilder(100, false, ctx)
+
+	ub := NewUpdateBuilder(100, false, false, false)
 
 	params := MUPParams{
 		RouteType: 1,
@@ -1158,8 +1156,8 @@ func TestBuildMUPWithdraw_ASN4Disabled(t *testing.T) {
 // VALIDATES: AGGREGATOR uses 6-byte format (2-byte ASN) when ctx.ASN4=false.
 // PREVENTS: RFC 6793 violation - AGGREGATOR must match ASN4 capability.
 func TestBuildUnicast_Aggregator_ASN4Disabled(t *testing.T) {
-	ctx := &nlri.PackContext{ASN4: false}
-	ub := NewUpdateBuilder(100, false, ctx)
+
+	ub := NewUpdateBuilder(100, false, false, false)
 
 	params := UnicastParams{
 		Prefix:        netip.MustParsePrefix("10.0.0.0/24"),
@@ -1192,8 +1190,8 @@ func TestBuildUnicast_Aggregator_ASN4Disabled(t *testing.T) {
 // VALIDATES: AGGREGATOR uses 6-byte format when ctx.ASN4=false.
 // PREVENTS: RFC 6793 violation for VPN routes.
 func TestBuildVPN_Aggregator_ASN4Disabled(t *testing.T) {
-	ctx := &nlri.PackContext{ASN4: false}
-	ub := NewUpdateBuilder(100, false, ctx)
+
+	ub := NewUpdateBuilder(100, false, false, false)
 
 	params := VPNParams{
 		Prefix:        netip.MustParsePrefix("10.0.0.0/24"),
@@ -1220,8 +1218,8 @@ func TestBuildVPN_Aggregator_ASN4Disabled(t *testing.T) {
 // VALIDATES: AGGREGATOR uses 6-byte format when ctx.ASN4=false.
 // PREVENTS: RFC 6793 violation for labeled unicast routes.
 func TestBuildLabeledUnicast_Aggregator_ASN4Disabled(t *testing.T) {
-	ctx := &nlri.PackContext{ASN4: false}
-	ub := NewUpdateBuilder(100, false, ctx)
+
+	ub := NewUpdateBuilder(100, false, false, false)
 
 	params := LabeledUnicastParams{
 		Prefix:        netip.MustParsePrefix("10.0.0.0/24"),
@@ -1247,8 +1245,8 @@ func TestBuildLabeledUnicast_Aggregator_ASN4Disabled(t *testing.T) {
 // VALIDATES: AGGREGATOR uses 6-byte format when ctx.ASN4=false.
 // PREVENTS: RFC 6793 violation for VPLS routes.
 func TestBuildVPLS_Aggregator_ASN4Disabled(t *testing.T) {
-	ctx := &nlri.PackContext{ASN4: false}
-	ub := NewUpdateBuilder(100, false, ctx)
+
+	ub := NewUpdateBuilder(100, false, false, false)
 
 	params := VPLSParams{
 		RD:       [8]byte{0, 1, 0, 0, 0, 100, 0, 100},
@@ -1273,8 +1271,8 @@ func TestBuildVPLS_Aggregator_ASN4Disabled(t *testing.T) {
 // VALIDATES: AGGREGATOR uses 6-byte format when ctx.ASN4=false in grouped updates.
 // PREVENTS: RFC 6793 violation for grouped unicast routes.
 func TestBuildGroupedUnicast_Aggregator_ASN4Disabled(t *testing.T) {
-	ctx := &nlri.PackContext{ASN4: false}
-	ub := NewUpdateBuilder(100, false, ctx)
+
+	ub := NewUpdateBuilder(100, false, false, false)
 
 	routes := []UnicastParams{
 		{
@@ -1306,8 +1304,8 @@ func TestBuildGroupedUnicast_Aggregator_ASN4Disabled(t *testing.T) {
 // VALIDATES: ORIGINATOR_ID and CLUSTER_LIST are encoded in PathAttributes.
 // PREVENTS: Data loss for route reflector configurations with MVPN.
 func TestBuildMVPN_EncodesReflectorAttrs(t *testing.T) {
-	ctx := &nlri.PackContext{ASN4: true}
-	ub := NewUpdateBuilder(65001, true, ctx)
+
+	ub := NewUpdateBuilder(65001, true, true, false)
 
 	routes := []MVPNParams{
 		{
@@ -1345,8 +1343,8 @@ func TestBuildMVPN_EncodesReflectorAttrs(t *testing.T) {
 // VALIDATES: ORIGINATOR_ID and CLUSTER_LIST are encoded in PathAttributes.
 // PREVENTS: Data loss for route reflector configurations with FlowSpec.
 func TestBuildFlowSpec_EncodesReflectorAttrs(t *testing.T) {
-	ctx := &nlri.PackContext{ASN4: true}
-	ub := NewUpdateBuilder(65001, true, ctx)
+
+	ub := NewUpdateBuilder(65001, true, true, false)
 
 	params := FlowSpecParams{
 		IsIPv6:       false,
@@ -1378,8 +1376,8 @@ func TestBuildFlowSpec_EncodesReflectorAttrs(t *testing.T) {
 // VALIDATES: ORIGINATOR_ID and CLUSTER_LIST are encoded in PathAttributes.
 // PREVENTS: Data loss for route reflector configurations with MUP.
 func TestBuildMUP_EncodesReflectorAttrs(t *testing.T) {
-	ctx := &nlri.PackContext{ASN4: true}
-	ub := NewUpdateBuilder(65001, true, ctx)
+
+	ub := NewUpdateBuilder(65001, true, true, false)
 
 	params := MUPParams{
 		RouteType:    1,
@@ -1416,8 +1414,8 @@ func TestBuildMUP_EncodesReflectorAttrs(t *testing.T) {
 // VALIDATES: Empty routes returns nil, nil.
 // PREVENTS: Panic on empty input.
 func TestBuildWithLimit_Empty(t *testing.T) {
-	ctx := &nlri.PackContext{ASN4: true}
-	ub := NewUpdateBuilder(65001, true, ctx)
+
+	ub := NewUpdateBuilder(65001, true, true, false)
 
 	updates, err := ub.BuildGroupedUnicastWithLimit(nil, 4096)
 	if err != nil {
@@ -1433,8 +1431,8 @@ func TestBuildWithLimit_Empty(t *testing.T) {
 // VALIDATES: Single route returns single UPDATE.
 // PREVENTS: Unnecessary splitting.
 func TestBuildWithLimit_SingleRoute(t *testing.T) {
-	ctx := &nlri.PackContext{ASN4: true}
-	ub := NewUpdateBuilder(65001, true, ctx)
+
+	ub := NewUpdateBuilder(65001, true, true, false)
 
 	routes := []UnicastParams{{
 		Prefix:  netip.MustParsePrefix("10.0.0.0/24"),
@@ -1456,8 +1454,8 @@ func TestBuildWithLimit_SingleRoute(t *testing.T) {
 // VALIDATES: N routes that fit return single UPDATE.
 // PREVENTS: Unnecessary splitting.
 func TestBuildWithLimit_AllFit(t *testing.T) {
-	ctx := &nlri.PackContext{ASN4: true}
-	ub := NewUpdateBuilder(65001, true, ctx)
+
+	ub := NewUpdateBuilder(65001, true, true, false)
 
 	// Create 10 routes that should fit in one UPDATE
 	var routes []UnicastParams
@@ -1483,8 +1481,8 @@ func TestBuildWithLimit_AllFit(t *testing.T) {
 // VALIDATES: N routes overflow into M UPDATEs.
 // PREVENTS: Single oversized UPDATE from builder.
 func TestBuildWithLimit_Overflow(t *testing.T) {
-	ctx := &nlri.PackContext{ASN4: true}
-	ub := NewUpdateBuilder(65001, true, ctx)
+
+	ub := NewUpdateBuilder(65001, true, true, false)
 
 	// Create 100 routes - should overflow with small maxSize
 	var routes []UnicastParams
@@ -1531,8 +1529,8 @@ func TestBuildWithLimit_Overflow(t *testing.T) {
 // VALIDATES: ErrAttributesTooLarge when attrs > maxSize.
 // PREVENTS: Panic on huge attributes.
 func TestBuildWithLimit_AttrsTooBig(t *testing.T) {
-	ctx := &nlri.PackContext{ASN4: true}
-	ub := NewUpdateBuilder(65001, true, ctx)
+
+	ub := NewUpdateBuilder(65001, true, true, false)
 
 	// Route with large communities
 	routes := []UnicastParams{{
@@ -1554,8 +1552,8 @@ func TestBuildWithLimit_AttrsTooBig(t *testing.T) {
 // VALIDATES: All routes appear in output UPDATEs.
 // PREVENTS: Route loss during splitting.
 func TestBuildWithLimit_AllRoutesPreserved(t *testing.T) {
-	ctx := &nlri.PackContext{ASN4: true}
-	ub := NewUpdateBuilder(65001, true, ctx)
+
+	ub := NewUpdateBuilder(65001, true, true, false)
 
 	// Create 50 routes (same prefix is fine - testing byte count)
 	var routes []UnicastParams
@@ -1590,8 +1588,8 @@ func TestBuildWithLimit_AllRoutesPreserved(t *testing.T) {
 // VALIDATES: All updates share same attributes (consistent).
 // PREVENTS: Inconsistent attributes across split updates.
 func TestBuildWithLimit_AttributesShared(t *testing.T) {
-	ctx := &nlri.PackContext{ASN4: true}
-	ub := NewUpdateBuilder(65001, true, ctx)
+
+	ub := NewUpdateBuilder(65001, true, true, false)
 
 	var routes []UnicastParams
 	for i := 0; i < 50; i++ {
@@ -1629,8 +1627,8 @@ func TestBuildWithLimit_AttributesShared(t *testing.T) {
 // VALIDATES: BuildFlowSpec returns UPDATE when size <= maxSize.
 // PREVENTS: False positives on valid FlowSpec routes.
 func TestBuildFlowSpec_MaxSize_Fits(t *testing.T) {
-	ctx := &nlri.PackContext{ASN4: true}
-	ub := NewUpdateBuilder(65001, false, ctx)
+
+	ub := NewUpdateBuilder(65001, false, true, false)
 
 	// Simple FlowSpec NLRI (destination prefix 10.0.0.0/24)
 	params := FlowSpecParams{
@@ -1655,8 +1653,8 @@ func TestBuildFlowSpec_MaxSize_Fits(t *testing.T) {
 // PREVENTS: Oversized UPDATE generation for FlowSpec.
 // RFC 5575 Section 4: Single FlowSpec rule is atomic - cannot be split.
 func TestBuildFlowSpec_MaxSize_TooLarge(t *testing.T) {
-	ctx := &nlri.PackContext{ASN4: true}
-	ub := NewUpdateBuilder(65001, false, ctx)
+
+	ub := NewUpdateBuilder(65001, false, true, false)
 
 	params := FlowSpecParams{
 		IsIPv6:  false,
@@ -1679,8 +1677,8 @@ func TestBuildFlowSpec_MaxSize_TooLarge(t *testing.T) {
 // VALIDATES: BuildMVPNWithLimit returns single UPDATE when all routes fit.
 // PREVENTS: Unnecessary splitting of small batches.
 func TestBuildMVPNWithLimit_AllFit(t *testing.T) {
-	ctx := &nlri.PackContext{ASN4: true}
-	ub := NewUpdateBuilder(65001, true, ctx)
+
+	ub := NewUpdateBuilder(65001, true, true, false)
 
 	// Two small MVPN routes that should fit
 	routes := []MVPNParams{
@@ -1718,8 +1716,8 @@ func TestBuildMVPNWithLimit_AllFit(t *testing.T) {
 // VALIDATES: BuildMVPNWithLimit returns multiple UPDATEs when routes overflow.
 // PREVENTS: Single oversized UPDATE for large MVPN batches.
 func TestBuildMVPNWithLimit_Split(t *testing.T) {
-	ctx := &nlri.PackContext{ASN4: true}
-	ub := NewUpdateBuilder(65001, true, ctx)
+
+	ub := NewUpdateBuilder(65001, true, true, false)
 
 	// Create 20 MVPN routes - should overflow with small maxSize
 	var routes []MVPNParams
@@ -1758,8 +1756,8 @@ func TestBuildMVPNWithLimit_Split(t *testing.T) {
 // VALIDATES: BuildUnicastWithMaxSize returns ErrUpdateTooLarge when route + attrs > maxSize.
 // PREVENTS: Oversized UPDATE generation for unicast.
 func TestBuildUnicast_MaxSize_TooLarge(t *testing.T) {
-	ctx := &nlri.PackContext{ASN4: true}
-	ub := NewUpdateBuilder(65001, true, ctx)
+
+	ub := NewUpdateBuilder(65001, true, true, false)
 
 	params := UnicastParams{
 		Prefix:  netip.MustParsePrefix("10.0.0.0/24"),
@@ -1782,8 +1780,8 @@ func TestBuildUnicast_MaxSize_TooLarge(t *testing.T) {
 // VALIDATES: BuildUnicastWithMaxSize returns UPDATE when size <= maxSize.
 // PREVENTS: False positives on valid unicast routes.
 func TestBuildUnicast_MaxSize_Fits(t *testing.T) {
-	ctx := &nlri.PackContext{ASN4: true}
-	ub := NewUpdateBuilder(65001, true, ctx)
+
+	ub := NewUpdateBuilder(65001, true, true, false)
 
 	params := UnicastParams{
 		Prefix:  netip.MustParsePrefix("10.0.0.0/24"),
@@ -1806,8 +1804,8 @@ func TestBuildUnicast_MaxSize_Fits(t *testing.T) {
 // VALIDATES: BuildVPNWithMaxSize returns UPDATE when size <= maxSize.
 // PREVENTS: False positives on valid VPN routes.
 func TestBuildVPN_MaxSize_Fits(t *testing.T) {
-	ctx := &nlri.PackContext{ASN4: true}
-	ub := NewUpdateBuilder(65001, false, ctx)
+
+	ub := NewUpdateBuilder(65001, false, true, false)
 
 	params := VPNParams{
 		Prefix:  netip.MustParsePrefix("10.0.0.0/24"),
@@ -1831,8 +1829,8 @@ func TestBuildVPN_MaxSize_Fits(t *testing.T) {
 // VALIDATES: BuildVPNWithMaxSize returns ErrUpdateTooLarge when route + attrs > maxSize.
 // PREVENTS: Oversized UPDATE generation for VPN routes.
 func TestBuildVPN_MaxSize_TooLarge(t *testing.T) {
-	ctx := &nlri.PackContext{ASN4: true}
-	ub := NewUpdateBuilder(65001, false, ctx)
+
+	ub := NewUpdateBuilder(65001, false, true, false)
 
 	params := VPNParams{
 		Prefix:  netip.MustParsePrefix("10.0.0.0/24"),
@@ -1856,8 +1854,8 @@ func TestBuildVPN_MaxSize_TooLarge(t *testing.T) {
 // VALIDATES: BuildLabeledUnicastWithMaxSize returns UPDATE when size <= maxSize.
 // PREVENTS: False positives on valid labeled unicast routes.
 func TestBuildLabeledUnicast_MaxSize_Fits(t *testing.T) {
-	ctx := &nlri.PackContext{ASN4: true}
-	ub := NewUpdateBuilder(65001, false, ctx)
+
+	ub := NewUpdateBuilder(65001, false, true, false)
 
 	params := LabeledUnicastParams{
 		Prefix:  netip.MustParsePrefix("10.0.0.0/24"),
@@ -1880,8 +1878,8 @@ func TestBuildLabeledUnicast_MaxSize_Fits(t *testing.T) {
 // VALIDATES: BuildLabeledUnicastWithMaxSize returns ErrUpdateTooLarge when route + attrs > maxSize.
 // PREVENTS: Oversized UPDATE generation for labeled unicast routes.
 func TestBuildLabeledUnicast_MaxSize_TooLarge(t *testing.T) {
-	ctx := &nlri.PackContext{ASN4: true}
-	ub := NewUpdateBuilder(65001, false, ctx)
+
+	ub := NewUpdateBuilder(65001, false, true, false)
 
 	params := LabeledUnicastParams{
 		Prefix:  netip.MustParsePrefix("10.0.0.0/24"),
@@ -1904,8 +1902,8 @@ func TestBuildLabeledUnicast_MaxSize_TooLarge(t *testing.T) {
 // VALIDATES: BuildVPLSWithMaxSize returns UPDATE when size <= maxSize.
 // PREVENTS: False positives on valid VPLS routes.
 func TestBuildVPLS_MaxSize_Fits(t *testing.T) {
-	ctx := &nlri.PackContext{ASN4: true}
-	ub := NewUpdateBuilder(65001, false, ctx)
+
+	ub := NewUpdateBuilder(65001, false, true, false)
 
 	params := VPLSParams{
 		RD:       [8]byte{0, 1, 0, 0, 0, 100, 0, 100},
@@ -1931,8 +1929,8 @@ func TestBuildVPLS_MaxSize_Fits(t *testing.T) {
 // VALIDATES: BuildVPLSWithMaxSize returns ErrUpdateTooLarge when route + attrs > maxSize.
 // PREVENTS: Oversized UPDATE generation for VPLS routes.
 func TestBuildVPLS_MaxSize_TooLarge(t *testing.T) {
-	ctx := &nlri.PackContext{ASN4: true}
-	ub := NewUpdateBuilder(65001, false, ctx)
+
+	ub := NewUpdateBuilder(65001, false, true, false)
 
 	params := VPLSParams{
 		RD:       [8]byte{0, 1, 0, 0, 0, 100, 0, 100},
@@ -1958,8 +1956,8 @@ func TestBuildVPLS_MaxSize_TooLarge(t *testing.T) {
 // VALIDATES: BuildEVPNWithMaxSize returns UPDATE when size <= maxSize.
 // PREVENTS: False positives on valid EVPN routes.
 func TestBuildEVPN_MaxSize_Fits(t *testing.T) {
-	ctx := &nlri.PackContext{ASN4: true}
-	ub := NewUpdateBuilder(65001, false, ctx)
+
+	ub := NewUpdateBuilder(65001, false, true, false)
 
 	params := EVPNParams{
 		RouteType:   2, // MAC/IP Advertisement
@@ -1986,8 +1984,8 @@ func TestBuildEVPN_MaxSize_Fits(t *testing.T) {
 // VALIDATES: BuildEVPNWithMaxSize returns ErrUpdateTooLarge when route + attrs > maxSize.
 // PREVENTS: Oversized UPDATE generation for EVPN routes.
 func TestBuildEVPN_MaxSize_TooLarge(t *testing.T) {
-	ctx := &nlri.PackContext{ASN4: true}
-	ub := NewUpdateBuilder(65001, false, ctx)
+
+	ub := NewUpdateBuilder(65001, false, true, false)
 
 	params := EVPNParams{
 		RouteType:   2,
@@ -2014,8 +2012,8 @@ func TestBuildEVPN_MaxSize_TooLarge(t *testing.T) {
 // VALIDATES: BuildMUPWithMaxSize returns UPDATE when size <= maxSize.
 // PREVENTS: False positives on valid MUP routes.
 func TestBuildMUP_MaxSize_Fits(t *testing.T) {
-	ctx := &nlri.PackContext{ASN4: true}
-	ub := NewUpdateBuilder(65001, false, ctx)
+
+	ub := NewUpdateBuilder(65001, false, true, false)
 
 	params := MUPParams{
 		RouteType: 1,
@@ -2038,8 +2036,8 @@ func TestBuildMUP_MaxSize_Fits(t *testing.T) {
 // VALIDATES: BuildMUPWithMaxSize returns ErrUpdateTooLarge when route + attrs > maxSize.
 // PREVENTS: Oversized UPDATE generation for MUP routes.
 func TestBuildMUP_MaxSize_TooLarge(t *testing.T) {
-	ctx := &nlri.PackContext{ASN4: true}
-	ub := NewUpdateBuilder(65001, false, ctx)
+
+	ub := NewUpdateBuilder(65001, false, true, false)
 
 	params := MUPParams{
 		RouteType: 1,

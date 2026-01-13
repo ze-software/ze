@@ -28,8 +28,7 @@ func makeRD(local uint32) nlri.RouteDistinguisher {
 // VALIDATES: BuildEVPN produces valid UPDATE with MP_REACH_NLRI for Type 2.
 // PREVENTS: EVPN encoding regression.
 func TestUpdateBuilder_BuildEVPN_Type2(t *testing.T) {
-	ctx := &nlri.PackContext{ASN4: true}
-	ub := NewUpdateBuilder(65001, false, ctx)
+	ub := NewUpdateBuilder(65001, false, true, false)
 
 	// RD 100:1
 	rd := makeRD(1)
@@ -65,8 +64,7 @@ func TestUpdateBuilder_BuildEVPN_Type2(t *testing.T) {
 // VALIDATES: BuildEVPN produces valid UPDATE for Type 5 IP Prefix route.
 // PREVENTS: EVPN Type 5 encoding bugs.
 func TestUpdateBuilder_BuildEVPN_Type5(t *testing.T) {
-	ctx := &nlri.PackContext{ASN4: true}
-	ub := NewUpdateBuilder(65001, true, ctx) // iBGP
+	ub := NewUpdateBuilder(65001, true, true, false) // iBGP
 
 	// RD 100:200
 	rd := makeRD(200)
@@ -95,8 +93,7 @@ func TestUpdateBuilder_BuildEVPN_Type5(t *testing.T) {
 // VALIDATES: BuildEVPN produces valid UPDATE for Type 3.
 // PREVENTS: EVPN Type 3 encoding bugs.
 func TestUpdateBuilder_BuildEVPN_Type3(t *testing.T) {
-	ctx := &nlri.PackContext{ASN4: true}
-	ub := NewUpdateBuilder(65001, false, ctx)
+	ub := NewUpdateBuilder(65001, false, true, false)
 
 	// RD 100:1
 	rd := makeRD(1)
@@ -120,8 +117,7 @@ func TestUpdateBuilder_BuildEVPN_Type3(t *testing.T) {
 // VALIDATES: Route Targets are included in EVPN UPDATE.
 // PREVENTS: Extended community encoding bugs.
 func TestUpdateBuilder_BuildEVPN_ExtCommunity(t *testing.T) {
-	ctx := &nlri.PackContext{ASN4: true}
-	ub := NewUpdateBuilder(65001, false, ctx)
+	ub := NewUpdateBuilder(65001, false, true, false)
 
 	// RD 100:1
 	rd := makeRD(1)

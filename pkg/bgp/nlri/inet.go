@@ -23,8 +23,6 @@ import (
 	"errors"
 	"fmt"
 	"net/netip"
-
-	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/wire"
 )
 
 // Errors for INET parsing.
@@ -49,7 +47,7 @@ type INET struct {
 
 // NewINET creates a new INET NLRI.
 // pathID=0 means no path identifier; pathID>0 stores the path ID.
-// Use WriteNLRI() with PackContext.AddPath=true to encode with path ID.
+// Use WriteNLRI() with addPath=true to encode with path ID.
 func NewINET(family Family, prefix netip.Prefix, pathID uint32) *INET {
 	return &INET{
 		PrefixNLRI: PrefixNLRI{
@@ -189,7 +187,7 @@ func (i *INET) String() string {
 //
 // RFC 7911 Section 3: Path ID is NOT written by this method.
 // Use WriteNLRI() for ADD-PATH encoding with path identifier.
-func (i *INET) WriteTo(buf []byte, off int, _ *PackContext) int {
+func (i *INET) WriteTo(buf []byte, off int) int {
 	prefixLen := i.prefix.Bits()
 	prefixBytes := PrefixBytes(prefixLen)
 
@@ -204,24 +202,4 @@ func (i *INET) WriteTo(buf []byte, off int, _ *PackContext) int {
 	pos += prefixBytes
 
 	return pos - off
-}
-
-// Pack returns wire-format bytes adapted for negotiated capabilities.
-//
-// Deprecated: Use WriteNLRI() for zero-allocation encoding.
-// This method allocates a new slice; prefer WriteNLRI() with pre-allocated buffer.
-func (i *INET) Pack(ctx *PackContext) []byte {
-	size := LenWithContext(i, ctx)
-	buf := make([]byte, size)
-	WriteNLRI(i, buf, 0, ctx)
-	return buf
-}
-
-// CheckedWriteTo validates capacity before writing.
-func (i *INET) CheckedWriteTo(buf []byte, off int, ctx *PackContext) (int, error) {
-	needed := i.Len()
-	if len(buf) < off+needed {
-		return 0, wire.ErrBufferTooSmall
-	}
-	return i.WriteTo(buf, off, ctx), nil
 }

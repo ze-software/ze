@@ -18,8 +18,6 @@ import (
 	"net/netip"
 	"strconv"
 	"strings"
-
-	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/wire"
 )
 
 // EVPNRouteType identifies the EVPN route type.
@@ -975,106 +973,16 @@ func (e *EVPNGeneric) Bytes() []byte            { return e.data }
 func (e *EVPNGeneric) Len() int                 { return len(e.data) + 2 }
 func (e *EVPNGeneric) String() string           { return fmt.Sprintf("evpn-type%d", e.routeType) }
 
-// Pack methods for EVPN types - handle ADD-PATH encoding per RFC 7911.
-// All EVPN types use the same ADD-PATH handling pattern.
+// WriteTo methods for EVPN types - write payload without path ID.
+// RFC 7911 Section 3: Path ID is NOT written by these methods.
+// Use WriteNLRI() for ADD-PATH encoding with path identifier.
 
-func (e *EVPNType1) Pack(ctx *PackContext) []byte   { return packEVPN(e.Bytes(), e.hasPath, ctx) }
-func (e *EVPNType2) Pack(ctx *PackContext) []byte   { return packEVPN(e.Bytes(), e.hasPath, ctx) }
-func (e *EVPNType3) Pack(ctx *PackContext) []byte   { return packEVPN(e.Bytes(), e.hasPath, ctx) }
-func (e *EVPNType4) Pack(ctx *PackContext) []byte   { return packEVPN(e.Bytes(), e.hasPath, ctx) }
-func (e *EVPNType5) Pack(ctx *PackContext) []byte   { return packEVPN(e.Bytes(), e.hasPath, ctx) }
-func (e *EVPNGeneric) Pack(ctx *PackContext) []byte { return packEVPN(e.Bytes(), e.hasPath, ctx) }
-
-// packEVPN handles ADD-PATH encoding for EVPN types.
-func packEVPN(bytes []byte, hasPath bool, ctx *PackContext) []byte {
-	if ctx == nil {
-		return bytes
-	}
-	if ctx.AddPath {
-		if hasPath {
-			return bytes
-		}
-		return append([]byte{0, 0, 0, 0}, bytes...)
-	}
-	if hasPath {
-		return bytes[4:]
-	}
-	return bytes
-}
-
-// WriteTo methods for EVPN types.
-func (e *EVPNType1) WriteTo(buf []byte, off int, ctx *PackContext) int {
-	return copy(buf[off:], e.Pack(ctx))
-}
-func (e *EVPNType2) WriteTo(buf []byte, off int, ctx *PackContext) int {
-	return copy(buf[off:], e.Pack(ctx))
-}
-func (e *EVPNType3) WriteTo(buf []byte, off int, ctx *PackContext) int {
-	return copy(buf[off:], e.Pack(ctx))
-}
-func (e *EVPNType4) WriteTo(buf []byte, off int, ctx *PackContext) int {
-	return copy(buf[off:], e.Pack(ctx))
-}
-func (e *EVPNType5) WriteTo(buf []byte, off int, ctx *PackContext) int {
-	return copy(buf[off:], e.Pack(ctx))
-}
-func (e *EVPNGeneric) WriteTo(buf []byte, off int, ctx *PackContext) int {
-	return copy(buf[off:], e.Pack(ctx))
-}
-
-// CheckedWriteTo validates capacity before writing.
-func (e *EVPNType1) CheckedWriteTo(buf []byte, off int, ctx *PackContext) (int, error) {
-	needed := e.Len()
-	if len(buf) < off+needed {
-		return 0, wire.ErrBufferTooSmall
-	}
-	return e.WriteTo(buf, off, ctx), nil
-}
-
-// CheckedWriteTo validates capacity before writing.
-func (e *EVPNType2) CheckedWriteTo(buf []byte, off int, ctx *PackContext) (int, error) {
-	needed := e.Len()
-	if len(buf) < off+needed {
-		return 0, wire.ErrBufferTooSmall
-	}
-	return e.WriteTo(buf, off, ctx), nil
-}
-
-// CheckedWriteTo validates capacity before writing.
-func (e *EVPNType3) CheckedWriteTo(buf []byte, off int, ctx *PackContext) (int, error) {
-	needed := e.Len()
-	if len(buf) < off+needed {
-		return 0, wire.ErrBufferTooSmall
-	}
-	return e.WriteTo(buf, off, ctx), nil
-}
-
-// CheckedWriteTo validates capacity before writing.
-func (e *EVPNType4) CheckedWriteTo(buf []byte, off int, ctx *PackContext) (int, error) {
-	needed := e.Len()
-	if len(buf) < off+needed {
-		return 0, wire.ErrBufferTooSmall
-	}
-	return e.WriteTo(buf, off, ctx), nil
-}
-
-// CheckedWriteTo validates capacity before writing.
-func (e *EVPNType5) CheckedWriteTo(buf []byte, off int, ctx *PackContext) (int, error) {
-	needed := e.Len()
-	if len(buf) < off+needed {
-		return 0, wire.ErrBufferTooSmall
-	}
-	return e.WriteTo(buf, off, ctx), nil
-}
-
-// CheckedWriteTo validates capacity before writing.
-func (e *EVPNGeneric) CheckedWriteTo(buf []byte, off int, ctx *PackContext) (int, error) {
-	needed := e.Len()
-	if len(buf) < off+needed {
-		return 0, wire.ErrBufferTooSmall
-	}
-	return e.WriteTo(buf, off, ctx), nil
-}
+func (e *EVPNType1) WriteTo(buf []byte, off int) int   { return copy(buf[off:], e.Bytes()) }
+func (e *EVPNType2) WriteTo(buf []byte, off int) int   { return copy(buf[off:], e.Bytes()) }
+func (e *EVPNType3) WriteTo(buf []byte, off int) int   { return copy(buf[off:], e.Bytes()) }
+func (e *EVPNType4) WriteTo(buf []byte, off int) int   { return copy(buf[off:], e.Bytes()) }
+func (e *EVPNType5) WriteTo(buf []byte, off int) int   { return copy(buf[off:], e.Bytes()) }
+func (e *EVPNGeneric) WriteTo(buf []byte, off int) int { return copy(buf[off:], e.Bytes()) }
 
 // NewEVPNType1 creates an Ethernet Auto-Discovery route (Type 1).
 // RFC 7432 Section 7.1.

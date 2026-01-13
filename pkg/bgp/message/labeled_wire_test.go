@@ -77,8 +77,7 @@ func TestLabeledUnicastWireConsistency(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Path 1: Build via UpdateBuilder (immediate send path)
-			ctx := &nlri.PackContext{AddPath: tt.addPath}
-			ub := NewUpdateBuilder(65001, false, ctx)
+			ub := NewUpdateBuilder(65001, false, true, tt.addPath)
 			params := LabeledUnicastParams{
 				Prefix: tt.prefix,
 				PathID: tt.pathID,
@@ -92,7 +91,11 @@ func TestLabeledUnicastWireConsistency(t *testing.T) {
 				family.AFI = nlri.AFIIPv6
 			}
 			n := nlri.NewLabeledUnicast(family, tt.prefix, []uint32{tt.label}, tt.pathID)
-			actual := func() []byte { b := make([]byte, nlri.LenWithContext(n, ctx)); nlri.WriteNLRI(n, b, 0, ctx); return b }()
+			actual := func() []byte {
+				b := make([]byte, nlri.LenWithContext(n, tt.addPath))
+				nlri.WriteNLRI(n, b, 0, tt.addPath)
+				return b
+			}()
 
 			assert.Equal(t, expected, actual,
 				"Wire format mismatch: buildLabeledUnicastNLRIBytes vs nlri.LabeledUnicast.Pack")
@@ -109,8 +112,7 @@ func TestLabeledUnicastWireConsistency_AddPathZero(t *testing.T) {
 	label := uint32(100)
 	pathID := uint32(0) // Path ID is 0
 
-	ctx := &nlri.PackContext{AddPath: true}
-	ub := NewUpdateBuilder(65001, false, ctx)
+	ub := NewUpdateBuilder(65001, false, true, true)
 	params := LabeledUnicastParams{
 		Prefix: prefix,
 		PathID: pathID,
@@ -120,7 +122,11 @@ func TestLabeledUnicastWireConsistency_AddPathZero(t *testing.T) {
 
 	family := nlri.Family{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIMPLSLabel}
 	n := nlri.NewLabeledUnicast(family, prefix, []uint32{label}, pathID)
-	nlriBytes := func() []byte { b := make([]byte, nlri.LenWithContext(n, ctx)); nlri.WriteNLRI(n, b, 0, ctx); return b }()
+	nlriBytes := func() []byte {
+		b := make([]byte, nlri.LenWithContext(n, true))
+		nlri.WriteNLRI(n, b, 0, true)
+		return b
+	}()
 
 	// RFC 7911: Both should include 4-byte path ID (even if 0)
 	// Format: [0,0,0,0][length][label][prefix]

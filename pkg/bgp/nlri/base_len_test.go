@@ -203,7 +203,7 @@ func TestWriteTo_INET(t *testing.T) {
 
 			// Write to buffer using WriteTo
 			buf := make([]byte, 100)
-			n := inet.WriteTo(buf, 0, nil)
+			n := inet.WriteTo(buf, 0)
 
 			// Verify length matches Len()
 			if n != inet.Len() {
@@ -235,9 +235,8 @@ func TestWriteNLRI_AddPath(t *testing.T) {
 	inet := NewINET(IPv4Unicast, prefix, 0) // No stored path ID
 
 	t.Run("AddPath enabled", func(t *testing.T) {
-		ctx := &PackContext{AddPath: true}
 		buf := make([]byte, 100)
-		n := WriteNLRI(inet, buf, 0, ctx)
+		n := WriteNLRI(inet, buf, 0, true)
 
 		// Should be 4 (path ID) + Len()
 		wantLen := 4 + inet.Len()
@@ -252,21 +251,10 @@ func TestWriteNLRI_AddPath(t *testing.T) {
 	})
 
 	t.Run("AddPath disabled", func(t *testing.T) {
-		ctx := &PackContext{AddPath: false}
 		buf := make([]byte, 100)
-		n := WriteNLRI(inet, buf, 0, ctx)
+		n := WriteNLRI(inet, buf, 0, false)
 
 		// Should be just Len()
-		if n != inet.Len() {
-			t.Errorf("WriteNLRI returned %d, want %d", n, inet.Len())
-		}
-	})
-
-	t.Run("nil context", func(t *testing.T) {
-		buf := make([]byte, 100)
-		n := WriteNLRI(inet, buf, 0, nil)
-
-		// nil context = payload only (no path ID)
 		if n != inet.Len() {
 			t.Errorf("WriteNLRI returned %d, want %d", n, inet.Len())
 		}
@@ -275,15 +263,14 @@ func TestWriteNLRI_AddPath(t *testing.T) {
 
 // TestWriteNLRI_WithStoredPathID verifies WriteNLRI uses stored path ID.
 //
-// VALIDATES: WriteNLRI uses stored path ID when ctx.AddPath=true.
+// VALIDATES: WriteNLRI uses stored path ID when addPath=true.
 // PREVENTS: Path ID being lost or zeroed when forwarding routes.
 func TestWriteNLRI_WithStoredPathID(t *testing.T) {
 	prefix := netip.MustParsePrefix("10.0.0.0/24")
 	inet := NewINET(IPv4Unicast, prefix, 42) // Stored path ID = 42
 
-	ctx := &PackContext{AddPath: true}
 	buf := make([]byte, 100)
-	n := WriteNLRI(inet, buf, 0, ctx)
+	n := WriteNLRI(inet, buf, 0, true)
 
 	// Path ID should be 42 (big-endian: 0x0000002a)
 	if buf[0] != 0 || buf[1] != 0 || buf[2] != 0 || buf[3] != 42 {
@@ -309,28 +296,20 @@ func TestLenWithContext_MatchesWriteNLRI(t *testing.T) {
 		NewINET(IPv6Unicast, netip.MustParsePrefix("2001:db8::/64"), 100),
 	}
 
-	contexts := []*PackContext{
-		nil,
-		{AddPath: false},
-		{AddPath: true},
-	}
+	addPathValues := []bool{false, true}
 
 	for _, n := range nlris {
-		for _, ctx := range contexts {
-			ctxName := "nil"
-			if ctx != nil {
-				if ctx.AddPath {
-					ctxName = "AddPath=true"
-				} else {
-					ctxName = "AddPath=false"
-				}
+		for _, addPath := range addPathValues {
+			name := "AddPath=false"
+			if addPath {
+				name = "AddPath=true"
 			}
 
-			t.Run(n.String()+"_"+ctxName, func(t *testing.T) {
-				predicted := LenWithContext(n, ctx)
+			t.Run(n.String()+"_"+name, func(t *testing.T) {
+				predicted := LenWithContext(n, addPath)
 
 				buf := make([]byte, 100)
-				actual := WriteNLRI(n, buf, 0, ctx)
+				actual := WriteNLRI(n, buf, 0, addPath)
 
 				if predicted != actual {
 					t.Errorf("LenWithContext = %d, WriteNLRI returned %d", predicted, actual)

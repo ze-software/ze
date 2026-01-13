@@ -110,10 +110,11 @@ func TestLabeledUnicastBytesWithPathID(t *testing.T) {
 	assert.True(t, lu.PathID() != 0)
 	assert.Equal(t, uint32(42), lu.PathID())
 
-	// Pack(ctx.AddPath=true) includes path ID
-	ctx := &PackContext{AddPath: true}
+	// WriteNLRI(addPath=true) includes path ID
 	expectedWithPath := []byte{0, 0, 0, 42, 32, 0x00, 0x06, 0x41, 10}
-	assert.Equal(t, expectedWithPath, lu.Pack(ctx))
+	buf := make([]byte, 100)
+	n := WriteNLRI(lu, buf, 0, true)
+	assert.Equal(t, expectedWithPath, buf[:n])
 }
 
 // TestLabeledUnicastIPv6 verifies IPv6 labeled unicast encoding.
@@ -132,60 +133,54 @@ func TestLabeledUnicastIPv6(t *testing.T) {
 	assert.Equal(t, Family{AFI: AFIIPv6, SAFI: SAFIMPLSLabel}, lu.Family())
 }
 
-// TestLabeledUnicastPack verifies ADD-PATH aware packing.
+// TestLabeledUnicastWriteNLRI verifies ADD-PATH aware encoding.
 //
 // VALIDATES: RFC 7911 Section 3 - Context-aware encoding.
-// - ctx=nil: returns Bytes()
-// - ctx.AddPath=true, HasPathID=true: returns with path ID
-// - ctx.AddPath=true, HasPathID=false: prepends NOPATH (4 zeros)
-// - ctx.AddPath=false: returns without path ID
+// - addPath=true, HasPathID=true: includes path ID
+// - addPath=true, HasPathID=false: prepends NOPATH (4 zeros)
+// - addPath=false: returns without path ID
 //
 // PREVENTS: ADD-PATH negotiation mismatches causing session drops.
-func TestLabeledUnicastPack(t *testing.T) {
+func TestLabeledUnicastWriteNLRI(t *testing.T) {
 	prefix := netip.MustParsePrefix("10.0.0.0/8")
 
 	tests := []struct {
 		name     string
 		lu       *LabeledUnicast
-		ctx      *PackContext
+		addPath  bool
 		expected []byte
 	}{
 		{
-			name:     "nil context - returns Bytes()",
-			lu:       NewLabeledUnicast(IPv4Unicast, prefix, []uint32{100}, 0),
-			ctx:      nil,
-			expected: []byte{32, 0x00, 0x06, 0x41, 10},
-		},
-		{
 			name:     "no addpath, no path id",
 			lu:       NewLabeledUnicast(IPv4Unicast, prefix, []uint32{100}, 0),
-			ctx:      &PackContext{AddPath: false},
+			addPath:  false,
 			expected: []byte{32, 0x00, 0x06, 0x41, 10},
 		},
 		{
 			name:     "addpath enabled, no path id - prepends NOPATH",
 			lu:       NewLabeledUnicast(IPv4Unicast, prefix, []uint32{100}, 0),
-			ctx:      &PackContext{AddPath: true},
+			addPath:  true,
 			expected: []byte{0, 0, 0, 0, 32, 0x00, 0x06, 0x41, 10},
 		},
 		{
 			name:     "addpath enabled, has path id",
 			lu:       NewLabeledUnicast(IPv4Unicast, prefix, []uint32{100}, 42),
-			ctx:      &PackContext{AddPath: true},
+			addPath:  true,
 			expected: []byte{0, 0, 0, 42, 32, 0x00, 0x06, 0x41, 10},
 		},
 		{
 			name:     "addpath disabled, has path id - strips path id",
 			lu:       NewLabeledUnicast(IPv4Unicast, prefix, []uint32{100}, 42),
-			ctx:      &PackContext{AddPath: false},
+			addPath:  false,
 			expected: []byte{32, 0x00, 0x06, 0x41, 10},
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := tt.lu.Pack(tt.ctx)
-			assert.Equal(t, tt.expected, result)
+			buf := make([]byte, 100)
+			n := WriteNLRI(tt.lu, buf, 0, tt.addPath)
+			assert.Equal(t, tt.expected, buf[:n])
 		})
 	}
 }
@@ -283,14 +278,15 @@ func TestLabeledUnicastWireConsistency(t *testing.T) {
 			// BOS bit should be set (last 4 bits of label[2] & 0x01)
 			assert.Equal(t, byte(0x01), labelBytes[2]&0x01, "BOS bit not set")
 
-			// If pathID is set, verify Pack(ctx.AddPath=true) includes it
+			// If pathID is set, verify WriteNLRI(addPath=true) includes it
 			if tt.pathID != 0 {
-				ctx := &PackContext{AddPath: true}
-				packed := lu.Pack(ctx)
+				buf := make([]byte, 100)
+				n := WriteNLRI(lu, buf, 0, true)
+				packed := buf[:n]
 				require.GreaterOrEqual(t, len(packed), 4)
 				// Verify path ID at beginning
 				gotPathID := (uint32(packed[0]) << 24) | (uint32(packed[1]) << 16) | (uint32(packed[2]) << 8) | uint32(packed[3])
-				assert.Equal(t, tt.pathID, gotPathID, "path ID mismatch in Pack()")
+				assert.Equal(t, tt.pathID, gotPathID, "path ID mismatch in WriteNLRI()")
 			}
 		})
 	}

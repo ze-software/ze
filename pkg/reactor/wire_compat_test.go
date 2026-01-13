@@ -8,7 +8,6 @@ import (
 
 	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/attribute"
 	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/message"
-	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/nlri"
 )
 
 // Wire format tests verify that UpdateBuilder produces correct wire format.
@@ -22,8 +21,8 @@ import (
 //
 // RFC 4271 attribute order: ORIGIN(1), AS_PATH(2), NEXT_HOP(3), MED(4), LOCAL_PREF(5), COMMUNITIES(8).
 func TestWireFormat_UnicastIPv4(t *testing.T) {
-	ctx := &nlri.PackContext{ASN4: true}
-	ub := message.NewUpdateBuilder(65001, true, ctx)
+
+	ub := message.NewUpdateBuilder(65001, true, true, false)
 
 	params := message.UnicastParams{
 		Prefix:          netip.MustParsePrefix("10.0.0.0/24"),
@@ -62,8 +61,8 @@ func TestWireFormat_UnicastIPv4(t *testing.T) {
 //
 // RFC 4271 Section 5.1.2: eBGP MUST prepend local AS to AS_PATH.
 func TestWireFormat_UnicastIPv4_EBGP(t *testing.T) {
-	ctx := &nlri.PackContext{ASN4: true}
-	ub := message.NewUpdateBuilder(65001, false, ctx) // eBGP
+
+	ub := message.NewUpdateBuilder(65001, false, true, false) // eBGP
 
 	params := message.UnicastParams{
 		Prefix:  netip.MustParsePrefix("10.0.0.0/24"),
@@ -89,8 +88,8 @@ func TestWireFormat_UnicastIPv4_EBGP(t *testing.T) {
 //
 // RFC 4760: IPv6 unicast uses MP_REACH_NLRI for next-hop and NLRI.
 func TestWireFormat_UnicastIPv6(t *testing.T) {
-	ctx := &nlri.PackContext{ASN4: true}
-	ub := message.NewUpdateBuilder(65001, true, ctx)
+
+	ub := message.NewUpdateBuilder(65001, true, true, false)
 
 	params := message.UnicastParams{
 		Prefix:          netip.MustParsePrefix("2001:db8::/32"),
@@ -129,10 +128,9 @@ func TestWireFormat_UnicastIPv6(t *testing.T) {
 // RFC 4271 Appendix F.3: attributes SHOULD be ordered by type code.
 // Order: ORIGIN(1), AS_PATH(2), NEXT_HOP(3), LOCAL_PREF(5), MP_REACH(14), EXT_COM(16).
 func TestWireCompat_VPNIPv4(t *testing.T) {
-	ctx := &nlri.PackContext{ASN4: true}
 
 	// Build VPN route UPDATE
-	ub := message.NewUpdateBuilder(65001, true, ctx)
+	ub := message.NewUpdateBuilder(65001, true, true, false)
 	params := message.VPNParams{
 		Prefix:            netip.MustParsePrefix("10.0.0.0/24"),
 		NextHop:           netip.MustParseAddr("192.168.1.1"),
@@ -170,8 +168,8 @@ func TestWireCompat_VPNIPv4(t *testing.T) {
 //
 // IPv4 prefix with IPv6 next-hop uses MP_REACH_NLRI with AFI=1, SAFI=1.
 func TestWireFormat_ExtendedNextHop(t *testing.T) {
-	ctx := &nlri.PackContext{ASN4: true}
-	ub := message.NewUpdateBuilder(65001, true, ctx)
+
+	ub := message.NewUpdateBuilder(65001, true, true, false)
 
 	params := message.UnicastParams{
 		Prefix:             netip.MustParsePrefix("10.0.0.0/24"),
@@ -209,8 +207,8 @@ func TestWireFormat_ExtendedNextHop(t *testing.T) {
 //
 // Custom attributes from config are appended after sorted standard attributes.
 func TestWireFormat_RawAttributes(t *testing.T) {
-	ctx := &nlri.PackContext{ASN4: true}
-	ub := message.NewUpdateBuilder(65001, true, ctx)
+
+	ub := message.NewUpdateBuilder(65001, true, true, false)
 
 	params := message.UnicastParams{
 		Prefix:  netip.MustParsePrefix("10.0.0.0/24"),

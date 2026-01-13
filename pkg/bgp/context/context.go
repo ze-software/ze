@@ -195,15 +195,6 @@ func (c *EncodingContext) ExtendedNextHopFor(f nlri.Family) nlri.AFI {
 	return c.encoding.ExtendedNextHop[f]
 }
 
-// ToPackContext creates an nlri.PackContext for the given family.
-// Extracts relevant capability flags for NLRI encoding.
-func (c *EncodingContext) ToPackContext(f nlri.Family) *nlri.PackContext {
-	return &nlri.PackContext{
-		ASN4:    c.ASN4(),
-		AddPath: c.AddPath(f),
-	}
-}
-
 // Hash returns a deterministic 64-bit hash for deduplication.
 // Computed once at creation, cached for performance.
 func (c *EncodingContext) Hash() uint64 {

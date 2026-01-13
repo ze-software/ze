@@ -172,10 +172,11 @@ func TestINETBytesWithPathID(t *testing.T) {
 	// Path ID is stored but not in Bytes()
 	assert.Equal(t, uint32(42), inet.PathID())
 
-	// Pack(ctx.AddPath=true) includes path ID
-	ctx := &PackContext{AddPath: true}
+	// WriteNLRI with addPath=true includes path ID
 	expectedWithPath := []byte{0, 0, 0, 42, 8, 10}
-	assert.Equal(t, expectedWithPath, inet.Pack(ctx))
+	buf := make([]byte, LenWithContext(inet, true))
+	WriteNLRI(inet, buf, 0, true)
+	assert.Equal(t, expectedWithPath, buf)
 }
 
 // TestINETString verifies string representation.
@@ -224,101 +225,99 @@ func TestINETRoundTrip(t *testing.T) {
 	}
 }
 
-// TestINETPack verifies ADD-PATH aware NLRI packing.
+// TestINETWriteNLRI verifies ADD-PATH aware NLRI encoding.
 //
 // VALIDATES: RFC 7911 Section 3 - Extended NLRI encoding with Path Identifier.
 // When ADD-PATH is negotiated, NLRI MUST include 4-byte Path Identifier.
 //
 // PREVENTS: Interoperability failures with peers expecting ADD-PATH encoding.
 // Without proper encoding, peers will misparse the NLRI causing session drops.
-func TestINETPack(t *testing.T) {
+func TestINETWriteNLRI(t *testing.T) {
 	tests := []struct {
 		name     string
 		inet     *INET
-		ctx      *PackContext
+		addPath  bool
 		expected []byte
 	}{
 		{
-			name:     "nil context - returns Bytes()",
-			inet:     NewINET(IPv4Unicast, netip.MustParsePrefix("10.0.0.0/8"), 0),
-			ctx:      nil,
-			expected: []byte{8, 10}, // mask + prefix
-		},
-		{
 			name:     "no addpath, no path id - returns as-is",
 			inet:     NewINET(IPv4Unicast, netip.MustParsePrefix("10.0.0.0/8"), 0),
-			ctx:      &PackContext{AddPath: false},
+			addPath:  false,
 			expected: []byte{8, 10}, // mask + prefix
 		},
 		{
 			name:     "addpath enabled, no path id - prepends NOPATH (4 zeros)",
 			inet:     NewINET(IPv4Unicast, netip.MustParsePrefix("10.0.0.0/8"), 0),
-			ctx:      &PackContext{AddPath: true},
+			addPath:  true,
 			expected: []byte{0, 0, 0, 0, 8, 10}, // NOPATH + mask + prefix
 		},
 		{
 			name:     "addpath enabled, has path id - includes path id",
 			inet:     NewINET(IPv4Unicast, netip.MustParsePrefix("10.0.0.0/8"), 42),
-			ctx:      &PackContext{AddPath: true},
+			addPath:  true,
 			expected: []byte{0, 0, 0, 42, 8, 10}, // path_id + mask + prefix
 		},
 		{
 			name:     "addpath disabled, has path id - strips path id",
 			inet:     NewINET(IPv4Unicast, netip.MustParsePrefix("10.0.0.0/8"), 42),
-			ctx:      &PackContext{AddPath: false},
+			addPath:  false,
 			expected: []byte{8, 10}, // mask + prefix only, no path_id
 		},
 		{
 			name:     "addpath enabled, path id from IP format (0.0.0.1)",
 			inet:     NewINET(IPv4Unicast, netip.MustParsePrefix("10.0.0.10/32"), 1),
-			ctx:      &PackContext{AddPath: true},
+			addPath:  true,
 			expected: []byte{0, 0, 0, 1, 32, 10, 0, 0, 10}, // path_id=1 + /32 prefix
 		},
 		{
 			name:     "addpath enabled, larger prefix",
 			inet:     NewINET(IPv4Unicast, netip.MustParsePrefix("192.168.1.0/24"), 100),
-			ctx:      &PackContext{AddPath: true},
+			addPath:  true,
 			expected: []byte{0, 0, 0, 100, 24, 192, 168, 1},
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := tt.inet.Pack(tt.ctx)
+			buf := make([]byte, 100)
+			n := WriteNLRI(tt.inet, buf, 0, tt.addPath)
+			result := buf[:n]
 			assert.Equal(t, tt.expected, result)
 		})
 	}
 }
 
-// TestINETPackIPv6 verifies ADD-PATH packing for IPv6.
+// TestINETWriteNLRIIPv6 verifies ADD-PATH encoding for IPv6.
 //
 // VALIDATES: IPv6 NLRI with ADD-PATH encoding.
 //
 // PREVENTS: IPv6-specific encoding issues with ADD-PATH.
-func TestINETPackIPv6(t *testing.T) {
+func TestINETWriteNLRIIPv6(t *testing.T) {
 	tests := []struct {
 		name     string
 		inet     *INET
-		ctx      *PackContext
+		addPath  bool
 		expected []byte
 	}{
 		{
 			name:     "ipv6 no addpath",
 			inet:     NewINET(IPv6Unicast, netip.MustParsePrefix("2001:db8::/32"), 0),
-			ctx:      &PackContext{AddPath: false},
+			addPath:  false,
 			expected: []byte{32, 0x20, 0x01, 0x0d, 0xb8},
 		},
 		{
 			name:     "ipv6 with addpath",
 			inet:     NewINET(IPv6Unicast, netip.MustParsePrefix("2001:db8::/32"), 5),
-			ctx:      &PackContext{AddPath: true},
+			addPath:  true,
 			expected: []byte{0, 0, 0, 5, 32, 0x20, 0x01, 0x0d, 0xb8},
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := tt.inet.Pack(tt.ctx)
+			buf := make([]byte, 100)
+			n := WriteNLRI(tt.inet, buf, 0, tt.addPath)
+			result := buf[:n]
 			assert.Equal(t, tt.expected, result)
 		})
 	}

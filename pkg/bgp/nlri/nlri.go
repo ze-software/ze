@@ -244,12 +244,6 @@ type NLRI interface {
 	// Note: Path ID is NOT included. Use WriteNLRI() for ADD-PATH encoding.
 	Bytes() []byte
 
-	// Pack returns wire-format bytes adapted for negotiated capabilities.
-	//
-	// Deprecated: Use WriteNLRI() for zero-allocation encoding.
-	// This method allocates a new slice; prefer WriteNLRI() with pre-allocated buffer.
-	Pack(ctx *PackContext) []byte
-
 	// Len returns the payload length in bytes (no path ID).
 	// Use LenWithContext() for ADD-PATH aware length calculation.
 	Len() int
@@ -265,21 +259,20 @@ type NLRI interface {
 	// Returns number of bytes written.
 	//
 	// Note: Path ID is NOT written. Use WriteNLRI() for ADD-PATH encoding.
-	// The ctx parameter is kept for interface compatibility but is ignored.
-	WriteTo(buf []byte, off int, ctx *PackContext) int
+	WriteTo(buf []byte, off int) int
 }
 
-// LenWithContext returns the wire-format length adjusted for context.
+// LenWithContext returns the wire-format length adjusted for ADD-PATH.
 //
 // RFC 7911 Section 3 - Extended NLRI Encodings:
 // When ADD-PATH is negotiated, each NLRI is prefixed with a 4-byte Path
 // Identifier. This function calculates the total wire length:
-//   - If ctx is nil or ctx.AddPath=false: returns Len() (payload only)
-//   - If ctx.AddPath=true: returns Len() + 4 (path ID + payload)
+//   - If addPath=false: returns Len() (payload only)
+//   - If addPath=true: returns Len() + 4 (path ID + payload)
 //
 // Note: Some NLRI types (FlowSpec, BGPLS, etc.) don't support ADD-PATH
-// per their respective RFCs and always return Len() regardless of context.
-func LenWithContext(n NLRI, ctx *PackContext) int {
+// per their respective RFCs and always return Len() regardless of addPath.
+func LenWithContext(n NLRI, addPath bool) int {
 	baseLen := n.Len()
 
 	// Types that don't support ADD-PATH
@@ -288,7 +281,7 @@ func LenWithContext(n NLRI, ctx *PackContext) int {
 	}
 
 	// ADD-PATH: add 4 bytes for path identifier
-	if ctx != nil && ctx.AddPath {
+	if addPath {
 		return baseLen + 4
 	}
 
@@ -296,7 +289,6 @@ func LenWithContext(n NLRI, ctx *PackContext) int {
 }
 
 // supportsAddPath returns true if the NLRI type supports ADD-PATH encoding.
-// Types that don't support ADD-PATH have Pack() that ignores the context.
 func supportsAddPath(n NLRI) bool {
 	switch n.(type) {
 	case *FlowSpec, *FlowSpecVPN:
@@ -313,22 +305,22 @@ func supportsAddPath(n NLRI) bool {
 // WriteNLRI writes NLRI with ADD-PATH handling into buf at offset.
 //
 // RFC 7911 Section 3: ADD-PATH prepends 4-byte path identifier:
-//   - If ctx.AddPath=true: writes path ID + payload
-//   - If ctx.AddPath=false or ctx=nil: writes payload only
+//   - If addPath=true AND NLRI type supports ADD-PATH: writes path ID + payload
+//   - Otherwise: writes payload only
 //
 // This is the recommended way to encode NLRIs for wire format.
-func WriteNLRI(n NLRI, buf []byte, off int, ctx *PackContext) int {
+func WriteNLRI(n NLRI, buf []byte, off int, addPath bool) int {
 	pos := off
 
 	// Handle ADD-PATH path identifier
-	// RFC 7911: Path ID only included when ctx.AddPath=true
-	if ctx != nil && ctx.AddPath {
+	// RFC 7911: Path ID only included when addPath=true AND NLRI supports it
+	if addPath && supportsAddPath(n) {
 		binary.BigEndian.PutUint32(buf[pos:], n.PathID())
 		pos += 4
 	}
 
 	// Write payload (without path ID)
-	pos += n.WriteTo(buf, pos, nil) // ctx=nil since WriteTo ignores it after Phase 3
+	pos += n.WriteTo(buf, pos)
 
 	return pos - off
 }

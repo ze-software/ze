@@ -195,13 +195,13 @@ func (r *Route) PackNLRIFor(destCtxID bgpctx.ContextID) []byte {
 	destCtx := bgpctx.Registry.Get(destCtxID)
 	if destCtx == nil {
 		buf := make([]byte, r.nlri.Len())
-		r.nlri.WriteTo(buf, 0, nil)
+		r.nlri.WriteTo(buf, 0)
 		return buf
 	}
-	packCtx := destCtx.ToPackContext(r.nlri.Family())
-	nlriLen := nlri.LenWithContext(r.nlri, packCtx)
+	addPath := destCtx.AddPath(r.nlri.Family())
+	nlriLen := nlri.LenWithContext(r.nlri, addPath)
 	buf := make([]byte, nlriLen)
-	nlri.WriteNLRI(r.nlri, buf, 0, packCtx)
+	nlri.WriteNLRI(r.nlri, buf, 0, addPath)
 	return buf
 }
 
@@ -279,7 +279,7 @@ func (r *Route) Index() []byte {
 	}
 
 	// NLRI bytes - write directly into buffer
-	r.nlri.WriteTo(buf, offset, nil)
+	r.nlri.WriteTo(buf, offset)
 	offset += nlriLen
 
 	// AS-PATH hash (if present)

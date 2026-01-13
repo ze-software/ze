@@ -287,7 +287,7 @@ func TestBuildBatchAnnounceUpdate_WireMode_IPv4(t *testing.T) {
 	}
 
 	// Use nil context (default ASN4=true, no ADD-PATH)
-	update := adapter.buildBatchAnnounceUpdate(batch, netip.MustParseAddr("10.0.0.1"), false, nil)
+	update := adapter.buildBatchAnnounceUpdate(batch, netip.MustParseAddr("10.0.0.1"), false, true, false)
 
 	require.NotNil(t, update)
 
@@ -320,7 +320,7 @@ func TestBuildBatchAnnounceUpdate_WireMode_IPv6(t *testing.T) {
 		Wire:    attrsWire,
 	}
 
-	update := adapter.buildBatchAnnounceUpdate(batch, netip.MustParseAddr("2001:db8::1"), false, nil)
+	update := adapter.buildBatchAnnounceUpdate(batch, netip.MustParseAddr("2001:db8::1"), false, true, false)
 
 	require.NotNil(t, update)
 
@@ -347,7 +347,7 @@ func TestBuildBatchWithdrawUpdate_WireMode(t *testing.T) {
 		NLRIs:  []nlri.NLRI{wn},
 	}
 
-	update := adapter.buildBatchWithdrawUpdate(batch, nil)
+	update := adapter.buildBatchWithdrawUpdate(batch, false)
 
 	require.NotNil(t, update)
 	// IPv4 unicast: withdrawals go in WithdrawnRoutes field

@@ -149,7 +149,7 @@ func buildNLRIIndex(n nlri.NLRI) []byte {
 	buf[0] = byte(family.AFI >> 8)
 	buf[1] = byte(family.AFI)
 	buf[2] = byte(family.SAFI)
-	n.WriteTo(buf, 3, nil)
+	n.WriteTo(buf, 3)
 
 	return buf
 }

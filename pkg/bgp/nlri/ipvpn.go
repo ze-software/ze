@@ -280,7 +280,7 @@ type IPVPN struct {
 
 // NewIPVPN creates a new IPVPN NLRI.
 // pathID=0 means no path identifier; pathID>0 stores the path ID.
-// Use WriteNLRI() with PackContext.AddPath=true to encode with path ID.
+// Use WriteNLRI() with addPath=true to encode with path ID.
 func NewIPVPN(family Family, rd RouteDistinguisher, labels []uint32, prefix netip.Prefix, pathID uint32) *IPVPN {
 	return &IPVPN{
 		family: family,
@@ -476,7 +476,7 @@ func (v *IPVPN) String() string {
 //
 // RFC 7911 Section 3: Path ID is NOT written by this method.
 // Use WriteNLRI() for ADD-PATH encoding with path identifier.
-func (v *IPVPN) WriteTo(buf []byte, off int, _ *PackContext) int {
+func (v *IPVPN) WriteTo(buf []byte, off int) int {
 	prefixBits := v.prefix.Bits()
 	prefixBytes := PrefixBytes(prefixBits)
 	labelCount := len(v.labels)
@@ -503,24 +503,4 @@ func (v *IPVPN) WriteTo(buf []byte, off int, _ *PackContext) int {
 	pos += prefixBytes
 
 	return pos - off
-}
-
-// CheckedWriteTo validates capacity before writing.
-func (v *IPVPN) CheckedWriteTo(buf []byte, off int, ctx *PackContext) (int, error) {
-	needed := v.Len()
-	if len(buf) < off+needed {
-		return 0, wire.ErrBufferTooSmall
-	}
-	return v.WriteTo(buf, off, ctx), nil
-}
-
-// Pack returns wire-format bytes adapted for negotiated capabilities.
-//
-// Deprecated: Use WriteNLRI() for zero-allocation encoding.
-// This method allocates a new slice; prefer WriteNLRI() with pre-allocated buffer.
-func (v *IPVPN) Pack(ctx *PackContext) []byte {
-	size := LenWithContext(v, ctx)
-	buf := make([]byte, size)
-	WriteNLRI(v, buf, 0, ctx)
-	return buf
 }

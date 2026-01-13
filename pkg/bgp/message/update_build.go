@@ -29,18 +29,22 @@ type UpdateBuilder struct {
 	// RFC 4271 Section 5.1.2 - AS_PATH handling differs for iBGP/eBGP.
 	IsIBGP bool
 
-	// Ctx contains negotiated capability context (ADD-PATH, ASN4).
-	// RFC 7911 - ADD-PATH requires path identifier in NLRI.
+	// ASN4 indicates 4-byte AS number capability is negotiated.
 	// RFC 6793 - ASN4 determines AS number encoding.
-	Ctx *nlri.PackContext
+	ASN4 bool
+
+	// AddPath indicates ADD-PATH is negotiated for this family.
+	// RFC 7911 - ADD-PATH requires path identifier in NLRI.
+	AddPath bool
 }
 
 // NewUpdateBuilder creates a new UpdateBuilder with the given context.
-func NewUpdateBuilder(localAS uint32, isIBGP bool, ctx *nlri.PackContext) *UpdateBuilder {
+func NewUpdateBuilder(localAS uint32, isIBGP bool, asn4, addPath bool) *UpdateBuilder {
 	return &UpdateBuilder{
 		LocalAS: localAS,
 		IsIBGP:  isIBGP,
-		Ctx:     ctx,
+		ASN4:    asn4,
+		AddPath: addPath,
 	}
 }
 
@@ -131,7 +135,7 @@ func (ub *UpdateBuilder) BuildUnicast(p UnicastParams) *Update {
 	// RFC 6793: AS_PATH encoding depends on ASN4 capability negotiation.
 	// When ASN4=false, ASNs are 2-byte. When ASN4=true (default), ASNs are 4-byte.
 	asPath := ub.buildASPath(p.ASPath)
-	asn4 := ub.Ctx == nil || ub.Ctx.ASN4
+	asn4 := ub.ASN4
 	asPathValue := asPath.PackWithASN4(asn4)
 	attrs = append(attrs, &rawAttribute{
 		flags: asPath.Flags(),
@@ -226,12 +230,8 @@ func (ub *UpdateBuilder) BuildUnicast(p UnicastParams) *Update {
 	case p.Prefix.Addr().Is4():
 		// IPv4 unicast: inline NLRI
 		inet := nlri.NewINET(nlri.Family{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast}, p.Prefix, p.PathID)
-		ctx := ub.Ctx
-		if ctx == nil {
-			ctx = &nlri.PackContext{}
-		}
-		inlineNLRI = make([]byte, nlri.LenWithContext(inet, ctx))
-		nlri.WriteNLRI(inet, inlineNLRI, 0, ctx)
+		inlineNLRI = make([]byte, nlri.LenWithContext(inet, ub.AddPath))
+		nlri.WriteNLRI(inet, inlineNLRI, 0, ub.AddPath)
 	}
 
 	// 16. EXTENDED_COMMUNITIES (type 16) - RFC 4360
@@ -323,7 +323,7 @@ func (ub *UpdateBuilder) buildASPath(configuredPath []uint32) *attribute.ASPath 
 //   - ASN4=false: 6 bytes (2-byte ASN + 4-byte IP).
 //   - ASN4=false with ASN>65535: Uses AS_TRANS (23456).
 func (ub *UpdateBuilder) packAggregator(asn uint32, ip [4]byte) []byte {
-	asn4 := ub.Ctx == nil || ub.Ctx.ASN4
+	asn4 := ub.ASN4
 
 	if asn4 {
 		// 8-byte format: 4-byte ASN + 4-byte IP
@@ -366,12 +366,8 @@ func (ub *UpdateBuilder) buildMPReachUnicast(p UnicastParams) *attribute.MPReach
 
 	// Build NLRI
 	inet := nlri.NewINET(nlri.Family{AFI: nlriAFI, SAFI: nlri.SAFIUnicast}, p.Prefix, p.PathID)
-	ctx := ub.Ctx
-	if ctx == nil {
-		ctx = &nlri.PackContext{}
-	}
-	nlriBytes := make([]byte, nlri.LenWithContext(inet, ctx))
-	nlri.WriteNLRI(inet, nlriBytes, 0, ctx)
+	nlriBytes := make([]byte, nlri.LenWithContext(inet, ub.AddPath))
+	nlri.WriteNLRI(inet, nlriBytes, 0, ub.AddPath)
 
 	return &attribute.MPReachNLRI{
 		AFI:      afi,
@@ -497,7 +493,7 @@ func (ub *UpdateBuilder) BuildVPN(p VPNParams) *Update {
 	// 2. AS_PATH
 	// RFC 6793: AS_PATH encoding depends on ASN4 capability negotiation.
 	asPath := ub.buildASPath(p.ASPath)
-	asn4 := ub.Ctx == nil || ub.Ctx.ASN4
+	asn4 := ub.ASN4
 	asPathValue := asPath.PackWithASN4(asn4)
 	attrs = append(attrs, &rawAttribute{
 		flags: asPath.Flags(),
@@ -675,11 +671,8 @@ func (ub *UpdateBuilder) buildVPNNLRIBytes(p VPNParams) []byte {
 	totalBits := len(p.Labels)*24 + 64 + prefixBits
 
 	// Build: [path-id] + length + labels + RD + prefix
-	ctx := ub.Ctx
-	hasAddPath := ctx != nil && ctx.AddPath
-
 	var buf []byte
-	if hasAddPath && p.PathID != 0 {
+	if ub.AddPath && p.PathID != 0 {
 		buf = make([]byte, 4+1+len(labelBytes)+8+prefixBytes)
 		buf[0] = byte(p.PathID >> 24)
 		buf[1] = byte(p.PathID >> 16)
@@ -769,7 +762,7 @@ func (ub *UpdateBuilder) BuildLabeledUnicast(p LabeledUnicastParams) *Update {
 	// 2. AS_PATH
 	// RFC 6793: AS_PATH encoding depends on ASN4 capability negotiation.
 	asPath := ub.buildASPath(p.ASPath)
-	asn4 := ub.Ctx == nil || ub.Ctx.ASN4
+	asn4 := ub.ASN4
 	asPathValue := asPath.PackWithASN4(asn4)
 	attrs = append(attrs, &rawAttribute{
 		flags: asPath.Flags(),
@@ -948,11 +941,8 @@ func (ub *UpdateBuilder) buildLabeledUnicastNLRIBytes(p LabeledUnicastParams) []
 
 	// Build: [path-id] + length + labels + prefix
 	// RFC 7911: Path Identifier MUST be included when ADD-PATH is negotiated
-	ctx := ub.Ctx
-	hasAddPath := ctx != nil && ctx.AddPath
-
 	var buf []byte
-	if hasAddPath {
+	if ub.AddPath {
 		// RFC 7911: Always include 4-byte path ID when ADD-PATH negotiated
 		buf = make([]byte, 4+1+len(labelBytes)+prefixBytes)
 		buf[0] = byte(p.PathID >> 24)
@@ -1039,7 +1029,7 @@ func (ub *UpdateBuilder) BuildMVPN(routes []MVPNParams) *Update {
 	// 2. AS_PATH
 	// RFC 6793: AS_PATH encoding depends on ASN4 capability negotiation.
 	asPath := ub.buildASPath(nil)
-	asn4 := ub.Ctx == nil || ub.Ctx.ASN4
+	asn4 := ub.ASN4
 	asPathValue := asPath.PackWithASN4(asn4)
 	attrs = append(attrs, &rawAttribute{
 		flags: asPath.Flags(),
@@ -1249,7 +1239,7 @@ func (ub *UpdateBuilder) BuildVPLS(p VPLSParams) *Update {
 	// 2. AS_PATH
 	// RFC 6793: AS_PATH encoding depends on ASN4 capability negotiation.
 	asPath := ub.buildASPath(p.ASPath)
-	asn4 := ub.Ctx == nil || ub.Ctx.ASN4
+	asn4 := ub.ASN4
 	asPathValue := asPath.PackWithASN4(asn4)
 	attrs = append(attrs, &rawAttribute{
 		flags: asPath.Flags(),
@@ -1406,7 +1396,7 @@ func (ub *UpdateBuilder) BuildFlowSpec(p FlowSpecParams) *Update {
 	// 2. AS_PATH
 	// RFC 6793: AS_PATH encoding depends on ASN4 capability negotiation.
 	asPath := ub.buildASPath(nil)
-	asn4 := ub.Ctx == nil || ub.Ctx.ASN4
+	asn4 := ub.ASN4
 	asPathValue := asPath.PackWithASN4(asn4)
 	attrs = append(attrs, &rawAttribute{
 		flags: asPath.Flags(),
@@ -1621,7 +1611,7 @@ func (ub *UpdateBuilder) BuildEVPN(p EVPNParams) *Update {
 
 	// 2. AS_PATH
 	asPath := ub.buildASPath(p.ASPath)
-	asn4 := ub.Ctx == nil || ub.Ctx.ASN4
+	asn4 := ub.ASN4
 	asPathValue := asPath.PackWithASN4(asn4)
 	attrs = append(attrs, &rawAttribute{
 		flags: asPath.Flags(),
@@ -1736,11 +1726,7 @@ func (ub *UpdateBuilder) buildMPReachEVPN(p EVPNParams) *rawAttribute {
 	}
 
 	// Calculate NLRI size
-	ctx := ub.Ctx
-	if ctx == nil {
-		ctx = &nlri.PackContext{}
-	}
-	nlriLen := nlri.LenWithContext(evpnNLRI, ctx)
+	nlriLen := nlri.LenWithContext(evpnNLRI, ub.AddPath)
 
 	// Build next-hop bytes
 	var nhBytes []byte
@@ -1761,7 +1747,7 @@ func (ub *UpdateBuilder) buildMPReachEVPN(p EVPNParams) *rawAttribute {
 	value[3] = byte(nhLen)
 	copy(value[4:4+nhLen], nhBytes)
 	value[4+nhLen] = 0 // reserved
-	nlri.WriteNLRI(evpnNLRI, value, 5+nhLen, ctx)
+	nlri.WriteNLRI(evpnNLRI, value, 5+nhLen, ub.AddPath)
 
 	return &rawAttribute{
 		flags: attribute.FlagOptional,
@@ -1798,7 +1784,7 @@ func (ub *UpdateBuilder) BuildMUP(p MUPParams) *Update {
 	// 2. AS_PATH
 	// RFC 6793: AS_PATH encoding depends on ASN4 capability negotiation.
 	asPath := ub.buildASPath(nil)
-	asn4 := ub.Ctx == nil || ub.Ctx.ASN4
+	asn4 := ub.ASN4
 	asPathValue := asPath.PackWithASN4(asn4)
 	attrs = append(attrs, &rawAttribute{
 		flags: asPath.Flags(),
@@ -1922,7 +1908,7 @@ func (ub *UpdateBuilder) BuildMUPWithdraw(p MUPParams) *Update {
 	// 2. AS_PATH
 	// RFC 6793: AS_PATH encoding depends on ASN4 capability negotiation.
 	asPath := ub.buildASPath(nil)
-	asn4 := ub.Ctx == nil || ub.Ctx.ASN4
+	asn4 := ub.ASN4
 	asPathValue := asPath.PackWithASN4(asn4)
 	attrs = append(attrs, &rawAttribute{
 		flags: asPath.Flags(),
@@ -2020,21 +2006,15 @@ func (ub *UpdateBuilder) BuildGroupedUnicastWithLimit(routes []UnicastParams, ma
 
 	nlriSpace := maxSize - overhead
 
-	// Pack context for NLRI encoding
-	ctx := ub.Ctx
-	if ctx == nil {
-		ctx = &nlri.PackContext{}
-	}
-
 	var updates []*Update
 	var currentNLRI []byte
 
 	for _, r := range routes {
 		// Calculate NLRI size and pack
 		inet := nlri.NewINET(nlri.Family{AFI: nlri.AFIIPv4, SAFI: nlri.SAFIUnicast}, r.Prefix, r.PathID)
-		nlriLen := nlri.LenWithContext(inet, ctx)
+		nlriLen := nlri.LenWithContext(inet, ub.AddPath)
 		nlriBytes := make([]byte, nlriLen)
-		nlri.WriteNLRI(inet, nlriBytes, 0, ctx)
+		nlri.WriteNLRI(inet, nlriBytes, 0, ub.AddPath)
 
 		// Check if single NLRI is too large
 		if len(nlriBytes) > nlriSpace {
@@ -2074,7 +2054,7 @@ func (ub *UpdateBuilder) packGroupedAttributes(first UnicastParams) []byte {
 
 	// 2. AS_PATH
 	asPath := ub.buildASPath(first.ASPath)
-	asn4 := ub.Ctx == nil || ub.Ctx.ASN4
+	asn4 := ub.ASN4
 	asPathValue := asPath.PackWithASN4(asn4)
 	attrs = append(attrs, &rawAttribute{
 		flags: asPath.Flags(),
@@ -2266,7 +2246,7 @@ func (ub *UpdateBuilder) BuildMVPNWithLimit(routes []MVPNParams, maxSize int) ([
 	attrs = append(attrs, first.Origin)
 
 	asPath := ub.buildASPath(nil)
-	asn4 := ub.Ctx == nil || ub.Ctx.ASN4
+	asn4 := ub.ASN4
 	asPathValue := asPath.PackWithASN4(asn4)
 	attrs = append(attrs, &rawAttribute{
 		flags: asPath.Flags(),
