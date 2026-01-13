@@ -317,16 +317,21 @@ func (p *ASPath) Len(ctx *context.EncodingContext) int {
 - Added `ExtendedMessage` to `EncodingCaps` (moved from SessionCaps)
 - Added `ExtendedMessage()` and `MaxMessageSize()` methods to `EncodingContext`
 - Added `WireWriter` interface to `pkg/bgp/context/context.go` (not wire package due to import cycle)
-- Updated `Message` interface to embed `WireWriter`
+- Updated `Message` interface to embed `WireWriter` (removed Pack method)
 - Implemented `Len(ctx)` and `WriteTo(buf, off, ctx)` on all message types:
   - Keepalive, Open, Notification, Update, RouteRefresh
-- Added `PackTo(msg, ctx)` helper function for migration convenience
+- **Removed Pack() methods** from all message types
+- **Deleted `message.Negotiated`** struct (ephemeral shim)
+- **Deleted `message.Family`** type (duplicate of nlri.Family)
+- **Deleted `packWithHeader`** helper (replaced by writeHeader for WriteTo)
+- Added `PackTo(msg, ctx)` helper function for callers needing []byte allocation
 - Updated hash computation in EncodingContext to include ExtendedMessage
-- **Migrated callers from Pack() to PackTo():**
+- **Migrated all callers from Pack() to PackTo():**
   - `pkg/reactor/reactor.go` - RouteRefresh, Notification
   - `pkg/reactor/session.go` - writeMessage()
   - `pkg/reactor/session_test.go` - all test Pack calls
   - `pkg/reactor/collision_test.go` - all test Pack calls
+  - `pkg/bgp/message/*_test.go` - all message tests
 
 ### Bugs Found/Fixed
 - Import cycle: WireWriter cannot be in `pkg/bgp/wire` because wire→context→nlri→wire
@@ -334,14 +339,11 @@ func (p *ASPath) Len(ctx *context.EncodingContext) int {
 
 ### Design Insights
 - WireWriter belongs in context package, not wire, due to import dependencies
-- Pack() methods kept for backward compatibility - will be removed in follow-up spec
+- PackTo(msg, ctx) provides convenient allocation for callers not using pre-allocated buffers
 
 ### Deviations from Plan
 - **WireWriter location**: Placed in `context` package instead of `wire` due to import cycle
-- **Pack() kept but callers migrated**: Pack methods remain but reactor callers now use PackTo
-  - Created follow-up spec: `spec-pack-removal.md` for full removal of Pack methods
 - **Attribute interface not updated**: Deferred to separate spec - attributes already have WriteTo methods
-- **message.Negotiated kept**: Type still exists but no longer used by reactor; will be removed in follow-up
 
 ## Checklist
 
@@ -363,7 +365,7 @@ func (p *ASPath) Len(ctx *context.EncodingContext) int {
 - [ ] RFC constraint comments added (deferred - no new constraints)
 
 ### Completion
-- [ ] Architecture docs updated with learnings
+- [x] Architecture docs updated with learnings (docs already reflected WireWriter in context)
 - [x] Spec updated with Implementation Summary
 - [ ] Spec moved to `docs/plan/done/NNN-<name>.md`
-- [ ] All files committed together
+- [x] All files committed together
