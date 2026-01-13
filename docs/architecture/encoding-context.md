@@ -446,14 +446,59 @@ Context IDs must be registered via `Registry.Register()`:
 - Unregistered ID (0) may cause incorrect zero-copy decisions
 - `Registry.Get(0)` returns nil (defaults to ASN4=true behavior)
 
+## WireContext (Composite Pattern)
+
+WireContext is a newer alternative to EncodingContext that uses composite sub-components
+from capability negotiation for zero duplication.
+
+### Structure
+
+```go
+// pkg/bgp/context/wire.go
+type WireContext struct {
+    identity  *capability.PeerIdentity  // ref, not copy
+    encoding  *capability.EncodingCaps  // ref, not copy
+    direction Direction                 // Recv or Send
+    addPath   map[Family]bool           // derived from mode + direction
+    hash      uint64                    // cached for deduplication
+}
+```
+
+### Key Differences from EncodingContext
+
+| Aspect | EncodingContext | WireContext |
+|--------|-----------------|-------------|
+| Storage | Flat fields, copied | References to sub-components |
+| Direction | Implicit in factory | Explicit field |
+| ADD-PATH | Pre-computed bool map | Derived from mode + direction |
+| Creation | `FromNegotiatedRecv/Send()` | `FromNegotiatedRecvWire/SendWire()` |
+
+### Factory Functions
+
+```go
+// For new code, prefer these over FromNegotiatedRecv/Send:
+ctx := context.FromNegotiatedRecvWire(neg)  // Uses neg.Identity, neg.Encoding
+ctx := context.FromNegotiatedSendWire(neg)
+```
+
+### Migration Path
+
+Both EncodingContext and WireContext coexist. New code can use WireContext while
+existing code continues to use EncodingContext. Eventually, consumers can migrate
+to WireContext for zero-duplication benefits.
+
 ## Files
 
 | File | Purpose |
 |------|---------|
 | `pkg/bgp/nlri/nlri.go` | Canonical `Family` type, `FamilyLess()` |
 | `pkg/bgp/context/context.go` | EncodingContext struct |
+| `pkg/bgp/context/wire.go` | WireContext struct (composite pattern) |
 | `pkg/bgp/context/registry.go` | ContextRegistry, global Registry |
-| `pkg/bgp/context/negotiated.go` | FromNegotiatedRecv/Send helpers |
+| `pkg/bgp/context/negotiated.go` | FromNegotiatedRecv/Send, FromNegotiatedRecvWire/SendWire |
+| `pkg/bgp/capability/identity.go` | PeerIdentity sub-component |
+| `pkg/bgp/capability/encoding.go` | EncodingCaps sub-component |
+| `pkg/bgp/capability/session.go` | SessionCaps sub-component |
 | `pkg/reactor/negotiated.go` | NegotiatedCapabilities struct |
 | `pkg/rib/route.go` | Wire cache fields, Pack*For methods |
 | `pkg/reactor/peer.go` | Peer.negotiated, recvCtx, sendCtx fields |
@@ -470,4 +515,4 @@ Context IDs must be registered via `Registry.Register()`:
 
 ---
 
-**Last Updated:** 2025-01-05
+**Last Updated:** 2026-01-13

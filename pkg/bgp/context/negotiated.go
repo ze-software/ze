@@ -22,6 +22,9 @@ func canSend(mode capability.AddPathMode) bool {
 
 // fromNegotiated creates an EncodingContext from capability negotiation.
 // The addPathCheck function determines which ADD-PATH modes are relevant.
+//
+// Note: For new code, prefer FromNegotiatedRecvWire/FromNegotiatedSendWire
+// which use the composite sub-components for zero duplication.
 func fromNegotiated(neg *capability.Negotiated, addPathCheck addPathCheckFunc) *EncodingContext {
 	if neg == nil {
 		return nil
@@ -61,6 +64,8 @@ func fromNegotiated(neg *capability.Negotiated, addPathCheck addPathCheckFunc) *
 //
 // ADD-PATH: We need path IDs if we can receive them (mode = Receive or Both).
 // RFC 7911: The negotiated mode indicates what we are allowed to do.
+//
+// Note: For new code, prefer FromNegotiatedRecvWire which uses composite sub-components.
 func FromNegotiatedRecv(neg *capability.Negotiated) *EncodingContext {
 	return fromNegotiated(neg, canReceive)
 }
@@ -70,6 +75,34 @@ func FromNegotiatedRecv(neg *capability.Negotiated) *EncodingContext {
 //
 // ADD-PATH: We include path IDs if we can send them (mode = Send or Both).
 // RFC 7911: The negotiated mode indicates what we are allowed to do.
+//
+// Note: For new code, prefer FromNegotiatedSendWire which uses composite sub-components.
 func FromNegotiatedSend(neg *capability.Negotiated) *EncodingContext {
 	return fromNegotiated(neg, canSend)
+}
+
+// FromNegotiatedRecvWire creates a receive WireContext from capability negotiation.
+// The receive context is used when parsing routes FROM the peer.
+//
+// Uses the composite sub-components from Negotiated (Identity, Encoding).
+// ADD-PATH: Derives from Encoding.AddPathMode with Receive direction.
+// RFC 7911: The negotiated mode indicates what we are allowed to do.
+func FromNegotiatedRecvWire(neg *capability.Negotiated) *WireContext {
+	if neg == nil {
+		return nil
+	}
+	return NewWireContext(neg.Identity, neg.Encoding, DirectionRecv)
+}
+
+// FromNegotiatedSendWire creates a send WireContext from capability negotiation.
+// The send context is used when encoding routes TO the peer.
+//
+// Uses the composite sub-components from Negotiated (Identity, Encoding).
+// ADD-PATH: Derives from Encoding.AddPathMode with Send direction.
+// RFC 7911: The negotiated mode indicates what we are allowed to do.
+func FromNegotiatedSendWire(neg *capability.Negotiated) *WireContext {
+	if neg == nil {
+		return nil
+	}
+	return NewWireContext(neg.Identity, neg.Encoding, DirectionSend)
 }

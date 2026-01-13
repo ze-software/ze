@@ -45,7 +45,7 @@ func main() {
 	total := 0
 
 	for _, fname := range os.Args[1:] {
-		f, err := os.Open(fname)
+		f, err := os.Open(fname) //nolint:gosec // CLI tool intentionally opens user-provided files
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Error opening %s: %v\n", fname, err)
 			continue
@@ -53,13 +53,13 @@ func main() {
 		gz, err := gzip.NewReader(f)
 		if err != nil {
 			fmt.Fprintf(os.Stderr, "Error reading gzip %s: %v\n", fname, err)
-			f.Close()
+			_ = f.Close()
 			continue
 		}
 
 		processFile(gz, counts, &total)
-		gz.Close()
-		f.Close()
+		_ = gz.Close()
+		_ = f.Close()
 	}
 
 	// Print distribution

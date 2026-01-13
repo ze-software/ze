@@ -316,3 +316,66 @@ func TestNegotiateExtendedNextHopMultipleFamilies(t *testing.T) {
 	nhAFI2 := neg.ExtendedNextHopAFI(Family{AFI: AFIIPv4, SAFI: SAFIMPLS})
 	assert.Equal(t, AFI(0), nhAFI2, "IPv4/MPLS should not have ExtNH")
 }
+
+// TestNegotiateComposite verifies sub-components are populated correctly.
+//
+// VALIDATES: Negotiated creates Identity, Encoding, and Session sub-components.
+//
+// PREVENTS: Missing sub-component data after negotiation.
+func TestNegotiateComposite(t *testing.T) {
+	local := []Capability{
+		&Multiprotocol{AFI: AFIIPv4, SAFI: SAFIUnicast},
+		&ASN4{ASN: 65001},
+		&ExtendedMessage{},
+		&RouteRefresh{},
+		&AddPath{Families: []AddPathFamily{
+			{AFI: AFIIPv4, SAFI: SAFIUnicast, Mode: AddPathBoth},
+		}},
+	}
+
+	remote := []Capability{
+		&Multiprotocol{AFI: AFIIPv4, SAFI: SAFIUnicast},
+		&ASN4{ASN: 65002},
+		&ExtendedMessage{},
+		&RouteRefresh{},
+		&AddPath{Families: []AddPathFamily{
+			{AFI: AFIIPv4, SAFI: SAFIUnicast, Mode: AddPathBoth},
+		}},
+	}
+
+	neg := Negotiate(local, remote, 65001, 65002)
+
+	// Verify Identity sub-component
+	require.NotNil(t, neg.Identity, "Identity should be populated")
+	assert.Equal(t, uint32(65001), neg.Identity.LocalASN)
+	assert.Equal(t, uint32(65002), neg.Identity.PeerASN)
+	assert.False(t, neg.Identity.IsIBGP())
+
+	// Verify Encoding sub-component
+	require.NotNil(t, neg.Encoding, "Encoding should be populated")
+	assert.True(t, neg.Encoding.ASN4)
+	assert.True(t, neg.Encoding.SupportsFamily(Family{AFI: AFIIPv4, SAFI: SAFIUnicast}))
+	assert.Equal(t, AddPathBoth, neg.Encoding.AddPathFor(Family{AFI: AFIIPv4, SAFI: SAFIUnicast}))
+
+	// Verify Session sub-component
+	require.NotNil(t, neg.Session, "Session should be populated")
+	assert.True(t, neg.Session.ExtendedMessage)
+	assert.True(t, neg.Session.RouteRefresh)
+}
+
+// TestNegotiateCompositeIBGP verifies iBGP detection via Identity.
+//
+// VALIDATES: Identity.IsIBGP() returns true for same-AS peers.
+//
+// PREVENTS: Wrong iBGP/eBGP attribute handling.
+func TestNegotiateCompositeIBGP(t *testing.T) {
+	local := []Capability{
+		&Multiprotocol{AFI: AFIIPv4, SAFI: SAFIUnicast},
+	}
+	remote := []Capability{
+		&Multiprotocol{AFI: AFIIPv4, SAFI: SAFIUnicast},
+	}
+
+	neg := Negotiate(local, remote, 65000, 65000) // Same ASN = iBGP
+	assert.True(t, neg.Identity.IsIBGP())
+}

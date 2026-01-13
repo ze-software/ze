@@ -1,0 +1,25 @@
+package capability
+
+// SessionCaps holds session-level capabilities (not encoding-related).
+// Owned by Negotiated only (not shared with WireContexts).
+// Immutable after session creation.
+type SessionCaps struct {
+	// RFC 8654: Extended Message Support for BGP.
+	ExtendedMessage bool
+
+	// RFC 2918: Route Refresh Capability for BGP-4.
+	RouteRefresh bool
+
+	// RFC 7313: Enhanced Route Refresh Capability for BGP.
+	EnhancedRouteRefresh bool
+
+	// RFC 4271 Section 4.2: Negotiated Hold Time (minimum of local and peer).
+	HoldTime uint16
+
+	// RFC 4724: Graceful Restart Mechanism for BGP.
+	GracefulRestart *GracefulRestart
+
+	// RFC 5492 Section 3: Capabilities that were not negotiated.
+	// Tracked for logging/reporting purposes.
+	Mismatches []Mismatch
+}

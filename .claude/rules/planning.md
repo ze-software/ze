@@ -335,22 +335,31 @@ If you had to investigate/debug something, ask:
       → Add design insights, gotchas, or patterns discovered
       → Update docs in "Post-Implementation Updates" table below
 
-[ ] 2. Update spec to reflect reality
+[ ] 2. Check for dead code and test coverage
+      → Search for unused functions, types, or variables introduced
+      → Check if refactoring left orphaned code
+      → ASK user before removing: "Found unused X, remove it?"
+      → Delete confirmed dead code (no backwards-compat shims needed)
+      → Check if old tests overlap with new tests
+      → Don't just delete redundant tests - integrate their coverage into new tests
+      → Ensure edge cases from old tests are preserved in refactored tests
+
+[ ] 3. Update spec to reflect reality
       → Mark all checklist items with actual status
       → Add "Implementation Summary" section if missing
       → Document any bugs found/fixed
       → Document any deviations from original plan
 
-[ ] 3. Move spec to done folder
+[ ] 4. Move spec to done folder
       → Use the "Moving Completed Specs" script below
       → Spec number determined at move time
 
-[ ] 4. Verify all changes
+[ ] 5. Verify all changes
       → `git status` to see all modified files
       → `git diff` to review changes
       → Ensure no unintended modifications
 
-[ ] 5. Commit (when user approves)
+[ ] 6. Commit (when user approves)
       → Include ALL modified files in ONE commit:
         - Code changes
         - Test files

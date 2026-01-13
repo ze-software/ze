@@ -1,6 +1,9 @@
 package capability
 
-import "fmt"
+import (
+	"fmt"
+	"sort"
+)
 
 // RFC 5492: Capabilities Advertisement with BGP-4
 // This file implements the capability negotiation process described in RFC 5492 Section 4.
@@ -40,12 +43,25 @@ func (m Mismatch) String() string {
 // Negotiated holds the result of capability negotiation between two BGP peers.
 // Per RFC 5492 Section 4, a capability is considered negotiated when both peers
 // advertise it in their OPEN messages.
+//
+// This struct uses a composite pattern with sub-components:
+//   - Identity: Peer identification (ASNs, Router IDs) - shared with WireContexts
+//   - Encoding: Wire encoding caps (ASN4, families, ADD-PATH) - shared with WireContexts
+//   - Session: Session-level caps (ExtendedMessage, GR) - owned by Negotiated only
 type Negotiated struct {
-	// Peer identification
+	// Composite sub-components (new structure)
+	Identity *PeerIdentity // Shared with WireContexts
+	Encoding *EncodingCaps // Shared with WireContexts
+	Session  *SessionCaps  // Owned by Negotiated only
+
+	// Backward compatibility fields (delegating to sub-components)
+	// TODO: Remove these after all consumers migrate to sub-components
+
+	// Peer identification (delegates to Identity)
 	LocalASN uint32
 	PeerASN  uint32
 
-	// Negotiated features
+	// Negotiated features (delegates to Encoding/Session)
 	// RFC 6793: BGP Support for Four-Octet Autonomous System (AS) Number Space
 	ASN4 bool
 	// RFC 8654: Extended Message Support for BGP
@@ -57,25 +73,17 @@ type Negotiated struct {
 	// RFC 4271 Section 4.2: Hold Time is the minimum of the two Hold Time values
 	HoldTime uint16
 
-	// RFC 4760 Section 8: Multiprotocol Extensions for BGP-4
-	// Address families are negotiated as the intersection of local and remote capabilities.
-	families map[Family]bool
-
-	// RFC 7911: Advertisement of Multiple Paths in BGP
-	// ADD-PATH modes per family, negotiated per Section 4.
-	addPath map[Family]AddPathMode
-
-	// RFC 8950: Extended Next Hop Encoding
-	// Maps (NLRI AFI, NLRI SAFI) -> Next Hop AFI.
-	// When present, allows advertising IPv4 NLRI with IPv6 next-hop via MP_REACH_NLRI.
-	extendedNextHop map[Family]AFI
-
 	// RFC 4724: Graceful Restart Mechanism for BGP
 	GracefulRestart *GracefulRestart
 
 	// Mismatches contains capabilities that were not negotiated.
 	// RFC 5492 Section 3: For logging/reporting purposes.
 	Mismatches []Mismatch
+
+	// Internal maps (used by methods, populated from Encoding)
+	families        map[Family]bool
+	addPath         map[Family]AddPathMode
+	extendedNextHop map[Family]AFI
 
 	// Cached family slice
 	familySlice []Family
@@ -95,10 +103,11 @@ type Negotiated struct {
 //   - RFC 2918: Route Refresh - enabled if both peers advertise
 func Negotiate(local, remote []Capability, localASN, peerASN uint32) *Negotiated {
 	neg := &Negotiated{
-		LocalASN: localASN,
-		PeerASN:  peerASN,
-		families: make(map[Family]bool),
-		addPath:  make(map[Family]AddPathMode),
+		LocalASN:        localASN,
+		PeerASN:         peerASN,
+		families:        make(map[Family]bool),
+		addPath:         make(map[Family]AddPathMode),
+		extendedNextHop: make(map[Family]AFI),
 	}
 
 	// Build sets for efficient lookup
@@ -270,7 +279,6 @@ func Negotiate(local, remote []Capability, localASN, peerASN uint32) *Negotiated
 
 	// RFC 8950 Section 4: Extended Next Hop Encoding capability negotiation.
 	// A tuple is negotiated only if both peers advertise the same (NLRI AFI, NLRI SAFI, NH AFI).
-	neg.extendedNextHop = make(map[Family]AFI)
 	if localExtNH != nil && remoteExtNH != nil {
 		// Build lookup from local capabilities
 		localNHMap := make(map[Family]AFI)
@@ -287,7 +295,58 @@ func Negotiate(local, remote []Capability, localASN, peerASN uint32) *Negotiated
 		}
 	}
 
+	// Build composite sub-components
+	neg.buildSubComponents()
+
 	return neg
+}
+
+// buildSubComponents creates Identity, Encoding, and Session from negotiated data.
+func (n *Negotiated) buildSubComponents() {
+	// Build sorted family slice for Encoding
+	families := make([]Family, 0, len(n.families))
+	for f := range n.families {
+		families = append(families, f)
+	}
+	sort.Slice(families, func(i, j int) bool {
+		if families[i].AFI != families[j].AFI {
+			return families[i].AFI < families[j].AFI
+		}
+		return families[i].SAFI < families[j].SAFI
+	})
+
+	// Create Identity
+	n.Identity = &PeerIdentity{
+		LocalASN: n.LocalASN,
+		PeerASN:  n.PeerASN,
+		// Router IDs will be set separately when available
+	}
+
+	// Create Encoding (copy maps to avoid aliasing)
+	addPathCopy := make(map[Family]AddPathMode, len(n.addPath))
+	for k, v := range n.addPath {
+		addPathCopy[k] = v
+	}
+	extNHCopy := make(map[Family]AFI, len(n.extendedNextHop))
+	for k, v := range n.extendedNextHop {
+		extNHCopy[k] = v
+	}
+	n.Encoding = &EncodingCaps{
+		ASN4:            n.ASN4,
+		Families:        families,
+		AddPathMode:     addPathCopy,
+		ExtendedNextHop: extNHCopy,
+	}
+
+	// Create Session
+	n.Session = &SessionCaps{
+		ExtendedMessage:      n.ExtendedMessage,
+		RouteRefresh:         n.RouteRefresh,
+		EnhancedRouteRefresh: n.EnhancedRouteRefresh,
+		HoldTime:             n.HoldTime,
+		GracefulRestart:      n.GracefulRestart,
+		Mismatches:           n.Mismatches,
+	}
 }
 
 // SupportsFamily returns true if the given family was negotiated.
