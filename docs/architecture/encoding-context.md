@@ -93,26 +93,46 @@ for _, family := range nc.Families() {
 ## EncodingContext
 
 Captures all capability flags that affect wire encoding. Lives in `pkg/bgp/context/`.
+References sub-components from `capability.Negotiated` for zero duplication.
 
 ```go
 type EncodingContext struct {
-    ASN4            bool                    // RFC 6793: 4-byte ASN support
-    AddPath         map[nlri.Family]bool    // RFC 7911: per-family ADD-PATH
-    ExtendedNextHop map[nlri.Family]nlri.AFI // RFC 8950: next-hop AFI per family
-    IsIBGP          bool                    // iBGP vs eBGP session
-    LocalAS         uint32                  // Local AS number
-    PeerAS          uint32                  // Peer AS number
+    // References to sub-components (no copy)
+    identity  *capability.PeerIdentity
+    encoding  *capability.EncodingCaps
+
+    // Direction-specific derived data
+    direction Direction
+    addPath   map[nlri.Family]bool  // Derived from encoding.AddPathMode + direction
+}
+
+// EncodingCaps in pkg/bgp/capability/encoding.go
+type EncodingCaps struct {
+    ASN4            bool                      // RFC 6793: 4-byte ASN support
+    ExtendedMessage bool                      // RFC 8654: max message 65535 bytes
+    Families        []Family                  // Negotiated address families
+    AddPathMode     map[Family]AddPathMode    // RFC 7911: per-family ADD-PATH mode
+    ExtendedNextHop map[Family]AFI            // RFC 8950: next-hop AFI per family
 }
 ```
+
+**ExtendedMessage:** Determines max message size (4096 standard, 65535 extended).
+Previously in SessionCaps, moved to EncodingCaps because it affects wire encoding.
 
 **ExtendedNextHop:** Stores the next-hop AFI (not just bool). For example,
 `ExtendedNextHop[IPv4Unicast] = AFIIPv6` means IPv4 unicast can use IPv6 next-hop.
 
 ### Key Methods
 
-- `Hash() uint64` - FNV-64 hash for deduplication
+- `ASN4() bool` - Returns true if 4-byte ASN negotiated
+- `ExtendedMessage() bool` - Returns true if extended message negotiated
+- `MaxMessageSize() int` - Returns 65535 if extended, 4096 otherwise
+- `AddPath(family) bool` - Returns true if ADD-PATH enabled for family in this direction
+- `LocalASN() uint32` - Returns local AS number
+- `PeerASN() uint32` - Returns peer AS number
+- `IsIBGP() bool` - Returns true if iBGP session
 - `ToPackContext(family) *nlri.PackContext` - Convert to NLRI pack context
-- `Equal(other) bool` - Deep equality check
+- `Hash() uint64` - FNV-64 hash for deduplication
 
 ## ContextRegistry
 
@@ -387,6 +407,40 @@ With same-capability clients, route reflection is O(1):
 
 ## Context-Dependent Encoding
 
+### WireWriter Interface
+
+All wire types (Message, Attribute, NLRI) implement a common interface:
+
+```go
+// pkg/bgp/context/context.go
+// Note: In context package (not wire) due to import cycle: wire→context→nlri→wire
+type WireWriter interface {
+    // Len returns wire size in bytes. Pass nil for context-independent types.
+    Len(ctx *EncodingContext) int
+
+    // WriteTo writes to buf at offset, returns bytes written.
+    // Caller guarantees capacity. Pass nil for context-independent types.
+    WriteTo(buf []byte, off int, ctx *EncodingContext) int
+}
+```
+
+Message and Attribute interfaces embed WireWriter:
+
+```go
+// pkg/bgp/message/message.go
+type Message interface {
+    context.WireWriter
+    Type() MessageType
+}
+
+// pkg/bgp/attribute/attribute.go (planned)
+type Attribute interface {
+    context.WireWriter
+    Code() AttributeCode
+    Flags() AttributeFlags
+}
+```
+
 ### ASN4 (RFC 6793)
 
 AS_PATH and AGGREGATOR encode differently based on ASN4:
@@ -394,11 +448,31 @@ AS_PATH and AGGREGATOR encode differently based on ASN4:
 - ASN4=false: 2-byte AS numbers, use AS_TRANS for >65535
 
 ```go
-func (p *ASPath) PackWithContext(srcCtx, dstCtx *EncodingContext) []byte {
-    if dstCtx == nil || dstCtx.ASN4 {
-        return p.PackWithASN4(true)   // 4-byte
+func (p *ASPath) Len(ctx *EncodingContext) int {
+    if ctx == nil || ctx.ASN4() {
+        return p.len4byte()
     }
-    return p.PackWithASN4(false)      // 2-byte with AS_TRANS
+    return p.len2byte()
+}
+
+func (p *ASPath) WriteTo(buf []byte, off int, ctx *EncodingContext) int {
+    if ctx == nil || ctx.ASN4() {
+        return p.writeTo4byte(buf, off)
+    }
+    return p.writeTo2byte(buf, off)
+}
+```
+
+### Transcoding (srcCtx → dstCtx)
+
+For attributes that may need transcoding between different encoding contexts:
+
+```go
+// Only AS_PATH and Aggregator implement this
+type Transcoder interface {
+    WireWriter
+    LenTranscode(srcCtx, dstCtx *EncodingContext) int
+    WriteToTranscode(buf []byte, off int, srcCtx, dstCtx *EncodingContext) int
 }
 ```
 

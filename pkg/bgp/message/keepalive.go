@@ -26,6 +26,21 @@ func (k *Keepalive) Type() MessageType {
 	return TypeKEEPALIVE
 }
 
+// Len returns the total message length in bytes.
+// RFC 4271 Section 4.4 - KEEPALIVE is header-only, always 19 bytes.
+// Context is ignored (context-independent).
+func (k *Keepalive) Len(_ *EncodingContext) int {
+	return HeaderLen
+}
+
+// WriteTo writes the complete KEEPALIVE message to buf at offset.
+// Returns number of bytes written (always HeaderLen).
+// RFC 4271 Section 4.4 - KEEPALIVE has no body.
+func (k *Keepalive) WriteTo(buf []byte, off int, _ *EncodingContext) int {
+	writeHeader(buf, off, TypeKEEPALIVE, HeaderLen)
+	return HeaderLen
+}
+
 // Pack serializes the KEEPALIVE to wire format.
 // RFC 4271 Section 4.4 - "A KEEPALIVE message consists of only the message
 // header and has a length of 19 octets."

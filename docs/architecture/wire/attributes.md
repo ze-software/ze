@@ -441,11 +441,20 @@ Format: GlobalAdmin:LocalData1:LocalData2 (e.g., 4294967295:100:200)
 
 ### Attribute Interface
 
+Attribute embeds WireWriter for zero-allocation encoding:
+
 ```go
+// WireWriter in pkg/bgp/context/context.go (not wire package due to import cycle)
+type WireWriter interface {
+    Len(ctx *EncodingContext) int
+    WriteTo(buf []byte, off int, ctx *EncodingContext) int
+}
+
+// Attribute in pkg/bgp/attribute/attribute.go
 type Attribute interface {
+    context.WireWriter
     Code() AttributeCode
     Flags() AttributeFlags
-    Pack(negotiated *Negotiated) []byte
 }
 
 type AttributeCode uint8
@@ -457,12 +466,35 @@ const (
     FlagPartial        AttributeFlags = 0x20
     FlagExtendedLength AttributeFlags = 0x10
 )
+
+// Context-independent attributes ignore context
+func (o Origin) Len(_ *context.EncodingContext) int { return 1 }
+func (o Origin) WriteTo(buf []byte, off int, _ *context.EncodingContext) int {
+    buf[off] = byte(o)
+    return 1
+}
+
+// Context-dependent attributes use context for encoding
+func (p *ASPath) Len(ctx *context.EncodingContext) int {
+    if ctx == nil || ctx.ASN4() {
+        return p.len4byte()
+    }
+    return p.len2byte()
+}
+
+// Transcoder interface for srcCtx → dstCtx transcoding
+type Transcoder interface {
+    WireWriter
+    LenTranscode(srcCtx, dstCtx *context.EncodingContext) int
+    WriteToTranscode(buf []byte, off int, srcCtx, dstCtx *context.EncodingContext) int
+}
+// Only AS_PATH and Aggregator implement Transcoder
 ```
 
 ### Attribute Parsing
 
 ```go
-func ParseAttributes(data []byte, negotiated *Negotiated) ([]Attribute, error) {
+func ParseAttributes(data []byte, ctx *context.EncodingContext) ([]Attribute, error) {
     var attrs []Attribute
     for len(data) >= 3 {
         flags := AttributeFlags(data[0])
@@ -481,7 +513,7 @@ func ParseAttributes(data []byte, negotiated *Negotiated) ([]Attribute, error) {
             return nil, ErrTruncated
         }
 
-        attr, err := parseAttribute(code, flags, data[:length], negotiated)
+        attr, err := parseAttribute(code, flags, data[:length], ctx)
         if err != nil {
             return nil, err
         }

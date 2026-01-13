@@ -57,6 +57,84 @@ func (o *Open) Type() MessageType {
 	return TypeOPEN
 }
 
+// Len returns the total message length in bytes.
+// RFC 4271 Section 4.2 - Header (19) + Version (1) + MyAS (2) + HoldTime (2) +
+// BGP ID (4) + OptLen (1) + OptParams. Extended format adds 3 bytes for markers + len.
+// Context is ignored (context-independent).
+func (o *Open) Len(_ *EncodingContext) int {
+	optLen := len(o.OptionalParams)
+	if optLen > 255 {
+		// RFC 9072: Extended format adds 4 bytes (NonExtLen + NonExtType + ExtLen)
+		return HeaderLen + 10 + 4 + optLen
+	}
+	return HeaderLen + 10 + optLen
+}
+
+// WriteTo writes the complete OPEN message to buf at offset.
+// Returns number of bytes written.
+// RFC 4271 Section 4.2 - OPEN message format.
+// RFC 9072 Section 2 - Extended format if OptionalParams > 255 bytes.
+func (o *Open) WriteTo(buf []byte, off int, _ *EncodingContext) int {
+	optLen := len(o.OptionalParams)
+
+	if optLen > 255 {
+		return o.writeToExtended(buf, off)
+	}
+
+	totalLen := HeaderLen + 10 + optLen
+	writeHeader(buf, off, TypeOPEN, totalLen)
+
+	bodyOff := off + HeaderLen
+	// Version
+	buf[bodyOff] = o.Version
+	// My AS (use AS_TRANS if ASN4 > 65535)
+	myAS := o.MyAS
+	if o.ASN4 > 0 && o.ASN4 > 65535 {
+		myAS = AS_TRANS
+	}
+	binary.BigEndian.PutUint16(buf[bodyOff+1:], myAS)
+	// Hold Time
+	binary.BigEndian.PutUint16(buf[bodyOff+3:], o.HoldTime)
+	// BGP Identifier
+	binary.BigEndian.PutUint32(buf[bodyOff+5:], o.BGPIdentifier)
+	// Opt Param Length
+	buf[bodyOff+9] = byte(optLen)
+	// Optional Parameters
+	copy(buf[bodyOff+10:], o.OptionalParams)
+
+	return totalLen
+}
+
+// writeToExtended writes OPEN with RFC 9072 extended format.
+func (o *Open) writeToExtended(buf []byte, off int) int {
+	optLen := len(o.OptionalParams)
+	totalLen := HeaderLen + 10 + 4 + optLen
+	writeHeader(buf, off, TypeOPEN, totalLen)
+
+	bodyOff := off + HeaderLen
+	// Version
+	buf[bodyOff] = o.Version
+	// My AS
+	myAS := o.MyAS
+	if o.ASN4 > 0 && o.ASN4 > 65535 {
+		myAS = AS_TRANS
+	}
+	binary.BigEndian.PutUint16(buf[bodyOff+1:], myAS)
+	// Hold Time
+	binary.BigEndian.PutUint16(buf[bodyOff+3:], o.HoldTime)
+	// BGP Identifier
+	binary.BigEndian.PutUint32(buf[bodyOff+5:], o.BGPIdentifier)
+	// RFC 9072: Extended format markers
+	buf[bodyOff+9] = ExtendedParamMarker  // Non-Ext OP Len = 255
+	buf[bodyOff+10] = ExtendedParamMarker // Non-Ext OP Type = 255
+	// Extended Length
+	binary.BigEndian.PutUint16(buf[bodyOff+11:], uint16(optLen)) //nolint:gosec
+	// Optional Parameters
+	copy(buf[bodyOff+13:], o.OptionalParams)
+
+	return totalLen
+}
+
 // Pack serializes the OPEN to wire format.
 // RFC 4271 Section 4.2 - OPEN message encoding follows the wire format:
 //

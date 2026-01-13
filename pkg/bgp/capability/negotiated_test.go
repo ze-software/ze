@@ -354,12 +354,12 @@ func TestNegotiateComposite(t *testing.T) {
 	// Verify Encoding sub-component
 	require.NotNil(t, neg.Encoding, "Encoding should be populated")
 	assert.True(t, neg.Encoding.ASN4)
+	assert.True(t, neg.Encoding.ExtendedMessage) // Moved from Session to Encoding
 	assert.True(t, neg.Encoding.SupportsFamily(Family{AFI: AFIIPv4, SAFI: SAFIUnicast}))
 	assert.Equal(t, AddPathBoth, neg.Encoding.AddPathFor(Family{AFI: AFIIPv4, SAFI: SAFIUnicast}))
 
 	// Verify Session sub-component
 	require.NotNil(t, neg.Session, "Session should be populated")
-	assert.True(t, neg.Session.ExtendedMessage)
 	assert.True(t, neg.Session.RouteRefresh)
 }
 

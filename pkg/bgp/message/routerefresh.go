@@ -1,6 +1,8 @@
 package message
 
-import "encoding/binary"
+import (
+	"encoding/binary"
+)
 
 // RouteRefreshSubtype represents the message subtype for ROUTE-REFRESH.
 // RFC 7313 Section 3.2 - Message Subtype values.
@@ -40,6 +42,28 @@ type RouteRefresh struct {
 // Type returns the message type (ROUTE-REFRESH).
 func (r *RouteRefresh) Type() MessageType {
 	return TypeROUTEREFRESH
+}
+
+// Len returns the total message length in bytes.
+// RFC 2918 Section 3 - Header (19) + AFI (2) + Reserved/Subtype (1) + SAFI (1) = 23.
+// Context is ignored (context-independent).
+func (r *RouteRefresh) Len(_ *EncodingContext) int {
+	return HeaderLen + 4
+}
+
+// WriteTo writes the complete ROUTE-REFRESH message to buf at offset.
+// Returns number of bytes written.
+// RFC 2918 Section 3 - Message Format.
+func (r *RouteRefresh) WriteTo(buf []byte, off int, _ *EncodingContext) int {
+	totalLen := HeaderLen + 4
+	writeHeader(buf, off, TypeROUTEREFRESH, totalLen)
+
+	// Body: AFI (2) + Subtype (1) + SAFI (1)
+	binary.BigEndian.PutUint16(buf[off+HeaderLen:], uint16(r.AFI))
+	buf[off+HeaderLen+2] = byte(r.Subtype)
+	buf[off+HeaderLen+3] = byte(r.SAFI)
+
+	return totalLen
 }
 
 // Pack serializes the ROUTE-REFRESH to wire format.

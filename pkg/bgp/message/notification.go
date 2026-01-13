@@ -165,6 +165,28 @@ func (n *Notification) Type() MessageType {
 	return TypeNOTIFICATION
 }
 
+// Len returns the total message length in bytes.
+// RFC 4271 Section 4.5 - Header (19) + Error Code (1) + Subcode (1) + Data.
+// Context is ignored (context-independent).
+func (n *Notification) Len(_ *EncodingContext) int {
+	return HeaderLen + 2 + len(n.Data)
+}
+
+// WriteTo writes the complete NOTIFICATION message to buf at offset.
+// Returns number of bytes written.
+// RFC 4271 Section 4.5 - NOTIFICATION format.
+func (n *Notification) WriteTo(buf []byte, off int, _ *EncodingContext) int {
+	totalLen := HeaderLen + 2 + len(n.Data)
+	writeHeader(buf, off, TypeNOTIFICATION, totalLen)
+
+	// Body
+	buf[off+HeaderLen] = byte(n.ErrorCode)
+	buf[off+HeaderLen+1] = n.ErrorSubcode
+	copy(buf[off+HeaderLen+2:], n.Data)
+
+	return totalLen
+}
+
 // RFC 4271 Section 4.5 - Pack serializes the NOTIFICATION to wire format.
 // The minimum NOTIFICATION message length is 21 octets (including the 19-octet header).
 // Message Length = 21 + Data Length.

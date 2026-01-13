@@ -17,6 +17,26 @@ import (
 // Family is an alias for nlri.Family. Use nlri.Family directly in new code.
 type Family = nlri.Family
 
+// WireWriter is the unified interface for types that write to wire format.
+// All BGP wire types (Messages, Attributes) implement this interface.
+//
+// The context parameter enables capability-dependent encoding:
+//   - nil context: Use default encoding (ASN4=true, no ADD-PATH)
+//   - non-nil context: Use negotiated capabilities for encoding
+//
+// For context-independent types (KEEPALIVE, NOTIFICATION, most attributes),
+// the context parameter is ignored but must still be accepted.
+type WireWriter interface {
+	// Len returns the wire size in bytes.
+	// Pass nil for context-independent types or when using defaults.
+	Len(ctx *EncodingContext) int
+
+	// WriteTo writes to buf at offset, returns bytes written.
+	// Caller guarantees buf has sufficient capacity.
+	// Pass nil for context-independent types or when using defaults.
+	WriteTo(buf []byte, off int, ctx *EncodingContext) int
+}
+
 // Direction indicates receive or send context.
 type Direction uint8
 
@@ -96,6 +116,27 @@ func (c *EncodingContext) ASN4() bool {
 		return false
 	}
 	return c.encoding.ASN4
+}
+
+// ExtendedMessage returns true if extended message is negotiated.
+// RFC 8654: Extended Message Support for BGP.
+// Returns false for nil context (safe default).
+func (c *EncodingContext) ExtendedMessage() bool {
+	if c == nil || c.encoding == nil {
+		return false
+	}
+	return c.encoding.ExtendedMessage
+}
+
+// MaxMessageSize returns the maximum BGP message size for this context.
+// RFC 4271: Standard max is 4096 bytes.
+// RFC 8654: Extended max is 65535 bytes when negotiated.
+// Returns 4096 for nil context (safe default).
+func (c *EncodingContext) MaxMessageSize() int {
+	if c == nil || !c.ExtendedMessage() {
+		return 4096
+	}
+	return 65535
 }
 
 // Families returns all negotiated families.
@@ -179,6 +220,13 @@ func (c *EncodingContext) computeHash() uint64 {
 
 	// ASN4
 	if c.ASN4() {
+		_, _ = h.Write([]byte{1})
+	} else {
+		_, _ = h.Write([]byte{0})
+	}
+
+	// ExtendedMessage (RFC 8654: affects max message size)
+	if c.ExtendedMessage() {
 		_, _ = h.Write([]byte{1})
 	} else {
 		_, _ = h.Write([]byte{0})

@@ -1,11 +1,22 @@
 package message
 
+import bgpctx "codeberg.org/thomas-mangin/zebgp/pkg/bgp/context"
+
+// EncodingContext is an alias for bgpctx.EncodingContext.
+// Use this for WireWriter method signatures.
+type EncodingContext = bgpctx.EncodingContext
+
 // Message is the interface all BGP messages implement.
+// Embeds WireWriter for unified buffer-based encoding.
 type Message interface {
+	bgpctx.WireWriter
+
 	// Type returns the BGP message type.
 	Type() MessageType
 
 	// Pack serializes the message to wire format (including header).
+	// NOTE: Prefer WriteTo for zero-allocation encoding. Pack will be removed
+	// in a future release - see spec-pack-removal plan.
 	Pack(neg *Negotiated) ([]byte, error)
 }
 
@@ -58,4 +69,21 @@ func packWithHeader(msgType MessageType, body []byte) []byte {
 	copy(data[HeaderLen:], body)
 
 	return data
+}
+
+// writeHeader writes a BGP message header into buf at offset.
+// RFC 4271 Section 4.1 - Message Header format.
+// totalLen is the complete message length (including header).
+func writeHeader(buf []byte, off int, msgType MessageType, totalLen int) {
+	// 16-byte marker (all 0xFF)
+	for i := 0; i < MarkerLen; i++ {
+		buf[off+i] = 0xFF
+	}
+
+	// Length (2 bytes, big-endian)
+	buf[off+16] = byte(totalLen >> 8)
+	buf[off+17] = byte(totalLen)
+
+	// Type (1 byte)
+	buf[off+18] = byte(msgType)
 }

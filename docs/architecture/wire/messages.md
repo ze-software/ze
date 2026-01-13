@@ -262,10 +262,19 @@ When Extended Message capability is negotiated:
 
 ### Message Interface
 
+Message embeds WireWriter for zero-allocation encoding:
+
 ```go
+// WireWriter in pkg/bgp/context/context.go (not wire package due to import cycle)
+type WireWriter interface {
+    Len(ctx *EncodingContext) int
+    WriteTo(buf []byte, off int, ctx *EncodingContext) int
+}
+
+// Message in pkg/bgp/message/message.go
 type Message interface {
+    context.WireWriter
     Type() MessageType
-    Pack(negotiated *Negotiated) ([]byte, error)
 }
 
 type MessageType uint8
@@ -277,6 +286,17 @@ const (
     TypeKEEPALIVE    MessageType = 4
     TypeROUTEREFRESH MessageType = 5
 )
+
+// Context-independent messages ignore context
+func (k *Keepalive) Len(_ *context.EncodingContext) int { return HeaderLen }
+func (k *Keepalive) WriteTo(buf []byte, off int, _ *context.EncodingContext) int {
+    // write 19-byte header...
+}
+
+// Context-dependent messages use context for encoding decisions
+func (u *Update) Len(ctx *context.EncodingContext) int {
+    // Size depends on ASN4, ADD-PATH in context
+}
 ```
 
 ### Header Parsing
@@ -308,4 +328,4 @@ func ParseHeader(data []byte) (length uint16, msgType MessageType, err error) {
 ---
 
 **Created:** 2025-12-19
-**Last Updated:** 2025-12-19
+**Last Updated:** 2026-01-13

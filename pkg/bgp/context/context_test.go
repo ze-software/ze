@@ -253,3 +253,138 @@ func TestEncodingContextAddPathFor(t *testing.T) {
 
 	assert.Equal(t, ctx.AddPath(f), ctx.AddPathFor(f))
 }
+
+// -----------------------------------------------------------------------------
+// Boundary Tests: ExtendedMessage and MaxMessageSize
+// -----------------------------------------------------------------------------
+
+// TestExtendedMessageNilContext verifies nil context returns false.
+//
+// VALIDATES: ExtendedMessage() returns false for nil context.
+// PREVENTS: Panic on nil context dereference.
+// BOUNDARY: nil is the edge case for context.
+func TestExtendedMessageNilContext(t *testing.T) {
+	var ctx *EncodingContext
+	assert.False(t, ctx.ExtendedMessage(), "nil context should return false")
+}
+
+// TestExtendedMessageNilEncoding verifies nil encoding returns false.
+//
+// VALIDATES: ExtendedMessage() returns false when encoding is nil.
+// PREVENTS: Panic on nil encoding dereference.
+// BOUNDARY: Empty context (encoding=nil) is edge case.
+func TestExtendedMessageNilEncoding(t *testing.T) {
+	ctx := &EncodingContext{} // encoding is nil
+	assert.False(t, ctx.ExtendedMessage(), "nil encoding should return false")
+}
+
+// TestExtendedMessageValues verifies ExtendedMessage returns correct value.
+//
+// VALIDATES: ExtendedMessage() reflects EncodingCaps.ExtendedMessage.
+// PREVENTS: Wrong message size limit calculation.
+func TestExtendedMessageValues(t *testing.T) {
+	identity := &capability.PeerIdentity{LocalASN: 65001, PeerASN: 65002}
+
+	tests := []struct {
+		name     string
+		extended bool
+	}{
+		{"extended_false", false},
+		{"extended_true", true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			encoding := &capability.EncodingCaps{
+				ExtendedMessage: tt.extended,
+			}
+			ctx := NewEncodingContext(identity, encoding, DirectionSend)
+			assert.Equal(t, tt.extended, ctx.ExtendedMessage())
+		})
+	}
+}
+
+// TestMaxMessageSizeBoundary verifies MaxMessageSize boundary values.
+//
+// RFC 4271: Standard max message size = 4096 bytes
+// RFC 8654: Extended max message size = 65535 bytes
+//
+// VALIDATES: MaxMessageSize returns correct values at boundaries.
+// PREVENTS: Buffer allocation too small or too large.
+// BOUNDARY: nil context, ExtendedMessage=false, ExtendedMessage=true.
+func TestMaxMessageSizeBoundary(t *testing.T) {
+	identity := &capability.PeerIdentity{LocalASN: 65001, PeerASN: 65002}
+
+	tests := []struct {
+		name     string
+		ctx      *EncodingContext
+		wantSize int
+	}{
+		{
+			name:     "nil_context_returns_4096",
+			ctx:      nil,
+			wantSize: 4096,
+		},
+		{
+			name: "extended_false_returns_4096",
+			ctx: NewEncodingContext(identity, &capability.EncodingCaps{
+				ExtendedMessage: false,
+			}, DirectionSend),
+			wantSize: 4096,
+		},
+		{
+			name: "extended_true_returns_65535",
+			ctx: NewEncodingContext(identity, &capability.EncodingCaps{
+				ExtendedMessage: true,
+			}, DirectionSend),
+			wantSize: 65535,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := tt.ctx.MaxMessageSize() // nil-safe
+			assert.Equal(t, tt.wantSize, got, "MaxMessageSize mismatch")
+		})
+	}
+}
+
+// TestMaxMessageSizeExactValues verifies exact boundary constants.
+//
+// VALIDATES: MaxMessageSize returns exact RFC values, not off-by-one.
+// PREVENTS: Off-by-one errors in buffer allocation.
+// BOUNDARY: Exact values 4096 and 65535.
+func TestMaxMessageSizeExactValues(t *testing.T) {
+	identity := &capability.PeerIdentity{LocalASN: 65001, PeerASN: 65002}
+
+	// Standard: exactly 4096 (RFC 4271)
+	stdCtx := NewEncodingContext(identity, &capability.EncodingCaps{
+		ExtendedMessage: false,
+	}, DirectionSend)
+	assert.Equal(t, 4096, stdCtx.MaxMessageSize(), "Standard size must be exactly 4096")
+
+	// Extended: exactly 65535 (RFC 8654)
+	extCtx := NewEncodingContext(identity, &capability.EncodingCaps{
+		ExtendedMessage: true,
+	}, DirectionSend)
+	assert.Equal(t, 65535, extCtx.MaxMessageSize(), "Extended size must be exactly 65535")
+}
+
+// TestExtendedMessageHashDiffers verifies ExtendedMessage affects context hash.
+//
+// VALIDATES: Different ExtendedMessage values produce different hashes.
+// PREVENTS: Wrong zero-copy decision when message size limits differ.
+func TestExtendedMessageHashDiffers(t *testing.T) {
+	identity := &capability.PeerIdentity{LocalASN: 65001, PeerASN: 65002}
+
+	ctx1 := NewEncodingContext(identity, &capability.EncodingCaps{
+		ExtendedMessage: false,
+	}, DirectionSend)
+
+	ctx2 := NewEncodingContext(identity, &capability.EncodingCaps{
+		ExtendedMessage: true,
+	}, DirectionSend)
+
+	assert.NotEqual(t, ctx1.Hash(), ctx2.Hash(),
+		"Different ExtendedMessage should produce different hashes")
+}

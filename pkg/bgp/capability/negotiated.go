@@ -333,6 +333,7 @@ func (n *Negotiated) buildSubComponents() {
 	}
 	n.Encoding = &EncodingCaps{
 		ASN4:            n.ASN4,
+		ExtendedMessage: n.ExtendedMessage, // RFC 8654: affects wire encoding (max message size)
 		Families:        families,
 		AddPathMode:     addPathCopy,
 		ExtendedNextHop: extNHCopy,
@@ -340,7 +341,6 @@ func (n *Negotiated) buildSubComponents() {
 
 	// Create Session
 	n.Session = &SessionCaps{
-		ExtendedMessage:      n.ExtendedMessage,
 		RouteRefresh:         n.RouteRefresh,
 		EnhancedRouteRefresh: n.EnhancedRouteRefresh,
 		HoldTime:             n.HoldTime,

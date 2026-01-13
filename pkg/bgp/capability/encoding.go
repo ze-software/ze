@@ -7,6 +7,10 @@ type EncodingCaps struct {
 	// RFC 6793: Use 4-byte AS numbers when true.
 	ASN4 bool
 
+	// RFC 8654: Extended Message Support for BGP.
+	// Affects max message size: 4096 (standard) vs 65535 (extended).
+	ExtendedMessage bool
+
 	// Negotiated address families (sorted for determinism).
 	Families []Family
 

@@ -9,18 +9,17 @@ import (
 // TestSessionCapsBasic verifies session capability storage.
 //
 // VALIDATES: SessionCaps stores all session-level capabilities.
+// Note: ExtendedMessage moved to EncodingCaps (affects wire encoding).
 //
 // PREVENTS: Missing capability data after negotiation.
 func TestSessionCapsBasic(t *testing.T) {
 	sess := &SessionCaps{
-		ExtendedMessage:      true,
 		RouteRefresh:         true,
 		EnhancedRouteRefresh: false,
 		HoldTime:             90,
 		GracefulRestart:      nil,
 	}
 
-	assert.True(t, sess.ExtendedMessage)
 	assert.True(t, sess.RouteRefresh)
 	assert.False(t, sess.EnhancedRouteRefresh)
 	assert.Equal(t, uint16(90), sess.HoldTime)

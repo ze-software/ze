@@ -273,7 +273,7 @@ func TestUpdateWriteTo(t *testing.T) {
 
 			// Use WriteTo with pre-allocated buffer
 			buf := make([]byte, 4096)
-			n := tt.update.WriteTo(buf, 0)
+			n := tt.update.WriteTo(buf, 0, nil)
 
 			assert.Equal(t, len(expected), n, "length mismatch")
 			assert.Equal(t, expected, buf[:n], "content mismatch")
@@ -333,10 +333,10 @@ func TestUpdateLenMatchesWriteTo(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			expectedLen := tt.update.Len()
+			expectedLen := tt.update.Len(nil)
 
 			buf := make([]byte, 65536)
-			n := tt.update.WriteTo(buf, 0)
+			n := tt.update.WriteTo(buf, 0, nil)
 
 			assert.Equal(t, expectedLen, n,
 				"Len()=%d but WriteTo()=%d", expectedLen, n)
@@ -360,7 +360,7 @@ func TestUpdateWriteToOffset(t *testing.T) {
 	// Write at offset 100
 	buf := make([]byte, 4096)
 	offset := 100
-	n := u.WriteTo(buf, offset)
+	n := u.WriteTo(buf, offset, nil)
 
 	assert.Equal(t, len(expected), n, "length mismatch")
 	assert.Equal(t, expected, buf[offset:offset+n], "content mismatch")

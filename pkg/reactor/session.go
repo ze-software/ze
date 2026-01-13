@@ -1420,7 +1420,7 @@ func (s *Session) SendUpdate(update *message.Update) error {
 
 	// RFC 4271 Section 4.3 - Zero-allocation: write UPDATE directly to session buffer
 	s.writeBuf.Reset()
-	n := update.WriteTo(s.writeBuf.Buffer(), 0)
+	n := update.WriteTo(s.writeBuf.Buffer(), 0, nil) // nil ctx: UPDATE already has wire bytes
 
 	_, err := conn.Write(s.writeBuf.Buffer()[:n])
 	if err != nil {

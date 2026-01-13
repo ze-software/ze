@@ -155,16 +155,18 @@ func (u *Update) RawData() []byte {
 //
 // RFC 4271 Section 4.3 - UPDATE message format:
 // Header(19) + WithdrawnLen(2) + Withdrawn + AttrLen(2) + Attrs + NLRI.
-func (u *Update) Len() int {
+// Context is ignored for basic UPDATE (wire bytes already built).
+func (u *Update) Len(_ *EncodingContext) int {
 	return HeaderLen + 2 + len(u.WithdrawnRoutes) + 2 + len(u.PathAttributes) + len(u.NLRI)
 }
 
 // WriteTo writes the complete UPDATE message (header + body) into buf.
-// Returns total bytes written. Implements wire.BufWriter interface.
+// Returns total bytes written. Implements WireWriter interface.
 //
 // RFC 4271 Section 4.3 - UPDATE message format with 19-byte header.
 // This is the zero-allocation path for sending UPDATEs.
-func (u *Update) WriteTo(buf []byte, off int) int {
+// Context is ignored for basic UPDATE (wire bytes already built).
+func (u *Update) WriteTo(buf []byte, off int, _ *EncodingContext) int {
 	start := off
 
 	// RFC 4271 Section 4.1 - BGP Header: 16-byte marker (all 0xFF)
@@ -211,12 +213,12 @@ func (u *Update) WriteTo(buf []byte, off int) int {
 }
 
 // CheckedWriteTo validates capacity before writing.
-func (u *Update) CheckedWriteTo(buf []byte, off int) (int, error) {
-	needed := u.Len()
+func (u *Update) CheckedWriteTo(buf []byte, off int, ctx *EncodingContext) (int, error) {
+	needed := u.Len(ctx)
 	if len(buf) < off+needed {
 		return 0, wire.ErrBufferTooSmall
 	}
-	return u.WriteTo(buf, off), nil
+	return u.WriteTo(buf, off, ctx), nil
 }
 
 // IsEndOfRIB returns true if this is an End-of-RIB marker.

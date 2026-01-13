@@ -29,20 +29,41 @@ Current code uses `append()` extensively:
 - All message building uses `copy()` into this buffer
 - Buffer reset (offset = 0) between messages
 
-### Writer Interface
+### WireWriter Interface
 
 ```go
-// BufWriter writes directly into a pre-allocated buffer.
-// Returns number of bytes written.
-// Caller guarantees buf has sufficient capacity.
-type BufWriter interface {
+// WireWriter is in pkg/bgp/context/context.go (not wire package due to import cycle).
+// Implemented by all wire types (Message, Attribute, NLRI).
+// Uses EncodingContext for capability-dependent encoding (ASN4, ADD-PATH, etc.)
+type WireWriter interface {
+    // Len returns wire size in bytes.
+    // Pass nil for context-independent types.
+    Len(ctx *EncodingContext) int
+
     // WriteTo writes the wire representation into buf starting at offset.
     // Returns the number of bytes written.
-    WriteTo(buf []byte, offset int) int
+    // Caller guarantees buf has sufficient capacity.
+    // Pass nil for context-independent types.
+    WriteTo(buf []byte, off int, ctx *EncodingContext) int
 }
 ```
 
-All wire types implement this:
+Message and Attribute embed WireWriter:
+
+```go
+type Message interface {
+    WireWriter
+    Type() MessageType
+}
+
+type Attribute interface {
+    WireWriter
+    Code() AttributeCode
+    Flags() AttributeFlags
+}
+```
+
+All wire types implement WireWriter:
 - `Attribute` types (Origin, ASPath, NextHop, etc.)
 - `NLRI` types (IPv4, IPv6, VPN, EVPN, etc.)
 - `Message` types (Open, Update, Notification, Keepalive)
@@ -50,25 +71,29 @@ All wire types implement this:
 ### Example Implementation
 
 ```go
-// Current (allocates)
-func (o Origin) Pack() []byte {
-    return []byte{byte(o)}
+// Context-independent (most types) - ignore context
+func (o Origin) Len(_ *context.EncodingContext) int {
+    return 1
 }
 
-// New (zero-alloc)
-func (o Origin) WriteTo(buf []byte, off int) int {
+func (o Origin) WriteTo(buf []byte, off int, _ *context.EncodingContext) int {
     buf[off] = byte(o)
     return 1
 }
 
-// Attribute with header
-func (o Origin) WriteAttrTo(buf []byte, off int) int {
-    // Header: flags (1) + code (1) + len (1) = 3 bytes
-    buf[off] = 0x40   // Transitive, Well-known
-    buf[off+1] = 1    // ORIGIN type code
-    buf[off+2] = 1    // Length = 1
-    buf[off+3] = byte(o)
-    return 4
+// Context-dependent (AS_PATH) - use context for ASN4
+func (p *ASPath) Len(ctx *context.EncodingContext) int {
+    if ctx == nil || ctx.ASN4() {
+        return p.len4byte()
+    }
+    return p.len2byte()
+}
+
+func (p *ASPath) WriteTo(buf []byte, off int, ctx *context.EncodingContext) int {
+    if ctx == nil || ctx.ASN4() {
+        return p.writeTo4byte(buf, off)
+    }
+    return p.writeTo2byte(buf, off)
 }
 ```
 
@@ -94,8 +119,8 @@ func (sb *SessionBuffer) Reset() {
     sb.offset = 0
 }
 
-func (sb *SessionBuffer) Write(w BufWriter) {
-    sb.offset += w.WriteTo(sb.buf, sb.offset)
+func (sb *SessionBuffer) Write(w WireWriter, ctx *context.EncodingContext) {
+    sb.offset += w.WriteTo(sb.buf, sb.offset, ctx)
 }
 
 func (sb *SessionBuffer) Bytes() []byte {
@@ -106,7 +131,7 @@ func (sb *SessionBuffer) Bytes() []byte {
 ### Building UPDATE Message
 
 ```go
-func (sb *SessionBuffer) BuildUpdate(attrs []Attribute, nlris []NLRI) []byte {
+func (sb *SessionBuffer) BuildUpdate(attrs []Attribute, nlris []NLRI, ctx *context.EncodingContext) []byte {
     sb.Reset()
 
     // Skip header (19 bytes) - fill later
@@ -124,15 +149,16 @@ func (sb *SessionBuffer) BuildUpdate(attrs []Attribute, nlris []NLRI) []byte {
     sb.offset += 2
     attrsStart := sb.offset
 
-    // Write attributes directly
+    // Write attributes directly with encoding context
     for _, attr := range attrs {
-        sb.offset += attr.WriteAttrTo(sb.buf, sb.offset)
+        sb.offset += writeAttrTo(attr, sb.buf, sb.offset, ctx)
     }
     attrsLen := sb.offset - attrsStart
 
-    // Write NLRI directly
+    // Write NLRI directly with encoding context
+    packCtx := ctx.ToPackContext(family)
     for _, nlri := range nlris {
-        sb.offset += nlri.WriteTo(sb.buf, sb.offset)
+        sb.offset += nlri.WriteTo(sb.buf, sb.offset, packCtx)
     }
 
     // Fill in lengths
@@ -158,17 +184,20 @@ func (sb *SessionBuffer) BuildUpdate(attrs []Attribute, nlris []NLRI) []byte {
 
 ### Migration Path
 
-1. Add `BufWriter` interface alongside existing `Pack()` methods
-2. Implement `WriteTo()` on all wire types
-3. Add `SessionBuffer` to peer session
-4. Convert message builders to use `SessionBuffer`
-5. Remove old `Pack()` methods once migration complete
+1. Add `WireWriter` interface with `Len(ctx)` and `WriteTo(buf, off, ctx)`
+2. Update Message interface to embed WireWriter (remove Pack)
+3. Update Attribute interface to embed WireWriter (remove Pack, PackWithContext)
+4. Implement `Len(ctx)` and `WriteTo(buf, off, ctx)` on all wire types
+5. Update callers to use EncodingContext instead of message.Negotiated
+6. Delete message.Negotiated (ephemeral conversion shim)
 
-### Compatibility
+### No Backwards Compatibility
 
-- Interface is additive - old code continues to work
-- Can migrate incrementally per message type
-- Tests can verify old vs new produce identical bytes
+ZeBGP has never been released. No backwards compatibility needed:
+- Change interface directly
+- Fix all implementations
+- Fix all callers
+- Delete old methods
 
 ---
 
@@ -184,14 +213,12 @@ func (sb *SessionBuffer) BuildUpdate(attrs []Attribute, nlris []NLRI) []byte {
 `CheckedWriteTo()` provides a safe path with explicit error handling:
 
 ```go
-// CheckedBufWriter extends BufWriter with capacity validation.
-type CheckedBufWriter interface {
-    BufWriter
+// CheckedWireWriter extends WireWriter with capacity validation.
+type CheckedWireWriter interface {
+    WireWriter
     // CheckedWriteTo validates capacity before writing.
     // Returns (bytesWritten, error). On error, buffer state is undefined.
-    CheckedWriteTo(buf []byte, off int) (int, error)
-    // Len returns the number of bytes WriteTo will write.
-    Len() int
+    CheckedWriteTo(buf []byte, off int, ctx *context.EncodingContext) (int, error)
 }
 ```
 
@@ -206,16 +233,16 @@ var ErrBufferTooSmall = errors.New("wire: buffer too small")
 
 ```go
 // CheckedWriteTo validates capacity before delegating to WriteTo.
-func (x *Foo) CheckedWriteTo(buf []byte, off int) (int, error) {
-    needed := x.Len()
+func (x *Foo) CheckedWriteTo(buf []byte, off int, ctx *context.EncodingContext) (int, error) {
+    needed := x.Len(ctx)
     if len(buf) < off+needed {
         return 0, wire.ErrBufferTooSmall
     }
-    return x.WriteTo(buf, off), nil
+    return x.WriteTo(buf, off, ctx), nil
 }
 
 // WriteTo unchanged - caller guarantees capacity.
-func (x *Foo) WriteTo(buf []byte, off int) int {
+func (x *Foo) WriteTo(buf []byte, off int, _ *context.EncodingContext) int {
     buf[off] = x.value
     return 1
 }
@@ -235,18 +262,18 @@ func (x *Foo) WriteTo(buf []byte, off int) int {
 Composite types validate total capacity once, then use `WriteTo()` internally:
 
 ```go
-func (c *Composite) CheckedWriteTo(buf []byte, off int) (int, error) {
-    needed := c.Len()  // Sum of all children
+func (c *Composite) CheckedWriteTo(buf []byte, off int, ctx *context.EncodingContext) (int, error) {
+    needed := c.Len(ctx)  // Sum of all children
     if len(buf) < off+needed {
         return 0, wire.ErrBufferTooSmall
     }
-    return c.WriteTo(buf, off), nil
+    return c.WriteTo(buf, off, ctx), nil
 }
 
-func (c *Composite) WriteTo(buf []byte, off int) int {
+func (c *Composite) WriteTo(buf []byte, off int, ctx *context.EncodingContext) int {
     pos := off
-    pos += c.child1.WriteTo(buf, pos)  // Unchecked - capacity guaranteed
-    pos += c.child2.WriteTo(buf, pos)
+    pos += c.child1.WriteTo(buf, pos, ctx)  // Unchecked - capacity guaranteed
+    pos += c.child2.WriteTo(buf, pos, ctx)
     return pos - off
 }
 ```
@@ -254,23 +281,23 @@ func (c *Composite) WriteTo(buf []byte, off int) int {
 ### Context-Dependent Types
 
 Some types have different wire lengths depending on encoding context (e.g., ASN4 capability).
-These require `CheckedWriteToWithContext`:
+The `Len(ctx)` method handles this:
 
 ```go
 // Aggregator: 8 bytes with ASN4, 6 bytes with legacy 2-byte ASN
-func (a *Aggregator) LenWithContext(_, dstCtx *EncodingContext) int {
-    if dstCtx == nil || dstCtx.ASN4 {
+func (a *Aggregator) Len(ctx *context.EncodingContext) int {
+    if ctx == nil || ctx.ASN4() {
         return 8
     }
     return 6
 }
 
-func (a *Aggregator) CheckedWriteToWithContext(buf []byte, off int, srcCtx, dstCtx *EncodingContext) (int, error) {
-    needed := a.LenWithContext(srcCtx, dstCtx)
+func (a *Aggregator) CheckedWriteTo(buf []byte, off int, ctx *context.EncodingContext) (int, error) {
+    needed := a.Len(ctx)
     if len(buf) < off+needed {
         return 0, wire.ErrBufferTooSmall
     }
-    return a.WriteToWithContext(buf, off, srcCtx, dstCtx), nil
+    return a.WriteTo(buf, off, ctx), nil
 }
 ```
 
@@ -308,3 +335,7 @@ func (w *WireNLRI) Pack(ctx *PackContext) []byte {
     return buf
 }
 ```
+
+---
+
+**Last Updated:** 2026-01-13

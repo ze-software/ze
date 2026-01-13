@@ -3,10 +3,10 @@ package capability
 // SessionCaps holds session-level capabilities (not encoding-related).
 // Owned by Negotiated only (not shared with EncodingContexts).
 // Immutable after session creation.
+//
+// Note: ExtendedMessage moved to EncodingCaps because it affects wire encoding
+// (max message size: 4096 vs 65535).
 type SessionCaps struct {
-	// RFC 8654: Extended Message Support for BGP.
-	ExtendedMessage bool
-
 	// RFC 2918: Route Refresh Capability for BGP-4.
 	RouteRefresh bool
 
