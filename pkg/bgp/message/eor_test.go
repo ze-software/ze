@@ -164,10 +164,7 @@ func TestBuildEOR_WireFormat(t *testing.T) {
 	family := nlri.Family{AFI: 2, SAFI: 1}
 	update := BuildEOR(family)
 
-	packed, err := update.Pack(nil)
-	if err != nil {
-		t.Fatalf("Pack failed: %v", err)
-	}
+	packed := PackTo(update, nil)
 
 	// Expected wire format (30 bytes total):
 	// Marker: ffffffffffffffffffffffffffffffff (16)

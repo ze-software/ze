@@ -14,8 +14,11 @@ import (
 	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/wire"
 )
 
-// ErrNilNegotiated is returned when CommitService is used with nil Negotiated.
-var ErrNilNegotiated = errors.New("commit: negotiated parameters required")
+// EncodingContext is an alias for bgpctx.EncodingContext.
+type EncodingContext = bgpctx.EncodingContext
+
+// ErrNilContext is returned when CommitService is used with nil EncodingContext.
+var ErrNilContext = errors.New("commit: encoding context required")
 
 // UpdateSender is the interface for sending BGP UPDATE messages.
 // This is implemented by Peer to allow CommitService to send updates.
@@ -44,19 +47,19 @@ type CommitServiceStats struct {
 // (on explicit commit command).
 type CommitService struct {
 	sender       UpdateSender
-	negotiated   *message.Negotiated
+	ctx          *EncodingContext
 	groupUpdates bool
 }
 
 // NewCommitService creates a new CommitService.
 //
 // sender: interface for sending UPDATE messages (typically a Peer)
-// negotiated: session parameters for proper encoding (ASN4, families). Can be nil for defaults.
+// ctx: encoding context for proper wire encoding (ASN4, ADD-PATH, etc.)
 // groupUpdates: if true, routes with same attributes are grouped into fewer UPDATEs.
-func NewCommitService(sender UpdateSender, negotiated *message.Negotiated, groupUpdates bool) *CommitService {
+func NewCommitService(sender UpdateSender, ctx *EncodingContext, groupUpdates bool) *CommitService {
 	return &CommitService{
 		sender:       sender,
-		negotiated:   negotiated,
+		ctx:          ctx,
 		groupUpdates: groupUpdates,
 	}
 }
@@ -70,8 +73,8 @@ func NewCommitService(sender UpdateSender, negotiated *message.Negotiated, group
 func (c *CommitService) Commit(routes []*Route, opts CommitOptions) (CommitServiceStats, error) {
 	var stats CommitServiceStats
 
-	if c.negotiated == nil {
-		return stats, ErrNilNegotiated
+	if c.ctx == nil {
+		return stats, ErrNilContext
 	}
 
 	if len(routes) == 0 {
@@ -207,22 +210,18 @@ func (c *CommitService) useTraditionalNLRI(family nlri.Family, nextHop netip.Add
 // addPathFor returns whether ADD-PATH is negotiated for the given family.
 // RFC 7911: Checks if ADD-PATH is negotiated.
 func (c *CommitService) addPathFor(family nlri.Family) bool {
-	if c.negotiated == nil || c.negotiated.AddPath == nil {
+	if c.ctx == nil {
 		return false
 	}
-	msgFamily := message.Family{AFI: uint16(family.AFI), SAFI: uint8(family.SAFI)}
-	return c.negotiated.AddPath[msgFamily]
+	return c.ctx.AddPath(family)
 }
 
 // packAttributesWithASPath packs path attributes with an explicit AS_PATH.
 // This is the preferred method for two-level grouping.
 // Zero-allocation: calculates size, pre-allocates, writes with copy.
 func (c *CommitService) packAttributesWithASPath(attrs []attribute.Attribute, asPath *attribute.ASPath, nextHop netip.Addr, family nlri.Family, nlriBytes []byte) []byte {
-	// Build encoding context for ASN4-aware encoding
-	var dstCtx *bgpctx.EncodingContext
-	if c.negotiated != nil {
-		dstCtx = bgpctx.EncodingContextForASN4(c.negotiated.ASN4)
-	}
+	// Use the stored encoding context for ASN4-aware encoding
+	dstCtx := c.ctx
 
 	// Phase 1: Identify attributes and calculate total size
 	var origin attribute.Attribute
@@ -362,6 +361,8 @@ func (c *CommitService) buildASPathFromExplicit(asPath *attribute.ASPath) *attri
 		return &attribute.ASPath{Segments: nil}
 	}
 
+	localAS := c.ctx.LocalASN()
+
 	// eBGP: prepend local AS to existing path
 	if asPath != nil && len(asPath.Segments) > 0 {
 		// Prepend local AS to first segment if it's AS_SEQUENCE
@@ -371,12 +372,12 @@ func (c *CommitService) buildASPathFromExplicit(asPath *attribute.ASPath) *attri
 		if len(newSegments) > 0 && newSegments[0].Type == attribute.ASSequence {
 			// Prepend to first AS_SEQUENCE segment
 			newASNs := make([]uint32, 0, len(newSegments[0].ASNs)+1)
-			newASNs = append(newASNs, c.negotiated.LocalAS)
+			newASNs = append(newASNs, localAS)
 			newASNs = append(newASNs, newSegments[0].ASNs...)
 			newSegments[0].ASNs = newASNs
 		} else {
 			// Insert new AS_SEQUENCE segment at beginning
-			newSeg := attribute.ASPathSegment{Type: attribute.ASSequence, ASNs: []uint32{c.negotiated.LocalAS}}
+			newSeg := attribute.ASPathSegment{Type: attribute.ASSequence, ASNs: []uint32{localAS}}
 			newSegments = append([]attribute.ASPathSegment{newSeg}, newSegments...)
 		}
 
@@ -386,7 +387,7 @@ func (c *CommitService) buildASPathFromExplicit(asPath *attribute.ASPath) *attri
 	// No existing AS_PATH: create new with just local AS
 	return &attribute.ASPath{
 		Segments: []attribute.ASPathSegment{
-			{Type: attribute.ASSequence, ASNs: []uint32{c.negotiated.LocalAS}},
+			{Type: attribute.ASSequence, ASNs: []uint32{localAS}},
 		},
 	}
 }
@@ -495,7 +496,7 @@ func isVPNSAFI(safi nlri.SAFI) bool {
 
 // isIBGP returns true if this is an iBGP session.
 func (c *CommitService) isIBGP() bool {
-	return c.negotiated.LocalAS == c.negotiated.PeerAS
+	return c.ctx.IsIBGP()
 }
 
 // bytesToAddr converts a byte slice to netip.Addr.

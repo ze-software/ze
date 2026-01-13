@@ -41,14 +41,6 @@ func (k *Keepalive) WriteTo(buf []byte, off int, _ *EncodingContext) int {
 	return HeaderLen
 }
 
-// Pack serializes the KEEPALIVE to wire format.
-// RFC 4271 Section 4.4 - "A KEEPALIVE message consists of only the message
-// header and has a length of 19 octets."
-// KEEPALIVE has no body, so this returns just the header.
-func (k *Keepalive) Pack(neg *Negotiated) ([]byte, error) {
-	return packWithHeader(TypeKEEPALIVE, nil), nil
-}
-
 // UnpackKeepalive parses a KEEPALIVE message body.
 // RFC 4271 Section 4.4 - KEEPALIVE has no body; the message is header-only.
 // RFC 4271 Section 4.4: "A KEEPALIVE message consists of only the message

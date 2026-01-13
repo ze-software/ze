@@ -6,9 +6,47 @@ import (
 	"testing"
 
 	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/attribute"
+	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/capability"
+	bgpctx "codeberg.org/thomas-mangin/zebgp/pkg/bgp/context"
 	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/message"
 	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/nlri"
 )
+
+// testContext creates an EncodingContext for tests.
+// This is the replacement for message.Negotiated{} in test code.
+// The localAS parameter varies per test case to test eBGP vs iBGP behavior.
+func testContext(localAS, peerAS uint32, asn4 bool) *bgpctx.EncodingContext { //nolint:unparam // localAS varies to test eBGP/iBGP
+	identity := &capability.PeerIdentity{
+		LocalASN: localAS,
+		PeerASN:  peerAS,
+	}
+	encoding := &capability.EncodingCaps{
+		ASN4: asn4,
+	}
+	return bgpctx.NewEncodingContext(identity, encoding, bgpctx.DirectionSend)
+}
+
+// testContextWithAddPath creates an EncodingContext with ADD-PATH settings.
+func testContextWithAddPath(localAS, peerAS uint32, asn4 bool, addPath map[nlri.Family]bool) *bgpctx.EncodingContext {
+	identity := &capability.PeerIdentity{
+		LocalASN: localAS,
+		PeerASN:  peerAS,
+	}
+
+	// Convert bool map to AddPathMode map (Send mode enables sending)
+	addPathMode := make(map[capability.Family]capability.AddPathMode)
+	for f, enabled := range addPath {
+		if enabled {
+			addPathMode[f] = capability.AddPathSend
+		}
+	}
+
+	encoding := &capability.EncodingCaps{
+		ASN4:        asn4,
+		AddPathMode: addPathMode,
+	}
+	return bgpctx.NewEncodingContext(identity, encoding, bgpctx.DirectionSend)
+}
 
 // mockUpdateSender records sent updates for verification.
 type mockUpdateSender struct {
@@ -31,7 +69,7 @@ func (m *mockUpdateSender) SendUpdate(u *message.Update) error {
 // PREVENTS: Each route sent as separate UPDATE when they could be grouped.
 func TestCommitService_GroupsRoutesByAttributes(t *testing.T) {
 	sender := &mockUpdateSender{}
-	neg := &message.Negotiated{ASN4: true, LocalAS: 65000, PeerAS: 65000}
+	neg := testContext(65000, 65000, true)
 	cs := NewCommitService(sender, neg, true) // groupUpdates=true
 
 	// Create 3 routes: 2 with same attributes, 1 different
@@ -68,7 +106,7 @@ func TestCommitService_GroupsRoutesByAttributes(t *testing.T) {
 // PREVENTS: Unwanted grouping when explicit per-route updates needed.
 func TestCommitService_NoGrouping(t *testing.T) {
 	sender := &mockUpdateSender{}
-	neg := &message.Negotiated{ASN4: true, LocalAS: 65000, PeerAS: 65000}
+	neg := testContext(65000, 65000, true)
 	cs := NewCommitService(sender, neg, false) // groupUpdates=false
 
 	nh := netip.MustParseAddr("10.0.0.1")
@@ -100,7 +138,7 @@ func TestCommitService_NoGrouping(t *testing.T) {
 // PREVENTS: Missing EOR after config route commit.
 func TestCommitService_SendsEORWhenRequested(t *testing.T) {
 	sender := &mockUpdateSender{}
-	neg := &message.Negotiated{ASN4: true, LocalAS: 65000, PeerAS: 65000}
+	neg := testContext(65000, 65000, true)
 	cs := NewCommitService(sender, neg, true)
 
 	nh := netip.MustParseAddr("10.0.0.1")
@@ -144,7 +182,7 @@ func TestCommitService_SendsEORWhenRequested(t *testing.T) {
 // PREVENTS: Spurious EOR after API batch commit.
 func TestCommitService_NoEORWhenNotRequested(t *testing.T) {
 	sender := &mockUpdateSender{}
-	neg := &message.Negotiated{ASN4: true, LocalAS: 65000, PeerAS: 65000}
+	neg := testContext(65000, 65000, true)
 	cs := NewCommitService(sender, neg, true)
 
 	nh := netip.MustParseAddr("10.0.0.1")
@@ -176,7 +214,7 @@ func TestCommitService_NoEORWhenNotRequested(t *testing.T) {
 // PREVENTS: Missing EOR for some families in mixed-family commits.
 func TestCommitService_TracksAffectedFamilies(t *testing.T) {
 	sender := &mockUpdateSender{}
-	neg := &message.Negotiated{ASN4: true, LocalAS: 65000, PeerAS: 65000}
+	neg := testContext(65000, 65000, true)
 	cs := NewCommitService(sender, neg, true)
 
 	attrs := []attribute.Attribute{attribute.Origin(0)}
@@ -209,7 +247,7 @@ func TestCommitService_TracksAffectedFamilies(t *testing.T) {
 // PREVENTS: Panic or error on empty commit.
 func TestCommitService_EmptyRoutes(t *testing.T) {
 	sender := &mockUpdateSender{}
-	neg := &message.Negotiated{ASN4: true, LocalAS: 65000, PeerAS: 65000}
+	neg := testContext(65000, 65000, true)
 	cs := NewCommitService(sender, neg, true)
 
 	stats, err := cs.Commit(nil, CommitOptions{SendEOR: true})
@@ -235,7 +273,7 @@ func TestCommitService_EmptyRoutes(t *testing.T) {
 // PREVENTS: Silent failures on network errors.
 func TestCommitService_SendError(t *testing.T) {
 	sender := &mockUpdateSender{err: errors.New("network error")}
-	neg := &message.Negotiated{ASN4: true, LocalAS: 65000, PeerAS: 65000}
+	neg := testContext(65000, 65000, true)
 	cs := NewCommitService(sender, neg, true)
 
 	nh := netip.MustParseAddr("10.0.0.1")
@@ -258,7 +296,7 @@ func TestCommitService_SendError(t *testing.T) {
 // PREVENTS: Wrong AS_PATH used when route has AS_PATH in both locations.
 func TestCommitService_TwoLevel_ExplicitASPathTakesPrecedence(t *testing.T) {
 	sender := &mockUpdateSender{}
-	neg := &message.Negotiated{ASN4: true, LocalAS: 65000, PeerAS: 65000} // iBGP (no prepend)
+	neg := testContext(65000, 65000, true) // iBGP (no prepend)
 	cs := NewCommitService(sender, neg, true)
 
 	nh := netip.MustParseAddr("10.0.0.1")
@@ -352,7 +390,7 @@ func newIPv6NLRI(prefix string) nlri.NLRI {
 // PREVENTS: RFC 4271 violation where routes with different AS_PATHs share UPDATE.
 func TestCommitService_TwoLevel_DifferentASPaths(t *testing.T) {
 	sender := &mockUpdateSender{}
-	neg := &message.Negotiated{ASN4: true, LocalAS: 65000, PeerAS: 65000} // iBGP
+	neg := testContext(65000, 65000, true) // iBGP
 	cs := NewCommitService(sender, neg, true)
 
 	nh := netip.MustParseAddr("10.0.0.1")
@@ -399,7 +437,7 @@ func TestCommitService_TwoLevel_DifferentASPaths(t *testing.T) {
 // PREVENTS: Unnecessary UPDATE fragmentation.
 func TestCommitService_TwoLevel_SameASPath(t *testing.T) {
 	sender := &mockUpdateSender{}
-	neg := &message.Negotiated{ASN4: true, LocalAS: 65000, PeerAS: 65000}
+	neg := testContext(65000, 65000, true)
 	cs := NewCommitService(sender, neg, true)
 
 	nh := netip.MustParseAddr("10.0.0.1")
@@ -438,7 +476,7 @@ func TestCommitService_TwoLevel_SameASPath(t *testing.T) {
 // PREVENTS: Incorrect AS_PATH in eBGP announcements (missing local AS).
 func TestCommitService_TwoLevel_eBGPPrepends(t *testing.T) {
 	sender := &mockUpdateSender{}
-	neg := &message.Negotiated{ASN4: true, LocalAS: 65000, PeerAS: 65001} // eBGP
+	neg := testContext(65000, 65001, true) // eBGP
 	cs := NewCommitService(sender, neg, true)
 
 	nh := netip.MustParseAddr("10.0.0.1")
@@ -480,7 +518,7 @@ func TestCommitService_TwoLevel_eBGPPrepends(t *testing.T) {
 // PREVENTS: Incorrect AS_PATH modification in iBGP (should not prepend).
 func TestCommitService_TwoLevel_iBGPPreserves(t *testing.T) {
 	sender := &mockUpdateSender{}
-	neg := &message.Negotiated{ASN4: true, LocalAS: 65000, PeerAS: 65000} // iBGP
+	neg := testContext(65000, 65000, true) // iBGP
 	cs := NewCommitService(sender, neg, true)
 
 	nh := netip.MustParseAddr("10.0.0.1")
@@ -515,7 +553,7 @@ func TestCommitService_TwoLevel_iBGPPreserves(t *testing.T) {
 // PREVENTS: Missing AS_PATH in UPDATEs for locally originated routes.
 func TestCommitService_TwoLevel_NilASPath(t *testing.T) {
 	sender := &mockUpdateSender{}
-	neg := &message.Negotiated{ASN4: true, LocalAS: 65000, PeerAS: 65001} // eBGP
+	neg := testContext(65000, 65001, true) // eBGP
 	cs := NewCommitService(sender, neg, true)
 
 	nh := netip.MustParseAddr("10.0.0.1")
@@ -545,8 +583,8 @@ func TestCommitService_TwoLevel_NilASPath(t *testing.T) {
 // PREVENTS: Regression where buildSingleUpdate ignores route.ASPath() field.
 func TestCommitService_NoGrouping_PreservesExplicitASPath(t *testing.T) {
 	sender := &mockUpdateSender{}
-	neg := &message.Negotiated{ASN4: true, LocalAS: 65000, PeerAS: 65000} // iBGP
-	cs := NewCommitService(sender, neg, false)                            // groupUpdates=FALSE
+	neg := testContext(65000, 65000, true)     // iBGP
+	cs := NewCommitService(sender, neg, false) // groupUpdates=FALSE
 
 	nh := netip.MustParseAddr("10.0.0.1")
 	attrs := []attribute.Attribute{attribute.Origin(0)} // NO AS_PATH in attrs
@@ -616,16 +654,11 @@ func TestCommitServiceAddPathFor(t *testing.T) {
 	sender := &mockUpdateSender{}
 
 	// Test with ADD-PATH enabled for IPv4 unicast
-	neg := &message.Negotiated{
-		ASN4:    true,
-		LocalAS: 65000,
-		PeerAS:  65001,
-		AddPath: map[message.Family]bool{
-			{AFI: 1, SAFI: 1}: true,  // IPv4 unicast with ADD-PATH
-			{AFI: 2, SAFI: 1}: false, // IPv6 unicast without ADD-PATH
-		},
-	}
-	cs := NewCommitService(sender, neg, false)
+	ctx := testContextWithAddPath(65000, 65001, true, map[nlri.Family]bool{
+		nlri.IPv4Unicast: true,  // IPv4 unicast with ADD-PATH
+		nlri.IPv6Unicast: false, // IPv6 unicast without ADD-PATH
+	})
+	cs := NewCommitService(sender, ctx, false)
 
 	if !cs.addPathFor(nlri.IPv4Unicast) {
 		t.Error("addPathFor should be true for IPv4 unicast when negotiated")

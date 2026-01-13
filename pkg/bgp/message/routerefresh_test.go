@@ -24,8 +24,7 @@ func TestRouteRefreshPack(t *testing.T) {
 		SAFI: SAFIUnicast,
 	}
 
-	data, err := r.Pack(nil)
-	require.NoError(t, err)
+	data := PackTo(r, nil)
 
 	// Header (19) + AFI (2) + Reserved (1) + SAFI (1)
 	assert.Len(t, data, HeaderLen+4)
@@ -71,8 +70,7 @@ func TestRouteRefreshRoundTrip(t *testing.T) {
 		SAFI: SAFIFlowSpec,
 	}
 
-	data, err := original.Pack(nil)
-	require.NoError(t, err)
+	data := PackTo(original, nil)
 
 	body := data[HeaderLen:]
 	parsed, err := UnpackRouteRefresh(body)
@@ -99,8 +97,7 @@ func TestRouteRefreshCommonFamilies(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			r := &RouteRefresh{AFI: tt.afi, SAFI: tt.safi}
-			data, err := r.Pack(nil)
-			require.NoError(t, err)
+			data := PackTo(r, nil)
 
 			parsed, err := UnpackRouteRefresh(data[HeaderLen:])
 			require.NoError(t, err)
@@ -139,8 +136,7 @@ func TestRouteRefreshSubtypes(t *testing.T) {
 				Subtype: tt.subtype,
 			}
 
-			data, err := r.Pack(nil)
-			require.NoError(t, err)
+			data := PackTo(r, nil)
 
 			// Verify subtype in wire format (offset 2 in body, which is the Reserved/Subtype field)
 			body := data[HeaderLen:]

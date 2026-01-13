@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/attribute"
-	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/message"
 	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/nlri"
 )
 
@@ -16,7 +15,7 @@ import (
 // PREVENTS: Invalid UPDATE missing mandatory ORIGIN attribute.
 func TestCommitService_DefaultOrigin(t *testing.T) {
 	sender := &mockUpdateSender{}
-	neg := &message.Negotiated{ASN4: true, LocalAS: 65000, PeerAS: 65000}
+	neg := testContext(65000, 65000, true)
 	cs := NewCommitService(sender, neg, true)
 
 	nh := netip.MustParseAddr("10.0.0.1")
@@ -80,7 +79,7 @@ func TestCommitService_DefaultOrigin(t *testing.T) {
 func TestCommitService_PreservesExistingASPath(t *testing.T) {
 	sender := &mockUpdateSender{}
 	// eBGP session
-	neg := &message.Negotiated{ASN4: true, LocalAS: 65000, PeerAS: 65001}
+	neg := testContext(65000, 65001, true)
 	cs := NewCommitService(sender, neg, true)
 
 	nh := netip.MustParseAddr("10.0.0.1")
@@ -165,7 +164,7 @@ func TestCommitService_PreservesExistingASPath(t *testing.T) {
 // PREVENTS: Malformed VPN next-hop encoding.
 func TestCommitService_VPNNextHopHasRD(t *testing.T) {
 	sender := &mockUpdateSender{}
-	neg := &message.Negotiated{ASN4: true, LocalAS: 65000, PeerAS: 65000}
+	neg := testContext(65000, 65000, true)
 	cs := NewCommitService(sender, neg, true)
 
 	nh := netip.MustParseAddr("10.0.0.1")
@@ -238,7 +237,7 @@ func TestCommitService_VPNNextHopHasRD(t *testing.T) {
 // PREVENTS: Silent failure when using IPv6 underlay for IPv4 routes.
 func TestCommitService_IPv4WithIPv6NextHop(t *testing.T) {
 	sender := &mockUpdateSender{}
-	neg := &message.Negotiated{ASN4: true, LocalAS: 65000, PeerAS: 65000}
+	neg := testContext(65000, 65000, true)
 	cs := NewCommitService(sender, neg, true)
 
 	// IPv4 route with IPv6 next-hop (RFC 5549)
@@ -320,18 +319,18 @@ func TestCommitService_IPv4WithIPv6NextHop(t *testing.T) {
 	}
 }
 
-// TestCommitService_NilNegotiated verifies graceful handling of nil negotiated.
+// TestCommitService_NilContext verifies graceful handling of nil EncodingContext.
 //
-// VALIDATES: NewCommitService with nil negotiated → returns error or uses defaults
+// VALIDATES: NewCommitService with nil ctx → returns ErrNilContext
 //
-// PREVENTS: Runtime panic when negotiated is nil.
-func TestCommitService_NilNegotiated(t *testing.T) {
+// PREVENTS: Runtime panic when context is nil.
+func TestCommitService_NilContext(t *testing.T) {
 	sender := &mockUpdateSender{}
 
 	// This should not panic
 	defer func() {
 		if r := recover(); r != nil {
-			t.Errorf("NewCommitService panicked with nil negotiated: %v", r)
+			t.Errorf("NewCommitService panicked with nil context: %v", r)
 		}
 	}()
 
@@ -361,7 +360,7 @@ func TestCommitService_NilNegotiated(t *testing.T) {
 // PREVENTS: Empty NLRI in MP_REACH_NLRI.
 func TestCommitService_IPv6_NLRIInMPReach(t *testing.T) {
 	sender := &mockUpdateSender{}
-	neg := &message.Negotiated{ASN4: true, LocalAS: 65000, PeerAS: 65000}
+	neg := testContext(65000, 65000, true)
 	cs := NewCommitService(sender, neg, true)
 
 	nh := netip.MustParseAddr("2001:db8::1")

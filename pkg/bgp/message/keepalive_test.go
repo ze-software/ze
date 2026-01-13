@@ -17,15 +17,14 @@ func TestKeepaliveType(t *testing.T) {
 	assert.Equal(t, TypeKEEPALIVE, k.Type())
 }
 
-// TestKeepalivePack verifies KEEPALIVE packing.
+// TestKeepalivePack verifies KEEPALIVE packing via PackTo.
 //
 // VALIDATES: KEEPALIVE has no body (header only).
 //
 // PREVENTS: Extra bytes causing peer to reject message.
 func TestKeepalivePack(t *testing.T) {
 	k := &Keepalive{}
-	data, err := k.Pack(nil)
-	require.NoError(t, err)
+	data := PackTo(k, nil)
 
 	// KEEPALIVE is just header (19 bytes), no body
 	assert.Len(t, data, HeaderLen)
@@ -57,8 +56,7 @@ func TestKeepaliveUnpack(t *testing.T) {
 // PREVENTS: Data corruption in pack/unpack cycle.
 func TestKeepaliveRoundTrip(t *testing.T) {
 	original := &Keepalive{}
-	data, err := original.Pack(nil)
-	require.NoError(t, err)
+	data := PackTo(original, nil)
 
 	// Strip header for unpacking (body only)
 	body := data[HeaderLen:]

@@ -66,20 +66,6 @@ func (r *RouteRefresh) WriteTo(buf []byte, off int, _ *EncodingContext) int {
 	return totalLen
 }
 
-// Pack serializes the ROUTE-REFRESH to wire format.
-// RFC 2918 Section 3 - Message Format: One <AFI, SAFI> encoded as 4 bytes.
-// RFC 7313 Section 3.2 - Reserved field is now Message Subtype.
-func (r *RouteRefresh) Pack(neg *Negotiated) ([]byte, error) {
-	body := make([]byte, 4)
-	// RFC 2918 Section 3 - AFI: Address Family Identifier (16 bit)
-	binary.BigEndian.PutUint16(body[0:2], uint16(r.AFI))
-	// RFC 7313 Section 3.2 - Message Subtype (was Reserved in RFC 2918)
-	body[2] = byte(r.Subtype)
-	// RFC 2918 Section 3 - SAFI: Subsequent Address Family Identifier (8 bit)
-	body[3] = byte(r.SAFI)
-	return packWithHeader(TypeROUTEREFRESH, body), nil
-}
-
 // UnpackRouteRefresh parses a ROUTE-REFRESH message body.
 // RFC 2918 Section 3 - Message Format: One <AFI, SAFI> encoded as 4 bytes.
 // RFC 7313 Section 3.2 - Reserved field is now Message Subtype.

@@ -2709,14 +2709,14 @@ func (a *reactorAPIAdapter) SendRoutes(peerSelector string, routes []*rib.Route,
 	totalResult.RoutesWithdrawn = len(withdrawals)
 
 	for _, peer := range peers {
-		// Get negotiated parameters for CommitService
-		neg := peer.messageNegotiated()
-		if neg == nil {
+		// Get encoding context for CommitService
+		ctx := peer.SendContext()
+		if ctx == nil {
 			continue // Peer not established
 		}
 
 		// Use CommitService with two-level grouping for announcements
-		cs := rib.NewCommitService(peer, neg, true)
+		cs := rib.NewCommitService(peer, ctx, true)
 
 		// Send announcements
 		if len(routes) > 0 {

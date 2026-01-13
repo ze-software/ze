@@ -278,8 +278,7 @@ func TestSplitUpdate_AllChunksValid(t *testing.T) {
 
 	// Each chunk should pack and unpack correctly
 	for i, chunk := range chunks {
-		packed, err := chunk.Pack(nil)
-		require.NoError(t, err, "chunk %d failed to pack", i)
+		packed := PackTo(chunk, nil)
 
 		// Parse header
 		h, err := ParseHeader(packed)
@@ -773,8 +772,7 @@ func TestSplitUpdate_RoundTrip_PackUnpack(t *testing.T) {
 	reassembledNLRI := make([]byte, 0, len(nlri))
 	for i, chunk := range chunks {
 		// Pack to wire format
-		packed, err := chunk.Pack(nil)
-		require.NoError(t, err, "chunk %d pack failed", i)
+		packed := PackTo(chunk, nil)
 
 		// Verify header
 		require.GreaterOrEqual(t, len(packed), HeaderLen, "chunk %d too short", i)
@@ -887,8 +885,7 @@ func TestSplitUpdate_RoundTrip_Withdrawals(t *testing.T) {
 	// Pack, unpack, reassemble
 	reassembledWithdrawn := make([]byte, 0, len(withdrawn))
 	for i, chunk := range chunks {
-		packed, err := chunk.Pack(nil)
-		require.NoError(t, err, "chunk %d pack failed", i)
+		packed := PackTo(chunk, nil)
 
 		unpacked, err := UnpackUpdate(packed[HeaderLen:])
 		require.NoError(t, err, "chunk %d unpack failed", i)

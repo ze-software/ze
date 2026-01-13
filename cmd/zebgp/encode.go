@@ -193,7 +193,7 @@ func parseEncodingFamily(family string) (nlri.AFI, nlri.SAFI, error) {
 
 // encodeUnicastRoute parses and encodes a unicast route command.
 // Returns (update body bytes, NLRI bytes, error).
-func encodeUnicastRoute(ub *message.UpdateBuilder, routeCmd string, isIPv6 bool, asn4, addPath bool) ([]byte, []byte, error) {
+func encodeUnicastRoute(ub *message.UpdateBuilder, routeCmd string, isIPv6 bool, _, addPath bool) ([]byte, []byte, error) {
 	// Parse route command - expects "route <prefix> next-hop <addr> [attributes...]"
 	args := strings.Fields(routeCmd)
 	if len(args) < 1 || args[0] != "route" {
@@ -229,15 +229,8 @@ func encodeUnicastRoute(ub *message.UpdateBuilder, routeCmd string, isIPv6 bool,
 		nlri.WriteNLRI(inet, nlriBytes, 0, addPath)
 	}
 
-	// Pack UPDATE body - create minimal Negotiated for packing
-	neg := &message.Negotiated{
-		ASN4:            asn4,
-		ExtendedMessage: false,
-	}
-	updateBody, err := update.Pack(neg)
-	if err != nil {
-		return nil, nil, fmt.Errorf("pack update: %w", err)
-	}
+	// Pack UPDATE body using PackTo
+	updateBody := message.PackTo(update, nil)
 
 	return updateBody, nlriBytes, nil
 }
@@ -346,7 +339,7 @@ type commonAttrs struct {
 
 // encodeEVPNRoute parses and encodes an EVPN route command.
 // Returns (update body bytes, NLRI bytes, error).
-func encodeEVPNRoute(ub *message.UpdateBuilder, routeCmd string, asn4, addPath bool) ([]byte, []byte, error) {
+func encodeEVPNRoute(ub *message.UpdateBuilder, routeCmd string, _, addPath bool) ([]byte, []byte, error) {
 	// Parse route command - expects "mac-ip|ip-prefix|... <args>"
 	args := strings.Fields(routeCmd)
 	if len(args) < 1 {
@@ -368,15 +361,8 @@ func encodeEVPNRoute(ub *message.UpdateBuilder, routeCmd string, asn4, addPath b
 	// Build UPDATE
 	update := ub.BuildEVPN(params)
 
-	// Pack UPDATE body
-	neg := &message.Negotiated{
-		ASN4:            asn4,
-		ExtendedMessage: false,
-	}
-	updateBody, err := update.Pack(neg)
-	if err != nil {
-		return nil, nil, fmt.Errorf("pack update: %w", err)
-	}
+	// Pack UPDATE body using PackTo
+	updateBody := message.PackTo(update, nil)
 
 	// For NLRI bytes, we need to build and pack the NLRI
 	var evpnNLRI nlri.EVPN
@@ -468,7 +454,7 @@ func l2vpnRouteToEVPNParams(r plugin.L2VPNRoute) (message.EVPNParams, error) {
 
 // encodeL3VPNRoute parses and encodes an L3VPN (mpls-vpn) route command.
 // Returns (update body bytes, NLRI bytes, error).
-func encodeL3VPNRoute(ub *message.UpdateBuilder, routeCmd string, isIPv6 bool, asn4, _ bool) ([]byte, []byte, error) {
+func encodeL3VPNRoute(ub *message.UpdateBuilder, routeCmd string, isIPv6 bool, _, _ bool) ([]byte, []byte, error) {
 	// Parse route command - expects "<prefix> rd <rd> next-hop <addr> label <label> [attributes...]"
 	args := strings.Fields(routeCmd)
 	if len(args) < 1 {
@@ -496,15 +482,8 @@ func encodeL3VPNRoute(ub *message.UpdateBuilder, routeCmd string, isIPv6 bool, a
 	// Build UPDATE
 	update := ub.BuildVPN(params)
 
-	// Pack UPDATE body
-	neg := &message.Negotiated{
-		ASN4:            asn4,
-		ExtendedMessage: false,
-	}
-	updateBody, err := update.Pack(neg)
-	if err != nil {
-		return nil, nil, fmt.Errorf("pack update: %w", err)
-	}
+	// Pack UPDATE body using PackTo
+	updateBody := message.PackTo(update, nil)
 
 	// Build NLRI for -n flag
 	var family nlri.Family
@@ -552,7 +531,7 @@ func l3vpnRouteToVPNParams(r plugin.L3VPNRoute, rd nlri.RouteDistinguisher) mess
 
 // encodeLabeledUnicastRoute parses and encodes a labeled unicast (nlri-mpls) route command.
 // Returns (update body bytes, NLRI bytes, error).
-func encodeLabeledUnicastRoute(ub *message.UpdateBuilder, routeCmd string, isIPv6 bool, asn4, _ bool) ([]byte, []byte, error) {
+func encodeLabeledUnicastRoute(ub *message.UpdateBuilder, routeCmd string, isIPv6 bool, _, _ bool) ([]byte, []byte, error) {
 	// Parse route command - expects "<prefix> next-hop <addr> label <label> [attributes...]"
 	args := strings.Fields(routeCmd)
 	if len(args) < 1 {
@@ -571,15 +550,8 @@ func encodeLabeledUnicastRoute(ub *message.UpdateBuilder, routeCmd string, isIPv
 	// Build UPDATE
 	update := ub.BuildLabeledUnicast(params)
 
-	// Pack UPDATE body
-	neg := &message.Negotiated{
-		ASN4:            asn4,
-		ExtendedMessage: false,
-	}
-	updateBody, err := update.Pack(neg)
-	if err != nil {
-		return nil, nil, fmt.Errorf("pack update: %w", err)
-	}
+	// Pack UPDATE body using PackTo
+	updateBody := message.PackTo(update, nil)
 
 	// Build NLRI for -n flag
 	var family nlri.Family
@@ -648,7 +620,7 @@ func parseMAC(s string) ([6]byte, error) {
 
 // encodeFlowSpecRoute parses and encodes a FlowSpec route command.
 // Returns (update body bytes, NLRI bytes, error).
-func encodeFlowSpecRoute(ub *message.UpdateBuilder, routeCmd string, isIPv6 bool, asn4, _ bool) ([]byte, []byte, error) {
+func encodeFlowSpecRoute(ub *message.UpdateBuilder, routeCmd string, isIPv6 bool, _, _ bool) ([]byte, []byte, error) {
 	// Parse route command - expects "match <spec> then <action>"
 	args := strings.Fields(routeCmd)
 	if len(args) < 1 {
@@ -703,15 +675,8 @@ func encodeFlowSpecRoute(ub *message.UpdateBuilder, routeCmd string, isIPv6 bool
 	// Build UPDATE
 	update := ub.BuildFlowSpec(params)
 
-	// Pack UPDATE body
-	neg := &message.Negotiated{
-		ASN4:            asn4,
-		ExtendedMessage: false,
-	}
-	updateBody, err := update.Pack(neg)
-	if err != nil {
-		return nil, nil, fmt.Errorf("pack update: %w", err)
-	}
+	// Pack UPDATE body using PackTo
+	updateBody := message.PackTo(update, nil)
 
 	return updateBody, nlriBytes, nil
 }
@@ -772,7 +737,7 @@ func floatToIEEE754(f float32) uint32 {
 
 // encodeVPLSRoute parses and encodes a VPLS route command.
 // Returns (update body bytes, NLRI bytes, error).
-func encodeVPLSRoute(ub *message.UpdateBuilder, routeCmd string, asn4, _ bool) ([]byte, []byte, error) {
+func encodeVPLSRoute(ub *message.UpdateBuilder, routeCmd string, _, _ bool) ([]byte, []byte, error) {
 	// Parse route command
 	args := strings.Fields(routeCmd)
 	if len(args) < 1 {
@@ -797,15 +762,8 @@ func encodeVPLSRoute(ub *message.UpdateBuilder, routeCmd string, asn4, _ bool) (
 	// Build UPDATE
 	update := ub.BuildVPLS(params)
 
-	// Pack UPDATE body
-	neg := &message.Negotiated{
-		ASN4:            asn4,
-		ExtendedMessage: false,
-	}
-	updateBody, err := update.Pack(neg)
-	if err != nil {
-		return nil, nil, fmt.Errorf("pack update: %w", err)
-	}
+	// Pack UPDATE body using PackTo
+	updateBody := message.PackTo(update, nil)
 
 	// For -n flag, build VPLS NLRI
 	vplsNLRI := nlri.NewVPLSFull(rd, parsed.VEBlockOffset, parsed.VEBlockOffset, parsed.VEBlockSize, parsed.LabelBase)
@@ -816,7 +774,7 @@ func encodeVPLSRoute(ub *message.UpdateBuilder, routeCmd string, asn4, _ bool) (
 
 // encodeMUPRoute parses and encodes a MUP route command.
 // Returns (update body bytes, NLRI bytes, error).
-func encodeMUPRoute(ub *message.UpdateBuilder, routeCmd string, isIPv6 bool, asn4, _ bool) ([]byte, []byte, error) {
+func encodeMUPRoute(ub *message.UpdateBuilder, routeCmd string, isIPv6 bool, _, _ bool) ([]byte, []byte, error) {
 	// Parse route command
 	args := strings.Fields(routeCmd)
 	if len(args) < 1 {
@@ -855,15 +813,8 @@ func encodeMUPRoute(ub *message.UpdateBuilder, routeCmd string, isIPv6 bool, asn
 	// Build UPDATE
 	update := ub.BuildMUP(params)
 
-	// Pack UPDATE body
-	neg := &message.Negotiated{
-		ASN4:            asn4,
-		ExtendedMessage: false,
-	}
-	updateBody, err := update.Pack(neg)
-	if err != nil {
-		return nil, nil, fmt.Errorf("pack update: %w", err)
-	}
+	// Pack UPDATE body using PackTo
+	updateBody := message.PackTo(update, nil)
 
 	return updateBody, nlriBytes, nil
 }

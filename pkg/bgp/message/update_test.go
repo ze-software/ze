@@ -78,8 +78,7 @@ func TestUpdateUnpackShort(t *testing.T) {
 func TestUpdatePackEmpty(t *testing.T) {
 	u := &Update{}
 
-	data, err := u.Pack(nil)
-	require.NoError(t, err)
+	data := PackTo(u, nil)
 
 	// Header (19) + WithdrawnLen (2) + AttrLen (2)
 	assert.Len(t, data, HeaderLen+4)
@@ -97,8 +96,7 @@ func TestUpdateRoundTrip(t *testing.T) {
 		NLRI:            []byte{0x18, 0xC0, 0xA8, 0x01}, // 192.168.1.0/24
 	}
 
-	data, err := original.Pack(nil)
-	require.NoError(t, err)
+	data := PackTo(original, nil)
 
 	body := data[HeaderLen:]
 	parsed, err := UnpackUpdate(body)
@@ -267,9 +265,8 @@ func TestUpdateWriteTo(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			// Get expected from Pack
-			expected, err := tt.update.Pack(nil)
-			require.NoError(t, err)
+			// Get expected from PackTo
+			expected := PackTo(tt.update, nil)
 
 			// Use WriteTo with pre-allocated buffer
 			buf := make([]byte, 4096)
@@ -354,8 +351,7 @@ func TestUpdateWriteToOffset(t *testing.T) {
 		NLRI: []byte{0x18, 0xC0, 0xA8, 0x01},
 	}
 
-	expected, err := u.Pack(nil)
-	require.NoError(t, err)
+	expected := PackTo(u, nil)
 
 	// Write at offset 100
 	buf := make([]byte, 4096)

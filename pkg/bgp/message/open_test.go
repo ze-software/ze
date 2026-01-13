@@ -27,8 +27,7 @@ func TestOpenPack(t *testing.T) {
 		BGPIdentifier: 0xC0A80101, // 192.168.1.1
 	}
 
-	data, err := o.Pack(nil)
-	require.NoError(t, err)
+	data := PackTo(o, nil)
 
 	// Header (19) + Version (1) + AS (2) + HoldTime (2) + BGPID (4) + OptLen (1)
 	assert.GreaterOrEqual(t, len(data), HeaderLen+10)
@@ -94,8 +93,7 @@ func TestOpenRoundTrip(t *testing.T) {
 		BGPIdentifier: 0x01020304,
 	}
 
-	data, err := original.Pack(nil)
-	require.NoError(t, err)
+	data := PackTo(original, nil)
 
 	body := data[HeaderLen:]
 	parsed, err := UnpackOpen(body)
@@ -121,8 +119,7 @@ func TestOpenAS4(t *testing.T) {
 		ASN4:          4200000001, // 4-byte AS
 	}
 
-	data, err := o.Pack(nil)
-	require.NoError(t, err)
+	data := PackTo(o, nil)
 
 	body := data[HeaderLen:]
 	// MyAS field should be AS_TRANS (23456) when ASN4 is set
@@ -349,8 +346,7 @@ func TestOpenPackExtendedParams(t *testing.T) {
 		OptionalParams: largeParams,
 	}
 
-	data, err := o.Pack(nil)
-	require.NoError(t, err)
+	data := PackTo(o, nil)
 
 	body := data[HeaderLen:]
 

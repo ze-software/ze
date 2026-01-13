@@ -50,46 +50,6 @@ func (u *Update) Type() MessageType {
 	return TypeUPDATE
 }
 
-// Pack serializes the UPDATE to wire format.
-//
-// RFC 4271 Section 4.3 - The minimum length of the UPDATE message is 23 octets:
-// 19 octets for the fixed header + 2 octets for Withdrawn Routes Length +
-// 2 octets for Total Path Attribute Length.
-func (u *Update) Pack(neg *Negotiated) ([]byte, error) {
-	withdrawnLen := len(u.WithdrawnRoutes)
-	attrLen := len(u.PathAttributes)
-	nlriLen := len(u.NLRI)
-
-	// Body = WithdrawnLen(2) + Withdrawn + AttrLen(2) + Attrs + NLRI
-	bodyLen := 2 + withdrawnLen + 2 + attrLen + nlriLen
-	body := make([]byte, bodyLen)
-
-	// RFC 4271 Section 4.3 - Withdrawn Routes Length: 2-octet unsigned integer
-	// indicating the total length of the Withdrawn Routes field in octets.
-	// A value of 0 indicates no routes are being withdrawn.
-	binary.BigEndian.PutUint16(body[0:2], uint16(withdrawnLen)) //nolint:gosec // BGP max message 65535
-
-	// RFC 4271 Section 4.3 - Withdrawn Routes: list of IP address prefixes
-	// for routes being withdrawn, each encoded as <length, prefix>.
-	copy(body[2:], u.WithdrawnRoutes)
-
-	// RFC 4271 Section 4.3 - Total Path Attribute Length: 2-octet unsigned integer
-	// indicating the total length of the Path Attributes field in octets.
-	// A value of 0 indicates neither NLRI nor Path Attributes are present.
-	offset := 2 + withdrawnLen
-	binary.BigEndian.PutUint16(body[offset:offset+2], uint16(attrLen)) //nolint:gosec // BGP max message 65535
-
-	// RFC 4271 Section 4.3 - Path Attributes: variable-length sequence of
-	// path attributes, each a triple <type, length, value>.
-	copy(body[offset+2:], u.PathAttributes)
-
-	// RFC 4271 Section 4.3 - NLRI: list of IP address prefixes, each encoded
-	// as <length, prefix>. Length is calculated implicitly from message size.
-	copy(body[offset+2+attrLen:], u.NLRI)
-
-	return packWithHeader(TypeUPDATE, body), nil
-}
-
 // UnpackUpdate parses an UPDATE message body.
 //
 // RFC 4271 Section 4.3 - Parses the UPDATE message format which consists of:

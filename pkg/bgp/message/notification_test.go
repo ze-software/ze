@@ -25,8 +25,7 @@ func TestNotificationPack(t *testing.T) {
 		Data:         []byte{0x01, 0x02, 0x03},
 	}
 
-	data, err := n.Pack(nil)
-	require.NoError(t, err)
+	data := PackTo(n, nil)
 
 	// Header (19) + code (1) + subcode (1) + data (3)
 	assert.Len(t, data, HeaderLen+5)
@@ -51,8 +50,7 @@ func TestNotificationPackNoData(t *testing.T) {
 		ErrorSubcode: NotifyCeaseAdminShutdown,
 	}
 
-	data, err := n.Pack(nil)
-	require.NoError(t, err)
+	data := PackTo(n, nil)
 
 	// Header (19) + code (1) + subcode (1)
 	assert.Len(t, data, HeaderLen+2)
@@ -103,8 +101,7 @@ func TestNotificationRoundTrip(t *testing.T) {
 		Data:         []byte{192, 168, 1, 1}, // Bad next-hop
 	}
 
-	data, err := original.Pack(nil)
-	require.NoError(t, err)
+	data := PackTo(original, nil)
 
 	body := data[HeaderLen:]
 	parsed, err := UnpackNotification(body)

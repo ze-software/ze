@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/attribute"
-	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/message"
 	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/nlri"
 )
 
@@ -16,7 +15,7 @@ import (
 // PREVENTS: Missing mandatory NEXT_HOP attribute in IPv4 unicast UPDATEs.
 func TestCommitService_IPv4_HasNextHop(t *testing.T) {
 	sender := &mockUpdateSender{}
-	neg := &message.Negotiated{ASN4: true, LocalAS: 65000, PeerAS: 65000}
+	neg := testContext(65000, 65000, true)
 	cs := NewCommitService(sender, neg, true)
 
 	nh := netip.MustParseAddr("10.0.0.1")
@@ -94,7 +93,7 @@ func TestCommitService_IPv4_HasNextHop(t *testing.T) {
 // PREVENTS: IPv6 NLRIs incorrectly placed in UPDATE.NLRI field.
 func TestCommitService_IPv6_UsesMPReachNLRI(t *testing.T) {
 	sender := &mockUpdateSender{}
-	neg := &message.Negotiated{ASN4: true, LocalAS: 65000, PeerAS: 65000}
+	neg := testContext(65000, 65000, true)
 	cs := NewCommitService(sender, neg, true)
 
 	nh := netip.MustParseAddr("2001:db8::1")
@@ -185,7 +184,7 @@ func TestCommitService_IPv6_UsesMPReachNLRI(t *testing.T) {
 func TestCommitService_ASN4_EncodesASPath(t *testing.T) {
 	sender := &mockUpdateSender{}
 	// eBGP session with ASN4
-	neg := &message.Negotiated{ASN4: true, LocalAS: 65000, PeerAS: 65001}
+	neg := testContext(65000, 65001, true)
 	cs := NewCommitService(sender, neg, true)
 
 	nh := netip.MustParseAddr("10.0.0.1")
@@ -254,7 +253,7 @@ func TestCommitService_ASN4_EncodesASPath(t *testing.T) {
 func TestCommitService_iBGP_NoASPrepend(t *testing.T) {
 	sender := &mockUpdateSender{}
 	// iBGP session (same AS)
-	neg := &message.Negotiated{ASN4: true, LocalAS: 65000, PeerAS: 65000}
+	neg := testContext(65000, 65000, true)
 	cs := NewCommitService(sender, neg, true)
 
 	nh := netip.MustParseAddr("10.0.0.1")
@@ -310,7 +309,7 @@ func TestCommitService_iBGP_NoASPrepend(t *testing.T) {
 // PREVENTS: EVPN routes incorrectly placed in UPDATE.NLRI field.
 func TestCommitService_EVPN_UsesMPReachNLRI(t *testing.T) {
 	sender := &mockUpdateSender{}
-	neg := &message.Negotiated{ASN4: true, LocalAS: 65000, PeerAS: 65000}
+	neg := testContext(65000, 65000, true)
 	cs := NewCommitService(sender, neg, true)
 
 	nh := netip.MustParseAddr("10.0.0.1")
@@ -389,7 +388,7 @@ func TestCommitService_EVPN_UsesMPReachNLRI(t *testing.T) {
 // PREVENTS: Dropping or modifying AS_PATH on iBGP sessions.
 func TestCommitService_iBGP_PreservesASPath(t *testing.T) {
 	sender := &mockUpdateSender{}
-	neg := &message.Negotiated{ASN4: true, LocalAS: 65000, PeerAS: 65000}
+	neg := testContext(65000, 65000, true)
 	cs := NewCommitService(sender, neg, true)
 
 	nh := netip.MustParseAddr("10.0.0.1")
@@ -490,7 +489,7 @@ func (m *mockEVPNNLRI) WriteTo(buf []byte, off int) int {
 // PREVENTS: Routes with different AS_PATHs sharing UPDATE (RFC 4271 violation).
 func TestCommitService_TwoLevel_WireFormat_DiffASPaths(t *testing.T) {
 	sender := &mockUpdateSender{}
-	neg := &message.Negotiated{ASN4: true, LocalAS: 65000, PeerAS: 65000} // iBGP (no prepend)
+	neg := testContext(65000, 65000, true) // iBGP (no prepend)
 	cs := NewCommitService(sender, neg, true)
 
 	nh := netip.MustParseAddr("10.0.0.1")
@@ -548,7 +547,7 @@ func TestCommitService_TwoLevel_WireFormat_DiffASPaths(t *testing.T) {
 // PREVENTS: Unnecessary UPDATE fragmentation.
 func TestCommitService_TwoLevel_WireFormat_SameASPath(t *testing.T) {
 	sender := &mockUpdateSender{}
-	neg := &message.Negotiated{ASN4: true, LocalAS: 65000, PeerAS: 65000}
+	neg := testContext(65000, 65000, true)
 	cs := NewCommitService(sender, neg, true)
 
 	nh := netip.MustParseAddr("10.0.0.1")
@@ -589,7 +588,7 @@ func TestCommitService_TwoLevel_WireFormat_SameASPath(t *testing.T) {
 // PREVENTS: Missing local AS in eBGP announcements.
 func TestCommitService_TwoLevel_WireFormat_eBGP_Prepends(t *testing.T) {
 	sender := &mockUpdateSender{}
-	neg := &message.Negotiated{ASN4: true, LocalAS: 65000, PeerAS: 65001} // eBGP
+	neg := testContext(65000, 65001, true) // eBGP
 	cs := NewCommitService(sender, neg, true)
 
 	nh := netip.MustParseAddr("10.0.0.1")
@@ -707,7 +706,7 @@ func extractFirstASN(attrs []byte) uint32 {
 // PREVENTS: Incorrect AS_PATH when first segment is not AS_SEQUENCE.
 func TestCommitService_TwoLevel_WireFormat_eBGP_ASSetFirst(t *testing.T) {
 	sender := &mockUpdateSender{}
-	neg := &message.Negotiated{ASN4: true, LocalAS: 65000, PeerAS: 65001} // eBGP
+	neg := testContext(65000, 65001, true) // eBGP
 	cs := NewCommitService(sender, neg, true)
 
 	nh := netip.MustParseAddr("10.0.0.1")

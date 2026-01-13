@@ -1158,43 +1158,6 @@ func (p *Peer) SendRawMessage(msgType uint8, payload []byte) error {
 	return session.SendRawMessage(msgType, payload)
 }
 
-// messageNegotiated returns message.Negotiated for use with CommitService.
-// Returns nil if session is not established.
-func (p *Peer) messageNegotiated() *message.Negotiated {
-	p.mu.RLock()
-	session := p.session
-	p.mu.RUnlock()
-
-	if session == nil {
-		return nil
-	}
-
-	neg := session.Negotiated()
-	if neg == nil {
-		return nil
-	}
-
-	msgNeg := &message.Negotiated{
-		ASN4:    neg.ASN4,
-		LocalAS: neg.LocalASN,
-		PeerAS:  neg.PeerASN,
-	}
-
-	// Populate ADD-PATH send capability per family (RFC 7911)
-	// We can send with ADD-PATH if mode is Send or Both
-	for _, f := range neg.Families() {
-		mode := neg.AddPathMode(f)
-		if mode == capability.AddPathSend || mode == capability.AddPathBoth {
-			if msgNeg.AddPath == nil {
-				msgNeg.AddPath = make(map[message.Family]bool)
-			}
-			msgNeg.AddPath[message.Family{AFI: uint16(f.AFI), SAFI: uint8(f.SAFI)}] = true
-		}
-	}
-
-	return msgNeg
-}
-
 // cleanup runs when peer stops.
 func (p *Peer) cleanup() {
 	p.negotiated.Store(nil) // Clear negotiated capabilities

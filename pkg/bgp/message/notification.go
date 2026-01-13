@@ -187,17 +187,6 @@ func (n *Notification) WriteTo(buf []byte, off int, _ *EncodingContext) int {
 	return totalLen
 }
 
-// RFC 4271 Section 4.5 - Pack serializes the NOTIFICATION to wire format.
-// The minimum NOTIFICATION message length is 21 octets (including the 19-octet header).
-// Message Length = 21 + Data Length.
-func (n *Notification) Pack(neg *Negotiated) ([]byte, error) {
-	body := make([]byte, 2+len(n.Data))
-	body[0] = byte(n.ErrorCode)
-	body[1] = n.ErrorSubcode
-	copy(body[2:], n.Data)
-	return packWithHeader(TypeNOTIFICATION, body), nil
-}
-
 // RFC 4271 Section 4.5 - UnpackNotification parses a NOTIFICATION message body.
 // The minimum body length is 2 octets (Error Code + Error Subcode).
 // Data field length can be determined from: Message Length - 21.
