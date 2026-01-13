@@ -164,7 +164,7 @@ func TestSessionReceiveOpen(t *testing.T) {
 			2, 6, 65, 4, 0, 0, 0xFD, 0xEA, // ASN4
 		},
 	}
-	openBytes, _ := peerOpen.Pack(nil)
+	openBytes := message.PackTo(peerOpen, nil)
 
 	// Start goroutine to write OPEN and drain KEEPALIVE
 	go func() {
@@ -200,7 +200,7 @@ func TestSessionKeepaliveExchange(t *testing.T) {
 	peerOpen := &message.Open{
 		Version: 4, MyAS: 65002, HoldTime: 90, BGPIdentifier: 0x01020302,
 	}
-	openBytes, _ := peerOpen.Pack(nil)
+	openBytes := message.PackTo(peerOpen, nil)
 
 	go func() {
 		_, _ = client.Write(openBytes)
@@ -214,7 +214,7 @@ func TestSessionKeepaliveExchange(t *testing.T) {
 
 	// Send peer's KEEPALIVE (in goroutine since ReadAndProcess blocks)
 	keepalive := message.NewKeepalive()
-	keepaliveBytes, _ := keepalive.Pack(nil)
+	keepaliveBytes := message.PackTo(keepalive, nil)
 
 	go func() {
 		_, _ = client.Write(keepaliveBytes)
@@ -248,7 +248,7 @@ func TestSessionHoldTimerExpiry(t *testing.T) {
 	peerOpen := &message.Open{
 		Version: 4, MyAS: 65002, HoldTime: 3, BGPIdentifier: 0x01020302,
 	}
-	openBytes, _ := peerOpen.Pack(nil)
+	openBytes := message.PackTo(peerOpen, nil)
 
 	go func() {
 		_, _ = client.Write(openBytes)
@@ -259,7 +259,7 @@ func TestSessionHoldTimerExpiry(t *testing.T) {
 
 	// Send KEEPALIVE to establish
 	keepalive := message.NewKeepalive()
-	keepaliveBytes, _ := keepalive.Pack(nil)
+	keepaliveBytes := message.PackTo(keepalive, nil)
 
 	go func() {
 		_, _ = client.Write(keepaliveBytes)
@@ -295,7 +295,7 @@ func TestSessionNotification(t *testing.T) {
 		ErrorCode:    message.NotifyOpenMessage,
 		ErrorSubcode: message.NotifyOpenUnsupportedVersion,
 	}
-	notifBytes, _ := notif.Pack(nil)
+	notifBytes := message.PackTo(notif, nil)
 
 	go func() {
 		_, _ = client.Write(notifBytes)
@@ -378,7 +378,7 @@ func TestSessionCapabilityNegotiation(t *testing.T) {
 		Version: 4, MyAS: 65002, HoldTime: 90, BGPIdentifier: 0x01020302,
 		OptionalParams: []byte{2, 6, 65, 4, 0, 0, 0xFD, 0xEA},
 	}
-	openBytes, _ := peerOpen.Pack(nil)
+	openBytes := message.PackTo(peerOpen, nil)
 
 	go func() {
 		_, _ = client.Write(openBytes)
@@ -434,7 +434,7 @@ func TestSessionFamilyValidation(t *testing.T) {
 			1, 4, 0, 1, 0, 1, // Multiprotocol IPv4/Unicast (code=1, len=4, AFI=1, res=0, SAFI=1)
 		},
 	}
-	openBytes, _ := peerOpen.Pack(nil)
+	openBytes := message.PackTo(peerOpen, nil)
 
 	go func() {
 		_, _ = client.Write(openBytes)
@@ -453,7 +453,7 @@ func TestSessionFamilyValidation(t *testing.T) {
 
 	// Exchange KEEPALIVE to reach Established
 	keepalive := message.NewKeepalive()
-	keepaliveBytes, _ := keepalive.Pack(nil)
+	keepaliveBytes := message.PackTo(keepalive, nil)
 
 	go func() {
 		_, _ = client.Write(keepaliveBytes)
@@ -560,7 +560,7 @@ func TestSessionExtendedMessageValidation(t *testing.T) {
 			1, 4, 0, 1, 0, 1, // Multiprotocol IPv4/Unicast
 		},
 	}
-	openBytes, _ := peerOpen.Pack(nil)
+	openBytes := message.PackTo(peerOpen, nil)
 
 	go func() {
 		_, _ = client.Write(openBytes)
@@ -578,7 +578,7 @@ func TestSessionExtendedMessageValidation(t *testing.T) {
 
 	// Exchange KEEPALIVE to reach Established
 	keepalive := message.NewKeepalive()
-	keepaliveBytes, _ := keepalive.Pack(nil)
+	keepaliveBytes := message.PackTo(keepalive, nil)
 
 	go func() {
 		_, _ = client.Write(keepaliveBytes)
@@ -653,7 +653,7 @@ func TestSessionExtendedMessageAccepted(t *testing.T) {
 			6, 0, // ExtendedMessage capability (code=6, len=0)
 		},
 	}
-	openBytes, _ := peerOpen.Pack(nil)
+	openBytes := message.PackTo(peerOpen, nil)
 
 	go func() {
 		_, _ = client.Write(openBytes)
@@ -671,7 +671,7 @@ func TestSessionExtendedMessageAccepted(t *testing.T) {
 
 	// Exchange KEEPALIVE to reach Established
 	keepalive := message.NewKeepalive()
-	keepaliveBytes, _ := keepalive.Pack(nil)
+	keepaliveBytes := message.PackTo(keepalive, nil)
 
 	go func() {
 		_, _ = client.Write(keepaliveBytes)
@@ -801,7 +801,7 @@ func TestSessionFamilyValidationIgnoreMismatch(t *testing.T) {
 			1, 4, 0, 1, 0, 1,
 		},
 	}
-	openBytes, _ := peerOpen.Pack(nil)
+	openBytes := message.PackTo(peerOpen, nil)
 
 	go func() {
 		_, _ = client.Write(openBytes)
@@ -815,7 +815,7 @@ func TestSessionFamilyValidationIgnoreMismatch(t *testing.T) {
 
 	// Exchange KEEPALIVE to reach Established
 	keepalive := message.NewKeepalive()
-	keepaliveBytes, _ := keepalive.Pack(nil)
+	keepaliveBytes := message.PackTo(keepalive, nil)
 
 	go func() {
 		_, _ = client.Write(keepaliveBytes)
@@ -919,7 +919,7 @@ func TestSessionRejectsInvalidHoldTime(t *testing.T) {
 					1, 4, 0, 1, 0, 1, // Multiprotocol IPv4/Unicast
 				},
 			}
-			openBytes, _ := peerOpen.Pack(nil)
+			openBytes := message.PackTo(peerOpen, nil)
 
 			go func() {
 				_, _ = client.Write(openBytes)
@@ -987,7 +987,7 @@ func TestSessionRFC7606MalformedOriginTreatAsWithdraw(t *testing.T) {
 			1, 4, 0, 1, 0, 1, // Multiprotocol IPv4/Unicast
 		},
 	}
-	openBytes, _ := peerOpen.Pack(nil)
+	openBytes := message.PackTo(peerOpen, nil)
 
 	go func() {
 		_, _ = client.Write(openBytes)
@@ -1001,7 +1001,7 @@ func TestSessionRFC7606MalformedOriginTreatAsWithdraw(t *testing.T) {
 
 	// Send KEEPALIVE to reach Established
 	keepalive := message.NewKeepalive()
-	keepaliveBytes, _ := keepalive.Pack(nil)
+	keepaliveBytes := message.PackTo(keepalive, nil)
 
 	go func() {
 		_, _ = client.Write(keepaliveBytes)
@@ -1095,7 +1095,7 @@ func TestSessionRFC7606MalformedCommunityTreatAsWithdraw(t *testing.T) {
 			1, 4, 0, 1, 0, 1, // Multiprotocol IPv4/Unicast
 		},
 	}
-	openBytes, _ := peerOpen.Pack(nil)
+	openBytes := message.PackTo(peerOpen, nil)
 
 	go func() {
 		_, _ = client.Write(openBytes)
@@ -1105,7 +1105,7 @@ func TestSessionRFC7606MalformedCommunityTreatAsWithdraw(t *testing.T) {
 	_ = session.ReadAndProcess()
 
 	keepalive := message.NewKeepalive()
-	keepaliveBytes, _ := keepalive.Pack(nil)
+	keepaliveBytes := message.PackTo(keepalive, nil)
 
 	go func() {
 		_, _ = client.Write(keepaliveBytes)
@@ -1194,7 +1194,7 @@ func TestSessionRFC7606MissingMandatoryTreatAsWithdraw(t *testing.T) {
 			1, 4, 0, 1, 0, 1, // Multiprotocol IPv4/Unicast
 		},
 	}
-	openBytes, _ := peerOpen.Pack(nil)
+	openBytes := message.PackTo(peerOpen, nil)
 
 	go func() {
 		_, _ = client.Write(openBytes)
@@ -1204,7 +1204,7 @@ func TestSessionRFC7606MissingMandatoryTreatAsWithdraw(t *testing.T) {
 	_ = session.ReadAndProcess()
 
 	keepalive := message.NewKeepalive()
-	keepaliveBytes, _ := keepalive.Pack(nil)
+	keepaliveBytes := message.PackTo(keepalive, nil)
 
 	go func() {
 		_, _ = client.Write(keepaliveBytes)
@@ -1279,7 +1279,7 @@ func TestSendRawUpdateBody(t *testing.T) {
 			65, 4, 0, 0, 0xFD, 0xEA, // ASN4 = 65002
 		},
 	}
-	openBytes, _ := peerOpen.Pack(nil)
+	openBytes := message.PackTo(peerOpen, nil)
 
 	go func() {
 		_, _ = client.Write(openBytes)
@@ -1292,7 +1292,7 @@ func TestSendRawUpdateBody(t *testing.T) {
 
 	// Exchange KEEPALIVE to reach Established
 	keepalive := message.NewKeepalive()
-	keepaliveBytes, _ := keepalive.Pack(nil)
+	keepaliveBytes := message.PackTo(keepalive, nil)
 
 	go func() {
 		_, _ = client.Write(keepaliveBytes)
@@ -1442,7 +1442,7 @@ func setupEstablishedSession(t *testing.T) (*Session, net.Conn, func()) {
 			70, 0, // Enhanced Route Refresh (code=70, len=0)
 		},
 	}
-	openBytes, _ := peerOpen.Pack(nil)
+	openBytes := message.PackTo(peerOpen, nil)
 
 	go func() {
 		_, _ = client.Write(openBytes)
@@ -1456,7 +1456,7 @@ func setupEstablishedSession(t *testing.T) (*Session, net.Conn, func()) {
 
 	// Exchange KEEPALIVE to reach Established
 	keepalive := message.NewKeepalive()
-	keepaliveBytes, _ := keepalive.Pack(nil)
+	keepaliveBytes := message.PackTo(keepalive, nil)
 
 	go func() {
 		_, _ = client.Write(keepaliveBytes)

@@ -320,8 +320,13 @@ func (p *ASPath) Len(ctx *context.EncodingContext) int {
 - Updated `Message` interface to embed `WireWriter`
 - Implemented `Len(ctx)` and `WriteTo(buf, off, ctx)` on all message types:
   - Keepalive, Open, Notification, Update, RouteRefresh
-- Updated all callers to pass context parameter (nil for backward compat)
+- Added `PackTo(msg, ctx)` helper function for migration convenience
 - Updated hash computation in EncodingContext to include ExtendedMessage
+- **Migrated callers from Pack() to PackTo():**
+  - `pkg/reactor/reactor.go` - RouteRefresh, Notification
+  - `pkg/reactor/session.go` - writeMessage()
+  - `pkg/reactor/session_test.go` - all test Pack calls
+  - `pkg/reactor/collision_test.go` - all test Pack calls
 
 ### Bugs Found/Fixed
 - Import cycle: WireWriter cannot be in `pkg/bgp/wire` because wire→context→nlri→wire
@@ -333,10 +338,10 @@ func (p *ASPath) Len(ctx *context.EncodingContext) int {
 
 ### Deviations from Plan
 - **WireWriter location**: Placed in `context` package instead of `wire` due to import cycle
-- **Pack() kept**: Original plan was to remove Pack(), but kept it for gradual migration
-  - Created follow-up spec: `spec-pack-removal.md` for full removal
+- **Pack() kept but callers migrated**: Pack methods remain but reactor callers now use PackTo
+  - Created follow-up spec: `spec-pack-removal.md` for full removal of Pack methods
 - **Attribute interface not updated**: Deferred to separate spec - attributes already have WriteTo methods
-- **message.Negotiated kept**: Still used by callers; will be removed with Pack in follow-up
+- **message.Negotiated kept**: Type still exists but no longer used by reactor; will be removed in follow-up
 
 ## Checklist
 

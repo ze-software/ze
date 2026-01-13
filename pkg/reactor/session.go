@@ -161,11 +161,10 @@ func NewSession(settings *PeerSettings) *Session {
 	s.timers.OnKeepaliveTimerExpires(func() {
 		s.mu.Lock()
 		conn := s.conn
-		neg := s.negotiated
 		s.mu.Unlock()
 
 		if conn != nil {
-			_ = s.sendKeepalive(conn, neg)
+			_ = s.sendKeepalive(conn)
 		}
 	})
 
@@ -411,10 +410,9 @@ func (s *Session) processOpen(open *message.Open) error {
 	if open.Version != 4 {
 		s.mu.RLock()
 		conn := s.conn
-		neg := s.negotiated
 		s.mu.RUnlock()
 
-		_ = s.sendNotification(conn, neg,
+		_ = s.sendNotification(conn,
 			message.NotifyOpenMessage,
 			message.NotifyOpenUnsupportedVersion,
 			[]byte{4},
@@ -428,12 +426,11 @@ func (s *Session) processOpen(open *message.Open) error {
 	if err := open.ValidateHoldTime(); err != nil {
 		s.mu.RLock()
 		conn := s.conn
-		neg := s.negotiated
 		s.mu.RUnlock()
 
 		var notif *message.Notification
 		if errors.As(err, &notif) {
-			_ = s.sendNotification(conn, neg, notif.ErrorCode, notif.ErrorSubcode, notif.Data)
+			_ = s.sendNotification(conn, notif.ErrorCode, notif.ErrorSubcode, notif.Data)
 		}
 		_ = s.fsm.Event(fsm.EventBGPOpenMsgErr)
 		s.closeConn()
@@ -457,7 +454,7 @@ func (s *Session) processOpen(open *message.Open) error {
 	if len(requiredFamilies) > 0 && neg != nil {
 		if missing := neg.CheckRequired(requiredFamilies); len(missing) > 0 {
 			capData := buildUnsupportedCapabilityData(missing)
-			_ = s.sendNotification(conn, neg,
+			_ = s.sendNotification(conn,
 				message.NotifyOpenMessage,
 				message.NotifyOpenUnsupportedCapability,
 				capData,
@@ -474,7 +471,7 @@ func (s *Session) processOpen(open *message.Open) error {
 	}
 
 	// Send KEEPALIVE
-	if err := s.sendKeepalive(conn, neg); err != nil {
+	if err := s.sendKeepalive(conn); err != nil {
 		return err
 	}
 
@@ -513,12 +510,11 @@ func (s *Session) Close() error {
 
 	s.mu.Lock()
 	conn := s.conn
-	neg := s.negotiated
 	s.mu.Unlock()
 
 	if conn != nil {
 		// Send NOTIFICATION (Cease/Administrative Shutdown).
-		_ = s.sendNotification(conn, neg,
+		_ = s.sendNotification(conn,
 			message.NotifyCease,
 			message.NotifyCeaseAdminShutdown,
 			nil,
@@ -538,11 +534,10 @@ func (s *Session) CloseWithNotification(code message.NotifyErrorCode, subcode ui
 
 	s.mu.Lock()
 	conn := s.conn
-	neg := s.negotiated
 	s.mu.Unlock()
 
 	if conn != nil {
-		_ = s.sendNotification(conn, neg, code, subcode, nil)
+		_ = s.sendNotification(conn, code, subcode, nil)
 	}
 
 	s.closeConn()
@@ -566,7 +561,6 @@ func (s *Session) Teardown(subcode uint8) error {
 
 	s.mu.Lock()
 	conn := s.conn
-	neg := s.negotiated
 	s.mu.Unlock()
 
 	if conn != nil {
@@ -580,7 +574,7 @@ func (s *Session) Teardown(subcode uint8) error {
 			copy(data[1:], msg)
 		}
 
-		_ = s.sendNotification(conn, neg,
+		_ = s.sendNotification(conn,
 			message.NotifyCease,
 			subcode,
 			data,
@@ -692,14 +686,10 @@ func (s *Session) readAndProcessMessage(conn net.Conn) error {
 	}
 
 	// RFC 8654: Validate message length against max (4096 or 65535 if extended).
-	s.mu.RLock()
-	neg := s.negotiated
-	s.mu.RUnlock()
-
 	if err := hdr.ValidateLengthWithMax(s.extendedMessage); err != nil {
 		s.returnReadBuffer(buf)
 		// RFC 8654 Section 5: Send NOTIFICATION with Bad Message Length.
-		_ = s.sendNotification(conn, neg,
+		_ = s.sendNotification(conn,
 			message.NotifyMessageHeader,
 			message.NotifyHeaderBadLength,
 			[]byte{byte(hdr.Length >> 8), byte(hdr.Length)},
@@ -774,12 +764,11 @@ func (s *Session) processMessage(hdr *message.Header, body []byte, buf []byte) (
 func (s *Session) handleUnknownType(msgType message.MessageType) error {
 	s.mu.RLock()
 	conn := s.conn
-	neg := s.negotiated
 	s.mu.RUnlock()
 
 	// ExaBGP format: Message Header Error (1), subcode 0, text message.
 	errMsg := fmt.Sprintf("can not decode update message of type \"%d\"", msgType)
-	_ = s.sendNotification(conn, neg,
+	_ = s.sendNotification(conn,
 		message.NotifyMessageHeader,
 		0, // ExaBGP uses subcode 0
 		[]byte(errMsg),
@@ -802,10 +791,9 @@ func (s *Session) handleOpen(body []byte) error {
 	if open.Version != 4 {
 		s.mu.RLock()
 		conn := s.conn
-		neg := s.negotiated
 		s.mu.RUnlock()
 
-		_ = s.sendNotification(conn, neg,
+		_ = s.sendNotification(conn,
 			message.NotifyOpenMessage,
 			message.NotifyOpenUnsupportedVersion,
 			[]byte{4}, // We support version 4
@@ -820,13 +808,12 @@ func (s *Session) handleOpen(body []byte) error {
 	if err := open.ValidateHoldTime(); err != nil {
 		s.mu.RLock()
 		conn := s.conn
-		neg := s.negotiated
 		s.mu.RUnlock()
 
 		// Send NOTIFICATION with the error (already a *Notification).
 		var notif *message.Notification
 		if errors.As(err, &notif) {
-			_ = s.sendNotification(conn, neg, notif.ErrorCode, notif.ErrorSubcode, notif.Data)
+			_ = s.sendNotification(conn, notif.ErrorCode, notif.ErrorSubcode, notif.Data)
 		}
 		_ = s.fsm.Event(fsm.EventBGPOpenMsgErr)
 		s.closeConn()
@@ -852,7 +839,7 @@ func (s *Session) handleOpen(body []byte) error {
 			// Required families not negotiated - send NOTIFICATION and reject.
 			// RFC 5492 Section 3: Use Unsupported Capability subcode.
 			capData := buildUnsupportedCapabilityData(missing)
-			_ = s.sendNotification(conn, neg,
+			_ = s.sendNotification(conn,
 				message.NotifyOpenMessage,
 				message.NotifyOpenUnsupportedCapability,
 				capData,
@@ -869,7 +856,7 @@ func (s *Session) handleOpen(body []byte) error {
 	}
 
 	// Send KEEPALIVE to confirm.
-	if err := s.sendKeepalive(conn, neg); err != nil {
+	if err := s.sendKeepalive(conn); err != nil {
 		return err
 	}
 
@@ -1106,10 +1093,9 @@ func (s *Session) handleRouteRefresh(body []byte) error {
 	if len(body) != 4 {
 		s.mu.RLock()
 		conn := s.conn
-		neg := s.negotiated
 		s.mu.RUnlock()
 
-		_ = s.sendNotification(conn, neg,
+		_ = s.sendNotification(conn,
 			message.NotifyRouteRefresh,
 			message.NotifyRouteRefreshInvalidLength,
 			body,
@@ -1274,58 +1260,36 @@ func (s *Session) sendOpen(conn net.Conn) error {
 	s.localOpen = open
 	s.mu.Unlock()
 
-	return s.writeMessage(conn, nil, open)
+	return s.writeMessage(conn, open)
 }
 
 // sendKeepalive sends a KEEPALIVE message.
-func (s *Session) sendKeepalive(conn net.Conn, neg *capability.Negotiated) error {
-	return s.writeMessage(conn, neg, message.NewKeepalive())
+func (s *Session) sendKeepalive(conn net.Conn) error {
+	return s.writeMessage(conn, message.NewKeepalive())
 }
 
 // sendNotification sends a NOTIFICATION message.
-func (s *Session) sendNotification(conn net.Conn, neg *capability.Negotiated, code message.NotifyErrorCode, subcode uint8, data []byte) error {
+func (s *Session) sendNotification(conn net.Conn, code message.NotifyErrorCode, subcode uint8, data []byte) error {
 	notif := &message.Notification{
 		ErrorCode:    code,
 		ErrorSubcode: subcode,
 		Data:         data,
 	}
-	return s.writeMessage(conn, neg, notif)
+	return s.writeMessage(conn, notif)
 }
 
 // writeMessage packs and sends a BGP message.
-func (s *Session) writeMessage(conn net.Conn, neg *capability.Negotiated, msg message.Message) error {
+func (s *Session) writeMessage(conn net.Conn, msg message.Message) error {
 	if conn == nil {
 		return ErrNotConnected
 	}
 
-	// Convert capability.Negotiated to message.Negotiated for packing.
-	var msgNeg *message.Negotiated
-	if neg != nil {
-		msgNeg = &message.Negotiated{
-			ASN4:            neg.ASN4,
-			ExtendedMessage: neg.ExtendedMessage,
-			LocalAS:         neg.LocalASN,
-			PeerAS:          neg.PeerASN,
-			HoldTime:        neg.HoldTime,
-		}
-		// Populate ADD-PATH send capability per family (RFC 7911)
-		for _, f := range neg.Families() {
-			mode := neg.AddPathMode(f)
-			if mode == capability.AddPathSend || mode == capability.AddPathBoth {
-				if msgNeg.AddPath == nil {
-					msgNeg.AddPath = make(map[message.Family]bool)
-				}
-				msgNeg.AddPath[message.Family{AFI: uint16(f.AFI), SAFI: uint8(f.SAFI)}] = true
-			}
-		}
-	}
+	// Use WriteTo via PackTo helper. Message types don't use context for
+	// basic encoding (KEEPALIVE, OPEN, NOTIFICATION have fixed formats).
+	// UPDATE messages have wire bytes pre-built.
+	data := message.PackTo(msg, nil)
 
-	data, err := msg.Pack(msgNeg)
-	if err != nil {
-		return fmt.Errorf("pack message: %w", err)
-	}
-
-	_, err = conn.Write(data)
+	_, err := conn.Write(data)
 	if err != nil {
 		return err
 	}

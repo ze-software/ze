@@ -48,7 +48,7 @@ func setupOpenConfirmSession(t *testing.T, localID uint32) (*Session, net.Conn, 
 	peerOpen := &message.Open{
 		Version: 4, MyAS: 65002, HoldTime: 90, BGPIdentifier: 0x01020302,
 	}
-	openBytes, _ := peerOpen.Pack(nil)
+	openBytes := message.PackTo(peerOpen, nil)
 
 	go func() {
 		_, _ = client.Write(openBytes)
@@ -89,7 +89,7 @@ func TestCollisionEstablished(t *testing.T) {
 	peerOpen := &message.Open{
 		Version: 4, MyAS: 65002, HoldTime: 90, BGPIdentifier: 0x01020302,
 	}
-	openBytes, _ := peerOpen.Pack(nil)
+	openBytes := message.PackTo(peerOpen, nil)
 
 	go func() {
 		_, _ = client.Write(openBytes)
@@ -100,7 +100,7 @@ func TestCollisionEstablished(t *testing.T) {
 
 	// Send KEEPALIVE to reach ESTABLISHED
 	keepalive := message.NewKeepalive()
-	keepaliveBytes, _ := keepalive.Pack(nil)
+	keepaliveBytes := message.PackTo(keepalive, nil)
 	go func() {
 		_, _ = client.Write(keepaliveBytes)
 	}()
@@ -284,7 +284,7 @@ func TestCollisionNotificationSent(t *testing.T) {
 	peerOpen := &message.Open{
 		Version: 4, MyAS: 65002, HoldTime: 90, BGPIdentifier: 0x01020302,
 	}
-	openBytes, _ := peerOpen.Pack(nil)
+	openBytes := message.PackTo(peerOpen, nil)
 
 	go func() {
 		_, _ = client.Write(openBytes)
@@ -294,7 +294,7 @@ func TestCollisionNotificationSent(t *testing.T) {
 	_ = session.ReadAndProcess()
 
 	keepalive := message.NewKeepalive()
-	keepaliveBytes, _ := keepalive.Pack(nil)
+	keepaliveBytes := message.PackTo(keepalive, nil)
 	go func() {
 		_, _ = client.Write(keepaliveBytes)
 	}()
@@ -324,9 +324,8 @@ func TestCollisionNotificationSent(t *testing.T) {
 		ErrorCode:    message.NotifyCease,
 		ErrorSubcode: message.NotifyCeaseConnectionCollision,
 	}
-	data, err := notif.Pack(nil)
-	require.NoError(t, err)
-	_, err = incomingServer.Write(data)
+	data := message.PackTo(notif, nil)
+	_, err := incomingServer.Write(data)
 	require.NoError(t, err)
 	_ = incomingServer.Close()
 
@@ -416,7 +415,7 @@ func TestPeerResolvePendingCollisionLocalWins(t *testing.T) {
 	peerOpen := &message.Open{
 		Version: 4, MyAS: 65002, HoldTime: 90, BGPIdentifier: 0x01020302,
 	}
-	openBytes, _ := peerOpen.Pack(nil)
+	openBytes := message.PackTo(peerOpen, nil)
 
 	go func() {
 		_, _ = client.Write(openBytes)
@@ -478,7 +477,7 @@ func TestPeerResolvePendingCollisionRemoteWins(t *testing.T) {
 	peerOpen := &message.Open{
 		Version: 4, MyAS: 65002, HoldTime: 90, BGPIdentifier: 0x01020302,
 	}
-	openBytes, _ := peerOpen.Pack(nil)
+	openBytes := message.PackTo(peerOpen, nil)
 
 	go func() {
 		_, _ = client.Write(openBytes)

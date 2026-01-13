@@ -2174,11 +2174,8 @@ func (a *reactorAPIAdapter) sendRouteRefresh(peerSelector string, afi uint16, sa
 		Subtype: subtype,
 	}
 
-	// Pack includes the BGP header
-	data, err := rr.Pack(nil)
-	if err != nil {
-		return err
-	}
+	// WriteTo includes the BGP header
+	data := message.PackTo(rr, nil)
 
 	a.r.mu.RLock()
 	defer a.r.mu.RUnlock()
@@ -4223,10 +4220,8 @@ func (r *Reactor) rejectConnectionCollision(conn net.Conn) {
 		ErrorCode:    message.NotifyCease,
 		ErrorSubcode: message.NotifyCeaseConnectionCollision,
 	}
-	data, err := notif.Pack(nil)
-	if err == nil {
-		_, _ = conn.Write(data)
-	}
+	data := message.PackTo(notif, nil)
+	_, _ = conn.Write(data)
 	_ = conn.Close()
 }
 
