@@ -122,6 +122,43 @@ N/A - No numeric range validation in this feature.
 - FlowSpec JSON validation - requires `flowSpecToJSON` transformation
 - VPN JSON validation - requires RD handling
 
+## Follow-up: Convert ExaBGP JSON to ZeBGP Format
+
+**REQUIRED:** All `json:` lines in `.ci` test files using ExaBGP envelope format must be converted to ZeBGP plugin format.
+
+### Current State
+- Tests in `test/data/plugin/ipv4.ci` and `ipv6.ci` use correct ZeBGP plugin format
+- Tests in `test/data/encode/*.ci` use legacy ExaBGP envelope format (skipped by validation)
+
+### Action Required
+Convert all ExaBGP format JSON:
+```json
+{"exabgp":"6.0.0","type":"update","neighbor":{"message":{"update":{...}}}}
+```
+
+To ZeBGP plugin format:
+```json
+{"message":{"type":"update"},"origin":"igp","ipv4/unicast":[{"next-hop":"...","action":"add","nlri":["..."]}]}
+```
+
+### Files to Convert
+| File | Family | Status |
+|------|--------|--------|
+| `test/data/encode/addpath.ci` | ipv4/unicast, ipv4/mpls-vpn | pending |
+| `test/data/encode/attributes.ci` | ipv4/unicast | pending |
+| `test/data/encode/ebgp.ci` | ipv4/unicast | pending |
+| `test/data/encode/extended-*.ci` | various | pending |
+| `test/data/encode/l2vpn.ci` | l2vpn/evpn | pending (Phase 2) |
+| `test/data/encode/template.ci` | ipv4/unicast | pending |
+| `test/data/encode/vpn.ci` | ipv4/mpls-vpn | pending (Phase 2) |
+| `test/data/encode/watchdog.ci` | ipv4/unicast | pending |
+| `test/data/plugin/nexthop.ci` | ipv6/unicast | pending |
+
+### Why This Matters
+- ExaBGP format detection (`"exabgp"` key) is a temporary workaround
+- All JSON should use ZeBGP's canonical plugin format
+- Enables full validation coverage across all test files
+
 ## Files to Modify
 - `test/functional/runner.go` - Add `validateJSON()` call, invoke `zebgp decode`
 - `test/functional/record.go` - Add `JSONError` field to Record, `JSONValidated` bool
