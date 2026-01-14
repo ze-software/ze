@@ -452,9 +452,7 @@ peer 10.0.0.1 received 123 update hex attr set 400101... nlri ipv4/unicast add 1
 **JSON format:**
 ```json
 {
-  "type": "update",
-  "direction": "received",
-  "msg-id": 123,
+  "message": {"type": "update", "direction": "received", "id": 123},
   "peer": {"address": "10.0.0.1", "asn": 65001},
   "attr": {
     "encoding": "hex",

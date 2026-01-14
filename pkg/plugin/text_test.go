@@ -172,11 +172,16 @@ func TestFormatMessageJSON(t *testing.T) {
 	got := FormatMessage(peer, msg, content, "")
 
 	// Check key parts of the JSON structure
+	// Direction is now inside message wrapper: {"message":{"type":"update","direction":"received"...}}
 	if !strings.Contains(got, `"type":"update"`) {
 		t.Error("missing type:update")
 	}
+	if !strings.Contains(got, `"message":{"type":"update"`) {
+		t.Error("missing message wrapper")
+	}
+	// Direction should be inside message wrapper, not at root
 	if !strings.Contains(got, `"direction":"received"`) {
-		t.Error("missing direction:received")
+		t.Error("missing direction:received in message wrapper")
 	}
 	if !strings.Contains(got, `"peer":{"address":"10.0.0.1","asn":65001}`) {
 		t.Error("missing peer info")

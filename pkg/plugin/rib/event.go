@@ -6,8 +6,9 @@ import (
 )
 
 // knownFields are the standard Event fields that are not family operations.
+// Note: "direction" is inside message wrapper, not at root level.
 var knownFields = map[string]bool{
-	"type": true, "msg-id": true, "message": true, "direction": true,
+	"type": true, "msg-id": true, "message": true,
 	"peer": true, "state": true, "origin": true, "as-path": true,
 	"med": true, "local-preference": true, "communities": true,
 	"large-communities": true, "extended-communities": true,
@@ -61,11 +62,8 @@ type Event struct {
 	Type  string `json:"type"`
 	MsgID uint64 `json:"msg-id"`
 
-	// Received events use message wrapper
+	// Received events use message wrapper (includes type, id, direction)
 	Message *MessageInfo `json:"message,omitempty"`
-
-	// Direction for received events
-	Direction string `json:"direction,omitempty"`
 
 	// Peer info - uses RawMessage to handle both flat and nested formats
 	Peer json.RawMessage `json:"peer"`
@@ -107,8 +105,9 @@ type FamilyOperation struct {
 
 // MessageInfo contains message wrapper for received events.
 type MessageInfo struct {
-	Type string `json:"type"`
-	ID   uint64 `json:"id,omitempty"`
+	Type      string `json:"type"`
+	ID        uint64 `json:"id,omitempty"`
+	Direction string `json:"direction,omitempty"`
 }
 
 // GetEventType returns unified event type.
@@ -126,6 +125,14 @@ func (e *Event) GetMsgID() uint64 {
 		return e.Message.ID
 	}
 	return e.MsgID
+}
+
+// GetDirection returns the direction from message wrapper.
+func (e *Event) GetDirection() string {
+	if e.Message != nil {
+		return e.Message.Direction
+	}
+	return ""
 }
 
 // PeerInfoFlat is the flat peer format (sent events, state events).

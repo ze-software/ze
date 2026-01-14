@@ -329,8 +329,7 @@ Engine sends events with base64-encoded wire bytes:
 
 ```json
 {
-  "message": {"type": "update", "id": 12345},
-  "direction": "received",
+  "message": {"type": "update", "id": 12345, "direction": "received"},
   "peer": {"address": "10.0.0.1", "context-id": 42},
   "raw-attributes": "QAEBAQA=",
   "raw-nlri": "GApAAA==",

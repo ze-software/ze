@@ -90,6 +90,15 @@ func setMessageID(msg map[string]any, msgID uint64) {
 	}
 }
 
+// setMessageDirection sets the direction field in the message wrapper.
+func setMessageDirection(msg map[string]any, direction string) {
+	if direction != "" {
+		if wrapper, ok := msg["message"].(map[string]any); ok {
+			wrapper["direction"] = direction
+		}
+	}
+}
+
 // peerSection creates the neighbor section of the message.
 func (e *JSONEncoder) peerSection(peer PeerInfo) map[string]any {
 	return map[string]any{
@@ -152,7 +161,7 @@ func (e *JSONEncoder) EOR(peer PeerInfo, family string) string {
 // ZeBGP extensions: code_name, subcode_name, message, direction, id in message wrapper.
 func (e *JSONEncoder) Notification(peer PeerInfo, notify DecodedNotification, direction string, msgID uint64) string {
 	msg := e.message(peer, "notification")
-	msg["direction"] = direction
+	setMessageDirection(msg, direction)
 	setMessageID(msg, msgID)
 	peerObj := e.peerSection(peer)
 
@@ -189,7 +198,7 @@ func (e *JSONEncoder) Notification(peer PeerInfo, notify DecodedNotification, di
 // Capabilities are structured as [{code, name, value}] for easy parsing.
 func (e *JSONEncoder) Open(peer PeerInfo, open DecodedOpen, direction string, msgID uint64) string {
 	msg := e.message(peer, "open")
-	msg["direction"] = direction
+	setMessageDirection(msg, direction)
 	setMessageID(msg, msgID)
 	peerObj := e.peerSection(peer)
 
@@ -220,7 +229,7 @@ func (e *JSONEncoder) Open(peer PeerInfo, open DecodedOpen, direction string, ms
 // Keepalive returns JSON for a KEEPALIVE message.
 func (e *JSONEncoder) Keepalive(peer PeerInfo, direction string, msgID uint64) string {
 	msg := e.message(peer, "keepalive")
-	msg["direction"] = direction
+	setMessageDirection(msg, direction)
 	setMessageID(msg, msgID)
 	msg["peer"] = e.peerSection(peer)
 	return e.marshal(msg)
@@ -231,7 +240,7 @@ func (e *JSONEncoder) Keepalive(peer PeerInfo, direction string, msgID uint64) s
 func (e *JSONEncoder) RouteRefresh(peer PeerInfo, decoded DecodedRouteRefresh, direction string, msgID uint64) string {
 	// Use subtype name as event type for proper dispatch
 	msg := e.message(peer, decoded.SubtypeName)
-	msg["direction"] = direction
+	setMessageDirection(msg, direction)
 	setMessageID(msg, msgID)
 	msg["peer"] = e.peerSection(peer)
 

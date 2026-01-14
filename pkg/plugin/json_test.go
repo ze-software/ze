@@ -369,7 +369,7 @@ func TestAPIOutputIncludesMsgID(t *testing.T) {
 
 // TestJSONEncoderNotification verifies JSON output for NOTIFICATION message.
 //
-// VALIDATES: NOTIFICATION JSON contains code, subcode, data, and ZeBGP extensions.
+// VALIDATES: NOTIFICATION JSON contains code, subcode, data, direction inside message wrapper.
 // PREVENTS: Plugin can't parse notification events or missing error context.
 func TestJSONEncoderNotification(t *testing.T) {
 	enc := NewJSONEncoder("6.0.0")
@@ -402,13 +402,17 @@ func TestJSONEncoderNotification(t *testing.T) {
 	// Check standard fields
 	assert.Equal(t, "6.0.0", result["zebgp"])
 	assert.Equal(t, "testhost", result["host"])
-	assert.Equal(t, "received", result["direction"])
+
+	// Direction should be in message wrapper, not at root
+	_, hasRootDir := result["direction"]
+	assert.False(t, hasRootDir, "direction should NOT be at root level")
 
 	// Check message wrapper
 	msgWrapper, ok := result["message"].(map[string]any)
 	require.True(t, ok, "message wrapper must exist")
 	assert.Equal(t, "notification", msgWrapper["type"])
 	assert.Equal(t, float64(42), msgWrapper["id"])
+	assert.Equal(t, "received", msgWrapper["direction"], "direction should be inside message wrapper")
 
 	// Check peer structure
 	peerMap, ok := result["peer"].(map[string]any)
@@ -483,7 +487,7 @@ func TestJSONEncoderNotificationMinimal(t *testing.T) {
 
 // TestJSONEncoderNotificationSent verifies NOTIFICATION with "sent" direction.
 //
-// VALIDATES: Sent notifications include direction field correctly.
+// VALIDATES: Sent notifications include direction field inside message wrapper.
 // PREVENTS: Direction field missing or incorrect for outbound notifications.
 func TestJSONEncoderNotificationSent(t *testing.T) {
 	enc := NewJSONEncoder("6.0.0")
@@ -507,11 +511,14 @@ func TestJSONEncoderNotificationSent(t *testing.T) {
 	var result map[string]any
 	require.NoError(t, json.Unmarshal([]byte(msg), &result))
 
-	assert.Equal(t, "sent", result["direction"])
+	// Direction should be in message wrapper, not at root
+	_, hasRootDir := result["direction"]
+	assert.False(t, hasRootDir, "direction should NOT be at root level")
 
 	msgWrapper, ok := result["message"].(map[string]any)
 	require.True(t, ok, "message wrapper must exist")
 	assert.Equal(t, float64(100), msgWrapper["id"])
+	assert.Equal(t, "sent", msgWrapper["direction"], "direction should be inside message wrapper")
 }
 
 // TestFormatMessageNotificationText verifies FormatMessage returns text for NOTIFICATION.

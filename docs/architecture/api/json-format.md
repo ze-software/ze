@@ -74,8 +74,10 @@ ExaBGP outputs JSON messages to external processes via stdout. ZeBGP uses JSON e
     "local": 65001,
     "peer": 65002
   },
-  "direction": "receive",
-  "message": { ... }
+  "message": {
+    "type": "update",
+    "direction": "received"
+  }
 }
 ```
 
@@ -87,9 +89,9 @@ ExaBGP outputs JSON messages to external processes via stdout. ZeBGP uses JSON e
 | address.peer | string | Peer IP address |
 | asn.local | int | Local AS number |
 | asn.peer | int | Peer AS number |
-| direction | string | "receive" or "send" (optional) |
+| message.direction | string | "received" or "sent" (inside message wrapper) |
 | state | string | For state messages: "up", "connected", "down" |
-| message | object | Message-specific content |
+| message | object | Message-specific content (type, id, direction) |
 
 ---
 
@@ -157,43 +159,34 @@ State messages are emitted by the `apiStateObserver` when peers transition to/fr
 
 ```json
 "message": {
-  "update": {
-    "direction": "received",
-    "msg-id": 12345,
-    "attribute": { ... },
-    "announce": {
-      "ipv4/unicast": {
-        "192.168.1.2": [
-          { "nlri": "10.0.0.0/8" },
-          { "nlri": "10.1.0.0/16" }
-        ]
-      }
-    },
-    "withdraw": {
-      "ipv4/unicast": [
-        { "nlri": "10.2.0.0/16" }
-      ]
-    }
-  }
-}
+  "type": "update",
+  "id": 12345,
+  "direction": "received"
+},
+"ipv4/unicast": [
+  {"next-hop": "192.168.1.2", "action": "add", "nlri": ["10.0.0.0/8", "10.1.0.0/16"]},
+  {"action": "del", "nlri": ["10.2.0.0/16"]}
+]
 ```
 
 ### Message ID and Direction (ZeBGP Extension)
 
-The message ID is stored in the `message` wrapper as `id`:
+The message ID and direction are stored inside the `message` wrapper:
 
 ```json
-{"message":{"type":"update","id":12345},"direction":"received",...}
+{"message":{"type":"update","id":12345,"direction":"received"},...}
 ```
 
+- `id`: Message identifier for forwarding/route reflection
+- `direction`: "received" or "sent" - indicates message flow direction
+- Both stored in `message` wrapper for consistency
 - Stored in `WireUpdate.MessageID()` (single source of truth for UPDATEs)
 - Assigned per-message (all types, not just UPDATE)
 - Included in `message` wrapper when non-zero
 - UPDATE messages cached for forwarding (expires after configurable TTL, default 60s)
-- See `docs/plan/done/spec-message-direction.md` for implementation details
 
 The `direction` field indicates whether the message was `"sent"` or `"received"`.
-Included for all message types at top level.
+Included inside `message` wrapper for all message types.
 
 ### Announce Section
 
@@ -453,15 +446,16 @@ Note: NOTIFICATION names are hyphenated for single-word parsing (e.g., "Administ
 
 **ZeBGP:**
 ```json
-{"message":{"type":"update","id":1},"direction":"received","peer":{"address":"192.0.2.1","asn":65001},"announce":{"origin":"igp","as-path":[65001],"ipv4/unicast":{"192.0.2.1":["10.0.0.0/8"]}}}
+{"message":{"type":"update","id":1,"direction":"received"},"peer":{"address":"192.0.2.1","asn":65001},"origin":"igp","as-path":[65001],"ipv4/unicast":[{"next-hop":"192.0.2.1","action":"add","nlri":["10.0.0.0/8"]}]}
 ```
 
 Key JSON differences:
-- `message` wrapper contains `type`, `id`, `time` (common fields)
+- `message` wrapper contains `type`, `id`, `time`, `direction` (common fields)
 - Flat structure (no `neighbor.message.update` nesting)
-- Includes `direction` at top level for route decisions
+- `direction` inside `message` wrapper for route decisions
 - Message ID in `message.id` for route reflection
-- Prefixes as strings, not objects (`"10.0.0.0/8"` not `{"nlri": "10.0.0.0/8"}`)
+- Command-style NLRI format: family at top level with operations array
+- Prefixes as strings (`"10.0.0.0/8"` not `{"nlri": "10.0.0.0/8"}`)
 
 ---
 

@@ -579,9 +579,9 @@ multiple next-hops per family.
 {
   "message": {
     "type": "update",
-    "id": 1
+    "id": 1,
+    "direction": "received"
   },
-  "direction": "received",
   "peer": {
     "address": "10.0.0.1",
     "asn": 65001
@@ -601,8 +601,7 @@ multiple next-hops per family.
 **Withdrawals:**
 ```json
 {
-  "message": { "type": "update", "id": 2 },
-  "direction": "received",
+  "message": { "type": "update", "id": 2, "direction": "received" },
   "peer": { "address": "10.0.0.1", "asn": 65001 },
   "ipv4/unicast": [
     {
@@ -855,17 +854,18 @@ Peer B,C ← Send wire bytes directly ← Lookup update by ID
 {
   "message": {
     "type": "update",
-    "id": 12345
+    "id": 12345,
+    "direction": "received"
   },
-  "direction": "received",
   "peer": { "address": "10.0.0.1" },
-  "announce": {
-    "nlri": { "ipv4/unicast": ["192.168.1.0/24"] },
-    "attributes": {
-      "as-path": [65001, 65002],
-      "next-hop": "10.0.0.1"
+  "as-path": [65001, 65002],
+  "ipv4/unicast": [
+    {
+      "action": "add",
+      "next-hop": "10.0.0.1",
+      "nlri": ["192.168.1.0/24"]
     }
-  }
+  ]
 }
 ```
 

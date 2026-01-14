@@ -126,7 +126,7 @@ func formatFromFilterResult(peer PeerInfo, msg RawMessage, content ContentConfig
 func formatRawFromResult(peer PeerInfo, msg RawMessage, content ContentConfig, direction string) string {
 	rawHex := fmt.Sprintf("%x", msg.RawBytes)
 	if content.Encoding == EncodingJSON {
-		return fmt.Sprintf(`{"message":{"type":"update"},"direction":"%s","peer":{"address":"%s","asn":%d},"raw":"%s"}`+"\n",
+		return fmt.Sprintf(`{"message":{"type":"update","direction":"%s"},"peer":{"address":"%s","asn":%d},"raw":"%s"}`+"\n",
 			direction, peer.Address, peer.PeerAS, rawHex)
 	}
 	return fmt.Sprintf("peer %s %s update raw %s\n", peer.Address, direction, rawHex)
@@ -178,19 +178,18 @@ func formatFullFromResult(peer PeerInfo, msg RawMessage, content ContentConfig, 
 func formatFilterResultJSON(peer PeerInfo, result FilterResult, msgID uint64, direction string, ctx *bgpctx.EncodingContext) string {
 	var sb strings.Builder
 
-	// Message wrapper with type and optional id
+	// Message wrapper with type, optional id, and direction
 	sb.WriteString(`{"message":{"type":"update"`)
 	if msgID > 0 {
 		sb.WriteString(fmt.Sprintf(`,"id":%d`, msgID))
 	}
-	sb.WriteString(`}`)
-
-	// Include direction
+	// Direction inside message wrapper
 	if direction != "" {
 		sb.WriteString(`,"direction":"`)
 		sb.WriteString(direction)
 		sb.WriteString(`"`)
 	}
+	sb.WriteString(`}`)
 
 	sb.WriteString(`,"peer":{"address":"`)
 	sb.WriteString(peer.Address.String())

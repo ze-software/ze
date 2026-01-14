@@ -540,14 +540,12 @@ func TestServerFormatMessageNotificationJSON(t *testing.T) {
 	err := parseJSON(t, output, &result)
 	require.NoError(t, err, "JSON must be valid: %s", output)
 
-	// Check message wrapper
+	// Check message wrapper (includes type, id, direction)
 	msgWrapper, ok := result["message"].(map[string]any)
 	require.True(t, ok, "message wrapper must exist")
 	assert.Equal(t, "notification", msgWrapper["type"])
 	assert.Equal(t, float64(42), msgWrapper["id"])
-
-	// Check direction
-	assert.Equal(t, "received", result["direction"])
+	assert.Equal(t, "received", msgWrapper["direction"], "direction should be inside message wrapper")
 
 	// Check notification object
 	peerMap, ok := result["peer"].(map[string]any)

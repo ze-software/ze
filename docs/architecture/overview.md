@@ -993,20 +993,19 @@ Must produce identical JSON for same BGP events:
     "asn": {
       "local": 65001,
       "peer": 65002
-    },
-    "direction": "receive",
-    "message": {
-      "update": {
-        "announce": {
-          "ipv4/unicast": {
-            "192.168.1.2": {
-              "10.0.0.0/24": {}
-            }
-          }
-        }
-      }
     }
-  }
+  },
+  "message": {
+    "type": "update",
+    "direction": "received"
+  },
+  "ipv4/unicast": [
+    {
+      "action": "add",
+      "next-hop": "192.168.1.2",
+      "nlri": ["10.0.0.0/24"]
+    }
+  ]
 }
 ```
 

@@ -105,45 +105,52 @@ N/A - No RFC constraints.
 
 ## Implementation Summary
 
-<!-- Fill this section AFTER implementation, before moving to done -->
-
 ### What Was Implemented
--
+- Added `setMessageDirection()` helper in json.go (similar to `setMessageID()`)
+- Updated `Notification()`, `Open()`, `Keepalive()`, `RouteRefresh()` in json.go
+- Updated `formatFilterResultJSON()` and `formatRawFromResult()` in text.go
+- Added `Direction` field to `MessageInfo` struct in rib/event.go
+- Removed root-level `Direction` field from `Event` struct in rib/event.go
+- Added `GetDirection()` method to `Event` for accessing direction
+- Updated test assertions in json_test.go, server_test.go, text_test.go, rib_test.go
+- Updated architecture docs: json-format.md, architecture.md, update-syntax.md, core-design.md, overview.md
 
 ### Bugs Found/Fixed
--
+- None
 
 ### Investigation → Test Rule
--
+- N/A (straightforward refactoring)
 
 ### Design Insights
--
+- `message` wrapper now contains all common message metadata: type, id, direction, time
+- This is cleaner than having some fields at root level and some in the wrapper
 
 ### Deviations from Plan
--
+- Also updated architecture docs not listed in the spec (core-design.md, overview.md)
+- Added `GetDirection()` method for easier access to direction field
 
 ## Checklist
 
 ### 🧪 TDD
-- [ ] Tests written
-- [ ] Tests FAIL (output below)
-- [ ] Implementation complete
-- [ ] Tests PASS (output below)
-- [ ] Boundary tests cover all numeric inputs (last valid, first invalid above/below)
+- [x] Tests written
+- [x] Tests FAIL (verified)
+- [x] Implementation complete
+- [x] Tests PASS (verified)
+- [x] Boundary tests cover all numeric inputs (N/A - string field)
 
 ### Verification
-- [ ] `make lint` passes (26 linters including `govet`, `staticcheck`, `gosec`, `gocritic`)
-- [ ] `make test` passes
-- [ ] `make functional` passes
+- [x] `make lint` passes (26 linters including `govet`, `staticcheck`, `gosec`, `gocritic`)
+- [x] `make test` passes
+- [x] `make functional` passes
 
 ### Documentation (during implementation)
-- [ ] Required docs read
-- [ ] RFC summaries read (all referenced RFCs)
-- [ ] RFC references added to code
-- [ ] RFC constraint comments added (quoted requirement + explanation)
+- [x] Required docs read
+- [x] RFC summaries read (N/A - internal API format)
+- [x] RFC references added to code (N/A - internal API format)
+- [x] RFC constraint comments added (N/A - no RFC constraints)
 
 ### Completion (after tests pass - see Completion Checklist)
-- [ ] Architecture docs updated with learnings
-- [ ] Spec updated with Implementation Summary
-- [ ] Spec moved to `docs/plan/done/NNN-<name>.md`
+- [x] Architecture docs updated with learnings
+- [x] Spec updated with Implementation Summary
+- [x] Spec moved to `docs/plan/done/120-json-direction-in-message.md`
 - [ ] All files committed together

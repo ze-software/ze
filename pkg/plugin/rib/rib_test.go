@@ -36,14 +36,15 @@ func TestParseEvent_SentFormat(t *testing.T) {
 // VALIDATES: Received events with message wrapper are parsed correctly.
 // PREVENTS: Received events being dropped due to format mismatch.
 func TestParseEvent_ReceivedFormat(t *testing.T) {
-	// New command-style format: family at top level with operations array
-	input := `{"message":{"type":"update","id":456},"direction":"received","peer":{"address":{"local":"10.0.0.2","peer":"10.0.0.1"},"asn":{"local":65002,"peer":65001}},"ipv4/unicast":[{"next-hop":"1.1.1.1","action":"add","nlri":["10.0.0.0/24","10.0.1.0/24"]}]}`
+	// New command-style format: direction inside message wrapper
+	input := `{"message":{"type":"update","id":456,"direction":"received"},"peer":{"address":{"local":"10.0.0.2","peer":"10.0.0.1"},"asn":{"local":65002,"peer":65001}},"ipv4/unicast":[{"next-hop":"1.1.1.1","action":"add","nlri":["10.0.0.0/24","10.0.1.0/24"]}]}`
 
 	event, err := parseEvent([]byte(input))
 	require.NoError(t, err)
 
 	assert.Equal(t, "update", event.GetEventType())
 	assert.Equal(t, uint64(456), event.GetMsgID())
+	assert.Equal(t, "received", event.GetDirection())
 	assert.Equal(t, "10.0.0.1", event.GetPeerAddress())
 	assert.NotNil(t, event.FamilyOps)
 	assert.Contains(t, event.FamilyOps, "ipv4/unicast")
