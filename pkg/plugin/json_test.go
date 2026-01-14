@@ -1587,7 +1587,7 @@ func TestJSONEncoderFlowSpec(t *testing.T) {
 				nlri.NewFlowDestPrefixComponent(netip.MustParsePrefix("10.0.0.0/24")),
 			},
 			wantRD:   "0:65000:100",
-			wantSpec: "dest-prefix=10.0.0.0/24",
+			wantSpec: "destination 10.0.0.0/24",
 		},
 		{
 			name:    "flowspec_vpn_protocol",
@@ -1607,7 +1607,7 @@ func TestJSONEncoderFlowSpec(t *testing.T) {
 				nlri.NewFlowDestPortComponent(80, 443),
 			},
 			wantRD:   "1:10.0.0.1:100",
-			wantSpec: "dest-port",
+			wantSpec: "destination-port",
 		},
 	}
 

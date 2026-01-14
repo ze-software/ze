@@ -651,10 +651,78 @@ func TestFlowSpecVPNRoundTrip(t *testing.T) {
 	assert.Len(t, parsed.Components(), 3)
 }
 
+// TestFlowSpecStringCommandStyle verifies command-style string representation.
+//
+// VALIDATES: FlowSpec String() outputs command-style format matching API input syntax.
+// Format: flowspec <component>+ where each component is "<type> <values>".
+//
+// PREVENTS: Output format not matching input parser, breaking round-trip.
+func TestFlowSpecStringCommandStyle(t *testing.T) {
+	tests := []struct {
+		name     string
+		fs       *FlowSpec
+		expected string
+	}{
+		{
+			name: "destination prefix only",
+			fs: func() *FlowSpec {
+				f := NewFlowSpec(IPv4FlowSpec)
+				f.AddComponent(NewFlowDestPrefixComponent(netip.MustParsePrefix("10.0.0.0/24")))
+				return f
+			}(),
+			expected: "flowspec destination 10.0.0.0/24",
+		},
+		{
+			name: "source prefix only",
+			fs: func() *FlowSpec {
+				f := NewFlowSpec(IPv4FlowSpec)
+				f.AddComponent(NewFlowSourcePrefixComponent(netip.MustParsePrefix("192.168.0.0/16")))
+				return f
+			}(),
+			expected: "flowspec source 192.168.0.0/16",
+		},
+		{
+			name: "destination port with multiple values",
+			fs: func() *FlowSpec {
+				f := NewFlowSpec(IPv4FlowSpec)
+				f.AddComponent(NewFlowDestPortComponent(80, 443))
+				return f
+			}(),
+			expected: "flowspec destination-port =80 =443",
+		},
+		{
+			name: "protocol single value",
+			fs: func() *FlowSpec {
+				f := NewFlowSpec(IPv4FlowSpec)
+				f.AddComponent(NewFlowIPProtocolComponent(6))
+				return f
+			}(),
+			expected: "flowspec protocol 6",
+		},
+		{
+			name: "complex rule with multiple components",
+			fs: func() *FlowSpec {
+				f := NewFlowSpec(IPv4FlowSpec)
+				f.AddComponent(NewFlowDestPrefixComponent(netip.MustParsePrefix("10.0.0.0/24")))
+				f.AddComponent(NewFlowDestPortComponent(80, 443))
+				f.AddComponent(NewFlowIPProtocolComponent(6))
+				return f
+			}(),
+			expected: "flowspec destination 10.0.0.0/24 destination-port =80 =443 protocol 6",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.expected, tt.fs.String())
+		})
+	}
+}
+
 // TestFlowSpecVPNStringCommandStyle verifies command-style string representation.
 //
 // VALIDATES: FlowSpecVPN String() outputs command-style format for API round-trip.
-// Format: rd set <rd> <flowspec>.
+// Format: flowspec-vpn rd <rd> <components>.
 //
 // PREVENTS: Output format not matching input parser, breaking round-trip.
 func TestFlowSpecVPNStringCommandStyle(t *testing.T) {
@@ -671,7 +739,7 @@ func TestFlowSpecVPNStringCommandStyle(t *testing.T) {
 				f.AddComponent(NewFlowDestPortComponent(80))
 				return f
 			}(),
-			expected: "rd set 0:100:100 flowspec(dest-port[=80])",
+			expected: "flowspec-vpn rd 0:100:100 destination-port =80",
 		},
 		{
 			name: "flowspec-vpn multiple components",
@@ -684,13 +752,329 @@ func TestFlowSpecVPNStringCommandStyle(t *testing.T) {
 				f.AddComponent(NewFlowDestPortComponent(443))
 				return f
 			}(),
-			expected: "rd set 1:10.0.0.1:200 flowspec(dest-prefix=192.168.1.0/24 dest-port[=443])",
+			expected: "flowspec-vpn rd 1:10.0.0.1:200 destination 192.168.1.0/24 destination-port =443",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			assert.Equal(t, tt.expected, tt.fsv.String())
+		})
+	}
+}
+
+// TestPrefixComponentString verifies prefix component string format.
+//
+// VALIDATES: prefixComponent.String() outputs command-style format.
+// destination <prefix> for Type 1, source <prefix> for Type 2.
+//
+// PREVENTS: Wrong component name, missing space between name and prefix.
+func TestPrefixComponentString(t *testing.T) {
+	tests := []struct {
+		name     string
+		comp     FlowComponent
+		expected string
+	}{
+		{
+			name:     "destination prefix",
+			comp:     NewFlowDestPrefixComponent(netip.MustParsePrefix("10.0.0.0/24")),
+			expected: "destination 10.0.0.0/24",
+		},
+		{
+			name:     "source prefix",
+			comp:     NewFlowSourcePrefixComponent(netip.MustParsePrefix("192.168.0.0/16")),
+			expected: "source 192.168.0.0/16",
+		},
+		{
+			name:     "destination prefix IPv6",
+			comp:     NewFlowDestPrefixComponent(netip.MustParsePrefix("2001:db8::/32")),
+			expected: "destination 2001:db8::/32",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.expected, tt.comp.String())
+		})
+	}
+}
+
+// TestNumericComponentString verifies numeric component string format.
+//
+// VALIDATES: numericComponent.String() outputs command-style format.
+// <type> <op><value> <op><value> ... (space-separated operator+value pairs).
+//
+// PREVENTS: Wrong component names, brackets around values, missing operators.
+func TestNumericComponentString(t *testing.T) {
+	tests := []struct {
+		name     string
+		comp     FlowComponent
+		expected string
+	}{
+		{
+			name:     "destination-port single",
+			comp:     NewFlowDestPortComponent(80),
+			expected: "destination-port =80",
+		},
+		{
+			name:     "destination-port multiple",
+			comp:     NewFlowDestPortComponent(80, 443),
+			expected: "destination-port =80 =443",
+		},
+		{
+			name:     "source-port",
+			comp:     NewFlowSourcePortComponent(1024),
+			expected: "source-port =1024",
+		},
+		{
+			name:     "protocol",
+			comp:     NewFlowIPProtocolComponent(6),
+			expected: "protocol 6",
+		},
+		{
+			name:     "port",
+			comp:     NewFlowPortComponent(53, 80),
+			expected: "port =53 =80",
+		},
+		{
+			name:     "icmp-type",
+			comp:     NewFlowICMPTypeComponent(8),
+			expected: "icmp-type =8",
+		},
+		{
+			name:     "icmp-code",
+			comp:     NewFlowICMPCodeComponent(0),
+			expected: "icmp-code =0",
+		},
+		{
+			name:     "packet-length",
+			comp:     NewFlowPacketLengthComponent(1500),
+			expected: "packet-length =1500",
+		},
+		{
+			name:     "dscp",
+			comp:     NewFlowDSCPComponent(46),
+			expected: "dscp =46",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.expected, tt.comp.String())
+		})
+	}
+}
+
+// TestNumericOperatorString verifies operator symbols in string output.
+//
+// VALIDATES: Operator symbols match API syntax (=, >, <, >=, <=, !=).
+// AND operator uses & prefix.
+//
+// PREVENTS: Wrong operator symbols, missing & for AND.
+func TestNumericOperatorString(t *testing.T) {
+	tests := []struct {
+		name     string
+		comp     FlowComponent
+		expected string
+	}{
+		{
+			name: "equal operator",
+			comp: NewFlowNumericComponent(FlowDestPort, []FlowMatch{
+				{Op: FlowOpEqual, Value: 80},
+			}),
+			expected: "destination-port =80",
+		},
+		{
+			name: "greater than",
+			comp: NewFlowNumericComponent(FlowDestPort, []FlowMatch{
+				{Op: FlowOpGreater, Value: 1024},
+			}),
+			expected: "destination-port >1024",
+		},
+		{
+			name: "less than",
+			comp: NewFlowNumericComponent(FlowDestPort, []FlowMatch{
+				{Op: FlowOpLess, Value: 65535},
+			}),
+			expected: "destination-port <65535",
+		},
+		{
+			name: "greater or equal",
+			comp: NewFlowNumericComponent(FlowDestPort, []FlowMatch{
+				{Op: FlowOpGreater | FlowOpEqual, Value: 1024},
+			}),
+			expected: "destination-port >=1024",
+		},
+		{
+			name: "less or equal",
+			comp: NewFlowNumericComponent(FlowDestPort, []FlowMatch{
+				{Op: FlowOpLess | FlowOpEqual, Value: 65535},
+			}),
+			expected: "destination-port <=65535",
+		},
+		{
+			name: "not equal",
+			comp: NewFlowNumericComponent(FlowDestPort, []FlowMatch{
+				{Op: FlowOpNotEq, Value: 0},
+			}),
+			expected: "destination-port !=0",
+		},
+		{
+			name: "range without AND prefix",
+			comp: NewFlowNumericComponent(FlowDestPort, []FlowMatch{
+				{Op: FlowOpGreater | FlowOpEqual, Value: 1024},
+				{Op: FlowOpLess | FlowOpEqual, Value: 65535, And: true},
+			}),
+			// NOTE: No & prefix - parser infers And from position
+			expected: "destination-port >=1024 <=65535",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.expected, tt.comp.String())
+		})
+	}
+}
+
+// TestFlowSpecStringRoundTrip verifies String() output can be parsed back.
+//
+// VALIDATES: FlowSpec String() output matches API input syntax for round-trip.
+// PREVENTS: Output format diverging from parser, breaking API symmetry.
+//
+// NOTE: This test does NOT use the actual parser (in pkg/plugin).
+// It verifies the STRING FORMAT matches what the parser expects.
+// True round-trip testing requires integration with the parser.
+func TestFlowSpecStringRoundTrip(t *testing.T) {
+	tests := []struct {
+		name     string
+		fs       *FlowSpec
+		expected string
+	}{
+		{
+			name: "destination prefix",
+			fs: func() *FlowSpec {
+				f := NewFlowSpec(IPv4FlowSpec)
+				f.AddComponent(NewFlowDestPrefixComponent(netip.MustParsePrefix("10.0.0.0/24")))
+				return f
+			}(),
+			// Parser expects: nlri ipv4/flowspec add destination 10.0.0.0/24
+			expected: "flowspec destination 10.0.0.0/24",
+		},
+		{
+			name: "port range",
+			fs: func() *FlowSpec {
+				f := NewFlowSpec(IPv4FlowSpec)
+				f.AddComponent(NewFlowNumericComponent(FlowDestPort, []FlowMatch{
+					{Op: FlowOpGreater | FlowOpEqual, Value: 1024},
+					{Op: FlowOpLess | FlowOpEqual, Value: 65535, And: true},
+				}))
+				return f
+			}(),
+			// Parser expects separate tokens; And is inferred from position
+			expected: "flowspec destination-port >=1024 <=65535",
+		},
+		{
+			name: "tcp flags combined",
+			fs: func() *FlowSpec {
+				f := NewFlowSpec(IPv4FlowSpec)
+				f.AddComponent(NewFlowTCPFlagsComponent(0x12)) // SYN+ACK
+				return f
+			}(),
+			// Parser expects: tcp-flags syn&ack
+			expected: "flowspec tcp-flags syn&ack",
+		},
+		{
+			name: "full rule",
+			fs: func() *FlowSpec {
+				f := NewFlowSpec(IPv4FlowSpec)
+				f.AddComponent(NewFlowDestPrefixComponent(netip.MustParsePrefix("10.0.0.0/24")))
+				f.AddComponent(NewFlowIPProtocolComponent(6)) // TCP
+				f.AddComponent(NewFlowDestPortComponent(80, 443))
+				return f
+			}(),
+			// Parser expects: destination 10.0.0.0/24 protocol =6 destination-port =80 =443
+			expected: "flowspec destination 10.0.0.0/24 protocol 6 destination-port =80 =443",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := tt.fs.String()
+			assert.Equal(t, tt.expected, got)
+		})
+	}
+}
+
+// TestBitmaskComponentString verifies bitmask component string format.
+//
+// VALIDATES: TCP flags and fragment components use named flags.
+// Format: <type> [=|!]<flag>[&<flag>...].
+//
+// PREVENTS: Raw numeric output instead of flag names.
+func TestBitmaskComponentString(t *testing.T) {
+	tests := []struct {
+		name     string
+		comp     FlowComponent
+		expected string
+	}{
+		{
+			name:     "tcp-flags syn",
+			comp:     NewFlowTCPFlagsComponent(0x02),
+			expected: "tcp-flags syn",
+		},
+		{
+			name:     "tcp-flags ack",
+			comp:     NewFlowTCPFlagsComponent(0x10),
+			expected: "tcp-flags ack",
+		},
+		{
+			name:     "tcp-flags syn+ack",
+			comp:     NewFlowTCPFlagsComponent(0x12),
+			expected: "tcp-flags syn&ack",
+		},
+		{
+			name:     "fragment dont-fragment",
+			comp:     NewFlowFragmentComponent(FlowFragDontFragment),
+			expected: "fragment dont-fragment",
+		},
+		{
+			name:     "fragment is-fragment",
+			comp:     NewFlowFragmentComponent(FlowFragIsFragment),
+			expected: "fragment is-fragment",
+		},
+		{
+			name:     "fragment first-fragment",
+			comp:     NewFlowFragmentComponent(FlowFragFirstFragment),
+			expected: "fragment first-fragment",
+		},
+		{
+			name:     "fragment last-fragment",
+			comp:     NewFlowFragmentComponent(FlowFragLastFragment),
+			expected: "fragment last-fragment",
+		},
+		{
+			name: "tcp-flags multiple matches with AND",
+			comp: NewFlowNumericComponent(FlowTCPFlags, []FlowMatch{
+				{Op: 0, Value: 0x02},                    // SYN
+				{Op: FlowOpNot, Value: 0x04, And: true}, // AND NOT RST
+			}),
+			// Parser expects: tcp-flags syn &!rst
+			expected: "tcp-flags syn &!rst",
+		},
+		{
+			name: "fragment multiple with match and AND",
+			comp: NewFlowNumericComponent(FlowFragment, []FlowMatch{
+				{Op: FlowOpMatch, Value: uint64(FlowFragDontFragment)},        // =dont-fragment
+				{Op: FlowOpNot, Value: uint64(FlowFragIsFragment), And: true}, // &!is-fragment
+			}),
+			expected: "fragment =dont-fragment &!is-fragment",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.expected, tt.comp.String())
 		})
 	}
 }

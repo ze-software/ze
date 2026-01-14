@@ -44,19 +44,20 @@ const (
 	FlowFlowLabel    FlowComponentType = 13 // Type 13: Flow Label - IPv6 only (RFC 8956)
 )
 
-// String returns a human-readable component type name.
+// String returns the command-style component type name.
+// These names match the API input syntax for round-trip compatibility.
 func (t FlowComponentType) String() string {
 	switch t {
 	case FlowDestPrefix:
-		return "dest-prefix"
+		return "destination"
 	case FlowSourcePrefix:
-		return "source-prefix"
+		return "source"
 	case FlowIPProtocol:
 		return "protocol"
 	case FlowPort:
 		return "port"
 	case FlowDestPort:
-		return "dest-port"
+		return "destination-port"
 	case FlowSourcePort:
 		return "source-port"
 	case FlowICMPType:
@@ -285,13 +286,30 @@ func (f *FlowSpec) HasPathID() bool {
 	return false
 }
 
-// String returns a human-readable representation.
+// String returns command-style representation for API round-trip compatibility.
+// Format: flowspec <component>+ where each component is "<type> <values>".
 func (f *FlowSpec) String() string {
+	if len(f.components) == 0 {
+		return "flowspec"
+	}
 	parts := make([]string, len(f.components))
 	for i, c := range f.components {
 		parts[i] = c.String()
 	}
-	return fmt.Sprintf("flowspec(%s)", strings.Join(parts, " "))
+	return "flowspec " + strings.Join(parts, " ")
+}
+
+// ComponentString returns just the components without the "flowspec" prefix.
+// Used by FlowSpecVPN to embed components after the RD.
+func (f *FlowSpec) ComponentString() string {
+	if len(f.components) == 0 {
+		return ""
+	}
+	parts := make([]string, len(f.components))
+	for i, c := range f.components {
+		parts[i] = c.String()
+	}
+	return strings.Join(parts, " ")
 }
 
 // ParseFlowSpec parses a FlowSpec from wire format per RFC 8955 Section 4.
@@ -558,8 +576,10 @@ func (c *prefixComponent) Bytes() []byte {
 	return data
 }
 
+// String returns command-style format: "<type> <prefix>".
+// Example: "destination 10.0.0.0/24" or "source 192.168.0.0/16".
 func (c *prefixComponent) String() string {
-	return fmt.Sprintf("%s=%s", c.compType, c.prefix)
+	return fmt.Sprintf("%s %s", c.compType, c.prefix)
 }
 
 // Len returns the wire-format length in bytes.
@@ -679,31 +699,133 @@ func (c *numericComponent) Bytes() []byte {
 	return data
 }
 
+// String returns command-style format: "<type> <op><value>...".
+// For bitmask types (TCP flags, Fragment), uses named flags instead of numbers.
+// Example: "destination-port =80 =443" or "tcp-flags syn&ack".
 func (c *numericComponent) String() string {
+	// Handle bitmask types specially
+	if c.compType == FlowTCPFlags || c.compType == FlowFragment {
+		return c.bitmaskString()
+	}
+	return c.numericString()
+}
+
+// numericString formats numeric components with operators.
+// NOTE: The parser automatically sets And=true for second+ values based on position,
+// so we do NOT output & prefix for numeric components (only for bitmask types).
+//
+// Special case: protocol component uses a custom parser that accepts plain numeric
+// values without operator prefix, so we output "protocol 6" not "protocol =6".
+func (c *numericComponent) numericString() string {
+	parts := make([]string, len(c.matches))
+	for i, m := range c.matches {
+		// Protocol uses custom parser that doesn't handle operator prefix
+		if c.compType == FlowIPProtocol {
+			parts[i] = fmt.Sprintf("%d", m.Value)
+			continue
+		}
+
+		switch m.Op &^ (FlowOpEnd | FlowOpAnd | FlowOpLenMask) { //nolint:exhaustive // Mask out non-comparison bits
+		case FlowOpGreater:
+			parts[i] = fmt.Sprintf(">%d", m.Value)
+		case FlowOpLess:
+			parts[i] = fmt.Sprintf("<%d", m.Value)
+		case FlowOpEqual:
+			parts[i] = fmt.Sprintf("=%d", m.Value)
+		case FlowOpNotEq:
+			parts[i] = fmt.Sprintf("!=%d", m.Value)
+		case FlowOpGreater | FlowOpEqual:
+			parts[i] = fmt.Sprintf(">=%d", m.Value)
+		case FlowOpLess | FlowOpEqual:
+			parts[i] = fmt.Sprintf("<=%d", m.Value)
+		default:
+			parts[i] = fmt.Sprintf("=%d", m.Value)
+		}
+	}
+	return fmt.Sprintf("%s %s", c.compType, strings.Join(parts, " "))
+}
+
+// bitmaskString formats TCP flags and Fragment components with named flags.
+func (c *numericComponent) bitmaskString() string {
 	parts := make([]string, len(c.matches))
 	for i, m := range c.matches {
 		var prefix string
 		if m.And && i > 0 {
 			prefix = "&"
 		}
-		switch m.Op &^ (FlowOpEnd | FlowOpAnd | FlowOpLenMask) { //nolint:exhaustive // Mask out non-comparison bits
-		case FlowOpGreater:
-			parts[i] = fmt.Sprintf("%s>%d", prefix, m.Value)
-		case FlowOpLess:
-			parts[i] = fmt.Sprintf("%s<%d", prefix, m.Value)
-		case FlowOpEqual:
-			parts[i] = fmt.Sprintf("%s=%d", prefix, m.Value)
-		case FlowOpNotEq:
-			parts[i] = fmt.Sprintf("%s!=%d", prefix, m.Value)
-		case FlowOpGreater | FlowOpEqual:
-			parts[i] = fmt.Sprintf("%s>=%d", prefix, m.Value)
-		case FlowOpLess | FlowOpEqual:
-			parts[i] = fmt.Sprintf("%s<=%d", prefix, m.Value)
-		default:
-			parts[i] = fmt.Sprintf("%s%d", prefix, m.Value)
+		// Check for bitmask operator bits (NOT, Match)
+		if m.Op&FlowOpNot != 0 {
+			prefix += "!"
 		}
+		if m.Op&FlowOpMatch != 0 {
+			prefix += "="
+		}
+
+		var flagStr string
+		if c.compType == FlowTCPFlags {
+			flagStr = tcpFlagsToString(uint8(m.Value)) //nolint:gosec // TCP flags are 8-bit
+		} else {
+			flagStr = fragmentFlagsToString(FlowFragmentFlag(m.Value))
+		}
+		parts[i] = prefix + flagStr
 	}
-	return fmt.Sprintf("%s[%s]", c.compType, strings.Join(parts, " "))
+	return fmt.Sprintf("%s %s", c.compType, strings.Join(parts, " "))
+}
+
+// tcpFlagsToString converts TCP flags byte to named flags.
+// RFC 8955 Section 4.2.2.9: TCP flags are in order FIN, SYN, RST, PSH, ACK, URG, ECE, CWR.
+func tcpFlagsToString(flags uint8) string {
+	var names []string
+	if flags&0x01 != 0 {
+		names = append(names, "fin")
+	}
+	if flags&0x02 != 0 {
+		names = append(names, "syn")
+	}
+	if flags&0x04 != 0 {
+		names = append(names, "rst")
+	}
+	if flags&0x08 != 0 {
+		names = append(names, "psh")
+	}
+	if flags&0x10 != 0 {
+		names = append(names, "ack")
+	}
+	if flags&0x20 != 0 {
+		names = append(names, "urg")
+	}
+	if flags&0x40 != 0 {
+		names = append(names, "ece")
+	}
+	if flags&0x80 != 0 {
+		names = append(names, "cwr")
+	}
+	if len(names) == 0 {
+		return "0"
+	}
+	return strings.Join(names, "&")
+}
+
+// fragmentFlagsToString converts fragment flags to named flags.
+// RFC 8955 Section 4.2.2.12: Fragment bitmask operand.
+func fragmentFlagsToString(flags FlowFragmentFlag) string {
+	var names []string
+	if flags&FlowFragDontFragment != 0 {
+		names = append(names, "dont-fragment")
+	}
+	if flags&FlowFragIsFragment != 0 {
+		names = append(names, "is-fragment")
+	}
+	if flags&FlowFragFirstFragment != 0 {
+		names = append(names, "first-fragment")
+	}
+	if flags&FlowFragLastFragment != 0 {
+		names = append(names, "last-fragment")
+	}
+	if len(names) == 0 {
+		return "0"
+	}
+	return strings.Join(names, "&")
 }
 
 // Len returns the wire-format length in bytes.
@@ -1059,9 +1181,13 @@ func (f *FlowSpecVPN) HasPathID() bool {
 }
 
 // String returns command-style format for API round-trip compatibility.
-// Format: rd set <rd> <flowspec>.
+// Format: flowspec-vpn rd <rd> <components>.
 func (f *FlowSpecVPN) String() string {
-	return fmt.Sprintf("rd set %s %s", f.rd, f.flowSpec)
+	compStr := f.flowSpec.ComponentString()
+	if compStr == "" {
+		return fmt.Sprintf("flowspec-vpn rd %s", f.rd)
+	}
+	return fmt.Sprintf("flowspec-vpn rd %s %s", f.rd, compStr)
 }
 
 // ParseFlowSpecVPN parses a FlowSpec VPN from wire format per RFC 8955 Section 8.

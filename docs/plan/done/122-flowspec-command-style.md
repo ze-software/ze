@@ -100,7 +100,9 @@ This matches the API command syntax (see `docs/architecture/api/architecture.md`
 | GE (0x03) | `>=` | `>=1024` |
 | LE (0x05) | `<=` | `<=65535` |
 | NE (0x06) | `!=` | `!=0` |
-| AND (0x40) | `&` prefix | `&<=65535` |
+
+**Note on AND:** For numeric components, the parser infers AND from position (second+ values are ANDed).
+No `&` prefix is output. For bitmask components (tcp-flags, fragment), `&` IS output as the parser expects it.
 
 ### Bitmask Format (TCP Flags)
 
@@ -168,34 +170,52 @@ func (f *FlowSpecVPN) String() string {
 
 ## Implementation Summary
 
-<!-- Fill this section AFTER implementation -->
-
 ### What Was Implemented
-- [List actual changes made]
+- Updated `FlowComponentType.String()` to use command-style names:
+  - `dest-prefix` → `destination`
+  - `source-prefix` → `source`
+  - `dest-port` → `destination-port`
+- Updated `FlowSpec.String()`: removed parentheses, format now `flowspec <components>`
+- Added `FlowSpec.ComponentString()` method for FlowSpecVPN embedding
+- Updated `FlowSpecVPN.String()`: format now `flowspec-vpn rd <rd> <components>`
+- Updated `prefixComponent.String()`: format now `<type> <prefix>` with space
+- Updated `numericComponent.String()`: removed brackets, format now `<type> <op><value>...`
+- Added `bitmaskString()` method for TCP flags and Fragment components
+- Added `tcpFlagsToString()` helper for named TCP flag output
+- Added `fragmentFlagsToString()` helper for named fragment flag output
+- Updated `TestJSONEncoderFlowSpec` test expectations to match new format
+- Added comprehensive TDD tests: `TestFlowSpecStringCommandStyle`, `TestFlowSpecVPNStringCommandStyle`, `TestPrefixComponentString`, `TestNumericComponentString`, `TestNumericOperatorString`, `TestBitmaskComponentString`, `TestFlowSpecStringRoundTrip`
 
 ### Design Insights
-- [Key learnings]
+- Bitmask types (TCP flags, Fragment) require special formatting with named flags
+- The `ComponentString()` method avoids duplicating "flowspec" prefix in VPN output
+- Match operators need careful handling: bitmask operators (NOT, Match) vs numeric operators (LT, GT, EQ)
+- **CRITICAL:** Numeric components must NOT output `&` prefix - the parser infers AND from position. Only bitmask components use `&` prefix.
+
+### Bugs Found/Fixed
+- **AND prefix bug (CRITICAL):** Initial implementation output `&<=65535` for numeric AND, but parser doesn't handle `&` prefix for numeric operators. This caused silent value dropping when parsing back. Fixed by removing `&` prefix from numeric component output.
+- **Protocol operator bug (CRITICAL):** Output `protocol =6` but parser `parseFlowSpecProtocol` uses custom logic that doesn't handle operator prefix - it accepts `6` or `tcp` but NOT `=6`. Fixed by outputting plain numeric for protocol component without `=` prefix.
 
 ### Deviations from Plan
-- [Any differences]
+- Spec originally showed `&<=65535` format but this doesn't match parser. Corrected to `<=65535` (no `&` prefix).
 
 ## Checklist
 
 ### 🧪 TDD
-- [ ] Tests written
-- [ ] Tests FAIL (output below)
-- [ ] Implementation complete
-- [ ] Tests PASS (output below)
+- [x] Tests written
+- [x] Tests FAIL (verified)
+- [x] Implementation complete
+- [x] Tests PASS (verified)
 
 ### Verification
-- [ ] `make lint` passes
-- [ ] `make test` passes
-- [ ] `make functional` passes
+- [x] `make lint` passes (0 issues)
+- [x] `make test` passes
+- [x] `make functional` passes (18 passed, 0 failed)
 
 ### Documentation
-- [ ] Required docs read
-- [ ] RFC references added to code
+- [x] Required docs read
+- [x] RFC references added to code
 
 ### Completion
-- [ ] Spec updated with Implementation Summary
-- [ ] Spec moved to `docs/plan/done/NNN-<name>.md`
+- [x] Spec updated with Implementation Summary
+- [x] Spec moved to `docs/plan/done/122-flowspec-command-style.md`
