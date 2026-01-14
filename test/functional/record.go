@@ -504,6 +504,7 @@ func (et *EncodingTests) parseAndAdd(ciFile string) error {
 
 	// Track next available index for each base index (handles multiple C1:raw: lines)
 	nextAvailableIdx := make(map[int]int)
+	nextAvailableJsonIdx := make(map[int]int)
 
 	scanner := bufio.NewScanner(f)
 	for scanner.Scan() {
@@ -578,9 +579,17 @@ func (et *EncodingTests) parseAndAdd(ciFile string) error {
 
 		case strings.Contains(line, ":json:"):
 			// Parse: "1:json:{...}"
+			// Multiple lines with same prefix get sequential indices (like raw:)
 			parts := strings.SplitN(line, ":", 3)
 			if len(parts) >= 3 {
-				idx := parseMessageIndex(parts[0])
+				baseIdx := parseMessageIndex(parts[0])
+				// Get or initialize the next available index for this base
+				if _, ok := nextAvailableJsonIdx[baseIdx]; !ok {
+					nextAvailableJsonIdx[baseIdx] = baseIdx
+				}
+				idx := nextAvailableJsonIdx[baseIdx]
+				nextAvailableJsonIdx[baseIdx]++
+
 				msg := r.getOrCreateMessage(idx)
 				msg.JSON = parts[2]
 			}

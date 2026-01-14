@@ -77,6 +77,12 @@ func extractFamily(envelope map[string]any) string {
 func transformEnvelopeToPlugin(envelope map[string]any) (map[string]any, string) {
 	result := make(map[string]any)
 
+	// Set meta section with version and format
+	result["meta"] = map[string]any{
+		"version": "1.0.0",
+		"format":  "zebgp",
+	}
+
 	// Set message type
 	if msgType, ok := envelope["type"].(string); ok {
 		result["message"] = map[string]any{"type": msgType}

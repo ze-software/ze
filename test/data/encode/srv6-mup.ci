@@ -9,15 +9,12 @@ option:file:srv6-mup.conf
 # Type2SessionTransformedRoute - ipv4/mup endpoint_len=32 (teid_bits=32)
 1:cmd:announce ipv4/mup mup-t2st 10.0.0.1 rd 100:100 teid 12345/32 next-hop 10.0.0.2 extended-community [target:10:10 mup:10:10]
 1:raw:FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF:0060:02:00000049400101004002004003040A00000240050400000064800E1E000155040A00000200010004110000006400000064200A00000100003039C010100002000A0000000A0C00000A0000000A
-1:json:{"exabgp":"6.0.0","type":"update","neighbor":{"address":{"local":"127.0.0.1","peer":"127.0.0.1"},"asn":{"local":65000,"peer":65000},"direction":"in","message":{"update":{"attribute":{"origin":"igp","local-preference":100,"extended-community":[{"value":562992903094282,"string":"target:10:10"},{"value":864691171404808202,"string":"mup:10:10"}]},"announce":{"ipv4/mup":{"10.0.0.2":[{"name":"Type2SessionTransformedRoute","arch":1,"code":4,"endpoint_len":32,"endpoint_ip":"10.0.0.1","rd":"100:100","teid":"12345","raw":"010004110000006400000064200A00000100003039"}]}}}}}}
 # Type2SessionTransformedRoute - ipv4/mup endpoint_len=32 (teid_bits=23)
 1:cmd:announce ipv4/mup mup-t2st 10.0.0.1 rd 100:100 teid 12345/23 next-hop 10.0.0.2 extended-community [target:10:10 mup:10:10]
 1:raw:FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF:005F:02:00000048400101004002004003040A00000240050400000064800E1D000155040A00000200010004100000006400000064200A000001003039C010100002000A0000000A0C00000A0000000A
-1:json:{"exabgp":"6.0.0","type":"update","neighbor":{"address":{"local":"127.0.0.1","peer":"127.0.0.1"},"asn":{"local":65000,"peer":65000},"direction":"in","message":{"update":{"attribute":{"origin":"igp","local-preference":100,"extended-community":[{"value":562992903094282,"string":"target:10:10"},{"value":864691171404808202,"string":"mup:10:10"}]},"announce":{"ipv4/mup":{"10.0.0.2":[{"name":"Type2SessionTransformedRoute","arch":1,"code":4,"endpoint_len":32,"endpoint_ip":"10.0.0.1","rd":"100:100","teid":"12345","raw":"010004100000006400000064200A000001003039"}]}}}}}}
 # Type2SessionTransformedRoute - ipv4/mup endpoint_len=32
 1:cmd:announce ipv4/mup mup-t2st 10.0.0.1 rd 100:100 teid 0/0 next-hop 10.0.0.2 extended-community [target:10:10 mup:10:10]
 1:raw:FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF:005C:02:00000045400101004002004003040A00000240050400000064800E1A000155040A000002000100040D0000006400000064200A000001C010100002000A0000000A0C00000A0000000A
-1:json:{"exabgp":"6.0.0","type":"update","neighbor":{"address":{"local":"127.0.0.1","peer":"127.0.0.1"},"asn":{"local":65000,"peer":65000},"direction":"in","message":{"update":{"attribute":{"origin":"igp","local-preference":100,"extended-community":[{"value":562992903094282,"string":"target:10:10"},{"value":864691171404808202,"string":"mup:10:10"}]},"announce":{"ipv4/mup":{"10.0.0.2":[{"name":"Type2SessionTransformedRoute","arch":1,"code":4,"endpoint_len":32,"endpoint_ip":"10.0.0.1","rd":"100:100","teid":"0","raw":"0100040D0000006400000064200A000001"}]}}}}}}
 # UPDATEs with prefix-sid attribute (JSON encoder has bug - produces malformed JSON with %s/%d)
 1:cmd:announce ipv6/mup mup-isd 2001::/64 rd 100:100 next-hop 2001::2 extended-community [target:10:10] bgp-prefix-sid-srv6 ( l3-service 2001:db8:1:1:: 0x47 [64,24,16,0,0,0] )
 1:raw:FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF:0085:02:0000006E4001010040020040050400000064800E2A000255102001000000000000000000000000000200010001110000006400000064402001000000000000C010080002000A0000000AC028250500220001001E0020010DB800010001000000000000000000004700010006401810000000
@@ -28,7 +25,6 @@ option:file:srv6-mup.conf
 # Type2SessionTransformedRoute - ipv6/mup endpoint_len=128 (teid_bits=32)
 1:cmd:announce ipv6/mup mup-t2st 2001::1 rd 100:100 teid 12345/32 next-hop ::ffff:10.0.0.2 extended-community [target:10:10 mup:10:10]
 1:raw:FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF:0071:02:0000005A4001010040020040050400000064800E360002551000000000000000000000FFFF0A000002000100041D0000006400000064802001000000000000000000000000000100003039C010100002000A0000000A0C00000A0000000A
-1:json:{"exabgp":"6.0.0","type":"update","neighbor":{"address":{"local":"127.0.0.1","peer":"127.0.0.1"},"asn":{"local":65000,"peer":65000},"direction":"in","message":{"update":{"attribute":{"origin":"igp","local-preference":100,"extended-community":[{"value":562992903094282,"string":"target:10:10"},{"value":864691171404808202,"string":"mup:10:10"}]},"announce":{"ipv6/mup":{"::ffff:10.0.0.2":[{"name":"Type2SessionTransformedRoute","arch":1,"code":4,"endpoint_len":128,"endpoint_ip":"2001::1","rd":"100:100","teid":"12345","raw":"0100041D0000006400000064802001000000000000000000000000000100003039"}]}}}}}}
 # EOR for ipv4/mup (AFI=1, SAFI=85)
 1:cmd:announce eor ipv4/mup
 1:raw:FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF:001E:02:00000007900F0003000155

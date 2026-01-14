@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strings"
 	"sync"
 	"syscall"
@@ -598,7 +599,31 @@ func (r *Runner) saveTestOutput(rec *Record, out *testOutput, saveDir string) er
 // validateJSON validates JSON expectations against decoded messages.
 // Returns nil if all validations pass or no JSON expectations exist.
 // Skips tests with ExaBGP envelope format JSON (contains "exabgp" key).
+// Matches by NLRI content, not position (ZeBGP may send routes in different order).
 func (r *Runner) validateJSON(rec *Record) error {
+	// Build cache of decoded received messages
+	type decodedMsg struct {
+		envelope map[string]any
+		actual   map[string]any
+		family   string
+		nlris    []string // for content matching
+		action   string   // "add" or "del"
+		used     bool     // track if already matched
+	}
+	decoded := make([]*decodedMsg, 0, len(rec.ReceivedRaw))
+
+	for _, rawHex := range rec.ReceivedRaw {
+		envelope, err := r.decodeToEnvelope(rawHex)
+		if err != nil {
+			continue // Skip unparseable messages
+		}
+		family := extractFamily(envelope)
+		actual, _ := transformEnvelopeToPlugin(envelope)
+		nlris := extractNLRIs(actual)
+		action := extractAction(actual)
+		decoded = append(decoded, &decodedMsg{envelope, actual, family, nlris, action, false})
+	}
+
 	// Find messages with JSON expectations
 	for _, msg := range rec.Messages {
 		if msg.JSON == "" {
@@ -606,50 +631,132 @@ func (r *Runner) validateJSON(rec *Record) error {
 		}
 
 		// Check if JSON is in ExaBGP envelope format (contains "exabgp" key)
-		// These older tests use the raw decoder output format, not plugin format
 		if strings.Contains(msg.JSON, `"exabgp"`) {
 			continue // Skip ExaBGP envelope format (not plugin format)
 		}
 
-		// Find the corresponding received message
-		// Messages are 1-indexed, ReceivedRaw is 0-indexed
-		// For multi-connection tests, add ReceivedMessageOffset to account for
-		// messages from preceding connections in ReceivedRaw
-		localIdx := msg.Index - 1
-		if rec.ConnectionOffset() > 0 {
-			localIdx = msg.Index - rec.ConnectionOffset() - 1
+		// Parse expected JSON to extract NLRIs and action for matching
+		var expectedMap map[string]any
+		if err := json.Unmarshal([]byte(msg.JSON), &expectedMap); err != nil {
+			return fmt.Errorf("message %d: invalid expected JSON: %w", msg.Index, err)
 		}
-		recvIdx := localIdx + rec.ReceivedMessageOffset()
+		expectedNLRIs := extractNLRIs(expectedMap)
+		expectedAction := extractAction(expectedMap)
 
-		if recvIdx < 0 || recvIdx >= len(rec.ReceivedRaw) {
-			return fmt.Errorf("message %d: no received message at index %d (have %d)",
-				msg.Index, recvIdx, len(rec.ReceivedRaw))
+		if len(expectedNLRIs) == 0 {
+			continue // No NLRI to match (e.g., EOR)
 		}
 
-		rawHex := rec.ReceivedRaw[recvIdx]
-
-		// Decode using zebgp decode command
-		envelope, err := r.decodeToEnvelope(rawHex)
-		if err != nil {
-			return fmt.Errorf("message %d: decode failed: %w", msg.Index, err)
+		// Find received message with matching NLRI and action (not already used)
+		found := false
+		for _, dm := range decoded {
+			if dm.used {
+				continue // Already matched to another expected
+			}
+			if dm.family != "" && !isSupportedFamily(dm.family) {
+				continue // Skip unsupported families
+			}
+			if nlrisMatch(expectedNLRIs, dm.nlris) && dm.action == expectedAction {
+				// Compare full JSON
+				if err := comparePluginJSON(dm.actual, msg.JSON); err != nil {
+					return fmt.Errorf("message %d: %w", msg.Index, err)
+				}
+				dm.used = true
+				found = true
+				break
+			}
 		}
 
-		// Check if family is supported
-		family := extractFamily(envelope)
-		if family != "" && !isSupportedFamily(family) {
-			continue // Skip unsupported families (Phase 1 limitation)
-		}
-
-		// Transform to plugin format
-		actual, _ := transformEnvelopeToPlugin(envelope)
-
-		// Compare
-		if err := comparePluginJSON(actual, msg.JSON); err != nil {
-			return fmt.Errorf("message %d: %w", msg.Index, err)
+		if !found {
+			return fmt.Errorf("message %d: no received message with NLRI %v action %s", msg.Index, expectedNLRIs, expectedAction)
 		}
 	}
 
 	return nil
+}
+
+// extractNLRIs extracts NLRI prefixes from plugin format JSON for content matching.
+func extractNLRIs(m map[string]any) []string {
+	var nlris []string
+	families := []string{"ipv4/unicast", "ipv6/unicast", "ipv4 unicast", "ipv6 unicast"}
+	for _, fam := range families {
+		if arr, ok := m[fam].([]any); ok {
+			for _, item := range arr {
+				if entry, ok := item.(map[string]any); ok {
+					nlris = append(nlris, extractNLRIFromEntry(entry)...)
+				}
+			}
+		}
+		// Also handle []map[string]any from transformAnnounce
+		if arr, ok := m[fam].([]map[string]any); ok {
+			for _, entry := range arr {
+				nlris = append(nlris, extractNLRIFromEntry(entry)...)
+			}
+		}
+	}
+	return nlris
+}
+
+// extractAction extracts the action (add/del) from plugin format JSON.
+func extractAction(m map[string]any) string {
+	families := []string{"ipv4/unicast", "ipv6/unicast", "ipv4 unicast", "ipv6 unicast"}
+	for _, fam := range families {
+		if arr, ok := m[fam].([]any); ok {
+			for _, item := range arr {
+				if entry, ok := item.(map[string]any); ok {
+					if action, ok := entry["action"].(string); ok {
+						return action
+					}
+				}
+			}
+		}
+		if arr, ok := m[fam].([]map[string]any); ok {
+			for _, entry := range arr {
+				if action, ok := entry["action"].(string); ok {
+					return action
+				}
+			}
+		}
+	}
+	return ""
+}
+
+// extractNLRIFromEntry extracts NLRI strings from an entry map.
+func extractNLRIFromEntry(entry map[string]any) []string {
+	var nlris []string
+	// Handle []any (from JSON unmarshal)
+	if nlriArr, ok := entry["nlri"].([]any); ok {
+		for _, n := range nlriArr {
+			if s, ok := n.(string); ok {
+				nlris = append(nlris, s)
+			}
+		}
+	}
+	// Handle []string (from transformAnnounce)
+	if nlriArr, ok := entry["nlri"].([]string); ok {
+		nlris = append(nlris, nlriArr...)
+	}
+	return nlris
+}
+
+// nlrisMatch returns true if expected and actual NLRI lists have the same prefixes.
+func nlrisMatch(expected, actual []string) bool {
+	if len(expected) != len(actual) {
+		return false
+	}
+	// Sort both for comparison
+	e := make([]string, len(expected))
+	a := make([]string, len(actual))
+	copy(e, expected)
+	copy(a, actual)
+	sort.Strings(e)
+	sort.Strings(a)
+	for i := range e {
+		if e[i] != a[i] {
+			return false
+		}
+	}
+	return true
 }
 
 // decodeToEnvelope decodes a hex message using zebgp decode and returns the envelope.
