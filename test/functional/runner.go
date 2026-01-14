@@ -675,10 +675,15 @@ func (r *Runner) validateJSON(rec *Record) error {
 	return nil
 }
 
-// extractNLRIs extracts NLRI prefixes from plugin format JSON for content matching.
+// extractNLRIs extracts NLRI identifiers from plugin format JSON for content matching.
+// For unicast: extracts prefix strings.
+// For FlowSpec: extracts the "string" field from the nlri object (human-readable rule).
 func extractNLRIs(m map[string]any) []string {
 	var nlris []string
-	families := []string{"ipv4/unicast", "ipv6/unicast", "ipv4 unicast", "ipv6 unicast"}
+	families := []string{
+		"ipv4/unicast", "ipv6/unicast", "ipv4 unicast", "ipv6 unicast",
+		"ipv4/flowspec", "ipv6/flowspec", "ipv4 flowspec", "ipv6 flowspec",
+	}
 	for _, fam := range families {
 		if arr, ok := m[fam].([]any); ok {
 			for _, item := range arr {
@@ -687,7 +692,7 @@ func extractNLRIs(m map[string]any) []string {
 				}
 			}
 		}
-		// Also handle []map[string]any from transformAnnounce
+		// Also handle []map[string]any from transformAnnounce/transformFlowspecAnnounce
 		if arr, ok := m[fam].([]map[string]any); ok {
 			for _, entry := range arr {
 				nlris = append(nlris, extractNLRIFromEntry(entry)...)
@@ -699,7 +704,10 @@ func extractNLRIs(m map[string]any) []string {
 
 // extractAction extracts the action (add/del) from plugin format JSON.
 func extractAction(m map[string]any) string {
-	families := []string{"ipv4/unicast", "ipv6/unicast", "ipv4 unicast", "ipv6 unicast"}
+	families := []string{
+		"ipv4/unicast", "ipv6/unicast", "ipv4 unicast", "ipv6 unicast",
+		"ipv4/flowspec", "ipv6/flowspec", "ipv4 flowspec", "ipv6 flowspec",
+	}
 	for _, fam := range families {
 		if arr, ok := m[fam].([]any); ok {
 			for _, item := range arr {
@@ -721,10 +729,12 @@ func extractAction(m map[string]any) string {
 	return ""
 }
 
-// extractNLRIFromEntry extracts NLRI strings from an entry map.
+// extractNLRIFromEntry extracts NLRI identifiers from an entry map.
+// For unicast: entry["nlri"] is []string of prefixes.
+// For FlowSpec: entry["nlri"] is map with "string" field containing human-readable rule.
 func extractNLRIFromEntry(entry map[string]any) []string {
 	var nlris []string
-	// Handle []any (from JSON unmarshal)
+	// Handle []any (from JSON unmarshal) - unicast format
 	if nlriArr, ok := entry["nlri"].([]any); ok {
 		for _, n := range nlriArr {
 			if s, ok := n.(string); ok {
@@ -732,9 +742,16 @@ func extractNLRIFromEntry(entry map[string]any) []string {
 			}
 		}
 	}
-	// Handle []string (from transformAnnounce)
+	// Handle []string (from transformAnnounce) - unicast format
 	if nlriArr, ok := entry["nlri"].([]string); ok {
 		nlris = append(nlris, nlriArr...)
+	}
+	// Handle map[string]any (from transformFlowspecAnnounce/Withdraw) - FlowSpec format
+	// Use the "string" field as the NLRI identifier for matching
+	if nlriMap, ok := entry["nlri"].(map[string]any); ok {
+		if s, ok := nlriMap["string"].(string); ok {
+			nlris = append(nlris, s)
+		}
 	}
 	return nlris
 }

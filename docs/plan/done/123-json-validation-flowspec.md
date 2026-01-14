@@ -48,7 +48,7 @@ Add JSON validation to test framework - make `json:` lines in `.ci` files valida
 **Plugin format (from `.ci` json: lines):**
 ```json
 {
-  "meta": {"version": "1.0.0", "app": "zebgp"},
+  "meta": {"version": "1.0.0", "format": "zebgp"},
   "message": {"type": "update"},
   "direction": "in",
   "peer": {"address": "127.0.0.1", "asn": 65000},
@@ -75,14 +75,14 @@ Add JSON validation to test framework - make `json:` lines in `.ci` files valida
 
 ### Scope Limitation
 
-**Phase 1 (this spec):** IPv4/IPv6 unicast only
-- `ipv4/unicast`, `ipv6/unicast` families
-- ~15 of 33 files with `json:` lines
+**Supported families:**
+- `ipv4/unicast`, `ipv6/unicast` - standard prefix NLRIs
+- `ipv4/flowspec`, `ipv6/flowspec` - FlowSpec rule components
 
 **Deferred:** Complex families requiring special handling
 - EVPN (`l2vpn/evpn`) - complex route types
-- FlowSpec (`ipv4/flow`, `ipv6/flow`) - rule components
 - VPN (`ipv4/mpls-vpn`, `ipv6/mpls-vpn`) - RD encoding
+- FlowSpec-VPN (`ipv4/flowspec-vpn`) - RD + FlowSpec
 - BGP-LS - link-state TLVs
 
 ### Context Requirements
@@ -100,14 +100,21 @@ Add JSON validation to test framework - make `json:` lines in `.ci` files valida
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestTransformEnvelopeToPlugin_IPv4Announce` | `test/functional/json_test.go` | IPv4 announce transformation | |
-| `TestTransformEnvelopeToPlugin_IPv4Withdraw` | `test/functional/json_test.go` | IPv4 withdraw → action:del | |
-| `TestTransformEnvelopeToPlugin_IPv6Announce` | `test/functional/json_test.go` | IPv6 unicast transformation | |
-| `TestTransformEnvelopeToPlugin_EOR` | `test/functional/json_test.go` | End-of-RIB (empty update) | |
-| `TestComparePluginJSON_Match` | `test/functional/json_test.go` | Matching JSON passes | |
-| `TestComparePluginJSON_Mismatch` | `test/functional/json_test.go` | Mismatch fails with diff | |
-| `TestComparePluginJSON_IgnoresContextFields` | `test/functional/json_test.go` | peer/direction ignored | |
-| `TestIsSupportedFamily` | `test/functional/json_test.go` | Family detection | |
+| `TestTransformEnvelopeToPlugin_IPv4Announce` | `test/functional/json_test.go` | IPv4 announce transformation | ✅ |
+| `TestTransformEnvelopeToPlugin_IPv4Withdraw` | `test/functional/json_test.go` | IPv4 withdraw → action:del | ✅ |
+| `TestTransformEnvelopeToPlugin_IPv6Announce` | `test/functional/json_test.go` | IPv6 unicast transformation | ✅ |
+| `TestTransformEnvelopeToPlugin_IPv6Withdraw` | `test/functional/json_test.go` | IPv6 withdraw → action:del | ✅ |
+| `TestTransformEnvelopeToPlugin_EOR` | `test/functional/json_test.go` | End-of-RIB (empty update) | ✅ |
+| `TestTransformEnvelopeToPlugin_FlowSpecAnnounce` | `test/functional/json_test.go` | FlowSpec with no-nexthop | ✅ |
+| `TestTransformEnvelopeToPlugin_FlowSpecWithNextHop` | `test/functional/json_test.go` | FlowSpec with redirect next-hop | ✅ |
+| `TestTransformEnvelopeToPlugin_IPv6FlowSpec` | `test/functional/json_test.go` | IPv6 FlowSpec components | ✅ |
+| `TestTransformEnvelopeToPlugin_FlowSpecWithdraw` | `test/functional/json_test.go` | FlowSpec withdraw → action:del | ✅ |
+| `TestComparePluginJSON_Match` | `test/functional/json_test.go` | Matching JSON passes | ✅ |
+| `TestComparePluginJSON_Mismatch` | `test/functional/json_test.go` | Mismatch fails with diff | ✅ |
+| `TestComparePluginJSON_IgnoresContextFields` | `test/functional/json_test.go` | peer/direction ignored | ✅ |
+| `TestComparePluginJSON_OrderIndependent` | `test/functional/json_test.go` | JSON key order independent | ✅ |
+| `TestIsSupportedFamily` | `test/functional/json_test.go` | Family detection (unicast+flowspec) | ✅ |
+| `TestExtractFamily` | `test/functional/json_test.go` | Family extraction from envelope | ✅ |
 
 ### Boundary Tests (MANDATORY for numeric inputs)
 N/A - No numeric range validation in this feature.
@@ -121,9 +128,10 @@ N/A - No numeric range validation in this feature.
 | `new-v6.ci` | `test/data/encode/` | IPv6 basic encoding | |
 
 ### Future (deferred)
-- EVPN JSON validation - requires `evpnToJSON` transformation
-- FlowSpec JSON validation - requires `flowSpecToJSON` transformation
+- EVPN JSON validation - requires route type specific handling
 - VPN JSON validation - requires RD handling
+- FlowSpec-VPN JSON validation - requires RD + FlowSpec handling
+- BGP-LS JSON validation - requires link-state TLV handling
 
 ## Follow-up: Convert ExaBGP JSON to ZeBGP Format
 
@@ -150,7 +158,7 @@ All ZeBGP plugin JSON must include:
 {
   "meta": {
     "version": "1.0.0",
-    "app": "zebgp"
+    "format": "zebgp"
   },
   ...
 }
@@ -304,18 +312,42 @@ Match by position after filtering keepalives:
 
 ### What Was Implemented
 - `test/functional/json.go`: JSON validation utilities
-  - `isSupportedFamily()`: Checks if family is IPv4/IPv6 unicast (Phase 1)
+  - `isSupportedFamily()`: Checks if family is IPv4/IPv6 unicast or FlowSpec
+  - `isFlowSpecFamily()`: Detects FlowSpec families for special handling
   - `extractFamily()`: Extracts address family from zebgp decode envelope
-  - `transformEnvelopeToPlugin()`: Converts zebgp decode format to plugin format
-  - `transformAnnounce()`: Transforms announce section (NLRI with next-hop)
-  - `transformWithdraw()`: Transforms withdraw section (handles both `[{"nlri":"..."}]` and `["..."]` formats)
+  - `transformEnvelopeToPlugin()`: Converts zebgp decode format to plugin format (routes to appropriate transformer)
+  - `transformAnnounce()`: Transforms unicast announce section (NLRI with next-hop)
+  - `transformFlowspecAnnounce()`: Transforms FlowSpec announce section (preserves rule components in `nlri` object)
+  - `transformFlowspecWithdraw()`: Transforms FlowSpec withdraw section (component objects with action:del)
+  - `transformWithdraw()`: Transforms unicast withdraw section (handles both `[{"nlri":"..."}]` and `["..."]` formats)
   - `comparePluginJSON()`: Compares transformed JSON with expected, ignoring peer/direction fields
   - `normalizeForComparison()`, `normalizeValue()`, `normalizeSlice()`, `sortSliceOfMaps()`: Normalize JSON for deep comparison
-- `test/functional/json_test.go`: Unit tests for all above functions
+- `test/functional/json_test.go`: Unit tests for all above functions (15 tests total)
 - `test/functional/runner.go`: Integration
   - `validateJSON()`: Called after raw byte validation passes, validates JSON expectations
   - `decodeToEnvelope()`: Executes `zebgp decode --update` and parses JSON output
+  - `extractNLRIs()`: Updated to handle FlowSpec families (uses "string" field as identifier)
+  - `extractAction()`: Updated to handle FlowSpec families
+  - `extractNLRIFromEntry()`: Updated to handle FlowSpec nlri map format
   - Skips validation for tests using ExaBGP envelope format (contains "exabgp" key)
+
+### FlowSpec Support
+FlowSpec NLRI contains rule components (destination-ipv4, tcp-flags, protocol, etc.) rather than simple prefixes.
+
+**Plugin format for FlowSpec:**
+```json
+{
+  "ipv4/flowspec": [{
+    "action": "add",
+    "nlri": {
+      "next-hop": "1.2.3.4",  // optional, omitted for "no-nexthop"
+      "destination-ipv4": ["192.168.0.1/32"],
+      "tcp-flags": ["=syn"],
+      "string": "flow destination-ipv4 192.168.0.1/32 tcp-flags [ =syn ]"
+    }
+  }]
+}
+```
 
 ### Bugs Found/Fixed
 - Withdraw format mismatch: zebgp decode outputs `[{"nlri":"..."}]` not `["..."]` for withdraws. Fixed `transformWithdraw()` to handle both formats.
@@ -323,6 +355,7 @@ Match by position after filtering keepalives:
 ### Design Insights
 - Two JSON formats exist in test files: older ExaBGP envelope format (in `test/data/encode/`) and newer plugin format (in `test/data/plugin/`). Detection via "exabgp" key presence allows both to coexist.
 - Context fields (peer, direction) are test-environment-dependent and correctly excluded from comparison.
+- FlowSpec "no-nexthop" means the rule doesn't redirect to a next-hop (e.g., rate-limit, discard actions). In plugin format, the `next-hop` field is omitted from the `nlri` object.
 
 ### Deviations from Plan
 - Added ExaBGP envelope format detection to skip validation for older test files with different JSON format.
@@ -349,7 +382,7 @@ Match by position after filtering keepalives:
 - [x] RFC constraint comments added (N/A)
 
 ### Completion (after tests pass - see Completion Checklist)
-- [ ] Architecture docs updated with learnings
+- [x] Architecture docs updated with learnings
 - [x] Spec updated with Implementation Summary
-- [ ] Spec moved to `docs/plan/done/NNN-<name>.md`
-- [ ] All files committed together
+- [x] Spec moved to `docs/plan/done/NNN-<name>.md`
+- [x] All files committed together

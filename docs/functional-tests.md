@@ -169,6 +169,30 @@ MARKER:LENGTH:TYPE:PAYLOAD
 - TYPE: 1 byte (1=OPEN, 2=UPDATE, 3=NOTIFICATION, 4=KEEPALIVE)
 - PAYLOAD: Variable
 
+### JSON Validation Format
+
+The `N:json:` lines use ZeBGP plugin format (not ExaBGP envelope format):
+
+**Unicast:**
+```json
+{"meta":{"version":"1.0.0","format":"zebgp"},"message":{"type":"update"},"origin":"igp","ipv4/unicast":[{"next-hop":"10.0.1.254","action":"add","nlri":["10.0.0.0/24"]}]}
+```
+
+**FlowSpec:**
+```json
+{"meta":{"version":"1.0.0","format":"zebgp"},"message":{"type":"update"},"origin":"igp","ipv4/flowspec":[{"action":"add","nlri":{"next-hop":"1.2.3.4","destination":["192.168.0.1/32"],"string":"flow destination 192.168.0.1/32"}}]}
+```
+
+**Supported families:** `ipv4/unicast`, `ipv6/unicast`, `ipv4/flowspec`, `ipv6/flowspec`
+
+**Key differences from ExaBGP envelope:**
+- Flat structure (no `neighbor.message.update` nesting)
+- `meta.format` = "zebgp" (not `exabgp` version)
+- Family arrays at top level with `action` field
+- FlowSpec: `nlri` is object with components; unicast: `nlri` is string array
+
+**Context fields ignored:** `peer`, `direction` (test-environment dependent)
+
 ---
 
 ## Test Execution Flow
@@ -357,6 +381,7 @@ The test passes if:
 | `color.go` | TTY-aware ANSI colors |
 | `decode.go` | BGP message decoding for failure reports |
 | `display.go` | Live progress display |
+| `json.go` | JSON validation: transform envelope → plugin format |
 | `limits.go` | ulimit check and auto-raise |
 | `ports.go` | Dynamic port range allocation |
 | `record.go` | Test record with state machine |

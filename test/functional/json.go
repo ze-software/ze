@@ -9,10 +9,21 @@ import (
 )
 
 // isSupportedFamily returns true if the family is supported for JSON validation.
-// Phase 1 supports only IPv4/IPv6 unicast.
+// Supports IPv4/IPv6 unicast and FlowSpec families.
 func isSupportedFamily(family string) bool {
 	normalized := strings.ReplaceAll(strings.ToLower(family), " ", "/")
-	return normalized == "ipv4/unicast" || normalized == "ipv6/unicast"
+	switch normalized {
+	case "ipv4/unicast", "ipv6/unicast", "ipv4/flowspec", "ipv6/flowspec":
+		return true
+	default:
+		return false
+	}
+}
+
+// isFlowSpecFamily returns true if the family is a FlowSpec family.
+func isFlowSpecFamily(family string) bool {
+	normalized := strings.ReplaceAll(strings.ToLower(family), " ", "/")
+	return normalized == "ipv4/flowspec" || normalized == "ipv6/flowspec"
 }
 
 // extractFamily extracts the address family from a zebgp decode envelope.
@@ -119,7 +130,11 @@ func transformEnvelopeToPlugin(envelope map[string]any) (map[string]any, string)
 		for family, nhMap := range announce {
 			detectedFamily = family
 			if nhData, ok := nhMap.(map[string]any); ok {
-				result[family] = transformAnnounce(nhData)
+				if isFlowSpecFamily(family) {
+					result[family] = transformFlowspecAnnounce(nhData)
+				} else {
+					result[family] = transformAnnounce(nhData)
+				}
 			}
 		}
 	}
@@ -128,7 +143,11 @@ func transformEnvelopeToPlugin(envelope map[string]any) (map[string]any, string)
 	if withdraw, ok := update["withdraw"].(map[string]any); ok {
 		for family, prefixes := range withdraw {
 			detectedFamily = family
-			result[family] = transformWithdraw(prefixes)
+			if isFlowSpecFamily(family) {
+				result[family] = transformFlowspecWithdraw(prefixes)
+			} else {
+				result[family] = transformWithdraw(prefixes)
+			}
 		}
 	}
 
@@ -160,6 +179,59 @@ func transformAnnounce(nhMap map[string]any) []map[string]any {
 				"action":   "add",
 				"nlri":     nlris,
 			})
+		}
+	}
+
+	return result
+}
+
+// transformFlowspecAnnounce transforms FlowSpec announce section to plugin format.
+// FlowSpec NLRI contains rule components (destination-ipv4, tcp-flags, etc.) rather than simple prefixes.
+// Zebgp decode: {"next-hop-or-no-nexthop": [{components}]}.
+// Plugin: [{"action": "add", "nlri": {next-hop, components...}}].
+func transformFlowspecAnnounce(nhMap map[string]any) []map[string]any {
+	var result []map[string]any
+
+	for nextHop, nlriList := range nhMap {
+		if v, ok := nlriList.([]any); ok {
+			for _, item := range v {
+				if nlriMap, ok := item.(map[string]any); ok {
+					// Copy nlri components
+					nlri := make(map[string]any)
+					for k, v := range nlriMap {
+						nlri[k] = v
+					}
+					// Add next-hop inside nlri if present
+					if nextHop != "no-nexthop" {
+						nlri["next-hop"] = nextHop
+					}
+					result = append(result, map[string]any{
+						"action": "add",
+						"nlri":   nlri,
+					})
+				}
+			}
+		}
+	}
+
+	return result
+}
+
+// transformFlowspecWithdraw transforms FlowSpec withdraw section to plugin format.
+// FlowSpec withdraws have component objects, same structure as announces but without next-hop.
+// Zebgp decode: [{components}].
+// Plugin: [{"action": "del", "nlri": {components}}].
+func transformFlowspecWithdraw(prefixes any) []map[string]any {
+	var result []map[string]any
+
+	if v, ok := prefixes.([]any); ok {
+		for _, item := range v {
+			if nlriMap, ok := item.(map[string]any); ok {
+				result = append(result, map[string]any{
+					"action": "del",
+					"nlri":   nlriMap, // Keep all FlowSpec components as-is
+				})
+			}
 		}
 	}
 
