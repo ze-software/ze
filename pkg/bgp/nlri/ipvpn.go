@@ -97,29 +97,33 @@ func (rd RouteDistinguisher) CheckedWriteTo(buf []byte, off int) (int, error) {
 	return rd.WriteTo(buf, off), nil
 }
 
-// String returns a human-readable representation.
+// String returns a human-readable representation with type prefix.
 //
-// Per RFC 4364 Section 4.2, the string format depends on RD type:
-//   - Type 0: "ASN:assigned" (e.g., "65000:100")
-//   - Type 1: "IP:assigned" (e.g., "192.0.2.1:100")
-//   - Type 2: "ASN:assigned" (e.g., "65000:100", 4-byte ASN)
+// RFC 4364 Section 4.2 defines three RD types. The format includes the type
+// prefix to disambiguate between Type 0 and Type 2 (both use ASN:assigned):
+//   - Type 0: "0:ASN:assigned" (e.g., "0:65000:100") - 2-byte ASN
+//   - Type 1: "1:IP:assigned" (e.g., "1:192.0.2.1:100") - 4-byte IP
+//   - Type 2: "2:ASN:assigned" (e.g., "2:65536:100") - 4-byte ASN
+//
+// The type prefix is required for unambiguous parsing since Type 0 and Type 2
+// would otherwise be indistinguishable for ASNs <= 65535.
 func (rd RouteDistinguisher) String() string {
 	switch rd.Type {
 	case RDType0:
 		// RFC 4364 Section 4.2 Type 0: 2-byte ASN : 4-byte assigned
 		asn := binary.BigEndian.Uint16(rd.Value[:2])
 		assigned := binary.BigEndian.Uint32(rd.Value[2:6])
-		return fmt.Sprintf("%d:%d", asn, assigned)
+		return fmt.Sprintf("0:%d:%d", asn, assigned)
 	case RDType1:
 		// RFC 4364 Section 4.2 Type 1: 4-byte IP : 2-byte assigned
 		ip := netip.AddrFrom4([4]byte(rd.Value[:4]))
 		assigned := binary.BigEndian.Uint16(rd.Value[4:6])
-		return fmt.Sprintf("%s:%d", ip, assigned)
+		return fmt.Sprintf("1:%s:%d", ip, assigned)
 	case RDType2:
 		// RFC 4364 Section 4.2 Type 2: 4-byte ASN : 2-byte assigned
 		asn := binary.BigEndian.Uint32(rd.Value[:4])
 		assigned := binary.BigEndian.Uint16(rd.Value[4:6])
-		return fmt.Sprintf("%d:%d", asn, assigned)
+		return fmt.Sprintf("2:%d:%d", asn, assigned)
 	default:
 		return fmt.Sprintf("rd-type%d:%x", rd.Type, rd.Value)
 	}

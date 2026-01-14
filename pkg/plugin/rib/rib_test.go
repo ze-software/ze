@@ -15,7 +15,8 @@ import (
 // VALIDATES: Sent events with flat structure are parsed correctly.
 // PREVENTS: Sent events being dropped due to format mismatch.
 func TestParseEvent_SentFormat(t *testing.T) {
-	input := `{"type":"sent","msg-id":123,"peer":{"address":"10.0.0.1","asn":65001},"announce":{"ipv4/unicast":{"1.1.1.1":["10.0.0.0/24","10.0.1.0/24"]}}}`
+	// New command-style format: family at top level with operations array
+	input := `{"type":"sent","msg-id":123,"peer":{"address":"10.0.0.1","asn":65001},"ipv4/unicast":[{"next-hop":"1.1.1.1","action":"add","nlri":["10.0.0.0/24","10.0.1.0/24"]}]}`
 
 	event, err := parseEvent([]byte(input))
 	require.NoError(t, err)
@@ -23,8 +24,11 @@ func TestParseEvent_SentFormat(t *testing.T) {
 	assert.Equal(t, "sent", event.GetEventType())
 	assert.Equal(t, uint64(123), event.GetMsgID())
 	assert.Equal(t, "10.0.0.1", event.GetPeerAddress())
-	assert.NotNil(t, event.Announce)
-	assert.Contains(t, event.Announce, "ipv4/unicast")
+	assert.NotNil(t, event.FamilyOps)
+	assert.Contains(t, event.FamilyOps, "ipv4/unicast")
+	require.Len(t, event.FamilyOps["ipv4/unicast"], 1)
+	assert.Equal(t, "add", event.FamilyOps["ipv4/unicast"][0].Action)
+	assert.Equal(t, "1.1.1.1", event.FamilyOps["ipv4/unicast"][0].NextHop)
 }
 
 // TestParseEvent_ReceivedFormat verifies parsing of received UPDATE events.
@@ -32,8 +36,8 @@ func TestParseEvent_SentFormat(t *testing.T) {
 // VALIDATES: Received events with message wrapper are parsed correctly.
 // PREVENTS: Received events being dropped due to format mismatch.
 func TestParseEvent_ReceivedFormat(t *testing.T) {
-	// Actual format from plugin system: array of prefixes, same as sent events
-	input := `{"message":{"type":"update","id":456},"direction":"received","peer":{"address":{"local":"10.0.0.2","peer":"10.0.0.1"},"asn":{"local":65002,"peer":65001}},"announce":{"ipv4/unicast":{"1.1.1.1":["10.0.0.0/24","10.0.1.0/24"]}}}`
+	// New command-style format: family at top level with operations array
+	input := `{"message":{"type":"update","id":456},"direction":"received","peer":{"address":{"local":"10.0.0.2","peer":"10.0.0.1"},"asn":{"local":65002,"peer":65001}},"ipv4/unicast":[{"next-hop":"1.1.1.1","action":"add","nlri":["10.0.0.0/24","10.0.1.0/24"]}]}`
 
 	event, err := parseEvent([]byte(input))
 	require.NoError(t, err)
@@ -41,7 +45,8 @@ func TestParseEvent_ReceivedFormat(t *testing.T) {
 	assert.Equal(t, "update", event.GetEventType())
 	assert.Equal(t, uint64(456), event.GetMsgID())
 	assert.Equal(t, "10.0.0.1", event.GetPeerAddress())
-	assert.NotNil(t, event.Announce)
+	assert.NotNil(t, event.FamilyOps)
+	assert.Contains(t, event.FamilyOps, "ipv4/unicast")
 }
 
 // TestParseEvent_StateFormat verifies parsing of state events.
@@ -81,13 +86,14 @@ func TestParseEvent_RequestFormat(t *testing.T) {
 func TestHandleSent_StoresRoutes(t *testing.T) {
 	r := NewRIBManager(strings.NewReader(""), &bytes.Buffer{})
 
+	// New command-style format: family operations with action/next-hop/nlri
 	event := &Event{
 		Type:  "sent",
 		MsgID: 100,
 		Peer:  mustMarshal(t, PeerInfoFlat{Address: "10.0.0.1", ASN: 65001}),
-		Announce: map[string]map[string]any{
+		FamilyOps: map[string][]FamilyOperation{
 			"ipv4/unicast": {
-				"1.1.1.1": []any{"10.0.0.0/24", "10.0.1.0/24"},
+				{NextHop: "1.1.1.1", Action: "add", NLRIs: []any{"10.0.0.0/24", "10.0.1.0/24"}},
 			},
 		},
 	}
@@ -116,8 +122,10 @@ func TestHandleSent_Withdraw(t *testing.T) {
 		Type:  "sent",
 		MsgID: 100,
 		Peer:  mustMarshal(t, PeerInfoFlat{Address: "10.0.0.1", ASN: 65001}),
-		Announce: map[string]map[string]any{
-			"ipv4/unicast": {"1.1.1.1": []any{"10.0.0.0/24"}},
+		FamilyOps: map[string][]FamilyOperation{
+			"ipv4/unicast": {
+				{NextHop: "1.1.1.1", Action: "add", NLRIs: []any{"10.0.0.0/24"}},
+			},
 		},
 	}
 	r.handleSent(announce)
@@ -127,8 +135,10 @@ func TestHandleSent_Withdraw(t *testing.T) {
 	withdraw := &Event{
 		Type: "sent",
 		Peer: mustMarshal(t, PeerInfoFlat{Address: "10.0.0.1", ASN: 65001}),
-		Withdraw: map[string][]any{
-			"ipv4/unicast": {"10.0.0.0/24"},
+		FamilyOps: map[string][]FamilyOperation{
+			"ipv4/unicast": {
+				{Action: "del", NLRIs: []any{"10.0.0.0/24"}},
+			},
 		},
 	}
 	r.handleSent(withdraw)
@@ -142,13 +152,13 @@ func TestHandleSent_Withdraw(t *testing.T) {
 func TestHandleReceived_StoresRoutes(t *testing.T) {
 	r := NewRIBManager(strings.NewReader(""), &bytes.Buffer{})
 
-	// Actual format: array of prefixes (same as sent events)
+	// New command-style format: family operations with action/next-hop/nlri
 	event := &Event{
 		Message: &MessageInfo{Type: "update", ID: 200},
 		Peer:    mustMarshal(t, map[string]any{"address": map[string]string{"local": "10.0.0.2", "peer": "10.0.0.1"}, "asn": map[string]uint32{"local": 65002, "peer": 65001}}),
-		Announce: map[string]map[string]any{
+		FamilyOps: map[string][]FamilyOperation{
 			"ipv4/unicast": {
-				"1.1.1.1": []any{"10.0.0.0/24", "10.0.1.0/24"},
+				{NextHop: "1.1.1.1", Action: "add", NLRIs: []any{"10.0.0.0/24", "10.0.1.0/24"}},
 			},
 		},
 	}
@@ -171,13 +181,13 @@ func TestHandleReceived_Withdraw(t *testing.T) {
 	r := NewRIBManager(strings.NewReader(""), &bytes.Buffer{})
 	nestedPeer := mustMarshal(t, map[string]any{"address": map[string]string{"local": "10.0.0.2", "peer": "10.0.0.1"}, "asn": map[string]uint32{"local": 65002, "peer": 65001}})
 
-	// First announce (array format)
+	// First announce
 	announce := &Event{
 		Message: &MessageInfo{Type: "update", ID: 200},
 		Peer:    nestedPeer,
-		Announce: map[string]map[string]any{
+		FamilyOps: map[string][]FamilyOperation{
 			"ipv4/unicast": {
-				"1.1.1.1": []any{"10.0.0.0/24"},
+				{NextHop: "1.1.1.1", Action: "add", NLRIs: []any{"10.0.0.0/24"}},
 			},
 		},
 	}
@@ -188,8 +198,10 @@ func TestHandleReceived_Withdraw(t *testing.T) {
 	withdraw := &Event{
 		Message: &MessageInfo{Type: "update", ID: 201},
 		Peer:    nestedPeer,
-		Withdraw: map[string][]any{
-			"ipv4/unicast": {"10.0.0.0/24"},
+		FamilyOps: map[string][]FamilyOperation{
+			"ipv4/unicast": {
+				{Action: "del", NLRIs: []any{"10.0.0.0/24"}},
+			},
 		},
 	}
 	r.handleReceived(withdraw)
@@ -291,9 +303,11 @@ func TestDispatch_RoutesToCorrectHandler(t *testing.T) {
 		{
 			name: "sent_to_ribOut",
 			event: &Event{
-				Type:     "sent",
-				Peer:     mustMarshal(t, PeerInfoFlat{Address: "10.0.0.1", ASN: 65001}),
-				Announce: map[string]map[string]any{"ipv4/unicast": {"1.1.1.1": []any{"10.0.0.0/24"}}},
+				Type: "sent",
+				Peer: mustMarshal(t, PeerInfoFlat{Address: "10.0.0.1", ASN: 65001}),
+				FamilyOps: map[string][]FamilyOperation{
+					"ipv4/unicast": {{NextHop: "1.1.1.1", Action: "add", NLRIs: []any{"10.0.0.0/24"}}},
+				},
 			},
 			wantRibIn:  0,
 			wantRibOut: 1,
@@ -301,9 +315,11 @@ func TestDispatch_RoutesToCorrectHandler(t *testing.T) {
 		{
 			name: "update_to_ribIn",
 			event: &Event{
-				Message:  &MessageInfo{Type: "update"},
-				Peer:     json.RawMessage(`{"address":{"local":"","peer":"10.0.0.1"},"asn":{"local":0,"peer":65001}}`),
-				Announce: map[string]map[string]any{"ipv4/unicast": {"1.1.1.1": []any{"10.0.0.0/24"}}},
+				Message: &MessageInfo{Type: "update"},
+				Peer:    json.RawMessage(`{"address":{"local":"","peer":"10.0.0.1"},"asn":{"local":0,"peer":65001}}`),
+				FamilyOps: map[string][]FamilyOperation{
+					"ipv4/unicast": {{NextHop: "1.1.1.1", Action: "add", NLRIs: []any{"10.0.0.0/24"}}},
+				},
 			},
 			wantRibIn:  1,
 			wantRibOut: 0,

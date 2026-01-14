@@ -1679,7 +1679,7 @@ func TestParseUpdateText_RDSet(t *testing.T) {
 	// Get IPVPN NLRI and check RD
 	vpnNLRI, ok := result.Groups[0].Announce[0].(*nlri.IPVPN)
 	require.True(t, ok, "expected IPVPN NLRI")
-	assert.Equal(t, "65000:100", vpnNLRI.RD().String())
+	assert.Equal(t, "0:65000:100", vpnNLRI.RD().String())
 }
 
 // TestParseUpdateText_RDSetIPFormat verifies rd set with IP:value format.
@@ -1698,7 +1698,7 @@ func TestParseUpdateText_RDSetIPFormat(t *testing.T) {
 
 	vpnNLRI, ok := result.Groups[0].Announce[0].(*nlri.IPVPN)
 	require.True(t, ok)
-	assert.Equal(t, "192.0.2.1:100", vpnNLRI.RD().String())
+	assert.Equal(t, "1:192.0.2.1:100", vpnNLRI.RD().String())
 }
 
 // TestParseUpdateText_RDDel verifies rd del clears RD.
@@ -1720,7 +1720,7 @@ func TestParseUpdateText_RDDel(t *testing.T) {
 	// First group: VPN with RD
 	vpnNLRI, ok := result.Groups[0].Announce[0].(*nlri.IPVPN)
 	require.True(t, ok)
-	assert.Equal(t, "65000:100", vpnNLRI.RD().String())
+	assert.Equal(t, "0:65000:100", vpnNLRI.RD().String())
 
 	// Second group: unicast (no RD check needed, it's INET)
 	assert.Equal(t, nlri.IPv4Unicast, result.Groups[1].Family)
@@ -1749,7 +1749,7 @@ func TestParseUpdateText_RDDelConditional(t *testing.T) {
 		"nlri", "ipv4/unicast", "add", "10.0.0.0/24",
 	})
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "rd del: current value is 65000:100, not 65000:999")
+	assert.Contains(t, err.Error(), "rd del: current value is 0:65000:100, not 0:65000:999")
 }
 
 // TestParseUpdateText_LabelSet verifies label set <value> syntax.
@@ -1957,7 +1957,7 @@ func TestParseUpdateText_IPv6VPN(t *testing.T) {
 
 	vpnNLRI, ok := result.Groups[0].Announce[0].(*nlri.IPVPN)
 	require.True(t, ok)
-	assert.Equal(t, "65000:100", vpnNLRI.RD().String())
+	assert.Equal(t, "0:65000:100", vpnNLRI.RD().String())
 	assert.Equal(t, "2001:db8:1::/48", vpnNLRI.Prefix().String())
 }
 
@@ -2018,12 +2018,12 @@ func TestParseUpdateText_RDChangesBetweenSections(t *testing.T) {
 	// First group: RD 65000:100
 	vpn1, ok := result.Groups[0].Announce[0].(*nlri.IPVPN)
 	require.True(t, ok)
-	assert.Equal(t, "65000:100", vpn1.RD().String())
+	assert.Equal(t, "0:65000:100", vpn1.RD().String())
 
 	// Second group: RD 65000:200
 	vpn2, ok := result.Groups[1].Announce[0].(*nlri.IPVPN)
 	require.True(t, ok)
-	assert.Equal(t, "65000:200", vpn2.RD().String())
+	assert.Equal(t, "0:65000:200", vpn2.RD().String())
 }
 
 // TestParseUpdateText_LabelChangesBetweenSections verifies label can change.
@@ -2072,7 +2072,7 @@ func TestParseUpdateText_InNLRIModifierSyntax(t *testing.T) {
 
 	vpnNLRI, ok := result.Groups[0].Announce[0].(*nlri.IPVPN)
 	require.True(t, ok, "expected IPVPN NLRI")
-	assert.Equal(t, "65000:100", vpnNLRI.RD().String())
+	assert.Equal(t, "0:65000:100", vpnNLRI.RD().String())
 	require.Len(t, vpnNLRI.Labels(), 1)
 	assert.Equal(t, uint32(1000), vpnNLRI.Labels()[0])
 	assert.Equal(t, "10.0.0.0/24", vpnNLRI.Prefix().String())
@@ -2096,7 +2096,7 @@ func TestParseUpdateText_InNLRIModifierMultiplePrefixes(t *testing.T) {
 	for i, n := range result.Groups[0].Announce {
 		vpnNLRI, ok := n.(*nlri.IPVPN)
 		require.True(t, ok, "prefix %d: expected IPVPN NLRI", i)
-		assert.Equal(t, "65000:100", vpnNLRI.RD().String(), "prefix %d", i)
+		assert.Equal(t, "0:65000:100", vpnNLRI.RD().String(), "prefix %d", i)
 		assert.Equal(t, uint32(1000), vpnNLRI.Labels()[0], "prefix %d", i)
 	}
 }
@@ -2119,7 +2119,7 @@ func TestParseUpdateText_InNLRIModifierOverridesAccumulator(t *testing.T) {
 	vpnNLRI, ok := result.Groups[0].Announce[0].(*nlri.IPVPN)
 	require.True(t, ok)
 	// Should use in-NLRI values, not accumulated
-	assert.Equal(t, "65000:200", vpnNLRI.RD().String())
+	assert.Equal(t, "0:65000:200", vpnNLRI.RD().String())
 	assert.Equal(t, uint32(2000), vpnNLRI.Labels()[0])
 }
 
@@ -2137,7 +2137,7 @@ func TestParseUpdateText_InNLRIModifierIPv6VPN(t *testing.T) {
 
 	vpnNLRI, ok := result.Groups[0].Announce[0].(*nlri.IPVPN)
 	require.True(t, ok)
-	assert.Equal(t, "65000:100", vpnNLRI.RD().String())
+	assert.Equal(t, "0:65000:100", vpnNLRI.RD().String())
 	assert.Equal(t, uint32(1000), vpnNLRI.Labels()[0])
 	assert.Equal(t, "2001:db8:1::/48", vpnNLRI.Prefix().String())
 }
@@ -2202,7 +2202,7 @@ func TestParseUpdateText_InNLRIModifierScopeIsSectionOnly(t *testing.T) {
 	// First group: VPN with in-NLRI modifiers
 	vpnNLRI, ok := result.Groups[0].Announce[0].(*nlri.IPVPN)
 	require.True(t, ok)
-	assert.Equal(t, "65000:100", vpnNLRI.RD().String())
+	assert.Equal(t, "0:65000:100", vpnNLRI.RD().String())
 
 	// Second group: unicast (no VPN requirements)
 	assert.Equal(t, nlri.IPv4Unicast, result.Groups[1].Family)
@@ -2376,7 +2376,7 @@ func TestParseUpdateText_FlowSpecVPN(t *testing.T) {
 
 	fsv, ok := result.Groups[0].Announce[0].(*nlri.FlowSpecVPN)
 	require.True(t, ok, "expected FlowSpecVPN NLRI")
-	assert.Equal(t, "65000:100", fsv.RD().String())
+	assert.Equal(t, "0:65000:100", fsv.RD().String())
 	require.Len(t, fsv.Components(), 1)
 }
 
@@ -3173,18 +3173,19 @@ func TestParseUpdateText_FlowSpecVPNVariants(t *testing.T) {
 	tests := []struct {
 		name       string
 		family     string
-		rd         string
+		rdInput    string // RD input format
+		rdOutput   string // RD output format (with type prefix)
 		components []string
 	}{
-		{"ipv4_vpn_basic", "ipv4/flowspec-vpn", "65000:100", []string{"destination", "10.0.0.0/24"}},
-		{"ipv4_vpn_full", "ipv4/flowspec-vpn", "1.2.3.4:100", []string{"destination", "10.0.0.0/24", "protocol", "tcp", "destination-port", "=80"}},
-		{"ipv6_vpn_basic", "ipv6/flowspec-vpn", "65000:200", []string{"destination", "2001:db8::/32"}},
-		{"ipv6_vpn_full", "ipv6/flowspec-vpn", "65000:300", []string{"destination", "2001:db8::/32", "protocol", "tcp"}},
+		{"ipv4_vpn_basic", "ipv4/flowspec-vpn", "65000:100", "0:65000:100", []string{"destination", "10.0.0.0/24"}},
+		{"ipv4_vpn_full", "ipv4/flowspec-vpn", "1.2.3.4:100", "1:1.2.3.4:100", []string{"destination", "10.0.0.0/24", "protocol", "tcp", "destination-port", "=80"}},
+		{"ipv6_vpn_basic", "ipv6/flowspec-vpn", "65000:200", "0:65000:200", []string{"destination", "2001:db8::/32"}},
+		{"ipv6_vpn_full", "ipv6/flowspec-vpn", "65000:300", "0:65000:300", []string{"destination", "2001:db8::/32", "protocol", "tcp"}},
 	}
 
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
-			args := append([]string{"nlri", tc.family, "rd", tc.rd, "add"}, tc.components...)
+			args := append([]string{"nlri", tc.family, "rd", tc.rdInput, "add"}, tc.components...)
 			result, err := ParseUpdateText(args)
 			require.NoError(t, err, "VPN %s failed", tc.name)
 			require.Len(t, result.Groups, 1)
@@ -3192,7 +3193,7 @@ func TestParseUpdateText_FlowSpecVPNVariants(t *testing.T) {
 
 			fsv, ok := result.Groups[0].Announce[0].(*nlri.FlowSpecVPN)
 			require.True(t, ok, "expected FlowSpecVPN, got %T", result.Groups[0].Announce[0])
-			assert.Equal(t, tc.rd, fsv.RD().String())
+			assert.Equal(t, tc.rdOutput, fsv.RD().String())
 		})
 	}
 }

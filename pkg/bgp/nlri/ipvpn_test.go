@@ -11,6 +11,7 @@ import (
 // TestRouteDistinguisherType0 verifies Type 0 RD parsing (Admin:Value).
 //
 // VALIDATES: RD Type 0 - 2-byte ASN : 4-byte assigned number.
+// String format: "0:ASN:assigned" with type prefix for unambiguous parsing.
 //
 // PREVENTS: Incorrect RD parsing causing VPN route mismatches.
 func TestRouteDistinguisherType0(t *testing.T) {
@@ -22,12 +23,13 @@ func TestRouteDistinguisherType0(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.Equal(t, RDType0, rd.Type)
-	assert.Equal(t, "65000:100", rd.String())
+	assert.Equal(t, "0:65000:100", rd.String())
 }
 
 // TestRouteDistinguisherType1 verifies Type 1 RD parsing (IP:Value).
 //
 // VALIDATES: RD Type 1 - 4-byte IP : 2-byte assigned number.
+// String format: "1:IP:assigned" with type prefix.
 //
 // PREVENTS: Incorrect IP-based RD parsing.
 func TestRouteDistinguisherType1(t *testing.T) {
@@ -39,12 +41,13 @@ func TestRouteDistinguisherType1(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.Equal(t, RDType1, rd.Type)
-	assert.Equal(t, "10.0.0.1:100", rd.String())
+	assert.Equal(t, "1:10.0.0.1:100", rd.String())
 }
 
 // TestRouteDistinguisherType2 verifies Type 2 RD parsing (4-byte ASN:Value).
 //
 // VALIDATES: RD Type 2 - 4-byte ASN : 2-byte assigned number.
+// String format: "2:ASN:assigned" with type prefix.
 //
 // PREVENTS: Incorrect 4-byte ASN RD parsing.
 func TestRouteDistinguisherType2(t *testing.T) {
@@ -56,7 +59,7 @@ func TestRouteDistinguisherType2(t *testing.T) {
 	require.NoError(t, err)
 
 	assert.Equal(t, RDType2, rd.Type)
-	assert.Equal(t, "65536:100", rd.String())
+	assert.Equal(t, "2:65536:100", rd.String())
 }
 
 // TestRouteDistinguisherLenMatchesWriteTo verifies Len() == WriteTo() bytes.
@@ -154,7 +157,7 @@ func TestIPVPNv4Basic(t *testing.T) {
 	require.True(t, ok, "expected IPVPN")
 	assert.Equal(t, IPv4VPN, vpn.Family())
 	assert.Equal(t, netip.MustParsePrefix("10.0.0.0/8"), vpn.Prefix())
-	assert.Equal(t, "65000:100", vpn.RD().String())
+	assert.Equal(t, "0:65000:100", vpn.RD().String())
 	require.Len(t, vpn.Labels(), 1)
 	assert.Equal(t, uint32(16), vpn.Labels()[0])
 }
@@ -224,7 +227,7 @@ func TestIPVPNString(t *testing.T) {
 	}
 
 	s := vpn.String()
-	assert.Contains(t, s, "65000:100")
+	assert.Contains(t, s, "0:65000:100") // Type 0 RD with prefix
 	assert.Contains(t, s, "10.0.0.0/8")
 }
 

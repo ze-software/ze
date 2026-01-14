@@ -204,7 +204,7 @@ func (r *RIBManager) handleSent(event *Event) {
 		return
 	}
 
-	if event.Announce == nil && event.Withdraw == nil {
+	if len(event.FamilyOps) == 0 {
 		return
 	}
 
@@ -216,55 +216,47 @@ func (r *RIBManager) handleSent(event *Event) {
 		r.ribOut[peerAddr] = make(map[string]*Route)
 	}
 
-	// Process announcements - store routes
-	// Format: {"ipv4/unicast": {"1.1.1.1": [{"prefix":"10.0.0.0/24","path-id":1}, ...]}}
-	// Also supports legacy string format: {"ipv4/unicast": {"1.1.1.1": ["10.0.0.0/24", ...]}}
-	for family, nexthops := range event.Announce {
-		for nexthop, prefixes := range nexthops {
-			prefixList, ok := prefixes.([]any)
-			if !ok {
-				slog.Warn("sent: unexpected announce format",
-					"peer", peerAddr, "family", family, "nexthop", nexthop,
-					"expected", "[]any", "got", fmt.Sprintf("%T", prefixes))
-				continue
-			}
-			for _, pv := range prefixList {
-				prefix, pathID := parseNLRIValue(pv)
-				if prefix == "" {
-					slog.Warn("sent: invalid nlri value",
-						"peer", peerAddr, "family", family, "got", fmt.Sprintf("%T", pv))
-					continue
+	// Process family operations
+	// Format: {"ipv4/unicast": [{"next-hop": "...", "action": "add", "nlri": [...]}]}
+	for family, ops := range event.FamilyOps {
+		for _, op := range ops {
+			switch op.Action {
+			case "add":
+				// Store routes with their next-hop
+				for _, nlriVal := range op.NLRIs {
+					prefix, pathID := parseNLRIValue(nlriVal)
+					if prefix == "" {
+						slog.Warn("sent: invalid nlri value",
+							"peer", peerAddr, "family", family, "got", fmt.Sprintf("%T", nlriVal))
+						continue
+					}
+					key := routeKey(family, prefix, pathID)
+					r.ribOut[peerAddr][key] = &Route{
+						MsgID:               msgID,
+						Family:              family,
+						Prefix:              prefix,
+						PathID:              pathID,
+						NextHop:             op.NextHop,
+						Origin:              event.Origin,
+						ASPath:              event.ASPath,
+						MED:                 event.MED,
+						LocalPreference:     event.LocalPreference,
+						Communities:         event.Communities,
+						LargeCommunities:    event.LargeCommunities,
+						ExtendedCommunities: event.ExtendedCommunities,
+					}
 				}
-				key := routeKey(family, prefix, pathID)
-				r.ribOut[peerAddr][key] = &Route{
-					MsgID:               msgID,
-					Family:              family,
-					Prefix:              prefix,
-					PathID:              pathID,
-					NextHop:             nexthop,
-					Origin:              event.Origin,
-					ASPath:              event.ASPath,
-					MED:                 event.MED,
-					LocalPreference:     event.LocalPreference,
-					Communities:         event.Communities,
-					LargeCommunities:    event.LargeCommunities,
-					ExtendedCommunities: event.ExtendedCommunities,
+			case "del":
+				// Remove routes
+				for _, nlriVal := range op.NLRIs {
+					prefix, pathID := parseNLRIValue(nlriVal)
+					if prefix == "" {
+						continue
+					}
+					key := routeKey(family, prefix, pathID)
+					delete(r.ribOut[peerAddr], key)
 				}
 			}
-		}
-	}
-
-	// Process withdrawals - remove routes
-	// Format: {"ipv4/unicast": [{"prefix":"10.0.0.0/24","path-id":1}, ...]}
-	// Also supports legacy string format: {"ipv4/unicast": ["10.0.0.0/24", ...]}
-	for family, nlris := range event.Withdraw {
-		for _, nlriVal := range nlris {
-			prefix, pathID := parseNLRIValue(nlriVal)
-			if prefix == "" {
-				continue
-			}
-			key := routeKey(family, prefix, pathID)
-			delete(r.ribOut[peerAddr], key)
 		}
 	}
 }
@@ -302,7 +294,7 @@ func (r *RIBManager) handleReceived(event *Event) {
 		return
 	}
 
-	if event.Announce == nil && event.Withdraw == nil {
+	if len(event.FamilyOps) == 0 {
 		return
 	}
 
@@ -314,56 +306,48 @@ func (r *RIBManager) handleReceived(event *Event) {
 		r.ribIn[peerAddr] = make(map[string]*Route)
 	}
 
-	// Process announcements - store routes
-	// Format: {"ipv4/unicast": {"1.1.1.1": [{"prefix":"10.0.0.0/24","path-id":1}, ...]}}
-	// Also supports legacy string format
-	for family, nexthops := range event.Announce {
-		for nexthop, prefixes := range nexthops {
-			prefixList, ok := prefixes.([]any)
-			if !ok {
-				slog.Warn("received: unexpected announce format",
-					"peer", peerAddr, "family", family, "nexthop", nexthop,
-					"expected", "[]any", "got", fmt.Sprintf("%T", prefixes))
-				continue
-			}
-			for _, pv := range prefixList {
-				prefix, pathID := parseNLRIValue(pv)
-				if prefix == "" {
-					slog.Warn("received: invalid nlri value",
-						"peer", peerAddr, "family", family, "got", fmt.Sprintf("%T", pv))
-					continue
+	// Process family operations
+	// Format: {"ipv4/unicast": [{"next-hop": "...", "action": "add", "nlri": [...]}]}
+	for family, ops := range event.FamilyOps {
+		for _, op := range ops {
+			switch op.Action {
+			case "add":
+				// Store routes with their next-hop
+				for _, nlriVal := range op.NLRIs {
+					prefix, pathID := parseNLRIValue(nlriVal)
+					if prefix == "" {
+						slog.Warn("received: invalid nlri value",
+							"peer", peerAddr, "family", family, "got", fmt.Sprintf("%T", nlriVal))
+						continue
+					}
+					key := routeKey(family, prefix, pathID)
+					r.ribIn[peerAddr][key] = &Route{
+						MsgID:               msgID,
+						Family:              family,
+						Prefix:              prefix,
+						PathID:              pathID,
+						NextHop:             op.NextHop,
+						Timestamp:           now,
+						Origin:              event.Origin,
+						ASPath:              event.ASPath,
+						MED:                 event.MED,
+						LocalPreference:     event.LocalPreference,
+						Communities:         event.Communities,
+						LargeCommunities:    event.LargeCommunities,
+						ExtendedCommunities: event.ExtendedCommunities,
+					}
 				}
-				key := routeKey(family, prefix, pathID)
-				r.ribIn[peerAddr][key] = &Route{
-					MsgID:               msgID,
-					Family:              family,
-					Prefix:              prefix,
-					PathID:              pathID,
-					NextHop:             nexthop,
-					Timestamp:           now,
-					Origin:              event.Origin,
-					ASPath:              event.ASPath,
-					MED:                 event.MED,
-					LocalPreference:     event.LocalPreference,
-					Communities:         event.Communities,
-					LargeCommunities:    event.LargeCommunities,
-					ExtendedCommunities: event.ExtendedCommunities,
+			case "del":
+				// Remove routes
+				for _, nlriVal := range op.NLRIs {
+					prefix, pathID := parseNLRIValue(nlriVal)
+					if prefix == "" {
+						continue
+					}
+					key := routeKey(family, prefix, pathID)
+					delete(r.ribIn[peerAddr], key)
 				}
 			}
-		}
-	}
-
-	// Process withdrawals - remove routes
-	// Format: {"ipv4/unicast": [{"prefix":"10.0.0.0/24","path-id":1}, ...]}
-	// Also supports legacy string format
-	for family, nlris := range event.Withdraw {
-		for _, nlriVal := range nlris {
-			prefix, pathID := parseNLRIValue(nlriVal)
-			if prefix == "" {
-				continue
-			}
-			key := routeKey(family, prefix, pathID)
-			delete(r.ribIn[peerAddr], key)
 		}
 	}
 }

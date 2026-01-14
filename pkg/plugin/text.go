@@ -162,6 +162,19 @@ func formatFullFromResult(peer PeerInfo, msg RawMessage, content ContentConfig, 
 // formatFilterResultJSON formats FilterResult as JSON.
 // Uses AnnouncedByFamily()/WithdrawnByFamily() for RFC 4760-correct next-hop per family.
 // ctx provides ADD-PATH state per family.
+//
+// RFC 4271 Section 5.1.3: NEXT_HOP defines the IP address of the router
+// that SHOULD be used as next hop to the destinations.
+// RFC 4760 Section 3: Each MP_REACH_NLRI has its own next-hop field.
+//
+// Output format (command-style):
+//
+//	{
+//	  "ipv4/unicast": [
+//	    {"next-hop": "192.0.2.1", "action": "add", "nlri": ["10.0.0.0/24"]},
+//	    {"action": "del", "nlri": ["172.16.0.0/16"]}
+//	  ]
+//	}
 func formatFilterResultJSON(peer PeerInfo, result FilterResult, msgID uint64, direction string, ctx *bgpctx.EncodingContext) string {
 	var sb strings.Builder
 
@@ -185,69 +198,235 @@ func formatFilterResultJSON(peer PeerInfo, result FilterResult, msgID uint64, di
 	sb.WriteString(fmt.Sprintf("%d", peer.PeerAS))
 	sb.WriteString(`}`)
 
-	// Attributes at top level (not inside announce - that breaks JSON parsing for RIB plugin)
+	// Attributes at top level
 	if len(result.Attributes) > 0 {
 		sb.WriteString(",")
 		formatAttributesJSON(&sb, result)
 	}
 
-	// Announced routes - grouped by family with per-family next-hop
+	// Collect operations by family
+	// Map: family -> list of operations (each op has action, next-hop, nlris)
+	familyOps := make(map[string][]familyOperation)
+
+	// Add announced routes (action: add)
 	announced := result.AnnouncedByFamily(ctx)
-	if len(announced) > 0 {
-		sb.WriteString(`,"announce":{`)
-
-		first := true
-		for _, fam := range announced {
-			if !first {
-				sb.WriteString(",")
-			}
-			// Family name (e.g., "ipv4/unicast")
-			familyKey := fam.Family
-			sb.WriteString(`"`)
-			sb.WriteString(familyKey)
-			sb.WriteString(`":{"`)
-			sb.WriteString(fam.NextHop.String())
-			sb.WriteString(`":[`)
-			for i, n := range fam.NLRIs {
-				if i > 0 {
-					sb.WriteString(",")
-				}
-				formatNLRIJSON(&sb, n)
-			}
-			sb.WriteString("]}")
-			first = false
+	for _, fam := range announced {
+		op := familyOperation{
+			Action:  "add",
+			NextHop: fam.NextHop.String(),
+			NLRIs:   fam.NLRIs,
 		}
-
-		sb.WriteString(`}`)
+		familyOps[fam.Family] = append(familyOps[fam.Family], op)
 	}
 
-	// Withdrawn routes - no attributes, just family -> [nlris]
+	// Add withdrawn routes (action: del)
 	withdrawn := result.WithdrawnByFamily(ctx)
-	if len(withdrawn) > 0 {
-		sb.WriteString(`,"withdraw":{`)
-		first := true
-		for _, fam := range withdrawn {
-			if !first {
+	for _, fam := range withdrawn {
+		op := familyOperation{
+			Action: "del",
+			NLRIs:  fam.NLRIs,
+		}
+		familyOps[fam.Family] = append(familyOps[fam.Family], op)
+	}
+
+	// Output each family at top level
+	for family, ops := range familyOps {
+		sb.WriteString(`,"`)
+		sb.WriteString(family)
+		sb.WriteString(`":[`)
+		for i, op := range ops {
+			if i > 0 {
 				sb.WriteString(",")
 			}
-			familyKey := fam.Family
-			sb.WriteString(`"`)
-			sb.WriteString(familyKey)
-			sb.WriteString(`":[`)
-			for i, n := range fam.NLRIs {
-				if i > 0 {
+			sb.WriteString(`{`)
+			// next-hop only for add operations (and only if valid)
+			if op.Action == "add" && op.NextHop != "" && op.NextHop != "invalid IP" {
+				sb.WriteString(`"next-hop":"`)
+				sb.WriteString(op.NextHop)
+				sb.WriteString(`",`)
+			}
+			sb.WriteString(`"action":"`)
+			sb.WriteString(op.Action)
+			sb.WriteString(`","nlri":[`)
+			for j, n := range op.NLRIs {
+				if j > 0 {
 					sb.WriteString(",")
 				}
-				formatNLRIJSON(&sb, n)
+				formatNLRIJSONValue(&sb, n)
 			}
-			sb.WriteString("]")
-			first = false
+			sb.WriteString(`]}`)
 		}
-		sb.WriteString(`}`)
+		sb.WriteString(`]`)
 	}
 
 	sb.WriteString("}\n")
 	return sb.String()
+}
+
+// familyOperation represents a single operation (add/del) for a family.
+type familyOperation struct {
+	Action  string      // "add" or "del"
+	NextHop string      // Only for "add" operations
+	NLRIs   []nlri.NLRI // NLRIs in this operation
+}
+
+// formatNLRIJSONValue formats a single NLRI as JSON value.
+// Simple prefixes without path-id are output as strings: "10.0.0.0/24".
+// Complex NLRIs (ADD-PATH, VPN, EVPN, FlowSpec) are output as objects with structured fields.
+//
+// RFC 4364: VPN NLRI includes RD and labels.
+// RFC 7432: EVPN NLRI includes route-type, ESI, etc.
+// RFC 8277: Labeled Unicast NLRI includes labels.
+// RFC 8955: FlowSpec NLRI includes match components.
+func formatNLRIJSONValue(sb *strings.Builder, n nlri.NLRI) {
+	// Check for complex NLRI types that need structured output
+	switch v := n.(type) {
+	case *nlri.IPVPN:
+		formatIPVPNJSON(sb, v)
+		return
+	case *nlri.LabeledUnicast:
+		formatLabeledUnicastJSON(sb, v)
+		return
+	case *nlri.FlowSpecVPN:
+		formatFlowSpecVPNJSON(sb, v)
+		return
+	case *nlri.EVPNType2:
+		formatEVPNType2JSON(sb, v)
+		return
+	}
+
+	pathID := n.PathID()
+
+	// Simple prefix without path-id: output as string
+	if pathID == 0 {
+		if p, ok := n.(prefixer); ok {
+			sb.WriteString(`"`)
+			sb.WriteString(p.Prefix().String())
+			sb.WriteString(`"`)
+			return
+		}
+	}
+
+	// Complex NLRI (has path-id or not a simple prefix): output as object
+	formatNLRIJSON(sb, n)
+}
+
+// formatIPVPNJSON formats an IPVPN NLRI as structured JSON.
+// RFC 4364: {"prefix":"10.0.0.0/24", "rd":"0:65000:1", "labels":[100]}.
+func formatIPVPNJSON(sb *strings.Builder, v *nlri.IPVPN) {
+	sb.WriteString(`{"prefix":"`)
+	sb.WriteString(v.Prefix().String())
+	sb.WriteString(`","rd":"`)
+	sb.WriteString(v.RD().String())
+	sb.WriteString(`"`)
+
+	if labels := v.Labels(); len(labels) > 0 {
+		sb.WriteString(`,"labels":[`)
+		for i, l := range labels {
+			if i > 0 {
+				sb.WriteString(",")
+			}
+			fmt.Fprintf(sb, "%d", l)
+		}
+		sb.WriteString(`]`)
+	}
+
+	if pathID := v.PathID(); pathID != 0 {
+		fmt.Fprintf(sb, `,"path-id":%d`, pathID)
+	}
+
+	sb.WriteString(`}`)
+}
+
+// formatLabeledUnicastJSON formats a LabeledUnicast NLRI as structured JSON.
+// RFC 8277: {"prefix":"10.0.0.0/24", "labels":[100]}.
+func formatLabeledUnicastJSON(sb *strings.Builder, v *nlri.LabeledUnicast) {
+	sb.WriteString(`{"prefix":"`)
+	sb.WriteString(v.Prefix().String())
+	sb.WriteString(`"`)
+
+	if labels := v.Labels(); len(labels) > 0 {
+		sb.WriteString(`,"labels":[`)
+		for i, l := range labels {
+			if i > 0 {
+				sb.WriteString(",")
+			}
+			fmt.Fprintf(sb, "%d", l)
+		}
+		sb.WriteString(`]`)
+	}
+
+	if pathID := v.PathID(); pathID != 0 {
+		fmt.Fprintf(sb, `,"path-id":%d`, pathID)
+	}
+
+	sb.WriteString(`}`)
+}
+
+// formatEVPNType2JSON formats an EVPN Type 2 (MAC/IP Advertisement) NLRI as structured JSON.
+// RFC 7432 Section 7.2: {"route-type":"mac-ip-advertisement","rd":"0:65000:1","esi":"00:...","mac":"...", ...}.
+func formatEVPNType2JSON(sb *strings.Builder, v *nlri.EVPNType2) {
+	sb.WriteString(`{"route-type":"`)
+	sb.WriteString(v.RouteType().String())
+	sb.WriteString(`","rd":"`)
+	sb.WriteString(v.RD().String())
+	sb.WriteString(`","esi":"`)
+	sb.WriteString(v.ESI().String())
+	sb.WriteString(`"`)
+
+	// Ethernet Tag
+	fmt.Fprintf(sb, `,"ethernet-tag":%d`, v.EthernetTag())
+
+	// MAC
+	mac := v.MAC()
+	fmt.Fprintf(sb, `,"mac":"%02x:%02x:%02x:%02x:%02x:%02x"`,
+		mac[0], mac[1], mac[2], mac[3], mac[4], mac[5])
+
+	// IP (optional)
+	if ip := v.IP(); ip.IsValid() {
+		sb.WriteString(`,"ip":"`)
+		sb.WriteString(ip.String())
+		sb.WriteString(`"`)
+	}
+
+	// Labels
+	if labels := v.Labels(); len(labels) > 0 {
+		sb.WriteString(`,"labels":[`)
+		for i, l := range labels {
+			if i > 0 {
+				sb.WriteString(",")
+			}
+			fmt.Fprintf(sb, "%d", l)
+		}
+		sb.WriteString(`]`)
+	}
+
+	// Path ID
+	if pathID := v.PathID(); pathID != 0 {
+		fmt.Fprintf(sb, `,"path-id":%d`, pathID)
+	}
+
+	sb.WriteString(`}`)
+}
+
+// formatFlowSpecVPNJSON formats a FlowSpecVPN NLRI as structured JSON.
+// RFC 8955: {"rd":"0:65000:1", ...flowspec components...}.
+func formatFlowSpecVPNJSON(sb *strings.Builder, v *nlri.FlowSpecVPN) {
+	sb.WriteString(`{"rd":"`)
+	sb.WriteString(v.RD().String())
+	sb.WriteString(`"`)
+
+	// FlowSpec components are complex - use String() for now
+	// TODO: Add structured component output
+	sb.WriteString(`,"spec":"`)
+	writeJSONEscapedString(sb, v.FlowSpec().String())
+	sb.WriteString(`"`)
+
+	if pathID := v.PathID(); pathID != 0 {
+		fmt.Fprintf(sb, `,"path-id":%d`, pathID)
+	}
+
+	sb.WriteString(`}`)
 }
 
 // prefixer is implemented by NLRI types that have a Prefix() method.

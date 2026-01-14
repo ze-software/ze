@@ -133,7 +133,7 @@ func TestFormatMessageText(t *testing.T) {
 
 // TestFormatMessageJSON tests JSON format output.
 //
-// VALIDATES: JSON uses announce.nlri structure.
+// VALIDATES: JSON uses command-style family → operations format.
 //
 // PREVENTS: Wrong JSON structure sent to API processes.
 func TestFormatMessageJSON(t *testing.T) {
@@ -181,11 +181,15 @@ func TestFormatMessageJSON(t *testing.T) {
 	if !strings.Contains(got, `"peer":{"address":"10.0.0.1","asn":65001}`) {
 		t.Error("missing peer info")
 	}
-	if !strings.Contains(got, `"announce":{`) {
-		t.Error("missing announce structure")
+	// New format: family at top level with operations array
+	if !strings.Contains(got, `"ipv4/unicast":[`) {
+		t.Error("missing ipv4/unicast family array")
 	}
-	if !strings.Contains(got, `"ipv4/unicast":`) {
-		t.Error("missing ipv4/unicast family")
+	if !strings.Contains(got, `"action":"add"`) {
+		t.Error("missing action:add")
+	}
+	if !strings.Contains(got, `"next-hop":"10.0.0.1"`) {
+		t.Error("missing next-hop")
 	}
 	if !strings.Contains(got, `192.168.1.0/24`) {
 		t.Error("missing prefix")
@@ -522,6 +526,8 @@ func buildTestUpdateBodyWithMEDAndLocalPref(prefix netip.Prefix, nextHop netip.A
 }
 
 // buildTestUpdateBodyWithBothFamilies builds UPDATE with both IPv4 NLRI and IPv6 MP_REACH_NLRI.
+//
+//nolint:dupl // Test helper, similar structure to buildTestUpdateBodyWithDualIPv4NextHop is intentional
 func buildTestUpdateBodyWithBothFamilies(ipv4Prefix netip.Prefix, ipv4NextHop netip.Addr, ipv6Prefix netip.Prefix, ipv6NextHop netip.Addr) []byte {
 	var attrs []byte
 

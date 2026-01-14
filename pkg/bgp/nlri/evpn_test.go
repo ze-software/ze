@@ -49,7 +49,7 @@ func TestEVPNType2MACOnly(t *testing.T) {
 	require.True(t, ok)
 
 	assert.Equal(t, EVPNRouteType2, evpn.RouteType())
-	assert.Equal(t, "65000:100", evpn.RD().String())
+	assert.Equal(t, "0:65000:100", evpn.RD().String())
 	assert.Equal(t, [6]byte{0x00, 0x11, 0x22, 0x33, 0x44, 0x55}, evpn.MAC())
 	assert.False(t, evpn.IP().IsValid())
 	assert.Equal(t, L2VPNEVPN, evpn.Family())
@@ -161,7 +161,7 @@ func TestEVPNType5IPv4(t *testing.T) {
 	require.True(t, ok, "expected EVPNType5, got %T", nlri)
 
 	assert.Equal(t, EVPNRouteType5, evpn.RouteType())
-	assert.Equal(t, "65000:100", evpn.RD().String())
+	assert.Equal(t, "0:65000:100", evpn.RD().String())
 	assert.Equal(t, netip.MustParsePrefix("10.1.2.0/24"), evpn.Prefix())
 	assert.Equal(t, netip.MustParseAddr("0.0.0.0"), evpn.Gateway())
 	assert.Equal(t, L2VPNEVPN, evpn.Family())
@@ -254,7 +254,7 @@ func TestEVPNType1(t *testing.T) {
 	require.True(t, ok, "expected EVPNType1, got %T", nlri)
 
 	assert.Equal(t, EVPNRouteType1, evpn.RouteType())
-	assert.Equal(t, "65000:100", evpn.RD().String())
+	assert.Equal(t, "0:65000:100", evpn.RD().String())
 	assert.Equal(t, ESI{0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09}, evpn.ESI())
 	assert.Equal(t, uint32(10), evpn.EthernetTag())
 	assert.Equal(t, []uint32{16}, evpn.Labels())
@@ -316,7 +316,7 @@ func TestEVPNType4IPv4(t *testing.T) {
 	require.True(t, ok, "expected EVPNType4, got %T", nlri)
 
 	assert.Equal(t, EVPNRouteType4, evpn.RouteType())
-	assert.Equal(t, "65000:100", evpn.RD().String())
+	assert.Equal(t, "0:65000:100", evpn.RD().String())
 	assert.Equal(t, ESI{0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09}, evpn.ESI())
 	assert.Equal(t, netip.MustParseAddr("10.0.0.1"), evpn.OriginatorIP())
 	assert.Equal(t, L2VPNEVPN, evpn.Family())

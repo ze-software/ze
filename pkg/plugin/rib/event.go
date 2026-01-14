@@ -1,13 +1,56 @@
 package rib
 
-import "encoding/json"
+import (
+	"encoding/json"
+	"strings"
+)
+
+// knownFields are the standard Event fields that are not family operations.
+var knownFields = map[string]bool{
+	"type": true, "msg-id": true, "message": true, "direction": true,
+	"peer": true, "state": true, "origin": true, "as-path": true,
+	"med": true, "local-preference": true, "communities": true,
+	"large-communities": true, "extended-communities": true,
+	"serial": true, "command": true, "args": true, "afi": true, "safi": true,
+	"raw": true, // format=full includes raw bytes
+}
 
 // parseEvent parses a JSON event from ZeBGP.
+// Extracts family operations (ipv4/unicast, ipv6/unicast, etc.) from dynamic keys.
 func parseEvent(data []byte) (*Event, error) {
 	var event Event
 	if err := json.Unmarshal(data, &event); err != nil {
 		return nil, err
 	}
+
+	// Parse raw JSON to extract family operations (dynamic keys)
+	var raw map[string]json.RawMessage
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return &event, nil //nolint:nilerr // Return event without family ops if parsing fails
+	}
+
+	// Look for family keys (format: "afi/safi" like "ipv4/unicast")
+	for key, val := range raw {
+		if knownFields[key] {
+			continue
+		}
+		// Family keys contain "/" (e.g., "ipv4/unicast", "ipv6/unicast")
+		if !strings.Contains(key, "/") {
+			continue
+		}
+
+		// Parse as array of FamilyOperation
+		var ops []FamilyOperation
+		if err := json.Unmarshal(val, &ops); err != nil {
+			continue // Skip if not valid operation array
+		}
+
+		if event.FamilyOps == nil {
+			event.FamilyOps = make(map[string][]FamilyOperation)
+		}
+		event.FamilyOps[key] = ops
+	}
+
 	return &event, nil
 }
 
@@ -30,12 +73,12 @@ type Event struct {
 	// State event field
 	State string `json:"state,omitempty"`
 
-	// UPDATE fields - announce/withdraw are at top level for both formats
-	// RFC 7911: NLRIs can be {"prefix":"...", "path-id":N} or legacy string format
-	Announce map[string]map[string]any `json:"announce,omitempty"`
-	Withdraw map[string][]any          `json:"withdraw,omitempty"`
+	// UPDATE fields - new command-style format
+	// Family operations are parsed from raw JSON (dynamic keys like "ipv4/unicast")
+	// Format: {"ipv4/unicast": [{"next-hop": "...", "action": "add", "nlri": [...]}]}
+	FamilyOps map[string][]FamilyOperation `json:"-"` // Populated by parseEvent
 
-	// Path attributes at top level (same level as announce/withdraw)
+	// Path attributes at top level
 	Origin              string   `json:"origin,omitempty"`
 	ASPath              []uint32 `json:"as-path,omitempty"`
 	MED                 *uint32  `json:"med,omitempty"`
@@ -52,6 +95,14 @@ type Event struct {
 	// Route refresh fields (RFC 7313)
 	AFI  string `json:"afi,omitempty"`
 	SAFI string `json:"safi,omitempty"`
+}
+
+// FamilyOperation represents a single add or del operation for a family.
+// RFC 7911: nlri items may have path-id when ADD-PATH is negotiated.
+type FamilyOperation struct {
+	NextHop string `json:"next-hop,omitempty"` // Only for "add" operations
+	Action  string `json:"action"`             // "add" or "del"
+	NLRIs   []any  `json:"nlri"`               // Strings or {"prefix":"...", "path-id":N}
 }
 
 // MessageInfo contains message wrapper for received events.

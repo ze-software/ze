@@ -566,10 +566,15 @@ type ReactorInterface interface {
 }
 ```
 
-## Output Format: announce nlri
+## Output Format: UPDATE Events
 
-### JSON Format
+### JSON Format (Command Style)
 
+UPDATE events use a command-style format where each address family contains a list of
+operations grouped by next-hop. This matches the command syntax and correctly handles
+multiple next-hops per family.
+
+**Announcements:**
 ```json
 {
   "message": {
@@ -581,45 +586,73 @@ type ReactorInterface interface {
     "address": "10.0.0.1",
     "asn": 65001
   },
-  "announce": {
-    "nlri": {
-      "ipv4/unicast": {
-        "192.168.1.0/24": {
-          "next-hop": "10.0.0.1",
-          "origin": "igp",
-          "as-path": [65001]
-        }
-      }
+  "origin": "igp",
+  "as-path": [65001],
+  "ipv4/unicast": [
+    {
+      "action": "add",
+      "next-hop": "10.0.0.1",
+      "nlri": ["192.168.1.0/24", "192.168.2.0/24"]
     }
-  }
+  ]
+}
+```
+
+**Withdrawals:**
+```json
+{
+  "message": { "type": "update", "id": 2 },
+  "direction": "received",
+  "peer": { "address": "10.0.0.1", "asn": 65001 },
+  "ipv4/unicast": [
+    {
+      "action": "del",
+      "nlri": ["192.168.1.0/24"]
+    }
+  ]
+}
+```
+
+**Mixed (announce + withdraw in same UPDATE):**
+```json
+{
+  "message": { "type": "update", "id": 3 },
+  "peer": { "address": "10.0.0.1", "asn": 65001 },
+  "origin": "igp",
+  "ipv4/unicast": [
+    {
+      "action": "add",
+      "next-hop": "10.0.0.1",
+      "nlri": ["10.0.0.0/24"]
+    },
+    {
+      "action": "del",
+      "nlri": ["172.16.0.0/16"]
+    }
+  ]
 }
 ```
 
 ### Text Format
 
 ```
-peer 10.0.0.1 received update 1 announce origin igp as-path 65001 ipv4/unicast next-hop 10.0.0.1 nlri 192.168.1.0/24
+peer 10.0.0.1 received update 1 announce origin igp as-path 65001 nhop set 10.0.0.1 nlri ipv4/unicast add 192.168.1.0/24
 ```
 
-### Withdrawals
+### NLRI Format by Family
 
-JSON:
-```json
-{
-  "message": { "type": "update" },
-  "peer": { "address": "10.0.0.1" },
-  "withdraw": {
-    "nlri": {
-      "ipv4/unicast": ["192.168.1.0/24"]
-    }
-  }
-}
-```
+| Family | Simple NLRI | Complex NLRI |
+|--------|-------------|--------------|
+| ipv4/unicast | `["10.0.0.0/24"]` | `[{"prefix": "10.0.0.0/24", "path-id": 1}]` (ADD-PATH) |
+| ipv4/labeled-unicast | - | `[{"prefix": "10.0.0.0/24", "labels": [100]}]` |
+| ipv4/mpls-vpn | - | `[{"prefix": "10.0.0.0/24", "rd": "2:65000:1", "labels": [100]}]` |
+| l2vpn/evpn | - | `[{"route-type": "mac-ip", "rd": "2:65000:1", "esi": "00:...", ...}]` |
+| ipv4/flowspec | - | String representation of FlowSpec rule |
 
-Text:
-```
-peer 10.0.0.1 received update 1 withdraw ipv4/unicast nlri 192.168.1.0/24
-```
+**RD (Route Distinguisher) format:** `<type>:<value>` where:
+- Type 0: `0:<asn2>:<assigned>` (e.g., `0:65000:100`)
+- Type 1: `1:<ipv4>:<assigned>` (e.g., `1:192.0.2.1:100`)
+- Type 2: `2:<asn4>:<assigned>` (e.g., `2:65536:100`)
 
 ### Format Options
 

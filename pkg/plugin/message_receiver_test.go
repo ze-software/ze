@@ -106,7 +106,9 @@ func TestFormatFullWithRoutes(t *testing.T) {
 
 	require.Contains(t, output, "raw", "full format must contain raw field")
 	require.Contains(t, output, "10.0.0.0/24", "full format must contain parsed prefix")
-	require.Contains(t, output, "announce", "full format must contain announce section")
+	// New format: family at top level with action
+	require.Contains(t, output, `"ipv4/unicast":[`, "full format must contain family operations")
+	require.Contains(t, output, `"action":"add"`, "full format must contain action")
 
 	// Test text full format
 	content.Encoding = "text"
