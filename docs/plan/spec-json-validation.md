@@ -48,6 +48,7 @@ Add JSON validation to test framework - make `json:` lines in `.ci` files valida
 **Plugin format (from `.ci` json: lines):**
 ```json
 {
+  "meta": {"version": "1.0.0", "app": "zebgp"},
   "message": {"type": "update"},
   "direction": "in",
   "peer": {"address": "127.0.0.1", "asn": 65000},
@@ -61,6 +62,8 @@ Add JSON validation to test framework - make `json:` lines in `.ci` files valida
 
 | ExaBGP path | Plugin path |
 |-------------|-------------|
+| (constant) | `meta.version` = "1.0.0" |
+| (constant) | `meta.app` = "zebgp" |
 | `type` | `message.type` |
 | `neighbor.direction` | `direction` |
 | `neighbor.address.peer` | `peer.address` |
@@ -138,7 +141,19 @@ Convert all ExaBGP format JSON:
 
 To ZeBGP plugin format:
 ```json
-{"message":{"type":"update"},"origin":"igp","ipv4/unicast":[{"next-hop":"...","action":"add","nlri":["..."]}]}
+{"meta":{"version":"1.0.0","app":"zebgp"},"message":{"type":"update"},"origin":"igp","ipv4/unicast":[{"next-hop":"...","action":"add","nlri":["..."]}]}
+```
+
+### Meta Section
+All ZeBGP plugin JSON must include:
+```json
+{
+  "meta": {
+    "version": "1.0.0",
+    "app": "zebgp"
+  },
+  ...
+}
 ```
 
 ### Files to Convert
