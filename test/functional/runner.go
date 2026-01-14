@@ -2,6 +2,7 @@ package functional
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
@@ -416,6 +417,12 @@ func (r *Runner) runTest(ctx context.Context, rec *Record, opts *RunOptions) boo
 
 	// Check for success
 	if err == nil && strings.Contains(rec.PeerOutput, "successful") {
+		// Validate JSON expectations if raw check passed
+		if jsonErr := r.validateJSON(rec); jsonErr != nil {
+			rec.Error = jsonErr
+			rec.FailureType = "json_mismatch"
+			return false
+		}
 		return true
 	}
 
@@ -586,4 +593,80 @@ func (r *Runner) saveTestOutput(rec *Record, out *testOutput, saveDir string) er
 	}
 
 	return nil
+}
+
+// validateJSON validates JSON expectations against decoded messages.
+// Returns nil if all validations pass or no JSON expectations exist.
+// Skips tests with ExaBGP envelope format JSON (contains "exabgp" key).
+func (r *Runner) validateJSON(rec *Record) error {
+	// Find messages with JSON expectations
+	for _, msg := range rec.Messages {
+		if msg.JSON == "" {
+			continue // No JSON expectation
+		}
+
+		// Check if JSON is in ExaBGP envelope format (contains "exabgp" key)
+		// These older tests use the raw decoder output format, not plugin format
+		if strings.Contains(msg.JSON, `"exabgp"`) {
+			continue // Skip ExaBGP envelope format (not plugin format)
+		}
+
+		// Find the corresponding received message
+		// Messages are 1-indexed, ReceivedRaw is 0-indexed
+		// For multi-connection tests, add ReceivedMessageOffset to account for
+		// messages from preceding connections in ReceivedRaw
+		localIdx := msg.Index - 1
+		if rec.ConnectionOffset() > 0 {
+			localIdx = msg.Index - rec.ConnectionOffset() - 1
+		}
+		recvIdx := localIdx + rec.ReceivedMessageOffset()
+
+		if recvIdx < 0 || recvIdx >= len(rec.ReceivedRaw) {
+			return fmt.Errorf("message %d: no received message at index %d (have %d)",
+				msg.Index, recvIdx, len(rec.ReceivedRaw))
+		}
+
+		rawHex := rec.ReceivedRaw[recvIdx]
+
+		// Decode using zebgp decode command
+		envelope, err := r.decodeToEnvelope(rawHex)
+		if err != nil {
+			return fmt.Errorf("message %d: decode failed: %w", msg.Index, err)
+		}
+
+		// Check if family is supported
+		family := extractFamily(envelope)
+		if family != "" && !isSupportedFamily(family) {
+			continue // Skip unsupported families (Phase 1 limitation)
+		}
+
+		// Transform to plugin format
+		actual, _ := transformEnvelopeToPlugin(envelope)
+
+		// Compare
+		if err := comparePluginJSON(actual, msg.JSON); err != nil {
+			return fmt.Errorf("message %d: %w", msg.Index, err)
+		}
+	}
+
+	return nil
+}
+
+// decodeToEnvelope decodes a hex message using zebgp decode and returns the envelope.
+func (r *Runner) decodeToEnvelope(hexMsg string) (map[string]any, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	cmd := exec.CommandContext(ctx, r.zebgpPath, "decode", "--update", hexMsg) //nolint:gosec // test runner
+	output, err := cmd.CombinedOutput()
+	if err != nil {
+		return nil, fmt.Errorf("zebgp decode: %w: %s", err, string(output))
+	}
+
+	var envelope map[string]any
+	if err := json.Unmarshal(output, &envelope); err != nil {
+		return nil, fmt.Errorf("parse JSON: %w", err)
+	}
+
+	return envelope, nil
 }
