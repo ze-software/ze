@@ -185,7 +185,48 @@ func TestINETString(t *testing.T) {
 	assert.Equal(t, "10.0.0.0/8", inet.String())
 
 	inetWithPath := NewINET(IPv4Unicast, netip.MustParsePrefix("10.0.0.0/8"), 5)
-	assert.Equal(t, "10.0.0.0/8 path-id=5", inetWithPath.String())
+	assert.Equal(t, "10.0.0.0/8 path-id set 5", inetWithPath.String())
+}
+
+// TestINETStringCommandStyle verifies command-style string representation.
+//
+// VALIDATES: INET String() outputs command-style format for API round-trip.
+// Format: <prefix> [path-id set <id>].
+//
+// PREVENTS: Output format not matching input parser, breaking round-trip.
+func TestINETStringCommandStyle(t *testing.T) {
+	tests := []struct {
+		name     string
+		inet     *INET
+		expected string
+	}{
+		{
+			name:     "ipv4 prefix without path-id",
+			inet:     NewINET(IPv4Unicast, netip.MustParsePrefix("10.0.0.0/8"), 0),
+			expected: "10.0.0.0/8",
+		},
+		{
+			name:     "ipv4 prefix with path-id",
+			inet:     NewINET(IPv4Unicast, netip.MustParsePrefix("192.168.1.0/24"), 42),
+			expected: "192.168.1.0/24 path-id set 42",
+		},
+		{
+			name:     "ipv6 prefix without path-id",
+			inet:     NewINET(IPv6Unicast, netip.MustParsePrefix("2001:db8::/32"), 0),
+			expected: "2001:db8::/32",
+		},
+		{
+			name:     "ipv6 prefix with path-id",
+			inet:     NewINET(IPv6Unicast, netip.MustParsePrefix("2001:db8::/32"), 100),
+			expected: "2001:db8::/32 path-id set 100",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.expected, tt.inet.String())
+		})
+	}
 }
 
 // TestINETErrors verifies error handling.

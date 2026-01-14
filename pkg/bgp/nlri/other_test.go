@@ -83,6 +83,52 @@ func TestMVPNParseErrors(t *testing.T) {
 	}
 }
 
+// TestMVPNStringCommandStyle verifies command-style string representation.
+//
+// VALIDATES: MVPN String() outputs command-style format for API round-trip.
+// Format: <type> [rd set <rd>].
+//
+// PREVENTS: Output format not matching input parser, breaking round-trip.
+func TestMVPNStringCommandStyle(t *testing.T) {
+	tests := []struct {
+		name     string
+		mvpn     *MVPN
+		expected string
+	}{
+		{
+			name:     "mvpn without rd",
+			mvpn:     NewMVPN(MVPNIntraASIPMSIAD, []byte{1, 2, 3, 4}),
+			expected: "intra-as-i-pmsi-ad",
+		},
+		{
+			name: "mvpn with rd",
+			mvpn: func() *MVPN {
+				rd := RouteDistinguisher{Type: RDType0}
+				binary.BigEndian.PutUint16(rd.Value[:2], 65001)
+				binary.BigEndian.PutUint32(rd.Value[2:6], 100)
+				return NewMVPNWithRD(AFIIPv4, MVPNSourceTreeJoin, rd, []byte{10, 0, 0, 1})
+			}(),
+			expected: "source-tree-join rd set 0:65001:100",
+		},
+		{
+			name: "mvpn s-pmsi-ad with rd",
+			mvpn: func() *MVPN {
+				rd := RouteDistinguisher{Type: RDType1}
+				copy(rd.Value[:4], []byte{10, 0, 0, 1})
+				binary.BigEndian.PutUint16(rd.Value[4:6], 200)
+				return NewMVPNWithRD(AFIIPv6, MVPNSPMSIAD, rd, nil)
+			}(),
+			expected: "s-pmsi-ad rd set 1:10.0.0.1:200",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.expected, tt.mvpn.String())
+		})
+	}
+}
+
 // TestVPLSBasic verifies basic VPLS NLRI creation.
 func TestVPLSBasic(t *testing.T) {
 	vpls := NewVPLS(RouteDistinguisher{Type: 1}, 100, 200, []byte{1, 2, 3})
@@ -160,6 +206,47 @@ func TestVPLSParseErrors(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			_, _, err := ParseVPLS(tt.data)
 			assert.Error(t, err)
+		})
+	}
+}
+
+// TestVPLSStringCommandStyle verifies command-style string representation.
+//
+// VALIDATES: VPLS String() outputs command-style format for API round-trip.
+// Format: rd set <rd> ve-id set <id> label set <label>.
+//
+// PREVENTS: Output format not matching input parser, breaking round-trip.
+func TestVPLSStringCommandStyle(t *testing.T) {
+	tests := []struct {
+		name     string
+		vpls     *VPLS
+		expected string
+	}{
+		{
+			name: "basic vpls",
+			vpls: func() *VPLS {
+				rd := RouteDistinguisher{Type: RDType0}
+				binary.BigEndian.PutUint16(rd.Value[:2], 65001)
+				binary.BigEndian.PutUint32(rd.Value[2:6], 100)
+				return NewVPLSFull(rd, 5, 0, 0, 16000)
+			}(),
+			expected: "rd set 0:65001:100 ve-id set 5 label set 16000",
+		},
+		{
+			name: "vpls with type1 rd",
+			vpls: func() *VPLS {
+				rd := RouteDistinguisher{Type: RDType1}
+				copy(rd.Value[:4], []byte{10, 0, 0, 1})
+				binary.BigEndian.PutUint16(rd.Value[4:6], 200)
+				return NewVPLSFull(rd, 10, 0, 0, 500)
+			}(),
+			expected: "rd set 1:10.0.0.1:200 ve-id set 10 label set 500",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.expected, tt.vpls.String())
 		})
 	}
 }
@@ -278,6 +365,48 @@ func TestRouteTargetString(t *testing.T) {
 	}
 }
 
+// TestRTCStringCommandStyle verifies command-style string representation.
+//
+// VALIDATES: RTC String() outputs command-style format for API round-trip.
+// Format: default | origin-as set <asn> rt set <rt>.
+//
+// PREVENTS: Output format not matching input parser, breaking round-trip.
+func TestRTCStringCommandStyle(t *testing.T) {
+	tests := []struct {
+		name     string
+		rtc      *RTC
+		expected string
+	}{
+		{
+			name:     "default rtc",
+			rtc:      NewRTC(0, RouteTarget{}),
+			expected: "default",
+		},
+		{
+			name: "rtc with 2-byte asn rt",
+			rtc: NewRTC(65001, RouteTarget{
+				Type:  0x0002,
+				Value: [6]byte{0xFD, 0xE9, 0, 0, 0, 100}, // AS65001:100
+			}),
+			expected: "origin-as set 65001 rt set 65001:100",
+		},
+		{
+			name: "rtc with 4-byte asn rt",
+			rtc: NewRTC(65002, RouteTarget{
+				Type:  0x0200,
+				Value: [6]byte{0, 0, 0xFD, 0xE9, 0, 200}, // AS65001:200
+			}),
+			expected: "origin-as set 65002 rt set 65001:200",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.expected, tt.rtc.String())
+		})
+	}
+}
+
 // TestMUPTypes verifies MUP route types.
 func TestMUPTypes(t *testing.T) {
 	assert.Equal(t, MUPRouteType(1), MUPISD)
@@ -349,6 +478,52 @@ func TestMUPParseErrors(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			_, _, err := ParseMUP(AFIIPv4, tt.data)
 			assert.Error(t, err)
+		})
+	}
+}
+
+// TestMUPStringCommandStyle verifies command-style string representation.
+//
+// VALIDATES: MUP String() outputs command-style format for API round-trip.
+// Format: <type> [rd set <rd>].
+//
+// PREVENTS: Output format not matching input parser, breaking round-trip.
+func TestMUPStringCommandStyle(t *testing.T) {
+	tests := []struct {
+		name     string
+		mup      *MUP
+		expected string
+	}{
+		{
+			name:     "mup without rd",
+			mup:      NewMUP(MUPISD, []byte{1, 2, 3, 4}),
+			expected: "isd",
+		},
+		{
+			name: "mup with rd",
+			mup: func() *MUP {
+				rd := RouteDistinguisher{Type: RDType0}
+				binary.BigEndian.PutUint16(rd.Value[:2], 65001)
+				binary.BigEndian.PutUint32(rd.Value[2:6], 100)
+				return NewMUPFull(AFIIPv4, MUPArch3GPP5G, MUPT1ST, rd, []byte{10, 0, 0, 1})
+			}(),
+			expected: "t1st rd set 0:65001:100",
+		},
+		{
+			name: "mup dsd with rd",
+			mup: func() *MUP {
+				rd := RouteDistinguisher{Type: RDType1}
+				copy(rd.Value[:4], []byte{10, 0, 0, 1})
+				binary.BigEndian.PutUint16(rd.Value[4:6], 200)
+				return NewMUPFull(AFIIPv6, MUPArch3GPP5G, MUPDSD, rd, nil)
+			}(),
+			expected: "dsd rd set 1:10.0.0.1:200",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.expected, tt.mup.String())
 		})
 	}
 }

@@ -521,9 +521,10 @@ func (n *BGPLSNode) Bytes() []byte {
 // Len returns the length in bytes.
 func (n *BGPLSNode) Len() int { return len(n.Bytes()) }
 
-// String returns a human-readable representation.
+// String returns command-style format for API round-trip compatibility.
+// Format: node protocol set <proto> asn set <n>.
 func (n *BGPLSNode) String() string {
-	return fmt.Sprintf("bgp-ls:node(asn=%d)", n.LocalNode.ASN)
+	return fmt.Sprintf("node protocol set %s asn set %d", n.protocolID, n.LocalNode.ASN)
 }
 
 // BGPLSLink represents a Link NLRI.
@@ -588,9 +589,10 @@ func (l *BGPLSLink) Bytes() []byte {
 // Len returns the length in bytes.
 func (l *BGPLSLink) Len() int { return len(l.Bytes()) }
 
-// String returns a human-readable representation.
+// String returns command-style format for API round-trip compatibility.
+// Format: link protocol set <proto> local-asn set <n> remote-asn set <m>.
 func (l *BGPLSLink) String() string {
-	return fmt.Sprintf("bgp-ls:link(%d->%d)", l.LocalNode.ASN, l.RemoteNode.ASN)
+	return fmt.Sprintf("link protocol set %s local-asn set %d remote-asn set %d", l.protocolID, l.LocalNode.ASN, l.RemoteNode.ASN)
 }
 
 // BGPLSPrefix represents a Prefix NLRI (v4 or v6).
@@ -665,9 +667,10 @@ func (p *BGPLSPrefix) Bytes() []byte {
 // Len returns the length in bytes.
 func (p *BGPLSPrefix) Len() int { return len(p.Bytes()) }
 
-// String returns a human-readable representation.
+// String returns command-style format for API round-trip compatibility.
+// Format: prefix protocol set <proto> type set <type> asn set <n>.
 func (p *BGPLSPrefix) String() string {
-	return fmt.Sprintf("bgp-ls:prefix(%s)", p.nlriType)
+	return fmt.Sprintf("prefix protocol set %s type set %s asn set %d", p.protocolID, p.nlriType, p.LocalNode.ASN)
 }
 
 // ParseBGPLS parses a BGP-LS NLRI from wire format.
@@ -979,9 +982,10 @@ func (s *BGPLSSRv6SID) Bytes() []byte {
 // Len returns the length in bytes.
 func (s *BGPLSSRv6SID) Len() int { return len(s.Bytes()) }
 
-// String returns a human-readable representation.
+// String returns command-style format for API round-trip compatibility.
+// Format: srv6-sid protocol set <proto> asn set <n>.
 func (s *BGPLSSRv6SID) String() string {
-	return fmt.Sprintf("bgp-ls:srv6-sid(asn=%d)", s.LocalNode.ASN)
+	return fmt.Sprintf("srv6-sid protocol set %s asn set %d", s.protocolID, s.LocalNode.ASN)
 }
 
 // WriteTo methods for BGP-LS types (zero-alloc).

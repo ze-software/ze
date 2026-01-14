@@ -170,10 +170,11 @@ func (i *INET) Len() int {
 	return 1 + PrefixBytes(i.prefix.Bits())
 }
 
-// String returns a human-readable representation.
+// String returns command-style format for API round-trip compatibility.
+// Format: <prefix> [path-id set <id>].
 func (i *INET) String() string {
 	if i.pathID != 0 {
-		return fmt.Sprintf("%s path-id=%d", i.prefix, i.pathID)
+		return fmt.Sprintf("%s path-id set %d", i.prefix, i.pathID)
 	}
 	return i.prefix.String()
 }

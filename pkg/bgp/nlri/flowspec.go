@@ -1058,9 +1058,10 @@ func (f *FlowSpecVPN) HasPathID() bool {
 	return false
 }
 
-// String returns a human-readable representation.
+// String returns command-style format for API round-trip compatibility.
+// Format: rd set <rd> <flowspec>.
 func (f *FlowSpecVPN) String() string {
-	return fmt.Sprintf("flowspec-vpn(rd:%s %s)", f.rd, f.flowSpec)
+	return fmt.Sprintf("rd set %s %s", f.rd, f.flowSpec)
 }
 
 // ParseFlowSpecVPN parses a FlowSpec VPN from wire format per RFC 8955 Section 8.

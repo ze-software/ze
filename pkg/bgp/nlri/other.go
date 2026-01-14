@@ -239,12 +239,13 @@ func (m *MVPN) PathID() uint32 { return 0 }
 // HasPathID returns false.
 func (m *MVPN) HasPathID() bool { return false }
 
-// String returns a human-readable representation.
+// String returns command-style format for API round-trip compatibility.
+// Format: <type> [rd set <rd>].
 func (m *MVPN) String() string {
 	if hasRD(m.rd) {
-		return fmt.Sprintf("mvpn:%s rd=%s", m.routeType, m.rd)
+		return fmt.Sprintf("%s rd set %s", m.routeType, m.rd)
 	}
-	return fmt.Sprintf("mvpn:%s", m.routeType)
+	return m.routeType.String()
 }
 
 // ============================================================================
@@ -437,9 +438,10 @@ func (v *VPLS) PathID() uint32 { return 0 }
 // HasPathID returns false.
 func (v *VPLS) HasPathID() bool { return false }
 
-// String returns a human-readable representation.
+// String returns command-style format for API round-trip compatibility.
+// Format: rd set <rd> ve-id set <id> label set <label>.
 func (v *VPLS) String() string {
-	return fmt.Sprintf("vpls:%s ve=%d label=%d", v.rd, v.veID, v.labelBase)
+	return fmt.Sprintf("rd set %s ve-id set %d label set %d", v.rd, v.veID, v.labelBase)
 }
 
 // ============================================================================
@@ -643,12 +645,13 @@ func (r *RTC) PathID() uint32 { return 0 }
 // HasPathID returns false.
 func (r *RTC) HasPathID() bool { return false }
 
-// String returns a human-readable representation.
+// String returns command-style format for API round-trip compatibility.
+// Format: default | origin-as set <asn> rt set <rt>.
 func (r *RTC) String() string {
 	if r.IsDefault() {
-		return "rtc:default"
+		return "default"
 	}
-	return fmt.Sprintf("rtc:as%d:%s", r.originAS, r.routeTarget)
+	return fmt.Sprintf("origin-as set %d rt set %s", r.originAS, r.routeTarget)
 }
 
 // ============================================================================
@@ -836,12 +839,13 @@ func (m *MUP) PathID() uint32 { return 0 }
 // HasPathID returns false.
 func (m *MUP) HasPathID() bool { return false }
 
-// String returns a human-readable representation.
+// String returns command-style format for API round-trip compatibility.
+// Format: <type> [rd set <rd>].
 func (m *MUP) String() string {
 	if hasRD(m.rd) {
-		return fmt.Sprintf("mup:%s rd=%s", m.routeType, m.rd)
+		return fmt.Sprintf("%s rd set %s", m.routeType, m.rd)
 	}
-	return fmt.Sprintf("mup:%s", m.routeType)
+	return m.routeType.String()
 }
 
 // WriteTo methods for other NLRI types (zero-alloc).

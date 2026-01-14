@@ -1,6 +1,7 @@
 package nlri
 
 import (
+	"encoding/binary"
 	"net/netip"
 	"testing"
 
@@ -650,18 +651,46 @@ func TestFlowSpecVPNRoundTrip(t *testing.T) {
 	assert.Len(t, parsed.Components(), 3)
 }
 
-// TestFlowSpecVPNString verifies string representation.
+// TestFlowSpecVPNStringCommandStyle verifies command-style string representation.
 //
-// VALIDATES: String() output includes "flowspec-vpn", RD, and component data.
+// VALIDATES: FlowSpecVPN String() outputs command-style format for API round-trip.
+// Format: rd set <rd> <flowspec>.
 //
-// PREVENTS: Missing RD in string output; panic on empty VPN FlowSpec.
-func TestFlowSpecVPNString(t *testing.T) {
-	rd := RouteDistinguisher{Type: RDType0, Value: [6]byte{0x00, 0x64, 0x00, 0x00, 0x00, 0x64}}
+// PREVENTS: Output format not matching input parser, breaking round-trip.
+func TestFlowSpecVPNStringCommandStyle(t *testing.T) {
+	tests := []struct {
+		name     string
+		fsv      *FlowSpecVPN
+		expected string
+	}{
+		{
+			name: "basic flowspec-vpn",
+			fsv: func() *FlowSpecVPN {
+				rd := RouteDistinguisher{Type: RDType0, Value: [6]byte{0x00, 0x64, 0x00, 0x00, 0x00, 0x64}}
+				f := NewFlowSpecVPN(IPv4FlowSpecVPN, rd)
+				f.AddComponent(NewFlowDestPortComponent(80))
+				return f
+			}(),
+			expected: "rd set 0:100:100 flowspec(dest-port[=80])",
+		},
+		{
+			name: "flowspec-vpn multiple components",
+			fsv: func() *FlowSpecVPN {
+				rd := RouteDistinguisher{Type: RDType1}
+				copy(rd.Value[:4], []byte{10, 0, 0, 1})
+				binary.BigEndian.PutUint16(rd.Value[4:6], 200)
+				f := NewFlowSpecVPN(IPv4FlowSpecVPN, rd)
+				f.AddComponent(NewFlowDestPrefixComponent(netip.MustParsePrefix("192.168.1.0/24")))
+				f.AddComponent(NewFlowDestPortComponent(443))
+				return f
+			}(),
+			expected: "rd set 1:10.0.0.1:200 flowspec(dest-prefix=192.168.1.0/24 dest-port[=443])",
+		},
+	}
 
-	fsv := NewFlowSpecVPN(IPv4FlowSpecVPN, rd)
-	fsv.AddComponent(NewFlowDestPortComponent(80))
-
-	s := fsv.String()
-	assert.Contains(t, s, "flowspec-vpn")
-	assert.Contains(t, s, "100:100") // RD string
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.expected, tt.fsv.String())
+		})
+	}
 }

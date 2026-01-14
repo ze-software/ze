@@ -460,16 +460,27 @@ func (v *IPVPN) Len() int {
 	return 1 + len(v.labels)*3 + 8 + PrefixBytes(v.prefix.Bits())
 }
 
-// String returns a human-readable representation.
+// String returns command-style format for API round-trip compatibility.
+// Format: rd set <rd> prefix set <prefix> [label set <labels>] [path-id set <id>].
 func (v *IPVPN) String() string {
-	s := fmt.Sprintf("RD:%s %s", v.rd, v.prefix)
+	var sb strings.Builder
+	sb.WriteString("rd set ")
+	sb.WriteString(v.rd.String())
+	sb.WriteString(" prefix set ")
+	sb.WriteString(v.prefix.String())
 	if len(v.labels) > 0 {
-		s = fmt.Sprintf("%s labels=%v", s, v.labels)
+		sb.WriteString(" label set ")
+		sb.WriteString(strconv.FormatUint(uint64(v.labels[0]), 10))
+		for _, l := range v.labels[1:] {
+			sb.WriteString(",")
+			sb.WriteString(strconv.FormatUint(uint64(l), 10))
+		}
 	}
 	if v.pathID != 0 {
-		s = fmt.Sprintf("%s path-id=%d", s, v.pathID)
+		sb.WriteString(" path-id set ")
+		sb.WriteString(strconv.FormatUint(uint64(v.pathID), 10))
 	}
-	return s
+	return sb.String()
 }
 
 // WriteTo writes the NLRI payload (without path ID) into buf at offset.

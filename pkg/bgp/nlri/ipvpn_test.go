@@ -217,18 +217,76 @@ func TestIPVPNWithPathID(t *testing.T) {
 	assert.Equal(t, uint32(42), vpn.PathID())
 }
 
-// TestIPVPNString verifies string representation.
-func TestIPVPNString(t *testing.T) {
-	vpn := &IPVPN{
-		family: IPv4VPN,
-		rd:     RouteDistinguisher{Type: RDType0, Value: [6]byte{0xFD, 0xE8, 0x00, 0x00, 0x00, 0x64}},
-		labels: []uint32{16},
-		prefix: netip.MustParsePrefix("10.0.0.0/8"),
+// TestIPVPNStringCommandStyle verifies command-style string representation.
+//
+// VALIDATES: IPVPN String() outputs command-style format for API round-trip.
+// Format: "rd set <rd> prefix set <prefix> label set <labels> [path-id set <id>]"
+//
+// PREVENTS: Output format not matching input parser, breaking round-trip.
+func TestIPVPNStringCommandStyle(t *testing.T) {
+	tests := []struct {
+		name     string
+		vpn      *IPVPN
+		expected string
+	}{
+		{
+			name: "basic vpnv4 single label",
+			vpn: &IPVPN{
+				family: IPv4VPN,
+				rd:     RouteDistinguisher{Type: RDType0, Value: [6]byte{0xFD, 0xE8, 0x00, 0x00, 0x00, 0x64}},
+				labels: []uint32{16},
+				prefix: netip.MustParsePrefix("10.0.0.0/8"),
+			},
+			expected: "rd set 0:65000:100 prefix set 10.0.0.0/8 label set 16",
+		},
+		{
+			name: "vpnv4 multiple labels",
+			vpn: &IPVPN{
+				family: IPv4VPN,
+				rd:     RouteDistinguisher{Type: RDType0, Value: [6]byte{0xFD, 0xE8, 0x00, 0x00, 0x00, 0x64}},
+				labels: []uint32{100, 200},
+				prefix: netip.MustParsePrefix("192.168.1.0/24"),
+			},
+			expected: "rd set 0:65000:100 prefix set 192.168.1.0/24 label set 100,200",
+		},
+		{
+			name: "vpnv4 with path-id",
+			vpn: &IPVPN{
+				family: IPv4VPN,
+				rd:     RouteDistinguisher{Type: RDType1, Value: [6]byte{0x0A, 0x00, 0x00, 0x01, 0x00, 0x64}},
+				labels: []uint32{16000},
+				prefix: netip.MustParsePrefix("172.16.0.0/12"),
+				pathID: 42,
+			},
+			expected: "rd set 1:10.0.0.1:100 prefix set 172.16.0.0/12 label set 16000 path-id set 42",
+		},
+		{
+			name: "vpnv6 basic",
+			vpn: &IPVPN{
+				family: IPv6VPN,
+				rd:     RouteDistinguisher{Type: RDType2, Value: [6]byte{0x00, 0x01, 0x00, 0x00, 0x00, 0x64}},
+				labels: []uint32{500},
+				prefix: netip.MustParsePrefix("2001:db8::/32"),
+			},
+			expected: "rd set 2:65536:100 prefix set 2001:db8::/32 label set 500",
+		},
+		{
+			name: "no labels",
+			vpn: &IPVPN{
+				family: IPv4VPN,
+				rd:     RouteDistinguisher{Type: RDType0, Value: [6]byte{0x00, 0x64, 0x00, 0x00, 0x00, 0x01}},
+				labels: nil,
+				prefix: netip.MustParsePrefix("10.0.0.0/8"),
+			},
+			expected: "rd set 0:100:1 prefix set 10.0.0.0/8",
+		},
 	}
 
-	s := vpn.String()
-	assert.Contains(t, s, "0:65000:100") // Type 0 RD with prefix
-	assert.Contains(t, s, "10.0.0.0/8")
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			assert.Equal(t, tt.expected, tt.vpn.String())
+		})
+	}
 }
 
 // TestIPVPNBytes verifies wire format encoding.

@@ -302,7 +302,22 @@ func (e *EVPNType1) Len() int {
 }
 
 func (e *EVPNType1) String() string {
-	return fmt.Sprintf("type1 RD:%s ESI:%s tag:%d", e.rd, e.esi, e.ethernetTag)
+	var sb strings.Builder
+	sb.WriteString("ethernet-ad rd set ")
+	sb.WriteString(e.rd.String())
+	sb.WriteString(" esi set ")
+	sb.WriteString(e.esi.String())
+	sb.WriteString(" etag set ")
+	sb.WriteString(fmt.Sprintf("%d", e.ethernetTag))
+	if len(e.labels) > 0 {
+		sb.WriteString(" label set ")
+		sb.WriteString(fmt.Sprintf("%d", e.labels[0]))
+		for _, l := range e.labels[1:] {
+			sb.WriteString(",")
+			sb.WriteString(fmt.Sprintf("%d", l))
+		}
+	}
+	return sb.String()
 }
 
 // EVPNType2 represents a MAC/IP Advertisement route.
@@ -495,12 +510,29 @@ func (e *EVPNType2) Len() int {
 }
 
 func (e *EVPNType2) String() string {
-	mac := fmt.Sprintf("%02x:%02x:%02x:%02x:%02x:%02x",
-		e.mac[0], e.mac[1], e.mac[2], e.mac[3], e.mac[4], e.mac[5])
+	var sb strings.Builder
+	sb.WriteString("mac-ip rd set ")
+	sb.WriteString(e.rd.String())
+	sb.WriteString(" mac set ")
+	sb.WriteString(fmt.Sprintf("%02x:%02x:%02x:%02x:%02x:%02x",
+		e.mac[0], e.mac[1], e.mac[2], e.mac[3], e.mac[4], e.mac[5]))
 	if e.ip.IsValid() {
-		return fmt.Sprintf("type2 RD:%s MAC:%s IP:%s", e.rd, mac, e.ip)
+		sb.WriteString(" ip set ")
+		sb.WriteString(e.ip.String())
 	}
-	return fmt.Sprintf("type2 RD:%s MAC:%s", e.rd, mac)
+	if e.ethernetTag != 0 {
+		sb.WriteString(" etag set ")
+		sb.WriteString(fmt.Sprintf("%d", e.ethernetTag))
+	}
+	if len(e.labels) > 0 {
+		sb.WriteString(" label set ")
+		sb.WriteString(fmt.Sprintf("%d", e.labels[0]))
+		for _, l := range e.labels[1:] {
+			sb.WriteString(",")
+			sb.WriteString(fmt.Sprintf("%d", l))
+		}
+	}
+	return sb.String()
 }
 
 // EVPNType3 represents an Inclusive Multicast Ethernet Tag route.
@@ -622,7 +654,16 @@ func (e *EVPNType3) Len() int {
 }
 
 func (e *EVPNType3) String() string {
-	return fmt.Sprintf("type3 RD:%s originator:%s", e.rd, e.originatorIP)
+	var sb strings.Builder
+	sb.WriteString("multicast rd set ")
+	sb.WriteString(e.rd.String())
+	sb.WriteString(" ip set ")
+	sb.WriteString(e.originatorIP.String())
+	if e.ethernetTag != 0 {
+		sb.WriteString(" etag set ")
+		sb.WriteString(fmt.Sprintf("%d", e.ethernetTag))
+	}
+	return sb.String()
 }
 
 // EVPNType4 represents an Ethernet Segment route.
@@ -748,7 +789,14 @@ func (e *EVPNType4) Len() int {
 }
 
 func (e *EVPNType4) String() string {
-	return fmt.Sprintf("type4 RD:%s ESI:%s originator:%s", e.rd, e.esi, e.originatorIP)
+	var sb strings.Builder
+	sb.WriteString("ethernet-segment rd set ")
+	sb.WriteString(e.rd.String())
+	sb.WriteString(" esi set ")
+	sb.WriteString(e.esi.String())
+	sb.WriteString(" ip set ")
+	sb.WriteString(e.originatorIP.String())
+	return sb.String()
 }
 
 // EVPNType5 represents an IP Prefix route.
@@ -950,7 +998,32 @@ func (e *EVPNType5) Len() int {
 }
 
 func (e *EVPNType5) String() string {
-	return fmt.Sprintf("type5 RD:%s prefix:%s", e.rd, e.prefix)
+	var sb strings.Builder
+	sb.WriteString("ip-prefix rd set ")
+	sb.WriteString(e.rd.String())
+	sb.WriteString(" prefix set ")
+	sb.WriteString(e.prefix.String())
+	if !e.esi.IsZero() {
+		sb.WriteString(" esi set ")
+		sb.WriteString(e.esi.String())
+	}
+	if e.ethernetTag != 0 {
+		sb.WriteString(" etag set ")
+		sb.WriteString(fmt.Sprintf("%d", e.ethernetTag))
+	}
+	if e.gateway.IsValid() && !e.gateway.IsUnspecified() {
+		sb.WriteString(" gateway set ")
+		sb.WriteString(e.gateway.String())
+	}
+	if len(e.labels) > 0 {
+		sb.WriteString(" label set ")
+		sb.WriteString(fmt.Sprintf("%d", e.labels[0]))
+		for _, l := range e.labels[1:] {
+			sb.WriteString(",")
+			sb.WriteString(fmt.Sprintf("%d", l))
+		}
+	}
+	return sb.String()
 }
 
 // EVPNGeneric holds unparsed EVPN routes.

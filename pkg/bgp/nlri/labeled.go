@@ -127,24 +127,23 @@ func (l *LabeledUnicast) WriteTo(buf []byte, off int) int {
 	return pos - off
 }
 
-// String returns a human-readable representation.
+// String returns command-style format for API round-trip compatibility.
+// Format: prefix set <prefix> [label set <labels>] [path-id set <id>].
 func (l *LabeledUnicast) String() string {
 	var sb strings.Builder
+	sb.WriteString("prefix set ")
 	sb.WriteString(l.prefix.String())
-
-	if len(l.labels) == 1 {
-		fmt.Fprintf(&sb, " label=%d", l.labels[0])
-	} else if len(l.labels) > 1 {
-		labels := make([]string, len(l.labels))
-		for i, lbl := range l.labels {
-			labels[i] = fmt.Sprintf("%d", lbl)
+	if len(l.labels) > 0 {
+		sb.WriteString(" label set ")
+		sb.WriteString(fmt.Sprintf("%d", l.labels[0]))
+		for _, lbl := range l.labels[1:] {
+			sb.WriteString(",")
+			sb.WriteString(fmt.Sprintf("%d", lbl))
 		}
-		fmt.Fprintf(&sb, " labels=[%s]", strings.Join(labels, ","))
 	}
-
 	if l.pathID != 0 {
-		fmt.Fprintf(&sb, " path-id=%d", l.pathID)
+		sb.WriteString(" path-id set ")
+		sb.WriteString(fmt.Sprintf("%d", l.pathID))
 	}
-
 	return sb.String()
 }

@@ -719,3 +719,104 @@ func TestParseESIString(t *testing.T) {
 		})
 	}
 }
+
+// TestEVPNType2StringCommandStyle verifies Type 2 String() outputs command-style format.
+//
+// VALIDATES: Type 2 (MAC/IP) output uses "mac-ip rd set ... mac set ..." format.
+// PREVENTS: Output mismatch with input parser expectations.
+func TestEVPNType2StringCommandStyle(t *testing.T) {
+	rd, _ := ParseRDString("65000:100")
+	mac := [6]byte{0x00, 0x11, 0x22, 0x33, 0x44, 0x55}
+
+	// MAC-only
+	e := NewEVPNType2(rd, [10]byte{}, 0, mac, netip.Addr{}, []uint32{1000})
+	s := e.String()
+	assert.Contains(t, s, "mac-ip", "should start with route type")
+	assert.Contains(t, s, "rd set 0:65000:100", "rd should use 'set' keyword")
+	assert.Contains(t, s, "mac set 00:11:22:33:44:55", "mac should use 'set' keyword")
+}
+
+// TestEVPNType2WithIPStringCommandStyle verifies Type 2 with IP uses command-style.
+//
+// VALIDATES: Type 2 with IP outputs "mac-ip rd set ... mac set ... ip set ..." format.
+// PREVENTS: Missing IP in output when present.
+func TestEVPNType2WithIPStringCommandStyle(t *testing.T) {
+	rd, _ := ParseRDString("65000:100")
+	mac := [6]byte{0x00, 0x11, 0x22, 0x33, 0x44, 0x55}
+	ip := netip.MustParseAddr("192.168.1.1")
+
+	e := NewEVPNType2(rd, [10]byte{}, 100, mac, ip, []uint32{1000})
+	s := e.String()
+	assert.Contains(t, s, "mac-ip", "should start with route type")
+	assert.Contains(t, s, "rd set 0:65000:100", "rd should use 'set' keyword")
+	assert.Contains(t, s, "mac set 00:11:22:33:44:55", "mac should use 'set' keyword")
+	assert.Contains(t, s, "ip set 192.168.1.1", "ip should use 'set' keyword")
+	assert.Contains(t, s, "etag set 100", "etag should use 'set' keyword")
+	assert.Contains(t, s, "label set 1000", "label should use 'set' keyword")
+}
+
+// TestEVPNType3StringCommandStyle verifies Type 3 String() outputs command-style format.
+//
+// VALIDATES: Type 3 (Multicast) output uses "multicast rd set ... ip set ..." format.
+// PREVENTS: Output mismatch with input parser expectations.
+func TestEVPNType3StringCommandStyle(t *testing.T) {
+	rd, _ := ParseRDString("65000:100")
+	ip := netip.MustParseAddr("10.0.0.1")
+
+	e := NewEVPNType3(rd, 200, ip)
+	s := e.String()
+	assert.Contains(t, s, "multicast", "should start with route type")
+	assert.Contains(t, s, "rd set 0:65000:100", "rd should use 'set' keyword")
+	assert.Contains(t, s, "ip set 10.0.0.1", "ip should use 'set' keyword")
+	assert.Contains(t, s, "etag set 200", "etag should use 'set' keyword")
+}
+
+// TestEVPNType5StringCommandStyle verifies Type 5 String() outputs command-style format.
+//
+// VALIDATES: Type 5 (IP Prefix) output uses "ip-prefix rd set ... prefix set ..." format.
+// PREVENTS: Output mismatch with input parser expectations.
+func TestEVPNType5StringCommandStyle(t *testing.T) {
+	rd, _ := ParseRDString("65000:100")
+	prefix := netip.MustParsePrefix("10.0.0.0/24")
+
+	e := NewEVPNType5(rd, [10]byte{}, 0, prefix, netip.Addr{}, []uint32{1000})
+	s := e.String()
+	assert.Contains(t, s, "ip-prefix", "should start with route type")
+	assert.Contains(t, s, "rd set 0:65000:100", "rd should use 'set' keyword")
+	assert.Contains(t, s, "prefix set 10.0.0.0/24", "prefix should use 'set' keyword")
+	assert.Contains(t, s, "label set 1000", "label should use 'set' keyword")
+}
+
+// TestEVPNType1StringCommandStyle verifies Type 1 String() outputs command-style format.
+//
+// VALIDATES: Type 1 (Ethernet A-D) output uses "ethernet-ad rd set ... esi set ..." format.
+// PREVENTS: Output mismatch with input parser expectations.
+func TestEVPNType1StringCommandStyle(t *testing.T) {
+	rd, _ := ParseRDString("65000:100")
+	esi := [10]byte{0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09}
+
+	e := NewEVPNType1(rd, esi, 10, []uint32{1000})
+	s := e.String()
+	assert.Contains(t, s, "ethernet-ad", "should start with route type")
+	assert.Contains(t, s, "rd set 0:65000:100", "rd should use 'set' keyword")
+	assert.Contains(t, s, "esi set 00:01:02:03:04:05:06:07:08:09", "esi should use 'set' keyword")
+	assert.Contains(t, s, "etag set 10", "etag should use 'set' keyword")
+	assert.Contains(t, s, "label set 1000", "label should use 'set' keyword")
+}
+
+// TestEVPNType4StringCommandStyle verifies Type 4 String() outputs command-style format.
+//
+// VALIDATES: Type 4 (Ethernet Segment) output uses "ethernet-segment rd set ... esi set ..." format.
+// PREVENTS: Output mismatch with input parser expectations.
+func TestEVPNType4StringCommandStyle(t *testing.T) {
+	rd, _ := ParseRDString("65000:100")
+	esi := [10]byte{0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09}
+	ip := netip.MustParseAddr("10.0.0.1")
+
+	e := NewEVPNType4(rd, esi, ip)
+	s := e.String()
+	assert.Contains(t, s, "ethernet-segment", "should start with route type")
+	assert.Contains(t, s, "rd set 0:65000:100", "rd should use 'set' keyword")
+	assert.Contains(t, s, "esi set 00:01:02:03:04:05:06:07:08:09", "esi should use 'set' keyword")
+	assert.Contains(t, s, "ip set 10.0.0.1", "ip should use 'set' keyword")
+}

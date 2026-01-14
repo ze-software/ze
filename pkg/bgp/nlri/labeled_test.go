@@ -185,12 +185,13 @@ func TestLabeledUnicastWriteNLRI(t *testing.T) {
 	}
 }
 
-// TestLabeledUnicastString verifies string representation.
+// TestLabeledUnicastStringCommandStyle verifies command-style string representation.
 //
-// VALIDATES: Human-readable output for debugging.
+// VALIDATES: LabeledUnicast String() outputs command-style format for API round-trip.
+// Format: "prefix set <prefix> label set <labels> [path-id set <id>]"
 //
-// PREVENTS: Confusing debug output.
-func TestLabeledUnicastString(t *testing.T) {
+// PREVENTS: Output format not matching input parser, breaking round-trip.
+func TestLabeledUnicastStringCommandStyle(t *testing.T) {
 	tests := []struct {
 		name     string
 		lu       *LabeledUnicast
@@ -199,17 +200,32 @@ func TestLabeledUnicastString(t *testing.T) {
 		{
 			name:     "single label no path id",
 			lu:       NewLabeledUnicast(IPv4Unicast, netip.MustParsePrefix("10.0.0.0/8"), []uint32{100}, 0),
-			expected: "10.0.0.0/8 label=100",
+			expected: "prefix set 10.0.0.0/8 label set 100",
 		},
 		{
 			name:     "single label with path id",
 			lu:       NewLabeledUnicast(IPv4Unicast, netip.MustParsePrefix("10.0.0.0/8"), []uint32{100}, 5),
-			expected: "10.0.0.0/8 label=100 path-id=5",
+			expected: "prefix set 10.0.0.0/8 label set 100 path-id set 5",
 		},
 		{
 			name:     "multiple labels",
 			lu:       NewLabeledUnicast(IPv4Unicast, netip.MustParsePrefix("10.0.0.0/8"), []uint32{100, 200}, 0),
-			expected: "10.0.0.0/8 labels=[100,200]",
+			expected: "prefix set 10.0.0.0/8 label set 100,200",
+		},
+		{
+			name:     "ipv6 single label",
+			lu:       NewLabeledUnicast(IPv6Unicast, netip.MustParsePrefix("2001:db8::/32"), []uint32{500}, 0),
+			expected: "prefix set 2001:db8::/32 label set 500",
+		},
+		{
+			name:     "multiple labels with path id",
+			lu:       NewLabeledUnicast(IPv4Unicast, netip.MustParsePrefix("172.16.0.0/12"), []uint32{100, 200, 300}, 42),
+			expected: "prefix set 172.16.0.0/12 label set 100,200,300 path-id set 42",
+		},
+		{
+			name:     "no labels",
+			lu:       NewLabeledUnicast(IPv4Unicast, netip.MustParsePrefix("10.0.0.0/8"), nil, 0),
+			expected: "prefix set 10.0.0.0/8",
 		},
 	}
 
