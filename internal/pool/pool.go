@@ -19,11 +19,14 @@ var ErrPoolShutdown = errors.New("pool is shutdown")
 type Pool struct {
 	mu sync.RWMutex
 
+	// Pool index for handle encoding (0-62, 63 reserved for InvalidHandle)
+	idx uint8
+
 	// Data buffer - all interned data stored here contiguously
 	data []byte
 	pos  int // write cursor
 
-	// Slot table - indexed by handle value
+	// Slot table - indexed by handle's slot portion
 	slots []slot
 
 	// Free list for slot reuse
@@ -52,12 +55,24 @@ type slot struct {
 	dead     bool   // marked for removal
 }
 
-// New creates a pool with the given initial buffer capacity.
+// New creates a pool with idx=0 and the given initial buffer capacity.
+// For pools with specific idx, use NewWithIdx.
 func New(initialCapacity int) *Pool {
+	return NewWithIdx(0, initialCapacity)
+}
+
+// NewWithIdx creates a pool with the given index and initial buffer capacity.
+// idx must be 0-62 (63 is reserved for InvalidHandle).
+// Panics if idx >= 63.
+func NewWithIdx(idx uint8, initialCapacity int) *Pool {
+	if idx >= 63 {
+		panic("pool idx must be 0-62, 63 is reserved for InvalidHandle")
+	}
 	if initialCapacity < 64 {
 		initialCapacity = 64
 	}
 	return &Pool{
+		idx:   idx,
 		data:  make([]byte, 0, initialCapacity),
 		slots: make([]slot, 0, 64),
 		index: make(map[string]Handle, 64),
@@ -101,7 +116,7 @@ func (p *Pool) Intern(data []byte) Handle {
 
 	// Check for existing entry (deduplication)
 	if h, ok := p.index[lookupKey]; ok {
-		s := &p.slots[h]
+		s := &p.slots[h.Slot()]
 		if !s.dead && s.refCount > 0 {
 			s.refCount++
 			p.internHits.Add(1) // Deduplication hit
@@ -137,7 +152,8 @@ func (p *Pool) Intern(data []byte) Handle {
 		})
 	}
 
-	h := Handle(slotIdx)
+	// Create handle with pool idx encoded
+	h := NewHandle(p.idx, 0, slotIdx)
 
 	// Index with key pointing to buffer memory (zero-copy)
 	bufferKey := bytesToString(p.data[offset : offset+uint32(len(data))])
@@ -155,7 +171,8 @@ func (p *Pool) Get(h Handle) []byte {
 
 	p.validateHandle(h, "Get")
 
-	s := &p.slots[h]
+	slot := h.Slot()
+	s := &p.slots[slot]
 	return p.data[s.offset : s.offset+uint32(s.length)]
 }
 
@@ -166,7 +183,7 @@ func (p *Pool) Length(h Handle) int {
 
 	p.validateHandle(h, "Length")
 
-	return int(p.slots[h].length)
+	return int(p.slots[h.Slot()].length)
 }
 
 // Release decrements the reference count for the handle.
@@ -177,7 +194,8 @@ func (p *Pool) Release(h Handle) {
 
 	p.validateHandleForRelease(h, "Release")
 
-	s := &p.slots[h]
+	slot := h.Slot()
+	s := &p.slots[slot]
 	s.refCount--
 
 	if s.refCount <= 0 {
@@ -188,7 +206,7 @@ func (p *Pool) Release(h Handle) {
 		delete(p.index, bufferKey)
 
 		// Add slot to free list for reuse
-		p.freeSlots = append(p.freeSlots, uint32(h))
+		p.freeSlots = append(p.freeSlots, slot)
 	}
 }
 
@@ -242,7 +260,7 @@ func (p *Pool) rebuildIndex() {
 		s := &p.slots[i]
 		if !s.dead && s.refCount > 0 {
 			key := bytesToString(p.data[s.offset : s.offset+uint32(s.length)])
-			p.index[key] = Handle(i)
+			p.index[key] = NewHandle(p.idx, 0, uint32(i))
 		}
 	}
 }

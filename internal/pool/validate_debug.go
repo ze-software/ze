@@ -11,13 +11,14 @@ func (p *Pool) validateHandle(h Handle, op string) {
 		panic(fmt.Sprintf("pool: %s called with InvalidHandle", op))
 	}
 
-	if int(h) >= len(p.slots) {
-		panic(fmt.Sprintf("pool: %s called with out-of-bounds handle %d (slots: %d)", op, h, len(p.slots)))
+	slot := h.Slot()
+	if int(slot) >= len(p.slots) {
+		panic(fmt.Sprintf("pool: %s called with out-of-bounds slot %d (slots: %d)", op, slot, len(p.slots)))
 	}
 
-	s := &p.slots[h]
+	s := &p.slots[slot]
 	if s.dead {
-		panic(fmt.Sprintf("pool: %s called with dead handle %d", op, h))
+		panic(fmt.Sprintf("pool: %s called with dead handle %d (slot %d)", op, h, slot))
 	}
 }
 
@@ -27,7 +28,8 @@ func (p *Pool) validateHandleForRelease(h Handle, op string) {
 		panic(fmt.Sprintf("pool: %s called with InvalidHandle", op))
 	}
 
-	if int(h) >= len(p.slots) {
-		panic(fmt.Sprintf("pool: %s called with out-of-bounds handle %d (slots: %d)", op, h, len(p.slots)))
+	slot := h.Slot()
+	if int(slot) >= len(p.slots) {
+		panic(fmt.Sprintf("pool: %s called with out-of-bounds slot %d (slots: %d)", op, slot, len(p.slots)))
 	}
 }
