@@ -5,41 +5,43 @@ package pool
 import "fmt"
 
 // validateHandle checks handle validity in debug builds.
-// Panics with descriptive message if invalid.
-func (p *Pool) validateHandle(h Handle, op string) {
+// Returns error if invalid, with detailed message for debugging.
+func (p *Pool) validateHandle(h Handle) error {
 	if !h.Valid() {
-		panic(fmt.Sprintf("pool: %s called with InvalidHandle", op))
+		return fmt.Errorf("%w: handle=%d", ErrInvalidHandle, h)
 	}
 
-	// Verify handle belongs to this pool
 	if h.PoolIdx() != p.idx {
-		panic(fmt.Sprintf("pool: %s called with handle from pool %d on pool %d", op, h.PoolIdx(), p.idx))
+		return fmt.Errorf("%w: handle pool=%d, this pool=%d", ErrWrongPool, h.PoolIdx(), p.idx)
 	}
 
 	slot := h.Slot()
 	if int(slot) >= len(p.slots) {
-		panic(fmt.Sprintf("pool: %s called with out-of-bounds slot %d (slots: %d)", op, slot, len(p.slots)))
+		return fmt.Errorf("%w: slot=%d, max=%d", ErrSlotOutOfBounds, slot, len(p.slots))
 	}
 
 	s := &p.slots[slot]
 	if s.dead {
-		panic(fmt.Sprintf("pool: %s called with dead handle %d (slot %d)", op, h, slot))
+		return fmt.Errorf("%w: slot=%d", ErrSlotDead, slot)
 	}
+
+	return nil
 }
 
-// validateHandleForRelease checks handle validity for Release (slot doesn't need to be alive).
-func (p *Pool) validateHandleForRelease(h Handle, op string) {
+// validateHandleForRelease checks handle validity for Release (slot can be dead).
+func (p *Pool) validateHandleForRelease(h Handle) error {
 	if !h.Valid() {
-		panic(fmt.Sprintf("pool: %s called with InvalidHandle", op))
+		return fmt.Errorf("%w: handle=%d", ErrInvalidHandle, h)
 	}
 
-	// Verify handle belongs to this pool
 	if h.PoolIdx() != p.idx {
-		panic(fmt.Sprintf("pool: %s called with handle from pool %d on pool %d", op, h.PoolIdx(), p.idx))
+		return fmt.Errorf("%w: handle pool=%d, this pool=%d", ErrWrongPool, h.PoolIdx(), p.idx)
 	}
 
 	slot := h.Slot()
 	if int(slot) >= len(p.slots) {
-		panic(fmt.Sprintf("pool: %s called with out-of-bounds slot %d (slots: %d)", op, slot, len(p.slots)))
+		return fmt.Errorf("%w: slot=%d, max=%d", ErrSlotOutOfBounds, slot, len(p.slots))
 	}
+
+	return nil
 }

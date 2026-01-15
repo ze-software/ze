@@ -15,6 +15,18 @@ var ErrPoolShutdown = errors.New("pool is shutdown")
 // ErrDataTooLarge is returned when data exceeds MaxDataLength.
 var ErrDataTooLarge = errors.New("data exceeds maximum length (65535 bytes)")
 
+// ErrInvalidHandle is returned when an invalid handle is used.
+var ErrInvalidHandle = errors.New("invalid handle")
+
+// ErrWrongPool is returned when a handle from a different pool is used.
+var ErrWrongPool = errors.New("handle belongs to different pool")
+
+// ErrSlotOutOfBounds is returned when handle references non-existent slot.
+var ErrSlotOutOfBounds = errors.New("handle slot out of bounds")
+
+// ErrSlotDead is returned when handle references a released slot.
+var ErrSlotDead = errors.New("handle references dead slot")
+
 // MaxDataLength is the maximum length of data that can be interned.
 // Limited by uint16 length field in slot struct.
 const MaxDataLength = 65535
@@ -178,34 +190,43 @@ func (p *Pool) Intern(data []byte) Handle {
 // Get returns the data associated with the handle.
 // Returns a slice pointing into the pool's buffer (zero-copy).
 // The returned slice is only valid while the handle is live.
-func (p *Pool) Get(h Handle) []byte {
+// Returns error if handle is invalid, from wrong pool, or references dead slot.
+func (p *Pool) Get(h Handle) ([]byte, error) {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
 
-	p.validateHandle(h, "Get")
+	if err := p.validateHandle(h); err != nil {
+		return nil, err
+	}
 
 	slot := h.Slot()
 	s := &p.slots[slot]
-	return p.data[s.offset : s.offset+uint32(s.length)]
+	return p.data[s.offset : s.offset+uint32(s.length)], nil
 }
 
 // Length returns the length of data associated with the handle.
-func (p *Pool) Length(h Handle) int {
+// Returns error if handle is invalid, from wrong pool, or references dead slot.
+func (p *Pool) Length(h Handle) (int, error) {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
 
-	p.validateHandle(h, "Length")
+	if err := p.validateHandle(h); err != nil {
+		return 0, err
+	}
 
-	return int(p.slots[h.Slot()].length)
+	return int(p.slots[h.Slot()].length), nil
 }
 
 // Release decrements the reference count for the handle.
 // When refCount reaches zero, the entry is marked dead and eligible for reclamation.
-func (p *Pool) Release(h Handle) {
+// Returns error if handle is invalid, from wrong pool, or slot out of bounds.
+func (p *Pool) Release(h Handle) error {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
-	p.validateHandleForRelease(h, "Release")
+	if err := p.validateHandleForRelease(h); err != nil {
+		return err
+	}
 
 	slot := h.Slot()
 	s := &p.slots[slot]
@@ -221,6 +242,8 @@ func (p *Pool) Release(h Handle) {
 		// Add slot to free list for reuse
 		p.freeSlots = append(p.freeSlots, slot)
 	}
+
+	return nil
 }
 
 // Shutdown marks the pool as shutdown, rejecting new operations.

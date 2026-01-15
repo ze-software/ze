@@ -2,8 +2,43 @@
 
 package pool
 
-// validateHandle is a no-op in release builds.
-func (p *Pool) validateHandle(h Handle, op string) {}
+// validateHandle checks handle validity in release builds.
+// Returns error if invalid.
+func (p *Pool) validateHandle(h Handle) error {
+	if !h.Valid() {
+		return ErrInvalidHandle
+	}
 
-// validateHandleForRelease is a no-op in release builds.
-func (p *Pool) validateHandleForRelease(h Handle, op string) {}
+	if h.PoolIdx() != p.idx {
+		return ErrWrongPool
+	}
+
+	slot := h.Slot()
+	if int(slot) >= len(p.slots) {
+		return ErrSlotOutOfBounds
+	}
+
+	if p.slots[slot].dead {
+		return ErrSlotDead
+	}
+
+	return nil
+}
+
+// validateHandleForRelease checks handle validity for Release (slot can be dead).
+func (p *Pool) validateHandleForRelease(h Handle) error {
+	if !h.Valid() {
+		return ErrInvalidHandle
+	}
+
+	if h.PoolIdx() != p.idx {
+		return ErrWrongPool
+	}
+
+	slot := h.Slot()
+	if int(slot) >= len(p.slots) {
+		return ErrSlotOutOfBounds
+	}
+
+	return nil
+}

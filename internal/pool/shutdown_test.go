@@ -48,7 +48,8 @@ func TestShutdownExistingHandlesStillWork(t *testing.T) {
 	p.Shutdown()
 
 	// Existing handles should still work
-	data := p.Get(h)
+	data, err := p.Get(h)
+	require.NoError(t, err)
 	require.Equal(t, []byte("existing-data"), data)
 }
 
@@ -66,7 +67,7 @@ func TestShutdownReleasesStillWork(t *testing.T) {
 
 	// Release should still work
 	require.NotPanics(t, func() {
-		p.Release(h)
+		_ = p.Release(h)
 	})
 }
 

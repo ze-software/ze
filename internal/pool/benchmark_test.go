@@ -36,7 +36,7 @@ func BenchmarkGet(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_ = p.Get(h)
+		_, _ = p.Get(h)
 	}
 }
 
@@ -53,7 +53,7 @@ func BenchmarkRelease(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		p.Release(handles[i])
+		_ = p.Release(handles[i])
 	}
 }
 
@@ -64,7 +64,7 @@ func BenchmarkLength(b *testing.B) {
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		_ = p.Length(h)
+		_, _ = p.Length(h)
 	}
 }
 
@@ -95,7 +95,7 @@ func BenchmarkCompact(b *testing.B) {
 		}
 		// Release half
 		for j := 0; j < 500; j++ {
-			p.Release(handles[j])
+			_ = p.Release(handles[j])
 		}
 
 		b.StartTimer()
@@ -124,7 +124,7 @@ func BenchmarkConcurrentGet(b *testing.B) {
 
 	b.RunParallel(func(pb *testing.PB) {
 		for pb.Next() {
-			_ = p.Get(h)
+			_, _ = p.Get(h)
 		}
 	})
 }

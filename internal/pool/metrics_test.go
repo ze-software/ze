@@ -18,7 +18,7 @@ func TestMetricsAccuracy(t *testing.T) {
 	h1 := p.Intern([]byte("AAAA"))
 	h2 := p.Intern([]byte("BBBB"))
 	_ = h1
-	p.Release(h2)
+	_ = p.Release(h2)
 
 	m := p.Metrics()
 
@@ -59,7 +59,7 @@ func TestMetricsAfterCompaction(t *testing.T) {
 
 	h := p.Intern([]byte("to-be-released"))
 	p.Intern([]byte("keep-alive"))
-	p.Release(h)
+	_ = p.Release(h)
 
 	before := p.Metrics()
 	require.Equal(t, int32(1), before.DeadSlots)

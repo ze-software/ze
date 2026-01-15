@@ -26,7 +26,7 @@ func TestCompactionReclaimsDeadSpace(t *testing.T) {
 	_ = h3
 
 	// Release middle entry (creates dead space)
-	p.Release(h2)
+	_ = p.Release(h2)
 
 	// Record metrics before compaction
 	before := p.Metrics()
@@ -56,14 +56,18 @@ func TestCompactionPreservesLiveData(t *testing.T) {
 	h3 := p.Intern([]byte("CCCC"))
 
 	// Release middle entry
-	p.Release(h2)
+	_ = p.Release(h2)
 
 	// Compact
 	p.Compact()
 
 	// Remaining handles must still work
-	require.Equal(t, []byte("AAAA"), p.Get(h1), "h1 must survive compaction")
-	require.Equal(t, []byte("CCCC"), p.Get(h3), "h3 must survive compaction")
+	d1, err := p.Get(h1)
+	require.NoError(t, err)
+	require.Equal(t, []byte("AAAA"), d1, "h1 must survive compaction")
+	d3, err := p.Get(h3)
+	require.NoError(t, err)
+	require.Equal(t, []byte("CCCC"), d3, "h3 must survive compaction")
 }
 
 // TestCompactionMultipleRounds verifies repeated compaction works correctly.
@@ -76,19 +80,23 @@ func TestCompactionMultipleRounds(t *testing.T) {
 
 	// Round 1: create and release
 	h1 := p.Intern([]byte("round1"))
-	p.Release(h1)
+	_ = p.Release(h1)
 	p.Compact()
 
 	// Round 2: create and release
 	h2 := p.Intern([]byte("round2"))
-	require.Equal(t, []byte("round2"), p.Get(h2))
-	p.Release(h2)
+	d2, err := p.Get(h2)
+	require.NoError(t, err)
+	require.Equal(t, []byte("round2"), d2)
+	_ = p.Release(h2)
 	p.Compact()
 
 	// Round 3: create and keep
 	h3 := p.Intern([]byte("round3"))
 	p.Compact()
-	require.Equal(t, []byte("round3"), p.Get(h3))
+	d3, err := p.Get(h3)
+	require.NoError(t, err)
+	require.Equal(t, []byte("round3"), d3)
 }
 
 // TestCompactionWithNoDeadEntries verifies compaction on clean pool is safe.
@@ -105,8 +113,12 @@ func TestCompactionWithNoDeadEntries(t *testing.T) {
 	// Compact with no dead entries
 	p.Compact()
 
-	require.Equal(t, []byte("live1"), p.Get(h1))
-	require.Equal(t, []byte("live2"), p.Get(h2))
+	d1, err := p.Get(h1)
+	require.NoError(t, err)
+	require.Equal(t, []byte("live1"), d1)
+	d2, err := p.Get(h2)
+	require.NoError(t, err)
+	require.Equal(t, []byte("live2"), d2)
 }
 
 // TestCompactionEmptyPool verifies compaction on empty pool is safe.
@@ -124,7 +136,9 @@ func TestCompactionEmptyPool(t *testing.T) {
 
 	// Pool should still be usable
 	h := p.Intern([]byte("after-compact"))
-	require.Equal(t, []byte("after-compact"), p.Get(h))
+	d, err := p.Get(h)
+	require.NoError(t, err)
+	require.Equal(t, []byte("after-compact"), d)
 }
 
 // TestCompactionAllDead verifies compaction when all entries are dead.
@@ -139,9 +153,9 @@ func TestCompactionAllDead(t *testing.T) {
 	h2 := p.Intern([]byte("dead2"))
 	h3 := p.Intern([]byte("dead3"))
 
-	p.Release(h1)
-	p.Release(h2)
-	p.Release(h3)
+	_ = p.Release(h1)
+	_ = p.Release(h2)
+	_ = p.Release(h3)
 
 	p.Compact()
 
@@ -151,7 +165,9 @@ func TestCompactionAllDead(t *testing.T) {
 
 	// Pool should still be usable
 	h := p.Intern([]byte("new-after-all-dead"))
-	require.Equal(t, []byte("new-after-all-dead"), p.Get(h))
+	d, err := p.Get(h)
+	require.NoError(t, err)
+	require.Equal(t, []byte("new-after-all-dead"), d)
 }
 
 // TestConcurrentAccessDuringCompaction verifies operations work during compaction.
@@ -171,7 +187,7 @@ func TestConcurrentAccessDuringCompaction(t *testing.T) {
 
 	// Release half to create dead space
 	for i := 0; i < len(handles); i += 2 {
-		p.Release(handles[i])
+		_ = p.Release(handles[i])
 	}
 
 	var wg sync.WaitGroup
@@ -188,7 +204,8 @@ func TestConcurrentAccessDuringCompaction(t *testing.T) {
 		wg.Add(1)
 		go func(h Handle, expected string) {
 			defer wg.Done()
-			got := p.Get(h)
+			got, err := p.Get(h)
+			require.NoError(t, err)
 			require.Equal(t, []byte(expected), got)
 		}(handles[i], fmt.Sprintf("data-%04d", i))
 	}
@@ -208,7 +225,7 @@ func TestConcurrentInternDuringCompaction(t *testing.T) {
 	for i := 0; i < 100; i++ {
 		h := p.Intern([]byte(fmt.Sprintf("pre-%d", i)))
 		if i%2 == 0 {
-			p.Release(h)
+			_ = p.Release(h)
 		}
 	}
 
@@ -235,6 +252,8 @@ func TestConcurrentInternDuringCompaction(t *testing.T) {
 
 	// Verify new entries are accessible
 	for i, h := range newHandles {
-		require.Equal(t, []byte(fmt.Sprintf("new-%d", i)), p.Get(h))
+		d, err := p.Get(h)
+		require.NoError(t, err)
+		require.Equal(t, []byte(fmt.Sprintf("new-%d", i)), d)
 	}
 }

@@ -9,6 +9,28 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// Test helpers for cleaner error handling
+
+func mustGet(t *testing.T, p *Pool, h Handle) []byte {
+	t.Helper()
+	data, err := p.Get(h)
+	require.NoError(t, err)
+	return data
+}
+
+func mustLength(t *testing.T, p *Pool, h Handle) int {
+	t.Helper()
+	length, err := p.Length(h)
+	require.NoError(t, err)
+	return length
+}
+
+func mustRelease(t *testing.T, p *Pool, h Handle) {
+	t.Helper()
+	err := p.Release(h)
+	require.NoError(t, err)
+}
+
 // TestInternDeduplication verifies that interning identical data returns
 // the same handle and increments reference count.
 //
@@ -51,7 +73,7 @@ func TestGetReturnsCorrectData(t *testing.T) {
 	data := []byte("test data 12345")
 
 	h := p.Intern(data)
-	got := p.Get(h)
+	got := mustGet(t, p, h)
 
 	require.Equal(t, data, got, "Get must return original data")
 }
@@ -68,9 +90,9 @@ func TestGetMultipleEntries(t *testing.T) {
 	h2 := p.Intern([]byte("second"))
 	h3 := p.Intern([]byte("third"))
 
-	require.Equal(t, []byte("first"), p.Get(h1))
-	require.Equal(t, []byte("second"), p.Get(h2))
-	require.Equal(t, []byte("third"), p.Get(h3))
+	require.Equal(t, []byte("first"), mustGet(t, p, h1))
+	require.Equal(t, []byte("second"), mustGet(t, p, h2))
+	require.Equal(t, []byte("third"), mustGet(t, p, h3))
 }
 
 // TestReleaseDecrementsRefCount verifies Release() decrements reference count.
@@ -87,10 +109,10 @@ func TestReleaseDecrementsRefCount(t *testing.T) {
 	_ = p.Intern([]byte("data"))
 
 	// Release once (refCount = 1)
-	p.Release(h)
+	mustRelease(t, p, h)
 
 	// Data should still be accessible
-	got := p.Get(h)
+	got := mustGet(t, p, h)
 	require.Equal(t, []byte("data"), got, "data must survive partial release")
 }
 
@@ -104,7 +126,7 @@ func TestReleaseToZeroMarksDead(t *testing.T) {
 	p := New(1024)
 
 	h := p.Intern([]byte("data"))
-	p.Release(h)
+	mustRelease(t, p, h)
 
 	// After release to zero, entry should be dead
 	// New intern of same data should get new handle (or reuse slot)
@@ -113,7 +135,7 @@ func TestReleaseToZeroMarksDead(t *testing.T) {
 	require.True(t, h2.Valid())
 
 	// New handle should still work
-	require.Equal(t, []byte("data"), p.Get(h2))
+	require.Equal(t, []byte("data"), mustGet(t, p, h2))
 }
 
 // TestInternEmpty verifies empty byte slice handling.
@@ -127,7 +149,7 @@ func TestInternEmpty(t *testing.T) {
 	h := p.Intern([]byte{})
 	require.True(t, h.Valid())
 
-	got := p.Get(h)
+	got := mustGet(t, p, h)
 	require.Equal(t, []byte{}, got)
 }
 
@@ -142,7 +164,7 @@ func TestInternNil(t *testing.T) {
 	h := p.Intern(nil)
 	require.True(t, h.Valid())
 
-	got := p.Get(h)
+	got := mustGet(t, p, h)
 	require.Equal(t, []byte{}, got)
 }
 
@@ -163,7 +185,7 @@ func TestConcurrentIntern(t *testing.T) {
 			for j := 0; j < 1000; j++ {
 				data := []byte(fmt.Sprintf("data-%d-%d", id, j))
 				h := p.Intern(data)
-				got := p.Get(h)
+				got := mustGet(t, p, h)
 				assert.Equal(t, data, got)
 			}
 		}(i)
@@ -220,7 +242,7 @@ func TestConcurrentRelease(t *testing.T) {
 		wg.Add(1)
 		go func(handle Handle) {
 			defer wg.Done()
-			p.Release(handle)
+			_ = p.Release(handle)
 		}(h)
 	}
 
@@ -241,10 +263,10 @@ func TestLength(t *testing.T) {
 	p := New(1024)
 
 	h := p.Intern([]byte("hello world"))
-	require.Equal(t, 11, p.Length(h))
+	require.Equal(t, 11, mustLength(t, p, h))
 
 	h2 := p.Intern([]byte{})
-	require.Equal(t, 0, p.Length(h2))
+	require.Equal(t, 0, mustLength(t, p, h2))
 }
 
 // TestLargeData verifies handling of larger data chunks.
@@ -262,10 +284,10 @@ func TestLargeData(t *testing.T) {
 	}
 
 	h := p.Intern(large)
-	got := p.Get(h)
+	got := mustGet(t, p, h)
 
 	require.Equal(t, large, got)
-	require.Equal(t, 10*1024, p.Length(h))
+	require.Equal(t, 10*1024, mustLength(t, p, h))
 }
 
 // TestPoolIdxEncoding verifies Pool embeds idx in returned handles.
@@ -291,14 +313,14 @@ func TestPoolExtractsSlot(t *testing.T) {
 	h := p.Intern([]byte("hello"))
 
 	// Get works with encoded handle
-	require.Equal(t, []byte("hello"), p.Get(h), "Get must extract slot correctly")
+	require.Equal(t, []byte("hello"), mustGet(t, p, h), "Get must extract slot correctly")
 
 	// Length works
-	require.Equal(t, 5, p.Length(h), "Length must extract slot correctly")
+	require.Equal(t, 5, mustLength(t, p, h), "Length must extract slot correctly")
 
 	// WithFlags doesn't break access
 	h2 := h.WithFlags(1)
-	require.Equal(t, []byte("hello"), p.Get(h2), "Get must work after WithFlags")
+	require.Equal(t, []byte("hello"), mustGet(t, p, h2), "Get must work after WithFlags")
 }
 
 // TestPoolIdxValidation verifies pool rejects invalid idx.
@@ -357,9 +379,31 @@ func TestPoolMultiplePools(t *testing.T) {
 	require.Equal(t, uint8(5), h5.PoolIdx())
 
 	// Each pool returns its own data
-	require.Equal(t, []byte("data"), p0.Get(h0))
-	require.Equal(t, []byte("data"), p1.Get(h1))
-	require.Equal(t, []byte("data"), p5.Get(h5))
+	require.Equal(t, []byte("data"), mustGet(t, p0, h0))
+	require.Equal(t, []byte("data"), mustGet(t, p1, h1))
+	require.Equal(t, []byte("data"), mustGet(t, p5, h5))
+}
+
+// TestPoolWrongPoolError verifies using handle with wrong pool returns error.
+//
+// VALIDATES: Cross-pool handle misuse is detected and rejected.
+//
+// PREVENTS: Silent data corruption from using handle with wrong pool.
+func TestPoolWrongPoolError(t *testing.T) {
+	p0 := NewWithIdx(0, 64)
+	p1 := NewWithIdx(1, 64)
+
+	h0 := p0.Intern([]byte("data"))
+
+	// Using h0 (from p0) with p1 should return ErrWrongPool
+	_, err := p1.Get(h0)
+	require.ErrorIs(t, err, ErrWrongPool, "Get with wrong pool must return ErrWrongPool")
+
+	_, err = p1.Length(h0)
+	require.ErrorIs(t, err, ErrWrongPool, "Length with wrong pool must return ErrWrongPool")
+
+	err = p1.Release(h0)
+	require.ErrorIs(t, err, ErrWrongPool, "Release with wrong pool must return ErrWrongPool")
 }
 
 // TestPoolIdxDeduplication verifies dedup works correctly with non-zero idx.
@@ -381,7 +425,7 @@ func TestPoolIdxDeduplication(t *testing.T) {
 	require.Equal(t, h1, h2, "dedup should return same handle")
 
 	// Verify data is correct
-	require.Equal(t, []byte("test"), p.Get(h1))
+	require.Equal(t, []byte("test"), mustGet(t, p, h1))
 }
 
 // TestInternMaxLength verifies maximum data length handling.
@@ -399,10 +443,10 @@ func TestInternMaxLength(t *testing.T) {
 	}
 	h := p.Intern(maxData)
 	require.True(t, h.Valid())
-	require.Equal(t, MaxDataLength, p.Length(h))
+	require.Equal(t, MaxDataLength, mustLength(t, p, h))
 
 	// Verify data integrity
-	got := p.Get(h)
+	got := mustGet(t, p, h)
 	require.Equal(t, maxData, got)
 }
 
