@@ -149,13 +149,9 @@ func TestHandleBoundary(t *testing.T) {
 	})
 
 	// slot boundaries
-	t.Run("slot_last_valid_0xFFFFFE", func(t *testing.T) {
-		h := NewHandle(0, 0, 0xFFFFFE)
-		assert.Equal(t, uint32(0xFFFFFE), h.Slot())
-	})
-
-	t.Run("slot_max_0xFFFFFF_masks_to_valid", func(t *testing.T) {
-		// 0xFFFFFF with poolIdx=0 still has valid poolIdx
+	t.Run("slot_max_0xFFFFFF_valid", func(t *testing.T) {
+		// Full 24-bit range is usable for slot
+		// Validity depends on poolIdx, not slot value
 		h := NewHandle(0, 0, 0xFFFFFF)
 		assert.Equal(t, uint32(0xFFFFFF), h.Slot())
 		assert.True(t, h.Valid()) // poolIdx=0 is valid

@@ -20,7 +20,10 @@ import "fmt"
 //
 // PoolIdx: 0-62 valid, 63 reserved for InvalidHandle.
 // Flags:   Bit 0 = hasPathID (ADD-PATH present), Bit 1 = reserved.
-// Slot:    0 to 16,777,215 (0xFFFFFF).
+// Slot:    0 to 16,777,215 (0xFFFFFF). Full 24-bit range usable.
+//
+// InvalidHandle (0xFFFFFFFF) has poolIdx=63, making Valid() return false.
+// Any handle with poolIdx < 63 is valid regardless of flags/slot values.
 type Handle uint32
 
 // InvalidHandle is the sentinel value indicating no valid handle.

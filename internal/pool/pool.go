@@ -12,6 +12,13 @@ import (
 // ErrPoolShutdown is returned when operations are attempted on a shutdown pool.
 var ErrPoolShutdown = errors.New("pool is shutdown")
 
+// ErrDataTooLarge is returned when data exceeds MaxDataLength.
+var ErrDataTooLarge = errors.New("data exceeds maximum length (65535 bytes)")
+
+// MaxDataLength is the maximum length of data that can be interned.
+// Limited by uint16 length field in slot struct.
+const MaxDataLength = 65535
+
 // Pool provides zero-copy byte slice deduplication for BGP attributes and NLRI.
 //
 // Thread-safe. Uses reference counting for lifecycle management.
@@ -97,10 +104,16 @@ func (p *Pool) IsIdle(d time.Duration) bool {
 // Intern stores data in the pool with deduplication.
 // Returns a handle that can be used to retrieve the data.
 // If identical data already exists, increments refCount and returns existing handle.
+// Panics if data length exceeds MaxDataLength (65535 bytes).
 func (p *Pool) Intern(data []byte) Handle {
 	// Treat nil as empty
 	if data == nil {
 		data = []byte{}
+	}
+
+	// Validate length fits in uint16
+	if len(data) > MaxDataLength {
+		panic("pool: data length exceeds MaxDataLength (65535 bytes)")
 	}
 
 	lookupKey := bytesToString(data)

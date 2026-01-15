@@ -384,6 +384,43 @@ func TestPoolIdxDeduplication(t *testing.T) {
 	require.Equal(t, []byte("test"), p.Get(h1))
 }
 
+// TestInternMaxLength verifies maximum data length handling.
+//
+// VALIDATES: Data up to MaxDataLength (65535) can be interned.
+//
+// PREVENTS: Silent truncation of large data.
+func TestInternMaxLength(t *testing.T) {
+	p := New(1024 * 1024)
+
+	// Max length should work
+	maxData := make([]byte, MaxDataLength)
+	for i := range maxData {
+		maxData[i] = byte(i % 256)
+	}
+	h := p.Intern(maxData)
+	require.True(t, h.Valid())
+	require.Equal(t, MaxDataLength, p.Length(h))
+
+	// Verify data integrity
+	got := p.Get(h)
+	require.Equal(t, maxData, got)
+}
+
+// TestInternTooLarge verifies data exceeding MaxDataLength panics.
+//
+// VALIDATES: Large data is rejected, not silently truncated.
+//
+// PREVENTS: Data corruption from uint16 length overflow.
+func TestInternTooLarge(t *testing.T) {
+	p := New(1024 * 1024)
+
+	// One byte over limit should panic
+	tooLarge := make([]byte, MaxDataLength+1)
+	require.Panics(t, func() {
+		p.Intern(tooLarge)
+	}, "data exceeding MaxDataLength must panic")
+}
+
 // TestPoolIdxRebuildIndex verifies rebuildIndex includes poolIdx in handles.
 //
 // VALIDATES: After buffer growth, index contains handles with correct poolIdx.

@@ -11,6 +11,11 @@ func (p *Pool) validateHandle(h Handle, op string) {
 		panic(fmt.Sprintf("pool: %s called with InvalidHandle", op))
 	}
 
+	// Verify handle belongs to this pool
+	if h.PoolIdx() != p.idx {
+		panic(fmt.Sprintf("pool: %s called with handle from pool %d on pool %d", op, h.PoolIdx(), p.idx))
+	}
+
 	slot := h.Slot()
 	if int(slot) >= len(p.slots) {
 		panic(fmt.Sprintf("pool: %s called with out-of-bounds slot %d (slots: %d)", op, slot, len(p.slots)))
@@ -26,6 +31,11 @@ func (p *Pool) validateHandle(h Handle, op string) {
 func (p *Pool) validateHandleForRelease(h Handle, op string) {
 	if !h.Valid() {
 		panic(fmt.Sprintf("pool: %s called with InvalidHandle", op))
+	}
+
+	// Verify handle belongs to this pool
+	if h.PoolIdx() != p.idx {
+		panic(fmt.Sprintf("pool: %s called with handle from pool %d on pool %d", op, h.PoolIdx(), p.idx))
 	}
 
 	slot := h.Slot()
