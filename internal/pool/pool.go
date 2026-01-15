@@ -123,8 +123,19 @@ func (p *Pool) IsIdle(d time.Duration) bool {
 // Intern stores data in the pool with deduplication.
 // Returns a handle that can be used to retrieve the data.
 // If identical data already exists, increments refCount and returns existing handle.
-// Panics if data length exceeds MaxDataLength (65535 bytes).
+// Panics if pool is shutdown, data too large, or pool is full.
+// Use InternWithError for error returns instead of panics.
 func (p *Pool) Intern(data []byte) Handle {
+	h, err := p.internLocked(data)
+	if err != nil {
+		panic("pool: " + err.Error())
+	}
+	return h
+}
+
+// internLocked performs the actual intern operation under lock.
+// Returns error instead of panicking.
+func (p *Pool) internLocked(data []byte) (Handle, error) {
 	// Treat nil as empty
 	if data == nil {
 		data = []byte{}
@@ -132,13 +143,18 @@ func (p *Pool) Intern(data []byte) Handle {
 
 	// Validate length fits in uint16
 	if len(data) > MaxDataLength {
-		panic("pool: data length exceeds MaxDataLength (65535 bytes)")
+		return InvalidHandle, ErrDataTooLarge
 	}
 
 	lookupKey := bytesToString(data)
 
 	p.mu.Lock()
 	defer p.mu.Unlock()
+
+	// Check shutdown under lock
+	if p.shutdown.Load() {
+		return InvalidHandle, ErrPoolShutdown
+	}
 
 	// Track metrics
 	p.internTotal.Add(1)
@@ -152,8 +168,13 @@ func (p *Pool) Intern(data []byte) Handle {
 		if !s.dead && s.refCount > 0 {
 			s.refCount++
 			p.internHits.Add(1) // Deduplication hit
-			return h
+			return h, nil
 		}
+	}
+
+	// Check slot limit under lock (no race)
+	if len(p.slots) >= MaxSlots && len(p.freeSlots) == 0 {
+		return InvalidHandle, ErrPoolFull
 	}
 
 	// Allocate new entry
@@ -175,9 +196,6 @@ func (p *Pool) Intern(data []byte) Handle {
 			dead:     false,
 		}
 	} else {
-		if len(p.slots) >= MaxSlots {
-			panic("pool: slot count exceeds MaxSlots (16,777,215)")
-		}
 		slotIdx = uint32(len(p.slots))
 		p.slots = append(p.slots, slot{
 			offset:   offset,
@@ -194,7 +212,7 @@ func (p *Pool) Intern(data []byte) Handle {
 	bufferKey := bytesToString(p.data[offset : offset+uint32(len(data))])
 	p.index[bufferKey] = h
 
-	return h
+	return h, nil
 }
 
 // Get returns the data associated with the handle.
@@ -273,20 +291,7 @@ func (p *Pool) IsShutdown() bool {
 // Returns ErrDataTooLarge if data exceeds MaxDataLength (65535 bytes).
 // Returns ErrPoolFull if pool has reached MaxSlots (16,777,215).
 func (p *Pool) InternWithError(data []byte) (Handle, error) {
-	if p.shutdown.Load() {
-		return InvalidHandle, ErrPoolShutdown
-	}
-	if len(data) > MaxDataLength {
-		return InvalidHandle, ErrDataTooLarge
-	}
-	// Check slot limit (best-effort, actual check is inside Intern with lock)
-	p.mu.RLock()
-	full := len(p.slots) >= MaxSlots && len(p.freeSlots) == 0
-	p.mu.RUnlock()
-	if full {
-		return InvalidHandle, ErrPoolFull
-	}
-	return p.Intern(data), nil
+	return p.internLocked(data)
 }
 
 // ensureCapacity ensures the data buffer can hold additional bytes.
