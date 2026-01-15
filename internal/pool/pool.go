@@ -258,10 +258,15 @@ func (p *Pool) IsShutdown() bool {
 	return p.shutdown.Load()
 }
 
-// InternWithError is like Intern but returns an error if the pool is shutdown.
+// InternWithError is like Intern but returns an error instead of panicking.
+// Returns ErrPoolShutdown if pool is shutdown.
+// Returns ErrDataTooLarge if data exceeds MaxDataLength (65535 bytes).
 func (p *Pool) InternWithError(data []byte) (Handle, error) {
 	if p.shutdown.Load() {
 		return InvalidHandle, ErrPoolShutdown
+	}
+	if len(data) > MaxDataLength {
+		return InvalidHandle, ErrDataTooLarge
 	}
 	return p.Intern(data), nil
 }

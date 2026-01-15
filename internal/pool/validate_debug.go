@@ -28,7 +28,8 @@ func (p *Pool) validateHandle(h Handle) error {
 	return nil
 }
 
-// validateHandleForRelease checks handle validity for Release (slot can be dead).
+// validateHandleForRelease checks handle validity for Release.
+// Returns ErrSlotDead if already released (prevents double-release corruption).
 func (p *Pool) validateHandleForRelease(h Handle) error {
 	if !h.Valid() {
 		return fmt.Errorf("%w: handle=%d", ErrInvalidHandle, h)
@@ -41,6 +42,10 @@ func (p *Pool) validateHandleForRelease(h Handle) error {
 	slot := h.Slot()
 	if int(slot) >= len(p.slots) {
 		return fmt.Errorf("%w: slot=%d, max=%d", ErrSlotOutOfBounds, slot, len(p.slots))
+	}
+
+	if p.slots[slot].dead {
+		return fmt.Errorf("%w: slot=%d (double-release)", ErrSlotDead, slot)
 	}
 
 	return nil

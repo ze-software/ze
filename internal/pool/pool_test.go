@@ -138,6 +138,51 @@ func TestReleaseToZeroMarksDead(t *testing.T) {
 	require.Equal(t, []byte("data"), mustGet(t, p, h2))
 }
 
+// TestDoubleReleaseError verifies that double-release returns error.
+//
+// VALIDATES: Double-release is detected and rejected.
+//
+// PREVENTS: freeSlots corruption from adding same slot twice,
+// which would cause data corruption on subsequent Intern calls.
+func TestDoubleReleaseError(t *testing.T) {
+	p := New(1024)
+
+	h := p.Intern([]byte("data"))
+
+	// First release should succeed
+	err := p.Release(h)
+	require.NoError(t, err, "first release should succeed")
+
+	// Second release should return ErrSlotDead
+	err = p.Release(h)
+	require.ErrorIs(t, err, ErrSlotDead, "double release must return ErrSlotDead")
+
+	// Get on dead slot should also fail
+	_, err = p.Get(h)
+	require.ErrorIs(t, err, ErrSlotDead, "Get on released handle must return ErrSlotDead")
+}
+
+// TestInternWithErrorDataTooLarge verifies InternWithError returns error for large data.
+//
+// VALIDATES: InternWithError doesn't panic on large data.
+//
+// PREVENTS: Panic in error-returning function (API inconsistency).
+func TestInternWithErrorDataTooLarge(t *testing.T) {
+	p := New(1024)
+
+	// Data exceeding MaxDataLength should return error, not panic
+	tooLarge := make([]byte, MaxDataLength+1)
+	h, err := p.InternWithError(tooLarge)
+	require.ErrorIs(t, err, ErrDataTooLarge)
+	require.Equal(t, InvalidHandle, h)
+
+	// Max length should still work
+	maxData := make([]byte, MaxDataLength)
+	h, err = p.InternWithError(maxData)
+	require.NoError(t, err)
+	require.True(t, h.Valid())
+}
+
 // TestInternEmpty verifies empty byte slice handling.
 //
 // VALIDATES: Edge case - empty data is valid input.
