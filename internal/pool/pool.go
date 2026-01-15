@@ -27,9 +27,16 @@ var ErrSlotOutOfBounds = errors.New("handle slot out of bounds")
 // ErrSlotDead is returned when handle references a released slot.
 var ErrSlotDead = errors.New("handle references dead slot")
 
+// ErrPoolFull is returned when pool has reached MaxSlots limit.
+var ErrPoolFull = errors.New("pool has reached maximum slot count (16,777,215)")
+
 // MaxDataLength is the maximum length of data that can be interned.
 // Limited by uint16 length field in slot struct.
 const MaxDataLength = 65535
+
+// MaxSlots is the maximum number of slots per pool.
+// Limited by 24-bit slot field in Handle.
+const MaxSlots = 0xFFFFFF // 16,777,215
 
 // Pool provides zero-copy byte slice deduplication for BGP attributes and NLRI.
 //
@@ -168,6 +175,9 @@ func (p *Pool) Intern(data []byte) Handle {
 			dead:     false,
 		}
 	} else {
+		if len(p.slots) >= MaxSlots {
+			panic("pool: slot count exceeds MaxSlots (16,777,215)")
+		}
 		slotIdx = uint32(len(p.slots))
 		p.slots = append(p.slots, slot{
 			offset:   offset,
@@ -261,12 +271,20 @@ func (p *Pool) IsShutdown() bool {
 // InternWithError is like Intern but returns an error instead of panicking.
 // Returns ErrPoolShutdown if pool is shutdown.
 // Returns ErrDataTooLarge if data exceeds MaxDataLength (65535 bytes).
+// Returns ErrPoolFull if pool has reached MaxSlots (16,777,215).
 func (p *Pool) InternWithError(data []byte) (Handle, error) {
 	if p.shutdown.Load() {
 		return InvalidHandle, ErrPoolShutdown
 	}
 	if len(data) > MaxDataLength {
 		return InvalidHandle, ErrDataTooLarge
+	}
+	// Check slot limit (best-effort, actual check is inside Intern with lock)
+	p.mu.RLock()
+	full := len(p.slots) >= MaxSlots && len(p.freeSlots) == 0
+	p.mu.RUnlock()
+	if full {
+		return InvalidHandle, ErrPoolFull
 	}
 	return p.Intern(data), nil
 }

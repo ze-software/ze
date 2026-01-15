@@ -451,6 +451,15 @@ func TestPoolWrongPoolError(t *testing.T) {
 	require.ErrorIs(t, err, ErrWrongPool, "Release with wrong pool must return ErrWrongPool")
 }
 
+// TestMaxSlotsConstant verifies MaxSlots matches 24-bit handle slot field.
+//
+// VALIDATES: Slot limit constant is correctly defined.
+//
+// PREVENTS: Mismatch between constant and handle bit width.
+func TestMaxSlotsConstant(t *testing.T) {
+	require.Equal(t, uint32(0xFFFFFF), uint32(MaxSlots), "MaxSlots must be 24-bit max (0xFFFFFF)")
+}
+
 // TestPoolIdxDeduplication verifies dedup works correctly with non-zero idx.
 //
 // VALIDATES: Deduplication uses h.Slot() not raw handle as slot index.
