@@ -440,7 +440,8 @@ func (pat *ConfigPattern) Match(config string) *ConfigMatch {
 }
 
 // ParseLine parses a Stage 3 capability command.
-// Commands: "capability <enc> <code> <payload>" or "capability done".
+// Commands: "capability <enc> <code> [payload]" or "capability done".
+// Payload is optional for capabilities with 0-length value (e.g., route-refresh).
 func (caps *PluginCapabilities) ParseLine(line string) error {
 	line = strings.TrimSpace(line)
 	if line == "" {
@@ -462,9 +463,10 @@ func (caps *PluginCapabilities) ParseLine(line string) error {
 		return nil
 	}
 
-	// Parse "capability <enc> <code> <payload>"
-	if len(parts) < 4 {
-		return fmt.Errorf("expected 'capability <enc> <code> <payload>'")
+	// Parse "capability <enc> <code> [payload]"
+	// Payload is optional - some capabilities (e.g., route-refresh) have 0-length value.
+	if len(parts) < 3 {
+		return fmt.Errorf("expected 'capability <enc> <code> [payload]'")
 	}
 
 	enc := parts[1]
@@ -477,7 +479,11 @@ func (caps *PluginCapabilities) ParseLine(line string) error {
 		return fmt.Errorf("invalid capability code: %s", parts[2])
 	}
 
-	payload := parts[3]
+	// Payload is optional (empty string if not provided).
+	payload := ""
+	if len(parts) >= 4 {
+		payload = parts[3]
+	}
 
 	caps.Capabilities = append(caps.Capabilities, PluginCapability{
 		Code:     uint8(code),

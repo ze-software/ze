@@ -167,8 +167,8 @@ Flags:
 |----------|-------------------|----------------------|
 | `--family ipv4/unicast` | `declare family ipv4 unicast` | - |
 | `--family ipv6/unicast` | `declare family ipv6 unicast` | - |
-| `--route-refresh` | - | `capability hex 2 00` (RFC 2918) |
-| `--add-path receive` | - | `capability hex 69 <encoded>` |
+| `--route-refresh` | - | `capability hex 2` (RFC 2918, 0-length) |
+| `--add-path receive` | - | `capability hex 69 00010101` (ipv4/unicast) |
 | `--asn4` | - | (handled by engine, not plugin) |
 
 ---
@@ -610,7 +610,7 @@ make functional # All 83 tests pass
 - [x] Startup protocol handling (9 subtests)
 - [x] UTF-8 safe truncation (9 tests)
 - [x] Structured logging via slog
-- [ ] Capability CLI flags (optional)
+- [x] Capability CLI flags (`--family`, `--route-refresh`, `--add-path`)
 - [ ] `negotiated` message conversion (optional)
 
 ### Migration (Component 2)

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 
 	"codeberg.org/thomas-mangin/zebgp/pkg/exabgp"
@@ -53,23 +54,47 @@ Use in ZeBGP config:
 `)
 }
 
+// familyList is a custom flag type for repeatable --family flags.
+type familyList []string
+
+func (f *familyList) String() string { return strings.Join(*f, ",") }
+func (f *familyList) Set(v string) error {
+	*f = append(*f, v)
+	return nil
+}
+
 // cmdExabgpPlugin runs an ExaBGP plugin with ZeBGP.
 func cmdExabgpPlugin(args []string) int {
 	fs := flag.NewFlagSet("exabgp plugin", flag.ExitOnError)
+
+	var families familyList
+	fs.Var(&families, "family", "Address family to support (repeatable, e.g., ipv4/unicast)")
+	routeRefresh := fs.Bool("route-refresh", false, "Enable route-refresh capability (RFC 2918)")
+	addPath := fs.String("add-path", "", "ADD-PATH mode: receive, send, or both (RFC 7911)")
+
 	fs.Usage = func() {
-		fmt.Fprintf(os.Stderr, `Usage: zebgp exabgp plugin <cmd> [args...]
+		fmt.Fprintf(os.Stderr, `Usage: zebgp exabgp plugin [flags] <cmd> [args...]
 
 Run an ExaBGP plugin with ZeBGP by translating between formats:
 - ZeBGP JSON events → ExaBGP JSON format (to plugin stdin)
 - ExaBGP text commands → ZeBGP commands (from plugin stdout)
 
+Flags:
+  --family <family>     Address family to support (repeatable)
+                        Default: ipv4/unicast
+                        Examples: ipv4/unicast, ipv6/unicast, ipv4/flowspec
+  --route-refresh       Enable route-refresh capability (RFC 2918)
+  --add-path <mode>     ADD-PATH mode: receive, send, both (RFC 7911)
+
 Examples:
   zebgp exabgp plugin /path/to/exabgp-plugin.py
-  zebgp exabgp plugin python3 /path/to/plugin.py --arg1 --arg2
+  zebgp exabgp plugin --route-refresh /path/to/plugin.py
+  zebgp exabgp plugin --family ipv4/unicast --family ipv6/unicast /path/to/plugin.py
+  zebgp exabgp plugin --add-path receive python3 /path/to/plugin.py
 
 Use in ZeBGP config:
-  process exabgp-compat {
-      run "zebgp exabgp plugin /path/to/plugin.py";
+  plugin exabgp-compat {
+      run "zebgp exabgp plugin --route-refresh /path/to/plugin.py";
   }
 `)
 	}
@@ -82,6 +107,25 @@ Use in ZeBGP config:
 		fmt.Fprintf(os.Stderr, "error: missing plugin command\n")
 		fs.Usage()
 		return exitError
+	}
+
+	// Validate add-path mode if specified
+	if *addPath != "" {
+		switch strings.ToLower(*addPath) {
+		case "receive", "send", "both": //nolint:goconst // CLI validation values.
+			// valid
+		default:
+			fmt.Fprintf(os.Stderr, "error: invalid --add-path mode %q (must be: receive, send, both)\n", *addPath)
+			return exitError
+		}
+	}
+
+	// Validate families
+	for _, fam := range families {
+		if err := exabgp.ValidateFamily(fam); err != nil {
+			fmt.Fprintf(os.Stderr, "error: %v\n", err)
+			return exitError
+		}
 	}
 
 	pluginCmd := fs.Args()
@@ -99,6 +143,11 @@ Use in ZeBGP config:
 
 	// Run the bridge
 	bridge := exabgp.NewBridge(pluginCmd)
+	if len(families) > 0 {
+		bridge.Families = families
+	}
+	bridge.RouteRefresh = *routeRefresh
+	bridge.AddPathMode = *addPath
 	if err := bridge.Run(ctx); err != nil {
 		// Don't print error for normal exit
 		if ctx.Err() == nil {

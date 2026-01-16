@@ -359,10 +359,19 @@ capability done
 #### Capability Syntax
 
 ```
-capability <encoding> <code> <payload>
-           │          │      └─ encoded capability value
+capability <encoding> <code> [payload]
+           │          │      └─ encoded capability value (optional)
            │          └─ capability type code
            └─ b64, hex, or text
+```
+
+Payload is optional for capabilities with 0-length value (e.g., route-refresh RFC 2918).
+
+Examples:
+```
+capability hex 2                    # Route-refresh (code 2, no payload)
+capability hex 69 00010101          # ADD-PATH ipv4/unicast receive
+capability b64 73 cm91dGVyMS5leGFtcGxlLmNvbQ==  # FQDN hostname
 ```
 
 ### Stage 4: Registry Sharing (ZeBGP → Plugin)

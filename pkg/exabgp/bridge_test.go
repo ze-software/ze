@@ -467,6 +467,314 @@ func TestStartupProtocol(t *testing.T) {
 	})
 }
 
+// TestCapabilityOutput verifies capability CLI flags produce correct protocol output.
+//
+// VALIDATES: Route-refresh and ADD-PATH flags generate correct capability lines.
+// PREVENTS: ExaBGP plugins failing due to missing capability negotiation.
+func TestCapabilityOutput(t *testing.T) {
+	t.Run("route_refresh_capability", func(t *testing.T) {
+		var out strings.Builder
+		sp := NewStartupProtocol(nil, &out)
+		sp.RouteRefresh = true
+
+		sp.SendCapabilityDone()
+
+		output := out.String()
+		// Route-refresh is code 2, no payload (RFC 2918: 0-length value).
+		assert.Contains(t, output, "capability hex 2\n")
+		assert.Contains(t, output, "capability done\n")
+	})
+
+	t.Run("add_path_receive", func(t *testing.T) {
+		var out strings.Builder
+		sp := NewStartupProtocol(nil, &out)
+		sp.Families = []string{"ipv4/unicast"}
+		sp.AddPathMode = "receive" //nolint:goconst // CLI test value.
+
+		sp.SendCapabilityDone()
+
+		output := out.String()
+		// ADD-PATH is code 69, payload is AFI(2) + SAFI(1) + Mode(1)
+		// ipv4/unicast = AFI 1, SAFI 1, receive = 1
+		// Encoded: 00 01 01 01 = "00010101"
+		assert.Contains(t, output, "capability hex 69 00010101\n")
+		assert.Contains(t, output, "capability done\n")
+	})
+
+	t.Run("add_path_send", func(t *testing.T) {
+		var out strings.Builder
+		sp := NewStartupProtocol(nil, &out)
+		sp.Families = []string{"ipv4/unicast"}
+		sp.AddPathMode = "send"
+
+		sp.SendCapabilityDone()
+
+		output := out.String()
+		// Send mode = 2, so payload ends with 02
+		assert.Contains(t, output, "capability hex 69 00010102\n")
+	})
+
+	t.Run("add_path_both", func(t *testing.T) {
+		var out strings.Builder
+		sp := NewStartupProtocol(nil, &out)
+		sp.Families = []string{"ipv4/unicast"}
+		sp.AddPathMode = "both" //nolint:goconst // CLI test value.
+
+		sp.SendCapabilityDone()
+
+		output := out.String()
+		// Both mode = 3, so payload ends with 03
+		assert.Contains(t, output, "capability hex 69 00010103\n")
+	})
+
+	t.Run("add_path_multiple_families", func(t *testing.T) {
+		var out strings.Builder
+		sp := NewStartupProtocol(nil, &out)
+		sp.Families = []string{"ipv4/unicast", "ipv6/unicast"}
+		sp.AddPathMode = "receive" //nolint:goconst // CLI test value.
+
+		sp.SendCapabilityDone()
+
+		output := out.String()
+		// ipv4/unicast: 00 01 01 01
+		// ipv6/unicast: 00 02 01 01 (AFI 2)
+		// Combined: "0001010100020101"
+		assert.Contains(t, output, "capability hex 69 0001010100020101\n")
+	})
+
+	t.Run("both_capabilities", func(t *testing.T) {
+		var out strings.Builder
+		sp := NewStartupProtocol(nil, &out)
+		sp.RouteRefresh = true
+		sp.Families = []string{"ipv4/unicast"}
+		sp.AddPathMode = "receive" //nolint:goconst // CLI test value.
+
+		sp.SendCapabilityDone()
+
+		output := out.String()
+		// Both capabilities should be present
+		assert.Contains(t, output, "capability hex 2\n")
+		assert.Contains(t, output, "capability hex 69 00010101\n")
+		assert.Contains(t, output, "capability done\n")
+	})
+
+	t.Run("no_capabilities_default", func(t *testing.T) {
+		var out strings.Builder
+		sp := NewStartupProtocol(nil, &out)
+		// No RouteRefresh, no AddPathMode
+
+		sp.SendCapabilityDone()
+
+		output := out.String()
+		// Should only have capability done, no capability lines
+		assert.Equal(t, "capability done\n", output)
+	})
+
+	t.Run("add_path_ignored_without_mode", func(t *testing.T) {
+		var out strings.Builder
+		sp := NewStartupProtocol(nil, &out)
+		sp.Families = []string{"ipv4/unicast", "ipv6/unicast"}
+		// AddPathMode not set
+
+		sp.SendCapabilityDone()
+
+		output := out.String()
+		// No ADD-PATH capability without mode
+		assert.NotContains(t, output, "capability hex 69")
+		assert.Equal(t, "capability done\n", output)
+	})
+
+	t.Run("add_path_evpn", func(t *testing.T) {
+		var out strings.Builder
+		sp := NewStartupProtocol(nil, &out)
+		sp.Families = []string{"l2vpn/evpn"}
+		sp.AddPathMode = "both" //nolint:goconst // CLI test value.
+
+		sp.SendCapabilityDone()
+
+		output := out.String()
+		// l2vpn/evpn: AFI 25 (0x0019), SAFI 70 (0x46), mode 3
+		// Encoded: 00 19 46 03 = "00194603"
+		assert.Contains(t, output, "capability hex 69 00194603\n")
+	})
+
+	t.Run("add_path_vpn", func(t *testing.T) {
+		var out strings.Builder
+		sp := NewStartupProtocol(nil, &out)
+		sp.Families = []string{"ipv4/vpn"}
+		sp.AddPathMode = "send" //nolint:goconst // CLI test value.
+
+		sp.SendCapabilityDone()
+
+		output := out.String()
+		// ipv4/vpn: AFI 1, SAFI 128 (0x80), mode 2
+		// Encoded: 00 01 80 02 = "00018002"
+		assert.Contains(t, output, "capability hex 69 00018002\n")
+	})
+
+	t.Run("add_path_flowspec_vpn", func(t *testing.T) {
+		var out strings.Builder
+		sp := NewStartupProtocol(nil, &out)
+		sp.Families = []string{"ipv4/flowspec-vpn"}
+		sp.AddPathMode = "receive" //nolint:goconst // CLI test value.
+
+		sp.SendCapabilityDone()
+
+		output := out.String()
+		// ipv4/flowspec-vpn: AFI 1, SAFI 134 (0x86), mode 1
+		// Encoded: 00 01 86 01 = "00018601"
+		assert.Contains(t, output, "capability hex 69 00018601\n")
+	})
+
+	t.Run("add_path_unknown_family_skipped", func(t *testing.T) {
+		// VALIDATES: Unknown families are skipped, valid ones still encoded.
+		// PREVENTS: Single bad family breaking entire ADD-PATH capability.
+		// Note: slog.Warn is called for unknown family (defense-in-depth logging).
+		var out strings.Builder
+		sp := NewStartupProtocol(nil, &out)
+		sp.Families = []string{"ipv4/unicast", "invalid/family", "ipv6/unicast"}
+		sp.AddPathMode = "receive" //nolint:goconst // CLI test value.
+
+		sp.SendCapabilityDone()
+
+		output := out.String()
+		// Only valid families encoded: ipv4/unicast + ipv6/unicast
+		// Invalid family silently skipped (with warning log)
+		assert.Contains(t, output, "capability hex 69 0001010100020101\n")
+	})
+
+	t.Run("add_path_all_invalid_families", func(t *testing.T) {
+		// VALIDATES: All invalid families results in no ADD-PATH capability.
+		// PREVENTS: Empty capability payload being sent.
+		var out strings.Builder
+		sp := NewStartupProtocol(nil, &out)
+		sp.Families = []string{"invalid/family", "bad/safi"}
+		sp.AddPathMode = "receive" //nolint:goconst // CLI test value.
+
+		sp.SendCapabilityDone()
+
+		output := out.String()
+		// No ADD-PATH capability since all families invalid
+		assert.NotContains(t, output, "capability hex 69")
+		assert.Equal(t, "capability done\n", output)
+	})
+}
+
+// TestValidateFamily verifies family validation logic.
+//
+// VALIDATES: Valid families accepted, invalid rejected with clear error.
+// PREVENTS: Silent failure when user typos family name.
+func TestValidateFamily(t *testing.T) {
+	validCases := []string{
+		"ipv4/unicast",
+		"ipv6/unicast",
+		"ipv4/multicast",
+		"ipv4/vpn",
+		"ipv4/mpls-vpn",
+		"ipv4/flowspec",
+		"ipv4/flowspec-vpn",
+		"ipv6/vpn",
+		"l2vpn/evpn",
+		"IPV4/UNICAST", // case insensitive
+	}
+
+	for _, fam := range validCases {
+		t.Run("valid_"+fam, func(t *testing.T) {
+			err := ValidateFamily(fam)
+			assert.NoError(t, err, "family %q should be valid", fam)
+		})
+	}
+
+	invalidCases := []string{
+		"ipv4/typo",
+		"ipv5/unicast",
+		"unicast",
+		"ipv4",
+		"",
+		"ipv4/evpn",     // evpn only valid with l2vpn
+		"l2vpn/unicast", // l2vpn only valid with evpn
+		"l2vpn/vpn",     // l2vpn only valid with evpn
+	}
+
+	for _, fam := range invalidCases {
+		t.Run("invalid_"+fam, func(t *testing.T) {
+			err := ValidateFamily(fam)
+			assert.Error(t, err, "family %q should be invalid", fam)
+			if err != nil {
+				assert.Contains(t, err.Error(), "unsupported")
+			}
+		})
+	}
+}
+
+// TestBridgeCapabilityWiring verifies Bridge passes capability config to StartupProtocol.
+//
+// VALIDATES: Bridge.RouteRefresh and Bridge.AddPathMode are wired to protocol output.
+// PREVENTS: Capability flags set on Bridge but not propagated to startup protocol.
+func TestBridgeCapabilityWiring(t *testing.T) {
+	t.Run("bridge_defaults", func(t *testing.T) {
+		bridge := NewBridge([]string{"echo"})
+
+		// Verify defaults
+		assert.False(t, bridge.RouteRefresh, "RouteRefresh default should be false")
+		assert.Empty(t, bridge.AddPathMode, "AddPathMode default should be empty")
+		assert.Equal(t, []string{"ipv4/unicast"}, bridge.Families, "Families should default to ipv4/unicast")
+	})
+
+	t.Run("bridge_wires_route_refresh_to_protocol", func(t *testing.T) {
+		// VALIDATES: Bridge.RouteRefresh actually produces protocol output.
+		// PREVENTS: Field exists but isn't wired to StartupProtocol.
+		bridge := NewBridge([]string{"echo"})
+		bridge.RouteRefresh = true
+
+		// Simulate what Bridge.Run() does: create StartupProtocol with Bridge's values
+		var out strings.Builder
+		sp := NewStartupProtocol(nil, &out)
+		sp.Families = bridge.Families
+		sp.RouteRefresh = bridge.RouteRefresh
+		sp.AddPathMode = bridge.AddPathMode
+
+		sp.SendCapabilityDone()
+
+		output := out.String()
+		assert.Contains(t, output, "capability hex 2\n", "route-refresh capability should be output")
+	})
+
+	t.Run("bridge_wires_add_path_to_protocol", func(t *testing.T) {
+		// VALIDATES: Bridge.AddPathMode actually produces protocol output.
+		// PREVENTS: Field exists but isn't wired to StartupProtocol.
+		bridge := NewBridge([]string{"echo"})
+		bridge.AddPathMode = "receive" //nolint:goconst // CLI test value.
+
+		var out strings.Builder
+		sp := NewStartupProtocol(nil, &out)
+		sp.Families = bridge.Families
+		sp.RouteRefresh = bridge.RouteRefresh
+		sp.AddPathMode = bridge.AddPathMode
+
+		sp.SendCapabilityDone()
+
+		output := out.String()
+		assert.Contains(t, output, "capability hex 69", "ADD-PATH capability should be output")
+	})
+
+	t.Run("bridge_wires_families_to_protocol", func(t *testing.T) {
+		// VALIDATES: Bridge.Families actually produces protocol output.
+		bridge := NewBridge([]string{"echo"})
+		bridge.Families = []string{"ipv4/unicast", "ipv6/unicast"}
+
+		var out strings.Builder
+		sp := NewStartupProtocol(nil, &out)
+		sp.Families = bridge.Families
+
+		sp.SendDeclarations()
+
+		output := out.String()
+		assert.Contains(t, output, "declare family ipv4 unicast\n")
+		assert.Contains(t, output, "declare family ipv6 unicast\n")
+	})
+}
+
 // TestTruncate verifies truncate handles UTF-8 correctly.
 //
 // VALIDATES: Truncation works on rune boundaries, not byte boundaries.

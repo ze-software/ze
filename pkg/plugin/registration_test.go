@@ -291,9 +291,10 @@ func TestParseCapabilitySet(t *testing.T) {
 			wantPayload: "AAAA",
 		},
 		{
-			name:    "missing_payload",
-			input:   "capability b64 64",
-			wantErr: true,
+			name:        "empty_payload",
+			input:       "capability b64 64",
+			wantCode:    64,
+			wantPayload: "", // Empty payload is valid (RFC 2918 route-refresh).
 		},
 		{
 			name:    "invalid_code",

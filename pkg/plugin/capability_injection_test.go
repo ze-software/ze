@@ -66,6 +66,22 @@ func TestCapabilityDecoding(t *testing.T) {
 		_, err := DecodeCapabilityPayload(cap)
 		require.Error(t, err)
 	})
+
+	t.Run("empty_payload_route_refresh", func(t *testing.T) {
+		// RFC 2918: Route-refresh capability has 0-length value.
+		// VALIDATES: Empty payload produces empty byte slice.
+		// PREVENTS: RFC violation by injecting spurious bytes.
+		caps := &PluginCapabilities{}
+		require.NoError(t, caps.ParseLine("capability hex 2"))
+
+		require.Len(t, caps.Capabilities, 1)
+		assert.Equal(t, uint8(2), caps.Capabilities[0].Code)
+		assert.Equal(t, "", caps.Capabilities[0].Payload)
+
+		decoded, err := DecodeCapabilityPayload(caps.Capabilities[0])
+		require.NoError(t, err)
+		assert.Empty(t, decoded, "route-refresh should have empty payload")
+	})
 }
 
 // TestCapabilityInjection verifies plugin capabilities are added to OPEN.

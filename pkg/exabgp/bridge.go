@@ -19,6 +19,14 @@ import (
 // Version is the ExaBGP version string used in the JSON envelope.
 const Version = "5.0.0"
 
+// Mode/direction string constants.
+// Used for both ExaBGP JSON direction field and ADD-PATH CLI mode.
+const (
+	modeReceive = "receive"
+	modeSend    = "send"
+	modeBoth    = "both"
+)
+
 // ZebgpToExabgpJSON converts a ZeBGP JSON event to ExaBGP JSON format.
 //
 // ZeBGP format:
@@ -57,11 +65,11 @@ func ZebgpToExabgpJSON(zebgp map[string]any) map[string]any {
 	direction, _ := msg["direction"].(string)
 	switch direction {
 	case "received":
-		direction = "receive"
+		direction = modeReceive
 	case "sent":
-		direction = "send"
+		direction = modeSend
 	case "":
-		direction = "receive"
+		direction = modeReceive
 	}
 
 	// Build ExaBGP envelope
@@ -445,7 +453,7 @@ func convertAnnounceWithFamily(peerIP, family, routeStr string) string {
 // Stages:
 //  1. Declaration (Bridge → ZeBGP): send family, encoding declarations, then "declare done"
 //  2. Config (ZeBGP → Bridge): wait for "config done" (discard config lines)
-//  3. Capability (Bridge → ZeBGP): send "capability done"
+//  3. Capability (Bridge → ZeBGP): send capability lines, then "capability done"
 //  4. Registry (ZeBGP → Bridge): wait for "registry done" (discard registry lines)
 //  5. Ready (Bridge → ZeBGP): send "ready"
 type StartupProtocol struct {
@@ -455,6 +463,13 @@ type StartupProtocol struct {
 	// Families to declare (ZeBGP format: "ipv4/unicast").
 	// Converted to ZeBGP plugin protocol format: "ipv4 unicast".
 	Families []string
+
+	// RouteRefresh enables route-refresh capability (RFC 2918, code 2).
+	RouteRefresh bool
+
+	// AddPathMode sets ADD-PATH capability mode (RFC 7911, code 69).
+	// Valid values: "receive", "send", "both", or "" (disabled).
+	AddPathMode string
 }
 
 // NewStartupProtocol creates a new startup protocol handler.
@@ -522,12 +537,153 @@ func (sp *StartupProtocol) SendDeclarations() {
 	_, _ = fmt.Fprintln(sp.output, "declare done")
 }
 
-// SendCapabilityDone sends Stage 3 capability done marker.
+// SendCapabilityDone sends Stage 3 capability lines and done marker.
+//
+// Capability format: "capability <enc> <code> [payload]".
+// - Route-refresh (RFC 2918): code 2, no payload (0-length value per RFC).
+// - ADD-PATH (RFC 7911): code 69, payload is hex-encoded AFI/SAFI/mode tuples.
 func (sp *StartupProtocol) SendCapabilityDone() {
 	if sp.output == nil {
 		return
 	}
+
+	// Route-refresh capability (RFC 2918, code 2).
+	// RFC 2918: "The Capability Length of the Route Refresh Capability is zero."
+	if sp.RouteRefresh {
+		_, _ = fmt.Fprintln(sp.output, "capability hex 2")
+	}
+
+	// ADD-PATH capability (RFC 7911, code 69)
+	if sp.AddPathMode != "" {
+		payload := sp.encodeAddPath()
+		if payload != "" {
+			_, _ = fmt.Fprintf(sp.output, "capability hex 69 %s\n", payload)
+		}
+	}
+
 	_, _ = fmt.Fprintln(sp.output, "capability done")
+}
+
+// encodeAddPath encodes ADD-PATH capability payload for configured families.
+//
+// RFC 7911 Section 4: Each tuple is 4 octets: AFI (2) + SAFI (1) + Send/Receive (1).
+// Mode values: 1=receive, 2=send, 3=both.
+func (sp *StartupProtocol) encodeAddPath() string {
+	mode := sp.addPathModeValue()
+	if mode == 0 {
+		return ""
+	}
+
+	families := sp.Families
+	if len(families) == 0 {
+		families = []string{defaultFamily}
+	}
+
+	var result []byte
+	for _, family := range families {
+		afi, safi := parseFamilyToAFISAFI(family)
+		if afi == 0 {
+			slog.Warn("unknown family ignored for ADD-PATH", "family", family)
+			continue
+		}
+		// AFI (2 bytes big-endian) + SAFI (1 byte) + Mode (1 byte)
+		result = append(result, byte(afi>>8), byte(afi), byte(safi), mode)
+	}
+
+	return fmt.Sprintf("%x", result)
+}
+
+// addPathModeValue converts mode string to RFC 7911 value.
+func (sp *StartupProtocol) addPathModeValue() byte {
+	switch strings.ToLower(sp.AddPathMode) {
+	case modeReceive:
+		return 1
+	case modeSend:
+		return 2
+	case modeBoth:
+		return 3
+	default:
+		return 0
+	}
+}
+
+// parseFamilyToAFISAFI converts "ipv4/unicast" to AFI and SAFI values.
+// Returns (0, 0) for invalid/unsupported families.
+func parseFamilyToAFISAFI(family string) (afi, safi uint16) {
+	parts := strings.Split(family, "/")
+	if len(parts) != 2 {
+		return 0, 0
+	}
+
+	afiStr := strings.ToLower(parts[0])
+	safiStr := strings.ToLower(parts[1])
+
+	// AFI: ipv4=1, ipv6=2, l2vpn=25
+	switch afiStr {
+	case "ipv4":
+		afi = 1
+	case "ipv6":
+		afi = 2
+	case "l2vpn":
+		afi = 25
+	default:
+		return 0, 0
+	}
+
+	// SAFI values per IANA BGP SAFI registry.
+	// L2VPN AFI (25) is only valid with EVPN SAFI (70) per RFC 7432.
+	switch safiStr {
+	case "unicast":
+		if afi == 25 {
+			return 0, 0 // L2VPN doesn't use unicast.
+		}
+		safi = 1
+	case "multicast":
+		if afi == 25 {
+			return 0, 0 // L2VPN doesn't use multicast.
+		}
+		safi = 2
+	case "mpls", "nlri-mpls", "labeled-unicast":
+		if afi == 25 {
+			return 0, 0 // L2VPN doesn't use labeled unicast.
+		}
+		safi = 4
+	case "evpn":
+		// RFC 7432: EVPN is only valid with L2VPN AFI.
+		if afi != 25 {
+			return 0, 0
+		}
+		safi = 70
+	case "vpn", "mpls-vpn":
+		if afi == 25 {
+			return 0, 0 // L2VPN doesn't use MPLS VPN SAFI.
+		}
+		safi = 128
+	case "flowspec":
+		if afi == 25 {
+			return 0, 0 // L2VPN doesn't use flowspec.
+		}
+		safi = 133
+	case "flowspec-vpn":
+		if afi == 25 {
+			return 0, 0 // L2VPN doesn't use flowspec-vpn.
+		}
+		safi = 134
+	default:
+		return 0, 0
+	}
+
+	return afi, safi
+}
+
+// ValidateFamily checks if a family string is supported.
+// Uses parseFamilyToAFISAFI as single source of truth.
+func ValidateFamily(family string) error {
+	afi, safi := parseFamilyToAFISAFI(family)
+	if afi == 0 || safi == 0 {
+		return fmt.Errorf("unsupported address family: %s", family)
+	}
+	return nil
 }
 
 // SendReady sends Stage 5 ready signal.
@@ -580,6 +736,12 @@ type Bridge struct {
 
 	// Families to declare during startup (ZeBGP format: "ipv4/unicast")
 	Families []string
+
+	// RouteRefresh enables route-refresh capability (RFC 2918).
+	RouteRefresh bool
+
+	// AddPathMode sets ADD-PATH capability mode: "receive", "send", "both", or "" (disabled).
+	AddPathMode string
 }
 
 // NewBridge creates a new bridge for the given ExaBGP plugin command.
@@ -641,6 +803,8 @@ func (b *Bridge) Run(ctx context.Context) error {
 	// Stage 1-5: Complete startup protocol with ZeBGP
 	sp := NewStartupProtocol(stdinScanner, os.Stdout)
 	sp.Families = b.Families
+	sp.RouteRefresh = b.RouteRefresh
+	sp.AddPathMode = b.AddPathMode
 	if err := sp.Run(); err != nil {
 		return fmt.Errorf("startup protocol: %w", err)
 	}
