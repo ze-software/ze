@@ -1440,16 +1440,71 @@ For route reflectors forwarding same UPDATE to many peers → significant saving
 | Compaction latency | Incremental, pause on activity |
 | Lower dedup ratio | Full UPDATE less likely to match than attrs alone |
 
-## Tradeoff: Dedup Granularity
+## Deduplication Granularity
 
-| Approach | Storage/Route | Dedup Ratio | Complexity |
-|----------|---------------|-------------|------------|
-| Single UPDATE pool | 8 bytes | Lower (exact msg match) | Simple |
-| Decomposed attrs+NLRIs | per-attr-set + NLRIs | Higher (shared attrs) | Moderate |
+### Three Levels of Deduplication
 
-**Decision:** Decomposed approach. Attrs interned separately from NLRIs.
-RIB keys by attr handle, groups NLRIs per attr set. Better dedup for routes
-sharing AS_PATH, communities, etc. RIB owns refcount lifecycle.
+| Level | What's Deduplicated | Storage/Route | Dedup Ratio | Status |
+|-------|---------------------|---------------|-------------|--------|
+| **1. UPDATE blob** | Entire UPDATE message | 8 bytes | Low (exact match only) | ❌ Not used |
+| **2. Attribute blob** | All attrs as one blob | handle + NLRI | Medium (same attr set shared) | ✅ **Current** |
+| **3. Per-attribute** | Each attr type separately | ~10 handles | High (partial sharing) | 📋 Planned |
+
+### Current Implementation (Level 2)
+
+```
+Route A: ORIGIN=IGP, AS_PATH=[65001], LP=100, MED=0
+Route B: ORIGIN=IGP, AS_PATH=[65001], LP=100, MED=50
+         ↓
+pool.Attributes.Intern(attrBytes)  → TWO different blobs (MED differs)
+```
+
+**Limitation:** Routes sharing ORIGIN, AS_PATH, LOCAL_PREF but differing in MED get NO sharing.
+
+### Target Implementation (Level 3 - Phase 6)
+
+```
+Route A: ORIGIN=IGP, AS_PATH=[65001], LP=100, MED=0
+Route B: ORIGIN=IGP, AS_PATH=[65001], LP=100, MED=50
+         ↓
+RouteEntry {
+    Origin:    pool.Origin.Intern([IGP])      → SHARED (same handle)
+    ASPath:    pool.ASPath.Intern([65001])    → SHARED (same handle)
+    LocalPref: pool.LocalPref.Intern([100])   → SHARED (same handle)
+    MED:       pool.MED.Intern([0 or 50])     → DIFFERENT handles
+}
+```
+
+**Benefit:** 1M routes with same ORIGIN/LP but different MED → ~3 ORIGIN refs + ~100 LP refs vs 1M blobs.
+
+### Memory Impact
+
+| Scenario | Level 2 (blob) | Level 3 (per-attr) |
+|----------|----------------|-------------------|
+| 1M routes, same ORIGIN/LP/AS_PATH | Good (if identical) | Same |
+| 1M routes, same except MED | 1M × ~50B = 50MB | ~1MB (shared + MED pool) |
+| Route reflector (identical attrs) | Excellent | Same |
+
+### Phase 6 Implementation Plan
+
+See `docs/plan/spec-plugin-rib-pool-storage.md` § "Phase 6: Per-Attribute Deduplication" for:
+- Per-attribute pools (Origin, ASPath, LocalPref, MED, etc.)
+- RouteEntry struct with per-attr handles
+- Attribute parser using existing `AttrIterator`
+- Wire reconstruction for route resend
+
+**Dependencies:**
+- `pkg/bgp/attribute/iterator.go` - `AttrIterator` (exists, reuse)
+- `pkg/pool/pool.go` - Pool infrastructure (exists, extend)
+
+---
+
+## Current Decision
+
+**Level 2 (blob dedup)** is implemented. Good dedup when attribute sets are identical.
+
+**Level 3 (per-attr dedup)** planned for Phase 6. Better dedup when routes share
+most attributes but differ in one (e.g., MED varies, rest identical).
 
 ---
 

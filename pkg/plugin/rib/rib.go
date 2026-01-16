@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"net"
 	"os"
 	"sort"
 	"strings"
@@ -18,6 +19,8 @@ import (
 	"time"
 
 	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/attribute"
+	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/nlri"
+	"codeberg.org/thomas-mangin/zebgp/pkg/plugin/rib/storage"
 )
 
 func init() {
@@ -33,8 +36,9 @@ type RIBManager struct {
 	input  *bufio.Scanner
 	output io.Writer
 
-	// ribIn stores routes received FROM peers (Adj-RIB-In)
-	ribIn map[string]map[string]*Route // peerAddr -> routeKey -> route
+	// ribInPool stores routes received FROM peers (Adj-RIB-In)
+	// Uses pool storage for memory efficiency (attributes deduplicated)
+	ribInPool map[string]*storage.PeerRIB // peerAddr -> PeerRIB
 
 	// ribOut stores routes sent TO peers (Adj-RIB-Out)
 	ribOut map[string]map[string]*Route // peerAddr -> routeKey -> route
@@ -42,7 +46,7 @@ type RIBManager struct {
 	// peerUp tracks which peers are currently up
 	peerUp map[string]bool
 
-	mu       sync.RWMutex // protects ribIn, ribOut, peerUp
+	mu       sync.RWMutex // protects ribInPool, ribOut, peerUp
 	outputMu sync.Mutex   // protects output writes and serial
 	serial   int
 }
@@ -84,11 +88,11 @@ func NewRIBManager(input io.Reader, output io.Writer) *RIBManager {
 	scanner := bufio.NewScanner(input)
 	scanner.Buffer(make([]byte, MaxLineSize), MaxLineSize)
 	return &RIBManager{
-		input:  scanner,
-		output: output,
-		ribIn:  make(map[string]map[string]*Route),
-		ribOut: make(map[string]map[string]*Route),
-		peerUp: make(map[string]bool),
+		input:     scanner,
+		output:    output,
+		ribInPool: make(map[string]*storage.PeerRIB),
+		ribOut:    make(map[string]map[string]*Route),
+		peerUp:    make(map[string]bool),
 	}
 }
 
@@ -261,6 +265,284 @@ func (r *RIBManager) handleSent(event *Event) {
 	}
 }
 
+// parseFamily converts a family string like "ipv4/unicast" to nlri.Family.
+// Returns false if the format is invalid.
+func parseFamily(familyStr string) (nlri.Family, bool) {
+	parts := strings.Split(familyStr, "/")
+	if len(parts) != 2 {
+		return nlri.Family{}, false
+	}
+
+	var afi nlri.AFI
+	switch parts[0] {
+	case "ipv4":
+		afi = nlri.AFIIPv4
+	case "ipv6":
+		afi = nlri.AFIIPv6
+	case "l2vpn":
+		afi = nlri.AFIL2VPN
+	default:
+		return nlri.Family{}, false
+	}
+
+	var safi nlri.SAFI
+	switch parts[1] {
+	case "unicast":
+		safi = nlri.SAFIUnicast
+	case "multicast":
+		safi = nlri.SAFIMulticast
+	case "mpls-vpn":
+		safi = nlri.SAFIVPN
+	case "mpls-label":
+		safi = nlri.SAFIMPLSLabel
+	case "evpn":
+		safi = nlri.SAFIEVPN
+	case "flowspec":
+		safi = nlri.SAFIFlowSpec
+	default:
+		return nlri.Family{}, false
+	}
+
+	return nlri.Family{AFI: afi, SAFI: safi}, true
+}
+
+// isSimplePrefixFamily returns true for families with simple NLRI format.
+// Only IPv4/IPv6 unicast and multicast use the standard [prefix-len][prefix-bytes] format.
+// Other families (EVPN, VPN, FlowSpec, etc.) have complex NLRI structures.
+func isSimplePrefixFamily(family nlri.Family) bool {
+	// Only unicast and multicast have simple [prefix-len][prefix-bytes] format
+	if family.SAFI != nlri.SAFIUnicast && family.SAFI != nlri.SAFIMulticast {
+		return false
+	}
+	return family.AFI == nlri.AFIIPv4 || family.AFI == nlri.AFIIPv6
+}
+
+// prefixToWire converts a text prefix to wire bytes.
+// RFC 4271: NLRI format is [prefix-len:1][prefix-bytes].
+// RFC 7911: ADD-PATH prepends [path-id:4].
+//
+// LIMITATION: Only works for IPv4/IPv6 unicast. Other families have different formats.
+func prefixToWire(familyStr, prefix string, pathID uint32, addPath bool) ([]byte, error) {
+	family, ok := parseFamily(familyStr)
+	if !ok {
+		return nil, fmt.Errorf("unknown family: %s", familyStr)
+	}
+
+	_, ipnet, err := net.ParseCIDR(prefix)
+	if err != nil {
+		return nil, fmt.Errorf("parse prefix: %w", err)
+	}
+
+	prefixLen, _ := ipnet.Mask.Size()
+	prefixBytes := (prefixLen + 7) / 8
+
+	// Normalize IP based on AFI
+	var ip net.IP
+	if family.AFI == nlri.AFIIPv4 {
+		ip = ipnet.IP.To4()
+	} else {
+		ip = ipnet.IP.To16()
+	}
+	if ip == nil {
+		return nil, fmt.Errorf("IP address mismatch for family %s", familyStr)
+	}
+
+	var wire []byte
+	if addPath {
+		wire = make([]byte, 4+1+prefixBytes)
+		wire[0] = byte(pathID >> 24)
+		wire[1] = byte(pathID >> 16)
+		wire[2] = byte(pathID >> 8)
+		wire[3] = byte(pathID)
+		wire[4] = byte(prefixLen)
+		copy(wire[5:], ip[:prefixBytes])
+	} else {
+		wire = make([]byte, 1+prefixBytes)
+		wire[0] = byte(prefixLen)
+		copy(wire[1:], ip[:prefixBytes])
+	}
+
+	return wire, nil
+}
+
+// wireToPrefix converts wire bytes to a text prefix.
+// RFC 4271: NLRI format is [prefix-len:1][prefix-bytes].
+// RFC 7911: ADD-PATH prepends [path-id:4].
+//
+// LIMITATION: Only works for IPv4/IPv6 unicast. Other families have different formats.
+func wireToPrefix(family nlri.Family, wire []byte, addPath bool) (string, uint32, error) {
+	offset := 0
+	var pathID uint32
+
+	if addPath {
+		if len(wire) < 5 {
+			return "", 0, fmt.Errorf("truncated ADD-PATH NLRI")
+		}
+		pathID = uint32(wire[0])<<24 | uint32(wire[1])<<16 | uint32(wire[2])<<8 | uint32(wire[3])
+		offset = 4
+	}
+
+	if offset >= len(wire) {
+		return "", 0, fmt.Errorf("truncated NLRI")
+	}
+
+	prefixLen := int(wire[offset])
+	prefixBytes := (prefixLen + 7) / 8
+
+	if offset+1+prefixBytes > len(wire) {
+		return "", 0, fmt.Errorf("truncated NLRI prefix")
+	}
+
+	// Reconstruct IP
+	var ip net.IP
+	if family.AFI == nlri.AFIIPv4 {
+		ip = make(net.IP, 4)
+	} else {
+		ip = make(net.IP, 16)
+	}
+	copy(ip, wire[offset+1:offset+1+prefixBytes])
+
+	return fmt.Sprintf("%s/%d", ip.String(), prefixLen), pathID, nil
+}
+
+// splitNLRIs splits concatenated NLRI wire bytes into individual NLRIs.
+// RFC 4271: NLRI format is [prefix-len:1][prefix-bytes].
+// RFC 7911: ADD-PATH prepends [path-id:4].
+//
+// LIMITATION: Only works for IPv4/IPv6 unicast. Other families (EVPN, VPN,
+// FlowSpec, labeled) have different NLRI structures and will parse incorrectly.
+func splitNLRIs(data []byte, addPath bool) [][]byte {
+	if len(data) == 0 {
+		return nil
+	}
+
+	// RFC 4760: Maximum prefix length is 128 bits (IPv6).
+	const maxPrefixLen = 128
+
+	var result [][]byte
+	offset := 0
+
+	for offset < len(data) {
+		start := offset
+		var prefixLen int
+		var nlriLen int
+
+		if addPath {
+			// ADD-PATH: [path-id:4][prefix-len:1][prefix-bytes]
+			if offset+5 > len(data) {
+				break
+			}
+			prefixLen = int(data[offset+4])
+			nlriLen = 4 + 1 + (prefixLen+7)/8
+		} else {
+			// Standard: [prefix-len:1][prefix-bytes]
+			if offset >= len(data) {
+				break
+			}
+			prefixLen = int(data[offset])
+			nlriLen = 1 + (prefixLen+7)/8
+		}
+
+		// Validate prefix length bounds
+		if prefixLen > maxPrefixLen {
+			slog.Warn("splitNLRIs: invalid prefix length", "prefixLen", prefixLen, "max", maxPrefixLen)
+			return nil
+		}
+
+		if start+nlriLen > len(data) {
+			break
+		}
+
+		result = append(result, data[start:start+nlriLen])
+		offset = start + nlriLen
+	}
+
+	return result
+}
+
+// formatNLRIAsPrefix converts wire NLRI bytes to human-readable prefix string.
+// For IPv4: [24][10][0][0] → "10.0.0.0/24".
+// For IPv6: [64][...] → "2001:db8::/64".
+// Returns hex encoding for unrecognized formats.
+//
+// NOTE: Only handles IPv4/IPv6 unicast without ADD-PATH.
+// TODO: ADD-PATH support requires path-id prefix handling.
+// TODO: VPN/EVPN/FlowSpec have different NLRI structures.
+func formatNLRIAsPrefix(family nlri.Family, nlriBytes []byte) string {
+	if len(nlriBytes) == 0 {
+		return ""
+	}
+
+	prefixLen := int(nlriBytes[0])
+	prefixBytes := nlriBytes[1:]
+
+	switch family.AFI { //nolint:exhaustive // Only IPv4/IPv6 have standard prefix format
+	case nlri.AFIIPv4:
+		// Pad to 4 bytes
+		ip := make([]byte, 4)
+		copy(ip, prefixBytes)
+		return fmt.Sprintf("%d.%d.%d.%d/%d", ip[0], ip[1], ip[2], ip[3], prefixLen)
+
+	case nlri.AFIIPv6:
+		// Pad to 16 bytes
+		ip := make([]byte, 16)
+		copy(ip, prefixBytes)
+		return fmt.Sprintf("%x:%x:%x:%x:%x:%x:%x:%x/%d",
+			uint16(ip[0])<<8|uint16(ip[1]),
+			uint16(ip[2])<<8|uint16(ip[3]),
+			uint16(ip[4])<<8|uint16(ip[5]),
+			uint16(ip[6])<<8|uint16(ip[7]),
+			uint16(ip[8])<<8|uint16(ip[9]),
+			uint16(ip[10])<<8|uint16(ip[11]),
+			uint16(ip[12])<<8|uint16(ip[13]),
+			uint16(ip[14])<<8|uint16(ip[15]),
+			prefixLen)
+
+	default:
+		// Unknown/unsupported family - return hex
+		return fmt.Sprintf("hex:%x", nlriBytes)
+	}
+}
+
+// formatFamily converts nlri.Family to string like "ipv4/unicast".
+func formatFamily(family nlri.Family) string {
+	var afi, safi string
+
+	switch family.AFI { //nolint:exhaustive // Common families only, default handles rest
+	case nlri.AFIIPv4:
+		afi = "ipv4"
+	case nlri.AFIIPv6:
+		afi = "ipv6"
+	case nlri.AFIL2VPN:
+		afi = "l2vpn"
+	case nlri.AFIBGPLS:
+		afi = "bgp-ls"
+	default:
+		afi = fmt.Sprintf("afi-%d", family.AFI)
+	}
+
+	switch family.SAFI { //nolint:exhaustive // Common families only, default handles rest
+	case nlri.SAFIUnicast:
+		safi = "unicast"
+	case nlri.SAFIMulticast:
+		safi = "multicast"
+	case nlri.SAFIVPN:
+		safi = "mpls-vpn"
+	case nlri.SAFIMPLSLabel:
+		safi = "mpls-label"
+	case nlri.SAFIEVPN:
+		safi = "evpn"
+	case nlri.SAFIFlowSpec:
+		safi = "flowspec"
+	case nlri.SAFIBGPLinkState:
+		safi = "bgp-ls"
+	default:
+		safi = fmt.Sprintf("safi-%d", family.SAFI)
+	}
+
+	return afi + "/" + safi
+}
+
 // parseNLRIValue extracts prefix and path-id from an NLRI value.
 // Handles both new format {"prefix":"...", "path-id":N} and legacy string format.
 func parseNLRIValue(v any) (prefix string, pathID uint32) {
@@ -283,11 +565,10 @@ func parseNLRIValue(v any) (prefix string, pathID uint32) {
 }
 
 // handleReceived processes received UPDATE events from peers.
-// Stores routes in ribIn (Adj-RIB-In).
+// Stores routes in pool storage (Adj-RIB-In).
+// Requires format=full (raw-attributes, raw-nlri fields).
 func (r *RIBManager) handleReceived(event *Event) {
 	peerAddr := event.GetPeerAddress()
-	msgID := event.GetMsgID()
-	now := time.Now()
 
 	if peerAddr == "" {
 		slog.Warn("received event: empty peer address")
@@ -298,57 +579,88 @@ func (r *RIBManager) handleReceived(event *Event) {
 		return
 	}
 
+	// Require raw fields (format=full)
+	hasRawFields := event.RawAttributes != "" || len(event.RawNLRI) > 0 || len(event.RawWithdrawn) > 0
+	if !hasRawFields {
+		slog.Warn("received event: missing raw fields, requires format=full", "peer", peerAddr)
+		return
+	}
+
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	// Initialize peer's ribIn if needed
-	if r.ribIn[peerAddr] == nil {
-		r.ribIn[peerAddr] = make(map[string]*Route)
+	r.handleReceivedPool(event, peerAddr)
+}
+
+// handleReceivedPool stores routes in pool storage.
+// Caller must hold write lock.
+func (r *RIBManager) handleReceivedPool(event *Event, peerAddr string) {
+	// Initialize PeerRIB if needed
+	if r.ribInPool[peerAddr] == nil {
+		r.ribInPool[peerAddr] = storage.NewPeerRIB(peerAddr)
+	}
+	peerRIB := r.ribInPool[peerAddr]
+
+	// Get raw attribute bytes
+	attrBytes := event.GetRawAttributesBytes()
+
+	// Process announcements (raw-nlri)
+	for familyStr, hexNLRI := range event.RawNLRI {
+		family, ok := parseFamily(familyStr)
+		if !ok {
+			slog.Warn("pool: unknown family", "peer", peerAddr, "family", familyStr)
+			continue
+		}
+
+		// LIMITATION: splitNLRIs() only works for simple prefix formats (IPv4/IPv6 unicast).
+		// EVPN, VPN, FlowSpec have different wire formats and would be corrupted.
+		if !isSimplePrefixFamily(family) {
+			slog.Debug("pool: skipping non-unicast family", "peer", peerAddr, "family", familyStr)
+			continue
+		}
+
+		nlriBytes := event.GetRawNLRIBytes(familyStr)
+		if len(nlriBytes) == 0 {
+			continue
+		}
+
+		// Split concatenated NLRIs and insert each
+		// TODO: detect ADD-PATH from negotiation
+		addPath := false
+		prefixes := splitNLRIs(nlriBytes, addPath)
+		for _, wirePrefix := range prefixes {
+			peerRIB.Insert(family, attrBytes, wirePrefix)
+		}
+
+		slog.Debug("pool: inserted routes", "peer", peerAddr, "family", familyStr,
+			"count", len(prefixes), "hex", hexNLRI[:min(16, len(hexNLRI))])
 	}
 
-	// Process family operations
-	// Format: {"ipv4/unicast": [{"next-hop": "...", "action": "add", "nlri": [...]}]}
-	for family, ops := range event.FamilyOps {
-		for _, op := range ops {
-			switch op.Action {
-			case "add":
-				// Store routes with their next-hop
-				for _, nlriVal := range op.NLRIs {
-					prefix, pathID := parseNLRIValue(nlriVal)
-					if prefix == "" {
-						slog.Warn("received: invalid nlri value",
-							"peer", peerAddr, "family", family, "got", fmt.Sprintf("%T", nlriVal))
-						continue
-					}
-					key := routeKey(family, prefix, pathID)
-					r.ribIn[peerAddr][key] = &Route{
-						MsgID:               msgID,
-						Family:              family,
-						Prefix:              prefix,
-						PathID:              pathID,
-						NextHop:             op.NextHop,
-						Timestamp:           now,
-						Origin:              event.Origin,
-						ASPath:              event.ASPath,
-						MED:                 event.MED,
-						LocalPreference:     event.LocalPreference,
-						Communities:         event.Communities,
-						LargeCommunities:    event.LargeCommunities,
-						ExtendedCommunities: event.ExtendedCommunities,
-					}
-				}
-			case "del":
-				// Remove routes
-				for _, nlriVal := range op.NLRIs {
-					prefix, pathID := parseNLRIValue(nlriVal)
-					if prefix == "" {
-						continue
-					}
-					key := routeKey(family, prefix, pathID)
-					delete(r.ribIn[peerAddr], key)
-				}
-			}
+	// Process withdrawals (raw-withdrawn)
+	for familyStr := range event.RawWithdrawn {
+		family, ok := parseFamily(familyStr)
+		if !ok {
+			continue
 		}
+
+		// Same limitation as announcements
+		if !isSimplePrefixFamily(family) {
+			continue
+		}
+
+		wdBytes := event.GetRawWithdrawnBytes(familyStr)
+		if len(wdBytes) == 0 {
+			continue
+		}
+
+		// Split and remove each
+		addPath := false
+		withdrawns := splitNLRIs(wdBytes, addPath)
+		for _, wd := range withdrawns {
+			peerRIB.Remove(family, wd)
+		}
+
+		slog.Debug("pool: withdrew routes", "peer", peerAddr, "family", familyStr, "count", len(withdrawns))
 	}
 }
 
@@ -413,7 +725,10 @@ func (r *RIBManager) handleState(event *Event) {
 		}
 	} else if !isUp && wasUp {
 		// Peer went down - clear Adj-RIB-In while holding lock
-		delete(r.ribIn, peerAddr)
+		if peerRIB := r.ribInPool[peerAddr]; peerRIB != nil {
+			peerRIB.Release()
+			delete(r.ribInPool, peerAddr)
+		}
 	}
 	r.mu.Unlock()
 
@@ -504,23 +819,24 @@ func (r *RIBManager) handleInboundShow(serial, selector string) {
 	defer r.mu.RUnlock()
 
 	result := make(map[string][]map[string]any)
-	for peer, routes := range r.ribIn {
+
+	for peer, peerRIB := range r.ribInPool {
 		if !matchesPeer(peer, selector) {
 			continue
 		}
-		routeList := make([]map[string]any, 0, len(routes))
-		for _, rt := range routes {
+		var routeList []map[string]any
+		peerRIB.Iterate(func(family nlri.Family, _ []byte, nlriBytes []byte) bool {
 			routeMap := map[string]any{
-				"family":   rt.Family,
-				"prefix":   rt.Prefix,
-				"next-hop": rt.NextHop,
-			}
-			if rt.PathID != 0 {
-				routeMap["path-id"] = rt.PathID
+				"family": formatFamily(family),
+				"prefix": formatNLRIAsPrefix(family, nlriBytes),
+				// Note: next-hop not available from pool storage (it's in attrs)
 			}
 			routeList = append(routeList, routeMap)
+			return true
+		})
+		if len(routeList) > 0 {
+			result[peer] = routeList
 		}
-		result[peer] = routeList
 	}
 
 	data, _ := json.Marshal(map[string]any{"adj_rib_in": result})
@@ -531,12 +847,14 @@ func (r *RIBManager) handleInboundShow(serial, selector string) {
 func (r *RIBManager) handleInboundEmpty(serial, selector string) {
 	r.mu.Lock()
 	cleared := 0
-	for peer, routes := range r.ribIn {
+
+	for peer, peerRIB := range r.ribInPool {
 		if !matchesPeer(peer, selector) {
 			continue
 		}
-		cleared += len(routes)
-		delete(r.ribIn, peer)
+		cleared += peerRIB.Len()
+		peerRIB.Release()
+		delete(r.ribInPool, peer)
 	}
 	r.mu.Unlock()
 
@@ -713,8 +1031,8 @@ func (r *RIBManager) statusJSON() string {
 	defer r.mu.RUnlock()
 
 	routesIn := 0
-	for _, routes := range r.ribIn {
-		routesIn += len(routes)
+	for _, peerRIB := range r.ribInPool {
+		routesIn += peerRIB.Len()
 	}
 
 	routesOut := 0

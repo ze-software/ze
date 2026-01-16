@@ -45,7 +45,7 @@
 | Spec | Description | Priority |
 |------|-------------|----------|
 | `spec-peer-encoding-extraction.md` | Extract UPDATE builders from peer.go | High |
-| `spec-pool-handle-migration.md` | Single UPDATE pool, derived accessors | High |
+| ~~`spec-pool-handle-migration.md`~~ | **MOVED** to `docs/architecture/plugin/rib-storage-design.md` | - |
 | `spec-rfc7606-validation-cache.md` | Validation result caching (optional) | Low |
 
 ### 📋 Feature Plans (Not Yet Specs)

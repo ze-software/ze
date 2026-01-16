@@ -76,8 +76,12 @@ func (s *DirectNLRISet) nlriLen(offset int) int {
 	return length
 }
 
-// Add appends NLRI to the set.
+// Add appends NLRI to the set if not already present.
+// Defensive duplicate check - caller (FamilyRIB) should prevent duplicates via prefixIndex.
 func (s *DirectNLRISet) Add(nlri []byte) {
+	if s.Contains(nlri) {
+		return
+	}
 	s.data = append(s.data, nlri...)
 	s.count++
 }

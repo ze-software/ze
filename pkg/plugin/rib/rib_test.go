@@ -148,15 +148,18 @@ func TestHandleSent_Withdraw(t *testing.T) {
 
 // TestHandleReceived_StoresRoutes verifies routes are stored in Adj-RIB-In.
 //
-// VALIDATES: Received routes are tracked per peer.
+// VALIDATES: Received routes are tracked per peer in pool storage.
 // PREVENTS: Route state being lost.
 func TestHandleReceived_StoresRoutes(t *testing.T) {
 	r := NewRIBManager(strings.NewReader(""), &bytes.Buffer{})
 
-	// New command-style format: family operations with action/next-hop/nlri
+	// format=full with raw fields
+	// Two NLRIs: 10.0.0.0/24 (18 0a 00 00) + 10.0.1.0/24 (18 0a 00 01)
 	event := &Event{
-		Message: &MessageInfo{Type: "update", ID: 200},
-		Peer:    mustMarshal(t, map[string]any{"address": map[string]string{"local": "10.0.0.2", "peer": "10.0.0.1"}, "asn": map[string]uint32{"local": 65002, "peer": 65001}}),
+		Message:       &MessageInfo{Type: "update", ID: 200},
+		Peer:          mustMarshal(t, map[string]any{"address": map[string]string{"local": "10.0.0.2", "peer": "10.0.0.1"}, "asn": map[string]uint32{"local": 65002, "peer": 65001}}),
+		RawAttributes: "40010100", // ORIGIN IGP
+		RawNLRI:       map[string]string{"ipv4/unicast": "180a0000180a0001"},
 		FamilyOps: map[string][]FamilyOperation{
 			"ipv4/unicast": {
 				{NextHop: "1.1.1.1", Action: "add", NLRIs: []any{"10.0.0.0/24", "10.0.1.0/24"}},
@@ -166,12 +169,8 @@ func TestHandleReceived_StoresRoutes(t *testing.T) {
 
 	r.handleReceived(event)
 
-	assert.Len(t, r.ribIn["10.0.0.1"], 2)
-	route := r.ribIn["10.0.0.1"]["ipv4/unicast:10.0.0.0/24"]
-	require.NotNil(t, route)
-	assert.Equal(t, "10.0.0.0/24", route.Prefix)
-	assert.Equal(t, "1.1.1.1", route.NextHop)
-	assert.Equal(t, uint64(200), route.MsgID)
+	require.NotNil(t, r.ribInPool["10.0.0.1"], "PeerRIB should be created")
+	assert.Equal(t, 2, r.ribInPool["10.0.0.1"].Len(), "should have 2 routes in pool")
 }
 
 // TestHandleReceived_Withdraw verifies routes are removed on withdrawal.
@@ -180,12 +179,14 @@ func TestHandleReceived_StoresRoutes(t *testing.T) {
 // PREVENTS: Stale route state.
 func TestHandleReceived_Withdraw(t *testing.T) {
 	r := NewRIBManager(strings.NewReader(""), &bytes.Buffer{})
-	nestedPeer := mustMarshal(t, map[string]any{"address": map[string]string{"local": "10.0.0.2", "peer": "10.0.0.1"}, "asn": map[string]uint32{"local": 65002, "peer": 65001}})
+	peerJSON := mustMarshal(t, map[string]any{"address": map[string]string{"local": "10.0.0.2", "peer": "10.0.0.1"}, "asn": map[string]uint32{"local": 65002, "peer": 65001}})
 
-	// First announce
+	// First announce with raw fields
 	announce := &Event{
-		Message: &MessageInfo{Type: "update", ID: 200},
-		Peer:    nestedPeer,
+		Message:       &MessageInfo{Type: "update", ID: 200},
+		Peer:          peerJSON,
+		RawAttributes: "40010100",
+		RawNLRI:       map[string]string{"ipv4/unicast": "180a0000"},
 		FamilyOps: map[string][]FamilyOperation{
 			"ipv4/unicast": {
 				{NextHop: "1.1.1.1", Action: "add", NLRIs: []any{"10.0.0.0/24"}},
@@ -193,12 +194,13 @@ func TestHandleReceived_Withdraw(t *testing.T) {
 		},
 	}
 	r.handleReceived(announce)
-	assert.Len(t, r.ribIn["10.0.0.1"], 1)
+	require.Equal(t, 1, r.ribInPool["10.0.0.1"].Len())
 
 	// Then withdraw
 	withdraw := &Event{
-		Message: &MessageInfo{Type: "update", ID: 201},
-		Peer:    nestedPeer,
+		Message:      &MessageInfo{Type: "update", ID: 201},
+		Peer:         peerJSON,
+		RawWithdrawn: map[string]string{"ipv4/unicast": "180a0000"},
 		FamilyOps: map[string][]FamilyOperation{
 			"ipv4/unicast": {
 				{Action: "del", NLRIs: []any{"10.0.0.0/24"}},
@@ -206,7 +208,7 @@ func TestHandleReceived_Withdraw(t *testing.T) {
 		},
 	}
 	r.handleReceived(withdraw)
-	assert.Len(t, r.ribIn["10.0.0.1"], 0)
+	assert.Equal(t, 0, r.ribInPool["10.0.0.1"].Len())
 }
 
 // TestHandleState_PeerUp verifies replay on peer up.
@@ -243,11 +245,22 @@ func TestHandleState_PeerUp(t *testing.T) {
 // PREVENTS: Stale routes from failed peers.
 func TestHandleState_PeerDown(t *testing.T) {
 	r := NewRIBManager(strings.NewReader(""), &bytes.Buffer{})
+	peerJSON := mustMarshal(t, map[string]any{"address": map[string]string{"local": "10.0.0.2", "peer": "10.0.0.1"}, "asn": map[string]uint32{"local": 65002, "peer": 65001}})
 
-	// Pre-populate ribIn and ribOut
-	r.ribIn["10.0.0.1"] = map[string]*Route{
-		"ipv4/unicast:10.0.0.0/24": {Family: "ipv4/unicast", Prefix: "10.0.0.0/24"},
+	// Pre-populate ribInPool via handleReceived
+	announce := &Event{
+		Message:       &MessageInfo{Type: "update", ID: 100},
+		Peer:          peerJSON,
+		RawAttributes: "40010100",
+		RawNLRI:       map[string]string{"ipv4/unicast": "180a0000"},
+		FamilyOps: map[string][]FamilyOperation{
+			"ipv4/unicast": {{NextHop: "1.1.1.1", Action: "add", NLRIs: []any{"10.0.0.0/24"}}},
+		},
 	}
+	r.handleReceived(announce)
+	require.Equal(t, 1, r.ribInPool["10.0.0.1"].Len())
+
+	// Pre-populate ribOut
 	r.ribOut["10.0.0.1"] = map[string]*Route{
 		"ipv4/unicast:10.0.1.0/24": {Family: "ipv4/unicast", Prefix: "10.0.1.0/24"},
 	}
@@ -261,8 +274,9 @@ func TestHandleState_PeerDown(t *testing.T) {
 
 	r.handleState(event)
 
-	// ribIn should be cleared
-	assert.Len(t, r.ribIn["10.0.0.1"], 0)
+	// ribInPool should be cleared (PeerRIB deleted)
+	_, exists := r.ribInPool["10.0.0.1"]
+	assert.False(t, exists, "PeerRIB should be deleted on peer down")
 	// ribOut should be preserved for replay
 	assert.Len(t, r.ribOut["10.0.0.1"], 1)
 }
@@ -273,10 +287,20 @@ func TestHandleState_PeerDown(t *testing.T) {
 // PREVENTS: Incorrect stats being reported.
 func TestStatusJSON(t *testing.T) {
 	r := NewRIBManager(strings.NewReader(""), &bytes.Buffer{})
+	peerJSON := mustMarshal(t, map[string]any{"address": map[string]string{"local": "10.0.0.2", "peer": "10.0.0.1"}, "asn": map[string]uint32{"local": 65002, "peer": 65001}})
 
-	r.ribIn["10.0.0.1"] = map[string]*Route{
-		"a": {}, "b": {},
+	// Add routes via pool storage
+	event := &Event{
+		Message:       &MessageInfo{Type: "update", ID: 100},
+		Peer:          peerJSON,
+		RawAttributes: "40010100",
+		RawNLRI:       map[string]string{"ipv4/unicast": "180a0000180a0001"}, // 2 NLRIs
+		FamilyOps: map[string][]FamilyOperation{
+			"ipv4/unicast": {{NextHop: "1.1.1.1", Action: "add", NLRIs: []any{"10.0.0.0/24", "10.0.1.0/24"}}},
+		},
 	}
+	r.handleReceived(event)
+
 	r.ribOut["10.0.0.2"] = map[string]*Route{
 		"c": {},
 	}
@@ -314,10 +338,12 @@ func TestDispatch_RoutesToCorrectHandler(t *testing.T) {
 			wantRibOut: 1,
 		},
 		{
-			name: "update_to_ribIn",
+			name: "update_to_ribInPool",
 			event: &Event{
-				Message: &MessageInfo{Type: "update"},
-				Peer:    json.RawMessage(`{"address":{"local":"","peer":"10.0.0.1"},"asn":{"local":0,"peer":65001}}`),
+				Message:       &MessageInfo{Type: "update"},
+				Peer:          json.RawMessage(`{"address":{"local":"","peer":"10.0.0.1"},"asn":{"local":0,"peer":65001}}`),
+				RawAttributes: "40010100",
+				RawNLRI:       map[string]string{"ipv4/unicast": "180a0000"},
 				FamilyOps: map[string][]FamilyOperation{
 					"ipv4/unicast": {{NextHop: "1.1.1.1", Action: "add", NLRIs: []any{"10.0.0.0/24"}}},
 				},
@@ -333,15 +359,15 @@ func TestDispatch_RoutesToCorrectHandler(t *testing.T) {
 			r.dispatch(tt.event)
 
 			totalIn := 0
-			for _, routes := range r.ribIn {
-				totalIn += len(routes)
+			for _, peerRIB := range r.ribInPool {
+				totalIn += peerRIB.Len()
 			}
 			totalOut := 0
 			for _, routes := range r.ribOut {
 				totalOut += len(routes)
 			}
 
-			assert.Equal(t, tt.wantRibIn, totalIn, "ribIn count")
+			assert.Equal(t, tt.wantRibIn, totalIn, "ribInPool count")
 			assert.Equal(t, tt.wantRibOut, totalOut, "ribOut count")
 		})
 	}
@@ -355,13 +381,23 @@ func TestHandleState_ConcurrentUpDown(t *testing.T) {
 	var out bytes.Buffer
 	r := NewRIBManager(strings.NewReader(""), &out)
 
-	// Pre-populate ribOut and ribIn
+	// Pre-populate ribOut
 	r.ribOut["10.0.0.1"] = map[string]*Route{
 		"ipv4/unicast:10.0.0.0/24": {MsgID: 1, Prefix: "10.0.0.0/24", NextHop: "1.1.1.1"},
 	}
-	r.ribIn["10.0.0.1"] = map[string]*Route{
-		"ipv4/unicast:10.0.1.0/24": {Prefix: "10.0.1.0/24"},
+
+	// Pre-populate ribInPool via handleReceived
+	peerJSON := mustMarshal(t, map[string]any{"address": map[string]string{"local": "10.0.0.2", "peer": "10.0.0.1"}, "asn": map[string]uint32{"local": 65002, "peer": 65001}})
+	announce := &Event{
+		Message:       &MessageInfo{Type: "update", ID: 100},
+		Peer:          peerJSON,
+		RawAttributes: "40010100",
+		RawNLRI:       map[string]string{"ipv4/unicast": "180a0001"},
+		FamilyOps: map[string][]FamilyOperation{
+			"ipv4/unicast": {{NextHop: "1.1.1.1", Action: "add", NLRIs: []any{"10.0.1.0/24"}}},
+		},
 	}
+	r.handleReceived(announce)
 
 	peer := mustMarshal(t, PeerInfoFlat{Address: "10.0.0.1", ASN: 65001})
 
@@ -516,8 +552,20 @@ func TestHandleRequest_RIBAdjacentStatus(t *testing.T) {
 	var out bytes.Buffer
 	r := NewRIBManager(strings.NewReader(""), &out)
 
+	// Add route via pool storage
+	peerJSON := mustMarshal(t, map[string]any{"address": map[string]string{"local": "10.0.0.2", "peer": "10.0.0.1"}, "asn": map[string]uint32{"local": 65002, "peer": 65001}})
+	announce := &Event{
+		Message:       &MessageInfo{Type: "update", ID: 100},
+		Peer:          peerJSON,
+		RawAttributes: "40010100",
+		RawNLRI:       map[string]string{"ipv4/unicast": "180a0000"},
+		FamilyOps: map[string][]FamilyOperation{
+			"ipv4/unicast": {{NextHop: "1.1.1.1", Action: "add", NLRIs: []any{"10.0.0.0/24"}}},
+		},
+	}
+	r.handleReceived(announce)
+
 	r.peerUp["10.0.0.1"] = true
-	r.ribIn["10.0.0.1"] = map[string]*Route{"a": {}}
 	r.ribOut["10.0.0.1"] = map[string]*Route{"b": {}, "c": {}}
 
 	event := &Event{
@@ -542,12 +590,31 @@ func TestHandleRequest_RIBAdjacentInboundShow(t *testing.T) {
 	var out bytes.Buffer
 	r := NewRIBManager(strings.NewReader(""), &out)
 
-	r.ribIn["10.0.0.1"] = map[string]*Route{
-		"ipv4/unicast:10.0.0.0/24": {Family: "ipv4/unicast", Prefix: "10.0.0.0/24", NextHop: "1.1.1.1"},
+	// Add routes via pool storage for peer 10.0.0.1
+	peer1JSON := mustMarshal(t, map[string]any{"address": map[string]string{"local": "10.0.0.2", "peer": "10.0.0.1"}, "asn": map[string]uint32{"local": 65002, "peer": 65001}})
+	event1 := &Event{
+		Message:       &MessageInfo{Type: "update", ID: 100},
+		Peer:          peer1JSON,
+		RawAttributes: "40010100",
+		RawNLRI:       map[string]string{"ipv4/unicast": "180a0000"}, // 10.0.0.0/24
+		FamilyOps: map[string][]FamilyOperation{
+			"ipv4/unicast": {{NextHop: "1.1.1.1", Action: "add", NLRIs: []any{"10.0.0.0/24"}}},
+		},
 	}
-	r.ribIn["10.0.0.2"] = map[string]*Route{
-		"ipv4/unicast:10.0.1.0/24": {Family: "ipv4/unicast", Prefix: "10.0.1.0/24", NextHop: "2.2.2.2"},
+	r.handleReceived(event1)
+
+	// Add routes via pool storage for peer 10.0.0.2
+	peer2JSON := mustMarshal(t, map[string]any{"address": map[string]string{"local": "10.0.0.1", "peer": "10.0.0.2"}, "asn": map[string]uint32{"local": 65001, "peer": 65002}})
+	event2 := &Event{
+		Message:       &MessageInfo{Type: "update", ID: 101},
+		Peer:          peer2JSON,
+		RawAttributes: "40010100",
+		RawNLRI:       map[string]string{"ipv4/unicast": "180a0001"}, // 10.0.1.0/24
+		FamilyOps: map[string][]FamilyOperation{
+			"ipv4/unicast": {{NextHop: "2.2.2.2", Action: "add", NLRIs: []any{"10.0.1.0/24"}}},
+		},
 	}
+	r.handleReceived(event2)
 
 	tests := []struct {
 		name        string
@@ -625,26 +692,46 @@ func TestHandleRequest_RIBAdjacentInboundEmpty(t *testing.T) {
 	var out bytes.Buffer
 	r := NewRIBManager(strings.NewReader(""), &out)
 
-	r.ribIn["10.0.0.1"] = map[string]*Route{
-		"ipv4/unicast:10.0.0.0/24": {Family: "ipv4/unicast", Prefix: "10.0.0.0/24"},
+	// Add routes via pool storage for peer 10.0.0.1
+	peer1JSON := mustMarshal(t, map[string]any{"address": map[string]string{"local": "10.0.0.2", "peer": "10.0.0.1"}, "asn": map[string]uint32{"local": 65002, "peer": 65001}})
+	event1 := &Event{
+		Message:       &MessageInfo{Type: "update", ID: 100},
+		Peer:          peer1JSON,
+		RawAttributes: "40010100",
+		RawNLRI:       map[string]string{"ipv4/unicast": "180a0000"},
+		FamilyOps: map[string][]FamilyOperation{
+			"ipv4/unicast": {{NextHop: "1.1.1.1", Action: "add", NLRIs: []any{"10.0.0.0/24"}}},
+		},
 	}
-	r.ribIn["10.0.0.2"] = map[string]*Route{
-		"ipv4/unicast:10.0.1.0/24": {Family: "ipv4/unicast", Prefix: "10.0.1.0/24"},
-	}
+	r.handleReceived(event1)
 
-	peerJSON, _ := json.Marshal("10.0.0.1")
+	// Add routes via pool storage for peer 10.0.0.2
+	peer2JSON := mustMarshal(t, map[string]any{"address": map[string]string{"local": "10.0.0.1", "peer": "10.0.0.2"}, "asn": map[string]uint32{"local": 65001, "peer": 65002}})
+	event2 := &Event{
+		Message:       &MessageInfo{Type: "update", ID: 101},
+		Peer:          peer2JSON,
+		RawAttributes: "40010100",
+		RawNLRI:       map[string]string{"ipv4/unicast": "180a0001"},
+		FamilyOps: map[string][]FamilyOperation{
+			"ipv4/unicast": {{NextHop: "2.2.2.2", Action: "add", NLRIs: []any{"10.0.1.0/24"}}},
+		},
+	}
+	r.handleReceived(event2)
+
+	peerSelector, _ := json.Marshal("10.0.0.1")
 	event := &Event{
 		Type:    "request",
 		Serial:  "empty1",
 		Command: "rib adjacent inbound empty",
-		Peer:    peerJSON,
+		Peer:    peerSelector,
 	}
 	r.handleRequest(event)
 
-	// 10.0.0.1 should be emptied
-	assert.Len(t, r.ribIn["10.0.0.1"], 0)
+	// 10.0.0.1 should be emptied (PeerRIB deleted)
+	_, exists1 := r.ribInPool["10.0.0.1"]
+	assert.False(t, exists1, "peer 10.0.0.1 PeerRIB should be deleted")
 	// 10.0.0.2 should remain
-	assert.Len(t, r.ribIn["10.0.0.2"], 1)
+	assert.Equal(t, 1, r.ribInPool["10.0.0.2"].Len())
 	assert.Contains(t, out.String(), "@empty1 done")
 }
 
@@ -874,6 +961,417 @@ func TestHandleRefresh_IPv6Family(t *testing.T) {
 	assert.Contains(t, output, "2001:db8::/32")
 	// IPv4 route should NOT be included
 	assert.NotContains(t, output, "10.0.0.0/24")
+}
+
+// =============================================================================
+// Pool Storage Tests (Phase 3-4)
+// =============================================================================
+
+// TestHandleReceived_PoolStorage verifies routes stored in PeerRIB when raw fields present.
+//
+// VALIDATES: Raw attributes and NLRIs from format=full are stored in pool.
+// PREVENTS: Pool storage being ignored when raw fields are available.
+func TestHandleReceived_PoolStorage(t *testing.T) {
+	r := NewRIBManager(strings.NewReader(""), &bytes.Buffer{})
+
+	// Event with raw fields (format=full from engine)
+	// Raw attrs: ORIGIN IGP (40 01 01 00)
+	// Raw NLRI: 10.0.0.0/24 (18 0a 00 00)
+	event := &Event{
+		Message:       &MessageInfo{Type: "update", ID: 300},
+		Peer:          mustMarshal(t, map[string]any{"address": map[string]string{"local": "10.0.0.2", "peer": "10.0.0.1"}, "asn": map[string]uint32{"local": 65002, "peer": 65001}}),
+		RawAttributes: "40010100",                                    // ORIGIN IGP
+		RawNLRI:       map[string]string{"ipv4/unicast": "180a0000"}, // 10.0.0.0/24
+		FamilyOps: map[string][]FamilyOperation{
+			"ipv4/unicast": {{NextHop: "1.1.1.1", Action: "add", NLRIs: []any{"10.0.0.0/24"}}},
+		},
+	}
+
+	r.handleReceived(event)
+
+	// Should be stored in pool storage
+	assert.NotNil(t, r.ribInPool["10.0.0.1"], "PeerRIB should be created")
+	assert.Equal(t, 1, r.ribInPool["10.0.0.1"].Len(), "should have 1 route in pool")
+
+	// Legacy storage should be empty (or not used)
+	// Note: we may still populate it for show commands compatibility
+}
+
+// TestHandleReceived_PoolStorage_MultipleNLRIs verifies multiple NLRIs in one UPDATE.
+//
+// VALIDATES: Concatenated NLRIs are split and stored individually.
+// PREVENTS: Only first NLRI being stored.
+func TestHandleReceived_PoolStorage_MultipleNLRIs(t *testing.T) {
+	r := NewRIBManager(strings.NewReader(""), &bytes.Buffer{})
+
+	// Two NLRIs: 10.0.0.0/24 (18 0a 00 00) + 10.0.1.0/24 (18 0a 00 01)
+	event := &Event{
+		Message:       &MessageInfo{Type: "update", ID: 302},
+		Peer:          mustMarshal(t, map[string]any{"address": map[string]string{"local": "10.0.0.2", "peer": "10.0.0.1"}, "asn": map[string]uint32{"local": 65002, "peer": 65001}}),
+		RawAttributes: "40010100",
+		RawNLRI:       map[string]string{"ipv4/unicast": "180a0000180a0001"},
+		FamilyOps: map[string][]FamilyOperation{
+			"ipv4/unicast": {{NextHop: "1.1.1.1", Action: "add", NLRIs: []any{"10.0.0.0/24", "10.0.1.0/24"}}},
+		},
+	}
+
+	r.handleReceived(event)
+
+	assert.Equal(t, 2, r.ribInPool["10.0.0.1"].Len(), "should have 2 routes in pool")
+}
+
+// TestHandleReceived_PoolStorage_Withdraw verifies withdrawal removes from pool.
+//
+// VALIDATES: Withdrawn routes are removed from pool storage.
+// PREVENTS: Stale routes remaining in pool.
+func TestHandleReceived_PoolStorage_Withdraw(t *testing.T) {
+	r := NewRIBManager(strings.NewReader(""), &bytes.Buffer{})
+	peerJSON := mustMarshal(t, map[string]any{"address": map[string]string{"local": "10.0.0.2", "peer": "10.0.0.1"}, "asn": map[string]uint32{"local": 65002, "peer": 65001}})
+
+	// First: announce
+	announce := &Event{
+		Message:       &MessageInfo{Type: "update", ID: 303},
+		Peer:          peerJSON,
+		RawAttributes: "40010100",
+		RawNLRI:       map[string]string{"ipv4/unicast": "180a0000"},
+		FamilyOps: map[string][]FamilyOperation{
+			"ipv4/unicast": {{NextHop: "1.1.1.1", Action: "add", NLRIs: []any{"10.0.0.0/24"}}},
+		},
+	}
+	r.handleReceived(announce)
+	require.Equal(t, 1, r.ribInPool["10.0.0.1"].Len())
+
+	// Then: withdraw
+	withdraw := &Event{
+		Message:      &MessageInfo{Type: "update", ID: 304},
+		Peer:         peerJSON,
+		RawWithdrawn: map[string]string{"ipv4/unicast": "180a0000"},
+		FamilyOps: map[string][]FamilyOperation{
+			"ipv4/unicast": {{Action: "del", NLRIs: []any{"10.0.0.0/24"}}},
+		},
+	}
+	r.handleReceived(withdraw)
+
+	assert.Equal(t, 0, r.ribInPool["10.0.0.1"].Len(), "route should be withdrawn")
+}
+
+// TestHandleState_PeerDown_ClearsPoolStorage verifies pool cleared on peer down.
+//
+// VALIDATES: Pool storage is cleared when peer goes down.
+// PREVENTS: Stale pool data from failed peers.
+func TestHandleState_PeerDown_ClearsPoolStorage(t *testing.T) {
+	r := NewRIBManager(strings.NewReader(""), &bytes.Buffer{})
+	peerJSON := mustMarshal(t, map[string]any{"address": map[string]string{"local": "10.0.0.2", "peer": "10.0.0.1"}, "asn": map[string]uint32{"local": 65002, "peer": 65001}})
+
+	// Add route via pool storage
+	announce := &Event{
+		Message:       &MessageInfo{Type: "update", ID: 305},
+		Peer:          peerJSON,
+		RawAttributes: "40010100",
+		RawNLRI:       map[string]string{"ipv4/unicast": "180a0000"},
+		FamilyOps: map[string][]FamilyOperation{
+			"ipv4/unicast": {{NextHop: "1.1.1.1", Action: "add", NLRIs: []any{"10.0.0.0/24"}}},
+		},
+	}
+	r.handleReceived(announce)
+	r.peerUp["10.0.0.1"] = true
+	require.Equal(t, 1, r.ribInPool["10.0.0.1"].Len())
+
+	// Peer goes down
+	stateDown := &Event{
+		Type:  "state",
+		Peer:  mustMarshal(t, PeerInfoFlat{Address: "10.0.0.1", ASN: 65001}),
+		State: "down",
+	}
+	r.handleState(stateDown)
+
+	// Pool should be cleared
+	if peerRIB := r.ribInPool["10.0.0.1"]; peerRIB != nil {
+		assert.Equal(t, 0, peerRIB.Len(), "pool should be empty after peer down")
+	}
+}
+
+// TestHandleReceived_PoolStorage_IPv6 verifies IPv6 routes in pool storage.
+//
+// VALIDATES: IPv6 unicast routes are stored in pool correctly.
+// PREVENTS: IPv6 address parsing/formatting bugs in cross-storage.
+func TestHandleReceived_PoolStorage_IPv6(t *testing.T) {
+	r := NewRIBManager(strings.NewReader(""), &bytes.Buffer{})
+	peerJSON := mustMarshal(t, map[string]any{"address": map[string]string{"local": "::2", "peer": "::1"}, "asn": map[string]uint32{"local": 65002, "peer": 65001}})
+
+	// IPv6 NLRI: 2001:db8::/32
+	// Wire format: [prefix-len:1][prefix-bytes:4] = [32][20][01][0d][b8]
+	event := &Event{
+		Message:       &MessageInfo{Type: "update", ID: 400},
+		Peer:          peerJSON,
+		RawAttributes: "40010100", // ORIGIN IGP
+		RawNLRI:       map[string]string{"ipv6/unicast": "2020010db8"},
+		FamilyOps: map[string][]FamilyOperation{
+			"ipv6/unicast": {{NextHop: "::1", Action: "add", NLRIs: []any{"2001:db8::/32"}}},
+		},
+	}
+
+	r.handleReceived(event)
+
+	assert.NotNil(t, r.ribInPool["::1"], "PeerRIB should be created for IPv6 peer")
+	assert.Equal(t, 1, r.ribInPool["::1"].Len(), "should have 1 IPv6 route in pool")
+}
+
+// TestHandleReceived_PoolStorage_SkipsEVPN verifies EVPN is skipped.
+//
+// VALIDATES: Non-unicast families are not processed by pool storage.
+// PREVENTS: EVPN wire format being corrupted by splitNLRIs().
+func TestHandleReceived_PoolStorage_SkipsEVPN(t *testing.T) {
+	r := NewRIBManager(strings.NewReader(""), &bytes.Buffer{})
+	peerJSON := mustMarshal(t, map[string]any{"address": map[string]string{"local": "10.0.0.2", "peer": "10.0.0.1"}, "asn": map[string]uint32{"local": 65002, "peer": 65001}})
+
+	// EVPN NLRI (will be skipped - not simple prefix format)
+	event := &Event{
+		Message:       &MessageInfo{Type: "update", ID: 401},
+		Peer:          peerJSON,
+		RawAttributes: "40010100",
+		RawNLRI:       map[string]string{"l2vpn/evpn": "0203deadbeef"}, // Fake EVPN bytes
+		FamilyOps: map[string][]FamilyOperation{
+			"l2vpn/evpn": {{Action: "add", NLRIs: []any{"type2:00:11:22:33:44:55"}}},
+		},
+	}
+
+	r.handleReceived(event)
+
+	// Should not crash, and pool should be empty (EVPN skipped)
+	if peerRIB := r.ribInPool["10.0.0.1"]; peerRIB != nil {
+		assert.Equal(t, 0, peerRIB.Len(), "EVPN should be skipped, pool should be empty")
+	}
+}
+
+// TestStatusJSON_WithPoolStorage verifies status includes pool route counts.
+//
+// VALIDATES: Status JSON includes routes from pool storage.
+// PREVENTS: Pool routes not being counted in status.
+func TestStatusJSON_WithPoolStorage(t *testing.T) {
+	r := NewRIBManager(strings.NewReader(""), &bytes.Buffer{})
+	peerJSON := mustMarshal(t, map[string]any{"address": map[string]string{"local": "10.0.0.2", "peer": "10.0.0.1"}, "asn": map[string]uint32{"local": 65002, "peer": 65001}})
+
+	// Add routes via pool storage
+	event := &Event{
+		Message:       &MessageInfo{Type: "update", ID: 306},
+		Peer:          peerJSON,
+		RawAttributes: "40010100",
+		RawNLRI:       map[string]string{"ipv4/unicast": "180a0000180a0001"}, // 2 NLRIs
+		FamilyOps: map[string][]FamilyOperation{
+			"ipv4/unicast": {{NextHop: "1.1.1.1", Action: "add", NLRIs: []any{"10.0.0.0/24", "10.0.1.0/24"}}},
+		},
+	}
+	r.handleReceived(event)
+	r.peerUp["10.0.0.1"] = true
+
+	status := r.statusJSON()
+	assert.Contains(t, status, `"routes_in":2`, "status should count pool routes")
+}
+
+// TestHandleInboundShow_PoolStorage verifies show command reads from pool storage.
+//
+// VALIDATES: Routes in pool storage appear in show output.
+// PREVENTS: Pool routes being invisible to show commands.
+func TestHandleInboundShow_PoolStorage(t *testing.T) {
+	var out bytes.Buffer
+	r := NewRIBManager(strings.NewReader(""), &out)
+	peerJSON := mustMarshal(t, map[string]any{"address": map[string]string{"local": "10.0.0.2", "peer": "10.0.0.1"}, "asn": map[string]uint32{"local": 65002, "peer": 65001}})
+
+	// Add route via pool storage
+	event := &Event{
+		Message:       &MessageInfo{Type: "update", ID: 307},
+		Peer:          peerJSON,
+		RawAttributes: "40010100",
+		RawNLRI:       map[string]string{"ipv4/unicast": "180a0000"}, // 10.0.0.0/24
+		FamilyOps: map[string][]FamilyOperation{
+			"ipv4/unicast": {{NextHop: "1.1.1.1", Action: "add", NLRIs: []any{"10.0.0.0/24"}}},
+		},
+	}
+	r.handleReceived(event)
+
+	// Verify route is in pool
+	require.Equal(t, 1, r.ribInPool["10.0.0.1"].Len())
+
+	// Now call show command
+	out.Reset()
+	showEvent := &Event{
+		Type:    "request",
+		Serial:  "show1",
+		Command: "rib adjacent inbound show",
+		Peer:    json.RawMessage(`"*"`),
+	}
+	r.handleRequest(showEvent)
+
+	output := out.String()
+	assert.Contains(t, output, "@show1 done", "should respond done")
+	assert.Contains(t, output, "10.0.0.1", "should contain peer address")
+	assert.Contains(t, output, "10.0.0.0/24", "should contain prefix from pool")
+	assert.Contains(t, output, "ipv4/unicast", "should contain family")
+}
+
+// TestHandleInboundEmpty_PoolStorage verifies empty command clears pool storage.
+//
+// VALIDATES: Empty command clears routes from pool storage.
+// PREVENTS: Pool routes remaining after empty command.
+func TestHandleInboundEmpty_PoolStorage(t *testing.T) {
+	var out bytes.Buffer
+	r := NewRIBManager(strings.NewReader(""), &out)
+	peerJSON := mustMarshal(t, map[string]any{"address": map[string]string{"local": "10.0.0.2", "peer": "10.0.0.1"}, "asn": map[string]uint32{"local": 65002, "peer": 65001}})
+
+	// Add route via pool storage
+	event := &Event{
+		Message:       &MessageInfo{Type: "update", ID: 308},
+		Peer:          peerJSON,
+		RawAttributes: "40010100",
+		RawNLRI:       map[string]string{"ipv4/unicast": "180a0000"},
+		FamilyOps: map[string][]FamilyOperation{
+			"ipv4/unicast": {{NextHop: "1.1.1.1", Action: "add", NLRIs: []any{"10.0.0.0/24"}}},
+		},
+	}
+	r.handleReceived(event)
+	require.Equal(t, 1, r.ribInPool["10.0.0.1"].Len())
+
+	// Call empty command
+	out.Reset()
+	emptyEvent := &Event{
+		Type:    "request",
+		Serial:  "empty1",
+		Command: "rib adjacent inbound empty",
+		Peer:    json.RawMessage(`"10.0.0.1"`),
+	}
+	r.handleRequest(emptyEvent)
+
+	// Verify pool is cleared (entry deleted to avoid memory leak)
+	_, exists := r.ribInPool["10.0.0.1"]
+	assert.False(t, exists, "pool entry should be deleted")
+	assert.Contains(t, out.String(), "@empty1 done")
+	assert.Contains(t, out.String(), `"cleared":1`)
+}
+
+// =============================================================================
+// Cross-Storage Consistency Tests
+// =============================================================================
+
+// TestPrefixToWire verifies text prefix to wire bytes conversion.
+//
+// VALIDATES: Text prefixes convert correctly to wire format.
+// PREVENTS: Cross-storage key mismatches.
+func TestPrefixToWire(t *testing.T) {
+	tests := []struct {
+		name    string
+		family  string
+		prefix  string
+		pathID  uint32
+		addPath bool
+		want    []byte
+	}{
+		{
+			name:   "ipv4_24",
+			family: "ipv4/unicast",
+			prefix: "10.0.0.0/24",
+			want:   []byte{24, 10, 0, 0},
+		},
+		{
+			name:   "ipv4_8",
+			family: "ipv4/unicast",
+			prefix: "10.0.0.0/8",
+			want:   []byte{8, 10},
+		},
+		{
+			name:   "ipv4_32",
+			family: "ipv4/unicast",
+			prefix: "192.168.1.1/32",
+			want:   []byte{32, 192, 168, 1, 1},
+		},
+		{
+			name:   "ipv4_0",
+			family: "ipv4/unicast",
+			prefix: "0.0.0.0/0",
+			want:   []byte{0},
+		},
+		{
+			name:    "ipv4_addpath",
+			family:  "ipv4/unicast",
+			prefix:  "10.0.0.0/24",
+			pathID:  100,
+			addPath: true,
+			want:    []byte{0, 0, 0, 100, 24, 10, 0, 0}, // path-id + prefix
+		},
+		{
+			name:   "ipv6_32",
+			family: "ipv6/unicast",
+			prefix: "2001:db8::/32",
+			want:   []byte{32, 0x20, 0x01, 0x0d, 0xb8},
+		},
+		{
+			name:   "ipv6_128",
+			family: "ipv6/unicast",
+			prefix: "2001:db8::1/128",
+			want:   []byte{128, 0x20, 0x01, 0x0d, 0xb8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := prefixToWire(tt.family, tt.prefix, tt.pathID, tt.addPath)
+			require.NoError(t, err)
+			assert.Equal(t, tt.want, got)
+		})
+	}
+}
+
+// TestWireToPrefix verifies wire bytes to text prefix conversion.
+//
+// VALIDATES: Wire bytes convert correctly to text format.
+// PREVENTS: Cross-storage lookup failures.
+func TestWireToPrefix(t *testing.T) {
+	tests := []struct {
+		name       string
+		family     string
+		wire       []byte
+		addPath    bool
+		wantPrefix string
+		wantPathID uint32
+	}{
+		{
+			name:       "ipv4_24",
+			family:     "ipv4/unicast",
+			wire:       []byte{24, 10, 0, 0},
+			wantPrefix: "10.0.0.0/24",
+		},
+		{
+			name:       "ipv4_8",
+			family:     "ipv4/unicast",
+			wire:       []byte{8, 10},
+			wantPrefix: "10.0.0.0/8",
+		},
+		{
+			name:       "ipv4_addpath",
+			family:     "ipv4/unicast",
+			wire:       []byte{0, 0, 0, 100, 24, 10, 0, 0},
+			addPath:    true,
+			wantPrefix: "10.0.0.0/24",
+			wantPathID: 100,
+		},
+		{
+			name:       "ipv6_32",
+			family:     "ipv6/unicast",
+			wire:       []byte{32, 0x20, 0x01, 0x0d, 0xb8},
+			wantPrefix: "2001:db8::/32",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			family, ok := parseFamily(tt.family)
+			require.True(t, ok)
+			gotPrefix, gotPathID, err := wireToPrefix(family, tt.wire, tt.addPath)
+			require.NoError(t, err)
+			assert.Equal(t, tt.wantPrefix, gotPrefix)
+			assert.Equal(t, tt.wantPathID, gotPathID)
+		})
+	}
 }
 
 // TestDispatch_RefreshEvents verifies refresh event types are routed correctly.
