@@ -149,6 +149,24 @@ func (m MPReachWire) NLRIIterator(addPath bool) *nlri.NLRIIterator {
 	return nlri.NewNLRIIterator(nlriBytes, addPath)
 }
 
+// NLRIBytes returns the raw NLRI bytes without parsing.
+// Returns the bytes after NextHop + Reserved, or nil if malformed.
+// Use for raw wire byte extraction (pool storage).
+func (m MPReachWire) NLRIBytes() []byte {
+	if len(m) < 5 {
+		return nil
+	}
+
+	nhLen := int(m[3])
+	// NLRI starts after: AFI(2) + SAFI(1) + NHLen(1) + NextHop(nhLen) + Reserved(1)
+	nlriOffset := 4 + nhLen + 1
+	if nlriOffset > len(m) {
+		return nil
+	}
+
+	return m[nlriOffset:]
+}
+
 // MPUnreachWire wraps MP_UNREACH_NLRI attribute bytes for zero-copy lazy parsing.
 // RFC 4760 Section 4: AFI(2) + SAFI(1) + Withdrawn Routes
 //
@@ -237,6 +255,16 @@ func (m MPUnreachWire) NLRIIterator(addPath bool) *nlri.NLRIIterator {
 	}
 
 	return nlri.NewNLRIIterator(withdrawnBytes, addPath)
+}
+
+// WithdrawnBytes returns the raw withdrawn NLRI bytes without parsing.
+// Returns the bytes after AFI(2) + SAFI(1), or nil if malformed.
+// Use for raw wire byte extraction (pool storage).
+func (m MPUnreachWire) WithdrawnBytes() []byte {
+	if len(m) < 3 {
+		return nil
+	}
+	return m[3:]
 }
 
 // IPv4Reach holds zero-copy slices into UPDATE body for legacy IPv4 unicast.

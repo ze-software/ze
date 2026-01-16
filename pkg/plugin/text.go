@@ -143,14 +143,58 @@ func formatParsedFromResult(peer PeerInfo, msg RawMessage, content ContentConfig
 
 // formatFullFromResult formats both parsed content AND raw hex.
 // ctx provides ADD-PATH state per family.
+// Includes raw-attributes (for pool storage) and raw-nlri per family.
 func formatFullFromResult(peer PeerInfo, msg RawMessage, content ContentConfig, result FilterResult, ctx *bgpctx.EncodingContext, direction string) string {
 	rawHex := fmt.Sprintf("%x", msg.RawBytes)
 	parsed := formatParsedFromResult(peer, msg, content, result, ctx, direction)
 
 	if content.Encoding == EncodingJSON {
-		// Inject raw bytes into JSON: replace trailing "}\n" with ,"raw":"hex"}\n
+		// Build additional raw fields for pool-based storage
+		var rawFields strings.Builder
+
+		// Extract raw-attributes and raw-nlri if WireUpdate available
+		if msg.WireUpdate != nil {
+			// raw-attributes: attributes without MP_REACH/MP_UNREACH
+			rawComps, err := ExtractRawComponents(msg.WireUpdate)
+			if err == nil && rawComps != nil {
+				// Add raw-attributes
+				if len(rawComps.Attributes) > 0 {
+					rawFields.WriteString(fmt.Sprintf(`,"raw-attributes":"%x"`, rawComps.Attributes))
+				}
+
+				// Add raw-nlri per family
+				if len(rawComps.NLRI) > 0 {
+					rawFields.WriteString(`,"raw-nlri":{`)
+					first := true
+					for family, nlriBytes := range rawComps.NLRI {
+						if !first {
+							rawFields.WriteString(",")
+						}
+						first = false
+						rawFields.WriteString(fmt.Sprintf(`"%s":"%x"`, family.String(), nlriBytes))
+					}
+					rawFields.WriteString(`}`)
+				}
+
+				// Add raw-withdrawn per family (for completeness)
+				if len(rawComps.Withdrawn) > 0 {
+					rawFields.WriteString(`,"raw-withdrawn":{`)
+					first := true
+					for family, wdBytes := range rawComps.Withdrawn {
+						if !first {
+							rawFields.WriteString(",")
+						}
+						first = false
+						rawFields.WriteString(fmt.Sprintf(`"%s":"%x"`, family.String(), wdBytes))
+					}
+					rawFields.WriteString(`}`)
+				}
+			}
+		}
+
+		// Inject raw fields into JSON: replace trailing "}\n" with ,...,"raw":"hex"}\n
 		if strings.HasSuffix(parsed, "}\n") {
-			return parsed[:len(parsed)-2] + fmt.Sprintf(`,"raw":"%s"}`+"\n", rawHex)
+			return parsed[:len(parsed)-2] + rawFields.String() + fmt.Sprintf(`,"raw":"%s"}`+"\n", rawHex)
 		}
 		return parsed
 	}

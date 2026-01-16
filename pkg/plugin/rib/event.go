@@ -1,6 +1,7 @@
 package rib
 
 import (
+	"encoding/hex"
 	"encoding/json"
 	"strings"
 )
@@ -14,6 +15,8 @@ var knownFields = map[string]bool{
 	"large-communities": true, "extended-communities": true,
 	"serial": true, "command": true, "args": true, "afi": true, "safi": true,
 	"raw": true, // format=full includes raw bytes
+	// Pool storage raw fields (format=full)
+	"raw-attributes": true, "raw-nlri": true, "raw-withdrawn": true,
 }
 
 // parseEvent parses a JSON event from ZeBGP.
@@ -93,6 +96,12 @@ type Event struct {
 	// Route refresh fields (RFC 7313)
 	AFI  string `json:"afi,omitempty"`
 	SAFI string `json:"safi,omitempty"`
+
+	// Pool storage raw fields (format=full only)
+	// Hex-encoded wire bytes for pool-based storage
+	RawAttributes string            `json:"raw-attributes,omitempty"` // Path attributes (without MP_REACH/UNREACH)
+	RawNLRI       map[string]string `json:"raw-nlri,omitempty"`       // family → hex bytes
+	RawWithdrawn  map[string]string `json:"raw-withdrawn,omitempty"`  // family → hex bytes
 }
 
 // FamilyOperation represents a single add or del operation for a family.
@@ -231,4 +240,51 @@ func (e *Event) GetPeerSelector() string {
 	}
 
 	return ""
+}
+
+// GetRawAttributesBytes decodes RawAttributes from hex string.
+// Returns nil if not present or invalid hex.
+func (e *Event) GetRawAttributesBytes() []byte {
+	if e.RawAttributes == "" {
+		return nil
+	}
+	b, err := hex.DecodeString(e.RawAttributes)
+	if err != nil {
+		return nil
+	}
+	return b
+}
+
+// GetRawNLRIBytes returns decoded NLRI bytes for a specific family.
+// Returns nil if not present or invalid hex.
+func (e *Event) GetRawNLRIBytes(family string) []byte {
+	if e.RawNLRI == nil {
+		return nil
+	}
+	hexStr, ok := e.RawNLRI[family]
+	if !ok {
+		return nil
+	}
+	b, err := hex.DecodeString(hexStr)
+	if err != nil {
+		return nil
+	}
+	return b
+}
+
+// GetRawWithdrawnBytes returns decoded withdrawn bytes for a specific family.
+// Returns nil if not present or invalid hex.
+func (e *Event) GetRawWithdrawnBytes(family string) []byte {
+	if e.RawWithdrawn == nil {
+		return nil
+	}
+	hexStr, ok := e.RawWithdrawn[family]
+	if !ok {
+		return nil
+	}
+	b, err := hex.DecodeString(hexStr)
+	if err != nil {
+		return nil
+	}
+	return b
 }

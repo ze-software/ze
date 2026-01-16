@@ -184,13 +184,13 @@ See [msg-id Cache Control](#msg-id-cache-control) for details.
 
 ## What This Obsoletes
 
-### Specs Now Obsolete
+### Specs Now Architecture Docs
 
-| Spec | Reason |
-|------|--------|
-| `spec-pool-handle-migration.md` | Pool in API, not engine |
-| `spec-unified-handle-nlri.md` | NLRI handles in API |
-| `spec-context-full-integration.md` | Context in API program |
+| Spec | New Location | Reason |
+|------|--------------|--------|
+| `spec-pool-handle-migration.md` | `plugin/rib-storage-design.md` | Pool belongs in API, not engine |
+| `spec-unified-handle-nlri.md` | TBD | NLRI handles belong in API |
+| `spec-context-full-integration.md` | TBD | Context tracking in API program |
 
 ### Engine Code to Simplify
 
@@ -227,7 +227,7 @@ See [msg-id Cache Control](#msg-id-cache-control) for details.
 
 | Spec | Status |
 |------|--------|
-| `spec-pool-handle-migration.md` | Design valid, implement in API program |
+| `plugin/rib-storage-design.md` | **MOVED** - Design reference for API programs |
 | `spec-unified-handle-nlri.md` | Design valid, implement in API program |
 | `spec-context-full-integration.md` | Context tracking in API program |
 | `spec-attributes-wire.md` | Wire bytes via base64 in events |
