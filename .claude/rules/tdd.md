@@ -200,6 +200,50 @@ Before marking TDD complete:
 [ ] Boundary logic documented in test comment
 ```
 
+## Non-Default Parameter Testing (MANDATORY)
+
+**BLOCKING:** Always test with non-default parameter values.
+
+### Why This Matters
+
+Bugs hide when tests only use default values. Example:
+- `New()` defaults to `idx=0`
+- With `idx=0`, handle value equals slot value
+- Bug in `p.slots[handle]` instead of `p.slots[handle.Slot()]` is masked
+- Bug only manifests when `idx > 0`
+
+### Rule
+
+If a constructor or function has parameters with defaults or common values:
+1. **Test with non-default values** - not just zero/empty/default
+2. **Test with boundary values** - max valid, unusual but valid
+3. **Test combinations** - multiple non-default params together
+
+### Examples
+
+```go
+// BAD: Only tests default
+func TestPool(t *testing.T) {
+    p := New(1024)  // idx defaults to 0
+    // ... bugs with idx>0 are hidden
+}
+
+// GOOD: Tests non-default values
+func TestPoolWithIdx(t *testing.T) {
+    p := NewWithIdx(5, 1024)  // Non-zero idx
+    // ... exposes bugs in handle encoding
+}
+```
+
+### Checklist
+
+```
+[ ] Constructors tested with non-default parameters
+[ ] Optional parameters tested when provided
+[ ] Config structs tested with non-zero field values
+[ ] Mode/flag parameters tested in all valid states
+```
+
 ## Quick Commands
 
 ```bash
