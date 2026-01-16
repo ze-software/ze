@@ -59,6 +59,7 @@ func exabgpNeighborFields() []config.FieldDef {
 				config.Field("receive", config.LeafWithDefault(config.TypeBool, "false")),
 			)),
 			config.Field("extended-message", config.Flex()),
+			config.Field("nexthop", config.Flex()),
 			config.Field("multi-session", config.Flex()),
 			config.Field("operational", config.Flex()),
 			config.Field("aigp", config.Flex()),
@@ -91,6 +92,10 @@ func exabgpNeighborFields() []config.FieldDef {
 
 		// Flow.
 		config.Field("flow", config.Freeform()),
+
+		// Nexthop encoding (RFC 8950).
+		// ExaBGP syntax: nexthop { ipv4 unicast ipv6; ipv6 unicast ipv4; }
+		config.Field("nexthop", config.Freeform()),
 	}
 }
 

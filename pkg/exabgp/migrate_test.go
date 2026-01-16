@@ -531,6 +531,317 @@ neighbor 10.0.0.1 {
 	}
 }
 
+// TestMigrateNexthopCapability verifies nexthop capability inference from block.
+//
+// VALIDATES: ExaBGP "nexthop { family afi; }" infers capability and copies block.
+// PREVENTS: Missing nexthop capability in migrated config.
+func TestMigrateNexthopCapability(t *testing.T) {
+	// ExaBGP syntax: nexthop block maps families to next-hop AFI.
+	// Presence of nexthop block implies Extended Next Hop capability.
+	input := `
+neighbor 10.0.0.1 {
+	local-as 65001;
+	peer-as 65002;
+	nexthop {
+		ipv4 unicast ipv6;
+	}
+}
+`
+	tree, err := ParseExaBGPConfig(input)
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+
+	result, err := MigrateFromExaBGP(tree)
+	if err != nil {
+		t.Fatalf("migrate: %v", err)
+	}
+
+	output := SerializeTree(result.Tree)
+
+	// Capability should be inferred from nexthop block presence.
+	if !strings.Contains(output, "nexthop enable;") {
+		t.Errorf("expected 'nexthop enable;' (inferred from block) in output:\n%s", output)
+	}
+
+	// Nexthop block should be copied with family syntax conversion.
+	if !strings.Contains(output, "nexthop {") {
+		t.Errorf("expected nexthop block in output:\n%s", output)
+	}
+	if !strings.Contains(output, "ipv4/unicast ipv6;") {
+		t.Errorf("expected 'ipv4/unicast ipv6;' in nexthop block:\n%s", output)
+	}
+}
+
+// TestMigrateNexthopExplicitAndBlock verifies both explicit capability and block together.
+//
+// VALIDATES: Explicit "capability { nexthop; }" + "nexthop { }" block works without duplication.
+// PREVENTS: Duplicate capability entries when both syntaxes used.
+func TestMigrateNexthopExplicitAndBlock(t *testing.T) {
+	// ExaBGP allows both explicit capability AND nexthop block.
+	// The capability should only appear once in output.
+	input := `
+neighbor 10.0.0.1 {
+	local-as 65001;
+	peer-as 65002;
+	capability {
+		nexthop;
+	}
+	nexthop {
+		ipv4 unicast ipv6;
+	}
+}
+`
+	tree, err := ParseExaBGPConfig(input)
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+
+	result, err := MigrateFromExaBGP(tree)
+	if err != nil {
+		t.Fatalf("migrate: %v", err)
+	}
+
+	output := SerializeTree(result.Tree)
+
+	// Capability should appear exactly once.
+	count := strings.Count(output, "nexthop enable;")
+	if count != 1 {
+		t.Errorf("expected exactly 1 'nexthop enable;', got %d in:\n%s", count, output)
+	}
+
+	// Nexthop block should still be copied.
+	if !strings.Contains(output, "ipv4/unicast ipv6;") {
+		t.Errorf("expected nexthop block content in output:\n%s", output)
+	}
+}
+
+// TestMigrateNexthopBlock verifies nexthop block migration with multiple entries.
+//
+// VALIDATES: ExaBGP "ipv4 unicast ipv6" converts to ZeBGP "ipv4/unicast ipv6".
+// PREVENTS: Migration failure for RFC 8950 nexthop AFI/SAFI configuration.
+func TestMigrateNexthopBlock(t *testing.T) {
+	input := `
+neighbor 10.0.0.1 {
+	local-as 65001;
+	peer-as 65002;
+	nexthop {
+		ipv4 unicast ipv6;
+		ipv4 mpls-vpn ipv6;
+		ipv6 unicast ipv4;
+	}
+}
+`
+	tree, err := ParseExaBGPConfig(input)
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+
+	result, err := MigrateFromExaBGP(tree)
+	if err != nil {
+		t.Fatalf("migrate: %v", err)
+	}
+
+	output := SerializeTree(result.Tree)
+
+	// Capability should be inferred from nexthop block.
+	if !strings.Contains(output, "nexthop enable;") {
+		t.Errorf("expected 'nexthop enable;' in output:\n%s", output)
+	}
+
+	// Check nexthop block syntax conversion.
+	if !strings.Contains(output, "ipv4/unicast ipv6;") {
+		t.Errorf("expected 'ipv4/unicast ipv6;' in output:\n%s", output)
+	}
+	if !strings.Contains(output, "ipv4/mpls-vpn ipv6;") {
+		t.Errorf("expected 'ipv4/mpls-vpn ipv6;' in output:\n%s", output)
+	}
+	if !strings.Contains(output, "ipv6/unicast ipv4;") {
+		t.Errorf("expected 'ipv6/unicast ipv4;' in output:\n%s", output)
+	}
+
+	// Should NOT have space-separated format.
+	if strings.Contains(output, "ipv4 unicast ipv6") {
+		t.Errorf("should not contain ExaBGP format 'ipv4 unicast ipv6'")
+	}
+}
+
+// TestMigrateNexthopExplicitCapabilityIgnored verifies explicit capability is ignored.
+//
+// VALIDATES: Explicit "capability { nexthop; }" is NOT migrated (useless without nexthop block).
+// PREVENTS: Generating useless config that ZeBGP ignores anyway.
+//
+// Note: ZeBGP infers Extended Next Hop capability from nexthop { } block.
+// An explicit capability declaration without a nexthop block has no effect.
+func TestMigrateNexthopExplicitCapabilityIgnored(t *testing.T) {
+	// Explicit capability, no nexthop block.
+	// This is useless in ZeBGP - capability is inferred from nexthop block.
+	input := `
+neighbor 10.0.0.1 {
+	local-as 65001;
+	peer-as 65002;
+	capability {
+		nexthop;
+	}
+}
+`
+	tree, err := ParseExaBGPConfig(input)
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+
+	result, err := MigrateFromExaBGP(tree)
+	if err != nil {
+		t.Fatalf("migrate: %v", err)
+	}
+
+	output := SerializeTree(result.Tree)
+
+	// Explicit nexthop capability is NOT migrated - it's useless without nexthop block.
+	if strings.Contains(output, "nexthop enable") {
+		t.Errorf("should not contain 'nexthop enable' (useless without nexthop block):\n%s", output)
+	}
+
+	// Should NOT have nexthop block (none in input).
+	if strings.Contains(output, "nexthop {") {
+		t.Errorf("should not have nexthop block:\n%s", output)
+	}
+
+	// Should still have peer block.
+	if !strings.Contains(output, "peer 10.0.0.1") {
+		t.Errorf("expected peer block:\n%s", output)
+	}
+}
+
+// TestMigrateNexthopBothCapabilityAndBlock verifies behavior when both are present.
+//
+// VALIDATES: Nexthop block is copied, capability is inferred from block.
+// PREVENTS: Duplicate or conflicting nexthop capability handling.
+func TestMigrateNexthopBothCapabilityAndBlock(t *testing.T) {
+	// Both explicit capability AND nexthop block.
+	// Capability inferred from block (explicit one is redundant).
+	input := `
+neighbor 10.0.0.1 {
+	local-as 65001;
+	peer-as 65002;
+	capability {
+		nexthop;
+	}
+	nexthop {
+		ipv4 unicast ipv6;
+	}
+}
+`
+	tree, err := ParseExaBGPConfig(input)
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+
+	result, err := MigrateFromExaBGP(tree)
+	if err != nil {
+		t.Fatalf("migrate: %v", err)
+	}
+
+	output := SerializeTree(result.Tree)
+
+	// Capability should be inferred from nexthop block.
+	if !strings.Contains(output, "nexthop enable;") {
+		t.Errorf("expected 'nexthop enable;' in output:\n%s", output)
+	}
+
+	// Nexthop block should be copied with syntax conversion.
+	if !strings.Contains(output, "nexthop {") {
+		t.Errorf("expected nexthop block in output:\n%s", output)
+	}
+	if !strings.Contains(output, "ipv4/unicast ipv6;") {
+		t.Errorf("expected 'ipv4/unicast ipv6;' in output:\n%s", output)
+	}
+}
+
+// TestMigrateNexthopBlockSAFINormalization verifies SAFI name normalization.
+//
+// VALIDATES: ExaBGP "nlri-mpls" and "labeled-unicast" convert to ZeBGP "mpls-label".
+// PREVENTS: Migrated nexthop config not recognized by ZeBGP's parseNexthopFamilies.
+func TestMigrateNexthopBlockSAFINormalization(t *testing.T) {
+	input := `
+neighbor 10.0.0.1 {
+	local-as 65001;
+	peer-as 65002;
+	nexthop {
+		ipv4 nlri-mpls ipv6;
+		ipv4 labeled-unicast ipv6;
+	}
+}
+`
+	tree, err := ParseExaBGPConfig(input)
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+
+	result, err := MigrateFromExaBGP(tree)
+	if err != nil {
+		t.Fatalf("migrate: %v", err)
+	}
+
+	output := SerializeTree(result.Tree)
+
+	// Both should be normalized to mpls-label.
+	if !strings.Contains(output, "ipv4/mpls-label ipv6;") {
+		t.Errorf("expected 'ipv4/mpls-label ipv6;' in output:\n%s", output)
+	}
+
+	// Should NOT have ExaBGP SAFI names.
+	if strings.Contains(output, "nlri-mpls") {
+		t.Errorf("should not contain 'nlri-mpls' (ExaBGP name)")
+	}
+	if strings.Contains(output, "labeled-unicast") {
+		t.Errorf("should not contain 'labeled-unicast' (ExaBGP name)")
+	}
+}
+
+// TestMigrateTemplateWithNexthop verifies nexthop block in templates.
+//
+// VALIDATES: Template neighbor nexthop blocks are converted correctly.
+// PREVENTS: Templates missing nexthop conversion.
+func TestMigrateTemplateWithNexthop(t *testing.T) {
+	input := `
+template {
+	neighbor base {
+		local-as 65001;
+		nexthop {
+			ipv4 unicast ipv6;
+		}
+	}
+}
+`
+	tree, err := ParseExaBGPConfig(input)
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+
+	result, err := MigrateFromExaBGP(tree)
+	if err != nil {
+		t.Fatalf("migrate: %v", err)
+	}
+
+	output := SerializeTree(result.Tree)
+
+	// Template should have peer (not neighbor).
+	if !strings.Contains(output, "peer base") {
+		t.Errorf("expected 'peer base' in template, got:\n%s", output)
+	}
+
+	// Capability should be inferred from nexthop block.
+	if !strings.Contains(output, "nexthop enable;") {
+		t.Errorf("expected 'nexthop enable;' in output:\n%s", output)
+	}
+
+	// Nexthop block should be converted.
+	if !strings.Contains(output, "ipv4/unicast ipv6") {
+		t.Errorf("expected 'ipv4/unicast ipv6', got:\n%s", output)
+	}
+}
+
 // TestMigrateFileBasedTests runs file-based migration tests.
 // Each test directory in test/data/migrate/ contains:
 //   - input.conf: ExaBGP config to migrate
@@ -545,7 +856,7 @@ func TestMigrateFileBasedTests(t *testing.T) {
 		t.Skip("test/data/migrate directory not found")
 	}
 
-	tests := []string{"simple", "graceful-restart", "route-refresh", "process"}
+	tests := []string{"simple", "graceful-restart", "route-refresh", "process", "nexthop"}
 
 	for _, name := range tests {
 		t.Run(name, func(t *testing.T) {
@@ -660,6 +971,23 @@ func validateMigrationResult(t *testing.T, testName, got string, result *Migrate
 		}
 		if !strings.Contains(got, "-compat") {
 			t.Error("expected '-compat' suffix in plugin name")
+		}
+
+	case "nexthop":
+		// Should have capability inferred from nexthop block.
+		if !strings.Contains(got, "nexthop enable;") {
+			t.Error("expected 'nexthop enable;' inferred from nexthop block")
+		}
+		// Should NOT have RIB injected (nexthop doesn't require state storage).
+		if result.RIBInjected {
+			t.Error("nexthop should not trigger RIB injection")
+		}
+		// Should have nexthop block with converted syntax.
+		if !strings.Contains(got, "ipv4/unicast ipv6") {
+			t.Error("expected 'ipv4/unicast ipv6' in output")
+		}
+		if strings.Contains(got, "ipv4 unicast ipv6") {
+			t.Error("should not contain ExaBGP format 'ipv4 unicast ipv6'")
 		}
 	}
 
