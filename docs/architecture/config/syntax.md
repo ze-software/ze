@@ -225,6 +225,8 @@ process <plugin-name> {
         keepalive;           # keepalive messages
         refresh;             # route refresh requests
         state;               # peer up/down events
+        sent;                # sent UPDATE confirmations
+        negotiated;          # capability negotiation results
         all;                 # shorthand for all message types
     }
     send {
