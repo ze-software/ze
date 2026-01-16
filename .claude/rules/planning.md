@@ -38,6 +38,8 @@ This prevents drift between rules and practice.
 - Changes affecting multiple files
 - Unclear requirements or multiple approaches
 
+**For RFC implementations:** Also consult `docs/contributing/rfc-implementation-guide.md` for component-specific checklists (capabilities, attributes, NLRI, FSM, etc.).
+
 ## Pre-Implementation Checklist
 
 Complete IN ORDER. Do not skip steps.
@@ -63,28 +65,33 @@ Complete IN ORDER. Do not skip steps.
         c. If missing RFC: `curl -o rfc/rfcNNNN.txt https://www.rfc-editor.org/rfc/rfcNNNN.txt`
       → Read ALL relevant RFC summaries
 
-[ ] 7. Read source code for affected area
+[ ] 7. RFC Implementation Guide (for protocol work)
+      → Read `docs/contributing/rfc-implementation-guide.md`
+      → Identify which phases apply (capability, attribute, NLRI, FSM, etc.)
+      → Use phase checklists to ensure completeness
 
-[ ] 8. TDD Planning - identify tests BEFORE implementation
+[ ] 8. Read source code for affected area
+
+[ ] 9. TDD Planning - identify tests BEFORE implementation
       → Unit tests needed (write BEFORE implementation - strict TDD)
       → Boundary tests for all numeric inputs (see tdd.md for 3-point rule)
       → Functional tests needed (write AFTER feature works - end of plan)
       → Test file locations
 
-[ ] 9. Present implementation plan to user
-      → WAIT for approval before continuing
+[ ] 10. Present implementation plan to user
+       → WAIT for approval before continuing
 
-[ ] 10. Write spec to `docs/plan/spec-<task>.md`
+[ ] 11. Write spec to `docs/plan/spec-<task>.md`
        → FIRST complete "Pre-Spec Verification" checklist below
        → Match template format EXACTLY (not approximately)
 
-[ ] 11. Track spec with git
+[ ] 12. Track spec with git
        → `git add docs/plan/spec-<task>.md`
        → Ensures spec is not lost if session ends
 
-[ ] 12. Begin TDD cycle (test fails → implement → test passes)
+[ ] 13. Begin TDD cycle (test fails → implement → test passes)
 
-[ ] 13. Post-implementation completion (see "Completion Checklist" below)
+[ ] 14. Post-implementation completion (see "Completion Checklist" below)
 ```
 
 ## Keyword → Documentation Mapping
@@ -426,6 +433,7 @@ This rule works with:
 - `rfc-compliance.md` - RFC reading and comments
 - `go-standards.md` - Code quality
 - `git-safety.md` - Safe commits
+- `docs/contributing/rfc-implementation-guide.md` - Component checklists for RFC work
 
 ## Design-First Principle
 
