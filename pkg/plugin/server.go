@@ -1004,6 +1004,48 @@ func (s *Server) OnPeerStateChange(peer PeerInfo, state string) {
 	}
 }
 
+// OnPeerNegotiated handles capability negotiation completion.
+// Called by reactor after OPEN exchange completes successfully.
+// Informs plugins of negotiated capabilities so they can adjust behavior.
+func (s *Server) OnPeerNegotiated(peer PeerInfo, neg DecodedNegotiated) {
+	if s.procManager == nil {
+		return
+	}
+
+	bindings := s.reactor.GetPeerProcessBindings(peer.Address)
+	for _, binding := range bindings {
+		proc := s.procManager.GetProcess(binding.PluginName)
+		if proc == nil {
+			continue
+		}
+
+		// Check if plugin should receive negotiated:
+		// 1. Config sets ReceiveNegotiated, OR
+		// 2. Plugin declared "receive negotiated" during registration
+		wantsNegotiated := binding.ReceiveNegotiated || s.pluginDeclaredReceive(proc, "negotiated")
+		if !wantsNegotiated {
+			continue
+		}
+
+		output := FormatNegotiated(peer, neg, s.encoder)
+		_ = proc.WriteEvent(output)
+	}
+}
+
+// pluginDeclaredReceive checks if a plugin declared a receive type during registration.
+func (s *Server) pluginDeclaredReceive(proc *Process, recvType string) bool {
+	reg := proc.Registration()
+	if reg == nil {
+		return false
+	}
+	for _, r := range reg.Receive {
+		if r == recvType || r == "all" {
+			return true
+		}
+	}
+	return false
+}
+
 // OnMessageSent handles BGP messages sent to peers.
 // Forwards to processes that subscribed to sent events.
 // Called by reactor after successfully sending UPDATE to peer.

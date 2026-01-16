@@ -392,6 +392,104 @@ func DecodeRouteRefresh(body []byte) DecodedRouteRefresh {
 	}
 }
 
+// DecodedNegotiated holds negotiated capabilities for API formatting.
+// Sent after OPEN exchange to inform plugins of negotiated capabilities.
+type DecodedNegotiated struct {
+	// MessageSize is max message size (4096 or 65535 if ExtendedMessage).
+	MessageSize int
+	// HoldTime is negotiated hold time in seconds.
+	HoldTime uint16
+	// ASN4 is true if 4-byte ASN capability negotiated.
+	ASN4 bool
+	// RouteRefresh indicates route-refresh support: "absent", "normal", or "enhanced".
+	RouteRefresh string
+	// Families is list of negotiated address families (e.g., ["ipv4/unicast"]).
+	Families []string
+	// AddPathSend is list of families where ADD-PATH send is negotiated.
+	AddPathSend []string
+	// AddPathReceive is list of families where ADD-PATH receive is negotiated.
+	AddPathReceive []string
+	// ExtendedNextHop maps family to nexthop AFI (e.g., {"ipv4/unicast": "ipv6"}).
+	ExtendedNextHop map[string]string
+}
+
+// NegotiatedToDecoded converts capability.Negotiated to DecodedNegotiated.
+func NegotiatedToDecoded(neg *capability.Negotiated) DecodedNegotiated {
+	if neg == nil {
+		return DecodedNegotiated{}
+	}
+
+	// Determine message size
+	msgSize := 4096
+	if neg.ExtendedMessage {
+		msgSize = 65535
+	}
+
+	// Determine route-refresh capability
+	refresh := "absent"
+	if neg.EnhancedRouteRefresh {
+		refresh = "enhanced"
+	} else if neg.RouteRefresh {
+		refresh = "normal"
+	}
+
+	// Convert families
+	families := neg.Families()
+	familyStrs := make([]string, 0, len(families))
+	for _, f := range families {
+		familyStrs = append(familyStrs, afiSafiToFamily(uint16(f.AFI), uint8(f.SAFI)))
+	}
+
+	// Convert ADD-PATH (separate send/receive)
+	var addPathSend, addPathRecv []string
+	for _, f := range families {
+		mode := neg.AddPathMode(f)
+		famStr := afiSafiToFamily(uint16(f.AFI), uint8(f.SAFI))
+		if mode == capability.AddPathSend || mode == capability.AddPathBoth {
+			addPathSend = append(addPathSend, famStr)
+		}
+		if mode == capability.AddPathReceive || mode == capability.AddPathBoth {
+			addPathRecv = append(addPathRecv, famStr)
+		}
+	}
+
+	// Convert Extended Next Hop
+	var extNH map[string]string
+	for _, f := range families {
+		nhAFI := neg.ExtendedNextHopAFI(f)
+		if nhAFI != 0 {
+			if extNH == nil {
+				extNH = make(map[string]string)
+			}
+			famStr := afiSafiToFamily(uint16(f.AFI), uint8(f.SAFI))
+			extNH[famStr] = afiToString(nhAFI)
+		}
+	}
+
+	return DecodedNegotiated{
+		MessageSize:     msgSize,
+		HoldTime:        neg.HoldTime,
+		ASN4:            neg.ASN4,
+		RouteRefresh:    refresh,
+		Families:        familyStrs,
+		AddPathSend:     addPathSend,
+		AddPathReceive:  addPathRecv,
+		ExtendedNextHop: extNH,
+	}
+}
+
+// afiToString converts AFI to string name.
+func afiToString(afi capability.AFI) string {
+	switch afi {
+	case 1:
+		return "ipv4"
+	case 2:
+		return "ipv6"
+	default:
+		return fmt.Sprintf("afi(%d)", afi)
+	}
+}
+
 // afiSafiToFamily converts AFI/SAFI to family string.
 func afiSafiToFamily(afi uint16, safi uint8) string {
 	var afiName string

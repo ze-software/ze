@@ -79,6 +79,19 @@ var validSAFIs = map[string]bool{
 	"mup":       true,
 }
 
+// Valid receive types for message subscription.
+var validReceiveTypes = map[string]bool{
+	"update":       true,
+	"open":         true,
+	"notification": true,
+	"keepalive":    true,
+	"refresh":      true,
+	"state":        true,
+	"sent":         true,
+	"negotiated":   true,
+	"all":          true,
+}
+
 // PluginRegistration holds Stage 1 registration data from a plugin.
 type PluginRegistration struct {
 	Name           string           // Plugin name (set after Stage 4)
@@ -87,6 +100,7 @@ type PluginRegistration struct {
 	Families       []string         // Address families (e.g., "ipv4/unicast", "all")
 	ConfigPatterns []*ConfigPattern // Config patterns with captures
 	Commands       []string         // Command names to register
+	Receive        []string         // Message types to receive (update, open, negotiated, etc.)
 	Done           bool             // True when "registration done" received
 }
 
@@ -208,6 +222,8 @@ func (reg *PluginRegistration) ParseLine(line string) error {
 		return reg.parseConf(parts[2:], line)
 	case "cmd":
 		return reg.parseCmd(parts[2:], line)
+	case "receive":
+		return reg.parseReceive(parts[2:])
 	case statusDone:
 		reg.Done = true
 		return nil
@@ -315,6 +331,22 @@ func (reg *PluginRegistration) parseCmd(args []string, line string) error {
 	cmd := strings.TrimSpace(line[idx+len("declare cmd "):])
 
 	reg.Commands = append(reg.Commands, cmd)
+	return nil
+}
+
+// parseReceive handles "declare receive <type>".
+// Valid types: update, open, notification, keepalive, refresh, state, sent, negotiated, all.
+func (reg *PluginRegistration) parseReceive(args []string) error {
+	if len(args) < 1 {
+		return fmt.Errorf("expected 'declare receive <type>'")
+	}
+
+	recvType := strings.ToLower(args[0])
+	if !validReceiveTypes[recvType] {
+		return fmt.Errorf("invalid receive type: %s (valid: update, open, notification, keepalive, refresh, state, sent, negotiated, all)", args[0])
+	}
+
+	reg.Receive = append(reg.Receive, recvType)
 	return nil
 }
 

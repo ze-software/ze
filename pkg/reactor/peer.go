@@ -905,12 +905,13 @@ func (p *Peer) runOnce() error {
 			}
 			p.ResetAPISync(apiSendCount)
 
-			// Notify reactor of peer established
+			// Notify reactor of peer established and negotiated capabilities
 			p.mu.RLock()
 			reactor := p.reactor
 			p.mu.RUnlock()
 			if reactor != nil {
 				reactor.notifyPeerEstablished(p)
+				reactor.notifyPeerNegotiated(p, neg)
 			}
 
 			// Send static routes from config.

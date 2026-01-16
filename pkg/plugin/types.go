@@ -431,6 +431,7 @@ type PeerProcessBinding struct {
 	ReceiveKeepalive    bool
 	ReceiveRefresh      bool
 	ReceiveState        bool
+	ReceiveNegotiated   bool // Forward negotiated capabilities after OPEN exchange
 	ReceiveSent         bool // Forward sent UPDATE events
 
 	// Send settings (WHAT message types plugin can send)

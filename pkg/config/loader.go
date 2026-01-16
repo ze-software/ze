@@ -464,6 +464,7 @@ func configToPeer(nc *PeerConfig, global *BGPConfig) (*reactor.PeerSettings, err
 			ReceiveRefresh:      pb.Receive.Refresh,
 			ReceiveState:        pb.Receive.State,
 			ReceiveSent:         pb.Receive.Sent,
+			ReceiveNegotiated:   pb.Receive.Negotiated,
 			SendUpdate:          pb.Send.Update,
 			SendRefresh:         pb.Send.Refresh,
 		})

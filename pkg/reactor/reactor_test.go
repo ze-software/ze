@@ -798,6 +798,39 @@ func TestGetPeerProcessBindingsNotFound(t *testing.T) {
 	require.Nil(t, bindings, "unknown peer should return nil")
 }
 
+// TestGetPeerProcessBindingsReceiveNegotiated verifies ReceiveNegotiated passes through.
+//
+// VALIDATES: ReceiveNegotiated flag is copied from reactor.ProcessBinding to plugin.PeerProcessBinding.
+//
+// PREVENTS: Config setting receive { negotiated; } having no effect.
+func TestGetPeerProcessBindingsReceiveNegotiated(t *testing.T) {
+	cfg := &Config{
+		ListenAddr: "127.0.0.1:0",
+		Plugins:    []PluginConfig{{Name: "test-proc", Run: "./test"}},
+	}
+
+	reactor := New(cfg)
+
+	settings := NewPeerSettings(
+		mustParseAddr("192.0.2.1"),
+		65000, 65001, 0x01010101,
+	)
+	settings.ProcessBindings = []ProcessBinding{
+		{PluginName: "test-proc", ReceiveNegotiated: true},
+		{PluginName: "test-proc", ReceiveNegotiated: false},
+	}
+
+	err := reactor.AddPeer(settings)
+	require.NoError(t, err)
+
+	adapter := &reactorAPIAdapter{reactor}
+	bindings := adapter.GetPeerProcessBindings(mustParseAddr("192.0.2.1"))
+
+	require.Len(t, bindings, 2)
+	require.True(t, bindings[0].ReceiveNegotiated, "first binding should have ReceiveNegotiated=true")
+	require.False(t, bindings[1].ReceiveNegotiated, "second binding should have ReceiveNegotiated=false")
+}
+
 // TestBuildLabeledUnicastRIBRouteAllAttributes verifies ALL attributes are stored.
 //
 // VALIDATES: buildLabeledUnicastRIBRoute includes all path attributes in rib.Route.

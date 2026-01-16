@@ -2555,6 +2555,7 @@ func (a *reactorAPIAdapter) GetPeerProcessBindings(peerAddr netip.Addr) []plugin
 			ReceiveRefresh:      b.ReceiveRefresh,
 			ReceiveState:        b.ReceiveState,
 			ReceiveSent:         b.ReceiveSent,
+			ReceiveNegotiated:   b.ReceiveNegotiated,
 			SendUpdate:          b.SendUpdate,
 			SendRefresh:         b.SendRefresh,
 		})
@@ -3606,6 +3607,24 @@ func (r *Reactor) notifyPeerEstablished(peer *Peer) {
 	for _, obs := range observers {
 		obs.OnPeerEstablished(peer)
 	}
+}
+
+// notifyPeerNegotiated sends negotiated capabilities to subscribed plugins.
+// Called after OPEN exchange completes and peer reaches Established.
+func (r *Reactor) notifyPeerNegotiated(peer *Peer, neg *capability.Negotiated) {
+	if r.api == nil || neg == nil {
+		return
+	}
+
+	peerInfo := plugin.PeerInfo{
+		Address:      peer.settings.Address,
+		LocalAddress: peer.settings.LocalAddress,
+		PeerAS:       peer.settings.PeerAS,
+		LocalAS:      peer.settings.LocalAS,
+	}
+
+	decoded := plugin.NegotiatedToDecoded(neg)
+	r.api.OnPeerNegotiated(peerInfo, decoded)
 }
 
 // notifyPeerClosed calls all observers when peer leaves Established.

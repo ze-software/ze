@@ -79,7 +79,7 @@ ZeBGP Engine (stdout: ZeBGP commands)
 | Bridge subprocess management | ✅ Done | `Bridge.Run()` |
 | 5-stage startup protocol handling | ✅ Done | `StartupProtocol.Run()` |
 | Capability CLI flags | ❌ TODO | Optional - defaults work |
-| `negotiated` message conversion | ❌ TODO | Optional - can ignore initially |
+| `negotiated` message conversion | ✅ Done | Full chain: bridge + config + reactor |
 
 ### Conversion Tables
 
@@ -352,7 +352,7 @@ peer 10.0.0.1 {
 
 ## 🧪 TDD Test Plan
 
-### Unit Tests - Bridge (16 tests)
+### Unit Tests - Bridge (19 tests)
 
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
@@ -371,7 +371,22 @@ peer 10.0.0.1 {
 | `TestRoundTrip` | `pkg/exabgp/bridge_test.go` | Essential info preserved | ✅ |
 | `TestStartupProtocol` | `pkg/exabgp/bridge_test.go` | 5-stage startup handling (9 subtests) | ✅ |
 | `TestTruncate` | `pkg/exabgp/bridge_test.go` | UTF-8 safe truncation (9 cases) | ✅ |
-| `TestNegotiatedConversion` | `pkg/exabgp/bridge_test.go` | `negotiated` message format | TODO |
+| `TestZebgpToExabgpJSON_Negotiated` | `pkg/exabgp/bridge_test.go` | `negotiated` message conversion | ✅ |
+| `TestZebgpToExabgpJSON_NegotiatedMinimal` | `pkg/exabgp/bridge_test.go` | `negotiated` with minimal fields | ✅ |
+| `TestZebgpToExabgpJSON_NegotiatedMissing` | `pkg/exabgp/bridge_test.go` | `negotiated` missing field handling | ✅ |
+
+### Unit Tests - Config (2 tests)
+
+| Test | File | Validates | Status |
+|------|------|-----------|--------|
+| `TestAPIBindingReceiveNegotiated` | `pkg/config/bgp_test.go` | `receive { negotiated; }` parsing | ✅ |
+| `TestAPIBindingReceiveAll` | `pkg/config/bgp_test.go` | `receive { all; }` includes negotiated | ✅ |
+
+### Unit Tests - Reactor (1 test)
+
+| Test | File | Validates | Status |
+|------|------|-----------|--------|
+| `TestGetPeerProcessBindingsReceiveNegotiated` | `pkg/reactor/reactor_test.go` | ReceiveNegotiated passes through | ✅ |
 
 ### Unit Tests - Migration (12 tests)
 
@@ -546,13 +561,23 @@ Only serializes plugin/peer/capability/process/send/receive. Missing: family, an
 #### Component 1: Plugin Bridge (`pkg/exabgp/bridge.go`)
 - `ZebgpToExabgpJSON()` - ZeBGP JSON → ExaBGP JSON translation
 - `ExabgpToZebgpCommand()` - ExaBGP text commands → ZeBGP commands
+- `convertNegotiated()` - ZeBGP negotiated caps → ExaBGP format (family format conversion)
 - `Bridge` struct for bidirectional translation with subprocess management
 - `StartupProtocol` - 5-stage ZeBGP plugin registration protocol
 - Scanner reuse prevents buffered data loss between startup and JSON phases
 - Structured logging via `slog` for debugging
 - Empty families fallback to default (`ipv4/unicast`)
 - UTF-8 safe truncation for log messages
-- 34 unit tests (14 translation + 9 startup + 9 truncate + 2 helpers)
+- 19 unit tests (14 translation + 3 negotiated + 9 startup + 9 truncate + 2 helpers)
+
+#### Component 1b: Negotiated Message Config Wiring
+Full chain to enable `receive { negotiated; }` config option:
+- `pkg/config/bgp.go:533` - Added `Negotiated bool` to `PeerReceiveConfig`
+- `pkg/config/bgp.go:1614,1626` - Parse `negotiated;` and include in `all;` shorthand
+- `pkg/config/loader.go:467` - Wire `pb.Receive.Negotiated` to reactor
+- `pkg/reactor/peersettings.go:260` - Added `ReceiveNegotiated` to `ProcessBinding`
+- `pkg/reactor/reactor.go:2558` - Copy to `plugin.PeerProcessBinding`
+- 3 unit tests (2 config + 1 reactor)
 
 #### Component 2: Config Migration (`pkg/exabgp/migrate.go`)
 
@@ -588,12 +613,9 @@ make lint       # 0 issues
 make functional # All 83 tests pass
 ```
 
-### Remaining Work (Optional)
+### Remaining Work
 
-| Feature | Status | Notes |
-|---------|--------|-------|
-| Capability CLI flags | TODO | Optional - defaults work for most use cases |
-| `negotiated` message | TODO | Optional - can be added if needed |
+All planned features implemented. ✅
 
 ---
 
@@ -611,7 +633,7 @@ make functional # All 83 tests pass
 - [x] UTF-8 safe truncation (9 tests)
 - [x] Structured logging via slog
 - [x] Capability CLI flags (`--family`, `--route-refresh`, `--add-path`)
-- [ ] `negotiated` message conversion (optional)
+- [x] `negotiated` message conversion
 
 ### Migration (Component 2)
 - [x] Basic syntax conversion

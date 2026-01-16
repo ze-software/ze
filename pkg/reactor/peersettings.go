@@ -257,6 +257,7 @@ type ProcessBinding struct {
 	ReceiveRefresh      bool
 	ReceiveState        bool
 	ReceiveSent         bool // Forward sent UPDATE events
+	ReceiveNegotiated   bool // Forward negotiated capabilities after OPEN exchange
 
 	// Send settings (WHAT message types plugin can send)
 	SendUpdate  bool

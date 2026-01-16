@@ -1973,6 +1973,64 @@ peer 10.0.0.1 {
 	require.True(t, binding.Receive.State, "neighbor-changes should set receive.State")
 }
 
+// TestAPIBindingReceiveNegotiated verifies negotiated flag in receive config.
+//
+// VALIDATES: receive { negotiated; } sets Receive.Negotiated = true.
+//
+// PREVENTS: Negotiated capabilities not being forwarded to plugins.
+func TestAPIBindingReceiveNegotiated(t *testing.T) {
+	input := `
+plugin foo { run ./test; encoder json; }
+peer 10.0.0.1 {
+    router-id 1.2.3.4;
+    local-as 65001;
+    peer-as 65002;
+    process foo {
+        receive { negotiated; }
+    }
+}
+`
+	cfg := parseConfig(t, input)
+	require.Len(t, cfg.Peers, 1)
+	require.Len(t, cfg.Peers[0].ProcessBindings, 1)
+
+	binding := cfg.Peers[0].ProcessBindings[0]
+	require.Equal(t, "foo", binding.PluginName)
+	require.True(t, binding.Receive.Negotiated, "receive { negotiated; } should set Receive.Negotiated")
+}
+
+// TestAPIBindingReceiveAll verifies all flag sets all receive options.
+//
+// VALIDATES: receive { all; } sets all Receive flags including Negotiated.
+//
+// PREVENTS: Missing negotiated in all shorthand.
+func TestAPIBindingReceiveAll(t *testing.T) {
+	input := `
+plugin foo { run ./test; encoder json; }
+peer 10.0.0.1 {
+    router-id 1.2.3.4;
+    local-as 65001;
+    peer-as 65002;
+    process foo {
+        receive { all; }
+    }
+}
+`
+	cfg := parseConfig(t, input)
+	require.Len(t, cfg.Peers, 1)
+	require.Len(t, cfg.Peers[0].ProcessBindings, 1)
+
+	binding := cfg.Peers[0].ProcessBindings[0]
+	require.True(t, binding.Receive.Update, "all should set Update")
+	require.True(t, binding.Receive.Open, "all should set Open")
+	require.True(t, binding.Receive.Notification, "all should set Notification")
+	require.True(t, binding.Receive.Keepalive, "all should set Keepalive")
+	require.True(t, binding.Receive.Refresh, "all should set Refresh")
+	require.True(t, binding.Receive.State, "all should set State")
+	require.True(t, binding.Receive.Sent, "all should set Sent")
+	require.True(t, binding.Receive.Negotiated, "all should set Negotiated")
+}
+
 // TestAPIBindingUndefinedProcess verifies error on undefined plugin reference.
 //
 // VALIDATES: Error when api references non-existent process.

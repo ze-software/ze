@@ -266,6 +266,63 @@ func TestParseRegistrationDone(t *testing.T) {
 	assert.True(t, reg.Done)
 }
 
+// TestParseReceive verifies parsing of "declare receive <type>" command.
+//
+// VALIDATES: Plugin can declare which message types it wants to receive.
+// PREVENTS: Plugins missing events due to receive declaration errors.
+func TestParseReceive(t *testing.T) {
+	tests := []struct {
+		name     string
+		input    string
+		wantType string
+		wantErr  bool
+	}{
+		{
+			name:     "negotiated",
+			input:    "declare receive negotiated",
+			wantType: "negotiated",
+		},
+		{
+			name:     "update",
+			input:    "declare receive update",
+			wantType: "update",
+		},
+		{
+			name:     "state",
+			input:    "declare receive state",
+			wantType: "state",
+		},
+		{
+			name:     "all",
+			input:    "declare receive all",
+			wantType: "all",
+		},
+		{
+			name:    "missing_type",
+			input:   "declare receive",
+			wantErr: true,
+		},
+		{
+			name:    "invalid_type",
+			input:   "declare receive foobar",
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			reg := &PluginRegistration{}
+			err := reg.ParseLine(tt.input)
+			if tt.wantErr {
+				require.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
+			require.Contains(t, reg.Receive, tt.wantType)
+		})
+	}
+}
+
 // TestParseCapabilitySet verifies "capability <enc> <code> <payload>" command.
 //
 // VALIDATES: Plugin capability bytes are captured for OPEN message injection.

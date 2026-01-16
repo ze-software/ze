@@ -107,9 +107,85 @@ func ZebgpToExabgpJSON(zebgp map[string]any) map[string]any {
 			"subcode": notif["subcode"],
 			"data":    notif["data"],
 		}
+
+	case "negotiated":
+		neg, _ := zebgp["negotiated"].(map[string]any)
+		result["negotiated"] = convertNegotiated(neg)
 	}
 
 	result["neighbor"] = neighbor
+	return result
+}
+
+// convertNegotiated converts ZeBGP negotiated caps to ExaBGP format.
+//
+// Key conversions:
+//   - Family format: "ipv4/unicast" → "ipv4 unicast".
+//   - extended_nexthop map → nexthop list.
+func convertNegotiated(zebgp map[string]any) map[string]any {
+	if zebgp == nil {
+		return map[string]any{}
+	}
+
+	result := make(map[string]any)
+
+	// Copy scalar fields directly
+	scalarKeys := []string{"message_size", "hold_time", "asn4", "multisession", "operational", "refresh"}
+	for _, key := range scalarKeys {
+		if v, ok := zebgp[key]; ok {
+			result[key] = v
+		}
+	}
+
+	// Convert families: "ipv4/unicast" → "ipv4 unicast"
+	if families, ok := zebgp["families"].([]any); ok {
+		result["families"] = convertFamilyList(families)
+	}
+
+	// Convert extended_nexthop map to ExaBGP nexthop list format.
+	// ZeBGP: {"ipv4/unicast": "ipv6"} → ExaBGP: ["ipv4 unicast ipv6"]
+	if extNH, ok := zebgp["extended_nexthop"].(map[string]any); ok {
+		result["nexthop"] = convertExtendedNextHop(extNH)
+	}
+
+	// Convert add_path
+	if addPath, ok := zebgp["add_path"].(map[string]any); ok {
+		converted := make(map[string]any)
+		if send, ok := addPath["send"].([]any); ok {
+			converted["send"] = convertFamilyList(send)
+		}
+		if recv, ok := addPath["receive"].([]any); ok {
+			converted["receive"] = convertFamilyList(recv)
+		}
+		result["add_path"] = converted
+	}
+
+	return result
+}
+
+// convertFamilyList converts a list of families from ZeBGP to ExaBGP format.
+// Converts "ipv4/unicast" to "ipv4 unicast".
+func convertFamilyList(families []any) []string {
+	result := make([]string, 0, len(families))
+	for _, f := range families {
+		if s, ok := f.(string); ok {
+			result = append(result, strings.ReplaceAll(s, "/", " "))
+		}
+	}
+	return result
+}
+
+// convertExtendedNextHop converts ZeBGP extended_nexthop map to ExaBGP nexthop list.
+// Example: {"ipv4/unicast": "ipv6"} becomes ["ipv4 unicast ipv6"].
+func convertExtendedNextHop(extNH map[string]any) []string {
+	result := make([]string, 0, len(extNH))
+	for family, nhAFI := range extNH {
+		if nhStr, ok := nhAFI.(string); ok {
+			// Convert family "/" to " " and append nexthop AFI
+			familySpaced := strings.ReplaceAll(family, "/", " ")
+			result = append(result, familySpaced+" "+nhStr)
+		}
+	}
 	return result
 }
 
@@ -532,6 +608,9 @@ func (sp *StartupProtocol) SendDeclarations() {
 
 	// Declare encoding
 	_, _ = fmt.Fprintln(sp.output, "declare encoding text")
+
+	// Declare receive types - ExaBGP plugins expect negotiated messages
+	_, _ = fmt.Fprintln(sp.output, "declare receive negotiated")
 
 	// Done
 	_, _ = fmt.Fprintln(sp.output, "declare done")

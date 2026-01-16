@@ -846,6 +846,13 @@ func formatStateChangeText(peer PeerInfo, state string) string {
 	return fmt.Sprintf("peer %s asn %d state %s\n", peer.Address, peer.PeerAS, state)
 }
 
+// FormatNegotiated formats negotiated capabilities event.
+// Sent after OPEN exchange to inform plugins of negotiated capabilities.
+func FormatNegotiated(peer PeerInfo, neg DecodedNegotiated, encoder *JSONEncoder) string {
+	// Always use JSON for negotiated - too complex for text format
+	return encoder.Negotiated(peer, neg)
+}
+
 // FormatSentMessage formats a sent UPDATE message.
 // Uses "type":"sent" instead of "type":"update" to distinguish from received messages.
 // For text format, uses "sent update" instead of "received update".

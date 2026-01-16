@@ -365,6 +365,8 @@ func TestStartupProtocol(t *testing.T) {
 		assert.Contains(t, output, "declare done\n")
 		// Default family declarations
 		assert.Contains(t, output, "declare family ipv4 unicast\n")
+		// ExaBGP plugins expect negotiated messages
+		assert.Contains(t, output, "declare receive negotiated\n")
 	})
 
 	t.Run("sends_capability_done", func(t *testing.T) {
@@ -773,6 +775,140 @@ func TestBridgeCapabilityWiring(t *testing.T) {
 		assert.Contains(t, output, "declare family ipv4 unicast\n")
 		assert.Contains(t, output, "declare family ipv6 unicast\n")
 	})
+}
+
+// TestZebgpToExabgpJSON_Negotiated verifies negotiated capabilities conversion.
+//
+// VALIDATES: ZeBGP negotiated message → ExaBGP negotiated JSON format.
+// PREVENTS: ExaBGP plugins not receiving capability info after OPEN exchange.
+func TestZebgpToExabgpJSON_Negotiated(t *testing.T) {
+	zebgp := map[string]any{
+		"message": map[string]any{
+			"type": "negotiated",
+		},
+		"peer": map[string]any{
+			"address": "10.0.0.1",
+			"asn":     float64(65001),
+		},
+		"negotiated": map[string]any{
+			"message_size": float64(4096),
+			"hold_time":    float64(90),
+			"asn4":         true,
+			"refresh":      "normal",
+			"families":     []any{"ipv4/unicast", "ipv6/unicast"},
+			"add_path": map[string]any{
+				"send":    []any{"ipv4/unicast"},
+				"receive": []any{"ipv4/unicast"},
+			},
+			"extended_nexthop": map[string]any{
+				"ipv4/unicast": "ipv6",
+			},
+		},
+	}
+
+	result := ZebgpToExabgpJSON(zebgp)
+
+	// Check envelope
+	assert.Equal(t, Version, result["exabgp"])
+	assert.Equal(t, "negotiated", result["type"])
+
+	// Check neighbor section exists
+	neighbor, ok := result["neighbor"].(map[string]any)
+	require.True(t, ok, "neighbor should be map[string]any")
+
+	addrMap, ok := neighbor["address"].(map[string]any)
+	require.True(t, ok, "address should be map[string]any")
+	assert.Equal(t, "10.0.0.1", addrMap["peer"])
+
+	// Check negotiated section
+	neg, ok := result["negotiated"].(map[string]any)
+	require.True(t, ok, "negotiated should be map[string]any")
+
+	assert.Equal(t, float64(4096), neg["message_size"])
+	assert.Equal(t, float64(90), neg["hold_time"])
+	assert.Equal(t, true, neg["asn4"])
+	assert.Equal(t, "normal", neg["refresh"])
+
+	// Families converted: "ipv4/unicast" → "ipv4 unicast"
+	families, ok := neg["families"].([]string)
+	require.True(t, ok, "families should be []string")
+	assert.Contains(t, families, "ipv4 unicast")
+	assert.Contains(t, families, "ipv6 unicast")
+
+	// ADD-PATH converted
+	addPath, ok := neg["add_path"].(map[string]any)
+	require.True(t, ok, "add_path should be map[string]any")
+
+	sendFams, ok := addPath["send"].([]string)
+	require.True(t, ok, "send should be []string")
+	assert.Contains(t, sendFams, "ipv4 unicast")
+
+	recvFams, ok := addPath["receive"].([]string)
+	require.True(t, ok, "receive should be []string")
+	assert.Contains(t, recvFams, "ipv4 unicast")
+
+	// Nexthop converted: {"ipv4/unicast": "ipv6"} → ["ipv4 unicast ipv6"]
+	nexthop, ok := neg["nexthop"].([]string)
+	require.True(t, ok, "nexthop should be []string")
+	assert.Contains(t, nexthop, "ipv4 unicast ipv6")
+}
+
+// TestZebgpToExabgpJSON_NegotiatedMinimal verifies negotiated with minimal fields.
+//
+// VALIDATES: Handles negotiated message with only required fields.
+// PREVENTS: Nil pointer panics when optional fields missing.
+func TestZebgpToExabgpJSON_NegotiatedMinimal(t *testing.T) {
+	zebgp := map[string]any{
+		"message": map[string]any{
+			"type": "negotiated",
+		},
+		"peer": map[string]any{
+			"address": "10.0.0.1",
+			"asn":     float64(65001),
+		},
+		"negotiated": map[string]any{
+			"hold_time": float64(180),
+			"asn4":      false,
+		},
+	}
+
+	result := ZebgpToExabgpJSON(zebgp)
+
+	assert.Equal(t, "negotiated", result["type"])
+
+	neg, ok := result["negotiated"].(map[string]any)
+	require.True(t, ok)
+	assert.Equal(t, float64(180), neg["hold_time"])
+	assert.Equal(t, false, neg["asn4"])
+
+	// Optional fields should not exist
+	_, hasNexthop := neg["nexthop"]
+	assert.False(t, hasNexthop, "nexthop should be absent when no extended_nexthop")
+}
+
+// TestZebgpToExabgpJSON_NegotiatedMissing verifies handling of missing negotiated field.
+//
+// VALIDATES: Returns empty negotiated section when field is missing.
+// PREVENTS: Nil pointer panic on malformed input.
+func TestZebgpToExabgpJSON_NegotiatedMissing(t *testing.T) {
+	zebgp := map[string]any{
+		"message": map[string]any{
+			"type": "negotiated",
+		},
+		"peer": map[string]any{
+			"address": "10.0.0.1",
+			"asn":     float64(65001),
+		},
+		// No "negotiated" field
+	}
+
+	result := ZebgpToExabgpJSON(zebgp)
+
+	assert.Equal(t, "negotiated", result["type"])
+
+	neg, ok := result["negotiated"].(map[string]any)
+	require.True(t, ok)
+	assert.Empty(t, neg, "negotiated should be empty map when missing")
 }
 
 // TestTruncate verifies truncate handles UTF-8 correctly.

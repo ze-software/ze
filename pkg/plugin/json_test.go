@@ -1644,3 +1644,116 @@ func TestJSONEncoderFlowSpec(t *testing.T) {
 		})
 	}
 }
+
+// TestJSONEncoderNegotiated verifies negotiated capabilities JSON output.
+//
+// VALIDATES: Negotiated message contains all capability fields.
+// PREVENTS: Plugins missing capability info after OPEN exchange.
+func TestJSONEncoderNegotiated(t *testing.T) {
+	enc := NewJSONEncoder("1.0")
+	enc.SetHostname("test-host")
+	enc.SetPID(1234, 1)
+	enc.SetTimeFunc(func() time.Time { return time.Unix(1234567890, 0) })
+
+	peer := PeerInfo{
+		Address:      netip.MustParseAddr("10.0.0.1"),
+		LocalAddress: netip.MustParseAddr("10.0.0.2"),
+		PeerAS:       65001,
+		LocalAS:      65000,
+	}
+
+	neg := DecodedNegotiated{
+		MessageSize:    4096,
+		HoldTime:       90,
+		ASN4:           true,
+		RouteRefresh:   "enhanced",
+		Families:       []string{"ipv4/unicast", "ipv6/unicast"},
+		AddPathSend:    []string{"ipv4/unicast"},
+		AddPathReceive: []string{"ipv4/unicast", "ipv6/unicast"},
+		ExtendedNextHop: map[string]string{
+			"ipv4/unicast": "ipv6",
+		},
+	}
+
+	output := enc.Negotiated(peer, neg)
+
+	var result map[string]any
+	err := json.Unmarshal([]byte(output), &result)
+	require.NoError(t, err, "JSON must be valid: %s", output)
+
+	// Check message type
+	msgWrapper, ok := result["message"].(map[string]any)
+	require.True(t, ok, "message wrapper must exist")
+	assert.Equal(t, "negotiated", msgWrapper["type"])
+
+	// Check negotiated section
+	negObj, ok := result["negotiated"].(map[string]any)
+	require.True(t, ok, "negotiated section must exist")
+
+	assert.Equal(t, float64(4096), negObj["message_size"])
+	assert.Equal(t, float64(90), negObj["hold_time"])
+	assert.Equal(t, true, negObj["asn4"])
+	assert.Equal(t, "enhanced", negObj["refresh"])
+
+	// Check families
+	families, ok := negObj["families"].([]any)
+	require.True(t, ok, "families must be array")
+	assert.Len(t, families, 2)
+	assert.Contains(t, families, "ipv4/unicast")
+	assert.Contains(t, families, "ipv6/unicast")
+
+	// Check add_path
+	addPath, ok := negObj["add_path"].(map[string]any)
+	require.True(t, ok, "add_path must exist")
+
+	sendFams, ok := addPath["send"].([]any)
+	require.True(t, ok, "send must be array")
+	assert.Contains(t, sendFams, "ipv4/unicast")
+
+	recvFams, ok := addPath["receive"].([]any)
+	require.True(t, ok, "receive must be array")
+	assert.Len(t, recvFams, 2)
+
+	// Check extended_nexthop
+	extNH, ok := negObj["extended_nexthop"].(map[string]any)
+	require.True(t, ok, "extended_nexthop must exist")
+	assert.Equal(t, "ipv6", extNH["ipv4/unicast"])
+}
+
+// TestJSONEncoderNegotiatedMinimal verifies negotiated with minimal fields.
+//
+// VALIDATES: Handles negotiated with only required fields.
+// PREVENTS: Nil pointer panics when optional fields missing.
+func TestJSONEncoderNegotiatedMinimal(t *testing.T) {
+	enc := NewJSONEncoder("1.0")
+	peer := PeerInfo{Address: netip.MustParseAddr("10.0.0.1")}
+
+	neg := DecodedNegotiated{
+		MessageSize:  4096,
+		HoldTime:     180,
+		ASN4:         false,
+		RouteRefresh: "absent",
+		Families:     []string{"ipv4/unicast"},
+	}
+
+	output := enc.Negotiated(peer, neg)
+
+	var result map[string]any
+	err := json.Unmarshal([]byte(output), &result)
+	require.NoError(t, err, "JSON must be valid: %s", output)
+
+	negObj, ok := result["negotiated"].(map[string]any)
+	require.True(t, ok)
+
+	assert.Equal(t, float64(4096), negObj["message_size"])
+	assert.Equal(t, false, negObj["asn4"])
+	assert.Equal(t, "absent", negObj["refresh"])
+
+	// add_path should not exist when empty
+	_, hasAddPath := negObj["add_path"]
+	assert.False(t, hasAddPath, "add_path should be absent when empty")
+
+	// extended_nexthop should not exist when empty
+	_, hasExtNH := negObj["extended_nexthop"]
+	assert.False(t, hasExtNH, "extended_nexthop should be absent when empty")
+}

@@ -256,6 +256,42 @@ func (e *JSONEncoder) RouteRefresh(peer PeerInfo, decoded DecodedRouteRefresh, d
 	return e.marshal(msg)
 }
 
+// Negotiated returns JSON for negotiated capabilities after OPEN exchange.
+// Informs plugins of what was negotiated so they can adjust behavior.
+func (e *JSONEncoder) Negotiated(peer PeerInfo, neg DecodedNegotiated) string {
+	msg := e.message(peer, "negotiated")
+	msg["peer"] = e.peerSection(peer)
+
+	// Build negotiated section
+	negObj := map[string]any{
+		"message_size": neg.MessageSize,
+		"hold_time":    neg.HoldTime,
+		"asn4":         neg.ASN4,
+		"refresh":      neg.RouteRefresh,
+		"families":     neg.Families,
+	}
+
+	// ADD-PATH: separate send/receive lists
+	if len(neg.AddPathSend) > 0 || len(neg.AddPathReceive) > 0 {
+		addPath := map[string]any{}
+		if len(neg.AddPathSend) > 0 {
+			addPath["send"] = neg.AddPathSend
+		}
+		if len(neg.AddPathReceive) > 0 {
+			addPath["receive"] = neg.AddPathReceive
+		}
+		negObj["add_path"] = addPath
+	}
+
+	// Extended next-hop: map family → nexthop AFI
+	if len(neg.ExtendedNextHop) > 0 {
+		negObj["extended_nexthop"] = neg.ExtendedNextHop
+	}
+
+	msg["negotiated"] = negObj
+	return e.marshal(msg)
+}
+
 // marshal converts a message to JSON string.
 func (e *JSONEncoder) marshal(msg map[string]any) string {
 	data, err := json.Marshal(msg)
