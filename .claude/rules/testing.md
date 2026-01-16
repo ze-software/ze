@@ -59,7 +59,7 @@ make test && make lint && make functional  # Full verification
 | `make test` | `go test -race -v ./...` | Unit tests |
 | `make lint` | `golangci-lint run` | Linting (26 linters, see below) |
 | `make vet` | `go vet ./...` | Go vet only (subset of lint) |
-| `make functional` | Run qa/tests/* | Functional tests (37) |
+| `make functional` | All functional tests | Encoding, plugin, parsing, decoding |
 | `make ci` | lint + test + build | Full CI check |
 
 ### Linters in `make lint`
@@ -140,6 +140,26 @@ result := peer.Run(ctx)
 ```
 
 ## ExaBGP Compatibility
+
+The `pkg/exabgp/` library provides ZeBGP ↔ ExaBGP format translation:
+
+```bash
+# Run Go tests for exabgp package
+go test -v ./pkg/exabgp/...
+
+# Use zebgp exabgp plugin to run ExaBGP plugins with ZeBGP
+zebgp exabgp plugin /path/to/exabgp-plugin.py
+```
+
+### In ZeBGP Config
+
+```
+process exabgp-compat {
+    run "zebgp exabgp plugin /path/to/exabgp-plugin.py";
+}
+```
+
+### Testing with ExaBGP
 
 ```bash
 # ZeBGP peer against ExaBGP test file

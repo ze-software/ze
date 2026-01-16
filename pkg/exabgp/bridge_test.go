@@ -1,6 +1,9 @@
 package exabgp
 
 import (
+	"bufio"
+	"io"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -344,4 +347,152 @@ func TestRoundTrip(t *testing.T) {
 	assert.Contains(t, zebgpCmd, "nhop set 192.168.0.1")
 	assert.Contains(t, zebgpCmd, "origin set igp")
 	assert.Contains(t, zebgpCmd, "nlri ipv4/unicast add 10.0.0.0/24")
+}
+
+// TestStartupProtocol verifies 5-stage startup protocol handling.
+//
+// VALIDATES: Bridge completes startup protocol before JSON translation.
+// PREVENTS: Bridge killed by 5s timeout for not completing registration.
+func TestStartupProtocol(t *testing.T) {
+	t.Run("sends_declarations", func(t *testing.T) {
+		var out strings.Builder
+		sp := NewStartupProtocol(nil, &out)
+
+		sp.SendDeclarations()
+
+		output := out.String()
+		// Must contain declare done
+		assert.Contains(t, output, "declare done\n")
+		// Default family declarations
+		assert.Contains(t, output, "declare family ipv4 unicast\n")
+	})
+
+	t.Run("sends_capability_done", func(t *testing.T) {
+		var out strings.Builder
+		sp := NewStartupProtocol(nil, &out)
+
+		sp.SendCapabilityDone()
+
+		assert.Equal(t, "capability done\n", out.String())
+	})
+
+	t.Run("sends_ready", func(t *testing.T) {
+		var out strings.Builder
+		sp := NewStartupProtocol(nil, &out)
+
+		sp.SendReady()
+
+		assert.Equal(t, "ready\n", out.String())
+	})
+
+	t.Run("waits_for_config_done", func(t *testing.T) {
+		input := strings.NewReader("config peer 10.0.0.1 local-as 65001\nconfig done\n")
+		scanner := bufio.NewScanner(input)
+		sp := NewStartupProtocol(scanner, nil)
+
+		err := sp.WaitForConfigDone()
+
+		assert.NoError(t, err)
+	})
+
+	t.Run("waits_for_registry_done", func(t *testing.T) {
+		input := strings.NewReader("registry name exabgp-compat\nregistry done\n")
+		scanner := bufio.NewScanner(input)
+		sp := NewStartupProtocol(scanner, nil)
+
+		err := sp.WaitForRegistryDone()
+
+		assert.NoError(t, err)
+	})
+
+	t.Run("full_protocol_sequence", func(t *testing.T) {
+		// Simulate ZeBGP input: config lines then registry lines
+		input := strings.NewReader("config peer 10.0.0.1\nconfig done\nregistry name test\nregistry done\n")
+		scanner := bufio.NewScanner(input)
+		var out strings.Builder
+		sp := NewStartupProtocol(scanner, &out)
+
+		err := sp.Run()
+
+		assert.NoError(t, err)
+		output := out.String()
+		// Stage 1: declarations
+		assert.Contains(t, output, "declare done\n")
+		// Stage 3: capability
+		assert.Contains(t, output, "capability done\n")
+		// Stage 5: ready
+		assert.Contains(t, output, "ready\n")
+	})
+
+	t.Run("custom_families", func(t *testing.T) {
+		var out strings.Builder
+		sp := NewStartupProtocol(nil, &out)
+		sp.Families = []string{"ipv4/unicast", "ipv6/unicast"}
+
+		sp.SendDeclarations()
+
+		output := out.String()
+		assert.Contains(t, output, "declare family ipv4 unicast\n")
+		assert.Contains(t, output, "declare family ipv6 unicast\n")
+	})
+
+	t.Run("scanner_reuse_preserves_data", func(t *testing.T) {
+		// VALIDATES: Scanner can be reused after startup without data loss.
+		// PREVENTS: Buffered data lost when creating new scanner.
+		input := strings.NewReader("config done\nregistry done\n{\"json\":\"event\"}\n")
+		scanner := bufio.NewScanner(input)
+		sp := NewStartupProtocol(scanner, io.Discard)
+
+		err := sp.Run()
+		require.NoError(t, err)
+
+		// Same scanner should still have the JSON line available
+		require.True(t, scanner.Scan(), "scanner should have more data")
+		assert.Equal(t, `{"json":"event"}`, scanner.Text())
+	})
+
+	t.Run("empty_families_uses_default", func(t *testing.T) {
+		// VALIDATES: Empty families slice falls back to default.
+		// PREVENTS: ZeBGP rejecting plugin with no families declared.
+		var out strings.Builder
+		sp := NewStartupProtocol(nil, &out)
+		sp.Families = []string{} // Empty!
+
+		sp.SendDeclarations()
+
+		output := out.String()
+		// Should still declare default family
+		assert.Contains(t, output, "declare family ipv4 unicast\n")
+		assert.Contains(t, output, "declare done\n")
+	})
+}
+
+// TestTruncate verifies truncate handles UTF-8 correctly.
+//
+// VALIDATES: Truncation works on rune boundaries, not byte boundaries.
+// PREVENTS: Invalid UTF-8 output when truncating multi-byte characters.
+func TestTruncate(t *testing.T) {
+	tests := []struct {
+		name   string
+		input  string
+		maxLen int
+		want   string
+	}{
+		{"ascii_short", "hello", 10, "hello"},
+		{"ascii_exact", "hello", 5, "hello"},
+		{"ascii_truncate", "hello world", 5, "hello..."},
+		{"utf8_short", "日本語", 10, "日本語"},
+		{"utf8_exact", "日本語", 3, "日本語"},
+		{"utf8_truncate", "日本語テスト", 3, "日本語..."},
+		{"mixed_truncate", "hello日本語", 7, "hello日本..."},
+		{"empty", "", 5, ""},
+		{"zero_max", "hello", 0, "..."},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := truncate(tt.input, tt.maxLen)
+			assert.Equal(t, tt.want, got)
+		})
+	}
 }

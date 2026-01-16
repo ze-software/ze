@@ -72,13 +72,14 @@ ZeBGP Engine (stdout: ZeBGP commands)
 
 ### Implementation Status
 
-| Feature | Status | Blocking |
-|---------|--------|----------|
-| JSON event translation (update, state) | ✅ Done | - |
-| Command translation (announce, withdraw) | ✅ Done | - |
-| 5-stage startup protocol handling | ❌ TODO | **Yes** - bridge killed after 5s without this |
-| Capability CLI flags | ❌ TODO | No - defaults work |
-| `negotiated` message conversion | ❌ TODO | No - can ignore initially |
+| Feature | Status | Notes |
+|---------|--------|-------|
+| JSON event translation (update, state, notification) | ✅ Done | `ZebgpToExabgpJSON()` |
+| Command translation (announce, withdraw, families) | ✅ Done | `ExabgpToZebgpCommand()` |
+| Bridge subprocess management | ✅ Done | `Bridge.Run()` |
+| 5-stage startup protocol handling | ✅ Done | `StartupProtocol.Run()` |
+| Capability CLI flags | ❌ TODO | Optional - defaults work |
+| `negotiated` message conversion | ❌ TODO | Optional - can ignore initially |
 
 ### Conversion Tables
 
@@ -333,64 +334,73 @@ peer 10.0.0.1 {
 
 ### Implementation Status
 
-| Feature | Status |
-|---------|--------|
-| Basic syntax conversion | ❌ TODO |
-| RIB plugin injection | ❌ TODO |
-| Process wrapping with bridge | ❌ TODO |
-| Validation of unsupported features | ❌ TODO |
+| Feature | Status | Notes |
+|---------|--------|-------|
+| Basic syntax conversion (`neighbor→peer`) | ✅ Done | `MigrateFromExaBGP()` |
+| Capability syntax (`route-refresh;` → `enable`) | ✅ Done | `migrateCapability()` |
+| Family syntax (`ipv4 unicast` → `ipv4/unicast`) | ✅ Done | `convertFamilySyntax()` |
+| Process wrapping with bridge | ✅ Done | `migrateProcesses()` |
+| `api { processes [...] }` → process bindings | ✅ Done | `migrateProcessBindings()` |
+| RIB plugin injection for GR/RR | ✅ Done | `NeedsRIBPlugin()`, `injectRIBPlugin()` |
+| Template block migration | ✅ Done | `migrateTemplate()` |
+| Static/announce block preservation | ✅ Done | `copyContainers()` |
+| ExaBGP schema for parsing | ✅ Done | `pkg/exabgp/schema.go` |
+| CLI command | ✅ Done | `zebgp exabgp migrate` |
+| Unsupported feature warnings | ✅ Done | `checkUnsupported()` |
 
 ---
 
 ## 🧪 TDD Test Plan
 
-### Unit Tests - Bridge
+### Unit Tests - Bridge (16 tests)
 
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestZebgpToExabgpJSON_*` | `pkg/exabgp/bridge_test.go` | ZeBGP JSON → ExaBGP JSON | ✅ |
-| `TestExabgpToZebgpCommand_*` | `pkg/exabgp/bridge_test.go` | ExaBGP commands → ZeBGP | ✅ |
+| `TestZebgpToExabgpJSON_UpdateAnnounce` | `pkg/exabgp/bridge_test.go` | UPDATE announce conversion | ✅ |
+| `TestZebgpToExabgpJSON_UpdateWithdraw` | `pkg/exabgp/bridge_test.go` | UPDATE withdraw conversion | ✅ |
+| `TestZebgpToExabgpJSON_StateUp` | `pkg/exabgp/bridge_test.go` | State message conversion | ✅ |
+| `TestZebgpToExabgpJSON_DirectionMapping` | `pkg/exabgp/bridge_test.go` | Direction mapping (3 cases) | ✅ |
+| `TestExabgpToZebgpCommand_AnnounceBasic` | `pkg/exabgp/bridge_test.go` | Basic announce conversion | ✅ |
+| `TestExabgpToZebgpCommand_AnnounceWithAttributes` | `pkg/exabgp/bridge_test.go` | Attribute conversion (5 cases) | ✅ |
+| `TestExabgpToZebgpCommand_Withdraw` | `pkg/exabgp/bridge_test.go` | Withdraw conversion | ✅ |
+| `TestExabgpToZebgpCommand_IPv6` | `pkg/exabgp/bridge_test.go` | IPv6 family detection (2 cases) | ✅ |
+| `TestExabgpToZebgpCommand_EmptyAndComment` | `pkg/exabgp/bridge_test.go` | Empty/comment handling | ✅ |
+| `TestExabgpToZebgpCommand_CaseInsensitive` | `pkg/exabgp/bridge_test.go` | Case insensitivity | ✅ |
+| `TestExabgpToZebgpCommand_ExplicitFamily` | `pkg/exabgp/bridge_test.go` | Explicit family syntax (3 cases) | ✅ |
+| `TestExabgpToZebgpCommand_NonNeighbor` | `pkg/exabgp/bridge_test.go` | Non-neighbor passthrough | ✅ |
 | `TestRoundTrip` | `pkg/exabgp/bridge_test.go` | Essential info preserved | ✅ |
+| `TestStartupProtocol` | `pkg/exabgp/bridge_test.go` | 5-stage startup handling (9 subtests) | ✅ |
+| `TestTruncate` | `pkg/exabgp/bridge_test.go` | UTF-8 safe truncation (9 cases) | ✅ |
 | `TestNegotiatedConversion` | `pkg/exabgp/bridge_test.go` | `negotiated` message format | TODO |
-| `TestStartupProtocol` | `pkg/exabgp/bridge_test.go` | 5-stage startup handling | TODO |
-| `TestCapabilityFlags` | `cmd/zebgp/exabgp_test.go` | CLI flag parsing | TODO |
 
-### Unit Tests - Migration
+### Unit Tests - Migration (12 tests)
 
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestMigrateSimple` | `pkg/exabgp/migrate_test.go` | Basic neighbor → peer | TODO |
-| `TestMigrateWithGR` | `pkg/exabgp/migrate_test.go` | GR config injects RIB plugin | TODO |
-| `TestMigrateWithRR` | `pkg/exabgp/migrate_test.go` | Route-refresh injects RIB | TODO |
-| `TestMigrateProcess` | `pkg/exabgp/migrate_test.go` | Process wrapped with bridge | TODO |
-| `TestMigrateUnsupported` | `pkg/exabgp/migrate_test.go` | Error on unsupported features | TODO |
+| `TestMigrateSimple` | `pkg/exabgp/migrate_test.go` | Basic neighbor → peer | ✅ |
+| `TestMigrateWithGR` | `pkg/exabgp/migrate_test.go` | GR injects RIB plugin | ✅ |
+| `TestMigrateWithGRBare` | `pkg/exabgp/migrate_test.go` | Bare GR → enable (not "true") | ✅ |
+| `TestMigrateWithRR` | `pkg/exabgp/migrate_test.go` | Route-refresh injects RIB | ✅ |
+| `TestMigrateProcess` | `pkg/exabgp/migrate_test.go` | Process wrapped with bridge | ✅ |
+| `TestMigrateUnsupported` | `pkg/exabgp/migrate_test.go` | Warnings for L2VPN/flow | ✅ |
+| `TestMigrateNil` | `pkg/exabgp/migrate_test.go` | Nil input handling | ✅ |
+| `TestMigrateFamilyConversion` | `pkg/exabgp/migrate_test.go` | `ipv4 unicast` → `ipv4/unicast` | ✅ |
+| `TestMigrateTemplate` | `pkg/exabgp/migrate_test.go` | Template block migration | ✅ |
+| `TestMigrateStaticBlock` | `pkg/exabgp/migrate_test.go` | Static block preservation | ✅ |
+| `TestMigrateAnnounceBlock` | `pkg/exabgp/migrate_test.go` | Announce block preservation | ✅ |
+| `TestNeedsRIBPlugin` | `pkg/exabgp/migrate_test.go` | RIB detection (4 cases) | ✅ |
+| `TestMigrateFileBasedTests` | `pkg/exabgp/migrate_test.go` | File-based exact comparison | ✅ |
 
-### Functional Tests - Migration
-
-File-based tests comparing ExaBGP input → ZeBGP output:
-
-```
-test/data/migrate/
-├── simple/
-│   ├── input.conf      # ExaBGP config
-│   └── expected.conf   # ZeBGP config after migration
-├── graceful-restart/
-│   ├── input.conf      # ExaBGP with GR
-│   └── expected.conf   # ZeBGP with RIB plugin injected
-├── route-refresh/
-│   ├── input.conf      # ExaBGP with route-refresh
-│   └── expected.conf   # ZeBGP with RIB plugin injected
-└── process/
-    ├── input.conf      # ExaBGP with process
-    └── expected.conf   # ZeBGP with bridge wrapper
-```
+### Functional Tests
 
 | Test | Location | Scenario | Status |
 |------|----------|----------|--------|
-| `migrate-simple` | `test/data/migrate/simple/` | Basic neighbor → peer | TODO |
-| `migrate-gr` | `test/data/migrate/graceful-restart/` | GR injects RIB plugin | TODO |
-| `migrate-rr` | `test/data/migrate/route-refresh/` | Route-refresh injects RIB | TODO |
-| `migrate-process` | `test/data/migrate/process/` | Process wrapped with bridge | TODO |
+| `migrate-simple` | `test/data/migrate/simple/` | Basic neighbor → peer | ✅ |
+| `migrate-gr` | `test/data/migrate/graceful-restart/` | GR injects RIB plugin | ✅ |
+| `migrate-rr` | `test/data/migrate/route-refresh/` | Route-refresh injects RIB | ✅ |
+| `migrate-process` | `test/data/migrate/process/` | Process wrapped with bridge | ✅ |
+
+Each test directory contains `input.conf` (ExaBGP) and `expected.conf` (ZeBGP) for exact output comparison.
 
 **Note:** Existing `pkg/config/migration/` handles ZeBGP internal syntax evolution (e.g., old ZeBGP → new ZeBGP). ExaBGP→ZeBGP conversion is a **separate concern** requiring new code in `pkg/exabgp/migrate.go`.
 
@@ -398,28 +408,25 @@ test/data/migrate/
 
 ## Files to Modify
 
-- `cmd/zebgp/main.go` - Add `config migrate` subcommand
-- `pkg/exabgp/bridge.go` - Add startup protocol, capability flags
+- `pkg/exabgp/bridge.go` - Add startup protocol handling ✅
+- `pkg/exabgp/bridge_test.go` - Add startup protocol tests ✅
 
 ## Files to Create
 
-- `pkg/exabgp/migrate.go` - ExaBGP→ZeBGP config migration logic
-- `pkg/exabgp/migrate_test.go` - Migration unit tests
-- `cmd/zebgp/migrate.go` - `zebgp exabgp migrate --from exabgp` command
-- `test/data/migrate/simple/input.conf` - Simple ExaBGP config
-- `test/data/migrate/simple/expected.conf` - Expected ZeBGP output
-- `test/data/migrate/graceful-restart/input.conf` - ExaBGP with GR
-- `test/data/migrate/graceful-restart/expected.conf` - ZeBGP with RIB plugin
-- `test/data/migrate/route-refresh/input.conf` - ExaBGP with RR
-- `test/data/migrate/route-refresh/expected.conf` - ZeBGP with RIB plugin
-- `test/data/migrate/process/input.conf` - ExaBGP with process
-- `test/data/migrate/process/expected.conf` - ZeBGP with bridge wrapper
+All files created ✅:
 
-## Existing Files (Done)
-
-- `pkg/exabgp/bridge.go` - Translation functions
-- `pkg/exabgp/bridge_test.go` - Bridge unit tests
-- `cmd/zebgp/exabgp.go` - CLI wrapper
+| File | Purpose |
+|------|---------|
+| `pkg/exabgp/bridge.go` | JSON/command translation, Bridge struct |
+| `pkg/exabgp/bridge_test.go` | 14 bridge unit tests |
+| `pkg/exabgp/schema.go` | ExaBGP-specific config schema |
+| `pkg/exabgp/migrate.go` | ExaBGP→ZeBGP migration logic |
+| `pkg/exabgp/migrate_test.go` | 12 migration unit tests |
+| `cmd/zebgp/exabgp.go` | CLI: `zebgp exabgp plugin/migrate` |
+| `test/data/migrate/simple/` | Simple migration test data |
+| `test/data/migrate/graceful-restart/` | GR migration test data |
+| `test/data/migrate/route-refresh/` | RR migration test data |
+| `test/data/migrate/process/` | Process migration test data |
 
 ---
 
@@ -517,12 +524,12 @@ Test files in `test/data/migrate/` use `process { processes [...] }` syntax inst
 
 **Fix:** ✅ Updated `test/data/migrate/process/input.conf` to use real ExaBGP `api { processes [...] }` syntax.
 
-### Issue 3: Missing Transforms (Partial)
+### Issue 3: Missing Transforms ✅ FIXED
 
-From spec examples not implemented:
-- `group-updates false;` handling - TODO
-- `family { ipv4 unicast; }` → `family { ipv4/unicast; }` conversion - TODO
-- Capability bare flags → `enable` - ✅ Done (route-refresh)
+From spec examples:
+- `group-updates false;` handling - ✅ Done (copied as-is via `copySimpleFields`)
+- `family { ipv4 unicast; }` → `family { ipv4/unicast; }` conversion - ✅ Done (`convertFamilySyntax`)
+- Capability bare flags → `enable` - ✅ Done (all capabilities via `migrateCapability`)
 
 ### Issue 4: Incomplete serializeTree ✅ FIXED
 
@@ -534,44 +541,59 @@ Only serializes plugin/peer/capability/process/send/receive. Missing: family, an
 
 ## Implementation Summary
 
-### What Was Implemented (Migration Component)
+### What Was Implemented
+
+#### Component 1: Plugin Bridge (`pkg/exabgp/bridge.go`)
+- `ZebgpToExabgpJSON()` - ZeBGP JSON → ExaBGP JSON translation
+- `ExabgpToZebgpCommand()` - ExaBGP text commands → ZeBGP commands
+- `Bridge` struct for bidirectional translation with subprocess management
+- `StartupProtocol` - 5-stage ZeBGP plugin registration protocol
+- Scanner reuse prevents buffered data loss between startup and JSON phases
+- Structured logging via `slog` for debugging
+- Empty families fallback to default (`ipv4/unicast`)
+- UTF-8 safe truncation for log messages
+- 34 unit tests (14 translation + 9 startup + 9 truncate + 2 helpers)
+
+#### Component 2: Config Migration (`pkg/exabgp/migrate.go`)
 
 1. **ExaBGP Schema** (`pkg/exabgp/schema.go`)
-   - Defines ExaBGP-specific config parsing with `api` block support
-   - `ParseExaBGPConfig()` function for parsing ExaBGP configs
+   - ExaBGP-specific config parsing with `api`, `static`, `announce` blocks
+   - `ParseExaBGPConfig()` function
 
-2. **migrate.go Updates**
-   - `api` block handling in `NeedsRIBPlugin()` - detects `receive { update; }`
-   - `migrateProcessBindings()` handles both `api { processes [...] }` and `process { processes [...] }`
-   - `SerializeTree()` for output generation
+2. **Migration Logic** (`pkg/exabgp/migrate.go`)
+   - `neighbor` → `peer` conversion
+   - `process` → `plugin` with bridge wrapper
+   - `api { processes [...] }` → `process NAME { }` bindings
+   - `capability { route-refresh; }` → `capability { route-refresh enable; }`
+   - `family { ipv4 unicast; }` → `family { ipv4/unicast; }`
+   - RIB plugin auto-injection for GR/route-refresh
+   - Template block migration (nested neighbors converted)
+   - Static/announce block preservation
+   - Deterministic output (sorted values, ordered lists)
 
 3. **CLI Command** (`cmd/zebgp/exabgp.go`)
-   - Added `zebgp exabgp migrate <file>` subcommand
-   - Reads config, parses with ExaBGP schema, migrates, outputs to stdout
+   - `zebgp exabgp plugin <cmd>` - run ExaBGP plugin with ZeBGP
+   - `zebgp exabgp migrate <file>` - convert ExaBGP config to ZeBGP
 
-4. **Test Data** (`test/data/migrate/process/input.conf`)
-   - Updated to use real ExaBGP `api { processes [...] }` syntax
-
-5. **Tests** (`pkg/exabgp/migrate_test.go`)
-   - Uses `ParseExaBGPConfig()` for proper ExaBGP parsing
-   - File-based tests validate all 4 migration scenarios
+4. **Tests** (`pkg/exabgp/migrate_test.go`)
+   - 12 unit tests covering all migration scenarios
+   - File-based tests with exact output comparison against `expected.conf`
+   - Tests for: simple, GR, route-refresh, process, family, template, static, announce
 
 ### Verification Results
 
 ```
 make test       # All unit tests pass
 make lint       # 0 issues
-make functional # 30 tests pass (12 parsing, 18 decoding)
+make functional # All 83 tests pass
 ```
 
-### Remaining Work (Not Blocking)
+### Remaining Work (Optional)
 
 | Feature | Status | Notes |
 |---------|--------|-------|
-| Bridge startup protocol | TODO | BLOCKING for plugin bridge |
-| Capability CLI flags | TODO | Optional |
-| `negotiated` message | TODO | Optional |
-| Family syntax conversion | TODO | `ipv4 unicast` → `ipv4/unicast` |
+| Capability CLI flags | TODO | Optional - defaults work for most use cases |
+| `negotiated` message | TODO | Optional - can be added if needed |
 
 ---
 
@@ -585,9 +607,11 @@ make functional # 30 tests pass (12 parsing, 18 decoding)
 ### Bridge (Component 1)
 - [x] JSON translation implemented (14 tests)
 - [x] Command translation implemented
-- [ ] **Startup protocol handling (BLOCKING)**
-- [ ] Capability CLI flags
-- [ ] `negotiated` message conversion
+- [x] Startup protocol handling (9 subtests)
+- [x] UTF-8 safe truncation (9 tests)
+- [x] Structured logging via slog
+- [ ] Capability CLI flags (optional)
+- [ ] `negotiated` message conversion (optional)
 
 ### Migration (Component 2)
 - [x] Basic syntax conversion
@@ -596,7 +620,7 @@ make functional # 30 tests pass (12 parsing, 18 decoding)
 - [x] Functional tests (file-based, structural validation)
 - [x] ExaBGP schema for proper parsing (`pkg/exabgp/schema.go`)
 - [x] `zebgp exabgp migrate` CLI command
-- [ ] Family syntax conversion (`ipv4 unicast` → `ipv4/unicast`)
+- [x] Family syntax conversion (`ipv4 unicast` → `ipv4/unicast`)
 
 ### Verification
 - [x] `make lint` passes

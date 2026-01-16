@@ -8,7 +8,7 @@ Functional tests verify ZeBGP's BGP message encoding by comparing actual wire ou
 # Quick start
 make functional           # Run all tests
 make functional-encoding  # Encoding tests only
-make functional-api       # API tests only
+make functional-plugin    # Plugin tests only
 ```
 
 ---

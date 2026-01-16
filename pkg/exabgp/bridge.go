@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"log/slog"
 	"os"
 	"os/exec"
 	"regexp"
@@ -438,6 +439,135 @@ func convertAnnounceWithFamily(peerIP, family, routeStr string) string {
 	return strings.Join(cmdParts, " ")
 }
 
+// StartupProtocol handles the 5-stage ZeBGP plugin registration protocol.
+// This must be completed before the bridge can begin JSON translation.
+//
+// Stages:
+//  1. Declaration (Bridge → ZeBGP): send family, encoding declarations, then "declare done"
+//  2. Config (ZeBGP → Bridge): wait for "config done" (discard config lines)
+//  3. Capability (Bridge → ZeBGP): send "capability done"
+//  4. Registry (ZeBGP → Bridge): wait for "registry done" (discard registry lines)
+//  5. Ready (Bridge → ZeBGP): send "ready"
+type StartupProtocol struct {
+	output  io.Writer
+	scanner *bufio.Scanner
+
+	// Families to declare (ZeBGP format: "ipv4/unicast").
+	// Converted to ZeBGP plugin protocol format: "ipv4 unicast".
+	Families []string
+}
+
+// NewStartupProtocol creates a new startup protocol handler.
+// The scanner should be reused after startup for JSON event processing
+// to avoid losing buffered data.
+func NewStartupProtocol(scanner *bufio.Scanner, output io.Writer) *StartupProtocol {
+	return &StartupProtocol{
+		scanner:  scanner,
+		output:   output,
+		Families: []string{"ipv4/unicast"}, // Default family
+	}
+}
+
+// defaultFamily is the fallback when no families are configured.
+const defaultFamily = "ipv4/unicast"
+
+// Run executes the full 5-stage startup protocol.
+func (sp *StartupProtocol) Run() error {
+	// Stage 1: Declaration
+	sp.SendDeclarations()
+
+	// Stage 2: Wait for config done
+	if err := sp.WaitForConfigDone(); err != nil {
+		return fmt.Errorf("stage 2 (config): %w", err)
+	}
+
+	// Stage 3: Capability
+	sp.SendCapabilityDone()
+
+	// Stage 4: Wait for registry done
+	if err := sp.WaitForRegistryDone(); err != nil {
+		return fmt.Errorf("stage 4 (registry): %w", err)
+	}
+
+	// Stage 5: Ready
+	sp.SendReady()
+
+	return nil
+}
+
+// SendDeclarations sends Stage 1 declarations.
+func (sp *StartupProtocol) SendDeclarations() {
+	if sp.output == nil {
+		return
+	}
+
+	// Use default family if none configured
+	families := sp.Families
+	if len(families) == 0 {
+		families = []string{defaultFamily}
+		slog.Debug("no families configured, using default", "family", defaultFamily)
+	}
+
+	// Declare families (convert "/" to " " for ZeBGP protocol)
+	for _, family := range families {
+		// Convert "ipv4/unicast" → "ipv4 unicast"
+		zebgpFamily := strings.ReplaceAll(family, "/", " ")
+		_, _ = fmt.Fprintf(sp.output, "declare family %s\n", zebgpFamily)
+	}
+
+	// Declare encoding
+	_, _ = fmt.Fprintln(sp.output, "declare encoding text")
+
+	// Done
+	_, _ = fmt.Fprintln(sp.output, "declare done")
+}
+
+// SendCapabilityDone sends Stage 3 capability done marker.
+func (sp *StartupProtocol) SendCapabilityDone() {
+	if sp.output == nil {
+		return
+	}
+	_, _ = fmt.Fprintln(sp.output, "capability done")
+}
+
+// SendReady sends Stage 5 ready signal.
+func (sp *StartupProtocol) SendReady() {
+	if sp.output == nil {
+		return
+	}
+	_, _ = fmt.Fprintln(sp.output, "ready")
+}
+
+// WaitForConfigDone waits for Stage 2 "config done" marker.
+func (sp *StartupProtocol) WaitForConfigDone() error {
+	return sp.waitForLine("config done")
+}
+
+// WaitForRegistryDone waits for Stage 4 "registry done" marker.
+func (sp *StartupProtocol) WaitForRegistryDone() error {
+	return sp.waitForLine("registry done")
+}
+
+// waitForLine reads lines until the expected line is found.
+func (sp *StartupProtocol) waitForLine(expected string) error {
+	if sp.scanner == nil {
+		return nil
+	}
+
+	for sp.scanner.Scan() {
+		line := sp.scanner.Text()
+		if line == expected {
+			return nil
+		}
+	}
+
+	if err := sp.scanner.Err(); err != nil {
+		return err
+	}
+
+	return fmt.Errorf("EOF before %q", expected)
+}
+
 // Bridge wraps an ExaBGP plugin process and translates between ZeBGP and ExaBGP formats.
 type Bridge struct {
 	pluginCmd []string
@@ -447,12 +577,16 @@ type Bridge struct {
 	stderr    io.ReadCloser
 	running   bool
 	mu        sync.Mutex
+
+	// Families to declare during startup (ZeBGP format: "ipv4/unicast")
+	Families []string
 }
 
 // NewBridge creates a new bridge for the given ExaBGP plugin command.
 func NewBridge(pluginCmd []string) *Bridge {
 	return &Bridge{
 		pluginCmd: pluginCmd,
+		Families:  []string{"ipv4/unicast"}, // Default family
 	}
 }
 
@@ -498,7 +632,20 @@ func (b *Bridge) Stop() {
 }
 
 // Run runs the bridge, translating between ZeBGP (stdin/stdout) and the plugin.
+// It first completes the 5-stage startup protocol, then begins JSON translation.
 func (b *Bridge) Run(ctx context.Context) error {
+	// Create a single scanner for os.Stdin - used for both startup and JSON events.
+	// This prevents data loss from buffered reads.
+	stdinScanner := bufio.NewScanner(os.Stdin)
+
+	// Stage 1-5: Complete startup protocol with ZeBGP
+	sp := NewStartupProtocol(stdinScanner, os.Stdout)
+	sp.Families = b.Families
+	if err := sp.Run(); err != nil {
+		return fmt.Errorf("startup protocol: %w", err)
+	}
+
+	// Stage 6: Running - start plugin and begin JSON translation
 	if err := b.Start(ctx); err != nil {
 		return err
 	}
@@ -508,9 +655,10 @@ func (b *Bridge) Run(ctx context.Context) error {
 	wg.Add(3)
 
 	// ZeBGP stdin → plugin stdin (translate ZeBGP JSON → ExaBGP JSON)
+	// Uses the SAME scanner that completed startup to avoid losing buffered data.
 	go func() {
 		defer wg.Done()
-		b.zebgpToPlugin(ctx, os.Stdin, b.stdin)
+		b.zebgpToPluginWithScanner(ctx, stdinScanner, b.stdin)
 	}()
 
 	// Plugin stdout → ZeBGP stdout (translate ExaBGP commands → ZeBGP commands)
@@ -531,11 +679,11 @@ func (b *Bridge) Run(ctx context.Context) error {
 	return err
 }
 
-func (b *Bridge) zebgpToPlugin(ctx context.Context, r io.Reader, w io.Writer) {
-	scanner := bufio.NewScanner(r)
+func (b *Bridge) zebgpToPluginWithScanner(ctx context.Context, scanner *bufio.Scanner, w io.Writer) {
 	for scanner.Scan() {
 		select {
 		case <-ctx.Done():
+			slog.Debug("zebgp→plugin: context cancelled")
 			return
 		default:
 		}
@@ -554,16 +702,25 @@ func (b *Bridge) zebgpToPlugin(ctx context.Context, r io.Reader, w io.Writer) {
 
 		var zebgp map[string]any
 		if err := json.Unmarshal([]byte(line), &zebgp); err != nil {
+			slog.Warn("zebgp→plugin: invalid JSON from ZeBGP",
+				"error", err,
+				"line", truncate(line, 100))
 			continue
 		}
 
 		exabgp := ZebgpToExabgpJSON(zebgp)
 		out, err := json.Marshal(exabgp)
 		if err != nil {
+			slog.Warn("zebgp→plugin: failed to marshal ExaBGP JSON",
+				"error", err)
 			continue
 		}
 
 		_, _ = fmt.Fprintln(w, string(out))
+	}
+
+	if err := scanner.Err(); err != nil {
+		slog.Warn("zebgp→plugin: scanner error", "error", err)
 	}
 }
 
@@ -572,6 +729,7 @@ func (b *Bridge) pluginToZebgp(ctx context.Context, r io.Reader, w io.Writer) {
 	for scanner.Scan() {
 		select {
 		case <-ctx.Done():
+			slog.Debug("plugin→zebgp: context cancelled")
 			return
 		default:
 		}
@@ -593,4 +751,17 @@ func (b *Bridge) pluginToZebgp(ctx context.Context, r io.Reader, w io.Writer) {
 			_, _ = fmt.Fprintln(w, zebgpCmd)
 		}
 	}
+
+	if err := scanner.Err(); err != nil {
+		slog.Warn("plugin→zebgp: scanner error", "error", err)
+	}
+}
+
+// truncate returns s truncated to maxLen runes with "..." suffix if needed.
+func truncate(s string, maxLen int) string {
+	runes := []rune(s)
+	if len(runes) <= maxLen {
+		return s
+	}
+	return string(runes[:maxLen]) + "..."
 }
