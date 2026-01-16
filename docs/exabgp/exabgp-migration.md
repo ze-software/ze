@@ -114,7 +114,9 @@ When introducing a breaking change:
    - Config flag: `encoding legacy;`
    - Environment variable
 
-## Migration Tool
+## Migration Tools
+
+### Config Migration
 
 ```bash
 # Check what needs migration
@@ -127,6 +129,26 @@ zebgp config migrate --dry-run old.conf
 zebgp config migrate --in-place old.conf
 ```
 
+### Running ExaBGP Plugins
+
+Use `zebgp exabgp plugin` to run existing ExaBGP plugins with ZeBGP:
+
+```bash
+# Command line
+zebgp exabgp plugin /path/to/exabgp-plugin.py
+
+# In ZeBGP config
+process exabgp-compat {
+    run "zebgp exabgp plugin /path/to/plugin.py";
+}
+```
+
+The bridge translates bidirectionally:
+- ZeBGP JSON → ExaBGP JSON (to plugin stdin)
+- ExaBGP commands → ZeBGP commands (from plugin stdout)
+
+See `pkg/exabgp/` for the Go library implementation.
+
 ---
 
-**Created:** 2026-01-01
+**Updated:** 2026-01-16

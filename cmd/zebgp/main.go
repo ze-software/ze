@@ -31,6 +31,8 @@ func main() {
 		os.Exit(cmdEncode(os.Args[2:]))
 	case "config":
 		os.Exit(cmdConfig(os.Args[2:]))
+	case "exabgp":
+		os.Exit(cmdExabgp(os.Args[2:]))
 	case "plugin":
 		os.Exit(cmdPlugin(os.Args[2:]))
 	case "config-dump":
@@ -91,6 +93,7 @@ Commands:
   decode <hex>         Decode BGP message from hex to JSON
   encode <route>       Encode API route command to BGP hex
   config <subcommand>  Configuration management (edit, check, migrate, fmt)
+  exabgp <subcommand>  ExaBGP compatibility tools
   config-dump <config> Dump parsed config (debug tool)
   plugin <subcommand>  Plugin system (rr for route server)
   version              Show version
@@ -104,6 +107,10 @@ Config Subcommands:
   config migrate <file> --in-place     Convert in place (with backup)
   config fmt <file>           Format and normalize config
 
+ExaBGP Subcommands:
+  exabgp plugin <cmd>         Run ExaBGP plugin with ZeBGP (format translation)
+  exabgp migrate <file>       Convert ExaBGP config to ZeBGP format
+
 Examples:
   zebgp /etc/zebgp/config.conf
   zebgp server /etc/zebgp/config.conf
@@ -113,5 +120,7 @@ Examples:
   zebgp validate /etc/zebgp/config.conf
   zebgp config check config.conf
   zebgp config migrate old.conf -o new.conf
+  zebgp exabgp plugin /path/to/exabgp-plugin.py
+  zebgp exabgp migrate exabgp.conf > zebgp.conf
 `)
 }
