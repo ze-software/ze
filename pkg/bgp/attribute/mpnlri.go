@@ -257,7 +257,7 @@ const RDSize = 8
 // VPN next-hop formats:
 //   - VPN-IPv4: 12 bytes (RD:8 + IPv4:4)
 //   - VPN-IPv6: 24 bytes (RD:8 + IPv6:16)
-//   - VPN-IPv6 dual: 40 bytes (RD:8 + IPv6:16 + RD:8 + IPv6:16)
+//   - VPN-IPv6 dual: 48 bytes (RD:8 + IPv6:16 + RD:8 + IPv6:16)
 func parseNextHops(afi AFI, safi SAFI, data []byte) ([]netip.Addr, error) {
 	if len(data) == 0 {
 		return nil, nil
@@ -334,17 +334,17 @@ func parseNextHops(afi AFI, safi SAFI, data []byte) ([]netip.Addr, error) {
 // RFC 4364 Section 4.3.4: Standard VPN next-hop format is RD(8) + IP address.
 // The RD is always zero and is discarded.
 //
-// RFC 5549/8950 Section 6: Extended Next Hop for VPN uses IPv6 addresses
-// WITHOUT the RD prefix (16 or 32 bytes, same as non-VPN IPv6 next-hop).
+// RFC 8950 Section 3: VPN-IPv4 with IPv6 next-hop uses 24/48 bytes with RD=0.
+// This obsoletes RFC 5549's 16/32 byte format (without RD).
 //
 // Standard VPN formats (with RD):
-//   - 12 bytes: RD(8) + IPv4(4)
-//   - 24 bytes: RD(8) + IPv6(16)
-//   - 40 bytes: RD(8) + IPv6(16) + RD(8) + IPv6(16) for global+link-local
+//   - 12 bytes: RD(8) + IPv4(4) - VPN-IPv4 with IPv4 next-hop
+//   - 24 bytes: RD(8) + IPv6(16) - RFC 8950: VPN-IPv4/IPv6 with IPv6 next-hop
+//   - 48 bytes: RD(8) + IPv6(16) + RD(8) + IPv6(16) - RFC 8950: global+link-local
 //
-// Extended Next Hop formats (RFC 5549, no RD):
-//   - 16 bytes: IPv6(16) - Extended Next Hop for VPN
-//   - 32 bytes: IPv6(16) + IPv6(16) - global+link-local
+// Legacy formats (RFC 5549, accepted for backwards compatibility):
+//   - 16 bytes: IPv6(16) - RFC 5549 (obsolete): VPN with IPv6 next-hop, no RD
+//   - 32 bytes: IPv6(16) + IPv6(16) - RFC 5549 (obsolete): global+link-local, no RD
 func parseVPNNextHops(afi AFI, data []byte) ([]netip.Addr, error) {
 	_ = afi // Reserved for future AFI-specific validation
 	var hops []netip.Addr
@@ -358,29 +358,30 @@ func parseVPNNextHops(afi AFI, data []byte) ([]netip.Addr, error) {
 		hops = append(hops, netip.AddrFrom4(ip))
 
 	case 16:
-		// RFC 5549 Extended Next Hop for VPN: IPv6(16) without RD
-		// This is used when Extended Next Hop capability is negotiated
+		// RFC 5549 (obsolete, backwards compat): IPv6(16) without RD
+		// Some legacy implementations still use this format.
 		var ip [16]byte
 		copy(ip[:], data)
 		hops = append(hops, netip.AddrFrom16(ip))
 
 	case 24:
-		// VPN-IPv6: RD(8) + IPv6(16)
-		// Skip the RD, parse IPv6
+		// RFC 8950: RD(8) + IPv6(16) - VPN with IPv6 next-hop
+		// Skip the RD (always zero), parse IPv6
 		var ip [16]byte
 		copy(ip[:], data[RDSize:RDSize+16])
 		hops = append(hops, netip.AddrFrom16(ip))
 
 	case 32:
-		// RFC 5549 Extended Next Hop dual: IPv6(16) + IPv6(16) without RD
+		// RFC 5549 (obsolete, backwards compat): IPv6(16) + IPv6(16) without RD
+		// Global + link-local, legacy format.
 		var ip1, ip2 [16]byte
 		copy(ip1[:], data[0:16])
 		copy(ip2[:], data[16:32])
 		hops = append(hops, netip.AddrFrom16(ip1), netip.AddrFrom16(ip2))
 
-	case 40:
-		// VPN-IPv6 dual: RD(8) + IPv6(16) + RD(8) + IPv6(16)
-		// Two next-hops, each with its own RD prefix
+	case 48:
+		// RFC 8950: RD(8) + IPv6(16) + RD(8) + IPv6(16)
+		// Global + link-local, each with RD prefix (RD=0)
 		var ip1, ip2 [16]byte
 		copy(ip1[:], data[RDSize:RDSize+16])
 		copy(ip2[:], data[RDSize+16+RDSize:RDSize+16+RDSize+16])

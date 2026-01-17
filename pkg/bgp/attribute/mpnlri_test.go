@@ -446,47 +446,69 @@ func TestParseMPReachNLRI_VPNIPv4NextHop(t *testing.T) {
 	}
 }
 
-// TestParseMPReachNLRI_VPNIPv6NextHop tests VPN-IPv6 next-hop with RD prefix.
+// TestParseMPReachNLRI_VPNWithIPv6NextHop tests VPN next-hop parsing with 24-byte format.
 //
-// VALIDATES: RFC 4659 - VPN-IPv6 next-hop is 24 bytes: RD(8) + IPv6(16).
+// VALIDATES: RFC 4659 (VPN-IPv6) and RFC 8950 (VPN-IPv4 with IPv6 NH) 24-byte formats.
+// Both use RD(8) + IPv6(16) = 24 bytes.
 //
-// PREVENTS: Incorrect parsing of VPN-IPv6 routes.
-func TestParseMPReachNLRI_VPNIPv6NextHop(t *testing.T) {
-	// VPN-IPv6: AFI=2, SAFI=128
-	// Next-hop: 8-byte RD (all zeros) + 16-byte IPv6
-	data := []byte{
-		0x00, 0x02, // AFI IPv6
-		0x80,                                           // SAFI VPN (128)
-		0x18,                                           // NH len = 24 (8 RD + 16 IPv6)
-		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, // RD = 0
-		0x20, 0x01, 0x0d, 0xb8, 0x00, 0x00, 0x00, 0x00,
-		0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01, // 2001:db8::1
-		0x00,             // reserved
-		0x01, 0x02, 0x03, // VPN NLRI (simplified)
+// PREVENTS: Incorrect parsing of VPN routes with IPv6 next-hop.
+func TestParseMPReachNLRI_VPNWithIPv6NextHop(t *testing.T) {
+	tests := []struct {
+		name     string
+		afi      AFI
+		afiBytes []byte
+		wantNH   string
+	}{
+		{
+			name:     "VPN-IPv6_RFC4659",
+			afi:      AFIIPv6,
+			afiBytes: []byte{0x00, 0x02},
+			wantNH:   "2001:db8::1",
+		},
+		{
+			name:     "VPN-IPv4_RFC8950",
+			afi:      AFIIPv4,
+			afiBytes: []byte{0x00, 0x01},
+			wantNH:   "2001:db8::2",
+		},
 	}
 
-	m, err := ParseMPReachNLRI(data)
-	if err != nil {
-		t.Fatalf("ParseMPReachNLRI() error = %v", err)
-	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			expected := netip.MustParseAddr(tt.wantNH)
+			nhBytes := expected.AsSlice()
 
-	if m.AFI != AFIIPv6 {
-		t.Errorf("AFI = %d, want %d", m.AFI, AFIIPv6)
-	}
-	if m.SAFI != SAFIVPN {
-		t.Errorf("SAFI = %d, want %d", m.SAFI, SAFIVPN)
-	}
+			// Build data: AFI(2) + SAFI(1) + NH_LEN(1) + RD(8) + IPv6(16) + Reserved(1) + NLRI
+			data := make([]byte, 0, 32)
+			data = append(data, tt.afiBytes...)                                 // AFI
+			data = append(data, 0x80)                                           // SAFI VPN (128)
+			data = append(data, 0x18)                                           // NH len = 24 (8 RD + 16 IPv6)
+			data = append(data, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00) // RD = 0
+			data = append(data, nhBytes...)                                     // IPv6 next-hop
+			data = append(data, 0x00)                                           // reserved
+			data = append(data, 0x01, 0x02, 0x03)                               // VPN NLRI (simplified)
 
-	if len(m.NextHops) != 1 {
-		t.Fatalf("NextHops len = %d, want 1", len(m.NextHops))
-	}
+			m, err := ParseMPReachNLRI(data)
+			if err != nil {
+				t.Fatalf("ParseMPReachNLRI() error = %v", err)
+			}
 
-	expected := netip.MustParseAddr("2001:db8::1")
-	if m.NextHops[0] != expected {
-		t.Errorf("NextHops[0] = %v, want %v", m.NextHops[0], expected)
-	}
-	if !m.NextHops[0].Is6() {
-		t.Errorf("NextHops[0] should be IPv6, got: %v", m.NextHops[0])
+			if m.AFI != tt.afi {
+				t.Errorf("AFI = %d, want %d", m.AFI, tt.afi)
+			}
+			if m.SAFI != SAFIVPN {
+				t.Errorf("SAFI = %d, want %d", m.SAFI, SAFIVPN)
+			}
+			if len(m.NextHops) != 1 {
+				t.Fatalf("NextHops len = %d, want 1", len(m.NextHops))
+			}
+			if m.NextHops[0] != expected {
+				t.Errorf("NextHops[0] = %v, want %v", m.NextHops[0], expected)
+			}
+			if !m.NextHops[0].Is6() {
+				t.Errorf("NextHops[0] should be IPv6, got: %v", m.NextHops[0])
+			}
+		})
 	}
 }
 
