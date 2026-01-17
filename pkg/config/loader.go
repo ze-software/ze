@@ -228,8 +228,8 @@ func configToPeer(nc *PeerConfig, global *BGPConfig) (*reactor.PeerSettings, err
 		})
 	}
 
-	// RFC 8950: Build ExtendedNextHop capability from nexthop families config.
-	// Only include if capability is enabled AND there are families defined.
+	// RFC 8950: Build ExtendedNextHop capability from nexthop { } block config.
+	// Capability is inferred from nexthop block presence - no explicit enable needed.
 	if len(nc.NexthopFamilies) > 0 {
 		extNH := &capability.ExtendedNextHop{
 			Families: make([]capability.ExtendedNextHopFamily, 0, len(nc.NexthopFamilies)),
