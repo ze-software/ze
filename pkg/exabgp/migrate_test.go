@@ -559,12 +559,10 @@ neighbor 10.0.0.1 {
 
 	output := SerializeTree(result.Tree)
 
-	// Capability should be inferred from nexthop block presence.
-	if !strings.Contains(output, "nexthop enable;") {
-		t.Errorf("expected 'nexthop enable;' (inferred from block) in output:\n%s", output)
+	// Nexthop block should be inside capability with family syntax conversion.
+	if !strings.Contains(output, "capability {") {
+		t.Errorf("expected capability block in output:\n%s", output)
 	}
-
-	// Nexthop block should be copied with family syntax conversion.
 	if !strings.Contains(output, "nexthop {") {
 		t.Errorf("expected nexthop block in output:\n%s", output)
 	}
@@ -604,13 +602,13 @@ neighbor 10.0.0.1 {
 
 	output := SerializeTree(result.Tree)
 
-	// Capability should appear exactly once.
-	count := strings.Count(output, "nexthop enable;")
+	// Nexthop block should appear exactly once (inside capability).
+	count := strings.Count(output, "nexthop {")
 	if count != 1 {
-		t.Errorf("expected exactly 1 'nexthop enable;', got %d in:\n%s", count, output)
+		t.Errorf("expected exactly 1 'nexthop {', got %d in:\n%s", count, output)
 	}
 
-	// Nexthop block should still be copied.
+	// Nexthop block content should be present.
 	if !strings.Contains(output, "ipv4/unicast ipv6;") {
 		t.Errorf("expected nexthop block content in output:\n%s", output)
 	}
@@ -644,9 +642,12 @@ neighbor 10.0.0.1 {
 
 	output := SerializeTree(result.Tree)
 
-	// Capability should be inferred from nexthop block.
-	if !strings.Contains(output, "nexthop enable;") {
-		t.Errorf("expected 'nexthop enable;' in output:\n%s", output)
+	// Nexthop block should be inside capability.
+	if !strings.Contains(output, "capability {") {
+		t.Errorf("expected capability block in output:\n%s", output)
+	}
+	if !strings.Contains(output, "nexthop {") {
+		t.Errorf("expected nexthop block in output:\n%s", output)
 	}
 
 	// Check nexthop block syntax conversion.
@@ -744,15 +745,13 @@ neighbor 10.0.0.1 {
 
 	output := SerializeTree(result.Tree)
 
-	// Capability should be inferred from nexthop block.
-	if !strings.Contains(output, "nexthop enable;") {
-		t.Errorf("expected 'nexthop enable;' in output:\n%s", output)
+	// Nexthop block should be inside capability (only once).
+	count := strings.Count(output, "nexthop {")
+	if count != 1 {
+		t.Errorf("expected exactly 1 'nexthop {', got %d in:\n%s", count, output)
 	}
 
-	// Nexthop block should be copied with syntax conversion.
-	if !strings.Contains(output, "nexthop {") {
-		t.Errorf("expected nexthop block in output:\n%s", output)
-	}
+	// Nexthop block content should be present.
 	if !strings.Contains(output, "ipv4/unicast ipv6;") {
 		t.Errorf("expected 'ipv4/unicast ipv6;' in output:\n%s", output)
 	}
@@ -831,9 +830,12 @@ template {
 		t.Errorf("expected 'peer base' in template, got:\n%s", output)
 	}
 
-	// Capability should be inferred from nexthop block.
-	if !strings.Contains(output, "nexthop enable;") {
-		t.Errorf("expected 'nexthop enable;' in output:\n%s", output)
+	// Nexthop block should be inside capability.
+	if !strings.Contains(output, "capability {") {
+		t.Errorf("expected capability block in output:\n%s", output)
+	}
+	if !strings.Contains(output, "nexthop {") {
+		t.Errorf("expected nexthop block in output:\n%s", output)
 	}
 
 	// Nexthop block should be converted.
@@ -974,9 +976,12 @@ func validateMigrationResult(t *testing.T, testName, got string, result *Migrate
 		}
 
 	case "nexthop":
-		// Should have capability inferred from nexthop block.
-		if !strings.Contains(got, "nexthop enable;") {
-			t.Error("expected 'nexthop enable;' inferred from nexthop block")
+		// Should have nexthop block inside capability.
+		if !strings.Contains(got, "capability {") {
+			t.Error("expected capability block in output")
+		}
+		if !strings.Contains(got, "nexthop {") {
+			t.Error("expected nexthop block inside capability")
 		}
 		// Should NOT have RIB injected (nexthop doesn't require state storage).
 		if result.RIBInjected {

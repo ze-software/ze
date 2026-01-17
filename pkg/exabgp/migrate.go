@@ -223,9 +223,11 @@ func migrateCapability(src, dst *config.Tree) {
 		}
 	}
 
-	// RFC 8950: Infer nexthop capability from nexthop { } block presence.
-	if src.GetContainer("nexthop") != nil {
-		dstCap.Set("nexthop", "enable")
+	// RFC 8950: Move nexthop block into capability.
+	// ExaBGP: nexthop { ipv4 unicast ipv6; } at neighbor level
+	// ZeBGP: capability { nexthop { ipv4/unicast ipv6; } }
+	if nexthop := src.GetContainer("nexthop"); nexthop != nil {
+		dstCap.SetContainer("nexthop", convertNexthopBlock(nexthop))
 		hasCapabilities = true
 	}
 
@@ -252,11 +254,7 @@ func copyContainers(src, dst *config.Tree) {
 		dst.SetContainer("static", convertFreeformBlock(static))
 	}
 
-	// Copy and convert nexthop block (RFC 8950 extended next-hop encoding).
-	// ExaBGP: "ipv4 unicast ipv6" → ZeBGP: "ipv4/unicast ipv6".
-	if nexthop := src.GetContainer("nexthop"); nexthop != nil {
-		dst.SetContainer("nexthop", convertNexthopBlock(nexthop))
-	}
+	// RFC 8950: nexthop block is now moved into capability block by migrateCapability.
 }
 
 // convertFreeformBlock converts a Freeform block, stripping "true" placeholder values.

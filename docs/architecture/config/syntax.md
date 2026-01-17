@@ -164,7 +164,10 @@ capability {
     operational enable;
     aigp enable;
     extended-message enable;
-    nexthop enable;
+    nexthop {
+        ipv4/unicast ipv6;      # IPv4 unicast with IPv6 next-hop
+        ipv4/mpls-vpn ipv6;     # IPv4 VPN with IPv6 next-hop
+    }
     software-version <string>;
 }
 ```

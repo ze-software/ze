@@ -204,7 +204,7 @@ func peerFields() []FieldDef {
 				Field("receive", LeafWithDefault(TypeBool, "false")),
 			)),
 			Field("extended-message", Flex()), // RFC 8654 Extended Message
-			Field("nexthop", Flex()),
+			Field("nexthop", Freeform()),      // RFC 8950 Extended Next Hop
 			Field("multi-session", Flex()),
 			Field("operational", Flex()),
 			Field("aigp", Flex()),
@@ -220,7 +220,6 @@ func peerFields() []FieldDef {
 		Field("outgoing-ttl", Leaf(TypeUint16)),
 		Field("incoming-ttl", Leaf(TypeUint16)),
 		Field("multi-session", LeafWithDefault(TypeBool, "false")),
-		Field("nexthop", Freeform()),        // nexthop configuration
 		Field("manual-eor", Leaf(TypeBool)), // manual end-of-RIB
 		Field("auto-flush", Leaf(TypeBool)), // auto-flush routes
 		Field("adj-rib-out", Leaf(TypeBool)),
@@ -556,7 +555,8 @@ type CapabilityConfig struct {
 	AddPathReceive  bool
 	ExtendedMessage bool // RFC 8654 Extended Message Support
 	SoftwareVersion bool
-	Nexthop         bool // RFC 8950 Extended Next Hop Encoding
+	// RFC 8950 Extended Next Hop: capability is inferred from nexthop { } block presence.
+	// No explicit capability flag needed - NexthopFamilyConfig entries determine the capability.
 }
 
 // NexthopFamilyConfig defines an extended next-hop family mapping.
@@ -1020,16 +1020,11 @@ func applyTreeSettings(nc *PeerConfig, tree *Tree) error {
 		if v, ok := cap.GetFlex("software-version"); ok {
 			nc.Capabilities.SoftwareVersion = v == configTrue || v == configEnable
 		}
-		// RFC 8950: Extended Next Hop Encoding capability
-		if v, ok := cap.GetFlex("nexthop"); ok {
-			nc.Capabilities.Nexthop = v == configTrue || v == configEnable
+		// RFC 8950: Parse nexthop { ... } block for extended next-hop families.
+		// Format: capability { nexthop { ipv4/unicast ipv6; ipv4/mpls-vpn ipv6; } }
+		if nhBlock := cap.GetContainer("nexthop"); nhBlock != nil {
+			nc.NexthopFamilies = parseNexthopFamilies(nhBlock)
 		}
-	}
-
-	// Parse nexthop { ... } block for extended next-hop families
-	// Format: nexthop { ipv4/unicast ipv6; ipv4/mpls-vpn ipv6; }
-	if nhBlock := tree.GetContainer("nexthop"); nhBlock != nil {
-		nc.NexthopFamilies = parseNexthopFamilies(nhBlock)
 	}
 
 	return nil
@@ -1289,16 +1284,11 @@ func parsePeerConfig(addr string, tree *Tree, templates map[string]*Tree, peerGl
 		if v, ok := cap.GetFlex("software-version"); ok {
 			nc.Capabilities.SoftwareVersion = v == configTrue || v == configEnable
 		}
-		// RFC 8950: Extended Next Hop Encoding capability
-		if v, ok := cap.GetFlex("nexthop"); ok {
-			nc.Capabilities.Nexthop = v == configTrue || v == configEnable
+		// RFC 8950: Parse nexthop { ... } block for extended next-hop families.
+		// Format: capability { nexthop { ipv4/unicast ipv6; ipv4/mpls-vpn ipv6; } }
+		if nhBlock := cap.GetContainer("nexthop"); nhBlock != nil {
+			nc.NexthopFamilies = parseNexthopFamilies(nhBlock)
 		}
-	}
-
-	// Parse nexthop { ... } block for extended next-hop families
-	// Format: nexthop { ipv4/unicast ipv6; ipv4/mpls-vpn ipv6; }
-	if nhBlock := tree.GetContainer("nexthop"); nhBlock != nil {
-		nc.NexthopFamilies = parseNexthopFamilies(nhBlock)
 	}
 
 	// Per-family add-path configuration (RFC 7911)
