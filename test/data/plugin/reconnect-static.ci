@@ -1,0 +1,15 @@
+option:file:reconnect-static.conf
+option:tcp_connections:2
+option:timeout:15s
+
+# Test: Static route resent on reconnection (no plugins)
+# Simplest possible reconnection test to verify EOR is sent
+
+# Connection A: Static route + EOR
+A1:raw:FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF:0030:02:00000015400101004002004003040A0000014005040000006418C0A801
+A1:raw:FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF:0017:02:00000000
+A2:notification:Peer Reset
+
+# Connection B: Static route resent + EOR
+B1:raw:FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF:0030:02:00000015400101004002004003040A0000014005040000006418C0A801
+B1:raw:FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF:0017:02:00000000

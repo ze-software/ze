@@ -743,6 +743,11 @@ func (c *Checker) Init() bool {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
+	// Always clear connectionJustEnded at start of new connection.
+	// This flag may have been set when loading the next sequence in updateMessagesIfRequired(),
+	// but the actual connection transition happens here.
+	c.connectionJustEnded = false
+
 	if len(c.messages) > 0 {
 		return false
 	}
@@ -754,7 +759,6 @@ func (c *Checker) Init() bool {
 	c.messages = c.sequences[0]
 	c.sequences = c.sequences[1:]
 	c.connectionLetters = c.connectionLetters[1:]
-	c.connectionJustEnded = false
 	return true
 }
 

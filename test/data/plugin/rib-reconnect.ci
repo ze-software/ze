@@ -1,0 +1,24 @@
+option:file:rib-reconnect.conf
+option:tcp_connections:2
+option:timeout:15s
+
+# Test: RIB replays routes on reconnection
+#
+# Flow:
+# 1. Connection A: Plugin sends route -> RIB stores -> peer receives
+# 2. Peer sends NOTIFICATION -> ZeBGP disconnects
+# 3. Connection B: ZeBGP reconnects -> RIB replays route
+
+# Connection A: Initial route announcement
+# UPDATE: origin=IGP, as-path=[], next-hop=10.0.0.1, local-pref=100, nlri=192.168.1.0/24
+A1:raw:FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF:0030:02:00000015400101004002004003040A0000014005040000006418C0A801
+# EOR (End of RIB)
+A1:raw:FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF:0017:02:00000000
+# Peer disconnects with NOTIFICATION
+A2:notification:Peer Reset
+
+# Connection B: After reconnect, RIB replays the stored route
+# UPDATE: same route replayed by RIB
+B1:raw:FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF:0030:02:00000015400101004002004003040A0000014005040000006418C0A801
+# EOR
+B1:raw:FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF:0017:02:00000000

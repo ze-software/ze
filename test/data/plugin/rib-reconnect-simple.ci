@@ -1,0 +1,17 @@
+option:file:rib-reconnect-simple.conf
+option:tcp_connections:2
+option:timeout:15s
+
+# Test: Static route resent on reconnection with RIB plugin
+# Verifies that sendInitialRoutes sends static route and EOR on reconnection
+# NOTE: RIB plugin also replays routes on state up, so we get 2 UPDATEs (no dedup)
+
+# Connection A: Static route + EOR
+A1:raw:FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF:0030:02:00000015400101004002004003040A0000014005040000006418C0A801
+A1:raw:FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF:0017:02:00000000
+A2:notification:Peer Reset
+
+# Connection B: Static route + RIB replay + EOR (duplicate expected - no dedup)
+B1:raw:FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF:0030:02:00000015400101004002004003040A0000014005040000006418C0A801
+B1:raw:FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF:0030:02:00000015400101004002004003040A0000014005040000006418C0A801
+B1:raw:FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF:0017:02:00000000
