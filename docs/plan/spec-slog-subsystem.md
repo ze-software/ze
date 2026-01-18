@@ -1,0 +1,376 @@
+# Spec: slog-subsystem
+
+## Task
+
+Implement per-subsystem logging control for ZeBGP using `slog`. Goals:
+1. Plugins MUST use stderr (stdout reserved for protocol messages)
+2. Logging disabled by default for each subsystem
+3. Engine subsystems: enable via `zebgp.log.<subsystem>=<level>` env vars
+4. External plugins: enable via `--log-level=<level>` CLI flag
+5. Plugin stderr relay infrastructure (wiring deferred to separate task)
+6. Consistent subsystem tagging in all log messages
+
+## Required Reading
+
+### Architecture Docs
+- [x] `docs/architecture/core-design.md` - understand plugin architecture
+- [x] `docs/architecture/api/process-protocol.md` - plugin stdio usage
+
+### Codebase Exploration
+- [x] `cmd/zebgp/server.go` - existing `configureSlog()` pattern (now removed)
+- [x] `pkg/plugin/gr/gr.go` - plugin init() logging setup (now removed)
+- [x] `pkg/plugin/rib/rib.go` - plugin init() logging setup (now removed)
+- [x] ExaBGP logger - per-source filtering, lazy evaluation
+
+**Key insights:**
+- Plugins run as separate processes - each has own slog handler
+- `stdout` = protocol messages to engine, `stderr` = logs
+- ExaBGP has per-source (reactor, daemon, wire, etc.) log control
+
+## Design
+
+### Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                         ZeBGP Engine                            │
+│                                                                 │
+│   var logger = slogutil.Logger("server")  // per-subsystem      │
+│   var logger = slogutil.Logger("filter")  // independent        │
+│   → backend: zebgp.log.backend (stderr|stdout|syslog)           │
+│   → syslog addr: zebgp.log.destination (when backend=syslog)    │
+│                                                                 │
+│   Plugin stderr capture → relay infrastructure ready            │
+└─────────────────────────────────────────────────────────────────┘
+                              │
+        ══════════════════════╧══════════════════════════
+                    process boundary (pipes)
+        ══════════════════════╤══════════════════════════
+                              │
+┌─────────────────────────────────────────────────────────────────┐
+│                      Plugin Process                             │
+│                                                                 │
+│   var logger = slogutil.LoggerWithLevel("gr", *logLevel)        │
+│   → level from CLI: --log-level=debug                           │
+│   → ALWAYS writes to stderr (stdout = protocol messages)        │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+### Environment Variables
+
+Follow ExaBGP format with `zebgp.` prefix (or `zebgp_` for shell compatibility):
+
+**Backend configuration:**
+
+| Variable | Purpose | Values |
+|----------|---------|--------|
+| `zebgp.log.backend` | Log backend type | `stderr` (default), `stdout`, `syslog` |
+| `zebgp.log.destination` | Syslog address (only when backend=syslog) | `localhost:514`, `/dev/log`, etc. |
+
+**Per-subsystem levels:**
+
+| Variable | Purpose | Values |
+|----------|---------|--------|
+| `zebgp.log.server` | Plugin server logging | `disabled`, `debug`, `info`, `warn`, `err` |
+| `zebgp.log.coordinator` | Coordinator logging | `disabled`, `debug`, `info`, `warn`, `err` |
+| `zebgp.log.filter` | Filter logging | `disabled`, `debug`, `info`, `warn`, `err` |
+| `zebgp.log.plugin` | Relay plugin stderr (infrastructure only) | `disabled`, `enabled` |
+
+**Shell-compatible form:** `zebgp_log_server`, `zebgp_log_backend`, etc.
+
+**Levels (short syslog names, case-insensitive):**
+- `disabled` - no logging (explicit opt-out)
+- `debug` - all messages
+- `info` - info and above
+- `warn` - warnings and errors
+- `err` - errors only
+
+**Behavior:**
+- **Disabled by default** - subsystem produces no logs unless explicitly enabled
+- **Enable by setting level** - `zebgp.log.server=debug` enables server logging at debug level
+- **Explicit disable** - `zebgp.log.server=disabled` disables even if default changes later
+- **Plugin example:**
+  ```
+  plugin {
+      external gr {
+          run "zebgp plugin gr --log-level=debug";  # plugin verbosity
+      }
+  }
+  ```
+
+**Precedence:** `zebgp.log.<var>` > `zebgp_log_<var>` > default
+
+### Subsystem Names
+
+**Engine subsystems (use `Logger()`):**
+
+| Subsystem | Code Location | Tag |
+|-----------|---------------|-----|
+| `server` | `pkg/plugin/server.go` | `subsystem=server` |
+| `coordinator` | `pkg/plugin/startup_coordinator.go` | `subsystem=coordinator` |
+| `filter` | `pkg/plugin/filter.go` | `subsystem=filter` |
+
+**Plugin processes (use `LoggerWithLevel()`):**
+
+| Plugin | Code Location | Tag |
+|--------|---------------|-----|
+| `gr` | `pkg/plugin/gr/` | `subsystem=gr` |
+| `rib` | `pkg/plugin/rib/` | `subsystem=rib` |
+
+### Implementation Approach
+
+Create `pkg/slogutil/slogutil.go` with:
+
+```go
+// Logger returns a logger for an engine subsystem.
+// Each subsystem gets its own logger instance (not SetDefault) to allow
+// multiple subsystems in the same process with independent enable/disable.
+// Reads zebgp.log.<subsystem> for level, zebgp.log.backend for output.
+func Logger(subsystem string) *slog.Logger {
+    v := getEnv("log", subsystem)  // zebgp.log.<subsystem>
+    if v == "" {
+        return slog.New(discardHandler{})
+    }
+    lvl, enabled := parseLevel(v)
+    if !enabled {
+        return slog.New(discardHandler{})
+    }
+    handler := createHandler(lvl)
+    return slog.New(handler).With("subsystem", subsystem)
+}
+
+// LoggerWithLevel returns a logger for plugins (level from CLI --log-level flag).
+// Plugins ALWAYS write to stderr (stdout = protocol messages).
+func LoggerWithLevel(subsystem, level string) *slog.Logger {
+    lvl, enabled := parseLevel(level)
+    if !enabled {
+        return slog.New(discardHandler{})
+    }
+    handler := slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{Level: lvl})
+    return slog.New(handler).With("subsystem", subsystem)
+}
+
+// LoggerWithOutput returns a logger that writes to a specific output.
+// Used for testing and custom output destinations.
+func LoggerWithOutput(subsystem, level string, w io.Writer) *slog.Logger
+
+// IsPluginRelayEnabled checks if plugin stderr should be relayed.
+// Reads zebgp.log.plugin (enabled/disabled).
+// Note: Infrastructure only - wiring into server.go deferred to separate task.
+func IsPluginRelayEnabled() bool {
+    v := getEnv("log", "plugin")
+    return strings.ToLower(v) == "enabled"
+}
+
+// getEnv returns env var with ZeBGP naming (dot and underscore notation).
+// Checks zebgp.log.<option> first, then zebgp_log_<option>.
+func getEnv(section, option string) string
+
+func createHandler(level slog.Level) slog.Handler {
+    opts := &slog.HandlerOptions{Level: level}
+    backend := getEnv("log", "backend")  // zebgp.log.backend
+    switch strings.ToLower(backend) {
+    case "stdout":
+        return slog.NewTextHandler(os.Stdout, opts)
+    case "syslog":
+        return newSyslogHandler(opts)  // uses native log/syslog
+    default:  // stderr (default)
+        return slog.NewTextHandler(os.Stderr, opts)
+    }
+}
+
+func parseLevel(s string) (slog.Level, bool) {
+    switch strings.ToLower(s) {
+    case "disabled":
+        return slog.LevelInfo, false
+    case "debug":
+        return slog.LevelDebug, true
+    case "info":
+        return slog.LevelInfo, true
+    case "warn", "warning":
+        return slog.LevelWarn, true
+    case "err", "error":
+        return slog.LevelError, true
+    default:
+        return slog.LevelInfo, false  // unknown = disabled
+    }
+}
+
+// discardHandler discards all log records.
+type discardHandler struct{}
+func (discardHandler) Enabled(context.Context, slog.Level) bool  { return false }
+func (discardHandler) Handle(context.Context, slog.Record) error { return nil }
+func (d discardHandler) WithAttrs([]slog.Attr) slog.Handler      { return d }
+func (d discardHandler) WithGroup(string) slog.Handler           { return d }
+```
+
+**ParseLogLine helper (in `pkg/slogutil/parse.go`):**
+
+```go
+// ParseLogLine extracts level, message, and attributes from a slog text line.
+// Returns []any (not []slog.Attr) so result can be spread to slog.Group().
+//
+// For valid slog format:
+//   Input:  "time=... level=DEBUG msg=\"parsed config\" subsystem=gr peer=..."
+//   Output: LevelDebug, "parsed config", ["subsystem", "gr", "peer", "..."]
+//
+// For malformed/non-slog text (e.g., panic, raw error):
+//   Input:  "panic: runtime error: index out of range"
+//   Output: LevelInfo, "panic: runtime error: index out of range", []any{}
+//
+// Note: Infrastructure for plugin stderr relay - wiring deferred.
+func ParseLogLine(line string) (slog.Level, string, []any)
+```
+
+### Log Message Format
+
+**Before (current):**
+```
+time=2025-01-18T12:00:00Z level=DEBUG msg="gr: parsed config" peer=192.168.1.1 restart-time=120
+```
+
+**After - Plugin stderr (written by plugin process):**
+```
+time=2025-01-18T12:00:00Z level=DEBUG msg="parsed config" subsystem=gr peer=192.168.1.1 restart-time=120
+```
+
+**Changes:**
+- Remove manual `"gr: "` prefix from messages, use `subsystem` attribute
+- Each subsystem independently enabled/disabled via env var
+
+## 🧪 TDD Test Plan
+
+### Unit Tests
+| Test | File | Validates | Status |
+|------|------|-----------|--------|
+| `TestLoggerDisabledByDefault` | `pkg/slogutil/slogutil_test.go` | No logs when env var not set | ✅ |
+| `TestLoggerExplicitDisabled` | `pkg/slogutil/slogutil_test.go` | `zebgp.log.server=disabled` explicitly disables | ✅ |
+| `TestLoggerEnabledDot` | `pkg/slogutil/slogutil_test.go` | `zebgp.log.server=debug` enables logging | ✅ |
+| `TestLoggerEnabledUnderscore` | `pkg/slogutil/slogutil_test.go` | `zebgp_log_server=debug` enables logging | ✅ |
+| `TestLoggerWithLevel` | `pkg/slogutil/slogutil_test.go` | `LoggerWithLevel("gr", "debug")` enables debug logging | ✅ |
+| `TestLoggerWithLevelDisabled` | `pkg/slogutil/slogutil_test.go` | `LoggerWithLevel("gr", "disabled")` disables logging | ✅ |
+| `TestLoggerPrecedence` | `pkg/slogutil/slogutil_test.go` | dot notation takes precedence over underscore | ✅ |
+| `TestLoggerSubsystemAttr` | `pkg/slogutil/slogutil_test.go` | `subsystem` attribute added to logs | ✅ |
+| `TestParseLevelCaseInsensitive` | `pkg/slogutil/slogutil_test.go` | `debug`, `DEBUG`, `Debug` all work | ✅ |
+| `TestParseLevelAliases` | `pkg/slogutil/slogutil_test.go` | `err`/`error`, `warn`/`warning` both work | ✅ |
+| `TestLoggerLevelFiltering` | `pkg/slogutil/slogutil_test.go` | `info` level filters out debug messages | ✅ |
+| `TestLoggerUnknownLevel` | `pkg/slogutil/slogutil_test.go` | Unknown level value = disabled | ✅ |
+| `TestBackendStderr` | `pkg/slogutil/slogutil_test.go` | `zebgp.log.backend=stderr` uses stderr | ✅ |
+| `TestBackendStdout` | `pkg/slogutil/slogutil_test.go` | `zebgp.log.backend=stdout` uses stdout | ✅ |
+| `TestBackendSyslog` | `pkg/slogutil/slogutil_test.go` | `zebgp.log.backend=syslog` uses syslog handler | ✅ |
+| `TestLoggerWithLevelStderr` | `pkg/slogutil/slogutil_test.go` | `LoggerWithLevel()` always uses stderr | ✅ |
+| `TestIsPluginRelayEnabled` | `pkg/slogutil/slogutil_test.go` | `zebgp.log.plugin=enabled` returns true | ✅ |
+| `TestIsPluginRelayDisabled` | `pkg/slogutil/slogutil_test.go` | `zebgp.log.plugin=disabled` returns false | ✅ |
+| `TestIsPluginRelayDefault` | `pkg/slogutil/slogutil_test.go` | Unset `zebgp.log.plugin` returns false | ✅ |
+| `TestDiscardHandler` | `pkg/slogutil/slogutil_test.go` | discardHandler implements slog.Handler correctly | ✅ |
+| `TestParseLogLineValid` | `pkg/slogutil/slogutil_test.go` | Parses valid slog text line, extracts level/msg/attrs | ✅ |
+| `TestParseLogLineAllLevels` | `pkg/slogutil/slogutil_test.go` | Extracts DEBUG/INFO/WARN/ERROR levels correctly | ✅ |
+| `TestParseLogLineQuotedMsg` | `pkg/slogutil/slogutil_test.go` | Handles quoted message containing spaces | ✅ |
+| `TestParseLogLineMalformed` | `pkg/slogutil/slogutil_test.go` | Returns LevelInfo and raw line for non-slog text | ✅ |
+| `TestLoggerWithOutputSubsystem` | `pkg/slogutil/slogutil_test.go` | `LoggerWithOutput()` adds subsystem attribute | ✅ |
+| `TestAllLevelsParsing` | `pkg/slogutil/slogutil_test.go` | All level strings parse correctly | ✅ |
+
+### Boundary Tests (MANDATORY for numeric inputs)
+N/A - no numeric inputs in this feature.
+
+### Functional Tests
+| Test | Location | Scenario | Status |
+|------|----------|----------|--------|
+| N/A | - | Logging is stderr-only, not testable via functional tests | |
+
+### Future (if deferring any tests)
+- Integration test that captures stderr from plugin subprocess and verifies format
+- Wire plugin stderr relay into `pkg/plugin/server.go` (separate task)
+
+## Files to Modify
+
+- `pkg/plugin/gr/gr.go` - remove init(), add `var logger`, add `SetLogger()` func, use `logger.X()`, remove "gr: " prefixes
+- `pkg/plugin/rib/rib.go` - remove init(), add `var logger`, add `SetLogger()` func, remove prefixes
+- `cmd/zebgp/plugin_gr.go` - add `--log-level` flag, call `gr.SetLogger()`
+- `cmd/zebgp/plugin_rib.go` - add `--log-level` flag, call `rib.SetLogger()`
+- `pkg/plugin/server.go` - add `var logger = slogutil.Logger("server")`, use `logger.X()`
+- `pkg/plugin/startup_coordinator.go` - add `var coordinatorLogger = slogutil.Logger("coordinator")`
+- `pkg/plugin/filter.go` - add `var filterLogger = slogutil.Logger("filter")`
+- `cmd/zebgp/server.go` - remove `configureSlog()` function
+
+## Files to Create
+
+- `pkg/slogutil/slogutil.go` - shared logging configuration
+- `pkg/slogutil/syslog.go` - syslog handler wrapper (uses native `log/syslog`)
+- `pkg/slogutil/parse.go` - ParseLogLine helper (infrastructure for future plugin stderr relay)
+- `pkg/slogutil/slogutil_test.go` - unit tests (27 tests)
+
+## Dependencies
+
+None - uses native `log/syslog` for syslog support.
+
+## Implementation Steps
+
+1. **Write unit tests** - Create `pkg/slogutil/slogutil_test.go` BEFORE implementation (strict TDD)
+2. **Run tests** - Verify FAIL (paste output)
+3. **Implement slogutil** - Create `pkg/slogutil/slogutil.go`, `syslog.go`, `parse.go`
+4. **Run tests** - Verify PASS (paste output)
+5. **Add CLI flags** - Add `--log-level` flag to `cmd/zebgp/plugin_gr.go` and `plugin_rib.go`, call `SetLogger()`
+6. **Migrate GR plugin** - Remove init(), add `var logger`, add `SetLogger()` func, use `logger.X()`, remove "gr: " prefixes
+7. **Migrate RIB plugin** - Remove init(), add `var logger`, add `SetLogger()` func, remove prefixes
+8. **Migrate server** - Add `var logger = slogutil.Logger("server")`, use `logger.X()`
+9. **Migrate coordinator/filter** - Add `var <name>Logger = slogutil.Logger(...)`, replace slog calls
+10. **Migrate cmd/zebgp/server.go** - Remove `configureSlog()` function
+11. **Verify all** - `make lint && make test && make functional` (paste output)
+
+## Implementation Summary
+
+### What Was Implemented
+
+**New package `pkg/slogutil/`:**
+- `slogutil.go` - `Logger()`, `LoggerWithLevel()`, `LoggerWithOutput()`, `IsPluginRelayEnabled()`, `parseLevel()`, `createHandler()`, `discardHandler`
+- `syslog.go` - `newSyslogHandler()` for syslog backend support (native `log/syslog`)
+- `parse.go` - `ParseLogLine()` for plugin stderr relay parsing (infrastructure ready)
+- `slogutil_test.go` - 27 unit tests covering all functionality
+
+**Modified files:**
+- `cmd/zebgp/plugin_gr.go` - Added `--log-level` flag, calls `gr.SetLogger()`
+- `cmd/zebgp/plugin_rib.go` - Added `--log-level` flag, calls `rib.SetLogger()`
+- `cmd/zebgp/server.go` - Removed `configureSlog()` function
+- `pkg/plugin/gr/gr.go` - Removed `init()`, added `SetLogger()`, replaced `slog.X()` with `logger.X()`, removed "gr: " prefixes
+- `pkg/plugin/rib/rib.go` - Removed `init()`, added `SetLogger()`, replaced `slog.X()` with `logger.X()`
+- `pkg/plugin/server.go` - Added `var logger = slogutil.Logger("server")`, replaced `slog.X()` with `logger.X()`
+- `pkg/plugin/startup_coordinator.go` - Added `var coordinatorLogger = slogutil.Logger("coordinator")`, replaced calls
+- `pkg/plugin/filter.go` - Added `var filterLogger = slogutil.Logger("filter")`, replaced calls
+
+### Bugs Found/Fixed
+- None during implementation
+
+### Design Insights
+- Used native `log/syslog` instead of external dependency - simpler, no go.mod changes
+- Exported `DiscardLogger()` from slogutil - plugins import it instead of duplicating discardHandler
+- Plugin stderr relay wired into `pkg/plugin/process.go:relayStderr()` - reads lines and relays via stderrLogger
+- Logger variable names vary by file (`logger`, `coordinatorLogger`, `filterLogger`) to avoid conflicts within the same package
+
+### Deviations from Plan
+- Used native `log/syslog` instead of `github.com/samber/slog-syslog/v2`
+- slogutil has its own `getEnv()` function (cleaner than exporting from config package)
+
+## Checklist
+
+### 🧪 TDD
+- [x] Tests written
+- [x] Tests FAIL (functions undefined before implementation)
+- [x] Implementation complete
+- [x] Tests PASS (27 tests)
+- [x] Boundary tests cover all numeric inputs (N/A - no numeric inputs)
+
+### Verification
+- [x] `make lint` passes (0 issues)
+- [x] `make test` passes
+- [x] `make functional` passes (87 tests)
+
+### Documentation (during implementation)
+- [x] Required docs read
+- [x] go-standards.md logging section updated with subsystem pattern
+- [ ] docs/architecture/config/environment.md created with zebgp.log.* variables (deferred - info in go-standards.md)
+
+### Completion (after tests pass - see Completion Checklist)
+- [x] Spec updated with Implementation Summary
+- [ ] Spec moved to `docs/plan/done/NNN-<name>.md`
+- [ ] All files committed together

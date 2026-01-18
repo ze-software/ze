@@ -10,17 +10,23 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
-	"os"
 	"strconv"
 	"strings"
 	"sync"
+
+	"codeberg.org/thomas-mangin/zebgp/pkg/slogutil"
 )
 
-func init() {
-	// Configure slog to write to stderr with text format
-	slog.SetDefault(slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{
-		Level: slog.LevelInfo,
-	})))
+// logger is the package-level logger, disabled by default.
+// Use SetLogger() to enable logging from CLI --log-level flag.
+var logger = slogutil.DiscardLogger()
+
+// SetLogger sets the package-level logger.
+// Called by cmd/zebgp/plugin_gr.go with slogutil.LoggerWithLevel().
+func SetLogger(l *slog.Logger) {
+	if l != nil {
+		logger = l
+	}
 }
 
 // GRPlugin implements a Graceful Restart capability plugin.
@@ -97,14 +103,14 @@ func (g *GRPlugin) parseConfig() {
 func (g *GRPlugin) parseConfigLine(line string) {
 	// Expected: "config peer 192.168.1.1 restart-time 120"
 	if !strings.HasPrefix(line, "config peer ") {
-		slog.Debug("gr: ignoring non-peer config", "line", line)
+		logger.Debug("ignoring non-peer config", "line", line)
 		return
 	}
 
 	// Parse: config peer <addr> restart-time <value>
 	parts := strings.Fields(line)
 	if len(parts) < 5 {
-		slog.Warn("gr: malformed config line", "line", line)
+		logger.Warn("malformed config line", "line", line)
 		return
 	}
 
@@ -113,19 +119,19 @@ func (g *GRPlugin) parseConfigLine(line string) {
 	valueStr := parts[4]
 
 	if key != "restart-time" {
-		slog.Debug("gr: ignoring non-GR config", "key", key)
+		logger.Debug("ignoring non-GR config", "key", key)
 		return
 	}
 
 	value, err := strconv.ParseUint(valueStr, 10, 16)
 	if err != nil {
-		slog.Warn("gr: invalid restart-time value", "peer", peerAddr, "value", valueStr, "error", err)
+		logger.Warn("invalid restart-time value", "peer", peerAddr, "value", valueStr, "error", err)
 		return
 	}
 
 	// RFC 4724: restart-time is 12 bits (0-4095)
 	if value > 4095 {
-		slog.Warn("gr: restart-time exceeds 12-bit max, clamping", "peer", peerAddr, "value", value)
+		logger.Warn("restart-time exceeds 12-bit max, clamping", "peer", peerAddr, "value", value)
 		value = 4095
 	}
 
@@ -133,7 +139,7 @@ func (g *GRPlugin) parseConfigLine(line string) {
 	g.grConfig[peerAddr] = uint16(value)
 	g.mu.Unlock()
 
-	slog.Debug("gr: parsed config", "peer", peerAddr, "restart-time", value)
+	logger.Debug("parsed config", "peer", peerAddr, "restart-time", value)
 }
 
 // registerCapabilities sends Stage 3 capability declarations.
@@ -152,7 +158,7 @@ func (g *GRPlugin) registerCapabilities() {
 		// RFC 4724 Section 3: Restart Flags (4 bits) + Restart Time (12 bits)
 		capValue := fmt.Sprintf("%04x", restartTime&0x0FFF)
 		g.send("capability hex %d %s peer %s", grCapCode, capValue, peerAddr)
-		slog.Debug("gr: registered capability", "peer", peerAddr, "restart-time", restartTime)
+		logger.Debug("registered capability", "peer", peerAddr, "restart-time", restartTime)
 	}
 	g.send("capability done")
 }
@@ -167,7 +173,7 @@ func (g *GRPlugin) eventLoop() {
 		}
 		// GR plugin doesn't need to handle events - it's capability-only.
 		// Just consume input until EOF (shutdown).
-		slog.Debug("gr: event (ignored)", "line", line[:min(50, len(line))])
+		logger.Debug("event (ignored)", "line", line[:min(50, len(line))])
 	}
 }
 

@@ -6,12 +6,19 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"os"
 	"os/exec"
 	"sync"
 	"sync/atomic"
 	"time"
+
+	"codeberg.org/thomas-mangin/zebgp/pkg/slogutil"
 )
+
+// stderrLogger is used for relaying plugin stderr to engine logs.
+// Tagged with subsystem=plugin to distinguish from engine logs.
+var stderrLogger = slogutil.Logger("plugin")
 
 // Backpressure constants matching ExaBGP behavior.
 // ExaBGP: WRITE_QUEUE_HIGH_WATER=1000, WRITE_QUEUE_LOW_WATER=100.
@@ -313,19 +320,8 @@ func (p *Process) StartWithContext(ctx context.Context) error {
 	// Start write loop goroutine for backpressure management
 	go p.writeLoop()
 
-	// Copy stderr to os.Stderr for debugging
-	go func() {
-		buf := make([]byte, 1024)
-		for {
-			n, err := p.stderr.Read(buf)
-			if n > 0 {
-				fmt.Fprintf(os.Stderr, "PROCESS STDERR: %s", string(buf[:n]))
-			}
-			if err != nil {
-				break
-			}
-		}
-	}()
+	// Relay plugin stderr based on zebgp.log.plugin setting
+	go p.relayStderr()
 
 	// Monitor process
 	p.wg.Add(1)
@@ -386,6 +382,28 @@ func parseResponseSerial(line string) (string, string, bool) {
 		rest = line[idx+1:] // Skip the space
 	}
 	return serial, rest, true
+}
+
+// relayStderr reads plugin stderr and relays to engine logs.
+// Plugin stderr format: time=... level=DEBUG msg="..." subsystem=gr ...
+// When zebgp.log.plugin=enabled, relays with subsystem=plugin and plugin=<name>.
+// When disabled, discards plugin stderr silently.
+func (p *Process) relayStderr() {
+	scanner := bufio.NewScanner(p.stderr)
+	for scanner.Scan() {
+		line := scanner.Text()
+		if !slogutil.IsPluginRelayEnabled() {
+			continue // Discard when relay disabled
+		}
+		// Parse the slog line and relay with subsystem=plugin
+		level, msg, attrs := slogutil.ParseLogLine(line)
+		// Build args: plugin name + original attrs
+		args := []any{"plugin", p.config.Name}
+		if len(attrs) > 0 {
+			args = append(args, slog.Group("original", attrs...))
+		}
+		stderrLogger.Log(context.Background(), level, msg, args...)
+	}
 }
 
 // Stop terminates the process.

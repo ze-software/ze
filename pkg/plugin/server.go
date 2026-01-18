@@ -6,7 +6,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"log/slog"
 	"net"
 	"os"
 	"strings"
@@ -15,7 +14,12 @@ import (
 	"time"
 
 	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/message"
+	"codeberg.org/thomas-mangin/zebgp/pkg/slogutil"
 )
+
+// logger is the plugin server subsystem logger.
+// Controlled by zebgp.log.server environment variable.
+var logger = slogutil.Logger("server")
 
 // Default stage timeout for plugin registration protocol.
 // Each stage must complete within this duration.
@@ -28,7 +32,7 @@ func (s *Server) stageTransition(proc *Process, pluginName string, completeStage
 		return true
 	}
 
-	slog.Debug("server: stageTransition START", "plugin", pluginName, "complete", completeStage, "wait_for", waitStage)
+	logger.Debug("server: stageTransition START", "plugin", pluginName, "complete", completeStage, "wait_for", waitStage)
 	s.coordinator.StageComplete(proc.Index(), completeStage)
 
 	// Use per-plugin timeout if configured, else default
@@ -42,7 +46,7 @@ func (s *Server) stageTransition(proc *Process, pluginName string, completeStage
 	cancel()
 
 	if err != nil {
-		slog.Error("stage timeout", "plugin", pluginName, "waiting_for", waitStage, "error", err)
+		logger.Error("stage timeout", "plugin", pluginName, "waiting_for", waitStage, "error", err)
 		s.coordinator.PluginFailed(proc.Index(), fmt.Sprintf("stage timeout: %v", err))
 		proc.Stop()
 		return false
@@ -81,7 +85,7 @@ func (s *Server) handlePluginConflict(proc *Process, name, msg string, err error
 	if s.coordinator != nil {
 		s.coordinator.PluginFailed(proc.Index(), err.Error())
 	}
-	slog.Error(msg, "plugin", name, "error", err)
+	logger.Error(msg, "plugin", name, "error", err)
 	proc.Stop()
 }
 
@@ -481,7 +485,7 @@ func (s *Server) handleSingleProcessCommands(proc *Process) {
 				err := s.coordinator.WaitForStage(stageCtx, StageRunning)
 				cancel()
 				if err != nil {
-					slog.Error("stage timeout waiting for running stage", "plugin", proc.Name(), "error", err)
+					logger.Error("stage timeout waiting for running stage", "plugin", proc.Name(), "error", err)
 					s.coordinator.PluginFailed(proc.Index(), fmt.Sprintf("stage timeout: %v", err))
 					return
 				}
@@ -518,27 +522,27 @@ func (s *Server) handleSingleProcessCommands(proc *Process) {
 func (s *Server) handleRegistrationLine(proc *Process, line string) bool {
 	reg := proc.Registration()
 	if err := reg.ParseLine(line); err != nil {
-		slog.Debug("server: handleRegistrationLine PARSE ERROR", "plugin", proc.Name(), "line", line, "err", err)
+		logger.Debug("server: handleRegistrationLine PARSE ERROR", "plugin", proc.Name(), "line", line, "err", err)
 		return false
 	}
 	if !reg.Done {
-		slog.Debug("server: handleRegistrationLine parsed", "plugin", proc.Name(), "line", line)
+		logger.Debug("server: handleRegistrationLine parsed", "plugin", proc.Name(), "line", line)
 		return true
 	}
 
-	slog.Debug("server: handleRegistrationLine DONE", "plugin", proc.Name(), "patterns", len(reg.ConfigPatterns))
+	logger.Debug("server: handleRegistrationLine DONE", "plugin", proc.Name(), "patterns", len(reg.ConfigPatterns))
 	reg.Name = proc.config.Name
 	if err := s.registry.Register(reg); err != nil {
 		s.handlePluginConflict(proc, reg.Name, "plugin registration conflict", err)
 		return true
 	}
 
-	slog.Debug("server: handleRegistrationLine calling progressThroughStages", "plugin", proc.Name())
+	logger.Debug("server: handleRegistrationLine calling progressThroughStages", "plugin", proc.Name())
 	s.progressThroughStages(proc, reg.Name, stageProgression{
 		from: StageRegistration, mid: StageConfig, to: StageCapability,
 		deliver: s.deliverConfig,
 	})
-	slog.Debug("server: handleRegistrationLine progressThroughStages returned", "plugin", proc.Name())
+	logger.Debug("server: handleRegistrationLine progressThroughStages returned", "plugin", proc.Name())
 	return true
 }
 
@@ -604,18 +608,18 @@ func (s *Server) GetSchemaDeclarations() []SchemaDeclaration {
 // deliverConfig sends matching configuration to a plugin (Stage 2).
 // Matches registered config patterns against peer capability configs.
 func (s *Server) deliverConfig(proc *Process) {
-	slog.Debug("server: deliverConfig START", "plugin", proc.Name())
+	logger.Debug("server: deliverConfig START", "plugin", proc.Name())
 	reg := proc.Registration()
 	if len(reg.ConfigPatterns) == 0 || s.reactor == nil {
-		slog.Debug("server: deliverConfig FAST PATH", "plugin", proc.Name(), "patterns", len(reg.ConfigPatterns), "has_reactor", s.reactor != nil)
+		logger.Debug("server: deliverConfig FAST PATH", "plugin", proc.Name(), "patterns", len(reg.ConfigPatterns), "has_reactor", s.reactor != nil)
 		_ = proc.WriteEvent("config done")
 		return
 	}
 
 	// Get peer capability configs from reactor
-	slog.Debug("server: deliverConfig getting peer configs", "plugin", proc.Name())
+	logger.Debug("server: deliverConfig getting peer configs", "plugin", proc.Name())
 	peerConfigs := s.reactor.GetPeerCapabilityConfigs()
-	slog.Debug("server: deliverConfig got peer configs", "plugin", proc.Name(), "count", len(peerConfigs))
+	logger.Debug("server: deliverConfig got peer configs", "plugin", proc.Name(), "count", len(peerConfigs))
 
 	// For each peer, try to match patterns and deliver config
 	for _, peerCfg := range peerConfigs {
@@ -633,7 +637,7 @@ func (s *Server) deliverConfig(proc *Process) {
 		}
 	}
 
-	slog.Debug("server: deliverConfig DONE", "plugin", proc.Name())
+	logger.Debug("server: deliverConfig DONE", "plugin", proc.Name())
 	_ = proc.WriteEvent("config done")
 }
 
@@ -687,7 +691,7 @@ func (s *Server) handlePluginFailed(proc *Process, line string) {
 	}
 
 	// Log the failure with structured logging
-	slog.Error("plugin startup failed",
+	logger.Error("plugin startup failed",
 		"plugin", proc.Name(),
 		"stage", proc.Stage().String(),
 		"error", errMsg,

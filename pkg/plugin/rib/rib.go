@@ -12,7 +12,6 @@ import (
 	"io"
 	"log/slog"
 	"net"
-	"os"
 	"sort"
 	"strings"
 	"sync"
@@ -21,13 +20,19 @@ import (
 	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/attribute"
 	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/nlri"
 	"codeberg.org/thomas-mangin/zebgp/pkg/plugin/rib/storage"
+	"codeberg.org/thomas-mangin/zebgp/pkg/slogutil"
 )
 
-func init() {
-	// Configure slog to write to stderr with text format
-	slog.SetDefault(slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{
-		Level: slog.LevelInfo,
-	})))
+// logger is the package-level logger, disabled by default.
+// Use SetLogger() to enable logging from CLI --log-level flag.
+var logger = slogutil.DiscardLogger()
+
+// SetLogger sets the package-level logger.
+// Called by cmd/zebgp/plugin_rib.go with slogutil.LoggerWithLevel().
+func SetLogger(l *slog.Logger) {
+	if l != nil {
+		logger = l
+	}
 }
 
 // RIBManager implements a BGP RIB plugin.
@@ -109,7 +114,7 @@ func (r *RIBManager) Run() int {
 
 		event, err := parseEvent(line)
 		if err != nil {
-			slog.Warn("parse error", "error", err, "line", string(line[:min(100, len(line))]))
+			logger.Warn("parse error", "error", err, "line", string(line[:min(100, len(line))]))
 			continue
 		}
 
@@ -190,10 +195,10 @@ func (r *RIBManager) dispatch(event *Event) {
 		r.handleRefresh(event)
 	case "borr":
 		// RFC 7313: Beginning of Route Refresh from peer - log only
-		slog.Debug("received BoRR marker", "peer", event.GetPeerAddress())
+		logger.Debug("received BoRR marker", "peer", event.GetPeerAddress())
 	case "eorr":
 		// RFC 7313: End of Route Refresh from peer - log only
-		slog.Debug("received EoRR marker", "peer", event.GetPeerAddress())
+		logger.Debug("received EoRR marker", "peer", event.GetPeerAddress())
 	}
 }
 
@@ -204,7 +209,7 @@ func (r *RIBManager) handleSent(event *Event) {
 	msgID := event.GetMsgID()
 
 	if peerAddr == "" {
-		slog.Warn("sent event: empty peer address")
+		logger.Warn("sent event: empty peer address")
 		return
 	}
 
@@ -230,7 +235,7 @@ func (r *RIBManager) handleSent(event *Event) {
 				for _, nlriVal := range op.NLRIs {
 					prefix, pathID := parseNLRIValue(nlriVal)
 					if prefix == "" {
-						slog.Warn("sent: invalid nlri value",
+						logger.Warn("sent: invalid nlri value",
 							"peer", peerAddr, "family", family, "got", fmt.Sprintf("%T", nlriVal))
 						continue
 					}
@@ -445,7 +450,7 @@ func splitNLRIs(data []byte, addPath bool) [][]byte {
 
 		// Validate prefix length bounds
 		if prefixLen > maxPrefixLen {
-			slog.Warn("splitNLRIs: invalid prefix length", "prefixLen", prefixLen, "max", maxPrefixLen)
+			logger.Warn("splitNLRIs: invalid prefix length", "prefixLen", prefixLen, "max", maxPrefixLen)
 			return nil
 		}
 
@@ -571,7 +576,7 @@ func (r *RIBManager) handleReceived(event *Event) {
 	peerAddr := event.GetPeerAddress()
 
 	if peerAddr == "" {
-		slog.Warn("received event: empty peer address")
+		logger.Warn("received event: empty peer address")
 		return
 	}
 
@@ -582,7 +587,7 @@ func (r *RIBManager) handleReceived(event *Event) {
 	// Require raw fields (format=full)
 	hasRawFields := event.RawAttributes != "" || len(event.RawNLRI) > 0 || len(event.RawWithdrawn) > 0
 	if !hasRawFields {
-		slog.Warn("received event: missing raw fields, requires format=full", "peer", peerAddr)
+		logger.Warn("received event: missing raw fields, requires format=full", "peer", peerAddr)
 		return
 	}
 
@@ -608,14 +613,14 @@ func (r *RIBManager) handleReceivedPool(event *Event, peerAddr string) {
 	for familyStr, hexNLRI := range event.RawNLRI {
 		family, ok := parseFamily(familyStr)
 		if !ok {
-			slog.Warn("pool: unknown family", "peer", peerAddr, "family", familyStr)
+			logger.Warn("pool: unknown family", "peer", peerAddr, "family", familyStr)
 			continue
 		}
 
 		// LIMITATION: splitNLRIs() only works for simple prefix formats (IPv4/IPv6 unicast).
 		// EVPN, VPN, FlowSpec have different wire formats and would be corrupted.
 		if !isSimplePrefixFamily(family) {
-			slog.Debug("pool: skipping non-unicast family", "peer", peerAddr, "family", familyStr)
+			logger.Debug("pool: skipping non-unicast family", "peer", peerAddr, "family", familyStr)
 			continue
 		}
 
@@ -632,7 +637,7 @@ func (r *RIBManager) handleReceivedPool(event *Event, peerAddr string) {
 			peerRIB.Insert(family, attrBytes, wirePrefix)
 		}
 
-		slog.Debug("pool: inserted routes", "peer", peerAddr, "family", familyStr,
+		logger.Debug("pool: inserted routes", "peer", peerAddr, "family", familyStr,
 			"count", len(prefixes), "hex", hexNLRI[:min(16, len(hexNLRI))])
 	}
 
@@ -660,7 +665,7 @@ func (r *RIBManager) handleReceivedPool(event *Event, peerAddr string) {
 			peerRIB.Remove(family, wd)
 		}
 
-		slog.Debug("pool: withdrew routes", "peer", peerAddr, "family", familyStr, "count", len(withdrawns))
+		logger.Debug("pool: withdrew routes", "peer", peerAddr, "family", familyStr, "count", len(withdrawns))
 	}
 }
 
@@ -672,14 +677,14 @@ func (r *RIBManager) handleRefresh(event *Event) {
 	family := event.AFI + "/" + event.SAFI
 
 	if peerAddr == "" {
-		slog.Warn("refresh event: empty peer address")
+		logger.Warn("refresh event: empty peer address")
 		return
 	}
 
 	r.mu.RLock()
 	if !r.peerUp[peerAddr] {
 		r.mu.RUnlock()
-		slog.Debug("refresh request for down peer", "peer", peerAddr)
+		logger.Debug("refresh request for down peer", "peer", peerAddr)
 		return
 	}
 
@@ -700,7 +705,7 @@ func (r *RIBManager) handleRefresh(event *Event) {
 	r.sendRoutes(peerAddr, routesToSend)
 	r.send("peer %s eorr %s", peerAddr, family)
 
-	slog.Debug("completed route refresh", "peer", peerAddr, "family", family, "routes", len(routesToSend))
+	logger.Debug("completed route refresh", "peer", peerAddr, "family", family, "routes", len(routesToSend))
 }
 
 // handleState processes peer state changes.

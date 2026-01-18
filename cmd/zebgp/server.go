@@ -4,36 +4,14 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"log/slog"
 	"os"
 	"os/signal"
-	"strings"
 	"syscall"
 
 	"codeberg.org/thomas-mangin/zebgp/pkg/config"
 )
 
-// configureSlog sets up slog based on SLOG_LEVEL environment variable.
-// Supported levels: DEBUG, INFO, WARN, ERROR (default: INFO).
-func configureSlog() {
-	levelStr := strings.ToUpper(os.Getenv("SLOG_LEVEL"))
-	var level slog.Level
-	switch levelStr {
-	case "DEBUG":
-		level = slog.LevelDebug
-	case "WARN":
-		level = slog.LevelWarn
-	case "ERROR":
-		level = slog.LevelError
-	default:
-		level = slog.LevelInfo
-	}
-	opts := &slog.HandlerOptions{Level: level}
-	slog.SetDefault(slog.New(slog.NewTextHandler(os.Stderr, opts)))
-}
-
 func cmdServer(args []string) int {
-	configureSlog()
 	fs := flag.NewFlagSet("server", flag.ExitOnError)
 	dryRun := fs.Bool("n", false, "dry-run (validate only, don't start)")
 
