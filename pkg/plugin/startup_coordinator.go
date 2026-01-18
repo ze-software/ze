@@ -3,6 +3,7 @@ package plugin
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"sync"
 )
 
@@ -49,8 +50,11 @@ func (c *StartupCoordinator) StageComplete(pluginID int, stage PluginStage) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
+	slog.Debug("coordinator: StageComplete", "plugin", pluginID, "stage", stage, "current", c.currentStage)
+
 	// Ignore if not current stage or already failed
 	if stage != c.currentStage || c.failedPlugin >= 0 {
+		slog.Debug("coordinator: StageComplete IGNORED", "plugin", pluginID, "stage", stage, "current", c.currentStage, "failed", c.failedPlugin)
 		return
 	}
 
@@ -71,30 +75,42 @@ func (c *StartupCoordinator) StageComplete(pluginID int, stage PluginStage) {
 // WaitForStage blocks until all plugins reach the given stage.
 // Returns error on context cancellation or if a plugin failed.
 func (c *StartupCoordinator) WaitForStage(ctx context.Context, stage PluginStage) error {
+	slog.Debug("coordinator: WaitForStage START", "waiting_for", stage)
 	for {
 		c.mu.Lock()
 		// Check if failed
 		if c.failedPlugin >= 0 {
 			err := c.err
 			c.mu.Unlock()
+			slog.Debug("coordinator: WaitForStage FAILED", "waiting_for", stage, "err", err)
 			return err
 		}
 
 		// Check if already at or past requested stage
 		if c.currentStage >= stage {
 			c.mu.Unlock()
+			slog.Debug("coordinator: WaitForStage DONE", "waiting_for", stage, "current", c.currentStage)
 			return nil
 		}
+
+		currentForLog := c.currentStage
+		// Deep copy slice for logging (avoid race with writer)
+		completeForLog := make([]bool, len(c.stageComplete))
+		copy(completeForLog, c.stageComplete)
 
 		// Get channel to wait on
 		ch := c.stageCh
 		c.mu.Unlock()
 
+		slog.Debug("coordinator: WaitForStage BLOCKING", "waiting_for", stage, "current", currentForLog, "complete", fmt.Sprintf("%v", completeForLog))
+
 		// Wait for stage advance or context cancel
 		select {
 		case <-ch:
+			slog.Debug("coordinator: WaitForStage UNBLOCKED", "waiting_for", stage)
 			// Stage advanced, loop and check again
 		case <-ctx.Done():
+			slog.Debug("coordinator: WaitForStage TIMEOUT", "waiting_for", stage)
 			return ctx.Err()
 		}
 	}

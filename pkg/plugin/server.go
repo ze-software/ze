@@ -28,6 +28,7 @@ func (s *Server) stageTransition(proc *Process, pluginName string, completeStage
 		return true
 	}
 
+	slog.Debug("server: stageTransition START", "plugin", pluginName, "complete", completeStage, "wait_for", waitStage)
 	s.coordinator.StageComplete(proc.Index(), completeStage)
 
 	// Use per-plugin timeout if configured, else default
@@ -517,22 +518,27 @@ func (s *Server) handleSingleProcessCommands(proc *Process) {
 func (s *Server) handleRegistrationLine(proc *Process, line string) bool {
 	reg := proc.Registration()
 	if err := reg.ParseLine(line); err != nil {
+		slog.Debug("server: handleRegistrationLine PARSE ERROR", "plugin", proc.Name(), "line", line, "err", err)
 		return false
 	}
 	if !reg.Done {
+		slog.Debug("server: handleRegistrationLine parsed", "plugin", proc.Name(), "line", line)
 		return true
 	}
 
+	slog.Debug("server: handleRegistrationLine DONE", "plugin", proc.Name(), "patterns", len(reg.ConfigPatterns))
 	reg.Name = proc.config.Name
 	if err := s.registry.Register(reg); err != nil {
 		s.handlePluginConflict(proc, reg.Name, "plugin registration conflict", err)
 		return true
 	}
 
+	slog.Debug("server: handleRegistrationLine calling progressThroughStages", "plugin", proc.Name())
 	s.progressThroughStages(proc, reg.Name, stageProgression{
 		from: StageRegistration, mid: StageConfig, to: StageCapability,
 		deliver: s.deliverConfig,
 	})
+	slog.Debug("server: handleRegistrationLine progressThroughStages returned", "plugin", proc.Name())
 	return true
 }
 
@@ -560,7 +566,9 @@ func (s *Server) handleCapabilityLine(proc *Process, line string) bool {
 	return true
 }
 
-// GetPluginCapabilities returns all plugin-declared capabilities for OPEN injection.
+// GetPluginCapabilities returns all global plugin-declared capabilities for OPEN injection.
+//
+// Deprecated: Use GetPluginCapabilitiesForPeer for per-peer capability support.
 func (s *Server) GetPluginCapabilities() []InjectedCapability {
 	if s.capInjector == nil {
 		return nil
@@ -568,17 +576,30 @@ func (s *Server) GetPluginCapabilities() []InjectedCapability {
 	return s.capInjector.GetCapabilities()
 }
 
+// GetPluginCapabilitiesForPeer returns plugin-declared capabilities for a specific peer.
+// Returns global capabilities plus any peer-specific capabilities (per-peer takes precedence).
+func (s *Server) GetPluginCapabilitiesForPeer(peerAddr string) []InjectedCapability {
+	if s.capInjector == nil {
+		return nil
+	}
+	return s.capInjector.GetCapabilitiesForPeer(peerAddr)
+}
+
 // deliverConfig sends matching configuration to a plugin (Stage 2).
 // Matches registered config patterns against peer capability configs.
 func (s *Server) deliverConfig(proc *Process) {
+	slog.Debug("server: deliverConfig START", "plugin", proc.Name())
 	reg := proc.Registration()
 	if len(reg.ConfigPatterns) == 0 || s.reactor == nil {
+		slog.Debug("server: deliverConfig FAST PATH", "plugin", proc.Name(), "patterns", len(reg.ConfigPatterns), "has_reactor", s.reactor != nil)
 		_ = proc.WriteEvent("config done")
 		return
 	}
 
 	// Get peer capability configs from reactor
+	slog.Debug("server: deliverConfig getting peer configs", "plugin", proc.Name())
 	peerConfigs := s.reactor.GetPeerCapabilityConfigs()
+	slog.Debug("server: deliverConfig got peer configs", "plugin", proc.Name(), "count", len(peerConfigs))
 
 	// For each peer, try to match patterns and deliver config
 	for _, peerCfg := range peerConfigs {
@@ -596,6 +617,7 @@ func (s *Server) deliverConfig(proc *Process) {
 		}
 	}
 
+	slog.Debug("server: deliverConfig DONE", "plugin", proc.Name())
 	_ = proc.WriteEvent("config done")
 }
 

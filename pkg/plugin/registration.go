@@ -31,6 +31,9 @@ const (
 	StageRunning                         // Normal operation
 )
 
+// Stage 3 capability command keywords.
+const capKeywordPeer = "peer" // Keyword for per-peer capability: "capability ... peer <addr>"
+
 // String returns a human-readable stage name.
 func (s PluginStage) String() string {
 	switch s {
@@ -120,10 +123,12 @@ type ConfigMatch struct {
 }
 
 // PluginCapability represents a capability declaration from Stage 3.
+// Per-peer capabilities use Peers to scope to specific peers.
 type PluginCapability struct {
-	Code     uint8  // Capability type code
-	Encoding string // Encoding of payload (b64, hex, text)
-	Payload  string // Encoded capability value
+	Code     uint8    // Capability type code
+	Encoding string   // Encoding of payload (b64, hex, text)
+	Payload  string   // Encoded capability value
+	Peers    []string // Optional peer addresses (empty = global/all peers)
 }
 
 // PluginCapabilities holds Stage 3 capability declarations.
@@ -472,8 +477,13 @@ func (pat *ConfigPattern) Match(config string) *ConfigMatch {
 }
 
 // ParseLine parses a Stage 3 capability command.
-// Commands: "capability <enc> <code> [payload]" or "capability done".
+// Commands:
+//   - "capability <enc> <code> [payload]" - global capability
+//   - "capability <enc> <code> [payload] peer <addr> [<addr2> ...]" - per-peer capability
+//   - "capability done"
+//
 // Payload is optional for capabilities with 0-length value (e.g., route-refresh).
+// Multiple peer addresses can be specified to apply the same capability to multiple peers.
 func (caps *PluginCapabilities) ParseLine(line string) error {
 	line = strings.TrimSpace(line)
 	if line == "" {
@@ -495,10 +505,10 @@ func (caps *PluginCapabilities) ParseLine(line string) error {
 		return nil
 	}
 
-	// Parse "capability <enc> <code> [payload]"
+	// Parse "capability <enc> <code> [payload] [peer <addr> [<addr2> ...]]"
 	// Payload is optional - some capabilities (e.g., route-refresh) have 0-length value.
 	if len(parts) < 3 {
-		return fmt.Errorf("expected 'capability <enc> <code> [payload]'")
+		return fmt.Errorf("expected 'capability <enc> <code> [payload] [peer <addr>...]'")
 	}
 
 	enc := parts[1]
@@ -511,9 +521,35 @@ func (caps *PluginCapabilities) ParseLine(line string) error {
 		return fmt.Errorf("invalid capability code: %s", parts[2])
 	}
 
-	// Payload is optional (empty string if not provided).
+	// Parse remaining parts: [payload] [peer <addr> [<addr2> ...]]
 	payload := ""
-	if len(parts) >= 4 {
+	var peers []string
+
+	// Look for "peer" keyword to separate payload from peer addresses
+	peerIdx := -1
+	for i := 3; i < len(parts); i++ {
+		if parts[i] == capKeywordPeer {
+			peerIdx = i
+			break
+		}
+	}
+
+	if peerIdx >= 0 {
+		// Has peer address(es)
+		if peerIdx == 3 {
+			// No payload: "capability hex 64 peer 192.168.1.1 192.168.1.2"
+			payload = ""
+		} else {
+			// Payload before peer: "capability hex 64 <payload> peer 192.168.1.1"
+			payload = parts[3]
+		}
+		if peerIdx+1 >= len(parts) {
+			return fmt.Errorf("expected peer address after 'peer'")
+		}
+		// Collect all peer addresses after "peer" keyword
+		peers = parts[peerIdx+1:]
+	} else if len(parts) >= 4 {
+		// No peer keyword, just payload
 		payload = parts[3]
 	}
 
@@ -521,6 +557,7 @@ func (caps *PluginCapabilities) ParseLine(line string) error {
 		Code:     uint8(code),
 		Encoding: enc,
 		Payload:  payload,
+		Peers:    peers,
 	})
 
 	return nil
@@ -601,58 +638,113 @@ func (r *PluginRegistry) LookupCommand(cmd string) string {
 
 // InjectedCapability represents a decoded capability ready for OPEN injection.
 type InjectedCapability struct {
-	Code   uint8
-	Value  []byte
-	Plugin string
+	Code     uint8
+	Value    []byte
+	Plugin   string
+	PeerAddr string // Empty = global (applies to all peers)
 }
 
 // CapabilityInjector collects and manages plugin capabilities for OPEN messages.
+// Supports both global capabilities (all peers) and per-peer capabilities.
 type CapabilityInjector struct {
 	mu           sync.RWMutex
-	capabilities []InjectedCapability
-	byCode       map[uint8]string // code → plugin name
+	globalCaps   []InjectedCapability            // Capabilities for all peers
+	peerCaps     map[string][]InjectedCapability // peerAddr → capabilities
+	globalByCode map[uint8]string                // code → plugin name (global)
+	peerByCode   map[string]map[uint8]string     // peerAddr → code → plugin name
 }
 
 // NewCapabilityInjector creates a new capability injector.
 func NewCapabilityInjector() *CapabilityInjector {
 	return &CapabilityInjector{
-		byCode: make(map[uint8]string),
+		globalByCode: make(map[uint8]string),
+		peerCaps:     make(map[string][]InjectedCapability),
+		peerByCode:   make(map[string]map[uint8]string),
 	}
 }
 
 // AddPluginCapabilities adds capabilities from a plugin, checking for conflicts.
+// Capabilities with Peers list are stored per-peer; others are stored globally.
 func (ci *CapabilityInjector) AddPluginCapabilities(caps *PluginCapabilities) error {
 	ci.mu.Lock()
 	defer ci.mu.Unlock()
 
 	for _, cap := range caps.Capabilities {
-		// Check conflict
-		if existing, ok := ci.byCode[cap.Code]; ok {
-			return fmt.Errorf("capability conflict: code %d already registered by %s", cap.Code, existing)
-		}
-
 		// Decode payload
 		value, err := DecodeCapabilityPayload(cap)
 		if err != nil {
 			return err
 		}
 
-		ci.capabilities = append(ci.capabilities, InjectedCapability{
-			Code:   cap.Code,
-			Value:  value,
-			Plugin: caps.PluginName,
-		})
-		ci.byCode[cap.Code] = caps.PluginName
+		if len(cap.Peers) == 0 {
+			// Global capability - applies to all peers
+			if existing, ok := ci.globalByCode[cap.Code]; ok {
+				return fmt.Errorf("capability conflict: code %d already registered by %s", cap.Code, existing)
+			}
+			ci.globalCaps = append(ci.globalCaps, InjectedCapability{
+				Code:   cap.Code,
+				Value:  value,
+				Plugin: caps.PluginName,
+			})
+			ci.globalByCode[cap.Code] = caps.PluginName
+		} else {
+			// Per-peer capability - add to each specified peer
+			for _, peerAddr := range cap.Peers {
+				if ci.peerByCode[peerAddr] == nil {
+					ci.peerByCode[peerAddr] = make(map[uint8]string)
+				}
+				if existing, ok := ci.peerByCode[peerAddr][cap.Code]; ok {
+					return fmt.Errorf("capability conflict: code %d for peer %s already registered by %s",
+						cap.Code, peerAddr, existing)
+				}
+				ci.peerCaps[peerAddr] = append(ci.peerCaps[peerAddr], InjectedCapability{
+					Code:     cap.Code,
+					Value:    value,
+					Plugin:   caps.PluginName,
+					PeerAddr: peerAddr,
+				})
+				ci.peerByCode[peerAddr][cap.Code] = caps.PluginName
+			}
+		}
 	}
 	return nil
 }
 
-// GetCapabilities returns all capabilities to inject into OPEN.
+// GetCapabilities returns all global capabilities to inject into OPEN.
+//
+// Deprecated: Use GetCapabilitiesForPeer for per-peer capability support.
 func (ci *CapabilityInjector) GetCapabilities() []InjectedCapability {
 	ci.mu.RLock()
 	defer ci.mu.RUnlock()
-	result := make([]InjectedCapability, len(ci.capabilities))
-	copy(result, ci.capabilities)
+	result := make([]InjectedCapability, len(ci.globalCaps))
+	copy(result, ci.globalCaps)
+	return result
+}
+
+// GetCapabilitiesForPeer returns capabilities for a specific peer.
+// Returns global capabilities plus any peer-specific capabilities.
+// Per-peer capabilities override global capabilities with the same code.
+func (ci *CapabilityInjector) GetCapabilitiesForPeer(peerAddr string) []InjectedCapability {
+	ci.mu.RLock()
+	defer ci.mu.RUnlock()
+
+	// Start with global capabilities
+	result := make([]InjectedCapability, 0, len(ci.globalCaps)+len(ci.peerCaps[peerAddr]))
+	seenCodes := make(map[uint8]bool)
+
+	// Add per-peer capabilities first (they take precedence)
+	for _, cap := range ci.peerCaps[peerAddr] {
+		result = append(result, cap)
+		seenCodes[cap.Code] = true
+	}
+
+	// Add global capabilities that weren't overridden
+	for _, cap := range ci.globalCaps {
+		if !seenCodes[cap.Code] {
+			result = append(result, cap)
+		}
+	}
+
 	return result
 }
 

@@ -375,16 +375,20 @@ func (p *Peer) SetReactor(r *Reactor) {
 // getPluginCapabilities returns capabilities declared by API plugins.
 // Used as callback for Session.SetPluginCapabilityGetter().
 // Converts plugin.InjectedCapability to capability.Capability for OPEN injection.
+// Queries capabilities for this peer's specific address to support per-peer capabilities.
 func (p *Peer) getPluginCapabilities() []capability.Capability {
 	p.mu.RLock()
 	r := p.reactor
+	settings := p.settings
 	p.mu.RUnlock()
 
 	if r == nil || r.api == nil {
 		return nil
 	}
 
-	injected := r.api.GetPluginCapabilities()
+	// Use peer address to get per-peer capabilities
+	peerAddr := settings.Address.String()
+	injected := r.api.GetPluginCapabilitiesForPeer(peerAddr)
 	if len(injected) == 0 {
 		return nil
 	}

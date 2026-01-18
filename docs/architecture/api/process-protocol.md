@@ -50,6 +50,106 @@ peer 192.168.1.2 {
 2. Commands read from process stdout (newline-delimited)
 3. Each command processed and acknowledged (if ACK enabled)
 
+### 5-Stage Startup Protocol (ZeBGP)
+
+ZeBGP uses a synchronized 5-stage startup protocol with barriers between stages.
+All plugins must complete each stage before any can proceed to the next.
+
+```
+┌──────────────────────────────────────────────────────────────────────────┐
+│                                STARTUP TIMELINE                          │
+├──────────────────────────────────────────────────────────────────────────┤
+│                                                                          │
+│        Plugin A          Coordinator           Plugin B                  │
+│        ─────────         ───────────           ─────────                 │
+│                                                                          │
+│        STAGE 1: REGISTRATION                                             │
+│        declare cmd ...        │                 declare cmd ...          │
+│        declare conf ...       │                 declare conf ...         │
+│        declare done ──────────┼────────────────► declare done            │
+│             │                 │                      │                   │
+│             ▼                 │                      ▼                   │
+│        StageComplete(0,Reg)   │            StageComplete(1,Reg)          │
+│             │                 │                      │                   │
+│             ▼                 │                      │                   │
+│        WaitForStage(Config)   │                      │                   │
+│             │ ◄───────────────┼── BARRIER ──────────►│                   │
+│             │         (all plugins complete Reg)     │                   │
+│                                                                          │
+│        STAGE 2: CONFIG DELIVERY                                          │
+│             │                 │                      │                   │
+│             ▼                 │                      ▼                   │
+│        ◄── config peer ...    │             config peer ... ──►          │
+│        ◄── config done        │                   config done ──►        │
+│             │                 │                      │                   │
+│             ▼                 │                      ▼                   │
+│        StageComplete(0,Cfg)   │            StageComplete(1,Cfg)          │
+│             │                 │                      │                   │
+│             ▼                 │                      │                   │
+│        WaitForStage(Cap)      │                      │                   │
+│             │ ◄───────────────┼── BARRIER ──────────►│                   │
+│             │         (all plugins complete Cfg)     │                   │
+│                                                                          │
+│        STAGE 3: CAPABILITY DECLARATION                                   │
+│             │                 │                      │                   │
+│             ▼                 │                      ▼                   │
+│        capability hex 64 ...  │             capability hex 64 ...        │
+│        capability done ───────┼────────────────► capability done         │
+│             │                 │                      │                   │
+│             ▼                 │                      ▼                   │
+│        StageComplete(0,Cap)   │            StageComplete(1,Cap)          │
+│             │ ◄───────────────┼── BARRIER ──────────►│                   │
+│                                                                          │
+│        STAGE 4: REGISTRY SHARING                                         │
+│             │                 │                      │                   │
+│             ▼                 │                      ▼                   │
+│        ◄── registry cmd ...   │             registry cmd ... ──►         │
+│        ◄── registry done      │                 registry done ──►        │
+│             │                 │                      │                   │
+│             ▼                 │                      ▼                   │
+│        StageComplete(0,Reg)   │            StageComplete(1,Reg)          │
+│             │ ◄───────────────┼── BARRIER ──────────►│                   │
+│                                                                          │
+│        STAGE 5: READY                                                    │
+│             │                 │                      │                   │
+│             ▼                 │                      ▼                   │
+│        ready ─────────────────┼────────────────► ready                   │
+│             │                 │                      │                   │
+│             ▼                 │                      ▼                   │
+│        StageComplete(0,Ready) │            StageComplete(1,Ready)        │
+│             │ ◄───────────────┼── BARRIER ──────────►│                   │
+│             │         (all plugins ready)            │                   │
+│             ▼                 │                      ▼                   │
+│        [BGP peers start]      │                [BGP peers start]         │
+│                                                                          │
+└──────────────────────────────────────────────────────────────────────────┘
+```
+
+**Barrier Semantics:**
+- Each plugin signals stage completion via `StageComplete(pluginID, stage)`
+- Coordinator waits until ALL plugins complete the current stage
+- Only then does coordinator advance to next stage
+- All waiting plugins unblock simultaneously
+
+**Stage Commands:**
+
+| Stage | Plugin → ZeBGP | ZeBGP → Plugin |
+|-------|----------------|----------------|
+| 1. Registration | `declare cmd/conf/receive/...`, `declare done` | - |
+| 2. Config | - | `config peer <addr> <key> <value>`, `config done` |
+| 3. Capability | `capability hex <code> <value> [peer <addr>]`, `capability done` | - |
+| 4. Registry | - | `registry cmd <name>`, `registry done` |
+| 5. Ready | `ready` | - |
+
+**Timeout:** Each stage has a 5-second timeout (configurable via `stage-timeout` in plugin config).
+If any plugin fails to complete a stage, startup aborts for all plugins.
+
+**Why Barriers:**
+- Ensures all plugins register commands before any receive config
+- Ensures all capabilities declared before registry shared
+- Prevents race conditions in multi-plugin configurations
+- Guarantees consistent state before BGP peers start
+
 ### Shutdown
 
 1. ExaBGP closes stdin
@@ -427,4 +527,4 @@ Completion timeout: 500ms (non-configurable).
 
 ---
 
-**Last Updated:** 2026-01-03
+**Last Updated:** 2026-01-18
