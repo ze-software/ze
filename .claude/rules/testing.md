@@ -48,6 +48,44 @@ func main() {
 | Checking API behavior | Add to `test/data/plugin/` |
 | Checking wire format parsing | Add to `test/data/decode/` |
 
+## Functional Test Location
+
+**BLOCKING:** When you need to create a functional test, save it to the repository.
+
+| Test Type | Location | Format |
+|-----------|----------|--------|
+| BGP encoding tests | `test/data/encoding/<name>.conf` + `<name>.ci` | Config + expectations |
+| Plugin tests | `test/data/plugin/<name>.conf` + `<name>.ci` | Config + expectations |
+| Parsing tests (valid) | `test/data/parse/valid/<name>.conf` | Config only |
+| Parsing tests (invalid) | `test/data/parse/invalid/<name>.conf` + `<name>.expect` | Config + error |
+| Decoding tests | `test/data/decode/<name>.json` | JSON test cases |
+| Unit tests | `pkg/<package>/<file>_test.go` | Go test file |
+
+### Creating Functional Tests
+
+1. **Encoding test:** Create `test/data/encoding/<name>.conf` and `test/data/encoding/<name>.ci`
+2. **Plugin test:** Create `test/data/plugin/<name>.conf` and `test/data/plugin/<name>.ci`
+3. **Run:** `make functional` or `go run ./test/cmd/functional <type> --list` to verify
+
+### CI File Format (.ci)
+
+```
+# Comments start with #
+# Each line is a hex-encoded BGP message expected in sequence
+FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002D010400...
+FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001304...
+```
+
+### NEVER Create Temporary Test Files
+
+❌ `/tmp/test_something.go`
+❌ Ad-hoc scripts that aren't committed
+❌ Manual testing without saving the test
+
+✅ Save to `test/data/` appropriate subdirectory
+✅ Verify with `make functional`
+✅ Commit with the feature
+
 ## Required Test Sequence
 
 ```bash

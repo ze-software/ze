@@ -1,0 +1,32 @@
+option:file:graceful-restart.conf
+option:tcp_connections:2
+option:timeout:15s
+
+# Test: Route preservation across restart (GR-like behavior)
+#
+# This test verifies that routes are preserved when a peer disconnects
+# and reconnects. The RIB plugin stores routes and replays them on reconnect.
+#
+# NOTE: GR capability is parsed from config but NOT yet sent in OPEN.
+# This test validates the route preservation behavior that GR would use.
+#
+# Flow:
+# 1. Connection A: Static route sent, stored in RIB
+# 2. Notification -> disconnect
+# 3. Connection B: RIB replays stored route + static route resent
+
+# Connection A: Initial route announcement
+# Static route UPDATE
+A1:raw:FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF:0030:02:00000015400101004002004003040A0000014005040000006418C0A801
+# EOR
+A1:raw:FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF:0017:02:00000000
+# Trigger restart with notification
+A2:notification:Peer Reset
+
+# Connection B: Routes preserved and replayed
+# Static route (from sendInitialRoutes)
+B1:raw:FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF:0030:02:00000015400101004002004003040A0000014005040000006418C0A801
+# RIB replay (same route, no dedup)
+B1:raw:FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF:0030:02:00000015400101004002004003040A0000014005040000006418C0A801
+# EOR
+B1:raw:FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF:0017:02:00000000

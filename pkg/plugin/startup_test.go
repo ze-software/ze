@@ -153,3 +153,102 @@ func TestStartupCoordinatorFailed(t *testing.T) {
 	assert.Contains(t, err.Error(), "plugin 1 failed")
 	assert.Contains(t, err.Error(), "config error")
 }
+
+// TestTwoPluginsFullStartup verifies complete startup with two plugins.
+//
+// VALIDATES: Two plugins with different speeds complete all stages.
+// PREVENTS: Deadlock when one plugin is slower (e.g., has config patterns).
+func TestTwoPluginsFullStartup(t *testing.T) {
+	coord := NewStartupCoordinator(2)
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	var wg sync.WaitGroup
+	var plugin0Done, plugin1Done atomic.Bool
+
+	// Plugin 0: Fast (no patterns, like Python test plugin)
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+
+		// Stage 1: Registration
+		coord.StageComplete(0, StageRegistration)
+		if err := coord.WaitForStage(ctx, StageConfig); err != nil {
+			t.Errorf("Plugin0 WaitForStage(Config): %v", err)
+			return
+		}
+
+		// Stage 2: Config delivery (fast - no patterns)
+		time.Sleep(10 * time.Millisecond)
+		coord.StageComplete(0, StageConfig)
+		if err := coord.WaitForStage(ctx, StageCapability); err != nil {
+			t.Errorf("Plugin0 WaitForStage(Capability): %v", err)
+			return
+		}
+
+		// Stage 3: Capability
+		coord.StageComplete(0, StageCapability)
+		if err := coord.WaitForStage(ctx, StageRegistry); err != nil {
+			t.Errorf("Plugin0 WaitForStage(Registry): %v", err)
+			return
+		}
+
+		// Stage 4: Registry
+		coord.StageComplete(0, StageRegistry)
+		if err := coord.WaitForStage(ctx, StageReady); err != nil {
+			t.Errorf("Plugin0 WaitForStage(Ready): %v", err)
+			return
+		}
+
+		// Stage 5: Ready
+		coord.StageComplete(0, StageReady)
+		plugin0Done.Store(true)
+	}()
+
+	// Plugin 1: Slow (has patterns, like RIB plugin)
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		time.Sleep(50 * time.Millisecond) // Start slightly later
+
+		// Stage 1: Registration
+		coord.StageComplete(1, StageRegistration)
+		if err := coord.WaitForStage(ctx, StageConfig); err != nil {
+			t.Errorf("Plugin1 WaitForStage(Config): %v", err)
+			return
+		}
+
+		// Stage 2: Config delivery (slow - has patterns, needs reactor call)
+		time.Sleep(100 * time.Millisecond)
+		coord.StageComplete(1, StageConfig)
+		if err := coord.WaitForStage(ctx, StageCapability); err != nil {
+			t.Errorf("Plugin1 WaitForStage(Capability): %v", err)
+			return
+		}
+
+		// Stage 3: Capability
+		coord.StageComplete(1, StageCapability)
+		if err := coord.WaitForStage(ctx, StageRegistry); err != nil {
+			t.Errorf("Plugin1 WaitForStage(Registry): %v", err)
+			return
+		}
+
+		// Stage 4: Registry
+		coord.StageComplete(1, StageRegistry)
+		if err := coord.WaitForStage(ctx, StageReady); err != nil {
+			t.Errorf("Plugin1 WaitForStage(Ready): %v", err)
+			return
+		}
+
+		// Stage 5: Ready
+		coord.StageComplete(1, StageReady)
+		plugin1Done.Store(true)
+	}()
+
+	// Run coordinator
+	go func() { _ = coord.Run(ctx) }()
+
+	wg.Wait()
+	assert.True(t, plugin0Done.Load(), "Plugin 0 should complete")
+	assert.True(t, plugin1Done.Load(), "Plugin 1 should complete")
+}
