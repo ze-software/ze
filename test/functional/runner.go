@@ -332,6 +332,7 @@ func (r *Runner) runTest(ctx context.Context, rec *Record, opts *RunOptions) boo
 		// NOTE: zebgp_tcp_bind removed - listeners now derived from peer LocalAddress
 		fmt.Sprintf("zebgp_api_socketpath=%s", filepath.Join(os.TempDir(), fmt.Sprintf("zebgp-test-%d.sock", rec.Port))),
 		fmt.Sprintf("PATH=%s:%s", zebgpDir, existingPath),
+		"SLOG_LEVEL=DEBUG", // Enable debug logging for tracing
 	)
 
 	clientCmd := exec.CommandContext(testCtx, r.zebgpPath, "server", configPath) //nolint:gosec // test runner, paths from temp dir
