@@ -372,5 +372,5 @@ None - uses native `log/syslog` for syslog support.
 
 ### Completion (after tests pass - see Completion Checklist)
 - [x] Spec updated with Implementation Summary
-- [ ] Spec moved to `docs/plan/done/NNN-<name>.md`
-- [ ] All files committed together
+- [x] Spec moved to `docs/plan/done/129-slog-subsystem.md`
+- [x] All files committed together
