@@ -97,14 +97,24 @@ var validReceiveTypes = map[string]bool{
 
 // PluginRegistration holds Stage 1 registration data from a plugin.
 type PluginRegistration struct {
-	Name           string           // Plugin name (set after Stage 4)
-	RFCs           []uint16         // RFC numbers for human-readable feature tracking
-	Encodings      []string         // Supported encodings (text, b64, hex)
-	Families       []string         // Address families (e.g., "ipv4/unicast", "all")
-	ConfigPatterns []*ConfigPattern // Config patterns with captures
-	Commands       []string         // Command names to register
-	Receive        []string         // Message types to receive (update, open, negotiated, etc.)
-	Done           bool             // True when "registration done" received
+	Name               string              // Plugin name (set after Stage 4)
+	RFCs               []uint16            // RFC numbers for human-readable feature tracking
+	Encodings          []string            // Supported encodings (text, b64, hex)
+	Families           []string            // Address families (e.g., "ipv4/unicast", "all")
+	ConfigPatterns     []*ConfigPattern    // Config patterns with captures
+	Commands           []string            // Command names to register
+	Receive            []string            // Message types to receive (update, open, negotiated, etc.)
+	SchemaDeclarations []SchemaDeclaration // Schema extensions for capability config
+	Done               bool                // True when "registration done" received
+}
+
+// SchemaDeclaration represents a plugin's config schema extension.
+// Used to add capability sub-blocks to the config schema at runtime.
+// Format: "declare conf schema capability <name> { <field> <type>; ... }".
+type SchemaDeclaration struct {
+	Path   string            // Location in schema (e.g., "capability.graceful-restart")
+	Name   string            // Capability name (e.g., "graceful-restart")
+	Fields map[string]string // field name -> type (e.g., "restart-time" -> "uint16")
 }
 
 // ConfigPattern represents a config hook pattern with regex captures.
@@ -300,10 +310,15 @@ func (reg *PluginRegistration) parseFamily(args []string) error {
 	return nil
 }
 
-// parseConf handles "declare conf <pattern>".
+// parseConf handles "declare conf <pattern>" or "declare conf schema ...".
 func (reg *PluginRegistration) parseConf(args []string, line string) error {
 	if len(args) < 1 {
-		return fmt.Errorf("expected 'declare conf <pattern>'")
+		return fmt.Errorf("expected 'declare conf <pattern>' or 'declare conf schema ...'")
+	}
+
+	// Check if this is a schema declaration
+	if args[0] == "schema" {
+		return reg.parseConfSchema(args[1:], line)
 	}
 
 	// Extract pattern from original line to preserve spacing
@@ -320,6 +335,100 @@ func (reg *PluginRegistration) parseConf(args []string, line string) error {
 
 	reg.ConfigPatterns = append(reg.ConfigPatterns, pat)
 	return nil
+}
+
+// parseConfSchema handles "declare conf schema capability <name> { <field> <type>; ... }".
+// Format: declare conf schema capability graceful-restart { restart-time <restart-time:\d+>; }
+// This tells the engine to add a capability sub-block to the config schema.
+func (reg *PluginRegistration) parseConfSchema(args []string, line string) error {
+	if len(args) < 2 {
+		return fmt.Errorf("expected 'declare conf schema capability <name> { ... }'")
+	}
+
+	// Currently only support "capability" path
+	if args[0] != "capability" {
+		return fmt.Errorf("schema declaration only supports 'capability' path, got: %s", args[0])
+	}
+
+	capName := args[1]
+
+	// Extract the block content from the line: { field <name:regex>; ... }
+	blockStart := strings.Index(line, "{")
+	blockEnd := strings.LastIndex(line, "}")
+	if blockStart < 0 || blockEnd < 0 || blockEnd <= blockStart {
+		return fmt.Errorf("expected schema block: { field <type>; ... }")
+	}
+
+	blockContent := strings.TrimSpace(line[blockStart+1 : blockEnd])
+
+	// Parse fields from block: "restart-time <restart-time:\d+>;"
+	fields := make(map[string]string)
+	for _, entry := range strings.Split(blockContent, ";") {
+		entry = strings.TrimSpace(entry)
+		if entry == "" {
+			continue
+		}
+
+		// Parse field: "restart-time <restart-time:\d+>"
+		parts := strings.Fields(entry)
+		if len(parts) < 2 {
+			return fmt.Errorf("invalid schema field: %s", entry)
+		}
+
+		fieldName := parts[0]
+
+		// Extract type from <name:regex> pattern
+		typeSpec := parts[1]
+		if !strings.HasPrefix(typeSpec, "<") || !strings.HasSuffix(typeSpec, ">") {
+			return fmt.Errorf("expected <name:regex> pattern for field %s", fieldName)
+		}
+
+		// Extract the capture name which hints at the type
+		inner := typeSpec[1 : len(typeSpec)-1]
+		colonIdx := strings.Index(inner, ":")
+		if colonIdx < 0 {
+			return fmt.Errorf("expected <name:regex> pattern, got: %s", typeSpec)
+		}
+
+		captureName := inner[:colonIdx]
+		captureRegex := inner[colonIdx+1:]
+
+		// Infer type from regex pattern
+		fieldType := inferFieldType(captureRegex)
+		fields[fieldName] = fieldType
+
+		// Also store as config pattern for config delivery
+		patternStr := fmt.Sprintf("peer * capability %s %s <%s:%s>", capName, fieldName, captureName, captureRegex)
+		pat, err := CompileConfigPattern(patternStr)
+		if err != nil {
+			return fmt.Errorf("invalid pattern for field %s: %w", fieldName, err)
+		}
+		reg.ConfigPatterns = append(reg.ConfigPatterns, pat)
+	}
+
+	reg.SchemaDeclarations = append(reg.SchemaDeclarations, SchemaDeclaration{
+		Path:   "capability." + capName,
+		Name:   capName,
+		Fields: fields,
+	})
+
+	return nil
+}
+
+// inferFieldType infers a config schema type from a regex pattern.
+func inferFieldType(regex string) string {
+	switch regex {
+	case `\d+`:
+		return "uint16" // Numeric values default to uint16
+	case `\d{1,5}`:
+		return "uint16"
+	case `\d{1,10}`:
+		return "uint32"
+	case `true|false`:
+		return "bool"
+	default:
+		return "string"
+	}
 }
 
 // parseCmd handles "declare cmd <command>".

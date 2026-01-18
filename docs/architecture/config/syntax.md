@@ -30,8 +30,10 @@ ExaBGP configuration uses a JUNOS-like hierarchical syntax with sections, keywor
 
 ```
 # Comment
-plugin <name> {
-    ...
+plugin {
+    external <name> {
+        ...
+    }
 }
 
 template <name> neighbor <name> {
@@ -61,13 +63,16 @@ environment {
 
 ### plugin
 
-Defines an external plugin for API communication.
+Container for plugin definitions. Supports `external` for subprocess plugins.
+Future: `builtin` and `wasm` for other plugin types.
 
 ```
-plugin <name> {
-    run <path>;
-    encoder json;           # or text (v4 only)
-    timeout 10s;            # stage timeout (default: 5s)
+plugin {
+    external <name> {
+        run <path>;
+        encoder json;           # or text (v4 only)
+        timeout 10s;            # stage timeout (default: 5s)
+    }
 }
 ```
 

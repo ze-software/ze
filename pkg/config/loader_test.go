@@ -103,7 +103,7 @@ func TestLoadReactorRouteRefreshCapabilities(t *testing.T) {
 router-id 10.0.0.1;
 local-as 65000;
 
-plugin rib { run ./rib; }
+plugin { external rib { run ./rib; } }
 
 peer 192.0.2.1 {
     peer-as 65001;
@@ -467,4 +467,128 @@ peer 192.0.2.1 {
 	mvpn := settings.MVPNRoutes[0]
 	require.Equal(t, uint32(0xC0A80101), mvpn.OriginatorID, "originator-id should be 192.168.1.1")
 	require.Equal(t, []uint32{0x0A000001, 0x0A000002}, mvpn.ClusterList, "cluster-list should be 10.0.0.1 10.0.0.2")
+}
+
+// TestPluginOnlySchema verifies that PluginOnlySchema() only parses plugin blocks.
+//
+// VALIDATES: First phase parsing extracts only plugin definitions.
+// PREVENTS: Non-plugin config blocks being parsed in first phase.
+func TestPluginOnlySchema(t *testing.T) {
+	// Input with ONLY plugin blocks (no peer block)
+	input := `
+plugin {
+    external gr {
+        run "zebgp plugin gr";
+        encoder json;
+    }
+    external rib {
+        run "zebgp plugin rib";
+    }
+}
+`
+	// PluginOnlySchema should only parse plugin blocks
+	p := NewParser(PluginOnlySchema())
+	tree, err := p.Parse(input)
+	require.NoError(t, err)
+
+	// Should have parsed plugin container with external list
+	pluginContainer := tree.GetContainer("plugin")
+	require.NotNil(t, pluginContainer)
+	plugins := pluginContainer.GetList("external")
+	require.Len(t, plugins, 2)
+
+	// Verify GR plugin config
+	grPlugin := plugins["gr"]
+	require.NotNil(t, grPlugin)
+	run, ok := grPlugin.Get("run")
+	require.True(t, ok)
+	require.Equal(t, "zebgp plugin gr", run)
+
+	encoder, ok := grPlugin.Get("encoder")
+	require.True(t, ok)
+	require.Equal(t, "json", encoder)
+
+	// Verify RIB plugin
+	ribPlugin := plugins["rib"]
+	require.NotNil(t, ribPlugin)
+	run, ok = ribPlugin.Get("run")
+	require.True(t, ok)
+	require.Equal(t, "zebgp plugin rib", run)
+}
+
+// TestPluginOnlySchemaRejectsUnknown verifies unknown blocks are rejected.
+//
+// VALIDATES: PluginOnlySchema only accepts plugin blocks.
+// PREVENTS: Accidental parsing of peer/template blocks in first phase.
+func TestPluginOnlySchemaRejectsUnknown(t *testing.T) {
+	input := `
+peer 192.0.2.1 {
+    peer-as 65001;
+}
+`
+	p := NewParser(PluginOnlySchema())
+	_, err := p.Parse(input)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "unknown top-level keyword: peer")
+}
+
+// TestSchemaExtendCapability verifies dynamic schema extension.
+//
+// VALIDATES: Schema.ExtendCapability adds new capability sub-blocks.
+// PREVENTS: Plugin-declared capabilities being rejected as unknown.
+func TestSchemaExtendCapability(t *testing.T) {
+	schema := BGPSchema()
+
+	// Before extension, custom capability should fail
+	inputBefore := `
+peer 192.0.2.1 {
+    peer-as 65001;
+    capability {
+        custom-cap {
+            some-value 42;
+        }
+    }
+}
+`
+	p := NewParser(schema)
+	_, err := p.Parse(inputBefore)
+	require.Error(t, err, "custom-cap should be unknown before extension")
+
+	// Extend schema with custom capability
+	err = schema.ExtendCapability("custom-cap",
+		Field("some-value", Leaf(TypeUint32)),
+	)
+	require.NoError(t, err)
+
+	// After extension, custom capability should parse
+	inputAfter := `
+peer 192.0.2.1 {
+    peer-as 65001;
+    capability {
+        custom-cap {
+            some-value 42;
+        }
+    }
+}
+`
+	p = NewParser(schema)
+	tree, err := p.Parse(inputAfter)
+	require.NoError(t, err)
+
+	// Verify the capability was parsed
+	peers := tree.GetList("peer")
+	require.Len(t, peers, 1)
+
+	peer := peers["192.0.2.1"]
+	require.NotNil(t, peer)
+
+	cap := peer.GetContainer("capability")
+	require.NotNil(t, cap)
+
+	customCap := cap.GetContainer("custom-cap")
+	require.NotNil(t, customCap)
+
+	val, ok := customCap.Get("some-value")
+	require.True(t, ok)
+	require.Equal(t, "42", val)
 }

@@ -17,6 +17,8 @@ func cmdPlugin(args []string) int {
 		return cmdPluginRR(args[1:])
 	case "rib":
 		return cmdPluginRib(args[1:])
+	case "gr":
+		return cmdPluginGR(args[1:])
 	case "help", "-h", "--help": //nolint:goconst // consistent with main.go, config.go
 		pluginUsage()
 		return 0
@@ -33,6 +35,7 @@ func pluginUsage() {
 Plugin Subcommands:
   rr           Run as Route Server (IX route server plugin)
   rib          Run as RIB plugin (tracks Adj-RIB-In/Out, replays on reconnect)
+  gr           Run as Graceful Restart capability plugin
   help         Show this help
 
 The plugin subcommands run as API processes that communicate with the

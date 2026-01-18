@@ -320,12 +320,15 @@ func BGPSchema() *Schema {
 	schema.Define("local-as", Leaf(TypeUint32))
 	schema.Define("listen", MultiLeaf(TypeString)) // "address port"
 
-	// Plugin definitions (external processes)
-	schema.Define("plugin", List(TypeString,
-		Field("run", MultiLeaf(TypeString)), // command with args
-		Field("encoder", Leaf(TypeString)),  // json, text
-		Field("respawn", Leaf(TypeBool)),    // respawn on exit
-		Field("timeout", Leaf(TypeString)),  // stage timeout (e.g., "10s", "1m")
+	// Plugin definitions - container with external/builtin sub-blocks
+	// Syntax: plugin { external <name> { ... } }
+	schema.Define("plugin", Container(
+		Field("external", List(TypeString,
+			Field("run", MultiLeaf(TypeString)), // command with args
+			Field("encoder", Leaf(TypeString)),  // json, text
+			Field("respawn", Leaf(TypeBool)),    // respawn on exit
+			Field("timeout", Leaf(TypeString)),  // stage timeout (e.g., "10s", "1m")
+		)),
 	))
 
 	// Template definitions - named templates and glob patterns
@@ -337,6 +340,26 @@ func BGPSchema() *Schema {
 
 	// Peer definitions - actual BGP sessions (requires IP address)
 	schema.Define("peer", List(TypeIP, peerFields()...))
+
+	return schema
+}
+
+// PluginOnlySchema returns a minimal schema that only parses plugin blocks.
+// Used for two-phase config parsing: first parse plugins, then parse rest.
+// This allows plugins to extend the schema before the full config is parsed.
+func PluginOnlySchema() *Schema {
+	schema := NewSchema()
+
+	// Only define plugin container - everything else is unknown
+	// Syntax: plugin { external <name> { ... } }
+	schema.Define("plugin", Container(
+		Field("external", List(TypeString,
+			Field("run", MultiLeaf(TypeString)), // command with args
+			Field("encoder", Leaf(TypeString)),  // json, text
+			Field("respawn", Leaf(TypeBool)),    // respawn on exit
+			Field("timeout", Leaf(TypeString)),  // stage timeout
+		)),
+	))
 
 	return schema
 }
@@ -500,7 +523,8 @@ type PeerConfig struct {
 	VPLSRoutes           []VPLSRouteConfig
 	FlowSpecRoutes       []FlowSpecRouteConfig
 	MUPRoutes            []MUPRouteConfig
-	ProcessBindings      []PeerProcessBinding // Per-peer process bindings
+	ProcessBindings      []PeerProcessBinding         // Per-peer process bindings
+	RawCapabilityConfig  map[string]map[string]string // Capability config for plugins
 }
 
 // PeerProcessBinding binds a peer to a plugin process with specific content and message config.
@@ -695,35 +719,37 @@ func TreeToConfig(tree *Tree) (*BGPConfig, error) {
 		cfg.Listen = v
 	}
 
-	// Plugins
-	for name, proc := range tree.GetList("plugin") {
-		// Reject reserved names (underscore prefix used internally)
-		if strings.HasPrefix(name, "_") {
-			return nil, fmt.Errorf("plugin name %q: names starting with underscore are reserved", name)
-		}
-		pc := PluginConfig{Name: name}
-		if v, ok := proc.Get("run"); ok {
-			pc.Run = v
-		}
-		if v, ok := proc.Get("encoder"); ok {
-			pc.Encoder = v
-		}
-		if v, ok := proc.Get("timeout"); ok {
-			d, err := time.ParseDuration(v)
-			if err != nil {
-				return nil, fmt.Errorf("plugin %q: invalid timeout %q: %w", name, v, err)
+	// Plugins - new syntax: plugin { external <name> { ... } }
+	if pluginContainer := tree.GetContainer("plugin"); pluginContainer != nil {
+		for name, proc := range pluginContainer.GetList("external") {
+			// Reject reserved names (underscore prefix used internally)
+			if strings.HasPrefix(name, "_") {
+				return nil, fmt.Errorf("plugin name %q: names starting with underscore are reserved", name)
 			}
-			if d < 0 {
-				return nil, fmt.Errorf("plugin %q: timeout must be positive, got %q", name, v)
+			pc := PluginConfig{Name: name}
+			if v, ok := proc.Get("run"); ok {
+				pc.Run = v
 			}
-			pc.StageTimeout = d
+			if v, ok := proc.Get("encoder"); ok {
+				pc.Encoder = v
+			}
+			if v, ok := proc.Get("timeout"); ok {
+				d, err := time.ParseDuration(v)
+				if err != nil {
+					return nil, fmt.Errorf("plugin %q: invalid timeout %q: %w", name, v, err)
+				}
+				if d < 0 {
+					return nil, fmt.Errorf("plugin %q: timeout must be positive, got %q", name, v)
+				}
+				pc.StageTimeout = d
+			}
+			// Default: text encoder plugins receive updates
+			// TODO: Parse process { receive { update; } } from peer/template for proper config
+			if pc.Encoder == encoderText {
+				pc.ReceiveUpdate = true
+			}
+			cfg.Plugins = append(cfg.Plugins, pc)
 		}
-		// Default: text encoder plugins receive updates
-		// TODO: Parse process { receive { update; } } from peer/template for proper config
-		if pc.Encoder == encoderText {
-			pc.ReceiveUpdate = true
-		}
-		cfg.Plugins = append(cfg.Plugins, pc)
 	}
 
 	// Parse templates first (for inheritance)
@@ -991,6 +1017,14 @@ func applyTreeSettings(nc *PeerConfig, tree *Tree) error {
 			if v, ok := gr.Get("restart-time"); ok {
 				n, _ := strconv.ParseUint(v, 10, 16)
 				nc.Capabilities.RestartTime = uint16(n)
+				// Store raw value for plugin delivery
+				if nc.RawCapabilityConfig == nil {
+					nc.RawCapabilityConfig = make(map[string]map[string]string)
+				}
+				if nc.RawCapabilityConfig["graceful-restart"] == nil {
+					nc.RawCapabilityConfig["graceful-restart"] = make(map[string]string)
+				}
+				nc.RawCapabilityConfig["graceful-restart"]["restart-time"] = v
 			}
 		}
 		// Handle add-path as value (e.g., "add-path send/receive;")
@@ -1254,6 +1288,14 @@ func parsePeerConfig(addr string, tree *Tree, templates map[string]*Tree, peerGl
 			if v, ok := gr.Get("restart-time"); ok {
 				n, _ := strconv.ParseUint(v, 10, 16)
 				nc.Capabilities.RestartTime = uint16(n)
+				// Store raw value for plugin delivery
+				if nc.RawCapabilityConfig == nil {
+					nc.RawCapabilityConfig = make(map[string]map[string]string)
+				}
+				if nc.RawCapabilityConfig["graceful-restart"] == nil {
+					nc.RawCapabilityConfig["graceful-restart"] = make(map[string]string)
+				}
+				nc.RawCapabilityConfig["graceful-restart"]["restart-time"] = v
 			}
 		}
 		// Handle add-path as value (e.g., "add-path send/receive;")

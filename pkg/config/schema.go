@@ -188,6 +188,78 @@ func (s *Schema) Lookup(path string) (Node, error) {
 	return current, nil
 }
 
+// ExtendCapability adds a capability sub-block to the schema at runtime.
+// Used by plugins to declare their config schema extensions.
+// The path is "peer.capability" by default - the name is the capability name.
+func (s *Schema) ExtendCapability(name string, fields ...FieldDef) error {
+	// Navigate to peer.capability container
+	peerNode := s.Get("peer")
+	if peerNode == nil {
+		return fmt.Errorf("peer node not found in schema")
+	}
+
+	listNode, ok := peerNode.(*ListNode)
+	if !ok {
+		return fmt.Errorf("peer is not a ListNode")
+	}
+
+	capNode := listNode.Get("capability")
+	if capNode == nil {
+		return fmt.Errorf("capability node not found in peer schema")
+	}
+
+	container, ok := capNode.(*ContainerNode)
+	if !ok {
+		return fmt.Errorf("capability is not a ContainerNode")
+	}
+
+	// Add the new capability as a Flex node
+	container.children[name] = Flex(fields...)
+	container.order = append(container.order, name)
+
+	// Also add to template.group and template.match if they exist
+	s.extendTemplateCapability(name, fields)
+
+	return nil
+}
+
+// extendTemplateCapability extends capability schema in templates.
+func (s *Schema) extendTemplateCapability(name string, fields []FieldDef) {
+	templateNode := s.Get("template")
+	if templateNode == nil {
+		return
+	}
+
+	container, ok := templateNode.(*ContainerNode)
+	if !ok {
+		return
+	}
+
+	// Extend template.group
+	if groupNode := container.Get("group"); groupNode != nil {
+		if groupList, ok := groupNode.(*ListNode); ok {
+			if capNode := groupList.Get("capability"); capNode != nil {
+				if capContainer, ok := capNode.(*ContainerNode); ok {
+					capContainer.children[name] = Flex(fields...)
+					capContainer.order = append(capContainer.order, name)
+				}
+			}
+		}
+	}
+
+	// Extend template.match
+	if matchNode := container.Get("match"); matchNode != nil {
+		if matchList, ok := matchNode.(*ListNode); ok {
+			if capNode := matchList.Get("capability"); capNode != nil {
+				if capContainer, ok := capNode.(*ContainerNode); ok {
+					capContainer.children[name] = Flex(fields...)
+					capContainer.order = append(capContainer.order, name)
+				}
+			}
+		}
+	}
+}
+
 // Field is a helper for defining container/list children.
 type FieldDef struct {
 	Name string

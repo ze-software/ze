@@ -470,6 +470,9 @@ func configToPeer(nc *PeerConfig, global *BGPConfig) (*reactor.PeerSettings, err
 		})
 	}
 
+	// Copy raw capability config for plugin delivery
+	n.RawCapabilityConfig = nc.RawCapabilityConfig
+
 	return n, nil
 }
 

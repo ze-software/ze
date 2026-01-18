@@ -500,3 +500,71 @@ func TestCapabilityConflictDetection(t *testing.T) {
 	assert.Contains(t, err.Error(), "capability conflict")
 	assert.Contains(t, err.Error(), "73")
 }
+
+// TestParseSchemaDeclaration verifies parsing of "declare conf schema" command.
+//
+// VALIDATES: Schema declarations are parsed correctly for dynamic schema extension.
+// PREVENTS: Plugin config schema extension failures.
+func TestParseSchemaDeclaration(t *testing.T) {
+	tests := []struct {
+		name       string
+		input      string
+		wantName   string
+		wantFields map[string]string
+		wantErr    bool
+	}{
+		{
+			name:     "graceful_restart_schema",
+			input:    `declare conf schema capability graceful-restart { restart-time <restart-time:\d+>; }`,
+			wantName: "graceful-restart",
+			wantFields: map[string]string{
+				"restart-time": "uint16",
+			},
+		},
+		{
+			name:     "multi_field_schema",
+			input:    `declare conf schema capability custom { field1 <f1:\d+>; field2 <f2:.*>; }`,
+			wantName: "custom",
+			wantFields: map[string]string{
+				"field1": "uint16",
+				"field2": "string",
+			},
+		},
+		{
+			name:    "missing_block",
+			input:   "declare conf schema capability test",
+			wantErr: true,
+		},
+		{
+			name:    "unsupported_path",
+			input:   "declare conf schema peer test { field <f:.*>; }",
+			wantErr: true,
+		},
+		{
+			name:    "missing_type_spec",
+			input:   "declare conf schema capability test { field; }",
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			reg := &PluginRegistration{}
+			err := reg.ParseLine(tt.input)
+			if tt.wantErr {
+				require.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
+			require.Len(t, reg.SchemaDeclarations, 1)
+
+			decl := reg.SchemaDeclarations[0]
+			assert.Equal(t, tt.wantName, decl.Name)
+			assert.Equal(t, "capability."+tt.wantName, decl.Path)
+			assert.Equal(t, tt.wantFields, decl.Fields)
+
+			// Also verify config pattern was generated
+			require.NotEmpty(t, reg.ConfigPatterns)
+		})
+	}
+}

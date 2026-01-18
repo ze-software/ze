@@ -238,6 +238,12 @@ type PeerSettings struct {
 
 	// Process bindings - which plugins receive messages from this peer.
 	ProcessBindings []ProcessBinding
+
+	// RawCapabilityConfig stores parsed capability config values for plugin delivery.
+	// Maps capability name → field name → value (e.g., "graceful-restart" → "restart-time" → "120").
+	// Populated from config blocks like: capability { graceful-restart { restart-time 120; } }
+	// Used for plugin-declared capabilities that don't have Go capability types.
+	RawCapabilityConfig map[string]map[string]string
 }
 
 // ProcessBinding represents a binding between this peer and a plugin.

@@ -50,6 +50,40 @@ peer 192.168.1.2 {
 2. Commands read from process stdout (newline-delimited)
 3. Each command processed and acknowledged (if ACK enabled)
 
+### Plugin-Driven Config Parsing (Future)
+
+Plugins can extend the config schema. This requires a two-phase config parsing approach:
+
+```
+CONFIG FILE                     ENGINE                          PLUGINS
+───────────                     ──────                          ───────
+
+plugin {                 →      1. Parse plugin blocks ONLY
+  external gr { ... }           2. Start plugin processes  →    Started
+  external rib { ... }
+}
+                                3. Wait for schema hooks   ←    declare conf schema capability
+                                                                  graceful-restart { restart-time <\d+>; }
+                                                           ←    declare done
+                                ─── CONFIG PARSING BARRIER ───
+peer 127.0.0.1 {         →      4. Parse rest of config
+  capability {                     (using plugin-extended schema)
+    graceful-restart {
+      restart-time 120;         5. Deliver matching config →    config peer 127.0.0.1
+    }                                                             graceful-restart restart-time 120
+  }
+}
+                                6. Continue normal stages  →    (capability injection, ready)
+```
+
+**Key principle:** ZeBGP engine has NO hardcoded knowledge of capability-specific config
+(like `graceful-restart`). Plugins define their own config schema via `declare conf schema`.
+
+**Benefits:**
+- Polyglot plugins: Any language can implement capability plugins
+- No engine changes for new capabilities
+- Config schema is self-documenting via plugin declarations
+
 ### 5-Stage Startup Protocol (ZeBGP)
 
 ZeBGP uses a synchronized 5-stage startup protocol with barriers between stages.
@@ -524,6 +558,258 @@ Completion timeout: 500ms (non-configurable).
 | `pkg/plugin/pending.go` | PendingRequests tracker |
 | `pkg/plugin/plugin.go` | Parse register/unregister/response |
 | `pkg/plugin/server.go` | handleRegisterCommand, handlePluginResponse |
+
+---
+
+## Plugin Examples: RIB and GR
+
+This section shows concrete message flows for the built-in RIB and GR plugins.
+
+### GR Plugin (Capability-Only)
+
+The GR plugin only participates in startup - it injects GR capabilities into OPEN messages.
+**No process binding required** because it doesn't need runtime events.
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                        GR PLUGIN MESSAGE FLOW                                │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│   ZeBGP Engine                              GR Plugin (zebgp plugin gr)     │
+│   ────────────                              ────────────────────────────    │
+│                                                                             │
+│   STAGE 1: REGISTRATION                                                     │
+│                                                                             │
+│                              ◄───── declare conf peer * capability          │
+│                                      graceful-restart:restart-time          │
+│                                      <restart-time:\d+>                     │
+│                              ◄───── declare done                            │
+│                                                                             │
+│   STAGE 2: CONFIG DELIVERY                                                  │
+│                                                                             │
+│   config peer 192.168.1.1    ─────►                                         │
+│     restart-time 120                 (capture NAME, not full key)           │
+│   config peer 10.0.0.1       ─────►                                         │
+│     restart-time 90                                                         │
+│   config done                ─────►                                         │
+│                                        (plugin parses, stores in grConfig)  │
+│                                                                             │
+│   STAGE 3: CAPABILITY DECLARATION                                           │
+│                                                                             │
+│                              ◄───── capability hex 64 0078 peer 192.168.1.1 │
+│                              ◄───── capability hex 64 005a peer 10.0.0.1    │
+│                              ◄───── capability done                         │
+│                                                                             │
+│   (Engine stores: peer 192.168.1.1 gets GR cap [0x00,0x78] = 120s)          │
+│   (Engine stores: peer 10.0.0.1 gets GR cap [0x00,0x5a] = 90s)              │
+│                                                                             │
+│   STAGE 4: REGISTRY SHARING                                                 │
+│                                                                             │
+│   registry done              ─────►                                         │
+│                                                                             │
+│   STAGE 5: READY                                                            │
+│                                                                             │
+│                              ◄───── ready                                   │
+│                                                                             │
+│   ═══════════════════════════════════════════════════════════════════════   │
+│   BGP PEERS START - GR capability included in OPEN messages                 │
+│   ═══════════════════════════════════════════════════════════════════════   │
+│                                                                             │
+│   RUNTIME: (minimal - just waits for shutdown)                              │
+│                                                                             │
+│   (stdin closed)             ─────►  (plugin exits cleanly)                 │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+**Wire format:** `capability hex 64 XXXX peer <addr>`
+- Code 64 = Graceful Restart (RFC 4724)
+- XXXX = 2-byte hex: `[R:1][Reserved:3][RestartTime:12]`
+- Example: `0078` = restart-time 120 (0x78 = 120)
+
+**Config delivery format:**
+- Pattern key: `graceful-restart:restart-time` (matches against server path)
+- Config delivery: `config peer <addr> restart-time <value>` (capture NAME only)
+- Plugin parses the capture name, not the full pattern key
+
+**Key insight:** GR plugin receives config for ALL peers with GR capability configured,
+regardless of explicit `process gr {}` bindings. This is because `deliverConfig()` in
+`pkg/plugin/server.go` iterates all peers and matches against declared patterns.
+
+### RIB Plugin (Full Lifecycle)
+
+The RIB plugin tracks routes and replays them on peer reconnect.
+**Requires process binding** for runtime events.
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                        RIB PLUGIN MESSAGE FLOW                               │
+├─────────────────────────────────────────────────────────────────────────────┤
+│                                                                             │
+│   ZeBGP Engine                              RIB Plugin (zebgp plugin rib)   │
+│   ────────────                              ─────────────────────────────   │
+│                                                                             │
+│   STAGE 1: REGISTRATION                                                     │
+│                                                                             │
+│                              ◄───── declare cmd rib adjacent status         │
+│                              ◄───── declare cmd rib adjacent inbound show   │
+│                              ◄───── declare cmd rib adjacent inbound empty  │
+│                              ◄───── declare cmd rib adjacent outbound show  │
+│                              ◄───── declare cmd rib adjacent outbound resend│
+│                              ◄───── declare done                            │
+│                                                                             │
+│   STAGE 2: CONFIG DELIVERY                                                  │
+│                                                                             │
+│   config done                ─────►  (RIB has no config patterns)           │
+│                                                                             │
+│   STAGE 3: CAPABILITY DECLARATION                                           │
+│                                                                             │
+│                              ◄───── capability done (RIB has no caps)       │
+│                                                                             │
+│   STAGE 4: REGISTRY SHARING                                                 │
+│                                                                             │
+│   registry cmd peer ...      ─────►                                         │
+│   registry cmd update ...    ─────►                                         │
+│   registry done              ─────►                                         │
+│                                                                             │
+│   STAGE 5: READY                                                            │
+│                                                                             │
+│                              ◄───── ready                                   │
+│                                                                             │
+│   ═══════════════════════════════════════════════════════════════════════   │
+│   BGP PEERS START                                                           │
+│   ═══════════════════════════════════════════════════════════════════════   │
+│                                                                             │
+│   RUNTIME: Event Processing                                                 │
+│                                                                             │
+│   ─── Peer comes up ───                                                     │
+│                                                                             │
+│   {"type":"state",           ─────►  (plugin marks peer as up)              │
+│    "peer":"192.168.1.1",                                                    │
+│    "state":"up"}                                                            │
+│                                                                             │
+│   ─── Route sent to peer ───                                                │
+│                                                                             │
+│   {"type":"sent",            ─────►  (plugin stores in ribOut)              │
+│    "peer":"192.168.1.1",                                                    │
+│    "msg-id":123,                                                            │
+│    "ipv4/unicast":[...]}                                                    │
+│                                                                             │
+│   ─── Peer goes down ───                                                    │
+│                                                                             │
+│   {"type":"state",           ─────►  (plugin clears ribIn for peer)         │
+│    "peer":"192.168.1.1",                                                    │
+│    "state":"down"}                                                          │
+│                                                                             │
+│   ─── Peer reconnects ───                                                   │
+│                                                                             │
+│   {"type":"state",           ─────►  (plugin replays ribOut)                │
+│    "peer":"192.168.1.1",                                                    │
+│    "state":"up"}                                                            │
+│                                                                             │
+│                              ◄───── peer 192.168.1.1 update text            │
+│                                       nhop set 10.0.0.1 nlri ipv4/unicast   │
+│                                       add 10.0.1.0/24                       │
+│                              ◄───── #1 peer 192.168.1.1 session api ready   │
+│                                                                             │
+│   ─── Route refresh request ───                                             │
+│                                                                             │
+│   {"type":"refresh",         ─────►  (plugin sends BoRR, routes, EoRR)      │
+│    "peer":"192.168.1.1",                                                    │
+│    "afi":"ipv4",                                                            │
+│    "safi":"unicast"}                                                        │
+│                                                                             │
+│                              ◄───── peer 192.168.1.1 borr ipv4/unicast      │
+│                              ◄───── peer 192.168.1.1 update text ...        │
+│                              ◄───── peer 192.168.1.1 eorr ipv4/unicast      │
+│                                                                             │
+│   ─── Command request ───                                                   │
+│                                                                             │
+│   {"type":"request",         ─────►  (plugin handles command)               │
+│    "serial":"abc",                                                          │
+│    "command":"rib adjacent                                                  │
+│              status"}                                                       │
+│                                                                             │
+│                              ◄───── @abc done {"running":true,              │
+│                                               "peers":1,                    │
+│                                               "routes_in":5,                │
+│                                               "routes_out":3}               │
+│                                                                             │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+### Process Binding Requirements
+
+| Plugin Type | Process Binding | Why |
+|-------------|-----------------|-----|
+| Capability-only (GR) | Not required | Only needs config delivery (Stage 2) |
+| Event-driven (RIB, RR) | Required | Needs runtime events (state, sent, refresh) |
+| Command-only | Required | Needs request events for registered commands |
+
+**Config example for both plugins:**
+
+```
+plugin {
+    external gr {
+        run "zebgp plugin gr";
+        encoder json;
+    }
+
+    external rib {
+        run "zebgp plugin rib";
+        encoder json;
+    }
+}
+
+peer 192.168.1.1 {
+    capability {
+        graceful-restart {
+            restart-time 120;
+        }
+    }
+
+    # No "process gr {}" needed - GR gets config automatically
+
+    process rib {
+        receive { sent; state; }
+        send { update; }
+    }
+}
+```
+
+### Config Delivery vs Event Delivery
+
+The engine uses two different mechanisms:
+
+| Mechanism | When | Filter |
+|-----------|------|--------|
+| **Config Delivery** (Stage 2) | Startup only | Pattern matching against ALL peers |
+| **Event Delivery** (Runtime) | After startup | Process bindings per peer |
+
+**Config delivery** (`pkg/plugin/server.go:deliverConfig`):
+```go
+peerConfigs := s.reactor.GetPeerCapabilityConfigs()  // ALL peers
+for _, peerCfg := range peerConfigs {
+    for _, pattern := range reg.ConfigPatterns {
+        matches := matchConfigPattern(pattern, peerCfg)
+        // Send config regardless of process binding
+    }
+}
+```
+
+**Event delivery** (`pkg/plugin/server.go:dispatchEvent`):
+```go
+bindings := s.reactor.GetPeerProcessBindings(peer.Address)
+for _, binding := range bindings {
+    if binding.ShouldSend(eventType) {
+        proc := s.GetProcess(binding.PluginName)
+        proc.WriteEvent(event)
+    }
+}
+```
+
+This separation allows capability-only plugins to work without explicit process bindings,
+while still requiring bindings for plugins that need runtime event filtering.
 
 ---
 

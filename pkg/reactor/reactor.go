@@ -272,6 +272,16 @@ func (a *reactorAPIAdapter) GetPeerCapabilityConfigs() []plugin.PeerCapabilityCo
 			}
 		}
 
+		// Also include raw capability config values for plugin-declared capabilities.
+		// Format: "<name>:<field>" → value (RFC-style scoping, matches ConfigProvider pattern).
+		// Server.go adds "capability " prefix when building path.
+		for capName, fields := range s.RawCapabilityConfig {
+			for fieldName, value := range fields {
+				key := capName + ":" + fieldName
+				cfg.Values[key] = value
+			}
+		}
+
 		result = append(result, cfg)
 	}
 	return result

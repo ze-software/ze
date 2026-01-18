@@ -585,6 +585,22 @@ func (s *Server) GetPluginCapabilitiesForPeer(peerAddr string) []InjectedCapabil
 	return s.capInjector.GetCapabilitiesForPeer(peerAddr)
 }
 
+// GetSchemaDeclarations returns all schema declarations from registered plugins.
+// Used for two-phase config parsing to extend the schema before parsing peer config.
+// Should be called after Stage 1 (Registration) completes for all plugins.
+func (s *Server) GetSchemaDeclarations() []SchemaDeclaration {
+	if s.procManager == nil {
+		return nil
+	}
+
+	var declarations []SchemaDeclaration
+	for _, proc := range s.procManager.processes {
+		reg := proc.Registration()
+		declarations = append(declarations, reg.SchemaDeclarations...)
+	}
+	return declarations
+}
+
 // deliverConfig sends matching configuration to a plugin (Stage 2).
 // Matches registered config patterns against peer capability configs.
 func (s *Server) deliverConfig(proc *Process) {

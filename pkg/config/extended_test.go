@@ -235,9 +235,11 @@ peer 192.0.2.1 {
 // PREVENTS: Breaking on bracket syntax.
 func TestArraySyntax(t *testing.T) {
 	input := `
-plugin watcher {
-    run "/usr/bin/watcher";
-    encoder json;
+plugin {
+    external watcher {
+        run "/usr/bin/watcher";
+        encoder json;
+    }
 }
 
 peer 192.0.2.1 {

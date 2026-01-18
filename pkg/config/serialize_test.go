@@ -95,9 +95,11 @@ func TestSerializeFamily(t *testing.T) {
 //
 // PREVENTS: Lost plugin settings.
 func TestSerializePlugin(t *testing.T) {
-	input := `plugin watcher {
-    run "/usr/bin/watcher";
-    encoder json;
+	input := `plugin {
+    external watcher {
+        run "/usr/bin/watcher";
+        encoder json;
+    }
 }
 `
 	schema := BGPSchema()

@@ -555,10 +555,15 @@ func serializeTreeIndent(tree *config.Tree, buf *strings.Builder, indent string)
 		}
 	}
 
-	// Write plugin blocks.
-	for _, entry := range tree.GetListOrdered("plugin") {
-		_, _ = fmt.Fprintf(buf, "%splugin %s {\n", indent, entry.Key)
-		serializeTreeIndent(entry.Value, buf, indent+"\t")
+	// Write plugin blocks - new syntax: plugin { external NAME { ... } }
+	pluginList := tree.GetListOrdered("plugin")
+	if len(pluginList) > 0 {
+		_, _ = fmt.Fprintf(buf, "%splugin {\n", indent)
+		for _, entry := range pluginList {
+			_, _ = fmt.Fprintf(buf, "%s\texternal %s {\n", indent, entry.Key)
+			serializeTreeIndent(entry.Value, buf, indent+"\t\t")
+			_, _ = fmt.Fprintf(buf, "%s\t}\n", indent)
+		}
 		_, _ = fmt.Fprintf(buf, "%s}\n", indent)
 	}
 

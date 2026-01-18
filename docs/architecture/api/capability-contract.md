@@ -114,9 +114,11 @@ peer A announce raw <base64-attrs> nlri ipv4/unicast <base64-nlri>
 
 **Timeout configuration:**
 ```
-plugin myapp {
-    run ./myapp;
-    timeout 10s;    # per-stage timeout (default: 5s)
+plugin {
+    external myapp {
+        run ./myapp;
+        timeout 10s;    # per-stage timeout (default: 5s)
+    }
 }
 ```
 

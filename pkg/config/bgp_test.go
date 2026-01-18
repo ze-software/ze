@@ -518,21 +518,25 @@ peer 192.0.2.1 {
 // PREVENTS: Broken API integration.
 func TestBGPSchemaProcess(t *testing.T) {
 	input := `
-plugin announce-routes {
-    run "/usr/local/bin/exabgp-announce";
-    encoder json;
-}
-
-plugin receive-routes {
-    run "/usr/local/bin/exabgp-receive";
-    encoder text;
+plugin {
+    external announce-routes {
+        run "/usr/local/bin/exabgp-announce";
+        encoder json;
+    }
+    external receive-routes {
+        run "/usr/local/bin/exabgp-receive";
+        encoder text;
+    }
 }
 `
 	p := NewParser(BGPSchema())
 	tree, err := p.Parse(input)
 	require.NoError(t, err)
 
-	plugins := tree.GetList("plugin")
+	pluginContainer := tree.GetContainer("plugin")
+	require.NotNil(t, pluginContainer)
+
+	plugins := pluginContainer.GetList("external")
 	require.Len(t, plugins, 2)
 
 	p1 := plugins["announce-routes"]
@@ -583,9 +587,11 @@ router-id 10.0.0.1;
 local-as 65000;
 
 # API process
-plugin watcher {
-    run "/usr/bin/watcher";
-    encoder json;
+plugin {
+    external watcher {
+        run "/usr/bin/watcher";
+        encoder json;
+    }
 }
 
 # Transit provider
@@ -630,7 +636,9 @@ peer 192.0.2.10 {
 	require.Equal(t, "10.0.0.1", val)
 
 	// Check plugin
-	plugins := tree.GetList("plugin")
+	pluginContainer := tree.GetContainer("plugin")
+	require.NotNil(t, pluginContainer)
+	plugins := pluginContainer.GetList("external")
 	require.Len(t, plugins, 1)
 
 	// Check neighbors
@@ -1284,7 +1292,7 @@ func TestIPGlobMatch(t *testing.T) {
 // PREVENTS: Unable to use group syntax for named templates.
 func TestTemplateGroupBasic(t *testing.T) {
 	input := `
-plugin rib { run ./rib; }
+plugin { external rib { run ./rib; } }
 template {
     group ibgp-rr {
         peer-as 65000;
@@ -1544,7 +1552,7 @@ peer 192.0.2.1 {
 // PREVENTS: Template inheritance not working.
 func TestSingleInheritance(t *testing.T) {
 	input := `
-plugin rib { run ./rib; }
+plugin { external rib { run ./rib; } }
 template {
     group ibgp-defaults {
         hold-time 60;
@@ -1898,7 +1906,7 @@ peer 10.0.0.1 { local-as 65000; peer-as 65002; }
 // PREVENTS: Silent failures when api block is malformed.
 func TestPeerProcessBindingOldSyntax(t *testing.T) {
 	input := `
-plugin foo { run ./test; encoder text; }
+plugin { external foo { run ./test; encoder text; } }
 peer 10.0.0.1 {
     router-id 1.2.3.4;
     local-as 65001;
@@ -1923,8 +1931,10 @@ peer 10.0.0.1 {
 // PREVENTS: Missing processes when multiple specified.
 func TestAPIBindingMultipleProcesses(t *testing.T) {
 	input := `
-plugin collector { run ./collector; encoder json; }
-plugin logger { run ./logger; encoder text; }
+plugin {
+    external collector { run ./collector; encoder json; }
+    external logger { run ./logger; encoder text; }
+}
 peer 10.0.0.1 {
     router-id 1.2.3.4;
     local-as 65001;
@@ -1953,7 +1963,7 @@ peer 10.0.0.1 {
 // PREVENTS: State change events being dropped for old-style configs.
 func TestAPIBindingNeighborChanges(t *testing.T) {
 	input := `
-plugin foo { run ./test; encoder text; }
+plugin { external foo { run ./test; encoder text; } }
 peer 10.0.0.1 {
     router-id 1.2.3.4;
     local-as 65001;
@@ -1980,7 +1990,7 @@ peer 10.0.0.1 {
 // PREVENTS: Negotiated capabilities not being forwarded to plugins.
 func TestAPIBindingReceiveNegotiated(t *testing.T) {
 	input := `
-plugin foo { run ./test; encoder json; }
+plugin { external foo { run ./test; encoder json; } }
 peer 10.0.0.1 {
     router-id 1.2.3.4;
     local-as 65001;
@@ -2006,7 +2016,7 @@ peer 10.0.0.1 {
 // PREVENTS: Missing negotiated in all shorthand.
 func TestAPIBindingReceiveAll(t *testing.T) {
 	input := `
-plugin foo { run ./test; encoder json; }
+plugin { external foo { run ./test; encoder json; } }
 peer 10.0.0.1 {
     router-id 1.2.3.4;
     local-as 65001;
@@ -2063,7 +2073,7 @@ peer 10.0.0.1 {
 // PREVENTS: Crash on empty api block.
 func TestEmptyAPIBlock(t *testing.T) {
 	input := `
-plugin foo { run ./test; }
+plugin { external foo { run ./test; } }
 peer 10.0.0.1 {
     router-id 1.2.3.4;
     local-as 65001;
@@ -2118,7 +2128,7 @@ func TestAPIBindingConfigStructs(t *testing.T) {
 // PREVENTS: Silent failures when using new api syntax.
 func TestPeerProcessBindingNewSyntax(t *testing.T) {
 	input := `
-plugin foo { run ./test; encoder text; }
+plugin { external foo { run ./test; encoder text; } }
 peer 10.0.0.1 {
     router-id 1.2.3.4;
     local-as 65001;
@@ -2149,7 +2159,7 @@ peer 10.0.0.1 {
 // PREVENTS: Missing messages when user specifies "all".
 func TestReceiveAllExpansion(t *testing.T) {
 	input := `
-plugin foo { run ./test; }
+plugin { external foo { run ./test; } }
 peer 10.0.0.1 {
     router-id 1.2.3.4;
     local-as 65001;
@@ -2177,7 +2187,7 @@ peer 10.0.0.1 {
 // PREVENTS: Missing send capabilities when user specifies "all".
 func TestSendAllExpansion(t *testing.T) {
 	input := `
-plugin foo { run ./test; }
+plugin { external foo { run ./test; } }
 peer 10.0.0.1 {
     router-id 1.2.3.4;
     local-as 65001;
@@ -2201,7 +2211,7 @@ peer 10.0.0.1 {
 // PREVENTS: Crash on minimal api binding.
 func TestEmptyAPIBindingNewSyntax(t *testing.T) {
 	input := `
-plugin foo { run ./test; }
+plugin { external foo { run ./test; } }
 peer 10.0.0.1 {
     router-id 1.2.3.4;
     local-as 65001;
@@ -2251,8 +2261,10 @@ peer 10.0.0.1 {
 // PREVENTS: Only first api block being parsed.
 func TestMultipleProcessBindingsNewSyntax(t *testing.T) {
 	input := `
-plugin collector { run ./collector; encoder json; }
-plugin logger { run ./logger; encoder text; }
+plugin {
+    external collector { run ./collector; encoder json; }
+    external logger { run ./logger; encoder text; }
+}
 peer 10.0.0.1 {
     router-id 1.2.3.4;
     local-as 65001;
@@ -2306,7 +2318,7 @@ peer 10.0.0.1 {
 // PREVENTS: Lost API bindings when using template inheritance.
 func TestTemplateAPIBindingInheritance(t *testing.T) {
 	input := `
-plugin collector { run ./collector; encoder json; }
+plugin { external collector { run ./collector; encoder json; } }
 template {
     group api-template {
         process collector {
@@ -2339,7 +2351,7 @@ peer 192.0.2.1 {
 // PREVENTS: Template bindings not being overridden by peer-specific config.
 func TestTemplateAPIBindingPeerOverride(t *testing.T) {
 	input := `
-plugin collector { run ./collector; encoder json; }
+plugin { external collector { run ./collector; encoder json; } }
 template {
     group api-template {
         process collector {
@@ -2377,8 +2389,10 @@ peer 192.0.2.1 {
 // PREVENTS: Missing bindings when template and peer bind different processes.
 func TestTemplateAPIBindingMergeMultipleProcesses(t *testing.T) {
 	input := `
-plugin collector { run ./collector; encoder json; }
-plugin logger { run ./logger; encoder text; }
+plugin {
+    external collector { run ./collector; encoder json; }
+    external logger { run ./logger; encoder text; }
+}
 template {
     group api-template {
         process collector {
@@ -2422,8 +2436,10 @@ peer 192.0.2.1 {
 // multiple api blocks instead.
 func TestTemplateWithMultipleProcessBindings(t *testing.T) {
 	input := `
-plugin collector { run ./collector; encoder json; }
-plugin logger { run ./logger; encoder text; }
+plugin {
+    external collector { run ./collector; encoder json; }
+    external logger { run ./logger; encoder text; }
+}
 template {
     group multi-api {
         process collector {
@@ -2462,7 +2478,7 @@ peer 192.0.2.1 {
 // PREVENTS: Unable to set default API bindings via match patterns.
 func TestMatchTemplateAPIBinding(t *testing.T) {
 	input := `
-plugin collector { run ./collector; encoder json; }
+plugin { external collector { run ./collector; encoder json; } }
 template {
     match * {
         process collector {
@@ -2496,7 +2512,7 @@ peer 10.0.0.1 {
 // PREVENTS: Wrong API binding precedence causing unexpected behavior.
 func TestMatchAndInheritAPIBindingPrecedence(t *testing.T) {
 	input := `
-plugin collector { run ./collector; encoder json; }
+plugin { external collector { run ./collector; encoder json; } }
 template {
     match * {
         process collector {
@@ -2901,7 +2917,7 @@ func TestParseNLRIEntriesInvalid(t *testing.T) {
 // PREVENTS: NLRI filter config not being applied.
 func TestAPIConfigNLRIFilter(t *testing.T) {
 	input := `
-plugin foo { run ./test; encoder json; }
+plugin { external foo { run ./test; encoder json; } }
 peer 10.0.0.1 {
     router-id 1.2.3.4;
     local-as 65001;
@@ -2934,7 +2950,7 @@ peer 10.0.0.1 {
 // PREVENTS: Silent failures on malformed attribute config.
 func TestAPIConfigAttributeFilterError(t *testing.T) {
 	input := `
-plugin foo { run ./test; encoder json; }
+plugin { external foo { run ./test; encoder json; } }
 peer 10.0.0.1 {
     router-id 1.2.3.4;
     local-as 65001;
@@ -2963,7 +2979,7 @@ peer 10.0.0.1 {
 // PREVENTS: Silent failures on malformed NLRI config.
 func TestAPIConfigNLRIFilterError(t *testing.T) {
 	input := `
-plugin foo { run ./test; encoder json; }
+plugin { external foo { run ./test; encoder json; } }
 peer 10.0.0.1 {
     router-id 1.2.3.4;
     local-as 65001;
@@ -3035,7 +3051,7 @@ peer 10.0.0.1 {
 // PREVENTS: False positives rejecting valid configurations.
 func TestConfigValidationRouteRefreshWithProcess(t *testing.T) {
 	input := `
-plugin rib { run ./rib; }
+plugin { external rib { run ./rib; } }
 peer 10.0.0.1 {
     router-id 1.2.3.4;
     local-as 65001;
@@ -3055,7 +3071,7 @@ peer 10.0.0.1 {
 // PREVENTS: False positives rejecting valid configurations.
 func TestConfigValidationGracefulRestartWithProcess(t *testing.T) {
 	input := `
-plugin rib { run ./rib; }
+plugin { external rib { run ./rib; } }
 peer 10.0.0.1 {
     router-id 1.2.3.4;
     local-as 65001;
@@ -3075,7 +3091,7 @@ peer 10.0.0.1 {
 // PREVENTS: Misconfiguration where process cannot respond to route-refresh.
 func TestConfigValidationRouteRefreshProcessNoSendUpdate(t *testing.T) {
 	input := `
-plugin logger { run ./logger; }
+plugin { external logger { run ./logger; } }
 peer 10.0.0.1 {
     router-id 1.2.3.4;
     local-as 65001;
@@ -3100,7 +3116,7 @@ peer 10.0.0.1 {
 // PREVENTS: False positives when multiple capabilities are configured.
 func TestConfigValidationBothCapabilitiesWithProcess(t *testing.T) {
 	input := `
-plugin rib { run ./rib; }
+plugin { external rib { run ./rib; } }
 peer 10.0.0.1 {
     router-id 1.2.3.4;
     local-as 65001;
@@ -3150,7 +3166,7 @@ peer 10.0.0.1 {
 // PREVENTS: False rejection when using "all" keyword.
 func TestConfigValidationSendAllSatisfiesRequirement(t *testing.T) {
 	input := `
-plugin rib { run ./rib; }
+plugin { external rib { run ./rib; } }
 peer 10.0.0.1 {
     router-id 1.2.3.4;
     local-as 65001;
@@ -3170,10 +3186,12 @@ peer 10.0.0.1 {
 // PREVENTS: Plugin timeout config being ignored.
 func TestPluginConfigTimeout(t *testing.T) {
 	input := `
-plugin myapp {
-    run ./myapp;
-    encoder json;
-    timeout 10s;
+plugin {
+    external myapp {
+        run ./myapp;
+        encoder json;
+        timeout 10s;
+    }
 }
 `
 	cfg := parseConfig(t, input)
@@ -3188,8 +3206,10 @@ plugin myapp {
 // PREVENTS: Non-zero default breaking existing configs.
 func TestPluginConfigTimeoutDefault(t *testing.T) {
 	input := `
-plugin myapp {
-    run ./myapp;
+plugin {
+    external myapp {
+        run ./myapp;
+    }
 }
 `
 	cfg := parseConfig(t, input)
@@ -3203,9 +3223,11 @@ plugin myapp {
 // PREVENTS: Invalid durations being silently ignored.
 func TestPluginConfigTimeoutInvalid(t *testing.T) {
 	input := `
-plugin myapp {
-    run ./myapp;
-    timeout abc;
+plugin {
+    external myapp {
+        run ./myapp;
+        timeout abc;
+    }
 }
 `
 	p := NewParser(BGPSchema())
@@ -3223,9 +3245,11 @@ plugin myapp {
 // PREVENTS: Negative duration causing immediate context expiration.
 func TestPluginConfigTimeoutNegative(t *testing.T) {
 	input := `
-plugin myapp {
-    run ./myapp;
-    timeout -5s;
+plugin {
+    external myapp {
+        run ./myapp;
+        timeout -5s;
+    }
 }
 `
 	p := NewParser(BGPSchema())
@@ -3256,9 +3280,11 @@ func TestPluginConfigTimeoutVariants(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			input := `
-plugin myapp {
-    run ./myapp;
-    timeout ` + tt.timeout + `;
+plugin {
+    external myapp {
+        run ./myapp;
+        timeout ` + tt.timeout + `;
+    }
 }
 `
 			cfg := parseConfig(t, input)

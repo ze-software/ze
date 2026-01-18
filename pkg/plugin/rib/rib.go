@@ -46,11 +46,7 @@ type RIBManager struct {
 	// peerUp tracks which peers are currently up
 	peerUp map[string]bool
 
-	// grConfig stores per-peer Graceful Restart restart-time configuration.
-	// RFC 4724: restart-time is used in the GR capability sent to peers.
-	grConfig map[string]uint16 // peerAddr -> restart-time (0-4095 seconds)
-
-	mu       sync.RWMutex // protects ribInPool, ribOut, peerUp, grConfig
+	mu       sync.RWMutex // protects ribInPool, ribOut, peerUp
 	outputMu sync.Mutex   // protects output writes and serial
 	serial   int
 }
@@ -97,7 +93,6 @@ func NewRIBManager(input io.Reader, output io.Writer) *RIBManager {
 		ribInPool: make(map[string]*storage.PeerRIB),
 		ribOut:    make(map[string]map[string]*Route),
 		peerUp:    make(map[string]bool),
-		grConfig:  make(map[string]uint16),
 	}
 }
 
@@ -129,7 +124,6 @@ func (r *RIBManager) Run() int {
 }
 
 // doStartupProtocol performs the 5-stage plugin registration protocol.
-// Now with GR config support (RFC 4724).
 func (r *RIBManager) doStartupProtocol() {
 	// Stage 1: Declaration
 	r.send("declare cmd rib adjacent status")
@@ -137,40 +131,19 @@ func (r *RIBManager) doStartupProtocol() {
 	r.send("declare cmd rib adjacent inbound empty")
 	r.send("declare cmd rib adjacent outbound show")
 	r.send("declare cmd rib adjacent outbound resend")
-	// Register for Graceful Restart config (RFC 4724).
-	// Uses scoped key "rfc4724:restart-time" matching capability.GracefulRestart.ConfigValues().
-	r.send("declare conf peer * capability rfc4724:restart-time <restart-time:\\d+>")
 	r.send("declare done")
 
-	// Stage 2: Wait for config (use original waitForLine - parseConfig causes issues)
+	// Stage 2: Wait for config (RIB plugin doesn't register config patterns)
 	r.waitForLine("config done")
 
-	// Stage 3: Register GR capabilities per peer (none without parseConfig)
-	r.registerCapabilities()
+	// Stage 3: No capabilities to register
+	r.send("capability done")
 
 	// Stage 4: Wait for registry (discard)
 	r.waitForLine("registry done")
 
 	// Stage 5: Ready
 	r.send("ready")
-}
-
-// registerCapabilities sends Stage 3 capability declarations.
-// Registers GR capability (code 64) per peer with configured restart-time.
-func (r *RIBManager) registerCapabilities() {
-	// RFC 4724: Graceful Restart capability code is 64.
-	// Wire format: [flags+restart-time:2 bytes] [AFI:2][SAFI:1][F-bit:1] per family.
-	// For simplicity, we send restart-time only (no families - peer advertises those).
-	const grCapCode = 64
-
-	for peerAddr, restartTime := range r.grConfig {
-		// Build GR capability value: 2 bytes (flags=0, restart-time in lower 12 bits)
-		// RFC 4724 Section 3: Restart Flags (4 bits) + Restart Time (12 bits)
-		capValue := fmt.Sprintf("%04x", restartTime&0x0FFF)
-		r.send("capability hex %d %s peer %s", grCapCode, capValue, peerAddr)
-		slog.Debug("registered GR capability", "peer", peerAddr, "restart-time", restartTime)
-	}
-	r.send("capability done")
 }
 
 // waitForLine reads lines until one matches the expected line.
