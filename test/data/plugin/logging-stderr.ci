@@ -1,0 +1,17 @@
+option:file:logging-stderr.conf
+option:timeout:10s
+
+# Enable server subsystem logging
+option:env:zebgp.log.server=debug
+
+# Test: Engine subsystem logging to stderr
+# Verifies zebgp.log.server=debug produces server logs in stderr
+
+# Static route UPDATE
+1:raw:FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF:0030:02:00000015400101004002004003040A0000014005040000006418C0A801
+# EOR
+1:raw:FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF:0017:02:00000000
+
+# Verify server subsystem logs appear in stderr
+expect:stderr:subsystem=server
+expect:stderr:stageTransition|deliverConfig|handleRegistrationLine

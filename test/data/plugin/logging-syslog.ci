@@ -1,0 +1,16 @@
+option:file:logging-syslog.conf
+option:timeout:10s
+
+# Enable server subsystem logging (syslog backend set automatically by runner)
+option:env:zebgp.log.server=debug
+
+# Test: Syslog backend
+# Verifies zebgp.log.backend=syslog sends logs to test-syslog server
+
+# Static route UPDATE
+1:raw:FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF:0030:02:00000015400101004002004003040A0000014005040000006418C0A801
+# EOR
+1:raw:FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF:0017:02:00000000
+
+# Verify server subsystem logs arrive at syslog server
+expect:syslog:subsystem=server

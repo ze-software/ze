@@ -153,10 +153,125 @@ option:asn:65000                # Override peer ASN
 | `option:file:` | Config file to use |
 | `option:asn:` | Override peer ASN |
 | `option:bind:` | Bind option (ipv6) |
+| `option:timeout:` | Test timeout (e.g., `10s`) |
+| `option:env:` | Set environment variable (e.g., `zebgp.log.server=debug`) |
 | `N:cmd:` | API command (source of truth) |
 | `N:raw:` | Expected raw bytes from command |
 | `N:json:` | Expected JSON from raw bytes |
 | `AN:notification:` | Peer A sends notification at step N |
+| `expect:stderr:` | Regex pattern that MUST appear in zebgp stderr |
+| `reject:stderr:` | Regex pattern that MUST NOT appear in zebgp stderr |
+| `expect:syslog:` | Regex pattern that MUST appear in syslog (starts test-syslog server) |
+
+### Logging Tests
+
+Tests can verify logging behavior using `option:env:`, `expect:stderr:`, `reject:stderr:`, and `expect:syslog:`.
+
+**Example: Verify server subsystem logs to stderr**
+```
+option:file:mytest.conf
+option:env:zebgp.log.server=debug
+
+1:raw:FFFF...
+expect:stderr:subsystem=server
+```
+
+**Example: Verify DEBUG messages are filtered at INFO level**
+```
+option:file:mytest.conf
+option:env:zebgp.log.server=info
+
+1:raw:FFFF...
+reject:stderr:level=DEBUG
+```
+
+**Example: Verify syslog backend**
+```
+option:file:mytest.conf
+option:env:zebgp.log.server=debug
+
+1:raw:FFFF...
+expect:syslog:subsystem=server
+```
+
+When `expect:syslog:` is present, the test runner automatically:
+1. Starts a test-syslog UDP server on a dynamic port
+2. Sets `zebgp.log.backend=syslog` and `zebgp.log.destination=127.0.0.1:<port>`
+3. Validates patterns against captured syslog messages after test
+
+#### Syslog Testing Architecture
+
+```
+┌──────────────────────────────────────────────────────────────────┐
+│                      TEST RUNNER (runner.go)                      │
+│                                                                   │
+│  1. Parse .ci file                                                │
+│     └── Found: expect:syslog:subsystem=server                     │
+│                                                                   │
+│  2. Start testsyslog server (UDP, dynamic port)                   │
+│     └── testsyslog.New(0).Start(ctx) → port 54321                 │
+│                                                                   │
+│  3. Auto-inject env vars for zebgp:                               │
+│     └── zebgp.log.backend=syslog                                  │
+│     └── zebgp.log.destination=127.0.0.1:54321                     │
+│     └── zebgp.log.server=debug  (from option:env:)                │
+│                                                                   │
+│  4. Start zebgp with config                                       │
+└──────────────────────────────────────────────────────────────────┘
+                                │
+                                ▼
+┌──────────────────────────────────────────────────────────────────┐
+│                           ZEBGP                                   │
+│                                                                   │
+│  slogutil.Logger("server") reads env vars:                        │
+│    - zebgp.log.server=debug → enabled at DEBUG                    │
+│    - zebgp.log.backend=syslog → use syslog handler                │
+│    - zebgp.log.destination=127.0.0.1:54321 → UDP target           │
+│                                                                   │
+│  logger.Debug("msg", "subsystem", "server", ...)                  │
+│         │                                                         │
+│         ▼                                                         │
+│  slog.TextHandler → syslog.Writer → UDP packet                    │
+└──────────────────────────────────────────────────────────────────┘
+                                │
+                      UDP: "<14>... subsystem=server ..."
+                                │
+                                ▼
+┌──────────────────────────────────────────────────────────────────┐
+│                      TESTSYSLOG SERVER                            │
+│                                                                   │
+│  Receives: "<14>Jan 19 ... zebgp: level=DEBUG subsystem=server"   │
+│  Stores in: srv.messages[]                                        │
+└──────────────────────────────────────────────────────────────────┘
+                                │
+                                ▼
+┌──────────────────────────────────────────────────────────────────┐
+│                   VALIDATION (after test)                         │
+│                                                                   │
+│  validateLogging() checks each expect:syslog: pattern:            │
+│    if !syslogSrv.Match("subsystem=server"):                       │
+│        return error("pattern not found")                          │
+│                                                                   │
+│  Match() does regex search across all captured messages           │
+└──────────────────────────────────────────────────────────────────┘
+```
+
+**Key components:**
+
+| Component | Location | Purpose |
+|-----------|----------|---------|
+| `testsyslog.Server` | `pkg/testsyslog/` | UDP server capturing syslog messages |
+| `option:env:` | `.ci` file | Sets env vars (e.g., `zebgp.log.server=debug`) |
+| `expect:syslog:` | `.ci` file | Regex pattern to match in captured messages |
+| Auto-injection | `runner.go` | Adds `backend=syslog` + `destination=host:port` |
+| `validateLogging()` | `runner.go` | Checks patterns after test completes |
+
+**Message format:** Syslog messages use Go's `slog.TextHandler` format with syslog framing:
+```
+<priority>timestamp hostname zebgp: level=DEBUG subsystem=server msg="..." key=value
+```
+
+Patterns should match the key=value pairs (e.g., `subsystem=server`, `level=DEBUG`).
 
 ### Raw Message Format
 

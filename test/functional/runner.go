@@ -13,6 +13,8 @@ import (
 	"sync"
 	"syscall"
 	"time"
+
+	"codeberg.org/thomas-mangin/zebgp/pkg/testsyslog"
 )
 
 // RunOptions configures test execution.
@@ -322,6 +324,19 @@ func (r *Runner) runTest(ctx context.Context, rec *Record, opts *RunOptions) boo
 
 	rec.State = StateRunning
 
+	// Start test-syslog server if syslog patterns are expected
+	var syslogSrv *testsyslog.Server
+	if len(rec.ExpectSyslog) > 0 {
+		syslogSrv = testsyslog.New(0)
+		if err := syslogSrv.Start(testCtx); err != nil {
+			_ = peerCmd.Process.Kill()
+			rec.Error = fmt.Errorf("start syslog server: %w", err)
+			return false
+		}
+		rec.SyslogPort = syslogSrv.Port()
+		defer func() { _ = syslogSrv.Close() }()
+	}
+
 	// Start zebgp (client)
 	configPath, _ := rec.Conf["config"].(string)
 	// Add zebgp binary directory to PATH so child processes (like "zebgp api persist") can find it
@@ -334,6 +349,17 @@ func (r *Runner) runTest(ctx context.Context, rec *Record, opts *RunOptions) boo
 		fmt.Sprintf("PATH=%s:%s", zebgpDir, existingPath),
 		"SLOG_LEVEL=DEBUG", // Enable debug logging for tracing
 	)
+
+	// Add test-specific environment variables
+	clientEnv = append(clientEnv, rec.EnvVars...)
+
+	// Add syslog destination if syslog server is running
+	if syslogSrv != nil {
+		clientEnv = append(clientEnv,
+			"zebgp.log.backend=syslog",
+			fmt.Sprintf("zebgp.log.destination=127.0.0.1:%d", syslogSrv.Port()),
+		)
+	}
 
 	clientCmd := exec.CommandContext(testCtx, r.zebgpPath, "server", configPath) //nolint:gosec // test runner, paths from temp dir
 	clientCmd.Env = clientEnv
@@ -425,6 +451,14 @@ func (r *Runner) runTest(ctx context.Context, rec *Record, opts *RunOptions) boo
 			rec.FailureType = "json_mismatch"
 			return false
 		}
+
+		// Validate logging expectations
+		if logErr := r.validateLogging(rec, clientStderr.String(), syslogSrv); logErr != nil {
+			rec.Error = logErr
+			rec.FailureType = "logging_mismatch"
+			return false
+		}
+
 		return true
 	}
 
@@ -775,6 +809,43 @@ func nlrisMatch(expected, actual []string) bool {
 		}
 	}
 	return true
+}
+
+// validateLogging validates logging expectations against stderr and syslog output.
+// Returns nil if all validations pass or no logging expectations exist.
+func (r *Runner) validateLogging(rec *Record, stderr string, syslogSrv *testsyslog.Server) error {
+	// Check expected stderr patterns
+	for _, pattern := range rec.ExpectStderr {
+		re, err := regexp.Compile(pattern)
+		if err != nil {
+			return fmt.Errorf("invalid expect:stderr pattern %q: %w", pattern, err)
+		}
+		if !re.MatchString(stderr) {
+			return fmt.Errorf("expect:stderr pattern not found: %s", pattern)
+		}
+	}
+
+	// Check rejected stderr patterns
+	for _, pattern := range rec.RejectStderr {
+		re, err := regexp.Compile(pattern)
+		if err != nil {
+			return fmt.Errorf("invalid reject:stderr pattern %q: %w", pattern, err)
+		}
+		if re.MatchString(stderr) {
+			return fmt.Errorf("reject:stderr pattern found: %s", pattern)
+		}
+	}
+
+	// Check expected syslog patterns
+	if syslogSrv != nil {
+		for _, pattern := range rec.ExpectSyslog {
+			if !syslogSrv.Match(pattern) {
+				return fmt.Errorf("expect:syslog pattern not found: %s", pattern)
+			}
+		}
+	}
+
+	return nil
 }
 
 // decodeToEnvelope decodes a hex message using zebgp decode and returns the envelope.

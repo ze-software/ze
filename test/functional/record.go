@@ -108,6 +108,13 @@ type Record struct {
 	LastReceivedIdx int
 	PeerOutput      string
 	ClientOutput    string
+
+	// Logging test options
+	EnvVars      []string // option:env:KEY=VALUE
+	ExpectStderr []string // expect:stderr:PATTERN (regex)
+	RejectStderr []string // reject:stderr:PATTERN (regex)
+	ExpectSyslog []string // expect:syslog:PATTERN (regex)
+	SyslogPort   int      // Dynamically assigned port for test-syslog
 }
 
 // NewRecord creates a new test record.
@@ -543,6 +550,22 @@ func (et *EncodingTests) parseAndAdd(ciFile string) error {
 		case strings.HasPrefix(line, "option:timeout:"):
 			r.Extra["timeout"] = strings.TrimPrefix(line, "option:timeout:")
 			// Don't add to Options - this is for the runner, not testpeer
+
+		case strings.HasPrefix(line, "option:env:"):
+			// Logging test env var: option:env:KEY=VALUE
+			r.EnvVars = append(r.EnvVars, strings.TrimPrefix(line, "option:env:"))
+
+		case strings.HasPrefix(line, "expect:stderr:"):
+			// Logging test: expect pattern in stderr
+			r.ExpectStderr = append(r.ExpectStderr, strings.TrimPrefix(line, "expect:stderr:"))
+
+		case strings.HasPrefix(line, "reject:stderr:"):
+			// Logging test: reject pattern in stderr
+			r.RejectStderr = append(r.RejectStderr, strings.TrimPrefix(line, "reject:stderr:"))
+
+		case strings.HasPrefix(line, "expect:syslog:"):
+			// Logging test: expect pattern in syslog
+			r.ExpectSyslog = append(r.ExpectSyslog, strings.TrimPrefix(line, "expect:syslog:"))
 
 		case strings.HasPrefix(line, "option:"):
 			r.Options = append(r.Options, line)
