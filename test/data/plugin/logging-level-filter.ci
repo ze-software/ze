@@ -1,16 +1,16 @@
-option:file:logging-level-filter.conf
-option:timeout:10s
+option=file:path=logging-level-filter.conf
+option=timeout:value=10s
 
 # Set server logging to INFO level (should filter out DEBUG)
-option:env:zebgp.log.server=info
+option=env:var=zebgp.log.server:value=info
 
 # Test: Level filtering
 # Verifies zebgp.log.server=info filters out DEBUG messages
 
 # Static route UPDATE
-1:raw:FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF:0030:02:00000015400101004002004003040A0000014005040000006418C0A801
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040A0000014005040000006418C0A801
 # EOR
-1:raw:FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF:0017:02:00000000
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 
 # DEBUG messages should NOT appear (server subsystem logs at DEBUG level)
-reject:stderr:level=DEBUG
+reject=stderr:pattern=level=DEBUG

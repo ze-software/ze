@@ -99,7 +99,9 @@
       "Bash(echo:*)",
       "Bash(command ls -1 docs/plan/done/)",
       "Bash(pkill:*)",
-      "Bash(python3:*)"
+      "Bash(python3:*)",
+      "Bash(/tmp/zebgp-peer:*)",
+      "Bash(./migrate-ci:*)"
     ],
     "deny": [
       "Bash(git reset:*)",

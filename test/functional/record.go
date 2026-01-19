@@ -110,10 +110,11 @@ type Record struct {
 	ClientOutput    string
 
 	// Logging test options
-	EnvVars      []string // option:env:KEY=VALUE
-	ExpectStderr []string // expect:stderr:PATTERN (regex)
-	RejectStderr []string // reject:stderr:PATTERN (regex)
-	ExpectSyslog []string // expect:syslog:PATTERN (regex)
+	EnvVars      []string // option=env:var=KEY:value=VALUE
+	ExpectStderr []string // expect=stderr:pattern=PATTERN (regex)
+	RejectStderr []string // reject=stderr:pattern=PATTERN (regex)
+	ExpectSyslog []string // expect=syslog:pattern=PATTERN (regex)
+	RejectSyslog []string // reject=syslog:pattern=PATTERN (regex)
 	SyslogPort   int      // Dynamically assigned port for test-syslog
 }
 
@@ -487,7 +488,7 @@ func (et *EncodingTests) Discover(dir string) error {
 
 	for _, ciFile := range files {
 		if err := et.parseAndAdd(ciFile); err != nil {
-			continue
+			return fmt.Errorf("%s: %w", filepath.Base(ciFile), err)
 		}
 	}
 
@@ -495,6 +496,7 @@ func (et *EncodingTests) Discover(dir string) error {
 }
 
 // parseAndAdd parses a .ci file and adds it as a test.
+// Uses new key=value format: action=type:key=value:key=value:...
 func (et *EncodingTests) parseAndAdd(ciFile string) error {
 	f, err := os.Open(ciFile) //nolint:gosec // Test files from known directory
 	if err != nil {
@@ -509,116 +511,17 @@ func (et *EncodingTests) parseAndAdd(ciFile string) error {
 	r.CIFile = ciFile
 	r.Files = append(r.Files, ciFile)
 
-	// Track next available index for each base index (handles multiple C1:raw: lines)
-	nextAvailableIdx := make(map[int]int)
-	nextAvailableJsonIdx := make(map[int]int)
-
+	lineNum := 0
 	scanner := bufio.NewScanner(f)
 	for scanner.Scan() {
+		lineNum++
 		line := strings.TrimSpace(scanner.Text())
 		if line == "" || strings.HasPrefix(line, "#") {
 			continue
 		}
 
-		switch {
-		case strings.HasPrefix(line, "option:file:"):
-			configName := strings.TrimPrefix(line, "option:file:")
-			configPath := filepath.Join(filepath.Dir(ciFile), configName)
-			absConfig, err := filepath.Abs(configPath)
-			if err != nil {
-				return fmt.Errorf("invalid config path: %w", err)
-			}
-			absTestDir, err := filepath.Abs(filepath.Dir(ciFile))
-			if err != nil {
-				return fmt.Errorf("invalid test dir: %w", err)
-			}
-			if !strings.HasPrefix(absConfig, absTestDir+string(filepath.Separator)) && absConfig != absTestDir {
-				return fmt.Errorf("config file outside test directory: %s", configName)
-			}
-			r.Conf["config"] = configPath
-			r.ConfigFile = configPath
-			r.Files = append(r.Files, configPath)
-
-		case strings.HasPrefix(line, "option:asn:"):
-			r.Extra["asn"] = strings.TrimPrefix(line, "option:asn:")
-			r.Options = append(r.Options, line)
-
-		case strings.HasPrefix(line, "option:bind:"):
-			r.Extra["bind"] = strings.TrimPrefix(line, "option:bind:")
-			r.Options = append(r.Options, line)
-
-		case strings.HasPrefix(line, "option:timeout:"):
-			r.Extra["timeout"] = strings.TrimPrefix(line, "option:timeout:")
-			// Don't add to Options - this is for the runner, not testpeer
-
-		case strings.HasPrefix(line, "option:env:"):
-			// Logging test env var: option:env:KEY=VALUE
-			r.EnvVars = append(r.EnvVars, strings.TrimPrefix(line, "option:env:"))
-
-		case strings.HasPrefix(line, "expect:stderr:"):
-			// Logging test: expect pattern in stderr
-			r.ExpectStderr = append(r.ExpectStderr, strings.TrimPrefix(line, "expect:stderr:"))
-
-		case strings.HasPrefix(line, "reject:stderr:"):
-			// Logging test: reject pattern in stderr
-			r.RejectStderr = append(r.RejectStderr, strings.TrimPrefix(line, "reject:stderr:"))
-
-		case strings.HasPrefix(line, "expect:syslog:"):
-			// Logging test: expect pattern in syslog
-			r.ExpectSyslog = append(r.ExpectSyslog, strings.TrimPrefix(line, "expect:syslog:"))
-
-		case strings.HasPrefix(line, "option:"):
-			r.Options = append(r.Options, line)
-
-		case strings.Contains(line, ":cmd:"):
-			// Parse: "1:cmd:update text..." (command documentation)
-			parts := strings.SplitN(line, ":", 3)
-			if len(parts) >= 3 {
-				idx := parseMessageIndex(parts[0])
-				msg := r.getOrCreateMessage(idx)
-				msg.Cmd = parts[2]
-			}
-
-		case strings.Contains(line, ":raw:"):
-			// Parse: "1:raw:FFFF..." or "C1:raw:FFFF..."
-			// Multiple lines with same prefix (e.g., C1, C1, C1, C1) get sequential indices
-			parts := strings.SplitN(line, ":", 3)
-			if len(parts) >= 3 {
-				baseIdx := parseMessageIndex(parts[0])
-				// Get or initialize the next available index for this base
-				if _, ok := nextAvailableIdx[baseIdx]; !ok {
-					nextAvailableIdx[baseIdx] = baseIdx
-				}
-				idx := nextAvailableIdx[baseIdx]
-				nextAvailableIdx[baseIdx]++
-
-				msg := r.getOrCreateMessage(idx)
-				msg.RawHex = strings.ReplaceAll(parts[2], ":", "")
-				if rawBytes, err := hex.DecodeString(msg.RawHex); err == nil {
-					msg.Raw = rawBytes
-				}
-			}
-			r.Expects = append(r.Expects, line)
-
-		case strings.Contains(line, ":json:"):
-			// Parse: "1:json:{...}"
-			// Multiple lines with same prefix get sequential indices (like raw:)
-			parts := strings.SplitN(line, ":", 3)
-			if len(parts) >= 3 {
-				baseIdx := parseMessageIndex(parts[0])
-				// Get or initialize the next available index for this base
-				if _, ok := nextAvailableJsonIdx[baseIdx]; !ok {
-					nextAvailableJsonIdx[baseIdx] = baseIdx
-				}
-				idx := nextAvailableJsonIdx[baseIdx]
-				nextAvailableJsonIdx[baseIdx]++
-
-				msg := r.getOrCreateMessage(idx)
-				msg.JSON = parts[2]
-			}
-
-		case strings.Contains(line, ":notification:"):
-			r.Expects = append(r.Expects, line)
+		if err := et.parseLine(r, ciFile, line); err != nil {
+			return fmt.Errorf("line %d: %w", lineNum, err)
 		}
 	}
 
@@ -645,27 +548,402 @@ func (et *EncodingTests) parseAndAdd(ciFile string) error {
 	return nil
 }
 
-// parseMessageIndex extracts the message index from a prefix like "1", "A1", "B2".
-// Connection letters are encoded as offsets: A=0, B=100, C=200, D=300.
-// So A1→1, B1→101, C1→201, ensuring unique indices per connection.
-func parseMessageIndex(prefix string) int {
-	connOffset := 0
-	// Extract connection letter offset
-	if len(prefix) > 0 {
-		first := prefix[0]
-		if first >= 'A' && first <= 'Z' {
-			connOffset = int(first-'A') * 100
-			prefix = prefix[1:]
-		} else if first >= 'a' && first <= 'z' {
-			connOffset = int(first-'a') * 100
-			prefix = prefix[1:]
+// parseLine parses a single .ci line in the new key=value format.
+func (et *EncodingTests) parseLine(r *Record, ciFile, line string) error {
+	// Check for old format and provide helpful error
+	if err := checkOldFormat(line); err != nil {
+		return err
+	}
+
+	// Parse action=type:key=value:key=value:...
+	eqIdx := strings.Index(line, "=")
+	if eqIdx == -1 {
+		return fmt.Errorf("invalid format %q, expected action=type:key=value", line)
+	}
+
+	action := line[:eqIdx]
+	rest := line[eqIdx+1:]
+
+	// Split rest into type and key=value pairs
+	parts := strings.Split(rest, ":")
+	if len(parts) == 0 {
+		return fmt.Errorf("invalid format %q - missing type after =", line)
+	}
+
+	lineType := parts[0]
+	kvPairs := parseKVPairs(parts[1:])
+
+	switch action {
+	case "option":
+		return et.parseOption(r, ciFile, lineType, kvPairs)
+	case "expect":
+		return et.parseExpect(r, lineType, kvPairs)
+	case "reject":
+		return et.parseReject(r, lineType, kvPairs)
+	case "action":
+		return et.parseAction(r, lineType, kvPairs)
+	case "cmd":
+		return et.parseCmd(r, lineType, kvPairs)
+	default:
+		return fmt.Errorf("unknown action %q in %q", action, line)
+	}
+}
+
+// parseKVPairs parses key=value pairs from colon-separated parts.
+// Special handling for known keys that may contain colons in values (json, text, hex).
+func parseKVPairs(parts []string) map[string]string {
+	kv := make(map[string]string)
+
+	// Rejoin parts to handle values containing colons
+	joined := strings.Join(parts, ":")
+
+	// Known keys that may have complex values containing colons
+	complexKeys := []string{"json=", "text=", "hex=", "pattern="}
+
+	for _, ck := range complexKeys {
+		if idx := strings.Index(joined, ck); idx != -1 {
+			key := ck[:len(ck)-1] // Remove trailing =
+			value := joined[idx+len(ck):]
+			kv[key] = value
+			// Remove this from joined for further parsing
+			joined = joined[:idx]
+			break
 		}
 	}
-	idx, _ := strconv.Atoi(prefix)
-	if idx == 0 {
-		idx = 1
+
+	// Parse remaining simple key=value pairs
+	for _, part := range strings.Split(joined, ":") {
+		if part == "" {
+			continue
+		}
+		if eqIdx := strings.Index(part, "="); eqIdx != -1 {
+			key := part[:eqIdx]
+			value := part[eqIdx+1:]
+			kv[key] = value
+		}
 	}
-	return connOffset + idx
+	return kv
+}
+
+// parseOption handles option=type:key=value lines.
+func (et *EncodingTests) parseOption(r *Record, ciFile, optType string, kv map[string]string) error {
+	switch optType {
+	case "file":
+		configName := kv["path"]
+		if configName == "" {
+			return fmt.Errorf("option=file missing path=")
+		}
+		configPath := filepath.Join(filepath.Dir(ciFile), configName)
+		absConfig, err := filepath.Abs(configPath)
+		if err != nil {
+			return fmt.Errorf("invalid config path: %w", err)
+		}
+		absTestDir, err := filepath.Abs(filepath.Dir(ciFile))
+		if err != nil {
+			return fmt.Errorf("invalid test dir: %w", err)
+		}
+		if !strings.HasPrefix(absConfig, absTestDir+string(filepath.Separator)) && absConfig != absTestDir {
+			return fmt.Errorf("config file outside test directory: %s", configName)
+		}
+		r.Conf["config"] = configPath
+		r.ConfigFile = configPath
+		r.Files = append(r.Files, configPath)
+
+	case "asn":
+		value := kv["value"]
+		if value == "" {
+			return fmt.Errorf("option=asn missing value=")
+		}
+		r.Extra["asn"] = value
+		r.Options = append(r.Options, fmt.Sprintf("option=asn:value=%s", value))
+
+	case "bind":
+		value := kv["value"]
+		if value == "" {
+			return fmt.Errorf("option=bind missing value=")
+		}
+		r.Extra["bind"] = value
+		r.Options = append(r.Options, fmt.Sprintf("option=bind:value=%s", value))
+
+	case "timeout":
+		value := kv["value"]
+		if value == "" {
+			return fmt.Errorf("option=timeout missing value=")
+		}
+		r.Extra["timeout"] = value
+
+	case "tcp_connections":
+		value := kv["value"]
+		if value == "" {
+			return fmt.Errorf("option=tcp_connections missing value=")
+		}
+		r.Options = append(r.Options, fmt.Sprintf("option=tcp_connections:value=%s", value))
+
+	case "open":
+		value := kv["value"]
+		if value == "" {
+			return fmt.Errorf("option=open missing value=")
+		}
+		r.Options = append(r.Options, fmt.Sprintf("option=open:value=%s", value))
+
+	case "update":
+		value := kv["value"]
+		if value == "" {
+			return fmt.Errorf("option=update missing value=")
+		}
+		r.Options = append(r.Options, fmt.Sprintf("option=update:value=%s", value))
+
+	case "env":
+		varName := kv["var"]
+		value := kv["value"]
+		if varName == "" {
+			return fmt.Errorf("option=env missing var=")
+		}
+		// Store as KEY=VALUE for environment setting
+		r.EnvVars = append(r.EnvVars, fmt.Sprintf("%s=%s", varName, value))
+
+	default:
+		return fmt.Errorf("unknown option type %q", optType)
+	}
+	return nil
+}
+
+// parseExpect handles expect=type:... lines.
+func (et *EncodingTests) parseExpect(r *Record, expType string, kv map[string]string) error {
+	switch expType {
+	case "bgp":
+		conn, seq, err := parseConnSeq(kv)
+		if err != nil {
+			return fmt.Errorf("expect=bgp: %w", err)
+		}
+		hexData := kv["hex"]
+		if hexData == "" {
+			return fmt.Errorf("expect=bgp missing hex=")
+		}
+		idx := connSeqToIndex(conn, seq)
+		msg := r.getOrCreateMessage(idx)
+		msg.RawHex = strings.ReplaceAll(hexData, ":", "")
+		if rawBytes, err := hex.DecodeString(msg.RawHex); err == nil {
+			msg.Raw = rawBytes
+		}
+		// Add to Expects for testpeer (new format).
+		r.Expects = append(r.Expects, fmt.Sprintf("expect=bgp:conn=%d:seq=%d:hex=%s", conn, seq, hexData))
+
+	case "json":
+		conn, seq, err := parseConnSeq(kv)
+		if err != nil {
+			return fmt.Errorf("expect=json: %w", err)
+		}
+		jsonData := kv["json"]
+		if jsonData == "" {
+			return fmt.Errorf("expect=json missing json=")
+		}
+		idx := connSeqToIndex(conn, seq)
+		msg := r.getOrCreateMessage(idx)
+		msg.JSON = jsonData
+
+	case "stderr":
+		pattern := kv["pattern"]
+		r.ExpectStderr = append(r.ExpectStderr, pattern)
+
+	case "syslog":
+		pattern := kv["pattern"]
+		r.ExpectSyslog = append(r.ExpectSyslog, pattern)
+
+	default:
+		return fmt.Errorf("unknown expect type %q", expType)
+	}
+	return nil
+}
+
+// parseReject handles reject=type:... lines.
+func (et *EncodingTests) parseReject(r *Record, rejType string, kv map[string]string) error {
+	switch rejType {
+	case "stderr":
+		pattern := kv["pattern"]
+		r.RejectStderr = append(r.RejectStderr, pattern)
+
+	case "syslog":
+		pattern := kv["pattern"]
+		r.RejectSyslog = append(r.RejectSyslog, pattern)
+
+	default:
+		return fmt.Errorf("unknown reject type %q", rejType)
+	}
+	return nil
+}
+
+// parseAction handles action=type:... lines.
+func (et *EncodingTests) parseAction(r *Record, actType string, kv map[string]string) error {
+	switch actType {
+	case "notification":
+		conn, seq, err := parseConnSeq(kv)
+		if err != nil {
+			return fmt.Errorf("action=notification: %w", err)
+		}
+		text := kv["text"]
+		// Add to Expects for testpeer (new format).
+		r.Expects = append(r.Expects, fmt.Sprintf("action=notification:conn=%d:seq=%d:text=%s", conn, seq, text))
+
+	case "send":
+		conn, seq, err := parseConnSeq(kv)
+		if err != nil {
+			return fmt.Errorf("action=send: %w", err)
+		}
+		hexData := kv["hex"]
+		if hexData == "" {
+			return fmt.Errorf("action=send missing hex=")
+		}
+		// Add to Expects for testpeer (new format).
+		r.Expects = append(r.Expects, fmt.Sprintf("action=send:conn=%d:seq=%d:hex=%s", conn, seq, hexData))
+
+	default:
+		return fmt.Errorf("unknown action type %q", actType)
+	}
+	return nil
+}
+
+// parseCmd handles cmd=type:... lines.
+func (et *EncodingTests) parseCmd(r *Record, cmdType string, kv map[string]string) error {
+	switch cmdType {
+	case "api":
+		conn, seq, err := parseConnSeq(kv)
+		if err != nil {
+			return fmt.Errorf("cmd=api: %w", err)
+		}
+		text := kv["text"]
+		idx := connSeqToIndex(conn, seq)
+		msg := r.getOrCreateMessage(idx)
+		msg.Cmd = text
+
+	default:
+		return fmt.Errorf("unknown cmd type %q", cmdType)
+	}
+	return nil
+}
+
+// parseConnSeq extracts conn and seq from key-value pairs.
+// Validates: conn must be 1-4, seq must be >= 1.
+func parseConnSeq(kv map[string]string) (conn, seq int, err error) {
+	connStr := kv["conn"]
+	seqStr := kv["seq"]
+
+	if connStr == "" {
+		return 0, 0, fmt.Errorf("missing conn=")
+	}
+	if seqStr == "" {
+		return 0, 0, fmt.Errorf("missing seq=")
+	}
+
+	conn, err = strconv.Atoi(connStr)
+	if err != nil || conn < 1 || conn > 4 {
+		return 0, 0, fmt.Errorf("invalid conn=%q (must be 1-4)", connStr)
+	}
+	seq, err = strconv.Atoi(seqStr)
+	if err != nil || seq < 1 {
+		return 0, 0, fmt.Errorf("invalid seq=%q (must be >= 1)", seqStr)
+	}
+
+	return conn, seq, nil
+}
+
+// connSeqToIndex converts conn+seq to a unique message index.
+// conn=1:seq=1 → 101, conn=1:seq=2 → 102, conn=2:seq=1 → 201, etc.
+func connSeqToIndex(conn, seq int) int {
+	return conn*100 + seq
+}
+
+// checkOldFormat detects old .ci format and returns helpful error.
+func checkOldFormat(line string) error {
+	// Old format patterns and their new equivalents
+	patterns := []struct {
+		old string
+		new string
+	}{
+		{"option:file:", `use "option=file:path=<file>"`},
+		{"option:asn:", `use "option=asn:value=<asn>"`},
+		{"option:bind:", `use "option=bind:value=<ipv4|ipv6>"`},
+		{"option:timeout:", `use "option=timeout:value=<duration>"`},
+		{"option:env:", `use "option=env:var=<name>:value=<value>"`},
+		{"option:tcp_connections:", `use "option=tcp_connections:value=<n>"`},
+		{"option:open:", `use "option=open:value=<flag>"`},
+		{"option:update:", `use "option=update:value=<flag>"`},
+		{"expect:stderr:", `use "expect=stderr:pattern=<regex>"`},
+		{"expect:syslog:", `use "expect=syslog:pattern=<regex>"`},
+		{"reject:stderr:", `use "reject=stderr:pattern=<regex>"`},
+	}
+
+	for _, p := range patterns {
+		if strings.HasPrefix(line, p.old) {
+			return fmt.Errorf("old format %q - %s", line, p.new)
+		}
+	}
+
+	// Check for old N:send:raw: format (must be before :raw: check).
+	if strings.Contains(line, ":send:") && !strings.HasPrefix(line, "action=send:") {
+		conn, seq := parseOldPrefix(line)
+		return fmt.Errorf("old format %q - use \"action=send:conn=%d:seq=%d:hex=<hex>\"", line, conn, seq)
+	}
+
+	// Check for old N:raw: or AN:raw: format.
+	if strings.Contains(line, ":raw:") {
+		conn, seq := parseOldPrefix(line)
+		return fmt.Errorf("old format %q - use \"expect=bgp:conn=%d:seq=%d:hex=<hex>\"", line, conn, seq)
+	}
+
+	// Check for old N:json: format.
+	if strings.Contains(line, ":json:") && !strings.HasPrefix(line, "expect=json:") {
+		conn, seq := parseOldPrefix(line)
+		return fmt.Errorf("old format %q - use \"expect=json:conn=%d:seq=%d:json=<obj>\"", line, conn, seq)
+	}
+
+	// Check for old N:cmd: format.
+	if strings.Contains(line, ":cmd:") && !strings.HasPrefix(line, "cmd=api:") {
+		conn, seq := parseOldPrefix(line)
+		return fmt.Errorf("old format %q - use \"cmd=api:conn=%d:seq=%d:text=<cmd>\"", line, conn, seq)
+	}
+
+	// Check for old AN:notification: format.
+	if strings.Contains(line, ":notification:") && !strings.HasPrefix(line, "action=notification:") {
+		conn, seq := parseOldPrefix(line)
+		return fmt.Errorf("old format %q - use \"action=notification:conn=%d:seq=%d:text=<msg>\"", line, conn, seq)
+	}
+
+	return nil
+}
+
+// parseOldPrefix extracts conn and seq from old format prefix like "1:", "A1:", "B2:".
+func parseOldPrefix(line string) (conn, seq int) {
+	conn = 1
+	seq = 1
+
+	colonIdx := strings.Index(line, ":")
+	if colonIdx <= 0 {
+		return conn, seq
+	}
+
+	prefix := line[:colonIdx]
+	if len(prefix) == 0 {
+		return conn, seq
+	}
+
+	// Check for connection letter (A-Z or a-z).
+	first := prefix[0]
+	if (first >= 'A' && first <= 'Z') || (first >= 'a' && first <= 'z') {
+		if first >= 'a' && first <= 'z' {
+			conn = int(first-'a') + 1
+		} else {
+			conn = int(first-'A') + 1
+		}
+		prefix = prefix[1:]
+	}
+
+	// Parse sequence number.
+	if n, err := strconv.Atoi(prefix); err == nil && n > 0 {
+		seq = n
+	}
+
+	return conn, seq
 }
 
 // List prints available tests.

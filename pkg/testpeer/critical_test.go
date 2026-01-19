@@ -1,39 +1,38 @@
 package testpeer
 
 import (
+	"strings"
 	"testing"
 	"unicode/utf8"
+
+	"github.com/stretchr/testify/require"
 )
 
-// TestCaseSensitivityBug exposes case sensitivity issue in groupMessages.
+// TestNotificationTextPreserved verifies notification text case is preserved.
 //
-// BUG: If .ci file has "A1:NOTIFICATION:..." (uppercase), the text case is NOT preserved.
-func TestCaseSensitivityBug(t *testing.T) {
+// VALIDATES: Text in notification action is preserved exactly.
+func TestNotificationTextPreserved(t *testing.T) {
 	tests := []struct {
 		name     string
 		input    string
 		wantText string
 	}{
 		{
-			name:     "lowercase notification preserves case",
-			input:    "A1:notification:Hello World",
+			name:     "mixed case text preserved",
+			input:    "action=notification:conn=1:seq=1:text=Hello World",
 			wantText: "Hello World",
 		},
 		{
-			name:     "UPPERCASE NOTIFICATION should preserve case",
-			input:    "A1:NOTIFICATION:Hello World",
-			wantText: "Hello World", // BUG: Currently returns "hello world"
-		},
-		{
-			name:     "Mixed case Notification should preserve case",
-			input:    "A1:Notification:Hello World",
-			wantText: "Hello World", // BUG: Currently returns "hello world"
+			name:     "all caps text preserved",
+			input:    "action=notification:conn=1:seq=1:text=HELLO WORLD",
+			wantText: "HELLO WORLD",
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			c := NewChecker([]string{tt.input})
+			c, err := NewChecker([]string{tt.input})
+			require.NoError(t, err)
 			c.Init()
 
 			ok, text := c.NextNotificationAction()
@@ -42,7 +41,7 @@ func TestCaseSensitivityBug(t *testing.T) {
 			}
 
 			if text != tt.wantText {
-				t.Errorf("text = %q, want %q (case not preserved!)", text, tt.wantText)
+				t.Errorf("text = %q, want %q", text, tt.wantText)
 			}
 		})
 	}
@@ -87,8 +86,9 @@ func TestNotificationMsgLengthCapped(t *testing.T) {
 
 // TestNotificationWithColons ensures colons in message text are preserved.
 func TestNotificationWithColons(t *testing.T) {
-	input := "A1:notification:time: 12:30:45 zone: UTC"
-	c := NewChecker([]string{input})
+	input := "action=notification:conn=1:seq=1:text=time: 12:30:45 zone: UTC"
+	c, err := NewChecker([]string{input})
+	require.NoError(t, err)
 	c.Init()
 
 	ok, text := c.NextNotificationAction()
@@ -147,43 +147,283 @@ func TestModeStringAndParse(t *testing.T) {
 // TestNotificationSequence tests notification at non-first position.
 func TestNotificationSequence(t *testing.T) {
 	inputs := []string{
-		"A1:raw:FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000", // First: raw expectation
-		"A2:notification:session ending",                        // Second: notification action
+		"expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000",
+		"action=notification:conn=1:seq=2:text=session ending",
 	}
 
-	c := NewChecker(inputs)
+	c, err := NewChecker(inputs)
+	require.NoError(t, err)
 	c.Init()
 
-	// First should NOT be a notification
+	// First should NOT be a notification (it's a BGP expect)
 	ok, _ := c.NextNotificationAction()
 	if ok {
-		t.Error("A1:raw should not be a notification action")
+		t.Error("expect=bgp should not be a notification action")
 	}
 
 	// Simulate receiving the expected message (this advances the queue)
 	// In practice, Expected() would be called with the matching message
 
-	// For this test, manually check that A2 would be recognized
-	// after A1 is consumed
+	// For this test, manually check that seq=2 would be recognized
+	// after seq=1 is consumed
 }
 
-// TestMultiConnectionSequences verifies that connection letters (A, B, C) create separate sequences.
+// TestMultiConnectionSequences verifies that conn=1,2,3 create separate sequences.
 //
-// BUG: After lowercasing raw rules, connection letter detection fails because
-// we check for uppercase 'A'-'Z' but the prefix is now lowercase.
+// VALIDATES: Different conn values create separate sequences with correct IDs.
 func TestMultiConnectionSequences(t *testing.T) {
 	inputs := []string{
-		"A1:raw:AAAA",
-		"B1:raw:BBBB",
-		"C1:raw:CCCC",
+		"expect=bgp:conn=1:seq=1:hex=AAAA",
+		"expect=bgp:conn=2:seq=1:hex=BBBB",
+		"expect=bgp:conn=3:seq=1:hex=CCCC",
 	}
 
-	c := NewChecker(inputs)
+	c, err := NewChecker(inputs)
+	require.NoError(t, err)
 
 	// Should have 3 sequences (one per connection)
 	if len(c.sequences) != 3 {
 		t.Errorf("expected 3 sequences, got %d", len(c.sequences))
-		t.Logf("sequences: %v", c.sequences)
+	}
+
+	// connectionIDs must match sequences length
+	if len(c.connectionIDs) != 3 {
+		t.Errorf("expected 3 connectionIDs, got %d", len(c.connectionIDs))
+	}
+
+	// Verify connection IDs are correct (1, 2, 3)
+	expectedIDs := []int{1, 2, 3}
+	for i, want := range expectedIDs {
+		if i < len(c.connectionIDs) && c.connectionIDs[i] != want {
+			t.Errorf("connectionIDs[%d] = %d, want %d", i, c.connectionIDs[i], want)
+		}
+	}
+}
+
+// TestParseExpectRuleValidation verifies validation of expect rules.
+//
+// VALIDATES: Missing or invalid fields produce clear errors.
+// PREVENTS: Silent failures on malformed input.
+func TestParseExpectRuleValidation(t *testing.T) {
+	tests := []struct {
+		name    string
+		input   string
+		wantErr string
+	}{
+		// expect=bgp validation
+		{
+			name:    "bgp missing conn",
+			input:   "expect=bgp:seq=1:hex=FFFF",
+			wantErr: "missing conn",
+		},
+		{
+			name:    "bgp missing seq",
+			input:   "expect=bgp:conn=1:hex=FFFF",
+			wantErr: "missing seq",
+		},
+		{
+			name:    "bgp missing hex",
+			input:   "expect=bgp:conn=1:seq=1:",
+			wantErr: "missing hex",
+		},
+		{
+			name:    "bgp invalid conn zero",
+			input:   "expect=bgp:conn=0:seq=1:hex=FFFF",
+			wantErr: "invalid conn",
+		},
+		{
+			name:    "bgp invalid conn five",
+			input:   "expect=bgp:conn=5:seq=1:hex=FFFF",
+			wantErr: "invalid conn",
+		},
+		{
+			name:    "bgp invalid seq zero",
+			input:   "expect=bgp:conn=1:seq=0:hex=FFFF",
+			wantErr: "invalid seq",
+		},
+		{
+			name:    "bgp invalid seq negative",
+			input:   "expect=bgp:conn=1:seq=-1:hex=FFFF",
+			wantErr: "invalid seq",
+		},
+		// action=notification validation
+		{
+			name:    "notification missing conn",
+			input:   "action=notification:seq=1:text=hello",
+			wantErr: "missing conn",
+		},
+		{
+			name:    "notification missing seq",
+			input:   "action=notification:conn=1:text=hello",
+			wantErr: "missing seq",
+		},
+		{
+			name:    "notification missing text",
+			input:   "action=notification:conn=1:seq=1:",
+			wantErr: "missing text",
+		},
+		{
+			name:    "notification invalid conn zero",
+			input:   "action=notification:conn=0:seq=1:text=hello",
+			wantErr: "invalid conn",
+		},
+		{
+			name:    "notification invalid conn five",
+			input:   "action=notification:conn=5:seq=1:text=hello",
+			wantErr: "invalid conn",
+		},
+		{
+			name:    "notification invalid seq zero",
+			input:   "action=notification:conn=1:seq=0:text=hello",
+			wantErr: "invalid seq",
+		},
+		{
+			name:    "notification invalid seq negative",
+			input:   "action=notification:conn=1:seq=-1:text=hello",
+			wantErr: "invalid seq",
+		},
+		// action=send validation
+		{
+			name:    "send missing conn",
+			input:   "action=send:seq=1:hex=FFFF",
+			wantErr: "missing conn",
+		},
+		{
+			name:    "send missing seq",
+			input:   "action=send:conn=1:hex=FFFF",
+			wantErr: "missing seq",
+		},
+		{
+			name:    "send missing hex",
+			input:   "action=send:conn=1:seq=1:",
+			wantErr: "missing hex",
+		},
+		{
+			name:    "send invalid conn zero",
+			input:   "action=send:conn=0:seq=1:hex=FFFF",
+			wantErr: "invalid conn",
+		},
+		{
+			name:    "send invalid conn five",
+			input:   "action=send:conn=5:seq=1:hex=FFFF",
+			wantErr: "invalid conn",
+		},
+		{
+			name:    "send invalid seq zero",
+			input:   "action=send:conn=1:seq=0:hex=FFFF",
+			wantErr: "invalid seq",
+		},
+		{
+			name:    "send invalid seq negative",
+			input:   "action=send:conn=1:seq=-1:hex=FFFF",
+			wantErr: "invalid seq",
+		},
+		// Unknown format
+		{
+			name:    "unknown format",
+			input:   "something=else:foo=bar",
+			wantErr: "unknown expect format",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := NewChecker([]string{tt.input})
+			if err == nil {
+				t.Fatalf("expected error containing %q, got nil", tt.wantErr)
+			}
+			if !strings.Contains(err.Error(), tt.wantErr) {
+				t.Errorf("error = %q, want containing %q", err.Error(), tt.wantErr)
+			}
+		})
+	}
+}
+
+// TestParseExpectRuleValid verifies valid expect rules are accepted.
+//
+// VALIDATES: Correct format is parsed successfully.
+func TestParseExpectRuleValid(t *testing.T) {
+	tests := []struct {
+		name  string
+		input string
+	}{
+		{"bgp valid", "expect=bgp:conn=1:seq=1:hex=FFFF"},
+		{"bgp conn 4", "expect=bgp:conn=4:seq=1:hex=FFFF"},
+		{"bgp high seq", "expect=bgp:conn=1:seq=99:hex=FFFF"},
+		{"notification valid", "action=notification:conn=1:seq=1:text=hello"},
+		{"notification with colons", "action=notification:conn=1:seq=1:text=a:b:c"},
+		{"send valid", "action=send:conn=1:seq=1:hex=FFFF"},
+		{"send with colons in hex", "action=send:conn=1:seq=1:hex=FF:FF:FF"},
+		{"send conn 4", "action=send:conn=4:seq=1:hex=FFFF"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := NewChecker([]string{tt.input})
+			if err != nil {
+				t.Errorf("unexpected error: %v", err)
+			}
+		})
+	}
+}
+
+// TestSendActionParsing verifies that action=send is correctly parsed and accessible.
+//
+// VALIDATES: Send actions are correctly identified and hex data preserved.
+// PREVENTS: Send actions being silently ignored (dead code).
+func TestSendActionParsing(t *testing.T) {
+	tests := []struct {
+		name    string
+		input   string
+		wantHex string
+	}{
+		{
+			name:    "simple hex",
+			input:   "action=send:conn=1:seq=1:hex=FFFF",
+			wantHex: "FFFF",
+		},
+		{
+			name:    "hex with colons stripped",
+			input:   "action=send:conn=1:seq=1:hex=FF:FF:AA:BB",
+			wantHex: "FFFFAABB",
+		},
+		{
+			name:    "lowercase hex normalized",
+			input:   "action=send:conn=1:seq=1:hex=aabbccdd",
+			wantHex: "AABBCCDD",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			c, err := NewChecker([]string{tt.input})
+			require.NoError(t, err)
+			c.Init()
+
+			ok, hexData := c.NextSendAction()
+			if !ok {
+				t.Fatalf("expected send action, got none")
+			}
+
+			if hexData != tt.wantHex {
+				t.Errorf("hex = %q, want %q", hexData, tt.wantHex)
+			}
+		})
+	}
+}
+
+// TestSendNotTreatedAsExpect verifies send actions are not matched as expect patterns.
+//
+// VALIDATES: Send actions trigger sending, not receiving expectations.
+func TestSendNotTreatedAsExpect(t *testing.T) {
+	c, err := NewChecker([]string{"action=send:conn=1:seq=1:hex=FFFF"})
+	require.NoError(t, err)
+	c.Init()
+
+	// Should be a send action, not an expect
+	ok, _ := c.NextSendAction()
+	if !ok {
+		t.Error("action=send should be treated as send action")
 	}
 }
 

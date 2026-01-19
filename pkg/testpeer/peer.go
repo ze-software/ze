@@ -130,16 +130,21 @@ type Peer struct {
 }
 
 // New creates a new test peer.
-func New(config *Config) *Peer {
+// Returns error if expect rules are invalid.
+func New(config *Config) (*Peer, error) {
 	output := config.Output
 	if output == nil {
 		output = os.Stdout
 	}
+	checker, err := NewChecker(config.Expect)
+	if err != nil {
+		return nil, fmt.Errorf("invalid expect rules: %w", err)
+	}
 	return &Peer{
 		config:  config,
-		checker: NewChecker(config.Expect),
+		checker: checker,
 		output:  output,
-	}
+	}, nil
 }
 
 // Run starts the test peer and blocks until completion or context cancellation.
@@ -646,96 +651,161 @@ func (m *Message) Stream() string {
 type Checker struct {
 	messages            []string
 	sequences           [][]string
-	connectionLetters   []string // Connection letter for each sequence
-	currentConnection   string   // Current connection letter
-	lastExpected        string   // For diff output on mismatch
-	lastReceived        string   // For diff output on mismatch
-	connectionJustEnded bool     // True if last match ended a connection (not just sequence)
+	connectionIDs       []int  // Connection number (1-4) for each sequence
+	currentConnection   int    // Current connection number (0 = none)
+	lastExpected        string // For diff output on mismatch
+	lastReceived        string // For diff output on mismatch
+	connectionJustEnded bool   // True if last match ended a connection (not just sequence)
 	mu                  sync.Mutex
 }
 
 // NewChecker creates a new checker from expected messages.
-func NewChecker(expected []string) *Checker {
+// Returns error if any expected rule is invalid.
+func NewChecker(expected []string) (*Checker, error) {
 	c := &Checker{}
-	c.sequences, c.connectionLetters = c.groupMessages(expected)
-	return c
+	sequences, connIDs, err := c.groupMessages(expected)
+	if err != nil {
+		return nil, err
+	}
+	c.sequences = sequences
+	c.connectionIDs = connIDs
+	return c, nil
 }
 
-func (c *Checker) groupMessages(expected []string) ([][]string, []string) {
-	groups := make(map[string]map[int][]string)
+func (c *Checker) groupMessages(expected []string) ([][]string, []int, error) {
+	groups := make(map[int]map[int][]string) // conn -> seq -> messages
 
 	for _, rule := range expected {
-		// Extract connection letter and sequence BEFORE any transformation
-		// This preserves A1, B1, C1 grouping regardless of case
-		parts := strings.SplitN(rule, ":", 3)
-		if len(parts) < 3 {
-			continue
+		conn, seq, content, err := parseExpectRule(rule)
+		if err != nil {
+			return nil, nil, err
 		}
-
-		prefix := parts[0]
-		conn := "A"
-		var seq int
-
-		// Check for connection letter (case-insensitive)
-		if len(prefix) > 0 {
-			first := prefix[0]
-			if (first >= 'A' && first <= 'Z') || (first >= 'a' && first <= 'z') {
-				conn = strings.ToUpper(string(first))
-				seq, _ = strconv.Atoi(prefix[1:])
-			} else {
-				seq, _ = strconv.Atoi(prefix)
-			}
-		}
-		if seq == 0 {
-			seq = 1
-		}
-
-		// Now process encoding and content
-		encoding := strings.ToLower(parts[1])
-		content := parts[2]
 
 		if groups[conn] == nil {
 			groups[conn] = make(map[int][]string)
 		}
-
-		switch encoding {
-		case "raw":
-			// Raw hex: uppercase, remove colons and spaces
-			content = strings.ToUpper(strings.ReplaceAll(strings.ReplaceAll(content, ":", ""), " ", ""))
-			groups[conn][seq] = append(groups[conn][seq], content)
-		case "send":
-			// send:raw:... - test peer sends to ZeBGP
-			// Extract the sub-encoding and content
-			subParts := strings.SplitN(content, ":", 2)
-			if len(subParts) == 2 && strings.ToLower(subParts[0]) == "raw" {
-				rawHex := strings.ToUpper(strings.ReplaceAll(strings.ReplaceAll(subParts[1], ":", ""), " ", ""))
-				groups[conn][seq] = append(groups[conn][seq], fmt.Sprintf("send:%s", rawHex))
-			}
-		case "notification":
-			// Preserve case for notification text (RFC 9003 message)
-			groups[conn][seq] = append(groups[conn][seq], fmt.Sprintf("notification:%s", content))
-		default:
-			// Other encodings: normalize to lowercase, no spaces
-			content = strings.ToLower(strings.ReplaceAll(content, " ", ""))
-			groups[conn][seq] = append(groups[conn][seq], fmt.Sprintf("%s:%s", encoding, content))
-		}
+		groups[conn][seq] = append(groups[conn][seq], content)
 	}
 
 	var result [][]string
-	var letters []string
-	for _, conn := range []string{"A", "B", "C", "D"} {
+	var connIDs []int
+	for conn := 1; conn <= 4; conn++ {
 		if groups[conn] == nil {
 			continue
 		}
 		for seq := 1; seq <= 100; seq++ {
 			if msgs := groups[conn][seq]; len(msgs) > 0 {
 				result = append(result, msgs)
-				letters = append(letters, conn)
+				connIDs = append(connIDs, conn)
 			}
 		}
 	}
 
-	return result, letters
+	return result, connIDs, nil
+}
+
+// parseExpectRule parses new format expect rules.
+// Returns conn (1-4), seq, and normalized content.
+// Only handles: expect=bgp:conn=N:seq=N:hex=... and action=notification:conn=N:seq=N:text=...
+// Returns error for invalid or incomplete rules.
+func parseExpectRule(rule string) (conn, seq int, content string, err error) {
+	// expect=bgp:conn=N:seq=N:hex=...
+	if strings.HasPrefix(rule, "expect=bgp:") {
+		kv := parseKV(strings.TrimPrefix(rule, "expect=bgp:"))
+
+		connStr := kv["conn"]
+		if connStr == "" {
+			return 0, 0, "", fmt.Errorf("expect=bgp missing conn: %q", rule)
+		}
+		conn, err = strconv.Atoi(connStr)
+		if err != nil || conn < 1 || conn > 4 {
+			return 0, 0, "", fmt.Errorf("expect=bgp invalid conn=%q (must be 1-4): %q", connStr, rule)
+		}
+
+		seqStr := kv["seq"]
+		if seqStr == "" {
+			return 0, 0, "", fmt.Errorf("expect=bgp missing seq: %q", rule)
+		}
+		seq, err = strconv.Atoi(seqStr)
+		if err != nil || seq < 1 {
+			return 0, 0, "", fmt.Errorf("expect=bgp invalid seq=%q (must be >= 1): %q", seqStr, rule)
+		}
+
+		hex := kv["hex"]
+		if hex == "" {
+			return 0, 0, "", fmt.Errorf("expect=bgp missing hex: %q", rule)
+		}
+		content = strings.ToUpper(strings.ReplaceAll(hex, ":", ""))
+		return conn, seq, content, nil
+	}
+
+	// action=notification:conn=N:seq=N:text=...
+	if strings.HasPrefix(rule, "action=notification:") {
+		kv := parseKV(strings.TrimPrefix(rule, "action=notification:"))
+
+		connStr := kv["conn"]
+		if connStr == "" {
+			return 0, 0, "", fmt.Errorf("action=notification missing conn: %q", rule)
+		}
+		conn, err = strconv.Atoi(connStr)
+		if err != nil || conn < 1 || conn > 4 {
+			return 0, 0, "", fmt.Errorf("action=notification invalid conn=%q (must be 1-4): %q", connStr, rule)
+		}
+
+		seqStr := kv["seq"]
+		if seqStr == "" {
+			return 0, 0, "", fmt.Errorf("action=notification missing seq: %q", rule)
+		}
+		seq, err = strconv.Atoi(seqStr)
+		if err != nil || seq < 1 {
+			return 0, 0, "", fmt.Errorf("action=notification invalid seq=%q (must be >= 1): %q", seqStr, rule)
+		}
+
+		text := kv["text"]
+		if text == "" {
+			return 0, 0, "", fmt.Errorf("action=notification missing text: %q", rule)
+		}
+		content = "notification:" + text
+		return conn, seq, content, nil
+	}
+
+	// action=send:conn=N:seq=N:hex=...
+	if strings.HasPrefix(rule, "action=send:") {
+		kv := parseKV(strings.TrimPrefix(rule, "action=send:"))
+
+		connStr := kv["conn"]
+		if connStr == "" {
+			return 0, 0, "", fmt.Errorf("action=send missing conn: %q", rule)
+		}
+		conn, err = strconv.Atoi(connStr)
+		if err != nil || conn < 1 || conn > 4 {
+			return 0, 0, "", fmt.Errorf("action=send invalid conn=%q (must be 1-4): %q", connStr, rule)
+		}
+
+		seqStr := kv["seq"]
+		if seqStr == "" {
+			return 0, 0, "", fmt.Errorf("action=send missing seq: %q", rule)
+		}
+		seq, err = strconv.Atoi(seqStr)
+		if err != nil || seq < 1 {
+			return 0, 0, "", fmt.Errorf("action=send invalid seq=%q (must be >= 1): %q", seqStr, rule)
+		}
+
+		hex := kv["hex"]
+		if hex == "" {
+			return 0, 0, "", fmt.Errorf("action=send missing hex: %q", rule)
+		}
+		content = "send:" + strings.ToUpper(strings.ReplaceAll(hex, ":", ""))
+		return conn, seq, content, nil
+	}
+
+	return 0, 0, "", fmt.Errorf("unknown expect format: %q", rule)
+}
+
+// parseKV parses key=value pairs from a colon-separated string.
+// Handles values that may contain colons (like hex=...).
+func parseKV(s string) map[string]string {
+	return parseKVPairs(strings.Split(s, ":"))
 }
 
 // Init initializes the checker for a new session.
@@ -755,10 +825,10 @@ func (c *Checker) Init() bool {
 		return false
 	}
 
-	c.currentConnection = c.connectionLetters[0]
+	c.currentConnection = c.connectionIDs[0]
 	c.messages = c.sequences[0]
 	c.sequences = c.sequences[1:]
-	c.connectionLetters = c.connectionLetters[1:]
+	c.connectionIDs = c.connectionIDs[1:]
 	return true
 }
 
@@ -857,14 +927,14 @@ func (c *Checker) LastMismatch() (expected, received string) {
 func (c *Checker) updateMessagesIfRequired() {
 	if len(c.messages) == 0 && len(c.sequences) > 0 {
 		// Check if the next sequence is from a different connection
-		nextConn := c.connectionLetters[0]
-		if c.currentConnection != "" && nextConn != c.currentConnection {
+		nextConn := c.connectionIDs[0]
+		if c.currentConnection != 0 && nextConn != c.currentConnection {
 			c.connectionJustEnded = true
 		}
 		c.currentConnection = nextConn
 		c.messages = c.sequences[0]
 		c.sequences = c.sequences[1:]
-		c.connectionLetters = c.connectionLetters[1:]
+		c.connectionIDs = c.connectionIDs[1:]
 	}
 }
 
@@ -935,6 +1005,7 @@ func (c *Checker) NextSendAction() (bool, string) {
 }
 
 // LoadExpectFile loads expected messages from a file.
+// Uses new key=value format: action=type:key=value:key=value:...
 func LoadExpectFile(path string) ([]string, *Config, error) {
 	f, err := os.Open(path) //nolint:gosec // Path from user input (CLI arg)
 	if err != nil {
@@ -945,42 +1016,233 @@ func LoadExpectFile(path string) ([]string, *Config, error) {
 	config := &Config{}
 	var expect []string
 
+	lineNum := 0
 	scanner := bufio.NewScanner(f)
 	for scanner.Scan() {
+		lineNum++
 		line := strings.TrimSpace(scanner.Text())
 		if line == "" || strings.HasPrefix(line, "#") {
 			continue
 		}
 
-		switch {
-		case line == "option:bind:ipv6":
-			config.IPv6 = true
-		case line == "option:open:send-unknown-capability":
-			config.SendUnknownCapability = true
-		case line == "option:open:inspect-open-message":
-			config.InspectOpenMessage = true
-		case line == "option:update:send-default-route":
-			config.SendDefaultRoute = true
-		case line == "option:open:send-unknown-message":
-			config.SendUnknownMessage = true
-		case strings.HasPrefix(line, "option:asn:"):
-			if v, err := strconv.Atoi(strings.TrimPrefix(line, "option:asn:")); err == nil {
-				config.ASN = v
+		// Check for old format and error
+		if err := checkOldFormat(line); err != nil {
+			return nil, nil, fmt.Errorf("line %d: %w", lineNum, err)
+		}
+
+		// Parse new format: action=type:key=value:...
+		eqIdx := strings.Index(line, "=")
+		if eqIdx == -1 {
+			return nil, nil, fmt.Errorf("line %d: invalid format %q", lineNum, line)
+		}
+
+		action := line[:eqIdx]
+		rest := line[eqIdx+1:]
+		parts := strings.Split(rest, ":")
+		if len(parts) == 0 {
+			continue
+		}
+		lineType := parts[0]
+		kv := parseKVPairs(parts[1:])
+
+		switch action {
+		case "option":
+			parseOptionConfig(config, lineType, kv)
+
+		case "expect":
+			if lineType == "bgp" {
+				// Pass through new format: expect=bgp:conn=N:seq=N:hex=...
+				expect = append(expect, line)
 			}
-		case strings.HasPrefix(line, "option:tcp_connections:"):
-			if v, err := strconv.Atoi(strings.TrimPrefix(line, "option:tcp_connections:")); err == nil {
-				config.TCPConnections = v
+			// Ignore json, stderr, syslog - handled by test runner
+
+		case "action":
+			if lineType == "notification" {
+				// Pass through new format: action=notification:conn=N:seq=N:text=...
+				expect = append(expect, line)
 			}
-		case strings.HasPrefix(line, "option:file:"):
-			// Ignore - this is handled by functional test runner, not testpeer
-		case strings.Contains(line, ":cmd:"):
-			// Ignore - documentation of command sent
-		case strings.Contains(line, ":json:"):
-			// Ignore - JSON representation for verification
-		default:
-			expect = append(expect, line)
+			if lineType == "send" {
+				// Pass through new format: action=send:conn=N:seq=N:hex=...
+				expect = append(expect, line)
+			}
+
+		case "cmd":
+			// Ignore - documentation only
+
+		case "reject":
+			// Ignore - handled by test runner
 		}
 	}
 
 	return expect, config, scanner.Err()
+}
+
+// parseKVPairs parses key=value pairs from colon-separated parts.
+// Special handling for known keys that may contain colons in values (json, text, hex).
+func parseKVPairs(parts []string) map[string]string {
+	kv := make(map[string]string)
+
+	// Rejoin parts to handle values containing colons
+	joined := strings.Join(parts, ":")
+
+	// Known keys that may have complex values containing colons
+	complexKeys := []string{"json=", "text=", "hex=", "pattern="}
+
+	for _, ck := range complexKeys {
+		if idx := strings.Index(joined, ck); idx != -1 {
+			key := ck[:len(ck)-1] // Remove trailing =
+			value := joined[idx+len(ck):]
+			kv[key] = value
+			// Remove this from joined for further parsing
+			joined = joined[:idx]
+			break
+		}
+	}
+
+	// Parse remaining simple key=value pairs
+	for _, part := range strings.Split(joined, ":") {
+		if part == "" {
+			continue
+		}
+		if eqIdx := strings.Index(part, "="); eqIdx != -1 {
+			key := part[:eqIdx]
+			value := part[eqIdx+1:]
+			kv[key] = value
+		}
+	}
+	return kv
+}
+
+// parseOptionConfig parses option lines into Config.
+func parseOptionConfig(config *Config, optType string, kv map[string]string) {
+	switch optType {
+	case "file":
+		// Ignored - handled by test runner
+
+	case "asn":
+		if v, err := strconv.Atoi(kv["value"]); err == nil {
+			config.ASN = v
+		}
+
+	case "bind":
+		if kv["value"] == "ipv6" {
+			config.IPv6 = true
+		}
+
+	case "tcp_connections":
+		if v, err := strconv.Atoi(kv["value"]); err == nil {
+			config.TCPConnections = v
+		}
+
+	case "open":
+		switch kv["value"] {
+		case "send-unknown-capability":
+			config.SendUnknownCapability = true
+		case "inspect-open-message":
+			config.InspectOpenMessage = true
+		case "send-unknown-message":
+			config.SendUnknownMessage = true
+		}
+
+	case "update":
+		if kv["value"] == "send-default-route" {
+			config.SendDefaultRoute = true
+		}
+
+	case "timeout", "env":
+		// Ignored - handled by test runner
+	}
+}
+
+// checkOldFormat detects old .ci format and returns helpful error.
+func checkOldFormat(line string) error {
+	// Old format patterns
+	patterns := []struct {
+		old string
+		new string
+	}{
+		{"option:file:", `use "option=file:path=<file>"`},
+		{"option:asn:", `use "option=asn:value=<asn>"`},
+		{"option:bind:", `use "option=bind:value=<ipv4|ipv6>"`},
+		{"option:timeout:", `use "option=timeout:value=<duration>"`},
+		{"option:env:", `use "option=env:var=<name>:value=<value>"`},
+		{"option:tcp_connections:", `use "option=tcp_connections:value=<n>"`},
+		{"option:open:", `use "option=open:value=<flag>"`},
+		{"option:update:", `use "option=update:value=<flag>"`},
+		{"expect:stderr:", `use "expect=stderr:pattern=<regex>"`},
+		{"expect:syslog:", `use "expect=syslog:pattern=<regex>"`},
+		{"reject:stderr:", `use "reject=stderr:pattern=<regex>"`},
+	}
+
+	for _, p := range patterns {
+		if strings.HasPrefix(line, p.old) {
+			return fmt.Errorf("old format %q - %s", line, p.new)
+		}
+	}
+
+	// Check for old N:send:raw: format (must be before :raw: check).
+	if strings.Contains(line, ":send:") && !strings.HasPrefix(line, "action=send:") {
+		conn, seq := parseOldPrefix(line)
+		return fmt.Errorf("old format %q - use \"action=send:conn=%d:seq=%d:hex=<hex>\"", line, conn, seq)
+	}
+
+	// Check for old N:raw: format.
+	if strings.Contains(line, ":raw:") {
+		conn, seq := parseOldPrefix(line)
+		return fmt.Errorf("old format %q - use \"expect=bgp:conn=%d:seq=%d:hex=<hex>\"", line, conn, seq)
+	}
+
+	// Check for old N:json: format.
+	if strings.Contains(line, ":json:") && !strings.HasPrefix(line, "expect=json:") {
+		conn, seq := parseOldPrefix(line)
+		return fmt.Errorf("old format %q - use \"expect=json:conn=%d:seq=%d:json=<obj>\"", line, conn, seq)
+	}
+
+	// Check for old N:cmd: format.
+	if strings.Contains(line, ":cmd:") && !strings.HasPrefix(line, "cmd=api:") {
+		conn, seq := parseOldPrefix(line)
+		return fmt.Errorf("old format %q - use \"cmd=api:conn=%d:seq=%d:text=<cmd>\"", line, conn, seq)
+	}
+
+	// Check for old AN:notification: format.
+	if strings.Contains(line, ":notification:") && !strings.HasPrefix(line, "action=notification:") {
+		conn, seq := parseOldPrefix(line)
+		return fmt.Errorf("old format %q - use \"action=notification:conn=%d:seq=%d:text=<msg>\"", line, conn, seq)
+	}
+
+	return nil
+}
+
+// parseOldPrefix extracts conn and seq from old format prefix like "1:", "A1:", "B2:".
+func parseOldPrefix(line string) (conn, seq int) {
+	conn = 1
+	seq = 1
+
+	colonIdx := strings.Index(line, ":")
+	if colonIdx <= 0 {
+		return conn, seq
+	}
+
+	prefix := line[:colonIdx]
+	if len(prefix) == 0 {
+		return conn, seq
+	}
+
+	// Check for connection letter (A-Z or a-z).
+	first := prefix[0]
+	if (first >= 'A' && first <= 'Z') || (first >= 'a' && first <= 'z') {
+		if first >= 'a' && first <= 'z' {
+			conn = int(first-'a') + 1
+		} else {
+			conn = int(first-'A') + 1
+		}
+		prefix = prefix[1:]
+	}
+
+	// Parse sequence number.
+	if n, err := strconv.Atoi(prefix); err == nil && n > 0 {
+		seq = n
+	}
+
+	return conn, seq
 }

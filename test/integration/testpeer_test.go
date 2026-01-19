@@ -18,7 +18,10 @@ func runPeerTest(t *testing.T, peerConfig *testpeer.Config) testpeer.Result {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	peer := testpeer.New(peerConfig)
+	peer, err := testpeer.New(peerConfig)
+	if err != nil {
+		t.Fatalf("failed to create test peer: %v", err)
+	}
 
 	peerDone := make(chan testpeer.Result, 1)
 	go func() {

@@ -1,5 +1,5 @@
-option:file:eor.conf
-1:cmd:update text nlri ipv4/unicast eor
-1:raw:FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF:0017:02:00000000
-2:cmd:update text nlri ipv6/unicast eor
-2:raw:FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF:001E:02:00000007900F0003000201
+option=file:path=eor.conf
+cmd=api:conn=1:seq=1:text=update text nlri ipv4/unicast eor
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+cmd=api:conn=1:seq=2:text=update text nlri ipv6/unicast eor
+expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001E0200000007900F0003000201

@@ -1,4 +1,4 @@
-option:file:unknowncap.conf
-option:open:send-unknown-capability
-1:cmd:announce eor ipv4/unicast
-1:raw:FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF:0017:02:00000000
+option=file:path=unknowncap.conf
+option=open:value=send-unknown-capability
+cmd=api:conn=1:seq=1:text=announce eor ipv4/unicast
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000

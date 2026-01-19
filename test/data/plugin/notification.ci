@@ -1,2 +1,2 @@
-option:file:notification.conf
-A1:notification:closing session because we can
+option=file:path=notification.conf
+action=notification:conn=1:seq=1:text=closing session because we can

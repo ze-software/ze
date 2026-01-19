@@ -1,6 +1,6 @@
-option:file:ipself4.conf
-1:cmd:update text origin set igp local-preference set 100 nhop set 127.0.0.1 nlri ipv4/unicast add 10.0.0.0/32
-1:raw:FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF:0031:02:00000015400101004002004003047F00000140050400000064200A000000
-1:json:{"meta":{"version":"1.0.0","format":"zebgp"},"message":{"type":"update"},"peer":{"address":"127.0.0.1","asn":65533},"direction":"in","local-preference":100,"origin":"igp","ipv4/unicast":[{"action":"add","nlri":["10.0.0.0/32"],"next-hop":"127.0.0.1"}]}
-1:cmd:announce eor ipv4/unicast
-1:raw:FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF:0017:02:00000000
+option=file:path=ipself4.conf
+cmd=api:conn=1:seq=1:text=update text origin set igp local-preference set 100 nhop set 127.0.0.1 nlri ipv4/unicast add 10.0.0.0/32
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00310200000015400101004002004003047F00000140050400000064200A000000
+expect=json:conn=1:seq=1:json={"meta":{"version":"1.0.0","format":"zebgp"},"message":{"type":"update"},"peer":{"address":"127.0.0.1","asn":65533},"direction":"in","local-preference":100,"origin":"igp","ipv4/unicast":[{"action":"add","nlri":["10.0.0.0/32"],"next-hop":"127.0.0.1"}]}
+cmd=api:conn=1:seq=1:text=announce eor ipv4/unicast
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000

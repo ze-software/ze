@@ -1,12 +1,12 @@
-option:file:check.conf
-option:update:send-default-route
-1:cmd:announce eor ipv4/unicast
-1:raw:FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF:001702:00000000
-1:cmd:announce eor ipv6/unicast
-1:raw:FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF:001E02:00000007900F0003000201
-1:cmd:announce ipv6/unicast ::1/128 next-hop ::1 origin igp local-preference 100
-1:raw:FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF:004E02:000000374001010040020040050400000064800E260002011000000000000000000000000000000001008000000000000000000000000000000001
-1:cmd:update text origin set igp local-preference set 100 nhop set 127.0.0.2 nlri ipv4/unicast add 127.0.0.1/32
-1:raw:FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF:003102:00000015400101004002004003047F00000240050400000064207F000001
-1:cmd:update text origin set igp local-preference set 100 nhop set 5.6.7.8 nlri ipv4/unicast add 1.2.3.4/32
-1:raw:FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF:003102:000000154001010040020040030405060708400504000000642001020304
+option=file:path=check.conf
+option=update:value=send-default-route
+cmd=api:conn=1:seq=1:text=announce eor ipv4/unicast
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+cmd=api:conn=1:seq=1:text=announce eor ipv6/unicast
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001E0200000007900F0003000201
+cmd=api:conn=1:seq=1:text=announce ipv6/unicast ::1/128 next-hop ::1 origin igp local-preference 100
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF004E02000000374001010040020040050400000064800E260002011000000000000000000000000000000001008000000000000000000000000000000001
+cmd=api:conn=1:seq=1:text=update text origin set igp local-preference set 100 nhop set 127.0.0.2 nlri ipv4/unicast add 127.0.0.1/32
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00310200000015400101004002004003047F00000240050400000064207F000001
+cmd=api:conn=1:seq=1:text=update text origin set igp local-preference set 100 nhop set 5.6.7.8 nlri ipv4/unicast add 1.2.3.4/32
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003102000000154001010040020040030405060708400504000000642001020304

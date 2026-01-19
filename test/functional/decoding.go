@@ -13,6 +13,9 @@ import (
 	"time"
 )
 
+// Message type constants.
+const msgTypeUpdate = "update"
+
 // DecodingTest holds a single decoding test case.
 type DecodingTest struct {
 	Name         string
@@ -119,7 +122,7 @@ func (dt *DecodingTests) parseTestFile(filePath string) (*DecodingTest, error) {
 func parseTypeLine(line string) (msgType, family string) {
 	parts := strings.Fields(line)
 	if len(parts) == 0 {
-		return "update", ""
+		return msgTypeUpdate, ""
 	}
 
 	msgType = strings.ToLower(parts[0])
@@ -247,10 +250,10 @@ func (r *DecodingRunner) runTest(ctx context.Context, test *DecodingTest) bool {
 		args = append(args, "--open")
 	case "nlri":
 		args = append(args, "--nlri")
-	case "update":
+	case msgTypeUpdate:
 		args = append(args, "--update")
 	default:
-		args = append(args, "--update") // Default to update
+		args = append(args, "--update") // Default to update.
 	}
 
 	if test.Family != "" {

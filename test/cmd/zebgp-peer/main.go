@@ -48,7 +48,11 @@ func main() {
 		cancel()
 	}()
 
-	peer := testpeer.New(config)
+	peer, err := testpeer.New(config)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "failed to create peer: %v\n", err)
+		os.Exit(1)
+	}
 	result := peer.Run(ctx)
 	cancel()
 

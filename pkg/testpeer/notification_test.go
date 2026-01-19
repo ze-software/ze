@@ -115,9 +115,9 @@ func TestNotificationMsg(t *testing.T) {
 	}
 }
 
-// TestCheckerNotificationAction verifies that notification: is treated as a SEND action.
+// TestCheckerNotificationAction verifies that action=notification is treated as a SEND action.
 //
-// VALIDATES: Checker correctly identifies notification: prefix as action, not receive expectation.
+// VALIDATES: Checker correctly identifies notification action, not receive expectation.
 //
 // PREVENTS: Testpeer hanging waiting to receive notification instead of sending it.
 func TestCheckerNotificationAction(t *testing.T) {
@@ -128,19 +128,22 @@ func TestCheckerNotificationAction(t *testing.T) {
 	}{
 		{
 			name:     "notification action",
-			expected: []string{"A1:notification:closing session because we can"},
+			expected: []string{"action=notification:conn=1:seq=1:text=closing session because we can"},
 			want:     "closing session because we can",
 		},
 		{
 			name:     "mixed case",
-			expected: []string{"A1:notification:Closing Session"},
+			expected: []string{"action=notification:conn=1:seq=1:text=Closing Session"},
 			want:     "Closing Session", // Preserve case for notification text
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			c := NewChecker(tt.expected)
+			c, err := NewChecker(tt.expected)
+			if err != nil {
+				t.Fatalf("NewChecker failed: %v", err)
+			}
 			c.Init()
 
 			action, text := c.NextNotificationAction()
@@ -156,18 +159,21 @@ func TestCheckerNotificationAction(t *testing.T) {
 	}
 }
 
-// TestCheckerNoNotificationAction verifies raw: expectations are not treated as actions.
+// TestCheckerNoNotificationAction verifies expect=bgp are not treated as actions.
 //
-// VALIDATES: Raw expectations are correctly identified as receive expectations.
+// VALIDATES: BGP expectations are correctly identified as receive expectations.
 //
-// PREVENTS: Testpeer incorrectly trying to send raw messages as notifications.
+// PREVENTS: Testpeer incorrectly trying to send BGP messages as notifications.
 func TestCheckerNoNotificationAction(t *testing.T) {
-	expected := []string{"A1:raw:FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000"}
-	c := NewChecker(expected)
+	expected := []string{"expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000"}
+	c, err := NewChecker(expected)
+	if err != nil {
+		t.Fatalf("NewChecker failed: %v", err)
+	}
 	c.Init()
 
 	action, _ := c.NextNotificationAction()
 	if action {
-		t.Error("raw expectation should not be treated as notification action")
+		t.Error("expect=bgp should not be treated as notification action")
 	}
 }

@@ -169,9 +169,12 @@ go run ./test/cmd/functional encoding --count 10 0 # Stress test
 ```go
 import "codeberg.org/thomas-mangin/zebgp/pkg/testpeer"
 
-peer := testpeer.New(&testpeer.Config{
+peer, err := testpeer.New(&testpeer.Config{
     Port: 1790, Sink: true, Output: &bytes.Buffer{},
 })
+if err != nil {
+    log.Fatal(err)
+}
 ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 defer cancel()
 result := peer.Run(ctx)
