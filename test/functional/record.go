@@ -11,6 +11,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"codeberg.org/thomas-mangin/zebgp/test/ciformat"
 )
 
 // State represents a test's execution state.
@@ -550,11 +552,6 @@ func (et *EncodingTests) parseAndAdd(ciFile string) error {
 
 // parseLine parses a single .ci line in the new key=value format.
 func (et *EncodingTests) parseLine(r *Record, ciFile, line string) error {
-	// Check for old format and provide helpful error
-	if err := checkOldFormat(line); err != nil {
-		return err
-	}
-
 	// Parse action=type:key=value:key=value:...
 	eqIdx := strings.Index(line, "=")
 	if eqIdx == -1 {
@@ -571,7 +568,7 @@ func (et *EncodingTests) parseLine(r *Record, ciFile, line string) error {
 	}
 
 	lineType := parts[0]
-	kvPairs := parseKVPairs(parts[1:])
+	kvPairs := ciformat.ParseKVPairs(parts[1:])
 
 	switch action {
 	case "option":
@@ -587,42 +584,6 @@ func (et *EncodingTests) parseLine(r *Record, ciFile, line string) error {
 	default:
 		return fmt.Errorf("unknown action %q in %q", action, line)
 	}
-}
-
-// parseKVPairs parses key=value pairs from colon-separated parts.
-// Special handling for known keys that may contain colons in values (json, text, hex).
-func parseKVPairs(parts []string) map[string]string {
-	kv := make(map[string]string)
-
-	// Rejoin parts to handle values containing colons
-	joined := strings.Join(parts, ":")
-
-	// Known keys that may have complex values containing colons
-	complexKeys := []string{"json=", "text=", "hex=", "pattern="}
-
-	for _, ck := range complexKeys {
-		if idx := strings.Index(joined, ck); idx != -1 {
-			key := ck[:len(ck)-1] // Remove trailing =
-			value := joined[idx+len(ck):]
-			kv[key] = value
-			// Remove this from joined for further parsing
-			joined = joined[:idx]
-			break
-		}
-	}
-
-	// Parse remaining simple key=value pairs
-	for _, part := range strings.Split(joined, ":") {
-		if part == "" {
-			continue
-		}
-		if eqIdx := strings.Index(part, "="); eqIdx != -1 {
-			key := part[:eqIdx]
-			value := part[eqIdx+1:]
-			kv[key] = value
-		}
-	}
-	return kv
 }
 
 // parseOption handles option=type:key=value lines.
@@ -851,99 +812,6 @@ func parseConnSeq(kv map[string]string) (conn, seq int, err error) {
 // conn=1:seq=1 → 101, conn=1:seq=2 → 102, conn=2:seq=1 → 201, etc.
 func connSeqToIndex(conn, seq int) int {
 	return conn*100 + seq
-}
-
-// checkOldFormat detects old .ci format and returns helpful error.
-func checkOldFormat(line string) error {
-	// Old format patterns and their new equivalents
-	patterns := []struct {
-		old string
-		new string
-	}{
-		{"option:file:", `use "option=file:path=<file>"`},
-		{"option:asn:", `use "option=asn:value=<asn>"`},
-		{"option:bind:", `use "option=bind:value=<ipv4|ipv6>"`},
-		{"option:timeout:", `use "option=timeout:value=<duration>"`},
-		{"option:env:", `use "option=env:var=<name>:value=<value>"`},
-		{"option:tcp_connections:", `use "option=tcp_connections:value=<n>"`},
-		{"option:open:", `use "option=open:value=<flag>"`},
-		{"option:update:", `use "option=update:value=<flag>"`},
-		{"expect:stderr:", `use "expect=stderr:pattern=<regex>"`},
-		{"expect:syslog:", `use "expect=syslog:pattern=<regex>"`},
-		{"reject:stderr:", `use "reject=stderr:pattern=<regex>"`},
-	}
-
-	for _, p := range patterns {
-		if strings.HasPrefix(line, p.old) {
-			return fmt.Errorf("old format %q - %s", line, p.new)
-		}
-	}
-
-	// Check for old N:send:raw: format (must be before :raw: check).
-	if strings.Contains(line, ":send:") && !strings.HasPrefix(line, "action=send:") {
-		conn, seq := parseOldPrefix(line)
-		return fmt.Errorf("old format %q - use \"action=send:conn=%d:seq=%d:hex=<hex>\"", line, conn, seq)
-	}
-
-	// Check for old N:raw: or AN:raw: format.
-	if strings.Contains(line, ":raw:") {
-		conn, seq := parseOldPrefix(line)
-		return fmt.Errorf("old format %q - use \"expect=bgp:conn=%d:seq=%d:hex=<hex>\"", line, conn, seq)
-	}
-
-	// Check for old N:json: format.
-	if strings.Contains(line, ":json:") && !strings.HasPrefix(line, "expect=json:") {
-		conn, seq := parseOldPrefix(line)
-		return fmt.Errorf("old format %q - use \"expect=json:conn=%d:seq=%d:json=<obj>\"", line, conn, seq)
-	}
-
-	// Check for old N:cmd: format.
-	if strings.Contains(line, ":cmd:") && !strings.HasPrefix(line, "cmd=api:") {
-		conn, seq := parseOldPrefix(line)
-		return fmt.Errorf("old format %q - use \"cmd=api:conn=%d:seq=%d:text=<cmd>\"", line, conn, seq)
-	}
-
-	// Check for old AN:notification: format.
-	if strings.Contains(line, ":notification:") && !strings.HasPrefix(line, "action=notification:") {
-		conn, seq := parseOldPrefix(line)
-		return fmt.Errorf("old format %q - use \"action=notification:conn=%d:seq=%d:text=<msg>\"", line, conn, seq)
-	}
-
-	return nil
-}
-
-// parseOldPrefix extracts conn and seq from old format prefix like "1:", "A1:", "B2:".
-func parseOldPrefix(line string) (conn, seq int) {
-	conn = 1
-	seq = 1
-
-	colonIdx := strings.Index(line, ":")
-	if colonIdx <= 0 {
-		return conn, seq
-	}
-
-	prefix := line[:colonIdx]
-	if len(prefix) == 0 {
-		return conn, seq
-	}
-
-	// Check for connection letter (A-Z or a-z).
-	first := prefix[0]
-	if (first >= 'A' && first <= 'Z') || (first >= 'a' && first <= 'z') {
-		if first >= 'a' && first <= 'z' {
-			conn = int(first-'a') + 1
-		} else {
-			conn = int(first-'A') + 1
-		}
-		prefix = prefix[1:]
-	}
-
-	// Parse sequence number.
-	if n, err := strconv.Atoi(prefix); err == nil && n > 0 {
-		seq = n
-	}
-
-	return conn, seq
 }
 
 // List prints available tests.

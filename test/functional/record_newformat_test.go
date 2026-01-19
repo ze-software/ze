@@ -303,60 +303,6 @@ expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001304`
 	assert.Equal(t, []string{"fatal", "panic"}, rec.RejectSyslog)
 }
 
-// TestParseCIInvalidFormat verifies error handling for old format lines.
-//
-// VALIDATES: Old format lines produce helpful error messages.
-// PREVENTS: Silent acceptance of deprecated format.
-func TestParseCIInvalidFormat(t *testing.T) {
-	tests := []struct {
-		name    string
-		line    string
-		wantErr string
-	}{
-		{
-			name:    "old_raw_format",
-			line:    "1:raw:FFFFFFFF",
-			wantErr: `use "expect=bgp:conn=1:seq=1:hex=`,
-		},
-		{
-			name:    "old_option_file",
-			line:    "option:file:test.conf",
-			wantErr: `use "option=file:path=`,
-		},
-		{
-			name:    "old_option_env",
-			line:    "option:env:zebgp.log.server=debug",
-			wantErr: `use "option=env:var=`,
-		},
-		{
-			name:    "old_notification",
-			line:    "A1:notification:bye",
-			wantErr: `use "action=notification:conn=1:seq=1`,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			ResetNickCounter()
-
-			tmpDir := t.TempDir()
-			ciFile := filepath.Join(tmpDir, "test.ci")
-			confFile := filepath.Join(tmpDir, "test.conf")
-
-			ciContent := "option=file:path=test.conf\n" + tt.line
-
-			require.NoError(t, os.WriteFile(ciFile, []byte(ciContent), 0o600))
-			require.NoError(t, os.WriteFile(confFile, []byte(minimalConfig), 0o600))
-
-			et := NewEncodingTests(tmpDir)
-			err := et.parseAndAdd(ciFile)
-
-			require.Error(t, err)
-			assert.Contains(t, err.Error(), tt.wantErr)
-		})
-	}
-}
-
 // TestParseCIMissingConn verifies error when conn is missing from expect=bgp.
 //
 // VALIDATES: Missing conn field produces error.
