@@ -11,13 +11,13 @@ all: lint test build
 build:
 	@echo "Building binaries..."
 	go build -o bin/zebgp ./cmd/zebgp
-	go build -o bin/zebgp-cli ./cmd/zebgp-cli
-	go build -o bin/zebgp-decode ./cmd/zebgp-decode
+	go build -o bin/zebgp-peer ./cmd/zebgp-peer
+	go build -o bin/zebgp-test ./cmd/zebgp-test
 
 # Run tests with race detector
 test:
 	@echo "Running tests..."
-	go test -race -v ./...
+	go test -race ./...
 
 # Run tests with coverage
 test-cover:
@@ -64,22 +64,22 @@ functional: functional-encoding functional-plugin functional-parsing functional-
 # Run encoding functional tests
 functional-encoding:
 	@echo "Running encoding functional tests..."
-	go run ./test/cmd/functional encoding --all
+	go run ./cmd/zebgp-test run encoding --all
 
 # Run plugin functional tests
 functional-plugin:
 	@echo "Running plugin functional tests..."
-	go run ./test/cmd/functional plugin --all
+	go run ./cmd/zebgp-test run plugin --all
 
 # Run decoding functional tests (may fail - JSON format alignment WIP)
 functional-decoding:
 	@echo "Running decoding functional tests..."
-	go run ./test/cmd/functional decoding --all
+	go run ./cmd/zebgp-test run decoding --all
 
 # Run parsing functional tests
 functional-parsing:
 	@echo "Running parsing functional tests..."
-	go run ./test/cmd/functional parsing --all
+	go run ./cmd/zebgp-test run parsing --all
 
 # Quick check (fast feedback during development)
 check: fmt vet

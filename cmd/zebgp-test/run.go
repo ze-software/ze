@@ -1,4 +1,3 @@
-// Package main provides the functional test runner with AI-friendly diagnostics.
 package main
 
 import (
@@ -19,18 +18,19 @@ import (
 // errTestsFailed is returned when tests fail (not an error, but indicates exit code 1).
 var errTestsFailed = errors.New("tests failed")
 
-func main() {
-	if err := run(); err != nil {
+func runCmd() int {
+	if err := runMain(); err != nil {
 		if !errors.Is(err, errTestsFailed) {
-			_, _ = fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		}
-		os.Exit(1)
+		return 1
 	}
+	return 0
 }
 
-func run() error {
+func runMain() error {
 	// Parse command line
-	cli := parseCLI()
+	cli := parseRunCLI()
 	if cli == nil {
 		return nil // Help was printed
 	}
@@ -165,7 +165,7 @@ func (p *parsingTestSuite) Run(ctx context.Context, zebgpPath string, verbose, q
 }
 
 // runSimpleTests handles decoding and parsing tests using the testSuite interface.
-func runSimpleTests(ctx context.Context, cli *cliFlags, baseDir string, newSuite func(string) testSuite) error {
+func runSimpleTests(ctx context.Context, cli *runCLIFlags, baseDir string, newSuite func(string) testSuite) error {
 	functional.ResetNickCounter()
 
 	tests := newSuite(baseDir)
@@ -212,7 +212,7 @@ func runSimpleTests(ctx context.Context, cli *cliFlags, baseDir string, newSuite
 			}
 		}
 	default:
-		printUsage()
+		printRunUsage()
 		return nil
 	}
 
@@ -234,7 +234,7 @@ func runSimpleTests(ctx context.Context, cli *cliFlags, baseDir string, newSuite
 }
 
 // runEncodingOrAPI handles encoding and API tests (original behavior).
-func runEncodingOrAPI(ctx context.Context, cli *cliFlags, baseDir string) error {
+func runEncodingOrAPI(ctx context.Context, cli *runCLIFlags, baseDir string) error {
 	// Initialize
 	colors := functional.NewColors()
 	functional.ResetNickCounter()
@@ -321,7 +321,7 @@ func runEncodingOrAPI(ctx context.Context, cli *cliFlags, baseDir string) error 
 			}
 		}
 	default:
-		printUsage()
+		printRunUsage()
 		return nil
 	}
 
@@ -372,7 +372,7 @@ func runEncodingOrAPI(ctx context.Context, cli *cliFlags, baseDir string) error 
 }
 
 // runServerOnly runs only the zebgp-peer (server) for manual debugging.
-func runServerOnly(ctx context.Context, cli *cliFlags, tests *functional.EncodingTests, baseDir string) error {
+func runServerOnly(ctx context.Context, cli *runCLIFlags, tests *functional.EncodingTests, baseDir string) error {
 	rec := tests.GetByNick(cli.server)
 	if rec == nil {
 		// Try by name
@@ -395,7 +395,7 @@ func runServerOnly(ctx context.Context, cli *cliFlags, tests *functional.Encodin
 	defer func() { _ = os.RemoveAll(tmpDir) }()
 
 	peerPath := filepath.Join(tmpDir, "zebgp-peer")
-	cmd := exec.CommandContext(ctx, "go", "build", "-o", peerPath, "./test/cmd/zebgp-peer") //nolint:gosec // test runner, paths from temp dir
+	cmd := exec.CommandContext(ctx, "go", "build", "-o", peerPath, "./cmd/zebgp-peer") //nolint:gosec // test runner, paths from temp dir
 	cmd.Dir = baseDir
 	cmd.Env = append(os.Environ(), "CGO_ENABLED=0")
 	if output, err := cmd.CombinedOutput(); err != nil {
@@ -421,12 +421,12 @@ func runServerOnly(ctx context.Context, cli *cliFlags, tests *functional.Encodin
 	if rec.Port != 0 {
 		port = rec.Port
 	}
-	fmt.Printf("🔧 Server mode for test: %s (%s)\n", rec.Nick, rec.Name)
-	fmt.Printf("📁 Config: %s\n", rec.ConfigFile)
-	fmt.Printf("🔌 Port: %d\n", port)
-	fmt.Printf("⏳ Waiting for client connection...\n")
-	fmt.Printf("\n💡 Run client in another terminal:\n")
-	fmt.Printf("   go run ./test/cmd/functional %s --client %s --port %d\n\n", cli.command, cli.server, port)
+	fmt.Printf("Server mode for test: %s (%s)\n", rec.Nick, rec.Name)
+	fmt.Printf("Config: %s\n", rec.ConfigFile)
+	fmt.Printf("Port: %d\n", port)
+	fmt.Printf("Waiting for client connection...\n")
+	fmt.Printf("\nRun client in another terminal:\n")
+	fmt.Printf("   zebgp-test run %s --client %s --port %d\n\n", cli.command, cli.server, port)
 
 	// Build peer args
 	peerArgs := []string{"--port", fmt.Sprintf("%d", port)}
@@ -448,7 +448,7 @@ func runServerOnly(ctx context.Context, cli *cliFlags, tests *functional.Encodin
 }
 
 // runClientOnly runs only zebgp (client) for manual debugging.
-func runClientOnly(ctx context.Context, cli *cliFlags, tests *functional.EncodingTests, baseDir string) error {
+func runClientOnly(ctx context.Context, cli *runCLIFlags, tests *functional.EncodingTests, baseDir string) error {
 	rec := tests.GetByNick(cli.client)
 	if rec == nil {
 		// Try by name
@@ -480,12 +480,12 @@ func runClientOnly(ctx context.Context, cli *cliFlags, tests *functional.Encodin
 	if rec.Port != 0 {
 		port = rec.Port
 	}
-	fmt.Printf("🔧 Client mode for test: %s (%s)\n", rec.Nick, rec.Name)
-	fmt.Printf("📁 Config: %s\n", configPath)
-	fmt.Printf("🔌 Port: %d\n", port)
-	fmt.Printf("⏳ Starting zebgp client...\n")
-	fmt.Printf("\n💡 Server should be running. If not:\n")
-	fmt.Printf("   go run ./test/cmd/functional %s --server %s --port %d\n\n", cli.command, cli.client, port)
+	fmt.Printf("Client mode for test: %s (%s)\n", rec.Nick, rec.Name)
+	fmt.Printf("Config: %s\n", configPath)
+	fmt.Printf("Port: %d\n", port)
+	fmt.Printf("Starting zebgp client...\n")
+	fmt.Printf("\nServer should be running. If not:\n")
+	fmt.Printf("   zebgp-test run %s --server %s --port %d\n\n", cli.command, cli.client, port)
 
 	// Build client env
 	// Set tcp.attempts=1 so zebgp exits after the session ends (instead of reconnecting)
@@ -526,7 +526,7 @@ func buildZebgp(ctx context.Context, baseDir string) (string, error) {
 	return zebgpPath, nil
 }
 
-type cliFlags struct {
+type runCLIFlags struct {
 	command   string
 	all       bool
 	list      bool
@@ -543,15 +543,15 @@ type cliFlags struct {
 	testArgs  []string
 }
 
-func parseCLI() *cliFlags {
+func parseRunCLI() *runCLIFlags {
 	if len(os.Args) < 2 {
-		printUsage()
+		printRunUsage()
 		return nil
 	}
 
 	command := os.Args[1]
 	if command == "-h" || command == "--help" || command == "help" {
-		printUsage()
+		printRunUsage()
 		return nil
 	}
 
@@ -564,11 +564,11 @@ func parseCLI() *cliFlags {
 
 	if !validCommands[command] {
 		fmt.Fprintf(os.Stderr, "Unknown command: %s\n", command)
-		printUsage()
+		printRunUsage()
 		return nil
 	}
 
-	cli := &cliFlags{command: command}
+	cli := &runCLIFlags{command: command}
 
 	fs := flag.NewFlagSet(command, flag.ExitOnError)
 	fs.BoolVar(&cli.all, "a", false, "run all tests")
@@ -601,10 +601,10 @@ func parseCLI() *cliFlags {
 	return cli
 }
 
-func printUsage() {
-	fmt.Fprintf(os.Stderr, `Usage: functional <command> [options] [tests...]
+func printRunUsage() {
+	fmt.Fprintf(os.Stderr, `Usage: zebgp-test run <type> [options] [tests...]
 
-Commands:
+Types:
   encoding    Run encoding tests (static routes)
   plugin      Run plugin tests (dynamic routes via .run scripts)
   decoding    Run decoding tests (BGP message hex to JSON)
@@ -629,13 +629,13 @@ Debugging:
   --client NICK       Run client only for test
 
 Examples:
-  functional encoding -l
-  functional encoding -a
-  functional encoding 0 1 2
-  functional plugin -a -q
-  functional decoding -a
-  functional parsing -a
-  functional encoding -c 10 0 1    # stress test: run tests 0,1 ten times
+  zebgp-test run encoding -l
+  zebgp-test run encoding -a
+  zebgp-test run encoding 0 1 2
+  zebgp-test run plugin -a -q
+  zebgp-test run decoding -a
+  zebgp-test run parsing -a
+  zebgp-test run encoding -c 10 0 1    # stress test: run tests 0,1 ten times
 `)
 }
 

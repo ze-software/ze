@@ -285,8 +285,8 @@ func (r *Report) printDebugCommands(rec *Record) {
 
 	// Manual test commands
 	_, _ = fmt.Fprintf(r.output, "%s\n", c.Gray("# Run test manually:"))
-	_, _ = fmt.Fprintf(r.output, "go run ./test/cmd/functional encoding --server %s\n", rec.Nick)
-	_, _ = fmt.Fprintf(r.output, "go run ./test/cmd/functional encoding --client %s\n", rec.Nick)
+	_, _ = fmt.Fprintf(r.output, "zebgp-test run encoding --server %s\n", rec.Nick)
+	_, _ = fmt.Fprintf(r.output, "zebgp-test run encoding --client %s\n", rec.Nick)
 	_, _ = fmt.Fprintln(r.output)
 }
 

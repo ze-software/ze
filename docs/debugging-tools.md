@@ -247,7 +247,7 @@ ZEBGP_TRACE=session,fsm zebgp server config.conf
 
 ```bash
 # Run single test
-go run ./test/cmd/functional encoding 0
+zebgp-test run encoding 0
 
 # Output now includes decoded diff automatically
 # Look at "Differences:" section to see what's wrong
@@ -259,10 +259,10 @@ Run server and client separately to see live output:
 
 ```bash
 # Terminal 1: Start test server (zebgp-peer)
-go run ./test/cmd/functional encoding --server 0
+zebgp-test run encoding --server 0
 
 # Terminal 2: Start test client (zebgp)
-go run ./test/cmd/functional encoding --client 0
+zebgp-test run encoding --client 0
 ```
 
 **Behavior:**
@@ -273,8 +273,8 @@ The client uses `zebgp_tcp_attempts=1` automatically, so zebgp exits after the s
 
 **Use `--port` to avoid conflicts:**
 ```bash
-go run ./test/cmd/functional encoding --server 0 --port 11790
-go run ./test/cmd/functional encoding --client 0 --port 11790
+zebgp-test run encoding --server 0 --port 11790
+zebgp-test run encoding --client 0 --port 11790
 ```
 
 ---
@@ -304,7 +304,7 @@ trace.Log(trace.Routes, "custom message: %s", value)
 | `pkg/testpeer/peer.go` | Test peer with decode support |
 | `pkg/trace/trace.go` | Tracing infrastructure |
 | `cmd/zebgp/configdump.go` | config-dump command |
-| `test/cmd/zebgp-peer/main.go` | --decode flag |
+| `cmd/zebgp-peer/main.go` | --decode flag |
 | `pkg/config/parser.go` | Parser warnings |
 | `pkg/config/loader.go` | Config trace points |
 | `pkg/reactor/peer.go` | Session/route trace points |

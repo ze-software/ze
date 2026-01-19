@@ -65,7 +65,7 @@ func main() {
 
 1. **Encoding test:** Create `test/data/encoding/<name>.conf` and `test/data/encoding/<name>.ci`
 2. **Plugin test:** Create `test/data/plugin/<name>.conf` and `test/data/plugin/<name>.ci`
-3. **Run:** `make functional` or `go run ./test/cmd/functional <type> --list` to verify
+3. **Run:** `make functional` or `zebgp-test run <type> --list` to verify
 
 ### CI File Format (.ci)
 
@@ -155,13 +155,13 @@ zebgp-peer --view qa/encoding/test.msg      # View rules only
 | `--ipv6` | Bind IPv6 |
 | `--asn` | Override ASN (0 = mirror) |
 
-### functional (Test Runner)
+### zebgp-test (Test Runner)
 
 ```bash
-go run ./test/cmd/functional encoding --list      # List tests
-go run ./test/cmd/functional encoding --all       # Run all
-go run ./test/cmd/functional encoding 0 1 2       # By index
-go run ./test/cmd/functional encoding --count 10 0 # Stress test
+zebgp-test run encoding --list      # List tests
+zebgp-test run encoding --all       # Run all
+zebgp-test run encoding 0 1 2       # By index
+zebgp-test run encoding --count 10 0 # Stress test
 ```
 
 ### testpeer (Library)

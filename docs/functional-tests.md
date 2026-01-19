@@ -17,18 +17,18 @@ make functional-plugin    # Plugin tests only
 
 ```bash
 # List available tests
-go run ./test/cmd/functional encoding --list
-go run ./test/cmd/functional api --list
+zebgp-test run encoding --list
+zebgp-test run plugin --list
 
 # Run specific tests by nick
-go run ./test/cmd/functional encoding 4 5 6
+zebgp-test run encoding 4 5 6
 
 # Run all tests
-go run ./test/cmd/functional encoding --all
-go run ./test/cmd/functional api --all
+zebgp-test run encoding --all
+zebgp-test run plugin --all
 
 # Stress test (detect flaky tests)
-go run ./test/cmd/functional encoding --count 10 0 1
+zebgp-test run encoding --count 10 0 1
 ```
 
 ---
@@ -126,10 +126,10 @@ Total: 62 tests max per category.
 **Examples:**
 ```bash
 # Run test with nick "4"
-go run ./test/cmd/functional encoding 4
+zebgp-test run encoding 4
 
 # Run tests 0, A, and B
-go run ./test/cmd/functional encoding 0 A B
+zebgp-test run encoding 0 A B
 ```
 
 ---
@@ -357,10 +357,10 @@ Use `--count N` (`-c N`) to run tests multiple times for benchmarking or detecti
 
 ```bash
 # Run test C 10 times with timing
-go run ./test/cmd/functional api -c 10 C
+zebgp-test run plugin -c 10 C
 
 # Run all encoding tests 5 times
-go run ./test/cmd/functional encoding -c 5 -a
+zebgp-test run encoding -c 5 -a
 ```
 
 **Per-iteration timing** is shown during execution:
@@ -399,17 +399,17 @@ Total: 20 iterations, 18 passed, 2 failed, 0 timed out (90.0% pass rate)
 ### Run single test verbosely
 
 ```bash
-go run ./test/cmd/functional encoding --timeout 60s --verbose 4
+zebgp-test run encoding --timeout 60s --verbose 4
 ```
 
 ### Manual execution
 
 ```bash
 # Terminal 1: Start peer
-go run ./test/cmd/zebgp-peer --port 1790 test/data/encode/ebgp.ci
+zebgp-peer --port 1790 test/data/encode/ebgp.ci
 
 # Terminal 2: Run zebgp
-env zebgp_tcp_port=1790 go run ./cmd/zebgp server test/data/encode/ebgp.conf
+env zebgp_tcp_port=1790 zebgp server test/data/encode/ebgp.conf
 ```
 
 ### Decode message bytes
@@ -504,9 +504,9 @@ The test passes if:
 | `runner.go` | Test execution engine |
 | `stress.go` | Iteration stats and timing for -c/--count |
 
-### Entry Point: `test/cmd/functional/`
+### Entry Point: `cmd/zebgp-test/`
 
-Single `main.go` with CLI parsing.
+Subcommand-based CLI with `run` for test execution and `syslog` for syslog server.
 
 ### Security
 

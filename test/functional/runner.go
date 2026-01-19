@@ -90,7 +90,7 @@ func (r *Runner) Build(ctx context.Context) error {
 	}
 
 	// Build zebgp-peer
-	cmd = exec.CommandContext(ctx, "go", "build", "-o", r.peerPath, "./test/cmd/zebgp-peer") //nolint:gosec // paths from internal runner
+	cmd = exec.CommandContext(ctx, "go", "build", "-o", r.peerPath, "./cmd/zebgp-peer") //nolint:gosec // paths from internal runner
 	cmd.Dir = r.baseDir
 	cmd.Env = append(os.Environ(), "CGO_ENABLED=0")
 	if output, err := cmd.CombinedOutput(); err != nil {

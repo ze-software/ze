@@ -1,13 +1,3 @@
-// Command test-syslog is a UDP syslog server for testing ZeBGP logging.
-//
-// Usage:
-//
-//	test-syslog --port 1514
-//	test-syslog --port 1514 --pattern "subsystem=server"
-//
-// The server listens for UDP syslog messages and prints them to stdout.
-// If --pattern is specified, it exits with code 0 when a matching message
-// is received, or code 1 on timeout.
 package main
 
 import (
@@ -22,11 +12,7 @@ import (
 	"codeberg.org/thomas-mangin/zebgp/pkg/testsyslog"
 )
 
-func main() {
-	os.Exit(run())
-}
-
-func run() int {
+func syslogCmd() int {
 	port := flag.Int("port", 0, "port to listen on (0 = dynamic)")
 	pattern := flag.String("pattern", "", "regex pattern to match (exits on match)")
 	timeout := flag.Duration("timeout", 30*time.Second, "timeout for pattern matching")
