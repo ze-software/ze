@@ -95,7 +95,7 @@ Only To Customer - marks routes that should not leak:
 ### Capability Negotiation
 
 ```go
-// pkg/bgp/capability/role.go
+// internal/bgp/capability/role.go
 
 type Role uint8
 
@@ -129,7 +129,7 @@ func ParseRoleCapability(data []byte) (*RoleCapability, error) {
 ### Peer Role Storage
 
 ```go
-// pkg/reactor/peer.go
+// internal/reactor/peer.go
 
 type Peer struct {
     // ... existing fields ...
@@ -150,7 +150,7 @@ func (p *Peer) onOpenReceived(open *message.Open) {
 ### Route Tag
 
 ```go
-// pkg/rib/route.go
+// internal/rib/route.go
 
 type RouteTag struct {
     SourceRole   capability.Role  // RFC 9234 role of source peer
@@ -166,7 +166,7 @@ type Route struct {
 ### OTC Attribute Parsing
 
 ```go
-// pkg/bgp/attribute/otc.go
+// internal/bgp/attribute/otc.go
 
 // OTC represents the Only To Customer attribute (RFC 9234).
 // Type 35, optional transitive.

@@ -21,9 +21,9 @@ Remove `bgp.Span` type and replace with native Go `[]byte` slices in iterators.
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestAttrIterator` | `pkg/bgp/attribute/iterator_test.go` | Direct []byte returns | |
-| `TestAttrIteratorExtendedLength` | `pkg/bgp/attribute/iterator_test.go` | Works without Span | |
-| `TestAttrIteratorFind` | `pkg/bgp/attribute/iterator_test.go` | Find returns []byte | |
+| `TestAttrIterator` | `internal/bgp/attribute/iterator_test.go` | Direct []byte returns | |
+| `TestAttrIteratorExtendedLength` | `internal/bgp/attribute/iterator_test.go` | Works without Span | |
+| `TestAttrIteratorFind` | `internal/bgp/attribute/iterator_test.go` | Find returns []byte | |
 
 ### Boundary Tests (MANDATORY for numeric inputs)
 N/A - no new numeric inputs, only signature changes
@@ -37,19 +37,19 @@ N/A - no new numeric inputs, only signature changes
 N/A - all tests updated immediately
 
 ## Files to Modify
-- `pkg/bgp/attribute/iterator.go` - Change Next() and Find() signatures
-- `pkg/bgp/attribute/iterator_test.go` - Remove .Slice(data) calls, use len() not .Len
-- `pkg/plugin/wire_update_test.go` - Remove .Slice(data) calls
-- `pkg/rib/route.go` - Remove .Slice(data) call (line 454)
-- `pkg/rib/route_iter_test.go` - Change .Len assertions to len()
+- `internal/bgp/attribute/iterator.go` - Change Next() and Find() signatures
+- `internal/bgp/attribute/iterator_test.go` - Remove .Slice(data) calls, use len() not .Len
+- `internal/plugin/wire_update_test.go` - Remove .Slice(data) calls
+- `internal/rib/route.go` - Remove .Slice(data) call (line 454)
+- `internal/rib/route_iter_test.go` - Change .Len assertions to len()
 - `docs/architecture/buffer-architecture.md` - Update examples to show []byte returns
 
 ## Files to Create
 N/A - removing code, not adding
 
 ## Files to Delete
-- `pkg/bgp/span.go` - Type definition and methods
-- `pkg/bgp/span_test.go` - Tests for removed type
+- `internal/bgp/span.go` - Type definition and methods
+- `internal/bgp/span_test.go` - Tests for removed type
 
 ## Implementation Steps
 1. **Write unit tests** - Update existing tests to expect []byte (strict TDD)
@@ -76,7 +76,7 @@ N/A - no new constraints
 - Changed `AttrIterator.Find()` signature from `(bgp.Span, bool)` to `([]byte, bool)`
 - Updated all test files to expect []byte directly instead of calling `.Slice(data)`
 - Updated all callers to use returned []byte directly (removed `.Slice()` calls)
-- Deleted `pkg/bgp/span.go` and `pkg/bgp/span_test.go`
+- Deleted `internal/bgp/span.go` and `internal/bgp/span_test.go`
 - Updated `docs/architecture/buffer-architecture.md` to reflect []byte-based approach
 - Removed `bgp` import from `iterator.go` (no longer needed)
 

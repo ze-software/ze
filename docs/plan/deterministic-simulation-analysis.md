@@ -256,7 +256,7 @@ Go's `select` picks arbitrarily among ready cases. Found **33 locations**:
 > **⚠️ Note:** Line numbers were captured on 2025-12-28 and may drift as code changes.
 > Before implementation, verify each location with:
 > ```bash
-> grep -n "time.Now\|time.Sleep\|time.After\|net.Dial\|net.Listen" pkg/reactor/*.go pkg/bgp/fsm/*.go
+> grep -n "time.Now\|time.Sleep\|time.After\|net.Dial\|net.Listen" internal/reactor/*.go internal/bgp/fsm/*.go
 > ```
 
 ### 3.1 Time Injection (10 locations)
@@ -473,7 +473,7 @@ Every non-deterministic operation must map to a seeded return value:
 ### 5.2 Deterministic Scheduler Interface
 
 ```go
-// pkg/sim/scheduler.go
+// internal/sim/scheduler.go
 
 type Scheduler struct {
     seed      uint64
@@ -517,7 +517,7 @@ func (s *Scheduler) After(d time.Duration) <-chan time.Time {
 ### 5.3 Clock Interface
 
 ```go
-// pkg/sim/clock.go
+// internal/sim/clock.go
 
 type Clock interface {
     Now() time.Time
@@ -577,7 +577,7 @@ func (c *VirtualClock) Advance(d time.Duration) {
 ### 6.1 Cooperative Scheduling Model
 
 ```go
-// pkg/sim/goroutine.go
+// internal/sim/goroutine.go
 
 type SimGoroutine struct {
     id        uint64
@@ -660,7 +660,7 @@ Every blocking operation needs a yield point:
 ### 7.1 Fault Types
 
 ```go
-// pkg/sim/fault.go
+// internal/sim/fault.go
 
 type FaultType int
 const (
@@ -777,7 +777,7 @@ func (f *FaultInjector) Check(op string, ctx FaultContext) *Fault {
 ### 8.1 Event Log Format
 
 ```go
-// pkg/sim/event.go
+// internal/sim/event.go
 
 type EventLog struct {
     Version   int              // Log format version
@@ -872,7 +872,7 @@ type FaultData struct {
 ### 8.2 Replay Mechanism
 
 ```go
-// pkg/sim/replay.go
+// internal/sim/replay.go
 
 func Replay(log EventLog) (*Simulation, error) {
     sim := NewSimulation(log.Seed)
@@ -953,7 +953,7 @@ Based on RFC 4271 and ZeBGP requirements:
 Following Turso's model:
 
 ```go
-// pkg/sim/property.go
+// internal/sim/property.go
 
 type Property interface {
     Name() string
@@ -1089,7 +1089,7 @@ Timer callbacks and message processing can race:
 ### 10.2 Solution: Event Queue
 
 ```go
-// pkg/sim/fsmqueue.go
+// internal/sim/fsmqueue.go
 
 type FSMEventQueue struct {
     mu      sync.Mutex
@@ -1183,7 +1183,7 @@ Following Turso/Limbo's proven structure:
 ### 11.1 Directory Structure
 
 ```
-pkg/sim/
+internal/sim/
 ├── sim.go              # Main Simulation type, entry point
 ├── clock.go            # Clock interface + VirtualClock
 ├── network.go          # Dialer, Listener, Conn interfaces
@@ -1218,7 +1218,7 @@ pkg/sim/
 ### 11.2 Core Types
 
 ```go
-// pkg/sim/sim.go
+// internal/sim/sim.go
 
 type Simulation struct {
     seed       uint64
@@ -1274,7 +1274,7 @@ func (s *Simulation) Run() error {
 ### 11.3 Interaction Plans (Turso pattern)
 
 ```go
-// pkg/sim/runner/plan.go
+// internal/sim/runner/plan.go
 
 type InteractionPlan struct {
     Steps []Step
@@ -1334,7 +1334,7 @@ type MessageCountAssertion struct {
 When a failure is found, automatically minimize the reproduction:
 
 ```go
-// pkg/sim/shrink/shrink.go
+// internal/sim/shrink/shrink.go
 
 func Shrink(plan InteractionPlan, seed uint64) InteractionPlan {
     // Binary search to find minimal failing plan
@@ -1408,13 +1408,13 @@ Replay command:
 ### Phase 1: Clock Abstraction (2-3 days)
 
 **Files to create:**
-- `pkg/sim/clock.go` - Clock interface + implementations (~150 LOC)
+- `internal/sim/clock.go` - Clock interface + implementations (~150 LOC)
 
 **Files to modify:**
-- `pkg/bgp/fsm/timer.go` - Add `Clock` parameter to `Timers`
-- `pkg/reactor/session.go` - Add `Clock` for deadline calculations
-- `pkg/reactor/peer.go` - Add `Clock` for backoff
-- `pkg/reactor/reactor.go` - Add `Clock` for startup time
+- `internal/bgp/fsm/timer.go` - Add `Clock` parameter to `Timers`
+- `internal/reactor/session.go` - Add `Clock` for deadline calculations
+- `internal/reactor/peer.go` - Add `Clock` for backoff
+- `internal/reactor/reactor.go` - Add `Clock` for startup time
 
 **Backward compatibility:**
 - Default to `RealClock{}` in constructors
@@ -1423,12 +1423,12 @@ Replay command:
 ### Phase 2: Network Abstraction (3-4 days)
 
 **Files to create:**
-- `pkg/sim/network.go` - Dialer, Listener, Conn interfaces (~300 LOC)
-- `pkg/sim/mockconn.go` - Mock connection implementation (~200 LOC)
+- `internal/sim/network.go` - Dialer, Listener, Conn interfaces (~300 LOC)
+- `internal/sim/mockconn.go` - Mock connection implementation (~200 LOC)
 
 **Files to modify:**
-- `pkg/reactor/session.go` - Inject `Dialer` interface
-- `pkg/reactor/listener.go` - Inject `ListenerFactory` interface
+- `internal/reactor/session.go` - Inject `Dialer` interface
+- `internal/reactor/listener.go` - Inject `ListenerFactory` interface
 
 **Backward compatibility:**
 - Default to real `net` package implementations
@@ -1437,8 +1437,8 @@ Replay command:
 ### Phase 3: Scheduler & Yield Points (3-4 days)
 
 **Files to create:**
-- `pkg/sim/scheduler.go` - Goroutine scheduler (~200 LOC)
-- `pkg/sim/goroutine.go` - SimGoroutine type (~100 LOC)
+- `internal/sim/scheduler.go` - Goroutine scheduler (~200 LOC)
+- `internal/sim/goroutine.go` - SimGoroutine type (~100 LOC)
 
 **Strategy for select replacement:**
 
@@ -1479,8 +1479,8 @@ func (s *Session) Run(ctx context.Context) error {
 ### Phase 4: Fault Injection (2-3 days)
 
 **Files to create:**
-- `pkg/sim/fault.go` - FaultInjector (~150 LOC)
-- `pkg/sim/fault_types.go` - Fault type definitions (~100 LOC)
+- `internal/sim/fault.go` - FaultInjector (~150 LOC)
+- `internal/sim/fault_types.go` - Fault type definitions (~100 LOC)
 
 **Integration:**
 - MockConn checks FaultInjector before Read/Write
@@ -1490,9 +1490,9 @@ func (s *Session) Run(ctx context.Context) error {
 ### Phase 5: Event Logging & Replay (2-3 days)
 
 **Files to create:**
-- `pkg/sim/event.go` - Event types (~200 LOC)
-- `pkg/sim/eventlog.go` - Logging (~150 LOC)
-- `pkg/sim/replay.go` - Replay mechanism (~200 LOC)
+- `internal/sim/event.go` - Event types (~200 LOC)
+- `internal/sim/eventlog.go` - Logging (~150 LOC)
+- `internal/sim/replay.go` - Replay mechanism (~200 LOC)
 
 ### Phase 6: Test Migration (3-5 days)
 
@@ -1563,51 +1563,51 @@ func TestCollisionResolution(t *testing.T) {
 ### 14.1 All time.Now() Calls
 
 ```
-pkg/reactor/reactor.go:1457    r.startTime = time.Now()
-pkg/reactor/reactor.go:1697    conn.SetReadDeadline(time.Now().Add(holdTime))
-pkg/reactor/session.go:479     conn.SetReadDeadline(time.Now().Add(100*ms))
-pkg/reactor/session.go:504     conn.SetReadDeadline(time.Now().Add(5*s))
+internal/reactor/reactor.go:1457    r.startTime = time.Now()
+internal/reactor/reactor.go:1697    conn.SetReadDeadline(time.Now().Add(holdTime))
+internal/reactor/session.go:479     conn.SetReadDeadline(time.Now().Add(100*ms))
+internal/reactor/session.go:504     conn.SetReadDeadline(time.Now().Add(5*s))
 ```
 
 ### 14.2 All time.Sleep() Calls
 
 ```
-pkg/reactor/session.go:474     time.Sleep(10 * time.Millisecond)
-pkg/reactor/peer_test.go:67    time.Sleep(20 * time.Millisecond)
-pkg/reactor/peer_test.go:121   time.Sleep(50 * time.Millisecond)
+internal/reactor/session.go:474     time.Sleep(10 * time.Millisecond)
+internal/reactor/peer_test.go:67    time.Sleep(20 * time.Millisecond)
+internal/reactor/peer_test.go:121   time.Sleep(50 * time.Millisecond)
 ... (21 total, mostly in tests)
 ```
 
 ### 14.3 All time.After() Calls
 
 ```
-pkg/reactor/peer.go:493        case <-time.After(delay):
-pkg/reactor/listener_test.go:203  case <-time.After(time.Second):
+internal/reactor/peer.go:493        case <-time.After(delay):
+internal/reactor/listener_test.go:203  case <-time.After(time.Second):
 ... (9 total)
 ```
 
 ### 14.4 All time.AfterFunc() Calls
 
 ```
-pkg/bgp/fsm/timer.go:151       t.holdTimer = time.AfterFunc(t.holdTime, func() {...})
-pkg/bgp/fsm/timer.go:188       t.holdTimer = time.AfterFunc(t.holdTime, func() {...})
-pkg/bgp/fsm/timer.go:269       t.keepaliveTimer = time.AfterFunc(keepaliveInterval, timerFunc)
-pkg/bgp/fsm/timer.go:319       t.connectRetryTimer = time.AfterFunc(t.connectRetryTime, func() {...})
+internal/bgp/fsm/timer.go:151       t.holdTimer = time.AfterFunc(t.holdTime, func() {...})
+internal/bgp/fsm/timer.go:188       t.holdTimer = time.AfterFunc(t.holdTime, func() {...})
+internal/bgp/fsm/timer.go:269       t.keepaliveTimer = time.AfterFunc(keepaliveInterval, timerFunc)
+internal/bgp/fsm/timer.go:319       t.connectRetryTimer = time.AfterFunc(t.connectRetryTime, func() {...})
 ```
 
 ### 14.5 All Select Statements (33)
 
 ```
-pkg/reactor/listener.go:122,137,146
-pkg/reactor/peer.go:446,462,471,490
-pkg/reactor/session.go:90,434,458
-pkg/reactor/reactor.go:1537
-pkg/reactor/signal.go:119,133
-pkg/plugin/server.go:140,155,169,249,323
-pkg/plugin/process.go:245,272,311,439
-pkg/testpeer/peer.go:179,195,207,304
-pkg/plugin/process_test.go:422
-pkg/bgp/fsm/timer_test.go:44,74,82,131,180
+internal/reactor/listener.go:122,137,146
+internal/reactor/peer.go:446,462,471,490
+internal/reactor/session.go:90,434,458
+internal/reactor/reactor.go:1537
+internal/reactor/signal.go:119,133
+internal/plugin/server.go:140,155,169,249,323
+internal/plugin/process.go:245,272,311,439
+internal/test/peer/peer.go:179,195,207,304
+internal/plugin/process_test.go:422
+internal/bgp/fsm/timer_test.go:44,74,82,131,180
 ```
 
 ### 14.6 All Goroutine Spawns (60)
@@ -1618,15 +1618,15 @@ Test locations: 48 in various `*_test.go` files.
 ### 14.7 All Channel Creations (19)
 
 ```
-pkg/reactor/session.go:76      errChan = make(chan error, 2)
-pkg/reactor/listener.go:116    done = make(chan struct{})
-pkg/reactor/peer.go:440        done = make(chan struct{})
-pkg/reactor/reactor.go:1531    done = make(chan struct{})
-pkg/reactor/signal.go:38       sigChan = make(chan os.Signal, 1)
-pkg/reactor/signal.go:113      done = make(chan struct{})
-pkg/plugin/process.go:182         lines = make(chan string, 100)
-pkg/plugin/process.go:185         writeQueue = make(chan []byte, WriteQueueHighWater)
-pkg/plugin/server.go:134          done = make(chan struct{})
+internal/reactor/session.go:76      errChan = make(chan error, 2)
+internal/reactor/listener.go:116    done = make(chan struct{})
+internal/reactor/peer.go:440        done = make(chan struct{})
+internal/reactor/reactor.go:1531    done = make(chan struct{})
+internal/reactor/signal.go:38       sigChan = make(chan os.Signal, 1)
+internal/reactor/signal.go:113      done = make(chan struct{})
+internal/plugin/process.go:182         lines = make(chan string, 100)
+internal/plugin/process.go:185         writeQueue = make(chan []byte, WriteQueueHighWater)
+internal/plugin/server.go:134          done = make(chan struct{})
 ... (19 total)
 ```
 

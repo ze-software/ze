@@ -10,7 +10,7 @@
 
 > "The FSM is purely a state transition tracker. It does not handle I/O, timers,
 > or message sending directly... this design forces the Reactor to handle all the
-> complexity of timer management and I/O, leading to the bloat observed in pkg/reactor."
+> complexity of timer management and I/O, leading to the bloat observed in internal/reactor."
 
 ---
 
@@ -21,7 +21,7 @@
 The original critique stated FSM doesn't handle timers. **This is false.**
 
 ```
-pkg/bgp/fsm/
+internal/bgp/fsm/
 ├── fsm.go      # State transitions (440 LOC)
 ├── timer.go    # Timer management (360 LOC)  ← TIMERS ARE HERE
 ├── state.go    # State/Event definitions
@@ -59,7 +59,7 @@ These are separate concerns. "Fixing" FSM design would not reduce reactor bloat.
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                      pkg/bgp/fsm/                            │
+│                      internal/bgp/fsm/                            │
 │  ┌─────────────────┐          ┌─────────────────┐           │
 │  │    fsm.go       │          │   timer.go      │           │
 │  │  State Machine  │          │  Timer Manager  │           │
@@ -72,7 +72,7 @@ These are separate concerns. "Fixing" FSM design would not reduce reactor bloat.
                          │ uses
                          ▼
 ┌─────────────────────────────────────────────────────────────┐
-│                   pkg/reactor/session.go                     │
+│                   internal/reactor/session.go                     │
 │                                                              │
 │  - Orchestrates FSM events                                   │
 │  - Wires timer callbacks (~20 LOC)                           │
@@ -127,7 +127,7 @@ The original critique is based on incorrect understanding of the codebase:
 
 | Claim | Reality |
 |-------|---------|
-| "FSM doesn't handle timers" | Timers in `pkg/bgp/fsm/timer.go` |
+| "FSM doesn't handle timers" | Timers in `internal/bgp/fsm/timer.go` |
 | "Forces complexity onto Reactor" | Timer wiring is ~20 LOC |
 | "Leading to bloat in reactor" | Bloat is from encoding, not timers |
 
@@ -146,10 +146,10 @@ The actual problem (encoding logic in peer.go) is addressed in:
 
 | File | LOC | Role |
 |------|-----|------|
-| `pkg/bgp/fsm/fsm.go` | 440 | State machine |
-| `pkg/bgp/fsm/timer.go` | 360 | Timer management |
-| `pkg/bgp/fsm/state.go` | ~50 | State/Event definitions |
-| `pkg/reactor/session.go` | 950 | Orchestration |
+| `internal/bgp/fsm/fsm.go` | 440 | State machine |
+| `internal/bgp/fsm/timer.go` | 360 | Timer management |
+| `internal/bgp/fsm/state.go` | ~50 | State/Event definitions |
+| `internal/reactor/session.go` | 950 | Orchestration |
 
 ---
 

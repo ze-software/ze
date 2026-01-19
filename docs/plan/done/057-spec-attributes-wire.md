@@ -94,7 +94,7 @@ func (a *AttributesWire) SourceContext() bgpctx.ContextID
 
 ## Implementation
 
-### File: `pkg/bgp/attribute/wire.go`
+### File: `internal/bgp/attribute/wire.go`
 
 ```go
 package attribute
@@ -103,7 +103,7 @@ import (
     "fmt"
     "sync"
 
-    bgpctx "codeberg.org/thomas-mangin/zebgp/pkg/bgp/context"
+    bgpctx "codeberg.org/thomas-mangin/zebgp/internal/bgp/context"
 )
 
 // attrIndex caches attribute location within packed bytes.
@@ -563,9 +563,9 @@ func TestAttributesWireOriginatorID(t *testing.T)
 
 ## Dependencies
 
-- `pkg/bgp/context/` (EncodingContext, ContextID, Registry) - EXISTS
+- `internal/bgp/context/` (EncodingContext, ContextID, Registry) - EXISTS
   - **Requirement:** `Registry.Get()` must be thread-safe (concurrent reads)
-- `pkg/bgp/attribute/` (Attribute interface, ParseHeader, Parse* functions) - EXISTS
+- `internal/bgp/attribute/` (Attribute interface, ParseHeader, Parse* functions) - EXISTS
   - **Attribute interface:**
     ```go
     type Attribute interface {

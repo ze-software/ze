@@ -50,20 +50,20 @@ RawMessage                    ReceivedUpdate
 
 | File | Changes |
 |------|---------|
-| `pkg/plugin/wire_update.go` | Add `messageID uint64` field, `MessageID()` accessor, `SetMessageID()` |
-| `pkg/reactor/received_update.go` | Remove `UpdateID` field |
-| `pkg/reactor/recent_cache.go` | Use `update.WireUpdate.MessageID()` as key |
-| `pkg/reactor/reactor.go` | Call `wireUpdate.SetMessageID(messageID)` after creation |
-| `pkg/plugin/json.go` | Restructure all encoders: wrap content in `"message":{...}` with `id`, `time` |
-| `pkg/plugin/text.go` | Update JSON formatting for UPDATEs to use new structure |
-| `pkg/plugin/json_test.go` | Update expected JSON format |
-| `pkg/reactor/*_test.go` | Update tests that set `UpdateID` |
+| `internal/plugin/wire_update.go` | Add `messageID uint64` field, `MessageID()` accessor, `SetMessageID()` |
+| `internal/reactor/received_update.go` | Remove `UpdateID` field |
+| `internal/reactor/recent_cache.go` | Use `update.WireUpdate.MessageID()` as key |
+| `internal/reactor/reactor.go` | Call `wireUpdate.SetMessageID(messageID)` after creation |
+| `internal/plugin/json.go` | Restructure all encoders: wrap content in `"message":{...}` with `id`, `time` |
+| `internal/plugin/text.go` | Update JSON formatting for UPDATEs to use new structure |
+| `internal/plugin/json_test.go` | Update expected JSON format |
+| `internal/reactor/*_test.go` | Update tests that set `UpdateID` |
 
 ## Implementation Steps
 
 ### Step 1: Add messageID to WireUpdate
 
-**pkg/plugin/wire_update.go:**
+**internal/plugin/wire_update.go:**
 ```go
 type WireUpdate struct {
     payload     []byte
@@ -83,7 +83,7 @@ Constructor unchanged - ID set by reactor after WireUpdate created.
 
 ### Step 2: Set ID in reactor
 
-**pkg/reactor/reactor.go:2421-2440:**
+**internal/reactor/reactor.go:2421-2440:**
 ```go
 // Zero-copy path for received UPDATE messages
 if wireUpdate != nil {
@@ -112,7 +112,7 @@ if wireUpdate != nil {
 
 ### Step 3: Remove UpdateID from ReceivedUpdate
 
-**pkg/reactor/received_update.go:28-31:**
+**internal/reactor/received_update.go:28-31:**
 ```go
 type ReceivedUpdate struct {
     // UpdateID uint64  // REMOVED - use WireUpdate.MessageID()
@@ -123,7 +123,7 @@ type ReceivedUpdate struct {
 
 ### Step 4: Update cache to use WireUpdate.MessageID()
 
-**pkg/reactor/recent_cache.go:71:**
+**internal/reactor/recent_cache.go:71:**
 ```go
 // Before:
 c.entries[update.UpdateID] = &cacheEntry{...}
@@ -151,7 +151,7 @@ func (e *JSONEncoder) messageWrapper(msgType string, msgID uint64) map[string]an
 }
 ```
 
-**pkg/plugin/json.go - all message types:**
+**internal/plugin/json.go - all message types:**
 ```go
 // Before:
 msg := e.message(peer, "notification")
@@ -178,12 +178,12 @@ msg["peer"] = peerObj
 
 | Test File | Changes |
 |-----------|---------|
-| `pkg/reactor/received_update_test.go` | Remove `UpdateID:` from struct literals |
-| `pkg/reactor/recent_cache_test.go` | Use `WireUpdate.MessageID()` where needed |
-| `pkg/reactor/forward_split_test.go` | Same |
-| `pkg/plugin/json_test.go` | Update expected JSON: `"message":{"id":...}` structure |
-| `pkg/plugin/text_test.go` | Update expected output strings if needed |
-| `pkg/plugin/wire_update_test.go` | Add tests for `MessageID()` and `SetMessageID()` |
+| `internal/reactor/received_update_test.go` | Remove `UpdateID:` from struct literals |
+| `internal/reactor/recent_cache_test.go` | Use `WireUpdate.MessageID()` where needed |
+| `internal/reactor/forward_split_test.go` | Same |
+| `internal/plugin/json_test.go` | Update expected JSON: `"message":{"id":...}` structure |
+| `internal/plugin/text_test.go` | Update expected output strings if needed |
+| `internal/plugin/wire_update_test.go` | Add tests for `MessageID()` and `SetMessageID()` |
 
 ## Verification
 

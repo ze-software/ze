@@ -111,7 +111,7 @@ path-id(4) + normal_nlri
 ### 1. NLRI Splitter Registry
 
 ```go
-// pkg/bgp/message/nlri_split.go
+// internal/bgp/message/nlri_split.go
 
 // NLRISplitter knows how to find NLRI boundaries for a specific AFI/SAFI.
 type NLRISplitter interface {
@@ -243,7 +243,7 @@ func (flowspecNLRISplitter) NextNLRI(data []byte, addPath bool) (int, error) {
 ### 3. Split Functions
 
 ```go
-// pkg/plugin/wire_update_split.go
+// internal/plugin/wire_update_split.go
 
 // SplitUpdate splits a WireUpdate into multiple RFC-compliant UPDATEs.
 // Each output fits within maxBodySize (excludes 19-byte header).
@@ -701,7 +701,7 @@ func buildUpdatePayload(ipv4Withdraws, baseAttrs, mpUnreach, mpReach, ipv4NLRI [
 ### 8. Update ForwardUpdateByID
 
 ```go
-// In pkg/reactor/reactor.go ForwardUpdateByID
+// In internal/reactor/reactor.go ForwardUpdateByID
 
 if updateSize > maxMsgSize {
     // Split path: UPDATE too large for this peer
@@ -722,13 +722,13 @@ if updateSize > maxMsgSize {
 
 ## Files to Modify
 
-- `pkg/bgp/message/nlri_split.go` - **NEW:** NLRI splitter registry and implementations
-- `pkg/bgp/message/nlri_split_test.go` - **NEW:** Tests for NLRI splitters
-- `pkg/plugin/wire_update_split.go` - **NEW:** SplitUpdate and helpers
-- `pkg/plugin/wire_update_split_test.go` - **NEW:** Split function tests
-- `pkg/reactor/reactor.go` - Update ForwardUpdateByID to use SplitUpdate
-- `pkg/reactor/received_update.go` - Delete `ConvertToRoutes()` and related fields
-- `pkg/reactor/received_update_test.go` - Delete `ConvertToRoutes` tests
+- `internal/bgp/message/nlri_split.go` - **NEW:** NLRI splitter registry and implementations
+- `internal/bgp/message/nlri_split_test.go` - **NEW:** Tests for NLRI splitters
+- `internal/plugin/wire_update_split.go` - **NEW:** SplitUpdate and helpers
+- `internal/plugin/wire_update_split_test.go` - **NEW:** Split function tests
+- `internal/reactor/reactor.go` - Update ForwardUpdateByID to use SplitUpdate
+- `internal/reactor/received_update.go` - Delete `ConvertToRoutes()` and related fields
+- `internal/reactor/received_update_test.go` - Delete `ConvertToRoutes` tests
 
 ## Edge Cases
 
@@ -827,13 +827,13 @@ Existing `make functional` should pass - split behavior tested via ForwardUpdate
 
 **Tests FAIL (before implementation):**
 ```
-pkg/plugin/wire_update_split_test.go:26:15: undefined: SplitWireUpdate
-FAIL    codeberg.org/thomas-mangin/zebgp/pkg/plugin [build failed]
+internal/plugin/wire_update_split_test.go:26:15: undefined: SplitWireUpdate
+FAIL    codeberg.org/thomas-mangin/zebgp/internal/plugin [build failed]
 ```
 
 **Tests PASS (after implementation):**
 ```
-ok      codeberg.org/thomas-mangin/zebgp/pkg/plugin    0.585s
+ok      codeberg.org/thomas-mangin/zebgp/internal/plugin    0.585s
 ```
 
 **Verification:**
@@ -887,11 +887,11 @@ ok      codeberg.org/thomas-mangin/zebgp/pkg/plugin    0.585s
 ## Files Created/Modified
 
 **New files:**
-- `pkg/plugin/wire_update_split.go` - Main split implementation
-- `pkg/plugin/wire_update_split_test.go` - 28 tests
+- `internal/plugin/wire_update_split.go` - Main split implementation
+- `internal/plugin/wire_update_split_test.go` - 28 tests
 
 **Modified files:**
-- `pkg/reactor/reactor.go` - ForwardUpdate uses SplitWireUpdate
+- `internal/reactor/reactor.go` - ForwardUpdate uses SplitWireUpdate
 
 ## Known Limitations
 

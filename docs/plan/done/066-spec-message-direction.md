@@ -17,16 +17,16 @@ Add `direction` ("sent"/"received") to BGP message API output for OPEN, NOTIFICA
 
 | File | Changes |
 |------|---------|
-| `pkg/reactor/session.go:41` | Update `MessageCallback` signature to add `direction string` |
-| `pkg/reactor/session.go:562-564` | Pass `"received"` in `processMessage()` |
-| `pkg/reactor/session.go:1006` | Fire callback with `"sent"` after `sendOpen()` |
-| `pkg/reactor/session.go:1011` | Fire callback with `"sent"` after `sendKeepalive()` |
-| `pkg/reactor/session.go:1021` | Fire callback with `"sent"` after `sendNotification()` |
-| `pkg/reactor/peer.go` | Signature update propagates automatically |
-| `pkg/reactor/reactor.go:2415` | Update `notifyMessageReceiver` to accept/set direction |
-| `pkg/plugin/types.go:448` | Add `Direction string` to `RawMessage` |
-| `pkg/plugin/text.go` | Update `FormatOpen`, `FormatNotification`, `FormatKeepalive` to use direction |
-| `pkg/plugin/server.go:452-488` | Pass `msg.Direction` to formatters |
+| `internal/reactor/session.go:41` | Update `MessageCallback` signature to add `direction string` |
+| `internal/reactor/session.go:562-564` | Pass `"received"` in `processMessage()` |
+| `internal/reactor/session.go:1006` | Fire callback with `"sent"` after `sendOpen()` |
+| `internal/reactor/session.go:1011` | Fire callback with `"sent"` after `sendKeepalive()` |
+| `internal/reactor/session.go:1021` | Fire callback with `"sent"` after `sendNotification()` |
+| `internal/reactor/peer.go` | Signature update propagates automatically |
+| `internal/reactor/reactor.go:2415` | Update `notifyMessageReceiver` to accept/set direction |
+| `internal/plugin/types.go:448` | Add `Direction string` to `RawMessage` |
+| `internal/plugin/text.go` | Update `FormatOpen`, `FormatNotification`, `FormatKeepalive` to use direction |
+| `internal/plugin/server.go:452-488` | Pass `msg.Direction` to formatters |
 
 ## Current State
 - Tests: `make test` PASS, `make lint` 0 issues, `make functional` 37/37

@@ -77,10 +77,10 @@ sendOpen() → wait for peer OPEN
 ### Key Files
 | File | Purpose |
 |------|---------|
-| `pkg/reactor/reactor.go` | `handleConnection()` - entry point |
-| `pkg/reactor/peer.go` | `AcceptConnection()` - peer level |
-| `pkg/reactor/session.go` | `Accept()` - session level, FSM interaction |
-| `pkg/bgp/fsm/fsm.go` | FSM states and transitions |
+| `internal/reactor/reactor.go` | `handleConnection()` - entry point |
+| `internal/reactor/peer.go` | `AcceptConnection()` - peer level |
+| `internal/reactor/session.go` | `Accept()` - session level, FSM interaction |
+| `internal/bgp/fsm/fsm.go` | FSM states and transitions |
 
 ### Current Gap
 `session.Accept()` simply rejects if connection exists:
@@ -252,7 +252,7 @@ var ErrAlreadyConnected = errors.New("already connected")
 var ErrNotConnected = errors.New("not connected")
 ```
 
-### NOTIFICATION Subcodes (pkg/bgp/message/notification.go)
+### NOTIFICATION Subcodes (internal/bgp/message/notification.go)
 ```go
 CeaseConnectionCollisionResolution = 7
 ```
@@ -270,7 +270,7 @@ Already defined - good.
 
 ## Test Specification
 
-**Test file:** `pkg/reactor/collision_test.go`
+**Test file:** `internal/reactor/collision_test.go`
 
 ### Test Cases
 

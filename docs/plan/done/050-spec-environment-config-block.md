@@ -6,10 +6,10 @@
 ┌─────────────────────────────────────────────────────────────────┐
 │  Read these source files before implementing:                   │
 │                                                                 │
-│  1. pkg/config/environment.go (Environment struct, loading)     │
-│  2. pkg/config/environment_test.go (test patterns)              │
-│  3. pkg/config/schema.go (config parsing patterns)              │
-│  4. pkg/config/parser.go (main config parser)                   │
+│  1. internal/config/environment.go (Environment struct, loading)     │
+│  2. internal/config/environment_test.go (test patterns)              │
+│  3. internal/config/schema.go (config parsing patterns)              │
+│  4. internal/config/parser.go (main config parser)                   │
 │  5. .claude/zebgp/config/SYNTAX.md (syntax reference)           │
 │                                                                 │
 │  ExaBGP Reference:                                              │
@@ -36,7 +36,7 @@ Add `environment` block support to ZeBGP configuration files, allowing users to 
 
 ### Current Flow
 
-1. `LoadEnvironment()` called in `pkg/config/loader.go`
+1. `LoadEnvironment()` called in `internal/config/loader.go`
 2. Sets defaults via `loadDefaults()`
 3. Reads OS environment via `loadFromEnv()`
 4. **Silent ignore** on parse errors (e.g., `zebgp.tcp.port=abc` → uses default)
@@ -221,7 +221,7 @@ Maps directly to Environment struct sections (LogEnv, TCPEnv, etc.).
 Use table-driven approach to reduce boilerplate:
 
 ```go
-// pkg/config/environment.go
+// internal/config/environment.go
 
 // envOption defines how to set an environment option.
 type envOption struct {
@@ -349,7 +349,7 @@ func parseOctalStrict(value string) (int, error) {
 ### API Changes
 
 ```go
-// pkg/config/environment.go
+// internal/config/environment.go
 
 // SetConfigValue applies a single config value from the environment block.
 // Returns error for unknown section/option, type parse failure, or validation failure.
@@ -428,7 +428,7 @@ func LoadEnvironment() (*Environment, error) {
 ### Schema Addition
 
 ```go
-// pkg/config/schema.go - add to sectionParsers
+// internal/config/schema.go - add to sectionParsers
 
 "environment": parseEnvironment,
 
@@ -537,7 +537,7 @@ func init() {
 
 ### Integration Point
 
-In `pkg/config/loader.go`, when creating reactor config:
+In `internal/config/loader.go`, when creating reactor config:
 
 ```go
 func LoadReactorFile(path string) (*ReactorConfig, error) {

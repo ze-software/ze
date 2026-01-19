@@ -31,21 +31,21 @@ Wire Chunk 1's parser to reactor via `peer <addr> update text ...` handler.
 
 | Test | File | Validates |
 |------|------|-----------|
-| `TestHandleUpdateText_SimpleAnnounce` | `pkg/plugin/update_text_test.go` | Single route announced |
-| `TestHandleUpdateText_MultipleRoutes` | `pkg/plugin/update_text_test.go` | Multiple NLRIs batched in one group |
-| `TestHandleUpdateText_MixedAnnounceWithdraw` | `pkg/plugin/update_text_test.go` | Add and del in same call |
-| `TestHandleUpdateText_MultipleGroups` | `pkg/plugin/update_text_test.go` | Different attrs per group |
-| `TestHandleUpdateText_WithdrawUnicast` | `pkg/plugin/update_text_test.go` | Unicast withdrawal batch |
-| `TestHandleUpdateText_WithdrawLabeled` | `pkg/plugin/update_text_test.go` | Labeled unicast withdrawal |
-| `TestHandleUpdateText_WithdrawL3VPN` | `pkg/plugin/update_text_test.go` | L3VPN withdrawal batch |
-| `TestHandleUpdateText_ParseError` | `pkg/plugin/update_text_test.go` | Invalid input returns error |
-| `TestHandleUpdateText_PeerNotFound` | `pkg/plugin/update_text_test.go` | Reactor returns no peers error |
-| `TestHandleUpdateText_InvalidFamily` | `pkg/plugin/update_text_test.go` | Unsupported family error |
-| `TestHandleUpdateText_WatchdogDeferred` | `pkg/plugin/update_text_test.go` | Watchdog returns error (deferred) |
-| `TestHandleUpdateText_EmptyResult` | `pkg/plugin/update_text_test.go` | Empty groups returns warning |
-| `TestAnnounceNLRIBatch_LargeBatch` | `pkg/reactor/reactor_batch_test.go` | Batch exceeding wire limit splits |
-| `TestAnnounceNLRIBatch_PeerCapabilities` | `pkg/reactor/reactor_batch_test.go` | Respects ExtendedMessage |
-| `TestWithdrawNLRIBatch_MultipleNLRIs` | `pkg/reactor/reactor_batch_test.go` | Batched withdraw |
+| `TestHandleUpdateText_SimpleAnnounce` | `internal/plugin/update_text_test.go` | Single route announced |
+| `TestHandleUpdateText_MultipleRoutes` | `internal/plugin/update_text_test.go` | Multiple NLRIs batched in one group |
+| `TestHandleUpdateText_MixedAnnounceWithdraw` | `internal/plugin/update_text_test.go` | Add and del in same call |
+| `TestHandleUpdateText_MultipleGroups` | `internal/plugin/update_text_test.go` | Different attrs per group |
+| `TestHandleUpdateText_WithdrawUnicast` | `internal/plugin/update_text_test.go` | Unicast withdrawal batch |
+| `TestHandleUpdateText_WithdrawLabeled` | `internal/plugin/update_text_test.go` | Labeled unicast withdrawal |
+| `TestHandleUpdateText_WithdrawL3VPN` | `internal/plugin/update_text_test.go` | L3VPN withdrawal batch |
+| `TestHandleUpdateText_ParseError` | `internal/plugin/update_text_test.go` | Invalid input returns error |
+| `TestHandleUpdateText_PeerNotFound` | `internal/plugin/update_text_test.go` | Reactor returns no peers error |
+| `TestHandleUpdateText_InvalidFamily` | `internal/plugin/update_text_test.go` | Unsupported family error |
+| `TestHandleUpdateText_WatchdogDeferred` | `internal/plugin/update_text_test.go` | Watchdog returns error (deferred) |
+| `TestHandleUpdateText_EmptyResult` | `internal/plugin/update_text_test.go` | Empty groups returns warning |
+| `TestAnnounceNLRIBatch_LargeBatch` | `internal/reactor/reactor_batch_test.go` | Batch exceeding wire limit splits |
+| `TestAnnounceNLRIBatch_PeerCapabilities` | `internal/reactor/reactor_batch_test.go` | Respects ExtendedMessage |
+| `TestWithdrawNLRIBatch_MultipleNLRIs` | `internal/reactor/reactor_batch_test.go` | Batched withdraw |
 
 ### Functional Tests
 
@@ -57,25 +57,25 @@ Wire Chunk 1's parser to reactor via `peer <addr> update text ...` handler.
 
 ## Files to Modify
 
-- `pkg/plugin/types.go` - Add `NLRIBatch` type, add methods to `ReactorInterface`
-- `pkg/plugin/update_text.go` - Add handler functions, batch dispatch
-- `pkg/plugin/update_text_test.go` - **CREATE** Handler tests
-- `pkg/plugin/route.go` - Register "update" command in `RegisterRouteHandlers`
-- `pkg/reactor/reactor.go` - Add `AnnounceNLRIBatch`, `WithdrawNLRIBatch` methods
-- `pkg/reactor/reactor_batch_test.go` - **CREATE** Batch method tests
+- `internal/plugin/types.go` - Add `NLRIBatch` type, add methods to `ReactorInterface`
+- `internal/plugin/update_text.go` - Add handler functions, batch dispatch
+- `internal/plugin/update_text_test.go` - **CREATE** Handler tests
+- `internal/plugin/route.go` - Register "update" command in `RegisterRouteHandlers`
+- `internal/reactor/reactor.go` - Add `AnnounceNLRIBatch`, `WithdrawNLRIBatch` methods
+- `internal/reactor/reactor_batch_test.go` - **CREATE** Batch method tests
 
 ---
 
 ## Implementation Steps
 
-1. **Write tests** - Create `pkg/plugin/update_text_test.go` and `pkg/reactor/reactor_batch_test.go`
+1. **Write tests** - Create `internal/plugin/update_text_test.go` and `internal/reactor/reactor_batch_test.go`
 2. **Run tests** - Verify FAIL (paste output)
-3. **Add types** - Add `NLRIBatch` to `pkg/plugin/types.go`
+3. **Add types** - Add `NLRIBatch` to `internal/plugin/types.go`
 4. **Add interface** - Add `AnnounceNLRIBatch`, `WithdrawNLRIBatch` to `ReactorInterface`
-5. **Implement reactor** - Add methods to `pkg/reactor/reactor.go`
+5. **Implement reactor** - Add methods to `internal/reactor/reactor.go`
 6. **Run reactor tests** - Verify PASS (paste output)
-7. **Implement handler** - Add functions to `pkg/plugin/update_text.go`
-8. **Register command** - Add to `RegisterRouteHandlers` in `pkg/plugin/route.go`
+7. **Implement handler** - Add functions to `internal/plugin/update_text.go`
+8. **Register command** - Add to `RegisterRouteHandlers` in `internal/plugin/route.go`
 9. **Run handler tests** - Verify PASS (paste output)
 10. **Verify all** - `make lint && make test && make functional`
 11. **RFC refs** - Add RFC comments to protocol code
@@ -140,11 +140,11 @@ curl -o rfc/rfc8654.txt https://www.rfc-editor.org/rfc/rfc8654.txt
 
 | Function | Location | Purpose |
 |----------|----------|---------|
-| `message.MaxMessageLength()` | `pkg/bgp/message/` | Get max size per peer |
-| `message.NewUpdateBuilder()` | `pkg/bgp/message/` | Build batched UPDATE |
-| `peer.sendUpdateWithSplit()` | `pkg/reactor/peer.go:1487` | Size-aware sending |
-| `peer.packContext()` | `pkg/reactor/peer.go` | Get ADD-PATH/ASN4 context |
-| `getMatchingPeers()` | `pkg/reactor/reactor.go` | Peer selection |
+| `message.MaxMessageLength()` | `internal/bgp/message/` | Get max size per peer |
+| `message.NewUpdateBuilder()` | `internal/bgp/message/` | Build batched UPDATE |
+| `peer.sendUpdateWithSplit()` | `internal/reactor/peer.go:1487` | Size-aware sending |
+| `peer.packContext()` | `internal/reactor/peer.go` | Get ADD-PATH/ASN4 context |
+| `getMatchingPeers()` | `internal/reactor/reactor.go` | Peer selection |
 
 ---
 
@@ -339,13 +339,13 @@ func handleUpdateText(ctx *CommandContext, args []string) (*Response, error) {
 
 | File | Changes |
 |------|---------|
-| `pkg/plugin/errors.go` | +`ErrNoPeersAcceptedFamily` |
-| `pkg/plugin/types.go` | +`NLRIBatch`, +interface methods |
-| `pkg/plugin/update_text.go` | +handlers, +warning logic |
-| `pkg/plugin/update_text_test.go` | +18 handler tests |
-| `pkg/plugin/route.go` | +register "update" command |
-| `pkg/reactor/reactor.go` | +batch methods with splitting, family check, queue |
-| `pkg/reactor/reactor_batch_test.go` | +12 reactor tests |
-| `pkg/plugin/handler_test.go` | +interface stubs |
-| `pkg/plugin/forward_test.go` | +interface stubs |
+| `internal/plugin/errors.go` | +`ErrNoPeersAcceptedFamily` |
+| `internal/plugin/types.go` | +`NLRIBatch`, +interface methods |
+| `internal/plugin/update_text.go` | +handlers, +warning logic |
+| `internal/plugin/update_text_test.go` | +18 handler tests |
+| `internal/plugin/route.go` | +register "update" command |
+| `internal/reactor/reactor.go` | +batch methods with splitting, family check, queue |
+| `internal/reactor/reactor_batch_test.go` | +12 reactor tests |
+| `internal/plugin/handler_test.go` | +interface stubs |
+| `internal/plugin/forward_test.go` | +interface stubs |
 | `.claude/zebgp/api/ARCHITECTURE.md` | +warning status docs |

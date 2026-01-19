@@ -20,22 +20,22 @@ Clean up all `announce route` references from the codebase. The command handler 
 ### Category 1: Dead Code/Comments (delete)
 | File | Line | Content |
 |------|------|---------|
-| `pkg/plugin/route.go` | 208 | `// NOTE: "announce route" removed...` |
-| `pkg/plugin/commit_test.go` | 292-323 | `// TestCommit...Route removed...` (5 comments) |
+| `internal/plugin/route.go` | 208 | `// NOTE: "announce route" removed...` |
+| `internal/plugin/commit_test.go` | 292-323 | `// TestCommit...Route removed...` (5 comments) |
 
 ### Category 2: Test Data Comments (update for accuracy)
 | File | Line | Content |
 |------|------|---------|
-| `pkg/plugin/server_test.go` | 340 | Test case uses `"announce route"` as example |
-| `pkg/plugin/command_test.go` | 161 | Test case tokenizes `"announce route 10.0.0.0/24"` |
-| `pkg/plugin/plugin_test.go` | 248 | Test input `"announce route 10.0.0.0/24"` |
+| `internal/plugin/server_test.go` | 340 | Test case uses `"announce route"` as example |
+| `internal/plugin/command_test.go` | 161 | Test case tokenizes `"announce route 10.0.0.0/24"` |
+| `internal/plugin/plugin_test.go` | 248 | Test input `"announce route 10.0.0.0/24"` |
 
 ### Category 3: Generic Comments (update wording)
 | File | Line | Content |
 |------|------|---------|
-| `pkg/plugin/types.go` | 596 | `// Watchdog pool name for announce routes` |
-| `pkg/config/bgp.go` | 146 | `// Used by both static and announce route schemas` |
-| `test/functional/record.go` | 550 | `// Parse: "1:cmd:announce route..."` |
+| `internal/plugin/types.go` | 596 | `// Watchdog pool name for announce routes` |
+| `internal/config/bgp.go` | 146 | `// Used by both static and announce route schemas` |
+| `internal/test/runner/record.go` | 550 | `// Parse: "1:cmd:announce route..."` |
 
 ### Category 4: Test Data `.ci` Files (documentation update)
 ~30 `.ci` files have `:cmd:announce route ...` lines. These are **documentation only** - the actual test data comes from `.conf` files. Update for documentation accuracy.
@@ -86,14 +86,14 @@ Files in `docs/plan/done/` are historical records. Do not modify.
 ## Files to Modify
 
 ### Code Files
-- `pkg/plugin/route.go` - Remove line 208
-- `pkg/plugin/commit_test.go` - Remove lines 292-323
-- `pkg/plugin/types.go` - Update line 596
-- `pkg/config/bgp.go` - Update line 146
-- `test/functional/record.go` - Update line 550
-- `pkg/plugin/server_test.go` - Update line 340
-- `pkg/plugin/command_test.go` - Update line 161
-- `pkg/plugin/plugin_test.go` - Update line 248
+- `internal/plugin/route.go` - Remove line 208
+- `internal/plugin/commit_test.go` - Remove lines 292-323
+- `internal/plugin/types.go` - Update line 596
+- `internal/config/bgp.go` - Update line 146
+- `internal/test/runner/record.go` - Update line 550
+- `internal/plugin/server_test.go` - Update line 340
+- `internal/plugin/command_test.go` - Update line 161
+- `internal/plugin/plugin_test.go` - Update line 248
 
 ### Test Data Files
 ~30 `.ci` files in `test/data/encode/` and `test/data/plugin/`
@@ -106,7 +106,7 @@ Files in `docs/plan/done/` are historical records. Do not modify.
 ### Unit Tests
 | Test | File | Validates |
 |------|------|-----------|
-| Existing tests | `pkg/plugin/*_test.go` | No regressions from comment/string changes |
+| Existing tests | `internal/plugin/*_test.go` | No regressions from comment/string changes |
 
 ### Functional Tests
 | Test | Location | Scenario |

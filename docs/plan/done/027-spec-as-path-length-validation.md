@@ -17,13 +17,13 @@ Add AS_PATH attribute validation per RFC 4271:
 
 | File | Change |
 |------|--------|
-| `pkg/bgp/attribute/attribute.go:28-31` | Added `ErrMalformedASPath` error |
-| `pkg/bgp/attribute/aspath.go:25-26` | Fixed RFC 5065 constants (ASConfedSequence=3, ASConfedSet=4) |
-| `pkg/bgp/attribute/aspath.go:34-39` | Added `MaxASPathTotalLength = 1000` |
-| `pkg/bgp/attribute/aspath.go:304-309` | Added segment type validation (1-4) |
-| `pkg/bgp/attribute/aspath.go:311-314` | Added total path length check |
-| `pkg/bgp/attribute/aspath_test.go` | Added 7 new tests |
-| `pkg/bgp/attribute/as4_test.go:565-570` | Fixed wire data for AS_CONFED_SEQUENCE |
+| `internal/bgp/attribute/attribute.go:28-31` | Added `ErrMalformedASPath` error |
+| `internal/bgp/attribute/aspath.go:25-26` | Fixed RFC 5065 constants (ASConfedSequence=3, ASConfedSet=4) |
+| `internal/bgp/attribute/aspath.go:34-39` | Added `MaxASPathTotalLength = 1000` |
+| `internal/bgp/attribute/aspath.go:304-309` | Added segment type validation (1-4) |
+| `internal/bgp/attribute/aspath.go:311-314` | Added total path length check |
+| `internal/bgp/attribute/aspath_test.go` | Added 7 new tests |
+| `internal/bgp/attribute/as4_test.go:565-570` | Fixed wire data for AS_CONFED_SEQUENCE |
 
 ### Tests Added
 

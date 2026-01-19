@@ -22,10 +22,10 @@ announce ipv4/unicast 10.0.0.0/24 rd 100:100 next-hop 1.2.3.4
 
 | File | Changes |
 |------|---------|
-| `pkg/plugin/route_keywords.go` | `UnicastKeywords`, `MPLSKeywords`, `VPNKeywords` |
-| `pkg/plugin/route.go` | `parseRouteAttributes()`, `parseLabeledUnicastAttributes()`, `parseL3VPNAttributes()`, `parseCommonAttribute()` |
-| `pkg/plugin/route_parse_test.go` | Keyword validation tests |
-| `pkg/plugin/handler_test.go` | Handler keyword rejection tests (40+ tests) |
+| `internal/plugin/route_keywords.go` | `UnicastKeywords`, `MPLSKeywords`, `VPNKeywords` |
+| `internal/plugin/route.go` | `parseRouteAttributes()`, `parseLabeledUnicastAttributes()`, `parseL3VPNAttributes()`, `parseCommonAttribute()` |
+| `internal/plugin/route_parse_test.go` | Keyword validation tests |
+| `internal/plugin/handler_test.go` | Handler keyword rejection tests (40+ tests) |
 
 ### Keyword Sets Implemented
 

@@ -33,7 +33,7 @@ Read when working on specific areas:
 | `rules/tdd.md` | `**/*.go` |
 | `rules/testing.md` | `*` (CI, functional tests) |
 | `rules/go-standards.md` | `**/*.go` |
-| `rules/rfc-compliance.md` | `pkg/bgp/**/*.go` |
+| `rules/rfc-compliance.md` | `internal/bgp/**/*.go` |
 | `rules/git-safety.md` | `*` |
 | `rules/config-design.md` | Config changes |
 | `rules/documentation.md` | `**/*.md` |

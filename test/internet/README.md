@@ -102,7 +102,7 @@ curl -O http://archive.routeviews.org/bgpdata/2025.12/UPDATES/updates.20251201.0
 
 ## Usage with ZeBGP
 
-ZeBGP reads MRT directly via `pkg/mrt`:
+ZeBGP reads MRT directly via `internal/mrt`:
 
 - TABLE_DUMP_V2: Full support
 - BGP4MP: Supported for UPDATE replay

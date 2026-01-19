@@ -6,13 +6,13 @@
 ┌─────────────────────────────────────────────────────────────────┐
 │  Read these source files before implementing:                   │
 │                                                                 │
-│  1. pkg/bgp/nlri/inet.go - INET NLRI pattern to follow          │
-│  2. pkg/bgp/message/update_build.go:816-855 - buildLabeledUnicastNLRIBytes │
-│  3. pkg/reactor/reactor.go:167-270 - AnnounceRoute pattern      │
-│  4. pkg/reactor/reactor.go:522-630 - Current labeled-unicast    │
-│  5. pkg/reactor/peer.go:1341-1439 - buildRIBRouteUpdate (SAFI-aware) │
-│  6. pkg/rib/outgoing.go - Adj-RIB-Out methods                   │
-│  7. pkg/plugin/types.go:175-183 - LabeledUnicastRoute type         │
+│  1. internal/bgp/nlri/inet.go - INET NLRI pattern to follow          │
+│  2. internal/bgp/message/update_build.go:816-855 - buildLabeledUnicastNLRIBytes │
+│  3. internal/reactor/reactor.go:167-270 - AnnounceRoute pattern      │
+│  4. internal/reactor/reactor.go:522-630 - Current labeled-unicast    │
+│  5. internal/reactor/peer.go:1341-1439 - buildRIBRouteUpdate (SAFI-aware) │
+│  6. internal/rib/outgoing.go - Adj-RIB-Out methods                   │
+│  7. internal/plugin/types.go:175-183 - LabeledUnicastRoute type         │
 │  8. .claude/zebgp/wire/NLRI.md - Label NLRI wire format         │
 │  9. .claude/zebgp/api/ARCHITECTURE.md - Route injection flow    │
 │                                                                 │
@@ -41,15 +41,15 @@ Complete labeled-unicast API to match AnnounceRoute pattern:
 - Tests: make test PASS, make lint PASS
 - Implementation: COMPLETE (pending commit)
 - Files changed:
-  - `pkg/bgp/nlri/labeled.go` - NEW: nlri.LabeledUnicast type
-  - `pkg/bgp/nlri/labeled_test.go` - NEW: NLRI tests
-  - `pkg/bgp/message/labeled_wire_test.go` - NEW: Wire consistency tests
-  - `pkg/bgp/message/update_build.go` - Fixed ADD-PATH pathID=0 bug
-  - `pkg/plugin/types.go` - Added PathID to LabeledUnicastRoute
-  - `pkg/plugin/route_keywords.go` - Added path-id keyword
-  - `pkg/plugin/route.go` - Added path-id parsing
-  - `pkg/plugin/route_parse_test.go` - Added path-id tests
-  - `pkg/reactor/reactor.go` - Refactored Announce/Withdraw with 3-way switch
+  - `internal/bgp/nlri/labeled.go` - NEW: nlri.LabeledUnicast type
+  - `internal/bgp/nlri/labeled_test.go` - NEW: NLRI tests
+  - `internal/bgp/message/labeled_wire_test.go` - NEW: Wire consistency tests
+  - `internal/bgp/message/update_build.go` - Fixed ADD-PATH pathID=0 bug
+  - `internal/plugin/types.go` - Added PathID to LabeledUnicastRoute
+  - `internal/plugin/route_keywords.go` - Added path-id keyword
+  - `internal/plugin/route.go` - Added path-id parsing
+  - `internal/plugin/route_parse_test.go` - Added path-id tests
+  - `internal/reactor/reactor.go` - Refactored Announce/Withdraw with 3-way switch
 
 ## Context Loaded
 
@@ -66,26 +66,26 @@ RFCs:
   - RFC 7911: ADD-PATH prepends 4-byte Path ID
 
 Source code with line numbers:
-  - pkg/bgp/nlri/inet.go:42-247 - INET implements nlri.NLRI (pattern to follow)
+  - internal/bgp/nlri/inet.go:42-247 - INET implements nlri.NLRI (pattern to follow)
     - Line 52-58: NewINET(family, prefix, pathID)
     - Line 166-190: Bytes() returns [pathID?][length][prefix]
     - Line 228-247: Pack(ctx) handles ADD-PATH negotiation
-  - pkg/bgp/message/update_build.go:816-855 - buildLabeledUnicastNLRIBytes
+  - internal/bgp/message/update_build.go:816-855 - buildLabeledUnicastNLRIBytes
     - Line 817-823: Label encoding (20-bit label, BOS=1)
     - Line 838-852: PathID handling for ADD-PATH
-  - pkg/reactor/reactor.go:167-227 - AnnounceRoute (reference pattern)
+  - internal/reactor/reactor.go:167-227 - AnnounceRoute (reference pattern)
     - Line 189: attrs := []attribute.Attribute{attribute.OriginIGP} ⚠️ ONLY ORIGIN
     - Line 204-207: Transaction check → QueueAnnounce
     - Line 208-219: Established → SendUpdate + MarkSent
     - Line 220-224: Not established → peer.QueueAnnounce
-  - pkg/reactor/reactor.go:522-630 - Current labeled-unicast impl
+  - internal/reactor/reactor.go:522-630 - Current labeled-unicast impl
     - Line 537-540: Only skips non-established peers (gap)
     - No transaction check (gap)
     - No Adj-RIB-Out tracking (gap)
-  - pkg/reactor/peer.go:1341-1439 - buildRIBRouteUpdate
+  - internal/reactor/peer.go:1341-1439 - buildRIBRouteUpdate
     - Line 1387-1417: SAFI-aware dispatch (MP_REACH_NLRI for SAFI 4) ✅
     - Line 1419-1432: Copies optional attrs from route.Attributes()
-  - pkg/plugin/types.go:175-183 - LabeledUnicastRoute
+  - internal/plugin/types.go:175-183 - LabeledUnicastRoute
     - Has: Prefix, NextHop, Labels, PathAttributes
     - Missing: PathID for ADD-PATH (gap)
 
@@ -274,7 +274,7 @@ Label MUST match the originally announced label.
 
 **Implementation**
 
-Create `pkg/bgp/nlri/labeled.go`:
+Create `internal/bgp/nlri/labeled.go`:
 ```go
 // LabeledUnicast represents a labeled unicast NLRI (SAFI 4).
 // RFC 8277: Using BGP to Bind MPLS Labels to Address Prefixes.

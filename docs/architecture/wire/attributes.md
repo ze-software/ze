@@ -444,13 +444,13 @@ Format: GlobalAdmin:LocalData1:LocalData2 (e.g., 4294967295:100:200)
 Attribute embeds WireWriter for zero-allocation encoding:
 
 ```go
-// WireWriter in pkg/bgp/context/context.go (not wire package due to import cycle)
+// WireWriter in internal/bgp/context/context.go (not wire package due to import cycle)
 type WireWriter interface {
     Len(ctx *EncodingContext) int
     WriteTo(buf []byte, off int, ctx *EncodingContext) int
 }
 
-// Attribute in pkg/bgp/attribute/attribute.go
+// Attribute in internal/bgp/attribute/attribute.go
 type Attribute interface {
     context.WireWriter
     Code() AttributeCode

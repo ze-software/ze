@@ -233,7 +233,7 @@ Source is resolved from ID at output time (not stored as string).
 ### Package Structure
 
 ```
-pkg/source/
+internal/source/
 ├── source.go       # SourceType, Source, SourceID
 ├── registry.go     # Registry implementation
 └── registry_test.go
@@ -245,17 +245,17 @@ pkg/source/
 
 | Test | File | Validates |
 |------|------|-----------|
-| `TestSourceTypeString` | `pkg/source/source_test.go` | SourceType.String() |
-| `TestSourceString` | `pkg/source/source_test.go` | Source.String() formats |
-| `TestRegistryRegisterPeer` | `pkg/source/registry_test.go` | Peer registration |
-| `TestRegistryRegisterAPI` | `pkg/source/registry_test.go` | API registration |
-| `TestRegistryGet` | `pkg/source/registry_test.go` | Lookup by ID |
-| `TestRegistryGetByPeerIP` | `pkg/source/registry_test.go` | Lookup by peer IP |
-| `TestRegistryDeactivate` | `pkg/source/registry_test.go` | Deactivation |
-| `TestRegistryNeverReuse` | `pkg/source/registry_test.go` | IDs not reused |
-| `TestRegistryConcurrent` | `pkg/source/registry_test.go` | Thread safety |
-| `TestWireUpdateSourceID` | `pkg/plugin/wire_update_test.go` | SourceID get/set |
-| `TestJSONOutputSource` | `pkg/plugin/json_test.go` | Source in output |
+| `TestSourceTypeString` | `internal/source/source_test.go` | SourceType.String() |
+| `TestSourceString` | `internal/source/source_test.go` | Source.String() formats |
+| `TestRegistryRegisterPeer` | `internal/source/registry_test.go` | Peer registration |
+| `TestRegistryRegisterAPI` | `internal/source/registry_test.go` | API registration |
+| `TestRegistryGet` | `internal/source/registry_test.go` | Lookup by ID |
+| `TestRegistryGetByPeerIP` | `internal/source/registry_test.go` | Lookup by peer IP |
+| `TestRegistryDeactivate` | `internal/source/registry_test.go` | Deactivation |
+| `TestRegistryNeverReuse` | `internal/source/registry_test.go` | IDs not reused |
+| `TestRegistryConcurrent` | `internal/source/registry_test.go` | Thread safety |
+| `TestWireUpdateSourceID` | `internal/plugin/wire_update_test.go` | SourceID get/set |
+| `TestJSONOutputSource` | `internal/plugin/json_test.go` | Source in output |
 
 ### Functional Tests
 
@@ -267,22 +267,22 @@ pkg/source/
 
 | File | Changes |
 |------|---------|
-| `pkg/source/source.go` | NEW: types |
-| `pkg/source/registry.go` | NEW: registry |
-| `pkg/source/registry_test.go` | NEW: tests |
-| `pkg/plugin/wire_update.go` | Add sourceID field |
-| `pkg/plugin/json.go` | Add source to message wrapper |
-| `pkg/plugin/text.go` | Add source to output |
-| `pkg/reactor/peer.go` | Register peer, store sourceID |
-| `pkg/reactor/reactor.go` | Set sourceID on WireUpdate |
-| `pkg/reactor/received_update.go` | Remove SourcePeerIP |
-| `pkg/plugin/process.go` | Register API, store sourceID |
+| `internal/source/source.go` | NEW: types |
+| `internal/source/registry.go` | NEW: registry |
+| `internal/source/registry_test.go` | NEW: tests |
+| `internal/plugin/wire_update.go` | Add sourceID field |
+| `internal/plugin/json.go` | Add source to message wrapper |
+| `internal/plugin/text.go` | Add source to output |
+| `internal/reactor/peer.go` | Register peer, store sourceID |
+| `internal/reactor/reactor.go` | Set sourceID on WireUpdate |
+| `internal/reactor/received_update.go` | Remove SourcePeerIP |
+| `internal/plugin/process.go` | Register API, store sourceID |
 
 ## Implementation Steps
 
-1. **Write tests** - Create `pkg/source/source_test.go` and `pkg/source/registry_test.go`
+1. **Write tests** - Create `internal/source/source_test.go` and `internal/source/registry_test.go`
 2. **Run tests** - Verify FAIL (paste output)
-3. **Implement** - Create `pkg/source/` package with types and registry
+3. **Implement** - Create `internal/source/` package with types and registry
 4. **Run tests** - Verify PASS (paste output)
 5. **Add WireUpdate integration** - Add sourceID field, write test, implement
 6. **Register peers** - Peer stores sourceID, reactor sets on WireUpdate
@@ -327,8 +327,8 @@ MaxUint32: invalid
 ```
 
 ### Features Implemented
-- `pkg/source/source.go` - SourceID, SourceType, Source types
-- `pkg/source/registry.go` - Thread-safe registry with O(1) lookups
+- `internal/source/source.go` - SourceID, SourceType, Source types
+- `internal/source/registry.go` - Thread-safe registry with O(1) lookups
 - `SourceID.String()` - Returns "type:n" (1-based): "peer:42", "api:1", "config:1"
 - `ParseSourceID()` - Parses "type:n" with overflow protection
 - Convenience: `IsValid()`, `IsPeer()`, `IsAPI()`, `IsConfig()`

@@ -19,20 +19,20 @@ Add Adj-RIB inspection and manipulation commands to the RIB plugin with:
 
 ## Package Changes (79ab85e)
 
-- ✅ `pkg/selector/` - Extracted from plugin (reusable peer selectors)
-- ✅ `pkg/bgp/attribute/text.go` - Text formatting functions
-- ✅ `pkg/parse/` - DELETED (consolidated into attribute/text.go)
-- ✅ `pkg/plugin/rib/` - Full attribute storage and commands
+- ✅ `internal/selector/` - Extracted from plugin (reusable peer selectors)
+- ✅ `internal/bgp/attribute/text.go` - Text formatting functions
+- ✅ `internal/parse/` - DELETED (consolidated into attribute/text.go)
+- ✅ `internal/plugin/rib/` - Full attribute storage and commands
 
 ## Files Modified
 
-- `pkg/selector/selector.go` - Selector type, Parse(), Matches()
-- `pkg/selector/selector_test.go` - Tests
-- `pkg/bgp/attribute/text.go` - FormatASPath, FormatCommunities, etc.
-- `pkg/bgp/attribute/text_test.go` - Tests
-- `pkg/plugin/rib/rib.go` - Commands and attribute storage
-- `pkg/plugin/rib/rib_test.go` - Tests
-- `pkg/plugin/rib/event.go` - Attribute fields for JSON
+- `internal/selector/selector.go` - Selector type, Parse(), Matches()
+- `internal/selector/selector_test.go` - Tests
+- `internal/bgp/attribute/text.go` - FormatASPath, FormatCommunities, etc.
+- `internal/bgp/attribute/text_test.go` - Tests
+- `internal/plugin/rib/rib.go` - Commands and attribute storage
+- `internal/plugin/rib/rib_test.go` - Tests
+- `internal/plugin/rib/event.go` - Attribute fields for JSON
 
 ## Checklist
 

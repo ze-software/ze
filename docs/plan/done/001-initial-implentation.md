@@ -38,7 +38,7 @@ zebgp/
 │   ├── zebgp/           # Main daemon entry point
 │   ├── zebgp-cli/       # CLI client
 │   └── zebgp-decode/    # Message decoder tool
-├── pkg/
+├── internal/
 │   ├── bgp/             # BGP protocol implementation
 │   │   ├── message/     # Message types (OPEN, UPDATE, etc.)
 │   │   ├── attribute/   # Path attributes
@@ -71,7 +71,7 @@ zebgp/
 ### 1.3 Core Type Definitions
 
 ```go
-// pkg/bgp/types.go
+// internal/bgp/types.go
 
 // AFI represents Address Family Identifier (RFC 4760)
 type AFI uint16
@@ -140,7 +140,7 @@ lint:
 Implement zero-copy parsing using Go's slice semantics:
 
 ```go
-// pkg/wire/buffer.go
+// internal/wire/buffer.go
 
 // Buffer wraps a byte slice for zero-copy parsing
 type Buffer struct {
@@ -188,7 +188,7 @@ func (b *Buffer) Remaining() []byte {
 ### 2.2 Message Header Structure
 
 ```go
-// pkg/bgp/message/header.go
+// internal/bgp/message/header.go
 
 const (
     MarkerLen  = 16
@@ -243,7 +243,7 @@ func ParseHeader(data []byte) (*Header, error) {
 Define structs that directly map to RFC wire formats:
 
 ```go
-// pkg/bgp/message/update/nlri/evpn.go
+// internal/bgp/message/update/nlri/evpn.go
 
 // EVPNType2Header - MAC/IP Advertisement Route (RFC 7432)
 // Wire format struct embedding for zero-copy parsing
@@ -287,7 +287,7 @@ func (h *EVPNType2Header) Parse(data []byte) ([]byte, error) {
 ### 3.1 Message Interface
 
 ```go
-// pkg/bgp/message/message.go
+// internal/bgp/message/message.go
 
 // Message is the interface all BGP messages implement
 type Message interface {
@@ -318,7 +318,7 @@ func UnpackMessage(msgType MessageType, data []byte, neg *Negotiated) (Message, 
 ### 3.2 OPEN Message
 
 ```go
-// pkg/bgp/message/open.go
+// internal/bgp/message/open.go
 
 type Open struct {
     Version       uint8
@@ -363,7 +363,7 @@ func (OpenUnpacker) Unpack(data []byte, neg *Negotiated) (Message, error) {
 ### 3.3 UPDATE Message
 
 ```go
-// pkg/bgp/message/update.go
+// internal/bgp/message/update.go
 
 // Update represents a BGP UPDATE message
 // Note: We separate wire representation from semantic representation
@@ -397,7 +397,7 @@ func (u *Update) Parse(neg *Negotiated) error {
 ### 3.4 NOTIFICATION Message
 
 ```go
-// pkg/bgp/message/notification.go
+// internal/bgp/message/notification.go
 
 type Notification struct {
     ErrorCode    uint8
@@ -419,7 +419,7 @@ const (
 ### 3.5 KEEPALIVE Message
 
 ```go
-// pkg/bgp/message/keepalive.go
+// internal/bgp/message/keepalive.go
 
 type Keepalive struct{}
 
@@ -451,7 +451,7 @@ func (Keepalive) Pack(neg *Negotiated) ([]byte, error) {
 ### 4.1 Capability Interface
 
 ```go
-// pkg/bgp/capability/capability.go
+// internal/bgp/capability/capability.go
 
 type CapabilityCode uint8
 
@@ -507,7 +507,7 @@ type ExtendedMessageCap struct{}
 ### 4.3 Negotiated State
 
 ```go
-// pkg/bgp/capability/negotiated.go
+// internal/bgp/capability/negotiated.go
 
 // Negotiated holds the result of capability negotiation
 type Negotiated struct {
@@ -547,7 +547,7 @@ const (
 ### 5.1 Attribute Interface
 
 ```go
-// pkg/bgp/attribute/attribute.go
+// internal/bgp/attribute/attribute.go
 
 type AttributeCode uint8
 
@@ -597,7 +597,7 @@ type Attribute interface {
 ### 5.2 Core Attributes
 
 ```go
-// pkg/bgp/attribute/origin.go
+// internal/bgp/attribute/origin.go
 
 type Origin uint8
 
@@ -616,7 +616,7 @@ var (
 ```
 
 ```go
-// pkg/bgp/attribute/aspath.go
+// internal/bgp/attribute/aspath.go
 
 // ASPath is now treated as part of NLRI for better deduplication
 // This is a key innovation: AS-PATH extends NLRI like ADD-PATH does
@@ -708,7 +708,7 @@ func (ts *typedStore) intern(attr Attribute) Attribute {
 ### 5.4 Communities
 
 ```go
-// pkg/bgp/attribute/community/community.go
+// internal/bgp/attribute/community/community.go
 
 // Standard Community (RFC 1997)
 type Community uint32
@@ -748,7 +748,7 @@ type LargeCommunity struct {
 ### 6.1 NLRI Interface with AS-PATH Extension
 
 ```go
-// pkg/bgp/nlri/nlri.go
+// internal/bgp/nlri/nlri.go
 
 // NLRI represents Network Layer Reachability Information
 // Innovation: AS-PATH is part of NLRI for better attribute sharing
@@ -788,7 +788,7 @@ func (np *NLRIWithPath) Index() []byte {
 ### 6.2 NLRI Registry
 
 ```go
-// pkg/bgp/nlri/registry.go
+// internal/bgp/nlri/registry.go
 
 type NLRIUnpacker interface {
     Unpack(afi AFI, safi SAFI, data []byte, addpath bool, neg *Negotiated) (NLRI, []byte, error)
@@ -804,7 +804,7 @@ func RegisterNLRI(family Family, u NLRIUnpacker) {
 ### 6.3 IPv4/IPv6 Unicast (INET)
 
 ```go
-// pkg/bgp/nlri/inet.go
+// internal/bgp/nlri/inet.go
 
 type INET struct {
     family   Family
@@ -864,7 +864,7 @@ func (INETUnpacker) Unpack(afi AFI, safi SAFI, data []byte, addpath bool, neg *N
 ### 6.4 VPN (IPVPN)
 
 ```go
-// pkg/bgp/nlri/ipvpn.go
+// internal/bgp/nlri/ipvpn.go
 
 type IPVPN struct {
     family Family
@@ -885,7 +885,7 @@ type LabelStack []uint32
 ### 6.5 EVPN
 
 ```go
-// pkg/bgp/nlri/evpn.go
+// internal/bgp/nlri/evpn.go
 
 type EVPNRouteType uint8
 
@@ -917,7 +917,7 @@ type EVPNMACIPRoute struct {
 ### 6.6 FlowSpec
 
 ```go
-// pkg/bgp/nlri/flowspec.go
+// internal/bgp/nlri/flowspec.go
 
 type FlowSpec struct {
     family     Family
@@ -950,7 +950,7 @@ type FlowComponent interface {
 ### 6.7 BGP-LS
 
 ```go
-// pkg/bgp/nlri/bgpls.go
+// internal/bgp/nlri/bgpls.go
 
 type BGPLSNLRIType uint16
 
@@ -979,7 +979,7 @@ type NodeDescriptor struct {
 ### 6.8 MUP (Mobile User Plane)
 
 ```go
-// pkg/bgp/nlri/mup.go
+// internal/bgp/nlri/mup.go
 
 type MUPRouteType uint16
 
@@ -1035,7 +1035,7 @@ func (s *NLRIStore) Intern(nlri NLRI) NLRI {
 ### 7.1 Route Structure
 
 ```go
-// pkg/rib/route.go
+// internal/rib/route.go
 
 // Route represents a BGP route with AS-PATH as part of identity
 type Route struct {
@@ -1066,7 +1066,7 @@ func (r *Route) Index() []byte {
 ### 7.2 RIB Structure
 
 ```go
-// pkg/rib/rib.go
+// internal/rib/rib.go
 
 type RIB struct {
     incoming *IncomingRIB
@@ -1096,7 +1096,7 @@ type OutgoingRIB struct {
 ### 7.3 Route Store with AS-PATH Separation
 
 ```go
-// pkg/rib/store.go
+// internal/rib/store.go
 
 // RouteStore implements the novel AS-PATH-as-NLRI approach
 type RouteStore struct {
@@ -1156,7 +1156,7 @@ func (s *RouteStore) Intern(nlri NLRI, asPath *ASPath, attrs *Attributes, nextHo
 ### 8.1 States and Events
 
 ```go
-// pkg/bgp/fsm/fsm.go
+// internal/bgp/fsm/fsm.go
 
 type State int
 
@@ -1193,7 +1193,7 @@ const (
 ### 8.2 FSM Implementation
 
 ```go
-// pkg/bgp/fsm/machine.go
+// internal/bgp/fsm/machine.go
 
 type FSM struct {
     state         State
@@ -1263,7 +1263,7 @@ func (f *FSM) handleEvent(event Event) error {
 ### 9.1 Reactor Architecture
 
 ```go
-// pkg/reactor/reactor.go
+// internal/reactor/reactor.go
 
 type Reactor struct {
     config     *Config
@@ -1321,7 +1321,7 @@ func (r *Reactor) Run() error {
 ### 9.2 Peer Goroutine
 
 ```go
-// pkg/reactor/peer.go
+// internal/reactor/peer.go
 
 type Peer struct {
     neighbor   *Neighbor
@@ -1370,7 +1370,7 @@ func (p *Peer) runOnce() error {
 ### 9.3 Per-Attribute Goroutine Stores
 
 ```go
-// pkg/reactor/attribute_workers.go
+// internal/reactor/attribute_workers.go
 
 // AttributeWorker manages a single attribute type's deduplication
 type AttributeWorker struct {
@@ -1418,7 +1418,7 @@ func NewAttributeWorkerPool(ctx context.Context) *AttributeWorkerPool {
 ### 9.4 Zero-Copy Message Passing
 
 ```go
-// pkg/reactor/passthrough.go
+// internal/reactor/passthrough.go
 
 // PassthroughMessage represents an UPDATE that can be forwarded unchanged
 type PassthroughMessage struct {
@@ -1466,7 +1466,7 @@ func (p *PassthroughMessage) ForwardData() []byte {
 ### 10.1 Configuration Structure
 
 ```go
-// pkg/config/config.go
+// internal/config/config.go
 
 type Config struct {
     // Global settings
@@ -1505,7 +1505,7 @@ type NeighborConfig struct {
 ### 10.2 Environment Variables
 
 ```go
-// pkg/config/env.go
+// internal/config/env.go
 
 // EnvConfig maps ExaBGP environment variables
 type EnvConfig struct {
@@ -1539,7 +1539,7 @@ type EnvConfig struct {
 ### 10.3 Configuration Parser
 
 ```go
-// pkg/config/parser.go
+// internal/config/parser.go
 
 // Parser handles ExaBGP-compatible configuration format
 type Parser struct {
@@ -1703,7 +1703,7 @@ func (c *CLI) Run() error {
 ### 12.1 Unix Socket API
 
 ```go
-// pkg/plugin/server.go
+// internal/plugin/server.go
 
 type Server struct {
     reactor    *Reactor
@@ -1749,7 +1749,7 @@ func (s *Server) acceptLoop(ctx context.Context) {
 ### 12.2 API Commands
 
 ```go
-// pkg/plugin/command/commands.go
+// internal/plugin/command/commands.go
 
 type CommandRegistry struct {
     commands map[string]CommandHandler
@@ -1784,7 +1784,7 @@ func showNeighborSummary(r *Reactor, args []string) (string, error) {
 ### 12.3 JSON Output Format
 
 ```go
-// pkg/plugin/json.go
+// internal/plugin/json.go
 
 // JSONEncoder produces ExaBGP-compatible JSON output
 type JSONEncoder struct {
@@ -1818,7 +1818,7 @@ func (e *JSONEncoder) EncodeUpdate(update *Update, neighbor *Neighbor) ([]byte, 
 ### 12.4 External Process Communication
 
 ```go
-// pkg/plugin/process.go
+// internal/plugin/process.go
 
 // ProcessManager handles external API processes
 type ProcessManager struct {
@@ -2202,9 +2202,9 @@ Routes can be configured per-neighbor and sent on session establishment.
 
 | Component | Status | Notes |
 |-----------|--------|-------|
-| StaticRoute type | ✅ Done | `pkg/reactor/neighbor.go` |
-| sendInitialRoutes | ✅ Done | `pkg/reactor/peer.go` |
-| Config loader | ✅ Done | `pkg/config/loader.go` |
+| StaticRoute type | ✅ Done | `internal/reactor/neighbor.go` |
+| sendInitialRoutes | ✅ Done | `internal/reactor/peer.go` |
+| Config loader | ✅ Done | `internal/config/loader.go` |
 | Freeform parsing | ❌ Broken | Doesn't extract nested data |
 | Block syntax | ⚠️ Needs schema change | Would require `List(TypePrefix, ...)` |
 | Inline syntax | ❌ Not supported | Complex ExaBGP syntax |

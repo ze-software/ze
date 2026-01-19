@@ -22,7 +22,7 @@ Implement `handleUpdateHex()`, `handleUpdateB64()` handlers for the `peer X upda
 - Wire bytes: no validation of raw payload, pass through unchanged (context re-encoding deferred to spec-wire-recode.md)
 - Reuse existing `WireEncoding` enum from `types.go`
 - Wire mode uses `PathAttributes.Wire` field (`*attribute.AttributesWire`)
-- NLRI splitting uses `GetNLRISizeFunc()` from `pkg/bgp/message/chunk_mp_nlri.go` (export needed)
+- NLRI splitting uses `GetNLRISizeFunc()` from `internal/bgp/message/chunk_mp_nlri.go` (export needed)
 - API context (`APIContextID`) with ASN4=true for wire attribute encoding
 
 ## Design
@@ -166,20 +166,20 @@ Returns same `UpdateTextResult` as `ParseUpdateText()`. For wire mode:
 
 | File | Change |
 |------|--------|
-| `pkg/plugin/types.go` | Add `Wire *attribute.AttributesWire` to `PathAttributes` |
-| `pkg/bgp/context/api.go` | **New:** `APIContextID` with ASN4=true |
-| `pkg/bgp/nlri/wire.go` | **New:** `WireNLRI` type implementing `NLRI` interface |
-| `pkg/bgp/nlri/wire_test.go` | **New:** Tests for `WireNLRI` |
-| `pkg/bgp/message/chunk_mp_nlri.go` | Export `GetNLRISizeFunc` (rename from `getNLRISizeFunc`) |
-| `pkg/plugin/update_wire.go` | **New:** `ParseUpdateWire()`, wire handlers |
-| `pkg/plugin/update_wire_test.go` | **New:** Tests for wire parsing |
-| `pkg/plugin/update_text.go` | Replace `next-hop`/`next-hop-self` with `nhop` keyword; update dispatcher |
-| `pkg/reactor/announce.go` | Handle `PathAttributes.Wire` in `AnnounceNLRIBatch()` (see Reactor Changes) |
+| `internal/plugin/types.go` | Add `Wire *attribute.AttributesWire` to `PathAttributes` |
+| `internal/bgp/context/api.go` | **New:** `APIContextID` with ASN4=true |
+| `internal/bgp/nlri/wire.go` | **New:** `WireNLRI` type implementing `NLRI` interface |
+| `internal/bgp/nlri/wire_test.go` | **New:** Tests for `WireNLRI` |
+| `internal/bgp/message/chunk_mp_nlri.go` | Export `GetNLRISizeFunc` (rename from `getNLRISizeFunc`) |
+| `internal/plugin/update_wire.go` | **New:** `ParseUpdateWire()`, wire handlers |
+| `internal/plugin/update_wire_test.go` | **New:** Tests for wire parsing |
+| `internal/plugin/update_text.go` | Replace `next-hop`/`next-hop-self` with `nhop` keyword; update dispatcher |
+| `internal/reactor/announce.go` | Handle `PathAttributes.Wire` in `AnnounceNLRIBatch()` (see Reactor Changes) |
 
 ### Type Changes
 
 ```go
-// pkg/plugin/types.go - Add Wire field to PathAttributes
+// internal/plugin/types.go - Add Wire field to PathAttributes
 type PathAttributes struct {
     Origin              *uint8
     LocalPreference     *uint32
@@ -197,7 +197,7 @@ type PathAttributes struct {
 ```
 
 ```go
-// pkg/bgp/context/api.go - API context for wire input
+// internal/bgp/context/api.go - API context for wire input
 package context
 
 // APIContextID identifies API-originated wire data.
@@ -215,7 +215,7 @@ func init() {
 ```
 
 ```go
-// pkg/bgp/nlri/wire.go - Wire NLRI for opaque wire bytes
+// internal/bgp/nlri/wire.go - Wire NLRI for opaque wire bytes
 package nlri
 
 import (
@@ -439,20 +439,20 @@ Watchdog tags routes for bulk withdrawal. When `withdraw watchdog <name>` is cal
 
 | Test | File | Validates |
 |------|------|-----------|
-| `TestNewWireNLRI` | `pkg/bgp/nlri/wire_test.go` | Constructor creates WireNLRI |
-| `TestWireNLRI_Family` | `pkg/bgp/nlri/wire_test.go` | Family() returns correct value |
-| `TestWireNLRI_Bytes_NoAddPath` | `pkg/bgp/nlri/wire_test.go` | Bytes() returns full data when no addpath |
-| `TestWireNLRI_Bytes_WithAddPath` | `pkg/bgp/nlri/wire_test.go` | Bytes() returns full data including path-id |
-| `TestWireNLRI_Len` | `pkg/bgp/nlri/wire_test.go` | Len() returns full data length |
-| `TestWireNLRI_PathID_NoAddPath` | `pkg/bgp/nlri/wire_test.go` | PathID() returns 0 when !hasAddPath |
-| `TestWireNLRI_PathID_WithAddPath` | `pkg/bgp/nlri/wire_test.go` | PathID() extracts from data when hasAddPath |
-| `TestWireNLRI_Pack_NoMismatch` | `pkg/bgp/nlri/wire_test.go` | Pack() returns data when no mismatch |
-| `TestWireNLRI_Pack_StripPathID` | `pkg/bgp/nlri/wire_test.go` | Pack() strips path-id when src has, target doesn't |
-| `TestWireNLRI_Pack_PrependNOPATH` | `pkg/bgp/nlri/wire_test.go` | Pack() prepends NOPATH when src lacks, target expects |
-| `TestNewWireNLRI_Malformed` | `pkg/bgp/nlri/wire_test.go` | Constructor returns error when hasAddPath but len < 4 |
-| `TestWireNLRI_WriteTo` | `pkg/bgp/nlri/wire_test.go` | WriteTo() copies packed data to buffer |
-| `TestWireNLRI_String` | `pkg/bgp/nlri/wire_test.go` | String() returns readable format |
-| `TestAPIContextID` | `pkg/bgp/context/api_test.go` | APIContextID registered with ASN4=true |
+| `TestNewWireNLRI` | `internal/bgp/nlri/wire_test.go` | Constructor creates WireNLRI |
+| `TestWireNLRI_Family` | `internal/bgp/nlri/wire_test.go` | Family() returns correct value |
+| `TestWireNLRI_Bytes_NoAddPath` | `internal/bgp/nlri/wire_test.go` | Bytes() returns full data when no addpath |
+| `TestWireNLRI_Bytes_WithAddPath` | `internal/bgp/nlri/wire_test.go` | Bytes() returns full data including path-id |
+| `TestWireNLRI_Len` | `internal/bgp/nlri/wire_test.go` | Len() returns full data length |
+| `TestWireNLRI_PathID_NoAddPath` | `internal/bgp/nlri/wire_test.go` | PathID() returns 0 when !hasAddPath |
+| `TestWireNLRI_PathID_WithAddPath` | `internal/bgp/nlri/wire_test.go` | PathID() extracts from data when hasAddPath |
+| `TestWireNLRI_Pack_NoMismatch` | `internal/bgp/nlri/wire_test.go` | Pack() returns data when no mismatch |
+| `TestWireNLRI_Pack_StripPathID` | `internal/bgp/nlri/wire_test.go` | Pack() strips path-id when src has, target doesn't |
+| `TestWireNLRI_Pack_PrependNOPATH` | `internal/bgp/nlri/wire_test.go` | Pack() prepends NOPATH when src lacks, target expects |
+| `TestNewWireNLRI_Malformed` | `internal/bgp/nlri/wire_test.go` | Constructor returns error when hasAddPath but len < 4 |
+| `TestWireNLRI_WriteTo` | `internal/bgp/nlri/wire_test.go` | WriteTo() copies packed data to buffer |
+| `TestWireNLRI_String` | `internal/bgp/nlri/wire_test.go` | String() returns readable format |
+| `TestAPIContextID` | `internal/bgp/context/api_test.go` | APIContextID registered with ASN4=true |
 | `TestParseUpdateWire_HexAttrs` | `update_wire_test.go` | Hex attribute decoding |
 | `TestParseUpdateWire_HexNLRI` | `update_wire_test.go` | Hex NLRI decoding + split |
 | `TestParseUpdateWire_HexNhop` | `update_wire_test.go` | Hex next-hop decoding |
@@ -478,10 +478,10 @@ Watchdog tags routes for bulk withdrawal. When `withdraw watchdog <name>` is cal
 | `TestParseUpdateText_NhopDel` | `update_text_test.go` | `nhop del` in text mode |
 | `TestParseUpdateText_PathInfo` | `update_text_test.go` | `path-information` as accumulator |
 | `TestParseUpdateText_PathInfoChange` | `update_text_test.go` | `path-information` changes mid-command |
-| `TestReactor_WireMode_IPv4` | `pkg/reactor/announce_test.go` | Wire mode with IPv4 unicast |
-| `TestReactor_WireMode_IPv6` | `pkg/reactor/announce_test.go` | Wire mode with IPv6 unicast (MP_REACH) |
-| `TestReactor_WireMode_Withdraw` | `pkg/reactor/announce_test.go` | Wire mode withdrawal |
-| `TestReactor_WireMode_AddPathMismatch` | `pkg/reactor/announce_test.go` | ADD-PATH strip/prepend |
+| `TestReactor_WireMode_IPv4` | `internal/reactor/announce_test.go` | Wire mode with IPv4 unicast |
+| `TestReactor_WireMode_IPv6` | `internal/reactor/announce_test.go` | Wire mode with IPv6 unicast (MP_REACH) |
+| `TestReactor_WireMode_Withdraw` | `internal/reactor/announce_test.go` | Wire mode withdrawal |
+| `TestReactor_WireMode_AddPathMismatch` | `internal/reactor/announce_test.go` | ADD-PATH strip/prepend |
 
 ### Functional Tests
 
@@ -494,10 +494,10 @@ Watchdog tags routes for bulk withdrawal. When `withdraw watchdog <name>` is cal
 
 ### Phase 0: Type Setup
 
-1. Add `Wire *attribute.AttributesWire` field to `PathAttributes` in `pkg/plugin/types.go`
-2. Create `pkg/bgp/context/api.go` with `APIContextID` (ASN4=true)
-3. Create `pkg/bgp/nlri/wire.go` with `WireNLRI` type (TDD: write tests first)
-4. Export `GetNLRISizeFunc` in `pkg/bgp/message/chunk_mp_nlri.go` (rename from `getNLRISizeFunc`)
+1. Add `Wire *attribute.AttributesWire` field to `PathAttributes` in `internal/plugin/types.go`
+2. Create `internal/bgp/context/api.go` with `APIContextID` (ASN4=true)
+3. Create `internal/bgp/nlri/wire.go` with `WireNLRI` type (TDD: write tests first)
+4. Export `GetNLRISizeFunc` in `internal/bgp/message/chunk_mp_nlri.go` (rename from `getNLRISizeFunc`)
 5. Run `make test` to verify no regressions
 
 ### Phase 1: Text Mode nhop + path-information (TDD)
@@ -576,10 +576,10 @@ If RFC missing: `curl -o rfc/rfcNNNN.txt https://www.rfc-editor.org/rfc/rfcNNNN.
 
 ### Phase 0: Type Setup ✅
 - [x] `Wire` field added to `PathAttributes`
-- [x] `pkg/bgp/context/api_test.go` written (TDD)
-- [x] `pkg/bgp/context/api.go` created with `APIContextID`
-- [x] `pkg/bgp/nlri/wire_test.go` written (TDD)
-- [x] `pkg/bgp/nlri/wire.go` created with `WireNLRI`
+- [x] `internal/bgp/context/api_test.go` written (TDD)
+- [x] `internal/bgp/context/api.go` created with `APIContextID`
+- [x] `internal/bgp/nlri/wire_test.go` written (TDD)
+- [x] `internal/bgp/nlri/wire.go` created with `WireNLRI`
 - [x] `GetNLRISizeFunc` exported in `chunk_mp_nlri.go` (uses `nlri.AFI`/`nlri.SAFI` types)
 - [x] `make test` passes (no regressions)
 
@@ -604,8 +604,8 @@ If RFC missing: `curl -o rfc/rfcNNNN.txt https://www.rfc-editor.org/rfc/rfcNNNN.
 - [x] Test passes after impl
 - [x] Test fails first (invalid input)
 - [x] Test passes after impl
-- [x] `ParseUpdateWire()` implemented in `pkg/plugin/update_wire.go`
-- [x] 22 tests in `pkg/plugin/update_wire_test.go`
+- [x] `ParseUpdateWire()` implemented in `internal/plugin/update_wire.go`
+- [x] 22 tests in `internal/plugin/update_wire_test.go`
 
 ### Phase 3: Handlers
 - [x] Test fails first (handleUpdateHex)

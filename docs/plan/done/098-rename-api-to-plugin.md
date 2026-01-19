@@ -15,7 +15,7 @@ Rename the command-line interface from `zebgp api <subcommand>` to `zebgp plugin
 | Component | Action | Reason |
 |-----------|--------|--------|
 | **CLI Command** | `zebgp api` → `zebgp plugin` | Clearer terminology |
-| **Package Directory** | `pkg/plugin/` → `pkg/plugin/` | Match new command name |
+| **Package Directory** | `internal/plugin/` → `internal/plugin/` | Match new command name |
 | **Internal Functions** | `cmdAPI*` → `cmdPlugin*` | Consistency |
 | **Config Blocks** | **KEEP** `api { ... }` | Refers to API protocol |
 | **Config Types** | **KEEP** `APIBindings` | Refers to API protocol |
@@ -77,17 +77,17 @@ git mv cmd/zebgp/api_persist.go cmd/zebgp/plugin_persist.go
 
 ---
 
-## 2. Package Rename: `pkg/plugin/` → `pkg/plugin/`
+## 2. Package Rename: `internal/plugin/` → `internal/plugin/`
 
 ### 2.1 Directory Rename
 
 ```bash
-git mv pkg/plugin pkg/plugin
+git mv internal/plugin internal/plugin
 ```
 
 ### 2.2 Package Declarations (66 files)
 
-All files in `pkg/plugin/` need package declaration updated:
+All files in `internal/plugin/` need package declaration updated:
 
 ```
 package api → package plugin
@@ -95,7 +95,7 @@ package api → package plugin
 
 **Files to update:**
 
-#### pkg/plugin/*.go (59 files)
+#### internal/plugin/*.go (59 files)
 ```
 capability_injection_test.go, command.go, command_test.go, commit.go,
 commit_manager.go, commit_manager_test.go, commit_test.go,
@@ -114,42 +114,42 @@ update_wire_test.go, wire_update.go, wire_update_split.go,
 wire_update_split_test.go, wire_update_test.go
 ```
 
-#### pkg/plugin/rr/*.go (5 files)
+#### internal/plugin/rr/*.go (5 files)
 ```
 peer.go, rib.go, rib_test.go, server.go, server_test.go
 ```
 
-#### pkg/plugin/persist/*.go (2 files)
+#### internal/plugin/persist/*.go (2 files)
 ```
 event.go, persist.go
 ```
 
 **Subpackages** (no change to package name):
-- `pkg/plugin/rr/` → `package rr` (keep)
-- `pkg/plugin/persist/` → `package persist` (keep)
+- `internal/plugin/rr/` → `package rr` (keep)
+- `internal/plugin/persist/` → `package persist` (keep)
 
 ### 2.3 Import Path Updates (18 files)
 
 | File | Old Import | New Import |
 |------|-----------|-----------|
-| `cmd/zebgp/plugin_rr.go` | `"codeberg.org/thomas-mangin/zebgp/pkg/plugin/rr"` | `"codeberg.org/thomas-mangin/zebgp/pkg/plugin/rr"` |
-| `cmd/zebgp/plugin_persist.go` | `"codeberg.org/thomas-mangin/zebgp/pkg/plugin/persist"` | `"codeberg.org/thomas-mangin/zebgp/pkg/plugin/persist"` |
-| `cmd/zebgp/encode.go` | `"codeberg.org/thomas-mangin/zebgp/pkg/plugin"` | `"codeberg.org/thomas-mangin/zebgp/pkg/plugin"` |
-| `pkg/config/bgp.go` | `"codeberg.org/thomas-mangin/zebgp/pkg/plugin"` | `"codeberg.org/thomas-mangin/zebgp/pkg/plugin"` |
-| `pkg/config/loader.go` | `"codeberg.org/thomas-mangin/zebgp/pkg/plugin"` | `"codeberg.org/thomas-mangin/zebgp/pkg/plugin"` |
-| `pkg/reactor/forward_split_test.go` | `"codeberg.org/thomas-mangin/zebgp/pkg/plugin"` | `"codeberg.org/thomas-mangin/zebgp/pkg/plugin"` |
-| `pkg/reactor/mup_test.go` | `"codeberg.org/thomas-mangin/zebgp/pkg/plugin"` | `"codeberg.org/thomas-mangin/zebgp/pkg/plugin"` |
-| `pkg/reactor/peer_test.go` | `"codeberg.org/thomas-mangin/zebgp/pkg/plugin"` | `"codeberg.org/thomas-mangin/zebgp/pkg/plugin"` |
-| `pkg/reactor/peer.go` | `"codeberg.org/thomas-mangin/zebgp/pkg/plugin"` | `"codeberg.org/thomas-mangin/zebgp/pkg/plugin"` |
-| `pkg/reactor/peersettings.go` | `"codeberg.org/thomas-mangin/zebgp/pkg/plugin"` | `"codeberg.org/thomas-mangin/zebgp/pkg/plugin"` |
-| `pkg/reactor/reactor_batch_test.go` | `"codeberg.org/thomas-mangin/zebgp/pkg/plugin"` | `"codeberg.org/thomas-mangin/zebgp/pkg/plugin"` |
-| `pkg/reactor/reactor_test.go` | `"codeberg.org/thomas-mangin/zebgp/pkg/plugin"` | `"codeberg.org/thomas-mangin/zebgp/pkg/plugin"` |
-| `pkg/reactor/reactor.go` | `"codeberg.org/thomas-mangin/zebgp/pkg/plugin"` | `"codeberg.org/thomas-mangin/zebgp/pkg/plugin"` |
-| `pkg/reactor/received_update_test.go` | `"codeberg.org/thomas-mangin/zebgp/pkg/plugin"` | `"codeberg.org/thomas-mangin/zebgp/pkg/plugin"` |
-| `pkg/reactor/received_update.go` | `"codeberg.org/thomas-mangin/zebgp/pkg/plugin"` | `"codeberg.org/thomas-mangin/zebgp/pkg/plugin"` |
-| `pkg/reactor/recent_cache_test.go` | `"codeberg.org/thomas-mangin/zebgp/pkg/plugin"` | `"codeberg.org/thomas-mangin/zebgp/pkg/plugin"` |
-| `pkg/reactor/watchdog_test.go` | `"codeberg.org/thomas-mangin/zebgp/pkg/plugin"` | `"codeberg.org/thomas-mangin/zebgp/pkg/plugin"` |
-| `pkg/reactor/session.go` | `"codeberg.org/thomas-mangin/zebgp/pkg/plugin"` | `"codeberg.org/thomas-mangin/zebgp/pkg/plugin"` |
+| `cmd/zebgp/plugin_rr.go` | `"codeberg.org/thomas-mangin/zebgp/internal/plugin/rr"` | `"codeberg.org/thomas-mangin/zebgp/internal/plugin/rr"` |
+| `cmd/zebgp/plugin_persist.go` | `"codeberg.org/thomas-mangin/zebgp/internal/plugin/persist"` | `"codeberg.org/thomas-mangin/zebgp/internal/plugin/persist"` |
+| `cmd/zebgp/encode.go` | `"codeberg.org/thomas-mangin/zebgp/internal/plugin"` | `"codeberg.org/thomas-mangin/zebgp/internal/plugin"` |
+| `internal/config/bgp.go` | `"codeberg.org/thomas-mangin/zebgp/internal/plugin"` | `"codeberg.org/thomas-mangin/zebgp/internal/plugin"` |
+| `internal/config/loader.go` | `"codeberg.org/thomas-mangin/zebgp/internal/plugin"` | `"codeberg.org/thomas-mangin/zebgp/internal/plugin"` |
+| `internal/reactor/forward_split_test.go` | `"codeberg.org/thomas-mangin/zebgp/internal/plugin"` | `"codeberg.org/thomas-mangin/zebgp/internal/plugin"` |
+| `internal/reactor/mup_test.go` | `"codeberg.org/thomas-mangin/zebgp/internal/plugin"` | `"codeberg.org/thomas-mangin/zebgp/internal/plugin"` |
+| `internal/reactor/peer_test.go` | `"codeberg.org/thomas-mangin/zebgp/internal/plugin"` | `"codeberg.org/thomas-mangin/zebgp/internal/plugin"` |
+| `internal/reactor/peer.go` | `"codeberg.org/thomas-mangin/zebgp/internal/plugin"` | `"codeberg.org/thomas-mangin/zebgp/internal/plugin"` |
+| `internal/reactor/peersettings.go` | `"codeberg.org/thomas-mangin/zebgp/internal/plugin"` | `"codeberg.org/thomas-mangin/zebgp/internal/plugin"` |
+| `internal/reactor/reactor_batch_test.go` | `"codeberg.org/thomas-mangin/zebgp/internal/plugin"` | `"codeberg.org/thomas-mangin/zebgp/internal/plugin"` |
+| `internal/reactor/reactor_test.go` | `"codeberg.org/thomas-mangin/zebgp/internal/plugin"` | `"codeberg.org/thomas-mangin/zebgp/internal/plugin"` |
+| `internal/reactor/reactor.go` | `"codeberg.org/thomas-mangin/zebgp/internal/plugin"` | `"codeberg.org/thomas-mangin/zebgp/internal/plugin"` |
+| `internal/reactor/received_update_test.go` | `"codeberg.org/thomas-mangin/zebgp/internal/plugin"` | `"codeberg.org/thomas-mangin/zebgp/internal/plugin"` |
+| `internal/reactor/received_update.go` | `"codeberg.org/thomas-mangin/zebgp/internal/plugin"` | `"codeberg.org/thomas-mangin/zebgp/internal/plugin"` |
+| `internal/reactor/recent_cache_test.go` | `"codeberg.org/thomas-mangin/zebgp/internal/plugin"` | `"codeberg.org/thomas-mangin/zebgp/internal/plugin"` |
+| `internal/reactor/watchdog_test.go` | `"codeberg.org/thomas-mangin/zebgp/internal/plugin"` | `"codeberg.org/thomas-mangin/zebgp/internal/plugin"` |
+| `internal/reactor/session.go` | `"codeberg.org/thomas-mangin/zebgp/internal/plugin"` | `"codeberg.org/thomas-mangin/zebgp/internal/plugin"` |
 
 ---
 
@@ -213,13 +213,13 @@ Other spec files refer to "api" as protocol concept (not CLI), keep names:
 | `docs/architecture/rib-transition.md` | Lines 257, 259: Task descriptions update |
 | `docs/architecture/api/CAPABILITY_CONTRACT.md` | Lines 55, 180-181: Reference updates |
 
-### 4.3 Files with `pkg/plugin/` Path References (55 files)
+### 4.3 Files with `internal/plugin/` Path References (55 files)
 
 Run systematic search and replace:
 
 ```bash
-# Find all docs with pkg/plugin references
-grep -rl "pkg/plugin" docs/ --include="*.md" | wc -l  # 55 files
+# Find all docs with internal/plugin references
+grep -rl "internal/plugin" docs/ --include="*.md" | wc -l  # 55 files
 
 # Categories:
 # - docs/plan/done/*.md (historical specs - 40+ files)
@@ -238,7 +238,7 @@ grep -rl "pkg/plugin" docs/ --include="*.md" | wc -l  # 55 files
 ### 4.4 Documentation Notes
 
 - Replace all `zebgp api` command-line references with `zebgp plugin`
-- Replace all `pkg/plugin/` directory references with `pkg/plugin/`
+- Replace all `internal/plugin/` directory references with `internal/plugin/`
 - Keep `api { ... }` config block syntax in documentation
 - Keep API protocol terminology in conceptual docs
 
@@ -265,9 +265,9 @@ This is a refactoring task. Existing tests validate no regression.
 ### Unit Tests
 | Test Suite | Location | Validates |
 |------------|----------|-----------|
-| All pkg/plugin tests | `pkg/plugin/**/*_test.go` | Package functionality unchanged |
-| Reactor tests | `pkg/reactor/*_test.go` | Import path updates work |
-| Config tests | `pkg/config/*_test.go` | Config loading unchanged |
+| All internal/plugin tests | `internal/plugin/**/*_test.go` | Package functionality unchanged |
+| Reactor tests | `internal/reactor/*_test.go` | Import path updates work |
+| Config tests | `internal/config/*_test.go` | Config loading unchanged |
 
 ### Functional Tests
 | Category | Location | Validates |
@@ -285,7 +285,7 @@ This is a refactoring task. Existing tests validate no regression.
 ## 7. Implementation Phases
 
 ### Phase 1: Package Rename (Foundation)
-1. Rename directory: `git mv pkg/plugin pkg/plugin`
+1. Rename directory: `git mv internal/plugin internal/plugin`
 2. Update package declarations: 66 files (`package api` → `package plugin`)
 3. Update import paths: 18 files
 4. Verify compilation: `go build ./...`
@@ -303,7 +303,7 @@ This is a refactoring task. Existing tests validate no regression.
 ### Phase 4: Documentation Updates
 11. Rename spec: `git mv docs/plan/spec-api-rr.md docs/plan/spec-plugin-rr.md`
 12. Update `zebgp api` → `zebgp plugin` in 4 docs
-13. Update `pkg/plugin/` → `pkg/plugin/` in 55 docs
+13. Update `internal/plugin/` → `internal/plugin/` in 55 docs
 
 ### Phase 5: Test Framework Updates
 14. Update: `test/cmd/functional/main.go` (case statement)
@@ -322,8 +322,8 @@ This is a refactoring task. Existing tests validate no regression.
 - [ ] `grep -r "zebgp api" . --exclude-dir=.git` shows only intentional config block references
 - [ ] `grep -r "cmdAPI" . --include="*.go"` returns no results
 - [ ] `grep -r "apiUsage" . --include="*.go"` returns no results
-- [ ] `grep -r '"codeberg.org/thomas-mangin/zebgp/pkg/plugin"' . --include="*.go"` returns no results
-- [ ] `grep -r '^package api' pkg/plugin/` returns no results
+- [ ] `grep -r '"codeberg.org/thomas-mangin/zebgp/internal/plugin"' . --include="*.go"` returns no results
+- [ ] `grep -r '^package api' internal/plugin/` returns no results
 - [ ] All Go files compile: `go build ./...`
 
 ### Test Verification
@@ -340,7 +340,7 @@ This is a refactoring task. Existing tests validate no regression.
 
 ### Documentation Verification
 - [ ] No `zebgp api` command-line references in docs
-- [ ] No `pkg/plugin/` path references in docs (use `pkg/plugin/`)
+- [ ] No `internal/plugin/` path references in docs (use `internal/plugin/`)
 - [ ] Config examples use `zebgp plugin rr/persist`
 - [ ] Config blocks still use `api { ... }` syntax
 
@@ -429,16 +429,16 @@ grep -r "cmdAPI" . --include="*.go"
 grep -r "apiUsage" . --include="*.go"
 
 # Check for old package imports
-grep -r '"codeberg.org/thomas-mangin/zebgp/pkg/plugin"' . --include="*.go"
+grep -r '"codeberg.org/thomas-mangin/zebgp/internal/plugin"' . --include="*.go"
 
 # Check for old package declarations
-grep -r "^package api" pkg/plugin/
+grep -r "^package api" internal/plugin/
 
 # Verify new package
-grep -r "^package plugin" pkg/plugin/
+grep -r "^package plugin" internal/plugin/
 
-# Check for pkg/plugin path references
-grep -r "pkg/plugin" docs/
+# Check for internal/plugin path references
+grep -r "internal/plugin" docs/
 ```
 
 ---
@@ -452,7 +452,7 @@ grep -r "pkg/plugin" docs/
 | **Go Files (pkg)** | 66 | Package declarations (59 root + 5 rr + 2 persist) |
 | **Go Files (imports)** | 18 | Import path updates |
 | **Test Data Files** | 110 | Directory rename (no content changes except 1) |
-| **Documentation Files** | 55 | `pkg/plugin/` path references |
+| **Documentation Files** | 55 | `internal/plugin/` path references |
 | **Test Framework Files** | 1 | `test/cmd/functional/main.go` |
 | **Total** | **~250** | Files affected |
 
@@ -460,11 +460,11 @@ grep -r "pkg/plugin" docs/
 
 | Operation | Count | Details |
 |-----------|--------|---------|
-| **Directory Renames** | 2 | `pkg/plugin/` → `pkg/plugin/`, `test/data/api/` → `test/data/plugin/` |
+| **Directory Renames** | 2 | `internal/plugin/` → `internal/plugin/`, `test/data/api/` → `test/data/plugin/` |
 | **File Renames** | 4 | 3 cmd files + 1 spec file |
 | **Package Declarations** | 66 | `package api` → `package plugin` |
-| **Import Paths** | 18 | `pkg/plugin` → `pkg/plugin` |
-| **Doc Path Updates** | 55 | `pkg/plugin/` → `pkg/plugin/` in markdown |
+| **Import Paths** | 18 | `internal/plugin` → `internal/plugin` |
+| **Doc Path Updates** | 55 | `internal/plugin/` → `internal/plugin/` in markdown |
 | **Content Updates** | 5 | CLI strings, config file, test framework |
 
 ---
@@ -478,8 +478,8 @@ grep -r "pkg/plugin" docs/
 
 ### Related Code
 - `cmd/zebgp/` - Command-line interface
-- `pkg/plugin/` (formerly `pkg/plugin/`) - Plugin implementation
-- `pkg/config/` - Configuration parsing
+- `internal/plugin/` (formerly `internal/plugin/`) - Plugin implementation
+- `internal/config/` - Configuration parsing
 - `test/cmd/functional/` - Functional test framework
 
 ---

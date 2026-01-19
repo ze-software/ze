@@ -7,18 +7,18 @@ Add OriginatorID and ClusterList fields to MVPNRouteConfig struct and convertMVP
 ## Context
 
 The grouping fix in `issue-mvpn-batch-interface.md` added OriginatorID and ClusterList to:
-- `MVPNRoute` struct in `pkg/reactor/peersettings.go`
-- `MVPNParams` struct in `pkg/bgp/message/update_build.go`
-- `toMVPNParams` conversion in `pkg/reactor/peer.go`
+- `MVPNRoute` struct in `internal/reactor/peersettings.go`
+- `MVPNParams` struct in `internal/bgp/message/update_build.go`
+- `toMVPNParams` conversion in `internal/reactor/peer.go`
 
 However, the config layer was not updated, so users cannot configure these fields.
 
 ## Files to Read
 
-- `pkg/config/bgp.go:590-602` - MVPNRouteConfig (missing fields)
-- `pkg/config/bgp.go:605-621` - VPLSRouteConfig (reference: has OriginatorID/ClusterList)
-- `pkg/config/loader.go:502-570` - convertMVPNRoute (needs parsing)
-- `pkg/config/loader.go:632-663` - convertVPLSRoute (reference: parsing pattern)
+- `internal/config/bgp.go:590-602` - MVPNRouteConfig (missing fields)
+- `internal/config/bgp.go:605-621` - VPLSRouteConfig (reference: has OriginatorID/ClusterList)
+- `internal/config/loader.go:502-570` - convertMVPNRoute (needs parsing)
+- `internal/config/loader.go:632-663` - convertVPLSRoute (reference: parsing pattern)
 - `.claude/zebgp/config/SYNTAX.md` - config syntax docs
 
 ## Current State
@@ -31,7 +31,7 @@ However, the config layer was not updated, so users cannot configure these field
 
 ### 1. Write test (TDD)
 
-**File: `pkg/config/loader_test.go`**
+**File: `internal/config/loader_test.go`**
 
 ```go
 // TestConvertMVPNRoute_OriginatorID verifies RFC 4456 originator-id parsing.
@@ -66,13 +66,13 @@ func TestConvertMVPNRoute_ClusterList(t *testing.T) {
 ### 2. See test fail
 
 ```bash
-go test ./pkg/config/... -run "TestConvertMVPNRoute_Originator|TestConvertMVPNRoute_Cluster"
+go test ./internal/config/... -run "TestConvertMVPNRoute_Originator|TestConvertMVPNRoute_Cluster"
 # Should fail: unknown field OriginatorID/ClusterList
 ```
 
 ### 3. Implement
 
-**File: `pkg/config/bgp.go` (lines 590-602)**
+**File: `internal/config/bgp.go` (lines 590-602)**
 
 Add fields to MVPNRouteConfig:
 ```go
@@ -93,7 +93,7 @@ type MVPNRouteConfig struct {
 }
 ```
 
-**File: `pkg/config/loader.go` (after line 568)**
+**File: `internal/config/loader.go` (after line 568)**
 
 Add parsing in convertMVPNRoute (follow VPLSRoute pattern):
 ```go
@@ -132,7 +132,7 @@ if mr.ClusterList != "" {
 ### 4. See test pass
 
 ```bash
-go test ./pkg/config/... -run "TestConvertMVPNRoute_Originator|TestConvertMVPNRoute_Cluster"
+go test ./internal/config/... -run "TestConvertMVPNRoute_Originator|TestConvertMVPNRoute_Cluster"
 ```
 
 ### 5. Run full suite

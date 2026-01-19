@@ -3,7 +3,7 @@ package main
 import (
 	"os"
 
-	"codeberg.org/thomas-mangin/zebgp/pkg/plugin/rr"
+	"codeberg.org/thomas-mangin/zebgp/internal/plugin/rr"
 )
 
 // cmdPluginRR runs the Route Server plugin.

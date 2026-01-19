@@ -56,7 +56,7 @@ type PoolRoute struct {
 
 ### Phase 1: Data Structures
 
-**Files:** `pkg/reactor/watchdog.go` (new)
+**Files:** `internal/reactor/watchdog.go` (new)
 
 ```go
 // WatchdogPool holds routes for a named watchdog group.
@@ -80,14 +80,14 @@ type WatchdogManager struct {
 ```
 
 **Tasks:**
-- [ ] Create `pkg/reactor/watchdog.go`
+- [ ] Create `internal/reactor/watchdog.go`
 - [ ] Define WatchdogPool, PoolRoute, WatchdogManager types
 - [ ] Add WatchdogManager to Reactor struct
 - [ ] Initialize in Reactor.New()
 
 ### Phase 2: Pool Operations
 
-**File:** `pkg/reactor/watchdog.go`
+**File:** `internal/reactor/watchdog.go`
 
 ```go
 func (m *WatchdogManager) AddRoute(poolName string, route StaticRoute) *PoolRoute
@@ -107,7 +107,7 @@ func (m *WatchdogManager) WithdrawPool(name string) []*PoolRoute  // returns rou
 
 ### Phase 3: Reactor Integration
 
-**File:** `pkg/reactor/reactor.go`
+**File:** `internal/reactor/reactor.go`
 
 ```go
 func (r *Reactor) AddWatchdogRoute(route StaticRoute, poolName string) error
@@ -127,7 +127,7 @@ func (r *Reactor) WithdrawWatchdogPool(peerSelector, poolName string) error
 
 ### Phase 4: API Integration
 
-**File:** `pkg/plugin/route.go`
+**File:** `internal/plugin/route.go`
 
 Modify route parsing to detect `watchdog <name>` suffix:
 

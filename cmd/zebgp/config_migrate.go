@@ -7,8 +7,8 @@ import (
 	"path/filepath"
 	"time"
 
-	"codeberg.org/thomas-mangin/zebgp/pkg/config"
-	"codeberg.org/thomas-mangin/zebgp/pkg/config/migration"
+	"codeberg.org/thomas-mangin/zebgp/internal/config"
+	"codeberg.org/thomas-mangin/zebgp/internal/config/migration"
 )
 
 // cmdConfigMigrateCLI is the CLI entry point for "zebgp config migrate".

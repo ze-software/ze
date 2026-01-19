@@ -32,7 +32,7 @@
 | **API Role** | RIB storage, policy, best-path, GR state |
 | **Communication** | JSON events + base64 wire bytes |
 | **Key Types** | `Server`, `Client`, `Process`, `Dispatcher` |
-| **RIB** | Owned by API program (use `pkg/rib/` as reference) |
+| **RIB** | Owned by API program (use `internal/rib/` as reference) |
 | **Polyglot** | API programs can be Go, Python, Rust, etc. |
 | **msg-id Control** | API controls cache lifetime (retain/release/expire) |
 
@@ -58,7 +58,7 @@
 
 | Component | Description |
 |-----------|-------------|
-| RIB | Route storage (use `pkg/rib/` as reference) |
+| RIB | Route storage (use `internal/rib/` as reference) |
 | Pool | Attribute deduplication (see `POOL_ARCHITECTURE.md`) |
 | Policy | Import/export filters, route manipulation |
 | Best-path | Selection algorithm (if needed) |
@@ -186,7 +186,7 @@ The ZeBGP API system enables external route injection and daemon control via:
 ## Package Structure
 
 ```
-pkg/plugin/
+internal/plugin/
 ├── server.go         # Server, Client, socket listener, plugin response handling
 ├── process.go        # Process, subprocess management
 ├── command.go        # Dispatcher, CommandContext, plugin routing
@@ -346,7 +346,7 @@ type PathAttributes struct {
 
 ### Next-Hop Resolution
 
-`RouteNextHop` is resolved at **peer level** in `pkg/reactor/peer.go` via `resolveNextHop()`:
+`RouteNextHop` is resolved at **peer level** in `internal/reactor/peer.go` via `resolveNextHop()`:
 
 | Policy | Behavior |
 |--------|----------|
@@ -786,7 +786,7 @@ See `PROCESS_PROTOCOL.md` for full protocol details.
 > **Note:** Adj-RIB-Out is now owned by API programs, not the engine.
 > The engine has no route storage - it delegates to API.
 
-API programs use `pkg/rib/` as reference implementation:
+API programs use `internal/rib/` as reference implementation:
 
 ```go
 // In API program
@@ -1013,7 +1013,7 @@ Process stdin
 
 ## RIB Plugin and Route Replay
 
-The RIB plugin (`pkg/plugin/rib/`) tracks routes received from peers (Adj-RIB-In) and sent to peers (Adj-RIB-Out), replaying outgoing routes on session re-establishment.
+The RIB plugin (`internal/plugin/rib/`) tracks routes received from peers (Adj-RIB-In) and sent to peers (Adj-RIB-Out), replaying outgoing routes on session re-establishment.
 
 ### RIB Plugin Features
 
@@ -1074,14 +1074,14 @@ if needsAPIWait {
 
 | File | Purpose |
 |------|---------|
-| `pkg/plugin/server.go` | Server, Client, socket handling |
-| `pkg/plugin/process.go` | Subprocess management |
-| `pkg/plugin/route.go` | Route announce/withdraw handlers |
-| `pkg/plugin/types.go` | ReactorInterface, RouteSpec |
-| `pkg/plugin/text.go` | Text/JSON formatting including FormatStateChange |
-| `pkg/plugin/commit_manager.go` | Transaction management |
-| `pkg/plugin/rib/rib.go` | RIB plugin (Adj-RIB-In/Out, route replay) |
-| `pkg/reactor/reactor.go` | AnnounceRoute, PeerLifecycleObserver |
-| `pkg/reactor/peer.go` | FSM callback, reactor notification, API sync |
-| `pkg/reactor/session.go` | Session lifecycle, teardown handling |
-| `pkg/rib/outgoing.go` | Adj-RIB-Out structure |
+| `internal/plugin/server.go` | Server, Client, socket handling |
+| `internal/plugin/process.go` | Subprocess management |
+| `internal/plugin/route.go` | Route announce/withdraw handlers |
+| `internal/plugin/types.go` | ReactorInterface, RouteSpec |
+| `internal/plugin/text.go` | Text/JSON formatting including FormatStateChange |
+| `internal/plugin/commit_manager.go` | Transaction management |
+| `internal/plugin/rib/rib.go` | RIB plugin (Adj-RIB-In/Out, route replay) |
+| `internal/reactor/reactor.go` | AnnounceRoute, PeerLifecycleObserver |
+| `internal/reactor/peer.go` | FSM callback, reactor notification, API sync |
+| `internal/reactor/session.go` | Session lifecycle, teardown handling |
+| `internal/rib/outgoing.go` | Adj-RIB-Out structure |

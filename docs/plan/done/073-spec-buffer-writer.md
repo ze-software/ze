@@ -27,41 +27,41 @@ Implement the buffer writer architecture described in `.claude/zebgp/wire/BUFFER
 ## Files to Modify
 
 ### Phase 1: Core Infrastructure
-- `pkg/bgp/wire/writer.go` - **NEW**: BufWriter interface, SessionBuffer type
+- `internal/bgp/wire/writer.go` - **NEW**: BufWriter interface, SessionBuffer type
 
 ### Phase 2: Attribute Writers
-- `pkg/bgp/attribute/attribute.go` - Extend Attribute interface
-- `pkg/bgp/attribute/origin.go` - Implement WriteTo
-- `pkg/bgp/attribute/aspath.go` - Implement WriteTo with ASN4 context
-- `pkg/bgp/attribute/simple.go` - NextHop, MED, LocalPref, Aggregator, etc.
-- `pkg/bgp/attribute/community.go` - All community types
-- `pkg/bgp/attribute/mpnlri.go` - MP_REACH_NLRI, MP_UNREACH_NLRI
-- `pkg/bgp/attribute/opaque.go` - OpaqueAttribute
+- `internal/bgp/attribute/attribute.go` - Extend Attribute interface
+- `internal/bgp/attribute/origin.go` - Implement WriteTo
+- `internal/bgp/attribute/aspath.go` - Implement WriteTo with ASN4 context
+- `internal/bgp/attribute/simple.go` - NextHop, MED, LocalPref, Aggregator, etc.
+- `internal/bgp/attribute/community.go` - All community types
+- `internal/bgp/attribute/mpnlri.go` - MP_REACH_NLRI, MP_UNREACH_NLRI
+- `internal/bgp/attribute/opaque.go` - OpaqueAttribute
 
 ### Phase 3: NLRI Writers
-- `pkg/bgp/nlri/nlri.go` - Extend NLRI interface
-- `pkg/bgp/nlri/ipv4.go` - IPv4 unicast
-- `pkg/bgp/nlri/ipv6.go` - IPv6 unicast
-- `pkg/bgp/nlri/vpn.go` - VPN routes
-- `pkg/bgp/nlri/evpn.go` - EVPN routes
-- `pkg/bgp/nlri/flowspec.go` - FlowSpec
-- `pkg/bgp/nlri/labeled.go` - Labeled unicast
+- `internal/bgp/nlri/nlri.go` - Extend NLRI interface
+- `internal/bgp/nlri/ipv4.go` - IPv4 unicast
+- `internal/bgp/nlri/ipv6.go` - IPv6 unicast
+- `internal/bgp/nlri/vpn.go` - VPN routes
+- `internal/bgp/nlri/evpn.go` - EVPN routes
+- `internal/bgp/nlri/flowspec.go` - FlowSpec
+- `internal/bgp/nlri/labeled.go` - Labeled unicast
 
 ### Phase 4: Session Integration
-- `pkg/reactor/session.go` - Add writeBuf, resize on Extended Message
+- `internal/reactor/session.go` - Add writeBuf, resize on Extended Message
 
 ### Phase 5: Message Builder Migration
-- `pkg/bgp/message/update_build.go` - Convert to SessionBuffer
-- `pkg/rib/commit.go` - Convert packAttributesWithASPath
-- `pkg/bgp/message/chunk_mp_nlri.go` - Convert NLRI chunking
-- `pkg/rib/update.go` - Convert buildNLRIBytes
+- `internal/bgp/message/update_build.go` - Convert to SessionBuffer
+- `internal/rib/commit.go` - Convert packAttributesWithASPath
+- `internal/bgp/message/chunk_mp_nlri.go` - Convert NLRI chunking
+- `internal/rib/update.go` - Convert buildNLRIBytes
 
 ## Implementation Steps
 
 ### Phase 1: BufWriter Interface (TDD)
 
 ```go
-// pkg/bgp/wire/writer.go
+// internal/bgp/wire/writer.go
 
 // BufWriter writes directly into a pre-allocated buffer.
 type BufWriter interface {
@@ -90,7 +90,7 @@ func (sb *SessionBuffer) Resize(extended bool)  // Re-allocate if needed
 ### Phase 2: Attribute Interface Extension
 
 ```go
-// pkg/bgp/attribute/attribute.go
+// internal/bgp/attribute/attribute.go
 
 type Attribute interface {
     Code() AttributeCode
@@ -112,7 +112,7 @@ func WriteAttrToWithContext(attr Attribute, buf []byte, off int, src, dst *bgpct
 ### Phase 3: NLRI Interface Extension
 
 ```go
-// pkg/bgp/nlri/nlri.go
+// internal/bgp/nlri/nlri.go
 
 type NLRI interface {
     Family() Family
@@ -126,7 +126,7 @@ type NLRI interface {
 ### Phase 4: Session Buffer Integration
 
 ```go
-// pkg/reactor/session.go
+// internal/reactor/session.go
 
 type Session struct {
     // ... existing fields ...

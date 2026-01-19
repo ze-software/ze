@@ -17,7 +17,7 @@ The test `R` (path-information) fails because:
 
 ## Root Cause
 
-In `pkg/rib/commit.go:138`:
+In `internal/rib/commit.go:138`:
 ```go
 nlriBytes = append(nlriBytes, route.NLRI().Bytes()...)
 ```
@@ -50,11 +50,11 @@ The `Bytes()` method is capability-agnostic. It should check if ADD-PATH is nego
 ## Codebase Context
 
 **Key files:**
-- `pkg/bgp/nlri/inet.go` - INET type with Bytes() method
-- `pkg/bgp/nlri/nlri.go` - NLRI interface definition
-- `pkg/rib/commit.go` - CommitService building UPDATE messages
-- `pkg/bgp/message/message.go` - Negotiated struct with AddPath map
-- `pkg/bgp/capability/negotiated.go` - Full capability negotiation
+- `internal/bgp/nlri/inet.go` - INET type with Bytes() method
+- `internal/bgp/nlri/nlri.go` - NLRI interface definition
+- `internal/rib/commit.go` - CommitService building UPDATE messages
+- `internal/bgp/message/message.go` - Negotiated struct with AddPath map
+- `internal/bgp/capability/negotiated.go` - Full capability negotiation
 
 **Pattern to follow:**
 ExaBGP's `pack_nlri(negotiated)` method that adapts based on capability.
@@ -83,7 +83,7 @@ See `docs/plan/spec-negotiated-packing.md` for full architectural rationale.
 ### Step 1: Add PackContext and Pack method
 
 ```go
-// In pkg/bgp/nlri/pack.go (new file)
+// In internal/bgp/nlri/pack.go (new file)
 
 // PackContext holds capability-dependent packing options.
 // Used to adapt wire format based on negotiated session parameters.
@@ -99,7 +99,7 @@ type PackContext struct {
 ```
 
 ```go
-// In pkg/bgp/nlri/nlri.go
+// In internal/bgp/nlri/nlri.go
 type NLRI interface {
     // ... existing methods ...
 
@@ -113,7 +113,7 @@ type NLRI interface {
 ### Step 2: Implement Pack for INET
 
 ```go
-// In pkg/bgp/nlri/inet.go
+// In internal/bgp/nlri/inet.go
 func (i *INET) Pack(ctx *PackContext) []byte {
     // If no context, return raw bytes
     if ctx == nil {
@@ -138,7 +138,7 @@ func (i *INET) Pack(ctx *PackContext) []byte {
 
 ### Step 3: Update CommitService to use Pack
 
-In `pkg/rib/commit.go`:
+In `internal/rib/commit.go`:
 ```go
 // Helper to create PackContext from Negotiated
 func (c *CommitService) packContext(family nlri.Family) *nlri.PackContext {

@@ -33,14 +33,14 @@ Add `raw-attributes` and `raw-nlri` to engine JSON events, then migrate plugin R
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestExtractRawAttributes` | `pkg/plugin/wire_extract_test.go` | Extract attrs from UPDATE | |
-| `TestExtractRawNLRI` | `pkg/plugin/wire_extract_test.go` | Extract NLRI by family | |
-| `TestFormatMessage_RawFields` | `pkg/plugin/text_test.go` | JSON includes raw fields | |
-| `TestDirectNLRISet_AddRemove` | `pkg/plugin/rib/storage/nlriset_test.go` | Direct set operations | |
-| `TestPooledNLRISet_AddRemove` | `pkg/plugin/rib/storage/nlriset_test.go` | Pooled set operations | |
-| `TestFamilyRIB_Insert` | `pkg/plugin/rib/storage/familyrib_test.go` | Basic insert | |
-| `TestFamilyRIB_ImplicitWithdraw` | `pkg/plugin/rib/storage/familyrib_test.go` | Same prefix, new attrs | |
-| `TestRIBManager_PoolStorage` | `pkg/plugin/rib/rib_test.go` | Routes stored with handles | |
+| `TestExtractRawAttributes` | `internal/plugin/wire_extract_test.go` | Extract attrs from UPDATE | |
+| `TestExtractRawNLRI` | `internal/plugin/wire_extract_test.go` | Extract NLRI by family | |
+| `TestFormatMessage_RawFields` | `internal/plugin/text_test.go` | JSON includes raw fields | |
+| `TestDirectNLRISet_AddRemove` | `internal/plugin/rib/storage/nlriset_test.go` | Direct set operations | |
+| `TestPooledNLRISet_AddRemove` | `internal/plugin/rib/storage/nlriset_test.go` | Pooled set operations | |
+| `TestFamilyRIB_Insert` | `internal/plugin/rib/storage/familyrib_test.go` | Basic insert | |
+| `TestFamilyRIB_ImplicitWithdraw` | `internal/plugin/rib/storage/familyrib_test.go` | Same prefix, new attrs | |
+| `TestRIBManager_PoolStorage` | `internal/plugin/rib/rib_test.go` | Routes stored with handles | |
 
 ### Boundary Tests
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
@@ -55,20 +55,20 @@ Add `raw-attributes` and `raw-nlri` to engine JSON events, then migrate plugin R
 
 ## Files to Modify
 
-- `pkg/plugin/text.go` - Add raw-attributes, raw-nlri to JSON output
-- `pkg/plugin/rib/event.go` - Decode base64 raw fields
-- `pkg/plugin/rib/rib.go` - Replace Route struct with pool storage
+- `internal/plugin/text.go` - Add raw-attributes, raw-nlri to JSON output
+- `internal/plugin/rib/event.go` - Decode base64 raw fields
+- `internal/plugin/rib/rib.go` - Replace Route struct with pool storage
 
 ## Files to Create
 
-- `pkg/plugin/wire_extract.go` - Extract raw bytes from WireUpdate
-- `pkg/plugin/wire_extract_test.go` - Tests
-- `pkg/plugin/rib/storage/nlriset.go` - NLRISet interface + implementations
-- `pkg/plugin/rib/storage/nlriset_test.go` - Tests
-- `pkg/plugin/rib/storage/familyrib.go` - FamilyRIB (attr handle → NLRISet)
-- `pkg/plugin/rib/storage/familyrib_test.go` - Tests
-- `pkg/plugin/rib/storage/peerrib.go` - PeerRIB wrapper
-- `pkg/plugin/rib/storage/peerrib_test.go` - Tests
+- `internal/plugin/wire_extract.go` - Extract raw bytes from WireUpdate
+- `internal/plugin/wire_extract_test.go` - Tests
+- `internal/plugin/rib/storage/nlriset.go` - NLRISet interface + implementations
+- `internal/plugin/rib/storage/nlriset_test.go` - Tests
+- `internal/plugin/rib/storage/familyrib.go` - FamilyRIB (attr handle → NLRISet)
+- `internal/plugin/rib/storage/familyrib_test.go` - Tests
+- `internal/plugin/rib/storage/peerrib.go` - PeerRIB wrapper
+- `internal/plugin/rib/storage/peerrib_test.go` - Tests
 
 ## Implementation Steps
 
@@ -103,17 +103,17 @@ Add `raw-attributes` and `raw-nlri` to engine JSON events, then migrate plugin R
 ### What Was Implemented
 
 **Phase 1: Engine raw bytes** ✅
-- `pkg/plugin/wire_extract.go` - ExtractRawAttributes, ExtractRawNLRI, ExtractRawWithdrawn, ExtractRawComponents
-- `pkg/plugin/text.go` - Added raw-attributes, raw-nlri, raw-withdrawn to JSON (format=full)
-- `pkg/plugin/mpwire.go` - Added NLRIBytes(), WithdrawnBytes() methods
+- `internal/plugin/wire_extract.go` - ExtractRawAttributes, ExtractRawNLRI, ExtractRawWithdrawn, ExtractRawComponents
+- `internal/plugin/text.go` - Added raw-attributes, raw-nlri, raw-withdrawn to JSON (format=full)
+- `internal/plugin/mpwire.go` - Added NLRIBytes(), WithdrawnBytes() methods
 
 **Phase 2: Storage package** ✅
-- `pkg/plugin/rib/storage/nlriset.go` - NLRISet interface + DirectNLRISet + PooledNLRISet
-- `pkg/plugin/rib/storage/familyrib.go` - FamilyRIB with forward/reverse index
-- `pkg/plugin/rib/storage/peerrib.go` - PeerRIB wrapper with thread-safe access
+- `internal/plugin/rib/storage/nlriset.go` - NLRISet interface + DirectNLRISet + PooledNLRISet
+- `internal/plugin/rib/storage/familyrib.go` - FamilyRIB with forward/reverse index
+- `internal/plugin/rib/storage/peerrib.go` - PeerRIB wrapper with thread-safe access
 
 **Phase 3: Event parsing** ✅
-- `pkg/plugin/rib/event.go` - Added RawAttributes, RawNLRI, RawWithdrawn fields and helper methods
+- `internal/plugin/rib/event.go` - Added RawAttributes, RawNLRI, RawWithdrawn fields and helper methods
 
 **Phases 3-4: RIBManager migration** ✅
 - Added `ribInPool map[string]*storage.PeerRIB` to RIBManager
@@ -190,20 +190,20 @@ Add `raw-attributes` and `raw-nlri` to engine JSON events, then migrate plugin R
 
 | Test | File | Validates |
 |------|------|-----------|
-| `TestHandleReceived_PoolStorage` | `pkg/plugin/rib/rib_test.go` | Routes stored with handles |
-| `TestHandleReceived_FallbackToRoute` | `pkg/plugin/rib/rib_test.go` | Works without raw fields |
-| `TestHandleReceived_PoolStorage_MultipleNLRIs` | `pkg/plugin/rib/rib_test.go` | Concatenated NLRIs split |
-| `TestHandleReceived_PoolStorage_Withdraw` | `pkg/plugin/rib/rib_test.go` | Withdrawal removes from pool |
-| `TestHandleState_PeerDown_ClearsPoolStorage` | `pkg/plugin/rib/rib_test.go` | Pool cleared on down |
-| `TestStatusJSON_WithPoolStorage` | `pkg/plugin/rib/rib_test.go` | Status counts pool routes |
-| `TestPrefixToWire` | `pkg/plugin/rib/rib_test.go` | Text→wire conversion |
-| `TestWireToPrefix` | `pkg/plugin/rib/rib_test.go` | Wire→text conversion |
-| `TestCrossStorage_PoolToLegacy` | `pkg/plugin/rib/rib_test.go` | Pool announce clears legacy |
-| `TestCrossStorage_LegacyToPool` | `pkg/plugin/rib/rib_test.go` | Legacy announce clears pool |
-| `TestCrossStorage_WithdrawFromPool` | `pkg/plugin/rib/rib_test.go` | Pool withdraw clears legacy |
-| `TestCrossStorage_WithdrawFromLegacy` | `pkg/plugin/rib/rib_test.go` | Legacy withdraw clears pool |
-| `TestHandleInboundShow_PoolStorage` | `pkg/plugin/rib/rib_test.go` | Show reads from pool |
-| `TestHandleInboundEmpty_PoolStorage` | `pkg/plugin/rib/rib_test.go` | Empty clears pool |
+| `TestHandleReceived_PoolStorage` | `internal/plugin/rib/rib_test.go` | Routes stored with handles |
+| `TestHandleReceived_FallbackToRoute` | `internal/plugin/rib/rib_test.go` | Works without raw fields |
+| `TestHandleReceived_PoolStorage_MultipleNLRIs` | `internal/plugin/rib/rib_test.go` | Concatenated NLRIs split |
+| `TestHandleReceived_PoolStorage_Withdraw` | `internal/plugin/rib/rib_test.go` | Withdrawal removes from pool |
+| `TestHandleState_PeerDown_ClearsPoolStorage` | `internal/plugin/rib/rib_test.go` | Pool cleared on down |
+| `TestStatusJSON_WithPoolStorage` | `internal/plugin/rib/rib_test.go` | Status counts pool routes |
+| `TestPrefixToWire` | `internal/plugin/rib/rib_test.go` | Text→wire conversion |
+| `TestWireToPrefix` | `internal/plugin/rib/rib_test.go` | Wire→text conversion |
+| `TestCrossStorage_PoolToLegacy` | `internal/plugin/rib/rib_test.go` | Pool announce clears legacy |
+| `TestCrossStorage_LegacyToPool` | `internal/plugin/rib/rib_test.go` | Legacy announce clears pool |
+| `TestCrossStorage_WithdrawFromPool` | `internal/plugin/rib/rib_test.go` | Pool withdraw clears legacy |
+| `TestCrossStorage_WithdrawFromLegacy` | `internal/plugin/rib/rib_test.go` | Legacy withdraw clears pool |
+| `TestHandleInboundShow_PoolStorage` | `internal/plugin/rib/rib_test.go` | Show reads from pool |
+| `TestHandleInboundEmpty_PoolStorage` | `internal/plugin/rib/rib_test.go` | Empty clears pool |
 
 ## Checklist
 
@@ -281,17 +281,17 @@ Rationale:
 
 | Component | Location | Use For |
 |-----------|----------|---------|
-| `AttrIterator` | `pkg/bgp/attribute/iterator.go` | Iterate raw attr bytes |
-| `AttributeCode` | `pkg/bgp/attribute/attribute.go` | Type codes (ORIGIN, AS_PATH, etc.) |
-| `WriteAttributesOrdered` | `pkg/bgp/attribute/origin.go` | Wire reconstruction |
-| `Pool` | `pkg/pool/pool.go` | Pool infrastructure |
+| `AttrIterator` | `internal/bgp/attribute/iterator.go` | Iterate raw attr bytes |
+| `AttributeCode` | `internal/bgp/attribute/attribute.go` | Type codes (ORIGIN, AS_PATH, etc.) |
+| `WriteAttributesOrdered` | `internal/bgp/attribute/origin.go` | Wire reconstruction |
+| `Pool` | `internal/pool/pool.go` | Pool infrastructure |
 
 ### Required Changes
 
 #### 1. Per-Attribute Pools (NEW - add to existing file)
 
 ```go
-// pkg/pool/attributes.go - add typed pools alongside existing Attributes/NLRI
+// internal/pool/attributes.go - add typed pools alongside existing Attributes/NLRI
 var (
     Origin           = NewPool(PoolConfig{ExpectedEntries: 3})      // IGP/EGP/INCOMPLETE
     ASPath           = NewPool(PoolConfig{ExpectedEntries: 10000})
@@ -309,7 +309,7 @@ var (
 #### 2. RouteEntry with Per-Attribute Handles (NEW)
 
 ```go
-// pkg/plugin/rib/storage/routeentry.go
+// internal/plugin/rib/storage/routeentry.go
 type RouteEntry struct {
     // Per-attribute handles (InvalidHandle if not present)
     Origin           pool.Handle
@@ -331,7 +331,7 @@ type RouteEntry struct {
 #### 3. Attribute Parser (NEW - uses existing AttrIterator)
 
 ```go
-// pkg/plugin/rib/storage/attrparse.go
+// internal/plugin/rib/storage/attrparse.go
 func ParseAttributes(raw []byte) (*RouteEntry, error) {
     entry := &RouteEntry{}
     iter := attribute.NewAttrIterator(raw)  // REUSE existing iterator
@@ -386,8 +386,8 @@ func (e *RouteEntry) ToWireBytes() []byte {
 ### Implementation Steps
 
 1. **Remove legacy `ribIn`** first (simplifies FamilyRIB refactor)
-2. **Add per-attribute pools** to `pkg/pool/attributes.go` (extend existing file)
-3. **Create RouteEntry struct** in `pkg/plugin/rib/storage/routeentry.go`
+2. **Add per-attribute pools** to `internal/pool/attributes.go` (extend existing file)
+3. **Create RouteEntry struct** in `internal/plugin/rib/storage/routeentry.go`
 4. **Create attribute parser** using existing `AttrIterator` (DO NOT rewrite iterator)
 5. **Update FamilyRIB** to use RouteEntry instead of blob handle
 6. **Add wire reconstruction** using existing write patterns
@@ -405,7 +405,7 @@ func (e *RouteEntry) ToWireBytes() []byte {
 ### Dependencies
 
 - Phase 4 complete (remove `ribIn` legacy storage)
-- Attribute iterator available (check `pkg/bgp/attribute/`)
+- Attribute iterator available (check `internal/bgp/attribute/`)
 
 ### Estimated Complexity
 

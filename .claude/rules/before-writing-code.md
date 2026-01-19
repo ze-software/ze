@@ -8,13 +8,13 @@ Before writing anything new:
 
 ```bash
 # Search for similar tests
-grep -r "TestYourFeature\|your_pattern" pkg/ test/
+grep -r "TestYourFeature\|your_pattern" internal/ test/
 
 # Search for similar functional tests
 grep -r "your_pattern" test/data/
 
 # Search for similar functionality
-grep -r "FunctionName\|pattern" pkg/
+grep -r "FunctionName\|pattern" internal/
 ```
 
 **Ask yourself:**
@@ -30,10 +30,10 @@ Before writing new code:
 
 ```bash
 # Find similar patterns
-grep -r "similar_function\|similar_pattern" pkg/
+grep -r "similar_function\|similar_pattern" internal/
 
 # Find similar test patterns
-grep -r "similar_test" pkg/ test/
+grep -r "similar_test" internal/ test/
 ```
 
 **Ask yourself:**

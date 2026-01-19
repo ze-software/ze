@@ -47,7 +47,7 @@ capability.Negotiated
 EncodingContext already references EncodingCaps, so it gets ExtendedMessage automatically.
 
 ```go
-// pkg/bgp/capability/encoding.go
+// internal/bgp/capability/encoding.go
 type EncodingCaps struct {
     ASN4            bool
     ExtendedMessage bool  // NEW: RFC 8654, affects max message size
@@ -56,7 +56,7 @@ type EncodingCaps struct {
     ExtendedNextHop map[Family]AFI
 }
 
-// pkg/bgp/context/context.go - add accessor
+// internal/bgp/context/context.go - add accessor
 func (c *EncodingContext) ExtendedMessage() bool {
     if c.encoding == nil {
         return false
@@ -76,7 +76,7 @@ func (c *EncodingContext) MaxMessageSize() int {
 
 ```go
 // WireWriter is implemented by types that write to wire format.
-// Located in pkg/bgp/context/context.go (not wire package due to import cycle)
+// Located in internal/bgp/context/context.go (not wire package due to import cycle)
 // Import cycle: wire→context→nlri→wire prevented placement in wire package.
 type WireWriter interface {
     // Len returns wire size in bytes. Pass nil for context-independent types.
@@ -92,7 +92,7 @@ type WireWriter interface {
 
 ```go
 // Message is implemented by all BGP message types.
-// Located in pkg/bgp/message/message.go
+// Located in internal/bgp/message/message.go
 type Message interface {
     context.WireWriter  // Note: context.WireWriter, not wire.WireWriter
     Type() MessageType
@@ -107,7 +107,7 @@ type Message interface {
 
 ```go
 // Attribute is implemented by all BGP path attributes.
-// Located in pkg/bgp/attribute/attribute.go
+// Located in internal/bgp/attribute/attribute.go
 type Attribute interface {
     wire.WireWriter
     Code() AttributeCode
@@ -128,7 +128,7 @@ For attributes that need source context (AS_PATH, Aggregator transcoding):
 
 ```go
 // Transcoder extends WireWriter for types needing source context.
-// Located in pkg/bgp/attribute/attribute.go
+// Located in internal/bgp/attribute/attribute.go
 type Transcoder interface {
     WireWriter
     // LenTranscode returns size when transcoding from srcCtx to dstCtx.
@@ -213,12 +213,12 @@ func (p *ASPath) LenTranscode(srcCtx, dstCtx *context.EncodingContext) int {
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestMessageWireWriter` | `pkg/bgp/message/message_test.go` | All message types implement WireWriter | |
-| `TestAttributeWireWriter` | `pkg/bgp/attribute/attribute_test.go` | All attribute types implement WireWriter | |
-| `TestKeepaliveLen` | `pkg/bgp/message/keepalive_test.go` | Keepalive.Len(nil) == 19 | |
-| `TestUpdateLenWithContext` | `pkg/bgp/message/update_test.go` | Update.Len uses context for size | |
-| `TestASPathLenASN4` | `pkg/bgp/attribute/aspath_test.go` | AS_PATH size varies with ASN4 | |
-| `TestASPathTranscode` | `pkg/bgp/attribute/aspath_test.go` | ASN2→ASN4 transcoding | |
+| `TestMessageWireWriter` | `internal/bgp/message/message_test.go` | All message types implement WireWriter | |
+| `TestAttributeWireWriter` | `internal/bgp/attribute/attribute_test.go` | All attribute types implement WireWriter | |
+| `TestKeepaliveLen` | `internal/bgp/message/keepalive_test.go` | Keepalive.Len(nil) == 19 | |
+| `TestUpdateLenWithContext` | `internal/bgp/message/update_test.go` | Update.Len uses context for size | |
+| `TestASPathLenASN4` | `internal/bgp/attribute/aspath_test.go` | AS_PATH size varies with ASN4 | |
+| `TestASPathTranscode` | `internal/bgp/attribute/aspath_test.go` | ASN2→ASN4 transcoding | |
 
 ### Functional Tests
 | Test | Location | Scenario | Status |
@@ -228,44 +228,44 @@ func (p *ASPath) LenTranscode(srcCtx, dstCtx *context.EncodingContext) int {
 ## Files to Modify
 
 ### Delete
-- `pkg/bgp/message/message.go` lines 12-38 - `message.Negotiated` struct (ephemeral shim)
+- `internal/bgp/message/message.go` lines 12-38 - `message.Negotiated` struct (ephemeral shim)
 
 ### Modify
 
 #### EncodingContext (add ExtendedMessage)
-- `pkg/bgp/capability/encoding.go` - add ExtendedMessage to EncodingCaps
-- `pkg/bgp/capability/session.go` - remove ExtendedMessage (moved to EncodingCaps)
-- `pkg/bgp/capability/negotiated.go` - update buildSubComponents() to populate ExtendedMessage in Encoding
-- `pkg/bgp/context/context.go` - add ExtendedMessage() and MaxMessageSize() methods
+- `internal/bgp/capability/encoding.go` - add ExtendedMessage to EncodingCaps
+- `internal/bgp/capability/session.go` - remove ExtendedMessage (moved to EncodingCaps)
+- `internal/bgp/capability/negotiated.go` - update buildSubComponents() to populate ExtendedMessage in Encoding
+- `internal/bgp/context/context.go` - add ExtendedMessage() and MaxMessageSize() methods
 
 #### WireWriter Interface
-- `pkg/bgp/context/context.go` - add WireWriter interface (in context, not wire, due to import cycle)
+- `internal/bgp/context/context.go` - add WireWriter interface (in context, not wire, due to import cycle)
 
 #### Message Package
-- `pkg/bgp/message/message.go` - Message interface embeds WireWriter, add EncodingContext alias
-- `pkg/bgp/message/keepalive.go` - implement Len/WriteTo (Pack kept)
-- `pkg/bgp/message/open.go` - implement Len/WriteTo (Pack kept)
-- `pkg/bgp/message/update.go` - update Len/WriteTo signatures (Pack kept)
-- `pkg/bgp/message/notification.go` - implement Len/WriteTo (Pack kept)
-- `pkg/bgp/message/routerefresh.go` - implement Len/WriteTo (Pack kept)
+- `internal/bgp/message/message.go` - Message interface embeds WireWriter, add EncodingContext alias
+- `internal/bgp/message/keepalive.go` - implement Len/WriteTo (Pack kept)
+- `internal/bgp/message/open.go` - implement Len/WriteTo (Pack kept)
+- `internal/bgp/message/update.go` - update Len/WriteTo signatures (Pack kept)
+- `internal/bgp/message/notification.go` - implement Len/WriteTo (Pack kept)
+- `internal/bgp/message/routerefresh.go` - implement Len/WriteTo (Pack kept)
 
 #### Attribute Package
-- `pkg/bgp/attribute/attribute.go` - Attribute interface uses WireWriter, add Transcoder
-- `pkg/bgp/attribute/origin.go` - remove Pack, context-less WriteTo/Len
-- `pkg/bgp/attribute/simple.go` - remove Pack, context-less WriteTo/Len
-- `pkg/bgp/attribute/aspath.go` - implement Transcoder, remove old methods
-- `pkg/bgp/attribute/community.go` - remove Pack, context-less WriteTo/Len
-- `pkg/bgp/attribute/mpnlri.go` - remove Pack, context-less WriteTo/Len
-- `pkg/bgp/attribute/opaque.go` - remove Pack, context-less WriteTo/Len
-- `pkg/bgp/attribute/as4.go` - remove Pack, context-less WriteTo/Len
+- `internal/bgp/attribute/attribute.go` - Attribute interface uses WireWriter, add Transcoder
+- `internal/bgp/attribute/origin.go` - remove Pack, context-less WriteTo/Len
+- `internal/bgp/attribute/simple.go` - remove Pack, context-less WriteTo/Len
+- `internal/bgp/attribute/aspath.go` - implement Transcoder, remove old methods
+- `internal/bgp/attribute/community.go` - remove Pack, context-less WriteTo/Len
+- `internal/bgp/attribute/mpnlri.go` - remove Pack, context-less WriteTo/Len
+- `internal/bgp/attribute/opaque.go` - remove Pack, context-less WriteTo/Len
+- `internal/bgp/attribute/as4.go` - remove Pack, context-less WriteTo/Len
 
 #### Callers to Update
-- `pkg/bgp/attribute/builder.go` - use new interface
-- `pkg/bgp/message/update_build.go` - use new interface
-- `pkg/rib/commit.go` - use EncodingContext instead of message.Negotiated
-- `pkg/rib/outgoing.go` - use new interface
-- `pkg/reactor/session.go` - use sendCtx directly (remove conversion to message.Negotiated)
-- `pkg/reactor/peer.go` - remove messageNegotiated() helper
+- `internal/bgp/attribute/builder.go` - use new interface
+- `internal/bgp/message/update_build.go` - use new interface
+- `internal/rib/commit.go` - use EncodingContext instead of message.Negotiated
+- `internal/rib/outgoing.go` - use new interface
+- `internal/reactor/session.go` - use sendCtx directly (remove conversion to message.Negotiated)
+- `internal/reactor/peer.go` - remove messageNegotiated() helper
 - All test files using Pack or old WriteTo signatures
 
 ## Files to Create
@@ -274,7 +274,7 @@ None - refactoring existing code.
 
 ## Implementation Steps
 
-1. **Add WireWriter interface** to `pkg/bgp/wire/writer.go`
+1. **Add WireWriter interface** to `internal/bgp/wire/writer.go`
 2. **Write unit tests** for interface compliance
 3. **Run tests** - Verify FAIL (types don't implement yet)
 4. **Delete message.Negotiated** - remove duplicate type
@@ -316,7 +316,7 @@ func (p *ASPath) Len(ctx *context.EncodingContext) int {
 ### What Was Implemented
 - Added `ExtendedMessage` to `EncodingCaps` (moved from SessionCaps)
 - Added `ExtendedMessage()` and `MaxMessageSize()` methods to `EncodingContext`
-- Added `WireWriter` interface to `pkg/bgp/context/context.go` (not wire package due to import cycle)
+- Added `WireWriter` interface to `internal/bgp/context/context.go` (not wire package due to import cycle)
 - Updated `Message` interface to embed `WireWriter` (removed Pack method)
 - Implemented `Len(ctx)` and `WriteTo(buf, off, ctx)` on all message types:
   - Keepalive, Open, Notification, Update, RouteRefresh
@@ -327,14 +327,14 @@ func (p *ASPath) Len(ctx *context.EncodingContext) int {
 - Added `PackTo(msg, ctx)` helper function for callers needing []byte allocation
 - Updated hash computation in EncodingContext to include ExtendedMessage
 - **Migrated all callers from Pack() to PackTo():**
-  - `pkg/reactor/reactor.go` - RouteRefresh, Notification
-  - `pkg/reactor/session.go` - writeMessage()
-  - `pkg/reactor/session_test.go` - all test Pack calls
-  - `pkg/reactor/collision_test.go` - all test Pack calls
-  - `pkg/bgp/message/*_test.go` - all message tests
+  - `internal/reactor/reactor.go` - RouteRefresh, Notification
+  - `internal/reactor/session.go` - writeMessage()
+  - `internal/reactor/session_test.go` - all test Pack calls
+  - `internal/reactor/collision_test.go` - all test Pack calls
+  - `internal/bgp/message/*_test.go` - all message tests
 
 ### Bugs Found/Fixed
-- Import cycle: WireWriter cannot be in `pkg/bgp/wire` because wire→context→nlri→wire
+- Import cycle: WireWriter cannot be in `internal/bgp/wire` because wire→context→nlri→wire
   - Moved WireWriter to context package
 
 ### Design Insights
@@ -348,7 +348,7 @@ func (p *ASPath) Len(ctx *context.EncodingContext) int {
 ## Checklist
 
 ### 🧪 TDD
-- [x] Tests written (`pkg/bgp/message/wirewriter_test.go`)
+- [x] Tests written (`internal/bgp/message/wirewriter_test.go`)
 - [x] Tests FAIL (compilation errors - types don't implement WireWriter)
 - [x] Implementation complete
 - [x] Tests PASS

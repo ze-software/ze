@@ -29,19 +29,19 @@ In-memory only. No disk persistence. No best-path selection (Loc-RIB).
 ### Unit Tests
 | Test | File | Validates |
 |------|------|-----------|
-| `TestParseEvent_SentFormat` | `pkg/plugin/rib/rib_test.go` | Sent events parsed correctly |
-| `TestParseEvent_ReceivedFormat` | `pkg/plugin/rib/rib_test.go` | Received events with message wrapper parsed |
-| `TestParseEvent_StateFormat` | `pkg/plugin/rib/rib_test.go` | State events parsed correctly |
-| `TestParseEvent_RequestFormat` | `pkg/plugin/rib/rib_test.go` | CLI command requests parsed |
-| `TestHandleSent_StoresRoutes` | `pkg/plugin/rib/rib_test.go` | Routes stored in Adj-RIB-Out |
-| `TestHandleSent_Withdraw` | `pkg/plugin/rib/rib_test.go` | Withdrawals remove from Adj-RIB-Out |
-| `TestHandleReceived_StoresRoutes` | `pkg/plugin/rib/rib_test.go` | Routes stored in Adj-RIB-In |
-| `TestHandleReceived_Withdraw` | `pkg/plugin/rib/rib_test.go` | Withdrawals remove from Adj-RIB-In |
-| `TestHandleState_PeerUp` | `pkg/plugin/rib/rib_test.go` | Replay on peer up |
-| `TestHandleState_PeerDown` | `pkg/plugin/rib/rib_test.go` | Clear Adj-RIB-In on peer down |
-| `TestStatusJSON` | `pkg/plugin/rib/rib_test.go` | Status shows both RIB counts |
-| `TestRoutesJSON` | `pkg/plugin/rib/rib_test.go` | Routes output includes both RIBs |
-| `TestDispatch_RoutesToCorrectHandler` | `pkg/plugin/rib/rib_test.go` | Events routed to correct handler |
+| `TestParseEvent_SentFormat` | `internal/plugin/rib/rib_test.go` | Sent events parsed correctly |
+| `TestParseEvent_ReceivedFormat` | `internal/plugin/rib/rib_test.go` | Received events with message wrapper parsed |
+| `TestParseEvent_StateFormat` | `internal/plugin/rib/rib_test.go` | State events parsed correctly |
+| `TestParseEvent_RequestFormat` | `internal/plugin/rib/rib_test.go` | CLI command requests parsed |
+| `TestHandleSent_StoresRoutes` | `internal/plugin/rib/rib_test.go` | Routes stored in Adj-RIB-Out |
+| `TestHandleSent_Withdraw` | `internal/plugin/rib/rib_test.go` | Withdrawals remove from Adj-RIB-Out |
+| `TestHandleReceived_StoresRoutes` | `internal/plugin/rib/rib_test.go` | Routes stored in Adj-RIB-In |
+| `TestHandleReceived_Withdraw` | `internal/plugin/rib/rib_test.go` | Withdrawals remove from Adj-RIB-In |
+| `TestHandleState_PeerUp` | `internal/plugin/rib/rib_test.go` | Replay on peer up |
+| `TestHandleState_PeerDown` | `internal/plugin/rib/rib_test.go` | Clear Adj-RIB-In on peer down |
+| `TestStatusJSON` | `internal/plugin/rib/rib_test.go` | Status shows both RIB counts |
+| `TestRoutesJSON` | `internal/plugin/rib/rib_test.go` | Routes output includes both RIBs |
+| `TestDispatch_RoutesToCorrectHandler` | `internal/plugin/rib/rib_test.go` | Events routed to correct handler |
 
 ### Functional Tests
 | Test | Location | Scenario |
@@ -51,18 +51,18 @@ In-memory only. No disk persistence. No best-path selection (Loc-RIB).
 ## Files to Modify
 
 ### Renamed
-- `pkg/plugin/persist/` → `pkg/plugin/rib/`
-- `pkg/plugin/persist/persist.go` → `pkg/plugin/rib/rib.go`
+- `internal/plugin/persist/` → `internal/plugin/rib/`
+- `internal/plugin/persist/persist.go` → `internal/plugin/rib/rib.go`
 - `cmd/zebgp/plugin_persist.go` → `cmd/zebgp/plugin_rib.go`
 
 ### Updated
-- `pkg/plugin/rib/rib.go` - Package rename, type rename, add Adj-RIB-In, slog logging
-- `pkg/plugin/rib/event.go` - Package rename, unified event parsing for both formats
+- `internal/plugin/rib/rib.go` - Package rename, type rename, add Adj-RIB-In, slog logging
+- `internal/plugin/rib/event.go` - Package rename, unified event parsing for both formats
 - `cmd/zebgp/plugin_rib.go` - Import path, function name
 - `cmd/zebgp/plugin.go` - Dispatch case, help text
-- `pkg/source/registry_test.go` - Test API name
-- `pkg/reactor/reactor.go` - Comment update
-- `pkg/plugin/text.go` - Comment update
+- `internal/source/registry_test.go` - Test API name
+- `internal/reactor/reactor.go` - Comment update
+- `internal/plugin/text.go` - Comment update
 - `docs/architecture/api/ARCHITECTURE.md` - Persist → RIB
 - `docs/architecture/api/CAPABILITY_CONTRACT.md` - Persist → RIB
 - `docs/architecture/rib-transition.md` - Persist → RIB
@@ -70,7 +70,7 @@ In-memory only. No disk persistence. No best-path selection (Loc-RIB).
 
 ## Implementation Steps
 
-1. **Write tests** - Created `pkg/plugin/rib/rib_test.go` with 13 tests
+1. **Write tests** - Created `internal/plugin/rib/rib_test.go` with 13 tests
 2. **Run tests** - Verified FAIL (package didn't exist)
 3. **Implement Phase 1** - Rename persist → rib (git mv, package rename)
 4. **Implement Phase 2** - Add Adj-RIB-In support (handleReceived)

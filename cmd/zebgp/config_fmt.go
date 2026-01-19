@@ -8,8 +8,8 @@ import (
 	"os"
 	"strings"
 
-	"codeberg.org/thomas-mangin/zebgp/pkg/config"
-	"codeberg.org/thomas-mangin/zebgp/pkg/config/migration"
+	"codeberg.org/thomas-mangin/zebgp/internal/config"
+	"codeberg.org/thomas-mangin/zebgp/internal/config/migration"
 )
 
 // ErrOldConfig is returned when fmt is called on an old ExaBGP config.

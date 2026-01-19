@@ -7,9 +7,9 @@ Add comprehensive NLRI wire format tests to catch ADD-PATH encoding bugs like th
 ## Required Reading (completed)
 
 - [x] `docs/plan/done/070-addpath-simplification.md` - Original problem and solution
-- [x] `pkg/bgp/nlri/len_test.go` - Existing consistency tests
-- [x] `pkg/bgp/nlri/base_len_test.go` - Existing WriteNLRI tests
-- [x] `pkg/bgp/nlri/evpn.go` - EVPN types (lines 1018-1075 for constructors)
+- [x] `internal/bgp/nlri/len_test.go` - Existing consistency tests
+- [x] `internal/bgp/nlri/base_len_test.go` - Existing WriteNLRI tests
+- [x] `internal/bgp/nlri/evpn.go` - EVPN types (lines 1018-1075 for constructors)
 - [x] `rfc/rfc7911.txt` Section 3 - ADD-PATH NLRI encoding
 
 **Key insight from original bug:**
@@ -20,9 +20,9 @@ Add comprehensive NLRI wire format tests to catch ADD-PATH encoding bugs like th
 
 ## Files Modified
 
-- `pkg/bgp/nlri/len_test.go` - Added EVPN test cases
-- `pkg/bgp/nlri/wire_format_test.go` - New file (7 test functions)
-- `pkg/bgp/nlri/evpn.go` - Fixed gateway encoding bug (line 919)
+- `internal/bgp/nlri/len_test.go` - Added EVPN test cases
+- `internal/bgp/nlri/wire_format_test.go` - New file (7 test functions)
+- `internal/bgp/nlri/evpn.go` - Fixed gateway encoding bug (line 919)
 
 ## Bug Found During Implementation
 
@@ -35,7 +35,7 @@ Add comprehensive NLRI wire format tests to catch ADD-PATH encoding bugs like th
 
 ### 1. EVPN Added to Consistency Tests
 
-`pkg/bgp/nlri/len_test.go`:
+`internal/bgp/nlri/len_test.go`:
 ```go
 {"EVPNType2_MAC", mustParseEVPNType2(t), true},
 {"EVPNType5_Prefix", mustParseEVPNType5(t), true},
@@ -43,7 +43,7 @@ Add comprehensive NLRI wire format tests to catch ADD-PATH encoding bugs like th
 
 ### 2. Wire Format Verification Tests
 
-`pkg/bgp/nlri/wire_format_test.go`:
+`internal/bgp/nlri/wire_format_test.go`:
 - `TestWireFormat_AddPath` - INET with/without ADD-PATH, hex verification
 - `TestWireFormat_IPVPN` - VPN label encoding (RFC 4364/4659)
 - `TestWireFormat_LabeledUnicast` - Labeled unicast (RFC 8277)

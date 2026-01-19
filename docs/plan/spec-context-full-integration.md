@@ -14,7 +14,7 @@
 │  1. .claude/ESSENTIAL_PROTOCOLS.md - Session rules, TDD         │
 │  2. .claude/INDEX.md - Find what docs to load                   │
 │  3. THIS SPEC FILE - Design requirements                        │
-│  4. pkg/bgp/context/*.go - Current implementation               │
+│  4. internal/bgp/context/*.go - Current implementation               │
 │                                                                 │
 │  DO NOT PROCEED until all are read and understood.              │
 └─────────────────────────────────────────────────────────────────┘
@@ -69,7 +69,7 @@ if route.SourceCtxID() == peer.SendCtxID() {
 ## Prerequisites
 
 **MUST complete first:** `spec-encoding-context-impl.md`
-- `pkg/bgp/context/` package with EncodingContext, ContextID, ContextRegistry
+- `internal/bgp/context/` package with EncodingContext, ContextID, ContextRegistry
 
 ---
 
@@ -82,7 +82,7 @@ Each Peer holds recv and send contexts, created at session establishment.
 ### Current State
 
 ```go
-// pkg/reactor/peer.go (current)
+// internal/reactor/peer.go (current)
 type Peer struct {
     families atomic.Pointer[NegotiatedFamilies]  // Pre-computed flags
     // ... no context fields
@@ -92,7 +92,7 @@ type Peer struct {
 ### Target State
 
 ```go
-// pkg/reactor/peer.go (new)
+// internal/reactor/peer.go (new)
 type Peer struct {
     families atomic.Pointer[NegotiatedFamilies]  // Keep for backward compat
 
@@ -109,7 +109,7 @@ type Peer struct {
 **Step 1.1: Add context fields to Peer**
 
 ```go
-import bgpctx "codeberg.org/thomas-mangin/zebgp/pkg/bgp/context"
+import bgpctx "codeberg.org/thomas-mangin/zebgp/internal/bgp/context"
 
 type Peer struct {
     // ... existing fields ...
@@ -145,7 +145,7 @@ func (p *Peer) onSessionEstablished(neg *capability.Negotiated) {
 **Step 1.3: Add FromNegotiatedRecv/Send to context package**
 
 ```go
-// pkg/bgp/context/negotiated.go
+// internal/bgp/context/negotiated.go
 
 // FromNegotiatedRecv creates receive context (what peer sends us).
 // Used when storing routes received from this peer.
@@ -265,7 +265,7 @@ Routes store `SourceCtxID` to enable zero-copy forwarding.
 ### Current State
 
 ```go
-// pkg/rib/route.go (current)
+// internal/rib/route.go (current)
 type Route struct {
     nlri       nlri.NLRI
     nextHop    netip.Addr
@@ -279,7 +279,7 @@ type Route struct {
 ### Target State
 
 ```go
-// pkg/rib/route.go (new)
+// internal/rib/route.go (new)
 type Route struct {
     nlri       nlri.NLRI
     nextHop    netip.Addr
@@ -299,7 +299,7 @@ type Route struct {
 **Step 2.1: Add wire cache fields to Route**
 
 ```go
-import bgpctx "codeberg.org/thomas-mangin/zebgp/pkg/bgp/context"
+import bgpctx "codeberg.org/thomas-mangin/zebgp/internal/bgp/context"
 
 type Route struct {
     // ... existing fields ...
@@ -428,7 +428,7 @@ When forwarding routes, use cached wire bytes if contexts match.
 **Step 3.1: Add forwarding method to Route**
 
 ```go
-// pkg/rib/route.go
+// internal/rib/route.go
 
 // PackAttributesFor returns packed attributes for the destination context.
 // Uses cached wire bytes if contexts match (zero-copy), otherwise re-encodes.
@@ -451,7 +451,7 @@ func (r *Route) PackAttributesFor(destCtxID bgpctx.ContextID) []byte {
 **Step 3.2: Implement packAttributesWithContext**
 
 ```go
-// pkg/bgp/attribute/pack.go (new file or extend existing)
+// internal/bgp/attribute/pack.go (new file or extend existing)
 
 // PackAttributesWithContext packs attributes using the given context.
 // Handles ASN4-dependent encoding for AS_PATH and AGGREGATOR.
@@ -483,7 +483,7 @@ func PackAttributesWithContext(
 **Step 3.3: Update peer forwarding logic**
 
 ```go
-// pkg/reactor/peer.go
+// internal/reactor/peer.go
 
 func (p *Peer) forwardRoute(route *rib.Route) error {
     // Both methods take only ContextID - lookup happens internally
@@ -503,7 +503,7 @@ func (p *Peer) forwardRoute(route *rib.Route) error {
 **Step 3.4: Add PackNLRIFor to Route (with zero-copy)**
 
 ```go
-// pkg/rib/route.go
+// internal/rib/route.go
 
 // PackNLRIFor returns packed NLRI for the destination context.
 // Uses cached nlriWireBytes if contexts match (zero-copy), otherwise re-encodes.
@@ -578,7 +578,7 @@ Add `PackWithContext(srcCtx, dstCtx *EncodingContext) []byte` to Attribute inter
 ### Current State
 
 ```go
-// pkg/bgp/attribute/attribute.go (current)
+// internal/bgp/attribute/attribute.go (current)
 type Attribute interface {
     Code() AttributeCode
     Flags() AttributeFlags
@@ -590,7 +590,7 @@ type Attribute interface {
 ### Target State
 
 ```go
-// pkg/bgp/attribute/attribute.go (new)
+// internal/bgp/attribute/attribute.go (new)
 type Attribute interface {
     Code() AttributeCode
     Flags() AttributeFlags
@@ -627,7 +627,7 @@ type Attribute interface {
 For attributes that don't need context:
 
 ```go
-// pkg/bgp/attribute/simple.go
+// internal/bgp/attribute/simple.go
 
 func (o Origin) PackWithContext(_, _ *bgpctx.EncodingContext) []byte {
     return o.Pack() // No context dependency
@@ -647,7 +647,7 @@ func (l LocalPref) PackWithContext(_, _ *bgpctx.EncodingContext) []byte {
 **Step 4.3: Implement for ASPath (context-dependent)**
 
 ```go
-// pkg/bgp/attribute/aspath.go
+// internal/bgp/attribute/aspath.go
 
 // PackWithContext serializes AS_PATH with context-dependent ASN size.
 //
@@ -677,7 +677,7 @@ func (p *ASPath) Pack() []byte {
 **Step 4.4: Implement for Aggregator (context-dependent)**
 
 ```go
-// pkg/bgp/attribute/simple.go
+// internal/bgp/attribute/simple.go
 
 // PackWithContext serializes AGGREGATOR with context-dependent format.
 // RFC 6793: 8-byte (4-byte ASN) when dstCtx.ASN4, 6-byte (2-byte ASN) otherwise.
@@ -765,7 +765,7 @@ func TestAggregatorPackWithContext_ASN2(t *testing.T)
 ## Implementation Order
 
 ```
-Phase 0: pkg/bgp/context/ (spec-encoding-context-impl.md)
+Phase 0: internal/bgp/context/ (spec-encoding-context-impl.md)
     │
     ├── context.go (EncodingContext, Hash, methods)
     ├── registry.go (ContextRegistry, ContextID)

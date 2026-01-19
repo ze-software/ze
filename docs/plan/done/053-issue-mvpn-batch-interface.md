@@ -58,15 +58,15 @@ Follow the established pattern from unicast routes (`routeGroupKey`).
 
 ## Files to Modify
 
-- `pkg/reactor/peersettings.go`: Add OriginatorID, ClusterList to MVPNRoute
-- `pkg/reactor/peer.go`: Add mvpnRouteGroupKey, replace groupMVPNRoutesByNextHop with groupMVPNRoutesByKey, update toMVPNParams, delete old function
-- `pkg/reactor/peer_test.go`: Add tests
+- `internal/reactor/peersettings.go`: Add OriginatorID, ClusterList to MVPNRoute
+- `internal/reactor/peer.go`: Add mvpnRouteGroupKey, replace groupMVPNRoutesByNextHop with groupMVPNRoutesByKey, update toMVPNParams, delete old function
+- `internal/reactor/peer_test.go`: Add tests
 
 ## TDD Implementation
 
 ### Phase 1: Write Tests (MUST FAIL)
 
-**File: `pkg/reactor/peer_test.go`**
+**File: `internal/reactor/peer_test.go`**
 
 ```go
 // TestMVPNRouteGroupKey_SeparatesDifferentExtCommunities verifies VPN isolation.
@@ -161,7 +161,7 @@ Run tests → MUST FAIL (functions don't exist)
 
 ### Phase 2: Add Fields to MVPNRoute
 
-**File: `pkg/reactor/peersettings.go`**
+**File: `internal/reactor/peersettings.go`**
 
 ```go
 type MVPNRoute struct {
@@ -183,7 +183,7 @@ type MVPNRoute struct {
 
 ### Phase 3: Implement Grouping Function
 
-**File: `pkg/reactor/peer.go`**
+**File: `internal/reactor/peer.go`**
 
 ```go
 // mvpnRouteGroupKey generates a grouping key for MVPN routes.
@@ -219,7 +219,7 @@ Run tests → MUST PASS
 
 ### Phase 4: Update Conversion and Callers
 
-**File: `pkg/reactor/peer.go`**
+**File: `internal/reactor/peer.go`**
 
 Update toMVPNParams:
 ```go

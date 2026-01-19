@@ -27,11 +27,11 @@ Prefer structured key-value pairs over formatted strings.
 
 ### Per-Subsystem Logging
 
-ZeBGP uses per-subsystem logging via `pkg/slogutil`. Each subsystem has independent enable/disable control.
+ZeBGP uses per-subsystem logging via `internal/slogutil`. Each subsystem has independent enable/disable control.
 
 **Engine subsystems** (use `slogutil.Logger()`):
 ```go
-// In pkg/plugin/server.go
+// In internal/plugin/server.go
 var logger = slogutil.Logger("server")  // Reads zebgp.log.server
 
 func handleConnection() {
@@ -41,7 +41,7 @@ func handleConnection() {
 
 **Plugin processes** (use `slogutil.LoggerWithLevel()`):
 ```go
-// In pkg/plugin/gr/gr.go
+// In internal/plugin/gr/gr.go
 var logger = slogutil.DiscardLogger()  // Disabled by default
 
 func SetLogger(l *slog.Logger) {

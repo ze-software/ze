@@ -102,7 +102,7 @@ for key, ops in event.items():
 When introducing a breaking change:
 
 1. **Check if migration is possible**
-   - If yes: Add to `pkg/config/migration/`
+   - If yes: Add to `internal/config/migration/`
    - If no: Require user action with clear error
 
 2. **Document the difference**
@@ -147,7 +147,7 @@ The bridge translates bidirectionally:
 - ZeBGP JSON → ExaBGP JSON (to plugin stdin)
 - ExaBGP commands → ZeBGP commands (from plugin stdout)
 
-See `pkg/exabgp/` for the Go library implementation.
+See `internal/exabgp/` for the Go library implementation.
 
 ---
 

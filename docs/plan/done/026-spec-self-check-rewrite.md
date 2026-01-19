@@ -35,7 +35,7 @@ Rewrite ZeBGP's `test/cmd/self-check` to align with ExaBGP's `qa/bin/functional`
 |-----------|-------|---------|
 | main.go | 705 | All-in-one: discovery, runner, output |
 | zebgp-peer | 144 | CLI wrapper for testpeer |
-| pkg/testpeer | 1,209 | Peer + checker + decoder |
+| internal/test/peer | 1,209 | Peer + checker + decoder |
 
 **Limitations:**
 - Single file, no separation of concerns
@@ -95,7 +95,7 @@ test/
 │   │   └── *.run
 │   └── decode/             # Future: decode-only tests
 │       └── *.txt
-└── pkg/                    # Shared test infrastructure (new)
+└── internal/                    # Shared test infrastructure (new)
     ├── state.go            # State enum
     ├── record.go           # Test metadata
     ├── exec.go             # Process wrapper
@@ -106,7 +106,7 @@ test/
     └── cli.go              # CLI parsing
 ```
 
-### Core Types (test/pkg/)
+### Core Types (test/internal/)
 
 ```go
 // state.go
@@ -240,7 +240,7 @@ Examples:
 
 ## Implementation Steps
 
-### Phase 1: Core Infrastructure (test/pkg/)
+### Phase 1: Core Infrastructure (test/internal/)
 
 1. **Create state.go**
    - State enum with String() method
@@ -341,13 +341,13 @@ Examples:
 
 | ZeBGP Component | ExaBGP Reference |
 |-----------------|------------------|
-| test/pkg/state.go | qa/bin/functional:State enum |
-| test/pkg/record.go | qa/bin/functional:Record class |
-| test/pkg/exec.go | qa/bin/functional:Exec class |
-| test/pkg/tests.go | qa/bin/functional:Tests class |
-| test/pkg/timing.go | qa/bin/functional:timing functions |
-| test/pkg/encoding.go | qa/bin/functional:EncodingTests |
-| test/pkg/plugin.go | qa/bin/functional:APITests |
+| test/internal/state.go | qa/bin/functional:State enum |
+| test/internal/record.go | qa/bin/functional:Record class |
+| test/internal/exec.go | qa/bin/functional:Exec class |
+| test/internal/tests.go | qa/bin/functional:Tests class |
+| test/internal/timing.go | qa/bin/functional:timing functions |
+| test/internal/encoding.go | qa/bin/functional:EncodingTests |
+| test/internal/plugin.go | qa/bin/functional:APITests |
 | test/cmd/functional | qa/bin/functional (main) |
 | test/cmd/test-everything | qa/bin/test_everything |
 
@@ -368,7 +368,7 @@ Examples:
 
 ## Notes
 
-- Keep testpeer (pkg/testpeer) as-is - it's the BGP validation logic
+- Keep testpeer (internal/test/peer) as-is - it's the BGP validation logic
 - The new runner orchestrates tests, testpeer validates messages
 - Use Go for test-everything (consistency with rest of codebase)
 - Timing cache prevents rebuilding timing data on each run

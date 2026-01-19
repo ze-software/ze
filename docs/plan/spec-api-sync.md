@@ -49,7 +49,7 @@ API processes signal their readiness before BGP negotiation begins.
 ### Reactor Changes
 
 ```go
-// pkg/reactor/api_sync.go
+// internal/reactor/api_sync.go
 
 type APISyncState struct {
     processCount  int           // number of spawned processes

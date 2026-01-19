@@ -50,8 +50,8 @@ Test 6 (extended-nexthop) fails because:
 
 | File | Change |
 |------|--------|
-| `pkg/bgp/capability/negotiated.go` | Add `ExtendedNextHop` negotiation |
-| `pkg/reactor/peer.go` | Add extended NH to `NegotiatedFamilies`, modify route building |
+| `internal/bgp/capability/negotiated.go` | Add `ExtendedNextHop` negotiation |
+| `internal/reactor/peer.go` | Add extended NH to `NegotiatedFamilies`, modify route building |
 
 ### Current State
 

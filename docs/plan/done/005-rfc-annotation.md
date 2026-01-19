@@ -9,7 +9,7 @@
 
 ---
 
-## Phase 1: Message Layer (`pkg/bgp/message/`) ✅
+## Phase 1: Message Layer (`internal/bgp/message/`) ✅
 
 | File | RFC | Status |
 |------|-----|--------|
@@ -22,7 +22,7 @@
 
 ---
 
-## Phase 2: Capabilities (`pkg/bgp/capability/`) ✅
+## Phase 2: Capabilities (`internal/bgp/capability/`) ✅
 
 | File | RFC | Status |
 |------|-----|--------|
@@ -31,7 +31,7 @@
 
 ---
 
-## Phase 3: Path Attributes (`pkg/bgp/attribute/`) ✅
+## Phase 3: Path Attributes (`internal/bgp/attribute/`) ✅
 
 | File | RFC | Status |
 |------|-----|--------|
@@ -45,7 +45,7 @@
 
 ---
 
-## Phase 4: NLRI Types (`pkg/bgp/nlri/`) ✅
+## Phase 4: NLRI Types (`internal/bgp/nlri/`) ✅
 
 | File | RFC | Status |
 |------|-----|--------|
@@ -59,7 +59,7 @@
 
 ---
 
-## Phase 5: FSM (`pkg/bgp/fsm/`) ✅
+## Phase 5: FSM (`internal/bgp/fsm/`) ✅
 
 | File | RFC | Status |
 |------|-----|--------|

@@ -93,7 +93,7 @@ family {
 
 ### FamilyMode Type
 ```go
-// pkg/config/bgp.go or new file pkg/config/family.go
+// internal/config/bgp.go or new file internal/config/family.go
 
 type FamilyMode int
 
@@ -106,7 +106,7 @@ const (
 
 ### FamilyConfig Struct
 ```go
-// pkg/config/bgp.go
+// internal/config/bgp.go
 
 type FamilyConfig struct {
     AFI  string     // "ipv4", "ipv6", "l2vpn", "bgp-ls"
@@ -122,7 +122,7 @@ type FamilyConfig struct {
 
 ### Neighbor Changes
 ```go
-// pkg/reactor/neighbor.go
+// internal/reactor/neighbor.go
 
 type Neighbor struct {
     // ... existing fields ...
@@ -141,7 +141,7 @@ type Neighbor struct {
 
 ### Phase 1: Schema and Parsing
 
-**Files:** `pkg/config/schema.go`, `pkg/config/parser.go`, `pkg/config/bgp.go`
+**Files:** `internal/config/schema.go`, `internal/config/parser.go`, `internal/config/bgp.go`
 
 1. Create new `FamilyNode` schema type that handles:
    - `<afi> <safi>;` → enable
@@ -166,7 +166,7 @@ type Neighbor struct {
 
 ### Phase 2: Loader and Neighbor
 
-**Files:** `pkg/config/loader.go`, `pkg/reactor/neighbor.go`
+**Files:** `internal/config/loader.go`, `internal/reactor/neighbor.go`
 
 1. Update loader to convert FamilyConfig to:
    - Multiprotocol capabilities (for Mode != Disable)
@@ -183,7 +183,7 @@ type Neighbor struct {
 
 ### Phase 3: Session Validation
 
-**Files:** `pkg/reactor/session.go`, `pkg/bgp/capability/negotiated.go`
+**Files:** `internal/reactor/session.go`, `internal/bgp/capability/negotiated.go`
 
 1. Add to `Negotiated`:
 ```go
@@ -219,7 +219,7 @@ if missing := s.negotiated.CheckRequired(s.neighbor.RequiredFamilies); len(missi
 
 3. Add NOTIFICATION subcode if missing:
 ```go
-// pkg/bgp/message/notification.go
+// internal/bgp/message/notification.go
 const NotifyOpenUnsupportedCapability = 7 // RFC 5492
 ```
 
@@ -231,7 +231,7 @@ const NotifyOpenUnsupportedCapability = 7 // RFC 5492
 
 ### Phase 4: Backward Compatibility
 
-**Files:** `pkg/config/bgp.go`
+**Files:** `internal/config/bgp.go`
 
 1. Keep `ignore-mismatch` as global fallback
 2. `ignore-mismatch` applies only to families with Mode=Enable
@@ -318,14 +318,14 @@ level=info msg="all required families negotiated"
 
 | File | Changes |
 |------|---------|
-| `pkg/config/schema.go` | Add FamilyNode type |
-| `pkg/config/parser.go` | Add parseFamilyBlock() |
-| `pkg/config/bgp.go` | FamilyMode, FamilyConfig, update schema |
-| `pkg/config/loader.go` | Convert FamilyConfig to capabilities |
-| `pkg/reactor/neighbor.go` | Add FamilyConfigs, RequiredFamilies |
-| `pkg/reactor/session.go` | Validate required families post-negotiate |
-| `pkg/bgp/capability/negotiated.go` | Add CheckRequired() |
-| `pkg/bgp/message/notification.go` | Add NotifyOpenUnsupportedCapability |
+| `internal/config/schema.go` | Add FamilyNode type |
+| `internal/config/parser.go` | Add parseFamilyBlock() |
+| `internal/config/bgp.go` | FamilyMode, FamilyConfig, update schema |
+| `internal/config/loader.go` | Convert FamilyConfig to capabilities |
+| `internal/reactor/neighbor.go` | Add FamilyConfigs, RequiredFamilies |
+| `internal/reactor/session.go` | Validate required families post-negotiate |
+| `internal/bgp/capability/negotiated.go` | Add CheckRequired() |
+| `internal/bgp/message/notification.go` | Add NotifyOpenUnsupportedCapability |
 
 ---
 

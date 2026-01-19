@@ -30,11 +30,11 @@ Note: IPVPN has different field order (rd before prefix) so stays separate.
 ### New Unit Tests
 | Test | File | Validates |
 |------|------|-----------|
-| `TestPrefixBytes` | `pkg/bgp/nlri/helpers_test.go` | `PrefixBytes(bits)` returns correct byte count |
-| `TestWriteLabelStack` | `pkg/bgp/nlri/helpers_test.go` | `WriteLabelStack()` encodes labels with BOS |
-| `TestWriteLabelStackOffset` | `pkg/bgp/nlri/helpers_test.go` | `WriteLabelStack()` respects buffer offset |
-| `TestRDNLRIBaseBuildData` | `pkg/bgp/nlri/base_test.go` | `buildData()` returns rd+data or data only |
-| `TestRDNLRIBaseBuildDataNoAlias` | `pkg/bgp/nlri/base_test.go` | `buildData()` returns copy, no aliasing |
+| `TestPrefixBytes` | `internal/bgp/nlri/helpers_test.go` | `PrefixBytes(bits)` returns correct byte count |
+| `TestWriteLabelStack` | `internal/bgp/nlri/helpers_test.go` | `WriteLabelStack()` encodes labels with BOS |
+| `TestWriteLabelStackOffset` | `internal/bgp/nlri/helpers_test.go` | `WriteLabelStack()` respects buffer offset |
+| `TestRDNLRIBaseBuildData` | `internal/bgp/nlri/base_test.go` | `buildData()` returns rd+data or data only |
+| `TestRDNLRIBaseBuildDataNoAlias` | `internal/bgp/nlri/base_test.go` | `buildData()` returns copy, no aliasing |
 
 ### Existing Tests (Regression)
 | File | Purpose |
@@ -53,12 +53,12 @@ Note: IPVPN has different field order (rd before prefix) so stays separate.
 | All existing | `qa/tests/` | Full suite must pass - no behavioral changes |
 
 ## Files to Modify
-- `pkg/bgp/nlri/helpers.go` - NEW: `PrefixBytes()`, move `WriteLabelStack()` from ipvpn.go
-- `pkg/bgp/nlri/base.go` - NEW: `PrefixNLRI` and `RDNLRIBase` embedded types
-- `pkg/bgp/nlri/inet.go` - Embed `PrefixNLRI`, update `NewINET`, `ParseINET`
-- `pkg/bgp/nlri/labeled.go` - Embed `PrefixNLRI`, update constructor/parser, delete `encodeLabel()`
-- `pkg/bgp/nlri/ipvpn.go` - Use `PrefixBytes()`, export `WriteLabelStack()` to helpers.go
-- `pkg/bgp/nlri/other.go` - Embed `RDNLRIBase` in MVPN/MUP, update parsers
+- `internal/bgp/nlri/helpers.go` - NEW: `PrefixBytes()`, move `WriteLabelStack()` from ipvpn.go
+- `internal/bgp/nlri/base.go` - NEW: `PrefixNLRI` and `RDNLRIBase` embedded types
+- `internal/bgp/nlri/inet.go` - Embed `PrefixNLRI`, update `NewINET`, `ParseINET`
+- `internal/bgp/nlri/labeled.go` - Embed `PrefixNLRI`, update constructor/parser, delete `encodeLabel()`
+- `internal/bgp/nlri/ipvpn.go` - Use `PrefixBytes()`, export `WriteLabelStack()` to helpers.go
+- `internal/bgp/nlri/other.go` - Embed `RDNLRIBase` in MVPN/MUP, update parsers
 
 ## Implementation Steps
 

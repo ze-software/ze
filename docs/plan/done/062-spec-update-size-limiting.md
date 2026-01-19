@@ -43,11 +43,11 @@ Size limiting enforced consistently: when routes leave adj-rib-out for wire.
 
 | File | Changes |
 |------|---------|
-| `pkg/bgp/message/update_split.go` | **New:** SplitUpdate, SplitMPReachNLRI |
-| `pkg/bgp/message/update_build.go` | Add BuildGroupedUnicastWithLimit, helpers |
-| `pkg/bgp/message/update.go` | Document ChunkNLRI limitations |
-| `pkg/reactor/peer.go` | Replace skip with split in sendInitialRoutes |
-| `pkg/reactor/reactor.go` | Use SplitUpdate in ForwardUpdate |
+| `internal/bgp/message/update_split.go` | **New:** SplitUpdate, SplitMPReachNLRI |
+| `internal/bgp/message/update_build.go` | Add BuildGroupedUnicastWithLimit, helpers |
+| `internal/bgp/message/update.go` | Document ChunkNLRI limitations |
+| `internal/reactor/peer.go` | Replace skip with split in sendInitialRoutes |
+| `internal/reactor/reactor.go` | Use SplitUpdate in ForwardUpdate |
 
 ## Current State
 
@@ -129,7 +129,7 @@ func SplitUpdate(u *Update, maxSize int) ([]*Update, error)
 5. `make test && make lint`
 
 ```go
-// Location: pkg/bgp/message/update_split.go
+// Location: internal/bgp/message/update_split.go
 
 // SplitUpdate splits an UPDATE into chunks respecting maxSize.
 //
@@ -544,7 +544,7 @@ func TestOpQueue_SplitsOversized(t *testing.T)
 ## Checklist
 
 ### Phase 1: SplitUpdate IPv4
-- [ ] `pkg/bgp/message/update_split.go` created
+- [ ] `internal/bgp/message/update_split.go` created
 - [ ] `ErrAttributesTooLarge`, `ErrNLRITooLarge` errors defined
 - [ ] Tests written and FAIL:
   - [ ] `TestSplitUpdate_SmallFits`
@@ -630,7 +630,7 @@ func TestOpQueue_SplitsOversized(t *testing.T)
 ## Dependencies
 
 **Existing:**
-- `ChunkNLRI()` at `pkg/bgp/message/update.go:182` - IPv4 NLRI splitting
+- `ChunkNLRI()` at `internal/bgp/message/update.go:182` - IPv4 NLRI splitting
 - `MaxMessageLength()` - returns 4096 or 65535 based on Extended Message
 - `HeaderLen` constant (19)
 

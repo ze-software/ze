@@ -59,7 +59,7 @@ peer 10.0.0.1:
 
 ## 2. BGP Message Decoder
 
-**Location:** `pkg/testpeer/decode.go`
+**Location:** `internal/test/peer/decode.go`
 
 Decodes raw BGP messages (hex) into human-readable format. Used automatically by functional tests and available via `--decode` flag.
 
@@ -97,7 +97,7 @@ msg  recv   FFFFFFFF...:0030:02:00000014400101004002060201000000014003040A000001
 
 ## 3. Test Failure Diff
 
-**Location:** `pkg/testpeer/peer.go`, `pkg/testpeer/decode.go`
+**Location:** `internal/test/peer/peer.go`, `internal/test/peer/decode.go`
 
 When a functional test fails with "message mismatch", the output now includes a decoded diff showing exactly what differed.
 
@@ -133,7 +133,7 @@ Differences:
 
 ## 4. Pipeline Tracing (ZEBGP_TRACE)
 
-**Location:** `pkg/trace/trace.go`
+**Location:** `internal/trace/trace.go`
 
 Environment variable that enables debug logging at key points in the pipeline.
 
@@ -175,14 +175,14 @@ ZEBGP_TRACE=config,routes zebgp server config.conf
 ### Trace Points
 
 Currently instrumented locations:
-- `pkg/config/loader.go`: ConfigParsed, ConfigLoaded, NeighborRoutes
-- `pkg/reactor/peer.go`: FSMTransition, SessionEstablished, SessionClosed, RouteSent
+- `internal/config/loader.go`: ConfigParsed, ConfigLoaded, NeighborRoutes
+- `internal/reactor/peer.go`: FSMTransition, SessionEstablished, SessionClosed, RouteSent
 
 ---
 
 ## 5. Parser Warnings
 
-**Location:** `pkg/config/parser.go`
+**Location:** `internal/config/parser.go`
 
 The parser now collects warnings for potentially problematic patterns, accessible via `Parser.Warnings()`.
 
@@ -284,7 +284,7 @@ zebgp-test run encoding --client 0 --port 11790
 To add tracing to new code:
 
 ```go
-import "codeberg.org/thomas-mangin/zebgp/pkg/trace"
+import "codeberg.org/thomas-mangin/zebgp/internal/trace"
 
 // Use existing helpers
 trace.RouteSent(addr, prefix, nextHop)
@@ -300,11 +300,11 @@ trace.Log(trace.Routes, "custom message: %s", value)
 
 | File | Purpose |
 |------|---------|
-| `pkg/testpeer/decode.go` | BGP message decoder |
-| `pkg/testpeer/peer.go` | Test peer with decode support |
-| `pkg/trace/trace.go` | Tracing infrastructure |
+| `internal/test/peer/decode.go` | BGP message decoder |
+| `internal/test/peer/peer.go` | Test peer with decode support |
+| `internal/trace/trace.go` | Tracing infrastructure |
 | `cmd/zebgp/configdump.go` | config-dump command |
 | `cmd/zebgp-peer/main.go` | --decode flag |
-| `pkg/config/parser.go` | Parser warnings |
-| `pkg/config/loader.go` | Config trace points |
-| `pkg/reactor/peer.go` | Session/route trace points |
+| `internal/config/parser.go` | Parser warnings |
+| `internal/config/loader.go` | Config trace points |
+| `internal/reactor/peer.go` | Session/route trace points |

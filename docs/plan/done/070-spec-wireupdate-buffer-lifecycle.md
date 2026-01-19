@@ -41,7 +41,7 @@ if !kept {
 ### 1. Separate Pools by Size
 
 ```go
-// pkg/reactor/session.go
+// internal/reactor/session.go
 var (
     readBufPool4K = sync.Pool{
         New: func() any { return make([]byte, message.MaxMsgLen) },  // 4096
@@ -187,10 +187,10 @@ func (s *Session) negotiate() {
 
 | File | Changes |
 |------|---------|
-| `pkg/reactor/session.go` | Remove `readBuf` field, add `extendedMessage` bool, add `getReadBuffer()`/`returnReadBuffer()`/`ReturnReadBuffer()`, `MessageCallback` returns bool, `processMessage` returns `(error, kept)` |
-| `pkg/reactor/reactor.go` | `notifyMessageReceiver` accepts `buf`, returns `kept`, callback BEFORE cache, zero-copy (no copy) |
-| `pkg/reactor/received_update.go` | Add `poolBuf []byte` field, add `Release()` method |
-| `pkg/reactor/recent_cache.go` | `Get()` → `Take()` (removes entry), add `Contains()`, return buf on eviction/delete |
+| `internal/reactor/session.go` | Remove `readBuf` field, add `extendedMessage` bool, add `getReadBuffer()`/`returnReadBuffer()`/`ReturnReadBuffer()`, `MessageCallback` returns bool, `processMessage` returns `(error, kept)` |
+| `internal/reactor/reactor.go` | `notifyMessageReceiver` accepts `buf`, returns `kept`, callback BEFORE cache, zero-copy (no copy) |
+| `internal/reactor/received_update.go` | Add `poolBuf []byte` field, add `Release()` method |
+| `internal/reactor/recent_cache.go` | `Get()` → `Take()` (removes entry), add `Contains()`, return buf on eviction/delete |
 
 **Note:** `ReceivedUpdate.Announces`, `Withdraws`, `AnnounceWire`, `WithdrawWire`, and `ConvertToRoutes()`
 are being removed in a separate refactor. See `spec-wireupdate-split.md`.
@@ -232,7 +232,7 @@ Separate pools ensure each session gets appropriately-sized buffers.
 - [x] Update `NewSession()` to not allocate readBuf
 
 ### Verification
-- [x] `make test` passes (pkg/reactor tests pass; unrelated pkg/plugin/process_test.go failures)
+- [x] `make test` passes (internal/reactor tests pass; unrelated internal/plugin/process_test.go failures)
 - [x] `make lint` passes (no session.go lint errors)
 - [x] `make functional` passes (37 tests)
 

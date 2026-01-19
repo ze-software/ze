@@ -39,9 +39,9 @@ Implement EVPN `Bytes()` methods for all 5 route types (currently return nil), b
 ## Codebase Context
 
 ### Existing Files
-- `pkg/bgp/nlri/evpn.go` - EVPN types with parsing (Bytes() returns nil)
-- `pkg/bgp/nlri/evpn_test.go` - Existing parse tests
-- `pkg/bgp/nlri/ipvpn.go` - Has `EncodeLabelStack()` and `RouteDistinguisher.Bytes()`
+- `internal/bgp/nlri/evpn.go` - EVPN types with parsing (Bytes() returns nil)
+- `internal/bgp/nlri/evpn_test.go` - Existing parse tests
+- `internal/bgp/nlri/ipvpn.go` - Has `EncodeLabelStack()` and `RouteDistinguisher.Bytes()`
 
 ### Existing Helpers
 ```go
@@ -53,7 +53,7 @@ func EncodeLabelStack(labels []uint32) []byte
 ```
 
 ### Pattern to Follow
-From `pkg/bgp/nlri/other.go` (VPLS.Bytes):
+From `internal/bgp/nlri/other.go` (VPLS.Bytes):
 ```go
 func (v *VPLS) Bytes() []byte {
     buf := make([]byte, 19)
@@ -67,7 +67,7 @@ func (v *VPLS) Bytes() []byte {
 ## Implementation Steps
 
 ### Step 1: Add round-trip tests for all 5 types
-- **File:** `pkg/bgp/nlri/evpn_test.go`
+- **File:** `internal/bgp/nlri/evpn_test.go`
 - **Tests:** `TestEVPNType1RoundTrip`, `TestEVPNType2RoundTrip`, etc.
 - **Pattern:** Parse known bytes → call Bytes() → compare with original
 - **MUST FAIL** before implementation

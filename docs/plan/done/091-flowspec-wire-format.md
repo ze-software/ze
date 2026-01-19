@@ -21,16 +21,16 @@ Implement FlowSpec NLRI wire format encoding/decoding per RFC 8955 (IPv4) and RF
 ### Unit Tests
 | Test | File | Validates |
 |------|------|-----------|
-| `TestFlowComponentTypeConstants` | `pkg/bgp/nlri/flowspec_test.go` | Type values match RFC 8955 Section 4.2.2 |
-| `TestFlowDestPrefixComponent` | `pkg/bgp/nlri/flowspec_test.go` | Type 1 dest prefix encoding |
-| `TestFlowSourcePrefixComponent` | `pkg/bgp/nlri/flowspec_test.go` | Type 2 source prefix encoding |
-| `TestFlowNumericComponent` | `pkg/bgp/nlri/flowspec_test.go` | Types 3-8,10-11 numeric operators |
-| `TestFlowBitmaskComponent` | `pkg/bgp/nlri/flowspec_test.go` | Types 9,12 bitmask operators |
-| `TestFlowFlowLabelComponent` | `pkg/bgp/nlri/flowspec_test.go` | Type 13 IPv6 flow label (RFC 8956) |
-| `TestFlowSpecParse` | `pkg/bgp/nlri/flowspec_test.go` | Full NLRI parsing |
-| `TestFlowSpecWriteTo` | `pkg/bgp/nlri/flowspec_test.go` | Zero-alloc encoding |
-| `TestFlowSpecVPN` | `pkg/bgp/nlri/flowspec_test.go` | SAFI 134 with RD |
-| `TestFlowSpecRoundTrip` | `pkg/bgp/nlri/flowspec_test.go` | Parse → WriteTo consistency |
+| `TestFlowComponentTypeConstants` | `internal/bgp/nlri/flowspec_test.go` | Type values match RFC 8955 Section 4.2.2 |
+| `TestFlowDestPrefixComponent` | `internal/bgp/nlri/flowspec_test.go` | Type 1 dest prefix encoding |
+| `TestFlowSourcePrefixComponent` | `internal/bgp/nlri/flowspec_test.go` | Type 2 source prefix encoding |
+| `TestFlowNumericComponent` | `internal/bgp/nlri/flowspec_test.go` | Types 3-8,10-11 numeric operators |
+| `TestFlowBitmaskComponent` | `internal/bgp/nlri/flowspec_test.go` | Types 9,12 bitmask operators |
+| `TestFlowFlowLabelComponent` | `internal/bgp/nlri/flowspec_test.go` | Type 13 IPv6 flow label (RFC 8956) |
+| `TestFlowSpecParse` | `internal/bgp/nlri/flowspec_test.go` | Full NLRI parsing |
+| `TestFlowSpecWriteTo` | `internal/bgp/nlri/flowspec_test.go` | Zero-alloc encoding |
+| `TestFlowSpecVPN` | `internal/bgp/nlri/flowspec_test.go` | SAFI 134 with RD |
+| `TestFlowSpecRoundTrip` | `internal/bgp/nlri/flowspec_test.go` | Parse → WriteTo consistency |
 
 ### Functional Tests
 | Test | Location | Scenario |
@@ -44,8 +44,8 @@ Implement FlowSpec NLRI wire format encoding/decoding per RFC 8955 (IPv4) and RF
 
 | File | Lines | Purpose |
 |------|-------|---------|
-| `pkg/bgp/nlri/flowspec.go` | ~1,200 | Core wire format types and encoding |
-| `pkg/bgp/nlri/flowspec_test.go` | ~670 | Comprehensive unit tests |
+| `internal/bgp/nlri/flowspec.go` | ~1,200 | Core wire format types and encoding |
+| `internal/bgp/nlri/flowspec_test.go` | ~670 | Comprehensive unit tests |
 
 ## Implementation Summary
 

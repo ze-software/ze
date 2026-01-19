@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"os"
 
-	"codeberg.org/thomas-mangin/zebgp/pkg/editor"
+	"codeberg.org/thomas-mangin/zebgp/internal/config/editor"
 	tea "github.com/charmbracelet/bubbletea"
 )
 

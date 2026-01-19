@@ -13,31 +13,31 @@ Remove ALL version number references from the codebase. No v6, v7, v2, v3, "lega
 
 | File | Action | Status |
 |------|--------|--------|
-| `pkg/plugin/types.go` | Delete `APIVersionLegacy`, `APIVersionNLRI` constants | ✅ Done |
-| `pkg/plugin/types.go` | Delete `Version int` from `ContentConfig` | ✅ Done |
-| `pkg/plugin/text.go` | Remove all version comparison branches | ✅ Done |
-| `pkg/plugin/text_test.go` | Remove version test cases | ✅ Done |
-| `pkg/plugin/json_test.go` | Remove version test cases | ✅ Done |
-| `pkg/plugin/handler.go` | Remove `"api": "v6"` from response | ✅ Done |
-| `pkg/reactor/peersettings.go` | Delete `Version int` field | ✅ Done |
-| `pkg/config/bgp.go` | Delete `Version int` field | ✅ Done |
-| `pkg/reactor/reactor.go` | Remove version default assignment | ✅ Done |
+| `internal/plugin/types.go` | Delete `APIVersionLegacy`, `APIVersionNLRI` constants | ✅ Done |
+| `internal/plugin/types.go` | Delete `Version int` from `ContentConfig` | ✅ Done |
+| `internal/plugin/text.go` | Remove all version comparison branches | ✅ Done |
+| `internal/plugin/text_test.go` | Remove version test cases | ✅ Done |
+| `internal/plugin/json_test.go` | Remove version test cases | ✅ Done |
+| `internal/plugin/handler.go` | Remove `"api": "v6"` from response | ✅ Done |
+| `internal/reactor/peersettings.go` | Delete `Version int` field | ✅ Done |
+| `internal/config/bgp.go` | Delete `Version int` field | ✅ Done |
+| `internal/reactor/reactor.go` | Remove version default assignment | ✅ Done |
 | `cmd/zebgp/run_test.go` | Remove `"api": "v6"` | ✅ Done |
 
 ### Migration Terminology Removal
 
 | File | Action | Status |
 |------|--------|--------|
-| `pkg/config/migration/detect_test.go` | Remove v2/v3 from comments | ✅ Done |
-| `pkg/config/migration/migrate_test.go` | Remove v2/v3 from comments | ✅ Done |
-| `pkg/config/migration/transformations_test.go` | Remove v2/v3 from comments | ✅ Done |
-| `pkg/config/migration/api_test.go` | Remove v2/v3 from comments | ✅ Done |
-| `pkg/config/bgp.go` | Remove v2/v3 from comments | ✅ Done |
-| `pkg/config/bgp_test.go` | Remove v2/v3 from comments | ✅ Done |
-| `pkg/config/loader.go` | Remove v2/v3 from comments | ✅ Done |
-| `pkg/config/loader_test.go` | Remove v2/v3 from comments | ✅ Done |
-| `pkg/config/parser.go` | Remove v2/v3 from comments | ✅ Done |
-| `pkg/editor/completer_test.go` | Remove v3 from comments | ✅ Done |
+| `internal/config/migration/detect_test.go` | Remove v2/v3 from comments | ✅ Done |
+| `internal/config/migration/migrate_test.go` | Remove v2/v3 from comments | ✅ Done |
+| `internal/config/migration/transformations_test.go` | Remove v2/v3 from comments | ✅ Done |
+| `internal/config/migration/api_test.go` | Remove v2/v3 from comments | ✅ Done |
+| `internal/config/bgp.go` | Remove v2/v3 from comments | ✅ Done |
+| `internal/config/bgp_test.go` | Remove v2/v3 from comments | ✅ Done |
+| `internal/config/loader.go` | Remove v2/v3 from comments | ✅ Done |
+| `internal/config/loader_test.go` | Remove v2/v3 from comments | ✅ Done |
+| `internal/config/parser.go` | Remove v2/v3 from comments | ✅ Done |
+| `internal/config/editor/completer_test.go` | Remove v3 from comments | ✅ Done |
 | `cmd/zebgp/config_check.go` | Remove v2/v3 from comments | ✅ Done |
 | `cmd/zebgp/config_fmt.go` | Rename `ErrV2Config` → `ErrOldConfig` | ✅ Done |
 | `cmd/zebgp/config_fmt_test.go` | Remove v2/v3 from comments | ✅ Done |

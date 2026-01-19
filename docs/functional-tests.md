@@ -209,7 +209,7 @@ When `expect:syslog:` is present, the test runner automatically:
 │     └── Found: expect:syslog:subsystem=server                     │
 │                                                                   │
 │  2. Start testsyslog server (UDP, dynamic port)                   │
-│     └── testsyslog.New(0).Start(ctx) → port 54321                 │
+│     └── syslog.New(0).Start(ctx) → port 54321                 │
 │                                                                   │
 │  3. Auto-inject env vars for zebgp:                               │
 │     └── zebgp.log.backend=syslog                                  │
@@ -260,7 +260,7 @@ When `expect:syslog:` is present, the test runner automatically:
 
 | Component | Location | Purpose |
 |-----------|----------|---------|
-| `testsyslog.Server` | `pkg/testsyslog/` | UDP server capturing syslog messages |
+| `syslog.Server` | `internal/test/syslog/` | UDP server capturing syslog messages |
 | `option:env:` | `.ci` file | Sets env vars (e.g., `zebgp.log.server=debug`) |
 | `expect:syslog:` | `.ci` file | Regex pattern to match in captured messages |
 | Auto-injection | `runner.go` | Adds `backend=syslog` + `destination=host:port` |
@@ -489,7 +489,7 @@ The test passes if:
 
 ## Architecture
 
-### Package: `test/functional/`
+### Package: `internal/test/runner/`
 
 | File | Purpose |
 |------|---------|

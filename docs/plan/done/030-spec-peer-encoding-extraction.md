@@ -9,9 +9,9 @@
 │  1. .claude/ESSENTIAL_PROTOCOLS.md - Session rules, TDD         │
 │  2. docs/plan/CLAUDE_CONTINUATION.md - Current state                 │
 │  3. THIS SPEC FILE - Design requirements                        │
-│  4. pkg/bgp/message/update_build.go - New implementation        │
-│  5. pkg/reactor/peer.go - Old code to remove                    │
-│  6. pkg/reactor/wire_compat_test.go - Existing wire tests       │
+│  4. internal/bgp/message/update_build.go - New implementation        │
+│  5. internal/reactor/peer.go - Old code to remove                    │
+│  6. internal/reactor/wire_compat_test.go - Existing wire tests       │
 │                                                                 │
 │  DO NOT PROCEED until all are read and understood.              │
 └─────────────────────────────────────────────────────────────────┘
@@ -67,7 +67,7 @@ StaticRoute.OriginatorID  →  buildStaticRouteUpdate()  →  (NOT ENCODED!)
 ## Background
 
 Most extraction work is **already done**:
-- `pkg/bgp/message/update_build.go` (1535 LOC) exists with `UpdateBuilder`
+- `internal/bgp/message/update_build.go` (1535 LOC) exists with `UpdateBuilder`
 - `BuildUnicast`, `BuildVPN`, `BuildLabeledUnicast`, `BuildMVPN`, `BuildVPLS`, `BuildFlowSpec`, `BuildMUP` all exist
 - `buildStaticRouteUpdateNew` uses `UpdateBuilder` and is already in production
 - Conversion helpers exist: `toStaticRouteUnicastParams`, `toStaticRouteVPNParams`, `toStaticRouteLabeledUnicastParams`
@@ -169,7 +169,7 @@ The following aspects have been verified correct:
 
 ### Attribute Packing
 
-The implementation uses `attribute.PackAttributesOrdered(attrs)`. Verify this function exists in `pkg/bgp/attribute/`. If not, use the existing packing pattern from `BuildUnicast`.
+The implementation uses `attribute.PackAttributesOrdered(attrs)`. Verify this function exists in `internal/bgp/attribute/`. If not, use the existing packing pattern from `BuildUnicast`.
 
 ### Format String Count
 
@@ -193,7 +193,7 @@ This is out of scope for this spec but would reduce maintenance burden.
 
 **Note on TDD:** Traditional TDD requires a failing test before implementation. However, we cannot write a test that references `UnicastParams.OriginatorID` until the field exists (won't compile). Therefore, Phase 1 adds the struct fields, and Phase 2 writes the failing test.
 
-**File: `pkg/bgp/message/update_build.go`**
+**File: `internal/bgp/message/update_build.go`**
 
 1. Add to `UnicastParams` struct (after `RawAttributeBytes`):
    ```go
@@ -206,7 +206,7 @@ This is out of scope for this spec but would reduce maintenance burden.
 
 2. Run `make test` - should pass (fields added but not used yet)
 
-**File: `pkg/reactor/peer.go`**
+**File: `internal/reactor/peer.go`**
 
 3. Update `toStaticRouteUnicastParams` to copy the new fields:
    ```go
@@ -220,7 +220,7 @@ This is out of scope for this spec but would reduce maintenance burden.
 
 4. Add unit test to verify copying works:
 
-**File: `pkg/reactor/peer_test.go`**
+**File: `internal/reactor/peer_test.go`**
    ```go
    // TestToStaticRouteUnicastParams_CopiesReflectorAttrs verifies RFC 4456 fields.
    //
@@ -261,7 +261,7 @@ This is out of scope for this spec but would reduce maintenance burden.
 **IMPORTANT:** Cannot compare old `buildStaticRouteUpdate` vs new - both are broken!
 Must use expected bytes or compare against `buildGroupedUpdate` (only correct implementation).
 
-**File: `pkg/bgp/message/update_build_test.go`**
+**File: `internal/bgp/message/update_build_test.go`**
 
 1. Add test that verifies ORIGINATOR_ID/CLUSTER_LIST are encoded:
    ```go
@@ -326,7 +326,7 @@ Must use expected bytes or compare against `buildGroupedUpdate` (only correct im
 
 2. Run test - **MUST FAIL** (BuildUnicast doesn't encode these attrs yet)
    ```bash
-   go test -run TestBuildUnicast_EncodesReflectorAttrs ./pkg/bgp/message/...
+   go test -run TestBuildUnicast_EncodesReflectorAttrs ./internal/bgp/message/...
    ```
    Paste failure output.
 
@@ -353,7 +353,7 @@ Must use expected bytes or compare against `buildGroupedUpdate` (only correct im
 
 4. Run test - **MUST PASS**
    ```bash
-   go test -run TestBuildUnicast_EncodesReflectorAttrs ./pkg/bgp/message/...
+   go test -run TestBuildUnicast_EncodesReflectorAttrs ./internal/bgp/message/...
    ```
 
 5. Run full test suite:
@@ -363,11 +363,11 @@ Must use expected bytes or compare against `buildGroupedUpdate` (only correct im
 
 ### Phase 3: Fix routeGroupKey (Prevent Silent Data Loss)
 
-**File: `pkg/reactor/peer.go`**
+**File: `internal/reactor/peer.go`**
 
 1. Add test for grouping behavior:
 
-**File: `pkg/reactor/peer_test.go`**
+**File: `internal/reactor/peer_test.go`**
    ```go
    // TestRouteGroupKey_IncludesReflectorAttrs verifies grouping key includes RFC 4456 fields.
    //
@@ -459,7 +459,7 @@ Must use expected bytes or compare against `buildGroupedUpdate` (only correct im
 
 ### Phase 4: Implement BuildGroupedUnicast
 
-**File: `pkg/bgp/message/update_build.go`**
+**File: `internal/bgp/message/update_build.go`**
 
 1. Add stub function:
    ```go
@@ -476,7 +476,7 @@ Must use expected bytes or compare against `buildGroupedUpdate` (only correct im
 
 2. Write tests - **MUST FAIL** (returns nil):
 
-**File: `pkg/bgp/message/update_build_test.go`**
+**File: `internal/bgp/message/update_build_test.go`**
    ```go
    // TestBuildGroupedUnicast_MultipleNLRIs verifies grouped UPDATE encoding.
    //
@@ -794,7 +794,7 @@ Must use expected bytes or compare against `buildGroupedUpdate` (only correct im
 
 Now that all code changes are complete, migrate wire compat tests from "old vs new comparison" to "expected bytes" format.
 
-**File: `pkg/reactor/wire_compat_test.go`**
+**File: `internal/reactor/wire_compat_test.go`**
 
 1. For each test that uses `buildStaticRouteUpdate`:
    - Run test once to capture expected bytes from current output

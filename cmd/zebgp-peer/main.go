@@ -17,7 +17,7 @@ import (
 	"strconv"
 	"syscall"
 
-	"codeberg.org/thomas-mangin/zebgp/pkg/testpeer"
+	"codeberg.org/thomas-mangin/zebgp/internal/test/peer"
 )
 
 func main() {
@@ -28,11 +28,11 @@ func main() {
 	}
 
 	switch config.Mode {
-	case testpeer.ModeSink:
+	case peer.ModeSink:
 		fmt.Print("\nsink mode - send us whatever, we can take it! :p\n\n")
-	case testpeer.ModeEcho:
+	case peer.ModeEcho:
 		fmt.Print("\necho mode - send us whatever, we can parrot it! :p\n\n")
-	case testpeer.ModeCheck:
+	case peer.ModeCheck:
 		if len(config.Expect) == 0 {
 			fmt.Println("no test data available to test against")
 			os.Exit(1)
@@ -48,7 +48,7 @@ func main() {
 		cancel()
 	}()
 
-	peer, err := testpeer.New(config)
+	peer, err := peer.New(config)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "failed to create peer: %v\n", err)
 		os.Exit(1)
@@ -71,7 +71,7 @@ func main() {
 	fmt.Println("successful")
 }
 
-func parseFlags() *testpeer.Config {
+func parseFlags() *peer.Config {
 	port := 179
 	if p := os.Getenv("zebgp.tcp.port"); p != "" {
 		if v, err := strconv.Atoi(p); err == nil {
@@ -84,7 +84,7 @@ func parseFlags() *testpeer.Config {
 		}
 	}
 
-	config := &testpeer.Config{Output: os.Stdout}
+	config := &peer.Config{Output: os.Stdout}
 
 	var view bool
 	var mode string
@@ -98,14 +98,14 @@ func parseFlags() *testpeer.Config {
 
 	// Parse mode (case-insensitive, warns on invalid)
 	var valid bool
-	config.Mode, valid = testpeer.ParseMode(mode)
+	config.Mode, valid = peer.ParseMode(mode)
 	if !valid {
 		fmt.Fprintf(os.Stderr, "warning: unknown mode %q, using %q\n", mode, config.Mode)
 	}
 
 	// Load check file if provided.
 	if flag.NArg() > 0 {
-		expect, fileConfig, err := testpeer.LoadExpectFile(flag.Arg(0))
+		expect, fileConfig, err := peer.LoadExpectFile(flag.Arg(0))
 		if err != nil {
 			fmt.Printf("cannot load check file: %v\n", err)
 			os.Exit(1)

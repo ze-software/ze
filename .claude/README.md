@@ -8,7 +8,7 @@
 │   ├── planning.md     # Pre-implementation planning (*)
 │   ├── tdd.md          # TDD rules (**/*.go)
 │   ├── go-standards.md # Go coding standards (**/*.go)
-│   ├── rfc-compliance.md # RFC rules (pkg/bgp/**/*.go)
+│   ├── rfc-compliance.md # RFC rules (internal/bgp/**/*.go)
 │   ├── config-design.md # Config design rules
 │   └── git-safety.md   # Git protection (*)
 ├── hooks/              # Automation scripts
@@ -34,7 +34,7 @@
 1. Rules auto-load based on file path
 2. Hooks automate git check and linting
 3. Read `INDEX.md` to find architecture docs
-4. Run `make test && make lint` before claiming done
+4. Run `make lint && make test && make functional` before claiming done
 
 ---
 

@@ -10,7 +10,7 @@ Prevent buffer overflow when forwarding wire UPDATEs to peers with smaller buffe
 | **Wire** | Forward received UPDATE to peer | `SplitUpdateWithAddPath` | ✅ YES |
 | **API** | Generate UPDATE from API input | `UpdateBuilder.Build*()` | ❌ NO (separate spec) |
 
-**Call site**: `ForwardUpdate()` in `pkg/reactor/reactor.go` calls split before sending to peers.
+**Call site**: `ForwardUpdate()` in `internal/reactor/reactor.go` calls split before sending to peers.
 
 ## Problem
 - Received UPDATE from Extended Message peer (65535) may need forwarding to standard peer (4096)
@@ -121,17 +121,17 @@ Same logic applies to `Update.NLRI` and `Update.WithdrawnRoutes` fields:
 ### Unit Tests
 | Test | File | Validates |
 |------|------|-----------|
-| `TestSplitMPNLRI_Subslice` | `pkg/bgp/message/chunk_mp_nlri_test.go` | Returns subslices of original buffer |
-| `TestSplitMPNLRI_NoAllocHotPath` | `pkg/bgp/message/chunk_mp_nlri_test.go` | `testing.AllocsPerRun` verifies no alloc in split loop |
-| `TestSplitMPNLRI_BoundaryExact` | `pkg/bgp/message/chunk_mp_nlri_test.go` | Exactly maxSize bytes handled |
-| `TestSplitMPNLRI_SingleNLRIFillsBuffer` | `pkg/bgp/message/chunk_mp_nlri_test.go` | Single NLRI at exact limit |
-| `TestSplitUpdate_CheckAfterWrite` | `pkg/bgp/message/update_split_test.go` | Splits when next NLRI won't fit |
-| `TestSplitUpdate_IPv4Field` | `pkg/bgp/message/update_split_test.go` | IPv4 NLRI field handled |
-| `TestSplitUpdate_FlowSpec_Split` | `pkg/bgp/message/update_split_test.go` | FlowSpec splits normally |
-| `TestSplitUpdate_BGPLS_TooLarge` | `pkg/bgp/message/update_split_test.go` | BGP-LS single NLRI > maxSize → error |
-| `TestSplitUpdate_AttributesTooLarge` | `pkg/bgp/message/update_split_test.go` | Attributes alone > maxSize → error (pre-existing) |
-| `TestSplitUpdate_EmptyNLRI` | `pkg/bgp/message/update_split_test.go` | Empty NLRI list handled |
-| `TestSplitUpdate_BothMPReachAndUnreach` | `pkg/bgp/message/update_split_test.go` | Both MP attrs need splitting (pre-existing) |
+| `TestSplitMPNLRI_Subslice` | `internal/bgp/message/chunk_mp_nlri_test.go` | Returns subslices of original buffer |
+| `TestSplitMPNLRI_NoAllocHotPath` | `internal/bgp/message/chunk_mp_nlri_test.go` | `testing.AllocsPerRun` verifies no alloc in split loop |
+| `TestSplitMPNLRI_BoundaryExact` | `internal/bgp/message/chunk_mp_nlri_test.go` | Exactly maxSize bytes handled |
+| `TestSplitMPNLRI_SingleNLRIFillsBuffer` | `internal/bgp/message/chunk_mp_nlri_test.go` | Single NLRI at exact limit |
+| `TestSplitUpdate_CheckAfterWrite` | `internal/bgp/message/update_split_test.go` | Splits when next NLRI won't fit |
+| `TestSplitUpdate_IPv4Field` | `internal/bgp/message/update_split_test.go` | IPv4 NLRI field handled |
+| `TestSplitUpdate_FlowSpec_Split` | `internal/bgp/message/update_split_test.go` | FlowSpec splits normally |
+| `TestSplitUpdate_BGPLS_TooLarge` | `internal/bgp/message/update_split_test.go` | BGP-LS single NLRI > maxSize → error |
+| `TestSplitUpdate_AttributesTooLarge` | `internal/bgp/message/update_split_test.go` | Attributes alone > maxSize → error (pre-existing) |
+| `TestSplitUpdate_EmptyNLRI` | `internal/bgp/message/update_split_test.go` | Empty NLRI list handled |
+| `TestSplitUpdate_BothMPReachAndUnreach` | `internal/bgp/message/update_split_test.go` | Both MP attrs need splitting (pre-existing) |
 
 ### Functional Tests
 | Test | Location | Scenario |
@@ -139,9 +139,9 @@ Same logic applies to `Update.NLRI` and `Update.WithdrawnRoutes` fields:
 | N/A | - | Wire splitting is unit-tested; functional tests cover end-to-end forwarding |
 
 ## Files to Modify
-- `pkg/bgp/message/chunk_mp_nlri.go` - Add RFC reference/constraint comments to all size functions
-- `pkg/bgp/message/chunk_mp_nlri_test.go` - Add SplitMPNLRI tests
-- `pkg/bgp/message/update_split_test.go` - Add bounds safety tests
+- `internal/bgp/message/chunk_mp_nlri.go` - Add RFC reference/constraint comments to all size functions
+- `internal/bgp/message/chunk_mp_nlri_test.go` - Add SplitMPNLRI tests
+- `internal/bgp/message/update_split_test.go` - Add bounds safety tests
 
 **Note on ChunkMPNLRI vs SplitMPNLRI:**
 - `ChunkMPNLRI` - returns copies via `append()`, used when caller needs independent chunks
@@ -168,7 +168,7 @@ Same logic applies to `Update.NLRI` and `Update.WithdrawnRoutes` fields:
 ## RFC Documentation
 
 ### Reference Comments
-Added to `pkg/bgp/message/chunk_mp_nlri.go`:
+Added to `internal/bgp/message/chunk_mp_nlri.go`:
 - `// RFC 4271 Section 4.3 - UPDATE message format, max 4096 bytes.`
 - `// RFC 8654 - Extended Message raises max to 65535 bytes.`
 - `// RFC 4760 - MP_REACH_NLRI / MP_UNREACH_NLRI wire format.`

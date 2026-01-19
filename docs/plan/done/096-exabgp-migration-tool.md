@@ -31,18 +31,18 @@ CLI tool to convert ExaBGP configuration files to ZeBGP format. Transforms inclu
 ### Unit Tests
 | Test | File | Validates |
 |------|------|-----------|
-| `TestIsIPv6Prefix` | `pkg/config/migration/helpers_test.go` | IPv6 prefix detection via `:` |
-| `TestIsMulticastPrefix` | `pkg/config/migration/helpers_test.go` | Multicast range detection |
-| `TestDetectSAFI` | `pkg/config/migration/helpers_test.go` | SAFI detection (unicast/multicast/nlri-mpls/mpls-vpn) |
-| `TestExtractStaticRoutesIPv4` | `pkg/config/migration/static_test.go` | IPv4 static→announce |
-| `TestExtractStaticRoutesIPv6` | `pkg/config/migration/static_test.go` | IPv6 static→announce |
-| `TestExtractStaticRoutesMixed` | `pkg/config/migration/static_test.go` | Mixed AFI routes |
-| `TestExtractStaticRoutesMulticast` | `pkg/config/migration/static_test.go` | Multicast SAFI detection |
-| `TestExtractStaticRoutesMPLSVPN` | `pkg/config/migration/static_test.go` | rd → mpls-vpn (SAFI 128) |
-| `TestExtractStaticRoutesLabeledUnicast` | `pkg/config/migration/static_test.go` | label-only → nlri-mpls (SAFI 4) |
-| `TestExtractStaticRoutesMergeExisting` | `pkg/config/migration/static_test.go` | Merge with existing announce |
-| `TestMigrateAPIBlocks*` | `pkg/config/migration/api_test.go` | API block transforms |
-| `TestMigrate*` | `pkg/config/migration/migrate_test.go` | Full pipeline |
+| `TestIsIPv6Prefix` | `internal/config/migration/helpers_test.go` | IPv6 prefix detection via `:` |
+| `TestIsMulticastPrefix` | `internal/config/migration/helpers_test.go` | Multicast range detection |
+| `TestDetectSAFI` | `internal/config/migration/helpers_test.go` | SAFI detection (unicast/multicast/nlri-mpls/mpls-vpn) |
+| `TestExtractStaticRoutesIPv4` | `internal/config/migration/static_test.go` | IPv4 static→announce |
+| `TestExtractStaticRoutesIPv6` | `internal/config/migration/static_test.go` | IPv6 static→announce |
+| `TestExtractStaticRoutesMixed` | `internal/config/migration/static_test.go` | Mixed AFI routes |
+| `TestExtractStaticRoutesMulticast` | `internal/config/migration/static_test.go` | Multicast SAFI detection |
+| `TestExtractStaticRoutesMPLSVPN` | `internal/config/migration/static_test.go` | rd → mpls-vpn (SAFI 128) |
+| `TestExtractStaticRoutesLabeledUnicast` | `internal/config/migration/static_test.go` | label-only → nlri-mpls (SAFI 4) |
+| `TestExtractStaticRoutesMergeExisting` | `internal/config/migration/static_test.go` | Merge with existing announce |
+| `TestMigrateAPIBlocks*` | `internal/config/migration/api_test.go` | API block transforms |
+| `TestMigrate*` | `internal/config/migration/migrate_test.go` | Full pipeline |
 
 ### Functional Tests
 | Test | Location | Scenario |
@@ -50,13 +50,13 @@ CLI tool to convert ExaBGP configuration files to ZeBGP format. Transforms inclu
 | parsing tests | `qa/tests/parsing/` | Config parsing (10 tests) |
 
 ## Files to Modify
-- `pkg/config/migration/helpers.go` - SAFI detection (nlri-mpls fix)
-- `pkg/config/migration/helpers_test.go` - Updated test expectations
-- `pkg/config/migration/static.go` - Static block extraction
-- `pkg/config/migration/static_test.go` - Added labeled unicast test
-- `pkg/config/migration/api.go` - API block migration
-- `pkg/config/migration/migrate.go` - Migration pipeline
-- `pkg/config/migration/detect.go` - Legacy pattern detection
+- `internal/config/migration/helpers.go` - SAFI detection (nlri-mpls fix)
+- `internal/config/migration/helpers_test.go` - Updated test expectations
+- `internal/config/migration/static.go` - Static block extraction
+- `internal/config/migration/static_test.go` - Added labeled unicast test
+- `internal/config/migration/api.go` - API block migration
+- `internal/config/migration/migrate.go` - Migration pipeline
+- `internal/config/migration/detect.go` - Legacy pattern detection
 - `cmd/zebgp/config_check.go` - `zebgp config check` command
 - `cmd/zebgp/config_migrate.go` - `zebgp config migrate` command
 

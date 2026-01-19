@@ -10,12 +10,12 @@ Consolidate multiple Route struct representations into a unified architecture.
 
 | Struct | Location | Purpose | Issue |
 |--------|----------|---------|-------|
-| `RouteSpec` | `pkg/plugin/types.go` | API input | Full attributes (parsed) |
-| `PathAttributes` | `pkg/plugin/types.go` | Embedded attrs | Shared by RouteSpec, L3VPNRoute, etc. |
-| `rib.Route` | `pkg/plugin/rib/rib.go` | Plugin storage | Full attributes as strings |
-| `rr.Route` | `pkg/plugin/rr/rib.go` | Zero-copy | Minimal (MsgID, Family, Prefix) |
-| `RIBRoute` | `pkg/plugin/types.go` | Query output | Minimal strings for JSON |
-| `rib.Route` | `pkg/rib/route.go` | Core engine | NLRI, Attrs, wire cache, refcount |
+| `RouteSpec` | `internal/plugin/types.go` | API input | Full attributes (parsed) |
+| `PathAttributes` | `internal/plugin/types.go` | Embedded attrs | Shared by RouteSpec, L3VPNRoute, etc. |
+| `rib.Route` | `internal/plugin/rib/rib.go` | Plugin storage | Full attributes as strings |
+| `rr.Route` | `internal/plugin/rr/rib.go` | Zero-copy | Minimal (MsgID, Family, Prefix) |
+| `RIBRoute` | `internal/plugin/types.go` | Query output | Minimal strings for JSON |
+| `rib.Route` | `internal/rib/route.go` | Core engine | NLRI, Attrs, wire cache, refcount |
 
 **Note:** Two different `rib.Route` types exist in different packages.
 
@@ -34,7 +34,7 @@ Consolidate multiple Route struct representations into a unified architecture.
 Create unified `rib.Route` with view methods:
 
 ```go
-// pkg/rib/route.go (or pkg/plugin/rib/route.go)
+// internal/rib/route.go (or internal/plugin/rib/route.go)
 type Route struct {
     MsgID               uint64
     Family              string
@@ -73,25 +73,25 @@ type RouteBase interface {
 ### Unit Tests
 | Test | File | Validates |
 |------|------|-----------|
-| `TestRouteForZeroCopy` | `pkg/plugin/rib/route_test.go` | Zero-copy view |
-| `TestRouteForAPI` | `pkg/plugin/rib/route_test.go` | API view |
-| `TestRouteMarshalJSON` | `pkg/plugin/rib/route_test.go` | JSON encoding |
+| `TestRouteForZeroCopy` | `internal/plugin/rib/route_test.go` | Zero-copy view |
+| `TestRouteForAPI` | `internal/plugin/rib/route_test.go` | API view |
+| `TestRouteMarshalJSON` | `internal/plugin/rib/route_test.go` | JSON encoding |
 
 ## Scope Decision
 
 **Question:** Given `docs/architecture/rib-transition.md` (RIB moves to API programs), should this consolidation:
 
-1. **Plugin-only** - Consolidate `pkg/plugin/` routes only (RouteSpec, rib.Route, rr.Route, RIBRoute)
-2. **Full** - Also include `pkg/rib/route.go` (core engine Route)
+1. **Plugin-only** - Consolidate `internal/plugin/` routes only (RouteSpec, rib.Route, rr.Route, RIBRoute)
+2. **Full** - Also include `internal/rib/route.go` (core engine Route)
 
 The RIB transition suggests plugin routes become the primary storage, making option 1 more relevant.
 
 ## Files to Modify
 
-- `pkg/plugin/rib/rib.go` - Add view methods to Route
-- `pkg/plugin/rr/rib.go` - Use rib.Route.ForZeroCopy()
-- `pkg/plugin/types.go` - Possibly remove duplicate RIBRoute
-- `pkg/rib/route.go` - (if full scope) Align with plugin Route
+- `internal/plugin/rib/rib.go` - Add view methods to Route
+- `internal/plugin/rr/rib.go` - Use rib.Route.ForZeroCopy()
+- `internal/plugin/types.go` - Possibly remove duplicate RIBRoute
+- `internal/rib/route.go` - (if full scope) Align with plugin Route
 
 ## Implementation Steps
 

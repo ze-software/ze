@@ -4,12 +4,12 @@
 
 | ExaBGP | ZeBGP | Notes |
 |--------|-------|-------|
-| `bgp/message/` | `pkg/bgp/message/` | Message types |
-| `bgp/message/open/capability/` | `pkg/bgp/capability/` | Capabilities |
-| `bgp/message/update/attribute/` | `pkg/bgp/attribute/` | Path attributes |
-| `bgp/message/update/nlri/` | `pkg/bgp/nlri/` | NLRI types |
-| `reactor/peer/` | `pkg/reactor/peer.go` | Peer management |
-| `rib/` | `pkg/rib/` | Route storage |
+| `bgp/message/` | `internal/bgp/message/` | Message types |
+| `bgp/message/open/capability/` | `internal/bgp/capability/` | Capabilities |
+| `bgp/message/update/attribute/` | `internal/bgp/attribute/` | Path attributes |
+| `bgp/message/update/nlri/` | `internal/bgp/nlri/` | NLRI types |
+| `reactor/peer/` | `internal/reactor/peer.go` | Peer management |
+| `rib/` | `internal/rib/` | Route storage |
 
 **When to read full doc:** ExaBGP compatibility, finding reference implementation.
 
@@ -17,7 +17,7 @@
 
 **Purpose:** Map ExaBGP source structure to ZeBGP equivalents
 **Source:** `/Users/thomas/Code/github.com/exa-networks/exabgp/main/src/exabgp/` (372 Python files)
-**Target:** `pkg/`, `internal/`, `cmd/`
+**Target:** `internal/`, `internal/`, `cmd/`
 
 ---
 
@@ -25,14 +25,14 @@
 
 | ExaBGP Module | Files | ZeBGP Equivalent | Notes |
 |---------------|-------|------------------|-------|
-| `bgp/` | 120+ | `pkg/bgp/` | Core protocol |
-| `reactor/` | 30+ | `pkg/reactor/` | Event loop, peers |
-| `configuration/` | 50+ | `pkg/config/` | Config parsing |
-| `rib/` | 10+ | `pkg/rib/` | Route storage |
+| `bgp/` | 120+ | `internal/bgp/` | Core protocol |
+| `reactor/` | 30+ | `internal/reactor/` | Event loop, peers |
+| `configuration/` | 50+ | `internal/config/` | Config parsing |
+| `rib/` | 10+ | `internal/rib/` | Route storage |
 | `application/` | 20+ | `cmd/` | Entry points |
-| `protocol/` | 15+ | `pkg/wire/` | Wire utilities |
-| `environment/` | 5+ | `pkg/config/` | Env vars |
-| `cli/` | 10+ | `pkg/plugin/` | CLI interface |
+| `protocol/` | 15+ | `internal/wire/` | Wire utilities |
+| `environment/` | 5+ | `internal/config/` | Env vars |
+| `cli/` | 10+ | `internal/plugin/` | CLI interface |
 | `logger/` | 8 | `slog` (stdlib) | Logging |
 | `util/` | 12 | `internal/` | Utilities |
 | `data/` | 2 | N/A | Data files |
@@ -47,170 +47,170 @@
 
 | ExaBGP File | Purpose | ZeBGP File |
 |-------------|---------|------------|
-| `message.py` | Base message class | `pkg/bgp/message/message.go` |
-| `message_type.py` | Message type enum | `pkg/bgp/message/types.go` |
-| `keepalive.py` | KEEPALIVE message | `pkg/bgp/message/keepalive.go` |
-| `notification.py` | NOTIFICATION message | `pkg/bgp/message/notification.go` |
-| `refresh.py` | ROUTE-REFRESH message | `pkg/bgp/message/refresh.go` |
-| `operational.py` | Operational messages | `pkg/bgp/message/operational.go` |
-| `unknown.py` | Unknown message handling | `pkg/bgp/message/unknown.go` |
-| `direction.py` | Message direction enum | `pkg/bgp/message/direction.go` |
-| `action.py` | Message action enum | `pkg/bgp/message/action.go` |
-| `source.py` | Message source enum | `pkg/bgp/message/source.go` |
-| `scheduling.py` | Message scheduling | `pkg/reactor/scheduler.go` |
+| `message.py` | Base message class | `internal/bgp/message/message.go` |
+| `message_type.py` | Message type enum | `internal/bgp/message/types.go` |
+| `keepalive.py` | KEEPALIVE message | `internal/bgp/message/keepalive.go` |
+| `notification.py` | NOTIFICATION message | `internal/bgp/message/notification.go` |
+| `refresh.py` | ROUTE-REFRESH message | `internal/bgp/message/refresh.go` |
+| `operational.py` | Operational messages | `internal/bgp/message/operational.go` |
+| `unknown.py` | Unknown message handling | `internal/bgp/message/unknown.go` |
+| `direction.py` | Message direction enum | `internal/bgp/message/direction.go` |
+| `action.py` | Message action enum | `internal/bgp/message/action.go` |
+| `source.py` | Message source enum | `internal/bgp/message/source.go` |
+| `scheduling.py` | Message scheduling | `internal/reactor/scheduler.go` |
 
 ### 1.2 OPEN Message (`bgp/message/open/`)
 
 | ExaBGP File | Purpose | ZeBGP File |
 |-------------|---------|------------|
-| `open/capability/capability.py` | Capability base | `pkg/bgp/capability/capability.go` |
-| `open/capability/capabilities.py` | Capability collection | `pkg/bgp/capability/capabilities.go` |
-| `open/capability/negotiated.py` | Negotiated state | `pkg/bgp/capability/negotiated.go` |
-| `open/capability/mp.py` | Multiprotocol | `pkg/bgp/capability/multiprotocol.go` |
-| `open/capability/asn4.py` | 4-byte AS | `pkg/bgp/capability/asn4.go` |
-| `open/capability/addpath.py` | ADD-PATH | `pkg/bgp/capability/addpath.go` |
-| `open/capability/graceful.py` | Graceful Restart | `pkg/bgp/capability/graceful.go` |
-| `open/capability/extended.py` | Extended Message | `pkg/bgp/capability/extended.go` |
-| `open/capability/refresh.py` | Route Refresh | `pkg/bgp/capability/refresh.go` |
-| `open/capability/hostname.py` | FQDN capability | `pkg/bgp/capability/hostname.go` |
-| `open/capability/software.py` | Software Version | `pkg/bgp/capability/software.go` |
-| `open/capability/nexthop.py` | Extended Next Hop | `pkg/bgp/capability/nexthop.go` |
-| `open/capability/ms.py` | Multiple Paths | `pkg/bgp/capability/multipaths.go` |
-| `open/capability/operational.py` | Operational | `pkg/bgp/capability/operational.go` |
-| `open/capability/unknown.py` | Unknown capability | `pkg/bgp/capability/unknown.go` |
+| `open/capability/capability.py` | Capability base | `internal/bgp/capability/capability.go` |
+| `open/capability/capabilities.py` | Capability collection | `internal/bgp/capability/capabilities.go` |
+| `open/capability/negotiated.py` | Negotiated state | `internal/bgp/capability/negotiated.go` |
+| `open/capability/mp.py` | Multiprotocol | `internal/bgp/capability/multiprotocol.go` |
+| `open/capability/asn4.py` | 4-byte AS | `internal/bgp/capability/asn4.go` |
+| `open/capability/addpath.py` | ADD-PATH | `internal/bgp/capability/addpath.go` |
+| `open/capability/graceful.py` | Graceful Restart | `internal/bgp/capability/graceful.go` |
+| `open/capability/extended.py` | Extended Message | `internal/bgp/capability/extended.go` |
+| `open/capability/refresh.py` | Route Refresh | `internal/bgp/capability/refresh.go` |
+| `open/capability/hostname.py` | FQDN capability | `internal/bgp/capability/hostname.go` |
+| `open/capability/software.py` | Software Version | `internal/bgp/capability/software.go` |
+| `open/capability/nexthop.py` | Extended Next Hop | `internal/bgp/capability/nexthop.go` |
+| `open/capability/ms.py` | Multiple Paths | `internal/bgp/capability/multipaths.go` |
+| `open/capability/operational.py` | Operational | `internal/bgp/capability/operational.go` |
+| `open/capability/unknown.py` | Unknown capability | `internal/bgp/capability/unknown.go` |
 
 ### 1.3 UPDATE Message (`bgp/message/update/`)
 
 | ExaBGP File | Purpose | ZeBGP File |
 |-------------|---------|------------|
-| `update/__init__.py` | UPDATE message | `pkg/bgp/message/update.go` |
-| `update/collection.py` | Route collection | `pkg/bgp/message/update_collection.go` |
-| `update/eor.py` | End of RIB | `pkg/bgp/message/eor.go` |
+| `update/__init__.py` | UPDATE message | `internal/bgp/message/update.go` |
+| `update/collection.py` | Route collection | `internal/bgp/message/update_collection.go` |
+| `update/eor.py` | End of RIB | `internal/bgp/message/eor.go` |
 
 ### 1.4 Path Attributes (`bgp/message/update/attribute/`)
 
 | ExaBGP File | Purpose | ZeBGP File |
 |-------------|---------|------------|
-| `attribute/attribute.py` | Attribute base | `pkg/bgp/attribute/attribute.go` |
-| `attribute/collection.py` | Attribute collection | `pkg/bgp/attribute/collection.go` |
-| `attribute/origin.py` | ORIGIN | `pkg/bgp/attribute/origin.go` |
-| `attribute/aspath.py` | AS_PATH, AS4_PATH | `pkg/bgp/attribute/aspath.go` |
-| `attribute/nexthop.py` | NEXT_HOP | `pkg/bgp/attribute/nexthop.go` |
-| `attribute/med.py` | MULTI_EXIT_DISC | `pkg/bgp/attribute/med.go` |
-| `attribute/localpref.py` | LOCAL_PREF | `pkg/bgp/attribute/localpref.go` |
-| `attribute/atomicaggregate.py` | ATOMIC_AGGREGATE | `pkg/bgp/attribute/atomicaggregate.go` |
-| `attribute/aggregator.py` | AGGREGATOR, AS4_AGGREGATOR | `pkg/bgp/attribute/aggregator.go` |
-| `attribute/originatorid.py` | ORIGINATOR_ID | `pkg/bgp/attribute/originatorid.go` |
-| `attribute/clusterlist.py` | CLUSTER_LIST | `pkg/bgp/attribute/clusterlist.go` |
-| `attribute/mprnlri.py` | MP_REACH_NLRI | `pkg/bgp/attribute/mpreach.go` |
-| `attribute/mpurnlri.py` | MP_UNREACH_NLRI | `pkg/bgp/attribute/mpunreach.go` |
-| `attribute/aigp.py` | AIGP | `pkg/bgp/attribute/aigp.go` |
-| `attribute/pmsi.py` | PMSI Tunnel | `pkg/bgp/attribute/pmsi.go` |
-| `attribute/generic.py` | Generic/unknown | `pkg/bgp/attribute/generic.go` |
+| `attribute/attribute.py` | Attribute base | `internal/bgp/attribute/attribute.go` |
+| `attribute/collection.py` | Attribute collection | `internal/bgp/attribute/collection.go` |
+| `attribute/origin.py` | ORIGIN | `internal/bgp/attribute/origin.go` |
+| `attribute/aspath.py` | AS_PATH, AS4_PATH | `internal/bgp/attribute/aspath.go` |
+| `attribute/nexthop.py` | NEXT_HOP | `internal/bgp/attribute/nexthop.go` |
+| `attribute/med.py` | MULTI_EXIT_DISC | `internal/bgp/attribute/med.go` |
+| `attribute/localpref.py` | LOCAL_PREF | `internal/bgp/attribute/localpref.go` |
+| `attribute/atomicaggregate.py` | ATOMIC_AGGREGATE | `internal/bgp/attribute/atomicaggregate.go` |
+| `attribute/aggregator.py` | AGGREGATOR, AS4_AGGREGATOR | `internal/bgp/attribute/aggregator.go` |
+| `attribute/originatorid.py` | ORIGINATOR_ID | `internal/bgp/attribute/originatorid.go` |
+| `attribute/clusterlist.py` | CLUSTER_LIST | `internal/bgp/attribute/clusterlist.go` |
+| `attribute/mprnlri.py` | MP_REACH_NLRI | `internal/bgp/attribute/mpreach.go` |
+| `attribute/mpurnlri.py` | MP_UNREACH_NLRI | `internal/bgp/attribute/mpunreach.go` |
+| `attribute/aigp.py` | AIGP | `internal/bgp/attribute/aigp.go` |
+| `attribute/pmsi.py` | PMSI Tunnel | `internal/bgp/attribute/pmsi.go` |
+| `attribute/generic.py` | Generic/unknown | `internal/bgp/attribute/generic.go` |
 | `attribute/watchdog.py` | Watchdog (internal) | N/A (internal only) |
 
 ### 1.5 Communities (`bgp/message/update/attribute/community/`)
 
 | ExaBGP File | Purpose | ZeBGP File |
 |-------------|---------|------------|
-| `community/initial/community.py` | Standard community | `pkg/bgp/attribute/community.go` |
-| `community/extended/*.py` | Extended communities | `pkg/bgp/attribute/extcommunity.go` |
-| `community/large/*.py` | Large communities | `pkg/bgp/attribute/largecommunity.go` |
+| `community/initial/community.py` | Standard community | `internal/bgp/attribute/community.go` |
+| `community/extended/*.py` | Extended communities | `internal/bgp/attribute/extcommunity.go` |
+| `community/large/*.py` | Large communities | `internal/bgp/attribute/largecommunity.go` |
 
 ### 1.6 BGP-LS Attributes (`bgp/message/update/attribute/bgpls/`)
 
 | ExaBGP File | Purpose | ZeBGP File |
 |-------------|---------|------------|
-| `bgpls/node/*.py` | Node attributes | `pkg/bgp/attribute/bgpls/node.go` |
-| `bgpls/link/*.py` | Link attributes | `pkg/bgp/attribute/bgpls/link.go` |
-| `bgpls/prefix/*.py` | Prefix attributes | `pkg/bgp/attribute/bgpls/prefix.go` |
+| `bgpls/node/*.py` | Node attributes | `internal/bgp/attribute/bgpls/node.go` |
+| `bgpls/link/*.py` | Link attributes | `internal/bgp/attribute/bgpls/link.go` |
+| `bgpls/prefix/*.py` | Prefix attributes | `internal/bgp/attribute/bgpls/prefix.go` |
 
 ### 1.7 SR/SRv6 (`bgp/message/update/attribute/sr/`)
 
 | ExaBGP File | Purpose | ZeBGP File |
 |-------------|---------|------------|
-| `sr/*.py` | Segment Routing | `pkg/bgp/attribute/sr/sr.go` |
-| `sr/srv6/*.py` | SRv6 | `pkg/bgp/attribute/sr/srv6.go` |
+| `sr/*.py` | Segment Routing | `internal/bgp/attribute/sr/sr.go` |
+| `sr/srv6/*.py` | SRv6 | `internal/bgp/attribute/sr/srv6.go` |
 
 ### 1.8 NLRI Types (`bgp/message/update/nlri/`)
 
 | ExaBGP File | Purpose | ZeBGP File |
 |-------------|---------|------------|
-| `nlri/nlri.py` | NLRI base class | `pkg/bgp/nlri/nlri.go` |
-| `nlri/collection.py` | NLRI collection | `pkg/bgp/nlri/collection.go` |
-| `nlri/cidr.py` | CIDR utilities | `pkg/bgp/nlri/cidr.go` |
-| `nlri/inet.py` | IPv4/IPv6 unicast | `pkg/bgp/nlri/inet.go` |
-| `nlri/label.py` | MPLS labels | `pkg/bgp/nlri/label.go` |
-| `nlri/ipvpn.py` | VPNv4/VPNv6 | `pkg/bgp/nlri/ipvpn.go` |
-| `nlri/flow.py` | FlowSpec | `pkg/bgp/nlri/flowspec.go` |
-| `nlri/vpls.py` | VPLS | `pkg/bgp/nlri/vpls.go` |
-| `nlri/rtc.py` | Route Target Constraint | `pkg/bgp/nlri/rtc.go` |
-| `nlri/settings.py` | NLRI settings | `pkg/bgp/nlri/settings.go` |
-| `nlri/empty.py` | Empty NLRI | `pkg/bgp/nlri/empty.go` |
+| `nlri/nlri.py` | NLRI base class | `internal/bgp/nlri/nlri.go` |
+| `nlri/collection.py` | NLRI collection | `internal/bgp/nlri/collection.go` |
+| `nlri/cidr.py` | CIDR utilities | `internal/bgp/nlri/cidr.go` |
+| `nlri/inet.py` | IPv4/IPv6 unicast | `internal/bgp/nlri/inet.go` |
+| `nlri/label.py` | MPLS labels | `internal/bgp/nlri/label.go` |
+| `nlri/ipvpn.py` | VPNv4/VPNv6 | `internal/bgp/nlri/ipvpn.go` |
+| `nlri/flow.py` | FlowSpec | `internal/bgp/nlri/flowspec.go` |
+| `nlri/vpls.py` | VPLS | `internal/bgp/nlri/vpls.go` |
+| `nlri/rtc.py` | Route Target Constraint | `internal/bgp/nlri/rtc.go` |
+| `nlri/settings.py` | NLRI settings | `internal/bgp/nlri/settings.go` |
+| `nlri/empty.py` | Empty NLRI | `internal/bgp/nlri/empty.go` |
 
 ### 1.9 EVPN (`bgp/message/update/nlri/evpn/`)
 
 | ExaBGP File | Purpose | ZeBGP File |
 |-------------|---------|------------|
-| `evpn/nlri.py` | EVPN base | `pkg/bgp/nlri/evpn/evpn.go` |
-| `evpn/ethernetad.py` | Type 1: Ethernet AD | `pkg/bgp/nlri/evpn/type1.go` |
-| `evpn/mac.py` | Type 2: MAC/IP | `pkg/bgp/nlri/evpn/type2.go` |
-| `evpn/multicast.py` | Type 3: Inclusive Multicast | `pkg/bgp/nlri/evpn/type3.go` |
-| `evpn/segment.py` | Type 4: Ethernet Segment | `pkg/bgp/nlri/evpn/type4.go` |
-| `evpn/prefix.py` | Type 5: IP Prefix | `pkg/bgp/nlri/evpn/type5.go` |
+| `evpn/nlri.py` | EVPN base | `internal/bgp/nlri/evpn/evpn.go` |
+| `evpn/ethernetad.py` | Type 1: Ethernet AD | `internal/bgp/nlri/evpn/type1.go` |
+| `evpn/mac.py` | Type 2: MAC/IP | `internal/bgp/nlri/evpn/type2.go` |
+| `evpn/multicast.py` | Type 3: Inclusive Multicast | `internal/bgp/nlri/evpn/type3.go` |
+| `evpn/segment.py` | Type 4: Ethernet Segment | `internal/bgp/nlri/evpn/type4.go` |
+| `evpn/prefix.py` | Type 5: IP Prefix | `internal/bgp/nlri/evpn/type5.go` |
 
 ### 1.10 BGP-LS NLRI (`bgp/message/update/nlri/bgpls/`)
 
 | ExaBGP File | Purpose | ZeBGP File |
 |-------------|---------|------------|
-| `bgpls/nlri.py` | BGP-LS base | `pkg/bgp/nlri/bgpls/bgpls.go` |
-| `bgpls/node.py` | Node NLRI | `pkg/bgp/nlri/bgpls/node.go` |
-| `bgpls/link.py` | Link NLRI | `pkg/bgp/nlri/bgpls/link.go` |
-| `bgpls/prefixv4.py` | IPv4 Prefix NLRI | `pkg/bgp/nlri/bgpls/prefix.go` |
-| `bgpls/prefixv6.py` | IPv6 Prefix NLRI | `pkg/bgp/nlri/bgpls/prefix.go` |
-| `bgpls/tlvs/*.py` | TLV types | `pkg/bgp/nlri/bgpls/tlv.go` |
+| `bgpls/nlri.py` | BGP-LS base | `internal/bgp/nlri/bgpls/bgpls.go` |
+| `bgpls/node.py` | Node NLRI | `internal/bgp/nlri/bgpls/node.go` |
+| `bgpls/link.py` | Link NLRI | `internal/bgp/nlri/bgpls/link.go` |
+| `bgpls/prefixv4.py` | IPv4 Prefix NLRI | `internal/bgp/nlri/bgpls/prefix.go` |
+| `bgpls/prefixv6.py` | IPv6 Prefix NLRI | `internal/bgp/nlri/bgpls/prefix.go` |
+| `bgpls/tlvs/*.py` | TLV types | `internal/bgp/nlri/bgpls/tlv.go` |
 
 ### 1.11 MUP (`bgp/message/update/nlri/mup/`)
 
 | ExaBGP File | Purpose | ZeBGP File |
 |-------------|---------|------------|
-| `mup/nlri.py` | MUP base | `pkg/bgp/nlri/mup/mup.go` |
-| `mup/isd.py` | Interwork SD | `pkg/bgp/nlri/mup/isd.go` |
-| `mup/dsd.py` | Direct SD | `pkg/bgp/nlri/mup/dsd.go` |
-| `mup/t1st.py` | Type 1 ST | `pkg/bgp/nlri/mup/t1st.go` |
-| `mup/t2st.py` | Type 2 ST | `pkg/bgp/nlri/mup/t2st.go` |
+| `mup/nlri.py` | MUP base | `internal/bgp/nlri/mup/mup.go` |
+| `mup/isd.py` | Interwork SD | `internal/bgp/nlri/mup/isd.go` |
+| `mup/dsd.py` | Direct SD | `internal/bgp/nlri/mup/dsd.go` |
+| `mup/t1st.py` | Type 1 ST | `internal/bgp/nlri/mup/t1st.go` |
+| `mup/t2st.py` | Type 2 ST | `internal/bgp/nlri/mup/t2st.go` |
 
 ### 1.12 MVPN (`bgp/message/update/nlri/mvpn/`)
 
 | ExaBGP File | Purpose | ZeBGP File |
 |-------------|---------|------------|
-| `mvpn/nlri.py` | MVPN base | `pkg/bgp/nlri/mvpn/mvpn.go` |
-| `mvpn/*.py` | MVPN route types | `pkg/bgp/nlri/mvpn/*.go` |
+| `mvpn/nlri.py` | MVPN base | `internal/bgp/nlri/mvpn/mvpn.go` |
+| `mvpn/*.py` | MVPN route types | `internal/bgp/nlri/mvpn/*.go` |
 
 ### 1.13 Qualifiers (`bgp/message/update/nlri/qualifier/`)
 
 | ExaBGP File | Purpose | ZeBGP File |
 |-------------|---------|------------|
-| `qualifier/rd.py` | Route Distinguisher | `pkg/bgp/nlri/rd.go` |
-| `qualifier/esi.py` | Ethernet Segment ID | `pkg/bgp/nlri/esi.go` |
-| `qualifier/labels.py` | MPLS Label Stack | `pkg/bgp/nlri/labels.go` |
-| `qualifier/mac.py` | MAC Address | `pkg/bgp/nlri/mac.go` |
-| `qualifier/etag.py` | Ethernet Tag | `pkg/bgp/nlri/etag.go` |
-| `qualifier/path_info.py` | ADD-PATH Path ID | `pkg/bgp/nlri/pathid.go` |
+| `qualifier/rd.py` | Route Distinguisher | `internal/bgp/nlri/rd.go` |
+| `qualifier/esi.py` | Ethernet Segment ID | `internal/bgp/nlri/esi.go` |
+| `qualifier/labels.py` | MPLS Label Stack | `internal/bgp/nlri/labels.go` |
+| `qualifier/mac.py` | MAC Address | `internal/bgp/nlri/mac.go` |
+| `qualifier/etag.py` | Ethernet Tag | `internal/bgp/nlri/etag.go` |
+| `qualifier/path_info.py` | ADD-PATH Path ID | `internal/bgp/nlri/pathid.go` |
 
 ### 1.14 Neighbor (`bgp/neighbor/`)
 
 | ExaBGP File | Purpose | ZeBGP File |
 |-------------|---------|------------|
-| `neighbor/neighbor.py` | Neighbor config | `pkg/config/neighbor.go` |
-| `neighbor/*.py` | Neighbor helpers | `pkg/config/neighbor_*.go` |
+| `neighbor/neighbor.py` | Neighbor config | `internal/config/neighbor.go` |
+| `neighbor/*.py` | Neighbor helpers | `internal/config/neighbor_*.go` |
 
 ### 1.15 FSM (`bgp/`)
 
 | ExaBGP File | Purpose | ZeBGP File |
 |-------------|---------|------------|
-| `fsm.py` | State machine | `pkg/bgp/fsm/fsm.go` |
-| `timer.py` | BGP timers | `pkg/bgp/fsm/timer.go` |
+| `fsm.py` | State machine | `internal/bgp/fsm/fsm.go` |
+| `timer.py` | BGP timers | `internal/bgp/fsm/timer.go` |
 
 ---
 
@@ -218,40 +218,40 @@
 
 | ExaBGP File | Purpose | ZeBGP File |
 |-------------|---------|------------|
-| `loop.py` | Main event loop | `pkg/reactor/reactor.go` |
-| `asynchronous.py` | Async handling | `pkg/reactor/reactor.go` (goroutines) |
+| `loop.py` | Main event loop | `internal/reactor/reactor.go` |
+| `asynchronous.py` | Async handling | `internal/reactor/reactor.go` (goroutines) |
 | `daemon.py` | Daemon management | `cmd/zebgp/daemon.go` |
-| `protocol.py` | Protocol handler | `pkg/reactor/protocol.go` |
-| `listener.py` | TCP listener | `pkg/reactor/listener.go` |
-| `timing.py` | Timing utilities | `pkg/reactor/timing.go` |
-| `delay.py` | Delay handling | `pkg/reactor/delay.go` |
-| `interrupt.py` | Signal handling | `pkg/reactor/signals.go` |
-| `keepalive.py` | Keepalive handling | `pkg/reactor/keepalive.go` |
+| `protocol.py` | Protocol handler | `internal/reactor/protocol.go` |
+| `listener.py` | TCP listener | `internal/reactor/listener.go` |
+| `timing.py` | Timing utilities | `internal/reactor/timing.go` |
+| `delay.py` | Delay handling | `internal/reactor/delay.go` |
+| `interrupt.py` | Signal handling | `internal/reactor/signals.go` |
+| `keepalive.py` | Keepalive handling | `internal/reactor/keepalive.go` |
 
 ### 2.1 Peer Management (`reactor/peer/`)
 
 | ExaBGP File | Purpose | ZeBGP File |
 |-------------|---------|------------|
-| `peer/__init__.py` | Peer class | `pkg/reactor/peer.go` |
-| `peer/handlers/*.py` | Message handlers | `pkg/reactor/handlers/*.go` |
+| `peer/__init__.py` | Peer class | `internal/reactor/peer.go` |
+| `peer/handlers/*.py` | Message handlers | `internal/reactor/handlers/*.go` |
 
 ### 2.2 Network (`reactor/network/`)
 
 | ExaBGP File | Purpose | ZeBGP File |
 |-------------|---------|------------|
-| `network/connection.py` | TCP connection | `pkg/reactor/connection.go` |
-| `network/*.py` | Network utilities | `pkg/reactor/network.go` |
+| `network/connection.py` | TCP connection | `internal/reactor/connection.go` |
+| `network/*.py` | Network utilities | `internal/reactor/network.go` |
 
 ### 2.3 API (`reactor/api/`)
 
 | ExaBGP File | Purpose | ZeBGP File |
 |-------------|---------|------------|
-| `api/__init__.py` | API server | `pkg/plugin/server.go` |
-| `api/processes.py` | External processes | `pkg/plugin/process.go` |
-| `api/error.py` | API errors | `pkg/plugin/error.go` |
-| `api/command/*.py` | Command handlers | `pkg/plugin/command/*.go` |
-| `api/dispatch/*.py` | Command dispatch | `pkg/plugin/dispatch.go` |
-| `api/response/*.py` | Response encoding | `pkg/plugin/response.go` |
+| `api/__init__.py` | API server | `internal/plugin/server.go` |
+| `api/processes.py` | External processes | `internal/plugin/process.go` |
+| `api/error.py` | API errors | `internal/plugin/error.go` |
+| `api/command/*.py` | Command handlers | `internal/plugin/command/*.go` |
+| `api/dispatch/*.py` | Command dispatch | `internal/plugin/dispatch.go` |
+| `api/response/*.py` | Response encoding | `internal/plugin/response.go` |
 | `api/response/v4/*.py` | Legacy API format | N/A |
 
 ---
@@ -260,41 +260,41 @@
 
 | ExaBGP File | Purpose | ZeBGP File |
 |-------------|---------|------------|
-| `configuration.py` | Main parser | `pkg/config/parser.go` |
-| `parser.py` | Parser utilities | `pkg/config/parser.go` |
-| `schema.py` | Config schema | `pkg/config/schema.go` |
-| `validator.py` | Validation | `pkg/config/validator.go` |
-| `validators.py` | Validator helpers | `pkg/config/validators.go` |
-| `check.py` | Config checking | `pkg/config/check.go` |
-| `encoder.py` | Config encoding | `pkg/config/encoder.go` |
-| `storage.py` | Config storage | `pkg/config/storage.go` |
-| `constraints.py` | Constraints | `pkg/config/constraints.go` |
-| `command.py` | Command parsing | `pkg/config/command.go` |
-| `setup.py` | Setup helpers | `pkg/config/setup.go` |
-| `settings.py` | Settings | `pkg/config/settings.go` |
-| `capability.py` | Capability config | `pkg/config/capability.go` |
+| `configuration.py` | Main parser | `internal/config/parser.go` |
+| `parser.py` | Parser utilities | `internal/config/parser.go` |
+| `schema.py` | Config schema | `internal/config/schema.go` |
+| `validator.py` | Validation | `internal/config/validator.go` |
+| `validators.py` | Validator helpers | `internal/config/validators.go` |
+| `check.py` | Config checking | `internal/config/check.go` |
+| `encoder.py` | Config encoding | `internal/config/encoder.go` |
+| `storage.py` | Config storage | `internal/config/storage.go` |
+| `constraints.py` | Constraints | `internal/config/constraints.go` |
+| `command.py` | Command parsing | `internal/config/command.go` |
+| `setup.py` | Setup helpers | `internal/config/setup.go` |
+| `settings.py` | Settings | `internal/config/settings.go` |
+| `capability.py` | Capability config | `internal/config/capability.go` |
 | `example.py` | Example config | N/A |
 
 ### 3.1 Core (`configuration/core/`)
 
 | ExaBGP File | Purpose | ZeBGP File |
 |-------------|---------|------------|
-| `core/tokeniser.py` | Tokenizer | `pkg/config/tokenizer.go` |
-| `core/section.py` | Section handling | `pkg/config/section.go` |
-| `core/*.py` | Core utilities | `pkg/config/core.go` |
+| `core/tokeniser.py` | Tokenizer | `internal/config/tokenizer.go` |
+| `core/section.py` | Section handling | `internal/config/section.go` |
+| `core/*.py` | Core utilities | `internal/config/core.go` |
 
 ### 3.2 Sections
 
 | ExaBGP Directory | Purpose | ZeBGP File |
 |------------------|---------|------------|
-| `announce/` | Announce config | `pkg/config/announce.go` |
-| `flow/` | FlowSpec config | `pkg/config/flow.go` |
-| `l2vpn/` | L2VPN config | `pkg/config/l2vpn.go` |
-| `neighbor/` | Neighbor config | `pkg/config/neighbor.go` |
-| `operational/` | Operational | `pkg/config/operational.go` |
-| `process/` | Process config | `pkg/config/process.go` |
-| `static/` | Static routes | `pkg/config/static.go` |
-| `template/` | Templates | `pkg/config/template.go` |
+| `announce/` | Announce config | `internal/config/announce.go` |
+| `flow/` | FlowSpec config | `internal/config/flow.go` |
+| `l2vpn/` | L2VPN config | `internal/config/l2vpn.go` |
+| `neighbor/` | Neighbor config | `internal/config/neighbor.go` |
+| `operational/` | Operational | `internal/config/operational.go` |
+| `process/` | Process config | `internal/config/process.go` |
+| `static/` | Static routes | `internal/config/static.go` |
+| `template/` | Templates | `internal/config/template.go` |
 
 ---
 
@@ -302,11 +302,11 @@
 
 | ExaBGP File | Purpose | ZeBGP File |
 |-------------|---------|------------|
-| `rib.py` | Main RIB | `pkg/rib/rib.go` |
-| `incoming.py` | Adj-RIB-In | `pkg/rib/incoming.go` |
-| `outgoing.py` | Adj-RIB-Out | `pkg/rib/outgoing.go` |
-| `store.py` | Route storage | `pkg/rib/store.go` |
-| `cache.py` | RIB cache | `pkg/rib/cache.go` |
+| `rib.py` | Main RIB | `internal/rib/rib.go` |
+| `incoming.py` | Adj-RIB-In | `internal/rib/incoming.go` |
+| `outgoing.py` | Adj-RIB-Out | `internal/rib/outgoing.go` |
+| `store.py` | Route storage | `internal/rib/store.go` |
+| `cache.py` | RIB cache | `internal/rib/cache.go` |
 
 ---
 
@@ -323,15 +323,15 @@
 | `encode.py` | Message encoder | `cmd/zebgp-decode/encode.go` |
 | `validate.py` | Config validator | `cmd/zebgp/validate.go` |
 | `healthcheck.py` | Health checking | N/A (Kubernetes probes) |
-| `pipe.py` | Pipe handling | `pkg/plugin/pipe.go` |
+| `pipe.py` | Pipe handling | `internal/plugin/pipe.go` |
 | `server.py` | Server mode | `cmd/zebgp/server.go` |
 | `flow.py` | Flow generator | N/A (separate tool) |
 | `netlink.py` | Netlink interface | N/A (no FIB) |
 | `shortcuts.py` | CLI shortcuts | `cmd/zebgp-cli/shortcuts.go` |
-| `environ.py` | Environment | `pkg/config/environ.go` |
+| `environ.py` | Environment | `internal/config/environ.go` |
 | `schema.py` | Schema command | `cmd/zebgp/schema.go` |
 | `version.py` | Version command | `cmd/zebgp/version.go` |
-| `error.py` | Error handling | `pkg/errors/errors.go` |
+| `error.py` | Error handling | `internal/errors/errors.go` |
 
 ---
 
@@ -341,7 +341,7 @@
 |-------------|---------|------------|
 | `ip/address.py` | IP addresses | `netip` (stdlib) |
 | `ip/tcp/*.py` | TCP utilities | `net` (stdlib) |
-| `iso/*.py` | ISO utilities | `pkg/wire/iso.go` |
+| `iso/*.py` | ISO utilities | `internal/wire/iso.go` |
 
 ---
 
@@ -349,8 +349,8 @@
 
 | ExaBGP File | Purpose | ZeBGP File |
 |-------------|---------|------------|
-| `setup.py` | Environment setup | `pkg/config/environment.go` |
-| `*.py` | Env var handling | `pkg/config/environment.go` |
+| `setup.py` | Environment setup | `internal/config/environment.go` |
+| `*.py` | Env var handling | `internal/config/environment.go` |
 
 ---
 

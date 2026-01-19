@@ -43,7 +43,7 @@ Decoding/encoding BGP messages requires **negotiated capabilities** from OPEN ex
 ```
 ┌─────────────────────────────────────────────────────────────────┐
 │                    Negotiated (per-peer)                        │
-│         See pkg/bgp/capability/negotiated.go for full struct    │
+│         See internal/bgp/capability/negotiated.go for full struct    │
 ├─────────────────────────────────────────────────────────────────┤
 │ ASN4            bool                 → 4-byte ASN support       │
 │ AddPath         map[Family]Mode      → Receive/Send/Both        │

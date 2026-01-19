@@ -10,7 +10,7 @@
 │  2. .claude/INDEX.md - Find what docs to load                   │
 │  3. docs/plan/CLAUDE_CONTINUATION.md - Current state                 │
 │  4. THIS SPEC FILE - Design requirements                        │
-│  5. pkg/bgp/message/update*.go - Current implementation         │
+│  5. internal/bgp/message/update*.go - Current implementation         │
 │                                                                 │
 │  DO NOT PROCEED until all are read and understood.              │
 └─────────────────────────────────────────────────────────────────┘
@@ -69,8 +69,8 @@ update, err := message.NewUpdateBuilder().
 
 | File | Purpose |
 |------|---------|
-| `pkg/bgp/message/builder.go` | UpdateBuilder implementation |
-| `pkg/bgp/message/builder_test.go` | Unit tests |
+| `internal/bgp/message/builder.go` | UpdateBuilder implementation |
+| `internal/bgp/message/builder_test.go` | Unit tests |
 
 ### Key Design Decisions
 

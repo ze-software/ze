@@ -10,7 +10,7 @@
 │  2. .claude/INDEX.md - Find what docs to load                   │
 │  3. docs/plan/CLAUDE_CONTINUATION.md - Current state                 │
 │  4. THIS SPEC FILE - Design requirements                        │
-│  5. pkg/bgp/context/*.go - Current implementation               │
+│  5. internal/bgp/context/*.go - Current implementation               │
 │                                                                 │
 │  DO NOT PROCEED until all are read and understood.              │
 └─────────────────────────────────────────────────────────────────┘
@@ -18,7 +18,7 @@
 
 ## Task
 
-Create `pkg/bgp/context/` package with:
+Create `internal/bgp/context/` package with:
 1. `EncodingContext` struct - capability-dependent encoding parameters
 2. `ContextID` type (uint16) - compact identifier for fast comparison
 3. `ContextRegistry` - register/get with hash-based deduplication
@@ -58,22 +58,22 @@ Create `pkg/bgp/context/` package with:
 
 ### Existing Patterns to Follow
 
-**`capability.Negotiated`** (pkg/bgp/capability/negotiated.go):
+**`capability.Negotiated`** (internal/bgp/capability/negotiated.go):
 - Full session state with maps for families, addPath, extendedNextHop
 - Created at session establishment via `Negotiate(local, remote, ...)`
 
-**`nlri.PackContext`** (pkg/bgp/nlri/pack.go):
+**`nlri.PackContext`** (internal/bgp/nlri/pack.go):
 - Minimal struct with AddPath, ASN4 bools
 - Used by NLRI.Pack(ctx) pattern
 
-**`NegotiatedFamilies`** (pkg/reactor/peer.go):
+**`NegotiatedFamilies`** (internal/reactor/peer.go):
 - Pre-computed boolean flags for fast access
 - Created from Negotiated via `computeNegotiatedFamilies()`
 
 ### New Package Location
 
 ```
-pkg/bgp/context/
+internal/bgp/context/
 ├── context.go      # EncodingContext struct
 ├── context_test.go # Tests
 ├── registry.go     # ContextRegistry
@@ -114,7 +114,7 @@ func TestEncodingContextToPackContext(t *testing.T)
 ```go
 package context
 
-import "codeberg.org/thomas-mangin/zebgp/pkg/bgp/nlri"
+import "codeberg.org/thomas-mangin/zebgp/internal/bgp/nlri"
 
 // Family represents an AFI/SAFI combination.
 // Matches capability.Family but avoids circular import.
@@ -303,7 +303,7 @@ This integration is OUT OF SCOPE for this spec - focus on the context package fi
 - [ ] Repeat for other registry tests
 
 ### Final
-- [ ] `go test -race ./pkg/bgp/context/...` passes
+- [ ] `go test -race ./internal/bgp/context/...` passes
 - [ ] `make test` passes
 - [ ] `make lint` passes
 - [ ] No circular imports

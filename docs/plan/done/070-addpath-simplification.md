@@ -246,21 +246,21 @@ func TestWireFormat_PathIDZero(t *testing.T) {
 ## Files to Modify
 
 ### Phase 1
-- `pkg/bgp/nlri/nlri.go` - Add `WriteNLRI()` helper
-- `pkg/bgp/nlri/inet.go` - Add `BaseLen()`, `WritePayloadTo()`
-- `pkg/bgp/nlri/ipvpn.go` - Add `BaseLen()`, `WritePayloadTo()`
-- `pkg/bgp/nlri/labeled.go` - Add `BaseLen()`, `WritePayloadTo()`
-- `pkg/bgp/nlri/evpn.go` - Add `BaseLen()`, `WritePayloadTo()`, fix bugs
+- `internal/bgp/nlri/nlri.go` - Add `WriteNLRI()` helper
+- `internal/bgp/nlri/inet.go` - Add `BaseLen()`, `WritePayloadTo()`
+- `internal/bgp/nlri/ipvpn.go` - Add `BaseLen()`, `WritePayloadTo()`
+- `internal/bgp/nlri/labeled.go` - Add `BaseLen()`, `WritePayloadTo()`
+- `internal/bgp/nlri/evpn.go` - Add `BaseLen()`, `WritePayloadTo()`, fix bugs
 - (other NLRI types)
 
 ### Phase 2
-- `pkg/rib/update.go` - Use `WriteNLRI()`
-- `pkg/rib/commit.go` - Use new encoding
-- `pkg/bgp/message/update_build.go` - Use new encoding
+- `internal/rib/update.go` - Use `WriteNLRI()`
+- `internal/rib/commit.go` - Use new encoding
+- `internal/bgp/message/update_build.go` - Use new encoding
 
 ### Phase 3
 - All NLRI types - Simplify `Len()`, `WriteTo()`, remove `hasPath`
-- `pkg/bgp/nlri/nlri.go` - Update interface
+- `internal/bgp/nlri/nlri.go` - Update interface
 
 ## Benefits
 

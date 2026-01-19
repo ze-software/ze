@@ -12,7 +12,7 @@ Add RFC 8277 multi-label stack support. Currently ZeBGP parsing handles multiple
 - RFC 8277 Section 2: Label stack is "a sequence of MPLS labels organized as a contiguous part of a label stack"
 - RFC 8277 Section 2.1: Without Multiple Labels Capability → single label MUST be used
 - RFC 8277 Section 2.1: With capability negotiated by both peers → MAY use multiple labels
-- IPVPN already uses `labels []uint32` for parsing (pkg/bgp/nlri/ipvpn.go:261)
+- IPVPN already uses `labels []uint32` for parsing (internal/bgp/nlri/ipvpn.go:261)
 - VPNParams, LabeledUnicastParams use `Label uint32` (single)
 - StaticRoute uses `Label uint32` (single)
 
@@ -21,14 +21,14 @@ Add RFC 8277 multi-label stack support. Currently ZeBGP parsing handles multiple
 ### Unit Tests
 | Test | File | Validates |
 |------|------|-----------|
-| `TestStaticRoute_MultiLabel` | `pkg/reactor/peersettings_test.go` | StaticRoute with multiple labels, IsLabeledUnicast() |
-| `TestBuildVPNNLRIBytes_MultiLabel` | `pkg/bgp/message/update_build_test.go` | Wire format: totalBits, label encoding |
-| `TestBuildLabeledUnicastNLRIBytes_MultiLabel` | `pkg/bgp/message/update_build_test.go` | Wire format: totalBits, label encoding |
-| `TestBuildVPN_MultiLabel` | `pkg/bgp/message/update_build_test.go` | Full BuildVPN with label stack |
-| `TestBuildLabeledUnicast_MultiLabel` | `pkg/bgp/message/update_build_test.go` | Full BuildLabeledUnicast with label stack |
-| `TestConfigLoader_MultiLabel` | `pkg/config/loader_test.go` | Config parsing `labels [100 200]` |
-| `TestConfigLoader_LabelBackwardCompat` | `pkg/config/loader_test.go` | Old `label 100` syntax still works |
-| `TestConfigLoader_VPNRequiresLabel` | `pkg/config/loader_test.go` | VPN route without label rejected |
+| `TestStaticRoute_MultiLabel` | `internal/reactor/peersettings_test.go` | StaticRoute with multiple labels, IsLabeledUnicast() |
+| `TestBuildVPNNLRIBytes_MultiLabel` | `internal/bgp/message/update_build_test.go` | Wire format: totalBits, label encoding |
+| `TestBuildLabeledUnicastNLRIBytes_MultiLabel` | `internal/bgp/message/update_build_test.go` | Wire format: totalBits, label encoding |
+| `TestBuildVPN_MultiLabel` | `internal/bgp/message/update_build_test.go` | Full BuildVPN with label stack |
+| `TestBuildLabeledUnicast_MultiLabel` | `internal/bgp/message/update_build_test.go` | Full BuildLabeledUnicast with label stack |
+| `TestConfigLoader_MultiLabel` | `internal/config/loader_test.go` | Config parsing `labels [100 200]` |
+| `TestConfigLoader_LabelBackwardCompat` | `internal/config/loader_test.go` | Old `label 100` syntax still works |
+| `TestConfigLoader_VPNRequiresLabel` | `internal/config/loader_test.go` | VPN route without label rejected |
 
 ### Functional Tests
 | Test | Location | Scenario |
@@ -36,12 +36,12 @@ Add RFC 8277 multi-label stack support. Currently ZeBGP parsing handles multiple
 | N/A | - | Existing functional tests cover single-label; multi-label is config-only |
 
 ## Files to Modify
-- `pkg/reactor/peersettings.go` - Change `Label uint32` → `Labels []uint32`, update IsLabeledUnicast()
-- `pkg/bgp/message/update_build.go` - Change VPNParams.Label, LabeledUnicastParams.Label to Labels []uint32; update buildVPNNLRIBytes, buildLabeledUnicastNLRIBytes to use EncodeLabelStack
-- `pkg/reactor/peer.go` - Update toStaticRouteVPNParams, toStaticRouteLabeledUnicastParams
-- `pkg/config/loader.go` - Support `labels: [100, 200]` array syntax
-- `pkg/config/bgp.go` - Update StaticRouteConfig.Label to Labels, add schema field
-- `pkg/config/routeattr.go` - Update ParsedRouteAttributes.Label to Labels []MPLSLabel
+- `internal/reactor/peersettings.go` - Change `Label uint32` → `Labels []uint32`, update IsLabeledUnicast()
+- `internal/bgp/message/update_build.go` - Change VPNParams.Label, LabeledUnicastParams.Label to Labels []uint32; update buildVPNNLRIBytes, buildLabeledUnicastNLRIBytes to use EncodeLabelStack
+- `internal/reactor/peer.go` - Update toStaticRouteVPNParams, toStaticRouteLabeledUnicastParams
+- `internal/config/loader.go` - Support `labels: [100, 200]` array syntax
+- `internal/config/bgp.go` - Update StaticRouteConfig.Label to Labels, add schema field
+- `internal/config/routeattr.go` - Update ParsedRouteAttributes.Label to Labels []MPLSLabel
 
 ## Implementation Steps
 1. **Write tests** - Wire format tests for multi-label NLRI encoding
@@ -124,14 +124,14 @@ RFC 8277 withdrawal uses special label 0x800000. Multi-label withdrawals:
 
 Validate in config loader (fail early):
 ```go
-// pkg/config/loader.go - during static route parsing
+// internal/config/loader.go - during static route parsing
 if hasRD && len(labels) == 0 {
     return fmt.Errorf("VPN route %s requires at least one label", prefix)
 }
 ```
 
 ### API Impact
-If API text handler (`pkg/plugin/`) creates routes with labels:
+If API text handler (`internal/plugin/`) creates routes with labels:
 1. Update to support `labels` array syntax
 2. Apply same validation: VPN routes require ≥1 label
 

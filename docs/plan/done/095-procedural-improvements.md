@@ -18,14 +18,14 @@ Compared spec design vs actual codebase:
 
 | Spec Component | Status |
 |----------------|--------|
-| `pkg/parse/token.go` | ❌ Missing |
-| `pkg/parse/api_tokenizer.go` | ❌ Missing |
-| `pkg/parse/config_adapter.go` | ❌ Missing |
-| `pkg/parse/update.go` | ❌ Missing |
+| `internal/parse/token.go` | ❌ Missing |
+| `internal/parse/api_tokenizer.go` | ❌ Missing |
+| `internal/parse/config_adapter.go` | ❌ Missing |
+| `internal/parse/update.go` | ❌ Missing |
 | `Tokenizer` interface | ❌ Never created |
 | Shared `ParseUpdate(Tokenizer)` | ❌ Never created |
 
-**Reality:** API uses `[]string` directly (`ParseUpdateText`, `ParseUpdateWire`), config uses separate `*Tokenizer`. Only `pkg/parse/community.go` exists as shared code.
+**Reality:** API uses `[]string` directly (`ParseUpdateText`, `ParseUpdateWire`), config uses separate `*Tokenizer`. Only `internal/parse/community.go` exists as shared code.
 
 **Conclusion:** Spec is design doc only, 0% implemented.
 
@@ -174,7 +174,7 @@ rfc9136  rfc9234  rfc9514
 | `docs/plan/spec-parser-unification.md` | Pre-existing modification |
 | `docs/plan/spec-async-api-parser.md` | Separate spec |
 | `docs/plan/spec-writeto-bounds-safety.md` | Separate spec |
-| `pkg/bgp/message/*_test.go` | Unrelated test changes |
+| `internal/bgp/message/*_test.go` | Unrelated test changes |
 | `scripts/*` | Unrelated tooling |
 | `package-lock.json` | Unrelated |
 | `yolo` | Unrelated |

@@ -27,14 +27,14 @@ Implement `AnnounceL3VPN` and `WithdrawL3VPN` in reactor to enable L3VPN (MPLS V
 ### Unit Tests
 | Test | File | Validates |
 |------|------|-----------|
-| `TestBuildL3VPNParams` | `pkg/reactor/reactor_test.go` | api.L3VPNRoute to VPNParams conversion |
-| `TestBuildL3VPNParamsIPv6` | `pkg/reactor/reactor_test.go` | IPv6 VPN support |
-| `TestBuildL3VPNRIBRoute` | `pkg/reactor/reactor_test.go` | RIB route building for queueing |
-| `TestParseRouteTarget_2ByteASN` | `pkg/reactor/reactor_test.go` | 2-byte ASN RT encoding (Type 0) |
-| `TestParseRouteTarget_4ByteASN` | `pkg/reactor/reactor_test.go` | 4-byte ASN RT encoding (Type 2) |
-| `TestParseRouteTarget_IPv4` | `pkg/reactor/reactor_test.go` | IP:NN RT encoding (Type 1) |
-| `TestParseRouteTarget_WithPrefix` | `pkg/reactor/reactor_test.go` | target: prefix stripping |
-| `TestParseRouteTarget_Errors` | `pkg/reactor/reactor_test.go` | Error handling for invalid RT |
+| `TestBuildL3VPNParams` | `internal/reactor/reactor_test.go` | api.L3VPNRoute to VPNParams conversion |
+| `TestBuildL3VPNParamsIPv6` | `internal/reactor/reactor_test.go` | IPv6 VPN support |
+| `TestBuildL3VPNRIBRoute` | `internal/reactor/reactor_test.go` | RIB route building for queueing |
+| `TestParseRouteTarget_2ByteASN` | `internal/reactor/reactor_test.go` | 2-byte ASN RT encoding (Type 0) |
+| `TestParseRouteTarget_4ByteASN` | `internal/reactor/reactor_test.go` | 4-byte ASN RT encoding (Type 2) |
+| `TestParseRouteTarget_IPv4` | `internal/reactor/reactor_test.go` | IP:NN RT encoding (Type 1) |
+| `TestParseRouteTarget_WithPrefix` | `internal/reactor/reactor_test.go` | target: prefix stripping |
+| `TestParseRouteTarget_Errors` | `internal/reactor/reactor_test.go` | Error handling for invalid RT |
 
 ### Functional Tests
 | Test | Location | Scenario |
@@ -42,8 +42,8 @@ Implement `AnnounceL3VPN` and `WithdrawL3VPN` in reactor to enable L3VPN (MPLS V
 | N/A | - | Existing VPN functional tests cover wire format |
 
 ## Files to Modify
-- `pkg/reactor/reactor.go` - Add AnnounceL3VPN, WithdrawL3VPN, buildL3VPNParams, buildL3VPNRIBRoute, parseRouteTarget
-- `pkg/reactor/reactor_test.go` - Add L3VPN and parseRouteTarget tests
+- `internal/reactor/reactor.go` - Add AnnounceL3VPN, WithdrawL3VPN, buildL3VPNParams, buildL3VPNRIBRoute, parseRouteTarget
+- `internal/reactor/reactor_test.go` - Add L3VPN and parseRouteTarget tests
 
 ## Implementation Steps
 1. **Write tests** - Create TestBuildL3VPNParams, TestBuildL3VPNParamsIPv6, TestBuildL3VPNRIBRoute

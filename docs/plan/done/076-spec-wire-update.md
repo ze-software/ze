@@ -12,8 +12,8 @@ Implement zero-copy UPDATE message parsing using concrete wire types.
 
 - [x] `.claude/zebgp/ENCODING_CONTEXT.md` - Zero-copy pattern, ContextID comparison
 - [x] `.claude/zebgp/UPDATE_BUILDING.md` - Forward path vs Build path (WireUpdate is Forward path)
-- [x] `pkg/bgp/attribute/wire.go` - AttributesWire pattern to follow
-- [x] `pkg/plugin/mpwire.go` - MPReachWire/MPUnreachWire already implemented
+- [x] `internal/bgp/attribute/wire.go` - AttributesWire pattern to follow
+- [x] `internal/plugin/mpwire.go` - MPReachWire/MPUnreachWire already implemented
 
 **Key insights from docs:**
 - Zero-copy rule: `sourceCtxID == destCtxID` → return original bytes
@@ -28,36 +28,36 @@ Implement zero-copy UPDATE message parsing using concrete wire types.
 ### Unit Tests
 | Test | File | What it validates |
 |------|------|-------------------|
-| `TestWireUpdate_Derived` | `pkg/plugin/wire_update_test.go` | Withdrawn/Attrs/NLRI return correct slices |
-| `TestWireUpdate_Empty` | `pkg/plugin/wire_update_test.go` | Empty sections return nil |
-| `TestWireUpdate_Malformed` | `pkg/plugin/wire_update_test.go` | Truncated data returns nil gracefully |
-| `TestWireUpdate_MPReach` | `pkg/plugin/wire_update_test.go` | MP_REACH_NLRI extraction |
-| `TestWireUpdate_MPUnreach` | `pkg/plugin/wire_update_test.go` | MP_UNREACH_NLRI extraction |
-| `TestWireUpdate_SourceCtxID` | `pkg/plugin/wire_update_test.go` | Context ID preserved |
-| `TestWireUpdate_Payload` | `pkg/plugin/wire_update_test.go` | Raw payload access (zero-copy) |
-| `TestWireUpdate_AttrsCached` | `pkg/plugin/wire_update_test.go` | AttributesWire caching with sync.Once |
+| `TestWireUpdate_Derived` | `internal/plugin/wire_update_test.go` | Withdrawn/Attrs/NLRI return correct slices |
+| `TestWireUpdate_Empty` | `internal/plugin/wire_update_test.go` | Empty sections return nil |
+| `TestWireUpdate_Malformed` | `internal/plugin/wire_update_test.go` | Truncated data returns nil gracefully |
+| `TestWireUpdate_MPReach` | `internal/plugin/wire_update_test.go` | MP_REACH_NLRI extraction |
+| `TestWireUpdate_MPUnreach` | `internal/plugin/wire_update_test.go` | MP_UNREACH_NLRI extraction |
+| `TestWireUpdate_SourceCtxID` | `internal/plugin/wire_update_test.go` | Context ID preserved |
+| `TestWireUpdate_Payload` | `internal/plugin/wire_update_test.go` | Raw payload access (zero-copy) |
+| `TestWireUpdate_AttrsCached` | `internal/plugin/wire_update_test.go` | AttributesWire caching with sync.Once |
 
 ### Integration Tests
 | Test | File | What it validates |
 |------|------|-------------------|
-| `TestNotifyMessageReceiverWireUpdate` | `pkg/reactor/reactor_test.go` | WireUpdate set in RawMessage |
+| `TestNotifyMessageReceiverWireUpdate` | `internal/reactor/reactor_test.go` | WireUpdate set in RawMessage |
 
 ---
 
 ## Files to Modify
 
 ### New Files
-- `pkg/plugin/wire_update.go` - WireUpdate struct and methods
-- `pkg/plugin/wire_update_test.go` - Unit tests
+- `internal/plugin/wire_update.go` - WireUpdate struct and methods
+- `internal/plugin/wire_update_test.go` - Unit tests
 
 ### Modified Files
-- `pkg/plugin/types.go` - Add WireUpdate field to RawMessage
-- `pkg/plugin/decode.go` - Remove ExtractAttributeBytes (replaced by WireUpdate)
-- `pkg/plugin/decode_test.go` - Remove ExtractAttributeBytes tests
-- `pkg/plugin/text_test.go` - Update to use WireUpdate
-- `pkg/plugin/filter_test.go` - Update to use WireUpdate
-- `pkg/reactor/reactor.go` - Create WireUpdate in notifyMessageReceiver
-- `pkg/reactor/reactor_test.go` - Add integration test
+- `internal/plugin/types.go` - Add WireUpdate field to RawMessage
+- `internal/plugin/decode.go` - Remove ExtractAttributeBytes (replaced by WireUpdate)
+- `internal/plugin/decode_test.go` - Remove ExtractAttributeBytes tests
+- `internal/plugin/text_test.go` - Update to use WireUpdate
+- `internal/plugin/filter_test.go` - Update to use WireUpdate
+- `internal/reactor/reactor.go` - Create WireUpdate in notifyMessageReceiver
+- `internal/reactor/reactor_test.go` - Add integration test
 
 ---
 
@@ -258,19 +258,19 @@ func (h *Handler) OnMessageReceived(peer api.PeerInfo, msg api.RawMessage) {
 ## Checklist
 
 ### 🧪 TDD (MUST complete in order)
-- [x] Unit tests written (`pkg/plugin/wire_update_test.go`)
-- [x] Integration test written (`pkg/reactor/reactor_test.go`)
+- [x] Unit tests written (`internal/plugin/wire_update_test.go`)
+- [x] Integration test written (`internal/reactor/reactor_test.go`)
 - [x] Tests run and FAIL (before implementation)
 - [x] Implementation complete
 - [x] Tests run and PASS (9 tests pass)
 
 ### Phase 1: Wire Types
-- [x] Implement `WireUpdate` struct and methods (`pkg/plugin/wire_update.go`)
-- [x] Implement `MPReachWire` struct and methods (already in `pkg/plugin/mpwire.go`)
-- [x] Implement `MPUnreachWire` struct and methods (already in `pkg/plugin/mpwire.go`)
+- [x] Implement `WireUpdate` struct and methods (`internal/plugin/wire_update.go`)
+- [x] Implement `MPReachWire` struct and methods (already in `internal/plugin/mpwire.go`)
+- [x] Implement `MPUnreachWire` struct and methods (already in `internal/plugin/mpwire.go`)
 - [x] Implement derived accessors with bounds checking
-- [x] Ensure `AttributesWire` exists (already in `pkg/bgp/attribute/wire.go`)
-- [x] Unit tests: `pkg/plugin/wire_update_test.go` (9 tests pass)
+- [x] Ensure `AttributesWire` exists (already in `internal/bgp/attribute/wire.go`)
+- [x] Unit tests: `internal/plugin/wire_update_test.go` (9 tests pass)
 
 ### Phase 2: Integration
 - [x] Update connection read loop to create `*WireUpdate` (reactor.go:notifyMessageReceiver)

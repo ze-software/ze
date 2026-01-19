@@ -11,7 +11,7 @@
 │  3. docs/plan/CLAUDE_CONTINUATION.md - Current state                 │
 │  4. THIS SPEC FILE - Design requirements                        │
 │  5. test/data/encode/*.ci - Sample test files                   │
-│  6. pkg/bgp/attribute/origin.go - Attribute parsing code        │
+│  6. internal/bgp/attribute/origin.go - Attribute parsing code        │
 │                                                                 │
 │  DO NOT PROCEED until all are read and understood.              │
 └─────────────────────────────────────────────────────────────────┘
@@ -103,7 +103,7 @@ Plan achieves goal: YES - COMPLETED
 
 ### Phase 1: Revert Previous Changes
 
-First, revert the ExaBGP-compatibility changes made to pkg/bgp/message/update_build.go
+First, revert the ExaBGP-compatibility changes made to internal/bgp/message/update_build.go
 since we're going RFC-compliant instead.
 
 ### Phase 2: Create Tool

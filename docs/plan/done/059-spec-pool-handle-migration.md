@@ -1041,7 +1041,7 @@ func DetermineMode(peers []PeerConfig) UpdateMode {
 
 ### Phase 1: Pool Core ✅
 
-**File:** `pkg/pool/pool.go`
+**File:** `internal/pool/pool.go`
 
 ```go
 package pool
@@ -1084,7 +1084,7 @@ func (p *Pool) Length(h Handle) int        // Length of interned data
 
 ### Phase 2: Global Pool
 
-**File:** `pkg/pool/global.go`
+**File:** `internal/pool/global.go`
 
 ```go
 // Global pool shared across all peers
@@ -1104,7 +1104,7 @@ Single pool. Shared globally. Deduplicates identical bytes across all peers.
 
 ### Phase 3: Update Types
 
-**File:** `pkg/bgp/message/update.go`
+**File:** `internal/bgp/message/update.go`
 
 ```go
 // Update interface - same API for both modes
@@ -1145,7 +1145,7 @@ type PooledUpdate struct {
 
 ### Phase 4: RIB Storage Model
 
-**File:** `pkg/rib/rib.go`
+**File:** `internal/rib/rib.go`
 
 ```go
 // NLRISet interface with two implementations
@@ -1185,7 +1185,7 @@ type FamilyRIB struct {
 
 **Status:** Not needed for MVP. Pool grows without reclaiming. Add when memory pressure matters.
 
-**File:** `pkg/pool/scheduler.go`
+**File:** `internal/pool/scheduler.go`
 
 #### The Problem: Fragmentation
 
@@ -1371,15 +1371,15 @@ For route reflectors forwarding same UPDATE to many peers → significant saving
 ## Checklist
 
 ### Phase 1: Pool Core ✅
-- [x] Implement `pkg/pool/pool.go`
-- [x] Implement `pkg/pool/handle.go`
+- [x] Implement `internal/pool/pool.go`
+- [x] Implement `internal/pool/handle.go`
 - [x] Implement `pool.Lookup()` for read-only handle lookup
 - [x] Tests for Intern/Get/Lookup/AddRef/Release
 - [x] Tests for deduplication
 - [x] Tests for concurrent access
 
 ### Phase 2: Global Pool
-- [ ] Create `pkg/pool/global.go` with single global pool
+- [ ] Create `internal/pool/global.go` with single global pool
 - [ ] Add `Attrs` and `NLRIs` aliases pointing to same pool
 - [ ] Remove old separate pools if they exist
 

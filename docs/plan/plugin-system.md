@@ -1688,7 +1688,7 @@ type UpdateWriter interface {
 
 ### 1. ExaBGP API Plugin (Default)
 
-Wraps current `pkg/plugin` as a plugin:
+Wraps current `internal/plugin` as a plugin:
 
 ```go
 // ExaBGPAPIPlugin provides ExaBGP-compatible Unix socket API.
@@ -1948,7 +1948,7 @@ mode = "strict"
 Plugin receives parsed config. Use the config helper package for type-safe access:
 
 ```go
-import "codeberg.org/thomas-mangin/zebgp/pkg/plugin/config"
+import "codeberg.org/thomas-mangin/zebgp/internal/plugin/config"
 
 func (p *CustomPlugin) Init(ctx context.Context, reactor ReactorAPI, cfg map[string]any) error {
     // Type-safe config access with defaults and validation
@@ -2738,7 +2738,7 @@ import (
     "log"
     "net"
 
-    pb "codeberg.org/thomas-mangin/zebgp/pkg/plugin/proto"
+    pb "codeberg.org/thomas-mangin/zebgp/internal/plugin/proto"
     "google.golang.org/grpc"
 )
 
@@ -3177,9 +3177,9 @@ Testing a new draft RFC with experimental capability and attribute:
 package main
 
 import (
-    "codeberg.org/thomas-mangin/zebgp/pkg/plugin"
-    "codeberg.org/thomas-mangin/zebgp/pkg/bgp/capability"
-    "codeberg.org/thomas-mangin/zebgp/pkg/bgp/message"
+    "codeberg.org/thomas-mangin/zebgp/internal/plugin"
+    "codeberg.org/thomas-mangin/zebgp/internal/bgp/capability"
+    "codeberg.org/thomas-mangin/zebgp/internal/bgp/message"
 )
 
 // DraftRFCPlugin tests draft-ietf-idr-new-feature
@@ -3325,7 +3325,7 @@ Protocol:
 Week 1-2:
 ├── Define Plugin, PeerPlugin interfaces (minimal)
 ├── Implement simple Registry (no deps, no ordering)
-├── Wrap pkg/plugin as ExaBGPAPIPlugin
+├── Wrap internal/plugin as ExaBGPAPIPlugin
 └── Wire OnEstablished → UpdateHandler into reactor
 
 Week 3:
@@ -3436,8 +3436,8 @@ import (
     "context"
     "testing"
 
-    "codeberg.org/thomas-mangin/zebgp/pkg/plugin"
-    "codeberg.org/thomas-mangin/zebgp/pkg/plugin/testing/mock"
+    "codeberg.org/thomas-mangin/zebgp/internal/plugin"
+    "codeberg.org/thomas-mangin/zebgp/internal/plugin/testing/mock"
 )
 
 func TestMyPlugin(t *testing.T) {
@@ -3870,7 +3870,7 @@ zebgp-cli plugin health-check my-filter
 7. **Binary Attribute Encoding in JSON-RPC** - Base64 is verbose. Consider human-readable mode?
    - Proposal: Add optional `decoded` field for debugging
 
-8. **Plugin SDK** - Should we provide a `pkg/plugin/sdk/` with base implementations?
+8. **Plugin SDK** - Should we provide a `internal/plugin/sdk/` with base implementations?
    - Proposal: Yes, to reduce boilerplate for plugin authors
 
 9. **ReactorAPI Size** - Current interface has 17+ methods. Too much coupling?
@@ -3905,7 +3905,7 @@ This document is 3900+ lines. Consider splitting for maintainability:
 ## File Structure
 
 ```
-pkg/
+internal/
 └── plugin/
     ├── plugin.go          # Core interfaces (Plugin, PeerPlugin, APIPlugin)
     ├── handler.go         # UpdateHandler, HandlerResult

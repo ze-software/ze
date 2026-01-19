@@ -106,7 +106,7 @@ For each section that sends routes:
 
 | File | Change |
 |------|--------|
-| `pkg/reactor/peer.go` | Track families sent, conditional EOR |
+| `internal/reactor/peer.go` | Track families sent, conditional EOR |
 
 ## Test Plan
 

@@ -24,11 +24,11 @@ N/A - Internal refactoring, no protocol changes.
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestAttributesWireGet` | `pkg/bgp/attribute/wire_test.go` | Lazy parsing, caching | exists |
-| `TestAttributesWireHas` | `pkg/bgp/attribute/wire_test.go` | Header-only scanning | exists |
-| `TestAttributesWireAll` | `pkg/bgp/attribute/wire_test.go` | Full parse, wire order | exists |
-| `TestAttributesWireConcurrentAccess` | `pkg/bgp/attribute/wire_test.go` | Thread safety | exists |
-| `TestAttributesWireIndexReuse` | `pkg/bgp/attribute/wire_test.go` | Index caching | exists |
+| `TestAttributesWireGet` | `internal/bgp/attribute/wire_test.go` | Lazy parsing, caching | exists |
+| `TestAttributesWireHas` | `internal/bgp/attribute/wire_test.go` | Header-only scanning | exists |
+| `TestAttributesWireAll` | `internal/bgp/attribute/wire_test.go` | Full parse, wire order | exists |
+| `TestAttributesWireConcurrentAccess` | `internal/bgp/attribute/wire_test.go` | Thread safety | exists |
+| `TestAttributesWireIndexReuse` | `internal/bgp/attribute/wire_test.go` | Index caching | exists |
 
 ### Functional Tests
 N/A - Internal refactoring, existing tests sufficient.
@@ -37,7 +37,7 @@ N/A - Internal refactoring, existing tests sufficient.
 None - comprehensive test coverage exists.
 
 ## Files to Modify
-- `pkg/bgp/attribute/wire.go` - Embed `parsed` in `attrIndex`, remove map
+- `internal/bgp/attribute/wire.go` - Embed `parsed` in `attrIndex`, remove map
 
 ## Files to Create
 None.

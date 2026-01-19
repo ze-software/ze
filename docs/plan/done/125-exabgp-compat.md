@@ -44,7 +44,7 @@ Wrap ExaBGP plugins so they can run with ZeBGP. Translates:
 ### Architecture
 
 ```
-pkg/exabgp/
+internal/exabgp/
 ├── bridge.go         # ZebgpToExabgpJSON(), ExabgpToZebgpCommand(), Bridge
 └── bridge_test.go    # Unit tests
 
@@ -344,7 +344,7 @@ peer 10.0.0.1 {
 | RIB plugin injection for GR/RR | ✅ Done | `NeedsRIBPlugin()`, `injectRIBPlugin()` |
 | Template block migration | ✅ Done | `migrateTemplate()` |
 | Static/announce block preservation | ✅ Done | `copyContainers()` |
-| ExaBGP schema for parsing | ✅ Done | `pkg/exabgp/schema.go` |
+| ExaBGP schema for parsing | ✅ Done | `internal/exabgp/schema.go` |
 | CLI command | ✅ Done | `zebgp exabgp migrate` |
 | Unsupported feature warnings | ✅ Done | `checkUnsupported()` |
 
@@ -356,55 +356,55 @@ peer 10.0.0.1 {
 
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestZebgpToExabgpJSON_UpdateAnnounce` | `pkg/exabgp/bridge_test.go` | UPDATE announce conversion | ✅ |
-| `TestZebgpToExabgpJSON_UpdateWithdraw` | `pkg/exabgp/bridge_test.go` | UPDATE withdraw conversion | ✅ |
-| `TestZebgpToExabgpJSON_StateUp` | `pkg/exabgp/bridge_test.go` | State message conversion | ✅ |
-| `TestZebgpToExabgpJSON_DirectionMapping` | `pkg/exabgp/bridge_test.go` | Direction mapping (3 cases) | ✅ |
-| `TestExabgpToZebgpCommand_AnnounceBasic` | `pkg/exabgp/bridge_test.go` | Basic announce conversion | ✅ |
-| `TestExabgpToZebgpCommand_AnnounceWithAttributes` | `pkg/exabgp/bridge_test.go` | Attribute conversion (5 cases) | ✅ |
-| `TestExabgpToZebgpCommand_Withdraw` | `pkg/exabgp/bridge_test.go` | Withdraw conversion | ✅ |
-| `TestExabgpToZebgpCommand_IPv6` | `pkg/exabgp/bridge_test.go` | IPv6 family detection (2 cases) | ✅ |
-| `TestExabgpToZebgpCommand_EmptyAndComment` | `pkg/exabgp/bridge_test.go` | Empty/comment handling | ✅ |
-| `TestExabgpToZebgpCommand_CaseInsensitive` | `pkg/exabgp/bridge_test.go` | Case insensitivity | ✅ |
-| `TestExabgpToZebgpCommand_ExplicitFamily` | `pkg/exabgp/bridge_test.go` | Explicit family syntax (3 cases) | ✅ |
-| `TestExabgpToZebgpCommand_NonNeighbor` | `pkg/exabgp/bridge_test.go` | Non-neighbor passthrough | ✅ |
-| `TestRoundTrip` | `pkg/exabgp/bridge_test.go` | Essential info preserved | ✅ |
-| `TestStartupProtocol` | `pkg/exabgp/bridge_test.go` | 5-stage startup handling (9 subtests) | ✅ |
-| `TestTruncate` | `pkg/exabgp/bridge_test.go` | UTF-8 safe truncation (9 cases) | ✅ |
-| `TestZebgpToExabgpJSON_Negotiated` | `pkg/exabgp/bridge_test.go` | `negotiated` message conversion | ✅ |
-| `TestZebgpToExabgpJSON_NegotiatedMinimal` | `pkg/exabgp/bridge_test.go` | `negotiated` with minimal fields | ✅ |
-| `TestZebgpToExabgpJSON_NegotiatedMissing` | `pkg/exabgp/bridge_test.go` | `negotiated` missing field handling | ✅ |
+| `TestZebgpToExabgpJSON_UpdateAnnounce` | `internal/exabgp/bridge_test.go` | UPDATE announce conversion | ✅ |
+| `TestZebgpToExabgpJSON_UpdateWithdraw` | `internal/exabgp/bridge_test.go` | UPDATE withdraw conversion | ✅ |
+| `TestZebgpToExabgpJSON_StateUp` | `internal/exabgp/bridge_test.go` | State message conversion | ✅ |
+| `TestZebgpToExabgpJSON_DirectionMapping` | `internal/exabgp/bridge_test.go` | Direction mapping (3 cases) | ✅ |
+| `TestExabgpToZebgpCommand_AnnounceBasic` | `internal/exabgp/bridge_test.go` | Basic announce conversion | ✅ |
+| `TestExabgpToZebgpCommand_AnnounceWithAttributes` | `internal/exabgp/bridge_test.go` | Attribute conversion (5 cases) | ✅ |
+| `TestExabgpToZebgpCommand_Withdraw` | `internal/exabgp/bridge_test.go` | Withdraw conversion | ✅ |
+| `TestExabgpToZebgpCommand_IPv6` | `internal/exabgp/bridge_test.go` | IPv6 family detection (2 cases) | ✅ |
+| `TestExabgpToZebgpCommand_EmptyAndComment` | `internal/exabgp/bridge_test.go` | Empty/comment handling | ✅ |
+| `TestExabgpToZebgpCommand_CaseInsensitive` | `internal/exabgp/bridge_test.go` | Case insensitivity | ✅ |
+| `TestExabgpToZebgpCommand_ExplicitFamily` | `internal/exabgp/bridge_test.go` | Explicit family syntax (3 cases) | ✅ |
+| `TestExabgpToZebgpCommand_NonNeighbor` | `internal/exabgp/bridge_test.go` | Non-neighbor passthrough | ✅ |
+| `TestRoundTrip` | `internal/exabgp/bridge_test.go` | Essential info preserved | ✅ |
+| `TestStartupProtocol` | `internal/exabgp/bridge_test.go` | 5-stage startup handling (9 subtests) | ✅ |
+| `TestTruncate` | `internal/exabgp/bridge_test.go` | UTF-8 safe truncation (9 cases) | ✅ |
+| `TestZebgpToExabgpJSON_Negotiated` | `internal/exabgp/bridge_test.go` | `negotiated` message conversion | ✅ |
+| `TestZebgpToExabgpJSON_NegotiatedMinimal` | `internal/exabgp/bridge_test.go` | `negotiated` with minimal fields | ✅ |
+| `TestZebgpToExabgpJSON_NegotiatedMissing` | `internal/exabgp/bridge_test.go` | `negotiated` missing field handling | ✅ |
 
 ### Unit Tests - Config (2 tests)
 
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestAPIBindingReceiveNegotiated` | `pkg/config/bgp_test.go` | `receive { negotiated; }` parsing | ✅ |
-| `TestAPIBindingReceiveAll` | `pkg/config/bgp_test.go` | `receive { all; }` includes negotiated | ✅ |
+| `TestAPIBindingReceiveNegotiated` | `internal/config/bgp_test.go` | `receive { negotiated; }` parsing | ✅ |
+| `TestAPIBindingReceiveAll` | `internal/config/bgp_test.go` | `receive { all; }` includes negotiated | ✅ |
 
 ### Unit Tests - Reactor (1 test)
 
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestGetPeerProcessBindingsReceiveNegotiated` | `pkg/reactor/reactor_test.go` | ReceiveNegotiated passes through | ✅ |
+| `TestGetPeerProcessBindingsReceiveNegotiated` | `internal/reactor/reactor_test.go` | ReceiveNegotiated passes through | ✅ |
 
 ### Unit Tests - Migration (12 tests)
 
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestMigrateSimple` | `pkg/exabgp/migrate_test.go` | Basic neighbor → peer | ✅ |
-| `TestMigrateWithGR` | `pkg/exabgp/migrate_test.go` | GR injects RIB plugin | ✅ |
-| `TestMigrateWithGRBare` | `pkg/exabgp/migrate_test.go` | Bare GR → enable (not "true") | ✅ |
-| `TestMigrateWithRR` | `pkg/exabgp/migrate_test.go` | Route-refresh injects RIB | ✅ |
-| `TestMigrateProcess` | `pkg/exabgp/migrate_test.go` | Process wrapped with bridge | ✅ |
-| `TestMigrateUnsupported` | `pkg/exabgp/migrate_test.go` | Warnings for L2VPN/flow | ✅ |
-| `TestMigrateNil` | `pkg/exabgp/migrate_test.go` | Nil input handling | ✅ |
-| `TestMigrateFamilyConversion` | `pkg/exabgp/migrate_test.go` | `ipv4 unicast` → `ipv4/unicast` | ✅ |
-| `TestMigrateTemplate` | `pkg/exabgp/migrate_test.go` | Template block migration | ✅ |
-| `TestMigrateStaticBlock` | `pkg/exabgp/migrate_test.go` | Static block preservation | ✅ |
-| `TestMigrateAnnounceBlock` | `pkg/exabgp/migrate_test.go` | Announce block preservation | ✅ |
-| `TestNeedsRIBPlugin` | `pkg/exabgp/migrate_test.go` | RIB detection (4 cases) | ✅ |
-| `TestMigrateFileBasedTests` | `pkg/exabgp/migrate_test.go` | File-based exact comparison | ✅ |
+| `TestMigrateSimple` | `internal/exabgp/migrate_test.go` | Basic neighbor → peer | ✅ |
+| `TestMigrateWithGR` | `internal/exabgp/migrate_test.go` | GR injects RIB plugin | ✅ |
+| `TestMigrateWithGRBare` | `internal/exabgp/migrate_test.go` | Bare GR → enable (not "true") | ✅ |
+| `TestMigrateWithRR` | `internal/exabgp/migrate_test.go` | Route-refresh injects RIB | ✅ |
+| `TestMigrateProcess` | `internal/exabgp/migrate_test.go` | Process wrapped with bridge | ✅ |
+| `TestMigrateUnsupported` | `internal/exabgp/migrate_test.go` | Warnings for L2VPN/flow | ✅ |
+| `TestMigrateNil` | `internal/exabgp/migrate_test.go` | Nil input handling | ✅ |
+| `TestMigrateFamilyConversion` | `internal/exabgp/migrate_test.go` | `ipv4 unicast` → `ipv4/unicast` | ✅ |
+| `TestMigrateTemplate` | `internal/exabgp/migrate_test.go` | Template block migration | ✅ |
+| `TestMigrateStaticBlock` | `internal/exabgp/migrate_test.go` | Static block preservation | ✅ |
+| `TestMigrateAnnounceBlock` | `internal/exabgp/migrate_test.go` | Announce block preservation | ✅ |
+| `TestNeedsRIBPlugin` | `internal/exabgp/migrate_test.go` | RIB detection (4 cases) | ✅ |
+| `TestMigrateFileBasedTests` | `internal/exabgp/migrate_test.go` | File-based exact comparison | ✅ |
 
 ### Functional Tests
 
@@ -421,19 +421,19 @@ Each test directory contains `input.conf` (ExaBGP) and `expected.conf` (ZeBGP) f
 
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestBridgeIntegration_RealPlugin` | `pkg/exabgp/bridge_integration_test.go` | Full bidirectional translation with subprocess | ✅ |
-| `TestBridgeIntegration_StartupProtocol` | `pkg/exabgp/bridge_integration_test.go` | 5-stage startup, capability CLI flags | ✅ |
+| `TestBridgeIntegration_RealPlugin` | `internal/exabgp/bridge_integration_test.go` | Full bidirectional translation with subprocess | ✅ |
+| `TestBridgeIntegration_StartupProtocol` | `internal/exabgp/bridge_integration_test.go` | 5-stage startup, capability CLI flags | ✅ |
 
-Run with: `go test -tags=integration -v ./pkg/exabgp/...`
+Run with: `go test -tags=integration -v ./internal/exabgp/...`
 
-**Note:** Existing `pkg/config/migration/` handles ZeBGP internal syntax evolution (e.g., old ZeBGP → new ZeBGP). ExaBGP→ZeBGP conversion is a **separate concern** requiring new code in `pkg/exabgp/migrate.go`.
+**Note:** Existing `internal/config/migration/` handles ZeBGP internal syntax evolution (e.g., old ZeBGP → new ZeBGP). ExaBGP→ZeBGP conversion is a **separate concern** requiring new code in `internal/exabgp/migrate.go`.
 
 ---
 
 ## Files to Modify
 
-- `pkg/exabgp/bridge.go` - Add startup protocol handling ✅
-- `pkg/exabgp/bridge_test.go` - Add startup protocol tests ✅
+- `internal/exabgp/bridge.go` - Add startup protocol handling ✅
+- `internal/exabgp/bridge_test.go` - Add startup protocol tests ✅
 
 ## Files to Create
 
@@ -441,25 +441,25 @@ All files created ✅:
 
 | File | Purpose |
 |------|---------|
-| `pkg/exabgp/bridge.go` | JSON/command translation, Bridge struct |
-| `pkg/exabgp/bridge_test.go` | 14 bridge unit tests |
-| `pkg/exabgp/schema.go` | ExaBGP-specific config schema |
-| `pkg/exabgp/migrate.go` | ExaBGP→ZeBGP migration logic |
-| `pkg/exabgp/migrate_test.go` | 12 migration unit tests |
+| `internal/exabgp/bridge.go` | JSON/command translation, Bridge struct |
+| `internal/exabgp/bridge_test.go` | 14 bridge unit tests |
+| `internal/exabgp/schema.go` | ExaBGP-specific config schema |
+| `internal/exabgp/migrate.go` | ExaBGP→ZeBGP migration logic |
+| `internal/exabgp/migrate_test.go` | 12 migration unit tests |
 | `cmd/zebgp/exabgp.go` | CLI: `zebgp exabgp plugin/migrate` |
 | `test/data/migrate/simple/` | Simple migration test data |
 | `test/data/migrate/graceful-restart/` | GR migration test data |
 | `test/data/migrate/route-refresh/` | RR migration test data |
 | `test/data/migrate/process/` | Process migration test data |
 | `test/data/scripts/exabgp_echo.py` | ExaBGP-style test plugin for integration testing |
-| `pkg/exabgp/bridge_integration_test.go` | Integration tests for bridge subprocess |
+| `internal/exabgp/bridge_integration_test.go` | Integration tests for bridge subprocess |
 
 ---
 
 ## Implementation Steps
 
 ### Phase 1: Bridge Startup Protocol ✅
-1. ~~Research startup protocol wire format~~ ✅ Done - text commands in `pkg/plugin/registration.go`
+1. ~~Research startup protocol wire format~~ ✅ Done - text commands in `internal/plugin/registration.go`
 2. Write `TestStartupProtocol` - verify FAIL
 3. Implement startup stage handling:
    - Parse stdin for `config ...` and `registry ...` lines during startup
@@ -480,7 +480,7 @@ All files created ✅:
 
 ### Phase 3: Config Migration ✅
 
-**Note:** This is ExaBGP→ZeBGP conversion, separate from existing `pkg/config/migration/` (ZeBGP syntax evolution).
+**Note:** This is ExaBGP→ZeBGP conversion, separate from existing `internal/config/migration/` (ZeBGP syntax evolution).
 
 1. Create file-based test structure:
    - `test/data/migrate/simple/input.conf` + `expected.conf`
@@ -501,14 +501,14 @@ All files created ✅:
 
 | System | Location | Purpose |
 |--------|----------|---------|
-| ZeBGP internal migration | `pkg/config/migration/` | Evolve ZeBGP config syntax over time |
-| ExaBGP→ZeBGP migration | `pkg/exabgp/migrate.go` (NEW) | Convert ExaBGP configs to ZeBGP |
+| ZeBGP internal migration | `internal/config/migration/` | Evolve ZeBGP config syntax over time |
+| ExaBGP→ZeBGP migration | `internal/exabgp/migrate.go` (NEW) | Convert ExaBGP configs to ZeBGP |
 
-The existing `pkg/config/migration/` handles things like:
+The existing `internal/config/migration/` handles things like:
 - `neighbor→peer` (ZeBGP syntax change)
 - `api→new-format` (ZeBGP API syntax change)
 
-The **new** `pkg/exabgp/migrate.go` handles:
+The **new** `internal/exabgp/migrate.go` handles:
 - ExaBGP syntax → ZeBGP syntax
 - RIB plugin injection for GR/RR
 - Process wrapping with bridge
@@ -519,7 +519,7 @@ These are **separate concerns** but may share some transformations.
 
 ## Open Questions
 
-1. ~~**Startup protocol format**~~ **RESOLVED** - Text commands (`declare`, `capability`, `ready`). See `pkg/plugin/registration.go`.
+1. ~~**Startup protocol format**~~ **RESOLVED** - Text commands (`declare`, `capability`, `ready`). See `internal/plugin/registration.go`.
 
 2. **RIB plugin selection** - Should migration use `zebgp plugin rib` or `zebgp plugin rr`? Depends on use case:
    - Single peer: `rib`
@@ -542,7 +542,7 @@ These are **separate concerns** but may share some transformations.
 
 `migrateAPIBlock()` checks for `api` container but LegacyBGPSchema doesn't define `api` inside neighbor - it uses `process { processes [...] }`. The function never executes its main logic.
 
-**Fix:** ✅ Added `pkg/exabgp/schema.go` with ExaBGP-specific schema that includes `api` block.
+**Fix:** ✅ Added `internal/exabgp/schema.go` with ExaBGP-specific schema that includes `api` block.
 
 ### Issue 2: Test Data Uses Wrong Syntax ✅ FIXED
 
@@ -569,7 +569,7 @@ Only serializes plugin/peer/capability/process/send/receive. Missing: family, an
 
 ### What Was Implemented
 
-#### Component 1: Plugin Bridge (`pkg/exabgp/bridge.go`)
+#### Component 1: Plugin Bridge (`internal/exabgp/bridge.go`)
 - `ZebgpToExabgpJSON()` - ZeBGP JSON → ExaBGP JSON translation
 - `ExabgpToZebgpCommand()` - ExaBGP text commands → ZeBGP commands
 - `convertNegotiated()` - ZeBGP negotiated caps → ExaBGP format (family format conversion)
@@ -583,20 +583,20 @@ Only serializes plugin/peer/capability/process/send/receive. Missing: family, an
 
 #### Component 1b: Negotiated Message Config Wiring
 Full chain to enable `receive { negotiated; }` config option:
-- `pkg/config/bgp.go:533` - Added `Negotiated bool` to `PeerReceiveConfig`
-- `pkg/config/bgp.go:1614,1626` - Parse `negotiated;` and include in `all;` shorthand
-- `pkg/config/loader.go:467` - Wire `pb.Receive.Negotiated` to reactor
-- `pkg/reactor/peersettings.go:260` - Added `ReceiveNegotiated` to `ProcessBinding`
-- `pkg/reactor/reactor.go:2558` - Copy to `plugin.PeerProcessBinding`
+- `internal/config/bgp.go:533` - Added `Negotiated bool` to `PeerReceiveConfig`
+- `internal/config/bgp.go:1614,1626` - Parse `negotiated;` and include in `all;` shorthand
+- `internal/config/loader.go:467` - Wire `pb.Receive.Negotiated` to reactor
+- `internal/reactor/peersettings.go:260` - Added `ReceiveNegotiated` to `ProcessBinding`
+- `internal/reactor/reactor.go:2558` - Copy to `plugin.PeerProcessBinding`
 - 3 unit tests (2 config + 1 reactor)
 
-#### Component 2: Config Migration (`pkg/exabgp/migrate.go`)
+#### Component 2: Config Migration (`internal/exabgp/migrate.go`)
 
-1. **ExaBGP Schema** (`pkg/exabgp/schema.go`)
+1. **ExaBGP Schema** (`internal/exabgp/schema.go`)
    - ExaBGP-specific config parsing with `api`, `static`, `announce` blocks
    - `ParseExaBGPConfig()` function
 
-2. **Migration Logic** (`pkg/exabgp/migrate.go`)
+2. **Migration Logic** (`internal/exabgp/migrate.go`)
    - `neighbor` → `peer` conversion
    - `process` → `plugin` with bridge wrapper
    - `api { processes [...] }` → `process NAME { }` bindings
@@ -611,7 +611,7 @@ Full chain to enable `receive { negotiated; }` config option:
    - `zebgp exabgp plugin <cmd>` - run ExaBGP plugin with ZeBGP
    - `zebgp exabgp migrate <file>` - convert ExaBGP config to ZeBGP
 
-4. **Tests** (`pkg/exabgp/migrate_test.go`)
+4. **Tests** (`internal/exabgp/migrate_test.go`)
    - 12 unit tests covering all migration scenarios
    - File-based tests with exact output comparison against `expected.conf`
    - Tests for: simple, GR, route-refresh, process, family, template, static, announce
@@ -623,7 +623,7 @@ Full chain to enable `receive { negotiated; }` config option:
    - Writes ExaBGP commands to stdout
    - Test modes: `echo` (bidirectional), `log` (debug), `noop` (quick exit)
 
-2. **Integration tests** (`pkg/exabgp/bridge_integration_test.go`)
+2. **Integration tests** (`internal/exabgp/bridge_integration_test.go`)
    - `TestBridgeIntegration_RealPlugin` - Full bidirectional translation test
    - `TestBridgeIntegration_StartupProtocol` - 5-stage startup with capability verification
    - Uses `//go:build integration` tag (run with `-tags=integration`)
@@ -635,7 +635,7 @@ Full chain to enable `receive { negotiated; }` config option:
 make test                                    # All unit tests pass
 make lint                                    # 0 issues
 make functional                              # All 83 tests pass
-go test -tags=integration ./pkg/exabgp/...  # 2 integration tests pass
+go test -tags=integration ./internal/exabgp/...  # 2 integration tests pass
 ```
 
 ### Remaining Work
@@ -667,7 +667,7 @@ Spec complete and ready to move to `docs/plan/done/`.
 - [x] RIB plugin injection (works for GR/RR detection)
 - [x] Process wrapping
 - [x] Functional tests (file-based, structural validation)
-- [x] ExaBGP schema for proper parsing (`pkg/exabgp/schema.go`)
+- [x] ExaBGP schema for proper parsing (`internal/exabgp/schema.go`)
 - [x] `zebgp exabgp migrate` CLI command
 - [x] Family syntax conversion (`ipv4 unicast` → `ipv4/unicast`)
 
@@ -675,7 +675,7 @@ Spec complete and ready to move to `docs/plan/done/`.
 - [x] `make lint` passes
 - [x] `make test` passes
 - [x] `make functional` passes
-- [x] Integration test with real ExaBGP plugin (`go test -tags=integration ./pkg/exabgp/...`)
+- [x] Integration test with real ExaBGP plugin (`go test -tags=integration ./internal/exabgp/...`)
 
 ### Documentation
 - [x] `.claude/rules/compatibility.md` updated

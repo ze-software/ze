@@ -3,7 +3,7 @@
 ## Status: REVISED
 
 **Original approach (tokenizer abstraction): Rejected**
-**New approach: Extract value parsers to `pkg/parse/`**
+**New approach: Extract value parsers to `internal/parse/`**
 
 See "Analysis" section for rationale.
 
@@ -63,7 +63,7 @@ UpdateCommand struct
 
 | | Config | API | Shared |
 |---|---|---|---|
-| Tokenizer | `pkg/config/tokenizer.go` | None (`[]string`) | - |
+| Tokenizer | `internal/config/tokenizer.go` | None (`[]string`) | - |
 | Structure parser | recursive descent with `{ }` | linear keyword scan | ❌ Different |
 | Community | `parseOneCommunity()` | `parseCommunity()` | → `parse.Community()` ✅ |
 | Large Community | `parseOneLargeCommunity()` | `parseLargeCommunity()` | → `parse.LargeCommunity()` ✅ |
@@ -74,10 +74,10 @@ UpdateCommand struct
 
 ## Target Architecture
 
-Extract RFC-compliant value parsers to `pkg/parse/`. Keep structure parsing separate.
+Extract RFC-compliant value parsers to `internal/parse/`. Keep structure parsing separate.
 
 ```
-pkg/parse/
+internal/parse/
 ├── community.go       # ✅ Already exists
 ├── origin.go          # NEW: Origin value parsing
 ├── extended.go        # NEW: Extended community parsing
@@ -90,10 +90,10 @@ pkg/parse/
 
 ```
 ┌─────────────────────────────────────────────────────┐
-│   API (pkg/plugin/)       │   Config (pkg/config/)    │
+│   API (internal/plugin/)       │   Config (internal/config/)    │
 │   Flat keyword parser  │   Nested block parser     │
 ├────────────────────────┴────────────────────────────┤
-│           Shared Value Parsers (pkg/parse/)         │
+│           Shared Value Parsers (internal/parse/)         │
 │   Origin, ExtendedCommunity, ASPath, RD, etc.       │
 └─────────────────────────────────────────────────────┘
 ```
@@ -102,16 +102,16 @@ pkg/parse/
 
 ### Phase 1: Extract Origin (Priority: Low, ~15 LOC)
 
-1. [ ] Create `pkg/parse/origin.go`
+1. [ ] Create `internal/parse/origin.go`
 2. [ ] Write test → FAIL
 3. [ ] Implement `parse.Origin(s string) (uint8, error)`
 4. [ ] Test → PASS
-5. [ ] Update `pkg/plugin/route.go` to use `parse.Origin()`
-6. [ ] Update `pkg/config/routeattr.go` to use `parse.Origin()`
+5. [ ] Update `internal/plugin/route.go` to use `parse.Origin()`
+6. [ ] Update `internal/config/routeattr.go` to use `parse.Origin()`
 7. [ ] Delete duplicate code
 
 ```go
-// pkg/parse/origin.go
+// internal/parse/origin.go
 func Origin(s string) (uint8, error) {
     switch strings.ToLower(s) {
     case "", "igp":
@@ -128,7 +128,7 @@ func Origin(s string) (uint8, error) {
 
 ### Phase 2: Extract Extended Community (Priority: High, ~100 LOC savings)
 
-1. [ ] Create `pkg/parse/extended.go`
+1. [ ] Create `internal/parse/extended.go`
 2. [ ] Write tests for all formats → FAIL
 3. [ ] Implement `parse.ExtendedCommunity(s string) ([]byte, error)`
 4. [ ] Test → PASS
@@ -145,7 +145,7 @@ Formats to support:
 
 ### Phase 3: Extract AS-Path (Priority: Medium, ~20 LOC)
 
-1. [ ] Create `pkg/parse/aspath.go`
+1. [ ] Create `internal/parse/aspath.go`
 2. [ ] Write test → FAIL
 3. [ ] Implement `parse.ASPath(s string) ([]uint32, error)`
 4. [ ] Test → PASS
@@ -153,7 +153,7 @@ Formats to support:
 6. [ ] Delete duplicate code
 
 ```go
-// pkg/parse/aspath.go
+// internal/parse/aspath.go
 // Parses "[ 65000 65001 65002 ]" or "65000 65001" format
 func ASPath(s string) ([]uint32, error)
 ```
@@ -173,39 +173,39 @@ Decision: TBD based on usage patterns.
 ## File Changes
 
 ### New Files
-- `pkg/parse/origin.go` + `origin_test.go`
-- `pkg/parse/extended.go` + `extended_test.go`
-- `pkg/parse/aspath.go` + `aspath_test.go`
+- `internal/parse/origin.go` + `origin_test.go`
+- `internal/parse/extended.go` + `extended_test.go`
+- `internal/parse/aspath.go` + `aspath_test.go`
 
 ### Modified Files
-- `pkg/plugin/route.go` - use `parse.Origin()`, `parse.ExtendedCommunity()`, `parse.ASPath()`
-- `pkg/config/routeattr.go` - use shared parsers, delete duplicate implementations
+- `internal/plugin/route.go` - use `parse.Origin()`, `parse.ExtendedCommunity()`, `parse.ASPath()`
+- `internal/config/routeattr.go` - use shared parsers, delete duplicate implementations
 
 ### Deleted Code
-- `pkg/config/routeattr.go`: `ParseOrigin()` body (keep wrapper if needed)
-- `pkg/config/routeattr.go`: `parseOneExtCommunity()` body
-- `pkg/config/routeattr.go`: `ParseASPath()` body
-- `pkg/plugin/route.go`: inline origin switch in `parseCommonAttribute()`
-- `pkg/plugin/route.go`: inline ext-community parsing
+- `internal/config/routeattr.go`: `ParseOrigin()` body (keep wrapper if needed)
+- `internal/config/routeattr.go`: `parseOneExtCommunity()` body
+- `internal/config/routeattr.go`: `ParseASPath()` body
+- `internal/plugin/route.go`: inline origin switch in `parseCommonAttribute()`
+- `internal/plugin/route.go`: inline ext-community parsing
 
 ## Checklist
 
 ### Phase 1: Origin
-- [ ] `pkg/parse/origin.go` created
-- [ ] `pkg/parse/origin_test.go` with TDD
+- [ ] `internal/parse/origin.go` created
+- [ ] `internal/parse/origin_test.go` with TDD
 - [ ] API updated to use `parse.Origin()`
 - [ ] Config updated to use `parse.Origin()`
 
 ### Phase 2: Extended Community (HIGH PRIORITY)
-- [ ] `pkg/parse/extended.go` created
-- [ ] `pkg/parse/extended_test.go` with TDD
+- [ ] `internal/parse/extended.go` created
+- [ ] `internal/parse/extended_test.go` with TDD
 - [ ] All formats tested (target, origin, hex, generic)
 - [ ] API updated
 - [ ] Config updated
 
 ### Phase 3: AS-Path
-- [ ] `pkg/parse/aspath.go` created
-- [ ] `pkg/parse/aspath_test.go` with TDD
+- [ ] `internal/parse/aspath.go` created
+- [ ] `internal/parse/aspath_test.go` with TDD
 - [ ] API updated
 - [ ] Config updated
 

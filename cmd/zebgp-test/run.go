@@ -12,7 +12,7 @@ import (
 	"syscall"
 	"time"
 
-	"codeberg.org/thomas-mangin/zebgp/test/functional"
+	"codeberg.org/thomas-mangin/zebgp/internal/test/runner"
 )
 
 // errTestsFailed is returned when tests fail (not an error, but indicates exit code 1).
@@ -80,13 +80,13 @@ type testSuite interface {
 
 // decodingTestSuite wraps DecodingTests to implement testSuite.
 type decodingTestSuite struct {
-	*functional.DecodingTests
+	*runner.DecodingTests
 	baseDir string
 }
 
 func newDecodingTestSuite(baseDir string) testSuite {
 	return &decodingTestSuite{
-		DecodingTests: functional.NewDecodingTests(baseDir),
+		DecodingTests: runner.NewDecodingTests(baseDir),
 		baseDir:       baseDir,
 	}
 }
@@ -117,19 +117,19 @@ func (d *decodingTestSuite) SetActive(name string) {
 }
 
 func (d *decodingTestSuite) Run(ctx context.Context, zebgpPath string, verbose, quiet bool) bool {
-	runner := functional.NewDecodingRunner(d.DecodingTests, d.baseDir, zebgpPath)
+	runner := runner.NewDecodingRunner(d.DecodingTests, d.baseDir, zebgpPath)
 	return runner.Run(ctx, verbose, quiet)
 }
 
 // parsingTestSuite wraps ParsingTests to implement testSuite.
 type parsingTestSuite struct {
-	*functional.ParsingTests
+	*runner.ParsingTests
 	baseDir string
 }
 
 func newParsingTestSuite(baseDir string) testSuite {
 	return &parsingTestSuite{
-		ParsingTests: functional.NewParsingTests(baseDir),
+		ParsingTests: runner.NewParsingTests(baseDir),
 		baseDir:      baseDir,
 	}
 }
@@ -160,13 +160,13 @@ func (p *parsingTestSuite) SetActive(name string) {
 }
 
 func (p *parsingTestSuite) Run(ctx context.Context, zebgpPath string, verbose, quiet bool) bool {
-	runner := functional.NewParsingRunner(p.ParsingTests, p.baseDir, zebgpPath)
+	runner := runner.NewParsingRunner(p.ParsingTests, p.baseDir, zebgpPath)
 	return runner.Run(ctx, verbose, quiet)
 }
 
 // runSimpleTests handles decoding and parsing tests using the testSuite interface.
 func runSimpleTests(ctx context.Context, cli *runCLIFlags, baseDir string, newSuite func(string) testSuite) error {
-	functional.ResetNickCounter()
+	runner.ResetNickCounter()
 
 	tests := newSuite(baseDir)
 
@@ -236,11 +236,11 @@ func runSimpleTests(ctx context.Context, cli *runCLIFlags, baseDir string, newSu
 // runEncodingOrAPI handles encoding and API tests (original behavior).
 func runEncodingOrAPI(ctx context.Context, cli *runCLIFlags, baseDir string) error {
 	// Initialize
-	colors := functional.NewColors()
-	functional.ResetNickCounter()
+	colors := runner.NewColors()
+	runner.ResetNickCounter()
 
 	// Discover tests first (needed for --server/--client modes)
-	tests := functional.NewEncodingTests(baseDir)
+	tests := runner.NewEncodingTests(baseDir)
 	testDir := filepath.Join(baseDir, "test/data/encode")
 	if cli.command == "plugin" {
 		testDir = filepath.Join(baseDir, "test/data/plugin")
@@ -259,7 +259,7 @@ func runEncodingOrAPI(ctx context.Context, cli *runCLIFlags, baseDir string) err
 	}
 
 	// Check ulimit (only for normal test runs)
-	limitCheck, err := functional.CheckUlimit(cli.parallel)
+	limitCheck, err := runner.CheckUlimit(cli.parallel)
 	if err != nil {
 		return fmt.Errorf("ulimit check: %w", err)
 	}
@@ -282,7 +282,7 @@ func runEncodingOrAPI(ctx context.Context, cli *runCLIFlags, baseDir string) err
 	}
 
 	// Allocate ports
-	pr, shifted, err := functional.AllocatePorts(cli.port, tests.Count())
+	pr, shifted, err := runner.AllocatePorts(cli.port, tests.Count())
 	if err != nil {
 		return fmt.Errorf("allocate ports: %w", err)
 	}
@@ -328,19 +328,19 @@ func runEncodingOrAPI(ctx context.Context, cli *runCLIFlags, baseDir string) err
 	tests.Sort()
 
 	// Create runner
-	runner, err := functional.NewRunner(tests, baseDir)
+	r, err := runner.NewRunner(tests, baseDir)
 	if err != nil {
 		return fmt.Errorf("create runner: %w", err)
 	}
-	defer runner.Cleanup()
+	defer r.Cleanup()
 
 	// Build
-	if err := runner.Build(ctx); err != nil {
+	if err := r.Build(ctx); err != nil {
 		return err
 	}
 
 	// Run options
-	opts := &functional.RunOptions{
+	opts := &runner.RunOptions{
 		Timeout:  cli.timeout,
 		Parallel: cli.parallel,
 		Verbose:  cli.verbose,
@@ -349,18 +349,18 @@ func runEncodingOrAPI(ctx context.Context, cli *runCLIFlags, baseDir string) err
 	}
 
 	// Print summary
-	display := functional.NewDisplay(tests.Tests, colors)
+	display := runner.NewDisplay(tests.Tests, colors)
 	display.SetQuiet(cli.quiet)
 
 	var success bool
 	if cli.count > 1 {
 		// Stress test mode
-		result := runner.RunWithCount(ctx, opts, cli.count)
+		result := r.RunWithCount(ctx, opts, cli.count)
 		success = result.AllPassed
 		display.StressSummary(result, cli.count)
 	} else {
 		// Normal mode
-		success = runner.Run(ctx, opts)
+		success = r.Run(ctx, opts)
 		display.Summary()
 	}
 
@@ -372,7 +372,7 @@ func runEncodingOrAPI(ctx context.Context, cli *runCLIFlags, baseDir string) err
 }
 
 // runServerOnly runs only the zebgp-peer (server) for manual debugging.
-func runServerOnly(ctx context.Context, cli *runCLIFlags, tests *functional.EncodingTests, baseDir string) error {
+func runServerOnly(ctx context.Context, cli *runCLIFlags, tests *runner.EncodingTests, baseDir string) error {
 	rec := tests.GetByNick(cli.server)
 	if rec == nil {
 		// Try by name
@@ -448,7 +448,7 @@ func runServerOnly(ctx context.Context, cli *runCLIFlags, tests *functional.Enco
 }
 
 // runClientOnly runs only zebgp (client) for manual debugging.
-func runClientOnly(ctx context.Context, cli *runCLIFlags, tests *functional.EncodingTests, baseDir string) error {
+func runClientOnly(ctx context.Context, cli *runCLIFlags, tests *runner.EncodingTests, baseDir string) error {
 	rec := tests.GetByNick(cli.client)
 	if rec == nil {
 		// Try by name

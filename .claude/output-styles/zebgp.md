@@ -93,8 +93,8 @@ Which?
 ### File List
 ```
 📁 Modified:
-  📄 pkg/bgp/message/header.go
-  📄 pkg/bgp/message/header_test.go
+  📄 internal/bgp/message/header.go
+  📄 internal/bgp/message/header_test.go
 ```
 
 ### Priority Tasks

@@ -27,7 +27,7 @@ forward update-id <id> → Send to peers → Store in adj-rib-out → Delete fro
 
 ## Existing Infrastructure
 
-The `OutgoingRIB` type already exists in `pkg/rib/outgoing.go`:
+The `OutgoingRIB` type already exists in `internal/rib/outgoing.go`:
 
 ```go
 type OutgoingRIB struct {
@@ -43,7 +43,7 @@ Key methods already implemented:
 - `GetSentRoutes() []*Route` - Get all sent routes for replay
 - `FlushSent() int` - Re-queue sent routes for re-announcement
 
-Peer already has `adjRIBOut *rib.OutgoingRIB` at `pkg/reactor/peer.go:304`.
+Peer already has `adjRIBOut *rib.OutgoingRIB` at `internal/reactor/peer.go:304`.
 
 ## Gap Analysis
 
@@ -114,7 +114,7 @@ func (ru *ReceivedUpdate) ConvertToRoutes() ([]*rib.Route, error) {
 
 ### Phase 2: ForwardUpdate Integration
 
-Modify `ForwardUpdate` in `pkg/reactor/reactor.go`:
+Modify `ForwardUpdate` in `internal/reactor/reactor.go`:
 
 ```go
 func (a *reactorAPIAdapter) ForwardUpdate(sel *api.Selector, updateID uint64) error {
@@ -154,7 +154,7 @@ func (a *reactorAPIAdapter) ForwardUpdate(sel *api.Selector, updateID uint64) er
 
 ### Phase 3: Reconnect Replay
 
-Already implemented in `pkg/reactor/peer.go:1199`:
+Already implemented in `internal/reactor/peer.go:1199`:
 
 ```go
 func (p *Peer) sendInitialRoutes() {
@@ -316,8 +316,8 @@ func TestReplayUpdateSplitting(t *testing.T)
 
 ## Related Documentation
 
-- `pkg/rib/outgoing.go` - OutgoingRIB implementation
-- `pkg/reactor/peer.go:1199` - Reconnect replay logic
+- `internal/rib/outgoing.go` - OutgoingRIB implementation
+- `internal/reactor/peer.go:1199` - Reconnect replay logic
 - `spec-route-id-forwarding.md` - One-shot cache design
 
 ## Known Limitations

@@ -32,7 +32,7 @@ N/A - internal refactoring, no protocol changes.
 ## Error Types
 
 ```go
-// pkg/bgp/wire/errors.go
+// internal/bgp/wire/errors.go
 var ErrBufferTooSmall = errors.New("wire: buffer too small")
 ```
 
@@ -108,8 +108,8 @@ On error from `CheckedWriteTo`, return `(bytesWritten, err)`:
 ### Unit Tests
 | Test | File | Validates |
 |------|------|-----------|
-| `TestCheckedWriteReturnsErrBufferTooSmall` | `pkg/bgp/wire/writer_test.go` | Returns ErrBufferTooSmall when buffer insufficient |
-| `TestCheckedWriteSuccess` | `pkg/bgp/wire/writer_test.go` | Returns (n, nil) on success |
+| `TestCheckedWriteReturnsErrBufferTooSmall` | `internal/bgp/wire/writer_test.go` | Returns ErrBufferTooSmall when buffer insufficient |
+| `TestCheckedWriteSuccess` | `internal/bgp/wire/writer_test.go` | Returns (n, nil) on success |
 
 ### Functional Tests
 | Test | Location | Scenario |
@@ -119,64 +119,64 @@ On error from `CheckedWriteTo`, return `(bytesWritten, err)`:
 ## Files to Modify
 
 ### 1. Error Types + Interface Definitions
-1. Create `pkg/bgp/wire/errors.go`
-2. `pkg/bgp/wire/writer.go` - BufWriter interface
-3. `pkg/bgp/nlri/nlri.go` - NLRI interface
-4. `pkg/bgp/attribute/attribute.go` - Attribute interface
+1. Create `internal/bgp/wire/errors.go`
+2. `internal/bgp/wire/writer.go` - BufWriter interface
+3. `internal/bgp/nlri/nlri.go` - NLRI interface
+4. `internal/bgp/attribute/attribute.go` - Attribute interface
 
 ### 2. Leaf Implementations (No Dependencies)
-5. `pkg/cbor/*.go` (3 files)
-6. `pkg/bgp/attribute/origin.go`
-7. `pkg/bgp/attribute/simple.go`
-8. `pkg/bgp/attribute/opaque.go`
-9. `pkg/bgp/nlri/inet.go`
-10. `pkg/bgp/nlri/wire.go`
+5. `internal/cbor/*.go` (3 files)
+6. `internal/bgp/attribute/origin.go`
+7. `internal/bgp/attribute/simple.go`
+8. `internal/bgp/attribute/opaque.go`
+9. `internal/bgp/nlri/inet.go`
+10. `internal/bgp/nlri/wire.go`
 
 ### 3. Mid-Level Implementations
-11. `pkg/bgp/attribute/aspath.go`
-12. `pkg/bgp/attribute/as4.go`
-13. `pkg/bgp/attribute/community.go`
-14. `pkg/bgp/nlri/labeled.go`
-15. `pkg/bgp/nlri/ipvpn.go`
+11. `internal/bgp/attribute/aspath.go`
+12. `internal/bgp/attribute/as4.go`
+13. `internal/bgp/attribute/community.go`
+14. `internal/bgp/nlri/labeled.go`
+15. `internal/bgp/nlri/ipvpn.go`
 
 ### 4. Complex Composite Implementations
-16. `pkg/bgp/attribute/mpnlri.go`
-17. `pkg/bgp/nlri/flowspec.go`
-18. `pkg/bgp/nlri/bgpls.go`
-19. `pkg/bgp/nlri/evpn.go`
-20. `pkg/bgp/nlri/other.go`
+16. `internal/bgp/attribute/mpnlri.go`
+17. `internal/bgp/nlri/flowspec.go`
+18. `internal/bgp/nlri/bgpls.go`
+19. `internal/bgp/nlri/evpn.go`
+20. `internal/bgp/nlri/other.go`
 
 ### 5. Builder + Message
-21. `pkg/bgp/attribute/builder.go`
-22. `pkg/bgp/message/update.go`
-23. `pkg/bgp/message/update_build.go`
+21. `internal/bgp/attribute/builder.go`
+22. `internal/bgp/message/update.go`
+23. `internal/bgp/message/update_build.go`
 
 ### 6. Call Sites (Opt-In to CheckedWriteTo)
-24. `pkg/reactor/session.go` - **critical path, should use CheckedWriteTo**
+24. `internal/reactor/session.go` - **critical path, should use CheckedWriteTo**
 25. Other call sites - remain on WriteTo (unchanged)
 
 ### 7. Tests (New CheckedWriteTo Tests)
-28. `pkg/bgp/attribute/builder_test.go`
-29. `pkg/bgp/attribute/len_writeto_test.go`
-30. `pkg/bgp/attribute/community_test.go`
-31. `pkg/bgp/attribute/aspath_test.go`
-32. `pkg/bgp/message/update_test.go`
-33. `pkg/bgp/nlri/writeto_test.go`
-34. `pkg/bgp/nlri/ipvpn_test.go`
-35. `pkg/bgp/nlri/base_len_test.go`
-36. `pkg/bgp/nlri/wire_test.go`
-37. `pkg/cbor/cbor_test.go`, `pkg/cbor/hex_test.go`, `pkg/cbor/base64_test.go`
-38. `pkg/rib/commit_wire_test.go`
+28. `internal/bgp/attribute/builder_test.go`
+29. `internal/bgp/attribute/len_writeto_test.go`
+30. `internal/bgp/attribute/community_test.go`
+31. `internal/bgp/attribute/aspath_test.go`
+32. `internal/bgp/message/update_test.go`
+33. `internal/bgp/nlri/writeto_test.go`
+34. `internal/bgp/nlri/ipvpn_test.go`
+35. `internal/bgp/nlri/base_len_test.go`
+36. `internal/bgp/nlri/wire_test.go`
+37. `internal/cbor/cbor_test.go`, `internal/cbor/hex_test.go`, `internal/cbor/base64_test.go`
+38. `internal/rib/commit_wire_test.go`
 
 ## Implementation Steps
 
 1. **Verify Len() coverage** - `go run scripts/analyze-writeto.go` (paste output)
-2. **Create error types** - `pkg/bgp/wire/errors.go`
+2. **Create error types** - `internal/bgp/wire/errors.go`
 3. **Write tests first (TDD)** - `TestCheckedWriteTo*` tests, verify FAIL (paste output)
 4. **Add CheckedWriteTo to interfaces** - BufWriter, NLRI, Attribute
 5. **Implement CheckedWriteTo methods** - ~70 methods, each validates then calls WriteTo
 6. **Run tests** - Verify PASS (paste output)
-7. **Opt-in at critical call sites** - `pkg/reactor/session.go` uses CheckedWriteTo
+7. **Opt-in at critical call sites** - `internal/reactor/session.go` uses CheckedWriteTo
 8. **Verify all** - `make lint && make test && make functional` (paste output)
 
 ## Checklist
@@ -186,7 +186,7 @@ On error from `CheckedWriteTo`, return `(bytesWritten, err)`:
 - [x] Required docs read
 
 ### 🧪 TDD Cycle
-- [x] Error types created (`pkg/bgp/wire/errors.go`)
+- [x] Error types created (`internal/bgp/wire/errors.go`)
 - [x] Tests written
 - [x] Tests FAIL (before implementation)
 - [x] `CheckedWriteTo` added to interfaces
@@ -196,7 +196,7 @@ On error from `CheckedWriteTo`, return `(bytesWritten, err)`:
 - [x] Tests PASS
 
 ### Verification
-- [x] `go test ./pkg/bgp/... ./pkg/cbor/...` passes
+- [x] `go test ./internal/bgp/... ./internal/cbor/...` passes
 - [x] All 26 modified files compile and pass tests
 
 ### Documentation

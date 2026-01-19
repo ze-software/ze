@@ -1,6 +1,6 @@
 ---
 paths:
-  - "pkg/bgp/**/*.go"
+  - "internal/bgp/**/*.go"
 ---
 
 # RFC Compliance
@@ -101,14 +101,14 @@ func parseFeature(...) { ... }
 
 | Feature | RFC | Location |
 |---------|-----|----------|
-| BGP-4 base | 4271 | `pkg/bgp/message/`, `pkg/bgp/fsm/` |
-| MP-BGP | 4760 | `pkg/bgp/nlri/`, `pkg/bgp/attribute/mpreach.go` |
-| EVPN | 7432 | `pkg/bgp/nlri/evpn/` |
-| FlowSpec | 8955 | `pkg/bgp/nlri/flowspec.go` |
-| BGP-LS | 7752 | `pkg/bgp/nlri/bgpls/` |
-| 4-byte ASN | 6793 | `pkg/bgp/capability/asn4.go` |
-| Add-Path | 7911 | `pkg/bgp/capability/addpath.go` |
-| Graceful Restart | 4724 | `pkg/bgp/capability/graceful.go` |
+| BGP-4 base | 4271 | `internal/bgp/message/`, `internal/bgp/fsm/` |
+| MP-BGP | 4760 | `internal/bgp/nlri/`, `internal/bgp/attribute/mpreach.go` |
+| EVPN | 7432 | `internal/bgp/nlri/evpn/` |
+| FlowSpec | 8955 | `internal/bgp/nlri/flowspec.go` |
+| BGP-LS | 7752 | `internal/bgp/nlri/bgpls/` |
+| 4-byte ASN | 6793 | `internal/bgp/capability/asn4.go` |
+| Add-Path | 7911 | `internal/bgp/capability/addpath.go` |
+| Graceful Restart | 4724 | `internal/bgp/capability/graceful.go` |
 
 ## Key ExaBGP Directories
 

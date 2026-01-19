@@ -31,19 +31,19 @@ Implement complete RFC 7313 Enhanced Route Refresh support:
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestRefreshCommands` | `pkg/plugin/refresh_test.go` | borr/eorr command parsing | ✅ existing |
-| `TestRefreshErrors` | `pkg/plugin/refresh_test.go` | error propagation | ✅ existing |
-| `TestHandleRouteRefreshNormal` | `pkg/reactor/session_test.go` | subtype 0 processed | ✅ added |
-| `TestHandleRouteRefreshBoRR` | `pkg/reactor/session_test.go` | subtype 1 processed | ✅ added |
-| `TestHandleRouteRefreshEoRR` | `pkg/reactor/session_test.go` | subtype 2 processed | ✅ added |
-| `TestHandleRouteRefreshUnknown` | `pkg/reactor/session_test.go` | unknown subtype ignored | ✅ added |
-| `TestHandleRouteRefreshReserved` | `pkg/reactor/session_test.go` | reserved 255 ignored | ✅ added |
-| `TestHandleRouteRefreshBadLen` | `pkg/reactor/session_test.go` | bad length → NOTIFICATION 7/1 | ✅ added |
-| `TestHandleRefresh_SendsMarkersAndRoutes` | `pkg/plugin/rib/rib_test.go` | refresh triggers BoRR, routes, EoRR | ✅ added |
-| `TestHandleRefresh_EmptyRibOut` | `pkg/plugin/rib/rib_test.go` | empty RIB still sends markers | ✅ added |
-| `TestHandleRefresh_PeerNotUp` | `pkg/plugin/rib/rib_test.go` | down peer ignored | ✅ added |
-| `TestHandleRefresh_IPv6Family` | `pkg/plugin/rib/rib_test.go` | IPv6 family filtering | ✅ added |
-| `TestDispatch_RefreshEvents` | `pkg/plugin/rib/rib_test.go` | event routing for refresh/borr/eorr | ✅ added |
+| `TestRefreshCommands` | `internal/plugin/refresh_test.go` | borr/eorr command parsing | ✅ existing |
+| `TestRefreshErrors` | `internal/plugin/refresh_test.go` | error propagation | ✅ existing |
+| `TestHandleRouteRefreshNormal` | `internal/reactor/session_test.go` | subtype 0 processed | ✅ added |
+| `TestHandleRouteRefreshBoRR` | `internal/reactor/session_test.go` | subtype 1 processed | ✅ added |
+| `TestHandleRouteRefreshEoRR` | `internal/reactor/session_test.go` | subtype 2 processed | ✅ added |
+| `TestHandleRouteRefreshUnknown` | `internal/reactor/session_test.go` | unknown subtype ignored | ✅ added |
+| `TestHandleRouteRefreshReserved` | `internal/reactor/session_test.go` | reserved 255 ignored | ✅ added |
+| `TestHandleRouteRefreshBadLen` | `internal/reactor/session_test.go` | bad length → NOTIFICATION 7/1 | ✅ added |
+| `TestHandleRefresh_SendsMarkersAndRoutes` | `internal/plugin/rib/rib_test.go` | refresh triggers BoRR, routes, EoRR | ✅ added |
+| `TestHandleRefresh_EmptyRibOut` | `internal/plugin/rib/rib_test.go` | empty RIB still sends markers | ✅ added |
+| `TestHandleRefresh_PeerNotUp` | `internal/plugin/rib/rib_test.go` | down peer ignored | ✅ added |
+| `TestHandleRefresh_IPv6Family` | `internal/plugin/rib/rib_test.go` | IPv6 family filtering | ✅ added |
+| `TestDispatch_RefreshEvents` | `internal/plugin/rib/rib_test.go` | event routing for refresh/borr/eorr | ✅ added |
 
 ### Functional Tests
 | Test | Location | Scenario | Status |
@@ -58,21 +58,21 @@ Implement complete RFC 7313 Enhanced Route Refresh support:
 ## Files to Modify
 
 ### Level 1: Capability Check (pre-existing)
-- `pkg/reactor/reactor.go:2190-2194` - Already had Enhanced RR check in `sendRouteRefresh`
+- `internal/reactor/reactor.go:2190-2194` - Already had Enhanced RR check in `sendRouteRefresh`
 
 ### Level 2: ROUTE-REFRESH Receive (pre-existing)
-- `pkg/reactor/session.go:763-764` - Already had `case message.TypeROUTEREFRESH`
-- `pkg/reactor/session.go:1097-1145` - Already had `handleRouteRefresh` with RFC 7313 compliance
+- `internal/reactor/session.go:763-764` - Already had `case message.TypeROUTEREFRESH`
+- `internal/reactor/session.go:1097-1145` - Already had `handleRouteRefresh` with RFC 7313 compliance
 
 ### Level 3: RIB Plugin Response (added)
-- `pkg/plugin/rib/rib.go` - Added `handleRefresh` method and dispatch cases
-- `pkg/plugin/rib/event.go` - Added AFI/SAFI fields for refresh events
-- `pkg/plugin/json.go` - Added `RouteRefresh` method for JSON event encoding
-- `pkg/plugin/text.go` - Added `FormatRouteRefresh` method for text output
+- `internal/plugin/rib/rib.go` - Added `handleRefresh` method and dispatch cases
+- `internal/plugin/rib/event.go` - Added AFI/SAFI fields for refresh events
+- `internal/plugin/json.go` - Added `RouteRefresh` method for JSON event encoding
+- `internal/plugin/text.go` - Added `FormatRouteRefresh` method for text output
 
 ### Tests Added
-- `pkg/reactor/session_test.go` - Added 6 tests for ROUTE-REFRESH handling
-- `pkg/plugin/rib/rib_test.go` - Added 5 tests for RIB refresh handling
+- `internal/reactor/session_test.go` - Added 6 tests for ROUTE-REFRESH handling
+- `internal/plugin/rib/rib_test.go` - Added 5 tests for RIB refresh handling
 
 ## Implementation Steps
 1. **Write tests** - Create tests for all three levels
@@ -97,7 +97,7 @@ Implement complete RFC 7313 Enhanced Route Refresh support:
 5. **AFI/SAFI fields in Event struct** - For refresh event parsing
 
 ### Bug Fix (found during functional test)
-6. **RouteRefresh capabilities in loader** - `pkg/config/loader.go` now adds `RouteRefresh{}` and `EnhancedRouteRefresh{}` capabilities when `route-refresh` is enabled in config. Without this, BoRR/EoRR were never sent because negotiation failed.
+6. **RouteRefresh capabilities in loader** - `internal/config/loader.go` now adds `RouteRefresh{}` and `EnhancedRouteRefresh{}` capabilities when `route-refresh` is enabled in config. Without this, BoRR/EoRR were never sent because negotiation failed.
 
 ### Functional Test Files Added
 - `test/data/plugin/refresh.conf` - Config with RIB plugin and route-refresh capability

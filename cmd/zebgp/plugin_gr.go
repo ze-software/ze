@@ -4,8 +4,8 @@ import (
 	"flag"
 	"os"
 
-	"codeberg.org/thomas-mangin/zebgp/pkg/plugin/gr"
-	"codeberg.org/thomas-mangin/zebgp/pkg/slogutil"
+	"codeberg.org/thomas-mangin/zebgp/internal/plugin/gr"
+	"codeberg.org/thomas-mangin/zebgp/internal/slogutil"
 )
 
 // cmdPluginGR runs the Graceful Restart capability plugin.

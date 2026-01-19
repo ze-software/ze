@@ -10,7 +10,7 @@
 │  2. .claude/INDEX.md - Find what docs to load                   │
 │  3. docs/plan/CLAUDE_CONTINUATION.md - Current state                 │
 │  4. THIS SPEC FILE - Design requirements                        │
-│  5. pkg/plugin/*.go, test/data/api/*.ci - Current implementation   │
+│  5. internal/plugin/*.go, test/data/api/*.ci - Current implementation   │
 │                                                                 │
 │  DO NOT PROCEED until all are read and understood.              │
 └─────────────────────────────────────────────────────────────────┘
@@ -81,10 +81,10 @@ Implement remaining API features required to pass ExaBGP-compatible tests.
 
 | Feature | Files |
 |---------|-------|
-| teardown | `pkg/plugin/command.go`, `pkg/reactor/reactor.go` |
-| notification | `test/cmd/zebgp-peer/main.go`, verify `pkg/reactor/session.go` |
-| receive updates | `pkg/reactor/session.go`, `pkg/plugin/process.go` |
-| watchdog | `pkg/plugin/watchdog.go` (new), `pkg/reactor/reactor.go` |
+| teardown | `internal/plugin/command.go`, `internal/reactor/reactor.go` |
+| notification | `test/cmd/zebgp-peer/main.go`, verify `internal/reactor/session.go` |
+| receive updates | `internal/reactor/session.go`, `internal/plugin/process.go` |
+| watchdog | `internal/plugin/watchdog.go` (new), `internal/reactor/reactor.go` |
 
 ## Implementation Steps
 
@@ -120,7 +120,7 @@ Implement remaining API features required to pass ExaBGP-compatible tests.
 
 1. Check ExaBGP watchdog implementation
 2. Write test for watchdog commands - MUST FAIL
-3. Create `pkg/plugin/watchdog.go`
+3. Create `internal/plugin/watchdog.go`
 4. Register handlers for `announce watchdog`, `withdraw watchdog`
 5. Maintain watchdog state (name -> last_seen timestamp)
 6. Background goroutine checks for expired watchdogs
@@ -175,7 +175,7 @@ ZeBGP uses a different architecture for multi-peer scenarios.
 ## Technical Debt
 
 ### ✅ 1. Unit tests for mergeAPIBindings() - DONE
-**Location:** `pkg/config/bgp.go:1416`
+**Location:** `internal/config/bgp.go:1416`
 **Added:** 8 unit tests in `bgp_test.go` (TestMergeAPIBindings*)
 **Coverage:** empty inputs, append, replace, mixed, order preservation, Receive config
 
@@ -185,7 +185,7 @@ ZeBGP uses a different architecture for multi-peer scenarios.
 **Bug Fixed:** Match templates were not applying API bindings (fixed in bgp.go:1200-1206)
 
 ### 3. Functional test reporter bug (Priority: Low)
-**Location:** `test/functional/record.go`
+**Location:** `internal/test/runner/record.go`
 **Issue:** All messages in check.ci use index `1:`, causing them to merge into one
 **Effect:** Report shows wrong "EXPECTED MESSAGE 1" (only last message)
 **Note:** Actual testpeer comparison is correct; only affects diagnostic output

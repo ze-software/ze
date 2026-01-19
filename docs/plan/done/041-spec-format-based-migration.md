@@ -10,7 +10,7 @@
 │  2. .claude/INDEX.md - Find what docs to load                   │
 │  3. docs/plan/CLAUDE_CONTINUATION.md - Current state                 │
 │  4. THIS SPEC FILE - Design requirements                        │
-│  5. pkg/config/migration/*.go - Current implementation          │
+│  5. internal/config/migration/*.go - Current implementation          │
 │  6. .claude/zebgp/config/SYNTAX.md - Config design docs         │
 │                                                                 │
 │  DO NOT PROCEED until all are read and understood.              │
@@ -298,7 +298,7 @@ Available transformations (in order):
 
 ### Phase 1: Create migrate.go with New API
 
-**File:** `pkg/config/migration/migrate.go` (new)
+**File:** `internal/config/migration/migrate.go` (new)
 
 1. Define `Transformation` struct
 2. Define `transformations` slice (unexported)
@@ -308,7 +308,7 @@ Available transformations (in order):
 6. Create `DryRun()` function
 7. Create `NeedsMigration()` function
 
-**Tests:** `pkg/config/migration/migrate_test.go`
+**Tests:** `internal/config/migration/migrate_test.go`
 - `Migrate(nil)` returns `ErrNilTree`
 - Empty tree returns empty Applied/Skipped
 - Single transformation populates Applied
@@ -321,7 +321,7 @@ Available transformations (in order):
 
 ### Phase 2: Extract Detection Functions
 
-**File:** `pkg/config/migration/detect.go`
+**File:** `internal/config/migration/detect.go`
 
 1. Extract `hasNeighborAtRoot()` from inline check in hasV2Patterns
 2. Extract `hasPeerGlobPattern()` from inline loop
@@ -331,7 +331,7 @@ Available transformations (in order):
 
 ### Phase 3: Normalize Apply Function Signatures
 
-**File:** `pkg/config/migration/v2_to_v3.go`
+**File:** `internal/config/migration/v2_to_v3.go`
 
 Ensure all apply functions have signature: `func(tree *config.Tree) (*config.Tree, error)`
 

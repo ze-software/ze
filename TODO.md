@@ -52,30 +52,30 @@
 
 | Planned File | Status | Notes |
 |--------------|--------|-------|
-| `pkg/parse/token.go` | ❌ | Tokenizer interface never created |
-| `pkg/parse/api_tokenizer.go` | ❌ | API uses `[]string` directly |
-| `pkg/parse/config_adapter.go` | ❌ | No adapter for config tokenizer |
-| `pkg/parse/update.go` | ❌ | No unified `ParseUpdate(Tokenizer)` |
-| `pkg/parse/attributes.go` | ❌ | Attrs parsed inline in update_text.go |
-| `pkg/parse/nlri.go` | ❌ | NLRI parsed inline in update_text.go |
-| `pkg/parse/family.go` | ❌ | Family parsing inline |
-| `pkg/parse/wire.go` | ❌ | Wire parsing in update_wire.go |
-| `pkg/parse/update_test.go` | ❌ | Tests in pkg/api/ instead |
+| `internal/parse/token.go` | ❌ | Tokenizer interface never created |
+| `internal/parse/api_tokenizer.go` | ❌ | API uses `[]string` directly |
+| `internal/parse/config_adapter.go` | ❌ | No adapter for config tokenizer |
+| `internal/parse/update.go` | ❌ | No unified `ParseUpdate(Tokenizer)` |
+| `internal/parse/attributes.go` | ❌ | Attrs parsed inline in update_text.go |
+| `internal/parse/nlri.go` | ❌ | NLRI parsed inline in update_text.go |
+| `internal/parse/family.go` | ❌ | Family parsing inline |
+| `internal/parse/wire.go` | ❌ | Wire parsing in update_wire.go |
+| `internal/parse/update_test.go` | ❌ | Tests in internal/api/ instead |
 
 #### What Exists Instead
 
 | Component | Location | Notes |
 |-----------|----------|-------|
-| `ParseUpdateText()` | `pkg/api/update_text.go:430` | Takes `[]string`, no tokenizer |
-| `ParseUpdateWire()` | `pkg/api/update_wire.go:32` | Takes `[]string`, no tokenizer |
-| `tokenize()` | `pkg/api/command.go:294` | Splits input to `[]string` |
-| Config tokenizer | `pkg/config/tokenizer.go` | Concrete struct, not interface |
-| Community parsing | `pkg/parse/community.go` | Only shared piece |
+| `ParseUpdateText()` | `internal/api/update_text.go:430` | Takes `[]string`, no tokenizer |
+| `ParseUpdateWire()` | `internal/api/update_wire.go:32` | Takes `[]string`, no tokenizer |
+| `tokenize()` | `internal/api/command.go:294` | Splits input to `[]string` |
+| Config tokenizer | `internal/config/tokenizer.go` | Concrete struct, not interface |
+| Community parsing | `internal/parse/community.go` | Only shared piece |
 
 #### Planned Token Interface (Never Built)
 
 ```go
-// pkg/parse/token.go - SPEC DESIGN, NOT IMPLEMENTED
+// internal/parse/token.go - SPEC DESIGN, NOT IMPLEMENTED
 
 type TokenType int
 
@@ -178,7 +178,7 @@ func TestParseUpdate_ScalarDelConditional(t *testing.T)
 
 1. **Complete the spec** - Build tokenizer interface, adapt both parsers (~2-3 days)
 2. **Abandon unification** - Move spec to `docs/plan/abandoned/`, document decision
-3. **Partial unification** - Extract more shared code to `pkg/parse/` without full tokenizer interface
+3. **Partial unification** - Extract more shared code to `internal/parse/` without full tokenizer interface
 
 ---
 
@@ -190,10 +190,10 @@ func TestParseUpdate_ScalarDelConditional(t *testing.T)
 
 | Component | Status |
 |-----------|--------|
-| `pkg/bgp/capability/role.go` | ❌ |
+| `internal/bgp/capability/role.go` | ❌ |
 | `CapRole` constant | ❌ |
 | `RoleCapability` struct | ❌ |
-| `pkg/bgp/attribute/otc.go` | ❌ |
+| `internal/bgp/attribute/otc.go` | ❌ |
 | `AttrOTC` (Type 35) | ❌ |
 | Peer role storage in reactor | ❌ |
 | RouteTag with SourceRole | ❌ |
@@ -232,7 +232,7 @@ test -z "$LAST" && LAST=0
 
 ### spec-api-rr.md
 
-**Implementation exists:** `pkg/api/rr/` (server.go, rib.go, peer.go)
+**Implementation exists:** `internal/api/rr/` (server.go, rib.go, peer.go)
 
 **Unclear:** Is this complete or partial? Spec not moved to done/.
 
@@ -269,7 +269,7 @@ Need review:
 
 ### 1. Functional test reporter message merging bug (Priority: Low)
 
-**Location:** `test/functional/record.go`
+**Location:** `internal/test/runner/record.go`
 
 - All messages in check.ci use index `1:`, causing them to merge
 - Report shows wrong "EXPECTED MESSAGE 1" (shows last message only)
@@ -309,8 +309,8 @@ go.mod:33:28 - golang.org/x/term should be direct (go mod tidy)
 
 ```
 Modified:
-  M pkg/bgp/message/chunk_mp_nlri_test.go
-  M pkg/bgp/message/update_split_test.go
+  M internal/bgp/message/chunk_mp_nlri_test.go
+  M internal/bgp/message/update_split_test.go
   M docs/plan/spec-parser-unification.md
 
 Untracked:

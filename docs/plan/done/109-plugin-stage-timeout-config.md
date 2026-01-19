@@ -2,7 +2,7 @@
 
 ## Task
 
-Make the plugin stage timeout configurable per-plugin. Currently hardcoded as `5s` in `pkg/plugin/server.go`. Add `timeout` keyword to plugin config block.
+Make the plugin stage timeout configurable per-plugin. Currently hardcoded as `5s` in `internal/plugin/server.go`. Add `timeout` keyword to plugin config block.
 
 ## Required Reading
 
@@ -24,12 +24,12 @@ Not applicable - this is config/infrastructure, not BGP protocol.
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestPluginConfigTimeout` | `pkg/config/bgp_test.go` | `timeout 10s;` parses to 10s | ✅ |
-| `TestPluginConfigTimeoutDefault` | `pkg/config/bgp_test.go` | missing timeout → 0 (use default) | ✅ |
-| `TestPluginConfigTimeoutInvalid` | `pkg/config/bgp_test.go` | `timeout abc;` → error | ✅ |
-| `TestPluginConfigTimeoutNegative` | `pkg/config/bgp_test.go` | `timeout -5s;` → error | ✅ |
-| `TestPluginConfigTimeoutVariants` | `pkg/config/bgp_test.go` | Various duration formats | ✅ |
-| `TestServerUsesPluginTimeout` | `pkg/plugin/server_test.go` | Server uses configured timeout | Deferred |
+| `TestPluginConfigTimeout` | `internal/config/bgp_test.go` | `timeout 10s;` parses to 10s | ✅ |
+| `TestPluginConfigTimeoutDefault` | `internal/config/bgp_test.go` | missing timeout → 0 (use default) | ✅ |
+| `TestPluginConfigTimeoutInvalid` | `internal/config/bgp_test.go` | `timeout abc;` → error | ✅ |
+| `TestPluginConfigTimeoutNegative` | `internal/config/bgp_test.go` | `timeout -5s;` → error | ✅ |
+| `TestPluginConfigTimeoutVariants` | `internal/config/bgp_test.go` | Various duration formats | ✅ |
+| `TestServerUsesPluginTimeout` | `internal/plugin/server_test.go` | Server uses configured timeout | Deferred |
 
 ### Functional Tests
 | Test | Location | Scenario | Status |
@@ -40,11 +40,11 @@ Not applicable - this is config/infrastructure, not BGP protocol.
 - `TestServerUsesPluginTimeout` - Integration test for server timeout behavior. Would require spawning real process with mock coordinator. Current unit tests validate config parsing and code inspection confirms correct usage in `stageTransition()`.
 
 ## Files to Modify
-- `pkg/config/bgp.go` - Add `StageTimeout` to `PluginConfig`, add `timeout` to schema, parse in `TreeToConfig()`
-- `pkg/config/loader.go` - Pass `StageTimeout` through to reactor config
-- `pkg/reactor/reactor.go` - Add `StageTimeout` to `PluginConfig`, pass to plugin config
-- `pkg/plugin/types.go` - Add `StageTimeout` to `PluginConfig`
-- `pkg/plugin/server.go` - Use `proc.config.StageTimeout` in `stageTransition()` and "ready" handling
+- `internal/config/bgp.go` - Add `StageTimeout` to `PluginConfig`, add `timeout` to schema, parse in `TreeToConfig()`
+- `internal/config/loader.go` - Pass `StageTimeout` through to reactor config
+- `internal/reactor/reactor.go` - Add `StageTimeout` to `PluginConfig`, pass to plugin config
+- `internal/plugin/types.go` - Add `StageTimeout` to `PluginConfig`
+- `internal/plugin/server.go` - Use `proc.config.StageTimeout` in `stageTransition()` and "ready" handling
 
 ## Files to Create
 - None
@@ -94,7 +94,7 @@ type PluginConfig struct {
 
 ### Where timeout is used
 ```go
-// pkg/plugin/server.go
+// internal/plugin/server.go
 func (s *Server) stageTransition(proc *Process, ...) bool {
     timeout := proc.config.StageTimeout
     if timeout == 0 {
@@ -113,9 +113,9 @@ N/A - This is config/infrastructure, not BGP protocol code.
 
 ### What Was Implemented
 - Added `StageTimeout time.Duration` field to `PluginConfig` in three locations:
-  - `pkg/config/bgp.go` (config parsing)
-  - `pkg/reactor/reactor.go` (reactor config)
-  - `pkg/plugin/types.go` (plugin internal config)
+  - `internal/config/bgp.go` (config parsing)
+  - `internal/reactor/reactor.go` (reactor config)
+  - `internal/plugin/types.go` (plugin internal config)
 - Added `timeout` keyword to BGPSchema for plugin block
 - Added timeout parsing in `TreeToConfig()` using `time.ParseDuration()`
 - Added negative timeout validation (must be non-negative; 0 = use default)

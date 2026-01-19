@@ -26,10 +26,10 @@
 │  2. .claude/INDEX.md - Find what docs to load                   │
 │  3. docs/plan/CLAUDE_CONTINUATION.md - Current state                 │
 │  4. THIS SPEC FILE - Design requirements                        │
-│  5. pkg/reactor/reactor.go - Current listener implementation    │
-│  6. pkg/reactor/listener.go - Listener type                     │
-│  7. pkg/config/environment.go - TCP.Bind removal target         │
-│  8. pkg/config/loader.go - Config parsing for LocalAddress      │
+│  5. internal/reactor/reactor.go - Current listener implementation    │
+│  6. internal/reactor/listener.go - Listener type                     │
+│  7. internal/config/environment.go - TCP.Bind removal target         │
+│  8. internal/config/loader.go - Config parsing for LocalAddress      │
 │                                                                 │
 │  DO NOT PROCEED until all are read and understood.              │
 └─────────────────────────────────────────────────────────────────┘
@@ -152,7 +152,7 @@ The following configurations are **invalid** and MUST be rejected:
 
 ### 1. Remove TCP.Bind from Environment
 
-**File**: `pkg/config/environment.go`
+**File**: `internal/config/environment.go`
 
 ```go
 // BEFORE
@@ -179,7 +179,7 @@ Remove:
 
 ### 2. Make LocalAddress Mandatory in PeerSettings
 
-**File**: `pkg/reactor/peersettings.go`
+**File**: `internal/reactor/peersettings.go`
 
 ```go
 // Document the requirement
@@ -195,7 +195,7 @@ type PeerSettings struct {
 }
 ```
 
-**File**: `pkg/config/loader.go` (or wherever peer config is validated)
+**File**: `internal/config/loader.go` (or wherever peer config is validated)
 
 Add validation:
 ```go
@@ -206,7 +206,7 @@ if !settings.LocalAddress.IsValid() {
 
 ### 3. Multi-Listener Support in Reactor
 
-**File**: `pkg/reactor/reactor.go`
+**File**: `internal/reactor/reactor.go`
 
 ```go
 // BEFORE
@@ -434,7 +434,7 @@ func (r *Reactor) RemovePeer(addr netip.Addr) error {
 
 ### 4. Update Reactor Config
 
-**File**: `pkg/reactor/reactor.go`
+**File**: `internal/reactor/reactor.go`
 
 ```go
 // BEFORE
@@ -511,7 +511,7 @@ This catches remote misconfiguration or routing anomalies.
 
 ### Logging
 The spec uses `log.Info()` and `log.Warn()`. Verify ZeBGP's actual logging package before implementing:
-- Check `pkg/trace/` or similar for logging API
+- Check `internal/trace/` or similar for logging API
 - Adjust format strings if needed (e.g., structured logging)
 
 ### Config File
@@ -599,11 +599,11 @@ The `tcp { bind [...] }` syntax exists ONLY in environment variables (`TCP.Bind`
 
 | Component | Test File |
 |-----------|-----------|
-| Multi-listener startup | `pkg/reactor/reactor_test.go` |
-| LocalAddress validation | `pkg/reactor/peer_test.go` |
-| Dynamic listener lifecycle | `pkg/reactor/reactor_test.go` |
-| Connection validation | `pkg/reactor/reactor_test.go` |
-| Config validation | `pkg/config/loader_test.go` |
+| Multi-listener startup | `internal/reactor/reactor_test.go` |
+| LocalAddress validation | `internal/reactor/peer_test.go` |
+| Dynamic listener lifecycle | `internal/reactor/reactor_test.go` |
+| Connection validation | `internal/reactor/reactor_test.go` |
+| Config validation | `internal/config/loader_test.go` |
 
 ## Verification Checklist
 

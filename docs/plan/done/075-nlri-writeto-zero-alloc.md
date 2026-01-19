@@ -32,15 +32,15 @@ Fix non-zero-alloc WriteTo in NLRI types. Currently several NLRI types allocate 
 ## Files to Modify
 
 ### Phase 1: Types with cached bytes (low effort)
-- `pkg/bgp/nlri/flowspec.go` - Copy from `cached` field directly
-- `pkg/bgp/nlri/bgpls.go` - Copy from `cached` field directly
-- `pkg/bgp/nlri/other.go` - Copy from `data` field directly (MVPN/VPLS/RTC/MUP)
+- `internal/bgp/nlri/flowspec.go` - Copy from `cached` field directly
+- `internal/bgp/nlri/bgpls.go` - Copy from `cached` field directly
+- `internal/bgp/nlri/other.go` - Copy from `data` field directly (MVPN/VPLS/RTC/MUP)
 
 ### Phase 2: LabeledUnicast (medium effort)
-- `pkg/bgp/nlri/labeled.go` - Implement direct buffer write like INET/IPVPN
+- `internal/bgp/nlri/labeled.go` - Implement direct buffer write like INET/IPVPN
 
 ### Phase 3: EVPN (higher effort - has pre-existing bug)
-- `pkg/bgp/nlri/evpn.go` - Fix ADD-PATH bug AND implement zero-alloc WriteTo
+- `internal/bgp/nlri/evpn.go` - Fix ADD-PATH bug AND implement zero-alloc WriteTo
 
 ## Pre-existing Bug: EVPN ADD-PATH
 
@@ -96,8 +96,8 @@ This needs investigation and fixing before/during EVPN WriteTo implementation.
 - Fallback: if cached bytes exist but components empty, use cached (for parsed NLRIs)
 
 **Files modified:**
-- `pkg/bgp/nlri/flowspec.go` - FlowSpec/FlowSpecVPN zero-alloc WriteTo
-- `pkg/bgp/nlri/bgpls.go` - BGPLS types zero-alloc WriteTo + descriptor WriteTo
-- `pkg/bgp/nlri/other.go` - MVPN/VPLS/RTC/MUP zero-alloc WriteTo
-- `pkg/bgp/nlri/ipvpn.go` - RouteDistinguisher.WriteTo helper
-- `pkg/bgp/nlri/writeto_test.go` - New tests verifying WriteTo matches Bytes()
+- `internal/bgp/nlri/flowspec.go` - FlowSpec/FlowSpecVPN zero-alloc WriteTo
+- `internal/bgp/nlri/bgpls.go` - BGPLS types zero-alloc WriteTo + descriptor WriteTo
+- `internal/bgp/nlri/other.go` - MVPN/VPLS/RTC/MUP zero-alloc WriteTo
+- `internal/bgp/nlri/ipvpn.go` - RouteDistinguisher.WriteTo helper
+- `internal/bgp/nlri/writeto_test.go` - New tests verifying WriteTo matches Bytes()

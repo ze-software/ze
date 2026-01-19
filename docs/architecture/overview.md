@@ -119,7 +119,7 @@ zebgp/
 │   └── zebgp-decode/       # Message decoder utility
 │       └── main.go
 │
-├── pkg/                    # Public API (importable)
+├── internal/                    # Public API (importable)
 │   ├── bgp/
 │   │   ├── types.go        # AFI, SAFI, Family
 │   │   ├── message/        # BGP messages
@@ -352,7 +352,7 @@ Handle (uint32):
 
 ## 4. Component Architecture
 
-### 4.1 Reactor (pkg/reactor/)
+### 4.1 Reactor (internal/reactor/)
 
 **Responsibility:** Core event loop, peer lifecycle management
 
@@ -382,7 +382,7 @@ func (r *Reactor) Run() error {
 }
 ```
 
-### 4.2 Peer (pkg/reactor/peer.go)
+### 4.2 Peer (internal/reactor/peer.go)
 
 **Responsibility:** Single BGP session management
 
@@ -415,7 +415,7 @@ func (p *Peer) Run() {
 }
 ```
 
-### 4.3 FSM (pkg/bgp/fsm/)
+### 4.3 FSM (internal/bgp/fsm/)
 
 **Responsibility:** RFC 4271 state machine
 
@@ -445,7 +445,7 @@ func (p *Peer) Run() {
                         └─────────────┘
 ```
 
-### 4.4 RIB (pkg/rib/)
+### 4.4 RIB (internal/rib/)
 
 **Responsibility:** Route storage and lookup
 
@@ -502,7 +502,7 @@ func (p *Pool) Release(h Handle)
 func (p *Pool) AddRef(h Handle)
 ```
 
-### 4.6 API (pkg/plugin/)
+### 4.6 API (internal/plugin/)
 
 **Responsibility:** External process communication, CLI
 
@@ -520,7 +520,7 @@ type Server struct {
 // "update text nlri ipv4/unicast del 10.0.0.0/24"
 ```
 
-### 4.7 Config Editor (pkg/config/editor/)
+### 4.7 Config Editor (internal/config/editor/)
 
 **Responsibility:** VyOS-like interactive configuration management
 
@@ -852,7 +852,7 @@ If pool lock becomes bottleneck (monitor with metrics):
 ### 8.1 Message Interface
 
 ```go
-// pkg/bgp/message/message.go
+// internal/bgp/message/message.go
 
 type Message interface {
     Type() MessageType
@@ -867,7 +867,7 @@ type Unpacker interface {
 ### 8.2 Attribute Interface
 
 ```go
-// pkg/bgp/attribute/attribute.go
+// internal/bgp/attribute/attribute.go
 
 type Attribute interface {
     Code() AttributeCode
@@ -883,7 +883,7 @@ type Attribute interface {
 ### 8.3 NLRI Interface
 
 ```go
-// pkg/bgp/nlri/nlri.go
+// internal/bgp/nlri/nlri.go
 
 type NLRI interface {
     Family() Family
@@ -964,12 +964,12 @@ type Pool interface {
 
 ### 9.2 Build Order
 
-1. **Layer 0 (no deps):** `internal/pool`, `pkg/wire`
-2. **Layer 1:** `pkg/bgp/capability`, `pkg/bgp/attribute`, `pkg/bgp/nlri`
-3. **Layer 2:** `pkg/bgp/message`, `internal/store`
-4. **Layer 3:** `pkg/bgp/fsm`, `pkg/rib`
-5. **Layer 4:** `pkg/config`, `pkg/plugin`
-6. **Layer 5:** `pkg/reactor`
+1. **Layer 0 (no deps):** `internal/pool`, `internal/wire`
+2. **Layer 1:** `internal/bgp/capability`, `internal/bgp/attribute`, `internal/bgp/nlri`
+3. **Layer 2:** `internal/bgp/message`, `internal/store`
+4. **Layer 3:** `internal/bgp/fsm`, `internal/rib`
+5. **Layer 4:** `internal/config`, `internal/plugin`
+6. **Layer 5:** `internal/reactor`
 7. **Layer 6:** `cmd/*`
 
 ---
@@ -1076,8 +1076,8 @@ Must honor all `exabgp_*` environment variables:
 Each package has `*_test.go` files:
 
 ```bash
-go test -race ./pkg/bgp/message/...
-go test -race ./pkg/bgp/attribute/...
+go test -race ./internal/bgp/message/...
+go test -race ./internal/bgp/attribute/...
 go test -race ./internal/pool/...
 ```
 
@@ -1134,8 +1134,8 @@ func TestPeerSession(t *testing.T) {
 - [x] Pool implementation
 
 ### Phase 1: Wire Format ✅
-- [x] pkg/wire/buffer.go
-- [x] pkg/bgp/message/header.go
+- [x] internal/wire/buffer.go
+- [x] internal/bgp/message/header.go
 - [x] Basic message parsing
 
 ### Phase 2: Messages ✅

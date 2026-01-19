@@ -317,7 +317,7 @@ Args:   ["value with \"quotes\""]
 
 ## Peer Selector
 
-The `peer` field in requests uses the selector syntax from `pkg/plugin/selector.go`:
+The `peer` field in requests uses the selector syntax from `internal/plugin/selector.go`:
 
 | Pattern | Meaning |
 |---------|---------|
@@ -334,7 +334,7 @@ Invalid: `!*` (cannot exclude all), empty selector.
 ### Completion Type
 
 ```go
-// pkg/plugin/types.go
+// internal/plugin/types.go
 
 // Completion represents a single completion suggestion.
 // Used for both command and argument completion.
@@ -348,7 +348,7 @@ type Completion struct {
 ### CommandRegistry
 
 ```go
-// pkg/plugin/registry.go
+// internal/plugin/registry.go
 
 type CommandRegistry struct {
     mu       sync.RWMutex
@@ -376,7 +376,7 @@ func (r *CommandRegistry) Complete(partial string) []Completion  // For command 
 ### PendingRequests
 
 ```go
-// pkg/plugin/pending.go
+// internal/plugin/pending.go
 
 const (
     DefaultCommandTimeout    = 30 * time.Second
@@ -409,7 +409,7 @@ func (p *PendingRequests) CancelAll(proc *Process)  // Called on process death
 ### Dispatcher Changes
 
 ```go
-// pkg/plugin/command.go
+// internal/plugin/command.go
 
 type Dispatcher struct {
     commands   map[string]*Command      // Builtin commands
@@ -429,7 +429,7 @@ func (d *Dispatcher) Dispatch(ctx *CommandContext, input string) (*Response, err
 ### Process Changes
 
 ```go
-// pkg/plugin/process.go
+// internal/plugin/process.go
 
 type Process struct {
     // ... existing fields ...
@@ -723,18 +723,18 @@ process myapp {
 ## Implementation Phases
 
 ### Phase 1: Core Infrastructure ✅
-- [x] `CommandRegistry` type (`pkg/plugin/registry.go`)
-- [x] `PendingRequests` type with serial counter (`pkg/plugin/pending.go`)
-- [x] Wire into `Dispatcher` (`pkg/plugin/command.go`)
-- [x] Tests for registry operations (`pkg/plugin/registry_test.go`)
+- [x] `CommandRegistry` type (`internal/plugin/registry.go`)
+- [x] `PendingRequests` type with serial counter (`internal/plugin/pending.go`)
+- [x] Wire into `Dispatcher` (`internal/plugin/command.go`)
+- [x] Tests for registry operations (`internal/plugin/registry_test.go`)
 
 ### Phase 2: Process Protocol ✅
 - [x] Text command parsing (`register`, `unregister`, `@serial response`)
-- [x] `register` / `unregister` handling (`pkg/plugin/server.go`)
+- [x] `register` / `unregister` handling (`internal/plugin/server.go`)
 - [x] Response JSON sending to process
 - [x] `request` JSON sending to process
-- [x] `@serial done/error` response parsing (`pkg/plugin/plugin.go`)
-- [x] Tests for protocol (`pkg/plugin/plugin_test.go`)
+- [x] `@serial done/error` response parsing (`internal/plugin/plugin.go`)
+- [x] Tests for protocol (`internal/plugin/plugin_test.go`)
 
 ### Phase 3: Lifecycle ✅
 - [x] Timeout handling (`PendingRequests` timer)

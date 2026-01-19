@@ -139,9 +139,9 @@ func ValidateUpdateRFC7606(pathAttrs []byte, hasNLRI, isIBGP, asn4 bool) *RFC760
 
 ## Files Modified
 
-- `pkg/bgp/message/rfc7606.go` - Core validation logic
-- `pkg/bgp/message/rfc7606_test.go` - 68 total tests
-- `pkg/reactor/session.go` - Integration with negotiated capabilities
+- `internal/bgp/message/rfc7606.go` - Core validation logic
+- `internal/bgp/message/rfc7606_test.go` - 68 total tests
+- `internal/reactor/session.go` - Integration with negotiated capabilities
 
 ---
 

@@ -38,21 +38,21 @@ peer 10.0.0.1 {
 ### Schema & Parsing
 | File | Change |
 |------|--------|
-| `pkg/config/bgp.go:207` | Changed `Field("nexthop", Flex())` → `Field("nexthop", Freeform())` in capability |
-| `pkg/config/bgp.go:223` | Removed `Field("nexthop", Freeform())` from peer level |
-| `pkg/config/bgp.go:1023-1027` | Moved nexthop parsing into capability block in `applyTreeSettings` |
-| `pkg/config/bgp.go:1287-1291` | Moved nexthop parsing into capability block in `parsePeerConfig` |
+| `internal/config/bgp.go:207` | Changed `Field("nexthop", Flex())` → `Field("nexthop", Freeform())` in capability |
+| `internal/config/bgp.go:223` | Removed `Field("nexthop", Freeform())` from peer level |
+| `internal/config/bgp.go:1023-1027` | Moved nexthop parsing into capability block in `applyTreeSettings` |
+| `internal/config/bgp.go:1287-1291` | Moved nexthop parsing into capability block in `parsePeerConfig` |
 
 ### Migration
 | File | Change |
 |------|--------|
-| `pkg/exabgp/migrate.go:226-232` | `migrateCapability`: Now moves nexthop block into capability (was setting flag) |
-| `pkg/exabgp/migrate.go:252-258` | `copyContainers`: Removed nexthop copying (now in capability) |
+| `internal/exabgp/migrate.go:226-232` | `migrateCapability`: Now moves nexthop block into capability (was setting flag) |
+| `internal/exabgp/migrate.go:252-258` | `copyContainers`: Removed nexthop copying (now in capability) |
 
 ### Tests
 | File | Change |
 |------|--------|
-| `pkg/exabgp/migrate_test.go` | Updated 6 test functions to check for nexthop inside capability |
+| `internal/exabgp/migrate_test.go` | Updated 6 test functions to check for nexthop inside capability |
 
 ### Config Files
 | File | Change |

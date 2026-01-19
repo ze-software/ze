@@ -11,10 +11,10 @@ Replace `plugin.PathAttributes` struct with `attribute.Builder` for wire-first a
 - [x] `docs/architecture/update-building.md` - Wire format construction
 
 ### Source Code
-- [x] `pkg/bgp/attribute/builder.go` - New Builder (already implemented)
-- [x] `pkg/plugin/types.go` - PathAttributes (to be replaced)
-- [x] `pkg/plugin/route.go` - Route parsing
-- [x] `pkg/plugin/update_text.go` - Text command parsing
+- [x] `internal/bgp/attribute/builder.go` - New Builder (already implemented)
+- [x] `internal/plugin/types.go` - PathAttributes (to be replaced)
+- [x] `internal/plugin/route.go` - Route parsing
+- [x] `internal/plugin/update_text.go` - Text command parsing
 
 **Key insights:**
 - `PathAttributes` was intermediate representation: text → PathAttributes → wire bytes
@@ -26,12 +26,12 @@ Replace `plugin.PathAttributes` struct with `attribute.Builder` for wire-first a
 ### Unit Tests
 | Test | File | Validates |
 |------|------|-----------|
-| `TestBuilderFromText` | `pkg/bgp/attribute/builder_text_test.go` | Parse text → Builder |
-| `TestRouteSpecWithBuilder` | `pkg/plugin/route_test.go` | RouteSpec uses Builder |
-| `TestParseOrigin` | `pkg/plugin/route_test.go` | origin igp/egp/incomplete |
-| `TestParseASPath` | `pkg/plugin/route_test.go` | as-path [65001 65002] |
-| `TestParseCommunity` | `pkg/plugin/route_test.go` | community 65000:100 |
-| `TestParseLargeCommunity` | `pkg/plugin/route_test.go` | large-community 65000:1:2 |
+| `TestBuilderFromText` | `internal/bgp/attribute/builder_text_test.go` | Parse text → Builder |
+| `TestRouteSpecWithBuilder` | `internal/plugin/route_test.go` | RouteSpec uses Builder |
+| `TestParseOrigin` | `internal/plugin/route_test.go` | origin igp/egp/incomplete |
+| `TestParseASPath` | `internal/plugin/route_test.go` | as-path [65001 65002] |
+| `TestParseCommunity` | `internal/plugin/route_test.go` | community 65000:100 |
+| `TestParseLargeCommunity` | `internal/plugin/route_test.go` | large-community 65000:1:2 |
 
 ### Functional Tests
 | Test | Location | Scenario |
@@ -40,11 +40,11 @@ Replace `plugin.PathAttributes` struct with `attribute.Builder` for wire-first a
 | `mup6` | `test/data/plugin/mup6.ci` | MUP IPv6 with extended-community |
 
 ## Files to Modify
-- `pkg/bgp/attribute/builder.go` - Add text parse methods
-- `pkg/plugin/types.go` - Replace PathAttributes with Builder
-- `pkg/plugin/route.go` - Update parsing to use Builder, fix MUP extended-community handling
-- `pkg/plugin/update_text.go` - Update parsing to use Builder
-- `pkg/reactor/reactor.go` - Remove buildBatchAttributes
+- `internal/bgp/attribute/builder.go` - Add text parse methods
+- `internal/plugin/types.go` - Replace PathAttributes with Builder
+- `internal/plugin/route.go` - Update parsing to use Builder, fix MUP extended-community handling
+- `internal/plugin/update_text.go` - Update parsing to use Builder
+- `internal/reactor/reactor.go` - Remove buildBatchAttributes
 
 ## Implementation Steps
 1. **Write tests** - Builder text parsing tests

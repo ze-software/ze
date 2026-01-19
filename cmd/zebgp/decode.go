@@ -12,9 +12,9 @@ import (
 	"strings"
 	"time"
 
-	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/capability"
-	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/message"
-	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/nlri"
+	"codeberg.org/thomas-mangin/zebgp/internal/bgp/capability"
+	"codeberg.org/thomas-mangin/zebgp/internal/bgp/message"
+	"codeberg.org/thomas-mangin/zebgp/internal/bgp/nlri"
 )
 
 // Message type constants.

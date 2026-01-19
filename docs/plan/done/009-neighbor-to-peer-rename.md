@@ -25,7 +25,7 @@
 
 ### Phase 2 Notes
 
-- Created `pkg/config/migration/` package
+- Created `internal/config/migration/` package
 - Added `Tree.Clone()` for safe mutation during migration
 - Added `Tree.GetOrCreateContainer()`, `RemoveListEntry()`, `ClearList()` helpers
 - Implemented version detection: `DetectVersion()` with `hasV2Patterns()`, `hasV3Patterns()`
@@ -89,7 +89,7 @@ peer <IP> { ... }                        # Actual BGP session
 ### Before
 
 ```go
-// pkg/config/bgp.go
+// internal/config/bgp.go
 
 schema.Define("neighbor", List(TypeIP, neighborFields()...))
 schema.Define("peer", List(TypeString, neighborFields()...))  // glob
@@ -227,7 +227,7 @@ peer 10.0.0.1 {
 ### Migration Implementation
 
 ```go
-// pkg/config/migration/v2_to_v3.go
+// internal/config/migration/v2_to_v3.go
 
 var migrateV2ToV3 = Migration{
     From:        Version2,
@@ -306,11 +306,11 @@ func hasV2Patterns(tree *Tree) bool {
 ### Files Affected
 
 ```
-pkg/config/bgp.go           # Schema + parsing
-pkg/config/bgp_test.go      # Tests
-pkg/reactor/reactor.go      # Reactor uses neighbor terminology
-pkg/reactor/peer.go         # Peer management
-pkg/plugin/json.go             # API output (update to use "peer")
+internal/config/bgp.go           # Schema + parsing
+internal/config/bgp_test.go      # Tests
+internal/reactor/reactor.go      # Reactor uses neighbor terminology
+internal/reactor/peer.go         # Peer management
+internal/plugin/json.go             # API output (update to use "peer")
 ```
 
 ### API Changes
@@ -326,7 +326,7 @@ peer * withdraw route 10.0.0.0/8
 **JSON output also uses `peer`:**
 
 ```go
-// pkg/plugin/json.go - Updated to use "peer"
+// internal/plugin/json.go - Updated to use "peer"
 msg["peer"] = peerSection(peer)  // ZeBGP native API
 ```
 
@@ -346,16 +346,16 @@ msg["peer"] = peerSection(peer)  // ZeBGP native API
 
 | # | Task | Files | Status |
 |---|------|-------|--------|
-| 1.1 | Add `template.group` to schema (alongside `template.neighbor`) | `pkg/config/bgp.go` | ✅ |
-| 1.2 | Add `template.match` to schema | `pkg/config/bgp.go` | ✅ |
-| 1.3 | Parse `template.match` in config order (ordered iteration) | `pkg/config/bgp.go` | ✅ |
-| 1.4 | Add IPv6 glob pattern matching (`2001:db8::*`) | `pkg/config/bgp.go` | ✅ |
-| 1.5 | Add CIDR pattern matching (`10.0.0.0/8`, `2001:db8::/32`) | `pkg/config/bgp.go` | ✅ |
-| 1.6 | Add group name validation (alpha, alphanum/hyphen, no trailing hyphen) | `pkg/config/bgp.go` | ✅ |
-| 1.7 | Reject `inherit` inside `template { }` with clear error | `pkg/config/bgp.go` | ✅ |
-| 1.8 | Reject `match` at root level or inside `peer { }` | `pkg/config/bgp.go` | ✅ |
-| 1.9 | Tests for new syntax | `pkg/config/bgp_test.go` | ✅ |
-| 1.10 | Tests for error cases | `pkg/config/bgp_test.go` | ✅ |
+| 1.1 | Add `template.group` to schema (alongside `template.neighbor`) | `internal/config/bgp.go` | ✅ |
+| 1.2 | Add `template.match` to schema | `internal/config/bgp.go` | ✅ |
+| 1.3 | Parse `template.match` in config order (ordered iteration) | `internal/config/bgp.go` | ✅ |
+| 1.4 | Add IPv6 glob pattern matching (`2001:db8::*`) | `internal/config/bgp.go` | ✅ |
+| 1.5 | Add CIDR pattern matching (`10.0.0.0/8`, `2001:db8::/32`) | `internal/config/bgp.go` | ✅ |
+| 1.6 | Add group name validation (alpha, alphanum/hyphen, no trailing hyphen) | `internal/config/bgp.go` | ✅ |
+| 1.7 | Reject `inherit` inside `template { }` with clear error | `internal/config/bgp.go` | ✅ |
+| 1.8 | Reject `match` at root level or inside `peer { }` | `internal/config/bgp.go` | ✅ |
+| 1.9 | Tests for new syntax | `internal/config/bgp_test.go` | ✅ |
+| 1.10 | Tests for error cases | `internal/config/bgp_test.go` | ✅ |
 
 **After Phase 1:** Both old and new syntax work
 
@@ -374,20 +374,20 @@ peer 192.0.2.1 { }
 
 | # | Task | Files | Status |
 |---|------|-------|--------|
-| 2.1 | Add Version3 constant | `pkg/config/migration/version.go` | ✅ |
-| 2.2 | Add v2 detection heuristics | `pkg/config/migration/detect.go` | ✅ |
-| 2.3 | Implement v2→v3 migration | `pkg/config/migration/v2_to_v3.go` | ✅ |
-| 2.4 | Tests for migration | `pkg/config/migration/v2_to_v3_test.go` | ✅ |
+| 2.1 | Add Version3 constant | `internal/config/migration/version.go` | ✅ |
+| 2.2 | Add v2 detection heuristics | `internal/config/migration/detect.go` | ✅ |
+| 2.3 | Implement v2→v3 migration | `internal/config/migration/v2_to_v3.go` | ✅ |
+| 2.4 | Tests for migration | `internal/config/migration/v2_to_v3_test.go` | ✅ |
 
 ### Phase 3: Internal Refactoring
 
 | # | Task | Files |
 |---|------|-------|
-| 3.1 | Rename `NeighborConfig` → `PeerConfig` | `pkg/config/bgp.go` |
-| 3.2 | Rename `neighborFields()` → `peerFields()` | `pkg/config/bgp.go` |
-| 3.3 | Update all references | `pkg/config/*.go`, `pkg/reactor/*.go` |
-| 3.4 | Update API JSON output to use `peer` | `pkg/plugin/json.go` |
-| 3.5 | Update serializer to output v3 format | `pkg/config/serialize.go` |
+| 3.1 | Rename `NeighborConfig` → `PeerConfig` | `internal/config/bgp.go` |
+| 3.2 | Rename `neighborFields()` → `peerFields()` | `internal/config/bgp.go` |
+| 3.3 | Update all references | `internal/config/*.go`, `internal/reactor/*.go` |
+| 3.4 | Update API JSON output to use `peer` | `internal/plugin/json.go` |
+| 3.5 | Update serializer to output v3 format | `internal/config/serialize.go` |
 | 3.6 | Update `zebgp config dump` command | `cmd/zebgp/config_dump.go` |
 | 3.7 | Update tests | `*_test.go` |
 
@@ -395,9 +395,9 @@ peer 192.0.2.1 { }
 
 | # | Task | Files |
 |---|------|-------|
-| 4.1 | Log warning for `neighbor` keyword | `pkg/config/loader.go` |
-| 4.2 | Log warning for root-level `peer` glob | `pkg/config/loader.go` |
-| 4.3 | Log warning for `template.neighbor` | `pkg/config/loader.go` |
+| 4.1 | Log warning for `neighbor` keyword | `internal/config/loader.go` |
+| 4.2 | Log warning for root-level `peer` glob | `internal/config/loader.go` |
+| 4.3 | Log warning for `template.neighbor` | `internal/config/loader.go` |
 | 4.4 | Update deprecation docs | `docs/` |
 
 ### Phase 5: Update Config Files
@@ -412,10 +412,10 @@ peer 192.0.2.1 { }
 
 | # | Task | Files |
 |---|------|-------|
-| 6.1 | Remove `neighbor` from schema | `pkg/config/bgp.go` |
-| 6.2 | Remove root-level `peer` glob | `pkg/config/bgp.go` |
-| 6.3 | Remove `template.neighbor` | `pkg/config/bgp.go` |
-| 6.4 | Error on old syntax | `pkg/config/loader.go` |
+| 6.1 | Remove `neighbor` from schema | `internal/config/bgp.go` |
+| 6.2 | Remove root-level `peer` glob | `internal/config/bgp.go` |
+| 6.3 | Remove `template.neighbor` | `internal/config/bgp.go` |
+| 6.4 | Error on old syntax | `internal/config/loader.go` |
 
 ---
 
@@ -776,6 +776,6 @@ func doV2ToV3(tree *Tree) (*Tree, error) {
 
 ## References
 
-- Current schema: `pkg/config/bgp.go`
+- Current schema: `internal/config/bgp.go`
 - Migration system: `docs/plan/config-migration-system.md`
 - ExaBGP config: `../src/exabgp/configuration/`

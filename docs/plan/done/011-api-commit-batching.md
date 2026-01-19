@@ -130,7 +130,7 @@ zebgp fmt --diff config.bgp       # Show what would change
 
 **1.1 Extend OutgoingRIB for transactions**
 ```go
-// pkg/rib/outgoing.go
+// internal/rib/outgoing.go
 type OutgoingRIB struct {
     // ... existing fields ...
 
@@ -147,7 +147,7 @@ func (r *OutgoingRIB) InTransaction() bool
 
 **1.2 Add commit commands to API**
 ```go
-// pkg/plugin/commit.go
+// internal/plugin/commit.go
 func handleCommitStart(ctx *Context, args []string) Response
 func handleCommitEnd(ctx *Context, args []string) Response
 func handleCommitRollback(ctx *Context, args []string) Response
@@ -155,7 +155,7 @@ func handleCommitRollback(ctx *Context, args []string) Response
 
 **1.3 Wire to dispatcher**
 ```go
-// pkg/plugin/dispatcher.go
+// internal/plugin/dispatcher.go
 dispatcher.Register("commit", handleCommit)  // routes to start/end/rollback
 ```
 
@@ -163,7 +163,7 @@ dispatcher.Register("commit", handleCommit)  // routes to start/end/rollback
 
 **2.1 Implement attribute-based grouping**
 ```go
-// pkg/rib/grouping.go
+// internal/rib/grouping.go
 type RouteGroup struct {
     Attributes []attribute.Attribute
     NLRIs      []nlri.NLRI
@@ -174,7 +174,7 @@ func GroupByAttributes(routes []Route) []RouteGroup
 
 **2.2 Generate grouped UPDATEs**
 ```go
-// pkg/reactor/update.go
+// internal/reactor/update.go
 func BuildGroupedUpdates(groups []RouteGroup, negotiated Negotiated) []*message.Update
 ```
 
@@ -186,7 +186,7 @@ func BuildGroupedUpdates(groups []RouteGroup, negotiated Negotiated) []*message.
 
 **3.1 Add RIB section to config schema**
 ```go
-// pkg/config/bgp.go
+// internal/config/bgp.go
 func ribFields() []Field {
     return []Field{
         Field("group-updates", LeafWithDefault(TypeBool, "true")),
@@ -198,13 +198,13 @@ func ribFields() []Field {
 
 **3.2 Deprecate neighbor-level group-updates**
 ```go
-// pkg/config/loader.go - emit warning if neighbor.group-updates set
+// internal/config/loader.go - emit warning if neighbor.group-updates set
 log.Warn("neighbor-level group-updates is deprecated, use rib section")
 ```
 
 **3.3 Implement auto-commit timer**
 ```go
-// pkg/rib/timer.go
+// internal/rib/timer.go
 type AutoCommitTimer struct {
     delay    time.Duration
     timer    *time.Timer
@@ -396,20 +396,20 @@ commit rollback [label]
 ## Files to Create/Modify
 
 ### New Files
-- `pkg/rib/transaction.go` - Transaction state management
-- `pkg/rib/grouping.go` - Attribute-based route grouping
-- `pkg/rib/timer.go` - Auto-commit timer
-- `pkg/plugin/commit.go` - Commit command handlers
+- `internal/rib/transaction.go` - Transaction state management
+- `internal/rib/grouping.go` - Attribute-based route grouping
+- `internal/rib/timer.go` - Auto-commit timer
+- `internal/plugin/commit.go` - Commit command handlers
 - `cmd/zebgp-fmt/main.go` - Config formatter (or integrate in zebgp)
 
 ### Modified Files
-- `pkg/rib/outgoing.go` - Add transaction support
-- `pkg/plugin/dispatcher.go` - Register commit commands
-- `pkg/plugin/types.go` - Add CommitStats type
-- `pkg/config/bgp.go` - Add rib section schema
-- `pkg/config/loader.go` - Load rib config, deprecation warnings
-- `pkg/reactor/reactor.go` - Wire RIB config to peers
-- `pkg/reactor/peer.go` - Use grouped UPDATE generation
+- `internal/rib/outgoing.go` - Add transaction support
+- `internal/plugin/dispatcher.go` - Register commit commands
+- `internal/plugin/types.go` - Add CommitStats type
+- `internal/config/bgp.go` - Add rib section schema
+- `internal/config/loader.go` - Load rib config, deprecation warnings
+- `internal/reactor/reactor.go` - Wire RIB config to peers
+- `internal/reactor/peer.go` - Use grouped UPDATE generation
 
 ---
 
@@ -442,7 +442,7 @@ Total: ~2-3 focused sessions
 
 ### Completed (2025-12-22)
 
-1. ✅ **Process spawning infrastructure** - `pkg/plugin/process.go` updated to set working directory
+1. ✅ **Process spawning infrastructure** - `internal/plugin/process.go` updated to set working directory
 2. ✅ **API server process integration** - Server now starts ProcessManager and handles commands
 3. ✅ **Config loader** - Passes processes and config directory to reactor
 4. ✅ **Socket path configuration** - `zebgp_api_socketpath` env var for testing
@@ -807,7 +807,7 @@ The `.run` script communicates with zebgp via the process API:
 └──────────────┘                      └──────────────┘
 ```
 
-ZeBGP's process manager (`pkg/plugin/process.go`) handles:
+ZeBGP's process manager (`internal/plugin/process.go`) handles:
 - Spawning the script
 - Piping stdin/stdout
 - Delivering API responses
@@ -907,7 +907,7 @@ done
                                   ▼
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │                           PROCESS MANAGER                                    │
-│                         (pkg/plugin/process.go)                                │
+│                         (internal/plugin/process.go)                                │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │  Reads lines from script stdout                                             │
 │  Dispatches to command handlers                                             │
@@ -916,7 +916,7 @@ done
                                   ▼
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │                           API DISPATCHER                                     │
-│                         (pkg/plugin/dispatcher.go)                             │
+│                         (internal/plugin/dispatcher.go)                             │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │  "commit start" → handleCommitStart()                                       │
 │  "announce route" → handleAnnounceRoute() [queues in RIB]                   │
@@ -926,7 +926,7 @@ done
                                   ▼
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │                           OUTGOING RIB                                       │
-│                         (pkg/rib/outgoing.go)                               │
+│                         (internal/rib/outgoing.go)                               │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │  Transaction State:                                                          │
 │    inTransaction: true                                                       │
@@ -945,7 +945,7 @@ done
                                   ▼
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │                           ROUTE GROUPER                                      │
-│                         (pkg/rib/grouping.go)                               │
+│                         (internal/rib/grouping.go)                               │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │  Group 1: [NH=1.2.3.4, origin=igp]                                          │
 │    NLRIs: [10.0.0.0/24, 10.1.0.0/24]                                       │
@@ -957,7 +957,7 @@ done
                                   ▼
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │                           UPDATE BUILDER                                     │
-│                         (pkg/reactor/update.go)                             │
+│                         (internal/reactor/update.go)                             │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │  UPDATE 1:                                                                   │
 │    Withdrawn Routes Length: 0                                                │
@@ -980,7 +980,7 @@ done
                                   ▼
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │                           PEER                                               │
-│                         (pkg/reactor/peer.go)                               │
+│                         (internal/reactor/peer.go)                               │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │  SendUpdate(update1)  →  TCP connection  →  zebgp-peer                      │
 │  SendUpdate(update2)  →  TCP connection  →  zebgp-peer                      │
@@ -1006,7 +1006,7 @@ Response to client:
 ## Attribute Grouping Algorithm
 
 ```go
-// pkg/rib/grouping.go
+// internal/rib/grouping.go
 
 // RouteGroup represents routes that share identical attributes
 type RouteGroup struct {
@@ -1142,8 +1142,8 @@ With commit batching:
 - ExaBGP group commands: `../src/exabgp/reactor/api/command/group.py`
 - ExaBGP RIB batching: `../src/exabgp/rib/outgoing.py`
 - ExaBGP test runner: `../main/qa/bin/functional`
-- ZeBGP OutgoingRIB: `pkg/rib/outgoing.go`
-- ZeBGP config schema: `pkg/config/bgp.go`
+- ZeBGP OutgoingRIB: `internal/rib/outgoing.go`
+- ZeBGP config schema: `internal/config/bgp.go`
 - ZeBGP self-check: `test/cmd/self-check/main.go`
-- ZeBGP process manager: `pkg/plugin/process.go`
+- ZeBGP process manager: `internal/plugin/process.go`
 - Self-check system docs: `.claude/zebgp/SELF_CHECK_SYSTEM.md`

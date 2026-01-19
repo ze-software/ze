@@ -6,13 +6,13 @@
 ┌─────────────────────────────────────────────────────────────────┐
 │  Read these source files before implementing:                   │
 │                                                                 │
-│  1. test/pkg/encoding.go - Current runner, runTest method       │
-│  2. test/pkg/tests.go - Display method                          │
-│  3. test/pkg/cli.go - PrintSummary                              │
+│  1. test/internal/encoding.go - Current runner, runTest method       │
+│  2. test/internal/tests.go - Display method                          │
+│  3. test/internal/cli.go - PrintSummary                              │
 │  4. test/cmd/zebgp-peer/main.go - Peer output format            │
-│  5. pkg/bgp/message/*.go - Message decoding library             │
-│  6. pkg/testpeer/decode.go - Decoding functions to copy         │
-│  7. pkg/testpeer/peer.go - Checker, LoadExpectFile              │
+│  5. internal/bgp/message/*.go - Message decoding library             │
+│  6. internal/test/peer/decode.go - Decoding functions to copy         │
+│  7. internal/test/peer/peer.go - Checker, LoadExpectFile              │
 │                                                                 │
 │  NOTE: Protocol files (.claude/ESSENTIAL_PROTOCOLS.md,          │
 │  .claude/INDEX.md, docs/plan/CLAUDE_CONTINUATION.md) should have     │
@@ -27,7 +27,7 @@
 
 Create a **NEW** functional test program with AI-friendly debugging output.
 
-**IMPORTANT:** Do NOT modify the existing `test/cmd/functional` or `test/pkg/*`. Create a new program that can eventually replace it.
+**IMPORTANT:** Do NOT modify the existing `test/cmd/functional` or `test/internal/*`. Create a new program that can eventually replace it.
 
 When a test fails, an AI assistant should be able to understand:
 1. What message was expected (hex + decoded)
@@ -51,19 +51,19 @@ test/selfcheck/              # NEW package (not test/pkg)
   report.go                  # AI-friendly failure output
 ```
 
-The existing `test/cmd/functional` and `test/pkg/*` remain untouched until the new program is proven.
+The existing `test/cmd/functional` and `test/internal/*` remain untouched until the new program is proven.
 
 ## Files to Create
 
 ### DO NOT MODIFY (in active use)
 
 ```
-pkg/testpeer/          # DO NOT TOUCH - currently in use
+internal/test/peer/          # DO NOT TOUCH - currently in use
   decode.go            # Use as-is: DecodeMessage, Diff
   peer.go              # Use as-is: Checker, LoadExpectFile
 ```
 
-### New Program (wraps pkg/testpeer)
+### New Program (wraps internal/test/peer)
 
 ```
 test/cmd/selfcheck/
@@ -246,15 +246,15 @@ ZeBGP running. Press Ctrl+C to stop.
 [CYAN]═══════════════════════════════════════════════════════════════════════════════[RESET]
 ```
 
-#### 1.2 Copy and Evolve Decoder (DO NOT MODIFY pkg/testpeer)
+#### 1.2 Copy and Evolve Decoder (DO NOT MODIFY internal/test/peer)
 
-**Starting Point:** Copy `pkg/testpeer/decode.go` to `test/selfcheck/decode.go`.
+**Starting Point:** Copy `internal/test/peer/decode.go` to `test/selfcheck/decode.go`.
 
-**CONSTRAINT:** `pkg/testpeer` is in active use - DO NOT MODIFY IT.
+**CONSTRAINT:** `internal/test/peer` is in active use - DO NOT MODIFY IT.
 
 ```bash
 # Step 1: Copy as starting point
-cp pkg/testpeer/decode.go test/selfcheck/decode.go
+cp internal/test/peer/decode.go test/selfcheck/decode.go
 
 # Step 2: Change package name
 # package testpeer → package selfcheck
@@ -281,13 +281,13 @@ func EnhancedDiff(expected, received string, useColors bool) string {
 ```
 
 **Why copy, not wrap:**
-- No import dependency on pkg/testpeer
+- No import dependency on internal/test/peer
 - Free to modify/extend without affecting existing code
 - Cleaner separation
 - Can diverge as needed for AI-friendly output
 
 **Files:**
-- NEW: `test/selfcheck/decode.go` - Copy of pkg/testpeer/decode.go, then enhanced
+- NEW: `test/selfcheck/decode.go` - Copy of internal/test/peer/decode.go, then enhanced
 - NEW: `test/selfcheck/report.go` - Uses local decode for AI-friendly output
 
 #### 1.3 Parse cmd + raw + json from .ci File
@@ -445,7 +445,7 @@ func CheckUlimit(parallel int) error {
 Add proper terminal detection:
 
 ```go
-// test/pkg/color.go
+// test/internal/color.go
 
 import "golang.org/x/term"
 
@@ -588,7 +588,7 @@ Before removing old code, verify:
 Once validated:
 ```bash
 rm -rf test/cmd/functional/
-rm -rf test/pkg/
+rm -rf test/internal/
 rm test/cmd/self-check/  # if exists
 ```
 
@@ -596,7 +596,7 @@ rm test/cmd/self-check/  # if exists
 
 ```bash
 git mv test/cmd/selfcheck test/cmd/functional
-git mv test/selfcheck test/functional
+git mv test/selfcheck internal/test/runner
 ```
 
 Update imports in all files.
@@ -645,7 +645,7 @@ functional-api:
 
 - TDD: Write tests for new code in test/selfcheck/
 - Verify: `make test && make lint` before done
-- **Copy, don't import pkg/testpeer**: Copy files as starting point, evolve independently
+- **Copy, don't import internal/test/peer**: Copy files as starting point, evolve independently
 - Colors: TTY detection, plain text when piped
 
 ## Documentation Impact
@@ -656,11 +656,11 @@ functional-api:
 ## Checklist
 
 ### Phase 0-3: New Program (P0 COMPLETE)
-- [x] Copy pkg/testpeer/decode.go → test/selfcheck/decode.go
+- [x] Copy internal/test/peer/decode.go → test/selfcheck/decode.go
 - [x] Add ColoredString() to copied decode.go
 - [x] Add ColoredDiff() with byte offsets
 - [x] Copy .ci parsing logic, add cmd + raw + json extraction
-- [x] pkg/testpeer NOT modified (in active use)
+- [x] internal/test/peer NOT modified (in active use)
 - [x] Failure output shows all three forms
 - [x] Colors work on TTY, plain when piped
 - [x] Dynamic port range finder works
@@ -697,7 +697,7 @@ functional-api:
 - [x] Old `test/cmd/self-check` removed
 - [x] Old `test/pkg` removed (14 files)
 - [x] `test/cmd/selfcheck` → `test/cmd/functional`
-- [x] `test/selfcheck` → `test/functional`
+- [x] `test/selfcheck` → `internal/test/runner`
 - [x] Package renamed from `selfcheck` to `functional`
 - [x] Imports updated
 - [x] Makefile updated (removed self-check target)
@@ -709,8 +709,8 @@ functional-api:
 
 ## Summary of Key Design Decisions
 
-1. **Copy, don't wrap**: Copy pkg/testpeer/decode.go as starting point, evolve freely
-2. **pkg/testpeer untouched**: In active use, no imports from it
+1. **Copy, don't wrap**: Copy internal/test/peer/decode.go as starting point, evolve freely
+2. **internal/test/peer untouched**: In active use, no imports from it
 3. **Three Forms**: Show cmd (human intent) + raw (wire format) + decoded
 4. **Colorful but Pipe-Safe**: Use `golang.org/x/term` for TTY detection
 5. **AI-Friendly**: Structured, labeled sections that Claude can parse and act on

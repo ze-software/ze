@@ -125,7 +125,7 @@ func FamilyLess(a, b Family) bool {
 
 **capability/capability.go** - use nlri.Family:
 ```go
-import "codeberg.org/thomas-mangin/zebgp/pkg/bgp/nlri"
+import "codeberg.org/thomas-mangin/zebgp/internal/bgp/nlri"
 
 // Family is an alias for nlri.Family for backward compatibility.
 type Family = nlri.Family
@@ -133,7 +133,7 @@ type Family = nlri.Family
 
 **context/context.go** - use nlri.Family:
 ```go
-import "codeberg.org/thomas-mangin/zebgp/pkg/bgp/nlri"
+import "codeberg.org/thomas-mangin/zebgp/internal/bgp/nlri"
 
 type EncodingContext struct {
     ASN4            bool
@@ -248,13 +248,13 @@ if nhAFI := sendCtx.ExtendedNextHop[family]; nhAFI == nlri.AFIIPv6 {
 
 | File | Changes |
 |------|---------|
-| `pkg/bgp/nlri/nlri.go` | Add missing Family constants, add SAFI constants, add FamilyLess |
-| `pkg/bgp/capability/capability.go` | Type alias `Family = nlri.Family`, remove duplicate AFI/SAFI |
-| `pkg/bgp/context/context.go` | Use nlri.Family, change ExtendedNextHop to map[Family]AFI |
-| `pkg/bgp/context/registry.go` | Update for nlri.Family |
-| `pkg/bgp/context/negotiated.go` | Update for nlri.Family |
-| `pkg/reactor/peer.go` | Replace NegotiatedFamilies with NegotiatedCapabilities, update all usage |
-| `pkg/reactor/reactor.go` | Update family checks to use negotiated.Has() and sendCtx |
+| `internal/bgp/nlri/nlri.go` | Add missing Family constants, add SAFI constants, add FamilyLess |
+| `internal/bgp/capability/capability.go` | Type alias `Family = nlri.Family`, remove duplicate AFI/SAFI |
+| `internal/bgp/context/context.go` | Use nlri.Family, change ExtendedNextHop to map[Family]AFI |
+| `internal/bgp/context/registry.go` | Update for nlri.Family |
+| `internal/bgp/context/negotiated.go` | Update for nlri.Family |
+| `internal/reactor/peer.go` | Replace NegotiatedFamilies with NegotiatedCapabilities, update all usage |
+| `internal/reactor/reactor.go` | Update family checks to use negotiated.Has() and sendCtx |
 
 ## Implementation Steps
 
@@ -347,14 +347,14 @@ make test && make lint && make functional
 
 **Current errors (`go build ./...`):**
 ```
-pkg/reactor/peer.go:1887: undefined: nf   (should be nc.Has(nlri.IPv4MVPN))
-pkg/reactor/peer.go:1891: undefined: nf   (should be nc.Has(nlri.IPv6MVPN))
-pkg/reactor/peer.go:2111: undefined: nf   (should be nc.Has(...))
-pkg/reactor/peer.go:2115: undefined: nf   (should be nc.Has(...))
-pkg/reactor/peer.go:2166: p.families undefined (should be p.negotiated)
-pkg/reactor/reactor.go:826: peer.families undefined
-pkg/reactor/reactor.go:1662: peer.families undefined
-pkg/reactor/reactor.go:1940: peer.families undefined
+internal/reactor/peer.go:1887: undefined: nf   (should be nc.Has(nlri.IPv4MVPN))
+internal/reactor/peer.go:1891: undefined: nf   (should be nc.Has(nlri.IPv6MVPN))
+internal/reactor/peer.go:2111: undefined: nf   (should be nc.Has(...))
+internal/reactor/peer.go:2115: undefined: nf   (should be nc.Has(...))
+internal/reactor/peer.go:2166: p.families undefined (should be p.negotiated)
+internal/reactor/reactor.go:826: peer.families undefined
+internal/reactor/reactor.go:1662: peer.families undefined
+internal/reactor/reactor.go:1940: peer.families undefined
 ```
 
 ### 🔧 Remaining Work

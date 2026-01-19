@@ -9,13 +9,13 @@ Refactor wire format encoding to use consistent `Pack(negotiated)` pattern acros
 
 | Location | Purpose | Key Fields |
 |----------|---------|------------|
-| `pkg/bgp/message/message.go:14` | Wire encoding | ASN4, AddPath map[Family]bool, ExtendedMessage |
-| `pkg/bgp/capability/negotiated.go:43` | Session negotiation | Full state + families, addPath map, extNH |
+| `internal/bgp/message/message.go:14` | Wire encoding | ASN4, AddPath map[Family]bool, ExtendedMessage |
+| `internal/bgp/capability/negotiated.go:43` | Session negotiation | Full state + families, addPath map, extNH |
 
 ### PackContext Already Exists
 
 ```go
-// pkg/bgp/nlri/pack.go
+// internal/bgp/nlri/pack.go
 type PackContext struct {
     AddPath bool  // Only field currently
 }
@@ -93,7 +93,7 @@ This causes:
 ### Current PackContext (Keep As-Is)
 
 ```go
-// pkg/bgp/nlri/pack.go - Already exists, minimal and focused
+// internal/bgp/nlri/pack.go - Already exists, minimal and focused
 type PackContext struct {
     AddPath bool  // RFC 7911
     // Future: ASN4 bool, ExtendedNextHop AFI
@@ -229,14 +229,14 @@ func buildStaticRouteWithdraw(route StaticRoute, ctx *nlri.PackContext) *message
 ## Codebase Context
 
 **Key files:**
-- `pkg/bgp/nlri/pack.go` - PackContext struct
-- `pkg/bgp/nlri/nlri.go` - NLRI interface with Pack
-- `pkg/bgp/nlri/inet.go` - INET.Pack implementation
-- `pkg/bgp/message/message.go` - message.Negotiated struct
-- `pkg/bgp/capability/negotiated.go` - capability.Negotiated struct
-- `pkg/rib/commit.go` - Uses Pack correctly ✅
-- `pkg/reactor/peer.go` - Needs migration
-- `pkg/reactor/reactor.go` - Needs migration
+- `internal/bgp/nlri/pack.go` - PackContext struct
+- `internal/bgp/nlri/nlri.go` - NLRI interface with Pack
+- `internal/bgp/nlri/inet.go` - INET.Pack implementation
+- `internal/bgp/message/message.go` - message.Negotiated struct
+- `internal/bgp/capability/negotiated.go` - capability.Negotiated struct
+- `internal/rib/commit.go` - Uses Pack correctly ✅
+- `internal/reactor/peer.go` - Needs migration
+- `internal/reactor/reactor.go` - Needs migration
 
 **Helper needed on Peer:**
 ```go
@@ -283,7 +283,7 @@ func (p *Peer) packContext(family nlri.Family) *nlri.PackContext {
 ### Step 1: Add packContext helper to Peer
 
 ```go
-// pkg/reactor/peer.go - add method
+// internal/reactor/peer.go - add method
 func (p *Peer) packContext(family nlri.Family) *nlri.PackContext {
     if p.negotiatedFamilies == nil {
         return nil

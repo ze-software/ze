@@ -8,14 +8,14 @@ An RFC implementation typically touches these areas (not all apply to every RFC)
 
 | Component | Package | When Needed |
 |-----------|---------|-------------|
-| Capability | `pkg/bgp/capability/` | RFC introduces a capability |
-| Attribute | `pkg/bgp/attribute/` | RFC introduces path attributes |
-| NLRI | `pkg/bgp/nlri/` | RFC introduces new AFI/SAFI |
-| Message | `pkg/bgp/message/` | RFC modifies message format |
-| FSM | `pkg/bgp/fsm/` | RFC affects state machine |
-| Config | `pkg/config/` | RFC needs configuration |
-| API | `pkg/api/` | RFC needs plugin commands |
-| Engine | `pkg/engine/` | RFC affects reactor/peer handling |
+| Capability | `internal/bgp/capability/` | RFC introduces a capability |
+| Attribute | `internal/bgp/attribute/` | RFC introduces path attributes |
+| NLRI | `internal/bgp/nlri/` | RFC introduces new AFI/SAFI |
+| Message | `internal/bgp/message/` | RFC modifies message format |
+| FSM | `internal/bgp/fsm/` | RFC affects state machine |
+| Config | `internal/config/` | RFC needs configuration |
+| API | `internal/api/` | RFC needs plugin commands |
+| Engine | `internal/engine/` | RFC affects reactor/peer handling |
 
 ## Phase 0: Preparation
 
@@ -32,10 +32,10 @@ An RFC implementation typically touches these areas (not all apply to every RFC)
 ### 0.2 Codebase Analysis
 
 ```
-[ ] Search for existing partial implementation: grep -r "RFC NNNN" pkg/
-[ ] Check if related capabilities exist: pkg/bgp/capability/
-[ ] Check if related attributes exist: pkg/bgp/attribute/
-[ ] Check if related NLRI types exist: pkg/bgp/nlri/
+[ ] Search for existing partial implementation: grep -r "RFC NNNN" internal/
+[ ] Check if related capabilities exist: internal/bgp/capability/
+[ ] Check if related attributes exist: internal/bgp/attribute/
+[ ] Check if related NLRI types exist: internal/bgp/nlri/
 [ ] Read architecture docs for affected areas (see planning.md keyword table)
 ```
 
@@ -45,14 +45,14 @@ If this RFC adds features that ExaBGP users might rely on, check if migration su
 
 | RFC Affects | Migration Impact | Action |
 |-------------|------------------|--------|
-| API commands/events | ExaBGP plugins expect different JSON format | Update `pkg/exabgp/bridge.go` |
-| Config syntax | ExaBGP configs have different syntax | Update `pkg/exabgp/migrate.go` |
+| API commands/events | ExaBGP plugins expect different JSON format | Update `internal/exabgp/bridge.go` |
+| Config syntax | ExaBGP configs have different syntax | Update `internal/exabgp/migrate.go` |
 | Capabilities | ExaBGP may configure differently | Check migrate.go handles it |
 
 ```
 [ ] Does ExaBGP support this RFC feature?
-[ ] If yes: is config migration needed? (pkg/exabgp/migrate.go)
-[ ] If yes: is API bridge update needed? (pkg/exabgp/bridge.go)
+[ ] If yes: is config migration needed? (internal/exabgp/migrate.go)
+[ ] If yes: is API bridge update needed? (internal/exabgp/bridge.go)
 ```
 
 See `.claude/rules/compatibility.md` for architecture details.
@@ -74,7 +74,7 @@ See `.claude/rules/compatibility.md` for architecture details.
 ### 1.1 Define Capability
 
 ```
-[ ] Add capability code constant to pkg/bgp/capability/codes.go
+[ ] Add capability code constant to internal/bgp/capability/codes.go
     - Code<Name> Code = NN  // RFC NNNN
 
 [ ] Create capability struct in appropriate file (or new file)
@@ -130,7 +130,7 @@ See `.claude/rules/compatibility.md` for architecture details.
 ### 2.1 Define Attribute
 
 ```
-[ ] Add attribute code constant to pkg/bgp/attribute/codes.go
+[ ] Add attribute code constant to internal/bgp/attribute/codes.go
     - Attr<Name> AttributeCode = NN  // RFC NNNN
 
 [ ] Create attribute struct (new file if complex, or add to existing)
@@ -188,8 +188,8 @@ See `.claude/rules/compatibility.md` for architecture details.
 ### 3.1 Define Family
 
 ```
-[ ] Add AFI constant if new: pkg/bgp/nlri/afi.go
-[ ] Add SAFI constant if new: pkg/bgp/nlri/safi.go
+[ ] Add AFI constant if new: internal/bgp/nlri/afi.go
+[ ] Add SAFI constant if new: internal/bgp/nlri/safi.go
 [ ] Add Family constant: var <Name> = Family{AFI: ..., SAFI: ...}
 [ ] Register in familyNames map for string parsing
 ```
@@ -248,7 +248,7 @@ See `.claude/rules/compatibility.md` for architecture details.
 ### 4.1 New Message Type
 
 ```
-[ ] Add message type constant to pkg/bgp/message/types.go
+[ ] Add message type constant to internal/bgp/message/types.go
 [ ] Create message struct implementing Message interface:
     - Type() MessageType
     - Len(ctx *EncodingContext) int
@@ -315,7 +315,7 @@ See `.claude/rules/compatibility.md` for architecture details.
 ### 6.1 Schema Definition
 
 ```
-[ ] Add schema nodes to pkg/config/schema.go
+[ ] Add schema nodes to internal/config/schema.go
 [ ] Define value types and constraints
 [ ] Add validation rules
 [ ] Document config syntax in schema comments
@@ -616,8 +616,8 @@ func TestMyFeature(t *testing.T) {
 
 | RFC | Components | Good Reference |
 |-----|------------|----------------|
-| RFC 4724 (GR) | Capability, FSM | `pkg/bgp/capability/session.go` |
-| RFC 7911 (ADD-PATH) | Capability, NLRI encoding | `pkg/bgp/capability/encoding.go` |
-| RFC 4760 (MP) | Capability, NLRI, Attributes | `pkg/bgp/nlri/`, `pkg/bgp/attribute/mpreach.go` |
-| RFC 8955 (FlowSpec) | NLRI | `pkg/bgp/nlri/flowspec.go` |
-| RFC 7432 (EVPN) | NLRI | `pkg/bgp/nlri/evpn.go` |
+| RFC 4724 (GR) | Capability, FSM | `internal/bgp/capability/session.go` |
+| RFC 7911 (ADD-PATH) | Capability, NLRI encoding | `internal/bgp/capability/encoding.go` |
+| RFC 4760 (MP) | Capability, NLRI, Attributes | `internal/bgp/nlri/`, `internal/bgp/attribute/mpreach.go` |
+| RFC 8955 (FlowSpec) | NLRI | `internal/bgp/nlri/flowspec.go` |
+| RFC 7432 (EVPN) | NLRI | `internal/bgp/nlri/evpn.go` |

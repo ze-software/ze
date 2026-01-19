@@ -13,12 +13,12 @@ Add functional tests to verify:
 - [x] `docs/functional-tests.md` - [test infrastructure patterns]
 
 ### Source Files
-- [x] `pkg/slogutil/slogutil.go` - [logging implementation]
-- [x] `pkg/slogutil/syslog.go` - [syslog handler]
-- [x] `pkg/testpeer/peer.go:956` - [.ci option parsing]
-- [x] `test/functional/runner.go` - [test execution, env handling]
-- [x] `pkg/plugin/server.go` - [server subsystem log calls]
-- [x] `pkg/plugin/gr/gr.go` - [gr plugin log calls]
+- [x] `internal/slogutil/slogutil.go` - [logging implementation]
+- [x] `internal/slogutil/syslog.go` - [syslog handler]
+- [x] `internal/test/peer/peer.go:956` - [.ci option parsing]
+- [x] `internal/test/runner/runner.go` - [test execution, env handling]
+- [x] `internal/plugin/server.go` - [server subsystem log calls]
+- [x] `internal/plugin/gr/gr.go` - [gr plugin log calls]
 
 **Key insights:**
 - Engine subsystems: `server`, `plugin`, `filter`, `coordinator`
@@ -32,29 +32,29 @@ Add functional tests to verify:
 ### Unit Tests (already exist)
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestBackendStderr` | `pkg/slogutil/slogutil_test.go` | Default stderr | ✅ |
-| `TestBackendSyslog` | `pkg/slogutil/slogutil_test.go` | Syslog handler | ✅ |
-| `TestLoggerEnabledDot` | `pkg/slogutil/slogutil_test.go` | Env var parsing | ✅ |
+| `TestBackendStderr` | `internal/slogutil/slogutil_test.go` | Default stderr | ✅ |
+| `TestBackendSyslog` | `internal/slogutil/slogutil_test.go` | Syslog handler | ✅ |
+| `TestLoggerEnabledDot` | `internal/slogutil/slogutil_test.go` | Env var parsing | ✅ |
 
 ### Unit Tests (NEW - testsyslog)
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestUDPServer` | `pkg/testsyslog/testsyslog_test.go` | UDP listen/receive | ✅ |
-| `TestMessageCapture` | `pkg/testsyslog/testsyslog_test.go` | Message buffering | ✅ |
-| `TestPatternMatch` | `pkg/testsyslog/testsyslog_test.go` | Regex matching | ✅ |
-| `TestPatternMatchInvalid` | `pkg/testsyslog/testsyslog_test.go` | Invalid regex handling | ✅ |
-| `TestServerClose` | `pkg/testsyslog/testsyslog_test.go` | Clean shutdown | ✅ |
-| `TestContextCancellation` | `pkg/testsyslog/testsyslog_test.go` | Context respect | ✅ |
+| `TestUDPServer` | `internal/test/syslog/testsyslog_test.go` | UDP listen/receive | ✅ |
+| `TestMessageCapture` | `internal/test/syslog/testsyslog_test.go` | Message buffering | ✅ |
+| `TestPatternMatch` | `internal/test/syslog/testsyslog_test.go` | Regex matching | ✅ |
+| `TestPatternMatchInvalid` | `internal/test/syslog/testsyslog_test.go` | Invalid regex handling | ✅ |
+| `TestServerClose` | `internal/test/syslog/testsyslog_test.go` | Clean shutdown | ✅ |
+| `TestContextCancellation` | `internal/test/syslog/testsyslog_test.go` | Context respect | ✅ |
 
 ### Unit Tests (NEW - functional test framework)
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestParseCILoggingOptions` | `test/functional/record_test.go` | .ci option parsing (9 cases) | ✅ |
-| `TestParseCILoggingOptionsNotAffectOthers` | `test/functional/record_test.go` | No regression | ✅ |
-| `TestValidateLoggingExpectStderr` | `test/functional/runner_test.go` | Expect stderr (8 cases) | ✅ |
-| `TestValidateLoggingRejectStderr` | `test/functional/runner_test.go` | Reject stderr (4 cases) | ✅ |
-| `TestValidateLoggingExpectSyslog` | `test/functional/runner_test.go` | Expect syslog (5 cases) | ✅ |
-| `TestValidateLoggingCombined` | `test/functional/runner_test.go` | Combined patterns | ✅ |
+| `TestParseCILoggingOptions` | `internal/test/runner/record_test.go` | .ci option parsing (9 cases) | ✅ |
+| `TestParseCILoggingOptionsNotAffectOthers` | `internal/test/runner/record_test.go` | No regression | ✅ |
+| `TestValidateLoggingExpectStderr` | `internal/test/runner/runner_test.go` | Expect stderr (8 cases) | ✅ |
+| `TestValidateLoggingRejectStderr` | `internal/test/runner/runner_test.go` | Reject stderr (4 cases) | ✅ |
+| `TestValidateLoggingExpectSyslog` | `internal/test/runner/runner_test.go` | Expect syslog (5 cases) | ✅ |
+| `TestValidateLoggingCombined` | `internal/test/runner/runner_test.go` | Combined patterns | ✅ |
 
 ### Functional Tests (NEW - extend plugin tests)
 | Test | Location | Scenario | Status |
@@ -86,18 +86,18 @@ expect:syslog:zebgp.*subsystem=server
 ```
 
 ## Files to Modify
-- `pkg/testpeer/peer.go` - Parse `option:env:`, store in FileConfig
-- `test/functional/runner.go` - Apply env vars, capture stderr, validate patterns
-- `test/functional/record.go` - Add Env, ExpectStderr, RejectStderr, ExpectSyslog fields
+- `internal/test/peer/peer.go` - Parse `option:env:`, store in FileConfig
+- `internal/test/runner/runner.go` - Apply env vars, capture stderr, validate patterns
+- `internal/test/runner/record.go` - Add Env, ExpectStderr, RejectStderr, ExpectSyslog fields
 - `Makefile` - No change needed (tests go in plugin category)
 - `docs/functional-tests.md` - Document new .ci options + syslog architecture diagram
 
 ## Files to Create
-- `pkg/testsyslog/testsyslog.go` - UDP syslog server library
-- `pkg/testsyslog/testsyslog_test.go` - Unit tests (6 tests)
+- `internal/test/syslog/syslog.go` - UDP syslog server library
+- `internal/test/syslog/testsyslog_test.go` - Unit tests (6 tests)
 - `test/cmd/test-syslog/main.go` - CLI wrapper (for manual debugging)
-- `test/functional/record_test.go` - Unit tests for .ci parsing (9 test cases)
-- `test/functional/runner_test.go` - Unit tests for validateLogging (16 test cases)
+- `internal/test/runner/record_test.go` - Unit tests for .ci parsing (9 test cases)
+- `internal/test/runner/runner_test.go` - Unit tests for validateLogging (16 test cases)
 - `test/data/plugin/logging-stderr.conf` - Minimal config with gr plugin
 - `test/data/plugin/logging-stderr.ci` - Test engine stderr logging
 - `test/data/plugin/logging-plugin.conf` - Config with gr plugin + log-level
@@ -110,7 +110,7 @@ expect:syslog:zebgp.*subsystem=server
 ## Implementation Steps
 
 ### Phase 1: Test Syslog Server (TDD)
-1. **Write unit tests** - `pkg/testsyslog/testsyslog_test.go`
+1. **Write unit tests** - `internal/test/syslog/testsyslog_test.go`
 2. **Run tests** - Verify FAIL (paste output)
 3. **Implement** - UDP server, message buffer, pattern matching
 4. **Run tests** - Verify PASS (paste output)
@@ -149,7 +149,7 @@ expect:syslog:zebgp.*subsystem=server
 
 ### Test Syslog Server Design
 ```go
-// pkg/testsyslog/testsyslog.go
+// internal/test/syslog/syslog.go
 type Server struct {
     addr     string
     messages []string
@@ -215,20 +215,20 @@ peer 127.0.0.1 {
 ## Implementation Summary
 
 ### What Was Implemented
-- **testsyslog package** (`pkg/testsyslog/`): UDP syslog server for capturing log messages
-  - `testsyslog.go`: Server with Start(), Port(), Messages(), Match(), Close()
+- **testsyslog package** (`internal/test/syslog/`): UDP syslog server for capturing log messages
+  - `syslog.go`: Server with Start(), Port(), Messages(), Match(), Close()
   - `testsyslog_test.go`: 6 unit tests covering UDP, capture, pattern matching, close, context
 - **test-syslog CLI** (`test/cmd/test-syslog/main.go`): Manual debugging tool
-- **Extended .ci format** in `test/functional/record.go`:
+- **Extended .ci format** in `internal/test/runner/record.go`:
   - `EnvVars []string` for `option:env:`
   - `ExpectStderr []string` for `expect:stderr:`
   - `RejectStderr []string` for `reject:stderr:`
   - `ExpectSyslog []string` for `expect:syslog:`
-- **Extended runner** (`test/functional/runner.go`):
+- **Extended runner** (`internal/test/runner/runner.go`):
   - Start test-syslog server when `expect:syslog:` present
   - Auto-set `zebgp.log.backend=syslog` and `zebgp.log.destination`
   - `validateLogging()` function for pattern matching
-- **Unit tests** (`test/functional/record_test.go`, `runner_test.go`):
+- **Unit tests** (`internal/test/runner/record_test.go`, `runner_test.go`):
   - 9 test cases for .ci option parsing
   - 16 test cases for validateLogging() (stderr expect/reject, syslog)
 - **Functional tests**:
@@ -248,7 +248,7 @@ peer 127.0.0.1 {
 
 ### Deviations from Plan
 - **logging-plugin test removed**: `zebgp.log.plugin=enabled` has dual purpose - enables stderr relay but "enabled" is not a valid log level, causing discard logger. This is a design issue to address separately.
-- **testpeer unchanged**: All parsing done in `test/functional/record.go` (not testpeer/peer.go)
+- **testpeer unchanged**: All parsing done in `internal/test/runner/record.go` (not testpeer/peer.go)
 
 ### Future Work
 - **zebgp.log.plugin design issue**: The env var serves dual purpose:

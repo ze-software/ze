@@ -6,15 +6,15 @@ Add JSON validation to test framework - make `json:` lines in `.ci` files valida
 ## Required Reading
 
 ### Architecture Docs
-- [ ] `test/functional/record.go` - MessageExpect struct stores JSON, not validated
-- [ ] `test/functional/runner.go` - Test execution, ReceivedRaw capture
-- [ ] `test/functional/decode.go` - DecodedMessage, IPv4-only, no JSON output
-- [ ] `test/functional/decoding.go` - compareJSON() reusable for normalization
+- [ ] `internal/test/runner/record.go` - MessageExpect struct stores JSON, not validated
+- [ ] `internal/test/runner/runner.go` - Test execution, ReceivedRaw capture
+- [ ] `internal/test/runner/decode.go` - DecodedMessage, IPv4-only, no JSON output
+- [ ] `internal/test/runner/decoding.go` - compareJSON() reusable for normalization
 - [ ] `cmd/zebgp/decode.go` - Comprehensive decoder, all families, ExaBGP envelope format
 
 **Key insights:**
 - `json:` lines parsed to `MessageExpect.JSON` but never validated
-- `test/functional/decode.go` only handles IPv4 unicast - insufficient
+- `internal/test/runner/decode.go` only handles IPv4 unicast - insufficient
 - `cmd/zebgp/decode.go` handles all families but outputs ExaBGP envelope format
 - Plugin JSON format differs from ExaBGP envelope - need transformation
 - Peer context (address, ASN) comes from config, not message bytes
@@ -100,14 +100,14 @@ Add JSON validation to test framework - make `json:` lines in `.ci` files valida
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestTransformEnvelopeToPlugin_IPv4Announce` | `test/functional/json_test.go` | IPv4 announce transformation | |
-| `TestTransformEnvelopeToPlugin_IPv4Withdraw` | `test/functional/json_test.go` | IPv4 withdraw → action:del | |
-| `TestTransformEnvelopeToPlugin_IPv6Announce` | `test/functional/json_test.go` | IPv6 unicast transformation | |
-| `TestTransformEnvelopeToPlugin_EOR` | `test/functional/json_test.go` | End-of-RIB (empty update) | |
-| `TestComparePluginJSON_Match` | `test/functional/json_test.go` | Matching JSON passes | |
-| `TestComparePluginJSON_Mismatch` | `test/functional/json_test.go` | Mismatch fails with diff | |
-| `TestComparePluginJSON_IgnoresContextFields` | `test/functional/json_test.go` | peer/direction ignored | |
-| `TestIsSupportedFamily` | `test/functional/json_test.go` | Family detection | |
+| `TestTransformEnvelopeToPlugin_IPv4Announce` | `internal/test/runner/json_test.go` | IPv4 announce transformation | |
+| `TestTransformEnvelopeToPlugin_IPv4Withdraw` | `internal/test/runner/json_test.go` | IPv4 withdraw → action:del | |
+| `TestTransformEnvelopeToPlugin_IPv6Announce` | `internal/test/runner/json_test.go` | IPv6 unicast transformation | |
+| `TestTransformEnvelopeToPlugin_EOR` | `internal/test/runner/json_test.go` | End-of-RIB (empty update) | |
+| `TestComparePluginJSON_Match` | `internal/test/runner/json_test.go` | Matching JSON passes | |
+| `TestComparePluginJSON_Mismatch` | `internal/test/runner/json_test.go` | Mismatch fails with diff | |
+| `TestComparePluginJSON_IgnoresContextFields` | `internal/test/runner/json_test.go` | peer/direction ignored | |
+| `TestIsSupportedFamily` | `internal/test/runner/json_test.go` | Family detection | |
 
 ### Boundary Tests (MANDATORY for numeric inputs)
 N/A - No numeric range validation in this feature.
@@ -175,12 +175,12 @@ All ZeBGP plugin JSON must include:
 - Enables full validation coverage across all test files
 
 ## Files to Modify
-- `test/functional/runner.go` - Add `validateJSON()` call, invoke `zebgp decode`
-- `test/functional/record.go` - Add `JSONError` field to Record, `JSONValidated` bool
+- `internal/test/runner/runner.go` - Add `validateJSON()` call, invoke `zebgp decode`
+- `internal/test/runner/record.go` - Add `JSONError` field to Record, `JSONValidated` bool
 
 ## Files to Create
-- `test/functional/json.go` - `transformEnvelopeToPlugin()`, `comparePluginJSON()`, `isSupportedFamily()`
-- `test/functional/json_test.go` - Unit tests
+- `internal/test/runner/json.go` - `transformEnvelopeToPlugin()`, `comparePluginJSON()`, `isSupportedFamily()`
+- `internal/test/runner/json_test.go` - Unit tests
 
 ## Implementation Steps
 
@@ -303,7 +303,7 @@ Match by position after filtering keepalives:
 ## Implementation Summary
 
 ### What Was Implemented
-- `test/functional/json.go`: JSON validation utilities
+- `internal/test/runner/json.go`: JSON validation utilities
   - `isSupportedFamily()`: Checks if family is IPv4/IPv6 unicast (Phase 1)
   - `extractFamily()`: Extracts address family from zebgp decode envelope
   - `transformEnvelopeToPlugin()`: Converts zebgp decode format to plugin format
@@ -311,8 +311,8 @@ Match by position after filtering keepalives:
   - `transformWithdraw()`: Transforms withdraw section (handles both `[{"nlri":"..."}]` and `["..."]` formats)
   - `comparePluginJSON()`: Compares transformed JSON with expected, ignoring peer/direction fields
   - `normalizeForComparison()`, `normalizeValue()`, `normalizeSlice()`, `sortSliceOfMaps()`: Normalize JSON for deep comparison
-- `test/functional/json_test.go`: Unit tests for all above functions
-- `test/functional/runner.go`: Integration
+- `internal/test/runner/json_test.go`: Unit tests for all above functions
+- `internal/test/runner/runner.go`: Integration
   - `validateJSON()`: Content-based matching (NLRI + action), not position-based
   - `extractNLRIs()`, `extractAction()`: Extract matching keys from plugin JSON
   - `decodeToEnvelope()`: Executes `zebgp decode --update` and parses JSON output

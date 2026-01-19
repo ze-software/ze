@@ -9,7 +9,7 @@ import (
 	"strings"
 	"syscall"
 
-	"codeberg.org/thomas-mangin/zebgp/pkg/exabgp"
+	"codeberg.org/thomas-mangin/zebgp/internal/exabgp"
 )
 
 // cmdExabgp handles the "zebgp exabgp" command and its subcommands.

@@ -25,10 +25,10 @@ Enable ADD-PATH (RFC 7911) path-id to be preserved in plugin events so RIB and o
 | Component | Status | Implementation |
 |-----------|--------|----------------|
 | Context propagation | ✅ Done | Via `AttributesWire.SourceContext()` → `EncodingContext` |
-| `MPReachWire.NLRIs(hasAddPath)` | ✅ Done | `pkg/plugin/mpwire.go` |
-| `MPUnreachWire.NLRIs(hasAddPath)` | ✅ Done | `pkg/plugin/mpwire.go` |
-| `IPv4Reach.NLRIs(hasAddPath)` | ✅ Done | `pkg/plugin/mpwire.go` |
-| `IPv4Withdraw.NLRIs(hasAddPath)` | ✅ Done | `pkg/plugin/mpwire.go` |
+| `MPReachWire.NLRIs(hasAddPath)` | ✅ Done | `internal/plugin/mpwire.go` |
+| `MPUnreachWire.NLRIs(hasAddPath)` | ✅ Done | `internal/plugin/mpwire.go` |
+| `IPv4Reach.NLRIs(hasAddPath)` | ✅ Done | `internal/plugin/mpwire.go` |
+| `IPv4Withdraw.NLRIs(hasAddPath)` | ✅ Done | `internal/plugin/mpwire.go` |
 | `FamilyNLRI.NLRIs` field | ✅ Done | Replaced `Prefixes []netip.Prefix` |
 | `AnnouncedByFamily(ctx)` | ✅ Done | Takes `*EncodingContext`, uses `ctx.AddPathFor()` |
 | `WithdrawnByFamily(ctx)` | ✅ Done | Takes `*EncodingContext`, uses `ctx.AddPathFor()` |
@@ -69,28 +69,28 @@ No changes to `RawMessage` required.
 All items below have been implemented.
 
 ### 1. ✅ Remove stale limitation comment
-**File:** `pkg/plugin/rib/rib.go:4-5` now reads:
+**File:** `internal/plugin/rib/rib.go:4-5` now reads:
 ```go
 // RFC 7911: ADD-PATH path-id is included in route keys when present.
 // Multiple paths to the same prefix with different path-ids are stored separately.
 ```
 
 ### 2. ✅ Update replayRoutes for path-id
-**File:** `pkg/plugin/rib/rib.go:377-382` - path-id included when non-zero
+**File:** `internal/plugin/rib/rib.go:377-382` - path-id included when non-zero
 
 ### 3. ✅ Fix formatNLRIJSON - use type assertion
-**File:** `pkg/plugin/text.go:252-258` - uses `prefixer` interface
+**File:** `internal/plugin/text.go:252-258` - uses `prefixer` interface
 
 ### 4. ✅ Add unit tests
 
 | Test | File | Status |
 |------|------|--------|
-| `TestRIBRouteKeyWithPathID` | `pkg/plugin/rib/rib_test.go` | ✅ Added |
-| `TestRIBParseStructuredJSON` | `pkg/plugin/rib/rib_test.go` | ✅ Added |
-| `TestReplayRoutesWithPathID` | `pkg/plugin/rib/rib_test.go` | ✅ Added |
-| `TestFormatNLRIJSONWithPathID` | `pkg/plugin/text_test.go` | ✅ Added |
-| `TestFormatNLRIJSONNoPathID` | `pkg/plugin/text_test.go` | ✅ Added |
-| `TestFormatNLRIJSONPathIDMax` | `pkg/plugin/text_test.go` | ✅ Added |
+| `TestRIBRouteKeyWithPathID` | `internal/plugin/rib/rib_test.go` | ✅ Added |
+| `TestRIBParseStructuredJSON` | `internal/plugin/rib/rib_test.go` | ✅ Added |
+| `TestReplayRoutesWithPathID` | `internal/plugin/rib/rib_test.go` | ✅ Added |
+| `TestFormatNLRIJSONWithPathID` | `internal/plugin/text_test.go` | ✅ Added |
+| `TestFormatNLRIJSONNoPathID` | `internal/plugin/text_test.go` | ✅ Added |
+| `TestFormatNLRIJSONPathIDMax` | `internal/plugin/text_test.go` | ✅ Added |
 
 ## 🧪 TDD Test Plan (Complete)
 

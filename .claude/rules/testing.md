@@ -59,7 +59,7 @@ func main() {
 | Parsing tests (valid) | `test/data/parse/valid/<name>.conf` | Config only |
 | Parsing tests (invalid) | `test/data/parse/invalid/<name>.conf` + `<name>.expect` | Config + error |
 | Decoding tests | `test/data/decode/<name>.json` | JSON test cases |
-| Unit tests | `pkg/<package>/<file>_test.go` | Go test file |
+| Unit tests | `internal/<package>/<file>_test.go` | Go test file |
 
 ### Creating Functional Tests
 
@@ -120,17 +120,17 @@ Full list: `errcheck`, `govet`, `ineffassign`, `staticcheck`, `unused`, `gocriti
 ## Individual Commands
 
 ```bash
-go test -race ./pkg/bgp/message/... -v       # Single package
+go test -race ./internal/bgp/message/... -v       # Single package
 go test -race ./... -run TestName -v          # Single test
 go test -race -cover ./...                    # Coverage
-go test -bench=. -benchmem ./pkg/...          # Benchmarks
+go test -bench=. -benchmem ./internal/...          # Benchmarks
 ```
 
 ## Fuzzing
 
 ```bash
-go test -fuzz=FuzzParseHeader -fuzztime=30s ./pkg/bgp/message/...
-go test -fuzz=. -fuzztime=10s ./pkg/bgp/...  # All fuzz tests (CI)
+go test -fuzz=FuzzParseHeader -fuzztime=30s ./internal/bgp/message/...
+go test -fuzz=. -fuzztime=10s ./internal/bgp/...  # All fuzz tests (CI)
 go test -list='Fuzz.*' ./...                  # List fuzz tests
 ```
 
@@ -167,9 +167,9 @@ zebgp-test run encoding --count 10 0 # Stress test
 ### testpeer (Library)
 
 ```go
-import "codeberg.org/thomas-mangin/zebgp/pkg/testpeer"
+import "codeberg.org/thomas-mangin/zebgp/internal/test/peer"
 
-peer, err := testpeer.New(&testpeer.Config{
+peer, err := peer.New(&peer.Config{
     Port: 1790, Sink: true, Output: &bytes.Buffer{},
 })
 if err != nil {
@@ -182,11 +182,11 @@ result := peer.Run(ctx)
 
 ## ExaBGP Compatibility
 
-The `pkg/exabgp/` library provides ZeBGP ↔ ExaBGP format translation:
+The `internal/exabgp/` library provides ZeBGP ↔ ExaBGP format translation:
 
 ```bash
 # Run Go tests for exabgp package
-go test -v ./pkg/exabgp/...
+go test -v ./internal/exabgp/...
 
 # Use zebgp exabgp plugin to run ExaBGP plugins with ZeBGP
 zebgp exabgp plugin /path/to/exabgp-plugin.py

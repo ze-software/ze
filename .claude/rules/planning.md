@@ -149,7 +149,7 @@ Present to user BEFORE writing code:
 
 ### 🧪 Tests First (TDD)
 **Unit tests:**
-- `pkg/.../xxx_test.go` - TestXxx: [what it validates]
+- `internal/.../xxx_test.go` - TestXxx: [what it validates]
 
 **Boundary tests:** (MANDATORY for numeric inputs)
 | Field | Last Valid | Invalid Below | Invalid Above |
@@ -165,7 +165,7 @@ Present to user BEFORE writing code:
 3. [additional phases...]
 
 ### Files Affected
-- `pkg/...` - [what changes]
+- `internal/...` - [what changes]
 
 ### Design Decisions
 - [decision]: [rationale from docs]
@@ -228,7 +228,7 @@ Write to `docs/plan/spec-<task-name>.md`:
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestXxx` | `pkg/.../xxx_test.go` | [description] | |
+| `TestXxx` | `internal/.../xxx_test.go` | [description] | |
 
 ### Boundary Tests (MANDATORY for numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
@@ -244,10 +244,10 @@ Write to `docs/plan/spec-<task-name>.md`:
 - [Tests to add later and why deferred]
 
 ## Files to Modify
-- `pkg/...` - [changes]
+- `internal/...` - [changes]
 
 ## Files to Create
-- `pkg/...` - [new file purpose]
+- `internal/...` - [new file purpose]
 - `test/data/...` - [test files]
 
 ## Implementation Steps

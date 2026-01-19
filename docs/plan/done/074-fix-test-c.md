@@ -59,8 +59,8 @@ A1:notification:Administrative Reset
 ## Files to Modify/Create
 
 ### Phase 1: Add "send" action to test peer
-- `pkg/testpeer/peer.go` - Add ability to send UPDATE to ZeBGP
-- `pkg/testpeer/checker.go` - Parse `send:raw:...` actions
+- `internal/test/peer/peer.go` - Add ability to send UPDATE to ZeBGP
+- `internal/test/peer/checker.go` - Parse `send:raw:...` actions
 
 ### Phase 2: Create new test files
 - `test/data/api/reconnect.conf` - Test C1 config
@@ -71,7 +71,7 @@ A1:notification:Administrative Reset
 - `test/data/api/teardown-cmd.ci` - Test C2 expectations
 
 ### Phase 3: Fix stale teardown bug
-- `pkg/reactor/peer.go` - Don't queue teardown when `p.session == nil`
+- `internal/reactor/peer.go` - Don't queue teardown when `p.session == nil`
 
 ### Phase 4: Remove old test C
 - Delete or rename `test/data/api/teardown.*`

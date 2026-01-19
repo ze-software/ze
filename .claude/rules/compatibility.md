@@ -31,7 +31,7 @@ ExaBGP compatibility is provided via **external tools**, not in-engine code:
 ### Architecture
 
 ```
-pkg/exabgp/           # Go library - core translation logic
+internal/exabgp/           # Go library - core translation logic
 ├── bridge.go         # ZebgpToExabgpJSON(), ExabgpToZebgpCommand(), Bridge
 └── bridge_test.go    # Unit tests
 

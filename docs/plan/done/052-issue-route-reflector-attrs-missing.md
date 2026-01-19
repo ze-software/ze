@@ -72,7 +72,7 @@ if len(p.ClusterList) > 0 {
 
 ## Files to Modify
 
-- `pkg/bgp/message/update_build.go`:
+- `internal/bgp/message/update_build.go`:
   - Add fields to `MVPNParams`, `FlowSpecParams`, `MUPParams`
   - Add encoding in `BuildMVPN`, `BuildFlowSpec`, `BuildMUP`
 

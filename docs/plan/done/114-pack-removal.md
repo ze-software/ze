@@ -25,8 +25,8 @@ The `Pack(ctx *PackContext) []byte` method allocated new slices, while `WriteTo(
 ## Implementation Summary
 
 ### What Was Removed
-- `pkg/bgp/nlri/pack.go` - PackContext type definition
-- `pkg/bgp/nlri/pack_test.go` - PackContext tests
+- `internal/bgp/nlri/pack.go` - PackContext type definition
+- `internal/bgp/nlri/pack_test.go` - PackContext tests
 - `Pack(ctx *PackContext) []byte` method from NLRI interface
 - `ToPackContext(family Family) *PackContext` from EncodingContext
 - `ctx *PackContext` parameter from `WriteTo()` methods

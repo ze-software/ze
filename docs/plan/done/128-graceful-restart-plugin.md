@@ -111,10 +111,10 @@ peer 127.0.0.1 {         →      4. Parse rest of config
 
 | Component | Change |
 |-----------|--------|
-| `pkg/config/loader.go` | Two-phase parsing: plugins first, then rest |
-| `pkg/config/schema.go` | Dynamic schema extension from plugin declarations |
-| `pkg/plugin/server.go` | New "schema declaration" stage before config parsing |
-| `pkg/plugin/registration.go` | Parse `declare conf schema ...` commands |
+| `internal/config/loader.go` | Two-phase parsing: plugins first, then rest |
+| `internal/config/schema.go` | Dynamic schema extension from plugin declarations |
+| `internal/plugin/server.go` | New "schema declaration" stage before config parsing |
+| `internal/plugin/registration.go` | Parse `declare conf schema ...` commands |
 
 #### Plugin Schema Declaration
 
@@ -184,7 +184,7 @@ config done
 
 ### Phase 2 Implementation Details
 
-#### Step 1: Plugin-Only Schema (`pkg/config/loader.go`)
+#### Step 1: Plugin-Only Schema (`internal/config/loader.go`)
 
 Create a minimal schema that only parses `plugin` blocks:
 
@@ -212,7 +212,7 @@ func LoadPluginsOnly(input string) ([]PluginConfig, error) {
 }
 ```
 
-#### Step 2: Dynamic Schema Extension (`pkg/config/schema.go`)
+#### Step 2: Dynamic Schema Extension (`internal/config/schema.go`)
 
 Add method to extend capability schema at runtime:
 
@@ -237,7 +237,7 @@ func (s *Schema) ExtendCapability(name string, fields ...FieldDef) error {
 }
 ```
 
-#### Step 3: Schema Declaration Parsing (`pkg/plugin/registration.go`)
+#### Step 3: Schema Declaration Parsing (`internal/plugin/registration.go`)
 
 Parse `declare conf schema` commands from plugins:
 
@@ -259,7 +259,7 @@ func (reg *PluginRegistration) parseConfSchema(args []string, line string) error
 }
 ```
 
-#### Step 4: Two-Phase Parsing Flow (`pkg/config/loader.go`)
+#### Step 4: Two-Phase Parsing Flow (`internal/config/loader.go`)
 
 ```go
 // LoadReactorWithPluginSchema implements two-phase parsing:
@@ -282,7 +282,7 @@ func LoadReactorWithPluginSchema(input string, schemaExtensions []SchemaExtensio
 }
 ```
 
-#### Step 5: Coordinator Integration (`pkg/plugin/server.go`)
+#### Step 5: Coordinator Integration (`internal/plugin/server.go`)
 
 Add schema collection stage before config delivery:
 
@@ -304,7 +304,7 @@ func (s *Server) collectSchemaDeclarations() []SchemaExtension {
 }
 ```
 
-#### Step 6: Remove Hardcoded GR (`pkg/config/bgp.go`)
+#### Step 6: Remove Hardcoded GR (`internal/config/bgp.go`)
 
 Remove `graceful-restart` from the hardcoded schema:
 
@@ -319,7 +319,7 @@ Field("capability", Container(
 )),
 ```
 
-#### Step 7: Update GR Plugin (`pkg/plugin/gr/gr.go`)
+#### Step 7: Update GR Plugin (`internal/plugin/gr/gr.go`)
 
 Update declaration to use schema syntax:
 
@@ -340,13 +340,13 @@ func (g *GRPlugin) doStartupProtocol() {
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestGRPlugin_ParseConfig` | `pkg/plugin/gr/gr_test.go` | Config line parsing | ✅ |
-| `TestGRPlugin_CapabilityWireFormat` | `pkg/plugin/gr/gr_test.go` | RFC 4724 wire encoding | ✅ |
-| `TestPluginOnlySchema` | `pkg/config/loader_test.go` | Only parses plugin blocks | |
-| `TestSchemaExtendCapability` | `pkg/config/schema_test.go` | Dynamic schema extension | |
-| `TestParseSchemaDeclaration` | `pkg/plugin/registration_test.go` | Parse `declare conf schema` | |
-| `TestTwoPhaseConfigParsing` | `pkg/config/loader_test.go` | Full two-phase flow | |
-| `TestGRSchemaDeclaration` | `pkg/plugin/gr/gr_test.go` | GR plugin declares schema | |
+| `TestGRPlugin_ParseConfig` | `internal/plugin/gr/gr_test.go` | Config line parsing | ✅ |
+| `TestGRPlugin_CapabilityWireFormat` | `internal/plugin/gr/gr_test.go` | RFC 4724 wire encoding | ✅ |
+| `TestPluginOnlySchema` | `internal/config/loader_test.go` | Only parses plugin blocks | |
+| `TestSchemaExtendCapability` | `internal/config/schema_test.go` | Dynamic schema extension | |
+| `TestParseSchemaDeclaration` | `internal/plugin/registration_test.go` | Parse `declare conf schema` | |
+| `TestTwoPhaseConfigParsing` | `internal/config/loader_test.go` | Full two-phase flow | |
+| `TestGRSchemaDeclaration` | `internal/plugin/gr/gr_test.go` | GR plugin declares schema | |
 
 ### Boundary Tests
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
@@ -361,19 +361,19 @@ func (g *GRPlugin) doStartupProtocol() {
 ## Files to Create
 | File | Purpose |
 |------|---------|
-| `pkg/plugin/gr/gr.go` | GR plugin implementation |
+| `internal/plugin/gr/gr.go` | GR plugin implementation |
 | `cmd/zebgp/plugin_gr.go` | CLI command `zebgp plugin gr` |
 
 ## Files to Modify
 | File | Change |
 |------|--------|
-| `pkg/plugin/rib/rib.go` | Remove GR config/capability code |
+| `internal/plugin/rib/rib.go` | Remove GR config/capability code |
 | `cmd/zebgp/plugin.go` | Add `gr` case to dispatch + update usage |
 | `test/data/plugin/graceful-restart.conf` | Use GR plugin instead of RIB |
 
 ## Implementation Steps
 
-### 1. GR Plugin (`pkg/plugin/gr/gr.go`)
+### 1. GR Plugin (`internal/plugin/gr/gr.go`)
 
 ```go
 type GRPlugin struct {
@@ -438,7 +438,7 @@ package main
 
 import (
     "os"
-    "codeberg.org/thomas-mangin/zebgp/pkg/plugin/gr"
+    "codeberg.org/thomas-mangin/zebgp/internal/plugin/gr"
 )
 
 func cmdPluginGR(_ []string) int {
@@ -461,7 +461,7 @@ And add to usage:
 
 ### 4. Remove GR from RIB Plugin
 
-In `pkg/plugin/rib/rib.go`:
+In `internal/plugin/rib/rib.go`:
 - Remove `grConfig map[string]uint16` field
 - Remove `declare conf peer * capability rfc4724:restart-time ...` line
 - Remove `registerCapabilities()` function
@@ -504,7 +504,7 @@ peer 127.0.0.1 {
 
 ## Verification
 
-1. **Unit test**: `go test ./pkg/plugin/gr/...`
+1. **Unit test**: `go test ./internal/plugin/gr/...`
 2. **Lint**: `make lint`
 3. **Functional test**: `go run ./test/cmd/functional plugin 6`
 4. **Manual test**:
@@ -523,11 +523,11 @@ peer 127.0.0.1 {
 ## Implementation Summary
 
 ### Phase 1: What Was Implemented
-- `pkg/plugin/gr/gr.go` - GR plugin with 5-stage startup protocol
-- `pkg/plugin/gr/gr_test.go` - Unit tests for config parsing, wire format, startup
+- `internal/plugin/gr/gr.go` - GR plugin with 5-stage startup protocol
+- `internal/plugin/gr/gr_test.go` - Unit tests for config parsing, wire format, startup
 - `cmd/zebgp/plugin_gr.go` - CLI command wrapper
 - `cmd/zebgp/plugin.go` - Added `gr` case to dispatch + usage string
-- `pkg/plugin/rib/rib.go` - Removed GR config/capability code (grConfig field, registerCapabilities)
+- `internal/plugin/rib/rib.go` - Removed GR config/capability code (grConfig field, registerCapabilities)
 - `test/data/plugin/graceful-restart.conf` - Updated to use GR plugin
 
 ### Phase 2: Pending

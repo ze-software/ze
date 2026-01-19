@@ -37,13 +37,13 @@ This matches the API command syntax (see `docs/architecture/api/architecture.md`
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestFlowSpecStringCommandStyle` | `pkg/bgp/nlri/flowspec_test.go` | FlowSpec.String() command format | |
-| `TestFlowSpecVPNStringCommandStyle` | `pkg/bgp/nlri/flowspec_test.go` | FlowSpecVPN.String() with RD | |
-| `TestPrefixComponentString` | `pkg/bgp/nlri/flowspec_test.go` | prefixComponent.String() format | |
-| `TestNumericComponentString` | `pkg/bgp/nlri/flowspec_test.go` | numericComponent.String() format | |
-| `TestNumericOperatorString` | `pkg/bgp/nlri/flowspec_test.go` | Operator symbols (=, >, <, etc.) | |
-| `TestBitmaskComponentString` | `pkg/bgp/nlri/flowspec_test.go` | TCP flags, fragment string format | |
-| `TestFlowSpecStringRoundTrip` | `pkg/bgp/nlri/flowspec_test.go` | String() matches API parse input | |
+| `TestFlowSpecStringCommandStyle` | `internal/bgp/nlri/flowspec_test.go` | FlowSpec.String() command format | |
+| `TestFlowSpecVPNStringCommandStyle` | `internal/bgp/nlri/flowspec_test.go` | FlowSpecVPN.String() with RD | |
+| `TestPrefixComponentString` | `internal/bgp/nlri/flowspec_test.go` | prefixComponent.String() format | |
+| `TestNumericComponentString` | `internal/bgp/nlri/flowspec_test.go` | numericComponent.String() format | |
+| `TestNumericOperatorString` | `internal/bgp/nlri/flowspec_test.go` | Operator symbols (=, >, <, etc.) | |
+| `TestBitmaskComponentString` | `internal/bgp/nlri/flowspec_test.go` | TCP flags, fragment string format | |
+| `TestFlowSpecStringRoundTrip` | `internal/bgp/nlri/flowspec_test.go` | String() matches API parse input | |
 
 ### Boundary Tests (MANDATORY for numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
@@ -58,7 +58,7 @@ This matches the API command syntax (see `docs/architecture/api/architecture.md`
 | N/A | - | Changes are in String() methods, tested via unit tests | |
 
 ## Files to Modify
-- `pkg/bgp/nlri/flowspec.go` - Update String() methods for FlowSpec, FlowSpecVPN, prefixComponent, numericComponent
+- `internal/bgp/nlri/flowspec.go` - Update String() methods for FlowSpec, FlowSpecVPN, prefixComponent, numericComponent
 
 ## Files to Create
 - None

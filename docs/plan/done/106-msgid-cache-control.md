@@ -24,23 +24,23 @@ N/A - internal API feature, no BGP protocol changes.
 ### Unit Tests
 | Test | File | Validates |
 |------|------|-----------|
-| `TestRecentUpdateCacheRetain` | `pkg/reactor/recent_cache_test.go` | Retained entries survive lazy cleanup |
-| `TestRecentUpdateCacheRetainNotFound` | `pkg/reactor/recent_cache_test.go` | Retain returns false for missing entry |
-| `TestRecentUpdateCacheRelease` | `pkg/reactor/recent_cache_test.go` | Release clears flag and resets TTL |
-| `TestRecentUpdateCacheReleaseNotFound` | `pkg/reactor/recent_cache_test.go` | Release returns false for missing entry |
-| `TestRecentUpdateCacheList` | `pkg/reactor/recent_cache_test.go` | List returns all valid IDs |
-| `TestRecentUpdateCacheListExcludesExpired` | `pkg/reactor/recent_cache_test.go` | List excludes expired entries |
-| `TestRecentUpdateCacheRetainedSurvivesExpiry` | `pkg/reactor/recent_cache_test.go` | Retained entries in List after TTL |
-| `TestRecentUpdateCacheRetainIdempotent` | `pkg/reactor/recent_cache_test.go` | Double retain is safe |
-| `TestRecentUpdateCacheReleaseNonRetained` | `pkg/reactor/recent_cache_test.go` | Release on non-retained resets TTL |
-| `TestRecentUpdateCacheTakeRetained` | `pkg/reactor/recent_cache_test.go` | Take works on retained entries |
-| `TestRecentUpdateCacheReleaseAfterTake` | `pkg/reactor/recent_cache_test.go` | Release fails after Take |
-| `TestMsgIDRetain` | `pkg/plugin/msgid_test.go` | Handler parses and calls RetainUpdate |
-| `TestMsgIDRelease` | `pkg/plugin/msgid_test.go` | Handler parses and calls ReleaseUpdate |
-| `TestMsgIDExpire` | `pkg/plugin/msgid_test.go` | Handler parses and calls DeleteUpdate |
-| `TestMsgIDList` | `pkg/plugin/msgid_test.go` | Handler calls ListUpdates |
-| `TestMsgIDRetainError` | `pkg/plugin/msgid_test.go` | Error propagation on expired ID |
-| `TestMsgIDUsageMessages` | `pkg/plugin/msgid_test.go` | Error messages show correct syntax |
+| `TestRecentUpdateCacheRetain` | `internal/reactor/recent_cache_test.go` | Retained entries survive lazy cleanup |
+| `TestRecentUpdateCacheRetainNotFound` | `internal/reactor/recent_cache_test.go` | Retain returns false for missing entry |
+| `TestRecentUpdateCacheRelease` | `internal/reactor/recent_cache_test.go` | Release clears flag and resets TTL |
+| `TestRecentUpdateCacheReleaseNotFound` | `internal/reactor/recent_cache_test.go` | Release returns false for missing entry |
+| `TestRecentUpdateCacheList` | `internal/reactor/recent_cache_test.go` | List returns all valid IDs |
+| `TestRecentUpdateCacheListExcludesExpired` | `internal/reactor/recent_cache_test.go` | List excludes expired entries |
+| `TestRecentUpdateCacheRetainedSurvivesExpiry` | `internal/reactor/recent_cache_test.go` | Retained entries in List after TTL |
+| `TestRecentUpdateCacheRetainIdempotent` | `internal/reactor/recent_cache_test.go` | Double retain is safe |
+| `TestRecentUpdateCacheReleaseNonRetained` | `internal/reactor/recent_cache_test.go` | Release on non-retained resets TTL |
+| `TestRecentUpdateCacheTakeRetained` | `internal/reactor/recent_cache_test.go` | Take works on retained entries |
+| `TestRecentUpdateCacheReleaseAfterTake` | `internal/reactor/recent_cache_test.go` | Release fails after Take |
+| `TestMsgIDRetain` | `internal/plugin/msgid_test.go` | Handler parses and calls RetainUpdate |
+| `TestMsgIDRelease` | `internal/plugin/msgid_test.go` | Handler parses and calls ReleaseUpdate |
+| `TestMsgIDExpire` | `internal/plugin/msgid_test.go` | Handler parses and calls DeleteUpdate |
+| `TestMsgIDList` | `internal/plugin/msgid_test.go` | Handler calls ListUpdates |
+| `TestMsgIDRetainError` | `internal/plugin/msgid_test.go` | Error propagation on expired ID |
+| `TestMsgIDUsageMessages` | `internal/plugin/msgid_test.go` | Error messages show correct syntax |
 
 ### Functional Tests
 | Test | Location | Scenario |
@@ -48,16 +48,16 @@ N/A - internal API feature, no BGP protocol changes.
 | N/A | - | Unit tests provide full coverage |
 
 ## Files to Modify
-- `pkg/reactor/recent_cache.go` - Add `retained` flag, `Retain()`, `Release()`, `List()`
-- `pkg/reactor/recent_cache_test.go` - Add 11 cache tests
-- `pkg/plugin/types.go` - Add `RetainUpdate`, `ReleaseUpdate`, `ListUpdates` to interface
-- `pkg/reactor/reactor.go` - Implement adapter methods on `reactorAPIAdapter`
-- `pkg/plugin/msgid.go` - New file: handler implementations
-- `pkg/plugin/msgid_test.go` - New file: handler tests
-- `pkg/plugin/handler.go` - Register `RegisterMsgIDHandlers(d)`
-- `pkg/plugin/forward_test.go` - Update mock with new interface methods
-- `pkg/plugin/handler_test.go` - Update mock with new interface methods
-- `pkg/plugin/update_text_test.go` - Update mock with new interface methods
+- `internal/reactor/recent_cache.go` - Add `retained` flag, `Retain()`, `Release()`, `List()`
+- `internal/reactor/recent_cache_test.go` - Add 11 cache tests
+- `internal/plugin/types.go` - Add `RetainUpdate`, `ReleaseUpdate`, `ListUpdates` to interface
+- `internal/reactor/reactor.go` - Implement adapter methods on `reactorAPIAdapter`
+- `internal/plugin/msgid.go` - New file: handler implementations
+- `internal/plugin/msgid_test.go` - New file: handler tests
+- `internal/plugin/handler.go` - Register `RegisterMsgIDHandlers(d)`
+- `internal/plugin/forward_test.go` - Update mock with new interface methods
+- `internal/plugin/handler_test.go` - Update mock with new interface methods
+- `internal/plugin/update_text_test.go` - Update mock with new interface methods
 - `docs/architecture/api/capability-contract.md` - Update status table
 
 ## Implementation Steps
@@ -109,9 +109,9 @@ N/A - no RFC constraints apply.
 
 ### Tests FAIL
 ```
-pkg/reactor/recent_cache_test.go:321:12: cache.Retain undefined
-pkg/reactor/recent_cache_test.go:349:11: cache.Retain undefined
-pkg/plugin/msgid_test.go:158: unexpected error: unknown command
+internal/reactor/recent_cache_test.go:321:12: cache.Retain undefined
+internal/reactor/recent_cache_test.go:349:11: cache.Retain undefined
+internal/plugin/msgid_test.go:158: unexpected error: unknown command
 ```
 
 ### Tests PASS
@@ -122,8 +122,8 @@ pkg/plugin/msgid_test.go:158: unexpected error: unknown command
 === RUN   TestMsgIDRetain
 --- PASS: TestMsgIDRetain (0.00s)
 PASS
-ok  	codeberg.org/thomas-mangin/zebgp/pkg/reactor	1.667s
-ok  	codeberg.org/thomas-mangin/zebgp/pkg/plugin	1.448s
+ok  	codeberg.org/thomas-mangin/zebgp/internal/reactor	1.667s
+ok  	codeberg.org/thomas-mangin/zebgp/internal/plugin	1.448s
 ```
 
 ### Final Verification

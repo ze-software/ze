@@ -4,8 +4,8 @@ import (
 	"flag"
 	"os"
 
-	"codeberg.org/thomas-mangin/zebgp/pkg/plugin/rib"
-	"codeberg.org/thomas-mangin/zebgp/pkg/slogutil"
+	"codeberg.org/thomas-mangin/zebgp/internal/plugin/rib"
+	"codeberg.org/thomas-mangin/zebgp/internal/slogutil"
 )
 
 // cmdPluginRib runs the RIB (Routing Information Base) plugin.

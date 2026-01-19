@@ -5,19 +5,19 @@ Remove deprecated functions that have been superseded by zero-allocation alterna
 
 ## Removed Code
 
-### pkg/bgp/message/update_build.go
+### internal/bgp/message/update_build.go
 | Function | Replacement | Reason |
 |----------|-------------|--------|
 | `BuildGroupedUnicast` | `BuildGroupedUnicastWithLimit` | No size limiting, can produce oversized UPDATEs |
 
-### pkg/reactor/reactor.go
+### internal/reactor/reactor.go
 | Function | Replacement | Reason |
 |----------|-------------|--------|
 | `buildAnnounceUpdate` | `WriteAnnounceUpdate` | Zero-allocation path available |
 | `buildWithdrawUpdate` | `WriteWithdrawUpdate` | Zero-allocation path available |
 | `buildAnnounceUpdateFromStatic` | `staticRouteToSpec` + `SendAnnounce` | Unused, zero-allocation path available |
 
-### pkg/reactor/reactor_test.go
+### internal/reactor/reactor_test.go
 | Test | Reason |
 |------|--------|
 | `TestBuildAnnounceUpdateIPv6UsesMPReachNLRI` | Covered by `TestWriteAnnounceUpdateIPv6` |

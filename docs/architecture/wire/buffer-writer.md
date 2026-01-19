@@ -32,7 +32,7 @@ Current code uses `append()` extensively:
 ### WireWriter Interface
 
 ```go
-// WireWriter is in pkg/bgp/context/context.go (not wire package due to import cycle).
+// WireWriter is in internal/bgp/context/context.go (not wire package due to import cycle).
 // Implemented by all wire types (Message, Attribute, NLRI).
 // Uses EncodingContext for capability-dependent encoding (ASN4, ADD-PATH, etc.)
 type WireWriter interface {
@@ -225,7 +225,7 @@ type CheckedWireWriter interface {
 ### Error Types
 
 ```go
-// pkg/bgp/wire/errors.go
+// internal/bgp/wire/errors.go
 var ErrBufferTooSmall = errors.New("wire: buffer too small")
 ```
 

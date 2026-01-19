@@ -1,10 +1,9 @@
 # ZeBGP - Agent Instructions
 
 ## Commands
-- `make test` - Run unit tests (`go test -race -v ./...`)
 - `make lint` - Run golangci-lint (26 linters)
+- `make test` - Run unit tests (`go test -race -v ./...`)
 - `make functional` - Run functional tests (37 tests)
-- `make ci` - Full CI check (lint + test + build)
 
 ## Workflow - Non-Trivial Features
 
@@ -224,11 +223,11 @@ Full list: `errcheck`, `govet`, `ineffassign`, `staticcheck`, `unused`, `gocriti
 
 ### Individual Commands
 ```bash
-go test -race ./pkg/bgp/message/... -v       # Single package
+go test -race ./internal/bgp/message/... -v       # Single package
 go test -race ./... -run TestName -v          # Single test
 go test -race -cover ./...                    # Coverage
-go test -bench=. -benchmem ./pkg/...          # Benchmarks
-go test -fuzz=FuzzParseHeader -fuzztime=30s ./pkg/bgp/message/...  # Fuzz
+go test -bench=. -benchmem ./internal/...          # Benchmarks
+go test -fuzz=FuzzParseHeader -fuzztime=30s ./internal/bgp/message/...  # Fuzz
 ```
 
 ## Config Design Rules

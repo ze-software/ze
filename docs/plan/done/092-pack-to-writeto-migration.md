@@ -21,12 +21,12 @@ Complete migration from allocating `Pack()` methods to zero-allocation `WriteTo(
 ### Unit Tests
 | Test | File | Validates |
 |------|------|-----------|
-| `TestASPathWriteTo` | `pkg/bgp/attribute/aspath_test.go` | ASPath encoding matches Pack() |
-| `TestAttributeWriteTo` | `pkg/bgp/attribute/attribute_test.go` | All attribute types |
-| `TestCommunityWriteTo` | `pkg/bgp/attribute/community_test.go` | Community/ExtComm/LargeCommunity |
-| `TestLenWriteTo` | `pkg/bgp/attribute/len_writeto_test.go` | Len() accuracy, extended-length boundary |
-| `TestUpdateWriteTo` | `pkg/bgp/message/update_test.go` | Full UPDATE message encoding |
-| `TestReactorWriteTo` | `pkg/reactor/reactor_test.go` | Session buffer integration |
+| `TestASPathWriteTo` | `internal/bgp/attribute/aspath_test.go` | ASPath encoding matches Pack() |
+| `TestAttributeWriteTo` | `internal/bgp/attribute/attribute_test.go` | All attribute types |
+| `TestCommunityWriteTo` | `internal/bgp/attribute/community_test.go` | Community/ExtComm/LargeCommunity |
+| `TestLenWriteTo` | `internal/bgp/attribute/len_writeto_test.go` | Len() accuracy, extended-length boundary |
+| `TestUpdateWriteTo` | `internal/bgp/message/update_test.go` | Full UPDATE message encoding |
+| `TestReactorWriteTo` | `internal/reactor/reactor_test.go` | Session buffer integration |
 
 ### Functional Tests
 | Test | Location | Scenario |
@@ -38,46 +38,46 @@ Complete migration from allocating `Pack()` methods to zero-allocation `WriteTo(
 ### Core Encoding
 | File | Changes |
 |------|---------|
-| `pkg/bgp/attribute/origin.go` | Add Len() method |
-| `pkg/bgp/attribute/aspath_test.go` | +244 lines: WriteTo vs Pack tests |
-| `pkg/bgp/attribute/attribute_test.go` | +247 lines: all attribute WriteTo tests |
-| `pkg/bgp/attribute/community_test.go` | +315 lines: community WriteTo tests |
-| `pkg/bgp/attribute/len_writeto_test.go` | +263 lines: Len accuracy, boundary tests |
+| `internal/bgp/attribute/origin.go` | Add Len() method |
+| `internal/bgp/attribute/aspath_test.go` | +244 lines: WriteTo vs Pack tests |
+| `internal/bgp/attribute/attribute_test.go` | +247 lines: all attribute WriteTo tests |
+| `internal/bgp/attribute/community_test.go` | +315 lines: community WriteTo tests |
+| `internal/bgp/attribute/len_writeto_test.go` | +263 lines: Len accuracy, boundary tests |
 
 ### Message Building
 | File | Changes |
 |------|---------|
-| `pkg/bgp/message/update.go` | Add AttributesSizeWithContext() |
-| `pkg/bgp/message/update_build.go` | Migrate builders to WriteTo |
-| `pkg/bgp/message/update_split.go` | Use WriteTo in splitting |
-| `pkg/bgp/message/update_test.go` | +63 lines: UPDATE WriteTo tests |
+| `internal/bgp/message/update.go` | Add AttributesSizeWithContext() |
+| `internal/bgp/message/update_build.go` | Migrate builders to WriteTo |
+| `internal/bgp/message/update_split.go` | Use WriteTo in splitting |
+| `internal/bgp/message/update_test.go` | +63 lines: UPDATE WriteTo tests |
 
 ### RIB Integration
 | File | Changes |
 |------|---------|
-| `pkg/rib/commit.go` | Use WriteAttrTo |
-| `pkg/rib/grouping.go` | Use WriteTo |
-| `pkg/rib/outgoing.go` | Use WriteTo |
-| `pkg/rib/route.go` | Add Len/WriteTo helpers |
-| `pkg/rib/store.go` | Use WriteTo |
-| `pkg/rib/update.go` | Use WriteTo |
+| `internal/rib/commit.go` | Use WriteAttrTo |
+| `internal/rib/grouping.go` | Use WriteTo |
+| `internal/rib/outgoing.go` | Use WriteTo |
+| `internal/rib/route.go` | Add Len/WriteTo helpers |
+| `internal/rib/store.go` | Use WriteTo |
+| `internal/rib/update.go` | Use WriteTo |
 
 ### Reactor/Session
 | File | Changes |
 |------|---------|
-| `pkg/reactor/peer.go` | +51 lines: WriteTo in peer sending |
-| `pkg/reactor/reactor.go` | +476 lines: full WriteTo integration |
-| `pkg/reactor/reactor_test.go` | +593 lines: comprehensive tests |
-| `pkg/reactor/session.go` | +86 lines: session buffer management |
+| `internal/reactor/peer.go` | +51 lines: WriteTo in peer sending |
+| `internal/reactor/reactor.go` | +476 lines: full WriteTo integration |
+| `internal/reactor/reactor_test.go` | +593 lines: comprehensive tests |
+| `internal/reactor/session.go` | +86 lines: session buffer management |
 
 ### Other
 | File | Changes |
 |------|---------|
 | `cmd/zebgp/encode.go` | Use WriteTo in CLI |
-| `pkg/plugin/commit_manager.go` | Use WriteTo |
-| `pkg/plugin/text.go` | Use WriteTo |
-| `pkg/cbor/base64.go`, `hex.go` | Add WriteTo helpers |
-| `pkg/bgp/nlri/ipvpn.go` | Add RD WriteTo |
+| `internal/plugin/commit_manager.go` | Use WriteTo |
+| `internal/plugin/text.go` | Use WriteTo |
+| `internal/cbor/base64.go`, `hex.go` | Add WriteTo helpers |
+| `internal/bgp/nlri/ipvpn.go` | Add RD WriteTo |
 
 ## Key Implementation Details
 

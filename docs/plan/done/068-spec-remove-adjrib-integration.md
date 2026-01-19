@@ -26,14 +26,14 @@ Router integrated Adj-RIB-Out for tracking sent routes. Delegated to external AP
 
 ## Changes Made
 
-### pkg/reactor/peer.go
+### internal/reactor/peer.go
 - Removed `adjRIBOut` field and `AdjRIBOut()` accessor
 - Updated doc comments
 - Removed `adjRIBOut.MarkSent()`, `RemoveFromSent()`, `GetSentRoutes()`, `FlushAllPending()` calls
 - Simplified `sendInitialRoutes()` - no longer re-sends Adj-RIB-Out routes
 - opQueue processing no longer tracks sent state
 
-### pkg/reactor/reactor.go
+### internal/reactor/reactor.go
 - Removed `ribOut` field from Reactor struct
 - Simplified `AnnounceRoute()`, `WithdrawRoute()` - removed transaction branches, sent tracking
 - Simplified `AnnounceLabeledUnicast()`, `WithdrawLabeledUnicast()` - same
@@ -45,28 +45,28 @@ Router integrated Adj-RIB-Out for tracking sent routes. Delegated to external AP
 - Removed `convertRIBError()` (unused)
 - `ForwardUpdate()` no longer tracks in Adj-RIB-Out
 
-### pkg/plugin/handler.go
+### internal/plugin/handler.go
 - Removed `rib show out`, `rib clear out`, `rib flush out` commands
 - Updated help text
 
-### pkg/plugin/types.go
+### internal/plugin/types.go
 - Added deprecation notices to interface methods
 
-### pkg/plugin/handler_test.go
+### internal/plugin/handler_test.go
 - Removed `TestRIBClearOut`, `TestRIBFlushOut`
 - Updated `TestRIBCommandsRegistered` to check only `rib show in`, `rib clear in`
 
 ### Deleted
-- `pkg/reactor/adjribout_forward_test.go`
+- `internal/reactor/adjribout_forward_test.go`
 
 ## What Stays
 
 | Item | Reason |
 |------|--------|
-| `pkg/rib/` package | Used by external `zebgp-rr` program |
-| `pkg/rib/outgoing.go` | Adj-RIB-Out implementation for external use |
-| `pkg/plugin/commit.go` | CommitManager for batching |
-| `pkg/plugin/commit_manager.go` | Transaction batching via `commit <name>` |
+| `internal/rib/` package | Used by external `zebgp-rr` program |
+| `internal/rib/outgoing.go` | Adj-RIB-Out implementation for external use |
+| `internal/plugin/commit.go` | CommitManager for batching |
+| `internal/plugin/commit_manager.go` | Transaction batching via `commit <name>` |
 
 ## Commit Batching
 

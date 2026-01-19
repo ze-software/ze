@@ -63,7 +63,7 @@ All new code MUST follow these patterns.
 Decoding/encoding BGP messages requires **negotiated capabilities** from OPEN exchange:
 
 ```go
-// Simplified view - see pkg/bgp/capability/negotiated.go for full struct
+// Simplified view - see internal/bgp/capability/negotiated.go for full struct
 type Negotiated struct {
     ASN4            bool                   // AS_PATH: 2-byte or 4-byte ASNs
     AddPath         map[Family]AddPathMode // NLRI: Receive/Send/Both path-id

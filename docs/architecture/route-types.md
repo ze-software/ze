@@ -8,14 +8,14 @@ ZeBGP has multiple route representations serving different purposes in the data 
 
 | Struct | Location | Purpose | Key Fields |
 |--------|----------|---------|------------|
-| `RouteSpec` | `pkg/plugin/types.go` | API input for announce/withdraw | Prefix, NextHop, PathAttributes |
-| `PathAttributes` | `pkg/plugin/types.go` | Shared BGP attributes | Origin, ASPath, MED, LocalPref, Communities |
-| `rib.Route` | `pkg/plugin/rib/rib.go` | Plugin storage for replay/resend | All attributes as strings + MsgID |
-| `rr.Route` | `pkg/plugin/rr/rib.go` | Minimal for zero-copy forwarding | MsgID, Family, Prefix only |
-| `RIBRoute` | `pkg/plugin/types.go` | Query output | Peer, Prefix, NextHop, ASPath (strings) |
-| `rib.Route` | `pkg/rib/route.go` | Core engine storage | NLRI, Attrs, ASPath, wire cache, refcount |
+| `RouteSpec` | `internal/plugin/types.go` | API input for announce/withdraw | Prefix, NextHop, PathAttributes |
+| `PathAttributes` | `internal/plugin/types.go` | Shared BGP attributes | Origin, ASPath, MED, LocalPref, Communities |
+| `rib.Route` | `internal/plugin/rib/rib.go` | Plugin storage for replay/resend | All attributes as strings + MsgID |
+| `rr.Route` | `internal/plugin/rr/rib.go` | Minimal for zero-copy forwarding | MsgID, Family, Prefix only |
+| `RIBRoute` | `internal/plugin/types.go` | Query output | Peer, Prefix, NextHop, ASPath (strings) |
+| `rib.Route` | `internal/rib/route.go` | Core engine storage | NLRI, Attrs, ASPath, wire cache, refcount |
 
-**Note:** Two different `rib.Route` types exist - one in `pkg/plugin/rib/` (plugin) and one in `pkg/rib/` (core engine).
+**Note:** Two different `rib.Route` types exist - one in `internal/plugin/rib/` (plugin) and one in `internal/rib/` (core engine).
 
 ## Route Type Families
 
@@ -78,7 +78,7 @@ Routes with separate structure:
 ## Package Organization
 
 ```
-pkg/plugin/
+internal/plugin/
 ├── types.go          # RouteSpec, PathAttributes, RIBRoute, route families
 ├── nexthop.go        # RouteNextHop (policy: explicit/self)
 ├── route.go          # Parsing: ParseRouteAttributes(), parseCommonAttribute()
@@ -90,10 +90,10 @@ pkg/plugin/
 └── rr/
     └── rib.go        # rr.Route (minimal/zero-copy)
 
-pkg/selector/
+internal/selector/
 └── selector.go       # Peer selectors (*, IP, !IP, ip,ip,ip)
 
-pkg/bgp/attribute/
+internal/bgp/attribute/
 ├── text.go           # Text formatting: FormatASPath(), FormatCommunities()
 └── *.go              # Wire format encoding/decoding
 ```

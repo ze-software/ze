@@ -35,7 +35,7 @@ ZeBGP:   ORIGIN, AS_PATH, LOCAL_PREF, LARGE_COMMUNITY, MP_REACH_NLRI
 - Wire bytes will differ but semantic meaning is identical
 
 **Files affected:**
-- `pkg/reactor/reactor.go` - `buildAnnounceUpdate()`
+- `internal/reactor/reactor.go` - `buildAnnounceUpdate()`
 - `test/data/api/*.ci` - Expected message files
 
 **Decision rationale:**

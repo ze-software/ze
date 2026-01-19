@@ -7,25 +7,25 @@ import (
 	"testing"
 	"time"
 
-	"codeberg.org/thomas-mangin/zebgp/pkg/reactor"
-	"codeberg.org/thomas-mangin/zebgp/pkg/testpeer"
+	"codeberg.org/thomas-mangin/zebgp/internal/reactor"
+	"codeberg.org/thomas-mangin/zebgp/internal/test/peer"
 )
 
 // runPeerTest runs a testpeer with the given config and connects a session.
-func runPeerTest(t *testing.T, peerConfig *testpeer.Config) testpeer.Result {
+func runPeerTest(t *testing.T, peerConfig *peer.Config) peer.Result {
 	t.Helper()
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	peer, err := testpeer.New(peerConfig)
+	p, err := peer.New(peerConfig)
 	if err != nil {
 		t.Fatalf("failed to create test peer: %v", err)
 	}
 
-	peerDone := make(chan testpeer.Result, 1)
+	peerDone := make(chan peer.Result, 1)
 	go func() {
-		peerDone <- peer.Run(ctx)
+		peerDone <- p.Run(ctx)
 	}()
 
 	time.Sleep(50 * time.Millisecond)
@@ -66,9 +66,9 @@ func runPeerTest(t *testing.T, peerConfig *testpeer.Config) testpeer.Result {
 func TestPeerSinkMode(t *testing.T) {
 	port := findFreePort(t)
 
-	result := runPeerTest(t, &testpeer.Config{
+	result := runPeerTest(t, &peer.Config{
 		Port:   int(port),
-		Mode:   testpeer.ModeSink,
+		Mode:   peer.ModeSink,
 		Output: &bytes.Buffer{},
 	})
 
@@ -83,7 +83,7 @@ func TestPeerSinkMode(t *testing.T) {
 func TestPeerCheckMode(t *testing.T) {
 	port := findFreePort(t)
 
-	result := runPeerTest(t, &testpeer.Config{
+	result := runPeerTest(t, &peer.Config{
 		Port:   int(port),
 		Expect: []string{}, // Empty - accept session
 		Output: &bytes.Buffer{},
@@ -101,9 +101,9 @@ func TestPeerCheckMode(t *testing.T) {
 func TestPeerEchoMode(t *testing.T) {
 	port := findFreePort(t)
 
-	result := runPeerTest(t, &testpeer.Config{
+	result := runPeerTest(t, &peer.Config{
 		Port:   int(port),
-		Mode:   testpeer.ModeEcho,
+		Mode:   peer.ModeEcho,
 		Output: &bytes.Buffer{},
 	})
 

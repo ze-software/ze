@@ -35,10 +35,10 @@ Implement non-blocking API parsing with goroutine-based dispatcher/gatherer patt
 ### Unit Tests
 | Test | File | Validates |
 |------|------|-----------|
-| `TestDispatcherSequencing` | `pkg/engine/api/dispatcher_test.go` | Sequence numbers assigned correctly |
-| `TestGathererOrdering` | `pkg/engine/api/gatherer_test.go` | Results reordered by sequence |
-| `TestWorkerPoolParallel` | `pkg/engine/api/worker_test.go` | Multiple parsers run concurrently |
-| `TestBackpressure` | `pkg/engine/api/pipeline_test.go` | Slow consumer doesn't lose data |
+| `TestDispatcherSequencing` | `internal/engine/api/dispatcher_test.go` | Sequence numbers assigned correctly |
+| `TestGathererOrdering` | `internal/engine/api/gatherer_test.go` | Results reordered by sequence |
+| `TestWorkerPoolParallel` | `internal/engine/api/worker_test.go` | Multiple parsers run concurrently |
+| `TestBackpressure` | `internal/engine/api/pipeline_test.go` | Slow consumer doesn't lose data |
 
 ### Functional Tests
 | Test | Location | Scenario |
@@ -47,11 +47,11 @@ Implement non-blocking API parsing with goroutine-based dispatcher/gatherer patt
 
 ## Files to Modify
 
-- `pkg/engine/api/dispatcher.go` - new: dispatch logic
-- `pkg/engine/api/gatherer.go` - new: ordering logic
-- `pkg/engine/api/worker.go` - new: parser worker pool
-- `pkg/engine/reactor.go` - integration point
-- `pkg/plugin/parse.go` - may need interface changes
+- `internal/engine/api/dispatcher.go` - new: dispatch logic
+- `internal/engine/api/gatherer.go` - new: ordering logic
+- `internal/engine/api/worker.go` - new: parser worker pool
+- `internal/engine/reactor.go` - integration point
+- `internal/plugin/parse.go` - may need interface changes
 
 ## Implementation Steps
 

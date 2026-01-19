@@ -6,8 +6,8 @@ import (
 	"os"
 	"strings"
 
-	"codeberg.org/thomas-mangin/zebgp/pkg/config"
-	"codeberg.org/thomas-mangin/zebgp/pkg/config/migration"
+	"codeberg.org/thomas-mangin/zebgp/internal/config"
+	"codeberg.org/thomas-mangin/zebgp/internal/config/migration"
 )
 
 // Exit codes for config commands.

@@ -10,7 +10,7 @@
 | Concept | Description |
 |---------|-------------|
 | **Purpose** | Deduplicate attributes/NLRIs in API programs |
-| **Location** | API program (Go: `pkg/rib/`, Python/Rust: implement equivalent) |
+| **Location** | API program (Go: `internal/rib/`, Python/Rust: implement equivalent) |
 | **Key Pattern** | Double-buffer with MSB handles: `Handle = (bufferBit << 31) \| slotIndex` |
 | **Core Types** | `Handle`, `Pool`, `Slot`, `CompactionScheduler` |
 | **Key Functions** | `Pool.Intern()`, `Pool.Get()`, `Pool.AddRef()`, `Pool.Release()` |
@@ -992,7 +992,7 @@ func (p *Pool) Length(h Handle) int
 
 - `docs/architecture/rib-transition.md` - Overall architecture (RIB in API)
 - `docs/plan/spec-api-rr.md` - Route Server implementation
-- `pkg/rib/` - Go reference implementation
+- `internal/rib/` - Go reference implementation
 
 ---
 

@@ -17,7 +17,7 @@ When zebgp shut down:
 ## Solution
 Two fixes applied:
 
-### 1. Process shutdown signal (pkg/plugin/process.go)
+### 1. Process shutdown signal (internal/plugin/process.go)
 Added `SendShutdown()` method that writes `{"answer": "shutdown"}\n` **synchronously**
 to process stdin, bypassing the async write queue.
 
@@ -35,7 +35,7 @@ func (p *Process) SendShutdown() {
 }
 ```
 
-### 2. Graceful test runner shutdown (test/functional/runner.go)
+### 2. Graceful test runner shutdown (internal/test/runner/runner.go)
 Changed from `Kill()` (SIGKILL) to `Signal(SIGTERM)` with 2s grace period.
 This allows zebgp to run cleanup and send shutdown signals.
 
@@ -49,8 +49,8 @@ Fast runs (~6-8s): Shutdown arrives during wait_for_ack
 Slow runs (~13-15s): Shutdown arrives after wait_for_shutdown times out
 
 ## Files Modified
-- `pkg/plugin/process.go` - Added synchronous SendShutdown(), modified ProcessManager.Stop()
-- `test/functional/runner.go` - SIGTERM + grace period instead of SIGKILL
+- `internal/plugin/process.go` - Added synchronous SendShutdown(), modified ProcessManager.Stop()
+- `internal/test/runner/runner.go` - SIGTERM + grace period instead of SIGKILL
 - `test/data/api/teardown.ci` - Adjusted timeout to 18s
 
 ## Verification

@@ -19,7 +19,7 @@
 
 | Task | Description | Status |
 |------|-------------|--------|
-| 3.1 | CommitManager for concurrent commits | ✅ `pkg/plugin/commit_manager.go` |
+| 3.1 | CommitManager for concurrent commits | ✅ `internal/plugin/commit_manager.go` |
 | 3.2 | `commit <name> start` | ✅ |
 | 3.3 | `commit <name> end` (no EOR) | ✅ |
 | 3.4 | `commit <name> eor` (with EOR) | ✅ |
@@ -33,8 +33,8 @@
 
 ### Key Implementation Details
 
-- **SendRoutes method** added to ReactorInterface (`pkg/plugin/types.go:200`)
-- **SendRoutes implementation** in reactor uses CommitService (`pkg/reactor/reactor.go:672-740`)
+- **SendRoutes method** added to ReactorInterface (`internal/plugin/types.go:200`)
+- **SendRoutes implementation** in reactor uses CommitService (`internal/reactor/reactor.go:672-740`)
 - **handleNamedCommitEnd** wired to call SendRoutes with routes from Transaction
 - **Announce/Withdraw handlers** parse routes and queue to Transaction
 
@@ -119,7 +119,7 @@ OutgoingRIB.QueueAnnounce()  ← Queued but...
 ### Commit Service
 
 ```go
-// pkg/rib/commit.go
+// internal/rib/commit.go
 
 type CommitService struct {
     peer      PeerSender
@@ -192,7 +192,7 @@ func (c *CommitService) Commit(routes []*Route, opts CommitOptions) (CommitStats
 ### Config Route Integration
 
 ```go
-// pkg/reactor/peer.go
+// internal/reactor/peer.go
 
 func (p *Peer) sendInitialRoutes() error {
     // Collect all config routes
@@ -261,7 +261,7 @@ commit batch1 eor   # → 1 grouped UPDATE + EOR
 ```
 
 ```go
-// pkg/plugin/commit.go
+// internal/plugin/commit.go
 
 // CommitManager tracks multiple concurrent commits
 type CommitManager struct {
@@ -358,17 +358,17 @@ func handleCommit(ctx *APIContext, args []string) Response {
 
 | # | Task | Files |
 |---|------|-------|
-| 1.1 | Create CommitService with Commit() method | `pkg/rib/commit.go` |
-| 1.2 | Move grouping logic to use RIB's GroupByAttributes | `pkg/rib/commit.go` |
-| 1.3 | Add BuildEOR() to message package (refactor from reactor) | `pkg/bgp/message/eor.go` |
-| 1.4 | Tests for CommitService | `pkg/rib/commit_test.go` |
+| 1.1 | Create CommitService with Commit() method | `internal/rib/commit.go` |
+| 1.2 | Move grouping logic to use RIB's GroupByAttributes | `internal/rib/commit.go` |
+| 1.3 | Add BuildEOR() to message package (refactor from reactor) | `internal/bgp/message/eor.go` |
+| 1.4 | Tests for CommitService | `internal/rib/commit_test.go` |
 
 ### Phase 2: Config Route Migration
 
 | # | Task | Files |
 |---|------|-------|
-| 2.1 | Refactor sendInitialRoutes() to use CommitService | `pkg/reactor/peer.go` |
-| 2.2 | Remove duplicate grouping logic from peer.go | `pkg/reactor/peer.go` |
+| 2.1 | Refactor sendInitialRoutes() to use CommitService | `internal/reactor/peer.go` |
+| 2.2 | Remove duplicate grouping logic from peer.go | `internal/reactor/peer.go` |
 | 2.3 | Verify existing tests still pass | `make test` |
 | 2.4 | Update .ci files if EOR format changes | `test/data/encode/*.ci` |
 
@@ -376,17 +376,17 @@ func handleCommit(ctx *APIContext, args []string) Response {
 
 | # | Task | Files |
 |---|------|-------|
-| 3.1 | Create CommitManager for multiple concurrent commits | `pkg/plugin/commit.go` |
-| 3.2 | Implement `commit [name] start` | `pkg/plugin/commit.go` |
-| 3.3 | Implement `commit [name] end` (no EOR) | `pkg/plugin/commit.go` |
-| 3.4 | Implement `commit [name] eor` (with EOR) | `pkg/plugin/commit.go` |
-| 3.5 | Implement `commit [name] rollback` | `pkg/plugin/commit.go` |
-| 3.6 | Handle `commit <name> announce/withdraw` routing | `pkg/plugin/commit.go` |
-| 3.7 | Implement `commit list` (introspection) | `pkg/plugin/commit.go` |
-| 3.8 | Implement `commit <name> show` (introspection) | `pkg/plugin/commit.go` |
-| 3.9 | Handle route conflicts (replace) and cancel (withdraw after announce) | `pkg/plugin/commit.go` |
-| 3.10 | Register commands in dispatcher | `pkg/plugin/dispatcher.go` |
-| 3.11 | Tests for API commit commands | `pkg/plugin/commit_test.go` |
+| 3.1 | Create CommitManager for multiple concurrent commits | `internal/plugin/commit.go` |
+| 3.2 | Implement `commit [name] start` | `internal/plugin/commit.go` |
+| 3.3 | Implement `commit [name] end` (no EOR) | `internal/plugin/commit.go` |
+| 3.4 | Implement `commit [name] eor` (with EOR) | `internal/plugin/commit.go` |
+| 3.5 | Implement `commit [name] rollback` | `internal/plugin/commit.go` |
+| 3.6 | Handle `commit <name> announce/withdraw` routing | `internal/plugin/commit.go` |
+| 3.7 | Implement `commit list` (introspection) | `internal/plugin/commit.go` |
+| 3.8 | Implement `commit <name> show` (introspection) | `internal/plugin/commit.go` |
+| 3.9 | Handle route conflicts (replace) and cancel (withdraw after announce) | `internal/plugin/commit.go` |
+| 3.10 | Register commands in dispatcher | `internal/plugin/dispatcher.go` |
+| 3.11 | Tests for API commit commands | `internal/plugin/commit_test.go` |
 
 **Command syntax:**
 ```
@@ -413,10 +413,10 @@ withdraw route ...                 # IMMEDIATE send (no batching, no commit)
 
 | # | Task | Files |
 |---|------|-------|
-| 4.1 | Ensure BeginTransaction/CommitTransaction work with CommitService | `pkg/rib/outgoing.go` |
-| 4.2 | Add FlushTransaction() to get pending routes | `pkg/rib/outgoing.go` |
-| 4.3 | Handle edge cases (disconnect during transaction) | `pkg/rib/outgoing.go` |
-| 4.4 | Tests for transaction edge cases | `pkg/rib/outgoing_test.go` |
+| 4.1 | Ensure BeginTransaction/CommitTransaction work with CommitService | `internal/rib/outgoing.go` |
+| 4.2 | Add FlushTransaction() to get pending routes | `internal/rib/outgoing.go` |
+| 4.3 | Handle edge cases (disconnect during transaction) | `internal/rib/outgoing.go` |
+| 4.4 | Tests for transaction edge cases | `internal/rib/outgoing_test.go` |
 
 ### Phase 5: Self-Check API Tests (Future)
 
@@ -601,7 +601,7 @@ API Client                    ZeBGP
 ### Unit Tests
 
 ```go
-// pkg/rib/commit_test.go
+// internal/rib/commit_test.go
 
 func TestCommitService_GroupsRoutesByAttributes(t *testing.T) {
     // 3 routes, 2 with same attrs → 2 UPDATEs
@@ -623,7 +623,7 @@ func TestCommitService_TracksAffectedFamilies(t *testing.T) {
 ### Integration Tests
 
 ```go
-// pkg/reactor/peer_test.go
+// internal/reactor/peer_test.go
 
 func TestPeer_ConfigRoutesUseCommitService(t *testing.T) {
     // Verify grouped UPDATEs + EOR after config routes
@@ -843,6 +843,6 @@ type Transaction struct {
 
 - RFC 4724: Graceful Restart (EOR definition)
 - ExaBGP group commands: `../src/exabgp/reactor/api/command/group.py`
-- Current peer.go: `pkg/reactor/peer.go:330-412`
-- Current grouping: `pkg/rib/grouping.go`
-- OutgoingRIB: `pkg/rib/outgoing.go`
+- Current peer.go: `internal/reactor/peer.go:330-412`
+- Current grouping: `internal/rib/grouping.go`
+- OutgoingRIB: `internal/rib/outgoing.go`

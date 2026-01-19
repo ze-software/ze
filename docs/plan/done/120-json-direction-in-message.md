@@ -32,9 +32,9 @@ N/A - Internal API format, not protocol-related.
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestJSONEncoderDirectionInMessage` | `pkg/plugin/json_test.go` | direction inside message wrapper | |
-| `TestJSONEncoderNotification` | `pkg/plugin/json_test.go` | Update existing to check message.direction | |
-| `TestJSONEncoderNotificationSent` | `pkg/plugin/json_test.go` | Update existing | |
+| `TestJSONEncoderDirectionInMessage` | `internal/plugin/json_test.go` | direction inside message wrapper | |
+| `TestJSONEncoderNotification` | `internal/plugin/json_test.go` | Update existing to check message.direction | |
+| `TestJSONEncoderNotificationSent` | `internal/plugin/json_test.go` | Update existing | |
 
 ### Boundary Tests
 N/A - String field, no numeric boundaries.
@@ -49,32 +49,32 @@ None.
 
 ## Files to Modify
 
-### pkg/plugin/json.go
+### internal/plugin/json.go
 - `Notification()` - move `msg["direction"]` inside message wrapper
 - `Open()` - move `msg["direction"]` inside message wrapper
 - `Keepalive()` - move `msg["direction"]` inside message wrapper
 - `RouteRefresh()` - move `msg["direction"]` inside message wrapper
 - Add helper `setMessageDirection()` similar to `setMessageID()`
 
-### pkg/plugin/text.go
+### internal/plugin/text.go
 - `formatFilterResultJSON()` - move direction inside message wrapper
 - `formatRawFromResult()` - move direction inside message wrapper
 
-### pkg/plugin/rib/event.go
+### internal/plugin/rib/event.go
 - Move `Direction` field inside message wrapper struct
 
-### pkg/plugin/json_test.go
+### internal/plugin/json_test.go
 - Update `TestJSONEncoderNotification` assertion
 - Update `TestJSONEncoderNotificationSent` assertion
 - Update other tests checking `result["direction"]`
 
-### pkg/plugin/text_test.go
+### internal/plugin/text_test.go
 - Update `TestFormatUpdateParsedJSON` assertion
 
-### pkg/plugin/server_test.go
+### internal/plugin/server_test.go
 - Update `TestServerFormatMessageNotificationJSON` assertion
 
-### pkg/plugin/rib/rib_test.go
+### internal/plugin/rib/rib_test.go
 - Update test input JSON strings
 
 ### docs/architecture/api/architecture.md

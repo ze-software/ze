@@ -247,9 +247,9 @@ func TestPoolWithIdx(t *testing.T) {
 ## Quick Commands
 
 ```bash
-go test -race ./pkg/bgp/message/... -v   # Single package
+go test -race ./internal/bgp/message/... -v   # Single package
 make test                                  # All tests
-go test -fuzz=FuzzParseNLRI -fuzztime=30s ./pkg/bgp/nlri/...  # Fuzz
+go test -fuzz=FuzzParseNLRI -fuzztime=30s ./internal/bgp/nlri/...  # Fuzz
 ```
 
 ## Forbidden

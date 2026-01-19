@@ -411,10 +411,10 @@ cat /var/run/zebgp.sock
 
 | File | Changes |
 |------|---------|
-| `pkg/reactor/reactor.go` | Add observer interface, methods, apiStateObserver |
-| `pkg/reactor/peer.go` | Add reactor field, SetReactor, modify FSM callback |
-| `pkg/plugin/server.go` | Add EmitPeerState method |
-| `pkg/reactor/reactor_test.go` | Add callback tests |
+| `internal/reactor/reactor.go` | Add observer interface, methods, apiStateObserver |
+| `internal/reactor/peer.go` | Add reactor field, SetReactor, modify FSM callback |
+| `internal/plugin/server.go` | Add EmitPeerState method |
+| `internal/reactor/reactor_test.go` | Add callback tests |
 
 ---
 

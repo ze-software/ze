@@ -19,9 +19,9 @@ Consolidate test commands into cleaner structure:
 - [ ] `Makefile` - [targets to update]
 
 **Key insights:**
-- functional imports `test/functional` package (keep unchanged)
-- test-syslog imports `pkg/testsyslog` package (keep unchanged)
-- zebgp-peer imports `pkg/testpeer` package (keep unchanged)
+- functional imports `internal/test/runner` package (keep unchanged)
+- test-syslog imports `internal/test/syslog` package (keep unchanged)
+- zebgp-peer imports `internal/test/peer` package (keep unchanged)
 - Only moving/reorganizing cmd entry points, not libraries
 
 ## Current State
@@ -82,13 +82,13 @@ zebgp-peer [flags] [expect-file]
 ### Unit Tests
 
 No new unit tests required - this is a reorganization of existing cmd entry points.
-Libraries (`test/functional`, `pkg/testsyslog`, `pkg/testpeer`) remain unchanged.
+Libraries (`internal/test/runner`, `internal/test/syslog`, `internal/test/peer`) remain unchanged.
 
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| Existing functional tests | `test/functional/*_test.go` | Library unchanged | |
-| Existing testpeer tests | `pkg/testpeer/*_test.go` | Library unchanged | |
-| Existing testsyslog tests | `pkg/testsyslog/*_test.go` | Library unchanged | |
+| Existing functional tests | `internal/test/runner/*_test.go` | Library unchanged | |
+| Existing testpeer tests | `internal/test/peer/*_test.go` | Library unchanged | |
+| Existing testsyslog tests | `internal/test/syslog/*_test.go` | Library unchanged | |
 
 ### Functional Tests
 
@@ -132,14 +132,14 @@ Libraries (`test/functional`, `pkg/testsyslog`, `pkg/testpeer`) remain unchanged
 - Created `cmd/zebgp-test/` with subcommand dispatch (main.go, run.go, syslog.go)
 - Moved `zebgp-peer` from `test/cmd/` to `cmd/`
 - Updated Makefile functional targets to use `go run ./cmd/zebgp-test run`
-- Updated `test/functional/runner.go` build path for zebgp-peer
-- Updated `test/functional/report.go` debug commands
+- Updated `internal/test/runner/runner.go` build path for zebgp-peer
+- Updated `internal/test/runner/report.go` debug commands
 - Deleted `test/cmd/` directory entirely (including obsolete migrate-ci, ci-fix-order)
 - Deleted stray `migrate-ci` directory at root
 - Updated documentation: `docs/functional-tests.md`, `docs/debugging-tools.md`, `.claude/rules/testing.md`
 
 ### Design Insights
-- Libraries unchanged: `test/functional`, `pkg/testsyslog`, `pkg/testpeer` all work with new cmd structure
+- Libraries unchanged: `internal/test/runner`, `internal/test/syslog`, `internal/test/peer` all work with new cmd structure
 - Subcommand pattern (zebgp-test run, zebgp-test syslog) cleaner than separate binaries
 
 ## Checklist

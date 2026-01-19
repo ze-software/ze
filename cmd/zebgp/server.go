@@ -8,7 +8,7 @@ import (
 	"os/signal"
 	"syscall"
 
-	"codeberg.org/thomas-mangin/zebgp/pkg/config"
+	"codeberg.org/thomas-mangin/zebgp/internal/config"
 )
 
 func cmdServer(args []string) int {

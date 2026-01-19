@@ -30,7 +30,7 @@ This is a follow-up to `spec-wirewriter-unification.md` which:
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestPackToEquivalence` | `pkg/bgp/message/wirewriter_test.go` | PackTo produces same output as Pack | |
+| `TestPackToEquivalence` | `internal/bgp/message/wirewriter_test.go` | PackTo produces same output as Pack | |
 
 ### Functional Tests
 | Test | Location | Scenario | Status |
@@ -46,29 +46,29 @@ This is a follow-up to `spec-wirewriter-unification.md` which:
 - `packWithHeader()` helper (lines 52-72) - replaced by writeHeader
 
 ### Remove Pack() methods
-- `pkg/bgp/message/keepalive.go` - Remove Pack() method
-- `pkg/bgp/message/open.go` - Remove Pack() method
-- `pkg/bgp/message/update.go` - Remove Pack() method
-- `pkg/bgp/message/notification.go` - Remove Pack() method
-- `pkg/bgp/message/routerefresh.go` - Remove Pack() method
+- `internal/bgp/message/keepalive.go` - Remove Pack() method
+- `internal/bgp/message/open.go` - Remove Pack() method
+- `internal/bgp/message/update.go` - Remove Pack() method
+- `internal/bgp/message/notification.go` - Remove Pack() method
+- `internal/bgp/message/routerefresh.go` - Remove Pack() method
 
 ### Migrate to EncodingContext
-- `pkg/rib/commit.go` - Replace `*message.Negotiated` with `*bgpctx.EncodingContext`
-- `pkg/rib/commit_test.go` - Use EncodingContext in tests
-- `pkg/rib/commit_edge_test.go` - Use EncodingContext in tests
-- `pkg/rib/commit_wire_test.go` - Use EncodingContext in tests
-- `pkg/reactor/peer.go` - Remove `messageNegotiated()` function
+- `internal/rib/commit.go` - Replace `*message.Negotiated` with `*bgpctx.EncodingContext`
+- `internal/rib/commit_test.go` - Use EncodingContext in tests
+- `internal/rib/commit_edge_test.go` - Use EncodingContext in tests
+- `internal/rib/commit_wire_test.go` - Use EncodingContext in tests
+- `internal/reactor/peer.go` - Remove `messageNegotiated()` function
 
 ### Update test files using Pack()
-- `pkg/bgp/message/eor_test.go` - Use PackTo instead
-- `pkg/bgp/message/update_build_evpn_test.go` - Use PackTo instead
-- `pkg/bgp/message/wirewriter_test.go` - Remove Pack() references
-- `pkg/bgp/message/update_test.go` - Use PackTo instead
+- `internal/bgp/message/eor_test.go` - Use PackTo instead
+- `internal/bgp/message/update_build_evpn_test.go` - Use PackTo instead
+- `internal/bgp/message/wirewriter_test.go` - Remove Pack() references
+- `internal/bgp/message/update_test.go` - Use PackTo instead
 
 ## Files NOT Modified
-- `pkg/reactor/reactor.go` - Uses capability.Pack() not message.Pack()
-- `pkg/reactor/session.go` - Uses capability.Pack() not message.Pack()
-- `pkg/bgp/message/family.go` - Keep AFI/SAFI constants and FamilyConfigNames
+- `internal/reactor/reactor.go` - Uses capability.Pack() not message.Pack()
+- `internal/reactor/session.go` - Uses capability.Pack() not message.Pack()
+- `internal/bgp/message/family.go` - Keep AFI/SAFI constants and FamilyConfigNames
 
 ## Implementation Steps
 
@@ -86,7 +86,7 @@ This is a follow-up to `spec-wirewriter-unification.md` which:
 
 ### What Was Implemented
 
-1. **Removed Pack() from Message interface** (`pkg/bgp/message/message.go`)
+1. **Removed Pack() from Message interface** (`internal/bgp/message/message.go`)
    - Deleted `Pack(neg *Negotiated) ([]byte, error)` from interface
    - Deleted `message.Negotiated` struct
    - Deleted `message.Family` struct
@@ -118,27 +118,27 @@ This is a follow-up to `spec-wirewriter-unification.md` which:
    - Reactor now uses `peer.SendContext()` directly
 
 ### Files Modified
-- `pkg/bgp/message/message.go`
-- `pkg/bgp/message/keepalive.go`
-- `pkg/bgp/message/open.go`
-- `pkg/bgp/message/update.go`
-- `pkg/bgp/message/notification.go`
-- `pkg/bgp/message/routerefresh.go`
-- `pkg/bgp/message/wirewriter_test.go`
-- `pkg/bgp/message/eor_test.go`
-- `pkg/bgp/message/update_build_evpn_test.go`
-- `pkg/bgp/message/update_test.go`
-- `pkg/bgp/message/keepalive_test.go`
-- `pkg/bgp/message/notification_test.go`
-- `pkg/bgp/message/open_test.go`
-- `pkg/bgp/message/routerefresh_test.go`
-- `pkg/bgp/message/update_split_test.go`
-- `pkg/rib/commit.go`
-- `pkg/rib/commit_test.go`
-- `pkg/rib/commit_edge_test.go`
-- `pkg/rib/commit_wire_test.go`
-- `pkg/reactor/peer.go`
-- `pkg/reactor/reactor.go`
+- `internal/bgp/message/message.go`
+- `internal/bgp/message/keepalive.go`
+- `internal/bgp/message/open.go`
+- `internal/bgp/message/update.go`
+- `internal/bgp/message/notification.go`
+- `internal/bgp/message/routerefresh.go`
+- `internal/bgp/message/wirewriter_test.go`
+- `internal/bgp/message/eor_test.go`
+- `internal/bgp/message/update_build_evpn_test.go`
+- `internal/bgp/message/update_test.go`
+- `internal/bgp/message/keepalive_test.go`
+- `internal/bgp/message/notification_test.go`
+- `internal/bgp/message/open_test.go`
+- `internal/bgp/message/routerefresh_test.go`
+- `internal/bgp/message/update_split_test.go`
+- `internal/rib/commit.go`
+- `internal/rib/commit_test.go`
+- `internal/rib/commit_edge_test.go`
+- `internal/rib/commit_wire_test.go`
+- `internal/reactor/peer.go`
+- `internal/reactor/reactor.go`
 - `cmd/zebgp/encode.go`
 
 ### Key Design Decisions

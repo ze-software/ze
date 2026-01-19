@@ -77,7 +77,7 @@ Remove redundant `announce`/`withdraw` command handlers and consolidate all rout
 
 **Commit:** `4701458` - refactor(api): consolidate route commands to update text (Phase 1)
 
-**What was removed from `pkg/plugin/route.go`:**
+**What was removed from `internal/plugin/route.go`:**
 - `handleAnnounceIPv4`, `handleAnnounceIPv6`, `handleWithdrawIPv4`, `handleWithdrawIPv6`
 - `makeAFISAFIHandler`, `handleAFIRoute`
 - `handleAnnounceNLRI`, `handleAnnounceUpdate`
@@ -89,7 +89,7 @@ Remove redundant `announce`/`withdraw` command handlers and consolidate all rout
 - Helper functions: `respondError`, `parseWatchdogArg`, `buildRoute`, `queueRoutesToCommit`, `validateRD`
 
 **Tests updated:**
-- `pkg/plugin/handler_test.go` - Removed 808 lines of tests for deleted handlers
+- `internal/plugin/handler_test.go` - Removed 808 lines of tests for deleted handlers
 - `test/data/plugin/*.ci`, `*.run`, `*.conf` - Updated to use `update text` syntax
 - `test/data/encode/extended-nexthop.ci` - Updated to use `update text` syntax
 
@@ -117,7 +117,7 @@ update text nlri ipv6/unicast eor
 update text nlri l2vpn/evpn eor
 ```
 
-**Implementation in `pkg/plugin/update_text.go`:**
+**Implementation in `internal/plugin/update_text.go`:**
 1. Added `kwEOR = "eor"` as action keyword (alongside `add`, `del`, `set`)
 2. In `parseNLRISection()`, detect `eor` after family and return empty lists
 3. In `ParseUpdateText()`, detect EOR (valid family with empty lists) → add to `EORFamilies`
@@ -196,7 +196,7 @@ update text nlri l2vpn/evpn add multicast rd 1:1 ip 192.168.1.1
 
 #### Step 2.4: Remove legacy handlers ✅
 
-Removed from `pkg/plugin/route.go`:
+Removed from `internal/plugin/route.go`:
 - `handleAnnounceEOR`
 - `handleAnnounceVPLS`, `handleWithdrawVPLS`
 - `handleAnnounceL2VPN`, `handleWithdrawL2VPN`
@@ -222,8 +222,8 @@ Consider implementing after core Phase 2 is complete.
 
 | File | Changes |
 |------|---------|
-| `pkg/plugin/route.go` | Removed 929 lines - handlers, impl functions, helpers |
-| `pkg/plugin/handler_test.go` | Removed 808 lines - tests for deleted handlers |
+| `internal/plugin/route.go` | Removed 929 lines - handlers, impl functions, helpers |
+| `internal/plugin/handler_test.go` | Removed 808 lines - tests for deleted handlers |
 | `test/data/plugin/ipv4.ci` | Updated to `update text` syntax |
 | `test/data/plugin/ipv4.run` | Updated to `update text` syntax |
 | `test/data/plugin/ipv6.ci` | Updated to `update text` syntax |
@@ -240,11 +240,11 @@ Consider implementing after core Phase 2 is complete.
 
 | File | Changes |
 |------|---------|
-| `pkg/plugin/update_text.go` | Add EOR action, VPLS/EVPN family support, parseVPLSSection, parseEVPNSection |
-| `pkg/plugin/update_text_test.go` | Add 13 tests for EOR, VPLS, EVPN |
-| `pkg/plugin/route.go` | Remove handleAnnounceEOR, VPLS, L2VPN handlers |
-| `pkg/plugin/route_parse_test.go` | Remove unused test helpers |
-| `pkg/plugin/types.go` | Add EORFamilies to UpdateTextResult |
+| `internal/plugin/update_text.go` | Add EOR action, VPLS/EVPN family support, parseVPLSSection, parseEVPNSection |
+| `internal/plugin/update_text_test.go` | Add 13 tests for EOR, VPLS, EVPN |
+| `internal/plugin/route.go` | Remove handleAnnounceEOR, VPLS, L2VPN handlers |
+| `internal/plugin/route_parse_test.go` | Remove unused test helpers |
+| `internal/plugin/types.go` | Add EORFamilies to UpdateTextResult |
 | `cmd/zebgp/encode.go` | Add local parseVPLSArgs, parseL2VPNArgs for encode CLI |
 | `test/data/plugin/eor.ci` | Update to `update text nlri <family> eor` syntax |
 | `test/data/plugin/eor.run` | Update to new EOR syntax |
@@ -254,9 +254,9 @@ Consider implementing after core Phase 2 is complete.
 ### Unit Tests
 | Test | File | Validates |
 |------|------|-----------|
-| `TestUpdateTextEOR` | `pkg/plugin/update_text_test.go` | EOR via update text |
-| `TestUpdateTextVPLS` | `pkg/plugin/update_text_test.go` | VPLS via update text |
-| `TestUpdateTextEVPN` | `pkg/plugin/update_text_test.go` | EVPN via update text |
+| `TestUpdateTextEOR` | `internal/plugin/update_text_test.go` | EOR via update text |
+| `TestUpdateTextVPLS` | `internal/plugin/update_text_test.go` | VPLS via update text |
+| `TestUpdateTextEVPN` | `internal/plugin/update_text_test.go` | EVPN via update text |
 
 ### Functional Tests
 | Test | Location | Scenario |

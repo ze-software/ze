@@ -47,38 +47,38 @@ Current state has 6+ layers of UPDATE/Message representations:
 #### Unit Tests
 | Test | File | Validates |
 |------|------|-----------|
-| `TestNLRIIterator` | `pkg/bgp/nlri/iterator_test.go` | Iterates prefixes without allocation |
-| `TestNLRIIteratorAddPath` | `pkg/bgp/nlri/iterator_test.go` | Handles ADD-PATH path-id |
-| `TestNLRIIteratorEmpty` | `pkg/bgp/nlri/iterator_test.go` | Empty buffer returns no items |
-| `TestAttrIterator` | `pkg/bgp/attribute/iterator_test.go` | Iterates attributes |
-| `TestAttrIteratorFind` | `pkg/bgp/attribute/iterator_test.go` | Finds specific type code |
-| `TestASPathIterator` | `pkg/bgp/attribute/aspath_iter_test.go` | Iterates segments |
-| `TestASPathIteratorASN4` | `pkg/bgp/attribute/aspath_iter_test.go` | 4-byte ASN parsing |
+| `TestNLRIIterator` | `internal/bgp/nlri/iterator_test.go` | Iterates prefixes without allocation |
+| `TestNLRIIteratorAddPath` | `internal/bgp/nlri/iterator_test.go` | Handles ADD-PATH path-id |
+| `TestNLRIIteratorEmpty` | `internal/bgp/nlri/iterator_test.go` | Empty buffer returns no items |
+| `TestAttrIterator` | `internal/bgp/attribute/iterator_test.go` | Iterates attributes |
+| `TestAttrIteratorFind` | `internal/bgp/attribute/iterator_test.go` | Finds specific type code |
+| `TestASPathIterator` | `internal/bgp/attribute/aspath_iter_test.go` | Iterates segments |
+| `TestASPathIteratorASN4` | `internal/bgp/attribute/aspath_iter_test.go` | 4-byte ASN parsing |
 
 ### Phase 2: Span Type
 
 | Test | File | Validates |
 |------|------|-----------|
-| `TestSpanSlice` | `pkg/bgp/span_test.go` | Extracts subslice |
-| `TestSpanEmpty` | `pkg/bgp/span_test.go` | Zero-length span |
-| `TestParseUpdateOffsets` | `pkg/bgp/message/offsets_test.go` | Returns section spans |
+| `TestSpanSlice` | `internal/bgp/span_test.go` | Extracts subslice |
+| `TestSpanEmpty` | `internal/bgp/span_test.go` | Zero-length span |
+| `TestParseUpdateOffsets` | `internal/bgp/message/offsets_test.go` | Returns section spans |
 
 ### Phase 3: Direct Formatting
 
 | Test | File | Validates |
 |------|------|-----------|
-| `TestFormatNLRIJSON` | `pkg/plugin/format_test.go` | Formats prefix from bytes |
-| `TestFormatASPathJSON` | `pkg/plugin/format_test.go` | Formats AS-PATH from bytes |
-| `TestFormatUpdateJSON` | `pkg/plugin/format_test.go` | Full UPDATE formatting |
-| `TestFormatUpdateText` | `pkg/plugin/format_test.go` | Text format from bytes |
+| `TestFormatNLRIJSON` | `internal/plugin/format_test.go` | Formats prefix from bytes |
+| `TestFormatASPathJSON` | `internal/plugin/format_test.go` | Formats AS-PATH from bytes |
+| `TestFormatUpdateJSON` | `internal/plugin/format_test.go` | Full UPDATE formatting |
+| `TestFormatUpdateText` | `internal/plugin/format_test.go` | Text format from bytes |
 
 ### Phase 4: RIB Integration
 
 | Test | File | Validates |
 |------|------|-----------|
-| `TestRouteAttrIterator` | `pkg/rib/route_iter_test.go` | Route exposes iterator |
-| `TestRouteASPathCaching` | `pkg/rib/route_iter_test.go` | Offset caching works |
-| `TestRouteZeroCopy` | `pkg/rib/route_iter_test.go` | Direct forwarding |
+| `TestRouteAttrIterator` | `internal/rib/route_iter_test.go` | Route exposes iterator |
+| `TestRouteASPathCaching` | `internal/rib/route_iter_test.go` | Offset caching works |
+| `TestRouteZeroCopy` | `internal/rib/route_iter_test.go` | Direct forwarding |
 
 ### Functional Tests
 *Not required* - Iterator functionality is internal implementation detail.
@@ -92,31 +92,31 @@ Unit tests provide sufficient coverage for iterator correctness.
 Add iterator types without removing existing code:
 
 ```go
-// pkg/bgp/span.go
+// internal/bgp/span.go
 type Span struct {
     Start int
     Len   int
 }
 
-// pkg/bgp/nlri/iterator.go
+// internal/bgp/nlri/iterator.go
 type NLRIIterator struct { ... }
 
-// pkg/bgp/attribute/iterator.go
+// internal/bgp/attribute/iterator.go
 type AttrIterator struct { ... }
 
-// pkg/bgp/attribute/aspath_iter.go
+// internal/bgp/attribute/aspath_iter.go
 type ASPathIterator struct { ... }
 ```
 
 **Files created:**
-- `pkg/bgp/span.go` ✅
-- `pkg/bgp/span_test.go` ✅
-- `pkg/bgp/nlri/iterator.go` ✅
-- `pkg/bgp/nlri/iterator_test.go` ✅
-- `pkg/bgp/attribute/iterator.go` ✅
-- `pkg/bgp/attribute/iterator_test.go` ✅
-- `pkg/bgp/attribute/aspath_iter.go` ✅
-- `pkg/bgp/attribute/aspath_iter_test.go` ✅
+- `internal/bgp/span.go` ✅
+- `internal/bgp/span_test.go` ✅
+- `internal/bgp/nlri/iterator.go` ✅
+- `internal/bgp/nlri/iterator_test.go` ✅
+- `internal/bgp/attribute/iterator.go` ✅
+- `internal/bgp/attribute/iterator_test.go` ✅
+- `internal/bgp/attribute/aspath_iter.go` ✅
+- `internal/bgp/attribute/aspath_iter_test.go` ✅
 
 **Verification (2026-01-10):**
 - [x] `make test` passes
@@ -129,15 +129,15 @@ type ASPathIterator struct { ... }
 Add iterator methods to `WireUpdate`:
 
 ```go
-// pkg/plugin/wire_update.go
+// internal/plugin/wire_update.go
 func (u *WireUpdate) NLRIIterator(addPath bool) (*nlri.NLRIIterator, error)
 func (u *WireUpdate) WithdrawnIterator(addPath bool) (*nlri.NLRIIterator, error)
 func (u *WireUpdate) AttrIterator() (*attribute.AttrIterator, error)
 ```
 
 **Files modified:**
-- `pkg/plugin/wire_update.go` ✅
-- `pkg/plugin/wire_update_test.go` ✅ (6 new tests)
+- `internal/plugin/wire_update.go` ✅
+- `internal/plugin/wire_update_test.go` ✅ (6 new tests)
 
 **Verification (2026-01-10):**
 - [x] `make test` passes
@@ -149,7 +149,7 @@ func (u *WireUpdate) AttrIterator() (*attribute.AttrIterator, error)
 Add format functions that write directly from buffer:
 
 ```go
-// pkg/plugin/format_buffer.go
+// internal/plugin/format_buffer.go
 func FormatPrefixFromBytes(data []byte, isIPv6 bool) string
 func FormatASPathJSON(data []byte, asn4 bool, w io.Writer) error
 func FormatCommunitiesJSON(data []byte, w io.Writer) error
@@ -159,8 +159,8 @@ func FormatLocalPrefJSON(data []byte, w io.Writer)
 ```
 
 **Files created:**
-- `pkg/plugin/format_buffer.go` ✅
-- `pkg/plugin/format_buffer_test.go` ✅ (6 test functions)
+- `internal/plugin/format_buffer.go` ✅
+- `internal/plugin/format_buffer_test.go` ✅ (6 test functions)
 
 **Verification (2026-01-10):**
 - [x] `make test` passes
@@ -172,14 +172,14 @@ func FormatLocalPrefJSON(data []byte, w io.Writer)
 Update `Route` to use iterators:
 
 ```go
-// pkg/rib/route.go
+// internal/rib/route.go
 func (r *Route) AttrIterator() *attribute.AttrIterator
 func (r *Route) ASPathIterator(asn4 bool) *attribute.ASPathIterator
 ```
 
 **Files modified:**
-- `pkg/rib/route.go` ✅
-- `pkg/rib/route_iter_test.go` ✅ (5 tests)
+- `internal/rib/route.go` ✅
+- `internal/rib/route_iter_test.go` ✅ (5 tests)
 
 **Note:** Parsed attribute storage (`attributes` slice) kept for now.
 Removal deferred to Phase 6 after verifying no code depends on it.
@@ -230,18 +230,18 @@ Mark for removal:
 ### Create
 | File | Purpose |
 |------|---------|
-| `pkg/bgp/span.go` | Span type for buffer sections |
-| `pkg/bgp/nlri/iterator.go` | NLRI iterator |
-| `pkg/bgp/attribute/iterator.go` | Attribute iterator |
-| `pkg/bgp/attribute/aspath_iter.go` | AS-PATH iterator |
-| `pkg/plugin/format_buffer.go` | Direct buffer formatting |
+| `internal/bgp/span.go` | Span type for buffer sections |
+| `internal/bgp/nlri/iterator.go` | NLRI iterator |
+| `internal/bgp/attribute/iterator.go` | Attribute iterator |
+| `internal/bgp/attribute/aspath_iter.go` | AS-PATH iterator |
+| `internal/plugin/format_buffer.go` | Direct buffer formatting |
 
 ### Modify
 | File | Changes |
 |------|---------|
-| `pkg/plugin/wire_update.go` | Add iterator methods |
-| `pkg/rib/route.go` | Expose iterators, remove parsed storage |
-| `pkg/plugin/json.go` | Use buffer formatting |
+| `internal/plugin/wire_update.go` | Add iterator methods |
+| `internal/rib/route.go` | Expose iterators, remove parsed storage |
+| `internal/plugin/json.go` | Use buffer formatting |
 
 ### Remove (Phase 6)
 | File/Type | Replacement |

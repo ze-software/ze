@@ -6,7 +6,7 @@ import (
 	"os"
 	"strings"
 
-	"codeberg.org/thomas-mangin/zebgp/pkg/config"
+	"codeberg.org/thomas-mangin/zebgp/internal/config"
 )
 
 func cmdValidate(args []string) int {

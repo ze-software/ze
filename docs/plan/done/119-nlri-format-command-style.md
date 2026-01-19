@@ -35,24 +35,24 @@ Update ALL NLRI text output formats to use command-style syntax with `set` keywo
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestEVPNType1StringCommandStyle` | `pkg/bgp/nlri/evpn_test.go` | Type 1 command-style | ✅ |
-| `TestEVPNType2StringCommandStyle` | `pkg/bgp/nlri/evpn_test.go` | Type 2 command-style | ✅ |
-| `TestEVPNType2WithIPStringCommandStyle` | `pkg/bgp/nlri/evpn_test.go` | Type 2 with IP | ✅ |
-| `TestEVPNType3StringCommandStyle` | `pkg/bgp/nlri/evpn_test.go` | Type 3 command-style | ✅ |
-| `TestEVPNType4StringCommandStyle` | `pkg/bgp/nlri/evpn_test.go` | Type 4 command-style | ✅ |
-| `TestEVPNType5StringCommandStyle` | `pkg/bgp/nlri/evpn_test.go` | Type 5 command-style | ✅ |
-| `TestIPVPNStringCommandStyle` | `pkg/bgp/nlri/ipvpn_test.go` | IPVPN command-style | ✅ |
-| `TestLabeledUnicastStringCommandStyle` | `pkg/bgp/nlri/labeled_test.go` | Labeled command-style | ✅ |
-| `TestVPLSStringCommandStyle` | `pkg/bgp/nlri/other_test.go` | VPLS command-style | ✅ |
-| `TestFlowSpecVPNStringCommandStyle` | `pkg/bgp/nlri/flowspec_test.go` | FlowSpecVPN command-style | ✅ |
-| `TestINETStringCommandStyle` | `pkg/bgp/nlri/inet_test.go` | INET command-style | ✅ |
-| `TestMVPNStringCommandStyle` | `pkg/bgp/nlri/other_test.go` | MVPN command-style | ✅ |
-| `TestRTCStringCommandStyle` | `pkg/bgp/nlri/other_test.go` | RTC command-style | ✅ |
-| `TestMUPStringCommandStyle` | `pkg/bgp/nlri/other_test.go` | MUP command-style | ✅ |
-| `TestBGPLSNodeStringCommandStyle` | `pkg/bgp/nlri/bgpls_test.go` | BGP-LS Node | ✅ |
-| `TestBGPLSLinkStringCommandStyle` | `pkg/bgp/nlri/bgpls_test.go` | BGP-LS Link | ✅ |
-| `TestBGPLSPrefixStringCommandStyle` | `pkg/bgp/nlri/bgpls_test.go` | BGP-LS Prefix | ✅ |
-| `TestBGPLSSRv6SIDStringCommandStyle` | `pkg/bgp/nlri/bgpls_test.go` | BGP-LS SRv6 SID | ✅ |
+| `TestEVPNType1StringCommandStyle` | `internal/bgp/nlri/evpn_test.go` | Type 1 command-style | ✅ |
+| `TestEVPNType2StringCommandStyle` | `internal/bgp/nlri/evpn_test.go` | Type 2 command-style | ✅ |
+| `TestEVPNType2WithIPStringCommandStyle` | `internal/bgp/nlri/evpn_test.go` | Type 2 with IP | ✅ |
+| `TestEVPNType3StringCommandStyle` | `internal/bgp/nlri/evpn_test.go` | Type 3 command-style | ✅ |
+| `TestEVPNType4StringCommandStyle` | `internal/bgp/nlri/evpn_test.go` | Type 4 command-style | ✅ |
+| `TestEVPNType5StringCommandStyle` | `internal/bgp/nlri/evpn_test.go` | Type 5 command-style | ✅ |
+| `TestIPVPNStringCommandStyle` | `internal/bgp/nlri/ipvpn_test.go` | IPVPN command-style | ✅ |
+| `TestLabeledUnicastStringCommandStyle` | `internal/bgp/nlri/labeled_test.go` | Labeled command-style | ✅ |
+| `TestVPLSStringCommandStyle` | `internal/bgp/nlri/other_test.go` | VPLS command-style | ✅ |
+| `TestFlowSpecVPNStringCommandStyle` | `internal/bgp/nlri/flowspec_test.go` | FlowSpecVPN command-style | ✅ |
+| `TestINETStringCommandStyle` | `internal/bgp/nlri/inet_test.go` | INET command-style | ✅ |
+| `TestMVPNStringCommandStyle` | `internal/bgp/nlri/other_test.go` | MVPN command-style | ✅ |
+| `TestRTCStringCommandStyle` | `internal/bgp/nlri/other_test.go` | RTC command-style | ✅ |
+| `TestMUPStringCommandStyle` | `internal/bgp/nlri/other_test.go` | MUP command-style | ✅ |
+| `TestBGPLSNodeStringCommandStyle` | `internal/bgp/nlri/bgpls_test.go` | BGP-LS Node | ✅ |
+| `TestBGPLSLinkStringCommandStyle` | `internal/bgp/nlri/bgpls_test.go` | BGP-LS Link | ✅ |
+| `TestBGPLSPrefixStringCommandStyle` | `internal/bgp/nlri/bgpls_test.go` | BGP-LS Prefix | ✅ |
+| `TestBGPLSSRv6SIDStringCommandStyle` | `internal/bgp/nlri/bgpls_test.go` | BGP-LS SRv6 SID | ✅ |
 
 ### Functional Tests
 | Test | Location | Scenario | Status |
@@ -62,24 +62,24 @@ Update ALL NLRI text output formats to use command-style syntax with `set` keywo
 ## Files to Modify
 
 ### Phase 1 (EVPN) - ✅ DONE
-- `pkg/bgp/nlri/evpn.go` - Update String() for EVPNType1-5
-- `pkg/bgp/nlri/evpn_test.go` - Add command-style tests
+- `internal/bgp/nlri/evpn.go` - Update String() for EVPNType1-5
+- `internal/bgp/nlri/evpn_test.go` - Add command-style tests
 
 ### Phase 2 (VPN/Labeled) - ✅ DONE
-- `pkg/bgp/nlri/ipvpn.go` - Update IPVPN.String()
-- `pkg/bgp/nlri/ipvpn_test.go` - Add tests
-- `pkg/bgp/nlri/labeled.go` - Update LabeledUnicast.String()
-- `pkg/bgp/nlri/labeled_test.go` - Add tests
+- `internal/bgp/nlri/ipvpn.go` - Update IPVPN.String()
+- `internal/bgp/nlri/ipvpn_test.go` - Add tests
+- `internal/bgp/nlri/labeled.go` - Update LabeledUnicast.String()
+- `internal/bgp/nlri/labeled_test.go` - Add tests
 
 ### Phase 3 (Other NLRI types) - ✅ DONE
-- `pkg/bgp/nlri/other.go` - Update VPLS.String()
-- `pkg/bgp/nlri/flowspec.go` - Update FlowSpecVPN.String()
+- `internal/bgp/nlri/other.go` - Update VPLS.String()
+- `internal/bgp/nlri/flowspec.go` - Update FlowSpecVPN.String()
 
 ### Phase 4 (Remaining NLRI types) - ✅ DONE
-- `pkg/bgp/nlri/inet.go` - Update INET.String()
-- `pkg/bgp/nlri/other.go` - Update MVPN.String(), RTC.String(), MUP.String()
-- `pkg/bgp/nlri/bgpls.go` - Update BGPLSNode.String(), BGPLSLink.String(), BGPLSPrefix.String(), BGPLSSRv6SID.String()
-- `pkg/plugin/mpwire_test.go` - Fix existing tests for new path-id format
+- `internal/bgp/nlri/inet.go` - Update INET.String()
+- `internal/bgp/nlri/other.go` - Update MVPN.String(), RTC.String(), MUP.String()
+- `internal/bgp/nlri/bgpls.go` - Update BGPLSNode.String(), BGPLSLink.String(), BGPLSPrefix.String(), BGPLSSRv6SID.String()
+- `internal/plugin/mpwire_test.go` - Fix existing tests for new path-id format
 
 ## Format Specification
 
@@ -191,7 +191,7 @@ Update ALL NLRI text output formats to use command-style syntax with `set` keywo
 - Added TestBGPLSLinkStringCommandStyle (2 test cases)
 - Added TestBGPLSPrefixStringCommandStyle (2 test cases)
 - Added TestBGPLSSRv6SIDStringCommandStyle (2 test cases)
-- Fixed existing tests in pkg/plugin/mpwire_test.go (2 tests)
+- Fixed existing tests in internal/plugin/mpwire_test.go (2 tests)
 
 ### Critical Review Fixes
 - Added protocol field to all BGP-LS String() methods (was missing critical context)

@@ -10,7 +10,7 @@ Add hex format parsing for extended-community (`0x...`) to fix test Z (vpn).
 - Last commit: `ef4ebf1`
 
 ## Problem Analysis
-ZeBGP's `parseOneExtCommunity()` in `pkg/config/routeattr.go` doesn't handle hex format.
+ZeBGP's `parseOneExtCommunity()` in `internal/config/routeattr.go` doesn't handle hex format.
 
 ExaBGP's approach in `_extended_community_hex()`:
 1. Check for `0x` prefix with no colons
@@ -38,10 +38,10 @@ ExaBGP's approach in `_extended_community_hex()`:
 - No panic for errors
 
 ## Codebase Context
-- **File to modify:** `pkg/config/routeattr.go`
+- **File to modify:** `internal/config/routeattr.go`
 - **Function:** `parseOneExtCommunity()` (lines 187-248)
 - **Existing pattern:** Uses `encoding/hex` package (already imported)
-- **Test file:** `pkg/config/routeattr_test.go` (if exists) or create it
+- **Test file:** `internal/config/routeattr_test.go` (if exists) or create it
 
 ## Implementation Steps
 
@@ -63,7 +63,7 @@ func TestParseExtendedCommunityHex(t *testing.T) {
 
 ### 2. Run Test → MUST FAIL
 ```bash
-go test -race ./pkg/config/... -v -run TestParseExtendedCommunityHex
+go test -race ./internal/config/... -v -run TestParseExtendedCommunityHex
 ```
 
 ### 3. Implement Hex Parsing
@@ -99,7 +99,7 @@ func parseExtCommunityHex(s string) ([]byte, error) {
 
 ### 4. Run Test → MUST PASS
 ```bash
-go test -race ./pkg/config/... -v -run TestParseExtendedCommunityHex
+go test -race ./internal/config/... -v -run TestParseExtendedCommunityHex
 ```
 
 ### 5. Run Functional Test Z
@@ -116,7 +116,7 @@ make test && make lint
 - [ ] Test written with VALIDATES/PREVENTS documentation
 - [ ] Test shown to FAIL first
 - [ ] Implementation makes test pass
-- [ ] `go test ./pkg/config/...` passes
+- [ ] `go test ./internal/config/...` passes
 - [ ] Functional test Z passes
 - [ ] `make test` passes
 - [ ] `make lint` passes

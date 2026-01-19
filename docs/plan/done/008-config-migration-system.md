@@ -155,7 +155,7 @@ peer 192.0.2.1 {
 ### Type Definitions
 
 ```go
-// pkg/config/migration/version.go
+// internal/config/migration/version.go
 
 // ConfigVersion represents a config schema version
 type ConfigVersion int
@@ -214,7 +214,7 @@ type Change struct {
 ### Heuristic Version Detection
 
 ```go
-// pkg/config/migration/detect.go
+// internal/config/migration/detect.go
 
 // DetectVersion examines a Tree to determine its schema version.
 // Uses heuristic detection based on config structure - no version field needed.
@@ -343,7 +343,7 @@ func FindDeprecated(tree *Tree) []DeprecatedField {
 ### Migration Registry
 
 ```go
-// pkg/config/migration/registry.go
+// internal/config/migration/registry.go
 
 type Registry struct {
     migrations []Migration
@@ -385,7 +385,7 @@ func (r *Registry) MigrateTo(tree *Tree, from, to ConfigVersion) (*Tree, *Migrat
 ### Loader Integration
 
 ```go
-// pkg/config/loader.go (modified)
+// internal/config/loader.go (modified)
 
 type LoadOptions struct {
     AutoUpgrade   bool   // Apply migrations automatically (opt-in, risky)
@@ -662,7 +662,7 @@ $ zebgp config upgrade exabgp.conf && zebgp config fmt exabgp.conf
 ### Example Migration Implementation
 
 ```go
-// pkg/config/migration/v1_to_v2.go
+// internal/config/migration/v1_to_v2.go
 
 var migrateV1ToV2 = Migration{
     From:        Version1,
@@ -724,7 +724,7 @@ func doV1ToV2(tree *Tree) (*Tree, error) {
 ### Example v2→v3 Migration Implementation
 
 ```go
-// pkg/config/migration/v2_to_v3.go
+// internal/config/migration/v2_to_v3.go
 
 var migrateV2ToV3 = Migration{
     From:        Version2,
@@ -801,12 +801,12 @@ Default: Keep last 5 backups per config file (configurable via `--backup-keep`).
 
 | # | Task | Files |
 |---|------|-------|
-| 1.1 | Create migration package | `pkg/config/migration/` |
+| 1.1 | Create migration package | `internal/config/migration/` |
 | 1.2 | Define ConfigVersion type and constants | `migration/version.go` |
 | 1.3 | Define Migration, MigrationResult, Change types | `migration/types.go` |
-| 1.4 | Implement Tree.Clone() for safe mutations | `pkg/config/tree.go` |
-| 1.5 | Implement Tree helpers (FindAll, Has, Remove, GetOrCreate, Set) | `pkg/config/tree.go` |
-| 1.6 | Tests for Tree mutation methods | `pkg/config/tree_test.go` |
+| 1.4 | Implement Tree.Clone() for safe mutations | `internal/config/tree.go` |
+| 1.5 | Implement Tree helpers (FindAll, Has, Remove, GetOrCreate, Set) | `internal/config/tree.go` |
+| 1.6 | Tests for Tree mutation methods | `internal/config/tree_test.go` |
 
 ### Phase 2: Version Detection
 
@@ -832,11 +832,11 @@ Default: Keep last 5 backups per config file (configurable via `--backup-keep`).
 
 | # | Task | Files |
 |---|------|-------|
-| 4.1 | Add ParseLenient() for deprecated field tolerance | `pkg/config/parser.go` |
-| 4.2 | Add LoadOptions type | `pkg/config/loader.go` |
-| 4.3 | Modify LoadReactorFile() with migration support | `pkg/config/loader.go` |
-| 4.4 | Add backup creation logic | `pkg/config/backup.go` |
-| 4.5 | Integration tests | `pkg/config/loader_test.go` |
+| 4.1 | Add ParseLenient() for deprecated field tolerance | `internal/config/parser.go` |
+| 4.2 | Add LoadOptions type | `internal/config/loader.go` |
+| 4.3 | Modify LoadReactorFile() with migration support | `internal/config/loader.go` |
+| 4.4 | Add backup creation logic | `internal/config/backup.go` |
+| 4.5 | Integration tests | `internal/config/loader_test.go` |
 
 ### Phase 5: CLI Commands
 
@@ -858,13 +858,13 @@ All config-related commands live under `zebgp config`:
 
 | # | Task | Files |
 |---|------|-------|
-| 5b.1 | Implement Tree serializer with formatting rules | `pkg/config/serialize.go` |
-| 5b.2 | Add indentation normalization (4 spaces) | `pkg/config/serialize.go` |
-| 5b.3 | Add block ordering (alphabetical) | `pkg/config/serialize.go` |
+| 5b.1 | Implement Tree serializer with formatting rules | `internal/config/serialize.go` |
+| 5b.2 | Add indentation normalization (4 spaces) | `internal/config/serialize.go` |
+| 5b.3 | Add block ordering (alphabetical) | `internal/config/serialize.go` |
 | 5b.4 | Diff output for `--dry-run` | `cmd/zebgp/config_fmt.go` |
-| 5b.5 | Comment preservation (best-effort) | `pkg/config/serialize.go` |
+| 5b.5 | Comment preservation (best-effort) | `internal/config/serialize.go` |
 | 5b.6 | Reject deprecated configs (require upgrade first) | `cmd/zebgp/config_fmt.go` |
-| 5b.7 | Tests for formatter | `pkg/config/serialize_test.go` |
+| 5b.7 | Tests for formatter | `internal/config/serialize_test.go` |
 
 ### Phase 6: Documentation
 
@@ -972,5 +972,5 @@ When adding new migrations:
 ## References
 
 - ExaBGP config: `../src/exabgp/configuration/neighbor/__init__.py`
-- ZeBGP schema: `pkg/config/schema.go`
+- ZeBGP schema: `internal/config/schema.go`
 - Database migration patterns: Rails ActiveRecord, Alembic, Flyway

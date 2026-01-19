@@ -34,8 +34,8 @@ peer 192.0.2.1 {
 ```
 
 **Files:**
-- Config: `pkg/config/bgp.go` - `NeighborConfig.IgnoreFamilyMismatch`
-- Validation: `pkg/reactor/session.go` - `handleUpdate()` (pending)
+- Config: `internal/config/bgp.go` - `NeighborConfig.IgnoreFamilyMismatch`
+- Validation: `internal/reactor/session.go` - `handleUpdate()` (pending)
 
 ---
 

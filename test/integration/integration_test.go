@@ -12,7 +12,7 @@ import (
 	"testing"
 	"time"
 
-	"codeberg.org/thomas-mangin/zebgp/pkg/reactor"
+	"codeberg.org/thomas-mangin/zebgp/internal/reactor"
 )
 
 // testTimeout is the maximum time for test operations.

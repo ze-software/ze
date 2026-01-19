@@ -74,7 +74,7 @@ Hooks receive JSON on stdin:
 Test manually:
 
 ```bash
-echo '{"tool_name":"Write","tool_input":{"file_path":"pkg/test.go"}}' | .claude/hooks/auto_linter.sh
+echo '{"tool_name":"Write","tool_input":{"file_path":"internal/test.go"}}' | .claude/hooks/auto_linter.sh
 ```
 
 Check output and exit code:

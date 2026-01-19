@@ -35,16 +35,16 @@ Change UPDATE event NLRI format from ExaBGP style (announce/withdraw with next-h
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestJSONEncoderIPv4UnicastNewFormat` | `pkg/plugin/json_test.go` | IPv4 unicast list with grouped operations | ✅ |
-| `TestJSONEncoderIPv4DualNextHop` | `pkg/plugin/json_test.go` | IPv4 traditional + MP (two next-hops) | ✅ |
-| `TestJSONEncoderMultiFamilyNewFormat` | `pkg/plugin/json_test.go` | Multiple families, different next-hops | ✅ |
-| `TestJSONEncoderLabeledUnicast` | `pkg/plugin/json_test.go` | Labels + next-hop grouped | ✅ |
-| `TestJSONEncoderRDTypes` | `pkg/plugin/json_test.go` | IPVPN/MPLS-VPN: RD format `0:/1:/2:` + labels | ✅ |
-| `TestJSONEncoderEVPN` | `pkg/plugin/json_test.go` | ESI + route-type + next-hop | ✅ |
-| `formatFlowSpecVPNJSON` | `pkg/plugin/text.go` | FlowSpec via String() (TODO: structured) | ✅ |
-| `TestJSONEncoderADDPATHNewFormat` | `pkg/plugin/json_test.go` | path-id in objects | ✅ |
-| `TestJSONEncoderWithdrawNewFormat` | `pkg/plugin/json_test.go` | Identity fields, no next-hop | ✅ |
-| `TestJSONEncoderAnnounceAndWithdrawSameFamily` | `pkg/plugin/json_test.go` | add + del in same family | ✅ |
+| `TestJSONEncoderIPv4UnicastNewFormat` | `internal/plugin/json_test.go` | IPv4 unicast list with grouped operations | ✅ |
+| `TestJSONEncoderIPv4DualNextHop` | `internal/plugin/json_test.go` | IPv4 traditional + MP (two next-hops) | ✅ |
+| `TestJSONEncoderMultiFamilyNewFormat` | `internal/plugin/json_test.go` | Multiple families, different next-hops | ✅ |
+| `TestJSONEncoderLabeledUnicast` | `internal/plugin/json_test.go` | Labels + next-hop grouped | ✅ |
+| `TestJSONEncoderRDTypes` | `internal/plugin/json_test.go` | IPVPN/MPLS-VPN: RD format `0:/1:/2:` + labels | ✅ |
+| `TestJSONEncoderEVPN` | `internal/plugin/json_test.go` | ESI + route-type + next-hop | ✅ |
+| `formatFlowSpecVPNJSON` | `internal/plugin/text.go` | FlowSpec via String() (TODO: structured) | ✅ |
+| `TestJSONEncoderADDPATHNewFormat` | `internal/plugin/json_test.go` | path-id in objects | ✅ |
+| `TestJSONEncoderWithdrawNewFormat` | `internal/plugin/json_test.go` | Identity fields, no next-hop | ✅ |
+| `TestJSONEncoderAnnounceAndWithdrawSameFamily` | `internal/plugin/json_test.go` | add + del in same family | ✅ |
 
 ### Boundary Tests
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
@@ -64,21 +64,21 @@ Added `json:` lines to `ipv4.ci` and `ipv6.ci` as **documentation only** (not te
 - NOT validated by test runner
 - Will NOT catch JSON format regressions
 
-Unit tests in `pkg/plugin/json_test.go` provide actual test coverage for JSON format.
+Unit tests in `internal/plugin/json_test.go` provide actual test coverage for JSON format.
 
 ## Files to Modify
 
 | File | Change | Status |
 |------|--------|--------|
-| `pkg/plugin/json.go` | Change NLRI format (announce/withdraw → family list with operations) | ✅ Done |
-| `pkg/plugin/text.go` | formatFilterResultJSON with command-style | ✅ Done |
-| `pkg/plugin/json_test.go` | Update tests for new format | ✅ Done (10 tests) |
-| `pkg/bgp/nlri/ipvpn.go` | Add type prefix to RD String() (`0:`, `1:`, `2:`) | ✅ Done |
-| `pkg/bgp/nlri/evpn.go` | Ensure ESI exposed in JSON format | ✅ Verified |
-| `pkg/bgp/nlri/flowspec.go` | Expose operators in JSON format | ✅ Via String() |
-| `pkg/plugin/rib/event.go` | Update Event struct for new NLRI format | ✅ Done |
-| `pkg/plugin/rib/rib.go` | Update parsing (announce→add, withdraw→del) | ✅ Done |
-| `pkg/plugin/rib/rib_test.go` | Update tests for new format | ✅ Done |
+| `internal/plugin/json.go` | Change NLRI format (announce/withdraw → family list with operations) | ✅ Done |
+| `internal/plugin/text.go` | formatFilterResultJSON with command-style | ✅ Done |
+| `internal/plugin/json_test.go` | Update tests for new format | ✅ Done (10 tests) |
+| `internal/bgp/nlri/ipvpn.go` | Add type prefix to RD String() (`0:`, `1:`, `2:`) | ✅ Done |
+| `internal/bgp/nlri/evpn.go` | Ensure ESI exposed in JSON format | ✅ Verified |
+| `internal/bgp/nlri/flowspec.go` | Expose operators in JSON format | ✅ Via String() |
+| `internal/plugin/rib/event.go` | Update Event struct for new NLRI format | ✅ Done |
+| `internal/plugin/rib/rib.go` | Update parsing (announce→add, withdraw→del) | ✅ Done |
+| `internal/plugin/rib/rib_test.go` | Update tests for new format | ✅ Done |
 | `docs/architecture/api/architecture.md` | Update event format examples | ✅ Done |
 | `docs/exabgp/exabgp-migration.md` | Document format change (renamed from compatibility) | ✅ Done |
 
@@ -602,18 +602,18 @@ peer 127.0.0.1 update origin igp as-path [65001] nhop set 192.0.2.1 nlri ipv4/un
 ### What Was Implemented
 
 **Core JSON format change:**
-- `pkg/plugin/text.go`: `formatFilterResultJSON()` - new command-style format with family → operations array
-- `pkg/plugin/text.go`: `familyOperation` struct with Action, NextHop, NLRIs
-- `pkg/plugin/text.go`: `formatNLRIJSONValue()` - handles simple prefixes as strings, complex as objects
-- `pkg/plugin/text.go`: Family-specific formatters (EVPN, FlowSpec, Labeled, VPN)
+- `internal/plugin/text.go`: `formatFilterResultJSON()` - new command-style format with family → operations array
+- `internal/plugin/text.go`: `familyOperation` struct with Action, NextHop, NLRIs
+- `internal/plugin/text.go`: `formatNLRIJSONValue()` - handles simple prefixes as strings, complex as objects
+- `internal/plugin/text.go`: Family-specific formatters (EVPN, FlowSpec, Labeled, VPN)
 
 **RIB plugin updates:**
-- `pkg/plugin/rib/event.go`: `FamilyOperation` struct for parsing new format
-- `pkg/plugin/rib/event.go`: `parseEvent()` with dynamic family key extraction
-- `pkg/plugin/rib/rib.go`: Updated to parse `action: "add"/"del"` instead of `announce`/`withdraw`
+- `internal/plugin/rib/event.go`: `FamilyOperation` struct for parsing new format
+- `internal/plugin/rib/event.go`: `parseEvent()` with dynamic family key extraction
+- `internal/plugin/rib/rib.go`: Updated to parse `action: "add"/"del"` instead of `announce`/`withdraw`
 
 **RD type prefix:**
-- `pkg/bgp/nlri/ipvpn.go`: RD String() now outputs `0:`, `1:`, `2:` type prefix
+- `internal/bgp/nlri/ipvpn.go`: RD String() now outputs `0:`, `1:`, `2:` type prefix
 
 **Unit tests (10 complete):**
 - `TestJSONEncoderIPv4UnicastNewFormat` - basic IPv4 unicast
@@ -651,7 +651,7 @@ peer 127.0.0.1 update origin igp as-path [65001] nhop set 192.0.2.1 nlri ipv4/un
 ### Deviations from Plan
 - Added `TestJSONEncoderAnnounceAndWithdrawSameFamily` (not in original spec)
 - Test names use `NewFormat` suffix for clarity
-- `pkg/bgp/nlri/rd.go` doesn't exist - RD is in `pkg/bgp/nlri/ipvpn.go`
+- `internal/bgp/nlri/rd.go` doesn't exist - RD is in `internal/bgp/nlri/ipvpn.go`
 - FlowSpec uses String() instead of structured operators (simpler, sufficient for now)
 
 ## Checklist
@@ -699,17 +699,17 @@ peer 127.0.0.1 update origin igp as-path [65001] nhop set 192.0.2.1 nlri ipv4/un
 **Note:** Added `json:` lines to `ipv4.ci` and `ipv6.ci` as format documentation only. The test framework does NOT validate these lines - they serve as reference for expected JSON format.
 
 ### Files Modified
-- `pkg/plugin/text.go` - Core JSON format change
-- `pkg/plugin/text_test.go` - Test updates
-- `pkg/plugin/json_test.go` - 10 new format tests
-- `pkg/plugin/message_receiver_test.go` - Test updates
-- `pkg/plugin/update_text_test.go` - Test updates
-- `pkg/plugin/rib/event.go` - FamilyOperation struct
-- `pkg/plugin/rib/rib.go` - Parsing updates
-- `pkg/plugin/rib/rib_test.go` - Test updates
-- `pkg/bgp/nlri/ipvpn.go` - RD type prefix
-- `pkg/bgp/nlri/ipvpn_test.go` - RD tests
-- `pkg/bgp/nlri/evpn_test.go` - EVPN tests
+- `internal/plugin/text.go` - Core JSON format change
+- `internal/plugin/text_test.go` - Test updates
+- `internal/plugin/json_test.go` - 10 new format tests
+- `internal/plugin/message_receiver_test.go` - Test updates
+- `internal/plugin/update_text_test.go` - Test updates
+- `internal/plugin/rib/event.go` - FamilyOperation struct
+- `internal/plugin/rib/rib.go` - Parsing updates
+- `internal/plugin/rib/rib_test.go` - Test updates
+- `internal/bgp/nlri/ipvpn.go` - RD type prefix
+- `internal/bgp/nlri/ipvpn_test.go` - RD tests
+- `internal/bgp/nlri/evpn_test.go` - EVPN tests
 - `test/data/decode/bgp-evpn-1.test` - RD format update
 - `test/data/plugin/ipv4.ci` - Added json: documentation lines (NOT validated)
 - `test/data/plugin/ipv6.ci` - Added json: documentation lines (NOT validated)

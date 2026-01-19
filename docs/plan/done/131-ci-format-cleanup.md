@@ -11,10 +11,10 @@
 - [ ] `docs/functional-tests.md` - [current .ci format]
 
 ### Source Files
-- [ ] `test/functional/record.go` - [main .ci parsing for test runner]
-- [ ] `test/functional/runner.go` - [test execution, output]
-- [ ] `test/functional/display.go` - [progress display]
-- [ ] `pkg/testpeer/peer.go:LoadExpectFile()` - [testpeer .ci parsing for options and expects]
+- [ ] `internal/test/runner/record.go` - [main .ci parsing for test runner]
+- [ ] `internal/test/runner/runner.go` - [test execution, output]
+- [ ] `internal/test/runner/display.go` - [progress display]
+- [ ] `internal/test/peer/peer.go:LoadExpectFile()` - [testpeer .ci parsing for options and expects]
 
 ## New Format
 
@@ -127,19 +127,19 @@ Total: 23 test(s) run, 100.0% passed
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestParseCIExpectBGP` | `test/functional/record_test.go` | `expect=bgp:conn=1:seq=1:hex=FF...` | |
-| `TestParseCIExpectJSON` | `test/functional/record_test.go` | `expect=json:conn=1:seq=1:json={...}` | |
-| `TestParseCIOptionEnv` | `test/functional/record_test.go` | `option=env:var=X:value=Y` | |
-| `TestParseCIOptionFile` | `test/functional/record_test.go` | `option=file:path=test.conf` | |
-| `TestParseCIMultiConn` | `test/functional/record_test.go` | conn=1, conn=2 sequencing | |
-| `TestParseCISameSeq` | `test/functional/record_test.go` | Same seq = unordered within conn | |
-| `TestParseCIActionNotification` | `test/functional/record_test.go` | `action=notification:conn=1:seq=1:text=...` | |
-| `TestParseCICmdAPI` | `test/functional/record_test.go` | `cmd=api:conn=1:seq=1:text=...` | |
-| `TestParseCIRejectSyslog` | `test/functional/record_test.go` | `reject=syslog:pattern=...` | |
-| `TestParseCIInvalidFormat` | `test/functional/record_test.go` | Error on old format lines | |
-| `TestParseCIMissingConn` | `test/functional/record_test.go` | Error when conn missing | |
-| `TestParseCIMissingSeq` | `test/functional/record_test.go` | Error when seq missing for bgp | |
-| `TestPeerLoadExpectNewFormat` | `pkg/testpeer/peer_test.go` | testpeer parses new options | |
+| `TestParseCIExpectBGP` | `internal/test/runner/record_test.go` | `expect=bgp:conn=1:seq=1:hex=FF...` | |
+| `TestParseCIExpectJSON` | `internal/test/runner/record_test.go` | `expect=json:conn=1:seq=1:json={...}` | |
+| `TestParseCIOptionEnv` | `internal/test/runner/record_test.go` | `option=env:var=X:value=Y` | |
+| `TestParseCIOptionFile` | `internal/test/runner/record_test.go` | `option=file:path=test.conf` | |
+| `TestParseCIMultiConn` | `internal/test/runner/record_test.go` | conn=1, conn=2 sequencing | |
+| `TestParseCISameSeq` | `internal/test/runner/record_test.go` | Same seq = unordered within conn | |
+| `TestParseCIActionNotification` | `internal/test/runner/record_test.go` | `action=notification:conn=1:seq=1:text=...` | |
+| `TestParseCICmdAPI` | `internal/test/runner/record_test.go` | `cmd=api:conn=1:seq=1:text=...` | |
+| `TestParseCIRejectSyslog` | `internal/test/runner/record_test.go` | `reject=syslog:pattern=...` | |
+| `TestParseCIInvalidFormat` | `internal/test/runner/record_test.go` | Error on old format lines | |
+| `TestParseCIMissingConn` | `internal/test/runner/record_test.go` | Error when conn missing | |
+| `TestParseCIMissingSeq` | `internal/test/runner/record_test.go` | Error when seq missing for bgp | |
+| `TestPeerLoadExpectNewFormat` | `internal/test/peer/peer_test.go` | testpeer parses new options | |
 
 ### Error Messages
 Old format lines should produce helpful errors:
@@ -151,8 +151,8 @@ Unknown line format "option:file:test.conf" - use "option=file:path=test.conf"
 ## Files to Modify
 
 ### Phase 1: Parser (new format only - hard switch)
-- `test/functional/record.go` - Parse new format, error on old
-- `pkg/testpeer/peer.go:LoadExpectFile()` - Parse new format, error on old
+- `internal/test/runner/record.go` - Parse new format, error on old
+- `internal/test/peer/peer.go:LoadExpectFile()` - Parse new format, error on old
 
 ### Phase 2: Migrate .ci files (script)
 Migration script in Go (consistent with project):
@@ -166,8 +166,8 @@ Files:
 - `test/cmd/migrate-ci/main.go` - Migration tool
 
 ### Phase 3: Reduce output verbosity
-- `test/functional/display.go`
-- `test/functional/runner.go`
+- `internal/test/runner/display.go`
+- `internal/test/runner/runner.go`
 - `test/cmd/functional/main.go` - Add -v/-q flags
 
 ### Phase 4: Documentation

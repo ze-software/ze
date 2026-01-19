@@ -41,7 +41,7 @@ Profile memory usage of adj-rib-out under high route counts to:
 
 ### Current (Before Pool+Wire)
 
-From `pkg/rib/route.go`:
+From `internal/rib/route.go`:
 ```go
 type Route struct {
     nlri          nlri.NLRI           // Interface + prefix (~40 bytes)
@@ -93,7 +93,7 @@ Estimated per-route overhead:
 
 ### Phase 1: Micro-benchmark
 
-Create benchmark test in `pkg/rib/`:
+Create benchmark test in `internal/rib/`:
 
 ```go
 // BenchmarkOutgoingRIBMemory measures memory per route.
@@ -209,14 +209,14 @@ func NewRouteWithoutWireCache(...) *Route {
 
 ### Step 1: Add Benchmark Test
 ```bash
-# File: pkg/rib/outgoing_bench_test.go
-go test -bench=BenchmarkOutgoingRIBMemory -benchmem ./pkg/rib/...
+# File: internal/rib/outgoing_bench_test.go
+go test -bench=BenchmarkOutgoingRIBMemory -benchmem ./internal/rib/...
 ```
 
 ### Step 2: Add Memory Profile Test
 ```bash
-# File: pkg/rib/outgoing_profile_test.go
-go test -run=TestAdjRIBOutMemoryProfile -v ./pkg/rib/...
+# File: internal/rib/outgoing_profile_test.go
+go test -run=TestAdjRIBOutMemoryProfile -v ./internal/rib/...
 go tool pprof -http=:8080 adjribout.pprof
 ```
 
@@ -251,10 +251,10 @@ Based on profiling results, prioritize:
 
 ```bash
 # Run benchmark
-go test -bench=Memory -benchmem ./pkg/rib/...
+go test -bench=Memory -benchmem ./internal/rib/...
 
 # Generate heap profile
-go test -run=Profile -memprofile=mem.pprof ./pkg/rib/...
+go test -run=Profile -memprofile=mem.pprof ./internal/rib/...
 
 # Analyze profile
 go tool pprof -top mem.pprof

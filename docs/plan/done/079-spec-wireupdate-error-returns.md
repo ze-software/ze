@@ -79,7 +79,7 @@ return nil, fmt.Errorf("withdrawn: %w", ErrUpdateTruncated)
 return nil, fmt.Errorf("mp_reach: %w", ErrUpdateMalformed)
 ```
 
-Base errors in `pkg/plugin/errors.go`:
+Base errors in `internal/plugin/errors.go`:
 ```go
 var (
     ErrUpdateTruncated = errors.New("UPDATE payload truncated")
@@ -107,19 +107,19 @@ var (
 ## Files Modified
 
 ### Core Changes
-- `pkg/plugin/wire_update.go` - Changed signatures, removed `attrsOnce`/`attrs` fields
-- `pkg/plugin/errors.go` - NEW: Define base error types
+- `internal/plugin/wire_update.go` - Changed signatures, removed `attrsOnce`/`attrs` fields
+- `internal/plugin/errors.go` - NEW: Define base error types
 
 ### Test Updates
-- `pkg/plugin/wire_update_test.go` - Added error tests, updated existing tests
-- `pkg/plugin/wire_update_split_test.go` - Handle error returns
-- `pkg/plugin/filter_test.go` - Handle Attrs() error
-- `pkg/plugin/text_test.go` - Handle Attrs() error
+- `internal/plugin/wire_update_test.go` - Added error tests, updated existing tests
+- `internal/plugin/wire_update_split_test.go` - Handle error returns
+- `internal/plugin/filter_test.go` - Handle Attrs() error
+- `internal/plugin/text_test.go` - Handle Attrs() error
 
 ### Caller Updates
-- `pkg/reactor/reactor.go:2424` - Ignore Attrs() error in callback (observes, doesn't validate)
-- `pkg/reactor/reactor_test.go` - Handle error returns
-- `pkg/reactor/received_update_test.go` - Handle error returns
+- `internal/reactor/reactor.go:2424` - Ignore Attrs() error in callback (observes, doesn't validate)
+- `internal/reactor/reactor_test.go` - Handle error returns
+- `internal/reactor/received_update_test.go` - Handle error returns
 
 ## 🧪 TDD Test Plan
 
@@ -127,22 +127,22 @@ var (
 
 | Test | File | Validates |
 |------|------|-----------|
-| `TestWireUpdate_Withdrawn_Error` | `pkg/plugin/wire_update_test.go` | Truncated returns error |
-| `TestWireUpdate_Withdrawn_Empty` | `pkg/plugin/wire_update_test.go` | wdLen=0 returns nil,nil |
-| `TestWireUpdate_Attrs_Error` | `pkg/plugin/wire_update_test.go` | Truncated returns error |
-| `TestWireUpdate_Attrs_Empty` | `pkg/plugin/wire_update_test.go` | attrLen=0 returns nil,nil |
-| `TestWireUpdate_NLRI_Error` | `pkg/plugin/wire_update_test.go` | Truncated returns error |
-| `TestWireUpdate_NLRI_Empty` | `pkg/plugin/wire_update_test.go` | No trailing bytes returns nil,nil |
-| `TestWireUpdate_MPReach_NotPresent` | `pkg/plugin/wire_update_test.go` | Missing attr returns nil,nil |
-| `TestWireUpdate_MPReach_Malformed` | `pkg/plugin/wire_update_test.go` | len < 5 returns error |
-| `TestWireUpdate_MPReach_AttrsError` | `pkg/plugin/wire_update_test.go` | Propagates Attrs() error |
-| `TestWireUpdate_MPUnreach_NotPresent` | `pkg/plugin/wire_update_test.go` | Missing attr returns nil,nil |
-| `TestWireUpdate_MPUnreach_Malformed` | `pkg/plugin/wire_update_test.go` | len < 3 returns error |
-| `TestWireUpdate_MPUnreach_AttrsError` | `pkg/plugin/wire_update_test.go` | Propagates Attrs() error |
-| `TestWireUpdate_AttrsConsistent` | `pkg/plugin/wire_update_test.go` | Multiple calls return same data |
-| `TestSplitWireUpdate_OutputChunksAccessible` | `pkg/plugin/wire_update_split_test.go` | All split chunks parse without error |
-| `TestSplitWireUpdate_BaseAttrsInAllChunks` | `pkg/plugin/wire_update_split_test.go` | Base attrs replicated in all chunks |
-| `TestSplitWireUpdate_MixedIPv4AndMP` | `pkg/plugin/wire_update_split_test.go` | Mixed IPv4 + MP_REACH preserved |
+| `TestWireUpdate_Withdrawn_Error` | `internal/plugin/wire_update_test.go` | Truncated returns error |
+| `TestWireUpdate_Withdrawn_Empty` | `internal/plugin/wire_update_test.go` | wdLen=0 returns nil,nil |
+| `TestWireUpdate_Attrs_Error` | `internal/plugin/wire_update_test.go` | Truncated returns error |
+| `TestWireUpdate_Attrs_Empty` | `internal/plugin/wire_update_test.go` | attrLen=0 returns nil,nil |
+| `TestWireUpdate_NLRI_Error` | `internal/plugin/wire_update_test.go` | Truncated returns error |
+| `TestWireUpdate_NLRI_Empty` | `internal/plugin/wire_update_test.go` | No trailing bytes returns nil,nil |
+| `TestWireUpdate_MPReach_NotPresent` | `internal/plugin/wire_update_test.go` | Missing attr returns nil,nil |
+| `TestWireUpdate_MPReach_Malformed` | `internal/plugin/wire_update_test.go` | len < 5 returns error |
+| `TestWireUpdate_MPReach_AttrsError` | `internal/plugin/wire_update_test.go` | Propagates Attrs() error |
+| `TestWireUpdate_MPUnreach_NotPresent` | `internal/plugin/wire_update_test.go` | Missing attr returns nil,nil |
+| `TestWireUpdate_MPUnreach_Malformed` | `internal/plugin/wire_update_test.go` | len < 3 returns error |
+| `TestWireUpdate_MPUnreach_AttrsError` | `internal/plugin/wire_update_test.go` | Propagates Attrs() error |
+| `TestWireUpdate_AttrsConsistent` | `internal/plugin/wire_update_test.go` | Multiple calls return same data |
+| `TestSplitWireUpdate_OutputChunksAccessible` | `internal/plugin/wire_update_split_test.go` | All split chunks parse without error |
+| `TestSplitWireUpdate_BaseAttrsInAllChunks` | `internal/plugin/wire_update_split_test.go` | Base attrs replicated in all chunks |
+| `TestSplitWireUpdate_MixedIPv4AndMP` | `internal/plugin/wire_update_split_test.go` | Mixed IPv4 + MP_REACH preserved |
 
 ### Functional Tests
 

@@ -44,11 +44,11 @@ neighbor 127.0.0.1 receive update end
 
 | File | Purpose |
 |------|---------|
-| `pkg/reactor/session.go` | `handleUpdate()` - hook point for forwarding |
-| `pkg/plugin/process.go` | `WriteEvent()` - sends to process stdin |
-| `pkg/plugin/types.go` | `ProcessConfig` - needs receive config |
-| `pkg/reactor/reactor.go` | `APIProcessConfig` - needs receive config |
-| `pkg/config/loader.go` | Parses api block |
+| `internal/reactor/session.go` | `handleUpdate()` - hook point for forwarding |
+| `internal/plugin/process.go` | `WriteEvent()` - sends to process stdin |
+| `internal/plugin/types.go` | `ProcessConfig` - needs receive config |
+| `internal/reactor/reactor.go` | `APIProcessConfig` - needs receive config |
+| `internal/config/loader.go` | Parses api block |
 
 ### ExaBGP Reference
 - `/Users/thomas/Code/github.com/exa-networks/exabgp/main/src/exabgp/reactor/api/response/text.py`
@@ -59,11 +59,11 @@ neighbor 127.0.0.1 receive update end
 ### Phase 1: Config Parsing
 
 1. **Add receive config to APIProcessConfig**
-   - Add `ReceiveUpdate bool` field to `pkg/reactor/reactor.go:APIProcessConfig`
-   - Add `ReceiveUpdate bool` field to `pkg/plugin/types.go:ProcessConfig`
+   - Add `ReceiveUpdate bool` field to `internal/reactor/reactor.go:APIProcessConfig`
+   - Add `ReceiveUpdate bool` field to `internal/plugin/types.go:ProcessConfig`
 
 2. **Parse receive block in config**
-   - In `pkg/config/loader.go`, parse `api { receive { update; } }`
+   - In `internal/config/loader.go`, parse `api { receive { update; } }`
    - Set `ReceiveUpdate = true` when present
 
 ### Phase 2: Update Forwarding

@@ -61,14 +61,14 @@ asPathBytes := asPath.Pack(ctx)       // ASN4 aware
 **Key files:**
 | File | Role |
 |------|------|
-| `pkg/bgp/nlri/pack.go` | PackContext struct (add ASN4 here) |
-| `pkg/reactor/peer.go:322` | `Peer.packContext()` - needs ASN4 |
-| `pkg/rib/commit.go:197` | `CommitService.packContext()` - needs ASN4 |
-| `pkg/bgp/attribute/aspath.go` | Already has `PackWithASN4(bool)` |
+| `internal/bgp/nlri/pack.go` | PackContext struct (add ASN4 here) |
+| `internal/reactor/peer.go:322` | `Peer.packContext()` - needs ASN4 |
+| `internal/rib/commit.go:197` | `CommitService.packContext()` - needs ASN4 |
+| `internal/bgp/attribute/aspath.go` | Already has `PackWithASN4(bool)` |
 
 **Current PackContext:**
 ```go
-// pkg/bgp/nlri/pack.go
+// internal/bgp/nlri/pack.go
 type PackContext struct {
     AddPath bool  // RFC 7911
     // Future: ASN4 bool  ← ADD THIS
@@ -87,7 +87,7 @@ buildVPLSUpdate(route, localAS, isIBGP, asn4, ctx)
 
 ### Step 1: Add ASN4 to PackContext
 
-**Test file:** `pkg/bgp/nlri/pack_test.go`
+**Test file:** `internal/bgp/nlri/pack_test.go`
 
 ```go
 // TestPackContextASN4 verifies ASN4 field exists and defaults correctly.
@@ -111,7 +111,7 @@ func TestPackContextASN4(t *testing.T) {
 
 ### Step 2: Update Peer.packContext() to include ASN4
 
-**Test file:** `pkg/reactor/peer_test.go` (extend existing tests)
+**Test file:** `internal/reactor/peer_test.go` (extend existing tests)
 
 ```go
 // TestPeerPackContextASN4 verifies packContext includes ASN4 from session.
@@ -129,7 +129,7 @@ func TestPeerPackContextASN4(t *testing.T) {
 
 ### Step 3: Update CommitService.packContext() to include ASN4
 
-**Test file:** `pkg/rib/commit_test.go` (extend existing tests)
+**Test file:** `internal/rib/commit_test.go` (extend existing tests)
 
 ```go
 // TestCommitServicePackContextASN4 verifies packContext includes ASN4.
@@ -172,8 +172,8 @@ This step is optional for Phase 2 - can be done incrementally.
 
 ## Notes
 
-- PackContext is in `pkg/bgp/nlri/` package but used for both NLRI and attributes
-- Consider moving to `pkg/bgp/encoding/` in future if more capabilities added
+- PackContext is in `internal/bgp/nlri/` package but used for both NLRI and attributes
+- Consider moving to `internal/bgp/encoding/` in future if more capabilities added
 - ASN4 is already in `message.Negotiated` and `capability.Negotiated` structs
 
 ---

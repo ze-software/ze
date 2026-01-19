@@ -20,7 +20,7 @@ Interactive config editor using Bubble Tea with:
 ## Package Structure
 
 ```
-pkg/editor/
+internal/config/editor/
 ├── editor.go         # File management, backup, save/discard
 ├── model.go          # Bubble Tea model
 ├── completer.go      # Schema-driven completion engine
@@ -247,9 +247,9 @@ Example:
 
 | File | Purpose |
 |------|---------|
-| `pkg/config/schema.go` | Schema types for completion |
-| `pkg/config/setparser.go` | Reuse for set/delete |
-| `pkg/config/serialize.go` | For show/diff output |
+| `internal/config/schema.go` | Schema types for completion |
+| `internal/config/setparser.go` | Reuse for set/delete |
+| `internal/config/serialize.go` | For show/diff output |
 | `cmd/zebgp/cli.go` | Reference Bubble Tea patterns |
 | `cmd/zebgp/config.go` | Add edit subcommand |
 

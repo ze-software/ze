@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"os"
 
-	"codeberg.org/thomas-mangin/zebgp/pkg/config"
+	"codeberg.org/thomas-mangin/zebgp/internal/config"
 )
 
 func cmdConfigDump(args []string) int {

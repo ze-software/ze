@@ -23,12 +23,12 @@ ZeBGP is transitioning to an architecture where **all RIB data and logic lives i
 ### Current: Engine Owns RIB
 
 ```
-Engine receives UPDATE → Parse → Store in pkg/rib/ → Forward
+Engine receives UPDATE → Parse → Store in internal/rib/ → Forward
 ```
 
 | Component | Location | Issue |
 |-----------|----------|-------|
-| Route storage | Engine (pkg/rib/) | Tightly coupled |
+| Route storage | Engine (internal/rib/) | Tightly coupled |
 | Best-path | Engine | Fixed logic |
 | GR state | Engine | Cannot customize |
 | Policy | Limited | Hard to extend |
@@ -81,7 +81,7 @@ Engine receives UPDATE → Send JSON+wire bytes → API stores in pool → API d
 │  └─────────────────────────────────────────────────────────────────┘   │
 │                                                                         │
 │  ┌─────────────────────────────────────────────────────────────────┐   │
-│  │  RIB (pkg/rib/ as reference implementation)                      │   │
+│  │  RIB (internal/rib/ as reference implementation)                      │   │
 │  │  • Routes with pool handles                                      │   │
 │  │  • IncomingRIB per peer                                          │   │
 │  │  • OutgoingRIB for replay                                        │   │
@@ -135,7 +135,7 @@ What the engine does NOT do:
 
 The API program owns all routing logic:
 - **Pool System**: Attribute/NLRI deduplication (see `POOL_ARCHITECTURE.md`)
-- **RIB**: Route storage with pool handles (use `pkg/rib/` as reference)
+- **RIB**: Route storage with pool handles (use `internal/rib/` as reference)
 - **Policy**: Import/export filters, best-path selection
 - **GR/RR**: Graceful restart state, route refresh handling
 - **msg-id Control**: Tell engine which msg-ids to retain/expire
@@ -196,7 +196,7 @@ See [msg-id Cache Control](#msg-id-cache-control) for details.
 
 | Component | Change |
 |-----------|--------|
-| `pkg/rib/` | Keep as library for API programs |
+| `internal/rib/` | Keep as library for API programs |
 | Route storage in reactor | Remove (API owns) |
 | Best-path selection | Remove (API owns) |
 | `buildRIBRouteUpdate` | Keep for API "announce raw" |
@@ -239,9 +239,9 @@ See [msg-id Cache Control](#msg-id-cache-control) for details.
 
 | Component | Location | Purpose |
 |-----------|----------|---------|
-| Pool | `pkg/rib/pool/` | Go pool for API programs |
-| RIB | `pkg/rib/` | Route storage patterns |
-| Route | `pkg/rib/route.go` | Route with handles |
+| Pool | `internal/rib/pool/` | Go pool for API programs |
+| RIB | `internal/rib/` | Route storage patterns |
+| Route | `internal/rib/route.go` | Route with handles |
 
 ---
 
@@ -355,7 +355,7 @@ The engine maintains a cache of UPDATE wire bytes indexed by msg-id. API program
 
 ## API Program Examples
 
-### Go (using pkg/rib/)
+### Go (using internal/rib/)
 
 ```go
 // Handle UPDATE event
@@ -463,7 +463,7 @@ Family is required for proper UPDATE construction. This allows API to rebuild UP
 - `POOL_ARCHITECTURE.md` - Pool design for API programs
 - `spec-api-rr.md` - Route Server implementation
 - `CAPABILITY_CONTRACT.md` - GR/RR capability handling
-- `pkg/rib/` - Reference Go implementation
+- `internal/rib/` - Reference Go implementation
 
 ---
 

@@ -28,7 +28,7 @@ Ensure UpdateBuilder methods respect maxSize limits when generating UPDATEs from
 | **Wire** | Forward received UPDATE to peer | `SplitUpdateWithAddPath` | ❌ NO (done: 093-writeto-bounds-safety.md) |
 | **API** | Generate UPDATE from API input | `UpdateBuilder.Build*()` | ✅ YES |
 
-**Call sites**: `pkg/reactor/peer.go` conversion functions, API command handlers.
+**Call sites**: `internal/reactor/peer.go` conversion functions, API command handlers.
 
 ## Problem
 
@@ -102,22 +102,22 @@ func (ub *UpdateBuilder) BuildMVPNWithLimit(routes []MVPNParams, maxSize int) ([
 ### Unit Tests
 | Test | File | Validates |
 |------|------|-----------|
-| `TestBuildFlowSpec_MaxSize_Fits` | `pkg/bgp/message/update_build_test.go` | FlowSpec within limit succeeds |
-| `TestBuildFlowSpec_MaxSize_TooLarge` | `pkg/bgp/message/update_build_test.go` | Error if FlowSpec rule + attrs > maxSize |
-| `TestBuildMVPNWithLimit_Split` | `pkg/bgp/message/update_build_test.go` | MVPN splits across multiple UPDATEs |
-| `TestBuildMVPNWithLimit_AllFit` | `pkg/bgp/message/update_build_test.go` | MVPN returns single UPDATE when all fit |
-| `TestBuildUnicast_MaxSize_Fits` | `pkg/bgp/message/update_build_test.go` | Unicast within limit succeeds |
-| `TestBuildUnicast_MaxSize_TooLarge` | `pkg/bgp/message/update_build_test.go` | Error if unicast + attrs > maxSize |
-| `TestBuildVPN_MaxSize_Fits` | `pkg/bgp/message/update_build_test.go` | VPN within limit succeeds |
-| `TestBuildVPN_MaxSize_TooLarge` | `pkg/bgp/message/update_build_test.go` | Error if VPN + attrs > maxSize |
-| `TestBuildLabeledUnicast_MaxSize_Fits` | `pkg/bgp/message/update_build_test.go` | Labeled unicast within limit succeeds |
-| `TestBuildLabeledUnicast_MaxSize_TooLarge` | `pkg/bgp/message/update_build_test.go` | Error if labeled unicast > maxSize |
-| `TestBuildVPLS_MaxSize_Fits` | `pkg/bgp/message/update_build_test.go` | VPLS within limit succeeds |
-| `TestBuildVPLS_MaxSize_TooLarge` | `pkg/bgp/message/update_build_test.go` | Error if VPLS + attrs > maxSize |
-| `TestBuildEVPN_MaxSize_Fits` | `pkg/bgp/message/update_build_test.go` | EVPN within limit succeeds |
-| `TestBuildEVPN_MaxSize_TooLarge` | `pkg/bgp/message/update_build_test.go` | Error if EVPN + attrs > maxSize |
-| `TestBuildMUP_MaxSize_Fits` | `pkg/bgp/message/update_build_test.go` | MUP within limit succeeds |
-| `TestBuildMUP_MaxSize_TooLarge` | `pkg/bgp/message/update_build_test.go` | Error if MUP + attrs > maxSize |
+| `TestBuildFlowSpec_MaxSize_Fits` | `internal/bgp/message/update_build_test.go` | FlowSpec within limit succeeds |
+| `TestBuildFlowSpec_MaxSize_TooLarge` | `internal/bgp/message/update_build_test.go` | Error if FlowSpec rule + attrs > maxSize |
+| `TestBuildMVPNWithLimit_Split` | `internal/bgp/message/update_build_test.go` | MVPN splits across multiple UPDATEs |
+| `TestBuildMVPNWithLimit_AllFit` | `internal/bgp/message/update_build_test.go` | MVPN returns single UPDATE when all fit |
+| `TestBuildUnicast_MaxSize_Fits` | `internal/bgp/message/update_build_test.go` | Unicast within limit succeeds |
+| `TestBuildUnicast_MaxSize_TooLarge` | `internal/bgp/message/update_build_test.go` | Error if unicast + attrs > maxSize |
+| `TestBuildVPN_MaxSize_Fits` | `internal/bgp/message/update_build_test.go` | VPN within limit succeeds |
+| `TestBuildVPN_MaxSize_TooLarge` | `internal/bgp/message/update_build_test.go` | Error if VPN + attrs > maxSize |
+| `TestBuildLabeledUnicast_MaxSize_Fits` | `internal/bgp/message/update_build_test.go` | Labeled unicast within limit succeeds |
+| `TestBuildLabeledUnicast_MaxSize_TooLarge` | `internal/bgp/message/update_build_test.go` | Error if labeled unicast > maxSize |
+| `TestBuildVPLS_MaxSize_Fits` | `internal/bgp/message/update_build_test.go` | VPLS within limit succeeds |
+| `TestBuildVPLS_MaxSize_TooLarge` | `internal/bgp/message/update_build_test.go` | Error if VPLS + attrs > maxSize |
+| `TestBuildEVPN_MaxSize_Fits` | `internal/bgp/message/update_build_test.go` | EVPN within limit succeeds |
+| `TestBuildEVPN_MaxSize_TooLarge` | `internal/bgp/message/update_build_test.go` | Error if EVPN + attrs > maxSize |
+| `TestBuildMUP_MaxSize_Fits` | `internal/bgp/message/update_build_test.go` | MUP within limit succeeds |
+| `TestBuildMUP_MaxSize_TooLarge` | `internal/bgp/message/update_build_test.go` | Error if MUP + attrs > maxSize |
 
 ### Functional Tests
 | Test | Location | Scenario |
@@ -125,9 +125,9 @@ func (ub *UpdateBuilder) BuildMVPNWithLimit(routes []MVPNParams, maxSize int) ([
 | N/A | - | API bounds covered by unit tests; integration tests cover full API flow |
 
 ## Files to Modify
-- `pkg/bgp/message/update_build.go` - Add maxSize to single-route builders, add `BuildMVPNWithLimit`
-- `pkg/bgp/message/update_build_test.go` - Add bounds tests
-- `pkg/reactor/peer.go` - Pass peer's maxUpdateSize to builders
+- `internal/bgp/message/update_build.go` - Add maxSize to single-route builders, add `BuildMVPNWithLimit`
+- `internal/bgp/message/update_build_test.go` - Add bounds tests
+- `internal/reactor/peer.go` - Pass peer's maxUpdateSize to builders
 
 ## Implementation Steps
 1. **Write tests** - Test limit behavior for each builder type
@@ -171,11 +171,11 @@ if updateSize > maxSize {
 
 #### Tests FAIL output:
 ```
-pkg/bgp/message/update_build_test.go:1642:20: ub.BuildFlowSpecWithMaxSize undefined
-pkg/bgp/message/update_build_test.go:1671:12: undefined: ErrUpdateTooLarge
-pkg/bgp/message/update_build_test.go:1706:21: ub.BuildMVPNWithLimit undefined
-pkg/bgp/message/update_build_test.go:1770:15: ub.BuildUnicastWithMaxSize undefined
-FAIL	codeberg.org/thomas-mangin/zebgp/pkg/bgp/message [build failed]
+internal/bgp/message/update_build_test.go:1642:20: ub.BuildFlowSpecWithMaxSize undefined
+internal/bgp/message/update_build_test.go:1671:12: undefined: ErrUpdateTooLarge
+internal/bgp/message/update_build_test.go:1706:21: ub.BuildMVPNWithLimit undefined
+internal/bgp/message/update_build_test.go:1770:15: ub.BuildUnicastWithMaxSize undefined
+FAIL	codeberg.org/thomas-mangin/zebgp/internal/bgp/message [build failed]
 ```
 
 #### Tests PASS output:

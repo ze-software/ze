@@ -27,28 +27,28 @@ Implement a plugin registration protocol where plugins proactively declare their
 ### Unit Tests
 | Test | File | Status |
 |------|------|--------|
-| `TestParseRFCAdd` | `pkg/plugin/registration_test.go` | ✅ |
-| `TestParseEncodingAdd` | `pkg/plugin/registration_test.go` | ✅ |
-| `TestParseFamilyAdd` | `pkg/plugin/registration_test.go` | ✅ |
-| `TestParseConfigPattern` | `pkg/plugin/registration_test.go` | ✅ |
-| `TestParseCommandAdd` | `pkg/plugin/registration_test.go` | ✅ |
-| `TestParseRegistrationDone` | `pkg/plugin/registration_test.go` | ✅ |
-| `TestParseCapabilitySet` | `pkg/plugin/registration_test.go` | ✅ |
-| `TestConfigPatternMatching` | `pkg/plugin/registration_test.go` | ✅ |
-| `TestConflictDetection` | `pkg/plugin/registration_test.go` | ✅ |
-| `TestCapabilityConflictDetection` | `pkg/plugin/registration_test.go` | ✅ |
-| `TestStageSynchronization` | `pkg/plugin/startup_test.go` | ✅ |
-| `TestStartupCoordinatorTimeout` | `pkg/plugin/startup_test.go` | ✅ |
-| `TestStartupCoordinatorFailed` | `pkg/plugin/startup_test.go` | ✅ |
-| `TestConfigDeliveryMatching` | `pkg/plugin/config_delivery_test.go` | ✅ |
-| `TestConfigDeliveryFormat` | `pkg/plugin/config_delivery_test.go` | ✅ |
-| `TestCapabilityDecoding` | `pkg/plugin/capability_injection_test.go` | ✅ |
-| `TestCapabilityInjection` | `pkg/plugin/capability_injection_test.go` | ✅ |
-| `TestCapabilityConflictAtInjection` | `pkg/plugin/capability_injection_test.go` | ✅ |
-| `TestRegistrySharingFormat` | `pkg/plugin/registry_sharing_test.go` | ✅ |
-| `TestRegistryBuildFromPlugins` | `pkg/plugin/registry_sharing_test.go` | ✅ |
-| `TestRegistryCommandConflict` | `pkg/plugin/registry_sharing_test.go` | ✅ |
-| `TestRegistryCommandLookup` | `pkg/plugin/registry_sharing_test.go` | ✅ |
+| `TestParseRFCAdd` | `internal/plugin/registration_test.go` | ✅ |
+| `TestParseEncodingAdd` | `internal/plugin/registration_test.go` | ✅ |
+| `TestParseFamilyAdd` | `internal/plugin/registration_test.go` | ✅ |
+| `TestParseConfigPattern` | `internal/plugin/registration_test.go` | ✅ |
+| `TestParseCommandAdd` | `internal/plugin/registration_test.go` | ✅ |
+| `TestParseRegistrationDone` | `internal/plugin/registration_test.go` | ✅ |
+| `TestParseCapabilitySet` | `internal/plugin/registration_test.go` | ✅ |
+| `TestConfigPatternMatching` | `internal/plugin/registration_test.go` | ✅ |
+| `TestConflictDetection` | `internal/plugin/registration_test.go` | ✅ |
+| `TestCapabilityConflictDetection` | `internal/plugin/registration_test.go` | ✅ |
+| `TestStageSynchronization` | `internal/plugin/startup_test.go` | ✅ |
+| `TestStartupCoordinatorTimeout` | `internal/plugin/startup_test.go` | ✅ |
+| `TestStartupCoordinatorFailed` | `internal/plugin/startup_test.go` | ✅ |
+| `TestConfigDeliveryMatching` | `internal/plugin/config_delivery_test.go` | ✅ |
+| `TestConfigDeliveryFormat` | `internal/plugin/config_delivery_test.go` | ✅ |
+| `TestCapabilityDecoding` | `internal/plugin/capability_injection_test.go` | ✅ |
+| `TestCapabilityInjection` | `internal/plugin/capability_injection_test.go` | ✅ |
+| `TestCapabilityConflictAtInjection` | `internal/plugin/capability_injection_test.go` | ✅ |
+| `TestRegistrySharingFormat` | `internal/plugin/registry_sharing_test.go` | ✅ |
+| `TestRegistryBuildFromPlugins` | `internal/plugin/registry_sharing_test.go` | ✅ |
+| `TestRegistryCommandConflict` | `internal/plugin/registry_sharing_test.go` | ✅ |
+| `TestRegistryCommandLookup` | `internal/plugin/registry_sharing_test.go` | ✅ |
 
 ### Functional Tests
 | Test | Location | Status |
@@ -63,28 +63,28 @@ Implement a plugin registration protocol where plugins proactively declare their
 ### Created
 | File | Purpose |
 |------|---------|
-| `pkg/plugin/registration.go` | Registration parsing, CapabilityInjector, PluginRegistry |
-| `pkg/plugin/registration_test.go` | Registration parsing tests |
-| `pkg/plugin/startup_coordinator.go` | Stage barrier synchronization |
-| `pkg/plugin/startup_test.go` | Coordinator tests |
-| `pkg/plugin/config_delivery_test.go` | Config matching tests |
-| `pkg/plugin/capability_injection_test.go` | Capability injection tests |
-| `pkg/plugin/registry_sharing_test.go` | Registry sharing tests |
-| `pkg/bgp/capability/plugin.go` | Plugin capability adapter for OPEN |
+| `internal/plugin/registration.go` | Registration parsing, CapabilityInjector, PluginRegistry |
+| `internal/plugin/registration_test.go` | Registration parsing tests |
+| `internal/plugin/startup_coordinator.go` | Stage barrier synchronization |
+| `internal/plugin/startup_test.go` | Coordinator tests |
+| `internal/plugin/config_delivery_test.go` | Config matching tests |
+| `internal/plugin/capability_injection_test.go` | Capability injection tests |
+| `internal/plugin/registry_sharing_test.go` | Registry sharing tests |
+| `internal/bgp/capability/plugin.go` | Plugin capability adapter for OPEN |
 | `test/data/scripts/zebgp_api.py` | Python client library (renamed from exabgp_api.py) |
 | `.claude/rules/no-backwards-compat.md` | No backwards compatibility rule |
 
 ### Modified
 | File | Changes |
 |------|---------|
-| `pkg/plugin/server.go` | Added coordinator, registry, capInjector; stage handling; `deliverConfig()` |
-| `pkg/plugin/process.go` | Added stage tracking fields, `index` field for plugin ID |
-| `pkg/plugin/types.go` | Added `PeerCapabilityConfig`, `GetPeerCapabilityConfigs()` interface method |
-| `pkg/plugin/persist/persist.go` | Updated to use 5-stage registration protocol |
-| `pkg/reactor/reactor.go` | Implemented `GetPeerCapabilityConfigs()` via ConfigProvider |
-| `pkg/reactor/session.go` | Added `pluginCapGetter` callback, `SetPluginCapabilityGetter()` |
-| `pkg/reactor/peer.go` | Added `getPluginCapabilities()`, wires callback in `runOnce()` |
-| `pkg/bgp/capability/capability.go` | Added `ConfigProvider` interface, implemented on 8 capabilities |
+| `internal/plugin/server.go` | Added coordinator, registry, capInjector; stage handling; `deliverConfig()` |
+| `internal/plugin/process.go` | Added stage tracking fields, `index` field for plugin ID |
+| `internal/plugin/types.go` | Added `PeerCapabilityConfig`, `GetPeerCapabilityConfigs()` interface method |
+| `internal/plugin/persist/persist.go` | Updated to use 5-stage registration protocol |
+| `internal/reactor/reactor.go` | Implemented `GetPeerCapabilityConfigs()` via ConfigProvider |
+| `internal/reactor/session.go` | Added `pluginCapGetter` callback, `SetPluginCapabilityGetter()` |
+| `internal/reactor/peer.go` | Added `getPluginCapabilities()`, wires callback in `runOnce()` |
+| `internal/bgp/capability/capability.go` | Added `ConfigProvider` interface, implemented on 8 capabilities |
 | `test/data/scripts/zebgp_api.py` | Updated `ready()` to perform minimal 5-stage protocol |
 
 ## Implementation Steps

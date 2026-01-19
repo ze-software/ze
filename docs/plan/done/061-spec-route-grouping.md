@@ -10,7 +10,7 @@ Optimize `sendRoutesWithLimit()` to group routes by attributes and pack multiple
 
 - [x] `.claude/zebgp/UPDATE_BUILDING.md` - Build vs Forward paths
 - [x] `.claude/zebgp/wire/NLRI.md` - MP_REACH_NLRI structure
-- [x] `pkg/bgp/message/update_build.go` - Existing `BuildGroupedUnicastWithLimit`
+- [x] `internal/bgp/message/update_build.go` - Existing `BuildGroupedUnicastWithLimit`
 
 ## Approach: Reuse Existing Infrastructure
 
@@ -29,16 +29,16 @@ updates, err := ub.BuildGroupedUnicastWithLimit(params, maxMsgSize)
 
 | File | Changes |
 |------|---------|
-| `pkg/reactor/peer.go` | Add `GroupUpdate bool` to `PeerSettings` (default: true) |
-| `pkg/reactor/reactor.go` | Add `toRIBRouteUnicastParams()`, `groupRoutesByAttributes()`, modify `sendRoutesWithLimit()` |
-| `pkg/config/neighbor.go` | Add `group-update` config option |
-| `pkg/bgp/attribute/attributes.go` | Add `Hash()` method |
-| `pkg/bgp/message/update_build.go` | Add `BuildGroupedMPReachWithLimit()`, `buildMPReachUpdate()`, `packGroupedAttributesBase()` |
-| `pkg/bgp/message/errors.go` | Add `ErrAttributesTooLarge`, `ErrNLRITooLarge` |
+| `internal/reactor/peer.go` | Add `GroupUpdate bool` to `PeerSettings` (default: true) |
+| `internal/reactor/reactor.go` | Add `toRIBRouteUnicastParams()`, `groupRoutesByAttributes()`, modify `sendRoutesWithLimit()` |
+| `internal/config/neighbor.go` | Add `group-update` config option |
+| `internal/bgp/attribute/attributes.go` | Add `Hash()` method |
+| `internal/bgp/message/update_build.go` | Add `BuildGroupedMPReachWithLimit()`, `buildMPReachUpdate()`, `packGroupedAttributesBase()` |
+| `internal/bgp/message/errors.go` | Add `ErrAttributesTooLarge`, `ErrNLRITooLarge` |
 
 ## Current State
 
-- `sendRoutesWithLimit()` at `pkg/reactor/reactor.go:1777` sends one route per UPDATE
+- `sendRoutesWithLimit()` at `internal/reactor/reactor.go:1777` sends one route per UPDATE
 - `BuildGroupedUnicastWithLimit` exists for IPv4 unicast (static routes)
 - No grouping for MP families (IPv6, VPN)
 

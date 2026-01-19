@@ -10,8 +10,8 @@ Create a functional test program that tests the RIB plugin in isolation by simul
 - [ ] `docs/architecture/api/ARCHITECTURE.md` - Plugin communication protocol
 
 ### Source Code
-- [ ] `pkg/plugin/rib/rib.go` - RIB plugin implementation
-- [ ] `pkg/plugin/rib/event.go` - Event parsing
+- [ ] `internal/plugin/rib/rib.go` - RIB plugin implementation
+- [ ] `internal/plugin/rib/event.go` - Event parsing
 
 **Key insights:**
 - Plugin communicates via stdin/stdout JSON
@@ -215,7 +215,7 @@ WAIT: ready
 
 ```bash
 # Build RIB plugin
-go build -o /tmp/rib-plugin ./pkg/plugin/rib
+go build -o /tmp/rib-plugin ./internal/plugin/rib
 
 # Run functional tests
 go run ./test/cmd/rib-functional

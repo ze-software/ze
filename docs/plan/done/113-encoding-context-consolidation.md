@@ -25,9 +25,9 @@ Keep the WireContext implementation (references sub-components), use the Encodin
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| Existing `TestEncodingContext*` | `pkg/bgp/context/context_test.go` | Update to new API | |
-| Existing `TestFromNegotiated*` | `pkg/bgp/context/negotiated_test.go` | Update to new API | |
-| Existing `TestWireContext*` | `pkg/bgp/context/wire_test.go` | Rename to EncodingContext | |
+| Existing `TestEncodingContext*` | `internal/bgp/context/context_test.go` | Update to new API | |
+| Existing `TestFromNegotiated*` | `internal/bgp/context/negotiated_test.go` | Update to new API | |
+| Existing `TestWireContext*` | `internal/bgp/context/wire_test.go` | Rename to EncodingContext | |
 
 ### Functional Tests
 | Test | Location | Scenario | Status |
@@ -37,32 +37,32 @@ Keep the WireContext implementation (references sub-components), use the Encodin
 ## Files to Modify
 
 ### Phase 1: Rename WireContext → EncodingContext
-- `pkg/bgp/context/wire.go` → `pkg/bgp/context/context.go` (merge/replace)
+- `internal/bgp/context/wire.go` → `internal/bgp/context/context.go` (merge/replace)
   - Rename `WireContext` → `EncodingContext`
   - Rename `NewWireContext` → `NewEncodingContext`
   - Keep `Direction` type and constants
 
 ### Phase 2: Update factories
-- `pkg/bgp/context/negotiated.go`
+- `internal/bgp/context/negotiated.go`
   - Remove `FromNegotiatedRecv/Send` (old API)
   - Rename `FromNegotiatedRecvWire` → `FromNegotiatedRecv`
   - Rename `FromNegotiatedSendWire` → `FromNegotiatedSend`
 
 ### Phase 3: Update consumers (field → method)
-- `pkg/reactor/peer.go` - `ctx.ASN4` → `ctx.ASN4()`
-- `pkg/reactor/reactor.go` - Same pattern
-- `pkg/rib/commit.go` - Same pattern
-- `pkg/rib/route.go` - Same pattern
-- `pkg/plugin/wire_update_split.go` - Same pattern
-- `pkg/plugin/filter.go` - Same pattern
-- `pkg/plugin/text.go` - Same pattern
-- `pkg/plugin/json.go` - Same pattern
-- `pkg/plugin/decode.go` - Same pattern
+- `internal/reactor/peer.go` - `ctx.ASN4` → `ctx.ASN4()`
+- `internal/reactor/reactor.go` - Same pattern
+- `internal/rib/commit.go` - Same pattern
+- `internal/rib/route.go` - Same pattern
+- `internal/plugin/wire_update_split.go` - Same pattern
+- `internal/plugin/filter.go` - Same pattern
+- `internal/plugin/text.go` - Same pattern
+- `internal/plugin/json.go` - Same pattern
+- `internal/plugin/decode.go` - Same pattern
 
 ### Phase 4: Update tests
-- `pkg/bgp/context/wire_test.go` → merge into `context_test.go`
-- `pkg/bgp/context/negotiated_test.go` - Update API calls
-- `pkg/reactor/peer_test.go` - Update API calls
+- `internal/bgp/context/wire_test.go` → merge into `context_test.go`
+- `internal/bgp/context/negotiated_test.go` - Update API calls
+- `internal/reactor/peer_test.go` - Update API calls
 - Other test files using EncodingContext
 
 ### Phase 5: Cleanup
@@ -132,17 +132,17 @@ ctx := NewEncodingContext(nil, &capability.EncodingCaps{ASN4: true}, DirectionSe
 
 | File | Changes | Status |
 |------|---------|--------|
-| `pkg/reactor/peer.go` | `recvCtx/sendCtx` field access → methods | |
-| `pkg/reactor/reactor.go` | Context creation/access | |
-| `pkg/reactor/session.go` | If uses context | |
-| `pkg/rib/commit.go` | `dstCtx.ASN4` → `dstCtx.ASN4()` | |
-| `pkg/rib/route.go` | Context param usage | |
-| `pkg/plugin/wire_update_split.go` | `srcCtx` param usage | |
-| `pkg/plugin/filter.go` | Context param usage | |
-| `pkg/plugin/text.go` | `encCtx` usage | |
-| `pkg/plugin/json.go` | Context usage | |
-| `pkg/plugin/decode.go` | Context usage | |
-| `pkg/plugin/server.go` | If uses context | |
+| `internal/reactor/peer.go` | `recvCtx/sendCtx` field access → methods | |
+| `internal/reactor/reactor.go` | Context creation/access | |
+| `internal/reactor/session.go` | If uses context | |
+| `internal/rib/commit.go` | `dstCtx.ASN4` → `dstCtx.ASN4()` | |
+| `internal/rib/route.go` | Context param usage | |
+| `internal/plugin/wire_update_split.go` | `srcCtx` param usage | |
+| `internal/plugin/filter.go` | Context param usage | |
+| `internal/plugin/text.go` | `encCtx` usage | |
+| `internal/plugin/json.go` | Context usage | |
+| `internal/plugin/decode.go` | Context usage | |
+| `internal/plugin/server.go` | If uses context | |
 
 ## Risk Assessment
 
@@ -154,7 +154,7 @@ ctx := NewEncodingContext(nil, &capability.EncodingCaps{ASN4: true}, DirectionSe
 
 ### What Was Implemented
 
-1. **Renamed `WireContext` → `EncodingContext`** in `pkg/bgp/context/context.go`
+1. **Renamed `WireContext` → `EncodingContext`** in `internal/bgp/context/context.go`
 2. **Removed old flat `EncodingContext`** (was a struct with public fields)
 3. **Updated factory functions:**
    - `FromNegotiatedRecvWire` → `FromNegotiatedRecv`
@@ -187,7 +187,7 @@ ctx := NewEncodingContext(nil, &capability.EncodingCaps{ASN4: true}, DirectionSe
 | RIB | `commit.go` |
 | RIB tests | `route_test.go` |
 | Docs | `docs/architecture/encoding-context.md` |
-| Deleted | `pkg/bgp/context/wire.go`, `pkg/bgp/context/wire_test.go` |
+| Deleted | `internal/bgp/context/wire.go`, `internal/bgp/context/wire_test.go` |
 
 ### Bugs Found/Fixed
 - None

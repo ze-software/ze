@@ -18,8 +18,8 @@ Implement per-subsystem logging control for ZeBGP using `slog`. Goals:
 
 ### Codebase Exploration
 - [x] `cmd/zebgp/server.go` - existing `configureSlog()` pattern (now removed)
-- [x] `pkg/plugin/gr/gr.go` - plugin init() logging setup (now removed)
-- [x] `pkg/plugin/rib/rib.go` - plugin init() logging setup (now removed)
+- [x] `internal/plugin/gr/gr.go` - plugin init() logging setup (now removed)
+- [x] `internal/plugin/rib/rib.go` - plugin init() logging setup (now removed)
 - [x] ExaBGP logger - per-source filtering, lazy evaluation
 
 **Key insights:**
@@ -106,20 +106,20 @@ Follow ExaBGP format with `zebgp.` prefix (or `zebgp_` for shell compatibility):
 
 | Subsystem | Code Location | Tag |
 |-----------|---------------|-----|
-| `server` | `pkg/plugin/server.go` | `subsystem=server` |
-| `coordinator` | `pkg/plugin/startup_coordinator.go` | `subsystem=coordinator` |
-| `filter` | `pkg/plugin/filter.go` | `subsystem=filter` |
+| `server` | `internal/plugin/server.go` | `subsystem=server` |
+| `coordinator` | `internal/plugin/startup_coordinator.go` | `subsystem=coordinator` |
+| `filter` | `internal/plugin/filter.go` | `subsystem=filter` |
 
 **Plugin processes (use `LoggerWithLevel()`):**
 
 | Plugin | Code Location | Tag |
 |--------|---------------|-----|
-| `gr` | `pkg/plugin/gr/` | `subsystem=gr` |
-| `rib` | `pkg/plugin/rib/` | `subsystem=rib` |
+| `gr` | `internal/plugin/gr/` | `subsystem=gr` |
+| `rib` | `internal/plugin/rib/` | `subsystem=rib` |
 
 ### Implementation Approach
 
-Create `pkg/slogutil/slogutil.go` with:
+Create `internal/slogutil/slogutil.go` with:
 
 ```go
 // Logger returns a logger for an engine subsystem.
@@ -204,7 +204,7 @@ func (d discardHandler) WithAttrs([]slog.Attr) slog.Handler      { return d }
 func (d discardHandler) WithGroup(string) slog.Handler           { return d }
 ```
 
-**ParseLogLine helper (in `pkg/slogutil/parse.go`):**
+**ParseLogLine helper (in `internal/slogutil/parse.go`):**
 
 ```go
 // ParseLogLine extracts level, message, and attributes from a slog text line.
@@ -243,32 +243,32 @@ time=2025-01-18T12:00:00Z level=DEBUG msg="parsed config" subsystem=gr peer=192.
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestLoggerDisabledByDefault` | `pkg/slogutil/slogutil_test.go` | No logs when env var not set | ✅ |
-| `TestLoggerExplicitDisabled` | `pkg/slogutil/slogutil_test.go` | `zebgp.log.server=disabled` explicitly disables | ✅ |
-| `TestLoggerEnabledDot` | `pkg/slogutil/slogutil_test.go` | `zebgp.log.server=debug` enables logging | ✅ |
-| `TestLoggerEnabledUnderscore` | `pkg/slogutil/slogutil_test.go` | `zebgp_log_server=debug` enables logging | ✅ |
-| `TestLoggerWithLevel` | `pkg/slogutil/slogutil_test.go` | `LoggerWithLevel("gr", "debug")` enables debug logging | ✅ |
-| `TestLoggerWithLevelDisabled` | `pkg/slogutil/slogutil_test.go` | `LoggerWithLevel("gr", "disabled")` disables logging | ✅ |
-| `TestLoggerPrecedence` | `pkg/slogutil/slogutil_test.go` | dot notation takes precedence over underscore | ✅ |
-| `TestLoggerSubsystemAttr` | `pkg/slogutil/slogutil_test.go` | `subsystem` attribute added to logs | ✅ |
-| `TestParseLevelCaseInsensitive` | `pkg/slogutil/slogutil_test.go` | `debug`, `DEBUG`, `Debug` all work | ✅ |
-| `TestParseLevelAliases` | `pkg/slogutil/slogutil_test.go` | `err`/`error`, `warn`/`warning` both work | ✅ |
-| `TestLoggerLevelFiltering` | `pkg/slogutil/slogutil_test.go` | `info` level filters out debug messages | ✅ |
-| `TestLoggerUnknownLevel` | `pkg/slogutil/slogutil_test.go` | Unknown level value = disabled | ✅ |
-| `TestBackendStderr` | `pkg/slogutil/slogutil_test.go` | `zebgp.log.backend=stderr` uses stderr | ✅ |
-| `TestBackendStdout` | `pkg/slogutil/slogutil_test.go` | `zebgp.log.backend=stdout` uses stdout | ✅ |
-| `TestBackendSyslog` | `pkg/slogutil/slogutil_test.go` | `zebgp.log.backend=syslog` uses syslog handler | ✅ |
-| `TestLoggerWithLevelStderr` | `pkg/slogutil/slogutil_test.go` | `LoggerWithLevel()` always uses stderr | ✅ |
-| `TestIsPluginRelayEnabled` | `pkg/slogutil/slogutil_test.go` | `zebgp.log.plugin=enabled` returns true | ✅ |
-| `TestIsPluginRelayDisabled` | `pkg/slogutil/slogutil_test.go` | `zebgp.log.plugin=disabled` returns false | ✅ |
-| `TestIsPluginRelayDefault` | `pkg/slogutil/slogutil_test.go` | Unset `zebgp.log.plugin` returns false | ✅ |
-| `TestDiscardHandler` | `pkg/slogutil/slogutil_test.go` | discardHandler implements slog.Handler correctly | ✅ |
-| `TestParseLogLineValid` | `pkg/slogutil/slogutil_test.go` | Parses valid slog text line, extracts level/msg/attrs | ✅ |
-| `TestParseLogLineAllLevels` | `pkg/slogutil/slogutil_test.go` | Extracts DEBUG/INFO/WARN/ERROR levels correctly | ✅ |
-| `TestParseLogLineQuotedMsg` | `pkg/slogutil/slogutil_test.go` | Handles quoted message containing spaces | ✅ |
-| `TestParseLogLineMalformed` | `pkg/slogutil/slogutil_test.go` | Returns LevelInfo and raw line for non-slog text | ✅ |
-| `TestLoggerWithOutputSubsystem` | `pkg/slogutil/slogutil_test.go` | `LoggerWithOutput()` adds subsystem attribute | ✅ |
-| `TestAllLevelsParsing` | `pkg/slogutil/slogutil_test.go` | All level strings parse correctly | ✅ |
+| `TestLoggerDisabledByDefault` | `internal/slogutil/slogutil_test.go` | No logs when env var not set | ✅ |
+| `TestLoggerExplicitDisabled` | `internal/slogutil/slogutil_test.go` | `zebgp.log.server=disabled` explicitly disables | ✅ |
+| `TestLoggerEnabledDot` | `internal/slogutil/slogutil_test.go` | `zebgp.log.server=debug` enables logging | ✅ |
+| `TestLoggerEnabledUnderscore` | `internal/slogutil/slogutil_test.go` | `zebgp_log_server=debug` enables logging | ✅ |
+| `TestLoggerWithLevel` | `internal/slogutil/slogutil_test.go` | `LoggerWithLevel("gr", "debug")` enables debug logging | ✅ |
+| `TestLoggerWithLevelDisabled` | `internal/slogutil/slogutil_test.go` | `LoggerWithLevel("gr", "disabled")` disables logging | ✅ |
+| `TestLoggerPrecedence` | `internal/slogutil/slogutil_test.go` | dot notation takes precedence over underscore | ✅ |
+| `TestLoggerSubsystemAttr` | `internal/slogutil/slogutil_test.go` | `subsystem` attribute added to logs | ✅ |
+| `TestParseLevelCaseInsensitive` | `internal/slogutil/slogutil_test.go` | `debug`, `DEBUG`, `Debug` all work | ✅ |
+| `TestParseLevelAliases` | `internal/slogutil/slogutil_test.go` | `err`/`error`, `warn`/`warning` both work | ✅ |
+| `TestLoggerLevelFiltering` | `internal/slogutil/slogutil_test.go` | `info` level filters out debug messages | ✅ |
+| `TestLoggerUnknownLevel` | `internal/slogutil/slogutil_test.go` | Unknown level value = disabled | ✅ |
+| `TestBackendStderr` | `internal/slogutil/slogutil_test.go` | `zebgp.log.backend=stderr` uses stderr | ✅ |
+| `TestBackendStdout` | `internal/slogutil/slogutil_test.go` | `zebgp.log.backend=stdout` uses stdout | ✅ |
+| `TestBackendSyslog` | `internal/slogutil/slogutil_test.go` | `zebgp.log.backend=syslog` uses syslog handler | ✅ |
+| `TestLoggerWithLevelStderr` | `internal/slogutil/slogutil_test.go` | `LoggerWithLevel()` always uses stderr | ✅ |
+| `TestIsPluginRelayEnabled` | `internal/slogutil/slogutil_test.go` | `zebgp.log.plugin=enabled` returns true | ✅ |
+| `TestIsPluginRelayDisabled` | `internal/slogutil/slogutil_test.go` | `zebgp.log.plugin=disabled` returns false | ✅ |
+| `TestIsPluginRelayDefault` | `internal/slogutil/slogutil_test.go` | Unset `zebgp.log.plugin` returns false | ✅ |
+| `TestDiscardHandler` | `internal/slogutil/slogutil_test.go` | discardHandler implements slog.Handler correctly | ✅ |
+| `TestParseLogLineValid` | `internal/slogutil/slogutil_test.go` | Parses valid slog text line, extracts level/msg/attrs | ✅ |
+| `TestParseLogLineAllLevels` | `internal/slogutil/slogutil_test.go` | Extracts DEBUG/INFO/WARN/ERROR levels correctly | ✅ |
+| `TestParseLogLineQuotedMsg` | `internal/slogutil/slogutil_test.go` | Handles quoted message containing spaces | ✅ |
+| `TestParseLogLineMalformed` | `internal/slogutil/slogutil_test.go` | Returns LevelInfo and raw line for non-slog text | ✅ |
+| `TestLoggerWithOutputSubsystem` | `internal/slogutil/slogutil_test.go` | `LoggerWithOutput()` adds subsystem attribute | ✅ |
+| `TestAllLevelsParsing` | `internal/slogutil/slogutil_test.go` | All level strings parse correctly | ✅ |
 
 ### Boundary Tests (MANDATORY for numeric inputs)
 N/A - no numeric inputs in this feature.
@@ -280,25 +280,25 @@ N/A - no numeric inputs in this feature.
 
 ### Future (if deferring any tests)
 - Integration test that captures stderr from plugin subprocess and verifies format
-- Wire plugin stderr relay into `pkg/plugin/server.go` (separate task)
+- Wire plugin stderr relay into `internal/plugin/server.go` (separate task)
 
 ## Files to Modify
 
-- `pkg/plugin/gr/gr.go` - remove init(), add `var logger`, add `SetLogger()` func, use `logger.X()`, remove "gr: " prefixes
-- `pkg/plugin/rib/rib.go` - remove init(), add `var logger`, add `SetLogger()` func, remove prefixes
+- `internal/plugin/gr/gr.go` - remove init(), add `var logger`, add `SetLogger()` func, use `logger.X()`, remove "gr: " prefixes
+- `internal/plugin/rib/rib.go` - remove init(), add `var logger`, add `SetLogger()` func, remove prefixes
 - `cmd/zebgp/plugin_gr.go` - add `--log-level` flag, call `gr.SetLogger()`
 - `cmd/zebgp/plugin_rib.go` - add `--log-level` flag, call `rib.SetLogger()`
-- `pkg/plugin/server.go` - add `var logger = slogutil.Logger("server")`, use `logger.X()`
-- `pkg/plugin/startup_coordinator.go` - add `var coordinatorLogger = slogutil.Logger("coordinator")`
-- `pkg/plugin/filter.go` - add `var filterLogger = slogutil.Logger("filter")`
+- `internal/plugin/server.go` - add `var logger = slogutil.Logger("server")`, use `logger.X()`
+- `internal/plugin/startup_coordinator.go` - add `var coordinatorLogger = slogutil.Logger("coordinator")`
+- `internal/plugin/filter.go` - add `var filterLogger = slogutil.Logger("filter")`
 - `cmd/zebgp/server.go` - remove `configureSlog()` function
 
 ## Files to Create
 
-- `pkg/slogutil/slogutil.go` - shared logging configuration
-- `pkg/slogutil/syslog.go` - syslog handler wrapper (uses native `log/syslog`)
-- `pkg/slogutil/parse.go` - ParseLogLine helper (infrastructure for future plugin stderr relay)
-- `pkg/slogutil/slogutil_test.go` - unit tests (27 tests)
+- `internal/slogutil/slogutil.go` - shared logging configuration
+- `internal/slogutil/syslog.go` - syslog handler wrapper (uses native `log/syslog`)
+- `internal/slogutil/parse.go` - ParseLogLine helper (infrastructure for future plugin stderr relay)
+- `internal/slogutil/slogutil_test.go` - unit tests (27 tests)
 
 ## Dependencies
 
@@ -306,9 +306,9 @@ None - uses native `log/syslog` for syslog support.
 
 ## Implementation Steps
 
-1. **Write unit tests** - Create `pkg/slogutil/slogutil_test.go` BEFORE implementation (strict TDD)
+1. **Write unit tests** - Create `internal/slogutil/slogutil_test.go` BEFORE implementation (strict TDD)
 2. **Run tests** - Verify FAIL (paste output)
-3. **Implement slogutil** - Create `pkg/slogutil/slogutil.go`, `syslog.go`, `parse.go`
+3. **Implement slogutil** - Create `internal/slogutil/slogutil.go`, `syslog.go`, `parse.go`
 4. **Run tests** - Verify PASS (paste output)
 5. **Add CLI flags** - Add `--log-level` flag to `cmd/zebgp/plugin_gr.go` and `plugin_rib.go`, call `SetLogger()`
 6. **Migrate GR plugin** - Remove init(), add `var logger`, add `SetLogger()` func, use `logger.X()`, remove "gr: " prefixes
@@ -322,7 +322,7 @@ None - uses native `log/syslog` for syslog support.
 
 ### What Was Implemented
 
-**New package `pkg/slogutil/`:**
+**New package `internal/slogutil/`:**
 - `slogutil.go` - `Logger()`, `LoggerWithLevel()`, `LoggerWithOutput()`, `IsPluginRelayEnabled()`, `parseLevel()`, `createHandler()`, `discardHandler`
 - `syslog.go` - `newSyslogHandler()` for syslog backend support (native `log/syslog`)
 - `parse.go` - `ParseLogLine()` for plugin stderr relay parsing (infrastructure ready)
@@ -332,11 +332,11 @@ None - uses native `log/syslog` for syslog support.
 - `cmd/zebgp/plugin_gr.go` - Added `--log-level` flag, calls `gr.SetLogger()`
 - `cmd/zebgp/plugin_rib.go` - Added `--log-level` flag, calls `rib.SetLogger()`
 - `cmd/zebgp/server.go` - Removed `configureSlog()` function
-- `pkg/plugin/gr/gr.go` - Removed `init()`, added `SetLogger()`, replaced `slog.X()` with `logger.X()`, removed "gr: " prefixes
-- `pkg/plugin/rib/rib.go` - Removed `init()`, added `SetLogger()`, replaced `slog.X()` with `logger.X()`
-- `pkg/plugin/server.go` - Added `var logger = slogutil.Logger("server")`, replaced `slog.X()` with `logger.X()`
-- `pkg/plugin/startup_coordinator.go` - Added `var coordinatorLogger = slogutil.Logger("coordinator")`, replaced calls
-- `pkg/plugin/filter.go` - Added `var filterLogger = slogutil.Logger("filter")`, replaced calls
+- `internal/plugin/gr/gr.go` - Removed `init()`, added `SetLogger()`, replaced `slog.X()` with `logger.X()`, removed "gr: " prefixes
+- `internal/plugin/rib/rib.go` - Removed `init()`, added `SetLogger()`, replaced `slog.X()` with `logger.X()`
+- `internal/plugin/server.go` - Added `var logger = slogutil.Logger("server")`, replaced `slog.X()` with `logger.X()`
+- `internal/plugin/startup_coordinator.go` - Added `var coordinatorLogger = slogutil.Logger("coordinator")`, replaced calls
+- `internal/plugin/filter.go` - Added `var filterLogger = slogutil.Logger("filter")`, replaced calls
 
 ### Bugs Found/Fixed
 - None during implementation
@@ -344,7 +344,7 @@ None - uses native `log/syslog` for syslog support.
 ### Design Insights
 - Used native `log/syslog` instead of external dependency - simpler, no go.mod changes
 - Exported `DiscardLogger()` from slogutil - plugins import it instead of duplicating discardHandler
-- Plugin stderr relay wired into `pkg/plugin/process.go:relayStderr()` - reads lines and relays via stderrLogger
+- Plugin stderr relay wired into `internal/plugin/process.go:relayStderr()` - reads lines and relays via stderrLogger
 - Logger variable names vary by file (`logger`, `coordinatorLogger`, `filterLogger`) to avoid conflicts within the same package
 
 ### Deviations from Plan

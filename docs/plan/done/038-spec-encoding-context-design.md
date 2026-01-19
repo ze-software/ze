@@ -10,7 +10,7 @@
 │  2. .claude/INDEX.md - Find what docs to load                   │
 │  3. docs/plan/CLAUDE_CONTINUATION.md - Current state                 │
 │  4. THIS SPEC FILE - Design requirements                        │
-│  5. pkg/bgp/context/*.go - Current implementation               │
+│  5. internal/bgp/context/*.go - Current implementation               │
 │                                                                 │
 │  DO NOT PROCEED until all are read and understood.              │
 └─────────────────────────────────────────────────────────────────┘
@@ -326,7 +326,7 @@ NLRI.Pack(ctx.ToPackContext())
 ## API Summary
 
 ```go
-// pkg/bgp/context/context.go
+// internal/bgp/context/context.go
 
 type ContextID uint16
 
@@ -343,7 +343,7 @@ func (ctx *EncodingContext) Hash() uint64
 func (ctx *EncodingContext) AddPathFor(f Family) bool
 func (ctx *EncodingContext) ToPackContext(f Family) *nlri.PackContext
 
-// pkg/bgp/context/registry.go
+// internal/bgp/context/registry.go
 
 type ContextRegistry struct { ... }
 
@@ -353,7 +353,7 @@ func (r *ContextRegistry) Get(id ContextID) *EncodingContext
 // Global instance
 var Registry = &ContextRegistry{}
 
-// pkg/bgp/attribute/attribute.go
+// internal/bgp/attribute/attribute.go
 
 type Attribute interface {
     Code() AttributeCode
@@ -370,9 +370,9 @@ type Attribute interface {
 ## Decision Points
 
 1. **Where to put EncodingContext?**
-   - Option A: `pkg/bgp/context/` (new package)
-   - Option B: `pkg/bgp/capability/` (extend existing)
-   - Option C: `pkg/bgp/nlri/` (extend PackContext)
+   - Option A: `internal/bgp/context/` (new package)
+   - Option B: `internal/bgp/capability/` (extend existing)
+   - Option C: `internal/bgp/nlri/` (extend PackContext)
 
 2. **Registry scope?**
    - Global singleton (simple)

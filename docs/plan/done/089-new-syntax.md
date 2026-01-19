@@ -695,16 +695,16 @@ Wire bytes encoding controlled at runtime via `session api encoding` command.
 
 | File | Change |
 |------|--------|
-| `pkg/plugin/route.go` | Remove `announce route`, `announce attributes` handlers |
-| `pkg/plugin/route.go` | Update family handlers to use new NLRI group parser |
-| `pkg/plugin/route.go` | Add `handleAnnounceRaw()` for raw wire bytes announce |
-| `pkg/plugin/route_parse.go` | Add `parseNLRIGroups()`, `applyOverrides()` |
-| `pkg/plugin/route_parse_test.go` | Tests for new parser |
-| `pkg/plugin/json.go` | Add `formatRawUpdate()` for wire bytes output |
-| `pkg/plugin/text.go` | Add raw text format output |
-| `pkg/plugin/session.go` | Add `session api encoding` handlers |
-| `pkg/plugin/types.go` | Add `WireEncoding` field to `ContentConfig` |
-| `pkg/plugin/process.go` | Track per-process wire encoding setting |
+| `internal/plugin/route.go` | Remove `announce route`, `announce attributes` handlers |
+| `internal/plugin/route.go` | Update family handlers to use new NLRI group parser |
+| `internal/plugin/route.go` | Add `handleAnnounceRaw()` for raw wire bytes announce |
+| `internal/plugin/route_parse.go` | Add `parseNLRIGroups()`, `applyOverrides()` |
+| `internal/plugin/route_parse_test.go` | Tests for new parser |
+| `internal/plugin/json.go` | Add `formatRawUpdate()` for wire bytes output |
+| `internal/plugin/text.go` | Add raw text format output |
+| `internal/plugin/session.go` | Add `session api encoding` handlers |
+| `internal/plugin/types.go` | Add `WireEncoding` field to `ContentConfig` |
+| `internal/plugin/process.go` | Track per-process wire encoding setting |
 
 ### Test Updates (~48 files)
 

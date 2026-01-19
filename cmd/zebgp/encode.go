@@ -11,10 +11,10 @@ import (
 	"strconv"
 	"strings"
 
-	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/attribute"
-	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/message"
-	"codeberg.org/thomas-mangin/zebgp/pkg/bgp/nlri"
-	"codeberg.org/thomas-mangin/zebgp/pkg/plugin"
+	"codeberg.org/thomas-mangin/zebgp/internal/bgp/attribute"
+	"codeberg.org/thomas-mangin/zebgp/internal/bgp/message"
+	"codeberg.org/thomas-mangin/zebgp/internal/bgp/nlri"
+	"codeberg.org/thomas-mangin/zebgp/internal/plugin"
 )
 
 // encodeStdout, encodeStderr, and encodeStdin allow tests to capture I/O.

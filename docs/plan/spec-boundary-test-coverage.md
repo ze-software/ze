@@ -21,12 +21,12 @@ Add missing boundary tests identified during TDD rule update audit.
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestHoldTimeBoundary` | `pkg/config/bgp_test.go` | hold time 65535 valid, 65536 invalid | |
-| `TestMessageLengthBoundary` | `pkg/bgp/message/header_test.go` | 4097 invalid (standard), 65535/65536 (extended) | |
-| `TestIPv4PrefixLengthBoundary` | `pkg/bgp/nlri/inet_test.go` | prefix len 33 invalid | |
-| `TestIPv6PrefixLengthBoundary` | `pkg/bgp/nlri/inet_test.go` | prefix len 129 invalid | |
-| `TestFlowSpecDSCPBoundary` | `pkg/plugin/update_text_test.go` | DSCP 64 invalid | |
-| `TestFlowSpecICMPBoundary` | `pkg/plugin/update_text_test.go` | ICMP type/code 256 invalid | |
+| `TestHoldTimeBoundary` | `internal/config/bgp_test.go` | hold time 65535 valid, 65536 invalid | |
+| `TestMessageLengthBoundary` | `internal/bgp/message/header_test.go` | 4097 invalid (standard), 65535/65536 (extended) | |
+| `TestIPv4PrefixLengthBoundary` | `internal/bgp/nlri/inet_test.go` | prefix len 33 invalid | |
+| `TestIPv6PrefixLengthBoundary` | `internal/bgp/nlri/inet_test.go` | prefix len 129 invalid | |
+| `TestFlowSpecDSCPBoundary` | `internal/plugin/update_text_test.go` | DSCP 64 invalid | |
+| `TestFlowSpecICMPBoundary` | `internal/plugin/update_text_test.go` | ICMP type/code 256 invalid | |
 
 ### Boundary Tests (MANDATORY for numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
@@ -45,10 +45,10 @@ Add missing boundary tests identified during TDD rule update audit.
 | N/A | | Boundary validation is unit-level | |
 
 ## Files to Modify
-- `pkg/config/bgp_test.go` - add hold time boundary tests
-- `pkg/bgp/message/header_test.go` - add message length boundary tests
-- `pkg/bgp/nlri/inet_test.go` - add prefix length boundary tests
-- `pkg/plugin/update_text_test.go` - add FlowSpec boundary tests
+- `internal/config/bgp_test.go` - add hold time boundary tests
+- `internal/bgp/message/header_test.go` - add message length boundary tests
+- `internal/bgp/nlri/inet_test.go` - add prefix length boundary tests
+- `internal/plugin/update_text_test.go` - add FlowSpec boundary tests
 
 ## Files to Create
 - None (extending existing test files)

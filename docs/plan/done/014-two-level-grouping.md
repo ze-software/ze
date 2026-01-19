@@ -68,13 +68,13 @@ type RouteGroup struct { ... }
 
 ### Phase 1: Add Data Structures
 
-**File:** `pkg/rib/grouping.go`
+**File:** `internal/rib/grouping.go`
 
 1. Add `AttributeGroup` struct
 2. Add `ASPathGroup` struct
 3. Add helper: `hashASPath(*attribute.ASPath) string` for grouping key
 
-**Tests:** `pkg/rib/grouping_test.go`
+**Tests:** `internal/rib/grouping_test.go`
 - Test struct creation
 - Test ASPath hashing (nil, empty, with segments)
 
@@ -82,7 +82,7 @@ type RouteGroup struct { ... }
 
 ### Phase 2: Implement Two-Level Grouping
 
-**File:** `pkg/rib/grouping.go`
+**File:** `internal/rib/grouping.go`
 
 ```go
 // GroupByAttributesTwoLevel groups routes first by attributes, then by AS_PATH.
@@ -107,7 +107,7 @@ func GroupByAttributesTwoLevel(routes []*Route) []AttributeGroup
 
 ### Phase 3: Update CommitService
 
-**File:** `pkg/rib/commit.go`
+**File:** `internal/rib/commit.go`
 
 1. Add `buildGroupedUpdateTwoLevel(attrGroup, aspGroup)` method
 2. Modify `Commit()` to use two-level iteration when `groupUpdates=true`
@@ -136,7 +136,7 @@ func (c *CommitService) Commit(routes []*Route, opts CommitOptions) {
 
 ### Phase 4: Update AS_PATH Building
 
-**File:** `pkg/rib/commit.go`
+**File:** `internal/rib/commit.go`
 
 1. Add `packAttributesWithASPath(attrs, asPath, nextHop, family, nlri)` or modify existing
 2. Use explicit AS_PATH from `ASPathGroup`, not searched from attributes
@@ -163,7 +163,7 @@ func (c *CommitService) buildASPathFromExplicit(asPath *attribute.ASPath) []byte
 
 ### Phase 5: Wire Format Verification
 
-**File:** `pkg/rib/commit_wire_test.go`
+**File:** `internal/rib/commit_wire_test.go`
 
 Add tests that verify exact wire format:
 1. Two routes, same attrs, different AS_PATHs → 2 UPDATEs with correct AS_PATHs
@@ -303,9 +303,9 @@ Routes A, B, C all reference the same `[ORIGIN=IGP]` slice.
 
 | File | Changes |
 |------|---------|
-| `pkg/rib/grouping.go` | Add `AttributeGroup`, `ASPathGroup`, `GroupByAttributesTwoLevel` |
-| `pkg/rib/grouping_test.go` | Add two-level grouping tests |
-| `pkg/rib/commit.go` | Update `Commit()` to use two-level, add `buildGroupedUpdateTwoLevel` |
-| `pkg/rib/commit_test.go` | Add integration tests |
-| `pkg/rib/commit_wire_test.go` | Add wire format tests |
+| `internal/rib/grouping.go` | Add `AttributeGroup`, `ASPathGroup`, `GroupByAttributesTwoLevel` |
+| `internal/rib/grouping_test.go` | Add two-level grouping tests |
+| `internal/rib/commit.go` | Update `Commit()` to use two-level, add `buildGroupedUpdateTwoLevel` |
+| `internal/rib/commit_test.go` | Add integration tests |
+| `internal/rib/commit_wire_test.go` | Add wire format tests |
 | `docs/plan/CLAUDE_CONTINUATION.md` | Update status |

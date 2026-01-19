@@ -134,7 +134,7 @@ API controls engine's msg-id cache lifetime:
 ## State
 
 ```go
-// Shared types in pkg/plugin/apiutil/
+// Shared types in internal/plugin/apiutil/
 type Route struct {
     AttrHandle  pool.Handle  // Interned attributes
     NLRIHandle  pool.Handle  // Interned NLRI
@@ -411,7 +411,7 @@ peer * {
 ### File Structure
 
 ```
-pkg/plugin/apiutil/           # Shared types and utilities
+internal/plugin/apiutil/           # Shared types and utilities
 ├── rib.go                 # RIB type (Insert, Remove, GetPeerRoutes, etc.)
 ├── rib_test.go
 ├── peer.go                # PeerState type
@@ -419,11 +419,11 @@ pkg/plugin/apiutil/           # Shared types and utilities
 ├── event.go               # Event parsing from JSON
 └── event_test.go
 
-pkg/plugin/rr/                # Route Server plugin
+internal/plugin/rr/                # Route Server plugin
 ├── server.go              # RouteServer (uses ribIn)
 └── server_test.go
 
-pkg/plugin/persist/           # Persistence plugin
+internal/plugin/persist/           # Persistence plugin
 ├── server.go              # PersistServer (uses ribOut)
 └── server_test.go
 
@@ -433,7 +433,7 @@ cmd/zebgp/
 └── api_persist.go         # "zebgp plugin persist" entry point
 ```
 
-### Shared Code (pkg/plugin/apiutil/)
+### Shared Code (internal/plugin/apiutil/)
 
 Code shared between `rr` and `persist`:
 - `RIB` - route storage with peer isolation
@@ -447,7 +447,7 @@ Code shared between `rr` and `persist`:
 
 | Phase | Plugin | Tasks | Effort |
 |-------|--------|-------|--------|
-| 1 | shared | RIB, PeerState, Event types in `pkg/plugin/apiutil/` | 0.25 day |
+| 1 | shared | RIB, PeerState, Event types in `internal/plugin/apiutil/` | 0.25 day |
 | 2 | rr | Event loop, UPDATE forwarding | 0.5 day |
 | 3 | rr | Peer state, peer down withdrawals | 0.5 day |
 | 4 | rr | Route refresh, EOR on peer up | 0.25 day |
@@ -591,18 +591,18 @@ func (c *MsgCache) Evict() {
 ### Shared Code Location
 
 ```
-pkg/plugin/apiutil/
+internal/plugin/apiutil/
 ├── rib.go          # RIB type (shared)
 ├── rib_test.go
 ├── peer.go         # PeerState type (shared)
 ├── route.go        # Route type (shared)
 └── event.go        # Event parsing (shared)
 
-pkg/plugin/rr/
+internal/plugin/rr/
 ├── server.go       # RouteServer (uses ribIn)
 └── server_test.go
 
-pkg/plugin/persist/
+internal/plugin/persist/
 ├── server.go       # PersistServer (uses ribOut)
 └── server_test.go
 
@@ -682,7 +682,7 @@ ZeBGP notifies API processes when routes are **sent** to peers.
 #### PersistServer Structure
 
 ```go
-// pkg/plugin/persist/server.go
+// internal/plugin/persist/server.go
 type PersistServer struct {
     peers  map[string]*apiutil.PeerState
     ribOut *apiutil.RIB  // Routes SENT TO peers (for replay)
@@ -808,18 +808,18 @@ peer 127.0.0.1 {
 
 | File | Change |
 |------|--------|
-| `pkg/plugin/types.go` | Add `MessageTypeSent = "sent"`, `Source`, `Sender` fields |
-| `pkg/plugin/server.go` | `NotifySent(peer, msgID, update, source, sender)` method |
-| `pkg/plugin/server.go` | Filter: skip process if `source == processName` |
-| `pkg/plugin/server.go` | Parse `capability X` from process output |
-| `pkg/plugin/process.go` | `ValidateCapabilities(required)` method |
-| `pkg/plugin/process.go` | msg-id cache with 60s TTL, reset on use |
-| `pkg/reactor/session.go` | Call `NotifySent()` after sending UPDATE |
-| `pkg/reactor/reactor.go` | Call `ValidateCapabilities()` before starting sessions |
-| `pkg/config/schema.go` | Add `sent` to receive block options |
-| `pkg/config/bgp.go` | Derive required capabilities from peer config |
+| `internal/plugin/types.go` | Add `MessageTypeSent = "sent"`, `Source`, `Sender` fields |
+| `internal/plugin/server.go` | `NotifySent(peer, msgID, update, source, sender)` method |
+| `internal/plugin/server.go` | Filter: skip process if `source == processName` |
+| `internal/plugin/server.go` | Parse `capability X` from process output |
+| `internal/plugin/process.go` | `ValidateCapabilities(required)` method |
+| `internal/plugin/process.go` | msg-id cache with 60s TTL, reset on use |
+| `internal/reactor/session.go` | Call `NotifySent()` after sending UPDATE |
+| `internal/reactor/reactor.go` | Call `ValidateCapabilities()` before starting sessions |
+| `internal/config/schema.go` | Add `sent` to receive block options |
+| `internal/config/bgp.go` | Derive required capabilities from peer config |
 
-### Persist Plugin (pkg/plugin/persist/)
+### Persist Plugin (internal/plugin/persist/)
 
 | Task | Description |
 |------|-------------|
@@ -856,7 +856,7 @@ API processes advertise their capabilities on startup. ZeBGP validates against c
 #### API Process Startup
 
 ```go
-// pkg/plugin/rr/server.go
+// internal/plugin/rr/server.go
 func (rs *RouteServer) registerCommands() {
     // Advertise capabilities (not responding to query)
     rs.sendCommand("capability route-refresh")
@@ -868,7 +868,7 @@ func (rs *RouteServer) registerCommands() {
 #### ZeBGP Validation
 
 ```go
-// pkg/plugin/process.go
+// internal/plugin/process.go
 func (pm *ProcessManager) ValidateCapabilities(required []string) error {
     // Wait up to 5s for processes to advertise capabilities
     // Collect capabilities from all processes
@@ -902,10 +902,10 @@ ERROR: peer 192.168.1.1 has graceful-restart but no API supports route-refresh
 
 | File | Change |
 |------|--------|
-| `pkg/plugin/process.go` | `ValidateCapabilities()`, capability collection |
-| `pkg/plugin/server.go` | Parse `capability X` from processes |
-| `pkg/reactor/reactor.go` | Call `ValidateCapabilities()` before starting sessions |
-| `pkg/config/bgp.go` | Derive required capabilities from peer config |
+| `internal/plugin/process.go` | `ValidateCapabilities()`, capability collection |
+| `internal/plugin/server.go` | Parse `capability X` from processes |
+| `internal/reactor/reactor.go` | Call `ValidateCapabilities()` before starting sessions |
+| `internal/config/bgp.go` | Derive required capabilities from peer config |
 
 ---
 

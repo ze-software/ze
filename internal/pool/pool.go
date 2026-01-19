@@ -1,446 +1,294 @@
-//nolint:gosec // G115: Pool has explicit size limits preventing overflow; unsafe usage audited
 package pool
 
 import (
-	"errors"
 	"sync"
 	"sync/atomic"
-	"time"
 	"unsafe"
 )
 
-// ErrPoolShutdown is returned when operations are attempted on a shutdown pool.
-var ErrPoolShutdown = errors.New("pool is shutdown")
+// PoolConfig configures pool behavior.
+type PoolConfig struct {
+	InitialBufferSize int // Initial buffer capacity in bytes
+	ExpectedEntries   int // Expected number of unique entries
+}
 
-// ErrDataTooLarge is returned when data exceeds MaxDataLength.
-var ErrDataTooLarge = errors.New("data exceeds maximum length (65535 bytes)")
+// PoolState tracks pool lifecycle.
+type PoolState int
 
-// ErrInvalidHandle is returned when an invalid handle is used.
-var ErrInvalidHandle = errors.New("invalid handle")
+const (
+	// PoolNormal is the normal operating state.
+	PoolNormal PoolState = iota
+	// PoolCompacting indicates compaction is in progress.
+	PoolCompacting
+)
 
-// ErrWrongPool is returned when a handle from a different pool is used.
-var ErrWrongPool = errors.New("handle belongs to different pool")
+// Slot represents a single entry in the pool.
+type Slot struct {
+	offsets  [2]uint32 // Offset in each buffer (both valid during compaction)
+	length   uint16    // Data length
+	refCount int32     // Reference count
+	dead     bool      // Marked for removal
+}
 
-// ErrSlotOutOfBounds is returned when handle references non-existent slot.
-var ErrSlotOutOfBounds = errors.New("handle slot out of bounds")
+// buffer holds pooled data.
+type buffer struct {
+	data     []byte
+	pos      int          // Write cursor
+	refCount atomic.Int32 // Handles pointing here
+}
 
-// ErrSlotDead is returned when handle references a released slot.
-var ErrSlotDead = errors.New("handle references dead slot")
-
-// ErrPoolFull is returned when pool has reached MaxSlots limit.
-var ErrPoolFull = errors.New("pool has reached maximum slot count (16,777,215)")
-
-// MaxDataLength is the maximum length of data that can be interned.
-// Limited by uint16 length field in slot struct.
-const MaxDataLength = 65535
-
-// MaxSlots is the maximum number of slots per pool.
-// Limited by 24-bit slot field in Handle.
-const MaxSlots = 0xFFFFFF // 16,777,215
-
-// Pool provides zero-copy byte slice deduplication for BGP attributes and NLRI.
+// Pool provides deduplicated byte storage with reference counting.
 //
-// Thread-safe. Uses reference counting for lifecycle management.
-// Designed for high-frequency access patterns with many duplicate entries.
+// Thread-safe for concurrent access. Uses double-buffer design for
+// non-blocking compaction.
+//
+// See .claude/zebgp/POOL_ARCHITECTURE.md for design details.
 type Pool struct {
 	mu sync.RWMutex
 
-	// Pool index for handle encoding (0-62, 63 reserved for InvalidHandle)
-	idx uint8
+	// Double buffer - alternates between compaction cycles
+	buffers    [2]buffer
+	currentBit uint32 // 0 or 1 - which buffer is current
 
-	// Data buffer - all interned data stored here contiguously
-	data []byte
-	pos  int // write cursor
-
-	// Slot table - indexed by handle's slot portion
-	slots []slot
-
-	// Free list for slot reuse
-	freeSlots []uint32
+	// Slot table - indexed by handle.SlotIndex()
+	slots    []Slot
+	freeList []uint32 // Recycled slot indices
 
 	// Dedup index: data content → Handle
-	// Keys use unsafe.String pointing into data buffer (zero-copy)
+	// Keys use unsafe.String pointing into buffer (zero-copy)
 	index map[string]Handle
 
-	// Activity tracking for scheduler
-	lastActivity atomic.Int64 // Unix nano timestamp
+	// Compaction state (Phase 5)
+	_state         PoolState // nolint:unused // Phase 5: compaction
+	_compactCursor uint32    // nolint:unused // Phase 5: compaction
 
-	// Metrics counters
-	internTotal atomic.Int64 // total Intern() calls
-	internHits  atomic.Int64 // Intern() calls that hit existing entry
+	// Metrics
+	liveBytes int64
+	liveCount int32
+	deadCount int32
 
-	// Shutdown state
-	shutdown atomic.Bool
+	// Configuration
+	config PoolConfig
 }
 
-// slot tracks a single interned entry.
-type slot struct {
-	offset   uint32 // offset in data buffer
-	length   uint16 // data length
-	refCount int32  // reference count
-	dead     bool   // marked for removal
-}
-
-// New creates a pool with idx=0 and the given initial buffer capacity.
-// For pools with specific idx, use NewWithIdx.
-func New(initialCapacity int) *Pool {
-	return NewWithIdx(0, initialCapacity)
-}
-
-// NewWithIdx creates a pool with the given index and initial buffer capacity.
-// idx must be 0-62 (63 is reserved for InvalidHandle).
-// Panics if idx >= 63.
-func NewWithIdx(idx uint8, initialCapacity int) *Pool {
-	if idx >= 63 {
-		panic("pool idx must be 0-62, 63 is reserved for InvalidHandle")
+// NewPool creates a new pool with the given configuration.
+func NewPool(cfg PoolConfig) *Pool {
+	if cfg.InitialBufferSize <= 0 {
+		cfg.InitialBufferSize = 1 << 16 // 64KB default
 	}
-	if initialCapacity < 64 {
-		initialCapacity = 64
+	if cfg.ExpectedEntries <= 0 {
+		cfg.ExpectedEntries = 1000
 	}
-	return &Pool{
-		idx:   idx,
-		data:  make([]byte, 0, initialCapacity),
-		slots: make([]slot, 0, 64),
-		index: make(map[string]Handle, 64),
+
+	p := &Pool{
+		config:     cfg,
+		currentBit: 0,
+		index:      make(map[string]Handle, cfg.ExpectedEntries),
+		slots:      make([]Slot, 0, cfg.ExpectedEntries),
 	}
+
+	// Initialize first buffer
+	p.buffers[0].data = make([]byte, cfg.InitialBufferSize)
+
+	return p
 }
 
-// Touch marks the pool as recently active.
-// Used by scheduler to determine when compaction is safe.
-func (p *Pool) Touch() {
-	p.lastActivity.Store(time.Now().UnixNano())
-}
-
-// IsIdle returns true if the pool has been inactive for the given duration.
-func (p *Pool) IsIdle(d time.Duration) bool {
-	last := p.lastActivity.Load()
-	if last == 0 {
-		return true // Never used
-	}
-	return time.Since(time.Unix(0, last)) >= d
-}
-
-// Intern stores data in the pool with deduplication.
-// Returns a handle that can be used to retrieve the data.
-// If identical data already exists, increments refCount and returns existing handle.
-// Panics if pool is shutdown, data too large, or pool is full.
-// Use InternWithError for error returns instead of panics.
+// Intern stores data and returns a handle.
+//
+// If identical data already exists, returns the existing handle and
+// increments its reference count. Otherwise allocates new storage.
+//
+// The returned handle starts with refCount=1.
 func (p *Pool) Intern(data []byte) Handle {
-	h, err := p.internLocked(data)
-	if err != nil {
-		panic("pool: " + err.Error())
-	}
-	return h
-}
-
-// internLocked performs the actual intern operation under lock.
-// Returns error instead of panicking.
-func (p *Pool) internLocked(data []byte) (Handle, error) {
-	// Treat nil as empty
-	if data == nil {
-		data = []byte{}
-	}
-
-	// Validate length fits in uint16
-	if len(data) > MaxDataLength {
-		return InvalidHandle, ErrDataTooLarge
-	}
-
+	// Create lookup key from input data
 	lookupKey := bytesToString(data)
 
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
-	// Check shutdown under lock
-	if p.shutdown.Load() {
-		return InvalidHandle, ErrPoolShutdown
-	}
-
-	// Track metrics
-	p.internTotal.Add(1)
-
-	// Mark activity
-	p.lastActivity.Store(time.Now().UnixNano())
-
-	// Check for existing entry (deduplication)
+	// Check for existing (deduplication)
 	if h, ok := p.index[lookupKey]; ok {
-		s := &p.slots[h.Slot()]
-		if !s.dead && s.refCount > 0 {
-			s.refCount++
-			p.internHits.Add(1) // Deduplication hit
-			return h, nil
+		slot := &p.slots[h.SlotIndex()]
+		if !slot.dead && slot.refCount > 0 {
+			slot.refCount++
+			p.buffers[h.BufferBit()].refCount.Add(1)
+			return h
 		}
+		// Entry is dead or has zero refs - fall through to create new
 	}
 
-	// Check slot limit under lock (no race)
-	if len(p.slots) >= MaxSlots && len(p.freeSlots) == 0 {
-		return InvalidHandle, ErrPoolFull
-	}
+	// Allocate new entry in current buffer
+	bufIdx := p.currentBit
+	buf := &p.buffers[bufIdx]
 
-	// Allocate new entry
-	p.ensureCapacity(len(data))
+	p.ensureCapacity(bufIdx, len(data))
+	offset := uint32(buf.pos) //nolint:gosec // G115: buf.pos bounded by buffer capacity
+	copy(buf.data[buf.pos:], data)
+	buf.pos += len(data)
 
-	offset := uint32(p.pos)
-	p.data = append(p.data, data...)
-	p.pos += len(data)
+	// Allocate slot
+	slotIdx := p.allocSlot()
+	slot := &p.slots[slotIdx]
+	slot.offsets[bufIdx] = offset
+	slot.length = uint16(len(data)) //nolint:gosec // G115: length bounded by buffer
+	slot.refCount = 1
+	slot.dead = false
 
-	// Allocate or reuse slot
-	var slotIdx uint32
-	if len(p.freeSlots) > 0 {
-		slotIdx = p.freeSlots[len(p.freeSlots)-1]
-		p.freeSlots = p.freeSlots[:len(p.freeSlots)-1]
-		p.slots[slotIdx] = slot{
-			offset:   offset,
-			length:   uint16(len(data)),
-			refCount: 1,
-			dead:     false,
-		}
-	} else {
-		slotIdx = uint32(len(p.slots))
-		p.slots = append(p.slots, slot{
-			offset:   offset,
-			length:   uint16(len(data)),
-			refCount: 1,
-			dead:     false,
-		})
-	}
+	// Create handle with current buffer bit
+	h := MakeHandle(slotIdx, bufIdx)
 
-	// Create handle with pool idx encoded
-	h := NewHandle(p.idx, 0, slotIdx)
+	// Track buffer reference
+	buf.refCount.Add(1)
 
 	// Index with key pointing to buffer memory (zero-copy)
-	bufferKey := bytesToString(p.data[offset : offset+uint32(len(data))])
+	bufferKey := bytesToString(buf.data[offset : offset+uint32(len(data))]) //nolint:gosec // G115: len bounded
 	p.index[bufferKey] = h
 
-	return h, nil
+	p.liveBytes += int64(len(data))
+	p.liveCount++
+
+	return h
 }
 
-// Get returns the data associated with the handle.
-// Returns a slice pointing into the pool's buffer (zero-copy).
-// The returned slice is only valid while the handle is live.
-// Returns error if handle is invalid, from wrong pool, or references dead slot.
-func (p *Pool) Get(h Handle) ([]byte, error) {
+// Get returns the data for handle h.
+//
+// The returned slice references pool-owned memory. Do not modify.
+// The slice is valid as long as the handle has positive refCount.
+func (p *Pool) Get(h Handle) []byte {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
 
-	if err := p.validateHandle(h); err != nil {
-		return nil, err
-	}
+	bufIdx := h.BufferBit()
+	slot := &p.slots[h.SlotIndex()]
 
-	slot := h.Slot()
-	s := &p.slots[slot]
-	return p.data[s.offset : s.offset+uint32(s.length)], nil
+	offset := slot.offsets[bufIdx]
+	return p.buffers[bufIdx].data[offset : offset+uint32(slot.length)]
 }
 
-// Length returns the length of data associated with the handle.
-// Returns error if handle is invalid, from wrong pool, or references dead slot.
-func (p *Pool) Length(h Handle) (int, error) {
+// Length returns the byte length of data at handle h.
+func (p *Pool) Length(h Handle) int {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
 
-	if err := p.validateHandle(h); err != nil {
-		return 0, err
-	}
-
-	return int(p.slots[h.Slot()].length), nil
+	return int(p.slots[h.SlotIndex()].length)
 }
 
-// Release decrements the reference count for the handle.
-// When refCount reaches zero, the entry is marked dead and eligible for reclamation.
-// Returns error if handle is invalid, from wrong pool, or slot out of bounds.
-func (p *Pool) Release(h Handle) error {
+// AddRef increments the reference count for handle h.
+//
+// Use when sharing a handle across multiple owners.
+func (p *Pool) AddRef(h Handle) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
-	if err := p.validateHandleForRelease(h); err != nil {
-		return err
+	p.slots[h.SlotIndex()].refCount++
+	p.buffers[h.BufferBit()].refCount.Add(1)
+}
+
+// Release decrements the reference count for handle h.
+//
+// When refCount reaches 0, the slot is marked dead and may be
+// reclaimed during compaction.
+func (p *Pool) Release(h Handle) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	bufIdx := h.BufferBit()
+	slotIdx := h.SlotIndex()
+	slot := &p.slots[slotIdx]
+
+	slot.refCount--
+	p.buffers[bufIdx].refCount.Add(-1)
+
+	if slot.refCount <= 0 {
+		slot.dead = true
+		p.deadCount++
+		p.liveCount--
+		p.liveBytes -= int64(slot.length)
+
+		// Remove from index if this is the current buffer
+		if bufIdx == p.currentBit {
+			offset := slot.offsets[bufIdx]
+			bufferKey := bytesToString(p.buffers[bufIdx].data[offset : offset+uint32(slot.length)])
+			delete(p.index, bufferKey)
+		}
+
+		// Add to freelist for slot reuse
+		p.freeList = append(p.freeList, slotIdx)
+	}
+}
+
+// allocSlot returns a slot index (reusing freed slots when available).
+// Caller must hold write lock.
+func (p *Pool) allocSlot() uint32 {
+	if len(p.freeList) > 0 {
+		idx := p.freeList[len(p.freeList)-1]
+		p.freeList = p.freeList[:len(p.freeList)-1]
+		return idx
 	}
 
-	slot := h.Slot()
-	s := &p.slots[slot]
-	s.refCount--
-
-	if s.refCount <= 0 {
-		s.dead = true
-
-		// Remove from index
-		bufferKey := bytesToString(p.data[s.offset : s.offset+uint32(s.length)])
-		delete(p.index, bufferKey)
-
-		// Add slot to free list for reuse
-		p.freeSlots = append(p.freeSlots, slot)
-	}
-
-	return nil
+	// Allocate new slot
+	idx := uint32(len(p.slots)) //nolint:gosec // G115: slots bounded by uint32 max
+	p.slots = append(p.slots, Slot{})
+	return idx
 }
 
-// Shutdown marks the pool as shutdown, rejecting new operations.
-// Existing handles remain valid for Get() and Release().
-// Safe to call multiple times.
-func (p *Pool) Shutdown() {
-	p.shutdown.Store(true)
-}
+// ensureCapacity ensures buffer has room for n more bytes.
+// Grows buffer if needed, preserving existing data and rebuilding index.
+// Caller must hold write lock.
+func (p *Pool) ensureCapacity(bufIdx uint32, needed int) {
+	buf := &p.buffers[bufIdx]
+	required := buf.pos + needed
 
-// IsShutdown returns true if the pool has been shutdown.
-func (p *Pool) IsShutdown() bool {
-	return p.shutdown.Load()
-}
-
-// InternWithError is like Intern but returns an error instead of panicking.
-// Returns ErrPoolShutdown if pool is shutdown.
-// Returns ErrDataTooLarge if data exceeds MaxDataLength (65535 bytes).
-// Returns ErrPoolFull if pool has reached MaxSlots (16,777,215).
-func (p *Pool) InternWithError(data []byte) (Handle, error) {
-	return p.internLocked(data)
-}
-
-// ensureCapacity ensures the data buffer can hold additional bytes.
-// Called with lock held.
-func (p *Pool) ensureCapacity(needed int) {
-	required := p.pos + needed
-	if required <= cap(p.data) {
+	if required <= cap(buf.data) {
+		// Have capacity, extend length if needed
+		if required > len(buf.data) {
+			buf.data = buf.data[:required]
+		}
 		return
 	}
 
-	// Grow buffer
-	newCap := cap(p.data) * 2
+	// Need to grow - allocate new and copy existing data
+	newCap := cap(buf.data) * 2
 	if newCap < required {
 		newCap = required
 	}
 
-	oldData := p.data
-	p.data = make([]byte, len(oldData), newCap)
-	copy(p.data, oldData)
+	newData := make([]byte, newCap)
+	copy(newData, buf.data[:buf.pos])
+	buf.data = newData
 
-	// Rebuild index - old keys reference old memory
-	p.rebuildIndex()
+	// Rebuild index entries pointing to this buffer
+	p.rebuildIndexForBuffer(bufIdx)
 }
 
-// rebuildIndex recreates the index with keys pointing to current buffer.
-// Called with lock held after buffer reallocation.
-func (p *Pool) rebuildIndex() {
+// rebuildIndexForBuffer recreates index entries after buffer reallocation.
+// Keys must point into new buffer memory to allow old buffer GC.
+// Caller must hold write lock.
+func (p *Pool) rebuildIndexForBuffer(bufIdx uint32) {
+	buf := &p.buffers[bufIdx]
+
+	// Rebuild entire index from live slots
 	p.index = make(map[string]Handle, len(p.slots))
 	for i := range p.slots {
-		s := &p.slots[i]
-		if !s.dead && s.refCount > 0 {
-			key := bytesToString(p.data[s.offset : s.offset+uint32(s.length)])
-			p.index[key] = NewHandle(p.idx, 0, uint32(i))
+		slot := &p.slots[i]
+		if !slot.dead && slot.refCount > 0 {
+			// Create handle and key for current buffer
+			h := MakeHandle(uint32(i), p.currentBit) //nolint:gosec // G115: i bounded by slots len
+			offset := slot.offsets[p.currentBit]
+			key := bytesToString(buf.data[offset : offset+uint32(slot.length)])
+			p.index[key] = h
 		}
 	}
 }
 
-// bytesToString converts a byte slice to a string without copying.
-// The string is only valid while the underlying byte slice is valid.
+// bytesToString converts []byte to string without allocation.
+// The string references the same memory as the slice.
+// WARNING: The string is only valid while the slice memory is valid.
+//
+//nolint:gosec // G103: Intentional use of unsafe for zero-copy string keys
 func bytesToString(b []byte) string {
 	if len(b) == 0 {
 		return ""
 	}
 	return unsafe.String(&b[0], len(b))
-}
-
-// Metrics holds pool statistics.
-type Metrics struct {
-	LiveSlots  int32 // slots with refCount > 0
-	DeadSlots  int32 // slots marked dead (refCount <= 0)
-	LiveBytes  int64 // bytes in live slots
-	DeadBytes  int64 // bytes in dead slots
-	TotalSlots int32 // total slot count
-	BufferSize int64 // current buffer size
-	BufferCap  int64 // current buffer capacity
-
-	// Deduplication metrics
-	InternTotal int64 // total Intern() calls
-	InternHits  int64 // Intern() calls that hit existing entry
-}
-
-// DeduplicationRate returns the ratio of deduplication hits to total interns.
-// Returns 0 if no interns have occurred.
-func (m Metrics) DeduplicationRate() float64 {
-	if m.InternTotal == 0 {
-		return 0
-	}
-	return float64(m.InternHits) / float64(m.InternTotal)
-}
-
-// Metrics returns current pool statistics.
-func (p *Pool) Metrics() Metrics {
-	p.mu.RLock()
-	defer p.mu.RUnlock()
-
-	var m Metrics
-	m.TotalSlots = int32(len(p.slots))
-	m.BufferSize = int64(len(p.data))
-	m.BufferCap = int64(cap(p.data))
-	m.InternTotal = p.internTotal.Load()
-	m.InternHits = p.internHits.Load()
-
-	for i := range p.slots {
-		s := &p.slots[i]
-		if !s.dead && s.refCount > 0 {
-			m.LiveSlots++
-			m.LiveBytes += int64(s.length)
-		} else if s.length > 0 {
-			// Dead slot with data still in buffer (not yet compacted)
-			m.DeadSlots++
-			m.DeadBytes += int64(s.length)
-		}
-		// Slots with length=0 are reclaimed/free, not counted as dead
-	}
-
-	return m
-}
-
-// Compact removes dead entries and reclaims buffer memory.
-// Live handles remain valid after compaction.
-// Note: Slot array is not compacted to preserve handle stability.
-func (p *Pool) Compact() {
-	p.mu.Lock()
-	defer p.mu.Unlock()
-
-	// Count live bytes
-	var liveBytes int
-	for i := range p.slots {
-		s := &p.slots[i]
-		if !s.dead && s.refCount > 0 {
-			liveBytes += int(s.length)
-		}
-	}
-
-	// Nothing to compact if no dead entries
-	if len(p.freeSlots) == 0 {
-		return
-	}
-
-	// Create new buffer with only live data
-	newData := make([]byte, 0, liveBytes+liveBytes/4) // 25% headroom
-	newPos := 0
-
-	// Copy live data to new buffer, update slot offsets
-	for i := range p.slots {
-		s := &p.slots[i]
-		if !s.dead && s.refCount > 0 {
-			// Copy data to new buffer
-			oldData := p.data[s.offset : s.offset+uint32(s.length)]
-			newOffset := uint32(newPos)
-			newData = append(newData, oldData...)
-			newPos += int(s.length)
-
-			// Update slot offset (handle/slot index stays the same)
-			s.offset = newOffset
-		} else {
-			// Clear dead slot data reference
-			s.offset = 0
-			s.length = 0
-		}
-	}
-
-	// Update buffer
-	p.data = newData
-	p.pos = newPos
-
-	// Clear dead count from free list (slots stay allocated but dead)
-	// Keep freeSlots for reuse
-
-	// Rebuild index with new buffer pointers
-	p.rebuildIndex()
 }

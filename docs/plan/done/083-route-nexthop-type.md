@@ -28,7 +28,7 @@ Replace the dual-field pattern (`NextHop netip.Addr` + `NextHopSelf bool`) with 
 ### RouteNextHop Type
 
 ```go
-// pkg/plugin/nexthop.go
+// internal/plugin/nexthop.go
 
 // NextHopPolicy specifies how next-hop is determined for a route.
 type NextHopPolicy uint8
@@ -65,7 +65,7 @@ func (n RouteNextHop) String() string
 
 2. **Constructor accepts invalid addr**: `NewNextHopExplicit(netip.Addr{})` is allowed. `IsValid()` returns false for this case. Callers should check `IsValid()` before calling `resolveNextHop()`.
 
-3. **Error types in `pkg/reactor/peer.go`** (follows existing pattern):
+3. **Error types in `internal/reactor/peer.go`** (follows existing pattern):
    - `ErrNextHopUnset` - policy is zero value
    - `ErrNextHopSelfNoLocal` - Self but no LocalAddress configured
    - `ErrNextHopIncompatible` - Self address incompatible with family (no Extended NH)
@@ -73,7 +73,7 @@ func (n RouteNextHop) String() string
 ### Resolution at Peer Level
 
 ```go
-// pkg/reactor/peer.go
+// internal/reactor/peer.go
 
 // resolveNextHop returns the actual IP for a RouteNextHop policy.
 // Uses session's LocalAddress for Self, validates against Extended NH capability.
@@ -122,22 +122,22 @@ func (p *Peer) canUseNextHopFor(addr netip.Addr, family nlri.Family) bool {
 
 | Test | File | Validates |
 |------|------|-----------|
-| `TestRouteNextHop_Constructors` | `pkg/plugin/nexthop_test.go` | NewNextHopExplicit, NewNextHopSelf |
-| `TestRouteNextHop_ZeroValue` | `pkg/plugin/nexthop_test.go` | Zero value is invalid |
-| `TestRouteNextHop_IsSelf` | `pkg/plugin/nexthop_test.go` | IsSelf() returns correct bool |
-| `TestRouteNextHop_IsExplicit` | `pkg/plugin/nexthop_test.go` | IsExplicit() returns correct bool |
-| `TestRouteNextHop_IsValid` | `pkg/plugin/nexthop_test.go` | IsValid(): Self=true, Explicit+valid=true, Explicit+invalid=false, Unset=false |
-| `TestRouteNextHop_String` | `pkg/plugin/nexthop_test.go` | String(): Self="self", Explicit=IP, Unset="", Explicit+invalid="" |
-| `TestResolveNextHop_Explicit` | `pkg/reactor/peer_test.go` | Explicit returns configured addr |
-| `TestResolveNextHop_Self` | `pkg/reactor/peer_test.go` | Self returns LocalAddress |
-| `TestResolveNextHop_SelfNoLocal` | `pkg/reactor/peer_test.go` | Self with no LocalAddress errors |
-| `TestResolveNextHop_Unset` | `pkg/reactor/peer_test.go` | Unset policy returns ErrNextHopUnset |
-| `TestResolveNextHop_ExplicitInvalid` | `pkg/reactor/peer_test.go` | Explicit with invalid addr returns invalid addr (no error) |
-| `TestCanUseNextHopFor_IPv4Natural` | `pkg/reactor/peer_test.go` | IPv4 addr for IPv4 family OK |
-| `TestCanUseNextHopFor_IPv6Natural` | `pkg/reactor/peer_test.go` | IPv6 addr for IPv6 family OK |
-| `TestCanUseNextHopFor_ExtendedNH` | `pkg/reactor/peer_test.go` | IPv6 addr for IPv4 family with cap OK |
-| `TestCanUseNextHopFor_CrossFamilyNoCap` | `pkg/reactor/peer_test.go` | Cross-family without cap fails |
-| `TestCanUseNextHopFor_NilSendCtx` | `pkg/reactor/peer_test.go` | Nil sendCtx, cross-family fails |
+| `TestRouteNextHop_Constructors` | `internal/plugin/nexthop_test.go` | NewNextHopExplicit, NewNextHopSelf |
+| `TestRouteNextHop_ZeroValue` | `internal/plugin/nexthop_test.go` | Zero value is invalid |
+| `TestRouteNextHop_IsSelf` | `internal/plugin/nexthop_test.go` | IsSelf() returns correct bool |
+| `TestRouteNextHop_IsExplicit` | `internal/plugin/nexthop_test.go` | IsExplicit() returns correct bool |
+| `TestRouteNextHop_IsValid` | `internal/plugin/nexthop_test.go` | IsValid(): Self=true, Explicit+valid=true, Explicit+invalid=false, Unset=false |
+| `TestRouteNextHop_String` | `internal/plugin/nexthop_test.go` | String(): Self="self", Explicit=IP, Unset="", Explicit+invalid="" |
+| `TestResolveNextHop_Explicit` | `internal/reactor/peer_test.go` | Explicit returns configured addr |
+| `TestResolveNextHop_Self` | `internal/reactor/peer_test.go` | Self returns LocalAddress |
+| `TestResolveNextHop_SelfNoLocal` | `internal/reactor/peer_test.go` | Self with no LocalAddress errors |
+| `TestResolveNextHop_Unset` | `internal/reactor/peer_test.go` | Unset policy returns ErrNextHopUnset |
+| `TestResolveNextHop_ExplicitInvalid` | `internal/reactor/peer_test.go` | Explicit with invalid addr returns invalid addr (no error) |
+| `TestCanUseNextHopFor_IPv4Natural` | `internal/reactor/peer_test.go` | IPv4 addr for IPv4 family OK |
+| `TestCanUseNextHopFor_IPv6Natural` | `internal/reactor/peer_test.go` | IPv6 addr for IPv6 family OK |
+| `TestCanUseNextHopFor_ExtendedNH` | `internal/reactor/peer_test.go` | IPv6 addr for IPv4 family with cap OK |
+| `TestCanUseNextHopFor_CrossFamilyNoCap` | `internal/reactor/peer_test.go` | Cross-family without cap fails |
+| `TestCanUseNextHopFor_NilSendCtx` | `internal/reactor/peer_test.go` | Nil sendCtx, cross-family fails |
 
 ### Functional Tests
 
@@ -147,21 +147,21 @@ func (p *Peer) canUseNextHopFor(addr netip.Addr, family nlri.Family) bool {
 
 ## Files to Modify
 
-- `pkg/plugin/nexthop.go` - **NEW** RouteNextHop type and constructors
-- `pkg/plugin/nexthop_test.go` - **NEW** Unit tests
-- `pkg/plugin/types.go` - Update RouteSpec, NLRIGroup, NLRIBatch to use RouteNextHop
-- `pkg/plugin/route.go` - Update parsing to create RouteNextHop
-- `pkg/plugin/update_text.go` - Update parsedAttrs and parsing to use RouteNextHop
-- `pkg/reactor/peersettings.go` - Update StaticRoute to use RouteNextHop
-- `pkg/reactor/peer.go` - Add resolveNextHop(), canUseNextHopFor(), error vars
-- `pkg/reactor/peer_test.go` - Add resolution tests
-- `pkg/reactor/reactor.go` - Update buildAnnounceUpdateFromStatic()
-- `pkg/config/bgp.go` - Update StaticRouteConfig parsing
-- `pkg/config/loader.go` - Update route loading
+- `internal/plugin/nexthop.go` - **NEW** RouteNextHop type and constructors
+- `internal/plugin/nexthop_test.go` - **NEW** Unit tests
+- `internal/plugin/types.go` - Update RouteSpec, NLRIGroup, NLRIBatch to use RouteNextHop
+- `internal/plugin/route.go` - Update parsing to create RouteNextHop
+- `internal/plugin/update_text.go` - Update parsedAttrs and parsing to use RouteNextHop
+- `internal/reactor/peersettings.go` - Update StaticRoute to use RouteNextHop
+- `internal/reactor/peer.go` - Add resolveNextHop(), canUseNextHopFor(), error vars
+- `internal/reactor/peer_test.go` - Add resolution tests
+- `internal/reactor/reactor.go` - Update buildAnnounceUpdateFromStatic()
+- `internal/config/bgp.go` - Update StaticRouteConfig parsing
+- `internal/config/loader.go` - Update route loading
 
 ## Implementation Steps
 
-1. **Write tests** - Create `pkg/plugin/nexthop_test.go` and `pkg/reactor/peer_test.go` additions
+1. **Write tests** - Create `internal/plugin/nexthop_test.go` and `internal/reactor/peer_test.go` additions
 2. **Run tests** - Verify FAIL (paste output)
 3. **Implement** - Minimal code: nexthop.go, peer.go resolution methods
 4. **Run tests** - Verify PASS (paste output)
@@ -181,11 +181,11 @@ func (p *Peer) canUseNextHopFor(addr netip.Addr, family nlri.Family) bool {
 
 | Type | Location | Fields |
 |------|----------|--------|
-| `RouteSpec` | `pkg/plugin/types.go` | `NextHop`, `NextHopSelf` |
-| `NLRIGroup` | `pkg/plugin/types.go` | `NextHop`, `NextHopSelf` |
-| `NLRIBatch` | `pkg/plugin/types.go` | `NextHop`, `NextHopSelf` |
-| `parsedAttrs` | `pkg/plugin/update_text.go` | `NextHop`, `NextHopSelf` |
-| `StaticRoute` | `pkg/reactor/peersettings.go` | `NextHop`, `NextHopSelf` |
+| `RouteSpec` | `internal/plugin/types.go` | `NextHop`, `NextHopSelf` |
+| `NLRIGroup` | `internal/plugin/types.go` | `NextHop`, `NextHopSelf` |
+| `NLRIBatch` | `internal/plugin/types.go` | `NextHop`, `NextHopSelf` |
+| `parsedAttrs` | `internal/plugin/update_text.go` | `NextHop`, `NextHopSelf` |
+| `StaticRoute` | `internal/reactor/peersettings.go` | `NextHop`, `NextHopSelf` |
 
 ### Before
 ```go

@@ -179,8 +179,8 @@ neighbor 192.0.2.1 {
 
 | File | Changes |
 |------|---------|
-| `pkg/config/bgp.go` | Add RIBOut to NeighborConfig, update parseNeighborConfig |
-| `pkg/config/bgp_test.go` | Update tests for per-neighbor rib |
+| `internal/config/bgp.go` | Add RIBOut to NeighborConfig, update parseNeighborConfig |
+| `internal/config/bgp_test.go` | Update tests for per-neighbor rib |
 
 ---
 

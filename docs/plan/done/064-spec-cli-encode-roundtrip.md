@@ -111,13 +111,13 @@ All families fully tested.
 - `cmd/zebgp/encode.go` - CLI encode command (~1050 lines)
 - `cmd/zebgp/encode_test.go` - Unit tests (40 tests)
 - `cmd/zebgp/roundtrip_test.go` - Round-trip tests (13 tests)
-- `pkg/bgp/message/update_build_evpn_test.go` - EVPN builder tests
+- `internal/bgp/message/update_build_evpn_test.go` - EVPN builder tests
 
 ### Modified
 - `cmd/zebgp/main.go` - Add encode command
-- `pkg/plugin/route.go` - Exported `ParseRouteAttributes()`, `ParseL2VPNArgs()`
-- `pkg/bgp/message/update_build.go` - Added `EVPNParams`, `BuildEVPN()`
-- `pkg/bgp/nlri/evpn.go` - Added `NewEVPNType1-5()` constructors
+- `internal/plugin/route.go` - Exported `ParseRouteAttributes()`, `ParseL2VPNArgs()`
+- `internal/bgp/message/update_build.go` - Added `EVPNParams`, `BuildEVPN()`
+- `internal/bgp/nlri/evpn.go` - Added `NewEVPNType1-5()` constructors
 
 ---
 

@@ -34,14 +34,14 @@ Sub-components are immutable after session creation, passed by pointer.
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestPeerIdentityIsIBGP` | `pkg/bgp/capability/identity_test.go` | IsIBGP computed correctly | |
-| `TestEncodingCapsSupportsFamily` | `pkg/bgp/capability/encoding_test.go` | Family lookup works | |
-| `TestNegotiateComposite` | `pkg/bgp/capability/negotiated_test.go` | Sub-components populated | |
-| `TestWireContextDelegation` | `pkg/bgp/context/wire_test.go` | Methods delegate to sub-components | |
-| `TestWireContextAddPathRecv` | `pkg/bgp/context/wire_test.go` | Receive direction extracts correct mode | |
-| `TestWireContextAddPathSend` | `pkg/bgp/context/wire_test.go` | Send direction extracts correct mode | |
-| `TestWireContextHash` | `pkg/bgp/context/wire_test.go` | Hash consistent for same params | |
-| `TestWireContextHashDiffersByDirection` | `pkg/bgp/context/wire_test.go` | Different hash for recv vs send | |
+| `TestPeerIdentityIsIBGP` | `internal/bgp/capability/identity_test.go` | IsIBGP computed correctly | |
+| `TestEncodingCapsSupportsFamily` | `internal/bgp/capability/encoding_test.go` | Family lookup works | |
+| `TestNegotiateComposite` | `internal/bgp/capability/negotiated_test.go` | Sub-components populated | |
+| `TestWireContextDelegation` | `internal/bgp/context/wire_test.go` | Methods delegate to sub-components | |
+| `TestWireContextAddPathRecv` | `internal/bgp/context/wire_test.go` | Receive direction extracts correct mode | |
+| `TestWireContextAddPathSend` | `internal/bgp/context/wire_test.go` | Send direction extracts correct mode | |
+| `TestWireContextHash` | `internal/bgp/context/wire_test.go` | Hash consistent for same params | |
+| `TestWireContextHashDiffersByDirection` | `internal/bgp/context/wire_test.go` | Different hash for recv vs send | |
 
 ### Functional Tests
 | Test | Location | Scenario | Status |
@@ -52,18 +52,18 @@ Sub-components are immutable after session creation, passed by pointer.
 - Integration tests for route reflection with ORIGINATOR_ID (depends on RR implementation)
 
 ## Files to Modify
-- `pkg/bgp/capability/negotiated.go` - Split into composite, add sub-struct references
-- `pkg/bgp/context/context.go` - Rename to `wire.go`, restructure as WireContext
-- `pkg/bgp/context/negotiated.go` - Update factory to use composite Negotiated
-- `pkg/bgp/context/registry.go` - Update to store `*WireContext`
-- `pkg/reactor/peer.go` - Update context creation
-- `pkg/reactor/negotiated.go` - May merge into capability package or simplify
+- `internal/bgp/capability/negotiated.go` - Split into composite, add sub-struct references
+- `internal/bgp/context/context.go` - Rename to `wire.go`, restructure as WireContext
+- `internal/bgp/context/negotiated.go` - Update factory to use composite Negotiated
+- `internal/bgp/context/registry.go` - Update to store `*WireContext`
+- `internal/reactor/peer.go` - Update context creation
+- `internal/reactor/negotiated.go` - May merge into capability package or simplify
 
 ## Files to Create
-- `pkg/bgp/capability/identity.go` - PeerIdentity struct
-- `pkg/bgp/capability/encoding.go` - EncodingCaps struct
-- `pkg/bgp/capability/session.go` - SessionCaps struct
-- `pkg/bgp/context/wire.go` - WireContext struct (replaces EncodingContext)
+- `internal/bgp/capability/identity.go` - PeerIdentity struct
+- `internal/bgp/capability/encoding.go` - EncodingCaps struct
+- `internal/bgp/capability/session.go` - SessionCaps struct
+- `internal/bgp/context/wire.go` - WireContext struct (replaces EncodingContext)
 
 ## Implementation Steps
 
@@ -208,20 +208,20 @@ Negotiate(local, remote []Capability, identity PeerIdentity)
 ### What Was Implemented
 
 **New files created:**
-- `pkg/bgp/capability/identity.go` - PeerIdentity struct (ASNs, RouterIDs, IsIBGP())
-- `pkg/bgp/capability/encoding.go` - EncodingCaps struct (ASN4, Families, AddPathMode, ExtendedNextHop)
-- `pkg/bgp/capability/session.go` - SessionCaps struct (ExtendedMessage, RouteRefresh, GR, etc.)
-- `pkg/bgp/context/wire.go` - WireContext struct (references Identity + Encoding, derives addPath per direction)
+- `internal/bgp/capability/identity.go` - PeerIdentity struct (ASNs, RouterIDs, IsIBGP())
+- `internal/bgp/capability/encoding.go` - EncodingCaps struct (ASN4, Families, AddPathMode, ExtendedNextHop)
+- `internal/bgp/capability/session.go` - SessionCaps struct (ExtendedMessage, RouteRefresh, GR, etc.)
+- `internal/bgp/context/wire.go` - WireContext struct (references Identity + Encoding, derives addPath per direction)
 
 **Test files created:**
-- `pkg/bgp/capability/identity_test.go` - Tests for PeerIdentity
-- `pkg/bgp/capability/encoding_test.go` - Tests for EncodingCaps
-- `pkg/bgp/capability/session_test.go` - Tests for SessionCaps
-- `pkg/bgp/context/wire_test.go` - Tests for WireContext
+- `internal/bgp/capability/identity_test.go` - Tests for PeerIdentity
+- `internal/bgp/capability/encoding_test.go` - Tests for EncodingCaps
+- `internal/bgp/capability/session_test.go` - Tests for SessionCaps
+- `internal/bgp/context/wire_test.go` - Tests for WireContext
 
 **Modified files:**
-- `pkg/bgp/capability/negotiated.go` - Added composite sub-components (Identity, Encoding, Session) while keeping backward-compatible fields
-- `pkg/bgp/context/negotiated.go` - Added FromNegotiatedRecvWire/SendWire factory functions
+- `internal/bgp/capability/negotiated.go` - Added composite sub-components (Identity, Encoding, Session) while keeping backward-compatible fields
+- `internal/bgp/context/negotiated.go` - Added FromNegotiatedRecvWire/SendWire factory functions
 - `research/cmd/count-attrs/main.go` - Fixed pre-existing lint issues (errcheck, gosec)
 
 ### Bugs Found/Fixed

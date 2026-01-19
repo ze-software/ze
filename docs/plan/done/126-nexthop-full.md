@@ -12,14 +12,14 @@ Complete RFC 8950 Extended Next Hop support:
 
 | Component | Status | Location |
 |-----------|--------|----------|
-| Capability parsing (Code 5) | ✅ | `pkg/bgp/capability/capability.go:563-627` |
-| Capability negotiation | ✅ | `pkg/bgp/capability/negotiated.go:117-163, 280-295` |
-| EncodingCaps field | ✅ | `pkg/bgp/capability/encoding.go:22-24, 47-55` |
-| ZeBGP config schema | ✅ | `pkg/config/bgp.go:207, 223, 498, 558-566` |
-| Config parsing | ✅ | `pkg/config/bgp.go:1023-1031, 1682-1717` |
-| Capability building | ✅ | `pkg/config/loader.go:231-245` |
-| MP_REACH_NLRI IPv6 NH parsing | ✅ | `pkg/bgp/attribute/mpnlri.go:273-295` |
-| MP_REACH_NLRI IPv6 NH encoding | ✅ | `pkg/bgp/attribute/mpnlri.go:104-114, 117-150` |
+| Capability parsing (Code 5) | ✅ | `internal/bgp/capability/capability.go:563-627` |
+| Capability negotiation | ✅ | `internal/bgp/capability/negotiated.go:117-163, 280-295` |
+| EncodingCaps field | ✅ | `internal/bgp/capability/encoding.go:22-24, 47-55` |
+| ZeBGP config schema | ✅ | `internal/config/bgp.go:207, 223, 498, 558-566` |
+| Config parsing | ✅ | `internal/config/bgp.go:1023-1031, 1682-1717` |
+| Capability building | ✅ | `internal/config/loader.go:231-245` |
+| MP_REACH_NLRI IPv6 NH parsing | ✅ | `internal/bgp/attribute/mpnlri.go:273-295` |
+| MP_REACH_NLRI IPv6 NH encoding | ✅ | `internal/bgp/attribute/mpnlri.go:104-114, 117-150` |
 | Functional tests | ✅ | `test/data/encode/extended-nexthop.*` |
 
 ### Gaps Identified (All Resolved ✅)
@@ -51,12 +51,12 @@ Complete RFC 8950 Extended Next Hop support:
 
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestMigrateNexthopCapability` | `pkg/exabgp/migrate_test.go` | Capability inferred from `nexthop { }` block | ✅ |
-| `TestMigrateNexthopExplicitAndBlock` | `pkg/exabgp/migrate_test.go` | Both explicit cap + block without duplication | ✅ |
-| `TestMigrateNexthopBlock` | `pkg/exabgp/migrate_test.go` | ExaBGP `nexthop { ... }` block converts | ✅ |
-| `TestMigrateNexthopBlockSAFINormalization` | `pkg/exabgp/migrate_test.go` | SAFI names normalized | ✅ |
-| `TestMigrateTemplateWithNexthop` | `pkg/exabgp/migrate_test.go` | Template nexthop blocks converted | ✅ |
-| `TestParseMPReachNLRI_VPNWithIPv6NextHop` | `pkg/bgp/attribute/mpnlri_test.go` | VPN with 24-byte IPv6 NH (RFC 4659/8950) | ✅ |
+| `TestMigrateNexthopCapability` | `internal/exabgp/migrate_test.go` | Capability inferred from `nexthop { }` block | ✅ |
+| `TestMigrateNexthopExplicitAndBlock` | `internal/exabgp/migrate_test.go` | Both explicit cap + block without duplication | ✅ |
+| `TestMigrateNexthopBlock` | `internal/exabgp/migrate_test.go` | ExaBGP `nexthop { ... }` block converts | ✅ |
+| `TestMigrateNexthopBlockSAFINormalization` | `internal/exabgp/migrate_test.go` | SAFI names normalized | ✅ |
+| `TestMigrateTemplateWithNexthop` | `internal/exabgp/migrate_test.go` | Template nexthop blocks converted | ✅ |
+| `TestParseMPReachNLRI_VPNWithIPv6NextHop` | `internal/bgp/attribute/mpnlri_test.go` | VPN with 24-byte IPv6 NH (RFC 4659/8950) | ✅ |
 
 ### Boundary Tests
 
@@ -70,9 +70,9 @@ N/A - no new numeric inputs
 
 ## Files to Modify
 
-- `pkg/exabgp/schema.go:62` - Added `nexthop` to capability block
-- `pkg/exabgp/migrate.go:227-235` - Added capability inference from `nexthop { }` block
-- `pkg/exabgp/migrate_test.go` - Added `TestMigrateNexthopCapability`, `TestMigrateNexthopExplicitAndBlock`, updated `TestMigrateNexthopBlock`
+- `internal/exabgp/schema.go:62` - Added `nexthop` to capability block
+- `internal/exabgp/migrate.go:227-235` - Added capability inference from `nexthop { }` block
+- `internal/exabgp/migrate_test.go` - Added `TestMigrateNexthopCapability`, `TestMigrateNexthopExplicitAndBlock`, updated `TestMigrateNexthopBlock`
 
 ## Files to Create
 
@@ -148,8 +148,8 @@ N/A - no new numeric inputs
 ## Implementation Summary
 
 ### What Was Implemented
-- Added `nexthop` capability to ExaBGP schema (`pkg/exabgp/schema.go:62`)
-- Added `nexthop` block to ExaBGP schema at peer level (`pkg/exabgp/schema.go:98`)
+- Added `nexthop` capability to ExaBGP schema (`internal/exabgp/schema.go:62`)
+- Added `nexthop` block to ExaBGP schema at peer level (`internal/exabgp/schema.go:98`)
 - Added `convertNexthopBlock()` and `convertNexthopSyntax()` for syntax conversion
 - Added `normalizeSAFI()` for ExaBGP→ZeBGP SAFI name conversion
 - Added serialization for nexthop block in `SerializeTree()`

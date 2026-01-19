@@ -6,9 +6,9 @@
 ┌─────────────────────────────────────────────────────────────────┐
 │  Read these source files before implementing:                   │
 │                                                                 │
-│  1. pkg/reactor/reactor.go:2146-2230 - buildAPIMUPNLRI()        │
-│  2. pkg/config/routeattr.go:1009-1135 - ParsePrefixSIDSRv6()    │
-│  3. pkg/plugin/route.go:2845-2990 - parseMUPArgs()                 │
+│  1. internal/reactor/reactor.go:2146-2230 - buildAPIMUPNLRI()        │
+│  2. internal/config/routeattr.go:1009-1135 - ParsePrefixSIDSRv6()    │
+│  3. internal/plugin/route.go:2845-2990 - parseMUPArgs()                 │
 │  4. test/data/api/mup4.ci - expected wire format                │
 │                                                                 │
 │  ON COMPLETION: Update docs/plan/CLAUDE_CONTINUATION.md              │
@@ -25,7 +25,7 @@ Fix issues identified in MUP API implementation critical review.
 
 **Problem:** No validation that prefix/address family matches AFI.
 
-**Location:** `pkg/reactor/reactor.go` - `buildAPIMUPNLRI()`
+**Location:** `internal/reactor/reactor.go` - `buildAPIMUPNLRI()`
 
 **Example of bug:**
 ```
@@ -60,7 +60,7 @@ Same fix needed for:
 
 **Problem:** TEID, QFI, endpoint fields not implemented.
 
-**Location:** `pkg/reactor/reactor.go:2205, 2218`
+**Location:** `internal/reactor/reactor.go:2205, 2218`
 
 **Current state:**
 ```go
@@ -111,14 +111,14 @@ case nlri.MUPT1ST:
 **Problem:** Helper functions lack dedicated unit tests.
 
 **Functions to test:**
-1. `convertAPIMUPRoute()` - `pkg/reactor/reactor.go:2088`
-2. `parseAPIExtCommunity()` - `pkg/reactor/reactor.go:2286`
-3. `parseAPIPrefixSIDSRv6()` - `pkg/reactor/reactor.go:2342`
-4. `buildAPIMUPNLRI()` - `pkg/reactor/reactor.go:2146`
-5. `parseRD()` - `pkg/reactor/reactor.go:2243`
-6. `buildMUPPrefix()` - `pkg/reactor/reactor.go:2231`
+1. `convertAPIMUPRoute()` - `internal/reactor/reactor.go:2088`
+2. `parseAPIExtCommunity()` - `internal/reactor/reactor.go:2286`
+3. `parseAPIPrefixSIDSRv6()` - `internal/reactor/reactor.go:2342`
+4. `buildAPIMUPNLRI()` - `internal/reactor/reactor.go:2146`
+5. `parseRD()` - `internal/reactor/reactor.go:2243`
+6. `buildMUPPrefix()` - `internal/reactor/reactor.go:2231`
 
-**Test file:** Create `pkg/reactor/mup_test.go`
+**Test file:** Create `internal/reactor/mup_test.go`
 
 **Test cases for each:**
 
@@ -160,18 +160,18 @@ case nlri.MUPT1ST:
 **Options:**
 1. **Export and reuse** - Move shared logic to a common package
 2. **Accept duplication** - Keep separate for API vs config contexts
-3. **Create shared parser** - `pkg/parse/srv6.go`
+3. **Create shared parser** - `internal/parse/srv6.go`
 
 **Recommendation:** Option 2 (accept duplication) for now. The API parser handles string args differently than config parser. Refactoring adds complexity without clear benefit.
 
 **If refactoring later:**
 ```go
-// pkg/parse/srv6.go
+// internal/parse/srv6.go
 func ParsePrefixSIDSRv6(s string) ([]byte, error)
 
 // Used by both:
-// - pkg/config/routeattr.go
-// - pkg/reactor/reactor.go
+// - internal/config/routeattr.go
+// - internal/reactor/reactor.go
 ```
 
 ## Implementation Steps
@@ -191,7 +191,7 @@ func ParsePrefixSIDSRv6(s string) ([]byte, error)
 
 ### Phase 2: Add Unit Tests (MEDIUM PRIORITY)
 
-1. **Create `pkg/reactor/mup_test.go`:**
+1. **Create `internal/reactor/mup_test.go`:**
    - TestParseRD
    - TestParseAPIExtCommunity
    - TestParseAPIPrefixSIDSRv6

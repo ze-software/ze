@@ -112,7 +112,7 @@ rib {
 **1.1 EOR Message Generation**
 
 ```go
-// pkg/bgp/message/eor.go
+// internal/bgp/message/eor.go
 
 // BuildEOR creates an End-of-RIB marker for the given family
 func BuildEOR(fam family.Family) *Update {
@@ -145,7 +145,7 @@ func BuildEOR(fam family.Family) *Update {
 **1.2 EOR Detection (Receiving)**
 
 ```go
-// pkg/bgp/message/update.go
+// internal/bgp/message/update.go
 
 // IsEOR returns true if this UPDATE is an End-of-RIB marker
 func (u *Update) IsEOR() (bool, family.Family) {
@@ -173,7 +173,7 @@ func (u *Update) IsEOR() (bool, family.Family) {
 **2.1 Collect Config Routes**
 
 ```go
-// pkg/reactor/peer.go
+// internal/reactor/peer.go
 
 func (p *Peer) sendInitialRoutes() error {
     // Collect all static routes from config
@@ -203,7 +203,7 @@ func (p *Peer) sendInitialRoutes() error {
 **2.2 Track Families for EOR**
 
 ```go
-// pkg/reactor/peer.go
+// internal/reactor/peer.go
 
 func (p *Peer) sendEORForNegotiatedFamilies() error {
     if !p.neighbor.SendEOR {
@@ -233,7 +233,7 @@ func (p *Peer) sendEORForNegotiatedFamilies() error {
 When API routes are sent via `commit end`, they should NOT trigger EOR (EOR is only for initial sync):
 
 ```go
-// pkg/rib/outgoing.go
+// internal/rib/outgoing.go
 
 type CommitOptions struct {
     Label       string
@@ -312,7 +312,7 @@ func (r *OutgoingRIB) CommitTransaction(opts CommitOptions) (CommitStats, error)
 ### Unit Tests
 
 ```go
-// pkg/bgp/message/eor_test.go
+// internal/bgp/message/eor_test.go
 
 func TestBuildEOR_IPv4Unicast(t *testing.T) {
     eor := message.BuildEOR(family.IPv4Unicast)
@@ -368,7 +368,7 @@ func TestIsEOR(t *testing.T) {
 ### Integration Tests
 
 ```go
-// pkg/reactor/peer_test.go
+// internal/reactor/peer_test.go
 
 func TestPeer_SendsEORAfterConfigRoutes(t *testing.T) {
     // Setup peer with 5 static routes
@@ -474,15 +474,15 @@ UPDATE (EOR IPv6 Unicast)   ← EOR for families in commit
 ## Files to Create/Modify
 
 ### New Files
-- `pkg/bgp/message/eor.go` - EOR message building
-- `pkg/bgp/message/eor_test.go` - EOR tests
+- `internal/bgp/message/eor.go` - EOR message building
+- `internal/bgp/message/eor_test.go` - EOR tests
 
 ### Modified Files
-- `pkg/bgp/message/update.go` - Add `IsEOR()` method
-- `pkg/reactor/peer.go` - Add `sendInitialRoutes()`, `sendEORForNegotiatedFamilies()`
-- `pkg/reactor/neighbor.go` - Add `SendEOR`, `EORDelay` fields
-- `pkg/config/bgp.go` - Add `send-eor`, `eor-delay` to schema
-- `pkg/config/loader.go` - Load EOR config
+- `internal/bgp/message/update.go` - Add `IsEOR()` method
+- `internal/reactor/peer.go` - Add `sendInitialRoutes()`, `sendEORForNegotiatedFamilies()`
+- `internal/reactor/neighbor.go` - Add `SendEOR`, `EORDelay` fields
+- `internal/config/bgp.go` - Add `send-eor`, `eor-delay` to schema
+- `internal/config/loader.go` - Load EOR config
 - `test/data/encode/*.ci` - Add EOR expectations
 
 ---

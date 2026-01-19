@@ -554,10 +554,10 @@ Completion timeout: 500ms (non-configurable).
 
 | File | Purpose |
 |------|---------|
-| `pkg/plugin/registry.go` | CommandRegistry type |
-| `pkg/plugin/pending.go` | PendingRequests tracker |
-| `pkg/plugin/plugin.go` | Parse register/unregister/response |
-| `pkg/plugin/server.go` | handleRegisterCommand, handlePluginResponse |
+| `internal/plugin/registry.go` | CommandRegistry type |
+| `internal/plugin/pending.go` | PendingRequests tracker |
+| `internal/plugin/plugin.go` | Parse register/unregister/response |
+| `internal/plugin/server.go` | handleRegisterCommand, handlePluginResponse |
 
 ---
 
@@ -634,7 +634,7 @@ The GR plugin only participates in startup - it injects GR capabilities into OPE
 
 **Key insight:** GR plugin receives config for ALL peers with GR capability configured,
 regardless of explicit `process gr {}` bindings. This is because `deliverConfig()` in
-`pkg/plugin/server.go` iterates all peers and matches against declared patterns.
+`internal/plugin/server.go` iterates all peers and matches against declared patterns.
 
 ### RIB Plugin (Full Lifecycle)
 
@@ -786,7 +786,7 @@ The engine uses two different mechanisms:
 | **Config Delivery** (Stage 2) | Startup only | Pattern matching against ALL peers |
 | **Event Delivery** (Runtime) | After startup | Process bindings per peer |
 
-**Config delivery** (`pkg/plugin/server.go:deliverConfig`):
+**Config delivery** (`internal/plugin/server.go:deliverConfig`):
 ```go
 peerConfigs := s.reactor.GetPeerCapabilityConfigs()  // ALL peers
 for _, peerCfg := range peerConfigs {
@@ -797,7 +797,7 @@ for _, peerCfg := range peerConfigs {
 }
 ```
 
-**Event delivery** (`pkg/plugin/server.go:dispatchEvent`):
+**Event delivery** (`internal/plugin/server.go:dispatchEvent`):
 ```go
 bindings := s.reactor.GetPeerProcessBindings(peer.Address)
 for _, binding := range bindings {

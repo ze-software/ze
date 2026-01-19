@@ -67,7 +67,7 @@ zebgp decode --<type> [-f "<afi> <safi>"] <hex_packet>
 
 **Required changes:**
 1. ✅ Add `zebgp decode` command to CLI
-2. ⚠️ Integrate `pkg/bgp/nlri/` parsers (EVPN, FlowSpec, BGP-LS)
+2. ⚠️ Integrate `internal/bgp/nlri/` parsers (EVPN, FlowSpec, BGP-LS)
 3. ⚠️ Match ExaBGP JSON structure exactly
 4. ✅ Add `decoding` subcommand to functional test runner
 
@@ -92,7 +92,7 @@ zebgp validate <config_file>
 
 **Current issues:**
 1. Outputs raw hex instead of parsed NLRI
-2. Duplicates parsing code instead of using `pkg/bgp/nlri/`
+2. Duplicates parsing code instead of using `internal/bgp/nlri/`
 3. JSON structure doesn't match ExaBGP format
 
 **Required fixes:**
@@ -111,13 +111,13 @@ func detectFormat(data []byte) string {
 
 #### 1.2 Use Existing NLRI Parsers
 
-Existing parsers in `pkg/bgp/nlri/`:
+Existing parsers in `internal/bgp/nlri/`:
 - `ParseEVPN()` - All 5 EVPN route types
 - `ParseFlowSpec()` - FlowSpec rules
 - `ParseBGPLS()` - BGP-LS NLRI
 
 ```go
-import "codeberg.org/thomas-mangin/zebgp/pkg/bgp/nlri"
+import "codeberg.org/thomas-mangin/zebgp/internal/bgp/nlri"
 
 // Parse MP_UNREACH_NLRI for l2vpn/evpn
 routes, err := nlri.ParseEVPN(nlriData, false)
@@ -168,7 +168,7 @@ When parsing fails, return valid JSON:
 
 Files:
 - `test/cmd/functional/main.go` - `decoding` command added
-- `test/functional/decoding.go` - Test discovery and execution
+- `internal/test/runner/decoding.go` - Test discovery and execution
 
 ### Phase 3: Parsing Test Runner
 
@@ -176,7 +176,7 @@ Files:
 
 Files:
 - `test/cmd/functional/main.go` - `parsing` command added
-- `test/functional/parsing.go` - Test discovery and execution
+- `internal/test/runner/parsing.go` - Test discovery and execution
 
 ### Phase 4: Make Integration
 
@@ -290,8 +290,8 @@ For decoding tests, compare JSON after removing volatile fields:
 | `cmd/zebgp/decode.go` | ✅ | Decode logic, TLV 1099, lossless arrays |
 | `cmd/zebgp/decode_test.go` | ✅ | Unit tests including TLV 1099 |
 | `test/cmd/functional/main.go` | ✅ | Added decoding/parsing commands |
-| `test/functional/decoding.go` | ✅ | Decoding test infrastructure |
-| `test/functional/parsing.go` | ✅ | Parsing test infrastructure |
+| `internal/test/runner/decoding.go` | ✅ | Decoding test infrastructure |
+| `internal/test/runner/parsing.go` | ✅ | Parsing test infrastructure |
 | `test/data/decode/bgp-ls-5.test` | ✅ | Updated for sr-adj array format |
 | `test/data/decode/bgp-ls-6..9.test` | ✅ | Updated for lossless router-ids |
 | `rfc/rfc9085.txt` | ✅ | Downloaded for TLV 1099 reference |

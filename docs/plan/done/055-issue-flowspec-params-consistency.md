@@ -47,4 +47,4 @@ Added documentation comment to `FlowSpecParams` explaining the design choice. No
 
 ## Files Modified
 
-- `pkg/bgp/message/update_build.go`: Documentation comment added
+- `internal/bgp/message/update_build.go`: Documentation comment added

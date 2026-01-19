@@ -9,7 +9,7 @@ import (
 	"syscall"
 	"time"
 
-	"codeberg.org/thomas-mangin/zebgp/pkg/testsyslog"
+	"codeberg.org/thomas-mangin/zebgp/internal/test/syslog"
 )
 
 func syslogCmd() int {
@@ -29,7 +29,7 @@ func syslogCmd() int {
 		cancel()
 	}()
 
-	srv := testsyslog.New(*port)
+	srv := syslog.New(*port)
 	if err := srv.Start(ctx); err != nil {
 		fmt.Fprintf(os.Stderr, "failed to start: %v\n", err)
 		return 1

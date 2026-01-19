@@ -23,9 +23,9 @@ Complete migration from `announce route` to `update text` syntax per DOCUMENTATI
 ### Unit Tests
 | Test | File | Validates |
 |------|------|-----------|
-| `TestHandleState_PeerUp` | `pkg/plugin/rib/rib_test.go` | RIB outputs `update text` format |
-| `TestReplayRoutesWithPathID` | `pkg/plugin/rib/rib_test.go` | Path-ID uses `path-information set` |
-| `TestServer_HandleStateDown` | `pkg/plugin/rr/server_test.go` | RR outputs `update text nlri del` |
+| `TestHandleState_PeerUp` | `internal/plugin/rib/rib_test.go` | RIB outputs `update text` format |
+| `TestReplayRoutesWithPathID` | `internal/plugin/rib/rib_test.go` | Path-ID uses `path-information set` |
+| `TestServer_HandleStateDown` | `internal/plugin/rr/server_test.go` | RR outputs `update text nlri del` |
 
 ### Functional Tests
 | Test | Location | Scenario |
@@ -34,15 +34,15 @@ Complete migration from `announce route` to `update text` syntax per DOCUMENTATI
 
 ## Files to Modify
 
-- `pkg/plugin/route.go` - Removed `handleAnnounceRoute`, kept `announceRouteImpl` (internal)
-- `pkg/plugin/commit.go` - Removed `commit announce route` handler
-- `pkg/plugin/rib/rib.go` - Changed output to `update text` syntax
-- `pkg/plugin/rr/server.go` - Changed output to `update text nlri del` syntax
-- `pkg/plugin/rib/rib_test.go` - Updated expected output strings
-- `pkg/plugin/rr/server_test.go` - Updated expected output strings
-- `pkg/plugin/commit_test.go` - Removed `commit announce` tests
-- `pkg/plugin/update_text_test.go` - Fixed Wire field usage
-- `pkg/reactor/reactor.go` - Added nil check for Origin extraction
+- `internal/plugin/route.go` - Removed `handleAnnounceRoute`, kept `announceRouteImpl` (internal)
+- `internal/plugin/commit.go` - Removed `commit announce route` handler
+- `internal/plugin/rib/rib.go` - Changed output to `update text` syntax
+- `internal/plugin/rr/server.go` - Changed output to `update text nlri del` syntax
+- `internal/plugin/rib/rib_test.go` - Updated expected output strings
+- `internal/plugin/rr/server_test.go` - Updated expected output strings
+- `internal/plugin/commit_test.go` - Removed `commit announce` tests
+- `internal/plugin/update_text_test.go` - Fixed Wire field usage
+- `internal/reactor/reactor.go` - Added nil check for Origin extraction
 
 ## Implementation Steps
 
@@ -77,10 +77,10 @@ Complete migration from `announce route` to `update text` syntax per DOCUMENTATI
 
 ```
 $ make test
-ok  codeberg.org/thomas-mangin/zebgp/pkg/plugin
-ok  codeberg.org/thomas-mangin/zebgp/pkg/plugin/rib
-ok  codeberg.org/thomas-mangin/zebgp/pkg/plugin/rr
-ok  codeberg.org/thomas-mangin/zebgp/pkg/reactor
+ok  codeberg.org/thomas-mangin/zebgp/internal/plugin
+ok  codeberg.org/thomas-mangin/zebgp/internal/plugin/rib
+ok  codeberg.org/thomas-mangin/zebgp/internal/plugin/rr
+ok  codeberg.org/thomas-mangin/zebgp/internal/reactor
 
 $ make lint
 0 issues.

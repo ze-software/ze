@@ -9,7 +9,7 @@
 │  1. .claude/ESSENTIAL_PROTOCOLS.md - Session rules, TDD         │
 │  2. .claude/INDEX.md - Find what docs to load                   │
 │  3. THIS SPEC FILE - Design requirements                        │
-│  4. pkg/bgp/attribute/validate.go - Current implementation      │
+│  4. internal/bgp/attribute/validate.go - Current implementation      │
 │                                                                 │
 │  DO NOT PROCEED until all are read and understood.              │
 └─────────────────────────────────────────────────────────────────┘
@@ -51,11 +51,11 @@ Implement optional LRU cache for RFC 7606 validation results to optimize repeate
 
 | File | Action |
 |------|--------|
-| `pkg/bgp/message/validation_cache.go` | Create |
-| `pkg/bgp/message/validation_cache_test.go` | Create |
-| `pkg/bgp/message/rfc7606_bench_test.go` | Create (measurement) |
-| `pkg/reactor/session.go` | Modify (integration) |
-| `pkg/config/config.go` | Modify (config option) |
+| `internal/bgp/message/validation_cache.go` | Create |
+| `internal/bgp/message/validation_cache_test.go` | Create |
+| `internal/bgp/message/rfc7606_bench_test.go` | Create (measurement) |
+| `internal/reactor/session.go` | Modify (integration) |
+| `internal/config/config.go` | Modify (config option) |
 
 ### Dependencies
 
@@ -68,7 +68,7 @@ Implement optional LRU cache for RFC 7606 validation results to optimize repeate
 **Before ANY code changes, measure baseline:**
 
 1. Write `rfc7606_bench_test.go` with benchmarks
-2. Run: `go test -bench=BenchmarkValidateUpdateRFC7606 -benchmem ./pkg/bgp/message/`
+2. Run: `go test -bench=BenchmarkValidateUpdateRFC7606 -benchmem ./internal/bgp/message/`
 3. Write cache potential measurement test
 4. Run with simulated traffic patterns
 5. **Success criteria to proceed:**

@@ -436,7 +436,7 @@ exabgp-api = true   # Enable ExaBGP API plugin (default: true)
 - [ ] Wire into existing messageCallback flow
 
 ### Phase 1
-- [ ] Create `pkg/plugin/` package
+- [ ] Create `internal/plugin/` package
 - [ ] Define Plugin, PeerObserver, MessageObserver interfaces
 - [ ] Implement Registry with dependency resolution
 - [ ] Create RIBPlugin wrapper
@@ -457,7 +457,7 @@ exabgp-api = true   # Enable ExaBGP API plugin (default: true)
 
 ## References
 
-- Current architecture: `pkg/reactor/`
-- API types: `pkg/plugin/types.go`
-- RIB: `pkg/rib/`
-- Encoding contexts: `pkg/bgp/context/`
+- Current architecture: `internal/reactor/`
+- API types: `internal/plugin/types.go`
+- RIB: `internal/rib/`
+- Encoding contexts: `internal/bgp/context/`

@@ -26,14 +26,14 @@ This is a fail-fast validation that catches misconfiguration before startup, rat
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestConfigValidationRouteRefreshRequiresProcess` | `pkg/config/bgp_test.go` | route-refresh without process → error | |
-| `TestConfigValidationGracefulRestartRequiresProcess` | `pkg/config/bgp_test.go` | graceful-restart without process → error | |
-| `TestConfigValidationRouteRefreshWithProcess` | `pkg/config/bgp_test.go` | route-refresh + process with send { update; } → OK | |
-| `TestConfigValidationGracefulRestartWithProcess` | `pkg/config/bgp_test.go` | graceful-restart + process with send { update; } → OK | |
-| `TestConfigValidationRouteRefreshProcessNoSendUpdate` | `pkg/config/bgp_test.go` | route-refresh + process without send { update; } → error | |
-| `TestConfigValidationBothCapabilitiesWithProcess` | `pkg/config/bgp_test.go` | both caps + process with send { update; } → OK | |
-| `TestConfigValidationRouteRefreshFromTemplate` | `pkg/config/bgp_test.go` | template has route-refresh, peer inherits, no process → error | |
-| `TestConfigValidationSendAllSatisfiesRequirement` | `pkg/config/bgp_test.go` | route-refresh + process with send { all; } → OK | |
+| `TestConfigValidationRouteRefreshRequiresProcess` | `internal/config/bgp_test.go` | route-refresh without process → error | |
+| `TestConfigValidationGracefulRestartRequiresProcess` | `internal/config/bgp_test.go` | graceful-restart without process → error | |
+| `TestConfigValidationRouteRefreshWithProcess` | `internal/config/bgp_test.go` | route-refresh + process with send { update; } → OK | |
+| `TestConfigValidationGracefulRestartWithProcess` | `internal/config/bgp_test.go` | graceful-restart + process with send { update; } → OK | |
+| `TestConfigValidationRouteRefreshProcessNoSendUpdate` | `internal/config/bgp_test.go` | route-refresh + process without send { update; } → error | |
+| `TestConfigValidationBothCapabilitiesWithProcess` | `internal/config/bgp_test.go` | both caps + process with send { update; } → OK | |
+| `TestConfigValidationRouteRefreshFromTemplate` | `internal/config/bgp_test.go` | template has route-refresh, peer inherits, no process → error | |
+| `TestConfigValidationSendAllSatisfiesRequirement` | `internal/config/bgp_test.go` | route-refresh + process with send { all; } → OK | |
 
 ### Functional Tests
 | Test | Location | Scenario | Status |
@@ -44,7 +44,7 @@ This is a fail-fast validation that catches misconfiguration before startup, rat
 - Runtime validation (Stage 3): plugin must declare capability it handles - separate spec
 
 ## Files to Modify
-- `pkg/config/bgp.go` - Add `validateProcessCapabilities()` function, call after parsing peers
+- `internal/config/bgp.go` - Add `validateProcessCapabilities()` function, call after parsing peers
 
 ## Files to Create
 - None (tests go in existing `bgp_test.go`)
@@ -104,7 +104,7 @@ Enhanced route-refresh is implied by route-refresh (same capability).
 ## Implementation Summary
 
 ### What Was Implemented
-- Added `validateProcessCapabilities()` function in `pkg/config/bgp.go:833-874`
+- Added `validateProcessCapabilities()` function in `internal/config/bgp.go:833-874`
 - Called after peer parsing, before returning config in `LoadBGPConfig`
 - 8 unit tests covering all validation scenarios
 - Updated 3 existing tests that used route-refresh without process

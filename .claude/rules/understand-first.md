@@ -79,7 +79,7 @@ Skipping this step leads to:
 ❌ Wrong: "I'll write a new parser for X"
 ✅ Right: "Let me search for existing parsers to understand the pattern"
 
-❌ Wrong: "I'll create pkg/newfeature/feature.go"
+❌ Wrong: "I'll create internal/newfeature/feature.go"
 ✅ Right: "Let me find where similar features live and follow that structure"
 
 ❌ Wrong: "This needs a new struct for Y"

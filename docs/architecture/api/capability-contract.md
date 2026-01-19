@@ -128,7 +128,7 @@ See `docs/architecture/config/syntax.md` for full plugin config options.
 
 ## Config Validation (✅ DONE)
 
-> **Status:** Implemented in `pkg/config/bgp.go:validateProcessCapabilities`.
+> **Status:** Implemented in `internal/config/bgp.go:validateProcessCapabilities`.
 
 If peer has `graceful-restart` or `route-refresh` but no process with `send { update; }`:
 

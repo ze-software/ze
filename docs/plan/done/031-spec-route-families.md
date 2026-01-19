@@ -10,7 +10,7 @@
 │  2. .claude/INDEX.md - Find what docs to load                   │
 │  3. docs/plan/CLAUDE_CONTINUATION.md - Current state                 │
 │  4. THIS SPEC FILE - Design requirements                        │
-│  5. pkg/config/static_*.go - Current implementation             │
+│  5. internal/config/static_*.go - Current implementation             │
 │                                                                 │
 │  DO NOT PROCEED until all are read and understood.              │
 └─────────────────────────────────────────────────────────────────┘
@@ -60,8 +60,8 @@ Complete keyword validation for remaining BGP address families (FlowSpec, VPLS, 
 
 | File | Changes |
 |------|---------|
-| `pkg/plugin/route.go` | Add keyword sets, update handlers |
-| `pkg/plugin/route_parse_test.go` | Add validation tests |
+| `internal/plugin/route.go` | Add keyword sets, update handlers |
+| `internal/plugin/route_parse_test.go` | Add validation tests |
 
 ### Keyword Sets to Implement
 
