@@ -94,10 +94,10 @@ Implementation-ready RFC summaries in `docs/rfc/`. Use keyword table to find rel
 |--------|------|
 | IPv4/IPv6 Unicast | `rfc4271.md`, `rfc4760.md` |
 | Labeled Unicast (SAFI 4) | `rfc8277.md`, `rfc3032.md` (MPLS) |
-| VPN-IPv4/IPv6 (SAFI 128) | `rfc4364.md`, `rfc4659.md` |
+| VPN-IPv4/IPv6 (SAFI 128) | `rfc4364.md`, `rfc4659.md`, `rfc4798.md` (6PE/6VPE) |
 | FlowSpec (SAFI 133/134) | `rfc8955.md` (obsoletes `rfc5575.md`), `rfc8956.md` (IPv6) |
 | EVPN (SAFI 70) | `rfc7432.md`, `rfc9136.md` (RT-5) |
-| VPLS (SAFI 65) | `rfc4761.md` |
+| VPLS (SAFI 65) | `rfc4761.md`, `rfc4762.md` |
 | RT Constraint (SAFI 132) | `rfc4684.md` |
 | BGP-LS (AFI 16388) | `rfc7752.md`, `rfc9085.md` (SR), `rfc9514.md` (SRv6) |
 
@@ -107,6 +107,7 @@ Implementation-ready RFC summaries in `docs/rfc/`. Use keyword table to find rel
 |----------|-------------|---------|
 | open, capability, negotiate | `rfc5492.md` | `rfc9072.md` |
 | update, nlri, prefix, route | `rfc4271.md` | `rfc4760.md` |
+| multiprotocol, mp-bgp, afi, safi | `rfc4760.md` | |
 | notification, error, cease | `rfc4271.md` | `rfc7606.md`, `rfc9003.md` |
 | keepalive, hold timer | `rfc4271.md` | |
 | route-refresh, orf | `rfc2918.md` | `rfc7313.md` |
@@ -118,12 +119,12 @@ Implementation-ready RFC summaries in `docs/rfc/`. Use keyword table to find rel
 | graceful restart, GR | `rfc4724.md` | |
 | extended message, >4096 | `rfc8654.md` | |
 | label, mpls, labeled | `rfc8277.md` | `rfc3032.md` |
-| vpn, l3vpn, mpls-vpn | `rfc4364.md` | `rfc4659.md` |
+| vpn, l3vpn, mpls-vpn, vpnv4, vpnv6, 6pe, 6vpe | `rfc4364.md` | `rfc4659.md`, `rfc4798.md` |
 | flowspec, traffic filter | `rfc8955.md` | `rfc8956.md` |
 | evpn, mac-ip, ethernet | `rfc7432.md` | `rfc9136.md` |
-| vpls, l2vpn | `rfc4761.md` | |
+| vpls, l2vpn, pseudowire, pw | `rfc4761.md` | `rfc4762.md` |
 | bgp-ls, link-state | `rfc7752.md` | `rfc9085.md`, `rfc9514.md` |
-| segment routing, sr, sid | `rfc9085.md` | `rfc9514.md` |
+| segment routing, sr, sid, prefix-sid | `rfc9085.md` | `rfc8669.md`, `rfc9514.md` |
 | srv6 | `rfc9514.md` | |
 | role, otc, route leak | `rfc9234.md` | |
 | ipv6 next hop | `rfc8950.md` | |

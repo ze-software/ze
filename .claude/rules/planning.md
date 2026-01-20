@@ -100,39 +100,52 @@ Complete IN ORDER. Do not skip steps.
 
 | Keywords in task | Required docs | RFC summaries |
 |------------------|---------------|---------------|
-| buffer, iterator, parse, wire, zero-copy | `core-design.md`, `buffer-architecture.md` | |
+| buffer, iterator, parse, wire | `core-design.md`, `buffer-architecture.md` | `rfc4271.md` |
 | UPDATE, message, build, route, announce | `core-design.md`, `update-building.md`, `encoding-context.md` | `rfc4271.md`, `rfc4760.md` |
-| attribute, community, AS_PATH, NEXT_HOP | `core-design.md`, `wire/attributes.md`, `update-building.md` | `rfc4271.md`, `rfc1997.md`, `rfc4360.md` |
+| attribute, AS_PATH, NEXT_HOP, MED, LOCAL_PREF | `core-design.md`, `wire/attributes.md`, `update-building.md` | `rfc4271.md`, `rfc6793.md` |
+| community | `wire/attributes.md` | `rfc1997.md` |
+| extended community, RT, RD | `wire/attributes.md` | `rfc4360.md`, `rfc5701.md` |
+| large community | `wire/attributes.md` | `rfc8092.md`, `rfc8195.md` |
 | NLRI, prefix, MP_REACH, MP_UNREACH | `core-design.md`, `wire/nlri.md` | `rfc4760.md` |
-| capability, OPEN, negotiate | `wire/capabilities.md` | `rfc5492.md`, `rfc9072.md` |
+| multiprotocol, MP-BGP, AFI, SAFI | `wire/nlri.md`, `wire/capabilities.md` | `rfc4760.md` |
+| capability, OPEN, negotiate | `wire/capabilities.md` | `rfc4271.md`, `rfc5492.md`, `rfc9072.md` |
+| multiple labels capability | `wire/capabilities.md` | `rfc8277.md` |
 | pool, memory, dedup, zero-copy | `core-design.md`, `pool-architecture.md`, `encoding-context.md` | |
 | forward, reflect, wire cache | `core-design.md`, `encoding-context.md`, `update-building.md` | |
 | route, rib, storage, duplication | `core-design.md`, `route-types.md`, `rib-transition.md` | |
-| factory, family, builder | `core-design.md` | |
-| FSM, state, session, peer | `docs/architecture/behavior/fsm.md` | `rfc4271.md`, `rfc4724.md` |
-| API, command, announce, withdraw | `docs/architecture/api/architecture.md`, `api/capability-contract.md` | |
-| config, YAML, load | `docs/architecture/config/syntax.md` | |
-| FlowSpec | `docs/architecture/wire/nlri.md`, `wire/nlri-flowspec.md` | `rfc8955.md`, `rfc8956.md` |
-| VPN, L3VPN, MPLS-VPN | `docs/architecture/wire/nlri.md` | `rfc4364.md`, `rfc4659.md`, `rfc8277.md` |
-| EVPN | `docs/architecture/wire/nlri.md`, `wire/nlri-evpn.md` | `rfc7432.md`, `rfc9136.md` |
-| BGP-LS, link-state | `docs/architecture/wire/nlri-bgpls.md` | `rfc7752.md`, `rfc9085.md`, `rfc9514.md` |
-| ExaBGP, compatibility | `docs/exabgp/exabgp-code-map.md`, `exabgp-compatibility.md` | |
-| design, transition, architecture | `docs/architecture/rib-transition.md` | |
-| ASN4, AS4, 4-byte AS | `docs/architecture/edge-cases/as4.md` | `rfc6793.md` |
-| ADD-PATH, path-id | `docs/architecture/edge-cases/addpath.md` | `rfc7911.md` |
-| extended message | `docs/architecture/edge-cases/extended-message.md` | `rfc8654.md` |
-| graceful restart, GR | `docs/architecture/behavior/fsm.md` | `rfc4724.md` |
-| route-refresh | | `rfc2918.md`, `rfc7313.md` |
-| error handling, notification | | `rfc7606.md`, `rfc9003.md` |
-| large community | | `rfc8092.md` |
-| extended community, RT | | `rfc4360.md`, `rfc5701.md` |
+| factory, family, builder | `core-design.md` | `rfc4760.md` |
+| FSM, state, session, peer | `behavior/fsm.md` | `rfc4271.md`, `rfc4724.md` |
+| keepalive, hold timer | `behavior/fsm.md` | `rfc4271.md` |
+| notification, error, cease | `behavior/fsm.md` | `rfc4271.md`, `rfc7606.md`, `rfc9003.md` |
+| shutdown, reset, admin | `behavior/fsm.md` | `rfc9003.md` |
+| API, command, announce, withdraw | `api/architecture.md`, `api/capability-contract.md` | |
+| config, YAML, load | `config/syntax.md` | |
+| FlowSpec, traffic filter | `wire/nlri.md`, `wire/nlri-flowspec.md` | `rfc8955.md`, `rfc8956.md` |
+| VPN, L3VPN, VPNv4, VPNv6, MPLS-VPN, 6PE, 6VPE | `wire/nlri.md` | `rfc4364.md`, `rfc4659.md`, `rfc4798.md` |
+| labeled unicast, label, MPLS, label stack | `wire/nlri.md` | `rfc8277.md`, `rfc3032.md` |
+| EVPN, MAC-IP, ethernet, VXLAN | `wire/nlri.md`, `wire/nlri-evpn.md` | `rfc7432.md`, `rfc9136.md` |
+| VPLS, L2VPN, pseudowire, PW | `wire/nlri.md` | `rfc4761.md`, `rfc4762.md` |
+| RT constraint | `wire/nlri.md` | `rfc4684.md` |
+| BGP-LS, link-state | `wire/nlri-bgpls.md` | `rfc7752.md`, `rfc9085.md`, `rfc9514.md` |
+| segment routing, SR, SID, prefix-SID | `wire/nlri-bgpls.md`, `wire/attributes.md` | `rfc9085.md`, `rfc8669.md` |
+| SRv6 | `wire/nlri-bgpls.md` | `rfc9514.md` |
+| ExaBGP, compatibility | `exabgp/exabgp-code-map.md`, `exabgp/exabgp-compatibility.md` | |
+| design, transition, architecture | `rib-transition.md` | |
+| ASN4, AS4, 4-byte AS | `edge-cases/as4.md` | `rfc6793.md`, `rfc4271.md` |
+| ADD-PATH, path-id | `edge-cases/addpath.md` | `rfc7911.md` |
+| extended message, >4096 | `edge-cases/extended-message.md` | `rfc8654.md` |
+| graceful restart, GR | `behavior/fsm.md` | `rfc4724.md`, `rfc4271.md` |
+| route-refresh, ORF | | `rfc2918.md`, `rfc7313.md` |
 | role, OTC, route leak | | `rfc9234.md` |
-| IPv6 next hop | | `rfc8950.md` |
-| labeled unicast, label | | `rfc8277.md`, `rfc3032.md` |
-| test, functional, .ci, zebgp-peer, VFS | `docs/functional-tests.md`, `docs/architecture/testing/ci-format.md` | |
+| IPv6 next hop, extended NH | | `rfc8950.md`, `rfc4760.md` |
+| treat-as-withdraw | | `rfc7606.md` |
+| test, functional, .ci, zebgp-peer, VFS | `functional-tests.md`, `testing/ci-format.md` | |
 
 All architecture docs are in `docs/architecture/` unless otherwise specified.
 All RFC summaries are in `docs/rfc/`.
+
+**RFC Summary Existence:** Before starting work, verify summaries exist for each RFC listed. If missing, run `/rfc-summarisation rfcNNNN` to create it.
+
 For complete RFC keyword mapping, see `.claude/INDEX.md` → "RFC Summaries" section.
 
 ## Implementation Plan Format
