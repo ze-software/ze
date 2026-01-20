@@ -99,3 +99,18 @@ func TestParseExtendedCommunityHexList(t *testing.T) {
 	// Second community
 	assert.Equal(t, []byte{0x00, 0x02, 0x27, 0x10, 0x00, 0x00, 0x00, 0x01}, ec.Bytes[8:16])
 }
+
+// TestParsePrefixSIDSRv6Integration verifies SRv6 Prefix-SID parsing flow.
+//
+// VALIDATES: bgp-prefix-sid-srv6 config field is correctly parsed to bytes.
+// PREVENTS: Silent drop of SRv6 Prefix-SID when loading VPN routes from config.
+func TestParsePrefixSIDSRv6Integration(t *testing.T) {
+	src := StaticRouteConfig{
+		PrefixSID: "l3-service 2001:1:0:0::",
+	}
+	attrs, err := ParseRouteAttributes(src)
+	require.NoError(t, err)
+	require.NotNil(t, attrs)
+	assert.NotEmpty(t, attrs.PrefixSID.Bytes, "PrefixSID bytes should not be empty for SRv6 format")
+	t.Logf("PrefixSID bytes: %x", attrs.PrefixSID.Bytes)
+}

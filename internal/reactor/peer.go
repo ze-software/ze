@@ -620,6 +620,7 @@ func toStaticRouteVPNParams(r StaticRoute, nextHop netip.Addr) message.VPNParams
 		AggregatorIP:      r.AggregatorIP,
 		OriginatorID:      r.OriginatorID,
 		ClusterList:       r.ClusterList,
+		PrefixSID:         r.PrefixSIDBytes,
 	}
 }
 

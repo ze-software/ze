@@ -1936,6 +1936,10 @@ func parseRouteConfig(prefix string, route *Tree) (StaticRouteConfig, error) {
 	if v, ok := route.Get("bgp-prefix-sid"); ok {
 		sr.PrefixSID = v
 	}
+	// SRv6 Prefix-SID overrides label-index Prefix-SID if both are specified
+	if v, ok := route.Get("bgp-prefix-sid-srv6"); ok {
+		sr.PrefixSID = v
+	}
 	if v, ok := route.Get("split"); ok {
 		sr.Split = v
 	}

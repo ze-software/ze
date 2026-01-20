@@ -478,6 +478,10 @@ type VPNParams struct {
 	// ORIGINATOR_ID and CLUSTER_LIST (RFC 4456)
 	OriginatorID uint32
 	ClusterList  []uint32
+
+	// PrefixSID is the BGP Prefix-SID attribute bytes (RFC 8669, RFC 9252).
+	// Used for Segment Routing (SR-MPLS or SRv6) in VPN routes.
+	PrefixSID []byte
 }
 
 // BuildVPN builds an UPDATE message for a VPN route (SAFI 128).
@@ -593,6 +597,15 @@ func (ub *UpdateBuilder) BuildVPN(p VPNParams) *Update {
 			}
 		}
 		attrs = append(attrs, lcs)
+	}
+
+	// 40. BGP_PREFIX_SID (RFC 8669, RFC 9252)
+	if len(p.PrefixSID) > 0 {
+		attrs = append(attrs, &rawAttribute{
+			flags: attribute.FlagOptional | attribute.FlagTransitive,
+			code:  attribute.AttrPrefixSID,
+			data:  p.PrefixSID,
+		})
 	}
 
 	// Attributes are already in RFC 4271 type code order.

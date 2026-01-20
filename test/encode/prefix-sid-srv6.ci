@@ -1,0 +1,38 @@
+# SRv6 Prefix-SID test with MPLS-VPN
+# Tests l3-service SRv6 Prefix-SID attribute (RFC 9252)
+# zebgp-peer expectations
+stdin=peer:terminator=EOF_PEER
+option=asn:value=65000
+# Route with l3-service SRv6 Prefix-SID
+# UPDATE: ORIGIN IGP, AS_PATH empty, LOCAL_PREF 100, MP_REACH_NLRI (ipv4/mpls-vpn), EXT_COMM target:4:100, PREFIX_SID l3-service 2001:1::
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF007D02000000664001010040020040050400000064800E2C000180180000000000000000CAFE0000000000000000000000000001007000003100000004000000640A0100C010080002000400000064C0281B050018000100140020010001000000000000000000000000000000
+EOF_PEER
+
+# zebgp configuration
+stdin=zebgp:terminator=EOF_CONF
+peer 127.0.0.1 {
+	router-id 198.51.100.200;
+	local-address 127.0.0.1;
+	local-as 65000;
+	peer-as 65000;
+	group-updates disable;
+
+	family {
+		ipv4/mpls-vpn;
+	}
+	capability {
+		nexthop {
+			ipv4/mpls-vpn ipv6;
+		}
+	}
+	announce {
+		ipv4 {
+			mpls-vpn 10.1.0.0/24 next-hop cafe::1 extended-community target:4:100 label 3 rd 4:100 bgp-prefix-sid-srv6 "l3-service 2001:1::";
+		}
+	}
+}
+EOF_CONF
+
+# Process orchestration
+cmd=background:seq=1:exec=zebgp-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=zebgp server -:stdin=zebgp:timeout=10s

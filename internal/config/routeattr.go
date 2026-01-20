@@ -1286,13 +1286,22 @@ func ParseRouteAttributes(src StaticRouteConfig) (*ParsedRouteAttributes, error)
 		}
 	}
 
-	// BGP Prefix-SID (RFC 8669)
+	// BGP Prefix-SID (RFC 8669 label-index or RFC 9252 SRv6)
+	// SRv6 format starts with "l3-service" or "l2-service"
 	if src.PrefixSID != "" {
-		sid, err := ParsePrefixSID(src.PrefixSID)
-		if err != nil {
-			return nil, err
+		if strings.HasPrefix(src.PrefixSID, "l3-service") || strings.HasPrefix(src.PrefixSID, "l2-service") {
+			sid, err := ParsePrefixSIDSRv6(src.PrefixSID)
+			if err != nil {
+				return nil, err
+			}
+			attrs.PrefixSID = sid
+		} else {
+			sid, err := ParsePrefixSID(src.PrefixSID)
+			if err != nil {
+				return nil, err
+			}
+			attrs.PrefixSID = sid
 		}
-		attrs.PrefixSID = sid
 	}
 
 	// Raw Attributes (hex format: "0xNN 0xNN 0xVALUE")
