@@ -1,10 +1,10 @@
-package vfs
+package tmpfs
 
 import (
 	"codeberg.org/thomas-mangin/zebgp/internal/env"
 )
 
-// Default limits for VFS parsing (overridable via zebgp.ci.* or zebgp_ci_* env vars).
+// Default limits for Tmpfs parsing (overridable via zebgp.ci.* or zebgp_ci_* env vars).
 const (
 	DefaultMaxFileSize  int64 = 1 << 20 // 1 MB
 	DefaultMaxTotalSize int64 = 1 << 20 // 1 MB

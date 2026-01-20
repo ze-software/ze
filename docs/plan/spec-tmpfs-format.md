@@ -1,11 +1,11 @@
-# Spec: VFS Format
+# Spec: Tmpfs Format
 
 ## Task
 
-Implement a Virtual File System (VFS) format that allows embedding multiple files in a single stream. Used by:
+Implement a Virtual File System (Tmpfs) format that allows embedding multiple files in a single stream. Used by:
 1. Test runner (`zebgp-test`) - test data with embedded configs/scripts
 
-Normal zebgp reads config from file or stdin (`-`), no VFS.
+Normal zebgp reads config from file or stdin (`-`), no Tmpfs.
 
 ## Required Reading
 
@@ -23,7 +23,7 @@ N/A - internal tooling, not BGP protocol
 
 **Key insights:**
 - Test format unification reduces maintenance burden
-- VFS enables self-contained test files
+- Tmpfs enables self-contained test files
 - Same format for tests and deployment bundles
 
 ## Unified .ci Format Reference
@@ -35,7 +35,7 @@ Single parser (`internal/test/ci/`) shared by test runner and zebgp-peer. Each c
 | Prefix | Consumer | Description |
 |--------|----------|-------------|
 | `stdin=` | Test runner | Embed stdin content (multi-line or inline hex/text) |
-| `vfs=` | Test runner | Embed file in temp directory (for .py plugins) |
+| `tmpfs=` | Test runner | Embed file in temp directory (for .py plugins) |
 | `option=` | zebgp-peer | Configure test peer behavior |
 | `cmd=` | Test runner | Commands: api, background process, foreground process |
 | `expect=exit:` | Test runner | Assert exit code |
@@ -92,9 +92,9 @@ cmd=foreground:seq=1:exec=zebgp-test decode --family l2vpn/evpn -:stdin=payload
 expect=json:json={"type":"update",...}
 ```
 
-### VFS Block
+### Tmpfs Block
 
-VFS embeds files that need to exist on disk (written to temp directory).
+Tmpfs embeds files that need to exist on disk (written to temp directory).
 Use for:
 - `.py` plugins (written to disk, optionally inlined as zipapp)
 - Any file that must be passed by path to a command
@@ -102,7 +102,7 @@ Use for:
 For stdin-based input (config, test data), use `stdin=` blocks instead.
 
 ```
-vfs=<path>[:mode=<octal>][:encoding=<type>]:terminator=<TERM>
+tmpfs=<path>[:mode=<octal>][:encoding=<type>]:terminator=<TERM>
 <content>
 <TERM>
 ```
@@ -236,11 +236,11 @@ cmd=foreground:seq=2:exec=zebgp server -:stdin=zebgp:timeout=10s
 4. Waits for foreground to complete (or timeout)
 5. Checks zebgp-peer output for "successful" or failure details
 
-### Complete Example (Plugin Test with VFS)
+### Complete Example (Plugin Test with Tmpfs)
 
 ```
 # Plugin script (needs to be a file on disk)
-vfs=plugin.py:terminator=EOF_PY
+tmpfs=plugin.py:terminator=EOF_PY
 #!/usr/bin/env python3
 import json, sys
 print(json.dumps({"ready": True}))
@@ -256,7 +256,7 @@ option=asn:value=65000
 expect=bgp:conn=1:seq=1:hex=FFFF...
 EOF_PEER
 
-# zebgp config (references plugin.py from VFS)
+# zebgp config (references plugin.py from Tmpfs)
 stdin=zebgp:terminator=EOF_CONF
 peer 127.0.0.1 {
     router-id 10.0.0.2;
@@ -273,23 +273,23 @@ cmd=background:seq=1:exec=zebgp-peer --port $PORT:stdin=peer
 cmd=foreground:seq=2:exec=zebgp server -:stdin=zebgp:timeout=10s
 ```
 
-**Flow with VFS:**
-1. Test runner writes `vfs=` files to temp directory
+**Flow with Tmpfs:**
+1. Test runner writes `tmpfs=` files to temp directory
 2. Changes to temp directory (so `./plugin.py` resolves)
 3. Starts processes with stdin= blocks piped
-4. Plugin reads from VFS file on disk
+4. Plugin reads from Tmpfs file on disk
 
 ## Format Specification
 
-### VFS Block Syntax
+### Tmpfs Block Syntax
 
 ```
-vfs=<relative-path>[:mode=<octal>][:encoding=<type>]:terminator=<TERM>
+tmpfs=<relative-path>[:mode=<octal>][:encoding=<type>]:terminator=<TERM>
 <content>
 <TERM>
 ```
 
-Simple `vfs=` prefix, path is first value.
+Simple `tmpfs=` prefix, path is first value.
 
 | Field | Required | Default | Description |
 |-------|----------|---------|-------------|
@@ -301,7 +301,7 @@ Simple `vfs=` prefix, path is first value.
 ### Terminator Constraints
 
 - Must be non-empty
-- **Must be unique within file** - no two VFS blocks can use same terminator
+- **Must be unique within file** - no two Tmpfs blocks can use same terminator
 - Alphanumeric and underscore only: `[A-Za-z0-9_]+`
 - Matched exactly (no regex, no whitespace trimming)
 - Recommended pattern: `EOF_<purpose>` (e.g., `EOF_RULES`, `EOF_CONF`, `EOF_PY`)
@@ -316,12 +316,12 @@ Simple `vfs=` prefix, path is first value.
 ### Test Extension Syntax
 
 ```
-# VFS blocks (parsed first, create temp files)
-vfs=plugin.py:terminator=EOF_PY
+# Tmpfs blocks (parsed first, create temp files)
+tmpfs=plugin.py:terminator=EOF_PY
 ...
 EOF_PY
 
-vfs=peer.conf:terminator=EOF_CONF
+tmpfs=peer.conf:terminator=EOF_CONF
 ...
 EOF_CONF
 
@@ -355,7 +355,7 @@ action=send:conn=<N>:seq=<N>:hex=<hex>
 
 | Line Type | Consumer | Purpose |
 |-----------|----------|---------|
-| `vfs=` | Test runner | Embed files in temp dir |
+| `tmpfs=` | Test runner | Embed files in temp dir |
 | `option=` | zebgp-peer | Configure test peer |
 | `cmd=` | Test runner | Execute commands |
 | `expect=exit:` | Test runner | Check exit code |
@@ -371,17 +371,17 @@ Shared parser in `internal/test/ci/` - consumers ignore lines they don't handle.
 
 Test runner:
 1. Creates temp directory
-2. Writes VFS files to temp dir
+2. Writes Tmpfs files to temp dir
 3. **chdir to temp dir**
-4. Replaces `vfs//<path>` with `<path>` (now relative to cwd)
+4. Replaces `tmpfs//<path>` with `<path>` (now relative to cwd)
 5. Executes programs in sequence order
 6. Cleans up temp dir (kills background processes)
 
-`vfs//` prefix makes VFS references explicit:
+`tmpfs//` prefix makes Tmpfs references explicit:
 
 ```
-run=zebgp run vfs//peer.conf      # → zebgp run peer.conf (in temp dir)
-run=zebgp validate vfs//peer.conf # → zebgp validate peer.conf
+run=zebgp run tmpfs//peer.conf      # → zebgp run peer.conf (in temp dir)
+run=zebgp validate tmpfs//peer.conf # → zebgp validate peer.conf
 ```
 
 ### Multi-Program Orchestration
@@ -389,19 +389,19 @@ run=zebgp validate vfs//peer.conf # → zebgp validate peer.conf
 Programs run in `seq=` order. Background processes start and keep running:
 
 ```
-# VFS: test rules for zebgp-peer
-vfs=rules.ci:terminator=EOF_RULES
+# Tmpfs: test rules for zebgp-peer
+tmpfs=rules.ci:terminator=EOF_RULES
 option=asn:value=65533
 expect=bgp:conn=1:seq=1:hex=FFFF...
 EOF_RULES
 
-# VFS: zebgp config
-vfs=zebgp.conf:terminator=EOF_CONF
+# Tmpfs: zebgp config
+tmpfs=zebgp.conf:terminator=EOF_CONF
 peer 127.0.0.1 { ... }
 EOF_CONF
 
 # Program 1: zebgp-peer (background, validates BGP messages)
-cmd=mode=background:seq=1:run=zebgp-peer --port 1790 vfs//rules.ci
+cmd=mode=background:seq=1:run=zebgp-peer --port 1790 tmpfs//rules.ci
 
 # Program 2: zebgp (foreground, main test subject)
 cmd=mode=foreground:seq=2:stdin=zebgp.conf:run=zebgp server -
@@ -423,21 +423,21 @@ cmd=<shell-command>
 
 **Process orchestration** (background/foreground with sequencing):
 ```
-cmd=mode=<mode>:seq=<N>[:stdin=<vfs-name>]:run=<command>
+cmd=mode=<mode>:seq=<N>[:stdin=<tmpfs-name>]:run=<command>
 ```
 
 | Field | Values | Description |
 |-------|--------|-------------|
 | mode | `background`, `foreground` | Process lifecycle |
 | seq | `1`, `2`, ... | Execution order (lower first) |
-| stdin | VFS filename | Pipe VFS content to stdin (optional) |
+| stdin | Tmpfs filename | Pipe Tmpfs content to stdin (optional) |
 | run | Program + args | What to execute |
 
 All key=value pairs for consistent parsing.
 
 ### Stdin Piping
 
-`stdin=<name>` pipes VFS content directly to program - no temp file:
+`stdin=<name>` pipes Tmpfs content directly to program - no temp file:
 
 ```
 cmd=background:seq=1:stdin=peer-sink.conf:run=zebgp-peer -
@@ -447,13 +447,13 @@ cmd=foreground:seq=2:stdin=zebgp.conf:run=zebgp server -
 Benefits:
 - No temp files for configs (when program reads stdin)
 - Each program gets its own stdin
-- Use `vfs//` only when temp file is actually needed
+- Use `tmpfs//` only when temp file is actually needed
 
 ### Execution Flow
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│  1. Parse VFS, write to temp dir                            │
+│  1. Parse Tmpfs, write to temp dir                            │
 │  2. chdir to temp dir                                       │
 │  3. Start seq=1 (background) → zebgp-peer running           │
 │  4. Start seq=2 (foreground) → zebgp running                │
@@ -478,7 +478,7 @@ Configurable via environment variables (`.` or `_` for first two separators, `.`
 
 ### Duplicate Paths
 
-Duplicate paths are **rejected with error**. Each path must be unique within a VFS.
+Duplicate paths are **rejected with error**. Each path must be unique within a Tmpfs.
 
 ### Security Constraints
 
@@ -494,14 +494,14 @@ Duplicate paths are **rejected with error**. Each path must be unique within a V
 
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestParseVFSBlock` | `internal/vfs/vfs_test.go` | Basic block parsing | |
-| `TestParseMultipleBlocks` | `internal/vfs/vfs_test.go` | Multiple files in stream | |
-| `TestModeDefaults` | `internal/vfs/vfs_test.go` | Auto mode for scripts | |
-| `TestModeExplicit` | `internal/vfs/vfs_test.go` | Explicit mode override | |
-| `TestBase64Encoding` | `internal/vfs/vfs_test.go` | Binary file support | |
-| `TestWriteTo` | `internal/vfs/vfs_test.go` | File creation in temp dir | |
-| `TestCleanup` | `internal/vfs/vfs_test.go` | Temp dir removal | |
-| `TestSignalCleanup` | `internal/vfs/vfs_test.go` | Cleanup on SIGINT/SIGTERM | |
+| `TestParseTmpfsBlock` | `internal/tmpfs/tmpfs_test.go` | Basic block parsing | |
+| `TestParseMultipleBlocks` | `internal/tmpfs/tmpfs_test.go` | Multiple files in stream | |
+| `TestModeDefaults` | `internal/tmpfs/tmpfs_test.go` | Auto mode for scripts | |
+| `TestModeExplicit` | `internal/tmpfs/tmpfs_test.go` | Explicit mode override | |
+| `TestBase64Encoding` | `internal/tmpfs/tmpfs_test.go` | Binary file support | |
+| `TestWriteTo` | `internal/tmpfs/tmpfs_test.go` | File creation in temp dir | |
+| `TestCleanup` | `internal/tmpfs/tmpfs_test.go` | Temp dir removal | |
+| `TestSignalCleanup` | `internal/tmpfs/tmpfs_test.go` | Cleanup on SIGINT/SIGTERM | |
 
 ### Boundary Tests
 
@@ -517,55 +517,55 @@ Duplicate paths are **rejected with error**. Each path must be unique within a V
 
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestRejectAbsolutePath` | `internal/vfs/security_test.go` | `/etc/passwd` rejected | |
-| `TestRejectParentTraversal` | `internal/vfs/security_test.go` | `../../../etc/passwd` rejected | |
-| `TestRejectPathEscape` | `internal/vfs/security_test.go` | `foo/../../bar` rejected | |
-| `TestRejectHiddenFiles` | `internal/vfs/security_test.go` | `.secret` rejected | |
-| `TestRejectOversizeFile` | `internal/vfs/security_test.go` | >1MB rejected | |
-| `TestRejectTooManyFiles` | `internal/vfs/security_test.go` | >100 files rejected | |
+| `TestRejectAbsolutePath` | `internal/tmpfs/security_test.go` | `/etc/passwd` rejected | |
+| `TestRejectParentTraversal` | `internal/tmpfs/security_test.go` | `../../../etc/passwd` rejected | |
+| `TestRejectPathEscape` | `internal/tmpfs/security_test.go` | `foo/../../bar` rejected | |
+| `TestRejectHiddenFiles` | `internal/tmpfs/security_test.go` | `.secret` rejected | |
+| `TestRejectOversizeFile` | `internal/tmpfs/security_test.go` | >1MB rejected | |
+| `TestRejectTooManyFiles` | `internal/tmpfs/security_test.go` | >100 files rejected | |
 
 ### Parser Robustness Tests
 
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestMalformedHeader` | `internal/vfs/vfs_test.go` | Invalid vfs= line rejected | |
-| `TestMissingTerminator` | `internal/vfs/vfs_test.go` | EOF without terminator error | |
-| `TestDuplicatePaths` | `internal/vfs/vfs_test.go` | Same path twice behavior | |
-| `TestEmptyTerminator` | `internal/vfs/vfs_test.go` | Empty terminator rejected | |
-| `TestTerminatorSpecialChars` | `internal/vfs/vfs_test.go` | Terminator with `:` or `=` | |
-| `TestEmptyFile` | `internal/vfs/vfs_test.go` | 0-byte file allowed | |
-| `TestEmptyPath` | `internal/vfs/vfs_test.go` | Empty path rejected | |
+| `TestMalformedHeader` | `internal/tmpfs/tmpfs_test.go` | Invalid tmpfs= line rejected | |
+| `TestMissingTerminator` | `internal/tmpfs/tmpfs_test.go` | EOF without terminator error | |
+| `TestDuplicatePaths` | `internal/tmpfs/tmpfs_test.go` | Same path twice behavior | |
+| `TestEmptyTerminator` | `internal/tmpfs/tmpfs_test.go` | Empty terminator rejected | |
+| `TestTerminatorSpecialChars` | `internal/tmpfs/tmpfs_test.go` | Terminator with `:` or `=` | |
+| `TestEmptyFile` | `internal/tmpfs/tmpfs_test.go` | 0-byte file allowed | |
+| `TestEmptyPath` | `internal/tmpfs/tmpfs_test.go` | Empty path rejected | |
 
 ### Functional Tests
 
 | Test | Location | Scenario | Status |
 |------|----------|----------|--------|
-| `vfs-basic` | `test/data/unit/vfs/basic.ci` | Simple config + script | |
-| `vfs-subdirs` | `test/data/unit/vfs/subdirs.ci` | Nested directory structure | |
-| `vfs-binary` | `test/data/unit/vfs/binary.ci` | Base64 encoded file | |
+| `tmpfs-basic` | `test/data/unit/tmpfs/basic.ci` | Simple config + script | |
+| `tmpfs-subdirs` | `test/data/unit/tmpfs/subdirs.ci` | Nested directory structure | |
+| `tmpfs-binary` | `test/data/unit/tmpfs/binary.ci` | Base64 encoded file | |
 
 ## Files to Create
 
 - `internal/env/env.go` - Shared env var handling (extract from slogutil)
 - `internal/env/env_test.go` - Tests for env handling
-- `internal/vfs/vfs.go` - Core VFS parser and types
-- `internal/vfs/vfs_test.go` - Unit tests
-- `internal/vfs/security_test.go` - Security boundary tests
-- `internal/vfs/limits.go` - Constants and limit checking (uses internal/env)
-- `internal/vfs/write.go` - Temp dir creation and file writing
-- `internal/vfs/cleanup.go` - Signal handling and cleanup
+- `internal/tmpfs/tmpfs.go` - Core Tmpfs parser and types
+- `internal/tmpfs/tmpfs_test.go` - Unit tests
+- `internal/tmpfs/security_test.go` - Security boundary tests
+- `internal/tmpfs/limits.go` - Constants and limit checking (uses internal/env)
+- `internal/tmpfs/write.go` - Temp dir creation and file writing
+- `internal/tmpfs/cleanup.go` - Signal handling and cleanup
 
 ## Files to Modify
 
 - `internal/slogutil/slogutil.go` - Use internal/env instead of private getEnv
-- `internal/test/ci/ciformat.go` - Integrate VFS parsing
-- `internal/test/runner/record.go` - Use VFS for test execution, config rewriting
+- `internal/test/ci/ciformat.go` - Integrate Tmpfs parsing
+- `internal/test/runner/record.go` - Use Tmpfs for test execution, config rewriting
 
 ## Implementation Steps
 
-1. **Write unit tests** - VFS parsing tests BEFORE implementation
+1. **Write unit tests** - Tmpfs parsing tests BEFORE implementation
 2. **Run tests** - Verify FAIL (paste output)
-3. **Implement `internal/vfs`** - Core parser
+3. **Implement `internal/tmpfs`** - Core parser
 4. **Run tests** - Verify PASS (paste output)
 5. **Write security tests** - Boundary and escape tests
 6. **Run tests** - Verify FAIL
@@ -573,7 +573,7 @@ Duplicate paths are **rejected with error**. Each path must be unique within a V
 8. **Run tests** - Verify PASS
 9. **Implement temp dir + cleanup** - With signal handling
 10. **Integrate with test runner** - Modify ciformat.go, record.go
-11. **Functional tests** - End-to-end VFS tests
+11. **Functional tests** - End-to-end Tmpfs tests
 12. **Verify all** - `make lint && make test && make functional` (paste output)
 
 ## Script Execution Model
@@ -583,7 +583,7 @@ Duplicate paths are **rejected with error**. Each path must be unique within a V
 | Mode | Config Source | Script Handling |
 |------|---------------|-----------------|
 | **Normal zebgp** | File or stdin | Read from filesystem |
-| **Test runner (.ci)** | VFS embedded | Inline via zipapp (no disk) |
+| **Test runner (.ci)** | Tmpfs embedded | Inline via zipapp (no disk) |
 
 ### Normal zebgp Operation
 
@@ -604,20 +604,20 @@ process p {
 }
 ```
 
-### Test Runner (.ci) - VFS Mode
+### Test Runner (.ci) - Tmpfs Mode
 
-The test runner rewrites VFS-embedded Python scripts to inline execution:
+The test runner rewrites Tmpfs-embedded Python scripts to inline execution:
 
-1. Parse VFS blocks from `.ci` file
-2. For each `.py` in VFS: wrap as zipapp, base64 encode
+1. Parse Tmpfs blocks from `.ci` file
+2. For each `.py` in Tmpfs: wrap as zipapp, base64 encode
 3. Rewrite config: `run "./plugin.py"` → `run "python3" "-c" "import base64..."`
 4. Write only the rewritten config to temp
 5. Execute zebgp with rewritten config
 
 ```go
 // Test runner pseudo-code
-func rewriteConfig(config string, vfs *VFS) string {
-    for path, content := range vfs.Files {
+func rewriteConfig(config string, tmpfs *Tmpfs) string {
+    for path, content := range tmpfs.Files {
         if strings.HasSuffix(path, ".py") {
             zipapp := wrapAsZipapp(content)
             b64 := base64.StdEncoding.EncodeToString(zipapp)
@@ -721,18 +721,18 @@ expect=bgp:conn=1:seq=1:hex=FFFF...
 **After (self-contained):**
 ```
 # zebgp-peer rules embedded
-vfs=rules.ci:terminator=EOF_RULES
+tmpfs=rules.ci:terminator=EOF_RULES
 option=asn:value=65533
 expect=bgp:conn=1:seq=1:hex=FFFF...
 EOF_RULES
 
 # zebgp config embedded
-vfs=fast.conf:terminator=EOF_CONF
+tmpfs=fast.conf:terminator=EOF_CONF
 peer 127.0.0.1 { ... }
 EOF_CONF
 
 # zebgp-peer validates BGP output
-cmd=mode=background:seq=1:run=zebgp-peer --port 1790 vfs//rules.ci
+cmd=mode=background:seq=1:run=zebgp-peer --port 1790 tmpfs//rules.ci
 
 # zebgp runs test
 cmd=mode=foreground:seq=2:stdin=fast.conf:run=zebgp server -
@@ -761,25 +761,25 @@ expect=bgp:conn=1:seq=1:hex=...
 **After (self-contained):**
 ```
 # zebgp-peer rules
-vfs=rules.ci:terminator=EOF_RULES
+tmpfs=rules.ci:terminator=EOF_RULES
 option=asn:value=65533
 expect=bgp:conn=1:seq=1:hex=...
 EOF_RULES
 
 # Plugin script
-vfs=plugin.py:terminator=EOF_PY
+tmpfs=plugin.py:terminator=EOF_PY
 #!/usr/bin/env python3
 print('{"ready": true}')
 EOF_PY
 
 # zebgp config
-vfs=plugin.conf:terminator=EOF_CONF
+tmpfs=plugin.conf:terminator=EOF_CONF
 peer 127.0.0.1 {
     process p { run "./plugin.py"; }
 }
 EOF_CONF
 
-cmd=mode=background:seq=1:run=zebgp-peer --port 1790 vfs//rules.ci
+cmd=mode=background:seq=1:run=zebgp-peer --port 1790 tmpfs//rules.ci
 cmd=mode=foreground:seq=2:stdin=plugin.conf:run=zebgp server -
 
 expect=exit:code=0
@@ -797,13 +797,13 @@ peer 127.0.0.1 {
 
 **After:**
 ```
-vfs=graceful-restart.conf:terminator=EOF_CONF
+tmpfs=graceful-restart.conf:terminator=EOF_CONF
 peer 127.0.0.1 {
     graceful-restart;
 }
 EOF_CONF
 
-cmd=zebgp validate vfs//graceful-restart.conf
+cmd=zebgp validate tmpfs//graceful-restart.conf
 expect=exit:code=0
 ```
 
@@ -822,13 +822,13 @@ unknown option: invalid-option
 
 **After:**
 ```
-vfs=bad-config.conf:terminator=EOF_CONF
+tmpfs=bad-config.conf:terminator=EOF_CONF
 peer 127.0.0.1 {
     invalid-option;
 }
 EOF_CONF
 
-cmd=zebgp validate vfs//bad-config.conf
+cmd=zebgp validate tmpfs//bad-config.conf
 expect=exit:code=1
 expect=stderr:contains=unknown option: invalid-option
 ```
@@ -838,10 +838,10 @@ expect=stderr:contains=unknown option: invalid-option
 | Source | Files | Target | Format |
 |--------|-------|--------|--------|
 | `decode/*.test` | 18 | `decode/*.ci` | cmd + expect |
-| `encode/*.conf + *.ci` | ~20 | `encode/*.ci` | vfs + cmd + expect |
-| `plugin/*.conf + *.ci + *.run` | ~20 | `plugin/*.ci` | vfs + cmd + expect |
-| `parse/valid/*.conf` | ~50 | `parse/*.ci` | vfs + cmd + expect=exit:0 |
-| `parse/invalid/*.conf + *.expect` | ~10 | `parse/*.ci` | vfs + cmd + expect=exit:1 + stderr |
+| `encode/*.conf + *.ci` | ~20 | `encode/*.ci` | tmpfs + cmd + expect |
+| `plugin/*.conf + *.ci + *.run` | ~20 | `plugin/*.ci` | tmpfs + cmd + expect |
+| `parse/valid/*.conf` | ~50 | `parse/*.ci` | tmpfs + cmd + expect=exit:0 |
+| `parse/invalid/*.conf + *.expect` | ~10 | `parse/*.ci` | tmpfs + cmd + expect=exit:1 + stderr |
 
 ### ExaBGP Migration
 
@@ -852,7 +852,7 @@ No changes needed - ExaBGP uses `.py`, ZeBGP uses `.py`:
 | `run "./plugin.py"` | `run "./plugin.py"` | Same syntax |
 | `run "/usr/bin/python3 ./plugin.py"` | `run "./plugin.py"` | Strip interpreter |
 
-### VFS Resolution
+### Tmpfs Resolution
 
 ```
 ┌─────────────────────────────────────────────────────────┐
@@ -861,7 +861,7 @@ No changes needed - ExaBGP uses `.py`, ZeBGP uses `.py`:
                          │
                          ▼
 ┌─────────────────────────────────────────────────────────┐
-│  VFS lookup: plugin.py found?                           │
+│  Tmpfs lookup: plugin.py found?                           │
 │  ├─ No  → check filesystem                              │
 │  └─ Yes → check extension                               │
 └─────────────────────────────────────────────────────────┘
@@ -879,9 +879,9 @@ No changes needed - ExaBGP uses `.py`, ZeBGP uses `.py`:
 
 ### Example
 
-**VFS Input:**
+**Tmpfs Input:**
 ```
-vfs=plugin.py:terminator=EOF_PY
+tmpfs=plugin.py:terminator=EOF_PY
 #!/usr/bin/env python3
 import json, sys
 print(json.dumps({"ready": True}))
@@ -891,7 +891,7 @@ for line in sys.stdin:
     # process...
 EOF_PY
 
-vfs=peer.conf:terminator=EOF_CONF
+tmpfs=peer.conf:terminator=EOF_CONF
 peer 127.0.0.1 {
     local-as 65533;
     process p {
@@ -900,16 +900,16 @@ peer 127.0.0.1 {
 }
 EOF_CONF
 
-cmd=zebgp run vfs//peer.conf
+cmd=zebgp run tmpfs//peer.conf
 expect=exit:code=0
 ```
 
 **What happens:**
-1. VFS parsed: `plugin.py` and `peer.conf` in memory
+1. Tmpfs parsed: `plugin.py` and `peer.conf` in memory
 2. Test runner rewrites config: `run "./plugin.py"` → inline zipapp command
 3. Files written to temp dir
 4. chdir to temp dir
-5. `vfs//peer.conf` → `peer.conf`
+5. `tmpfs//peer.conf` → `peer.conf`
 6. Execute `zebgp run peer.conf`
 7. Python executes inline via `python3 -c "import base64..."`
 8. Script runs with stdin/stdout connected to zebgp
@@ -933,10 +933,10 @@ func GetInt(section, key string, defaultVal int) int
 func GetInt64(section, key string, defaultVal int64) int64
 ```
 
-### internal/vfs
+### internal/tmpfs
 
 ```go
-package vfs
+package tmpfs
 
 import (
     "context"
@@ -944,7 +944,7 @@ import (
     "io/fs"
 )
 
-// Default limits for VFS parsing (overridable via zebgp_ci_* env vars)
+// Default limits for Tmpfs parsing (overridable via zebgp_ci_* env vars)
 const (
     DefaultMaxFileSize   = 1 << 20      // 1 MB
     DefaultMaxTotalSize  = 1 << 20      // 1 MB
@@ -956,35 +956,35 @@ const (
 // LimitsFromEnv reads limits from environment, falling back to defaults
 func LimitsFromEnv() Limits
 
-// File represents a single file in the VFS
+// File represents a single file in the Tmpfs
 type File struct {
     Path     string
     Mode     fs.FileMode
     Content  []byte
 }
 
-// VFS holds parsed virtual filesystem
-type VFS struct {
+// Tmpfs holds parsed virtual filesystem
+type Tmpfs struct {
     Files  []*File
     Config string // from config= line (optional)
 }
 
-// Parse reads VFS blocks from reader
-func Parse(r io.Reader) (*VFS, error)
+// Parse reads Tmpfs blocks from reader
+func Parse(r io.Reader) (*Tmpfs, error)
 
-// ParseWithLimits reads VFS with custom limits
-func ParseWithLimits(r io.Reader, limits Limits) (*VFS, error)
+// ParseWithLimits reads Tmpfs with custom limits
+func ParseWithLimits(r io.Reader, limits Limits) (*Tmpfs, error)
 
 // Validate checks all files for security issues
-func (v *VFS) Validate() error
+func (v *Tmpfs) Validate() error
 
 // WriteTo creates files in directory
 // Returns cleanup function
-func (v *VFS) WriteTo(baseDir string) error
+func (v *Tmpfs) WriteTo(baseDir string) error
 
 // WriteToTemp creates temp dir, writes files, returns path and cleanup
 // Cleanup is called automatically on ctx.Done() or signals
-func (v *VFS) WriteToTemp(ctx context.Context) (dir string, cleanup func(), err error)
+func (v *Tmpfs) WriteToTemp(ctx context.Context) (dir string, cleanup func(), err error)
 
 // Limits configures parsing limits
 type Limits struct {
@@ -1003,8 +1003,8 @@ func DefaultLimits() Limits
 
 ```go
 // WriteToTemp implementation sketch
-func (v *VFS) WriteToTemp(ctx context.Context) (string, func(), error) {
-    dir, err := os.MkdirTemp("", "zebgp-vfs-*")
+func (v *Tmpfs) WriteToTemp(ctx context.Context) (string, func(), error) {
+    dir, err := os.MkdirTemp("", "zebgp-tmpfs-*")
     if err != nil {
         return "", nil, err
     }
@@ -1042,24 +1042,24 @@ func (v *VFS) WriteToTemp(ctx context.Context) (string, func(), error) {
 
 ## Example Files
 
-### Simple Test (test/data/unit/vfs/basic.ci)
+### Simple Test (test/data/unit/tmpfs/basic.ci)
 
 ```
-vfs=peer.conf:terminator=EOF_CONF
+tmpfs=peer.conf:terminator=EOF_CONF
 peer 127.0.0.1 {
     local-as 65533;
     peer-as 65533;
 }
 EOF_CONF
 
-cmd=zebgp validate vfs//peer.conf
+cmd=zebgp validate tmpfs//peer.conf
 expect=exit:code=0
 ```
 
-### With Script (test/data/unit/vfs/with-script.ci)
+### With Script (test/data/unit/tmpfs/with-script.ci)
 
 ```
-vfs=peer.conf:terminator=EOF_CONF
+tmpfs=peer.conf:terminator=EOF_CONF
 peer 127.0.0.1 {
     local-as 65533;
     peer-as 65533;
@@ -1069,41 +1069,41 @@ peer 127.0.0.1 {
 }
 EOF_CONF
 
-vfs=plugin.py:mode=755:terminator=EOF_PY
+tmpfs=plugin.py:mode=755:terminator=EOF_PY
 #!/usr/bin/env python3
 import json
 print(json.dumps({"ready": True}))
 EOF_PY
 
-cmd=zebgp run vfs//peer.conf
+cmd=zebgp run tmpfs//peer.conf
 expect=exit:code=0
 expect=stderr:modifier=not:contains=error
 ```
 
-### Subdirectories (test/data/unit/vfs/subdirs.ci)
+### Subdirectories (test/data/unit/tmpfs/subdirs.ci)
 
 ```
-vfs=conf/peer.conf:terminator=EOF_CONF
+tmpfs=conf/peer.conf:terminator=EOF_CONF
 peer 127.0.0.1 {
     local-as 65533;
     process p { run "./scripts/plugin.py"; }
 }
 EOF_CONF
 
-vfs=scripts/plugin.py:mode=755:terminator=EOF_PY
+tmpfs=scripts/plugin.py:mode=755:terminator=EOF_PY
 #!/usr/bin/env python3
 print('{"ready": true}')
 EOF_PY
 
-cmd=zebgp run vfs//conf/peer.conf
+cmd=zebgp run tmpfs//conf/peer.conf
 expect=exit:code=0
 ```
 
 ## Implementation Status
 
 ### Completed ✅
-- `internal/vfs/vfs.go` - VFS parsing (vfs= blocks)
-- `internal/vfs/vfs.go` - Stdin parsing (stdin= blocks, multi-line with terminator)
+- `internal/tmpfs/tmpfs.go` - Tmpfs parsing (tmpfs= blocks)
+- `internal/tmpfs/tmpfs.go` - Stdin parsing (stdin= blocks, multi-line with terminator)
 - `internal/test/runner/record.go` - RunCommand struct, parseCmd for background/foreground
 - `internal/test/runner/record.go` - FailType constants (fixed goconst lint)
 - `internal/test/runner/runner.go` - runOrchestrated() for new format execution
@@ -1116,13 +1116,13 @@ expect=exit:code=0
 - Re-migrate decode tests to unified format: `stdin=payload:hex=...` + `cmd=foreground:exec=zebgp-test decode`
 - Migrate remaining `test/data/encode/*.conf+.ci` to stdin= format (~37 tests)
 - Migrate `test/data/plugin/*.conf+.ci+.py` to unified format
-- Python zipapp inlining for VFS .py files
+- Python zipapp inlining for Tmpfs .py files
 - Migrate parse tests
 
 ## Migration Path
 
 ### Phase 1: Core Infrastructure ✅
-- `internal/vfs` package with vfs= and stdin= parsing
+- `internal/tmpfs` package with tmpfs= and stdin= parsing
 - Test runner integration
 
 ### Phase 2: Decode Tests 🔄
@@ -1134,7 +1134,7 @@ expect=exit:code=0
 - Format: `stdin=peer` + `stdin=zebgp` + `cmd=background/foreground`
 
 ### Phase 4: Plugin Tests
-- Migrate `test/data/plugin/*.conf+.ci+.py` → single `.ci` with vfs= for .py
+- Migrate `test/data/plugin/*.conf+.ci+.py` → single `.ci` with tmpfs= for .py
 - Python zipapp inlining (optional optimization)
 
 ### Phase 5: Parse Tests
@@ -1161,7 +1161,7 @@ expect=exit:code=0
 
 ### Completion
 - [ ] `docs/functional-tests.md` updated with unified .ci format
-- [ ] `docs/architecture/testing/ci-format.md` created (VFS + line types)
+- [ ] `docs/architecture/testing/ci-format.md` created (Tmpfs + line types)
 - [ ] Spec updated with Implementation Summary
-- [ ] Spec moved to `docs/plan/done/NNN-vfs-format.md`
+- [ ] Spec moved to `docs/plan/done/NNN-tmpfs-format.md`
 - [ ] All files committed together

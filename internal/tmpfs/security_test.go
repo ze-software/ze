@@ -1,4 +1,4 @@
-package vfs
+package tmpfs
 
 import (
 	"os"
@@ -25,7 +25,7 @@ func TestRejectAbsolutePath(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			input := "vfs=" + tt.path + ":terminator=EOF\ncontent\nEOF\n"
+			input := "tmpfs=" + tt.path + ":terminator=EOF\ncontent\nEOF\n"
 			v, err := Parse(strings.NewReader(input))
 			if err == nil {
 				// Parse may succeed, but Validate should fail
@@ -54,7 +54,7 @@ func TestRejectParentTraversal(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			input := "vfs=" + tt.path + ":terminator=EOF\ncontent\nEOF\n"
+			input := "tmpfs=" + tt.path + ":terminator=EOF\ncontent\nEOF\n"
 			v, err := Parse(strings.NewReader(input))
 			if err == nil {
 				err = v.Validate()
@@ -86,7 +86,7 @@ func TestRejectPathEscape(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			input := "vfs=" + tt.path + ":terminator=EOF\ncontent\nEOF\n"
+			input := "tmpfs=" + tt.path + ":terminator=EOF\ncontent\nEOF\n"
 			v, err := Parse(strings.NewReader(input))
 			if err == nil {
 				err = v.Validate()
@@ -113,7 +113,7 @@ func TestRejectHiddenFiles(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			input := "vfs=" + tt.path + ":terminator=EOF\ncontent\nEOF\n"
+			input := "tmpfs=" + tt.path + ":terminator=EOF\ncontent\nEOF\n"
 			v, err := Parse(strings.NewReader(input))
 			if err == nil {
 				err = v.Validate()
@@ -145,7 +145,7 @@ func TestRejectOversizeFile(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			content := strings.Repeat("x", tt.contentSize)
-			input := "vfs=test.txt:terminator=EOF\n" + content + "\nEOF\n"
+			input := "tmpfs=test.txt:terminator=EOF\n" + content + "\nEOF\n"
 
 			limits := Limits{
 				MaxFileSize:  tt.maxSize,
@@ -187,7 +187,7 @@ func TestRejectTooManyFiles(t *testing.T) {
 			var sb strings.Builder
 			for i := 0; i < tt.fileCount; i++ {
 				term := "EOF" + strings.Repeat("X", i) // Unique terminators
-				sb.WriteString("vfs=file" + string(rune('0'+i)) + ".txt:terminator=" + term + "\n")
+				sb.WriteString("tmpfs=file" + string(rune('0'+i)) + ".txt:terminator=" + term + "\n")
 				sb.WriteString("content\n")
 				sb.WriteString(term + "\n\n")
 			}
@@ -218,11 +218,11 @@ func TestRejectTooManyFiles(t *testing.T) {
 // BOUNDARY: 1048576 (valid), 1048577 (invalid).
 func TestRejectTotalSizeExceeded(t *testing.T) {
 	// Two files of 600 bytes each, limit 1000 total
-	input := `vfs=a.txt:terminator=EOF1
+	input := `tmpfs=a.txt:terminator=EOF1
 ` + strings.Repeat("a", 600) + `
 EOF1
 
-vfs=b.txt:terminator=EOF2
+tmpfs=b.txt:terminator=EOF2
 ` + strings.Repeat("b", 600) + `
 EOF2
 `
@@ -258,7 +258,7 @@ func TestRejectPathLengthExceeded(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			path := strings.Repeat("a", tt.pathLen) + ".txt"
-			input := "vfs=" + path + ":terminator=EOF\ncontent\nEOF\n"
+			input := "tmpfs=" + path + ":terminator=EOF\ncontent\nEOF\n"
 
 			limits := Limits{
 				MaxFileSize:  10000,
@@ -307,7 +307,7 @@ func TestRejectPathDepthExceeded(t *testing.T) {
 				path = "file.txt"
 			}
 
-			input := "vfs=" + path + ":terminator=EOF\ncontent\nEOF\n"
+			input := "tmpfs=" + path + ":terminator=EOF\ncontent\nEOF\n"
 
 			limits := Limits{
 				MaxFileSize:  10000,
@@ -347,8 +347,8 @@ func TestWriteToRejectsSymlinkTarget(t *testing.T) {
 		t.Skip("cannot create symlink:", err)
 	}
 
-	// Parse VFS with same filename as symlink
-	input := "vfs=test.txt:terminator=EOF\nmalicious content\nEOF\n"
+	// Parse Tmpfs with same filename as symlink
+	input := "tmpfs=test.txt:terminator=EOF\nmalicious content\nEOF\n"
 	v, err := Parse(strings.NewReader(input))
 	require.NoError(t, err)
 
@@ -384,13 +384,13 @@ func TestLimitsBoundary(t *testing.T) {
 
 		// Last valid: exactly at limit
 		content := strings.Repeat("x", 999) // 999 + \n = 1000
-		input := "vfs=test.txt:terminator=EOF\n" + content + "\nEOF\n"
+		input := "tmpfs=test.txt:terminator=EOF\n" + content + "\nEOF\n"
 		_, err := ParseWithLimits(strings.NewReader(input), limits)
 		require.NoError(t, err, "content at limit should succeed")
 
 		// First invalid: one over
 		content = strings.Repeat("x", 1000) // 1000 + \n = 1001
-		input = "vfs=test.txt:terminator=EOF\n" + content + "\nEOF\n"
+		input = "tmpfs=test.txt:terminator=EOF\n" + content + "\nEOF\n"
 		_, err = ParseWithLimits(strings.NewReader(input), limits)
 		require.Error(t, err, "content over limit should fail")
 	})
@@ -405,15 +405,15 @@ func TestLimitsBoundary(t *testing.T) {
 		}
 
 		// Last valid: exactly at limit
-		input := `vfs=a.txt:terminator=EOFA
+		input := `tmpfs=a.txt:terminator=EOFA
 a
 EOFA
 
-vfs=b.txt:terminator=EOFB
+tmpfs=b.txt:terminator=EOFB
 b
 EOFB
 
-vfs=c.txt:terminator=EOFC
+tmpfs=c.txt:terminator=EOFC
 c
 EOFC
 `
@@ -422,7 +422,7 @@ EOFC
 
 		// First invalid: one over
 		input += `
-vfs=d.txt:terminator=EOFD
+tmpfs=d.txt:terminator=EOFD
 d
 EOFD
 `

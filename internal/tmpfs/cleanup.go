@@ -1,4 +1,4 @@
-package vfs
+package tmpfs
 
 import (
 	"context"
@@ -11,8 +11,8 @@ import (
 // WriteToTempWithContext creates temp dir, writes files, returns path and cleanup.
 // Cleanup is called automatically on ctx.Done() or SIGINT/SIGTERM.
 // The returned cleanup function should still be deferred to handle normal exit.
-func (v *VFS) WriteToTempWithContext(ctx context.Context) (dir string, cleanup func(), err error) {
-	dir, err = os.MkdirTemp("", "zebgp-vfs-*")
+func (v *Tmpfs) WriteToTempWithContext(ctx context.Context) (dir string, cleanup func(), err error) {
+	dir, err = os.MkdirTemp("", "zebgp-tmpfs-*")
 	if err != nil {
 		return "", nil, err
 	}

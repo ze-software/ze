@@ -1,6 +1,6 @@
 # .ci Test File Format
 
-The `.ci` format is used by ZeBGP's test runner to define functional tests. It supports embedded files (VFS), test options, expectations, and commands.
+The `.ci` format is used by ZeBGP's test runner to define functional tests. It supports embedded files (Tmpfs), test options, expectations, and commands.
 
 ## Syntax Overview
 
@@ -12,20 +12,20 @@ action=type:key=value:key=value:...
 
 | Action | Purpose |
 |--------|---------|
-| `vfs=` | Embed file content inline |
+| `tmpfs=` | Embed file content inline |
 | `option=` | Test configuration |
 | `cmd=` | Commands (API, shell) |
 | `expect=` | Expectations to validate |
 | `action=` | Actions (send notification, raw bytes) |
 
-## VFS (Virtual File System)
+## Tmpfs (Virtual File System)
 
-VFS allows embedding multiple files within a single `.ci` file. Files are extracted to a temp directory at runtime.
+Tmpfs allows embedding multiple files within a single `.ci` file. Files are extracted to a temp directory at runtime.
 
 ### Syntax
 
 ```
-vfs=<path>[:mode=<octal>][:encoding=<type>]:terminator=<TERM>
+tmpfs=<path>[:mode=<octal>][:encoding=<type>]:terminator=<TERM>
 <content>
 <TERM>
 ```
@@ -49,7 +49,7 @@ vfs=<path>[:mode=<octal>][:encoding=<type>]:terminator=<TERM>
 ### Terminator Rules
 
 - Must be non-empty
-- Must be unique within file (no two VFS blocks can share terminator)
+- Must be unique within file (no two Tmpfs blocks can share terminator)
 - Alphanumeric and underscore only: `[A-Za-z0-9_]+`
 - Matched exactly (no whitespace trimming)
 - Recommended: `EOF_<PURPOSE>` (e.g., `EOF_CONF`, `EOF_PY`)
@@ -57,14 +57,14 @@ vfs=<path>[:mode=<octal>][:encoding=<type>]:terminator=<TERM>
 ### Example
 
 ```
-vfs=peer.conf:terminator=EOF_CONF
+tmpfs=peer.conf:terminator=EOF_CONF
 peer 127.0.0.1 {
     local-as 65533;
     peer-as 65533;
 }
 EOF_CONF
 
-vfs=plugin.py:mode=755:terminator=EOF_PY
+tmpfs=plugin.py:mode=755:terminator=EOF_PY
 #!/usr/bin/env python3
 print('{"ready": true}')
 EOF_PY
@@ -191,8 +191,8 @@ Sends raw bytes to peer.
 ## Complete Example
 
 ```
-# Embed config using VFS
-vfs=test.conf:terminator=EOF_CONF
+# Embed config using Tmpfs
+tmpfs=test.conf:terminator=EOF_CONF
 peer 127.0.0.1 {
     router-id 10.0.0.2;
     local-address 127.0.0.1;
@@ -230,7 +230,7 @@ Different components consume different line types:
 
 | Line Type | Consumer |
 |-----------|----------|
-| `vfs=` | Test runner (writes to temp) |
+| `tmpfs=` | Test runner (writes to temp) |
 | `option=` | Test runner + zebgp-peer |
 | `cmd=` | Test runner |
 | `expect=exit:`, `stdout:`, `stderr:` | Test runner |

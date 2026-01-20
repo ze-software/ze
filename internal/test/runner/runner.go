@@ -16,7 +16,7 @@ import (
 
 	"codeberg.org/thomas-mangin/zebgp/internal/slogutil"
 	"codeberg.org/thomas-mangin/zebgp/internal/test/syslog"
-	"codeberg.org/thomas-mangin/zebgp/internal/vfs"
+	"codeberg.org/thomas-mangin/zebgp/internal/tmpfs"
 )
 
 var logger = slogutil.Logger("runner")
@@ -301,23 +301,23 @@ func (r *Runner) runTest(ctx context.Context, rec *Record, opts *RunOptions) boo
 	}
 	defer func() { _ = os.Remove(expectFile) }()
 
-	// Set up VFS temp directory if there are VFS files
-	var vfsCleanup func()
-	if len(rec.VFSFiles) > 0 {
-		v := vfs.New()
-		for path, content := range rec.VFSFiles {
+	// Set up Tmpfs temp directory if there are Tmpfs files
+	var tmpfsCleanup func()
+	if len(rec.TmpfsFiles) > 0 {
+		v := tmpfs.New()
+		for path, content := range rec.TmpfsFiles {
 			v.AddFile(path, content)
 		}
-		vfsTempDir, cleanup, err := v.WriteToTemp()
+		tmpfsTempDir, cleanup, err := v.WriteToTemp()
 		if err != nil {
-			rec.Error = fmt.Errorf("write VFS files: %w", err)
+			rec.Error = fmt.Errorf("write Tmpfs files: %w", err)
 			return false
 		}
-		vfsCleanup = cleanup
-		rec.VFSTempDir = vfsTempDir
+		tmpfsCleanup = cleanup
+		rec.TmpfsTempDir = tmpfsTempDir
 	}
-	if vfsCleanup != nil {
-		defer vfsCleanup()
+	if tmpfsCleanup != nil {
+		defer tmpfsCleanup()
 	}
 
 	// Build peer args
@@ -368,11 +368,11 @@ func (r *Runner) runTest(ctx context.Context, rec *Record, opts *RunOptions) boo
 	// Start zebgp (client)
 	configPath, _ := rec.Conf["config"].(string)
 
-	// If config is in VFS, use the VFS temp directory path
-	if rec.VFSTempDir != "" && configPath != "" {
+	// If config is in Tmpfs, use the Tmpfs temp directory path
+	if rec.TmpfsTempDir != "" && configPath != "" {
 		configBase := filepath.Base(configPath)
-		if _, ok := rec.VFSFiles[configBase]; ok {
-			configPath = filepath.Join(rec.VFSTempDir, configBase)
+		if _, ok := rec.TmpfsFiles[configBase]; ok {
+			configPath = filepath.Join(rec.TmpfsTempDir, configBase)
 		}
 	}
 

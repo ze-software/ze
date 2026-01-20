@@ -1,4 +1,4 @@
-package vfs
+package tmpfs
 
 import (
 	"bytes"
@@ -13,12 +13,12 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// TestParseVFSBlock verifies basic VFS block parsing.
+// TestParseTmpfsBlock verifies basic Tmpfs block parsing.
 //
-// VALIDATES: Single VFS block parsed correctly with path and content.
+// VALIDATES: Single Tmpfs block parsed correctly with path and content.
 // PREVENTS: Wrong path extraction, content truncation.
-func TestParseVFSBlock(t *testing.T) {
-	input := `vfs=peer.conf:terminator=EOF_CONF
+func TestParseTmpfsBlock(t *testing.T) {
+	input := `tmpfs=peer.conf:terminator=EOF_CONF
 peer 127.0.0.1 {
     local-as 65533;
 }
@@ -34,16 +34,16 @@ EOF_CONF
 	assert.Equal(t, "peer 127.0.0.1 {\n    local-as 65533;\n}\n", string(f.Content))
 }
 
-// TestParseMultipleBlocks verifies multiple VFS blocks in stream.
+// TestParseMultipleBlocks verifies multiple Tmpfs blocks in stream.
 //
 // VALIDATES: Multiple files parsed from single input.
 // PREVENTS: State leakage between blocks, early termination.
 func TestParseMultipleBlocks(t *testing.T) {
-	input := `vfs=first.conf:terminator=EOF_FIRST
+	input := `tmpfs=first.conf:terminator=EOF_FIRST
 first content
 EOF_FIRST
 
-vfs=second.conf:terminator=EOF_SECOND
+tmpfs=second.conf:terminator=EOF_SECOND
 second content
 EOF_SECOND
 `
@@ -81,7 +81,7 @@ func TestModeDefaults(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			input := "vfs=" + tt.path + ":terminator=EOF\ncontent\nEOF\n"
+			input := "tmpfs=" + tt.path + ":terminator=EOF\ncontent\nEOF\n"
 			v, err := Parse(strings.NewReader(input))
 			require.NoError(t, err)
 			require.Len(t, v.Files, 1)
@@ -102,17 +102,17 @@ func TestModeExplicit(t *testing.T) {
 	}{
 		{
 			name:     "explicit_644_for_script",
-			input:    "vfs=script.py:mode=644:terminator=EOF\ncontent\nEOF\n",
+			input:    "tmpfs=script.py:mode=644:terminator=EOF\ncontent\nEOF\n",
 			wantMode: 0o644,
 		},
 		{
 			name:     "explicit_755_for_config",
-			input:    "vfs=peer.conf:mode=755:terminator=EOF\ncontent\nEOF\n",
+			input:    "tmpfs=peer.conf:mode=755:terminator=EOF\ncontent\nEOF\n",
 			wantMode: 0o755,
 		},
 		{
 			name:     "explicit_600",
-			input:    "vfs=secret.key:mode=600:terminator=EOF\ncontent\nEOF\n",
+			input:    "tmpfs=secret.key:mode=600:terminator=EOF\ncontent\nEOF\n",
 			wantMode: 0o600,
 		},
 	}
@@ -133,7 +133,7 @@ func TestModeExplicit(t *testing.T) {
 // PREVENTS: Raw base64 stored instead of decoded bytes.
 func TestBase64Encoding(t *testing.T) {
 	// "hello world" in base64
-	input := `vfs=binary.bin:encoding=base64:terminator=EOF
+	input := `tmpfs=binary.bin:encoding=base64:terminator=EOF
 aGVsbG8gd29ybGQ=
 EOF
 `
@@ -148,11 +148,11 @@ EOF
 // VALIDATES: Files created with correct content and mode.
 // PREVENTS: Wrong permissions, missing directories.
 func TestWriteTo(t *testing.T) {
-	input := `vfs=peer.conf:terminator=EOF_CONF
+	input := `tmpfs=peer.conf:terminator=EOF_CONF
 test content
 EOF_CONF
 
-vfs=scripts/plugin.py:terminator=EOF_PY
+tmpfs=scripts/plugin.py:terminator=EOF_PY
 #!/usr/bin/env python3
 print("hello")
 EOF_PY
@@ -183,7 +183,7 @@ EOF_PY
 	assert.Equal(t, fs.FileMode(0o755), info.Mode().Perm())
 }
 
-// TestMalformedHeader verifies rejection of invalid vfs= lines.
+// TestMalformedHeader verifies rejection of invalid tmpfs= lines.
 //
 // VALIDATES: Parser rejects malformed headers gracefully.
 // PREVENTS: Panic on bad input, accepting invalid format.
@@ -195,22 +195,22 @@ func TestMalformedHeader(t *testing.T) {
 	}{
 		{
 			name:    "missing_terminator",
-			input:   "vfs=peer.conf\ncontent\n",
+			input:   "tmpfs=peer.conf\ncontent\n",
 			wantErr: "terminator",
 		},
 		{
 			name:    "empty_path",
-			input:   "vfs=:terminator=EOF\ncontent\nEOF\n",
+			input:   "tmpfs=:terminator=EOF\ncontent\nEOF\n",
 			wantErr: "empty path",
 		},
 		{
 			name:    "invalid_mode",
-			input:   "vfs=peer.conf:mode=abc:terminator=EOF\ncontent\nEOF\n",
+			input:   "tmpfs=peer.conf:mode=abc:terminator=EOF\ncontent\nEOF\n",
 			wantErr: "invalid mode",
 		},
 		{
 			name:    "invalid_encoding",
-			input:   "vfs=peer.conf:encoding=rot13:terminator=EOF\ncontent\nEOF\n",
+			input:   "tmpfs=peer.conf:encoding=rot13:terminator=EOF\ncontent\nEOF\n",
 			wantErr: "invalid encoding",
 		},
 	}
@@ -229,7 +229,7 @@ func TestMalformedHeader(t *testing.T) {
 // VALIDATES: Parser errors on unterminated block.
 // PREVENTS: Silently truncating content, infinite loop.
 func TestMissingTerminator(t *testing.T) {
-	input := `vfs=peer.conf:terminator=EOF_NEVER
+	input := `tmpfs=peer.conf:terminator=EOF_NEVER
 content line 1
 content line 2
 `
@@ -243,11 +243,11 @@ content line 2
 // VALIDATES: Same path twice is rejected.
 // PREVENTS: Silent overwrite, undefined behavior.
 func TestDuplicatePaths(t *testing.T) {
-	input := `vfs=peer.conf:terminator=EOF1
+	input := `tmpfs=peer.conf:terminator=EOF1
 first
 EOF1
 
-vfs=peer.conf:terminator=EOF2
+tmpfs=peer.conf:terminator=EOF2
 second
 EOF2
 `
@@ -261,7 +261,7 @@ EOF2
 // VALIDATES: Empty terminator is rejected.
 // PREVENTS: Matching empty lines as terminator.
 func TestEmptyTerminator(t *testing.T) {
-	input := "vfs=peer.conf:terminator=\ncontent\n\n"
+	input := "tmpfs=peer.conf:terminator=\ncontent\n\n"
 	_, err := Parse(strings.NewReader(input))
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "terminator")
@@ -280,31 +280,31 @@ func TestTerminatorSpecialChars(t *testing.T) {
 	}{
 		{
 			name:      "valid_alphanumeric",
-			input:     "vfs=test.conf:terminator=EOF123\ncontent\nEOF123\n",
+			input:     "tmpfs=test.conf:terminator=EOF123\ncontent\nEOF123\n",
 			shouldErr: false,
 		},
 		{
 			name:      "valid_underscore",
-			input:     "vfs=test.conf:terminator=EOF_CONF\ncontent\nEOF_CONF\n",
+			input:     "tmpfs=test.conf:terminator=EOF_CONF\ncontent\nEOF_CONF\n",
 			shouldErr: false,
 		},
 		{
 			// Colon splits into separate parts: terminator=EOF becomes valid,
 			// but CONF becomes an invalid key-value pair (no =)
 			name:      "colon_splits_as_delimiter",
-			input:     "vfs=test.conf:terminator=EOF:CONF\ncontent\nEOF:CONF\n",
+			input:     "tmpfs=test.conf:terminator=EOF:CONF\ncontent\nEOF:CONF\n",
 			shouldErr: true,
 			errMatch:  "invalid key-value pair",
 		},
 		{
 			name:      "invalid_equals",
-			input:     "vfs=test.conf:terminator=EOF=CONF\ncontent\nEOF=CONF\n",
+			input:     "tmpfs=test.conf:terminator=EOF=CONF\ncontent\nEOF=CONF\n",
 			shouldErr: true,
 			errMatch:  "terminator",
 		},
 		{
 			name:      "invalid_dash",
-			input:     "vfs=test.conf:terminator=EOF-CONF\ncontent\nEOF-CONF\n",
+			input:     "tmpfs=test.conf:terminator=EOF-CONF\ncontent\nEOF-CONF\n",
 			shouldErr: true,
 			errMatch:  "terminator",
 		},
@@ -330,7 +330,7 @@ func TestTerminatorSpecialChars(t *testing.T) {
 // VALIDATES: Empty content between header and terminator is valid.
 // PREVENTS: Rejecting legitimate empty files.
 func TestEmptyFile(t *testing.T) {
-	input := "vfs=empty.txt:terminator=EOF\nEOF\n"
+	input := "tmpfs=empty.txt:terminator=EOF\nEOF\n"
 	v, err := Parse(strings.NewReader(input))
 	require.NoError(t, err)
 	require.Len(t, v.Files, 1)
@@ -342,7 +342,7 @@ func TestEmptyFile(t *testing.T) {
 // VALIDATES: Path must be non-empty.
 // PREVENTS: Creating files with empty name.
 func TestEmptyPath(t *testing.T) {
-	input := "vfs=:terminator=EOF\ncontent\nEOF\n"
+	input := "tmpfs=:terminator=EOF\ncontent\nEOF\n"
 	_, err := Parse(strings.NewReader(input))
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "empty path")
@@ -353,11 +353,11 @@ func TestEmptyPath(t *testing.T) {
 // VALIDATES: Terminator must be unique within file.
 // PREVENTS: Ambiguous termination.
 func TestDuplicateTerminators(t *testing.T) {
-	input := `vfs=first.conf:terminator=EOF
+	input := `tmpfs=first.conf:terminator=EOF
 first
 EOF
 
-vfs=second.conf:terminator=EOF
+tmpfs=second.conf:terminator=EOF
 second
 EOF
 `
@@ -366,14 +366,14 @@ EOF
 	assert.Contains(t, err.Error(), "duplicate terminator")
 }
 
-// TestCommentsAndBlankLines verifies non-VFS lines are ignored.
+// TestCommentsAndBlankLines verifies non-Tmpfs lines are ignored.
 //
-// VALIDATES: Comments and blank lines outside VFS blocks are skipped.
+// VALIDATES: Comments and blank lines outside Tmpfs blocks are skipped.
 // PREVENTS: Treating comments as content or errors.
 func TestCommentsAndBlankLines(t *testing.T) {
 	input := `# This is a comment
 
-vfs=peer.conf:terminator=EOF_CONF
+tmpfs=peer.conf:terminator=EOF_CONF
 content
 EOF_CONF
 
@@ -397,17 +397,17 @@ func TestKeyValueOrder(t *testing.T) {
 	}{
 		{
 			name:     "terminator_first",
-			input:    "vfs=test.txt:terminator=EOF:mode=600\ncontent\nEOF\n",
+			input:    "tmpfs=test.txt:terminator=EOF:mode=600\ncontent\nEOF\n",
 			wantMode: 0o600,
 		},
 		{
 			name:     "mode_first",
-			input:    "vfs=test.txt:mode=600:terminator=EOF\ncontent\nEOF\n",
+			input:    "tmpfs=test.txt:mode=600:terminator=EOF\ncontent\nEOF\n",
 			wantMode: 0o600,
 		},
 		{
 			name:     "encoding_in_middle",
-			input:    "vfs=test.txt:mode=644:encoding=text:terminator=EOF\ncontent\nEOF\n",
+			input:    "tmpfs=test.txt:mode=644:encoding=text:terminator=EOF\ncontent\nEOF\n",
 			wantMode: 0o644,
 		},
 	}
@@ -429,7 +429,7 @@ func TestKeyValueOrder(t *testing.T) {
 func TestBase64MultiLine(t *testing.T) {
 	// Encode a longer string that would wrap in base64
 	// "The quick brown fox jumps over the lazy dog" base64 = "VGhlIHF1aWNrIGJyb3duIGZveCBqdW1wcyBvdmVyIHRoZSBsYXp5IGRvZw=="
-	input := `vfs=test.bin:encoding=base64:terminator=EOF
+	input := `tmpfs=test.bin:encoding=base64:terminator=EOF
 VGhlIHF1aWNrIGJyb3duIGZveCBqdW1wcyBvdmVyIHRoZSBsYXp5IGRvZw==
 EOF
 `
@@ -439,17 +439,17 @@ EOF
 	assert.Equal(t, "The quick brown fox jumps over the lazy dog", string(v.Files[0].Content))
 }
 
-// TestNonVFSLinesPassthrough verifies non-VFS lines are collected.
+// TestNonTmpfsLinesPassthrough verifies non-Tmpfs lines are collected.
 //
-// VALIDATES: Lines not starting with vfs= are available for other consumers.
+// VALIDATES: Lines not starting with tmpfs= are available for other consumers.
 // PREVENTS: Losing cmd=, option=, expect= lines.
-func TestNonVFSLinesPassthrough(t *testing.T) {
-	input := `vfs=peer.conf:terminator=EOF_CONF
+func TestNonTmpfsLinesPassthrough(t *testing.T) {
+	input := `tmpfs=peer.conf:terminator=EOF_CONF
 content
 EOF_CONF
 
 option=asn:value=65533
-cmd=zebgp validate vfs//peer.conf
+cmd=zebgp validate tmpfs//peer.conf
 expect=exit:code=0
 `
 	v, err := Parse(strings.NewReader(input))
@@ -457,7 +457,7 @@ expect=exit:code=0
 	require.Len(t, v.Files, 1)
 	require.Len(t, v.OtherLines, 3)
 	assert.Equal(t, "option=asn:value=65533", v.OtherLines[0])
-	assert.Equal(t, "cmd=zebgp validate vfs//peer.conf", v.OtherLines[1])
+	assert.Equal(t, "cmd=zebgp validate tmpfs//peer.conf", v.OtherLines[1])
 	assert.Equal(t, "expect=exit:code=0", v.OtherLines[2])
 }
 
@@ -474,11 +474,11 @@ func TestParseWithLimits(t *testing.T) {
 		MaxPathDepth: 3,
 	}
 
-	input := `vfs=a.txt:terminator=EOF1
+	input := `tmpfs=a.txt:terminator=EOF1
 short
 EOF1
 
-vfs=b.txt:terminator=EOF2
+tmpfs=b.txt:terminator=EOF2
 also short
 EOF2
 `
@@ -494,7 +494,7 @@ EOF2
 func TestLargeReader(t *testing.T) {
 	// Create a reader that produces content on demand
 	var buf bytes.Buffer
-	buf.WriteString("vfs=test.txt:terminator=EOF\n")
+	buf.WriteString("tmpfs=test.txt:terminator=EOF\n")
 	for i := 0; i < 1000; i++ {
 		buf.WriteString("line content\n")
 	}
@@ -505,19 +505,19 @@ func TestLargeReader(t *testing.T) {
 	require.Len(t, v.Files, 1)
 }
 
-// TestVFSResolve verifies vfs// path replacement.
+// TestTmpfsResolve verifies tmpfs// path replacement.
 //
-// VALIDATES: vfs//path becomes path after WriteTo.
-// PREVENTS: Leaving vfs// prefix in paths.
-func TestVFSResolve(t *testing.T) {
-	v := &VFS{
+// VALIDATES: tmpfs//path becomes path after WriteTo.
+// PREVENTS: Leaving tmpfs// prefix in paths.
+func TestTmpfsResolve(t *testing.T) {
+	v := &Tmpfs{
 		OtherLines: []string{
-			"cmd=zebgp validate vfs//peer.conf",
-			"cmd=zebgp run vfs//scripts/plugin.py",
+			"cmd=zebgp validate tmpfs//peer.conf",
+			"cmd=zebgp run tmpfs//scripts/plugin.py",
 		},
 	}
 
-	resolved := v.ResolveVFSPaths()
+	resolved := v.ResolveTmpfsPaths()
 	assert.Equal(t, "cmd=zebgp validate peer.conf", resolved[0])
 	assert.Equal(t, "cmd=zebgp run scripts/plugin.py", resolved[1])
 }
@@ -527,7 +527,7 @@ func TestVFSResolve(t *testing.T) {
 // VALIDATES: WriteToTemp cleanup function removes directory.
 // PREVENTS: Temp directory leaks.
 func TestCleanup(t *testing.T) {
-	input := `vfs=test.txt:terminator=EOF
+	input := `tmpfs=test.txt:terminator=EOF
 content
 EOF
 `
@@ -542,7 +542,7 @@ EOF
 	require.NoDirExists(t, dir)
 }
 
-// TestReadFrom verifies reading VFS from file path.
+// TestReadFrom verifies reading Tmpfs from file path.
 //
 // VALIDATES: ReadFrom opens file and parses content.
 // PREVENTS: File handle leaks, wrong error on missing file.
@@ -550,7 +550,7 @@ func TestReadFrom(t *testing.T) {
 	tmpDir := t.TempDir()
 	ciFile := filepath.Join(tmpDir, "test.ci")
 
-	content := `vfs=peer.conf:terminator=EOF
+	content := `tmpfs=peer.conf:terminator=EOF
 test content
 EOF
 `
@@ -576,11 +576,11 @@ func TestReadFromMissingFile(t *testing.T) {
 // VALIDATES: Lookup returns correct file for path.
 // PREVENTS: Wrong file returned, nil for existing file.
 func TestLookup(t *testing.T) {
-	input := `vfs=a.txt:terminator=EOF1
+	input := `tmpfs=a.txt:terminator=EOF1
 content a
 EOF1
 
-vfs=b.txt:terminator=EOF2
+tmpfs=b.txt:terminator=EOF2
 content b
 EOF2
 `

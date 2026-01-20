@@ -1,19 +1,19 @@
-// Package vfs provides a Virtual File System for embedding multiple files in a single stream.
+// Package tmpfs provides a Virtual File System for embedding multiple files in a single stream.
 //
-// VFS format:
+// Tmpfs format:
 //
-//	vfs=<path>[:mode=<octal>][:encoding=<type>]:terminator=<TERM>
+//	tmpfs=<path>[:mode=<octal>][:encoding=<type>]:terminator=<TERM>
 //	<content>
 //	<TERM>
 //
 // Example:
 //
-//	vfs=peer.conf:terminator=EOF_CONF
+//	tmpfs=peer.conf:terminator=EOF_CONF
 //	peer 127.0.0.1 {
 //	    local-as 65533;
 //	}
 //	EOF_CONF
-package vfs
+package tmpfs
 
 import (
 	"bufio"
@@ -29,7 +29,7 @@ import (
 	"strings"
 )
 
-// File represents a single file in the VFS.
+// File represents a single file in the Tmpfs.
 type File struct {
 	Path    string
 	Mode    fs.FileMode
@@ -41,20 +41,20 @@ func (f *File) Reader() io.Reader {
 	return bytes.NewReader(f.Content)
 }
 
-// VFS holds parsed virtual filesystem.
-type VFS struct {
+// Tmpfs holds parsed virtual filesystem.
+type Tmpfs struct {
 	Files       []*File
 	StdinBlocks map[string][]byte // stdin= blocks: name -> content
-	OtherLines  []string          // Non-VFS/stdin lines (cmd=, option=, expect=, run=, etc.)
+	OtherLines  []string          // Non-Tmpfs/stdin lines (cmd=, option=, expect=, run=, etc.)
 }
 
-// New creates an empty VFS for programmatic construction.
-func New() *VFS {
-	return &VFS{}
+// New creates an empty Tmpfs for programmatic construction.
+func New() *Tmpfs {
+	return &Tmpfs{}
 }
 
-// AddFile adds a file to the VFS with default mode based on extension.
-func (v *VFS) AddFile(path string, content []byte) {
+// AddFile adds a file to the Tmpfs with default mode based on extension.
+func (v *Tmpfs) AddFile(path string, content []byte) {
 	v.Files = append(v.Files, &File{
 		Path:    path,
 		Mode:    defaultModeForPath(path),
@@ -62,8 +62,8 @@ func (v *VFS) AddFile(path string, content []byte) {
 	})
 }
 
-// AddFileWithMode adds a file to the VFS with explicit mode.
-func (v *VFS) AddFileWithMode(path string, content []byte, mode fs.FileMode) {
+// AddFileWithMode adds a file to the Tmpfs with explicit mode.
+func (v *Tmpfs) AddFileWithMode(path string, content []byte, mode fs.FileMode) {
 	v.Files = append(v.Files, &File{
 		Path:    path,
 		Mode:    mode,
@@ -72,7 +72,7 @@ func (v *VFS) AddFileWithMode(path string, content []byte, mode fs.FileMode) {
 }
 
 // Lookup returns the file at the given path, or nil if not found.
-func (v *VFS) Lookup(path string) *File {
+func (v *Tmpfs) Lookup(path string) *File {
 	for _, f := range v.Files {
 		if f.Path == path {
 			return f
@@ -81,11 +81,11 @@ func (v *VFS) Lookup(path string) *File {
 	return nil
 }
 
-// ResolveVFSPaths replaces vfs// prefixes with plain paths.
-func (v *VFS) ResolveVFSPaths() []string {
+// ResolveTmpfsPaths replaces tmpfs// prefixes with plain paths.
+func (v *Tmpfs) ResolveTmpfsPaths() []string {
 	result := make([]string, len(v.OtherLines))
 	for i, line := range v.OtherLines {
-		result[i] = strings.ReplaceAll(line, "vfs//", "")
+		result[i] = strings.ReplaceAll(line, "tmpfs//", "")
 	}
 	return result
 }
@@ -110,14 +110,14 @@ func DefaultLimits() Limits {
 	}
 }
 
-// Parse reads VFS blocks from reader using default limits.
-func Parse(r io.Reader) (*VFS, error) {
+// Parse reads Tmpfs blocks from reader using default limits.
+func Parse(r io.Reader) (*Tmpfs, error) {
 	return ParseWithLimits(r, DefaultLimits())
 }
 
-// ParseWithLimits reads VFS blocks with custom limits.
-func ParseWithLimits(r io.Reader, limits Limits) (*VFS, error) {
-	v := &VFS{
+// ParseWithLimits reads Tmpfs blocks with custom limits.
+func ParseWithLimits(r io.Reader, limits Limits) (*Tmpfs, error) {
+	v := &Tmpfs{
 		StdinBlocks: make(map[string][]byte),
 	}
 	scanner := bufio.NewScanner(r)
@@ -130,15 +130,15 @@ func ParseWithLimits(r io.Reader, limits Limits) (*VFS, error) {
 		lineNum++
 		line := scanner.Text()
 
-		// Skip empty lines and comments outside VFS blocks
+		// Skip empty lines and comments outside Tmpfs blocks
 		trimmed := strings.TrimSpace(line)
 		if trimmed == "" || strings.HasPrefix(trimmed, "#") {
 			continue
 		}
 
-		// Check for VFS block
-		if strings.HasPrefix(trimmed, "vfs=") {
-			file, endLineNum, err := parseVFSBlock(scanner, trimmed, lineNum, limits, seenTerminators)
+		// Check for Tmpfs block
+		if strings.HasPrefix(trimmed, "tmpfs=") {
+			file, endLineNum, err := parseTmpfsBlock(scanner, trimmed, lineNum, limits, seenTerminators)
 			if err != nil {
 				return nil, fmt.Errorf("line %d: %w", lineNum, err)
 			}
@@ -196,16 +196,16 @@ func ParseWithLimits(r io.Reader, limits Limits) (*VFS, error) {
 // validTerminator matches alphanumeric and underscore only.
 var validTerminator = regexp.MustCompile(`^[A-Za-z0-9_]+$`)
 
-// parseVFSBlock parses a single VFS block starting from the header line.
-func parseVFSBlock(scanner *bufio.Scanner, header string, startLine int, limits Limits, seenTerminators map[string]bool) (*File, int, error) {
-	// Parse header: vfs=<path>[:mode=<octal>][:encoding=<type>]:terminator=<TERM>
-	// Remove "vfs=" prefix
-	rest := strings.TrimPrefix(header, "vfs=")
+// parseTmpfsBlock parses a single Tmpfs block starting from the header line.
+func parseTmpfsBlock(scanner *bufio.Scanner, header string, startLine int, limits Limits, seenTerminators map[string]bool) (*File, int, error) {
+	// Parse header: tmpfs=<path>[:mode=<octal>][:encoding=<type>]:terminator=<TERM>
+	// Remove "tmpfs=" prefix
+	rest := strings.TrimPrefix(header, "tmpfs=")
 
 	// Parse all key=value pairs
 	parts := strings.Split(rest, ":")
 	if len(parts) == 0 {
-		return nil, startLine, fmt.Errorf("invalid vfs header")
+		return nil, startLine, fmt.Errorf("invalid tmpfs header")
 	}
 
 	// First part is the path
@@ -300,7 +300,7 @@ func parseVFSBlock(scanner *bufio.Scanner, header string, startLine int, limits 
 	}
 
 	if !found {
-		return nil, lineNum, fmt.Errorf("unterminated VFS block: terminator %q not found", terminator)
+		return nil, lineNum, fmt.Errorf("unterminated Tmpfs block: terminator %q not found", terminator)
 	}
 
 	// Decode content
@@ -451,8 +451,8 @@ func defaultModeForPath(path string) fs.FileMode {
 	}
 }
 
-// ReadFrom reads VFS from a file path.
-func ReadFrom(path string) (*VFS, error) {
+// ReadFrom reads Tmpfs from a file path.
+func ReadFrom(path string) (*Tmpfs, error) {
 	f, err := os.Open(path) //nolint:gosec // Caller controls path
 	if err != nil {
 		return nil, err
@@ -462,7 +462,7 @@ func ReadFrom(path string) (*VFS, error) {
 }
 
 // WriteTo creates files in directory.
-func (v *VFS) WriteTo(baseDir string) error {
+func (v *Tmpfs) WriteTo(baseDir string) error {
 	for _, f := range v.Files {
 		fullPath := filepath.Join(baseDir, f.Path)
 
@@ -493,8 +493,8 @@ func (v *VFS) WriteTo(baseDir string) error {
 }
 
 // WriteToTemp creates temp dir, writes files, returns path and cleanup.
-func (v *VFS) WriteToTemp() (dir string, cleanup func(), err error) {
-	dir, err = os.MkdirTemp("", "zebgp-vfs-*")
+func (v *Tmpfs) WriteToTemp() (dir string, cleanup func(), err error) {
+	dir, err = os.MkdirTemp("", "zebgp-tmpfs-*")
 	if err != nil {
 		return "", nil, err
 	}

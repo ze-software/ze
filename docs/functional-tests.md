@@ -139,8 +139,8 @@ zebgp-test run encoding 0 A B
 The `.ci` file is the **source of truth** for bidirectional testing. Full format documentation: [`docs/architecture/testing/ci-format.md`](architecture/testing/ci-format.md)
 
 ```
-# VFS: embed config inline
-vfs=test.conf:terminator=EOF_CONF
+# Tmpfs: embed config inline
+tmpfs=test.conf:terminator=EOF_CONF
 peer 127.0.0.1 { ... }
 EOF_CONF
 
@@ -158,7 +158,7 @@ expect=json:conn=1:seq=1:json={...}
 
 | Action | Example | Description |
 |--------|---------|-------------|
-| `vfs=` | `vfs=file.conf:terminator=EOF` | Embed file content inline |
+| `tmpfs=` | `tmpfs=file.conf:terminator=EOF` | Embed file content inline |
 | `option=` | `option=file:path=test.conf` | Test configuration |
 | `cmd=` | `cmd=api:conn=1:seq=1:text=...` | API command |
 | `expect=bgp:` | `expect=bgp:conn=1:seq=1:hex=...` | Expected wire bytes |
@@ -167,12 +167,12 @@ expect=json:conn=1:seq=1:json={...}
 | `expect=syslog:` | `expect=syslog:pattern=...` | Regex pattern in syslog |
 | `action=notification:` | `action=notification:conn=1:seq=1:text=...` | Send NOTIFICATION |
 
-### VFS (Virtual File System)
+### Tmpfs (Virtual File System)
 
-VFS allows embedding config files directly in `.ci` files:
+Tmpfs allows embedding config files directly in `.ci` files:
 
 ```
-vfs=peer.conf:terminator=EOF_CONF
+tmpfs=peer.conf:terminator=EOF_CONF
 peer 127.0.0.1 {
     local-as 65533;
     peer-as 65533;
@@ -182,7 +182,7 @@ EOF_CONF
 option=file:path=peer.conf
 ```
 
-At runtime, VFS files are written to a temp directory. This enables self-contained tests without separate `.conf` files.
+At runtime, Tmpfs files are written to a temp directory. This enables self-contained tests without separate `.conf` files.
 
 ### Logging Tests
 
@@ -447,13 +447,13 @@ zebgp decode raw FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002D02...
 
 ## Adding New Tests
 
-### Option 1: VFS (Recommended)
+### Option 1: Tmpfs (Recommended)
 
 Single self-contained `.ci` file with embedded config:
 
 ```
 # test/data/encode/mytest.ci
-vfs=mytest.conf:terminator=EOF_CONF
+tmpfs=mytest.conf:terminator=EOF_CONF
 peer 127.0.0.1 {
     router-id 1.2.3.4;
     local-address 127.0.0.1;
@@ -552,17 +552,17 @@ The test passes if:
 | `json.go` | JSON validation: transform envelope → plugin format |
 | `limits.go` | ulimit check and auto-raise |
 | `ports.go` | Dynamic port range allocation |
-| `record.go` | Test record with state machine, VFS file storage |
+| `record.go` | Test record with state machine, Tmpfs file storage |
 | `report.go` | AI-friendly failure reports |
-| `runner.go` | Test execution engine, VFS runtime support |
+| `runner.go` | Test execution engine, Tmpfs runtime support |
 | `stress.go` | Iteration stats and timing for -c/--count |
-| `vfs_test.go` | VFS parsing integration tests |
+| `tmpfs_test.go` | Tmpfs parsing integration tests |
 
-### Package: `internal/vfs/`
+### Package: `internal/tmpfs/`
 
 | File | Purpose |
 |------|---------|
-| `vfs.go` | VFS parser and writer |
+| `tmpfs.go` | Tmpfs parser and writer |
 | `limits.go` | Configurable limits from environment |
 | `security.go` | Path validation (traversal, escape) |
 | `cleanup.go` | Signal handling for temp cleanup |

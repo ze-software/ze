@@ -9,15 +9,15 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// TestParseVFSInCI verifies VFS blocks are parsed from .ci files.
+// TestParseTmpfsInCI verifies tmpfs blocks are parsed from .ci files.
 //
-// VALIDATES: VFS blocks extracted and stored in VFSFiles map.
-// PREVENTS: VFS blocks ignored or lost during parsing.
-func TestParseVFSInCI(t *testing.T) {
+// VALIDATES: tmpfs blocks extracted and stored in TmpfsFiles map.
+// PREVENTS: tmpfs blocks ignored or lost during parsing.
+func TestParseTmpfsInCI(t *testing.T) {
 	tmpDir := t.TempDir()
 
-	// Create a .ci file with VFS blocks
-	ciContent := `vfs=peer.conf:terminator=EOF_CONF
+	// Create a .ci file with tmpfs blocks
+	ciContent := `tmpfs=peer.conf:terminator=EOF_CONF
 peer 127.0.0.1 {
     local-as 65533;
     peer-as 65533;
@@ -27,7 +27,7 @@ EOF_CONF
 option=asn:value=65533
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001304
 `
-	ciFile := filepath.Join(tmpDir, "test-vfs.ci")
+	ciFile := filepath.Join(tmpDir, "test-tmpfs.ci")
 	require.NoError(t, os.WriteFile(ciFile, []byte(ciContent), 0o600))
 
 	// Parse the test
@@ -35,32 +35,32 @@ expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001304
 	err := et.parseAndAdd(ciFile)
 	require.NoError(t, err)
 
-	// Verify VFS files were extracted
+	// Verify tmpfs files were extracted
 	tests := et.Registered()
 	require.Len(t, tests, 1)
 	r := tests[0]
 
-	require.NotNil(t, r.VFSFiles, "VFSFiles should be populated")
-	assert.Contains(t, r.VFSFiles, "peer.conf")
-	assert.Contains(t, string(r.VFSFiles["peer.conf"]), "local-as 65533")
+	require.NotNil(t, r.TmpfsFiles, "TmpfsFiles should be populated")
+	assert.Contains(t, r.TmpfsFiles, "peer.conf")
+	assert.Contains(t, string(r.TmpfsFiles["peer.conf"]), "local-as 65533")
 
 	// Verify other lines were parsed
 	assert.Equal(t, "65533", r.Extra["asn"])
 	assert.Len(t, r.Expects, 1)
 }
 
-// TestParseVFSMultipleFiles verifies multiple VFS blocks in one .ci file.
+// TestParseTmpfsMultipleFiles verifies multiple tmpfs blocks in one .ci file.
 //
-// VALIDATES: Multiple VFS files extracted correctly.
-// PREVENTS: Only first VFS block parsed, others ignored.
-func TestParseVFSMultipleFiles(t *testing.T) {
+// VALIDATES: Multiple tmpfs files extracted correctly.
+// PREVENTS: Only first tmpfs block parsed, others ignored.
+func TestParseTmpfsMultipleFiles(t *testing.T) {
 	tmpDir := t.TempDir()
 
-	ciContent := `vfs=rules.ci:terminator=EOF_RULES
+	ciContent := `tmpfs=rules.ci:terminator=EOF_RULES
 option=asn:value=65533
 EOF_RULES
 
-vfs=peer.conf:terminator=EOF_CONF
+tmpfs=peer.conf:terminator=EOF_CONF
 peer 127.0.0.1 {
     local-as 65533;
 }
@@ -68,7 +68,7 @@ EOF_CONF
 
 option=asn:value=65533
 `
-	ciFile := filepath.Join(tmpDir, "multi-vfs.ci")
+	ciFile := filepath.Join(tmpDir, "multi-tmpfs.ci")
 	require.NoError(t, os.WriteFile(ciFile, []byte(ciContent), 0o600))
 
 	et := NewEncodingTests(tmpDir)
@@ -79,31 +79,31 @@ option=asn:value=65533
 	require.Len(t, tests, 1)
 	r := tests[0]
 
-	require.NotNil(t, r.VFSFiles)
-	assert.Len(t, r.VFSFiles, 2)
-	assert.Contains(t, r.VFSFiles, "rules.ci")
-	assert.Contains(t, r.VFSFiles, "peer.conf")
+	require.NotNil(t, r.TmpfsFiles)
+	assert.Len(t, r.TmpfsFiles, 2)
+	assert.Contains(t, r.TmpfsFiles, "rules.ci")
+	assert.Contains(t, r.TmpfsFiles, "peer.conf")
 }
 
-// TestParseVFSWithSubdirs verifies VFS paths with subdirectories.
+// TestParseTmpfsWithSubdirs verifies tmpfs paths with subdirectories.
 //
 // VALIDATES: Paths like scripts/plugin.py stored correctly.
 // PREVENTS: Path flattening or directory info lost.
-func TestParseVFSWithSubdirs(t *testing.T) {
+func TestParseTmpfsWithSubdirs(t *testing.T) {
 	tmpDir := t.TempDir()
 
-	ciContent := `vfs=conf/peer.conf:terminator=EOF_CONF
+	ciContent := `tmpfs=conf/peer.conf:terminator=EOF_CONF
 peer config
 EOF_CONF
 
-vfs=scripts/plugin.py:terminator=EOF_PY
+tmpfs=scripts/plugin.py:terminator=EOF_PY
 #!/usr/bin/env python3
 print("hello")
 EOF_PY
 
 option=asn:value=65533
 `
-	ciFile := filepath.Join(tmpDir, "subdir-vfs.ci")
+	ciFile := filepath.Join(tmpDir, "subdir-tmpfs.ci")
 	require.NoError(t, os.WriteFile(ciFile, []byte(ciContent), 0o600))
 
 	et := NewEncodingTests(tmpDir)
@@ -114,16 +114,16 @@ option=asn:value=65533
 	require.Len(t, tests, 1)
 	r := tests[0]
 
-	require.NotNil(t, r.VFSFiles)
-	assert.Contains(t, r.VFSFiles, "conf/peer.conf")
-	assert.Contains(t, r.VFSFiles, "scripts/plugin.py")
+	require.NotNil(t, r.TmpfsFiles)
+	assert.Contains(t, r.TmpfsFiles, "conf/peer.conf")
+	assert.Contains(t, r.TmpfsFiles, "scripts/plugin.py")
 }
 
-// TestParseNoVFS verifies .ci files without VFS still work.
+// TestParseNoTmpfs verifies .ci files without tmpfs still work.
 //
-// VALIDATES: Backward compatibility with non-VFS .ci files.
+// VALIDATES: Backward compatibility with non-tmpfs .ci files.
 // PREVENTS: Regression in existing test parsing.
-func TestParseNoVFS(t *testing.T) {
+func TestParseNoTmpfs(t *testing.T) {
 	tmpDir := t.TempDir()
 
 	// Create a config file for the test to reference
@@ -135,7 +135,7 @@ func TestParseNoVFS(t *testing.T) {
 option=asn:value=65533
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001304
 `
-	ciFile := filepath.Join(tmpDir, "no-vfs.ci")
+	ciFile := filepath.Join(tmpDir, "no-tmpfs.ci")
 	require.NoError(t, os.WriteFile(ciFile, []byte(ciContent), 0o600))
 
 	et := NewEncodingTests(tmpDir)
@@ -146,8 +146,8 @@ expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001304
 	require.Len(t, tests, 1)
 	r := tests[0]
 
-	// VFSFiles should be nil or empty when no VFS blocks
-	assert.Empty(t, r.VFSFiles)
+	// TmpfsFiles should be nil or empty when no tmpfs blocks
+	assert.Empty(t, r.TmpfsFiles)
 	// Config should still be parsed from option=file
 	assert.Equal(t, confFile, r.ConfigFile)
 }

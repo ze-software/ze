@@ -13,7 +13,7 @@ import (
 
 	"codeberg.org/thomas-mangin/zebgp/internal/slogutil"
 	"codeberg.org/thomas-mangin/zebgp/internal/test/ci"
-	"codeberg.org/thomas-mangin/zebgp/internal/vfs"
+	"codeberg.org/thomas-mangin/zebgp/internal/tmpfs"
 )
 
 var recordLogger = slogutil.Logger("record")
@@ -130,9 +130,9 @@ type Record struct {
 	RejectSyslog []string // reject=syslog:pattern=PATTERN (regex)
 	SyslogPort   int      // Dynamically assigned port for test-syslog
 
-	// VFS embedded files
-	VFSFiles   map[string][]byte // path -> content from vfs= blocks
-	VFSTempDir string            // temp directory for VFS files (set during execution)
+	// Tmpfs embedded files
+	TmpfsFiles   map[string][]byte // path -> content from tmpfs= blocks
+	TmpfsTempDir string            // temp directory for tmpfs files (set during execution)
 
 	// Stdin blocks for process orchestration
 	StdinBlocks map[string][]byte // name -> content from stdin= blocks
@@ -529,10 +529,10 @@ func (et *EncodingTests) Discover(dir string) error {
 
 // parseAndAdd parses a .ci file and adds it as a test.
 // Uses new key=value format: action=type:key=value:key=value:...
-// Supports VFS blocks for embedded files.
+// Supports Tmpfs blocks for embedded files.
 func (et *EncodingTests) parseAndAdd(ciFile string) error {
-	// First, try VFS parsing to extract embedded files
-	v, err := vfs.ReadFrom(ciFile)
+	// First, try Tmpfs parsing to extract embedded files
+	v, err := tmpfs.ReadFrom(ciFile)
 	if err != nil {
 		return fmt.Errorf("parse %s: %w", ciFile, err)
 	}
@@ -544,11 +544,11 @@ func (et *EncodingTests) parseAndAdd(ciFile string) error {
 	r.CIFile = ciFile
 	r.Files = append(r.Files, ciFile)
 
-	// Store VFS files if any
+	// Store Tmpfs files if any
 	if len(v.Files) > 0 {
-		r.VFSFiles = make(map[string][]byte)
+		r.TmpfsFiles = make(map[string][]byte)
 		for _, f := range v.Files {
-			r.VFSFiles[f.Path] = f.Content
+			r.TmpfsFiles[f.Path] = f.Content
 		}
 	}
 
@@ -560,19 +560,19 @@ func (et *EncodingTests) parseAndAdd(ciFile string) error {
 		}
 	}
 
-	// Parse the non-VFS lines (option=, expect=, cmd=, run=, etc.)
+	// Parse the non-Tmpfs lines (option=, expect=, cmd=, run=, etc.)
 	for lineNum, line := range v.OtherLines {
 		if err := et.parseLine(r, ciFile, line); err != nil {
 			return fmt.Errorf("line %d: %w", lineNum+1, err)
 		}
 	}
 
-	// Verify config exists (for non-VFS configs)
+	// Verify config exists (for non-Tmpfs configs)
 	if configPath, ok := r.Conf["config"].(string); ok {
-		// Check if it's a VFS file first
-		if r.VFSFiles != nil {
-			if _, isVFS := r.VFSFiles[filepath.Base(configPath)]; isVFS {
-				// Config is in VFS, will be written to temp dir at runtime
+		// Check if it's a Tmpfs file first
+		if r.TmpfsFiles != nil {
+			if _, isTmpfs := r.TmpfsFiles[filepath.Base(configPath)]; isTmpfs {
+				// Config is in Tmpfs, will be written to temp dir at runtime
 				goto generateDecoded
 			}
 		}

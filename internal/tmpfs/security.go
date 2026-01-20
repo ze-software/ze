@@ -1,4 +1,4 @@
-package vfs
+package tmpfs
 
 import (
 	"fmt"
@@ -12,7 +12,7 @@ import (
 //   - Parent traversal (..)
 //   - Hidden files (starting with .)
 //   - Path escape attempts
-func (v *VFS) Validate() error {
+func (v *Tmpfs) Validate() error {
 	for _, f := range v.Files {
 		if err := validatePath(f.Path); err != nil {
 			return err
@@ -62,7 +62,7 @@ type ValidateOptions struct {
 }
 
 // ValidateWithOptions checks all files with custom options.
-func (v *VFS) ValidateWithOptions(opts ValidateOptions) error {
+func (v *Tmpfs) ValidateWithOptions(opts ValidateOptions) error {
 	for _, f := range v.Files {
 		if err := validatePathWithOptions(f.Path, opts); err != nil {
 			return err
