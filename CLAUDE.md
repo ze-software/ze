@@ -149,6 +149,18 @@ Both produce WireUpdate with wire bytes.
 - **Verify before claiming** - Paste command output as proof
 - **Git safety** - Never commit/push without explicit request
 
+## Post-Compaction Recovery
+After context compaction, spec details may be lost. Recovery rules:
+1. **Re-read active spec** - `docs/plan/spec-*.md` before continuing work
+2. **Check todo list** - Should contain `📋 Spec: docs/plan/spec-<name>.md` as anchor
+3. **Verify state** - Re-run `make test && make lint` to confirm current status
+
+**TodoWrite anchor pattern:** When starting work on a spec, first todo item should be:
+```
+📋 Spec: docs/plan/spec-<task>.md
+```
+This survives compaction and reminds which spec to re-read.
+
 ## Reference Paths
 - ExaBGP: `/Users/thomas/Code/github.com/exa-networks/exabgp/main/src/exabgp/`
 - RFCs: `rfc/` directory
