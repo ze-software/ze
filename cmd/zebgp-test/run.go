@@ -241,7 +241,7 @@ func runEncodingOrAPI(ctx context.Context, cli *runCLIFlags, baseDir string) err
 
 	// Discover tests first (needed for --server/--client modes)
 	tests := runner.NewEncodingTests(baseDir)
-	testDir := filepath.Join(baseDir, "test/data/encode")
+	testDir := filepath.Join(baseDir, "test/encode")
 	if cli.command == "plugin" {
 		testDir = filepath.Join(baseDir, "test/data/plugin")
 	}
