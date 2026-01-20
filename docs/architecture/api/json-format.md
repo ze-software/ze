@@ -1,155 +1,57 @@
-# JSON Output Format
+# ZeBGP JSON Output Format
 
-**Source:** ExaBGP `reactor/api/response/json.py`
-**Purpose:** Document JSON output format for API compatibility
+**Purpose:** Document ZeBGP's JSON output format for plugin communication.
 
 ---
 
 ## Overview
 
-ExaBGP outputs JSON messages to external processes via stdout. ZeBGP uses JSON encoding with nexthop not included in Flow NLRI.
+ZeBGP outputs JSON messages to external processes via stdout. The format is optimized for parseability with a flat structure and consistent patterns across all message types.
 
 ---
 
 ## Message Structure
 
-### Top-Level Format
+All messages share a common structure:
 
 ```json
 {
-  "exabgp": "6.0.0",
-  "time": 1234567890.123456,
-  "host": "hostname",
-  "pid": 12345,
-  "ppid": 12344,
-  "counter": 1,
-  "type": "update",
-  "header": "FFFFFFFF...",
-  "body": "0000...",
-  "neighbor": { ... }
+  "message": {"type": "<type>", "id": <n>, "direction": "<dir>"},
+  "peer": {"address": "<ip>", "asn": <n>},
+  ...type-specific fields...
 }
 ```
 
-### Fields
+### Common Fields
 
 | Field | Type | Description |
 |-------|------|-------------|
-| exabgp | string | API version (e.g., "6.0.0", "4.2.22") |
-| time | float | Unix timestamp |
-| host | string | Hostname from `socket.gethostname()` |
-| pid | int | Process ID |
-| ppid | int | Parent process ID |
-| counter | int | Per-neighbor message counter |
-| type | string | Message type |
-| header | string | Hex-encoded BGP header (optional) |
-| body | string | Hex-encoded BGP body (optional) |
-| neighbor | object | Neighbor and message details |
+| message.type | string | Message type (update, state, open, etc.) |
+| message.id | int | Message identifier (when non-zero) |
+| message.direction | string | "received" or "sent" |
+| peer.address | string | Peer IP address |
+| peer.asn | int | Peer AS number |
 
 ### Message Types
 
-| Type | Trigger |
-|------|---------|
-| state | up, connected, down |
+| Type | Description |
+|------|-------------|
+| state | Peer state change (up, down) |
 | update | UPDATE message |
 | open | OPEN message |
 | keepalive | KEEPALIVE message |
 | notification | NOTIFICATION message |
 | refresh | ROUTE-REFRESH message |
-| operational | Operational message |
 | negotiated | Capabilities negotiated |
-| fsm | FSM state change |
-| signal | Signal received |
-
----
-
-## Neighbor Section
-
-```json
-"neighbor": {
-  "address": {
-    "local": "192.168.1.1",
-    "peer": "192.168.1.2"
-  },
-  "asn": {
-    "local": 65001,
-    "peer": 65002
-  },
-  "message": {
-    "type": "update",
-    "direction": "received"
-  }
-}
-```
-
-### Fields
-
-| Field | Type | Description |
-|-------|------|-------------|
-| address.local | string | Local IP address |
-| address.peer | string | Peer IP address |
-| asn.local | int | Local AS number |
-| asn.peer | int | Peer AS number |
-| message.direction | string | "received" or "sent" (inside message wrapper) |
-| state | string | For state messages: "up", "connected", "down" |
-| message | object | Message-specific content (type, id, direction) |
 
 ---
 
 ## State Messages
 
-### ExaBGP Format
-
-**Up:**
-```json
-{
-  "exabgp": "6.0.0",
-  "time": 1234567890.123,
-  "type": "state",
-  "neighbor": {
-    "address": { "local": "192.168.1.1", "peer": "192.168.1.2" },
-    "asn": { "local": 65001, "peer": 65002 },
-    "state": "up"
-  }
-}
-```
-
-**Down:**
-```json
-{
-  "exabgp": "6.0.0",
-  "time": 1234567890.123,
-  "type": "state",
-  "neighbor": {
-    "address": { "local": "192.168.1.1", "peer": "192.168.1.2" },
-    "asn": { "local": 65001, "peer": 65002 },
-    "state": "down",
-    "reason": "peer closed connection"
-  }
-}
-```
-
-### ZeBGP Format
-
-ZeBGP uses a flat structure with a `message` wrapper for common fields:
-
-**JSON:**
 ```json
 {"message":{"type":"state"},"peer":{"address":"192.0.2.1","asn":65001},"state":"up"}
 {"message":{"type":"state"},"peer":{"address":"192.0.2.1","asn":65001},"state":"down"}
 ```
-
-**Text:**
-```
-peer 192.0.2.1 asn 65001 state up
-peer 192.0.2.1 asn 65001 state down
-```
-
-Key differences from ExaBGP:
-- `message` wrapper contains common fields (`type`, `time`, `id`)
-- Flat `peer` object (not nested `neighbor.address/asn`)
-- No `reason` field (close reason not included in message)
-
-State messages are emitted by the `apiStateObserver` when peers transition to/from Established state. See `.claude/zebgp/api/ARCHITECTURE.md` for implementation details.
 
 ---
 
@@ -158,150 +60,118 @@ State messages are emitted by the `apiStateObserver` when peers transition to/fr
 ### Structure
 
 ```json
-"message": {
-  "type": "update",
-  "id": 12345,
-  "direction": "received"
-},
-"ipv4/unicast": [
-  {"next-hop": "192.168.1.2", "action": "add", "nlri": ["10.0.0.0/8", "10.1.0.0/16"]},
-  {"action": "del", "nlri": ["10.2.0.0/16"]}
-]
-```
-
-### Message ID and Direction (ZeBGP Extension)
-
-The message ID and direction are stored inside the `message` wrapper:
-
-```json
-{"message":{"type":"update","id":12345,"direction":"received"},...}
-```
-
-- `id`: Message identifier for forwarding/route reflection
-- `direction`: "received" or "sent" - indicates message flow direction
-- Both stored in `message` wrapper for consistency
-- Stored in `WireUpdate.MessageID()` (single source of truth for UPDATEs)
-- Assigned per-message (all types, not just UPDATE)
-- Included in `message` wrapper when non-zero
-- UPDATE messages cached for forwarding (expires after configurable TTL, default 60s)
-
-The `direction` field indicates whether the message was `"sent"` or `"received"`.
-Included inside `message` wrapper for all message types.
-
-### Announce Section
-
-Nested by family, then by next-hop:
-
-```json
-"announce": {
-  "<afi> <safi>": {
-    "<next-hop>": [
-      { nlri1 },
-      { nlri2 }
-    ]
-  }
-}
-```
-
-### Withdraw Section
-
-Nested by family only (no next-hop):
-
-```json
-"withdraw": {
-  "<afi> <safi>": [
-    { nlri1 },
-    { nlri2 }
+{
+  "message": {"type": "update", "id": 1, "direction": "received"},
+  "peer": {"address": "192.0.2.1", "asn": 65001},
+  "origin": "igp",
+  "as-path": [65001, 65002],
+  "ipv4/unicast": [
+    {"next-hop": "192.0.2.1", "action": "add", "nlri": ["10.0.0.0/24", "10.0.1.0/24"]},
+    {"action": "del", "nlri": ["172.16.0.0/16"]}
   ]
 }
 ```
 
-### Attribute Section
+### Operation Format
+
+Each address family has an array of operations at the top level:
 
 ```json
-"attribute": {
-  "origin": "igp",
-  "as-path": [ 65001, 65002 ],
-  "local-preference": 100,
-  "med": 0,
-  "community": [ [ 65001, 100 ], [ 65001, 200 ] ],
-  "extended-community": [ ... ],
-  "large-community": [ ... ]
-}
+"<family>": [
+  {"next-hop": "<ip>", "action": "add", "nlri": [...]},
+  {"action": "del", "nlri": [...]}
+]
 ```
+
+- `next-hop`: Present only for "add" operations
+- `action`: "add" (announce) or "del" (withdraw)
+- `nlri`: Array of NLRI values
+
+### Attributes
+
+Attributes appear at the top level (not nested):
+
+| Attribute | Format |
+|-----------|--------|
+| origin | `"origin": "igp"` |
+| as-path | `"as-path": [65001, 65002]` |
+| med | `"med": 100` |
+| local-preference | `"local-preference": 100` |
+| communities | `"communities": ["65001:100", "65001:200"]` |
+| large-communities | `"large-communities": ["65001:0:100"]` |
+| extended-communities | `"extended-communities": ["0002..."]` (hex) |
 
 ---
 
-## NLRI JSON Formats
+## NLRI Formats
 
-### INET (IPv4/IPv6 Unicast)
+### Simple Prefixes (IPv4/IPv6 Unicast)
 
+Without ADD-PATH:
 ```json
-{ "nlri": "10.0.0.0/8" }
+"nlri": ["10.0.0.0/24", "10.0.1.0/24"]
 ```
 
 With ADD-PATH:
-
 ```json
-{ "nlri": "10.0.0.0/8", "path-information": "0.0.0.1" }
+"nlri": [{"prefix": "10.0.0.0/24", "path-id": 1}]
 ```
 
-### Label (MPLS)
+### Labeled Unicast (MPLS)
 
 ```json
-{ "nlri": "10.0.0.0/8", "label": [ [100, 1601] ] }
+"nlri": [{"prefix": "10.0.0.0/24", "labels": [100, 200]}]
 ```
-
-Label format: `[label_value, raw_24bit_value]`
 
 ### IPVPN (VPNv4/VPNv6)
 
 ```json
-{
-  "nlri": "10.0.0.0/8",
-  "rd": "65000:100",
-  "label": [ [1000, 16001] ]
-}
+"nlri": [{"prefix": "10.0.0.0/24", "rd": "0:65000:1", "labels": [100]}]
 ```
 
 ### EVPN Type 2 (MAC/IP)
 
 ```json
-{
-  "code": 2,
-  "parsed": true,
-  "raw": "02...",
-  "name": "MAC/IP advertisement",
-  "rd": "65000:100",
-  "esi": "00:00:00:00:00:00:00:00:00:00",
-  "etag": 0,
+"nlri": [{
+  "route-type": "mac-ip-advertisement",
+  "rd": "0:65000:1",
+  "esi": "00:11:22:33:44:55:66:77:88:99",
+  "ethernet-tag": 100,
   "mac": "aa:bb:cc:dd:ee:ff",
-  "label": [ [100, 1601] ],
-  "ip": "10.0.0.1"
-}
+  "ip": "10.0.0.1",
+  "labels": [200]
+}]
 ```
 
 ### FlowSpec
 
 ```json
-{
-  "destination-ipv4": [ "10.0.0.0/8" ],
-  "destination-port": [ "=80", "=443" ],
-  "protocol": [ "=6" ],
-  "string": "flow destination-ipv4 10.0.0.0/8 ..."
-}
+"ipv4/flowspec": [
+  {
+    "next-hop": "192.0.2.1",
+    "action": "add",
+    "nlri": [{
+      "destination-ipv4": ["10.0.0.0/8"],
+      "destination-port": ["=80", "=443"],
+      "protocol": ["=6"],
+      "string": "flow destination-ipv4 10.0.0.0/8 ..."
+    }]
+  }
+]
 ```
 
-Note: ExaBGP API v4 includes `"next-hop"` inside FlowSpec NLRI objects. ZeBGP uses consistent `next-hop` placement at the **operation level** for all families (including FlowSpec), not inside the NLRI object.
+Next-hop is at the **operation level** (same as all other families), not inside the NLRI object.
+
+### FlowSpec-VPN
+
+```json
+"nlri": [{"rd": "0:65000:1", "spec": "destination 10.0.0.0/24 protocol tcp"}]
+```
 
 ### BGP-LS
 
 ```json
-{
-  "code": 1,
-  "parsed": false,
-  "raw": "0001..."
-}
+"nlri": [{"code": 1, "parsed": false, "raw": "0001..."}]
 ```
 
 ---
@@ -309,17 +179,16 @@ Note: ExaBGP API v4 includes `"next-hop"` inside FlowSpec NLRI objects. ZeBGP us
 ## OPEN Messages
 
 ```json
-"message": {
-  "open": {
-    "version": 4,
-    "asn": 65001,
-    "hold_time": 180,
-    "router_id": "1.1.1.1",
-    "capabilities": {
-      "1": "{ \"afi\": 1, \"safi\": 1 }",
-      "65": "{ \"asn\": 65001 }"
-    }
-  }
+{
+  "message": {"type": "open", "id": 1, "direction": "received"},
+  "peer": {"address": "192.0.2.1", "asn": 65001},
+  "asn": 65001,
+  "router-id": "1.1.1.1",
+  "hold-time": 90,
+  "capabilities": [
+    {"code": 1, "name": "multiprotocol", "value": "ipv4/unicast"},
+    {"code": 65, "name": "asn4", "value": "65001"}
+  ]
 }
 ```
 
@@ -328,13 +197,25 @@ Note: ExaBGP API v4 includes `"next-hop"` inside FlowSpec NLRI objects. ZeBGP us
 ## NOTIFICATION Messages
 
 ```json
-"message": {
-  "notification": {
-    "code": 6,
-    "subcode": 2,
-    "data": "0000",
-    "message": "cease"
-  }
+{
+  "message": {"type": "notification", "id": 3, "direction": "sent"},
+  "peer": {"address": "192.0.2.1", "asn": 65001},
+  "code": 6,
+  "subcode": 2,
+  "code-name": "Cease",
+  "subcode-name": "Administrative-Shutdown",
+  "data": ""
+}
+```
+
+---
+
+## KEEPALIVE Messages
+
+```json
+{
+  "message": {"type": "keepalive", "id": 42, "direction": "sent"},
+  "peer": {"address": "192.0.2.1", "asn": 65001}
 }
 ```
 
@@ -345,160 +226,50 @@ Note: ExaBGP API v4 includes `"next-hop"` inside FlowSpec NLRI objects. ZeBGP us
 Sent after OPEN exchange:
 
 ```json
-"negotiated": {
-  "message_size": 4096,
-  "hold_time": 90,
+{
+  "message": {"type": "negotiated"},
+  "peer": {"address": "192.0.2.1", "asn": 65001},
+  "hold-time": 90,
   "asn4": true,
-  "multisession": false,
-  "operational": false,
-  "refresh": "normal",
-  "families": "[ ipv4/unicast, ipv6/unicast ]",
-  "nexthop": "[ ]",
-  "add_path": {
-    "send": "[ \"ipv4/unicast\" ]",
-    "receive": "[ \"ipv4/unicast\" ]"
+  "families": ["ipv4/unicast", "ipv6/unicast"],
+  "add-path": {
+    "send": ["ipv4/unicast"],
+    "receive": ["ipv4/unicast"]
   }
 }
 ```
 
 ---
 
-## ExaBGP Differences
+## Text Format
 
-ZeBGP has its own output format optimized for parseability.
+All messages follow: `peer <ip> <direction> <type> <msg-id> ...`
 
-| Aspect | ExaBGP | ZeBGP |
-|--------|--------|-------|
-| API versions | v4 and v6 configurable | Single format |
-| Encoder | json or text | json or text |
-| Flow nexthop | Included in v4, not in v6 | Not included |
-| Version field | Configurable (4.x or 6.x) | Not present |
-
-### Text Format Comparison
-
-**ExaBGP:**
+**State:**
 ```
-neighbor 192.0.2.1 update start
-neighbor 192.0.2.1 update announced 10.0.0.0/8 next-hop 192.0.2.1 origin igp as-path [ 65001 ]
-neighbor 192.0.2.1 update end
-```
-
-**ZeBGP:**
-```
-peer 192.0.2.1 received update 1 announce origin igp as-path 65001 ipv4/unicast next-hop 192.0.2.1 nlri 10.0.0.0/8
-```
-
-Key text differences:
-- `neighbor` → `peer`
-- Includes direction (`sent`/`received`) and `msg-id` for routing decisions
-- Attributes before NLRI (easier to parse)
-- Family explicitly stated (`ipv4/unicast`)
-- Single line per UPDATE (no start/end)
-
-### Text Format: All Message Types
-
-All messages follow the pattern: `peer <ip> <direction> <type> <msg-id> ...`
-
-**OPEN:**
-```
-peer 10.0.0.1 received open 1 asn 65001 router-id 1.1.1.1 hold-time 90 cap 1 multiprotocol ipv4/unicast cap 65 asn4 65001
-```
-
-**KEEPALIVE:**
-```
-peer 10.0.0.1 sent keepalive 42
-```
-
-**NOTIFICATION:**
-```
-peer 10.0.0.1 sent notification 3 code 6 subcode 2 code-name Cease subcode-name Administrative-Shutdown data
+peer 192.0.2.1 asn 65001 state up
 ```
 
 **UPDATE:**
 ```
-peer 10.0.0.1 received update 5 announce origin igp as-path 65001 ipv4/unicast next-hop 10.0.0.1 nlri 192.168.0.0/24
+peer 192.0.2.1 received update 1 announce origin igp as-path 65001 ipv4/unicast next-hop 192.0.2.1 nlri 10.0.0.0/24
 ```
 
-Note: NOTIFICATION names are hyphenated for single-word parsing (e.g., "Administrative-Shutdown").
-
-### JSON Format Comparison
-
-**ExaBGP:**
-```json
-{
-  "exabgp": "6.0.0",
-  "time": 1234567890.123,
-  "host": "router1",
-  "pid": 1234,
-  "type": "update",
-  "neighbor": {
-    "address": {"local": "192.0.2.2", "peer": "192.0.2.1"},
-    "asn": {"local": 65000, "peer": 65001},
-    "message": {
-      "update": {
-        "attribute": {"origin": "igp", "as-path": [65001]},
-        "announce": {"ipv4/unicast": {"192.0.2.1": [{"nlri": "10.0.0.0/8"}]}}
-      }
-    }
-  }
-}
+**OPEN:**
+```
+peer 192.0.2.1 received open 1 asn 65001 router-id 1.1.1.1 hold-time 90 cap 1 multiprotocol ipv4/unicast
 ```
 
-**ZeBGP:**
-```json
-{"message":{"type":"update","id":1,"direction":"received"},"peer":{"address":"192.0.2.1","asn":65001},"origin":"igp","as-path":[65001],"ipv4/unicast":[{"next-hop":"192.0.2.1","action":"add","nlri":["10.0.0.0/8"]}]}
+**KEEPALIVE:**
+```
+peer 192.0.2.1 sent keepalive 42
 ```
 
-Key JSON differences:
-- `message` wrapper contains `type`, `id`, `time`, `direction` (common fields)
-- Flat structure (no `neighbor.message.update` nesting)
-- `direction` inside `message` wrapper for route decisions
-- Message ID in `message.id` for route reflection
-- Command-style NLRI format: family at top level with operations array
-- Prefixes as strings (`"10.0.0.0/8"` not `{"nlri": "10.0.0.0/8"}`)
-
----
-
-## ZeBGP Implementation Notes
-
-### JSON Encoder
-
-```go
-type JSONEncoder struct {
-    version string
-    compact bool
-}
-
-func (e *JSONEncoder) Update(neighbor *Neighbor, direction string,
-    update *UpdateCollection, header, body []byte, neg *Negotiated) string {
-    // Build JSON structure
-}
+**NOTIFICATION:**
 ```
-
-### Per-Type JSON Methods
-
-Each NLRI type implements JSON serialization:
-
-```go
-type NLRI interface {
-    JSON(compact bool) string
-}
-```
-
-### Timestamp
-
-Use `time.Now().UnixNano() / 1e9` for float timestamp with microseconds.
-
-### Counter
-
-Maintain per-neighbor message counter:
-
-```go
-type JSONEncoder struct {
-    counters map[string]int  // neighbor_uid -> count
-}
+peer 192.0.2.1 sent notification 3 code 6 subcode 2 code-name Cease subcode-name Administrative-Shutdown data
 ```
 
 ---
 
-**Last Updated:** 2026-01-05
+**Last Updated:** 2026-01-20
