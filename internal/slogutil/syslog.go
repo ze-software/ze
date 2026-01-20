@@ -4,13 +4,15 @@ import (
 	"log/slog"
 	"log/syslog"
 	"os"
+
+	"codeberg.org/thomas-mangin/zebgp/internal/env"
 )
 
 // newSyslogHandler creates a syslog handler.
 // Reads zebgp.log.destination for syslog address.
 // Falls back to stderr if syslog connection fails.
 func newSyslogHandler(opts *slog.HandlerOptions) slog.Handler {
-	addr := getEnv("log", "destination")
+	addr := env.Get("log", "destination")
 
 	// Determine network and address based on addr format
 	var network, raddr string

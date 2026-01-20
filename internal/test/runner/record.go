@@ -1,7 +1,6 @@
 package runner
 
 import (
-	"bufio"
 	"encoding/hex"
 	"fmt"
 	"os"
@@ -13,6 +12,7 @@ import (
 	"time"
 
 	"codeberg.org/thomas-mangin/zebgp/internal/test/ci"
+	"codeberg.org/thomas-mangin/zebgp/internal/vfs"
 )
 
 // State represents a test's execution state.
@@ -118,6 +118,10 @@ type Record struct {
 	ExpectSyslog []string // expect=syslog:pattern=PATTERN (regex)
 	RejectSyslog []string // reject=syslog:pattern=PATTERN (regex)
 	SyslogPort   int      // Dynamically assigned port for test-syslog
+
+	// VFS embedded files
+	VFSFiles   map[string][]byte // path -> content from vfs= blocks
+	VFSTempDir string            // temp directory for VFS files (set during execution)
 }
 
 // NewRecord creates a new test record.
@@ -499,12 +503,13 @@ func (et *EncodingTests) Discover(dir string) error {
 
 // parseAndAdd parses a .ci file and adds it as a test.
 // Uses new key=value format: action=type:key=value:key=value:...
+// Supports VFS blocks for embedded files.
 func (et *EncodingTests) parseAndAdd(ciFile string) error {
-	f, err := os.Open(ciFile) //nolint:gosec // Test files from known directory
+	// First, try VFS parsing to extract embedded files
+	v, err := vfs.ReadFrom(ciFile)
 	if err != nil {
-		return err
+		return fmt.Errorf("parse %s: %w", ciFile, err)
 	}
-	defer func() { _ = f.Close() }()
 
 	name := strings.TrimSuffix(filepath.Base(ciFile), ".ci")
 	r := et.Add(name)
@@ -513,31 +518,36 @@ func (et *EncodingTests) parseAndAdd(ciFile string) error {
 	r.CIFile = ciFile
 	r.Files = append(r.Files, ciFile)
 
-	lineNum := 0
-	scanner := bufio.NewScanner(f)
-	for scanner.Scan() {
-		lineNum++
-		line := strings.TrimSpace(scanner.Text())
-		if line == "" || strings.HasPrefix(line, "#") {
-			continue
+	// Store VFS files if any
+	if len(v.Files) > 0 {
+		r.VFSFiles = make(map[string][]byte)
+		for _, f := range v.Files {
+			r.VFSFiles[f.Path] = f.Content
 		}
+	}
 
+	// Parse the non-VFS lines (option=, expect=, cmd=, etc.)
+	for lineNum, line := range v.OtherLines {
 		if err := et.parseLine(r, ciFile, line); err != nil {
-			return fmt.Errorf("line %d: %w", lineNum, err)
+			return fmt.Errorf("line %d: %w", lineNum+1, err)
 		}
 	}
 
-	if err := scanner.Err(); err != nil {
-		return err
-	}
-
-	// Verify config exists
+	// Verify config exists (for non-VFS configs)
 	if configPath, ok := r.Conf["config"].(string); ok {
+		// Check if it's a VFS file first
+		if r.VFSFiles != nil {
+			if _, isVFS := r.VFSFiles[filepath.Base(configPath)]; isVFS {
+				// Config is in VFS, will be written to temp dir at runtime
+				goto generateDecoded
+			}
+		}
 		if _, err := os.Stat(configPath); os.IsNotExist(err) {
 			return fmt.Errorf("config not found: %s", configPath)
 		}
 	}
 
+generateDecoded:
 	// Generate decoded strings for messages with Raw
 	for i := range r.Messages {
 		if len(r.Messages[i].Raw) > 0 {

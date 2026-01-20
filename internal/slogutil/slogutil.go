@@ -18,6 +18,8 @@ import (
 	"log/slog"
 	"os"
 	"strings"
+
+	"codeberg.org/thomas-mangin/zebgp/internal/env"
 )
 
 // Logger returns a logger for an engine subsystem.
@@ -25,7 +27,7 @@ import (
 // Reads zebgp.log.<subsystem> for level, zebgp.log.backend for output.
 // Returns a discard logger if subsystem is not enabled.
 func Logger(subsystem string) *slog.Logger {
-	v := getEnv("log", subsystem)
+	v := env.Get("log", subsystem)
 	if v == "" {
 		return slog.New(discardHandler{})
 	}
@@ -62,31 +64,14 @@ func LoggerWithOutput(subsystem, level string, w io.Writer) *slog.Logger {
 // IsPluginRelayEnabled checks if plugin stderr should be relayed.
 // Reads zebgp.log.plugin (enabled/disabled).
 func IsPluginRelayEnabled() bool {
-	v := getEnv("log", "plugin")
+	v := env.Get("log", "plugin")
 	return strings.ToLower(v) == "enabled"
-}
-
-// getEnv returns the environment variable value with ZeBGP naming.
-// Checks both dot notation (zebgp.section.option) and underscore (zebgp_section_option).
-// Dot notation takes precedence.
-//
-//nolint:unparam // section is always "log" currently, but kept for future extensibility
-func getEnv(section, option string) string {
-	// Dot notation first (higher priority)
-	dotKey := "zebgp." + section + "." + option
-	if v := os.Getenv(dotKey); v != "" {
-		return v
-	}
-
-	// Underscore notation
-	underKey := strings.ReplaceAll(dotKey, ".", "_")
-	return os.Getenv(underKey)
 }
 
 // createHandler creates a slog.Handler based on zebgp.log.backend setting.
 func createHandler(level slog.Level) slog.Handler {
 	opts := &slog.HandlerOptions{Level: level}
-	backend := getEnv("log", "backend")
+	backend := env.Get("log", "backend")
 	switch strings.ToLower(backend) {
 	case "stdout":
 		return slog.NewTextHandler(os.Stdout, opts)

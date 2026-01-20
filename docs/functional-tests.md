@@ -136,32 +136,53 @@ zebgp-test run encoding 0 A B
 
 ## .ci File Format
 
-The `.ci` file is the **source of truth** for bidirectional testing:
+The `.ci` file is the **source of truth** for bidirectional testing. Full format documentation: [`docs/architecture/testing/ci-format.md`](architecture/testing/ci-format.md)
 
 ```
-option:file:test.conf           # Config file to use
-option:asn:65000                # Override peer ASN
-1:cmd:update text ...           # API command
-1:raw:FFFF...:0017:02:...       # Raw bytes produced by command
-1:json:{...}                    # JSON representation
+# VFS: embed config inline
+vfs=test.conf:terminator=EOF_CONF
+peer 127.0.0.1 { ... }
+EOF_CONF
+
+# Options
+option=file:path=test.conf
+option=asn:value=65000
+
+# Commands and expectations
+cmd=api:conn=1:seq=1:text=update text nhop set 10.0.1.1 nlri ipv4/unicast add 10.0.0.0/24
+expect=bgp:conn=1:seq=1:hex=FFFF...
+expect=json:conn=1:seq=1:json={...}
 ```
 
-### Line Prefixes
+### Line Types
 
-| Prefix | Meaning |
-|--------|---------|
-| `option:file:` | Config file to use |
-| `option:asn:` | Override peer ASN |
-| `option:bind:` | Bind option (ipv6) |
-| `option:timeout:` | Test timeout (e.g., `10s`) |
-| `option:env:` | Set environment variable (e.g., `zebgp.log.server=debug`) |
-| `N:cmd:` | API command (source of truth) |
-| `N:raw:` | Expected raw bytes from command |
-| `N:json:` | Expected JSON from raw bytes |
-| `AN:notification:` | Peer A sends notification at step N |
-| `expect:stderr:` | Regex pattern that MUST appear in zebgp stderr |
-| `reject:stderr:` | Regex pattern that MUST NOT appear in zebgp stderr |
-| `expect:syslog:` | Regex pattern that MUST appear in syslog (starts test-syslog server) |
+| Action | Example | Description |
+|--------|---------|-------------|
+| `vfs=` | `vfs=file.conf:terminator=EOF` | Embed file content inline |
+| `option=` | `option=file:path=test.conf` | Test configuration |
+| `cmd=` | `cmd=api:conn=1:seq=1:text=...` | API command |
+| `expect=bgp:` | `expect=bgp:conn=1:seq=1:hex=...` | Expected wire bytes |
+| `expect=json:` | `expect=json:conn=1:seq=1:json=...` | Expected JSON |
+| `expect=stderr:` | `expect=stderr:pattern=...` | Regex pattern in stderr |
+| `expect=syslog:` | `expect=syslog:pattern=...` | Regex pattern in syslog |
+| `action=notification:` | `action=notification:conn=1:seq=1:text=...` | Send NOTIFICATION |
+
+### VFS (Virtual File System)
+
+VFS allows embedding config files directly in `.ci` files:
+
+```
+vfs=peer.conf:terminator=EOF_CONF
+peer 127.0.0.1 {
+    local-as 65533;
+    peer-as 65533;
+}
+EOF_CONF
+
+option=file:path=peer.conf
+```
+
+At runtime, VFS files are written to a temp directory. This enables self-contained tests without separate `.conf` files.
 
 ### Logging Tests
 
@@ -426,7 +447,36 @@ zebgp decode raw FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002D02...
 
 ## Adding New Tests
 
-### 1. Create config file
+### Option 1: VFS (Recommended)
+
+Single self-contained `.ci` file with embedded config:
+
+```
+# test/data/encode/mytest.ci
+vfs=mytest.conf:terminator=EOF_CONF
+peer 127.0.0.1 {
+    router-id 1.2.3.4;
+    local-address 127.0.0.1;
+    local-as 1;
+    peer-as 1;
+
+    family {
+        ipv4/unicast;
+    }
+    announce {
+        ipv4 {
+            unicast 10.0.0.0/24 next-hop 1.2.3.4;
+        }
+    }
+}
+EOF_CONF
+
+option=file:path=mytest.conf
+cmd=api:conn=1:seq=1:text=update text nhop set 1.2.3.4 nlri ipv4/unicast add 10.0.0.0/24
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002D020000001540010100...
+```
+
+### Option 2: Separate Files
 
 ```
 # test/data/encode/mytest.conf
@@ -436,22 +486,25 @@ peer 127.0.0.1 {
     local-as 1;
     peer-as 1;
 
-    static {
-        route 10.0.0.0/24 next-hop 1.2.3.4;
+    family {
+        ipv4/unicast;
+    }
+    announce {
+        ipv4 {
+            unicast 10.0.0.0/24 next-hop 1.2.3.4;
+        }
     }
 }
 ```
 
-### 2. Create .ci file
-
 ```
 # test/data/encode/mytest.ci
-option:file:mytest.conf
-1:cmd:update text nhop set 1.2.3.4 nlri ipv4/unicast add 10.0.0.0/24
-1:raw:FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF:002D:02:0000001540010100...
+option=file:path=mytest.conf
+cmd=api:conn=1:seq=1:text=update text nhop set 1.2.3.4 nlri ipv4/unicast add 10.0.0.0/24
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002D020000001540010100...
 ```
 
-### 3. Generate expected bytes
+### Generate expected bytes
 
 Run with ExaBGP first to capture correct bytes, or use `zebgp decode` to verify.
 
@@ -499,10 +552,20 @@ The test passes if:
 | `json.go` | JSON validation: transform envelope → plugin format |
 | `limits.go` | ulimit check and auto-raise |
 | `ports.go` | Dynamic port range allocation |
-| `record.go` | Test record with state machine |
+| `record.go` | Test record with state machine, VFS file storage |
 | `report.go` | AI-friendly failure reports |
-| `runner.go` | Test execution engine |
+| `runner.go` | Test execution engine, VFS runtime support |
 | `stress.go` | Iteration stats and timing for -c/--count |
+| `vfs_test.go` | VFS parsing integration tests |
+
+### Package: `internal/vfs/`
+
+| File | Purpose |
+|------|---------|
+| `vfs.go` | VFS parser and writer |
+| `limits.go` | Configurable limits from environment |
+| `security.go` | Path validation (traversal, escape) |
+| `cleanup.go` | Signal handling for temp cleanup |
 
 ### Entry Point: `cmd/zebgp-test/`
 
@@ -517,4 +580,4 @@ Subcommand-based CLI with `run` for test execution and `syslog` for syslog serve
 
 ---
 
-**Updated:** 2026-01-01
+**Updated:** 2026-01-20

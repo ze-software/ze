@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"codeberg.org/thomas-mangin/zebgp/internal/test/syslog"
+	"codeberg.org/thomas-mangin/zebgp/internal/vfs"
 )
 
 // RunOptions configures test execution.
@@ -292,6 +293,25 @@ func (r *Runner) runTest(ctx context.Context, rec *Record, opts *RunOptions) boo
 	}
 	defer func() { _ = os.Remove(expectFile) }()
 
+	// Set up VFS temp directory if there are VFS files
+	var vfsCleanup func()
+	if len(rec.VFSFiles) > 0 {
+		v := vfs.New()
+		for path, content := range rec.VFSFiles {
+			v.AddFile(path, content)
+		}
+		vfsTempDir, cleanup, err := v.WriteToTemp()
+		if err != nil {
+			rec.Error = fmt.Errorf("write VFS files: %w", err)
+			return false
+		}
+		vfsCleanup = cleanup
+		rec.VFSTempDir = vfsTempDir
+	}
+	if vfsCleanup != nil {
+		defer vfsCleanup()
+	}
+
 	// Build peer args
 	peerArgs := []string{"--port", fmt.Sprintf("%d", rec.Port)}
 	if asn, ok := rec.Extra["asn"]; ok {
@@ -339,6 +359,15 @@ func (r *Runner) runTest(ctx context.Context, rec *Record, opts *RunOptions) boo
 
 	// Start zebgp (client)
 	configPath, _ := rec.Conf["config"].(string)
+
+	// If config is in VFS, use the VFS temp directory path
+	if rec.VFSTempDir != "" && configPath != "" {
+		configBase := filepath.Base(configPath)
+		if _, ok := rec.VFSFiles[configBase]; ok {
+			configPath = filepath.Join(rec.VFSTempDir, configBase)
+		}
+	}
+
 	// Add zebgp binary directory to PATH so child processes (like "zebgp api persist") can find it
 	zebgpDir := filepath.Dir(r.zebgpPath)
 	existingPath := os.Getenv("PATH")
