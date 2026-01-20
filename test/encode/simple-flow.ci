@@ -1,0 +1,36 @@
+# zebgp-peer expectations
+stdin=peer:terminator=EOF_PEER
+# single flow test
+cmd=api:conn=1:seq=1:text=announce ipv4/flow source-ipv4 10.0.0.2/32 next-hop 1.2.3.4 extended-community [copy-to-nexthop]
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0043020000002C4001010040020040050400000064800E100001850401020304000602200A000002C010080800000000000001
+expect=json:conn=1:seq=1:json={"meta":{"version":"1.0.0","format":"zebgp"},"message":{"type":"update"},"origin":"igp","local-preference":100,"extended-community":[{"string":"0x0800:000000000001","value":576460752303423489}],"ipv4/flowspec":[{"action":"add","nlri":{"source":[["10.0.0.2/32/0"]],"next-hop":"1.2.3.4"}}]}
+EOF_PEER
+
+# zebgp configuration
+stdin=zebgp:terminator=EOF_CONF
+peer 127.0.0.1 {
+	router-id 1.2.3.4;
+	local-address 127.0.0.1;
+	local-as 1;
+	peer-as 1;
+	group-updates disable;
+	family {
+		ipv4/flow;
+	}
+	flow {
+		route legal-intercept {
+			next-hop 1.2.3.4;
+			match {
+				source 10.0.0.2/32;
+			}
+			then {
+				copy 1.2.3.4;
+			}
+		}
+	}
+}
+EOF_CONF
+
+# Process orchestration
+cmd=background:seq=1:exec=zebgp-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=zebgp server -:stdin=zebgp:timeout=10s
