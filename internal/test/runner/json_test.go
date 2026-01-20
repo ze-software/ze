@@ -360,18 +360,19 @@ func TestTransformEnvelopeToPlugin_FlowSpecAnnounce(t *testing.T) {
 	assert.Equal(t, "igp", result["origin"])
 	assert.Equal(t, float64(100), result["local-preference"])
 
-	// FlowSpec NLRI transformed to plugin format
+	// FlowSpec NLRI transformed to plugin format (operation level, same as other families)
 	nlriList, ok := result["ipv4/flowspec"].([]map[string]any)
 	require.True(t, ok, "missing ipv4/flowspec")
 	require.Len(t, nlriList, 1)
 	assert.Equal(t, "add", nlriList[0]["action"])
 	assert.Nil(t, nlriList[0]["next-hop"]) // no-nexthop means no next-hop field
 
-	// FlowSpec components preserved
-	nlri, ok := nlriList[0]["nlri"].(map[string]any)
+	// FlowSpec components preserved in nlri array
+	nlris, ok := nlriList[0]["nlri"].([]map[string]any)
 	require.True(t, ok, "missing nlri")
-	assert.Equal(t, []any{"=rst", "=fin+push"}, nlri["tcp-flags"])
-	assert.Equal(t, "flow tcp-flags [ =rst =fin+push ]", nlri["string"])
+	require.Len(t, nlris, 1)
+	assert.Equal(t, []any{"=rst", "=fin+push"}, nlris[0]["tcp-flags"])
+	assert.Equal(t, "flow tcp-flags [ =rst =fin+push ]", nlris[0]["string"])
 }
 
 // TestTransformEnvelopeToPlugin_FlowSpecWithNextHop verifies FlowSpec with redirect next-hop.
@@ -410,18 +411,19 @@ func TestTransformEnvelopeToPlugin_FlowSpecWithNextHop(t *testing.T) {
 	result, family := transformEnvelopeToPlugin(envelope)
 	assert.Equal(t, "ipv4/flowspec", family)
 
-	// FlowSpec NLRI with next-hop inside nlri
+	// FlowSpec NLRI with next-hop at operation level (same as other families)
 	nlriList, ok := result["ipv4/flowspec"].([]map[string]any)
 	require.True(t, ok, "missing ipv4/flowspec")
 	require.Len(t, nlriList, 1)
 	assert.Equal(t, "add", nlriList[0]["action"])
-	assert.Nil(t, nlriList[0]["next-hop"]) // next-hop is inside nlri, not at top level
+	assert.Equal(t, "1.2.3.4", nlriList[0]["next-hop"]) // next-hop at operation level
 
-	// FlowSpec components preserved with next-hop inside
-	nlri, ok := nlriList[0]["nlri"].(map[string]any)
+	// FlowSpec components preserved in nlri array
+	nlris, ok := nlriList[0]["nlri"].([]map[string]any)
 	require.True(t, ok, "missing nlri")
-	assert.Equal(t, []any{"192.168.0.1/32"}, nlri["destination-ipv4"])
-	assert.Equal(t, "1.2.3.4", nlri["next-hop"])
+	require.Len(t, nlris, 1)
+	assert.Equal(t, []any{"192.168.0.1/32"}, nlris[0]["destination-ipv4"])
+	assert.Nil(t, nlris[0]["next-hop"]) // next-hop NOT inside nlri
 }
 
 // TestTransformEnvelopeToPlugin_IPv6FlowSpec verifies IPv6 FlowSpec transformation.
@@ -463,19 +465,21 @@ func TestTransformEnvelopeToPlugin_IPv6FlowSpec(t *testing.T) {
 	result, family := transformEnvelopeToPlugin(envelope)
 	assert.Equal(t, "ipv6/flowspec", family)
 
-	// IPv6 FlowSpec NLRI
+	// IPv6 FlowSpec NLRI with no-nexthop (no next-hop at operation level)
 	nlriList, ok := result["ipv6/flowspec"].([]map[string]any)
 	require.True(t, ok, "missing ipv6/flowspec")
 	require.Len(t, nlriList, 1)
 	assert.Equal(t, "add", nlriList[0]["action"])
+	assert.Nil(t, nlriList[0]["next-hop"]) // no-nexthop case
 
-	// All components preserved
-	nlri, ok := nlriList[0]["nlri"].(map[string]any)
+	// All components preserved in nlri array
+	nlris, ok := nlriList[0]["nlri"].([]map[string]any)
 	require.True(t, ok, "missing nlri")
-	assert.Equal(t, []any{"2a02:29b8:1925::2e69/128/0"}, nlri["destination-ipv6"])
-	assert.Equal(t, []any{"beef:f00e::/64/0"}, nlri["source-ipv6"])
-	assert.Equal(t, []any{"=tcp"}, nlri["next-header"])
-	assert.Equal(t, []any{"first-fragment", "is-fragment", "last-fragment"}, nlri["fragment"])
+	require.Len(t, nlris, 1)
+	assert.Equal(t, []any{"2a02:29b8:1925::2e69/128/0"}, nlris[0]["destination-ipv6"])
+	assert.Equal(t, []any{"beef:f00e::/64/0"}, nlris[0]["source-ipv6"])
+	assert.Equal(t, []any{"=tcp"}, nlris[0]["next-header"])
+	assert.Equal(t, []any{"first-fragment", "is-fragment", "last-fragment"}, nlris[0]["fragment"])
 }
 
 // TestTransformEnvelopeToPlugin_FlowSpecWithdraw verifies FlowSpec withdraw transformation.

@@ -292,7 +292,7 @@ Label format: `[label_value, raw_24bit_value]`
 }
 ```
 
-Note: ExaBGP API v4 includes `"next-hop"` in FlowSpec NLRI; ZeBGP does not.
+Note: ExaBGP API v4 includes `"next-hop"` inside FlowSpec NLRI objects. ZeBGP uses consistent `next-hop` placement at the **operation level** for all families (including FlowSpec), not inside the NLRI object.
 
 ### BGP-LS
 

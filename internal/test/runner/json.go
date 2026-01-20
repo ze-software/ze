@@ -188,28 +188,34 @@ func transformAnnounce(nhMap map[string]any) []map[string]any {
 // transformFlowspecAnnounce transforms FlowSpec announce section to plugin format.
 // FlowSpec NLRI contains rule components (destination-ipv4, tcp-flags, etc.) rather than simple prefixes.
 // Zebgp decode: {"next-hop-or-no-nexthop": [{components}]}.
-// Plugin: [{"action": "add", "nlri": {next-hop, components...}}].
+// Plugin: [{"next-hop": "...", "action": "add", "nlri": [{components}]}] (next-hop at operation level).
 func transformFlowspecAnnounce(nhMap map[string]any) []map[string]any {
 	var result []map[string]any
 
 	for nextHop, nlriList := range nhMap {
 		if v, ok := nlriList.([]any); ok {
+			var nlris []map[string]any
 			for _, item := range v {
 				if nlriMap, ok := item.(map[string]any); ok {
-					// Copy nlri components
+					// Copy nlri components (don't include next-hop in NLRI)
 					nlri := make(map[string]any)
 					for k, v := range nlriMap {
 						nlri[k] = v
 					}
-					// Add next-hop inside nlri if present
-					if nextHop != "no-nexthop" {
-						nlri["next-hop"] = nextHop
-					}
-					result = append(result, map[string]any{
-						"action": "add",
-						"nlri":   nlri,
-					})
+					nlris = append(nlris, nlri)
 				}
+			}
+
+			if len(nlris) > 0 {
+				op := map[string]any{
+					"action": "add",
+					"nlri":   nlris,
+				}
+				// Add next-hop at operation level (same as other families)
+				if nextHop != "no-nexthop" {
+					op["next-hop"] = nextHop
+				}
+				result = append(result, op)
 			}
 		}
 	}
