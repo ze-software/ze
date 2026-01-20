@@ -325,15 +325,19 @@ func parseVFSBlock(scanner *bufio.Scanner, header string, startLine int, limits 
 }
 
 // parseStdinBlock parses a stdin= block.
-// Format: stdin=<name>:terminator=<TERM>.
+// Formats:
+//
+//	Multi-line: stdin=<name>:terminator=<TERM>
+//	Single-line hex: stdin=<name>:hex=<hex-value>
+//	Single-line text: stdin=<name>:text=<text-value>
 func parseStdinBlock(scanner *bufio.Scanner, header string, startLine int, seenTerminators map[string]bool) (name string, content []byte, endLine int, err error) {
-	// Parse header: stdin=<name>:terminator=<TERM>
+	// Parse header: stdin=<name>:...
 	rest := strings.TrimPrefix(header, "stdin=")
 
 	// Parse parts
 	parts := strings.Split(rest, ":")
 	if len(parts) < 2 {
-		return "", nil, startLine, fmt.Errorf("invalid stdin header: missing terminator")
+		return "", nil, startLine, fmt.Errorf("invalid stdin header: missing format specifier")
 	}
 
 	// First part is the name
@@ -342,7 +346,23 @@ func parseStdinBlock(scanner *bufio.Scanner, header string, startLine int, seenT
 		return "", nil, startLine, fmt.Errorf("empty stdin name")
 	}
 
-	// Find terminator
+	// Check for single-line formats (hex= or text=)
+	for _, part := range parts[1:] {
+		if strings.HasPrefix(part, "hex=") {
+			hexValue := strings.TrimPrefix(part, "hex=")
+			decoded, decErr := decodeHex(hexValue)
+			if decErr != nil {
+				return "", nil, startLine, fmt.Errorf("invalid hex value: %w", decErr)
+			}
+			return name, decoded, startLine, nil
+		}
+		if strings.HasPrefix(part, "text=") {
+			textValue := strings.TrimPrefix(part, "text=")
+			return name, []byte(textValue + "\n"), startLine, nil
+		}
+	}
+
+	// Multi-line format: find terminator
 	var terminator string
 	for _, part := range parts[1:] {
 		if strings.HasPrefix(part, "terminator=") {
@@ -353,7 +373,7 @@ func parseStdinBlock(scanner *bufio.Scanner, header string, startLine int, seenT
 
 	// Validate terminator
 	if terminator == "" {
-		return "", nil, startLine, fmt.Errorf("missing terminator")
+		return "", nil, startLine, fmt.Errorf("missing terminator, hex=, or text= in stdin block")
 	}
 	if !validTerminator.MatchString(terminator) {
 		return "", nil, startLine, fmt.Errorf("invalid terminator %q: must be alphanumeric and underscore only", terminator)
@@ -383,6 +403,41 @@ func parseStdinBlock(scanner *bufio.Scanner, header string, startLine int, seenT
 	}
 
 	return name, buf.Bytes(), lineNum, nil
+}
+
+// decodeHex decodes a hex string to bytes, ignoring spaces.
+func decodeHex(s string) ([]byte, error) {
+	// Strip spaces first
+	s = strings.ReplaceAll(s, " ", "")
+
+	if len(s)%2 != 0 {
+		return nil, fmt.Errorf("odd length hex string")
+	}
+	result := make([]byte, len(s)/2)
+	for i := 0; i < len(s); i += 2 {
+		var b byte
+		for j := 0; j < 2; j++ {
+			c := s[i+j]
+			var nibble byte
+			switch {
+			case c >= '0' && c <= '9':
+				nibble = c - '0'
+			case c >= 'a' && c <= 'f':
+				nibble = c - 'a' + 10
+			case c >= 'A' && c <= 'F':
+				nibble = c - 'A' + 10
+			default:
+				return nil, fmt.Errorf("invalid hex character: %c", c)
+			}
+			if j == 0 {
+				b = nibble << 4
+			} else {
+				b |= nibble
+			}
+		}
+		result[i/2] = b
+	}
+	return result, nil
 }
 
 // defaultModeForPath returns the default mode based on file extension.

@@ -1,3 +1,4 @@
 # bgp-flow-2 decoding test
-decode=update:family=ipv4/flowspec:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003E02000000274001010040020040050400000064C010088006000000000000800E0B0001850000050901048109
+stdin=payload:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003E02000000274001010040020040050400000064C010088006000000000000800E0B0001850000050901048109
+cmd=foreground:seq=1:exec=zebgp-test decode --family ipv4/flowspec -:stdin=payload
 expect=json:json={ "exabgp": "5.0.0", "time": 1681807093.9168482, "host" : "MacBook-Pro-2.local", "pid" : 2730, "ppid" : 864, "counter": 1, "type": "update", "neighbor": {     "address": { "local": "127.0.0.1", "peer": "127.0.0.1" },     "asn": { "local": 65533, "peer": 65533 }     , "direction": "in", "message": { "update": { "attribute": { "origin": "igp", "local-preference": 100, "extended-community": [ { "value": 9225060886715039744, "string": "rate-limit:0" } ] }, "announce": { "ipv4/flowspec": { "no-nexthop": [ { "tcp-flags": [ "=rst", "=fin+push" ], "string": "flow tcp-flags [ =rst =fin+push ]" } ] } } } } } }

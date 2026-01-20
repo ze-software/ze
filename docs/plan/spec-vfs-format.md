@@ -34,11 +34,10 @@ Single parser (`internal/test/ci/`) shared by test runner and zebgp-peer. Each c
 
 | Prefix | Consumer | Description |
 |--------|----------|-------------|
-| `stdin=` | Test runner | Embed stdin content for process orchestration |
+| `stdin=` | Test runner | Embed stdin content (multi-line or inline hex/text) |
 | `vfs=` | Test runner | Embed file in temp directory (for .py plugins) |
 | `option=` | zebgp-peer | Configure test peer behavior |
 | `cmd=` | Test runner | Commands: api, background process, foreground process |
-| `decode=` | Test runner | Decode test (type, family, hex, expected JSON) |
 | `expect=exit:` | Test runner | Assert exit code |
 | `expect=stdout:` | Test runner | Assert stdout content |
 | `expect=stderr:` | Test runner | Assert stderr content |
@@ -49,20 +48,29 @@ Single parser (`internal/test/ci/`) shared by test runner and zebgp-peer. Each c
 
 ### Stdin Block
 
-For process orchestration, stdin content is embedded using `stdin=` blocks:
+For process orchestration, stdin content is embedded using `stdin=` blocks.
 
+**Multi-line format** (with terminator):
 ```
 stdin=<name>:terminator=<TERM>
 <content>
 <TERM>
 ```
 
+**Single-line format** (inline value):
+```
+stdin=<name>:hex=<hex-value>
+stdin=<name>:text=<text-value>
+```
+
 | Field | Description |
 |-------|-------------|
 | `name` | Identifier referenced by `cmd=...:stdin=<name>` |
-| `terminator` | End marker (alphanumeric + underscore, unique per file) |
+| `terminator` | End marker for multi-line (alphanumeric + underscore, unique per file) |
+| `hex` | Hex-encoded content (single-line) |
+| `text` | Plain text content (single-line) |
 
-**Example:**
+**Multi-line example:**
 ```
 stdin=peer:terminator=EOF_PEER
 option=asn:value=65000
@@ -75,6 +83,13 @@ EOF_CONF
 
 cmd=background:seq=1:exec=zebgp-peer --port $PORT:stdin=peer
 cmd=foreground:seq=2:exec=zebgp server -:stdin=zebgp:timeout=10s
+```
+
+**Single-line example (decode test):**
+```
+stdin=payload:hex=000000EA900F00E6...
+cmd=foreground:seq=1:exec=zebgp-test decode --family l2vpn/evpn -:stdin=payload
+expect=json:json={"type":"update",...}
 ```
 
 ### VFS Block
@@ -125,15 +140,17 @@ cmd=foreground:seq=<N>:exec=<command>:stdin=<name>[:timeout=<dur>]   # Foregroun
 For testing BGP message decoding with full JSON validation:
 
 ```
-decode=<type>:family=<family>:hex=<hex-payload>
+stdin=payload:hex=<hex-payload>
+cmd=foreground:seq=1:exec=zebgp-test decode --family <family> -:stdin=payload
 expect=json:json=<expected-json>
 ```
 
-| Field | Values | Description |
-|-------|--------|-------------|
-| type | `update`, `open`, `nlri` | Message type to decode |
-| family | e.g., `ipv4/unicast`, `l2vpn/evpn` | Address family (optional for some types) |
-| hex | Hex-encoded bytes | BGP message payload |
+| Component | Description |
+|-----------|-------------|
+| `stdin=payload:hex=` | Hex-encoded BGP message payload (single-line) |
+| `--family <family>` | Address family: `ipv4/unicast`, `l2vpn/evpn`, etc. |
+| `-` | Read payload from stdin |
+| `expect=json:json=` | Expected JSON output |
 
 **JSON Comparison:**
 - Parsed and compared field-by-field (key order independent)
@@ -678,7 +695,8 @@ update l2vpn/evpn
 
 **After:**
 ```
-decode=update:family=l2vpn/evpn:hex=000000EA900F00E600...
+stdin=payload:hex=000000EA900F00E600...
+cmd=foreground:seq=1:exec=zebgp-test decode --family l2vpn/evpn -:stdin=payload
 expect=json:json={ "type": "update", "neighbor": { ... }, "announce": { ... } }
 ```
 
@@ -1085,16 +1103,17 @@ expect=exit:code=0
 
 ### Completed ✅
 - `internal/vfs/vfs.go` - VFS parsing (vfs= blocks)
-- `internal/vfs/vfs.go` - Stdin parsing (stdin= blocks)
+- `internal/vfs/vfs.go` - Stdin parsing (stdin= blocks, multi-line with terminator)
 - `internal/test/runner/record.go` - RunCommand struct, parseCmd for background/foreground
 - `internal/test/runner/record.go` - FailType constants (fixed goconst lint)
 - `internal/test/runner/runner.go` - runOrchestrated() for new format execution
 - `internal/test/runner/runner.go` - Permanent debug logging via slogutil
-- `test/data/decode/*.ci` - All 18 decode tests migrated from .test format
 - `test/data/encode/ebgp-new.ci` - Reference implementation for stdin= format
 - `docs/architecture/testing/ci-format.md` - Format documentation
 
 ### Pending ⏳
+- Single-line stdin parsing: `stdin=<name>:hex=<value>` and `stdin=<name>:text=<value>`
+- Re-migrate decode tests to unified format: `stdin=payload:hex=...` + `cmd=foreground:exec=zebgp-test decode`
 - Migrate remaining `test/data/encode/*.conf+.ci` to stdin= format (~37 tests)
 - Migrate `test/data/plugin/*.conf+.ci+.py` to unified format
 - Python zipapp inlining for VFS .py files
@@ -1106,9 +1125,9 @@ expect=exit:code=0
 - `internal/vfs` package with vfs= and stdin= parsing
 - Test runner integration
 
-### Phase 2: Decode Tests ✅
-- Migrated `test/data/decode/*.test` → `test/data/decode/*.ci`
-- Format: `decode=<type>:family=<family>:hex=<hex>` + `expect=json:json=<expected>`
+### Phase 2: Decode Tests 🔄
+- Format: `stdin=payload:hex=<hex>` + `cmd=foreground:exec=zebgp-test decode --family <family> -:stdin=payload`
+- Need to re-migrate from `decode=` format to unified cmd= format
 
 ### Phase 3: Encode Tests (Current)
 - Migrate `test/data/encode/*.conf+.ci` → single `.ci` with stdin= blocks

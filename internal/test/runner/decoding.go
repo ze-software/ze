@@ -14,7 +14,11 @@ import (
 )
 
 // Message type constants.
-const msgTypeUpdate = "update"
+const (
+	msgTypeUpdate = "update"
+	msgTypeOpen   = "open"
+	msgTypeNLRI   = "nlri"
+)
 
 // DecodingTest holds a single decoding test case.
 type DecodingTest struct {
@@ -130,8 +134,14 @@ func (dt *DecodingTests) parseTestFile(filePath string) (*DecodingTest, error) {
 	}, nil
 }
 
-// parseCIFile parses a .ci file with decode= and expect=json: lines.
-// Format:
+// parseCIFile parses a .ci file with stdin=, cmd=, and expect= lines.
+// New format:
+//
+//	stdin=payload:hex=<hex-payload>
+//	cmd=foreground:seq=1:exec=zebgp-test decode --family <family> -:stdin=payload
+//	expect=json:json=<expected-json>
+//
+// Legacy format (still supported):
 //
 //	decode=<type>:family=<family>:hex=<hex-payload>
 //	expect=json:json=<expected-json>
@@ -143,8 +153,11 @@ func (dt *DecodingTests) parseCIFile(filePath string) (*DecodingTest, error) {
 	defer func() { _ = f.Close() }()
 
 	var msgType, family, hexPayload, expectedJSON string
+	var cmdLine string
 
 	scanner := bufio.NewScanner(f)
+	stdinBlocks := make(map[string]string) // name -> hex content
+
 	for scanner.Scan() {
 		line := strings.TrimSpace(scanner.Text())
 
@@ -153,7 +166,28 @@ func (dt *DecodingTests) parseCIFile(filePath string) (*DecodingTest, error) {
 			continue
 		}
 
-		// Parse decode= line
+		// Parse stdin= line (single-line hex format)
+		if strings.HasPrefix(line, "stdin=") {
+			rest := strings.TrimPrefix(line, "stdin=")
+			parts := strings.Split(rest, ":")
+			if len(parts) >= 2 {
+				stdinName := parts[0]
+				for _, part := range parts[1:] {
+					if strings.HasPrefix(part, "hex=") {
+						stdinBlocks[stdinName] = strings.TrimPrefix(part, "hex=")
+					}
+				}
+			}
+			continue
+		}
+
+		// Parse cmd= line
+		if strings.HasPrefix(line, "cmd=") {
+			cmdLine = line
+			continue
+		}
+
+		// Parse legacy decode= line
 		if strings.HasPrefix(line, "decode=") {
 			rest := strings.TrimPrefix(line, "decode=")
 			parts := strings.Split(rest, ":")
@@ -187,12 +221,17 @@ func (dt *DecodingTests) parseCIFile(filePath string) (*DecodingTest, error) {
 		return nil, err
 	}
 
+	// New format: extract from cmd= line
+	if cmdLine != "" && hexPayload == "" {
+		msgType, family, hexPayload = parseDecodeCmdLine(cmdLine, stdinBlocks)
+	}
+
 	// Validate required fields
 	if msgType == "" {
-		return nil, fmt.Errorf("missing decode= line")
+		msgType = msgTypeUpdate // Default to update
 	}
 	if hexPayload == "" {
-		return nil, fmt.Errorf("missing hex= in decode line")
+		return nil, fmt.Errorf("missing hex payload (use stdin=payload:hex= or decode=)")
 	}
 	if expectedJSON == "" {
 		return nil, fmt.Errorf("missing expect=json: line")
@@ -210,6 +249,60 @@ func (dt *DecodingTests) parseCIFile(filePath string) (*DecodingTest, error) {
 		HexPayload:   hexPayload,
 		ExpectedJSON: expectedJSON,
 	}, nil
+}
+
+// parseDecodeCmdLine extracts type, family, and hex payload from a cmd= line.
+// Format: cmd=foreground:seq=1:exec=zebgp-test decode --family <family> -:stdin=payload.
+func parseDecodeCmdLine(cmdLine string, stdinBlocks map[string]string) (string, string, string) {
+	msgType := msgTypeUpdate // Default
+	var family, hexPayload string
+
+	// Find exec= part
+	rest := strings.TrimPrefix(cmdLine, "cmd=")
+	parts := strings.Split(rest, ":")
+
+	var execPart string
+	var stdinRef string
+	for _, part := range parts {
+		if strings.HasPrefix(part, "exec=") {
+			execPart = strings.TrimPrefix(part, "exec=")
+		}
+		if strings.HasPrefix(part, "stdin=") {
+			stdinRef = strings.TrimPrefix(part, "stdin=")
+		}
+	}
+
+	if execPart == "" {
+		return msgType, family, hexPayload
+	}
+
+	// Parse exec command: zebgp-test decode [--family <family>] [--open|--update|--nlri] -
+	args := strings.Fields(execPart)
+	for i := 0; i < len(args); i++ {
+		arg := args[i]
+		switch arg {
+		case "--family", "-f":
+			if i+1 < len(args) {
+				family = args[i+1]
+				i++
+			}
+		case "--open":
+			msgType = msgTypeOpen
+		case "--update":
+			msgType = msgTypeUpdate
+		case "--nlri":
+			msgType = msgTypeNLRI
+		}
+	}
+
+	// Get hex from stdin reference
+	if stdinRef != "" {
+		if hex, ok := stdinBlocks[stdinRef]; ok {
+			hexPayload = hex
+		}
+	}
+
+	return msgType, family, hexPayload
 }
 
 // parseTypeLine parses "update l2vpn/evpn" into type and family.
