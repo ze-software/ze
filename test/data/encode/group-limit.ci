@@ -1,19 +1,45 @@
-option=file:path=group-limit.conf
-# EOR
+# zebgp-peer expectations
+stdin=peer:terminator=EOF_PEER
 cmd=api:conn=1:seq=1:text=announce eor ipv4/unicast
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 cmd=api:conn=1:seq=1:text=announce eor ipv6/unicast
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001E0200000007900F0003000201
-
-# Two IPv4
 cmd=api:conn=1:seq=1:text=update text origin set igp local-preference set 100 nhop set 10.0.0.1 nlri ipv4/unicast add 193.0.2.1/32 193.0.2.2/32
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00360200000015400101004002004003040A0000014005040000006420C100020120C1000202
 expect=json:conn=1:seq=1:json={"meta":{"version":"1.0.0","format":"zebgp"},"message":{"type":"update"},"peer":{"address":"127.0.0.1","asn":65533},"direction":"in","local-preference":100,"origin":"igp","ipv4/unicast":[{"action":"add","nlri":["193.0.2.1/32","193.0.2.2/32"],"next-hop":"10.0.0.1"}]}
-
-# Two IPv6
 cmd=api:conn=1:seq=1:text=announce ipv6/unicast 2a02:b80:0:1::1/128 next-hop 2a02:b80:1::1 origin igp local-preference 100
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF004E02000000374001010040020040050400000064800E26000201102A020B8000010000000000000000000100802A020B80000000010000000000000001
 expect=json:conn=1:seq=1:json={"meta":{"version":"1.0.0","format":"zebgp"},"message":{"type":"update"},"peer":{"address":"127.0.0.1","asn":65533},"direction":"in","local-preference":100,"origin":"igp","ipv6/unicast":[{"action":"add","nlri":["2a02:b80:0:1::1/128"],"next-hop":"2a02:b80:1::1"}]}
 cmd=api:conn=1:seq=1:text=announce ipv6/unicast 2a02:b80:0:2::2/128 next-hop 2a02:b80:1::1 origin igp local-preference 100
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF004E02000000374001010040020040050400000064800E26000201102A020B8000010000000000000000000100802A020B80000000020000000000000002
 expect=json:conn=1:seq=1:json={"meta":{"version":"1.0.0","format":"zebgp"},"message":{"type":"update"},"peer":{"address":"127.0.0.1","asn":65533},"direction":"in","local-preference":100,"origin":"igp","ipv6/unicast":[{"action":"add","nlri":["2a02:b80:0:2::2/128"],"next-hop":"2a02:b80:1::1"}]}
+EOF_PEER
+
+# zebgp configuration
+stdin=zebgp:terminator=EOF_CONF
+peer 127.0.0.1 {
+	router-id 1.2.3.4;
+	local-address 127.0.0.1;
+	local-as 1;
+	peer-as 1;
+
+	family {
+		ipv4/unicast;
+		ipv6/unicast;
+	}
+	announce {
+		ipv4 {
+			unicast 193.0.2.1 next-hop 10.0.0.1;
+			unicast 193.0.2.2 next-hop 10.0.0.1;
+		}
+		ipv6 {
+			unicast 2A02:B80:0:1::1/128 next-hop 2A02:B80:1::1;
+			unicast 2A02:B80:0:2::2/128 next-hop 2A02:B80:1::1;
+		}
+	}
+}
+EOF_CONF
+
+# Process orchestration
+cmd=background:seq=1:exec=zebgp-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=zebgp server -:stdin=zebgp:timeout=10s

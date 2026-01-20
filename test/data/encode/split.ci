@@ -1,4 +1,5 @@
-option=file:path=split.conf
+# zebgp-peer expectations
+stdin=peer:terminator=EOF_PEER
 cmd=api:conn=1:seq=1:text=update text origin set igp local-preference set 100 med set 200 community set [174:666] nhop set 192.0.2.1 nlri ipv4/unicast add 172.10.0.0/24
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003E020000002340010100400200400304C0000201800404000000C840050400000064C0080400AE029A18AC0A00
 cmd=api:conn=1:seq=1:text=update text origin set igp local-preference set 100 med set 200 community set [174:666] nhop set 192.0.2.1 nlri ipv4/unicast add 172.10.1.0/24
@@ -7,7 +8,6 @@ cmd=api:conn=1:seq=1:text=update text origin set igp local-preference set 100 me
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003E020000002340010100400200400304C0000201800404000000C840050400000064C0080400AE029A18AC0A02
 cmd=api:conn=1:seq=1:text=update text origin set igp local-preference set 100 med set 200 community set [174:666] nhop set 192.0.2.1 nlri ipv4/unicast add 172.10.3.0/24
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003E020000002340010100400200400304C0000201800404000000C840050400000064C0080400AE029A18AC0A03
-
 cmd=api:conn=1:seq=1:text=update text origin set igp local-preference set 100 med set 200 community set [174:666] nhop set 192.0.2.1 nlri ipv4/unicast add 172.10.4.0/24
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003E020000002340010100400200400304C0000201800404000000C840050400000064C0080400AE029A18AC0A04
 cmd=api:conn=1:seq=1:text=update text origin set igp local-preference set 100 med set 200 community set [174:666] nhop set 192.0.2.1 nlri ipv4/unicast add 172.10.5.0/24
@@ -16,6 +16,32 @@ cmd=api:conn=1:seq=1:text=update text origin set igp local-preference set 100 me
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003E020000002340010100400200400304C0000201800404000000C840050400000064C0080400AE029A18AC0A06
 cmd=api:conn=1:seq=1:text=update text origin set igp local-preference set 100 med set 200 community set [174:666] nhop set 192.0.2.1 nlri ipv4/unicast add 172.10.7.0/24
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003E020000002340010100400200400304C0000201800404000000C840050400000064C0080400AE029A18AC0A07
-
 cmd=api:conn=1:seq=1:text=announce eor ipv4/unicast
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_PEER
+
+# zebgp configuration
+stdin=zebgp:terminator=EOF_CONF
+peer 127.0.0.1 {
+	description "will announce 4 /24";
+	router-id 198.111.227.39;
+	local-address 127.0.0.1;
+	local-as 65533;
+	peer-as 65533;
+	group-updates disable;
+
+	family {
+		ipv4/unicast;
+	}
+	announce {
+		ipv4 {
+			unicast 172.10.0.0/22 next-hop 192.0.2.1 med 200 community 174:666 split /24;
+			unicast 172.10.4.0/22 next-hop 192.0.2.1 med 200 community 174:666 split /24;
+		}
+	}
+}
+EOF_CONF
+
+# Process orchestration
+cmd=background:seq=1:exec=zebgp-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=zebgp server -:stdin=zebgp:timeout=10s

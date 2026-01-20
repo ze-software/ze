@@ -1,11 +1,35 @@
-option=file:path=attributes.conf
-# Empty UPDATE (EOR for IPv4 unicast)
+# zebgp-peer expectations
+stdin=peer:terminator=EOF_PEER
 cmd=api:conn=1:seq=1:text=announce eor ipv4/unicast
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
-# MP_UNREACH EOR for IPv4 unicast
 cmd=api:conn=1:seq=1:text=announce eor ipv6/unicast
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001E0200000007900F0003000201
-# UPDATE with large-community attribute
 cmd=api:conn=1:seq=1:text=update text origin set igp local-preference set 100 large-community set [1:2:3 10:11:12] nhop set 255.255.255.255 nlri ipv4/unicast add 10.0.0.7/32
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF004C020000003040010100400200400304FFFFFFFF40050400000064C020180000000100000002000000030000000A0000000B0000000C200A000007
 expect=json:conn=1:seq=1:json={"meta":{"version":"1.0.0","format":"zebgp"},"message":{"type":"update"},"peer":{"address":"127.0.0.1","asn":65533},"direction":"in","local-preference":100,"origin":"igp","ipv4/unicast":[{"action":"add","nlri":["10.0.0.7/32"],"next-hop":"255.255.255.255"}]}
+EOF_PEER
+
+# zebgp configuration
+stdin=zebgp:terminator=EOF_CONF
+peer 127.0.0.1 {
+	router-id 1.2.3.4;
+	local-address 127.0.0.1;
+	local-as 1;
+	peer-as 1;
+	group-updates disable;
+
+	family {
+		ipv4/unicast;
+		ipv6/unicast;
+	}
+	announce {
+		ipv4 {
+			unicast 10.0.0.7/32 next-hop 255.255.255.255 attribute "0x20 0xc0 0x0000000100000002000000030000000A0000000B0000000C";
+		}
+	}
+}
+EOF_CONF
+
+# Process orchestration
+cmd=background:seq=1:exec=zebgp-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=zebgp server -:stdin=zebgp:timeout=10s

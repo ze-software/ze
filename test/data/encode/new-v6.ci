@@ -1,4 +1,5 @@
-option=file:path=new-v6.conf
+# zebgp-peer expectations
+stdin=peer:terminator=EOF_PEER
 cmd=api:conn=1:seq=1:text=announce ipv6/unicast 2a02:b80:0:1::1/128 next-hop 2a02:b80:0:2::1 origin igp local-preference 200 community [30740:0 30740:30740]
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0059020000004240010100400200400504000000C8C008087814000078147814800E26000201102A020B8000000002000000000000000100802A020B80000000010000000000000001
 expect=json:conn=1:seq=1:json={"meta":{"version":"1.0.0","format":"zebgp"},"message":{"type":"update"},"peer":{"address":"127.0.0.1","asn":65533},"direction":"in","local-preference":200,"origin":"igp","ipv6/unicast":[{"action":"add","nlri":["2a02:b80:0:1::1/128"],"next-hop":"2a02:b80:0:2::1"}]}
@@ -7,3 +8,39 @@ expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00590200000042400101
 expect=json:conn=1:seq=1:json={"meta":{"version":"1.0.0","format":"zebgp"},"message":{"type":"update"},"peer":{"address":"127.0.0.1","asn":65533},"direction":"in","local-preference":200,"origin":"igp","ipv6/unicast":[{"action":"add","nlri":["2a02:b80:0:1::2/128"],"next-hop":"2a02:b80:0:2::1"}]}
 cmd=api:conn=1:seq=1:text=announce eor ipv6/unicast
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001E0200000007900F0003000201
+EOF_PEER
+
+# zebgp configuration
+stdin=zebgp:terminator=EOF_CONF
+template {
+	group a-few-routes {
+		announce {
+			ipv6 {
+				unicast 2A02:B80:0:1::1/128 next-hop 2A02:B80:0:2::1 local-preference 200 community "30740:0 30740:30740";
+			}
+		}
+	}
+}
+peer 127.0.0.1 {
+	inherit a-few-routes;
+	description "a simple test for the new configuration format name";
+	router-id 10.0.0.2;
+	local-address 127.0.0.1;
+	local-as 65533;
+	peer-as 65533;
+	hold-time 180;
+
+	family {
+		ipv6/unicast;
+	}
+	announce {
+		ipv6 {
+			unicast 2A02:B80:0:1::2/128 next-hop 2A02:B80:0:2::1 local-preference 200 community "30740:0 30740:30740";
+		}
+	}
+}
+EOF_CONF
+
+# Process orchestration
+cmd=background:seq=1:exec=zebgp-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=zebgp server -:stdin=zebgp:timeout=10s

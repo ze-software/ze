@@ -1,4 +1,5 @@
-option=file:path=srv6-mup-v3.conf
+# zebgp-peer expectations
+stdin=peer:terminator=EOF_PEER
 cmd=api:conn=1:seq=1:text=announce ipv4/mup mup-t1st 192.168.0.2/32 rd 100:100 teid 12345 qfi 9 endpoint 10.0.0.1 source 10.0.1.1 next-hop 10.0.0.2 extended-community [target:10:10]
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0063020000004C400101004002004003040A00000240050400000064800E29000155040A000002000100031C000000640000006420C0A800020000303909200A000001200A000101C010080002000A0000000A
 cmd=api:conn=1:seq=1:text=announce ipv6/mup mup-t1st 2001:db8:1:1::2/128 rd 100:100 teid 12345 qfi 9 endpoint 2001::1 source 2002::2 next-hop ::ffff:10.0.0.2 extended-community [target:10:10]
@@ -7,3 +8,31 @@ cmd=api:conn=1:seq=1:text=announce eor ipv4/mup
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001E0200000007900F0003000155
 cmd=api:conn=1:seq=1:text=announce eor ipv6/mup
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001E0200000007900F0003000255
+EOF_PEER
+
+# zebgp configuration
+stdin=zebgp:terminator=EOF_CONF
+peer 127.0.0.1 {
+	router-id 10.0.0.1;
+	local-address 127.0.0.1;
+	local-as 65000;
+	peer-as 65000;
+
+	family {
+		ipv4/mup;
+		ipv6/mup;
+	}
+	announce {
+		ipv4 {
+			mup \ mup-t1st 192.168.0.2/32 rd 100:100 teid 12345 qfi 9 endpoint 10.0.0.1 source 10.0.1.1 \ next-hop 10.0.0.2 \ extended-community [target:10:10];
+		}
+		ipv6 {
+			mup \ mup-t1st 2001:db8:1:1::2/128 rd 100:100 teid 12345 qfi 9 endpoint 2001::1 source 2002::2 \ next-hop 10.0.0.2 \ extended-community [target:10:10];
+		}
+	}
+}
+EOF_CONF
+
+# Process orchestration
+cmd=background:seq=1:exec=zebgp-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=zebgp server -:stdin=zebgp:timeout=10s

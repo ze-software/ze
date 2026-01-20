@@ -1,4 +1,5 @@
-option=file:path=extended-nexthop.conf
+# zebgp-peer expectations
+stdin=peer:terminator=EOF_PEER
 cmd=api:conn=1:seq=1:text=update text origin set igp local-preference set 100 nhop set bad:cafe:bad:cafe:bad:cafe:bad:cafe nlri ipv4/unicast add 153.153.153.153/32
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0042020000002B4001010040020040050400000064800E1A000101100BADCAFE0BADCAFE0BADCAFE0BADCAFE002099999999
 expect=json:conn=1:seq=1:json={"meta":{"version":"1.0.0","format":"zebgp"},"message":{"type":"update"},"peer":{"address":"127.0.0.1","asn":65533},"direction":"in","local-preference":100,"origin":"igp","ipv4/unicast":[{"action":"add","nlri":["153.153.153.153/32"],"next-hop":"bad:cafe:bad:cafe:bad:cafe:bad:cafe"}]}
@@ -13,3 +14,41 @@ cmd=api:conn=1:seq=1:text=announce eor ipv6/unicast
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001E0200000007900F0003000201
 cmd=api:conn=1:seq=1:text=announce eor ipv6/mpls-vpn
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001E0200000007900F0003000280
+EOF_PEER
+
+# zebgp configuration
+stdin=zebgp:terminator=EOF_CONF
+peer 127.0.0.1 {
+	router-id 127.0.0.2;
+	local-address 127.0.0.1;
+	local-as 12345;
+	peer-as 12345;
+	group-updates disable;
+
+	family {
+		ipv4/mpls-vpn;
+		ipv4/unicast;
+		ipv6/mpls-vpn;
+		ipv6/unicast;
+	}
+	capability {
+		nexthop {
+			ipv4/mpls-vpn ipv6;
+			ipv4/unicast ipv6;
+			ipv6/unicast ipv4;
+		}
+	}
+	announce {
+		ipv4 {
+			unicast 153.153.153.153 next-hop BAD:CAFE:BAD:CAFE:BAD:CAFE:BAD:CAFE;
+		}
+		ipv6 {
+			unicast DEAD:BEEF:DEAD:BEEF:DEAD:BEEF:DEAD:BEEF next-hop 170.170.170.170;
+		}
+	}
+}
+EOF_CONF
+
+# Process orchestration
+cmd=background:seq=1:exec=zebgp-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=zebgp server -:stdin=zebgp:timeout=10s

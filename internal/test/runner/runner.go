@@ -276,6 +276,25 @@ func (r *Runner) runTest(ctx context.Context, rec *Record, opts *RunOptions) boo
 	rec.State = StateStarting
 	rec.StartTime = time.Now()
 
+	// Set up Tmpfs temp directory if there are Tmpfs files (needed by both paths)
+	var tmpfsCleanup func()
+	if len(rec.TmpfsFiles) > 0 {
+		v := tmpfs.New()
+		for path, content := range rec.TmpfsFiles {
+			v.AddFile(path, content)
+		}
+		tmpfsTempDir, cleanup, err := v.WriteToTemp()
+		if err != nil {
+			rec.Error = fmt.Errorf("write Tmpfs files: %w", err)
+			return false
+		}
+		tmpfsCleanup = cleanup
+		rec.TmpfsTempDir = tmpfsTempDir
+	}
+	if tmpfsCleanup != nil {
+		defer tmpfsCleanup()
+	}
+
 	// Use new orchestration if RunCommands present
 	if len(rec.RunCommands) > 0 {
 		return r.runOrchestrated(ctx, rec, opts)
@@ -300,25 +319,6 @@ func (r *Runner) runTest(ctx context.Context, rec *Record, opts *RunOptions) boo
 		return false
 	}
 	defer func() { _ = os.Remove(expectFile) }()
-
-	// Set up Tmpfs temp directory if there are Tmpfs files
-	var tmpfsCleanup func()
-	if len(rec.TmpfsFiles) > 0 {
-		v := tmpfs.New()
-		for path, content := range rec.TmpfsFiles {
-			v.AddFile(path, content)
-		}
-		tmpfsTempDir, cleanup, err := v.WriteToTemp()
-		if err != nil {
-			rec.Error = fmt.Errorf("write Tmpfs files: %w", err)
-			return false
-		}
-		tmpfsCleanup = cleanup
-		rec.TmpfsTempDir = tmpfsTempDir
-	}
-	if tmpfsCleanup != nil {
-		defer tmpfsCleanup()
-	}
 
 	// Build peer args
 	peerArgs := []string{"--port", fmt.Sprintf("%d", rec.Port)}
@@ -615,15 +615,27 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 
 		// zebgp server reads config from file, not stdin.
 		// If args contain "-", replace with temp file.
+		// Write to TmpfsTempDir if available so plugin paths (like ./plugin.run) resolve correctly.
 		if binName == "zebgp" && stdinContent != nil {
 			for i, arg := range args {
 				if arg == "-" {
-					tmpFile, err := os.CreateTemp("", "zebgp-config-*.conf")
+					var tmpFile *os.File
+					var err error
+					if rec.TmpfsTempDir != "" {
+						// Write config to tmpfs dir so relative plugin paths work
+						configPath := filepath.Join(rec.TmpfsTempDir, "zebgp.conf")
+						tmpFile, err = os.Create(configPath) //nolint:gosec // test runner, path from temp dir
+					} else {
+						tmpFile, err = os.CreateTemp("", "zebgp-config-*.conf")
+					}
 					if err != nil {
 						rec.Error = fmt.Errorf("create temp config file: %w", err)
 						return false
 					}
-					defer func(name string) { _ = os.Remove(name) }(tmpFile.Name())
+					if rec.TmpfsTempDir == "" {
+						// Only cleanup if not in tmpfs dir (tmpfs cleanup handles it)
+						defer func(name string) { _ = os.Remove(name) }(tmpFile.Name())
+					}
 					if _, err := tmpFile.Write(stdinContent); err != nil {
 						_ = tmpFile.Close()
 						rec.Error = fmt.Errorf("write config file: %w", err)
@@ -648,7 +660,14 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 		// Set up environment
 		proc.Env = append(os.Environ(),
 			fmt.Sprintf("zebgp_tcp_port=%d", rec.Port),
+			fmt.Sprintf("zebgp_api_socketpath=%s", filepath.Join(os.TempDir(), fmt.Sprintf("zebgp-test-%d.sock", rec.Port))),
+			fmt.Sprintf("PYTHONPATH=%s", filepath.Join(r.baseDir, "test/data/scripts")),
 		)
+
+		// Set working directory to tmpfs temp dir if available (for finding tmpfs files)
+		if rec.TmpfsTempDir != "" {
+			proc.Dir = rec.TmpfsTempDir
+		}
 
 		// Set up stdin if specified (for zebgp and other commands)
 		if stdinContent != nil {

@@ -444,7 +444,7 @@ func decodeHex(s string) ([]byte, error) {
 func defaultModeForPath(path string) fs.FileMode {
 	ext := strings.ToLower(filepath.Ext(path))
 	switch ext {
-	case ".py", ".sh", ".bash", ".zsh", ".pl", ".rb":
+	case ".py", ".sh", ".bash", ".zsh", ".pl", ".rb", ".run":
 		return 0o755
 	default:
 		return 0o644

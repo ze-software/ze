@@ -1,33 +1,62 @@
-option=file:path=srv6-mup.conf
-# UPDATEs with prefix-sid attribute (JSON encoder has bug - produces malformed JSON with %s/%d)
+# zebgp-peer expectations
+stdin=peer:terminator=EOF_PEER
 cmd=api:conn=1:seq=1:text=announce ipv4/mup mup-isd 10.0.1.0/24 rd 100:100 next-hop 2001::1 extended-community [target:10:10] bgp-prefix-sid-srv6 ( l3-service 2001:db8:1:1:: 0x48 [64,24,16,0,0,0] )
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF008002000000694001010040020040050400000064800E250001551020010000000000000000000000000001000100010C0000006400000064180A0001C010080002000A0000000AC028250500220001001E0020010DB800010001000000000000000000004800010006401810000000
 cmd=api:conn=1:seq=1:text=announce ipv4/mup mup-dsd 10.0.0.1 rd 100:100 next-hop 2001::2 extended-community [target:10:10 mup:10:10] bgp-prefix-sid-srv6 ( l3-service 2001:db8:1:1:: 0x13 [64,24,16,0,0,0] )
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF008802000000714001010040020040050400000064800E250001551020010000000000000000000000000002000100020C00000064000000640A000001C010100002000A0000000A0C00000A0000000AC028250500220001001E0020010DB800010001000000000000000000001300010006401810000000
 cmd=api:conn=1:seq=1:text=announce ipv4/mup mup-t1st 192.168.0.1/32 rd 100:100 teid 12345 qfi 9 endpoint 10.0.0.1 next-hop 10.0.0.2 extended-community [target:10:10]
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF005E0200000047400101004002004003040A00000240050400000064800E24000155040A0000020001000317000000640000006420C0A800010000303909200A000001C010080002000A0000000A
-# Type2SessionTransformedRoute - ipv4/mup endpoint_len=32 (teid_bits=32)
 cmd=api:conn=1:seq=1:text=announce ipv4/mup mup-t2st 10.0.0.1 rd 100:100 teid 12345/32 next-hop 10.0.0.2 extended-community [target:10:10 mup:10:10]
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00600200000049400101004002004003040A00000240050400000064800E1E000155040A00000200010004110000006400000064200A00000100003039C010100002000A0000000A0C00000A0000000A
-# Type2SessionTransformedRoute - ipv4/mup endpoint_len=32 (teid_bits=23)
 cmd=api:conn=1:seq=1:text=announce ipv4/mup mup-t2st 10.0.0.1 rd 100:100 teid 12345/23 next-hop 10.0.0.2 extended-community [target:10:10 mup:10:10]
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF005F0200000048400101004002004003040A00000240050400000064800E1D000155040A00000200010004100000006400000064200A000001003039C010100002000A0000000A0C00000A0000000A
-# Type2SessionTransformedRoute - ipv4/mup endpoint_len=32
 cmd=api:conn=1:seq=1:text=announce ipv4/mup mup-t2st 10.0.0.1 rd 100:100 teid 0/0 next-hop 10.0.0.2 extended-community [target:10:10 mup:10:10]
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF005C0200000045400101004002004003040A00000240050400000064800E1A000155040A000002000100040D0000006400000064200A000001C010100002000A0000000A0C00000A0000000A
-# UPDATEs with prefix-sid attribute (JSON encoder has bug - produces malformed JSON with %s/%d)
 cmd=api:conn=1:seq=1:text=announce ipv6/mup mup-isd 2001::/64 rd 100:100 next-hop 2001::2 extended-community [target:10:10] bgp-prefix-sid-srv6 ( l3-service 2001:db8:1:1:: 0x47 [64,24,16,0,0,0] )
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0085020000006E4001010040020040050400000064800E2A000255102001000000000000000000000000000200010001110000006400000064402001000000000000C010080002000A0000000AC028250500220001001E0020010DB800010001000000000000000000004700010006401810000000
 cmd=api:conn=1:seq=1:text=announce ipv6/mup mup-dsd 2001::1 rd 100:100 next-hop 2001::2 extended-community [target:10:10 mup:10:10] bgp-prefix-sid-srv6 ( l3-service 2001:db8:2:2:: 0x18 [64,24,16,0,0,0] )
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0094020000007D4001010040020040050400000064800E3100025510200100000000000000000000000000020001000218000000640000006420010000000000000000000000000001C010100002000A0000000A0C00000A0000000AC028250500220001001E0020010DB800020002000000000000000000001800010006401810000000
 cmd=api:conn=1:seq=1:text=announce ipv6/mup mup-t1st 2001:db8:1:1::1/128 rd 100:100 teid 12345 qfi 9 endpoint 2001::1 next-hop ::ffff:10.0.0.2 extended-community [target:10:10]
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF007B02000000644001010040020040050400000064800E480002551000000000000000000000FFFF0A000002000100032F00000064000000648020010DB800010001000000000000000100003039098020010000000000000000000000000001C010080002000A0000000A
-# Type2SessionTransformedRoute - ipv6/mup endpoint_len=128 (teid_bits=32)
 cmd=api:conn=1:seq=1:text=announce ipv6/mup mup-t2st 2001::1 rd 100:100 teid 12345/32 next-hop ::ffff:10.0.0.2 extended-community [target:10:10 mup:10:10]
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0071020000005A4001010040020040050400000064800E360002551000000000000000000000FFFF0A000002000100041D0000006400000064802001000000000000000000000000000100003039C010100002000A0000000A0C00000A0000000A
-# EOR for ipv4/mup (AFI=1, SAFI=85)
 cmd=api:conn=1:seq=1:text=announce eor ipv4/mup
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001E0200000007900F0003000155
-# EOR for ipv6/mup (AFI=2, SAFI=85)
 cmd=api:conn=1:seq=1:text=announce eor ipv6/mup
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001E0200000007900F0003000255
+EOF_PEER
+
+# zebgp configuration
+stdin=zebgp:terminator=EOF_CONF
+peer 127.0.0.1 {
+	router-id 10.0.0.1;
+	local-address 127.0.0.1;
+	local-as 65000;
+	peer-as 65000;
+
+	family {
+		ipv4/mup;
+		ipv6/mup;
+	}
+	announce {
+		ipv4 {
+			mup \ mup-isd 10.0.1.0/24 rd 100:100 \ next-hop 2001::1 \ extended-community [target:10:10] \ bgp-prefix-sid-srv6 (l3-service 2001:db8:1:1:: 0x48[64,24,16,0,0,0]);
+			mup \ mup-dsd 10.0.0.1 rd 100:100 \ next-hop 2001::2 \ extended-community [target:10:10 mup:10:10] \ bgp-prefix-sid-srv6 (l3-service 2001:db8:1:1:: 0x13[64,24,16,0,0,0]);
+			mup \ mup-t1st 192.168.0.1/32 rd 100:100 teid 12345 qfi 9 endpoint 10.0.0.1 \ next-hop 10.0.0.2 \ extended-community [target:10:10];
+			mup \ mup-t2st 10.0.0.1 rd 100:100 teid 12345/32 \ next-hop 10.0.0.2 \ extended-community [target:10:10 mup:10:10];
+			mup \ mup-t2st 10.0.0.1 rd 100:100 teid 12345/23 \ next-hop 10.0.0.2 \ extended-community [target:10:10 mup:10:10];
+			mup \ mup-t2st 10.0.0.1 rd 100:100 teid 0/0 \ next-hop 10.0.0.2 \ extended-community [target:10:10 mup:10:10];
+		}
+		ipv6 {
+			mup \ mup-isd 2001::/64 rd 100:100 \ next-hop 2001::2 \ extended-community [target:10:10] \ bgp-prefix-sid-srv6 (l3-service 2001:db8:1:1:: 0x47[64,24,16,0,0,0]);
+			mup \ mup-dsd 2001::1 rd 100:100 \ next-hop 2001::2 \ extended-community [target:10:10 mup:10:10] \ bgp-prefix-sid-srv6 (l3-service 2001:db8:2:2:: 0x18[64,24,16,0,0,0]);
+			mup \ mup-t1st 2001:db8:1:1::1/128 rd 100:100 teid 12345 qfi 9 endpoint 2001::1 \ next-hop 10.0.0.2 \ extended-community [target:10:10];
+			mup \ mup-t2st 2001::1 rd 100:100 teid 12345/32 \ next-hop 10.0.0.2 \ extended-community [target:10:10 mup:10:10];
+		}
+	}
+}
+EOF_CONF
+
+# Process orchestration
+cmd=background:seq=1:exec=zebgp-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=zebgp server -:stdin=zebgp:timeout=10s
