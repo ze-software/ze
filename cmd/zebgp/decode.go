@@ -1079,12 +1079,10 @@ func parseFlowSpecRoutes(data []byte, afi nlri.AFI) []any {
 	return routes
 }
 
-// flowSpecToJSON converts a FlowSpec NLRI to ExaBGP JSON format.
-// ExaBGP format uses structured arrays for each component type.
+// flowSpecToJSON converts a FlowSpec NLRI to ZeBGP JSON format.
+// Uses nested arrays: outer=OR, inner=AND. Example: [[">80","<90"],["=100"]] means (>80 AND <90) OR =100.
 func flowSpecToJSON(fs *nlri.FlowSpec) map[string]any {
-	result := map[string]any{
-		"string": formatFlowSpecString(fs),
-	}
+	result := make(map[string]any)
 
 	for _, comp := range fs.Components() {
 		key := flowSpecKeyName(comp.Type(), fs.Family())
@@ -1142,71 +1140,99 @@ func flowSpecKeyName(t nlri.FlowComponentType, family nlri.Family) string {
 	}
 }
 
-// flowSpecComponentValues extracts values from a component in ExaBGP format.
-func flowSpecComponentValues(comp nlri.FlowComponent) []string {
+// flowSpecComponentValues extracts values from a component as nested arrays.
+// Returns [][]string where outer=OR groups, inner=AND groups.
+// Example: [[">80","<90"],["=100"]] means (>80 AND <90) OR =100.
+func flowSpecComponentValues(comp nlri.FlowComponent) [][]string {
 	// Check component type to extract values appropriately
 	switch c := comp.(type) {
 	case interface{ Prefix() netip.Prefix }:
-		// Prefix component (destination/source)
+		// Prefix component (destination/source) - single value in single OR group
 		prefix := c.Prefix()
 		// Check for offset (IPv6)
 		if offseter, ok := comp.(interface{ Offset() uint8 }); ok {
 			offset := offseter.Offset()
-			return []string{fmt.Sprintf("%s/%d", prefix, offset)}
+			return [][]string{{fmt.Sprintf("%s/%d", prefix, offset)}}
 		}
-		return []string{prefix.String()}
+		return [][]string{{prefix.String()}}
 
 	case interface{ Matches() []nlri.FlowMatch }:
-		// Numeric component
+		// Numeric component - group by AND bit
 		matches := c.Matches()
 
-		// Fragment flags need special handling - each flag is a separate array element
+		// Fragment flags need special handling
 		if comp.Type() == nlri.FlowFragment {
-			var flags []string
-			for _, m := range matches {
-				flags = append(flags, fragmentFlagsToArray(m.Value)...)
-			}
-			return flags
+			return groupFlowMatches(matches, comp.Type())
 		}
 
-		// TCP flags need special handling - AND-combined matches form compound expressions
+		// TCP flags need special handling
 		if comp.Type() == nlri.FlowTCPFlags {
-			return formatTCPFlagsValues(matches)
+			return groupTCPFlagsMatches(matches)
 		}
 
-		var values []string
-		for _, m := range matches {
-			values = append(values, formatFlowMatch(m, comp.Type()))
-		}
-		return values
+		return groupFlowMatches(matches, comp.Type())
 
 	default:
 		// Fallback to string representation
-		return []string{comp.String()}
+		return [][]string{{comp.String()}}
 	}
 }
 
-// formatTCPFlagsValues formats TCP flags matches into ExaBGP format.
+// groupFlowMatches groups FlowMatch values by AND bit into nested arrays.
+// Returns [][]string where outer=OR groups, inner=AND groups.
+// Example: [[">80","<90"],["=100"]] means (>80 AND <90) OR =100.
+func groupFlowMatches(matches []nlri.FlowMatch, compType nlri.FlowComponentType) [][]string {
+	if len(matches) == 0 {
+		return nil
+	}
+
+	var result [][]string
+	currentGroup := make([]string, 0, 2)
+
+	for i, m := range matches {
+		// Format the match value
+		formatted := formatFlowMatch(m, compType)
+
+		switch {
+		case i == 0:
+			// First match always starts a new group
+			currentGroup = append(currentGroup, formatted)
+		case m.And:
+			// AND=true: combine with current group
+			currentGroup = append(currentGroup, formatted)
+		default:
+			// AND=false: finish current group, start new one
+			if len(currentGroup) > 0 {
+				result = append(result, currentGroup)
+			}
+			currentGroup = make([]string, 0, 2)
+			currentGroup = append(currentGroup, formatted)
+		}
+	}
+
+	// Don't forget the last group
+	if len(currentGroup) > 0 {
+		result = append(result, currentGroup)
+	}
+
+	return result
+}
+
+// formatTCPFlagsFlat formats TCP flags matches as flat string slice for string output.
 // Consecutive matches with AND bit form compound expressions like "cwr&!fin&!ece".
-// The AND bit means "AND this match with the previous one".
-func formatTCPFlagsValues(matches []nlri.FlowMatch) []string {
+func formatTCPFlagsFlat(matches []nlri.FlowMatch) []string {
 	var results []string
 	current := make([]string, 0, len(matches))
 
 	for _, m := range matches {
-		// If this match has AND=true, it combines with previous
-		// If AND=false, start a new expression
 		if !m.And && len(current) > 0 {
-			// Finish previous expression
 			results = append(results, strings.Join(current, "&"))
 			current = nil
 		}
-
 		flagStr := formatSingleTCPFlag(m)
 		current = append(current, flagStr)
 	}
 
-	// Don't forget the last expression
 	if len(current) > 0 {
 		results = append(results, strings.Join(current, "&"))
 	}
@@ -1214,25 +1240,58 @@ func formatTCPFlagsValues(matches []nlri.FlowMatch) []string {
 	return results
 }
 
-// formatSingleTCPFlag formats a single TCP flag match.
-func formatSingleTCPFlag(m nlri.FlowMatch) string {
-	cmp := m.Op &^ (nlri.FlowOpEnd | nlri.FlowOpAnd | nlri.FlowOpLenMask)
+// groupTCPFlagsMatches groups TCP flags matches by AND bit into nested arrays.
+// Returns [][]string where outer=OR groups, inner=AND groups.
+func groupTCPFlagsMatches(matches []nlri.FlowMatch) [][]string {
+	if len(matches) == 0 {
+		return nil
+	}
 
+	var result [][]string
+	currentGroup := make([]string, 0, 2)
+
+	for i, m := range matches {
+		// Format the TCP flag match
+		formatted := formatSingleTCPFlag(m)
+
+		switch {
+		case i == 0:
+			// First match always starts a new group
+			currentGroup = append(currentGroup, formatted)
+		case m.And:
+			// AND=true: combine with current group
+			currentGroup = append(currentGroup, formatted)
+		default:
+			// AND=false: finish current group, start new one
+			if len(currentGroup) > 0 {
+				result = append(result, currentGroup)
+			}
+			currentGroup = make([]string, 0, 2)
+			currentGroup = append(currentGroup, formatted)
+		}
+	}
+
+	// Don't forget the last group
+	if len(currentGroup) > 0 {
+		result = append(result, currentGroup)
+	}
+
+	return result
+}
+
+// formatSingleTCPFlag formats a single TCP flag match.
+// For bitmask operations (TCP flags, fragment), FlowOpNot (0x02) means NOT.
+// Always prefixes with = (match) or ! (not match) for clarity.
+func formatSingleTCPFlag(m nlri.FlowMatch) string {
 	// Get flag representation (handles combined flags like fin+push)
 	flagStr := tcpFlagsString(m.Value)
 
-	// Check for negation: > operator means "not match" for bitmasks
-	isNegated := cmp == nlri.FlowOpGreater || cmp == (nlri.FlowOpLess|nlri.FlowOpGreater)
-	// Check for equality match
-	hasEqual := cmp == nlri.FlowOpEqual
-
-	if isNegated {
+	// For bitmask operations: FlowOpNot (0x02) = negation
+	if m.Op&nlri.FlowOpNot != 0 {
 		return "!" + flagStr
 	}
-	if hasEqual {
-		return "=" + flagStr
-	}
-	return flagStr
+	// Default to match (=) for consistency
+	return "=" + flagStr
 }
 
 // formatFlowMatch formats a single FlowMatch for JSON output.
@@ -1240,9 +1299,9 @@ func formatFlowMatch(m nlri.FlowMatch, compType nlri.FlowComponentType) string {
 	// Get operator prefix
 	opStr := flowOpString(m.Op)
 
-	// Special handling for fragment flags
+	// Special handling for fragment flags - use bitmask operators like TCP flags
 	if compType == nlri.FlowFragment {
-		return formatFragmentFlags(m.Value)
+		return formatSingleFragmentFlag(m)
 	}
 
 	// Special handling for protocol/next-header
@@ -1330,6 +1389,21 @@ func tcpFlagsString(value uint64) string {
 	return strings.Join(flags, "+")
 }
 
+// formatSingleFragmentFlag formats a single fragment flag match.
+// For bitmask operations (fragment), FlowOpNot (0x02) means NOT.
+// Always prefixes with = (match) or ! (not match) for clarity.
+func formatSingleFragmentFlag(m nlri.FlowMatch) string {
+	// Get flag representation
+	flagStr := formatFragmentFlags(m.Value)
+
+	// For bitmask operations: FlowOpNot (0x02) = negation
+	if m.Op&nlri.FlowOpNot != 0 {
+		return "!" + flagStr
+	}
+	// Default to match (=) for consistency
+	return "=" + flagStr
+}
+
 // fragmentFlagsToArray returns fragment flags as separate array elements.
 func fragmentFlagsToArray(value uint64) []string {
 	var flags []string
@@ -1355,59 +1429,6 @@ func fragmentFlagsToArray(value uint64) []string {
 func formatFragmentFlags(value uint64) string {
 	flags := fragmentFlagsToArray(value)
 	return strings.Join(flags, " ")
-}
-
-// formatFlowSpecString returns the full flowspec string in ExaBGP format.
-func formatFlowSpecString(fs *nlri.FlowSpec) string {
-	components := fs.Components()
-	parts := make([]string, 0, 1+len(components))
-	parts = append(parts, "flow")
-	for _, comp := range components {
-		parts = append(parts, formatFlowComponentString(comp, fs.Family()))
-	}
-	return strings.Join(parts, " ")
-}
-
-// formatFlowComponentString formats a component string in ExaBGP style.
-func formatFlowComponentString(comp nlri.FlowComponent, family nlri.Family) string {
-	key := flowSpecKeyName(comp.Type(), family)
-
-	switch c := comp.(type) {
-	case interface{ Prefix() netip.Prefix }:
-		prefix := c.Prefix()
-		if offseter, ok := comp.(interface{ Offset() uint8 }); ok {
-			return fmt.Sprintf("%s %s/%d", key, prefix, offseter.Offset())
-		}
-		return fmt.Sprintf("%s %s", key, prefix)
-
-	case interface{ Matches() []nlri.FlowMatch }:
-		if comp.Type() == nlri.FlowFragment {
-			// Each match is a separate flag
-			var flags []string
-			for _, m := range c.Matches() {
-				flags = append(flags, fragmentFlagsToArray(m.Value)...)
-			}
-			return fmt.Sprintf("%s [ %s ]", key, strings.Join(flags, " "))
-		}
-		// TCP flags need compound AND expressions in string too
-		// Always use brackets for tcp-flags (even single compound values)
-		if comp.Type() == nlri.FlowTCPFlags {
-			vals := formatTCPFlagsValues(c.Matches())
-			return fmt.Sprintf("%s [ %s ]", key, strings.Join(vals, " "))
-		}
-		var vals []string
-		for _, m := range c.Matches() {
-			vals = append(vals, formatFlowMatch(m, comp.Type()))
-		}
-		// Use brackets for multi-value components
-		if len(vals) > 1 {
-			return fmt.Sprintf("%s [ %s ]", key, strings.Join(vals, " "))
-		}
-		return fmt.Sprintf("%s %s", key, strings.Join(vals, " "))
-
-	default:
-		return comp.String()
-	}
 }
 
 // parseBGPLSRoutes parses BGP-LS NLRI.

@@ -219,12 +219,12 @@ func TestFormatSingleTCPFlag(t *testing.T) {
 		val  uint64
 		want string
 	}{
-		// Simple matches (no operator prefix)
-		{"ack_simple", 0x00, 0x10, "ack"},
-		{"syn_simple", 0x00, 0x02, "syn"},
-		{"cwr_simple", 0x00, 0x80, "cwr"},
+		// Simple matches - always show = prefix for clarity
+		{"ack_simple", 0x00, 0x10, "=ack"},
+		{"syn_simple", 0x00, 0x02, "=syn"},
+		{"cwr_simple", 0x00, 0x80, "=cwr"},
 
-		// Equality matches (= prefix)
+		// Explicit equality matches (= prefix)
 		{"ack_equal", nlri.FlowOpEqual, 0x10, "=ack"},
 		{"syn_equal", nlri.FlowOpEqual, 0x02, "=syn"},
 		{"rst_equal", nlri.FlowOpEqual, 0x04, "=rst"},
@@ -267,11 +267,11 @@ func TestFormatTCPFlagsValues(t *testing.T) {
 		matches []nlri.FlowMatch
 		want    []string
 	}{
-		// Single match - no compound
+		// Single match - always = prefix
 		{
 			name:    "single_ack",
 			matches: []nlri.FlowMatch{{Op: 0x00, Value: 0x10, And: false}},
-			want:    []string{"ack"},
+			want:    []string{"=ack"},
 		},
 		{
 			name:    "single_syn_equal",
@@ -279,14 +279,14 @@ func TestFormatTCPFlagsValues(t *testing.T) {
 			want:    []string{"=syn"},
 		},
 
-		// Two separate expressions (no AND)
+		// Two separate expressions (no AND) - = prefix on each
 		{
 			name: "two_separate",
 			matches: []nlri.FlowMatch{
 				{Op: 0x00, Value: 0x10, And: false}, // ack
 				{Op: 0x00, Value: 0x80, And: false}, // cwr
 			},
-			want: []string{"ack", "cwr"},
+			want: []string{"=ack", "=cwr"},
 		},
 
 		// Compound expression with AND
@@ -296,10 +296,10 @@ func TestFormatTCPFlagsValues(t *testing.T) {
 				{Op: 0x00, Value: 0x80, And: false},              // cwr
 				{Op: nlri.FlowOpGreater, Value: 0x01, And: true}, // &!fin
 			},
-			want: []string{"cwr&!fin"},
+			want: []string{"=cwr&!fin"},
 		},
 
-		// Complex: ack, cwr&!fin&!ece (from bgp-flow-3)
+		// Complex: =ack, =cwr&!fin&!ece (from bgp-flow-3)
 		{
 			name: "bgp_flow_3_pattern",
 			matches: []nlri.FlowMatch{
@@ -308,20 +308,20 @@ func TestFormatTCPFlagsValues(t *testing.T) {
 				{Op: nlri.FlowOpGreater, Value: 0x01, And: true}, // &!fin
 				{Op: nlri.FlowOpGreater, Value: 0x40, And: true}, // &!ece
 			},
-			want: []string{"ack", "cwr&!fin&!ece"},
+			want: []string{"=ack", "=cwr&!fin&!ece"},
 		},
 
-		// Single compound (from bgp-flow-4): ack+cwr&!fin+ece
+		// Single compound (from bgp-flow-4): =ack+cwr&!fin+ece
 		{
 			name: "bgp_flow_4_pattern",
 			matches: []nlri.FlowMatch{
 				{Op: 0x00, Value: 0x90, And: false},              // ack+cwr
 				{Op: nlri.FlowOpGreater, Value: 0x41, And: true}, // &!fin+ece
 			},
-			want: []string{"ack+cwr&!fin+ece"},
+			want: []string{"=ack+cwr&!fin+ece"},
 		},
 
-		// Three expressions: syn, ack&!rst, fin
+		// Three expressions: =syn, =ack&!rst, =fin
 		{
 			name: "three_expressions",
 			matches: []nlri.FlowMatch{
@@ -330,7 +330,7 @@ func TestFormatTCPFlagsValues(t *testing.T) {
 				{Op: nlri.FlowOpGreater, Value: 0x04, And: true}, // &!rst
 				{Op: 0x00, Value: 0x01, And: false},              // fin
 			},
-			want: []string{"syn", "ack&!rst", "fin"},
+			want: []string{"=syn", "=ack&!rst", "=fin"},
 		},
 
 		// All negated: !syn&!ack&!fin
@@ -354,7 +354,7 @@ func TestFormatTCPFlagsValues(t *testing.T) {
 			want: []string{"=syn&!ack"},
 		},
 
-		// Long chain: ack&!fin&!syn&!rst&!ece
+		// Long chain: =ack&!fin&!syn&!rst&!ece
 		{
 			name: "long_chain",
 			matches: []nlri.FlowMatch{
@@ -364,7 +364,7 @@ func TestFormatTCPFlagsValues(t *testing.T) {
 				{Op: nlri.FlowOpGreater, Value: 0x04, And: true}, // &!rst
 				{Op: nlri.FlowOpGreater, Value: 0x40, And: true}, // &!ece
 			},
-			want: []string{"ack&!fin&!syn&!rst&!ece"},
+			want: []string{"=ack&!fin&!syn&!rst&!ece"},
 		},
 
 		// Empty matches
@@ -377,7 +377,7 @@ func TestFormatTCPFlagsValues(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := formatTCPFlagsValues(tt.matches)
+			got := formatTCPFlagsFlat(tt.matches)
 
 			// Handle nil vs empty slice
 			if len(got) == 0 && len(tt.want) == 0 {
@@ -385,14 +385,14 @@ func TestFormatTCPFlagsValues(t *testing.T) {
 			}
 
 			if len(got) != len(tt.want) {
-				t.Errorf("formatTCPFlagsValues() returned %d values, want %d\ngot:  %v\nwant: %v",
+				t.Errorf("formatTCPFlagsFlat() returned %d values, want %d\ngot:  %v\nwant: %v",
 					len(got), len(tt.want), got, tt.want)
 				return
 			}
 
 			for i := range got {
 				if got[i] != tt.want[i] {
-					t.Errorf("formatTCPFlagsValues()[%d] = %q, want %q\nfull got:  %v\nfull want: %v",
+					t.Errorf("formatTCPFlagsFlat()[%d] = %q, want %q\nfull got:  %v\nfull want: %v",
 						i, got[i], tt.want[i], got, tt.want)
 				}
 			}
@@ -456,9 +456,9 @@ func TestFlowSpecTCPFlagsFormat(t *testing.T) {
 
 // TestFlowSpecTCPFlagsCompound verifies compound TCP flags expressions.
 //
-// VALIDATES: AND-combined TCP flags produce "flag&!flag" format.
+// VALIDATES: AND-combined TCP flags produce nested arrays: [[or1], [and, and]].
 //
-// PREVENTS: Separate array elements instead of compound expression.
+// PREVENTS: Flat array or missing = prefix for match operations.
 func TestFlowSpecTCPFlagsCompound(t *testing.T) {
 	// bgp-flow-3 test: tcp-flags [ ack cwr&!fin&!ece ]
 	hexInput := "0000002B4001010040020040050400000064C010088006000000000000800E0F00018500000909001000804201C240"
@@ -468,7 +468,7 @@ func TestFlowSpecTCPFlagsCompound(t *testing.T) {
 		t.Fatalf("decode failed: %v", err)
 	}
 
-	// Parse JSON to check actual values (avoids JSON encoding issues like \u0026 for &)
+	// Parse JSON to check actual values
 	var result map[string]any
 	if err := json.Unmarshal([]byte(output), &result); err != nil {
 		t.Fatalf("invalid JSON: %v", err)
@@ -484,15 +484,30 @@ func TestFlowSpecTCPFlagsCompound(t *testing.T) {
 	first, _ := noNexthop[0].(map[string]any)                 //nolint:forcetypeassert // test
 	tcpFlags, _ := first["tcp-flags"].([]any)                 //nolint:forcetypeassert // test
 
-	// Check values
+	// Now nested: [["=ack"], ["=cwr", "!fin", "!ece"]]
 	if len(tcpFlags) != 2 {
-		t.Errorf("expected 2 tcp-flags values, got %d: %v", len(tcpFlags), tcpFlags)
+		t.Errorf("expected 2 OR groups, got %d: %v", len(tcpFlags), tcpFlags)
 	}
-	if tcpFlags[0] != "ack" {
-		t.Errorf("expected first flag 'ack', got %v", tcpFlags[0])
+
+	// First OR group: ["=ack"]
+	group0, _ := tcpFlags[0].([]any) //nolint:forcetypeassert // test
+	if len(group0) != 1 || group0[0] != "=ack" {
+		t.Errorf("expected first OR group ['=ack'], got %v", group0)
 	}
-	if tcpFlags[1] != "cwr&!fin&!ece" {
-		t.Errorf("expected second flag 'cwr&!fin&!ece', got %v", tcpFlags[1])
+
+	// Second OR group: ["=cwr", "!fin", "!ece"]
+	group1, _ := tcpFlags[1].([]any) //nolint:forcetypeassert // test
+	if len(group1) != 3 {
+		t.Errorf("expected second OR group with 3 AND elements, got %v", group1)
+	}
+	if group1[0] != "=cwr" {
+		t.Errorf("expected '=cwr', got %v", group1[0])
+	}
+	if group1[1] != "!fin" {
+		t.Errorf("expected '!fin', got %v", group1[1])
+	}
+	if group1[2] != "!ece" {
+		t.Errorf("expected '!ece', got %v", group1[2])
 	}
 }
 

@@ -232,15 +232,70 @@ class FlowDestinationPort(IOperationByteShort, NumericString):
 
 ## JSON Output
 
+FlowSpec JSON uses nested arrays: outer array = OR groups, inner arrays = AND groups.
+
+### Format
+
 ```json
 {
-  "destination-ipv4": [ "10.0.0.0/8" ],
-  "destination-port": [ "=80", "=443" ],
-  "protocol": [ "=6" ],
-  "rd": "65000:100",
-  "string": "flow destination-ipv4 10.0.0.0/8 destination-port [ =80 =443 ] protocol =6 rd 65000:100"
+  "destination-ipv4": [ [ "10.0.0.0/8" ] ],
+  "destination-port": [ [ "=80" ], [ "=443" ] ],
+  "protocol": [ [ "=6" ] ],
+  "tcp-flags": [ [ "=syn" ], [ "=cwr", "!fin", "!ece" ] ],
+  "fragment": [ [ "=first-fragment" ], [ "=is-fragment" ] ]
 }
 ```
+
+### Nested Array Semantics
+
+| Structure | Meaning |
+|-----------|---------|
+| `[["a"], ["b"]]` | a OR b |
+| `[["a", "b"]]` | a AND b |
+| `[["=syn"], ["=cwr", "!fin"]]` | (match SYN) OR (match CWR AND not FIN) |
+
+### Prefix Notation
+
+| Prefix | Meaning | Applies To |
+|--------|---------|------------|
+| `=` | Equal / exact match | All (numeric, TCP flags, fragments) |
+| `!` | NOT match | TCP flags, fragments |
+| `>`, `>=`, `<`, `<=` | Numeric comparison | Ports, protocol, packet-length, etc. |
+| `!=` | Not equal | Numeric fields |
+
+### TCP Flags with Multiple Bits
+
+When a single match requires multiple bits set: `=fin+push` (both FIN and PUSH).
+
+```json
+{
+  "tcp-flags": [ [ "=rst" ], [ "=fin+push" ] ]
+}
+```
+
+This means: match RST **OR** match (FIN **and** PUSH together).
+
+### Fragment Flags
+
+```json
+{
+  "fragment": [ [ "=dont-fragment" ], [ "=is-fragment", "!last-fragment" ] ]
+}
+```
+
+Available: `dont-fragment`, `is-fragment`, `first-fragment`, `last-fragment`.
+
+### Numeric Range Example
+
+```json
+{
+  "destination-port": [ [ ">8080", "<8088" ], [ "=3128" ] ],
+  "source-port": [ [ ">1024" ] ],
+  "protocol": [ [ "=tcp" ], [ "=udp" ] ]
+}
+```
+
+This means: (port > 8080 AND port < 8088) OR (port = 3128).
 
 ---
 
