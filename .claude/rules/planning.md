@@ -129,6 +129,7 @@ Complete IN ORDER. Do not skip steps.
 | role, OTC, route leak | | `rfc9234.md` |
 | IPv6 next hop | | `rfc8950.md` |
 | labeled unicast, label | | `rfc8277.md`, `rfc3032.md` |
+| test, functional, .ci, zebgp-peer, VFS | `docs/functional-tests.md`, `docs/architecture/testing/ci-format.md` | |
 
 All architecture docs are in `docs/architecture/` unless otherwise specified.
 All RFC summaries are in `docs/rfc/`.
@@ -402,6 +403,7 @@ If task changed any of these, update corresponding docs:
 | UPDATE building | `docs/architecture/update-building.md` |
 | Pool/memory | `docs/architecture/pool-architecture.md` |
 | API commands | `docs/architecture/api/architecture.md` |
+| Test format (.ci) | `docs/functional-tests.md`, `docs/architecture/testing/ci-format.md` |
 
 ## Moving Completed Specs
 
