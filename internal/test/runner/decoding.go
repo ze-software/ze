@@ -49,19 +49,31 @@ func NewDecodingTests(baseDir string) *DecodingTests {
 	}
 }
 
-// Discover finds all .test files in the directory.
+// Discover finds all .test and .ci files in the directory.
 func (dt *DecodingTests) Discover(dir string) error {
-	pattern := filepath.Join(dir, "*.test")
-	files, err := filepath.Glob(pattern)
-	if err != nil {
-		return err
+	// Find both .test (legacy) and .ci (new format) files
+	var files []string
+	for _, ext := range []string{"*.test", "*.ci"} {
+		pattern := filepath.Join(dir, ext)
+		matches, err := filepath.Glob(pattern)
+		if err != nil {
+			return err
+		}
+		files = append(files, matches...)
 	}
 
 	sort.Strings(files)
 	ResetNickCounter()
 
 	for _, testFile := range files {
-		test, err := dt.parseTestFile(testFile)
+		var test *DecodingTest
+		var err error
+
+		if strings.HasSuffix(testFile, ".ci") {
+			test, err = dt.parseCIFile(testFile)
+		} else {
+			test, err = dt.parseTestFile(testFile)
+		}
 		if err != nil {
 			// Skip malformed test files
 			continue
@@ -105,6 +117,88 @@ func (dt *DecodingTests) parseTestFile(filePath string) (*DecodingTest, error) {
 	msgType, family := parseTypeLine(typeLine)
 
 	name := strings.TrimSuffix(filepath.Base(filePath), ".test")
+	nick := generateNick(name)
+
+	return &DecodingTest{
+		Name:         name,
+		Nick:         nick,
+		File:         filePath,
+		Type:         msgType,
+		Family:       family,
+		HexPayload:   hexPayload,
+		ExpectedJSON: expectedJSON,
+	}, nil
+}
+
+// parseCIFile parses a .ci file with decode= and expect=json: lines.
+// Format:
+//
+//	decode=<type>:family=<family>:hex=<hex-payload>
+//	expect=json:json=<expected-json>
+func (dt *DecodingTests) parseCIFile(filePath string) (*DecodingTest, error) {
+	f, err := os.Open(filePath) //nolint:gosec // Test files from known directory
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = f.Close() }()
+
+	var msgType, family, hexPayload, expectedJSON string
+
+	scanner := bufio.NewScanner(f)
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+
+		// Skip comments and empty lines
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+
+		// Parse decode= line
+		if strings.HasPrefix(line, "decode=") {
+			rest := strings.TrimPrefix(line, "decode=")
+			parts := strings.Split(rest, ":")
+			if len(parts) == 0 {
+				return nil, fmt.Errorf("invalid decode= line: %s", line)
+			}
+			msgType = strings.ToLower(parts[0])
+
+			// Parse key=value pairs
+			for _, part := range parts[1:] {
+				if strings.HasPrefix(part, "family=") {
+					family = strings.TrimPrefix(part, "family=")
+				} else if strings.HasPrefix(part, "hex=") {
+					hexPayload = strings.TrimPrefix(part, "hex=")
+				}
+			}
+			continue
+		}
+
+		// Parse expect=json: line
+		if strings.HasPrefix(line, "expect=json:") {
+			rest := strings.TrimPrefix(line, "expect=json:")
+			if strings.HasPrefix(rest, "json=") {
+				expectedJSON = strings.TrimPrefix(rest, "json=")
+			}
+			continue
+		}
+	}
+
+	if err := scanner.Err(); err != nil {
+		return nil, err
+	}
+
+	// Validate required fields
+	if msgType == "" {
+		return nil, fmt.Errorf("missing decode= line")
+	}
+	if hexPayload == "" {
+		return nil, fmt.Errorf("missing hex= in decode line")
+	}
+	if expectedJSON == "" {
+		return nil, fmt.Errorf("missing expect=json: line")
+	}
+
+	name := strings.TrimSuffix(filepath.Base(filePath), ".ci")
 	nick := generateNick(name)
 
 	return &DecodingTest{

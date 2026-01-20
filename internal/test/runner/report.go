@@ -63,7 +63,7 @@ func (r *Report) PrintFailure(rec *Record) {
 	switch failType {
 	case stateTimeout:
 		r.printTimeoutReport(rec)
-	case "mismatch":
+	case FailTypeMismatch:
 		r.printMismatchReport(rec)
 	default:
 		r.printGenericReport(rec)
@@ -173,7 +173,7 @@ func (r *Report) printMismatchReport(rec *Record) {
 
 	_, _ = fmt.Fprintf(r.output, "%s    %s (message %d)\n",
 		c.Yellow("TYPE:"),
-		c.Red("mismatch"),
+		c.Red(FailTypeMismatch),
 		msgIdx)
 	_, _ = fmt.Fprintln(r.output)
 

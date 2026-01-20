@@ -14,9 +14,12 @@ import (
 	"syscall"
 	"time"
 
+	"codeberg.org/thomas-mangin/zebgp/internal/slogutil"
 	"codeberg.org/thomas-mangin/zebgp/internal/test/syslog"
 	"codeberg.org/thomas-mangin/zebgp/internal/vfs"
 )
+
+var logger = slogutil.Logger("runner")
 
 // RunOptions configures test execution.
 type RunOptions struct {
@@ -273,6 +276,11 @@ func (r *Runner) runTest(ctx context.Context, rec *Record, opts *RunOptions) boo
 	rec.State = StateStarting
 	rec.StartTime = time.Now()
 
+	// Use new orchestration if RunCommands present
+	if len(rec.RunCommands) > 0 {
+		return r.runOrchestrated(ctx, rec, opts)
+	}
+
 	// Determine timeout - per-test override or global default
 	timeout := opts.Timeout
 	if timeoutStr, ok := rec.Extra["timeout"]; ok {
@@ -477,14 +485,14 @@ func (r *Runner) runTest(ctx context.Context, rec *Record, opts *RunOptions) boo
 		// Validate JSON expectations if raw check passed
 		if jsonErr := r.validateJSON(rec); jsonErr != nil {
 			rec.Error = jsonErr
-			rec.FailureType = "json_mismatch"
+			rec.FailureType = FailTypeJSONMismatch
 			return false
 		}
 
 		// Validate logging expectations
 		if logErr := r.validateLogging(rec, clientStderr.String(), syslogSrv); logErr != nil {
 			rec.Error = logErr
-			rec.FailureType = "logging_mismatch"
+			rec.FailureType = FailTypeLoggingMismatch
 			return false
 		}
 
@@ -493,11 +501,269 @@ func (r *Runner) runTest(ctx context.Context, rec *Record, opts *RunOptions) boo
 
 	// Determine failure type
 	switch {
-	case strings.Contains(rec.PeerOutput, "mismatch"):
-		rec.FailureType = "mismatch"
+	case strings.Contains(rec.PeerOutput, FailTypeMismatch):
+		rec.FailureType = FailTypeMismatch
 		rec.LastExpectedIdx, rec.LastReceivedIdx = extractMismatchIndices(rec.PeerOutput)
 	case strings.Contains(rec.PeerOutput, "connection refused"):
-		rec.FailureType = "connection_refused"
+		rec.FailureType = FailTypeConnectionRefuse
+	default:
+		rec.FailureType = stateUnknown
+	}
+
+	if err != nil {
+		rec.Error = err
+	}
+	return false
+}
+
+// runOrchestrated executes a test using the new stdin/cmd orchestration format.
+func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOptions) bool {
+	// Sort RunCommands by seq
+	cmds := make([]RunCommand, len(rec.RunCommands))
+	copy(cmds, rec.RunCommands)
+	sort.Slice(cmds, func(i, j int) bool {
+		return cmds[i].Seq < cmds[j].Seq
+	})
+
+	// Determine timeout from foreground command or default
+	timeout := opts.Timeout
+	for _, cmd := range cmds {
+		if cmd.Mode == "foreground" && cmd.Timeout != "" {
+			if d, err := time.ParseDuration(cmd.Timeout); err == nil {
+				timeout = d
+			}
+		}
+	}
+
+	testCtx, cancel := context.WithTimeout(ctx, timeout)
+	defer cancel()
+
+	rec.State = StateRunning
+
+	// Track background processes for cleanup
+	var bgProcs []*exec.Cmd
+	defer func() {
+		for _, p := range bgProcs {
+			if p.Process != nil {
+				_ = p.Process.Kill()
+			}
+		}
+	}()
+
+	var peerStdout, peerStderr strings.Builder
+	var clientStdout, clientStderr strings.Builder
+
+	// Execute commands in order
+	for _, cmd := range cmds {
+		// Expand $PORT in exec string
+		execStr := strings.ReplaceAll(cmd.Exec, "$PORT", fmt.Sprintf("%d", rec.Port))
+
+		// Parse command and args
+		cmdParts := strings.Fields(execStr)
+		if len(cmdParts) == 0 {
+			rec.Error = fmt.Errorf("empty exec command")
+			return false
+		}
+
+		// Resolve binary path
+		binName := cmdParts[0]
+		var binPath string
+		switch binName {
+		case "zebgp-peer":
+			binPath = r.peerPath
+		case "zebgp":
+			binPath = r.zebgpPath
+		default:
+			binPath = binName // Use as-is for other commands
+		}
+
+		args := cmdParts[1:]
+
+		// Handle stdin block content
+		var stdinContent []byte
+		if cmd.Stdin != "" {
+			var ok bool
+			stdinContent, ok = rec.StdinBlocks[cmd.Stdin]
+			if !ok {
+				rec.Error = fmt.Errorf("stdin block %q not found", cmd.Stdin)
+				return false
+			}
+		}
+
+		// zebgp-peer reads from file argument, not stdin.
+		// Write stdin content to temp file and pass as argument.
+		if binName == "zebgp-peer" && stdinContent != nil {
+			tmpFile, err := os.CreateTemp("", "zebgp-peer-expect-*.msg")
+			if err != nil {
+				rec.Error = fmt.Errorf("create temp file for peer: %w", err)
+				return false
+			}
+			logger.Debug("writing peer expect file", "path", tmpFile.Name(), "size", len(stdinContent), "content", string(stdinContent))
+			defer func(name string) { _ = os.Remove(name) }(tmpFile.Name())
+			if _, err := tmpFile.Write(stdinContent); err != nil {
+				_ = tmpFile.Close()
+				rec.Error = fmt.Errorf("write peer expect file: %w", err)
+				return false
+			}
+			if err := tmpFile.Close(); err != nil {
+				rec.Error = fmt.Errorf("close peer expect file: %w", err)
+				return false
+			}
+			args = append(args, tmpFile.Name())
+			stdinContent = nil // Don't pipe to stdin
+		}
+
+		// zebgp server reads config from file, not stdin.
+		// If args contain "-", replace with temp file.
+		if binName == "zebgp" && stdinContent != nil {
+			for i, arg := range args {
+				if arg == "-" {
+					tmpFile, err := os.CreateTemp("", "zebgp-config-*.conf")
+					if err != nil {
+						rec.Error = fmt.Errorf("create temp config file: %w", err)
+						return false
+					}
+					defer func(name string) { _ = os.Remove(name) }(tmpFile.Name())
+					if _, err := tmpFile.Write(stdinContent); err != nil {
+						_ = tmpFile.Close()
+						rec.Error = fmt.Errorf("write config file: %w", err)
+						return false
+					}
+					if err := tmpFile.Close(); err != nil {
+						rec.Error = fmt.Errorf("close config file: %w", err)
+						return false
+					}
+					args[i] = tmpFile.Name()
+					stdinContent = nil // Don't pipe to stdin
+					break
+				}
+			}
+		}
+
+		logger.Debug("executing command", "mode", cmd.Mode, "binary", binPath, "args", args)
+
+		// Create command
+		proc := exec.CommandContext(testCtx, binPath, args...) //nolint:gosec // test runner
+
+		// Set up environment
+		proc.Env = append(os.Environ(),
+			fmt.Sprintf("zebgp_tcp_port=%d", rec.Port),
+		)
+
+		// Set up stdin if specified (for zebgp and other commands)
+		if stdinContent != nil {
+			proc.Stdin = strings.NewReader(string(stdinContent))
+		}
+
+		// Capture output
+		if strings.Contains(execStr, "zebgp-peer") {
+			proc.Stdout = &peerStdout
+			proc.Stderr = &peerStderr
+		} else {
+			proc.Stdout = &clientStdout
+			proc.Stderr = &clientStderr
+		}
+
+		// Start the process
+		if err := proc.Start(); err != nil {
+			rec.Error = fmt.Errorf("start %s: %w", binName, err)
+			return false
+		}
+
+		if cmd.Mode == "background" {
+			bgProcs = append(bgProcs, proc)
+			// Give background process time to start
+			time.Sleep(100 * time.Millisecond)
+		} else {
+			// Foreground (daemon): start but don't wait - we wait for peer instead
+			bgProcs = append(bgProcs, proc) // Track for cleanup
+		}
+	}
+
+	// Wait for peer (first background process, typically zebgp-peer) to finish.
+	// The peer validates messages and exits when done (success/fail/timeout).
+	// Daemons (foreground) run until killed.
+	var peerProc *exec.Cmd
+	for _, p := range bgProcs {
+		// Find the peer process (the one with zebgp-peer args)
+		if strings.Contains(p.Path, "zebgp-peer") || strings.Contains(p.String(), "zebgp-peer") {
+			peerProc = p
+			break
+		}
+	}
+
+	var err error
+	if peerProc != nil {
+		// Wait for peer to finish
+		peerDone := make(chan error, 1)
+		go func() {
+			peerDone <- peerProc.Wait()
+		}()
+
+		// Kill processes on context cancellation
+		go func() {
+			<-testCtx.Done()
+			for _, p := range bgProcs {
+				if p.Process != nil {
+					_ = p.Process.Kill()
+				}
+			}
+		}()
+
+		err = <-peerDone
+	}
+
+	// Gracefully stop remaining processes (daemons)
+	for _, p := range bgProcs {
+		if p != peerProc && p.Process != nil {
+			_ = p.Process.Signal(syscall.SIGTERM)
+			done := make(chan struct{})
+			go func(proc *exec.Cmd) {
+				_ = proc.Wait()
+				close(done)
+			}(p)
+			select {
+			case <-done:
+			case <-time.After(2 * time.Second):
+				_ = p.Process.Kill()
+				<-done
+			}
+		}
+	}
+
+	rec.PeerOutput = peerStdout.String() + peerStderr.String()
+	rec.ClientOutput = clientStdout.String() + clientStderr.String()
+	rec.Duration = time.Since(rec.StartTime)
+	logger.Debug("collected output", "peerOutput", rec.PeerOutput, "clientOutput", rec.ClientOutput)
+
+	// Parse received messages
+	rec.ReceivedRaw = extractReceivedMessages(rec.PeerOutput)
+
+	// Check for timeout
+	if testCtx.Err() != nil {
+		rec.State = StateTimeout
+		rec.FailureType = stateTimeout
+		return false
+	}
+
+	// Check for success
+	if err == nil && strings.Contains(rec.PeerOutput, "successful") {
+		// Validate JSON expectations
+		if jsonErr := r.validateJSON(rec); jsonErr != nil {
+			rec.Error = jsonErr
+			rec.FailureType = FailTypeJSONMismatch
+			return false
+		}
+		return true
+	}
+
+	// Determine failure type
+	switch {
+	case strings.Contains(rec.PeerOutput, FailTypeMismatch):
+		rec.FailureType = FailTypeMismatch
+		rec.LastExpectedIdx, rec.LastReceivedIdx = extractMismatchIndices(rec.PeerOutput)
+	case strings.Contains(rec.PeerOutput, "connection refused"):
+		rec.FailureType = FailTypeConnectionRefuse
 	default:
 		rec.FailureType = stateUnknown
 	}

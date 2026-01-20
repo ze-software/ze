@@ -1,8 +1,3 @@
----
-paths:
-  - "**/*.go"
----
-
 # Go Coding Standards
 
 ## Required
@@ -78,19 +73,25 @@ zebgp.log.server=debug zebgp server config.conf  # Enable server debug
 
 **BLOCKING:** Do NOT remove `slog.Debug()` calls from the codebase.
 
-Debug logging is essential for troubleshooting production issues. When you add debug logging for investigation:
+Debug logging is essential for troubleshooting production issues. **If you feel the need to add debug output during development or investigation:**
 
-1. **Keep it** - Debug logs are controlled by per-subsystem env vars
-2. **Use logger.Debug** - Not fmt.Printf or temporary print statements
-3. **Add context** - Include relevant identifiers (plugin name, peer address, stage, etc.)
+1. **Use slogutil** - Add a logger for the subsystem if one doesn't exist
+2. **Use logger.Debug** - Not fmt.Printf, fmt.Fprintf, or temporary print statements
+3. **Keep it** - Debug logs are controlled by per-subsystem env vars, never removed
+4. **Add context** - Include relevant identifiers (plugin name, peer address, stage, etc.)
 
 ```go
 // GOOD: Permanent debug logging with subsystem logger
-logger.Debug("stageTransition START", "plugin", pluginName, "complete", completeStage)
+var logger = slogutil.Logger("runner")  // Create once at package level
+
+logger.Debug("executing command", "binary", binPath, "args", args)
 
 // BAD: Temporary debugging (FORBIDDEN)
-fmt.Println("DEBUG:", pluginName)  // Will be removed - use logger.Debug instead
+fmt.Println("DEBUG:", pluginName)           // FORBIDDEN - temporary
+fmt.Fprintf(os.Stderr, "DEBUG: %s\n", msg)  // FORBIDDEN - temporary
 ```
+
+**Rationale:** Temporary debug statements get removed, losing valuable diagnostic capability. Using slogutil means the debug output is always available when needed (via env var) but silent by default.
 
 ## Error Handling
 

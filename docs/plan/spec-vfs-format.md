@@ -34,17 +34,57 @@ Single parser (`internal/test/ci/`) shared by test runner and zebgp-peer. Each c
 
 | Prefix | Consumer | Description |
 |--------|----------|-------------|
-| `vfs=` | Test runner | Embed file in temp directory |
+| `stdin=` | Test runner | Embed stdin content for process orchestration |
+| `vfs=` | Test runner | Embed file in temp directory (for .py plugins) |
 | `option=` | zebgp-peer | Configure test peer behavior |
-| `cmd=` | Test runner | Execute shell command |
+| `cmd=` | Test runner | Commands: api, background process, foreground process |
+| `decode=` | Test runner | Decode test (type, family, hex, expected JSON) |
 | `expect=exit:` | Test runner | Assert exit code |
 | `expect=stdout:` | Test runner | Assert stdout content |
 | `expect=stderr:` | Test runner | Assert stderr content |
+| `expect=json:` | Test runner | Assert JSON output (field-by-field, order-independent) |
 | `expect=bgp:` | zebgp-peer | Expect BGP wire message |
 | `action=notification:` | zebgp-peer | Send NOTIFICATION to peer |
 | `action=send:` | zebgp-peer | Send raw bytes to peer |
 
+### Stdin Block
+
+For process orchestration, stdin content is embedded using `stdin=` blocks:
+
+```
+stdin=<name>:terminator=<TERM>
+<content>
+<TERM>
+```
+
+| Field | Description |
+|-------|-------------|
+| `name` | Identifier referenced by `cmd=...:stdin=<name>` |
+| `terminator` | End marker (alphanumeric + underscore, unique per file) |
+
+**Example:**
+```
+stdin=peer:terminator=EOF_PEER
+option=asn:value=65000
+expect=bgp:conn=1:seq=1:hex=FFFF...
+EOF_PEER
+
+stdin=zebgp:terminator=EOF_CONF
+peer 127.0.0.1 { ... }
+EOF_CONF
+
+cmd=background:seq=1:exec=zebgp-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=zebgp server -:stdin=zebgp:timeout=10s
+```
+
 ### VFS Block
+
+VFS embeds files that need to exist on disk (written to temp directory).
+Use for:
+- `.py` plugins (written to disk, optionally inlined as zipapp)
+- Any file that must be passed by path to a command
+
+For stdin-based input (config, test data), use `stdin=` blocks instead.
 
 ```
 vfs=<path>[:mode=<octal>][:encoding=<type>]:terminator=<TERM>
@@ -66,12 +106,40 @@ option=update:value=send-default-route
 
 ### Command Lines
 
+All "run something" actions use `cmd=`:
+
 ```
-cmd=<shell-command>                              # Simple command
-cmd=mode=background:seq=<N>:run=<command>        # Background process
-cmd=mode=foreground:seq=<N>:run=<command>        # Foreground process
-cmd=mode=<mode>:seq=<N>:stdin=<file>:run=<cmd>   # With stdin from VFS
+cmd=api:conn=<N>:seq=<N>:text=<api-command>                          # API command to zebgp
+cmd=background:seq=<N>:exec=<command>:stdin=<name>                   # Background process
+cmd=foreground:seq=<N>:exec=<command>:stdin=<name>[:timeout=<dur>]   # Foreground process
 ```
+
+| Type | Keys | Description |
+|------|------|-------------|
+| `api` | `conn`, `seq`, `text` | Send API command to zebgp |
+| `background` | `seq`, `exec`, `stdin` | Start background process (seq=execution order) |
+| `foreground` | `seq`, `exec`, `stdin`, `timeout` | Start foreground process, wait for completion |
+
+### Decode Test Lines
+
+For testing BGP message decoding with full JSON validation:
+
+```
+decode=<type>:family=<family>:hex=<hex-payload>
+expect=json:json=<expected-json>
+```
+
+| Field | Values | Description |
+|-------|--------|-------------|
+| type | `update`, `open`, `nlri` | Message type to decode |
+| family | e.g., `ipv4/unicast`, `l2vpn/evpn` | Address family (optional for some types) |
+| hex | Hex-encoded bytes | BGP message payload |
+
+**JSON Comparison:**
+- Parsed and compared field-by-field (key order independent)
+- Volatile fields removed before comparison: `exabgp`, `zebgp`, `time`, `host`, `pid`, `ppid`, `counter`
+- Neighbor normalization: `peer` ↔ `neighbor` treated as equivalent, `direction` field ignored
+- All non-volatile fields must match exactly
 
 ### Expectation Lines
 
@@ -106,33 +174,93 @@ action=send:conn=<N>:seq=<N>:hex=<raw-bytes>
 # Blank lines ignored
 ```
 
-### Complete Example
+### Complete Example (Encoding Test)
 
 ```
-# Embed test peer rules
-vfs=rules.ci:terminator=EOF_RULES
-option=asn:value=65533
-expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001304
-action=notification:conn=1:seq=1:text=test complete
-EOF_RULES
+# zebgp-peer stdin (test expectations)
+stdin=peer:terminator=EOF_PEER
+option=asn:value=65000
+cmd=api:conn=1:seq=1:text=update text origin set igp as-path set [65533] nhop set 10.0.1.254 nlri ipv4/unicast add 10.0.0.0/24
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002F02000000144001010040020602010000FFFD4003040A0001FE180A0000
+expect=json:conn=1:seq=1:json={"meta":{"version":"1.0.0","format":"zebgp"},...}
+cmd=api:conn=1:seq=1:text=announce eor ipv4/unicast
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_PEER
 
-# Embed zebgp config
-vfs=peer.conf:terminator=EOF_CONF
+# zebgp stdin (config)
+stdin=zebgp:terminator=EOF_CONF
 peer 127.0.0.1 {
+    router-id 10.0.0.2;
+    local-address 127.0.0.1;
     local-as 65533;
-    peer-as 65533;
+    peer-as 65000;
+    hold-time 180;
+
+    family {
+        ipv4/unicast;
+    }
+    announce {
+        ipv4 {
+            unicast 10.0.0.0/24 next-hop 10.0.1.254 local-preference 200;
+        }
+    }
 }
 EOF_CONF
 
-# Start zebgp-peer in background (validates BGP messages)
-cmd=mode=background:seq=1:run=zebgp-peer --port 1790 vfs//rules.ci
-
-# Start zebgp in foreground (test subject)
-cmd=mode=foreground:seq=2:stdin=peer.conf:run=zebgp run -
-
-# Test runner validates exit
-expect=exit:code=0
+# Process orchestration
+cmd=background:seq=1:exec=zebgp-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=zebgp server -:stdin=zebgp:timeout=10s
 ```
+
+**Flow:**
+1. Test runner parses `stdin=` blocks into memory
+2. Starts `zebgp-peer` (seq=1, background), pipes `peer` block to stdin
+3. Starts `zebgp` (seq=2, foreground), pipes `zebgp` block to stdin
+4. Waits for foreground to complete (or timeout)
+5. Checks zebgp-peer output for "successful" or failure details
+
+### Complete Example (Plugin Test with VFS)
+
+```
+# Plugin script (needs to be a file on disk)
+vfs=plugin.py:terminator=EOF_PY
+#!/usr/bin/env python3
+import json, sys
+print(json.dumps({"ready": True}))
+sys.stdout.flush()
+for line in sys.stdin:
+    msg = json.loads(line)
+    # process message...
+EOF_PY
+
+# zebgp-peer stdin (test expectations)
+stdin=peer:terminator=EOF_PEER
+option=asn:value=65000
+expect=bgp:conn=1:seq=1:hex=FFFF...
+EOF_PEER
+
+# zebgp config (references plugin.py from VFS)
+stdin=zebgp:terminator=EOF_CONF
+peer 127.0.0.1 {
+    router-id 10.0.0.2;
+    local-as 65533;
+    peer-as 65000;
+    process plugin {
+        run "./plugin.py";
+    }
+}
+EOF_CONF
+
+# Process orchestration
+cmd=background:seq=1:exec=zebgp-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=zebgp server -:stdin=zebgp:timeout=10s
+```
+
+**Flow with VFS:**
+1. Test runner writes `vfs=` files to temp directory
+2. Changes to temp directory (so `./plugin.py` resolves)
+3. Starts processes with stdin= blocks piped
+4. Plugin reads from VFS file on disk
 
 ## Format Specification
 
@@ -259,7 +387,7 @@ EOF_CONF
 cmd=mode=background:seq=1:run=zebgp-peer --port 1790 vfs//rules.ci
 
 # Program 2: zebgp (foreground, main test subject)
-cmd=mode=foreground:seq=2:stdin=zebgp.conf:run=zebgp run -
+cmd=mode=foreground:seq=2:stdin=zebgp.conf:run=zebgp server -
 
 # Test runner expectations
 expect=exit:code=0
@@ -296,7 +424,7 @@ All key=value pairs for consistent parsing.
 
 ```
 cmd=background:seq=1:stdin=peer-sink.conf:run=zebgp-peer -
-cmd=foreground:seq=2:stdin=zebgp.conf:run=zebgp run -
+cmd=foreground:seq=2:stdin=zebgp.conf:run=zebgp server -
 ```
 
 Benefits:
@@ -447,7 +575,7 @@ Duplicate paths are **rejected with error**. Each path must be unique within a V
 zebgp run peer.conf
 
 # Config from stdin (- means stdin, standard Unix convention)
-cat peer.conf | zebgp run -
+cat peer.conf | zebgp server -
 
 # Scripts referenced in config are read from filesystem normally
 ```
@@ -550,10 +678,15 @@ update l2vpn/evpn
 
 **After:**
 ```
-cmd=zebgp decode --update -f l2vpn/evpn 000000EA900F00E600...
-expect=exit:code=0
-expect=stdout:validate=json:contains="l2vpn/evpn"
+decode=update:family=l2vpn/evpn:hex=000000EA900F00E600...
+expect=json:json={ "type": "update", "neighbor": { ... }, "announce": { ... } }
 ```
+
+**JSON Validation Rules:**
+- JSON comparison is **field-by-field, order-independent** (parsed, not string comparison)
+- **Volatile fields ignored:** `exabgp`, `zebgp`, `time`, `host`, `pid`, `ppid`, `counter`
+- **Neighbor normalization:** `peer` ↔ `neighbor` equivalence, `direction` field ignored
+- All other fields must match exactly
 
 ### test/data/encode/*.conf + *.ci → test/data/encode/*.ci
 
@@ -584,7 +717,7 @@ EOF_CONF
 cmd=mode=background:seq=1:run=zebgp-peer --port 1790 vfs//rules.ci
 
 # zebgp runs test
-cmd=mode=foreground:seq=2:stdin=fast.conf:run=zebgp run -
+cmd=mode=foreground:seq=2:stdin=fast.conf:run=zebgp server -
 
 expect=exit:code=0
 ```
@@ -629,7 +762,7 @@ peer 127.0.0.1 {
 EOF_CONF
 
 cmd=mode=background:seq=1:run=zebgp-peer --port 1790 vfs//rules.ci
-cmd=mode=foreground:seq=2:stdin=plugin.conf:run=zebgp run -
+cmd=mode=foreground:seq=2:stdin=plugin.conf:run=zebgp server -
 
 expect=exit:code=0
 ```
@@ -948,28 +1081,46 @@ cmd=zebgp run vfs//conf/peer.conf
 expect=exit:code=0
 ```
 
+## Implementation Status
+
+### Completed ✅
+- `internal/vfs/vfs.go` - VFS parsing (vfs= blocks)
+- `internal/vfs/vfs.go` - Stdin parsing (stdin= blocks)
+- `internal/test/runner/record.go` - RunCommand struct, parseCmd for background/foreground
+- `internal/test/runner/record.go` - FailType constants (fixed goconst lint)
+- `internal/test/runner/runner.go` - runOrchestrated() for new format execution
+- `internal/test/runner/runner.go` - Permanent debug logging via slogutil
+- `test/data/decode/*.ci` - All 18 decode tests migrated from .test format
+- `test/data/encode/ebgp-new.ci` - Reference implementation for stdin= format
+- `docs/architecture/testing/ci-format.md` - Format documentation
+
+### Pending ⏳
+- Migrate remaining `test/data/encode/*.conf+.ci` to stdin= format (~37 tests)
+- Migrate `test/data/plugin/*.conf+.ci+.py` to unified format
+- Python zipapp inlining for VFS .py files
+- Migrate parse tests
+
 ## Migration Path
 
-### Phase 1: VFS Package
-- Implement `internal/vfs` standalone
-- Full test coverage
+### Phase 1: Core Infrastructure ✅
+- `internal/vfs` package with vfs= and stdin= parsing
+- Test runner integration
 
-### Phase 2: Test Runner Integration
-- Extend `.ci` parser to recognize VFS blocks
-- Update test runner to use VFS
+### Phase 2: Decode Tests ✅
+- Migrated `test/data/decode/*.test` → `test/data/decode/*.ci`
+- Format: `decode=<type>:family=<family>:hex=<hex>` + `expect=json:json=<expected>`
 
-### Phase 3: Migrate Existing Tests
-| Source | Destination |
-|--------|-------------|
-| `test/data/decode/*.test` | `test/data/unit/decode/*.ci` |
-| `test/data/parse/valid/*.conf` | `test/data/unit/parse/*.ci` |
-| `test/data/parse/invalid/*.conf+.expect` | `test/data/unit/parse/*.ci` |
-| `test/data/encode/*.conf+.ci` | `test/data/unit/encode/*.ci` |
-| `test/data/plugin/*.conf+.ci+.run` | `test/data/unit/plugin/*.ci` |
+### Phase 3: Encode Tests (Current)
+- Migrate `test/data/encode/*.conf+.ci` → single `.ci` with stdin= blocks
+- Format: `stdin=peer` + `stdin=zebgp` + `cmd=background/foreground`
 
-### Phase 4: CLI Integration
-- Add `zebgp run --stdin` support
-- Remove old format parsers
+### Phase 4: Plugin Tests
+- Migrate `test/data/plugin/*.conf+.ci+.py` → single `.ci` with vfs= for .py
+- Python zipapp inlining (optional optimization)
+
+### Phase 5: Parse Tests
+- Migrate `test/data/parse/valid/*.conf` → `.ci` with stdin= + expect=exit:code=0
+- Migrate `test/data/parse/invalid/*.conf+.expect` → `.ci` with expect=stderr:
 
 ## Checklist
 

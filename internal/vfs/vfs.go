@@ -43,8 +43,9 @@ func (f *File) Reader() io.Reader {
 
 // VFS holds parsed virtual filesystem.
 type VFS struct {
-	Files      []*File
-	OtherLines []string // Non-VFS lines (cmd=, option=, expect=, etc.)
+	Files       []*File
+	StdinBlocks map[string][]byte // stdin= blocks: name -> content
+	OtherLines  []string          // Non-VFS/stdin lines (cmd=, option=, expect=, run=, etc.)
 }
 
 // New creates an empty VFS for programmatic construction.
@@ -116,7 +117,9 @@ func Parse(r io.Reader) (*VFS, error) {
 
 // ParseWithLimits reads VFS blocks with custom limits.
 func ParseWithLimits(r io.Reader, limits Limits) (*VFS, error) {
-	v := &VFS{}
+	v := &VFS{
+		StdinBlocks: make(map[string][]byte),
+	}
 	scanner := bufio.NewScanner(r)
 	seenPaths := make(map[string]bool)
 	seenTerminators := make(map[string]bool)
@@ -160,10 +163,27 @@ func ParseWithLimits(r io.Reader, limits Limits) (*VFS, error) {
 			}
 
 			v.Files = append(v.Files, file)
-		} else {
-			// Collect non-VFS lines for other consumers
-			v.OtherLines = append(v.OtherLines, trimmed)
+			continue
 		}
+
+		// Check for stdin block
+		if strings.HasPrefix(trimmed, "stdin=") {
+			name, content, endLineNum, err := parseStdinBlock(scanner, trimmed, lineNum, seenTerminators)
+			if err != nil {
+				return nil, fmt.Errorf("line %d: %w", lineNum, err)
+			}
+			lineNum = endLineNum
+
+			// Check for duplicate names
+			if _, exists := v.StdinBlocks[name]; exists {
+				return nil, fmt.Errorf("line %d: duplicate stdin block %q", lineNum, name)
+			}
+			v.StdinBlocks[name] = content
+			continue
+		}
+
+		// Collect other lines for consumers
+		v.OtherLines = append(v.OtherLines, trimmed)
 	}
 
 	if err := scanner.Err(); err != nil {
@@ -302,6 +322,67 @@ func parseVFSBlock(scanner *bufio.Scanner, header string, startLine int, limits 
 		Mode:    mode,
 		Content: contentBytes,
 	}, lineNum, nil
+}
+
+// parseStdinBlock parses a stdin= block.
+// Format: stdin=<name>:terminator=<TERM>.
+func parseStdinBlock(scanner *bufio.Scanner, header string, startLine int, seenTerminators map[string]bool) (name string, content []byte, endLine int, err error) {
+	// Parse header: stdin=<name>:terminator=<TERM>
+	rest := strings.TrimPrefix(header, "stdin=")
+
+	// Parse parts
+	parts := strings.Split(rest, ":")
+	if len(parts) < 2 {
+		return "", nil, startLine, fmt.Errorf("invalid stdin header: missing terminator")
+	}
+
+	// First part is the name
+	name = parts[0]
+	if name == "" {
+		return "", nil, startLine, fmt.Errorf("empty stdin name")
+	}
+
+	// Find terminator
+	var terminator string
+	for _, part := range parts[1:] {
+		if strings.HasPrefix(part, "terminator=") {
+			terminator = strings.TrimPrefix(part, "terminator=")
+			break
+		}
+	}
+
+	// Validate terminator
+	if terminator == "" {
+		return "", nil, startLine, fmt.Errorf("missing terminator")
+	}
+	if !validTerminator.MatchString(terminator) {
+		return "", nil, startLine, fmt.Errorf("invalid terminator %q: must be alphanumeric and underscore only", terminator)
+	}
+	if seenTerminators[terminator] {
+		return "", nil, startLine, fmt.Errorf("duplicate terminator %q", terminator)
+	}
+	seenTerminators[terminator] = true
+
+	// Read content until terminator
+	var buf bytes.Buffer
+	lineNum := startLine
+	found := false
+	for scanner.Scan() {
+		lineNum++
+		line := scanner.Text()
+		if line == terminator {
+			found = true
+			break
+		}
+		buf.WriteString(line)
+		buf.WriteByte('\n')
+	}
+
+	if !found {
+		return "", nil, lineNum, fmt.Errorf("unterminated stdin block: terminator %q not found", terminator)
+	}
+
+	return name, buf.Bytes(), lineNum, nil
 }
 
 // defaultModeForPath returns the default mode based on file extension.

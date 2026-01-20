@@ -11,9 +11,12 @@ import (
 	"sync"
 	"time"
 
+	"codeberg.org/thomas-mangin/zebgp/internal/slogutil"
 	"codeberg.org/thomas-mangin/zebgp/internal/test/ci"
 	"codeberg.org/thomas-mangin/zebgp/internal/vfs"
 )
+
+var recordLogger = slogutil.Logger("record")
 
 // State represents a test's execution state.
 type State int
@@ -28,6 +31,14 @@ const (
 	stateFail     = "fail"
 	stateTimeout  = "timeout"
 	stateUnknown  = "unknown"
+)
+
+// FailureType constants.
+const (
+	FailTypeMismatch         = "mismatch"
+	FailTypeJSONMismatch     = "json_mismatch"
+	FailTypeLoggingMismatch  = "logging_mismatch"
+	FailTypeConnectionRefuse = "connection_refused"
 )
 
 const (
@@ -122,6 +133,21 @@ type Record struct {
 	// VFS embedded files
 	VFSFiles   map[string][]byte // path -> content from vfs= blocks
 	VFSTempDir string            // temp directory for VFS files (set during execution)
+
+	// Stdin blocks for process orchestration
+	StdinBlocks map[string][]byte // name -> content from stdin= blocks
+
+	// Run commands for process orchestration
+	RunCommands []RunCommand // run= commands in order
+}
+
+// RunCommand represents a process to run during test execution.
+type RunCommand struct {
+	Mode    string // "background" or "foreground"
+	Seq     int    // Execution order (lower first)
+	Exec    string // Command to execute
+	Stdin   string // Name of stdin block to pipe
+	Timeout string // Timeout for foreground processes (e.g., "10s")
 }
 
 // NewRecord creates a new test record.
@@ -526,7 +552,15 @@ func (et *EncodingTests) parseAndAdd(ciFile string) error {
 		}
 	}
 
-	// Parse the non-VFS lines (option=, expect=, cmd=, etc.)
+	// Store stdin blocks if any
+	if len(v.StdinBlocks) > 0 {
+		r.StdinBlocks = v.StdinBlocks
+		for name, content := range v.StdinBlocks {
+			recordLogger.Debug("stdin block loaded", "name", name, "size", len(content), "preview", string(content[:min(100, len(content))]))
+		}
+	}
+
+	// Parse the non-VFS lines (option=, expect=, cmd=, run=, etc.)
 	for lineNum, line := range v.OtherLines {
 		if err := et.parseLine(r, ciFile, line); err != nil {
 			return fmt.Errorf("line %d: %w", lineNum+1, err)
@@ -786,6 +820,30 @@ func (et *EncodingTests) parseCmd(r *Record, cmdType string, kv map[string]strin
 		idx := connSeqToIndex(conn, seq)
 		msg := r.getOrCreateMessage(idx)
 		msg.Cmd = text
+
+	case "background", "foreground":
+		seqStr := kv["seq"]
+		if seqStr == "" {
+			return fmt.Errorf("cmd=%s missing seq=", cmdType)
+		}
+		seq, err := strconv.Atoi(seqStr)
+		if err != nil || seq < 1 {
+			return fmt.Errorf("cmd=%s invalid seq=%q", cmdType, seqStr)
+		}
+
+		exec := kv["exec"]
+		if exec == "" {
+			return fmt.Errorf("cmd=%s missing exec=", cmdType)
+		}
+
+		rc := RunCommand{
+			Mode:    cmdType,
+			Seq:     seq,
+			Exec:    exec,
+			Stdin:   kv["stdin"],
+			Timeout: kv["timeout"],
+		}
+		r.RunCommands = append(r.RunCommands, rc)
 
 	default:
 		return fmt.Errorf("unknown cmd type %q", cmdType)
