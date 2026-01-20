@@ -29,16 +29,16 @@ const (
 
 // ZebgpToExabgpJSON converts a ZeBGP JSON event to ExaBGP JSON format.
 //
-// ZeBGP format:
+// ZeBGP format (flat, per docs/architecture/api/json-format.md):
 //
 //	{
 //	  "message": {"type": "update", "id": 1, "direction": "received"},
 //	  "peer": {"address": "10.0.0.1", "asn": 65001},
 //	  "origin": "igp",
-//	  "ipv4/unicast": [{"action": "add", "next-hop": "10.0.0.1", "nlri": ["192.168.1.0/24"]}]
+//	  "ipv4/unicast": [{"next-hop": "10.0.0.1", "action": "add", "nlri": ["192.168.1.0/24"]}]
 //	}
 //
-// ExaBGP format:
+// ExaBGP format (nested):
 //
 //	{
 //	  "exabgp": "5.0.0",
@@ -101,16 +101,16 @@ func ZebgpToExabgpJSON(zebgp map[string]any) map[string]any {
 		}
 
 	case "notification":
-		notif, _ := zebgp["notification"].(map[string]any)
+		// New format: fields at top level (code, subcode, data)
 		neighbor["notification"] = map[string]any{
-			"code":    notif["code"],
-			"subcode": notif["subcode"],
-			"data":    notif["data"],
+			"code":    zebgp["code"],
+			"subcode": zebgp["subcode"],
+			"data":    zebgp["data"],
 		}
 
 	case "negotiated":
-		neg, _ := zebgp["negotiated"].(map[string]any)
-		result["negotiated"] = convertNegotiated(neg)
+		// New format: fields at top level (hold-time, asn4, families, add-path)
+		result["negotiated"] = convertNegotiated(zebgp)
 	}
 
 	result["neighbor"] = neighbor
@@ -121,7 +121,7 @@ func ZebgpToExabgpJSON(zebgp map[string]any) map[string]any {
 //
 // Key conversions:
 //   - Family format: "ipv4/unicast" → "ipv4 unicast".
-//   - extended_nexthop map → nexthop list.
+//   - Field names: ZeBGP uses hyphens ("hold-time"), ExaBGP uses underscores ("hold_time").
 func convertNegotiated(zebgp map[string]any) map[string]any {
 	if zebgp == nil {
 		return map[string]any{}
@@ -129,11 +129,14 @@ func convertNegotiated(zebgp map[string]any) map[string]any {
 
 	result := make(map[string]any)
 
-	// Copy scalar fields directly
-	scalarKeys := []string{"message_size", "hold_time", "asn4", "multisession", "operational", "refresh"}
-	for _, key := range scalarKeys {
-		if v, ok := zebgp[key]; ok {
-			result[key] = v
+	// Map ZeBGP hyphenated keys to ExaBGP underscored keys
+	keyMapping := map[string]string{
+		"hold-time": "hold_time",
+		"asn4":      "asn4", // Same in both
+	}
+	for zebgpKey, exabgpKey := range keyMapping {
+		if v, ok := zebgp[zebgpKey]; ok {
+			result[exabgpKey] = v
 		}
 	}
 
@@ -142,14 +145,8 @@ func convertNegotiated(zebgp map[string]any) map[string]any {
 		result["families"] = convertFamilyList(families)
 	}
 
-	// Convert extended_nexthop map to ExaBGP nexthop list format.
-	// ZeBGP: {"ipv4/unicast": "ipv6"} → ExaBGP: ["ipv4 unicast ipv6"]
-	if extNH, ok := zebgp["extended_nexthop"].(map[string]any); ok {
-		result["nexthop"] = convertExtendedNextHop(extNH)
-	}
-
-	// Convert add_path
-	if addPath, ok := zebgp["add_path"].(map[string]any); ok {
+	// Convert add-path (ZeBGP uses hyphen, ExaBGP uses underscore)
+	if addPath, ok := zebgp["add-path"].(map[string]any); ok {
 		converted := make(map[string]any)
 		if send, ok := addPath["send"].([]any); ok {
 			converted["send"] = convertFamilyList(send)
@@ -170,20 +167,6 @@ func convertFamilyList(families []any) []string {
 	for _, f := range families {
 		if s, ok := f.(string); ok {
 			result = append(result, strings.ReplaceAll(s, "/", " "))
-		}
-	}
-	return result
-}
-
-// convertExtendedNextHop converts ZeBGP extended_nexthop map to ExaBGP nexthop list.
-// Example: {"ipv4/unicast": "ipv6"} becomes ["ipv4 unicast ipv6"].
-func convertExtendedNextHop(extNH map[string]any) []string {
-	result := make([]string, 0, len(extNH))
-	for family, nhAFI := range extNH {
-		if nhStr, ok := nhAFI.(string); ok {
-			// Convert family "/" to " " and append nexthop AFI
-			familySpaced := strings.ReplaceAll(family, "/", " ")
-			result = append(result, familySpaced+" "+nhStr)
 		}
 	}
 	return result

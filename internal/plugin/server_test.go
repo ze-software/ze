@@ -499,7 +499,7 @@ func TestServerSerialCommand(t *testing.T) {
 
 // TestServerFormatMessageNotificationJSON verifies Server.formatMessage with NOTIFICATION+JSON.
 //
-// VALIDATES: Notification JSON output uses shared encoder with proper counter.
+// VALIDATES: Notification JSON output has fields at top level (flat format).
 // PREVENTS: Plugin receiving malformed JSON or missing fields for NOTIFICATION events.
 func TestServerFormatMessageNotificationJSON(t *testing.T) {
 	reactor := &mockReactor{}
@@ -545,30 +545,19 @@ func TestServerFormatMessageNotificationJSON(t *testing.T) {
 	require.True(t, ok, "message wrapper must exist")
 	assert.Equal(t, "notification", msgWrapper["type"])
 	assert.Equal(t, float64(42), msgWrapper["id"])
-	assert.Equal(t, "received", msgWrapper["direction"], "direction should be inside message wrapper")
+	assert.Equal(t, "received", msgWrapper["direction"])
 
-	// Check notification object
+	// Check peer structure (flat format)
 	peerMap, ok := result["peer"].(map[string]any)
 	require.True(t, ok, "peer must be object")
-	notifObj, ok := peerMap["notification"].(map[string]any)
-	require.True(t, ok, "notification must be object")
+	assert.Equal(t, "10.0.0.1", peerMap["address"])
+	assert.Equal(t, float64(65002), peerMap["asn"])
 
-	// Verify all fields
-	assert.Equal(t, float64(6), notifObj["code"])
-	assert.Equal(t, float64(2), notifObj["subcode"])
-	assert.Equal(t, "Cease", notifObj["code_name"])
-	assert.Equal(t, "Administrative Shutdown", notifObj["subcode_name"])
-	assert.Equal(t, "goodbye", notifObj["message"])
-
-	// Verify counter increments (using same encoder)
-	output2 := server.formatMessage(peer, msg, binding, "")
-	var result2 map[string]any
-	require.NoError(t, parseJSON(t, output2, &result2))
-	counter1, ok := result["counter"].(float64)
-	require.True(t, ok, "counter must be float64")
-	counter2, ok := result2["counter"].(float64)
-	require.True(t, ok, "counter must be float64")
-	assert.Equal(t, counter1+1, counter2, "counter should increment")
+	// Notification fields at top level (flat format, hyphenated names)
+	assert.Equal(t, float64(6), result["code"])
+	assert.Equal(t, float64(2), result["subcode"])
+	assert.Equal(t, "Cease", result["code-name"])
+	assert.Equal(t, "Administrative Shutdown", result["subcode-name"])
 }
 
 // TestServerFormatMessageNotificationText verifies Server.formatMessage with NOTIFICATION+text.

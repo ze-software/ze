@@ -7,7 +7,6 @@ import (
 	"net/netip"
 	"strings"
 	"testing"
-	"time"
 
 	bgpctx "codeberg.org/thomas-mangin/zebgp/internal/bgp/context"
 	"codeberg.org/thomas-mangin/zebgp/internal/bgp/message"
@@ -18,14 +17,12 @@ import (
 
 // TestJSONEncoderStateUp verifies JSON output for peer state "up".
 //
-// VALIDATES: ExaBGP v6 JSON format for state messages.
+// VALIDATES: ZeBGP JSON format for state messages (flat structure).
 //
-// PREVENTS: JSON format incompatibility with ExaBGP clients expecting
-// specific field names and structure.
+// PREVENTS: JSON format incompatibility with consumers expecting the
+// documented format in docs/architecture/api/json-format.md.
 func TestJSONEncoderStateUp(t *testing.T) {
 	enc := NewJSONEncoder("6.0.0")
-	enc.SetHostname("testhost")
-	enc.SetPID(12345, 1)
 
 	peer := PeerInfo{
 		Address:      netip.MustParseAddr("192.168.1.2"),
@@ -41,37 +38,24 @@ func TestJSONEncoderStateUp(t *testing.T) {
 	err := json.Unmarshal([]byte(msg), &result)
 	require.NoError(t, err, "JSON must be valid")
 
-	// Check required fields
-	assert.Equal(t, "6.0.0", result["zebgp"])
-	assert.Equal(t, "testhost", result["host"])
-	assert.Equal(t, float64(12345), result["pid"])
-	assert.Equal(t, float64(1), result["ppid"])
-
 	// Check message wrapper
 	msgWrapper, ok := result["message"].(map[string]any)
 	require.True(t, ok, "message wrapper must exist")
 	assert.Equal(t, "state", msgWrapper["type"])
 
-	// Check neighbor structure
+	// Check peer structure (flat format)
 	peerMap, ok := result["peer"].(map[string]any)
-	require.True(t, ok, "neighbor must be object")
+	require.True(t, ok, "peer must be object")
+	assert.Equal(t, "192.168.1.2", peerMap["address"])
+	assert.Equal(t, float64(65002), peerMap["asn"])
 
-	address, ok := peerMap["address"].(map[string]any)
-	require.True(t, ok, "address must be object")
-	assert.Equal(t, "192.168.1.1", address["local"])
-	assert.Equal(t, "192.168.1.2", address["peer"])
-
-	asn, ok := peerMap["asn"].(map[string]any)
-	require.True(t, ok, "asn must be object")
-	assert.Equal(t, float64(65001), asn["local"])
-	assert.Equal(t, float64(65002), asn["peer"])
-
-	assert.Equal(t, "up", peerMap["state"])
+	// State at top level
+	assert.Equal(t, "up", result["state"])
 }
 
 // TestJSONEncoderStateDown verifies JSON output for peer state "down".
 //
-// VALIDATES: Down state includes reason field.
+// VALIDATES: Down state includes reason field at top level.
 //
 // PREVENTS: Missing reason in down notifications, making debugging harder.
 func TestJSONEncoderStateDown(t *testing.T) {
@@ -90,15 +74,14 @@ func TestJSONEncoderStateDown(t *testing.T) {
 	err := json.Unmarshal([]byte(msg), &result)
 	require.NoError(t, err)
 
-	peerMap, ok := result["peer"].(map[string]any)
-	require.True(t, ok)
-	assert.Equal(t, "down", peerMap["state"])
-	assert.Equal(t, "hold timer expired", peerMap["reason"])
+	// State and reason at top level
+	assert.Equal(t, "down", result["state"])
+	assert.Equal(t, "hold timer expired", result["reason"])
 }
 
 // TestJSONEncoderStateConnected verifies JSON output for "connected" state.
 //
-// VALIDATES: Connected state message format.
+// VALIDATES: Connected state message format with state at top level.
 //
 // PREVENTS: Missing TCP connection events in event stream.
 func TestJSONEncoderStateConnected(t *testing.T) {
@@ -117,118 +100,8 @@ func TestJSONEncoderStateConnected(t *testing.T) {
 	err := json.Unmarshal([]byte(msg), &result)
 	require.NoError(t, err)
 
-	peerMap, ok := result["peer"].(map[string]any)
-	require.True(t, ok)
-	assert.Equal(t, "connected", peerMap["state"])
-}
-
-// TestJSONEncoderCounter verifies per-neighbor message counter.
-//
-// VALIDATES: Counter increments for each message to same peer.
-//
-// PREVENTS: Incorrect message ordering detection by consumers.
-func TestJSONEncoderCounter(t *testing.T) {
-	enc := NewJSONEncoder("6.0.0")
-
-	peer := PeerInfo{
-		Address:      netip.MustParseAddr("192.168.1.2"),
-		LocalAddress: netip.MustParseAddr("192.168.1.1"),
-		LocalAS:      65001,
-		PeerAS:       65002,
-	}
-
-	// First message
-	msg1 := enc.StateUp(peer)
-	var result1 map[string]any
-	require.NoError(t, json.Unmarshal([]byte(msg1), &result1))
-	assert.Equal(t, float64(1), result1["counter"])
-
-	// Second message to same peer
-	msg2 := enc.StateDown(peer, "test")
-	var result2 map[string]any
-	require.NoError(t, json.Unmarshal([]byte(msg2), &result2))
-	assert.Equal(t, float64(2), result2["counter"])
-
-	// Third message
-	msg3 := enc.StateConnected(peer)
-	var result3 map[string]any
-	require.NoError(t, json.Unmarshal([]byte(msg3), &result3))
-	assert.Equal(t, float64(3), result3["counter"])
-}
-
-// TestJSONEncoderCounterPerPeer verifies counters are per-peer.
-//
-// VALIDATES: Different peers have independent counters.
-//
-// PREVENTS: Counter confusion when multiple peers are active.
-func TestJSONEncoderCounterPerPeer(t *testing.T) {
-	enc := NewJSONEncoder("6.0.0")
-
-	peer1 := PeerInfo{
-		Address:      netip.MustParseAddr("192.168.1.2"),
-		LocalAddress: netip.MustParseAddr("192.168.1.1"),
-		LocalAS:      65001,
-		PeerAS:       65002,
-	}
-	peer2 := PeerInfo{
-		Address:      netip.MustParseAddr("192.168.1.3"),
-		LocalAddress: netip.MustParseAddr("192.168.1.1"),
-		LocalAS:      65001,
-		PeerAS:       65003,
-	}
-
-	// Messages to peer1
-	msg1 := enc.StateUp(peer1)
-	var result1 map[string]any
-	require.NoError(t, json.Unmarshal([]byte(msg1), &result1))
-	assert.Equal(t, float64(1), result1["counter"])
-
-	// First message to peer2 should have counter=1
-	msg2 := enc.StateUp(peer2)
-	var result2 map[string]any
-	require.NoError(t, json.Unmarshal([]byte(msg2), &result2))
-	assert.Equal(t, float64(1), result2["counter"])
-
-	// Second message to peer1 should have counter=2
-	msg3 := enc.StateDown(peer1, "test")
-	var result3 map[string]any
-	require.NoError(t, json.Unmarshal([]byte(msg3), &result3))
-	assert.Equal(t, float64(2), result3["counter"])
-}
-
-// TestJSONEncoderTimestamp verifies timestamp format.
-//
-// VALIDATES: Unix timestamp with fractional seconds in message wrapper.
-//
-// PREVENTS: Time parsing errors in clients expecting float timestamp.
-func TestJSONEncoderTimestamp(t *testing.T) {
-	enc := NewJSONEncoder("6.0.0")
-
-	// Use fixed time for test
-	fixedTime := time.Date(2024, 12, 19, 12, 0, 0, 123456789, time.UTC)
-	enc.SetTimeFunc(func() time.Time { return fixedTime })
-
-	peer := PeerInfo{
-		Address:      netip.MustParseAddr("192.168.1.2"),
-		LocalAddress: netip.MustParseAddr("192.168.1.1"),
-		LocalAS:      65001,
-		PeerAS:       65002,
-	}
-
-	msg := enc.StateUp(peer)
-
-	var result map[string]any
-	require.NoError(t, json.Unmarshal([]byte(msg), &result))
-
-	// Time should be in message wrapper
-	msgWrapper, ok := result["message"].(map[string]any)
-	require.True(t, ok, "message wrapper must exist")
-	timestamp, ok := msgWrapper["time"].(float64)
-	require.True(t, ok, "message.time must be float64")
-
-	// Verify it's in the right range (Unix timestamp)
-	assert.Greater(t, timestamp, float64(1700000000), "timestamp should be recent Unix time")
-	assert.Less(t, timestamp, float64(2000000000), "timestamp should be reasonable")
+	// State at top level
+	assert.Equal(t, "connected", result["state"])
 }
 
 // TestJSONEncoderValidJSON verifies output is always valid JSON.
@@ -283,15 +156,13 @@ func TestJSONEncoderSpecialCharacters(t *testing.T) {
 	err := json.Unmarshal([]byte(msg), &result)
 	require.NoError(t, err, "JSON with special chars must be valid")
 
-	peerMap, ok := result["peer"].(map[string]any)
-	require.True(t, ok)
-	// The reason should be properly escaped in JSON but decoded back
-	assert.Contains(t, peerMap["reason"], "peer closed")
+	// Reason at top level (flat format)
+	assert.Contains(t, result["reason"], "peer closed")
 }
 
 // TestJSONEncoderIPv6 verifies IPv6 address formatting.
 //
-// VALIDATES: IPv6 addresses are formatted correctly in JSON.
+// VALIDATES: IPv6 addresses are formatted correctly in JSON (flat format).
 //
 // PREVENTS: IPv6 address parsing errors in consumers.
 func TestJSONEncoderIPv6(t *testing.T) {
@@ -311,16 +182,11 @@ func TestJSONEncoderIPv6(t *testing.T) {
 
 	peerMap, ok := result["peer"].(map[string]any)
 	require.True(t, ok)
-	address, ok := peerMap["address"].(map[string]any)
-	require.True(t, ok)
 
-	// IPv6 addresses should be in standard format
-	local, ok := address["local"].(string)
-	require.True(t, ok)
-	peerAddr, ok := address["peer"].(string)
-	require.True(t, ok)
-	assert.True(t, strings.Contains(local, "2001:db8"))
-	assert.True(t, strings.Contains(peerAddr, "2001:db8"))
+	// Flat format: peer.address is string, not object
+	peerAddr, ok := peerMap["address"].(string)
+	require.True(t, ok, "peer.address must be string in flat format")
+	assert.Contains(t, peerAddr, "2001:db8")
 }
 
 // TestAPIOutputIncludesMsgID verifies API JSON has message.id field.
@@ -369,12 +235,10 @@ func TestAPIOutputIncludesMsgID(t *testing.T) {
 
 // TestJSONEncoderNotification verifies JSON output for NOTIFICATION message.
 //
-// VALIDATES: NOTIFICATION JSON contains code, subcode, data, direction inside message wrapper.
+// VALIDATES: NOTIFICATION JSON contains code, subcode, data at top level, direction in message wrapper.
 // PREVENTS: Plugin can't parse notification events or missing error context.
 func TestJSONEncoderNotification(t *testing.T) {
 	enc := NewJSONEncoder("6.0.0")
-	enc.SetHostname("testhost")
-	enc.SetPID(12345, 1)
 
 	peer := PeerInfo{
 		Address:      netip.MustParseAddr("192.168.1.2"),
@@ -399,43 +263,32 @@ func TestJSONEncoderNotification(t *testing.T) {
 	err := json.Unmarshal([]byte(msg), &result)
 	require.NoError(t, err, "JSON must be valid: %s", msg)
 
-	// Check standard fields
-	assert.Equal(t, "6.0.0", result["zebgp"])
-	assert.Equal(t, "testhost", result["host"])
-
-	// Direction should be in message wrapper, not at root
-	_, hasRootDir := result["direction"]
-	assert.False(t, hasRootDir, "direction should NOT be at root level")
-
 	// Check message wrapper
 	msgWrapper, ok := result["message"].(map[string]any)
 	require.True(t, ok, "message wrapper must exist")
 	assert.Equal(t, "notification", msgWrapper["type"])
 	assert.Equal(t, float64(42), msgWrapper["id"])
-	assert.Equal(t, "received", msgWrapper["direction"], "direction should be inside message wrapper")
+	assert.Equal(t, "received", msgWrapper["direction"])
 
-	// Check peer structure
+	// Check peer structure (flat format)
 	peerMap, ok := result["peer"].(map[string]any)
 	require.True(t, ok, "peer must be object")
+	assert.Equal(t, "192.168.1.2", peerMap["address"])
+	assert.Equal(t, float64(65002), peerMap["asn"])
 
-	// Check notification object
-	notifObj, ok := peerMap["notification"].(map[string]any)
-	require.True(t, ok, "notification must be object")
+	// Notification fields at top level (flat format)
+	assert.Equal(t, float64(6), result["code"])
+	assert.Equal(t, float64(2), result["subcode"])
+	assert.NotEmpty(t, result["data"], "data field must be present")
 
-	// ExaBGP required fields
-	assert.Equal(t, float64(6), notifObj["code"])
-	assert.Equal(t, float64(2), notifObj["subcode"])
-	assert.NotEmpty(t, notifObj["data"], "data field must be present")
-
-	// ZeBGP extensions
-	assert.Equal(t, "Cease", notifObj["code_name"])
-	assert.Equal(t, "Administrative Shutdown", notifObj["subcode_name"])
-	assert.Equal(t, "maintenance window", notifObj["message"])
+	// Human-readable names (hyphenated per json-format.md)
+	assert.Equal(t, "Cease", result["code-name"])
+	assert.Equal(t, "Administrative Shutdown", result["subcode-name"])
 }
 
 // TestJSONEncoderNotificationMinimal verifies minimal NOTIFICATION JSON.
 //
-// VALIDATES: NOTIFICATION without shutdown message still has required fields.
+// VALIDATES: NOTIFICATION without shutdown message still has required fields at top level.
 // PREVENTS: Crash or missing fields on minimal notifications.
 func TestJSONEncoderNotificationMinimal(t *testing.T) {
 	enc := NewJSONEncoder("6.0.0")
@@ -461,22 +314,13 @@ func TestJSONEncoderNotificationMinimal(t *testing.T) {
 	err := json.Unmarshal([]byte(msg), &result)
 	require.NoError(t, err)
 
-	peerMap, ok := result["peer"].(map[string]any)
-	require.True(t, ok, "peer must be object")
-	notifObj, ok := peerMap["notification"].(map[string]any)
-	require.True(t, ok, "notification must be object")
+	// Required fields at top level (flat format)
+	assert.Equal(t, float64(4), result["code"])
+	assert.Equal(t, float64(0), result["subcode"])
+	assert.Equal(t, "", result["data"]) // Empty string, not nil
 
-	// Required fields still present
-	assert.Equal(t, float64(4), notifObj["code"])
-	assert.Equal(t, float64(0), notifObj["subcode"])
-	assert.Equal(t, "", notifObj["data"]) // Empty string, not nil
-
-	// Extensions present
-	assert.Equal(t, "Hold Timer Expired", notifObj["code_name"])
-
-	// message field should NOT be present when empty
-	_, hasMessage := notifObj["message"]
-	assert.False(t, hasMessage, "message should not be present when empty")
+	// Extensions present (hyphenated)
+	assert.Equal(t, "Hold Timer Expired", result["code-name"])
 
 	// message.id should NOT be present when zero
 	msgWrapper, ok := result["message"].(map[string]any)
@@ -511,14 +355,14 @@ func TestJSONEncoderNotificationSent(t *testing.T) {
 	var result map[string]any
 	require.NoError(t, json.Unmarshal([]byte(msg), &result))
 
-	// Direction should be in message wrapper, not at root
-	_, hasRootDir := result["direction"]
-	assert.False(t, hasRootDir, "direction should NOT be at root level")
+	// Notification fields at top level
+	assert.Equal(t, float64(6), result["code"])
+	assert.Equal(t, float64(3), result["subcode"])
 
 	msgWrapper, ok := result["message"].(map[string]any)
 	require.True(t, ok, "message wrapper must exist")
 	assert.Equal(t, float64(100), msgWrapper["id"])
-	assert.Equal(t, "sent", msgWrapper["direction"], "direction should be inside message wrapper")
+	assert.Equal(t, "sent", msgWrapper["direction"])
 }
 
 // TestFormatMessageNotificationText verifies FormatMessage returns text for NOTIFICATION.
@@ -1647,13 +1491,10 @@ func TestJSONEncoderFlowSpec(t *testing.T) {
 
 // TestJSONEncoderNegotiated verifies negotiated capabilities JSON output.
 //
-// VALIDATES: Negotiated message contains all capability fields.
+// VALIDATES: Negotiated message contains capability fields at top level (flat format).
 // PREVENTS: Plugins missing capability info after OPEN exchange.
 func TestJSONEncoderNegotiated(t *testing.T) {
 	enc := NewJSONEncoder("1.0")
-	enc.SetHostname("test-host")
-	enc.SetPID(1234, 1)
-	enc.SetTimeFunc(func() time.Time { return time.Unix(1234567890, 0) })
 
 	peer := PeerInfo{
 		Address:      netip.MustParseAddr("10.0.0.1"),
@@ -1686,25 +1527,20 @@ func TestJSONEncoderNegotiated(t *testing.T) {
 	require.True(t, ok, "message wrapper must exist")
 	assert.Equal(t, "negotiated", msgWrapper["type"])
 
-	// Check negotiated section
-	negObj, ok := result["negotiated"].(map[string]any)
-	require.True(t, ok, "negotiated section must exist")
+	// Fields at top level (flat format with hyphenated names)
+	assert.Equal(t, float64(90), result["hold-time"])
+	assert.Equal(t, true, result["asn4"])
 
-	assert.Equal(t, float64(4096), negObj["message_size"])
-	assert.Equal(t, float64(90), negObj["hold_time"])
-	assert.Equal(t, true, negObj["asn4"])
-	assert.Equal(t, "enhanced", negObj["refresh"])
-
-	// Check families
-	families, ok := negObj["families"].([]any)
+	// Check families at top level
+	families, ok := result["families"].([]any)
 	require.True(t, ok, "families must be array")
 	assert.Len(t, families, 2)
 	assert.Contains(t, families, "ipv4/unicast")
 	assert.Contains(t, families, "ipv6/unicast")
 
-	// Check add_path
-	addPath, ok := negObj["add_path"].(map[string]any)
-	require.True(t, ok, "add_path must exist")
+	// Check add-path (hyphenated)
+	addPath, ok := result["add-path"].(map[string]any)
+	require.True(t, ok, "add-path must exist")
 
 	sendFams, ok := addPath["send"].([]any)
 	require.True(t, ok, "send must be array")
@@ -1713,16 +1549,11 @@ func TestJSONEncoderNegotiated(t *testing.T) {
 	recvFams, ok := addPath["receive"].([]any)
 	require.True(t, ok, "receive must be array")
 	assert.Len(t, recvFams, 2)
-
-	// Check extended_nexthop
-	extNH, ok := negObj["extended_nexthop"].(map[string]any)
-	require.True(t, ok, "extended_nexthop must exist")
-	assert.Equal(t, "ipv6", extNH["ipv4/unicast"])
 }
 
 // TestJSONEncoderNegotiatedMinimal verifies negotiated with minimal fields.
 //
-// VALIDATES: Handles negotiated with only required fields.
+// VALIDATES: Handles negotiated with only required fields (flat format).
 // PREVENTS: Nil pointer panics when optional fields missing.
 func TestJSONEncoderNegotiatedMinimal(t *testing.T) {
 	enc := NewJSONEncoder("1.0")
@@ -1742,18 +1573,16 @@ func TestJSONEncoderNegotiatedMinimal(t *testing.T) {
 	err := json.Unmarshal([]byte(output), &result)
 	require.NoError(t, err, "JSON must be valid: %s", output)
 
-	negObj, ok := result["negotiated"].(map[string]any)
-	require.True(t, ok)
+	// Fields at top level (flat format with hyphenated names)
+	assert.Equal(t, float64(180), result["hold-time"])
+	assert.Equal(t, false, result["asn4"])
 
-	assert.Equal(t, float64(4096), negObj["message_size"])
-	assert.Equal(t, false, negObj["asn4"])
-	assert.Equal(t, "absent", negObj["refresh"])
+	// Families at top level
+	families, ok := result["families"].([]any)
+	require.True(t, ok, "families must be array")
+	assert.Len(t, families, 1)
 
-	// add_path should not exist when empty
-	_, hasAddPath := negObj["add_path"]
-	assert.False(t, hasAddPath, "add_path should be absent when empty")
-
-	// extended_nexthop should not exist when empty
-	_, hasExtNH := negObj["extended_nexthop"]
-	assert.False(t, hasExtNH, "extended_nexthop should be absent when empty")
+	// add-path should not exist when empty
+	_, hasAddPath := result["add-path"]
+	assert.False(t, hasAddPath, "add-path should be absent when empty")
 }

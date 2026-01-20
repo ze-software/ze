@@ -3,80 +3,29 @@ package plugin
 import (
 	"encoding/json"
 	"fmt"
-	"os"
 	"strings"
-	"sync"
-	"time"
 )
 
-// JSONEncoder produces ExaBGP v6-compatible JSON output.
-type JSONEncoder struct {
-	version  string
-	hostname string
-	pid      int
-	ppid     int
+// JSONEncoder produces ZeBGP JSON output.
+// Format follows docs/architecture/api/json-format.md.
+type JSONEncoder struct{}
 
-	// Per-peer message counters
-	counters map[string]int
-	mu       sync.Mutex
-
-	// Time function (replaceable for testing)
-	timeFunc func() time.Time
+// NewJSONEncoder creates a new JSON encoder.
+// The version parameter is retained for API compatibility but no longer used.
+func NewJSONEncoder(_ string) *JSONEncoder {
+	return &JSONEncoder{}
 }
 
-// NewJSONEncoder creates a new JSON encoder with the given API version.
-func NewJSONEncoder(version string) *JSONEncoder {
-	hostname, _ := os.Hostname()
-	return &JSONEncoder{
-		version:  version,
-		hostname: hostname,
-		pid:      os.Getpid(),
-		ppid:     os.Getppid(),
-		counters: make(map[string]int),
-		timeFunc: time.Now,
-	}
-}
-
-// SetHostname sets the hostname for JSON output (for testing).
-func (e *JSONEncoder) SetHostname(hostname string) {
-	e.hostname = hostname
-}
-
-// SetPID sets the PID and PPID for JSON output (for testing).
-func (e *JSONEncoder) SetPID(pid, ppid int) {
-	e.pid = pid
-	e.ppid = ppid
-}
-
-// SetTimeFunc sets the time function (for testing).
-func (e *JSONEncoder) SetTimeFunc(f func() time.Time) {
-	e.timeFunc = f
-}
-
-// counter increments and returns the counter for a peer.
-func (e *JSONEncoder) counter(peer PeerInfo) int {
-	e.mu.Lock()
-	defer e.mu.Unlock()
-
-	key := peer.Address.String()
-	e.counters[key]++
-	return e.counters[key]
-}
-
-// message creates the base message structure with "message" wrapper.
-// The wrapper contains common fields: type, time.
-// Caller sets "id" in the wrapper when msgID > 0.
+// message creates the base message structure.
+// Format: {"message":{"type":"..."},"peer":{"address":"...","asn":...}}.
 func (e *JSONEncoder) message(peer PeerInfo, msgType string) map[string]any {
-	now := e.timeFunc()
 	return map[string]any{
-		"zebgp":   e.version,
-		"host":    e.hostname,
-		"pid":     e.pid,
-		"ppid":    e.ppid,
-		"counter": e.counter(peer),
 		"message": map[string]any{
 			"type": msgType,
-			"time": float64(now.UnixNano()) / 1e9,
+		},
+		"peer": map[string]any{
+			"address": peer.Address.String(),
+			"asn":     peer.PeerAS,
 		},
 	}
 }
@@ -99,108 +48,73 @@ func setMessageDirection(msg map[string]any, direction string) {
 	}
 }
 
-// peerSection creates the neighbor section of the message.
-func (e *JSONEncoder) peerSection(peer PeerInfo) map[string]any {
-	return map[string]any{
-		"address": map[string]any{
-			"local": peer.LocalAddress.String(),
-			"peer":  peer.Address.String(),
-		},
-		"asn": map[string]any{
-			"local": peer.LocalAS,
-			"peer":  peer.PeerAS,
-		},
-	}
-}
-
 // StateUp returns JSON for a peer state "up" event.
 func (e *JSONEncoder) StateUp(peer PeerInfo) string {
 	msg := e.message(peer, "state")
-	peerObj := e.peerSection(peer)
-	peerObj["state"] = "up"
-	msg["peer"] = peerObj
+	msg["state"] = "up"
 	return e.marshal(msg)
 }
 
 // StateDown returns JSON for a peer state "down" event.
 func (e *JSONEncoder) StateDown(peer PeerInfo, reason string) string {
 	msg := e.message(peer, "state")
-	peerObj := e.peerSection(peer)
-	peerObj["state"] = "down"
-	peerObj["reason"] = reason
-	msg["peer"] = peerObj
+	msg["state"] = "down"
+	msg["reason"] = reason
 	return e.marshal(msg)
 }
 
 // StateConnected returns JSON for a peer "connected" event.
 func (e *JSONEncoder) StateConnected(peer PeerInfo) string {
 	msg := e.message(peer, "state")
-	peerObj := e.peerSection(peer)
-	peerObj["state"] = "connected"
-	msg["peer"] = peerObj
+	msg["state"] = "connected"
 	return e.marshal(msg)
 }
 
 // EOR returns JSON for an End-of-RIB marker.
+// EOR is an empty UPDATE message for a specific family.
 func (e *JSONEncoder) EOR(peer PeerInfo, family string) string {
 	msg := e.message(peer, "update")
-	peerObj := e.peerSection(peer)
-
-	peerObj["message"] = map[string]any{
-		"eor": map[string]any{
-			"afi":  family,
-			"safi": SAFINameUnicast,
-		},
+	msg["eor"] = map[string]any{
+		"afi":  family,
+		"safi": SAFINameUnicast,
 	}
-	msg["peer"] = peerObj
 	return e.marshal(msg)
 }
 
 // Notification returns JSON for a NOTIFICATION message.
-// ExaBGP fields: code, subcode, data (always present).
-// ZeBGP extensions: code_name, subcode_name, message, direction, id in message wrapper.
+// Fields at top level: code, subcode, data, code-name, subcode-name.
 func (e *JSONEncoder) Notification(peer PeerInfo, notify DecodedNotification, direction string, msgID uint64) string {
 	msg := e.message(peer, "notification")
 	setMessageDirection(msg, direction)
 	setMessageID(msg, msgID)
-	peerObj := e.peerSection(peer)
 
-	// ExaBGP always includes data field (empty string if no data)
+	// Always include code, subcode, data fields
+	msg["code"] = notify.ErrorCode
+	msg["subcode"] = notify.ErrorSubcode
+
 	dataHex := ""
 	if len(notify.Data) > 0 {
 		dataHex = fmt.Sprintf("%x", notify.Data)
 	}
+	msg["data"] = dataHex
 
-	notifyObj := map[string]any{
-		"code":    notify.ErrorCode,
-		"subcode": notify.ErrorSubcode,
-		"data":    dataHex,
-	}
-
-	// ZeBGP extensions (use underscores for consistency)
+	// Human-readable names (hyphenated per json-format.md)
 	if notify.ErrorCodeName != "" {
-		notifyObj["code_name"] = notify.ErrorCodeName
+		msg["code-name"] = notify.ErrorCodeName
 	}
 	if notify.ErrorSubcodeName != "" {
-		notifyObj["subcode_name"] = notify.ErrorSubcodeName
-	}
-	if notify.ShutdownMessage != "" {
-		notifyObj["message"] = notify.ShutdownMessage
+		msg["subcode-name"] = notify.ErrorSubcodeName
 	}
 
-	peerObj["notification"] = notifyObj
-	msg["peer"] = peerObj
 	return e.marshal(msg)
 }
 
 // Open returns JSON for an OPEN message.
-// Field names match ExaBGP: hold_time, router_id, capabilities (underscores).
-// Capabilities are structured as [{code, name, value}] for easy parsing.
+// Fields at top level: asn, router-id, hold-time, capabilities.
 func (e *JSONEncoder) Open(peer PeerInfo, open DecodedOpen, direction string, msgID uint64) string {
 	msg := e.message(peer, "open")
 	setMessageDirection(msg, direction)
 	setMessageID(msg, msgID)
-	peerObj := e.peerSection(peer)
 
 	// Convert capabilities to structured JSON format
 	caps := make([]map[string]any, 0, len(open.Capabilities))
@@ -215,14 +129,12 @@ func (e *JSONEncoder) Open(peer PeerInfo, open DecodedOpen, direction string, ms
 		caps = append(caps, capObj)
 	}
 
-	peerObj["open"] = map[string]any{
-		"version":      open.Version,
-		"asn":          open.ASN,
-		"hold_time":    open.HoldTime,
-		"router_id":    open.RouterID,
-		"capabilities": caps,
-	}
-	msg["peer"] = peerObj
+	// Fields at top level (hyphenated per json-format.md)
+	msg["asn"] = open.ASN
+	msg["router-id"] = open.RouterID
+	msg["hold-time"] = open.HoldTime
+	msg["capabilities"] = caps
+
 	return e.marshal(msg)
 }
 
@@ -231,7 +143,6 @@ func (e *JSONEncoder) Keepalive(peer PeerInfo, direction string, msgID uint64) s
 	msg := e.message(peer, "keepalive")
 	setMessageDirection(msg, direction)
 	setMessageID(msg, msgID)
-	msg["peer"] = e.peerSection(peer)
 	return e.marshal(msg)
 }
 
@@ -242,9 +153,8 @@ func (e *JSONEncoder) RouteRefresh(peer PeerInfo, decoded DecodedRouteRefresh, d
 	msg := e.message(peer, decoded.SubtypeName)
 	setMessageDirection(msg, direction)
 	setMessageID(msg, msgID)
-	msg["peer"] = e.peerSection(peer)
 
-	// Parse family "afi/safi" into separate fields
+	// Parse family "afi/safi" into separate fields at top level
 	if idx := strings.Index(decoded.Family, "/"); idx >= 0 {
 		msg["afi"] = decoded.Family[:idx]
 		msg["safi"] = decoded.Family[idx+1:]
@@ -257,19 +167,14 @@ func (e *JSONEncoder) RouteRefresh(peer PeerInfo, decoded DecodedRouteRefresh, d
 }
 
 // Negotiated returns JSON for negotiated capabilities after OPEN exchange.
-// Informs plugins of what was negotiated so they can adjust behavior.
+// Fields at top level: hold-time, asn4, families, add-path.
 func (e *JSONEncoder) Negotiated(peer PeerInfo, neg DecodedNegotiated) string {
 	msg := e.message(peer, "negotiated")
-	msg["peer"] = e.peerSection(peer)
 
-	// Build negotiated section
-	negObj := map[string]any{
-		"message_size": neg.MessageSize,
-		"hold_time":    neg.HoldTime,
-		"asn4":         neg.ASN4,
-		"refresh":      neg.RouteRefresh,
-		"families":     neg.Families,
-	}
+	// Fields at top level (hyphenated per json-format.md)
+	msg["hold-time"] = neg.HoldTime
+	msg["asn4"] = neg.ASN4
+	msg["families"] = neg.Families
 
 	// ADD-PATH: separate send/receive lists
 	if len(neg.AddPathSend) > 0 || len(neg.AddPathReceive) > 0 {
@@ -280,15 +185,9 @@ func (e *JSONEncoder) Negotiated(peer PeerInfo, neg DecodedNegotiated) string {
 		if len(neg.AddPathReceive) > 0 {
 			addPath["receive"] = neg.AddPathReceive
 		}
-		negObj["add_path"] = addPath
+		msg["add-path"] = addPath
 	}
 
-	// Extended next-hop: map family → nexthop AFI
-	if len(neg.ExtendedNextHop) > 0 {
-		negObj["extended_nexthop"] = neg.ExtendedNextHop
-	}
-
-	msg["negotiated"] = negObj
 	return e.marshal(msg)
 }
 
