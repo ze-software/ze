@@ -56,7 +56,7 @@ done
 
 # === RFC SUMMARY CHECK ===
 # Extract referenced RFC summaries and check they exist
-RFC_REFS=$(grep -oE '\.claude/zebgp/rfc/rfc[0-9]+\.md' "$FILE_PATH" 2>/dev/null || true)
+RFC_REFS=$(grep -oE '\rfc/short/rfc[0-9]+\.md' "$FILE_PATH" 2>/dev/null || true)
 for ref in $RFC_REFS; do
     if [[ ! -f "$ref" ]]; then
         ERRORS+=("RFC summary not found: $ref (run /rfc-summarisation first)")

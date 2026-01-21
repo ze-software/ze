@@ -164,7 +164,7 @@ This survives compaction and reminds which spec to re-read.
 ## Reference Paths
 - ExaBGP: `/Users/thomas/Code/github.com/exa-networks/exabgp/main/src/exabgp/`
 - RFCs: `rfc/` directory
-- RFC summaries: `docs/rfc/`
+- RFC summaries: `rfc/short/`
 
 ## Architecture Docs
 Read when working on specific areas:

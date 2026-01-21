@@ -50,23 +50,23 @@ gr.SetLogger(slogutil.LoggerWithLevel("gr", *logLevel))
 
 ### Environment Variables
 
-Per-subsystem control via `ze.bgp.log.<subsystem>=<level>`:
+Per-subsystem control via `ze.log.bgp.<subsystem>=<level>`:
 
 | Variable | Purpose |
 |----------|---------|
-| `ze.bgp.log.server` | Plugin server logging |
-| `ze.bgp.log.coordinator` | Startup coordinator |
-| `ze.bgp.log.filter` | Filter/NLRI logging |
-| `ze.bgp.log.plugin` | Relay plugin stderr (`enabled`/`disabled`) |
-| `ze.bgp.log.backend` | Output: `stderr` (default), `stdout`, `syslog` |
-| `ze.bgp.log.destination` | Syslog address (when backend=syslog) |
+| `ze.log.bgp.server` | Plugin server logging |
+| `ze.log.bgp.coordinator` | Startup coordinator |
+| `ze.log.bgp.filter` | Filter/NLRI logging |
+| `ze.log.bgp.plugin` | Relay plugin stderr (`enabled`/`disabled`) |
+| `ze.log.bgp.backend` | Output: `stderr` (default), `stdout`, `syslog` |
+| `ze.log.bgp.destination` | Syslog address (when backend=syslog) |
 
 Levels: `disabled`, `debug`, `info`, `warn`, `err` (case-insensitive)
 
-Shell-compatible: `ze_bgp_log_server` also works (dot→underscore)
+Shell-compatible: `ze_log_bgp_server` also works (dot→underscore)
 
 ```bash
-ze.bgp.log.server=debug ze bgp server config.conf  # Enable server debug
+ze.log.bgp.server=debug ze bgp server config.conf  # Enable server debug
 ```
 
 ### Debug Logging is Permanent

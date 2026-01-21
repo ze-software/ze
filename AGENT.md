@@ -16,7 +16,7 @@
 [ ] 5. Read ALL identified architecture docs
 [ ] 6. RFC Summary Check (for protocol work):
      a. Identify ALL RFCs needed
-     b. Check `docs/rfc/rfcNNNN.md` exists
+     b. Check `rfc/short/rfcNNNN.md` exists
      c. If missing: `curl -o rfc/rfcNNNN.txt https://www.rfc-editor.org/rfc/rfcNNNN.txt`
      d. Read ALL relevant RFC summaries
 [ ] 7. Read source code for affected area
@@ -266,7 +266,7 @@ git diff --staged       # Review what's staged
 ## Reference Paths
 - ExaBGP: `/Users/thomas/Code/github.com/exa-networks/exabgp/main/src/exabgp/`
 - RFCs: `rfc/` directory
-- RFC summaries: `docs/rfc/`
+- RFC summaries: `rfc/short/`
 
 ## Architecture Docs
 Read when working on specific areas:

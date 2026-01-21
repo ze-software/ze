@@ -7,7 +7,7 @@ This folder is for Claude-specific documentation.
 | Type | Location |
 |------|----------|
 | Architecture docs | `docs/architecture/` |
-| RFC summaries | `docs/rfc/` |
+| RFC summaries | `rfc/short/` |
 | ExaBGP comparison | `docs/exabgp/` |
 | Claude rules | `.claude/rules/` |
 | Claude commands | `.claude/commands/` |

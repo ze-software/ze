@@ -60,9 +60,9 @@ Complete IN ORDER. Do not skip steps.
 [ ] 6. RFC Summary Check (for protocol work)
       → Identify ALL RFCs needed for implementation
       → For each RFC:
-        a. Check if `docs/rfc/rfcNNNN.md` exists
+        a. Check if `rfc/short/rfcNNNN.md` exists
         b. If missing summary: run agent with `/rfc-summarisation rfcNNNN`
-        c. If missing RFC: `curl -o rfc/rfcNNNN.txt https://www.rfc-editor.org/rfc/rfcNNNN.txt`
+        c. If missing RFC: `curl -o rfc/full/rfcNNNN.txt https://www.rfc-editor.org/rfc/rfcNNNN.txt`
       → Read ALL relevant RFC summaries
 
 [ ] 7. RFC Implementation Guide (for protocol work)
@@ -142,7 +142,7 @@ Complete IN ORDER. Do not skip steps.
 | test, functional, .ci, ze-peer, VFS | `functional-tests.md`, `testing/ci-format.md` | |
 
 All architecture docs are in `docs/architecture/` unless otherwise specified.
-All RFC summaries are in `docs/rfc/`.
+All RFC summaries are in `rfc/short/`.
 
 **RFC Summary Existence:** Before starting work, verify summaries exist for each RFC listed. If missing, run `/rfc-summarisation rfcNNNN` to create it.
 
@@ -159,7 +159,7 @@ Present to user BEFORE writing code:
 - `docs/architecture/<doc>.md` - [key insight]
 
 ### RFC Summaries (MUST for protocol work)
-- `docs/rfc/rfcNNNN.md` - [key insight]
+- `rfc/short/rfcNNNN.md` - [key insight]
 
 ### 🧪 Tests First (TDD)
 **Unit tests:**
@@ -223,6 +223,14 @@ Write to `docs/plan/spec-<task-name>.md`:
 ```markdown
 # Spec: <task-name>
 
+## Post-Compaction Recovery
+
+**Re-read these after context compaction:**
+1. This spec file (you're reading it now)
+2. `.claude/rules/planning.md` - workflow rules
+3. [List key architecture docs from Required Reading]
+4. [List key source files from Files to Modify]
+
 ## Task
 <description>
 
@@ -232,7 +240,7 @@ Write to `docs/plan/spec-<task-name>.md`:
 - [ ] `docs/architecture/<doc>.md` - [why relevant]
 
 ### RFC Summaries (MUST for protocol work)
-- [ ] `docs/rfc/rfcNNNN.md` - [why relevant]
+- [ ] `rfc/short/rfcNNNN.md` - [why relevant]
 
 **Key insights:**
 - [insight from docs]
@@ -278,7 +286,7 @@ Write to `docs/plan/spec-<task-name>.md`:
 
 ### Reference Comments
 - Add `// RFC NNNN Section X.Y` comments for protocol code
-- If RFC missing: `curl -o rfc/rfcNNNN.txt https://www.rfc-editor.org/rfc/rfcNNNN.txt`
+- If RFC missing: `curl -o rfc/full/rfcNNNN.txt https://www.rfc-editor.org/rfc/rfcNNNN.txt`
 
 ### Constraint Comments (CRITICAL)
 When code enforces an RFC rule/constraint, document it ABOVE the code:

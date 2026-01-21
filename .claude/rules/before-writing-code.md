@@ -58,7 +58,7 @@ Before ending work, if you learned something new about the codebase:
 | API behavior | `docs/architecture/api/` |
 | FSM/session behavior | `docs/architecture/behavior/` |
 | Test patterns | `docs/functional-tests.md` |
-| RFC interpretation | `docs/rfc/` |
+| RFC interpretation | `rfc/short/` |
 
 **Format:**
 ```markdown

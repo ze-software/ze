@@ -32,7 +32,7 @@ foo_gen.go       # Generated
 1. **Claude workflow rules?** → `.claude/rules/`
 2. **Claude commands/hooks?** → `.claude/commands/`, `.claude/hooks/`
 3. **Architecture/design docs?** → `docs/architecture/`
-4. **RFC summaries?** → `docs/rfc/`
+4. **RFC summaries?** → `rfc/short/`
 5. **Wire format reference?** → `docs/architecture/wire/`
 6. **Implementation plan?** → `docs/plan/`
 7. **Completed plan?** → `docs/plan/done/`
@@ -69,7 +69,7 @@ docs/plan/
 |----------|----------|
 | Claude rules | `.claude/rules/` |
 | Wire formats | `docs/architecture/wire/` |
-| RFC summaries | `docs/rfc/` |
+| RFC summaries | `rfc/short/` |
 | Design docs | `docs/architecture/` |
 | API docs | `docs/architecture/api/` |
 | Config docs | `docs/architecture/config/` |

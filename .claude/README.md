@@ -10,32 +10,52 @@
 │   ├── go-standards.md # Go coding standards (**/*.go)
 │   ├── rfc-compliance.md # RFC rules (internal/bgp/**/*.go)
 │   ├── config-design.md # Config design rules
+│   ├── testing.md      # Test commands and patterns
 │   └── git-safety.md   # Git protection (*)
 ├── hooks/              # Automation scripts
-│   ├── session-start.sh # Git status check (SessionStart)
-│   └── auto_linter.sh   # Lint on file write (PostToolUse)
+│   ├── session-start.sh      # Git status, active specs (SessionStart)
+│   ├── compaction-reminder.sh # Detect compaction (UserPromptSubmit)
+│   ├── block-destructive-git.sh # Block dangerous git (PreToolUse:Bash)
+│   ├── block-claude-plans.sh # Block wrong plan location (PreToolUse:Write)
+│   ├── auto_linter.sh        # Lint on file write (PostToolUse)
+│   └── validate-spec.sh      # Validate spec format (PostToolUse)
 ├── commands/           # Custom skills
-│   └── prep.md         # /prep task specification
+│   ├── code-review.md  # /code-review for PR reviews
+│   └── rfc-summarisation.md # /rfc-summarisation for RFC summaries
 ├── output-styles/      # Communication style
-│   └── ze.bgp.md        # Terse emoji-prefixed
-├── zebgp/              # Architecture reference docs
-│   ├── wire/           # Wire format docs
-│   ├── behavior/       # FSM, signals
-│   ├── api/            # API architecture
-│   └── config/         # Config syntax
-├── backups/            # Work preservation
-├── INDEX.md            # Doc navigation
-├── ESSENTIAL_PROTOCOLS.md # Reference (slim)
-└── settings.json       # Hooks, permissions
+│   └── ze-style.md     # Terse emoji-prefixed
+├── backups/            # Work preservation (git diff patches)
+├── INDEX.md            # Doc navigation (RFC mappings, architecture docs)
+└── settings.json       # Hooks, permissions, output style
 ```
 
 ## Quick Start
 
 1. Rules auto-load based on file path
-2. Hooks automate git check and linting
+2. Hooks automate git check, linting, spec validation
 3. Read `INDEX.md` to find architecture docs
 4. Run `make lint && make test && make functional` before claiming done
 
+## Architecture Docs
+
+Architecture documentation is in `docs/architecture/`:
+- `docs/architecture/core-design.md` - **START HERE**
+- `docs/architecture/wire/` - Wire formats
+- `docs/architecture/behavior/` - FSM, signals
+- `docs/architecture/api/` - API architecture
+- `docs/architecture/config/` - Config syntax
+
+## Key Workflows
+
+### Planning
+1. Write spec to `docs/plan/spec-<task>.md`
+2. Follow template in `.claude/rules/planning.md`
+3. Hook blocks writes to `.claude/plans/` (wrong location)
+
+### Post-Compaction
+1. Hook detects compaction, reminds to re-read spec
+2. Spec has `## Post-Compaction Recovery` section listing what to read
+
 ---
 
-**Updated:** 2025-12-31
+**Updated:** 2026-01-22

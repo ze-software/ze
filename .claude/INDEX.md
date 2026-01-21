@@ -48,7 +48,7 @@ Read when working on specific areas:
 
 ## RFC Summaries
 
-Implementation-ready RFC summaries in `docs/rfc/`. Use keyword table to find relevant RFCs.
+Implementation-ready RFC summaries in `rfc/short/`. Use keyword table to find relevant RFCs.
 
 ### By Topic
 
@@ -142,6 +142,6 @@ Implementation-ready RFC summaries in `docs/rfc/`. Use keyword table to find rel
 
 ## Reference
 
-- RFC folder: `rfc/`
-- RFC summaries: `docs/rfc/`
+- Full RFCs: `rfc/full/` (text files)
+- RFC summaries: `rfc/short/` (markdown)
 - ExaBGP: `/Users/thomas/Code/github.com/exa-networks/exabgp/main/src/exabgp/`

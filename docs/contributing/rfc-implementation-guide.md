@@ -23,7 +23,7 @@ An RFC implementation typically touches these areas (not all apply to every RFC)
 
 ```
 [ ] Download RFC: curl -o rfc/rfcNNNN.txt https://www.rfc-editor.org/rfc/rfcNNNN.txt
-[ ] Create summary: docs/rfc/rfcNNNN.md (use /rfc-summarisation)
+[ ] Create summary: rfc/short/rfcNNNN.md (use /rfc-summarisation)
 [ ] Identify RFC dependencies (other RFCs this one references)
 [ ] Check dependency RFCs are implemented or summarized
 [ ] Identify which components this RFC affects (table above)
@@ -496,7 +496,7 @@ Think from the user's perspective: "If I configure X and send command Y, what sh
 ### 10.2 RFC Summary
 
 ```
-[ ] Ensure docs/rfc/rfcNNNN.md is complete
+[ ] Ensure rfc/short/rfcNNNN.md is complete
 [ ] Add ZeBGP implementation notes section
 [ ] Cross-reference related RFCs
 ```

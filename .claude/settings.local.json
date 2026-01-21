@@ -100,9 +100,9 @@
       "Bash(command ls -1 docs/plan/done/)",
       "Bash(pkill:*)",
       "Bash(python3:*)",
-      "Bash(/tmp/zebgp-peer:*)",
+      "Bash(/tmp/ze-peer:*)",
       "Bash(./migrate-ci:*)",
-      "Bash(./bin/zebgp-test run:*)",
+      "Bash(./bin/ze-test run:*)",
       "Bash(./scripts/migrate-plugin-tests.sh:*)"
     ],
     "deny": [

@@ -22,6 +22,7 @@ if echo "$MESSAGE" | grep -q "continued from a previous conversation" && \
     if [ -n "$ACTIVE_SPECS" ]; then
         for spec in $ACTIVE_SPECS; do
             echo "   📋 READ: $spec" >&2
+            echo "      → Check '## Post-Compaction Recovery' section for full list" >&2
         done
     else
         echo "   (No active specs found)" >&2

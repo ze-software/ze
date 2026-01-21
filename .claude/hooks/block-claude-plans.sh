@@ -29,7 +29,7 @@ if [[ "$FILE_PATH" =~ docs/plan/spec-.*\.md ]]; then
     echo "2. Read docs/architecture/core-design.md (always required)" >&2
     echo "3. Match task keywords to docs in planning.md table" >&2
     echo "4. Read ALL matched architecture docs" >&2
-    echo "5. For protocol work: check docs/rfc/ summaries exist" >&2
+    echo "5. For protocol work: check rfc/short/ summaries exist" >&2
     echo "" >&2
     echo "Spec MUST include:" >&2
     echo "  ## Required Reading - with [ ] checkboxes for each doc" >&2
