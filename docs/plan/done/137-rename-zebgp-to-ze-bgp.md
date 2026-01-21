@@ -164,24 +164,48 @@ find . -name "*.go" -exec sed -i '' 's|codeberg.org/thomas-mangin/ze|codeberg.or
   - `ze-peer` → `ze-peer`
   - `ze-test` → `ze-test`
 
+## Implementation Summary
+
+### What Was Implemented
+- Module path: `codeberg.org/thomas-mangin/zebgp` → `codeberg.org/thomas-mangin/ze`
+- Binary: `zebgp` → `ze` with `bgp` subcommand
+- Helpers: `zebgp-peer` → `ze-peer`, `zebgp-test` → `ze-test`
+- Config env vars: `zebgp.*` → `ze.bgp.*`
+- Logging env vars: `zebgp.log.*` → `ze.log.bgp.*`
+- Config dir: `etc/zebgp/` → `etc/ze/bgp/`
+- Test script: `zebgp_api.py` → `ze_bgp_api.py`
+- ExaBGP command: `zebgp exabgp plugin` → `ze exabgp plugin` (top-level)
+
+### Files Changed
+- 511 files modified
+- Key structural changes:
+  - `cmd/zebgp/` → `cmd/ze/bgp/` (BGP subcommand)
+  - `cmd/ze/main.go` (new entry point)
+  - `cmd/ze/exabgp/main.go` (ExaBGP subcommand)
+
+### Verification
+- `make lint`: 0 issues
+- `make test`: all pass
+- `make functional`: 96 tests pass (42 encoding + 24 plugin + 12 parsing + 18 decoding)
+
 ## Checklist
 
 ### 🧪 TDD
-- [ ] Tests written
-- [ ] Tests FAIL (output below)
-- [ ] Implementation complete
-- [ ] Tests PASS (output below)
+- [x] Tests written
+- [x] Tests FAIL (output below)
+- [x] Implementation complete
+- [x] Tests PASS (output below)
 
 ### Verification
-- [ ] `make lint` passes
-- [ ] `make test` passes
-- [ ] `make functional` passes
+- [x] `make lint` passes
+- [x] `make test` passes
+- [x] `make functional` passes
 
 ### Documentation
-- [ ] Required docs read
-- [ ] All docs updated with new naming
+- [x] Required docs read
+- [x] All docs updated with new naming
 
 ### Completion
-- [ ] Architecture docs updated
-- [ ] Spec moved to `docs/plan/done/NNN-<name>.md`
-- [ ] All files committed together
+- [x] Architecture docs updated
+- [x] Spec moved to `docs/plan/done/137-rename-zebgp-to-ze-bgp.md`
+- [x] All files committed together
