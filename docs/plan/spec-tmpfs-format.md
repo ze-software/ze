@@ -1116,12 +1116,8 @@ expect=exit:code=0
 - `docs/architecture/testing/ci-format.md` - Format documentation (stdin=, foreground/background commands)
 - `docs/functional-tests.md` - Updated with decode tests section
 
-### Pending ⏳
-- Python zipapp inlining for Tmpfs .py files (optional optimization)
-- Cleanup old test/data/ files:
-  - `test/data/parse/valid/*.conf` (10 files)
-  - `test/data/parse/invalid/*.conf` (2 files)
-  - `test/data/plugin/` (54 .conf + 49 .run + 23 .ci - superseded by test/plugin/)
+### Future Enhancement (Optional)
+- Python zipapp inlining for Tmpfs .py files - inline scripts as base64 zipapp to avoid temp files
 
 ## Migration Path
 
@@ -1150,8 +1146,11 @@ expect=exit:code=0
 - Format: `stdin=config` + `cmd=foreground:exec=zebgp validate -`
 - All tests passing
 
-### Phase 6: Cleanup (Pending)
-- Remove old `test/data/parse/` files (superseded by `test/parse/`)
+### Phase 6: Cleanup ✅
+- Deleted `test/data/parse/` (superseded by `test/parse/`)
+- Deleted `test/data/plugin/` (superseded by `test/plugin/`)
+- Moved `test/data/scripts/` to `test/scripts/`
+- `test/data/` now only contains `migrate/` for ExaBGP migration tests
 
 ## Checklist
 
