@@ -1,8 +1,33 @@
 # Spec: RIB Plugin Functional Test
 
+**STATUS: SUPERSEDED** - Tests added via existing patterns instead of standalone program.
+
 ## Task
 
-Create a functional test program that tests the RIB plugin in isolation by simulating ZeBGP and verifying plugin behavior.
+~~Create a functional test program that tests the RIB plugin in isolation by simulating ZeBGP and verifying plugin behavior.~~
+
+## Resolution
+
+After evaluation, the proposed standalone Go test program was replaced with:
+1. **Existing unit tests** in `internal/plugin/rib/rib_test.go` - comprehensive coverage
+2. **Existing functional tests** in `test/plugin/*.ci` - end-to-end BGP wire testing
+
+### Tests Added
+
+| Test | Location | Purpose |
+|------|----------|---------|
+| `TestHandleRequest_RIBAdjacentOutboundResend_DownPeer` | `internal/plugin/rib/rib_test.go` | Verifies resend skips down peers |
+| `rib-withdrawal.ci` | `test/plugin/` | Verifies withdrawn routes not replayed on reconnect |
+
+### Why Standalone Program Was Rejected
+
+1. **Doc path error**: Spec referenced wrong filename case
+2. **Command name error**: Spec said `inbound clear`, actual is `inbound empty`
+3. **Event format errors**: JSON formats didn't match actual implementation
+4. **Architecture conflict**: Proposed `test/cmd/` location didn't match `test/plugin/` patterns
+5. **Coverage already exists**: Unit tests cover all command scenarios with selectors
+
+### Original Spec (for reference)
 
 ## Required Reading
 

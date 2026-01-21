@@ -802,6 +802,37 @@ func TestHandleRequest_RIBAdjacentOutboundResend(t *testing.T) {
 	assert.NotContains(t, output, "session api ready")
 }
 
+// TestHandleRequest_RIBAdjacentOutboundResend_DownPeer verifies resend skips down peers.
+//
+// VALIDATES: "rib adjacent outbound resend" does not send routes to down peers.
+// PREVENTS: Sending routes to disconnected peers.
+func TestHandleRequest_RIBAdjacentOutboundResend_DownPeer(t *testing.T) {
+	var out bytes.Buffer
+	r := NewRIBManager(strings.NewReader(""), &out)
+
+	// Peer has routes but is DOWN
+	r.ribOut["10.0.0.1"] = map[string]*Route{
+		"ipv4/unicast:10.0.0.0/24": {MsgID: 1, Family: "ipv4/unicast", Prefix: "10.0.0.0/24", NextHop: "1.1.1.1"},
+	}
+	// peerUp["10.0.0.1"] is NOT set (peer is down)
+
+	peerJSON, _ := json.Marshal("10.0.0.1")
+	event := &Event{
+		Type:    "request",
+		Serial:  "resend_down",
+		Command: "rib adjacent outbound resend",
+		Peer:    peerJSON,
+	}
+	r.handleRequest(event)
+
+	output := out.String()
+	assert.Contains(t, output, "@resend_down done")
+	assert.Contains(t, output, `"resent":0`, "should not resend to down peer")
+	assert.Contains(t, output, `"peers":0`, "no peers should be affected")
+	// Should NOT have any route updates
+	assert.NotContains(t, output, "peer 10.0.0.1 update text")
+}
+
 // TestHandleRequest_UnknownCommand verifies unknown commands are rejected.
 //
 // VALIDATES: Unknown commands return error response.

@@ -1,0 +1,117 @@
+# Test: Withdrawn routes not replayed on reconnect
+#
+# Flow:
+# 1. Connection A: Plugin sends route -> RIB stores -> peer receives
+# 2. Plugin withdraws route -> RIB removes from ribOut
+# 3. Peer sends NOTIFICATION -> ZeBGP disconnects
+# 4. Connection B: ZeBGP reconnects -> RIB replays ONLY remaining routes (none)
+#
+# VALIDATES: Withdrawn routes are removed from Adj-RIB-Out.
+# PREVENTS: Stale routes being replayed after withdrawal.
+
+# zebgp-peer expectations
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=2
+option=timeout:value=15s
+
+# Connection A: Initial route announcement + EOR
+# UPDATE: origin=IGP, as-path=[], next-hop=10.0.0.1, local-pref=100, nlri=192.168.1.0/24
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040A0000014005040000006418C0A801
+# EOR
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+
+# Connection A: Withdrawal
+# UPDATE: withdrawn=192.168.1.0/24 (no path attributes, no NLRI)
+# Format: marker(16) + length(2) + type(1) + withdrawn_len(2) + prefix(4) + attrs_len(2)
+# Length = 16+2+1+2+4+2 = 27 = 0x001B
+expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001B02000418C0A8010000
+action=notification:conn=1:seq=3:text=Peer Reset
+
+# Connection B: After reconnect, only EOR (no routes - all withdrawn)
+expect=bgp:conn=2:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_PEER
+
+# Python plugin script
+tmpfs=rib-withdrawal.run:mode=755:terminator=EOF_RUN
+#!/usr/bin/env python3
+"""
+Test: Withdrawn routes not replayed on reconnect
+
+Flow:
+1. Send route via API -> RIB stores in ribOut
+2. Withdraw route via API -> RIB removes from ribOut
+3. Test peer disconnects
+4. ZeBGP reconnects
+5. RIB replays nothing (route was withdrawn)
+"""
+
+import time
+
+from zebgp_api import ready, send, wait_for_ack, wait_for_shutdown
+
+
+def main() -> None:
+    ready()
+
+    # Send one route
+    send('update text nhop set 10.0.0.1 nlri ipv4/unicast add 192.168.1.0/24')
+    time.sleep(0.3)
+    wait_for_ack(expected_count=1)
+
+    # Withdraw the route
+    send('update text nlri ipv4/unicast del 192.168.1.0/24')
+    time.sleep(0.3)
+    wait_for_ack(expected_count=1)
+
+    # Wait for reconnect cycle to complete
+    wait_for_shutdown()
+
+
+if __name__ == '__main__':
+    main()
+EOF_RUN
+
+# zebgp configuration
+stdin=zebgp:terminator=EOF_CONF
+plugin {
+	external announce-routes {
+		run ./rib-withdrawal.run;
+		encoder json;
+	}
+	external rib {
+		run "zebgp plugin rib";
+		encoder json;
+	}
+}
+
+environment {
+	tcp {
+		attempts 3;
+	}
+}
+
+peer 127.0.0.1 {
+	router-id 1.2.3.4;
+	local-address 127.0.0.1;
+	local-as 1;
+	peer-as 1;
+	group-updates disable;
+
+	family {
+		ipv4/unicast;
+	}
+	capability {
+		graceful-restart disable;
+	}
+	process announce-routes {
+	}
+	process rib {
+		receive { sent; state; }
+		send { update; }
+	}
+}
+EOF_CONF
+
+# Process orchestration
+cmd=background:seq=1:exec=zebgp-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=zebgp server -:stdin=zebgp:timeout=20s
