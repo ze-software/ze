@@ -10,6 +10,34 @@
 
 This prevents drift between rules and practice.
 
+## Spec Selection
+
+**Only ONE spec is worked on at a time.** The selected spec is tracked in `.claude/selected-spec`.
+
+### Starting Work on a Spec
+
+```bash
+# Select a spec (filename only, not path)
+echo "spec-rfc9234-role.md" > .claude/selected-spec
+```
+
+### After Context Compaction
+
+**CRITICAL:** After compaction, you MUST:
+1. Read the selected spec: `docs/plan/<selected-spec>`
+2. Read ALL docs listed in the spec's "Required Reading" section
+3. Re-read this file (planning.md)
+
+The session-start hook shows the selected spec prominently. If no spec is selected, it lists all active specs for you to choose from.
+
+### Completing Work on a Spec
+
+After moving spec to `docs/plan/done/`:
+```bash
+# Clear selection
+echo "" > .claude/selected-spec
+```
+
 ## No Code Without Understanding
 
 **CRITICAL:** You are NOT ALLOWED to write any code until you:

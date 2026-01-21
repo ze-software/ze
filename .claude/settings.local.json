@@ -103,7 +103,8 @@
       "Bash(/tmp/ze-peer:*)",
       "Bash(./migrate-ci:*)",
       "Bash(./bin/ze-test run:*)",
-      "Bash(./scripts/migrate-plugin-tests.sh:*)"
+      "Bash(./scripts/migrate-plugin-tests.sh:*)",
+      "Bash(./.claude/hooks/session-start.sh)"
     ],
     "deny": [
       "Bash(git reset:*)",
@@ -121,7 +122,7 @@
     ]
   },
   "enableAllProjectMcpServers": false,
-  "outputStyle": "ZeBGP Terse",
+  "outputStyle": "Ze Style",
   "sandbox": {
     "enabled": false,
     "autoAllowBashIfSandboxed": false
