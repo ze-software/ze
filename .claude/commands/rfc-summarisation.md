@@ -3,7 +3,7 @@
 ## Instructions
 1. Use ULTRATHINK for deep analysis
 2. READ: rfc/$ARGUMENTS.txt
-3. WRITE: .claude/zebgp/rfc/$ARGUMENTS.md
+3. WRITE: docs/architecture/rfc/$ARGUMENTS.md
 4. CHECK errata: https://www.rfc-editor.org/errata/rfcNNNN
 5. VERIFY: Re-read RFC and summary, check:
    - ALL wire formats captured with ASCII diagrams?

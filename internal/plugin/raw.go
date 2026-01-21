@@ -7,7 +7,7 @@ import (
 	"net/netip"
 	"strings"
 
-	"codeberg.org/thomas-mangin/zebgp/internal/bgp/message"
+	"codeberg.org/thomas-mangin/ze/internal/bgp/message"
 )
 
 // RegisterRawHandlers registers raw passthrough commands.

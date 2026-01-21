@@ -13,7 +13,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"codeberg.org/thomas-mangin/zebgp/internal/slogutil"
+	"codeberg.org/thomas-mangin/ze/internal/slogutil"
 )
 
 // stderrLogger is used for relaying plugin stderr to engine logs.
@@ -320,7 +320,7 @@ func (p *Process) StartWithContext(ctx context.Context) error {
 	// Start write loop goroutine for backpressure management
 	go p.writeLoop()
 
-	// Relay plugin stderr based on zebgp.log.plugin setting
+	// Relay plugin stderr based on ze.log.bgp.plugin setting
 	go p.relayStderr()
 
 	// Monitor process
@@ -386,7 +386,7 @@ func parseResponseSerial(line string) (string, string, bool) {
 
 // relayStderr reads plugin stderr and relays to engine logs.
 // Plugin stderr format: time=... level=DEBUG msg="..." subsystem=gr ...
-// When zebgp.log.plugin=enabled, relays with subsystem=plugin and plugin=<name>.
+// When ze.log.bgp.plugin=enabled, relays with subsystem=plugin and plugin=<name>.
 // When disabled, discards plugin stderr silently.
 func (p *Process) relayStderr() {
 	scanner := bufio.NewScanner(p.stderr)

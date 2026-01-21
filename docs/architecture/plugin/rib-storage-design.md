@@ -4,7 +4,7 @@
 **Location:** Moved from `docs/plan/done/059-spec-pool-handle-migration.md`
 
 This document describes the pool-based RIB storage design for API programs (plugins).
-The ZeBGP engine does NOT implement this - it belongs in API programs like `zebgp plugin rr`.
+The ZeBGP engine does NOT implement this - it belongs in API programs like `ze bgp plugin rr`.
 
 **See also:**
 - `docs/architecture/rib-transition.md` - Architecture overview

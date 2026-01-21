@@ -3,7 +3,7 @@ package editor
 import (
 	"strings"
 
-	"codeberg.org/thomas-mangin/zebgp/internal/config"
+	"codeberg.org/thomas-mangin/ze/internal/config"
 )
 
 // Completion represents a single completion suggestion.

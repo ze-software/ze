@@ -139,7 +139,7 @@ Complete IN ORDER. Do not skip steps.
 | role, OTC, route leak | | `rfc9234.md` |
 | IPv6 next hop, extended NH | | `rfc8950.md`, `rfc4760.md` |
 | treat-as-withdraw | | `rfc7606.md` |
-| test, functional, .ci, zebgp-peer, VFS | `functional-tests.md`, `testing/ci-format.md` | |
+| test, functional, .ci, ze-peer, VFS | `functional-tests.md`, `testing/ci-format.md` | |
 
 All architecture docs are in `docs/architecture/` unless otherwise specified.
 All RFC summaries are in `docs/rfc/`.

@@ -3,7 +3,7 @@
 ## Task
 
 Implement a Virtual File System (Tmpfs) format that allows embedding multiple files in a single stream. Used by:
-1. Test runner (`zebgp-test`) - test data with embedded configs/scripts
+1. Test runner (`ze-test`) - test data with embedded configs/scripts
 
 Normal zebgp reads config from file or stdin (`-`), no Tmpfs.
 
@@ -28,7 +28,7 @@ N/A - internal tooling, not BGP protocol
 
 ## Unified .ci Format Reference
 
-Single parser (`internal/test/ci/`) shared by test runner and zebgp-peer. Each consumer interprets the line types it handles, ignores others.
+Single parser (`internal/test/ci/`) shared by test runner and ze-peer. Each consumer interprets the line types it handles, ignores others.
 
 ### Line Types
 
@@ -36,15 +36,15 @@ Single parser (`internal/test/ci/`) shared by test runner and zebgp-peer. Each c
 |--------|----------|-------------|
 | `stdin=` | Test runner | Embed stdin content (multi-line or inline hex/text) |
 | `tmpfs=` | Test runner | Embed file in temp directory (for .py plugins) |
-| `option=` | zebgp-peer | Configure test peer behavior |
+| `option=` | ze-peer | Configure test peer behavior |
 | `cmd=` | Test runner | Commands: api, background process, foreground process |
 | `expect=exit:` | Test runner | Assert exit code |
 | `expect=stdout:` | Test runner | Assert stdout content |
 | `expect=stderr:` | Test runner | Assert stderr content |
 | `expect=json:` | Test runner | Assert JSON output (field-by-field, order-independent) |
-| `expect=bgp:` | zebgp-peer | Expect BGP wire message |
-| `action=notification:` | zebgp-peer | Send NOTIFICATION to peer |
-| `action=send:` | zebgp-peer | Send raw bytes to peer |
+| `expect=bgp:` | ze-peer | Expect BGP wire message |
+| `action=notification:` | ze-peer | Send NOTIFICATION to peer |
+| `action=send:` | ze-peer | Send raw bytes to peer |
 
 ### Stdin Block
 
@@ -77,18 +77,18 @@ option=asn:value=65000
 expect=bgp:conn=1:seq=1:hex=FFFF...
 EOF_PEER
 
-stdin=zebgp:terminator=EOF_CONF
+stdin=ze-bgp:terminator=EOF_CONF
 peer 127.0.0.1 { ... }
 EOF_CONF
 
-cmd=background:seq=1:exec=zebgp-peer --port $PORT:stdin=peer
-cmd=foreground:seq=2:exec=zebgp server -:stdin=zebgp:timeout=10s
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze bgp server -:stdin=ze-bgp:timeout=10s
 ```
 
 **Single-line example (decode test):**
 ```
 stdin=payload:hex=000000EA900F00E6...
-cmd=foreground:seq=1:exec=zebgp-test decode --family l2vpn/evpn -:stdin=payload
+cmd=foreground:seq=1:exec=ze-test decode --family l2vpn/evpn -:stdin=payload
 expect=json:json={"type":"update",...}
 ```
 
@@ -141,7 +141,7 @@ For testing BGP message decoding with full JSON validation:
 
 ```
 stdin=payload:hex=<hex-payload>
-cmd=foreground:seq=1:exec=zebgp-test decode --family <family> -:stdin=payload
+cmd=foreground:seq=1:exec=ze-test decode --family <family> -:stdin=payload
 expect=json:json=<expected-json>
 ```
 
@@ -154,7 +154,7 @@ expect=json:json=<expected-json>
 
 **JSON Comparison:**
 - Parsed and compared field-by-field (key order independent)
-- Volatile fields removed before comparison: `exabgp`, `zebgp`, `time`, `host`, `pid`, `ppid`, `counter`
+- Volatile fields removed before comparison: `exabgp`, `ze-bgp`, `time`, `host`, `pid`, `ppid`, `counter`
 - Neighbor normalization: `peer` ↔ `neighbor` treated as equivalent, `direction` field ignored
 - All non-volatile fields must match exactly
 
@@ -172,7 +172,7 @@ expect=stderr:contains=<text>
 expect=stderr:modifier=not:contains=<text>
 ```
 
-**zebgp-peer expectations:**
+**ze-peer expectations:**
 ```
 expect=bgp:conn=<N>:seq=<N>:hex=<hex>
 ```
@@ -194,18 +194,18 @@ action=send:conn=<N>:seq=<N>:hex=<raw-bytes>
 ### Complete Example (Encoding Test)
 
 ```
-# zebgp-peer stdin (test expectations)
+# ze-peer stdin (test expectations)
 stdin=peer:terminator=EOF_PEER
 option=asn:value=65000
 cmd=api:conn=1:seq=1:text=update text origin set igp as-path set [65533] nhop set 10.0.1.254 nlri ipv4/unicast add 10.0.0.0/24
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002F02000000144001010040020602010000FFFD4003040A0001FE180A0000
-expect=json:conn=1:seq=1:json={"meta":{"version":"1.0.0","format":"zebgp"},...}
+expect=json:conn=1:seq=1:json={"meta":{"version":"1.0.0","format":"ze-bgp"},...}
 cmd=api:conn=1:seq=1:text=announce eor ipv4/unicast
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_PEER
 
 # zebgp stdin (config)
-stdin=zebgp:terminator=EOF_CONF
+stdin=ze-bgp:terminator=EOF_CONF
 peer 127.0.0.1 {
     router-id 10.0.0.2;
     local-address 127.0.0.1;
@@ -225,16 +225,16 @@ peer 127.0.0.1 {
 EOF_CONF
 
 # Process orchestration
-cmd=background:seq=1:exec=zebgp-peer --port $PORT:stdin=peer
-cmd=foreground:seq=2:exec=zebgp server -:stdin=zebgp:timeout=10s
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze bgp server -:stdin=ze-bgp:timeout=10s
 ```
 
 **Flow:**
 1. Test runner parses `stdin=` blocks into memory
-2. Starts `zebgp-peer` (seq=1, background), pipes `peer` block to stdin
-3. Starts `zebgp` (seq=2, foreground), pipes `zebgp` block to stdin
+2. Starts `ze-peer` (seq=1, background), pipes `peer` block to stdin
+3. Starts `ze-bgp` (seq=2, foreground), pipes `ze-bgp` block to stdin
 4. Waits for foreground to complete (or timeout)
-5. Checks zebgp-peer output for "successful" or failure details
+5. Checks ze-peer output for "successful" or failure details
 
 ### Complete Example (Plugin Test with Tmpfs)
 
@@ -250,14 +250,14 @@ for line in sys.stdin:
     # process message...
 EOF_PY
 
-# zebgp-peer stdin (test expectations)
+# ze-peer stdin (test expectations)
 stdin=peer:terminator=EOF_PEER
 option=asn:value=65000
 expect=bgp:conn=1:seq=1:hex=FFFF...
 EOF_PEER
 
-# zebgp config (references plugin.py from Tmpfs)
-stdin=zebgp:terminator=EOF_CONF
+# ze bgp config (references plugin.py from Tmpfs)
+stdin=ze-bgp:terminator=EOF_CONF
 peer 127.0.0.1 {
     router-id 10.0.0.2;
     local-as 65533;
@@ -269,8 +269,8 @@ peer 127.0.0.1 {
 EOF_CONF
 
 # Process orchestration
-cmd=background:seq=1:exec=zebgp-peer --port $PORT:stdin=peer
-cmd=foreground:seq=2:exec=zebgp server -:stdin=zebgp:timeout=10s
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze bgp server -:stdin=ze-bgp:timeout=10s
 ```
 
 **Flow with Tmpfs:**
@@ -325,7 +325,7 @@ tmpfs=peer.conf:terminator=EOF_CONF
 ...
 EOF_CONF
 
-# Options (zebgp-peer config)
+# Options (ze-peer config)
 option=asn:value=65533
 option=bind:value=ipv6
 option=tcp_connections:value=2
@@ -343,10 +343,10 @@ expect=stdout:modifier=not:contains=<text>
 expect=stderr:contains=<text>
 expect=stderr:modifier=not:contains=<text>
 
-# Expectations - zebgp-peer
+# Expectations - ze-peer
 expect=bgp:conn=<N>:seq=<N>:hex=<hex>
 
-# Actions - zebgp-peer
+# Actions - ze-peer
 action=notification:conn=<N>:seq=<N>:text=<text>
 action=send:conn=<N>:seq=<N>:hex=<hex>
 ```
@@ -356,14 +356,14 @@ action=send:conn=<N>:seq=<N>:hex=<hex>
 | Line Type | Consumer | Purpose |
 |-----------|----------|---------|
 | `tmpfs=` | Test runner | Embed files in temp dir |
-| `option=` | zebgp-peer | Configure test peer |
+| `option=` | ze-peer | Configure test peer |
 | `cmd=` | Test runner | Execute commands |
 | `expect=exit:` | Test runner | Check exit code |
 | `expect=stdout:` | Test runner | Check stdout |
 | `expect=stderr:` | Test runner | Check stderr |
-| `expect=bgp:` | zebgp-peer | Expect BGP message |
-| `action=notification:` | zebgp-peer | Send NOTIFICATION |
-| `action=send:` | zebgp-peer | Send raw bytes |
+| `expect=bgp:` | ze-peer | Expect BGP message |
+| `action=notification:` | ze-peer | Send NOTIFICATION |
+| `action=send:` | ze-peer | Send raw bytes |
 
 Shared parser in `internal/test/ci/` - consumers ignore lines they don't handle.
 
@@ -380,8 +380,8 @@ Test runner:
 `tmpfs//` prefix makes Tmpfs references explicit:
 
 ```
-run=zebgp run tmpfs//peer.conf      # → zebgp run peer.conf (in temp dir)
-run=zebgp validate tmpfs//peer.conf # → zebgp validate peer.conf
+run=ze bgp run tmpfs//peer.conf      # → ze bgp run peer.conf (in temp dir)
+run=ze bgp validate tmpfs//peer.conf # → ze bgp validate peer.conf
 ```
 
 ### Multi-Program Orchestration
@@ -389,22 +389,22 @@ run=zebgp validate tmpfs//peer.conf # → zebgp validate peer.conf
 Programs run in `seq=` order. Background processes start and keep running:
 
 ```
-# Tmpfs: test rules for zebgp-peer
+# Tmpfs: test rules for ze-peer
 tmpfs=rules.ci:terminator=EOF_RULES
 option=asn:value=65533
 expect=bgp:conn=1:seq=1:hex=FFFF...
 EOF_RULES
 
-# Tmpfs: zebgp config
-tmpfs=zebgp.conf:terminator=EOF_CONF
+# Tmpfs: ze bgp config
+tmpfs=ze.bgp.conf:terminator=EOF_CONF
 peer 127.0.0.1 { ... }
 EOF_CONF
 
-# Program 1: zebgp-peer (background, validates BGP messages)
-cmd=mode=background:seq=1:run=zebgp-peer --port 1790 tmpfs//rules.ci
+# Program 1: ze-peer (background, validates BGP messages)
+cmd=mode=background:seq=1:run=ze-peer --port 1790 tmpfs//rules.ci
 
 # Program 2: zebgp (foreground, main test subject)
-cmd=mode=foreground:seq=2:stdin=zebgp.conf:run=zebgp server -
+cmd=mode=foreground:seq=2:stdin=ze.bgp.conf:run=ze bgp server -
 
 # Test runner expectations
 expect=exit:code=0
@@ -440,8 +440,8 @@ All key=value pairs for consistent parsing.
 `stdin=<name>` pipes Tmpfs content directly to program - no temp file:
 
 ```
-cmd=background:seq=1:stdin=peer-sink.conf:run=zebgp-peer -
-cmd=foreground:seq=2:stdin=zebgp.conf:run=zebgp server -
+cmd=background:seq=1:stdin=peer-sink.conf:run=ze-peer -
+cmd=foreground:seq=2:stdin=ze.bgp.conf:run=ze bgp server -
 ```
 
 Benefits:
@@ -455,8 +455,8 @@ Benefits:
 ┌─────────────────────────────────────────────────────────────┐
 │  1. Parse Tmpfs, write to temp dir                            │
 │  2. chdir to temp dir                                       │
-│  3. Start seq=1 (background) → zebgp-peer running           │
-│  4. Start seq=2 (foreground) → zebgp running                │
+│  3. Start seq=1 (background) → ze-peer running           │
+│  4. Start seq=2 (foreground) → ze bgp running                │
 │  5. Send API commands to foreground process                 │
 │  6. Validate expectations                                   │
 │  7. Kill background processes                               │
@@ -470,11 +470,11 @@ Configurable via environment variables (`.` or `_` for first two separators, `.`
 
 | Limit | Default | Environment Variable |
 |-------|---------|---------------------|
-| Max file size | 1 MB | `zebgp.ci.max_file_size` / `zebgp_ci_max_file_size` |
-| Max total size | 1 MB | `zebgp.ci.max_total_size` / `zebgp_ci_max_total_size` |
-| Max files | 100 | `zebgp.ci.max_files` / `zebgp_ci_max_files` |
-| Max path length | 256 | `zebgp.ci.max_path_length` / `zebgp_ci_max_path_length` |
-| Max path depth | 10 | `zebgp.ci.max_path_depth` / `zebgp_ci_max_path_depth` |
+| Max file size | 1 MB | `ze.bgp.ci.max_file_size` / `ze_bgp_ci_max_file_size` |
+| Max total size | 1 MB | `ze.bgp.ci.max_total_size` / `ze_bgp_ci_max_total_size` |
+| Max files | 100 | `ze.bgp.ci.max_files` / `ze_bgp_ci_max_files` |
+| Max path length | 256 | `ze.bgp.ci.max_path_length` / `ze_bgp_ci_max_path_length` |
+| Max path depth | 10 | `ze.bgp.ci.max_path_depth` / `ze_bgp_ci_max_path_depth` |
 
 ### Duplicate Paths
 
@@ -589,10 +589,10 @@ Duplicate paths are **rejected with error**. Each path must be unique within a T
 
 ```bash
 # Config from file
-zebgp run peer.conf
+ze bgp run peer.conf
 
 # Config from stdin (- means stdin, standard Unix convention)
-cat peer.conf | zebgp server -
+cat peer.conf | ze bgp server -
 
 # Scripts referenced in config are read from filesystem normally
 ```
@@ -633,7 +633,7 @@ func rewriteConfig(config string, tmpfs *Tmpfs) string {
 
 Environment variable overrides default (uses `internal/env`):
 
-| `zebgp.path.python` / `zebgp_path_python` | Interpreter Used |
+| `ze.bgp.path.python` / `zebgp_path_python` | Interpreter Used |
 |-------------------------------------------|------------------|
 | (not set) | `python3` from PATH |
 | `/usr/bin/python3.11` | `/usr/bin/python3.11` |
@@ -696,13 +696,13 @@ update l2vpn/evpn
 **After:**
 ```
 stdin=payload:hex=000000EA900F00E600...
-cmd=foreground:seq=1:exec=zebgp-test decode --family l2vpn/evpn -:stdin=payload
+cmd=foreground:seq=1:exec=ze-test decode --family l2vpn/evpn -:stdin=payload
 expect=json:json={ "type": "update", "neighbor": { ... }, "announce": { ... } }
 ```
 
 **JSON Validation Rules:**
 - JSON comparison is **field-by-field, order-independent** (parsed, not string comparison)
-- **Volatile fields ignored:** `exabgp`, `zebgp`, `time`, `host`, `pid`, `ppid`, `counter`
+- **Volatile fields ignored:** `exabgp`, `ze-bgp`, `time`, `host`, `pid`, `ppid`, `counter`
 - **Neighbor normalization:** `peer` ↔ `neighbor` equivalence, `direction` field ignored
 - All other fields must match exactly
 
@@ -720,22 +720,22 @@ expect=bgp:conn=1:seq=1:hex=FFFF...
 
 **After (self-contained):**
 ```
-# zebgp-peer rules embedded
+# ze-peer rules embedded
 tmpfs=rules.ci:terminator=EOF_RULES
 option=asn:value=65533
 expect=bgp:conn=1:seq=1:hex=FFFF...
 EOF_RULES
 
-# zebgp config embedded
+# ze bgp config embedded
 tmpfs=fast.conf:terminator=EOF_CONF
 peer 127.0.0.1 { ... }
 EOF_CONF
 
-# zebgp-peer validates BGP output
-cmd=mode=background:seq=1:run=zebgp-peer --port 1790 tmpfs//rules.ci
+# ze-peer validates BGP output
+cmd=mode=background:seq=1:run=ze-peer --port 1790 tmpfs//rules.ci
 
-# zebgp runs test
-cmd=mode=foreground:seq=2:stdin=fast.conf:run=zebgp server -
+# ze bgp runs test
+cmd=mode=foreground:seq=2:stdin=fast.conf:run=ze bgp server -
 
 expect=exit:code=0
 ```
@@ -760,7 +760,7 @@ expect=bgp:conn=1:seq=1:hex=...
 
 **After (self-contained):**
 ```
-# zebgp-peer rules
+# ze-peer rules
 tmpfs=rules.ci:terminator=EOF_RULES
 option=asn:value=65533
 expect=bgp:conn=1:seq=1:hex=...
@@ -772,15 +772,15 @@ tmpfs=plugin.py:terminator=EOF_PY
 print('{"ready": true}')
 EOF_PY
 
-# zebgp config
+# ze bgp config
 tmpfs=plugin.conf:terminator=EOF_CONF
 peer 127.0.0.1 {
     process p { run "./plugin.py"; }
 }
 EOF_CONF
 
-cmd=mode=background:seq=1:run=zebgp-peer --port 1790 tmpfs//rules.ci
-cmd=mode=foreground:seq=2:stdin=plugin.conf:run=zebgp server -
+cmd=mode=background:seq=1:run=ze-peer --port 1790 tmpfs//rules.ci
+cmd=mode=foreground:seq=2:stdin=plugin.conf:run=ze bgp server -
 
 expect=exit:code=0
 ```
@@ -803,7 +803,7 @@ peer 127.0.0.1 {
 }
 EOF_CONF
 
-cmd=zebgp validate tmpfs//graceful-restart.conf
+cmd=ze bgp validate tmpfs//graceful-restart.conf
 expect=exit:code=0
 ```
 
@@ -828,7 +828,7 @@ peer 127.0.0.1 {
 }
 EOF_CONF
 
-cmd=zebgp validate tmpfs//bad-config.conf
+cmd=ze bgp validate tmpfs//bad-config.conf
 expect=exit:code=1
 expect=stderr:contains=unknown option: invalid-option
 ```
@@ -900,7 +900,7 @@ peer 127.0.0.1 {
 }
 EOF_CONF
 
-cmd=zebgp run tmpfs//peer.conf
+cmd=ze bgp run tmpfs//peer.conf
 expect=exit:code=0
 ```
 
@@ -910,7 +910,7 @@ expect=exit:code=0
 3. Files written to temp dir
 4. chdir to temp dir
 5. `tmpfs//peer.conf` → `peer.conf`
-6. Execute `zebgp run peer.conf`
+6. Execute `ze bgp run peer.conf`
 7. Python executes inline via `python3 -c "import base64..."`
 8. Script runs with stdin/stdout connected to zebgp
 9. Cleanup temp dir
@@ -923,7 +923,7 @@ expect=exit:code=0
 package env
 
 // Get returns zebgp env var with dot/underscore support.
-// Dot notation takes priority: zebgp.section.key > zebgp_section_key
+// Dot notation takes priority: ze.bgp.section.key > zebgp_section_key
 func Get(section, key string) string
 
 // GetInt returns int value, or default if not set/invalid.
@@ -944,7 +944,7 @@ import (
     "io/fs"
 )
 
-// Default limits for Tmpfs parsing (overridable via zebgp_ci_* env vars)
+// Default limits for Tmpfs parsing (overridable via ze_bgp_ci_* env vars)
 const (
     DefaultMaxFileSize   = 1 << 20      // 1 MB
     DefaultMaxTotalSize  = 1 << 20      // 1 MB
@@ -1052,7 +1052,7 @@ peer 127.0.0.1 {
 }
 EOF_CONF
 
-cmd=zebgp validate tmpfs//peer.conf
+cmd=ze bgp validate tmpfs//peer.conf
 expect=exit:code=0
 ```
 
@@ -1075,7 +1075,7 @@ import json
 print(json.dumps({"ready": True}))
 EOF_PY
 
-cmd=zebgp run tmpfs//peer.conf
+cmd=ze bgp run tmpfs//peer.conf
 expect=exit:code=0
 expect=stderr:modifier=not:contains=error
 ```
@@ -1095,7 +1095,7 @@ tmpfs=scripts/plugin.py:mode=755:terminator=EOF_PY
 print('{"ready": true}')
 EOF_PY
 
-cmd=zebgp run tmpfs//conf/peer.conf
+cmd=ze bgp run tmpfs//conf/peer.conf
 expect=exit:code=0
 ```
 
@@ -1127,7 +1127,7 @@ expect=exit:code=0
 
 ### Phase 2: Decode Tests ✅
 - 18 tests in `test/decode/*.ci`
-- Format: `stdin=payload:hex=<hex>` + `cmd=foreground:exec=zebgp-test decode --family <family> -:stdin=payload`
+- Format: `stdin=payload:hex=<hex>` + `cmd=foreground:exec=ze-test decode --family <family> -:stdin=payload`
 - All tests passing
 
 ### Phase 3: Encode Tests ✅
@@ -1138,12 +1138,12 @@ expect=exit:code=0
 ### Phase 4: Plugin Tests ✅
 - 23 tests in `test/plugin/*.ci`
 - Format: `stdin=peer` + `tmpfs=<script>.run` + `stdin=zebgp` + `cmd=background/foreground`
-- Python scripts use shared `zebgp_api.py` via PYTHONPATH
+- Python scripts use shared `ze_bgp_api.py` via PYTHONPATH
 - All tests passing
 
 ### Phase 5: Parse Tests ✅
 - 12 tests in `test/parse/*.ci`
-- Format: `stdin=config` + `cmd=foreground:exec=zebgp validate -`
+- Format: `stdin=config` + `cmd=foreground:exec=ze bgp validate -`
 - All tests passing
 
 ### Phase 6: Cleanup ✅

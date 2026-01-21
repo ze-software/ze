@@ -138,7 +138,7 @@ func (dt *DecodingTests) parseTestFile(filePath string) (*DecodingTest, error) {
 // New format:
 //
 //	stdin=payload:hex=<hex-payload>
-//	cmd=foreground:seq=1:exec=zebgp-test decode --family <family> -:stdin=payload
+//	cmd=foreground:seq=1:exec=ze-test decode --family <family> -:stdin=payload
 //	expect=json:json=<expected-json>
 //
 // Legacy format (still supported):
@@ -252,7 +252,7 @@ func (dt *DecodingTests) parseCIFile(filePath string) (*DecodingTest, error) {
 }
 
 // parseDecodeCmdLine extracts type, family, and hex payload from a cmd= line.
-// Format: cmd=foreground:seq=1:exec=zebgp-test decode --family <family> -:stdin=payload.
+// Format: cmd=foreground:seq=1:exec=ze-test decode --family <family> -:stdin=payload.
 func parseDecodeCmdLine(cmdLine string, stdinBlocks map[string]string) (string, string, string) {
 	msgType := msgTypeUpdate // Default
 	var family, hexPayload string
@@ -276,7 +276,7 @@ func parseDecodeCmdLine(cmdLine string, stdinBlocks map[string]string) (string, 
 		return msgType, family, hexPayload
 	}
 
-	// Parse exec command: zebgp-test decode [--family <family>] [--open|--update|--nlri] -
+	// Parse exec command: ze-test decode [--family <family>] [--open|--update|--nlri] -
 	args := strings.Fields(execPart)
 	for i := 0; i < len(args); i++ {
 		arg := args[i]
@@ -368,19 +368,19 @@ func (dt *DecodingTests) List() {
 
 // DecodingRunner executes decoding tests.
 type DecodingRunner struct {
-	tests     *DecodingTests
-	baseDir   string
-	zebgpPath string
-	colors    *Colors
+	tests   *DecodingTests
+	baseDir string
+	zePath  string
+	colors  *Colors
 }
 
 // NewDecodingRunner creates a decoding test runner.
-func NewDecodingRunner(tests *DecodingTests, baseDir, zebgpPath string) *DecodingRunner {
+func NewDecodingRunner(tests *DecodingTests, baseDir, zePath string) *DecodingRunner {
 	return &DecodingRunner{
-		tests:     tests,
-		baseDir:   baseDir,
-		zebgpPath: zebgpPath,
-		colors:    NewColors(),
+		tests:   tests,
+		baseDir: baseDir,
+		zePath:  zePath,
+		colors:  NewColors(),
 	}
 }
 
@@ -430,7 +430,7 @@ func (r *DecodingRunner) Run(ctx context.Context, verbose, quiet bool) bool {
 // runTest executes a single decoding test.
 func (r *DecodingRunner) runTest(ctx context.Context, test *DecodingTest) bool {
 	// Build command args
-	args := []string{"decode"}
+	args := []string{"bgp", "decode"}
 
 	switch test.Type {
 	case "open":
@@ -450,7 +450,7 @@ func (r *DecodingRunner) runTest(ctx context.Context, test *DecodingTest) bool {
 	args = append(args, test.HexPayload)
 
 	// Run command
-	cmd := exec.CommandContext(ctx, r.zebgpPath, args...) //nolint:gosec // Test runner, paths from temp dir
+	cmd := exec.CommandContext(ctx, r.zePath, args...) //nolint:gosec // Test runner, paths from temp dir
 	output, err := cmd.CombinedOutput()
 	if err != nil {
 		test.Error = fmt.Errorf("command failed: %w: %s", err, string(output))
@@ -477,7 +477,7 @@ func (r *DecodingRunner) compareJSON(test *DecodingTest) bool {
 	}
 
 	// Remove volatile fields
-	volatileFields := []string{"exabgp", "zebgp", "time", "host", "pid", "ppid", "counter"}
+	volatileFields := []string{"exabgp", "ze-bgp", "time", "host", "pid", "ppid", "counter"}
 	for _, field := range volatileFields {
 		delete(actual, field)
 		delete(expected, field)

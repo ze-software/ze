@@ -10,9 +10,9 @@ all: lint test build
 # Build all binaries
 build:
 	@echo "Building binaries..."
-	go build -o bin/zebgp ./cmd/zebgp
-	go build -o bin/zebgp-peer ./cmd/zebgp-peer
-	go build -o bin/zebgp-test ./cmd/zebgp-test
+	go build -o bin/ze ./cmd/ze
+	go build -o bin/ze-peer ./cmd/ze-peer
+	go build -o bin/ze-test ./cmd/ze-test
 
 # Run tests with race detector
 test:
@@ -64,22 +64,22 @@ functional: functional-encoding functional-plugin functional-parsing functional-
 # Run encoding functional tests
 functional-encoding:
 	@echo "Running encoding functional tests..."
-	go run ./cmd/zebgp-test run encoding --all
+	go run ./cmd/ze-test run encoding --all
 
 # Run plugin functional tests
 functional-plugin:
 	@echo "Running plugin functional tests..."
-	go run ./cmd/zebgp-test run plugin --all
+	go run ./cmd/ze-test run plugin --all
 
 # Run decoding functional tests (may fail - JSON format alignment WIP)
 functional-decoding:
 	@echo "Running decoding functional tests..."
-	go run ./cmd/zebgp-test run decoding --all
+	go run ./cmd/ze-test run decoding --all
 
 # Run parsing functional tests
 functional-parsing:
 	@echo "Running parsing functional tests..."
-	go run ./cmd/zebgp-test run parsing --all
+	go run ./cmd/ze-test run parsing --all
 
 # Quick check (fast feedback during development)
 check: fmt vet
@@ -91,7 +91,7 @@ ci: lint test build
 
 # Help
 help:
-	@echo "ZeBGP Makefile targets:"
+	@echo "Ze BGP Makefile targets:"
 	@echo ""
 	@echo "  all                  - lint, test, build (default)"
 	@echo "  build                - Build all binaries"

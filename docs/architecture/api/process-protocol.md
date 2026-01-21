@@ -575,7 +575,7 @@ The GR plugin only participates in startup - it injects GR capabilities into OPE
 │                        GR PLUGIN MESSAGE FLOW                                │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │                                                                             │
-│   ZeBGP Engine                              GR Plugin (zebgp plugin gr)     │
+│   ZeBGP Engine                              GR Plugin (ze bgp plugin gr)     │
 │   ────────────                              ────────────────────────────    │
 │                                                                             │
 │   STAGE 1: REGISTRATION                                                     │
@@ -646,7 +646,7 @@ The RIB plugin tracks routes and replays them on peer reconnect.
 │                        RIB PLUGIN MESSAGE FLOW                               │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │                                                                             │
-│   ZeBGP Engine                              RIB Plugin (zebgp plugin rib)   │
+│   ZeBGP Engine                              RIB Plugin (ze bgp plugin rib)   │
 │   ────────────                              ─────────────────────────────   │
 │                                                                             │
 │   STAGE 1: REGISTRATION                                                     │
@@ -751,12 +751,12 @@ The RIB plugin tracks routes and replays them on peer reconnect.
 ```
 plugin {
     external gr {
-        run "zebgp plugin gr";
+        run "ze bgp plugin gr";
         encoder json;
     }
 
     external rib {
-        run "zebgp plugin rib";
+        run "ze bgp plugin rib";
         encoder json;
     }
 }

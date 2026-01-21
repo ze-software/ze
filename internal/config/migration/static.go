@@ -1,7 +1,7 @@
 package migration
 
 import (
-	"codeberg.org/thomas-mangin/zebgp/internal/config"
+	"codeberg.org/thomas-mangin/ze/internal/config"
 )
 
 // ExtractStaticRoutes transforms static blocks to announce blocks.

@@ -1,23 +1,23 @@
-# zebgp-peer expectations
+# ze-peer expectations
 stdin=peer:terminator=EOF_PEER
 cmd=api:conn=1:seq=1:text=announce eor ipv4/unicast
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 cmd=api:conn=1:seq=1:text=update text origin set igp local-preference set 100 nhop set 1.1.1.1 nlri ipv4/unicast add 1.0.0.0/8
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002E02000000154001010040020040030401010101400504000000640801
-expect=json:conn=1:seq=1:json={"meta":{"version":"1.0.0","format":"zebgp"},"message":{"type":"update"},"peer":{"address":"127.0.0.1","asn":65533},"direction":"in","local-preference":100,"origin":"igp","ipv4/unicast":[{"action":"add","nlri":["1.0.0.0/8"],"next-hop":"1.1.1.1"}]}
+expect=json:conn=1:seq=1:json={"meta":{"version":"1.0.0","format":"ze-bgp"},"message":{"type":"update"},"peer":{"address":"127.0.0.1","asn":65533},"direction":"in","local-preference":100,"origin":"igp","ipv4/unicast":[{"action":"add","nlri":["1.0.0.0/8"],"next-hop":"1.1.1.1"}]}
 cmd=api:conn=1:seq=1:text=update text origin set igp local-preference set 100 nhop set 1.1.1.1 nlri ipv4/unicast add 2.0.0.0/8
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002E02000000154001010040020040030401010101400504000000640802
-expect=json:conn=1:seq=1:json={"meta":{"version":"1.0.0","format":"zebgp"},"message":{"type":"update"},"peer":{"address":"127.0.0.1","asn":65533},"direction":"in","local-preference":100,"origin":"igp","ipv4/unicast":[{"action":"add","nlri":["2.0.0.0/8"],"next-hop":"1.1.1.1"}]}
+expect=json:conn=1:seq=1:json={"meta":{"version":"1.0.0","format":"ze-bgp"},"message":{"type":"update"},"peer":{"address":"127.0.0.1","asn":65533},"direction":"in","local-preference":100,"origin":"igp","ipv4/unicast":[{"action":"add","nlri":["2.0.0.0/8"],"next-hop":"1.1.1.1"}]}
 cmd=api:conn=1:seq=1:text=update text origin set igp local-preference set 100 nhop set 1.1.1.1 nlri ipv4/unicast add 3.0.0.0/8
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002E02000000154001010040020040030401010101400504000000640803
-expect=json:conn=1:seq=1:json={"meta":{"version":"1.0.0","format":"zebgp"},"message":{"type":"update"},"peer":{"address":"127.0.0.1","asn":65533},"direction":"in","local-preference":100,"origin":"igp","ipv4/unicast":[{"action":"add","nlri":["3.0.0.0/8"],"next-hop":"1.1.1.1"}]}
+expect=json:conn=1:seq=1:json={"meta":{"version":"1.0.0","format":"ze-bgp"},"message":{"type":"update"},"peer":{"address":"127.0.0.1","asn":65533},"direction":"in","local-preference":100,"origin":"igp","ipv4/unicast":[{"action":"add","nlri":["3.0.0.0/8"],"next-hop":"1.1.1.1"}]}
 cmd=api:conn=1:seq=1:text=update text origin set igp local-preference set 100 nhop set 1.1.1.1 nlri ipv4/unicast add 4.0.0.0/8
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002E02000000154001010040020040030401010101400504000000640804
-expect=json:conn=1:seq=1:json={"meta":{"version":"1.0.0","format":"zebgp"},"message":{"type":"update"},"peer":{"address":"127.0.0.1","asn":65533},"direction":"in","local-preference":100,"origin":"igp","ipv4/unicast":[{"action":"add","nlri":["4.0.0.0/8"],"next-hop":"1.1.1.1"}]}
+expect=json:conn=1:seq=1:json={"meta":{"version":"1.0.0","format":"ze-bgp"},"message":{"type":"update"},"peer":{"address":"127.0.0.1","asn":65533},"direction":"in","local-preference":100,"origin":"igp","ipv4/unicast":[{"action":"add","nlri":["4.0.0.0/8"],"next-hop":"1.1.1.1"}]}
 EOF_PEER
 
-# zebgp configuration
-stdin=zebgp:terminator=EOF_CONF
+# ze bgp configuration
+stdin=ze-bgp:terminator=EOF_CONF
 template {
 	group test {
 		local-as 65533;
@@ -50,5 +50,5 @@ peer 127.0.0.1 {
 EOF_CONF
 
 # Process orchestration
-cmd=background:seq=1:exec=zebgp-peer --port $PORT:stdin=peer
-cmd=foreground:seq=2:exec=zebgp server -:stdin=zebgp:timeout=10s
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze bgp server -:stdin=ze-bgp:timeout=10s

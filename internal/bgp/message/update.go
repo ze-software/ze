@@ -3,7 +3,7 @@ package message
 import (
 	"encoding/binary"
 
-	"codeberg.org/thomas-mangin/zebgp/internal/bgp/wire"
+	"codeberg.org/thomas-mangin/ze/internal/bgp/wire"
 )
 
 // Update represents a BGP UPDATE message (RFC 4271 Section 4.3).

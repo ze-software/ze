@@ -220,7 +220,7 @@
 |-------------|---------|------------|
 | `loop.py` | Main event loop | `internal/reactor/reactor.go` |
 | `asynchronous.py` | Async handling | `internal/reactor/reactor.go` (goroutines) |
-| `daemon.py` | Daemon management | `cmd/zebgp/daemon.go` |
+| `daemon.py` | Daemon management | `cmd/ze/bgp/daemon.go` |
 | `protocol.py` | Protocol handler | `internal/reactor/protocol.go` |
 | `listener.py` | TCP listener | `internal/reactor/listener.go` |
 | `timing.py` | Timing utilities | `internal/reactor/timing.go` |
@@ -314,23 +314,23 @@
 
 | ExaBGP File | Purpose | ZeBGP File |
 |-------------|---------|------------|
-| `main.py` | Entry point | `cmd/zebgp/main.go` |
-| `run.py` | Run daemon | `cmd/zebgp/run.go` |
-| `cli.py` | CLI interface | `cmd/zebgp-cli/main.go` |
-| `shell.py` | Interactive shell | `cmd/zebgp-cli/shell.go` |
-| `unixsocket.py` | Unix socket client | `cmd/zebgp-cli/socket.go` |
-| `decode.py` | Message decoder | `cmd/zebgp-decode/main.go` |
-| `encode.py` | Message encoder | `cmd/zebgp-decode/encode.go` |
-| `validate.py` | Config validator | `cmd/zebgp/validate.go` |
+| `main.py` | Entry point | `cmd/ze/bgp/main.go` |
+| `run.py` | Run daemon | `cmd/ze/bgp/run.go` |
+| `cli.py` | CLI interface | `cmd/ze/bgp-cli/main.go` |
+| `shell.py` | Interactive shell | `cmd/ze/bgp-cli/shell.go` |
+| `unixsocket.py` | Unix socket client | `cmd/ze/bgp-cli/socket.go` |
+| `decode.py` | Message decoder | `cmd/ze/bgp-decode/main.go` |
+| `encode.py` | Message encoder | `cmd/ze/bgp-decode/encode.go` |
+| `validate.py` | Config validator | `cmd/ze/bgp/validate.go` |
 | `healthcheck.py` | Health checking | N/A (Kubernetes probes) |
 | `pipe.py` | Pipe handling | `internal/plugin/pipe.go` |
-| `server.py` | Server mode | `cmd/zebgp/server.go` |
+| `server.py` | Server mode | `cmd/ze/bgp/server.go` |
 | `flow.py` | Flow generator | N/A (separate tool) |
 | `netlink.py` | Netlink interface | N/A (no FIB) |
-| `shortcuts.py` | CLI shortcuts | `cmd/zebgp-cli/shortcuts.go` |
+| `shortcuts.py` | CLI shortcuts | `cmd/ze/bgp-cli/shortcuts.go` |
 | `environ.py` | Environment | `internal/config/environ.go` |
-| `schema.py` | Schema command | `cmd/zebgp/schema.go` |
-| `version.py` | Version command | `cmd/zebgp/version.go` |
+| `schema.py` | Schema command | `cmd/ze/bgp/schema.go` |
+| `version.py` | Version command | `cmd/ze/bgp/version.go` |
 | `error.py` | Error handling | `internal/errors/errors.go` |
 
 ---
@@ -433,7 +433,7 @@
 1. `configuration/` - Config parsing
 2. `environment/` - ExaBGP-compatible env var configuration
 3. `reactor/api/` - API server with route announce/withdraw
-4. `application/` - CLI tools (zebgp, zebgp-cli)
+4. `application/` - CLI tools (zebgp, ze-bgp-cli)
 5. RIB show handlers (adj-rib in/out)
 6. End-of-RIB (EOR) support
 

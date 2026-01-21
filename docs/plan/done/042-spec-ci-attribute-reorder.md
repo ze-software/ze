@@ -97,7 +97,7 @@ Plan achieves goal: YES - COMPLETED
 ## Documentation Impact
 
 - [ ] `docs/plan/CLAUDE_CONTINUATION.md` - Update after completion
-- [ ] `.claude/zebgp/FUNCTIONAL_TESTS.md` - Add note about RFC ordering
+- [ ] `docs/architecture/FUNCTIONAL_TESTS.md` - Add note about RFC ordering
 
 ## Implementation Steps
 

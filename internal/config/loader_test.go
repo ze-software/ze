@@ -195,13 +195,13 @@ func TestCreateReactorFromConfig(t *testing.T) {
 	require.NotNil(t, r)
 }
 
-// TestParseAllConfigFiles verifies all etc/zebgp/*.conf files parse.
+// TestParseAllConfigFiles verifies all etc/ze/bgp/*.conf files parse.
 //
 // VALIDATES: All example configs are syntactically valid.
 //
 // PREVENTS: Broken example configs shipped with the project.
 func TestParseAllConfigFiles(t *testing.T) {
-	files, err := filepath.Glob("../../etc/zebgp/*.conf")
+	files, err := filepath.Glob("../../etc/ze/bgp/*.conf")
 	require.NoError(t, err)
 	require.NotEmpty(t, files, "no config files found")
 
@@ -229,7 +229,7 @@ func TestOldSyntaxHint(t *testing.T) {
 		_, err := LoadReactor(input)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "unknown top-level keyword: neighbor")
-		require.Contains(t, err.Error(), "zebgp config migrate")
+		require.Contains(t, err.Error(), "ze bgp config migrate")
 	})
 
 	t.Run("template.neighbor triggers hint", func(t *testing.T) {
@@ -237,7 +237,7 @@ func TestOldSyntaxHint(t *testing.T) {
 		_, err := LoadReactor(input)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "unknown field in template: neighbor")
-		require.Contains(t, err.Error(), "zebgp config migrate")
+		require.Contains(t, err.Error(), "ze bgp config migrate")
 	})
 
 	t.Run("current syntax no hint", func(t *testing.T) {
@@ -478,11 +478,11 @@ func TestPluginOnlySchema(t *testing.T) {
 	input := `
 plugin {
     external gr {
-        run "zebgp plugin gr";
+        run "ze bgp plugin gr";
         encoder json;
     }
     external rib {
-        run "zebgp plugin rib";
+        run "ze bgp plugin rib";
     }
 }
 `
@@ -502,7 +502,7 @@ plugin {
 	require.NotNil(t, grPlugin)
 	run, ok := grPlugin.Get("run")
 	require.True(t, ok)
-	require.Equal(t, "zebgp plugin gr", run)
+	require.Equal(t, "ze bgp plugin gr", run)
 
 	encoder, ok := grPlugin.Get("encoder")
 	require.True(t, ok)
@@ -513,7 +513,7 @@ plugin {
 	require.NotNil(t, ribPlugin)
 	run, ok = ribPlugin.Get("run")
 	require.True(t, ok)
-	require.Equal(t, "zebgp plugin rib", run)
+	require.Equal(t, "ze bgp plugin rib", run)
 }
 
 // TestPluginOnlySchemaRejectsUnknown verifies unknown blocks are rejected.

@@ -6,13 +6,13 @@ Replace the dual-field pattern (`NextHop netip.Addr` + `NextHopSelf bool`) with 
 
 ## Required Reading
 
-- [ ] `.claude/zebgp/wire/ATTRIBUTES.md` - need wire encoding for NEXT_HOP validation
-- [ ] `.claude/zebgp/wire/CAPABILITIES.md` - need Extended NH capability for cross-family resolution
-- [ ] `.claude/zebgp/api/ARCHITECTURE.md` - contains dual-field pattern to replace
-- [ ] `.claude/zebgp/api/CAPABILITY_CONTRACT.md` - API capability negotiation context
-- [ ] `.claude/zebgp/UPDATE_BUILDING.md` - need build path integration point
-- [ ] `.claude/zebgp/ENCODING_CONTEXT.md` - need ExtendedNextHop resolution pattern
-- [ ] `.claude/zebgp/config/SYNTAX.md` - need static route next-hop syntax
+- [ ] `docs/architecture/wire/ATTRIBUTES.md` - need wire encoding for NEXT_HOP validation
+- [ ] `docs/architecture/wire/CAPABILITIES.md` - need Extended NH capability for cross-family resolution
+- [ ] `docs/architecture/api/ARCHITECTURE.md` - contains dual-field pattern to replace
+- [ ] `docs/architecture/api/CAPABILITY_CONTRACT.md` - API capability negotiation context
+- [ ] `docs/architecture/UPDATE_BUILDING.md` - need build path integration point
+- [ ] `docs/architecture/ENCODING_CONTEXT.md` - need ExtendedNextHop resolution pattern
+- [ ] `docs/architecture/config/SYNTAX.md` - need static route next-hop syntax
 
 **Key insights:**
 - Extended NH already implemented: `sendCtx.ExtendedNextHopFor(family)` returns NH AFI
@@ -265,7 +265,7 @@ PASS
 ### Documentation
 - [x] Required docs read
 - [x] RFC references added
-- [x] `.claude/zebgp/api/ARCHITECTURE.md` updated
+- [x] `docs/architecture/api/ARCHITECTURE.md` updated
 
 ### Completion
 - [x] Spec moved to `docs/plan/done/083-route-nexthop-type.md`

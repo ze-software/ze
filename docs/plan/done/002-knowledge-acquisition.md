@@ -15,7 +15,7 @@ Before implementing each component, study the corresponding ExaBGP code and docu
 4. Edge cases and quirks
 5. Test cases
 
-**Output:** `.claude/zebgp/` reference documents for each area
+**Output:** `docs/architecture/` reference documents for each area
 
 ---
 
@@ -36,7 +36,7 @@ Before implementing each component, study the corresponding ExaBGP code and docu
 └── protocol/      # Protocol helpers
 ```
 
-**Output:** `.claude/zebgp/EXABGP_CODE_MAP.md`
+**Output:** `docs/architecture/EXABGP_CODE_MAP.md`
 
 **Tasks:**
 - [x] Map each ExaBGP directory to ZeBGP equivalent
@@ -58,7 +58,7 @@ Before implementing each component, study the corresponding ExaBGP code and docu
 └── bin/           # Test runners
 ```
 
-**Output:** `.claude/zebgp/TEST_INVENTORY.md`
+**Output:** `docs/architecture/TEST_INVENTORY.md`
 
 **Tasks:**
 - [x] List all test files with descriptions
@@ -84,7 +84,7 @@ Before implementing each component, study the corresponding ExaBGP code and docu
 └── refresh.py
 ```
 
-**Output:** `.claude/zebgp/wire/MESSAGES.md`
+**Output:** `docs/architecture/wire/MESSAGES.md`
 
 **Tasks:**
 - [x] OPEN: optional parameters, capability encoding
@@ -115,7 +115,7 @@ Before implementing each component, study the corresponding ExaBGP code and docu
     └── ...
 ```
 
-**Output:** `.claude/zebgp/wire/CAPABILITIES.md`
+**Output:** `docs/architecture/wire/CAPABILITIES.md`
 
 **Tasks:**
 - [x] List all capability codes
@@ -149,7 +149,7 @@ Before implementing each component, study the corresponding ExaBGP code and docu
 └── ...
 ```
 
-**Output:** `.claude/zebgp/wire/ATTRIBUTES.md`
+**Output:** `docs/architecture/wire/ATTRIBUTES.md`
 
 **Tasks:**
 - [x] List all attribute codes with flags
@@ -180,7 +180,7 @@ Before implementing each component, study the corresponding ExaBGP code and docu
 └── rtc.py                # Route Target Constraint
 ```
 
-**Output:** `.claude/zebgp/wire/NLRI.md` (split into sub-files if large)
+**Output:** `docs/architecture/wire/NLRI.md` (split into sub-files if large)
 
 **Tasks:**
 - [x] INET: prefix encoding, ADD-PATH
@@ -211,7 +211,7 @@ Before implementing each component, study the corresponding ExaBGP code and docu
 └── path_info.py          # ADD-PATH path ID
 ```
 
-**Output:** `.claude/zebgp/wire/QUALIFIERS.md`
+**Output:** `docs/architecture/wire/QUALIFIERS.md`
 
 **Tasks:**
 - [x] RD: Type 0, 1, 2 encoding
@@ -238,7 +238,7 @@ Before implementing each component, study the corresponding ExaBGP code and docu
 └── update/attribute/*.py # json() methods
 ```
 
-**Output:** `.claude/zebgp/api/JSON_FORMAT.md`
+**Output:** `docs/architecture/api/JSON_FORMAT.md`
 
 **Tasks:**
 - [ ] Top-level message structure
@@ -256,7 +256,7 @@ Before implementing each component, study the corresponding ExaBGP code and docu
 
 **Method:** Run ExaBGP with test configs and capture output
 
-**Output:** `.claude/zebgp/api/JSON_EXAMPLES.md`
+**Output:** `docs/architecture/api/JSON_EXAMPLES.md`
 
 **Tasks:**
 - [ ] OPEN received/sent
@@ -284,7 +284,7 @@ Before implementing each component, study the corresponding ExaBGP code and docu
 └── ...
 ```
 
-**Output:** `.claude/zebgp/config/TOKENIZER.md`
+**Output:** `docs/architecture/config/TOKENIZER.md`
 
 **Tasks:**
 - [ ] Token types
@@ -313,7 +313,7 @@ Before implementing each component, study the corresponding ExaBGP code and docu
 └── template/             # Templates
 ```
 
-**Output:** `.claude/zebgp/config/SYNTAX.md`
+**Output:** `docs/architecture/config/SYNTAX.md`
 
 **Tasks:**
 - [ ] Process section keywords
@@ -335,7 +335,7 @@ Before implementing each component, study the corresponding ExaBGP code and docu
 ../main/src/exabgp/environment.py
 ```
 
-**Output:** `.claude/zebgp/config/ENVIRONMENT.md`
+**Output:** `docs/architecture/config/ENVIRONMENT.md`
 
 **Tasks:**
 - [ ] List all exabgp_* variables
@@ -365,7 +365,7 @@ Before implementing each component, study the corresponding ExaBGP code and docu
     └── command.py        # Command parsing
 ```
 
-**Output:** `.claude/zebgp/api/COMMANDS.md`
+**Output:** `docs/architecture/api/COMMANDS.md`
 
 **Tasks:**
 - [ ] Complete command list
@@ -386,7 +386,7 @@ Before implementing each component, study the corresponding ExaBGP code and docu
 └── response/             # Response handling
 ```
 
-**Output:** `.claude/zebgp/api/PROCESS_PROTOCOL.md`
+**Output:** `docs/architecture/api/PROCESS_PROTOCOL.md`
 
 **Tasks:**
 - [ ] Stdin/stdout protocol
@@ -409,7 +409,7 @@ Before implementing each component, study the corresponding ExaBGP code and docu
 ../main/src/exabgp/bgp/fsm.py
 ```
 
-**Output:** `.claude/zebgp/behavior/FSM.md`
+**Output:** `docs/architecture/behavior/FSM.md`
 
 **Tasks:**
 - [ ] State transitions
@@ -430,7 +430,7 @@ Before implementing each component, study the corresponding ExaBGP code and docu
 ../main/src/exabgp/reactor/daemon.py
 ```
 
-**Output:** `.claude/zebgp/behavior/SIGNALS.md`
+**Output:** `docs/architecture/behavior/SIGNALS.md`
 
 **Tasks:**
 - [ ] SIGHUP: reload behavior
@@ -450,7 +450,7 @@ Before implementing each component, study the corresponding ExaBGP code and docu
 ../main/src/exabgp/reactor/peer.py
 ```
 
-**Output:** `.claude/zebgp/behavior/ROUTES.md`
+**Output:** `docs/architecture/behavior/ROUTES.md`
 
 **Tasks:**
 - [ ] Incoming route processing
@@ -473,7 +473,7 @@ Before implementing each component, study the corresponding ExaBGP code and docu
 ../main/src/exabgp/bgp/message/open/capability/asn4.py
 ```
 
-**Output:** `.claude/zebgp/edge-cases/AS4.md`
+**Output:** `docs/architecture/edge-cases/AS4.md`
 
 **Tasks:**
 - [ ] AS_TRANS usage
@@ -492,7 +492,7 @@ Before implementing each component, study the corresponding ExaBGP code and docu
 ../main/src/exabgp/bgp/message/open/capability/extended.py
 ```
 
-**Output:** `.claude/zebgp/edge-cases/EXTENDED_MESSAGE.md`
+**Output:** `docs/architecture/edge-cases/EXTENDED_MESSAGE.md`
 
 **Tasks:**
 - [ ] Capability negotiation
@@ -511,7 +511,7 @@ Before implementing each component, study the corresponding ExaBGP code and docu
 ../main/src/exabgp/bgp/message/update/nlri/qualifier/path_info.py
 ```
 
-**Output:** `.claude/zebgp/edge-cases/ADDPATH.md`
+**Output:** `docs/architecture/edge-cases/ADDPATH.md`
 
 **Tasks:**
 - [ ] Capability encoding
@@ -562,10 +562,10 @@ Before implementing each component, study the corresponding ExaBGP code and docu
 
 ## Deliverables
 
-After completion, `.claude/zebgp/` will contain:
+After completion, `docs/architecture/` will contain:
 
 ```
-.claude/zebgp/
+docs/architecture/
 ├── EXABGP_CODE_MAP.md
 ├── TEST_INVENTORY.md
 ├── wire/

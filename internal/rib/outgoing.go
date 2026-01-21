@@ -4,7 +4,7 @@ import (
 	"errors"
 	"sync"
 
-	"codeberg.org/thomas-mangin/zebgp/internal/bgp/nlri"
+	"codeberg.org/thomas-mangin/ze/internal/bgp/nlri"
 )
 
 // Transaction errors.

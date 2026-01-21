@@ -6,7 +6,7 @@
 Implement FlowSpec NLRI wire format encoding/decoding per RFC 8955 (IPv4) and RFC 8956 (IPv6), including VPN variants (SAFI 133/134).
 
 ## Required Reading
-- [x] `.claude/zebgp/wire/NLRI.md` - NLRI wire formats
+- [x] `docs/architecture/wire/NLRI.md` - NLRI wire formats
 - [x] `rfc/rfc8955.txt` - FlowSpec v2 specification
 - [x] `rfc/rfc8956.txt` - IPv6 FlowSpec extensions
 
@@ -146,7 +146,7 @@ Per RFC 8955 Section 4.2: Components MUST be sorted by type number in increasing
 ### Documentation
 - [x] Required docs read
 - [x] RFC references added (comments throughout flowspec.go)
-- [x] `.claude/zebgp/wire/NLRI.md` updated
+- [x] `docs/architecture/wire/NLRI.md` updated
 
 ### Completion
 - [x] Spec moved to `docs/plan/done/091-flowspec-wire-format.md`

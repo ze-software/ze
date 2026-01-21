@@ -4,8 +4,8 @@ import (
 	"encoding/binary"
 	"net/netip"
 
-	bgpctx "codeberg.org/thomas-mangin/zebgp/internal/bgp/context"
-	"codeberg.org/thomas-mangin/zebgp/internal/bgp/wire"
+	bgpctx "codeberg.org/thomas-mangin/ze/internal/bgp/context"
+	"codeberg.org/thomas-mangin/ze/internal/bgp/wire"
 )
 
 // NextHop represents the NEXT_HOP attribute.

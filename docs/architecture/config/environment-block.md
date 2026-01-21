@@ -91,8 +91,8 @@ environment {
 
 ## Priority Order
 
-1. **OS environment variable** (dot notation): `zebgp.log.level=DEBUG`
-2. **OS environment variable** (underscore notation): `zebgp_log_level=DEBUG`
+1. **OS environment variable** (dot notation): `ze.bgp.log.level=DEBUG`
+2. **OS environment variable** (underscore notation): `ze_bgp_log_level=DEBUG`
 3. **Config file** environment block
 4. **Defaults**
 
@@ -102,10 +102,10 @@ ZeBGP uses **strict validation** - invalid values cause startup failure:
 
 ```bash
 # These will cause ZeBGP to refuse to start:
-zebgp.tcp.port=abc          # Invalid: not a number
-zebgp.tcp.port=99999        # Invalid: out of range (1-65535)
-zebgp.log.level=BOGUS       # Invalid: unknown level
-zebgp.bgp.passive=maybe     # Invalid: not a boolean
+ze.bgp.tcp.port=abc          # Invalid: not a number
+ze.bgp.tcp.port=99999        # Invalid: out of range (1-65535)
+ze.bgp.log.level=BOGUS       # Invalid: unknown level
+ze.bgp.bgp.passive=maybe     # Invalid: not a boolean
 ```
 
 ### Migration Helper
@@ -113,7 +113,7 @@ zebgp.bgp.passive=maybe     # Invalid: not a boolean
 Before upgrading, validate your environment variables:
 
 ```bash
-zebgp config check --env
+ze bgp config check --env
 ```
 
 This will report any invalid environment variables that would cause startup failure.
@@ -150,7 +150,7 @@ environment {
     }
     log {
         level INFO;
-        destination /var/log/zebgp.log;
+        destination /var/log/ze.bgp.log;
     }
     tcp {
         port 179;
@@ -174,8 +174,8 @@ environment {
 
 ```bash
 # Config file sets port 1179, but OS env overrides to 179
-export zebgp.tcp.port=179
-zebgp run config.conf
+export ze.bgp.tcp.port=179
+ze bgp run config.conf
 ```
 
 ## Differences from ExaBGP
@@ -185,7 +185,7 @@ zebgp run config.conf
 | Environment source | Separate INI file (`exabgp.env`) | Config block + OS env |
 | Invalid values | Silent fallback to default | Strict error, refuse to start |
 | Validation | None | Enums and ranges validated |
-| Migration helper | None | `zebgp config check --env` |
+| Migration helper | None | `ze bgp config check --env` |
 
 ## Multiple Environment Blocks
 

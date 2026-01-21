@@ -465,7 +465,7 @@ Think from the user's perspective: "If I configure X and send command Y, what sh
 ### 9.5 Integration Tests
 
 ```
-[ ] Test end-to-end with zebgp-peer
+[ ] Test end-to-end with ze-peer
 [ ] Test capability negotiation (both peers support, one supports, neither supports)
 [ ] Test message exchange in realistic scenarios
 [ ] Test interop edge cases (if applicable)

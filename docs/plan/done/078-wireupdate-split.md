@@ -6,12 +6,12 @@ Implement wire-level UPDATE splitting without parsing to Route objects.
 
 ## Required Reading
 
-- [x] `.claude/zebgp/UPDATE_BUILDING.md` - Build vs Forward paths
-- [x] `.claude/zebgp/ENCODING_CONTEXT.md` - Zero-copy wire handling
-- [x] `.claude/zebgp/wire/MESSAGES.md` - UPDATE structure
-- [x] `.claude/zebgp/wire/NLRI.md` - NLRI formats
-- [x] `.claude/zebgp/wire/ATTRIBUTES.md` - MP_REACH/MP_UNREACH
-- [x] `.claude/zebgp/edge-cases/ADDPATH.md` - ADD-PATH path-id handling
+- [x] `docs/architecture/UPDATE_BUILDING.md` - Build vs Forward paths
+- [x] `docs/architecture/ENCODING_CONTEXT.md` - Zero-copy wire handling
+- [x] `docs/architecture/wire/MESSAGES.md` - UPDATE structure
+- [x] `docs/architecture/wire/NLRI.md` - NLRI formats
+- [x] `docs/architecture/wire/ATTRIBUTES.md` - MP_REACH/MP_UNREACH
+- [x] `docs/architecture/edge-cases/ADDPATH.md` - ADD-PATH path-id handling
 
 **Key insights:**
 - Forward path preserves wire bytes, no Route parsing needed
@@ -828,12 +828,12 @@ Existing `make functional` should pass - split behavior tested via ForwardUpdate
 **Tests FAIL (before implementation):**
 ```
 internal/plugin/wire_update_split_test.go:26:15: undefined: SplitWireUpdate
-FAIL    codeberg.org/thomas-mangin/zebgp/internal/plugin [build failed]
+FAIL    codeberg.org/thomas-mangin/ze/internal/plugin [build failed]
 ```
 
 **Tests PASS (after implementation):**
 ```
-ok      codeberg.org/thomas-mangin/zebgp/internal/plugin    0.585s
+ok      codeberg.org/thomas-mangin/ze/internal/plugin    0.585s
 ```
 
 **Verification:**
@@ -879,7 +879,7 @@ ok      codeberg.org/thomas-mangin/zebgp/internal/plugin    0.585s
 ### Documentation
 - [x] Required docs read
 - [x] RFC references added
-- [x] `.claude/zebgp/` docs reviewed (no schema changes needed)
+- [x] `docs/architecture/` docs reviewed (no schema changes needed)
 
 ### Completion
 - [ ] Spec moved to `docs/plan/done/NNN-<name>.md`

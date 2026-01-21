@@ -49,8 +49,8 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"codeberg.org/thomas-mangin/zebgp/internal/bgp/capability"
-	bgpctx "codeberg.org/thomas-mangin/zebgp/internal/bgp/context"
+	"codeberg.org/thomas-mangin/ze/internal/bgp/capability"
+	bgpctx "codeberg.org/thomas-mangin/ze/internal/bgp/context"
 )
 
 // makeNegotiated creates a Negotiated state from local/remote capabilities.

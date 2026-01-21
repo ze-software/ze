@@ -8,9 +8,9 @@ import (
 	"strings"
 	"testing"
 
-	bgpctx "codeberg.org/thomas-mangin/zebgp/internal/bgp/context"
-	"codeberg.org/thomas-mangin/zebgp/internal/bgp/message"
-	"codeberg.org/thomas-mangin/zebgp/internal/bgp/nlri"
+	bgpctx "codeberg.org/thomas-mangin/ze/internal/bgp/context"
+	"codeberg.org/thomas-mangin/ze/internal/bgp/message"
+	"codeberg.org/thomas-mangin/ze/internal/bgp/nlri"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

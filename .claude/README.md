@@ -17,7 +17,7 @@
 ├── commands/           # Custom skills
 │   └── prep.md         # /prep task specification
 ├── output-styles/      # Communication style
-│   └── zebgp.md        # Terse emoji-prefixed
+│   └── ze.bgp.md        # Terse emoji-prefixed
 ├── zebgp/              # Architecture reference docs
 │   ├── wire/           # Wire format docs
 │   ├── behavior/       # FSM, signals

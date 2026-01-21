@@ -22,7 +22,7 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"codeberg.org/thomas-mangin/zebgp/internal/test/ci"
+	"codeberg.org/thomas-mangin/ze/internal/test/ci"
 )
 
 // BGP message types.

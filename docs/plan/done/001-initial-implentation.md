@@ -36,8 +36,8 @@ This document outlines the implementation plan to rewrite ExaBGP in Go ("ZeBGP")
 zebgp/
 ├── cmd/
 │   ├── zebgp/           # Main daemon entry point
-│   ├── zebgp-cli/       # CLI client
-│   └── zebgp-decode/    # Message decoder tool
+│   ├── ze-bgp-cli/       # CLI client
+│   └── ze-bgp-decode/    # Message decoder tool
 ├── internal/
 │   ├── bgp/             # BGP protocol implementation
 │   │   ├── message/     # Message types (OPEN, UPDATE, etc.)
@@ -110,9 +110,9 @@ type Family struct {
 .PHONY: build test lint
 
 build:
-	go build -o bin/zebgp ./cmd/zebgp
-	go build -o bin/zebgp-cli ./cmd/zebgp-cli
-	go build -o bin/zebgp-decode ./cmd/zebgp-decode
+	go build -o bin/zebgp ./cmd/ze/bgp
+	go build -o bin/ze-bgp-cli ./cmd/ze/bgp-cli
+	go build -o bin/ze-bgp-decode ./cmd/ze/bgp-decode
 
 test:
 	go test -race -v ./...
@@ -1526,7 +1526,7 @@ type EnvConfig struct {
     API struct {
         Encoder    string `env:"EXABGP_API_ENCODER" default:"json"`
         Ack        bool   `env:"EXABGP_API_ACK" default:"true"`
-        SocketName string `env:"EXABGP_API_SOCKETNAME" default:"zebgp"`
+        SocketName string `env:"EXABGP_API_SOCKETNAME" default:"ze-bgp"`
     }
     Daemon struct {
         Daemonize bool   `env:"EXABGP_DAEMON_DAEMONIZE" default:"false"`
@@ -1578,11 +1578,11 @@ func ParseFile(path string) (*Config, error) {
 ### 11.1 CLI Commands
 
 ```go
-// cmd/zebgp/main.go
+// cmd/ze/bgp/main.go
 
 func main() {
     rootCmd := &cobra.Command{
-        Use:   "zebgp",
+        Use:   "ze-bgp",
         Short: "ZeBGP - BGP daemon",
     }
 
@@ -1641,7 +1641,7 @@ func decodeCmd() *cobra.Command {
 ### 11.2 Interactive CLI
 
 ```go
-// cmd/zebgp-cli/main.go
+// cmd/ze/bgp-cli/main.go
 
 type CLI struct {
     conn      net.Conn
@@ -2191,7 +2191,7 @@ The functional test runner runs ExaBGP-style integration tests.
 | Component | Status | Notes |
 |-----------|--------|-------|
 | Test runner | ✅ Working | `test/cmd/functional/main.go` |
-| Test peer | ✅ Working | `test/cmd/zebgp-peer/main.go` |
+| Test peer | ✅ Working | `test/cmd/ze-peer/main.go` |
 | Expect file parsing | ✅ Working | Supports `option:`, `N:raw:`, `N:cmd:` |
 | KEEPALIVE matching | ✅ Fixed | Was bypassing expected message list |
 | Pipe capture | ✅ Fixed | Now reads asynchronously before Wait() |
@@ -2221,7 +2221,7 @@ Tests from `main/qa/` need to be migrated.
 ### Next Steps for Testing
 1. Fix Freeform parsing or change schema to support static routes
 2. Update test config to include UPDATE message expectations
-3. Copy ExaBGP tests and adapt for zebgp
+3. Copy ExaBGP tests and adapt for ze bgp
 4. Add round-trip tests (pack → unpack → pack)
 
 ---

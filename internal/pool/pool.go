@@ -42,7 +42,7 @@ type buffer struct {
 // Thread-safe for concurrent access. Uses double-buffer design for
 // non-blocking compaction.
 //
-// See .claude/zebgp/POOL_ARCHITECTURE.md for design details.
+// See docs/architecture/POOL_ARCHITECTURE.md for design details.
 type Pool struct {
 	mu sync.RWMutex
 

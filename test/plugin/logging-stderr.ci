@@ -1,14 +1,14 @@
 # Migrated from test/data/plugin/logging-stderr.*
 
-# zebgp-peer expectations
+# ze-peer expectations
 stdin=peer:terminator=EOF_PEER
 option=timeout:value=10s
 
 # Enable server subsystem logging
-option=env:var=zebgp.log.server:value=debug
+option=env:var=ze.bgp.log.server:value=debug
 
 # Test: Engine subsystem logging to stderr
-# Verifies zebgp.log.server=debug produces server logs in stderr
+# Verifies ze.bgp.log.server=debug produces server logs in stderr
 
 # Static route UPDATE
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040A0000014005040000006418C0A801
@@ -20,14 +20,14 @@ expect=stderr:pattern=subsystem=server
 expect=stderr:pattern=stageTransition|deliverConfig|handleRegistrationLine
 EOF_PEER
 
-# zebgp configuration
-stdin=zebgp:terminator=EOF_CONF
+# ze bgp configuration
+stdin=ze-bgp:terminator=EOF_CONF
 # Test: Engine subsystem logging to stderr
-# Verifies that zebgp.log.server=debug produces log output
+# Verifies that ze.bgp.log.server=debug produces log output
 
 plugin {
     external gr {
-        run "zebgp plugin gr";
+        run "ze bgp plugin gr";
         encoder json;
     }
 }
@@ -60,5 +60,5 @@ peer 127.0.0.1 {
 EOF_CONF
 
 # Process orchestration
-cmd=background:seq=1:exec=zebgp-peer --port $PORT:stdin=peer
-cmd=foreground:seq=2:exec=zebgp server -:stdin=zebgp:timeout=10s
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze bgp server -:stdin=ze-bgp:timeout=10s

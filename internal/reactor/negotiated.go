@@ -3,8 +3,8 @@ package reactor
 import (
 	"sort"
 
-	"codeberg.org/thomas-mangin/zebgp/internal/bgp/capability"
-	"codeberg.org/thomas-mangin/zebgp/internal/bgp/nlri"
+	"codeberg.org/thomas-mangin/ze/internal/bgp/capability"
+	"codeberg.org/thomas-mangin/ze/internal/bgp/nlri"
 )
 
 // NegotiatedCapabilities tracks what was negotiated (not how to encode).

@@ -4,7 +4,7 @@ import (
 	"net/netip"
 	"testing"
 
-	"codeberg.org/thomas-mangin/zebgp/internal/bgp/nlri"
+	"codeberg.org/thomas-mangin/ze/internal/bgp/nlri"
 )
 
 // TestMPReachWireIPv6 verifies IPv6 unicast MP_REACH_NLRI parsing.

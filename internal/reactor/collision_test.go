@@ -6,8 +6,8 @@ import (
 	"sync"
 	"testing"
 
-	"codeberg.org/thomas-mangin/zebgp/internal/bgp/fsm"
-	"codeberg.org/thomas-mangin/zebgp/internal/bgp/message"
+	"codeberg.org/thomas-mangin/ze/internal/bgp/fsm"
+	"codeberg.org/thomas-mangin/ze/internal/bgp/message"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

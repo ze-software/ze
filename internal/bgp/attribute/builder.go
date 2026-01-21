@@ -4,7 +4,7 @@ import (
 	"encoding/binary"
 	"net/netip"
 
-	"codeberg.org/thomas-mangin/zebgp/internal/bgp/wire"
+	"codeberg.org/thomas-mangin/ze/internal/bgp/wire"
 )
 
 // Builder accumulates path attributes and produces wire-format bytes.

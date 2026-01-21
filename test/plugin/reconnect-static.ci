@@ -1,6 +1,6 @@
 # Migrated from test/data/plugin/reconnect-static.*
 
-# zebgp-peer expectations
+# ze-peer expectations
 stdin=peer:terminator=EOF_PEER
 option=tcp_connections:value=2
 option=timeout:value=15s
@@ -18,8 +18,8 @@ expect=bgp:conn=2:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101
 expect=bgp:conn=2:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_PEER
 
-# zebgp configuration
-stdin=zebgp:terminator=EOF_CONF
+# ze bgp configuration
+stdin=ze-bgp:terminator=EOF_CONF
 environment {
 	tcp {
 		attempts 3;
@@ -47,5 +47,5 @@ peer 127.0.0.1 {
 EOF_CONF
 
 # Process orchestration
-cmd=background:seq=1:exec=zebgp-peer --port $PORT:stdin=peer
-cmd=foreground:seq=2:exec=zebgp server -:stdin=zebgp:timeout=10s
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze bgp server -:stdin=ze-bgp:timeout=10s

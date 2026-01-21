@@ -1,15 +1,15 @@
-// Package slogutil provides per-subsystem logging configuration for ZeBGP.
+// Package slogutil provides per-subsystem logging configuration for Ze BGP.
 //
-// Engine subsystems use Logger() which reads from zebgp.log.<subsystem> env vars.
+// Engine subsystems use Logger() which reads from ze.log.bgp.<subsystem> env vars.
 // Plugin processes use LoggerWithLevel() which takes level from CLI --log-level flag.
 //
 // Environment variables:
-//   - zebgp.log.<subsystem>=<level> - enable subsystem at level (debug/info/warn/err)
-//   - zebgp.log.backend=<backend> - log output (stderr/stdout/syslog)
-//   - zebgp.log.destination=<addr> - syslog address (when backend=syslog)
-//   - zebgp.log.plugin=enabled - relay plugin stderr to engine logs
+//   - ze.log.bgp.<subsystem>=<level> - enable subsystem at level (debug/info/warn/err)
+//   - ze.log.bgp.backend=<backend> - log output (stderr/stdout/syslog)
+//   - ze.log.bgp.destination=<addr> - syslog address (when backend=syslog)
+//   - ze.log.bgp.plugin=enabled - relay plugin stderr to engine logs
 //
-// Shell-compatible: zebgp_log_<subsystem> also works (dot replaced with underscore).
+// Shell-compatible: ze_log_bgp_<subsystem> also works (dot replaced with underscore).
 package slogutil
 
 import (
@@ -18,16 +18,28 @@ import (
 	"log/slog"
 	"os"
 	"strings"
-
-	"codeberg.org/thomas-mangin/zebgp/internal/env"
 )
+
+// getLogEnv returns the log environment variable value.
+// Checks both dot notation (ze.log.bgp.key) and underscore (ze_log_bgp_key).
+// Dot notation takes precedence.
+func getLogEnv(key string) string {
+	// Dot notation first (higher priority)
+	dotKey := "ze.log.bgp." + key
+	if v := os.Getenv(dotKey); v != "" {
+		return v
+	}
+	// Underscore notation (shell-compatible)
+	underKey := strings.ReplaceAll(dotKey, ".", "_")
+	return os.Getenv(underKey)
+}
 
 // Logger returns a logger for an engine subsystem.
 // Each subsystem gets its own logger instance to allow independent enable/disable.
-// Reads zebgp.log.<subsystem> for level, zebgp.log.backend for output.
+// Reads ze.log.bgp.<subsystem> for level, ze.log.bgp.backend for output.
 // Returns a discard logger if subsystem is not enabled.
 func Logger(subsystem string) *slog.Logger {
-	v := env.Get("log", subsystem)
+	v := getLogEnv(subsystem)
 	if v == "" {
 		return slog.New(discardHandler{})
 	}
@@ -62,16 +74,16 @@ func LoggerWithOutput(subsystem, level string, w io.Writer) *slog.Logger {
 }
 
 // IsPluginRelayEnabled checks if plugin stderr should be relayed.
-// Reads zebgp.log.plugin (enabled/disabled).
+// Reads ze.log.bgp.plugin (enabled/disabled).
 func IsPluginRelayEnabled() bool {
-	v := env.Get("log", "plugin")
+	v := getLogEnv("plugin")
 	return strings.ToLower(v) == "enabled"
 }
 
-// createHandler creates a slog.Handler based on zebgp.log.backend setting.
+// createHandler creates a slog.Handler based on ze.log.bgp.backend setting.
 func createHandler(level slog.Level) slog.Handler {
 	opts := &slog.HandlerOptions{Level: level}
-	backend := env.Get("log", "backend")
+	backend := getLogEnv("backend")
 	switch strings.ToLower(backend) {
 	case "stdout":
 		return slog.NewTextHandler(os.Stdout, opts)

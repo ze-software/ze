@@ -17,10 +17,10 @@ import (
 	"sync"
 	"time"
 
-	"codeberg.org/thomas-mangin/zebgp/internal/bgp/attribute"
-	"codeberg.org/thomas-mangin/zebgp/internal/bgp/nlri"
-	"codeberg.org/thomas-mangin/zebgp/internal/plugin/rib/storage"
-	"codeberg.org/thomas-mangin/zebgp/internal/slogutil"
+	"codeberg.org/thomas-mangin/ze/internal/bgp/attribute"
+	"codeberg.org/thomas-mangin/ze/internal/bgp/nlri"
+	"codeberg.org/thomas-mangin/ze/internal/plugin/rib/storage"
+	"codeberg.org/thomas-mangin/ze/internal/slogutil"
 )
 
 // logger is the package-level logger, disabled by default.
@@ -28,7 +28,7 @@ import (
 var logger = slogutil.DiscardLogger()
 
 // SetLogger sets the package-level logger.
-// Called by cmd/zebgp/plugin_rib.go with slogutil.LoggerWithLevel().
+// Called by cmd/ze/bgp/plugin_rib.go with slogutil.LoggerWithLevel().
 func SetLogger(l *slog.Logger) {
 	if l != nil {
 		logger = l

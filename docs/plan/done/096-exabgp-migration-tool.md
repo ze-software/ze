@@ -57,8 +57,8 @@ CLI tool to convert ExaBGP configuration files to ZeBGP format. Transforms inclu
 - `internal/config/migration/api.go` - API block migration
 - `internal/config/migration/migrate.go` - Migration pipeline
 - `internal/config/migration/detect.go` - Legacy pattern detection
-- `cmd/zebgp/config_check.go` - `zebgp config check` command
-- `cmd/zebgp/config_migrate.go` - `zebgp config migrate` command
+- `cmd/ze/bgp/config_check.go` - `ze bgp config check` command
+- `cmd/ze/bgp/config_migrate.go` - `ze bgp config migrate` command
 
 ## Implementation Steps
 1. **Write tests** - Created test cases for all transforms
@@ -92,9 +92,9 @@ if hasLabel {
 
 ## CLI Commands
 
-### `zebgp config check <file>`
+### `ze bgp config check <file>`
 ```bash
-$ zebgp config check router.conf
+$ ze bgp config check router.conf
 ⚠️  Config needs migration
 
 Deprecated patterns found:
@@ -102,16 +102,16 @@ Deprecated patterns found:
   • neighbor.192.0.2.1.static → peer.192.0.2.1.announce.<afi>.<safi>
 
 To migrate, run:
-  zebgp config migrate <file> -o <output>
-  zebgp config migrate <file> --in-place
+  ze bgp config migrate <file> -o <output>
+  ze bgp config migrate <file> --in-place
 ```
 
-### `zebgp config migrate <file>`
+### `ze bgp config migrate <file>`
 ```bash
-$ zebgp config migrate router.conf           # stdout
-$ zebgp config migrate router.conf -o out    # to file
-$ zebgp config migrate router.conf --in-place # in place + backup
-$ zebgp config migrate --dry-run router.conf  # preview only
+$ ze bgp config migrate router.conf           # stdout
+$ ze bgp config migrate router.conf -o out    # to file
+$ ze bgp config migrate router.conf --in-place # in place + backup
+$ ze bgp config migrate --dry-run router.conf  # preview only
 ```
 
 ## Transforms

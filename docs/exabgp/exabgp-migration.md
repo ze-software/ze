@@ -6,7 +6,7 @@ ZeBGP aims for **easy migration from ExaBGP**, not 100% compatibility.
 
 | Principle | Description |
 |-----------|-------------|
-| **Config migration** | `zebgp config migrate` converts ExaBGP configs |
+| **Config migration** | `ze bgp config migrate` converts ExaBGP configs |
 | **API differences OK** | Document differences, provide migration path |
 | **No silent breakage** | Breaking changes must have migration or clear error |
 | **Plural communities** | ZeBGP uses `communities` (plural), ExaBGP uses `community` |
@@ -14,7 +14,7 @@ ZeBGP aims for **easy migration from ExaBGP**, not 100% compatibility.
 ## Migration Rules
 
 ### 1. Config Files
-- ExaBGP configs MUST work with `zebgp config migrate`
+- ExaBGP configs MUST work with `ze bgp config migrate`
 - New ZeBGP-only features MAY use different syntax
 - Deprecated ExaBGP syntax MUST be migrated automatically
 
@@ -107,7 +107,7 @@ When introducing a breaking change:
 
 2. **Document the difference**
    - Add to this file
-   - Update `.claude/zebgp/api/ARCHITECTURE.md` if API-related
+   - Update `docs/architecture/api/ARCHITECTURE.md` if API-related
    - Add to release notes
 
 3. **Provide compatibility option (if practical)**
@@ -120,26 +120,26 @@ When introducing a breaking change:
 
 ```bash
 # Check what needs migration
-zebgp config check old.conf
+ze bgp config check old.conf
 
 # Preview changes
-zebgp config migrate --dry-run old.conf
+ze bgp config migrate --dry-run old.conf
 
 # Migrate in place
-zebgp config migrate --in-place old.conf
+ze bgp config migrate --in-place old.conf
 ```
 
 ### Running ExaBGP Plugins
 
-Use `zebgp exabgp plugin` to run existing ExaBGP plugins with ZeBGP:
+Use `ze exabgp plugin` to run existing ExaBGP plugins with ZeBGP:
 
 ```bash
 # Command line
-zebgp exabgp plugin /path/to/exabgp-plugin.py
+ze exabgp plugin /path/to/exabgp-plugin.py
 
 # In ZeBGP config
 process exabgp-compat {
-    run "zebgp exabgp plugin /path/to/plugin.py";
+    run "ze exabgp plugin /path/to/plugin.py";
 }
 ```
 

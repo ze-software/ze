@@ -22,9 +22,9 @@ Refactor FlowSpec JSON output format to use nested arrays for OR/AND grouping an
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestFormatSingleTCPFlag` | `cmd/zebgp/decode_test.go` | `=`/`!` prefix for TCP flags | PASS |
-| `TestFormatTCPFlagsFlat` | `cmd/zebgp/decode_test.go` | Flat TCP flags string format | PASS |
-| `TestFlowSpecTCPFlagsCompound` | `cmd/zebgp/decode_test.go` | Nested array grouping for TCP flags | PASS |
+| `TestFormatSingleTCPFlag` | `cmd/ze/bgp/decode_test.go` | `=`/`!` prefix for TCP flags | PASS |
+| `TestFormatTCPFlagsFlat` | `cmd/ze/bgp/decode_test.go` | Flat TCP flags string format | PASS |
+| `TestFlowSpecTCPFlagsCompound` | `cmd/ze/bgp/decode_test.go` | Nested array grouping for TCP flags | PASS |
 
 ### Functional Tests
 | Test | Location | Scenario | Status |
@@ -37,8 +37,8 @@ Refactor FlowSpec JSON output format to use nested arrays for OR/AND grouping an
 
 ## Files to Modify
 
-- `cmd/zebgp/decode.go` - Main decoder, add grouping functions, remove string field
-- `cmd/zebgp/decode_test.go` - Update test expectations
+- `cmd/ze/bgp/decode.go` - Main decoder, add grouping functions, remove string field
+- `cmd/ze/bgp/decode_test.go` - Update test expectations
 - `test/encode/flow.ci` - Update JSON expectations
 - `test/decode/bgp-flow-*.ci` - Update decode test expectations
 - `docs/architecture/wire/nlri-flowspec.md` - Document new JSON format

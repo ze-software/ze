@@ -22,8 +22,8 @@ Implement non-blocking API parsing with goroutine-based dispatcher/gatherer patt
 
 ## Required Reading
 
-- [ ] `.claude/zebgp/api/ARCHITECTURE.md` - current API design
-- [ ] `.claude/zebgp/api/CAPABILITY_CONTRACT.md` - API contracts
+- [ ] `docs/architecture/api/ARCHITECTURE.md` - current API design
+- [ ] `docs/architecture/api/CAPABILITY_CONTRACT.md` - API contracts
 - [ ] `docs/plan/spec-api-command-serial.md` - command sequencing
 - [ ] `docs/plan/spec-parser-unification.md` - parser consolidation
 
@@ -110,7 +110,7 @@ toEngine chan *Update        // gatherer → engine
 
 ### Documentation
 - [ ] Required docs read
-- [ ] `.claude/zebgp/api/ARCHITECTURE.md` updated
+- [ ] `docs/architecture/api/ARCHITECTURE.md` updated
 
 ### Completion
 - [ ] Spec moved to `docs/plan/done/NNN-async-api-parser.md`

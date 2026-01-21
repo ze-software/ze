@@ -5,7 +5,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"codeberg.org/thomas-mangin/zebgp/internal/plugin"
+	"codeberg.org/thomas-mangin/ze/internal/plugin"
 )
 
 // msgIDCounter generates unique message IDs.

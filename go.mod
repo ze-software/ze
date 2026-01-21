@@ -1,4 +1,4 @@
-module codeberg.org/thomas-mangin/zebgp
+module codeberg.org/thomas-mangin/ze
 
 go 1.25
 

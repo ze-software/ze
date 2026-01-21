@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strconv"
 
-	"codeberg.org/thomas-mangin/zebgp/internal/selector"
+	"codeberg.org/thomas-mangin/ze/internal/selector"
 )
 
 // RegisterForwardHandlers registers forward-related command handlers.

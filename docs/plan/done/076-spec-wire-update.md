@@ -10,8 +10,8 @@ Implement zero-copy UPDATE message parsing using concrete wire types.
 
 ## Required Reading (MUST complete before implementation)
 
-- [x] `.claude/zebgp/ENCODING_CONTEXT.md` - Zero-copy pattern, ContextID comparison
-- [x] `.claude/zebgp/UPDATE_BUILDING.md` - Forward path vs Build path (WireUpdate is Forward path)
+- [x] `docs/architecture/ENCODING_CONTEXT.md` - Zero-copy pattern, ContextID comparison
+- [x] `docs/architecture/UPDATE_BUILDING.md` - Forward path vs Build path (WireUpdate is Forward path)
 - [x] `internal/bgp/attribute/wire.go` - AttributesWire pattern to follow
 - [x] `internal/plugin/mpwire.go` - MPReachWire/MPUnreachWire already implemented
 
@@ -305,8 +305,8 @@ func (h *Handler) OnMessageReceived(peer api.PeerInfo, msg api.RawMessage) {
 ### Documentation
 - [x] Required docs read
 - [x] RFC references added to protocol code (RFC 4271 Section 4.3, RFC 4760)
-- [x] Updated `.claude/zebgp/ENCODING_CONTEXT.md` - added WireUpdate zero-copy receive path
-- [x] Updated `.claude/zebgp/UPDATE_BUILDING.md` - added Path 0: Receive Path
+- [x] Updated `docs/architecture/ENCODING_CONTEXT.md` - added WireUpdate zero-copy receive path
+- [x] Updated `docs/architecture/UPDATE_BUILDING.md` - added Path 0: Receive Path
 
 ### Completion
 - [x] All phases complete

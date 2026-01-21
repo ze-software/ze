@@ -39,7 +39,7 @@
 ```
 # Options
 option=file:path=test.conf
-option=env:var=zebgp.log.server:value=debug
+option=env:var=ze.bgp.log.server:value=debug
 option=timeout:value=10s
 option=asn:value=65000
 option=bind:value=ipv6
@@ -67,7 +67,7 @@ cmd=api:conn=1:seq=1:text=update text nhop set 1.2.3.4...
 | Old | New |
 |-----|-----|
 | `option:file:test.conf` | `option=file:path=test.conf` |
-| `option:env:zebgp.log.server=debug` | `option=env:var=zebgp.log.server:value=debug` |
+| `option:env:ze.bgp.log.server=debug` | `option=env:var=ze.bgp.log.server:value=debug` |
 | `option:timeout:10s` | `option=timeout:value=10s` |
 | `option:asn:65000` | `option=asn:value=65000` |
 | `option:bind:ipv6` | `option=bind:value=ipv6` |

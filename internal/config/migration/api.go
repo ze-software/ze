@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"strings"
 
-	"codeberg.org/thomas-mangin/zebgp/internal/config"
+	"codeberg.org/thomas-mangin/ze/internal/config"
 )
 
 // ErrEmptyProcesses is returned when process block has no processes or processes-match.

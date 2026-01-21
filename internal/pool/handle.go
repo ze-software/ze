@@ -5,7 +5,7 @@
 // the same underlying storage, reducing memory usage by 80-90% for route
 // reflector scenarios.
 //
-// See .claude/zebgp/POOL_ARCHITECTURE.md for design details.
+// See docs/architecture/POOL_ARCHITECTURE.md for design details.
 package pool
 
 // Handle is a compact reference to pooled data.

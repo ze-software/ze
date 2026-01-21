@@ -1,6 +1,6 @@
 # Migrated from test/data/plugin/fast.*
 
-# zebgp-peer expectations
+# ze-peer expectations
 stdin=peer:terminator=EOF_PEER
 cmd=api:conn=1:seq=1:text=announce eor ipv4/unicast
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
@@ -27,7 +27,7 @@ the final expected routes.
 
 import sys
 import time
-from zebgp_api import flush, ready, wait_for_shutdown
+from ze_bgp_api import flush, ready, wait_for_shutdown
 
 print("DEBUG: fast.run starting", file=sys.stderr)
 
@@ -60,8 +60,8 @@ if __name__ == '__main__':
     main()
 EOF_RUN
 
-# zebgp configuration
-stdin=zebgp:terminator=EOF_CONF
+# ze bgp configuration
+stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external announce-routes {
 		run ./fast.run;
@@ -87,5 +87,5 @@ peer 127.0.0.1 {
 EOF_CONF
 
 # Process orchestration
-cmd=background:seq=1:exec=zebgp-peer --port $PORT:stdin=peer
-cmd=foreground:seq=2:exec=zebgp server -:stdin=zebgp:timeout=10s
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze bgp server -:stdin=ze-bgp:timeout=10s

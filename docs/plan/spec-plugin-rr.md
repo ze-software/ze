@@ -1,4 +1,4 @@
-# Spec: zebgp plugin rr / zebgp plugin persist
+# Spec: ze bgp plugin rr / ze bgp plugin persist
 
 > **Architecture:** API programs own ALL RIB data and logic.
 > See `docs/architecture/rib-transition.md` for the overall architecture.
@@ -9,8 +9,8 @@ Two separate plugins sharing common code:
 
 | Plugin | Use Case | RIB | Events |
 |--------|----------|-----|--------|
-| `zebgp plugin rr` | Route Server (multi-peer) | ribIn | `update`, `state` |
-| `zebgp plugin persist` | State persistence (single-peer) | ribOut | `sent`, `state` |
+| `ze bgp plugin rr` | Route Server (multi-peer) | ribIn | `update`, `state` |
+| `ze bgp plugin persist` | State persistence (single-peer) | ribOut | `sent`, `state` |
 
 **Key features:**
 - Pool-based attribute deduplication
@@ -21,8 +21,8 @@ Two separate plugins sharing common code:
 ## Invocation
 
 ```
-zebgp plugin rr        # Route Server mode
-zebgp plugin persist   # Persistence mode (for Test C)
+ze bgp plugin rr        # Route Server mode
+ze bgp plugin persist   # Persistence mode (for Test C)
 ```
 
 Runs as API process, communicates via stdin/stdout with ZeBGP engine.
@@ -49,12 +49,12 @@ Runs as API process, communicates via stdin/stdout with ZeBGP engine.
 ## Architecture
 
 ```
-Peer A ──UPDATE──▶ ZeBGP ──JSON──▶ zebgp plugin rr
+Peer A ──UPDATE──▶ ZeBGP ──JSON──▶ ze bgp plugin rr
                   (msg-id 123)           │
                                          │ Store in Adj-RIB-In
                                          │ (for replay on peer up)
                                          ▼
-                   ZeBGP ◀─────────── zebgp plugin rr
+                   ZeBGP ◀─────────── ze bgp plugin rr
                      │       peer !A forward update-id 123
                      ▼
               Peers B, C, D (zero-copy forward)
@@ -156,14 +156,14 @@ type PeerState struct {
     Families     map[string]bool
 }
 
-// zebgp plugin rr
+// ze bgp plugin rr
 type RouteServer struct {
     pool   *pool.Pool
     peers  map[string]*PeerState
     ribIn  *RIB  // Routes FROM peers (for forwarding to others)
 }
 
-// zebgp plugin persist
+// ze bgp plugin persist
 type PersistServer struct {
     pool   *pool.Pool
     peers  map[string]*PeerState
@@ -242,7 +242,7 @@ send("peer !10.0.0.1 forward update-id 124")
 {"type":"state","peer":{"address":{"peer":"10.0.0.1"},"asn":{"peer":65001}},"state":"down"}
 ```
 
-**Action (zebgp plugin rr):**
+**Action (ze bgp plugin rr):**
 ```go
 // Get all routes from downed peer
 routes := ribIn.GetPeerRoutes("10.0.0.1")
@@ -258,7 +258,7 @@ for _, route := range routes {
 ribIn.ClearPeer("10.0.0.1")
 ```
 
-**Action (zebgp plugin persist):**
+**Action (ze bgp plugin persist):**
 ```go
 // DO NOT clear ribOut - keep routes for replay on reconnect
 // ribOut stores routes SENT TO this peer, not FROM
@@ -274,7 +274,7 @@ peer.Up = false
 {"type":"state","peer":{"address":{"peer":"10.0.0.1"},"asn":{"peer":65001}},"state":"up"}
 ```
 
-**Action (zebgp plugin rr):**
+**Action (ze bgp plugin rr):**
 ```go
 // Replay all routes from other peers to new peer
 for peerID, routes := range ribIn.GetAllPeers() {
@@ -291,7 +291,7 @@ for family := range peer.Families {
 }
 ```
 
-**Action (zebgp plugin persist):**
+**Action (ze bgp plugin persist):**
 ```go
 // Replay all routes that were sent to this peer before
 for _, route := range ribOut.GetPeerRoutes("10.0.0.1") {
@@ -389,7 +389,7 @@ Note: No `rib show/clear` - RS has no RIB.
 
 ```
 process rr {
-    run "zebgp plugin rr";
+    run "ze bgp plugin rr";
     encoder json;
 }
 
@@ -427,10 +427,10 @@ internal/plugin/persist/           # Persistence plugin
 ├── server.go              # PersistServer (uses ribOut)
 └── server_test.go
 
-cmd/zebgp/
+cmd/ze/bgp/
 ├── api.go                 # "zebgp api" subcommand group
-├── api_rr.go              # "zebgp plugin rr" entry point
-└── api_persist.go         # "zebgp plugin persist" entry point
+├── api_rr.go              # "ze bgp plugin rr" entry point
+└── api_persist.go         # "ze bgp plugin persist" entry point
 ```
 
 ### Shared Code (internal/plugin/apiutil/)
@@ -606,9 +606,9 @@ internal/plugin/persist/
 ├── server.go       # PersistServer (uses ribOut)
 └── server_test.go
 
-cmd/zebgp/
-├── api_rr.go       # zebgp plugin rr entry point
-└── api_persist.go  # zebgp plugin persist entry point
+cmd/ze/bgp/
+├── api_rr.go       # ze bgp plugin rr entry point
+└── api_persist.go  # ze bgp plugin persist entry point
 ```
 
 ---
@@ -689,7 +689,7 @@ type PersistServer struct {
 }
 ```
 
-### Event Handling (zebgp plugin persist)
+### Event Handling (ze bgp plugin persist)
 
 #### Sent Event
 
@@ -751,7 +751,7 @@ func (ps *PersistServer) handleStateUp(peerAddr string) {
 
 ```
 ┌─────────────────┐     ┌───────────────────┐
-│  teardown.run   │     │  zebgp plugin persist│
+│  teardown.run   │     │  ze bgp plugin persist│
 │  (announcer)    │     │  (state keeper)   │
 └────────┬────────┘     └────────┬──────────┘
          │                       │
@@ -771,9 +771,9 @@ func (ps *PersistServer) handleStateUp(peerAddr string) {
     └─────────┘
 ```
 
-`zebgp plugin persist` runs as **extra backend** alongside the original API process:
+`ze bgp plugin persist` runs as **extra backend** alongside the original API process:
 - `teardown.run`: Sends announcements (existing behavior)
-- `zebgp plugin persist`: Tracks what was sent, replays on reconnect
+- `ze bgp plugin persist`: Tracks what was sent, replays on reconnect
 
 ### Test C Config
 
@@ -784,7 +784,7 @@ process announce-routes {
 }
 
 process persist {
-    run "zebgp plugin persist";
+    run "ze bgp plugin persist";
     encoder json;
 }
 

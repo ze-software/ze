@@ -122,8 +122,8 @@ internal/plugin/msgid_test.go:158: unexpected error: unknown command
 === RUN   TestMsgIDRetain
 --- PASS: TestMsgIDRetain (0.00s)
 PASS
-ok  	codeberg.org/thomas-mangin/zebgp/internal/reactor	1.667s
-ok  	codeberg.org/thomas-mangin/zebgp/internal/plugin	1.448s
+ok  	codeberg.org/thomas-mangin/ze/internal/reactor	1.667s
+ok  	codeberg.org/thomas-mangin/ze/internal/plugin	1.448s
 ```
 
 ### Final Verification

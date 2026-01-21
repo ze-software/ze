@@ -10,10 +10,10 @@ Both are needed: Option A for efficient building, Option B for forwarding/replay
 
 ## Required Reading (MUST complete before implementation)
 
-- [ ] `.claude/zebgp/UPDATE_BUILDING.md` - Build vs Forward paths, *Params design
-- [ ] `.claude/zebgp/ENCODING_CONTEXT.md` - Context-dependent encoding, zero-copy
-- [ ] `.claude/zebgp/wire/MESSAGES.md` - Max sizes (4096/65535), header format
-- [ ] `.claude/zebgp/wire/NLRI.md` - NLRI formats, MP_REACH_NLRI structure
+- [ ] `docs/architecture/UPDATE_BUILDING.md` - Build vs Forward paths, *Params design
+- [ ] `docs/architecture/ENCODING_CONTEXT.md` - Context-dependent encoding, zero-copy
+- [ ] `docs/architecture/wire/MESSAGES.md` - Max sizes (4096/65535), header format
+- [ ] `docs/architecture/wire/NLRI.md` - NLRI formats, MP_REACH_NLRI structure
 
 **Key insights from docs:**
 - **Two paths:** Build path (low volume, local origination) vs Forward path (high volume, zero-copy)
@@ -614,7 +614,7 @@ func TestOpQueue_SplitsOversized(t *testing.T)
 ### Documentation
 - [ ] RFC comments added (4271, 4760, 8654, 7911, 8277, 4364)
 - [ ] ChunkNLRI limitations documented in update.go
-- [ ] `.claude/zebgp/UPDATE_BUILDING.md` updated with split info
+- [ ] `docs/architecture/UPDATE_BUILDING.md` updated with split info
 
 ## RFC References
 

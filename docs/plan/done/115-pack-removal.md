@@ -111,7 +111,7 @@ This is a follow-up to `spec-wirewriter-unification.md` which:
    - Updated message tests to use PackTo()
    - Removed Pack()-to-WriteTo equivalence tests (no longer needed)
 
-5. **Updated cmd/zebgp/encode.go**
+5. **Updated cmd/ze/bgp/encode.go**
    - Replaced `message.Negotiated` usage with `message.PackTo()`
 
 6. **Removed reactor/peer.go messageNegotiated()**
@@ -139,7 +139,7 @@ This is a follow-up to `spec-wirewriter-unification.md` which:
 - `internal/rib/commit_wire_test.go`
 - `internal/reactor/peer.go`
 - `internal/reactor/reactor.go`
-- `cmd/zebgp/encode.go`
+- `cmd/ze/bgp/encode.go`
 
 ### Key Design Decisions
 - `PackTo()` remains as convenience helper for callers that don't pre-allocate

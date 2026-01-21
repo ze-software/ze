@@ -10,10 +10,10 @@ import (
 	"net/netip"
 	"strings"
 
-	"codeberg.org/thomas-mangin/zebgp/internal/bgp/attribute"
-	"codeberg.org/thomas-mangin/zebgp/internal/bgp/context"
-	"codeberg.org/thomas-mangin/zebgp/internal/bgp/message"
-	"codeberg.org/thomas-mangin/zebgp/internal/bgp/nlri"
+	"codeberg.org/thomas-mangin/ze/internal/bgp/attribute"
+	"codeberg.org/thomas-mangin/ze/internal/bgp/context"
+	"codeberg.org/thomas-mangin/ze/internal/bgp/message"
+	"codeberg.org/thomas-mangin/ze/internal/bgp/nlri"
 )
 
 // Wire mode errors.

@@ -1,4 +1,4 @@
-# zebgp-peer expectations
+# ze-peer expectations
 stdin=peer:terminator=EOF_PEER
 cmd=api:conn=1:seq=1:text=announce ipv4/mup mup-isd 10.0.1.0/24 rd 100:100 next-hop 2001::1 extended-community [target:10:10] bgp-prefix-sid-srv6 ( l3-service 2001:db8:1:1:: 0x48 [64,24,16,0,0,0] )
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF008002000000694001010040020040050400000064800E250001551020010000000000000000000000000001000100010C0000006400000064180A0001C010080002000A0000000AC028250500220001001E0020010DB800010001000000000000000000004800010006401810000000
@@ -26,8 +26,8 @@ cmd=api:conn=1:seq=1:text=announce eor ipv6/mup
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001E0200000007900F0003000255
 EOF_PEER
 
-# zebgp configuration
-stdin=zebgp:terminator=EOF_CONF
+# ze bgp configuration
+stdin=ze-bgp:terminator=EOF_CONF
 peer 127.0.0.1 {
 	router-id 10.0.0.1;
 	local-address 127.0.0.1;
@@ -58,5 +58,5 @@ peer 127.0.0.1 {
 EOF_CONF
 
 # Process orchestration
-cmd=background:seq=1:exec=zebgp-peer --port $PORT:stdin=peer
-cmd=foreground:seq=2:exec=zebgp server -:stdin=zebgp:timeout=10s
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze bgp server -:stdin=ze-bgp:timeout=10s

@@ -1,4 +1,4 @@
-# zebgp-peer expectations
+# ze-peer expectations
 stdin=peer:terminator=EOF_PEER
 cmd=api:conn=1:seq=1:text=group announce ipv4 mcast-vpn shared-join rp 10.99.199.1 group 239.251.255.228 rd 65000:99999 source-as 65000 next-hop 10.10.6.3 extended-community [target:192.168.94.12:5] ; announce ipv4 mcast-vpn source-join source 10.99.12.2 group 239.251.255.228 rd 65000:99999 source-as 65000 next-hop 10.10.6.3 extended-community [target:192.168.94.12:5]
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0073020000005C400101004002004003040A0A060340050400000064800E39000105040A0A06030006160000FDE80001869F0000FDE8200A63C70120EFFBFFE407160000FDE80001869F0000FDE8200A630C0220EFFBFFE4C010080102C0A85E0C0005
@@ -14,8 +14,8 @@ cmd=api:conn=1:seq=1:text=announce eor ipv6 mcast-vpn
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001E0200000007900F0003000205
 EOF_PEER
 
-# zebgp configuration
-stdin=zebgp:terminator=EOF_CONF
+# ze bgp configuration
+stdin=ze-bgp:terminator=EOF_CONF
 peer 127.0.0.1 {
 	router-id 32.32.32.32;
 	local-address 127.0.0.1;
@@ -44,5 +44,5 @@ peer 127.0.0.1 {
 EOF_CONF
 
 # Process orchestration
-cmd=background:seq=1:exec=zebgp-peer --port $PORT:stdin=peer
-cmd=foreground:seq=2:exec=zebgp server -:stdin=zebgp:timeout=10s
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze bgp server -:stdin=ze-bgp:timeout=10s

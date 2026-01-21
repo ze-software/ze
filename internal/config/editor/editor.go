@@ -11,7 +11,7 @@ import (
 	"strings"
 	"time"
 
-	"codeberg.org/thomas-mangin/zebgp/internal/config"
+	"codeberg.org/thomas-mangin/ze/internal/config"
 )
 
 // Editor manages an editing session for a configuration file.

@@ -4,8 +4,8 @@ import (
 	"errors"
 	"fmt"
 
-	"codeberg.org/thomas-mangin/zebgp/internal/bgp/attribute"
-	"codeberg.org/thomas-mangin/zebgp/internal/bgp/nlri"
+	"codeberg.org/thomas-mangin/ze/internal/bgp/attribute"
+	"codeberg.org/thomas-mangin/ze/internal/bgp/nlri"
 )
 
 // Errors for UPDATE splitting and bounds checking.

@@ -1375,7 +1375,7 @@ func Shrink(plan InteractionPlan, seed uint64) InteractionPlan {
 ### 11.5 CLI Interface
 
 ```
-$ zebgp-sim --seed 12345 --steps 1000 --properties all
+$ ze-bgp-sim --seed 12345 --steps 1000 --properties all
 Seed: 12345
 Steps: 1000
 Properties: fsm-transitions, collision-resolution, hold-timer, ...
@@ -1398,7 +1398,7 @@ Minimal reproduction: 3 steps
   Step 3: Inject connection-reset on peer-B
 
 Replay command:
-  zebgp-sim --seed 12345 --replay steps.json
+  ze-bgp-sim --seed 12345 --replay steps.json
 ```
 
 ---
@@ -1702,10 +1702,10 @@ simulation:
   runs-on: ubuntu-latest
   steps:
     - name: Run simulation (seed A)
-      run: go run ./cmd/zebgp-sim --seed 12345 --output run1.log
+      run: go run ./cmd/ze/bgp-sim --seed 12345 --output run1.log
 
     - name: Run simulation (seed A again)
-      run: go run ./cmd/zebgp-sim --seed 12345 --output run2.log
+      run: go run ./cmd/ze/bgp-sim --seed 12345 --output run2.log
 
     - name: Verify determinism
       run: diff run1.log run2.log || (echo "DETERMINISM FAILURE" && exit 1)
@@ -1714,7 +1714,7 @@ simulation:
       run: |
         for i in $(seq 1 100); do
           seed=$RANDOM
-          go run ./cmd/zebgp-sim --seed $seed --steps 10000 || exit 1
+          go run ./cmd/ze/bgp-sim --seed $seed --steps 10000 || exit 1
         done
 ```
 

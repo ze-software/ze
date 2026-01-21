@@ -57,9 +57,9 @@ peer 10.0.0.1 {
 ### Config Files
 | File | Change |
 |------|--------|
-| `etc/zebgp/api-open.conf` | Moved nexthop into capability |
-| `etc/zebgp/conf-prefix-sid-srv6.conf` | Moved nexthop into capability |
-| `etc/zebgp/extended-nexthop.conf` | Moved nexthop into capability |
+| `etc/ze/bgp/api-open.conf` | Moved nexthop into capability |
+| `etc/ze/bgp/conf-prefix-sid-srv6.conf` | Moved nexthop into capability |
+| `etc/ze/bgp/extended-nexthop.conf` | Moved nexthop into capability |
 | `test/data/encode/extended-nexthop.conf` | Moved nexthop into capability |
 | `test/data/encode/prefix-sid-srv6.conf` | Moved nexthop into capability |
 | `test/data/migrate/nexthop/expected.conf` | Updated expected migration output |

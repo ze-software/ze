@@ -27,7 +27,7 @@ ZeBGP uses per-subsystem logging via `internal/slogutil`. Each subsystem has ind
 **Engine subsystems** (use `slogutil.Logger()`):
 ```go
 // In internal/plugin/server.go
-var logger = slogutil.Logger("server")  // Reads zebgp.log.server
+var logger = slogutil.Logger("server")  // Reads ze.bgp.log.server
 
 func handleConnection() {
     logger.Debug("connection accepted", "peer", peerAddr)
@@ -43,30 +43,30 @@ func SetLogger(l *slog.Logger) {
     if l != nil { logger = l }
 }
 
-// In cmd/zebgp/plugin_gr.go
+// In cmd/ze/bgp/plugin_gr.go
 logLevel := fs.String("log-level", "disabled", "Log level")
 gr.SetLogger(slogutil.LoggerWithLevel("gr", *logLevel))
 ```
 
 ### Environment Variables
 
-Per-subsystem control via `zebgp.log.<subsystem>=<level>`:
+Per-subsystem control via `ze.bgp.log.<subsystem>=<level>`:
 
 | Variable | Purpose |
 |----------|---------|
-| `zebgp.log.server` | Plugin server logging |
-| `zebgp.log.coordinator` | Startup coordinator |
-| `zebgp.log.filter` | Filter/NLRI logging |
-| `zebgp.log.plugin` | Relay plugin stderr (`enabled`/`disabled`) |
-| `zebgp.log.backend` | Output: `stderr` (default), `stdout`, `syslog` |
-| `zebgp.log.destination` | Syslog address (when backend=syslog) |
+| `ze.bgp.log.server` | Plugin server logging |
+| `ze.bgp.log.coordinator` | Startup coordinator |
+| `ze.bgp.log.filter` | Filter/NLRI logging |
+| `ze.bgp.log.plugin` | Relay plugin stderr (`enabled`/`disabled`) |
+| `ze.bgp.log.backend` | Output: `stderr` (default), `stdout`, `syslog` |
+| `ze.bgp.log.destination` | Syslog address (when backend=syslog) |
 
 Levels: `disabled`, `debug`, `info`, `warn`, `err` (case-insensitive)
 
-Shell-compatible: `zebgp_log_server` also works (dot→underscore)
+Shell-compatible: `ze_bgp_log_server` also works (dot→underscore)
 
 ```bash
-zebgp.log.server=debug zebgp server config.conf  # Enable server debug
+ze.bgp.log.server=debug ze bgp server config.conf  # Enable server debug
 ```
 
 ### Debug Logging is Permanent

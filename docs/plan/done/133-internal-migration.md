@@ -167,7 +167,7 @@ None - only moving existing files.
 - Deleted empty `pkg/` directory
 
 ### Bugs Found/Fixed
-- Variable shadowing in `cmd/zebgp-test/run.go`: local `runner` shadowed package `runner`
+- Variable shadowing in `cmd/ze-test/run.go`: local `runner` shadowed package `runner`
 - Variable shadowing in `test/integration/testpeer_test.go`: local `peer` shadowed package `peer`
 - gofmt issue in `internal/rib/store.go`
 

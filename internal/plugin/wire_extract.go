@@ -4,8 +4,8 @@ import (
 	"encoding/binary"
 	"fmt"
 
-	"codeberg.org/thomas-mangin/zebgp/internal/bgp/attribute"
-	"codeberg.org/thomas-mangin/zebgp/internal/bgp/nlri"
+	"codeberg.org/thomas-mangin/ze/internal/bgp/attribute"
+	"codeberg.org/thomas-mangin/ze/internal/bgp/nlri"
 )
 
 // ExtractRawAttributes returns the raw path attribute bytes from an UPDATE.

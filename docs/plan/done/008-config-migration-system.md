@@ -133,7 +133,7 @@ peer 192.0.2.1 {
 │  ┌────────────────┐         │                          │            │
 │  │ --auto-upgrade │ NO      │                          │            │
 │  │    enabled?    │────────▶│ ERROR: Run               │            │
-│  └───────┬────────┘         │ `zebgp config upgrade`   │            │
+│  └───────┬────────┘         │ `ze bgp config upgrade`   │            │
 │          │ YES              │                          │            │
 │          ▼                  │                          │            │
 │  ┌──────────────────────────┴──────────────────────┐   │            │
@@ -486,9 +486,9 @@ func (e *DeprecatedConfigError) Error() string {
         b.WriteString(fmt.Sprintf("    move to: %s\n", d.NewLocation))
     }
     b.WriteString("\nTo upgrade your configuration, run:\n")
-    b.WriteString(fmt.Sprintf("  zebgp config upgrade %s\n\n", e.ConfigPath))
+    b.WriteString(fmt.Sprintf("  ze bgp config upgrade %s\n\n", e.ConfigPath))
     b.WriteString("Or preview changes first:\n")
-    b.WriteString(fmt.Sprintf("  zebgp config upgrade --dry-run %s\n", e.ConfigPath))
+    b.WriteString(fmt.Sprintf("  ze bgp config upgrade --dry-run %s\n", e.ConfigPath))
     return b.String()
 }
 ```
@@ -500,7 +500,7 @@ func (e *DeprecatedConfigError) Error() string {
 ### Command Structure
 
 ```
-zebgp config
+ze bgp config
 ├── upgrade [file]     # Migrate config to current version
 ├── check [file]       # Show version and deprecated fields
 ├── dump               # Dump running/parsed config (was dump-config)
@@ -511,7 +511,7 @@ zebgp config
 
 ```bash
 # Normal load - FAILS if deprecated config detected
-$ zebgp --config exabgp.conf
+$ ze bgp --config exabgp.conf
 Error: configuration file "exabgp.conf" uses deprecated format (v1)
 current format is v2
 
@@ -522,17 +522,17 @@ Deprecated fields found:
     move to: neighbor.*.rib.out.enable
 
 To upgrade your configuration, run:
-  zebgp config upgrade exabgp.conf
+  ze bgp config upgrade exabgp.conf
 
 Or preview changes first:
-  zebgp config upgrade --dry-run exabgp.conf
+  ze bgp config upgrade --dry-run exabgp.conf
 ```
 
 ### Explicit Upgrade Command
 
 ```bash
 # Check config without modifying
-$ zebgp config upgrade --dry-run exabgp.conf
+$ ze bgp config upgrade --dry-run exabgp.conf
 Detected version: v1 (ExaBGP main 2025-12)
 Target version: v2 (ZeBGP current)
 
@@ -545,18 +545,18 @@ Changes that would be applied:
 No changes written (dry-run mode).
 
 # Actually upgrade (creates backup)
-$ zebgp config upgrade exabgp.conf
+$ ze bgp config upgrade exabgp.conf
 Backup created: exabgp.conf.20251221-143022.bak
 Upgraded exabgp.conf from v1 to v2
 Applied migrations:
   - rib-restructure
 
 # Upgrade to different file
-$ zebgp config upgrade exabgp.conf -o exabgp-v2.conf
+$ ze bgp config upgrade exabgp.conf -o exabgp-v2.conf
 Wrote upgraded config to exabgp-v2.conf
 
 # Check current version
-$ zebgp config check exabgp.conf
+$ ze bgp config check exabgp.conf
 Config version: v2 (ZeBGP current)
 No deprecated fields found.
 ```
@@ -565,24 +565,24 @@ No deprecated fields found.
 
 ```bash
 # For users who accept the risk of automatic upgrades
-$ zebgp --config exabgp.conf --auto-upgrade
+$ ze bgp --config exabgp.conf --auto-upgrade
 Warning: Auto-upgrading config from v1 to v2
 Backup created: exabgp.conf.20251221-143022.bak
 Starting ZeBGP...
 ```
 
-### Config Formatter (zebgp config fmt)
+### Config Formatter (ze bgp config fmt)
 
-Formats and normalizes configuration files. Does **not** apply migrations - use `zebgp config upgrade` first if needed.
+Formats and normalizes configuration files. Does **not** apply migrations - use `ze bgp config upgrade` first if needed.
 
 ```bash
 # Format config (normalizes style only)
-$ zebgp config fmt exabgp.conf
+$ ze bgp config fmt exabgp.conf
 Backup created: exabgp.conf.20251221-143022.bak
 Formatted exabgp.conf
 
 # Preview formatting changes
-$ zebgp config fmt --dry-run exabgp.conf
+$ ze bgp config fmt --dry-run exabgp.conf
 --- exabgp.conf (original)
 +++ exabgp.conf (formatted)
 @@ -1,8 +1,8 @@
@@ -603,13 +603,13 @@ $ zebgp config fmt --dry-run exabgp.conf
 No changes written (dry-run mode).
 
 # Format to stdout (for piping)
-$ zebgp config fmt --stdout exabgp.conf > exabgp-formatted.conf
+$ ze bgp config fmt --stdout exabgp.conf > exabgp-formatted.conf
 
 # Format and write to different file
-$ zebgp config fmt exabgp.conf -o exabgp-new.conf
+$ ze bgp config fmt exabgp.conf -o exabgp-new.conf
 
 # Upgrade + format in one pipeline
-$ zebgp config upgrade exabgp.conf && zebgp config fmt exabgp.conf
+$ ze bgp config upgrade exabgp.conf && ze bgp config fmt exabgp.conf
 ```
 
 **Formatting rules:**
@@ -840,19 +840,19 @@ Default: Keep last 5 backups per config file (configurable via `--backup-keep`).
 
 ### Phase 5: CLI Commands
 
-All config-related commands live under `zebgp config`:
+All config-related commands live under `ze bgp config`:
 
 | # | Task | Files | Status |
 |---|------|-------|--------|
-| 5.1 | Add `--auto-upgrade` flag to main command | `cmd/zebgp/main.go` | |
-| 5.2 | Add `zebgp config` parent command | `cmd/zebgp/config.go` | ✅ |
-| 5.3 | Add `zebgp config migrate` subcommand | `cmd/zebgp/config_migrate.go` | ✅ |
-| 5.4 | Add `zebgp config check` subcommand | `cmd/zebgp/config_check.go` | ✅ |
-| 5.5 | Add `zebgp config dump` subcommand | `cmd/zebgp/configdump.go` | ✅ |
-| 5.6 | Add `zebgp config fmt` subcommand | `cmd/zebgp/config_fmt.go` | ✅ |
-| 5.7 | Add `--dry-run`, `-o`, `--in-place` flags | `cmd/zebgp/config_*.go` | ✅ |
-| 5.8 | Detect unsupported features (multi-session, operational) | `cmd/zebgp/config_check.go` | ✅ |
-| 5.9 | Show warnings in CLI output | `cmd/zebgp/config_*.go` | ✅ |
+| 5.1 | Add `--auto-upgrade` flag to main command | `cmd/ze/bgp/main.go` | |
+| 5.2 | Add `ze bgp config` parent command | `cmd/ze/bgp/config.go` | ✅ |
+| 5.3 | Add `ze bgp config migrate` subcommand | `cmd/ze/bgp/config_migrate.go` | ✅ |
+| 5.4 | Add `ze bgp config check` subcommand | `cmd/ze/bgp/config_check.go` | ✅ |
+| 5.5 | Add `ze bgp config dump` subcommand | `cmd/ze/bgp/configdump.go` | ✅ |
+| 5.6 | Add `ze bgp config fmt` subcommand | `cmd/ze/bgp/config_fmt.go` | ✅ |
+| 5.7 | Add `--dry-run`, `-o`, `--in-place` flags | `cmd/ze/bgp/config_*.go` | ✅ |
+| 5.8 | Detect unsupported features (multi-session, operational) | `cmd/ze/bgp/config_check.go` | ✅ |
+| 5.9 | Show warnings in CLI output | `cmd/ze/bgp/config_*.go` | ✅ |
 
 ### Phase 5b: Config Formatter (formatting only, no migrations)
 
@@ -861,9 +861,9 @@ All config-related commands live under `zebgp config`:
 | 5b.1 | Implement Tree serializer with formatting rules | `internal/config/serialize.go` |
 | 5b.2 | Add indentation normalization (4 spaces) | `internal/config/serialize.go` |
 | 5b.3 | Add block ordering (alphabetical) | `internal/config/serialize.go` |
-| 5b.4 | Diff output for `--dry-run` | `cmd/zebgp/config_fmt.go` |
+| 5b.4 | Diff output for `--dry-run` | `cmd/ze/bgp/config_fmt.go` |
 | 5b.5 | Comment preservation (best-effort) | `internal/config/serialize.go` |
-| 5b.6 | Reject deprecated configs (require upgrade first) | `cmd/zebgp/config_fmt.go` |
+| 5b.6 | Reject deprecated configs (require upgrade first) | `cmd/ze/bgp/config_fmt.go` |
 | 5b.7 | Tests for formatter | `internal/config/serialize_test.go` |
 
 ### Phase 6: Documentation
@@ -911,9 +911,9 @@ test/data/configs/migration/
 | Question | Decision |
 |----------|----------|
 | Explicit version field? | **No** - use heuristic detection |
-| Default behavior? | **Refuse to start** - require explicit `zebgp config upgrade` |
+| Default behavior? | **Refuse to start** - require explicit `ze bgp config upgrade` |
 | Optimistic loading? | **Opt-in** via `--auto-upgrade` flag |
-| Write back migrated config? | **Yes** via `zebgp config upgrade` command |
+| Write back migrated config? | **Yes** via `ze bgp config upgrade` command |
 | First version baseline? | **ExaBGP main (2025-12)** = v1 |
 
 ---
@@ -928,11 +928,11 @@ test/data/configs/migration/
 
 ## Success Criteria
 
-1. ✅ `zebgp --config old.conf` fails with clear upgrade instructions
-2. ✅ `zebgp config upgrade old.conf` upgrades and creates backup
-3. ✅ `zebgp config upgrade --dry-run old.conf` shows changes without modifying
-4. ✅ `zebgp --config old.conf --auto-upgrade` works with warning
-5. ✅ `zebgp config check old.conf` shows version and deprecated fields
+1. ✅ `ze bgp --config old.conf` fails with clear upgrade instructions
+2. ✅ `ze bgp config upgrade old.conf` upgrades and creates backup
+3. ✅ `ze bgp config upgrade --dry-run old.conf` shows changes without modifying
+4. ✅ `ze bgp --config old.conf --auto-upgrade` works with warning
+5. ✅ `ze bgp config check old.conf` shows version and deprecated fields
 6. ✅ All migrations are idempotent
 7. ✅ Zero data loss through migration
 
@@ -949,8 +949,8 @@ These ExaBGP features are detected and warned about, but not implemented in ZeBG
 | `operational` block | `peer { operational { ... } }` | ExaBGP-specific operational messages (ASM, ADM, queries) |
 
 **CLI Behavior:**
-- `zebgp config check` shows warnings for unsupported features
-- `zebgp config migrate` shows warnings after migration
+- `ze bgp config check` shows warnings for unsupported features
+- `ze bgp config migrate` shows warnings after migration
 - Features are parsed but ignored at runtime
 
 ---

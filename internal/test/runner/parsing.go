@@ -171,7 +171,7 @@ func (pt *ParsingTests) Discover(dir string) error {
 //	stdin=config:terminator=<TERM>
 //	<config content>
 //	<TERM>
-//	cmd=foreground:seq=1:exec=zebgp validate -:stdin=config
+//	cmd=foreground:seq=1:exec=ze bgp validate -:stdin=config
 //	expect=exit:code=<N>
 //	expect=stderr:contains=<error>  (optional, for negative tests)
 func (pt *ParsingTests) parseCIFile(filePath string) (*ParsingTest, error) {
@@ -312,19 +312,19 @@ func (pt *ParsingTests) List() {
 
 // ParsingRunner executes parsing tests.
 type ParsingRunner struct {
-	tests     *ParsingTests
-	baseDir   string
-	zebgpPath string
-	colors    *Colors
+	tests   *ParsingTests
+	baseDir string
+	zePath  string
+	colors  *Colors
 }
 
 // NewParsingRunner creates a parsing test runner.
-func NewParsingRunner(tests *ParsingTests, baseDir, zebgpPath string) *ParsingRunner {
+func NewParsingRunner(tests *ParsingTests, baseDir, zePath string) *ParsingRunner {
 	return &ParsingRunner{
-		tests:     tests,
-		baseDir:   baseDir,
-		zebgpPath: zebgpPath,
-		colors:    NewColors(),
+		tests:   tests,
+		baseDir: baseDir,
+		zePath:  zePath,
+		colors:  NewColors(),
 	}
 }
 
@@ -380,7 +380,7 @@ func (r *ParsingRunner) runTest(ctx context.Context, test *ParsingTest) bool {
 
 	// For inline config (.ci files), write to temp file
 	if test.InlineConfig != nil {
-		tmpFile, err := os.CreateTemp("", "zebgp-parse-test-*.conf")
+		tmpFile, err := os.CreateTemp("", "ze-parse-test-*.conf")
 		if err != nil {
 			test.Error = fmt.Errorf("create temp file: %w", err)
 			return false
@@ -399,13 +399,13 @@ func (r *ParsingRunner) runTest(ctx context.Context, test *ParsingTest) bool {
 		configPath = tmpFile.Name()
 	}
 
-	// Run zebgp validate
+	// Run ze bgp validate
 	// Use quiet mode for positive tests (faster), normal mode for negative tests (need error output)
 	var cmd *exec.Cmd
 	if test.ExpectError != "" {
-		cmd = exec.CommandContext(ctx, r.zebgpPath, "validate", configPath) //nolint:gosec // Test runner
+		cmd = exec.CommandContext(ctx, r.zePath, "bgp", "validate", configPath) //nolint:gosec // Test runner
 	} else {
-		cmd = exec.CommandContext(ctx, r.zebgpPath, "validate", "-q", configPath) //nolint:gosec // Test runner
+		cmd = exec.CommandContext(ctx, r.zePath, "bgp", "validate", "-q", configPath) //nolint:gosec // Test runner
 	}
 	output, err := cmd.CombinedOutput()
 	test.Output = string(output)
@@ -459,11 +459,11 @@ func (pt *ParsingTests) Summary() (passed, failed int) {
 	return
 }
 
-// Build compiles zebgp for parsing tests.
+// Build compiles ze for parsing tests.
 func (r *ParsingRunner) Build(ctx context.Context) error {
-	// Use the provided zebgpPath - assume it's already built
-	if _, err := os.Stat(r.zebgpPath); err != nil {
-		return fmt.Errorf("zebgp binary not found at %s: %w", r.zebgpPath, err)
+	// Use the provided zePath - assume it's already built
+	if _, err := os.Stat(r.zePath); err != nil {
+		return fmt.Errorf("ze binary not found at %s: %w", r.zePath, err)
 	}
 	return nil
 }

@@ -11,9 +11,9 @@ import (
 	"net/netip"
 	"sync/atomic"
 
-	"codeberg.org/thomas-mangin/zebgp/internal/bgp/attribute"
-	bgpctx "codeberg.org/thomas-mangin/zebgp/internal/bgp/context"
-	"codeberg.org/thomas-mangin/zebgp/internal/bgp/nlri"
+	"codeberg.org/thomas-mangin/ze/internal/bgp/attribute"
+	bgpctx "codeberg.org/thomas-mangin/ze/internal/bgp/context"
+	"codeberg.org/thomas-mangin/ze/internal/bgp/nlri"
 )
 
 // Route represents a BGP route with AS-PATH as part of identity.

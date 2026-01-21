@@ -7,8 +7,8 @@ import (
 	"net/netip"
 	"time"
 
-	"codeberg.org/thomas-mangin/zebgp/internal/bgp/capability"
-	"codeberg.org/thomas-mangin/zebgp/internal/plugin"
+	"codeberg.org/thomas-mangin/ze/internal/bgp/capability"
+	"codeberg.org/thomas-mangin/ze/internal/plugin"
 )
 
 // DefaultBGPPort is the standard BGP port per RFC 4271.

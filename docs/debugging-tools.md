@@ -6,9 +6,9 @@ This document describes the debugging tools available in ZeBGP for troubleshooti
 
 | Tool | Purpose | Usage |
 |------|---------|-------|
-| `zebgp config-dump` | Inspect parsed config | `zebgp config-dump [--json] config.conf` |
-| `zebgp-peer --decode` | Decode BGP messages | `zebgp-peer --decode --sink` |
-| `ZEBGP_TRACE` | Pipeline tracing | `ZEBGP_TRACE=all zebgp server config.conf` |
+| `ze bgp config-dump` | Inspect parsed config | `ze bgp config-dump [--json] config.conf` |
+| `ze-peer --decode` | Decode BGP messages | `ze-peer --decode --sink` |
+| `ZEBGP_TRACE` | Pipeline tracing | `ZEBGP_TRACE=all ze bgp server config.conf` |
 | Functional test diff | Test failure analysis | Automatic on message mismatch |
 | `--server N` / `--client N` | Interactive test debugging | `functional encoding --server 0` |
 
@@ -16,7 +16,7 @@ This document describes the debugging tools available in ZeBGP for troubleshooti
 
 ## 1. Config Dump Command
 
-**Location:** `cmd/zebgp/configdump.go`
+**Location:** `cmd/ze/bgp/configdump.go`
 
 Parses a config file and displays the interpreted values. Useful for verifying that config parsing works correctly.
 
@@ -24,10 +24,10 @@ Parses a config file and displays the interpreted values. Useful for verifying t
 
 ```bash
 # Human-readable output
-zebgp config-dump config.conf
+ze bgp config-dump config.conf
 
 # JSON output (for scripting)
-zebgp config-dump --json config.conf
+ze bgp config-dump --json config.conf
 ```
 
 ### Example Output
@@ -66,8 +66,8 @@ Decodes raw BGP messages (hex) into human-readable format. Used automatically by
 ### Usage
 
 ```bash
-# In zebgp-peer, show decoded messages
-zebgp-peer --decode --sink --port 1790
+# In ze-peer, show decoded messages
+ze-peer --decode --sink --port 1790
 ```
 
 ### Example Output
@@ -141,10 +141,10 @@ Environment variable that enables debug logging at key points in the pipeline.
 
 ```bash
 # Enable all tracing
-ZEBGP_TRACE=all zebgp server config.conf
+ZEBGP_TRACE=all ze bgp server config.conf
 
 # Enable specific categories
-ZEBGP_TRACE=config,routes zebgp server config.conf
+ZEBGP_TRACE=config,routes ze bgp server config.conf
 ```
 
 ### Categories
@@ -196,13 +196,13 @@ The parser now collects warnings for potentially problematic patterns, accessibl
 
 ```bash
 # config-dump shows warnings
-zebgp config-dump config.conf
+ze bgp config-dump config.conf
 # Output:
 # Warnings:
 #   line 5: freeform 'flow' contains nested block 'route match' - data may be lost
 
 # Also visible with ZEBGP_TRACE=config
-ZEBGP_TRACE=config zebgp server config.conf
+ZEBGP_TRACE=config ze bgp server config.conf
 ```
 
 ---
@@ -213,20 +213,20 @@ ZEBGP_TRACE=config zebgp server config.conf
 
 ```bash
 # Step 1: Check parsed config
-zebgp config-dump config.conf
+ze bgp config-dump config.conf
 
 # Step 2: Look for warnings
-zebgp config-dump config.conf 2>&1 | grep -i warning
+ze bgp config-dump config.conf 2>&1 | grep -i warning
 
 # Step 3: Check JSON for exact values
-zebgp config-dump --json config.conf | jq '.Neighbors[0].StaticRoutes'
+ze bgp config-dump --json config.conf | jq '.Neighbors[0].StaticRoutes'
 ```
 
 ### 2. Route Not Being Sent
 
 ```bash
 # Step 1: Enable route tracing
-ZEBGP_TRACE=routes zebgp server config.conf
+ZEBGP_TRACE=routes ze bgp server config.conf
 
 # Expected output when working:
 # [TRACE] routes: neighbor X: 2 static routes configured
@@ -238,7 +238,7 @@ ZEBGP_TRACE=routes zebgp server config.conf
 
 ```bash
 # Step 1: Enable session + fsm tracing
-ZEBGP_TRACE=session,fsm zebgp server config.conf
+ZEBGP_TRACE=session,fsm ze bgp server config.conf
 
 # Look for FSM transitions and session establishment
 ```
@@ -247,7 +247,7 @@ ZEBGP_TRACE=session,fsm zebgp server config.conf
 
 ```bash
 # Run single test
-zebgp-test run encoding 0
+ze-test run encoding 0
 
 # Output now includes decoded diff automatically
 # Look at "Differences:" section to see what's wrong
@@ -258,23 +258,23 @@ zebgp-test run encoding 0
 Run server and client separately to see live output:
 
 ```bash
-# Terminal 1: Start test server (zebgp-peer)
-zebgp-test run encoding --server 0
+# Terminal 1: Start test server (ze-peer)
+ze-test run encoding --server 0
 
 # Terminal 2: Start test client (zebgp)
-zebgp-test run encoding --client 0
+ze-test run encoding --client 0
 ```
 
 **Behavior:**
 - Server waits for client, prints messages received, exits when test completes
 - Client connects, sends configured messages, exits when server disconnects
 
-The client uses `zebgp_tcp_attempts=1` automatically, so zebgp exits after the session ends instead of reconnecting.
+The client uses `ze_bgp_tcp_attempts=1` automatically, so zebgp exits after the session ends instead of reconnecting.
 
 **Use `--port` to avoid conflicts:**
 ```bash
-zebgp-test run encoding --server 0 --port 11790
-zebgp-test run encoding --client 0 --port 11790
+ze-test run encoding --server 0 --port 11790
+ze-test run encoding --client 0 --port 11790
 ```
 
 ---
@@ -284,7 +284,7 @@ zebgp-test run encoding --client 0 --port 11790
 To add tracing to new code:
 
 ```go
-import "codeberg.org/thomas-mangin/zebgp/internal/trace"
+import "codeberg.org/thomas-mangin/ze/internal/trace"
 
 // Use existing helpers
 trace.RouteSent(addr, prefix, nextHop)
@@ -303,8 +303,8 @@ trace.Log(trace.Routes, "custom message: %s", value)
 | `internal/test/peer/decode.go` | BGP message decoder |
 | `internal/test/peer/peer.go` | Test peer with decode support |
 | `internal/trace/trace.go` | Tracing infrastructure |
-| `cmd/zebgp/configdump.go` | config-dump command |
-| `cmd/zebgp-peer/main.go` | --decode flag |
+| `cmd/ze/bgp/configdump.go` | config-dump command |
+| `cmd/ze-peer/main.go` | --decode flag |
 | `internal/config/parser.go` | Parser warnings |
 | `internal/config/loader.go` | Config trace points |
 | `internal/reactor/peer.go` | Session/route trace points |

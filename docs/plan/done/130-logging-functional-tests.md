@@ -59,9 +59,9 @@ Add functional tests to verify:
 ### Functional Tests (NEW - extend plugin tests)
 | Test | Location | Scenario | Status |
 |------|----------|----------|--------|
-| `logging-stderr` | `test/data/plugin/logging-stderr.ci` | `zebgp.log.server=debug` → stderr contains `subsystem=server` | ✅ |
-| `logging-syslog` | `test/data/plugin/logging-syslog.ci` | `zebgp.log.backend=syslog` → test-syslog receives messages | ✅ |
-| `logging-level-filter` | `test/data/plugin/logging-level-filter.ci` | `zebgp.log.server=info` → no DEBUG in stderr | ✅ |
+| `logging-stderr` | `test/data/plugin/logging-stderr.ci` | `ze.bgp.log.server=debug` → stderr contains `subsystem=server` | ✅ |
+| `logging-syslog` | `test/data/plugin/logging-syslog.ci` | `ze.bgp.log.backend=syslog` → test-syslog receives messages | ✅ |
+| `logging-level-filter` | `test/data/plugin/logging-level-filter.ci` | `ze.bgp.log.server=info` → no DEBUG in stderr | ✅ |
 | ~~`logging-plugin`~~ | ~~`test/data/plugin/logging-plugin.ci`~~ | ~~gr plugin `--log-level=debug`~~ | ⏸️ Design issue |
 
 ## Extended .ci Format
@@ -70,9 +70,9 @@ Add to existing format (parsed in testpeer and runner):
 
 ```
 # Environment variables (set before zebgp starts)
-option:env:zebgp.log.server=debug
-option:env:zebgp.log.backend=syslog
-option:env:zebgp.log.destination=localhost:1514
+option:env:ze.bgp.log.server=debug
+option:env:ze.bgp.log.backend=syslog
+option:env:ze.bgp.log.destination=localhost:1514
 
 # Stderr pattern matching (regex, checked after test)
 expect:stderr:subsystem=server
@@ -164,10 +164,10 @@ func (s *Server) Close() error
 
 ### Syslog Test Execution Flow
 ```
-1. Parse .ci file, find option:env:zebgp.log.backend=syslog
+1. Parse .ci file, find option:env:ze.bgp.log.backend=syslog
 2. Start test-syslog on dynamic port
-3. Set zebgp.log.destination=localhost:<port>
-4. Start zebgp-peer, start zebgp
+3. Set ze.bgp.log.destination=localhost:<port>
+4. Start ze-peer, start zebgp
 5. Wait for test completion
 6. Check expect:syslog: patterns against captured messages
 7. Stop test-syslog
@@ -191,7 +191,7 @@ peer 127.0.0.1 {
     peer-as 65001;
 
     process gr {
-        run "zebgp plugin gr";
+        run "ze bgp plugin gr";
     }
 }
 ```
@@ -207,7 +207,7 @@ peer 127.0.0.1 {
     graceful-restart { restart-time 120; }
 
     process gr {
-        run "zebgp plugin gr --log-level=debug";
+        run "ze bgp plugin gr --log-level=debug";
     }
 }
 ```
@@ -226,7 +226,7 @@ peer 127.0.0.1 {
   - `ExpectSyslog []string` for `expect:syslog:`
 - **Extended runner** (`internal/test/runner/runner.go`):
   - Start test-syslog server when `expect:syslog:` present
-  - Auto-set `zebgp.log.backend=syslog` and `zebgp.log.destination`
+  - Auto-set `ze.bgp.log.backend=syslog` and `ze.bgp.log.destination`
   - `validateLogging()` function for pattern matching
 - **Unit tests** (`internal/test/runner/record_test.go`, `runner_test.go`):
   - 9 test cases for .ci option parsing
@@ -243,16 +243,16 @@ peer 127.0.0.1 {
 
 ### Design Insights
 - slogutil syslog backend uses `slog.NewTextHandler` writing to `syslog.Writer`
-- Syslog messages format: `<priority>timestamp hostname zebgp: level=X subsystem=Y msg=Z key=value...`
+- Syslog messages format: `<priority>timestamp hostname ze-bgp: level=X subsystem=Y msg=Z key=value...`
 - Patterns should match the TextHandler format (key=value pairs)
 
 ### Deviations from Plan
-- **logging-plugin test removed**: `zebgp.log.plugin=enabled` has dual purpose - enables stderr relay but "enabled" is not a valid log level, causing discard logger. This is a design issue to address separately.
+- **logging-plugin test removed**: `ze.bgp.log.plugin=enabled` has dual purpose - enables stderr relay but "enabled" is not a valid log level, causing discard logger. This is a design issue to address separately.
 - **testpeer unchanged**: All parsing done in `internal/test/runner/record.go` (not testpeer/peer.go)
 
 ### Future Work
-- **zebgp.log.plugin design issue**: The env var serves dual purpose:
-  1. `zebgp.log.plugin=enabled/disabled` - controls plugin stderr relay
+- **ze.bgp.log.plugin design issue**: The env var serves dual purpose:
+  1. `ze.bgp.log.plugin=enabled/disabled` - controls plugin stderr relay
   2. But "enabled" is not a valid log level for slogutil.Logger()
   - Recommendation: Split into separate vars or accept log levels for relay control
 

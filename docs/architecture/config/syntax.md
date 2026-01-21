@@ -9,7 +9,7 @@
 | **Inheritance** | `inherit <template-name>` applies template config |
 | **Pattern** | Registry/dispatch: `sectionParsers` map routes to handlers |
 | **Key Types** | `Parser`, `Tokenizer`, `Scope`, `Validator` |
-| **Migration** | `zebgp config migrate` converts ExaBGP → ZeBGP syntax |
+| **Migration** | `ze bgp config migrate` converts ExaBGP → ZeBGP syntax |
 
 **When to read full doc:** Config keywords, parsing bugs, new config sections.
 
@@ -132,7 +132,7 @@ peer <ip-address> {
 }
 ```
 
-**Migration:** `zebgp config migrate` converts `neighbor` → `peer`.
+**Migration:** `ze bgp config migrate` converts `neighbor` → `peer`.
 
 ---
 
@@ -337,7 +337,7 @@ watchdog announce <name>   # send all routes in pool to peers
 watchdog withdraw <name>   # withdraw all routes in pool from peers
 ```
 
-See `.claude/zebgp/api/UPDATE_SYNTAX.md` for full specification.
+See `docs/architecture/api/UPDATE_SYNTAX.md` for full specification.
 
 ---
 

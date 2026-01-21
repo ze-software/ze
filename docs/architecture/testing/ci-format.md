@@ -55,20 +55,20 @@ stdin=<name>:text=<text-value>
 
 **Multi-line (config):**
 ```
-stdin=zebgp:terminator=EOF_CONF
+stdin=ze-bgp:terminator=EOF_CONF
 peer 127.0.0.1 {
     local-as 65533;
     peer-as 65533;
 }
 EOF_CONF
 
-cmd=foreground:seq=1:exec=zebgp server -:stdin=zebgp
+cmd=foreground:seq=1:exec=ze bgp server -:stdin=zebgp
 ```
 
 **Single-line hex (decode test):**
 ```
 stdin=payload:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003C020000001C...
-cmd=foreground:seq=1:exec=zebgp-test decode --family ipv4/unicast -:stdin=payload
+cmd=foreground:seq=1:exec=ze-test decode --family ipv4/unicast -:stdin=payload
 expect=json:json={ "type": "update", ... }
 ```
 
@@ -147,11 +147,11 @@ Configurable via environment variables:
 
 | Limit | Default | Environment Variable |
 |-------|---------|---------------------|
-| Max file size | 1 MB | `zebgp.ci.max_file_size` |
-| Max total size | 1 MB | `zebgp.ci.max_total_size` |
-| Max files | 100 | `zebgp.ci.max_files` |
-| Max path length | 256 | `zebgp.ci.max_path_length` |
-| Max path depth | 10 | `zebgp.ci.max_path_depth` |
+| Max file size | 1 MB | `ze.bgp.ci.max_file_size` |
+| Max total size | 1 MB | `ze.bgp.ci.max_total_size` |
+| Max files | 100 | `ze.bgp.ci.max_files` |
+| Max path length | 256 | `ze.bgp.ci.max_path_length` |
+| Max path depth | 10 | `ze.bgp.ci.max_path_depth` |
 
 ## Options
 
@@ -217,7 +217,7 @@ cmd=foreground:seq=<N>:exec=<command>[:stdin=<name>][:timeout=<dur>]
 
 ```
 stdin=payload:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003C...
-cmd=foreground:seq=1:exec=zebgp-test decode --family ipv4/unicast -:stdin=payload
+cmd=foreground:seq=1:exec=ze-test decode --family ipv4/unicast -:stdin=payload
 expect=json:json={ "type": "update", ... }
 ```
 
@@ -229,12 +229,12 @@ option=asn:value=65000
 expect=bgp:conn=1:seq=1:hex=FFFF...
 EOF_PEER
 
-stdin=zebgp:terminator=EOF_CONF
+stdin=ze-bgp:terminator=EOF_CONF
 peer 127.0.0.1 { ... }
 EOF_CONF
 
-cmd=background:seq=1:exec=zebgp-peer --port $PORT:stdin=peer
-cmd=foreground:seq=2:exec=zebgp server -:stdin=zebgp:timeout=10s
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze bgp server -:stdin=ze-bgp:timeout=10s
 ```
 
 ## Expectations
@@ -262,7 +262,7 @@ Validates the decoded message matches expected JSON.
 
 **Validation rules:**
 - Parsed and compared field-by-field (key order independent)
-- Volatile fields removed before comparison: `exabgp`, `zebgp`, `time`, `host`, `pid`, `ppid`, `counter`
+- Volatile fields removed before comparison: `exabgp`, `ze-bgp`, `time`, `host`, `pid`, `ppid`, `counter`
 - Neighbor normalization: `peer` ↔ `neighbor` treated as equivalent, `direction` field ignored
 - All non-volatile fields must match exactly
 
@@ -349,12 +349,12 @@ Different components consume different line types:
 |-----------|----------|
 | `stdin=` | Test runner (pipes to processes) |
 | `tmpfs=` | Test runner (writes to temp) |
-| `option=` | Test runner + zebgp-peer |
-| `cmd=api:` | Test runner (sends to zebgp-peer) |
+| `option=` | Test runner + ze-peer |
+| `cmd=api:` | Test runner (sends to ze-peer) |
 | `cmd=foreground:`, `cmd=background:` | Test runner (process orchestration) |
 | `expect=exit:`, `stdout:`, `stderr:`, `json:` | Test runner |
-| `expect=bgp:` | zebgp-peer |
-| `action=notification:`, `action=send:` | zebgp-peer |
+| `expect=bgp:` | ze-peer |
+| `action=notification:`, `action=send:` | ze-peer |
 
 Lines not recognized by a consumer are ignored.
 

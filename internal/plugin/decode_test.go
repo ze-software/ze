@@ -40,7 +40,7 @@ func TestFormatCapabilityStrings(t *testing.T) {
 		{"hostname with domain", "hostname router1.example.com"},
 
 		// Software version (name value)
-		{"software", "software zebgp-1.0"},
+		{"software", "software ze-bgp-1.0"},
 	}
 
 	for _, tt := range tests {

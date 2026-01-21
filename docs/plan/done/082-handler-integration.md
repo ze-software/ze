@@ -10,11 +10,11 @@ Wire Chunk 1's parser to reactor via `peer <addr> update text ...` handler.
 
 ## Required Reading
 
-- [ ] `.claude/zebgp/api/ARCHITECTURE.md` - API command patterns, Response structure
-- [ ] `.claude/zebgp/api/CAPABILITY_CONTRACT.md` - ReactorInterface contract
-- [ ] `.claude/zebgp/UPDATE_BUILDING.md` - UPDATE message construction
-- [ ] `.claude/zebgp/wire/NLRI.md` - NLRI types per family
-- [ ] `.claude/zebgp/ENCODING_CONTEXT.md` - Peer-specific encoding context
+- [ ] `docs/architecture/api/ARCHITECTURE.md` - API command patterns, Response structure
+- [ ] `docs/architecture/api/CAPABILITY_CONTRACT.md` - ReactorInterface contract
+- [ ] `docs/architecture/UPDATE_BUILDING.md` - UPDATE message construction
+- [ ] `docs/architecture/wire/NLRI.md` - NLRI types per family
+- [ ] `docs/architecture/ENCODING_CONTEXT.md` - Peer-specific encoding context
 
 **Key insights:**
 - Reactor methods use `*reactorAPIAdapter` receiver, not `*Reactor`
@@ -320,7 +320,7 @@ func handleUpdateText(ctx *CommandContext, args []string) (*Response, error) {
 ### Documentation
 - [x] Required docs read
 - [x] RFC references added (RFC 4271, 4760, 8654)
-- [x] `.claude/zebgp/api/ARCHITECTURE.md` updated (new "warning" status)
+- [x] `docs/architecture/api/ARCHITECTURE.md` updated (new "warning" status)
 
 ### Completion
 - [x] Spec moved to `docs/plan/done/082-handler-integration.md`
@@ -348,4 +348,4 @@ func handleUpdateText(ctx *CommandContext, args []string) (*Response, error) {
 | `internal/reactor/reactor_batch_test.go` | +12 reactor tests |
 | `internal/plugin/handler_test.go` | +interface stubs |
 | `internal/plugin/forward_test.go` | +interface stubs |
-| `.claude/zebgp/api/ARCHITECTURE.md` | +warning status docs |
+| `docs/architecture/api/ARCHITECTURE.md` | +warning status docs |

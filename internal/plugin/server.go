@@ -13,12 +13,12 @@ import (
 	"sync/atomic"
 	"time"
 
-	"codeberg.org/thomas-mangin/zebgp/internal/bgp/message"
-	"codeberg.org/thomas-mangin/zebgp/internal/slogutil"
+	"codeberg.org/thomas-mangin/ze/internal/bgp/message"
+	"codeberg.org/thomas-mangin/ze/internal/slogutil"
 )
 
 // logger is the plugin server subsystem logger.
-// Controlled by zebgp.log.server environment variable.
+// Controlled by ze.log.bgp.server environment variable.
 var logger = slogutil.Logger("server")
 
 // Default stage timeout for plugin registration protocol.

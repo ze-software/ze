@@ -87,6 +87,6 @@ docs/plan/
 
 ## Forbidden
 
-- Docs in `.claude/zebgp/` (moved to `docs/`)
+- Docs in `docs/architecture/` (moved to `docs/`)
 - UPPERCASE for regular docs (except README, INDEX)
 - snake_case for markdown files

@@ -1,12 +1,12 @@
 // Package trace provides debug tracing for ZeBGP.
 //
-// Enable tracing with the zebgp.debug.trace environment variable:
+// Enable tracing with the ze.bgp.debug.trace environment variable:
 //
-//	zebgp_debug_trace=config,routes,session zebgp server config.conf
+//	ze_bgp_debug_trace=config,routes,session ze bgp server config.conf
 //
 // Or with dot notation:
 //
-//	zebgp.debug.trace=all zebgp server config.conf
+//	ze.bgp.debug.trace=all ze bgp server config.conf
 //
 // Available trace categories:
 //   - config: Configuration parsing and loading
@@ -51,10 +51,10 @@ func initialize() {
 	enabled = make(map[Category]bool)
 
 	// Check dot notation first (higher priority)
-	env := os.Getenv("zebgp.debug.trace")
+	env := os.Getenv("ze.bgp.debug.trace")
 	if env == "" {
 		// Fall back to underscore notation
-		env = os.Getenv("zebgp_debug_trace")
+		env = os.Getenv("ze_bgp_debug_trace")
 	}
 	if env == "" {
 		return

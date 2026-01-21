@@ -216,7 +216,7 @@ type AutoCommitTimer struct {
 
 **4.1 Implement formatter**
 ```go
-// cmd/zebgp-fmt/main.go
+// cmd/ze/bgp-fmt/main.go
 // OR integrated: zebgp fmt
 
 func Format(input []byte) ([]byte, error)
@@ -400,7 +400,7 @@ commit rollback [label]
 - `internal/rib/grouping.go` - Attribute-based route grouping
 - `internal/rib/timer.go` - Auto-commit timer
 - `internal/plugin/commit.go` - Commit command handlers
-- `cmd/zebgp-fmt/main.go` - Config formatter (or integrate in zebgp)
+- `cmd/ze/bgp-fmt/main.go` - Config formatter (or integrate in zebgp)
 
 ### Modified Files
 - `internal/rib/outgoing.go` - Add transaction support
@@ -445,7 +445,7 @@ Total: ~2-3 focused sessions
 1. ✅ **Process spawning infrastructure** - `internal/plugin/process.go` updated to set working directory
 2. ✅ **API server process integration** - Server now starts ProcessManager and handles commands
 3. ✅ **Config loader** - Passes processes and config directory to reactor
-4. ✅ **Socket path configuration** - `zebgp_api_socketpath` env var for testing
+4. ✅ **Socket path configuration** - `ze_bgp_api_socketpath` env var for testing
 5. ✅ **self-check API test support** - Loads tests from `test/data/api/`, sets socket path
 6. ✅ **testpeer .ci parsing** - Ignores `option:file:`, `:cmd:`, `:json:` lines
 7. ✅ **Process symlink** - `test/data/api/exabgp_api.py` → `../scripts/exabgp_api.py`
@@ -579,14 +579,14 @@ Enable self-check to run API tests that:
 
 ```
 ┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
-│   self-check    │     │     zebgp       │     │   zebgp-peer    │
+│   self-check    │     │     zebgp       │     │   ze-peer    │
 │  (test runner)  │     │   (with API)    │     │  (BGP server)   │
 └────────┬────────┘     └────────┬────────┘     └────────┬────────┘
          │                       │                       │
-         │  1. Start zebgp-peer  │                       │
+         │  1. Start ze-peer  │                       │
          ├──────────────────────────────────────────────►│
          │                       │                       │
-         │  2. Start zebgp       │                       │
+         │  2. Start ze bgp       │                       │
          │     with API socket   │                       │
          ├──────────────────────►│                       │
          │                       │                       │
@@ -596,12 +596,12 @@ Enable self-check to run API tests that:
          │       │ API socket    │                       │
          │       └──────────────►│                       │
          │                       │                       │
-         │  4. Script sends      │  5. zebgp sends      │
+         │  4. Script sends      │  5. ze bgp sends      │
          │     commit start      │     BGP UPDATE       │
          │     announce route    │─────────────────────►│
          │     commit end        │                       │
          │                       │                       │
-         │                       │  6. zebgp-peer       │
+         │                       │  6. ze-peer       │
          │                       │     validates        │
          │◄──────────────────────────────────────────────┤
          │  7. Success/Fail      │                       │
@@ -771,10 +771,10 @@ func (t *Test) IsAPITest() bool {
 
 ```go
 func (r *Runner) runAPITest(ctx context.Context, test *Test) (bool, string) {
-    // 1. Start zebgp-peer (same as static tests)
+    // 1. Start ze-peer (same as static tests)
 
-    // 2. Start zebgp WITH API socket
-    apiSocket := fmt.Sprintf("/tmp/zebgp-test-%d.sock", test.Port)
+    // 2. Start ze bgp WITH API socket
+    apiSocket := fmt.Sprintf("/tmp/ze-test-%d.sock", test.Port)
     clientCmd := exec.CommandContext(testCtx, r.zebgpPath, "server", test.Config)
     clientCmd.Env = append(os.Environ(),
         fmt.Sprintf("exabgp_tcp_port=%d", test.Port),
@@ -792,7 +792,7 @@ func (r *Runner) runAPITest(ctx context.Context, test *Test) (bool, string) {
     )
     // Connect script stdin/stdout to API socket
 
-    // 5. Wait for completion, check zebgp-peer result
+    // 5. Wait for completion, check ze-peer result
 }
 ```
 
@@ -845,10 +845,10 @@ ZeBGP's process manager (`internal/plugin/process.go`) handles:
 5. **Test locally**
    ```bash
    # Terminal 1
-   go run ./test/cmd/zebgp-peer --port 1790 test/data/api/fast.ci
+   go run ./test/cmd/ze-peer --port 1790 test/data/api/fast.ci
 
    # Terminal 2
-   env exabgp_tcp_port=1790 go run ./cmd/zebgp server test/data/api/fast.conf
+   env exabgp_tcp_port=1790 go run ./cmd/ze/bgp server test/data/api/fast.conf
    ```
 
 6. **Verify with self-check**
@@ -982,12 +982,12 @@ done
 │                           PEER                                               │
 │                         (internal/reactor/peer.go)                               │
 ├─────────────────────────────────────────────────────────────────────────────┤
-│  SendUpdate(update1)  →  TCP connection  →  zebgp-peer                      │
-│  SendUpdate(update2)  →  TCP connection  →  zebgp-peer                      │
+│  SendUpdate(update1)  →  TCP connection  →  ze-peer                      │
+│  SendUpdate(update2)  →  TCP connection  →  ze-peer                      │
 │                                                                              │
 │  Track families: [IPv4 Unicast]                                             │
 │                                                                              │
-│  SendEOR(IPv4 Unicast)  →  TCP connection  →  zebgp-peer                   │
+│  SendEOR(IPv4 Unicast)  →  TCP connection  →  ze-peer                   │
 └─────────────────────────────────────────────────────────────────────────────┘
 
 Response to client:
@@ -1146,4 +1146,4 @@ With commit batching:
 - ZeBGP config schema: `internal/config/bgp.go`
 - ZeBGP self-check: `test/cmd/self-check/main.go`
 - ZeBGP process manager: `internal/plugin/process.go`
-- Self-check system docs: `.claude/zebgp/SELF_CHECK_SYSTEM.md`
+- Self-check system docs: `docs/architecture/SELF_CHECK_SYSTEM.md`

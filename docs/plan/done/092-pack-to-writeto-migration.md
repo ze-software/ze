@@ -6,8 +6,8 @@
 Complete migration from allocating `Pack()` methods to zero-allocation `WriteTo()` pattern across all packages. Extends work from specs 073 (buffer-writer) and 075 (nlri-writeto-zero-alloc).
 
 ## Required Reading
-- [x] `.claude/zebgp/wire/BUFFER_WRITER.md` - Zero-alloc architecture
-- [x] `.claude/zebgp/ENCODING_CONTEXT.md` - Context-dependent encoding
+- [x] `docs/architecture/wire/BUFFER_WRITER.md` - Zero-alloc architecture
+- [x] `docs/architecture/ENCODING_CONTEXT.md` - Context-dependent encoding
 - [x] `docs/plan/done/073-spec-buffer-writer.md` - Original WriteTo design
 - [x] `docs/plan/done/075-nlri-writeto-zero-alloc.md` - NLRI WriteTo implementation
 
@@ -73,7 +73,7 @@ Complete migration from allocating `Pack()` methods to zero-allocation `WriteTo(
 ### Other
 | File | Changes |
 |------|---------|
-| `cmd/zebgp/encode.go` | Use WriteTo in CLI |
+| `cmd/ze/bgp/encode.go` | Use WriteTo in CLI |
 | `internal/plugin/commit_manager.go` | Use WriteTo |
 | `internal/plugin/text.go` | Use WriteTo |
 | `internal/cbor/base64.go`, `hex.go` | Add WriteTo helpers |

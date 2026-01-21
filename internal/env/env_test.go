@@ -10,15 +10,15 @@ import (
 
 // TestGet verifies environment variable lookup with dot/underscore priority.
 //
-// VALIDATES: Get returns value from zebgp.section.key or zebgp_section_key.
+// VALIDATES: Get returns value from ze.bgp.section.key or ze_bgp_section_key.
 // PREVENTS: Wrong priority (underscore over dot) or missing prefix handling.
 func TestGet(t *testing.T) {
 	tests := []struct {
 		name     string
 		section  string
 		key      string
-		dotEnv   string // zebgp.section.key value
-		underEnv string // zebgp_section_key value
+		dotEnv   string // ze.bgp.section.key value
+		underEnv string // ze_bgp_section_key value
 		want     string
 	}{
 		{
@@ -58,8 +58,8 @@ func TestGet(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Clean up any existing env vars
-			dotKey := "zebgp." + tt.section + "." + tt.key
-			underKey := "zebgp_" + tt.section + "_" + tt.key
+			dotKey := "ze.bgp." + tt.section + "." + tt.key
+			underKey := "ze_bgp_" + tt.section + "_" + tt.key
 			_ = os.Unsetenv(dotKey)
 			_ = os.Unsetenv(underKey)
 			defer func() { _ = os.Unsetenv(dotKey) }()
@@ -136,7 +136,7 @@ func TestGetInt(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			dotKey := "zebgp." + tt.section + "." + tt.key
+			dotKey := "ze.bgp." + tt.section + "." + tt.key
 			_ = os.Unsetenv(dotKey)
 			defer func() { _ = os.Unsetenv(dotKey) }()
 
@@ -199,7 +199,7 @@ func TestGetInt64(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			dotKey := "zebgp." + tt.section + "." + tt.key
+			dotKey := "ze.bgp." + tt.section + "." + tt.key
 			_ = os.Unsetenv(dotKey)
 			defer func() { _ = os.Unsetenv(dotKey) }()
 

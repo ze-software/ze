@@ -11,11 +11,11 @@ import (
 	"strings"
 	"time"
 
-	"codeberg.org/thomas-mangin/zebgp/internal/bgp/capability"
-	"codeberg.org/thomas-mangin/zebgp/internal/bgp/nlri"
-	"codeberg.org/thomas-mangin/zebgp/internal/plugin"
-	"codeberg.org/thomas-mangin/zebgp/internal/reactor"
-	"codeberg.org/thomas-mangin/zebgp/internal/trace"
+	"codeberg.org/thomas-mangin/ze/internal/bgp/capability"
+	"codeberg.org/thomas-mangin/ze/internal/bgp/nlri"
+	"codeberg.org/thomas-mangin/ze/internal/plugin"
+	"codeberg.org/thomas-mangin/ze/internal/reactor"
+	"codeberg.org/thomas-mangin/ze/internal/trace"
 )
 
 // Origin attribute values.
@@ -318,7 +318,7 @@ func configToPeer(nc *PeerConfig, global *BGPConfig) (*reactor.PeerSettings, err
 	n.DisableASN4 = !nc.Capabilities.ASN4
 
 	// Override port from environment (for testing).
-	if p := os.Getenv("zebgp_tcp_port"); p != "" {
+	if p := os.Getenv("ze_bgp_tcp_port"); p != "" {
 		if v, err := strconv.ParseUint(p, 10, 16); err == nil {
 			n.Port = uint16(v) //nolint:gosec // Validated above
 		}
@@ -1786,8 +1786,8 @@ func detectLegacySyntaxHint(input string, parseErr error) string {
 
 	if hasNeighborKeyword || hasTemplateNeighbor || hasPeerGlobError {
 		return "Hint: This config appears to use deprecated ExaBGP syntax.\n" +
-			"Run 'zebgp config check <file>' to verify, then\n" +
-			"Run 'zebgp config migrate <file>' to upgrade."
+			"Run 'ze bgp config check <file>' to verify, then\n" +
+			"Run 'ze bgp config migrate <file>' to upgrade."
 	}
 
 	return ""

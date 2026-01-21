@@ -13,8 +13,8 @@ extended-community set discard
 ```
 
 ## Required Reading
-- [x] `.claude/zebgp/wire/NLRI.md` - FlowSpec wire format, component types
-- [x] `.claude/zebgp/api/ARCHITECTURE.md` - Update text parser structure
+- [x] `docs/architecture/wire/NLRI.md` - FlowSpec wire format, component types
+- [x] `docs/architecture/api/ARCHITECTURE.md` - Update text parser structure
 - [x] `rfc/rfc8955.txt` - FlowSpec v2 (obsoletes RFC 5575)
 - [ ] `rfc/rfc8956.txt` - IPv6 FlowSpec (if needed)
 
@@ -186,7 +186,7 @@ fragment !is-fragment  # NOT a fragment
 ### Documentation
 - [x] Required docs read
 - [x] RFC references added (RFC 8955 Section comments in code)
-- [x] `.claude/zebgp/api/ARCHITECTURE.md` updated with flowspec grammar
+- [x] `docs/architecture/api/ARCHITECTURE.md` updated with flowspec grammar
 
 ### Completion
 - [ ] Spec moved to `docs/plan/done/NNN-flowspec-text-mode.md`

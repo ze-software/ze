@@ -497,11 +497,11 @@ func TestPackNLRIsForContextMismatch(t *testing.T)
 
 ## Related Documentation
 
-- `.claude/zebgp/api/ARCHITECTURE.md` - Route Reflection via API section (design overview)
-- `.claude/zebgp/api/COMMANDS.md` - Forward command syntax
-- `.claude/zebgp/api/JSON_FORMAT.md` - JSON output format with update-id
-- `.claude/zebgp/UPDATE_BUILDING.md` - Build vs Forward path
-- `.claude/zebgp/ENCODING_CONTEXT.md` - Context system for zero-copy
+- `docs/architecture/api/ARCHITECTURE.md` - Route Reflection via API section (design overview)
+- `docs/architecture/api/COMMANDS.md` - Forward command syntax
+- `docs/architecture/api/JSON_FORMAT.md` - JSON output format with update-id
+- `docs/architecture/UPDATE_BUILDING.md` - Build vs Forward path
+- `docs/architecture/ENCODING_CONTEXT.md` - Context system for zero-copy
 
 ## Dependencies
 

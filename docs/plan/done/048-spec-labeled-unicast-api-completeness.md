@@ -13,8 +13,8 @@
 │  5. internal/reactor/peer.go:1341-1439 - buildRIBRouteUpdate (SAFI-aware) │
 │  6. internal/rib/outgoing.go - Adj-RIB-Out methods                   │
 │  7. internal/plugin/types.go:175-183 - LabeledUnicastRoute type         │
-│  8. .claude/zebgp/wire/NLRI.md - Label NLRI wire format         │
-│  9. .claude/zebgp/api/ARCHITECTURE.md - Route injection flow    │
+│  8. docs/architecture/wire/NLRI.md - Label NLRI wire format         │
+│  9. docs/architecture/api/ARCHITECTURE.md - Route injection flow    │
 │                                                                 │
 │  RFCs (already fetched):                                        │
 │  - RFC 8277: Using BGP to Bind MPLS Labels to Address Prefixes  │
@@ -57,8 +57,8 @@ Complete labeled-unicast API to match AnnounceRoute pattern:
 ✅ Context Loading Verification:
 
 Architecture docs:
-  - .claude/zebgp/wire/NLRI.md - Label NLRI wire format (3-byte label encoding)
-  - .claude/zebgp/api/ARCHITECTURE.md - Route injection flow, Adj-RIB-Out
+  - docs/architecture/wire/NLRI.md - Label NLRI wire format (3-byte label encoding)
+  - docs/architecture/api/ARCHITECTURE.md - Route injection flow, Adj-RIB-Out
 
 RFCs:
   - RFC 8277 Section 2: Labeled-Unicast NLRI = Length + Label(s) + Prefix
@@ -242,8 +242,8 @@ Label MUST match the originally announced label.
 
 ## Documentation Impact
 
-- [ ] `.claude/zebgp/wire/NLRI.md` - Add LabeledUnicast section
-- [ ] `.claude/zebgp/api/ARCHITECTURE.md` - Add labeled-unicast to route injection flow
+- [ ] `docs/architecture/wire/NLRI.md` - Add LabeledUnicast section
+- [ ] `docs/architecture/api/ARCHITECTURE.md` - Add labeled-unicast to route injection flow
 - [ ] `docs/plan/CLAUDE_CONTINUATION.md` - Update after implementation
 
 ## Implementation Steps

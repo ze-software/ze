@@ -9,7 +9,7 @@
 │  1. test/internal/encoding.go - Current runner, runTest method       │
 │  2. test/internal/tests.go - Display method                          │
 │  3. test/internal/cli.go - PrintSummary                              │
-│  4. test/cmd/zebgp-peer/main.go - Peer output format            │
+│  4. test/cmd/ze-peer/main.go - Peer output format            │
 │  5. internal/bgp/message/*.go - Message decoding library             │
 │  6. internal/test/peer/decode.go - Decoding functions to copy         │
 │  7. internal/test/peer/peer.go - Checker, LoadExpectFile              │
@@ -181,10 +181,10 @@ When a test fails, output a structured, colorful report showing **cmd + raw + de
 [YELLOW]DEBUG:[RESET]
 [CYAN]───────────────────────────────────────────────────────────────────────────────[RESET]
 [GRAY]# Decode expected:[RESET]
-zebgp decode update FFFF...
+ze bgp decode update FFFF...
 
 [GRAY]# Decode received:[RESET]
-zebgp decode update FFFF...
+ze bgp decode update FFFF...
 
 [GRAY]# Run test manually:[RESET]
 go run ./test/cmd/functional encoding --server V
@@ -344,7 +344,7 @@ case strings.Contains(line, ":json:"):
 
 #### 1.4 Capture and Decode Received Messages
 
-The peer (zebgp-peer) already outputs received messages. Parse and decode:
+The peer (ze-peer) already outputs received messages. Parse and decode:
 
 ```go
 // extractReceivedMessages parses peer output for received raw messages
@@ -408,7 +408,7 @@ Before running tests, verify sufficient file descriptors:
 
 ```go
 // CheckUlimit ensures sufficient file descriptors for parallel tests
-// Each test spawns: zebgp (may fork) + zebgp-peer = ~20 FDs per concurrent test
+// Each test spawns: zebgp (may fork) + ze-peer = ~20 FDs per concurrent test
 // With parallel=4: need 4 × 20 = 80 FDs minimum, recommend 256+
 func CheckUlimit(parallel int) error {
     var limit syscall.Rlimit
@@ -603,7 +603,7 @@ Update imports in all files.
 
 #### 6.4 Update Documentation
 
-- [ ] `.claude/zebgp/FUNCTIONAL_TESTS.md` - Rewrite for new architecture
+- [ ] `docs/architecture/FUNCTIONAL_TESTS.md` - Rewrite for new architecture
 - [ ] `README.md` - Update test instructions if mentioned
 - [ ] `Makefile` - Update targets
 - [ ] `docs/plan/CLAUDE_CONTINUATION.md` - Mark migration complete
@@ -650,7 +650,7 @@ functional-api:
 
 ## Documentation Impact
 
-- [ ] `.claude/zebgp/FUNCTIONAL_TESTS.md` - Update with new output format
+- [ ] `docs/architecture/FUNCTIONAL_TESTS.md` - Update with new output format
 - [ ] `docs/plan/CLAUDE_CONTINUATION.md` - Update after impl
 
 ## Checklist
@@ -703,7 +703,7 @@ functional-api:
 - [x] Makefile updated (removed self-check target)
 - [x] `make test` passes
 - [x] `make lint` passes
-- [x] `.claude/zebgp/FUNCTIONAL_TESTS.md` rewritten
+- [x] `docs/architecture/FUNCTIONAL_TESTS.md` rewritten
 - [x] `docs/plan/CLAUDE_CONTINUATION.md` updated
 - [x] Spec moved to `docs/plan/done/`
 

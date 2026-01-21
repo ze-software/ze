@@ -6,10 +6,10 @@ Add config option to limit which attributes are parsed and output in API message
 
 ## Required Reading (MUST complete before implementation)
 
-- [x] `.claude/zebgp/api/ARCHITECTURE.md` - API binding model, update-id pattern
-- [x] `.claude/zebgp/wire/ATTRIBUTES.md` - Attribute codes and wire format
-- [x] `.claude/zebgp/config/SYNTAX.md` - API block syntax
-- [x] `.claude/zebgp/EXABGP_COMPATIBILITY.md` - Compatibility philosophy
+- [x] `docs/architecture/api/ARCHITECTURE.md` - API binding model, update-id pattern
+- [x] `docs/architecture/wire/ATTRIBUTES.md` - Attribute codes and wire format
+- [x] `docs/architecture/config/SYNTAX.md` - API block syntax
+- [x] `docs/architecture/EXABGP_COMPATIBILITY.md` - Compatibility philosophy
 - [x] `internal/bgp/attribute/wire.go` - AttributesWire implementation
 - [x] `internal/plugin/decode.go` - UPDATE parsing, attribute extraction pattern
 - [x] `internal/plugin/types.go` - ContentConfig, RawMessage structures
@@ -168,7 +168,7 @@ This format groups NLRI by address family with shared attributes, matching BGP U
 | EXTENDED_COMMUNITIES | `"extended-communities"` | **Plural** |
 | LARGE_COMMUNITIES | `"large-communities"` | **Plural** |
 
-**ExaBGP difference:** ZeBGP uses plural for community types. See `.claude/zebgp/EXABGP_COMPATIBILITY.md`.
+**ExaBGP difference:** ZeBGP uses plural for community types. See `docs/architecture/EXABGP_COMPATIBILITY.md`.
 
 ## Implementation
 
@@ -182,7 +182,7 @@ package api
 import (
     "fmt"
 
-    "codeberg.org/thomas-mangin/zebgp/internal/bgp/attribute"
+    "codeberg.org/thomas-mangin/ze/internal/bgp/attribute"
 )
 
 // FilterMode defines how attributes are selected.
@@ -1388,7 +1388,7 @@ For end-to-end validation, manually test with real BGP session:
 - [ ] `make test` passes
 - [ ] `make lint` passes
 - [ ] `make functional` passes
-- [ ] Update `.claude/zebgp/api/ARCHITECTURE.md` with attributes config
+- [ ] Update `docs/architecture/api/ARCHITECTURE.md` with attributes config
 
 ---
 

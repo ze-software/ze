@@ -96,8 +96,8 @@ Same logic applies to `Update.NLRI` and `Update.WithdrawnRoutes` fields:
 ## Required Reading
 
 ### Architecture Docs
-- [x] `.claude/zebgp/wire/NLRI.md` - NLRI formats and wire encoding for all families
-- [x] `.claude/zebgp/UPDATE_BUILDING.md` - UPDATE construction and splitting context
+- [x] `docs/architecture/wire/NLRI.md` - NLRI formats and wire encoding for all families
+- [x] `docs/architecture/UPDATE_BUILDING.md` - UPDATE construction and splitting context
 
 ### RFC Summaries (MUST for protocol work)
 - [x] RFC 4271 Section 4.3 - UPDATE message format, max 4096 bytes
@@ -257,7 +257,7 @@ PASS
 - [x] RFC summaries read (all referenced RFCs)
 - [x] RFC references added to code
 - [x] RFC constraint comments added (quoted requirement + explanation)
-- [ ] `.claude/zebgp/` updated if schema changed (N/A - no schema changes)
+- [ ] `docs/architecture/` updated if schema changed (N/A - no schema changes)
 
 ### Completion
 - [ ] Spec moved to `docs/plan/done/NNN-<name>.md`

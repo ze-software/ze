@@ -63,9 +63,9 @@ Note: `rd` and `label` not yet implemented.
 ## Required Reading
 
 - [x] `docs/plan/new-syntax.md` - defines target syntax (`origin set igp`, not `attr set origin igp`)
-- [x] `.claude/zebgp/api/ARCHITECTURE.md` - API command structure, UpdateText parser
-- [x] `.claude/zebgp/wire/ATTRIBUTES.md` - attribute types (scalar vs list) for set/add/del validation
-- [x] `.claude/zebgp/UPDATE_BUILDING.md` - Build path for API routes
+- [x] `docs/architecture/api/ARCHITECTURE.md` - API command structure, UpdateText parser
+- [x] `docs/architecture/wire/ATTRIBUTES.md` - attribute types (scalar vs list) for set/add/del validation
+- [x] `docs/architecture/UPDATE_BUILDING.md` - Build path for API routes
 - [x] `internal/plugin/update_text.go` - current parser implementation
 - [x] `internal/plugin/update_text_test.go` - existing tests to update
 
@@ -141,7 +141,7 @@ Note: `rd` and `label` not yet implemented.
 ### Documentation
 - [ ] Required docs read
 - [ ] RFC references added (if applicable)
-- [ ] `.claude/zebgp/api/ARCHITECTURE.md` updated if parser behavior changed
+- [ ] `docs/architecture/api/ARCHITECTURE.md` updated if parser behavior changed
 
 ### Completion
 - [ ] Spec moved to `docs/plan/done/NNN-text-mode-per-attribute.md`

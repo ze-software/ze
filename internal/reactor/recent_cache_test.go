@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	bgpctx "codeberg.org/thomas-mangin/zebgp/internal/bgp/context"
-	"codeberg.org/thomas-mangin/zebgp/internal/plugin"
+	bgpctx "codeberg.org/thomas-mangin/ze/internal/bgp/context"
+	"codeberg.org/thomas-mangin/ze/internal/plugin"
 )
 
 // emptyPayload is a minimal valid UPDATE payload for cache tests.

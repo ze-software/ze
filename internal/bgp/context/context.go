@@ -10,8 +10,8 @@ import (
 	"hash/fnv"
 	"sort"
 
-	"codeberg.org/thomas-mangin/zebgp/internal/bgp/capability"
-	"codeberg.org/thomas-mangin/zebgp/internal/bgp/nlri"
+	"codeberg.org/thomas-mangin/ze/internal/bgp/capability"
+	"codeberg.org/thomas-mangin/ze/internal/bgp/nlri"
 )
 
 // Family is an alias for nlri.Family. Use nlri.Family directly in new code.

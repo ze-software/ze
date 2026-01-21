@@ -14,9 +14,9 @@ import (
 	"syscall"
 	"time"
 
-	"codeberg.org/thomas-mangin/zebgp/internal/slogutil"
-	"codeberg.org/thomas-mangin/zebgp/internal/test/syslog"
-	"codeberg.org/thomas-mangin/zebgp/internal/tmpfs"
+	"codeberg.org/thomas-mangin/ze/internal/slogutil"
+	"codeberg.org/thomas-mangin/ze/internal/test/syslog"
+	"codeberg.org/thomas-mangin/ze/internal/tmpfs"
 )
 
 var logger = slogutil.Logger("runner")
@@ -43,33 +43,33 @@ func DefaultRunOptions() *RunOptions {
 
 // Runner executes encoding tests.
 type Runner struct {
-	tests     *EncodingTests
-	baseDir   string
-	tmpDir    string
-	zebgpPath string
-	peerPath  string
-	display   *Display
-	report    *Report
-	colors    *Colors
+	tests    *EncodingTests
+	baseDir  string
+	tmpDir   string
+	zePath   string
+	peerPath string
+	display  *Display
+	report   *Report
+	colors   *Colors
 }
 
 // NewRunner creates a test runner.
 func NewRunner(tests *EncodingTests, baseDir string) (*Runner, error) {
-	tmpDir, err := os.MkdirTemp("", "zebgp-functional-*")
+	tmpDir, err := os.MkdirTemp("", "ze-functional-*")
 	if err != nil {
 		return nil, fmt.Errorf("create temp dir: %w", err)
 	}
 
 	colors := NewColors()
 	return &Runner{
-		tests:     tests,
-		baseDir:   baseDir,
-		tmpDir:    tmpDir,
-		zebgpPath: filepath.Join(tmpDir, "zebgp"),
-		peerPath:  filepath.Join(tmpDir, "zebgp-peer"),
-		colors:    colors,
-		display:   NewDisplay(tests.Tests, colors),
-		report:    NewReport(colors),
+		tests:    tests,
+		baseDir:  baseDir,
+		tmpDir:   tmpDir,
+		zePath:   filepath.Join(tmpDir, "ze"),
+		peerPath: filepath.Join(tmpDir, "ze-peer"),
+		colors:   colors,
+		display:  NewDisplay(tests.Tests, colors),
+		report:   NewReport(colors),
 	}, nil
 }
 
@@ -84,22 +84,22 @@ func (r *Runner) Cleanup() {
 func (r *Runner) Build(ctx context.Context) error {
 	r.display.BuildStatus(true, nil)
 
-	// Build zebgp
-	cmd := exec.CommandContext(ctx, "go", "build", "-o", r.zebgpPath, "./cmd/zebgp") //nolint:gosec // paths from internal runner
+	// Build ze
+	cmd := exec.CommandContext(ctx, "go", "build", "-o", r.zePath, "./cmd/ze") //nolint:gosec // paths from internal runner
 	cmd.Dir = r.baseDir
 	cmd.Env = append(os.Environ(), "CGO_ENABLED=0")
 	if output, err := cmd.CombinedOutput(); err != nil {
 		r.display.BuildStatus(false, fmt.Errorf("%w: %s", err, output))
-		return fmt.Errorf("build zebgp: %w", err)
+		return fmt.Errorf("build ze: %w", err)
 	}
 
-	// Build zebgp-peer
-	cmd = exec.CommandContext(ctx, "go", "build", "-o", r.peerPath, "./cmd/zebgp-peer") //nolint:gosec // paths from internal runner
+	// Build ze-peer
+	cmd = exec.CommandContext(ctx, "go", "build", "-o", r.peerPath, "./cmd/ze-peer") //nolint:gosec // paths from internal runner
 	cmd.Dir = r.baseDir
 	cmd.Env = append(os.Environ(), "CGO_ENABLED=0")
 	if output, err := cmd.CombinedOutput(); err != nil {
 		r.display.BuildStatus(false, fmt.Errorf("%w: %s", err, output))
-		return fmt.Errorf("build zebgp-peer: %w", err)
+		return fmt.Errorf("build ze-peer: %w", err)
 	}
 
 	r.display.BuildStatus(false, nil)
@@ -332,7 +332,7 @@ func (r *Runner) runTest(ctx context.Context, rec *Record, opts *RunOptions) boo
 
 	// Start peer (server)
 	peerEnv := append(os.Environ(),
-		fmt.Sprintf("zebgp_tcp_port=%d", rec.Port),
+		fmt.Sprintf("ze_bgp_tcp_port=%d", rec.Port),
 	)
 	peerCmd := exec.CommandContext(testCtx, r.peerPath, peerArgs...) //nolint:gosec // test runner, paths from temp dir
 	peerCmd.Env = peerEnv
@@ -365,7 +365,7 @@ func (r *Runner) runTest(ctx context.Context, rec *Record, opts *RunOptions) boo
 		defer func() { _ = syslogSrv.Close() }()
 	}
 
-	// Start zebgp (client)
+	// Start ze (client)
 	configPath, _ := rec.Conf["config"].(string)
 
 	// If config is in Tmpfs, use the Tmpfs temp directory path
@@ -376,14 +376,14 @@ func (r *Runner) runTest(ctx context.Context, rec *Record, opts *RunOptions) boo
 		}
 	}
 
-	// Add zebgp binary directory to PATH so child processes (like "zebgp api persist") can find it
-	zebgpDir := filepath.Dir(r.zebgpPath)
+	// Add ze binary directory to PATH so child processes (like "ze bgp persist") can find it
+	zeDir := filepath.Dir(r.zePath)
 	existingPath := os.Getenv("PATH")
 	clientEnv := append(os.Environ(),
-		fmt.Sprintf("zebgp_tcp_port=%d", rec.Port),
-		// NOTE: zebgp_tcp_bind removed - listeners now derived from peer LocalAddress
-		fmt.Sprintf("zebgp_api_socketpath=%s", filepath.Join(os.TempDir(), fmt.Sprintf("zebgp-test-%d.sock", rec.Port))),
-		fmt.Sprintf("PATH=%s:%s", zebgpDir, existingPath),
+		fmt.Sprintf("ze_bgp_tcp_port=%d", rec.Port),
+		// NOTE: ze_bgp_tcp_bind removed - listeners now derived from peer LocalAddress
+		fmt.Sprintf("ze_bgp_api_socketpath=%s", filepath.Join(os.TempDir(), fmt.Sprintf("ze-test-%d.sock", rec.Port))),
+		fmt.Sprintf("PATH=%s:%s", zeDir, existingPath),
 		"SLOG_LEVEL=DEBUG", // Enable debug logging for tracing
 	)
 
@@ -393,12 +393,12 @@ func (r *Runner) runTest(ctx context.Context, rec *Record, opts *RunOptions) boo
 	// Add syslog destination if syslog server is running
 	if syslogSrv != nil {
 		clientEnv = append(clientEnv,
-			"zebgp.log.backend=syslog",
-			fmt.Sprintf("zebgp.log.destination=127.0.0.1:%d", syslogSrv.Port()),
+			"ze.log.bgp.backend=syslog",
+			fmt.Sprintf("ze.log.bgp.destination=127.0.0.1:%d", syslogSrv.Port()),
 		)
 	}
 
-	clientCmd := exec.CommandContext(testCtx, r.zebgpPath, "server", configPath) //nolint:gosec // test runner, paths from temp dir
+	clientCmd := exec.CommandContext(testCtx, r.zePath, "bgp", "server", configPath) //nolint:gosec // test runner, paths from temp dir
 	clientCmd.Env = clientEnv
 
 	clientStdout := &strings.Builder{}
@@ -569,10 +569,10 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 		binName := cmdParts[0]
 		var binPath string
 		switch binName {
-		case "zebgp-peer":
+		case "ze-peer":
 			binPath = r.peerPath
-		case "zebgp":
-			binPath = r.zebgpPath
+		case "ze":
+			binPath = r.zePath
 		default:
 			binPath = binName // Use as-is for other commands
 		}
@@ -590,10 +590,10 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 			}
 		}
 
-		// zebgp-peer reads from file argument, not stdin.
+		// ze-peer reads from file argument, not stdin.
 		// Write stdin content to temp file and pass as argument.
-		if binName == "zebgp-peer" && stdinContent != nil {
-			tmpFile, err := os.CreateTemp("", "zebgp-peer-expect-*.msg")
+		if binName == "ze-peer" && stdinContent != nil {
+			tmpFile, err := os.CreateTemp("", "ze-peer-expect-*.msg")
 			if err != nil {
 				rec.Error = fmt.Errorf("create temp file for peer: %w", err)
 				return false
@@ -613,20 +613,20 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 			stdinContent = nil // Don't pipe to stdin
 		}
 
-		// zebgp server reads config from file, not stdin.
+		// ze bgp server reads config from file, not stdin.
 		// If args contain "-", replace with temp file.
 		// Write to TmpfsTempDir if available so plugin paths (like ./plugin.run) resolve correctly.
-		if binName == "zebgp" && stdinContent != nil {
+		if binName == "ze" && stdinContent != nil {
 			for i, arg := range args {
 				if arg == "-" {
 					var tmpFile *os.File
 					var err error
 					if rec.TmpfsTempDir != "" {
 						// Write config to tmpfs dir so relative plugin paths work
-						configPath := filepath.Join(rec.TmpfsTempDir, "zebgp.conf")
+						configPath := filepath.Join(rec.TmpfsTempDir, "ze-bgp.conf")
 						tmpFile, err = os.Create(configPath) //nolint:gosec // test runner, path from temp dir
 					} else {
-						tmpFile, err = os.CreateTemp("", "zebgp-config-*.conf")
+						tmpFile, err = os.CreateTemp("", "ze-config-*.conf")
 					}
 					if err != nil {
 						rec.Error = fmt.Errorf("create temp config file: %w", err)
@@ -658,14 +658,14 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 		proc := exec.CommandContext(testCtx, binPath, args...) //nolint:gosec // test runner
 
 		// Set up environment
-		// Add zebgp binary directory to PATH so child processes can find "zebgp plugin ..." commands
-		zebgpDir := filepath.Dir(r.zebgpPath)
+		// Add ze binary directory to PATH so child processes can find "ze bgp plugin ..." commands
+		zeDir := filepath.Dir(r.zePath)
 		existingPath := os.Getenv("PATH")
 		proc.Env = append(os.Environ(),
-			fmt.Sprintf("zebgp_tcp_port=%d", rec.Port),
-			fmt.Sprintf("zebgp_api_socketpath=%s", filepath.Join(os.TempDir(), fmt.Sprintf("zebgp-test-%d.sock", rec.Port))),
+			fmt.Sprintf("ze_bgp_tcp_port=%d", rec.Port),
+			fmt.Sprintf("ze_bgp_api_socketpath=%s", filepath.Join(os.TempDir(), fmt.Sprintf("ze-test-%d.sock", rec.Port))),
 			fmt.Sprintf("PYTHONPATH=%s", filepath.Join(r.baseDir, "test/scripts")),
-			fmt.Sprintf("PATH=%s:%s", zebgpDir, existingPath),
+			fmt.Sprintf("PATH=%s:%s", zeDir, existingPath),
 		)
 
 		// Set working directory to tmpfs temp dir if available (for finding tmpfs files)
@@ -673,13 +673,13 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 			proc.Dir = rec.TmpfsTempDir
 		}
 
-		// Set up stdin if specified (for zebgp and other commands)
+		// Set up stdin if specified (for ze and other commands)
 		if stdinContent != nil {
 			proc.Stdin = strings.NewReader(string(stdinContent))
 		}
 
 		// Capture output
-		if strings.Contains(execStr, "zebgp-peer") {
+		if strings.Contains(execStr, "ze-peer") {
 			proc.Stdout = &peerStdout
 			proc.Stderr = &peerStderr
 		} else {
@@ -703,13 +703,13 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 		}
 	}
 
-	// Wait for peer (first background process, typically zebgp-peer) to finish.
+	// Wait for peer (first background process, typically ze-peer) to finish.
 	// The peer validates messages and exits when done (success/fail/timeout).
 	// Daemons (foreground) run until killed.
 	var peerProc *exec.Cmd
 	for _, p := range bgProcs {
-		// Find the peer process (the one with zebgp-peer args)
-		if strings.Contains(p.Path, "zebgp-peer") || strings.Contains(p.String(), "zebgp-peer") {
+		// Find the peer process (the one with ze-peer args)
+		if strings.Contains(p.Path, "ze-peer") || strings.Contains(p.String(), "ze-peer") {
 			peerProc = p
 			break
 		}
@@ -799,7 +799,7 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 
 // writeExpectFile writes expected messages to a temp file.
 func (r *Runner) writeExpectFile(rec *Record) (string, error) {
-	f, err := os.CreateTemp("", "zebgp-functional-*.expect")
+	f, err := os.CreateTemp("", "ze-functional-*.expect")
 	if err != nil {
 		return "", err
 	}
@@ -1166,15 +1166,15 @@ func (r *Runner) validateLogging(rec *Record, stderr string, syslogSrv *syslog.S
 	return nil
 }
 
-// decodeToEnvelope decodes a hex message using zebgp decode and returns the envelope.
+// decodeToEnvelope decodes a hex message using ze bgp decode and returns the envelope.
 func (r *Runner) decodeToEnvelope(hexMsg string) (map[string]any, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	cmd := exec.CommandContext(ctx, r.zebgpPath, "decode", "--update", hexMsg) //nolint:gosec // test runner
+	cmd := exec.CommandContext(ctx, r.zePath, "bgp", "decode", "--update", hexMsg) //nolint:gosec // test runner
 	output, err := cmd.CombinedOutput()
 	if err != nil {
-		return nil, fmt.Errorf("zebgp decode: %w: %s", err, string(output))
+		return nil, fmt.Errorf("ze bgp decode: %w: %s", err, string(output))
 	}
 
 	var envelope map[string]any

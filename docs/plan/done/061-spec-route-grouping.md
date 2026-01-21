@@ -8,8 +8,8 @@ Optimize `sendRoutesWithLimit()` to group routes by attributes and pack multiple
 
 ## Required Reading (MUST complete before implementation)
 
-- [x] `.claude/zebgp/UPDATE_BUILDING.md` - Build vs Forward paths
-- [x] `.claude/zebgp/wire/NLRI.md` - MP_REACH_NLRI structure
+- [x] `docs/architecture/UPDATE_BUILDING.md` - Build vs Forward paths
+- [x] `docs/architecture/wire/NLRI.md` - MP_REACH_NLRI structure
 - [x] `internal/bgp/message/update_build.go` - Existing `BuildGroupedUnicastWithLimit`
 
 ## Approach: Reuse Existing Infrastructure

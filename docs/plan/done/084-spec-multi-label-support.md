@@ -4,8 +4,8 @@
 Add RFC 8277 multi-label stack support. Currently ZeBGP parsing handles multiple labels but building/config only supports single label. This creates an asymmetry where received routes with label stacks are parsed correctly, but locally originated routes cannot use multiple labels.
 
 ## Required Reading
-- [ ] `.claude/zebgp/wire/NLRI.md` - NLRI wire format for labeled routes
-- [ ] `.claude/zebgp/UPDATE_BUILDING.md` - *Params struct design pattern
+- [ ] `docs/architecture/wire/NLRI.md` - NLRI wire format for labeled routes
+- [ ] `docs/architecture/UPDATE_BUILDING.md` - *Params struct design pattern
 - [ ] `rfc/rfc8277.txt` - RFC 8277 Multiple Labels Capability
 
 **Key insights:**
@@ -160,7 +160,7 @@ Existing configs with VPN routes that omit `label` (implicitly using label 0) wi
 ### Documentation
 - [ ] Required docs read
 - [ ] RFC references added
-- [ ] `.claude/zebgp/wire/NLRI.md` updated if needed
+- [ ] `docs/architecture/wire/NLRI.md` updated if needed
 
 ### Completion
 - [ ] Spec moved to `docs/plan/done/NNN-multi-label-support.md`

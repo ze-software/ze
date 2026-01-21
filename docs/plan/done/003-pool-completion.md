@@ -13,8 +13,8 @@
 Complete the pool architecture implementation before proceeding to wire format work. The pool provides zero-copy byte deduplication for attributes and NLRI, critical for memory efficiency with large RIBs.
 
 **Design docs:**
-- `.claude/zebgp/POOL_ARCHITECTURE.md` - Full design specification
-- `.claude/zebgp/POOL_ARCHITECTURE_REVIEW.md` - Issues tracker
+- `docs/architecture/POOL_ARCHITECTURE.md` - Full design specification
+- `docs/architecture/POOL_ARCHITECTURE_REVIEW.md` - Issues tracker
 
 ---
 
@@ -229,7 +229,7 @@ func TestConcurrentIntern(t *testing.T) {
 
 **File:** `internal/pool/pool.go`
 
-See `.claude/zebgp/POOL_ARCHITECTURE.md` for full implementation details.
+See `docs/architecture/POOL_ARCHITECTURE.md` for full implementation details.
 
 ---
 

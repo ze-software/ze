@@ -14,7 +14,7 @@ import (
 	"strings"
 	"sync"
 
-	"codeberg.org/thomas-mangin/zebgp/internal/slogutil"
+	"codeberg.org/thomas-mangin/ze/internal/slogutil"
 )
 
 // logger is the package-level logger, disabled by default.
@@ -22,7 +22,7 @@ import (
 var logger = slogutil.DiscardLogger()
 
 // SetLogger sets the package-level logger.
-// Called by cmd/zebgp/plugin_gr.go with slogutil.LoggerWithLevel().
+// Called by cmd/ze/bgp/plugin_gr.go with slogutil.LoggerWithLevel().
 func SetLogger(l *slog.Logger) {
 	if l != nil {
 		logger = l

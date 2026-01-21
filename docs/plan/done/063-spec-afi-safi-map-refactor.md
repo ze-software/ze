@@ -5,10 +5,10 @@ Consolidate Family type to nlri package, separate "what was negotiated" from "ho
 
 ## Required Reading (MUST complete before implementation)
 
-- [x] `.claude/zebgp/wire/CAPABILITIES.md` - AFI/SAFI in capability negotiation
-- [x] `.claude/zebgp/UPDATE_BUILDING.md` - Build path vs Forward path
-- [x] `.claude/zebgp/wire/NLRI.md` - Family type, pre-computed constants
-- [x] `.claude/zebgp/ENCODING_CONTEXT.md` - EncodingContext structure
+- [x] `docs/architecture/wire/CAPABILITIES.md` - AFI/SAFI in capability negotiation
+- [x] `docs/architecture/UPDATE_BUILDING.md` - Build path vs Forward path
+- [x] `docs/architecture/wire/NLRI.md` - Family type, pre-computed constants
+- [x] `docs/architecture/ENCODING_CONTEXT.md` - EncodingContext structure
 
 **Key insights from docs:**
 1. EncodingContext already uses `map[Family]bool` for AddPath/ExtendedNextHop
@@ -125,7 +125,7 @@ func FamilyLess(a, b Family) bool {
 
 **capability/capability.go** - use nlri.Family:
 ```go
-import "codeberg.org/thomas-mangin/zebgp/internal/bgp/nlri"
+import "codeberg.org/thomas-mangin/ze/internal/bgp/nlri"
 
 // Family is an alias for nlri.Family for backward compatibility.
 type Family = nlri.Family
@@ -133,7 +133,7 @@ type Family = nlri.Family
 
 **context/context.go** - use nlri.Family:
 ```go
-import "codeberg.org/thomas-mangin/zebgp/internal/bgp/nlri"
+import "codeberg.org/thomas-mangin/ze/internal/bgp/nlri"
 
 type EncodingContext struct {
     ASN4            bool
@@ -430,7 +430,7 @@ make test && make lint && make functional
 - [x] make test passes
 - [x] make lint passes
 - [x] make functional passes
-- [x] Update `.claude/zebgp/ENCODING_CONTEXT.md` with new architecture
+- [x] Update `docs/architecture/ENCODING_CONTEXT.md` with new architecture
 
 ## Dependencies
 
@@ -443,5 +443,5 @@ None - all changes are internal. External API unchanged.
 ## Documentation Updates
 
 After implementation, update:
-- `.claude/zebgp/ENCODING_CONTEXT.md` - document NegotiatedCapabilities
-- `.claude/zebgp/wire/CAPABILITIES.md` - reference nlri.Family as canonical type
+- `docs/architecture/ENCODING_CONTEXT.md` - document NegotiatedCapabilities
+- `docs/architecture/wire/CAPABILITIES.md` - reference nlri.Family as canonical type

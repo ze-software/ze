@@ -9,7 +9,7 @@ import (
 	"slices"
 	"strings"
 
-	"codeberg.org/thomas-mangin/zebgp/internal/bgp/wire"
+	"codeberg.org/thomas-mangin/ze/internal/bgp/wire"
 )
 
 // FlowSpec errors.

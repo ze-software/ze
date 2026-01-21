@@ -5,7 +5,7 @@ Add `direction` ("sent"/"received") to BGP message API output for OPEN, NOTIFICA
 
 ## Required Reading (MUST complete before implementation)
 
-- [x] `.claude/zebgp/api/ARCHITECTURE.md` - Message flow: Session → Peer → Reactor → Server
+- [x] `docs/architecture/api/ARCHITECTURE.md` - Message flow: Session → Peer → Reactor → Server
 
 **Key insights from docs:**
 - `MessageCallback` defined in session.go, wired through peer.go to reactor.go

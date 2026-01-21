@@ -34,7 +34,7 @@ Rewrite ZeBGP's `test/cmd/self-check` to align with ExaBGP's `qa/bin/functional`
 | Component | Lines | Purpose |
 |-----------|-------|---------|
 | main.go | 705 | All-in-one: discovery, runner, output |
-| zebgp-peer | 144 | CLI wrapper for testpeer |
+| ze-peer | 144 | CLI wrapper for testpeer |
 | internal/test/peer | 1,209 | Peer + checker + decoder |
 
 **Limitations:**
@@ -83,7 +83,7 @@ test/
 │   │   └── main.go
 │   ├── test-everything/    # Full suite runner (Go)
 │   │   └── main.go
-│   └── zebgp-peer/         # Test peer (unchanged)
+│   └── ze-peer/         # Test peer (unchanged)
 │       └── main.go
 ├── data/
 │   ├── encode/             # Encode tests (unchanged)
@@ -221,8 +221,8 @@ Examples:
 ├─ Execution (concurrent, limited by --parallel)
 │  For each test:
 │    1. State → Starting
-│    2. Start zebgp-peer (test peer) on random port
-│    3. Start zebgp daemon with config
+│    2. Start ze-peer (test peer) on random port
+│    3. Start ze bgp daemon with config
 │    4. State → Running
 │    5. Wait for completion or timeout
 │    6. Collect output, determine result

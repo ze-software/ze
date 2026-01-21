@@ -26,7 +26,7 @@ func isFlowSpecFamily(family string) bool {
 	return normalized == "ipv4/flowspec" || normalized == "ipv6/flowspec"
 }
 
-// extractFamily extracts the address family from a zebgp decode envelope.
+// extractFamily extracts the address family from a ze bgp decode envelope.
 // Returns empty string for EOR (empty update) messages.
 func extractFamily(envelope map[string]any) string {
 	neighbor, ok := envelope["neighbor"].(map[string]any)
@@ -61,10 +61,10 @@ func extractFamily(envelope map[string]any) string {
 	return ""
 }
 
-// transformEnvelopeToPlugin converts zebgp decode envelope format to plugin format.
+// transformEnvelopeToPlugin converts ze bgp decode envelope format to plugin format.
 // Returns the transformed map and the detected family.
 //
-// Zebgp decode format:
+// Ze BGP decode format:
 //
 //	{
 //	  "type": "update",
@@ -91,7 +91,7 @@ func transformEnvelopeToPlugin(envelope map[string]any) (map[string]any, string)
 	// Set meta section with version and format
 	result["meta"] = map[string]any{
 		"version": "1.0.0",
-		"format":  "zebgp",
+		"format":  "ze-bgp",
 	}
 
 	// Set message type
@@ -154,8 +154,8 @@ func transformEnvelopeToPlugin(envelope map[string]any) (map[string]any, string)
 	return result, detectedFamily
 }
 
-// transformAnnounce transforms the announce section from zebgp decode to plugin format.
-// Zebgp decode: {"next-hop": [{"nlri": "prefix"}]}.
+// transformAnnounce transforms the announce section from ze bgp decode to plugin format.
+// Ze BGP decode: {"next-hop": [{"nlri": "prefix"}]}.
 // Plugin: [{"next-hop": "...", "action": "add", "nlri": ["prefix"]}].
 func transformAnnounce(nhMap map[string]any) []map[string]any {
 	var result []map[string]any
@@ -187,7 +187,7 @@ func transformAnnounce(nhMap map[string]any) []map[string]any {
 
 // transformFlowspecAnnounce transforms FlowSpec announce section to plugin format.
 // FlowSpec NLRI contains rule components (destination-ipv4, tcp-flags, etc.) rather than simple prefixes.
-// Zebgp decode: {"next-hop-or-no-nexthop": [{components}]}.
+// Ze BGP decode: {"next-hop-or-no-nexthop": [{components}]}.
 // Plugin: [{"next-hop": "...", "action": "add", "nlri": [{components}]}] (next-hop at operation level).
 func transformFlowspecAnnounce(nhMap map[string]any) []map[string]any {
 	var result []map[string]any
@@ -225,7 +225,7 @@ func transformFlowspecAnnounce(nhMap map[string]any) []map[string]any {
 
 // transformFlowspecWithdraw transforms FlowSpec withdraw section to plugin format.
 // FlowSpec withdraws have component objects, same structure as announces but without next-hop.
-// Zebgp decode: [{components}].
+// Ze BGP decode: [{components}].
 // Plugin: [{"action": "del", "nlri": {components}}].
 func transformFlowspecWithdraw(prefixes any) []map[string]any {
 	var result []map[string]any
@@ -244,8 +244,8 @@ func transformFlowspecWithdraw(prefixes any) []map[string]any {
 	return result
 }
 
-// transformWithdraw transforms the withdraw section from zebgp decode to plugin format.
-// Zebgp decode formats:
+// transformWithdraw transforms the withdraw section from ze bgp decode to plugin format.
+// Ze BGP decode formats:
 // - IPv4 unicast: ["prefix1", "prefix2"]
 // - IPv6/MP: [{"nlri": "prefix1"}, {"nlri": "prefix2"}]
 // Plugin: [{"action": "del", "nlri": ["prefix1", "prefix2"]}].

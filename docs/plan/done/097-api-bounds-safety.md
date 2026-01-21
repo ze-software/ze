@@ -175,7 +175,7 @@ internal/bgp/message/update_build_test.go:1642:20: ub.BuildFlowSpecWithMaxSize u
 internal/bgp/message/update_build_test.go:1671:12: undefined: ErrUpdateTooLarge
 internal/bgp/message/update_build_test.go:1706:21: ub.BuildMVPNWithLimit undefined
 internal/bgp/message/update_build_test.go:1770:15: ub.BuildUnicastWithMaxSize undefined
-FAIL	codeberg.org/thomas-mangin/zebgp/internal/bgp/message [build failed]
+FAIL	codeberg.org/thomas-mangin/ze/internal/bgp/message [build failed]
 ```
 
 #### Tests PASS output:

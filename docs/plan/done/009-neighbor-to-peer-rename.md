@@ -388,7 +388,7 @@ peer 192.0.2.1 { }
 | 3.3 | Update all references | `internal/config/*.go`, `internal/reactor/*.go` |
 | 3.4 | Update API JSON output to use `peer` | `internal/plugin/json.go` |
 | 3.5 | Update serializer to output v3 format | `internal/config/serialize.go` |
-| 3.6 | Update `zebgp config dump` command | `cmd/zebgp/config_dump.go` |
+| 3.6 | Update `ze bgp config dump` command | `cmd/ze/bgp/config_dump.go` |
 | 3.7 | Update tests | `*_test.go` |
 
 ### Phase 4: Deprecate Old Syntax
@@ -404,7 +404,7 @@ peer 192.0.2.1 { }
 
 | # | Task | Files |
 |---|------|-------|
-| 5.1 | Migrate etc/zebgp/*.conf | `etc/zebgp/` |
+| 5.1 | Migrate etc/ze/bgp/*.conf | `etc/ze/bgp/` |
 | 5.2 | Migrate test/data/**/*.conf | `test/data/` |
 | 5.3 | Update documentation examples | `docs/`, `.claude/` |
 
@@ -485,7 +485,7 @@ peer 10.0.0.1 {
 
 ```bash
 # Check config version
-$ zebgp config check myconfig.conf
+$ ze bgp config check myconfig.conf
 Config version: v2 (ZeBGP pre-restructure)
 Deprecated syntax found:
   - neighbor 192.168.1.1 { } → use: peer 192.168.1.1 { }
@@ -493,14 +493,14 @@ Deprecated syntax found:
   - template { neighbor ibgp-rr { } } → use: template { group ibgp-rr { } }
 
 # Upgrade config
-$ zebgp config upgrade myconfig.conf
+$ ze bgp config upgrade myconfig.conf
 Backup created: myconfig.conf.20251221-150000.bak
 Upgraded myconfig.conf from v2 to v3
 Applied migrations:
   - neighbor-to-peer
 
 # Preview upgrade
-$ zebgp config upgrade --dry-run myconfig.conf
+$ ze bgp config upgrade --dry-run myconfig.conf
 ```
 
 ---
@@ -529,7 +529,7 @@ $ zebgp config upgrade --dry-run myconfig.conf
 9. ✅ Static routes in `match`/`group` blocks work
 10. ✅ `inherit` rejected inside `template { }` with clear error
 11. ✅ Group name validation enforced
-12. ✅ `zebgp config dump` outputs valid v3 format
+12. ✅ `ze bgp config dump` outputs valid v3 format
 13. ✅ All tests pass
 14. ✅ All example configs updated
 
@@ -662,10 +662,10 @@ group "my group" { }    # Spaces/quotes not allowed
 
 ## Serialization
 
-`zebgp config dump` outputs valid v3 config format:
+`ze bgp config dump` outputs valid v3 config format:
 
 ```bash
-$ zebgp config dump
+$ ze bgp config dump
 template {
     match * {
         hold-time 90;

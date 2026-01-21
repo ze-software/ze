@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"codeberg.org/thomas-mangin/zebgp/internal/config"
+	"codeberg.org/thomas-mangin/ze/internal/config"
 )
 
 // TestMigrateSimple verifies basic neighbor→peer conversion.
@@ -187,7 +187,7 @@ neighbor 10.0.0.1 {
 
 // TestMigrateProcess verifies process wrapping with bridge.
 //
-// VALIDATES: ExaBGP process wrapped with zebgp exabgp plugin bridge.
+// VALIDATES: ExaBGP process wrapped with ze exabgp plugin bridge.
 // PREVENTS: Direct ExaBGP plugin usage (needs JSON translation).
 func TestMigrateProcess(t *testing.T) {
 	// Uses actual ExaBGP 'api { processes [...] }' syntax.
@@ -234,7 +234,7 @@ neighbor 10.0.0.1 {
 	if !ok {
 		t.Fatal("expected run in plugin")
 	}
-	if !strings.Contains(runStr, "zebgp exabgp plugin") {
+	if !strings.Contains(runStr, "ze exabgp plugin") {
 		t.Errorf("expected run to use bridge, got: %s", runStr)
 	}
 
@@ -968,7 +968,7 @@ func validateMigrationResult(t *testing.T, testName, got string, result *Migrate
 
 	case "process":
 		// Should have compat plugin wrapped with bridge.
-		if !strings.Contains(got, "zebgp exabgp plugin") {
+		if !strings.Contains(got, "ze exabgp plugin") {
 			t.Error("expected bridge wrapper in plugin run command")
 		}
 		if !strings.Contains(got, "-compat") {

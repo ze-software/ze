@@ -5,8 +5,8 @@ Split test C into two focused tests with cleaner design
 
 ## Required Reading (MUST complete before implementation)
 
-- [x] `.claude/zebgp/behavior/FSM.md` - Session lifecycle, state transitions
-- [x] `.claude/zebgp/api/ARCHITECTURE.md` - Persist plugin, API sync protocol
+- [x] `docs/architecture/behavior/FSM.md` - Session lifecycle, state transitions
+- [x] `docs/architecture/api/ARCHITECTURE.md` - Persist plugin, API sync protocol
 
 ## Current State
 - Tests: 13/14 API tests pass, only test C fails

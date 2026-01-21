@@ -222,7 +222,7 @@ go tool pprof -http=:8080 adjribout.pprof
 
 ### Step 3: Document Findings
 
-Update `.claude/zebgp/POOL_ARCHITECTURE.md` with:
+Update `docs/architecture/POOL_ARCHITECTURE.md` with:
 - Measured bytes per route
 - Memory formula: `total_mem = routes * peers * bytes_per_route`
 - Recommended limits

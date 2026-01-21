@@ -8,12 +8,12 @@ Implement `handleUpdateHex()`, `handleUpdateB64()` handlers for the `peer X upda
 
 ## Required Reading
 
-- [ ] `.claude/zebgp/api/ARCHITECTURE.md` - API command structure
-- [ ] `.claude/zebgp/api/CAPABILITY_CONTRACT.md` - API capability negotiation
-- [ ] `.claude/zebgp/UPDATE_BUILDING.md` - UPDATE message building
-- [ ] `.claude/zebgp/ENCODING_CONTEXT.md` - Context for wire encoding
-- [ ] `.claude/zebgp/wire/ATTRIBUTES.md` - Wire format reference
-- [ ] `.claude/zebgp/edge-cases/ADDPATH.md` - ADD-PATH path-id handling
+- [ ] `docs/architecture/api/ARCHITECTURE.md` - API command structure
+- [ ] `docs/architecture/api/CAPABILITY_CONTRACT.md` - API capability negotiation
+- [ ] `docs/architecture/UPDATE_BUILDING.md` - UPDATE message building
+- [ ] `docs/architecture/ENCODING_CONTEXT.md` - Context for wire encoding
+- [ ] `docs/architecture/wire/ATTRIBUTES.md` - Wire format reference
+- [ ] `docs/architecture/edge-cases/ADDPATH.md` - ADD-PATH path-id handling
 
 **Key insights:**
 - Existing `handleUpdateText()` parses text → NLRIBatch → reactor
@@ -381,7 +381,7 @@ Implement context-aware re-encoding for wire mode when source/target contexts di
 - ADD-PATH: Already handled by WireNLRI.Pack()
 
 ## Required Reading
-- `.claude/zebgp/edge-cases/AS4.md`
+- `docs/architecture/edge-cases/AS4.md`
 - RFC 6793 (4-byte AS)
 
 ## Design
@@ -632,7 +632,7 @@ If RFC missing: `curl -o rfc/rfcNNNN.txt https://www.rfc-editor.org/rfc/rfcNNNN.
 ### Documentation
 - [x] Required docs read
 - [x] RFC references added (RFC 4271, 4760, 7911 comments in code)
-- [ ] `.claude/zebgp/api/ARCHITECTURE.md` updated if API changes
+- [ ] `docs/architecture/api/ARCHITECTURE.md` updated if API changes
 
 ### Completion
 - [ ] Spec moved to `docs/plan/done/NNN-<name>.md`

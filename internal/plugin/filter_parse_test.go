@@ -3,7 +3,7 @@ package plugin
 import (
 	"testing"
 
-	"codeberg.org/thomas-mangin/zebgp/internal/bgp/attribute"
+	"codeberg.org/thomas-mangin/ze/internal/bgp/attribute"
 )
 
 // TestParseAttributeFilterValid verifies valid parsing.

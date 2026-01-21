@@ -114,9 +114,9 @@ zebgp/
 ├── cmd/
 │   ├── zebgp/              # Main daemon
 │   │   └── main.go
-│   ├── zebgp-cli/          # Interactive CLI
+│   ├── ze-bgp-cli/          # Interactive CLI
 │   │   └── main.go
-│   └── zebgp-decode/       # Message decoder utility
+│   └── ze-bgp-decode/       # Message decoder utility
 │       └── main.go
 │
 ├── internal/                    # Public API (importable)
@@ -1176,10 +1176,10 @@ func TestPeerSession(t *testing.T) {
 - [x] Validation
 
 ### Phase 10: CLI ✅
-- [x] zebgp validate command
-- [x] zebgp run command
-- [ ] zebgp-cli (interactive)
-- [ ] zebgp-decode (utility)
+- [x] ze bgp validate command
+- [x] ze bgp run command
+- [ ] ze-bgp-cli (interactive)
+- [ ] ze-bgp-decode (utility)
 
 ### Phase 11: API ✅
 - [x] Reactor-config wiring
@@ -1230,8 +1230,8 @@ func TestPeerSession(t *testing.T) {
 
 ## Appendix A: Reference Documents
 
-- `.claude/zebgp/POOL_ARCHITECTURE.md` - Pool design
-- `.claude/zebgp/POOL_ARCHITECTURE_REVIEW.md` - Pool issues
+- `docs/architecture/POOL_ARCHITECTURE.md` - Pool design
+- `docs/architecture/POOL_ARCHITECTURE_REVIEW.md` - Pool issues
 - `ZE_IMPLEMENTATION_PLAN.md` - Original implementation plan
 - `../main/` - ExaBGP Python implementation (reference)
 

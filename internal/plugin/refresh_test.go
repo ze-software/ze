@@ -5,9 +5,9 @@ import (
 	"net/netip"
 	"testing"
 
-	"codeberg.org/thomas-mangin/zebgp/internal/bgp/nlri"
-	"codeberg.org/thomas-mangin/zebgp/internal/rib"
-	"codeberg.org/thomas-mangin/zebgp/internal/selector"
+	"codeberg.org/thomas-mangin/ze/internal/bgp/nlri"
+	"codeberg.org/thomas-mangin/ze/internal/rib"
+	"codeberg.org/thomas-mangin/ze/internal/selector"
 )
 
 // mockReactorRefresh implements ReactorInterface for refresh command testing.

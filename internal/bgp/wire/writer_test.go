@@ -5,7 +5,7 @@ import (
 	"errors"
 	"testing"
 
-	"codeberg.org/thomas-mangin/zebgp/internal/bgp/wire"
+	"codeberg.org/thomas-mangin/ze/internal/bgp/wire"
 )
 
 // TestSessionBufferBasic verifies basic buffer operations.

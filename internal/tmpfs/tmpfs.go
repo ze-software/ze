@@ -494,7 +494,7 @@ func (v *Tmpfs) WriteTo(baseDir string) error {
 
 // WriteToTemp creates temp dir, writes files, returns path and cleanup.
 func (v *Tmpfs) WriteToTemp() (dir string, cleanup func(), err error) {
-	dir, err = os.MkdirTemp("", "zebgp-tmpfs-*")
+	dir, err = os.MkdirTemp("", "ze-tmpfs-*")
 	if err != nil {
 		return "", nil, err
 	}

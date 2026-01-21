@@ -11,10 +11,10 @@ Refactor NLRI types to use struct embedding for architectural clarity:
 Note: IPVPN has different field order (rd before prefix) so stays separate.
 
 ## Required Reading
-- [ ] `.claude/zebgp/wire/NLRI.md` - NLRI wire formats, class hierarchy
-- [ ] `.claude/zebgp/UPDATE_BUILDING.md` - Build path uses *Params structs, forward path needs zero-copy
-- [ ] `.claude/zebgp/ENCODING_CONTEXT.md` - Zero-copy forwarding depends on context matching
-- [ ] `.claude/zebgp/edge-cases/ADDPATH.md` - PathID handling separate from payload encoding
+- [ ] `docs/architecture/wire/NLRI.md` - NLRI wire formats, class hierarchy
+- [ ] `docs/architecture/UPDATE_BUILDING.md` - Build path uses *Params structs, forward path needs zero-copy
+- [ ] `docs/architecture/ENCODING_CONTEXT.md` - Zero-copy forwarding depends on context matching
+- [ ] `docs/architecture/edge-cases/ADDPATH.md` - PathID handling separate from payload encoding
 
 **Key insights:**
 - NLRI interface methods return payload-only (no path ID); `WriteNLRI()` handles ADD-PATH
@@ -203,7 +203,7 @@ Existing RFC comments in code are sufficient; no new RFCs to download.
 ### Documentation
 - [x] Required docs read
 - [x] RFC references added (existing refs sufficient)
-- [x] `.claude/zebgp/wire/NLRI.md` updated with embedding hierarchy
+- [x] `docs/architecture/wire/NLRI.md` updated with embedding hierarchy
 
 ### Completion
 - [ ] Spec moved to `docs/plan/done/NNN-nlri-struct-embedding.md`

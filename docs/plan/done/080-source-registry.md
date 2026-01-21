@@ -6,10 +6,10 @@ Create a registry that assigns unique numeric IDs to all message sources (peers,
 
 ## Required Reading
 
-- [ ] `.claude/zebgp/api/ARCHITECTURE.md` - API process lifecycle, message flow
-- [ ] `.claude/zebgp/api/JSON_FORMAT.md` - JSON output format for source field
-- [ ] `.claude/zebgp/ENCODING_CONTEXT.md` - WireUpdate structure, zero-copy patterns
-- [ ] `.claude/zebgp/UPDATE_BUILDING.md` - Message flow, Build vs Forward paths
+- [ ] `docs/architecture/api/ARCHITECTURE.md` - API process lifecycle, message flow
+- [ ] `docs/architecture/api/JSON_FORMAT.md` - JSON output format for source field
+- [ ] `docs/architecture/ENCODING_CONTEXT.md` - WireUpdate structure, zero-copy patterns
+- [ ] `docs/architecture/UPDATE_BUILDING.md` - Message flow, Build vs Forward paths
 
 **Key insights:**
 - WireUpdate already has `sourceCtxID` and `messageID` fields - add `sourceID` following same pattern

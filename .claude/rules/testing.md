@@ -66,7 +66,7 @@ func main() {
 1. **Encoding test:** Create `test/data/encode/<name>.conf` and `test/data/encode/<name>.ci`
 2. **Plugin test:** Create `test/data/plugin/<name>.conf` and `test/data/plugin/<name>.ci`
 3. **Decoding test:** Create `test/decode/<name>.ci` with stdin=, cmd=, expect=json: lines
-4. **Run:** `make functional` or `zebgp-test run <type> --list` to verify
+4. **Run:** `make functional` or `ze-test run <type> --list` to verify
 
 ### CI File Format (.ci)
 
@@ -139,13 +139,13 @@ Corpus location: `test/data/fuzz/<FuzzName>/`
 
 ## Functional Testing
 
-### zebgp-peer (BGP Test Peer)
+### ze-peer (BGP Test Peer)
 
 ```bash
-zebgp-peer --sink --port 1790              # Accept any, reply keepalive
-zebgp-peer --echo --port 1790              # Echo messages back
-zebgp-peer --port 1790 qa/encoding/test.msg # Check mode
-zebgp-peer --view qa/encoding/test.msg      # View rules only
+ze-peer --sink --port 1790              # Accept any, reply keepalive
+ze-peer --echo --port 1790              # Echo messages back
+ze-peer --port 1790 qa/encoding/test.msg # Check mode
+ze-peer --view qa/encoding/test.msg      # View rules only
 ```
 
 | Flag | Description |
@@ -156,19 +156,19 @@ zebgp-peer --view qa/encoding/test.msg      # View rules only
 | `--ipv6` | Bind IPv6 |
 | `--asn` | Override ASN (0 = mirror) |
 
-### zebgp-test (Test Runner)
+### ze-test (Test Runner)
 
 ```bash
-zebgp-test run encoding --list      # List tests
-zebgp-test run encoding --all       # Run all
-zebgp-test run encoding 0 1 2       # By index
-zebgp-test run encoding --count 10 0 # Stress test
+ze-test run encoding --list      # List tests
+ze-test run encoding --all       # Run all
+ze-test run encoding 0 1 2       # By index
+ze-test run encoding --count 10 0 # Stress test
 ```
 
 ### testpeer (Library)
 
 ```go
-import "codeberg.org/thomas-mangin/zebgp/internal/test/peer"
+import "codeberg.org/thomas-mangin/ze/internal/test/peer"
 
 peer, err := peer.New(&peer.Config{
     Port: 1790, Sink: true, Output: &bytes.Buffer{},
@@ -189,15 +189,15 @@ The `internal/exabgp/` library provides ZeBGP ↔ ExaBGP format translation:
 # Run Go tests for exabgp package
 go test -v ./internal/exabgp/...
 
-# Use zebgp exabgp plugin to run ExaBGP plugins with ZeBGP
-zebgp exabgp plugin /path/to/exabgp-plugin.py
+# Use ze exabgp plugin to run ExaBGP plugins with ZeBGP
+ze exabgp plugin /path/to/exabgp-plugin.py
 ```
 
 ### In ZeBGP Config
 
 ```
 process exabgp-compat {
-    run "zebgp exabgp plugin /path/to/exabgp-plugin.py";
+    run "ze exabgp plugin /path/to/exabgp-plugin.py";
 }
 ```
 
@@ -205,9 +205,9 @@ process exabgp-compat {
 
 ```bash
 # ZeBGP peer against ExaBGP test file
-zebgp-peer --port 1790 ../5.0/qa/encoding/api-announce.msg
+ze-peer --port 1790 ../5.0/qa/encoding/api-announce.msg
 
-# ExaBGP against zebgp-peer
+# ExaBGP against ze-peer
 cd ../5.0
 env exabgp_tcp_port=1790 ./sbin/exabgp etc/exabgp/api-announce.conf
 ```

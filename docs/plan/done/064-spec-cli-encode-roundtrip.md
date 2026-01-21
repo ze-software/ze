@@ -2,19 +2,19 @@
 
 ## Task
 Add CLI encode command and round-trip testing to match ExaBGP's functional test coverage:
-1. `zebgp encode` command (API command → BGP hex)
+1. `ze bgp encode` command (API command → BGP hex)
 2. `encode|decode` round-trip tests (ZeBGP internal consistency)
 3. Lightweight CLI approach + heavyweight forked process approach
 
 ## Current Progress
 
 ### ✅ Completed
-- [x] Phase 2: CLI encode command (`cmd/zebgp/encode.go`)
+- [x] Phase 2: CLI encode command (`cmd/ze/bgp/encode.go`)
 - [x] Phase 1: Conversion layer (all families)
 - [x] Phase 1b: `BuildEVPN()` + `EVPNParams` + `NewEVPNType1-5()`
 - [x] Phase 3: Round-trip tests (all families)
 - [x] EVPN encode support (all 5 types tested)
-- [x] stdin support (`echo "route ..." | zebgp encode`)
+- [x] stdin support (`echo "route ..." | ze bgp encode`)
 - [x] Full ESI parsing (hex and colon-separated formats)
 - [x] Type 1 RD parsing (IP:Local format like `1.2.3.4:100`)
 - [x] L3VPN (mpls-vpn) encode (IPv4 and IPv6)
@@ -108,13 +108,13 @@ All families fully tested.
 ## Files Created/Modified
 
 ### New Files
-- `cmd/zebgp/encode.go` - CLI encode command (~1050 lines)
-- `cmd/zebgp/encode_test.go` - Unit tests (40 tests)
-- `cmd/zebgp/roundtrip_test.go` - Round-trip tests (13 tests)
+- `cmd/ze/bgp/encode.go` - CLI encode command (~1050 lines)
+- `cmd/ze/bgp/encode_test.go` - Unit tests (40 tests)
+- `cmd/ze/bgp/roundtrip_test.go` - Round-trip tests (13 tests)
 - `internal/bgp/message/update_build_evpn_test.go` - EVPN builder tests
 
 ### Modified
-- `cmd/zebgp/main.go` - Add encode command
+- `cmd/ze/bgp/main.go` - Add encode command
 - `internal/plugin/route.go` - Exported `ParseRouteAttributes()`, `ParseL2VPNArgs()`
 - `internal/bgp/message/update_build.go` - Added `EVPNParams`, `BuildEVPN()`
 - `internal/bgp/nlri/evpn.go` - Added `NewEVPNType1-5()` constructors

@@ -1,7 +1,7 @@
 // Package wire provides zero-allocation buffer writing for BGP messages.
 //
 // This package implements the Buffer Writer Architecture described in
-// .claude/zebgp/wire/BUFFER_WRITER.md for efficient UPDATE message building.
+// docs/architecture/wire/BUFFER_WRITER.md for efficient UPDATE message building.
 package wire
 
 import "encoding/binary"

@@ -13,8 +13,8 @@
 
 The following docs MUST be read before starting implementation:
 
-- [x] `.claude/zebgp/behavior/FSM.md` - FSM states and transitions, callback patterns
-- [x] `.claude/zebgp/api/ARCHITECTURE.md` - API server, message formats, process binding
+- [x] `docs/architecture/behavior/FSM.md` - FSM states and transitions, callback patterns
+- [x] `docs/architecture/api/ARCHITECTURE.md` - API server, message formats, process binding
 
 **Key insights from docs:**
 
@@ -376,11 +376,11 @@ func TestAPIStateEmission(t *testing.T) {
 ### Manual Test
 
 ```bash
-# Start zebgp with API process
+# Start ze bgp with API process
 zebgp -c test.toml
 
 # In another terminal, watch API output
-cat /var/run/zebgp.sock
+cat /var/run/ze-bgp.sock
 
 # Should see state messages when peer connects/disconnects:
 # {"exabgp":"4.0.1","type":"state","neighbor":{"address":{"peer":"192.0.2.1"},"state":"up"}}

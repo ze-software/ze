@@ -1,16 +1,16 @@
 # Migrated from test/data/plugin/mup4.*
 
-# zebgp-peer expectations
+# ze-peer expectations
 stdin=peer:terminator=EOF_PEER
 # Test IPv4 unicast functionality
 cmd=api:conn=1:seq=1:text=update text origin set igp local-preference set 200 nhop set 10.0.1.254 nlri ipv4/unicast add 10.0.1.0/24
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040A0001FE400504000000C8180A0001
-expect=json:conn=1:seq=1:json={"meta":{"version":"1.0.0","format":"zebgp"},"message":{"type":"update"},"peer":{"address":"127.0.0.1","asn":65533},"direction":"in","local-preference":200,"origin":"igp","ipv4/unicast":[{"action":"add","nlri":["10.0.1.0/24"],"next-hop":"10.0.1.254"}]}
+expect=json:conn=1:seq=1:json={"meta":{"version":"1.0.0","format":"ze-bgp"},"message":{"type":"update"},"peer":{"address":"127.0.0.1","asn":65533},"direction":"in","local-preference":200,"origin":"igp","ipv4/unicast":[{"action":"add","nlri":["10.0.1.0/24"],"next-hop":"10.0.1.254"}]}
 cmd=api:conn=1:seq=2:text=announce eor ipv4/unicast
 expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 cmd=api:conn=1:seq=3:text=update text nlri ipv4/unicast del 10.0.1.0/24
 expect=bgp:conn=1:seq=3:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001B020004180A00010000
-expect=json:conn=1:seq=3:json={"meta":{"version":"1.0.0","format":"zebgp"},"message":{"type":"update"},"peer":{"address":"127.0.0.1","asn":65533},"direction":"in","ipv4/unicast":[{"action":"del","nlri":["10.0.1.0/24"]}]}
+expect=json:conn=1:seq=3:json={"meta":{"version":"1.0.0","format":"ze-bgp"},"message":{"type":"update"},"peer":{"address":"127.0.0.1","asn":65533},"direction":"in","ipv4/unicast":[{"action":"del","nlri":["10.0.1.0/24"]}]}
 # Note: MUP-specific tests commented out pending update text MUP support
 # 4:cmd:announce eor ipv4/mup
 # 4:cmd:announce ipv4/mup mup-isd 10.0.1.0/24 rd 100:100 next-hop 2001::1 extended-community [target:10:10] bgp-prefix-sid-srv6 ( l3-service 2001:db8:1:1:: 0x48 [64,24,16,0,0,0] )
@@ -23,7 +23,7 @@ tmpfs=mup4.run:mode=755:terminator=EOF_RUN
 
 import time
 
-from zebgp_api import ready, send, wait_for_ack, wait_for_shutdown
+from ze_bgp_api import ready, send, wait_for_ack, wait_for_shutdown
 
 
 def main() -> None:
@@ -54,8 +54,8 @@ if __name__ == '__main__':
     main()
 EOF_RUN
 
-# zebgp configuration
-stdin=zebgp:terminator=EOF_CONF
+# ze bgp configuration
+stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external announce-routes {
 		run ./mup4.run;
@@ -82,5 +82,5 @@ peer 127.0.0.1 {
 EOF_CONF
 
 # Process orchestration
-cmd=background:seq=1:exec=zebgp-peer --port $PORT:stdin=peer
-cmd=foreground:seq=2:exec=zebgp server -:stdin=zebgp:timeout=10s
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze bgp server -:stdin=ze-bgp:timeout=10s

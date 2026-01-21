@@ -275,18 +275,18 @@ func (r *Report) printDebugCommands(rec *Record) {
 	// Decode commands
 	if len(rec.Messages) > 0 && rec.Messages[0].RawHex != "" {
 		_, _ = fmt.Fprintf(r.output, "%s\n", c.Gray("# Decode expected:"))
-		_, _ = fmt.Fprintf(r.output, "zebgp decode update %s\n\n", rec.Messages[0].RawHex[:min(64, len(rec.Messages[0].RawHex))]+"...")
+		_, _ = fmt.Fprintf(r.output, "ze bgp decode update %s\n\n", rec.Messages[0].RawHex[:min(64, len(rec.Messages[0].RawHex))]+"...")
 	}
 
 	if len(rec.ReceivedRaw) > 0 {
 		_, _ = fmt.Fprintf(r.output, "%s\n", c.Gray("# Decode received:"))
-		_, _ = fmt.Fprintf(r.output, "zebgp decode update %s\n\n", rec.ReceivedRaw[0][:min(64, len(rec.ReceivedRaw[0]))]+"...")
+		_, _ = fmt.Fprintf(r.output, "ze bgp decode update %s\n\n", rec.ReceivedRaw[0][:min(64, len(rec.ReceivedRaw[0]))]+"...")
 	}
 
 	// Manual test commands
 	_, _ = fmt.Fprintf(r.output, "%s\n", c.Gray("# Run test manually:"))
-	_, _ = fmt.Fprintf(r.output, "zebgp-test run encoding --server %s\n", rec.Nick)
-	_, _ = fmt.Fprintf(r.output, "zebgp-test run encoding --client %s\n", rec.Nick)
+	_, _ = fmt.Fprintf(r.output, "ze-test run encoding --server %s\n", rec.Nick)
+	_, _ = fmt.Fprintf(r.output, "ze-test run encoding --client %s\n", rec.Nick)
 	_, _ = fmt.Fprintln(r.output)
 }
 

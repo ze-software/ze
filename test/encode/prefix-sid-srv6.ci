@@ -1,6 +1,6 @@
 # SRv6 Prefix-SID test with MPLS-VPN
 # Tests l3-service SRv6 Prefix-SID attribute (RFC 9252)
-# zebgp-peer expectations
+# ze-peer expectations
 stdin=peer:terminator=EOF_PEER
 option=asn:value=65000
 # Route with l3-service SRv6 Prefix-SID
@@ -8,8 +8,8 @@ option=asn:value=65000
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF007D02000000664001010040020040050400000064800E2C000180180000000000000000CAFE0000000000000000000000000001007000003100000004000000640A0100C010080002000400000064C0281B050018000100140020010001000000000000000000000000000000
 EOF_PEER
 
-# zebgp configuration
-stdin=zebgp:terminator=EOF_CONF
+# ze bgp configuration
+stdin=ze-bgp:terminator=EOF_CONF
 peer 127.0.0.1 {
 	router-id 198.51.100.200;
 	local-address 127.0.0.1;
@@ -34,5 +34,5 @@ peer 127.0.0.1 {
 EOF_CONF
 
 # Process orchestration
-cmd=background:seq=1:exec=zebgp-peer --port $PORT:stdin=peer
-cmd=foreground:seq=2:exec=zebgp server -:stdin=zebgp:timeout=10s
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze bgp server -:stdin=ze-bgp:timeout=10s

@@ -11,9 +11,9 @@ import (
 	"sync"
 	"time"
 
-	"codeberg.org/thomas-mangin/zebgp/internal/slogutil"
-	"codeberg.org/thomas-mangin/zebgp/internal/test/ci"
-	"codeberg.org/thomas-mangin/zebgp/internal/tmpfs"
+	"codeberg.org/thomas-mangin/ze/internal/slogutil"
+	"codeberg.org/thomas-mangin/ze/internal/test/ci"
+	"codeberg.org/thomas-mangin/ze/internal/tmpfs"
 )
 
 var recordLogger = slogutil.Logger("record")

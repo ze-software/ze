@@ -24,7 +24,7 @@ peer 192.0.2.1 {
 }
 ```
 
-**Migration:** `zebgp config migrate --in-place config.conf`
+**Migration:** `ze bgp config migrate --in-place config.conf`
 
 ---
 
@@ -121,13 +121,13 @@ ExaBGP operational messages (ASM, ADM, RPCQ, etc.) are not supported.
 
 ```bash
 # Check what needs migration
-zebgp config check config.conf
+ze bgp config check config.conf
 
 # Preview changes
-zebgp config migrate --dry-run config.conf
+ze bgp config migrate --dry-run config.conf
 
 # Apply migration
-zebgp config migrate --in-place config.conf
+ze bgp config migrate --in-place config.conf
 ```
 
 See [config-migration.md](config-migration.md) for full details.

@@ -5,8 +5,8 @@
 - [x] `rfc/rfc7911.txt` - ADD-PATH capability and NLRI encoding
 - [x] `rfc/rfc4271.txt` Section 4.3 - Base NLRI encoding
 - [x] `rfc/rfc4760.txt` Section 5 - MP-BGP NLRI encoding
-- [x] `.claude/zebgp/wire/NLRI.md` - NLRI type architecture
-- [x] `.claude/zebgp/ENCODING_CONTEXT.md` - PackContext usage
+- [x] `docs/architecture/wire/NLRI.md` - NLRI type architecture
+- [x] `docs/architecture/ENCODING_CONTEXT.md` - PackContext usage
 
 **Key insights from docs:**
 - RFC 7911 Section 3: Path ID is 4 bytes, prepended to NLRI when ADD-PATH negotiated
@@ -186,18 +186,18 @@ Key RFC sections:
 
 ### Phase 6: Update Architecture Docs ✅ COMPLETE
 
-Updated `.claude/zebgp/` docs to reflect new ADD-PATH encoding:
+Updated `docs/architecture/` docs to reflect new ADD-PATH encoding:
 
-1. ✅ `.claude/zebgp/wire/NLRI.md`:
+1. ✅ `docs/architecture/wire/NLRI.md`:
    - Updated NLRI interface to show payload-only methods
    - Added `WriteNLRI()` and `LenWithContext()` usage
    - Removed old `hasPath` field from struct examples
 
-2. ✅ `.claude/zebgp/ENCODING_CONTEXT.md`:
+2. ✅ `docs/architecture/ENCODING_CONTEXT.md`:
    - Updated ADD-PATH section with canonical encoding pattern
    - Added note that `Len()`/`WriteTo()` return payload-only
 
-3. ✅ `.claude/zebgp/edge-cases/ADDPATH.md`:
+3. ✅ `docs/architecture/edge-cases/ADDPATH.md`:
    - Replaced old NLRI Pack() example with WriteNLRI() pattern
    - Documented RFC 7911 Section 3 behavior
 
@@ -209,7 +209,7 @@ Updated `.claude/zebgp/` docs to reflect new ADD-PATH encoding:
 - [x] make test passes
 - [x] make lint passes
 - [x] Phase 5: RFC documentation in code
-- [x] Phase 6: Update `.claude/zebgp/` docs
+- [x] Phase 6: Update `docs/architecture/` docs
 - [x] Move to `docs/plan/done/` when complete
 
 ## Test Strategy

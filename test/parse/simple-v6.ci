@@ -17,5 +17,5 @@ peer 2a02:b80::2 {
 }
 EOF_CONF
 
-cmd=foreground:seq=1:exec=zebgp validate -:stdin=config
+cmd=foreground:seq=1:exec=ze bgp validate -:stdin=config
 expect=exit:code=0

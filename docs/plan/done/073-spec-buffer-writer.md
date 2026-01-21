@@ -2,14 +2,14 @@
 
 ## Task
 
-Implement the buffer writer architecture described in `.claude/zebgp/wire/BUFFER_WRITER.md` - zero-allocation UPDATE message building with fixed session buffers and BufWriter interface.
+Implement the buffer writer architecture described in `docs/architecture/wire/BUFFER_WRITER.md` - zero-allocation UPDATE message building with fixed session buffers and BufWriter interface.
 
 ## Required Reading (MUST complete before implementation)
 
-- [x] `.claude/zebgp/wire/BUFFER_WRITER.md` - Core design
-- [x] `.claude/zebgp/UPDATE_BUILDING.md` - Build vs Forward paths
-- [x] `.claude/zebgp/ENCODING_CONTEXT.md` - Context-dependent encoding
-- [x] `.claude/zebgp/POOL_ARCHITECTURE.md` - Memory patterns reference
+- [x] `docs/architecture/wire/BUFFER_WRITER.md` - Core design
+- [x] `docs/architecture/UPDATE_BUILDING.md` - Build vs Forward paths
+- [x] `docs/architecture/ENCODING_CONTEXT.md` - Context-dependent encoding
+- [x] `docs/architecture/POOL_ARCHITECTURE.md` - Memory patterns reference
 
 **Key insights from docs:**
 - Build path benefits from buffer optimization; Forward path uses zero-copy wire cache
@@ -188,7 +188,7 @@ func BenchmarkUpdateBuildNew(b *testing.B) { ... }
 - [x] make test passes
 - [x] make lint passes
 - [x] make functional passes (5 pre-existing failures unrelated to buffer-writer)
-- [x] Update `.claude/zebgp/wire/BUFFER_WRITER.md` with implementation notes
+- [x] Update `docs/architecture/wire/BUFFER_WRITER.md` with implementation notes
 
 ## Migration Order
 

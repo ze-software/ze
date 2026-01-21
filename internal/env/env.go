@@ -1,13 +1,13 @@
-// Package env provides ZeBGP environment variable handling with dot/underscore support.
+// Package env provides Ze BGP environment variable handling with dot/underscore support.
 //
 // Environment variables follow the naming pattern:
-//   - zebgp.section.key (dot notation, higher priority)
-//   - zebgp_section_key (underscore notation, shell-compatible)
+//   - ze.bgp.section.key (dot notation, higher priority)
+//   - ze_bgp_section_key (underscore notation, shell-compatible)
 //
 // Example:
 //
-//	zebgp.ci.max_files=100  → Get("ci", "max_files") returns "100"
-//	zebgp_ci_max_files=100  → Get("ci", "max_files") returns "100"
+//	ze.bgp.ci.max_files=100  → Get("ci", "max_files") returns "100"
+//	ze_bgp_ci_max_files=100  → Get("ci", "max_files") returns "100"
 package env
 
 import (
@@ -16,12 +16,12 @@ import (
 	"strings"
 )
 
-// Get returns the environment variable value with ZeBGP naming.
-// Checks both dot notation (zebgp.section.key) and underscore (zebgp_section_key).
+// Get returns the environment variable value with Ze BGP naming.
+// Checks both dot notation (ze.bgp.section.key) and underscore (ze_bgp_section_key).
 // Dot notation takes precedence.
 func Get(section, key string) string {
 	// Dot notation first (higher priority)
-	dotKey := "zebgp." + section + "." + key
+	dotKey := "ze.bgp." + section + "." + key
 	if v := os.Getenv(dotKey); v != "" {
 		return v
 	}

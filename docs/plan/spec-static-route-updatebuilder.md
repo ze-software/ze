@@ -101,7 +101,7 @@ RIB routes are **received** - they already have wire bytes:
 
 - `docs/architecture/rib-transition.md` - Overall architecture direction
 - `docs/plan/spec-pool-handle-migration.md` - Pool integration that replaces buildRIBRouteUpdate
-- `.claude/zebgp/POOL_ARCHITECTURE.md` - Pool design
+- `docs/architecture/POOL_ARCHITECTURE.md` - Pool design
 
 ---
 

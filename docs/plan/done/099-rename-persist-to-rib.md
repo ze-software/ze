@@ -53,13 +53,13 @@ In-memory only. No disk persistence. No best-path selection (Loc-RIB).
 ### Renamed
 - `internal/plugin/persist/` → `internal/plugin/rib/`
 - `internal/plugin/persist/persist.go` → `internal/plugin/rib/rib.go`
-- `cmd/zebgp/plugin_persist.go` → `cmd/zebgp/plugin_rib.go`
+- `cmd/ze/bgp/plugin_persist.go` → `cmd/ze/bgp/plugin_rib.go`
 
 ### Updated
 - `internal/plugin/rib/rib.go` - Package rename, type rename, add Adj-RIB-In, slog logging
 - `internal/plugin/rib/event.go` - Package rename, unified event parsing for both formats
-- `cmd/zebgp/plugin_rib.go` - Import path, function name
-- `cmd/zebgp/plugin.go` - Dispatch case, help text
+- `cmd/ze/bgp/plugin_rib.go` - Import path, function name
+- `cmd/ze/bgp/plugin.go` - Dispatch case, help text
 - `internal/source/registry_test.go` - Test API name
 - `internal/reactor/reactor.go` - Comment update
 - `internal/plugin/text.go` - Comment update

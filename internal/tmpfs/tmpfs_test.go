@@ -449,7 +449,7 @@ content
 EOF_CONF
 
 option=asn:value=65533
-cmd=zebgp validate tmpfs//peer.conf
+cmd=ze bgp validate tmpfs//peer.conf
 expect=exit:code=0
 `
 	v, err := Parse(strings.NewReader(input))
@@ -457,7 +457,7 @@ expect=exit:code=0
 	require.Len(t, v.Files, 1)
 	require.Len(t, v.OtherLines, 3)
 	assert.Equal(t, "option=asn:value=65533", v.OtherLines[0])
-	assert.Equal(t, "cmd=zebgp validate tmpfs//peer.conf", v.OtherLines[1])
+	assert.Equal(t, "cmd=ze bgp validate tmpfs//peer.conf", v.OtherLines[1])
 	assert.Equal(t, "expect=exit:code=0", v.OtherLines[2])
 }
 
@@ -512,14 +512,14 @@ func TestLargeReader(t *testing.T) {
 func TestTmpfsResolve(t *testing.T) {
 	v := &Tmpfs{
 		OtherLines: []string{
-			"cmd=zebgp validate tmpfs//peer.conf",
-			"cmd=zebgp run tmpfs//scripts/plugin.py",
+			"cmd=ze bgp validate tmpfs//peer.conf",
+			"cmd=ze bgp run tmpfs//scripts/plugin.py",
 		},
 	}
 
 	resolved := v.ResolveTmpfsPaths()
-	assert.Equal(t, "cmd=zebgp validate peer.conf", resolved[0])
-	assert.Equal(t, "cmd=zebgp run scripts/plugin.py", resolved[1])
+	assert.Equal(t, "cmd=ze bgp validate peer.conf", resolved[0])
+	assert.Equal(t, "cmd=ze bgp run scripts/plugin.py", resolved[1])
 }
 
 // TestCleanup verifies temp directory removal.

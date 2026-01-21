@@ -1,4 +1,4 @@
-# ZeBGP Interactive Config Editor (`zebgp config edit`)
+# ZeBGP Interactive Config Editor (`ze bgp config edit`)
 
 **Status:** Ready for implementation
 **Effort:** ~1,500 lines (implementation + tests)
@@ -30,7 +30,7 @@ internal/config/editor/
 ├── diff.go           # Diff generation
 └── editor_test.go    # Tests
 
-cmd/zebgp/
+cmd/ze/bgp/
 └── config_edit.go    # Entry point
 ```
 
@@ -171,9 +171,9 @@ neighbor 2.2.2.2 {
 <dir>/<name>-YYYY-MM-DD-<N>.conf
 
 Example:
-  /etc/zebgp/config.conf           (original)
-  /etc/zebgp/config-2025-01-15-1.conf (first backup today)
-  /etc/zebgp/config-2025-01-15-2.conf (second backup today)
+  /etc/ze/bgp/config.conf           (original)
+  /etc/ze/bgp/config-2025-01-15-1.conf (first backup today)
+  /etc/ze/bgp/config-2025-01-15-2.conf (second backup today)
 ```
 
 ---
@@ -236,7 +236,7 @@ Example:
 - `TestCommandCompare` - Shows correct diff
 
 ### Phase 5: Integration
-**Files:** `cmd/zebgp/config_edit.go`
+**Files:** `cmd/ze/bgp/config_edit.go`
 
 - `cmdEdit()` entry point
 - Add "edit" case to config subcommand switch
@@ -250,8 +250,8 @@ Example:
 | `internal/config/schema.go` | Schema types for completion |
 | `internal/config/setparser.go` | Reuse for set/delete |
 | `internal/config/serialize.go` | For show/diff output |
-| `cmd/zebgp/cli.go` | Reference Bubble Tea patterns |
-| `cmd/zebgp/config.go` | Add edit subcommand |
+| `cmd/ze/bgp/cli.go` | Reference Bubble Tea patterns |
+| `cmd/ze/bgp/config.go` | Add edit subcommand |
 
 ---
 

@@ -3,8 +3,8 @@ package storage
 import (
 	"sync"
 
-	"codeberg.org/thomas-mangin/zebgp/internal/bgp/nlri"
-	"codeberg.org/thomas-mangin/zebgp/internal/pool"
+	"codeberg.org/thomas-mangin/ze/internal/bgp/nlri"
+	"codeberg.org/thomas-mangin/ze/internal/pool"
 )
 
 // PeerRIB is the Adj-RIB-In for one peer.

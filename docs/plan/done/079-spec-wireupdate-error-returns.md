@@ -9,8 +9,8 @@ Change WireUpdate accessor methods from `[]byte` to `([]byte, error)` to disting
 
 ## Required Reading
 
-- [x] `.claude/zebgp/UPDATE_BUILDING.md` - WireUpdate accessor signatures, receive path
-- [x] `.claude/zebgp/ENCODING_CONTEXT.md` - Zero-copy context, WireUpdate structure
+- [x] `docs/architecture/UPDATE_BUILDING.md` - WireUpdate accessor signatures, receive path
+- [x] `docs/architecture/ENCODING_CONTEXT.md` - Zero-copy context, WireUpdate structure
 
 **Key insights:**
 - WireUpdate holds UPDATE payload for zero-copy lazy parsing
@@ -194,8 +194,8 @@ Edge cases now covered:
 ### Documentation
 - [x] Required docs read
 - [x] RFC references added
-- [x] `.claude/zebgp/UPDATE_BUILDING.md` updated
-- [x] `.claude/zebgp/ENCODING_CONTEXT.md` updated
+- [x] `docs/architecture/UPDATE_BUILDING.md` updated
+- [x] `docs/architecture/ENCODING_CONTEXT.md` updated
 
 ### Completion
 - [x] Spec moved to `docs/plan/done/079-spec-wireupdate-error-returns.md`

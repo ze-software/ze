@@ -37,7 +37,7 @@ Add MUP SAFI support to API parser to fix mup4/mup6 tests.
 
 ```
 📖 Context Loading Verification
-├── .claude/zebgp/api/ARCHITECTURE.md - API structure, command dispatch
+├── docs/architecture/api/ARCHITECTURE.md - API structure, command dispatch
 ├── internal/plugin/route.go:207 - parseSAFI() only supports unicast/nlri-mpls/mpls-vpn
 ├── internal/plugin/route.go:951 - handleAnnounceIPv4() routes by SAFI
 ├── internal/config/bgp.go:2138 - parseMUPFromInline() parses MUP text format
@@ -127,7 +127,7 @@ Plan achieves goal: YES
 
 ## Documentation Impact
 
-- [ ] `.claude/zebgp/api/ARCHITECTURE.md` - Add MUP to supported families table
+- [ ] `docs/architecture/api/ARCHITECTURE.md` - Add MUP to supported families table
 - [ ] `docs/plan/CLAUDE_CONTINUATION.md` - Update after impl
 
 ## Implementation Steps
@@ -209,7 +209,7 @@ Plan achieves goal: YES
 
 ### Phase 5: Documentation Updates
 
-1. Update `.claude/zebgp/api/ARCHITECTURE.md` with MUP family support
+1. Update `docs/architecture/api/ARCHITECTURE.md` with MUP family support
 2. Update `docs/plan/CLAUDE_CONTINUATION.md` with completed status
 
 ## Checklist

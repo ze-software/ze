@@ -4,7 +4,7 @@ import (
 	"net/netip"
 	"testing"
 
-	"codeberg.org/thomas-mangin/zebgp/internal/bgp/attribute"
+	"codeberg.org/thomas-mangin/ze/internal/bgp/attribute"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

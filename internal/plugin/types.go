@@ -13,11 +13,11 @@ import (
 	"net/netip"
 	"time"
 
-	"codeberg.org/thomas-mangin/zebgp/internal/bgp/attribute"
-	"codeberg.org/thomas-mangin/zebgp/internal/bgp/message"
-	"codeberg.org/thomas-mangin/zebgp/internal/bgp/nlri"
-	"codeberg.org/thomas-mangin/zebgp/internal/rib"
-	"codeberg.org/thomas-mangin/zebgp/internal/selector"
+	"codeberg.org/thomas-mangin/ze/internal/bgp/attribute"
+	"codeberg.org/thomas-mangin/ze/internal/bgp/message"
+	"codeberg.org/thomas-mangin/ze/internal/bgp/nlri"
+	"codeberg.org/thomas-mangin/ze/internal/rib"
+	"codeberg.org/thomas-mangin/ze/internal/selector"
 )
 
 // AFI name constants for API use.

@@ -4,8 +4,8 @@ package attribute
 import (
 	"encoding/binary"
 
-	bgpctx "codeberg.org/thomas-mangin/zebgp/internal/bgp/context"
-	"codeberg.org/thomas-mangin/zebgp/internal/bgp/wire"
+	bgpctx "codeberg.org/thomas-mangin/ze/internal/bgp/context"
+	"codeberg.org/thomas-mangin/ze/internal/bgp/wire"
 )
 
 // ASPathSegmentType identifies the type of AS path segment.

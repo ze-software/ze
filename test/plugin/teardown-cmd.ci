@@ -1,6 +1,6 @@
 # Migrated from test/data/plugin/teardown-cmd.*
 
-# zebgp-peer expectations
+# ze-peer expectations
 stdin=peer:terminator=EOF_PEER
 # Route announcement (1.1.0.0/16 next-hop 1.1.1.1)
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002F0200000015400101004002004003040101010140050400000064100101
@@ -14,7 +14,7 @@ EOF_PEER
 tmpfs=teardown-cmd.run:mode=755:terminator=EOF_RUN
 #!/usr/bin/env python3
 
-from zebgp_api import ready, send, wait_for_ack, wait_for_shutdown
+from ze_bgp_api import ready, send, wait_for_ack, wait_for_shutdown
 
 
 def main() -> None:
@@ -41,8 +41,8 @@ if __name__ == '__main__':
     main()
 EOF_RUN
 
-# zebgp configuration
-stdin=zebgp:terminator=EOF_CONF
+# ze bgp configuration
+stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external teardown-test {
 		run ./teardown-cmd.run;
@@ -68,5 +68,5 @@ peer 127.0.0.1 {
 EOF_CONF
 
 # Process orchestration
-cmd=background:seq=1:exec=zebgp-peer --port $PORT:stdin=peer
-cmd=foreground:seq=2:exec=zebgp server -:stdin=zebgp:timeout=10s
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze bgp server -:stdin=ze-bgp:timeout=10s

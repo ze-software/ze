@@ -1,4 +1,4 @@
-# zebgp-peer expectations
+# ze-peer expectations
 stdin=peer:terminator=EOF_PEER
 cmd=api:conn=1:seq=1:text=announce ipv6/unicast 2a02:b80:0:1::1/128 next-hop 2a02:b80:0:2::1 origin igp local-preference 200 community [30740:0 30740:30740]
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0059020000004240010100400200400504000000C8C008087814000078147814800E26000201102A020B8000000002000000000000000100802A020B80000000010000000000000001
@@ -6,8 +6,8 @@ cmd=api:conn=1:seq=1:text=announce eor ipv6/unicast
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001E0200000007900F0003000201
 EOF_PEER
 
-# zebgp configuration
-stdin=zebgp:terminator=EOF_CONF
+# ze bgp configuration
+stdin=ze-bgp:terminator=EOF_CONF
 peer 127.0.0.1 {
 	router-id 1.2.3.4;
 	local-address 127.0.0.1;
@@ -27,5 +27,5 @@ peer 127.0.0.1 {
 EOF_CONF
 
 # Process orchestration
-cmd=background:seq=1:exec=zebgp-peer --port $PORT:stdin=peer
-cmd=foreground:seq=2:exec=zebgp server -:stdin=zebgp:timeout=10s
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze bgp server -:stdin=ze-bgp:timeout=10s

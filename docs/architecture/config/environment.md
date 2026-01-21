@@ -13,17 +13,17 @@
 | API version var | `exabgp.api.version` (4 or 6) | Not present (single format) |
 | Invalid values | Silent defaults | Startup failure |
 | Config block | Not supported | `environment { }` in config |
-| Validation | Runtime | `zebgp config check --env` |
+| Validation | Runtime | `ze bgp config check --env` |
 
 ## ZeBGP Enhancements
 
 1. **Config block support:** Set environment in config file via `environment { }` block
 2. **Strict validation:** Invalid values cause startup failure (not silent defaults)
-3. **Migration helper:** `zebgp config check --env` validates before upgrade
+3. **Migration helper:** `ze bgp config check --env` validates before upgrade
 
 See [ENVIRONMENT_BLOCK.md](ENVIRONMENT_BLOCK.md) for the config block syntax.
 
-**ZeBGP priority:** `zebgp.x.y` > `zebgp_x_y` > config block > defaults
+**ZeBGP priority:** `ze.bgp.x.y` > `zebgp_x_y` > config block > defaults
 
 ---
 

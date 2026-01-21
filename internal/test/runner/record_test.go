@@ -26,10 +26,10 @@ func TestParseCILoggingOptions(t *testing.T) {
 		{
 			name: "single_env_var",
 			ciContent: `option=file:path=test.conf
-option=env:var=zebgp.log.server:value=debug
+option=env:var=ze.log.bgp.server:value=debug
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001304`,
 			confContent:   minimalConfig,
-			wantEnvVars:   []string{"zebgp.log.server=debug"},
+			wantEnvVars:   []string{"ze.log.bgp.server=debug"},
 			wantExpStderr: nil,
 			wantRejStderr: nil,
 			wantExpSyslog: nil,
@@ -37,11 +37,11 @@ expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001304`,
 		{
 			name: "multiple_env_vars",
 			ciContent: `option=file:path=test.conf
-option=env:var=zebgp.log.server:value=debug
-option=env:var=zebgp.log.filter:value=info
+option=env:var=ze.log.bgp.server:value=debug
+option=env:var=ze.log.bgp.filter:value=info
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001304`,
 			confContent:   minimalConfig,
-			wantEnvVars:   []string{"zebgp.log.server=debug", "zebgp.log.filter=info"},
+			wantEnvVars:   []string{"ze.log.bgp.server=debug", "ze.log.bgp.filter=info"},
 			wantExpStderr: nil,
 			wantRejStderr: nil,
 			wantExpSyslog: nil,
@@ -82,14 +82,14 @@ expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001304`,
 		{
 			name: "combined_logging_options",
 			ciContent: `option=file:path=test.conf
-option=env:var=zebgp.log.server:value=debug
-option=env:var=zebgp.log.backend:value=syslog
+option=env:var=ze.log.bgp.server:value=debug
+option=env:var=ze.log.bgp.backend:value=syslog
 expect=stderr:pattern=subsystem=server
 reject=stderr:pattern=level=ERROR
 expect=syslog:pattern=msg=test
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001304`,
 			confContent:   minimalConfig,
-			wantEnvVars:   []string{"zebgp.log.server=debug", "zebgp.log.backend=syslog"},
+			wantEnvVars:   []string{"ze.log.bgp.server=debug", "ze.log.bgp.backend=syslog"},
 			wantExpStderr: []string{"subsystem=server"},
 			wantRejStderr: []string{"level=ERROR"},
 			wantExpSyslog: []string{"msg=test"},
@@ -166,7 +166,7 @@ func TestParseCILoggingOptionsNotAffectOthers(t *testing.T) {
 
 	ciContent := `option=file:path=test.conf
 option=asn:value=65000
-option=env:var=zebgp.log.server:value=debug
+option=env:var=ze.log.bgp.server:value=debug
 expect=stderr:pattern=subsystem=server
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001304
 expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002D02`
@@ -187,7 +187,7 @@ expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002D02`
 	assert.Len(t, rec.Expects, 2, "should have 2 expects")
 
 	// Verify logging options also work
-	assert.Equal(t, []string{"zebgp.log.server=debug"}, rec.EnvVars)
+	assert.Equal(t, []string{"ze.log.bgp.server=debug"}, rec.EnvVars)
 	assert.Equal(t, []string{"subsystem=server"}, rec.ExpectStderr)
 }
 

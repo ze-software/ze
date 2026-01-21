@@ -339,7 +339,7 @@ func TestWriteToRejectsSymlinkTarget(t *testing.T) {
 
 	// Create a symlink in temp dir pointing elsewhere
 	linkPath := tmpDir + "/test.txt"
-	targetPath := "/tmp/zebgp-test-symlink-target-" + t.Name()
+	targetPath := "/tmp/ze-test-symlink-target-" + t.Name()
 	defer func() { _ = os.Remove(targetPath) }()
 
 	// Some systems may not allow symlinks, skip if so

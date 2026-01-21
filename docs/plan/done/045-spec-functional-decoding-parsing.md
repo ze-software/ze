@@ -19,7 +19,7 @@ Test data already exists:
 
 | Component | Status | Notes |
 |-----------|--------|-------|
-| `zebgp decode` CLI | ✅ Complete | All NLRI types parsed |
+| `ze bgp decode` CLI | ✅ Complete | All NLRI types parsed |
 | `functional decoding` | ✅ Complete | 18/18 tests pass |
 | `functional parsing` | ✅ Complete | 10/10 tests pass |
 | `make functional` | ✅ Exists | All types integrated |
@@ -57,7 +57,7 @@ Test data already exists:
 
 **Execution:**
 ```bash
-zebgp decode --<type> [-f "<afi> <safi>"] <hex_packet>
+ze bgp decode --<type> [-f "<afi> <safi>"] <hex_packet>
 ```
 
 **Success criteria:**
@@ -66,7 +66,7 @@ zebgp decode --<type> [-f "<afi> <safi>"] <hex_packet>
 - **On parse failure:** Return valid JSON with `"parsed": false` (not error exit)
 
 **Required changes:**
-1. ✅ Add `zebgp decode` command to CLI
+1. ✅ Add `ze bgp decode` command to CLI
 2. ⚠️ Integrate `internal/bgp/nlri/` parsers (EVPN, FlowSpec, BGP-LS)
 3. ⚠️ Match ExaBGP JSON structure exactly
 4. ✅ Add `decoding` subcommand to functional test runner
@@ -79,7 +79,7 @@ zebgp decode --<type> [-f "<afi> <safi>"] <hex_packet>
 
 **Execution:**
 ```bash
-zebgp validate <config_file>
+ze bgp validate <config_file>
 ```
 
 **Success criteria:**
@@ -88,7 +88,7 @@ zebgp validate <config_file>
 
 ## Implementation Plan
 
-### Phase 1: Fix `zebgp decode` Command
+### Phase 1: Fix `ze bgp decode` Command
 
 **Current issues:**
 1. Outputs raw hex instead of parsed NLRI
@@ -117,7 +117,7 @@ Existing parsers in `internal/bgp/nlri/`:
 - `ParseBGPLS()` - BGP-LS NLRI
 
 ```go
-import "codeberg.org/thomas-mangin/zebgp/internal/bgp/nlri"
+import "codeberg.org/thomas-mangin/ze/internal/bgp/nlri"
 
 // Parse MP_UNREACH_NLRI for l2vpn/evpn
 routes, err := nlri.ParseEVPN(nlriData, false)
@@ -286,9 +286,9 @@ For decoding tests, compare JSON after removing volatile fields:
 
 | File | Status | Purpose |
 |------|--------|---------|
-| `cmd/zebgp/main.go` | ✅ | Added `decode` command |
-| `cmd/zebgp/decode.go` | ✅ | Decode logic, TLV 1099, lossless arrays |
-| `cmd/zebgp/decode_test.go` | ✅ | Unit tests including TLV 1099 |
+| `cmd/ze/bgp/main.go` | ✅ | Added `decode` command |
+| `cmd/ze/bgp/decode.go` | ✅ | Decode logic, TLV 1099, lossless arrays |
+| `cmd/ze/bgp/decode_test.go` | ✅ | Unit tests including TLV 1099 |
 | `test/cmd/functional/main.go` | ✅ | Added decoding/parsing commands |
 | `internal/test/runner/decoding.go` | ✅ | Decoding test infrastructure |
 | `internal/test/runner/parsing.go` | ✅ | Parsing test infrastructure |

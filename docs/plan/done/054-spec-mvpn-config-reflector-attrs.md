@@ -19,7 +19,7 @@ However, the config layer was not updated, so users cannot configure these field
 - `internal/config/bgp.go:605-621` - VPLSRouteConfig (reference: has OriginatorID/ClusterList)
 - `internal/config/loader.go:502-570` - convertMVPNRoute (needs parsing)
 - `internal/config/loader.go:632-663` - convertVPLSRoute (reference: parsing pattern)
-- `.claude/zebgp/config/SYNTAX.md` - config syntax docs
+- `docs/architecture/config/SYNTAX.md` - config syntax docs
 
 ## Current State
 
@@ -202,4 +202,4 @@ func TestConvertMVPNRoute_InvalidClusterList(t *testing.T) {
 - [x] Test passes after impl
 - [x] make test passes
 - [x] make lint passes
-- [x] Update .claude/zebgp/config/SYNTAX.md
+- [x] Update docs/architecture/config/SYNTAX.md

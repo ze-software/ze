@@ -6,8 +6,8 @@ Fix non-zero-alloc WriteTo in NLRI types. Currently several NLRI types allocate 
 
 ## Required Reading (MUST complete before implementation)
 
-- [x] `.claude/zebgp/wire/NLRI.md` - NLRI wire formats and ADD-PATH handling
-- [x] `.claude/zebgp/wire/BUFFER_WRITER.md` - Zero-alloc architecture
+- [x] `docs/architecture/wire/NLRI.md` - NLRI wire formats and ADD-PATH handling
+- [x] `docs/architecture/wire/BUFFER_WRITER.md` - Zero-alloc architecture
 
 **Key insights from docs:**
 - NLRI types should implement `WriteTo(buf, off, ctx) int` for zero-allocation
@@ -85,7 +85,7 @@ This needs investigation and fixing before/during EVPN WriteTo implementation.
 - [ ] Phase 3: EVPN skipped (separate PR for ADD-PATH bug fix)
 - [x] make test passes
 - [x] make lint passes (no new issues in nlri package)
-- [x] Update `.claude/zebgp/wire/NLRI.md` - no update needed, docs already accurate
+- [x] Update `docs/architecture/wire/NLRI.md` - no update needed, docs already accurate
 
 ## Implementation Notes
 

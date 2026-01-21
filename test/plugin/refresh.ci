@@ -1,10 +1,10 @@
 # Migrated from test/data/plugin/refresh.*
 
-# zebgp-peer expectations
+# ze-peer expectations
 stdin=peer:terminator=EOF_PEER
 option=timeout:value=10s
 
-# Step 1: Receive initial route announcement and EoR from zebgp
+# Step 1: Receive initial route announcement and EoR from ze bgp
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040A0000014005040000006418C0A801
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 
@@ -25,7 +25,7 @@ EOF_PEER
 tmpfs=refresh.run:mode=755:terminator=EOF_RUN
 #!/usr/bin/env python3
 
-from zebgp_api import ready, send, wait_for_ack, wait_for_shutdown
+from ze_bgp_api import ready, send, wait_for_ack, wait_for_shutdown
 
 
 def main() -> None:
@@ -43,15 +43,15 @@ if __name__ == '__main__':
     main()
 EOF_RUN
 
-# zebgp configuration
-stdin=zebgp:terminator=EOF_CONF
+# ze bgp configuration
+stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external announce-routes {
 		run ./refresh.run;
 		encoder json;
 	}
 	external rib {
-		run "zebgp plugin rib";
+		run "ze bgp plugin rib";
 		encoder json;
 	}
 }
@@ -78,5 +78,5 @@ peer 127.0.0.1 {
 EOF_CONF
 
 # Process orchestration
-cmd=background:seq=1:exec=zebgp-peer --port $PORT:stdin=peer
-cmd=foreground:seq=2:exec=zebgp server -:stdin=zebgp:timeout=20s
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze bgp server -:stdin=ze-bgp:timeout=20s

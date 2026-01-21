@@ -324,7 +324,7 @@ reactor.AddPeerObserver(observer)
 
 The `apiStateObserver` is registered automatically when API server starts, emitting state messages to external processes.
 
-**See:** `.claude/zebgp/api/ARCHITECTURE.md` for full details.
+**See:** `docs/architecture/api/ARCHITECTURE.md` for full details.
 
 ### State Machine Goroutine
 

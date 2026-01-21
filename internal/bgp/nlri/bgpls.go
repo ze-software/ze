@@ -11,7 +11,7 @@ import (
 	"errors"
 	"fmt"
 
-	"codeberg.org/thomas-mangin/zebgp/internal/bgp/wire"
+	"codeberg.org/thomas-mangin/ze/internal/bgp/wire"
 )
 
 // BGP-LS errors.

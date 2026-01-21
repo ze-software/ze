@@ -6,12 +6,12 @@ Move `direction` field from JSON root level into the `message` wrapper.
 
 **Current:**
 ```json
-{"zebgp":"6.0.0", "direction":"received", "message":{"type":"notification", "id":42}, ...}
+{"ze-bgp":"6.0.0", "direction":"received", "message":{"type":"notification", "id":42}, ...}
 ```
 
 **Desired:**
 ```json
-{"zebgp":"6.0.0", "message":{"type":"notification", "id":42, "direction":"received"}, ...}
+{"ze-bgp":"6.0.0", "message":{"type":"notification", "id":42, "direction":"received"}, ...}
 ```
 
 ## Required Reading

@@ -25,8 +25,8 @@ ExaBGP compatibility is provided via **external tools**, not in-engine code:
 
 | Tool | Purpose |
 |------|---------|
-| `zebgp exabgp plugin` | Run ExaBGP plugins with ZeBGP (bidirectional JSON/command translation) |
-| `zebgp config migrate` | Convert ExaBGP configs to ZeBGP format |
+| `ze exabgp plugin` | Run ExaBGP plugins with ZeBGP (bidirectional JSON/command translation) |
+| `ze bgp config migrate` | Convert ExaBGP configs to ZeBGP format |
 
 ### Architecture
 
@@ -35,7 +35,7 @@ internal/exabgp/           # Go library - core translation logic
 ├── bridge.go         # ZebgpToExabgpJSON(), ExabgpToZebgpCommand(), Bridge
 └── bridge_test.go    # Unit tests
 
-cmd/zebgp/exabgp.go   # CLI wrapper - zebgp exabgp plugin <cmd>
+cmd/ze/bgp/exabgp.go   # CLI wrapper - ze exabgp plugin <cmd>
 ```
 
 This allows:
@@ -47,11 +47,11 @@ This allows:
 
 ```
 # Command line
-zebgp exabgp plugin /path/to/exabgp-plugin.py
+ze exabgp plugin /path/to/exabgp-plugin.py
 
 # ZeBGP config
 process exabgp-compat {
-    run "zebgp exabgp plugin /path/to/exabgp-plugin.py";
+    run "ze exabgp plugin /path/to/exabgp-plugin.py";
 }
 ```
 

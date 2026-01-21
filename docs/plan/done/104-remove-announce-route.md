@@ -77,10 +77,10 @@ Complete migration from `announce route` to `update text` syntax per DOCUMENTATI
 
 ```
 $ make test
-ok  codeberg.org/thomas-mangin/zebgp/internal/plugin
-ok  codeberg.org/thomas-mangin/zebgp/internal/plugin/rib
-ok  codeberg.org/thomas-mangin/zebgp/internal/plugin/rr
-ok  codeberg.org/thomas-mangin/zebgp/internal/reactor
+ok  codeberg.org/thomas-mangin/ze/internal/plugin
+ok  codeberg.org/thomas-mangin/ze/internal/plugin/rib
+ok  codeberg.org/thomas-mangin/ze/internal/plugin/rr
+ok  codeberg.org/thomas-mangin/ze/internal/reactor
 
 $ make lint
 0 issues.

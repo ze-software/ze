@@ -84,7 +84,7 @@ Master tracking document with:
 
 ## RFC Summary Infrastructure
 
-RFC summaries live in `.claude/zebgp/rfc/rfcNNNN.md` - 35 summaries exist.
+RFC summaries live in `docs/architecture/rfc/rfcNNNN.md` - 35 summaries exist.
 
 These are created via `/rfc-summarisation rfcNNNN` agent when implementing protocol features.
 
@@ -137,7 +137,7 @@ rfc9085.md   rfc9136.md   rfc9234.md   rfc9514.md
 
 ### RFC Summaries Added
 
-35 RFC summaries in `.claude/zebgp/rfc/`:
+35 RFC summaries in `docs/architecture/rfc/`:
 
 ```
 rfc1997  rfc2918  rfc3032  rfc4271  rfc4360  rfc4364  rfc4659  rfc4684
@@ -166,7 +166,7 @@ rfc9136  rfc9234  rfc9514
 | `.claude/settings.json` | Modified |
 | `.claude/commands/code-review.md` | Created |
 | `.claude/commands/rfc-summarisation.md` | Created |
-| `.claude/zebgp/rfc/*.md` | Created (35 files) |
+| `docs/architecture/rfc/*.md` | Created (35 files) |
 
 ### Excluded (separate commits)
 | File | Reason |

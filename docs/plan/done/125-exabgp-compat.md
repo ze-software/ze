@@ -4,8 +4,8 @@
 
 Provide tools for migrating from ExaBGP to ZeBGP:
 
-1. **`zebgp exabgp plugin`** - Run existing ExaBGP plugins with ZeBGP (runtime bridge)
-2. **`zebgp exabgp migrate`** - Convert ExaBGP configs to ZeBGP format (one-time conversion)
+1. **`ze exabgp plugin`** - Run existing ExaBGP plugins with ZeBGP (runtime bridge)
+2. **`ze bgp exabgp migrate`** - Convert ExaBGP configs to ZeBGP format (one-time conversion)
 
 ## Required Reading
 
@@ -33,7 +33,7 @@ Provide tools for migrating from ExaBGP to ZeBGP:
 
 ---
 
-## Component 1: Plugin Bridge (`zebgp exabgp plugin`)
+## Component 1: Plugin Bridge (`ze exabgp plugin`)
 
 ### Purpose
 
@@ -48,7 +48,7 @@ internal/exabgp/
 ├── bridge.go         # ZebgpToExabgpJSON(), ExabgpToZebgpCommand(), Bridge
 └── bridge_test.go    # Unit tests
 
-cmd/zebgp/exabgp.go   # CLI: zebgp exabgp plugin <plugin>
+cmd/ze/bgp/exabgp.go   # CLI: ze exabgp plugin <plugin>
 ```
 
 ### Data Flow
@@ -57,14 +57,14 @@ cmd/zebgp/exabgp.go   # CLI: zebgp exabgp plugin <plugin>
 ZeBGP Engine
     │ (stdin: ZeBGP JSON)
     ▼
-zebgp exabgp plugin        ← Bridge process
+ze exabgp plugin        ← Bridge process
     │ translates JSON
     │ spawns subprocess
     ▼
 ExaBGP Plugin              ← User's existing plugin
     │ (stdout: ExaBGP commands)
     ▼
-zebgp exabgp plugin
+ze exabgp plugin
     │ translates commands
     ▼
 ZeBGP Engine (stdout: ZeBGP commands)
@@ -151,7 +151,7 @@ ready
 ### Capability CLI Flags ✅
 
 ```
-zebgp exabgp plugin [flags] <plugin-command>
+ze exabgp plugin [flags] <plugin-command>
 
 Flags:
   --family <family>         Add supported family (repeatable)
@@ -173,7 +173,7 @@ Flags:
 
 ---
 
-## Component 2: Config Migration (`zebgp exabgp migrate`)
+## Component 2: Config Migration (`ze bgp exabgp migrate`)
 
 ### Purpose
 
@@ -251,11 +251,11 @@ process my-plugin {
 
 # ZeBGP (migrated) - RIB plugin auto-injected
 plugin rib {
-    run "zebgp plugin rib";
+    run "ze bgp plugin rib";
 }
 
 plugin my-plugin-compat {
-    run "zebgp exabgp plugin /path/to/plugin.py";
+    run "ze exabgp plugin /path/to/plugin.py";
     encoder json;
 }
 
@@ -294,11 +294,11 @@ neighbor 10.0.0.1 {
 
 # ZeBGP (migrated) - RIB plugin required for refresh response
 plugin rib {
-    run "zebgp plugin rib";
+    run "ze bgp plugin rib";
 }
 
 plugin my-plugin-compat {
-    run "zebgp exabgp plugin /path/to/plugin.py";
+    run "ze exabgp plugin /path/to/plugin.py";
     encoder json;
 }
 
@@ -329,7 +329,7 @@ peer 10.0.0.1 {
 | `capability { graceful-restart N; }` | `capability { graceful-restart N; }` |
 | `capability { route-refresh; }` | `capability { route-refresh enable; }` |
 | `capability { asn4; }` | `capability { asn4 enable; }` (default) |
-| `process NAME { run CMD; }` | `plugin NAME { run "zebgp exabgp plugin CMD"; }` |
+| `process NAME { run CMD; }` | `plugin NAME { run "ze exabgp plugin CMD"; }` |
 | `api { processes [ P ]; }` | `process P { send {...}; receive {...}; }` (inside peer) |
 
 ### Implementation Status
@@ -345,7 +345,7 @@ peer 10.0.0.1 {
 | Template block migration | ✅ Done | `migrateTemplate()` |
 | Static/announce block preservation | ✅ Done | `copyContainers()` |
 | ExaBGP schema for parsing | ✅ Done | `internal/exabgp/schema.go` |
-| CLI command | ✅ Done | `zebgp exabgp migrate` |
+| CLI command | ✅ Done | `ze bgp exabgp migrate` |
 | Unsupported feature warnings | ✅ Done | `checkUnsupported()` |
 
 ---
@@ -446,7 +446,7 @@ All files created ✅:
 | `internal/exabgp/schema.go` | ExaBGP-specific config schema |
 | `internal/exabgp/migrate.go` | ExaBGP→ZeBGP migration logic |
 | `internal/exabgp/migrate_test.go` | 12 migration unit tests |
-| `cmd/zebgp/exabgp.go` | CLI: `zebgp exabgp plugin/migrate` |
+| `cmd/ze/bgp/exabgp.go` | CLI: `ze exabgp plugin/migrate` |
 | `test/data/migrate/simple/` | Simple migration test data |
 | `test/data/migrate/graceful-restart/` | GR migration test data |
 | `test/data/migrate/route-refresh/` | RR migration test data |
@@ -521,7 +521,7 @@ These are **separate concerns** but may share some transformations.
 
 1. ~~**Startup protocol format**~~ **RESOLVED** - Text commands (`declare`, `capability`, `ready`). See `internal/plugin/registration.go`.
 
-2. **RIB plugin selection** - Should migration use `zebgp plugin rib` or `zebgp plugin rr`? Depends on use case:
+2. **RIB plugin selection** - Should migration use `ze bgp plugin rib` or `ze bgp plugin rr`? Depends on use case:
    - Single peer: `rib`
    - Route server (multi-peer): `rr`
    - **Proposal:** Default to `rib`, add `--route-server` flag for `rr`
@@ -607,9 +607,9 @@ Full chain to enable `receive { negotiated; }` config option:
    - Static/announce block preservation
    - Deterministic output (sorted values, ordered lists)
 
-3. **CLI Command** (`cmd/zebgp/exabgp.go`)
-   - `zebgp exabgp plugin <cmd>` - run ExaBGP plugin with ZeBGP
-   - `zebgp exabgp migrate <file>` - convert ExaBGP config to ZeBGP
+3. **CLI Command** (`cmd/ze/bgp/exabgp.go`)
+   - `ze exabgp plugin <cmd>` - run ExaBGP plugin with ZeBGP
+   - `ze bgp exabgp migrate <file>` - convert ExaBGP config to ZeBGP
 
 4. **Tests** (`internal/exabgp/migrate_test.go`)
    - 12 unit tests covering all migration scenarios
@@ -668,7 +668,7 @@ Spec complete and ready to move to `docs/plan/done/`.
 - [x] Process wrapping
 - [x] Functional tests (file-based, structural validation)
 - [x] ExaBGP schema for proper parsing (`internal/exabgp/schema.go`)
-- [x] `zebgp exabgp migrate` CLI command
+- [x] `ze bgp exabgp migrate` CLI command
 - [x] Family syntax conversion (`ipv4 unicast` → `ipv4/unicast`)
 
 ### Verification

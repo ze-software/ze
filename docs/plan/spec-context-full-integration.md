@@ -109,7 +109,7 @@ type Peer struct {
 **Step 1.1: Add context fields to Peer**
 
 ```go
-import bgpctx "codeberg.org/thomas-mangin/zebgp/internal/bgp/context"
+import bgpctx "codeberg.org/thomas-mangin/ze/internal/bgp/context"
 
 type Peer struct {
     // ... existing fields ...
@@ -299,7 +299,7 @@ type Route struct {
 **Step 2.1: Add wire cache fields to Route**
 
 ```go
-import bgpctx "codeberg.org/thomas-mangin/zebgp/internal/bgp/context"
+import bgpctx "codeberg.org/thomas-mangin/ze/internal/bgp/context"
 
 type Route struct {
     // ... existing fields ...

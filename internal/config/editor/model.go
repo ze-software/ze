@@ -709,16 +709,16 @@ Press Esc to close this help.`
 // buildPrompt returns the context-aware prompt string.
 func (m Model) buildPrompt() string {
 	if len(m.contextPath) == 0 {
-		return promptStyle.Render("zebgp# ")
+		return promptStyle.Render("ze-bgp# ")
 	}
 
 	contextStr := strings.Join(m.contextPath, " ")
 	if m.isTemplate {
-		return promptStyle.Render("zebgp") +
+		return promptStyle.Render("ze-bgp") +
 			contextStyle.Render("["+contextStr+"]") +
 			promptStyle.Render("# ")
 	}
-	return promptStyle.Render("zebgp") +
+	return promptStyle.Render("ze-bgp") +
 		contextStyle.Render("["+contextStr+"]") +
 		promptStyle.Render("# ")
 }

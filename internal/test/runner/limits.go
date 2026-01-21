@@ -16,7 +16,7 @@ type LimitCheck struct {
 }
 
 // CheckUlimit ensures sufficient file descriptors for parallel tests.
-// Each test spawns: zebgp (may fork) + zebgp-peer = ~20 FDs per concurrent test.
+// Each test spawns: ze bgp (may fork) + ze-peer = ~20 FDs per concurrent test.
 // With parallel=4: need 4 × 20 = 80 FDs minimum, recommend 256+.
 func CheckUlimit(parallel int) (*LimitCheck, error) {
 	var limit syscall.Rlimit

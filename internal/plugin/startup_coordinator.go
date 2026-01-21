@@ -5,11 +5,11 @@ import (
 	"fmt"
 	"sync"
 
-	"codeberg.org/thomas-mangin/zebgp/internal/slogutil"
+	"codeberg.org/thomas-mangin/ze/internal/slogutil"
 )
 
 // coordinatorLogger is the coordinator subsystem logger.
-// Controlled by zebgp.log.coordinator environment variable.
+// Controlled by ze.log.bgp.coordinator environment variable.
 var coordinatorLogger = slogutil.Logger("coordinator")
 
 // StartupCoordinator synchronizes plugin startup across stages.

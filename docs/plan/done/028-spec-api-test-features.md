@@ -82,7 +82,7 @@ Implement remaining API features required to pass ExaBGP-compatible tests.
 | Feature | Files |
 |---------|-------|
 | teardown | `internal/plugin/command.go`, `internal/reactor/reactor.go` |
-| notification | `test/cmd/zebgp-peer/main.go`, verify `internal/reactor/session.go` |
+| notification | `test/cmd/ze-peer/main.go`, verify `internal/reactor/session.go` |
 | receive updates | `internal/reactor/session.go`, `internal/plugin/process.go` |
 | watchdog | `internal/plugin/watchdog.go` (new), `internal/reactor/reactor.go` |
 

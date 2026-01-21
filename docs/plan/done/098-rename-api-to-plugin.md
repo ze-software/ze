@@ -1,4 +1,4 @@
-# Plan: Rename `zebgp api` → `zebgp plugin`
+# Plan: Rename `zebgp api` → `ze bgp plugin`
 
 **Status:** Ready for implementation
 **Created:** January 2026
@@ -8,13 +8,13 @@
 
 ## Overview
 
-Rename the command-line interface from `zebgp api <subcommand>` to `zebgp plugin <subcommand>`. This affects CLI usage, configuration files, documentation, and test infrastructure.
+Rename the command-line interface from `zebgp api <subcommand>` to `ze bgp plugin <subcommand>`. This affects CLI usage, configuration files, documentation, and test infrastructure.
 
 ### Design Decision: Option A (Minimal Change)
 
 | Component | Action | Reason |
 |-----------|--------|--------|
-| **CLI Command** | `zebgp api` → `zebgp plugin` | Clearer terminology |
+| **CLI Command** | `zebgp api` → `ze bgp plugin` | Clearer terminology |
 | **Package Directory** | `internal/plugin/` → `internal/plugin/` | Match new command name |
 | **Internal Functions** | `cmdAPI*` → `cmdPlugin*` | Consistency |
 | **Config Blocks** | **KEEP** `api { ... }` | Refers to API protocol |
@@ -30,7 +30,7 @@ Rename the command-line interface from `zebgp api <subcommand>` to `zebgp plugin
 
 ---
 
-## 1. Command Line Interface (`cmd/zebgp/`)
+## 1. Command Line Interface (`cmd/ze/bgp/`)
 
 ### 1.1 main.go Changes
 
@@ -43,9 +43,9 @@ Rename the command-line interface from `zebgp api <subcommand>` to `zebgp plugin
 ### 1.2 File Renames
 
 ```bash
-git mv cmd/zebgp/api.go cmd/zebgp/plugin.go
-git mv cmd/zebgp/api_rr.go cmd/zebgp/plugin_rr.go
-git mv cmd/zebgp/api_persist.go cmd/zebgp/plugin_persist.go
+git mv cmd/ze/bgp/api.go cmd/ze/bgp/plugin.go
+git mv cmd/ze/bgp/api_rr.go cmd/ze/bgp/plugin_rr.go
+git mv cmd/ze/bgp/api_persist.go cmd/ze/bgp/plugin_persist.go
 ```
 
 ### 1.3 Function Renames
@@ -62,11 +62,11 @@ git mv cmd/zebgp/api_persist.go cmd/zebgp/plugin_persist.go
 | Line | Current | New |
 |------|---------|-----|
 | 24 | `"unknown api subcommand"` | `"unknown plugin subcommand"` |
-| 31 | `Usage: zebgp api <subcommand>` | `Usage: zebgp plugin <subcommand>` |
+| 31 | `Usage: zebgp api <subcommand>` | `Usage: ze bgp plugin <subcommand>` |
 | 33 | `API Subcommands:` | `Plugin Subcommands:` |
 | 38 | `The api subcommands run as API processes` | `The plugin subcommands run as API processes` |
-| 44 | `run "zebgp api rr";` | `run "zebgp plugin rr";` |
-| 48 | `run "zebgp api persist";` | `run "zebgp plugin persist";` |
+| 44 | `run "zebgp api rr";` | `run "ze bgp plugin rr";` |
+| 48 | `run "zebgp api persist";` | `run "ze bgp plugin persist";` |
 
 ### 1.5 Comment Updates
 
@@ -132,24 +132,24 @@ event.go, persist.go
 
 | File | Old Import | New Import |
 |------|-----------|-----------|
-| `cmd/zebgp/plugin_rr.go` | `"codeberg.org/thomas-mangin/zebgp/internal/plugin/rr"` | `"codeberg.org/thomas-mangin/zebgp/internal/plugin/rr"` |
-| `cmd/zebgp/plugin_persist.go` | `"codeberg.org/thomas-mangin/zebgp/internal/plugin/persist"` | `"codeberg.org/thomas-mangin/zebgp/internal/plugin/persist"` |
-| `cmd/zebgp/encode.go` | `"codeberg.org/thomas-mangin/zebgp/internal/plugin"` | `"codeberg.org/thomas-mangin/zebgp/internal/plugin"` |
-| `internal/config/bgp.go` | `"codeberg.org/thomas-mangin/zebgp/internal/plugin"` | `"codeberg.org/thomas-mangin/zebgp/internal/plugin"` |
-| `internal/config/loader.go` | `"codeberg.org/thomas-mangin/zebgp/internal/plugin"` | `"codeberg.org/thomas-mangin/zebgp/internal/plugin"` |
-| `internal/reactor/forward_split_test.go` | `"codeberg.org/thomas-mangin/zebgp/internal/plugin"` | `"codeberg.org/thomas-mangin/zebgp/internal/plugin"` |
-| `internal/reactor/mup_test.go` | `"codeberg.org/thomas-mangin/zebgp/internal/plugin"` | `"codeberg.org/thomas-mangin/zebgp/internal/plugin"` |
-| `internal/reactor/peer_test.go` | `"codeberg.org/thomas-mangin/zebgp/internal/plugin"` | `"codeberg.org/thomas-mangin/zebgp/internal/plugin"` |
-| `internal/reactor/peer.go` | `"codeberg.org/thomas-mangin/zebgp/internal/plugin"` | `"codeberg.org/thomas-mangin/zebgp/internal/plugin"` |
-| `internal/reactor/peersettings.go` | `"codeberg.org/thomas-mangin/zebgp/internal/plugin"` | `"codeberg.org/thomas-mangin/zebgp/internal/plugin"` |
-| `internal/reactor/reactor_batch_test.go` | `"codeberg.org/thomas-mangin/zebgp/internal/plugin"` | `"codeberg.org/thomas-mangin/zebgp/internal/plugin"` |
-| `internal/reactor/reactor_test.go` | `"codeberg.org/thomas-mangin/zebgp/internal/plugin"` | `"codeberg.org/thomas-mangin/zebgp/internal/plugin"` |
-| `internal/reactor/reactor.go` | `"codeberg.org/thomas-mangin/zebgp/internal/plugin"` | `"codeberg.org/thomas-mangin/zebgp/internal/plugin"` |
-| `internal/reactor/received_update_test.go` | `"codeberg.org/thomas-mangin/zebgp/internal/plugin"` | `"codeberg.org/thomas-mangin/zebgp/internal/plugin"` |
-| `internal/reactor/received_update.go` | `"codeberg.org/thomas-mangin/zebgp/internal/plugin"` | `"codeberg.org/thomas-mangin/zebgp/internal/plugin"` |
-| `internal/reactor/recent_cache_test.go` | `"codeberg.org/thomas-mangin/zebgp/internal/plugin"` | `"codeberg.org/thomas-mangin/zebgp/internal/plugin"` |
-| `internal/reactor/watchdog_test.go` | `"codeberg.org/thomas-mangin/zebgp/internal/plugin"` | `"codeberg.org/thomas-mangin/zebgp/internal/plugin"` |
-| `internal/reactor/session.go` | `"codeberg.org/thomas-mangin/zebgp/internal/plugin"` | `"codeberg.org/thomas-mangin/zebgp/internal/plugin"` |
+| `cmd/ze/bgp/plugin_rr.go` | `"codeberg.org/thomas-mangin/ze/internal/plugin/rr"` | `"codeberg.org/thomas-mangin/ze/internal/plugin/rr"` |
+| `cmd/ze/bgp/plugin_persist.go` | `"codeberg.org/thomas-mangin/ze/internal/plugin/persist"` | `"codeberg.org/thomas-mangin/ze/internal/plugin/persist"` |
+| `cmd/ze/bgp/encode.go` | `"codeberg.org/thomas-mangin/ze/internal/plugin"` | `"codeberg.org/thomas-mangin/ze/internal/plugin"` |
+| `internal/config/bgp.go` | `"codeberg.org/thomas-mangin/ze/internal/plugin"` | `"codeberg.org/thomas-mangin/ze/internal/plugin"` |
+| `internal/config/loader.go` | `"codeberg.org/thomas-mangin/ze/internal/plugin"` | `"codeberg.org/thomas-mangin/ze/internal/plugin"` |
+| `internal/reactor/forward_split_test.go` | `"codeberg.org/thomas-mangin/ze/internal/plugin"` | `"codeberg.org/thomas-mangin/ze/internal/plugin"` |
+| `internal/reactor/mup_test.go` | `"codeberg.org/thomas-mangin/ze/internal/plugin"` | `"codeberg.org/thomas-mangin/ze/internal/plugin"` |
+| `internal/reactor/peer_test.go` | `"codeberg.org/thomas-mangin/ze/internal/plugin"` | `"codeberg.org/thomas-mangin/ze/internal/plugin"` |
+| `internal/reactor/peer.go` | `"codeberg.org/thomas-mangin/ze/internal/plugin"` | `"codeberg.org/thomas-mangin/ze/internal/plugin"` |
+| `internal/reactor/peersettings.go` | `"codeberg.org/thomas-mangin/ze/internal/plugin"` | `"codeberg.org/thomas-mangin/ze/internal/plugin"` |
+| `internal/reactor/reactor_batch_test.go` | `"codeberg.org/thomas-mangin/ze/internal/plugin"` | `"codeberg.org/thomas-mangin/ze/internal/plugin"` |
+| `internal/reactor/reactor_test.go` | `"codeberg.org/thomas-mangin/ze/internal/plugin"` | `"codeberg.org/thomas-mangin/ze/internal/plugin"` |
+| `internal/reactor/reactor.go` | `"codeberg.org/thomas-mangin/ze/internal/plugin"` | `"codeberg.org/thomas-mangin/ze/internal/plugin"` |
+| `internal/reactor/received_update_test.go` | `"codeberg.org/thomas-mangin/ze/internal/plugin"` | `"codeberg.org/thomas-mangin/ze/internal/plugin"` |
+| `internal/reactor/received_update.go` | `"codeberg.org/thomas-mangin/ze/internal/plugin"` | `"codeberg.org/thomas-mangin/ze/internal/plugin"` |
+| `internal/reactor/recent_cache_test.go` | `"codeberg.org/thomas-mangin/ze/internal/plugin"` | `"codeberg.org/thomas-mangin/ze/internal/plugin"` |
+| `internal/reactor/watchdog_test.go` | `"codeberg.org/thomas-mangin/ze/internal/plugin"` | `"codeberg.org/thomas-mangin/ze/internal/plugin"` |
+| `internal/reactor/session.go` | `"codeberg.org/thomas-mangin/ze/internal/plugin"` | `"codeberg.org/thomas-mangin/ze/internal/plugin"` |
 
 ---
 
@@ -169,7 +169,7 @@ Only 1 file needs content update:
 
 | File | Line | Current | New |
 |------|------|---------|-----|
-| `test/data/plugin/reconnect.conf` | 6 | `run "zebgp api persist";` | `run "zebgp plugin persist";` |
+| `test/data/plugin/reconnect.conf` | 6 | `run "zebgp api persist";` | `run "ze bgp plugin persist";` |
 
 ### 3.3 Config Blocks (UNCHANGED)
 
@@ -209,7 +209,7 @@ Other spec files refer to "api" as protocol concept (not CLI), keep names:
 
 | File | Changes |
 |------|---------|
-| `docs/plan/spec-plugin-rr.md` | All `zebgp api rr/persist` → `zebgp plugin rr/persist` |
+| `docs/plan/spec-plugin-rr.md` | All `zebgp api rr/persist` → `ze bgp plugin rr/persist` |
 | `docs/architecture/rib-transition.md` | Lines 257, 259: Task descriptions update |
 | `docs/architecture/api/CAPABILITY_CONTRACT.md` | Lines 55, 180-181: Reference updates |
 
@@ -237,7 +237,7 @@ grep -rl "internal/plugin" docs/ --include="*.md" | wc -l  # 55 files
 
 ### 4.4 Documentation Notes
 
-- Replace all `zebgp api` command-line references with `zebgp plugin`
+- Replace all `zebgp api` command-line references with `ze bgp plugin`
 - Replace all `internal/plugin/` directory references with `internal/plugin/`
 - Keep `api { ... }` config block syntax in documentation
 - Keep API protocol terminology in conceptual docs
@@ -291,7 +291,7 @@ This is a refactoring task. Existing tests validate no regression.
 4. Verify compilation: `go build ./...`
 
 ### Phase 2: CLI Rename
-5. Rename cmd files: `git mv cmd/zebgp/api.go cmd/zebgp/plugin.go` (etc.)
+5. Rename cmd files: `git mv cmd/ze/bgp/api.go cmd/ze/bgp/plugin.go` (etc.)
 6. Update function names: `cmdAPI*` → `cmdPlugin*`, `apiUsage` → `pluginUsage`
 7. Update main.go: Switch statement and function calls
 8. Update strings: Help text, error messages, comments
@@ -302,7 +302,7 @@ This is a refactoring task. Existing tests validate no regression.
 
 ### Phase 4: Documentation Updates
 11. Rename spec: `git mv docs/plan/spec-api-rr.md docs/plan/spec-plugin-rr.md`
-12. Update `zebgp api` → `zebgp plugin` in 4 docs
+12. Update `zebgp api` → `ze bgp plugin` in 4 docs
 13. Update `internal/plugin/` → `internal/plugin/` in 55 docs
 
 ### Phase 5: Test Framework Updates
@@ -322,7 +322,7 @@ This is a refactoring task. Existing tests validate no regression.
 - [ ] `grep -r "zebgp api" . --exclude-dir=.git` shows only intentional config block references
 - [ ] `grep -r "cmdAPI" . --include="*.go"` returns no results
 - [ ] `grep -r "apiUsage" . --include="*.go"` returns no results
-- [ ] `grep -r '"codeberg.org/thomas-mangin/zebgp/internal/plugin"' . --include="*.go"` returns no results
+- [ ] `grep -r '"codeberg.org/thomas-mangin/ze/internal/plugin"' . --include="*.go"` returns no results
 - [ ] `grep -r '^package api' internal/plugin/` returns no results
 - [ ] All Go files compile: `go build ./...`
 
@@ -332,16 +332,16 @@ This is a refactoring task. Existing tests validate no regression.
 - [ ] All functional tests pass: `make functional`
 
 ### CLI Verification
-- [ ] `zebgp` shows `plugin <subcommand>` in help
-- [ ] `zebgp plugin` shows subcommands (rr, persist)
-- [ ] `zebgp plugin rr` runs without error
-- [ ] `zebgp plugin persist` runs without error
-- [ ] `zebgp plugin help` shows correct help text
+- [ ] `ze-bgp` shows `plugin <subcommand>` in help
+- [ ] `ze bgp plugin` shows subcommands (rr, persist)
+- [ ] `ze bgp plugin rr` runs without error
+- [ ] `ze bgp plugin persist` runs without error
+- [ ] `ze bgp plugin help` shows correct help text
 
 ### Documentation Verification
 - [ ] No `zebgp api` command-line references in docs
 - [ ] No `internal/plugin/` path references in docs (use `internal/plugin/`)
-- [ ] Config examples use `zebgp plugin rr/persist`
+- [ ] Config examples use `ze bgp plugin rr/persist`
 - [ ] Config blocks still use `api { ... }` syntax
 
 ---
@@ -359,9 +359,9 @@ zebgp api help
 
 **After:**
 ```bash
-zebgp plugin rr
-zebgp plugin persist
-zebgp plugin help
+ze bgp plugin rr
+ze bgp plugin persist
+ze bgp plugin help
 ```
 
 ### Configuration Migration
@@ -382,12 +382,12 @@ process persist {
 **After:**
 ```conf
 process rr {
-    run "zebgp plugin rr";
+    run "ze bgp plugin rr";
     encoder json;
 }
 
 process persist {
-    run "zebgp plugin persist";
+    run "ze bgp plugin persist";
     encoder json;
 }
 ```
@@ -429,7 +429,7 @@ grep -r "cmdAPI" . --include="*.go"
 grep -r "apiUsage" . --include="*.go"
 
 # Check for old package imports
-grep -r '"codeberg.org/thomas-mangin/zebgp/internal/plugin"' . --include="*.go"
+grep -r '"codeberg.org/thomas-mangin/ze/internal/plugin"' . --include="*.go"
 
 # Check for old package declarations
 grep -r "^package api" internal/plugin/
@@ -477,7 +477,7 @@ grep -r "internal/plugin" docs/
 - `docs/architecture/api/CAPABILITY_CONTRACT.md` - API capability contract
 
 ### Related Code
-- `cmd/zebgp/` - Command-line interface
+- `cmd/ze/bgp/` - Command-line interface
 - `internal/plugin/` (formerly `internal/plugin/`) - Plugin implementation
 - `internal/config/` - Configuration parsing
 - `test/cmd/functional/` - Functional test framework

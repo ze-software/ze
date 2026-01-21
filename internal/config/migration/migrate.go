@@ -4,7 +4,7 @@ import (
 	"errors"
 	"fmt"
 
-	"codeberg.org/thomas-mangin/zebgp/internal/config"
+	"codeberg.org/thomas-mangin/ze/internal/config"
 )
 
 // ErrNilTree is returned when a nil tree is passed to a function that requires a tree.

@@ -17,18 +17,18 @@ make functional-plugin    # Plugin tests only
 
 ```bash
 # List available tests
-zebgp-test run encoding --list
-zebgp-test run plugin --list
+ze-test run encoding --list
+ze-test run plugin --list
 
 # Run specific tests by nick
-zebgp-test run encoding 4 5 6
+ze-test run encoding 4 5 6
 
 # Run all tests
-zebgp-test run encoding --all
-zebgp-test run plugin --all
+ze-test run encoding --all
+ze-test run plugin --all
 
 # Stress test (detect flaky tests)
-zebgp-test run encoding --count 10 0 1
+ze-test run encoding --count 10 0 1
 ```
 
 ---
@@ -89,7 +89,7 @@ BGP message decoding tests - verify wire bytes decode to expected JSON.
 **Format:**
 ```
 stdin=payload:hex=<hex-encoded-bgp-message>
-cmd=foreground:seq=1:exec=zebgp-test decode --family <family> -:stdin=payload
+cmd=foreground:seq=1:exec=ze-test decode --family <family> -:stdin=payload
 expect=json:json=<expected-json>
 ```
 
@@ -97,13 +97,13 @@ expect=json:json=<expected-json>
 ```
 # IPv4 unicast decoding test
 stdin=payload:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003C020000001C4001010040020040030465016501...
-cmd=foreground:seq=1:exec=zebgp-test decode --family ipv4/unicast -:stdin=payload
+cmd=foreground:seq=1:exec=ze-test decode --family ipv4/unicast -:stdin=payload
 expect=json:json={ "type": "update", "neighbor": { ... }, "announce": { ... } }
 ```
 
 **JSON Validation:**
 - Parsed and compared field-by-field (key order independent)
-- Volatile fields ignored: `exabgp`, `zebgp`, `time`, `host`, `pid`, `ppid`, `counter`
+- Volatile fields ignored: `exabgp`, `ze-bgp`, `time`, `host`, `pid`, `ppid`, `counter`
 - Neighbor normalization: `peer` ↔ `neighbor` equivalence, `direction` ignored
 
 ---
@@ -153,10 +153,10 @@ Total: 62 tests max per category.
 **Examples:**
 ```bash
 # Run test with nick "4"
-zebgp-test run encoding 4
+ze-test run encoding 4
 
 # Run tests 0, A, and B
-zebgp-test run encoding 0 A B
+ze-test run encoding 0 A B
 ```
 
 ---
@@ -218,7 +218,7 @@ Tests can verify logging behavior using `option:env:`, `expect:stderr:`, `reject
 **Example: Verify server subsystem logs to stderr**
 ```
 option:file:mytest.conf
-option:env:zebgp.log.server=debug
+option:env:ze.bgp.log.server=debug
 
 1:raw:FFFF...
 expect:stderr:subsystem=server
@@ -227,7 +227,7 @@ expect:stderr:subsystem=server
 **Example: Verify DEBUG messages are filtered at INFO level**
 ```
 option:file:mytest.conf
-option:env:zebgp.log.server=info
+option:env:ze.bgp.log.server=info
 
 1:raw:FFFF...
 reject:stderr:level=DEBUG
@@ -236,7 +236,7 @@ reject:stderr:level=DEBUG
 **Example: Verify syslog backend**
 ```
 option:file:mytest.conf
-option:env:zebgp.log.server=debug
+option:env:ze.bgp.log.server=debug
 
 1:raw:FFFF...
 expect:syslog:subsystem=server
@@ -244,7 +244,7 @@ expect:syslog:subsystem=server
 
 When `expect:syslog:` is present, the test runner automatically:
 1. Starts a test-syslog UDP server on a dynamic port
-2. Sets `zebgp.log.backend=syslog` and `zebgp.log.destination=127.0.0.1:<port>`
+2. Sets `ze.bgp.log.backend=syslog` and `ze.bgp.log.destination=127.0.0.1:<port>`
 3. Validates patterns against captured syslog messages after test
 
 #### Syslog Testing Architecture
@@ -259,12 +259,12 @@ When `expect:syslog:` is present, the test runner automatically:
 │  2. Start testsyslog server (UDP, dynamic port)                   │
 │     └── syslog.New(0).Start(ctx) → port 54321                 │
 │                                                                   │
-│  3. Auto-inject env vars for zebgp:                               │
-│     └── zebgp.log.backend=syslog                                  │
-│     └── zebgp.log.destination=127.0.0.1:54321                     │
-│     └── zebgp.log.server=debug  (from option:env:)                │
+│  3. Auto-inject env vars for ze-bgp:                               │
+│     └── ze.bgp.log.backend=syslog                                  │
+│     └── ze.bgp.log.destination=127.0.0.1:54321                     │
+│     └── ze.bgp.log.server=debug  (from option:env:)                │
 │                                                                   │
-│  4. Start zebgp with config                                       │
+│  4. Start ze bgp with config                                       │
 └──────────────────────────────────────────────────────────────────┘
                                 │
                                 ▼
@@ -272,9 +272,9 @@ When `expect:syslog:` is present, the test runner automatically:
 │                           ZEBGP                                   │
 │                                                                   │
 │  slogutil.Logger("server") reads env vars:                        │
-│    - zebgp.log.server=debug → enabled at DEBUG                    │
-│    - zebgp.log.backend=syslog → use syslog handler                │
-│    - zebgp.log.destination=127.0.0.1:54321 → UDP target           │
+│    - ze.bgp.log.server=debug → enabled at DEBUG                    │
+│    - ze.bgp.log.backend=syslog → use syslog handler                │
+│    - ze.bgp.log.destination=127.0.0.1:54321 → UDP target           │
 │                                                                   │
 │  logger.Debug("msg", "subsystem", "server", ...)                  │
 │         │                                                         │
@@ -288,7 +288,7 @@ When `expect:syslog:` is present, the test runner automatically:
 ┌──────────────────────────────────────────────────────────────────┐
 │                      TESTSYSLOG SERVER                            │
 │                                                                   │
-│  Receives: "<14>Jan 19 ... zebgp: level=DEBUG subsystem=server"   │
+│  Receives: "<14>Jan 19 ... ze-bgp: level=DEBUG subsystem=server"   │
 │  Stores in: srv.messages[]                                        │
 └──────────────────────────────────────────────────────────────────┘
                                 │
@@ -309,14 +309,14 @@ When `expect:syslog:` is present, the test runner automatically:
 | Component | Location | Purpose |
 |-----------|----------|---------|
 | `syslog.Server` | `internal/test/syslog/` | UDP server capturing syslog messages |
-| `option:env:` | `.ci` file | Sets env vars (e.g., `zebgp.log.server=debug`) |
+| `option:env:` | `.ci` file | Sets env vars (e.g., `ze.bgp.log.server=debug`) |
 | `expect:syslog:` | `.ci` file | Regex pattern to match in captured messages |
 | Auto-injection | `runner.go` | Adds `backend=syslog` + `destination=host:port` |
 | `validateLogging()` | `runner.go` | Checks patterns after test completes |
 
 **Message format:** Syslog messages use Go's `slog.TextHandler` format with syslog framing:
 ```
-<priority>timestamp hostname zebgp: level=DEBUG subsystem=server msg="..." key=value
+<priority>timestamp hostname ze-bgp: level=DEBUG subsystem=server msg="..." key=value
 ```
 
 Patterns should match the key=value pairs (e.g., `subsystem=server`, `level=DEBUG`).
@@ -338,19 +338,19 @@ The `N:json:` lines use ZeBGP plugin format (not ExaBGP envelope format):
 
 **Unicast:**
 ```json
-{"meta":{"version":"1.0.0","format":"zebgp"},"message":{"type":"update"},"origin":"igp","ipv4/unicast":[{"next-hop":"10.0.1.254","action":"add","nlri":["10.0.0.0/24"]}]}
+{"meta":{"version":"1.0.0","format":"ze-bgp"},"message":{"type":"update"},"origin":"igp","ipv4/unicast":[{"next-hop":"10.0.1.254","action":"add","nlri":["10.0.0.0/24"]}]}
 ```
 
 **FlowSpec:**
 ```json
-{"meta":{"version":"1.0.0","format":"zebgp"},"message":{"type":"update"},"origin":"igp","ipv4/flowspec":[{"action":"add","nlri":{"next-hop":"1.2.3.4","destination":["192.168.0.1/32"],"string":"flow destination 192.168.0.1/32"}}]}
+{"meta":{"version":"1.0.0","format":"ze-bgp"},"message":{"type":"update"},"origin":"igp","ipv4/flowspec":[{"action":"add","nlri":{"next-hop":"1.2.3.4","destination":["192.168.0.1/32"],"string":"flow destination 192.168.0.1/32"}}]}
 ```
 
 **Supported families:** `ipv4/unicast`, `ipv6/unicast`, `ipv4/flowspec`, `ipv6/flowspec`
 
 **Key differences from ExaBGP envelope:**
 - Flat structure (no `neighbor.message.update` nesting)
-- `meta.format` = "zebgp" (not `exabgp` version)
+- `meta.format` = "ze-bgp" (not `exabgp` version)
 - Family arrays at top level with `action` field
 - FlowSpec: `nlri` is object with components; unicast: `nlri` is string array
 
@@ -363,23 +363,23 @@ The `N:json:` lines use ZeBGP plugin format (not ExaBGP envelope format):
 ### Encode Tests
 
 ```
-1. Runner builds zebgp + zebgp-peer to temp dir
-2. Starts zebgp-peer on unique port with .ci expectations
-3. Starts zebgp with config
-4. zebgp connects, sends OPEN, receives OPEN
-5. zebgp sends UPDATE messages (from static routes)
-6. zebgp-peer validates messages against expectations
-7. zebgp-peer prints "successful" or error
+1. Runner builds ze + ze-peer to temp dir
+2. Starts ze-peer on unique port with .ci expectations
+3. Starts ze bgp with config
+4. ze bgp connects, sends OPEN, receives OPEN
+5. ze bgp sends UPDATE messages (from static routes)
+6. ze-peer validates messages against expectations
+7. ze-peer prints "successful" or error
 ```
 
 ### API Tests
 
 ```
 1. Same as encode tests, plus:
-5. zebgp spawns .run script as subprocess
+5. ze bgp spawns .run script as subprocess
 6. .run script sends commands via API
-7. zebgp processes commands, sends UPDATE messages
-8. zebgp-peer validates messages
+7. ze bgp processes commands, sends UPDATE messages
+8. ze-peer validates messages
 ```
 
 ---
@@ -405,10 +405,10 @@ Use `--count N` (`-c N`) to run tests multiple times for benchmarking or detecti
 
 ```bash
 # Run test C 10 times with timing
-zebgp-test run plugin -c 10 C
+ze-test run plugin -c 10 C
 
 # Run all encoding tests 5 times
-zebgp-test run encoding -c 5 -a
+ze-test run encoding -c 5 -a
 ```
 
 **Per-iteration timing** is shown during execution:
@@ -447,27 +447,27 @@ Total: 20 iterations, 18 passed, 2 failed, 0 timed out (90.0% pass rate)
 ### Run single test verbosely
 
 ```bash
-zebgp-test run encoding --timeout 60s --verbose 4
+ze-test run encoding --timeout 60s --verbose 4
 ```
 
 ### Manual execution
 
 ```bash
 # Terminal 1: Start peer
-zebgp-peer --port 1790 test/data/encode/ebgp.ci
+ze-peer --port 1790 test/data/encode/ebgp.ci
 
-# Terminal 2: Run zebgp
-env zebgp_tcp_port=1790 zebgp server test/data/encode/ebgp.conf
+# Terminal 2: Run ze bgp
+env ze_bgp_tcp_port=1790 ze bgp server test/data/encode/ebgp.conf
 ```
 
 ### Decode message bytes
 
 ```bash
 # Decode UPDATE payload
-zebgp decode update 0000001540010100400200400304650165014005040000006400
+ze bgp decode update 0000001540010100400200400304650165014005040000006400
 
 # Decode full message
-zebgp decode raw FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002D02...
+ze bgp decode raw FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002D02...
 ```
 
 ---
@@ -533,7 +533,7 @@ expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002D0200000015400101
 
 ### Generate expected bytes
 
-Run with ExaBGP first to capture correct bytes, or use `zebgp decode` to verify.
+Run with ExaBGP first to capture correct bytes, or use `ze bgp decode` to verify.
 
 ### Adding Negative Parsing Tests
 
@@ -562,7 +562,7 @@ regex:peer \d+\.\d+\.\d+\.\d+: route-refresh requires
 ```
 
 The test passes if:
-- `zebgp validate` exits with non-zero status
+- `ze bgp validate` exits with non-zero status
 - Output contains the expected substring OR matches the regex pattern
 
 ---
@@ -594,7 +594,7 @@ The test passes if:
 | `security.go` | Path validation (traversal, escape) |
 | `cleanup.go` | Signal handling for temp cleanup |
 
-### Entry Point: `cmd/zebgp-test/`
+### Entry Point: `cmd/ze-test/`
 
 Subcommand-based CLI with `run` for test execution and `syslog` for syslog server.
 

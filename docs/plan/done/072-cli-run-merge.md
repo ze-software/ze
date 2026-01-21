@@ -1,17 +1,17 @@
 # Spec: cli-run-merge
 
 ## Task
-Move the zebgp run command under cli --run
+Move the ze bgp run command under cli --run
 
 ## Required Reading (MUST complete before implementation)
 
 - [x] `.claude/INDEX.md` - doc index (checked for relevant docs)
-- [x] `.claude/zebgp/api/ARCHITECTURE.md` - API server internals (low relevance)
+- [x] `docs/architecture/api/ARCHITECTURE.md` - API server internals (low relevance)
 - [x] `docs/plan/spec-*.md` - no existing related specs
-- [x] `cmd/zebgp/main.go` - current command dispatch
-- [x] `cmd/zebgp/cli.go` - bubbletea interactive CLI
-- [x] `cmd/zebgp/run.go` - current run command
-- [x] `cmd/zebgp/run_test.go` - existing tests
+- [x] `cmd/ze/bgp/main.go` - current command dispatch
+- [x] `cmd/ze/bgp/cli.go` - bubbletea interactive CLI
+- [x] `cmd/ze/bgp/run.go` - current run command
+- [x] `cmd/ze/bgp/run_test.go` - existing tests
 
 **Key insights:**
 - `run.go` defines `cliClient` type used by both `run.go` and `cli.go`
@@ -20,10 +20,10 @@ Move the zebgp run command under cli --run
 - Merge is straightforward: add `--run` flag to `cmdCLI()`, consolidate client code
 
 ## Files to Modify
-- `cmd/zebgp/cli.go` - add `--run` flag, merge run logic
-- `cmd/zebgp/main.go` - remove `run` case, update help
-- `cmd/zebgp/run.go` - DELETE (merge into cli.go)
-- `cmd/zebgp/run_test.go` - move to cli_test.go or delete
+- `cmd/ze/bgp/cli.go` - add `--run` flag, merge run logic
+- `cmd/ze/bgp/main.go` - remove `run` case, update help
+- `cmd/ze/bgp/run.go` - DELETE (merge into cli.go)
+- `cmd/ze/bgp/run_test.go` - move to cli_test.go or delete
 
 ## Current State
 - Tests: passing
@@ -41,9 +41,9 @@ Move the zebgp run command under cli --run
 9. Run `make test && make lint && make functional`
 
 ## Design Decision
-- `zebgp cli --run "peer list"` executes single command
-- `zebgp cli` launches interactive bubbletea
-- `zebgp run` removed entirely (breaking change, user approved)
+- `ze bgp cli --run "peer list"` executes single command
+- `ze bgp cli` launches interactive bubbletea
+- `ze bgp run` removed entirely (breaking change, user approved)
 
 ## Checklist
 - [x] Required docs read

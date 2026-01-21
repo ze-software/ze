@@ -71,7 +71,7 @@ Implement a plugin registration protocol where plugins proactively declare their
 | `internal/plugin/capability_injection_test.go` | Capability injection tests |
 | `internal/plugin/registry_sharing_test.go` | Registry sharing tests |
 | `internal/bgp/capability/plugin.go` | Plugin capability adapter for OPEN |
-| `test/data/scripts/zebgp_api.py` | Python client library (renamed from exabgp_api.py) |
+| `test/data/scripts/ze_bgp_api.py` | Python client library (renamed from exabgp_api.py) |
 | `.claude/rules/no-backwards-compat.md` | No backwards compatibility rule |
 
 ### Modified
@@ -85,7 +85,7 @@ Implement a plugin registration protocol where plugins proactively declare their
 | `internal/reactor/session.go` | Added `pluginCapGetter` callback, `SetPluginCapabilityGetter()` |
 | `internal/reactor/peer.go` | Added `getPluginCapabilities()`, wires callback in `runOnce()` |
 | `internal/bgp/capability/capability.go` | Added `ConfigProvider` interface, implemented on 8 capabilities |
-| `test/data/scripts/zebgp_api.py` | Updated `ready()` to perform minimal 5-stage protocol |
+| `test/data/scripts/ze_bgp_api.py` | Updated `ready()` to perform minimal 5-stage protocol |
 
 ## Implementation Steps
 1. **Write tests** - Create unit tests for registration parsing
@@ -142,7 +142,7 @@ Implement a plugin registration protocol where plugins proactively declare their
 | Capability decoding | b64, hex, text encodings |
 | `Server.GetPluginCapabilities()` | For reactor integration |
 | `capability.Plugin` adapter | For OPEN message building |
-| Python client library | `zebgp_api.py` with full protocol support |
+| Python client library | `ze_bgp_api.py` with full protocol support |
 | Server wiring | `coordinator`, `registry`, `capInjector` in Server |
 | Reactor integration | `Session.SetPluginCapabilityGetter()` called in `Peer.runOnce()` |
 | Plugin ID tracking | `Process.index` field, used in `coordinator.PluginFailed()` |

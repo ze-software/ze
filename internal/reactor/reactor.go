@@ -15,16 +15,16 @@ import (
 	"sync"
 	"time"
 
-	"codeberg.org/thomas-mangin/zebgp/internal/bgp/attribute"
-	"codeberg.org/thomas-mangin/zebgp/internal/bgp/capability"
-	bgpctx "codeberg.org/thomas-mangin/zebgp/internal/bgp/context"
-	"codeberg.org/thomas-mangin/zebgp/internal/bgp/fsm"
-	"codeberg.org/thomas-mangin/zebgp/internal/bgp/message"
-	"codeberg.org/thomas-mangin/zebgp/internal/bgp/nlri"
-	"codeberg.org/thomas-mangin/zebgp/internal/plugin"
-	"codeberg.org/thomas-mangin/zebgp/internal/rib"
-	"codeberg.org/thomas-mangin/zebgp/internal/selector"
-	"codeberg.org/thomas-mangin/zebgp/internal/trace"
+	"codeberg.org/thomas-mangin/ze/internal/bgp/attribute"
+	"codeberg.org/thomas-mangin/ze/internal/bgp/capability"
+	bgpctx "codeberg.org/thomas-mangin/ze/internal/bgp/context"
+	"codeberg.org/thomas-mangin/ze/internal/bgp/fsm"
+	"codeberg.org/thomas-mangin/ze/internal/bgp/message"
+	"codeberg.org/thomas-mangin/ze/internal/bgp/nlri"
+	"codeberg.org/thomas-mangin/ze/internal/plugin"
+	"codeberg.org/thomas-mangin/ze/internal/rib"
+	"codeberg.org/thomas-mangin/ze/internal/selector"
+	"codeberg.org/thomas-mangin/ze/internal/trace"
 )
 
 // Reactor errors.

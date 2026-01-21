@@ -1,6 +1,6 @@
 package exabgp
 
-import "codeberg.org/thomas-mangin/zebgp/internal/config"
+import "codeberg.org/thomas-mangin/ze/internal/config"
 
 // ExaBGPSchema returns a schema for parsing ExaBGP configuration files.
 // This schema includes ExaBGP-specific constructs like:

@@ -1,7 +1,7 @@
 package context
 
 import (
-	"codeberg.org/thomas-mangin/zebgp/internal/bgp/capability"
+	"codeberg.org/thomas-mangin/ze/internal/bgp/capability"
 )
 
 // FromNegotiatedRecv creates a receive EncodingContext from capability negotiation.

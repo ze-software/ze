@@ -3,8 +3,8 @@
 ## Task
 
 Consolidate test commands into cleaner structure:
-- Move `zebgp-peer` to `cmd/`
-- Create `zebgp-test` combining functional runner + syslog
+- Move `ze-peer` to `cmd/`
+- Create `ze-test` combining functional runner + syslog
 - Delete obsolete tools (`migrate-ci`, `ci-fix-order`)
 
 ## Required Reading
@@ -15,13 +15,13 @@ Consolidate test commands into cleaner structure:
 ### Source Files
 - [ ] `test/cmd/functional/main.go` - [test runner to port]
 - [ ] `test/cmd/test-syslog/main.go` - [syslog server to port]
-- [ ] `test/cmd/zebgp-peer/main.go` - [peer to move]
+- [ ] `test/cmd/ze-peer/main.go` - [peer to move]
 - [ ] `Makefile` - [targets to update]
 
 **Key insights:**
 - functional imports `internal/test/runner` package (keep unchanged)
 - test-syslog imports `internal/test/syslog` package (keep unchanged)
-- zebgp-peer imports `internal/test/peer` package (keep unchanged)
+- ze-peer imports `internal/test/peer` package (keep unchanged)
 - Only moving/reorganizing cmd entry points, not libraries
 
 ## Current State
@@ -32,7 +32,7 @@ test/cmd/
 ├── functional/      # test runner
 ├── migrate-ci/      # obsolete (migration done)
 ├── test-syslog/     # syslog server for tests
-└── zebgp-peer/      # BGP test peer
+└── ze-peer/      # BGP test peer
 ```
 
 ## Target State
@@ -40,8 +40,8 @@ test/cmd/
 ```
 cmd/
 ├── zebgp/           # main binary (unchanged)
-├── zebgp-peer/      # BGP test peer (moved from test/cmd/)
-└── zebgp-test/      # test runner + syslog
+├── ze-peer/      # BGP test peer (moved from test/cmd/)
+└── ze-test/      # test runner + syslog
     ├── main.go      # subcommand dispatch
     ├── run.go       # run subcommand (from functional)
     └── syslog.go    # syslog subcommand (from test-syslog)
@@ -51,25 +51,25 @@ test/cmd/            # deleted entirely
 
 ## Design
 
-### zebgp-test subcommands
+### ze-test subcommands
 
 ```
-zebgp-test run [type] [flags]
+ze-test run [type] [flags]
     type: encoding, plugin, parsing, decoding, all (default: all)
     --list          list available tests
     --count N       repeat N times (stress test)
     -v              verbose output
 
-zebgp-test syslog [flags]
+ze-test syslog [flags]
     --port N        port to listen on (0 = dynamic)
     --pattern X     exit 0 when pattern matches
     --timeout D     timeout duration
 ```
 
-### zebgp-peer (unchanged interface)
+### ze-peer (unchanged interface)
 
 ```
-zebgp-peer [flags] [expect-file]
+ze-peer [flags] [expect-file]
     --sink          accept any, reply keepalive
     --echo          echo messages back
     --port N        listen port
@@ -100,16 +100,16 @@ Libraries (`internal/test/runner`, `internal/test/syslog`, `internal/test/peer`)
 
 - `test/cmd/migrate-ci/` - obsolete
 - `test/cmd/ci-fix-order/` - obsolete
-- `test/cmd/functional/` - replaced by cmd/zebgp-test
-- `test/cmd/test-syslog/` - folded into cmd/zebgp-test
-- `test/cmd/zebgp-peer/` - moved to cmd/
+- `test/cmd/functional/` - replaced by cmd/ze-test
+- `test/cmd/test-syslog/` - folded into cmd/ze-test
+- `test/cmd/ze-peer/` - moved to cmd/
 
 ## Files to Create
 
-- `cmd/zebgp-test/main.go` - subcommand dispatch
-- `cmd/zebgp-test/run.go` - run subcommand
-- `cmd/zebgp-test/syslog.go` - syslog subcommand
-- `cmd/zebgp-peer/main.go` - moved from test/cmd/
+- `cmd/ze-test/main.go` - subcommand dispatch
+- `cmd/ze-test/run.go` - run subcommand
+- `cmd/ze-test/syslog.go` - syslog subcommand
+- `cmd/ze-peer/main.go` - moved from test/cmd/
 
 ## Files to Modify
 
@@ -117,10 +117,10 @@ Libraries (`internal/test/runner`, `internal/test/syslog`, `internal/test/peer`)
 
 ## Implementation Steps
 
-1. **Create cmd/zebgp-test/main.go** - subcommand dispatch
-2. **Create cmd/zebgp-test/run.go** - port from test/cmd/functional/main.go
-3. **Create cmd/zebgp-test/syslog.go** - port from test/cmd/test-syslog/main.go
-4. **Move cmd/zebgp-peer/** - move from test/cmd/zebgp-peer/
+1. **Create cmd/ze-test/main.go** - subcommand dispatch
+2. **Create cmd/ze-test/run.go** - port from test/cmd/functional/main.go
+3. **Create cmd/ze-test/syslog.go** - port from test/cmd/test-syslog/main.go
+4. **Move cmd/ze-peer/** - move from test/cmd/ze-peer/
 5. **Update Makefile** - change functional target
 6. **Verify** - `make test && make lint && make functional`
 7. **Delete test/cmd/** - remove old directory
@@ -129,10 +129,10 @@ Libraries (`internal/test/runner`, `internal/test/syslog`, `internal/test/peer`)
 ## Implementation Summary
 
 ### What Was Implemented
-- Created `cmd/zebgp-test/` with subcommand dispatch (main.go, run.go, syslog.go)
-- Moved `zebgp-peer` from `test/cmd/` to `cmd/`
-- Updated Makefile functional targets to use `go run ./cmd/zebgp-test run`
-- Updated `internal/test/runner/runner.go` build path for zebgp-peer
+- Created `cmd/ze-test/` with subcommand dispatch (main.go, run.go, syslog.go)
+- Moved `ze-peer` from `test/cmd/` to `cmd/`
+- Updated Makefile functional targets to use `go run ./cmd/ze-test run`
+- Updated `internal/test/runner/runner.go` build path for ze-peer
 - Updated `internal/test/runner/report.go` debug commands
 - Deleted `test/cmd/` directory entirely (including obsolete migrate-ci, ci-fix-order)
 - Deleted stray `migrate-ci` directory at root
@@ -140,7 +140,7 @@ Libraries (`internal/test/runner`, `internal/test/syslog`, `internal/test/peer`)
 
 ### Design Insights
 - Libraries unchanged: `internal/test/runner`, `internal/test/syslog`, `internal/test/peer` all work with new cmd structure
-- Subcommand pattern (zebgp-test run, zebgp-test syslog) cleaner than separate binaries
+- Subcommand pattern (ze-test run, ze-test syslog) cleaner than separate binaries
 
 ## Checklist
 
@@ -156,8 +156,8 @@ Libraries (`internal/test/runner`, `internal/test/syslog`, `internal/test/peer`)
 - [x] `make functional` passes (37 encoding + 23 plugin + 12 parsing + 18 decoding = 90 tests)
 
 ### Completion
-- [x] cmd/zebgp-test created
-- [x] cmd/zebgp-peer moved
+- [x] cmd/ze-test created
+- [x] cmd/ze-peer moved
 - [x] test/cmd deleted
 - [x] Makefile updated
 - [ ] Spec moved to `docs/plan/done/`

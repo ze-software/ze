@@ -1,6 +1,6 @@
 # Migrated from test/data/plugin/watchdog.*
 
-# zebgp-peer expectations
+# ze-peer expectations
 stdin=peer:terminator=EOF_PEER
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0036020000001540010100400200400304010203044005040000006420424242422058585858
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0031020000001540010100400200400304C0A80164400504000000642064646464
@@ -28,7 +28,7 @@ tmpfs=watchdog.run:mode=755:terminator=EOF_RUN
 import os
 import time
 
-from zebgp_api import ready, send
+from ze_bgp_api import ready, send
 
 
 def main() -> None:
@@ -48,8 +48,8 @@ if __name__ == '__main__':
     main()
 EOF_RUN
 
-# zebgp configuration
-stdin=zebgp:terminator=EOF_CONF
+# ze bgp configuration
+stdin=ze-bgp:terminator=EOF_CONF
 plugin {
 	external service-watchdog {
 		run ./watchdog.run;
@@ -79,5 +79,5 @@ peer 127.0.0.1 {
 EOF_CONF
 
 # Process orchestration
-cmd=background:seq=1:exec=zebgp-peer --port $PORT:stdin=peer
-cmd=foreground:seq=2:exec=zebgp server -:stdin=zebgp:timeout=10s
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze bgp server -:stdin=ze-bgp:timeout=10s

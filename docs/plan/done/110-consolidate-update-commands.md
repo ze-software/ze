@@ -206,7 +206,7 @@ Updated `RegisterRouteHandlers()` to only register:
 - `update` - primary route interface
 - `watchdog announce`, `watchdog withdraw` - watchdog group control
 
-Added local parsers to `cmd/zebgp/encode.go` for CLI encode command.
+Added local parsers to `cmd/ze/bgp/encode.go` for CLI encode command.
 
 #### Step 2.5: Add MUP support (deferred)
 
@@ -245,7 +245,7 @@ Consider implementing after core Phase 2 is complete.
 | `internal/plugin/route.go` | Remove handleAnnounceEOR, VPLS, L2VPN handlers |
 | `internal/plugin/route_parse_test.go` | Remove unused test helpers |
 | `internal/plugin/types.go` | Add EORFamilies to UpdateTextResult |
-| `cmd/zebgp/encode.go` | Add local parseVPLSArgs, parseL2VPNArgs for encode CLI |
+| `cmd/ze/bgp/encode.go` | Add local parseVPLSArgs, parseL2VPNArgs for encode CLI |
 | `test/data/plugin/eor.ci` | Update to `update text nlri <family> eor` syntax |
 | `test/data/plugin/eor.run` | Update to new EOR syntax |
 

@@ -395,8 +395,8 @@ peer 10.0.0.1 {
 ## Documentation Impact
 
 Design changes require updating:
-- [ ] `.claude/zebgp/api/ARCHITECTURE.md` - new API binding model
-- [ ] `.claude/zebgp/config/SYNTAX.md` - `peer {` and `api <name> {}` syntax
+- [ ] `docs/architecture/api/ARCHITECTURE.md` - new API binding model
+- [ ] `docs/architecture/config/SYNTAX.md` - `peer {` and `api <name> {}` syntax
 - [ ] `docs/plan/CLAUDE_CONTINUATION.md` - phase status
 
 ## Implementation Phases
@@ -1361,8 +1361,8 @@ Update ExaBGP config migrator to:
 
 ### Phase 5: Documentation Updates
 
-- [ ] Update `.claude/zebgp/api/ARCHITECTURE.md`
-- [ ] Update `.claude/zebgp/config/SYNTAX.md`
+- [ ] Update `docs/architecture/api/ARCHITECTURE.md`
+- [ ] Update `docs/architecture/config/SYNTAX.md`
 - [ ] Update `docs/plan/CLAUDE_CONTINUATION.md`
 
 ## Verification Checklist

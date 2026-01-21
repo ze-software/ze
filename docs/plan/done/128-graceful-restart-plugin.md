@@ -38,10 +38,10 @@ GR plugin implementation exists but cannot receive config until Phase 2 is compl
 **Old syntax (deprecated):**
 ```
 plugin gr {
-    run "zebgp plugin gr";
+    run "ze bgp plugin gr";
 }
 plugin rib {
-    run "zebgp plugin rib";
+    run "ze bgp plugin rib";
 }
 ```
 
@@ -49,11 +49,11 @@ plugin rib {
 ```
 plugin {
     external gr {
-        run "zebgp plugin gr";
+        run "ze bgp plugin gr";
         encoder json;
     }
     external rib {
-        run "zebgp plugin rib";
+        run "ze bgp plugin rib";
     }
 }
 ```
@@ -68,7 +68,7 @@ This mirrors `template { group <name> {} }` syntax and enables:
 # Plugin block MUST come first in config
 plugin {
     external gr {
-        run "zebgp plugin gr";
+        run "ze bgp plugin gr";
         encoder json;
     }
 }
@@ -143,7 +143,7 @@ config done
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │                              CONFIG FILE                                     │
 │                                                                             │
-│   plugin gr { run "zebgp plugin gr"; }     ◄── Parsed first                 │
+│   plugin gr { run "ze bgp plugin gr"; }     ◄── Parsed first                 │
 │                                                                             │
 │   peer 127.0.0.1 {                                                          │
 │       capability {                                                          │
@@ -362,13 +362,13 @@ func (g *GRPlugin) doStartupProtocol() {
 | File | Purpose |
 |------|---------|
 | `internal/plugin/gr/gr.go` | GR plugin implementation |
-| `cmd/zebgp/plugin_gr.go` | CLI command `zebgp plugin gr` |
+| `cmd/ze/bgp/plugin_gr.go` | CLI command `ze bgp plugin gr` |
 
 ## Files to Modify
 | File | Change |
 |------|--------|
 | `internal/plugin/rib/rib.go` | Remove GR config/capability code |
-| `cmd/zebgp/plugin.go` | Add `gr` case to dispatch + update usage |
+| `cmd/ze/bgp/plugin.go` | Add `gr` case to dispatch + update usage |
 | `test/data/plugin/graceful-restart.conf` | Use GR plugin instead of RIB |
 
 ## Implementation Steps
@@ -431,14 +431,14 @@ func (g *GRPlugin) registerCapabilities() {
 }
 ```
 
-### 2. CLI Command (`cmd/zebgp/plugin_gr.go`)
+### 2. CLI Command (`cmd/ze/bgp/plugin_gr.go`)
 
 ```go
 package main
 
 import (
     "os"
-    "codeberg.org/thomas-mangin/zebgp/internal/plugin/gr"
+    "codeberg.org/thomas-mangin/ze/internal/plugin/gr"
 )
 
 func cmdPluginGR(_ []string) int {
@@ -473,7 +473,7 @@ In `internal/plugin/rib/rib.go`:
 `test/data/plugin/graceful-restart.conf`:
 ```
 plugin gr {
-    run "zebgp plugin gr";
+    run "ze bgp plugin gr";
     encoder json;
 }
 
@@ -509,7 +509,7 @@ peer 127.0.0.1 {
 3. **Functional test**: `go run ./test/cmd/functional plugin 6`
 4. **Manual test**:
    ```bash
-   SLOG_LEVEL=DEBUG zebgp server test/data/plugin/graceful-restart.conf
+   SLOG_LEVEL=DEBUG ze bgp server test/data/plugin/graceful-restart.conf
    ```
    Check that GR capability appears in OPEN message.
 
@@ -525,8 +525,8 @@ peer 127.0.0.1 {
 ### Phase 1: What Was Implemented
 - `internal/plugin/gr/gr.go` - GR plugin with 5-stage startup protocol
 - `internal/plugin/gr/gr_test.go` - Unit tests for config parsing, wire format, startup
-- `cmd/zebgp/plugin_gr.go` - CLI command wrapper
-- `cmd/zebgp/plugin.go` - Added `gr` case to dispatch + usage string
+- `cmd/ze/bgp/plugin_gr.go` - CLI command wrapper
+- `cmd/ze/bgp/plugin.go` - Added `gr` case to dispatch + usage string
 - `internal/plugin/rib/rib.go` - Removed GR config/capability code (grConfig field, registerCapabilities)
 - `test/data/plugin/graceful-restart.conf` - Updated to use GR plugin
 

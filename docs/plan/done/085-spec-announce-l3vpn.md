@@ -4,9 +4,9 @@
 Implement `AnnounceL3VPN` and `WithdrawL3VPN` in reactor to enable L3VPN (MPLS VPN) route announcements via API.
 
 ## Required Reading
-- [ ] `.claude/zebgp/wire/NLRI.md` - VPN NLRI format (RD + labels + prefix)
-- [ ] `.claude/zebgp/UPDATE_BUILDING.md` - BuildVPN usage pattern
-- [ ] `.claude/zebgp/api/ARCHITECTURE.md` - API reactor interface
+- [ ] `docs/architecture/wire/NLRI.md` - VPN NLRI format (RD + labels + prefix)
+- [ ] `docs/architecture/UPDATE_BUILDING.md` - BuildVPN usage pattern
+- [ ] `docs/architecture/api/ARCHITECTURE.md` - API reactor interface
 
 **Key insights:**
 - VPN routes use SAFI 128 with RD + label stack + prefix in NLRI
@@ -73,7 +73,7 @@ Implement `AnnounceL3VPN` and `WithdrawL3VPN` in reactor to enable L3VPN (MPLS V
 ### Documentation
 - [x] Required docs read
 - [x] RFC references added (comments in code)
-- [ ] `.claude/zebgp/` updated if schema changed (N/A)
+- [ ] `docs/architecture/` updated if schema changed (N/A)
 
 ### Completion
 - [ ] Spec moved to `docs/plan/done/NNN-<name>.md`

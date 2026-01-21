@@ -7,9 +7,9 @@ Remove `announce route` and `announce attributes` commands.
 
 ## Required Reading (MUST complete before implementation)
 
-- [x] `.claude/zebgp/api/ARCHITECTURE.md` - API command structure
-- [x] `.claude/zebgp/UPDATE_BUILDING.md` - UPDATE message building
-- [x] `.claude/zebgp/config/SYNTAX.md` - Config syntax patterns
+- [x] `docs/architecture/api/ARCHITECTURE.md` - API command structure
+- [x] `docs/architecture/UPDATE_BUILDING.md` - UPDATE message building
+- [x] `docs/architecture/config/SYNTAX.md` - Config syntax patterns
 
 **Key insights from docs:**
 - API routes use Build path (local origination), not Forward path
@@ -717,8 +717,8 @@ Wire bytes encoding controlled at runtime via `session api encoding` command.
 
 | File | Change |
 |------|--------|
-| `.claude/zebgp/api/ARCHITECTURE.md` | Update command reference |
-| `.claude/zebgp/api/COMMANDS.md` | Update command syntax |
+| `docs/architecture/api/ARCHITECTURE.md` | Update command reference |
+| `docs/architecture/api/COMMANDS.md` | Update command syntax |
 
 ## Current State
 
@@ -763,8 +763,8 @@ Wire bytes encoding controlled at runtime via `session api encoding` command.
 
 ### Phase 5: Documentation
 
-1. Update `.claude/zebgp/api/ARCHITECTURE.md`
-2. Update `.claude/zebgp/api/COMMANDS.md` (if exists)
+1. Update `docs/architecture/api/ARCHITECTURE.md`
+2. Update `docs/architecture/api/COMMANDS.md` (if exists)
 
 ## Checklist
 

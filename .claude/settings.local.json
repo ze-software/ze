@@ -101,7 +101,9 @@
       "Bash(pkill:*)",
       "Bash(python3:*)",
       "Bash(/tmp/zebgp-peer:*)",
-      "Bash(./migrate-ci:*)"
+      "Bash(./migrate-ci:*)",
+      "Bash(./bin/zebgp-test run:*)",
+      "Bash(./scripts/migrate-plugin-tests.sh:*)"
     ],
     "deny": [
       "Bash(git reset:*)",

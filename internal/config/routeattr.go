@@ -7,7 +7,7 @@ import (
 	"strconv"
 	"strings"
 
-	"codeberg.org/thomas-mangin/zebgp/internal/bgp/attribute"
+	"codeberg.org/thomas-mangin/ze/internal/bgp/attribute"
 )
 
 // Origin represents the ORIGIN path attribute.

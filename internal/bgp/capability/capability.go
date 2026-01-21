@@ -19,7 +19,7 @@ import (
 	"errors"
 	"fmt"
 
-	"codeberg.org/thomas-mangin/zebgp/internal/bgp/nlri"
+	"codeberg.org/thomas-mangin/ze/internal/bgp/nlri"
 )
 
 // Errors.

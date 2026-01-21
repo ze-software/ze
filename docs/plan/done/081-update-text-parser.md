@@ -11,9 +11,9 @@ Parser infrastructure for `update text` command format:
 
 ## Required Reading
 
-- [x] `.claude/zebgp/api/ARCHITECTURE.md` - API command structure
-- [x] `.claude/zebgp/wire/NLRI.md` - NLRI types and families
-- [x] `.claude/zebgp/wire/ATTRIBUTES.md` - Path attribute handling
+- [x] `docs/architecture/api/ARCHITECTURE.md` - API command structure
+- [x] `docs/architecture/wire/NLRI.md` - NLRI types and families
+- [x] `docs/architecture/wire/ATTRIBUTES.md` - Path attribute handling
 
 **Key insights:**
 - Attributes accumulate across sections; each `nlri` section captures snapshot
@@ -108,7 +108,7 @@ N/A - This is API parsing, not wire protocol. No RFC references needed.
 
 ### Documentation
 - [x] Required docs read
-- [x] `.claude/zebgp/api/ARCHITECTURE.md` updated if API schema changed
+- [x] `docs/architecture/api/ARCHITECTURE.md` updated if API schema changed
 
 ### Completion
 - [x] Spec moved to `docs/plan/done/NNN-update-text-parser.md`

@@ -4,15 +4,13 @@ import (
 	"log/slog"
 	"log/syslog"
 	"os"
-
-	"codeberg.org/thomas-mangin/zebgp/internal/env"
 )
 
 // newSyslogHandler creates a syslog handler.
-// Reads zebgp.log.destination for syslog address.
+// Reads ze.log.bgp.destination for syslog address.
 // Falls back to stderr if syslog connection fails.
 func newSyslogHandler(opts *slog.HandlerOptions) slog.Handler {
-	addr := env.Get("log", "destination")
+	addr := getLogEnv("destination")
 
 	// Determine network and address based on addr format
 	var network, raddr string
@@ -31,7 +29,7 @@ func newSyslogHandler(opts *slog.HandlerOptions) slog.Handler {
 		raddr = addr
 	}
 
-	w, err := syslog.Dial(network, raddr, syslog.LOG_INFO|syslog.LOG_DAEMON, "zebgp")
+	w, err := syslog.Dial(network, raddr, syslog.LOG_INFO|syslog.LOG_DAEMON, "ze-bgp")
 	if err != nil {
 		// Fall back to stderr on error
 		return slog.NewTextHandler(os.Stderr, opts)

@@ -19,8 +19,8 @@ const (
 // Environment holds all environment-based configuration.
 // This provides ExaBGP-compatible environment variable support.
 //
-// Variable format: zebgp.<section>.<option> or zebgp_<section>_<option>
-// Priority: zebgp.x.y > zebgp_x_y > default.
+// Variable format: ze.bgp.<section>.<option> or ze_bgp_<section>_<option>
+// Priority: ze.bgp.x.y > ze_bgp_x_y > default.
 type Environment struct {
 	Daemon  DaemonEnv
 	Log     LogEnv
@@ -154,8 +154,8 @@ func (e *Environment) loadDefaults() {
 	e.API.Encoder = "json"
 	e.API.Respawn = true
 	e.API.CLI = true
-	e.API.PipeName = "zebgp"   //nolint:goconst // Default name, not worth a constant
-	e.API.SocketName = "zebgp" //nolint:goconst // Default name, not worth a constant
+	e.API.PipeName = "ze-bgp"   //nolint:goconst // Default name, not worth a constant
+	e.API.SocketName = "ze-bgp" //nolint:goconst // Default name, not worth a constant
 
 	// Reactor defaults
 	e.Reactor.Speed = 1.0
@@ -167,7 +167,7 @@ func (e *Environment) OpenWaitDuration() time.Duration {
 }
 
 // SocketPath returns the full path to the API socket.
-// Can be overridden with zebgp.api.socketpath or zebgp_api_socketpath env var.
+// Can be overridden with ze.bgp.api.socketpath or ze_bgp_api_socketpath env var.
 func (e *Environment) SocketPath() string {
 	if path := getEnv("api", "socketpath"); path != "" {
 		return path
@@ -175,11 +175,11 @@ func (e *Environment) SocketPath() string {
 	return "/var/run/" + e.API.SocketName + ".sock"
 }
 
-// getEnv returns the environment variable value with ExaBGP naming.
-// Checks both dot notation (zebgp.section.option) and underscore (zebgp_section_option).
+// getEnv returns the environment variable value.
+// Checks both dot notation (ze.bgp.section.option) and underscore (ze_bgp_section_option).
 func getEnv(section, option string) string {
 	// Dot notation first (higher priority)
-	dotKey := "zebgp." + section + "." + option
+	dotKey := "ze.bgp." + section + "." + option
 	if v := os.Getenv(dotKey); v != "" {
 		return v
 	}
@@ -490,7 +490,7 @@ func (e *Environment) loadFromEnvStrict() error {
 				continue
 			}
 			if err := e.SetConfigValue(section, option, value); err != nil {
-				return fmt.Errorf("env var zebgp.%s.%s: %w", section, option, err)
+				return fmt.Errorf("env var ze.bgp.%s.%s: %w", section, option, err)
 			}
 		}
 	}

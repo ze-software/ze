@@ -5,8 +5,8 @@ import (
 	"sync"
 	"time"
 
-	"codeberg.org/thomas-mangin/zebgp/internal/bgp/nlri"
-	"codeberg.org/thomas-mangin/zebgp/internal/rib"
+	"codeberg.org/thomas-mangin/ze/internal/bgp/nlri"
+	"codeberg.org/thomas-mangin/ze/internal/rib"
 )
 
 // Transaction errors for named commits.

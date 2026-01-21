@@ -28,7 +28,7 @@ const (
 )
 
 var (
-	testZebgpPath  string
+	testZePath     string
 	testScriptPath string
 	testTmpDir     string
 	testSetupOnce  sync.Once
@@ -47,7 +47,7 @@ func TestMain(m *testing.M) {
 	os.Exit(code)
 }
 
-// setupTestBinaries builds zebgp once for all tests.
+// setupTestBinaries builds ze once for all tests.
 func setupTestBinaries(t *testing.T) {
 	t.Helper()
 	testSetupOnce.Do(func() {
@@ -60,19 +60,19 @@ func setupTestBinaries(t *testing.T) {
 			return
 		}
 
-		testTmpDir, err = os.MkdirTemp("", "zebgp-integration-*")
+		testTmpDir, err = os.MkdirTemp("", "ze-integration-*")
 		if err != nil {
 			testSetupErr = fmt.Errorf("create temp dir: %w", err)
 			return
 		}
 
-		testZebgpPath = filepath.Join(testTmpDir, "zebgp")
+		testZePath = filepath.Join(testTmpDir, "ze")
 		//nolint:gosec // Test code, paths from temp dir.
-		buildCmd := exec.CommandContext(ctx, "go", "build", "-o", testZebgpPath, "./cmd/zebgp")
+		buildCmd := exec.CommandContext(ctx, "go", "build", "-o", testZePath, "./cmd/ze")
 		buildCmd.Dir = projectRoot
 		buildOutput, err := buildCmd.CombinedOutput()
 		if err != nil {
-			testSetupErr = fmt.Errorf("build zebgp: %w\n%s", err, buildOutput)
+			testSetupErr = fmt.Errorf("build ze: %w\n%s", err, buildOutput)
 			return
 		}
 
@@ -216,7 +216,7 @@ func newBridgeTestHarness(t *testing.T, ctx context.Context, testMode string, fl
 	args = append(args, testScriptPath)
 
 	//nolint:gosec // Test harness, paths from test fixtures.
-	cmd := exec.CommandContext(ctx, testZebgpPath, args...)
+	cmd := exec.CommandContext(ctx, testZePath, args...)
 	cmd.Env = append(os.Environ(), "TEST_MODE="+testMode)
 
 	stdin, err := cmd.StdinPipe()
@@ -337,7 +337,7 @@ func TestBridgeIntegration_RealPlugin(t *testing.T) {
 	defer cancel()
 
 	//nolint:gosec // Test code, paths from test fixtures.
-	bridgeCmd := exec.CommandContext(ctx, testZebgpPath, "exabgp", "plugin",
+	bridgeCmd := exec.CommandContext(ctx, testZePath, "exabgp", "plugin",
 		"--family", "ipv4/unicast", testScriptPath)
 	bridgeCmd.Env = append(os.Environ(), "TEST_MODE=echo")
 
@@ -414,7 +414,7 @@ func TestBridgeIntegration_RealPlugin(t *testing.T) {
 	t.Log("Stage 6: Testing announce...")
 
 	zebgpEvent := map[string]any{
-		"meta":    map[string]any{"version": "1.0.0", "format": "zebgp"},
+		"meta":    map[string]any{"version": "1.0.0", "format": "ze-bgp"},
 		"message": map[string]any{"type": "update", "id": 1, "direction": "received"},
 		"peer":    map[string]any{"address": "10.0.0.1", "asn": 65001},
 		"origin":  "igp",
@@ -445,7 +445,7 @@ func TestBridgeIntegration_RealPlugin(t *testing.T) {
 	t.Log("Stage 7: Testing withdraw...")
 
 	withdrawEvent := map[string]any{
-		"meta":    map[string]any{"version": "1.0.0", "format": "zebgp"},
+		"meta":    map[string]any{"version": "1.0.0", "format": "ze-bgp"},
 		"message": map[string]any{"type": "update", "id": 2, "direction": "received"},
 		"peer":    map[string]any{"address": "10.0.0.1", "asn": 65001},
 		"ipv4/unicast": []any{
@@ -488,7 +488,7 @@ func TestBridgeIntegration_StartupProtocol(t *testing.T) {
 	defer cancel()
 
 	//nolint:gosec // Test code, paths from test fixtures.
-	bridgeCmd := exec.CommandContext(ctx, testZebgpPath, "exabgp", "plugin",
+	bridgeCmd := exec.CommandContext(ctx, testZePath, "exabgp", "plugin",
 		"--family", "ipv4/unicast",
 		"--family", "ipv6/unicast",
 		"--route-refresh",
@@ -578,7 +578,7 @@ func TestBridgeIntegration_PluginExit(t *testing.T) {
 	defer cancel()
 
 	//nolint:gosec // Test code, paths from test fixtures.
-	bridgeCmd := exec.CommandContext(ctx, testZebgpPath, "exabgp", "plugin",
+	bridgeCmd := exec.CommandContext(ctx, testZePath, "exabgp", "plugin",
 		"--family", "ipv4/unicast", testScriptPath)
 	bridgeCmd.Env = append(os.Environ(), "TEST_MODE=noop")
 
@@ -663,7 +663,7 @@ func TestBridgeIntegration_IPv6(t *testing.T) {
 	h.CompleteStartup()
 
 	h.SendJSON(map[string]any{
-		"meta":    map[string]any{"version": "1.0.0", "format": "zebgp"},
+		"meta":    map[string]any{"version": "1.0.0", "format": "ze-bgp"},
 		"message": map[string]any{"type": "update", "direction": "received"},
 		"peer":    map[string]any{"address": "2001:db8::1", "asn": 65001},
 		"origin":  "igp",
@@ -695,7 +695,7 @@ func TestBridgeIntegration_MultipleNLRI(t *testing.T) {
 	h.CompleteStartup()
 
 	h.SendJSON(map[string]any{
-		"meta":    map[string]any{"version": "1.0.0", "format": "zebgp"},
+		"meta":    map[string]any{"version": "1.0.0", "format": "ze-bgp"},
 		"message": map[string]any{"type": "update", "direction": "received"},
 		"peer":    map[string]any{"address": "10.0.0.1", "asn": 65001},
 		"origin":  "igp",
@@ -738,7 +738,7 @@ func TestBridgeIntegration_StateMessage(t *testing.T) {
 	h.CompleteStartup()
 
 	h.SendJSON(map[string]any{
-		"meta":    map[string]any{"version": "1.0.0", "format": "zebgp"},
+		"meta":    map[string]any{"version": "1.0.0", "format": "ze-bgp"},
 		"message": map[string]any{"type": "state", "direction": "received"},
 		"peer":    map[string]any{"address": "10.0.0.1", "asn": 65001},
 		"state":   "up",
@@ -768,7 +768,7 @@ func TestBridgeIntegration_NotificationMessage(t *testing.T) {
 	h.CompleteStartup()
 
 	h.SendJSON(map[string]any{
-		"meta":    map[string]any{"version": "1.0.0", "format": "zebgp"},
+		"meta":    map[string]any{"version": "1.0.0", "format": "ze-bgp"},
 		"message": map[string]any{"type": "notification", "direction": "received"},
 		"peer":    map[string]any{"address": "10.0.0.1", "asn": 65001},
 		"notification": map[string]any{

@@ -6,7 +6,7 @@ import (
 	"sort"
 	"strings"
 
-	"codeberg.org/thomas-mangin/zebgp/internal/config"
+	"codeberg.org/thomas-mangin/ze/internal/config"
 )
 
 // ErrNilTree is returned when a nil tree is passed.
@@ -23,7 +23,7 @@ type MigrateResult struct {
 //
 // Transformations applied:
 //   - neighbor → peer
-//   - process → plugin (wrapped with zebgp exabgp plugin bridge)
+//   - process → plugin (wrapped with ze exabgp plugin bridge)
 //   - process { processes [...] } → process NAME { ... } inside peer
 //   - capability { route-refresh; } → capability { route-refresh enable; }
 //   - If GR or route-refresh: inject RIB plugin
@@ -105,7 +105,7 @@ func NeedsRIBPlugin(tree *config.Tree) bool {
 // injectRIBPlugin adds the RIB plugin to the tree.
 func injectRIBPlugin(tree *config.Tree) {
 	ribPlugin := config.NewTree()
-	ribPlugin.Set("run", `"zebgp plugin rib"`)
+	ribPlugin.Set("run", `"ze bgp plugin rib"`)
 	tree.AddListEntry("plugin", "rib", ribPlugin)
 }
 
@@ -127,7 +127,7 @@ func migrateProcesses(tree *config.Tree, result *MigrateResult) map[string]strin
 		if runCmd, ok := processTree.Get("run"); ok {
 			// Strip quotes if present.
 			runCmd = strings.Trim(runCmd, `"'`)
-			wrappedCmd := fmt.Sprintf(`"zebgp exabgp plugin %s"`, runCmd)
+			wrappedCmd := fmt.Sprintf(`"ze exabgp plugin %s"`, runCmd)
 			plugin.Set("run", wrappedCmd)
 		}
 

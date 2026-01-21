@@ -4,8 +4,8 @@ package storage
 import (
 	"bytes"
 
-	"codeberg.org/thomas-mangin/zebgp/internal/bgp/nlri"
-	"codeberg.org/thomas-mangin/zebgp/internal/pool"
+	"codeberg.org/thomas-mangin/ze/internal/bgp/nlri"
+	"codeberg.org/thomas-mangin/ze/internal/pool"
 )
 
 // NLRISet stores NLRIs for one attribute set.

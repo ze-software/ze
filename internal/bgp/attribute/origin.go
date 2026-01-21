@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"log/slog"
 
-	bgpctx "codeberg.org/thomas-mangin/zebgp/internal/bgp/context"
-	"codeberg.org/thomas-mangin/zebgp/internal/bgp/wire"
+	bgpctx "codeberg.org/thomas-mangin/ze/internal/bgp/context"
+	"codeberg.org/thomas-mangin/ze/internal/bgp/wire"
 )
 
 // Origin represents the ORIGIN path attribute.

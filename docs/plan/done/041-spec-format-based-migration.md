@@ -11,7 +11,7 @@
 │  3. docs/plan/CLAUDE_CONTINUATION.md - Current state                 │
 │  4. THIS SPEC FILE - Design requirements                        │
 │  5. internal/config/migration/*.go - Current implementation          │
-│  6. .claude/zebgp/config/SYNTAX.md - Config design docs         │
+│  6. docs/architecture/config/SYNTAX.md - Config design docs         │
 │                                                                 │
 │  DO NOT PROCEED until all are read and understood.              │
 │                                                                 │
@@ -23,9 +23,9 @@
 ## Documentation Impact
 
 **MUST update these docs if design changes:**
-- [ ] `.claude/zebgp/config/SYNTAX.md` - if migration syntax/behavior changes
+- [ ] `docs/architecture/config/SYNTAX.md` - if migration syntax/behavior changes
 - [ ] `docs/plan/CLAUDE_CONTINUATION.md` - always update after implementation
-- [ ] `cmd/zebgp/README.md` - if CLI flags change (--dry-run, --list)
+- [ ] `cmd/ze/bgp/README.md` - if CLI flags change (--dry-run, --list)
 
 ## Task
 
@@ -211,7 +211,7 @@ func NeedsMigration(tree *config.Tree) bool {
 
 **Migrate (replace mode):**
 ```
-$ zebgp config migrate --replace legacy.conf
+$ ze bgp config migrate --replace legacy.conf
 
 Applying transformations:
   ✅ neighbor->peer
@@ -226,7 +226,7 @@ Config updated: legacy.conf
 
 **Migrate (stdout mode - existing behavior):**
 ```
-$ zebgp config migrate legacy.conf
+$ ze bgp config migrate legacy.conf
 
 # Progress to stderr:
 Applying transformations:
@@ -242,7 +242,7 @@ peer 10.0.0.1 { ... }
 
 **Dry-run (partially migrated):**
 ```
-$ zebgp config migrate --dry-run legacy.conf
+$ ze bgp config migrate --dry-run legacy.conf
 
 Transformation analysis:
   ✅ neighbor->peer (done)
@@ -256,7 +256,7 @@ Result: 2 transformations would apply. All would succeed.
 
 **Dry-run (would fail):**
 ```
-$ zebgp config migrate --dry-run broken.conf
+$ ze bgp config migrate --dry-run broken.conf
 
 Transformation analysis:
   ✅ neighbor->peer (done)
@@ -270,7 +270,7 @@ Result: Transformation would fail.
 
 **Dry-run (nothing to do):**
 ```
-$ zebgp config migrate --dry-run modern.conf
+$ ze bgp config migrate --dry-run modern.conf
 
 Transformation analysis:
   ✅ neighbor->peer (done)
@@ -284,7 +284,7 @@ Result: No transformation needed.
 
 **List transformations:**
 ```
-$ zebgp config migrate --list
+$ ze bgp config migrate --list
 
 Available transformations (in order):
   neighbor->peer           Rename 'neighbor' blocks to 'peer'
@@ -343,7 +343,7 @@ Ensure all apply functions have signature: `func(tree *config.Tree) (*config.Tre
 
 ### Phase 4: Update CLI
 
-**File:** `cmd/zebgp/config_migrate.go`
+**File:** `cmd/ze/bgp/config_migrate.go`
 
 1. Add `--dry-run` flag
 2. Add `--list` flag

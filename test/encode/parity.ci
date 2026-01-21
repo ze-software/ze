@@ -1,4 +1,4 @@
-# zebgp-peer expectations
+# ze-peer expectations
 stdin=peer:terminator=EOF_PEER
 cmd=api:conn=1:seq=1:text=announce ipv6/mpls-vpn 2001:4b50:20c0::/48 next-hop ::ffff:81.52.17.146 rd 3215:583457597 label 926 origin igp as-path [25186 65000 64512] local-preference 100 community [65000:33] extended-community [target:10283:83451000] originator-id 57.35.2.240
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF007E02000000674001010040020E0203000062620000FDE80000FC0040050400000064C00804FDE80021800904392302F0800E2F00028018000000000000000000000000000000000000FFFF5134119200880039E100000C8F22C6DB3D20014B5020C0C010080002282B04F95C78
@@ -8,8 +8,8 @@ cmd=api:conn=1:seq=1:text=announce eor ipv6/mpls-vpn
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001E0200000007900F0003000280
 EOF_PEER
 
-# zebgp configuration
-stdin=zebgp:terminator=EOF_CONF
+# ze bgp configuration
+stdin=ze-bgp:terminator=EOF_CONF
 peer 127.0.0.1 {
 	router-id 1.2.3.4;
 	local-address 127.0.0.1;
@@ -29,5 +29,5 @@ peer 127.0.0.1 {
 EOF_CONF
 
 # Process orchestration
-cmd=background:seq=1:exec=zebgp-peer --port $PORT:stdin=peer
-cmd=foreground:seq=2:exec=zebgp server -:stdin=zebgp:timeout=10s
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze bgp server -:stdin=ze-bgp:timeout=10s

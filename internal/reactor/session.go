@@ -13,15 +13,15 @@ import (
 	"sync/atomic"
 	"time"
 
-	"codeberg.org/thomas-mangin/zebgp/internal/bgp/attribute"
-	"codeberg.org/thomas-mangin/zebgp/internal/bgp/capability"
-	bgpctx "codeberg.org/thomas-mangin/zebgp/internal/bgp/context"
-	"codeberg.org/thomas-mangin/zebgp/internal/bgp/fsm"
-	"codeberg.org/thomas-mangin/zebgp/internal/bgp/message"
-	"codeberg.org/thomas-mangin/zebgp/internal/bgp/wire"
-	"codeberg.org/thomas-mangin/zebgp/internal/plugin"
-	"codeberg.org/thomas-mangin/zebgp/internal/source"
-	"codeberg.org/thomas-mangin/zebgp/internal/trace"
+	"codeberg.org/thomas-mangin/ze/internal/bgp/attribute"
+	"codeberg.org/thomas-mangin/ze/internal/bgp/capability"
+	bgpctx "codeberg.org/thomas-mangin/ze/internal/bgp/context"
+	"codeberg.org/thomas-mangin/ze/internal/bgp/fsm"
+	"codeberg.org/thomas-mangin/ze/internal/bgp/message"
+	"codeberg.org/thomas-mangin/ze/internal/bgp/wire"
+	"codeberg.org/thomas-mangin/ze/internal/plugin"
+	"codeberg.org/thomas-mangin/ze/internal/source"
+	"codeberg.org/thomas-mangin/ze/internal/trace"
 )
 
 // readBufPool4K provides reusable 4K read buffers for standard messages.

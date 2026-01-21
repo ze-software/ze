@@ -17,7 +17,7 @@ import (
 	"errors"
 	"fmt"
 
-	bgpctx "codeberg.org/thomas-mangin/zebgp/internal/bgp/context"
+	bgpctx "codeberg.org/thomas-mangin/ze/internal/bgp/context"
 )
 
 // Errors for attribute parsing and validation.

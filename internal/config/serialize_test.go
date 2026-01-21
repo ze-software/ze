@@ -204,7 +204,7 @@ func TestSerializeMultiLeaf(t *testing.T) {
 // PREVENTS: Incompatibility with real configs.
 func TestRoundtripConfigFiles(t *testing.T) {
 	// Find config files
-	files, err := filepath.Glob("../../etc/zebgp/*.conf")
+	files, err := filepath.Glob("../../etc/ze/bgp/*.conf")
 	if err != nil || len(files) == 0 {
 		t.Skip("no config files found")
 	}

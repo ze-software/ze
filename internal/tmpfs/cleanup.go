@@ -12,7 +12,7 @@ import (
 // Cleanup is called automatically on ctx.Done() or SIGINT/SIGTERM.
 // The returned cleanup function should still be deferred to handle normal exit.
 func (v *Tmpfs) WriteToTempWithContext(ctx context.Context) (dir string, cleanup func(), err error) {
-	dir, err = os.MkdirTemp("", "zebgp-tmpfs-*")
+	dir, err = os.MkdirTemp("", "ze-tmpfs-*")
 	if err != nil {
 		return "", nil, err
 	}

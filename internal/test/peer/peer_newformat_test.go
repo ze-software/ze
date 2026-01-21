@@ -25,7 +25,7 @@ option=open:value=send-unknown-capability
 option=open:value=inspect-open-message
 option=open:value=send-unknown-message
 option=update:value=send-default-route
-option=env:var=zebgp.log.server:value=debug
+option=env:var=ze.log.bgp.server:value=debug
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001304
 expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002D02
 expect=json:conn=1:seq=1:json={"type":"keepalive"}

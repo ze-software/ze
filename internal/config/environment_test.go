@@ -54,7 +54,7 @@ func TestLoadEnvironmentDefaults(t *testing.T) {
 	if env.API.Encoder != "json" {
 		t.Errorf("API.Encoder = %q, want %q", env.API.Encoder, "json")
 	}
-	const defaultSocketName = "zebgp"
+	const defaultSocketName = "ze-bgp"
 	if env.API.SocketName != defaultSocketName {
 		t.Errorf("API.SocketName = %q, want %q", env.API.SocketName, defaultSocketName)
 	}
@@ -62,10 +62,10 @@ func TestLoadEnvironmentDefaults(t *testing.T) {
 
 func TestLoadEnvironmentFromEnv(t *testing.T) {
 	// Use t.Setenv for test-scoped env vars
-	t.Setenv("zebgp.log.level", "DEBUG")
-	t.Setenv("zebgp.tcp.port", "1179")
-	t.Setenv("zebgp.bgp.passive", "true")
-	t.Setenv("zebgp.api.socketname", "test-socket")
+	t.Setenv("ze.bgp.log.level", "DEBUG")
+	t.Setenv("ze.bgp.tcp.port", "1179")
+	t.Setenv("ze.bgp.bgp.passive", "true")
+	t.Setenv("ze.bgp.api.socketname", "test-socket")
 
 	env, err := LoadEnvironment()
 	if err != nil {
@@ -88,8 +88,8 @@ func TestLoadEnvironmentFromEnv(t *testing.T) {
 
 func TestLoadEnvironmentUnderscoreNotation(t *testing.T) {
 	// Use t.Setenv for test-scoped env vars
-	t.Setenv("zebgp_log_level", "WARNING")
-	t.Setenv("zebgp_tcp_port", "2179")
+	t.Setenv("ze_bgp_log_level", "WARNING")
+	t.Setenv("ze_bgp_tcp_port", "2179")
 
 	env, err := LoadEnvironment()
 	if err != nil {
@@ -106,8 +106,8 @@ func TestLoadEnvironmentUnderscoreNotation(t *testing.T) {
 
 func TestLoadEnvironmentDotPriority(t *testing.T) {
 	// Set both notations - dot should take priority
-	t.Setenv("zebgp.log.level", "DEBUG")
-	t.Setenv("zebgp_log_level", "WARNING")
+	t.Setenv("ze.bgp.log.level", "DEBUG")
+	t.Setenv("ze_bgp_log_level", "WARNING")
 
 	env, err := LoadEnvironment()
 	if err != nil {
@@ -143,7 +143,7 @@ func TestLoadEnvironmentBooleanValues(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.value, func(t *testing.T) {
-			t.Setenv("zebgp.bgp.passive", tt.value)
+			t.Setenv("ze.bgp.bgp.passive", tt.value)
 			env, err := LoadEnvironment()
 			if err != nil {
 				t.Fatalf("LoadEnvironment() error = %v", err)
@@ -158,7 +158,7 @@ func TestLoadEnvironmentBooleanValues(t *testing.T) {
 
 func TestLoadEnvironmentBooleanInvalidValue(t *testing.T) {
 	// Invalid boolean values now error (BREAKING CHANGE from silent false)
-	t.Setenv("zebgp.bgp.passive", "random")
+	t.Setenv("ze.bgp.bgp.passive", "random")
 
 	_, err := LoadEnvironment()
 	if err == nil {
@@ -186,13 +186,13 @@ func TestSocketPath(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		if env.SocketPath() != "/var/run/zebgp.sock" {
-			t.Errorf("SocketPath() = %q, want %q", env.SocketPath(), "/var/run/zebgp.sock")
+		if env.SocketPath() != "/var/run/ze-bgp.sock" {
+			t.Errorf("SocketPath() = %q, want %q", env.SocketPath(), "/var/run/ze-bgp.sock")
 		}
 	})
 
 	t.Run("custom", func(t *testing.T) {
-		t.Setenv("zebgp.api.socketname", "custom")
+		t.Setenv("ze.bgp.api.socketname", "custom")
 		env, err := LoadEnvironment()
 		if err != nil {
 			t.Fatal(err)
@@ -587,7 +587,7 @@ func TestLoadEnvironmentWithConfig(t *testing.T) {
 // VALIDATES: OS environment variables take priority over config file values
 // PREVENTS: Config file values overriding explicit OS env var settings.
 func TestConfigPriorityOSEnvWins(t *testing.T) {
-	t.Setenv("zebgp.log.level", "WARNING")
+	t.Setenv("ze.bgp.log.level", "WARNING")
 
 	cfg := map[string]map[string]string{
 		"log": {"level": "DEBUG"},
@@ -607,7 +607,7 @@ func TestConfigPriorityOSEnvWins(t *testing.T) {
 // VALIDATES: Underscore notation env vars also beat config file values
 // PREVENTS: Only dot notation being checked for overrides.
 func TestUnderscoreEnvPriorityOverConfig(t *testing.T) {
-	t.Setenv("zebgp_log_level", "ERR")
+	t.Setenv("ze_bgp_log_level", "ERR")
 
 	cfg := map[string]map[string]string{
 		"log": {"level": "DEBUG"},
@@ -725,13 +725,13 @@ func TestLoadEnvironmentWithConfigNil(t *testing.T) {
 // VALIDATES: Invalid env var values cause startup failure
 // PREVENTS: Silent fallback to defaults for typos in env vars (BREAKING CHANGE).
 func TestLoadFromEnvStrictError(t *testing.T) {
-	t.Setenv("zebgp.tcp.port", "not_a_number")
+	t.Setenv("ze.bgp.tcp.port", "not_a_number")
 
 	_, err := LoadEnvironmentWithConfig(nil)
 	if err == nil {
 		t.Error("expected error for invalid env var")
 	}
-	if !strings.Contains(err.Error(), "zebgp.tcp.port") {
+	if !strings.Contains(err.Error(), "ze.bgp.tcp.port") {
 		t.Errorf("error should mention the env var, got: %v", err)
 	}
 }
@@ -741,7 +741,7 @@ func TestLoadFromEnvStrictError(t *testing.T) {
 // VALIDATES: Invalid enum values in env vars cause startup failure
 // PREVENTS: Accepting "ERROR" instead of "ERR" silently.
 func TestLoadFromEnvStrictInvalidEnum(t *testing.T) {
-	t.Setenv("zebgp.log.level", "BOGUS")
+	t.Setenv("ze.bgp.log.level", "BOGUS")
 
 	_, err := LoadEnvironmentWithConfig(nil)
 	if err == nil {
@@ -758,7 +758,7 @@ func TestLoadFromEnvStrictInvalidEnum(t *testing.T) {
 // VALIDATES: Legacy tcp.once=true sets attempts=1
 // PREVENTS: Breaking existing ExaBGP configs using tcp.once.
 func TestTCPOnceBackwardCompat(t *testing.T) {
-	t.Setenv("zebgp.tcp.once", "true")
+	t.Setenv("ze.bgp.tcp.once", "true")
 
 	env, err := LoadEnvironment()
 	if err != nil {
@@ -795,7 +795,7 @@ func TestTCPOnceDoesNotOverrideAttempts(t *testing.T) {
 // VALIDATES: Legacy tcp.connections works as alias for tcp.attempts
 // PREVENTS: Breaking existing ExaBGP configs using tcp.connections.
 func TestTCPConnectionsBackwardCompat(t *testing.T) {
-	t.Setenv("zebgp.tcp.connections", "3")
+	t.Setenv("ze.bgp.tcp.connections", "3")
 
 	env, err := LoadEnvironment()
 	if err != nil {

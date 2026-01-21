@@ -10,7 +10,7 @@
 │  2. internal/config/environment_test.go (test patterns)              │
 │  3. internal/config/schema.go (config parsing patterns)              │
 │  4. internal/config/parser.go (main config parser)                   │
-│  5. .claude/zebgp/config/SYNTAX.md (syntax reference)           │
+│  5. docs/architecture/config/SYNTAX.md (syntax reference)           │
 │                                                                 │
 │  ExaBGP Reference:                                              │
 │  - /Users/thomas/Code/github.com/exa-networks/exabgp/main/      │
@@ -19,7 +19,7 @@
 │  NOTE: ExaBGP uses SEPARATE .env INI file, NOT config block.    │
 │  This feature is ZeBGP-specific enhancement.                    │
 │                                                                 │
-│  ON COMPLETION: Update .claude/zebgp/config/SYNTAX.md           │
+│  ON COMPLETION: Update docs/architecture/config/SYNTAX.md           │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
@@ -39,7 +39,7 @@ Add `environment` block support to ZeBGP configuration files, allowing users to 
 1. `LoadEnvironment()` called in `internal/config/loader.go`
 2. Sets defaults via `loadDefaults()`
 3. Reads OS environment via `loadFromEnv()`
-4. **Silent ignore** on parse errors (e.g., `zebgp.tcp.port=abc` → uses default)
+4. **Silent ignore** on parse errors (e.g., `ze.bgp.tcp.port=abc` → uses default)
 5. No config file support
 
 ### User Goal
@@ -79,7 +79,7 @@ port = 1179
 ### Priority Order (ZeBGP)
 
 ```
-OS env vars (zebgp.x.y) > OS env vars (zebgp_x_y) > config file > defaults
+OS env vars (ze.bgp.x.y) > OS env vars (zebgp_x_y) > config file > defaults
 ```
 
 ## Goal Achievement
@@ -107,12 +107,12 @@ Plan achieves goal: YES (after implementation)
 
 ### New Documentation (create)
 
-- [ ] `.claude/zebgp/config/ENVIRONMENT_BLOCK.md` - New feature doc
+- [ ] `docs/architecture/config/ENVIRONMENT_BLOCK.md` - New feature doc
 
 ### Updates (modify existing)
 
-- [ ] `.claude/zebgp/config/SYNTAX.md` - add environment block to section list
-- [ ] `.claude/zebgp/config/ENVIRONMENT.md` - add config block as source, update priority
+- [ ] `docs/architecture/config/SYNTAX.md` - add environment block to section list
+- [ ] `docs/architecture/config/ENVIRONMENT.md` - add config block as source, update priority
 - [ ] `.claude/INDEX.md` - add ENVIRONMENT_BLOCK.md to navigation
 - [ ] `docs/plan/CLAUDE_CONTINUATION.md` - update after impl
 
@@ -124,7 +124,7 @@ Plan achieves goal: YES (after implementation)
 environment {
     log {
         level DEBUG;
-        destination /var/log/zebgp.log;
+        destination /var/log/ze.bgp.log;
         short true;
     }
     tcp {
@@ -180,7 +180,7 @@ Maps directly to Environment struct sections (LogEnv, TCPEnv, etc.).
    This change requires modifying `loadFromEnv()` to return error.
    Users with typos in env vars will now get startup failures.
 
-   **Migration aid:** `zebgp config check --env` validates env vars before upgrade.
+   **Migration aid:** `ze bgp config check --env` validates env vars before upgrade.
 
 4. **Case sensitivity:** Section and option names are case-insensitive.
    Values are case-insensitive for booleans and enums, case-sensitive for strings.
@@ -200,7 +200,7 @@ Maps directly to Environment struct sections (LogEnv, TCPEnv, etc.).
 8. **String values with spaces:** Use quotes for paths with spaces:
    ```
    log {
-       destination "/var/log/my app/zebgp.log";
+       destination "/var/log/my app/ze.bgp.log";
    }
    ```
 
@@ -210,7 +210,7 @@ Maps directly to Environment struct sections (LogEnv, TCPEnv, etc.).
 
 11. **Priority (highest to lowest):**
     ```
-    1. OS env: zebgp.section.option=value
+    1. OS env: ze.bgp.section.option=value
     2. OS env: zebgp_section_option=value
     3. Config: environment { section { option value; } }
     4. Defaults
@@ -508,10 +508,10 @@ func isValidEnvSection(section string) bool {
 
 ### Migration Command
 
-Add `--env` flag to `zebgp config check`:
+Add `--env` flag to `ze bgp config check`:
 
 ```go
-// cmd/zebgp/config_check.go
+// cmd/ze/bgp/config_check.go
 
 func runConfigCheck(cmd *cobra.Command, args []string) error {
     checkEnv, _ := cmd.Flags().GetBool("env")
@@ -593,7 +593,7 @@ func LoadReactorFile(path string) (*ReactorConfig, error) {
 8. Update ALL call sites of `LoadEnvironment()` for new signature
 9. Add `parseEnvironment()` to config parser
 10. Add `environment` to schema/section parsers
-11. Add `--env` flag to `zebgp config check`
+11. Add `--env` flag to `ze bgp config check`
 
 **Run tests → MUST PASS**
 
@@ -605,7 +605,7 @@ make test && make lint
 
 ### Phase 4: Documentation
 
-1. **Create** `.claude/zebgp/config/ENVIRONMENT_BLOCK.md`:
+1. **Create** `docs/architecture/config/ENVIRONMENT_BLOCK.md`:
    - TL;DR with key concepts
    - Full syntax reference (all sections, all options)
    - Enum values and ranges
@@ -613,11 +613,11 @@ make test && make lint
    - Validation/fail-fast behavior
    - Complete examples
 
-2. **Update** `.claude/zebgp/config/SYNTAX.md`:
+2. **Update** `docs/architecture/config/SYNTAX.md`:
    - Add `environment` to section types list
    - Link to ENVIRONMENT_BLOCK.md
 
-3. **Update** `.claude/zebgp/config/ENVIRONMENT.md`:
+3. **Update** `docs/architecture/config/ENVIRONMENT.md`:
    - Add config block as value source
    - Update priority order docs
    - Document breaking change
@@ -774,7 +774,7 @@ func TestSetConfigValueErrors(t *testing.T) {
 func TestConfigPriority(t *testing.T) {
     // Config sets DEBUG, OS env sets WARNING
     // OS env should win
-    t.Setenv("zebgp.log.level", "WARNING")
+    t.Setenv("ze.bgp.log.level", "WARNING")
 
     cfg := map[string]map[string]string{
         "log": {"level": "DEBUG"},
@@ -791,7 +791,7 @@ func TestConfigPriority(t *testing.T) {
 
 func TestUnderscoreEnvPriority(t *testing.T) {
     // Underscore env var also beats config
-    t.Setenv("zebgp_log_level", "ERR")
+    t.Setenv("ze_bgp_log_level", "ERR")
 
     cfg := map[string]map[string]string{
         "log": {"level": "DEBUG"},
@@ -808,8 +808,8 @@ func TestUnderscoreEnvPriority(t *testing.T) {
 
 func TestDotEnvBeatUnderscoreEnv(t *testing.T) {
     // Dot notation beats underscore notation
-    t.Setenv("zebgp.log.level", "DEBUG")
-    t.Setenv("zebgp_log_level", "ERR")
+    t.Setenv("ze.bgp.log.level", "DEBUG")
+    t.Setenv("ze_bgp_log_level", "ERR")
 
     env, err := LoadEnvironmentWithConfig(nil)
     if err != nil {
@@ -827,19 +827,19 @@ func TestDotEnvBeatUnderscoreEnv(t *testing.T) {
 ```go
 func TestLoadFromEnvStrictError(t *testing.T) {
     // Invalid env var should cause error
-    t.Setenv("zebgp.tcp.port", "not_a_number")
+    t.Setenv("ze.bgp.tcp.port", "not_a_number")
 
     _, err := LoadEnvironment()
     if err == nil {
         t.Error("expected error for invalid env var")
     }
-    if !strings.Contains(err.Error(), "zebgp.tcp.port") {
+    if !strings.Contains(err.Error(), "ze.bgp.tcp.port") {
         t.Errorf("error should mention the env var, got: %v", err)
     }
 }
 
 func TestLoadFromEnvStrictInvalidEnum(t *testing.T) {
-    t.Setenv("zebgp.log.level", "BOGUS")
+    t.Setenv("ze.bgp.log.level", "BOGUS")
 
     _, err := LoadEnvironment()
     if err == nil {
@@ -1006,7 +1006,7 @@ environment {
 ```go
 func TestAllSections(t *testing.T) {
     cfg := map[string]map[string]string{
-        "daemon":  {"user": "zebgp", "daemonize": "true"},
+        "daemon":  {"user": "ze-bgp", "daemonize": "true"},
         "log":     {"level": "DEBUG", "short": "false"},
         "tcp":     {"port": "1179", "attempts": "5"},
         "bgp":     {"passive": "true", "openwait": "120"},
@@ -1021,7 +1021,7 @@ func TestAllSections(t *testing.T) {
     }
 
     // Verify all sections applied
-    if env.Daemon.User != "zebgp" { t.Error("Daemon.User") }
+    if env.Daemon.User != "ze-bgp" { t.Error("Daemon.User") }
     if !env.Daemon.Daemonize { t.Error("Daemon.Daemonize") }
     if env.Log.Level != "DEBUG" { t.Error("Log.Level") }
     if env.Log.Short { t.Error("Log.Short should be false") }
@@ -1054,9 +1054,9 @@ func TestAllSections(t *testing.T) {
 - [ ] Goal achieved (environment from config works)
 
 ### Documentation
-- [ ] `.claude/zebgp/config/ENVIRONMENT_BLOCK.md` created
-- [ ] `.claude/zebgp/config/SYNTAX.md` updated
-- [ ] `.claude/zebgp/config/ENVIRONMENT.md` updated
+- [ ] `docs/architecture/config/ENVIRONMENT_BLOCK.md` created
+- [ ] `docs/architecture/config/SYNTAX.md` updated
+- [ ] `docs/architecture/config/ENVIRONMENT.md` updated
 - [ ] `.claude/INDEX.md` updated
 - [ ] `docs/plan/CLAUDE_CONTINUATION.md` updated
 

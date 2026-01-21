@@ -412,12 +412,12 @@ if s.onMessageReceived != nil {
 ## Configuration
 
 ```toml
-[zebgp.plugins]
+[ze.bgp.plugins]
 rib = true          # Enable RIB plugin (default: true)
 exabgp-api = true   # Enable ExaBGP API plugin (default: true)
 
 # Future: external plugins
-# [zebgp.plugins.external]
+# [ze.bgp.plugins.external]
 # my-plugin = { path = "/usr/lib/zebgp/my-plugin.so" }
 ```
 

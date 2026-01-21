@@ -3,7 +3,7 @@ package plugin
 import (
 	"fmt"
 
-	"codeberg.org/thomas-mangin/zebgp/internal/bgp/nlri"
+	"codeberg.org/thomas-mangin/ze/internal/bgp/nlri"
 )
 
 // RegisterRefreshHandlers registers route refresh command handlers.

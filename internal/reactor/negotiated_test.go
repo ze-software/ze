@@ -3,7 +3,7 @@ package reactor
 import (
 	"testing"
 
-	"codeberg.org/thomas-mangin/zebgp/internal/bgp/nlri"
+	"codeberg.org/thomas-mangin/ze/internal/bgp/nlri"
 	"github.com/stretchr/testify/require"
 )
 

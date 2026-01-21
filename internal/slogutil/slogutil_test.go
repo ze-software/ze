@@ -1,4 +1,4 @@
-// Package slogutil provides per-subsystem logging configuration for ZeBGP.
+// Package slogutil provides per-subsystem logging configuration for Ze BGP.
 package slogutil
 
 import (
@@ -18,8 +18,8 @@ import (
 // PREVENTS: Accidental logging when not explicitly enabled.
 func TestLoggerDisabledByDefault(t *testing.T) {
 	// Clear any existing env vars using t.Setenv (auto-restores on test end)
-	t.Setenv("zebgp.log.test", "")
-	t.Setenv("zebgp_log_test", "")
+	t.Setenv("ze.log.bgp.test", "")
+	t.Setenv("ze_log_bgp_test", "")
 
 	logger := Logger("test")
 	require.NotNil(t, logger)
@@ -29,12 +29,12 @@ func TestLoggerDisabledByDefault(t *testing.T) {
 	assert.False(t, logger.Enabled(context.Background(), slog.LevelDebug))
 }
 
-// TestLoggerExplicitDisabled verifies zebgp.log.server=disabled explicitly disables.
+// TestLoggerExplicitDisabled verifies ze.log.bgp.server=disabled explicitly disables.
 //
 // VALIDATES: Explicit "disabled" value disables logging.
 // PREVENTS: Ambiguity between unset and explicitly disabled.
 func TestLoggerExplicitDisabled(t *testing.T) {
-	t.Setenv("zebgp.log.server", "disabled")
+	t.Setenv("ze.log.bgp.server", "disabled")
 
 	logger := Logger("server")
 	require.NotNil(t, logger)
@@ -42,12 +42,12 @@ func TestLoggerExplicitDisabled(t *testing.T) {
 	assert.False(t, logger.Enabled(context.Background(), slog.LevelInfo))
 }
 
-// TestLoggerEnabledDot verifies zebgp.log.server=debug enables logging.
+// TestLoggerEnabledDot verifies ze.log.bgp.server=debug enables logging.
 //
 // VALIDATES: Dot notation enables logging at specified level.
 // PREVENTS: Dot notation parsing failure.
 func TestLoggerEnabledDot(t *testing.T) {
-	t.Setenv("zebgp.log.server", "debug")
+	t.Setenv("ze.log.bgp.server", "debug")
 
 	logger := Logger("server")
 	require.NotNil(t, logger)
@@ -56,14 +56,14 @@ func TestLoggerEnabledDot(t *testing.T) {
 	assert.True(t, logger.Enabled(context.Background(), slog.LevelInfo))
 }
 
-// TestLoggerEnabledUnderscore verifies zebgp_log_server=debug enables logging.
+// TestLoggerEnabledUnderscore verifies ze_log_bgp_server=debug enables logging.
 //
 // VALIDATES: Underscore notation enables logging at specified level.
 // PREVENTS: Underscore notation parsing failure.
 func TestLoggerEnabledUnderscore(t *testing.T) {
 	// Ensure dot notation not set
-	t.Setenv("zebgp.log.server", "")
-	t.Setenv("zebgp_log_server", "debug")
+	t.Setenv("ze.log.bgp.server", "")
+	t.Setenv("ze_log_bgp_server", "debug")
 
 	logger := Logger("server")
 	require.NotNil(t, logger)
@@ -95,12 +95,12 @@ func TestLoggerWithLevelDisabled(t *testing.T) {
 
 // TestLoggerPrecedence verifies dot notation takes precedence over underscore.
 //
-// VALIDATES: zebgp.log.x > zebgp_log_x > default.
+// VALIDATES: ze.log.bgp.x > ze_log_bgp_x > default.
 // PREVENTS: Wrong env var being used when both set.
 func TestLoggerPrecedence(t *testing.T) {
 	// Set both, dot should win
-	t.Setenv("zebgp.log.server", "info")
-	t.Setenv("zebgp_log_server", "debug")
+	t.Setenv("ze.log.bgp.server", "info")
+	t.Setenv("ze_log_bgp_server", "debug")
 
 	logger := Logger("server")
 	require.NotNil(t, logger)
@@ -115,7 +115,7 @@ func TestLoggerPrecedence(t *testing.T) {
 // VALIDATES: Logger adds subsystem=<name> to all log messages.
 // PREVENTS: Missing subsystem tag in output.
 func TestLoggerSubsystemAttr(t *testing.T) {
-	t.Setenv("zebgp.log.test", "info")
+	t.Setenv("ze.log.bgp.test", "info")
 
 	var buf bytes.Buffer
 	logger := LoggerWithOutput("test", "info", &buf)
@@ -170,7 +170,7 @@ func TestParseLevelAliases(t *testing.T) {
 // VALIDATES: Level filtering works correctly.
 // PREVENTS: Debug logs appearing at info level.
 func TestLoggerLevelFiltering(t *testing.T) {
-	t.Setenv("zebgp.log.server", "info")
+	t.Setenv("ze.log.bgp.server", "info")
 
 	logger := Logger("server")
 	require.NotNil(t, logger)
@@ -186,7 +186,7 @@ func TestLoggerLevelFiltering(t *testing.T) {
 // VALIDATES: Unknown level values disable logging.
 // PREVENTS: Typos silently enabling logging.
 func TestLoggerUnknownLevel(t *testing.T) {
-	t.Setenv("zebgp.log.server", "verbose") // not a valid level
+	t.Setenv("ze.log.bgp.server", "verbose") // not a valid level
 
 	logger := Logger("server")
 	require.NotNil(t, logger)
@@ -194,13 +194,13 @@ func TestLoggerUnknownLevel(t *testing.T) {
 	assert.False(t, logger.Enabled(context.Background(), slog.LevelInfo))
 }
 
-// TestBackendStderr verifies zebgp.log.backend=stderr uses stderr.
+// TestBackendStderr verifies ze.log.bgp.backend=stderr uses stderr.
 //
 // VALIDATES: Default backend is stderr.
 // PREVENTS: Wrong output destination.
 func TestBackendStderr(t *testing.T) {
-	t.Setenv("zebgp.log.server", "info")
-	t.Setenv("zebgp.log.backend", "")
+	t.Setenv("ze.log.bgp.server", "info")
+	t.Setenv("ze.log.bgp.backend", "")
 
 	// Default should be stderr - verify by checking createHandler returns stderr handler
 	handler := createHandler(slog.LevelInfo)
@@ -208,24 +208,24 @@ func TestBackendStderr(t *testing.T) {
 	// Can't easily verify it's stderr, but ensure it's not nil
 }
 
-// TestBackendStdout verifies zebgp.log.backend=stdout uses stdout.
+// TestBackendStdout verifies ze.log.bgp.backend=stdout uses stdout.
 //
 // VALIDATES: stdout backend option works.
 // PREVENTS: stdout option being ignored.
 func TestBackendStdout(t *testing.T) {
-	t.Setenv("zebgp.log.backend", "stdout")
+	t.Setenv("ze.log.bgp.backend", "stdout")
 
 	handler := createHandler(slog.LevelInfo)
 	require.NotNil(t, handler)
 }
 
-// TestBackendSyslog verifies zebgp.log.backend=syslog creates syslog handler.
+// TestBackendSyslog verifies ze.log.bgp.backend=syslog creates syslog handler.
 //
 // VALIDATES: Syslog backend option works.
 // PREVENTS: Syslog option being ignored.
 func TestBackendSyslog(t *testing.T) {
-	t.Setenv("zebgp.log.backend", "syslog")
-	t.Setenv("zebgp.log.destination", "localhost:514")
+	t.Setenv("ze.log.bgp.backend", "syslog")
+	t.Setenv("ze.log.bgp.destination", "localhost:514")
 
 	handler := createHandler(slog.LevelInfo)
 	require.NotNil(t, handler)
@@ -237,7 +237,7 @@ func TestBackendSyslog(t *testing.T) {
 // PREVENTS: Plugin stdout contamination (stdout = protocol messages).
 func TestLoggerWithLevelStderr(t *testing.T) {
 	// LoggerWithLevel always uses stderr regardless of backend setting
-	t.Setenv("zebgp.log.backend", "stdout") // Should be ignored
+	t.Setenv("ze.log.bgp.backend", "stdout") // Should be ignored
 
 	var buf bytes.Buffer
 	logger := LoggerWithOutput("gr", "info", &buf)
@@ -247,33 +247,33 @@ func TestLoggerWithLevelStderr(t *testing.T) {
 	assert.Contains(t, buf.String(), "test")
 }
 
-// TestIsPluginRelayEnabled verifies zebgp.log.plugin=enabled returns true.
+// TestIsPluginRelayEnabled verifies ze.log.bgp.plugin=enabled returns true.
 //
 // VALIDATES: Plugin relay enable flag works.
 // PREVENTS: Plugin stderr being silently dropped.
 func TestIsPluginRelayEnabled(t *testing.T) {
-	t.Setenv("zebgp.log.plugin", "enabled")
+	t.Setenv("ze.log.bgp.plugin", "enabled")
 
 	assert.True(t, IsPluginRelayEnabled())
 }
 
-// TestIsPluginRelayDisabled verifies zebgp.log.plugin=disabled returns false.
+// TestIsPluginRelayDisabled verifies ze.log.bgp.plugin=disabled returns false.
 //
 // VALIDATES: Plugin relay can be explicitly disabled.
 // PREVENTS: Ambiguity in disabled state.
 func TestIsPluginRelayDisabled(t *testing.T) {
-	t.Setenv("zebgp.log.plugin", "disabled")
+	t.Setenv("ze.log.bgp.plugin", "disabled")
 
 	assert.False(t, IsPluginRelayEnabled())
 }
 
-// TestIsPluginRelayDefault verifies unset zebgp.log.plugin returns false.
+// TestIsPluginRelayDefault verifies unset ze.log.bgp.plugin returns false.
 //
 // VALIDATES: Plugin relay is disabled by default.
 // PREVENTS: Unexpected plugin stderr appearing in logs.
 func TestIsPluginRelayDefault(t *testing.T) {
-	t.Setenv("zebgp.log.plugin", "")
-	t.Setenv("zebgp_log_plugin", "")
+	t.Setenv("ze.log.bgp.plugin", "")
+	t.Setenv("ze_log_bgp_plugin", "")
 
 	assert.False(t, IsPluginRelayEnabled())
 }

@@ -10,12 +10,12 @@ Add JSON validation to test framework - make `json:` lines in `.ci` files valida
 - [ ] `internal/test/runner/runner.go` - Test execution, ReceivedRaw capture
 - [ ] `internal/test/runner/decode.go` - DecodedMessage, IPv4-only, no JSON output
 - [ ] `internal/test/runner/decoding.go` - compareJSON() reusable for normalization
-- [ ] `cmd/zebgp/decode.go` - Comprehensive decoder, all families, ExaBGP envelope format
+- [ ] `cmd/ze/bgp/decode.go` - Comprehensive decoder, all families, ExaBGP envelope format
 
 **Key insights:**
 - `json:` lines parsed to `MessageExpect.JSON` but never validated
 - `internal/test/runner/decode.go` only handles IPv4 unicast - insufficient
-- `cmd/zebgp/decode.go` handles all families but outputs ExaBGP envelope format
+- `cmd/ze/bgp/decode.go` handles all families but outputs ExaBGP envelope format
 - Plugin JSON format differs from ExaBGP envelope - need transformation
 - Peer context (address, ASN) comes from config, not message bytes
 
@@ -23,7 +23,7 @@ Add JSON validation to test framework - make `json:` lines in `.ci` files valida
 
 ### Format Comparison
 
-**ExaBGP envelope (from `zebgp decode`):**
+**ExaBGP envelope (from `ze bgp decode`):**
 ```json
 {
   "exabgp": "5.0.0",
@@ -48,7 +48,7 @@ Add JSON validation to test framework - make `json:` lines in `.ci` files valida
 **Plugin format (from `.ci` json: lines):**
 ```json
 {
-  "meta": {"version": "1.0.0", "format": "zebgp"},
+  "meta": {"version": "1.0.0", "format": "ze-bgp"},
   "message": {"type": "update"},
   "direction": "in",
   "peer": {"address": "127.0.0.1", "asn": 65000},
@@ -63,7 +63,7 @@ Add JSON validation to test framework - make `json:` lines in `.ci` files valida
 | ExaBGP path | Plugin path |
 |-------------|-------------|
 | (constant) | `meta.version` = "1.0.0" |
-| (constant) | `meta.app` = "zebgp" |
+| (constant) | `meta.app` = "ze-bgp" |
 | `type` | `message.type` |
 | `neighbor.direction` | `direction` |
 | `neighbor.address.peer` | `peer.address` |
@@ -149,7 +149,7 @@ Convert all ExaBGP format JSON:
 
 To ZeBGP plugin format:
 ```json
-{"meta":{"version":"1.0.0","app":"zebgp"},"message":{"type":"update"},"origin":"igp","ipv4/unicast":[{"next-hop":"...","action":"add","nlri":["..."]}]}
+{"meta":{"version":"1.0.0","app":"ze-bgp"},"message":{"type":"update"},"origin":"igp","ipv4/unicast":[{"next-hop":"...","action":"add","nlri":["..."]}]}
 ```
 
 ### Meta Section
@@ -158,7 +158,7 @@ All ZeBGP plugin JSON must include:
 {
   "meta": {
     "version": "1.0.0",
-    "format": "zebgp"
+    "format": "ze-bgp"
   },
   ...
 }
@@ -183,7 +183,7 @@ All ZeBGP plugin JSON must include:
 - Enables full validation coverage across all test files
 
 ## Files to Modify
-- `internal/test/runner/runner.go` - Add `validateJSON()` call, invoke `zebgp decode`
+- `internal/test/runner/runner.go` - Add `validateJSON()` call, invoke `ze bgp decode`
 - `internal/test/runner/record.go` - Add `JSONError` field to Record, `JSONValidated` bool
 
 ## Files to Create
@@ -197,7 +197,7 @@ All ZeBGP plugin JSON must include:
 3. **Implement `isSupportedFamily()`** - Returns true for ipv4/unicast, ipv6/unicast
 4. **Implement `transformEnvelopeToPlugin()`** - ExaBGP envelope → plugin format
 5. **Implement `comparePluginJSON()`** - Normalize and compare, ignore context fields
-6. **Integrate into runner** - Call `zebgp decode`, transform, compare
+6. **Integrate into runner** - Call `ze bgp decode`, transform, compare
 7. **Run tests** - Verify PASS (paste output)
 8. **Verify all** - `make lint && make test && make functional` (paste output)
 
@@ -215,7 +215,7 @@ func (r *Runner) validateJSON(rec *Record) error {
             continue // No received message to compare
         }
 
-        // Decode via zebgp decode command
+        // Decode via ze bgp decode command
         envelope, err := r.decodeToEnvelope(rec.ReceivedRaw[i])
         if err != nil {
             return fmt.Errorf("message %d: decode failed: %w", msg.Index, err)
@@ -314,8 +314,8 @@ Match by position after filtering keepalives:
 - `internal/test/runner/json.go`: JSON validation utilities
   - `isSupportedFamily()`: Checks if family is IPv4/IPv6 unicast or FlowSpec
   - `isFlowSpecFamily()`: Detects FlowSpec families for special handling
-  - `extractFamily()`: Extracts address family from zebgp decode envelope
-  - `transformEnvelopeToPlugin()`: Converts zebgp decode format to plugin format (routes to appropriate transformer)
+  - `extractFamily()`: Extracts address family from ze bgp decode envelope
+  - `transformEnvelopeToPlugin()`: Converts ze bgp decode format to plugin format (routes to appropriate transformer)
   - `transformAnnounce()`: Transforms unicast announce section (NLRI with next-hop)
   - `transformFlowspecAnnounce()`: Transforms FlowSpec announce section (preserves rule components in `nlri` object)
   - `transformFlowspecWithdraw()`: Transforms FlowSpec withdraw section (component objects with action:del)
@@ -325,7 +325,7 @@ Match by position after filtering keepalives:
 - `internal/test/runner/json_test.go`: Unit tests for all above functions (15 tests total)
 - `internal/test/runner/runner.go`: Integration
   - `validateJSON()`: Called after raw byte validation passes, validates JSON expectations
-  - `decodeToEnvelope()`: Executes `zebgp decode --update` and parses JSON output
+  - `decodeToEnvelope()`: Executes `ze bgp decode --update` and parses JSON output
   - `extractNLRIs()`: Updated to handle FlowSpec families (uses "string" field as identifier)
   - `extractAction()`: Updated to handle FlowSpec families
   - `extractNLRIFromEntry()`: Updated to handle FlowSpec nlri map format
@@ -350,7 +350,7 @@ FlowSpec NLRI contains rule components (destination-ipv4, tcp-flags, protocol, e
 ```
 
 ### Bugs Found/Fixed
-- Withdraw format mismatch: zebgp decode outputs `[{"nlri":"..."}]` not `["..."]` for withdraws. Fixed `transformWithdraw()` to handle both formats.
+- Withdraw format mismatch: ze bgp decode outputs `[{"nlri":"..."}]` not `["..."]` for withdraws. Fixed `transformWithdraw()` to handle both formats.
 
 ### Design Insights
 - Two JSON formats exist in test files: older ExaBGP envelope format (in `test/data/encode/`) and newer plugin format (in `test/data/plugin/`). Detection via "exabgp" key presence allows both to coexist.

@@ -1,8 +1,8 @@
 package storage
 
 import (
-	"codeberg.org/thomas-mangin/zebgp/internal/bgp/nlri"
-	"codeberg.org/thomas-mangin/zebgp/internal/pool"
+	"codeberg.org/thomas-mangin/ze/internal/bgp/nlri"
+	"codeberg.org/thomas-mangin/ze/internal/pool"
 )
 
 // FamilyRIB stores routes for one AFI/SAFI.

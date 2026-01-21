@@ -94,8 +94,8 @@ func TestParseCIOptionEnv(t *testing.T) {
 	confFile := filepath.Join(tmpDir, "test.conf")
 
 	ciContent := `option=file:path=test.conf
-option=env:var=zebgp.log.server:value=debug
-option=env:var=zebgp.log.filter:value=info
+option=env:var=ze.log.bgp.server:value=debug
+option=env:var=ze.log.bgp.filter:value=info
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001304`
 
 	require.NoError(t, os.WriteFile(ciFile, []byte(ciContent), 0o600))
@@ -109,7 +109,7 @@ expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001304`
 	require.NotNil(t, rec)
 
 	// Should have 2 env vars in KEY=VALUE format
-	assert.Equal(t, []string{"zebgp.log.server=debug", "zebgp.log.filter=info"}, rec.EnvVars)
+	assert.Equal(t, []string{"ze.log.bgp.server=debug", "ze.log.bgp.filter=info"}, rec.EnvVars)
 }
 
 // TestParseCIOptionFile verifies parsing of option=file lines.

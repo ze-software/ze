@@ -182,13 +182,13 @@ Validation layer substitutes Cease/Administrative Reset (6/4) for invalid codes.
 `RawWriter` bypasses validation and can send arbitrary bytes. This is **EXPERIMENTAL** and requires explicit opt-in:
 
 ```toml
-[zebgp.plugin.my-draft-plugin]
+[ze.bgp.plugin.my-draft-plugin]
 raw-access = true  # REQUIRED to use RawWriter
 ```
 
 Without `raw-access = true`, calling `RawWriter` methods returns an error.
 
-**Audit logging:** All RawWriter calls are logged at INFO level with message type and payload SHA256. Raw bytes logged at DEBUG level if `zebgp.raw.log-payloads = true`.
+**Audit logging:** All RawWriter calls are logged at INFO level with message type and payload SHA256. Raw bytes logged at DEBUG level if `ze.bgp.raw.log-payloads = true`.
 
 **Use cases for RawWriter:**
 - Testing new IETF drafts
@@ -201,7 +201,7 @@ Without `raw-access = true`, calling `RawWriter` methods returns an error.
 ### Validation Configuration
 
 ```toml
-[zebgp.validation]
+[ze.bgp.validation]
 mode = "enforce"      # enforce (default), warn, disable
 log-violations = true # Log RFC violations
 ```
@@ -292,7 +292,7 @@ Priority 500 → Custom plugins (default priority)
 **Explicit ordering in config:**
 
 ```toml
-[zebgp.plugin]
+[ze.bgp.plugin]
 # Override default priorities
 "rib.priority" = 0
 "route-policy.priority" = 50
@@ -323,7 +323,7 @@ type PeerPlugin interface {
     //
     // NOTE: This implements "delayed OPEN" pattern where ZeBGP waits to receive
     // peer's OPEN before sending its own. This is OPTIONAL behavior enabled via:
-    //   [zebgp.peer."x.x.x.x"]
+    //   [ze.bgp.peer."x.x.x.x"]
     //   delayed-open = true
     // Without delayed-open, GetCapabilities is used and this hook is skipped.
     //
@@ -586,7 +586,7 @@ var (
 // Use for: testing new RFCs/drafts, fuzzing, interop testing, research.
 //
 // AUDIT: All calls are logged at INFO level with message type and SHA256.
-// Set zebgp.raw.log-payloads=true to log raw bytes at DEBUG level.
+// Set ze.bgp.raw.log-payloads=true to log raw bytes at DEBUG level.
 type RawWriter interface {
     // WriteRawUpdate sends raw UPDATE bytes (header added automatically).
     WriteRawUpdate(payload []byte) error
@@ -747,7 +747,7 @@ type StateProvider interface {
 }
 
 // State is persisted to: $ZEBGP_STATE_DIR/plugins/{plugin-name}.state
-// Default: /var/lib/zebgp/plugins/
+// Default: /var/lib/ze-bgp/plugins/
 ```
 
 ---
@@ -773,9 +773,9 @@ type ReactorAPI interface {
     RIBOut() RIBWriter
 
     // Event subscription - plugins can subscribe to events asynchronously.
-    // Returns buffered channel. Buffer size configurable via zebgp.events.buffer-size.
+    // Returns buffered channel. Buffer size configurable via ze.bgp.events.buffer-size.
     // Events are dropped if consumer is slow.
-    // Dropped events increment zebgp_plugin_events_dropped counter.
+    // Dropped events increment ze_bgp_plugin_events_dropped counter.
     // Use dedicated goroutine to consume events promptly.
     Subscribe(events ...EventType) <-chan Event
     Unsubscribe(ch <-chan Event)
@@ -844,8 +844,8 @@ type Event struct {
 // --- Metrics ---
 
 // MetricsRegistry provides plugin-scoped metrics.
-// All metrics are automatically prefixed with "zebgp_plugin_{name}_" to prevent collisions.
-// Example: plugin "my-filter" calling Counter("requests") creates "zebgp_plugin_my_filter_requests"
+// All metrics are automatically prefixed with "ze_bgp_plugin_{name}_" to prevent collisions.
+// Example: plugin "my-filter" calling Counter("requests") creates "ze_bgp_plugin_my_filter_requests"
 //
 // CARDINALITY WARNING: Avoid high-cardinality labels (e.g., peer addresses).
 // Use buckets or aggregation for metrics with many unique values.
@@ -1308,15 +1308,15 @@ Handler 3: Sees UPDATE with routes [A, C] and communities [100:1, 200:2]
 Plugins can have different config per peer:
 
 ```toml
-[zebgp.plugin]
+[ze.bgp.plugin]
 rib = true
 
 # Per-peer overrides
-[zebgp.peer."192.168.1.1".plugin]
+[ze.bgp.peer."192.168.1.1".plugin]
 route-policy = true
 
-[zebgp.peer."192.168.1.1".policy]
-import = "/etc/zebgp/peer1-import.policy"
+[ze.bgp.peer."192.168.1.1".policy]
+import = "/etc/ze/bgp/peer1-import.policy"
 ```
 
 ```go
@@ -1377,7 +1377,7 @@ Plugin Panic During Handler
     ├─ Stack trace logged at ERROR level
     ├─ Session closed with NOTIFICATION (Cease/Administrative Reset)
     ├─ Plugin marked as "failed" (circuit breaker opens)
-    └─ Metric incremented: zebgp_plugin_panics_total{plugin="name"}
+    └─ Metric incremented: ze_bgp_plugin_panics_total{plugin="name"}
 ```
 
 **Recovery behavior by location:**
@@ -1418,12 +1418,12 @@ Output (if any)
 | Warning | 100-500 | Log warning, continue |
 | High | 500-1000 | Log error, apply skip-slow-behavior |
 | Critical | 1000 | Stop reading from peer, TCP backpressure |
-| Overflow | > 1000 (shouldn't happen) | Apply drop-policy, increment `zebgp_updates_dropped` |
+| Overflow | > 1000 (shouldn't happen) | Apply drop-policy, increment `ze_bgp_updates_dropped` |
 
 **Configuration:**
 
 ```toml
-[zebgp.backpressure]
+[ze.bgp.backpressure]
 queue-size = 1000
 high-watermark = 500
 skip-slow-plugins = true       # Skip plugins that timeout under load
@@ -1452,7 +1452,7 @@ When a plugin consistently exceeds timeout under backpressure:
 1. Log warning with plugin name and latency
 2. If `skip-slow-plugins = true`: apply `skip-slow-behavior`
 3. Handler resumes when queue depth returns to normal
-4. Metric: `zebgp_plugin_skipped_total{plugin="name", reason="backpressure"}`
+4. Metric: `ze_bgp_plugin_skipped_total{plugin="name", reason="backpressure"}`
 
 **skip-slow-behavior options:**
 - `pass` - Continue to next handler, skipping slow plugin (may accept routes that should be filtered)
@@ -1698,7 +1698,7 @@ type ExaBGPAPIPlugin struct {
 }
 
 type ExaBGPAPIConfig struct {
-    SocketPath string            // "/var/run/zebgp.sock"
+    SocketPath string            // "/var/run/ze-bgp.sock"
     Processes  []ProcessConfig   // External process spawning
 }
 
@@ -1749,24 +1749,24 @@ Follows ExaBGP pattern: **TOML file** + **environment variable overrides**.
 ### Config File Location
 
 ```
-$ZEBGP_ROOT/etc/zebgp/zebgp.toml
+$ZEBGP_ROOT/etc/ze/bgp/ze-bgp.toml
 ```
 
-Or specify via: `zebgp --config /path/to/zebgp.toml`
+Or specify via: `ze bgp --config /path/to/ze-bgp.toml`
 
 ### Priority Order
 
-1. Environment variable (dot notation): `zebgp.plugin.grpc-api=true`
-2. Environment variable (underscore): `zebgp_plugin_grpc_api=true`
+1. Environment variable (dot notation): `ze.bgp.plugin.grpc-api=true`
+2. Environment variable (underscore): `ze_bgp_plugin_grpc_api=true`
 3. TOML file value
 4. Default
 
 ### TOML File Format
 
 ```toml
-# etc/zebgp/zebgp.toml
+# etc/ze/bgp/ze-bgp.toml
 
-[zebgp.plugin]
+[ze.bgp.plugin]
 exabgp-api = true
 grpc-api = false
 rib = true
@@ -1774,16 +1774,16 @@ route-policy = false
 external = ""
 close-timeout = "5s"    # Timeout for plugin Close()
 
-[zebgp.events]
+[ze.bgp.events]
 buffer-size = 1000      # Event channel buffer size
 
-[zebgp.grpc]
+[ze.bgp.grpc]
 listen = "localhost:50051"
 tls-cert = ""
 tls-key = ""
 reflection = true
 
-[zebgp.policy]
+[ze.bgp.policy]
 import = ""
 export = ""
 ```
@@ -1805,9 +1805,9 @@ export = ""
 Enable automatic plugin discovery without explicit configuration:
 
 ```toml
-[zebgp.plugin]
+[ze.bgp.plugin]
 # Auto-connect to external plugins (scans for *.sock files)
-discover-sockets = "/var/run/zebgp/plugins"
+discover-sockets = "/var/run/ze-bgp/plugins"
 ```
 
 **Discovery behavior:**
@@ -1827,27 +1827,27 @@ All external plugins must use gRPC or JSON-RPC transport.
 
 **Disabled plugins:** Create `.disabled` file to skip:
 ```bash
-touch /var/run/zebgp/plugins/my-plugin.sock.disabled  # Skip this plugin
+touch /var/run/ze-bgp/plugins/my-plugin.sock.disabled  # Skip this plugin
 ```
 
 ### Per-Plugin Sections
 
-#### gRPC Plugin (`[zebgp.grpc]`)
+#### gRPC Plugin (`[ze.bgp.grpc]`)
 
 ```toml
-[zebgp.grpc]
+[ze.bgp.grpc]
 listen = "0.0.0.0:50051"
-tls-cert = "/etc/zebgp/cert.pem"
-tls-key = "/etc/zebgp/key.pem"
+tls-cert = "/etc/ze/bgp/cert.pem"
+tls-key = "/etc/ze/bgp/key.pem"
 reflection = true
 ```
 
-#### Route Policy Plugin (`[zebgp.policy]`)
+#### Route Policy Plugin (`[ze.bgp.policy]`)
 
 ```toml
-[zebgp.policy]
-import = "/etc/zebgp/import.policy"
-export = "/etc/zebgp/export.policy"
+[ze.bgp.policy]
+import = "/etc/ze/bgp/import.policy"
+export = "/etc/ze/bgp/export.policy"
 ```
 
 ### Go Implementation
@@ -1922,14 +1922,14 @@ func (e *Environment) Setup() {
 
 ### Backward Compatibility
 
-Existing `[zebgp.api]` section continues to work for ExaBGP API plugin:
+Existing `[ze.bgp.api]` section continues to work for ExaBGP API plugin:
 
 ```toml
-[zebgp.api]
+[ze.bgp.api]
 ack = true
 encoder = "json"
 respawn = true
-socket-name = "zebgp"
+socket-name = "ze-bgp"
 ```
 
 ### External Plugin Configuration
@@ -1937,10 +1937,10 @@ socket-name = "zebgp"
 External plugins get their own TOML section based on plugin name:
 
 ```toml
-# External plugin connected via gRPC at /var/run/zebgp/custom-filter.sock
+# External plugin connected via gRPC at /var/run/ze-bgp/custom-filter.sock
 # Plugin.Name() returns "custom-filter"
 
-[zebgp.custom-filter]
+[ze.bgp.custom-filter]
 threshold = 100
 mode = "strict"
 ```
@@ -1948,7 +1948,7 @@ mode = "strict"
 Plugin receives parsed config. Use the config helper package for type-safe access:
 
 ```go
-import "codeberg.org/thomas-mangin/zebgp/internal/plugin/config"
+import "codeberg.org/thomas-mangin/ze/internal/plugin/config"
 
 func (p *CustomPlugin) Init(ctx context.Context, reactor ReactorAPI, cfg map[string]any) error {
     // Type-safe config access with defaults and validation
@@ -2008,11 +2008,11 @@ func MustGetString(cfg map[string]any, key string) string
 
 ```bash
 # Override INI file settings
-export zebgp.plugin.grpc-api=true
-export zebgp.grpc.listen=0.0.0.0:50051
+export ze.bgp.plugin.grpc-api=true
+export ze.bgp.grpc.listen=0.0.0.0:50051
 
 # Underscore notation works too
-export zebgp_grpc_tls_cert=/etc/zebgp/cert.pem
+export ze_bgp_grpc_tls_cert=/etc/ze/bgp/cert.pem
 ```
 
 ---
@@ -2038,9 +2038,9 @@ This enables plugins in **any language** (Python, Rust, Go, C++, etc.).
 For migration from ExaBGP process model:
 
 ```toml
-[zebgp.plugin.my-exabgp-process]
+[ze.bgp.plugin.my-exabgp-process]
 transport = "stdio"
-command = "/usr/bin/python3 /etc/zebgp/my-process.py"
+command = "/usr/bin/python3 /etc/ze/bgp/my-process.py"
 ```
 
 This spawns the process and communicates via stdin/stdout using JSON-RPC.
@@ -2154,17 +2154,17 @@ const (
 ### Configuration
 
 ```toml
-[zebgp.plugin]
+[ze.bgp.plugin]
 # Built-in plugins (in-process)
 rib = true
 exabgp-api = true
 
 # External plugins
-external = "grpc:///var/run/zebgp-filter.sock, jsonrpc://localhost:9000"
+external = "grpc:///var/run/ze-bgp-filter.sock, jsonrpc://localhost:9000"
 
-[zebgp.plugin.my-filter]
+[ze.bgp.plugin.my-filter]
 transport = "grpc"
-address = "/var/run/zebgp-filter.sock"
+address = "/var/run/ze-bgp-filter.sock"
 # or
 # transport = "jsonrpc"
 # address = "localhost:9000"
@@ -2180,7 +2180,7 @@ External plugins may crash, hang, or become unreachable. ZeBGP handles these fai
 #### Timeout Handling
 
 ```toml
-[zebgp.plugin.my-filter]
+[ze.bgp.plugin.my-filter]
 timeout = "5s"          # Max time to wait for response (default: 5s)
 timeout-action = "pass" # pass (default), drop, or close-session
 ```
@@ -2214,7 +2214,7 @@ On connection loss to external plugin:
 External plugins can be restarted without ZeBGP restart:
 
 ```toml
-[zebgp.plugin.my-filter]
+[ze.bgp.plugin.my-filter]
 hot-reload = true  # Reconnect if socket available after disconnect
 ```
 
@@ -2229,7 +2229,7 @@ With `hot-reload = true`:
 Protects against cascading failures:
 
 ```toml
-[zebgp.plugin.my-filter]
+[ze.bgp.plugin.my-filter]
 circuit-breaker = true        # Enable circuit breaker (default: true)
 failure-threshold = 10        # Failures before opening circuit
 failure-window = "60s"        # Window for counting failures
@@ -2287,8 +2287,8 @@ ZeBGP calls health check:
 
 **Unix socket permissions:**
 ```bash
-# Socket owned by zebgp user, mode 0600
-srw------- 1 zebgp zebgp 0 Dec 21 10:00 /var/run/zebgp-filter.sock
+# Socket owned by ze-bgp user, mode 0600
+srw------- 1 ze-bgp ze-bgp 0 Dec 21 10:00 /var/run/ze-bgp-filter.sock
 ```
 
 ### Subprocess Security (stdio plugins)
@@ -2297,14 +2297,14 @@ stdio plugins run as subprocesses spawned by ZeBGP. Security considerations:
 
 **Configuration:**
 ```toml
-[zebgp.plugin.my-process]
+[ze.bgp.plugin.my-process]
 transport = "stdio"
-command = "/usr/bin/python3 /etc/zebgp/my-plugin.py"
+command = "/usr/bin/python3 /etc/ze/bgp/my-plugin.py"
 
 # Security settings
-user = "zebgp-plugin"         # Run as this user (requires CAP_SETUID)
-group = "zebgp-plugin"        # Run as this group
-working-dir = "/var/lib/zebgp/plugins/my-process"
+user = "ze-bgp-plugin"         # Run as this user (requires CAP_SETUID)
+group = "ze-bgp-plugin"        # Run as this group
+working-dir = "/var/lib/ze-bgp/plugins/my-process"
 
 # Resource limits (requires CAP_SYS_RESOURCE or cgroups)
 memory-limit = "256M"         # Max memory (RSS)
@@ -2346,20 +2346,20 @@ Dangerous variables are always removed:
 
 **Logging:**
 ```
-INFO: Starting plugin my-process as user=zebgp-plugin pid=12345
+INFO: Starting plugin my-process as user=ze-bgp-plugin pid=12345
 WARN: Plugin my-process exceeded memory limit (256M), sending SIGTERM
 ERROR: Plugin my-process killed (OOM), restarting with backoff
 ```
 
 **TLS configuration:**
 ```toml
-[zebgp.plugin.my-filter]
+[ze.bgp.plugin.my-filter]
 transport = "grpc"
 address = "plugin-host:50051"
 tls = true
-tls-cert = "/etc/zebgp/client.crt"      # Client certificate (for mTLS)
-tls-key = "/etc/zebgp/client.key"       # Client key (for mTLS)
-tls-ca = "/etc/zebgp/ca.crt"            # Verify server cert
+tls-cert = "/etc/ze/bgp/client.crt"      # Client certificate (for mTLS)
+tls-key = "/etc/ze/bgp/client.key"       # Client key (for mTLS)
+tls-ca = "/etc/ze/bgp/ca.crt"            # Verify server cert
 tls-skip-verify = false                 # NEVER true in production
 ```
 
@@ -2397,7 +2397,7 @@ message InitResponse {
 Prevent plugins from consuming excessive resources:
 
 ```toml
-[zebgp.plugin.my-filter]
+[ze.bgp.plugin.my-filter]
 # Request limits
 rate-limit = 10000          # Max RPC calls per second
 max-pending = 1000          # Max queued requests before backpressure
@@ -2419,7 +2419,7 @@ max-response-size = "10MB"  # Max response size
 
 ```protobuf
 syntax = "proto3";
-package zebgp.plugin.v1;
+package ze.bgp.plugin.v1;
 
 // PluginService is the main plugin interface.
 // ZeBGP connects to plugins as a gRPC client.
@@ -2738,7 +2738,7 @@ import (
     "log"
     "net"
 
-    pb "codeberg.org/thomas-mangin/zebgp/internal/plugin/proto"
+    pb "codeberg.org/thomas-mangin/ze/internal/plugin/proto"
     "google.golang.org/grpc"
 )
 
@@ -2802,7 +2802,7 @@ func (p *FilterPlugin) Close(ctx context.Context, req *pb.CloseRequest) (*pb.Clo
 }
 
 func main() {
-    lis, _ := net.Listen("unix", "/var/run/zebgp-filter.sock")
+    lis, _ := net.Listen("unix", "/var/run/ze-bgp-filter.sock")
     server := grpc.NewServer()
     pb.RegisterPluginServiceServer(server, &FilterPlugin{threshold: 1000})
     log.Fatal(server.Serve(lis))
@@ -2815,8 +2815,8 @@ func main() {
 #!/usr/bin/env python3
 import grpc
 from concurrent import futures
-import zebgp_plugin_pb2 as pb
-import zebgp_plugin_pb2_grpc as pb_grpc
+import ze_bgp_plugin_pb2 as pb
+import ze_bgp_plugin_pb2_grpc as pb_grpc
 
 class CommunityFilter(pb_grpc.PluginServiceServicer):
     def __init__(self):
@@ -2870,7 +2870,7 @@ class CommunityFilter(pb_grpc.PluginServiceServicer):
 if __name__ == '__main__':
     server = grpc.server(futures.ThreadPoolExecutor(max_workers=10))
     pb_grpc.add_PluginServiceServicer_to_server(CommunityFilter(), server)
-    server.add_insecure_port('unix:///var/run/zebgp-community.sock')
+    server.add_insecure_port('unix:///var/run/ze-bgp-community.sock')
     server.start()
     server.wait_for_termination()
 ```
@@ -3042,7 +3042,7 @@ class RateLimiter:
 
 def main():
     sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-    sock.bind("/var/run/zebgp-ratelimit.sock")
+    sock.bind("/var/run/ze-bgp-ratelimit.sock")
     sock.listen(1)
 
     plugin = RateLimiter()
@@ -3120,8 +3120,8 @@ fn handle(method: &str, params: &serde_json::Value) -> serde_json::Value {
 }
 
 fn main() {
-    let _ = std::fs::remove_file("/var/run/zebgp-rust.sock");
-    let listener = UnixListener::bind("/var/run/zebgp-rust.sock").unwrap();
+    let _ = std::fs::remove_file("/var/run/ze-bgp-rust.sock");
+    let listener = UnixListener::bind("/var/run/ze-bgp-rust.sock").unwrap();
 
     for stream in listener.incoming() {
         let mut stream = stream.unwrap();
@@ -3177,9 +3177,9 @@ Testing a new draft RFC with experimental capability and attribute:
 package main
 
 import (
-    "codeberg.org/thomas-mangin/zebgp/internal/plugin"
-    "codeberg.org/thomas-mangin/zebgp/internal/bgp/capability"
-    "codeberg.org/thomas-mangin/zebgp/internal/bgp/message"
+    "codeberg.org/thomas-mangin/ze/internal/plugin"
+    "codeberg.org/thomas-mangin/ze/internal/bgp/capability"
+    "codeberg.org/thomas-mangin/ze/internal/bgp/message"
 )
 
 // DraftRFCPlugin tests draft-ietf-idr-new-feature
@@ -3267,7 +3267,7 @@ For non-Go or isolated plugins:
 plugins:
   external:
     - name: "python-filter"
-      command: "/usr/bin/python3 /etc/zebgp/filter.py"
+      command: "/usr/bin/python3 /etc/ze/bgp/filter.py"
       protocol: "json-rpc"  # or "msgpack-rpc"
 ```
 
@@ -3436,8 +3436,8 @@ import (
     "context"
     "testing"
 
-    "codeberg.org/thomas-mangin/zebgp/internal/plugin"
-    "codeberg.org/thomas-mangin/zebgp/internal/plugin/testing/mock"
+    "codeberg.org/thomas-mangin/ze/internal/plugin"
+    "codeberg.org/thomas-mangin/ze/internal/plugin/testing/mock"
 )
 
 func TestMyPlugin(t *testing.T) {
@@ -3493,16 +3493,16 @@ Test external plugins from command line:
 
 ```bash
 # Test gRPC plugin
-zebgp plugin test grpc:///var/run/my-plugin.sock
+ze bgp plugin test grpc:///var/run/my-plugin.sock
 
 # Test JSON-RPC plugin
-zebgp plugin test jsonrpc://localhost:9000
+ze bgp plugin test jsonrpc://localhost:9000
 
 # Test stdio plugin
-zebgp plugin test stdio:///usr/bin/python3 /path/to/plugin.py
+ze bgp plugin test stdio:///usr/bin/python3 /path/to/plugin.py
 
 # Verbose output
-zebgp plugin test --verbose grpc:///var/run/my-plugin.sock
+ze bgp plugin test --verbose grpc:///var/run/my-plugin.sock
 ```
 
 **Test sequence:**
@@ -3541,7 +3541,7 @@ Test plugin with real ZeBGP instance:
 
 ```bash
 # Start ZeBGP with test config
-zebgp --config test-config.toml --test-mode
+ze bgp --config test-config.toml --test-mode
 
 # test-mode:
 # - Uses loopback for all connections
@@ -3552,16 +3552,16 @@ zebgp --config test-config.toml --test-mode
 
 ```toml
 # test-config.toml
-[zebgp.test]
+[ze.bgp.test]
 mode = true
 duration = 30s
 expect-updates = 100
 expect-peers = 2
 
-[zebgp.plugin]
+[ze.bgp.plugin]
 my-filter = true
 
-[zebgp.plugin.my-filter]
+[ze.bgp.plugin.my-filter]
 address = '/var/run/my-plugin.sock'
 ```
 
@@ -3678,28 +3678,28 @@ Built-in plugin performance metrics:
 
 ```
 # Handler latency histogram (per plugin)
-zebgp_plugin_handler_duration_seconds{plugin="my-filter",quantile="0.5"} 0.0005
-zebgp_plugin_handler_duration_seconds{plugin="my-filter",quantile="0.99"} 0.005
+ze_bgp_plugin_handler_duration_seconds{plugin="my-filter",quantile="0.5"} 0.0005
+ze_bgp_plugin_handler_duration_seconds{plugin="my-filter",quantile="0.99"} 0.005
 
 # Handler invocation counter
-zebgp_plugin_handler_total{plugin="my-filter",result="continue"} 12345
-zebgp_plugin_handler_total{plugin="my-filter",result="drop"} 67
-zebgp_plugin_handler_total{plugin="my-filter",result="modify"} 890
+ze_bgp_plugin_handler_total{plugin="my-filter",result="continue"} 12345
+ze_bgp_plugin_handler_total{plugin="my-filter",result="drop"} 67
+ze_bgp_plugin_handler_total{plugin="my-filter",result="modify"} 890
 
 # External plugin connection state
-zebgp_plugin_connection_state{plugin="my-filter"} 1  # 1=connected, 0=disconnected
+ze_bgp_plugin_connection_state{plugin="my-filter"} 1  # 1=connected, 0=disconnected
 
 # Circuit breaker state
-zebgp_plugin_circuit_state{plugin="my-filter"} 0  # 0=closed, 1=open, 2=half-open
+ze_bgp_plugin_circuit_state{plugin="my-filter"} 0  # 0=closed, 1=open, 2=half-open
 
 # Queue depth (for external plugins)
-zebgp_plugin_queue_depth{plugin="my-filter"} 42
+ze_bgp_plugin_queue_depth{plugin="my-filter"} 42
 
 # Events dropped due to slow consumer
-zebgp_plugin_events_dropped{plugin="my-filter"} 0
+ze_bgp_plugin_events_dropped{plugin="my-filter"} 0
 
 # Plugin panics recovered
-zebgp_plugin_panics_total{plugin="my-filter"} 0
+ze_bgp_plugin_panics_total{plugin="my-filter"} 0
 ```
 
 ---
@@ -3711,7 +3711,7 @@ zebgp_plugin_panics_total{plugin="my-filter"} 0
 Enable detailed plugin logging:
 
 ```bash
-zebgp --log-level=debug --plugin-debug=my-filter
+ze bgp --log-level=debug --plugin-debug=my-filter
 ```
 
 **Output:**
@@ -3728,7 +3728,7 @@ DEBUG plugin.my-filter: ProcessUpdate result=continue
 Capture all plugin RPC traffic:
 
 ```bash
-zebgp --plugin-trace=/tmp/plugin-trace.jsonl
+ze bgp --plugin-trace=/tmp/plugin-trace.jsonl
 ```
 
 **Output (JSON Lines):**
@@ -3764,7 +3764,7 @@ Understand plugin execution order:
 
 ```bash
 # Show UPDATE processing chain
-zebgp-cli plugin chain
+ze-bgp-cli plugin chain
 
 UPDATE Processing Order:
 ────────────────────────────────────────────────────────────
@@ -3777,7 +3777,7 @@ UPDATE Processing Order:
 ────────────────────────────────────────────────────────────
 
 # Show capability merging
-zebgp-cli plugin capabilities --peer 192.168.1.1
+ze-bgp-cli plugin capabilities --peer 192.168.1.1
 
 Capability Merging for 192.168.1.1:
 ────────────────────────────────────────────────────────────
@@ -3793,7 +3793,7 @@ Capability Merging for 192.168.1.1:
   Final: [4-Octet-AS, MP-BGP IPv4/IPv6, AddPath send+recv, Route-Refresh]
 
 # Show handler chain with latency stats
-zebgp-cli plugin chain --stats
+ze-bgp-cli plugin chain --stats
 
 UPDATE Processing Order (with stats):
 ────────────────────────────────────────────────────────────────────────
@@ -3813,7 +3813,7 @@ Inspect running plugins:
 
 ```bash
 # List active plugins
-zebgp-cli plugin list
+ze-bgp-cli plugin list
 
 NAME         VERSION  PRIORITY  TRANSPORT    STATE      CIRCUIT
 rib          1.0.0    0         in-process   active     -
@@ -3821,7 +3821,7 @@ exabgp-api   1.0.0    10        in-process   active     -
 my-filter    1.0.0    100       grpc (unix)  active     closed
 
 # Get plugin details
-zebgp-cli plugin info my-filter
+ze-bgp-cli plugin info my-filter
 
 Plugin: my-filter
 Version: 1.0.0
@@ -3841,7 +3841,7 @@ Metrics:
   P99 latency: 2.1ms
 
 # Force health check
-zebgp-cli plugin health-check my-filter
+ze-bgp-cli plugin health-check my-filter
 ✅ my-filter: healthy
 ```
 
@@ -3946,7 +3946,7 @@ internal/
         └── rib.go         # RIB plugin (in-process)
 
 cmd/
-└── zebgp-cli/
+└── ze-bgp-cli/
     └── plugin.go          # Plugin CLI commands (list, chain, info, test)
 ```
 
@@ -4013,7 +4013,7 @@ This design:
 | **API versioning** | Forward-compatible plugin interface with matrix |
 | **Testing harness** | CLI tool and mock reactor for plugin development |
 | **Hot reload** | External plugins can restart without ZeBGP restart |
-| **Chain visualization** | `zebgp-cli plugin chain` shows execution order |
+| **Chain visualization** | `ze-bgp-cli plugin chain` shows execution order |
 | **UPDATE cloning** | Safe async processing with Clone() method |
 | **Route refresh control** | Plugins can request route refresh from peers |
 | **Config helpers** | Type-safe config parsing with defaults |

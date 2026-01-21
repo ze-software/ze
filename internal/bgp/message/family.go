@@ -4,7 +4,7 @@ import (
 	"sort"
 	"strings"
 
-	"codeberg.org/thomas-mangin/zebgp/internal/bgp/nlri"
+	"codeberg.org/thomas-mangin/ze/internal/bgp/nlri"
 )
 
 // AFI represents Address Family Identifier (RFC 4760).
