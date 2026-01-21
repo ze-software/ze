@@ -658,10 +658,14 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 		proc := exec.CommandContext(testCtx, binPath, args...) //nolint:gosec // test runner
 
 		// Set up environment
+		// Add zebgp binary directory to PATH so child processes can find "zebgp plugin ..." commands
+		zebgpDir := filepath.Dir(r.zebgpPath)
+		existingPath := os.Getenv("PATH")
 		proc.Env = append(os.Environ(),
 			fmt.Sprintf("zebgp_tcp_port=%d", rec.Port),
 			fmt.Sprintf("zebgp_api_socketpath=%s", filepath.Join(os.TempDir(), fmt.Sprintf("zebgp-test-%d.sock", rec.Port))),
 			fmt.Sprintf("PYTHONPATH=%s", filepath.Join(r.baseDir, "test/data/scripts")),
+			fmt.Sprintf("PATH=%s:%s", zebgpDir, existingPath),
 		)
 
 		// Set working directory to tmpfs temp dir if available (for finding tmpfs files)

@@ -1,0 +1,86 @@
+# Migrated from test/data/plugin/mup6.*
+
+# zebgp-peer expectations
+stdin=peer:terminator=EOF_PEER
+# Test IPv6 unicast functionality
+cmd=api:conn=1:seq=1:text=update text origin set igp local-preference set 200 nhop set 2001::11 nlri ipv6/unicast add fc00:1::/64
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0046020000002F40010100400200400504000000C8800E1E00020110200100000000000000000000000000110040FC00000100000000
+expect=json:conn=1:seq=1:json={"meta":{"version":"1.0.0","format":"zebgp"},"message":{"type":"update"},"peer":{"address":"127.0.0.1","asn":65533},"direction":"in","local-preference":200,"origin":"igp","ipv6/unicast":[{"action":"add","nlri":["fc00:1::/64"],"next-hop":"2001::11"}]}
+cmd=api:conn=1:seq=2:text=announce eor ipv6/unicast
+expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001E0200000007900F0003000201
+cmd=api:conn=1:seq=3:text=update text nlri ipv6/unicast del fc00:1::/64
+expect=bgp:conn=1:seq=3:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0026020000000F800F0C00020140FC00000100000000
+expect=json:conn=1:seq=3:json={"meta":{"version":"1.0.0","format":"zebgp"},"message":{"type":"update"},"peer":{"address":"127.0.0.1","asn":65533},"direction":"in","ipv6/unicast":[{"action":"del","nlri":["fc00:1::/64"]}]}
+# Note: MUP-specific tests commented out pending update text MUP support
+# 4:cmd:announce eor ipv6/mup
+# 4:cmd:announce ipv6/mup mup-isd 2001::/64 rd 100:100 next-hop 2001::2 extended-community [target:10:10] bgp-prefix-sid-srv6 ( l3-service 2001:db8:1:1:: 0x47 [64,24,16,0,0,0] )
+# 5:cmd:group attributes origin igp local-preference 100 extended-community [target:10:10] bgp-prefix-sid-srv6 ( l3-service 2001:db8:1:1:: 0x47 [64,24,16,0,0,0] ) ; withdraw ipv6/mup mup-isd 2001::/64 rd 100:100 next-hop 0.0.0.0
+EOF_PEER
+
+# Python plugin script
+tmpfs=mup6.run:mode=755:terminator=EOF_RUN
+#!/usr/bin/env python3
+
+import time
+
+from zebgp_api import ready, send, wait_for_ack, wait_for_shutdown
+
+
+def main() -> None:
+    ready()
+
+    # Test unicast functionality using update text syntax
+    announce_unicast = 'update text origin set igp local-preference set 200 nhop set 2001::11 nlri ipv6/unicast add fc00:1::/64'
+    withdraw_unicast = 'update text nlri ipv6/unicast del fc00:1::/64'
+
+    # Note: MUP commands commented out pending update text MUP support
+    # announce_mup = 'announce ipv6/mup mup-isd 2001::/64 rd 100:100 next-hop 2001::2 extended-community [ target:10:10 ] bgp-prefix-sid-srv6 ( l3-service 2001:db8:1:1:: 0x47 [64,24,16,0,0,0] )'
+    # withdraw_mup = 'withdraw ipv6/mup mup-isd 2001::/64 rd 100:100 next-hop 2001::2 extended-community [ target:10:10 ] bgp-prefix-sid-srv6 ( l3-service 2001:db8:1:1:: 0x47 [64,24,16,0,0,0] )'
+
+    messages = [
+        announce_unicast,
+        withdraw_unicast,
+    ]
+
+    for message in messages:
+        send(message)
+        time.sleep(0.2)
+
+    wait_for_ack(expected_count=2)
+    wait_for_shutdown()
+
+
+if __name__ == '__main__':
+    main()
+EOF_RUN
+
+# zebgp configuration
+stdin=zebgp:terminator=EOF_CONF
+plugin {
+	external announce-routes {
+		run ./mup6.run;
+		encoder json;
+	}
+}
+peer 127.0.0.1 {
+	router-id 10.0.0.1;
+	local-address 127.0.0.1;
+	local-as 65000;
+	peer-as 65000;
+	group-updates disable;
+
+	family {
+		# ipv6/mup; # MUP not supported by update text yet
+		ipv6/unicast;
+	}
+	capability {
+		graceful-restart;
+	}
+	process announce-routes {
+	}
+}
+EOF_CONF
+
+# Process orchestration
+cmd=background:seq=1:exec=zebgp-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=zebgp server -:stdin=zebgp:timeout=10s

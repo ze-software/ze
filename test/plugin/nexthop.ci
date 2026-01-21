@@ -1,0 +1,71 @@
+# Migrated from test/data/plugin/nexthop.*
+
+# zebgp-peer expectations
+stdin=peer:terminator=EOF_PEER
+# 1:raw:FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF:0017:02:00000000
+cmd=api:conn=1:seq=1:text=announce ipv6/unicast 2605::2/128 next-hop 2001::1 origin igp local-preference 500
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF004E020000003740010100400200400504000001F4800E260002011020010000000000000000000000000001008026050000000000000000000000000002
+expect=json:conn=1:seq=1:json={"meta":{"version":"1.0.0","format":"zebgp"},"message":{"type":"update"},"peer":{"address":"127.0.0.1","asn":65533},"direction":"in","local-preference":500,"origin":"igp","ipv6/unicast":[{"action":"add","nlri":["2605::2/128"],"next-hop":"2001::1"}]}
+cmd=api:conn=1:seq=2:text=announce eor ipv6/unicast
+expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001E0200000007900F0003000201
+cmd=api:conn=1:seq=3:text=announce ipv6/unicast 2605::2/128 next-hop 2001::2 origin igp local-preference 500
+expect=bgp:conn=1:seq=3:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF004E020000003740010100400200400504000001F4800E260002011020010000000000000000000000000002008026050000000000000000000000000002
+expect=json:conn=1:seq=3:json={"meta":{"version":"1.0.0","format":"zebgp"},"message":{"type":"update"},"peer":{"address":"127.0.0.1","asn":65533},"direction":"in","local-preference":500,"origin":"igp","ipv6/unicast":[{"action":"add","nlri":["2605::2/128"],"next-hop":"2001::2"}]}
+cmd=api:conn=1:seq=4:text=announce ipv6/unicast 2605::2/128 next-hop 2001::1 origin igp local-preference 500
+expect=bgp:conn=1:seq=4:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF004E020000003740010100400200400504000001F4800E260002011020010000000000000000000000000001008026050000000000000000000000000002
+expect=json:conn=1:seq=4:json={"meta":{"version":"1.0.0","format":"zebgp"},"message":{"type":"update"},"peer":{"address":"127.0.0.1","asn":65533},"direction":"in","local-preference":500,"origin":"igp","ipv6/unicast":[{"action":"add","nlri":["2605::2/128"],"next-hop":"2001::1"}]}
+EOF_PEER
+
+# Python plugin script
+tmpfs=nexthop.run:mode=755:terminator=EOF_RUN
+#!/usr/bin/env python3
+
+import time
+
+from zebgp_api import ready, send, wait_for_shutdown
+
+
+def main() -> None:
+    ready()
+
+    send('neighbor 127.0.0.1 update text local-preference set 500 nhop set 2001::1 nlri ipv6/unicast add 2605::2/128')
+    time.sleep(0.2)
+
+    send('neighbor 127.0.0.1 update text local-preference set 500 nhop set 2001::2 nlri ipv6/unicast add 2605::2/128')
+    time.sleep(0.2)
+
+    send('neighbor 127.0.0.1 update text local-preference set 500 nhop set 2001::1 nlri ipv6/unicast add 2605::2/128')
+
+    wait_for_shutdown()
+
+
+if __name__ == '__main__':
+    main()
+EOF_RUN
+
+# zebgp configuration
+stdin=zebgp:terminator=EOF_CONF
+plugin {
+	external announce-routes {
+		run ./nexthop.run;
+		encoder json;
+	}
+}
+peer 127.0.0.1 {
+	router-id 10.0.0.139;
+	local-address 127.0.0.1;
+	local-as 65512;
+	peer-as 65512;
+	hold-time 30;
+
+	family {
+		ipv6/unicast;
+	}
+	process announce-routes {
+	}
+}
+EOF_CONF
+
+# Process orchestration
+cmd=background:seq=1:exec=zebgp-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=zebgp server -:stdin=zebgp:timeout=10s

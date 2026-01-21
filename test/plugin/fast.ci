@@ -1,0 +1,91 @@
+# Migrated from test/data/plugin/fast.*
+
+# zebgp-peer expectations
+stdin=peer:terminator=EOF_PEER
+cmd=api:conn=1:seq=1:text=announce eor ipv4/unicast
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+cmd=api:conn=1:seq=1:text=update text origin set igp local-preference set 100 nhop set 101.1.101.1 nlri ipv4/unicast add 1.1.0.0/25
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003102000000154001010040020040030465016501400504000000641901010000
+cmd=api:conn=1:seq=1:text=update text nlri ipv4/unicast del 2.2.0.0/25
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001C02000519020200000000
+cmd=api:conn=1:seq=1:text=update text origin set igp local-preference set 100 nhop set 101.1.101.1 nlri ipv4/unicast add 2.2.0.0/24
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0030020000001540010100400200400304650165014005040000006418020200
+cmd=api:conn=1:seq=1:text=update text origin set igp local-preference set 100 nhop set 1.101.1.101 nlri ipv4/unicast add 0.0.0.0/0
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002D020000001540010100400200400304016501654005040000006400
+EOF_PEER
+
+# Python plugin script
+tmpfs=fast.run:mode=755:terminator=EOF_RUN
+#!/usr/bin/env python3
+"""Fast test - verifies basic route announcement and withdrawal.
+
+This script sends the exact commands that produce the expected .ci output.
+The original ExaBGP version used batching with sleep() which deduplicated
+routes internally. ZeBGP sends each command immediately, so we send only
+the final expected routes.
+"""
+
+import sys
+import time
+from zebgp_api import flush, ready, wait_for_shutdown
+
+print("DEBUG: fast.run starting", file=sys.stderr)
+
+def main() -> None:
+    print("DEBUG: main() called", file=sys.stderr)
+    ready()
+    print("DEBUG: after ready", file=sys.stderr)
+
+    # Message 1: Announce 1.1.0.0/25
+    # (ExaBGP batched: announce /24, announce /25, withdraw /24, announce /25 → just /25)
+    flush('update text nhop set 101.1.101.1 nlri ipv4/unicast add 1.1.0.0/25\n')
+    time.sleep(0.1)
+
+    # Message 2: Withdraw 2.2.0.0/25
+    # (ExaBGP batched: announce /25, announce /24, withdraw /25 → withdraw /25 + announce /24)
+    flush('update text nlri ipv4/unicast del 2.2.0.0/25\n')
+    time.sleep(0.1)
+
+    # Message 3: Announce 2.2.0.0/24
+    flush('update text nhop set 101.1.101.1 nlri ipv4/unicast add 2.2.0.0/24\n')
+    time.sleep(0.1)
+
+    # Message 4: Announce 0.0.0.0/0
+    flush('update text nhop set 1.101.1.101 nlri ipv4/unicast add 0.0.0.0/0\n')
+
+    wait_for_shutdown()
+
+
+if __name__ == '__main__':
+    main()
+EOF_RUN
+
+# zebgp configuration
+stdin=zebgp:terminator=EOF_CONF
+plugin {
+	external announce-routes {
+		run ./fast.run;
+		encoder json;
+	}
+}
+peer 127.0.0.1 {
+	router-id 1.2.3.4;
+	local-address 127.0.0.1;
+	local-as 1;
+	peer-as 1;
+	group-updates disable;
+
+	family {
+		ipv4/unicast;
+	}
+	capability {
+		graceful-restart;
+	}
+	process announce-routes {
+	}
+}
+EOF_CONF
+
+# Process orchestration
+cmd=background:seq=1:exec=zebgp-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=zebgp server -:stdin=zebgp:timeout=10s

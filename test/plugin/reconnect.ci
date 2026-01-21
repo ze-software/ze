@@ -1,0 +1,93 @@
+# Migrated from test/data/plugin/reconnect.*
+
+# zebgp-peer expectations
+stdin=peer:terminator=EOF_PEER
+option=tcp_connections:value=2
+option=timeout:value=10s
+
+# Connection A: ZeBGP sends route, peer disconnects
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002F0200000015400101004002004003040101010140050400000064100101
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+action=notification:conn=1:seq=2:text=Peer Reset
+
+# Connection B: Peer sends "done" route to ZeBGP (verifies ZeBGP reconnected)
+# Test completes when this send action is executed
+action=send:conn=2:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00310200000017400101004002004003047F0000010405040000006410640A
+EOF_PEER
+
+# Python plugin script
+tmpfs=reconnect.run:mode=755:terminator=EOF_RUN
+#!/usr/bin/env python3
+"""
+Test: ZeBGP reconnects after peer sends NOTIFICATION
+
+Flow:
+1. ZeBGP connects to test peer
+2. This script sends route1 via API
+3. Test peer receives route1 + EOR, sends NOTIFICATION
+4. ZeBGP reconnects
+5. Test peer sends "done" route to ZeBGP (test completes)
+"""
+
+import time
+
+from zebgp_api import ready, send, wait_for_ack, wait_for_shutdown
+
+
+def main() -> None:
+    ready()
+
+    # Send one route - triggers connection A
+    send('update text nhop set 1.1.1.1 nlri ipv4/unicast add 1.1.0.0/16')
+    time.sleep(0.5)
+
+    # Wait for ACK
+    wait_for_ack(expected_count=1)
+
+    # Test peer will send NOTIFICATION after receiving route1 + EOR
+    # ZeBGP will reconnect, test peer will send "done" route
+    # Wait for shutdown signal from test harness
+    wait_for_shutdown()
+
+
+if __name__ == '__main__':
+    main()
+EOF_RUN
+
+# zebgp configuration
+stdin=zebgp:terminator=EOF_CONF
+plugin {
+	external announce-routes {
+		run ./reconnect.run;
+		encoder json;
+	}
+	external rib {
+		run "zebgp plugin rib";
+		encoder json;
+	}
+}
+peer 127.0.0.1 {
+	router-id 1.2.3.4;
+	local-address 127.0.0.1;
+	local-as 1;
+	peer-as 1;
+	group-updates disable;
+
+	family {
+		ipv4/unicast;
+	}
+	capability {
+		graceful-restart disable;
+	}
+	process announce-routes {
+	}
+	process rib {
+		receive { sent; state; }
+		send { update; }
+	}
+}
+EOF_CONF
+
+# Process orchestration
+cmd=background:seq=1:exec=zebgp-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=zebgp server -:stdin=zebgp:timeout=20s

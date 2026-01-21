@@ -1,0 +1,193 @@
+# Migrated from test/data/plugin/check.*
+
+# zebgp-peer expectations
+stdin=peer:terminator=EOF_PEER
+option=update:value=send-default-route
+cmd=api:conn=1:seq=1:text=announce eor ipv4/unicast
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+cmd=api:conn=1:seq=1:text=announce eor ipv6/unicast
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001E0200000007900F0003000201
+cmd=api:conn=1:seq=1:text=announce ipv6/unicast ::1/128 next-hop ::1 origin igp local-preference 100
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF004E02000000374001010040020040050400000064800E260002011000000000000000000000000000000001008000000000000000000000000000000001
+cmd=api:conn=1:seq=1:text=update text origin set igp local-preference set 100 nhop set 127.0.0.2 nlri ipv4/unicast add 127.0.0.1/32
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00310200000015400101004002004003047F00000240050400000064207F000001
+cmd=api:conn=1:seq=1:text=update text origin set igp local-preference set 100 nhop set 5.6.7.8 nlri ipv4/unicast add 1.2.3.4/32
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003102000000154001010040020040030405060708400504000000642001020304
+EOF_PEER
+
+# Python plugin script
+tmpfs=check.run:mode=755:terminator=EOF_RUN
+#!/usr/bin/env python3
+
+import json
+import os
+import select
+import signal
+import sys
+import time
+
+
+def main() -> None:
+    try:
+        while True:
+            line = sys.stdin.readline().strip()
+            if 'start' in line:
+                continue
+            if 'end' in line:
+                continue
+            if 'eor' in line:
+                continue
+            # ZeBGP format: peer 127.0.0.1 asn 65512 update N announce origin igp local-preference 100 ipv4/unicast next-hop 127.0.0.1 nlri 0.0.0.0/32
+            if not (
+                'peer 127.0.0.1' in line
+                and 'announce' in line
+                and 'nlri 0.0.0.0/32' in line
+                and 'origin igp' in line
+                and 'local-preference 100' in line
+            ):
+                flush('peer 127.0.0.1 update text nhop set 255.255.255.255 nlri ipv4/unicast add 0.0.0.0/0\n')
+                time.sleep(1)
+                sys.exit(1)
+            break
+
+        flush('peer 127.0.0.1 update text origin set igp local-preference set 100 nhop set 5.6.7.8 nlri ipv4/unicast add 1.2.3.4/32\n')
+        if not wait_for_ack():
+            # ACK not received, continuing anyway (ACKs may be disabled in config)
+            pass
+
+        # Wait for shutdown signal
+        now = time.time()
+        while os.getppid() != 1 and time.time() < now + 5:
+            line = sys.stdin.readline().strip()
+            if not line or 'shutdown' in line:
+                break
+            time.sleep(1)
+    except IOError:
+        pass
+
+
+def wait_for_ack(expected_count: int = 1, timeout: int = 2) -> bool:
+    """
+    Wait for ACK responses from ExaBGP.
+
+    Polls STDIN until all expected ACK messages are received.
+    ExaBGP may not respond immediately, so we loop with sleep.
+
+    Handles both text and JSON encoder formats:
+    - Text: "done", "error", "shutdown"
+    - JSON: {"answer": "done|error|shutdown", "message": "..."}
+
+    Args:
+        expected_count: Number of ACK messages expected (default: 1)
+        timeout: Total timeout in seconds (default: 2)
+
+    Returns:
+        True if all ACKs received successfully
+        False if any command failed or timeout occurred
+
+    Raises:
+        SystemExit: If ExaBGP sends shutdown message
+    """
+
+    received = 0
+    start_time = time.time()
+
+    while received < expected_count:
+        # Check if we've exceeded timeout
+        elapsed = time.time() - start_time
+        if elapsed >= timeout:
+            return False
+
+        # Poll for data (non-blocking with short timeout)
+        ready, _, _ = select.select([sys.stdin], [], [], 0.1)
+
+        if ready:
+            line = sys.stdin.readline().strip()
+
+            # Parse response (could be text or JSON)
+            answer = None
+            if line.startswith('{'):
+                # JSON format: {"answer": "done|error|shutdown", ...}
+                try:
+                    data = json.loads(line)
+                    answer = data.get('answer')
+                except Exception:
+                    pass
+            else:
+                # Text format: done|error|shutdown
+                answer = line
+
+            if answer == 'done':
+                received += 1
+            elif answer == 'error':
+                return False
+            elif answer == 'shutdown':
+                raise SystemExit(0)
+            # Ignore other messages (could be BGP updates if receiving)
+        else:
+            # No data yet, sleep briefly before next poll
+            time.sleep(0.1)
+
+    return True
+
+
+def flush(msg: str) -> None:
+    """Write message to stdout and flush."""
+    sys.stdout.write(msg)
+    sys.stdout.flush()
+
+
+if __name__ == '__main__':
+    signal.signal(signal.SIGPIPE, signal.SIG_DFL)
+    main()
+EOF_RUN
+
+# zebgp configuration
+stdin=zebgp:terminator=EOF_CONF
+plugin {
+	external check-and-announce {
+		run ./check.run;
+		encoder text;
+	}
+}
+template {
+	group controler {
+
+		family {
+			ipv4/unicast;
+			ipv6/unicast;
+		}
+		announce {
+			ipv4 {
+				unicast 127.0.0.1/32 next-hop 127.0.0.2;
+			}
+			ipv6 {
+				unicast ::1/128 next-hop ::1;
+			}
+		}
+		process check-and-announce {
+			content {
+				format parsed;
+			}
+			receive {
+				update;
+			}
+			send {
+				update;
+			}
+		}
+	}
+}
+peer 127.0.0.1 {
+	inherit controler;
+	router-id 10.0.0.139;
+	local-address 127.0.0.1;
+	local-as 65512;
+	peer-as 65512;
+	hold-time 30;
+}
+EOF_CONF
+
+# Process orchestration
+cmd=background:seq=1:exec=zebgp-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=zebgp server -:stdin=zebgp:timeout=10s

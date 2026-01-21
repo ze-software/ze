@@ -1,0 +1,63 @@
+# Migrated from test/data/plugin/logging-level-filter.*
+
+# zebgp-peer expectations
+stdin=peer:terminator=EOF_PEER
+option=timeout:value=10s
+
+# Set server logging to INFO level (should filter out DEBUG)
+option=env:var=zebgp.log.server:value=info
+
+# Test: Level filtering
+# Verifies zebgp.log.server=info filters out DEBUG messages
+
+# Static route UPDATE
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040A0000014005040000006418C0A801
+# EOR
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+
+# DEBUG messages should NOT appear (server subsystem logs at DEBUG level)
+reject=stderr:pattern=level=DEBUG
+EOF_PEER
+
+# zebgp configuration
+stdin=zebgp:terminator=EOF_CONF
+# Test: Level filtering
+# Verifies that zebgp.log.server=info filters out DEBUG messages
+
+plugin {
+    external gr {
+        run "zebgp plugin gr";
+        encoder json;
+    }
+}
+
+peer 127.0.0.1 {
+    router-id 1.2.3.4;
+    local-address 127.0.0.1;
+    local-as 1;
+    peer-as 1;
+    group-updates disable;
+
+    family {
+        ipv4/unicast;
+    }
+
+    capability {
+        graceful-restart {
+            restart-time 120;
+        }
+    }
+
+    static {
+        route 192.168.1.0/24 next-hop 10.0.0.1;
+    }
+
+    process gr {
+        send { update; }
+    }
+}
+EOF_CONF
+
+# Process orchestration
+cmd=background:seq=1:exec=zebgp-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=zebgp server -:stdin=zebgp:timeout=10s

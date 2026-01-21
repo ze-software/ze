@@ -1,0 +1,66 @@
+# EOR test - End of RIB markers for IPv4 and IPv6
+
+# zebgp-peer expectations
+stdin=peer:terminator=EOF_PEER
+option=asn:value=1
+cmd=api:conn=1:seq=1:text=update text nlri ipv4/unicast eor
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+cmd=api:conn=1:seq=2:text=update text nlri ipv6/unicast eor
+expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001E0200000007900F0003000201
+EOF_PEER
+
+# Python plugin script
+tmpfs=eor.run:mode=755:terminator=EOF_RUN
+#!/usr/bin/env python3
+
+import time
+
+from zebgp_api import ready, send, wait_for_ack, wait_for_shutdown
+
+
+def main() -> None:
+    ready()
+
+    # Test EOR for both IPv4 and IPv6 families
+    send('update text nlri ipv4/unicast eor')
+    time.sleep(0.2)
+    send('update text nlri ipv6/unicast eor')
+    time.sleep(0.2)
+
+    wait_for_ack(expected_count=2)
+    wait_for_shutdown()
+
+
+if __name__ == '__main__':
+    main()
+EOF_RUN
+
+# zebgp configuration
+stdin=zebgp:terminator=EOF_CONF
+plugin {
+	external announce-routes {
+		run ./eor.run;
+		encoder json;
+	}
+}
+peer 127.0.0.1 {
+	router-id 1.2.3.4;
+	local-address 127.0.0.1;
+	local-as 1;
+	peer-as 1;
+	group-updates disable;
+
+	family {
+		ipv4/unicast;
+		ipv6/unicast;
+	}
+	# Note: graceful-restart removed to prevent automatic EOR on session establishment
+	# Automatic EOR is tested separately in graceful-restart-specific tests
+	process announce-routes {
+	}
+}
+EOF_CONF
+
+# Process orchestration
+cmd=background:seq=1:exec=zebgp-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=zebgp server -:stdin=zebgp:timeout=10s

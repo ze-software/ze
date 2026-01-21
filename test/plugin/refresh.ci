@@ -1,0 +1,82 @@
+# Migrated from test/data/plugin/refresh.*
+
+# zebgp-peer expectations
+stdin=peer:terminator=EOF_PEER
+option=timeout:value=10s
+
+# Step 1: Receive initial route announcement and EoR from zebgp
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040A0000014005040000006418C0A801
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+
+# Step 2: Send ROUTE-REFRESH (type 5) for IPv4/unicast (AFI=1, Subtype=0, SAFI=1)
+# Wire format: AFI(2) + Subtype(1) + SAFI(1) = 00010001
+action=send:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170500010001
+
+# Step 3: Expect BoRR, route re-announcement, EoRR
+# BoRR: ROUTE-REFRESH with Subtype=1 (RFC 7313)
+expect=bgp:conn=1:seq=3:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170500010101
+# Route re-announcement (same as step 1)
+expect=bgp:conn=1:seq=3:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00300200000015400101004002004003040A0000014005040000006418C0A801
+# EoRR: ROUTE-REFRESH with Subtype=2 (RFC 7313)
+expect=bgp:conn=1:seq=3:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170500010201
+EOF_PEER
+
+# Python plugin script
+tmpfs=refresh.run:mode=755:terminator=EOF_RUN
+#!/usr/bin/env python3
+
+from zebgp_api import ready, send, wait_for_ack, wait_for_shutdown
+
+
+def main() -> None:
+    ready()
+
+    # Announce a route that can be refreshed
+    send('update text nhop set 10.0.0.1 nlri ipv4/unicast add 192.168.1.0/24')
+    wait_for_ack()
+
+    # Wait for shutdown signal
+    wait_for_shutdown()
+
+
+if __name__ == '__main__':
+    main()
+EOF_RUN
+
+# zebgp configuration
+stdin=zebgp:terminator=EOF_CONF
+plugin {
+	external announce-routes {
+		run ./refresh.run;
+		encoder json;
+	}
+	external rib {
+		run "zebgp plugin rib";
+		encoder json;
+	}
+}
+peer 127.0.0.1 {
+	router-id 1.2.3.4;
+	local-address 127.0.0.1;
+	local-as 1;
+	peer-as 1;
+	group-updates disable;
+
+	family {
+		ipv4/unicast;
+	}
+	capability {
+		route-refresh;
+	}
+	process announce-routes {
+	}
+	process rib {
+		receive { sent; state; refresh; }
+		send { update; borr; eorr; }
+	}
+}
+EOF_CONF
+
+# Process orchestration
+cmd=background:seq=1:exec=zebgp-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=zebgp server -:stdin=zebgp:timeout=20s

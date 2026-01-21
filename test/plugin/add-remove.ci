@@ -1,0 +1,79 @@
+# Migrated from test/data/plugin/add-remove.*
+
+# zebgp-peer expectations
+stdin=peer:terminator=EOF_PEER
+cmd=api:conn=1:seq=1:text=announce eor ipv4/unicast
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+cmd=api:conn=1:seq=1:text=update text origin set igp local-preference set 100 nhop set 101.1.101.1 nlri ipv4/unicast add 1.1.0.0/24
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0030020000001540010100400200400304650165014005040000006418010100
+cmd=api:conn=1:seq=1:text=update text origin set igp local-preference set 100 nhop set 101.1.101.1 nlri ipv4/unicast add 1.1.0.0/25
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003102000000154001010040020040030465016501400504000000641901010000
+cmd=api:conn=1:seq=1:text=update text nlri ipv4/unicast del 1.1.0.0/24
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001B020004180101000000
+cmd=api:conn=1:seq=1:text=update text nlri ipv4/unicast del 1.1.0.0/25
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001C02000519010100000000
+EOF_PEER
+
+# Python plugin script
+tmpfs=add-remove.run:mode=755:terminator=EOF_RUN
+#!/usr/bin/env python3
+
+import time
+
+from zebgp_api import ready, send, wait_for_ack, wait_for_shutdown
+
+
+def main() -> None:
+    ready()
+
+    messages = [
+        'update text nhop set 101.1.101.1 nlri ipv4/unicast add 1.1.0.0/24',
+        'update text nhop set 101.1.101.1 nlri ipv4/unicast add 1.1.0.0/25',
+        'sleep',
+        'update text nlri ipv4/unicast del 1.1.0.0/24',
+        'update text nlri ipv4/unicast del 1.1.0.0/25',
+    ]
+
+    for message in messages:
+        if message == 'sleep':
+            time.sleep(0.2)
+            continue
+        send(message)
+
+    wait_for_ack(expected_count=4)
+    wait_for_shutdown()
+
+
+if __name__ == '__main__':
+    main()
+EOF_RUN
+
+# zebgp configuration
+stdin=zebgp:terminator=EOF_CONF
+plugin {
+	external add-remove {
+		run ./add-remove.run;
+		encoder json;
+	}
+}
+peer 127.0.0.1 {
+	router-id 1.2.3.4;
+	local-address 127.0.0.1;
+	local-as 1;
+	peer-as 1;
+	group-updates disable;
+
+	family {
+		ipv4/unicast;
+	}
+	capability {
+		graceful-restart;
+	}
+	process add-remove {
+	}
+}
+EOF_CONF
+
+# Process orchestration
+cmd=background:seq=1:exec=zebgp-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=zebgp server -:stdin=zebgp:timeout=10s

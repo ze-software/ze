@@ -835,13 +835,13 @@ expect=stderr:contains=unknown option: invalid-option
 
 ### Migration Summary
 
-| Source | Files | Target | Format |
+| Source | Files | Target | Status |
 |--------|-------|--------|--------|
-| `decode/*.test` | 18 | `decode/*.ci` | cmd + expect |
-| `encode/*.conf + *.ci` | ~20 | `encode/*.ci` | tmpfs + cmd + expect |
-| `plugin/*.conf + *.ci + *.run` | ~20 | `plugin/*.ci` | tmpfs + cmd + expect |
-| `parse/valid/*.conf` | ~50 | `parse/*.ci` | tmpfs + cmd + expect=exit:0 |
-| `parse/invalid/*.conf + *.expect` | ~10 | `parse/*.ci` | tmpfs + cmd + expect=exit:1 + stderr |
+| `decode/*.test` | 18 | `test/decode/*.ci` | ✅ Done |
+| `encode/*.conf + *.ci` | 42 | `test/encode/*.ci` | ✅ Done |
+| `plugin/*.conf + *.ci + *.run` | 23 | `test/plugin/*.ci` | ✅ Done |
+| `parse/valid/*.conf` | 10 | `test/parse/*.ci` | ✅ Done |
+| `parse/invalid/*.conf + *.expect` | 2 | `test/parse/*.ci` | ✅ Done |
 
 ### ExaBGP Migration
 
@@ -1109,16 +1109,19 @@ expect=exit:code=0
 - `internal/test/runner/record.go` - FailType constants (fixed goconst lint)
 - `internal/test/runner/runner.go` - runOrchestrated() for new format execution
 - `internal/test/runner/runner.go` - Permanent debug logging via slogutil
-- `test/data/encode/ebgp-new.ci` - Reference implementation for stdin= format
 - `test/decode/*.ci` - 18 decode tests migrated to unified format
+- `test/encode/*.ci` - 42 encode tests migrated to unified format
+- `test/parse/*.ci` - 12 parse tests migrated to unified format
+- `test/plugin/*.ci` - 23 plugin tests migrated to unified format
 - `docs/architecture/testing/ci-format.md` - Format documentation (stdin=, foreground/background commands)
 - `docs/functional-tests.md` - Updated with decode tests section
 
 ### Pending ⏳
-- Migrate remaining `test/data/encode/*.conf+.ci` to stdin= format (~37 tests)
-- Migrate `test/data/plugin/*.conf+.ci+.py` to unified format
-- Python zipapp inlining for Tmpfs .py files
-- Migrate parse tests
+- Python zipapp inlining for Tmpfs .py files (optional optimization)
+- Cleanup old test/data/ files:
+  - `test/data/parse/valid/*.conf` (10 files)
+  - `test/data/parse/invalid/*.conf` (2 files)
+  - `test/data/plugin/` (54 .conf + 49 .run + 23 .ci - superseded by test/plugin/)
 
 ## Migration Path
 
@@ -1131,17 +1134,24 @@ expect=exit:code=0
 - Format: `stdin=payload:hex=<hex>` + `cmd=foreground:exec=zebgp-test decode --family <family> -:stdin=payload`
 - All tests passing
 
-### Phase 3: Encode Tests (Pending)
-- Migrate `test/data/encode/*.conf+.ci` → single `.ci` with stdin= blocks
+### Phase 3: Encode Tests ✅
+- 42 tests in `test/encode/*.ci`
 - Format: `stdin=peer` + `stdin=zebgp` + `cmd=background/foreground`
+- All tests passing
 
-### Phase 4: Plugin Tests (Pending)
-- Migrate `test/data/plugin/*.conf+.ci+.py` → single `.ci` with tmpfs= for .py
-- Python zipapp inlining (optional optimization)
+### Phase 4: Plugin Tests ✅
+- 23 tests in `test/plugin/*.ci`
+- Format: `stdin=peer` + `tmpfs=<script>.run` + `stdin=zebgp` + `cmd=background/foreground`
+- Python scripts use shared `zebgp_api.py` via PYTHONPATH
+- All tests passing
 
-### Phase 5: Parse Tests (Pending)
-- Migrate `test/data/parse/valid/*.conf` → `.ci` with stdin= + expect=exit:code=0
-- Migrate `test/data/parse/invalid/*.conf+.expect` → `.ci` with expect=stderr:
+### Phase 5: Parse Tests ✅
+- 12 tests in `test/parse/*.ci`
+- Format: `stdin=config` + `cmd=foreground:exec=zebgp validate -`
+- All tests passing
+
+### Phase 6: Cleanup (Pending)
+- Remove old `test/data/parse/` files (superseded by `test/parse/`)
 
 ## Checklist
 

@@ -1,0 +1,83 @@
+# Migrated from test/data/plugin/watchdog.*
+
+# zebgp-peer expectations
+stdin=peer:terminator=EOF_PEER
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0036020000001540010100400200400304010203044005040000006420424242422058585858
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0031020000001540010100400200400304C0A80164400504000000642064646464
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+cmd=api:conn=1:seq=1:text=watchdog announce dnsr
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00310200000015400101004002004003040102030440050400000064204D4D4D4D
+cmd=api:conn=1:seq=2:text=watchdog withdraw dnsr
+expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001C020005204D4D4D4D0000
+
+cmd=api:conn=1:seq=3:text=watchdog announce dnsr
+expect=bgp:conn=1:seq=3:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00310200000015400101004002004003040102030440050400000064204D4D4D4D
+cmd=api:conn=1:seq=4:text=watchdog withdraw dnsr
+expect=bgp:conn=1:seq=4:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001C020005204D4D4D4D0000
+
+cmd=api:conn=1:seq=5:text=watchdog announce dnsr
+expect=bgp:conn=1:seq=5:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00310200000015400101004002004003040102030440050400000064204D4D4D4D
+cmd=api:conn=1:seq=6:text=watchdog withdraw dnsr
+expect=bgp:conn=1:seq=6:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001C020005204D4D4D4D0000
+EOF_PEER
+
+# Python plugin script
+tmpfs=watchdog.run:mode=755:terminator=EOF_RUN
+#!/usr/bin/env python3
+
+import os
+import time
+
+from zebgp_api import ready, send
+
+
+def main() -> None:
+    ready()
+
+    while os.getppid() != 1:
+        send('watchdog announce dnsr')
+        time.sleep(0.2)
+
+        send('watchdog withdraw dnsr')
+        time.sleep(0.2)
+
+    time.sleep(1)  # time for configuration routes to pass
+
+
+if __name__ == '__main__':
+    main()
+EOF_RUN
+
+# zebgp configuration
+stdin=zebgp:terminator=EOF_CONF
+plugin {
+	external service-watchdog {
+		run ./watchdog.run;
+		encoder json;
+	}
+}
+peer 127.0.0.1 {
+	router-id 10.0.0.10;
+	local-address 127.0.0.1;
+	local-as 65533;
+	peer-as 65533;
+
+	family {
+		ipv4/unicast;
+	}
+	announce {
+		ipv4 {
+			unicast 100.100.100.100 next-hop 192.168.1.100;
+			unicast 66.66.66.66 next-hop 1.2.3.4;
+			unicast 77.77.77.77 next-hop 1.2.3.4 watchdog dnsr withdraw true;
+			unicast 88.88.88.88 next-hop 1.2.3.4;
+		}
+	}
+	process service-watchdog {
+	}
+}
+EOF_CONF
+
+# Process orchestration
+cmd=background:seq=1:exec=zebgp-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=zebgp server -:stdin=zebgp:timeout=10s
