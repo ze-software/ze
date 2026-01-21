@@ -845,17 +845,17 @@ template {
 }
 
 // TestMigrateFileBasedTests runs file-based migration tests.
-// Each test directory in test/data/migrate/ contains:
+// Each test directory in test/exabgp/ contains:
 //   - input.conf: ExaBGP config to migrate
 //   - expected.conf: Expected ZeBGP output
 //
 // VALIDATES: File-based migration produces exact expected output.
 // PREVENTS: Regression in migration output format.
 func TestMigrateFileBasedTests(t *testing.T) {
-	// Find test/data/migrate directory.
+	// Find test/exabgp directory.
 	testDataDir := findTestDataDir(t)
 	if testDataDir == "" {
-		t.Skip("test/data/migrate directory not found")
+		t.Skip("test/exabgp directory not found")
 	}
 
 	tests := []string{"simple", "graceful-restart", "route-refresh", "process", "nexthop"}
@@ -906,15 +906,15 @@ func TestMigrateFileBasedTests(t *testing.T) {
 	}
 }
 
-// findTestDataDir finds the test/data/migrate directory.
+// findTestDataDir finds the test/exabgp directory.
 func findTestDataDir(t *testing.T) string {
 	t.Helper()
 
 	// Try relative paths from common locations
 	paths := []string{
-		"test/data/migrate",
-		"../../test/data/migrate",
-		"../../../test/data/migrate",
+		"test/exabgp",
+		"../../test/exabgp",
+		"../../../test/exabgp",
 	}
 
 	for _, p := range paths {
@@ -926,7 +926,7 @@ func findTestDataDir(t *testing.T) string {
 	// Try from module root
 	wd, _ := os.Getwd()
 	for i := 0; i < 5; i++ {
-		testPath := filepath.Join(wd, "test/data/migrate")
+		testPath := filepath.Join(wd, "test/exabgp")
 		if _, err := os.Stat(testPath); err == nil {
 			return testPath
 		}

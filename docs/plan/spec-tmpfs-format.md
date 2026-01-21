@@ -1150,7 +1150,8 @@ expect=exit:code=0
 - Deleted `test/data/parse/` (superseded by `test/parse/`)
 - Deleted `test/data/plugin/` (superseded by `test/plugin/`)
 - Moved `test/data/scripts/` to `test/scripts/`
-- `test/data/` now only contains `migrate/` for ExaBGP migration tests
+- Moved `test/data/migrate/` to `test/exabgp/`
+- Deleted empty `test/data/` directory
 
 ## Checklist
 
