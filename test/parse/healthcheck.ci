@@ -1,0 +1,21 @@
+# Valid config: healthcheck plugin
+stdin=config:terminator=EOF_CONF
+plugin {
+	external service-nginx {
+		run python3 -m exabgp healthcheck -s --name nginx --cmd curl --fail --verbose --max-time 2 http://localhost --start-ip 0;
+		encoder text;
+	}
+}
+peer 10.0.0.3 {
+	description "will announce a route to a service";
+	router-id 198.111.227.39;
+	local-address 10.0.0.2;
+	local-as 65533;
+	peer-as 65533;
+	process service-nginx {
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=zebgp validate -:stdin=config
+expect=exit:code=0

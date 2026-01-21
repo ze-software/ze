@@ -1,0 +1,40 @@
+# Valid config: two peers with various community formats
+stdin=config:terminator=EOF_CONF
+peer 10.0.0.3 {
+	description "a quagga test peer";
+	router-id 192.0.2.92;
+	local-address 192.0.2.92;
+	local-as 65533;
+	peer-as 65533;
+	group-updates disable;
+	announce {
+		ipv4 {
+			unicast 10.0.5.0/24 next-hop 192.0.2.92 local-preference 10 community 0x87654321;
+		}
+	}
+}
+peer 10.0.0.4 {
+	description "a quagga test peer";
+	router-id 10.0.0.2;
+	local-address 10.0.0.2;
+	local-as 65500;
+	peer-as 65500;
+	announce {
+		ipv4 {
+			unicast 10.0.1.0/24 next-hop 10.0.255.254;
+			unicast 10.0.2.0/24 next-hop 10.0.255.254 community 30740:30740;
+			unicast 10.0.3.0/24 next-hop 10.0.255.254 community "30740:30740 30740:0";
+			unicast 10.0.4.0/24 next-hop 10.0.255.254 local-preference 200;
+			unicast 10.0.5.0/24 next-hop 10.0.255.254 local-preference 200;
+			unicast 10.0.6.0/24 next-hop 10.0.255.254 community 30740:30740;
+			unicast 10.0.7.0/24 next-hop 10.0.255.254 local-preference 200 community 30740:30740;
+			unicast 10.0.7.0/24 next-hop 10.0.255.254 local-preference 200 community "30740:0 30740:30740";
+			unicast 10.0.8.0/24 next-hop 10.0.255.254 local-preference 200 community 30740:30740;
+			unicast 10.0.8.0/24 next-hop 10.0.255.254 local-preference 200 community "30740:0 30740:30740";
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=zebgp validate -:stdin=config
+expect=exit:code=0

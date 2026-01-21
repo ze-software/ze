@@ -1,0 +1,15 @@
+# Invalid config: graceful-restart requires process with send { update; }
+stdin=config:terminator=EOF_CONF
+peer 10.0.0.1 {
+	router-id 1.2.3.4;
+	local-as 65001;
+	peer-as 65002;
+	capability {
+		graceful-restart { restart-time 120; }
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=zebgp validate -:stdin=config
+expect=exit:code=1
+expect=stderr:contains=graceful-restart requires process with send { update; }

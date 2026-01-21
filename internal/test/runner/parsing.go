@@ -1,6 +1,8 @@
 package runner
 
 import (
+	"bufio"
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -18,6 +20,9 @@ type ParsingTest struct {
 	Name string
 	Nick string
 	File string
+
+	// For .ci files: inline config content (nil for .conf files)
+	InlineConfig []byte
 
 	// Negative test support: if set, expect validation to fail with this error
 	// Can be a plain substring or a regex pattern (prefixed with "regex:")
@@ -48,11 +53,33 @@ func NewParsingTests(baseDir string) *ParsingTests {
 	}
 }
 
-// Discover finds all .conf files in valid/ and invalid/ subdirectories.
-// Files in valid/ are positive tests - expect success.
-// Files in invalid/ are negative tests - must have a .expect file with the expected error.
+// Discover finds parsing tests in the directory.
+// Supports two formats:
+//   - Legacy: valid/*.conf (positive) and invalid/*.conf + .expect (negative)
+//   - Unified: *.ci files with stdin=, cmd=, expect= lines
 func (pt *ParsingTests) Discover(dir string) error {
 	ResetNickCounter()
+
+	// First, try to discover .ci files (unified format)
+	ciPattern := filepath.Join(dir, "*.ci")
+	ciFiles, _ := filepath.Glob(ciPattern)
+	sort.Strings(ciFiles)
+
+	for _, ciFile := range ciFiles {
+		test, err := pt.parseCIFile(ciFile)
+		if err != nil {
+			return fmt.Errorf("parse %s: %w", ciFile, err)
+		}
+		pt.tests = append(pt.tests, test)
+		pt.byNick[test.Nick] = test
+	}
+
+	// If .ci files found, we're done
+	if len(pt.tests) > 0 {
+		return nil
+	}
+
+	// Fall back to legacy format: valid/*.conf and invalid/*.conf
 
 	// Discover positive tests (expect success) in valid/ subdirectory
 	validDir := filepath.Join(dir, "valid")
@@ -132,10 +159,101 @@ func (pt *ParsingTests) Discover(dir string) error {
 
 	// Error if no tests found
 	if len(pt.tests) == 0 {
-		return fmt.Errorf("no parsing tests found in %s (expected valid/*.conf and/or invalid/*.conf)", dir)
+		return fmt.Errorf("no parsing tests found in %s (expected *.ci or valid/*.conf)", dir)
 	}
 
 	return nil
+}
+
+// parseCIFile parses a .ci file for parsing tests.
+// Format:
+//
+//	stdin=config:terminator=<TERM>
+//	<config content>
+//	<TERM>
+//	cmd=foreground:seq=1:exec=zebgp validate -:stdin=config
+//	expect=exit:code=<N>
+//	expect=stderr:contains=<error>  (optional, for negative tests)
+func (pt *ParsingTests) parseCIFile(filePath string) (*ParsingTest, error) {
+	content, err := os.ReadFile(filePath) //nolint:gosec // Test runner
+	if err != nil {
+		return nil, err
+	}
+
+	name := strings.TrimSuffix(filepath.Base(filePath), ".ci")
+	nick := generateNick(name)
+
+	test := &ParsingTest{
+		Name: name,
+		Nick: nick,
+		File: filePath,
+	}
+
+	// Parse the file
+	scanner := bufio.NewScanner(bytes.NewReader(content))
+	var configContent []byte
+	var inStdinBlock bool
+	var terminator string
+
+	for scanner.Scan() {
+		line := scanner.Text()
+
+		// Inside stdin block - collect content
+		if inStdinBlock {
+			if line == terminator {
+				inStdinBlock = false
+				continue
+			}
+			configContent = append(configContent, line...)
+			configContent = append(configContent, '\n')
+			continue
+		}
+
+		// Skip comments and empty lines
+		trimmed := strings.TrimSpace(line)
+		if trimmed == "" || strings.HasPrefix(trimmed, "#") {
+			continue
+		}
+
+		// Parse stdin= line
+		if strings.HasPrefix(trimmed, "stdin=") {
+			rest := strings.TrimPrefix(trimmed, "stdin=")
+			parts := strings.Split(rest, ":")
+			for _, part := range parts {
+				if strings.HasPrefix(part, "terminator=") {
+					terminator = strings.TrimPrefix(part, "terminator=")
+					inStdinBlock = true
+					break
+				}
+			}
+			continue
+		}
+
+		// Parse expect=exit:code=N
+		if strings.HasPrefix(trimmed, "expect=exit:code=") {
+			// We don't need to store this - positive tests expect 0, negative expect non-0
+			continue
+		}
+
+		// Parse expect=stderr:contains=<error>
+		if strings.HasPrefix(trimmed, "expect=stderr:contains=") {
+			test.ExpectError = strings.TrimPrefix(trimmed, "expect=stderr:contains=")
+			continue
+		}
+
+		// Skip other lines (cmd=, etc.)
+	}
+
+	if err := scanner.Err(); err != nil {
+		return nil, err
+	}
+
+	if len(configContent) == 0 {
+		return nil, fmt.Errorf("no config content found in stdin block")
+	}
+
+	test.InlineConfig = configContent
+	return test, nil
 }
 
 // Registered returns all tests in order.
@@ -257,13 +375,37 @@ func (r *ParsingRunner) Run(ctx context.Context, verbose, quiet bool) bool {
 // For positive tests (ExpectError empty): expect success (exit 0).
 // For negative tests (ExpectError set): expect failure with matching error message.
 func (r *ParsingRunner) runTest(ctx context.Context, test *ParsingTest) bool {
+	// Determine config file path
+	configPath := test.File
+
+	// For inline config (.ci files), write to temp file
+	if test.InlineConfig != nil {
+		tmpFile, err := os.CreateTemp("", "zebgp-parse-test-*.conf")
+		if err != nil {
+			test.Error = fmt.Errorf("create temp file: %w", err)
+			return false
+		}
+		defer func() { _ = os.Remove(tmpFile.Name()) }()
+
+		if _, err := tmpFile.Write(test.InlineConfig); err != nil {
+			_ = tmpFile.Close()
+			test.Error = fmt.Errorf("write temp file: %w", err)
+			return false
+		}
+		if err := tmpFile.Close(); err != nil {
+			test.Error = fmt.Errorf("close temp file: %w", err)
+			return false
+		}
+		configPath = tmpFile.Name()
+	}
+
 	// Run zebgp validate
 	// Use quiet mode for positive tests (faster), normal mode for negative tests (need error output)
 	var cmd *exec.Cmd
 	if test.ExpectError != "" {
-		cmd = exec.CommandContext(ctx, r.zebgpPath, "validate", test.File) //nolint:gosec // Test runner
+		cmd = exec.CommandContext(ctx, r.zebgpPath, "validate", configPath) //nolint:gosec // Test runner
 	} else {
-		cmd = exec.CommandContext(ctx, r.zebgpPath, "validate", "-q", test.File) //nolint:gosec // Test runner
+		cmd = exec.CommandContext(ctx, r.zebgpPath, "validate", "-q", configPath) //nolint:gosec // Test runner
 	}
 	output, err := cmd.CombinedOutput()
 	test.Output = string(output)

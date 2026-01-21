@@ -1,0 +1,18 @@
+# Valid config: extended community syntax
+stdin=config:terminator=EOF_CONF
+peer 10.0.200.1 {
+	router-id 1.2.3.4;
+	local-address 3.3.3.3;
+	local-as 65000;
+	peer-as 65000;
+	group-updates disable;
+	announce {
+		ipv4 {
+			unicast 9.9.9.9/32 next-hop 192.0.2.1 extended-community "target:120000L:123 origin:130000:1234";
+		}
+	}
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=zebgp validate -:stdin=config
+expect=exit:code=0

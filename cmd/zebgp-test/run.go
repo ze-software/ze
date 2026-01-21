@@ -176,7 +176,7 @@ func runSimpleTests(ctx context.Context, cli *runCLIFlags, baseDir string, newSu
 	case "decoding":
 		testDir = filepath.Join(baseDir, "test/decode")
 	case "parsing":
-		testDir = filepath.Join(baseDir, "test/data/parse")
+		testDir = filepath.Join(baseDir, "test/parse")
 	}
 
 	if err := tests.Discover(testDir); err != nil {
