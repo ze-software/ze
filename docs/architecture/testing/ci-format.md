@@ -12,11 +12,70 @@ action=type:key=value:key=value:...
 
 | Action | Purpose |
 |--------|---------|
+| `stdin=` | Embed stdin content for processes |
 | `tmpfs=` | Embed file content inline |
 | `option=` | Test configuration |
-| `cmd=` | Commands (API, shell) |
+| `cmd=` | Commands (API, shell, foreground/background) |
 | `expect=` | Expectations to validate |
 | `action=` | Actions (send notification, raw bytes) |
+
+## Stdin Blocks
+
+Stdin blocks embed content that will be piped to a process's stdin.
+
+### Syntax
+
+**Multi-line (with terminator):**
+```
+stdin=<name>:terminator=<TERM>
+<content>
+<TERM>
+```
+
+**Single-line hex:**
+```
+stdin=<name>:hex=<hex-value>
+```
+
+**Single-line text:**
+```
+stdin=<name>:text=<text-value>
+```
+
+### Parameters
+
+| Parameter | Description |
+|-----------|-------------|
+| `name` | Identifier referenced by `cmd=...:stdin=<name>` |
+| `terminator` | End marker for multi-line content |
+| `hex` | Hex-encoded content (single-line) |
+| `text` | Plain text content (single-line, newline appended) |
+
+### Examples
+
+**Multi-line (config):**
+```
+stdin=zebgp:terminator=EOF_CONF
+peer 127.0.0.1 {
+    local-as 65533;
+    peer-as 65533;
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=zebgp server -:stdin=zebgp
+```
+
+**Single-line hex (decode test):**
+```
+stdin=payload:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003C020000001C...
+cmd=foreground:seq=1:exec=zebgp-test decode --family ipv4/unicast -:stdin=payload
+expect=json:json={ "type": "update", ... }
+```
+
+**Single-line text:**
+```
+stdin=cmd:text=update text nhop set 10.0.0.1 nlri ipv4/unicast add 10.0.0.0/24
+```
 
 ## Tmpfs (Virtual File System)
 
@@ -135,6 +194,49 @@ cmd=api:conn=<N>:seq=<N>:text=<command>
 cmd=api:conn=1:seq=1:text=update text origin set igp nhop set 10.0.1.1 nlri ipv4/unicast add 10.0.0.0/24
 ```
 
+### Process Commands (Foreground/Background)
+
+For orchestrating multiple processes:
+
+```
+cmd=background:seq=<N>:exec=<command>[:stdin=<name>]
+cmd=foreground:seq=<N>:exec=<command>[:stdin=<name>][:timeout=<dur>]
+```
+
+| Key | Description |
+|-----|-------------|
+| `seq` | Execution order (lower first) |
+| `exec` | Command to execute |
+| `stdin` | Stdin block name to pipe |
+| `timeout` | Foreground timeout (e.g., `10s`) |
+
+**Background:** Starts and keeps running until test ends.
+**Foreground:** Starts and waits for completion.
+
+### Example (Decode Test)
+
+```
+stdin=payload:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003C...
+cmd=foreground:seq=1:exec=zebgp-test decode --family ipv4/unicast -:stdin=payload
+expect=json:json={ "type": "update", ... }
+```
+
+### Example (Multi-Process)
+
+```
+stdin=peer:terminator=EOF_PEER
+option=asn:value=65000
+expect=bgp:conn=1:seq=1:hex=FFFF...
+EOF_PEER
+
+stdin=zebgp:terminator=EOF_CONF
+peer 127.0.0.1 { ... }
+EOF_CONF
+
+cmd=background:seq=1:exec=zebgp-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=zebgp server -:stdin=zebgp:timeout=10s
+```
+
 ## Expectations
 
 ```
@@ -153,11 +255,26 @@ Validates the exact BGP wire message received.
 
 ```
 expect=json:conn=<N>:seq=<N>:json=<json-object>
+expect=json:json=<json-object>
 ```
 
-Validates the decoded message matches expected JSON (ZeBGP plugin format).
+Validates the decoded message matches expected JSON.
 
-### Stderr/Syslog Expectations
+**Validation rules:**
+- Parsed and compared field-by-field (key order independent)
+- Volatile fields removed before comparison: `exabgp`, `zebgp`, `time`, `host`, `pid`, `ppid`, `counter`
+- Neighbor normalization: `peer` ↔ `neighbor` treated as equivalent, `direction` field ignored
+- All non-volatile fields must match exactly
+
+### Exit Code Expectations
+
+```
+expect=exit:code=<N>
+```
+
+Validates the foreground process exit code.
+
+### Stdout/Stderr Expectations
 
 ```
 expect=stderr:pattern=<regex>
@@ -230,10 +347,12 @@ Different components consume different line types:
 
 | Line Type | Consumer |
 |-----------|----------|
+| `stdin=` | Test runner (pipes to processes) |
 | `tmpfs=` | Test runner (writes to temp) |
 | `option=` | Test runner + zebgp-peer |
-| `cmd=` | Test runner |
-| `expect=exit:`, `stdout:`, `stderr:` | Test runner |
+| `cmd=api:` | Test runner (sends to zebgp-peer) |
+| `cmd=foreground:`, `cmd=background:` | Test runner (process orchestration) |
+| `expect=exit:`, `stdout:`, `stderr:`, `json:` | Test runner |
 | `expect=bgp:` | zebgp-peer |
 | `action=notification:`, `action=send:` | zebgp-peer |
 

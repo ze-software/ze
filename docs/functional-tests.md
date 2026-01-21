@@ -79,6 +79,33 @@ Dynamic route tests - routes injected via scripts using the process API.
 - `*.conf` - ZeBGP configuration (includes `process` block)
 - `*.run` - Script that sends API commands
 
+### 4. Decode Tests (`test/decode/`)
+
+BGP message decoding tests - verify wire bytes decode to expected JSON.
+
+**Files:**
+- `*.ci` - Single file with hex payload, command, and expected JSON
+
+**Format:**
+```
+stdin=payload:hex=<hex-encoded-bgp-message>
+cmd=foreground:seq=1:exec=zebgp-test decode --family <family> -:stdin=payload
+expect=json:json=<expected-json>
+```
+
+**Example:**
+```
+# IPv4 unicast decoding test
+stdin=payload:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003C020000001C4001010040020040030465016501...
+cmd=foreground:seq=1:exec=zebgp-test decode --family ipv4/unicast -:stdin=payload
+expect=json:json={ "type": "update", "neighbor": { ... }, "announce": { ... } }
+```
+
+**JSON Validation:**
+- Parsed and compared field-by-field (key order independent)
+- Volatile fields ignored: `exabgp`, `zebgp`, `time`, `host`, `pid`, `ppid`, `counter`
+- Neighbor normalization: `peer` ↔ `neighbor` equivalence, `direction` ignored
+
 ---
 
 ## CLI Reference

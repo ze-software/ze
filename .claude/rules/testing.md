@@ -46,7 +46,7 @@ func main() {
 | Checking invalid config fails | Add to `test/data/parse/invalid/` with `.expect` |
 | Checking BGP message encoding | Add to `test/data/encode/` |
 | Checking API behavior | Add to `test/data/plugin/` |
-| Checking wire format parsing | Add to `test/data/decode/` |
+| Checking wire format decoding | Add to `test/decode/` |
 
 ## Functional Test Location
 
@@ -54,18 +54,19 @@ func main() {
 
 | Test Type | Location | Format |
 |-----------|----------|--------|
-| BGP encoding tests | `test/data/encoding/<name>.conf` + `<name>.ci` | Config + expectations |
+| BGP encoding tests | `test/data/encode/<name>.conf` + `<name>.ci` | Config + expectations |
 | Plugin tests | `test/data/plugin/<name>.conf` + `<name>.ci` | Config + expectations |
 | Parsing tests (valid) | `test/data/parse/valid/<name>.conf` | Config only |
 | Parsing tests (invalid) | `test/data/parse/invalid/<name>.conf` + `<name>.expect` | Config + error |
-| Decoding tests | `test/data/decode/<name>.json` | JSON test cases |
+| Decoding tests | `test/decode/<name>.ci` | stdin + cmd + expect=json |
 | Unit tests | `internal/<package>/<file>_test.go` | Go test file |
 
 ### Creating Functional Tests
 
-1. **Encoding test:** Create `test/data/encoding/<name>.conf` and `test/data/encoding/<name>.ci`
+1. **Encoding test:** Create `test/data/encode/<name>.conf` and `test/data/encode/<name>.ci`
 2. **Plugin test:** Create `test/data/plugin/<name>.conf` and `test/data/plugin/<name>.ci`
-3. **Run:** `make functional` or `zebgp-test run <type> --list` to verify
+3. **Decoding test:** Create `test/decode/<name>.ci` with stdin=, cmd=, expect=json: lines
+4. **Run:** `make functional` or `zebgp-test run <type> --list` to verify
 
 ### CI File Format (.ci)
 

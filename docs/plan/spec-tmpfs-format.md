@@ -1104,16 +1104,17 @@ expect=exit:code=0
 ### Completed ✅
 - `internal/tmpfs/tmpfs.go` - Tmpfs parsing (tmpfs= blocks)
 - `internal/tmpfs/tmpfs.go` - Stdin parsing (stdin= blocks, multi-line with terminator)
+- `internal/tmpfs/tmpfs.go` - Single-line stdin parsing (`stdin=<name>:hex=<value>` and `stdin=<name>:text=<value>`)
 - `internal/test/runner/record.go` - RunCommand struct, parseCmd for background/foreground
 - `internal/test/runner/record.go` - FailType constants (fixed goconst lint)
 - `internal/test/runner/runner.go` - runOrchestrated() for new format execution
 - `internal/test/runner/runner.go` - Permanent debug logging via slogutil
 - `test/data/encode/ebgp-new.ci` - Reference implementation for stdin= format
-- `docs/architecture/testing/ci-format.md` - Format documentation
+- `test/decode/*.ci` - 18 decode tests migrated to unified format
+- `docs/architecture/testing/ci-format.md` - Format documentation (stdin=, foreground/background commands)
+- `docs/functional-tests.md` - Updated with decode tests section
 
 ### Pending ⏳
-- Single-line stdin parsing: `stdin=<name>:hex=<value>` and `stdin=<name>:text=<value>`
-- Re-migrate decode tests to unified format: `stdin=payload:hex=...` + `cmd=foreground:exec=zebgp-test decode`
 - Migrate remaining `test/data/encode/*.conf+.ci` to stdin= format (~37 tests)
 - Migrate `test/data/plugin/*.conf+.ci+.py` to unified format
 - Python zipapp inlining for Tmpfs .py files
@@ -1125,19 +1126,20 @@ expect=exit:code=0
 - `internal/tmpfs` package with tmpfs= and stdin= parsing
 - Test runner integration
 
-### Phase 2: Decode Tests 🔄
+### Phase 2: Decode Tests ✅
+- 18 tests in `test/decode/*.ci`
 - Format: `stdin=payload:hex=<hex>` + `cmd=foreground:exec=zebgp-test decode --family <family> -:stdin=payload`
-- Need to re-migrate from `decode=` format to unified cmd= format
+- All tests passing
 
-### Phase 3: Encode Tests (Current)
+### Phase 3: Encode Tests (Pending)
 - Migrate `test/data/encode/*.conf+.ci` → single `.ci` with stdin= blocks
 - Format: `stdin=peer` + `stdin=zebgp` + `cmd=background/foreground`
 
-### Phase 4: Plugin Tests
+### Phase 4: Plugin Tests (Pending)
 - Migrate `test/data/plugin/*.conf+.ci+.py` → single `.ci` with tmpfs= for .py
 - Python zipapp inlining (optional optimization)
 
-### Phase 5: Parse Tests
+### Phase 5: Parse Tests (Pending)
 - Migrate `test/data/parse/valid/*.conf` → `.ci` with stdin= + expect=exit:code=0
 - Migrate `test/data/parse/invalid/*.conf+.expect` → `.ci` with expect=stderr:
 
