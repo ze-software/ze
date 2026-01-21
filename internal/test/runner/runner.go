@@ -664,7 +664,7 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 		proc.Env = append(os.Environ(),
 			fmt.Sprintf("zebgp_tcp_port=%d", rec.Port),
 			fmt.Sprintf("zebgp_api_socketpath=%s", filepath.Join(os.TempDir(), fmt.Sprintf("zebgp-test-%d.sock", rec.Port))),
-			fmt.Sprintf("PYTHONPATH=%s", filepath.Join(r.baseDir, "test/data/scripts")),
+			fmt.Sprintf("PYTHONPATH=%s", filepath.Join(r.baseDir, "test/scripts")),
 			fmt.Sprintf("PATH=%s:%s", zebgpDir, existingPath),
 		)
 
