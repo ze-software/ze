@@ -284,7 +284,7 @@ func TestServerEmptyLine(t *testing.T) {
 	defer func() { _ = conn.Close() }()
 
 	// Send empty lines then a real command
-	_, err = conn.Write([]byte("\n\n\nsystem version\n"))
+	_, err = conn.Write([]byte("\n\n\nsystem version software\n"))
 	require.NoError(t, err)
 
 	reader := bufio.NewReader(conn)
@@ -316,7 +316,7 @@ func TestServerCommentLine(t *testing.T) {
 	defer func() { _ = conn.Close() }()
 
 	// Send comment then real command
-	_, err = conn.Write([]byte("# this is a comment\nsystem version\n"))
+	_, err = conn.Write([]byte("# this is a comment\nsystem version software\n"))
 	require.NoError(t, err)
 
 	reader := bufio.NewReader(conn)
@@ -339,8 +339,8 @@ func TestParseSerial(t *testing.T) {
 		wantSerial string
 		wantCmd    string
 	}{
-		{"no prefix", "system version", "", "system version"},
-		{"numeric serial", "#1 system version", "1", "system version"},
+		{"no prefix", "system version software", "", "system version software"},
+		{"numeric serial", "#1 system version software", "1", "system version software"},
 		{"multi-digit serial", "#123 update text", "123", "update text"},
 		{"comment not serial", "# this is a comment", "", "# this is a comment"},
 		{"alpha not serial", "#abc command", "", "#abc command"},
@@ -370,7 +370,7 @@ func TestIsComment(t *testing.T) {
 		{"# this is a comment", true},
 		{"#  indented comment", true},
 		{"#1 command with serial", false},
-		{"system version", false},
+		{"system version software", false},
 		{"#", false},
 		{"", false},
 	}
@@ -458,7 +458,7 @@ func TestServerNoSerialCommand(t *testing.T) {
 	defer func() { _ = conn.Close() }()
 
 	// Send command without serial
-	_, err = conn.Write([]byte("system version\n"))
+	_, err = conn.Write([]byte("system version software\n"))
 	require.NoError(t, err)
 
 	reader := bufio.NewReader(conn)
@@ -490,7 +490,7 @@ func TestServerSerialCommand(t *testing.T) {
 	defer func() { _ = conn.Close() }()
 
 	// Send command with serial
-	_, err = conn.Write([]byte("#42 system version\n"))
+	_, err = conn.Write([]byte("#42 system version software\n"))
 	require.NoError(t, err)
 
 	reader := bufio.NewReader(conn)

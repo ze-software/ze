@@ -66,9 +66,10 @@ plugin session bye       # Disconnect
 
 ```
 system help              # Show help (uses dispatcher, includes plugin commands)
-system version           # Show version
-system api version       # Show API version
-system queue-status      # Show write queue status
+system version software  # Show ZeBGP version
+system version api       # Show IPC protocol version
+system shutdown          # Graceful application shutdown
+system subsystem list    # List available subsystems
 system command list      # List all commands (builtin + plugin)
 system command list verbose  # List with source (builtin/process name)
 system command help "<name>" # Show command details

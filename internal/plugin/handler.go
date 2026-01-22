@@ -10,6 +10,9 @@ import (
 // Version is the ZeBGP version string.
 const Version = "0.1.0"
 
+// APIVersion is the IPC protocol version.
+const APIVersion = "0.1.0"
+
 // RegisterDefaultHandlers registers all command handlers.
 func RegisterDefaultHandlers(d *Dispatcher) {
 	// Daemon control
@@ -27,7 +30,10 @@ func RegisterDefaultHandlers(d *Dispatcher) {
 
 	// System commands
 	d.Register("system help", handleSystemHelp, "Show available commands")
-	d.Register("system version", handleSystemVersion, "Show version")
+	d.Register("system version software", handleSystemVersionSoftware, "Show ZeBGP version")
+	d.Register("system version api", handleSystemVersionAPI, "Show IPC protocol version")
+	d.Register("system shutdown", handleSystemShutdown, "Graceful application shutdown")
+	d.Register("system subsystem list", handleSystemSubsystemList, "List available subsystems")
 	d.Register("system command list", handleSystemCommandList, "List all commands")
 	d.Register("system command help", handleSystemCommandHelp, "Show command details")
 	d.Register("system command complete", handleSystemCommandComplete, "Complete command/args")
@@ -175,7 +181,8 @@ func handleSystemHelp(ctx *CommandContext, _ []string) (*Response, error) {
 			"daemon status - Show daemon status",
 			"peer list - List all peers",
 			"system help - Show available commands",
-			"system version - Show version",
+			"system version software - Show ZeBGP version",
+			"system version api - Show IPC protocol version",
 		}
 	}
 
@@ -187,12 +194,46 @@ func handleSystemHelp(ctx *CommandContext, _ []string) (*Response, error) {
 	}, nil
 }
 
-// handleSystemVersion returns version information.
-func handleSystemVersion(_ *CommandContext, _ []string) (*Response, error) {
+// handleSystemVersionSoftware returns ZeBGP version information.
+func handleSystemVersionSoftware(_ *CommandContext, _ []string) (*Response, error) {
 	return &Response{
 		Status: "done",
 		Data: map[string]any{
 			"version": Version,
+		},
+	}, nil
+}
+
+// handleSystemVersionAPI returns IPC protocol version.
+func handleSystemVersionAPI(_ *CommandContext, _ []string) (*Response, error) {
+	return &Response{
+		Status: "done",
+		Data: map[string]any{
+			"version": APIVersion,
+		},
+	}, nil
+}
+
+// handleSystemShutdown triggers graceful application shutdown.
+func handleSystemShutdown(ctx *CommandContext, _ []string) (*Response, error) {
+	ctx.Reactor.Stop()
+	return &Response{
+		Status: "done",
+		Data: map[string]any{
+			"message": "shutdown initiated",
+		},
+	}, nil
+}
+
+// handleSystemSubsystemList returns available subsystems.
+func handleSystemSubsystemList(_ *CommandContext, _ []string) (*Response, error) {
+	// For now, bgp is always available
+	// Future: query reactor for enabled subsystems
+	subsystems := []string{"bgp"}
+	return &Response{
+		Status: "done",
+		Data: map[string]any{
+			"subsystems": subsystems,
 		},
 	}, nil
 }

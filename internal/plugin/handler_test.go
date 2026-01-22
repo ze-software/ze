@@ -540,7 +540,7 @@ func TestRegisterDefaultHandlers(t *testing.T) {
 		"peer list",
 		"peer show",
 		"system help",
-		"system version",
+		"system version software",
 	}
 
 	for _, cmd := range requiredCommands {
@@ -1268,6 +1268,146 @@ func TestSessionSyncCommandsRemain(t *testing.T) {
 		t.Run(cmd, func(t *testing.T) {
 			c := d.Lookup(cmd)
 			assert.NotNil(t, c, "command %q should still be registered (moved in Step 4)", cmd)
+		})
+	}
+}
+
+// =============================================================================
+// Step 3: System Namespace Tests
+// =============================================================================
+
+// TestDispatchSystemVersionSoftware verifies system version software returns version.
+//
+// VALIDATES: "system version software" returns ZeBGP version string.
+// PREVENTS: Missing version info after command rename.
+func TestDispatchSystemVersionSoftware(t *testing.T) {
+	d := NewDispatcher()
+	RegisterDefaultHandlers(d)
+
+	ctx := &CommandContext{
+		Reactor:    &mockReactor{},
+		Dispatcher: d,
+	}
+
+	resp, err := d.Dispatch(ctx, "system version software")
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	assert.Equal(t, "done", resp.Status)
+
+	data, ok := resp.Data.(map[string]any)
+	require.True(t, ok, "data should be a map")
+	assert.Equal(t, Version, data["version"], "should return software version")
+}
+
+// TestDispatchSystemVersionAPI verifies system version api returns protocol version.
+//
+// VALIDATES: "system version api" returns IPC protocol version.
+// PREVENTS: API version unavailable to clients.
+func TestDispatchSystemVersionAPI(t *testing.T) {
+	d := NewDispatcher()
+	RegisterDefaultHandlers(d)
+
+	ctx := &CommandContext{
+		Reactor:    &mockReactor{},
+		Dispatcher: d,
+	}
+
+	resp, err := d.Dispatch(ctx, "system version api")
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	assert.Equal(t, "done", resp.Status)
+
+	data, ok := resp.Data.(map[string]any)
+	require.True(t, ok, "data should be a map")
+	assert.Equal(t, APIVersion, data["version"], "should return API version")
+}
+
+// TestDispatchSystemShutdown verifies system shutdown triggers reactor stop.
+//
+// VALIDATES: "system shutdown" calls reactor.Stop().
+// PREVENTS: Application-level shutdown broken.
+func TestDispatchSystemShutdown(t *testing.T) {
+	d := NewDispatcher()
+	RegisterDefaultHandlers(d)
+
+	mock := &mockReactor{}
+	ctx := &CommandContext{
+		Reactor:    mock,
+		Dispatcher: d,
+	}
+
+	resp, err := d.Dispatch(ctx, "system shutdown")
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	assert.Equal(t, "done", resp.Status)
+	assert.True(t, mock.stopped, "reactor.Stop() should have been called")
+}
+
+// TestDispatchSystemSubsystemList verifies system subsystem list returns subsystems.
+//
+// VALIDATES: "system subsystem list" returns available subsystems.
+// PREVENTS: Subsystem discovery broken.
+func TestDispatchSystemSubsystemList(t *testing.T) {
+	d := NewDispatcher()
+	RegisterDefaultHandlers(d)
+
+	ctx := &CommandContext{
+		Reactor:    &mockReactor{},
+		Dispatcher: d,
+	}
+
+	resp, err := d.Dispatch(ctx, "system subsystem list")
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	assert.Equal(t, "done", resp.Status)
+
+	data, ok := resp.Data.(map[string]any)
+	require.True(t, ok, "data should be a map")
+	subsystems, ok := data["subsystems"].([]string)
+	require.True(t, ok, "subsystems should be a string slice")
+	assert.Contains(t, subsystems, "bgp", "should include bgp subsystem")
+}
+
+// TestOldSystemVersionRemoved verifies bare "system version" fails.
+//
+// VALIDATES: "system version" alone returns unknown command error.
+// PREVENTS: Accidental backward compatibility.
+func TestOldSystemVersionRemoved(t *testing.T) {
+	d := NewDispatcher()
+	RegisterDefaultHandlers(d)
+
+	// "system version" should not be registered as a command
+	cmd := d.Lookup("system version")
+	assert.Nil(t, cmd, "bare 'system version' should not be a registered command")
+
+	// But "system version software" should exist
+	cmd = d.Lookup("system version software")
+	assert.NotNil(t, cmd, "'system version software' should be registered")
+}
+
+// TestSystemCommandsRegistered verifies all system commands are registered.
+//
+// VALIDATES: System namespace commands exist.
+// PREVENTS: Missing command registrations.
+func TestSystemCommandsRegistered(t *testing.T) {
+	d := NewDispatcher()
+	RegisterDefaultHandlers(d)
+
+	systemCommands := []string{
+		"system help",
+		"system version software",
+		"system version api",
+		"system shutdown",
+		"system subsystem list",
+		"system command list",
+		"system command help",
+		"system command complete",
+	}
+
+	for _, cmd := range systemCommands {
+		t.Run(cmd, func(t *testing.T) {
+			c := d.Lookup(cmd)
+			assert.NotNil(t, c, "command %q must be registered", cmd)
 		})
 	}
 }

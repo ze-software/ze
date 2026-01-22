@@ -72,7 +72,7 @@ d.Register("system command complete", handleSystemCommandComplete, "Complete com
 
 **system version api returns:**
 ```json
-{"type":"response","response":{"status":"done","data":{"version":"2.0"}}}
+{"type":"response","response":{"status":"done","data":{"version":"0.1.0"}}}
 ```
 
 **system subsystem list returns:**
@@ -87,7 +87,7 @@ d.Register("system command complete", handleSystemCommandComplete, "Complete com
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
 | `TestDispatchSystemVersionSoftware` | `internal/plugin/handler_test.go` | `system version software` returns version | |
-| `TestDispatchSystemVersionAPI` | `internal/plugin/handler_test.go` | `system version api` returns "2.0" | |
+| `TestDispatchSystemVersionAPI` | `internal/plugin/handler_test.go` | `system version api` returns version | |
 | `TestDispatchSystemShutdown` | `internal/plugin/handler_test.go` | `system shutdown` triggers reactor stop | |
 | `TestDispatchSystemSubsystemList` | `internal/plugin/handler_test.go` | `system subsystem list` returns subsystems | |
 | `TestOldSystemVersionRemoved` | `internal/plugin/handler_test.go` | `system version` alone returns error | |
@@ -109,7 +109,7 @@ d.Register("system command complete", handleSystemCommandComplete, "Complete com
 
 ```go
 // APIVersion is the IPC protocol version.
-const APIVersion = "2.0"
+const APIVersion = "0.1.0"
 ```
 
 ## Implementation Steps
@@ -172,19 +172,48 @@ func handleSystemSubsystemList(ctx *CommandContext, _ []string) (*Response, erro
 | `system shutdown` | Application | Stop entire ZeBGP process |
 | `bgp daemon shutdown` | BGP subsystem | Stop BGP but keep API running |
 
+## Implementation Summary
+
+### What Was Implemented
+
+- **New system commands**:
+  - `system version software` - Returns ZeBGP version (renamed from `system version`)
+  - `system version api` - Returns IPC protocol version
+  - `system shutdown` - Triggers reactor.Stop() for application shutdown
+  - `system subsystem list` - Returns available subsystems (currently ["bgp"])
+
+- **Constants added**:
+  - `APIVersion = "0.1.0"` in `handler.go`
+
+- **Removed commands**:
+  - `system version` - No longer registered (use `system version software`)
+
+### Files Modified
+
+| File | Changes |
+|------|---------|
+| `internal/plugin/handler.go` | Added APIVersion const, new handlers, updated registrations |
+| `internal/plugin/handler_test.go` | Added 6 new tests for system commands |
+| `internal/plugin/server_test.go` | Updated to use `system version software` |
+
+### Deviations from Plan
+
+- Did NOT implement scope change for `system command list` - it still lists all commands (system namespace filtering deferred to later step if needed)
+- `handleSystemSubsystemList` hardcodes `["bgp"]` - dynamic subsystem detection deferred
+
 ## Checklist
 
 ### 🧪 TDD
-- [ ] Tests written
-- [ ] Tests FAIL (output below)
-- [ ] Implementation complete
-- [ ] Tests PASS (output below)
+- [x] Tests written
+- [x] Tests FAIL (APIVersion undefined)
+- [x] Implementation complete
+- [x] Tests PASS
 
 ### Verification
-- [ ] `make lint` passes
-- [ ] `make test` passes
-- [ ] `make functional` passes
+- [x] `make lint` passes (0 issues)
+- [x] `make test` passes
+- [x] `make functional` passes
 
 ### Completion
 - [ ] All files committed together
-- [ ] Spec moved to `docs/plan/done/`
+- [x] Spec moved to `docs/plan/done/`

@@ -7,7 +7,7 @@ Step 1: JSON Message Format ✅
     │
     ├── Step 2: Plugin Namespace ✅
     │
-    ├── Step 3: System Namespace (ready)
+    ├── Step 3: System Namespace ✅
     │
     └── Step 4: BGP Namespace Foundation (ready)
             │
@@ -28,7 +28,7 @@ Step 1: JSON Message Format ✅
 |------|-----------|-------------|------------|--------|
 | 1 | `done/140-api-command-restructure-step-1.md` | JSON Message Format: Add `type` field | None | ✅ Done |
 | 2 | `done/141-api-command-restructure-step-2.md` | Plugin Namespace: `plugin session *` commands | Step 1 | ✅ Done |
-| 3 | `spec-api-command-restructure-step-3.md` | System Namespace: `system version api`, `system shutdown` | Step 1 | Pending |
+| 3 | `done/143-api-command-restructure-step-3.md` | System Namespace: `system version api`, `system shutdown` | Step 1 | ✅ Done |
 | 4 | `spec-api-command-restructure-step-4.md` | BGP Foundation: introspection, `bgp plugin *` config | Step 1 | Pending |
 | 5 | `spec-api-command-restructure-step-5.md` | BGP Migration: move all commands under `bgp` | Step 4 | Pending |
 | 6 | `spec-api-command-restructure-step-6.md` | Event Subscription: `subscribe`/`unsubscribe` | Step 5 | Pending |
