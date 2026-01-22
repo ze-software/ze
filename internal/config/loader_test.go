@@ -17,18 +17,20 @@ import (
 // PREVENTS: Broken config → reactor integration.
 func TestLoadReactor(t *testing.T) {
 	input := `
-router-id 10.0.0.1;
-local-as 65000;
-listen 127.0.0.1:1179;
+bgp {
+    router-id 10.0.0.1;
+    local-as 65000;
+    listen 127.0.0.1:1179;
 
-peer 192.0.2.1 {
-    peer-as 65001;
-    hold-time 90;
-}
+    peer 192.0.2.1 {
+        peer-as 65001;
+        hold-time 90;
+    }
 
-peer 192.0.2.2 {
-    peer-as 65002;
-    passive true;
+    peer 192.0.2.2 {
+        peer-as 65002;
+        passive true;
+    }
 }
 `
 
@@ -47,11 +49,13 @@ peer 192.0.2.2 {
 // PREVENTS: Zero AS numbers in neighbors.
 func TestLoadReactorInheritance(t *testing.T) {
 	input := `
-router-id 10.0.0.1;
-local-as 65000;
+bgp {
+    router-id 10.0.0.1;
+    local-as 65000;
 
-peer 192.0.2.1 {
-    peer-as 65001;
+    peer 192.0.2.1 {
+        peer-as 65001;
+    }
 }
 `
 
@@ -74,12 +78,14 @@ peer 192.0.2.1 {
 // PREVENTS: Active connections to passive peers.
 func TestLoadReactorPassive(t *testing.T) {
 	input := `
-router-id 10.0.0.1;
-local-as 65000;
+bgp {
+    router-id 10.0.0.1;
+    local-as 65000;
 
-peer 192.0.2.1 {
-    peer-as 65001;
-    passive true;
+    peer 192.0.2.1 {
+        peer-as 65001;
+        passive true;
+    }
 }
 `
 
@@ -100,17 +106,19 @@ peer 192.0.2.1 {
 // PREVENTS: RFC 7313 BoRR/EoRR failing due to missing EnhancedRouteRefresh capability.
 func TestLoadReactorRouteRefreshCapabilities(t *testing.T) {
 	input := `
-router-id 10.0.0.1;
-local-as 65000;
-
 plugin { external rib { run ./rib; } }
 
-peer 192.0.2.1 {
-    peer-as 65001;
-    capability {
-        route-refresh;
+bgp {
+    router-id 10.0.0.1;
+    local-as 65000;
+
+    peer 192.0.2.1 {
+        peer-as 65001;
+        capability {
+            route-refresh;
+        }
+        process rib { send { update; } }
     }
-    process rib { send { update; } }
 }
 `
 
@@ -144,12 +152,14 @@ peer 192.0.2.1 {
 // PREVENTS: Missing reactor configuration.
 func TestLoadReactorConfig(t *testing.T) {
 	input := `
-router-id 10.0.0.1;
-local-as 65000;
-listen 0.0.0.0:179;
+bgp {
+    router-id 10.0.0.1;
+    local-as 65000;
+    listen 0.0.0.0:179;
 
-peer 192.0.2.1 {
-    peer-as 65001;
+    peer 192.0.2.1 {
+        peer-as 65001;
+    }
 }
 `
 
@@ -169,8 +179,10 @@ peer 192.0.2.1 {
 // PREVENTS: Silent config failures.
 func TestLoadReactorError(t *testing.T) {
 	input := `
-peer 192.0.2.1 {
-    peer-as not-a-number;
+bgp {
+    peer 192.0.2.1 {
+        peer-as not-a-number;
+    }
 }
 `
 
@@ -242,7 +254,7 @@ func TestOldSyntaxHint(t *testing.T) {
 
 	t.Run("current syntax no hint", func(t *testing.T) {
 		// Valid current config should parse without error (no hint needed)
-		input := `peer 192.0.2.1 { local-as 65000; peer-as 65001; }`
+		input := `bgp { peer 192.0.2.1 { local-as 65000; peer-as 65001; } }`
 		_, err := LoadReactor(input)
 		require.NoError(t, err)
 	})
@@ -435,20 +447,22 @@ func TestConvertMVPNRoute_InvalidClusterList(t *testing.T) {
 // PREVENTS: Config parser missing fields (parseMVPNRoute gap).
 func TestLoadReactor_MVPNRouteReflector(t *testing.T) {
 	input := `
-router-id 10.0.0.1;
-local-as 65000;
+bgp {
+    router-id 10.0.0.1;
+    local-as 65000;
 
-peer 192.0.2.1 {
-    peer-as 65001;
-    announce {
-        ipv4 {
-            mcast-vpn source-ad {
-                rd 100:100;
-                source 10.0.0.1;
-                group 239.1.1.1;
-                next-hop 192.168.1.1;
-                originator-id 192.168.1.1;
-                cluster-list 10.0.0.1 10.0.0.2;
+    peer 192.0.2.1 {
+        peer-as 65001;
+        announce {
+            ipv4 {
+                mcast-vpn source-ad {
+                    rd 100:100;
+                    source 10.0.0.1;
+                    group 239.1.1.1;
+                    next-hop 192.168.1.1;
+                    originator-id 192.168.1.1;
+                    cluster-list 10.0.0.1 10.0.0.2;
+                }
             }
         }
     }
@@ -541,11 +555,13 @@ func TestSchemaExtendCapability(t *testing.T) {
 
 	// Before extension, custom capability should fail
 	inputBefore := `
-peer 192.0.2.1 {
-    peer-as 65001;
-    capability {
-        custom-cap {
-            some-value 42;
+bgp {
+    peer 192.0.2.1 {
+        peer-as 65001;
+        capability {
+            custom-cap {
+                some-value 42;
+            }
         }
     }
 }
@@ -562,11 +578,13 @@ peer 192.0.2.1 {
 
 	// After extension, custom capability should parse
 	inputAfter := `
-peer 192.0.2.1 {
-    peer-as 65001;
-    capability {
-        custom-cap {
-            some-value 42;
+bgp {
+    peer 192.0.2.1 {
+        peer-as 65001;
+        capability {
+            custom-cap {
+                some-value 42;
+            }
         }
     }
 }
@@ -576,7 +594,10 @@ peer 192.0.2.1 {
 	require.NoError(t, err)
 
 	// Verify the capability was parsed
-	peers := tree.GetList("peer")
+	bgpContainer := tree.GetContainer("bgp")
+	require.NotNil(t, bgpContainer)
+
+	peers := bgpContainer.GetList("peer")
 	require.Len(t, peers, 1)
 
 	peer := peers["192.0.2.1"]
@@ -599,16 +620,18 @@ peer 192.0.2.1 {
 // PREVENTS: Silent drop of bgp-prefix-sid-srv6 attribute in inline VPN route parsing.
 func TestSRv6PrefixSIDInVPNRoute(t *testing.T) {
 	input := `
-peer 127.0.0.1 {
-	router-id 1.2.3.4;
-	local-as 65000;
-	peer-as 65000;
-	family { ipv4/mpls-vpn; }
-	announce {
-		ipv4 {
-			mpls-vpn 10.1.0.0/24 next-hop cafe::1 extended-community target:4:100 label 3 rd 4:100 bgp-prefix-sid-srv6 "l3-service 2001:1::";
-		}
-	}
+bgp {
+    peer 127.0.0.1 {
+        router-id 1.2.3.4;
+        local-as 65000;
+        peer-as 65000;
+        family { ipv4/mpls-vpn; }
+        announce {
+            ipv4 {
+                mpls-vpn 10.1.0.0/24 next-hop cafe::1 extended-community target:4:100 label 3 rd 4:100 bgp-prefix-sid-srv6 "l3-service 2001:1::";
+            }
+        }
+    }
 }
 `
 	p := NewParser(BGPSchema())
@@ -640,4 +663,185 @@ peer 127.0.0.1 {
 		}
 	}
 	assert.True(t, found, "expected to find route 10.1.0.0/24")
+}
+
+// =============================================================================
+// BGP Block Tests (spec-config-bgp-block)
+// =============================================================================
+
+// TestParseBGPBlock verifies parsing config with bgp {} wrapper.
+//
+// VALIDATES: New syntax with BGP config wrapped in bgp {} block.
+// PREVENTS: Regression to old top-level BGP elements.
+func TestParseBGPBlock(t *testing.T) {
+	input := `
+bgp {
+    router-id 10.0.0.1;
+    local-as 65000;
+    listen 127.0.0.1:1179;
+
+    peer 192.0.2.1 {
+        peer-as 65001;
+        hold-time 90;
+    }
+}
+`
+
+	r, err := LoadReactor(input)
+	require.NoError(t, err)
+	require.NotNil(t, r)
+
+	peers := r.Peers()
+	require.Len(t, peers, 1)
+
+	settings := peers[0].Settings()
+	assert.Equal(t, uint32(65000), settings.LocalAS)
+	assert.Equal(t, uint32(65001), settings.PeerAS)
+}
+
+// TestTopLevelBGPElementsRejected verifies old syntax is rejected.
+//
+// VALIDATES: Config without bgp {} wrapper is rejected.
+// PREVENTS: Accidental use of deprecated top-level syntax.
+func TestTopLevelBGPElementsRejected(t *testing.T) {
+	input := `
+router-id 10.0.0.1;
+local-as 65000;
+
+peer 192.0.2.1 {
+    peer-as 65001;
+}
+`
+
+	_, err := LoadReactor(input)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "unknown top-level keyword")
+}
+
+// TestParseTemplateNewSyntax verifies new template syntax with peer patterns.
+//
+// VALIDATES: template { bgp { peer <pattern> { } } } syntax.
+// PREVENTS: Template config parsing failures with new syntax.
+func TestParseTemplateNewSyntax(t *testing.T) {
+	input := `
+template {
+    bgp {
+        peer * {
+            hold-time 90;
+        }
+    }
+}
+
+bgp {
+    router-id 10.0.0.1;
+    local-as 65000;
+
+    peer 192.0.2.1 {
+        peer-as 65001;
+    }
+}
+`
+
+	r, err := LoadReactor(input)
+	require.NoError(t, err)
+	require.NotNil(t, r)
+
+	peers := r.Peers()
+	require.Len(t, peers, 1)
+
+	// Peer should inherit hold-time from template
+	settings := peers[0].Settings()
+	assert.Equal(t, 90*1000000000, int(settings.HoldTime.Nanoseconds()))
+}
+
+// TestInheritNameKeyword verifies inherit-name in templates.
+//
+// VALIDATES: template with inherit-name creates named template.
+// PREVENTS: Named template lookup failures.
+func TestInheritNameKeyword(t *testing.T) {
+	input := `
+template {
+    bgp {
+        peer * {
+            inherit-name backbone;
+            hold-time 90;
+        }
+    }
+}
+
+bgp {
+    router-id 10.0.0.1;
+    local-as 65000;
+
+    peer 192.0.2.1 {
+        inherit backbone;
+        peer-as 65001;
+    }
+}
+`
+
+	r, err := LoadReactor(input)
+	require.NoError(t, err)
+	require.NotNil(t, r)
+
+	peers := r.Peers()
+	require.Len(t, peers, 1)
+
+	// Peer should inherit hold-time from backbone template
+	settings := peers[0].Settings()
+	assert.Equal(t, 90*1000000000, int(settings.HoldTime.Nanoseconds()))
+}
+
+// TestInheritNonExistent verifies error for missing template.
+//
+// VALIDATES: inherit with non-existent template name fails.
+// PREVENTS: Silent failure when template doesn't exist.
+func TestInheritNonExistent(t *testing.T) {
+	input := `
+bgp {
+    router-id 10.0.0.1;
+    local-as 65000;
+
+    peer 192.0.2.1 {
+        inherit nonexistent;
+        peer-as 65001;
+    }
+}
+`
+
+	_, err := LoadReactor(input)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "nonexistent")
+}
+
+// TestInheritPatternValidation verifies inherit pattern matching.
+//
+// VALIDATES: inherit only works when peer matches template pattern.
+// PREVENTS: Applying templates to non-matching peers.
+func TestInheritPatternValidation(t *testing.T) {
+	input := `
+template {
+    bgp {
+        peer 10.* {
+            inherit-name internal;
+            hold-time 90;
+        }
+    }
+}
+
+bgp {
+    router-id 10.0.0.1;
+    local-as 65000;
+
+    # This peer IP doesn't match 10.* pattern
+    peer 192.168.1.1 {
+        inherit internal;
+        peer-as 65001;
+    }
+}
+`
+
+	_, err := LoadReactor(input)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "pattern")
 }

@@ -142,32 +142,45 @@ bgp {
 ## Checklist
 
 ### 🧪 TDD
-- [ ] Tests written
-- [ ] Tests FAIL (output below)
-- [ ] Implementation complete
-- [ ] Tests PASS (output below)
+- [x] Tests written
+- [x] Tests FAIL (output below)
+- [x] Implementation complete
+- [x] Tests PASS (output below)
 
 ### Verification
-- [ ] `make lint` passes
-- [ ] `make test` passes
-- [ ] `make functional` passes
+- [x] `make lint` passes (0 issues)
+- [x] `make test` passes (all packages)
+- [x] `make functional` passes (96 tests: 42 encoding + 24 plugin + 12 parsing + 18 decoding)
 
 ### Documentation
-- [ ] Required docs read
-- [ ] Architecture docs updated with new syntax
+- [x] Required docs read
+- [x] Architecture docs updated with new syntax (`docs/architecture/config/syntax.md`)
 
 ## Implementation Summary
 
-<!-- Fill after implementation, before moving to done/ -->
-
 ### What Was Implemented
-- (pending)
+- Added `bgp {}` container block to config schema
+- Updated `template` to use `template { bgp { peer <pattern> { ... } } }` syntax
+- Added `inherit-name` field for naming templates in `template.bgp.peer`
+- `inherit` in `bgp.peer` references templates by name
+- Pattern in `template.bgp.peer` limits which peers can inherit
+- Migration framework updated with `wrap-bgp-block` and `template->new-format` transformations
+- Migrated 169 files total:
+  - 91 config files (`etc/ze/bgp/*.conf`)
+  - 42 encoding tests (`test/encode/*.ci`)
+  - 24 plugin tests (`test/plugin/*.ci`)
+  - 12 parsing tests (`test/parse/*.ci`)
 
 ### Bugs Found/Fixed
-- (pending)
+- ExaBGP test input files (`test/exabgp/*/input.conf`) were accidentally migrated; restored to original ExaBGP format
 
 ### Design Insights
-- (pending)
+- `inherit-name <name>` in `template.bgp.peer <pattern>` defines a named template
+- `inherit <name>` in `bgp.peer` uses that template
+- Pattern `*` allows any peer to inherit; specific patterns (e.g., `10.0.0.*`) restrict inheritance
+- Without `inherit-name`, pattern-based templates auto-apply to matching peers
 
 ### Deviations from Plan
-- (pending)
+- Did not create separate `internal/config/template.go` or `internal/config/validate.go` - functionality integrated into existing files
+- Did not create new functional test files - existing tests updated instead
+- Template design clarified: `peer <pattern>` with optional `inherit-name`, not separate `group`/`match` blocks

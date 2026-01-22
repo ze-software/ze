@@ -7,9 +7,9 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// TestTransformNeighborToPeer verifies neighbor→peer rename.
+// TestTransformNeighborToPeer verifies neighbor→peer rename inside bgp {}.
 //
-// VALIDATES: "neighbor <IP>" becomes "peer <IP>".
+// VALIDATES: "neighbor <IP>" becomes "bgp { peer <IP> }".
 //
 // PREVENTS: Neighbor configs being lost during migration.
 func TestTransformNeighborToPeer(t *testing.T) {
@@ -29,12 +29,15 @@ neighbor 192.0.2.1 {
 	require.NoError(t, err)
 	require.NotNil(t, result)
 
-	// Verify neighbor is gone
+	// Verify neighbor is gone at root
 	neighbors := result.Tree.GetList("neighbor")
 	require.Empty(t, neighbors, "neighbor list should be empty after migration")
 
-	// Verify peer exists with correct data
-	peers := result.Tree.GetList("peer")
+	// Verify peer is inside bgp {}
+	bgpContainer := result.Tree.GetContainer("bgp")
+	require.NotNil(t, bgpContainer, "bgp container should exist")
+
+	peers := bgpContainer.GetList("peer")
 	require.Len(t, peers, 1)
 
 	peer := peers["192.0.2.1"]
@@ -48,9 +51,9 @@ neighbor 192.0.2.1 {
 	require.False(t, NeedsMigration(result.Tree))
 }
 
-// TestMigratePeerGlobToMatch verifies peer glob→template.match.
+// TestMigratePeerGlobToMatch verifies peer glob→template.bgp.peer.
 //
-// VALIDATES: Root "peer *" becomes "template { match * }".
+// VALIDATES: Root "peer *" becomes "template { bgp { peer * } }".
 //
 // PREVENTS: Glob patterns being lost during migration.
 func TestMigratePeerGlobToMatch(t *testing.T) {
@@ -71,35 +74,41 @@ neighbor 192.0.2.1 {
 	result, err := Migrate(tree)
 	require.NoError(t, err)
 
-	// Verify root peer globs are gone
-	peers := result.Tree.GetList("peer")
-	require.Len(t, peers, 1, "only non-glob peer should remain")
+	// Verify peer is inside bgp {}
+	bgpContainer := result.Tree.GetContainer("bgp")
+	require.NotNil(t, bgpContainer, "bgp container should exist")
+
+	peers := bgpContainer.GetList("peer")
+	require.Len(t, peers, 1, "only non-glob peer should be in bgp")
 	_, hasIP := peers["192.0.2.1"]
 	require.True(t, hasIP)
 
-	// Verify template.match has the globs
+	// Verify template.bgp.peer has the globs
 	tmpl := result.Tree.GetContainer("template")
 	require.NotNil(t, tmpl)
 
-	matches := tmpl.GetList("match")
-	require.Len(t, matches, 2)
+	tmplBgp := tmpl.GetContainer("bgp")
+	require.NotNil(t, tmplBgp, "template.bgp should exist")
+
+	tmplPeers := tmplBgp.GetList("peer")
+	require.Len(t, tmplPeers, 2, "template.bgp should have 2 peer patterns")
 
 	// Check * pattern
-	matchAll := matches["*"]
+	matchAll := tmplPeers["*"]
 	require.NotNil(t, matchAll)
 	val, _ := matchAll.Get("hold-time")
 	require.Equal(t, "90", val)
 
 	// Check 192.168.*.* pattern
-	matchSubnet := matches["192.168.*.*"]
+	matchSubnet := tmplPeers["192.168.*.*"]
 	require.NotNil(t, matchSubnet)
 	val, _ = matchSubnet.Get("hold-time")
 	require.Equal(t, "60", val)
 }
 
-// TestMigrateTemplateNeighborToGroup verifies template.neighbor→template.group.
+// TestMigrateTemplateNeighborToGroup verifies template.neighbor→template.bgp.peer.
 //
-// VALIDATES: "template { neighbor <name> }" becomes "template { group <name> }".
+// VALIDATES: "template { neighbor <name> }" becomes "template { bgp { peer * { inherit-name <name> } } }".
 //
 // PREVENTS: Named templates being lost during migration.
 func TestMigrateTemplateNeighborToGroup(t *testing.T) {
@@ -130,26 +139,35 @@ neighbor 192.0.2.1 {
 	oldNeighbors := tmpl.GetList("neighbor")
 	require.Empty(t, oldNeighbors, "template.neighbor should be empty")
 
-	// Verify template.group has the templates
+	// Verify template.group is gone (converted to template.bgp.peer)
 	groups := tmpl.GetList("group")
-	require.Len(t, groups, 2)
+	require.Empty(t, groups, "template.group should be empty after full migration")
 
-	ibgp := groups["ibgp"]
-	require.NotNil(t, ibgp)
-	val, _ := ibgp.Get("peer-as")
-	require.Equal(t, "65000", val)
+	// Verify template.bgp.peer has entries with inherit-name
+	tmplBgp := tmpl.GetContainer("bgp")
+	require.NotNil(t, tmplBgp, "template.bgp should exist")
 
-	ebgp := groups["ebgp"]
-	require.NotNil(t, ebgp)
-	val, _ = ebgp.Get("peer-as")
-	require.Equal(t, "65001", val)
+	// Groups become peer * with inherit-name
+	patterns := tmplBgp.GetListOrdered("peer")
+	require.Len(t, patterns, 2, "should have 2 patterns for ibgp and ebgp")
+
+	// Check inherit-name values
+	var inheritNames []string
+	for _, p := range patterns {
+		name, ok := p.Value.Get("inherit-name")
+		if ok {
+			inheritNames = append(inheritNames, name)
+		}
+	}
+	require.Contains(t, inheritNames, "ibgp")
+	require.Contains(t, inheritNames, "ebgp")
 }
 
-// TestMigratePreservesMatchOrder verifies match blocks preserve config order.
+// TestMigratePreservesMatchOrder verifies template.bgp.peer blocks preserve config order.
 //
-// VALIDATES: Migration preserves order of peer globs for match blocks.
+// VALIDATES: Migration preserves order of peer globs in template.bgp.peer.
 //
-// PREVENTS: Match order being scrambled (important for precedence).
+// PREVENTS: Pattern order being scrambled (important for precedence).
 func TestMigratePreservesMatchOrder(t *testing.T) {
 	input := `
 peer * {
@@ -173,19 +191,22 @@ neighbor 192.0.2.1 {
 	tmpl := result.Tree.GetContainer("template")
 	require.NotNil(t, tmpl)
 
-	// Get ordered matches
-	matches := tmpl.GetListOrdered("match")
-	require.Len(t, matches, 3)
+	tmplBgp := tmpl.GetContainer("bgp")
+	require.NotNil(t, tmplBgp, "template.bgp should exist")
+
+	// Get ordered peer patterns from template.bgp.peer
+	patterns := tmplBgp.GetListOrdered("peer")
+	require.Len(t, patterns, 3)
 
 	// Verify order is preserved
-	require.Equal(t, "*", matches[0].Key)
-	require.Equal(t, "10.*.*.*", matches[1].Key)
-	require.Equal(t, "192.168.*.*", matches[2].Key)
+	require.Equal(t, "*", patterns[0].Key)
+	require.Equal(t, "10.*.*.*", patterns[1].Key)
+	require.Equal(t, "192.168.*.*", patterns[2].Key)
 }
 
 // TestMigratePreservesPeerOrder verifies neighbor→peer preserves order.
 //
-// VALIDATES: Multiple neighbors become peers in same order.
+// VALIDATES: Multiple neighbors become peers in same order inside bgp {}.
 //
 // PREVENTS: Peer order being scrambled.
 func TestMigratePreservesPeerOrder(t *testing.T) {
@@ -205,8 +226,12 @@ neighbor 172.16.0.1 {
 	result, err := Migrate(tree)
 	require.NoError(t, err)
 
-	// Get ordered peers
-	peers := result.Tree.GetListOrdered("peer")
+	// Get bgp container
+	bgpContainer := result.Tree.GetContainer("bgp")
+	require.NotNil(t, bgpContainer, "bgp container should exist")
+
+	// Get ordered peers inside bgp {}
+	peers := bgpContainer.GetListOrdered("peer")
 	require.Len(t, peers, 3)
 
 	// Verify order is preserved
@@ -243,10 +268,12 @@ neighbor 192.0.2.1 {
 	require.False(t, NeedsMigration(result1.Tree))
 	require.False(t, NeedsMigration(result2.Tree))
 
-	// Should have same structure
-	peers1 := result1.Tree.GetList("peer")
-	peers2 := result2.Tree.GetList("peer")
-	require.Equal(t, len(peers1), len(peers2))
+	// Should have same structure - peers inside bgp {}
+	bgp1 := result1.Tree.GetContainer("bgp")
+	bgp2 := result2.Tree.GetContainer("bgp")
+	require.NotNil(t, bgp1)
+	require.NotNil(t, bgp2)
+	require.Equal(t, len(bgp1.GetList("peer")), len(bgp2.GetList("peer")))
 }
 
 // TestMigrateDoesNotMutateOriginal verifies original tree is unchanged.
@@ -282,82 +309,70 @@ func TestMigrateNilTreeV2ToV3(t *testing.T) {
 	require.Nil(t, result, "nil input should return nil result")
 }
 
-// TestMigrateCIDRPattern verifies CIDR patterns migrate correctly.
+// TestMigratePatternToTemplateBgpPeer verifies glob/CIDR patterns migrate correctly.
 //
-// VALIDATES: "peer 10.0.0.0/8 { }" becomes "template { match 10.0.0.0/8 { } }".
+// VALIDATES: Patterns like "peer 10.0.0.0/8 {}" or "peer 2001:db8::* {}" become template.bgp.peer.
 //
-// PREVENTS: CIDR patterns being lost during migration.
-func TestMigrateCIDRPattern(t *testing.T) {
-	input := `
-peer 10.0.0.0/8 {
-    hold-time 90;
-}
-peer 192.0.2.1 {
-    local-as 65000;
-}
-`
-	tree := parseWithBGPSchema(t, input)
-	require.True(t, NeedsMigration(tree))
+// PREVENTS: Patterns being lost during migration.
+func TestMigratePatternToTemplateBgpPeer(t *testing.T) {
+	tests := []struct {
+		name         string
+		patternKey   string
+		patternInput string
+		peerKey      string
+		peerInput    string
+	}{
+		{
+			name:         "CIDR_pattern",
+			patternKey:   "10.0.0.0/8",
+			patternInput: "peer 10.0.0.0/8 { hold-time 90; }",
+			peerKey:      "192.0.2.1",
+			peerInput:    "peer 192.0.2.1 { local-as 65000; }",
+		},
+		{
+			name:         "IPv6_glob_pattern",
+			patternKey:   "2001:db8::*",
+			patternInput: "peer 2001:db8::* { hold-time 90; }",
+			peerKey:      "2001:db8::1",
+			peerInput:    "peer 2001:db8::1 { local-as 65000; }",
+		},
+	}
 
-	result, err := Migrate(tree)
-	require.NoError(t, err)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			input := tt.patternInput + "\n" + tt.peerInput
 
-	// CIDR pattern should move to template.match
-	tmpl := result.Tree.GetContainer("template")
-	require.NotNil(t, tmpl)
+			tree := parseWithBGPSchema(t, input)
+			require.True(t, NeedsMigration(tree))
 
-	matches := tmpl.GetList("match")
-	require.Len(t, matches, 1)
+			result, err := Migrate(tree)
+			require.NoError(t, err)
 
-	cidrMatch := matches["10.0.0.0/8"]
-	require.NotNil(t, cidrMatch)
-	val, _ := cidrMatch.Get("hold-time")
-	require.Equal(t, "90", val)
+			// Pattern should move to template.bgp.peer
+			tmpl := result.Tree.GetContainer("template")
+			require.NotNil(t, tmpl)
 
-	// Non-CIDR peer should remain
-	peers := result.Tree.GetList("peer")
-	require.Len(t, peers, 1)
-	_, hasIP := peers["192.0.2.1"]
-	require.True(t, hasIP)
-}
+			tmplBgp := tmpl.GetContainer("bgp")
+			require.NotNil(t, tmplBgp, "template.bgp should exist")
 
-// TestMigrateIPv6GlobPattern verifies IPv6 glob patterns migrate correctly.
-//
-// VALIDATES: "peer 2001:db8::* { }" becomes "template { match 2001:db8::* { } }".
-//
-// PREVENTS: IPv6 glob patterns being lost during migration.
-func TestMigrateIPv6GlobPattern(t *testing.T) {
-	input := `
-peer 2001:db8::* {
-    hold-time 90;
-}
-peer 2001:db8::1 {
-    local-as 65000;
-}
-`
-	tree := parseWithBGPSchema(t, input)
-	require.True(t, NeedsMigration(tree))
+			patterns := tmplBgp.GetList("peer")
+			require.Len(t, patterns, 1)
 
-	result, err := Migrate(tree)
-	require.NoError(t, err)
+			pattern := patterns[tt.patternKey]
+			require.NotNil(t, pattern)
+			val, _ := pattern.Get("hold-time")
+			require.Equal(t, "90", val)
 
-	// IPv6 glob pattern should move to template.match
-	tmpl := result.Tree.GetContainer("template")
-	require.NotNil(t, tmpl)
+			// Non-pattern peer should be inside bgp {}
+			bgpContainer := result.Tree.GetContainer("bgp")
+			require.NotNil(t, bgpContainer)
 
-	matches := tmpl.GetList("match")
-	require.Len(t, matches, 1)
-
-	ipv6Match := matches["2001:db8::*"]
-	require.NotNil(t, ipv6Match)
-	val, _ := ipv6Match.Get("hold-time")
-	require.Equal(t, "90", val)
-
-	// Non-glob IPv6 peer should remain
-	peers := result.Tree.GetList("peer")
-	require.Len(t, peers, 1)
-	_, hasIP := peers["2001:db8::1"]
-	require.True(t, hasIP)
+			peers := bgpContainer.GetList("peer")
+			require.Len(t, peers, 1)
+			_, hasIP := peers[tt.peerKey]
+			require.True(t, hasIP)
+		})
+	}
 }
 
 // TestMigrateMixedConfig verifies partially-migrated configs work.
@@ -386,35 +401,42 @@ neighbor 192.0.2.1 {
 	result, err := Migrate(tree)
 	require.NoError(t, err)
 
-	// template.neighbor should be renamed to template.group
 	tmpl := result.Tree.GetContainer("template")
 	require.NotNil(t, tmpl)
 
+	// template.neighbor should be empty (converted)
 	oldNeighbors := tmpl.GetList("neighbor")
 	require.Empty(t, oldNeighbors)
 
+	// template.group should be empty (converted to template.bgp.peer)
 	groups := tmpl.GetList("group")
-	require.Len(t, groups, 1)
-	_, hasIbgp := groups["ibgp"]
-	require.True(t, hasIbgp)
+	require.Empty(t, groups, "template.group should be empty after full migration")
 
-	// Existing match should be preserved
+	// template.match should be empty (converted to template.bgp.peer)
 	matches := tmpl.GetList("match")
-	require.Len(t, matches, 1)
-	_, hasWildcard := matches["*"]
-	require.True(t, hasWildcard)
+	require.Empty(t, matches, "template.match should be empty after full migration")
 
-	// neighbor should become peer
+	// template.bgp.peer should have both the match pattern and the group
+	tmplBgp := tmpl.GetContainer("bgp")
+	require.NotNil(t, tmplBgp, "template.bgp should exist")
+
+	patterns := tmplBgp.GetListOrdered("peer")
+	require.Len(t, patterns, 2, "should have 2 patterns (wildcard + ibgp group)")
+
+	// neighbor should become peer inside bgp {}
 	neighbors := result.Tree.GetList("neighbor")
 	require.Empty(t, neighbors)
 
-	peers := result.Tree.GetList("peer")
+	bgpContainer := result.Tree.GetContainer("bgp")
+	require.NotNil(t, bgpContainer)
+
+	peers := bgpContainer.GetList("peer")
 	require.Len(t, peers, 1)
 }
 
 // TestMigrateStaticToAnnounce verifies static→announce extraction.
 //
-// VALIDATES: neighbor.static routes become peer.announce.<afi>.<safi>.
+// VALIDATES: neighbor.static routes become bgp.peer.announce.<afi>.<safi>.
 //
 // PREVENTS: Static routes being lost during migration.
 func TestMigrateStaticToAnnounce(t *testing.T) {
@@ -435,8 +457,11 @@ neighbor 192.0.2.1 {
 	result, err := Migrate(tree)
 	require.NoError(t, err)
 
-	// Should be peer now (neighbor→peer)
-	peers := result.Tree.GetList("peer")
+	// Should be peer inside bgp {} now (neighbor→bgp.peer)
+	bgpContainer := result.Tree.GetContainer("bgp")
+	require.NotNil(t, bgpContainer, "bgp container should exist")
+
+	peers := bgpContainer.GetList("peer")
 	require.Len(t, peers, 1)
 
 	peer := peers["192.0.2.1"]
@@ -471,7 +496,7 @@ neighbor 192.0.2.1 {
 
 // TestMigratePeerWithStatic verifies peer+static is migrated.
 //
-// VALIDATES: Peer with deprecated static block is still migrated.
+// VALIDATES: Peer with deprecated static block is still migrated into bgp {}.
 //
 // PREVENTS: Configs using peer (not neighbor) with static being skipped.
 func TestMigratePeerWithStatic(t *testing.T) {
@@ -491,7 +516,11 @@ peer 192.0.2.1 {
 	result, err := Migrate(tree)
 	require.NoError(t, err)
 
-	peer := result.Tree.GetList("peer")["192.0.2.1"]
+	// Peer should be inside bgp {}
+	bgpContainer := result.Tree.GetContainer("bgp")
+	require.NotNil(t, bgpContainer, "bgp container should exist")
+
+	peer := bgpContainer.GetList("peer")["192.0.2.1"]
 	require.NotNil(t, peer)
 
 	// static should be gone
@@ -508,7 +537,7 @@ peer 192.0.2.1 {
 
 // TestMigrateTemplateNeighborWithStatic verifies template.neighbor with static migration.
 //
-// VALIDATES: template.neighbor.static becomes template.group.announce.
+// VALIDATES: template.neighbor.static becomes template.bgp.peer.announce.
 //
 // PREVENTS: Static routes in template.neighbor being lost during rename.
 func TestMigrateTemplateNeighborWithStatic(t *testing.T) {
@@ -533,24 +562,37 @@ neighbor 192.0.2.1 {
 	result, err := Migrate(tree)
 	require.NoError(t, err)
 
-	// template.neighbor should become template.group
 	tmpl := result.Tree.GetContainer("template")
 	require.NotNil(t, tmpl)
 
+	// template.neighbor should be empty
 	oldNeighbors := tmpl.GetList("neighbor")
 	require.Empty(t, oldNeighbors)
 
+	// template.group should be empty (converted to template.bgp.peer)
 	groups := tmpl.GetList("group")
-	require.Len(t, groups, 1)
+	require.Empty(t, groups, "template.group should be empty after full migration")
 
-	group := groups["ibgp"]
-	require.NotNil(t, group)
+	// template.bgp.peer should have the entry with inherit-name ibgp
+	tmplBgp := tmpl.GetContainer("bgp")
+	require.NotNil(t, tmplBgp, "template.bgp should exist")
+
+	patterns := tmplBgp.GetListOrdered("peer")
+	require.Len(t, patterns, 1, "should have 1 pattern")
+
+	pattern := patterns[0].Value
+	require.NotNil(t, pattern)
+
+	// Check inherit-name
+	inheritName, ok := pattern.Get("inherit-name")
+	require.True(t, ok)
+	require.Equal(t, "ibgp", inheritName)
 
 	// static should be gone
-	require.Nil(t, group.GetContainer("static"))
+	require.Nil(t, pattern.GetContainer("static"))
 
 	// announce should exist with routes
-	announce := group.GetContainer("announce")
+	announce := pattern.GetContainer("announce")
 	require.NotNil(t, announce)
 
 	// IPv4
@@ -564,14 +606,21 @@ neighbor 192.0.2.1 {
 	require.Len(t, ipv6.GetList("unicast"), 1)
 
 	// peer-as should still be there
-	peerAs, ok := group.Get("peer-as")
+	peerAs, ok := pattern.Get("peer-as")
 	require.True(t, ok)
 	require.Equal(t, "65000", peerAs)
+
+	// Neighbor should be peer inside bgp {}
+	bgpContainer := result.Tree.GetContainer("bgp")
+	require.NotNil(t, bgpContainer, "bgp container should exist")
+
+	peer := bgpContainer.GetList("peer")["192.0.2.1"]
+	require.NotNil(t, peer)
 }
 
 // TestMigrateTemplateGroupStatic verifies template.group static migration.
 //
-// VALIDATES: template.group.static becomes template.group.announce.
+// VALIDATES: template.group.static becomes template.bgp.peer.announce.
 //
 // PREVENTS: Template static routes being skipped.
 func TestMigrateTemplateGroupStatic(t *testing.T) {
@@ -598,17 +647,40 @@ peer 192.0.2.1 {
 	tmpl := result.Tree.GetContainer("template")
 	require.NotNil(t, tmpl)
 
-	group := tmpl.GetList("group")["vpn-customers"]
-	require.NotNil(t, group)
+	// template.group should be empty (converted to template.bgp.peer)
+	groups := tmpl.GetList("group")
+	require.Empty(t, groups, "template.group should be empty after full migration")
+
+	// template.bgp.peer should have the entry
+	tmplBgp := tmpl.GetContainer("bgp")
+	require.NotNil(t, tmplBgp, "template.bgp should exist")
+
+	patterns := tmplBgp.GetListOrdered("peer")
+	require.Len(t, patterns, 1, "should have 1 pattern")
+
+	pattern := patterns[0].Value
+	require.NotNil(t, pattern)
+
+	// Check inherit-name
+	inheritName, ok := pattern.Get("inherit-name")
+	require.True(t, ok)
+	require.Equal(t, "vpn-customers", inheritName)
 
 	// static should be gone
-	require.Nil(t, group.GetContainer("static"))
+	require.Nil(t, pattern.GetContainer("static"))
 
 	// announce should exist
-	announce := group.GetContainer("announce")
+	announce := pattern.GetContainer("announce")
 	require.NotNil(t, announce)
 
 	ipv4 := announce.GetContainer("ipv4")
 	require.NotNil(t, ipv4)
 	require.Len(t, ipv4.GetList("unicast"), 1)
+
+	// Peer should be inside bgp {}
+	bgpContainer := result.Tree.GetContainer("bgp")
+	require.NotNil(t, bgpContainer, "bgp container should exist")
+
+	peer := bgpContainer.GetList("peer")["192.0.2.1"]
+	require.NotNil(t, peer)
 }

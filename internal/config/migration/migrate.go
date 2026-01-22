@@ -70,6 +70,19 @@ var transformations = []Transformation{
 		Detect:      hasOldAPIBlocks,
 		Apply:       migrateAPIBlocks,
 	},
+	// Phase 3: Structural wrapping (must run after renames)
+	{
+		Name:        "wrap-bgp-block",
+		Description: "Wrap BGP elements in bgp {} block",
+		Detect:      hasBGPElementsAtRoot,
+		Apply:       wrapBGPBlock,
+	},
+	{
+		Name:        "template->new-format",
+		Description: "Convert template.group/match to template.bgp.peer",
+		Detect:      hasOldTemplateFormat,
+		Apply:       migrateTemplateToNewFormat,
+	},
 }
 
 // Migrate applies all needed transformations.
@@ -222,4 +235,107 @@ func collectPeerGlobs(tree *config.Tree) []struct {
 		}
 	}
 	return globs
+}
+
+// hasBGPElementsAtRoot returns true if BGP elements are at root level (not wrapped in bgp {}).
+func hasBGPElementsAtRoot(tree *config.Tree) bool {
+	// Check if peer, router-id, local-as, or listen exist at root level
+	if len(tree.GetListOrdered("peer")) > 0 {
+		return true
+	}
+	if _, ok := tree.Get("router-id"); ok {
+		return true
+	}
+	if _, ok := tree.Get("local-as"); ok {
+		return true
+	}
+	if _, ok := tree.Get("listen"); ok {
+		return true
+	}
+	return false
+}
+
+// wrapBGPBlock wraps BGP elements in a bgp {} block.
+func wrapBGPBlock(tree *config.Tree) (*config.Tree, error) {
+	result := tree.Clone()
+
+	// Create bgp container
+	bgpContainer := config.NewTree()
+
+	// Move router-id
+	if val, ok := result.Get("router-id"); ok {
+		bgpContainer.Set("router-id", val)
+		result.Delete("router-id")
+	}
+
+	// Move local-as
+	if val, ok := result.Get("local-as"); ok {
+		bgpContainer.Set("local-as", val)
+		result.Delete("local-as")
+	}
+
+	// Move listen
+	if val, ok := result.Get("listen"); ok {
+		bgpContainer.Set("listen", val)
+		result.Delete("listen")
+	}
+
+	// Move peer entries
+	for _, entry := range result.GetListOrdered("peer") {
+		bgpContainer.AddListEntry("peer", entry.Key, entry.Value)
+		result.RemoveListEntry("peer", entry.Key)
+	}
+
+	// Set bgp container if it has content
+	if len(bgpContainer.Values()) > 0 || len(bgpContainer.ListKeys("peer")) > 0 {
+		result.SetContainer("bgp", bgpContainer)
+	}
+
+	return result, nil
+}
+
+// hasOldTemplateFormat returns true if template uses old group/match format.
+func hasOldTemplateFormat(tree *config.Tree) bool {
+	tmpl := tree.GetContainer("template")
+	if tmpl == nil {
+		return false
+	}
+	// Check for group or match lists (old format)
+	if len(tmpl.GetListOrdered("group")) > 0 {
+		return true
+	}
+	if len(tmpl.GetListOrdered("match")) > 0 {
+		return true
+	}
+	return false
+}
+
+// migrateTemplateToNewFormat converts template.group/match to template.bgp.peer.
+func migrateTemplateToNewFormat(tree *config.Tree) (*config.Tree, error) {
+	result := tree.Clone()
+
+	tmpl := result.GetContainer("template")
+	if tmpl == nil {
+		return result, nil
+	}
+
+	// Create template.bgp.peer structure
+	bgpContainer := tmpl.GetOrCreateContainer("bgp")
+
+	// Migrate group entries to peer with inherit-name
+	for _, entry := range tmpl.GetListOrdered("group") {
+		// For named groups, create peer * with inherit-name
+		peerTree := entry.Value.Clone()
+		peerTree.Set("inherit-name", entry.Key)
+		bgpContainer.AddListEntry("peer", "*", peerTree)
+		tmpl.RemoveListEntry("group", entry.Key)
+	}
+
+	// Migrate match entries to peer patterns
+	for _, entry := range tmpl.GetListOrdered("match") {
+		bgpContainer.AddListEntry("peer", entry.Key, entry.Value)
+		tmpl.RemoveListEntry("match", entry.Key)
+	}
+
+	return result, nil
 }

@@ -826,10 +826,12 @@ environment {
     }
 }
 
-router-id 192.0.2.1;
-local-as 65000;
-peer 192.0.2.2 {
-    peer-as 65001;
+bgp {
+    router-id 192.0.2.1;
+    local-as 65000;
+    peer 192.0.2.2 {
+        peer-as 65001;
+    }
 }
 `
 	p := NewParser(BGPSchema())
@@ -873,10 +875,12 @@ environment {
     }
 }
 
-router-id 192.0.2.1;
-local-as 65000;
-peer 192.0.2.2 {
-    peer-as 65001;
+bgp {
+    router-id 192.0.2.1;
+    local-as 65000;
+    peer 192.0.2.2 {
+        peer-as 65001;
+    }
 }
 `
 	p := NewParser(BGPSchema())
@@ -910,8 +914,10 @@ func TestParseEmptyEnvironmentBlock(t *testing.T) {
 	input := `
 environment { }
 
-router-id 192.0.2.1;
-local-as 65000;
+bgp {
+    router-id 192.0.2.1;
+    local-as 65000;
+}
 `
 	p := NewParser(BGPSchema())
 	tree, err := p.Parse(input)
@@ -939,8 +945,10 @@ environment {
     }
 }
 
-router-id 192.0.2.1;
-local-as 65000;
+bgp {
+    router-id 192.0.2.1;
+    local-as 65000;
+}
 `
 	p := NewParser(BGPSchema())
 	tree, err := p.Parse(input)
@@ -981,8 +989,10 @@ environment {
     }
 }
 
-router-id 192.0.2.1;
-local-as 65000;
+bgp {
+    router-id 192.0.2.1;
+    local-as 65000;
+}
 `
 	p := NewParser(BGPSchema())
 	tree, err := p.Parse(input)
@@ -1007,10 +1017,12 @@ local-as 65000;
 // PREVENTS: Panic when environment block is missing.
 func TestParseNoEnvironmentBlock(t *testing.T) {
 	input := `
-router-id 192.0.2.1;
-local-as 65000;
-peer 192.0.2.2 {
-    peer-as 65001;
+bgp {
+    router-id 192.0.2.1;
+    local-as 65000;
+    peer 192.0.2.2 {
+        peer-as 65001;
+    }
 }
 `
 	p := NewParser(BGPSchema())

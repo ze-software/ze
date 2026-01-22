@@ -6,13 +6,15 @@ plugin {
 		encoder text;
 	}
 }
-peer 10.0.0.3 {
-	description "will announce a route to a service";
-	router-id 198.111.227.39;
-	local-address 10.0.0.2;
-	local-as 65533;
-	peer-as 65533;
-	process service-nginx {
+bgp {
+	peer 10.0.0.3 {
+		description "will announce a route to a service";
+		router-id 198.111.227.39;
+		local-address 10.0.0.2;
+		local-as 65533;
+		peer-as 65533;
+		process service-nginx {
+		}
 	}
 }
 EOF_CONF

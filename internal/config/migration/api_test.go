@@ -427,7 +427,7 @@ peer 10.0.0.1 {
 
 // TestMigrateAPIBlocksNeighborIntegration verifies full migration.
 //
-// VALIDATES: neighbor X { process {...} } → peer X { api name {...} }
+// VALIDATES: neighbor X { process {...} } → bgp { peer X { api name {...} } }
 //
 // PREVENTS: process blocks lost during neighbor→peer rename.
 func TestMigrateAPIBlocksNeighborIntegration(t *testing.T) {
@@ -450,9 +450,13 @@ neighbor 10.0.0.1 {
 	require.NoError(t, err)
 	migrated := result.Tree
 
-	// Should now be peer, not neighbor
+	// Should now be peer inside bgp {}, not neighbor at root
 	require.Empty(t, migrated.GetList("neighbor"))
-	peer := migrated.GetList("peer")["10.0.0.1"]
+
+	bgpContainer := migrated.GetContainer("bgp")
+	require.NotNil(t, bgpContainer, "bgp container should exist")
+
+	peer := bgpContainer.GetList("peer")["10.0.0.1"]
 	require.NotNil(t, peer)
 
 	// API should be migrated to new syntax

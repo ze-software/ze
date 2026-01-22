@@ -10,19 +10,21 @@ EOF_PEER
 
 # ze bgp configuration
 stdin=ze-bgp:terminator=EOF_CONF
-peer 127.0.0.1 {
-	router-id 1.2.3.4;
-	local-address 127.0.0.1;
-	local-as 1;
-	peer-as 1;
+bgp {
+	peer 127.0.0.1 {
+		router-id 1.2.3.4;
+		local-address 127.0.0.1;
+		local-as 1;
+		peer-as 1;
 
-	family {
-		ipv6/unicast;
-	}
-	announce {
-		ipv6 {
-			unicast 2A02:B80:0:1::1/128 next-hop 2A02:B80:0:2::1 local-preference 200 community "30740:0 30740:30740";
-			unicast 2A02:B80:0:1::2/128 next-hop 2A02:B80:0:2::1 local-preference 200 community "30740:0 30740:30740";
+		family {
+			ipv6/unicast;
+		}
+		announce {
+			ipv6 {
+				unicast 2A02:B80:0:1::1/128 next-hop 2A02:B80:0:2::1 local-preference 200 community "30740:0 30740:30740";
+				unicast 2A02:B80:0:1::2/128 next-hop 2A02:B80:0:2::1 local-preference 200 community "30740:0 30740:30740";
+			}
 		}
 	}
 }

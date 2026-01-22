@@ -8,23 +8,25 @@ EOF_PEER
 
 # ze bgp configuration
 stdin=ze-bgp:terminator=EOF_CONF
-peer 127.0.0.1 {
-	router-id 1.2.3.4;
-	local-address 127.0.0.1;
-	local-as 1;
-	peer-as 1;
-	group-updates disable;
-	family {
-		ipv4/flow;
-	}
-	flow {
-		route legal-intercept {
-			next-hop 1.2.3.4;
-			match {
-				source 10.0.0.2/32;
-			}
-			then {
-				copy 1.2.3.4;
+bgp {
+	peer 127.0.0.1 {
+		router-id 1.2.3.4;
+		local-address 127.0.0.1;
+		local-as 1;
+		peer-as 1;
+		group-updates disable;
+		family {
+			ipv4/flow;
+		}
+		flow {
+			route legal-intercept {
+				next-hop 1.2.3.4;
+				match {
+					source 10.0.0.2/32;
+				}
+				then {
+					copy 1.2.3.4;
+				}
 			}
 		}
 	}

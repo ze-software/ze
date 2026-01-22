@@ -15,8 +15,10 @@ import (
 //
 // PREVENTS: Lost data during serialization.
 func TestSerializeSimple(t *testing.T) {
-	input := `router-id 1.2.3.4;
-local-as 65000;
+	input := `bgp {
+    router-id 1.2.3.4;
+    local-as 65000;
+}
 `
 	schema := BGPSchema()
 	p := NewParser(schema)
@@ -40,11 +42,13 @@ local-as 65000;
 //
 // PREVENTS: Lost neighbor settings.
 func TestSerializeNeighbor(t *testing.T) {
-	input := `peer 192.0.2.1 {
-    local-as 65000;
-    peer-as 65001;
-    router-id 1.2.3.4;
-    hold-time 90;
+	input := `bgp {
+    peer 192.0.2.1 {
+        local-as 65000;
+        peer-as 65001;
+        router-id 1.2.3.4;
+        hold-time 90;
+    }
 }
 `
 	schema := BGPSchema()
@@ -67,12 +71,14 @@ func TestSerializeNeighbor(t *testing.T) {
 //
 // PREVENTS: Lost address families.
 func TestSerializeFamily(t *testing.T) {
-	input := `peer 192.0.2.1 {
-    local-as 65000;
-    peer-as 65001;
-    family {
-        ipv4/unicast;
-        ipv6/unicast;
+	input := `bgp {
+    peer 192.0.2.1 {
+        local-as 65000;
+        peer-as 65001;
+        family {
+            ipv4/unicast;
+            ipv6/unicast;
+        }
     }
 }
 `
@@ -121,13 +127,15 @@ func TestSerializePlugin(t *testing.T) {
 //
 // PREVENTS: Lost route configurations.
 func TestSerializeStatic(t *testing.T) {
-	input := `peer 192.0.2.1 {
-    local-as 65000;
-    peer-as 65001;
-    static {
-        route 10.0.0.0/8 {
-            next-hop 192.0.2.1;
-            local-preference 100;
+	input := `bgp {
+    peer 192.0.2.1 {
+        local-as 65000;
+        peer-as 65001;
+        static {
+            route 10.0.0.0/8 {
+                next-hop 192.0.2.1;
+                local-preference 100;
+            }
         }
     }
 }
@@ -151,14 +159,16 @@ func TestSerializeStatic(t *testing.T) {
 //
 // PREVENTS: Lost capability settings.
 func TestSerializeCapability(t *testing.T) {
-	input := `peer 192.0.2.1 {
-    local-as 65000;
-    peer-as 65001;
-    capability {
-        asn4 true;
-        route-refresh true;
-        graceful-restart {
-            restart-time 120;
+	input := `bgp {
+    peer 192.0.2.1 {
+        local-as 65000;
+        peer-as 65001;
+        capability {
+            asn4 true;
+            route-refresh true;
+            graceful-restart {
+                restart-time 120;
+            }
         }
     }
 }
@@ -182,7 +192,9 @@ func TestSerializeCapability(t *testing.T) {
 //
 // PREVENTS: Lost multi-word values.
 func TestSerializeMultiLeaf(t *testing.T) {
-	input := `listen 0.0.0.0 179;
+	input := `bgp {
+    listen 0.0.0.0 179;
+}
 `
 	schema := BGPSchema()
 	p := NewParser(schema)
@@ -362,10 +374,12 @@ func TestSerializeArray(t *testing.T) {
 //
 // PREVENTS: Broken serialization of descriptions.
 func TestSerializeQuotedStrings(t *testing.T) {
-	input := `peer 192.0.2.1 {
-    local-as 65000;
-    peer-as 65001;
-    description "My BGP Peer";
+	input := `bgp {
+    peer 192.0.2.1 {
+        local-as 65000;
+        peer-as 65001;
+        description "My BGP Peer";
+    }
 }
 `
 	schema := BGPSchema()

@@ -26,32 +26,32 @@ func TestCompleterCommands(t *testing.T) {
 func TestCompleterSetKeywords(t *testing.T) {
 	c := NewCompleter(config.BGPSchema())
 
-	// "set " should show top-level config keywords
+	// "set " should show top-level config keywords (now includes bgp, environment, etc.)
 	completions := c.Complete("set ", nil)
 	require.NotEmpty(t, completions)
 
 	texts := completionTexts(completions)
-	assert.Contains(t, texts, "router-id")
-	assert.Contains(t, texts, "local-as")
-	assert.Contains(t, texts, "peer")
+	assert.Contains(t, texts, "bgp")
+	assert.Contains(t, texts, "environment")
+	assert.Contains(t, texts, "plugin")
 }
 
 func TestCompleterSetPartialKeyword(t *testing.T) {
 	c := NewCompleter(config.BGPSchema())
 
-	// "set local" should complete to "local-as"
-	completions := c.Complete("set local", nil)
+	// "set bg" should complete to "bgp"
+	completions := c.Complete("set bg", nil)
 	require.NotEmpty(t, completions)
 
 	texts := completionTexts(completions)
-	assert.Contains(t, texts, "local-as")
+	assert.Contains(t, texts, "bgp")
 }
 
 func TestCompleterNestedPath(t *testing.T) {
 	c := NewCompleter(config.BGPSchema())
 
-	// Inside neighbor context, should show neighbor fields
-	completions := c.Complete("set ", []string{"peer", "192.168.1.1"})
+	// Inside neighbor context (bgp.peer), should show neighbor fields
+	completions := c.Complete("set ", []string{"bgp", "peer", "192.168.1.1"})
 	require.NotEmpty(t, completions)
 
 	texts := completionTexts(completions)
@@ -63,8 +63,8 @@ func TestCompleterNestedPath(t *testing.T) {
 func TestCompleterValueTypeHints(t *testing.T) {
 	c := NewCompleter(config.BGPSchema())
 
-	// After "set router-id " should hint IPv4
-	completions := c.Complete("set router-id ", nil)
+	// After "set router-id " inside bgp context should hint IPv4
+	completions := c.Complete("set router-id ", []string{"bgp"})
 	require.NotEmpty(t, completions)
 	assert.Equal(t, "value", completions[0].Type)
 	assert.Contains(t, completions[0].Description, "IPv4")
@@ -73,8 +73,8 @@ func TestCompleterValueTypeHints(t *testing.T) {
 func TestCompleterGhostTextSingleMatch(t *testing.T) {
 	c := NewCompleter(config.BGPSchema())
 
-	// "set router" should ghost "-id" (single match)
-	ghost := c.GhostText("set router", nil)
+	// "set router" should ghost "-id" (single match) inside bgp context
+	ghost := c.GhostText("set router", []string{"bgp"})
 	assert.Equal(t, "-id", ghost)
 }
 
@@ -82,8 +82,8 @@ func TestCompleterGhostTextMultipleMatches(t *testing.T) {
 	c := NewCompleter(config.BGPSchema())
 
 	// "set local" could match "local-as" and "local-address" in neighbor context
-	// At root level, only "local-as" exists
-	ghost := c.GhostText("set local", nil)
+	// At bgp level, only "local-as" exists
+	ghost := c.GhostText("set local", []string{"bgp"})
 	assert.Equal(t, "-as", ghost)
 }
 
@@ -98,8 +98,8 @@ func TestCompleterGhostTextNoMatch(t *testing.T) {
 func TestCompleterEditPath(t *testing.T) {
 	c := NewCompleter(config.BGPSchema())
 
-	// "edit " should show list types (neighbor, process)
-	completions := c.Complete("edit ", nil)
+	// "edit " inside bgp should show peer
+	completions := c.Complete("edit ", []string{"bgp"})
 	require.NotEmpty(t, completions)
 
 	texts := completionTexts(completions)
@@ -109,9 +109,9 @@ func TestCompleterEditPath(t *testing.T) {
 func TestCompleterWildcard(t *testing.T) {
 	c := NewCompleter(config.BGPSchema())
 
-	// "edit peer " should show list key completions
-	// (including "*" only if there were glob patterns, which current schema doesn't have at root)
-	completions := c.Complete("edit peer ", nil)
+	// "edit peer " inside bgp should show list key completions
+	// (including "*" only if there were glob patterns)
+	completions := c.Complete("edit peer ", []string{"bgp"})
 	// peer requires IP address, so completions may include existing peers or be empty
 	// This test verifies the completer doesn't panic and handles list paths
 	_ = completions

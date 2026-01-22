@@ -92,25 +92,27 @@ environment {
 	}
 }
 
-peer 127.0.0.1 {
-	router-id 1.2.3.4;
-	local-address 127.0.0.1;
-	local-as 1;
-	peer-as 1;
-	group-updates disable;
-
-	family {
-		ipv4/unicast;
-	}
-	capability {
-		route-refresh;
-		graceful-restart disable;
-	}
-	process announce-routes {
-	}
-	process rib {
-		receive { sent; state; refresh; }
-		send { update; borr; eorr; }
+bgp {
+	peer 127.0.0.1 {
+		router-id 1.2.3.4;
+		local-address 127.0.0.1;
+		local-as 1;
+		peer-as 1;
+		group-updates disable;
+	
+		family {
+			ipv4/unicast;
+		}
+		capability {
+			route-refresh;
+			graceful-restart disable;
+		}
+		process announce-routes {
+		}
+		process rib {
+			receive { sent; state; refresh; }
+			send { update; borr; eorr; }
+		}
 	}
 }
 EOF_CONF

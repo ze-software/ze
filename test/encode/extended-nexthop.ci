@@ -18,32 +18,34 @@ EOF_PEER
 
 # ze bgp configuration
 stdin=ze-bgp:terminator=EOF_CONF
-peer 127.0.0.1 {
-	router-id 127.0.0.2;
-	local-address 127.0.0.1;
-	local-as 12345;
-	peer-as 12345;
-	group-updates disable;
+bgp {
+	peer 127.0.0.1 {
+		router-id 127.0.0.2;
+		local-address 127.0.0.1;
+		local-as 12345;
+		peer-as 12345;
+		group-updates disable;
 
-	family {
-		ipv4/mpls-vpn;
-		ipv4/unicast;
-		ipv6/mpls-vpn;
-		ipv6/unicast;
-	}
-	capability {
-		nexthop {
-			ipv4/mpls-vpn ipv6;
-			ipv4/unicast ipv6;
-			ipv6/unicast ipv4;
+		family {
+			ipv4/mpls-vpn;
+			ipv4/unicast;
+			ipv6/mpls-vpn;
+			ipv6/unicast;
 		}
-	}
-	announce {
-		ipv4 {
-			unicast 153.153.153.153 next-hop BAD:CAFE:BAD:CAFE:BAD:CAFE:BAD:CAFE;
+		capability {
+			nexthop {
+				ipv4/mpls-vpn ipv6;
+				ipv4/unicast ipv6;
+				ipv6/unicast ipv4;
+			}
 		}
-		ipv6 {
-			unicast DEAD:BEEF:DEAD:BEEF:DEAD:BEEF:DEAD:BEEF next-hop 170.170.170.170;
+		announce {
+			ipv4 {
+				unicast 153.153.153.153 next-hop BAD:CAFE:BAD:CAFE:BAD:CAFE:BAD:CAFE;
+			}
+			ipv6 {
+				unicast DEAD:BEEF:DEAD:BEEF:DEAD:BEEF:DEAD:BEEF next-hop 170.170.170.170;
+			}
 		}
 	}
 }

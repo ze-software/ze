@@ -68,20 +68,22 @@ plugin {
 		encoder json;
 	}
 }
-peer 127.0.0.1 {
-	router-id 1.2.3.4;
-	local-address 127.0.0.1;
-	local-as 1;
-	peer-as 1;
-	group-updates disable;
-
-	family {
-		ipv4/unicast;
-	}
-	capability {
-		graceful-restart;
-	}
-	process announce-routes {
+bgp {
+	peer 127.0.0.1 {
+		router-id 1.2.3.4;
+		local-address 127.0.0.1;
+		local-as 1;
+		peer-as 1;
+		group-updates disable;
+	
+		family {
+			ipv4/unicast;
+		}
+		capability {
+			graceful-restart;
+		}
+		process announce-routes {
+		}
 	}
 }
 EOF_CONF

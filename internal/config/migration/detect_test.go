@@ -73,59 +73,72 @@ neighbor 192.0.2.1 {
 // VALIDATES: Config with "peer <IP>" (not glob) does not need migration.
 //
 // PREVENTS: Current syntax being mistaken for old.
-func TestDetectCurrentPeerAtRoot(t *testing.T) {
+func TestDetectCurrentPeerInBGPBlock(t *testing.T) {
 	input := `
-peer 192.0.2.1 {
-    local-as 65000;
-    peer-as 65001;
+bgp {
+    peer 192.0.2.1 {
+        local-as 65000;
+        peer-as 65001;
+    }
 }
 `
 	tree := parseWithBGPSchema(t, input)
 	needsMigration := NeedsMigration(tree)
-	require.False(t, needsMigration, "peer IP at root does not need migration")
+	require.False(t, needsMigration, "peer inside bgp {} does not need migration")
 }
 
-// TestDetectCurrentTemplateGroup verifies detection of template.group.
+// TestDetectCurrentTemplateGroup verifies detection of template with bgp.peer.
 //
-// VALIDATES: Config with template { group <name> } does not need migration.
+// VALIDATES: Config with template { bgp { peer * { inherit-name <name>; } } } does not need migration.
 //
 // PREVENTS: Current template syntax being treated as old.
 func TestDetectCurrentTemplateGroup(t *testing.T) {
 	input := `
 template {
-    group ibgp {
-        peer-as 65000;
+    bgp {
+        peer * {
+            inherit-name ibgp;
+            peer-as 65000;
+        }
     }
 }
-peer 192.0.2.1 {
-    inherit ibgp;
-    local-as 65000;
+
+bgp {
+    peer 192.0.2.1 {
+        inherit ibgp;
+        local-as 65000;
+    }
 }
 `
 	tree := parseWithBGPSchema(t, input)
 	needsMigration := NeedsMigration(tree)
-	require.False(t, needsMigration, "template.group does not need migration")
+	require.False(t, needsMigration, "new template syntax does not need migration")
 }
 
-// TestDetectCurrentTemplateMatch verifies detection of template.match.
+// TestDetectCurrentTemplateMatch verifies detection of template with peer pattern.
 //
-// VALIDATES: Config with template { match * } does not need migration.
+// VALIDATES: Config with template { bgp { peer * { } } } does not need migration.
 //
 // PREVENTS: Match blocks being treated as old syntax.
 func TestDetectCurrentTemplateMatch(t *testing.T) {
 	input := `
 template {
-    match * {
-        hold-time 90;
+    bgp {
+        peer * {
+            hold-time 90;
+        }
     }
 }
-peer 192.0.2.1 {
-    local-as 65000;
+
+bgp {
+    peer 192.0.2.1 {
+        local-as 65000;
+    }
 }
 `
 	tree := parseWithBGPSchema(t, input)
 	needsMigration := NeedsMigration(tree)
-	require.False(t, needsMigration, "template.match does not need migration")
+	require.False(t, needsMigration, "new template peer pattern does not need migration")
 }
 
 // TestDetectMixedSyntax verifies mixed configs need migration.
@@ -300,24 +313,29 @@ peer 192.0.2.1 {
 
 // TestDetectPeerWithNamedAPI verifies peer with new-style named api does not need migration.
 //
-// VALIDATES: "peer { api foo { } }" does not need migration (already current).
+// VALIDATES: "bgp { peer { process foo { } } }" does not need migration (already current).
 //
 // PREVENTS: Already-migrated configs being flagged for migration.
 func TestDetectPeerWithNamedAPI(t *testing.T) {
 	input := `
-process foo {
-    run ./foo.run;
+plugin {
+    external foo {
+        run ./foo.run;
+    }
 }
-peer 192.0.2.1 {
-    local-as 65000;
-    peer-as 65001;
-    process foo {
+
+bgp {
+    peer 192.0.2.1 {
+        local-as 65000;
+        peer-as 65001;
+        process foo {
+        }
     }
 }
 `
 	tree := parseWithBGPSchema(t, input)
 	needsMigration := NeedsMigration(tree)
-	require.False(t, needsMigration, "peer with named process block does not need migration")
+	require.False(t, needsMigration, "peer inside bgp {} with named process block does not need migration")
 }
 
 // TestDetectNamedAPIWithProcesses verifies named api with processes field needs migration.
@@ -371,26 +389,31 @@ peer 192.0.2.1 {
 
 // TestDetectNamedAPIWithNewSyntax verifies named api with new syntax does not need migration.
 //
-// VALIDATES: "api foo { content { format parsed; } receive { update; } }" does not need migration.
+// VALIDATES: "bgp { peer { process foo { content { format parsed; } receive { update; } } } }" does not need migration.
 //
 // PREVENTS: Already-migrated configs being flagged for migration.
 func TestDetectNamedAPIWithNewSyntax(t *testing.T) {
 	input := `
-process foo {
-    run ./foo.run;
+plugin {
+    external foo {
+        run ./foo.run;
+    }
 }
-peer 192.0.2.1 {
-    local-as 65000;
-    peer-as 65001;
-    process foo {
-        content { format parsed; }
-        receive { update; }
+
+bgp {
+    peer 192.0.2.1 {
+        local-as 65000;
+        peer-as 65001;
+        process foo {
+            content { format parsed; }
+            receive { update; }
+        }
     }
 }
 `
 	tree := parseWithBGPSchema(t, input)
 	needsMigration := NeedsMigration(tree)
-	require.False(t, needsMigration, "named api with new syntax does not need migration")
+	require.False(t, needsMigration, "peer inside bgp {} with new API syntax does not need migration")
 }
 
 // parseWithBGPSchema is a helper that parses config using LegacyBGPSchema.

@@ -68,13 +68,18 @@ func TestMigrateNeighborToPeer(t *testing.T) {
 		t.Errorf("Applied = %v, want to contain 'neighbor->peer'", result.Applied)
 	}
 
-	// Check peer exists in result tree
-	peers := result.Tree.GetList("peer")
-	if _, ok := peers["10.0.0.1"]; !ok {
-		t.Error("peer 10.0.0.1 not found in result tree")
+	// Check peer exists inside bgp container
+	bgp := result.Tree.GetContainer("bgp")
+	if bgp == nil {
+		t.Fatal("bgp container not found in result tree")
 	}
 
-	// Check neighbor removed
+	peers := bgp.GetList("peer")
+	if _, ok := peers["10.0.0.1"]; !ok {
+		t.Error("peer 10.0.0.1 not found in bgp container")
+	}
+
+	// Check neighbor removed from root
 	neighbors := result.Tree.GetList("neighbor")
 	if len(neighbors) != 0 {
 		t.Errorf("neighbors still exist: %v", neighbors)
@@ -86,20 +91,25 @@ func TestMigrateNeighborToPeer(t *testing.T) {
 // VALIDATES: Already-migrated configs have transformations in Skipped.
 // PREVENTS: False positives in Applied list.
 func TestMigrateSkipsAlreadyMigrated(t *testing.T) {
-	// Create a current config (peer, not neighbor)
+	// Create a fully-migrated config (peer inside bgp {})
 	tree := config.NewTree()
+	bgpContainer := config.NewTree()
 	peer := config.NewTree()
 	peer.Set("router-id", "1.1.1.1")
-	tree.AddListEntry("peer", "10.0.0.1", peer)
+	bgpContainer.AddListEntry("peer", "10.0.0.1", peer)
+	tree.SetContainer("bgp", bgpContainer)
 
 	result, err := Migrate(tree)
 	if err != nil {
 		t.Fatalf("Migrate() error = %v", err)
 	}
 
-	// neighbor->peer should be skipped (no neighbors)
+	// All transformations should be skipped for fully-migrated config
 	if !sliceContains(result.Skipped, "neighbor->peer") {
 		t.Errorf("Skipped = %v, want to contain 'neighbor->peer'", result.Skipped)
+	}
+	if !sliceContains(result.Skipped, "wrap-bgp-block") {
+		t.Errorf("Skipped = %v, want to contain 'wrap-bgp-block'", result.Skipped)
 	}
 }
 
@@ -262,12 +272,15 @@ func TestNeedsMigrationTrue(t *testing.T) {
 
 // TestNeedsMigrationFalse verifies detection for already-migrated config.
 //
-// VALIDATES: NeedsMigration returns false for current configs.
+// VALIDATES: NeedsMigration returns false for fully migrated configs.
 // PREVENTS: False positive migration detection.
 func TestNeedsMigrationFalse(t *testing.T) {
+	// Current config has peer inside bgp {}
 	tree := config.NewTree()
+	bgpContainer := config.NewTree()
 	peer := config.NewTree()
-	tree.AddListEntry("peer", "10.0.0.1", peer)
+	bgpContainer.AddListEntry("peer", "10.0.0.1", peer)
+	tree.SetContainer("bgp", bgpContainer)
 
 	if NeedsMigration(tree) {
 		t.Error("NeedsMigration() = true, want false for current config")

@@ -12,10 +12,12 @@ import (
 // PREVENTS: Formatter producing invalid or non-idempotent output.
 func TestConfigFmtFormatsConfig(t *testing.T) {
 	// Create a badly formatted but valid config
-	input := `peer 127.0.0.1{local-as 1;peer-as 2;}`
-	expected := `peer 127.0.0.1 {
-	local-as 1;
-	peer-as 2;
+	input := `bgp{peer 127.0.0.1{local-as 1;peer-as 2;}}`
+	expected := `bgp {
+	peer 127.0.0.1 {
+		local-as 1;
+		peer-as 2;
+	}
 }
 `
 
@@ -39,9 +41,11 @@ func TestConfigFmtFormatsConfig(t *testing.T) {
 //
 // PREVENTS: Non-idempotent formatting that would fail --check after -w.
 func TestConfigFmtIdempotent(t *testing.T) {
-	input := `peer 127.0.0.1 {
-	local-as 1;
-	peer-as 2;
+	input := `bgp {
+	peer 127.0.0.1 {
+		local-as 1;
+		peer-as 2;
+	}
 }
 `
 
@@ -99,7 +103,7 @@ func TestConfigFmtRejectsOld(t *testing.T) {
 //
 // PREVENTS: Formatting errors on real-world configs.
 func TestConfigFmtComplexConfig(t *testing.T) {
-	input := `template{group defaults{hold-time 90;}}peer 192.0.2.1{inherit defaults;local-as 65000;peer-as 65001;family{ipv4/unicast;}}`
+	input := `template{bgp{peer *{inherit-name defaults;hold-time 90;}}}bgp{peer 192.0.2.1{inherit defaults;local-as 65000;peer-as 65001;family{ipv4/unicast;}}}`
 
 	output, hasChanges, err := configFmtBytes([]byte(input))
 	if err != nil {

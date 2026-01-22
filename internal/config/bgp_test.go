@@ -14,21 +14,26 @@ import (
 // PREVENTS: Missing or broken group fields.
 func TestBGPSchemaNeighbor(t *testing.T) {
 	input := `
-peer 192.0.2.1 {
-    description "Transit Provider";
-    router-id 1.2.3.4;
-    local-address 192.0.2.2;
-    local-as 65000;
-    peer-as 65001;
-    hold-time 90;
-    passive false;
+bgp {
+    peer 192.0.2.1 {
+        description "Transit Provider";
+        router-id 1.2.3.4;
+        local-address 192.0.2.2;
+        local-as 65000;
+        peer-as 65001;
+        hold-time 90;
+        passive false;
+    }
 }
 `
 	p := NewParser(BGPSchema())
 	tree, err := p.Parse(input)
 	require.NoError(t, err)
 
-	neighbors := tree.GetList("peer")
+	bgpContainer := tree.GetContainer("bgp")
+	require.NotNil(t, bgpContainer)
+
+	neighbors := bgpContainer.GetList("peer")
 	require.Len(t, neighbors, 1)
 
 	n := neighbors["192.0.2.1"]
@@ -54,13 +59,15 @@ peer 192.0.2.1 {
 // PREVENTS: Broken multiprotocol support.
 func TestBGPSchemaFamily(t *testing.T) {
 	input := `
-peer 192.0.2.1 {
-    local-as 65000;
-    peer-as 65001;
-    family {
-        ipv4/unicast;
-        ipv4/multicast;
-        ipv6/unicast;
+bgp {
+    peer 192.0.2.1 {
+        local-as 65000;
+        peer-as 65001;
+        family {
+            ipv4/unicast;
+            ipv4/multicast;
+            ipv6/unicast;
+        }
     }
 }
 `
@@ -68,7 +75,8 @@ peer 192.0.2.1 {
 	tree, err := p.Parse(input)
 	require.NoError(t, err)
 
-	neighbors := tree.GetList("peer")
+	bgpContainer := tree.GetContainer("bgp")
+	neighbors := bgpContainer.GetList("peer")
 	n := neighbors["192.0.2.1"]
 
 	family := n.GetContainer("family")
@@ -102,12 +110,14 @@ func TestBGPSchemaFamilyIgnoreMismatch(t *testing.T) {
 		{
 			name: "ignore-mismatch enabled",
 			input: `
-peer 192.0.2.1 {
-    local-as 65000;
-    peer-as 65001;
-    family {
-        ipv4/unicast;
-        ignore-mismatch enable;
+bgp {
+    peer 192.0.2.1 {
+        local-as 65000;
+        peer-as 65001;
+        family {
+            ipv4/unicast;
+            ignore-mismatch enable;
+        }
     }
 }`,
 			expected: true,
@@ -115,12 +125,14 @@ peer 192.0.2.1 {
 		{
 			name: "ignore-mismatch true",
 			input: `
-peer 192.0.2.1 {
-    local-as 65000;
-    peer-as 65001;
-    family {
-        ipv4/unicast;
-        ignore-mismatch true;
+bgp {
+    peer 192.0.2.1 {
+        local-as 65000;
+        peer-as 65001;
+        family {
+            ipv4/unicast;
+            ignore-mismatch true;
+        }
     }
 }`,
 			expected: true,
@@ -128,12 +140,14 @@ peer 192.0.2.1 {
 		{
 			name: "ignore-mismatch disabled",
 			input: `
-peer 192.0.2.1 {
-    local-as 65000;
-    peer-as 65001;
-    family {
-        ipv4/unicast;
-        ignore-mismatch disable;
+bgp {
+    peer 192.0.2.1 {
+        local-as 65000;
+        peer-as 65001;
+        family {
+            ipv4/unicast;
+            ignore-mismatch disable;
+        }
     }
 }`,
 			expected: false,
@@ -141,11 +155,13 @@ peer 192.0.2.1 {
 		{
 			name: "ignore-mismatch not specified (default false)",
 			input: `
-peer 192.0.2.1 {
-    local-as 65000;
-    peer-as 65001;
-    family {
-        ipv4/unicast;
+bgp {
+    peer 192.0.2.1 {
+        local-as 65000;
+        peer-as 65001;
+        family {
+            ipv4/unicast;
+        }
     }
 }`,
 			expected: false,
@@ -224,11 +240,13 @@ func TestFamilyConfigInlineWithMode(t *testing.T) {
 		{
 			name: "ipv4/unicast require",
 			input: `
-peer 192.0.2.1 {
-    local-as 65000;
-    peer-as 65001;
-    family {
-        ipv4/unicast require;
+bgp {
+    peer 192.0.2.1 {
+        local-as 65000;
+        peer-as 65001;
+        family {
+            ipv4/unicast require;
+        }
     }
 }`,
 			expected: []FamilyConfig{
@@ -238,11 +256,13 @@ peer 192.0.2.1 {
 		{
 			name: "ipv6/unicast disable",
 			input: `
-peer 192.0.2.1 {
-    local-as 65000;
-    peer-as 65001;
-    family {
-        ipv6/unicast disable;
+bgp {
+    peer 192.0.2.1 {
+        local-as 65000;
+        peer-as 65001;
+        family {
+            ipv6/unicast disable;
+        }
     }
 }`,
 			expected: []FamilyConfig{
@@ -252,13 +272,15 @@ peer 192.0.2.1 {
 		{
 			name: "mixed modes inline",
 			input: `
-peer 192.0.2.1 {
-    local-as 65000;
-    peer-as 65001;
-    family {
-        ipv4/unicast;
-        ipv4/multicast require;
-        ipv6/unicast disable;
+bgp {
+    peer 192.0.2.1 {
+        local-as 65000;
+        peer-as 65001;
+        family {
+            ipv4/unicast;
+            ipv4/multicast require;
+            ipv6/unicast disable;
+        }
     }
 }`,
 			expected: []FamilyConfig{
@@ -270,12 +292,14 @@ peer 192.0.2.1 {
 		{
 			name: "ignore mode",
 			input: `
-peer 192.0.2.1 {
-    local-as 65000;
-    peer-as 65001;
-    family {
-        ipv4/unicast ignore;
-        ipv6/unicast;
+bgp {
+    peer 192.0.2.1 {
+        local-as 65000;
+        peer-as 65001;
+        family {
+            ipv4/unicast ignore;
+            ipv6/unicast;
+        }
     }
 }`,
 			expected: []FamilyConfig{
@@ -313,12 +337,14 @@ func TestFamilyConfigBlockSyntax(t *testing.T) {
 		{
 			name: "single SAFI block",
 			input: `
-peer 192.0.2.1 {
-    local-as 65000;
-    peer-as 65001;
-    family {
-        ipv4 {
-            unicast;
+bgp {
+    peer 192.0.2.1 {
+        local-as 65000;
+        peer-as 65001;
+        family {
+            ipv4 {
+                unicast;
+            }
         }
     }
 }`,
@@ -329,13 +355,15 @@ peer 192.0.2.1 {
 		{
 			name: "multiple SAFIs block",
 			input: `
-peer 192.0.2.1 {
-    local-as 65000;
-    peer-as 65001;
-    family {
-        ipv4 {
-            unicast;
-            multicast require;
+bgp {
+    peer 192.0.2.1 {
+        local-as 65000;
+        peer-as 65001;
+        family {
+            ipv4 {
+                unicast;
+                multicast require;
+            }
         }
     }
 }`,
@@ -346,7 +374,7 @@ peer 192.0.2.1 {
 		},
 		{
 			name:  "one-liner block",
-			input: `peer 192.0.2.1 { local-as 65000; peer-as 65001; family { ipv6 { unicast require; mpls-vpn } } }`,
+			input: `bgp { peer 192.0.2.1 { local-as 65000; peer-as 65001; family { ipv6 { unicast require; mpls-vpn } } } }`,
 			expected: []FamilyConfig{
 				{AFI: "ipv6", SAFI: "unicast", Mode: FamilyModeRequire},
 				{AFI: "ipv6", SAFI: "mpls-vpn", Mode: FamilyModeEnable},
@@ -355,16 +383,18 @@ peer 192.0.2.1 {
 		{
 			name: "multiple AFI blocks",
 			input: `
-peer 192.0.2.1 {
-    local-as 65000;
-    peer-as 65001;
-    family {
-        ipv4 {
-            unicast require;
-        }
-        ipv6 {
-            unicast;
-            mpls-vpn require;
+bgp {
+    peer 192.0.2.1 {
+        local-as 65000;
+        peer-as 65001;
+        family {
+            ipv4 {
+                unicast require;
+            }
+            ipv6 {
+                unicast;
+                mpls-vpn require;
+            }
         }
     }
 }`,
@@ -397,16 +427,18 @@ peer 192.0.2.1 {
 // PREVENTS: Parser confusion when mixing syntax styles.
 func TestFamilyConfigMixedSyntax(t *testing.T) {
 	input := `
-peer 192.0.2.1 {
-    local-as 65000;
-    peer-as 65001;
-    family {
-        ipv4/unicast;
-        ipv6 {
-            unicast require;
-            mpls-vpn;
+bgp {
+    peer 192.0.2.1 {
+        local-as 65000;
+        peer-as 65001;
+        family {
+            ipv4/unicast;
+            ipv6 {
+                unicast require;
+                mpls-vpn;
+            }
+            l2vpn/evpn require;
         }
-        l2vpn/evpn require;
     }
 }`
 	expected := []FamilyConfig{
@@ -433,18 +465,20 @@ peer 192.0.2.1 {
 // PREVENTS: Missing capability negotiation config.
 func TestBGPSchemaCapability(t *testing.T) {
 	input := `
-peer 192.0.2.1 {
-    local-as 65000;
-    peer-as 65001;
-    capability {
-        asn4 true;
-        route-refresh;
-        graceful-restart {
-            restart-time 120;
-        }
-        add-path {
-            send true;
-            receive true;
+bgp {
+    peer 192.0.2.1 {
+        local-as 65000;
+        peer-as 65001;
+        capability {
+            asn4 true;
+            route-refresh;
+            graceful-restart {
+                restart-time 120;
+            }
+            add-path {
+                send true;
+                receive true;
+            }
         }
     }
 }
@@ -453,7 +487,10 @@ peer 192.0.2.1 {
 	tree, err := p.Parse(input)
 	require.NoError(t, err)
 
-	neighbors := tree.GetList("peer")
+	bgpContainer := tree.GetContainer("bgp")
+	require.NotNil(t, bgpContainer)
+
+	neighbors := bgpContainer.GetList("peer")
 	n := neighbors["192.0.2.1"]
 
 	cap := n.GetContainer("capability")
@@ -482,18 +519,20 @@ peer 192.0.2.1 {
 // PREVENTS: Broken route injection.
 func TestBGPSchemaStatic(t *testing.T) {
 	input := `
-peer 192.0.2.1 {
-    local-as 65000;
-    peer-as 65001;
-    static {
-        route 10.0.0.0/8 {
-            next-hop 192.0.2.1;
-            local-preference 100;
-            community 65000:100;
-        }
-        route 172.16.0.0/12 {
-            next-hop 192.0.2.1;
-            med 50;
+bgp {
+    peer 192.0.2.1 {
+        local-as 65000;
+        peer-as 65001;
+        static {
+            route 10.0.0.0/8 {
+                next-hop 192.0.2.1;
+                local-preference 100;
+                community 65000:100;
+            }
+            route 172.16.0.0/12 {
+                next-hop 192.0.2.1;
+                med 50;
+            }
         }
     }
 }
@@ -502,7 +541,10 @@ peer 192.0.2.1 {
 	tree, err := p.Parse(input)
 	require.NoError(t, err)
 
-	neighbors := tree.GetList("peer")
+	bgpContainer := tree.GetContainer("bgp")
+	require.NotNil(t, bgpContainer)
+
+	neighbors := bgpContainer.GetList("peer")
 	n := neighbors["192.0.2.1"]
 	require.NotNil(t, n)
 
@@ -554,23 +596,28 @@ plugin {
 // PREVENTS: Missing global config.
 func TestBGPSchemaGlobal(t *testing.T) {
 	input := `
-router-id 1.2.3.4;
-local-as 65000;
-listen 0.0.0.0 179;
+bgp {
+    router-id 1.2.3.4;
+    local-as 65000;
+    listen 0.0.0.0 179;
+}
 `
 	p := NewParser(BGPSchema())
 	tree, err := p.Parse(input)
 	require.NoError(t, err)
 
-	val, ok := tree.Get("router-id")
+	bgpContainer := tree.GetContainer("bgp")
+	require.NotNil(t, bgpContainer)
+
+	val, ok := bgpContainer.Get("router-id")
 	require.True(t, ok)
 	require.Equal(t, "1.2.3.4", val)
 
-	val, ok = tree.Get("local-as")
+	val, ok = bgpContainer.Get("local-as")
 	require.True(t, ok)
 	require.Equal(t, "65000", val)
 
-	val, ok = tree.Get("listen")
+	val, ok = bgpContainer.Get("listen")
 	require.True(t, ok)
 	require.Equal(t, "0.0.0.0 179", val)
 }
@@ -582,10 +629,6 @@ listen 0.0.0.0 179;
 // PREVENTS: Integration issues between config sections.
 func TestBGPSchemaFullConfig(t *testing.T) {
 	input := `
-# Global settings
-router-id 10.0.0.1;
-local-as 65000;
-
 # API process
 plugin {
     external watcher {
@@ -594,35 +637,41 @@ plugin {
     }
 }
 
-# Transit provider
-peer 192.0.2.1 {
-    description "Transit AS65001";
-    local-address 192.0.2.2;
-    peer-as 65001;
-    hold-time 90;
-    family {
-        ipv4/unicast;
-        ipv6/unicast;
-    }
-    capability {
-        asn4 true;
-        route-refresh;
-    }
-}
+bgp {
+    # Global settings
+    router-id 10.0.0.1;
+    local-as 65000;
 
-# Peer
-peer 192.0.2.10 {
-    description "Peer AS65010";
-    local-address 192.0.2.2;
-    peer-as 65010;
-    passive true;
-    family {
-        ipv4/unicast;
+    # Transit provider
+    peer 192.0.2.1 {
+        description "Transit AS65001";
+        local-address 192.0.2.2;
+        peer-as 65001;
+        hold-time 90;
+        family {
+            ipv4/unicast;
+            ipv6/unicast;
+        }
+        capability {
+            asn4 true;
+            route-refresh;
+        }
     }
-    static {
-        route 10.0.0.0/8 {
-            next-hop self;
-            community 65000:100;
+
+    # Peer
+    peer 192.0.2.10 {
+        description "Peer AS65010";
+        local-address 192.0.2.2;
+        peer-as 65010;
+        passive true;
+        family {
+            ipv4/unicast;
+        }
+        static {
+            route 10.0.0.0/8 {
+                next-hop self;
+                community 65000:100;
+            }
         }
     }
 }
@@ -631,18 +680,22 @@ peer 192.0.2.10 {
 	tree, err := p.Parse(input)
 	require.NoError(t, err)
 
-	// Check global
-	val, _ := tree.Get("router-id")
-	require.Equal(t, "10.0.0.1", val)
-
 	// Check plugin
 	pluginContainer := tree.GetContainer("plugin")
 	require.NotNil(t, pluginContainer)
 	plugins := pluginContainer.GetList("external")
 	require.Len(t, plugins, 1)
 
+	// Check bgp container
+	bgpContainer := tree.GetContainer("bgp")
+	require.NotNil(t, bgpContainer)
+
+	// Check global
+	val, _ := bgpContainer.Get("router-id")
+	require.Equal(t, "10.0.0.1", val)
+
 	// Check neighbors
-	neighbors := tree.GetList("peer")
+	neighbors := bgpContainer.GetList("peer")
 	require.Len(t, neighbors, 2)
 
 	n1 := neighbors["192.0.2.1"]
@@ -661,13 +714,15 @@ peer 192.0.2.10 {
 // PREVENTS: Type conversion errors.
 func TestBGPSchemaToConfig(t *testing.T) {
 	input := `
-router-id 10.0.0.1;
-local-as 65000;
+bgp {
+    router-id 10.0.0.1;
+    local-as 65000;
 
-peer 192.0.2.1 {
-    local-address 192.0.2.2;
-    peer-as 65001;
-    hold-time 90;
+    peer 192.0.2.1 {
+        local-address 192.0.2.2;
+        peer-as 65001;
+        hold-time 90;
+    }
 }
 `
 	p := NewParser(BGPSchema())
@@ -695,20 +750,22 @@ peer 192.0.2.1 {
 // PREVENTS: Missing routes when using announce syntax instead of static syntax.
 func TestBGPSchemaAnnounce(t *testing.T) {
 	input := `
-peer 127.0.0.1 {
-    router-id 10.0.0.2;
-    local-address 127.0.0.1;
-    local-as 65533;
-    peer-as 65000;
+bgp {
+    peer 127.0.0.1 {
+        router-id 10.0.0.2;
+        local-address 127.0.0.1;
+        local-as 65533;
+        peer-as 65000;
 
-    family {
-        ipv4/unicast;
-    }
+        family {
+            ipv4/unicast;
+        }
 
-    announce {
-        ipv4 {
-            unicast 10.0.0.0/24 next-hop 10.0.1.254 local-preference 200;
-            unicast 10.0.1.0/24 next-hop 10.0.1.254 med 100;
+        announce {
+            ipv4 {
+                unicast 10.0.0.0/24 next-hop 10.0.1.254 local-preference 200;
+                unicast 10.0.1.0/24 next-hop 10.0.1.254 med 100;
+            }
         }
     }
 }
@@ -752,19 +809,21 @@ peer 127.0.0.1 {
 // PREVENTS: Missing IPv6 routes or community parsing failures.
 func TestBGPSchemaAnnounceIPv6(t *testing.T) {
 	input := `
-peer 127.0.0.1 {
-    router-id 10.0.0.2;
-    local-address 127.0.0.1;
-    local-as 65533;
-    peer-as 65533;
+bgp {
+    peer 127.0.0.1 {
+        router-id 10.0.0.2;
+        local-address 127.0.0.1;
+        local-as 65533;
+        peer-as 65533;
 
-    family {
-        ipv6/unicast;
-    }
+        family {
+            ipv6/unicast;
+        }
 
-    announce {
-        ipv6 {
-            unicast 2a02:b80:0:1::1/128 next-hop 2a02:b80:0:2::1 community [30740:0 30740:30740] local-preference 200;
+        announce {
+            ipv6 {
+                unicast 2a02:b80:0:1::1/128 next-hop 2a02:b80:0:2::1 community [30740:0 30740:30740] local-preference 200;
+            }
         }
     }
 }
@@ -806,20 +865,22 @@ template {
     }
 }
 
-peer 127.0.0.1 {
-    inherit base-routes;
-    router-id 10.0.0.2;
-    local-address 127.0.0.1;
-    local-as 65533;
-    peer-as 65533;
+bgp {
+    peer 127.0.0.1 {
+        inherit base-routes;
+        router-id 10.0.0.2;
+        local-address 127.0.0.1;
+        local-as 65533;
+        peer-as 65533;
 
-    family {
-        ipv4/unicast;
-    }
+        family {
+            ipv4/unicast;
+        }
 
-    announce {
-        ipv4 {
-            unicast 10.0.3.0/24 next-hop 10.0.255.254 local-preference 200;
+        announce {
+            ipv4 {
+                unicast 10.0.3.0/24 next-hop 10.0.255.254 local-preference 200;
+            }
         }
     }
 }
@@ -881,10 +942,12 @@ func TestHoldTimeRFCValidation(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			input := `
-peer 192.0.2.1 {
-    local-as 65000;
-    peer-as 65001;
-    hold-time ` + tt.holdTime + `;
+bgp {
+    peer 192.0.2.1 {
+        local-as 65000;
+        peer-as 65001;
+        hold-time ` + tt.holdTime + `;
+    }
 }
 `
 			p := NewParser(BGPSchema())
@@ -909,10 +972,12 @@ peer 192.0.2.1 {
 // PREVENTS: Unable to configure automatic local address selection.
 func TestLocalAddressAuto(t *testing.T) {
 	input := `
-peer 192.0.2.1 {
-    local-as 65000;
-    peer-as 65001;
-    local-address auto;
+bgp {
+    peer 192.0.2.1 {
+        local-as 65000;
+        peer-as 65001;
+        local-address auto;
+    }
 }
 `
 	p := NewParser(BGPSchema())
@@ -966,10 +1031,12 @@ func TestExtendedMessageCapabilityConfig(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			input := `
-peer 192.0.2.1 {
-    local-as 65000;
-    peer-as 65001;
-    ` + tt.config + `
+bgp {
+    peer 192.0.2.1 {
+        local-as 65000;
+        peer-as 65001;
+        ` + tt.config + `
+    }
 }
 `
 			p := NewParser(BGPSchema())
@@ -996,13 +1063,15 @@ peer 192.0.2.1 {
 // PREVENTS: Global add-path setting applying to all families.
 func TestPerFamilyAddPathConfig(t *testing.T) {
 	input := `
-peer 192.0.2.1 {
-    local-as 65000;
-    peer-as 65001;
-    add-path {
-        ipv4/unicast send;
-        ipv6/unicast receive;
-        ipv4/multicast send/receive;
+bgp {
+    peer 192.0.2.1 {
+        local-as 65000;
+        peer-as 65001;
+        add-path {
+            ipv4/unicast send;
+            ipv6/unicast receive;
+            ipv4/multicast send/receive;
+        }
     }
 }
 `
@@ -1049,9 +1118,11 @@ peer 192.0.2.1 {
 func TestASN4DefaultEnabled(t *testing.T) {
 	// Config without capability block
 	input := `
-peer 192.0.2.1 {
-    local-as 65000;
-    peer-as 65001;
+bgp {
+    peer 192.0.2.1 {
+        local-as 65000;
+        peer-as 65001;
+    }
 }
 `
 	p := NewParser(BGPSchema())
@@ -1072,11 +1143,13 @@ peer 192.0.2.1 {
 // PREVENTS: Unable to connect to peers that don't support 4-byte AS.
 func TestASN4ExplicitlyDisabled(t *testing.T) {
 	input := `
-peer 192.0.2.1 {
-    local-as 65000;
-    peer-as 65001;
-    capability {
-        asn4 false;
+bgp {
+    peer 192.0.2.1 {
+        local-as 65000;
+        peer-as 65001;
+        capability {
+            asn4 false;
+        }
     }
 }
 `
@@ -1112,12 +1185,14 @@ func TestRIBOutConfigAutoCommitDelayFormats(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			input := `
-peer 192.0.2.1 {
-    local-as 65000;
-    peer-as 65001;
-    rib {
-        out {
-            auto-commit-delay ` + tt.input + `;
+bgp {
+    peer 192.0.2.1 {
+        local-as 65000;
+        peer-as 65001;
+        rib {
+            out {
+                auto-commit-delay ` + tt.input + `;
+            }
         }
     }
 }
@@ -1143,15 +1218,17 @@ peer 192.0.2.1 {
 func TestPerNeighborRIBOut(t *testing.T) {
 	t.Run("explicit config", func(t *testing.T) {
 		input := `
-peer 192.0.2.1 {
-    local-as 65000;
-    peer-as 65001;
-    rib { out { group-updates true; auto-commit-delay 100ms; max-batch-size 500; } }
-}
-peer 192.0.2.2 {
-    local-as 65000;
-    peer-as 65002;
-    rib { out { group-updates false; auto-commit-delay 50ms; } }
+bgp {
+    peer 192.0.2.1 {
+        local-as 65000;
+        peer-as 65001;
+        rib { out { group-updates true; auto-commit-delay 100ms; max-batch-size 500; } }
+    }
+    peer 192.0.2.2 {
+        local-as 65000;
+        peer-as 65002;
+        rib { out { group-updates false; auto-commit-delay 50ms; } }
+    }
 }
 `
 		cfg := parseConfig(t, input)
@@ -1168,7 +1245,7 @@ peer 192.0.2.2 {
 	})
 
 	t.Run("defaults", func(t *testing.T) {
-		input := `peer 192.0.2.1 { local-as 65000; peer-as 65001; }`
+		input := `bgp { peer 192.0.2.1 { local-as 65000; peer-as 65001; } }`
 		cfg := parseConfig(t, input)
 		require.Len(t, cfg.Peers, 1)
 		n := cfg.Peers[0]
@@ -1180,8 +1257,10 @@ peer 192.0.2.2 {
 	t.Run("template inheritance", func(t *testing.T) {
 		input := `
 template { group rib-tmpl { rib { out { group-updates true; auto-commit-delay 200ms; max-batch-size 1000; } } } }
-peer 192.0.2.1 { inherit rib-tmpl; local-as 65000; peer-as 65001; }
-peer 192.0.2.2 { inherit rib-tmpl; local-as 65000; peer-as 65002; rib { out { auto-commit-delay 50ms; } } }
+bgp {
+    peer 192.0.2.1 { inherit rib-tmpl; local-as 65000; peer-as 65001; }
+    peer 192.0.2.2 { inherit rib-tmpl; local-as 65000; peer-as 65002; rib { out { auto-commit-delay 50ms; } } }
+}
 `
 		cfg := parseConfig(t, input)
 		require.Len(t, cfg.Peers, 2)
@@ -1199,7 +1278,7 @@ peer 192.0.2.2 { inherit rib-tmpl; local-as 65000; peer-as 65002; rib { out { au
 	})
 
 	t.Run("legacy group-updates", func(t *testing.T) {
-		input := `peer 192.0.2.1 { local-as 65000; peer-as 65001; group-updates false; }`
+		input := `bgp { peer 192.0.2.1 { local-as 65000; peer-as 65001; group-updates false; } }`
 		cfg := parseConfig(t, input)
 		require.Len(t, cfg.Peers, 1)
 		n := cfg.Peers[0]
@@ -1302,9 +1381,11 @@ template {
     }
 }
 
-peer 192.0.2.1 {
-    inherit ibgp-rr;
-    local-as 65000;
+bgp {
+    peer 192.0.2.1 {
+        inherit ibgp-rr;
+        local-as 65000;
+    }
 }
 `
 	cfg := parseConfig(t, input)
@@ -1328,8 +1409,10 @@ template {
     }
 }
 
-peer 192.0.2.1 { local-as 65000; peer-as 65001; }
-peer 192.0.2.2 { local-as 65000; peer-as 65002; }
+bgp {
+    peer 192.0.2.1 { local-as 65000; peer-as 65001; }
+    peer 192.0.2.2 { local-as 65000; peer-as 65002; }
+}
 `
 	cfg := parseConfig(t, input)
 	require.Len(t, cfg.Peers, 2)
@@ -1359,8 +1442,10 @@ template {
     }
 }
 
-peer 192.0.2.1 { local-as 65000; peer-as 65001; }
-peer 10.0.0.1 { local-as 65000; peer-as 65002; }
+bgp {
+    peer 192.0.2.1 { local-as 65000; peer-as 65001; }
+    peer 10.0.0.1 { local-as 65000; peer-as 65002; }
+}
 `
 	cfg := parseConfig(t, input)
 	require.Len(t, cfg.Peers, 2)
@@ -1396,8 +1481,10 @@ template {
     }
 }
 
-peer 10.0.0.1 { local-as 65000; peer-as 65001; }
-peer 192.168.1.1 { local-as 65000; peer-as 65002; }
+bgp {
+    peer 10.0.0.1 { local-as 65000; peer-as 65001; }
+    peer 192.168.1.1 { local-as 65000; peer-as 65002; }
+}
 `
 	cfg := parseConfig(t, input)
 	require.Len(t, cfg.Peers, 2)
@@ -1427,10 +1514,12 @@ template {
     }
 }
 
-peer 192.0.2.1 {
-    inherit customer-routes;
-    local-as 65000;
-    peer-as 65001;
+bgp {
+    peer 192.0.2.1 {
+        inherit customer-routes;
+        local-as 65000;
+        peer-as 65001;
+    }
 }
 `
 	cfg := parseConfig(t, input)
@@ -1466,8 +1555,10 @@ template {
     }
 }
 
-peer 192.0.2.1 { local-as 65000; peer-as 65001; }
-peer 10.0.0.1 { local-as 65000; peer-as 65002; }
+bgp {
+    peer 192.0.2.1 { local-as 65000; peer-as 65001; }
+    peer 10.0.0.1 { local-as 65000; peer-as 65002; }
+}
 `
 	cfg := parseConfig(t, input)
 	require.Len(t, cfg.Peers, 2)
@@ -1500,14 +1591,16 @@ template {
     }
 }
 
-peer 192.0.2.1 {
-    inherit high-preference;
-    local-as 65000;
-    peer-as 65001;
-}
-peer 10.0.0.1 {
-    local-as 65000;
-    peer-as 65002;
+bgp {
+    peer 192.0.2.1 {
+        inherit high-preference;
+        local-as 65000;
+        peer-as 65001;
+    }
+    peer 10.0.0.1 {
+        local-as 65000;
+        peer-as 65002;
+    }
 }
 `
 	cfg := parseConfig(t, input)
@@ -1530,10 +1623,12 @@ peer 10.0.0.1 {
 // PREVENTS: Unable to use peer syntax for BGP sessions.
 func TestPeerKeywordForSessions(t *testing.T) {
 	input := `
-peer 192.0.2.1 {
-    local-as 65000;
-    peer-as 65001;
-    hold-time 90;
+bgp {
+    peer 192.0.2.1 {
+        local-as 65000;
+        peer-as 65001;
+        hold-time 90;
+    }
 }
 `
 	cfg := parseConfig(t, input)
@@ -1562,9 +1657,11 @@ template {
     }
 }
 
-peer 192.0.2.1 {
-    inherit ibgp-defaults;
-    local-as 65000;
+bgp {
+    peer 192.0.2.1 {
+        inherit ibgp-defaults;
+        local-as 65000;
+    }
 }
 `
 	cfg := parseConfig(t, input)
@@ -1598,6 +1695,9 @@ template {
         inherit base;
         hold-time 60;
     }
+}
+bgp {
+    peer 192.0.2.1 { inherit derived; local-as 65000; peer-as 65001; }
 }
 `
 	p := NewParser(BGPSchema())
@@ -1634,11 +1734,13 @@ match * {
 // PREVENTS: Invalid nested match syntax.
 func TestMatchRejectedInPeer(t *testing.T) {
 	input := `
-peer 192.0.2.1 {
-    local-as 65000;
-    peer-as 65001;
-    match * {
-        hold-time 90;
+bgp {
+    peer 192.0.2.1 {
+        local-as 65000;
+        peer-as 65001;
+        match * {
+            hold-time 90;
+        }
     }
 }
 `
@@ -1662,7 +1764,8 @@ func TestGroupNameValidation(t *testing.T) {
 
 	for _, name := range validNames {
 		t.Run("valid:"+name, func(t *testing.T) {
-			input := `template { group ` + name + ` { hold-time 90; } }`
+			input := `template { group ` + name + ` { hold-time 90; } }
+bgp { peer 192.0.2.1 { inherit ` + name + `; local-as 65000; peer-as 65001; } }`
 			p := NewParser(BGPSchema())
 			tree, err := p.Parse(input)
 			require.NoError(t, err, "group name %q should parse", name)
@@ -1675,7 +1778,8 @@ func TestGroupNameValidation(t *testing.T) {
 
 	for _, name := range invalidNames {
 		t.Run("invalid:"+name, func(t *testing.T) {
-			input := `template { group ` + name + ` { hold-time 90; } }`
+			input := `template { group ` + name + ` { hold-time 90; } }
+bgp { peer 192.0.2.1 { inherit ` + name + `; local-as 65000; peer-as 65001; } }`
 			p := NewParser(BGPSchema())
 			tree, err := p.Parse(input)
 			require.NoError(t, err, "group name %q should parse", name)
@@ -1776,9 +1880,11 @@ template {
     }
 }
 
-peer 10.0.0.1 { local-as 65000; peer-as 65001; }
-peer 192.168.1.1 { local-as 65000; peer-as 65002; }
-peer 172.16.0.1 { local-as 65000; peer-as 65003; }
+bgp {
+    peer 10.0.0.1 { local-as 65000; peer-as 65001; }
+    peer 192.168.1.1 { local-as 65000; peer-as 65002; }
+    peer 172.16.0.1 { local-as 65000; peer-as 65003; }
+}
 `
 	cfg := parseConfig(t, input)
 	require.Len(t, cfg.Peers, 3)
@@ -1806,8 +1912,10 @@ template {
         rib { out { group-updates false; auto-commit-delay 100ms; } }
     }
 }
-peer 192.0.2.1 { local-as 65000; peer-as 65001; }
-peer 192.0.2.2 { local-as 65000; peer-as 65002; }
+bgp {
+    peer 192.0.2.1 { local-as 65000; peer-as 65001; }
+    peer 192.0.2.2 { local-as 65000; peer-as 65002; }
+}
 `
 		cfg := parseConfig(t, input)
 		require.Len(t, cfg.Peers, 2)
@@ -1825,9 +1933,11 @@ template {
         rib { out { group-updates false; } }
     }
 }
-peer 192.0.2.1 { local-as 65000; peer-as 65001; }
-peer 192.0.2.2 { local-as 65000; peer-as 65002; }
-peer 10.0.0.1 { local-as 65000; peer-as 65003; }
+bgp {
+    peer 192.0.2.1 { local-as 65000; peer-as 65001; }
+    peer 192.0.2.2 { local-as 65000; peer-as 65002; }
+    peer 10.0.0.1 { local-as 65000; peer-as 65003; }
+}
 `
 		cfg := parseConfig(t, input)
 		require.Len(t, cfg.Peers, 3)
@@ -1848,11 +1958,13 @@ template {
         rib { out { group-updates false; auto-commit-delay 100ms; } }
     }
 }
-peer 192.0.2.1 { local-as 65000; peer-as 65001; }
-peer 192.0.2.2 {
-    local-as 65000;
-    peer-as 65002;
-    rib { out { group-updates true; } }
+bgp {
+    peer 192.0.2.1 { local-as 65000; peer-as 65001; }
+    peer 192.0.2.2 {
+        local-as 65000;
+        peer-as 65002;
+        rib { out { group-updates true; } }
+    }
 }
 `
 		cfg := parseConfig(t, input)
@@ -1878,8 +1990,10 @@ template {
         rib { out { auto-commit-delay 50ms; } }
     }
 }
-peer 192.0.2.1 { local-as 65000; peer-as 65001; }
-peer 10.0.0.1 { local-as 65000; peer-as 65002; }
+bgp {
+    peer 192.0.2.1 { local-as 65000; peer-as 65001; }
+    peer 10.0.0.1 { local-as 65000; peer-as 65002; }
+}
 `
 		cfg := parseConfig(t, input)
 		require.Len(t, cfg.Peers, 2)
@@ -1907,12 +2021,14 @@ peer 10.0.0.1 { local-as 65000; peer-as 65002; }
 func TestPeerProcessBindingOldSyntax(t *testing.T) {
 	input := `
 plugin { external foo { run ./test; encoder text; } }
-peer 10.0.0.1 {
-    router-id 1.2.3.4;
-    local-as 65001;
-    peer-as 65002;
-    process {
-        processes [ foo ];
+bgp {
+    peer 10.0.0.1 {
+        router-id 1.2.3.4;
+        local-as 65001;
+        peer-as 65002;
+        process {
+            processes [ foo ];
+        }
     }
 }
 `
@@ -1935,12 +2051,14 @@ plugin {
     external collector { run ./collector; encoder json; }
     external logger { run ./logger; encoder text; }
 }
-peer 10.0.0.1 {
-    router-id 1.2.3.4;
-    local-as 65001;
-    peer-as 65002;
-    process {
-        processes [ collector logger ];
+bgp {
+    peer 10.0.0.1 {
+        router-id 1.2.3.4;
+        local-as 65001;
+        peer-as 65002;
+        process {
+            processes [ collector logger ];
+        }
     }
 }
 `
@@ -1964,13 +2082,15 @@ peer 10.0.0.1 {
 func TestAPIBindingNeighborChanges(t *testing.T) {
 	input := `
 plugin { external foo { run ./test; encoder text; } }
-peer 10.0.0.1 {
-    router-id 1.2.3.4;
-    local-as 65001;
-    peer-as 65002;
-    process {
-        processes [ foo ];
-        neighbor-changes;
+bgp {
+    peer 10.0.0.1 {
+        router-id 1.2.3.4;
+        local-as 65001;
+        peer-as 65002;
+        process {
+            processes [ foo ];
+            neighbor-changes;
+        }
     }
 }
 `
@@ -1991,12 +2111,14 @@ peer 10.0.0.1 {
 func TestAPIBindingReceiveNegotiated(t *testing.T) {
 	input := `
 plugin { external foo { run ./test; encoder json; } }
-peer 10.0.0.1 {
-    router-id 1.2.3.4;
-    local-as 65001;
-    peer-as 65002;
-    process foo {
-        receive { negotiated; }
+bgp {
+    peer 10.0.0.1 {
+        router-id 1.2.3.4;
+        local-as 65001;
+        peer-as 65002;
+        process foo {
+            receive { negotiated; }
+        }
     }
 }
 `
@@ -2017,12 +2139,14 @@ peer 10.0.0.1 {
 func TestAPIBindingReceiveAll(t *testing.T) {
 	input := `
 plugin { external foo { run ./test; encoder json; } }
-peer 10.0.0.1 {
-    router-id 1.2.3.4;
-    local-as 65001;
-    peer-as 65002;
-    process foo {
-        receive { all; }
+bgp {
+    peer 10.0.0.1 {
+        router-id 1.2.3.4;
+        local-as 65001;
+        peer-as 65002;
+        process foo {
+            receive { all; }
+        }
     }
 }
 `
@@ -2048,12 +2172,14 @@ peer 10.0.0.1 {
 // PREVENTS: Runtime crashes from nil process lookup.
 func TestAPIBindingUndefinedProcess(t *testing.T) {
 	input := `
-peer 10.0.0.1 {
-    router-id 1.2.3.4;
-    local-as 65001;
-    peer-as 65002;
-    process {
-        processes [ nonexistent ];
+bgp {
+    peer 10.0.0.1 {
+        router-id 1.2.3.4;
+        local-as 65001;
+        peer-as 65002;
+        process {
+            processes [ nonexistent ];
+        }
     }
 }
 `
@@ -2074,11 +2200,13 @@ peer 10.0.0.1 {
 func TestEmptyAPIBlock(t *testing.T) {
 	input := `
 plugin { external foo { run ./test; } }
-peer 10.0.0.1 {
-    router-id 1.2.3.4;
-    local-as 65001;
-    peer-as 65002;
-    process { }
+bgp {
+    peer 10.0.0.1 {
+        router-id 1.2.3.4;
+        local-as 65001;
+        peer-as 65002;
+        process { }
+    }
 }
 `
 	cfg := parseConfig(t, input)
@@ -2129,13 +2257,15 @@ func TestAPIBindingConfigStructs(t *testing.T) {
 func TestPeerProcessBindingNewSyntax(t *testing.T) {
 	input := `
 plugin { external foo { run ./test; encoder text; } }
-peer 10.0.0.1 {
-    router-id 1.2.3.4;
-    local-as 65001;
-    peer-as 65002;
-    process foo {
-        content { encoding json; format full; }
-        receive { update; notification; }
+bgp {
+    peer 10.0.0.1 {
+        router-id 1.2.3.4;
+        local-as 65001;
+        peer-as 65002;
+        process foo {
+            content { encoding json; format full; }
+            receive { update; notification; }
+        }
     }
 }
 `
@@ -2160,12 +2290,14 @@ peer 10.0.0.1 {
 func TestReceiveAllExpansion(t *testing.T) {
 	input := `
 plugin { external foo { run ./test; } }
-peer 10.0.0.1 {
-    router-id 1.2.3.4;
-    local-as 65001;
-    peer-as 65002;
-    process foo {
-        receive { all; }
+bgp {
+    peer 10.0.0.1 {
+        router-id 1.2.3.4;
+        local-as 65001;
+        peer-as 65002;
+        process foo {
+            receive { all; }
+        }
     }
 }
 `
@@ -2188,12 +2320,14 @@ peer 10.0.0.1 {
 func TestSendAllExpansion(t *testing.T) {
 	input := `
 plugin { external foo { run ./test; } }
-peer 10.0.0.1 {
-    router-id 1.2.3.4;
-    local-as 65001;
-    peer-as 65002;
-    process foo {
-        send { all; }
+bgp {
+    peer 10.0.0.1 {
+        router-id 1.2.3.4;
+        local-as 65001;
+        peer-as 65002;
+        process foo {
+            send { all; }
+        }
     }
 }
 `
@@ -2212,11 +2346,13 @@ peer 10.0.0.1 {
 func TestEmptyAPIBindingNewSyntax(t *testing.T) {
 	input := `
 plugin { external foo { run ./test; } }
-peer 10.0.0.1 {
-    router-id 1.2.3.4;
-    local-as 65001;
-    peer-as 65002;
-    process foo { }
+bgp {
+    peer 10.0.0.1 {
+        router-id 1.2.3.4;
+        local-as 65001;
+        peer-as 65002;
+        process foo { }
+    }
 }
 `
 	cfg := parseConfig(t, input)
@@ -2236,12 +2372,14 @@ peer 10.0.0.1 {
 // PREVENTS: Runtime crashes from nil process lookup.
 func TestAPIBindingUndefinedProcessNewSyntax(t *testing.T) {
 	input := `
-peer 10.0.0.1 {
-    router-id 1.2.3.4;
-    local-as 65001;
-    peer-as 65002;
-    process nonexistent {
-        receive { update; }
+bgp {
+    peer 10.0.0.1 {
+        router-id 1.2.3.4;
+        local-as 65001;
+        peer-as 65002;
+        process nonexistent {
+            receive { update; }
+        }
     }
 }
 `
@@ -2265,17 +2403,19 @@ plugin {
     external collector { run ./collector; encoder json; }
     external logger { run ./logger; encoder text; }
 }
-peer 10.0.0.1 {
-    router-id 1.2.3.4;
-    local-as 65001;
-    peer-as 65002;
-    process collector {
-        content { encoding json; }
-        receive { update; }
-    }
-    process logger {
-        content { encoding text; format full; }
-        receive { all; }
+bgp {
+    peer 10.0.0.1 {
+        router-id 1.2.3.4;
+        local-as 65001;
+        peer-as 65002;
+        process collector {
+            content { encoding json; }
+            receive { update; }
+        }
+        process logger {
+            content { encoding text; format full; }
+            receive { all; }
+        }
     }
 }
 `
@@ -2327,10 +2467,12 @@ template {
         }
     }
 }
-peer 192.0.2.1 {
-    inherit api-template;
-    local-as 65000;
-    peer-as 65001;
+bgp {
+    peer 192.0.2.1 {
+        inherit api-template;
+        local-as 65000;
+        peer-as 65001;
+    }
 }
 `
 	cfg := parseConfig(t, input)
@@ -2360,13 +2502,15 @@ template {
         }
     }
 }
-peer 192.0.2.1 {
-    inherit api-template;
-    local-as 65000;
-    peer-as 65001;
-    process collector {
-        content { encoding text; format full; }
-        receive { all; }
+bgp {
+    peer 192.0.2.1 {
+        inherit api-template;
+        local-as 65000;
+        peer-as 65001;
+        process collector {
+            content { encoding text; format full; }
+            receive { all; }
+        }
     }
 }
 `
@@ -2400,12 +2544,14 @@ template {
         }
     }
 }
-peer 192.0.2.1 {
-    inherit api-template;
-    local-as 65000;
-    peer-as 65001;
-    process logger {
-        receive { notification; }
+bgp {
+    peer 192.0.2.1 {
+        inherit api-template;
+        local-as 65000;
+        peer-as 65001;
+        process logger {
+            receive { notification; }
+        }
     }
 }
 `
@@ -2452,10 +2598,12 @@ template {
         }
     }
 }
-peer 192.0.2.1 {
-    inherit multi-api;
-    local-as 65000;
-    peer-as 65001;
+bgp {
+    peer 192.0.2.1 {
+        inherit multi-api;
+        local-as 65000;
+        peer-as 65001;
+    }
 }
 `
 	cfg := parseConfig(t, input)
@@ -2486,13 +2634,15 @@ template {
         }
     }
 }
-peer 192.0.2.1 {
-    local-as 65000;
-    peer-as 65001;
-}
-peer 10.0.0.1 {
-    local-as 65000;
-    peer-as 65002;
+bgp {
+    peer 192.0.2.1 {
+        local-as 65000;
+        peer-as 65001;
+    }
+    peer 10.0.0.1 {
+        local-as 65000;
+        peer-as 65002;
+    }
 }
 `
 	cfg := parseConfig(t, input)
@@ -2527,14 +2677,16 @@ template {
         }
     }
 }
-peer 192.0.2.1 {
-    inherit override-template;
-    local-as 65000;
-    peer-as 65001;
-}
-peer 10.0.0.1 {
-    local-as 65000;
-    peer-as 65002;
+bgp {
+    peer 192.0.2.1 {
+        inherit override-template;
+        local-as 65000;
+        peer-as 65001;
+    }
+    peer 10.0.0.1 {
+        local-as 65000;
+        peer-as 65002;
+    }
 }
 `
 	cfg := parseConfig(t, input)
@@ -2774,10 +2926,25 @@ neighbor 192.0.2.1 {
 		require.Contains(t, err.Error(), "unknown top-level keyword: neighbor")
 	})
 
-	t.Run("peer glob at root rejected", func(t *testing.T) {
+	t.Run("peer at root rejected (requires bgp block)", func(t *testing.T) {
 		input := `
-peer * {
+peer 192.0.2.1 {
     local-as 65000;
+    peer-as 65001;
+}
+`
+		p := NewParser(BGPSchema())
+		_, err := p.Parse(input)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), "unknown top-level keyword: peer")
+	})
+
+	t.Run("peer glob in bgp block rejected", func(t *testing.T) {
+		input := `
+bgp {
+    peer * {
+        local-as 65000;
+    }
 }
 `
 		p := NewParser(BGPSchema())
@@ -2786,10 +2953,12 @@ peer * {
 		require.Contains(t, err.Error(), "invalid")
 	})
 
-	t.Run("peer CIDR pattern at root rejected", func(t *testing.T) {
+	t.Run("peer CIDR pattern in bgp block rejected", func(t *testing.T) {
 		input := `
-peer 192.0.2.0/24 {
-    local-as 65000;
+bgp {
+    peer 192.0.2.0/24 {
+        local-as 65000;
+    }
 }
 `
 		p := NewParser(BGPSchema())
@@ -2814,9 +2983,11 @@ template {
 
 	t.Run("current syntax accepted", func(t *testing.T) {
 		input := `
-peer 192.0.2.1 {
-    local-as 65000;
-    peer-as 65001;
+bgp {
+    peer 192.0.2.1 {
+        local-as 65000;
+        peer-as 65001;
+    }
 }
 template {
     group mytemplate {
@@ -2918,17 +3089,19 @@ func TestParseNLRIEntriesInvalid(t *testing.T) {
 func TestAPIConfigNLRIFilter(t *testing.T) {
 	input := `
 plugin { external foo { run ./test; encoder json; } }
-peer 10.0.0.1 {
-    router-id 1.2.3.4;
-    local-as 65001;
-    peer-as 65002;
-    process foo {
-        content {
-            encoding json;
-            nlri ipv4/unicast;
-            nlri ipv6/unicast;
+bgp {
+    peer 10.0.0.1 {
+        router-id 1.2.3.4;
+        local-as 65001;
+        peer-as 65002;
+        process foo {
+            content {
+                encoding json;
+                nlri ipv4/unicast;
+                nlri ipv6/unicast;
+            }
+            receive { update; }
         }
-        receive { update; }
     }
 }
 `
@@ -2951,15 +3124,17 @@ peer 10.0.0.1 {
 func TestAPIConfigAttributeFilterError(t *testing.T) {
 	input := `
 plugin { external foo { run ./test; encoder json; } }
-peer 10.0.0.1 {
-    router-id 1.2.3.4;
-    local-as 65001;
-    peer-as 65002;
-    process foo {
-        content {
-            attribute bogus-attribute;
+bgp {
+    peer 10.0.0.1 {
+        router-id 1.2.3.4;
+        local-as 65001;
+        peer-as 65002;
+        process foo {
+            content {
+                attribute bogus-attribute;
+            }
+            receive { update; }
         }
-        receive { update; }
     }
 }
 `
@@ -2980,15 +3155,17 @@ peer 10.0.0.1 {
 func TestAPIConfigNLRIFilterError(t *testing.T) {
 	input := `
 plugin { external foo { run ./test; encoder json; } }
-peer 10.0.0.1 {
-    router-id 1.2.3.4;
-    local-as 65001;
-    peer-as 65002;
-    process foo {
-        content {
-            nlri bogus family;
+bgp {
+    peer 10.0.0.1 {
+        router-id 1.2.3.4;
+        local-as 65001;
+        peer-as 65002;
+        process foo {
+            content {
+                nlri bogus family;
+            }
+            receive { update; }
         }
-        receive { update; }
     }
 }
 `
@@ -3007,11 +3184,13 @@ peer 10.0.0.1 {
 // PREVENTS: Silent runtime failure when route-refresh request arrives with no plugin to handle it.
 func TestConfigValidationRouteRefreshRequiresProcess(t *testing.T) {
 	input := `
-peer 10.0.0.1 {
-    router-id 1.2.3.4;
-    local-as 65001;
-    peer-as 65002;
-    capability { route-refresh; }
+bgp {
+    peer 10.0.0.1 {
+        router-id 1.2.3.4;
+        local-as 65001;
+        peer-as 65002;
+        capability { route-refresh; }
+    }
 }
 `
 	p := NewParser(BGPSchema())
@@ -3029,11 +3208,13 @@ peer 10.0.0.1 {
 // PREVENTS: Silent runtime failure when peer reconnects and expects routes to be replayed.
 func TestConfigValidationGracefulRestartRequiresProcess(t *testing.T) {
 	input := `
-peer 10.0.0.1 {
-    router-id 1.2.3.4;
-    local-as 65001;
-    peer-as 65002;
-    capability { graceful-restart { restart-time 120; } }
+bgp {
+    peer 10.0.0.1 {
+        router-id 1.2.3.4;
+        local-as 65001;
+        peer-as 65002;
+        capability { graceful-restart { restart-time 120; } }
+    }
 }
 `
 	p := NewParser(BGPSchema())
@@ -3052,12 +3233,14 @@ peer 10.0.0.1 {
 func TestConfigValidationRouteRefreshWithProcess(t *testing.T) {
 	input := `
 plugin { external rib { run ./rib; } }
-peer 10.0.0.1 {
-    router-id 1.2.3.4;
-    local-as 65001;
-    peer-as 65002;
-    capability { route-refresh; }
-    process rib { send { update; } }
+bgp {
+    peer 10.0.0.1 {
+        router-id 1.2.3.4;
+        local-as 65001;
+        peer-as 65002;
+        capability { route-refresh; }
+        process rib { send { update; } }
+    }
 }
 `
 	cfg := parseConfig(t, input)
@@ -3072,12 +3255,14 @@ peer 10.0.0.1 {
 func TestConfigValidationGracefulRestartWithProcess(t *testing.T) {
 	input := `
 plugin { external rib { run ./rib; } }
-peer 10.0.0.1 {
-    router-id 1.2.3.4;
-    local-as 65001;
-    peer-as 65002;
-    capability { graceful-restart { restart-time 120; } }
-    process rib { send { update; } }
+bgp {
+    peer 10.0.0.1 {
+        router-id 1.2.3.4;
+        local-as 65001;
+        peer-as 65002;
+        capability { graceful-restart { restart-time 120; } }
+        process rib { send { update; } }
+    }
 }
 `
 	cfg := parseConfig(t, input)
@@ -3092,12 +3277,14 @@ peer 10.0.0.1 {
 func TestConfigValidationRouteRefreshProcessNoSendUpdate(t *testing.T) {
 	input := `
 plugin { external logger { run ./logger; } }
-peer 10.0.0.1 {
-    router-id 1.2.3.4;
-    local-as 65001;
-    peer-as 65002;
-    capability { route-refresh; }
-    process logger { receive { update; } }
+bgp {
+    peer 10.0.0.1 {
+        router-id 1.2.3.4;
+        local-as 65001;
+        peer-as 65002;
+        capability { route-refresh; }
+        process logger { receive { update; } }
+    }
 }
 `
 	p := NewParser(BGPSchema())
@@ -3117,15 +3304,17 @@ peer 10.0.0.1 {
 func TestConfigValidationBothCapabilitiesWithProcess(t *testing.T) {
 	input := `
 plugin { external rib { run ./rib; } }
-peer 10.0.0.1 {
-    router-id 1.2.3.4;
-    local-as 65001;
-    peer-as 65002;
-    capability {
-        route-refresh;
-        graceful-restart { restart-time 120; }
+bgp {
+    peer 10.0.0.1 {
+        router-id 1.2.3.4;
+        local-as 65001;
+        peer-as 65002;
+        capability {
+            route-refresh;
+            graceful-restart { restart-time 120; }
+        }
+        process rib { send { update; } }
     }
-    process rib { send { update; } }
 }
 `
 	cfg := parseConfig(t, input)
@@ -3145,11 +3334,13 @@ template {
         capability { route-refresh; }
     }
 }
-peer 10.0.0.1 {
-    inherit rr;
-    router-id 1.2.3.4;
-    local-as 65001;
-    peer-as 65002;
+bgp {
+    peer 10.0.0.1 {
+        inherit rr;
+        router-id 1.2.3.4;
+        local-as 65001;
+        peer-as 65002;
+    }
 }
 `
 	p := NewParser(BGPSchema())
@@ -3167,12 +3358,14 @@ peer 10.0.0.1 {
 func TestConfigValidationSendAllSatisfiesRequirement(t *testing.T) {
 	input := `
 plugin { external rib { run ./rib; } }
-peer 10.0.0.1 {
-    router-id 1.2.3.4;
-    local-as 65001;
-    peer-as 65002;
-    capability { route-refresh; }
-    process rib { send { all; } }
+bgp {
+    peer 10.0.0.1 {
+        router-id 1.2.3.4;
+        local-as 65001;
+        peer-as 65002;
+        capability { route-refresh; }
+        process rib { send { all; } }
+    }
 }
 `
 	cfg := parseConfig(t, input)
@@ -3193,6 +3386,8 @@ plugin {
         timeout 10s;
     }
 }
+
+bgp { }
 `
 	cfg := parseConfig(t, input)
 	require.Len(t, cfg.Plugins, 1)
@@ -3211,6 +3406,8 @@ plugin {
         run ./myapp;
     }
 }
+
+bgp { }
 `
 	cfg := parseConfig(t, input)
 	require.Len(t, cfg.Plugins, 1)
@@ -3229,6 +3426,8 @@ plugin {
         timeout abc;
     }
 }
+
+bgp { }
 `
 	p := NewParser(BGPSchema())
 	tree, err := p.Parse(input)
@@ -3251,6 +3450,8 @@ plugin {
         timeout -5s;
     }
 }
+
+bgp { }
 `
 	p := NewParser(BGPSchema())
 	tree, err := p.Parse(input)
@@ -3286,6 +3487,8 @@ plugin {
         timeout ` + tt.timeout + `;
     }
 }
+
+bgp { }
 `
 			cfg := parseConfig(t, input)
 			require.Len(t, cfg.Plugins, 1)

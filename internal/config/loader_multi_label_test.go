@@ -13,13 +13,15 @@ import (
 // PREVENTS: Config loading failure for multi-label routes.
 func TestConfigLoader_MultiLabel(t *testing.T) {
 	configInput := `
-router-id 1.2.3.4;
-local-as 65001;
-peer 192.168.1.1 {
-    peer-as 65002;
-    family { ipv4/nlri-mpls; }
-    announce {
-        ipv4 { nlri-mpls 10.0.0.0/8 labels [1000 2000] next-hop self; }
+bgp {
+    router-id 1.2.3.4;
+    local-as 65001;
+    peer 192.168.1.1 {
+        peer-as 65002;
+        family { ipv4/nlri-mpls; }
+        announce {
+            ipv4 { nlri-mpls 10.0.0.0/8 labels [1000 2000] next-hop self; }
+        }
     }
 }
 `
@@ -45,13 +47,15 @@ peer 192.168.1.1 {
 // PREVENTS: Regression in single-label config parsing.
 func TestConfigLoader_LabelSingleValue(t *testing.T) {
 	configInput := `
-router-id 1.2.3.4;
-local-as 65001;
-peer 192.168.1.1 {
-    peer-as 65002;
-    family { ipv4/nlri-mpls; }
-    announce {
-        ipv4 { nlri-mpls 10.0.0.0/8 label 1000 next-hop self; }
+bgp {
+    router-id 1.2.3.4;
+    local-as 65001;
+    peer 192.168.1.1 {
+        peer-as 65002;
+        family { ipv4/nlri-mpls; }
+        announce {
+            ipv4 { nlri-mpls 10.0.0.0/8 label 1000 next-hop self; }
+        }
     }
 }
 `
@@ -77,13 +81,15 @@ peer 192.168.1.1 {
 // PREVENTS: VPN route parsing failure with multiple labels.
 func TestConfigLoader_VPNMultiLabel(t *testing.T) {
 	configInput := `
-router-id 1.2.3.4;
-local-as 65001;
-peer 192.168.1.1 {
-    peer-as 65002;
-    family { ipv4/mpls-vpn; }
-    announce {
-        ipv4 { mpls-vpn 10.0.0.0/8 rd 100:100 labels [1000 2000] next-hop self; }
+bgp {
+    router-id 1.2.3.4;
+    local-as 65001;
+    peer 192.168.1.1 {
+        peer-as 65002;
+        family { ipv4/mpls-vpn; }
+        announce {
+            ipv4 { mpls-vpn 10.0.0.0/8 rd 100:100 labels [1000 2000] next-hop self; }
+        }
     }
 }
 `
@@ -110,13 +116,15 @@ peer 192.168.1.1 {
 // PREVENTS: Invalid VPN routes producing corrupt wire format.
 func TestConfigLoader_VPNRequiresLabel(t *testing.T) {
 	configInput := `
-router-id 1.2.3.4;
-local-as 65001;
-peer 192.168.1.1 {
-    peer-as 65002;
-    family { ipv4/mpls-vpn; }
-    announce {
-        ipv4 { mpls-vpn 10.0.0.0/8 rd 100:100 next-hop self; }
+bgp {
+    router-id 1.2.3.4;
+    local-as 65001;
+    peer 192.168.1.1 {
+        peer-as 65002;
+        family { ipv4/mpls-vpn; }
+        announce {
+            ipv4 { mpls-vpn 10.0.0.0/8 rd 100:100 next-hop self; }
+        }
     }
 }
 `

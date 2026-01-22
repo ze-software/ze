@@ -192,10 +192,20 @@ func (s *Schema) Lookup(path string) (Node, error) {
 // Used by plugins to declare their config schema extensions.
 // The path is "peer.capability" by default - the name is the capability name.
 func (s *Schema) ExtendCapability(name string, fields ...FieldDef) error {
-	// Navigate to peer.capability container
-	peerNode := s.Get("peer")
+	// Navigate to bgp.peer.capability container
+	bgpNode := s.Get("bgp")
+	if bgpNode == nil {
+		return fmt.Errorf("bgp node not found in schema")
+	}
+
+	bgpContainer, ok := bgpNode.(*ContainerNode)
+	if !ok {
+		return fmt.Errorf("bgp is not a ContainerNode")
+	}
+
+	peerNode := bgpContainer.Get("peer")
 	if peerNode == nil {
-		return fmt.Errorf("peer node not found in schema")
+		return fmt.Errorf("peer node not found in bgp schema")
 	}
 
 	listNode, ok := peerNode.(*ListNode)
@@ -230,13 +240,38 @@ func (s *Schema) extendTemplateCapability(name string, fields []FieldDef) {
 		return
 	}
 
-	container, ok := templateNode.(*ContainerNode)
+	templateContainer, ok := templateNode.(*ContainerNode)
 	if !ok {
 		return
 	}
 
-	// Extend template.group
-	if groupNode := container.Get("group"); groupNode != nil {
+	// Extend template.bgp.peer
+	bgpNode := templateContainer.Get("bgp")
+	if bgpNode == nil {
+		return
+	}
+
+	bgpContainer, ok := bgpNode.(*ContainerNode)
+	if !ok {
+		return
+	}
+
+	peerNode := bgpContainer.Get("peer")
+	if peerNode == nil {
+		return
+	}
+
+	if peerList, ok := peerNode.(*ListNode); ok {
+		if capNode := peerList.Get("capability"); capNode != nil {
+			if capContainer, ok := capNode.(*ContainerNode); ok {
+				capContainer.children[name] = Flex(fields...)
+				capContainer.order = append(capContainer.order, name)
+			}
+		}
+	}
+
+	// Also extend legacy template.group and template.match if they exist
+	if groupNode := templateContainer.Get("group"); groupNode != nil {
 		if groupList, ok := groupNode.(*ListNode); ok {
 			if capNode := groupList.Get("capability"); capNode != nil {
 				if capContainer, ok := capNode.(*ContainerNode); ok {
@@ -247,8 +282,7 @@ func (s *Schema) extendTemplateCapability(name string, fields []FieldDef) {
 		}
 	}
 
-	// Extend template.match
-	if matchNode := container.Get("match"); matchNode != nil {
+	if matchNode := templateContainer.Get("match"); matchNode != nil {
 		if matchList, ok := matchNode.(*ListNode); ok {
 			if capNode := matchList.Get("capability"); capNode != nil {
 				if capContainer, ok := capNode.(*ContainerNode); ok {

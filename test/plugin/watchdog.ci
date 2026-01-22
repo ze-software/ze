@@ -56,24 +56,26 @@ plugin {
 		encoder json;
 	}
 }
-peer 127.0.0.1 {
-	router-id 10.0.0.10;
-	local-address 127.0.0.1;
-	local-as 65533;
-	peer-as 65533;
-
-	family {
-		ipv4/unicast;
-	}
-	announce {
-		ipv4 {
-			unicast 100.100.100.100 next-hop 192.168.1.100;
-			unicast 66.66.66.66 next-hop 1.2.3.4;
-			unicast 77.77.77.77 next-hop 1.2.3.4 watchdog dnsr withdraw true;
-			unicast 88.88.88.88 next-hop 1.2.3.4;
+bgp {
+	peer 127.0.0.1 {
+		router-id 10.0.0.10;
+		local-address 127.0.0.1;
+		local-as 65533;
+		peer-as 65533;
+	
+		family {
+			ipv4/unicast;
 		}
-	}
-	process service-watchdog {
+		announce {
+			ipv4 {
+				unicast 100.100.100.100 next-hop 192.168.1.100;
+				unicast 66.66.66.66 next-hop 1.2.3.4;
+				unicast 77.77.77.77 next-hop 1.2.3.4 watchdog dnsr withdraw true;
+				unicast 88.88.88.88 next-hop 1.2.3.4;
+			}
+		}
+		process service-watchdog {
+		}
 	}
 }
 EOF_CONF

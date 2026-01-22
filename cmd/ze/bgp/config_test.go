@@ -22,15 +22,17 @@ func TestCmdConfigCheck(t *testing.T) {
 		{
 			name: "current config shows no migration needed",
 			config: `
-peer 192.0.2.1 {
-	peer-as 65001;
+bgp {
+	peer 192.0.2.1 {
+		peer-as 65001;
+	}
 }
 template {
-	group rr {
-		peer-as 65000;
-	}
-	match * {
-		hold-time 90;
+	bgp {
+		peer * {
+			inherit-name rr;
+			peer-as 65000;
+		}
 	}
 }
 `,
@@ -146,7 +148,7 @@ neighbor 192.0.2.1 {
 	peer-as 65001;
 }
 `,
-			wantOutput: []string{"peer 192.0.2.1", "peer-as 65001"},
+			wantOutput: []string{"bgp {", "peer 192.0.2.1", "peer-as 65001"},
 		},
 		{
 			name: "peer glob to template.match",
@@ -158,10 +160,10 @@ peer 192.0.2.1 {
 	peer-as 65001;
 }
 `,
-			wantOutput: []string{"template {", "match *", "hold-time 90", "peer 192.0.2.1"},
+			wantOutput: []string{"template {", "peer *", "hold-time 90", "bgp {", "peer 192.0.2.1"},
 		},
 		{
-			name: "template.neighbor to template.group",
+			name: "template.neighbor to inherit-name",
 			input: `
 template {
 	neighbor rr {
@@ -172,7 +174,7 @@ peer 192.0.2.1 {
 	inherit rr;
 }
 `,
-			wantOutput: []string{"template {", "group rr", "peer-as 65000"},
+			wantOutput: []string{"template {", "inherit-name rr", "peer-as 65000", "bgp {"},
 		},
 		{
 			name: "static to announce",
@@ -185,7 +187,7 @@ peer 192.0.2.1 {
 }
 `,
 			// InlineListNode serializes as: unicast 10.0.0.0/8 next-hop ...;
-			wantOutput: []string{"announce {", "ipv4 {", "unicast 10.0.0.0/8"},
+			wantOutput: []string{"bgp {", "announce {", "ipv4 {", "unicast 10.0.0.0/8"},
 		},
 	}
 
@@ -245,6 +247,9 @@ neighbor 192.0.2.1 {
 		t.Fatalf("read output: %v", err)
 	}
 
+	if !strings.Contains(string(data), "bgp {") {
+		t.Errorf("output file missing 'bgp {':\n%s", data)
+	}
 	if !strings.Contains(string(data), "peer 192.0.2.1") {
 		t.Errorf("output file missing 'peer 192.0.2.1':\n%s", data)
 	}
@@ -292,6 +297,9 @@ neighbor 192.0.2.1 {
 	data, err := os.ReadFile(configPath) //nolint:gosec // test file path from TempDir
 	if err != nil {
 		t.Fatalf("read config: %v", err)
+	}
+	if !strings.Contains(string(data), "bgp {") {
+		t.Errorf("config file not migrated (missing bgp block):\n%s", data)
 	}
 	if !strings.Contains(string(data), "peer 192.0.2.1") {
 		t.Errorf("config file not migrated:\n%s", data)

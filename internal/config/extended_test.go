@@ -13,12 +13,14 @@ import (
 // PREVENTS: Requiring block for simple flags.
 func TestFlagSyntax(t *testing.T) {
 	input := `
-peer 192.0.2.1 {
-    local-as 65000;
-    peer-as 65001;
-    capability {
-        graceful-restart;
-        route-refresh;
+bgp {
+    peer 192.0.2.1 {
+        local-as 65000;
+        peer-as 65001;
+        capability {
+            graceful-restart;
+            route-refresh;
+        }
     }
 }
 `
@@ -27,7 +29,9 @@ peer 192.0.2.1 {
 	tree, err := p.Parse(input)
 	require.NoError(t, err)
 
-	neighbors := tree.GetList("peer")
+	bgpContainer := tree.GetContainer("bgp")
+	require.NotNil(t, bgpContainer)
+	neighbors := bgpContainer.GetList("peer")
 	n := neighbors["192.0.2.1"]
 
 	cap := n.GetContainer("capability")
@@ -50,11 +54,13 @@ peer 192.0.2.1 {
 // PREVENTS: Breaking existing value syntax.
 func TestFlagWithValue(t *testing.T) {
 	input := `
-peer 192.0.2.1 {
-    local-as 65000;
-    peer-as 65001;
-    capability {
-        graceful-restart 120;
+bgp {
+    peer 192.0.2.1 {
+        local-as 65000;
+        peer-as 65001;
+        capability {
+            graceful-restart 120;
+        }
     }
 }
 `
@@ -63,7 +69,9 @@ peer 192.0.2.1 {
 	tree, err := p.Parse(input)
 	require.NoError(t, err)
 
-	neighbors := tree.GetList("peer")
+	bgpContainer := tree.GetContainer("bgp")
+	require.NotNil(t, bgpContainer)
+	neighbors := bgpContainer.GetList("peer")
 	n := neighbors["192.0.2.1"]
 
 	cap := n.GetContainer("capability")
@@ -79,12 +87,14 @@ peer 192.0.2.1 {
 // PREVENTS: Breaking block syntax.
 func TestFlagWithBlock(t *testing.T) {
 	input := `
-peer 192.0.2.1 {
-    local-as 65000;
-    peer-as 65001;
-    capability {
-        graceful-restart {
-            restart-time 120;
+bgp {
+    peer 192.0.2.1 {
+        local-as 65000;
+        peer-as 65001;
+        capability {
+            graceful-restart {
+                restart-time 120;
+            }
         }
     }
 }
@@ -94,7 +104,9 @@ peer 192.0.2.1 {
 	tree, err := p.Parse(input)
 	require.NoError(t, err)
 
-	neighbors := tree.GetList("peer")
+	bgpContainer := tree.GetContainer("bgp")
+	require.NotNil(t, bgpContainer)
+	neighbors := bgpContainer.GetList("peer")
 	n := neighbors["192.0.2.1"]
 
 	cap := n.GetContainer("capability")
@@ -113,12 +125,14 @@ peer 192.0.2.1 {
 // PREVENTS: Requiring block for simple routes.
 func TestInlineRoute(t *testing.T) {
 	input := `
-peer 192.0.2.1 {
-    local-as 65000;
-    peer-as 65001;
-    static {
-        route 10.0.0.0/8 next-hop 192.0.2.1;
-        route 172.16.0.0/12 next-hop 192.0.2.1 local-preference 200;
+bgp {
+    peer 192.0.2.1 {
+        local-as 65000;
+        peer-as 65001;
+        static {
+            route 10.0.0.0/8 next-hop 192.0.2.1;
+            route 172.16.0.0/12 next-hop 192.0.2.1 local-preference 200;
+        }
     }
 }
 `
@@ -127,7 +141,9 @@ peer 192.0.2.1 {
 	tree, err := p.Parse(input)
 	require.NoError(t, err)
 
-	neighbors := tree.GetList("peer")
+	bgpContainer := tree.GetContainer("bgp")
+	require.NotNil(t, bgpContainer)
+	neighbors := bgpContainer.GetList("peer")
 	n := neighbors["192.0.2.1"]
 
 	// Static is Freeform - just verify it parses
@@ -142,13 +158,15 @@ peer 192.0.2.1 {
 // PREVENTS: Breaking existing block syntax.
 func TestInlineRouteWithBlock(t *testing.T) {
 	input := `
-peer 192.0.2.1 {
-    local-as 65000;
-    peer-as 65001;
-    static {
-        route 10.0.0.0/8 {
-            next-hop 192.0.2.1;
-            local-preference 100;
+bgp {
+    peer 192.0.2.1 {
+        local-as 65000;
+        peer-as 65001;
+        static {
+            route 10.0.0.0/8 {
+                next-hop 192.0.2.1;
+                local-preference 100;
+            }
         }
     }
 }
@@ -158,7 +176,9 @@ peer 192.0.2.1 {
 	tree, err := p.Parse(input)
 	require.NoError(t, err)
 
-	neighbors := tree.GetList("peer")
+	bgpContainer := tree.GetContainer("bgp")
+	require.NotNil(t, bgpContainer)
+	neighbors := bgpContainer.GetList("peer")
 	n := neighbors["192.0.2.1"]
 
 	// Static is Freeform - just verify it parses
@@ -173,16 +193,18 @@ peer 192.0.2.1 {
 // PREVENTS: Syntax mixing issues.
 func TestMixedRouteSyntax(t *testing.T) {
 	input := `
-peer 192.0.2.1 {
-    local-as 65000;
-    peer-as 65001;
-    static {
-        route 10.0.0.0/8 next-hop 192.0.2.1;
-        route 172.16.0.0/12 {
-            next-hop 192.0.2.1;
-            community 65000:100;
+bgp {
+    peer 192.0.2.1 {
+        local-as 65000;
+        peer-as 65001;
+        static {
+            route 10.0.0.0/8 next-hop 192.0.2.1;
+            route 172.16.0.0/12 {
+                next-hop 192.0.2.1;
+                community 65000:100;
+            }
+            route 192.168.0.0/16 next-hop self;
         }
-        route 192.168.0.0/16 next-hop self;
     }
 }
 `
@@ -191,7 +213,9 @@ peer 192.0.2.1 {
 	tree, err := p.Parse(input)
 	require.NoError(t, err)
 
-	neighbors := tree.GetList("peer")
+	bgpContainer := tree.GetContainer("bgp")
+	require.NotNil(t, bgpContainer)
+	neighbors := bgpContainer.GetList("peer")
 	n := neighbors["192.0.2.1"]
 
 	// Static is Freeform - just verify it parses
@@ -206,11 +230,13 @@ peer 192.0.2.1 {
 // PREVENTS: Only accepting true/false.
 func TestEnableDisable(t *testing.T) {
 	input := `
-peer 192.0.2.1 {
-    local-as 65000;
-    peer-as 65001;
-    capability {
-        asn4 enable;
+bgp {
+    peer 192.0.2.1 {
+        local-as 65000;
+        peer-as 65001;
+        capability {
+            asn4 enable;
+        }
     }
 }
 `
@@ -219,7 +245,9 @@ peer 192.0.2.1 {
 	tree, err := p.Parse(input)
 	require.NoError(t, err)
 
-	neighbors := tree.GetList("peer")
+	bgpContainer := tree.GetContainer("bgp")
+	require.NotNil(t, bgpContainer)
+	neighbors := bgpContainer.GetList("peer")
 	n := neighbors["192.0.2.1"]
 
 	cap := n.GetContainer("capability")
@@ -242,11 +270,13 @@ plugin {
     }
 }
 
-peer 192.0.2.1 {
-    local-as 65000;
-    peer-as 65001;
-    process {
-        processes [ watcher ];
+bgp {
+    peer 192.0.2.1 {
+        local-as 65000;
+        peer-as 65001;
+        process {
+            processes [ watcher ];
+        }
     }
 }
 `
@@ -255,7 +285,9 @@ peer 192.0.2.1 {
 	tree, err := p.Parse(input)
 	require.NoError(t, err)
 
-	neighbors := tree.GetList("peer")
+	bgpContainer := tree.GetContainer("bgp")
+	require.NotNil(t, bgpContainer)
+	neighbors := bgpContainer.GetList("peer")
 	n := neighbors["192.0.2.1"]
 
 	// process is now List(TypeString, ...), so use GetList with KeyDefault key
@@ -276,11 +308,13 @@ peer 192.0.2.1 {
 // PREVENTS: Lost array elements.
 func TestArrayMultipleValues(t *testing.T) {
 	input := `
-peer 192.0.2.1 {
-    local-as 65000;
-    peer-as 65001;
-    process {
-        processes [ watcher announcer receiver ];
+bgp {
+    peer 192.0.2.1 {
+        local-as 65000;
+        peer-as 65001;
+        process {
+            processes [ watcher announcer receiver ];
+        }
     }
 }
 `
@@ -289,7 +323,9 @@ peer 192.0.2.1 {
 	tree, err := p.Parse(input)
 	require.NoError(t, err)
 
-	neighbors := tree.GetList("peer")
+	bgpContainer := tree.GetContainer("bgp")
+	require.NotNil(t, bgpContainer)
+	neighbors := bgpContainer.GetList("peer")
 	n := neighbors["192.0.2.1"]
 
 	// api is now List(TypeString, ...), so use GetList with KeyDefault key
@@ -310,11 +346,13 @@ peer 192.0.2.1 {
 // PREVENTS: Lost array syntax.
 func TestArrayRoundtrip(t *testing.T) {
 	input := `
-peer 192.0.2.1 {
-    local-as 65000;
-    peer-as 65001;
-    process {
-        processes [ watcher ];
+bgp {
+    peer 192.0.2.1 {
+        local-as 65000;
+        peer-as 65001;
+        process {
+            processes [ watcher ];
+        }
     }
 }
 `

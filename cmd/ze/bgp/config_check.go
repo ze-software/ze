@@ -192,27 +192,40 @@ func findDeprecatedPatterns(tree *config.Tree) []string {
 func findUnsupportedFeatures(tree *config.Tree) []string {
 	var warnings []string
 
-	// Check all peer blocks
+	// Check peer blocks at root (old syntax)
 	for _, entry := range tree.GetListOrdered("peer") {
 		warnings = append(warnings, checkUnsupportedInPeerTree(entry.Key, entry.Value)...)
 	}
 
-	// Check all neighbor blocks (old syntax, still need to warn)
+	// Check neighbor blocks at root (old syntax)
 	for _, entry := range tree.GetListOrdered("neighbor") {
 		warnings = append(warnings, checkUnsupportedInPeerTree(entry.Key, entry.Value)...)
 	}
 
-	// Check template.group blocks
+	// Check peer blocks inside bgp {} (new syntax)
+	if bgp := tree.GetContainer("bgp"); bgp != nil {
+		for _, entry := range bgp.GetListOrdered("peer") {
+			warnings = append(warnings, checkUnsupportedInPeerTree(entry.Key, entry.Value)...)
+		}
+	}
+
+	// Check template blocks
 	if tmpl := tree.GetContainer("template"); tmpl != nil {
+		// Old syntax: template.group, template.match, template.neighbor
 		for _, entry := range tmpl.GetListOrdered("group") {
 			warnings = append(warnings, checkUnsupportedInPeerTree("template.group."+entry.Key, entry.Value)...)
 		}
 		for _, entry := range tmpl.GetListOrdered("match") {
 			warnings = append(warnings, checkUnsupportedInPeerTree("template.match."+entry.Key, entry.Value)...)
 		}
-		// Also check template.neighbor (old syntax)
 		for _, entry := range tmpl.GetListOrdered("neighbor") {
 			warnings = append(warnings, checkUnsupportedInPeerTree("template.neighbor."+entry.Key, entry.Value)...)
+		}
+		// New syntax: template.bgp.peer
+		if bgp := tmpl.GetContainer("bgp"); bgp != nil {
+			for _, entry := range bgp.GetListOrdered("peer") {
+				warnings = append(warnings, checkUnsupportedInPeerTree("template.bgp.peer."+entry.Key, entry.Value)...)
+			}
 		}
 	}
 

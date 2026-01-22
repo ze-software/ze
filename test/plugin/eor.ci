@@ -43,20 +43,22 @@ plugin {
 		encoder json;
 	}
 }
-peer 127.0.0.1 {
-	router-id 1.2.3.4;
-	local-address 127.0.0.1;
-	local-as 1;
-	peer-as 1;
-	group-updates disable;
-
-	family {
-		ipv4/unicast;
-		ipv6/unicast;
-	}
-	# Note: graceful-restart removed to prevent automatic EOR on session establishment
-	# Automatic EOR is tested separately in graceful-restart-specific tests
-	process announce-routes {
+bgp {
+	peer 127.0.0.1 {
+		router-id 1.2.3.4;
+		local-address 127.0.0.1;
+		local-as 1;
+		peer-as 1;
+		group-updates disable;
+	
+		family {
+			ipv4/unicast;
+			ipv6/unicast;
+		}
+		# Note: graceful-restart removed to prevent automatic EOR on session establishment
+		# Automatic EOR is tested separately in graceful-restart-specific tests
+		process announce-routes {
+		}
 	}
 }
 EOF_CONF

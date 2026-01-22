@@ -315,11 +315,6 @@ func BGPSchema() *Schema {
 	// Processed first, before template/peer/process blocks
 	schema.Define("environment", environmentBlock())
 
-	// Global settings
-	schema.Define("router-id", Leaf(TypeIPv4))
-	schema.Define("local-as", Leaf(TypeUint32))
-	schema.Define("listen", MultiLeaf(TypeString)) // "address port"
-
 	// Plugin definitions - container with external/builtin sub-blocks
 	// Syntax: plugin { external <name> { ... } }
 	schema.Define("plugin", Container(
@@ -331,17 +326,36 @@ func BGPSchema() *Schema {
 		)),
 	))
 
-	// Template definitions - named templates and glob patterns
-	// template { group <name> { ... }; match <pattern> { ... } }
+	// Template definitions - new syntax with peer patterns
+	// template { bgp { peer <pattern> { inherit-name <name>; ... } } }
 	schema.Define("template", Container(
-		Field("group", List(TypeString, peerFields()...)), // Named templates (inherit <name>)
-		Field("match", List(TypeString, peerFields()...)), // Glob patterns (auto-apply by IP)
+		Field("bgp", Container(
+			Field("peer", List(TypeString, templatePeerFields()...)), // peer <pattern> { ... }
+		)),
+		// Legacy syntax (for migration): group <name> { ... }; match <pattern> { ... }
+		Field("group", List(TypeString, peerFields()...)),
+		Field("match", List(TypeString, peerFields()...)),
 	))
 
-	// Peer definitions - actual BGP sessions (requires IP address)
-	schema.Define("peer", List(TypeIP, peerFields()...))
+	// BGP block - contains all BGP-related config
+	// bgp { router-id ...; local-as ...; listen ...; peer ... { } }
+	schema.Define("bgp", Container(
+		Field("router-id", Leaf(TypeIPv4)),
+		Field("local-as", Leaf(TypeUint32)),
+		Field("listen", MultiLeaf(TypeString)),
+		Field("peer", List(TypeIP, peerFields()...)),
+	))
 
 	return schema
+}
+
+// templatePeerFields returns fields for template peer patterns.
+// Includes inherit-name for named templates, plus all regular peer fields.
+func templatePeerFields() []FieldDef {
+	fields := []FieldDef{
+		Field("inherit-name", Leaf(TypeString)), // Named template identifier
+	}
+	return append(fields, peerFields()...)
 }
 
 // PluginOnlySchema returns a minimal schema that only parses plugin blocks.
@@ -442,12 +456,22 @@ func LegacyBGPSchema() *Schema {
 	// Environment settings (ZeBGP-specific)
 	schema.Define("environment", environmentBlock())
 
-	// Global settings
+	// Plugin definitions (new syntax)
+	schema.Define("plugin", Container(
+		Field("external", List(TypeString,
+			Field("run", MultiLeaf(TypeString)),
+			Field("encoder", Leaf(TypeString)),
+			Field("respawn", Leaf(TypeBool)),
+			Field("timeout", Leaf(TypeString)),
+		)),
+	))
+
+	// Global settings (old syntax - at root)
 	schema.Define("router-id", Leaf(TypeIPv4))
 	schema.Define("local-as", Leaf(TypeUint32))
 	schema.Define("listen", MultiLeaf(TypeString))
 
-	// Process definitions (API)
+	// Process definitions (old API syntax)
 	schema.Define("process", List(TypeString,
 		Field("run", MultiLeaf(TypeString)),
 		Field("encoder", Leaf(TypeString)),
@@ -463,8 +487,19 @@ func LegacyBGPSchema() *Schema {
 	// Template definitions - accepts both old and current syntax
 	schema.Define("template", Container(
 		Field("neighbor", List(TypeString, peerFields()...)), // old: named templates
-		Field("group", List(TypeString, peerFields()...)),    // current: named templates
-		Field("match", List(TypeString, peerFields()...)),    // current: glob patterns
+		Field("group", List(TypeString, peerFields()...)),    // intermediate: named templates
+		Field("match", List(TypeString, peerFields()...)),    // intermediate: glob patterns
+		Field("bgp", Container( // new: template.bgp.peer
+			Field("peer", List(TypeString, templatePeerFields()...)),
+		)),
+	))
+
+	// BGP block (new syntax) - contains all BGP-related config
+	schema.Define("bgp", Container(
+		Field("router-id", Leaf(TypeIPv4)),
+		Field("local-as", Leaf(TypeUint32)),
+		Field("listen", MultiLeaf(TypeString)),
+		Field("peer", List(TypeIP, peerFields()...)),
 	))
 
 	return schema
@@ -698,24 +733,30 @@ type PluginConfig struct {
 func TreeToConfig(tree *Tree) (*BGPConfig, error) {
 	cfg := &BGPConfig{}
 
-	// Global settings
-	if v, ok := tree.Get("router-id"); ok {
+	// BGP block is required - contains router-id, local-as, listen, peer
+	bgpContainer := tree.GetContainer("bgp")
+	if bgpContainer == nil {
+		return nil, fmt.Errorf("missing required bgp { } block")
+	}
+
+	// BGP settings from bgp { } block
+	if v, ok := bgpContainer.Get("router-id"); ok {
 		ip, err := netip.ParseAddr(v)
 		if err != nil {
-			return nil, fmt.Errorf("invalid router-id: %w", err)
+			return nil, fmt.Errorf("invalid bgp.router-id: %w", err)
 		}
 		cfg.RouterID = ipToUint32(ip)
 	}
 
-	if v, ok := tree.Get("local-as"); ok {
+	if v, ok := bgpContainer.Get("local-as"); ok {
 		n, err := strconv.ParseUint(v, 10, 32)
 		if err != nil {
-			return nil, fmt.Errorf("invalid local-as: %w", err)
+			return nil, fmt.Errorf("invalid bgp.local-as: %w", err)
 		}
 		cfg.LocalAS = uint32(n)
 	}
 
-	if v, ok := tree.Get("listen"); ok {
+	if v, ok := bgpContainer.Get("listen"); ok {
 		cfg.Listen = v
 	}
 
@@ -752,83 +793,58 @@ func TreeToConfig(tree *Tree) (*BGPConfig, error) {
 		}
 	}
 
-	// Parse templates first (for inheritance)
-	// Support both old (template.neighbor) and current (template.group) syntax
-	templates := make(map[string]*Tree)
+	// Parse templates for inheritance
+	// New syntax: template { bgp { peer <pattern> { inherit-name <name>; ... } } }
+	// Legacy syntax: template { group <name> { ... } }
+	templates := make(map[string]*Tree)         // Named templates (for 'inherit <name>')
+	templatePatterns := make(map[string]string) // Pattern for each named template
+	peerGlobs := make([]PeerGlob, 0)            // Auto-apply patterns (no inherit-name)
+
 	if tmpl := tree.GetContainer("template"); tmpl != nil {
-		// Old: template { neighbor <name> { ... } }
-		for name, neighborTree := range tmpl.GetList("neighbor") {
-			// Validate: inherit not allowed inside template
-			if _, hasInherit := neighborTree.Get("inherit"); hasInherit {
-				return nil, fmt.Errorf("inherit only valid inside peer { }, not in template.neighbor %s", name)
+		// New syntax: template { bgp { peer <pattern> { inherit-name <name>; ... } } }
+		if bgpTmpl := tmpl.GetContainer("bgp"); bgpTmpl != nil {
+			for _, entry := range bgpTmpl.GetListOrdered("peer") {
+				pattern := entry.Key
+				peerTree := entry.Value
+
+				// Check if this is a named template (has inherit-name)
+				if inheritName, hasName := peerTree.Get("inherit-name"); hasName {
+					templates[inheritName] = peerTree
+					templatePatterns[inheritName] = pattern
+				} else {
+					// No inherit-name: auto-apply to matching peers
+					peerGlobs = append(peerGlobs, PeerGlob{
+						Pattern:     pattern,
+						Specificity: 0, // Config order, not specificity
+						Tree:        peerTree,
+					})
+				}
 			}
-			templates[name] = neighborTree
 		}
-		// Current: template { group <name> { ... } }
+
+		// Legacy syntax: template { group <name> { ... } }
 		for name, groupTree := range tmpl.GetList("group") {
-			// Validate group name: must start with letter, contain letters/numbers/hyphens, not end with hyphen
 			if !isValidGroupName(name) {
 				return nil, fmt.Errorf("invalid group name %q: must start with letter, end with letter/number, contain only letters/numbers/hyphens", name)
 			}
-			// Validate: inherit not allowed inside template
 			if _, hasInherit := groupTree.Get("inherit"); hasInherit {
 				return nil, fmt.Errorf("inherit only valid inside peer { }, not in template.group %s", name)
 			}
 			templates[name] = groupTree
+			// Legacy templates have no pattern restriction
 		}
-		// Validate: inherit not allowed inside template.match
+
+		// Legacy syntax: template { match <pattern> { ... } } - auto-apply
 		for _, entry := range tmpl.GetListOrdered("match") {
 			if _, hasInherit := entry.Value.Get("inherit"); hasInherit {
 				return nil, fmt.Errorf("inherit only valid inside peer { }, not in template.match %s", entry.Key)
 			}
-		}
-	}
-
-	// Parse peer globs from root level (old: peer *) and template.match (current)
-	// Old: peer * { ... } at root - sorted by specificity (backward compat)
-	// Current: template { match * { ... } } - applied in CONFIG ORDER (not specificity!)
-	//
-	// Application order: old globs (sorted) → current matches (config order)
-
-	// Old: Root-level peer globs (patterns only, not IPs) - SORTED by specificity
-	oldPeerGlobs := make([]PeerGlob, 0)
-	peerList := tree.GetList("peer")
-	for pattern, peerTree := range peerList {
-		if isGlobPattern(pattern) {
-			oldPeerGlobs = append(oldPeerGlobs, PeerGlob{
-				Pattern:     pattern,
-				Specificity: peerGlobSpecificity(pattern),
-				Tree:        peerTree,
-			})
-		}
-	}
-	// Sort old globs by specificity (least specific first)
-	sortPeerGlobs(oldPeerGlobs)
-
-	// Current: template { match ... } - CONFIG ORDER (not sorted!)
-	matchBlocks := make([]PeerGlob, 0)
-	if tmpl := tree.GetContainer("template"); tmpl != nil {
-		for _, entry := range tmpl.GetListOrdered("match") {
-			matchBlocks = append(matchBlocks, PeerGlob{
+			peerGlobs = append(peerGlobs, PeerGlob{
 				Pattern:     entry.Key,
-				Specificity: 0, // Not used for current syntax
+				Specificity: 0,
 				Tree:        entry.Value,
 			})
 		}
-	}
-
-	// Combined: old globs first (sorted), then current matches (config order)
-	peerGlobs := make([]PeerGlob, 0, len(oldPeerGlobs)+len(matchBlocks))
-	peerGlobs = append(peerGlobs, oldPeerGlobs...)
-	peerGlobs = append(peerGlobs, matchBlocks...)
-
-	// Neighbors from "neighbor" (old) and "peer" with IP address (current)
-	for addr, n := range tree.GetList("neighbor") {
-		nc, err := parsePeerConfig(addr, n, templates, peerGlobs)
-		if err != nil {
-			return nil, fmt.Errorf("neighbor %s: %w", addr, err)
-		}
-		cfg.Peers = append(cfg.Peers, nc)
 	}
 
 	// Build set of defined plugin names for validation
@@ -837,24 +853,22 @@ func TreeToConfig(tree *Tree) (*BGPConfig, error) {
 		pluginNames[p.Name] = true
 	}
 
-	// V3: peer <IP> { ... } - parse IPs as neighbors
-	for addr, n := range tree.GetList("peer") {
-		if !isGlobPattern(addr) {
-			// It's an IP address, treat as neighbor
-			nc, err := parsePeerConfig(addr, n, templates, peerGlobs)
-			if err != nil {
-				return nil, fmt.Errorf("peer %s: %w", addr, err)
-			}
-
-			// Validate process binding plugin references
-			for _, binding := range nc.ProcessBindings {
-				if !pluginNames[binding.PluginName] {
-					return nil, fmt.Errorf("peer %s: undefined plugin %q in process binding", addr, binding.PluginName)
-				}
-			}
-
-			cfg.Peers = append(cfg.Peers, nc)
+	// Peers from bgp { peer <IP> { ... } }
+	for addr, n := range bgpContainer.GetList("peer") {
+		// It's an IP address, treat as neighbor
+		nc, err := parsePeerConfig(addr, n, templates, templatePatterns, peerGlobs)
+		if err != nil {
+			return nil, fmt.Errorf("bgp.peer %s: %w", addr, err)
 		}
+
+		// Validate process binding plugin references
+		for _, binding := range nc.ProcessBindings {
+			if !pluginNames[binding.PluginName] {
+				return nil, fmt.Errorf("bgp.peer %s: undefined plugin %q in process binding", addr, binding.PluginName)
+			}
+		}
+
+		cfg.Peers = append(cfg.Peers, nc)
 	}
 
 	// Validate process-dependent capabilities
@@ -910,18 +924,6 @@ func validateProcessCapabilities(peers []PeerConfig) error {
 			peer.Address, capName, strings.Join(names, ", "))
 	}
 	return nil
-}
-
-// sortPeerGlobs sorts peer globs by specificity (ascending).
-// Least specific first so more specific patterns override later.
-func sortPeerGlobs(globs []PeerGlob) {
-	for i := 0; i < len(globs)-1; i++ {
-		for j := i + 1; j < len(globs); j++ {
-			if globs[i].Specificity > globs[j].Specificity {
-				globs[i], globs[j] = globs[j], globs[i]
-			}
-		}
-	}
 }
 
 // applyTreeSettings applies settings from a tree (match block, template, or peer glob)
@@ -1064,7 +1066,7 @@ func applyTreeSettings(nc *PeerConfig, tree *Tree) error {
 	return nil
 }
 
-func parsePeerConfig(addr string, tree *Tree, templates map[string]*Tree, peerGlobs []PeerGlob) (PeerConfig, error) {
+func parsePeerConfig(addr string, tree *Tree, templates map[string]*Tree, templatePatterns map[string]string, peerGlobs []PeerGlob) (PeerConfig, error) {
 	nc := PeerConfig{}
 
 	// Set default capability values (ASN4 enabled by default per RFC 6793).
@@ -1110,14 +1112,30 @@ func parsePeerConfig(addr string, tree *Tree, templates map[string]*Tree, peerGl
 		// inherit is stored as a leaf value, key is the template name
 		inheritName := entry.Key
 		if t, exists := templates[inheritName]; exists {
+			// Validate pattern if template has one
+			if pattern, hasPattern := templatePatterns[inheritName]; hasPattern {
+				if !IPGlobMatch(pattern, addr) {
+					return nc, fmt.Errorf("inherit %q: peer %s does not match template pattern %q", inheritName, addr, pattern)
+				}
+			}
 			inheritedTemplates = append(inheritedTemplates, t)
+		} else {
+			return nc, fmt.Errorf("inherit %q: template not found", inheritName)
 		}
 	}
 	// Also check single inherit value (ExaBGP compatibility)
 	if len(inheritedTemplates) == 0 {
 		if inheritName, ok := tree.Get("inherit"); ok {
 			if t, exists := templates[inheritName]; exists {
+				// Validate pattern if template has one
+				if pattern, hasPattern := templatePatterns[inheritName]; hasPattern {
+					if !IPGlobMatch(pattern, addr) {
+						return nc, fmt.Errorf("inherit %q: peer %s does not match template pattern %q", inheritName, addr, pattern)
+					}
+				}
 				inheritedTemplates = append(inheritedTemplates, t)
+			} else {
+				return nc, fmt.Errorf("inherit %q: template not found", inheritName)
 			}
 		}
 	}
@@ -2715,21 +2733,6 @@ func isValidGroupName(name string) bool {
 	return true
 }
 
-// isGlobPattern returns true if the pattern is a glob (contains * or /) rather than an IP.
-func isGlobPattern(pattern string) bool {
-	// Contains wildcard
-	if strings.Contains(pattern, "*") {
-		return true
-	}
-	// Contains CIDR notation
-	if strings.Contains(pattern, "/") {
-		return true
-	}
-	// Try to parse as IP - if it fails, it might be a pattern
-	_, err := netip.ParseAddr(pattern)
-	return err != nil
-}
-
 // IPGlobMatch checks if an IP address matches a glob pattern.
 // Pattern "*" matches any IP (IPv4 or IPv6).
 // For IPv4, each octet can be "*" to match any value 0-255.
@@ -2883,26 +2886,6 @@ func ipv4GlobMatch(pattern, ip string) bool {
 		}
 	}
 	return true
-}
-
-// peerGlobSpecificity returns how specific a peer glob pattern is.
-// More specific patterns have higher scores. Used for ordering.
-// "*" = 0, "192.*.*.*" = 1, "192.168.*.*" = 2, etc.
-func peerGlobSpecificity(pattern string) int {
-	if pattern == "*" {
-		return 0
-	}
-	if !strings.Contains(pattern, ".") {
-		return 4 // exact IPv6 or exact match
-	}
-	parts := strings.Split(pattern, ".")
-	count := 0
-	for _, p := range parts {
-		if p != "*" {
-			count++
-		}
-	}
-	return count
 }
 
 // PeerGlob holds a parsed peer glob pattern and its settings.

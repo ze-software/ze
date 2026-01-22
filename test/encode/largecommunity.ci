@@ -12,20 +12,22 @@ EOF_PEER
 
 # ze bgp configuration
 stdin=ze-bgp:terminator=EOF_CONF
-peer 127.0.0.1 {
-	router-id 1.2.3.4;
-	local-address 127.0.0.1;
-	local-as 65000;
-	peer-as 65000;
-	group-updates disable;
+bgp {
+	peer 127.0.0.1 {
+		router-id 1.2.3.4;
+		local-address 127.0.0.1;
+		local-as 65000;
+		peer-as 65000;
+		group-updates disable;
 
-	family {
-		ipv4/unicast;
-	}
-	announce {
-		ipv4 {
-			unicast 8.8.8.10/32 next-hop 192.0.2.1 large-community "2914:0:666 2914:3320:123";
-			unicast 9.9.9.10/32 next-hop 192.0.2.1 large-community "2914:0:666 2914:3320:123 2914:3320:123";
+		family {
+			ipv4/unicast;
+		}
+		announce {
+			ipv4 {
+				unicast 8.8.8.10/32 next-hop 192.0.2.1 large-community "2914:0:666 2914:3320:123";
+				unicast 9.9.9.10/32 next-hop 192.0.2.1 large-community "2914:0:666 2914:3320:123 2914:3320:123";
+			}
 		}
 	}
 }

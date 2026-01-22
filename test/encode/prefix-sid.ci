@@ -8,21 +8,23 @@ EOF_PEER
 
 # ze bgp configuration
 stdin=ze-bgp:terminator=EOF_CONF
-peer 127.0.0.1 {
-	router-id 198.51.100.200;
-	local-address 127.0.0.1;
-	local-as 65000;
-	peer-as 65000;
-	group-updates disable;
+bgp {
+	peer 127.0.0.1 {
+		router-id 198.51.100.200;
+		local-address 127.0.0.1;
+		local-as 65000;
+		peer-as 65000;
+		group-updates disable;
 
-	family {
-		ipv4/nlri-mpls;
-		ipv4/unicast;
-	}
-	announce {
-		ipv4 {
-			nlri-mpls 198.51.100.100/32 next-hop 198.51.100.1 label 800001 bgp-prefix-sid 777;
-			nlri-mpls 198.51.100.101/32 next-hop 198.51.100.2 label 800002 bgp-prefix-sid "300, [( 800000,4096) ,( 1000000,5000)]";
+		family {
+			ipv4/nlri-mpls;
+			ipv4/unicast;
+		}
+		announce {
+			ipv4 {
+				nlri-mpls 198.51.100.100/32 next-hop 198.51.100.1 label 800001 bgp-prefix-sid 777;
+				nlri-mpls 198.51.100.101/32 next-hop 198.51.100.2 label 800002 bgp-prefix-sid "300, [( 800000,4096) ,( 1000000,5000)]";
+			}
 		}
 	}
 }

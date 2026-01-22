@@ -51,17 +51,19 @@ plugin {
 		encoder json;
 	}
 }
-peer 127.0.0.1 {
-	router-id 10.0.0.139;
-	local-address 127.0.0.1;
-	local-as 65512;
-	peer-as 65512;
-	hold-time 30;
-
-	family {
-		ipv6/unicast;
-	}
-	process announce-routes {
+bgp {
+	peer 127.0.0.1 {
+		router-id 10.0.0.139;
+		local-address 127.0.0.1;
+		local-as 65512;
+		peer-as 65512;
+		hold-time 30;
+	
+		family {
+			ipv6/unicast;
+		}
+		process announce-routes {
+		}
 	}
 }
 EOF_CONF
