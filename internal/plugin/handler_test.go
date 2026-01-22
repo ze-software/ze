@@ -331,12 +331,12 @@ func (m *mockReactorRawError) SendRawMessage(_ netip.Addr, _ uint8, _ []byte) er
 	return m.err
 }
 
-// TestHandlerPeerList verifies peer list output.
+// TestHandlerBgpPeerList verifies peer list output.
 //
 // VALIDATES: All peers returned with state info.
 //
 // PREVENTS: Missing peers in output.
-func TestHandlerPeerList(t *testing.T) {
+func TestHandlerBgpPeerList(t *testing.T) {
 	reactor := &mockReactor{
 		peers: []PeerInfo{
 			{
@@ -354,8 +354,8 @@ func TestHandlerPeerList(t *testing.T) {
 		},
 	}
 
-	ctx := &CommandContext{Reactor: reactor}
-	resp, err := handlePeerList(ctx, nil)
+	ctx := &CommandContext{Reactor: reactor, Peer: "*"}
+	resp, err := handleBgpPeerList(ctx, nil)
 
 	require.NoError(t, err)
 	require.NotNil(t, resp)
@@ -368,12 +368,12 @@ func TestHandlerPeerList(t *testing.T) {
 	assert.Len(t, peers, 2)
 }
 
-// TestHandlerPeerShow verifies peer show output.
+// TestHandlerBgpPeerShowAll verifies peer show output for all peers.
 //
 // VALIDATES: Peer details returned.
 //
 // PREVENTS: Missing peer details.
-func TestHandlerPeerShow(t *testing.T) {
+func TestHandlerBgpPeerShowAll(t *testing.T) {
 	reactor := &mockReactor{
 		peers: []PeerInfo{
 			{
@@ -390,8 +390,8 @@ func TestHandlerPeerShow(t *testing.T) {
 		},
 	}
 
-	ctx := &CommandContext{Reactor: reactor}
-	resp, err := handlePeerShow(ctx, nil)
+	ctx := &CommandContext{Reactor: reactor, Peer: "*"}
+	resp, err := handleBgpPeerShow(ctx, nil)
 
 	require.NoError(t, err)
 	require.NotNil(t, resp)
@@ -405,9 +405,9 @@ func TestHandlerPeerShow(t *testing.T) {
 	assert.Equal(t, "established", peers[0].State)
 }
 
-// TestHandlerPeerShowSpecific verifies single peer output.
+// TestHandlerPeerShowSpecific verifies single peer output via bgp peer <sel> show.
 //
-// VALIDATES: Specific peer returned by IP.
+// VALIDATES: Specific peer returned by IP via ctx.Peer.
 //
 // PREVENTS: Wrong peer returned or error on valid IP.
 func TestHandlerPeerShowSpecific(t *testing.T) {
@@ -418,8 +418,9 @@ func TestHandlerPeerShowSpecific(t *testing.T) {
 		},
 	}
 
-	ctx := &CommandContext{Reactor: reactor}
-	resp, err := handlePeerShow(ctx, []string{"192.168.1.2"})
+	// Step 5: Now use handleBgpPeerShow with ctx.Peer set by dispatcher
+	ctx := &CommandContext{Reactor: reactor, Peer: "192.168.1.2"}
+	resp, err := handleBgpPeerShow(ctx, nil)
 
 	require.NoError(t, err)
 	require.NotNil(t, resp)
@@ -432,9 +433,9 @@ func TestHandlerPeerShowSpecific(t *testing.T) {
 	assert.Equal(t, "192.168.1.2", peers[0].Address.String())
 }
 
-// TestHandlerPeerShowNotFound verifies error for unknown peer.
+// TestHandlerPeerShowNotFound verifies unknown peer returns empty list.
 //
-// VALIDATES: Unknown peer returns error.
+// VALIDATES: Unknown peer returns empty result, not error.
 //
 // PREVENTS: Silent failure on typo in peer IP.
 func TestHandlerPeerShowNotFound(t *testing.T) {
@@ -444,8 +445,9 @@ func TestHandlerPeerShowNotFound(t *testing.T) {
 		},
 	}
 
-	ctx := &CommandContext{Reactor: reactor}
-	resp, err := handlePeerShow(ctx, []string{"10.0.0.1"})
+	// Step 5: Now use handleBgpPeerShow with ctx.Peer set by dispatcher
+	ctx := &CommandContext{Reactor: reactor, Peer: "10.0.0.1"}
+	resp, err := handleBgpPeerShow(ctx, nil)
 
 	require.NoError(t, err) // Command succeeded, but no peers matched
 	require.NotNil(t, resp)
@@ -534,11 +536,12 @@ func TestRegisterDefaultHandlers(t *testing.T) {
 	d := NewDispatcher()
 	RegisterDefaultHandlers(d)
 
+	// Step 5: Commands moved to bgp namespace
 	requiredCommands := []string{
-		"daemon shutdown",
-		"daemon status",
-		"peer list",
-		"peer show",
+		"bgp daemon shutdown",
+		"bgp daemon status",
+		"bgp peer list",
+		"bgp peer show",
 		"system help",
 		"system version software",
 	}
@@ -657,19 +660,20 @@ func TestHandleTeardown_MissingPeer(t *testing.T) {
 	assert.Equal(t, "error", resp.Status)
 }
 
-// TestDispatchNeighborTeardown verifies full command parsing.
+// TestDispatchBgpPeerTeardownFull verifies full command parsing.
 //
-// VALIDATES: "neighbor 127.0.0.1 teardown 4" is correctly dispatched.
+// VALIDATES: "bgp peer 127.0.0.1 teardown 4" is correctly dispatched.
 //
 // PREVENTS: Command not being recognized.
-func TestDispatchNeighborTeardown(t *testing.T) {
+func TestDispatchBgpPeerTeardownFull(t *testing.T) {
 	d := NewDispatcher()
 	RegisterDefaultHandlers(d)
 
 	reactor := &mockReactor{}
 	ctx := &CommandContext{Reactor: reactor}
 
-	resp, err := d.Dispatch(ctx, "neighbor 127.0.0.1 teardown 4")
+	// Step 5: Now uses bgp peer prefix
+	resp, err := d.Dispatch(ctx, "bgp peer 127.0.0.1 teardown 4")
 
 	require.NoError(t, err)
 	require.NotNil(t, resp)
@@ -1074,15 +1078,16 @@ func TestHandleRaw_PeerNotFound(t *testing.T) {
 
 // TestHandleRawCommandRegistered verifies raw command is registered.
 //
-// VALIDATES: "raw" command is accessible via dispatcher.
+// VALIDATES: "bgp peer raw" command is accessible via dispatcher.
 //
 // PREVENTS: Command not being wired up.
 func TestHandleRawCommandRegistered(t *testing.T) {
 	d := NewDispatcher()
 	RegisterDefaultHandlers(d)
 
-	c := d.Lookup("raw")
-	assert.NotNil(t, c, "raw command must be registered")
+	// Step 5: raw moved to bgp peer namespace
+	c := d.Lookup("bgp peer raw")
+	assert.NotNil(t, c, "bgp peer raw command must be registered")
 }
 
 // =============================================================================
@@ -1249,25 +1254,26 @@ func TestPluginCommandsRegistered(t *testing.T) {
 	}
 }
 
-// TestSessionSyncCommandsRemain verifies session sync commands still work.
+// TestBgpPluginCommandsReplaceSession verifies bgp plugin commands replaced session commands.
 //
-// VALIDATES: "session sync enable/disable" still works (moved in Step 4).
+// VALIDATES: "bgp plugin ack/encoding/format" exist (replaced session sync/encoding).
 //
-// PREVENTS: Breaking session sync before Step 4 migration.
-func TestSessionSyncCommandsRemain(t *testing.T) {
+// PREVENTS: Missing replacements for moved session commands.
+func TestBgpPluginCommandsReplaceSession(t *testing.T) {
 	d := NewDispatcher()
 	RegisterDefaultHandlers(d)
 
-	syncCommands := []string{
-		"session sync enable",
-		"session sync disable",
-		"session api encoding",
+	// New bgp plugin commands that replace old session commands
+	newCommands := []string{
+		"bgp plugin ack",      // replaces session sync enable/disable
+		"bgp plugin encoding", // replaces session api encoding
+		"bgp plugin format",   // new command
 	}
 
-	for _, cmd := range syncCommands {
+	for _, cmd := range newCommands {
 		t.Run(cmd, func(t *testing.T) {
 			c := d.Lookup(cmd)
-			assert.NotNil(t, c, "command %q should still be registered (moved in Step 4)", cmd)
+			assert.NotNil(t, c, "command %q must be registered", cmd)
 		})
 	}
 }
@@ -1410,4 +1416,880 @@ func TestSystemCommandsRegistered(t *testing.T) {
 			assert.NotNil(t, c, "command %q must be registered", cmd)
 		})
 	}
+}
+
+// =============================================================================
+// Step 4: BGP Namespace Foundation Tests
+// =============================================================================
+
+// TestDispatchBgpHelp verifies bgp help returns subcommands.
+//
+// VALIDATES: "bgp help" returns list of bgp subcommands.
+// PREVENTS: BGP namespace introspection broken.
+func TestDispatchBgpHelp(t *testing.T) {
+	d := NewDispatcher()
+	RegisterDefaultHandlers(d)
+
+	ctx := &CommandContext{
+		Reactor:    &mockReactor{},
+		Dispatcher: d,
+	}
+
+	resp, err := d.Dispatch(ctx, "bgp help")
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	assert.Equal(t, "done", resp.Status)
+
+	data, ok := resp.Data.(map[string]any)
+	require.True(t, ok, "data should be a map")
+	_, hasCommands := data["commands"]
+	assert.True(t, hasCommands, "should have commands list")
+}
+
+// TestDispatchBgpCommandList verifies bgp command list returns bgp commands.
+//
+// VALIDATES: "bgp command list" returns commands in bgp namespace.
+// PREVENTS: BGP command listing broken.
+func TestDispatchBgpCommandList(t *testing.T) {
+	d := NewDispatcher()
+	RegisterDefaultHandlers(d)
+
+	ctx := &CommandContext{
+		Reactor:    &mockReactor{},
+		Dispatcher: d,
+	}
+
+	resp, err := d.Dispatch(ctx, "bgp command list")
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	assert.Equal(t, "done", resp.Status)
+
+	data, ok := resp.Data.(map[string]any)
+	require.True(t, ok, "data should be a map")
+	_, hasCommands := data["commands"]
+	assert.True(t, hasCommands, "should have commands list")
+}
+
+// TestDispatchBgpEventList verifies bgp event list returns event types.
+//
+// VALIDATES: "bgp event list" returns available BGP event types.
+// PREVENTS: Event type discovery broken.
+func TestDispatchBgpEventList(t *testing.T) {
+	d := NewDispatcher()
+	RegisterDefaultHandlers(d)
+
+	ctx := &CommandContext{
+		Reactor:    &mockReactor{},
+		Dispatcher: d,
+	}
+
+	resp, err := d.Dispatch(ctx, "bgp event list")
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	assert.Equal(t, "done", resp.Status)
+
+	data, ok := resp.Data.(map[string]any)
+	require.True(t, ok, "data should be a map")
+	events, ok := data["events"].([]string)
+	require.True(t, ok, "events should be string slice")
+	assert.Contains(t, events, "update", "should include update event")
+	assert.Contains(t, events, "state", "should include state event")
+}
+
+// TestDispatchBgpPluginEncoding verifies bgp plugin encoding sets encoding.
+//
+// VALIDATES: "bgp plugin encoding json" sets encoding mode.
+// PREVENTS: Encoding configuration broken.
+func TestDispatchBgpPluginEncoding(t *testing.T) {
+	d := NewDispatcher()
+	RegisterDefaultHandlers(d)
+
+	ctx := &CommandContext{
+		Reactor:    &mockReactor{},
+		Dispatcher: d,
+	}
+
+	resp, err := d.Dispatch(ctx, "bgp plugin encoding json")
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	assert.Equal(t, "done", resp.Status)
+
+	data, ok := resp.Data.(map[string]any)
+	require.True(t, ok, "data should be a map")
+	assert.Equal(t, "json", data["encoding"])
+}
+
+// TestDispatchBgpPluginFormat verifies bgp plugin format sets format.
+//
+// VALIDATES: "bgp plugin format full" sets format mode.
+// PREVENTS: Format configuration broken.
+func TestDispatchBgpPluginFormat(t *testing.T) {
+	d := NewDispatcher()
+	RegisterDefaultHandlers(d)
+
+	ctx := &CommandContext{
+		Reactor:    &mockReactor{},
+		Dispatcher: d,
+	}
+
+	resp, err := d.Dispatch(ctx, "bgp plugin format full")
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	assert.Equal(t, "done", resp.Status)
+
+	data, ok := resp.Data.(map[string]any)
+	require.True(t, ok, "data should be a map")
+	assert.Equal(t, "full", data["format"])
+}
+
+// TestDispatchBgpPluginAck verifies bgp plugin ack sets ack mode.
+//
+// VALIDATES: "bgp plugin ack sync" sets sync mode.
+// PREVENTS: ACK timing configuration broken.
+func TestDispatchBgpPluginAck(t *testing.T) {
+	d := NewDispatcher()
+	RegisterDefaultHandlers(d)
+
+	mock := &mockReactor{}
+	ctx := &CommandContext{
+		Reactor:    mock,
+		Dispatcher: d,
+	}
+
+	resp, err := d.Dispatch(ctx, "bgp plugin ack sync")
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	assert.Equal(t, "done", resp.Status)
+
+	data, ok := resp.Data.(map[string]any)
+	require.True(t, ok, "data should be a map")
+	assert.Equal(t, "sync", data["ack"])
+}
+
+// TestOldSessionSyncRemoved verifies session sync commands are removed.
+//
+// VALIDATES: "session sync enable/disable" and "session api encoding" return unknown.
+// PREVENTS: Old paths accidentally still working.
+func TestOldSessionSyncRemoved(t *testing.T) {
+	d := NewDispatcher()
+	RegisterDefaultHandlers(d)
+
+	oldCommands := []string{
+		"session sync enable",
+		"session sync disable",
+		"session api encoding",
+	}
+
+	for _, cmd := range oldCommands {
+		t.Run(cmd, func(t *testing.T) {
+			c := d.Lookup(cmd)
+			assert.Nil(t, c, "old command %q should not be registered", cmd)
+		})
+	}
+}
+
+// TestBgpCommandsRegistered verifies all bgp commands are registered.
+//
+// VALIDATES: BGP namespace commands exist.
+// PREVENTS: Missing command registrations.
+func TestBgpCommandsRegistered(t *testing.T) {
+	d := NewDispatcher()
+	RegisterDefaultHandlers(d)
+
+	bgpCommands := []string{
+		"bgp help",
+		"bgp command list",
+		"bgp command help",
+		"bgp command complete",
+		"bgp event list",
+		"bgp plugin encoding",
+		"bgp plugin format",
+		"bgp plugin ack",
+	}
+
+	for _, cmd := range bgpCommands {
+		t.Run(cmd, func(t *testing.T) {
+			c := d.Lookup(cmd)
+			assert.NotNil(t, c, "command %q must be registered", cmd)
+		})
+	}
+}
+
+// TestBgpPluginEncodingAllValues verifies all encoding values work.
+//
+// VALIDATES: Both json and text encodings are accepted.
+// PREVENTS: Valid encoding values being rejected.
+func TestBgpPluginEncodingAllValues(t *testing.T) {
+	d := NewDispatcher()
+	RegisterDefaultHandlers(d)
+
+	proc := NewProcess(PluginConfig{Name: "test", Run: "echo"})
+	ctx := &CommandContext{
+		Reactor:    &mockReactor{},
+		Dispatcher: d,
+		Process:    proc,
+	}
+
+	tests := []struct {
+		value string
+		want  string
+	}{
+		{"json", "json"},
+		{"text", "text"},
+		{"JSON", "json"}, // case insensitive
+		{"TEXT", "text"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.value, func(t *testing.T) {
+			resp, err := d.Dispatch(ctx, "bgp plugin encoding "+tt.value)
+			require.NoError(t, err)
+			assert.Equal(t, "done", resp.Status)
+
+			data, ok := resp.Data.(map[string]any)
+			require.True(t, ok)
+			assert.Equal(t, tt.want, data["encoding"])
+			assert.Equal(t, tt.want, proc.Encoding())
+		})
+	}
+}
+
+// TestBgpPluginEncodingInvalid verifies invalid encoding is rejected.
+//
+// VALIDATES: Invalid encoding returns error.
+// PREVENTS: Accepting unknown encoding formats.
+func TestBgpPluginEncodingInvalid(t *testing.T) {
+	d := NewDispatcher()
+	RegisterDefaultHandlers(d)
+
+	ctx := &CommandContext{
+		Reactor:    &mockReactor{},
+		Dispatcher: d,
+	}
+
+	// Invalid value
+	resp, err := d.Dispatch(ctx, "bgp plugin encoding invalid")
+	require.Error(t, err)
+	assert.Nil(t, resp)
+	assert.Contains(t, err.Error(), "invalid encoding")
+
+	// Missing argument
+	resp, err = d.Dispatch(ctx, "bgp plugin encoding")
+	require.Error(t, err)
+	assert.Nil(t, resp)
+	assert.Contains(t, err.Error(), "missing encoding")
+}
+
+// TestBgpPluginFormatAllValues verifies all format values work.
+//
+// VALIDATES: All format values (hex, base64, parsed, full) are accepted.
+// PREVENTS: Valid format values being rejected.
+func TestBgpPluginFormatAllValues(t *testing.T) {
+	d := NewDispatcher()
+	RegisterDefaultHandlers(d)
+
+	proc := NewProcess(PluginConfig{Name: "test", Run: "echo"})
+	ctx := &CommandContext{
+		Reactor:    &mockReactor{},
+		Dispatcher: d,
+		Process:    proc,
+	}
+
+	tests := []struct {
+		value string
+		want  string
+	}{
+		{"hex", "hex"},
+		{"base64", "base64"},
+		{"parsed", "parsed"},
+		{"full", "full"},
+		{"HEX", "hex"}, // case insensitive
+		{"PARSED", "parsed"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.value, func(t *testing.T) {
+			resp, err := d.Dispatch(ctx, "bgp plugin format "+tt.value)
+			require.NoError(t, err)
+			assert.Equal(t, "done", resp.Status)
+
+			data, ok := resp.Data.(map[string]any)
+			require.True(t, ok)
+			assert.Equal(t, tt.want, data["format"])
+			assert.Equal(t, tt.want, proc.Format())
+		})
+	}
+}
+
+// TestBgpPluginFormatInvalid verifies invalid format is rejected.
+//
+// VALIDATES: Invalid format returns error.
+// PREVENTS: Accepting unknown format values.
+func TestBgpPluginFormatInvalid(t *testing.T) {
+	d := NewDispatcher()
+	RegisterDefaultHandlers(d)
+
+	ctx := &CommandContext{
+		Reactor:    &mockReactor{},
+		Dispatcher: d,
+	}
+
+	// Invalid value
+	resp, err := d.Dispatch(ctx, "bgp plugin format invalid")
+	require.Error(t, err)
+	assert.Nil(t, resp)
+	assert.Contains(t, err.Error(), "invalid format")
+
+	// Missing argument
+	resp, err = d.Dispatch(ctx, "bgp plugin format")
+	require.Error(t, err)
+	assert.Nil(t, resp)
+	assert.Contains(t, err.Error(), "missing format")
+}
+
+// TestBgpPluginAckAllValues verifies both ack values work.
+//
+// VALIDATES: Both sync and async modes are accepted and set Process state.
+// PREVENTS: Valid ack modes being rejected.
+func TestBgpPluginAckAllValues(t *testing.T) {
+	d := NewDispatcher()
+	RegisterDefaultHandlers(d)
+
+	proc := NewProcess(PluginConfig{Name: "test", Run: "echo"})
+	ctx := &CommandContext{
+		Reactor:    &mockReactor{},
+		Dispatcher: d,
+		Process:    proc,
+	}
+
+	// Test sync
+	resp, err := d.Dispatch(ctx, "bgp plugin ack sync")
+	require.NoError(t, err)
+	assert.Equal(t, "done", resp.Status)
+	assert.True(t, proc.SyncEnabled(), "sync should enable SyncEnabled")
+
+	// Test async
+	resp, err = d.Dispatch(ctx, "bgp plugin ack async")
+	require.NoError(t, err)
+	assert.Equal(t, "done", resp.Status)
+	assert.False(t, proc.SyncEnabled(), "async should disable SyncEnabled")
+
+	// Test case insensitive
+	_, err = d.Dispatch(ctx, "bgp plugin ack SYNC")
+	require.NoError(t, err)
+	assert.True(t, proc.SyncEnabled())
+}
+
+// TestBgpPluginAckInvalid verifies invalid ack mode is rejected.
+//
+// VALIDATES: Invalid ack mode returns error.
+// PREVENTS: Accepting unknown ack modes.
+func TestBgpPluginAckInvalid(t *testing.T) {
+	d := NewDispatcher()
+	RegisterDefaultHandlers(d)
+
+	ctx := &CommandContext{
+		Reactor:    &mockReactor{},
+		Dispatcher: d,
+	}
+
+	// Invalid value
+	resp, err := d.Dispatch(ctx, "bgp plugin ack invalid")
+	require.Error(t, err)
+	assert.Nil(t, resp)
+	assert.Contains(t, err.Error(), "invalid mode")
+
+	// Missing argument
+	resp, err = d.Dispatch(ctx, "bgp plugin ack")
+	require.Error(t, err)
+	assert.Nil(t, resp)
+	assert.Contains(t, err.Error(), "missing mode")
+}
+
+// =============================================================================
+// Step 5: BGP Command Migration Tests
+// =============================================================================
+
+// TestDispatchBgpDaemonShutdown verifies bgp daemon shutdown triggers reactor stop.
+//
+// VALIDATES: "bgp daemon shutdown" calls reactor.Stop().
+// PREVENTS: Daemon shutdown command not working.
+func TestDispatchBgpDaemonShutdown(t *testing.T) {
+	d := NewDispatcher()
+	RegisterDefaultHandlers(d)
+
+	mock := &mockReactor{}
+	ctx := &CommandContext{
+		Reactor:    mock,
+		Dispatcher: d,
+	}
+
+	resp, err := d.Dispatch(ctx, "bgp daemon shutdown")
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	assert.Equal(t, "done", resp.Status)
+	assert.True(t, mock.stopped, "reactor.Stop() should have been called")
+}
+
+// TestDispatchBgpDaemonStatus verifies bgp daemon status returns uptime and peer count.
+//
+// VALIDATES: "bgp daemon status" returns operational stats.
+// PREVENTS: Status information not accessible.
+func TestDispatchBgpDaemonStatus(t *testing.T) {
+	d := NewDispatcher()
+	RegisterDefaultHandlers(d)
+
+	mock := &mockReactor{
+		peers: []PeerInfo{{}, {}},
+		stats: ReactorStats{
+			StartTime: time.Now().Add(-time.Hour),
+			Uptime:    time.Hour,
+			PeerCount: 2,
+		},
+	}
+	ctx := &CommandContext{
+		Reactor:    mock,
+		Dispatcher: d,
+	}
+
+	resp, err := d.Dispatch(ctx, "bgp daemon status")
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	assert.Equal(t, "done", resp.Status)
+
+	data, ok := resp.Data.(map[string]any)
+	require.True(t, ok)
+	assert.Equal(t, 2, data["peer_count"])
+}
+
+// TestDispatchBgpDaemonReload verifies bgp daemon reload triggers config reload.
+//
+// VALIDATES: "bgp daemon reload" calls reactor.Reload().
+// PREVENTS: Config reload command not working.
+func TestDispatchBgpDaemonReload(t *testing.T) {
+	d := NewDispatcher()
+	RegisterDefaultHandlers(d)
+
+	mock := &mockReactor{}
+	ctx := &CommandContext{
+		Reactor:    mock,
+		Dispatcher: d,
+	}
+
+	resp, err := d.Dispatch(ctx, "bgp daemon reload")
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	assert.Equal(t, "done", resp.Status)
+}
+
+// TestDispatchBgpPeerList verifies bgp peer * list returns all peers.
+//
+// VALIDATES: "bgp peer * list" returns peer list.
+// PREVENTS: Peer listing not working.
+func TestDispatchBgpPeerList(t *testing.T) {
+	d := NewDispatcher()
+	RegisterDefaultHandlers(d)
+
+	mock := &mockReactor{
+		peers: []PeerInfo{
+			{Address: netip.MustParseAddr("192.168.1.2"), State: "established"},
+			{Address: netip.MustParseAddr("192.168.1.3"), State: "idle"},
+		},
+	}
+	ctx := &CommandContext{
+		Reactor:    mock,
+		Dispatcher: d,
+	}
+
+	resp, err := d.Dispatch(ctx, "bgp peer * list")
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	assert.Equal(t, "done", resp.Status)
+
+	data, ok := resp.Data.(map[string]any)
+	require.True(t, ok)
+	peers, ok := data["peers"].([]PeerInfo)
+	require.True(t, ok)
+	assert.Len(t, peers, 2)
+}
+
+// TestDispatchBgpPeerShowAll verifies bgp peer * show returns all peers with details.
+//
+// VALIDATES: "bgp peer * show" returns peer details.
+// PREVENTS: Peer show not working.
+func TestDispatchBgpPeerShowAll(t *testing.T) {
+	d := NewDispatcher()
+	RegisterDefaultHandlers(d)
+
+	mock := &mockReactor{
+		peers: []PeerInfo{
+			{Address: netip.MustParseAddr("192.168.1.2"), State: "established", PeerAS: 65002},
+		},
+	}
+	ctx := &CommandContext{
+		Reactor:    mock,
+		Dispatcher: d,
+	}
+
+	resp, err := d.Dispatch(ctx, "bgp peer * show")
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	assert.Equal(t, "done", resp.Status)
+
+	data, ok := resp.Data.(map[string]any)
+	require.True(t, ok)
+	peers, ok := data["peers"].([]PeerInfo)
+	require.True(t, ok)
+	assert.Len(t, peers, 1)
+}
+
+// TestDispatchBgpPeerShow verifies bgp peer <ip> show returns specific peer.
+//
+// VALIDATES: "bgp peer 192.168.1.2 show" returns specific peer.
+// PREVENTS: Peer-specific show not working.
+func TestDispatchBgpPeerShow(t *testing.T) {
+	d := NewDispatcher()
+	RegisterDefaultHandlers(d)
+
+	mock := &mockReactor{
+		peers: []PeerInfo{
+			{Address: netip.MustParseAddr("192.168.1.2"), State: "established"},
+			{Address: netip.MustParseAddr("192.168.1.3"), State: "idle"},
+		},
+	}
+	ctx := &CommandContext{
+		Reactor:    mock,
+		Dispatcher: d,
+	}
+
+	resp, err := d.Dispatch(ctx, "bgp peer 192.168.1.2 show")
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	assert.Equal(t, "done", resp.Status)
+
+	data, ok := resp.Data.(map[string]any)
+	require.True(t, ok)
+	peers, ok := data["peers"].([]PeerInfo)
+	require.True(t, ok)
+	require.Len(t, peers, 1)
+	assert.Equal(t, "192.168.1.2", peers[0].Address.String())
+}
+
+// TestDispatchBgpPeerTeardown verifies bgp peer <ip> teardown sends notification.
+//
+// VALIDATES: "bgp peer 127.0.0.1 teardown 4" tears down peer.
+// PREVENTS: Peer teardown not working.
+func TestDispatchBgpPeerTeardown(t *testing.T) {
+	d := NewDispatcher()
+	RegisterDefaultHandlers(d)
+
+	mock := &mockReactor{}
+	ctx := &CommandContext{
+		Reactor:    mock,
+		Dispatcher: d,
+	}
+
+	resp, err := d.Dispatch(ctx, "bgp peer 127.0.0.1 teardown 4")
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	assert.Equal(t, "done", resp.Status)
+
+	require.Len(t, mock.teardownCalls, 1)
+	assert.Equal(t, netip.MustParseAddr("127.0.0.1"), mock.teardownCalls[0].addr)
+	assert.Equal(t, uint8(4), mock.teardownCalls[0].subcode)
+}
+
+// TestDispatchBgpCommit verifies bgp commit commands work.
+//
+// VALIDATES: "bgp commit list" returns commit list.
+// PREVENTS: Commit commands not working.
+func TestDispatchBgpCommit(t *testing.T) {
+	d := NewDispatcher()
+	RegisterDefaultHandlers(d)
+
+	mock := &mockReactor{}
+	cm := NewCommitManager()
+	ctx := &CommandContext{
+		Reactor:       mock,
+		Dispatcher:    d,
+		CommitManager: cm,
+	}
+
+	resp, err := d.Dispatch(ctx, "bgp commit list")
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	assert.Equal(t, "done", resp.Status)
+}
+
+// TestDispatchBgpWatchdog verifies bgp watchdog commands work.
+//
+// VALIDATES: "bgp watchdog announce test" works.
+// PREVENTS: Watchdog commands not working.
+func TestDispatchBgpWatchdog(t *testing.T) {
+	d := NewDispatcher()
+	RegisterDefaultHandlers(d)
+
+	mock := &mockReactor{}
+	ctx := &CommandContext{
+		Reactor:    mock,
+		Dispatcher: d,
+	}
+
+	resp, err := d.Dispatch(ctx, "bgp watchdog announce test")
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	assert.Equal(t, "done", resp.Status)
+}
+
+// TestDispatchBgpPeerUpdate verifies bgp peer <sel> update works.
+//
+// VALIDATES: "bgp peer * update text ..." announces routes.
+// PREVENTS: Update commands not working.
+func TestDispatchBgpPeerUpdate(t *testing.T) {
+	d := NewDispatcher()
+	RegisterDefaultHandlers(d)
+
+	mock := &mockReactor{}
+	ctx := &CommandContext{
+		Reactor:    mock,
+		Dispatcher: d,
+	}
+
+	// Simple update with family and prefix
+	resp, err := d.Dispatch(ctx, "bgp peer * update text origin set igp nhop set 1.1.1.1 nlri ipv4/unicast add 10.0.0.0/24")
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	assert.Equal(t, "done", resp.Status)
+}
+
+// TestDispatchBgpPeerBorr verifies bgp peer <sel> borr works.
+//
+// VALIDATES: "bgp peer * borr ipv4/unicast" sends BoRR.
+// PREVENTS: Route refresh commands not working.
+func TestDispatchBgpPeerBorr(t *testing.T) {
+	d := NewDispatcher()
+	RegisterDefaultHandlers(d)
+
+	mock := &mockReactor{}
+	ctx := &CommandContext{
+		Reactor:    mock,
+		Dispatcher: d,
+	}
+
+	resp, err := d.Dispatch(ctx, "bgp peer * borr ipv4/unicast")
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	assert.Equal(t, "done", resp.Status)
+}
+
+// TestDispatchBgpPeerEorr verifies bgp peer <sel> eorr works.
+//
+// VALIDATES: "bgp peer * eorr ipv4/unicast" sends EoRR.
+// PREVENTS: Route refresh commands not working.
+func TestDispatchBgpPeerEorr(t *testing.T) {
+	d := NewDispatcher()
+	RegisterDefaultHandlers(d)
+
+	mock := &mockReactor{}
+	ctx := &CommandContext{
+		Reactor:    mock,
+		Dispatcher: d,
+	}
+
+	resp, err := d.Dispatch(ctx, "bgp peer * eorr ipv4/unicast")
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	assert.Equal(t, "done", resp.Status)
+}
+
+// TestDispatchBgpPeerRaw verifies bgp peer <ip> raw works.
+//
+// VALIDATES: "bgp peer 10.0.0.1 raw update hex <data>" sends raw bytes.
+// PREVENTS: Raw passthrough not working.
+func TestDispatchBgpPeerRaw(t *testing.T) {
+	d := NewDispatcher()
+	RegisterDefaultHandlers(d)
+
+	mock := &mockReactor{}
+	ctx := &CommandContext{
+		Reactor:    mock,
+		Dispatcher: d,
+	}
+
+	resp, err := d.Dispatch(ctx, "bgp peer 10.0.0.1 raw update hex 0000")
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	assert.Equal(t, "done", resp.Status)
+
+	require.Len(t, mock.rawMessages, 1)
+	assert.Equal(t, netip.MustParseAddr("10.0.0.1"), mock.rawMessages[0].addr)
+}
+
+// TestOldDaemonCommandsRemoved verifies old daemon commands are removed.
+//
+// VALIDATES: "daemon shutdown/status/reload" return unknown command.
+// PREVENTS: Old command paths still working.
+func TestOldDaemonCommandsRemoved(t *testing.T) {
+	d := NewDispatcher()
+	RegisterDefaultHandlers(d)
+
+	oldCommands := []string{
+		"daemon shutdown",
+		"daemon status",
+		"daemon reload",
+	}
+
+	for _, cmd := range oldCommands {
+		t.Run(cmd, func(t *testing.T) {
+			c := d.Lookup(cmd)
+			assert.Nil(t, c, "old command %q should NOT be registered", cmd)
+		})
+	}
+}
+
+// TestOldPeerCommandsRemoved verifies old peer commands are removed.
+//
+// VALIDATES: "peer list/show" and "neighbor * teardown" return unknown command.
+// PREVENTS: Old command paths still working.
+func TestOldPeerCommandsRemoved(t *testing.T) {
+	d := NewDispatcher()
+	RegisterDefaultHandlers(d)
+
+	oldCommands := []string{
+		"peer list",
+		"peer show",
+		"teardown", // standalone teardown removed
+	}
+
+	for _, cmd := range oldCommands {
+		t.Run(cmd, func(t *testing.T) {
+			c := d.Lookup(cmd)
+			assert.Nil(t, c, "old command %q should NOT be registered", cmd)
+		})
+	}
+}
+
+// TestOldUpdateWatchdogCommitRemoved verifies old route commands are removed.
+//
+// VALIDATES: "update", "watchdog", "commit", "raw", "borr", "eorr" return unknown.
+// PREVENTS: Old standalone commands still working.
+func TestOldUpdateWatchdogCommitRemoved(t *testing.T) {
+	d := NewDispatcher()
+	RegisterDefaultHandlers(d)
+
+	oldCommands := []string{
+		"update",
+		"watchdog announce",
+		"watchdog withdraw",
+		"commit",
+		"raw",
+		"borr",
+		"eorr",
+	}
+
+	for _, cmd := range oldCommands {
+		t.Run(cmd, func(t *testing.T) {
+			c := d.Lookup(cmd)
+			assert.Nil(t, c, "old command %q should NOT be registered", cmd)
+		})
+	}
+}
+
+// TestNeighborPrefixRemoved verifies neighbor prefix is no longer supported.
+//
+// VALIDATES: "neighbor 127.0.0.1 teardown 4" returns unknown command.
+// PREVENTS: Old neighbor prefix still working.
+func TestNeighborPrefixRemoved(t *testing.T) {
+	d := NewDispatcher()
+	RegisterDefaultHandlers(d)
+
+	mock := &mockReactor{}
+	ctx := &CommandContext{
+		Reactor:    mock,
+		Dispatcher: d,
+	}
+
+	_, err := d.Dispatch(ctx, "neighbor 127.0.0.1 teardown 4")
+	require.Error(t, err)
+	assert.ErrorIs(t, err, ErrUnknownCommand)
+}
+
+// TestBgpStep5CommandsRegistered verifies all Step 5 commands are registered.
+//
+// VALIDATES: All migrated commands are accessible.
+// PREVENTS: Missing command registrations.
+func TestBgpStep5CommandsRegistered(t *testing.T) {
+	d := NewDispatcher()
+	RegisterDefaultHandlers(d)
+
+	commands := []string{
+		// Daemon commands
+		"bgp daemon shutdown",
+		"bgp daemon status",
+		"bgp daemon reload",
+		// Peer commands (registered without selector - dispatcher extracts it)
+		"bgp peer list",
+		"bgp peer show",
+		"bgp peer teardown",
+		"bgp peer update",
+		"bgp peer borr",
+		"bgp peer eorr",
+		"bgp peer raw",
+		// Commit/watchdog
+		"bgp commit",
+		"bgp watchdog announce",
+		"bgp watchdog withdraw",
+	}
+
+	for _, cmd := range commands {
+		t.Run(cmd, func(t *testing.T) {
+			c := d.Lookup(cmd)
+			assert.NotNil(t, c, "command %q must be registered", cmd)
+		})
+	}
+}
+
+// TestBgpPeerSelectorExtraction verifies dispatcher extracts peer selector correctly.
+//
+// VALIDATES: "bgp peer 192.168.1.1 show" sets ctx.Peer to "192.168.1.1".
+// PREVENTS: Peer selector not being extracted from command.
+func TestBgpPeerSelectorExtraction(t *testing.T) {
+	d := NewDispatcher()
+	RegisterDefaultHandlers(d)
+
+	mock := &mockReactor{
+		peers: []PeerInfo{
+			{Address: netip.MustParseAddr("192.168.1.1"), State: "established"},
+		},
+	}
+	ctx := &CommandContext{
+		Reactor:    mock,
+		Dispatcher: d,
+	}
+
+	resp, err := d.Dispatch(ctx, "bgp peer 192.168.1.1 show")
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	assert.Equal(t, "done", resp.Status)
+	assert.Equal(t, "192.168.1.1", ctx.Peer, "peer selector should be extracted")
+}
+
+// TestBgpPeerWildcardSelector verifies bgp peer * works.
+//
+// VALIDATES: "bgp peer * update ..." targets all peers.
+// PREVENTS: Wildcard selector not working.
+func TestBgpPeerWildcardSelector(t *testing.T) {
+	d := NewDispatcher()
+	RegisterDefaultHandlers(d)
+
+	mock := &mockReactor{}
+	ctx := &CommandContext{
+		Reactor:    mock,
+		Dispatcher: d,
+	}
+
+	resp, err := d.Dispatch(ctx, "bgp peer * borr ipv4/unicast")
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	assert.Equal(t, "*", ctx.Peer, "wildcard selector should be extracted")
 }

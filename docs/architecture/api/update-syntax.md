@@ -470,10 +470,19 @@ peer 10.0.0.1 received 123 update hex attr set 400101... nlri ipv4/unicast add 1
 ## Wire Encoding Control
 
 ```bash
-session api encoding hex        # Both directions (default)
-session api encoding b64        # Both directions
-session api encoding cbor       # Both directions
-session api encoding inbound hex outbound b64  # Mixed
+# Set overall message structure
+bgp plugin encoding json        # Structured JSON (default)
+bgp plugin encoding text        # Human-readable text
+
+# Set wire bytes format (JSON mode only)
+bgp plugin format hex           # Wire bytes as hex string
+bgp plugin format base64        # Wire bytes as base64
+bgp plugin format parsed        # Decoded fields only (default)
+bgp plugin format full          # Both parsed AND wire bytes
+
+# Set ACK timing
+bgp plugin ack sync             # Wait for wire transmission
+bgp plugin ack async            # Return immediately (default)
 ```
 
 ## Grammar

@@ -252,8 +252,8 @@ func TestCommitCommandRegistered(t *testing.T) {
 	d := NewDispatcher()
 	RegisterCommitHandlers(d)
 
-	c := d.Lookup("commit")
-	assert.NotNil(t, c, "commit command must be registered")
+	c := d.Lookup("bgp commit")
+	assert.NotNil(t, c, "bgp commit command must be registered")
 }
 
 // TestCommitConcurrent verifies multiple concurrent commits.

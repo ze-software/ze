@@ -10,11 +10,11 @@ cmd=api:conn=1:seq=1:text=announce ipv4/flow destination-ipv4 192.168.0.1/32 sou
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0045020000002E4001010040020040050400000064800E1200018500000C0120C0A8000102200A000001C01008010C010203040000
 cmd=api:conn=1:seq=1:text=announce ipv4/flow destination-ipv4 192.168.0.2/32 source-ipv4 10.0.0.1/32 attribute [0x19 0xc0 0x000c2a020b800000000100000000000000010000]
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0051020000003A4001010040020040050400000064800E1200018500000C0120C0A8000202200A000001C01914000C2A020B800000000100000000000000010000
-cmd=api:conn=1:seq=1:text=announce eor ipv4 flow
+cmd=api:conn=1:seq=1:text=bgp peer * update text nlri ipv4/flow eor
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001E0200000007900F0003000185
-cmd=api:conn=1:seq=1:text=announce eor ipv4 flow-vpn
+cmd=api:conn=1:seq=1:text=bgp peer * update text nlri ipv4/flow eor-vpn
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001E0200000007900F0003000186
-cmd=api:conn=1:seq=1:text=announce eor ipv6 flow
+cmd=api:conn=1:seq=1:text=bgp peer * update text nlri ipv6/flow eor
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001E0200000007900F0003000285
 EOF_PEER
 

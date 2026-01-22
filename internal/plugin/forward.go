@@ -8,15 +8,16 @@ import (
 )
 
 // RegisterForwardHandlers registers forward-related command handlers.
+// Note: These will be moved to bgp cache namespace in Step 7.
 func RegisterForwardHandlers(d *Dispatcher) {
-	d.Register("forward update-id", handleForwardUpdateID,
-		"Forward a cached UPDATE by ID: peer <selector> forward update-id <id>")
-	d.Register("delete update-id", handleDeleteUpdateID,
-		"Delete a cached UPDATE without forwarding: delete update-id <id>")
+	d.Register("bgp peer forward update-id", handleForwardUpdateID,
+		"Forward a cached UPDATE by ID: bgp peer <selector> forward update-id <id>")
+	d.Register("bgp delete update-id", handleDeleteUpdateID,
+		"Delete a cached UPDATE without forwarding: bgp delete update-id <id>")
 }
 
 // handleForwardUpdateID forwards a cached UPDATE to peers.
-// Usage: peer <selector> forward update-id <id>
+// Usage: bgp peer <selector> forward update-id <id>
 //
 // The peer selector is extracted by the dispatcher into ctx.Peer.
 // Supports: specific IP, *, !IP (all except).
@@ -24,7 +25,7 @@ func handleForwardUpdateID(ctx *CommandContext, args []string) (*Response, error
 	if len(args) < 1 {
 		return &Response{
 			Status: "error",
-			Data:   "usage: peer <selector> forward update-id <id>",
+			Data:   "usage: bgp peer <selector> forward update-id <id>",
 		}, fmt.Errorf("missing update-id")
 	}
 

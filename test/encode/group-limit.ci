@@ -1,10 +1,10 @@
 # ze-peer expectations
 stdin=peer:terminator=EOF_PEER
-cmd=api:conn=1:seq=1:text=announce eor ipv4/unicast
+cmd=api:conn=1:seq=1:text=bgp peer * update text nlri ipv4/unicast eor
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
-cmd=api:conn=1:seq=1:text=announce eor ipv6/unicast
+cmd=api:conn=1:seq=1:text=bgp peer * update text nlri ipv6/unicast eor
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001E0200000007900F0003000201
-cmd=api:conn=1:seq=1:text=update text origin set igp local-preference set 100 nhop set 10.0.0.1 nlri ipv4/unicast add 193.0.2.1/32 193.0.2.2/32
+cmd=api:conn=1:seq=1:text=bgp peer * update text origin set igp local-preference set 100 nhop set 10.0.0.1 nlri ipv4/unicast add 193.0.2.1/32 193.0.2.2/32
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00360200000015400101004002004003040A0000014005040000006420C100020120C1000202
 expect=json:conn=1:seq=1:json={"meta":{"version":"1.0.0","format":"ze-bgp"},"message":{"type":"update"},"peer":{"address":"127.0.0.1","asn":65533},"direction":"in","local-preference":100,"origin":"igp","ipv4/unicast":[{"action":"add","nlri":["193.0.2.1/32","193.0.2.2/32"],"next-hop":"10.0.0.1"}]}
 cmd=api:conn=1:seq=1:text=announce ipv6/unicast 2a02:b80:0:1::1/128 next-hop 2a02:b80:1::1 origin igp local-preference 100

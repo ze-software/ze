@@ -701,9 +701,9 @@ func (r *RIBManager) handleRefresh(event *Event) {
 
 	// RFC 7313 Section 4: Send BoRR, routes, EoRR sequence
 	// Use send() not sendCommand() - consistent with route sending, no serial overhead
-	r.send("peer %s borr %s", peerAddr, family)
+	r.send("bgp peer %s borr %s", peerAddr, family)
 	r.sendRoutes(peerAddr, routesToSend)
-	r.send("peer %s eorr %s", peerAddr, family)
+	r.send("bgp peer %s eorr %s", peerAddr, family)
 
 	logger.Debug("completed route refresh", "peer", peerAddr, "family", family, "routes", len(routesToSend))
 }
@@ -755,16 +755,16 @@ func (r *RIBManager) replayRoutes(peerAddr string, routes []*Route) {
 	// RFC 7911: Include path-information when present
 	for _, route := range routes {
 		if route.PathID != 0 {
-			r.send("peer %s update text path-information set %d nhop set %s nlri %s add %s",
+			r.send("bgp peer %s update text path-information set %d nhop set %s nlri %s add %s",
 				peerAddr, route.PathID, route.NextHop, route.Family, route.Prefix)
 		} else {
-			r.send("peer %s update text nhop set %s nlri %s add %s",
+			r.send("bgp peer %s update text nhop set %s nlri %s add %s",
 				peerAddr, route.NextHop, route.Family, route.Prefix)
 		}
 	}
 
 	// Signal done with peer-specific ready - ZeBGP can now send EOR for this peer
-	r.sendCommand("peer " + peerAddr + " plugin session ready")
+	r.sendCommand("bgp peer " + peerAddr + " plugin session ready")
 }
 
 // handleRequest processes command requests from ZeBGP.
@@ -946,12 +946,12 @@ func (r *RIBManager) sendRoutes(peerAddr string, routes []*Route) {
 }
 
 // formatRouteCommand builds the update text command with full attributes.
-// Format: peer <addr> update text [attrs...] nhop set <nh> nlri <family> add <prefix>.
+// Format: bgp peer <addr> update text [attrs...] nhop set <nh> nlri <family> add <prefix>.
 func (r *RIBManager) formatRouteCommand(peerAddr string, route *Route) string {
 	var sb strings.Builder
 
 	// Base command
-	sb.WriteString("peer ")
+	sb.WriteString("bgp peer ")
 	sb.WriteString(peerAddr)
 	sb.WriteString(" update text")
 

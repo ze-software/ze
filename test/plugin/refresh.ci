@@ -32,7 +32,7 @@ def main() -> None:
     ready()
 
     # Announce a route that can be refreshed
-    send('update text nhop set 10.0.0.1 nlri ipv4/unicast add 192.168.1.0/24')
+    send('bgp peer * update text nhop set 10.0.0.1 nlri ipv4/unicast add 192.168.1.0/24')
     wait_for_ack()
 
     # Wait for shutdown signal

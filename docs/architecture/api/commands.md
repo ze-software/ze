@@ -52,14 +52,22 @@ daemon status            # Get daemon status
 ### Session Commands
 
 ```
-session ack enable       # Enable command acknowledgment
-session ack disable      # Disable acknowledgment
-session ack silence      # Silence all output
-session sync enable      # Enable synchronous mode
-session sync disable     # Disable synchronous mode
 plugin session ready     # Signal plugin init complete
 plugin session ping      # Health check
 plugin session bye       # Disconnect
+```
+
+### BGP Plugin Configuration
+
+```
+bgp plugin encoding json     # Set event encoding to JSON (default)
+bgp plugin encoding text     # Set event encoding to human-readable text
+bgp plugin format hex        # Wire bytes as hex string
+bgp plugin format base64     # Wire bytes as base64
+bgp plugin format parsed     # Decoded fields only (default)
+bgp plugin format full       # Both parsed AND wire bytes
+bgp plugin ack sync          # Wait for wire transmission
+bgp plugin ack async         # Return immediately (default)
 ```
 
 ### System Commands
@@ -485,17 +493,24 @@ daemon
 ├── restart
 └── status
 
-session
-├── ack
-│   ├── enable
-│   ├── disable
-│   └── silence
-├── sync
-│   ├── enable
-│   └── disable
-├── reset
-├── ping
-└── bye
+plugin
+└── session
+    ├── ready
+    ├── ping
+    └── bye
+
+bgp
+├── help
+├── command
+│   ├── list
+│   ├── help
+│   └── complete
+├── event
+│   └── list
+└── plugin
+    ├── encoding
+    ├── format
+    └── ack
 
 peer
 ├── list

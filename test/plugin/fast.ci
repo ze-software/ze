@@ -2,15 +2,15 @@
 
 # ze-peer expectations
 stdin=peer:terminator=EOF_PEER
-cmd=api:conn=1:seq=1:text=announce eor ipv4/unicast
+cmd=api:conn=1:seq=1:text=bgp peer * update text nlri ipv4/unicast eor
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
-cmd=api:conn=1:seq=1:text=update text origin set igp local-preference set 100 nhop set 101.1.101.1 nlri ipv4/unicast add 1.1.0.0/25
+cmd=api:conn=1:seq=1:text=bgp peer * update text origin set igp local-preference set 100 nhop set 101.1.101.1 nlri ipv4/unicast add 1.1.0.0/25
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003102000000154001010040020040030465016501400504000000641901010000
-cmd=api:conn=1:seq=1:text=update text nlri ipv4/unicast del 2.2.0.0/25
+cmd=api:conn=1:seq=1:text=bgp peer * update text nlri ipv4/unicast del 2.2.0.0/25
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001C02000519020200000000
-cmd=api:conn=1:seq=1:text=update text origin set igp local-preference set 100 nhop set 101.1.101.1 nlri ipv4/unicast add 2.2.0.0/24
+cmd=api:conn=1:seq=1:text=bgp peer * update text origin set igp local-preference set 100 nhop set 101.1.101.1 nlri ipv4/unicast add 2.2.0.0/24
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0030020000001540010100400200400304650165014005040000006418020200
-cmd=api:conn=1:seq=1:text=update text origin set igp local-preference set 100 nhop set 1.101.1.101 nlri ipv4/unicast add 0.0.0.0/0
+cmd=api:conn=1:seq=1:text=bgp peer * update text origin set igp local-preference set 100 nhop set 1.101.1.101 nlri ipv4/unicast add 0.0.0.0/0
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002D020000001540010100400200400304016501654005040000006400
 EOF_PEER
 
@@ -38,20 +38,20 @@ def main() -> None:
 
     # Message 1: Announce 1.1.0.0/25
     # (ExaBGP batched: announce /24, announce /25, withdraw /24, announce /25 → just /25)
-    flush('update text nhop set 101.1.101.1 nlri ipv4/unicast add 1.1.0.0/25\n')
+    flush('bgp peer * update text nhop set 101.1.101.1 nlri ipv4/unicast add 1.1.0.0/25\n')
     time.sleep(0.1)
 
     # Message 2: Withdraw 2.2.0.0/25
     # (ExaBGP batched: announce /25, announce /24, withdraw /25 → withdraw /25 + announce /24)
-    flush('update text nlri ipv4/unicast del 2.2.0.0/25\n')
+    flush('bgp peer * update text nlri ipv4/unicast del 2.2.0.0/25\n')
     time.sleep(0.1)
 
     # Message 3: Announce 2.2.0.0/24
-    flush('update text nhop set 101.1.101.1 nlri ipv4/unicast add 2.2.0.0/24\n')
+    flush('bgp peer * update text nhop set 101.1.101.1 nlri ipv4/unicast add 2.2.0.0/24\n')
     time.sleep(0.1)
 
     # Message 4: Announce 0.0.0.0/0
-    flush('update text nhop set 1.101.1.101 nlri ipv4/unicast add 0.0.0.0/0\n')
+    flush('bgp peer * update text nhop set 1.101.1.101 nlri ipv4/unicast add 0.0.0.0/0\n')
 
     wait_for_shutdown()
 

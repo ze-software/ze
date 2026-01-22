@@ -16,7 +16,7 @@ const (
 
 // RegisterCommitHandlers registers commit-related command handlers.
 func RegisterCommitHandlers(d *Dispatcher) {
-	d.Register("commit", handleCommit, "Named commit operations (commit <name> start|end|eor|rollback|show, commit list)")
+	d.Register("bgp commit", handleCommit, "Named commit operations (bgp commit <name> start|end|eor|rollback|show, bgp commit list)")
 }
 
 // handleCommit dispatches commit subcommands.

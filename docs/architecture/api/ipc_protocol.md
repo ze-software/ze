@@ -284,20 +284,14 @@ Format relationship:
 
 **Timing:** Encoding applies at event delivery time. Subscribe first, configure encoding later—events use current encoding when delivered.
 
-**Peer Listing:**
-
-| Command | Description |
-|---------|-------------|
-| `bgp list` | List all peers (brief) |
-| `bgp show` | Show all peers (detailed) |
-
 **Peer Operations:**
 
 Selector patterns: `*` (all), `<ip>` (specific), `!<ip>` (all except)
 
 | Command | Description |
 |---------|-------------|
-| `bgp peer <sel> show` | Show matching peers |
+| `bgp peer <sel> list` | List matching peers (brief) |
+| `bgp peer <sel> show` | Show matching peers (detailed) |
 | `bgp peer <sel> teardown [subcode]` | Graceful close (NOTIFICATION) |
 | `bgp peer <sel> update text\|hex\|base64 ...` | Announce/withdraw routes |
 | `bgp peer <sel> borr <family>` | Begin-of-Route-Refresh (RFC 7313) |
@@ -567,7 +561,7 @@ subscribe rib event route
 
 **Subscription timing:** Subscriptions receive FUTURE events only. To get current state:
 1. Subscribe to events first
-2. Query `bgp show` for existing peer states
+2. Query `bgp peer * show` for existing peer states
 3. Process both query results and incoming events
 
 ---

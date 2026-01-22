@@ -289,18 +289,59 @@ SetPeerTTL(addr netip.Addr, ttl uint8) error
 RestartBGP() error
 ```
 
+## Implementation Summary
+
+### What Was Implemented
+
+**Core migration complete:**
+- All `daemon *` → `bgp daemon *`
+- All `peer <sel> *` → `bgp peer <sel> *`
+- Dispatcher updated for `bgp peer <sel>` prefix extraction
+- RIB plugin updated to use new command syntax
+
+### Deviations from Plan
+
+**`bgp list` / `bgp show` consolidated:**
+
+Original plan:
+```
+peer list       → bgp list
+peer show       → bgp show
+peer show <ip>  → bgp peer <sel> show
+```
+
+Actual implementation:
+```
+peer list       → bgp peer <sel> list
+peer show       → bgp peer <sel> show
+```
+
+**Rationale:** User feedback - redundant commands. `bgp peer * list` and `bgp peer * show` are cleaner and more consistent.
+
+### Deferred New Handlers
+
+These require ReactorInterface changes (separate work):
+- `bgp daemon restart` - needs `RestartBGP()`
+- `bgp peer <sel> tcp reset` - needs `ResetTCP()`
+- `bgp peer <sel> tcp ttl` - needs `SetPeerTTL()`
+- `bgp peer <sel> ready` - different from `plugin session ready`
+
+### Spec Discrepancy
+
+Spec table row 38 shows `bgp raw` but implementation correctly uses `bgp peer <sel> raw` since raw messages require a destination peer.
+
 ## Checklist
 
 ### 🧪 TDD
-- [ ] Tests written
-- [ ] Tests FAIL (output below)
-- [ ] Implementation complete
-- [ ] Tests PASS (output below)
+- [x] Tests written
+- [x] Tests FAIL (output below)
+- [x] Implementation complete
+- [x] Tests PASS (output below)
 
 ### Verification
-- [ ] `make lint` passes
-- [ ] `make test` passes
-- [ ] `make functional` passes
+- [x] `make lint` passes
+- [x] `make test` passes
+- [x] `make functional` passes
 
 ### Completion
 - [ ] All files committed together

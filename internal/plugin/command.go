@@ -113,8 +113,8 @@ func (d *Dispatcher) Commands() []*Command {
 }
 
 // Dispatch parses and executes a command.
-// Supports neighbor prefix: "neighbor <addr> <command>" or "neighbor * <command>".
-// If no neighbor prefix, defaults to all peers ("*").
+// Supports bgp peer prefix: "bgp peer <addr> <command>" or "bgp peer * <command>".
+// If no peer prefix, defaults to all peers ("*").
 // First checks builtin commands, then falls back to plugin registry.
 func (d *Dispatcher) Dispatch(ctx *CommandContext, input string) (*Response, error) {
 	tokens := tokenize(input)
@@ -122,19 +122,18 @@ func (d *Dispatcher) Dispatch(ctx *CommandContext, input string) (*Response, err
 		return nil, ErrEmptyCommand
 	}
 
-	// Check for neighbor/peer prefix (peer is alias for neighbor)
-	// Only applies when second token looks like an IP address or glob pattern
-	prefix := strings.ToLower(tokens[0])
+	// Check for "bgp peer <selector>" prefix
+	// Format: bgp peer <addr|*> <command>
 	peerSelector := "*"
-	if (prefix == "neighbor" || prefix == "peer") && len(tokens) >= 3 {
-		// Check if second token looks like IP/glob (contains dots or is "*")
-		if looksLikeIPOrGlob(tokens[1]) {
-			peerSelector = tokens[1]
+	if len(tokens) >= 4 && strings.EqualFold(tokens[0], "bgp") && strings.EqualFold(tokens[1], "peer") {
+		// Check if third token looks like IP/glob (contains dots, colons, or is "*")
+		if looksLikeIPOrGlob(tokens[2]) {
+			peerSelector = tokens[2]
 			if ctx != nil {
 				ctx.Peer = peerSelector
 			}
-			// Rebuild input without neighbor/peer prefix
-			input = strings.Join(tokens[2:], " ")
+			// Rebuild input: "bgp peer <command>" (without the selector)
+			input = "bgp peer " + strings.Join(tokens[3:], " ")
 		}
 	}
 

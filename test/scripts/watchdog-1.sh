@@ -15,22 +15,23 @@ do
 sleep 10
 
 # without name exabgp will use the name of the service as watchdog name
-echo "watchdog withdraw"
+# Step 5: watchdog commands moved to bgp namespace
+echo "bgp watchdog withdraw"
 sleep 5
 
 # specify a watchdog name (which may be the same or different each time)
-echo "watchdog withdraw watchdog-one"
+echo "bgp watchdog withdraw watchdog-one"
 sleep 5
 
-echo "watchdog announce"
+echo "bgp watchdog announce"
 sleep 5
 
-echo "watchdog announce watchdog-one"
+echo "bgp watchdog announce watchdog-one"
 sleep 5
 
 # we have no route with that watchdog but it does not matter, we could have after a configuration reload
 
-echo "watchdog announce watchdog-two"
-echo "watchdog withdraw watchdog-two"
+echo "bgp watchdog announce watchdog-two"
+echo "bgp watchdog withdraw watchdog-two"
 
 done

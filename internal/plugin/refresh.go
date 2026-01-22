@@ -9,14 +9,14 @@ import (
 // RegisterRefreshHandlers registers route refresh command handlers.
 // RFC 7313: Enhanced Route Refresh Capability for BGP-4.
 func RegisterRefreshHandlers(d *Dispatcher) {
-	d.Register("borr", handleBoRR,
-		"Send Beginning of Route Refresh: peer <selector> borr <family>")
-	d.Register("eorr", handleEoRR,
-		"Send End of Route Refresh: peer <selector> eorr <family>")
+	d.Register("bgp peer borr", handleBoRR,
+		"Send Beginning of Route Refresh: bgp peer <selector> borr <family>")
+	d.Register("bgp peer eorr", handleEoRR,
+		"Send End of Route Refresh: bgp peer <selector> eorr <family>")
 }
 
 // handleBoRR sends a Beginning of Route Refresh marker.
-// Usage: peer <selector> borr <family>
+// Usage: bgp peer <selector> borr <family>
 //
 // RFC 7313 Section 4: "Before the speaker starts a route refresh...
 // the speaker MUST send a BoRR message.".
@@ -24,7 +24,7 @@ func handleBoRR(ctx *CommandContext, args []string) (*Response, error) {
 	if len(args) < 1 {
 		return &Response{
 			Status: statusError,
-			Data:   "usage: peer <selector> borr <family>",
+			Data:   "usage: bgp peer <selector> borr <family>",
 		}, fmt.Errorf("missing family")
 	}
 
@@ -57,7 +57,7 @@ func handleBoRR(ctx *CommandContext, args []string) (*Response, error) {
 }
 
 // handleEoRR sends an End of Route Refresh marker.
-// Usage: peer <selector> eorr <family>
+// Usage: bgp peer <selector> eorr <family>
 //
 // RFC 7313 Section 4: "After the speaker completes the re-advertisement
 // of the entire Adj-RIB-Out to the peer, it MUST send an EoRR message.".
@@ -65,7 +65,7 @@ func handleEoRR(ctx *CommandContext, args []string) (*Response, error) {
 	if len(args) < 1 {
 		return &Response{
 			Status: statusError,
-			Data:   "usage: peer <selector> eorr <family>",
+			Data:   "usage: bgp peer <selector> eorr <family>",
 		}, fmt.Errorf("missing family")
 	}
 

@@ -72,11 +72,11 @@ expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0055020000003E400101
 expect=json:conn=1:seq=1:json={"meta":{"version":"1.0.0","format":"ze-bgp"},"message":{"type":"update"},"origin":"igp","local-preference":100,"extended-community":[{"string":"rate-limit:0","value":9225060886715039744}],"ipv4/flowspec":[{"action":"add","nlri":{"destination":[["10.0.0.2/32/0"]],"source":[["10.0.0.1/32/0"]],"protocol":[["=tcp"]],"destination-port":[["=3128"]],"tcp-flags":[["=syn"],["=rst","=fin","!push"]]}}]}
 
 # EOR
-cmd=api:conn=1:seq=1:text=announce eor ipv4 flow
+cmd=api:conn=1:seq=1:text=bgp peer * update text nlri ipv4/flow eor
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001E0200000007900F0003000185
-cmd=api:conn=1:seq=1:text=announce eor ipv4 flow-vpn
+cmd=api:conn=1:seq=1:text=bgp peer * update text nlri ipv4/flow eor-vpn
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001E0200000007900F0003000186
-cmd=api:conn=1:seq=1:text=announce eor ipv6 flow
+cmd=api:conn=1:seq=1:text=bgp peer * update text nlri ipv6/flow eor
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001E0200000007900F0003000285
 EOF_PEER
 

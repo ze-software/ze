@@ -1,9 +1,9 @@
 # ze-peer expectations
 stdin=peer:terminator=EOF_PEER
-cmd=api:conn=1:seq=1:text=update text origin set igp local-preference set 100 nhop set 1.2.3.4 nlri ipv4/unicast add 1.0.0.0/24
+cmd=api:conn=1:seq=1:text=bgp peer * update text origin set igp local-preference set 100 nhop set 1.2.3.4 nlri ipv4/unicast add 1.0.0.0/24
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0030020000001540010100400200400304010203044005040000006418010000
 expect=json:conn=1:seq=1:json={"meta":{"version":"1.0.0","format":"ze-bgp"},"message":{"type":"update"},"peer":{"address":"127.0.0.1","asn":65533},"direction":"in","local-preference":100,"origin":"igp","ipv4/unicast":[{"action":"add","nlri":["1.0.0.0/24"],"next-hop":"1.2.3.4"}]}
-cmd=api:conn=1:seq=1:text=announce eor ipv4/unicast
+cmd=api:conn=1:seq=1:text=bgp peer * update text nlri ipv4/unicast eor
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_PEER
 

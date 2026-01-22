@@ -15,20 +15,21 @@ while (1) {
     sleep 10;
 
     # without a name, exabgp will use the name of the service as the name of the watchdog
-    print "watchdog withdraw\n";
+    # Step 5: watchdog commands moved to bgp namespace
+    print "bgp watchdog withdraw\n";
     sleep 5;
 
     # specify a watchdog name (which may be the same or different each time)
-    print "watchdog withdraw watchdog-one\n";
+    print "bgp watchdog withdraw watchdog-one\n";
     sleep 5;
 
-    print "watchdog announce\n";
+    print "bgp watchdog announce\n";
     sleep 5;
 
-    print "watchdog announce watchdog-one\n";
+    print "bgp watchdog announce watchdog-one\n";
     sleep 5;
 
     # In our example, there are no routes that are tied to these watchdogs, but we may after a future config reload
-    print "watchdog announce watchdog-two\n";
-    print "watchdog withdraw watchdog-two\n";
+    print "bgp watchdog announce watchdog-two\n";
+    print "bgp watchdog withdraw watchdog-two\n";
 }

@@ -143,8 +143,8 @@ func TestRefreshCommands(t *testing.T) {
 			d := NewDispatcher()
 			RegisterDefaultHandlers(d)
 
-			// Build command string
-			input := "peer " + tc.peer + " " + tc.cmd
+			// Build command string (Step 5: now uses bgp peer prefix)
+			input := "bgp peer " + tc.peer + " " + tc.cmd
 			if tc.family != "" {
 				input += " " + tc.family
 			}
@@ -217,7 +217,7 @@ func TestRefreshErrors(t *testing.T) {
 			RegisterDefaultHandlers(d)
 
 			ctx := &CommandContext{Reactor: mock}
-			resp, err := d.Dispatch(ctx, "peer 10.0.0.1 "+tc.cmd+" ipv4/unicast")
+			resp, err := d.Dispatch(ctx, "bgp peer 10.0.0.1 "+tc.cmd+" ipv4/unicast")
 
 			if err == nil && (resp == nil || resp.Status != statusError) {
 				t.Error("expected error status when reactor fails")

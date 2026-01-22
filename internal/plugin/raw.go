@@ -12,13 +12,13 @@ import (
 
 // RegisterRawHandlers registers raw passthrough commands.
 func RegisterRawHandlers(d *Dispatcher) {
-	d.Register("raw", handleRaw, "Send raw bytes to peer (no validation)")
+	d.Register("bgp peer raw", handleRaw, "Send raw bytes to peer (no validation)")
 }
 
 // handleRaw sends raw bytes to a peer without validation.
 // Syntax:
-//   - raw <type> <encoding> <data>  - message payload (ZeBGP adds header)
-//   - raw <encoding> <data>         - full packet (user provides marker+header)
+//   - bgp peer <addr> raw <type> <encoding> <data>  - message payload (ZeBGP adds header)
+//   - bgp peer <addr> raw <encoding> <data>         - full packet (user provides marker+header)
 //
 // Types: open, update, notification, keepalive, route-refresh
 // Encodings: hex, b64
@@ -28,7 +28,7 @@ func handleRaw(ctx *CommandContext, args []string) (*Response, error) {
 	if ctx.Peer == "" || ctx.Peer == "*" {
 		return &Response{
 			Status: statusError,
-			Data:   "raw requires specific peer: peer <addr> raw ...",
+			Data:   "raw requires specific peer: bgp peer <addr> raw ...",
 		}, fmt.Errorf("raw requires specific peer")
 	}
 

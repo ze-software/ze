@@ -22,8 +22,8 @@ EOF_CONF
 
 option=file:path=tmpfs-ebgp.conf
 option=asn:value=65000
-cmd=api:conn=1:seq=1:text=update text origin set igp as-path set [65533] nhop set 10.0.1.254 nlri ipv4/unicast add 10.0.0.0/24
+cmd=api:conn=1:seq=1:text=bgp peer * update text origin set igp as-path set [65533] nhop set 10.0.1.254 nlri ipv4/unicast add 10.0.0.0/24
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002F02000000144001010040020602010000FFFD4003040A0001FE180A0000
 expect=json:conn=1:seq=1:json={"meta":{"version":"1.0.0","format":"ze-bgp"},"message":{"type":"update"},"peer":{"address":"127.0.0.1","asn":65533},"direction":"in","as-path":{"0":{"element":"as-sequence","value":[65533]}},"origin":"igp","ipv4/unicast":[{"action":"add","nlri":["10.0.0.0/24"],"next-hop":"10.0.1.254"}]}
-cmd=api:conn=1:seq=1:text=announce eor ipv4/unicast
+cmd=api:conn=1:seq=1:text=bgp peer * update text nlri ipv4/unicast eor
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000

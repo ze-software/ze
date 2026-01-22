@@ -15,18 +15,16 @@ const APIVersion = "0.1.0"
 
 // RegisterDefaultHandlers registers all command handlers.
 func RegisterDefaultHandlers(d *Dispatcher) {
-	// Daemon control
-	d.Register("daemon shutdown", handleDaemonShutdown, "Gracefully shutdown the daemon")
-	d.Register("daemon status", handleDaemonStatus, "Show daemon status")
-	d.Register("daemon reload", handleDaemonReload, "Reload the configuration")
+	// BGP daemon control (moved from daemon * to bgp daemon *)
+	d.Register("bgp daemon shutdown", handleDaemonShutdown, "Gracefully shutdown the daemon")
+	d.Register("bgp daemon status", handleDaemonStatus, "Show daemon status")
+	d.Register("bgp daemon reload", handleDaemonReload, "Reload the configuration")
 
-	// Peer operations
-	d.Register("peer list", handlePeerList, "List all peers (brief)")
-	d.Register("peer show", handlePeerShow, "Show peer details")
-	d.Register("peer teardown", handlePeerTeardown, "Teardown a peer session")
-
-	// Teardown command (for "neighbor <ip> teardown <subcode>" syntax)
-	d.Register("teardown", handleTeardown, "Teardown peer session with cease subcode")
+	// BGP peer operations (use "bgp peer <selector> <cmd>" syntax)
+	// The selector is extracted by dispatcher, handlers receive remaining args
+	d.Register("bgp peer list", handleBgpPeerList, "List peer(s) (brief)")
+	d.Register("bgp peer show", handleBgpPeerShow, "Show peer(s) details")
+	d.Register("bgp peer teardown", handleTeardown, "Teardown peer session with cease subcode")
 
 	// System commands
 	d.Register("system help", handleSystemHelp, "Show available commands")
@@ -54,6 +52,9 @@ func RegisterDefaultHandlers(d *Dispatcher) {
 
 	// Plugin namespace (lifecycle + introspection)
 	RegisterPluginHandlers(d)
+
+	// BGP namespace (introspection + plugin configuration)
+	RegisterBgpHandlers(d)
 
 	// Forward operations (route reflection via update-id)
 	RegisterForwardHandlers(d)
@@ -108,31 +109,23 @@ func handleDaemonReload(ctx *CommandContext, _ []string) (*Response, error) {
 	}, nil
 }
 
-// handlePeerList returns a brief list of all peers.
-func handlePeerList(ctx *CommandContext, _ []string) (*Response, error) {
-	peers := ctx.Reactor.Peers()
-	return &Response{
-		Status: "done",
-		Data: map[string]any{
-			"peers": peers,
-		},
-	}, nil
-}
-
-// handlePeerShow returns detailed peer information.
-// If args contains an IP, filters to that specific peer.
-func handlePeerShow(ctx *CommandContext, args []string) (*Response, error) {
+// handleBgpPeerList returns a brief list of peer(s).
+// Used by "bgp peer <selector> list" - filters to matching peers.
+// The selector is extracted by dispatcher into ctx.Peer.
+func handleBgpPeerList(ctx *CommandContext, _ []string) (*Response, error) {
 	allPeers := ctx.Reactor.Peers()
-
 	var peers []PeerInfo
 
-	if len(args) > 0 {
-		// Filter to specific peer
-		filterIP, err := netip.ParseAddr(args[0])
+	selector := ctx.PeerSelector()
+	if selector == "*" {
+		peers = allPeers
+	} else {
+		// Filter to specific peer(s) matching selector
+		filterIP, err := netip.ParseAddr(selector)
 		if err != nil {
 			return &Response{
 				Status: "error",
-				Data:   fmt.Sprintf("invalid IP address: %s", args[0]),
+				Data:   fmt.Sprintf("invalid IP address: %s", selector),
 			}, err
 		}
 
@@ -142,8 +135,42 @@ func handlePeerShow(ctx *CommandContext, args []string) (*Response, error) {
 				break
 			}
 		}
-	} else {
+	}
+
+	return &Response{
+		Status: "done",
+		Data: map[string]any{
+			"peers": peers,
+		},
+	}, nil
+}
+
+// handleBgpPeerShow returns detailed peer information.
+// Used by "bgp peer <selector> show" - filters to matching peers.
+// The selector is extracted by dispatcher into ctx.Peer.
+func handleBgpPeerShow(ctx *CommandContext, _ []string) (*Response, error) {
+	allPeers := ctx.Reactor.Peers()
+	var peers []PeerInfo
+
+	selector := ctx.PeerSelector()
+	if selector == "*" {
 		peers = allPeers
+	} else {
+		// Filter to specific peer(s) matching selector
+		filterIP, err := netip.ParseAddr(selector)
+		if err != nil {
+			return &Response{
+				Status: "error",
+				Data:   fmt.Sprintf("invalid IP address: %s", selector),
+			}, err
+		}
+
+		for _, p := range allPeers {
+			if p.Address == filterIP {
+				peers = append(peers, p)
+				break
+			}
+		}
 	}
 
 	return &Response{
@@ -177,9 +204,10 @@ func handleSystemHelp(ctx *CommandContext, _ []string) (*Response, error) {
 	// Fallback if no dispatcher
 	if len(commands) == 0 {
 		commands = []string{
-			"daemon shutdown - Gracefully shutdown the daemon",
-			"daemon status - Show daemon status",
-			"peer list - List all peers",
+			"bgp daemon shutdown - Gracefully shutdown the daemon",
+			"bgp daemon status - Show daemon status",
+			"bgp peer <selector> list - List peer(s) (brief)",
+			"bgp peer <selector> show - Show peer(s) details",
 			"system help - Show available commands",
 			"system version software - Show ZeBGP version",
 			"system version api - Show IPC protocol version",
@@ -238,63 +266,14 @@ func handleSystemSubsystemList(_ *CommandContext, _ []string) (*Response, error)
 	}, nil
 }
 
-// handlePeerTeardown closes a peer session.
-// Usage: peer teardown <ip> [subcode]
-// Subcode defaults to 3 (Peer De-configured) if not specified.
-func handlePeerTeardown(ctx *CommandContext, args []string) (*Response, error) {
-	if len(args) < 1 {
-		return &Response{
-			Status: "error",
-			Data:   "usage: peer teardown <ip> [subcode]",
-		}, fmt.Errorf("missing peer address")
-	}
-
-	addr, err := netip.ParseAddr(args[0])
-	if err != nil {
-		return &Response{
-			Status: "error",
-			Data:   fmt.Sprintf("invalid IP address: %s", args[0]),
-		}, err
-	}
-
-	// Optional subcode (default: 3 = Peer De-configured)
-	subcode := uint8(3)
-	if len(args) > 1 {
-		var code uint64
-		code, err = parseUint(args[1])
-		if err != nil || code > 255 {
-			return &Response{
-				Status: "error",
-				Data:   fmt.Sprintf("invalid subcode: %s", args[1]),
-			}, fmt.Errorf("invalid subcode: %s", args[1])
-		}
-		subcode = uint8(code)
-	}
-
-	if err := ctx.Reactor.TeardownPeer(addr, subcode); err != nil {
-		return &Response{
-			Status: "error",
-			Data:   fmt.Sprintf("teardown failed: %v", err),
-		}, err
-	}
-
-	return &Response{
-		Status: "done",
-		Data: map[string]any{
-			"peer":    addr.String(),
-			"subcode": subcode,
-		},
-	}, nil
-}
-
-// handleTeardown handles "neighbor <ip> teardown <subcode>" command.
-// The neighbor IP is extracted by the dispatcher into ctx.Peer.
+// handleTeardown handles "bgp peer <ip> teardown <subcode>" command.
+// The peer IP is extracted by the dispatcher into ctx.Peer.
 // Subcode is the Cease subcode per RFC 4486.
 func handleTeardown(ctx *CommandContext, args []string) (*Response, error) {
 	if len(args) < 1 {
 		return &Response{
 			Status: "error",
-			Data:   "usage: neighbor <ip> teardown <subcode>",
+			Data:   "usage: bgp peer <ip> teardown <subcode>",
 		}, fmt.Errorf("missing cease subcode")
 	}
 
@@ -303,7 +282,7 @@ func handleTeardown(ctx *CommandContext, args []string) (*Response, error) {
 	if peer == "*" || peer == "" {
 		return &Response{
 			Status: "error",
-			Data:   "teardown requires specific peer: neighbor <ip> teardown <subcode>",
+			Data:   "teardown requires specific peer: bgp peer <ip> teardown <subcode>",
 		}, fmt.Errorf("no peer specified")
 	}
 

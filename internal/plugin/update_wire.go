@@ -116,7 +116,7 @@ func decoderForEncoding(enc WireEncoding) decodeFunc {
 		return decodeHex
 	case WireEncodingB64:
 		return decodeB64
-	case WireEncodingCBOR, WireEncodingText:
+	case WireEncodingText:
 		return decodeHex // Default fallback for non-wire encodings
 	}
 	return decodeHex // Default fallback

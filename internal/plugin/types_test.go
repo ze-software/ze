@@ -120,6 +120,16 @@ func TestResponseMarshalFormat(t *testing.T) {
 	}
 }
 
+// TestCBOREncodingRemoved verifies CBOR encoding is no longer accepted.
+//
+// VALIDATES: ParseWireEncoding rejects "cbor" with error.
+// PREVENTS: CBOR being accidentally re-added (incompatible with line-delimited protocol).
+func TestCBOREncodingRemoved(t *testing.T) {
+	_, err := ParseWireEncoding("cbor")
+	require.Error(t, err, "CBOR encoding should not be accepted")
+	assert.Contains(t, err.Error(), "invalid wire encoding")
+}
+
 // TestNewResponseHelpers verifies response helper functions.
 //
 // VALIDATES: NewResponse and NewErrorResponse create correct structures.

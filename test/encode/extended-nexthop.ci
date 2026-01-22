@@ -1,18 +1,18 @@
 # ze-peer expectations
 stdin=peer:terminator=EOF_PEER
-cmd=api:conn=1:seq=1:text=update text origin set igp local-preference set 100 nhop set bad:cafe:bad:cafe:bad:cafe:bad:cafe nlri ipv4/unicast add 153.153.153.153/32
+cmd=api:conn=1:seq=1:text=bgp peer * update text origin set igp local-preference set 100 nhop set bad:cafe:bad:cafe:bad:cafe:bad:cafe nlri ipv4/unicast add 153.153.153.153/32
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0042020000002B4001010040020040050400000064800E1A000101100BADCAFE0BADCAFE0BADCAFE0BADCAFE002099999999
 expect=json:conn=1:seq=1:json={"meta":{"version":"1.0.0","format":"ze-bgp"},"message":{"type":"update"},"peer":{"address":"127.0.0.1","asn":65533},"direction":"in","local-preference":100,"origin":"igp","ipv4/unicast":[{"action":"add","nlri":["153.153.153.153/32"],"next-hop":"bad:cafe:bad:cafe:bad:cafe:bad:cafe"}]}
-cmd=api:conn=1:seq=1:text=update text origin set igp local-preference set 100 nhop set 170.170.170.170 nlri ipv6/unicast add dead:beef:dead:beef:dead:beef:dead:beef/128
+cmd=api:conn=1:seq=1:text=bgp peer * update text origin set igp local-preference set 100 nhop set 170.170.170.170 nlri ipv6/unicast add dead:beef:dead:beef:dead:beef:dead:beef/128
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0049020000003240010100400200400304AAAAAAAA40050400000064800E1A00020104AAAAAAAA0080DEADBEEFDEADBEEFDEADBEEFDEADBEEF
 expect=json:conn=1:seq=1:json={"meta":{"version":"1.0.0","format":"ze-bgp"},"message":{"type":"update"},"peer":{"address":"127.0.0.1","asn":65533},"direction":"in","local-preference":100,"origin":"igp","ipv6/unicast":[{"action":"add","nlri":["dead:beef:dead:beef:dead:beef:dead:beef/128"],"next-hop":"170.170.170.170"}]}
-cmd=api:conn=1:seq=1:text=announce eor ipv4/unicast
+cmd=api:conn=1:seq=1:text=bgp peer * update text nlri ipv4/unicast eor
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
-cmd=api:conn=1:seq=1:text=announce eor ipv4/mpls-vpn
+cmd=api:conn=1:seq=1:text=bgp peer * update text nlri ipv4/mpls-vpn eor
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001E0200000007900F0003000180
-cmd=api:conn=1:seq=1:text=announce eor ipv6/unicast
+cmd=api:conn=1:seq=1:text=bgp peer * update text nlri ipv6/unicast eor
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001E0200000007900F0003000201
-cmd=api:conn=1:seq=1:text=announce eor ipv6/mpls-vpn
+cmd=api:conn=1:seq=1:text=bgp peer * update text nlri ipv6/mpls-vpn eor
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001E0200000007900F0003000280
 EOF_PEER
 

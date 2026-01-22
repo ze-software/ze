@@ -89,16 +89,11 @@ Engine provides reactor methods; plugins register commands that use them.
 | `bgp plugin format hex\|base64\|parsed\|full` | Wire bytes (JSON only) |
 | `bgp plugin ack sync\|async` | ACK timing |
 
-**Peer Listing:**
-| Command | Purpose |
-|---------|---------|
-| `bgp list` | List peers (brief) |
-| `bgp show` | Show all peers (detailed) |
-
 **Peer Operations:**
 | Command | Purpose |
 |---------|---------|
-| `bgp peer <sel> show` | Show specific peer |
+| `bgp peer <sel> list` | List matching peers (brief) |
+| `bgp peer <sel> show` | Show matching peers (detailed) |
 | `bgp peer <sel> teardown [subcode]` | Graceful close (NOTIFICATION) |
 | `bgp peer <sel> update text\|hex\|base64 ...` | Announce/withdraw routes |
 | `bgp peer <sel> borr <family>` | RFC 7313 BoRR marker |
@@ -248,8 +243,8 @@ Engine provides reactor methods; plugins register commands that use them.
 | `daemon shutdown` | `bgp daemon shutdown` |
 | `daemon status` | `bgp daemon status` |
 | `daemon reload` | `bgp daemon reload` |
-| `peer list` | `bgp list` |
-| `peer show` | `bgp show` |
+| `peer list` | `bgp peer <sel> list` |
+| `peer show` | `bgp peer <sel> show` |
 | `peer teardown <ip>` | `bgp peer <sel> teardown` |
 | `peer <sel> update ...` | `bgp peer <sel> update ...` |
 | `peer <sel> forward update-id <id>` | `bgp cache <id> forward <sel>` *(plugin)* |
@@ -354,7 +349,7 @@ Plugin subscribing after peers established doesn't get current state.
 
 **Decision:** Document as "future events only". Plugin should:
 1. Subscribe to events
-2. Query `bgp show` for current state
+2. Query `bgp peer * show` for current state
 3. Handle both existing and new peers
 
 ## Design Decisions
@@ -441,8 +436,9 @@ subscribe rib event route
 |------|------|-----------|--------|
 | `TestDispatchPluginSessionReady` | `internal/plugin/handler_test.go` | `plugin session ready` | |
 | `TestDispatchPluginSessionPing` | `internal/plugin/handler_test.go` | `plugin session ping` | |
-| `TestDispatchBgpList` | `internal/plugin/handler_test.go` | `bgp list` routes correctly | |
-| `TestDispatchBgpPeerShow` | `internal/plugin/handler_test.go` | `bgp peer <sel> show` | |
+| `TestDispatchBgpPeerList` | `internal/plugin/handler_test.go` | `bgp peer <sel> list` | |
+| `TestDispatchBgpPeerShow` | `internal/plugin/handler_test.go` | `bgp peer <sel> show` (all) | |
+| `TestDispatchBgpPeerShowSpecific` | `internal/plugin/handler_test.go` | `bgp peer <ip> show` (specific) | |
 | `TestDispatchBgpPeerUpdate` | `internal/plugin/handler_test.go` | `bgp peer <sel> update text` | |
 | `TestDispatchBgpPluginEncoding` | `internal/plugin/handler_test.go` | `bgp plugin encoding json` | |
 | `TestDispatchBgpPluginAck` | `internal/plugin/handler_test.go` | `bgp plugin ack sync` | |

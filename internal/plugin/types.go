@@ -514,8 +514,10 @@ type ServerConfig struct {
 
 // Format constants for process output formatting.
 const (
+	FormatHex    = "hex"    // Wire bytes as hex string
+	FormatBase64 = "base64" // Wire bytes as base64
 	FormatParsed = "parsed" // Decoded/interpreted fields only (default)
-	FormatRaw    = "raw"    // Wire bytes only (hex)
+	FormatRaw    = "raw"    // Wire bytes only (hex) - alias for FormatHex
 	FormatFull   = "full"   // Both parsed content AND raw bytes
 )
 
@@ -527,15 +529,13 @@ type WireEncoding uint8
 const (
 	WireEncodingHex  WireEncoding = iota // Hex string (default, human-readable)
 	WireEncodingB64                      // Base64 (33% overhead, compact)
-	WireEncodingCBOR                     // CBOR binary (0% overhead, native)
 	WireEncodingText                     // Parsed text (no wire bytes)
 )
 
 // Wire encoding name constants.
 const (
-	wireEncHex  = "hex"
-	wireEncB64  = "b64"
-	wireEncCBOR = "cbor"
+	wireEncHex = "hex"
+	wireEncB64 = "b64"
 )
 
 // String returns the encoding name.
@@ -545,8 +545,6 @@ func (e WireEncoding) String() string {
 		return wireEncHex
 	case WireEncodingB64:
 		return wireEncB64
-	case WireEncodingCBOR:
-		return wireEncCBOR
 	case WireEncodingText:
 		return EncodingText
 	default:
@@ -562,12 +560,10 @@ func ParseWireEncoding(s string) (WireEncoding, error) {
 		return WireEncodingHex, nil
 	case wireEncB64, "base64":
 		return WireEncodingB64, nil
-	case wireEncCBOR:
-		return WireEncodingCBOR, nil
 	case EncodingText:
 		return WireEncodingText, nil
 	default:
-		return WireEncodingHex, fmt.Errorf("invalid wire encoding: %q (valid: hex, b64, cbor, text)", s)
+		return WireEncodingHex, fmt.Errorf("invalid wire encoding: %q (valid: hex, b64, text)", s)
 	}
 }
 

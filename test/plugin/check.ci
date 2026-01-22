@@ -3,15 +3,15 @@
 # ze-peer expectations
 stdin=peer:terminator=EOF_PEER
 option=update:value=send-default-route
-cmd=api:conn=1:seq=1:text=announce eor ipv4/unicast
+cmd=api:conn=1:seq=1:text=bgp peer * update text nlri ipv4/unicast eor
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
-cmd=api:conn=1:seq=1:text=announce eor ipv6/unicast
+cmd=api:conn=1:seq=1:text=bgp peer * update text nlri ipv6/unicast eor
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001E0200000007900F0003000201
-cmd=api:conn=1:seq=1:text=announce ipv6/unicast ::1/128 next-hop ::1 origin igp local-preference 100
+cmd=api:conn=1:seq=1:text=bgp peer * update text origin set igp local-preference set 100 nhop set ::1 nlri ipv6/unicast add ::1/128
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF004E02000000374001010040020040050400000064800E260002011000000000000000000000000000000001008000000000000000000000000000000001
-cmd=api:conn=1:seq=1:text=update text origin set igp local-preference set 100 nhop set 127.0.0.2 nlri ipv4/unicast add 127.0.0.1/32
+cmd=api:conn=1:seq=1:text=bgp peer * update text origin set igp local-preference set 100 nhop set 127.0.0.2 nlri ipv4/unicast add 127.0.0.1/32
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00310200000015400101004002004003047F00000240050400000064207F000001
-cmd=api:conn=1:seq=1:text=update text origin set igp local-preference set 100 nhop set 5.6.7.8 nlri ipv4/unicast add 1.2.3.4/32
+cmd=api:conn=1:seq=1:text=bgp peer * update text origin set igp local-preference set 100 nhop set 5.6.7.8 nlri ipv4/unicast add 1.2.3.4/32
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF003102000000154001010040020040030405060708400504000000642001020304
 EOF_PEER
 
@@ -45,12 +45,12 @@ def main() -> None:
                 and 'origin igp' in line
                 and 'local-preference 100' in line
             ):
-                flush('peer 127.0.0.1 update text nhop set 255.255.255.255 nlri ipv4/unicast add 0.0.0.0/0\n')
+                flush('bgp peer 127.0.0.1 update text nhop set 255.255.255.255 nlri ipv4/unicast add 0.0.0.0/0\n')
                 time.sleep(1)
                 sys.exit(1)
             break
 
-        flush('peer 127.0.0.1 update text origin set igp local-preference set 100 nhop set 5.6.7.8 nlri ipv4/unicast add 1.2.3.4/32\n')
+        flush('bgp peer 127.0.0.1 update text origin set igp local-preference set 100 nhop set 5.6.7.8 nlri ipv4/unicast add 1.2.3.4/32\n')
         if not wait_for_ack():
             # ACK not received, continuing anyway (ACKs may be disabled in config)
             pass

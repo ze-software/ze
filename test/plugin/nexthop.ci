@@ -2,16 +2,16 @@
 
 # ze-peer expectations
 stdin=peer:terminator=EOF_PEER
-# 1:raw:FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF:0017:02:00000000
-cmd=api:conn=1:seq=1:text=announce ipv6/unicast 2605::2/128 next-hop 2001::1 origin igp local-preference 500
+# Step 5: commands migrated to bgp peer prefix
+cmd=api:conn=1:seq=1:text=bgp peer * update text origin set igp local-preference set 500 nhop set 2001::1 nlri ipv6/unicast add 2605::2/128
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF004E020000003740010100400200400504000001F4800E260002011020010000000000000000000000000001008026050000000000000000000000000002
 expect=json:conn=1:seq=1:json={"meta":{"version":"1.0.0","format":"ze-bgp"},"message":{"type":"update"},"peer":{"address":"127.0.0.1","asn":65533},"direction":"in","local-preference":500,"origin":"igp","ipv6/unicast":[{"action":"add","nlri":["2605::2/128"],"next-hop":"2001::1"}]}
-cmd=api:conn=1:seq=2:text=announce eor ipv6/unicast
+cmd=api:conn=1:seq=2:text=bgp peer * update text nlri ipv6/unicast eor
 expect=bgp:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001E0200000007900F0003000201
-cmd=api:conn=1:seq=3:text=announce ipv6/unicast 2605::2/128 next-hop 2001::2 origin igp local-preference 500
+cmd=api:conn=1:seq=3:text=bgp peer * update text origin set igp local-preference set 500 nhop set 2001::2 nlri ipv6/unicast add 2605::2/128
 expect=bgp:conn=1:seq=3:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF004E020000003740010100400200400504000001F4800E260002011020010000000000000000000000000002008026050000000000000000000000000002
 expect=json:conn=1:seq=3:json={"meta":{"version":"1.0.0","format":"ze-bgp"},"message":{"type":"update"},"peer":{"address":"127.0.0.1","asn":65533},"direction":"in","local-preference":500,"origin":"igp","ipv6/unicast":[{"action":"add","nlri":["2605::2/128"],"next-hop":"2001::2"}]}
-cmd=api:conn=1:seq=4:text=announce ipv6/unicast 2605::2/128 next-hop 2001::1 origin igp local-preference 500
+cmd=api:conn=1:seq=4:text=bgp peer * update text origin set igp local-preference set 500 nhop set 2001::1 nlri ipv6/unicast add 2605::2/128
 expect=bgp:conn=1:seq=4:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF004E020000003740010100400200400504000001F4800E260002011020010000000000000000000000000001008026050000000000000000000000000002
 expect=json:conn=1:seq=4:json={"meta":{"version":"1.0.0","format":"ze-bgp"},"message":{"type":"update"},"peer":{"address":"127.0.0.1","asn":65533},"direction":"in","local-preference":500,"origin":"igp","ipv6/unicast":[{"action":"add","nlri":["2605::2/128"],"next-hop":"2001::1"}]}
 EOF_PEER
@@ -28,13 +28,13 @@ from ze_bgp_api import ready, send, wait_for_shutdown
 def main() -> None:
     ready()
 
-    send('neighbor 127.0.0.1 update text local-preference set 500 nhop set 2001::1 nlri ipv6/unicast add 2605::2/128')
+    send('bgp peer * update text origin set igp local-preference set 500 nhop set 2001::1 nlri ipv6/unicast add 2605::2/128')
     time.sleep(0.2)
 
-    send('neighbor 127.0.0.1 update text local-preference set 500 nhop set 2001::2 nlri ipv6/unicast add 2605::2/128')
+    send('bgp peer * update text origin set igp local-preference set 500 nhop set 2001::2 nlri ipv6/unicast add 2605::2/128')
     time.sleep(0.2)
 
-    send('neighbor 127.0.0.1 update text local-preference set 500 nhop set 2001::1 nlri ipv6/unicast add 2605::2/128')
+    send('bgp peer * update text origin set igp local-preference set 500 nhop set 2001::1 nlri ipv6/unicast add 2605::2/128')
 
     wait_for_shutdown()
 

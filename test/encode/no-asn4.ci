@@ -1,6 +1,6 @@
 # ze-peer expectations
 stdin=peer:terminator=EOF_PEER
-cmd=api:conn=1:seq=1:text=update text origin set igp as-path set [100] local-preference set 100 nhop set 10.0.255.254 nlri ipv4/unicast add 10.0.1.0/24
+cmd=api:conn=1:seq=1:text=bgp peer * update text origin set igp as-path set [100] local-preference set 100 nhop set 10.0.255.254 nlri ipv4/unicast add 10.0.1.0/24
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0034020000001940010100400204020100644003040A00FFFE40050400000064180A0001
 EOF_PEER
 

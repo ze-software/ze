@@ -1,7 +1,7 @@
 # ze-peer expectations
 stdin=peer:terminator=EOF_PEER
 option=open:value=send-unknown-capability
-cmd=api:conn=1:seq=1:text=announce eor ipv4/unicast
+cmd=api:conn=1:seq=1:text=bgp peer * update text nlri ipv4/unicast eor
 expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
 EOF_PEER
 

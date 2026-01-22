@@ -156,8 +156,8 @@ func TestServerCommandExecution(t *testing.T) {
 	conn := dialUnix(t, sockPath)
 	defer func() { _ = conn.Close() }()
 
-	// Send command
-	_, err = conn.Write([]byte("daemon status\n"))
+	// Send command (Step 5: daemon moved to bgp daemon)
+	_, err = conn.Write([]byte("bgp daemon status\n"))
 	require.NoError(t, err)
 
 	// Read response

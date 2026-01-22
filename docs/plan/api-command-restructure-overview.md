@@ -9,9 +9,9 @@ Step 1: JSON Message Format ✅
     │
     ├── Step 3: System Namespace ✅
     │
-    └── Step 4: BGP Namespace Foundation (ready)
+    └── Step 4: BGP Namespace Foundation ✅
             │
-            └── Step 5: BGP Command Migration
+            └── Step 5: BGP Command Migration ✅
                     │
                     └── Step 6: Event Subscription
                             │
@@ -29,8 +29,8 @@ Step 1: JSON Message Format ✅
 | 1 | `done/140-api-command-restructure-step-1.md` | JSON Message Format: Add `type` field | None | ✅ Done |
 | 2 | `done/141-api-command-restructure-step-2.md` | Plugin Namespace: `plugin session *` commands | Step 1 | ✅ Done |
 | 3 | `done/143-api-command-restructure-step-3.md` | System Namespace: `system version api`, `system shutdown` | Step 1 | ✅ Done |
-| 4 | `spec-api-command-restructure-step-4.md` | BGP Foundation: introspection, `bgp plugin *` config | Step 1 | Pending |
-| 5 | `spec-api-command-restructure-step-5.md` | BGP Migration: move all commands under `bgp` | Step 4 | Pending |
+| 4 | `done/144-api-command-restructure-step-4.md` | BGP Foundation: introspection, `bgp plugin *` config | Step 1 | ✅ Done |
+| 5 | `done/145-api-command-restructure-step-5.md` | BGP Migration: move all commands under `bgp` | Step 4 | ✅ Done |
 | 6 | `spec-api-command-restructure-step-6.md` | Event Subscription: `subscribe`/`unsubscribe` | Step 5 | Pending |
 | 7 | `spec-api-command-restructure-step-7.md` | RIB Namespace: plugin-provided commands | Step 6 | Pending |
 
@@ -60,16 +60,15 @@ daemon reload        → bgp daemon reload
 
 **Peer Operations:**
 ```
-peer list            → bgp list
-peer show            → bgp show
-peer show <ip>       → bgp peer <sel> show
+peer list            → bgp peer <sel> list
+peer show            → bgp peer <sel> show
 peer teardown <ip>   → bgp peer <sel> teardown
 peer <sel> update    → bgp peer <sel> update
 peer <sel> borr      → bgp peer <sel> borr
 peer <sel> eorr      → bgp peer <sel> eorr
-                     → bgp peer <sel> tcp reset (new)
-                     → bgp peer <sel> tcp ttl (new)
-                     → bgp peer <sel> ready (new)
+                     → bgp peer <sel> tcp reset (new, deferred)
+                     → bgp peer <sel> tcp ttl (new, deferred)
+                     → bgp peer <sel> ready (new, deferred)
 ```
 
 **Session Control:**

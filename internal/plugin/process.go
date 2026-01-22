@@ -79,6 +79,10 @@ type Process struct {
 	wireEncodingIn  atomic.Uint32 // Inbound: events ZeBGP→Process
 	wireEncodingOut atomic.Uint32 // Outbound: commands Process→ZeBGP
 
+	// High-level encoding and format (bgp plugin encoding/format commands)
+	encoding atomic.Value // string: "json" or "text" (default: "json")
+	format   atomic.Value // string: "hex", "base64", "parsed", "full" (default: "hex")
+
 	// ZeBGP→Process request tracking
 	nextSerial      atomic.Uint64          // Counter for alpha serial generation
 	pendingRequests map[string]chan string // serial -> response channel
@@ -200,6 +204,36 @@ func (p *Process) SetWireEncodingOut(enc WireEncoding) {
 func (p *Process) SetWireEncoding(enc WireEncoding) {
 	p.wireEncodingIn.Store(uint32(enc))
 	p.wireEncodingOut.Store(uint32(enc))
+}
+
+// Encoding returns the high-level encoding (json or text).
+func (p *Process) Encoding() string {
+	if v := p.encoding.Load(); v != nil {
+		if s, ok := v.(string); ok {
+			return s
+		}
+	}
+	return EncodingJSON // Default
+}
+
+// SetEncoding sets the high-level encoding (json or text).
+func (p *Process) SetEncoding(enc string) {
+	p.encoding.Store(enc)
+}
+
+// Format returns the wire format (hex, base64, parsed, full).
+func (p *Process) Format() string {
+	if v := p.format.Load(); v != nil {
+		if s, ok := v.(string); ok {
+			return s
+		}
+	}
+	return FormatHex // Default
+}
+
+// SetFormat sets the wire format (hex, base64, parsed, full).
+func (p *Process) SetFormat(format string) {
+	p.format.Store(format)
 }
 
 // AddRegisteredCommand tracks a command registered by this process.

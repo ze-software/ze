@@ -234,8 +234,8 @@ func TestHandleState_PeerUp(t *testing.T) {
 	r.handleState(event)
 
 	output := out.String()
-	assert.Contains(t, output, "peer 10.0.0.1 update text nhop set 1.1.1.1 nlri ipv4/unicast add 10.0.0.0/24")
-	assert.Contains(t, output, "peer 10.0.0.1 update text nhop set 1.1.1.1 nlri ipv4/unicast add 10.0.1.0/24")
+	assert.Contains(t, output, "bgp peer 10.0.0.1 update text nhop set 1.1.1.1 nlri ipv4/unicast add 10.0.0.0/24")
+	assert.Contains(t, output, "bgp peer 10.0.0.1 update text nhop set 1.1.1.1 nlri ipv4/unicast add 10.0.1.0/24")
 	assert.Contains(t, output, "plugin session ready")
 }
 
@@ -529,11 +529,11 @@ func TestReplayRoutesWithPathID(t *testing.T) {
 	output := out.String()
 
 	// Route without path-id should NOT have path-information in command
-	assert.Contains(t, output, "peer 10.0.0.1 update text nhop set 1.1.1.1 nlri ipv4/unicast add 10.0.0.0/24\n")
+	assert.Contains(t, output, "bgp peer 10.0.0.1 update text nhop set 1.1.1.1 nlri ipv4/unicast add 10.0.0.0/24\n")
 
 	// Routes with path-id MUST have path-information in command
-	assert.Contains(t, output, "peer 10.0.0.1 update text path-information set 1 nhop set 1.1.1.1 nlri ipv4/unicast add 10.0.0.0/24")
-	assert.Contains(t, output, "peer 10.0.0.1 update text path-information set 2 nhop set 2.2.2.2 nlri ipv4/unicast add 10.0.0.0/24")
+	assert.Contains(t, output, "bgp peer 10.0.0.1 update text path-information set 1 nhop set 1.1.1.1 nlri ipv4/unicast add 10.0.0.0/24")
+	assert.Contains(t, output, "bgp peer 10.0.0.1 update text path-information set 2 nhop set 2.2.2.2 nlri ipv4/unicast add 10.0.0.0/24")
 }
 
 // mustMarshal marshals v to json.RawMessage, failing test on error.
@@ -794,10 +794,10 @@ func TestHandleRequest_RIBAdjacentOutboundResend(t *testing.T) {
 	output := out.String()
 	assert.Contains(t, output, "@resend1 done")
 	// Should have replayed routes for 10.0.0.1
-	assert.Contains(t, output, "peer 10.0.0.1 update text")
+	assert.Contains(t, output, "bgp peer 10.0.0.1 update text")
 	assert.Contains(t, output, "nlri ipv4/unicast add 10.0.0.0/24")
 	// Should NOT have replayed routes for 10.0.0.2
-	assert.NotContains(t, output, "peer 10.0.0.2 update text")
+	assert.NotContains(t, output, "bgp peer 10.0.0.2 update text")
 	// Should NOT send "plugin session ready" - that's only for reconnect
 	assert.NotContains(t, output, "plugin session ready")
 }
@@ -830,7 +830,7 @@ func TestHandleRequest_RIBAdjacentOutboundResend_DownPeer(t *testing.T) {
 	assert.Contains(t, output, `"resent":0`, "should not resend to down peer")
 	assert.Contains(t, output, `"peers":0`, "no peers should be affected")
 	// Should NOT have any route updates
-	assert.NotContains(t, output, "peer 10.0.0.1 update text")
+	assert.NotContains(t, output, "bgp peer 10.0.0.1 update text")
 }
 
 // TestHandleRequest_UnknownCommand verifies unknown commands are rejected.

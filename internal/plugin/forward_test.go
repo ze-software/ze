@@ -127,30 +127,30 @@ func TestForwardCommand(t *testing.T) {
 	}{
 		{
 			name:    "forward to specific peer",
-			input:   "peer 10.0.0.2 forward update-id 12345",
+			input:   "bgp peer 10.0.0.2 forward update-id 12345",
 			wantID:  12345,
 			wantSel: "10.0.0.2",
 		},
 		{
 			name:    "forward to all except source",
-			input:   "peer !10.0.0.1 forward update-id 12345",
+			input:   "bgp peer !10.0.0.1 forward update-id 12345",
 			wantID:  12345,
 			wantSel: "!10.0.0.1",
 		},
 		{
 			name:    "forward to all peers",
-			input:   "peer * forward update-id 12345",
+			input:   "bgp peer * forward update-id 12345",
 			wantID:  12345,
 			wantSel: "*",
 		},
 		{
 			name:    "missing update-id",
-			input:   "peer 10.0.0.1 forward update-id",
+			input:   "bgp peer 10.0.0.1 forward update-id",
 			wantErr: true,
 		},
 		{
 			name:    "invalid update-id",
-			input:   "peer 10.0.0.1 forward update-id abc",
+			input:   "bgp peer 10.0.0.1 forward update-id abc",
 			wantErr: true,
 		},
 	}
@@ -208,7 +208,7 @@ func TestForwardExpiredID(t *testing.T) {
 		Reactor: mock,
 	}
 
-	resp, _ := d.Dispatch(ctx, "peer * forward update-id 99999")
+	resp, _ := d.Dispatch(ctx, "bgp peer * forward update-id 99999")
 
 	if resp.Status != statusError {
 		t.Error("expected error status for expired ID")
