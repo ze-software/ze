@@ -10,7 +10,7 @@ This document describes the debugging tools available in ZeBGP for troubleshooti
 | `ze-peer --decode` | Decode BGP messages | `ze-peer --decode --sink` |
 | `ZEBGP_TRACE` | Pipeline tracing | `ZEBGP_TRACE=all ze bgp server config.conf` |
 | Functional test diff | Test failure analysis | Automatic on message mismatch |
-| `--server N` / `--client N` | Interactive test debugging | `functional encoding --server 0` |
+| `--server N` / `--client N` | Interactive test debugging | `ze-test bgp encode --server 0` |
 
 ---
 
@@ -247,7 +247,7 @@ ZEBGP_TRACE=session,fsm ze bgp server config.conf
 
 ```bash
 # Run single test
-ze-test run encoding 0
+ze-test bgp encode 0
 
 # Output now includes decoded diff automatically
 # Look at "Differences:" section to see what's wrong
@@ -259,10 +259,10 @@ Run server and client separately to see live output:
 
 ```bash
 # Terminal 1: Start test server (ze-peer)
-ze-test run encoding --server 0
+ze-test bgp encode --server 0
 
 # Terminal 2: Start test client (zebgp)
-ze-test run encoding --client 0
+ze-test bgp encode --client 0
 ```
 
 **Behavior:**
@@ -273,8 +273,8 @@ The client uses `ze_bgp_tcp_attempts=1` automatically, so zebgp exits after the 
 
 **Use `--port` to avoid conflicts:**
 ```bash
-ze-test run encoding --server 0 --port 11790
-ze-test run encoding --client 0 --port 11790
+ze-test bgp encode --server 0 --port 11790
+ze-test bgp encode --client 0 --port 11790
 ```
 
 ---

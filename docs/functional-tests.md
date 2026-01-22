@@ -7,7 +7,7 @@ Functional tests verify ZeBGP's BGP message encoding by comparing actual wire ou
 ```bash
 # Quick start
 make functional           # Run all tests
-make functional-encoding  # Encoding tests only
+make functional-encode    # Encoding tests only
 make functional-plugin    # Plugin tests only
 ```
 
@@ -17,18 +17,18 @@ make functional-plugin    # Plugin tests only
 
 ```bash
 # List available tests
-ze-test run encoding --list
-ze-test run plugin --list
+ze-test bgp encode --list
+ze-test bgp plugin --list
 
 # Run specific tests by nick
-ze-test run encoding 4 5 6
+ze-test bgp encode 4 5 6
 
 # Run all tests
-ze-test run encoding --all
-ze-test run plugin --all
+ze-test bgp encode --all
+ze-test bgp plugin --all
 
 # Stress test (detect flaky tests)
-ze-test run encoding --count 10 0 1
+ze-test bgp encode --count 10 0 1
 ```
 
 ---
@@ -114,8 +114,8 @@ expect=json:json={ "type": "update", "neighbor": { ... }, "announce": { ... } }
 Usage: functional <command> [options] [tests...]
 
 Commands:
-  encoding    Run encoding tests (static routes)
-  api         Run API tests (dynamic routes via .run scripts)
+  encode      Run encoding tests (static routes)
+  plugin      Run plugin tests (dynamic routes via .run scripts)
 
 Modes:
   --list, -l          List available tests
@@ -153,10 +153,10 @@ Total: 62 tests max per category.
 **Examples:**
 ```bash
 # Run test with nick "4"
-ze-test run encoding 4
+ze-test bgp encode 4
 
 # Run tests 0, A, and B
-ze-test run encoding 0 A B
+ze-test bgp encode 0 A B
 ```
 
 ---
@@ -405,10 +405,10 @@ Use `--count N` (`-c N`) to run tests multiple times for benchmarking or detecti
 
 ```bash
 # Run test C 10 times with timing
-ze-test run plugin -c 10 C
+ze-test bgp plugin -c 10 C
 
 # Run all encoding tests 5 times
-ze-test run encoding -c 5 -a
+ze-test bgp encode -c 5 -a
 ```
 
 **Per-iteration timing** is shown during execution:
@@ -447,7 +447,7 @@ Total: 20 iterations, 18 passed, 2 failed, 0 timed out (90.0% pass rate)
 ### Run single test verbosely
 
 ```bash
-ze-test run encoding --timeout 60s --verbose 4
+ze-test bgp encode --timeout 60s --verbose 4
 ```
 
 ### Manual execution
@@ -596,7 +596,7 @@ The test passes if:
 
 ### Entry Point: `cmd/ze-test/`
 
-Subcommand-based CLI with `run` for test execution and `syslog` for syslog server.
+Subcommand-based CLI with `bgp` for BGP test execution and `syslog` for syslog server.
 
 ### Security
 

@@ -66,7 +66,7 @@ func main() {
 1. **Encoding test:** Create `test/data/encode/<name>.conf` and `test/data/encode/<name>.ci`
 2. **Plugin test:** Create `test/data/plugin/<name>.conf` and `test/data/plugin/<name>.ci`
 3. **Decoding test:** Create `test/decode/<name>.ci` with stdin=, cmd=, expect=json: lines
-4. **Run:** `make functional` or `ze-test run <type> --list` to verify
+4. **Run:** `make functional` or `ze-test bgp <type> --list` to verify
 
 ### CI File Format (.ci)
 
@@ -159,10 +159,10 @@ ze-peer --view qa/encoding/test.msg      # View rules only
 ### ze-test (Test Runner)
 
 ```bash
-ze-test run encoding --list      # List tests
-ze-test run encoding --all       # Run all
-ze-test run encoding 0 1 2       # By index
-ze-test run encoding --count 10 0 # Stress test
+ze-test bgp encode --list      # List tests
+ze-test bgp encode --all       # Run all
+ze-test bgp encode 0 1 2       # By index
+ze-test bgp encode --count 10 0 # Stress test
 ```
 
 ### testpeer (Library)

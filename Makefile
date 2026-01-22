@@ -1,4 +1,4 @@
-.PHONY: all build test lint clean fmt vet tidy functional functional-encoding functional-plugin functional-decoding functional-parsing help
+.PHONY: all build test lint clean fmt vet tidy functional functional-encode functional-plugin functional-decode functional-parse help
 
 # Environment: keep build caches within CURDIR (not TMPDIR - breaks Unix socket tests)
 export GOCACHE := $(CURDIR)/tmp/go-cache
@@ -58,28 +58,28 @@ test-all: test functional
 	@echo "All tests passed"
 
 # Run functional tests (all types)
-functional: functional-encoding functional-plugin functional-parsing functional-decoding
+functional: functional-encode functional-plugin functional-parse functional-decode
 	@echo "All functional tests passed"
 
-# Run encoding functional tests
-functional-encoding:
-	@echo "Running encoding functional tests..."
-	go run ./cmd/ze-test run encoding --all
+# Run encode functional tests
+functional-encode:
+	@echo "Running encode functional tests..."
+	go run ./cmd/ze-test bgp encode --all
 
 # Run plugin functional tests
 functional-plugin:
 	@echo "Running plugin functional tests..."
-	go run ./cmd/ze-test run plugin --all
+	go run ./cmd/ze-test bgp plugin --all
 
-# Run decoding functional tests (may fail - JSON format alignment WIP)
-functional-decoding:
-	@echo "Running decoding functional tests..."
-	go run ./cmd/ze-test run decoding --all
+# Run decode functional tests
+functional-decode:
+	@echo "Running decode functional tests..."
+	go run ./cmd/ze-test bgp decode --all
 
-# Run parsing functional tests
-functional-parsing:
-	@echo "Running parsing functional tests..."
-	go run ./cmd/ze-test run parsing --all
+# Run parse functional tests
+functional-parse:
+	@echo "Running parse functional tests..."
+	go run ./cmd/ze-test bgp parse --all
 
 # Quick check (fast feedback during development)
 check: fmt vet
@@ -99,10 +99,10 @@ help:
 	@echo "  test-all             - Run unit tests + functional tests"
 	@echo "  test-cover           - Run tests with coverage report"
 	@echo "  functional           - Run all functional tests"
-	@echo "  functional-encoding  - Run encoding functional tests only"
+	@echo "  functional-encode    - Run encode functional tests only"
 	@echo "  functional-plugin    - Run plugin functional tests only"
-	@echo "  functional-decoding  - Run decoding functional tests only"
-	@echo "  functional-parsing   - Run parsing functional tests only"
+	@echo "  functional-decode    - Run decode functional tests only"
+	@echo "  functional-parse     - Run parse functional tests only"
 	@echo "  lint                 - Run golangci-lint"
 	@echo "  fmt                  - Format code (gofmt + goimports)"
 	@echo "  vet                  - Run go vet"

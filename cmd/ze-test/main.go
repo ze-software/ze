@@ -2,7 +2,7 @@
 //
 // Subcommands:
 //
-//	ze-test run [type] [flags]     Run functional tests
+//	ze-test bgp [type] [flags]     Run BGP functional tests
 //	ze-test syslog [flags]         Run syslog server for testing
 package main
 
@@ -27,8 +27,8 @@ func main() {
 	os.Args = os.Args[1:]
 
 	switch cmd {
-	case "run":
-		os.Exit(runCmd())
+	case "bgp":
+		os.Exit(bgpCmd())
 	case "syslog":
 		os.Exit(syslogCmd())
 	default:
@@ -42,7 +42,7 @@ func printUsage() {
 	fmt.Fprintf(os.Stderr, `Usage: ze-test <command> [options]
 
 Commands:
-  run       Run functional tests (encoding, plugin, decoding, parsing)
+  bgp       Run BGP functional tests (encoding, plugin, decoding, parsing)
   syslog    Run syslog server for testing
 
 Run 'ze-test <command> --help' for command-specific help.

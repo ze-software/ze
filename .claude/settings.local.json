@@ -102,9 +102,11 @@
       "Bash(python3:*)",
       "Bash(/tmp/ze-peer:*)",
       "Bash(./migrate-ci:*)",
-      "Bash(./bin/ze-test run:*)",
+      "Bash(./bin/ze-test bgp:*)",
       "Bash(./scripts/migrate-plugin-tests.sh:*)",
-      "Bash(./.claude/hooks/session-start.sh)"
+      "Bash(./.claude/hooks/session-start.sh)",
+      "Bash(go run ./cmd/ze *)",
+      "Bash(/tmp/ze-test *)"
     ],
     "deny": [
       "Bash(git reset:*)",

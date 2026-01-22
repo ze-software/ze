@@ -18,8 +18,8 @@ import (
 // errTestsFailed is returned when tests fail (not an error, but indicates exit code 1).
 var errTestsFailed = errors.New("tests failed")
 
-func runCmd() int {
-	if err := runMain(); err != nil {
+func bgpCmd() int {
+	if err := bgpMain(); err != nil {
 		if !errors.Is(err, errTestsFailed) {
 			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		}
@@ -28,7 +28,7 @@ func runCmd() int {
 	return 0
 }
 
-func runMain() error {
+func bgpMain() error {
 	// Parse command line
 	cli := parseRunCLI()
 	if cli == nil {
@@ -54,18 +54,18 @@ func runMain() error {
 
 	// Route to appropriate handler
 	switch cli.command {
-	case "encoding", "plugin":
+	case "encode", "plugin":
 		return runEncodingOrAPI(ctx, cli, baseDir)
-	case "decoding":
+	case "decode":
 		return runSimpleTests(ctx, cli, baseDir, newDecodingTestSuite)
-	case "parsing":
+	case "parse":
 		return runSimpleTests(ctx, cli, baseDir, newParsingTestSuite)
 	default:
 		return fmt.Errorf("unknown command: %s", cli.command)
 	}
 }
 
-// testSuite abstracts decoding and parsing test suites.
+// testSuite abstracts decode and parse test suites.
 type testSuite interface {
 	Discover(dir string) error
 	List()
@@ -78,20 +78,20 @@ type testSuite interface {
 	Run(ctx context.Context, zePath string, verbose, quiet bool) bool
 }
 
-// decodingTestSuite wraps DecodingTests to implement testSuite.
-type decodingTestSuite struct {
+// decodeTestSuite wraps DecodingTests to implement testSuite.
+type decodeTestSuite struct {
 	*runner.DecodingTests
 	baseDir string
 }
 
 func newDecodingTestSuite(baseDir string) testSuite {
-	return &decodingTestSuite{
+	return &decodeTestSuite{
 		DecodingTests: runner.NewDecodingTests(baseDir),
 		baseDir:       baseDir,
 	}
 }
 
-func (d *decodingTestSuite) GetNicks() []string {
+func (d *decodeTestSuite) GetNicks() []string {
 	registered := d.Registered()
 	nicks := make([]string, 0, len(registered))
 	for _, t := range registered {
@@ -100,7 +100,7 @@ func (d *decodingTestSuite) GetNicks() []string {
 	return nicks
 }
 
-func (d *decodingTestSuite) GetNames() map[string]string {
+func (d *decodeTestSuite) GetNames() map[string]string {
 	names := make(map[string]string)
 	for _, t := range d.Registered() {
 		names[t.Name] = t.Nick
@@ -108,7 +108,7 @@ func (d *decodingTestSuite) GetNames() map[string]string {
 	return names
 }
 
-func (d *decodingTestSuite) SetActive(name string) {
+func (d *decodeTestSuite) SetActive(name string) {
 	for _, t := range d.Registered() {
 		if t.Name == name {
 			t.Active = true
@@ -116,25 +116,25 @@ func (d *decodingTestSuite) SetActive(name string) {
 	}
 }
 
-func (d *decodingTestSuite) Run(ctx context.Context, zePath string, verbose, quiet bool) bool {
+func (d *decodeTestSuite) Run(ctx context.Context, zePath string, verbose, quiet bool) bool {
 	runner := runner.NewDecodingRunner(d.DecodingTests, d.baseDir, zePath)
 	return runner.Run(ctx, verbose, quiet)
 }
 
-// parsingTestSuite wraps ParsingTests to implement testSuite.
-type parsingTestSuite struct {
+// parseTestSuite wraps ParsingTests to implement testSuite.
+type parseTestSuite struct {
 	*runner.ParsingTests
 	baseDir string
 }
 
 func newParsingTestSuite(baseDir string) testSuite {
-	return &parsingTestSuite{
+	return &parseTestSuite{
 		ParsingTests: runner.NewParsingTests(baseDir),
 		baseDir:      baseDir,
 	}
 }
 
-func (p *parsingTestSuite) GetNicks() []string {
+func (p *parseTestSuite) GetNicks() []string {
 	registered := p.Registered()
 	nicks := make([]string, 0, len(registered))
 	for _, t := range registered {
@@ -143,7 +143,7 @@ func (p *parsingTestSuite) GetNicks() []string {
 	return nicks
 }
 
-func (p *parsingTestSuite) GetNames() map[string]string {
+func (p *parseTestSuite) GetNames() map[string]string {
 	names := make(map[string]string)
 	for _, t := range p.Registered() {
 		names[t.Name] = t.Nick
@@ -151,7 +151,7 @@ func (p *parsingTestSuite) GetNames() map[string]string {
 	return names
 }
 
-func (p *parsingTestSuite) SetActive(name string) {
+func (p *parseTestSuite) SetActive(name string) {
 	for _, t := range p.Registered() {
 		if t.Name == name {
 			t.Active = true
@@ -159,12 +159,12 @@ func (p *parsingTestSuite) SetActive(name string) {
 	}
 }
 
-func (p *parsingTestSuite) Run(ctx context.Context, zePath string, verbose, quiet bool) bool {
+func (p *parseTestSuite) Run(ctx context.Context, zePath string, verbose, quiet bool) bool {
 	runner := runner.NewParsingRunner(p.ParsingTests, p.baseDir, zePath)
 	return runner.Run(ctx, verbose, quiet)
 }
 
-// runSimpleTests handles decoding and parsing tests using the testSuite interface.
+// runSimpleTests handles decode and parse tests using the testSuite interface.
 func runSimpleTests(ctx context.Context, cli *runCLIFlags, baseDir string, newSuite func(string) testSuite) error {
 	runner.ResetNickCounter()
 
@@ -173,9 +173,9 @@ func runSimpleTests(ctx context.Context, cli *runCLIFlags, baseDir string, newSu
 	// Determine test directory
 	var testDir string
 	switch cli.command {
-	case "decoding":
+	case "decode":
 		testDir = filepath.Join(baseDir, "test/decode")
-	case "parsing":
+	case "parse":
 		testDir = filepath.Join(baseDir, "test/parse")
 	}
 
@@ -233,7 +233,7 @@ func runSimpleTests(ctx context.Context, cli *runCLIFlags, baseDir string, newSu
 	return nil
 }
 
-// runEncodingOrAPI handles encoding and API tests (original behavior).
+// runEncodingOrAPI handles encode and API tests (original behavior).
 func runEncodingOrAPI(ctx context.Context, cli *runCLIFlags, baseDir string) error {
 	// Initialize
 	colors := runner.NewColors()
@@ -426,7 +426,7 @@ func runServerOnly(ctx context.Context, cli *runCLIFlags, tests *runner.Encoding
 	fmt.Printf("Port: %d\n", port)
 	fmt.Printf("Waiting for client connection...\n")
 	fmt.Printf("\nRun client in another terminal:\n")
-	fmt.Printf("   ze-test run %s --client %s --port %d\n\n", cli.command, cli.server, port)
+	fmt.Printf("   ze-test bgp %s --client %s --port %d\n\n", cli.command, cli.server, port)
 
 	// Build peer args
 	peerArgs := []string{"--port", fmt.Sprintf("%d", port)}
@@ -485,7 +485,7 @@ func runClientOnly(ctx context.Context, cli *runCLIFlags, tests *runner.Encoding
 	fmt.Printf("Port: %d\n", port)
 	fmt.Printf("Starting ze bgp client...\n")
 	fmt.Printf("\nServer should be running. If not:\n")
-	fmt.Printf("   ze-test run %s --server %s --port %d\n\n", cli.command, cli.client, port)
+	fmt.Printf("   ze-test bgp %s --server %s --port %d\n\n", cli.command, cli.client, port)
 
 	// Build client env
 	// Set tcp.attempts=1 so ze bgp exits after the session ends (instead of reconnecting)
@@ -556,10 +556,10 @@ func parseRunCLI() *runCLIFlags {
 	}
 
 	validCommands := map[string]bool{
-		"encoding": true,
-		"plugin":   true,
-		"decoding": true,
-		"parsing":  true,
+		"encode": true,
+		"plugin": true,
+		"decode": true,
+		"parse":  true,
 	}
 
 	if !validCommands[command] {
@@ -602,13 +602,13 @@ func parseRunCLI() *runCLIFlags {
 }
 
 func printRunUsage() {
-	fmt.Fprintf(os.Stderr, `Usage: ze-test run <type> [options] [tests...]
+	fmt.Fprintf(os.Stderr, `Usage: ze-test bgp <type> [options] [tests...]
 
 Types:
-  encoding    Run encoding tests (static routes)
+  encode    Run encode tests (static routes)
   plugin      Run plugin tests (dynamic routes via .run scripts)
-  decoding    Run decoding tests (BGP message hex to JSON)
-  parsing     Run parsing tests (config file validation)
+  decode    Run decode tests (BGP message hex to JSON)
+  parse     Run parse tests (config file validation)
 
 Modes:
   -l, --list          List available tests
@@ -629,13 +629,13 @@ Debugging:
   --client NICK       Run client only for test
 
 Examples:
-  ze-test run encoding -l
-  ze-test run encoding -a
-  ze-test run encoding 0 1 2
-  ze-test run plugin -a -q
-  ze-test run decoding -a
-  ze-test run parsing -a
-  ze-test run encoding -c 10 0 1    # stress test: run tests 0,1 ten times
+  ze-test bgp encode -l
+  ze-test bgp encode -a
+  ze-test bgp encode 0 1 2
+  ze-test bgp plugin -a -q
+  ze-test bgp decode -a
+  ze-test bgp parse -a
+  ze-test bgp encode -c 10 0 1    # stress test: run tests 0,1 ten times
 `)
 }
 
