@@ -15,12 +15,28 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+// getBGPPayload extracts the bgp payload from IPC 2.0 format.
+// IPC 2.0 format: {"type":"bgp","bgp":{...}}.
+func getBGPPayload(t *testing.T, result map[string]any) map[string]any {
+	t.Helper()
+	assert.Equal(t, "bgp", result["type"], "top-level type must be 'bgp'")
+	payload, ok := result["bgp"].(map[string]any)
+	require.True(t, ok, "bgp payload must exist")
+	return payload
+}
+
+// getNLRI extracts the nlri object from IPC 2.0 bgp payload.
+func getNLRI(t *testing.T, payload map[string]any) map[string]any {
+	t.Helper()
+	nlri, ok := payload["nlri"].(map[string]any)
+	require.True(t, ok, "nlri object must exist in payload")
+	return nlri
+}
+
 // TestJSONEncoderStateUp verifies JSON output for peer state "up".
 //
-// VALIDATES: ZeBGP JSON format for state messages (flat structure).
-//
-// PREVENTS: JSON format incompatibility with consumers expecting the
-// documented format in docs/architecture/api/json-format.md.
+// VALIDATES: IPC 2.0 format for state messages.
+// PREVENTS: JSON format incompatibility with consumers expecting IPC protocol 2.0.
 func TestJSONEncoderStateUp(t *testing.T) {
 	enc := NewJSONEncoder("6.0.0")
 
@@ -38,25 +54,25 @@ func TestJSONEncoderStateUp(t *testing.T) {
 	err := json.Unmarshal([]byte(msg), &result)
 	require.NoError(t, err, "JSON must be valid")
 
-	// Check message wrapper
-	msgWrapper, ok := result["message"].(map[string]any)
-	require.True(t, ok, "message wrapper must exist")
-	assert.Equal(t, "state", msgWrapper["type"])
+	// IPC 2.0: get bgp payload
+	payload := getBGPPayload(t, result)
 
-	// Check peer structure (flat format)
-	peerMap, ok := result["peer"].(map[string]any)
+	// Check event type in payload
+	assert.Equal(t, "state", payload["type"])
+
+	// Check peer structure
+	peerMap, ok := payload["peer"].(map[string]any)
 	require.True(t, ok, "peer must be object")
 	assert.Equal(t, "192.168.1.2", peerMap["address"])
 	assert.Equal(t, float64(65002), peerMap["asn"])
 
-	// State at top level
-	assert.Equal(t, "up", result["state"])
+	// State in payload
+	assert.Equal(t, "up", payload["state"])
 }
 
 // TestJSONEncoderStateDown verifies JSON output for peer state "down".
 //
-// VALIDATES: Down state includes reason field at top level.
-//
+// VALIDATES: IPC 2.0 format with reason field in bgp payload.
 // PREVENTS: Missing reason in down notifications, making debugging harder.
 func TestJSONEncoderStateDown(t *testing.T) {
 	enc := NewJSONEncoder("6.0.0")
@@ -74,15 +90,17 @@ func TestJSONEncoderStateDown(t *testing.T) {
 	err := json.Unmarshal([]byte(msg), &result)
 	require.NoError(t, err)
 
-	// State and reason at top level
-	assert.Equal(t, "down", result["state"])
-	assert.Equal(t, "hold timer expired", result["reason"])
+	// IPC 2.0: get bgp payload
+	payload := getBGPPayload(t, result)
+
+	// State and reason in payload
+	assert.Equal(t, "down", payload["state"])
+	assert.Equal(t, "hold timer expired", payload["reason"])
 }
 
 // TestJSONEncoderStateConnected verifies JSON output for "connected" state.
 //
-// VALIDATES: Connected state message format with state at top level.
-//
+// VALIDATES: IPC 2.0 format with connected state in bgp payload.
 // PREVENTS: Missing TCP connection events in event stream.
 func TestJSONEncoderStateConnected(t *testing.T) {
 	enc := NewJSONEncoder("6.0.0")
@@ -100,8 +118,11 @@ func TestJSONEncoderStateConnected(t *testing.T) {
 	err := json.Unmarshal([]byte(msg), &result)
 	require.NoError(t, err)
 
-	// State at top level
-	assert.Equal(t, "connected", result["state"])
+	// IPC 2.0: get bgp payload
+	payload := getBGPPayload(t, result)
+
+	// State in payload
+	assert.Equal(t, "connected", payload["state"])
 }
 
 // TestJSONEncoderValidJSON verifies output is always valid JSON.
@@ -136,7 +157,6 @@ func TestJSONEncoderValidJSON(t *testing.T) {
 // TestJSONEncoderSpecialCharacters verifies proper escaping.
 //
 // VALIDATES: Special characters in strings are properly escaped.
-//
 // PREVENTS: JSON injection or parse errors from special characters.
 func TestJSONEncoderSpecialCharacters(t *testing.T) {
 	enc := NewJSONEncoder("6.0.0")
@@ -156,14 +176,14 @@ func TestJSONEncoderSpecialCharacters(t *testing.T) {
 	err := json.Unmarshal([]byte(msg), &result)
 	require.NoError(t, err, "JSON with special chars must be valid")
 
-	// Reason at top level (flat format)
-	assert.Contains(t, result["reason"], "peer closed")
+	// IPC 2.0: reason in bgp payload
+	payload := getBGPPayload(t, result)
+	assert.Contains(t, payload["reason"], "peer closed")
 }
 
 // TestJSONEncoderIPv6 verifies IPv6 address formatting.
 //
-// VALIDATES: IPv6 addresses are formatted correctly in JSON (flat format).
-//
+// VALIDATES: IPv6 addresses are formatted correctly in IPC 2.0 format.
 // PREVENTS: IPv6 address parsing errors in consumers.
 func TestJSONEncoderIPv6(t *testing.T) {
 	enc := NewJSONEncoder("6.0.0")
@@ -180,16 +200,19 @@ func TestJSONEncoderIPv6(t *testing.T) {
 	var result map[string]any
 	require.NoError(t, json.Unmarshal([]byte(msg), &result))
 
-	peerMap, ok := result["peer"].(map[string]any)
+	// IPC 2.0: get bgp payload
+	payload := getBGPPayload(t, result)
+
+	peerMap, ok := payload["peer"].(map[string]any)
 	require.True(t, ok)
 
-	// Flat format: peer.address is string, not object
+	// peer.address is string
 	peerAddr, ok := peerMap["address"].(string)
-	require.True(t, ok, "peer.address must be string in flat format")
+	require.True(t, ok, "peer.address must be string")
 	assert.Contains(t, peerAddr, "2001:db8")
 }
 
-// TestAPIOutputIncludesMsgID verifies API JSON has message.id field.
+// TestAPIOutputIncludesMsgID verifies API JSON has message.id field in IPC 2.0 format.
 //
 // VALIDATES: API output contains id in message wrapper for received UPDATEs.
 // PREVENTS: Controller can't reference updates for forwarding.
@@ -225,9 +248,12 @@ func TestAPIOutputIncludesMsgID(t *testing.T) {
 	err := json.Unmarshal([]byte(output), &result)
 	require.NoError(t, err, "JSON must be valid: %s", output)
 
-	// Check message.id present
-	msgWrapper, ok := result["message"].(map[string]any)
-	require.True(t, ok, "message wrapper must be present")
+	// IPC 2.0: payload under "bgp"
+	payload := getBGPPayload(t, result)
+
+	// Check message.id present in payload
+	msgWrapper, ok := payload["message"].(map[string]any)
+	require.True(t, ok, "message wrapper must be present in bgp payload")
 	msgID, ok := msgWrapper["id"]
 	require.True(t, ok, "message.id must be present")
 	assert.Equal(t, float64(12345), msgID)
@@ -235,7 +261,7 @@ func TestAPIOutputIncludesMsgID(t *testing.T) {
 
 // TestJSONEncoderNotification verifies JSON output for NOTIFICATION message.
 //
-// VALIDATES: NOTIFICATION JSON contains code, subcode, data at top level, direction in message wrapper.
+// VALIDATES: IPC 2.0 NOTIFICATION with code, subcode, data in bgp payload.
 // PREVENTS: Plugin can't parse notification events or missing error context.
 func TestJSONEncoderNotification(t *testing.T) {
 	enc := NewJSONEncoder("6.0.0")
@@ -263,32 +289,37 @@ func TestJSONEncoderNotification(t *testing.T) {
 	err := json.Unmarshal([]byte(msg), &result)
 	require.NoError(t, err, "JSON must be valid: %s", msg)
 
-	// Check message wrapper
-	msgWrapper, ok := result["message"].(map[string]any)
-	require.True(t, ok, "message wrapper must exist")
-	assert.Equal(t, "notification", msgWrapper["type"])
-	assert.Equal(t, float64(42), msgWrapper["id"])
-	assert.Equal(t, "received", msgWrapper["direction"])
+	// IPC 2.0: get bgp payload
+	payload := getBGPPayload(t, result)
 
-	// Check peer structure (flat format)
-	peerMap, ok := result["peer"].(map[string]any)
+	// Check event type
+	assert.Equal(t, "notification", payload["type"])
+
+	// Check message metadata
+	msgMeta, ok := payload["message"].(map[string]any)
+	require.True(t, ok, "message metadata must exist")
+	assert.Equal(t, float64(42), msgMeta["id"])
+	assert.Equal(t, "received", msgMeta["direction"])
+
+	// Check peer structure
+	peerMap, ok := payload["peer"].(map[string]any)
 	require.True(t, ok, "peer must be object")
 	assert.Equal(t, "192.168.1.2", peerMap["address"])
 	assert.Equal(t, float64(65002), peerMap["asn"])
 
-	// Notification fields at top level (flat format)
-	assert.Equal(t, float64(6), result["code"])
-	assert.Equal(t, float64(2), result["subcode"])
-	assert.NotEmpty(t, result["data"], "data field must be present")
+	// Notification fields in payload
+	assert.Equal(t, float64(6), payload["code"])
+	assert.Equal(t, float64(2), payload["subcode"])
+	assert.NotEmpty(t, payload["data"], "data field must be present")
 
 	// Human-readable names (hyphenated per json-format.md)
-	assert.Equal(t, "Cease", result["code-name"])
-	assert.Equal(t, "Administrative Shutdown", result["subcode-name"])
+	assert.Equal(t, "Cease", payload["code-name"])
+	assert.Equal(t, "Administrative Shutdown", payload["subcode-name"])
 }
 
 // TestJSONEncoderNotificationMinimal verifies minimal NOTIFICATION JSON.
 //
-// VALIDATES: NOTIFICATION without shutdown message still has required fields at top level.
+// VALIDATES: IPC 2.0 NOTIFICATION without shutdown message still has required fields.
 // PREVENTS: Crash or missing fields on minimal notifications.
 func TestJSONEncoderNotificationMinimal(t *testing.T) {
 	enc := NewJSONEncoder("6.0.0")
@@ -314,24 +345,28 @@ func TestJSONEncoderNotificationMinimal(t *testing.T) {
 	err := json.Unmarshal([]byte(msg), &result)
 	require.NoError(t, err)
 
-	// Required fields at top level (flat format)
-	assert.Equal(t, float64(4), result["code"])
-	assert.Equal(t, float64(0), result["subcode"])
-	assert.Equal(t, "", result["data"]) // Empty string, not nil
+	// IPC 2.0: get bgp payload
+	payload := getBGPPayload(t, result)
+
+	// Required fields in payload
+	assert.Equal(t, float64(4), payload["code"])
+	assert.Equal(t, float64(0), payload["subcode"])
+	assert.Equal(t, "", payload["data"]) // Empty string, not nil
 
 	// Extensions present (hyphenated)
-	assert.Equal(t, "Hold Timer Expired", result["code-name"])
+	assert.Equal(t, "Hold Timer Expired", payload["code-name"])
 
-	// message.id should NOT be present when zero
-	msgWrapper, ok := result["message"].(map[string]any)
-	require.True(t, ok, "message wrapper must exist")
-	_, hasID := msgWrapper["id"]
+	// message metadata should NOT be present when no id/direction
+	// (direction is "received" but msgID is 0, so only direction should be present)
+	msgMeta, ok := payload["message"].(map[string]any)
+	require.True(t, ok, "message metadata should exist (has direction)")
+	_, hasID := msgMeta["id"]
 	assert.False(t, hasID, "message.id should not be present when zero")
 }
 
 // TestJSONEncoderNotificationSent verifies NOTIFICATION with "sent" direction.
 //
-// VALIDATES: Sent notifications include direction field inside message wrapper.
+// VALIDATES: IPC 2.0 sent notifications include direction in message metadata.
 // PREVENTS: Direction field missing or incorrect for outbound notifications.
 func TestJSONEncoderNotificationSent(t *testing.T) {
 	enc := NewJSONEncoder("6.0.0")
@@ -355,14 +390,17 @@ func TestJSONEncoderNotificationSent(t *testing.T) {
 	var result map[string]any
 	require.NoError(t, json.Unmarshal([]byte(msg), &result))
 
-	// Notification fields at top level
-	assert.Equal(t, float64(6), result["code"])
-	assert.Equal(t, float64(3), result["subcode"])
+	// IPC 2.0: get bgp payload
+	payload := getBGPPayload(t, result)
 
-	msgWrapper, ok := result["message"].(map[string]any)
-	require.True(t, ok, "message wrapper must exist")
-	assert.Equal(t, float64(100), msgWrapper["id"])
-	assert.Equal(t, "sent", msgWrapper["direction"])
+	// Notification fields in payload
+	assert.Equal(t, float64(6), payload["code"])
+	assert.Equal(t, float64(3), payload["subcode"])
+
+	msgMeta, ok := payload["message"].(map[string]any)
+	require.True(t, ok, "message metadata must exist")
+	assert.Equal(t, float64(100), msgMeta["id"])
+	assert.Equal(t, "sent", msgMeta["direction"])
 }
 
 // TestFormatMessageNotificationText verifies FormatMessage returns text for NOTIFICATION.
@@ -450,7 +488,7 @@ func TestFormatMessageIgnoresEncodingForParsedNonUpdate(t *testing.T) {
 		"Should NOT be JSON for parsed non-UPDATE")
 }
 
-// TestAPIOutputNoMsgIDWhenZero verifies message.id omitted when zero.
+// TestAPIOutputNoMsgIDWhenZero verifies message.id omitted when zero in IPC 2.0 format.
 //
 // VALIDATES: Zero message.id is not included in output.
 // PREVENTS: Cluttering output with meaningless id:0.
@@ -478,20 +516,24 @@ func TestAPIOutputNoMsgIDWhenZero(t *testing.T) {
 	err := json.Unmarshal([]byte(output), &result)
 	require.NoError(t, err)
 
-	// message wrapper should exist
-	msgWrapper, ok := result["message"].(map[string]any)
-	require.True(t, ok, "message wrapper must exist")
+	// IPC 2.0: payload under "bgp"
+	payload := getBGPPayload(t, result)
 
-	// id should NOT be present in message wrapper when zero
-	_, ok = msgWrapper["id"]
-	assert.False(t, ok, "message.id should not be present when zero")
+	// message wrapper may or may not exist when id is zero
+	// If it exists, id should NOT be present
+	if msgWrapper, ok := payload["message"].(map[string]any); ok {
+		_, hasID := msgWrapper["id"]
+		assert.False(t, hasID, "message.id should not be present when zero")
+	}
 }
 
 // =============================================================================
 // New NLRI Format Tests (Command-Style)
 // =============================================================================
-// These tests validate the new JSON format for UPDATE NLRI:
-//   - Family at top level (not nested under "announce" or "withdraw")
+// These tests validate the IPC 2.0 JSON format for UPDATE NLRI:
+//   - Top-level "type":"bgp" with payload under "bgp" key
+//   - Family under "nlri" object (not at top level)
+//   - Attributes under "attributes" object
 //   - Operations array with "action": "add" or "action": "del"
 //   - "next-hop" per operation group (for add actions)
 //   - "nlri" array (strings for simple prefixes)
@@ -501,10 +543,10 @@ func TestAPIOutputNoMsgIDWhenZero(t *testing.T) {
 // RFC 4760 Section 3: Each MP_REACH_NLRI has its own next-hop field.
 // =============================================================================
 
-// TestJSONEncoderIPv4UnicastNewFormat verifies new command-style JSON format.
+// TestJSONEncoderIPv4UnicastNewFormat verifies IPC 2.0 command-style JSON format.
 //
-// VALIDATES: IPv4 unicast uses family → operations list with action/next-hop/nlri.
-// PREVENTS: Old announce/withdraw format being emitted.
+// VALIDATES: IPv4 unicast uses bgp.nlri.family → operations list with action/next-hop/nlri.
+// PREVENTS: Old format without type wrapper being emitted.
 func TestJSONEncoderIPv4UnicastNewFormat(t *testing.T) {
 	ctxID := testEncodingContext()
 
@@ -544,13 +586,13 @@ func TestJSONEncoderIPv4UnicastNewFormat(t *testing.T) {
 	err = json.Unmarshal([]byte(output), &result)
 	require.NoError(t, err, "JSON must be valid: %s", output)
 
-	// New format: "ipv4/unicast" at top level (not under "announce")
-	_, hasAnnounce := result["announce"]
-	assert.False(t, hasAnnounce, "new format should NOT have 'announce' key")
+	// IPC 2.0: get bgp payload and nlri object
+	payload := getBGPPayload(t, result)
+	nlriObj := getNLRI(t, payload)
 
-	// Family should be at top level
-	family, ok := result["ipv4/unicast"].([]any)
-	require.True(t, ok, "ipv4/unicast should be array at top level: %s", output)
+	// Family should be under nlri
+	family, ok := nlriObj["ipv4/unicast"].([]any)
+	require.True(t, ok, "ipv4/unicast should be array under nlri: %s", output)
 	require.Len(t, family, 1, "should have one operation group")
 
 	// Check operation structure
@@ -568,7 +610,7 @@ func TestJSONEncoderIPv4UnicastNewFormat(t *testing.T) {
 
 // TestJSONEncoderWithdrawNewFormat verifies withdrawal uses action: del.
 //
-// VALIDATES: Withdrawals use action: del with no next-hop.
+// VALIDATES: IPC 2.0 withdrawals use action: del with no next-hop.
 // PREVENTS: Withdraw still using old nested format.
 func TestJSONEncoderWithdrawNewFormat(t *testing.T) {
 	peer := PeerInfo{
@@ -603,12 +645,12 @@ func TestJSONEncoderWithdrawNewFormat(t *testing.T) {
 	err := json.Unmarshal([]byte(output), &result)
 	require.NoError(t, err, "JSON must be valid: %s", output)
 
-	// New format: no "withdraw" key
-	_, hasWithdraw := result["withdraw"]
-	assert.False(t, hasWithdraw, "new format should NOT have 'withdraw' key")
+	// IPC 2.0: get bgp payload and nlri object
+	payload := getBGPPayload(t, result)
+	nlriObj := getNLRI(t, payload)
 
-	// Family at top level with action: del
-	family, ok := result["ipv4/unicast"].([]any)
+	// Family under nlri with action: del
+	family, ok := nlriObj["ipv4/unicast"].([]any)
 	require.True(t, ok, "ipv4/unicast should be array: %s", output)
 	require.Len(t, family, 1)
 
@@ -625,7 +667,7 @@ func TestJSONEncoderWithdrawNewFormat(t *testing.T) {
 
 // TestJSONEncoderMultiFamilyNewFormat verifies multiple families in one UPDATE.
 //
-// VALIDATES: Each family appears at top level with own operations.
+// VALIDATES: IPC 2.0 each family appears under nlri with own operations.
 // PREVENTS: Multi-family UPDATEs breaking JSON structure.
 func TestJSONEncoderMultiFamilyNewFormat(t *testing.T) {
 	ctxID := testEncodingContext()
@@ -666,12 +708,16 @@ func TestJSONEncoderMultiFamilyNewFormat(t *testing.T) {
 	err = json.Unmarshal([]byte(output), &result)
 	require.NoError(t, err, "JSON must be valid: %s", output)
 
-	// Both families should be at top level
-	ipv4Fam, ok := result["ipv4/unicast"].([]any)
+	// IPC 2.0: get bgp payload and nlri object
+	payload := getBGPPayload(t, result)
+	nlriObj := getNLRI(t, payload)
+
+	// Both families should be under nlri
+	ipv4Fam, ok := nlriObj["ipv4/unicast"].([]any)
 	require.True(t, ok, "ipv4/unicast should be present: %s", output)
 	require.Len(t, ipv4Fam, 1)
 
-	ipv6Fam, ok := result["ipv6/unicast"].([]any)
+	ipv6Fam, ok := nlriObj["ipv6/unicast"].([]any)
 	require.True(t, ok, "ipv6/unicast should be present: %s", output)
 	require.Len(t, ipv6Fam, 1)
 
@@ -690,7 +736,7 @@ func TestJSONEncoderMultiFamilyNewFormat(t *testing.T) {
 
 // TestJSONEncoderAnnounceAndWithdrawSameFamily verifies add + del in same family.
 //
-// VALIDATES: Same family can have both add and del operations.
+// VALIDATES: IPC 2.0 same family can have both add and del operations.
 // PREVENTS: Mixed announce/withdraw breaking JSON.
 func TestJSONEncoderAnnounceAndWithdrawSameFamily(t *testing.T) {
 	ctxID := testEncodingContext()
@@ -729,8 +775,12 @@ func TestJSONEncoderAnnounceAndWithdrawSameFamily(t *testing.T) {
 	err := json.Unmarshal([]byte(output), &result)
 	require.NoError(t, err, "JSON must be valid: %s", output)
 
+	// IPC 2.0: get bgp payload and nlri object
+	payload := getBGPPayload(t, result)
+	nlriObj := getNLRI(t, payload)
+
 	// Family should have both add and del operations
-	family, ok := result["ipv4/unicast"].([]any)
+	family, ok := nlriObj["ipv4/unicast"].([]any)
 	require.True(t, ok, "ipv4/unicast should be array: %s", output)
 	require.Len(t, family, 2, "should have 2 operation groups (add + del)")
 
@@ -755,7 +805,7 @@ func TestJSONEncoderAnnounceAndWithdrawSameFamily(t *testing.T) {
 
 // TestJSONEncoderADDPATHNewFormat verifies path-id in NLRI objects.
 //
-// VALIDATES: ADD-PATH path-id appears in nlri objects.
+// VALIDATES: IPC 2.0 ADD-PATH path-id appears in nlri objects.
 // PREVENTS: Path-id being lost with new format.
 func TestJSONEncoderADDPATHNewFormat(t *testing.T) {
 	// Create encoding context with ADD-PATH for IPv4 unicast
@@ -796,8 +846,12 @@ func TestJSONEncoderADDPATHNewFormat(t *testing.T) {
 	err = json.Unmarshal([]byte(output), &result)
 	require.NoError(t, err, "JSON must be valid: %s", output)
 
-	// Family should be at top level
-	family, ok := result["ipv4/unicast"].([]any)
+	// IPC 2.0: get bgp payload and nlri object
+	payload := getBGPPayload(t, result)
+	nlriObj := getNLRI(t, payload)
+
+	// Family should be under nlri
+	family, ok := nlriObj["ipv4/unicast"].([]any)
 	require.True(t, ok, "ipv4/unicast should be array: %s", output)
 	require.Len(t, family, 1)
 
@@ -808,10 +862,10 @@ func TestJSONEncoderADDPATHNewFormat(t *testing.T) {
 	require.Len(t, nlri, 1)
 
 	// With ADD-PATH, nlri items are objects with prefix and path-id
-	nlriObj, ok := nlri[0].(map[string]any)
+	nlriItem, ok := nlri[0].(map[string]any)
 	require.True(t, ok, "with ADD-PATH, nlri should be object: %v", nlri[0])
-	assert.Equal(t, "192.168.1.0/24", nlriObj["prefix"])
-	assert.Equal(t, float64(42), nlriObj["path-id"])
+	assert.Equal(t, "192.168.1.0/24", nlriItem["prefix"])
+	assert.Equal(t, float64(42), nlriItem["path-id"])
 }
 
 // buildTestUpdateBodyWithWithdrawn builds UPDATE with withdrawn routes only.
@@ -942,7 +996,7 @@ func testEncodingContextWithAddPath() bgpctx.ContextID {
 //
 // Both should appear as separate operation groups in the output.
 //
-// VALIDATES: Two next-hops for same family produce two operations.
+// VALIDATES: IPC 2.0 two next-hops for same family produce two operations.
 // PREVENTS: Merging different next-hops, losing route information.
 func TestJSONEncoderIPv4DualNextHop(t *testing.T) {
 	ctxID := testEncodingContext()
@@ -985,8 +1039,12 @@ func TestJSONEncoderIPv4DualNextHop(t *testing.T) {
 	err = json.Unmarshal([]byte(output), &result)
 	require.NoError(t, err, "JSON must be valid: %s", output)
 
+	// IPC 2.0: get bgp payload and nlri object
+	payload := getBGPPayload(t, result)
+	nlriObj := getNLRI(t, payload)
+
 	// ipv4/unicast should have TWO operation groups (different next-hops)
-	family, ok := result["ipv4/unicast"].([]any)
+	family, ok := nlriObj["ipv4/unicast"].([]any)
 	require.True(t, ok, "ipv4/unicast should be array: %s", output)
 	require.Len(t, family, 2, "should have 2 operation groups (two next-hops)")
 
@@ -1491,7 +1549,7 @@ func TestJSONEncoderFlowSpec(t *testing.T) {
 
 // TestJSONEncoderNegotiated verifies negotiated capabilities JSON output.
 //
-// VALIDATES: Negotiated message contains capability fields at top level (flat format).
+// VALIDATES: Negotiated message contains capability fields in IPC 2.0 format.
 // PREVENTS: Plugins missing capability info after OPEN exchange.
 func TestJSONEncoderNegotiated(t *testing.T) {
 	enc := NewJSONEncoder("1.0")
@@ -1522,24 +1580,25 @@ func TestJSONEncoderNegotiated(t *testing.T) {
 	err := json.Unmarshal([]byte(output), &result)
 	require.NoError(t, err, "JSON must be valid: %s", output)
 
-	// Check message type
-	msgWrapper, ok := result["message"].(map[string]any)
-	require.True(t, ok, "message wrapper must exist")
-	assert.Equal(t, "negotiated", msgWrapper["type"])
+	// IPC 2.0: payload nested under "bgp"
+	payload := getBGPPayload(t, result)
 
-	// Fields at top level (flat format with hyphenated names)
-	assert.Equal(t, float64(90), result["hold-time"])
-	assert.Equal(t, true, result["asn4"])
+	// Check message type in payload
+	assert.Equal(t, "negotiated", payload["type"])
 
-	// Check families at top level
-	families, ok := result["families"].([]any)
+	// Fields in payload (flat format with hyphenated names)
+	assert.Equal(t, float64(90), payload["hold-time"])
+	assert.Equal(t, true, payload["asn4"])
+
+	// Check families in payload
+	families, ok := payload["families"].([]any)
 	require.True(t, ok, "families must be array")
 	assert.Len(t, families, 2)
 	assert.Contains(t, families, "ipv4/unicast")
 	assert.Contains(t, families, "ipv6/unicast")
 
 	// Check add-path (hyphenated)
-	addPath, ok := result["add-path"].(map[string]any)
+	addPath, ok := payload["add-path"].(map[string]any)
 	require.True(t, ok, "add-path must exist")
 
 	sendFams, ok := addPath["send"].([]any)
@@ -1553,7 +1612,7 @@ func TestJSONEncoderNegotiated(t *testing.T) {
 
 // TestJSONEncoderNegotiatedMinimal verifies negotiated with minimal fields.
 //
-// VALIDATES: Handles negotiated with only required fields (flat format).
+// VALIDATES: Handles negotiated with only required fields in IPC 2.0 format.
 // PREVENTS: Nil pointer panics when optional fields missing.
 func TestJSONEncoderNegotiatedMinimal(t *testing.T) {
 	enc := NewJSONEncoder("1.0")
@@ -1573,16 +1632,333 @@ func TestJSONEncoderNegotiatedMinimal(t *testing.T) {
 	err := json.Unmarshal([]byte(output), &result)
 	require.NoError(t, err, "JSON must be valid: %s", output)
 
-	// Fields at top level (flat format with hyphenated names)
-	assert.Equal(t, float64(180), result["hold-time"])
-	assert.Equal(t, false, result["asn4"])
+	// IPC 2.0: payload nested under "bgp"
+	payload := getBGPPayload(t, result)
 
-	// Families at top level
-	families, ok := result["families"].([]any)
+	// Fields in payload (flat format with hyphenated names)
+	assert.Equal(t, float64(180), payload["hold-time"])
+	assert.Equal(t, false, payload["asn4"])
+
+	// Families in payload
+	families, ok := payload["families"].([]any)
 	require.True(t, ok, "families must be array")
 	assert.Len(t, families, 1)
 
 	// add-path should not exist when empty
-	_, hasAddPath := result["add-path"]
+	_, hasAddPath := payload["add-path"]
 	assert.False(t, hasAddPath, "add-path should be absent when empty")
+}
+
+// =============================================================================
+// IPC Protocol 2.0 Event Format Tests
+// =============================================================================
+// These tests validate the new JSON format per docs/architecture/api/ipc_protocol.md:
+//   - Top-level "type" field indicates payload key ("bgp" or "rib")
+//   - Event content nested under "bgp" or "rib" key
+//   - Event type moved to payload (e.g., bgp.type = "update")
+//   - Attributes nested under "attributes"
+//   - NLRIs nested under "nlri"
+// =============================================================================
+
+// TestEventJSONHasTopLevelType verifies BGP event has wrapper structure.
+//
+// VALIDATES: BGP event has "type":"bgp" and "bgp":{...} at top level.
+// PREVENTS: Plugins expecting IPC protocol 2.0 format failing to parse.
+func TestEventJSONHasTopLevelType(t *testing.T) {
+	ctxID := testEncodingContext()
+
+	peer := PeerInfo{
+		Address: netip.MustParseAddr("10.0.0.1"),
+		PeerAS:  65001,
+	}
+
+	// Build UPDATE
+	body := buildTestUpdateBodyWithAttrs(
+		netip.MustParsePrefix("192.168.1.0/24"),
+		netip.MustParseAddr("10.0.0.1"),
+		0, 0, nil,
+	)
+
+	wireUpdate := NewWireUpdate(body, ctxID)
+	attrsWire, err := wireUpdate.Attrs()
+	require.NoError(t, err)
+
+	msg := RawMessage{
+		Type:       message.TypeUPDATE,
+		RawBytes:   body,
+		AttrsWire:  attrsWire,
+		WireUpdate: wireUpdate,
+		Direction:  "received",
+		MessageID:  123,
+	}
+
+	content := ContentConfig{
+		Encoding: EncodingJSON,
+		Format:   FormatParsed,
+	}
+
+	output := FormatMessage(peer, msg, content, "")
+
+	var result map[string]any
+	err = json.Unmarshal([]byte(output), &result)
+	require.NoError(t, err, "JSON must be valid: %s", output)
+
+	// Check top-level type field
+	assert.Equal(t, "bgp", result["type"], "top-level type must be 'bgp'")
+
+	// Check bgp payload object exists
+	bgpPayload, ok := result["bgp"].(map[string]any)
+	require.True(t, ok, "bgp field must be object: %s", output)
+
+	// BGP payload should have type field
+	assert.Equal(t, "update", bgpPayload["type"], "bgp.type must be 'update'")
+}
+
+// TestEventJSONBgpTypeField verifies event type is inside bgp payload.
+//
+// VALIDATES: Event type is in bgp.type (update, state, notification, etc).
+// PREVENTS: Event type being at wrong location in JSON structure.
+func TestEventJSONBgpTypeField(t *testing.T) {
+	enc := NewJSONEncoder("6.0.0")
+
+	peer := PeerInfo{
+		Address:      netip.MustParseAddr("192.168.1.2"),
+		LocalAddress: netip.MustParseAddr("192.168.1.1"),
+		LocalAS:      65001,
+		PeerAS:       65002,
+	}
+
+	tests := []struct {
+		name     string
+		output   string
+		wantType string
+	}{
+		{
+			name:     "state_up",
+			output:   enc.StateUp(peer),
+			wantType: "state",
+		},
+		{
+			name:     "state_down",
+			output:   enc.StateDown(peer, "test"),
+			wantType: "state",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			var result map[string]any
+			err := json.Unmarshal([]byte(tt.output), &result)
+			require.NoError(t, err)
+
+			// Top-level type indicates payload key
+			assert.Equal(t, "bgp", result["type"])
+
+			// Nested type indicates event type
+			bgpPayload := result["bgp"].(map[string]any) //nolint:forcetypeassert // test
+			assert.Equal(t, tt.wantType, bgpPayload["type"])
+		})
+	}
+}
+
+// TestEventJSONMessageMetadata verifies message object structure.
+//
+// VALIDATES: message object has id and direction, but NOT type.
+// PREVENTS: Event type duplicated in both bgp.type and message.type.
+func TestEventJSONMessageMetadata(t *testing.T) {
+	ctxID := testEncodingContext()
+
+	peer := PeerInfo{
+		Address: netip.MustParseAddr("10.0.0.1"),
+		PeerAS:  65001,
+	}
+
+	body := buildTestUpdateBodyWithAttrs(
+		netip.MustParsePrefix("192.168.1.0/24"),
+		netip.MustParseAddr("10.0.0.1"),
+		0, 0, nil,
+	)
+
+	wireUpdate := NewWireUpdate(body, ctxID)
+	attrsWire, _ := wireUpdate.Attrs()
+
+	msg := RawMessage{
+		Type:       message.TypeUPDATE,
+		RawBytes:   body,
+		AttrsWire:  attrsWire,
+		WireUpdate: wireUpdate,
+		Direction:  "received",
+		MessageID:  456,
+	}
+
+	content := ContentConfig{
+		Encoding: EncodingJSON,
+		Format:   FormatParsed,
+	}
+
+	output := FormatMessage(peer, msg, content, "")
+
+	var result map[string]any
+	err := json.Unmarshal([]byte(output), &result)
+	require.NoError(t, err, "JSON must be valid: %s", output)
+
+	bgpPayload := result["bgp"].(map[string]any) //nolint:forcetypeassert // test
+	msgObj, ok := bgpPayload["message"].(map[string]any)
+	require.True(t, ok, "bgp.message must be object: %s", output)
+
+	// message should have id and direction
+	assert.Equal(t, float64(456), msgObj["id"])
+	assert.Equal(t, "received", msgObj["direction"])
+
+	// message should NOT have type (type is in bgp.type now)
+	_, hasType := msgObj["type"]
+	assert.False(t, hasType, "message should NOT have type field")
+}
+
+// TestEventJSONPeerObject verifies peer object structure.
+//
+// VALIDATES: peer is object with address and asn fields.
+// PREVENTS: Peer format changes breaking plugin parsing.
+func TestEventJSONPeerObject(t *testing.T) {
+	enc := NewJSONEncoder("6.0.0")
+
+	peer := PeerInfo{
+		Address:      netip.MustParseAddr("192.168.1.2"),
+		LocalAddress: netip.MustParseAddr("192.168.1.1"),
+		LocalAS:      65001,
+		PeerAS:       65002,
+	}
+
+	output := enc.StateUp(peer)
+
+	var result map[string]any
+	err := json.Unmarshal([]byte(output), &result)
+	require.NoError(t, err)
+
+	bgpPayload := result["bgp"].(map[string]any) //nolint:forcetypeassert // test
+	peerObj, ok := bgpPayload["peer"].(map[string]any)
+	require.True(t, ok, "bgp.peer must be object")
+
+	assert.Equal(t, "192.168.1.2", peerObj["address"])
+	assert.Equal(t, float64(65002), peerObj["asn"])
+}
+
+// TestEventJSONNestedStructure verifies IPC 2.0 nested structure for attributes and NLRIs.
+//
+// VALIDATES: Attributes under "attributes", NLRIs under "nlri" objects.
+// PREVENTS: Fields being at top level of bgp payload instead of nested.
+func TestEventJSONNestedStructure(t *testing.T) {
+	ctxID := testEncodingContext()
+
+	peer := PeerInfo{
+		Address: netip.MustParseAddr("10.0.0.1"),
+		PeerAS:  65001,
+	}
+
+	body := buildTestUpdateBodyWithAttrs(
+		netip.MustParsePrefix("192.168.1.0/24"),
+		netip.MustParseAddr("10.0.0.1"),
+		0, 0, nil,
+	)
+
+	wireUpdate := NewWireUpdate(body, ctxID)
+	attrsWire, _ := wireUpdate.Attrs()
+
+	msg := RawMessage{
+		Type:       message.TypeUPDATE,
+		RawBytes:   body,
+		AttrsWire:  attrsWire,
+		WireUpdate: wireUpdate,
+		Direction:  "received",
+	}
+
+	content := ContentConfig{
+		Encoding: EncodingJSON,
+		Format:   FormatParsed,
+	}
+
+	output := FormatMessage(peer, msg, content, "")
+
+	var result map[string]any
+	err := json.Unmarshal([]byte(output), &result)
+	require.NoError(t, err, "JSON must be valid: %s", output)
+
+	bgpPayload := result["bgp"].(map[string]any) //nolint:forcetypeassert // test
+
+	t.Run("attributes_nested", func(t *testing.T) {
+		// Attributes should be nested under "attributes"
+		attrs, ok := bgpPayload["attributes"].(map[string]any)
+		require.True(t, ok, "bgp.attributes must be object: %s", output)
+
+		// Should have origin attribute
+		assert.Contains(t, attrs, "origin")
+
+		// origin should NOT be at bgp level directly
+		_, hasOriginAtTop := bgpPayload["origin"]
+		assert.False(t, hasOriginAtTop, "origin should NOT be at bgp level")
+	})
+
+	t.Run("nlri_nested", func(t *testing.T) {
+		// NLRIs should be nested under "nlri"
+		nlri, ok := bgpPayload["nlri"].(map[string]any)
+		require.True(t, ok, "bgp.nlri must be object: %s", output)
+
+		// Should have ipv4/unicast family
+		assert.Contains(t, nlri, "ipv4/unicast")
+
+		// ipv4/unicast should NOT be at bgp level directly
+		_, hasFamilyAtTop := bgpPayload["ipv4/unicast"]
+		assert.False(t, hasFamilyAtTop, "ipv4/unicast should NOT be at bgp level")
+	})
+}
+
+// TestEventJSONRawSection verifies raw bytes in format=full.
+//
+// VALIDATES: Wire bytes are in "raw" object when format=full.
+// PREVENTS: Raw bytes missing or at wrong location.
+func TestEventJSONRawSection(t *testing.T) {
+	ctxID := testEncodingContext()
+
+	peer := PeerInfo{
+		Address: netip.MustParseAddr("10.0.0.1"),
+		PeerAS:  65001,
+	}
+
+	body := buildTestUpdateBodyWithAttrs(
+		netip.MustParsePrefix("192.168.1.0/24"),
+		netip.MustParseAddr("10.0.0.1"),
+		0, 0, nil,
+	)
+
+	wireUpdate := NewWireUpdate(body, ctxID)
+	attrsWire, _ := wireUpdate.Attrs()
+
+	msg := RawMessage{
+		Type:       message.TypeUPDATE,
+		RawBytes:   body,
+		AttrsWire:  attrsWire,
+		WireUpdate: wireUpdate,
+		Direction:  "received",
+	}
+
+	content := ContentConfig{
+		Encoding: EncodingJSON,
+		Format:   FormatFull, // Request raw bytes
+	}
+
+	output := FormatMessage(peer, msg, content, "")
+
+	var result map[string]any
+	err := json.Unmarshal([]byte(output), &result)
+	require.NoError(t, err, "JSON must be valid: %s", output)
+
+	bgpPayload := result["bgp"].(map[string]any) //nolint:forcetypeassert // test
+
+	// Raw should exist
+	raw, ok := bgpPayload["raw"].(map[string]any)
+	require.True(t, ok, "bgp.raw must be object for format=full: %s", output)
+
+	// Raw should have attributes and nlri fields
+	assert.Contains(t, raw, "attributes", "raw should have attributes")
+	assert.Contains(t, raw, "nlri", "raw should have nlri")
 }

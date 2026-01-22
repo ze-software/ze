@@ -509,9 +509,10 @@ func (s *Server) handleSingleProcessCommands(proc *Process) {
 		}
 
 		// Send response only if serial present (serial = ack)
+		// IPC 2.0: wrap response
 		if serial != "" && resp != nil {
 			resp.Serial = serial
-			respJSON, _ := json.Marshal(resp)
+			respJSON, _ := json.Marshal(WrapResponse(resp))
 			_ = proc.WriteEvent(string(respJSON))
 		}
 	}
@@ -712,7 +713,7 @@ func (s *Server) handleRegisterCommand(proc *Process, serial string, tokens []st
 	if err != nil {
 		if serial != "" {
 			resp := &Response{Serial: serial, Status: "error", Data: err.Error()}
-			respJSON, _ := json.Marshal(resp)
+			respJSON, _ := json.Marshal(WrapResponse(resp))
 			_ = proc.WriteEvent(string(respJSON))
 		}
 		return
@@ -732,7 +733,7 @@ func (s *Server) handleRegisterCommand(proc *Process, serial string, tokens []st
 		} else {
 			resp = &Response{Serial: serial, Status: "error", Data: result.Error}
 		}
-		respJSON, _ := json.Marshal(resp)
+		respJSON, _ := json.Marshal(WrapResponse(resp))
 		_ = proc.WriteEvent(string(respJSON))
 	}
 }
@@ -743,7 +744,7 @@ func (s *Server) handleUnregisterCommand(proc *Process, serial string, tokens []
 	if err != nil {
 		if serial != "" {
 			resp := &Response{Serial: serial, Status: "error", Data: err.Error()}
-			respJSON, _ := json.Marshal(resp)
+			respJSON, _ := json.Marshal(WrapResponse(resp))
 			_ = proc.WriteEvent(string(respJSON))
 		}
 		return
@@ -754,7 +755,7 @@ func (s *Server) handleUnregisterCommand(proc *Process, serial string, tokens []
 
 	if serial != "" {
 		resp := &Response{Serial: serial, Status: "done"}
-		respJSON, _ := json.Marshal(resp)
+		respJSON, _ := json.Marshal(WrapResponse(resp))
 		_ = proc.WriteEvent(string(respJSON))
 	}
 }
@@ -893,12 +894,13 @@ func (s *Server) processCommand(client *Client, line string) {
 }
 
 // sendResponse sends a JSON response to the client.
-// Serial is included in JSON body, not as prefix.
+// IPC 2.0: wraps response in {"type":"response","response":{...}}.
 func (s *Server) sendResponse(client *Client, resp *Response) {
-	data, err := json.Marshal(resp)
+	wrapped := WrapResponse(resp)
+	data, err := json.Marshal(wrapped)
 	if err != nil {
-		// Fallback error response
-		data = []byte(`{"status":"error","data":"json marshal failed"}`)
+		// Fallback error response (also wrapped)
+		data = []byte(`{"type":"response","response":{"status":"error","data":"json marshal failed"}}`)
 	}
 
 	data = append(data, '\n')

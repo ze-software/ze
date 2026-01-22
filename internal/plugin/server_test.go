@@ -165,7 +165,8 @@ func TestServerCommandExecution(t *testing.T) {
 	response, err := reader.ReadString('\n')
 	require.NoError(t, err)
 
-	// Response should be JSON with status
+	// IPC 2.0: Response wrapped in {"type":"response","response":{...}}
+	assert.Contains(t, response, `"type":"response"`)
 	assert.Contains(t, response, `"status":"done"`)
 	assert.Contains(t, response, `"peer_count":2`)
 }
@@ -224,6 +225,8 @@ func TestServerUnknownCommand(t *testing.T) {
 	response, err := reader.ReadString('\n')
 	require.NoError(t, err)
 
+	// IPC 2.0: Response wrapped
+	assert.Contains(t, response, `"type":"response"`)
 	assert.Contains(t, response, `"status":"error"`)
 }
 
@@ -288,7 +291,8 @@ func TestServerEmptyLine(t *testing.T) {
 	response, err := reader.ReadString('\n')
 	require.NoError(t, err)
 
-	// Should get version response, not errors from empty lines
+	// IPC 2.0: Should get wrapped version response, not errors from empty lines
+	assert.Contains(t, response, `"type":"response"`)
 	assert.Contains(t, response, `"status":"done"`)
 	assert.Contains(t, response, `"version"`)
 }
@@ -461,7 +465,8 @@ func TestServerNoSerialCommand(t *testing.T) {
 	response, err := reader.ReadString('\n')
 	require.NoError(t, err)
 
-	// Should NOT have serial field (omitempty)
+	// IPC 2.0: Wrapped response, should NOT have serial field (omitempty)
+	assert.Contains(t, response, `"type":"response"`)
 	assert.NotContains(t, response, `"serial"`)
 	assert.Contains(t, response, `"status":"done"`)
 }
@@ -492,7 +497,8 @@ func TestServerSerialCommand(t *testing.T) {
 	response, err := reader.ReadString('\n')
 	require.NoError(t, err)
 
-	// Should have serial in JSON body (no @prefix for JSON)
+	// IPC 2.0: Should have serial in JSON body inside response wrapper
+	assert.Contains(t, response, `"type":"response"`)
 	assert.Contains(t, response, `"serial":"42"`)
 	assert.Contains(t, response, `"status":"done"`)
 }
@@ -540,24 +546,29 @@ func TestServerFormatMessageNotificationJSON(t *testing.T) {
 	err := parseJSON(t, output, &result)
 	require.NoError(t, err, "JSON must be valid: %s", output)
 
-	// Check message wrapper (includes type, id, direction)
-	msgWrapper, ok := result["message"].(map[string]any)
-	require.True(t, ok, "message wrapper must exist")
-	assert.Equal(t, "notification", msgWrapper["type"])
-	assert.Equal(t, float64(42), msgWrapper["id"])
-	assert.Equal(t, "received", msgWrapper["direction"])
+	// IPC 2.0: top-level "type" and payload under "bgp"
+	assert.Equal(t, "bgp", result["type"], "top-level type must be 'bgp'")
+	payload, ok := result["bgp"].(map[string]any)
+	require.True(t, ok, "bgp payload must exist")
 
-	// Check peer structure (flat format)
-	peerMap, ok := result["peer"].(map[string]any)
-	require.True(t, ok, "peer must be object")
+	// Check event type and message metadata in payload
+	assert.Equal(t, "notification", payload["type"])
+	msgMeta, ok := payload["message"].(map[string]any)
+	require.True(t, ok, "message metadata must exist in bgp payload")
+	assert.Equal(t, float64(42), msgMeta["id"])
+	assert.Equal(t, "received", msgMeta["direction"])
+
+	// Check peer structure in payload
+	peerMap, ok := payload["peer"].(map[string]any)
+	require.True(t, ok, "peer must be object in bgp payload")
 	assert.Equal(t, "10.0.0.1", peerMap["address"])
 	assert.Equal(t, float64(65002), peerMap["asn"])
 
-	// Notification fields at top level (flat format, hyphenated names)
-	assert.Equal(t, float64(6), result["code"])
-	assert.Equal(t, float64(2), result["subcode"])
-	assert.Equal(t, "Cease", result["code-name"])
-	assert.Equal(t, "Administrative Shutdown", result["subcode-name"])
+	// Notification fields in payload (hyphenated names)
+	assert.Equal(t, float64(6), payload["code"])
+	assert.Equal(t, float64(2), payload["subcode"])
+	assert.Equal(t, "Cease", payload["code-name"])
+	assert.Equal(t, "Administrative Shutdown", payload["subcode-name"])
 }
 
 // TestServerFormatMessageNotificationText verifies Server.formatMessage with NOTIFICATION+text.

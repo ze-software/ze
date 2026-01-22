@@ -463,6 +463,37 @@ type Response struct {
 	Data    any    `json:"data,omitempty"`    // Payload (success data or error message)
 }
 
+// ResponseWrapper wraps a Response with type field for IPC protocol 2.0.
+// All responses are wrapped: {"type":"response","response":{...}}.
+type ResponseWrapper struct {
+	Type     string    `json:"type"`     // Always "response"
+	Response *Response `json:"response"` // Payload
+}
+
+// WrapResponse wraps a Response in a ResponseWrapper for IPC protocol 2.0.
+func WrapResponse(r *Response) *ResponseWrapper {
+	return &ResponseWrapper{
+		Type:     "response",
+		Response: r,
+	}
+}
+
+// NewResponse creates a new Response with the given status and data.
+func NewResponse(status string, data any) *Response {
+	return &Response{
+		Status: status,
+		Data:   data,
+	}
+}
+
+// NewErrorResponse creates an error Response with the given message.
+func NewErrorResponse(message string) *Response {
+	return &Response{
+		Status: statusError,
+		Data:   message,
+	}
+}
+
 // PluginConfig holds external plugin configuration.
 type PluginConfig struct {
 	Name           string        // Plugin identifier

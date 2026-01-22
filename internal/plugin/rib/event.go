@@ -17,23 +17,130 @@ var knownFields = map[string]bool{
 	"raw": true, // format=full includes raw bytes
 	// Pool storage raw fields (format=full)
 	"raw-attributes": true, "raw-nlri": true, "raw-withdrawn": true,
+	// IPC 2.0 wrapper keys
+	"bgp": true, "rib": true,
+	// IPC 2.0 nested keys
+	"attributes": true, "nlri": true, "action": true,
 }
 
 // parseEvent parses a JSON event from ZeBGP.
+// Handles both IPC 2.0 format (type/bgp or type/rib wrapper) and legacy flat format.
 // Extracts family operations (ipv4/unicast, ipv6/unicast, etc.) from dynamic keys.
 func parseEvent(data []byte) (*Event, error) {
-	var event Event
-	if err := json.Unmarshal(data, &event); err != nil {
+	// First check if this is IPC 2.0 format (has "bgp" or "rib" wrapper)
+	var wrapper struct {
+		Type string          `json:"type"`
+		BGP  json.RawMessage `json:"bgp"`
+		RIB  json.RawMessage `json:"rib"`
+	}
+	if err := json.Unmarshal(data, &wrapper); err != nil {
 		return nil, err
 	}
 
-	// Parse raw JSON to extract family operations (dynamic keys)
+	// If IPC 2.0 format, parse the nested payload
+	var payloadData []byte
+	switch wrapper.Type {
+	case "bgp":
+		if len(wrapper.BGP) > 0 {
+			payloadData = wrapper.BGP
+		}
+	case "rib":
+		if len(wrapper.RIB) > 0 {
+			payloadData = wrapper.RIB
+		}
+	}
+
+	// Use nested payload or original data
+	if payloadData == nil {
+		payloadData = data
+	}
+
+	// Parse the event from payload
+	var event Event
+	if err := json.Unmarshal(payloadData, &event); err != nil {
+		return nil, err
+	}
+
+	// Parse raw JSON to extract family operations and IPC 2.0 nested structures
 	var raw map[string]json.RawMessage
-	if err := json.Unmarshal(data, &raw); err != nil {
+	if err := json.Unmarshal(payloadData, &raw); err != nil {
 		return &event, nil //nolint:nilerr // Return event without family ops if parsing fails
 	}
 
-	// Look for family keys (format: "afi/safi" like "ipv4/unicast")
+	// IPC 2.0: attributes nested under "attributes" key
+	if attrsData, ok := raw["attributes"]; ok {
+		var attrs struct {
+			Origin              string   `json:"origin,omitempty"`
+			ASPath              []uint32 `json:"as-path,omitempty"`
+			MED                 *uint32  `json:"med,omitempty"`
+			LocalPreference     *uint32  `json:"local-preference,omitempty"`
+			Communities         []string `json:"communities,omitempty"`
+			LargeCommunities    []string `json:"large-communities,omitempty"`
+			ExtendedCommunities []string `json:"extended-communities,omitempty"`
+		}
+		if err := json.Unmarshal(attrsData, &attrs); err == nil {
+			if attrs.Origin != "" {
+				event.Origin = attrs.Origin
+			}
+			if len(attrs.ASPath) > 0 {
+				event.ASPath = attrs.ASPath
+			}
+			if attrs.MED != nil {
+				event.MED = attrs.MED
+			}
+			if attrs.LocalPreference != nil {
+				event.LocalPreference = attrs.LocalPreference
+			}
+			if len(attrs.Communities) > 0 {
+				event.Communities = attrs.Communities
+			}
+			if len(attrs.LargeCommunities) > 0 {
+				event.LargeCommunities = attrs.LargeCommunities
+			}
+			if len(attrs.ExtendedCommunities) > 0 {
+				event.ExtendedCommunities = attrs.ExtendedCommunities
+			}
+		}
+	}
+
+	// IPC 2.0: NLRIs nested under "nlri" key
+	if nlriData, ok := raw["nlri"]; ok {
+		parseFamilyOps(&event, nlriData)
+	}
+
+	// IPC 2.0: raw bytes nested under "raw" key (format=full)
+	if rawData, ok := raw["raw"]; ok {
+		var rawFields struct {
+			Attributes string            `json:"attributes,omitempty"`
+			NLRI       map[string]string `json:"nlri,omitempty"`
+			Withdrawn  map[string]string `json:"withdrawn,omitempty"`
+		}
+		if err := json.Unmarshal(rawData, &rawFields); err == nil {
+			if rawFields.Attributes != "" {
+				event.RawAttributes = rawFields.Attributes
+			}
+			if len(rawFields.NLRI) > 0 {
+				event.RawNLRI = rawFields.NLRI
+			}
+			if len(rawFields.Withdrawn) > 0 {
+				event.RawWithdrawn = rawFields.Withdrawn
+			}
+		}
+	}
+
+	// Legacy format: Look for family keys at root level (format: "afi/safi")
+	parseFamilyOps(&event, payloadData)
+
+	return &event, nil
+}
+
+// parseFamilyOps extracts family operations from JSON data into the event.
+func parseFamilyOps(event *Event, data []byte) {
+	var raw map[string]json.RawMessage
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return
+	}
+
 	for key, val := range raw {
 		if knownFields[key] {
 			continue
@@ -54,8 +161,6 @@ func parseEvent(data []byte) (*Event, error) {
 		}
 		event.FamilyOps[key] = ops
 	}
-
-	return &event, nil
 }
 
 // Event represents a JSON event from ZeBGP.

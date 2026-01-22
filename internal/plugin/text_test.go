@@ -48,13 +48,15 @@ func TestFormatStateChange(t *testing.T) {
 			name:     "json established",
 			state:    "established",
 			encoding: EncodingJSON,
-			want:     `{"message":{"type":"state"},"peer":{"address":"10.0.0.1","asn":65001},"state":"established"}` + "\n",
+			// IPC 2.0: {"type":"bgp","bgp":{"type":"state",...}}
+			want: `{"type":"bgp","bgp":{"type":"state","peer":{"address":"10.0.0.1","asn":65001},"state":"established"}}` + "\n",
 		},
 		{
 			name:     "json down",
 			state:    "down",
 			encoding: EncodingJSON,
-			want:     `{"message":{"type":"state"},"peer":{"address":"10.0.0.1","asn":65001},"state":"down"}` + "\n",
+			// IPC 2.0: {"type":"bgp","bgp":{"type":"state",...}}
+			want: `{"type":"bgp","bgp":{"type":"state","peer":{"address":"10.0.0.1","asn":65001},"state":"down"}}` + "\n",
 		},
 	}
 
@@ -171,22 +173,29 @@ func TestFormatMessageJSON(t *testing.T) {
 
 	got := FormatMessage(peer, msg, content, "")
 
-	// Check key parts of the JSON structure
-	// Direction is now inside message wrapper: {"message":{"type":"update","direction":"received"...}}
+	// Check key parts of the IPC 2.0 JSON structure
+	// Outer wrapper: {"type":"bgp","bgp":{...}}
+	if !strings.Contains(got, `"type":"bgp"`) {
+		t.Error("missing top-level type:bgp")
+	}
+	if !strings.Contains(got, `"bgp":{`) {
+		t.Error("missing bgp payload wrapper")
+	}
+	// Event type in payload: bgp.type = "update"
 	if !strings.Contains(got, `"type":"update"`) {
-		t.Error("missing type:update")
+		t.Error("missing type:update in bgp payload")
 	}
-	if !strings.Contains(got, `"message":{"type":"update"`) {
-		t.Error("missing message wrapper")
-	}
-	// Direction should be inside message wrapper, not at root
+	// Direction should be inside message wrapper
 	if !strings.Contains(got, `"direction":"received"`) {
 		t.Error("missing direction:received in message wrapper")
 	}
 	if !strings.Contains(got, `"peer":{"address":"10.0.0.1","asn":65001}`) {
 		t.Error("missing peer info")
 	}
-	// New format: family at top level with operations array
+	// NLRIs under "nlri" object with family key
+	if !strings.Contains(got, `"nlri":{`) {
+		t.Error("missing nlri object")
+	}
 	if !strings.Contains(got, `"ipv4/unicast":[`) {
 		t.Error("missing ipv4/unicast family array")
 	}
@@ -203,6 +212,8 @@ func TestFormatMessageJSON(t *testing.T) {
 
 // buildTestUpdateBodyWithAttrs builds a BGP UPDATE message body with custom attributes.
 // Format: withdrawn_len(2) + withdrawn + attr_len(2) + attrs + nlri.
+//
+//nolint:unparam // origin is a valid parameter even if tests always pass 0
 func buildTestUpdateBodyWithAttrs(prefix netip.Prefix, nextHop netip.Addr, origin uint8, localPref uint32, asPath []uint32) []byte {
 	var attrs []byte
 

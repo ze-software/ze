@@ -1448,3 +1448,149 @@ func TestDispatch_RefreshEvents(t *testing.T) {
 		})
 	}
 }
+
+// =============================================================================
+// IPC Protocol 2.0 New Event Format Tests
+// =============================================================================
+// These tests validate parsing of the new JSON format per ipc_protocol.md v2.0:
+//   - Top-level "type" field indicates payload key ("bgp" or "rib")
+//   - Event content nested under "bgp" or "rib" key
+//   - Event type in payload (e.g., bgp.type = "update")
+//   - Attributes nested under "attributes"
+//   - NLRIs nested under "nlri"
+// =============================================================================
+
+// TestParseEvent_NewBGPFormat verifies parsing of IPC 2.0 BGP event format.
+//
+// VALIDATES: New wrapped BGP format with type/bgp structure parses correctly.
+// PREVENTS: Plugin breaking when engine updates to IPC 2.0 format.
+func TestParseEvent_NewBGPFormat(t *testing.T) {
+	// IPC 2.0 format: type at top, payload nested under "bgp"
+	input := `{
+		"type": "bgp",
+		"bgp": {
+			"type": "update",
+			"message": {"id": 789, "direction": "received"},
+			"peer": {"address": "10.0.0.1", "asn": 65001},
+			"attributes": {"origin": "igp", "as-path": [65001]},
+			"nlri": {"ipv4/unicast": [{"next-hop": "1.1.1.1", "action": "add", "nlri": ["10.0.0.0/24"]}]}
+		}
+	}`
+
+	event, err := parseEvent([]byte(input))
+	require.NoError(t, err)
+
+	assert.Equal(t, "update", event.GetEventType())
+	assert.Equal(t, uint64(789), event.GetMsgID())
+	assert.Equal(t, "received", event.GetDirection())
+	assert.Equal(t, "10.0.0.1", event.GetPeerAddress())
+	assert.Equal(t, uint32(65001), event.GetPeerASN())
+
+	// Verify attributes are parsed
+	assert.Equal(t, "igp", event.Origin)
+
+	// Verify NLRI operations
+	require.Contains(t, event.FamilyOps, "ipv4/unicast")
+	require.Len(t, event.FamilyOps["ipv4/unicast"], 1)
+	assert.Equal(t, "add", event.FamilyOps["ipv4/unicast"][0].Action)
+}
+
+// TestParseEvent_NewBGPFormatState verifies state events in new format.
+//
+// VALIDATES: State events with type/bgp wrapper parse correctly.
+// PREVENTS: Peer state changes being missed in new format.
+func TestParseEvent_NewBGPFormatState(t *testing.T) {
+	input := `{
+		"type": "bgp",
+		"bgp": {
+			"type": "state",
+			"peer": {"address": "10.0.0.1", "asn": 65001},
+			"state": "up"
+		}
+	}`
+
+	event, err := parseEvent([]byte(input))
+	require.NoError(t, err)
+
+	assert.Equal(t, "state", event.GetEventType())
+	assert.Equal(t, "10.0.0.1", event.GetPeerAddress())
+	assert.Equal(t, "up", event.GetPeerState())
+}
+
+// TestParseEvent_NewBGPFormatWithRaw verifies format=full raw bytes parsing.
+//
+// VALIDATES: Raw wire bytes from format=full are parsed into Event fields.
+// PREVENTS: Pool storage failing due to missing raw fields.
+func TestParseEvent_NewBGPFormatWithRaw(t *testing.T) {
+	input := `{
+		"type": "bgp",
+		"bgp": {
+			"type": "update",
+			"message": {"id": 100, "direction": "received"},
+			"peer": {"address": "10.0.0.1", "asn": 65001},
+			"attributes": {"origin": "igp"},
+			"nlri": {"ipv4/unicast": [{"next-hop": "1.1.1.1", "action": "add", "nlri": ["10.0.0.0/24"]}]},
+			"raw": {
+				"attributes": "40010100",
+				"nlri": {"ipv4/unicast": "180a0000"},
+				"withdrawn": {}
+			}
+		}
+	}`
+
+	event, err := parseEvent([]byte(input))
+	require.NoError(t, err)
+
+	assert.Equal(t, "update", event.GetEventType())
+	assert.Equal(t, uint64(100), event.GetMsgID())
+
+	// Verify raw fields are populated
+	assert.Equal(t, "40010100", event.RawAttributes)
+	require.NotNil(t, event.RawNLRI)
+	assert.Equal(t, "180a0000", event.RawNLRI["ipv4/unicast"])
+}
+
+// TestParseEvent_NewRIBFormat verifies parsing of IPC 2.0 RIB event format.
+//
+// VALIDATES: New wrapped RIB format with type/rib structure parses correctly.
+// PREVENTS: RIB cache events being ignored in new format.
+func TestParseEvent_NewRIBFormat(t *testing.T) {
+	// IPC 2.0 format: type at top, payload nested under "rib"
+	input := `{
+		"type": "rib",
+		"rib": {
+			"type": "cache",
+			"action": "new",
+			"msg-id": 12345,
+			"peer": {"address": "10.0.0.1", "asn": 65001}
+		}
+	}`
+
+	event, err := parseEvent([]byte(input))
+	require.NoError(t, err)
+
+	assert.Equal(t, "cache", event.GetEventType())
+	assert.Equal(t, uint64(12345), event.GetMsgID())
+	assert.Equal(t, "10.0.0.1", event.GetPeerAddress())
+}
+
+// TestParseEvent_BackwardsCompatible verifies old format still works.
+//
+// VALIDATES: Legacy format without wrapper still parses correctly.
+// PREVENTS: Breaking existing plugins during transition.
+func TestParseEvent_BackwardsCompatible(t *testing.T) {
+	// Old format without type/bgp wrapper
+	input := `{
+		"message": {"type": "update", "id": 456, "direction": "received"},
+		"peer": {"address": "10.0.0.1", "asn": 65001},
+		"origin": "igp",
+		"ipv4/unicast": [{"next-hop": "1.1.1.1", "action": "add", "nlri": ["10.0.0.0/24"]}]
+	}`
+
+	event, err := parseEvent([]byte(input))
+	require.NoError(t, err)
+
+	// Should still work via existing parsing logic
+	assert.Equal(t, "update", event.GetEventType())
+	assert.Equal(t, uint64(456), event.GetMsgID())
+}
