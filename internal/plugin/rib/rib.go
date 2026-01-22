@@ -764,7 +764,7 @@ func (r *RIBManager) replayRoutes(peerAddr string, routes []*Route) {
 	}
 
 	// Signal done with peer-specific ready - ZeBGP can now send EOR for this peer
-	r.sendCommand("peer " + peerAddr + " session api ready")
+	r.sendCommand("peer " + peerAddr + " plugin session ready")
 }
 
 // handleRequest processes command requests from ZeBGP.
@@ -897,7 +897,7 @@ func (r *RIBManager) handleOutboundShow(serial, selector string) {
 }
 
 // handleOutboundResend replays Adj-RIB-Out routes for matching peers.
-// Does NOT send "session api ready" - that's only for initial reconnect.
+// Does NOT send "plugin session ready" - that's only for initial reconnect.
 func (r *RIBManager) handleOutboundResend(serial, selector string) {
 	r.mu.RLock()
 	var peersToResend []string
@@ -931,7 +931,7 @@ func (r *RIBManager) handleOutboundResend(serial, selector string) {
 	r.respondDone(serial, string(data))
 }
 
-// sendRoutes sends routes to a peer without the "session api ready" signal.
+// sendRoutes sends routes to a peer without the "plugin session ready" signal.
 // Used for manual resend operations. Includes full path attributes.
 func (r *RIBManager) sendRoutes(peerAddr string, routes []*Route) {
 	// Sort by MsgID to send in original announcement order

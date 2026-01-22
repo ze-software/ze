@@ -20,7 +20,7 @@ API processes signal their readiness before BGP negotiation begins.
 
 | Command | Direction | Meaning |
 |---------|-----------|---------|
-| `session api ready` | API → ZeBGP | "I'm initialized and ready" |
+| `plugin session ready` | API → ZeBGP | "I'm initialized and ready" |
 
 ### Flow
 
@@ -29,7 +29,7 @@ API processes signal their readiness before BGP negotiation begins.
 2. ZeBGP counts how many processes are configured (N)
 3. ZeBGP spawns API processes
 4. ZeBGP waits for N "api ready" signals (with timeout)
-5. Each API process initializes and sends "session api ready"
+5. Each API process initializes and sends "plugin session ready"
 6. ZeBGP receives all ready signals (or timeout expires)
 7. ZeBGP starts peer connections
 ```
@@ -42,7 +42,7 @@ API processes signal their readiness before BGP negotiation begins.
 | All processes send ready | Proceed immediately |
 | 5s timeout expires | Proceed anyway (log warning) |
 
-**Key Design:** All API processes MUST send `session api ready` after initialization. This is mandatory protocol, not optional.
+**Key Design:** All API processes MUST send `plugin session ready` after initialization. This is mandatory protocol, not optional.
 
 ## Implementation
 
@@ -71,7 +71,7 @@ func (r *Reactor) WaitForAPIReady() {
     }
 }
 
-// SignalAPIReady called when "session api ready" received.
+// SignalAPIReady called when "plugin session ready" received.
 func (r *Reactor) SignalAPIReady() {
     if r.readyCount.Add(1) >= int32(r.processCount) {
         close(r.readyCh)
@@ -89,7 +89,7 @@ func (p *Process) Run() int {
     p.initialize()
 
     // Signal ready - MANDATORY
-    p.sendCommand("session api ready")
+    p.sendCommand("plugin session ready")
 
     // Main event loop
     for { ... }
@@ -104,7 +104,7 @@ For routes replayed on reconnect (e.g., persist plugin):
 2. "state up" sent to API processes
 3. ZeBGP resets ready count, waits for N "api ready" signals
 4. API process replays routes for that peer
-5. API process sends `session api ready`
+5. API process sends `plugin session ready`
 6. All ready signals received → ZeBGP sends EOR
 
 The same mechanism applies globally to all pending sessions.
@@ -120,7 +120,7 @@ If API sync works correctly, routes are always sent before EOR.
 
 ## Backwards Compatibility
 
-- **Breaking change:** All API processes must now send `session api ready`
+- **Breaking change:** All API processes must now send `plugin session ready`
 - Existing API scripts need updating to send ready signal
 - No config changes required - just update the process scripts
 
@@ -128,18 +128,18 @@ If API sync works correctly, routes are always sent before EOR.
 
 ### API Script Updates
 
-All `.run` scripts must send `session api ready` after initialization:
+All `.run` scripts must send `plugin session ready` after initialization:
 
 ```python
 # At start of script, after imports
-send("session api ready")
+send("plugin session ready")
 ```
 
 ### Persist Plugin
 
 The persist plugin sends ready signal:
-- At startup: register commands → `session api ready`
-- On state up: replay routes → `session api ready`
+- At startup: register commands → `plugin session ready`
+- On state up: replay routes → `plugin session ready`
 
 ### Test expectations remain unchanged:
 - C1: route1, route2, route3, EOR
@@ -157,7 +157,7 @@ done
 
 ### Completed ✅
 
-1. **exabgp_api.py** - Added `ready()` function that sends `session api ready`
+1. **exabgp_api.py** - Added `ready()` function that sends `plugin session ready`
 2. **All .run scripts** - Call `ready()` after initialization
 3. **All .ci files** - EOR reordered to come after routes
 4. **peer.go KEEPALIVE skip** - Logic to handle synchronization

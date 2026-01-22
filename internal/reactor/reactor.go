@@ -3964,7 +3964,7 @@ func (r *Reactor) StartWithContext(ctx context.Context) error {
 	r.signals.StartWithContext(r.ctx)
 
 	// Wait for API processes to signal readiness before starting peers.
-	// All processes must send "session api ready" before BGP sessions start.
+	// All processes must send "plugin session ready" before BGP sessions start.
 	r.WaitForAPIReady()
 
 	// Start all peers (passive peers wait for incoming connections).

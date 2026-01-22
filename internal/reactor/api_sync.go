@@ -67,7 +67,7 @@ func (r *Reactor) WaitForAPIReady() {
 	}
 }
 
-// SignalAPIReady is called when "session api ready" is received.
+// SignalAPIReady is called when "plugin session ready" is received.
 // When all processes have signaled, unblocks WaitForAPIReady.
 func (r *Reactor) SignalAPIReady() {
 	count := r.readyCount.Add(1)
@@ -85,7 +85,7 @@ func (r *Reactor) signalAllReady() {
 }
 
 // SignalPeerAPIReady signals that a peer-specific API initialization is complete.
-// Called when "peer <addr> session api ready" is received (e.g., after route replay).
+// Called when "peer <addr> plugin session ready" is received (e.g., after route replay).
 // Routes the signal to the specified peer.
 func (r *Reactor) SignalPeerAPIReady(peerAddr string) {
 	r.mu.RLock()

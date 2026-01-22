@@ -236,7 +236,7 @@ func TestHandleState_PeerUp(t *testing.T) {
 	output := out.String()
 	assert.Contains(t, output, "peer 10.0.0.1 update text nhop set 1.1.1.1 nlri ipv4/unicast add 10.0.0.0/24")
 	assert.Contains(t, output, "peer 10.0.0.1 update text nhop set 1.1.1.1 nlri ipv4/unicast add 10.0.1.0/24")
-	assert.Contains(t, output, "session api ready")
+	assert.Contains(t, output, "plugin session ready")
 }
 
 // TestHandleState_PeerDown verifies Adj-RIB-In is cleared on peer down.
@@ -798,8 +798,8 @@ func TestHandleRequest_RIBAdjacentOutboundResend(t *testing.T) {
 	assert.Contains(t, output, "nlri ipv4/unicast add 10.0.0.0/24")
 	// Should NOT have replayed routes for 10.0.0.2
 	assert.NotContains(t, output, "peer 10.0.0.2 update text")
-	// Should NOT send "session api ready" - that's only for reconnect
-	assert.NotContains(t, output, "session api ready")
+	// Should NOT send "plugin session ready" - that's only for reconnect
+	assert.NotContains(t, output, "plugin session ready")
 }
 
 // TestHandleRequest_RIBAdjacentOutboundResend_DownPeer verifies resend skips down peers.

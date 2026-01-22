@@ -46,6 +46,9 @@ func RegisterDefaultHandlers(d *Dispatcher) {
 	// Session operations (per-process API connection state)
 	RegisterSessionHandlers(d)
 
+	// Plugin namespace (lifecycle + introspection)
+	RegisterPluginHandlers(d)
+
 	// Forward operations (route reflection via update-id)
 	RegisterForwardHandlers(d)
 

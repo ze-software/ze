@@ -12,21 +12,15 @@ var ErrSilent = errors.New("silent")
 // RegisterSessionHandlers registers session API commands.
 // These commands control per-process API connection state.
 // Note: ACK is controlled by serial prefix (#N), not session commands.
+// Note: Session lifecycle commands (ready/ping/bye) moved to plugin namespace.
+// Note: Session sync/encoding commands move to bgp plugin namespace in Step 4.
 func RegisterSessionHandlers(d *Dispatcher) {
-	// Sync control
+	// Sync control (Step 4 moves to bgp plugin ack sync/async)
 	d.Register("session sync enable", handleSessionSyncEnable, "Enable sync mode (wait for wire)")
 	d.Register("session sync disable", handleSessionSyncDisable, "Disable sync mode")
 
-	// API startup synchronization
-	d.Register("session api ready", handleSessionAPIReady, "Signal API initialization complete")
-
-	// Wire encoding control
+	// Wire encoding control (Step 4 moves to bgp plugin encoding)
 	d.Register("session api encoding", handleSessionAPIEncoding, "Set wire encoding (hex|b64|cbor|text)")
-
-	// Session control
-	d.Register("session reset", handleSessionReset, "Reset session state")
-	d.Register("session ping", handleSessionPing, "Health check")
-	d.Register("session bye", handleSessionBye, "Client disconnect")
 }
 
 // handleSessionSyncEnable enables sync mode for this process.
@@ -57,25 +51,9 @@ func handleSessionSyncDisable(ctx *CommandContext, _ []string) (*Response, error
 	}, nil
 }
 
-// handleSessionReset resets session state for this process.
-// Clears any pending async operations, resets sync mode and encoding.
-func handleSessionReset(ctx *CommandContext, _ []string) (*Response, error) {
-	// Reset to defaults
-	if ctx.Process != nil {
-		ctx.Process.SetSync(false)
-		ctx.Process.SetWireEncoding(WireEncodingHex) // Default encoding
-	}
-	return &Response{
-		Status: "done",
-		Data: map[string]any{
-			"status": "session reset",
-		},
-	}, nil
-}
-
-// handleSessionPing returns a pong response for health checking.
+// handlePluginSessionPing returns a pong response for health checking.
 // Returns daemon PID for identification.
-func handleSessionPing(ctx *CommandContext, _ []string) (*Response, error) {
+func handlePluginSessionPing(_ *CommandContext, _ []string) (*Response, error) {
 	return &Response{
 		Status: "done",
 		Data: map[string]any{
@@ -84,15 +62,37 @@ func handleSessionPing(ctx *CommandContext, _ []string) (*Response, error) {
 	}, nil
 }
 
-// handleSessionBye handles client disconnect cleanup.
+// handlePluginSessionBye handles client disconnect cleanup.
 // Called when a client is disconnecting from the API.
-func handleSessionBye(ctx *CommandContext, _ []string) (*Response, error) {
+func handlePluginSessionBye(_ *CommandContext, _ []string) (*Response, error) {
 	// Currently just acknowledges the disconnect.
 	// Future: could clean up client-specific state.
 	return &Response{
 		Status: "done",
 		Data: map[string]any{
 			"status": "goodbye",
+		},
+	}, nil
+}
+
+// handlePluginSessionReady signals that an API process has completed initialization.
+// If called with a peer prefix ("peer <addr> plugin session ready"), signals that
+// peer-specific API initialization is complete (e.g., route replay after reconnect).
+// If called without peer prefix, unblocks reactor startup.
+func handlePluginSessionReady(ctx *CommandContext, _ []string) (*Response, error) {
+	if ctx.Reactor != nil {
+		// Check if this is a peer-specific ready signal
+		if ctx.Peer != "" && ctx.Peer != "*" {
+			ctx.Reactor.SignalPeerAPIReady(ctx.Peer)
+		} else {
+			// Global ready signal for startup
+			ctx.Reactor.SignalAPIReady()
+		}
+	}
+	return &Response{
+		Status: "done",
+		Data: map[string]any{
+			"api": "ready acknowledged",
 		},
 	}, nil
 }
@@ -150,27 +150,5 @@ func handleSessionAPIEncoding(ctx *CommandContext, args []string) (*Response, er
 	return &Response{
 		Status: "done",
 		Data:   data,
-	}, nil
-}
-
-// handleSessionAPIReady signals that an API process has completed initialization.
-// If called with a peer prefix ("peer <addr> session api ready"), signals that
-// peer-specific API initialization is complete (e.g., route replay after reconnect).
-// If called without peer prefix, unblocks reactor startup.
-func handleSessionAPIReady(ctx *CommandContext, _ []string) (*Response, error) {
-	if ctx.Reactor != nil {
-		// Check if this is a peer-specific ready signal
-		if ctx.Peer != "" && ctx.Peer != "*" {
-			ctx.Reactor.SignalPeerAPIReady(ctx.Peer)
-		} else {
-			// Global ready signal for startup
-			ctx.Reactor.SignalAPIReady()
-		}
-	}
-	return &Response{
-		Status: "done",
-		Data: map[string]any{
-			"api": "ready acknowledged",
-		},
 	}, nil
 }

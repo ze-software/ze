@@ -60,47 +60,17 @@ func TestSessionSyncDisable(t *testing.T) {
 	assert.False(t, proc.SyncEnabled(), "sync should be disabled after command")
 }
 
-// TestSessionReset verifies the session reset command.
-//
-// VALIDATES: Command resets session state and returns success.
-//
-// PREVENTS: Stale state persisting after reset request.
-func TestSessionReset(t *testing.T) {
-	proc := NewProcess(PluginConfig{
-		Name:    "test",
-		Run:     "echo test",
-		Encoder: "json",
-	})
-
-	ctx := &CommandContext{
-		Reactor: &mockReactor{},
-		Process: proc,
-	}
-
-	resp, err := handleSessionReset(ctx, nil)
-	require.NoError(t, err)
-	require.NotNil(t, resp)
-	assert.Equal(t, "done", resp.Status)
-}
-
-// TestSessionPing verifies the session ping command.
+// TestPluginSessionPing verifies the plugin session ping command.
 //
 // VALIDATES: Returns pong with daemon information.
 //
 // PREVENTS: Missing health check endpoint.
-func TestSessionPing(t *testing.T) {
-	proc := NewProcess(PluginConfig{
-		Name:    "test",
-		Run:     "echo test",
-		Encoder: "json",
-	})
-
+func TestPluginSessionPing(t *testing.T) {
 	ctx := &CommandContext{
 		Reactor: &mockReactor{},
-		Process: proc,
 	}
 
-	resp, err := handleSessionPing(ctx, nil)
+	resp, err := handlePluginSessionPing(ctx, nil)
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 	assert.Equal(t, "done", resp.Status)
@@ -110,45 +80,57 @@ func TestSessionPing(t *testing.T) {
 	assert.Contains(t, data, "pong", "response should contain pong field")
 }
 
-// TestSessionBye verifies the session bye command.
+// TestPluginSessionBye verifies the plugin session bye command.
 //
 // VALIDATES: Returns success for client disconnect.
 //
 // PREVENTS: Error on client disconnect cleanup.
-func TestSessionBye(t *testing.T) {
-	proc := NewProcess(PluginConfig{
-		Name:    "test",
-		Run:     "echo test",
-		Encoder: "json",
-	})
-
+func TestPluginSessionBye(t *testing.T) {
 	ctx := &CommandContext{
 		Reactor: &mockReactor{},
-		Process: proc,
 	}
 
-	resp, err := handleSessionBye(ctx, nil)
+	resp, err := handlePluginSessionBye(ctx, nil)
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 	assert.Equal(t, "done", resp.Status)
 }
 
-// TestSessionCommandsRegistered verifies session commands are registered.
+// TestPluginSessionReady verifies the plugin session ready command.
 //
-// VALIDATES: All session commands are accessible via dispatcher.
+// VALIDATES: Returns success and signals reactor.
+//
+// PREVENTS: Plugin startup signal not being acknowledged.
+func TestPluginSessionReady(t *testing.T) {
+	ctx := &CommandContext{
+		Reactor: &mockReactor{},
+	}
+
+	resp, err := handlePluginSessionReady(ctx, nil)
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	assert.Equal(t, "done", resp.Status)
+
+	data, ok := resp.Data.(map[string]any)
+	require.True(t, ok)
+	assert.Equal(t, "ready acknowledged", data["api"])
+}
+
+// TestSessionCommandsRegistered verifies remaining session commands are registered.
+//
+// VALIDATES: Session sync/encoding commands are still accessible via dispatcher.
 //
 // PREVENTS: Session commands not wired up to dispatcher.
+// NOTE: session ping/bye/reset moved to plugin namespace.
 func TestSessionCommandsRegistered(t *testing.T) {
 	d := NewDispatcher()
 	RegisterDefaultHandlers(d)
 
+	// These commands remain in session namespace (Step 4 moves them to bgp plugin)
 	commands := []string{
 		"session sync enable",
 		"session sync disable",
 		"session api encoding",
-		"session reset",
-		"session ping",
-		"session bye",
 	}
 
 	for _, cmd := range commands {
@@ -290,32 +272,4 @@ func TestSessionAPIEncodingInvalid(t *testing.T) {
 	resp, err = handleSessionAPIEncoding(ctx, []string{})
 	require.Error(t, err)
 	assert.Nil(t, resp)
-}
-
-// TestSessionResetClearsEncoding verifies reset restores default encoding.
-//
-// VALIDATES: session reset restores encoding to hex (default).
-//
-// PREVENTS: Stale encoding persisting after reset.
-func TestSessionResetClearsEncoding(t *testing.T) {
-	proc := NewProcess(PluginConfig{
-		Name:    "test",
-		Run:     "echo test",
-		Encoder: "json",
-	})
-	// Change encoding
-	proc.SetWireEncodingIn(WireEncodingCBOR)
-	proc.SetWireEncodingOut(WireEncodingB64)
-
-	ctx := &CommandContext{
-		Reactor: &mockReactor{},
-		Process: proc,
-	}
-
-	resp, err := handleSessionReset(ctx, nil)
-	require.NoError(t, err)
-	require.NotNil(t, resp)
-	assert.Equal(t, "done", resp.Status)
-	assert.Equal(t, WireEncodingHex, proc.WireEncodingIn(), "encoding should reset to hex")
-	assert.Equal(t, WireEncodingHex, proc.WireEncodingOut(), "encoding should reset to hex")
 }

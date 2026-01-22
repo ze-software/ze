@@ -682,9 +682,9 @@ func buildAnnounceUpdate(route RouteSpec, localAS uint32,
 |---------|--------|
 | `session sync enable` | Wait for wire transmission |
 | `session sync disable` | Return immediately |
-| `session reset` | Reset session state |
-| `session ping` | Health check |
-| `session bye` | Client disconnect |
+| `plugin session ready` | Signal plugin init complete |
+| `plugin session ping` | Health check |
+| `plugin session bye` | Disconnect |
 
 ### Command Serial (ACK Control)
 
@@ -1043,7 +1043,7 @@ RIB receives "state up"
 RIB replays: "peer <addr> update text nhop set <nh> nlri <family> add <prefix>"
     │
     ▼
-RIB signals: "peer <addr> session api ready"
+RIB signals: "peer <addr> plugin session ready"
 ```
 
 ### API Sync Protocol
@@ -1053,7 +1053,7 @@ To ensure routes are replayed before EOR is sent, the engine uses an API sync pr
 1. **Session establishment:** Engine counts API bindings with `SendUpdate` permission
 2. **ResetAPISync(count):** Peer initializes sync state with expected signal count
 3. **RIB replays routes:** After "state up", replays stored routes
-4. **RIB signals ready:** `"peer <addr> session api ready"`
+4. **RIB signals ready:** `"peer <addr> plugin session ready"`
 5. **SignalPeerAPIReady:** Engine decrements counter, closes channel when all received
 6. **sendInitialRoutes:** Waits up to 500ms for API sync before sending EOR
 

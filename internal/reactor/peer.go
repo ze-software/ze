@@ -159,7 +159,7 @@ type Peer struct {
 	sendingInitialRoutes atomic.Int32
 
 	// API sync for EOR: wait for API processes to finish initial routes before EOR.
-	// Reset on each session establishment, signaled by "session api ready" commands.
+	// Reset on each session establishment, signaled by "plugin session ready" commands.
 	apiSyncExpected  int32         // Number of ready signals expected (processes with SendUpdate)
 	apiSyncReady     chan struct{} // Closed when all expected ready signals received
 	apiSyncReadyOnce sync.Once     // Ensures channel is closed only once
@@ -241,7 +241,7 @@ func (p *Peer) ResetAPISync(expectedCount int) {
 	p.mu.Unlock()
 }
 
-// SignalAPIReady is called when "session api ready" is received for this peer.
+// SignalAPIReady is called when "plugin session ready" is received for this peer.
 // When all expected signals are received, unblocks waitForAPISync.
 func (p *Peer) SignalAPIReady() {
 	count := p.apiSyncCount.Add(1)
@@ -901,7 +901,7 @@ func (p *Peer) runOnce() error {
 			trace.SessionEstablished(addr, p.settings.LocalAS, p.settings.PeerAS)
 
 			// Reset per-session API sync: count plugins with SendUpdate permission.
-			// They will signal "session api ready" after replaying routes.
+			// They will signal "plugin session ready" after replaying routes.
 			apiSendCount := 0
 			for _, binding := range p.settings.ProcessBindings {
 				if binding.SendUpdate {

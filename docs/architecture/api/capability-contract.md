@@ -7,7 +7,7 @@
 | `msg-id` in events | ✅ Done | `json.go`, `text.go` |
 | `forward update-id` | ✅ Done | `forward.go` |
 | `capability route-refresh` | ✅ Done | `rr/server.go:68` |
-| `session api ready` | ✅ Done | `session.go` |
+| `plugin session ready` | ✅ Done | `plugin.go` |
 | Refresh event handling | ✅ Done | `rr/server.go`, `decode.go` |
 | `msg-id retain/release/expire` | ✅ Done | `msgid.go` |
 | `msg-id list` | ✅ Done | `msgid.go` |

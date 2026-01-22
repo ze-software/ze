@@ -402,7 +402,7 @@ type ReactorInterface interface {
 	SignalAPIReady()
 
 	// SignalPeerAPIReady signals that a peer-specific API initialization is complete.
-	// Called when "peer <addr> session api ready" is received (e.g., after route replay).
+	// Called when "peer <addr> plugin session ready" is received (e.g., after route replay).
 	SignalPeerAPIReady(peerAddr string)
 
 	// SendRawMessage sends raw bytes to a peer.

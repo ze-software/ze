@@ -1084,3 +1084,190 @@ func TestHandleRawCommandRegistered(t *testing.T) {
 	c := d.Lookup("raw")
 	assert.NotNil(t, c, "raw command must be registered")
 }
+
+// =============================================================================
+// Plugin Namespace Tests
+// =============================================================================
+
+// TestDispatchPluginSessionReady verifies plugin session ready command.
+//
+// VALIDATES: "plugin session ready" dispatches correctly and signals API ready.
+//
+// PREVENTS: Plugin startup signal not reaching reactor.
+func TestDispatchPluginSessionReady(t *testing.T) {
+	d := NewDispatcher()
+	RegisterDefaultHandlers(d)
+
+	reactor := &mockReactor{}
+	ctx := &CommandContext{Reactor: reactor}
+
+	resp, err := d.Dispatch(ctx, "plugin session ready")
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	assert.Equal(t, "done", resp.Status)
+}
+
+// TestDispatchPluginSessionPing verifies plugin session ping returns PID.
+//
+// VALIDATES: "plugin session ping" returns pong with daemon PID.
+//
+// PREVENTS: Health check endpoint not working.
+func TestDispatchPluginSessionPing(t *testing.T) {
+	d := NewDispatcher()
+	RegisterDefaultHandlers(d)
+
+	reactor := &mockReactor{}
+	ctx := &CommandContext{Reactor: reactor}
+
+	resp, err := d.Dispatch(ctx, "plugin session ping")
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	assert.Equal(t, "done", resp.Status)
+
+	data, ok := resp.Data.(map[string]any)
+	require.True(t, ok)
+	assert.Contains(t, data, "pong", "response should contain pong field with PID")
+}
+
+// TestDispatchPluginSessionBye verifies plugin session bye acknowledges.
+//
+// VALIDATES: "plugin session bye" returns success for disconnect.
+//
+// PREVENTS: Plugin disconnect not being acknowledged.
+func TestDispatchPluginSessionBye(t *testing.T) {
+	d := NewDispatcher()
+	RegisterDefaultHandlers(d)
+
+	reactor := &mockReactor{}
+	ctx := &CommandContext{Reactor: reactor}
+
+	resp, err := d.Dispatch(ctx, "plugin session bye")
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	assert.Equal(t, "done", resp.Status)
+
+	data, ok := resp.Data.(map[string]any)
+	require.True(t, ok)
+	assert.Equal(t, "goodbye", data["status"])
+}
+
+// TestDispatchPluginHelp verifies plugin help lists subcommands.
+//
+// VALIDATES: "plugin help" returns list of plugin subcommands.
+//
+// PREVENTS: Plugin introspection not working.
+func TestDispatchPluginHelp(t *testing.T) {
+	d := NewDispatcher()
+	RegisterDefaultHandlers(d)
+
+	reactor := &mockReactor{}
+	ctx := &CommandContext{Reactor: reactor, Dispatcher: d}
+
+	resp, err := d.Dispatch(ctx, "plugin help")
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	assert.Equal(t, "done", resp.Status)
+
+	data, ok := resp.Data.(map[string]any)
+	require.True(t, ok)
+	subcommands, ok := data["subcommands"].([]string)
+	require.True(t, ok)
+	assert.Contains(t, subcommands, "session")
+	assert.Contains(t, subcommands, "command")
+}
+
+// TestDispatchPluginCommandList verifies plugin command list returns commands.
+//
+// VALIDATES: "plugin command list" returns plugin-registered commands.
+//
+// PREVENTS: Plugin command discovery not working.
+func TestDispatchPluginCommandList(t *testing.T) {
+	d := NewDispatcher()
+	RegisterDefaultHandlers(d)
+
+	reactor := &mockReactor{}
+	ctx := &CommandContext{Reactor: reactor, Dispatcher: d}
+
+	resp, err := d.Dispatch(ctx, "plugin command list")
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	assert.Equal(t, "done", resp.Status)
+
+	data, ok := resp.Data.(map[string]any)
+	require.True(t, ok)
+	assert.Contains(t, data, "commands")
+}
+
+// TestOldSessionCommandsRemoved verifies old session commands are removed.
+//
+// VALIDATES: "session ping", "session bye", "session api ready" return unknown command.
+//
+// PREVENTS: Old command paths still working after migration.
+func TestOldSessionCommandsRemoved(t *testing.T) {
+	d := NewDispatcher()
+	RegisterDefaultHandlers(d)
+
+	oldCommands := []string{
+		"session ping",
+		"session bye",
+		"session api ready",
+		"session reset",
+	}
+
+	for _, cmd := range oldCommands {
+		t.Run(cmd, func(t *testing.T) {
+			c := d.Lookup(cmd)
+			assert.Nil(t, c, "command %q should NOT be registered (moved to plugin namespace)", cmd)
+		})
+	}
+}
+
+// TestPluginCommandsRegistered verifies new plugin commands are registered.
+//
+// VALIDATES: All plugin namespace commands are accessible.
+//
+// PREVENTS: Plugin commands not wired up.
+func TestPluginCommandsRegistered(t *testing.T) {
+	d := NewDispatcher()
+	RegisterDefaultHandlers(d)
+
+	pluginCommands := []string{
+		"plugin session ready",
+		"plugin session ping",
+		"plugin session bye",
+		"plugin help",
+		"plugin command list",
+		"plugin command help",
+		"plugin command complete",
+	}
+
+	for _, cmd := range pluginCommands {
+		t.Run(cmd, func(t *testing.T) {
+			c := d.Lookup(cmd)
+			assert.NotNil(t, c, "command %q must be registered", cmd)
+		})
+	}
+}
+
+// TestSessionSyncCommandsRemain verifies session sync commands still work.
+//
+// VALIDATES: "session sync enable/disable" still works (moved in Step 4).
+//
+// PREVENTS: Breaking session sync before Step 4 migration.
+func TestSessionSyncCommandsRemain(t *testing.T) {
+	d := NewDispatcher()
+	RegisterDefaultHandlers(d)
+
+	syncCommands := []string{
+		"session sync enable",
+		"session sync disable",
+		"session api encoding",
+	}
+
+	for _, cmd := range syncCommands {
+		t.Run(cmd, func(t *testing.T) {
+			c := d.Lookup(cmd)
+			assert.NotNil(t, c, "command %q should still be registered (moved in Step 4)", cmd)
+		})
+	}
+}

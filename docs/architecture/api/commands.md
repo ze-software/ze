@@ -57,9 +57,9 @@ session ack disable      # Disable acknowledgment
 session ack silence      # Silence all output
 session sync enable      # Enable synchronous mode
 session sync disable     # Disable synchronous mode
-session reset            # Reset session state
-session ping             # Health check
-session bye              # Close CLI connection
+plugin session ready     # Signal plugin init complete
+plugin session ping      # Health check
+plugin session bye       # Disconnect
 ```
 
 ### System Commands

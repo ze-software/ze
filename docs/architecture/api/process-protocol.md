@@ -710,7 +710,7 @@ The RIB plugin tracks routes and replays them on peer reconnect.
 │                              ◄───── peer 192.168.1.1 update text            │
 │                                       nhop set 10.0.0.1 nlri ipv4/unicast   │
 │                                       add 10.0.1.0/24                       │
-│                              ◄───── #1 peer 192.168.1.1 session api ready   │
+│                              ◄───── #1 peer 192.168.1.1 plugin session ready│
 │                                                                             │
 │   ─── Route refresh request ───                                             │
 │                                                                             │
