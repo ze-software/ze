@@ -55,7 +55,7 @@ Peer A ──UPDATE──▶ ZeBGP ──JSON──▶ ze bgp plugin rr
                                          │ (for replay on peer up)
                                          ▼
                    ZeBGP ◀─────────── ze bgp plugin rr
-                     │       peer !A forward update-id 123
+                     │       bgp cache 123 forward !A
                      ▼
               Peers B, C, D (zero-copy forward)
 ```

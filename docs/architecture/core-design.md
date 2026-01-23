@@ -34,7 +34,7 @@ All new code MUST follow these patterns.
 │        └────────────┼────────────┘                                          │
 │                     ▼                                                       │
 │              ┌─────────────┐                                                │
-│              │   Reactor   │  (event loop, msg-id cache)                   │
+│              │   Reactor   │  (event loop, BGP cache)                      │
 │              └─────────────┘                                                │
 └─────────────────────────────────────────────────────────────────────────────┘
                               │                 ▲
@@ -54,7 +54,7 @@ All new code MUST follow these patterns.
 - **Engine** handles BGP protocol, TCP, FSM, message parsing
 - **Plugins** implement RIB storage, policy, route reflection
 - **Pipes** carry JSON events (with base64 wire bytes) and text commands
-- **msg-id cache** enables zero-copy forwarding (`forward update-id 123`)
+- **BGP cache** enables zero-copy forwarding (`bgp cache 123 forward <sel>`)
 
 ---
 
@@ -342,13 +342,13 @@ Engine sends events with base64-encoded wire bytes:
 Plugin can:
 - Use `parsed` for decisions
 - Store `raw-*` bytes directly (for forwarding)
-- Forward by ID: `"peer !10.0.0.1 forward update-id 12345"`
+- Forward by ID: `"bgp cache 12345 forward !10.0.0.1"`
 
 ### What Engine Stores vs Plugin Stores
 
 | Component | Engine Stores | Plugin Stores |
 |-----------|---------------|---------------|
-| **msg-id cache** | WireUpdate by ID (for forward-by-id) | - |
+| **BGP cache** | WireUpdate by ID (for `bgp cache <id> forward`) | - |
 | **Peer state** | Negotiated caps, FSM state | - |
 | **RIB** | - | NLRI → attribute refs (with pools) |
 | **Policy** | - | Route filters, preferences |
@@ -476,7 +476,7 @@ Receive UPDATE → Assign msg-id → Cache WireUpdate → API event
                                                Plugin decides
                                                         │
                                                         ▼
-                          "forward update-id 123" → Lookup cache → Send wire
+                          "bgp cache 123 forward" → Lookup cache → Send wire
 ```
 
 ---

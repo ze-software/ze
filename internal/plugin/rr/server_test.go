@@ -43,7 +43,7 @@ func TestServer_HandleUpdate(t *testing.T) {
 
 	output := out.String()
 	// Now forwards per-peer instead of broadcast
-	if !strings.Contains(output, "peer 10.0.0.2 forward update-id 123") {
+	if !strings.Contains(output, "bgp cache 123 forward 10.0.0.2") {
 		t.Errorf("expected forward to peer 2, got %q", output)
 	}
 	if strings.Contains(output, "peer 10.0.0.1") {
@@ -95,7 +95,7 @@ func TestServer_HandleWithdraw(t *testing.T) {
 	rs.handleUpdate(event)
 
 	output := out.String()
-	if !strings.Contains(output, "peer 10.0.0.2 forward update-id 124") {
+	if !strings.Contains(output, "bgp cache 124 forward 10.0.0.2") {
 		t.Errorf("expected forward to peer 2, got %q", output)
 	}
 
@@ -168,10 +168,10 @@ func TestServer_HandleStateUp(t *testing.T) {
 
 	output := out.String()
 	// Should replay routes from peers 2 and 3 to peer 1
-	if !strings.Contains(output, "peer 10.0.0.1 forward update-id 200") {
+	if !strings.Contains(output, "bgp cache 200 forward 10.0.0.1") {
 		t.Errorf("missing replay of route 200: %s", output)
 	}
-	if !strings.Contains(output, "peer 10.0.0.1 forward update-id 300") {
+	if !strings.Contains(output, "bgp cache 300 forward 10.0.0.1") {
 		t.Errorf("missing replay of route 300: %s", output)
 	}
 }
@@ -204,7 +204,7 @@ func TestServer_HandleStateUp_ExcludesSelf(t *testing.T) {
 		t.Errorf("should not replay peer's own routes: %s", output)
 	}
 	// Should replay other peer's routes
-	if !strings.Contains(output, "peer 10.0.0.1 forward update-id 200") {
+	if !strings.Contains(output, "bgp cache 200 forward 10.0.0.1") {
 		t.Errorf("missing replay of route 200: %s", output)
 	}
 }
@@ -514,7 +514,7 @@ func TestServer_FilterUpdateByFamily(t *testing.T) {
 
 	output := out.String()
 	// Should forward to peer 3 (supports IPv6), not peer 2 (IPv4 only)
-	if !strings.Contains(output, "peer 10.0.0.3 forward update-id 100") {
+	if !strings.Contains(output, "bgp cache 100 forward 10.0.0.3") {
 		t.Errorf("should forward to IPv6-capable peer 3: %s", output)
 	}
 	if strings.Contains(output, "peer 10.0.0.2") {
@@ -610,11 +610,11 @@ func TestServer_FilterReplayByFamily(t *testing.T) {
 
 	output := out.String()
 	// Should replay IPv4 route
-	if !strings.Contains(output, "forward update-id 100") {
+	if !strings.Contains(output, "bgp cache 100 forward") {
 		t.Errorf("should replay IPv4 route: %s", output)
 	}
 	// Should NOT replay IPv6 route
-	if strings.Contains(output, "forward update-id 200") {
+	if strings.Contains(output, "bgp cache 200 forward") {
 		t.Errorf("should NOT replay IPv6 route to IPv4-only peer: %s", output)
 	}
 }

@@ -143,21 +143,24 @@ peer create <config>     # Create dynamic peer
 peer <ip> delete         # Delete dynamic peer
 ```
 
-### Forward Commands (ZeBGP)
+### Cache Commands (ZeBGP)
 
-> **Implementation spec:** `docs/plan/spec-route-id-forwarding.md`
+> **Implementation spec:** `docs/plan/done/148-api-command-restructure-step-8.md`
 
 ```
-peer <selector> forward update-id <id>    # Forward received UPDATE by ID
-peer !<ip> forward update-id <id>         # Forward to all except source peer
+bgp cache <id> forward <sel>    # Forward cached UPDATE to peers
+bgp cache <id> retain           # Prevent eviction
+bgp cache <id> release          # Allow eviction (reset TTL)
+bgp cache <id> expire           # Remove immediately
+bgp cache list                  # List cached message IDs
 ```
 
-The `forward` command enables route reflection via API:
-1. Received UPDATEs are assigned a unique update-id (per-UPDATE, not per-NLRI)
-2. API outputs UPDATE info with update-id
+The cache commands enable route reflection via API:
+1. Received UPDATEs are assigned a unique msg-id (per-UPDATE, not per-NLRI)
+2. API outputs UPDATE info with msg-id
 3. External process decides routing
-4. Forward command references update-id (zero-copy when contexts match)
-5. Update-ids expire after configurable TTL (default 60s)
+4. Cache forward command references msg-id (zero-copy when contexts match)
+5. Cache entries expire after configurable TTL (default 60s) unless retained
 
 ### Peer Selectors
 
@@ -170,7 +173,7 @@ peer !192.168.1.2        # All peers EXCEPT this IP (for route reflection)
 The `!<ip>` negated selector is useful for route reflection:
 ```
 # Forward update to all peers except the source
-peer !10.0.0.1 forward update-id 12345
+bgp cache 12345 forward !10.0.0.1
 ```
 
 > **Note:** Filter selectors (`[local-as ...]`, `[peer-as ...]`) from ExaBGP multi-session

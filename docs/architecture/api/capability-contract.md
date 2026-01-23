@@ -5,12 +5,12 @@
 | Feature | Status | Notes |
 |---------|--------|-------|
 | `msg-id` in events | ✅ Done | `json.go`, `text.go` |
-| `forward update-id` | ✅ Done | `forward.go` |
+| `bgp cache <id> forward` | ✅ Done | `cache.go` |
 | `capability route-refresh` | ✅ Done | `rr/server.go:68` |
 | `plugin session ready` | ✅ Done | `plugin.go` |
 | Refresh event handling | ✅ Done | `rr/server.go`, `decode.go` |
-| `msg-id retain/release/expire` | ✅ Done | `msgid.go` |
-| `msg-id list` | ✅ Done | `msgid.go` |
+| `bgp cache <id> retain/release/expire` | ✅ Done | `cache.go` |
+| `bgp cache list` | ✅ Done | `cache.go` |
 | Stage timeout | ✅ Done | Configurable per-plugin, default 5s |
 | Config validation (GR/RR→API) | ✅ Done | `bgp.go:validateProcessCapabilities` |
 | `borr`/`eorr` markers | ✅ Done | RFC 7313 full support, RIB plugin responds to refresh |
@@ -22,10 +22,10 @@
 | Concept | Description |
 |---------|-------------|
 | **Problem** | Some BGP capabilities (GR, RR) require API to resend routes |
-| **Solution** | API owns RIB, controls msg-id cache lifetime |
+| **Solution** | API owns RIB, controls cache lifetime via `bgp cache` |
 | **Protocol** | `capability route-refresh` advertised at startup |
 | **RIB** | API program owns all route storage |
-| **msg-id Control** | API retains msg-ids for replay, releases when done |
+| **Cache Control** | API retains cache entries for replay, releases when done |
 | **Fail-fast** | GR/RR configured without capable API = refuse to start |
 
 **Full spec:** `docs/plan/spec-api-capability-contract.md`
@@ -38,7 +38,7 @@
 ┌─────────────────────────────────────────────────────────────────────┐
 │  ZeBGP Engine (Minimal)                                              │
 │  • FSM, parsing, wire I/O                                           │
-│  • msg-id cache (lifetime controlled by API)                        │
+│  • BGP cache (lifetime controlled by API via `bgp cache` commands)  │
 │  • NO RIB, NO route storage                                         │
 └─────────────────────────────────────────────────────────────────────┘
                     │ JSON events + base64 wire bytes
@@ -68,33 +68,34 @@ All other capabilities (ADD-PATH, 4-byte AS, etc.) are engine-handled.
 
 ---
 
-## msg-id Cache Control
+## BGP Cache Control
 
-API controls msg-id cache lifetime in engine:
+API controls BGP cache lifetime in engine:
 
 | Command | Description |
 |---------|-------------|
-| `msg-id retain <id>` | Keep in cache until released |
-| `msg-id release <id>` | Allow eviction (default 60s timeout) |
-| `msg-id expire <id>` | Remove immediately |
-| `msg-id list` | List cached msg-ids |
+| `bgp cache <id> retain` | Keep in cache until released |
+| `bgp cache <id> release` | Allow eviction (default 60s timeout) |
+| `bgp cache <id> expire` | Remove immediately |
+| `bgp cache list` | List cached msg-ids |
+| `bgp cache <id> forward <sel>` | Forward cached UPDATE to peers |
 
 ### Graceful Restart Flow
 
 ```
 1. Peer A announces route (msg-id 123)
 2. Engine sends event to API
-3. API stores in RIB, sends: msg-id retain 123
+3. API stores in RIB, sends: bgp cache 123 retain
 4. ... Peer A goes down ...
 5. ... Peer A reconnects ...
 6. Engine sends state event: peer A up
-7. API replays: peer A forward update-id 123
+7. API replays: bgp cache 123 forward A
 8. API sends: peer A eor ipv4/unicast
 ```
 
-### Long Outage (msg-id expired)
+### Long Outage (cache expired)
 
-If msg-id cache was cleared (shouldn't happen with retain), API can re-announce from pool:
+If cache was cleared (shouldn't happen with retain), API can re-announce from pool:
 
 ```
 peer A announce raw <base64-attrs> nlri ipv4/unicast <base64-nlri>
@@ -185,7 +186,7 @@ When `encoder json`:
 2. **Startup**: All-or-nothing (any process failure = reactor fails)
 3. **Respawn**: Re-confirm capability on every spawn
 4. **RIB in API**: Engine has NO route storage - API owns all
-5. **msg-id Control**: API decides cache lifetime, not engine
+5. **Cache Control**: API decides cache lifetime via `bgp cache` commands
 6. **Polyglot**: API can be Go, Python, Rust, etc.
 
 ---

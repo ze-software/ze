@@ -14,13 +14,12 @@
 | Command dispatch | ✅ Done | `command.go` |
 | Plugin commands | ✅ Done | `registry.go`, `plugin.go` |
 | Route injection | ✅ Done | `route.go` |
-| Forward update-id | ✅ Done | `forward.go` |
+| BGP cache commands | ✅ Done | `cache.go` |
 | Session sync | ✅ Done | `session.go` |
 | JSON/text encoding | ✅ Done | `json.go`, `text.go` |
 | RR plugin | ✅ Done | `rr/server.go` |
 | RIB plugin | ✅ Done | `rib/rib.go` |
-| msg-id cache control | ❌ Not impl | Documented but no handlers |
-| borr/eorr markers | ❌ Not impl | Enhanced RR incomplete |
+| borr/eorr markers | ✅ Done | RFC 7313 full support |
 
 ---
 
@@ -28,13 +27,13 @@
 
 | Concept | Description |
 |---------|-------------|
-| **Engine Role** | FSM, parsing, wire I/O, msg-id cache |
+| **Engine Role** | FSM, parsing, wire I/O, BGP cache |
 | **API Role** | RIB storage, policy, best-path, GR state |
 | **Communication** | JSON events + base64 wire bytes |
 | **Key Types** | `Server`, `Client`, `Process`, `Dispatcher` |
 | **RIB** | Owned by API program (use `internal/rib/` as reference) |
 | **Polyglot** | API programs can be Go, Python, Rust, etc. |
-| **msg-id Control** | API controls cache lifetime (retain/release/expire) |
+| **Cache Control** | API controls cache via `bgp cache` commands |
 
 **When to read full doc:** Writing API programs, understanding engine/API split.
 
@@ -52,7 +51,7 @@
 | Parsing | Parse on demand (for API output) |
 | Wire I/O | Read/write BGP messages |
 | Capabilities | Negotiate with peers |
-| msg-id Cache | Store wire bytes, lifetime controlled by API |
+| BGP Cache | Store wire bytes, lifetime controlled by API via `bgp cache` commands |
 
 ### API Program Responsibilities
 
@@ -63,7 +62,7 @@
 | Policy | Import/export filters, route manipulation |
 | Best-path | Selection algorithm (if needed) |
 | GR/RR | Graceful restart, route refresh handling |
-| msg-id Control | Retain/release/expire cached messages |
+| Cache Control | Retain/release/expire via `bgp cache <id>` commands |
 
 ### Wire Bytes in Events
 
@@ -81,18 +80,16 @@ Engine sends base64-encoded wire bytes to API:
 
 API decodes and stores in pool for deduplication.
 
-### msg-id Cache Control (❌ NOT IMPLEMENTED)
+### BGP Cache Control (✅ IMPLEMENTED)
 
-> **Status:** These commands are documented but not yet implemented.
-> See `CAPABILITY_CONTRACT.md` for implementation roadmap.
-
-API controls msg-id lifetime:
+API controls cache lifetime via `bgp cache` commands:
 
 ```
-msg-id 123 retain    # Keep until released
-msg-id 123 release   # Allow eviction
-msg-id 123 expire    # Remove immediately
-msg-id list          # List cached msg-ids
+bgp cache 123 retain    # Keep until released
+bgp cache 123 release   # Allow eviction
+bgp cache 123 expire    # Remove immediately
+bgp cache list          # List cached msg-ids
+bgp cache 123 forward !10.0.0.1  # Forward to all except source
 ```
 
 ---
@@ -809,7 +806,7 @@ type RIB struct {
 type Route struct {
     AttrHandle  pool.Handle  // Interned attributes
     NLRIHandle  pool.Handle  // Interned NLRI
-    MsgID       uint64       // For forward update-id
+    MsgID       uint64       // For bgp cache forward
     SourceCtxID uint16       // Encoding context
 }
 ```
@@ -820,9 +817,9 @@ Key operations:
 - `GetPeerRoutes(peer)` - Get all routes from peer
 - `ClearPeer(peer)` - Remove all routes from peer
 
-## Route Reflection via API (Update ID Pattern)
+## Route Reflection via API (Cache Pattern)
 
-> **Implementation spec:** `docs/plan/spec-route-id-forwarding.md`
+> **Implementation spec:** `docs/plan/done/148-api-command-restructure-step-8.md`
 
 ZeBGP implements route reflection through the API, not internally. This enables
 external policy engines to make routing decisions.
@@ -830,13 +827,13 @@ external policy engines to make routing decisions.
 ### Architecture
 
 ```
-Peer A → Receive UPDATE → Store (wire + update ID) → API output (partial parse)
+Peer A → Receive UPDATE → Store (wire + msg-id) → API output (partial parse)
                                                             ↓
                                                    External process decides
                                                             ↓
-                          API command: "peer !<ip> forward update-id 123"
+                          API command: "bgp cache 123 forward !<ip>"
                                                             ↓
-Peer B,C ← Send wire bytes directly ← Lookup update by ID
+Peer B,C ← Send wire bytes directly ← Lookup cache by ID
 ```
 
 ### Key Concepts
@@ -848,15 +845,15 @@ Peer B,C ← Send wire bytes directly ← Lookup update by ID
 | **Direction** | `"sent"` or `"received"` indicator at top level for all messages |
 | **Time-based cache** | Recent updates cached for fast lookup (TTL configurable) |
 | **Partial parsing** | Only parse attributes needed for API output |
-| **Forward by ID** | API references updates by ID, ZeBGP forwards wire bytes |
-| **`peer !<ip>`** | Negated selector for "all except this peer" |
+| **Forward by ID** | API references updates by ID via `bgp cache <id> forward` |
+| **`!<ip>`** | Negated selector for "all except this peer" |
 
 ### Flow Details
 
-1. **Receive:** Assign update-id, cache UPDATE, store NLRIs in RIB
-2. **API output:** Parse only configured attributes, include update-id
+1. **Receive:** Assign msg-id, cache UPDATE, store NLRIs in RIB
+2. **API output:** Parse only configured attributes, include msg-id
 3. **External decision:** Policy engine decides destinations
-4. **Forward command:** `peer !<source-ip> forward update-id <id>`
+4. **Forward command:** `bgp cache <id> forward !<source-ip>`
 5. **Send:** Lookup cached update, use wire bytes (zero-copy if contexts match)
 
 ### API Output with Message ID and Direction
@@ -880,14 +877,14 @@ Peer B,C ← Send wire bytes directly ← Lookup update by ID
 }
 ```
 
-### Forward Command
+### Cache Forward Command
 
 ```
 # Forward update to all peers except source
-peer !10.0.0.1 forward update-id 12345
+bgp cache 12345 forward !10.0.0.1
 
 # Forward to specific peer
-peer 10.0.0.2 forward update-id 12345
+bgp cache 12345 forward 10.0.0.2
 ```
 
 ### Attribute Filtering (Partial Parse)

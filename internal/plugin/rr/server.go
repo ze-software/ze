@@ -173,7 +173,7 @@ func (rs *RouteServer) forwardUpdate(sourcePeer string, msgID uint64, families m
 			}
 		}
 
-		rs.send("peer %s forward update-id %d", addr, msgID)
+		rs.send("bgp cache %d forward %s", msgID, addr)
 	}
 }
 
@@ -227,7 +227,7 @@ func (rs *RouteServer) handleStateUp(peerAddr string) {
 			if peer != nil && peer.Families != nil && !peer.SupportsFamily(route.Family) {
 				continue
 			}
-			rs.send("peer %s forward update-id %d", peerAddr, route.MsgID)
+			rs.send("bgp cache %d forward %s", route.MsgID, peerAddr)
 		}
 	}
 }

@@ -45,12 +45,10 @@ Engine provides reactor methods; plugins register commands that use them.
 
 ### Message Cache
 
-The engine maintains a message cache for efficient forwarding. Current commands:
-- `msg-id retain/release/expire/list` - cache control (engine builtins)
-- `bgp peer <sel> forward update-id <id>` - forward cached UPDATE
-
-**Future:** BGP message caching will move to the BGP subsystem with `bgp cache *`
-syntax. See RIB Namespace below for the planned command structure.
+The engine maintains a message cache for efficient forwarding. Commands:
+- `bgp cache <id> retain/release/expire` - cache control (engine builtins)
+- `bgp cache <id> forward <sel>` - forward cached UPDATE to peers
+- `bgp cache list` - list cached message IDs
 
 ---
 
