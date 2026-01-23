@@ -199,6 +199,18 @@ type MUPRouteSpec struct {
 	Wire         *attribute.AttributesWire // Path attributes in wire format
 }
 
+// DynamicPeerConfig contains minimal configuration for adding a peer dynamically.
+// Used by "bgp peer <ip> add" command to add peers at runtime.
+type DynamicPeerConfig struct {
+	Address      netip.Addr    // Peer IP address (required)
+	PeerAS       uint32        // Peer AS number (required)
+	LocalAS      uint32        // Local AS number (optional, use reactor default if 0)
+	LocalAddress netip.Addr    // Local IP for this session (optional)
+	RouterID     uint32        // Router ID (optional, use reactor default if 0)
+	HoldTime     time.Duration // Hold time (optional, use default if 0)
+	Passive      bool          // Passive mode (listen-only)
+}
+
 // ReactorInterface defines what the API needs from the reactor.
 // This interface avoids import cycles between pkg/api and pkg/reactor.
 type ReactorInterface interface {
@@ -210,6 +222,14 @@ type ReactorInterface interface {
 
 	// Stop signals the reactor to shut down.
 	Stop()
+
+	// AddDynamicPeer adds a peer with the given configuration.
+	// Used by "bgp peer <ip> add" command for runtime peer management.
+	AddDynamicPeer(config DynamicPeerConfig) error
+
+	// RemovePeer removes a peer by address.
+	// Used by "bgp peer <ip> remove" command for runtime peer management.
+	RemovePeer(addr netip.Addr) error
 
 	// Reload reloads the configuration.
 	Reload() error

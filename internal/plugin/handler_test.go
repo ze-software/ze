@@ -69,6 +69,10 @@ type mockReactor struct {
 		selector string
 		batch    NLRIBatch
 	}
+
+	// Dynamic peer management tracking
+	addedPeers   []DynamicPeerConfig
+	removedPeers []netip.Addr
 }
 
 func (m *mockReactor) Peers() []PeerInfo {
@@ -108,6 +112,16 @@ func (m *mockReactor) TeardownPeer(addr netip.Addr, subcode uint8) error {
 }
 
 func (m *mockReactor) Reload() error {
+	return nil
+}
+
+func (m *mockReactor) AddDynamicPeer(config DynamicPeerConfig) error {
+	m.addedPeers = append(m.addedPeers, config)
+	return nil
+}
+
+func (m *mockReactor) RemovePeer(addr netip.Addr) error {
+	m.removedPeers = append(m.removedPeers, addr)
 	return nil
 }
 
@@ -526,10 +540,23 @@ func TestHandlerSystemHelp(t *testing.T) {
 	assert.NotEmpty(t, commands)
 }
 
+// TestBuiltinCount verifies the expected number of builtin handlers.
+//
+// VALIDATES: All handlers registered via init().
+// PREVENTS: Accidental removal of handlers.
+func TestBuiltinCount(t *testing.T) {
+	// This count should be updated when adding/removing handlers.
+	// If this test fails, verify the change was intentional.
+	const expectedCount = 49
+
+	actual := BuiltinCount()
+	assert.Equal(t, expectedCount, actual,
+		"builtin handler count changed - update test if intentional")
+}
+
 // TestRegisterDefaultHandlers verifies all P0 commands registered.
 //
 // VALIDATES: All required commands are available.
-//
 // PREVENTS: Missing essential commands.
 func TestRegisterDefaultHandlers(t *testing.T) {
 	d := NewDispatcher()
@@ -2086,6 +2113,93 @@ func TestOldPeerCommandsRemoved(t *testing.T) {
 			assert.Nil(t, c, "old command %q should NOT be registered", cmd)
 		})
 	}
+}
+
+// TestBgpPeerAdd verifies the "bgp peer <ip> add" command.
+//
+// VALIDATES: Peer addition via API with required and optional parameters.
+// PREVENTS: Regression in dynamic peer management.
+func TestBgpPeerAdd(t *testing.T) {
+	d := NewDispatcher()
+	RegisterDefaultHandlers(d)
+
+	t.Run("basic_add", func(t *testing.T) {
+		reactor := &mockReactor{}
+		ctx := &CommandContext{Reactor: reactor, Dispatcher: d}
+		resp, err := d.Dispatch(ctx, "bgp peer 192.168.1.100 add asn 65000")
+		require.NoError(t, err)
+		assert.Equal(t, statusDone, resp.Status)
+		assert.Len(t, reactor.addedPeers, 1)
+		assert.Equal(t, netip.MustParseAddr("192.168.1.100"), reactor.addedPeers[0].Address)
+		assert.Equal(t, uint32(65000), reactor.addedPeers[0].PeerAS)
+	})
+
+	t.Run("with_options", func(t *testing.T) {
+		reactor := &mockReactor{}
+		ctx := &CommandContext{Reactor: reactor, Dispatcher: d}
+		resp, err := d.Dispatch(ctx, "bgp peer 10.0.0.1 add asn 65001 local-as 65100 local-address 10.0.0.254 passive")
+		require.NoError(t, err)
+		assert.Equal(t, statusDone, resp.Status)
+		require.Len(t, reactor.addedPeers, 1)
+		cfg := reactor.addedPeers[0]
+		assert.Equal(t, netip.MustParseAddr("10.0.0.1"), cfg.Address)
+		assert.Equal(t, uint32(65001), cfg.PeerAS)
+		assert.Equal(t, uint32(65100), cfg.LocalAS)
+		assert.Equal(t, netip.MustParseAddr("10.0.0.254"), cfg.LocalAddress)
+		assert.True(t, cfg.Passive)
+	})
+
+	t.Run("missing_asn", func(t *testing.T) {
+		reactor := &mockReactor{}
+		ctx := &CommandContext{Reactor: reactor, Dispatcher: d}
+		resp, err := d.Dispatch(ctx, "bgp peer 192.168.1.1 add")
+		require.Error(t, err)
+		assert.Equal(t, statusError, resp.Status)
+		assert.Contains(t, resp.Data, "asn is required")
+	})
+
+	t.Run("missing_peer", func(t *testing.T) {
+		// When no peer selector is provided ("add" doesn't look like IP),
+		// dispatcher uses default "*" selector. Handler checks for specific peer.
+		reactor := &mockReactor{}
+		ctx := &CommandContext{Reactor: reactor, Dispatcher: d}
+		resp, err := d.Dispatch(ctx, "bgp peer add asn 65000")
+		// err may be nil since handler returns error in response
+		_ = err
+		assert.Equal(t, statusError, resp.Status)
+		assert.Contains(t, resp.Data, "add requires specific peer")
+	})
+}
+
+// TestBgpPeerRemove verifies the "bgp peer <ip> remove" command.
+//
+// VALIDATES: Peer removal via API.
+// PREVENTS: Regression in dynamic peer management.
+func TestBgpPeerRemove(t *testing.T) {
+	d := NewDispatcher()
+	RegisterDefaultHandlers(d)
+
+	t.Run("basic_remove", func(t *testing.T) {
+		reactor := &mockReactor{}
+		ctx := &CommandContext{Reactor: reactor, Dispatcher: d}
+		resp, err := d.Dispatch(ctx, "bgp peer 192.168.1.100 remove")
+		require.NoError(t, err)
+		assert.Equal(t, statusDone, resp.Status)
+		assert.Len(t, reactor.removedPeers, 1)
+		assert.Equal(t, netip.MustParseAddr("192.168.1.100"), reactor.removedPeers[0])
+	})
+
+	t.Run("missing_peer", func(t *testing.T) {
+		// When no peer selector is provided ("remove" doesn't look like IP),
+		// dispatcher uses default "*" selector. Handler checks for specific peer.
+		reactor := &mockReactor{}
+		ctx := &CommandContext{Reactor: reactor, Dispatcher: d}
+		resp, err := d.Dispatch(ctx, "bgp peer remove")
+		// err may be nil since handler returns error in response
+		_ = err
+		assert.Equal(t, statusError, resp.Status)
+		assert.Contains(t, resp.Data, "remove requires specific peer")
+	})
 }
 
 // TestOldUpdateWatchdogCommitRemoved verifies old route commands are removed.

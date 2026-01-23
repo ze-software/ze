@@ -21,6 +21,65 @@ import (
 
 var logger = slogutil.Logger("runner")
 
+// syncWriter is an io.Writer that captures output and supports waiting for patterns.
+// Used to wait for ze-peer's "listening on" message before starting the client.
+type syncWriter struct {
+	mu      sync.Mutex
+	buf     strings.Builder
+	pattern string
+	found   bool
+}
+
+// newSyncWriter creates a writer that can wait for a pattern.
+func newSyncWriter(pattern string) *syncWriter {
+	return &syncWriter{pattern: pattern}
+}
+
+// Write captures data and checks for the pattern.
+func (sw *syncWriter) Write(p []byte) (int, error) {
+	sw.mu.Lock()
+	defer sw.mu.Unlock()
+
+	n, err := sw.buf.Write(p)
+	if !sw.found && strings.Contains(sw.buf.String(), sw.pattern) {
+		sw.found = true
+	}
+	return n, err
+}
+
+// WaitFor waits until the pattern is found or context is cancelled.
+// Returns true if pattern was found, false on timeout/cancel.
+func (sw *syncWriter) WaitFor(ctx context.Context) bool {
+	// Poll with small intervals to support context cancellation.
+	// Using sync.Cond with context is tricky; polling is simpler and reliable.
+	ticker := time.NewTicker(10 * time.Millisecond)
+	defer ticker.Stop()
+
+	for {
+		sw.mu.Lock()
+		found := sw.found
+		sw.mu.Unlock()
+
+		if found {
+			return true
+		}
+
+		select {
+		case <-ctx.Done():
+			return false
+		case <-ticker.C:
+			// Continue polling
+		}
+	}
+}
+
+// String returns all captured output.
+func (sw *syncWriter) String() string {
+	sw.mu.Lock()
+	defer sw.mu.Unlock()
+	return sw.buf.String()
+}
+
 // RunOptions configures test execution.
 type RunOptions struct {
 	Timeout    time.Duration
@@ -337,7 +396,8 @@ func (r *Runner) runTest(ctx context.Context, rec *Record, opts *RunOptions) boo
 	peerCmd := exec.CommandContext(testCtx, r.peerPath, peerArgs...) //nolint:gosec // test runner, paths from temp dir
 	peerCmd.Env = peerEnv
 
-	peerStdout := &strings.Builder{}
+	// Use syncWriter to wait for "listening on" before starting client
+	peerStdout := newSyncWriter("listening on")
 	peerStderr := &strings.Builder{}
 	peerCmd.Stdout = peerStdout
 	peerCmd.Stderr = peerStderr
@@ -347,8 +407,16 @@ func (r *Runner) runTest(ctx context.Context, rec *Record, opts *RunOptions) boo
 		return false
 	}
 
-	// Wait for peer to start
-	time.Sleep(100 * time.Millisecond)
+	// Wait for peer to be ready (listening) instead of fixed sleep
+	// Use a short timeout context to avoid hanging forever if peer fails to start
+	waitCtx, waitCancel := context.WithTimeout(testCtx, 5*time.Second)
+	if !peerStdout.WaitFor(waitCtx) {
+		waitCancel()
+		_ = peerCmd.Process.Kill()
+		rec.Error = fmt.Errorf("peer did not start listening within timeout")
+		return false
+	}
+	waitCancel()
 
 	rec.State = StateRunning
 
@@ -550,7 +618,9 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 		}
 	}()
 
-	var peerStdout, peerStderr strings.Builder
+	// Use syncWriter for peer to wait for "listening on" signal
+	peerStdout := newSyncWriter("listening on")
+	var peerStderr strings.Builder
 	var clientStdout, clientStderr strings.Builder
 
 	// Execute commands in order
@@ -680,7 +750,7 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 
 		// Capture output
 		if strings.Contains(execStr, "ze-peer") {
-			proc.Stdout = &peerStdout
+			proc.Stdout = peerStdout
 			proc.Stderr = &peerStderr
 		} else {
 			proc.Stdout = &clientStdout
@@ -695,8 +765,19 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 
 		if cmd.Mode == "background" {
 			bgProcs = append(bgProcs, proc)
-			// Give background process time to start
-			time.Sleep(100 * time.Millisecond)
+			// Wait for ze-peer to be ready (listening) instead of fixed sleep
+			if strings.Contains(execStr, "ze-peer") {
+				waitCtx, waitCancel := context.WithTimeout(testCtx, 5*time.Second)
+				if !peerStdout.WaitFor(waitCtx) {
+					waitCancel()
+					rec.Error = fmt.Errorf("peer did not start listening within timeout")
+					return false
+				}
+				waitCancel()
+			} else {
+				// Non-peer background process: brief sleep for startup
+				time.Sleep(100 * time.Millisecond)
+			}
 		} else {
 			// Foreground (daemon): start but don't wait - we wait for peer instead
 			bgProcs = append(bgProcs, proc) // Track for cleanup

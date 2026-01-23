@@ -1049,6 +1049,8 @@ func (m *mockReactorBatch) Peers() []PeerInfo                                { r
 func (m *mockReactorBatch) Stats() ReactorStats                              { return ReactorStats{} }
 func (m *mockReactorBatch) Stop()                                            {}
 func (m *mockReactorBatch) Reload() error                                    { return nil }
+func (m *mockReactorBatch) AddDynamicPeer(_ DynamicPeerConfig) error         { return nil }
+func (m *mockReactorBatch) RemovePeer(_ netip.Addr) error                    { return nil }
 func (m *mockReactorBatch) AnnounceRoute(_ string, _ RouteSpec) error        { return nil }
 func (m *mockReactorBatch) WithdrawRoute(_ string, _ netip.Prefix) error     { return nil }
 func (m *mockReactorBatch) AnnounceFlowSpec(_ string, _ FlowSpecRoute) error { return nil }

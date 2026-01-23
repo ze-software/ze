@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/netip"
 	"strings"
+	"time"
 )
 
 // Version is the ZeBGP version string.
@@ -19,58 +20,38 @@ const (
 	argVerbose    = "verbose"
 )
 
-// RegisterDefaultHandlers registers all command handlers.
-func RegisterDefaultHandlers(d *Dispatcher) {
+func init() {
 	// BGP daemon control (moved from daemon * to bgp daemon *)
-	d.Register("bgp daemon shutdown", handleDaemonShutdown, "Gracefully shutdown the daemon")
-	d.Register("bgp daemon status", handleDaemonStatus, "Show daemon status")
-	d.Register("bgp daemon reload", handleDaemonReload, "Reload the configuration")
+	RegisterBuiltin("bgp daemon shutdown", handleDaemonShutdown, "Gracefully shutdown the daemon")
+	RegisterBuiltin("bgp daemon status", handleDaemonStatus, "Show daemon status")
+	RegisterBuiltin("bgp daemon reload", handleDaemonReload, "Reload the configuration")
 
 	// BGP peer operations (use "bgp peer <selector> <cmd>" syntax)
 	// The selector is extracted by dispatcher, handlers receive remaining args
-	d.Register("bgp peer list", handleBgpPeerList, "List peer(s) (brief)")
-	d.Register("bgp peer show", handleBgpPeerShow, "Show peer(s) details")
-	d.Register("bgp peer teardown", handleTeardown, "Teardown peer session with cease subcode")
+	RegisterBuiltin("bgp peer list", handleBgpPeerList, "List peer(s) (brief)")
+	RegisterBuiltin("bgp peer show", handleBgpPeerShow, "Show peer(s) details")
+	RegisterBuiltin("bgp peer teardown", handleTeardown, "Teardown peer session with cease subcode")
+	RegisterBuiltin("bgp peer add", handleBgpPeerAdd, "Add a peer dynamically")
+	RegisterBuiltin("bgp peer remove", handleBgpPeerRemove, "Remove a peer dynamically")
 
 	// System commands
-	d.Register("system help", handleSystemHelp, "Show available commands")
-	d.Register("system version software", handleSystemVersionSoftware, "Show ZeBGP version")
-	d.Register("system version api", handleSystemVersionAPI, "Show IPC protocol version")
-	d.Register("system shutdown", handleSystemShutdown, "Graceful application shutdown")
-	d.Register("system subsystem list", handleSystemSubsystemList, "List available subsystems")
-	d.Register("system command list", handleSystemCommandList, "List all commands")
-	d.Register("system command help", handleSystemCommandHelp, "Show command details")
-	d.Register("system command complete", handleSystemCommandComplete, "Complete command/args")
+	RegisterBuiltin("system help", handleSystemHelp, "Show available commands")
+	RegisterBuiltin("system version software", handleSystemVersionSoftware, "Show ZeBGP version")
+	RegisterBuiltin("system version api", handleSystemVersionAPI, "Show IPC protocol version")
+	RegisterBuiltin("system shutdown", handleSystemShutdown, "Graceful application shutdown")
+	RegisterBuiltin("system subsystem list", handleSystemSubsystemList, "List available subsystems")
+	RegisterBuiltin("system command list", handleSystemCommandList, "List all commands")
+	RegisterBuiltin("system command help", handleSystemCommandHelp, "Show command details")
+	RegisterBuiltin("system command complete", handleSystemCommandComplete, "Complete command/args")
 
 	// RIB namespace (introspection + operations)
-	RegisterRibHandlers(d)
-
-	// Route operations
-	RegisterRouteHandlers(d)
-
-	// Commit operations (transaction-based batching)
-	RegisterCommitHandlers(d)
-
-	// Session operations (per-process API connection state)
-	RegisterSessionHandlers(d)
-
-	// Plugin namespace (lifecycle + introspection)
-	RegisterPluginHandlers(d)
-
-	// BGP namespace (introspection + plugin configuration)
-	RegisterBgpHandlers(d)
-
-	// BGP cache operations (retain/release/expire/forward/list)
-	RegisterCacheHandlers(d)
-
-	// Raw passthrough (send bytes without validation)
-	RegisterRawHandlers(d)
-
-	// Route refresh markers (RFC 7313 Enhanced Route Refresh)
-	RegisterRefreshHandlers(d)
-
-	// Event subscription (API-driven event routing)
-	RegisterSubscriptionHandlers(d)
+	RegisterBuiltin("rib help", handleRibHelp, "Show RIB subcommands")
+	RegisterBuiltin("rib command list", handleRibCommandList, "List RIB commands")
+	RegisterBuiltin("rib command help", handleRibCommandHelp, "Show RIB command details")
+	RegisterBuiltin("rib command complete", handleRibCommandComplete, "Complete RIB command/args")
+	RegisterBuiltin("rib event list", handleRibEventList, "List RIB event types")
+	RegisterBuiltin("rib show in", handleRIBShowIn, "Show Adj-RIB-In")
+	RegisterBuiltin("rib clear in", handleRIBClearIn, "Clear Adj-RIB-In")
 }
 
 // handleDaemonShutdown signals the reactor to stop.
@@ -339,18 +320,196 @@ func parseUint(s string) (uint64, error) {
 	return n, nil
 }
 
-// RegisterRibHandlers registers RIB namespace handlers (introspection + operations).
-func RegisterRibHandlers(d *Dispatcher) {
-	// Introspection
-	d.Register("rib help", handleRibHelp, "Show RIB subcommands")
-	d.Register("rib command list", handleRibCommandList, "List RIB commands")
-	d.Register("rib command help", handleRibCommandHelp, "Show RIB command details")
-	d.Register("rib command complete", handleRibCommandComplete, "Complete RIB command/args")
-	d.Register("rib event list", handleRibEventList, "List RIB event types")
+// handleBgpPeerAdd handles "bgp peer <ip> add asn <asn> [options...]" command.
+// Adds a peer dynamically at runtime.
+//
+// Options:
+//
+//	asn <asn>           - Required: peer AS number
+//	local-as <asn>      - Optional: local AS (default: reactor's LocalAS)
+//	local-address <ip>  - Optional: local IP for this session
+//	router-id <id>      - Optional: router ID (default: reactor's RouterID)
+//	hold-time <seconds> - Optional: hold time in seconds (default: 90)
+//	passive             - Optional: listen-only mode (no outgoing connections)
+func handleBgpPeerAdd(ctx *CommandContext, args []string) (*Response, error) {
+	// Parse peer address from context (extracted by dispatcher)
+	peer := ctx.PeerSelector()
+	if peer == "*" || peer == "" {
+		return &Response{
+			Status: statusError,
+			Data:   "add requires specific peer: bgp peer <ip> add asn <asn>",
+		}, fmt.Errorf("no peer specified")
+	}
 
-	// Operations
-	d.Register("rib show in", handleRIBShowIn, "Show Adj-RIB-In")
-	d.Register("rib clear in", handleRIBClearIn, "Clear Adj-RIB-In")
+	addr, err := netip.ParseAddr(peer)
+	if err != nil {
+		return &Response{
+			Status: statusError,
+			Data:   fmt.Sprintf("invalid peer address: %s", peer),
+		}, err
+	}
+
+	// Parse options
+	config := DynamicPeerConfig{Address: addr}
+
+	for i := 0; i < len(args); i++ {
+		switch strings.ToLower(args[i]) {
+		case "asn":
+			if i+1 >= len(args) {
+				return &Response{Status: statusError, Data: "missing value for asn"}, fmt.Errorf("missing asn value")
+			}
+			i++
+			asn, err := parseUint(args[i])
+			if err != nil || asn > 0xFFFFFFFF {
+				return &Response{Status: statusError, Data: fmt.Sprintf("invalid asn: %s", args[i])}, fmt.Errorf("invalid asn: %s", args[i])
+			}
+			config.PeerAS = uint32(asn)
+
+		case "local-as":
+			if i+1 >= len(args) {
+				return &Response{Status: statusError, Data: "missing value for local-as"}, fmt.Errorf("missing local-as value")
+			}
+			i++
+			asn, err := parseUint(args[i])
+			if err != nil || asn > 0xFFFFFFFF {
+				return &Response{Status: statusError, Data: fmt.Sprintf("invalid local-as: %s", args[i])}, fmt.Errorf("invalid local-as: %s", args[i])
+			}
+			config.LocalAS = uint32(asn)
+
+		case "local-address":
+			if i+1 >= len(args) {
+				return &Response{Status: statusError, Data: "missing value for local-address"}, fmt.Errorf("missing local-address value")
+			}
+			i++
+			localAddr, err := netip.ParseAddr(args[i])
+			if err != nil {
+				return &Response{Status: statusError, Data: fmt.Sprintf("invalid local-address: %s", args[i])}, fmt.Errorf("invalid local-address: %s", args[i])
+			}
+			config.LocalAddress = localAddr
+
+		case "router-id":
+			if i+1 >= len(args) {
+				return &Response{Status: statusError, Data: "missing value for router-id"}, fmt.Errorf("missing router-id value")
+			}
+			i++
+			// Router ID can be IP format (4 bytes) or numeric
+			rid, err := parseRouterID(args[i])
+			if err != nil {
+				return &Response{Status: statusError, Data: fmt.Sprintf("invalid router-id: %s", args[i])}, err
+			}
+			config.RouterID = rid
+
+		case "hold-time":
+			if i+1 >= len(args) {
+				return &Response{Status: statusError, Data: "missing value for hold-time"}, fmt.Errorf("missing hold-time value")
+			}
+			i++
+			seconds, err := parseUint(args[i])
+			if err != nil {
+				return &Response{Status: statusError, Data: fmt.Sprintf("invalid hold-time: %s", args[i])}, err
+			}
+			// RFC 4271: hold time 0 is valid (no keepalives), 3-65535 are valid
+			// Cap at reasonable maximum to prevent overflow (1 day = 86400s)
+			const maxHoldTime = 86400
+			if seconds > maxHoldTime {
+				return &Response{Status: statusError, Data: fmt.Sprintf("hold-time too large: %d (max %d)", seconds, maxHoldTime)}, fmt.Errorf("hold-time too large")
+			}
+			config.HoldTime = time.Duration(seconds) * time.Second
+
+		case "passive":
+			config.Passive = true
+
+		default:
+			return &Response{
+				Status: statusError,
+				Data:   fmt.Sprintf("unknown option: %s", args[i]),
+			}, fmt.Errorf("unknown option: %s", args[i])
+		}
+	}
+
+	// Validate required fields
+	if config.PeerAS == 0 {
+		return &Response{
+			Status: statusError,
+			Data:   "asn is required: bgp peer <ip> add asn <asn>",
+		}, fmt.Errorf("missing required asn")
+	}
+
+	// Add peer via reactor
+	if err := ctx.Reactor.AddDynamicPeer(config); err != nil {
+		return &Response{
+			Status: statusError,
+			Data:   fmt.Sprintf("failed to add peer: %v", err),
+		}, err
+	}
+
+	return &Response{
+		Status: statusDone,
+		Data: map[string]any{
+			"peer":    addr.String(),
+			"asn":     config.PeerAS,
+			"message": "peer added",
+		},
+	}, nil
+}
+
+// handleBgpPeerRemove handles "bgp peer <ip> remove" command.
+// Removes a peer dynamically at runtime.
+func handleBgpPeerRemove(ctx *CommandContext, _ []string) (*Response, error) {
+	// Parse peer address from context (extracted by dispatcher)
+	peer := ctx.PeerSelector()
+	if peer == "*" || peer == "" {
+		return &Response{
+			Status: statusError,
+			Data:   "remove requires specific peer: bgp peer <ip> remove",
+		}, fmt.Errorf("no peer specified")
+	}
+
+	addr, err := netip.ParseAddr(peer)
+	if err != nil {
+		return &Response{
+			Status: statusError,
+			Data:   fmt.Sprintf("invalid peer address: %s", peer),
+		}, err
+	}
+
+	// Remove peer via reactor
+	if err := ctx.Reactor.RemovePeer(addr); err != nil {
+		return &Response{
+			Status: statusError,
+			Data:   fmt.Sprintf("failed to remove peer: %v", err),
+		}, err
+	}
+
+	return &Response{
+		Status: statusDone,
+		Data: map[string]any{
+			"peer":    addr.String(),
+			"message": "peer removed",
+		},
+	}, nil
+}
+
+// parseRouterID parses a router ID from string (IP format or numeric).
+func parseRouterID(s string) (uint32, error) {
+	// Try IP format first (e.g., "192.0.2.1")
+	if addr, err := netip.ParseAddr(s); err == nil {
+		if !addr.Is4() {
+			return 0, fmt.Errorf("router-id must be IPv4: %s", s)
+		}
+		b := addr.As4()
+		return uint32(b[0])<<24 | uint32(b[1])<<16 | uint32(b[2])<<8 | uint32(b[3]), nil
+	}
+
+	// Try numeric
+	n, err := parseUint(s)
+	if err != nil {
+		return 0, fmt.Errorf("invalid router-id: %s", s)
+	}
+	if n > 0xFFFFFFFF {
+		return 0, fmt.Errorf("router-id out of range: %s", s)
+	}
+	return uint32(n), nil
 }
 
 // handleRibHelp returns list of RIB subcommands.

@@ -2144,6 +2144,17 @@ func (a *reactorAPIAdapter) TeardownPeer(addr netip.Addr, subcode uint8) error {
 	return nil
 }
 
+// AddDynamicPeer adds a peer with the given configuration.
+// Delegates to reactor's AddDynamicPeer which handles defaults.
+func (a *reactorAPIAdapter) AddDynamicPeer(config plugin.DynamicPeerConfig) error {
+	return a.r.AddDynamicPeer(config)
+}
+
+// RemovePeer removes a peer by address.
+func (a *reactorAPIAdapter) RemovePeer(addr netip.Addr) error {
+	return a.r.RemovePeer(addr)
+}
+
 // AnnounceEOR sends an End-of-RIB marker for the given address family.
 func (a *reactorAPIAdapter) AnnounceEOR(peerSelector string, afi uint16, safi uint8) error {
 	update := message.BuildEOR(nlri.Family{AFI: nlri.AFI(afi), SAFI: nlri.SAFI(safi)})
@@ -3883,6 +3894,32 @@ func (r *Reactor) RemovePeer(addr netip.Addr) error {
 	}
 
 	return nil
+}
+
+// AddDynamicPeer adds a peer with the given configuration from the plugin API.
+// Used by "bgp peer <ip> add" command for runtime peer management.
+// LocalAS and RouterID default to reactor config if not specified.
+func (r *Reactor) AddDynamicPeer(config plugin.DynamicPeerConfig) error {
+	// Use reactor defaults for optional fields
+	localAS := config.LocalAS
+	if localAS == 0 {
+		localAS = r.config.LocalAS
+	}
+	routerID := config.RouterID
+	if routerID == 0 {
+		routerID = r.config.RouterID
+	}
+
+	settings := NewPeerSettings(config.Address, localAS, config.PeerAS, routerID)
+	if config.LocalAddress.IsValid() {
+		settings.LocalAddress = config.LocalAddress
+	}
+	if config.HoldTime > 0 {
+		settings.HoldTime = config.HoldTime
+	}
+	settings.Passive = config.Passive
+
+	return r.AddPeer(settings)
 }
 
 // Start begins the reactor with a background context.
