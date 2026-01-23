@@ -10,9 +10,8 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/bgp/message"
 )
 
-// RegisterRawHandlers registers raw passthrough commands.
-func RegisterRawHandlers(d *Dispatcher) {
-	d.Register("bgp peer raw", handleRaw, "Send raw bytes to peer (no validation)")
+func init() {
+	RegisterBuiltin("bgp peer raw", handleRaw, "Send raw bytes to peer (no validation)")
 }
 
 // handleRaw sends raw bytes to a peer without validation.

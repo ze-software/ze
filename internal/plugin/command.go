@@ -1,6 +1,7 @@
 package plugin
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"sort"
@@ -12,6 +13,54 @@ var ErrUnknownCommand = errors.New("unknown command")
 
 // ErrEmptyCommand is returned when the command is empty.
 var ErrEmptyCommand = errors.New("empty command")
+
+// builtinRegistry holds handlers registered via init() for self-registration.
+// This eliminates the need for a central RegisterDefaultHandlers() function.
+var builtinRegistry = &handlerRegistry{handlers: make(map[string]*handlerDef)}
+
+// handlerDef describes a builtin command handler.
+type handlerDef struct {
+	Name    string
+	Handler Handler
+	Help    string
+}
+
+// handlerRegistry collects builtin handlers via init().
+type handlerRegistry struct {
+	handlers map[string]*handlerDef
+}
+
+// RegisterBuiltin registers a builtin handler (called from init()).
+// Panics if a handler with the same name is already registered (catches bugs early).
+func RegisterBuiltin(name string, handler Handler, help string) {
+	if _, exists := builtinRegistry.handlers[name]; exists {
+		panic("duplicate handler registration: " + name)
+	}
+	builtinRegistry.handlers[name] = &handlerDef{
+		Name:    name,
+		Handler: handler,
+		Help:    help,
+	}
+}
+
+// BuiltinCount returns the number of registered builtin handlers.
+func BuiltinCount() int {
+	return len(builtinRegistry.handlers)
+}
+
+// LoadBuiltins registers all builtin handlers with the dispatcher.
+// Called by NewServer to load handlers from the init() registry.
+func LoadBuiltins(d *Dispatcher) {
+	for _, h := range builtinRegistry.handlers {
+		d.Register(h.Name, h.Handler, h.Help)
+	}
+}
+
+// RegisterDefaultHandlers registers all builtin handlers with the dispatcher.
+// This is an alias for LoadBuiltins() for backward compatibility with tests.
+func RegisterDefaultHandlers(d *Dispatcher) {
+	LoadBuiltins(d)
+}
 
 // Handler processes a command and returns a response.
 type Handler func(ctx *CommandContext, args []string) (*Response, error)
@@ -47,18 +96,30 @@ type Command struct {
 // Dispatcher routes commands to handlers.
 type Dispatcher struct {
 	commands   map[string]*Command
-	sortedKeys []string         // sorted keys for longest-match lookup (longest first)
-	registry   *CommandRegistry // Plugin commands
-	pending    *PendingRequests // In-flight plugin requests
+	sortedKeys []string          // sorted keys for longest-match lookup (longest first)
+	registry   *CommandRegistry  // Plugin commands
+	pending    *PendingRequests  // In-flight plugin requests
+	subsystems *SubsystemManager // Forked subsystem processes
 }
 
 // NewDispatcher creates a new command dispatcher.
 func NewDispatcher() *Dispatcher {
 	return &Dispatcher{
-		commands: make(map[string]*Command),
-		registry: NewCommandRegistry(),
-		pending:  NewPendingRequests(),
+		commands:   make(map[string]*Command),
+		registry:   NewCommandRegistry(),
+		pending:    NewPendingRequests(),
+		subsystems: NewSubsystemManager(),
 	}
+}
+
+// Subsystems returns the subsystem manager.
+func (d *Dispatcher) Subsystems() *SubsystemManager {
+	return d.subsystems
+}
+
+// SetSubsystems sets the subsystem manager.
+func (d *Dispatcher) SetSubsystems(sm *SubsystemManager) {
+	d.subsystems = sm
 }
 
 // Registry returns the plugin command registry.
@@ -116,7 +177,7 @@ func (d *Dispatcher) Commands() []*Command {
 // Dispatch parses and executes a command.
 // Supports bgp peer prefix: "bgp peer <addr> <command>" or "bgp peer * <command>".
 // If no peer prefix, defaults to all peers ("*").
-// First checks builtin commands, then falls back to plugin registry.
+// Priority: 1) builtin commands, 2) forked subsystems, 3) plugin registry.
 func (d *Dispatcher) Dispatch(ctx *CommandContext, input string) (*Response, error) {
 	tokens := tokenize(input)
 	if len(tokens) == 0 {
@@ -157,8 +218,14 @@ func (d *Dispatcher) Dispatch(ctx *CommandContext, input string) (*Response, err
 		}
 	}
 
-	// If no builtin match, try plugin registry
+	// If no builtin match, try forked subsystems
 	if matchedCmd == nil {
+		if d.subsystems != nil {
+			if handler := d.subsystems.FindHandler(input); handler != nil {
+				return d.dispatchSubsystem(ctx, handler, input)
+			}
+		}
+		// No subsystem match, try plugin registry
 		return d.dispatchPlugin(ctx, input, peerSelector)
 	}
 
@@ -175,6 +242,12 @@ func (d *Dispatcher) Dispatch(ctx *CommandContext, input string) (*Response, err
 	}
 
 	return matchedCmd.Handler(ctx, args)
+}
+
+// dispatchSubsystem routes a command to a forked subsystem process.
+func (d *Dispatcher) dispatchSubsystem(_ *CommandContext, handler *SubsystemHandler, input string) (*Response, error) {
+	// TODO: Pass context from CommandContext when reactor provides it
+	return handler.Handle(context.Background(), input)
 }
 
 // dispatchPlugin routes a command to a plugin process.

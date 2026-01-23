@@ -210,21 +210,19 @@ func parsePluginResponse(line string) (serial, respType, data string, ok bool) {
 	return "", "", "", false
 }
 
-// RegisterPluginHandlers registers plugin namespace commands.
-// These provide plugin lifecycle and introspection operations.
-func RegisterPluginHandlers(d *Dispatcher) {
+func init() {
 	// Plugin lifecycle (moved from session namespace)
-	d.Register("plugin session ready", handlePluginSessionReady, "Signal plugin init complete")
+	RegisterBuiltin("plugin session ready", handlePluginSessionReady, "Signal plugin init complete")
 	// Also register with bgp peer prefix for per-peer ready signals (e.g., after route replay)
-	d.Register("bgp peer plugin session ready", handlePluginSessionReady, "Signal peer-specific plugin init complete")
-	d.Register("plugin session ping", handlePluginSessionPing, "Health check (returns PID)")
-	d.Register("plugin session bye", handlePluginSessionBye, "Disconnect")
+	RegisterBuiltin("bgp peer plugin session ready", handlePluginSessionReady, "Signal peer-specific plugin init complete")
+	RegisterBuiltin("plugin session ping", handlePluginSessionPing, "Health check (returns PID)")
+	RegisterBuiltin("plugin session bye", handlePluginSessionBye, "Disconnect")
 
 	// Plugin introspection
-	d.Register("plugin help", handlePluginHelp, "List plugin subcommands")
-	d.Register("plugin command list", handlePluginCommandList, "List plugin commands")
-	d.Register("plugin command help", handlePluginCommandHelp, "Show command details")
-	d.Register("plugin command complete", handlePluginCommandComplete, "Complete command/args")
+	RegisterBuiltin("plugin help", handlePluginHelp, "List plugin subcommands")
+	RegisterBuiltin("plugin command list", handlePluginCommandList, "List plugin commands")
+	RegisterBuiltin("plugin command help", handlePluginCommandHelp, "Show command details")
+	RegisterBuiltin("plugin command complete", handlePluginCommandComplete, "Complete command/args")
 }
 
 // handlePluginHelp returns list of plugin subcommands.

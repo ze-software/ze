@@ -11,19 +11,18 @@ var bgpEventTypes = []string{
 	"refresh", "state", "negotiated",
 }
 
-// RegisterBgpHandlers registers BGP namespace commands.
-func RegisterBgpHandlers(d *Dispatcher) {
+func init() {
 	// BGP introspection
-	d.Register("bgp help", handleBgpHelp, "List bgp subcommands")
-	d.Register("bgp command list", handleBgpCommandList, "List bgp commands")
-	d.Register("bgp command help", handleBgpCommandHelp, "Show command details")
-	d.Register("bgp command complete", handleBgpCommandComplete, "Complete command/args")
-	d.Register("bgp event list", handleBgpEventList, "List available BGP event types")
+	RegisterBuiltin("bgp help", handleBgpHelp, "List bgp subcommands")
+	RegisterBuiltin("bgp command list", handleBgpCommandList, "List bgp commands")
+	RegisterBuiltin("bgp command help", handleBgpCommandHelp, "Show command details")
+	RegisterBuiltin("bgp command complete", handleBgpCommandComplete, "Complete command/args")
+	RegisterBuiltin("bgp event list", handleBgpEventList, "List available BGP event types")
 
 	// BGP plugin configuration
-	d.Register("bgp plugin encoding", handleBgpPluginEncoding, "Set event encoding (json|text)")
-	d.Register("bgp plugin format", handleBgpPluginFormat, "Set wire format (hex|base64|parsed|full)")
-	d.Register("bgp plugin ack", handleBgpPluginAck, "Set ACK timing (sync|async)")
+	RegisterBuiltin("bgp plugin encoding", handleBgpPluginEncoding, "Set event encoding (json|text)")
+	RegisterBuiltin("bgp plugin format", handleBgpPluginFormat, "Set wire format (hex|base64|parsed|full)")
+	RegisterBuiltin("bgp plugin ack", handleBgpPluginAck, "Set ACK timing (sync|async)")
 }
 
 // handleBgpHelp returns list of bgp subcommands.

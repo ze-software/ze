@@ -8,18 +8,6 @@ import (
 // ErrSilent is returned when a command should produce no response.
 var ErrSilent = errors.New("silent")
 
-// RegisterSessionHandlers registers session API commands.
-// These commands control per-process API connection state.
-// Note: ACK is controlled by serial prefix (#N), not session commands.
-// Note: Session lifecycle commands (ready/ping/bye) moved to plugin namespace (Step 2).
-// Note: Session sync/encoding commands moved to bgp plugin namespace (Step 4).
-func RegisterSessionHandlers(_ *Dispatcher) {
-	// All session commands have been moved:
-	// - session sync enable/disable -> bgp plugin ack sync/async
-	// - session api encoding -> bgp plugin encoding
-	// - session ping/bye/ready -> plugin session ping/bye/ready
-}
-
 // handlePluginSessionPing returns a pong response for health checking.
 // Returns daemon PID for identification.
 func handlePluginSessionPing(_ *CommandContext, _ []string) (*Response, error) {

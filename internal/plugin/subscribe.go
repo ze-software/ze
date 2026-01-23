@@ -366,10 +366,9 @@ func handleSubscribe(ctx *CommandContext, args []string) (*Response, error) {
 	}, nil
 }
 
-// RegisterSubscriptionHandlers registers subscribe/unsubscribe handlers.
-func RegisterSubscriptionHandlers(d *Dispatcher) {
-	d.Register("subscribe", handleSubscribe, "Subscribe to events")
-	d.Register("unsubscribe", handleUnsubscribe, "Unsubscribe from events")
+func init() {
+	RegisterBuiltin("subscribe", handleSubscribe, "Subscribe to events")
+	RegisterBuiltin("unsubscribe", handleUnsubscribe, "Unsubscribe from events")
 }
 
 // handleUnsubscribe handles the "unsubscribe" command.

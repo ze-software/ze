@@ -183,18 +183,16 @@ func parseSAFI(args []string) (safi string, rest []string, err error) {
 	}
 }
 
-// RegisterRouteHandlers registers route-related command handlers.
-// All route operations use "bgp peer <sel> update text" syntax.
-func RegisterRouteHandlers(d *Dispatcher) {
+func init() {
 	// Update command (multi-family batch with attr accumulation)
 	// This is the primary route announcement/withdrawal interface.
 	// Syntax: bgp peer <sel> update text <attrs>... nlri <family> add/del <prefix>...
 	// Syntax: bgp peer <sel> update text nlri <family> eor
-	d.Register("bgp peer update", handleUpdate, "Batch UPDATE with text/hex/b64 encoding")
+	RegisterBuiltin("bgp peer update", handleUpdate, "Batch UPDATE with text/hex/b64 encoding")
 
 	// Watchdog commands - control routes by watchdog group
-	d.Register("bgp watchdog announce", handleWatchdogAnnounce, "Announce routes in watchdog group")
-	d.Register("bgp watchdog withdraw", handleWatchdogWithdraw, "Withdraw routes in watchdog group")
+	RegisterBuiltin("bgp watchdog announce", handleWatchdogAnnounce, "Announce routes in watchdog group")
+	RegisterBuiltin("bgp watchdog withdraw", handleWatchdogWithdraw, "Withdraw routes in watchdog group")
 }
 
 // parseOrigin parses origin value: igp, egp, or incomplete.

@@ -6,12 +6,11 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/bgp/nlri"
 )
 
-// RegisterRefreshHandlers registers route refresh command handlers.
 // RFC 7313: Enhanced Route Refresh Capability for BGP-4.
-func RegisterRefreshHandlers(d *Dispatcher) {
-	d.Register("bgp peer borr", handleBoRR,
+func init() {
+	RegisterBuiltin("bgp peer borr", handleBoRR,
 		"Send Beginning of Route Refresh: bgp peer <selector> borr <family>")
-	d.Register("bgp peer eorr", handleEoRR,
+	RegisterBuiltin("bgp peer eorr", handleEoRR,
 		"Send End of Route Refresh: bgp peer <selector> eorr <family>")
 }
 

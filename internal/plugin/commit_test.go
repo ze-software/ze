@@ -250,7 +250,7 @@ func TestCommitUnknownAction(t *testing.T) {
 // PREVENTS: Missing commit command.
 func TestCommitCommandRegistered(t *testing.T) {
 	d := NewDispatcher()
-	RegisterCommitHandlers(d)
+	RegisterDefaultHandlers(d)
 
 	c := d.Lookup("bgp commit")
 	assert.NotNil(t, c, "bgp commit command must be registered")

@@ -65,7 +65,7 @@ func (m *mockReactorCache) ListUpdates() []uint64 {
 func TestBgpCacheRetain(t *testing.T) {
 	reactor := &mockReactorCache{}
 	d := NewDispatcher()
-	RegisterCacheHandlers(d)
+	RegisterDefaultHandlers(d)
 
 	ctx := &CommandContext{
 		Reactor:    reactor,
@@ -91,7 +91,7 @@ func TestBgpCacheRetain(t *testing.T) {
 func TestBgpCacheRelease(t *testing.T) {
 	reactor := &mockReactorCache{}
 	d := NewDispatcher()
-	RegisterCacheHandlers(d)
+	RegisterDefaultHandlers(d)
 
 	ctx := &CommandContext{
 		Reactor:    reactor,
@@ -117,7 +117,7 @@ func TestBgpCacheRelease(t *testing.T) {
 func TestBgpCacheExpire(t *testing.T) {
 	reactor := &mockReactorCache{}
 	d := NewDispatcher()
-	RegisterCacheHandlers(d)
+	RegisterDefaultHandlers(d)
 
 	ctx := &CommandContext{
 		Reactor:    reactor,
@@ -145,7 +145,7 @@ func TestBgpCacheList(t *testing.T) {
 		cachedIDs: []uint64{100, 200, 300},
 	}
 	d := NewDispatcher()
-	RegisterCacheHandlers(d)
+	RegisterDefaultHandlers(d)
 
 	ctx := &CommandContext{
 		Reactor:    reactor,
@@ -204,7 +204,7 @@ func TestBgpCacheForward(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			reactor := &mockReactorCache{}
 			d := NewDispatcher()
-			RegisterCacheHandlers(d)
+			RegisterDefaultHandlers(d)
 
 			ctx := &CommandContext{
 				Reactor:    reactor,
@@ -246,7 +246,7 @@ func TestBgpCacheInvalidId(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			reactor := &mockReactorCache{}
 			d := NewDispatcher()
-			RegisterCacheHandlers(d)
+			RegisterDefaultHandlers(d)
 
 			ctx := &CommandContext{
 				Reactor:    reactor,
@@ -267,7 +267,7 @@ func TestBgpCacheInvalidId(t *testing.T) {
 func TestBgpCacheUnknownAction(t *testing.T) {
 	reactor := &mockReactorCache{}
 	d := NewDispatcher()
-	RegisterCacheHandlers(d)
+	RegisterDefaultHandlers(d)
 
 	ctx := &CommandContext{
 		Reactor:    reactor,
@@ -284,7 +284,7 @@ func TestBgpCacheUnknownAction(t *testing.T) {
 func TestBgpCacheHelp(t *testing.T) {
 	reactor := &mockReactorCache{}
 	d := NewDispatcher()
-	RegisterCacheHandlers(d)
+	RegisterDefaultHandlers(d)
 
 	ctx := &CommandContext{
 		Reactor:    reactor,

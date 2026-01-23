@@ -7,10 +7,8 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/selector"
 )
 
-// RegisterCacheHandlers registers BGP cache command handlers.
-// Commands: bgp cache <id> retain/release/expire, bgp cache <id> forward <sel>, bgp cache list.
-func RegisterCacheHandlers(d *Dispatcher) {
-	d.Register("bgp cache", handleBgpCache,
+func init() {
+	RegisterBuiltin("bgp cache", handleBgpCache,
 		"BGP message cache operations: bgp cache <id> retain|release|expire|forward <sel>, bgp cache list")
 }
 

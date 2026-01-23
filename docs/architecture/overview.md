@@ -1230,9 +1230,10 @@ func TestPeerSession(t *testing.T) {
 
 ## Appendix A: Reference Documents
 
-- `docs/architecture/POOL_ARCHITECTURE.md` - Pool design
-- `docs/architecture/POOL_ARCHITECTURE_REVIEW.md` - Pool issues
-- `ZE_IMPLEMENTATION_PLAN.md` - Original implementation plan
+- `docs/architecture/pool-architecture.md` - Pool design
+- `docs/architecture/pool-architecture-review.md` - Pool issues
+- `docs/architecture/hub-architecture.md` - Future Hub-based architecture with Config Reader and YANG validation
+- `docs/architecture/config/yang-config-design.md` - YANG schema design (VyOS-inspired)
 - `../main/` - ExaBGP Python implementation (reference)
 
 ---
