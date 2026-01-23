@@ -13,9 +13,11 @@ Step 1: JSON Message Format ✅
             │
             └── Step 5: BGP Command Migration ✅
                     │
-                    └── Step 6: Event Subscription
+                    └── Step 6: Event Subscription ✅
                             │
-                            └── Step 7: RIB Namespace & Plugin Commands
+                            └── Step 7: RIB Namespace ✅
+                                    │
+                                    └── Step 8: BGP Cache Commands
 ```
 
 **Parallel execution possible:**
@@ -31,8 +33,9 @@ Step 1: JSON Message Format ✅
 | 3 | `done/143-api-command-restructure-step-3.md` | System Namespace: `system version api`, `system shutdown` | Step 1 | ✅ Done |
 | 4 | `done/144-api-command-restructure-step-4.md` | BGP Foundation: introspection, `bgp plugin *` config | Step 1 | ✅ Done |
 | 5 | `done/145-api-command-restructure-step-5.md` | BGP Migration: move all commands under `bgp` | Step 4 | ✅ Done |
-| 6 | `spec-api-command-restructure-step-6.md` | Event Subscription: `subscribe`/`unsubscribe` | Step 5 | Pending |
-| 7 | `spec-api-command-restructure-step-7.md` | RIB Namespace: plugin-provided commands | Step 6 | Pending |
+| 6 | `done/146-api-command-restructure-step-6.md` | Event Subscription: `subscribe`/`unsubscribe` | Step 5 | ✅ Done |
+| 7 | `done/147-api-command-restructure-step-7.md` | RIB Namespace: introspection handlers | Step 6 | ✅ Done |
+| 8 | `spec-api-command-restructure-step-8.md` | BGP Cache: migrate msg-id to bgp cache | Step 7 | Pending |
 
 ## Files Affected by Step
 
@@ -44,7 +47,8 @@ Step 1: JSON Message Format ✅
 | 4 | bgp.go | handler.go, session.go, types.go | - |
 | 5 | - | handler.go, route.go, commit.go, raw.go, refresh.go, command.go | - |
 | 6 | subscribe.go | handler.go, types.go, process.go | - |
-| 7 | rib.go | handler.go, rib/rib.go | msgid.go, forward.go |
+| 7 | - | handler.go | - |
+| 8 | cache.go | handler.go, bgp.go | msgid.go, forward.go |
 
 ## Command Migration Summary
 
@@ -91,20 +95,20 @@ watchdog withdraw    → bgp watchdog withdraw
 raw ...              → bgp raw ...
 ```
 
-**Msg-ID/Cache (plugin-provided):**
+**Msg-ID/Cache (Step 8 - engine builtins, BGP-centric):**
 ```
-msg-id retain        → bgp cache <id> retain (plugin)
-msg-id release       → bgp cache <id> release (plugin)
-msg-id expire        → bgp cache <id> expire (plugin)
-msg-id list          → bgp cache list (plugin)
-forward update-id    → bgp cache <id> forward (plugin)
-delete update-id     → REMOVED (use expire)
+msg-id retain <id>                    → bgp cache <id> retain
+msg-id release <id>                   → bgp cache <id> release
+msg-id expire <id>                    → bgp cache <id> expire
+msg-id list                           → bgp cache list
+bgp peer <sel> forward update-id <id> → bgp cache <id> forward <sel>
+bgp delete update-id <id>             → REMOVED (use expire)
 ```
 
-**RIB (plugin-provided):**
+**RIB (engine builtins):**
 ```
-rib show in          → rib show in (plugin)
-rib clear in         → rib clear in (plugin)
+rib show in          → rib show in (builtin)
+rib clear in         → rib clear in (builtin)
 ```
 
 **System:**
@@ -123,13 +127,15 @@ system version       → system version software
 
 ## Removed Features
 
-| Feature | Reason |
-|---------|--------|
-| `session reset` | Only reset sync/encoding to defaults; not needed |
-| `WireEncodingCBOR` | Incompatible with line-delimited protocol |
-| `neighbor` prefix | Use `bgp peer` instead |
-| Config-driven events | Replaced by `subscribe` commands |
-| `delete update-id` | Use `bgp cache <id> expire` |
+| Feature | Reason | Step |
+|---------|--------|------|
+| `session reset` | Only reset sync/encoding to defaults; not needed | 2 |
+| `WireEncodingCBOR` | Incompatible with line-delimited protocol | 1 |
+| `neighbor` prefix | Use `bgp peer` instead | 5 |
+| Config-driven events | Replaced by `subscribe` commands | 6 |
+| `bgp delete update-id` | Use `bgp cache <id> expire` | 8 |
+| `msg-id *` commands | Replaced by `bgp cache *` | 8 |
+| `bgp peer forward update-id` | Replaced by `bgp cache <id> forward` | 8 |
 
 ## Test Updates Required
 
