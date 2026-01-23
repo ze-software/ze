@@ -60,11 +60,8 @@ func RegisterDefaultHandlers(d *Dispatcher) {
 	// BGP namespace (introspection + plugin configuration)
 	RegisterBgpHandlers(d)
 
-	// Forward operations (route reflection via update-id)
-	RegisterForwardHandlers(d)
-
-	// Msg-ID cache control (retain/release/expire/list)
-	RegisterMsgIDHandlers(d)
+	// BGP cache operations (retain/release/expire/forward/list)
+	RegisterCacheHandlers(d)
 
 	// Raw passthrough (send bytes without validation)
 	RegisterRawHandlers(d)

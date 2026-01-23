@@ -2298,48 +2298,60 @@ func TestDispatchRibEventList(t *testing.T) {
 	assert.Contains(t, events, "route", "should include route event")
 }
 
-// TestMsgIdCommandsRegistered verifies msg-id commands are registered.
+// TestOldMsgIdCommandsRemoved verifies msg-id commands are no longer registered.
 //
-// VALIDATES: "msg-id retain/release/expire/list" are available.
-// PREVENTS: Missing cache control commands.
-func TestMsgIdCommandsRegistered(t *testing.T) {
+// VALIDATES: "msg-id *" commands migrated to "bgp cache *".
+// PREVENTS: Old command syntax still working after migration.
+func TestOldMsgIdCommandsRemoved(t *testing.T) {
 	d := NewDispatcher()
 	RegisterDefaultHandlers(d)
 
-	commands := []string{
+	removedCommands := []string{
 		"msg-id retain",
 		"msg-id release",
 		"msg-id expire",
 		"msg-id list",
 	}
 
-	for _, cmd := range commands {
+	for _, cmd := range removedCommands {
 		t.Run(cmd, func(t *testing.T) {
 			c := d.Lookup(cmd)
-			assert.NotNil(t, c, "command %q must be registered", cmd)
+			assert.Nil(t, c, "command %q should NOT be registered (migrated to bgp cache)", cmd)
 		})
 	}
 }
 
-// TestForwardCommandsRegistered verifies forward commands are registered.
+// TestOldForwardCommandsRemoved verifies forward commands are no longer registered.
 //
-// VALIDATES: "forward update-id" and "delete update-id" are available.
-// PREVENTS: Missing route reflection commands.
-func TestForwardCommandsRegistered(t *testing.T) {
+// VALIDATES: "bgp peer forward update-id" migrated to "bgp cache <id> forward".
+// PREVENTS: Old command syntax still working after migration.
+func TestOldForwardCommandsRemoved(t *testing.T) {
 	d := NewDispatcher()
 	RegisterDefaultHandlers(d)
 
-	commands := []string{
+	removedCommands := []string{
 		"bgp peer forward update-id",
 		"bgp delete update-id",
 	}
 
-	for _, cmd := range commands {
+	for _, cmd := range removedCommands {
 		t.Run(cmd, func(t *testing.T) {
 			c := d.Lookup(cmd)
-			assert.NotNil(t, c, "command %q must be registered", cmd)
+			assert.Nil(t, c, "command %q should NOT be registered (migrated to bgp cache)", cmd)
 		})
 	}
+}
+
+// TestBgpCacheCommandRegistered verifies bgp cache command is registered.
+//
+// VALIDATES: "bgp cache" command available after migration.
+// PREVENTS: Missing new cache command registration.
+func TestBgpCacheCommandRegistered(t *testing.T) {
+	d := NewDispatcher()
+	RegisterDefaultHandlers(d)
+
+	c := d.Lookup("bgp cache")
+	assert.NotNil(t, c, "command 'bgp cache' must be registered")
 }
 
 // TestRibCommandsRegistered verifies all rib namespace commands are registered.
