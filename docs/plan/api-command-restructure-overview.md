@@ -17,7 +17,7 @@ Step 1: JSON Message Format ✅
                             │
                             └── Step 7: RIB Namespace ✅
                                     │
-                                    └── Step 8: BGP Cache Commands
+                                    └── Step 8: BGP Cache Commands ✅
 ```
 
 **Parallel execution possible:**
@@ -35,7 +35,7 @@ Step 1: JSON Message Format ✅
 | 5 | `done/145-api-command-restructure-step-5.md` | BGP Migration: move all commands under `bgp` | Step 4 | ✅ Done |
 | 6 | `done/146-api-command-restructure-step-6.md` | Event Subscription: `subscribe`/`unsubscribe` | Step 5 | ✅ Done |
 | 7 | `done/147-api-command-restructure-step-7.md` | RIB Namespace: introspection handlers | Step 6 | ✅ Done |
-| 8 | `spec-api-command-restructure-step-8.md` | BGP Cache: migrate msg-id to bgp cache | Step 7 | Pending |
+| 8 | `done/148-api-command-restructure-step-8.md` | BGP Cache: migrate msg-id to bgp cache | Step 7 | ✅ Done |
 
 ## Files Affected by Step
 
