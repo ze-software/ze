@@ -21,10 +21,11 @@ type CommandContext struct {
 	Reactor       ReactorInterface
 	Encoder       *JSONEncoder
 	CommitManager *CommitManager
-	Dispatcher    *Dispatcher // For accessing registry/commands
-	Process       *Process    // The API process (for session state)
-	Peer          string      // Peer selector: "*" for all, or specific IP. Empty = "*"
-	Serial        string      // Command serial from #N prefix (empty = no ack)
+	Dispatcher    *Dispatcher          // For accessing registry/commands
+	Process       *Process             // The API process (for session state)
+	Subscriptions *SubscriptionManager // Event subscription tracking
+	Peer          string               // Peer selector: "*" for all, or specific IP. Empty = "*"
+	Serial        string               // Command serial from #N prefix (empty = no ack)
 }
 
 // PeerSelector returns the effective neighbor selector.

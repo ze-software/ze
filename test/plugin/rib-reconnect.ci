@@ -110,7 +110,6 @@ bgp {
 		process announce-routes {
 		}
 		process rib {
-			receive { sent; state; refresh; }
 			send { update; borr; eorr; }
 		}
 	}

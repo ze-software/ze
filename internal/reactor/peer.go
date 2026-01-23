@@ -20,9 +20,14 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/bgp/nlri"
 	"codeberg.org/thomas-mangin/ze/internal/plugin"
 	"codeberg.org/thomas-mangin/ze/internal/rib"
+	"codeberg.org/thomas-mangin/ze/internal/slogutil"
 	"codeberg.org/thomas-mangin/ze/internal/source"
 	"codeberg.org/thomas-mangin/ze/internal/trace"
 )
+
+// peerLogger is the peer subsystem logger.
+// Controlled by ze.log.bgp.peer environment variable.
+var peerLogger = slogutil.Logger("peer")
 
 // safiMUP is the SAFI for Mobile User Plane (draft-mpmz-bess-mup-safi).
 // Not in capability package as it's not yet standardized (SAFI 85).
@@ -338,9 +343,10 @@ func (p *Peer) setEncodingContexts(neg *capability.Negotiated) {
 		p.sendCtxID = bgpctx.Registry.Register(p.sendCtx)
 	}
 
-	// Set recvCtxID on session for zero-copy WireUpdate creation
+	// Set context IDs on session for zero-copy WireUpdate and AttrsWire creation
 	if p.session != nil {
 		p.session.SetRecvCtxID(p.recvCtxID)
+		p.session.SetSendCtxID(p.sendCtxID)
 	}
 }
 
@@ -920,6 +926,7 @@ func (p *Peer) runOnce() error {
 			}
 
 			// Send static routes from config.
+			peerLogger.Debug("spawning sendInitialRoutes", "peer", addr)
 			go p.sendInitialRoutes()
 		} else if from == fsm.StateEstablished {
 			// Determine reason based on target state
@@ -1184,26 +1191,27 @@ func (p *Peer) cleanup() {
 // Uses atomic flag to prevent concurrent execution if session reconnects quickly.
 func (p *Peer) sendInitialRoutes() {
 	addr := p.settings.Address.String()
+	peerLogger.Debug("sendInitialRoutes ENTER", "peer", addr)
 
 	// Prevent concurrent sendInitialRoutes goroutines.
 	// If another instance is running, skip this one - the running instance
 	// will process any queued operations.
 	if !p.sendingInitialRoutes.CompareAndSwap(0, 1) {
-		trace.Log(trace.Routes, "peer %s: sendInitialRoutes skipped (concurrent instance)", addr)
+		peerLogger.Debug("sendInitialRoutes skipped (concurrent)", "peer", addr)
 		return
 	}
 	defer p.sendingInitialRoutes.Store(0)
 
-	trace.Log(trace.Routes, "peer %s: sendInitialRoutes started", addr)
+	peerLogger.Debug("sendInitialRoutes started", "peer", addr)
 
 	// Get negotiated capabilities for family checks.
 	nc := p.negotiated.Load()
 	if nc == nil {
-		trace.Log(trace.Routes, "peer %s: sendInitialRoutes aborted (no negotiated caps)", addr)
+		peerLogger.Debug("sendInitialRoutes aborted (no negotiated caps)", "peer", addr)
 		return
 	}
 
-	trace.Log(trace.Routes, "peer %s: sending %d static routes", addr, len(p.settings.StaticRoutes))
+	peerLogger.Debug("sendInitialRoutes sending static routes", "peer", addr, "count", len(p.settings.StaticRoutes))
 
 	// Calculate max message size for this peer
 	maxMsgSize := int(message.MaxMessageLength(message.TypeUPDATE, nc.ExtendedMessage))

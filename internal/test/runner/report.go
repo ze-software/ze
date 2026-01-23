@@ -142,7 +142,7 @@ func (r *Report) printTimeoutReport(rec *Record) {
 		_, _ = fmt.Fprintln(r.output, c.LineSeparator())
 		_, _ = fmt.Fprintln(r.output, c.Yellow("CLIENT OUTPUT:"))
 		_, _ = fmt.Fprintln(r.output, c.LineSeparator())
-		_, _ = fmt.Fprintln(r.output, truncateOutput(rec.ClientOutput, 20))
+		_, _ = fmt.Fprintln(r.output, truncateOutput(rec.ClientOutput, 200))
 		if strings.TrimSpace(rec.ClientOutput) == "" {
 			_, _ = fmt.Fprintf(r.output, "%s\n", c.Gray("(no output - likely stuck or missing feature)"))
 		}

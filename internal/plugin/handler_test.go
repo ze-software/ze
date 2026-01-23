@@ -6,7 +6,6 @@ import (
 	"testing"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/bgp/message"
 	"codeberg.org/thomas-mangin/ze/internal/bgp/nlri"
 	"codeberg.org/thomas-mangin/ze/internal/rib"
 	"codeberg.org/thomas-mangin/ze/internal/selector"
@@ -725,64 +724,6 @@ func TestRIBCommandsRegistered(t *testing.T) {
 	for _, cmd := range ribCommands {
 		c := d.Lookup(cmd)
 		assert.NotNil(t, c, "command %q must be registered", cmd)
-	}
-}
-
-// TestWantsMessageType verifies message type filtering.
-//
-// VALIDATES: Only subscribed message types are forwarded to processes.
-//
-// PREVENTS: Processes receiving unwanted messages.
-func TestWantsMessageType(t *testing.T) {
-	tests := []struct {
-		name    string
-		binding PeerProcessBinding
-		msgType message.MessageType
-		want    bool
-	}{
-		{
-			name:    "update subscribed",
-			binding: PeerProcessBinding{ReceiveUpdate: true},
-			msgType: message.TypeUPDATE,
-			want:    true,
-		},
-		{
-			name:    "update not subscribed",
-			binding: PeerProcessBinding{ReceiveUpdate: false},
-			msgType: message.TypeUPDATE,
-			want:    false,
-		},
-		{
-			name:    "open subscribed",
-			binding: PeerProcessBinding{ReceiveOpen: true},
-			msgType: message.TypeOPEN,
-			want:    true,
-		},
-		{
-			name:    "notification subscribed",
-			binding: PeerProcessBinding{ReceiveNotification: true},
-			msgType: message.TypeNOTIFICATION,
-			want:    true,
-		},
-		{
-			name:    "keepalive subscribed",
-			binding: PeerProcessBinding{ReceiveKeepalive: true},
-			msgType: message.TypeKEEPALIVE,
-			want:    true,
-		},
-		{
-			name:    "mixed flags - only update",
-			binding: PeerProcessBinding{ReceiveUpdate: true, ReceiveOpen: false},
-			msgType: message.TypeOPEN,
-			want:    false,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got := wantsMessageType(tt.binding, tt.msgType)
-			assert.Equal(t, tt.want, got)
-		})
 	}
 }
 

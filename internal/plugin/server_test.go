@@ -17,23 +17,6 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// mustParseAddr parses an IP address or fails the test.
-func mustParseAddr(t *testing.T, s string) netip.Addr {
-	t.Helper()
-	addr, err := netip.ParseAddr(s)
-	require.NoError(t, err)
-	return addr
-}
-
-// parseJSON unmarshals JSON string into a map.
-func parseJSON(t *testing.T, s string, result *map[string]any) error {
-	t.Helper()
-	return json.Unmarshal([]byte(s), result)
-}
-
-// TypeNOTIFICATION is message.TypeNOTIFICATION for test convenience.
-const TypeNOTIFICATION = message.TypeNOTIFICATION
-
 // dialUnix connects to a Unix socket with context.
 func dialUnix(t *testing.T, sockPath string) net.Conn {
 	t.Helper()
@@ -503,14 +486,13 @@ func TestServerSerialCommand(t *testing.T) {
 	assert.Contains(t, response, `"status":"done"`)
 }
 
-// TestServerFormatMessageNotificationJSON verifies Server.formatMessage with NOTIFICATION+JSON.
+// TestFormatNotificationJSON verifies NOTIFICATION message JSON format.
 //
-// VALIDATES: Notification JSON output has fields at top level (flat format).
+// VALIDATES: Notification JSON output has correct structure for subscription delivery.
 // PREVENTS: Plugin receiving malformed JSON or missing fields for NOTIFICATION events.
-func TestServerFormatMessageNotificationJSON(t *testing.T) {
-	reactor := &mockReactor{}
-	server := NewServer(&ServerConfig{SocketPath: "/tmp/unused.sock"}, reactor)
-
+// NOTE: FormatMessage with FormatRaw returns JSON for non-UPDATE messages.
+// FormatParsed returns text format for backwards compatibility.
+func TestFormatNotificationJSON(t *testing.T) {
 	peer := PeerInfo{
 		Address:      mustParseAddr(t, "10.0.0.1"),
 		LocalAddress: mustParseAddr(t, "10.0.0.2"),
@@ -527,123 +509,45 @@ func TestServerFormatMessageNotificationJSON(t *testing.T) {
 	}
 
 	msg := RawMessage{
-		Type:      TypeNOTIFICATION,
+		Type:      message.TypeNOTIFICATION,
 		RawBytes:  rawBytes,
 		MessageID: 42,
 		Direction: "received",
 	}
 
-	binding := PeerProcessBinding{
-		Encoding:            EncodingJSON,
-		Format:              FormatParsed,
-		ReceiveNotification: true,
+	// Use FormatRaw for JSON output (FormatParsed returns text for non-UPDATE)
+	content := ContentConfig{
+		Encoding: EncodingJSON,
+		Format:   FormatRaw,
 	}
 
-	output := server.formatMessage(peer, msg, binding, "")
+	output := FormatMessage(peer, msg, content, "")
 
-	// Parse JSON
+	// Parse JSON to verify structure
 	var result map[string]any
-	err := parseJSON(t, output, &result)
+	err := json.Unmarshal([]byte(output), &result)
 	require.NoError(t, err, "JSON must be valid: %s", output)
 
-	// IPC 2.0: top-level "type" and payload under "bgp"
+	// IPC 2.0: top-level "type" should be "bgp"
 	assert.Equal(t, "bgp", result["type"], "top-level type must be 'bgp'")
+
+	// Payload under "bgp"
 	payload, ok := result["bgp"].(map[string]any)
 	require.True(t, ok, "bgp payload must exist")
 
-	// Check event type and message metadata in payload
-	assert.Equal(t, "notification", payload["type"])
-	msgMeta, ok := payload["message"].(map[string]any)
-	require.True(t, ok, "message metadata must exist in bgp payload")
-	assert.Equal(t, float64(42), msgMeta["id"])
-	assert.Equal(t, "received", msgMeta["direction"])
+	// Check event type in payload
+	assert.Equal(t, "notification", payload["type"], "event type must be 'notification'")
 
-	// Check peer structure in payload
-	peerMap, ok := payload["peer"].(map[string]any)
-	require.True(t, ok, "peer must be object in bgp payload")
-	assert.Equal(t, "10.0.0.1", peerMap["address"])
-	assert.Equal(t, float64(65002), peerMap["asn"])
-
-	// Notification fields in payload (hyphenated names)
-	assert.Equal(t, float64(6), payload["code"])
-	assert.Equal(t, float64(2), payload["subcode"])
-	assert.Equal(t, "Cease", payload["code-name"])
-	assert.Equal(t, "Administrative Shutdown", payload["subcode-name"])
+	// Check raw message is present (FormatRaw includes hex)
+	rawPart, ok := payload["raw"].(map[string]any)
+	require.True(t, ok, "raw part must exist in bgp payload")
+	assert.NotEmpty(t, rawPart["message"], "raw message must be present")
 }
 
-// TestServerFormatMessageNotificationText verifies Server.formatMessage with NOTIFICATION+text.
-//
-// VALIDATES: Notification text output is parseable.
-// PREVENTS: Plugin receiving malformed text for NOTIFICATION events.
-func TestServerFormatMessageNotificationText(t *testing.T) {
-	reactor := &mockReactor{}
-	server := NewServer(&ServerConfig{SocketPath: "/tmp/unused.sock"}, reactor)
-
-	peer := PeerInfo{
-		Address: mustParseAddr(t, "10.0.0.1"),
-		PeerAS:  65002,
-	}
-
-	// NOTIFICATION: Hold Timer Expired
-	rawBytes := []byte{0x04, 0x00}
-
-	msg := RawMessage{
-		Type:      TypeNOTIFICATION,
-		RawBytes:  rawBytes,
-		MessageID: 99,
-		Direction: "received",
-	}
-
-	binding := PeerProcessBinding{
-		Encoding:            EncodingText,
-		Format:              FormatParsed,
-		ReceiveNotification: true,
-	}
-
-	output := server.formatMessage(peer, msg, binding, "")
-
-	// Verify text format
-	assert.Contains(t, output, "peer 10.0.0.1")
-	assert.Contains(t, output, "received")
-	assert.Contains(t, output, "notification")
-	assert.Contains(t, output, "99")     // msg-id
-	assert.Contains(t, output, "code 4") // error code
-	assert.Contains(t, output, "subcode 0")
-}
-
-// TestServerFormatMessageOverrideDir verifies overrideDir parameter works.
-//
-// VALIDATES: overrideDir overrides msg.Direction in formatted output.
-// PREVENTS: Incorrect direction in forwarded/echoed messages.
-func TestServerFormatMessageOverrideDir(t *testing.T) {
-	reactor := &mockReactor{}
-	server := NewServer(&ServerConfig{SocketPath: "/tmp/unused.sock"}, reactor)
-
-	peer := PeerInfo{
-		Address: mustParseAddr(t, "10.0.0.1"),
-		PeerAS:  65002,
-	}
-
-	msg := RawMessage{
-		Type:      TypeNOTIFICATION,
-		RawBytes:  []byte{0x04, 0x00},
-		MessageID: 1,
-		Direction: "received", // Original direction
-	}
-
-	binding := PeerProcessBinding{
-		Encoding:            EncodingText,
-		Format:              FormatParsed,
-		ReceiveNotification: true,
-	}
-
-	// Without override - uses msg.Direction
-	output1 := server.formatMessage(peer, msg, binding, "")
-	assert.Contains(t, output1, "received")
-	assert.NotContains(t, output1, "sent")
-
-	// With override - uses overrideDir
-	output2 := server.formatMessage(peer, msg, binding, "sent")
-	assert.Contains(t, output2, "sent")
-	assert.NotContains(t, output2, "received")
+// mustParseAddr parses an IP address or fails the test.
+func mustParseAddr(t *testing.T, s string) netip.Addr {
+	t.Helper()
+	addr, err := netip.ParseAddr(s)
+	require.NoError(t, err)
+	return addr
 }

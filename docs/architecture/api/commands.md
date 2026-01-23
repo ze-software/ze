@@ -35,6 +35,7 @@ See [JSON_FORMAT.md](JSON_FORMAT.md#exabgp-differences) for output format differ
 | Withdraw | route, flow, vpls, watchdog |
 | RIB | show, flush, clear |
 | Group | start, end (batching) |
+| Subscribe | subscribe, unsubscribe (event filtering) |
 
 ---
 
@@ -68,6 +69,50 @@ bgp plugin format parsed     # Decoded fields only (default)
 bgp plugin format full       # Both parsed AND wire bytes
 bgp plugin ack sync          # Wait for wire transmission
 bgp plugin ack async         # Return immediately (default)
+```
+
+### Event Subscription Commands
+
+Plugins subscribe to events via API instead of config. Replaces config-driven `receive {}` blocks.
+
+```
+subscribe <namespace> event <type> [direction received|sent|both]
+subscribe peer <selector> <namespace> event <type> [direction ...]
+subscribe plugin <name> <namespace> event <type> [direction ...]
+unsubscribe <namespace> event <type> [direction received|sent|both]
+```
+
+**Namespaces:**
+- `bgp` - BGP protocol events
+- `rib` - RIB events (cache, route changes)
+
+**BGP event types:**
+
+| Event | Has Direction | Description |
+|-------|---------------|-------------|
+| `update` | ✅ | UPDATE message |
+| `open` | ✅ | OPEN message |
+| `notification` | ✅ | NOTIFICATION message |
+| `keepalive` | ✅ | KEEPALIVE message |
+| `refresh` | ✅ | ROUTE-REFRESH message |
+| `state` | ❌ | Peer state change (up/down) |
+| `negotiated` | ❌ | Capability negotiation complete |
+
+**RIB event types:**
+
+| Event | Description |
+|-------|-------------|
+| `cache` | Cache entry events |
+| `route` | Route change events |
+
+**Examples:**
+```
+subscribe bgp event update                              # All peers, both directions
+subscribe bgp event update direction received           # Received only
+subscribe peer 10.0.0.1 bgp event update               # Specific peer
+subscribe peer * bgp event state                        # All peers, state changes
+subscribe peer !10.0.0.1 bgp event update direction sent  # Exclude one peer
+subscribe rib event route                               # RIB route events
 ```
 
 ### System Commands

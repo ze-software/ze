@@ -70,6 +70,7 @@ func (c *StartupCoordinator) StageComplete(pluginID int, stage PluginStage) {
 
 	// Mark complete
 	c.stageComplete[pluginID] = true
+	coordinatorLogger.Debug("coordinator: StageComplete marked", "plugin", pluginID, "complete", fmt.Sprintf("%v", c.stageComplete))
 
 	// Check if all plugins completed
 	if c.allComplete() {
@@ -191,17 +192,20 @@ func (c *StartupCoordinator) Failed() bool {
 // allComplete returns true if all plugins completed current stage.
 // Must be called with lock held.
 func (c *StartupCoordinator) allComplete() bool {
-	for _, done := range c.stageComplete {
+	for i, done := range c.stageComplete {
 		if !done {
+			coordinatorLogger.Debug("coordinator: allComplete FALSE", "waiting_for_plugin", i)
 			return false
 		}
 	}
+	coordinatorLogger.Debug("coordinator: allComplete TRUE")
 	return true
 }
 
 // advanceStage moves to the next stage.
 // Must be called with lock held.
 func (c *StartupCoordinator) advanceStage() {
+	oldStage := c.currentStage
 	// Reset completion tracking
 	for i := range c.stageComplete {
 		c.stageComplete[i] = false
@@ -209,6 +213,7 @@ func (c *StartupCoordinator) advanceStage() {
 
 	// Advance stage
 	c.currentStage++
+	coordinatorLogger.Debug("coordinator: advanceStage", "from", oldStage, "to", c.currentStage)
 
 	// Notify waiters by closing old channel and creating new one
 	close(c.stageCh)

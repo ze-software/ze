@@ -20,9 +20,14 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/bgp/message"
 	"codeberg.org/thomas-mangin/ze/internal/bgp/wire"
 	"codeberg.org/thomas-mangin/ze/internal/plugin"
+	"codeberg.org/thomas-mangin/ze/internal/slogutil"
 	"codeberg.org/thomas-mangin/ze/internal/source"
 	"codeberg.org/thomas-mangin/ze/internal/trace"
 )
+
+// sessionLogger is the session subsystem logger.
+// Controlled by ze.log.bgp.session environment variable.
+var sessionLogger = slogutil.Logger("session")
 
 // readBufPool4K provides reusable 4K read buffers for standard messages.
 // Used before Extended Message capability is negotiated.
@@ -120,6 +125,10 @@ type Session struct {
 	// Set by Peer after capability negotiation for zero-copy WireUpdate creation.
 	recvCtxID bgpctx.ContextID
 
+	// sendCtxID is the encoding context for sent messages.
+	// Set by Peer after capability negotiation for AttrsWire creation in callbacks.
+	sendCtxID bgpctx.ContextID
+
 	// sourceID identifies the peer in the source registry.
 	// Set by Peer at creation time.
 	sourceID source.SourceID
@@ -195,6 +204,14 @@ func (s *Session) SetRecvCtxID(ctxID bgpctx.ContextID) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.recvCtxID = ctxID
+}
+
+// SetSendCtxID sets the encoding context ID for sent messages.
+// Called by Peer after capability negotiation for AttrsWire creation in callbacks.
+func (s *Session) SetSendCtxID(ctxID bgpctx.ContextID) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.sendCtxID = ctxID
 }
 
 // SetSourceID sets the source ID identifying this peer.
@@ -1297,7 +1314,7 @@ func (s *Session) writeMessage(conn net.Conn, msg message.Message) error {
 	// Body is data after the 19-byte header (16-byte marker + 2-byte length + 1-byte type).
 	if s.onMessageReceived != nil && len(data) >= message.HeaderLen {
 		body := data[message.HeaderLen:]
-		_ = s.onMessageReceived(s.settings.Address, msg.Type(), body, nil, 0, "sent", nil)
+		_ = s.onMessageReceived(s.settings.Address, msg.Type(), body, nil, s.sendCtxID, "sent", nil)
 	}
 
 	return nil
@@ -1391,9 +1408,11 @@ func (s *Session) SendUpdate(update *message.Update) error {
 	}
 
 	// Notify callback after successful send
+	sessionLogger.Debug("SendUpdate complete", "peer", s.settings.Address, "hasCallback", s.onMessageReceived != nil, "msgLen", n)
 	if s.onMessageReceived != nil && n >= message.HeaderLen {
 		body := s.writeBuf.Buffer()[message.HeaderLen:n]
-		_ = s.onMessageReceived(s.settings.Address, message.TypeUPDATE, body, nil, 0, "sent", nil)
+		sessionLogger.Debug("SendUpdate calling onMessageReceived", "peer", s.settings.Address, "direction", "sent", "ctxID", s.sendCtxID, "bodyLen", len(body))
+		_ = s.onMessageReceived(s.settings.Address, message.TypeUPDATE, body, nil, s.sendCtxID, "sent", nil)
 	}
 
 	return nil
@@ -1435,7 +1454,7 @@ func (s *Session) SendAnnounce(route plugin.RouteSpec, localAS uint32, isIBGP bo
 	// Notify callback after successful send
 	if s.onMessageReceived != nil && n >= message.HeaderLen {
 		body := s.writeBuf.Buffer()[message.HeaderLen:n]
-		_ = s.onMessageReceived(s.settings.Address, message.TypeUPDATE, body, nil, 0, "sent", nil)
+		_ = s.onMessageReceived(s.settings.Address, message.TypeUPDATE, body, nil, s.sendCtxID, "sent", nil)
 	}
 
 	return nil
@@ -1476,7 +1495,7 @@ func (s *Session) SendWithdraw(prefix netip.Prefix, addPath bool) error {
 	// Notify callback after successful send
 	if s.onMessageReceived != nil && n >= message.HeaderLen {
 		body := s.writeBuf.Buffer()[message.HeaderLen:n]
-		_ = s.onMessageReceived(s.settings.Address, message.TypeUPDATE, body, nil, 0, "sent", nil)
+		_ = s.onMessageReceived(s.settings.Address, message.TypeUPDATE, body, nil, s.sendCtxID, "sent", nil)
 	}
 
 	return nil

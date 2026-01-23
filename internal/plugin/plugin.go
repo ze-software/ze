@@ -215,6 +215,8 @@ func parsePluginResponse(line string) (serial, respType, data string, ok bool) {
 func RegisterPluginHandlers(d *Dispatcher) {
 	// Plugin lifecycle (moved from session namespace)
 	d.Register("plugin session ready", handlePluginSessionReady, "Signal plugin init complete")
+	// Also register with bgp peer prefix for per-peer ready signals (e.g., after route replay)
+	d.Register("bgp peer plugin session ready", handlePluginSessionReady, "Signal peer-specific plugin init complete")
 	d.Register("plugin session ping", handlePluginSessionPing, "Health check (returns PID)")
 	d.Register("plugin session bye", handlePluginSessionBye, "Disconnect")
 

@@ -77,7 +77,6 @@ bgp {
 		}
 	
 		process rib {
-			receive { sent; state; }
 			send { update; }
 		}
 	}

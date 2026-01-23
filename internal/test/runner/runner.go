@@ -762,6 +762,19 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 	// Parse received messages
 	rec.ReceivedRaw = extractReceivedMessages(rec.PeerOutput)
 
+	// Save outputs if requested
+	if opts.SaveDir != "" {
+		out := &testOutput{
+			peerStdout:   peerStdout.String(),
+			peerStderr:   peerStderr.String(),
+			clientStdout: clientStdout.String(),
+			clientStderr: clientStderr.String(),
+		}
+		if err := r.saveTestOutput(rec, out, opts.SaveDir); err != nil {
+			fmt.Fprintf(os.Stderr, "warning: save %s: %v\n", rec.Nick, err)
+		}
+	}
+
 	// Check for timeout
 	if testCtx.Err() != nil {
 		rec.State = StateTimeout

@@ -3737,6 +3737,21 @@ func (r *Reactor) notifyMessageReceiver(peerAddr netip.Addr, msgType message.Mes
 			Direction: direction,
 			MessageID: messageID,
 		}
+
+		// For sent UPDATE messages, create AttrsWire from body if we have a context ID
+		if msgType == message.TypeUPDATE && ctxID != 0 && len(bytes) >= 4 {
+			// Parse UPDATE body to extract attribute bytes
+			// RFC 4271: withdrawnLen(2) + withdrawn(...) + attrLen(2) + attrs(...) + nlri(...)
+			withdrawnLen := int(binary.BigEndian.Uint16(bytes[0:2]))
+			attrOffset := 2 + withdrawnLen
+			if len(bytes) >= attrOffset+2 {
+				attrLen := int(binary.BigEndian.Uint16(bytes[attrOffset : attrOffset+2]))
+				if len(bytes) >= attrOffset+2+attrLen {
+					attrBytes := bytes[attrOffset+2 : attrOffset+2+attrLen]
+					msg.AttrsWire = attribute.NewAttributesWire(attrBytes, ctxID)
+				}
+			}
+		}
 	}
 
 	// Route to handler FIRST (while buf is definitely valid)
@@ -3963,15 +3978,26 @@ func (r *Reactor) StartWithContext(ctx context.Context) error {
 	})
 	r.signals.StartWithContext(r.ctx)
 
+	// Capture peers slice before releasing lock - ensures consistent snapshot
+	// even if peers were somehow modified during API wait.
+	peersToStart := r.peers
+
+	// Release lock before waiting for API - plugins need RLock in GetPeerCapabilityConfigs()
+	// during their startup protocol. Holding the write lock here causes deadlock.
+	r.mu.Unlock()
+
 	// Wait for API processes to signal readiness before starting peers.
 	// All processes must send "plugin session ready" before BGP sessions start.
 	r.WaitForAPIReady()
 
 	// Start all peers (passive peers wait for incoming connections).
-	for _, peer := range r.peers {
+	// Uses captured slice - each peer has its own synchronization.
+	for _, peer := range peersToStart {
 		peer.StartWithContext(r.ctx)
 	}
 
+	// Re-acquire lock only to set running state
+	r.mu.Lock()
 	r.running = true
 
 	// Monitor context for shutdown

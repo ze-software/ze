@@ -67,6 +67,9 @@ func RegisterDefaultHandlers(d *Dispatcher) {
 
 	// Route refresh markers (RFC 7313 Enhanced Route Refresh)
 	RegisterRefreshHandlers(d)
+
+	// Event subscription (API-driven event routing)
+	RegisterSubscriptionHandlers(d)
 }
 
 // handleDaemonShutdown signals the reactor to stop.

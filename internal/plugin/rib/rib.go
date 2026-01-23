@@ -147,6 +147,12 @@ func (r *RIBManager) doStartupProtocol() {
 	// Stage 4: Wait for registry (discard)
 	r.waitForLine("registry done")
 
+	// Subscribe to events via API (replaces config-driven receive { })
+	// Must be sent BEFORE "ready" so subscriptions are active when events start
+	r.send("subscribe bgp event update direction sent")
+	r.send("subscribe bgp event state")
+	r.send("subscribe bgp event refresh")
+
 	// Stage 5: Ready
 	r.send("ready")
 }
@@ -179,6 +185,7 @@ func (r *RIBManager) send(format string, args ...any) {
 // dispatch routes an event to the appropriate handler.
 func (r *RIBManager) dispatch(event *Event) {
 	eventType := event.GetEventType()
+	logger.Debug("dispatch event", "eventType", eventType, "peer", event.GetPeerAddress())
 
 	switch eventType {
 	case "sent":
@@ -207,13 +214,15 @@ func (r *RIBManager) dispatch(event *Event) {
 func (r *RIBManager) handleSent(event *Event) {
 	peerAddr := event.GetPeerAddress()
 	msgID := event.GetMsgID()
+	logger.Debug("handleSent", "peer", peerAddr, "msgID", msgID, "familyOps", len(event.FamilyOps))
 
 	if peerAddr == "" {
-		logger.Warn("sent event: empty peer address")
+		logger.Debug("handleSent: empty peer address, skipping")
 		return
 	}
 
 	if len(event.FamilyOps) == 0 {
+		logger.Debug("handleSent: no family ops, skipping")
 		return
 	}
 

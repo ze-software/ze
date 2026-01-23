@@ -1852,6 +1852,96 @@ func TestNotifyMessageReceiverWireUpdate(t *testing.T) {
 	require.Equal(t, gotAttrs, receivedMsg.AttrsWire, "AttrsWire should be same as WireUpdate.Attrs()")
 }
 
+// TestNotifyMessageReceiverSentAttrsWire verifies AttrsWire is created for sent UPDATE messages.
+//
+// VALIDATES: RawMessage.AttrsWire is populated for sent UPDATE when ctxID is set.
+// PREVENTS: Missing AttrsWire for sent messages causing RIB plugin to skip route storage.
+func TestNotifyMessageReceiverSentAttrsWire(t *testing.T) {
+	cfg := &Config{
+		ListenAddr: "127.0.0.1:0",
+	}
+	reactor := New(cfg)
+
+	// Add peer
+	peerAddr := mustParseAddr("10.0.0.1")
+	settings := NewPeerSettings(peerAddr, 65000, 65001, 0x01010101)
+	err := reactor.AddPeer(settings)
+	require.NoError(t, err)
+
+	// Track sent messages
+	var sentMsg plugin.RawMessage
+	receiver := &testMessageReceiver{
+		onSent: func(peer plugin.PeerInfo, msg plugin.RawMessage) {
+			sentMsg = msg
+		},
+	}
+	reactor.SetMessageReceiver(receiver)
+
+	// Build UPDATE payload: withdrawn(0) + attrs(ORIGIN) + nlri(/24)
+	// Format: wdLen(2) + attrLen(2) + attrs + nlri
+	attrs := []byte{0x40, 0x01, 0x01, 0x00} // ORIGIN IGP
+	nlri := []byte{0x18, 0xc0, 0xa8, 0x01}  // 192.168.1.0/24
+	updatePayload := make([]byte, 2+2+len(attrs)+len(nlri))
+	// withdrawn len = 0
+	updatePayload[0], updatePayload[1] = 0, 0
+	// attr len
+	updatePayload[2], updatePayload[3] = 0, byte(len(attrs))
+	copy(updatePayload[4:], attrs)
+	copy(updatePayload[4+len(attrs):], nlri)
+
+	// Call notifyMessageReceiver with direction="sent" and non-zero ctxID
+	// Non-zero ctxID triggers AttrsWire creation for sent messages
+	ctxID := bgpctx.ContextID(1)
+	_ = reactor.notifyMessageReceiver(peerAddr, message.TypeUPDATE, updatePayload, nil, ctxID, "sent", nil)
+
+	// Verify AttrsWire is set
+	require.NotNil(t, sentMsg.AttrsWire, "AttrsWire should be created for sent UPDATE with ctxID")
+	require.Equal(t, "sent", sentMsg.Direction, "Direction should be 'sent'")
+
+	// Verify AttrsWire can parse attributes
+	origin, err := sentMsg.AttrsWire.Get(attribute.AttrOrigin)
+	require.NoError(t, err, "AttrsWire should parse ORIGIN")
+	require.NotNil(t, origin, "ORIGIN attribute should exist")
+}
+
+// TestNotifyMessageReceiverSentNoCtxID verifies no AttrsWire when ctxID is 0.
+//
+// VALIDATES: AttrsWire is NOT created when ctxID is 0 (no capability context).
+// PREVENTS: Invalid AttrsWire with context 0 causing parsing issues.
+func TestNotifyMessageReceiverSentNoCtxID(t *testing.T) {
+	cfg := &Config{
+		ListenAddr: "127.0.0.1:0",
+	}
+	reactor := New(cfg)
+
+	// Add peer
+	peerAddr := mustParseAddr("10.0.0.1")
+	settings := NewPeerSettings(peerAddr, 65000, 65001, 0x01010101)
+	err := reactor.AddPeer(settings)
+	require.NoError(t, err)
+
+	// Track sent messages
+	var sentMsg plugin.RawMessage
+	receiver := &testMessageReceiver{
+		onSent: func(peer plugin.PeerInfo, msg plugin.RawMessage) {
+			sentMsg = msg
+		},
+	}
+	reactor.SetMessageReceiver(receiver)
+
+	// Build minimal UPDATE payload
+	attrs := []byte{0x40, 0x01, 0x01, 0x00} // ORIGIN IGP
+	updatePayload := make([]byte, 2+2+len(attrs))
+	updatePayload[2], updatePayload[3] = 0, byte(len(attrs))
+	copy(updatePayload[4:], attrs)
+
+	// Call with ctxID=0 (no context)
+	_ = reactor.notifyMessageReceiver(peerAddr, message.TypeUPDATE, updatePayload, nil, 0, "sent", nil)
+
+	// AttrsWire should be nil when ctxID is 0
+	require.Nil(t, sentMsg.AttrsWire, "AttrsWire should be nil when ctxID is 0")
+}
+
 // testMessageReceiver implements plugin.MessageReceiver for testing.
 type testMessageReceiver struct {
 	onReceived func(plugin.PeerInfo, plugin.RawMessage)

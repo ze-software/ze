@@ -33,7 +33,9 @@ func (s *Server) stageTransition(proc *Process, pluginName string, completeStage
 	}
 
 	logger.Debug("server: stageTransition START", "plugin", pluginName, "complete", completeStage, "wait_for", waitStage)
+	logger.Debug("server: stageTransition calling StageComplete", "plugin", pluginName, "index", proc.Index())
 	s.coordinator.StageComplete(proc.Index(), completeStage)
+	logger.Debug("server: stageTransition StageComplete returned", "plugin", pluginName)
 
 	// Use per-plugin timeout if configured, else default
 	timeout := proc.config.StageTimeout
@@ -62,22 +64,31 @@ type stageProgression struct {
 
 // progressThroughStages handles the common pattern of two stage transitions with delivery between.
 func (s *Server) progressThroughStages(proc *Process, name string, p stageProgression) {
+	logger.Debug("server: progressThroughStages START", "plugin", name, "from", p.from, "mid", p.mid, "to", p.to)
 	// First transition: from → mid
 	if !s.stageTransition(proc, name, p.from, p.mid) {
+		logger.Debug("server: progressThroughStages FAILED first transition", "plugin", name)
 		return
 	}
+	logger.Debug("server: progressThroughStages SetStage mid", "plugin", name, "mid", p.mid)
 	proc.SetStage(p.mid)
 
 	// Deliver content
 	if p.deliver != nil {
+		logger.Debug("server: progressThroughStages calling deliver", "plugin", name)
 		p.deliver(proc)
+		logger.Debug("server: progressThroughStages deliver done", "plugin", name)
 	}
 
 	// Second transition: mid → to
+	logger.Debug("server: progressThroughStages second transition START", "plugin", name)
 	if !s.stageTransition(proc, name, p.mid, p.to) {
+		logger.Debug("server: progressThroughStages FAILED second transition", "plugin", name)
 		return
 	}
+	logger.Debug("server: progressThroughStages SetStage to", "plugin", name, "to", p.to)
 	proc.SetStage(p.to)
+	logger.Debug("server: progressThroughStages DONE", "plugin", name)
 }
 
 // handlePluginConflict logs and handles plugin registration conflicts.
@@ -97,6 +108,7 @@ type Server struct {
 	encoder       *JSONEncoder
 	commitManager *CommitManager
 	procManager   *ProcessManager
+	subscriptions *SubscriptionManager // API-driven event subscriptions
 
 	// Plugin registration protocol
 	coordinator *StartupCoordinator // Stage synchronization
@@ -133,6 +145,7 @@ func NewServer(config *ServerConfig, reactor ReactorInterface) *Server {
 		dispatcher:    NewDispatcher(),
 		encoder:       NewJSONEncoder("6.0.0"),
 		commitManager: NewCommitManager(),
+		subscriptions: NewSubscriptionManager(),
 		registry:      NewPluginRegistry(),
 		capInjector:   NewCapabilityInjector(),
 		clients:       make(map[string]*Client),
@@ -388,6 +401,7 @@ func (s *Server) handleSingleProcessCommands(proc *Process) {
 		Encoder:       s.encoder,
 		CommitManager: s.commitManager,
 		Dispatcher:    s.dispatcher,
+		Subscriptions: s.subscriptions,
 		Process:       proc, // For session state (ack, sync)
 		Peer:          "*",  // Default to all peers
 	}
@@ -499,7 +513,9 @@ func (s *Server) handleSingleProcessCommands(proc *Process) {
 		}
 
 		// Dispatch command
+		logger.Debug("Dispatch", "plugin", proc.Name(), "cmd", cmd)
 		resp, err := s.dispatcher.Dispatch(cmdCtx, cmd)
+		logger.Debug("Dispatch result", "plugin", proc.Name(), "err", err, "resp", resp)
 		if err != nil {
 			// ErrSilent means suppress response entirely
 			if errors.Is(err, ErrSilent) {
@@ -796,6 +812,11 @@ func (s *Server) cleanupProcess(proc *Process) {
 
 	// Cancel all pending requests
 	s.dispatcher.Pending().CancelAll(proc)
+
+	// Clear all subscriptions for this process
+	if s.subscriptions != nil {
+		s.subscriptions.ClearProcess(proc)
+	}
 }
 
 // handleClient creates and manages a client connection.
@@ -869,6 +890,7 @@ func (s *Server) processCommand(client *Client, line string) {
 		Encoder:       s.encoder,
 		CommitManager: s.commitManager,
 		Dispatcher:    s.dispatcher,
+		Subscriptions: s.subscriptions,
 		Serial:        serial,
 		// Note: Process is nil for socket clients - session commands are no-ops
 	}
@@ -915,104 +937,78 @@ func (s *Server) removeClient(client *Client) {
 }
 
 // OnMessageReceived handles raw BGP messages from peers.
-// Forwards to processes based on per-peer API bindings.
+// Forwards to processes based on API subscriptions.
 // Implements reactor.MessageReceiver interface.
 //
 // This is called for ALL message types (UPDATE, OPEN, NOTIFICATION, KEEPALIVE).
-// Each peer can have different bindings with different encodings and message filters.
 func (s *Server) OnMessageReceived(peer PeerInfo, msg RawMessage) {
-	if s.procManager == nil {
+	if s.procManager == nil || s.subscriptions == nil {
+		logger.Debug("OnMessageReceived: no procManager or subscriptions")
 		return
 	}
 
-	// Get peer-specific API bindings from reactor
-	bindings := s.reactor.GetPeerProcessBindings(peer.Address)
-	if len(bindings) == 0 {
+	eventType := messageTypeToEventType(msg.Type)
+	if eventType == "" {
+		logger.Debug("OnMessageReceived: unknown event type", "msgType", msg.Type)
 		return
 	}
 
-	for _, binding := range bindings {
-		if !wantsMessageType(binding, msg.Type) {
-			continue
+	logger.Debug("OnMessageReceived", "peer", peer.Address.String(), "event", eventType, "dir", msg.Direction)
+	procs := s.subscriptions.GetMatching(NamespaceBGP, eventType, msg.Direction, peer.Address.String())
+	logger.Debug("OnMessageReceived matched", "count", len(procs))
+	for _, proc := range procs {
+		output := s.formatMessageForSubscription(peer, msg)
+		logger.Debug("OnMessageReceived writing", "proc", proc.Name(), "outputLen", len(output))
+		if err := proc.WriteEvent(output); err != nil {
+			logger.Warn("OnMessageReceived write failed", "proc", proc.Name(), "err", err)
 		}
-
-		proc := s.procManager.GetProcess(binding.PluginName)
-		if proc == nil {
-			continue
-		}
-
-		// Format using THIS BINDING's config (empty overrideDir = use msg.Direction)
-		output := s.formatMessage(peer, msg, binding, "")
-		_ = proc.WriteEvent(output)
 	}
 }
 
-// wantsMessageType checks if binding wants this message type.
-// State events are NOT BGP messages - handled separately via OnPeerStateChange.
-func wantsMessageType(binding PeerProcessBinding, msgType message.MessageType) bool {
+// messageTypeToEventType converts BGP message type to event type string.
+// Returns empty string for unsupported types.
+func messageTypeToEventType(msgType message.MessageType) string {
 	switch msgType { //nolint:exhaustive // Only handle supported types
 	case message.TypeUPDATE:
-		return binding.ReceiveUpdate
+		return EventUpdate
 	case message.TypeOPEN:
-		return binding.ReceiveOpen
+		return EventOpen
 	case message.TypeNOTIFICATION:
-		return binding.ReceiveNotification
+		return EventNotification
 	case message.TypeKEEPALIVE:
-		return binding.ReceiveKeepalive
+		return EventKeepalive
 	case message.TypeROUTEREFRESH:
-		return binding.ReceiveRefresh
+		return EventRefresh
 	default:
-		return false
+		return ""
 	}
 }
 
-// formatMessage formats a BGP message using the binding's encoding and format.
-// overrideDir overrides msg.Direction if non-empty (used for sent messages).
-func (s *Server) formatMessage(peer PeerInfo, msg RawMessage, binding PeerProcessBinding, overrideDir string) string {
-	// Build ContentConfig from binding
-	content := ContentConfig{
-		Encoding: binding.Encoding,
-		Format:   binding.Format,
-	}.WithDefaults()
-
-	// Compute effective direction
-	direction := msg.Direction
-	if overrideDir != "" {
-		direction = overrideDir
-	}
-
+// formatMessageForSubscription formats a BGP message for subscription-based delivery.
+// Uses JSON encoding with parsed format as the default.
+func (s *Server) formatMessageForSubscription(peer PeerInfo, msg RawMessage) string {
 	switch msg.Type { //nolint:exhaustive // Only handle supported types
 	case message.TypeUPDATE:
-		// UPDATE messages support format (parsed/raw/full)
-		return FormatMessage(peer, msg, content, overrideDir)
+		content := ContentConfig{
+			Encoding: EncodingJSON,
+			Format:   FormatParsed,
+		}
+		return FormatMessage(peer, msg, content, "")
 
 	case message.TypeOPEN:
-		// Other message types only use encoding (json/text)
 		decoded := DecodeOpen(msg.RawBytes)
-		if content.Encoding == EncodingJSON {
-			return s.encoder.Open(peer, decoded, direction, msg.MessageID)
-		}
-		return FormatOpen(peer, decoded, direction, msg.MessageID)
+		return s.encoder.Open(peer, decoded, msg.Direction, msg.MessageID)
 
 	case message.TypeNOTIFICATION:
 		decoded := DecodeNotification(msg.RawBytes)
-		if content.Encoding == EncodingJSON {
-			return s.encoder.Notification(peer, decoded, direction, msg.MessageID)
-		}
-		return FormatNotification(peer, decoded, direction, msg.MessageID)
+		return s.encoder.Notification(peer, decoded, msg.Direction, msg.MessageID)
 
 	case message.TypeKEEPALIVE:
-		if content.Encoding == EncodingJSON {
-			return s.encoder.Keepalive(peer, direction, msg.MessageID)
-		}
-		return FormatKeepalive(peer, direction, msg.MessageID)
+		return s.encoder.Keepalive(peer, msg.Direction, msg.MessageID)
 
 	case message.TypeROUTEREFRESH:
 		decoded := DecodeRouteRefresh(msg.RawBytes)
-		if content.Encoding == EncodingJSON {
-			return s.encoder.RouteRefresh(peer, decoded, direction, msg.MessageID)
-		}
-		return FormatRouteRefresh(peer, decoded, direction, msg.MessageID)
+		return s.encoder.RouteRefresh(peer, decoded, msg.Direction, msg.MessageID)
 
 	default:
 		return ""
@@ -1023,28 +1019,20 @@ func (s *Server) formatMessage(peer PeerInfo, msg RawMessage, binding PeerProces
 // Called by reactor when peer state changes (not a BGP message).
 // State events are separate from BGP protocol messages.
 func (s *Server) OnPeerStateChange(peer PeerInfo, state string) {
-	if s.procManager == nil {
+	logger.Debug("OnPeerStateChange", "peer", peer.Address.String(), "state", state)
+	if s.procManager == nil || s.subscriptions == nil {
+		logger.Debug("OnPeerStateChange: no procManager or subscriptions")
 		return
 	}
 
-	bindings := s.reactor.GetPeerProcessBindings(peer.Address)
-	for _, binding := range bindings {
-		if !binding.ReceiveState {
-			continue
+	procs := s.subscriptions.GetMatching(NamespaceBGP, EventState, "", peer.Address.String())
+	logger.Debug("OnPeerStateChange matched", "count", len(procs))
+	for _, proc := range procs {
+		output := FormatStateChange(peer, state, EncodingJSON)
+		logger.Debug("OnPeerStateChange writing", "proc", proc.Name())
+		if err := proc.WriteEvent(output); err != nil {
+			logger.Warn("OnPeerStateChange write failed", "proc", proc.Name(), "err", err)
 		}
-
-		proc := s.procManager.GetProcess(binding.PluginName)
-		if proc == nil {
-			continue
-		}
-
-		encoding := binding.Encoding
-		if encoding == "" {
-			encoding = EncodingText
-		}
-
-		output := FormatStateChange(peer, state, encoding)
-		_ = proc.WriteEvent(output)
 	}
 }
 
@@ -1052,88 +1040,51 @@ func (s *Server) OnPeerStateChange(peer PeerInfo, state string) {
 // Called by reactor after OPEN exchange completes successfully.
 // Informs plugins of negotiated capabilities so they can adjust behavior.
 func (s *Server) OnPeerNegotiated(peer PeerInfo, neg DecodedNegotiated) {
-	if s.procManager == nil {
+	if s.procManager == nil || s.subscriptions == nil {
 		return
 	}
 
-	bindings := s.reactor.GetPeerProcessBindings(peer.Address)
-	for _, binding := range bindings {
-		proc := s.procManager.GetProcess(binding.PluginName)
-		if proc == nil {
-			continue
-		}
-
-		// Check if plugin should receive negotiated:
-		// 1. Config sets ReceiveNegotiated, OR
-		// 2. Plugin declared "receive negotiated" during registration
-		wantsNegotiated := binding.ReceiveNegotiated || s.pluginDeclaredReceive(proc, "negotiated")
-		if !wantsNegotiated {
-			continue
-		}
-
+	procs := s.subscriptions.GetMatching(NamespaceBGP, EventNegotiated, "", peer.Address.String())
+	for _, proc := range procs {
 		output := FormatNegotiated(peer, neg, s.encoder)
-		_ = proc.WriteEvent(output)
-	}
-}
-
-// pluginDeclaredReceive checks if a plugin declared a receive type during registration.
-func (s *Server) pluginDeclaredReceive(proc *Process, recvType string) bool {
-	reg := proc.Registration()
-	if reg == nil {
-		return false
-	}
-	for _, r := range reg.Receive {
-		if r == recvType || r == "all" {
-			return true
+		if err := proc.WriteEvent(output); err != nil {
+			logger.Warn("OnPeerNegotiated write failed", "proc", proc.Name(), "err", err)
 		}
 	}
-	return false
 }
 
 // OnMessageSent handles BGP messages sent to peers.
 // Forwards to processes that subscribed to sent events.
 // Called by reactor after successfully sending UPDATE to peer.
 func (s *Server) OnMessageSent(peer PeerInfo, msg RawMessage) {
-	if s.procManager == nil {
+	eventType := messageTypeToEventType(msg.Type)
+	logger.Debug("OnMessageSent", "peer", peer.Address.String(), "type", eventType)
+	if s.procManager == nil || s.subscriptions == nil {
+		logger.Debug("OnMessageSent: no procManager or subscriptions")
 		return
 	}
 
-	// Only forward UPDATE messages for now (sent events)
-	if msg.Type != message.TypeUPDATE {
+	if eventType == "" {
 		return
 	}
 
-	// Get peer-specific API bindings from reactor
-	bindings := s.reactor.GetPeerProcessBindings(peer.Address)
-	if len(bindings) == 0 {
-		return
-	}
-
-	for _, binding := range bindings {
-		if !binding.ReceiveSent {
-			continue
+	procs := s.subscriptions.GetMatching(NamespaceBGP, eventType, DirectionSent, peer.Address.String())
+	logger.Debug("OnMessageSent matched", "count", len(procs))
+	for _, proc := range procs {
+		output := s.formatSentMessageForSubscription(peer, msg)
+		logger.Debug("OnMessageSent writing", "proc", proc.Name())
+		if err := proc.WriteEvent(output); err != nil {
+			logger.Warn("OnMessageSent write failed", "proc", proc.Name(), "err", err)
 		}
-
-		proc := s.procManager.GetProcess(binding.PluginName)
-		if proc == nil {
-			continue
-		}
-
-		// Format using THIS BINDING's config
-		output := s.formatSentMessage(peer, msg, binding)
-		_ = proc.WriteEvent(output)
 	}
 }
 
-// formatSentMessage formats a sent UPDATE message.
-func (s *Server) formatSentMessage(peer PeerInfo, msg RawMessage, binding PeerProcessBinding) string {
-	// Build ContentConfig from binding
+// formatSentMessageForSubscription formats a sent BGP message for subscription delivery.
+// Uses FormatSentMessage which sets "type":"sent" to distinguish from received messages.
+func (s *Server) formatSentMessageForSubscription(peer PeerInfo, msg RawMessage) string {
 	content := ContentConfig{
-		Encoding: binding.Encoding,
-		Format:   binding.Format,
-	}.WithDefaults()
-
-	// For sent events, use "sent" type instead of "update"
-	// The message body is the same format as update events
+		Encoding: EncodingJSON,
+		Format:   FormatParsed,
+	}
 	return FormatSentMessage(peer, msg, content)
 }
