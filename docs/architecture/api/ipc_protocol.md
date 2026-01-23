@@ -38,11 +38,19 @@ Plugins subscribe to events via API commands (not config). This allows:
 
 ### Plugin-Provided Commands
 
-Some commands are registered by plugins, not built into the engine:
-- `bgp cache` commands (requires cache/RIB plugin)
-- `rib show/clear` commands (requires RIB plugin)
+Some commands are registered by plugins via `declare cmd` during startup:
+- Plugin-specific commands (e.g., `rib adjacent *` from RIB plugin)
 
 Engine provides reactor methods; plugins register commands that use them.
+
+### Message Cache
+
+The engine maintains a message cache for efficient forwarding. Current commands:
+- `msg-id retain/release/expire/list` - cache control (engine builtins)
+- `bgp peer <sel> forward update-id <id>` - forward cached UPDATE
+
+**Future:** BGP message caching will move to the BGP subsystem with `bgp cache *`
+syntax. See RIB Namespace below for the planned command structure.
 
 ---
 
@@ -357,18 +365,18 @@ Selector patterns: `*` (all), `<ip>` (specific), `!<ip>` (all except)
 | `rib command help "<cmd>"` | Command details |
 | `rib command complete "<partial>"` | Completion |
 | `rib event list` | List available RIB event types |
+| `rib show in [peer]` | Show Adj-RIB-In |
+| `rib clear in [peer]` | Clear Adj-RIB-In |
 
-**Plugin-Provided (requires RIB plugin):**
+**Future (BGP cache in bgp subsystem):**
 
 | Command | Description |
 |---------|-------------|
 | `bgp cache <id> forward <sel>` | Forward cached UPDATE to peers |
 | `bgp cache <id> retain` | Keep in cache until released |
-| `bgp cache <id> release` | Allow eviction (60s TTL) |
+| `bgp cache <id> release` | Allow eviction (TTL-based) |
 | `bgp cache <id> expire` | Remove immediately |
 | `bgp cache list` | List cached IDs |
-| `rib show in [peer]` | Show Adj-RIB-In |
-| `rib clear in [peer]` | Clear Adj-RIB-In |
 
 ---
 

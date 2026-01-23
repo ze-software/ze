@@ -686,7 +686,6 @@ func TestDispatchBgpPeerTeardownFull(t *testing.T) {
 // TestRIBClearIn verifies clearing Adj-RIB-In removes all received routes.
 //
 // VALIDATES: API command correctly clears incoming route storage.
-//
 // PREVENTS: Memory leaks from accumulated routes, stale route data.
 func TestRIBClearIn(t *testing.T) {
 	reactor := &mockReactor{
@@ -704,27 +703,6 @@ func TestRIBClearIn(t *testing.T) {
 	data, ok := resp.Data.(map[string]any)
 	require.True(t, ok)
 	assert.Contains(t, data, "routes_cleared")
-}
-
-// TestRIBCommandsRegistered verifies all RIB commands are registered.
-//
-// VALIDATES: Commands are discoverable via dispatcher.
-//
-// PREVENTS: Missing commands causing API failures.
-func TestRIBCommandsRegistered(t *testing.T) {
-	d := NewDispatcher()
-	RegisterDefaultHandlers(d)
-
-	// Note: rib show/clear/flush out removed - Adj-RIB-Out tracking delegated to external API
-	ribCommands := []string{
-		"rib show in",
-		"rib clear in",
-	}
-
-	for _, cmd := range ribCommands {
-		c := d.Lookup(cmd)
-		assert.NotNil(t, c, "command %q must be registered", cmd)
-	}
 }
 
 // =============================================================================
@@ -2233,4 +2211,161 @@ func TestBgpPeerWildcardSelector(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, resp)
 	assert.Equal(t, "*", ctx.Peer, "wildcard selector should be extracted")
+}
+
+// =============================================================================
+// Step 7: RIB Namespace & Plugin Commands Tests
+// =============================================================================
+
+// TestDispatchRibHelp verifies rib help returns subcommands.
+//
+// VALIDATES: "rib help" returns list of rib subcommands.
+// PREVENTS: RIB namespace introspection broken.
+func TestDispatchRibHelp(t *testing.T) {
+	d := NewDispatcher()
+	RegisterDefaultHandlers(d)
+
+	ctx := &CommandContext{
+		Reactor:    &mockReactor{},
+		Dispatcher: d,
+	}
+
+	resp, err := d.Dispatch(ctx, "rib help")
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	assert.Equal(t, "done", resp.Status)
+
+	data, ok := resp.Data.(map[string]any)
+	require.True(t, ok, "data should be a map")
+
+	subcommands, ok := data["subcommands"].([]string)
+	require.True(t, ok, "subcommands should be []string")
+
+	// Verify required subcommands are present
+	assert.Contains(t, subcommands, "show", "should include show subcommand")
+	assert.Contains(t, subcommands, "clear", "should include clear subcommand")
+	assert.Contains(t, subcommands, "command", "should include command subcommand")
+	assert.Contains(t, subcommands, "event", "should include event subcommand")
+}
+
+// TestDispatchRibCommandList verifies rib command list returns rib commands.
+//
+// VALIDATES: "rib command list" returns commands in rib namespace.
+// PREVENTS: RIB command listing broken.
+func TestDispatchRibCommandList(t *testing.T) {
+	d := NewDispatcher()
+	RegisterDefaultHandlers(d)
+
+	ctx := &CommandContext{
+		Reactor:    &mockReactor{},
+		Dispatcher: d,
+	}
+
+	resp, err := d.Dispatch(ctx, "rib command list")
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	assert.Equal(t, "done", resp.Status)
+
+	data, ok := resp.Data.(map[string]any)
+	require.True(t, ok, "data should be a map")
+	_, hasCommands := data["commands"]
+	assert.True(t, hasCommands, "should have commands list")
+}
+
+// TestDispatchRibEventList verifies rib event list returns event types.
+//
+// VALIDATES: "rib event list" returns available RIB event types.
+// PREVENTS: Event type discovery broken.
+func TestDispatchRibEventList(t *testing.T) {
+	d := NewDispatcher()
+	RegisterDefaultHandlers(d)
+
+	ctx := &CommandContext{
+		Reactor:    &mockReactor{},
+		Dispatcher: d,
+	}
+
+	resp, err := d.Dispatch(ctx, "rib event list")
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	assert.Equal(t, "done", resp.Status)
+
+	data, ok := resp.Data.(map[string]any)
+	require.True(t, ok, "data should be a map")
+	events, ok := data["events"].([]string)
+	require.True(t, ok, "events should be string slice")
+	assert.Contains(t, events, "cache", "should include cache event")
+	assert.Contains(t, events, "route", "should include route event")
+}
+
+// TestMsgIdCommandsRegistered verifies msg-id commands are registered.
+//
+// VALIDATES: "msg-id retain/release/expire/list" are available.
+// PREVENTS: Missing cache control commands.
+func TestMsgIdCommandsRegistered(t *testing.T) {
+	d := NewDispatcher()
+	RegisterDefaultHandlers(d)
+
+	commands := []string{
+		"msg-id retain",
+		"msg-id release",
+		"msg-id expire",
+		"msg-id list",
+	}
+
+	for _, cmd := range commands {
+		t.Run(cmd, func(t *testing.T) {
+			c := d.Lookup(cmd)
+			assert.NotNil(t, c, "command %q must be registered", cmd)
+		})
+	}
+}
+
+// TestForwardCommandsRegistered verifies forward commands are registered.
+//
+// VALIDATES: "forward update-id" and "delete update-id" are available.
+// PREVENTS: Missing route reflection commands.
+func TestForwardCommandsRegistered(t *testing.T) {
+	d := NewDispatcher()
+	RegisterDefaultHandlers(d)
+
+	commands := []string{
+		"bgp peer forward update-id",
+		"bgp delete update-id",
+	}
+
+	for _, cmd := range commands {
+		t.Run(cmd, func(t *testing.T) {
+			c := d.Lookup(cmd)
+			assert.NotNil(t, c, "command %q must be registered", cmd)
+		})
+	}
+}
+
+// TestRibCommandsRegistered verifies all rib namespace commands are registered.
+//
+// VALIDATES: RIB namespace commands (introspection + operations) exist.
+// PREVENTS: Missing command registrations.
+func TestRibCommandsRegistered(t *testing.T) {
+	d := NewDispatcher()
+	RegisterDefaultHandlers(d)
+
+	ribCommands := []string{
+		// Introspection
+		"rib help",
+		"rib command list",
+		"rib command help",
+		"rib command complete",
+		"rib event list",
+		// Operations
+		"rib show in",
+		"rib clear in",
+	}
+
+	for _, cmd := range ribCommands {
+		t.Run(cmd, func(t *testing.T) {
+			c := d.Lookup(cmd)
+			assert.NotNil(t, c, "command %q must be registered", cmd)
+		})
+	}
 }

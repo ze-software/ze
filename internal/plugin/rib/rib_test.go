@@ -1594,3 +1594,92 @@ func TestParseEvent_BackwardsCompatible(t *testing.T) {
 	assert.Equal(t, "update", event.GetEventType())
 	assert.Equal(t, uint64(456), event.GetMsgID())
 }
+
+// =============================================================================
+// Step 7: Plugin Command Registration Tests
+// =============================================================================
+
+// TestStartupProtocol_DeclaresCommands verifies startup protocol declares commands.
+//
+// VALIDATES: RIB plugin declares commands during Stage 1 (REGISTRATION).
+// PREVENTS: Plugin commands not being registered with engine.
+func TestStartupProtocol_DeclaresCommands(t *testing.T) {
+	var out bytes.Buffer
+	r := NewRIBManager(strings.NewReader("config done\nregistry done\n"), &out)
+
+	// Run startup protocol only
+	r.doStartupProtocol()
+
+	output := out.String()
+
+	// Verify command declarations
+	assert.Contains(t, output, "declare cmd rib adjacent status", "should declare rib status command")
+	assert.Contains(t, output, "declare cmd rib adjacent inbound show", "should declare inbound show command")
+	assert.Contains(t, output, "declare cmd rib adjacent inbound empty", "should declare inbound empty command")
+	assert.Contains(t, output, "declare cmd rib adjacent outbound show", "should declare outbound show command")
+	assert.Contains(t, output, "declare cmd rib adjacent outbound resend", "should declare outbound resend command")
+	assert.Contains(t, output, "declare done", "should send declare done")
+}
+
+// TestStartupProtocol_SubscribesEvents verifies startup protocol subscribes to events.
+//
+// VALIDATES: RIB plugin subscribes to required events.
+// PREVENTS: Plugin not receiving necessary events from engine.
+func TestStartupProtocol_SubscribesEvents(t *testing.T) {
+	var out bytes.Buffer
+	r := NewRIBManager(strings.NewReader("config done\nregistry done\n"), &out)
+
+	r.doStartupProtocol()
+
+	output := out.String()
+
+	// Verify event subscriptions
+	assert.Contains(t, output, "subscribe bgp event update direction sent", "should subscribe to sent updates")
+	assert.Contains(t, output, "subscribe bgp event state", "should subscribe to state events")
+	assert.Contains(t, output, "subscribe bgp event refresh", "should subscribe to refresh events")
+}
+
+// TestStartupProtocol_Order verifies startup protocol follows correct order.
+//
+// VALIDATES: Protocol stages execute in correct order.
+// PREVENTS: Startup deadlock or protocol violation.
+func TestStartupProtocol_Order(t *testing.T) {
+	var out bytes.Buffer
+	r := NewRIBManager(strings.NewReader("config done\nregistry done\n"), &out)
+
+	r.doStartupProtocol()
+
+	output := out.String()
+	lines := strings.Split(output, "\n")
+
+	// Find indices of key messages
+	declareIdx := -1
+	declareDoneIdx := -1
+	capabilityDoneIdx := -1
+	subscribeIdx := -1
+	readyIdx := -1
+
+	for i, line := range lines {
+		if strings.HasPrefix(line, "declare cmd") && declareIdx == -1 {
+			declareIdx = i
+		}
+		if line == "declare done" {
+			declareDoneIdx = i
+		}
+		if line == "capability done" {
+			capabilityDoneIdx = i
+		}
+		if strings.HasPrefix(line, "subscribe") && subscribeIdx == -1 {
+			subscribeIdx = i
+		}
+		if line == "ready" {
+			readyIdx = i
+		}
+	}
+
+	// Verify order: declare commands -> declare done -> capability done -> subscribe -> ready
+	assert.True(t, declareIdx < declareDoneIdx, "declare commands should come before declare done")
+	assert.True(t, declareDoneIdx < capabilityDoneIdx, "declare done should come before capability done")
+	assert.True(t, capabilityDoneIdx < subscribeIdx, "capability done should come before subscribe")
+	assert.True(t, subscribeIdx < readyIdx, "subscribe should come before ready")
+}

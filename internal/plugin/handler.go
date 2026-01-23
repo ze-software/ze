@@ -13,6 +13,12 @@ const Version = "0.1.0"
 // APIVersion is the IPC protocol version.
 const APIVersion = "0.1.0"
 
+// Command source constants.
+const (
+	sourceBuiltin = "builtin"
+	argVerbose    = "verbose"
+)
+
 // RegisterDefaultHandlers registers all command handlers.
 func RegisterDefaultHandlers(d *Dispatcher) {
 	// BGP daemon control (moved from daemon * to bgp daemon *)
@@ -36,10 +42,8 @@ func RegisterDefaultHandlers(d *Dispatcher) {
 	d.Register("system command help", handleSystemCommandHelp, "Show command details")
 	d.Register("system command complete", handleSystemCommandComplete, "Complete command/args")
 
-	// RIB operations
-	d.Register("rib show in", handleRIBShowIn, "Show Adj-RIB-In")
-	d.Register("rib clear in", handleRIBClearIn, "Clear Adj-RIB-In")
-	// Note: rib show/clear/flush out removed - Adj-RIB-Out tracking delegated to external API
+	// RIB namespace (introspection + operations)
+	RegisterRibHandlers(d)
 
 	// Route operations
 	RegisterRouteHandlers(d)
@@ -338,6 +342,211 @@ func parseUint(s string) (uint64, error) {
 	return n, nil
 }
 
+// RegisterRibHandlers registers RIB namespace handlers (introspection + operations).
+func RegisterRibHandlers(d *Dispatcher) {
+	// Introspection
+	d.Register("rib help", handleRibHelp, "Show RIB subcommands")
+	d.Register("rib command list", handleRibCommandList, "List RIB commands")
+	d.Register("rib command help", handleRibCommandHelp, "Show RIB command details")
+	d.Register("rib command complete", handleRibCommandComplete, "Complete RIB command/args")
+	d.Register("rib event list", handleRibEventList, "List RIB event types")
+
+	// Operations
+	d.Register("rib show in", handleRIBShowIn, "Show Adj-RIB-In")
+	d.Register("rib clear in", handleRIBClearIn, "Clear Adj-RIB-In")
+}
+
+// handleRibHelp returns list of RIB subcommands.
+func handleRibHelp(ctx *CommandContext, _ []string) (*Response, error) {
+	subcommands := []string{
+		"clear",
+		"command",
+		"event",
+		"show",
+	}
+
+	// Add plugin-provided subcommands (e.g., "adjacent" from RIB plugin)
+	if ctx.Dispatcher != nil {
+		seen := make(map[string]bool)
+		for _, sub := range subcommands {
+			seen[sub] = true
+		}
+		for _, cmd := range ctx.Dispatcher.Registry().All() {
+			if strings.HasPrefix(cmd.Name, "rib ") {
+				parts := strings.SplitN(strings.TrimPrefix(cmd.Name, "rib "), " ", 2)
+				if len(parts) > 0 && !seen[parts[0]] {
+					subcommands = append(subcommands, parts[0])
+					seen[parts[0]] = true
+				}
+			}
+		}
+	}
+
+	return &Response{
+		Status: statusDone,
+		Data: map[string]any{
+			"subcommands": subcommands,
+		},
+	}, nil
+}
+
+// handleRibCommandList returns all RIB commands (builtin + plugin).
+func handleRibCommandList(ctx *CommandContext, args []string) (*Response, error) {
+	verbose := len(args) > 0 && args[0] == argVerbose
+
+	var commands []Completion
+
+	// Add builtin rib commands
+	if ctx.Dispatcher != nil {
+		for _, cmd := range ctx.Dispatcher.Commands() {
+			if strings.HasPrefix(cmd.Name, "rib ") {
+				c := Completion{
+					Value: cmd.Name,
+					Help:  cmd.Help,
+				}
+				if verbose {
+					c.Source = sourceBuiltin
+				}
+				commands = append(commands, c)
+			}
+		}
+
+		// Add plugin-provided rib commands
+		for _, cmd := range ctx.Dispatcher.Registry().All() {
+			if strings.HasPrefix(cmd.Name, "rib ") {
+				c := Completion{
+					Value: cmd.Name,
+					Help:  cmd.Description,
+				}
+				if verbose {
+					c.Source = cmd.Process.Name()
+				}
+				commands = append(commands, c)
+			}
+		}
+	}
+
+	return &Response{
+		Status: statusDone,
+		Data: map[string]any{
+			"commands": commands,
+		},
+	}, nil
+}
+
+// handleRibCommandHelp returns detailed help for a RIB command.
+func handleRibCommandHelp(ctx *CommandContext, args []string) (*Response, error) {
+	if len(args) < 1 {
+		return &Response{
+			Status: statusError,
+			Data:   "usage: rib command help \"<name>\"",
+		}, fmt.Errorf("missing command name")
+	}
+
+	name := args[0]
+	// Ensure it's a rib command
+	if !strings.HasPrefix(name, "rib ") {
+		name = "rib " + name
+	}
+
+	// Check builtins first
+	if ctx.Dispatcher != nil {
+		if cmd := ctx.Dispatcher.Lookup(name); cmd != nil {
+			return &Response{
+				Status: statusDone,
+				Data: map[string]any{
+					"command":     cmd.Name,
+					"description": cmd.Help,
+					"source":      sourceBuiltin,
+				},
+			}, nil
+		}
+
+		// Check plugin commands
+		if cmd := ctx.Dispatcher.Registry().Lookup(name); cmd != nil {
+			return &Response{
+				Status: statusDone,
+				Data: map[string]any{
+					"command":     cmd.Name,
+					"description": cmd.Description,
+					"args":        cmd.Args,
+					"source":      cmd.Process.Name(),
+					"timeout":     cmd.Timeout.String(),
+				},
+			}, nil
+		}
+	}
+
+	return &Response{
+		Status: statusError,
+		Data:   fmt.Sprintf("unknown rib command: %s", name),
+	}, fmt.Errorf("unknown rib command: %s", name)
+}
+
+// handleRibCommandComplete returns completions for RIB commands.
+func handleRibCommandComplete(ctx *CommandContext, args []string) (*Response, error) {
+	if len(args) < 1 {
+		return &Response{
+			Status: statusError,
+			Data:   "usage: rib command complete \"<partial>\"",
+		}, fmt.Errorf("missing partial input")
+	}
+
+	partial := args[0]
+	// Ensure we complete within rib namespace
+	if !strings.HasPrefix(partial, "rib ") {
+		partial = "rib " + partial
+	}
+
+	var completions []Completion
+
+	if ctx.Dispatcher != nil {
+		// Complete builtin rib commands
+		lowerPartial := strings.ToLower(partial)
+		for _, cmd := range ctx.Dispatcher.Commands() {
+			if strings.HasPrefix(cmd.Name, "rib ") &&
+				strings.HasPrefix(strings.ToLower(cmd.Name), lowerPartial) {
+				completions = append(completions, Completion{
+					Value: cmd.Name,
+					Help:  cmd.Help,
+				})
+			}
+		}
+
+		// Complete plugin rib commands
+		for _, c := range ctx.Dispatcher.Registry().Complete(partial) {
+			if strings.HasPrefix(c.Value, "rib ") {
+				completions = append(completions, c)
+			}
+		}
+	}
+
+	return &Response{
+		Status: statusDone,
+		Data: map[string]any{
+			"completions": completions,
+		},
+	}, nil
+}
+
+// handleRibEventList returns available RIB event types.
+func handleRibEventList(_ *CommandContext, _ []string) (*Response, error) {
+	// RIB event types per ipc_protocol.md
+	events := []string{
+		"cache",  // msg-id cache operations (new, expire, evict)
+		"route",  // route state changes
+		"peer",   // peer RIB state changes
+		"memory", // memory pressure events
+	}
+
+	return &Response{
+		Status: statusDone,
+		Data: map[string]any{
+			"events": events,
+		},
+	}, nil
+}
+
 // handleRIBShowIn returns Adj-RIB-In contents.
 func handleRIBShowIn(ctx *CommandContext, args []string) (*Response, error) {
 	// Optional peer filter
@@ -350,7 +559,7 @@ func handleRIBShowIn(ctx *CommandContext, args []string) (*Response, error) {
 	stats := ctx.Reactor.RIBStats()
 
 	return &Response{
-		Status: "done",
+		Status: statusDone,
 		Data: map[string]any{
 			"routes":      routes,
 			"route_count": len(routes),
@@ -364,7 +573,7 @@ func handleRIBClearIn(ctx *CommandContext, _ []string) (*Response, error) {
 	count := ctx.Reactor.ClearRIBIn()
 
 	return &Response{
-		Status: "done",
+		Status: statusDone,
 		Data: map[string]any{
 			"routes_cleared": count,
 		},
@@ -373,7 +582,7 @@ func handleRIBClearIn(ctx *CommandContext, _ []string) (*Response, error) {
 
 // handleSystemCommandList returns all commands (builtin + plugin).
 func handleSystemCommandList(ctx *CommandContext, args []string) (*Response, error) {
-	verbose := len(args) > 0 && args[0] == "verbose"
+	verbose := len(args) > 0 && args[0] == argVerbose
 
 	var commands []Completion
 
@@ -385,7 +594,7 @@ func handleSystemCommandList(ctx *CommandContext, args []string) (*Response, err
 				Help:  cmd.Help,
 			}
 			if verbose {
-				c.Source = "builtin"
+				c.Source = sourceBuiltin
 			}
 			commands = append(commands, c)
 		}
@@ -430,7 +639,7 @@ func handleSystemCommandHelp(ctx *CommandContext, args []string) (*Response, err
 				Data: map[string]any{
 					"command":     cmd.Name,
 					"description": cmd.Help,
-					"source":      "builtin",
+					"source":      sourceBuiltin,
 				},
 			}, nil
 		}
