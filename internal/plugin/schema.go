@@ -103,17 +103,21 @@ func (r *SchemaRegistry) GetByHandler(path string) (*Schema, error) {
 // FindHandler returns the schema for a handler path using longest prefix match.
 // For example, if "bgp" and "bgp.peer" are registered, FindHandler("bgp.peer.timers")
 // returns the schema for "bgp.peer".
+// Predicates like [address=192.0.2.1] are stripped before matching.
 func (r *SchemaRegistry) FindHandler(path string) (*Schema, string) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
+	// Strip predicates from path for matching (e.g., "bgp.peer[addr=x]" → "bgp.peer")
+	cleanPath := stripPredicates(path)
+
 	// Try exact match first
-	if moduleName, exists := r.handlers[path]; exists {
-		return r.modules[moduleName], path
+	if moduleName, exists := r.handlers[cleanPath]; exists {
+		return r.modules[moduleName], cleanPath
 	}
 
 	// Try progressively shorter prefixes
-	parts := strings.Split(path, ".")
+	parts := strings.Split(cleanPath, ".")
 	for i := len(parts) - 1; i > 0; i-- {
 		prefix := strings.Join(parts[:i], ".")
 		if moduleName, exists := r.handlers[prefix]; exists {
@@ -122,6 +126,27 @@ func (r *SchemaRegistry) FindHandler(path string) (*Schema, string) {
 	}
 
 	return nil, ""
+}
+
+// stripPredicates removes YANG predicates like [key=value] from a path.
+// Example: "bgp.peer[address=192.0.2.1].timers" → "bgp.peer.timers".
+func stripPredicates(path string) string {
+	var result strings.Builder
+	depth := 0
+	for _, c := range path {
+		if c == '[' {
+			depth++
+			continue
+		}
+		if c == ']' {
+			depth--
+			continue
+		}
+		if depth == 0 {
+			result.WriteRune(c)
+		}
+	}
+	return result.String()
 }
 
 // ListModules returns all registered module names.
