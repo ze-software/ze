@@ -88,6 +88,9 @@ Implement a plugin registration protocol where plugins proactively declare their
 | `test/data/scripts/ze_bgp_api.py` | Updated `ready()` to perform minimal 5-stage protocol |
 
 ## Implementation Steps
+
+**Self-Critical Review:** After each step, review for issues and fix before proceeding.
+
 1. **Write tests** - Create unit tests for registration parsing
 2. **Run tests** - Verify FAIL (paste output)
 3. **Implement registration parser** - Parse all registration commands

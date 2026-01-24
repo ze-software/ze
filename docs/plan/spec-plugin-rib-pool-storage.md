@@ -72,6 +72,8 @@ Add `raw-attributes` and `raw-nlri` to engine JSON events, then migrate plugin R
 
 ## Implementation Steps
 
+**Self-Critical Review:** After each step, review for issues and fix before proceeding.
+
 1. **Phase 1: Engine raw bytes**
    - Write tests for wire_extract.go
    - Run tests - verify FAIL

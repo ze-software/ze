@@ -481,6 +481,8 @@ subscribe rib event route
 
 ## Implementation Steps
 
+**Self-Critical Review:** After each step, review for issues and fix before proceeding.
+
 ### Phase 1: Plugin Namespace
 1. Create `plugin` dispatch node
 2. Move `session ready/ping/bye` to `plugin session`

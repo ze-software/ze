@@ -191,6 +191,8 @@ Two-phase commit for configuration:
 
 ## Implementation Steps
 
+**Self-Critical Review:** After each step, review for issues and fix before proceeding.
+
 1. **Write hub tests** - Create hub_test.go with routing tests
 2. **Run tests** - Verify FAIL (paste output)
 3. **Implement Hub.handleVerify** - Route to handler, send request

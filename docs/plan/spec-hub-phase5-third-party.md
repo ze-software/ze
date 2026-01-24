@@ -208,6 +208,8 @@ Python plugins follow the same pattern using a Python SDK:
 
 ## Implementation Steps
 
+**Self-Critical Review:** After each step, review for issues and fix before proceeding.
+
 1. **Write SDK tests** - Create plugin_test.go
 2. **Run tests** - Verify FAIL (paste output)
 3. **Implement Plugin SDK** - Create pkg/plugin/

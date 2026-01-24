@@ -432,6 +432,8 @@ module ze-plugin {
 
 ## Implementation Steps
 
+**Self-Critical Review:** After each step, review for issues and fix before proceeding.
+
 1. **Create ze-types.yang** - Common type definitions
 2. **Write type tests** - Test IP, ASN, port validation
 3. **Run tests** - Verify with goyang (paste output)

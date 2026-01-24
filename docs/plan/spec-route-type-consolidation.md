@@ -95,6 +95,8 @@ The RIB transition suggests plugin routes become the primary storage, making opt
 
 ## Implementation Steps
 
+**Self-Critical Review:** After each step, review for issues and fix before proceeding.
+
 1. **Analyze usage** - Find all Route struct usages
 2. **Add view methods** - To existing rib.Route
 3. **Update rr plugin** - Use ForZeroCopy() view

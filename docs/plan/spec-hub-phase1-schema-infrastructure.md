@@ -217,6 +217,8 @@ These follow the existing `system subsystem list` pattern.
 
 ## Implementation Steps
 
+**Self-Critical Review:** After each step, review for issues and fix before proceeding.
+
 1. **Write unit tests** - Create schema_test.go with SchemaRegistry tests
 2. **Run tests** - Verify FAIL (paste output)
 3. **Implement SchemaRegistry** - Create schema.go with Registry

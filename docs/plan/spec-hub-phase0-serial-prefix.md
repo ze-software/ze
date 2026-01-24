@@ -117,6 +117,8 @@ Enables:
 
 ## Implementation Steps
 
+**Self-Critical Review:** After each step, review for issues and fix before proceeding.
+
 1. **Audit existing code** - Search for command handling patterns
 2. **Write tests** - Test serial prefix parsing
 3. **Run tests** - Verify current behavior

@@ -54,6 +54,9 @@ Add missing boundary tests identified during TDD rule update audit.
 - None (extending existing test files)
 
 ## Implementation Steps
+
+**Self-Critical Review:** After each step, review for issues and fix before proceeding.
+
 1. **Write unit tests** - Add boundary test cases to existing test files
 2. **Run tests** - Verify FAIL for new invalid cases (paste output)
 3. **Implement** - Add validation if missing

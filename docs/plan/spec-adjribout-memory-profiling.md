@@ -207,6 +207,8 @@ func NewRouteWithoutWireCache(...) *Route {
 
 ## Implementation Steps
 
+**Self-Critical Review:** After each step, review for issues and fix before proceeding.
+
 ### Step 1: Add Benchmark Test
 ```bash
 # File: internal/rib/outgoing_bench_test.go

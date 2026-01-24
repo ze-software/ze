@@ -55,6 +55,8 @@ Implement non-blocking API parsing with goroutine-based dispatcher/gatherer patt
 
 ## Implementation Steps
 
+**Self-Critical Review:** After each step, review for issues and fix before proceeding.
+
 1. **Write tests** - Create test files with failing tests
 2. **Run tests** - Verify FAIL (paste output)
 3. **Implement dispatcher** - Sequencing, distribution

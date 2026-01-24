@@ -409,6 +409,8 @@ internal/plugin/
 
 ## Implementation Steps
 
+**Self-Critical Review:** After each step, review for issues and fix before proceeding.
+
 1. **Write unit tests** - Create tests BEFORE implementation
 2. **Run tests** - Verify FAIL
 3. **Create subsystem binary** - cmd/ze-subsystem with 5-stage protocol

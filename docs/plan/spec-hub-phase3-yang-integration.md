@@ -170,6 +170,8 @@ config.conf:55: leafref error at bgp.peer[address=192.0.2.1].group
 
 ## Implementation Steps
 
+**Self-Critical Review:** After each step, review for issues and fix before proceeding.
+
 1. **Add goyang dependency** - `go get github.com/openconfig/goyang`
 2. **Write loader tests** - Create loader_test.go
 3. **Run tests** - Verify FAIL (paste output)
