@@ -107,6 +107,16 @@ func ConfigLoaded(peerCount int) {
 	Log(Config, "loaded config with %d peers", peerCount)
 }
 
+// ConfigReloaded logs when config is successfully reloaded.
+func ConfigReloaded() {
+	Log(Config, "configuration reloaded")
+}
+
+// ConfigReloadFailed logs when config reload fails.
+func ConfigReloadFailed(err error) {
+	Log(Config, "configuration reload failed: %v", err)
+}
+
 // PeerRoutes logs static routes for a peer.
 func PeerRoutes(addr string, routeCount int) {
 	Log(Routes, "peer %s: %d static routes configured", addr, routeCount)

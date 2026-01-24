@@ -34,6 +34,7 @@ var (
 	ErrPeerExists            = errors.New("peer already exists")
 	ErrPeerNotFound          = errors.New("peer not found")
 	ErrWatchdogRouteNotFound = errors.New("watchdog route not found")
+	ErrNoConfigPath          = errors.New("config path not set")
 )
 
 // Address family names for error messages.
@@ -70,6 +71,10 @@ type Config struct {
 	// Used as working directory for process execution.
 	ConfigDir string
 
+	// ConfigPath is the path to the config file.
+	// Required for Reload() to work.
+	ConfigPath string
+
 	// RecentUpdateTTL is how long update-ids remain valid for forwarding.
 	// Default: 60s. Zero disables caching (forwarding won't work).
 	RecentUpdateTTL time.Duration
@@ -93,6 +98,21 @@ type PluginConfig struct {
 	ReceiveUpdate bool          // Forward received UPDATEs to plugin stdin
 	StageTimeout  time.Duration // Per-stage timeout (0 = use default 5s)
 }
+
+// ReloadPeerConfig contains the minimal peer info needed for reload diffing.
+type ReloadPeerConfig struct {
+	Address      netip.Addr
+	LocalAS      uint32
+	PeerAS       uint32
+	RouterID     uint32
+	LocalAddress netip.Addr
+	HoldTime     time.Duration
+	Passive      bool
+}
+
+// ReloadFunc is called by Reload() to get the list of peers from config file.
+// The function should re-parse the config file and return peer configurations.
+type ReloadFunc func(configPath string) ([]ReloadPeerConfig, error)
 
 // Stats holds reactor statistics.
 type Stats struct {
@@ -214,6 +234,10 @@ type Reactor struct {
 	// API process synchronization state.
 	// Embedded to access fields directly (e.g., r.apiStarted).
 	APISyncState
+
+	// reloadFunc is called by Reload() to get the list of peers from config.
+	// Set via SetReloadFunc. If nil, Reload() returns an error.
+	reloadFunc ReloadFunc
 }
 
 // reactorAPIAdapter implements plugin.ReactorInterface for the Reactor.
@@ -918,14 +942,74 @@ func WriteWithdrawUpdate(buf []byte, off int, prefix netip.Prefix, addPath bool)
 }
 
 // Reload reloads the configuration.
-// TODO: Implement full configuration reload.
+// It re-parses the config file and diffs peers:
+// - New peers in config are added
+// - Peers not in new config are removed
+// Requires ConfigPath to be set and SetReloadFunc to be called.
 func (a *reactorAPIAdapter) Reload() error {
-	// For now, just return success.
-	// Full implementation would:
-	// 1. Parse new config file
-	// 2. Diff with current config
-	// 3. Add/remove peers
-	// 4. Update peer settings
+	r := a.r
+
+	// Check config path is set
+	configPath := r.config.ConfigPath
+	if configPath == "" {
+		return ErrNoConfigPath
+	}
+
+	// Check reload function is set
+	r.mu.RLock()
+	reloadFn := r.reloadFunc
+	r.mu.RUnlock()
+	if reloadFn == nil {
+		return ErrNoConfigPath
+	}
+
+	// Get new peer configs from config file
+	newPeers, err := reloadFn(configPath)
+	if err != nil {
+		return fmt.Errorf("reload config: %w", err)
+	}
+
+	// Build map of new peer addresses for quick lookup
+	newPeerAddrs := make(map[string]ReloadPeerConfig)
+	for _, p := range newPeers {
+		newPeerAddrs[p.Address.String()] = p
+	}
+
+	// Get current peers
+	r.mu.RLock()
+	currentPeerAddrs := make(map[string]bool)
+	for addr := range r.peers {
+		currentPeerAddrs[addr] = true
+	}
+	r.mu.RUnlock()
+
+	// Remove peers not in new config
+	for addr := range currentPeerAddrs {
+		if _, exists := newPeerAddrs[addr]; !exists {
+			r.mu.Lock()
+			if peer, ok := r.peers[addr]; ok {
+				peer.Stop()
+				delete(r.peers, addr)
+			}
+			r.mu.Unlock()
+		}
+	}
+
+	// Add new peers
+	for addr, peerCfg := range newPeerAddrs {
+		if !currentPeerAddrs[addr] {
+			settings := NewPeerSettings(peerCfg.Address, peerCfg.LocalAS, peerCfg.PeerAS, peerCfg.RouterID)
+			settings.Passive = peerCfg.Passive
+			if peerCfg.LocalAddress.IsValid() {
+				settings.LocalAddress = peerCfg.LocalAddress
+			}
+			if peerCfg.HoldTime > 0 {
+				settings.HoldTime = peerCfg.HoldTime
+			}
+			_ = r.AddPeer(settings)
+		}
+	}
+
 	return nil
 }
 
@@ -3471,6 +3555,19 @@ func (r *Reactor) WatchdogManager() *WatchdogManager {
 	return r.watchdog
 }
 
+// SetReloadFunc sets the function that will be called to reload config.
+// This must be set before Start() for SIGHUP reload to work.
+func (r *Reactor) SetReloadFunc(fn ReloadFunc) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	r.reloadFunc = fn
+}
+
+// SetConfigPath sets the config file path for reload.
+func (r *Reactor) SetConfigPath(path string) {
+	r.config.ConfigPath = path
+}
+
 // AddWatchdogRoute adds a route to a global watchdog pool.
 // Creates the pool if it doesn't exist.
 // The route will be announced to all peers when "watchdog announce <name>" is called.
@@ -4012,6 +4109,14 @@ func (r *Reactor) StartWithContext(ctx context.Context) error {
 	r.signals = NewSignalHandler()
 	r.signals.OnShutdown(func() {
 		r.Stop()
+	})
+	r.signals.OnReload(func() {
+		adapter := &reactorAPIAdapter{r: r}
+		if err := adapter.Reload(); err != nil {
+			trace.ConfigReloadFailed(err)
+		} else {
+			trace.ConfigReloaded()
+		}
 	})
 	r.signals.StartWithContext(r.ctx)
 

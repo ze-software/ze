@@ -88,13 +88,78 @@ func LoadReactorFile(path string) (*reactor.Reactor, error) {
 	}
 	cfg.ConfigDir = filepath.Dir(absPath)
 
-	// Recreate reactor with config dir set
-	return CreateReactorWithDir(cfg, cfg.ConfigDir)
+	// Create reactor with config path for reload support
+	r, err := CreateReactorWithPath(cfg, absPath)
+	if err != nil {
+		return nil, err
+	}
+
+	return r, nil
 }
 
 // CreateReactor creates a Reactor from typed BGPConfig.
 func CreateReactor(cfg *BGPConfig) (*reactor.Reactor, error) {
 	return CreateReactorWithDir(cfg, "")
+}
+
+// CreateReactorWithPath creates a Reactor with full config path for reload support.
+func CreateReactorWithPath(cfg *BGPConfig, configPath string) (*reactor.Reactor, error) {
+	r, err := CreateReactorWithDir(cfg, filepath.Dir(configPath))
+	if err != nil {
+		return nil, err
+	}
+
+	// Set config path for reload
+	r.SetConfigPath(configPath)
+
+	// Set reload function
+	r.SetReloadFunc(createReloadFunc())
+
+	return r, nil
+}
+
+// createReloadFunc creates a ReloadFunc that parses config files.
+func createReloadFunc() reactor.ReloadFunc {
+	return func(configPath string) ([]reactor.ReloadPeerConfig, error) {
+		data, err := os.ReadFile(configPath) //nolint:gosec // User-provided config path
+		if err != nil {
+			return nil, err
+		}
+
+		// Parse the config
+		p := NewParser(BGPSchema())
+		tree, err := p.Parse(string(data))
+		if err != nil {
+			return nil, fmt.Errorf("parse config: %w", err)
+		}
+
+		// Convert to typed config
+		bgpCfg, err := TreeToConfig(tree)
+		if err != nil {
+			return nil, fmt.Errorf("convert config: %w", err)
+		}
+
+		// Extract peer configs for reload
+		var peers []reactor.ReloadPeerConfig
+		for _, pc := range bgpCfg.Peers {
+			rpc := reactor.ReloadPeerConfig{
+				Address:      pc.Address,
+				LocalAS:      pc.LocalAS,
+				PeerAS:       pc.PeerAS,
+				RouterID:     pc.RouterID,
+				Passive:      pc.Passive,
+				LocalAddress: pc.LocalAddress,
+			}
+
+			if pc.HoldTime > 0 {
+				rpc.HoldTime = time.Duration(pc.HoldTime) * time.Second
+			}
+
+			peers = append(peers, rpc)
+		}
+
+		return peers, nil
+	}
 }
 
 // CreateReactorWithDir creates a Reactor with a specific config directory.
