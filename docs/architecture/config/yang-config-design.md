@@ -4,6 +4,8 @@ A design for adopting VyOS's configuration architecture using YANG instead of cu
 
 > **Note:** The project is named "ze" (formerly "ze").
 
+> **See also:** [Hub Architecture](../hub-architecture.md) - The evolved design where Config Reader is a separate process and plugins register their own YANG schemas. This document describes the YANG validation layer; the Hub Architecture document describes how it integrates with the multi-process architecture.
+
 ---
 
 ## 1. Architecture Overview
