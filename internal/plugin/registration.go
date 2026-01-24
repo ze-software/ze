@@ -106,6 +106,18 @@ type PluginRegistration struct {
 	Receive            []string            // Message types to receive (update, open, negotiated, etc.)
 	SchemaDeclarations []SchemaDeclaration // Schema extensions for capability config
 	Done               bool                // True when "registration done" received
+
+	// YANG schema declarations (Hub Architecture)
+	PluginSchema *PluginSchemaDecl // YANG schema declaration for this plugin
+}
+
+// PluginSchemaDecl holds YANG schema declaration from a plugin.
+// Built incrementally from multiple `declare schema` lines.
+type PluginSchemaDecl struct {
+	Module    string   // YANG module name
+	Namespace string   // YANG namespace URI
+	Handlers  []string // Handler paths (e.g., "bgp", "bgp.peer")
+	Yang      string   // Full YANG module text
 }
 
 // SchemaDeclaration represents a plugin's config schema extension.
@@ -239,6 +251,8 @@ func (reg *PluginRegistration) ParseLine(line string) error {
 		return reg.parseCmd(parts[2:], line)
 	case "receive":
 		return reg.parseReceive(parts[2:])
+	case "schema":
+		return reg.parseSchema(parts[2:], line)
 	case statusDone:
 		reg.Done = true
 		return nil
@@ -462,6 +476,73 @@ func (reg *PluginRegistration) parseReceive(args []string) error {
 
 	reg.Receive = append(reg.Receive, recvType)
 	return nil
+}
+
+// parseSchema handles "declare schema <type> <value>".
+// Types:
+//   - module <name> - YANG module name
+//   - namespace <uri> - YANG namespace
+//   - handler <path> - handler path for config routing
+//   - yang <content> - inline YANG (single line only; use StartHeredoc for multi-line)
+func (reg *PluginRegistration) parseSchema(args []string, line string) error {
+	if len(args) < 2 {
+		return fmt.Errorf("expected 'declare schema <module|namespace|handler|yang> <value>'")
+	}
+
+	// Initialize schema if needed
+	if reg.PluginSchema == nil {
+		reg.PluginSchema = &PluginSchemaDecl{}
+	}
+
+	schemaType := args[0]
+	switch schemaType {
+	case "module":
+		reg.PluginSchema.Module = args[1]
+	case "namespace":
+		reg.PluginSchema.Namespace = args[1]
+	case "handler":
+		reg.PluginSchema.Handlers = append(reg.PluginSchema.Handlers, args[1])
+	case "yang":
+		// For single-line yang, extract everything after "declare schema yang "
+		idx := strings.Index(line, "declare schema yang ")
+		if idx >= 0 {
+			reg.PluginSchema.Yang = strings.TrimSpace(line[idx+len("declare schema yang "):])
+		}
+	default:
+		return fmt.Errorf("unknown schema type: %s (valid: module, namespace, handler, yang)", schemaType)
+	}
+
+	return nil
+}
+
+// StartHeredoc checks if a line starts a heredoc and returns the delimiter.
+// Format: "declare schema yang <<EOF" returns ("EOF", true).
+func StartHeredoc(line string) (string, bool) {
+	idx := strings.Index(line, "<<")
+	if idx < 0 {
+		return "", false
+	}
+	delimiter := strings.TrimSpace(line[idx+2:])
+	if delimiter == "" {
+		return "", false
+	}
+	return delimiter, true
+}
+
+// IsHeredocEnd checks if a line ends a heredoc with the given delimiter.
+func IsHeredocEnd(line, delimiter string) bool {
+	return strings.TrimSpace(line) == delimiter
+}
+
+// AppendHeredocLine appends a line to the YANG content being collected.
+func (reg *PluginRegistration) AppendHeredocLine(line string) {
+	if reg.PluginSchema == nil {
+		reg.PluginSchema = &PluginSchemaDecl{}
+	}
+	if reg.PluginSchema.Yang != "" {
+		reg.PluginSchema.Yang += "\n"
+	}
+	reg.PluginSchema.Yang += line
 }
 
 // CompileConfigPattern compiles a config pattern string into a ConfigPattern.

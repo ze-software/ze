@@ -37,6 +37,8 @@ func Run(args []string) int {
 		return cmdPlugin(args[1:])
 	case "config-dump":
 		return cmdConfigDump(args[1:])
+	case "schema":
+		return cmdSchema(args[1:])
 	case "version":
 		fmt.Printf("ze bgp %s\n", version)
 		return 0
@@ -95,6 +97,7 @@ Commands:
   config <subcommand>  Configuration management (edit, check, migrate, fmt)
   config-dump <config> Dump parsed config (debug tool)
   plugin <subcommand>  Plugin system (rr for route server)
+  schema <subcommand>  Schema discovery (list, show, handlers, protocol)
   version              Show version
   help                 Show this help
 

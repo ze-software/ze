@@ -31,7 +31,8 @@ type SubsystemConfig struct {
 type SubsystemHandler struct {
 	config   SubsystemConfig
 	proc     *Process
-	commands []string // Commands declared during Stage 1
+	commands []string          // Commands declared during Stage 1
+	schema   *PluginSchemaDecl // YANG schema declared during Stage 1
 	mu       sync.RWMutex
 }
 
@@ -57,6 +58,45 @@ func (h *SubsystemHandler) Commands() []string {
 	result := make([]string, len(h.commands))
 	copy(result, h.commands)
 	return result
+}
+
+// Schema returns the YANG schema declared by this subsystem, or nil if none.
+func (h *SubsystemHandler) Schema() *PluginSchemaDecl {
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+	return h.schema
+}
+
+// parseSchemaLine parses a "declare schema <type> <value>" line.
+func (h *SubsystemHandler) parseSchemaLine(line string) {
+	parts := strings.Fields(line)
+	if len(parts) < 4 { // declare schema <type> <value>
+		return // Not enough parts, might be heredoc start
+	}
+
+	schemaType := parts[2]
+	value := parts[3]
+
+	if h.schema == nil {
+		h.schema = &PluginSchemaDecl{}
+	}
+
+	switch schemaType {
+	case "module":
+		h.schema.Module = value
+	case "namespace":
+		h.schema.Namespace = value
+	case "handler":
+		h.schema.Handlers = append(h.schema.Handlers, value)
+	case "yang":
+		// Single-line YANG or heredoc start - heredoc handled separately
+		if !strings.Contains(line, "<<") {
+			idx := strings.Index(line, "declare schema yang ")
+			if idx >= 0 {
+				h.schema.Yang = strings.TrimSpace(line[idx+len("declare schema yang "):])
+			}
+		}
+	}
 }
 
 // Start spawns the subsystem process and completes the 5-stage protocol.
@@ -90,18 +130,49 @@ func (h *SubsystemHandler) Start(ctx context.Context) error {
 // completeProtocol runs through the 5-stage startup protocol.
 func (h *SubsystemHandler) completeProtocol(ctx context.Context) error {
 	// Stage 1: Read declarations until "declare done"
+	var heredocDelimiter string
 	for {
 		line, err := h.proc.ReadCommand(ctx)
 		if err != nil {
 			return fmt.Errorf("stage 1 read: %w", err)
 		}
+
+		// Handle heredoc continuation
+		if heredocDelimiter != "" {
+			if IsHeredocEnd(line, heredocDelimiter) {
+				heredocDelimiter = ""
+				continue
+			}
+			// Append to YANG content
+			if h.schema == nil {
+				h.schema = &PluginSchemaDecl{}
+			}
+			if h.schema.Yang != "" {
+				h.schema.Yang += "\n"
+			}
+			h.schema.Yang += line
+			continue
+		}
+
+		// Check for declare done
 		if line == markerDeclareDone {
 			break
 		}
+
 		// Parse "declare cmd <name>"
 		if strings.HasPrefix(line, "declare cmd ") {
 			cmdName := strings.TrimPrefix(line, "declare cmd ")
 			h.commands = append(h.commands, cmdName)
+			continue
+		}
+
+		// Parse "declare schema <type> <value>"
+		if strings.HasPrefix(line, "declare schema ") {
+			h.parseSchemaLine(line)
+			// Check for heredoc start
+			if delim, ok := StartHeredoc(line); ok {
+				heredocDelimiter = delim
+			}
 		}
 	}
 
@@ -287,4 +358,35 @@ func (m *SubsystemManager) AllCommands() []string {
 		commands = append(commands, handler.Commands()...)
 	}
 	return commands
+}
+
+// AllSchemas returns all schemas from all subsystems.
+func (m *SubsystemManager) AllSchemas() []*Schema {
+	m.mu.RLock()
+	defer m.mu.RUnlock()
+
+	var schemas []*Schema
+	for _, handler := range m.handlers {
+		if s := handler.Schema(); s != nil {
+			schemas = append(schemas, &Schema{
+				Module:    s.Module,
+				Namespace: s.Namespace,
+				Yang:      s.Yang,
+				Handlers:  s.Handlers,
+				Plugin:    handler.Name(),
+			})
+		}
+	}
+	return schemas
+}
+
+// RegisterSchemas registers all subsystem schemas with the given registry.
+func (m *SubsystemManager) RegisterSchemas(registry *SchemaRegistry) error {
+	schemas := m.AllSchemas()
+	for _, s := range schemas {
+		if err := registry.Register(s); err != nil {
+			return err
+		}
+	}
+	return nil
 }

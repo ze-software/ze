@@ -568,3 +568,151 @@ func TestParseSchemaDeclaration(t *testing.T) {
 		})
 	}
 }
+
+// TestParseHubSchemaDeclaration verifies parsing of "declare schema" Hub Architecture messages.
+//
+// VALIDATES: Schema module, namespace, handler declarations are parsed correctly.
+// PREVENTS: Plugin schema registration failures.
+func TestParseHubSchemaDeclaration(t *testing.T) {
+	tests := []struct {
+		name          string
+		input         string
+		wantModule    string
+		wantNamespace string
+		wantHandlers  []string
+		wantErr       bool
+	}{
+		{
+			name:       "schema_module",
+			input:      "declare schema module ze-bgp",
+			wantModule: "ze-bgp",
+		},
+		{
+			name:          "schema_namespace",
+			input:         "declare schema namespace urn:ze:bgp",
+			wantNamespace: "urn:ze:bgp",
+		},
+		{
+			name:         "schema_handler",
+			input:        "declare schema handler bgp",
+			wantHandlers: []string{"bgp"},
+		},
+		{
+			name:    "schema_missing_value",
+			input:   "declare schema module",
+			wantErr: true,
+		},
+		{
+			name:    "schema_unknown_type",
+			input:   "declare schema unknown value",
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			reg := &PluginRegistration{}
+			err := reg.ParseLine(tt.input)
+			if tt.wantErr {
+				require.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
+			require.NotNil(t, reg.PluginSchema)
+
+			if tt.wantModule != "" {
+				assert.Equal(t, tt.wantModule, reg.PluginSchema.Module)
+			}
+			if tt.wantNamespace != "" {
+				assert.Equal(t, tt.wantNamespace, reg.PluginSchema.Namespace)
+			}
+			if len(tt.wantHandlers) > 0 {
+				assert.Equal(t, tt.wantHandlers, reg.PluginSchema.Handlers)
+			}
+		})
+	}
+}
+
+// TestParseSchemaMultipleDeclarations verifies multiple schema declarations build up schema.
+//
+// VALIDATES: Multiple declare schema lines build complete schema.
+// PREVENTS: Schema parts overwriting each other.
+func TestParseSchemaMultipleDeclarations(t *testing.T) {
+	reg := &PluginRegistration{}
+
+	lines := []string{
+		"declare schema module ze-bgp",
+		"declare schema namespace urn:ze:bgp",
+		"declare schema handler bgp",
+		"declare schema handler bgp.peer",
+		"declare schema handler bgp.peer-group",
+	}
+
+	for _, line := range lines {
+		err := reg.ParseLine(line)
+		require.NoError(t, err)
+	}
+
+	require.NotNil(t, reg.PluginSchema)
+	assert.Equal(t, "ze-bgp", reg.PluginSchema.Module)
+	assert.Equal(t, "urn:ze:bgp", reg.PluginSchema.Namespace)
+	assert.Len(t, reg.PluginSchema.Handlers, 3)
+	assert.Contains(t, reg.PluginSchema.Handlers, "bgp")
+	assert.Contains(t, reg.PluginSchema.Handlers, "bgp.peer")
+	assert.Contains(t, reg.PluginSchema.Handlers, "bgp.peer-group")
+}
+
+// TestParseSchemaYangHeredoc verifies heredoc parsing for YANG content.
+//
+// VALIDATES: Multi-line YANG can be collected via heredoc.
+// PREVENTS: YANG content truncation or corruption.
+func TestParseSchemaYangHeredoc(t *testing.T) {
+	// Test heredoc detection
+	line := "declare schema yang <<EOF"
+	delimiter, ok := StartHeredoc(line)
+	assert.True(t, ok)
+	assert.Equal(t, "EOF", delimiter)
+
+	// Test heredoc end detection
+	assert.True(t, IsHeredocEnd("EOF", "EOF"))
+	assert.True(t, IsHeredocEnd("  EOF  ", "EOF"))
+	assert.False(t, IsHeredocEnd("not EOF", "EOF"))
+
+	// Test heredoc content collection
+	reg := &PluginRegistration{}
+	reg.AppendHeredocLine("module ze-bgp {")
+	reg.AppendHeredocLine("  namespace \"urn:ze:bgp\";")
+	reg.AppendHeredocLine("}")
+
+	require.NotNil(t, reg.PluginSchema)
+	assert.Equal(t, "module ze-bgp {\n  namespace \"urn:ze:bgp\";\n}", reg.PluginSchema.Yang)
+}
+
+// TestStartHeredoc verifies heredoc start detection.
+//
+// VALIDATES: Heredoc start lines are correctly detected.
+// PREVENTS: Missing or incorrect heredoc delimiter extraction.
+func TestStartHeredoc(t *testing.T) {
+	tests := []struct {
+		line      string
+		wantDelim string
+		wantOK    bool
+	}{
+		{"declare schema yang <<EOF", "EOF", true},
+		{"declare schema yang <<YANG", "YANG", true},
+		{"declare schema yang << END", "END", true},
+		{"declare schema yang", "", false},
+		{"no heredoc here", "", false},
+		{"declare schema yang <<", "", false}, // empty delimiter
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.line, func(t *testing.T) {
+			delim, ok := StartHeredoc(tt.line)
+			assert.Equal(t, tt.wantOK, ok)
+			if ok {
+				assert.Equal(t, tt.wantDelim, delim)
+			}
+		})
+	}
+}
