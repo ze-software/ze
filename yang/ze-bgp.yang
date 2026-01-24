@@ -1,0 +1,331 @@
+module ze-bgp {
+    namespace "urn:ze:bgp";
+    prefix bgp;
+
+    import ze-types { prefix zt; }
+
+    description "BGP configuration for ZeBGP";
+
+    revision 2026-01-01 {
+        description "Initial revision";
+    }
+
+    container bgp {
+        description "BGP configuration";
+
+        leaf local-as {
+            type zt:asn;
+            mandatory true;
+            description "Local Autonomous System Number";
+        }
+
+        leaf router-id {
+            type zt:ipv4-address;
+            mandatory true;
+            description "BGP Router ID";
+        }
+
+        leaf hold-time {
+            type uint16 {
+                range "0 | 3..65535";
+            }
+            default 180;
+            description "BGP hold time in seconds (0 or 3+)";
+        }
+
+        // Peer groups
+        list peer-group {
+            key "name";
+            description "BGP peer group template";
+
+            leaf name {
+                type string {
+                    length "1..64";
+                }
+                description "Peer group name";
+            }
+
+            leaf peer-as {
+                type zt:asn;
+                description "Peer AS for all group members";
+            }
+
+            uses peer-config;
+        }
+
+        // Peers
+        list peer {
+            key "address";
+            description "BGP peer configuration";
+
+            leaf address {
+                type zt:ip-address;
+                description "Peer IP address";
+            }
+
+            leaf peer-as {
+                type zt:asn;
+                description "Peer Autonomous System Number";
+            }
+
+            leaf group {
+                type leafref {
+                    path "../../peer-group/name";
+                }
+                description "Reference to peer-group (must exist)";
+            }
+
+            uses peer-config;
+        }
+
+        // Policy: Route maps
+        list route-map {
+            key "name";
+            description "Route map for policy";
+
+            leaf name {
+                type string {
+                    length "1..64";
+                }
+                description "Route map name";
+            }
+
+            list rule {
+                key "sequence";
+                description "Route map rule";
+
+                leaf sequence {
+                    type uint32;
+                    description "Rule sequence number";
+                }
+
+                leaf action {
+                    type enumeration {
+                        enum permit { description "Allow matching routes"; }
+                        enum deny { description "Reject matching routes"; }
+                    }
+                    mandatory true;
+                    description "Rule action";
+                }
+
+                // Match conditions
+                container match {
+                    description "Match conditions";
+
+                    leaf prefix-list {
+                        type leafref {
+                            path "../../../prefix-list/name";
+                        }
+                        description "Match prefix list";
+                    }
+
+                    leaf community {
+                        type zt:community;
+                        description "Match community";
+                    }
+
+                    leaf as-path {
+                        type string;
+                        description "Match AS path regex";
+                    }
+                }
+
+                // Set actions
+                container set {
+                    description "Set actions on matching routes";
+
+                    leaf local-pref {
+                        type uint32;
+                        description "Set LOCAL_PREF";
+                    }
+
+                    leaf med {
+                        type uint32;
+                        description "Set MED";
+                    }
+
+                    leaf community {
+                        type zt:community;
+                        description "Set community";
+                    }
+
+                    leaf next-hop {
+                        type zt:ip-address;
+                        description "Set next-hop";
+                    }
+                }
+            }
+        }
+
+        // Policy: Prefix lists
+        list prefix-list {
+            key "name";
+            description "IP prefix list";
+
+            leaf name {
+                type string {
+                    length "1..64";
+                }
+                description "Prefix list name";
+            }
+
+            list entry {
+                key "sequence";
+                description "Prefix list entry";
+
+                leaf sequence {
+                    type uint32;
+                    description "Entry sequence number";
+                }
+
+                leaf action {
+                    type enumeration {
+                        enum permit { description "Allow matching prefixes"; }
+                        enum deny { description "Reject matching prefixes"; }
+                    }
+                    mandatory true;
+                    description "Entry action";
+                }
+
+                leaf prefix {
+                    type zt:prefix-ipv4;
+                    mandatory true;
+                    description "IP prefix to match";
+                }
+
+                leaf le {
+                    type uint8 { range "0..32"; }
+                    description "Prefix length less-than-or-equal";
+                }
+
+                leaf ge {
+                    type uint8 { range "0..32"; }
+                    description "Prefix length greater-than-or-equal";
+                }
+            }
+        }
+    }
+
+    grouping peer-config {
+        description "Common peer/peer-group configuration";
+
+        leaf passive {
+            type boolean;
+            default false;
+            description "Wait for peer to initiate connection";
+        }
+
+        leaf route-reflector-client {
+            type boolean;
+            default false;
+            description "Treat peer as route reflector client";
+        }
+
+        container timers {
+            description "BGP timers";
+
+            leaf hold-time {
+                type uint16 {
+                    range "0 | 3..65535";
+                }
+                description "Per-peer hold time override";
+            }
+
+            leaf keepalive {
+                type uint16;
+                description "Keepalive interval";
+            }
+
+            leaf connect-retry {
+                type uint16 {
+                    range "1..65535";
+                }
+                default 120;
+                description "Connect retry timer";
+            }
+        }
+
+        container capability {
+            description "BGP capability negotiation";
+
+            leaf route-refresh {
+                type boolean;
+                default true;
+                description "Enable RFC 2918 Route Refresh";
+            }
+
+            leaf add-path {
+                type enumeration {
+                    enum disabled { description "ADD-PATH disabled"; }
+                    enum receive { description "Receive ADD-PATH"; }
+                    enum send { description "Send ADD-PATH"; }
+                    enum both { description "Send and receive ADD-PATH"; }
+                }
+                default disabled;
+                description "RFC 7911 ADD-PATH mode";
+            }
+
+            leaf extended-message {
+                type boolean;
+                default false;
+                description "RFC 8654 extended message support";
+            }
+
+            leaf graceful-restart {
+                type boolean;
+                default false;
+                description "RFC 4724 Graceful Restart";
+            }
+        }
+
+        leaf route-map-in {
+            type leafref {
+                path "../../route-map/name";
+            }
+            description "Inbound route map";
+        }
+
+        leaf route-map-out {
+            type leafref {
+                path "../../route-map/name";
+            }
+            description "Outbound route map";
+        }
+
+        // Address families
+        list address-family {
+            key "afi safi";
+            description "Per-family configuration";
+
+            leaf afi {
+                type zt:afi;
+                description "Address Family Identifier";
+            }
+
+            leaf safi {
+                type zt:safi;
+                description "Subsequent Address Family Identifier";
+            }
+
+            leaf enabled {
+                type boolean;
+                default true;
+                description "Enable this family";
+            }
+
+            leaf route-map-in {
+                type leafref {
+                    path "../../../route-map/name";
+                }
+                description "Per-family inbound route map";
+            }
+
+            leaf route-map-out {
+                type leafref {
+                    path "../../../route-map/name";
+                }
+                description "Per-family outbound route map";
+            }
+        }
+    }
+}

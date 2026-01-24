@@ -1,0 +1,120 @@
+module ze-types {
+    namespace "urn:ze:types";
+    prefix zt;
+
+    description "Common types for ZeBGP configuration";
+
+    revision 2026-01-01 {
+        description "Initial revision";
+    }
+
+    typedef ip-address {
+        type union {
+            type ipv4-address;
+            type ipv6-address;
+        }
+        description "IPv4 or IPv6 address";
+    }
+
+    typedef ipv4-address {
+        type string {
+            pattern '(([0-9]|[1-9][0-9]|1[0-9][0-9]|2[0-4][0-9]|25[0-5])\.){3}'
+                  + '([0-9]|[1-9][0-9]|1[0-9][0-9]|2[0-4][0-9]|25[0-5])';
+        }
+        description "IPv4 address in dotted-decimal format";
+    }
+
+    typedef ipv6-address {
+        type string {
+            pattern '([0-9a-fA-F]{0,4}:){2,7}[0-9a-fA-F]{0,4}'
+                  + '|([0-9a-fA-F]{0,4}:){1,6}:[0-9a-fA-F]{0,4}'
+                  + '|::([0-9a-fA-F]{0,4}:){0,5}[0-9a-fA-F]{0,4}';
+        }
+        description "IPv6 address";
+    }
+
+    typedef asn {
+        type uint32 {
+            range "1..4294967295";
+        }
+        description "Autonomous System Number (4-byte, RFC 6793)";
+    }
+
+    typedef asn2 {
+        type uint16 {
+            range "1..65535";
+        }
+        description "Autonomous System Number (2-byte legacy)";
+    }
+
+    typedef port {
+        type uint16 {
+            range "1..65535";
+        }
+        description "TCP/UDP port number";
+    }
+
+    typedef prefix-ipv4 {
+        type string {
+            pattern '(([0-9]|[1-9][0-9]|1[0-9][0-9]|2[0-4][0-9]|25[0-5])\.){3}'
+                  + '([0-9]|[1-9][0-9]|1[0-9][0-9]|2[0-4][0-9]|25[0-5])'
+                  + '/(([0-9])|([1-2][0-9])|(3[0-2]))';
+        }
+        description "IPv4 prefix in CIDR notation";
+    }
+
+    typedef prefix-ipv6 {
+        type string {
+            pattern '([0-9a-fA-F]{0,4}:){2,7}[0-9a-fA-F]{0,4}'
+                  + '/([0-9]|[1-9][0-9]|1[0-1][0-9]|12[0-8])';
+        }
+        description "IPv6 prefix in CIDR notation";
+    }
+
+    typedef community {
+        type string {
+            pattern '[0-9]+:[0-9]+';
+        }
+        description "BGP standard community (AA:NN format)";
+    }
+
+    typedef large-community {
+        type string {
+            pattern '[0-9]+:[0-9]+:[0-9]+';
+        }
+        description "BGP large community (RFC 8092)";
+    }
+
+    typedef extended-community {
+        type string {
+            pattern '(target|origin):[0-9]+:[0-9]+';
+        }
+        description "BGP extended community (RFC 4360)";
+    }
+
+    typedef route-distinguisher {
+        type string {
+            pattern '([0-9]+:[0-9]+)|([0-9]+\.[0-9]+\.[0-9]+\.[0-9]+:[0-9]+)';
+        }
+        description "Route Distinguisher (Type 0 or Type 1)";
+    }
+
+    typedef afi {
+        type enumeration {
+            enum ipv4 { value 1; description "IPv4 (AFI 1)"; }
+            enum ipv6 { value 2; description "IPv6 (AFI 2)"; }
+        }
+        description "Address Family Identifier";
+    }
+
+    typedef safi {
+        type enumeration {
+            enum unicast { value 1; description "Unicast (SAFI 1)"; }
+            enum multicast { value 2; description "Multicast (SAFI 2)"; }
+            enum mpls { value 4; description "MPLS-labeled (SAFI 4)"; }
+            enum mpls-vpn { value 128; description "MPLS VPN (SAFI 128)"; }
+            enum flowspec { value 133; description "FlowSpec (SAFI 133)"; }
+        }
+        description "Subsequent Address Family Identifier";
+    }
+}
