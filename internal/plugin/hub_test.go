@@ -8,90 +8,96 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// TestParseVerifyCommand verifies verify command parsing.
+// TestParseCommand verifies command parsing.
 //
-// VALIDATES: Verify command is correctly parsed.
+// VALIDATES: Command format parsed correctly.
 // PREVENTS: Command parsing errors.
-func TestParseVerifyCommand(t *testing.T) {
+func TestParseCommand(t *testing.T) {
 	tests := []struct {
 		name        string
 		input       string
 		wantHandler string
 		wantAction  string
-		wantPath    string
 		wantData    string
 		wantErr     bool
 	}{
 		{
 			name:        "basic_create",
-			input:       `config verify handler "bgp.peer" action create path "bgp.peer[address=192.0.2.1]" data '{"peer-as":65002}'`,
+			input:       `bgp peer create {"peer-as":65002,"address":"192.0.2.1"}`,
 			wantHandler: "bgp.peer",
 			wantAction:  "create",
-			wantPath:    "bgp.peer[address=192.0.2.1]",
-			wantData:    `{"peer-as":65002}`,
+			wantData:    `{"peer-as":65002,"address":"192.0.2.1"}`,
 		},
 		{
 			name:        "modify_action",
-			input:       `config verify handler "bgp" action modify path "bgp" data '{"local-as":65001}'`,
-			wantHandler: "bgp",
+			input:       `bgp peer modify {"address":"192.0.2.1","hold-time":90}`,
+			wantHandler: "bgp.peer",
 			wantAction:  "modify",
-			wantPath:    "bgp",
-			wantData:    `{"local-as":65001}`,
+			wantData:    `{"address":"192.0.2.1","hold-time":90}`,
 		},
 		{
 			name:        "delete_action",
-			input:       `config verify handler "bgp.peer" action delete path "bgp.peer[address=192.0.2.1]" data '{}'`,
+			input:       `bgp peer delete {"address":"192.0.2.1"}`,
 			wantHandler: "bgp.peer",
 			wantAction:  "delete",
-			wantPath:    "bgp.peer[address=192.0.2.1]",
-			wantData:    `{}`,
+			wantData:    `{"address":"192.0.2.1"}`,
 		},
 		{
-			name:    "missing_handler",
-			input:   `config verify action create path "test" data '{}'`,
-			wantErr: true,
+			name:        "commit",
+			input:       `bgp commit`,
+			wantHandler: "bgp",
+			wantAction:  "commit",
 		},
 		{
-			name:    "missing_action",
-			input:   `config verify handler "test" path "test" data '{}'`,
-			wantErr: true,
+			name:        "rollback",
+			input:       `bgp rollback`,
+			wantHandler: "bgp",
+			wantAction:  "rollback",
 		},
 		{
-			name:    "missing_data",
-			input:   `config verify handler "test" action create path "test"`,
-			wantErr: true,
+			name:        "namespace_only_create",
+			input:       `bgp create {"router-id":"1.2.3.4"}`,
+			wantHandler: "bgp",
+			wantAction:  "create",
+			wantData:    `{"router-id":"1.2.3.4"}`,
 		},
 		{
-			name:    "not_config_verify",
-			input:   `config apply handler "test"`,
+			name:        "namespace_only_modify",
+			input:       `rib modify {"max-entries":1000}`,
+			wantHandler: "rib",
+			wantAction:  "modify",
+			wantData:    `{"max-entries":1000}`,
+		},
+		{
+			name:    "missing_json",
+			input:   `bgp peer create`,
 			wantErr: true,
 		},
 	}
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			req, err := ParseVerifyCommand(tt.input)
+			block, err := ParseCommand(tt.input)
 			if tt.wantErr {
 				require.Error(t, err)
 				return
 			}
 			require.NoError(t, err)
-			assert.Equal(t, tt.wantHandler, req.Handler)
-			assert.Equal(t, tt.wantAction, req.Action)
-			assert.Equal(t, tt.wantPath, req.Path)
-			assert.Equal(t, tt.wantData, req.Data)
+			assert.Equal(t, tt.wantHandler, block.Handler)
+			assert.Equal(t, tt.wantAction, block.Action)
+			assert.Equal(t, tt.wantData, block.Data)
 		})
 	}
 }
 
-// TestHub_RouteVerifyToHandler verifies routing by handler prefix.
+// TestHub_RouteToHandler verifies routing by handler prefix.
 //
-// VALIDATES: Verify requests are routed to correct handler.
+// VALIDATES: Commands are routed to correct handler.
 // PREVENTS: Misrouting config to wrong plugin.
-func TestHub_RouteVerifyToHandler(t *testing.T) {
+func TestHub_RouteToHandler(t *testing.T) {
 	registry := NewSchemaRegistry()
 
-	// Register schemas
+	// Register schemas.
 	err := registry.Register(&Schema{
 		Module:   "ze-bgp",
 		Handlers: []string{"bgp", "bgp.peer"},
@@ -106,7 +112,7 @@ func TestHub_RouteVerifyToHandler(t *testing.T) {
 	})
 	require.NoError(t, err)
 
-	// Test handler lookup
+	// Test handler lookup.
 	schema, match := registry.FindHandler("bgp.peer")
 	require.NotNil(t, schema)
 	assert.Equal(t, "bgp.peer", match)
@@ -122,46 +128,43 @@ func TestHub_RouteVerifyToHandler(t *testing.T) {
 	assert.Equal(t, "rib", schema.Plugin)
 }
 
-// TestHub_VerifyUnknownHandler verifies error on unknown handler.
+// TestHub_UnknownHandler verifies error on unknown handler.
 //
 // VALIDATES: Unknown handlers return error.
 // PREVENTS: Silent failure on misconfigured handlers.
-func TestHub_VerifyUnknownHandler(t *testing.T) {
+func TestHub_UnknownHandler(t *testing.T) {
 	registry := NewSchemaRegistry()
 	subsystems := NewSubsystemManager()
 
 	hub := NewHub(registry, subsystems)
 
-	req := &VerifyRequest{
+	block := &ConfigBlock{
 		Handler: "unknown.handler",
 		Action:  "create",
 		Path:    "unknown.handler",
 		Data:    "{}",
 	}
 
-	err := hub.RouteVerify(context.Background(), req)
+	err := hub.RouteCommand(context.Background(), block)
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "unknown handler")
 }
 
 // TestHub_ProcessConfig verifies transaction handling.
 //
-// VALIDATES: All verify pass before any apply.
+// VALIDATES: All commands sent before commit.
 // PREVENTS: Partial configuration application.
 func TestHub_ProcessConfig(t *testing.T) {
-	// This test verifies the transaction logic at the Hub level
-	// Without actual plugins, we can only test the error paths
-
 	registry := NewSchemaRegistry()
 	subsystems := NewSubsystemManager()
 
 	hub := NewHub(registry, subsystems)
 
-	// Empty blocks should succeed
+	// Empty blocks should succeed.
 	err := hub.ProcessConfig(context.Background(), []ConfigBlock{})
 	require.NoError(t, err)
 
-	// Unknown handler should fail at verify
+	// Unknown handler should fail.
 	blocks := []ConfigBlock{
 		{
 			Handler: "unknown",
@@ -172,7 +175,7 @@ func TestHub_ProcessConfig(t *testing.T) {
 	}
 	err = hub.ProcessConfig(context.Background(), blocks)
 	require.Error(t, err)
-	assert.Contains(t, err.Error(), "verify failed")
+	assert.Contains(t, err.Error(), "config failed")
 }
 
 // TestConfigBlock verifies ConfigBlock structure.
@@ -193,66 +196,28 @@ func TestConfigBlock(t *testing.T) {
 	assert.Contains(t, block.Data, "peer-as")
 }
 
-// TestParseQuotedOrWord verifies parsing helper.
+// TestSplitHandler verifies handler splitting.
 //
-// VALIDATES: Quoted and unquoted strings are parsed correctly.
-// PREVENTS: Parsing errors in command handling.
-func TestParseQuotedOrWord(t *testing.T) {
+// VALIDATES: Handler split into namespace and path.
+// PREVENTS: Incorrect namespace extraction.
+func TestSplitHandler(t *testing.T) {
 	tests := []struct {
-		name    string
-		input   string
-		want    string
-		rest    string
-		wantErr bool
+		handler       string
+		wantNamespace string
+		wantPath      string
 	}{
-		{"quoted", `"hello world" rest`, "hello world", " rest", false},
-		{"unquoted", `hello rest`, "hello", " rest", false},
-		{"empty", ``, "", "", true},
-		{"unclosed", `"hello`, "", "", true},
-		{"escaped", `"hello\"world" rest`, `hello"world`, " rest", false},
+		{"bgp.peer", "bgp", "peer"},
+		{"bgp.peer-group", "bgp", "peer-group"},
+		{"bgp", "bgp", ""},
+		{"rib.route", "rib", "route"},
+		{"acme-monitor.endpoint", "acme-monitor", "endpoint"},
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got, rest, err := parseQuotedOrWord(tt.input)
-			if tt.wantErr {
-				require.Error(t, err)
-				return
-			}
-			require.NoError(t, err)
-			assert.Equal(t, tt.want, got)
-			assert.Equal(t, tt.rest, rest)
-		})
-	}
-}
-
-// TestParseQuotedData verifies JSON data parsing.
-//
-// VALIDATES: Single-quoted JSON data is parsed correctly.
-// PREVENTS: JSON data corruption during parsing.
-func TestParseQuotedData(t *testing.T) {
-	tests := []struct {
-		name    string
-		input   string
-		want    string
-		wantErr bool
-	}{
-		{"simple", `'{"key":"value"}'`, `{"key":"value"}`, false},
-		{"empty_object", `'{}'`, `{}`, false},
-		{"with_escape", `'{"key":"value\'s"}'`, `{"key":"value's"}`, false},
-		{"not_quoted", `{"key":"value"}`, "", true},
-		{"unclosed", `'{"key":"value"`, "", true},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got, _, err := parseQuotedData(tt.input)
-			if tt.wantErr {
-				require.Error(t, err)
-				return
-			}
-			require.NoError(t, err)
-			assert.Equal(t, tt.want, got)
+		t.Run(tt.handler, func(t *testing.T) {
+			ns, path := splitHandler(tt.handler)
+			assert.Equal(t, tt.wantNamespace, ns)
+			assert.Equal(t, tt.wantPath, path)
 		})
 	}
 }

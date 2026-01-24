@@ -4,12 +4,18 @@
 // handling verify/apply requests for configuration changes, and optionally
 // providing additional commands.
 //
+// Plugins use a candidate/running configuration model:
+//   - Commands modify the candidate configuration
+//   - "commit" validates and applies changes atomically
+//   - "rollback" discards pending changes
+//   - "diff" shows pending changes
+//
 // Basic usage:
 //
-//	p := plugin.New("my-plugin")
-//	p.SetSchema(myYangSchema, "my-prefix")
-//	p.OnVerify("my-prefix", myVerifyHandler)
-//	p.OnApply("my-prefix", myApplyHandler)
+//	p := plugin.New("bgp")
+//	p.SetSchema(myYangSchema, "bgp", "bgp.peer")
+//	p.OnVerify("bgp.peer", myVerifyHandler)
+//	p.OnApply("bgp.peer", myApplyHandler)
 //	p.OnCommand("status", myStatusCommand)
 //	p.Run()
 package plugin
@@ -20,7 +26,9 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"sort"
 	"strings"
+	"sync"
 )
 
 // Plugin name length limits.
@@ -29,15 +37,28 @@ const (
 	MaxNameLength = 64
 )
 
+// Action constants for configuration changes.
+const (
+	ActionCreate = "create"
+	ActionModify = "modify"
+	ActionDelete = "delete"
+)
+
 // Plugin represents a ZeBGP plugin that follows the 5-stage protocol.
 type Plugin struct {
-	name     string
-	schema   string
-	handlers []string
+	name      string
+	namespace string // Primary namespace (e.g., "bgp")
+	schema    string
+	handlers  []string
 
 	verifyHandlers  map[string]VerifyHandler
 	applyHandlers   map[string]ApplyHandler
 	commandHandlers map[string]CommandHandler
+
+	// Candidate/running state management.
+	mu        sync.Mutex                   // Protects candidate/running.
+	candidate map[string]map[string]string // handler → key → JSON data
+	running   map[string]map[string]string // handler → key → JSON data
 
 	input  *bufio.Scanner
 	output io.Writer
@@ -55,14 +76,15 @@ type CommandHandler func(ctx *CommandContext) (any, error)
 // VerifyContext provides context for verify handlers.
 type VerifyContext struct {
 	Action string // create, modify, delete
-	Path   string // Full path including predicates
+	Path   string // Handler path (e.g., "peer")
 	Data   string // JSON data
 }
 
 // ApplyContext provides context for apply handlers.
 type ApplyContext struct {
 	Action string // create, modify, delete
-	Path   string // Full path including predicates
+	Path   string // Handler path (e.g., "peer")
+	Data   string // JSON data
 }
 
 // CommandContext provides context for command handlers.
@@ -71,7 +93,17 @@ type CommandContext struct {
 	Args    []string // Command arguments
 }
 
+// ConfigChange represents a change between candidate and running.
+type ConfigChange struct {
+	Action  string // create, modify, delete
+	Handler string // Handler path
+	Key     string // Item key
+	OldData string // Previous data (for modify/delete)
+	NewData string // New data (for create/modify)
+}
+
 // New creates a new plugin with the given name.
+// The name is also used as the primary namespace.
 // Returns nil if name is empty or exceeds 64 characters.
 func New(name string) *Plugin {
 	if len(name) < MinNameLength || len(name) > MaxNameLength {
@@ -80,9 +112,12 @@ func New(name string) *Plugin {
 
 	return &Plugin{
 		name:            name,
+		namespace:       name,
 		verifyHandlers:  make(map[string]VerifyHandler),
 		applyHandlers:   make(map[string]ApplyHandler),
 		commandHandlers: make(map[string]CommandHandler),
+		candidate:       make(map[string]map[string]string),
+		running:         make(map[string]map[string]string),
 		input:           bufio.NewScanner(os.Stdin),
 		output:          os.Stdout,
 	}
@@ -91,6 +126,11 @@ func New(name string) *Plugin {
 // Name returns the plugin name.
 func (p *Plugin) Name() string {
 	return p.name
+}
+
+// Namespace returns the plugin's primary namespace.
+func (p *Plugin) Namespace() string {
+	return p.namespace
 }
 
 // Schema returns the YANG schema.
@@ -152,7 +192,7 @@ func (p *Plugin) Run() error {
 	// Stage 1: Declaration
 	p.sendDeclarations()
 
-	// Stage 2: Config (wait for config done, handle verify during config)
+	// Stage 2: Config (wait for config done, handle commands during config)
 	if err := p.runConfigPhase(); err != nil {
 		return err
 	}
@@ -176,19 +216,18 @@ func (p *Plugin) Run() error {
 func (p *Plugin) sendDeclarations() {
 	_, _ = fmt.Fprintln(p.output, "declare encoding text")
 
-	// Declare schema
+	// Declare schema.
 	if p.schema != "" {
-		// Escape newlines in schema for single-line transmission
 		escaped := strings.ReplaceAll(p.schema, "\n", "\\n")
 		_, _ = fmt.Fprintf(p.output, "declare schema %s\n", escaped)
 	}
 
-	// Declare handlers
+	// Declare handlers.
 	for _, h := range p.handlers {
 		_, _ = fmt.Fprintf(p.output, "declare handler %s\n", h)
 	}
 
-	// Declare commands
+	// Declare commands.
 	for name := range p.commandHandlers {
 		_, _ = fmt.Fprintf(p.output, "declare cmd %s\n", name)
 	}
@@ -196,7 +235,7 @@ func (p *Plugin) sendDeclarations() {
 	_, _ = fmt.Fprintln(p.output, "declare done")
 }
 
-// runConfigPhase handles the config phase, processing verify requests.
+// runConfigPhase handles the config phase, processing commands.
 func (p *Plugin) runConfigPhase() error {
 	for p.input.Scan() {
 		line := p.input.Text()
@@ -205,11 +244,10 @@ func (p *Plugin) runConfigPhase() error {
 			return nil
 		}
 
-		// Handle verify requests during config phase
-		if strings.HasPrefix(line, "config verify") {
-			if err := p.handleVerifyLine(line); err != nil {
-				// Verification failure - config rejected
-				return fmt.Errorf("verify failed: %w", err)
+		// Handle namespace commands during config phase.
+		if strings.HasPrefix(line, p.namespace+" ") {
+			if err := p.handleNamespaceCommand(line); err != nil {
+				return err
 			}
 		}
 	}
@@ -231,12 +269,12 @@ func (p *Plugin) runCommandLoop() error {
 	for p.input.Scan() {
 		line := p.input.Text()
 
-		// Check for shutdown
+		// Check for shutdown.
 		if strings.Contains(line, `"shutdown"`) {
 			return nil
 		}
 
-		// Parse #serial command
+		// Parse #serial command.
 		if !strings.HasPrefix(line, "#") {
 			continue
 		}
@@ -268,7 +306,15 @@ func parseSerialCommand(line string) (serial, command string) {
 
 // handleCommand dispatches a command to the appropriate handler.
 func (p *Plugin) handleCommand(serial, command string) string {
-	// Check registered commands
+	// Check for namespace commands (bgp peer create, bgp commit, etc.).
+	if strings.HasPrefix(command, p.namespace+" ") {
+		if err := p.handleNamespaceCommand(command); err != nil {
+			return fmt.Sprintf("@%s error %v", serial, err)
+		}
+		return fmt.Sprintf("@%s ok", serial)
+	}
+
+	// Check registered commands.
 	for name, handler := range p.commandHandlers {
 		if strings.HasPrefix(command, name) {
 			args := strings.Fields(strings.TrimPrefix(command, name))
@@ -293,117 +339,341 @@ func (p *Plugin) handleCommand(serial, command string) string {
 	return fmt.Sprintf("@%s error unknown command: %s", serial, command)
 }
 
-// handleVerifyLine parses and handles a verify request line.
-func (p *Plugin) handleVerifyLine(line string) error {
-	// Parse: config verify action <action> path "<path>" data '<json>'
-	ctx, err := parseVerifyLine(line)
-	if err != nil {
-		return err
-	}
-	return p.triggerVerify(ctx)
-}
-
-// parseVerifyLine parses a config verify line.
-func parseVerifyLine(line string) (*VerifyContext, error) {
-	// Remove "config verify " prefix
-	rest := strings.TrimPrefix(line, "config verify ")
-
-	ctx := &VerifyContext{}
-
-	// Parse action
-	if !strings.HasPrefix(rest, "action ") {
-		return nil, fmt.Errorf("expected 'action'")
-	}
-	rest = strings.TrimPrefix(rest, "action ")
-	parts := strings.SplitN(rest, " ", 2)
-	if len(parts) < 2 {
-		return nil, fmt.Errorf("missing action value")
-	}
-	ctx.Action = parts[0]
-	rest = parts[1]
-
-	// Parse path
-	if !strings.HasPrefix(rest, "path ") {
-		return nil, fmt.Errorf("expected 'path'")
-	}
-	rest = strings.TrimPrefix(rest, "path ")
-	path, rest, err := parseQuoted(rest)
-	if err != nil {
-		return nil, fmt.Errorf("parse path: %w", err)
-	}
-	ctx.Path = path
-
-	// Parse data
+// handleNamespaceCommand handles commands in the plugin's namespace.
+// Format: <namespace> <path> <action> {json}.
+// Or: <namespace> commit|rollback|diff.
+func (p *Plugin) handleNamespaceCommand(line string) error {
+	// Remove namespace prefix.
+	rest := strings.TrimPrefix(line, p.namespace+" ")
 	rest = strings.TrimSpace(rest)
-	if !strings.HasPrefix(rest, "data ") {
-		return nil, fmt.Errorf("expected 'data'")
-	}
-	rest = strings.TrimPrefix(rest, "data ")
-	data, _, err := parseSingleQuoted(rest)
-	if err != nil {
-		return nil, fmt.Errorf("parse data: %w", err)
-	}
-	ctx.Data = data
 
-	return ctx, nil
+	// Check for built-in commands.
+	switch rest {
+	case "commit":
+		return p.commit()
+	case "rollback":
+		p.rollback()
+		return nil
+	case "diff":
+		p.outputDiff()
+		return nil
+	}
+
+	// Parse: <path> <action> {json}
+	return p.handleConfigCommand(rest)
 }
 
-// parseQuoted parses a double-quoted string.
-func parseQuoted(s string) (string, string, error) {
-	s = strings.TrimSpace(s)
-	if len(s) == 0 || s[0] != '"' {
-		return "", "", fmt.Errorf("expected double quote")
+// outputDiff outputs pending changes to the output writer as JSON.
+func (p *Plugin) outputDiff() {
+	changes := p.computeDiff()
+	if len(changes) == 0 {
+		_, _ = fmt.Fprintln(p.output, "[]")
+		return
 	}
-
-	var result strings.Builder
-	i := 1
-	for i < len(s) {
-		if s[i] == '\\' && i+1 < len(s) {
-			i++
-			result.WriteByte(s[i])
-			i++
-			continue
-		}
-		if s[i] == '"' {
-			return result.String(), s[i+1:], nil
-		}
-		result.WriteByte(s[i])
-		i++
-	}
-	return "", "", fmt.Errorf("unclosed quote")
+	// Sort for deterministic output.
+	sortChanges(changes)
+	// Output as JSON array.
+	data, _ := json.Marshal(changes)
+	_, _ = fmt.Fprintln(p.output, string(data))
 }
 
-// parseSingleQuoted parses a single-quoted string (for JSON data).
-func parseSingleQuoted(s string) (string, string, error) {
-	s = strings.TrimSpace(s)
-	if len(s) == 0 || s[0] != '\'' {
-		return "", "", fmt.Errorf("expected single quote")
+// handleConfigCommand parses and applies a config command to candidate.
+// Format: <path> <action> {json}.
+// Or: <action> {json} (for namespace-level config).
+func (p *Plugin) handleConfigCommand(line string) error {
+	// Find JSON start.
+	jsonIdx := strings.Index(line, "{")
+	if jsonIdx < 0 {
+		return fmt.Errorf("expected JSON data starting with '{'")
 	}
 
-	var result strings.Builder
-	i := 1
-	for i < len(s) {
-		if s[i] == '\\' && i+1 < len(s) {
-			i++
-			result.WriteByte(s[i])
-			i++
+	// Parse path and action.
+	prefix := strings.TrimSpace(line[:jsonIdx])
+	parts := strings.Fields(prefix)
+
+	var handler, action string
+	data := line[jsonIdx:]
+
+	// Validate JSON and parse for key extraction (single parse).
+	// Config data must be a JSON object, not an array or primitive.
+	var obj map[string]any
+	if err := json.Unmarshal([]byte(data), &obj); err != nil {
+		return fmt.Errorf("invalid JSON (expected object): %w", err)
+	}
+
+	switch len(parts) {
+	case 1:
+		// Format: <action> {json} (namespace-level config).
+		handler = p.namespace
+		action = parts[0]
+	case 2:
+		// Format: <path> <action> {json}.
+		handler = p.namespace + "." + parts[0]
+		action = parts[1]
+	default:
+		return fmt.Errorf("expected '<action>' or '<path> <action>'")
+	}
+
+	// Extract key from parsed JSON for storage.
+	key := extractKeyFromMap(obj, data)
+
+	// Apply to candidate (protected by mutex).
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	switch action {
+	case ActionCreate, ActionModify:
+		if p.candidate[handler] == nil {
+			p.candidate[handler] = make(map[string]string)
+		}
+		p.candidate[handler][key] = data
+
+	case ActionDelete:
+		if p.candidate[handler] != nil {
+			delete(p.candidate[handler], key)
+		}
+
+	default:
+		return fmt.Errorf("unknown action: %s", action)
+	}
+
+	return nil
+}
+
+// extractKeyFromMap extracts a key from a parsed JSON object for indexing.
+// Looks for common key fields in order: address, name, prefix, id, key.
+// Falls back to raw JSON string if no key field found.
+func extractKeyFromMap(obj map[string]any, rawData string) string {
+	for _, field := range []string{"address", "name", "prefix", "id", "key"} {
+		if v, ok := obj[field]; ok {
+			return fmt.Sprintf("%v", v)
+		}
+	}
+	return rawData
+}
+
+// extractKey extracts a key from JSON data for indexing.
+// Looks for common key fields: address, name, prefix, id, key.
+func extractKey(data string) string {
+	var obj map[string]any
+	if err := json.Unmarshal([]byte(data), &obj); err != nil {
+		return data // Use entire JSON as key if parse fails.
+	}
+	return extractKeyFromMap(obj, data)
+}
+
+// commit validates and applies all pending changes.
+// Releases mutex during callbacks to prevent deadlock.
+func (p *Plugin) commit() error {
+	// Phase 1: Compute diff while holding lock.
+	p.mu.Lock()
+	changes := p.computeDiffLocked()
+	if len(changes) == 0 {
+		p.mu.Unlock()
+		return nil // Nothing to commit.
+	}
+	// Sort changes for deterministic order.
+	sortChanges(changes)
+	// Copy candidate state for later.
+	candidateCopy := p.cloneState(p.candidate)
+	p.mu.Unlock()
+
+	// Phase 2: Verify all changes (no lock held - callbacks may access state).
+	for _, change := range changes {
+		// Use OldData for delete so handler knows what's being deleted.
+		data := change.NewData
+		if change.Action == ActionDelete {
+			data = change.OldData
+		}
+		if err := p.triggerVerify(&VerifyContext{
+			Action: change.Action,
+			Path:   change.Handler,
+			Data:   data,
+		}); err != nil {
+			return fmt.Errorf("verify failed for %s: %w", change.Handler, err)
+		}
+	}
+
+	// Phase 3: Apply all changes (no lock held).
+	// Track applied changes for rollback on failure.
+	var applied []ConfigChange
+	for _, change := range changes {
+		data := change.NewData
+		if change.Action == ActionDelete {
+			data = change.OldData
+		}
+		if err := p.triggerApply(&ApplyContext{
+			Action: change.Action,
+			Path:   change.Handler,
+			Data:   data,
+		}); err != nil {
+			// Rollback already-applied changes.
+			rollbackErrs := p.rollbackApplied(applied)
+			if len(rollbackErrs) > 0 {
+				return fmt.Errorf("apply failed for %s: %w (rollback errors: %v)", change.Handler, err, rollbackErrs)
+			}
+			return fmt.Errorf("apply failed for %s: %w", change.Handler, err)
+		}
+		applied = append(applied, change)
+	}
+
+	// Phase 4: Update running state.
+	p.mu.Lock()
+	p.running = candidateCopy
+	p.mu.Unlock()
+	return nil
+}
+
+// rollbackApplied attempts to undo already-applied changes.
+// Called when apply fails mid-way through changes.
+// Returns collected errors if any rollback operations fail.
+func (p *Plugin) rollbackApplied(applied []ConfigChange) []error {
+	var errs []error
+	// Reverse order for rollback.
+	for i := len(applied) - 1; i >= 0; i-- {
+		change := applied[i]
+		// Invert the action.
+		var action, data string
+		switch change.Action {
+		case ActionCreate:
+			action = ActionDelete
+			data = change.NewData
+		case ActionDelete:
+			action = ActionCreate
+			data = change.OldData
+		case ActionModify:
+			action = ActionModify
+			data = change.OldData // Revert to old data.
+		default:
+			// Unknown action - skip rollback, record error.
+			errs = append(errs, fmt.Errorf("rollback skipped for unknown action %q on %s", change.Action, change.Handler))
 			continue
 		}
-		if s[i] == '\'' {
-			return result.String(), s[i+1:], nil
+		if err := p.triggerApply(&ApplyContext{
+			Action: action,
+			Path:   change.Handler,
+			Data:   data,
+		}); err != nil {
+			errs = append(errs, fmt.Errorf("rollback %s %s: %w", action, change.Handler, err))
 		}
-		result.WriteByte(s[i])
-		i++
 	}
-	return "", "", fmt.Errorf("unclosed quote")
+	return errs
+}
+
+// rollback discards candidate and reverts to running.
+func (p *Plugin) rollback() {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.candidate = p.cloneState(p.running)
+}
+
+// computeDiff compares candidate vs running and returns changes.
+// Acquires lock internally.
+func (p *Plugin) computeDiff() []ConfigChange {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	return p.computeDiffLocked()
+}
+
+// computeDiffLocked compares candidate vs running. Must hold mu.
+func (p *Plugin) computeDiffLocked() []ConfigChange {
+	var changes []ConfigChange
+
+	// Find creates and modifies (in candidate but not in running, or different).
+	for handler, items := range p.candidate {
+		runningItems := p.running[handler]
+		for key, data := range items {
+			if runningItems == nil {
+				changes = append(changes, ConfigChange{
+					Action:  ActionCreate,
+					Handler: handler,
+					Key:     key,
+					NewData: data,
+				})
+			} else if oldData, exists := runningItems[key]; !exists {
+				changes = append(changes, ConfigChange{
+					Action:  ActionCreate,
+					Handler: handler,
+					Key:     key,
+					NewData: data,
+				})
+			} else if oldData != data {
+				changes = append(changes, ConfigChange{
+					Action:  ActionModify,
+					Handler: handler,
+					Key:     key,
+					OldData: oldData,
+					NewData: data,
+				})
+			}
+		}
+	}
+
+	// Find deletes (in running but not in candidate).
+	for handler, items := range p.running {
+		candidateItems := p.candidate[handler]
+		for key, data := range items {
+			_, exists := candidateItems[key]
+			if candidateItems == nil || !exists {
+				changes = append(changes, ConfigChange{
+					Action:  ActionDelete,
+					Handler: handler,
+					Key:     key,
+					OldData: data,
+				})
+			}
+		}
+	}
+
+	return changes
+}
+
+// cloneState creates a deep copy of a state map.
+func (p *Plugin) cloneState(state map[string]map[string]string) map[string]map[string]string {
+	clone := make(map[string]map[string]string)
+	for handler, items := range state {
+		clone[handler] = make(map[string]string)
+		for key, data := range items {
+			clone[handler][key] = data
+		}
+	}
+	return clone
+}
+
+// sortChanges sorts changes for deterministic processing order.
+// Order: handler (alphabetic), then key (alphabetic), then action (delete < create < modify).
+func sortChanges(changes []ConfigChange) {
+	sort.Slice(changes, func(i, j int) bool {
+		if changes[i].Handler != changes[j].Handler {
+			return changes[i].Handler < changes[j].Handler
+		}
+		if changes[i].Key != changes[j].Key {
+			return changes[i].Key < changes[j].Key
+		}
+		return actionRank(changes[i].Action) < actionRank(changes[j].Action)
+	})
+}
+
+// actionRank returns sort order for actions. Unknown actions sort last.
+func actionRank(action string) int {
+	switch action {
+	case ActionDelete:
+		return 0
+	case ActionCreate:
+		return 1
+	case ActionModify:
+		return 2
+	default:
+		return 99 // Unknown actions sort last
+	}
 }
 
 // triggerVerify calls the appropriate verify handler.
 func (p *Plugin) triggerVerify(ctx *VerifyContext) error {
-	// Find handler by longest prefix match
 	handler := p.findVerifyHandler(ctx.Path)
 	if handler == nil {
-		return fmt.Errorf("no handler for path: %s", ctx.Path)
+		// No handler registered - allow by default.
+		return nil
 	}
 	return handler(ctx)
 }
@@ -412,7 +682,8 @@ func (p *Plugin) triggerVerify(ctx *VerifyContext) error {
 func (p *Plugin) triggerApply(ctx *ApplyContext) error {
 	handler := p.findApplyHandler(ctx.Path)
 	if handler == nil {
-		return fmt.Errorf("no handler for path: %s", ctx.Path)
+		// No handler registered - allow by default.
+		return nil
 	}
 	return handler(ctx)
 }
@@ -428,7 +699,6 @@ func (p *Plugin) triggerCommand(ctx *CommandContext) (any, error) {
 
 // findVerifyHandler finds a verify handler by longest prefix match.
 func (p *Plugin) findVerifyHandler(path string) VerifyHandler {
-	// Strip predicates for matching
 	cleanPath := stripPredicates(path)
 
 	var best VerifyHandler
@@ -477,4 +747,34 @@ func stripPredicates(path string) string {
 		}
 	}
 	return result.String()
+}
+
+// Candidate returns the current candidate configuration (for testing).
+func (p *Plugin) Candidate() map[string]map[string]string {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	return p.cloneState(p.candidate)
+}
+
+// Running returns the current running configuration (for testing).
+func (p *Plugin) Running() map[string]map[string]string {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	return p.cloneState(p.running)
+}
+
+// SetRunning sets the running configuration (for testing).
+// This is thread-safe and should be used instead of direct field access.
+func (p *Plugin) SetRunning(state map[string]map[string]string) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.running = p.cloneState(state)
+}
+
+// SetCandidate sets the candidate configuration (for testing).
+// This is thread-safe and should be used instead of direct field access.
+func (p *Plugin) SetCandidate(state map[string]map[string]string) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.candidate = p.cloneState(state)
 }

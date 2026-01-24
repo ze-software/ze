@@ -3,10 +3,11 @@ package plugin
 import (
 	"context"
 	"fmt"
+	"sort"
 	"strings"
 )
 
-// Hub orchestrates plugin communication and verify/apply routing.
+// Hub orchestrates plugin communication and command routing.
 type Hub struct {
 	registry   *SchemaRegistry
 	subsystems *SubsystemManager
@@ -20,241 +21,222 @@ func NewHub(registry *SchemaRegistry, subsystems *SubsystemManager) *Hub {
 	}
 }
 
-// VerifyRequest represents a config verify request.
-type VerifyRequest struct {
+// ConfigBlock represents a config command to send to a plugin.
+type ConfigBlock struct {
 	Handler string // Handler path (e.g., "bgp.peer")
 	Action  string // create, modify, delete
 	Path    string // Full path (e.g., "bgp.peer[address=192.0.2.1]")
 	Data    string // JSON data
 }
 
-// ApplyRequest represents a config apply request.
-type ApplyRequest struct {
-	Handler string // Handler path
-	Path    string // Full path
-}
-
-// RouteVerify routes a verify request to the appropriate plugin.
-func (h *Hub) RouteVerify(ctx context.Context, req *VerifyRequest) error {
-	// Find schema for handler
-	schema, handlerPath := h.registry.FindHandler(req.Handler)
+// RouteCommand routes a command to the appropriate plugin.
+// Format: <namespace> <path> <action> {json}.
+func (h *Hub) RouteCommand(ctx context.Context, block *ConfigBlock) error {
+	// Find schema for handler.
+	schema, _ := h.registry.FindHandler(block.Handler)
 	if schema == nil {
-		return fmt.Errorf("unknown handler: %s", req.Handler)
+		return fmt.Errorf("unknown handler: %s", block.Handler)
 	}
 
-	// Find subsystem that registered this schema
+	// Find subsystem that registered this schema.
 	handler := h.subsystems.Get(schema.Plugin)
 	if handler == nil {
-		return fmt.Errorf("plugin not found for handler %s: %s", req.Handler, schema.Plugin)
+		return fmt.Errorf("plugin not found for handler %s: %s", block.Handler, schema.Plugin)
 	}
 
-	// Format command for plugin
-	cmd := fmt.Sprintf("config verify action %s path %q data '%s'", req.Action, req.Path, req.Data)
+	// Extract namespace and path from handler.
+	// Handler is like "bgp.peer" → namespace="bgp", path="peer".
+	namespace, path := splitHandler(block.Handler)
 
-	// Send request to plugin
+	// Format command: <namespace> <path> <action> {json}.
+	// If path is empty (handler is just namespace), omit it.
+	var cmd string
+	if path == "" {
+		cmd = fmt.Sprintf("%s %s %s", namespace, block.Action, block.Data)
+	} else {
+		cmd = fmt.Sprintf("%s %s %s %s", namespace, path, block.Action, block.Data)
+	}
+
+	// Send command to plugin.
 	resp, err := handler.Handle(ctx, cmd)
 	if err != nil {
-		return fmt.Errorf("verify failed: %w", err)
+		return fmt.Errorf("command failed: %w", err)
 	}
 
-	// Check response
 	if resp.Status == statusError {
-		return fmt.Errorf("verify rejected: %v", resp.Data)
-	}
-
-	_ = handlerPath // Used for logging/debugging
-	return nil
-}
-
-// RouteApply routes an apply request to the appropriate plugin.
-func (h *Hub) RouteApply(ctx context.Context, req *ApplyRequest) error {
-	// Find schema for handler
-	schema, _ := h.registry.FindHandler(req.Handler)
-	if schema == nil {
-		return fmt.Errorf("unknown handler: %s", req.Handler)
-	}
-
-	// Find subsystem that registered this schema
-	handler := h.subsystems.Get(schema.Plugin)
-	if handler == nil {
-		return fmt.Errorf("plugin not found for handler %s: %s", req.Handler, schema.Plugin)
-	}
-
-	// Format command for plugin
-	cmd := fmt.Sprintf("config apply path %q", req.Path)
-
-	// Send request to plugin
-	resp, err := handler.Handle(ctx, cmd)
-	if err != nil {
-		return fmt.Errorf("apply failed: %w", err)
-	}
-
-	// Check response
-	if resp.Status == statusError {
-		return fmt.Errorf("apply rejected: %v", resp.Data)
+		return fmt.Errorf("command rejected: %v", resp.Data)
 	}
 
 	return nil
 }
 
-// ProcessConfig processes a configuration transaction (all verify, then all apply).
+// RouteCommit sends a commit command to a plugin.
+// Format: <namespace> commit.
+func (h *Hub) RouteCommit(ctx context.Context, namespace string) error {
+	// Find schema for namespace.
+	schema, _ := h.registry.FindHandler(namespace)
+	if schema == nil {
+		return fmt.Errorf("unknown namespace: %s", namespace)
+	}
+
+	// Find subsystem.
+	handler := h.subsystems.Get(schema.Plugin)
+	if handler == nil {
+		return fmt.Errorf("plugin not found for namespace %s: %s", namespace, schema.Plugin)
+	}
+
+	// Format commit command.
+	cmd := fmt.Sprintf("%s commit", namespace)
+
+	// Send commit to plugin.
+	resp, err := handler.Handle(ctx, cmd)
+	if err != nil {
+		return fmt.Errorf("commit failed: %w", err)
+	}
+
+	if resp.Status == statusError {
+		return fmt.Errorf("commit rejected: %v", resp.Data)
+	}
+
+	return nil
+}
+
+// ProcessConfig processes a configuration transaction.
+// Sends all commands to plugins, then commits each affected namespace.
 func (h *Hub) ProcessConfig(ctx context.Context, blocks []ConfigBlock) error {
-	// Phase 1: Verify all blocks
-	for _, block := range blocks {
-		req := &VerifyRequest{
-			Handler: block.Handler,
-			Action:  block.Action,
-			Path:    block.Path,
-			Data:    block.Data,
-		}
-		if err := h.RouteVerify(ctx, req); err != nil {
-			return fmt.Errorf("verify failed for %s: %w", block.Path, err)
-		}
+	if len(blocks) == 0 {
+		return nil
 	}
 
-	// Phase 2: Apply all blocks
+	// Track which namespaces need commit.
+	namespaceSet := make(map[string]bool)
+
+	// Send all config commands.
 	for _, block := range blocks {
-		req := &ApplyRequest{
-			Handler: block.Handler,
-			Path:    block.Path,
+		if err := h.RouteCommand(ctx, &block); err != nil {
+			return fmt.Errorf("config failed for %s: %w", block.Path, err)
 		}
-		if err := h.RouteApply(ctx, req); err != nil {
-			return fmt.Errorf("apply failed for %s: %w", block.Path, err)
+		// Track namespace for commit.
+		namespace, _ := splitHandler(block.Handler)
+		namespaceSet[namespace] = true
+	}
+
+	// Sort namespaces for deterministic commit order.
+	namespaces := make([]string, 0, len(namespaceSet))
+	for ns := range namespaceSet {
+		namespaces = append(namespaces, ns)
+	}
+	sort.Strings(namespaces)
+
+	// Commit all affected namespaces.
+	// NOTE: If commit fails mid-way, already-committed namespaces remain committed.
+	// Rollback only affects candidate state, not running state, so we cannot
+	// undo a successful commit. The system may be left in a partially-committed
+	// state, which the operator must resolve manually.
+	for _, namespace := range namespaces {
+		if err := h.RouteCommit(ctx, namespace); err != nil {
+			return fmt.Errorf("commit failed for %s: %w", namespace, err)
 		}
 	}
 
 	return nil
 }
 
-// ConfigBlock represents a config block to be verified and applied.
-type ConfigBlock struct {
-	Handler string // Handler path
-	Action  string // create, modify, delete
-	Path    string // Full path
-	Data    string // JSON data
+// RouteRollback sends a rollback command to a plugin.
+// Format: <namespace> rollback.
+func (h *Hub) RouteRollback(ctx context.Context, namespace string) error {
+	// Find schema for namespace.
+	schema, _ := h.registry.FindHandler(namespace)
+	if schema == nil {
+		return fmt.Errorf("unknown namespace: %s", namespace)
+	}
+
+	// Find subsystem.
+	handler := h.subsystems.Get(schema.Plugin)
+	if handler == nil {
+		return fmt.Errorf("plugin not found for namespace %s: %s", namespace, schema.Plugin)
+	}
+
+	// Format rollback command.
+	cmd := fmt.Sprintf("%s rollback", namespace)
+
+	// Send rollback to plugin.
+	resp, err := handler.Handle(ctx, cmd)
+	if err != nil {
+		return fmt.Errorf("rollback failed: %w", err)
+	}
+
+	if resp.Status == statusError {
+		return fmt.Errorf("rollback rejected: %v", resp.Data)
+	}
+
+	return nil
 }
 
-// ParseVerifyCommand parses "config verify handler <h> action <a> path <p> data '<d>'".
-func ParseVerifyCommand(line string) (*VerifyRequest, error) {
-	// Remove "config verify " prefix
-	if !strings.HasPrefix(line, "config verify ") {
-		return nil, fmt.Errorf("expected 'config verify' prefix")
+// splitHandler splits a handler path into namespace and path.
+// "bgp.peer" → "bgp", "peer".
+// "bgp" → "bgp", "".
+func splitHandler(handler string) (namespace, path string) {
+	idx := strings.Index(handler, ".")
+	if idx < 0 {
+		return handler, ""
 	}
-	rest := strings.TrimPrefix(line, "config verify ")
-
-	req := &VerifyRequest{}
-
-	// Parse handler
-	if !strings.HasPrefix(rest, "handler ") {
-		return nil, fmt.Errorf("expected 'handler'")
-	}
-	rest = strings.TrimPrefix(rest, "handler ")
-	handler, rest, err := parseQuotedOrWord(rest)
-	if err != nil {
-		return nil, fmt.Errorf("parse handler: %w", err)
-	}
-	req.Handler = handler
-
-	// Parse action
-	rest = strings.TrimSpace(rest)
-	if !strings.HasPrefix(rest, "action ") {
-		return nil, fmt.Errorf("expected 'action'")
-	}
-	rest = strings.TrimPrefix(rest, "action ")
-	parts := strings.SplitN(rest, " ", 2)
-	if len(parts) < 2 {
-		return nil, fmt.Errorf("expected action value")
-	}
-	req.Action = parts[0]
-	rest = parts[1]
-
-	// Parse path
-	if !strings.HasPrefix(rest, "path ") {
-		return nil, fmt.Errorf("expected 'path'")
-	}
-	rest = strings.TrimPrefix(rest, "path ")
-	path, rest, err := parseQuotedOrWord(rest)
-	if err != nil {
-		return nil, fmt.Errorf("parse path: %w", err)
-	}
-	req.Path = path
-
-	// Parse data
-	rest = strings.TrimSpace(rest)
-	if !strings.HasPrefix(rest, "data ") {
-		return nil, fmt.Errorf("expected 'data'")
-	}
-	rest = strings.TrimPrefix(rest, "data ")
-	data, _, err := parseQuotedData(rest)
-	if err != nil {
-		return nil, fmt.Errorf("parse data: %w", err)
-	}
-	req.Data = data
-
-	return req, nil
+	return handler[:idx], handler[idx+1:]
 }
 
-// parseQuotedOrWord parses a quoted string or unquoted word.
-func parseQuotedOrWord(s string) (string, string, error) {
-	s = strings.TrimSpace(s)
-	if len(s) == 0 {
-		return "", "", fmt.Errorf("empty input")
-	}
-
-	if s[0] == '"' {
-		// Find closing quote and unescape
-		var result strings.Builder
-		i := 1
-		for i < len(s) {
-			if s[i] == '\\' && i+1 < len(s) {
-				// Write the escaped character directly
-				i++
-				result.WriteByte(s[i])
-				i++
-				continue
+// ParseCommand parses a namespace command.
+// Format: <namespace> <path> <action> {json}.
+// Or: <namespace> <action> {json} (for namespace-level config).
+// Or: <namespace> commit|rollback|diff.
+func ParseCommand(line string) (*ConfigBlock, error) {
+	// Find JSON start.
+	jsonIdx := strings.Index(line, "{")
+	if jsonIdx < 0 {
+		// Check for commit/rollback/diff.
+		parts := strings.Fields(line)
+		if len(parts) == 2 {
+			switch parts[1] {
+			case "commit", "rollback", "diff":
+				return &ConfigBlock{
+					Handler: parts[0],
+					Action:  parts[1],
+				}, nil
 			}
-			if s[i] == '"' {
-				return result.String(), s[i+1:], nil
-			}
-			result.WriteByte(s[i])
-			i++
 		}
-		return "", "", fmt.Errorf("unclosed quote")
+		return nil, fmt.Errorf("expected JSON data or commit/rollback/diff")
 	}
 
-	// Unquoted word
-	end := 0
-	for end < len(s) && s[end] != ' ' {
-		end++
-	}
-	return s[:end], s[end:], nil
-}
+	// Parse namespace, path, action from before JSON.
+	prefix := strings.TrimSpace(line[:jsonIdx])
+	parts := strings.Fields(prefix)
 
-// parseQuotedData parses single-quoted data (JSON).
-//
-//nolint:unparam // rest returned for API consistency with parseQuotedOrWord
-func parseQuotedData(s string) (string, string, error) {
-	s = strings.TrimSpace(s)
-	if len(s) == 0 || s[0] != '\'' {
-		return "", "", fmt.Errorf("expected single quote for data")
-	}
+	data := line[jsonIdx:]
 
-	// Find closing quote and unescape
-	var result strings.Builder
-	i := 1
-	for i < len(s) {
-		if s[i] == '\\' && i+1 < len(s) {
-			// Write the escaped character directly
-			i++
-			result.WriteByte(s[i])
-			i++
-			continue
-		}
-		if s[i] == '\'' {
-			return result.String(), s[i+1:], nil
-		}
-		result.WriteByte(s[i])
-		i++
+	switch len(parts) {
+	case 2:
+		// Format: <namespace> <action> {json} (namespace-level config).
+		namespace := parts[0]
+		action := parts[1]
+		return &ConfigBlock{
+			Handler: namespace,
+			Action:  action,
+			Path:    namespace,
+			Data:    data,
+		}, nil
+
+	case 3:
+		// Format: <namespace> <path> <action> {json}.
+		namespace := parts[0]
+		path := parts[1]
+		action := parts[2]
+		return &ConfigBlock{
+			Handler: namespace + "." + path,
+			Action:  action,
+			Path:    namespace + "." + path,
+			Data:    data,
+		}, nil
+
+	default:
+		return nil, fmt.Errorf("expected '<namespace> <action>' or '<namespace> <path> <action>'")
 	}
-	return "", "", fmt.Errorf("unclosed quote in data")
 }
