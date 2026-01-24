@@ -13,6 +13,7 @@ build:
 	go build -o bin/ze ./cmd/ze
 	go build -o bin/ze-peer ./cmd/ze-peer
 	go build -o bin/ze-test ./cmd/ze-test
+	go build -o bin/ze-config-reader ./cmd/ze-config-reader
 
 # Run tests with race detector
 test:
