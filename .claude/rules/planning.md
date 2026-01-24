@@ -351,14 +351,38 @@ Write to `docs/plan/spec-<task-name>.md`:
 - `test/data/...` - [test files]
 
 ## Implementation Steps
+
+Each step ends with a **Self-Critical Review**. Fix issues before proceeding.
+
 1. **Write unit tests** - Create unit tests BEFORE implementation (strict TDD)
+   → **Review:** Are edge cases covered? Boundary tests for numeric inputs?
+
 2. **Run tests** - Verify FAIL (paste output)
+   → **Review:** Do tests fail for the RIGHT reason? Not syntax errors?
+
 3. **Implement** - Minimal code to pass
+   → **Review:** Is this the simplest solution? Any code duplication? Does it follow existing patterns?
+
 4. **Run tests** - Verify PASS (paste output)
+   → **Review:** Did ALL tests pass? Any flaky behavior? Any warnings?
+
 5. **RFC refs** - Add RFC reference comments
+   → **Review:** Are all protocol decisions documented? Any MUST/MUST NOT missing?
+
 6. **RFC constraints** - Add constraint comments with quoted requirements (see RFC Documentation)
+   → **Review:** Would a future developer understand WHY each constraint exists?
+
 7. **Functional tests** - Create functional tests AFTER feature works
+   → **Review:** Do tests cover the user-visible behavior? Error cases included?
+
 8. **Verify all** - `make lint && make test && make functional` (paste output)
+   → **Review:** Zero lint issues? All tests deterministic? No race conditions?
+
+9. **Final self-review** - Before claiming done:
+   - Re-read all code changes: any bugs, edge cases, or improvements?
+   - Check for unused code, debug statements, TODOs
+   - Verify error messages are clear and actionable
+   - If issues found: FIX THEM before proceeding
 
 ## RFC Documentation
 
@@ -535,6 +559,44 @@ This rule works with:
 - `go-standards.md` - Code quality
 - `git-safety.md` - Safe commits
 - `docs/contributing/rfc-implementation-guide.md` - Component checklists for RFC work
+
+## Self-Critical Review
+
+**BLOCKING:** After completing each implementation step, perform a critical review.
+
+### What to Check
+
+| Category | Questions |
+|----------|-----------|
+| **Correctness** | Does it actually work? Edge cases handled? |
+| **Simplicity** | Is this the simplest solution? Over-engineered? |
+| **Consistency** | Does it follow existing patterns in the codebase? |
+| **Completeness** | Any TODOs, FIXMEs, or unfinished work? |
+| **Quality** | Debug statements removed? Error messages clear? |
+| **Tests** | Tests cover the change? Any flaky tests introduced? |
+
+### When Issues Are Found
+
+1. **FIX immediately** - Don't defer to later
+2. **Document** - Add to "Bugs Found/Fixed" in spec if significant
+3. **Add test** - If the bug could have been caught by a test, add one
+
+### Review Triggers
+
+Perform critical review:
+- After each implementation step (see Implementation Steps)
+- Before claiming "done" or "complete"
+- Before asking to commit
+- When tests pass but behavior seems suspicious
+
+### Common Issues to Catch
+
+- Unused variables or imports
+- Error paths that don't clean up resources
+- Race conditions in concurrent code
+- Hard-coded values that should be configurable
+- Missing validation on user input
+- Inconsistent naming with rest of codebase
 
 ## Design-First Principle
 
