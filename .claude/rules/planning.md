@@ -220,6 +220,54 @@ Present to user BEFORE writing code:
 
 **WAIT FOR USER APPROVAL** before proceeding.
 
+## Spec Writing Style
+
+**Specs are like RFCs - describe logic and behavior, not implementation.**
+
+### No Code in Specs
+
+Specs must NOT contain:
+- Go code snippets
+- Python code snippets
+- Any programming language code
+
+Specs SHOULD contain:
+- Protocol message formats (text examples, not code)
+- State descriptions (tables, not structs)
+- Behavior descriptions (prose, not functions)
+- Data structures (tables with field descriptions)
+- Message flows (diagrams or step lists)
+
+### Why No Code
+
+- Code belongs in source files, not documentation
+- Specs describe WHAT and WHY, code shows HOW
+- Code in specs becomes stale and misleading
+- Implementation details should emerge from TDD, not be prescribed
+
+### Describing Data Structures
+
+Instead of Go structs, use tables:
+
+```markdown
+| Field | Type | Description |
+|-------|------|-------------|
+| Module | string | YANG module name |
+| Handlers | list | Handler paths this schema provides |
+```
+
+### Describing Behavior
+
+Instead of function implementations, use prose or steps:
+
+```markdown
+**Verify routing:**
+1. Find handler by longest prefix match
+2. Route to plugin that registered this handler
+3. Send command via pipe
+4. Return response to caller
+```
+
 ## Pre-Spec Verification
 
 **BLOCKING: Before writing any spec file, complete this checklist:**
@@ -234,6 +282,7 @@ Present to user BEFORE writing code:
 [ ] 7. Section headers match template exactly (including 🧪 emoji)
 [ ] 8. Tables used for Unit Tests and Functional Tests (not prose)
 [ ] 9. Implementation steps include "(paste output)" where shown
+[ ] 10. No code snippets - use tables and prose (see Spec Writing Style)
 ```
 
 **Common mistakes:**
@@ -243,6 +292,7 @@ Present to user BEFORE writing code:
 - Prose instead of table for Functional Tests
 - "- [description]" instead of "- [why relevant]" in Required Reading
 - Missing RFC summaries for protocol work (MUST exist before implementation)
+- Code snippets in spec → use tables and prose instead (see Spec Writing Style)
 
 ## Spec File Template
 

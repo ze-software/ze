@@ -7,6 +7,7 @@ Read when working on specific areas:
 | Area | Doc |
 |------|-----|
 | **Core Design** | `docs/architecture/core-design.md` **(START HERE - CANONICAL REFERENCE)** |
+| **Hub Architecture** | `docs/architecture/hub-architecture.md` **(FUTURE - Config Reader, YANG, plugin schemas)** |
 | **Buffer-first** | `docs/architecture/buffer-architecture.md` |
 | Wire formats | `docs/architecture/wire/messages.md` |
 | NLRI types | `docs/architecture/wire/nlri.md` |
@@ -23,6 +24,7 @@ Read when working on specific areas:
 | API | `docs/architecture/api/architecture.md` |
 | API Capabilities | `docs/architecture/api/capability-contract.md` |
 | Config syntax | `docs/architecture/config/syntax.md` |
+| YANG design | `docs/architecture/config/yang-config-design.md` |
 
 ## Rules (auto-loaded by path)
 
