@@ -30,9 +30,11 @@ Read when working on specific areas:
 
 | Rule | Applies To |
 |------|------------|
+| `rules/post-compaction.md` | `*` (BLOCKING - after compaction, read FIRST) |
 | `rules/understand-first.md` | `*` (BLOCKING - before any code) |
 | `rules/design-principles.md` | `*` (scalability, maintainability) |
 | `rules/planning.md` | `*` (non-trivial features) |
+| `rules/spec-no-code.md` | `docs/plan/spec-*.md` (BLOCKING - NO CODE IN SPECS) |
 | `rules/tdd.md` | `**/*.go` |
 | `rules/testing.md` | `*` (CI, functional tests) |
 | `rules/go-standards.md` | `**/*.go` |
@@ -41,6 +43,13 @@ Read when working on specific areas:
 | `rules/config-design.md` | Config changes |
 | `rules/quality.md` | `*` (no shortcuts) |
 | `rules/documentation.md` | `**/*.md` |
+
+## Session State
+
+Track session progress in `.claude/session-state.md` (not committed):
+- Copy from `.claude/session-state.md.template`
+- Update as you read docs and make decisions
+- Survives compaction as reference
 
 ## Edge Cases
 

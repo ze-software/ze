@@ -1,5 +1,23 @@
 # ZeBGP - Claude Instructions
 
+## ⛔ Post-Compaction Recovery (READ FIRST IF CONTEXT WAS COMPACTED)
+
+**If you see "continued from a previous conversation" or don't remember recent context:**
+
+1. **STOP** - Do not write any code or make decisions
+2. **READ** `.claude/rules/post-compaction.md` - Full recovery procedure
+3. **READ** `.claude/selected-spec` - Get active spec name
+4. **READ** `docs/plan/<spec-name>` - Full spec details
+5. **READ** `.claude/session-state.md` - Session progress (if exists)
+6. **CHECK** `git status` - Current file state
+7. **ONLY THEN** continue work
+
+**Why:** Without recovery, you WILL:
+- Redesign already-decided architecture
+- Break working code with conflicting changes
+- Duplicate existing patterns
+- Waste time redoing completed work
+
 ## Core Architecture (MUST UNDERSTAND)
 
 **READ `docs/architecture/core-design.md` for full details.**
@@ -150,20 +168,23 @@ Both produce WireUpdate with wire bytes.
 - **Git safety** - Never commit/push without explicit request
 
 ## Post-Compaction Recovery
-After context compaction, spec details are lost. Recovery rules:
-1. **Check selected spec** - `.claude/selected-spec` contains the active spec filename
-2. **Re-read the spec** - `docs/plan/<selected-spec>` - MUST read before continuing
-3. **Re-read Required Reading** - ALL docs listed in spec's Required Reading section
-4. **Verify state** - Re-run `make test && make lint` to confirm current status
 
-**Spec selection:** Only ONE spec is worked on at a time. The session-start hook shows the selected spec prominently.
+**BLOCKING:** See `.claude/rules/post-compaction.md` for full procedure.
+
+Quick checklist:
+1. **Read selected spec** - `.claude/selected-spec` → `docs/plan/<spec-name>`
+2. **Read spec's Required Reading** - ALL docs listed
+3. **Read session state** - `.claude/session-state.md` (decisions, progress)
+4. **Check git status** - What files are modified?
+5. **Update session-state.md** - After reading, track what you've recovered
+
+**Spec selection:** Only ONE spec at a time.
 ```bash
-# Select spec at start of work
-echo "spec-rfc9234-role.md" > .claude/selected-spec
-
-# Clear after completion
-echo "" > .claude/selected-spec
+echo "spec-rfc9234-role.md" > .claude/selected-spec  # Select
+echo "" > .claude/selected-spec                       # Clear after done
 ```
+
+**Session state:** Track progress in `.claude/session-state.md` (copy from `.template`).
 
 ## Reference Paths
 - ExaBGP: `/Users/thomas/Code/github.com/exa-networks/exabgp/main/src/exabgp/`

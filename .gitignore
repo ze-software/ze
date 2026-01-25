@@ -19,5 +19,7 @@ coverage.html
 # macOS
 .DS_Store
 
-# Claude session state
+# Claude session state (per-session, not committed)
 .claude/selected-spec
+.claude/session-state.md
+.claude/.compaction-detected

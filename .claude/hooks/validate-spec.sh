@@ -100,6 +100,21 @@ if [[ -n "$RFC_REFS" ]]; then
     fi
 fi
 
+# === NO CODE IN SPECS CHECK ===
+# Specs must NOT contain code blocks (Go, Python, etc.)
+# Exception: Markdown tables and examples of text output are allowed
+CODE_BLOCKS=$(grep -cE '\`\`\`(go|python|rust|java|c|cpp|javascript|typescript)' "$FILE_PATH" 2>/dev/null | head -1 || echo "0")
+if [[ "$CODE_BLOCKS" -gt 0 ]]; then
+    ERRORS+=("Specs MUST NOT contain code blocks. Found $CODE_BLOCKS code block(s). Use tables/prose instead (see .claude/rules/spec-no-code.md)")
+fi
+
+# Also check for inline code that looks like function definitions (outside of code blocks)
+# This catches func/def/fn at line start which shouldn't appear in prose
+FUNC_DEFS=$(grep -cE '^func\s+\w+|^def\s+\w+|^fn\s+\w+' "$FILE_PATH" 2>/dev/null | head -1 || echo "0")
+if [[ "$FUNC_DEFS" -gt 0 ]]; then
+    ERRORS+=("Specs MUST NOT contain function definitions. Use tables/prose to describe behavior")
+fi
+
 # === OUTPUT RESULTS ===
 if [[ ${#ERRORS[@]} -gt 0 ]]; then
     echo -e "${RED}${BOLD}❌ Spec validation FAILED:${RESET} $(basename "$FILE_PATH")" >&2
