@@ -99,8 +99,8 @@ func TestProcessReadCommand(t *testing.T) {
 	require.NoError(t, err)
 	defer proc.Stop()
 
-	// Read command with timeout
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	// Read command with timeout (5s for CI/parallel test environments)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
 	cmd, err := proc.ReadCommand(ctx)

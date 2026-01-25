@@ -4,8 +4,8 @@ import (
 	"net/netip"
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/bgp/nlri"
-	"codeberg.org/thomas-mangin/ze/internal/rib"
+	"codeberg.org/thomas-mangin/ze/internal/plugin/bgp/nlri"
+	"codeberg.org/thomas-mangin/ze/internal/plugin/bgp/rib"
 )
 
 // testRoute creates a test route for a given prefix string.

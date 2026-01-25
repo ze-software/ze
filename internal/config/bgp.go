@@ -8,8 +8,8 @@ import (
 	"strings"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/bgp/message"
 	"codeberg.org/thomas-mangin/ze/internal/plugin"
+	"codeberg.org/thomas-mangin/ze/internal/plugin/bgp/message"
 )
 
 const (

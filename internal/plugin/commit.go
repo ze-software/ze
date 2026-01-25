@@ -5,7 +5,7 @@ import (
 	"net/netip"
 	"strings"
 
-	"codeberg.org/thomas-mangin/ze/internal/bgp/nlri"
+	"codeberg.org/thomas-mangin/ze/internal/plugin/bgp/nlri"
 )
 
 // Commit action constants.

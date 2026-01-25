@@ -11,10 +11,10 @@ import (
 	"strings"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/bgp/capability"
-	"codeberg.org/thomas-mangin/ze/internal/bgp/nlri"
 	"codeberg.org/thomas-mangin/ze/internal/plugin"
-	"codeberg.org/thomas-mangin/ze/internal/reactor"
+	"codeberg.org/thomas-mangin/ze/internal/plugin/bgp/capability"
+	"codeberg.org/thomas-mangin/ze/internal/plugin/bgp/nlri"
+	"codeberg.org/thomas-mangin/ze/internal/plugin/bgp/reactor"
 	"codeberg.org/thomas-mangin/ze/internal/trace"
 )
 

@@ -5,7 +5,7 @@ import (
 	"strings"
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/bgp/attribute"
+	"codeberg.org/thomas-mangin/ze/internal/plugin/bgp/attribute"
 )
 
 // TestSplitPrefix tests prefix splitting for the 'split /N' syntax.

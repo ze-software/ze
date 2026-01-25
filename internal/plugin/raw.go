@@ -7,7 +7,7 @@ import (
 	"net/netip"
 	"strings"
 
-	"codeberg.org/thomas-mangin/ze/internal/bgp/message"
+	"codeberg.org/thomas-mangin/ze/internal/plugin/bgp/message"
 )
 
 func init() {

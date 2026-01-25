@@ -6,8 +6,8 @@ import (
 	"testing"
 	"time"
 
-	"codeberg.org/thomas-mangin/ze/internal/bgp/nlri"
-	"codeberg.org/thomas-mangin/ze/internal/rib"
+	"codeberg.org/thomas-mangin/ze/internal/plugin/bgp/nlri"
+	"codeberg.org/thomas-mangin/ze/internal/plugin/bgp/rib"
 	"codeberg.org/thomas-mangin/ze/internal/selector"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"

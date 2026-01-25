@@ -12,6 +12,11 @@ const version = "0.1.0"
 // Run executes the bgp subcommand with the given arguments.
 // Returns exit code.
 func Run(args []string) int {
+	// Check for child mode first (hub integration)
+	if isChildMode(args) {
+		return runChildModeWithArgs(args)
+	}
+
 	if len(args) < 1 {
 		usage()
 		return 1

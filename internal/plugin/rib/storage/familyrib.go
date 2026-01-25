@@ -1,7 +1,7 @@
 package storage
 
 import (
-	"codeberg.org/thomas-mangin/ze/internal/bgp/nlri"
+	"codeberg.org/thomas-mangin/ze/internal/plugin/bgp/nlri"
 	"codeberg.org/thomas-mangin/ze/internal/pool"
 )
 

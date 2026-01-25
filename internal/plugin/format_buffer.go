@@ -9,8 +9,8 @@ import (
 	"io"
 	"net/netip"
 
-	"codeberg.org/thomas-mangin/ze/internal/bgp/attribute"
-	"codeberg.org/thomas-mangin/ze/internal/bgp/nlri"
+	"codeberg.org/thomas-mangin/ze/internal/plugin/bgp/attribute"
+	"codeberg.org/thomas-mangin/ze/internal/plugin/bgp/nlri"
 )
 
 // Origin string constants for ORIGIN attribute formatting.

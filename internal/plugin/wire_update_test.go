@@ -5,7 +5,7 @@ import (
 	"errors"
 	"testing"
 
-	bgpctx "codeberg.org/thomas-mangin/ze/internal/bgp/context"
+	bgpctx "codeberg.org/thomas-mangin/ze/internal/plugin/bgp/context"
 )
 
 // TestWireUpdate_Derived verifies derived accessors return correct slices.

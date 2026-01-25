@@ -3,7 +3,7 @@ package plugin
 import (
 	"fmt"
 
-	"codeberg.org/thomas-mangin/ze/internal/bgp/nlri"
+	"codeberg.org/thomas-mangin/ze/internal/plugin/bgp/nlri"
 )
 
 // RFC 7313: Enhanced Route Refresh Capability for BGP-4.

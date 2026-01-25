@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/bgp/nlri"
+	"codeberg.org/thomas-mangin/ze/internal/plugin/bgp/nlri"
 )
 
 // Test data constants to avoid goconst lint warnings.

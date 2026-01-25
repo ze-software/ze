@@ -4,9 +4,9 @@ import (
 	"encoding/binary"
 	"fmt"
 
-	"codeberg.org/thomas-mangin/ze/internal/bgp/attribute"
-	bgpctx "codeberg.org/thomas-mangin/ze/internal/bgp/context"
-	"codeberg.org/thomas-mangin/ze/internal/bgp/nlri"
+	"codeberg.org/thomas-mangin/ze/internal/plugin/bgp/attribute"
+	bgpctx "codeberg.org/thomas-mangin/ze/internal/plugin/bgp/context"
+	"codeberg.org/thomas-mangin/ze/internal/plugin/bgp/nlri"
 	"codeberg.org/thomas-mangin/ze/internal/source"
 )
 

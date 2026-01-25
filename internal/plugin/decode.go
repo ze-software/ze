@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"net/netip"
 
-	"codeberg.org/thomas-mangin/ze/internal/bgp/capability"
-	"codeberg.org/thomas-mangin/ze/internal/bgp/message"
+	"codeberg.org/thomas-mangin/ze/internal/plugin/bgp/capability"
+	"codeberg.org/thomas-mangin/ze/internal/plugin/bgp/message"
 )
 
 // parseIPv4Prefixes parses a sequence of IPv4 prefixes.

@@ -21,9 +21,10 @@ const (
 
 // SubsystemConfig describes a forked subsystem process.
 type SubsystemConfig struct {
-	Name     string   // Subsystem name (cache, route, session)
-	Binary   string   // Path to binary (default: ze-subsystem)
-	Commands []string // Commands this subsystem handles (for pre-registration)
+	Name       string   // Subsystem name (cache, route, session)
+	Binary     string   // Path to binary (default: ze-subsystem)
+	Commands   []string // Commands this subsystem handles (for pre-registration)
+	ConfigPath string   // Config file path (passed to child process)
 }
 
 // SubsystemHandler wraps a forked process that handles a subset of commands.
@@ -123,10 +124,23 @@ func (h *SubsystemHandler) Start(ctx context.Context) error {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
+	// Build command:
+	// - If Binary contains spaces (full command), use as-is
+	// - Otherwise, add --mode=<name> for ze-subsystem compatibility
+	cmd := h.config.Binary
+	if !strings.Contains(cmd, " ") {
+		cmd = fmt.Sprintf("%s --mode=%s", cmd, h.config.Name)
+	}
+
+	// Append config path if provided
+	if h.config.ConfigPath != "" {
+		cmd = fmt.Sprintf("%s --config %s", cmd, h.config.ConfigPath)
+	}
+
 	// Create process config
 	procConfig := PluginConfig{
 		Name: "subsystem-" + h.config.Name,
-		Run:  fmt.Sprintf("%s --mode=%s", h.config.Binary, h.config.Name),
+		Run:  cmd,
 	}
 
 	h.proc = NewProcess(procConfig)

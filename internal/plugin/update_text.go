@@ -31,9 +31,9 @@ import (
 	"strconv"
 	"strings"
 
-	"codeberg.org/thomas-mangin/ze/internal/bgp/attribute"
-	"codeberg.org/thomas-mangin/ze/internal/bgp/context"
-	"codeberg.org/thomas-mangin/ze/internal/bgp/nlri"
+	"codeberg.org/thomas-mangin/ze/internal/plugin/bgp/attribute"
+	"codeberg.org/thomas-mangin/ze/internal/plugin/bgp/context"
+	"codeberg.org/thomas-mangin/ze/internal/plugin/bgp/nlri"
 )
 
 // UpdateText command keywords.

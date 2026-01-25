@@ -3,7 +3,7 @@ package storage
 import (
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/bgp/nlri"
+	"codeberg.org/thomas-mangin/ze/internal/plugin/bgp/nlri"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )

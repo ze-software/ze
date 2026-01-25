@@ -270,12 +270,6 @@ module ze-bgp {
                 default false;
                 description "RFC 8654 extended message support";
             }
-
-            leaf graceful-restart {
-                type boolean;
-                default false;
-                description "RFC 4724 Graceful Restart";
-            }
         }
 
         leaf route-map-in {
