@@ -66,11 +66,12 @@ bgp {
 
 | Component | Status | Description |
 |-----------|--------|-------------|
-| YANG schema registration | ❌ Needed | Add `declare schema` message type |
+| YANG schema registration | ✅ Done | `declare schema` message type in registration.go |
+| Config priority | ✅ Done | `declare priority` + Priority field in Schema |
 | Verify/Apply protocol | ❌ Needed | Add `config verify`, `config apply` |
-| Handler path routing | ❌ Needed | Route by `bgp.*`, `rib.*` prefix |
+| Handler path routing | ✅ Done | SchemaRegistry.FindHandler (longest prefix) |
 | libyang integration | ❌ Needed | For YANG validation |
-| Config priority | ❌ Needed | Order config sections for apply |
+| Live/Edit config query | ❌ Needed | `query config live/edit path "..."` |
 
 ---
 

@@ -6,7 +6,7 @@
 1. This spec file (you're reading it now)
 2. `.claude/rules/planning.md` - workflow rules
 3. `docs/plan/hub-separation-phases.md` - phase overview
-4. `docs/plan/done/NNN-hub-phase1-foundation.md` - Phase 1 (must be done)
+4. Phase 1 spec - `docs/plan/done/NNN-hub-phase1-foundation.md` (after completion) or `docs/plan/spec-hub-phase1-foundation.md`
 
 ## Task
 
@@ -55,7 +55,9 @@ Implement 3-section config parsing in the hub:
 ### Functional Tests
 | Test | Location | Scenario | Status |
 |------|----------|----------|--------|
-| Deferred to Phase 5 | | | |
+| `hub-parse-config` | `test/data/hub/parse-config.ci` | Hub parses 3-section config correctly | |
+
+**Smoke test:** Verify config parsing without full routing. Tests env block, plugin block extraction.
 
 ## Files to Modify
 

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -65,6 +66,24 @@ func (h *SubsystemHandler) Schema() *PluginSchemaDecl {
 	h.mu.RLock()
 	defer h.mu.RUnlock()
 	return h.schema
+}
+
+// parsePriorityLine parses a "declare priority <number>" line.
+func (h *SubsystemHandler) parsePriorityLine(line string) {
+	parts := strings.Fields(line)
+	if len(parts) < 3 { // declare priority <number>
+		return
+	}
+
+	n, err := strconv.Atoi(parts[2])
+	if err != nil {
+		return // Invalid priority, ignore
+	}
+
+	if h.schema == nil {
+		h.schema = &PluginSchemaDecl{Priority: 1000}
+	}
+	h.schema.Priority = n
 }
 
 // parseSchemaLine parses a "declare schema <type> <value>" line.
@@ -173,6 +192,12 @@ func (h *SubsystemHandler) completeProtocol(ctx context.Context) error {
 			if delim, ok := StartHeredoc(line); ok {
 				heredocDelimiter = delim
 			}
+			continue
+		}
+
+		// Parse "declare priority <number>"
+		if strings.HasPrefix(line, "declare priority ") {
+			h.parsePriorityLine(line)
 		}
 	}
 
@@ -368,12 +393,17 @@ func (m *SubsystemManager) AllSchemas() []*Schema {
 	var schemas []*Schema
 	for _, handler := range m.handlers {
 		if s := handler.Schema(); s != nil {
+			priority := s.Priority
+			if priority == 0 {
+				priority = 1000 // Default priority
+			}
 			schemas = append(schemas, &Schema{
 				Module:    s.Module,
 				Namespace: s.Namespace,
 				Yang:      s.Yang,
 				Handlers:  s.Handlers,
 				Plugin:    handler.Name(),
+				Priority:  priority,
 			})
 		}
 	}

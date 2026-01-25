@@ -49,7 +49,10 @@ Move BGP code under `internal/plugin/bgp/` and make `ze bgp` work as a forked ch
 ### Functional Tests
 | Test | Location | Scenario | Status |
 |------|----------|----------|--------|
-| `hub-bgp-startup` | `test/data/hub/bgp-startup.ci` | Hub forks BGP, BGP starts peers | |
+| `hub-bgp-startup` | `test/data/hub/bgp-startup.ci` | Hub forks BGP, BGP completes 5-stage | |
+| `hub-bgp-standalone` | `test/data/hub/bgp-standalone.ci` | `ze bgp` works standalone (no hub) | |
+
+**Smoke test:** Verify BGP works both as hub child and standalone. Critical for regression testing.
 
 ## Files to Move
 
@@ -60,6 +63,12 @@ Move BGP code under `internal/plugin/bgp/` and make `ze bgp` work as a forked ch
 | `internal/reactor/` | `internal/plugin/bgp/reactor/` | BGP event loop |
 
 **Note:** `internal/plugin/rib/` is the **adj-RIB tracking plugin** (separate process) - it stays where it is. `internal/rib/` is the **BGP engine's internal peer-to-peer routing** for zero-copy route passing - it moves with BGP.
+
+**⚠️ Impact Assessment (as of 2026-01-25):**
+- **126 files** contain `internal/bgp` imports
+- **239 total import references** need updating
+- Estimate: 2-4 hours for import updates + testing
+- Run `grep -r "internal/bgp" --include="*.go" | wc -l` before starting to get current count
 
 ## Files to Modify
 
@@ -123,7 +132,16 @@ Move BGP code under `internal/plugin/bgp/` and make `ze bgp` work as a forked ch
 
 ### Child detection
 
-`ze bgp` detects child mode by checking if stdin is a pipe. If stdin is a pipe, run as child process using 5-stage protocol. Otherwise, run in standalone mode for testing.
+`ze bgp` detects child mode using this precedence:
+
+| Check | Result |
+|-------|--------|
+| `--child` flag present | Child mode |
+| `ZE_CHILD_MODE=1` env var | Child mode |
+| stdin is pipe AND no config file arg | Child mode |
+| Otherwise | Standalone mode |
+
+**Why explicit flag:** User might pipe config to standalone mode (`cat config.conf | ze bgp`). Flag removes ambiguity.
 
 ## Implementation Summary
 

@@ -29,10 +29,16 @@ Complete GR plugin implementation:
 
 **Key insights:**
 - GR plugin already exists with working capability injection
-- **Existing format:** `capability hex 64 0078 peer <addr>` - keep this
-- **Config change needed:** Currently receives text (`config peer X restart-time Y`), must change to JSON
 - graceful-restart boolean at ze-bgp.yang:274 must move to ze-gr.yang
 - GR coordinates with BGP and RIB via events/commands
+
+**Format clarification:**
+| Direction | Format | Example |
+|-----------|--------|---------|
+| Hub → GR (config input) | JSON | `{"enabled": true, "restart-time": 120}` |
+| GR → Hub (capability output) | Text command | `capability hex 64 0078 peer 192.168.1.1` |
+
+Config input changes from text to JSON. Capability injection format stays the same.
 
 ## 🧪 TDD Test Plan
 

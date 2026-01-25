@@ -121,6 +121,26 @@ Commands parsed by prefix:
 - `rib show` → prefix `rib` → route to ze rib
 - `system process list` → prefix `system` → handle in hub
 
+### Event subscription protocol
+
+**During Stage 1 (static subscription):**
+```
+declare receive event bgp.event.*
+declare receive event bgp.peer.*
+```
+
+**During runtime (dynamic subscription):**
+```
+#1 subscribe bgp.event.*
+@1 done
+```
+
+**Event delivery format:**
+```
+event bgp.peer.up {"peer": "192.0.2.1", "state": "established"}
+event bgp.peer.down {"peer": "192.0.2.1", "reason": "hold-timer-expired"}
+```
+
 ### Event patterns
 
 Subscriptions use glob patterns:
@@ -130,8 +150,15 @@ Subscriptions use glob patterns:
 
 ### CLI socket path
 
-Default: `/var/run/ze/api.sock`
-Configurable via: `env { api-socket /path/to/sock; }`
+**Default path resolution (in order):**
+1. `env { api-socket /path/to/sock; }` - explicit config
+2. `$XDG_RUNTIME_DIR/ze/api.sock` - XDG-compliant user directory
+3. `$HOME/.ze/api.sock` - fallback user directory
+4. `/var/run/ze/api.sock` - system-wide (requires root)
+
+**Why:** `/var/run/ze/` requires root to create. XDG-compliant paths allow non-root operation.
+
+**Implementation:** Check paths in order, use first writable location.
 
 ## Implementation Summary
 

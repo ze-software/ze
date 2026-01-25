@@ -118,6 +118,7 @@ type PluginSchemaDecl struct {
 	Namespace string   // YANG namespace URI
 	Handlers  []string // Handler paths (e.g., "bgp", "bgp.peer")
 	Yang      string   // Full YANG module text
+	Priority  int      // Config ordering (lower = processed first, default 1000)
 }
 
 // SchemaDeclaration represents a plugin's config schema extension.
@@ -253,6 +254,8 @@ func (reg *PluginRegistration) ParseLine(line string) error {
 		return reg.parseReceive(parts[2:])
 	case "schema":
 		return reg.parseSchema(parts[2:], line)
+	case "priority":
+		return reg.parsePriority(parts[2:])
 	case statusDone:
 		reg.Done = true
 		return nil
@@ -475,6 +478,27 @@ func (reg *PluginRegistration) parseReceive(args []string) error {
 	}
 
 	reg.Receive = append(reg.Receive, recvType)
+	return nil
+}
+
+// parsePriority handles "declare priority <number>".
+// Lower priority = processed first during config verify/apply.
+// Default is 1000 if not specified.
+func (reg *PluginRegistration) parsePriority(args []string) error {
+	if len(args) < 1 {
+		return fmt.Errorf("expected 'declare priority <number>'")
+	}
+
+	n, err := strconv.Atoi(args[0])
+	if err != nil {
+		return fmt.Errorf("invalid priority: %s", args[0])
+	}
+
+	// Initialize schema if needed
+	if reg.PluginSchema == nil {
+		reg.PluginSchema = &PluginSchemaDecl{Priority: 1000}
+	}
+	reg.PluginSchema.Priority = n
 	return nil
 }
 

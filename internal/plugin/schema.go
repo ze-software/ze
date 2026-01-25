@@ -14,6 +14,7 @@ type Schema struct {
 	Yang      string   // Full YANG module text
 	Handlers  []string // Handler paths (e.g., "bgp", "bgp.peer")
 	Plugin    string   // Plugin that registered this schema
+	Priority  int      // Config ordering (lower = processed first, default 1000)
 }
 
 // SchemaRegistry stores and manages schemas from all plugins.

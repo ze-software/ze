@@ -37,7 +37,7 @@ Integrate SchemaRegistry with hub for config routing (VyOS-inspired):
 - Stage 1 already parses `declare schema` messages
 - YANG loader/validator already exist
 - Need to wire these together in hub
-- Add `declare priority` parsing for config ordering
+- `declare priority` parsing already exists (registration.go, subsystem.go)
 
 ## 🧪 TDD Test Plan
 
@@ -61,16 +61,22 @@ Integrate SchemaRegistry with hub for config routing (VyOS-inspired):
 ### Functional Tests
 | Test | Location | Scenario | Status |
 |------|----------|----------|--------|
-| Deferred to Phase 5 | | | |
+| `hub-schema-collect` | `test/data/hub/schema-collect.ci` | Hub collects schemas from mock plugin | |
+| `hub-config-query` | `test/data/hub/config-query.ci` | Plugin queries live/edit config | |
+
+**Smoke test:** Verify schema collection and config query without full BGP integration.
 
 ## Files to Modify
 
 - `internal/hub/hub.go` - Add schema collection, config routing
 
+## Files to Modify
+
+- `internal/hub/config.go` - Add live/edit config storage, query handling (extends Phase 2)
+
 ## Files to Create
 
 - `internal/hub/schema.go` - Schema handling, JSON conversion
-- `internal/hub/config.go` - Live/edit config storage, query handling
 - `internal/hub/schema_test.go` - Unit tests
 - `internal/config/diff/diff.go` - Shared diff library for plugins
 
@@ -107,8 +113,14 @@ Integrate SchemaRegistry with hub for config routing (VyOS-inspired):
    # Plugin sends:
    #1 query config live path "bgp.peer[address=192.0.2.1]"
 
-   # Hub responds:
+   # Hub responds (success):
    @1 done data '{"address": "192.0.2.1", "peer-as": 65002, ...}'
+
+   # Hub responds (path not found):
+   @1 error "path not found: bgp.peer[address=1.2.3.4]"
+
+   # Hub responds (invalid query):
+   @1 error "invalid query: missing path argument"
    ```
 
    → **Review:** Query command handler in hub?
@@ -175,6 +187,7 @@ Hub notifies plugins, plugins query hub for config data. Hub never sends config 
 | 100 | BGP | Core protocol |
 | 200 | RIB | Depends on BGP |
 | 300 | GR | Augments BGP |
+| 1000 | (default) | Plugins without `declare priority` |
 
 **Diff responsibility:** Hub serves raw config. Plugins compute diff using shared library code (`internal/config/diff/`).
 

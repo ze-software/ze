@@ -100,7 +100,9 @@
       "Bash(./bin/ze-test bgp:*)",
       "Bash(./scripts/migrate-plugin-tests.sh:*)",
       "Bash(./.claude/hooks/session-start.sh)",
-      "Bash(go run ./cmd/ze *)"
+      "Bash(go run ./cmd/ze *)",
+      "Bash(ze-test bgp plugin:*)",
+      "Bash(bash:*)"
     ],
     "deny": [
       "Bash(git reset:*)",

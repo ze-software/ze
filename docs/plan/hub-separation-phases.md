@@ -118,10 +118,9 @@ kill -HUP $(pgrep -f "ze config.conf")
 ```
 internal/
 ├── hub/                    # NEW: Phase 1-3
-│   ├── hub.go
-│   ├── process.go
-│   ├── config.go
-│   └── router.go
+│   ├── hub.go              # Entry point, composes plugin.* components
+│   ├── config.go           # Config parsing (Phase 2) + state (Phase 3)
+│   └── router.go           # Command/event routing (Phase 5)
 │
 ├── plugin/
 │   ├── bgp/                # MOVED: Phase 4

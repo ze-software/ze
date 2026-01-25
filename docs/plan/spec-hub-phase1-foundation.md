@@ -10,9 +10,15 @@
 
 ## Task
 
-Create the `internal/hub/` package with basic process forking and pipe communication. This is the foundation for the hub/orchestrator architecture.
+Create the `internal/hub/` package as the **hub process entry point** that uses existing `internal/plugin/` infrastructure.
 
-**Scope:** Only fork processes and establish pipes. No config parsing, no schema routing yet.
+**Key clarification:** This phase does NOT create new forking/pipe code. The existing infrastructure handles that:
+- `internal/plugin/subsystem.go` - SubsystemHandler, 5-stage protocol
+- `internal/plugin/process.go` - Process struct, pipe management
+- `internal/plugin/hub.go` - Hub struct with RouteCommand, ProcessConfig
+- `internal/plugin/schema.go` - SchemaRegistry with FindHandler
+
+**Scope:** Create entry point that wires existing components together. No config parsing, no schema routing yet.
 
 ## Required Reading
 
@@ -54,7 +60,9 @@ Create the `internal/hub/` package with basic process forking and pipe communica
 ### Functional Tests
 | Test | Location | Scenario | Status |
 |------|----------|----------|--------|
-| Deferred to Phase 5 - need full routing first | | | |
+| `hub-fork-echo` | `test/data/hub/fork-echo.ci` | Hub forks process, sends message, gets response | |
+
+**Smoke test:** Minimal verification that hub entry point can fork and communicate. Full routing tests in Phase 5.
 
 ## Files to Modify
 
@@ -62,9 +70,10 @@ Create the `internal/hub/` package with basic process forking and pipe communica
 
 ## Files to Create
 
-- `internal/hub/hub.go` - Hub struct, New(), Start(), Shutdown()
-- `internal/hub/process.go` - Process management (wraps plugin.Process)
+- `internal/hub/hub.go` - Entry point that composes existing `plugin.Hub`, `plugin.SubsystemManager`, `plugin.SchemaRegistry`
 - `internal/hub/hub_test.go` - Unit tests
+
+**Note:** No `process.go` needed - use `plugin.Process` directly. Avoid wrapping existing code unnecessarily.
 
 ## Implementation Steps
 
@@ -77,30 +86,27 @@ Create the `internal/hub/` package with basic process forking and pipe communica
 
    → **Review:** Tests fail for right reason?
 
-3. **Create hub.go** - Hub struct wrapping existing infrastructure
+3. **Create hub.go** - Hub struct composing existing infrastructure
 
    **Hub struct fields:**
    | Field | Type | Description |
    |-------|------|-------------|
-   | processes | map | Named process registry |
-   | mu | mutex | Protects process map |
+   | subsystems | *plugin.SubsystemManager | Manages forked processes |
+   | registry | *plugin.SchemaRegistry | Schema routing |
+   | hub | *plugin.Hub | Command routing |
 
    **Hub methods:**
    | Method | Description |
    |--------|-------------|
-   | New | Create hub instance |
-   | Fork | Fork child process, return process handle |
+   | New | Create hub instance with existing components |
+   | Run | Start subsystems, run event loop |
    | Shutdown | Clean shutdown of all children |
 
    → **Review:** Reuses existing code? No duplication?
 
-4. **Create process.go** - Thin wrapper around plugin.Process
+4. **Run tests** - Verify PASS (paste output)
 
-   → **Review:** Why wrap instead of using directly?
-
-5. **Run tests** - Verify PASS (paste output)
-
-6. **Verify** - `make lint && make test && make functional`
+5. **Verify** - `make lint && make test && make functional`
 
 ## Design Decisions
 
@@ -111,16 +117,20 @@ Create the `internal/hub/` package with basic process forking and pipe communica
 | Extend plugin/ | Less new code | Mixes hub + plugin concerns |
 | New hub/ | Clear separation | More packages |
 
-**Decision:** New package. Hub is the orchestrator, plugins are children. Different concerns.
+**Decision:** New package. Hub is the orchestrator entry point, `internal/plugin/` provides the components.
 
-### What does Hub wrap vs create new?
+### What internal/hub/ does
 
-| Component | Approach |
-|-----------|----------|
-| Process forking | Wrap `plugin.Process` |
-| Pipe I/O | Use `plugin.Process` directly |
+| Responsibility | Implementation |
+|----------------|----------------|
+| Entry point | New code - `hub.Run()` |
+| Process forking | Use `plugin.SubsystemManager` |
+| Pipe I/O | Use `plugin.Process` |
 | 5-stage protocol | Use `plugin.SubsystemHandler` |
-| Process registry | New code in Hub |
+| Command routing | Use `plugin.Hub` |
+| Schema registry | Use `plugin.SchemaRegistry` |
+
+**Key insight:** `internal/hub/` is a thin entry point that composes existing components. Avoid duplication.
 
 ## Implementation Summary
 
