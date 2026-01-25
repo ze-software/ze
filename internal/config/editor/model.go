@@ -3,6 +3,7 @@ package editor
 import (
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/charmbracelet/bubbles/textinput"
 	"github.com/charmbracelet/bubbles/viewport"
@@ -44,6 +45,7 @@ type Model struct {
 	// Validation state
 	validationErrors   []ConfigValidationError
 	validationWarnings []ConfigValidationError
+	validationID       int // Incremented on each text change for debounce
 
 	// Display state
 	viewportContent string // Content shown in viewport
@@ -55,6 +57,9 @@ type Model struct {
 	quitting        bool
 }
 
+// Debounce delay for validation after keystroke.
+const validationDebounce = 100 * time.Millisecond
+
 // Message types for the editor.
 type (
 	executeResultMsg struct {
@@ -65,6 +70,10 @@ type (
 	successMsg        struct{}
 	errorMsg          struct{ err error }
 	outputMsg         struct{ text string }
+
+	// validationTickMsg triggers debounced validation.
+	// The id field is used to ignore stale ticks.
+	validationTickMsg struct{ id int }
 )
 
 // NewModel creates a new editor model.
@@ -179,7 +188,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			// Otherwise pass to text input
 			m.textInput, cmd = m.textInput.Update(msg)
 			m.updateCompletions()
-			return m, cmd
+			return m, tea.Batch(cmd, m.scheduleValidation())
 
 		case tea.KeyEnter:
 			return m.handleEnter()
@@ -188,7 +197,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			// Update text input and regenerate completions
 			m.textInput, cmd = m.textInput.Update(msg)
 			m.updateCompletions()
-			return m, cmd
+			return m, tea.Batch(cmd, m.scheduleValidation())
 		}
 
 	case tea.WindowSizeMsg:
@@ -229,6 +238,13 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case contextChangedMsg:
 		m.updateCompletions()
+		return m, nil
+
+	case validationTickMsg:
+		// Only validate if this tick matches current ID (not stale)
+		if msg.id == m.validationID {
+			m.runValidation()
+		}
 		return m, nil
 	}
 
@@ -370,11 +386,18 @@ func (m Model) View() string {
 	var lines []string
 
 	// Header (2 lines: header + blank)
-	header := "ZeBGP Editor"
+	header := "Ze Editor"
 	if m.editor.Dirty() {
 		header += " [modified]"
 	}
-	lines = append(lines, dimStyle.Render(header)+" "+dimStyle.Render("(Tab/?: complete, Enter: execute, Esc: quit)"))
+	// Add validation status indicator
+	var statusIndicator string
+	if len(m.validationErrors) > 0 {
+		statusIndicator = errorStyle.Render(fmt.Sprintf(" ⚠️ %d error(s)", len(m.validationErrors)))
+	} else if len(m.validationWarnings) > 0 {
+		statusIndicator = dimStyle.Render(fmt.Sprintf(" ⚡ %d warning(s)", len(m.validationWarnings)))
+	}
+	lines = append(lines, dimStyle.Render(header)+statusIndicator+" "+dimStyle.Render("(Tab/?: complete, Enter: execute, Esc: quit)"))
 	lines = append(lines, "")
 
 	// Viewport for scrollable content (show/compare output)
@@ -722,16 +745,16 @@ Press Esc to close this help.`
 // buildPrompt returns the context-aware prompt string.
 func (m Model) buildPrompt() string {
 	if len(m.contextPath) == 0 {
-		return promptStyle.Render("ze-bgp# ")
+		return promptStyle.Render("ze# ")
 	}
 
 	contextStr := strings.Join(m.contextPath, " ")
 	if m.isTemplate {
-		return promptStyle.Render("ze-bgp") +
+		return promptStyle.Render("ze") +
 			contextStyle.Render("["+contextStr+"]") +
 			promptStyle.Render("# ")
 	}
-	return promptStyle.Render("ze-bgp") +
+	return promptStyle.Render("ze") +
 		contextStyle.Render("["+contextStr+"]") +
 		promptStyle.Render("# ")
 }
@@ -1027,6 +1050,15 @@ func (m *Model) runValidation() {
 	result := m.validator.Validate(m.editor.WorkingContent())
 	m.validationErrors = result.Errors
 	m.validationWarnings = result.Warnings
+}
+
+// scheduleValidation returns a command to trigger validation after debounce delay.
+func (m *Model) scheduleValidation() tea.Cmd {
+	m.validationID++
+	id := m.validationID
+	return tea.Tick(validationDebounce, func(_ time.Time) tea.Msg {
+		return validationTickMsg{id: id}
+	})
 }
 
 // cmdCommit saves changes with validation check.
