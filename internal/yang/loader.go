@@ -75,6 +75,16 @@ func (l *Loader) GetModule(name string) *yang.Module {
 	return l.modules.Modules[name]
 }
 
+// GetEntry returns the processed entry tree for a module.
+// The entry tree has all imports resolved and mandatory fields properly set.
+func (l *Loader) GetEntry(name string) *yang.Entry {
+	mod := l.modules.Modules[name]
+	if mod == nil {
+		return nil
+	}
+	return yang.ToEntry(mod)
+}
+
 // ModuleNames returns the names of all loaded modules.
 func (l *Loader) ModuleNames() []string {
 	names := make([]string, 0, len(l.modules.Modules))

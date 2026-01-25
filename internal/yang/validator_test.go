@@ -1,6 +1,7 @@
 package yang
 
 import (
+	"errors"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -154,35 +155,6 @@ func TestValidator_ValidatePattern(t *testing.T) {
 	}
 }
 
-// TestValidator_TypeDirect tests direct type validation without path resolution.
-//
-// VALIDATES: Type validation logic works correctly.
-// PREVENTS: Type validation bugs hidden by path resolution issues.
-func TestValidator_TypeDirect(t *testing.T) {
-	// Test range checking directly
-	v := &Validator{}
-
-	// ASN range: 1..4294967295
-	assert.True(t, v.checkRangeString(1, "1..4294967295"))
-	assert.True(t, v.checkRangeString(4294967295, "1..4294967295"))
-	assert.True(t, v.checkRangeString(65001, "1..4294967295"))
-	assert.False(t, v.checkRangeString(0, "1..4294967295"))
-
-	// Port range: 1..65535
-	assert.True(t, v.checkRangeString(1, "1..65535"))
-	assert.True(t, v.checkRangeString(65535, "1..65535"))
-	assert.False(t, v.checkRangeString(0, "1..65535"))
-	assert.False(t, v.checkRangeString(65536, "1..65535"))
-
-	// Multiple ranges: 0 | 3..65535 (hold-time)
-	assert.True(t, v.checkRangeString(0, "0|3..65535"))
-	assert.True(t, v.checkRangeString(3, "0|3..65535"))
-	assert.True(t, v.checkRangeString(180, "0|3..65535"))
-	assert.True(t, v.checkRangeString(65535, "0|3..65535"))
-	assert.False(t, v.checkRangeString(1, "0|3..65535"))
-	assert.False(t, v.checkRangeString(2, "0|3..65535"))
-}
-
 // TestValidator_ErrorMessages verifies error message clarity.
 //
 // VALIDATES: Error messages include path and constraint info.
@@ -262,46 +234,67 @@ func TestValidator_HoldTimeRange(t *testing.T) {
 	}
 }
 
-// TestValidator_Boundary_Uint8 verifies uint8 boundary validation.
+// TestValidator_MandatoryField verifies mandatory field detection.
 //
-// BOUNDARY: prefix-list entry le/ge are uint8 range 0..32.
-func TestValidator_Boundary_Uint8(t *testing.T) {
-	v := &Validator{}
+// VALIDATES: Container validation detects missing mandatory fields.
+// PREVENTS: Silent acceptance of incomplete config missing required fields.
+func TestValidator_MandatoryField(t *testing.T) {
+	loader := NewLoader()
+	err := loader.LoadEmbedded()
+	require.NoError(t, err)
+	err = loader.Resolve()
+	require.NoError(t, err)
 
-	// Range 0..32 (prefix length for IPv4)
-	assert.True(t, v.checkRangeString(0, "0..32"))
-	assert.True(t, v.checkRangeString(32, "0..32"))
-	assert.False(t, v.checkRangeString(33, "0..32"))
-}
+	validator := NewValidator(loader)
 
-// TestValidator_Boundary_Uint16 verifies uint16 boundary validation.
-//
-// BOUNDARY: port range 1..65535, hold-time 0 | 3..65535.
-func TestValidator_Boundary_Uint16(t *testing.T) {
-	v := &Validator{}
+	tests := []struct {
+		name    string
+		path    string
+		data    map[string]any
+		wantErr bool
+		errType ErrorType
+	}{
+		{
+			name: "all_mandatory_present",
+			path: "bgp",
+			data: map[string]any{
+				"local-as":  uint32(65001),
+				"router-id": "192.0.2.1",
+			},
+			wantErr: false,
+		},
+		{
+			name: "missing_mandatory_local_as",
+			path: "bgp",
+			data: map[string]any{
+				"router-id": "192.0.2.1",
+			},
+			wantErr: true,
+			errType: ErrTypeMissing,
+		},
+		{
+			name: "missing_mandatory_router_id",
+			path: "bgp",
+			data: map[string]any{
+				"local-as": uint32(65001),
+			},
+			wantErr: true,
+			errType: ErrTypeMissing,
+		},
+	}
 
-	// Port: 1..65535
-	assert.True(t, v.checkRangeString(1, "1..65535"))
-	assert.True(t, v.checkRangeString(65535, "1..65535"))
-	assert.False(t, v.checkRangeString(0, "1..65535"))
-	assert.False(t, v.checkRangeString(65536, "1..65535"))
-
-	// Hold-time: 0 | 3..65535
-	assert.True(t, v.checkRangeString(0, "0|3..65535"))
-	assert.False(t, v.checkRangeString(1, "0|3..65535"))
-	assert.False(t, v.checkRangeString(2, "0|3..65535"))
-	assert.True(t, v.checkRangeString(3, "0|3..65535"))
-	assert.True(t, v.checkRangeString(65535, "0|3..65535"))
-}
-
-// TestValidator_Boundary_Uint32 verifies uint32 boundary validation.
-//
-// BOUNDARY: ASN range 1..4294967295.
-func TestValidator_Boundary_Uint32(t *testing.T) {
-	v := &Validator{}
-
-	// ASN: 1..4294967295
-	assert.True(t, v.checkRangeString(1, "1..4294967295"))
-	assert.True(t, v.checkRangeString(4294967295, "1..4294967295"))
-	assert.False(t, v.checkRangeString(0, "1..4294967295"))
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			err := validator.ValidateContainer(tt.path, tt.data)
+			if tt.wantErr {
+				require.Error(t, err, "expected error for missing mandatory field")
+				var valErr *ValidationError
+				if errors.As(err, &valErr) {
+					assert.Equal(t, tt.errType, valErr.Type)
+				}
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
 }

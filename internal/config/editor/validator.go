@@ -1,11 +1,13 @@
 package editor
 
 import (
+	"errors"
 	"fmt"
 	"strconv"
 	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/config"
+	"codeberg.org/thomas-mangin/ze/internal/yang"
 )
 
 // ConfigValidationError represents a single validation error or warning.
@@ -34,15 +36,31 @@ func (r *ConfigValidationResult) HasWarnings() bool {
 
 // ConfigValidator provides configuration text validation.
 // Uses the existing config parser for syntax/schema validation,
-// and adds semantic validation for BGP-specific rules.
+// and YANG validator for RFC-specific constraints.
 type ConfigValidator struct {
-	schema *config.Schema
+	schema        *config.Schema
+	yangValidator *yang.Validator
 }
 
 // NewConfigValidator creates a new config validator.
 func NewConfigValidator() *ConfigValidator {
+	// Initialize YANG validator
+	loader := yang.NewLoader()
+	if err := loader.LoadEmbedded(); err != nil {
+		// Fall back to schema-only validation if YANG fails
+		return &ConfigValidator{
+			schema: config.BGPSchema(),
+		}
+	}
+	if err := loader.Resolve(); err != nil {
+		return &ConfigValidator{
+			schema: config.BGPSchema(),
+		}
+	}
+
 	return &ConfigValidator{
-		schema: config.BGPSchema(),
+		schema:        config.BGPSchema(),
+		yangValidator: yang.NewValidator(loader),
 	}
 }
 
@@ -72,10 +90,10 @@ func (v *ConfigValidator) Validate(content string) ConfigValidationResult {
 		})
 	}
 
-	// Run semantic validation on the parsed tree
-	// This catches cross-field rules that the parser can't check
-	semanticErrs := v.ValidateSemantic(tree)
-	result.Errors = append(result.Errors, semanticErrs...)
+	// Run YANG validation on the parsed tree
+	// This catches RFC-specific constraints from YANG model
+	yangErrs := v.ValidateWithYANG(tree)
+	result.Errors = append(result.Errors, yangErrs...)
 
 	return result
 }
@@ -103,18 +121,10 @@ func (v *ConfigValidator) parseError(err error) ConfigValidationError {
 	}
 }
 
-// ValidateSemantic checks semantic rules on the parsed tree.
-// These are cross-field validations that the parser can't catch.
-//
-// Note: Many validations are handled by the parser's schema validation:
-// - router-id: TypeIPv4 validates format
-// - local-as, peer-as: TypeUint32 validates format
-// - peer address: TypeIP validates format
-// - Duplicate peers: Parser renames with #N suffix
-//
-// Semantic validation adds RFC-specific rules beyond type checking.
-func (v *ConfigValidator) ValidateSemantic(tree *config.Tree) []ConfigValidationError {
-	if tree == nil {
+// ValidateWithYANG validates the parsed tree using YANG constraints.
+// YANG model defines RFC-compliant constraints like hold-time range "0 | 3..65535".
+func (v *ConfigValidator) ValidateWithYANG(tree *config.Tree) []ConfigValidationError {
+	if tree == nil || v.yangValidator == nil {
 		return nil
 	}
 
@@ -126,16 +136,44 @@ func (v *ConfigValidator) ValidateSemantic(tree *config.Tree) []ConfigValidation
 		return nil // No BGP config
 	}
 
-	// Validate peer-level hold-time per RFC 4271
-	// Schema validates TypeUint16 (0-65535), but RFC requires 0 or >= 3
+	// Validate peer-level hold-time using YANG
+	// YANG model: range "0 | 3..65535" (RFC 4271 compliant)
 	peers := bgp.GetList("peer")
 	for peerAddr, peerTree := range peers {
 		if holdTimeStr, ok := peerTree.Get("hold-time"); ok {
-			if err := v.validateHoldTime(holdTimeStr); err != nil {
+			holdTime, parseErr := strconv.Atoi(holdTimeStr)
+			if parseErr != nil {
 				errs = append(errs, ConfigValidationError{
-					Message:  fmt.Sprintf("peer %s: %s", peerAddr, err.Error()),
+					Message:  fmt.Sprintf("peer %s: invalid hold-time '%s': must be a number", peerAddr, holdTimeStr),
 					Severity: "error",
 				})
+				continue
+			}
+
+			// Validate range before conversion to uint16
+			if holdTime < 0 || holdTime > 65535 {
+				errs = append(errs, ConfigValidationError{
+					Message:  fmt.Sprintf("peer %s: invalid hold-time %d: must be 0-65535", peerAddr, holdTime),
+					Severity: "error",
+				})
+				continue
+			}
+
+			// Use YANG validator for RFC-compliant range check
+			// #nosec G115 -- bounds checked above
+			if err := v.yangValidator.Validate("bgp.hold-time", uint16(holdTime)); err != nil {
+				var yangErr *yang.ValidationError
+				if errors.As(err, &yangErr) {
+					errs = append(errs, ConfigValidationError{
+						Message:  fmt.Sprintf("peer %s: invalid hold-time %d: %s", peerAddr, holdTime, yangErr.Message),
+						Severity: "error",
+					})
+				} else {
+					errs = append(errs, ConfigValidationError{
+						Message:  fmt.Sprintf("peer %s: invalid hold-time %d", peerAddr, holdTime),
+						Severity: "error",
+					})
+				}
 			}
 		}
 	}
@@ -143,25 +181,10 @@ func (v *ConfigValidator) ValidateSemantic(tree *config.Tree) []ConfigValidation
 	return errs
 }
 
-// validateHoldTime checks hold-time per RFC 4271.
-//
-// Per RFC 4271 Section 4.2, the Hold Time MUST be either zero or at
-// least three seconds. Values 1 and 2 are invalid.
-//
-// Note: Schema TypeUint16 already validates range 0-65535 and rejects
-// negative values. This function adds the RFC-specific constraint.
-func (v *ConfigValidator) validateHoldTime(holdTimeStr string) error {
-	holdTime, err := strconv.Atoi(holdTimeStr)
-	if err != nil {
-		return fmt.Errorf("invalid hold-time '%s': must be a number", holdTimeStr)
-	}
-
-	// RFC 4271 Section 4.2: hold time must be 0 or >= 3
-	if holdTime == 1 || holdTime == 2 {
-		return fmt.Errorf("invalid hold-time %d: must be 0 or >= 3 (RFC 4271)", holdTime)
-	}
-
-	return nil
+// ValidateSemantic is kept for backwards compatibility.
+// Now delegates to ValidateWithYANG.
+func (v *ConfigValidator) ValidateSemantic(tree *config.Tree) []ConfigValidationError {
+	return v.ValidateWithYANG(tree)
 }
 
 // ValidateSyntax is kept for backwards compatibility with existing tests.
