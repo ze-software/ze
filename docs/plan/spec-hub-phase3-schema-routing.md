@@ -10,13 +10,14 @@
 
 ## Task
 
-Integrate SchemaRegistry with hub for config routing:
-1. Plugins declare YANG + handlers in Stage 1
-2. Hub registers schemas
+Integrate SchemaRegistry with hub for config routing (VyOS-inspired):
+1. Plugins declare YANG + handlers + priority in Stage 1
+2. Hub registers schemas with priority ordering
 3. Hub validates config against YANG
-4. Hub routes JSON config subtrees to plugins in Stage 2
+4. Hub notifies plugins to verify/apply (by priority, lower first)
+5. Plugins query live/edit config, compute diff, validate/apply
 
-**Scope:** Schema registration, YANG validation, JSON delivery. Uses existing SchemaRegistry.
+**Scope:** Schema registration, YANG validation, verify/apply protocol, config query. Uses existing SchemaRegistry.
 
 **Depends on:** Phase 2 complete
 
@@ -36,6 +37,7 @@ Integrate SchemaRegistry with hub for config routing:
 - Stage 1 already parses `declare schema` messages
 - YANG loader/validator already exist
 - Need to wire these together in hub
+- Add `declare priority` parsing for config ordering
 
 ## 🧪 TDD Test Plan
 
@@ -81,29 +83,22 @@ Integrate SchemaRegistry with hub for config routing:
 2. **Run tests** - Verify FAIL (paste output)
 
 3. **Integrate SchemaRegistry** - Hub uses existing registry
-   ```
-   func (h *Hub) collectSchemas() error {
-       // For each forked process, read Stage 1 declarations
-       // Register schemas in SchemaRegistry
-   }
-   ```
+
+   **Collect schemas behavior:**
+   1. For each forked process, read Stage 1 declarations
+   2. Register schemas in SchemaRegistry
 
    → **Review:** Reuses existing parsing code?
 
 4. **Add YANG validation** - Validate config before routing
-   ```
-   func (h *Hub) validateConfig() error {
-       // Load all YANG modules
-       // Validate stored config against combined schema
-   }
-   ```
+
+   **Validate config behavior:**
+   1. Load all YANG modules declared by plugins
+   2. Validate stored config against combined schema
 
    → **Review:** Uses existing yang.Validator?
 
-5. **Add JSON conversion** - Convert config blocks to JSON
-   ```
-   func (h *Hub) configToJSON(path string) ([]byte, error)
-   ```
+5. **Add JSON conversion** - Convert config blocks to JSON for delivery
 
 6. **Add config delivery** - Route JSON to plugins in Stage 2
 
@@ -129,7 +124,7 @@ Integrate SchemaRegistry with hub for config routing:
 | Handler | Plugin receives |
 |---------|-----------------|
 | `bgp` (root) | Entire `bgp { }` as JSON |
-| `bgp.capability.graceful-restart` | Just that subtree |
+| `bgp.peer.capability.graceful-restart` | Just that subtree |
 
 Hub uses FindHandler() longest-prefix match to determine routing.
 
@@ -142,19 +137,44 @@ Hub maintains two config states:
 | **Live** | Running configuration (what plugins are using) |
 | **Edit** | Candidate configuration (being modified) |
 
+**Pull model (hub never pushes config):**
+| Trigger | Hub Action |
+|---------|------------|
+| Startup | Notifies: `config verify` then `config apply` |
+| SIGHUP | Notifies: `config verify` then `config apply` |
+| CLI commit | Notifies: `config verify` then `config apply` |
+
+Hub notifies plugins, plugins query hub for config data. Hub never sends config unprompted.
+
 **Query protocol (text with #serial):**
 ```
 #1 query config live path "bgp.peer"
 @1 done data '[{"address": "192.0.2.1", "peer-as": 65002}, ...]'
 ```
 
-**Workflow:**
-1. User edits candidate config
-2. User requests commit
-3. Hub notifies plugins: "verify"
-4. Plugins query live/edit, compute diff (using shared library), validate
-5. If all verify pass: hub sends "apply", edit becomes live
-6. If verify fails: reject, edit unchanged
+**Verify/Apply workflow (triggered by commit):**
+1. User edits candidate config (or hub loads from file)
+2. User requests commit (startup, SIGHUP, or CLI)
+3. For each plugin (by priority, lower first):
+   - Hub sends: `#N config verify`
+   - Plugin queries: `#M query config live path "..."`
+   - Plugin queries: `#M query config edit path "..."`
+   - Plugin computes diff, validates
+   - Plugin responds: `@N done` or `@N error <reason>`
+4. If all verify pass:
+   - For each plugin (by priority):
+     - Hub sends: `#N config apply`
+     - Plugin applies changes
+     - Plugin responds: `@N done`
+   - Hub: edit becomes live
+5. If any verify fails: reject, edit unchanged
+
+**Priority ordering:**
+| Priority | Plugin | Reason |
+|----------|--------|--------|
+| 100 | BGP | Core protocol |
+| 200 | RIB | Depends on BGP |
+| 300 | GR | Augments BGP |
 
 **Diff responsibility:** Hub serves raw config. Plugins compute diff using shared library code (`internal/config/diff/`).
 

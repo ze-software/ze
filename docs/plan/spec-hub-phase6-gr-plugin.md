@@ -75,28 +75,26 @@ Complete GR plugin implementation:
 2. **Run tests** - Verify FAIL (paste output)
 
 3. **Create ze-gr.yang** - Augment ze-bgp
-   ```yang
-   module ze-gr {
-       namespace "urn:ze:gr";
-       prefix gr;
 
-       import ze-bgp { prefix bgp; }
+   **Module definition:**
+   | Field | Value |
+   |-------|-------|
+   | Module | ze-gr |
+   | Namespace | urn:ze:gr |
+   | Prefix | gr |
+   | Imports | ze-bgp (prefix bgp) |
 
-       augment "/bgp:bgp/bgp:peer/bgp:capability" {
-           container graceful-restart {
-               leaf enabled { type boolean; default false; }
-               leaf restart-time {
-                   type uint16 { range "0..4095"; }
-                   default 120;
-               }
-           }
-       }
+   **Augments:**
+   | Path | Container | Description |
+   |------|-----------|-------------|
+   | /bgp:bgp/bgp:peer/bgp:capability | graceful-restart | Per-peer GR config |
+   | /bgp:bgp/bgp:peer-group/bgp:capability | graceful-restart | Per-group GR config |
 
-       augment "/bgp:bgp/bgp:peer-group/bgp:capability" {
-           // Same structure
-       }
-   }
-   ```
+   **graceful-restart container fields:**
+   | Field | Type | Default | Description |
+   |-------|------|---------|-------------|
+   | enabled | boolean | false | Enable GR for this peer |
+   | restart-time | uint16 (0-4095) | 120 | Restart time in seconds |
 
 4. **Remove from ze-bgp.yang** - Delete graceful-restart leaf
 

@@ -509,7 +509,7 @@ Hub does **full** config parsing (like VyOS):
 
 **Routing by handler:**
 - Root handlers: `bgp` handler gets entire `bgp { }` as JSON
-- Sub-root handlers: `bgp.capability.graceful-restart` handler gets just that subtree as JSON
+- Sub-root handlers: `bgp.peer.capability.graceful-restart` handler gets just that subtree as JSON
 
 **Plugin config query:**
 Plugins can also query hub for specific config paths on-demand:

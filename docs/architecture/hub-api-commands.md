@@ -83,7 +83,7 @@ declare done
 
 ## Schema Retrieval (CLI Command)
 
-Schema commands are real CLI commands - usable both by Config Reader (programmatic) and humans (debugging).
+Schema commands are real CLI commands - usable both by Hub (programmatic) and humans (debugging).
 
 ### Schema CLI commands
 
@@ -93,7 +93,7 @@ Plugins declare schema CLI commands during Stage 1 like any other command:
 |-----|--------|
 | Plugin | Declares: `declare cmd bgp schema show` |
 | Hub | Routes command to plugin |
-| Config Reader | Can call command to get YANG |
+| Hub | Can call command to get YANG |
 | Human | Runs same command for debugging |
 
 **Purpose:** Retrieve YANG schema on-demand via standard CLI.
@@ -127,9 +127,9 @@ bgp.peer
 bgp.peer-group
 ```
 
-### Programmatic Usage (Config Reader)
+### Programmatic Usage (Hub)
 
-Config Reader runs the same commands:
+Hub runs the same commands:
 ```bash
 $ ze bgp schema show        # Get YANG for validation
 $ ze rib schema show        # Get RIB schema
@@ -231,7 +231,7 @@ $ ze system schema validate interface name eth0
 
 ### Usage: Config Validation
 
-Config Reader validates leafrefs by constructing command from YANG path:
+Hub validates leafrefs by constructing command from YANG path:
 
 ```
 YANG:    type leafref { path "/bgp/peer-group/name"; }
@@ -273,95 +273,77 @@ The `ze bgp schema` commands route to BGP subsystem.
 
 ---
 
-## Stage 2: Config Delivery (Hub → Plugin)
+## Stage 2: Config Notification (Hub → Plugin)
 
-Hub delivers configuration to plugins (and Config Reader).
+**Pull model:** Hub notifies plugins, plugins query for config. Hub never pushes config data.
 
-### config (to regular plugins)
-
-| Command | Description |
-|---------|-------------|
-| `config <key> <value>` | Deliver config value |
-| `config peer <addr> <key> <value>` | Deliver peer-specific config |
-| `config done` | End of config (barrier) |
-
-**Example:**
-```
-config peer 192.0.2.1 hold-time 90
-config peer 192.0.2.1 restart-time 120
-config done
-```
-
-### config (to Config Reader)
+### Notification Commands (Hub → Plugin)
 
 | Command | Description |
 |---------|-------------|
-| `config schema <module> handlers <list> yang <<EOF...EOF` | Schema module with YANG content |
-| `config path <filepath>` | Config file to parse |
-| `config done` | End of config delivery |
+| `#serial config verify` | Notify plugin to verify pending changes |
+| `#serial config apply` | Notify plugin to apply verified changes |
+| `config done` | All plugins finished (barrier) |
 
-**Example:**
-```
-config schema ze-bgp handlers bgp,bgp.peer yang <<EOF
-module ze-bgp {
-  namespace "urn:ze:bgp";
-  ...
-}
-EOF
-config schema ze-rib handlers rib yang <<EOF
-module ze-rib { ... }
-EOF
-config path /etc/ze/config.conf
-config done
-```
+### Query Commands (Plugin → Hub)
 
-Hub sends YANG content inline (collected from plugins in Stage 1).
+| Command | Description |
+|---------|-------------|
+| `#serial query config live path "<path>"` | Query running config |
+| `#serial query config edit path "<path>"` | Query candidate config |
+
+### Query Response (Hub → Plugin)
+
+| Response | Description |
+|----------|-------------|
+| `@serial done data '<json>'` | Config data as JSON |
+| `@serial error <message>` | Query failed |
 
 ---
 
-## Stage 2: Verify/Apply (Config Reader ↔ Hub ↔ Plugin)
+## Stage 2: Verify/Apply Flow (VyOS-inspired)
 
-Config Reader validates config and sends verify/apply requests through Hub.
+Hub notifies plugins, plugins pull config and compute diff.
 
 ### config verify
 
 | Direction | Command |
 |-----------|---------|
-| Config Reader → Hub | `#serial config verify handler "<handler>" action <type> path "<full-path>" data '<json>'` |
-| Hub → Plugin | `#serial config verify action <type> path "<full-path>" data '<json>'` |
+| Hub → Plugin | `#serial config verify` |
+| Plugin → Hub | `#serial query config live path "..."` |
+| Hub → Plugin | `@serial done data '{...}'` |
+| Plugin → Hub | `#serial query config edit path "..."` |
+| Hub → Plugin | `@serial done data '{...}'` |
 | Plugin → Hub | `@serial done` or `@serial error <message>` |
-| Hub → Config Reader | `@serial done` or `@serial error <message>` |
-
-**Action types:**
-- `create` - New config block
-- `modify` - Changed config block
-- `delete` - Removed config block
 
 **Example flow:**
 ```
-# Config Reader asks Hub to verify new peer
-Config Reader → Hub:
-#1 config verify handler "bgp.peer" action create path "bgp.peer[address=192.0.2.1]" data '{"address":"192.0.2.1","peer-as":65002}'
-
-# Hub routes to BGP plugin
+# Hub notifies BGP plugin to verify
 Hub → BGP Plugin:
-#a config verify action create path "bgp.peer[address=192.0.2.1]" data '{"address":"192.0.2.1","peer-as":65002}'
+#1 config verify
 
-# Plugin validates and responds
+# Plugin queries current (live) config
 BGP Plugin → Hub:
-@a done
+#2 query config live path "bgp"
 
-# Hub responds to Config Reader
-Hub → Config Reader:
+Hub → BGP Plugin:
+@2 done data '{"local-as": 65001, "peer": [...]}'
+
+# Plugin queries candidate (edit) config
+BGP Plugin → Hub:
+#3 query config edit path "bgp"
+
+Hub → BGP Plugin:
+@3 done data '{"local-as": 65001, "peer": [...new peer...]}'
+
+# Plugin computes diff, validates, responds
+BGP Plugin → Hub:
 @1 done
 ```
 
 **Rejection example:**
 ```
 BGP Plugin → Hub:
-@a error peer-as cannot equal local-as
-
-Hub → Config Reader:
 @1 error peer-as cannot equal local-as
 ```
 
@@ -369,21 +351,20 @@ Hub → Config Reader:
 
 | Direction | Command |
 |-----------|---------|
-| Config Reader → Hub | `#serial config apply handler "<handler>" action <type> path "<full-path>" data '<json>'` |
-| Hub → Plugin | `#serial config apply action <type> path "<full-path>" data '<json>'` |
+| Hub → Plugin | `#serial config apply` |
+| Plugin → Hub | `#serial query config edit path "..."` |
+| Hub → Plugin | `@serial done data '{...}'` |
 | Plugin → Hub | `@serial done` or `@serial error <message>` |
 
-**Note:** Apply is only sent after ALL verify requests pass.
+**Note:** Apply only sent after ALL plugins verify successfully.
 
-### config complete
+### config done
 
 | Direction | Command |
 |-----------|---------|
-| Config Reader → Hub | `#serial config complete` |
-| Hub → Config Reader | `@serial done` |
 | Hub → All Plugins | `config done` |
 
-Signals config processing is complete. Hub sends `config done` to all plugins.
+Signals config cycle complete. Hub promotes edit to live.
 
 ---
 
@@ -475,11 +456,10 @@ After all plugins send `ready`, BGP peers start.
 
 | Direction | Command |
 |-----------|---------|
-| Any → Hub | `#serial config reload` |
-| Hub → Config Reader | `#serial config reload` |
-| Config Reader → Hub | `@serial done` |
+| CLI → Hub | `#serial config reload` |
+| Hub → CLI | `@serial done` |
 
-Triggers config file re-read. Config Reader diffs current vs new and sends verify/apply for changes.
+Triggers config file re-read. Hub re-parses, stores as edit, runs verify/apply cycle with plugins.
 
 ### config validate
 
@@ -553,7 +533,7 @@ subscribe rib event cache
 
 ---
 
-## Summary: New Commands for Hub Architecture
+## Summary: Commands for Hub Architecture
 
 | Command | Stage/Context | Direction |
 |---------|---------------|-----------|
@@ -561,18 +541,19 @@ subscribe rib event cache
 | `declare schema namespace <uri>` | Stage 1 | Plugin → Hub |
 | `declare schema handler <path>` | Stage 1 | Plugin → Hub |
 | `declare schema yang <<EOF...EOF` | Stage 1 | Plugin → Hub |
-| `config schema <module> handlers <list> yang <<EOF...EOF` | Stage 2 | Hub → Config Reader |
-| `config verify handler "<handler>" action <type> ...` | Stage 2 | Config Reader → Hub |
-| `config verify action <type> path "<path>" ...` | Stage 2 | Hub → Plugin |
-| `config apply handler "<handler>" action <type> ...` | Stage 2 | Config Reader → Hub |
-| `config apply action <type> path "<path>" ...` | Stage 2 | Hub → Plugin |
-| `config complete` | Stage 2 | Config Reader → Hub |
-| `config reload` | Runtime | Any → Hub |
+| `declare priority <number>` | Stage 1 | Plugin → Hub |
+| `#N config verify` | Stage 2 | Hub → Plugin |
+| `#N config apply` | Stage 2 | Hub → Plugin |
+| `#N query config live/edit path "..."` | Stage 2 | Plugin → Hub |
+| `@N done data '{...}'` | Stage 2 | Hub → Plugin |
+| `config done` | Stage 2 | Hub → All Plugins |
+| `config reload` | Runtime | CLI → Hub |
+| `config commit` | Runtime | CLI → Hub |
 | `system schema list\|show\|handlers\|protocol` | Runtime | Any → Hub |
 
 **Key design:**
-- `declare schema` prefix matches `declare cmd` pattern
-- Hub stores YANG content, passes to Config Reader
+- Pull model: Hub notifies plugins, plugins query for config
+- Hub never pushes config data
 - Handler routing uses longest prefix match
 
 ---
@@ -588,34 +569,35 @@ subscribe rib event cache
 │    Plugin → Hub: declare schema module ze-bgp                              │
 │    Plugin → Hub: declare schema handler bgp                                │
 │    Plugin → Hub: declare schema handler bgp.peer                           │
+│    Plugin → Hub: declare priority 100                                      │
 │    Plugin → Hub: declare schema yang <<EOF...EOF                           │
 │    Plugin → Hub: declare cmd bgp peer list                                 │
 │    Plugin → Hub: declare done                                              │
 │                                                                            │
-│  ─── BARRIER ───                                                           │
+│  ─── BARRIER: All plugins declared ───                                     │
 │                                                                            │
-│  Stage 2: CONFIG (via Config Reader)                                       │
-│    Hub → ConfigReader: config schema ze-bgp handlers bgp,bgp.peer          │
-│                        yang <<EOF...EOF                                    │
-│    Hub → ConfigReader: config path /etc/ze/config.conf                     │
-│    Hub → ConfigReader: config done                                         │
+│  Stage 2: INITIAL COMMIT (pull model)                                      │
+│    Hub parses config against combined YANG                                 │
+│    Hub stores config as edit state (live is empty)                         │
 │                                                                            │
-│    ConfigReader parses config against YANG                                 │
+│    For each plugin (by priority):                                          │
+│      Hub → Plugin: #1 config verify                                        │
+│      Plugin → Hub: #2 query config live path "bgp"                         │
+│      Hub → Plugin: @2 done data '{}'                                       │
+│      Plugin → Hub: #3 query config edit path "bgp"                         │
+│      Hub → Plugin: @3 done data '{...}'                                    │
+│      Plugin → Hub: @1 done                                                 │
 │                                                                            │
-│    ConfigReader → Hub: #1 config verify handler "bgp.peer" ...             │
-│    Hub → Plugin: #a config verify action create ...                        │
-│    Plugin → Hub: @a done                                                   │
-│    Hub → ConfigReader: @1 done                                             │
+│    All verify pass:                                                        │
+│      Hub → Plugin: #4 config apply                                         │
+│      Plugin → Hub: #5 query config edit path "bgp"                         │
+│      Hub → Plugin: @5 done data '{...}'                                    │
+│      Plugin → Hub: @4 done                                                 │
 │                                                                            │
-│    ConfigReader → Hub: #2 config apply handler "bgp.peer" ...              │
-│    Hub → Plugin: #b config apply action create ...                         │
-│    Plugin → Hub: @b done                                                   │
-│    Hub → ConfigReader: @2 done                                             │
-│                                                                            │
-│    ConfigReader → Hub: #3 config complete                                  │
+│    Hub: edit becomes live                                                  │
 │    Hub → All Plugins: config done                                          │
 │                                                                            │
-│  ─── BARRIER ───                                                           │
+│  ─── BARRIER: Initial commit complete ───                                  │
 │                                                                            │
 │  Stages 3-5: CAPABILITY, REGISTRY, READY (unchanged)                       │
 │                                                                            │
@@ -629,11 +611,10 @@ subscribe rib event cache
 │    CLI → Hub: #1 system schema list                                        │
 │    Hub → CLI: @1 done {"schemas":[...]}                                    │
 │                                                                            │
-│  Config Reload:                                                            │
+│  Config Reload (SIGHUP or CLI):                                            │
 │    CLI → Hub: #1 config reload                                             │
-│    Hub → ConfigReader: #r1 config reload                                   │
-│    ConfigReader → Hub: @r1 done                                            │
-│    (verify/apply flow for changes)                                         │
+│    Hub re-reads config, stores as edit                                     │
+│    (verify/apply cycle with all plugins)                                   │
 │    Hub → CLI: @1 done                                                      │
 │                                                                            │
 └────────────────────────────────────────────────────────────────────────────┘
@@ -641,4 +622,4 @@ subscribe rib event cache
 
 ---
 
-**Last Updated:** 2026-01-24
+**Last Updated:** 2026-01-25

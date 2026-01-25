@@ -75,15 +75,19 @@ Implement 3-section config parsing in the hub:
 2. **Run tests** - Verify FAIL (paste output)
 
 3. **Create config.go** - Parse 3-section config
-   ```
-   type Config struct {
-       Env     map[string]string     // env { } settings
-       Plugins []PluginDecl          // plugin { external ... }
-       Blocks  map[string]ConfigNode // remaining blocks
-   }
 
-   func ParseConfig(path string) (*Config, error)
-   ```
+   **Config structure:**
+   | Field | Type | Description |
+   |-------|------|-------------|
+   | Env | map | Environment settings from `env { }` |
+   | Plugins | list | Plugin declarations from `plugin { external ... }` |
+   | Blocks | map | Remaining config blocks (stored for routing) |
+
+   **Behavior:**
+   1. Parse config file using existing tokenizer
+   2. Extract env block, apply settings
+   3. Extract plugin block, build list of processes to fork
+   4. Store remaining blocks as nested map
 
    → **Review:** Reuses existing tokenizer?
 

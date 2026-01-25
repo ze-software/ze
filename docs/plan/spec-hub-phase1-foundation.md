@@ -78,16 +78,19 @@ Create the `internal/hub/` package with basic process forking and pipe communica
    → **Review:** Tests fail for right reason?
 
 3. **Create hub.go** - Hub struct wrapping existing infrastructure
-   ```
-   type Hub struct {
-       processes map[string]*Process
-       mu        sync.RWMutex
-   }
 
-   func New() *Hub
-   func (h *Hub) Fork(name, binary string, args ...string) (*Process, error)
-   func (h *Hub) Shutdown(ctx context.Context) error
-   ```
+   **Hub struct fields:**
+   | Field | Type | Description |
+   |-------|------|-------------|
+   | processes | map | Named process registry |
+   | mu | mutex | Protects process map |
+
+   **Hub methods:**
+   | Method | Description |
+   |--------|-------------|
+   | New | Create hub instance |
+   | Fork | Fork child process, return process handle |
+   | Shutdown | Clean shutdown of all children |
 
    → **Review:** Reuses existing code? No duplication?
 

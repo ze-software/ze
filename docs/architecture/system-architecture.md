@@ -210,7 +210,7 @@ bgp {
 
 **How augmenting plugins work:**
 
-GR registers handler for `bgp.capability.graceful-restart`. Hub sends just that JSON subtree to GR:
+GR registers handler for `bgp.peer.capability.graceful-restart`. Hub sends just that JSON subtree to GR:
 
 ```json
 {"enabled": true, "restart-time": 120}
@@ -397,24 +397,30 @@ Each plugin follows this protocol with the hub:
 
 | Stage | Direction | Content |
 |-------|-----------|---------|
-| 1 | Plugin → Hub | `declare schema yang <module>`, `declare schema handler <path>`, `declare cmd <name>`, `declare done` |
-| 2 | Hub → Plugin | `config <section>`, `config done` |
+| 1 | Plugin → Hub | `declare schema yang <module>`, `declare schema handler <path>`, `declare priority <num>`, `declare cmd <name>`, `declare done` |
+| 2 | Hub → Plugin | Initial commit: `config verify` → plugin queries live/edit → `config apply` → `config done` |
 | 3 | Plugin → Hub | `capability hex ...`, `capability done` |
 | 4 | Hub → Plugin | `registry cmd ...`, `registry done` |
 | 5 | Plugin → Hub | `ready` |
 
+**Priority:** Determines verify/apply order. Lower = first. Example: BGP=100, RIB=200, GR=300.
+
 ---
 
-## Config Delivery to Plugins
+## Config Notification to Plugins
 
-### Automatic Delivery
+### Pull Model (Hub Never Pushes)
 
-Based on handler registration, plugins receive JSON config:
+**Hub notifies plugins of config changes, plugins query for config data.**
+
+On commit (startup, SIGHUP, or `ze config commit`), hub sends `config verify` / `config apply` notifications. Plugins query hub for config.
+
+Based on handler registration, plugins query for their JSON config:
 
 | Handler | Plugin receives |
 |---------|-----------------|
 | `bgp` (root) | Entire `bgp { }` block as JSON |
-| `bgp.capability.graceful-restart` (sub-root) | Just that subtree as JSON |
+| `bgp.peer.capability.graceful-restart` (sub-root) | Just that subtree as JSON |
 
 ### On-Demand Query
 
@@ -448,20 +454,24 @@ Hub maintains two configuration states:
 ```
 1. User modifies edit config (via CLI or file)
 2. User requests commit
-3. Hub notifies plugins: "verify"
-4. Each plugin:
-   a. Queries hub for live and edit config (its section)
-   b. Computes diff using shared library
-   c. Validates changes are acceptable
-   d. Responds: ok or error
-5. If all plugins verify ok:
-   a. Hub notifies plugins: "apply"
-   b. Plugins apply their changes
-   c. Edit becomes new live
-6. If any verify fails:
+3. For each plugin (by priority, lower first):
+   a. Hub sends: config verify
+   b. Plugin queries hub for live and edit config (its section)
+   c. Plugin computes diff using shared library
+   d. Plugin validates changes are acceptable
+   e. Plugin responds: done or error
+4. If all plugins verify ok:
+   a. For each plugin (by priority):
+      - Hub sends: config apply
+      - Plugin applies changes
+      - Plugin responds: done
+   b. Edit becomes new live
+5. If any verify fails:
    a. Hub aborts commit
    b. Edit unchanged, live unchanged
 ```
+
+**Priority examples:** BGP=100 (first), RIB=200, GR=300 (last).
 
 ### Plugin Diff Responsibility
 

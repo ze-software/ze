@@ -90,14 +90,12 @@ Move BGP code under `internal/plugin/bgp/` and make `ze bgp` work as a forked ch
 4. **Update imports** - Fix all broken imports
 
 5. **Create process.go** - BGP child mode entry point
-   ```
-   func RunAsChild(stdin io.Reader, stdout io.Writer) error {
-       // Stage 1: declare schema
-       // Stage 2: receive config JSON
-       // Stage 3-5: complete protocol
-       // Run BGP reactor
-   }
-   ```
+
+   **RunAsChild behavior:**
+   1. Stage 1: declare ze-bgp schema and handlers
+   2. Stage 2: receive config JSON from hub
+   3. Stage 3-5: complete 5-stage protocol
+   4. Run BGP reactor with received config
 
 6. **Modify cmd/ze/bgp** - Detect child vs standalone mode
 
@@ -125,13 +123,7 @@ Move BGP code under `internal/plugin/bgp/` and make `ze bgp` work as a forked ch
 
 ### Child detection
 
-`ze bgp` detects child mode by checking if stdin is a pipe:
-```go
-if isPipe(os.Stdin) {
-    return RunAsChild(os.Stdin, os.Stdout)
-}
-// else: standalone mode for testing
-```
+`ze bgp` detects child mode by checking if stdin is a pipe. If stdin is a pipe, run as child process using 5-stage protocol. Otherwise, run in standalone mode for testing.
 
 ## Implementation Summary
 

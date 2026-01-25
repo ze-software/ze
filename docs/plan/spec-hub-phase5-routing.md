@@ -77,30 +77,31 @@ Implement event and command routing in the hub:
 2. **Run tests** - Verify FAIL (paste output)
 
 3. **Create router.go** - Command and event routing
-   ```
-   func (h *Hub) RouteCommand(cmd string) (string, error) {
-       // Parse prefix, find handler, forward to plugin
-   }
 
-   func (h *Hub) Subscribe(pattern string, plugin *Process)
-   func (h *Hub) Publish(event string, data any)
-   ```
+   **Command routing behavior:**
+   1. Parse command prefix
+   2. Find handler using SchemaRegistry
+   3. Forward to plugin that registered handler
+   4. Return response to caller
+
+   **Event pub/sub behavior:**
+   | Method | Description |
+   |--------|-------------|
+   | Subscribe | Plugin registers interest in event pattern |
+   | Publish | Hub delivers event to all matching subscribers |
 
    → **Review:** Reuses existing dispatcher/server code?
 
 4. **Create socket.go** - Unix socket for CLI
-   ```
-   func (h *Hub) StartSocket(path string) error
-   func (h *Hub) handleCLIConnection(conn net.Conn)
-   ```
+
+   **Socket behavior:**
+   1. Start listening on Unix socket path
+   2. Accept CLI connections
+   3. Read commands, route via hub, return responses
 
 5. **Modify cmd/ze** - CLI mode
-   ```
-   // ze bgp peer list → connect to socket, send, receive
-   if !isConfigFile(args[0]) {
-       return runCLI(args)
-   }
-   ```
+
+   **CLI detection:** If first arg is not a config file, run as CLI client connecting to hub socket.
 
 6. **Verify RIB plugin** - Test with hub
    - RIB subscribes to `bgp.event.*`

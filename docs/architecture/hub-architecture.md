@@ -2,7 +2,7 @@
 
 **Status:** Design aspiration (partially implemented)
 
-**Purpose:** Document the future architecture where `ze` acts as a central Hub orchestrating separate processes for BGP, RIB, Config Reader, and third-party plugins.
+**Purpose:** Document the future architecture where `ze` acts as a central Hub orchestrating separate processes for BGP, RIB, GR, and third-party plugins.
 
 ---
 
@@ -67,10 +67,10 @@ bgp {
 | Component | Status | Description |
 |-----------|--------|-------------|
 | YANG schema registration | ❌ Needed | Add `declare schema` message type |
-| Config Reader process | ❌ Needed | Create `ze-config-reader` binary |
 | Verify/Apply protocol | ❌ Needed | Add `config verify`, `config apply` |
 | Handler path routing | ❌ Needed | Route by `bgp.*`, `rib.*` prefix |
 | libyang integration | ❌ Needed | For YANG validation |
+| Config priority | ❌ Needed | Order config sections for apply |
 
 ---
 
@@ -90,19 +90,19 @@ ze config.conf
 ┌─────────────────────────────────────────────────────────────────────────┐
 │                              ze (Hub)                                    │
 │                                                                         │
-│   ┌─────────────┐  ┌─────────────┐  ┌─────────────┐                    │
-│   │   Schema    │  │   Router    │  │     API     │                    │
-│   │  Registry   │  │             │  │    Layer    │                    │
-│   └─────────────┘  └─────────────┘  └─────────────┘                    │
+│   ┌─────────────┐  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐   │
+│   │   Schema    │  │   Config    │  │   Router    │  │     API     │   │
+│   │  Registry   │  │   State     │  │             │  │    Layer    │   │
+│   └─────────────┘  └─────────────┘  └─────────────┘  └─────────────┘   │
 │                                                                         │
-└───────────────┬─────────────┬─────────────┬─────────────────────────────┘
-                │             │             │
-        pipes   │             │             │   pipes
-                │             │             │
-                ▼             ▼             ▼
+└───────────────┬─────────────────────────┬─────────────────────────────┘
+                │                         │
+        pipes   │                         │   pipes
+                │                         │
+                ▼                         ▼
          ┌───────────┐ ┌───────────┐ ┌───────────┐ ┌───────────┐
-         │  Config   │ │    BGP    │ │    RIB    │ │  Third    │
-         │  Reader   │ │  Engine   │ │  Plugin   │ │  Party    │
+         │    BGP    │ │    RIB    │ │    GR     │ │  Third    │
+         │  Plugin   │ │  Plugin   │ │  Plugin   │ │  Party    │
          └───────────┘ └───────────┘ └───────────┘ └───────────┘
 ```
 
@@ -118,9 +118,9 @@ ze config.conf
 
 Each plugin (including BGP engine) sends its YANG schema to the Hub at startup. Third-party plugins can extend the configuration schema without modifying Ze.
 
-### 3. Config Reader Validates Against Combined Schema
+### 3. Hub Validates Against Combined Schema
 
-The Config Reader receives all YANG schemas from the Hub, then validates the config file against the combined schema. This enables:
+The Hub collects all YANG schemas from plugins, then validates the config file against the combined schema. This enables:
 
 - Type validation (ranges, patterns, enums)
 - Cross-reference validation (leafref)
@@ -155,7 +155,12 @@ Stage 5: READY          Plugin → Engine: ready
 
 ### Extended 5-Stage Protocol (Hub Architecture)
 
-The existing 5-stage protocol is **extended**, not replaced. Schema declarations are added to Stage 1, and Stage 2 is transformed from simple config push to verify/apply cycle.
+The existing 5-stage protocol is **extended**, not replaced. Schema declarations are added to Stage 1. Stage 2 waits for initial commit before proceeding.
+
+**Key principle:** Config is only sent to plugins on explicit commit:
+- **Startup:** Initial commit after Stage 1 completes
+- **SIGHUP:** Reload triggers new commit
+- **CLI:** `ze config commit` command
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────┐
@@ -167,34 +172,37 @@ The existing 5-stage protocol is **extended**, not replaced. Schema declarations
 │  Plugin → Hub: declare schema module <name> namespace <ns>              │
 │  Plugin → Hub: declare schema yang "<yang-text>"                        │
 │  Plugin → Hub: declare schema handler <path>                            │
+│  Plugin → Hub: declare priority <number>                                │
 │  Plugin → Hub: declare cmd <command>                                    │
 │  Plugin → Hub: declare done                                             │
 │                                                                         │
 │  ─── BARRIER: All plugins declared ───                                  │
 │                                                                         │
-│  STAGE 2: CONFIG (transformed to verify/apply)                          │
-│  ─────────────────────────────────────────────                          │
-│  Hub starts Config Reader (special process)                             │
-│  Hub → ConfigReader: init schemas=[...] config_path="..."               │
+│  STAGE 2: INITIAL COMMIT (VyOS-inspired verify/apply)                   │
+│  ─────────────────────────────────────────────────────                  │
+│  Hub parses config file against combined YANG                           │
+│  Hub stores config as edit state (live is empty at startup)             │
+│  Hub performs commit (same as SIGHUP reload or CLI commit):             │
 │                                                                         │
-│  ConfigReader parses config against YANG                                │
-│                                                                         │
-│  For each change:                                                       │
-│    ConfigReader → Hub: verify handler=bgp.peer action=create data={...} │
-│    Hub → Plugin: verify action=create data={...}                        │
-│    Plugin → Hub: verify.response ok                                     │
-│    Hub → ConfigReader: verify.response ok                               │
+│  For each plugin (ordered by priority):                                 │
+│    Hub → Plugin: #1 config verify                                       │
+│    Plugin → Hub: #2 query config live path "..."                        │
+│    Hub → Plugin: @2 done data '{}'  (empty at startup)                  │
+│    Plugin → Hub: #3 query config edit path "..."                        │
+│    Hub → Plugin: @3 done data '{...}'                                   │
+│    Plugin computes diff, validates                                      │
+│    Plugin → Hub: @1 done (or @1 error <reason>)                         │
 │                                                                         │
 │  If all verify pass:                                                    │
-│    ConfigReader → Hub: apply handler=bgp.peer action=create data={...}  │
-│    Hub → Plugin: apply action=create data={...}                         │
-│    Plugin → Hub: apply.response ok                                      │
-│    Hub → ConfigReader: apply.response ok                                │
+│    For each plugin (ordered by priority):                               │
+│      Hub → Plugin: #4 config apply                                      │
+│      Plugin queries config, applies changes                             │
+│      Plugin → Hub: @4 done                                              │
+│    Hub: edit becomes live                                               │
 │                                                                         │
-│  ConfigReader → Hub: complete                                           │
 │  Hub → All Plugins: config done                                         │
 │                                                                         │
-│  ─── BARRIER: Config applied ───                                        │
+│  ─── BARRIER: Initial commit complete ───                               │
 │                                                                         │
 │  STAGE 3: CAPABILITY (unchanged)                                        │
 │  STAGE 4: REGISTRY (unchanged)                                          │
@@ -227,21 +235,28 @@ The existing 5-stage protocol is **extended**, not replaced. Schema declarations
 │      declare schema yang "module ze-bgp { ... }"                        │
 │      declare schema handler bgp                                         │
 │      declare schema handler bgp.peer                                    │
+│      declare priority 100                                               │
 │      declare cmd bgp peer list                                          │
 │      declare done                                                       │
-│    Hub collects all schemas                                             │
+│    Hub collects all schemas, builds priority order                      │
 │    ─── BARRIER: All plugins declared ───                                │
 └─────────────────────────────────────────────────────────────────────────┘
                                 │
                                 ▼
 ┌─────────────────────────────────────────────────────────────────────────┐
-│ 4. STAGE 2: CONFIG (via Config Reader)                                   │
-│    Hub starts Config Reader process                                     │
-│    Hub sends: init with all schemas + config file path                  │
-│    Config Reader parses and validates config against YANG               │
-│    Config Reader sends verify/apply requests                            │
-│    Hub routes to plugins, collects responses                            │
-│    Config Reader sends: complete                                        │
+│ 4. STAGE 2: CONFIG (VyOS-inspired verify/apply)                          │
+│    Hub parses full config against combined YANG                         │
+│    Hub stores as edit state                                             │
+│    For each plugin (by priority):                                       │
+│      Hub sends: config verify                                           │
+│      Plugin queries live/edit config                                    │
+│      Plugin computes diff, validates                                    │
+│      Plugin responds: done or error                                     │
+│    If all pass:                                                         │
+│      For each plugin (by priority):                                     │
+│        Hub sends: config apply                                          │
+│        Plugin applies changes                                           │
+│      Hub: edit becomes live                                             │
 │    Hub sends: config done (to all plugins)                              │
 │    ─── BARRIER: Config applied ───                                      │
 └─────────────────────────────────────────────────────────────────────────┘
@@ -292,7 +307,7 @@ declare done
 - `declare schema` prefix matches `declare cmd` pattern
 - `declare schema handler <path>` - register config handler paths (longest-prefix routing)
 - `declare schema yang <<EOF...EOF` - YANG content inline via heredoc
-- Hub stores YANG content, distributes to Config Reader in Stage 2
+- Hub stores YANG content for config validation
 
 **Schema debugging (CLI):**
 ```bash
@@ -306,56 +321,53 @@ module ze-bgp {
 
 Same content available via CLI for human debugging.
 
-### Stage 2: Verify/Apply Message Flow
+### Stage 2: Verify/Apply Message Flow (VyOS-inspired)
 
-All messages use standard protocol patterns (`#serial command` format).
+Plugins pull config from hub, compute diff, validate and apply. All messages use `#serial command` format.
 
 ```
-Hub                     Config Reader               Plugin (BGP)
- │                            │                          │
- │── config schema ze-bgp ───>│                          │
- │   handlers bgp,bgp.peer    │                          │
- │   yang <<EOF...EOF         │                          │
- │── config path ...    ─────>│                          │
- │── config done        ─────>│                          │
- │                            │                          │
- │                            │ (has YANG inline)        │
- │                            │ (parses config vs YANG)  │
- │                            │                          │
- │<─ #1 config verify ────────│                          │
- │   handler "bgp.peer"       │                          │
- │   action create            │                          │
- │   path "bgp.peer[...]"     │                          │
- │   data '{...}'             │                          │
- │                            │                          │
- │── #a config verify ───────────────────────────────>│
- │   action create path "bgp.peer[...]" data '{...}'   │
- │                                                      │
- │<── @a done ─────────────────────────────────────────│
- │                            │                          │
- │── @1 done ────────────────>│                          │
- │                            │                          │
- │     (all verify pass)      │                          │
- │                            │                          │
- │<─ #2 config apply ─────────│                          │
- │   handler "bgp.peer"       │                          │
- │   path "bgp.peer[...]"     │                          │
- │                            │                          │
- │── #b config apply ────────────────────────────────>│
- │   path "bgp.peer[...]"                               │
- │                                                      │
- │<── @b done ─────────────────────────────────────────│
- │                            │                          │
- │── @2 done ────────────────>│                          │
- │                            │                          │
- │<─ #3 config complete ──────│                          │
- │                            │                          │
- │── @3 done ────────────────>│                          │
- │                            │                          │
- │── config done ────────────────────────────────────>│
+Hub                                        Plugin (BGP)
+ │                                              │
+ │  (Hub parsed config, stored as edit)         │
+ │                                              │
+ │── #1 config verify ─────────────────────────>│
+ │                                              │
+ │<── #2 query config live path "bgp" ──────────│
+ │                                              │
+ │── @2 done data '{...current config...}' ────>│
+ │                                              │
+ │<── #3 query config edit path "bgp" ──────────│
+ │                                              │
+ │── @3 done data '{...new config...}' ────────>│
+ │                                              │
+ │                        (plugin computes diff) │
+ │                        (plugin validates)     │
+ │                                              │
+ │<── @1 done ──────────────────────────────────│
+ │                                              │
+ │     (all plugins verified - ordered by priority)
+ │                                              │
+ │── #4 config apply ──────────────────────────>│
+ │                                              │
+ │<── #5 query config edit path "bgp.peer" ─────│
+ │                                              │
+ │── @5 done data '{...}' ─────────────────────>│
+ │                                              │
+ │                        (plugin applies changes)
+ │                                              │
+ │<── @4 done ──────────────────────────────────│
+ │                                              │
+ │  (Hub: edit becomes live)                    │
+ │                                              │
+ │── config done ──────────────────────────────>│
 ```
 
-**Key:** All messages use text protocol - `#serial command` for requests, `@serial status` for responses.
+**Key points:**
+- Hub notifies plugin to verify/apply
+- Plugin queries hub for live and edit config
+- Plugin computes diff using shared library (`internal/config/diff/`)
+- Plugin validates and applies
+- Plugins processed in priority order (lower = first)
 
 ### Building on Existing Code
 
@@ -376,8 +388,9 @@ The existing `ze-subsystem` binary needs extension:
 1. Send `declare schema module <name>` before other declarations
 2. Send `declare schema namespace <uri>`
 3. Send `declare schema handler <path>` for each config path handled
-4. Send `declare schema yang <<EOF...EOF` with full YANG content
-5. Continue with existing `declare cmd` and `declare done`
+4. Send `declare priority <number>` for config ordering
+5. Send `declare schema yang <<EOF...EOF` with full YANG content
+6. Continue with existing `declare cmd` and `declare done`
 
 ---
 
@@ -393,6 +406,7 @@ Hub stores schema information collected from plugins:
 | Namespace | YANG namespace URI (from `declare schema namespace`) |
 | Yang | Full YANG module text (from `declare schema yang`) |
 | Handlers | Handler paths (from `declare schema handler`) |
+| Priority | Config ordering (from `declare priority`, lower = first) |
 | Plugin | Name of plugin that registered this schema |
 
 ### Handler Routing
@@ -432,51 +446,38 @@ bgp {                           → handler: bgp
 
 ---
 
-## Config Verification Protocol
+## Config Verification Protocol (VyOS-inspired)
 
 ### Message Formats
 
-All messages follow standard IPC protocol patterns.
+All messages follow standard IPC protocol patterns. Plugins pull config from hub.
 
-**Hub → Config Reader: schemas + config path (Stage 2)**
+**Hub → Plugin: verify notification**
 ```
-config schema ze-bgp handlers bgp,bgp.peer yang <<EOF
-module ze-bgp {
-  namespace "urn:ze:bgp";
-  ...
-}
-EOF
-config schema ze-rib handlers rib yang <<EOF
-module ze-rib {
-  ...
-}
-EOF
-config path /etc/ze/config.conf
-config done
+#1 config verify
 ```
 
-Hub passes YANG content inline (collected from plugins in Stage 1).
-
-**Config Reader → Hub: verify request (text protocol)**
+**Plugin → Hub: query live config**
 ```
-#1 config verify handler "bgp.peer" action create path "bgp.peer[address=192.0.2.1]" data '{"address":"192.0.2.1","peer-as":65002}'
+#2 query config live path "bgp"
 ```
 
-**Hub → Plugin: verify** (text protocol, routed by handler prefix)
+**Hub → Plugin: live config response**
 ```
-#a config verify action create path "bgp.peer[address=192.0.2.1]" data '{"address":"192.0.2.1","peer-as":65002}'
-```
-
-**Plugin → Hub: verify response**
-```
-@a done
-```
-or
-```
-@a error peer-as cannot equal local-as
+@2 done data '{"local-as": 65001, "peer": [...]}'
 ```
 
-**Hub → Config Reader: verify response**
+**Plugin → Hub: query edit config**
+```
+#3 query config edit path "bgp"
+```
+
+**Hub → Plugin: edit config response**
+```
+@3 done data '{"local-as": 65001, "peer": [...new peer...]}'
+```
+
+**Plugin → Hub: verify response (after computing diff)**
 ```
 @1 done
 ```
@@ -485,33 +486,52 @@ or
 @1 error peer-as cannot equal local-as
 ```
 
-**Config Reader → Hub: complete**
+**Hub → Plugin: apply notification (after all verify pass)**
 ```
-#2 config complete
+#4 config apply
+```
+
+**Plugin → Hub: apply response (after applying changes)**
+```
+@4 done
+```
+
+**Hub → Plugin: config complete**
+```
+config done
 ```
 
 **Key consistency points:**
 - Commands use `#serial command args` format
 - Responses use `@serial status [data]` format
 - Status values: `done`, `error` (standard IPC values)
-- All components use same text protocol (no JSON wrappers)
+- Plugins pull config, hub doesn't push diffs
+- Plugins use shared diff library to compute changes
 
-### Action Types
+### Priority Ordering
 
-| Action | old | new | Description |
-|--------|-----|-----|-------------|
-| `create` | null | object | New entry |
-| `modify` | object | object | Changed entry |
-| `delete` | object | null | Removed entry |
+Plugins declare priority during Stage 1. Hub processes verify/apply in priority order:
+
+| Priority | Plugin | Typical Use |
+|----------|--------|-------------|
+| 100 | BGP | Core protocol |
+| 200 | RIB | Depends on BGP config |
+| 300 | GR | Augments BGP |
+| 1000 | Third-party | After core |
+
+Lower priority = processed first. This ensures dependencies are configured before dependents.
 
 ### Handler Interface (Plugin Side)
 
-Plugins implement verify and apply handlers in their main command loop:
+Plugins implement verify and apply handlers. They query hub for config, compute diff, validate and apply.
 
 **Verify handler:**
-1. Parse command: extract action, path, and data
-2. Perform semantic validation (YANG already validated types)
-3. Return `@serial done` or `@serial error <message>`
+1. Receive `#serial config verify`
+2. Query hub for live config: `#N query config live path "<handler-path>"`
+3. Query hub for edit config: `#N query config edit path "<handler-path>"`
+4. Compute diff using shared library (`internal/config/diff/`)
+5. Perform semantic validation (YANG already validated types)
+6. Return `@serial done` or `@serial error <message>`
 
 **Example semantic validations:**
 - peer-as cannot equal local-as for eBGP
@@ -519,9 +539,10 @@ Plugins implement verify and apply handlers in their main command loop:
 - referenced objects must exist
 
 **Apply handler:**
-1. Parse command: extract action, path, and data
-2. Apply the validated change to internal state
-3. Return `@serial done` or `@serial error <message>`
+1. Receive `#serial config apply`
+2. Query hub for edit config (new state)
+3. Apply the validated changes to internal state
+4. Return `@serial done` or `@serial error <message>`
 
 ### Hub Implementation
 
@@ -530,15 +551,22 @@ Plugins implement verify and apply handlers in their main command loop:
 1. **Fork all plugins** - Start each plugin process
 2. **Stage 1: Collect declarations** - Read until each sends `declare done`
    - Collect schemas from all plugins
+   - Collect priorities for ordering
    - BARRIER: wait for all plugins
-3. **Stage 2: Config via Config Reader**
-   - Spawn Config Reader process
-   - Send collected schemas + config path
-   - Handle verify/apply loop:
-     - Receive `config verify` from Config Reader
-     - Route to plugin by longest handler prefix match
-     - Forward plugin response back to Config Reader
-   - On `config complete`: send `config done` to all plugins
+3. **Stage 2: Config (VyOS-inspired verify/apply)**
+   - Hub parses full config against combined YANG
+   - Hub stores config as edit state
+   - For each plugin (by priority, lower first):
+     - Send `#serial config verify`
+     - Handle `query config live/edit` requests
+     - Wait for `@serial done/error` response
+   - If all verify pass:
+     - For each plugin (by priority):
+       - Send `#serial config apply`
+       - Handle query requests
+       - Wait for response
+     - Hub: edit becomes live
+   - Send `config done` to all plugins
    - BARRIER: config applied
 4. **Stages 3-5** - Continue normal protocol (unchanged)
 
@@ -618,7 +646,7 @@ leaf upstream-peer {
 }
 ```
 
-This requires all YANG modules to be loaded together in the Config Reader.
+This requires all YANG modules to be loaded together in the Hub.
 
 ---
 
@@ -655,52 +683,73 @@ $ ze system schema example apply
 
 ---
 
-## Config Reader
+## Hub Config Processing (VyOS-inspired)
+
+Hub handles all config processing internally (no separate Config Reader process).
+
+### Config Notification (Pull Model)
+
+**Hub never sends config data. Hub only notifies plugins, plugins query for config.**
+
+| Trigger | Hub Action |
+|---------|------------|
+| **Startup** | Notifies plugins: `config verify` then `config apply` |
+| **SIGHUP** | Notifies plugins: `config verify` then `config apply` |
+| **CLI commit** | Notifies plugins: `config verify` then `config apply` |
+
+Plugins respond to notifications by querying hub for live/edit config, computing diff, and applying changes themselves.
 
 ### Responsibilities
 
-1. Receive YANG schemas from Hub (inline via `config schema`)
-2. Parse config file using existing tokenizer
-3. Validate against combined YANG schema
-4. Detect changes on reload (diff current vs new)
-5. Send verify/apply requests to Hub
+1. Parse config file using existing tokenizer
+2. Validate against combined YANG schema (collected from plugins)
+3. Store config as live/edit states
+4. On commit: notify plugins (`config verify`, `config apply`)
+5. Respond to plugin config queries (hub never pushes config)
 
-### Spawning
+### Config States
 
-Config Reader is spawned **after** Stage 1 completes for all plugins:
+| State | Description |
+|-------|-------------|
+| **live** | Current running configuration |
+| **edit** | Candidate configuration (being committed) |
 
-1. Hub collects all schema declarations from plugins (Stage 1)
-2. Hub spawns Config Reader process
-3. Hub sends schemas + config path to Config Reader
-4. Config Reader validates and sends verify/apply requests
-5. After `config complete`, Hub sends `config done` to all plugins
+On startup, live is empty, edit is loaded from file, then edit becomes live after all plugins apply.
+On reload/commit, new edit is loaded, verified, then becomes live.
 
-Config Reader does NOT participate in Stage 1 - it receives schemas, doesn't declare them.
+### Query Protocol
+
+Plugins query config using text protocol:
+
+```
+#N query config <state> path "<handler-path>"
+@N done data '<json>'
+```
+
+Where:
+- `<state>` = `live` or `edit`
+- `<handler-path>` = dot-separated path like `bgp.peer`
+
+### Commit Cycle (Startup, SIGHUP, or CLI)
+
+On any commit trigger:
+
+1. Hub parses config file (or uses already-loaded edit)
+2. Hub stores as edit state
+3. Hub sends `config verify` to each plugin (by priority)
+4. Each plugin queries live/edit, computes diff, validates
+5. If all pass: Hub sends `config apply` to each plugin
+6. Plugins apply changes
+7. Hub: edit becomes live
+8. Hub sends `config done` to all plugins
 
 ### Command Handling
 
-Hub handles `config reload` and `config validate` commands directly:
-
 | Command | Handler |
 |---------|---------|
-| `config reload` | Hub receives, delegates to Config Reader |
-| `config validate` | Hub receives, delegates to Config Reader |
-
-These are Hub commands, not Config Reader commands. Config Reader is an internal process, not a command-declaring plugin.
-
-### Message Protocol
-
-See "Config Verification Protocol" section above for full message formats.
-
-### Hot Reload
-
-On SIGHUP or API command:
-
-1. Hub sends `#serial config reload` to Config Reader
-2. Config Reader re-parses config file
-3. Config Reader diffs against current state
-4. Config Reader sends verify/apply for changes only
-5. Config Reader responds `@serial done`
+| `config commit` | Hub handles internally (verify + apply) |
+| `config reload` | Hub re-reads file, then commits |
+| `config validate` | Hub handles internally (verify only, no apply) |
 
 ---
 
@@ -715,9 +764,9 @@ On SIGHUP or API command:
 │  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐         │
 │  │ SubsystemManager│  │  SchemaRegistry │  │   Config State  │         │
 │  │                 │  │                 │  │                 │         │
-│  │ plugins: map    │  │ modules: map    │  │ configPath      │         │
-│  │   name → Handler│  │   name → Schema │  │ currentConfig   │         │
-│  │                 │  │ handlers: map   │  │                 │         │
+│  │ plugins: map    │  │ modules: map    │  │ live: map       │         │
+│  │   name → Handler│  │   name → Schema │  │ edit: map       │         │
+│  │ priorities: map │  │ handlers: map   │  │                 │         │
 │  │                 │  │   path → Plugin │  │                 │         │
 │  └────────┬────────┘  └────────┬────────┘  └─────────────────┘         │
 │           │                    │                                        │
@@ -734,8 +783,8 @@ On SIGHUP or API command:
     │    pipes      │    pipes      │    pipes      │
     ▼               ▼               ▼               ▼
 ┌────────┐    ┌────────┐    ┌────────┐    ┌─────────────┐
-│  BGP   │    │  RIB   │    │ Config │    │ Third-Party │
-│ Plugin │    │ Plugin │    │ Reader │    │   Plugin    │
+│  BGP   │    │  RIB   │    │   GR   │    │ Third-Party │
+│ Plugin │    │ Plugin │    │ Plugin │    │   Plugin    │
 └────────┘    └────────┘    └────────┘    └─────────────┘
 ```
 
@@ -812,29 +861,28 @@ This enables concurrent verify/apply to different plugins while maintaining requ
 SIGHUP or "config reload" command
          │
          ▼
-    ┌─────────┐
-    │   Hub   │ ──── #r1 config reload ────▶ ┌─────────────┐
-    └─────────┘                               │Config Reader│
-         ▲                                    └──────┬──────┘
-         │                                           │
-         │                              ┌────────────┘
-         │                              │
-         │                    1. Re-read config file
-         │                    2. Parse new config
-         │                    3. Diff against current:
-         │                         delete: peer 192.0.2.2
-         │                         create: peer 192.0.2.3
-         │                    4. Verify all changes
-         │                    5. Apply all changes
-         │                              │
-         │ ◀──── @r1 done ──────────────┘
+┌─────────────────────────────────────────────────────┐
+│                       Hub                           │
+│                                                     │
+│  1. Re-read config file                             │
+│  2. Parse against combined YANG                     │
+│  3. Store as new edit state                         │
+│  4. For each plugin (by priority):                  │
+│       - Send: config verify                         │
+│       - Handle query requests                       │
+│       - Wait for done/error                         │
+│  5. If all pass:                                    │
+│       - For each plugin: Send config apply          │
+│       - Edit becomes live                           │
+│  6. Send: config done                               │
+└─────────────────────────────────────────────────────┘
 ```
 
-### YANG Validation (Config Reader)
+### YANG Validation (Hub Internal)
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│                      Config Reader                          │
+│                       Hub Config Processing                 │
 │                                                             │
 │  ┌──────────────┐    ┌──────────────┐    ┌──────────────┐  │
 │  │ YANG Loader  │    │  Validator   │    │   Tokenizer  │  │
@@ -853,9 +901,8 @@ SIGHUP or "config reload" command
 │                      │     - Range check           │       │
 │                      │     - Pattern check         │       │
 │                      │     - Mandatory fields      │       │
-│                      │  4. Leafref validation:     │       │
-│                      │     → call plugin CLI       │       │
-│                      │  5. Queue verify request    │       │
+│                      │  4. Leafref validation      │       │
+│                      │  5. Store in edit state     │       │
 │                      └─────────────────────────────┘       │
 └─────────────────────────────────────────────────────────────┘
 ```
@@ -925,103 +972,66 @@ bgp {
 
 ### Startup Flow
 
-1. Hub forks `/opt/acme/monitor-plugin`
-2. Plugin sends `declare schema` messages with YANG content
-3. Hub collects schema alongside ze-bgp schema
-4. Hub spawns Config Reader, sends all schemas
-5. Config Reader validates config, sends `config verify` for `acme-monitor` → routed to ACME plugin
-6. Config Reader sends `config verify` for `bgp.peer` → routed to BGP engine
-7. All pass → Config Reader sends `config apply` to both
-8. Config Reader sends `config complete`, Hub sends `config done` to all plugins
+1. Hub forks `/opt/acme/monitor-plugin` (and ze bgp, etc.)
+2. Each plugin sends `declare schema` messages with YANG content and priority
+3. Hub collects all schemas, validates combined YANG
+4. Hub parses config against combined schema, stores as edit
+5. Hub sends `config verify` to each plugin (by priority)
+6. Each plugin queries live/edit config, validates
+7. All pass → Hub sends `config apply` to each plugin
+8. Plugins apply changes, Hub promotes edit to live
+9. Hub sends `config done` to all plugins
 
 ---
 
 ## Migration Path
 
+**See [`docs/plan/hub-separation-phases.md`](../plan/hub-separation-phases.md) for detailed phase breakdown.**
+
 ### Dependency Diagram
 
 ```
-Phase 0: Serial Prefix (prerequisite cleanup)
-    │
-    ▼
-Phase 1: Schema Infrastructure ◄───── YANG Modules (parallel)
-    │                                       │
-    ▼                                       │
-Phase 2: Config Reader                      │
-    │                                       │
-    ▼                                       ▼
-Phase 3: YANG Integration ◄─────────── (needs YANG modules)
-    │
-    ▼
-Phase 4: Verify/Apply Protocol
-    │
-    ▼
-Phase 5: Third-Party Support
+Phase 1: Hub Foundation ──────► Phase 2: Config Parsing
+                                        │
+                                        ▼
+                                Phase 3: Schema Routing
+                                        │
+                                        ▼
+                                Phase 4: BGP Process Separation
+                                        │
+                                        ▼
+                                Phase 5: Event/Command Routing
+                                        │
+                                        ▼
+                                Phase 6: GR Plugin
+                                        │
+                                        ▼
+                                Phase 7: Cleanup
 ```
 
-### Phase 0: Foundation ✅ COMPLETE
+### Foundation ✅ COMPLETE
 
-**Already implemented** (commit `19b6564`):
+**Already implemented** (see `internal/plugin/`):
 
 - ✅ Forked subsystem processes (`cmd/ze-subsystem/`)
 - ✅ 5-stage protocol via pipes (`internal/plugin/subsystem.go`)
 - ✅ Bidirectional communication (`callEngine()` in subsystem)
 - ✅ `SubsystemHandler` and `SubsystemManager`
 - ✅ Command routing to forked processes
-- ✅ Dynamic peer management (`bgp peer add/remove`)
+- ✅ Hub struct with RouteCommand, ProcessConfig
+- ✅ SchemaRegistry with Register, FindHandler
 
-### Phase 1: Schema Infrastructure
+### Phase Overview
 
-**Spec:** [`docs/plan/spec-hub-phase1-schema-infrastructure.md`](../plan/spec-hub-phase1-schema-infrastructure.md)
-
-- Add `declare schema` to protocol (extend Stage 1)
-- Implement SchemaRegistry in Hub (extend SubsystemManager)
-- Add `system schema *` CLI commands for discovery
-- Define schema message format (`declare schema module <name>`, `declare schema yang <<EOF...EOF`)
-
-### Phase 2: Config Reader Process
-
-**Spec:** [`docs/plan/spec-hub-phase2-config-reader.md`](../plan/spec-hub-phase2-config-reader.md)
-
-- Create `ze-config-reader` binary (follows same pattern as `ze-subsystem`)
-- Receive schemas via `config schema` messages
-- Config Reader receives schemas + config file path
-- Keep existing config parser, add YANG-aware layer
-
-### Phase 3: YANG Integration
-
-**Spec:** [`docs/plan/spec-hub-phase3-yang-integration.md`](../plan/spec-hub-phase3-yang-integration.md)
-
-- Integrate libyang (or goyang + custom validation)
-- Define `ze-bgp.yang` for BGP config
-- Implement leafref validation
-- Config Reader validates against combined YANG schema
-
-### Phase 4: Verify/Apply Protocol
-
-**Spec:** [`docs/plan/spec-hub-phase4-verify-apply.md`](../plan/spec-hub-phase4-verify-apply.md)
-
-- Add `config verify`, `config apply` message handling
-- Implement handler routing by longest prefix match
-- Update subsystems to handle verify/apply (similar to existing command handling)
-- Transaction semantics (all verify pass → apply)
-
-### Phase 5: Third-Party Support
-
-**Spec:** [`docs/plan/spec-hub-phase5-third-party.md`](../plan/spec-hub-phase5-third-party.md)
-
-- Document plugin developer guide
-- Publish schema protocol specification
-- Example third-party plugin with custom YANG
-
-### YANG Modules (Parallel)
-
-**Spec:** [`docs/plan/spec-hub-yang-modules.md`](../plan/spec-hub-yang-modules.md)
-
-- Define `ze-types.yang` - common types
-- Define `ze-bgp.yang` - BGP configuration schema
-- Define `ze-plugin.yang` - plugin configuration
-- Map existing config syntax to YANG
+| Phase | Spec | Description |
+|-------|------|-------------|
+| 1 | `spec-hub-phase1-foundation.md` | Create `internal/hub/`, basic fork/pipe |
+| 2 | `spec-hub-phase2-config.md` | Parse 3-section config, env handling |
+| 3 | `spec-hub-phase3-schema-routing.md` | YANG validation, JSON delivery, query protocol |
+| 4 | `spec-hub-phase4-bgp-process.md` | Move BGP code, ze bgp as child |
+| 5 | `spec-hub-phase5-routing.md` | Event/command routing, CLI socket |
+| 6 | `spec-hub-phase6-gr-plugin.md` | ze-gr.yang, capability injection |
+| 7 | `spec-hub-phase7-cleanup.md` | Remove old code, update docs |
 
 ---
 
@@ -1029,10 +1039,9 @@ Phase 5: Third-Party Support
 
 | # | Question | Options |
 |---|----------|---------|
-| 1 | Config Reader binary | `ze config reader` vs built into hub |
-| 2 | YANG validation library | libyang (C) vs goyang + custom (Go) |
-| 3 | Schema format in messages | Raw YANG text vs file reference |
-| 4 | Transaction rollback | Auto-rollback on apply failure vs partial state |
+| 1 | YANG validation library | libyang (C) vs goyang + custom (Go) |
+| 2 | Schema format in messages | Raw YANG text vs file reference |
+| 3 | Transaction rollback | Auto-rollback on apply failure vs partial state |
 
 ---
 
@@ -1059,4 +1068,4 @@ Phase 5: Third-Party Support
 
 ---
 
-**Last Updated:** 2026-01-24
+**Last Updated:** 2026-01-25

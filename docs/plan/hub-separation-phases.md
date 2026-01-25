@@ -60,10 +60,12 @@ Refactor ZeBGP so that:
 
 ### Phase 3: Schema Routing
 - Integrate with existing SchemaRegistry
-- Plugins declare YANG + handlers in Stage 1
-- Hub maintains live/edit config states
-- Plugins query config via text protocol (live/edit states)
+- Plugins declare YANG + handlers + priority in Stage 1
+- Hub maintains live/edit config states (VyOS-inspired)
+- Pull model: hub notifies plugins, plugins query for config
+- Hub never pushes config data, only sends notifications
 - Shared diff library for plugins (`internal/config/diff/`)
+- Priority ordering for verify/apply (lower = first)
 
 ### Phase 4: BGP Process Separation
 - Move `internal/bgp/*` → `internal/plugin/bgp/*`
