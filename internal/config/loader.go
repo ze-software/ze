@@ -119,43 +119,35 @@ func CreateReactorWithPath(cfg *BGPConfig, configPath string) (*reactor.Reactor,
 }
 
 // createReloadFunc creates a ReloadFunc that parses config files.
+// It returns full PeerSettings to ensure reloaded peers are identical to initial load.
 func createReloadFunc() reactor.ReloadFunc {
-	return func(configPath string) ([]reactor.ReloadPeerConfig, error) {
+	return func(configPath string) ([]*reactor.PeerSettings, error) {
 		data, err := os.ReadFile(configPath) //nolint:gosec // User-provided config path
 		if err != nil {
 			return nil, err
 		}
 
-		// Parse the config
+		// Parse the config.
 		p := NewParser(BGPSchema())
 		tree, err := p.Parse(string(data))
 		if err != nil {
 			return nil, fmt.Errorf("parse config: %w", err)
 		}
 
-		// Convert to typed config
+		// Convert to typed config.
 		bgpCfg, err := TreeToConfig(tree)
 		if err != nil {
 			return nil, fmt.Errorf("convert config: %w", err)
 		}
 
-		// Extract peer configs for reload
-		var peers []reactor.ReloadPeerConfig
-		for _, pc := range bgpCfg.Peers {
-			rpc := reactor.ReloadPeerConfig{
-				Address:      pc.Address,
-				LocalAS:      pc.LocalAS,
-				PeerAS:       pc.PeerAS,
-				RouterID:     pc.RouterID,
-				Passive:      pc.Passive,
-				LocalAddress: pc.LocalAddress,
+		// Convert each peer using the same logic as initial load.
+		var peers []*reactor.PeerSettings
+		for i := range bgpCfg.Peers {
+			settings, err := configToPeer(&bgpCfg.Peers[i], bgpCfg)
+			if err != nil {
+				return nil, fmt.Errorf("convert peer %s: %w", bgpCfg.Peers[i].Address, err)
 			}
-
-			if pc.HoldTime > 0 {
-				rpc.HoldTime = time.Duration(pc.HoldTime) * time.Second
-			}
-
-			peers = append(peers, rpc)
+			peers = append(peers, settings)
 		}
 
 		return peers, nil

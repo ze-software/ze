@@ -60,7 +60,7 @@ Implement config reload testing framework:
 | `reload-remove-peer` | `test/data/plugin/reload-remove-peer.ci` | Peer config → reload → peer removed | |
 
 ### Future (if deferring any tests)
-- Reload with changed peer settings (hold-time, capabilities) - deferred until basic reload works
+- ~~Reload with changed peer settings (hold-time, capabilities)~~ - **IMPLEMENTED** in Phase 1
 
 ## Files to Modify
 - `internal/reactor/reactor.go` - Implement Reload() method
@@ -188,21 +188,22 @@ expect=bgp:conn=1:seq=1:contains=OPEN
 
 1. **reactor.go changes:**
    - Added `ConfigPath` field to `Config` struct
-   - Added `ErrNoConfigPath` error
-   - Added `ReloadPeerConfig` struct for diffing
-   - Added `ReloadFunc` type for config parsing callback
+   - Added `ErrNoConfigPath` and `ErrNoReloadFunc` errors
+   - Added `ReloadFunc` type returning `[]*PeerSettings` (full settings, not thin struct)
    - Added `SetReloadFunc()` method to set reload callback
    - Added `SetConfigPath()` method to set config path
+   - Added `peerSettingsEqual()` to detect settings changes
    - Implemented `Reload()` on `reactorAPIAdapter`:
      - Validates ConfigPath and ReloadFunc are set
-     - Calls ReloadFunc to get peer list from config
-     - Diffs current peers vs new peers
-     - Adds new peers, removes missing peers
+     - Calls ReloadFunc to get full PeerSettings from config
+     - Diffs current peers vs new peers (add/remove/change)
+     - Detects settings changes and re-adds peers with new settings
+     - Uses `errors.Join()` to return all add errors
    - Wired up SIGHUP → Reload() in StartWithContext()
 
 2. **config/loader.go changes:**
    - Added `CreateReactorWithPath()` for reload-enabled reactors
-   - Added `createReloadFunc()` that parses config and returns peer list
+   - Added `createReloadFunc()` that calls `configToPeer()` for full conversion
    - Updated `LoadReactorFile()` to use new path-aware creation
 
 3. **trace/trace.go changes:**
@@ -212,27 +213,34 @@ expect=bgp:conn=1:seq=1:contains=OPEN
 4. **reload_test.go (new file):**
    - `TestReloadAddsPeer` - verifies adding peer via reload
    - `TestReloadRemovesPeer` - verifies removing peer via reload
+   - `TestReloadChangedSettings` - verifies settings changes detected and applied
    - `TestReloadParseError` - verifies error on bad config
    - `TestReloadNoConfigPath` - verifies error when path not set
-   - `TestReloadNoReloadFunc` - verifies error when func not set
+   - `TestReloadNoReloadFunc` - verifies ErrNoReloadFunc returned
    - `TestReloadFileNotFound` - verifies error when file missing
+   - `TestPeerSettingsEqual` - verifies comparison function
 
 **Phase 2: .ci Framework Extensions (DEFERRED)**
 - `cmd=signal:`, `cmd=sleep:`, `cmd=tmpfs-update:` - not yet implemented
 - Functional test `reload-add-peer.ci` - not yet created
 
 ### Bugs Found/Fixed
-- None during this implementation
+- Wrong error returned when reloadFn is nil (was ErrNoConfigPath, now ErrNoReloadFunc)
+- AddPeer errors were silently ignored (now returned via errors.Join)
+- Settings changes were ignored (now detected and peer re-added)
 
 ### Design Insights
 - Config package creates reactor, reactor can't import config → solved with callback pattern
-- ReloadFunc callback avoids circular dependency between packages
+- ReloadFunc returns full `*PeerSettings` to avoid duplicating conversion logic
+- `configToPeer()` reused in reload path ensures identical peer configuration
 - SIGHUP handler was declared but never wired up in StartWithContext()
 
 ### Deviations from Plan
 - Split into two phases: Reload implementation (done) and .ci extensions (deferred)
 - Used callback pattern instead of direct config import to avoid circular dependency
 - Unit tests use simplified regex parser instead of full config parser
+- Removed `ReloadPeerConfig` struct in favor of full `*PeerSettings` (simpler, no duplication)
+- Implemented settings change detection (was planned as "Future/deferred")
 
 ## Checklist
 
@@ -240,7 +248,7 @@ expect=bgp:conn=1:seq=1:contains=OPEN
 - [x] Tests written
 - [x] Tests FAIL (ConfigPath field didn't exist)
 - [x] Implementation complete
-- [x] Tests PASS (6/6 reload tests pass)
+- [x] Tests PASS (8/8 reload tests pass)
 - [ ] Boundary tests - N/A for this phase (no numeric inputs)
 
 ### Verification

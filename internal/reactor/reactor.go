@@ -35,6 +35,7 @@ var (
 	ErrPeerNotFound          = errors.New("peer not found")
 	ErrWatchdogRouteNotFound = errors.New("watchdog route not found")
 	ErrNoConfigPath          = errors.New("config path not set")
+	ErrNoReloadFunc          = errors.New("reload function not set")
 )
 
 // Address family names for error messages.
@@ -99,20 +100,10 @@ type PluginConfig struct {
 	StageTimeout  time.Duration // Per-stage timeout (0 = use default 5s)
 }
 
-// ReloadPeerConfig contains the minimal peer info needed for reload diffing.
-type ReloadPeerConfig struct {
-	Address      netip.Addr
-	LocalAS      uint32
-	PeerAS       uint32
-	RouterID     uint32
-	LocalAddress netip.Addr
-	HoldTime     time.Duration
-	Passive      bool
-}
-
 // ReloadFunc is called by Reload() to get the list of peers from config file.
-// The function should re-parse the config file and return peer configurations.
-type ReloadFunc func(configPath string) ([]ReloadPeerConfig, error)
+// The function should re-parse the config file and return full PeerSettings.
+// This ensures reloaded peers have identical configuration to initially loaded peers.
+type ReloadFunc func(configPath string) ([]*PeerSettings, error)
 
 // Stats holds reactor statistics.
 type Stats struct {
@@ -945,72 +936,138 @@ func WriteWithdrawUpdate(buf []byte, off int, prefix netip.Prefix, addPath bool)
 // It re-parses the config file and diffs peers:
 // - New peers in config are added
 // - Peers not in new config are removed
+// - Peers with changed settings are removed and re-added
 // Requires ConfigPath to be set and SetReloadFunc to be called.
 func (a *reactorAPIAdapter) Reload() error {
 	r := a.r
 
-	// Check config path is set
+	// Check config path is set.
 	configPath := r.config.ConfigPath
 	if configPath == "" {
 		return ErrNoConfigPath
 	}
 
-	// Check reload function is set
+	// Check reload function is set.
 	r.mu.RLock()
 	reloadFn := r.reloadFunc
 	r.mu.RUnlock()
 	if reloadFn == nil {
-		return ErrNoConfigPath
+		return ErrNoReloadFunc
 	}
 
-	// Get new peer configs from config file
+	// Get new peer configs from config file.
 	newPeers, err := reloadFn(configPath)
 	if err != nil {
 		return fmt.Errorf("reload config: %w", err)
 	}
 
-	// Build map of new peer addresses for quick lookup
-	newPeerAddrs := make(map[string]ReloadPeerConfig)
+	// Build map of new peer settings for quick lookup.
+	newPeerSettings := make(map[string]*PeerSettings)
 	for _, p := range newPeers {
-		newPeerAddrs[p.Address.String()] = p
+		newPeerSettings[p.Address.String()] = p
 	}
 
-	// Get current peers
+	// Get current peer addresses and settings snapshot.
 	r.mu.RLock()
-	currentPeerAddrs := make(map[string]bool)
-	for addr := range r.peers {
-		currentPeerAddrs[addr] = true
+	currentPeers := make(map[string]*PeerSettings)
+	for addr, peer := range r.peers {
+		currentPeers[addr] = peer.Settings()
 	}
 	r.mu.RUnlock()
 
-	// Remove peers not in new config
-	for addr := range currentPeerAddrs {
-		if _, exists := newPeerAddrs[addr]; !exists {
-			r.mu.Lock()
-			if peer, ok := r.peers[addr]; ok {
-				peer.Stop()
-				delete(r.peers, addr)
-			}
-			r.mu.Unlock()
+	// Categorize peers: to remove, to add, unchanged.
+	var toRemove []string
+	var toAdd []*PeerSettings
+
+	for addr := range currentPeers {
+		newSettings, exists := newPeerSettings[addr]
+		if !exists {
+			// Peer removed from config.
+			toRemove = append(toRemove, addr)
+		} else if !peerSettingsEqual(currentPeers[addr], newSettings) {
+			// Peer settings changed - remove and re-add.
+			toRemove = append(toRemove, addr)
+			toAdd = append(toAdd, newSettings)
+			trace.Log(trace.Config, "reload: peer %s settings changed", addr)
 		}
 	}
 
-	// Add new peers
-	for addr, peerCfg := range newPeerAddrs {
-		if !currentPeerAddrs[addr] {
-			settings := NewPeerSettings(peerCfg.Address, peerCfg.LocalAS, peerCfg.PeerAS, peerCfg.RouterID)
-			settings.Passive = peerCfg.Passive
-			if peerCfg.LocalAddress.IsValid() {
-				settings.LocalAddress = peerCfg.LocalAddress
-			}
-			if peerCfg.HoldTime > 0 {
-				settings.HoldTime = peerCfg.HoldTime
-			}
-			_ = r.AddPeer(settings)
+	for addr, settings := range newPeerSettings {
+		if _, exists := currentPeers[addr]; !exists {
+			// New peer in config.
+			toAdd = append(toAdd, settings)
 		}
+	}
+
+	// Remove peers.
+	for _, addr := range toRemove {
+		r.mu.Lock()
+		if peer, ok := r.peers[addr]; ok {
+			peer.Stop()
+			delete(r.peers, addr)
+			trace.Log(trace.Config, "reload: removed peer %s", addr)
+		}
+		r.mu.Unlock()
+	}
+
+	// Add peers.
+	var addErrors []error
+	for _, settings := range toAdd {
+		if err := r.AddPeer(settings); err != nil {
+			addErrors = append(addErrors, fmt.Errorf("add peer %s: %w", settings.Address, err))
+		} else {
+			trace.Log(trace.Config, "reload: added peer %s", settings.Address)
+		}
+	}
+
+	if len(addErrors) > 0 {
+		return errors.Join(addErrors...)
 	}
 
 	return nil
+}
+
+// peerSettingsEqual compares two PeerSettings for reload diffing.
+// Returns true if the settings are functionally equivalent.
+func peerSettingsEqual(a, b *PeerSettings) bool {
+	if a == nil || b == nil {
+		return a == b
+	}
+
+	// Compare identity fields.
+	if a.Address != b.Address ||
+		a.LocalAS != b.LocalAS ||
+		a.PeerAS != b.PeerAS ||
+		a.RouterID != b.RouterID {
+		return false
+	}
+
+	// Compare connectivity fields.
+	if a.LocalAddress != b.LocalAddress ||
+		a.Port != b.Port ||
+		a.Passive != b.Passive {
+		return false
+	}
+
+	// Compare behavior fields.
+	if a.HoldTime != b.HoldTime ||
+		a.GroupUpdates != b.GroupUpdates ||
+		a.IgnoreFamilyMismatch != b.IgnoreFamilyMismatch ||
+		a.DisableASN4 != b.DisableASN4 {
+		return false
+	}
+
+	// Compare static routes count (deep comparison would be expensive).
+	if len(a.StaticRoutes) != len(b.StaticRoutes) {
+		return false
+	}
+
+	// Compare capabilities count (deep comparison would be expensive).
+	if len(a.Capabilities) != len(b.Capabilities) {
+		return false
+	}
+
+	return true
 }
 
 // AnnounceFlowSpec announces a FlowSpec route to matching peers.

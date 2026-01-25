@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -16,20 +17,21 @@ const emptyConfig = `ze bgp {
 `
 
 // simpleReloadFunc parses minimal config for testing.
-// Supports: neighbor <ip> { local-as <n>; peer-as <n>; passive; }.
-func simpleReloadFunc(configPath string) ([]ReloadPeerConfig, error) {
+// Supports: neighbor <ip> { local-as <n>; peer-as <n>; hold-time <n>; passive; }.
+func simpleReloadFunc(configPath string) ([]*PeerSettings, error) {
 	data, err := os.ReadFile(configPath) //nolint:gosec // test file
 	if err != nil {
 		return nil, err
 	}
 
-	// Simple regex to find neighbor blocks
+	// Simple regex to find neighbor blocks.
 	neighborRe := regexp.MustCompile(`neighbor\s+(\d+\.\d+\.\d+\.\d+)\s*\{([^}]*)\}`)
 	localASRe := regexp.MustCompile(`local-as\s+(\d+)`)
 	peerASRe := regexp.MustCompile(`peer-as\s+(\d+)`)
+	holdTimeRe := regexp.MustCompile(`hold-time\s+(\d+)`)
 	passiveRe := regexp.MustCompile(`\bpassive\b`)
 
-	var peers []ReloadPeerConfig
+	var peers []*PeerSettings
 	matches := neighborRe.FindAllStringSubmatch(string(data), -1)
 	for _, m := range matches {
 		if len(m) < 3 {
@@ -41,19 +43,22 @@ func simpleReloadFunc(configPath string) ([]ReloadPeerConfig, error) {
 		}
 		block := m[2]
 
-		peer := ReloadPeerConfig{Address: addr}
-
+		var localAS, peerAS uint32
 		if laMatch := localASRe.FindStringSubmatch(block); len(laMatch) > 1 {
-			var la uint32
-			parseUint32(laMatch[1], &la)
-			peer.LocalAS = la
+			parseUint32(laMatch[1], &localAS)
 		}
 		if paMatch := peerASRe.FindStringSubmatch(block); len(paMatch) > 1 {
-			var pa uint32
-			parseUint32(paMatch[1], &pa)
-			peer.PeerAS = pa
+			parseUint32(paMatch[1], &peerAS)
 		}
+
+		peer := NewPeerSettings(addr, localAS, peerAS, 0)
 		peer.Passive = passiveRe.MatchString(block)
+
+		if htMatch := holdTimeRe.FindStringSubmatch(block); len(htMatch) > 1 {
+			var ht uint32
+			parseUint32(htMatch[1], &ht)
+			peer.HoldTime = time.Duration(ht) * time.Second
+		}
 
 		peers = append(peers, peer)
 	}
@@ -80,13 +85,13 @@ func parseUint32(s string, out *uint32) {
 // VALIDATES: Reload adds peers that are in new config but not in current reactor.
 // PREVENTS: Reload silently ignoring new peers in config.
 func TestReloadAddsPeer(t *testing.T) {
-	// Create temp config file with initial empty config
+	// Create temp config file with initial empty config.
 	tempDir := t.TempDir()
 	configPath := filepath.Join(tempDir, "config.conf")
 
 	require.NoError(t, os.WriteFile(configPath, []byte(emptyConfig), 0o600))
 
-	// Create reactor with config path
+	// Create reactor with config path.
 	cfg := &Config{
 		ConfigPath: configPath,
 		ListenAddr: "127.0.0.1:0",
@@ -96,10 +101,10 @@ func TestReloadAddsPeer(t *testing.T) {
 	require.NoError(t, reactor.Start())
 	defer reactor.Stop()
 
-	// Verify no peers initially
+	// Verify no peers initially.
 	assert.Empty(t, reactor.Peers(), "should start with no peers")
 
-	// Update config to add a peer
+	// Update config to add a peer.
 	updatedConfig := `ze bgp {
     neighbor 10.0.0.1 {
         local-as 65001;
@@ -110,12 +115,12 @@ func TestReloadAddsPeer(t *testing.T) {
 `
 	require.NoError(t, os.WriteFile(configPath, []byte(updatedConfig), 0o600))
 
-	// Reload config
+	// Reload config.
 	adapter := &reactorAPIAdapter{r: reactor}
 	err := adapter.Reload()
 	require.NoError(t, err)
 
-	// Verify peer was added
+	// Verify peer was added.
 	peers := reactor.Peers()
 	require.Len(t, peers, 1, "should have 1 peer after reload")
 	assert.Equal(t, "10.0.0.1", peers[0].Settings().Address.String())
@@ -126,7 +131,7 @@ func TestReloadAddsPeer(t *testing.T) {
 // VALIDATES: Reload removes peers that are in reactor but not in new config.
 // PREVENTS: Reload leaving stale peers from old config.
 func TestReloadRemovesPeer(t *testing.T) {
-	// Create temp config file with a peer
+	// Create temp config file with a peer.
 	tempDir := t.TempDir()
 	configPath := filepath.Join(tempDir, "config.conf")
 
@@ -140,7 +145,7 @@ func TestReloadRemovesPeer(t *testing.T) {
 `
 	require.NoError(t, os.WriteFile(configPath, []byte(initialConfig), 0o600))
 
-	// Create reactor with config path
+	// Create reactor with config path.
 	cfg := &Config{
 		ConfigPath: configPath,
 		ListenAddr: "127.0.0.1:0",
@@ -148,7 +153,7 @@ func TestReloadRemovesPeer(t *testing.T) {
 	reactor := New(cfg)
 	reactor.SetReloadFunc(simpleReloadFunc)
 
-	// Add the peer manually to simulate initial state
+	// Add the peer manually to simulate initial state.
 	settings := NewPeerSettings(mustParseAddr("10.0.0.1"), 65001, 65002, 0)
 	settings.Passive = true
 	_ = reactor.AddPeer(settings)
@@ -156,19 +161,85 @@ func TestReloadRemovesPeer(t *testing.T) {
 	require.NoError(t, reactor.Start())
 	defer reactor.Stop()
 
-	// Verify peer exists initially
+	// Verify peer exists initially.
 	require.Len(t, reactor.Peers(), 1, "should start with 1 peer")
 
-	// Update config to remove all peers
+	// Update config to remove all peers.
 	require.NoError(t, os.WriteFile(configPath, []byte(emptyConfig), 0o600))
 
-	// Reload config
+	// Reload config.
 	adapter := &reactorAPIAdapter{r: reactor}
 	err := adapter.Reload()
 	require.NoError(t, err)
 
-	// Verify peer was removed
+	// Verify peer was removed.
 	assert.Empty(t, reactor.Peers(), "should have no peers after reload")
+}
+
+// TestReloadChangedSettings verifies that Reload() updates peers with changed settings.
+//
+// VALIDATES: Reload detects settings changes and re-adds peer with new settings.
+// PREVENTS: Peers keeping old settings when config changes.
+func TestReloadChangedSettings(t *testing.T) {
+	// Create temp config file with initial peer settings.
+	tempDir := t.TempDir()
+	configPath := filepath.Join(tempDir, "config.conf")
+
+	initialConfig := `ze bgp {
+    neighbor 10.0.0.1 {
+        local-as 65001;
+        peer-as 65002;
+        hold-time 90;
+        passive;
+    }
+}
+`
+	require.NoError(t, os.WriteFile(configPath, []byte(initialConfig), 0o600))
+
+	// Create reactor with config path.
+	cfg := &Config{
+		ConfigPath: configPath,
+		ListenAddr: "127.0.0.1:0",
+	}
+	reactor := New(cfg)
+	reactor.SetReloadFunc(simpleReloadFunc)
+
+	// Add the peer manually with initial settings.
+	settings := NewPeerSettings(mustParseAddr("10.0.0.1"), 65001, 65002, 0)
+	settings.Passive = true
+	settings.HoldTime = 90 * time.Second
+	_ = reactor.AddPeer(settings)
+
+	require.NoError(t, reactor.Start())
+	defer reactor.Stop()
+
+	// Verify initial hold time.
+	peers := reactor.Peers()
+	require.Len(t, peers, 1, "should start with 1 peer")
+	assert.Equal(t, 90*time.Second, peers[0].Settings().HoldTime, "initial hold time")
+
+	// Update config with changed hold time.
+	updatedConfig := `ze bgp {
+    neighbor 10.0.0.1 {
+        local-as 65001;
+        peer-as 65002;
+        hold-time 30;
+        passive;
+    }
+}
+`
+	require.NoError(t, os.WriteFile(configPath, []byte(updatedConfig), 0o600))
+
+	// Reload config.
+	adapter := &reactorAPIAdapter{r: reactor}
+	err := adapter.Reload()
+	require.NoError(t, err)
+
+	// Verify peer has new hold time.
+	peers = reactor.Peers()
+	require.Len(t, peers, 1, "should still have 1 peer after reload")
+	assert.Equal(t, "10.0.0.1", peers[0].Settings().Address.String())
+	assert.Equal(t, 30*time.Second, peers[0].Settings().HoldTime, "hold time should be updated")
 }
 
 // TestReloadParseError verifies that Reload() returns error on bad config.
@@ -176,8 +247,8 @@ func TestReloadRemovesPeer(t *testing.T) {
 // VALIDATES: Reload returns error when config file is invalid.
 // PREVENTS: Reload silently ignoring parse errors.
 func TestReloadParseError(t *testing.T) {
-	// Create a reload function that fails on specific content
-	failingReloadFunc := func(configPath string) ([]ReloadPeerConfig, error) {
+	// Create a reload function that fails on specific content.
+	failingReloadFunc := func(configPath string) ([]*PeerSettings, error) {
 		data, err := os.ReadFile(configPath) //nolint:gosec // test file
 		if err != nil {
 			return nil, err
@@ -188,13 +259,13 @@ func TestReloadParseError(t *testing.T) {
 		return simpleReloadFunc(configPath)
 	}
 
-	// Create temp config file with valid initial config
+	// Create temp config file with valid initial config.
 	tempDir := t.TempDir()
 	configPath := filepath.Join(tempDir, "config.conf")
 
 	require.NoError(t, os.WriteFile(configPath, []byte(emptyConfig), 0o600))
 
-	// Create reactor with config path
+	// Create reactor with config path.
 	cfg := &Config{
 		ConfigPath: configPath,
 		ListenAddr: "127.0.0.1:0",
@@ -204,14 +275,14 @@ func TestReloadParseError(t *testing.T) {
 	require.NoError(t, reactor.Start())
 	defer reactor.Stop()
 
-	// Update config to invalid content
+	// Update config to invalid content.
 	invalidConfig := `ze bgp {
     invalid syntax here!!!
 }
 `
 	require.NoError(t, os.WriteFile(configPath, []byte(invalidConfig), 0o600))
 
-	// Reload should fail
+	// Reload should fail.
 	adapter := &reactorAPIAdapter{r: reactor}
 	err := adapter.Reload()
 	require.Error(t, err, "reload should fail on invalid config")
@@ -224,7 +295,7 @@ func TestReloadParseError(t *testing.T) {
 func TestReloadNoConfigPath(t *testing.T) {
 	cfg := &Config{
 		ListenAddr: "127.0.0.1:0",
-		// ConfigPath not set
+		// ConfigPath not set.
 	}
 	reactor := New(cfg)
 	require.NoError(t, reactor.Start())
@@ -238,8 +309,8 @@ func TestReloadNoConfigPath(t *testing.T) {
 
 // TestReloadNoReloadFunc verifies that Reload() returns error when no reload func.
 //
-// VALIDATES: Reload returns error when SetReloadFunc not called.
-// PREVENTS: Reload panicking on nil function.
+// VALIDATES: Reload returns ErrNoReloadFunc when SetReloadFunc not called.
+// PREVENTS: Reload panicking on nil function or returning misleading error.
 func TestReloadNoReloadFunc(t *testing.T) {
 	tempDir := t.TempDir()
 	configPath := filepath.Join(tempDir, "config.conf")
@@ -250,13 +321,14 @@ func TestReloadNoReloadFunc(t *testing.T) {
 		ListenAddr: "127.0.0.1:0",
 	}
 	reactor := New(cfg)
-	// SetReloadFunc NOT called
+	// SetReloadFunc NOT called.
 	require.NoError(t, reactor.Start())
 	defer reactor.Stop()
 
 	adapter := &reactorAPIAdapter{r: reactor}
 	err := adapter.Reload()
 	require.Error(t, err, "reload should fail when SetReloadFunc not called")
+	assert.ErrorIs(t, err, ErrNoReloadFunc)
 }
 
 // TestReloadFileNotFound verifies that Reload() returns error when config file missing.
@@ -276,4 +348,43 @@ func TestReloadFileNotFound(t *testing.T) {
 	adapter := &reactorAPIAdapter{r: reactor}
 	err := adapter.Reload()
 	require.Error(t, err, "reload should fail when config file not found")
+}
+
+// TestPeerSettingsEqual verifies the peer settings comparison function.
+//
+// VALIDATES: peerSettingsEqual correctly detects setting differences.
+// PREVENTS: Reload missing setting changes due to bad comparison.
+func TestPeerSettingsEqual(t *testing.T) {
+	base := NewPeerSettings(mustParseAddr("10.0.0.1"), 65001, 65002, 0)
+	base.HoldTime = 90 * time.Second
+	base.Passive = true
+
+	tests := []struct {
+		name  string
+		mod   func(*PeerSettings)
+		equal bool
+	}{
+		{"identical", func(p *PeerSettings) {}, true},
+		{"different_local_as", func(p *PeerSettings) { p.LocalAS = 65099 }, false},
+		{"different_peer_as", func(p *PeerSettings) { p.PeerAS = 65099 }, false},
+		{"different_hold_time", func(p *PeerSettings) { p.HoldTime = 30 * time.Second }, false},
+		{"different_passive", func(p *PeerSettings) { p.Passive = false }, false},
+		{"different_port", func(p *PeerSettings) { p.Port = 1179 }, false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Create a copy of base settings.
+			other := NewPeerSettings(base.Address, base.LocalAS, base.PeerAS, base.RouterID)
+			other.HoldTime = base.HoldTime
+			other.Passive = base.Passive
+			other.Port = base.Port
+
+			// Apply modification.
+			tt.mod(other)
+
+			result := peerSettingsEqual(base, other)
+			assert.Equal(t, tt.equal, result, "peerSettingsEqual mismatch")
+		})
+	}
 }

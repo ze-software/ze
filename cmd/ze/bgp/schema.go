@@ -26,7 +26,7 @@ func cmdSchema(args []string) int {
 		return cmdSchemaHandlers(args[1:])
 	case "protocol":
 		return cmdSchemaProtocol()
-	case "help", "-h", "--help":
+	case "help", "-h", "--help": //nolint:goconst // consistent pattern across cmd files
 		schemaUsage()
 		return 0
 	default:
