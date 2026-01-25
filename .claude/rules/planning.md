@@ -212,6 +212,13 @@ Present to user BEFORE writing code:
 ### Design Decisions
 - [decision]: [rationale from docs]
 
+### Design Principles Check (see `rules/design-principles.md`)
+- [ ] No premature abstraction (3+ use cases exist?)
+- [ ] No speculative features (needed NOW?)
+- [ ] Single responsibility per component
+- [ ] Explicit > implicit behavior
+- [ ] Minimal coupling between components
+
 ### RFC References (if BGP protocol code)
 - RFC NNNN Section X.Y - [what it covers]
 
@@ -443,6 +450,14 @@ If you had to investigate/debug something, ask:
 
 ## Checklist
 
+### 🏗️ Design (see `rules/design-principles.md`)
+- [ ] No premature abstraction (3+ concrete use cases exist?)
+- [ ] No speculative features (is this needed NOW?)
+- [ ] Single responsibility (each component does ONE thing?)
+- [ ] Explicit behavior (no hidden magic or conventions?)
+- [ ] Minimal coupling (components isolated, dependencies minimal?)
+- [ ] Next-developer test (would they understand this quickly?)
+
 ### 🧪 TDD
 - [ ] Tests written
 - [ ] Tests FAIL (output below)
@@ -554,6 +569,7 @@ Reading architecture docs BEFORE implementation prevents:
 ## Integration with Other Rules
 
 This rule works with:
+- `design-principles.md` - Scalability, maintainability, YAGNI
 - `tdd.md` - TDD cycle enforcement
 - `rfc-compliance.md` - RFC reading and comments
 - `go-standards.md` - Code quality

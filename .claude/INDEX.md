@@ -31,6 +31,7 @@ Read when working on specific areas:
 | Rule | Applies To |
 |------|------------|
 | `rules/understand-first.md` | `*` (BLOCKING - before any code) |
+| `rules/design-principles.md` | `*` (scalability, maintainability) |
 | `rules/planning.md` | `*` (non-trivial features) |
 | `rules/tdd.md` | `**/*.go` |
 | `rules/testing.md` | `*` (CI, functional tests) |
@@ -38,6 +39,7 @@ Read when working on specific areas:
 | `rules/rfc-compliance.md` | `internal/bgp/**/*.go` |
 | `rules/git-safety.md` | `*` |
 | `rules/config-design.md` | Config changes |
+| `rules/quality.md` | `*` (no shortcuts) |
 | `rules/documentation.md` | `**/*.md` |
 
 ## Edge Cases
