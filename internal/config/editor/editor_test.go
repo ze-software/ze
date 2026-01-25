@@ -25,7 +25,7 @@ local-as 65000;
 	// Create editor
 	ed, err := NewEditor(configPath)
 	require.NoError(t, err)
-	defer ed.Close() //nolint:errcheck // Best effort cleanup
+	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup
 
 	assert.Equal(t, configPath, ed.OriginalPath())
 	assert.False(t, ed.Dirty())
@@ -41,14 +41,14 @@ func TestEditorSaveCreatesBackup(t *testing.T) {
 	configPath := filepath.Join(tmpDir, "test.conf")
 
 	// Write initial config
-	initial := `router-id 1.2.3.4;`
+	initial := `router-id 1.2.3.4;` //nolint:goconst // test value
 	err := os.WriteFile(configPath, []byte(initial), 0600)
 	require.NoError(t, err)
 
 	// Create editor and modify
 	ed, err := NewEditor(configPath)
 	require.NoError(t, err)
-	defer ed.Close() //nolint:errcheck // Best effort cleanup
+	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup
 
 	// Mark as dirty (simulating a change)
 	ed.MarkDirty()
@@ -89,7 +89,7 @@ func TestEditorBackupNaming(t *testing.T) {
 	// Check backup naming
 	ed, err := NewEditor(configPath)
 	require.NoError(t, err)
-	defer ed.Close() //nolint:errcheck // Best effort cleanup
+	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup
 
 	backups, err := ed.ListBackups()
 	require.NoError(t, err)
@@ -116,7 +116,7 @@ func TestEditorDiscard(t *testing.T) {
 
 	ed, err := NewEditor(configPath)
 	require.NoError(t, err)
-	defer ed.Close() //nolint:errcheck // Best effort cleanup
+	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup
 
 	// Mark dirty
 	ed.MarkDirty()
@@ -153,7 +153,7 @@ func TestEditorRollback(t *testing.T) {
 	// Rollback to first backup
 	ed, err = NewEditor(configPath)
 	require.NoError(t, err)
-	defer ed.Close() //nolint:errcheck // Best effort cleanup
+	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup
 
 	backups, err := ed.ListBackups()
 	require.NoError(t, err)
@@ -177,7 +177,7 @@ func TestEditorListBackupsEmpty(t *testing.T) {
 
 	ed, err := NewEditor(configPath)
 	require.NoError(t, err)
-	defer ed.Close() //nolint:errcheck // Best effort cleanup
+	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup
 
 	backups, err := ed.ListBackups()
 	require.NoError(t, err)
@@ -196,7 +196,7 @@ local-as 65000;
 
 	ed, err := NewEditor(configPath)
 	require.NoError(t, err)
-	defer ed.Close() //nolint:errcheck // Best effort cleanup
+	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup
 
 	// No changes yet
 	diff := ed.Diff()
@@ -211,4 +211,156 @@ local-as 65001;
 	diff = ed.Diff()
 	assert.Contains(t, diff, "65000")
 	assert.Contains(t, diff, "65001")
+}
+
+// TestEditFilePersistence verifies .edit file is created on changes.
+//
+// VALIDATES: Edit file created when config is modified.
+// PREVENTS: Loss of uncommitted changes between sessions.
+func TestEditFilePersistence(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "test.conf")
+	editPath := configPath + ".edit"
+
+	// Write initial config
+	initial := `router-id 1.2.3.4;`
+	err := os.WriteFile(configPath, []byte(initial), 0600)
+	require.NoError(t, err)
+
+	// Create editor
+	ed, err := NewEditor(configPath)
+	require.NoError(t, err)
+
+	// No edit file yet
+	_, err = os.Stat(editPath)
+	assert.True(t, os.IsNotExist(err), "edit file should not exist initially")
+
+	// Make a change and save edit state
+	ed.SetWorkingContent(`router-id 2.2.2.2;`)
+	ed.MarkDirty()
+	err = ed.SaveEditState()
+	require.NoError(t, err)
+
+	// Edit file should now exist
+	_, err = os.Stat(editPath)
+	assert.NoError(t, err, "edit file should exist after change")
+
+	// Verify edit file content
+	editContent, err := os.ReadFile(editPath) //nolint:gosec // test path
+	require.NoError(t, err)
+	assert.Equal(t, `router-id 2.2.2.2;`, string(editContent))
+
+	ed.Close() //nolint:errcheck,gosec // Best effort cleanup
+}
+
+// TestEditFileResume verifies editor loads from .edit file if exists.
+//
+// VALIDATES: Uncommitted changes restored from .edit file.
+// PREVENTS: Loss of work when editor is restarted.
+func TestEditFileResume(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "test.conf")
+	editPath := configPath + ".edit"
+
+	// Write original config
+	original := `router-id 1.1.1.1;`
+	err := os.WriteFile(configPath, []byte(original), 0600)
+	require.NoError(t, err)
+
+	// Write existing edit file (simulating previous session)
+	editContent := `router-id 9.9.9.9;`
+	err = os.WriteFile(editPath, []byte(editContent), 0600)
+	require.NoError(t, err)
+
+	// Create editor - should detect and report edit file
+	ed, err := NewEditor(configPath)
+	require.NoError(t, err)
+	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup
+
+	// Editor should indicate existing edit file
+	assert.True(t, ed.HasPendingEdit(), "editor should detect pending edit")
+
+	// Load from edit file
+	err = ed.LoadPendingEdit()
+	require.NoError(t, err)
+
+	// Working content should be from edit file
+	assert.Equal(t, editContent, ed.WorkingContent())
+	assert.True(t, ed.Dirty())
+}
+
+// TestEditFileDeletedOnCommit verifies .edit file removed after commit.
+//
+// VALIDATES: Edit file cleaned up on successful commit.
+// PREVENTS: Stale edit files accumulating.
+func TestEditFileDeletedOnCommit(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "test.conf")
+	editPath := configPath + ".edit"
+
+	// Write initial config
+	initial := `router-id 1.2.3.4;`
+	err := os.WriteFile(configPath, []byte(initial), 0600)
+	require.NoError(t, err)
+
+	// Create editor and make changes
+	ed, err := NewEditor(configPath)
+	require.NoError(t, err)
+
+	ed.SetWorkingContent(`router-id 2.2.2.2;`)
+	ed.MarkDirty()
+	err = ed.SaveEditState()
+	require.NoError(t, err)
+
+	// Edit file exists
+	_, err = os.Stat(editPath)
+	require.NoError(t, err, "edit file should exist before commit")
+
+	// Commit
+	err = ed.Save()
+	require.NoError(t, err)
+
+	// Edit file should be gone
+	_, err = os.Stat(editPath)
+	assert.True(t, os.IsNotExist(err), "edit file should be deleted after commit")
+
+	ed.Close() //nolint:errcheck,gosec // Best effort cleanup
+}
+
+// TestEditFileDeletedOnDiscard verifies .edit file removed after discard.
+//
+// VALIDATES: Edit file cleaned up when changes discarded.
+// PREVENTS: Stale edit files from discarded sessions.
+func TestEditFileDeletedOnDiscard(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "test.conf")
+	editPath := configPath + ".edit"
+
+	// Write initial config
+	initial := `router-id 1.2.3.4;`
+	err := os.WriteFile(configPath, []byte(initial), 0600)
+	require.NoError(t, err)
+
+	// Create editor and make changes
+	ed, err := NewEditor(configPath)
+	require.NoError(t, err)
+
+	ed.SetWorkingContent(`router-id 2.2.2.2;`)
+	ed.MarkDirty()
+	err = ed.SaveEditState()
+	require.NoError(t, err)
+
+	// Edit file exists
+	_, err = os.Stat(editPath)
+	require.NoError(t, err, "edit file should exist before discard")
+
+	// Discard
+	err = ed.Discard()
+	require.NoError(t, err)
+
+	// Edit file should be gone
+	_, err = os.Stat(editPath)
+	assert.True(t, os.IsNotExist(err), "edit file should be deleted after discard")
+
+	ed.Close() //nolint:errcheck,gosec // Best effort cleanup
 }

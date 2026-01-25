@@ -29,6 +29,7 @@ var (
 type Model struct {
 	editor      *Editor
 	completer   *Completer
+	validator   *ConfigValidator
 	textInput   textinput.Model
 	viewport    viewport.Model
 	contextPath []string // Current edit context (e.g., ["neighbor", "192.168.1.1"])
@@ -39,6 +40,10 @@ type Model struct {
 	selected     int    // Selected index in dropdown (-1 for ghost mode)
 	ghostText    string // Inline ghost suggestion
 	showDropdown bool   // Whether to show dropdown
+
+	// Validation state
+	validationErrors   []ConfigValidationError
+	validationWarnings []ConfigValidationError
 
 	// Display state
 	viewportContent string // Content shown in viewport
@@ -78,13 +83,21 @@ func NewModel(ed *Editor) Model {
 	comp := NewCompleter(ed.Schema())
 	comp.SetTree(ed.Tree())
 
+	val := NewConfigValidator()
+
+	// Run initial validation
+	result := val.Validate(ed.WorkingContent())
+
 	return Model{
-		editor:      ed,
-		completer:   comp,
-		textInput:   ti,
-		viewport:    vp,
-		contextPath: nil,
-		selected:    -1,
+		editor:             ed,
+		completer:          comp,
+		validator:          val,
+		textInput:          ti,
+		viewport:           vp,
+		contextPath:        nil,
+		selected:           -1,
+		validationErrors:   result.Errors,
+		validationWarnings: result.Warnings,
 	}
 }
 
@@ -806,15 +819,13 @@ func (m *Model) dispatchCommand(input string) (string, error) {
 		return m.editor.Diff(), nil
 
 	case "commit":
-		if err := m.editor.Save(); err != nil {
-			return "", err
-		}
-		return "Configuration saved", nil
+		return m.cmdCommit()
 
 	case "discard":
 		if err := m.editor.Discard(); err != nil {
 			return "", err
 		}
+		m.runValidation() // Re-validate after discard
 		return "Changes discarded", nil
 
 	case "history":
@@ -828,6 +839,9 @@ func (m *Model) dispatchCommand(input string) (string, error) {
 
 	case "delete":
 		return m.cmdDelete(args)
+
+	case "errors":
+		return m.cmdErrors()
 
 	default:
 		return "", fmt.Errorf("unknown command: %s", cmd)
@@ -1006,4 +1020,65 @@ func (m *Model) cmdDelete(args []string) (string, error) {
 	// For now, just acknowledge
 	m.editor.MarkDirty()
 	return fmt.Sprintf("Deleted %s", strings.Join(fullPath, " ")), nil
+}
+
+// runValidation re-runs validation on current content.
+func (m *Model) runValidation() {
+	result := m.validator.Validate(m.editor.WorkingContent())
+	m.validationErrors = result.Errors
+	m.validationWarnings = result.Warnings
+}
+
+// cmdCommit saves changes with validation check.
+func (m *Model) cmdCommit() (string, error) {
+	// Re-run validation before commit
+	m.runValidation()
+
+	// Block commit if there are errors
+	if len(m.validationErrors) > 0 {
+		return "", fmt.Errorf("cannot commit: %d validation error(s). Use 'errors' to see details", len(m.validationErrors))
+	}
+
+	// Save changes
+	if err := m.editor.Save(); err != nil {
+		return "", err
+	}
+
+	return "Configuration committed", nil
+}
+
+// cmdErrors displays validation errors.
+func (m *Model) cmdErrors() (string, error) {
+	if len(m.validationErrors) == 0 && len(m.validationWarnings) == 0 {
+		return "No validation issues", nil
+	}
+
+	var b strings.Builder
+
+	if len(m.validationErrors) > 0 {
+		b.WriteString(fmt.Sprintf("Errors (%d):\n", len(m.validationErrors)))
+		for _, e := range m.validationErrors {
+			if e.Line > 0 {
+				b.WriteString(fmt.Sprintf("  Line %d: %s\n", e.Line, e.Message))
+			} else {
+				b.WriteString(fmt.Sprintf("  %s\n", e.Message))
+			}
+		}
+	}
+
+	if len(m.validationWarnings) > 0 {
+		if len(m.validationErrors) > 0 {
+			b.WriteString("\n")
+		}
+		b.WriteString(fmt.Sprintf("Warnings (%d):\n", len(m.validationWarnings)))
+		for _, w := range m.validationWarnings {
+			if w.Line > 0 {
+				b.WriteString(fmt.Sprintf("  Line %d: %s\n", w.Line, w.Message))
+			} else {
+				b.WriteString(fmt.Sprintf("  %s\n", w.Message))
+			}
+		}
+	}
+
+	return b.String(), nil
 }

@@ -94,6 +94,7 @@ issues:
       linters:
         - dupl
         - goconst
+        - gosec
 
     - path: cmd/
       linters:

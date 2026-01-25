@@ -22,6 +22,7 @@ type Editor struct {
 	schema          *config.Schema
 	tree            *config.Tree // Parsed config tree
 	dirty           bool
+	hasPendingEdit  bool // true if .edit file exists
 }
 
 // BackupInfo describes a backup file.
@@ -50,6 +51,13 @@ func NewEditor(configPath string) (*Editor, error) {
 		tree = config.NewTree()
 	}
 
+	// Check for existing edit file
+	editPath := configPath + ".edit"
+	hasPending := false
+	if _, err := os.Stat(editPath); err == nil {
+		hasPending = true
+	}
+
 	return &Editor{
 		originalPath:    configPath,
 		originalContent: content,
@@ -57,6 +65,7 @@ func NewEditor(configPath string) (*Editor, error) {
 		schema:          schema,
 		tree:            tree,
 		dirty:           false,
+		hasPendingEdit:  hasPending,
 	}, nil
 }
 
@@ -86,6 +95,44 @@ func (e *Editor) OriginalPath() string {
 // Dirty returns true if there are unsaved changes.
 func (e *Editor) Dirty() bool {
 	return e.dirty
+}
+
+// HasPendingEdit returns true if an edit file exists from a previous session.
+func (e *Editor) HasPendingEdit() bool {
+	return e.hasPendingEdit
+}
+
+// LoadPendingEdit loads the content from the .edit file.
+func (e *Editor) LoadPendingEdit() error {
+	editPath := e.originalPath + ".edit"
+	data, err := os.ReadFile(editPath) //nolint:gosec // Edit path derived from original
+	if err != nil {
+		return fmt.Errorf("cannot read edit file: %w", err)
+	}
+
+	e.workingContent = string(data)
+	e.dirty = true
+	e.hasPendingEdit = false // Loaded, no longer "pending"
+	return nil
+}
+
+// SaveEditState saves the current working content to the .edit file.
+func (e *Editor) SaveEditState() error {
+	if !e.dirty {
+		return nil // Nothing to save
+	}
+
+	editPath := e.originalPath + ".edit"
+	if err := os.WriteFile(editPath, []byte(e.workingContent), 0600); err != nil {
+		return fmt.Errorf("failed to write edit file: %w", err)
+	}
+	return nil
+}
+
+// deleteEditFile removes the .edit file if it exists.
+func (e *Editor) deleteEditFile() {
+	editPath := e.originalPath + ".edit"
+	_ = os.Remove(editPath) // Ignore error if doesn't exist
 }
 
 // MarkDirty marks the editor as having unsaved changes.
@@ -133,6 +180,9 @@ func (e *Editor) Save() error {
 	e.originalContent = e.workingContent
 	e.dirty = false
 
+	// Delete edit file on successful commit
+	e.deleteEditFile()
+
 	return nil
 }
 
@@ -140,6 +190,10 @@ func (e *Editor) Save() error {
 func (e *Editor) Discard() error {
 	e.workingContent = e.originalContent
 	e.dirty = false
+
+	// Delete edit file on discard
+	e.deleteEditFile()
+
 	return nil
 }
 
