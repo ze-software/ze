@@ -420,3 +420,9 @@ func (e *RouteEntry) ToWireBytes() []byte {
 | Wire reconstruction | Medium |
 | Tests | Medium |
 | **Total** | ~2-3 days |
+
+## Closure
+
+**Phases 1-4 complete.** Phase 6 (per-attribute deduplication) extracted to separate spec.
+
+**See:** `spec-per-attribute-deduplication.md` for Phase 6 continuation.
