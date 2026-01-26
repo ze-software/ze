@@ -1,4 +1,4 @@
-# Spec: config-editor-validation (Phases 1-2)
+# Spec: config-editor-validation (Complete)
 
 ## Post-Compaction Recovery
 
@@ -137,9 +137,15 @@ Choice:
 | `TestValidateSemanticHoldTime` | `validator_test.go` | RFC 4271 hold-time rules | ✅ |
 | `TestModelCommitBlockedOnErrors` | `model_test.go` | Commit blocked when errors exist | ✅ |
 | `TestModelErrorsCommand` | `model_test.go` | Errors command shows issues | ✅ |
-| `TestSchemaValidation` | `validator_test.go` | Detects unknown keywords, wrong types | (Phase 3) |
-| `TestCommitWithWarnings` | `editor_test.go` | Commit prompts on warnings | (Phase 2) |
-| `TestValidationDebounce` | `model_test.go` | Validation doesn't run on every keystroke | (Phase 2) |
+| `TestSchemaValidation` | `validator_test.go` | Detects unknown keywords, wrong types | ✅ |
+| `TestCommitWithWarnings` | `editor_test.go` | Commit prompts on warnings | ✅ |
+| `TestValidationDebounce` | `model_test.go` | Validation doesn't run on every keystroke | ✅ |
+| `TestMandatoryPeerAs` | `validator_test.go` | Detects missing peer-as in peer blocks | ✅ |
+| `TestMandatoryPeerAsWithTemplate` | `validator_test.go` | Template inheritance for peer-as | ✅ |
+| `TestPendingEditTime` | `editor_test.go` | Returns edit file modification time | ✅ |
+| `TestPendingEditDiff` | `editor_test.go` | Shows diff between original and pending | ✅ |
+| `TestPendingEditDiffNoEditFile` | `editor_test.go` | Empty diff when no edit file | ✅ |
+| `TestPendingEditDiffNoChanges` | `editor_test.go` | Empty diff when content matches | ✅ |
 
 ### Boundary Tests
 
@@ -309,7 +315,7 @@ Commit anyway? [y/N]:
 ### 🧪 TDD
 - [x] Tests written
 - [x] Tests FAIL (verified during development)
-- [x] Implementation complete (Phase 1)
+- [x] Implementation complete (all phases)
 - [x] Tests PASS
 - [x] Boundary tests cover all numeric inputs (hold-time 0,1,2,3,65535)
 
@@ -445,20 +451,47 @@ Applying config changes to running daemon (beyond file save):
    - `TestModelStatusMessageClearsOnCommand` - notification clears on next command
    - `TestModelStatusMessageClearsOnError` - notification clears on error
 
-### Deferred to Future Phases
+**Phase 3 - Schema Validation (Completed):**
 
-**Phase 3 - Schema Validation:**
-- Unknown keyword detection
-- Value type checking (string vs number vs IP)
-- Required field validation
+1. **Mandatory Field Validation** (`validator.go`)
+   - `peer-as` required in peer blocks
+   - Template inheritance: `template { bgp { peer * { peer-as N; } } }` provides default
+   - Peer-specific values override template
+   - `resolveTemplateValue()` - looks up inherited values from template section
 
-**Phase 4 - Entry Point Changes:**
-- Move to `ze config edit <file>`
-- Keep `ze bgp config edit` as alias
+2. **Tests** (`validator_test.go`)
+   - `TestMandatoryPeerAs` - detects missing peer-as
+   - `TestMandatoryPeerAsWithTemplate` - validates template inheritance
+   - `TestMandatoryPeerAsInheritedInvalid` - detects invalid inherited hold-time
 
-**Phase 5 - Hub Integration:**
-- Edit file detection prompt on startup
-- ConfigStore connection
+**Phase 4 - Entry Point Changes (Already Implemented):**
+
+Both entry points already existed:
+- `ze config edit <file>` - `cmd/ze/config/edit.go`
+- `ze bgp config edit <file>` - `cmd/ze/bgp/config_edit.go`
+
+**Phase 5 - Hub Integration (Completed):**
+
+1. **Pending Edit Detection** (`editor.go`)
+   - `PendingEditTime()` - returns .edit file modification time
+   - `PendingEditDiff()` - returns diff between original and pending edit
+   - `PromptPendingEdit()` - interactive prompt for user choice
+   - `PendingEditAction` enum: Continue, Discard, Quit
+
+2. **Entry Point Integration** (`cmd/ze/config/edit.go`, `cmd/ze/bgp/config_edit.go`)
+   - Check for pending edit on startup
+   - Prompt user: continue, discard, view changes, quit
+   - Load or discard based on choice
+
+3. **Code Quality**
+   - Extracted `computeDiff()` helper to eliminate duplication
+   - Moved prompt logic to editor package for reuse
+
+4. **Tests** (`editor_test.go`)
+   - `TestPendingEditTime` - verifies time retrieval
+   - `TestPendingEditDiff` - verifies diff generation
+   - `TestPendingEditDiffNoEditFile` - handles missing file
+   - `TestPendingEditDiffNoChanges` - handles identical content
 
 ### Design Insights
 
@@ -487,7 +520,12 @@ Applying config changes to running daemon (beyond file save):
 
 ## Status
 
-**Phases 1 and 2 complete.** Remaining phases (3-5) can be separate specs if needed:
-- Phase 3: Schema validation (unknown keywords, type checking)
-- Phase 4: Entry point changes (`ze config edit`)
-- Phase 5: Hub integration (edit file detection prompt)
+**All phases complete.**
+
+| Phase | Description | Commit |
+|-------|-------------|--------|
+| 1 | Core Validation | `7241729` |
+| 2 | Real-Time Validation | `7241729` |
+| 3 | Schema Validation (mandatory peer-as) | `d35b8ee` |
+| 4 | Entry Point Changes | (already existed) |
+| 5 | Hub Integration (pending edit prompt) | `bd75e58` |
