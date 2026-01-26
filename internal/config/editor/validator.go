@@ -132,6 +132,7 @@ func (v *ConfigValidator) parseError(err error) ConfigValidationError {
 
 // ValidateWithYANG validates the parsed tree using YANG constraints.
 // YANG model defines RFC-compliant constraints like hold-time range "0 | 3..65535".
+// Template inheritance is resolved before validation - inherited values are merged with peer values.
 func (v *ConfigValidator) ValidateWithYANG(tree *config.Tree) []ConfigValidationError {
 	if tree == nil || v.yangValidator == nil {
 		return nil
@@ -145,11 +146,32 @@ func (v *ConfigValidator) ValidateWithYANG(tree *config.Tree) []ConfigValidation
 		return nil // No BGP config
 	}
 
-	// Validate peer-level hold-time using YANG
-	// YANG model: range "0 | 3..65535" (RFC 4271 compliant)
+	// Extract templates for inheritance resolution
+	templates := v.extractTemplates(tree)
+
+	// Validate peer-level fields using YANG constraints
 	peers := bgp.GetList("peer")
 	for peerAddr, peerTree := range peers {
-		if holdTimeStr, ok := peerTree.Get("hold-time"); ok {
+		// Resolve inherited values - template first, peer overrides
+		resolved, inheritErr := v.resolveInheritance(peerTree, templates)
+		if inheritErr != nil {
+			errs = append(errs, ConfigValidationError{
+				Message:  fmt.Sprintf("peer %s: %s", peerAddr, inheritErr.Error()),
+				Severity: "error",
+			})
+			continue
+		}
+
+		// Check mandatory peer-as field (after inheritance resolution)
+		if _, ok := resolved.Get("peer-as"); !ok {
+			errs = append(errs, ConfigValidationError{
+				Message:  fmt.Sprintf("peer %s: missing mandatory field 'peer-as'", peerAddr),
+				Severity: "error",
+			})
+		}
+
+		// Validate hold-time range (RFC 4271: 0 or >= 3)
+		if holdTimeStr, ok := resolved.Get("hold-time"); ok {
 			holdTime, parseErr := strconv.Atoi(holdTimeStr)
 			if parseErr != nil {
 				errs = append(errs, ConfigValidationError{
@@ -190,8 +212,70 @@ func (v *ConfigValidator) ValidateWithYANG(tree *config.Tree) []ConfigValidation
 	return errs
 }
 
-// ValidateSemantic is kept for backwards compatibility.
-// Now delegates to ValidateWithYANG.
+// extractTemplates extracts named templates from the config tree.
+// Supports both new syntax (template.bgp.peer with inherit-name) and legacy (template.group).
+func (v *ConfigValidator) extractTemplates(tree *config.Tree) map[string]*config.Tree {
+	templates := make(map[string]*config.Tree)
+
+	tmpl := tree.GetContainer("template")
+	if tmpl == nil {
+		return templates
+	}
+
+	// New syntax: template { bgp { peer <pattern> { inherit-name <name>; ... } } }
+	if bgpTmpl := tmpl.GetContainer("bgp"); bgpTmpl != nil {
+		for _, peerTree := range bgpTmpl.GetList("peer") {
+			if inheritName, hasName := peerTree.Get("inherit-name"); hasName {
+				templates[inheritName] = peerTree
+			}
+		}
+	}
+
+	// Legacy syntax: template { group <name> { ... } }
+	for name, groupTree := range tmpl.GetList("group") {
+		templates[name] = groupTree
+	}
+
+	return templates
+}
+
+// resolveInheritance merges template values with peer values.
+// Template values are applied first, peer values override.
+// Returns resolved tree and error if template not found.
+func (v *ConfigValidator) resolveInheritance(peerTree *config.Tree, templates map[string]*config.Tree) (*config.Tree, error) {
+	// Check if peer uses inheritance
+	inheritName, hasInherit := peerTree.Get("inherit")
+	if !hasInherit {
+		return peerTree, nil // No inheritance, return as-is
+	}
+
+	tmpl, found := templates[inheritName]
+	if !found {
+		return peerTree, fmt.Errorf("template %q not found", inheritName)
+	}
+
+	// Create merged tree: start with template, overlay peer values
+	merged := config.NewTree()
+
+	// Copy template values first (Values() returns keys, use Get to retrieve values)
+	for _, key := range tmpl.Values() {
+		if val, ok := tmpl.Get(key); ok {
+			merged.Set(key, val)
+		}
+	}
+
+	// Overlay peer values (these take precedence)
+	for _, key := range peerTree.Values() {
+		if val, ok := peerTree.Get(key); ok {
+			merged.Set(key, val)
+		}
+	}
+
+	return merged, nil
+}
+
+// ValidateSemantic validates semantic constraints on parsed tree.
+// Delegates to ValidateWithYANG for YANG-based validation.
 func (v *ConfigValidator) ValidateSemantic(tree *config.Tree) []ConfigValidationError {
 	return v.ValidateWithYANG(tree)
 }

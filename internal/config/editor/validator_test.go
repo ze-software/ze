@@ -440,6 +440,185 @@ func TestValidateUnknownKeyword(t *testing.T) {
 	assert.Contains(t, result.Errors[0].Message, "unknown")
 }
 
+// TestValidateMissingPeerAS verifies mandatory field validation.
+//
+// VALIDATES: Missing peer-as in peer block causes error.
+// PREVENTS: Peers configured without required ASN.
+func TestValidateMissingPeerAS(t *testing.T) {
+	v, err := NewConfigValidator()
+	require.NoError(t, err)
+
+	tests := []struct {
+		name    string
+		content string
+		wantErr bool
+	}{
+		{
+			name: "peer_with_peer-as",
+			content: `bgp {
+  router-id 1.1.1.1;
+  local-as 65000;
+  peer 192.0.2.1 {
+    peer-as 65001;
+  }
+}`,
+			wantErr: false,
+		},
+		{
+			name: "peer_missing_peer-as",
+			content: `bgp {
+  router-id 1.1.1.1;
+  local-as 65000;
+  peer 192.0.2.1 {
+    hold-time 90;
+  }
+}`,
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := v.Validate(tt.content)
+			if tt.wantErr {
+				require.NotEmpty(t, result.Errors, "expected error for missing peer-as")
+				assert.Contains(t, result.Errors[0].Message, "peer-as")
+			} else {
+				assert.Empty(t, result.Errors, "expected no errors")
+			}
+		})
+	}
+}
+
+// TestValidatePeerASInheritance verifies peer-as can be inherited from template.
+//
+// VALIDATES: Inherited peer-as satisfies mandatory field requirement.
+// PREVENTS: False positives when peer-as comes from template.
+func TestValidatePeerASInheritance(t *testing.T) {
+	v, err := NewConfigValidator()
+	require.NoError(t, err)
+
+	tests := []struct {
+		name            string
+		content         string
+		wantErr         bool
+		wantMsgContains string // what error message should contain
+	}{
+		{
+			name: "peer-as_inherited_from_group",
+			content: `template {
+  group ibgp {
+    peer-as 65000;
+    hold-time 60;
+  }
+}
+bgp {
+  router-id 1.1.1.1;
+  local-as 65000;
+  peer 192.0.2.1 {
+    inherit ibgp;
+  }
+}`,
+			wantErr: false,
+		},
+		{
+			name: "peer-as_override_inherited",
+			content: `template {
+  group ibgp {
+    peer-as 65000;
+  }
+}
+bgp {
+  router-id 1.1.1.1;
+  local-as 65000;
+  peer 192.0.2.1 {
+    inherit ibgp;
+    peer-as 65001;
+  }
+}`,
+			wantErr: false,
+		},
+		{
+			name: "inherit_without_peer-as_in_template",
+			content: `template {
+  group base {
+    hold-time 60;
+  }
+}
+bgp {
+  router-id 1.1.1.1;
+  local-as 65000;
+  peer 192.0.2.1 {
+    inherit base;
+  }
+}`,
+			wantErr:         true,
+			wantMsgContains: "peer-as",
+		},
+		{
+			name: "inherit_nonexistent_template",
+			content: `bgp {
+  router-id 1.1.1.1;
+  local-as 65000;
+  peer 192.0.2.1 {
+    inherit nonexistent;
+  }
+}`,
+			wantErr:         true,
+			wantMsgContains: "template",
+		},
+		{
+			name: "peer-as_inherited_from_new_syntax",
+			content: `template {
+  bgp {
+    peer * {
+      inherit-name ibgp;
+      peer-as 65000;
+    }
+  }
+}
+bgp {
+  router-id 1.1.1.1;
+  local-as 65000;
+  peer 192.0.2.1 {
+    inherit ibgp;
+  }
+}`,
+			wantErr: false,
+		},
+		{
+			name: "invalid_hold-time_inherited",
+			content: `template {
+  group bad {
+    peer-as 65001;
+    hold-time 1;
+  }
+}
+bgp {
+  router-id 1.1.1.1;
+  local-as 65000;
+  peer 192.0.2.1 {
+    inherit bad;
+  }
+}`,
+			wantErr:         true,
+			wantMsgContains: "hold-time",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := v.Validate(tt.content)
+			if tt.wantErr {
+				require.NotEmpty(t, result.Errors, "expected error")
+				assert.Contains(t, result.Errors[0].Message, tt.wantMsgContains)
+			} else {
+				assert.Empty(t, result.Errors, "expected no errors when peer-as is inherited")
+			}
+		})
+	}
+}
+
 // TestValidateASNBoundary verifies ASN boundary validation.
 //
 // VALIDATES: ASN values within valid range.

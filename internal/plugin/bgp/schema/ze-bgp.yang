@@ -119,7 +119,8 @@ module ze-bgp {
 
         leaf peer-as {
             type zt:asn;
-            description "Peer Autonomous System Number";
+            mandatory true;
+            description "Peer Autonomous System Number (required)";
         }
 
         leaf hold-time {
