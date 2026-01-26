@@ -6,6 +6,46 @@
 
 ---
 
+## Why This Spec Was Not Fully Completed
+
+**Original scope:** Convert 3 route-building functions to UpdateBuilder pattern.
+
+**What was completed:**
+- `buildStaticRouteUpdate` → converted to UpdateBuilder ✅
+- `buildGroupedUpdate` → deleted, UpdateBuilder used directly ✅
+
+**What was NOT completed:**
+- `buildRIBRouteUpdate` → NOT converted to UpdateBuilder
+
+**Why `buildRIBRouteUpdate` conversion was cancelled:**
+
+The Pool + Wire architecture was finalized AFTER this spec was written. This changed the correct approach for RIB routes:
+
+| Route Type | Has Wire Bytes? | Correct Approach |
+|------------|-----------------|------------------|
+| Static routes | No (from config) | UpdateBuilder constructs from scratch |
+| RIB routes | Yes (received from peers) | Zero-copy from pool |
+
+**The key insight:**
+
+| Step | UpdateBuilder Approach | Pool + Wire Approach |
+|------|------------------------|----------------------|
+| Receive | Parse wire → structs | Store wire bytes |
+| Store | Parsed attributes | pool.Handle → wire bytes |
+| Forward | Rebuild wire from structs | pool.Get() → same wire bytes |
+| CPU cost | Parse + rebuild | None (zero-copy) |
+
+Using UpdateBuilder for RIB routes would **add** unnecessary work:
+1. Parse wire bytes into structured attributes
+2. Pass to UpdateBuilder
+3. Re-encode back to wire bytes
+
+Pool + Wire skips all of this - just forward the original bytes.
+
+**Conclusion:** This task was not "failed" or "abandoned". It was **superseded** by a better architectural design. The correct solution for RIB routes is zero-copy forwarding, which is tracked in separate specs.
+
+---
+
 ## Design Transition Impact
 
 This spec was written before the Pool + Wire lazy parsing design was finalized.
