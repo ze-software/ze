@@ -124,3 +124,65 @@ func completionTexts(completions []Completion) []string {
 	}
 	return texts
 }
+
+func TestCompleterWithYANG(t *testing.T) {
+	c := NewCompleterWithYANG()
+
+	// Should still complete commands
+	completions := c.Complete("", nil)
+	require.NotEmpty(t, completions)
+	texts := completionTexts(completions)
+	assert.Contains(t, texts, "set")
+
+	// Should complete bgp children from YANG
+	completions = c.Complete("set ", []string{"bgp"})
+	require.NotEmpty(t, completions)
+	texts = completionTexts(completions)
+	assert.Contains(t, texts, "local-as")
+	assert.Contains(t, texts, "router-id")
+}
+
+func TestCompleterYANGDescription(t *testing.T) {
+	c := NewCompleterWithYANG()
+
+	// Descriptions should come from YANG model
+	completions := c.Complete("set ", []string{"bgp"})
+	require.NotEmpty(t, completions)
+
+	// Find local-as completion
+	var localAS *Completion
+	for i := range completions {
+		if completions[i].Text == "local-as" {
+			localAS = &completions[i]
+			break
+		}
+	}
+	require.NotNil(t, localAS, "local-as should be in completions")
+	assert.NotEmpty(t, localAS.Description, "should have YANG description")
+}
+
+func TestCompleterYANGMandatory(t *testing.T) {
+	c := NewCompleterWithYANG()
+
+	// Mandatory fields should be marked in description
+	completions := c.Complete("set ", []string{"bgp"})
+
+	// Find local-as (mandatory) and peer (not mandatory - it's a list)
+	var localAS, peer *Completion
+	for i := range completions {
+		switch completions[i].Text {
+		case "local-as":
+			localAS = &completions[i]
+		case "peer":
+			peer = &completions[i]
+		}
+	}
+
+	require.NotNil(t, localAS, "local-as should be in completions")
+	require.NotNil(t, peer, "peer should be in completions")
+
+	// Mandatory should be indicated
+	assert.Contains(t, localAS.Description, "required")
+	// List is not mandatory
+	assert.NotContains(t, peer.Description, "required")
+}

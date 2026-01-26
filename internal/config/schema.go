@@ -159,6 +159,11 @@ func (s *Schema) Get(name string) Node {
 	return s.root.Get(name)
 }
 
+// Children returns all top-level node names in definition order.
+func (s *Schema) Children() []string {
+	return s.root.Children()
+}
+
 // Lookup finds a node by dot-separated path.
 func (s *Schema) Lookup(path string) (Node, error) {
 	parts := strings.Split(path, ".")

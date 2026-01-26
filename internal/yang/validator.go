@@ -148,7 +148,11 @@ func (v *Validator) findInEntry(entry *yang.Entry, parts []string) (*yang.Entry,
 
 // mapPrefixToModule maps common prefixes to module names.
 func (v *Validator) mapPrefixToModule(prefix string) string {
-	// Common mappings
+	return MapPrefixToModule(prefix)
+}
+
+// MapPrefixToModule maps common config prefixes to YANG module names.
+func MapPrefixToModule(prefix string) string {
 	switch prefix {
 	case "bgp":
 		return "ze-bgp"

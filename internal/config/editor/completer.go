@@ -4,6 +4,7 @@ import (
 	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/config"
+	"codeberg.org/thomas-mangin/ze/internal/yang"
 )
 
 // Completion represents a single completion suggestion.
@@ -15,13 +16,31 @@ type Completion struct {
 
 // Completer provides schema-driven completions.
 type Completer struct {
-	schema *config.Schema
-	tree   *config.Tree // Config data for list key completion
+	schema     *config.Schema
+	yangSchema *yang.SchemaAdapter
+	tree       *config.Tree // Config data for list key completion
 }
 
 // NewCompleter creates a new completer with the given schema.
 func NewCompleter(schema *config.Schema) *Completer {
 	return &Completer{schema: schema}
+}
+
+// NewCompleterWithYANG creates a completer using YANG schema for enhanced hints.
+func NewCompleterWithYANG() *Completer {
+	loader := yang.NewLoader()
+	if err := loader.LoadEmbedded(); err != nil {
+		// Fall back to config schema only
+		return NewCompleter(config.BGPSchema())
+	}
+	if err := loader.Resolve(); err != nil {
+		return NewCompleter(config.BGPSchema())
+	}
+
+	return &Completer{
+		schema:     config.BGPSchema(),
+		yangSchema: yang.NewSchemaAdapter(loader),
+	}
 }
 
 // SetTree sets the config tree for data-aware completion.
@@ -154,13 +173,17 @@ func (c *Completer) completeSetPath(tokens []string, contextPath []string, endsW
 		return nil
 	}
 
+	// Build current path for YANG lookups
+	currentPath := make([]string, len(contextPath))
+	copy(currentPath, contextPath)
+
 	// Navigate through tokens
 	for i, token := range tokens {
 		isLast := i == len(tokens)-1
 
 		if isLast && !endsWithSpace {
 			// Partial match on this token
-			return c.matchNode(node, token)
+			return c.matchNodeWithPath(node, token, currentPath)
 		}
 
 		// Navigate deeper
@@ -168,10 +191,11 @@ func (c *Completer) completeSetPath(tokens []string, contextPath []string, endsW
 		if node == nil {
 			return nil
 		}
+		currentPath = append(currentPath, token)
 	}
 
 	// If we ended with space, show next level
-	return c.matchNode(node, "")
+	return c.matchNodeWithPath(node, "", currentPath)
 }
 
 // completeEditPath completes paths for edit command.
@@ -188,7 +212,7 @@ func (c *Completer) completeEditPath(tokens []string, contextPath []string, ends
 		if len(tokens) == 1 {
 			prefix = tokens[0]
 		}
-		return c.matchEditTargets(node, prefix)
+		return c.matchEditTargetsWithPath(node, prefix, contextPath)
 	}
 
 	// After first token (list name), show "*" for template and existing keys
@@ -265,7 +289,7 @@ func (c *Completer) completeShowPath(tokens []string, contextPath []string, ends
 		if len(tokens) == 1 {
 			prefix = tokens[0]
 		}
-		return c.matchEditTargets(node, prefix)
+		return c.matchEditTargetsWithPath(node, prefix, contextPath)
 	}
 
 	// After section name, show existing entries
@@ -335,17 +359,18 @@ func (c *Completer) getChild(node config.Node, name string) config.Node {
 	return c.navigateNode(node, name)
 }
 
-// matchNode returns completions matching a prefix from a node's children.
-func (c *Completer) matchNode(node config.Node, prefix string) []Completion {
+// matchNodeWithPath returns completions with YANG-enhanced descriptions when path is available.
+func (c *Completer) matchNodeWithPath(node config.Node, prefix string, currentPath []string) []Completion {
 	children := c.getChildren(node)
 	var completions []Completion
 
 	for _, name := range children {
 		if prefix == "" || strings.HasPrefix(name, prefix) {
 			child := c.getChild(node, name)
+			desc := c.nodeDescriptionWithPath(child, currentPath, name)
 			completions = append(completions, Completion{
 				Text:        name,
-				Description: c.nodeDescription(child),
+				Description: desc,
 				Type:        c.nodeType(child),
 			})
 		}
@@ -353,14 +378,14 @@ func (c *Completer) matchNode(node config.Node, prefix string) []Completion {
 
 	// If node is a leaf, show value hints
 	if leaf := asLeaf(node); leaf != nil {
-		return c.valueCompletions(leaf.Type, prefix)
+		return c.valueCompletionsWithPath(leaf.Type, prefix, currentPath)
 	}
 
 	return completions
 }
 
-// matchEditTargets returns completions for edit command (lists and containers).
-func (c *Completer) matchEditTargets(node config.Node, prefix string) []Completion {
+// matchEditTargetsWithPath returns completions for edit command (lists and containers) with YANG support.
+func (c *Completer) matchEditTargetsWithPath(node config.Node, prefix string, currentPath []string) []Completion {
 	children := c.getChildren(node)
 	var completions []Completion
 
@@ -370,7 +395,7 @@ func (c *Completer) matchEditTargets(node config.Node, prefix string) []Completi
 			if isListNode(child) || isContainerNode(child) {
 				completions = append(completions, Completion{
 					Text:        name,
-					Description: c.nodeDescription(child),
+					Description: c.nodeDescriptionWithPath(child, currentPath, name),
 					Type:        c.nodeType(child),
 				})
 			}
@@ -384,14 +409,7 @@ func (c *Completer) matchEditTargets(node config.Node, prefix string) []Completi
 func (c *Completer) getChildren(node config.Node) []string {
 	switch n := node.(type) {
 	case *schemaRootWrapper:
-		// Get top-level schema children
-		var children []string
-		for _, name := range []string{"bgp", "environment", "plugin", "template"} {
-			if n.schema.Has(name) {
-				children = append(children, name)
-			}
-		}
-		return children
+		return n.schema.Children()
 	case *config.ContainerNode:
 		return n.Children()
 	case *config.ListNode:
@@ -403,8 +421,29 @@ func (c *Completer) getChildren(node config.Node) []string {
 	}
 }
 
-// nodeDescription returns a description for a node.
-func (c *Completer) nodeDescription(node config.Node) string {
+// nodeDescriptionWithPath returns a description, using YANG when available.
+func (c *Completer) nodeDescriptionWithPath(node config.Node, parentPath []string, name string) string {
+	// Try YANG description first
+	if c.yangSchema != nil && name != "" {
+		yangPath := c.buildYangPath(parentPath, name)
+		if desc := c.yangSchema.Description(yangPath); desc != "" {
+			// Add mandatory marker if applicable
+			if c.yangSchema.IsMandatory(yangPath) {
+				return desc + " (required)"
+			}
+			return desc
+		}
+		// Fall back but still check mandatory
+		if c.yangSchema.IsMandatory(yangPath) {
+			return c.fallbackDescription(node) + " (required)"
+		}
+	}
+
+	return c.fallbackDescription(node)
+}
+
+// fallbackDescription returns a description from config.Node type.
+func (c *Completer) fallbackDescription(node config.Node) string {
 	switch n := node.(type) {
 	case *config.LeafNode:
 		return n.Type.String() + " value"
@@ -419,6 +458,14 @@ func (c *Completer) nodeDescription(node config.Node) string {
 	}
 }
 
+// buildYangPath constructs a dot-separated path for YANG lookup.
+func (c *Completer) buildYangPath(parentPath []string, name string) string {
+	if len(parentPath) == 0 {
+		return name
+	}
+	return strings.Join(parentPath, ".") + "." + name
+}
+
 const completionTypeKeyword = "keyword"
 
 // nodeType returns the completion type for a node.
@@ -426,8 +473,27 @@ func (c *Completer) nodeType(_ config.Node) string {
 	return completionTypeKeyword
 }
 
-// valueCompletions returns completions for a value type.
-func (c *Completer) valueCompletions(typ config.ValueType, prefix string) []Completion {
+// valueCompletionsWithPath returns completions for a value type with YANG enhancement.
+func (c *Completer) valueCompletionsWithPath(typ config.ValueType, prefix string, currentPath []string) []Completion {
+	// Check for YANG enum values first
+	if c.yangSchema != nil && len(currentPath) > 0 {
+		yangPath := strings.Join(currentPath, ".")
+		if enumValues := c.yangSchema.EnumValues(yangPath); len(enumValues) > 0 {
+			var completions []Completion
+			for _, val := range enumValues {
+				if prefix == "" || strings.HasPrefix(val, prefix) {
+					completions = append(completions, Completion{
+						Text:        val,
+						Description: "enum value",
+						Type:        "value",
+					})
+				}
+			}
+			return completions
+		}
+	}
+
+	// Fall back to config.ValueType-based hints
 	switch typ { //nolint:exhaustive // TypeString handled by default
 	case config.TypeBool:
 		return filterCompletions([]Completion{
@@ -441,9 +507,21 @@ func (c *Completer) valueCompletions(typ config.ValueType, prefix string) []Comp
 	case config.TypeIP:
 		return []Completion{{Text: "<ip>", Description: "IP address", Type: "value"}}
 	case config.TypeUint16:
-		return []Completion{{Text: "<0-65535>", Description: "16-bit number", Type: "value"}}
+		desc := "16-bit number"
+		if c.yangSchema != nil && len(currentPath) > 0 {
+			if hint := c.yangSchema.TypeHint(strings.Join(currentPath, ".")); hint != "" {
+				desc = hint + " value"
+			}
+		}
+		return []Completion{{Text: "<0-65535>", Description: desc, Type: "value"}}
 	case config.TypeUint32:
-		return []Completion{{Text: "<0-4294967295>", Description: "32-bit number (e.g., ASN)", Type: "value"}}
+		desc := "32-bit number (e.g., ASN)"
+		if c.yangSchema != nil && len(currentPath) > 0 {
+			if hint := c.yangSchema.TypeHint(strings.Join(currentPath, ".")); hint != "" {
+				desc = hint + " value"
+			}
+		}
+		return []Completion{{Text: "<0-4294967295>", Description: desc, Type: "value"}}
 	case config.TypePrefix:
 		return []Completion{{Text: "<prefix>", Description: "CIDR prefix (e.g., 10.0.0.0/8)", Type: "value"}}
 	default:
