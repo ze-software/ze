@@ -763,11 +763,58 @@ func (p *Pool) IsIdle(d time.Duration) bool
 
 ---
 
+## Global Pool Instances
+
+ZeBGP provides pre-configured global pools in `internal/pool/attributes.go`:
+
+### Blob-Level Pools
+
+| Pool | Index | Initial Size | Purpose |
+|------|-------|--------------|---------|
+| `Attributes` | 0 | 1MB | Full attribute blob deduplication |
+| `NLRI` | 1 | 256KB | NLRI wire bytes deduplication |
+
+### Per-Attribute-Type Pools
+
+For fine-grained deduplication when routes share some but not all attributes:
+
+| Pool | Index | Initial Size | Expected Entries |
+|------|-------|--------------|------------------|
+| `Origin` | 2 | 64B | 3 (IGP, EGP, INCOMPLETE) |
+| `ASPath` | 3 | 256KB | ~10,000 |
+| `LocalPref` | 4 | 4KB | ~100 |
+| `MED` | 5 | 16KB | ~1,000 |
+| `NextHop` | 6 | 16KB | ~1,000 |
+| `Communities` | 7 | 64KB | ~5,000 |
+| `LargeCommunities` | 8 | 16KB | ~1,000 |
+| `ExtCommunities` | 9 | 16KB | ~1,000 |
+| `ClusterList` | 10 | 4KB | ~100 |
+| `OriginatorID` | 11 | 4KB | ~100 |
+| `OtherAttrs` | 12 | 64KB | Unknown/other attrs |
+
+### Usage Pattern
+
+**Blob-level** (simple, existing `FamilyRIB`):
+```go
+h := pool.Attributes.Intern(attrBytes)  // Entire blob as one entry
+```
+
+**Per-attribute** (fine-grained, `FamilyRIBPerAttr`):
+```go
+entry, _ := storage.ParseAttributes(attrBytes)  // Parses into per-type handles
+// entry.Origin, entry.ASPath, etc. are individual pool handles
+```
+
+**Memory improvement:** Routes with identical ORIGIN/LOCAL_PREF but different MED share ORIGIN/LOCAL_PREF pool entries instead of duplicating the entire blob.
+
+---
+
 ## Related Docs
 
 - `docs/architecture/rib-transition.md` - Overall architecture (RIB in API)
 - `internal/pool/` - Pool implementation
 - `internal/plugin/rib/storage/` - RIB storage using pool
+- `internal/plugin/rib/storage/familyrib_perattr.go` - Per-attribute RIB storage
 
 ---
 

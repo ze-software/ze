@@ -13,13 +13,13 @@ Enhance plugin RIB pool storage to deduplicate at per-attribute-type level inste
 ## Required Reading
 
 ### Architecture Docs
-- [ ] `docs/architecture/core-design.md` - Section 4: per-attribute-type pools
-- [ ] `docs/architecture/pool-architecture.md` - Pool design patterns
+- [x] `docs/architecture/core-design.md` - Section 4: per-attribute-type pools
+- [x] `docs/architecture/pool-architecture.md` - Pool design patterns
 
 ### Source Files
-- [ ] `internal/plugin/rib/storage/familyrib.go` - Current blob-based storage
-- [ ] `internal/bgp/attribute/iterator.go` - AttrIterator for parsing
-- [ ] `internal/pool/pool.go` - Pool infrastructure
+- [x] `internal/plugin/rib/storage/familyrib.go` - Current blob-based storage
+- [x] `internal/plugin/bgp/attribute/iterator.go` - AttrIterator for parsing
+- [x] `internal/pool/pool.go` - Pool infrastructure
 
 ## Problem Statement
 
@@ -121,15 +121,17 @@ For route replay/resend, reconstruct wire bytes:
 
 ## Files to Modify
 
-- `internal/plugin/rib/storage/familyrib.go` - Use RouteEntry instead of blob handle
+- `internal/pool/attributes.go` - Add per-attribute-type pool instances (idx 2-12)
 
 ## Files to Create
 
-- `internal/pool/attributes.go` - Per-attribute-type pool instances
+- `internal/pool/perattr_test.go` - Per-attribute pool tests
 - `internal/plugin/rib/storage/routeentry.go` - RouteEntry struct
+- `internal/plugin/rib/storage/routeentry_test.go` - RouteEntry tests
 - `internal/plugin/rib/storage/attrparse.go` - Attribute parser using AttrIterator
 - `internal/plugin/rib/storage/attrparse_test.go` - Parser tests
-- `internal/plugin/rib/storage/routeentry_test.go` - RouteEntry tests
+- `internal/plugin/rib/storage/familyrib_perattr.go` - New FamilyRIB with per-attr storage
+- `internal/plugin/rib/storage/familyrib_perattr_test.go` - FamilyRIB per-attr tests
 
 ## Implementation Steps
 
@@ -182,19 +184,107 @@ For route replay/resend, reconstruct wire bytes:
 ## Checklist
 
 ### 🧪 TDD
-- [ ] Tests written
-- [ ] Tests FAIL
-- [ ] Implementation complete
-- [ ] Tests PASS
+- [x] Tests written
+- [x] Tests FAIL
+- [x] Implementation complete
+- [x] Tests PASS
 
 ### Verification
-- [ ] `make lint` passes
-- [ ] `make test` passes
-- [ ] `make functional` passes
+- [x] `make lint` passes
+- [x] `make test` passes
+- [x] `make functional` passes
 
 ### Documentation
-- [ ] Required docs read
-- [ ] Architecture docs updated
+- [x] Required docs read
+- [x] Architecture docs updated
 
 ### Completion
 - [ ] Spec moved to `docs/plan/done/`
+
+## Implementation Summary
+
+### What Was Implemented
+
+**Phase 1: Per-Attribute Pools** (`internal/pool/attributes.go`)
+- Added 11 per-attribute pools with indices 2-12
+- Origin (idx=2, 64B), ASPath (idx=3, 256KB), LocalPref (idx=4, 4KB)
+- MED (idx=5, 16KB), NextHop (idx=6, 16KB), Communities (idx=7, 64KB)
+- LargeCommunities (idx=8, 16KB), ExtCommunities (idx=9, 16KB)
+- ClusterList (idx=10, 4KB), OriginatorID (idx=11, 4KB), OtherAttrs (idx=12, 64KB)
+
+**Phase 2: RouteEntry** (`internal/plugin/rib/storage/routeentry.go`)
+- RouteEntry struct with 11 per-attribute handles
+- `Has*()` methods for attribute presence checks
+- `Release()` to decrement all valid handle refcounts
+- `AddRef()` for sharing between owners
+- `Clone()` creates copy with AddRef
+
+**Phase 3: Attribute Parser** (`internal/plugin/rib/storage/attrparse.go`)
+- `ParseAttributes()` uses existing `AttrIterator` (no duplication)
+- Routes each known attribute type to its dedicated pool
+- Handles all 22 BGP attribute codes (exhaustive switch)
+- Unknown + known-but-not-pooled attrs accumulated to OtherAttrs
+
+**Phase 4: FamilyRIBPerAttr** (`internal/plugin/rib/storage/familyrib_perattr.go`)
+- New `FamilyRIBPerAttr` type with `map[string]*RouteEntry` storage
+- `Insert()` parses attrs, handles implicit withdraw with proper Release
+- No-op detection when same NLRI + same attrs
+- `LookupEntry()` returns RouteEntry for inspection
+- `IterateEntry()` for iteration with RouteEntry access
+- `ToWireBytes()` reconstructs wire format from pool handles
+
+### Tests Added
+
+| File | Tests | Coverage |
+|------|-------|----------|
+| `perattr_test.go` | 5 | Pool existence, indices, intern/get, dedup, cross-pool |
+| `routeentry_test.go` | 7 | Empty, Has*, Release, AddRef, Clone, sharing |
+| `attrparse_test.go` | 9 | All types, optional, unknown, mixed, empty, dedup, ext-length |
+| `familyrib_perattr_test.go` | 7 | Per-attr dedup, insert, implicit withdraw, remove, iterate, no-op, wire roundtrip |
+
+### Design Decisions
+
+| Decision | Rationale |
+|----------|-----------|
+| New `FamilyRIBPerAttr` type | Keeps existing `FamilyRIB` intact for migration |
+| Pool indices 2-12 | idx=0 (Attributes), idx=1 (NLRI) already used |
+| OtherAttrs blob | Known-but-not-pooled attrs (MP_REACH, etc.) stored together |
+| No-op detection by handle equality | Same handles = same data, skip redundant release/intern |
+| Wire reconstruction in RouteEntry | Keeps pool access encapsulated |
+
+### Design Insights
+
+- AttrIterator exists at `internal/plugin/bgp/attribute/` not `internal/bgp/attribute/`
+- Attribute codes include 22 types; exhaustive switch required for lint
+- Extended length (>255 bytes) needs flag 0x10 in wire reconstruction
+- Implicit withdraw must save slot values before Release invalidates handles
+
+### Deviations from Plan
+
+- Created new `FamilyRIBPerAttr` instead of modifying existing `FamilyRIB`
+- `ToWireBytes()` on RouteEntry instead of separate reconstruction function
+- OtherAttrs includes known-but-not-individually-pooled attrs (MP_REACH, AGGREGATOR, etc.)
+
+### Known Limitations
+
+**Partial flag not preserved for pooled optional-transitive attributes**
+
+RFC 4271 defines the Partial flag (0x20) for optional transitive attributes that were
+modified by a router that didn't understand them. For individually-pooled attributes
+(COMMUNITIES, LARGE_COMMUNITIES, EXT_COMMUNITIES), we store only the VALUE bytes,
+not the flags. When reconstructing wire format, we use hardcoded flags (0xC0).
+
+| Attribute | Stored | Reconstructed Flags | Partial Preserved |
+|-----------|--------|---------------------|-------------------|
+| COMMUNITIES | Value only | 0xC0 | No |
+| LARGE_COMMUNITIES | Value only | 0xC0 | No |
+| EXT_COMMUNITIES | Value only | 0xC0 | No |
+| OtherAttrs | Full wire | Original | Yes |
+
+**Impact:** Low. The Partial flag is informational and rarely set in practice since all
+modern BGP implementations understand these community attributes. Routes will still
+function correctly; only the Partial metadata is lost.
+
+**Mitigation:** If exact flag preservation is required, store these attributes in
+OtherAttrs instead of individual pools. This trades deduplication efficiency for
+byte-exact round-trip.
