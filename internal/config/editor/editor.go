@@ -2,6 +2,7 @@
 package editor
 
 import (
+	"bufio"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -103,6 +104,86 @@ func (e *Editor) HasPendingEdit() bool {
 	return e.hasPendingEdit
 }
 
+// PendingEditTime returns the modification time of the .edit file.
+// Returns zero time if no edit file exists.
+func (e *Editor) PendingEditTime() time.Time {
+	editPath := e.originalPath + ".edit"
+	info, err := os.Stat(editPath)
+	if err != nil {
+		return time.Time{}
+	}
+	return info.ModTime()
+}
+
+// PendingEditDiff returns the diff between original and pending edit content.
+// Returns empty string if no edit file exists.
+func (e *Editor) PendingEditDiff() string {
+	editPath := e.originalPath + ".edit"
+	data, err := os.ReadFile(editPath) //nolint:gosec // Edit path derived from original
+	if err != nil {
+		return ""
+	}
+	return computeDiff(e.originalContent, string(data))
+}
+
+// PendingEditAction represents user's choice for pending edit file.
+type PendingEditAction int
+
+const (
+	// PendingEditContinue - continue editing from pending file.
+	PendingEditContinue PendingEditAction = iota
+	// PendingEditDiscard - discard pending file, start fresh.
+	PendingEditDiscard
+	// PendingEditQuit - quit without editing.
+	PendingEditQuit
+)
+
+// PromptPendingEdit prompts user about existing uncommitted changes.
+// Reads from stdin, writes to stdout.
+func (e *Editor) PromptPendingEdit() PendingEditAction {
+	modTime := e.PendingEditTime()
+	timeStr := modTime.Format("2006-01-02 15:04")
+
+	fmt.Printf("\nFound uncommitted changes from %s.\n", timeStr)
+	fmt.Println("  [c] Continue editing")
+	fmt.Println("  [d] Discard and start fresh")
+	fmt.Println("  [v] View changes first")
+	fmt.Println("  [q] Quit")
+
+	reader := bufio.NewReader(os.Stdin)
+	for {
+		fmt.Print("Choice: ")
+		input, err := reader.ReadString('\n')
+		if err != nil {
+			return PendingEditQuit
+		}
+
+		choice := strings.ToLower(strings.TrimSpace(input))
+		switch choice {
+		case "c":
+			return PendingEditContinue
+		case "d":
+			return PendingEditDiscard
+		case "v":
+			diff := e.PendingEditDiff()
+			if diff == "" {
+				fmt.Println("\nNo differences found.")
+			} else {
+				fmt.Println("\nChanges:")
+				fmt.Println(diff)
+			}
+			// After viewing, prompt again
+			fmt.Println("  [c] Continue editing")
+			fmt.Println("  [d] Discard and start fresh")
+			fmt.Println("  [q] Quit")
+		case "q":
+			return PendingEditQuit
+		default:
+			fmt.Println("Invalid choice. Enter c, d, v, or q.")
+		}
+	}
+}
+
 // LoadPendingEdit loads the content from the .edit file.
 func (e *Editor) LoadPendingEdit() error {
 	editPath := e.originalPath + ".edit"
@@ -195,12 +276,17 @@ func (e *Editor) Discard() error {
 
 // Diff returns a simple diff between original and working content.
 func (e *Editor) Diff() string {
-	if e.originalContent == e.workingContent {
+	return computeDiff(e.originalContent, e.workingContent)
+}
+
+// computeDiff computes a simple line-based diff between two strings.
+func computeDiff(original, modified string) string {
+	if original == modified {
 		return ""
 	}
 
-	originalLines := strings.Split(e.originalContent, "\n")
-	workingLines := strings.Split(e.workingContent, "\n")
+	originalLines := strings.Split(original, "\n")
+	modifiedLines := strings.Split(modified, "\n")
 
 	originalSet := make(map[string]bool)
 	for _, line := range originalLines {
@@ -209,10 +295,10 @@ func (e *Editor) Diff() string {
 		}
 	}
 
-	workingSet := make(map[string]bool)
-	for _, line := range workingLines {
+	modifiedSet := make(map[string]bool)
+	for _, line := range modifiedLines {
 		if strings.TrimSpace(line) != "" {
-			workingSet[line] = true
+			modifiedSet[line] = true
 		}
 	}
 
@@ -220,7 +306,7 @@ func (e *Editor) Diff() string {
 
 	// Removed lines
 	for _, line := range originalLines {
-		if strings.TrimSpace(line) != "" && !workingSet[line] {
+		if strings.TrimSpace(line) != "" && !modifiedSet[line] {
 			diff.WriteString("- ")
 			diff.WriteString(line)
 			diff.WriteString("\n")
@@ -228,7 +314,7 @@ func (e *Editor) Diff() string {
 	}
 
 	// Added lines
-	for _, line := range workingLines {
+	for _, line := range modifiedLines {
 		if strings.TrimSpace(line) != "" && !originalSet[line] {
 			diff.WriteString("+ ")
 			diff.WriteString(line)

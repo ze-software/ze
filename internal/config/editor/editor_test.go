@@ -364,3 +364,125 @@ func TestEditFileDeletedOnDiscard(t *testing.T) {
 
 	ed.Close() //nolint:errcheck,gosec // Best effort cleanup
 }
+
+// TestPendingEditTime verifies edit file modification time is returned.
+//
+// VALIDATES: PendingEditTime returns valid time when edit file exists.
+// PREVENTS: Startup prompt showing wrong timestamp.
+func TestPendingEditTime(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "test.conf")
+	editPath := configPath + ".edit"
+
+	// Write initial config
+	initial := `router-id 1.2.3.4;`
+	err := os.WriteFile(configPath, []byte(initial), 0600)
+	require.NoError(t, err)
+
+	// Create editor - no edit file yet
+	ed, err := NewEditor(configPath)
+	require.NoError(t, err)
+
+	// No pending edit, time should be zero
+	assert.True(t, ed.PendingEditTime().IsZero(), "no edit file should return zero time")
+
+	// Create edit file
+	editContent := `router-id 2.2.2.2;`
+	err = os.WriteFile(editPath, []byte(editContent), 0600)
+	require.NoError(t, err)
+
+	// Recreate editor to detect edit file
+	ed.Close() //nolint:errcheck,gosec
+	ed, err = NewEditor(configPath)
+	require.NoError(t, err)
+	defer ed.Close() //nolint:errcheck
+
+	// Should have pending edit with recent time
+	assert.True(t, ed.HasPendingEdit(), "should detect edit file")
+	modTime := ed.PendingEditTime()
+	assert.False(t, modTime.IsZero(), "should return edit file time")
+	assert.WithinDuration(t, time.Now(), modTime, 5*time.Second, "time should be recent")
+}
+
+// TestPendingEditDiff verifies diff between original and pending edit.
+//
+// VALIDATES: PendingEditDiff shows changes in edit file.
+// PREVENTS: View changes option showing nothing.
+func TestPendingEditDiff(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "test.conf")
+	editPath := configPath + ".edit"
+
+	// Write initial config
+	initial := `router-id 1.2.3.4;
+local-as 65000;`
+	err := os.WriteFile(configPath, []byte(initial), 0600)
+	require.NoError(t, err)
+
+	// Write edit file with changes
+	editContent := `router-id 2.2.2.2;
+local-as 65000;
+peer-as 65001;`
+	err = os.WriteFile(editPath, []byte(editContent), 0600)
+	require.NoError(t, err)
+
+	// Create editor
+	ed, err := NewEditor(configPath)
+	require.NoError(t, err)
+	defer ed.Close() //nolint:errcheck
+
+	// Get diff
+	diff := ed.PendingEditDiff()
+	assert.Contains(t, diff, "- router-id 1.2.3.4;", "should show removed line")
+	assert.Contains(t, diff, "+ router-id 2.2.2.2;", "should show added line")
+	assert.Contains(t, diff, "+ peer-as 65001;", "should show new line")
+}
+
+// TestPendingEditDiffNoEditFile verifies empty diff when no edit file exists.
+//
+// VALIDATES: PendingEditDiff returns empty when no .edit file.
+// PREVENTS: Error when viewing changes without edit file.
+func TestPendingEditDiffNoEditFile(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "test.conf")
+
+	// Write config only, no edit file
+	content := `router-id 1.2.3.4;`
+	err := os.WriteFile(configPath, []byte(content), 0600)
+	require.NoError(t, err)
+
+	// Create editor - no edit file
+	ed, err := NewEditor(configPath)
+	require.NoError(t, err)
+	defer ed.Close() //nolint:errcheck
+
+	// Diff should be empty (no edit file to compare)
+	diff := ed.PendingEditDiff()
+	assert.Empty(t, diff, "no edit file should produce empty diff")
+}
+
+// TestPendingEditDiffNoChanges verifies empty diff when content matches.
+//
+// VALIDATES: PendingEditDiff returns empty when no changes.
+// PREVENTS: False diff display.
+func TestPendingEditDiffNoChanges(t *testing.T) {
+	tmpDir := t.TempDir()
+	configPath := filepath.Join(tmpDir, "test.conf")
+	editPath := configPath + ".edit"
+
+	// Write same content to both files
+	content := `router-id 1.2.3.4;`
+	err := os.WriteFile(configPath, []byte(content), 0600)
+	require.NoError(t, err)
+	err = os.WriteFile(editPath, []byte(content), 0600)
+	require.NoError(t, err)
+
+	// Create editor
+	ed, err := NewEditor(configPath)
+	require.NoError(t, err)
+	defer ed.Close() //nolint:errcheck
+
+	// Diff should be empty
+	diff := ed.PendingEditDiff()
+	assert.Empty(t, diff, "no changes should produce empty diff")
+}

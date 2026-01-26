@@ -73,6 +73,24 @@ Examples:
 	}
 	defer ed.Close() //nolint:errcheck // Best effort cleanup
 
+	// Check for pending edit file from previous session
+	if ed.HasPendingEdit() {
+		switch ed.PromptPendingEdit() {
+		case editor.PendingEditContinue:
+			if err := ed.LoadPendingEdit(); err != nil {
+				fmt.Fprintf(os.Stderr, "error loading edit file: %v\n", err)
+				return 1
+			}
+		case editor.PendingEditDiscard:
+			if err := ed.Discard(); err != nil {
+				fmt.Fprintf(os.Stderr, "error discarding edit file: %v\n", err)
+				return 1
+			}
+		case editor.PendingEditQuit:
+			return 0
+		}
+	}
+
 	// Create model
 	m, err := editor.NewModel(ed)
 	if err != nil {
