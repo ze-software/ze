@@ -74,7 +74,11 @@ Examples:
 	defer ed.Close() //nolint:errcheck // Best effort cleanup
 
 	// Create model
-	m := editor.NewModel(ed)
+	m, err := editor.NewModel(ed)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "error: %v\n", err)
+		return 1
+	}
 
 	// Run Bubble Tea program
 	p := tea.NewProgram(m, tea.WithAltScreen())

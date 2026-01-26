@@ -244,8 +244,12 @@ func configMigrateWithWarnings(inputPath, outputPath string) (string, *migration
 	// Detect unsupported features in the migrated tree
 	warnings := findUnsupportedFeatures(result.Tree)
 
-	// Serialize output
-	output := config.Serialize(result.Tree, config.BGPSchema())
+	// Serialize output using YANG-derived schema
+	schema := config.YANGSchema()
+	if schema == nil {
+		return "", nil, nil, fmt.Errorf("failed to load YANG schema")
+	}
+	output := config.Serialize(result.Tree, schema)
 
 	if outputPath != "" {
 		if err := os.WriteFile(outputPath, []byte(output), 0o600); err != nil {

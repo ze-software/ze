@@ -834,7 +834,7 @@ bgp {
     }
 }
 `
-	p := NewParser(BGPSchema())
+	p := NewParser(YANGSchema())
 	tree, err := p.Parse(input)
 	if err != nil {
 		t.Fatalf("Parse error: %v", err)
@@ -883,7 +883,7 @@ bgp {
     }
 }
 `
-	p := NewParser(BGPSchema())
+	p := NewParser(YANGSchema())
 	tree, err := p.Parse(input)
 	if err != nil {
 		t.Fatalf("Parse error: %v", err)
@@ -919,7 +919,7 @@ bgp {
     local-as 65000;
 }
 `
-	p := NewParser(BGPSchema())
+	p := NewParser(YANGSchema())
 	tree, err := p.Parse(input)
 	if err != nil {
 		t.Fatalf("Parse error: %v", err)
@@ -950,7 +950,7 @@ bgp {
     local-as 65000;
 }
 `
-	p := NewParser(BGPSchema())
+	p := NewParser(YANGSchema())
 	tree, err := p.Parse(input)
 	if err != nil {
 		t.Fatalf("Parse error: %v", err)
@@ -994,7 +994,7 @@ bgp {
     local-as 65000;
 }
 `
-	p := NewParser(BGPSchema())
+	p := NewParser(YANGSchema())
 	tree, err := p.Parse(input)
 	if err != nil {
 		t.Fatalf("Parse error: %v", err)
@@ -1025,7 +1025,7 @@ bgp {
     }
 }
 `
-	p := NewParser(BGPSchema())
+	p := NewParser(YANGSchema())
 	tree, err := p.Parse(input)
 	if err != nil {
 		t.Fatalf("Parse error: %v", err)

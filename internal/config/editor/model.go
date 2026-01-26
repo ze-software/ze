@@ -77,7 +77,7 @@ type (
 )
 
 // NewModel creates a new editor model.
-func NewModel(ed *Editor) Model {
+func NewModel(ed *Editor) (Model, error) {
 	ti := textinput.New()
 	ti.Placeholder = "type command or Tab for suggestions"
 	ti.Focus()
@@ -89,10 +89,13 @@ func NewModel(ed *Editor) Model {
 		Border(lipgloss.RoundedBorder()).
 		BorderForeground(lipgloss.Color("62"))
 
-	comp := NewCompleter(ed.Schema())
+	comp := NewCompleter()
 	comp.SetTree(ed.Tree())
 
-	val := NewConfigValidator()
+	val, err := NewConfigValidator()
+	if err != nil {
+		return Model{}, fmt.Errorf("failed to create validator: %w", err)
+	}
 
 	// Run initial validation
 	result := val.Validate(ed.WorkingContent())
@@ -107,7 +110,7 @@ func NewModel(ed *Editor) Model {
 		selected:           -1,
 		validationErrors:   result.Errors,
 		validationWarnings: result.Warnings,
-	}
+	}, nil
 }
 
 // Init implements tea.Model.

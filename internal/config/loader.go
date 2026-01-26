@@ -32,8 +32,12 @@ func LoadReactor(input string) (*reactor.Reactor, error) {
 
 // LoadReactorWithConfig parses config and returns both Config and Reactor.
 func LoadReactorWithConfig(input string) (*BGPConfig, *reactor.Reactor, error) {
-	// Parse input
-	p := NewParser(BGPSchema())
+	// Parse input using YANG-derived schema
+	schema := YANGSchema()
+	if schema == nil {
+		return nil, nil, fmt.Errorf("failed to load YANG schema")
+	}
+	p := NewParser(schema)
 	tree, err := p.Parse(input)
 	if err != nil {
 		// Check if this looks like old syntax and provide migration hint
@@ -127,8 +131,12 @@ func createReloadFunc() reactor.ReloadFunc {
 			return nil, err
 		}
 
-		// Parse the config.
-		p := NewParser(BGPSchema())
+		// Parse the config using YANG-derived schema.
+		schema := YANGSchema()
+		if schema == nil {
+			return nil, fmt.Errorf("failed to load YANG schema")
+		}
+		p := NewParser(schema)
 		tree, err := p.Parse(string(data))
 		if err != nil {
 			return nil, fmt.Errorf("parse config: %w", err)

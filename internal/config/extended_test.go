@@ -24,7 +24,7 @@ bgp {
     }
 }
 `
-	schema := BGPSchema()
+	schema := YANGSchema()
 	p := NewParser(schema)
 	tree, err := p.Parse(input)
 	require.NoError(t, err)
@@ -64,7 +64,7 @@ bgp {
     }
 }
 `
-	schema := BGPSchema()
+	schema := YANGSchema()
 	p := NewParser(schema)
 	tree, err := p.Parse(input)
 	require.NoError(t, err)
@@ -99,7 +99,7 @@ bgp {
     }
 }
 `
-	schema := BGPSchema()
+	schema := YANGSchema()
 	p := NewParser(schema)
 	tree, err := p.Parse(input)
 	require.NoError(t, err)
@@ -136,7 +136,7 @@ bgp {
     }
 }
 `
-	schema := BGPSchema()
+	schema := YANGSchema()
 	p := NewParser(schema)
 	tree, err := p.Parse(input)
 	require.NoError(t, err)
@@ -171,7 +171,7 @@ bgp {
     }
 }
 `
-	schema := BGPSchema()
+	schema := YANGSchema()
 	p := NewParser(schema)
 	tree, err := p.Parse(input)
 	require.NoError(t, err)
@@ -208,7 +208,7 @@ bgp {
     }
 }
 `
-	schema := BGPSchema()
+	schema := YANGSchema()
 	p := NewParser(schema)
 	tree, err := p.Parse(input)
 	require.NoError(t, err)
@@ -240,7 +240,7 @@ bgp {
     }
 }
 `
-	schema := BGPSchema()
+	schema := YANGSchema()
 	p := NewParser(schema)
 	tree, err := p.Parse(input)
 	require.NoError(t, err)
@@ -280,7 +280,7 @@ bgp {
     }
 }
 `
-	schema := BGPSchema()
+	schema := YANGSchema()
 	p := NewParser(schema)
 	tree, err := p.Parse(input)
 	require.NoError(t, err)
@@ -318,7 +318,7 @@ bgp {
     }
 }
 `
-	schema := BGPSchema()
+	schema := YANGSchema()
 	p := NewParser(schema)
 	tree, err := p.Parse(input)
 	require.NoError(t, err)
@@ -356,7 +356,7 @@ bgp {
     }
 }
 `
-	schema := BGPSchema()
+	schema := YANGSchema()
 	p := NewParser(schema)
 	tree, err := p.Parse(input)
 	require.NoError(t, err)

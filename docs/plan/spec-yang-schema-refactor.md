@@ -117,19 +117,31 @@ Replace hardcoded config schema and validation with YANG-driven schema, validati
 
 2. **Manual verification** - Test editor with invalid config
 
+### Phase 6: Full YANG Replacement (DELETE Go Schema)
+
+**Per `no-layering.md`: Delete first, then fix breakage.**
+
+1. **Delete `BGPSchema()` function** - Remove Go schema definition
+2. **Fix completer** - Navigate YANG tree directly, not Go schema
+3. **Fix parser** - Use YANG for structure validation
+4. **Fix all callers** - Update all BGPSchema() call sites
+5. **Remove `config.Schema` type** - If no longer needed
+6. **Run tests** - Fix breakage until all pass
+
 ## Checklist
 
 ### 🏗️ Design
 - [x] No premature abstraction (uses existing YANG infrastructure)
 - [x] No speculative features (only implementing what YANG provides)
-- [x] Single responsibility (validator validates, adapter provides completion)
+- [x] Single responsibility (validator validates, completer completes)
 - [x] Explicit behavior (YANG constraints are explicit in model)
-- [x] Minimal coupling (editor depends on yang package only)
+- [x] Minimal coupling - Completer uses YANG only, no Go schema dependency
+- [ ] No layering - **PARTIAL: Parser still uses Go schema for syntax handling**
 
 ### 🧪 TDD
 - [x] Tests written
 - [x] Tests FAIL
-- [x] Implementation complete
+- [x] Implementation complete - Completer uses YANG only
 - [x] Tests PASS
 - [x] Boundary tests cover hold-time (0, 1, 2, 3, 65535)
 
@@ -141,6 +153,13 @@ Replace hardcoded config schema and validation with YANG-driven schema, validati
 ### Documentation
 - [x] RFC references added to code (`// RFC 4271 Section 4.2`)
 - [x] YANG constraints documented in model files
+
+### Phase 6 (Full Replacement)
+- [ ] Go schema deleted
+- [x] Completer uses YANG only
+- [ ] Parser uses YANG only - **BLOCKED: Parser depends on Go schema node types (Flex, Freeform, InlineList, FamilyBlock)**
+- [ ] All BGPSchema() callers updated
+- [ ] No hybrid/layered code remains
 
 ## Implementation Summary
 
@@ -168,11 +187,47 @@ Replace hardcoded config schema and validation with YANG-driven schema, validati
 | `internal/yang/validator_test.go` | Added `TestValidator_MandatoryField` |
 | `internal/config/editor/validator.go` | Wire YANG validator, remove hardcoded rules |
 
-### Deferred Work
+### Completed Work
 
-- Phase 2 (YANG Schema Adapter for completion) - not needed for validation goal
-- Phase 4 (Completion from YANG) - future enhancement
-- Leafref validation - not needed for current use case
+**Phase 4 (Completion from YANG) - DONE**
+- Completer completely rewritten to use YANG only
+- Removed dependency on `config.Schema`
+- Navigates YANG entries directly via `yang.Loader.GetEntry()`
+- Deleted `internal/yang/schema.go` and `internal/yang/schema_test.go` (no longer needed)
+
+**Editor/Validator Cleanup - DONE**
+- Removed `schema` field from `Editor` struct
+- Removed unused `Schema()` method from `Editor`
+- Removed `schema` field from `ConfigValidator` struct
+- Both now call `config.BGPSchema()` inline when creating parsers
+
+### Current State
+
+| Component | Status | Notes |
+|-----------|--------|-------|
+| Completer | ✅ YANG only | Navigates YANG tree directly |
+| Editor | ✅ No stored schema | Creates parser inline |
+| Validator | ✅ YANG for validation | Creates parser inline |
+| Parser | ❌ Go schema | **BLOCKED** - see below |
+
+### Remaining Work (Full Replacement)
+
+**BLOCKED: Parser cannot use YANG directly**
+
+The parser depends on Go schema node types that have no YANG equivalent:
+- `FlexNode` - flag, value, or block syntax
+- `FreeformNode` - "word word;" entries
+- `InlineListNode` - inline attribute syntax
+- `FamilyBlockNode` - address family handling
+
+These are **syntax handling** patterns, not data model definitions. YANG defines what data is valid, not how the config syntax is parsed.
+
+**Options to resolve:**
+1. **Generate Go schema from YANG** - YANG as source of truth, generate syntax-aware Go schema at build time
+2. **Add YANG extensions** - Custom extensions for syntax hints (e.g., `ze:syntax "flex"`)
+3. **Simplify config syntax** - Remove special syntax patterns (breaking change)
+
+Until resolved, `BGPSchema()` remains for the parser (26 files).
 
 ### Design Insights
 

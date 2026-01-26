@@ -26,7 +26,7 @@ bgp {
     }
 }
 `
-	p := NewParser(BGPSchema())
+	p := NewParser(YANGSchema())
 	tree, err := p.Parse(input)
 	require.NoError(t, err)
 
@@ -71,7 +71,7 @@ bgp {
     }
 }
 `
-	p := NewParser(BGPSchema())
+	p := NewParser(YANGSchema())
 	tree, err := p.Parse(input)
 	require.NoError(t, err)
 
@@ -170,7 +170,7 @@ bgp {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			p := NewParser(BGPSchema())
+			p := NewParser(YANGSchema())
 			tree, err := p.Parse(tt.input)
 			require.NoError(t, err)
 
@@ -311,7 +311,7 @@ bgp {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			p := NewParser(BGPSchema())
+			p := NewParser(YANGSchema())
 			tree, err := p.Parse(tt.input)
 			require.NoError(t, err)
 
@@ -408,7 +408,7 @@ bgp {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			p := NewParser(BGPSchema())
+			p := NewParser(YANGSchema())
 			tree, err := p.Parse(tt.input)
 			require.NoError(t, err)
 
@@ -448,7 +448,7 @@ bgp {
 		{AFI: "l2vpn", SAFI: "evpn", Mode: FamilyModeRequire},
 	}
 
-	p := NewParser(BGPSchema())
+	p := NewParser(YANGSchema())
 	tree, err := p.Parse(input)
 	require.NoError(t, err)
 
@@ -483,7 +483,7 @@ bgp {
     }
 }
 `
-	p := NewParser(BGPSchema())
+	p := NewParser(YANGSchema())
 	tree, err := p.Parse(input)
 	require.NoError(t, err)
 
@@ -537,7 +537,7 @@ bgp {
     }
 }
 `
-	p := NewParser(BGPSchema())
+	p := NewParser(YANGSchema())
 	tree, err := p.Parse(input)
 	require.NoError(t, err)
 
@@ -571,7 +571,7 @@ plugin {
     }
 }
 `
-	p := NewParser(BGPSchema())
+	p := NewParser(YANGSchema())
 	tree, err := p.Parse(input)
 	require.NoError(t, err)
 
@@ -602,7 +602,7 @@ bgp {
     listen 0.0.0.0 179;
 }
 `
-	p := NewParser(BGPSchema())
+	p := NewParser(YANGSchema())
 	tree, err := p.Parse(input)
 	require.NoError(t, err)
 
@@ -676,7 +676,7 @@ bgp {
     }
 }
 `
-	p := NewParser(BGPSchema())
+	p := NewParser(YANGSchema())
 	tree, err := p.Parse(input)
 	require.NoError(t, err)
 
@@ -725,7 +725,7 @@ bgp {
     }
 }
 `
-	p := NewParser(BGPSchema())
+	p := NewParser(YANGSchema())
 	tree, err := p.Parse(input)
 	require.NoError(t, err)
 
@@ -770,7 +770,7 @@ bgp {
     }
 }
 `
-	p := NewParser(BGPSchema())
+	p := NewParser(YANGSchema())
 	tree, err := p.Parse(input)
 	require.NoError(t, err)
 
@@ -828,7 +828,7 @@ bgp {
     }
 }
 `
-	p := NewParser(BGPSchema())
+	p := NewParser(YANGSchema())
 	tree, err := p.Parse(input)
 	require.NoError(t, err)
 
@@ -885,7 +885,7 @@ bgp {
     }
 }
 `
-	p := NewParser(BGPSchema())
+	p := NewParser(YANGSchema())
 	tree, err := p.Parse(input)
 	require.NoError(t, err)
 
@@ -950,7 +950,7 @@ bgp {
     }
 }
 `
-			p := NewParser(BGPSchema())
+			p := NewParser(YANGSchema())
 			tree, err := p.Parse(input)
 			require.NoError(t, err)
 
@@ -980,7 +980,7 @@ bgp {
     }
 }
 `
-	p := NewParser(BGPSchema())
+	p := NewParser(YANGSchema())
 	tree, err := p.Parse(input)
 	require.NoError(t, err)
 
@@ -1039,7 +1039,7 @@ bgp {
     }
 }
 `
-			p := NewParser(BGPSchema())
+			p := NewParser(YANGSchema())
 			tree, err := p.Parse(input)
 			require.NoError(t, err)
 
@@ -1075,7 +1075,7 @@ bgp {
     }
 }
 `
-	p := NewParser(BGPSchema())
+	p := NewParser(YANGSchema())
 	tree, err := p.Parse(input)
 	require.NoError(t, err)
 
@@ -1125,7 +1125,7 @@ bgp {
     }
 }
 `
-	p := NewParser(BGPSchema())
+	p := NewParser(YANGSchema())
 	tree, err := p.Parse(input)
 	require.NoError(t, err)
 
@@ -1153,7 +1153,7 @@ bgp {
     }
 }
 `
-	p := NewParser(BGPSchema())
+	p := NewParser(YANGSchema())
 	tree, err := p.Parse(input)
 	require.NoError(t, err)
 
@@ -1197,7 +1197,7 @@ bgp {
     }
 }
 `
-			p := NewParser(BGPSchema())
+			p := NewParser(YANGSchema())
 			tree, err := p.Parse(input)
 			require.NoError(t, err)
 
@@ -1290,7 +1290,7 @@ bgp {
 // parseConfig is a test helper that parses BGP config and returns the result.
 func parseConfig(t *testing.T, input string) *BGPConfig {
 	t.Helper()
-	p := NewParser(BGPSchema())
+	p := NewParser(YANGSchema())
 	tree, err := p.Parse(input)
 	require.NoError(t, err)
 	cfg, err := TreeToConfig(tree)
@@ -1700,7 +1700,7 @@ bgp {
     peer 192.0.2.1 { inherit derived; local-as 65000; peer-as 65001; }
 }
 `
-	p := NewParser(BGPSchema())
+	p := NewParser(YANGSchema())
 	tree, err := p.Parse(input)
 	require.NoError(t, err) // Parse succeeds
 
@@ -1721,7 +1721,7 @@ match * {
     hold-time 90;
 }
 `
-	p := NewParser(BGPSchema())
+	p := NewParser(YANGSchema())
 	_, err := p.Parse(input)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "match")
@@ -1744,7 +1744,7 @@ bgp {
     }
 }
 `
-	p := NewParser(BGPSchema())
+	p := NewParser(YANGSchema())
 	_, err := p.Parse(input)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), "match")
@@ -1766,7 +1766,7 @@ func TestGroupNameValidation(t *testing.T) {
 		t.Run("valid:"+name, func(t *testing.T) {
 			input := `template { group ` + name + ` { hold-time 90; } }
 bgp { peer 192.0.2.1 { inherit ` + name + `; local-as 65000; peer-as 65001; } }`
-			p := NewParser(BGPSchema())
+			p := NewParser(YANGSchema())
 			tree, err := p.Parse(input)
 			require.NoError(t, err, "group name %q should parse", name)
 
@@ -1780,7 +1780,7 @@ bgp { peer 192.0.2.1 { inherit ` + name + `; local-as 65000; peer-as 65001; } }`
 		t.Run("invalid:"+name, func(t *testing.T) {
 			input := `template { group ` + name + ` { hold-time 90; } }
 bgp { peer 192.0.2.1 { inherit ` + name + `; local-as 65000; peer-as 65001; } }`
-			p := NewParser(BGPSchema())
+			p := NewParser(YANGSchema())
 			tree, err := p.Parse(input)
 			require.NoError(t, err, "group name %q should parse", name)
 
@@ -2183,7 +2183,7 @@ bgp {
     }
 }
 `
-	p := NewParser(BGPSchema())
+	p := NewParser(YANGSchema())
 	tree, err := p.Parse(input)
 	require.NoError(t, err)
 
@@ -2383,7 +2383,7 @@ bgp {
     }
 }
 `
-	p := NewParser(BGPSchema())
+	p := NewParser(YANGSchema())
 	tree, err := p.Parse(input)
 	require.NoError(t, err)
 
@@ -2909,7 +2909,7 @@ func TestMergeProcessBindingsReceiveConfig(t *testing.T) {
 
 // TestOldSyntaxRejected verifies that old syntax is rejected by BGPSchema.
 //
-// VALIDATES: BGPSchema() only accepts current syntax.
+// VALIDATES: YANGSchema() only accepts current syntax.
 //
 // PREVENTS: Accidentally accepting deprecated configs.
 func TestOldSyntaxRejected(t *testing.T) {
@@ -2920,7 +2920,7 @@ neighbor 192.0.2.1 {
     peer-as 65001;
 }
 `
-		p := NewParser(BGPSchema())
+		p := NewParser(YANGSchema())
 		_, err := p.Parse(input)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "unknown top-level keyword: neighbor")
@@ -2933,7 +2933,7 @@ peer 192.0.2.1 {
     peer-as 65001;
 }
 `
-		p := NewParser(BGPSchema())
+		p := NewParser(YANGSchema())
 		_, err := p.Parse(input)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "unknown top-level keyword: peer")
@@ -2947,7 +2947,7 @@ bgp {
     }
 }
 `
-		p := NewParser(BGPSchema())
+		p := NewParser(YANGSchema())
 		_, err := p.Parse(input)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "invalid")
@@ -2961,7 +2961,7 @@ bgp {
     }
 }
 `
-		p := NewParser(BGPSchema())
+		p := NewParser(YANGSchema())
 		_, err := p.Parse(input)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "invalid")
@@ -2975,7 +2975,7 @@ template {
     }
 }
 `
-		p := NewParser(BGPSchema())
+		p := NewParser(YANGSchema())
 		_, err := p.Parse(input)
 		require.Error(t, err)
 		require.Contains(t, err.Error(), "unknown field in template: neighbor")
@@ -2998,7 +2998,7 @@ template {
     }
 }
 `
-		p := NewParser(BGPSchema())
+		p := NewParser(YANGSchema())
 		tree, err := p.Parse(input)
 		require.NoError(t, err)
 		require.NotNil(t, tree)
@@ -3138,7 +3138,7 @@ bgp {
     }
 }
 `
-	p := NewParser(BGPSchema())
+	p := NewParser(YANGSchema())
 	tree, err := p.Parse(input)
 	require.NoError(t, err)
 
@@ -3169,7 +3169,7 @@ bgp {
     }
 }
 `
-	p := NewParser(BGPSchema())
+	p := NewParser(YANGSchema())
 	tree, err := p.Parse(input)
 	require.NoError(t, err)
 
@@ -3193,7 +3193,7 @@ bgp {
     }
 }
 `
-	p := NewParser(BGPSchema())
+	p := NewParser(YANGSchema())
 	tree, err := p.Parse(input)
 	require.NoError(t, err)
 	_, err = TreeToConfig(tree)
@@ -3217,7 +3217,7 @@ bgp {
     }
 }
 `
-	p := NewParser(BGPSchema())
+	p := NewParser(YANGSchema())
 	tree, err := p.Parse(input)
 	require.NoError(t, err)
 	_, err = TreeToConfig(tree)
@@ -3287,7 +3287,7 @@ bgp {
     }
 }
 `
-	p := NewParser(BGPSchema())
+	p := NewParser(YANGSchema())
 	tree, err := p.Parse(input)
 	require.NoError(t, err)
 	_, err = TreeToConfig(tree)
@@ -3343,7 +3343,7 @@ bgp {
     }
 }
 `
-	p := NewParser(BGPSchema())
+	p := NewParser(YANGSchema())
 	tree, err := p.Parse(input)
 	require.NoError(t, err)
 	_, err = TreeToConfig(tree)
@@ -3429,7 +3429,7 @@ plugin {
 
 bgp { }
 `
-	p := NewParser(BGPSchema())
+	p := NewParser(YANGSchema())
 	tree, err := p.Parse(input)
 	require.NoError(t, err) // Parsing succeeds (schema accepts string)
 
@@ -3453,7 +3453,7 @@ plugin {
 
 bgp { }
 `
-	p := NewParser(BGPSchema())
+	p := NewParser(YANGSchema())
 	tree, err := p.Parse(input)
 	require.NoError(t, err) // Parsing succeeds (schema accepts string)
 

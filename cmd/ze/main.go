@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"codeberg.org/thomas-mangin/ze/cmd/ze/bgp"
+	"codeberg.org/thomas-mangin/ze/cmd/ze/config"
 	"codeberg.org/thomas-mangin/ze/cmd/ze/exabgp"
 	"codeberg.org/thomas-mangin/ze/cmd/ze/hub"
 )
@@ -25,6 +26,8 @@ func main() {
 	switch arg {
 	case "bgp":
 		os.Exit(bgp.Run(os.Args[2:]))
+	case "config":
+		os.Exit(config.Run(os.Args[2:]))
 	case "exabgp":
 		os.Exit(exabgp.Run(os.Args[2:]))
 	case "version":

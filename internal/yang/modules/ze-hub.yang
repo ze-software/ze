@@ -1,0 +1,94 @@
+module ze-hub {
+    namespace "urn:ze:hub";
+    prefix hub;
+
+    description "Hub/core configuration for ZeBGP";
+
+    revision 2026-01-01 {
+        description "Initial revision";
+    }
+
+    // Environment block - ZeBGP-specific settings
+    container environment {
+        description "ZeBGP environment settings";
+
+        container daemon {
+            description "Daemon settings";
+            leaf pid { type string; }
+            leaf user { type string; }
+            leaf daemonize { type boolean; }
+            leaf drop { type boolean; }
+            leaf umask { type string; }
+        }
+
+        container log {
+            description "Logging settings";
+            leaf level { type string; }
+            leaf enable { type boolean; }
+            leaf destination { type string; }
+            leaf all { type boolean; }
+            leaf configuration { type boolean; }
+            leaf reactor { type boolean; }
+            leaf daemon { type boolean; }
+            leaf processes { type boolean; }
+            leaf network { type boolean; }
+            leaf statistics { type boolean; }
+            leaf packets { type boolean; }
+            leaf rib { type boolean; }
+            leaf message { type boolean; }
+            leaf timers { type boolean; }
+            leaf routes { type boolean; }
+            leaf parser { type boolean; }
+            leaf short { type boolean; }
+        }
+
+        container tcp {
+            description "TCP settings";
+            leaf port { type uint16; }
+            leaf attempts { type int32; }
+            leaf delay { type int32; }
+            leaf acl { type boolean; }
+        }
+
+        container bgp {
+            description "BGP protocol settings";
+            leaf passive { type boolean; }
+            leaf openwait { type int32; }
+        }
+
+        container cache {
+            description "Cache settings";
+            leaf attributes { type boolean; }
+        }
+
+        container api {
+            description "API settings";
+            leaf ack { type boolean; }
+            leaf chunk { type int32; }
+            leaf encoder { type string; }
+            leaf compact { type boolean; }
+            leaf respawn { type boolean; }
+            leaf terminate { type boolean; }
+            leaf cli { type boolean; }
+            leaf pipename { type string; }
+            leaf socketname { type string; }
+        }
+
+        container reactor {
+            description "Reactor settings";
+            leaf speed { type string; }
+        }
+
+        container debug {
+            description "Debug settings";
+            leaf pdb { type boolean; }
+            leaf memory { type boolean; }
+            leaf configuration { type boolean; }
+            leaf selfcheck { type boolean; }
+            leaf route { type string; }
+            leaf defensive { type boolean; }
+            leaf rotate { type boolean; }
+            leaf timing { type boolean; }
+        }
+    }
+}

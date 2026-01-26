@@ -306,76 +306,14 @@ func peerFields() []FieldDef {
 	}
 }
 
-// BGPSchema returns the schema for ZeBGP configuration (current syntax).
-// Use LegacyBGPSchema for migration from old ExaBGP configs.
-func BGPSchema() *Schema {
-	schema := NewSchema()
-
-	// Environment settings (ZeBGP-specific, not in ExaBGP)
-	// Processed first, before template/peer/process blocks
-	schema.Define("environment", environmentBlock())
-
-	// Plugin definitions - container with external/builtin sub-blocks
-	// Syntax: plugin { external <name> { ... } }
-	schema.Define("plugin", Container(
-		Field("external", List(TypeString,
-			Field("run", MultiLeaf(TypeString)), // command with args
-			Field("encoder", Leaf(TypeString)),  // json, text
-			Field("respawn", Leaf(TypeBool)),    // respawn on exit
-			Field("timeout", Leaf(TypeString)),  // stage timeout (e.g., "10s", "1m")
-		)),
-	))
-
-	// Template definitions - new syntax with peer patterns
-	// template { bgp { peer <pattern> { inherit-name <name>; ... } } }
-	schema.Define("template", Container(
-		Field("bgp", Container(
-			Field("peer", List(TypeString, templatePeerFields()...)), // peer <pattern> { ... }
-		)),
-		// Legacy syntax (for migration): group <name> { ... }; match <pattern> { ... }
-		Field("group", List(TypeString, peerFields()...)),
-		Field("match", List(TypeString, peerFields()...)),
-	))
-
-	// BGP block - contains all BGP-related config
-	// bgp { router-id ...; local-as ...; listen ...; peer ... { } }
-	schema.Define("bgp", Container(
-		Field("router-id", Leaf(TypeIPv4)),
-		Field("local-as", Leaf(TypeUint32)),
-		Field("listen", MultiLeaf(TypeString)),
-		Field("peer", List(TypeIP, peerFields()...)),
-	))
-
-	return schema
-}
-
 // templatePeerFields returns fields for template peer patterns.
 // Includes inherit-name for named templates, plus all regular peer fields.
+// Used by LegacyBGPSchema for migration tool.
 func templatePeerFields() []FieldDef {
 	fields := []FieldDef{
 		Field("inherit-name", Leaf(TypeString)), // Named template identifier
 	}
 	return append(fields, peerFields()...)
-}
-
-// PluginOnlySchema returns a minimal schema that only parses plugin blocks.
-// Used for two-phase config parsing: first parse plugins, then parse rest.
-// This allows plugins to extend the schema before the full config is parsed.
-func PluginOnlySchema() *Schema {
-	schema := NewSchema()
-
-	// Only define plugin container - everything else is unknown
-	// Syntax: plugin { external <name> { ... } }
-	schema.Define("plugin", Container(
-		Field("external", List(TypeString,
-			Field("run", MultiLeaf(TypeString)), // command with args
-			Field("encoder", Leaf(TypeString)),  // json, text
-			Field("respawn", Leaf(TypeBool)),    // respawn on exit
-			Field("timeout", Leaf(TypeString)),  // stage timeout
-		)),
-	))
-
-	return schema
 }
 
 // environmentBlock returns the schema for the environment configuration block.

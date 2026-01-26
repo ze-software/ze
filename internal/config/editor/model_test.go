@@ -43,7 +43,8 @@ func TestModelValidationOnLoad(t *testing.T) {
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup
 
-	model := NewModel(ed)
+	model, err := NewModel(ed)
+	require.NoError(t, err)
 
 	// Should have validation error from load
 	assert.NotEmpty(t, model.validationErrors, "should have errors on load")
@@ -73,7 +74,8 @@ func TestModelCommitBlockedOnErrors(t *testing.T) {
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup
 
-	model := NewModel(ed)
+	model, err := NewModel(ed)
+	require.NoError(t, err)
 
 	// Commit should fail
 	_, err = model.cmdCommit()
@@ -106,7 +108,8 @@ func TestModelCommitSucceedsWhenValid(t *testing.T) {
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup
 
-	model := NewModel(ed)
+	model, err := NewModel(ed)
+	require.NoError(t, err)
 	model.editor.MarkDirty() // Mark dirty so commit does something
 
 	// Should have no errors
@@ -137,7 +140,8 @@ func TestModelErrorsCommand(t *testing.T) {
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup
 
-	model := NewModel(ed)
+	model, err := NewModel(ed)
+	require.NoError(t, err)
 
 	// Get errors
 	result, err := model.cmdErrors()
@@ -163,7 +167,8 @@ func TestModelErrorsCommandNoIssues(t *testing.T) {
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup
 
-	model := NewModel(ed)
+	model, err := NewModel(ed)
+	require.NoError(t, err)
 
 	// Get errors
 	result, err := model.cmdErrors()
@@ -188,7 +193,8 @@ func TestModelRevalidatesOnDiscard(t *testing.T) {
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup
 
-	model := NewModel(ed)
+	model, err := NewModel(ed)
+	require.NoError(t, err)
 	assert.Empty(t, model.validationErrors, "initial config should be valid")
 
 	// Simulate editing to invalid (set working content)
@@ -218,7 +224,8 @@ func TestModelValidationDebounce(t *testing.T) {
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup
 
-	model := NewModel(ed)
+	model, err := NewModel(ed)
+	require.NoError(t, err)
 	initialID := model.validationID
 
 	// Schedule validation increments ID and returns tick command
@@ -280,7 +287,8 @@ func TestModelStatusBarErrorIndicator(t *testing.T) {
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup
 
-	model := NewModel(ed)
+	model, err := NewModel(ed)
+	require.NoError(t, err)
 	model.width = 80
 	model.height = 24
 
@@ -307,7 +315,8 @@ func TestModelKeyrunesTriggersValidation(t *testing.T) {
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup
 
-	model := NewModel(ed)
+	model, err := NewModel(ed)
+	require.NoError(t, err)
 	initialID := model.validationID
 
 	// Send KeyRunes message (typing 'a')
@@ -337,7 +346,8 @@ func TestModelStatusBarNoErrorsWhenValid(t *testing.T) {
 	require.NoError(t, err)
 	defer ed.Close() //nolint:errcheck,gosec // Best effort cleanup
 
-	model := NewModel(ed)
+	model, err := NewModel(ed)
+	require.NoError(t, err)
 	model.width = 80
 	model.height = 24
 

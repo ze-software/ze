@@ -19,7 +19,6 @@ type Editor struct {
 	originalPath    string
 	originalContent string
 	workingContent  string
-	schema          *config.Schema
 	tree            *config.Tree // Parsed config tree
 	dirty           bool
 	hasPendingEdit  bool // true if .edit file exists
@@ -41,9 +40,12 @@ func NewEditor(configPath string) (*Editor, error) {
 	}
 
 	content := string(data)
-	schema := config.BGPSchema()
 
-	// Parse config into tree
+	// Parse config into tree using YANG-derived schema
+	schema := config.YANGSchema()
+	if schema == nil {
+		return nil, fmt.Errorf("failed to load YANG schema")
+	}
 	parser := config.NewParser(schema)
 	tree, err := parser.Parse(content)
 	if err != nil {
@@ -62,7 +64,6 @@ func NewEditor(configPath string) (*Editor, error) {
 		originalPath:    configPath,
 		originalContent: content,
 		workingContent:  content,
-		schema:          schema,
 		tree:            tree,
 		dirty:           false,
 		hasPendingEdit:  hasPending,
@@ -138,11 +139,6 @@ func (e *Editor) deleteEditFile() {
 // MarkDirty marks the editor as having unsaved changes.
 func (e *Editor) MarkDirty() {
 	e.dirty = true
-}
-
-// Schema returns the configuration schema.
-func (e *Editor) Schema() *config.Schema {
-	return e.schema
 }
 
 // OriginalContent returns the original file content.

@@ -41,8 +41,13 @@ Options:
 		return 1
 	}
 
-	// Parse with schema
-	p := config.NewParser(config.BGPSchema())
+	// Parse with YANG-derived schema
+	schema := config.YANGSchema()
+	if schema == nil {
+		fmt.Fprintf(os.Stderr, "Error: failed to load YANG schema\n")
+		return 1
+	}
+	p := config.NewParser(schema)
 	tree, err := p.Parse(string(data))
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error parsing config: %v\n", err)

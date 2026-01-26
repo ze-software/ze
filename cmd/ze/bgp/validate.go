@@ -111,8 +111,16 @@ func validateConfig(input, path string) *ValidationResult {
 		Valid: true,
 	}
 
-	// Parse with schema
-	p := config.NewParser(config.BGPSchema())
+	// Parse with YANG-derived schema
+	schema := config.YANGSchema()
+	if schema == nil {
+		result.Valid = false
+		result.Errors = append(result.Errors, ValidationError{
+			Message: "failed to load YANG schema",
+		})
+		return result
+	}
+	p := config.NewParser(schema)
 	tree, err := p.Parse(input)
 	if err != nil {
 		result.Valid = false

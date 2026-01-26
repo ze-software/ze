@@ -35,40 +35,40 @@ func (r *ConfigValidationResult) HasWarnings() bool {
 }
 
 // ConfigValidator provides configuration text validation.
-// Uses the existing config parser for syntax/schema validation,
-// and YANG validator for RFC-specific constraints.
+// Uses YANG-derived schema for parsing and validation.
 type ConfigValidator struct {
 	schema        *config.Schema
 	yangValidator *yang.Validator
 }
 
 // NewConfigValidator creates a new config validator.
-func NewConfigValidator() *ConfigValidator {
+// Returns error if YANG schema cannot be loaded.
+func NewConfigValidator() (*ConfigValidator, error) {
+	schema := config.YANGSchema()
+	if schema == nil {
+		return nil, fmt.Errorf("failed to load YANG schema")
+	}
+
 	// Initialize YANG validator
 	loader := yang.NewLoader()
 	if err := loader.LoadEmbedded(); err != nil {
-		// Fall back to schema-only validation if YANG fails
-		return &ConfigValidator{
-			schema: config.BGPSchema(),
-		}
+		return nil, fmt.Errorf("failed to load YANG: %w", err)
 	}
 	if err := loader.Resolve(); err != nil {
-		return &ConfigValidator{
-			schema: config.BGPSchema(),
-		}
+		return nil, fmt.Errorf("failed to resolve YANG: %w", err)
 	}
 
 	return &ConfigValidator{
-		schema:        config.BGPSchema(),
+		schema:        schema,
 		yangValidator: yang.NewValidator(loader),
-	}
+	}, nil
 }
 
 // Validate runs all validation levels and returns the result.
 func (v *ConfigValidator) Validate(content string) ConfigValidationResult {
 	var result ConfigValidationResult
 
-	// Parse with schema - this catches syntax and schema errors
+	// Parse with YANG-derived schema - catches syntax and schema errors
 	// Including: router-id (TypeIPv4), local-as (TypeUint32),
 	// peer-as (TypeUint32), peer address (TypeIP), hold-time (TypeUint16)
 	parser := config.NewParser(v.schema)
@@ -161,7 +161,7 @@ func (v *ConfigValidator) ValidateWithYANG(tree *config.Tree) []ConfigValidation
 
 			// Use YANG validator for RFC-compliant range check
 			// #nosec G115 -- bounds checked above
-			if err := v.yangValidator.Validate("bgp.hold-time", uint16(holdTime)); err != nil {
+			if err := v.yangValidator.Validate("bgp.peer.hold-time", uint16(holdTime)); err != nil {
 				var yangErr *yang.ValidationError
 				if errors.As(err, &yangErr) {
 					errs = append(errs, ConfigValidationError{
@@ -187,8 +187,7 @@ func (v *ConfigValidator) ValidateSemantic(tree *config.Tree) []ConfigValidation
 	return v.ValidateWithYANG(tree)
 }
 
-// ValidateSyntax is kept for backwards compatibility with existing tests.
-// It now uses the parser for validation.
+// ValidateSyntax validates only syntax using YANG-derived schema.
 func (v *ConfigValidator) ValidateSyntax(content string) []ConfigValidationError {
 	parser := config.NewParser(v.schema)
 	_, err := parser.Parse(content)

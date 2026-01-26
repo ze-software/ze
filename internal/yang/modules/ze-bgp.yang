@@ -3,6 +3,7 @@ module ze-bgp {
     prefix bgp;
 
     import ze-types { prefix zt; }
+    import ze-extensions { prefix ze; }
 
     description "BGP configuration for ZeBGP";
 
@@ -10,50 +11,68 @@ module ze-bgp {
         description "Initial revision";
     }
 
+    // Template block - peer templates
+    container template {
+        description "Peer templates";
+
+        container bgp {
+            description "BGP templates";
+            list peer {
+                key "pattern";
+                description "Peer pattern template";
+
+                leaf pattern {
+                    type string;
+                    description "Pattern to match peer addresses";
+                }
+
+                leaf inherit-name {
+                    type string;
+                    description "Named template identifier";
+                }
+
+                uses peer-fields;
+            }
+        }
+
+        // Legacy syntax support
+        list group {
+            key "name";
+            description "Legacy group template";
+            leaf name { type string; }
+            uses peer-fields;
+        }
+
+        list match {
+            key "pattern";
+            description "Legacy match template";
+            leaf pattern { type string; }
+            uses peer-fields;
+        }
+    }
+
+    // BGP block - main BGP configuration
     container bgp {
         description "BGP configuration";
-
-        leaf local-as {
-            type zt:asn;
-            mandatory true;
-            description "Local Autonomous System Number";
-        }
 
         leaf router-id {
             type zt:ipv4-address;
             mandatory true;
-            description "BGP Router ID";
+            description "BGP Router ID (required)";
         }
 
-        leaf hold-time {
-            type uint16 {
-                range "0 | 3..65535";
-            }
-            default 180;
-            description "BGP hold time in seconds (0 or 3+)";
+        leaf local-as {
+            type zt:asn;
+            mandatory true;
+            description "Local Autonomous System Number (required)";
         }
 
-        // Peer groups
-        list peer-group {
-            key "name";
-            description "BGP peer group template";
-
-            leaf name {
-                type string {
-                    length "1..64";
-                }
-                description "Peer group name";
-            }
-
-            leaf peer-as {
-                type zt:asn;
-                description "Peer AS for all group members";
-            }
-
-            uses peer-config;
+        leaf listen {
+            ze:syntax "multi-leaf";
+            type string;
+            description "Listen address and port";
         }
 
-        // Peers
         list peer {
             key "address";
             description "BGP peer configuration";
@@ -63,268 +82,562 @@ module ze-bgp {
                 description "Peer IP address";
             }
 
-            leaf peer-as {
-                type zt:asn;
-                description "Peer Autonomous System Number";
-            }
-
-            leaf group {
-                type leafref {
-                    path "../../peer-group/name";
-                }
-                description "Reference to peer-group (must exist)";
-            }
-
-            uses peer-config;
-        }
-
-        // Policy: Route maps
-        list route-map {
-            key "name";
-            description "Route map for policy";
-
-            leaf name {
-                type string {
-                    length "1..64";
-                }
-                description "Route map name";
-            }
-
-            list rule {
-                key "sequence";
-                description "Route map rule";
-
-                leaf sequence {
-                    type uint32;
-                    description "Rule sequence number";
-                }
-
-                leaf action {
-                    type enumeration {
-                        enum permit { description "Allow matching routes"; }
-                        enum deny { description "Reject matching routes"; }
-                    }
-                    mandatory true;
-                    description "Rule action";
-                }
-
-                // Match conditions
-                container match {
-                    description "Match conditions";
-
-                    leaf prefix-list {
-                        type leafref {
-                            path "../../../prefix-list/name";
-                        }
-                        description "Match prefix list";
-                    }
-
-                    leaf community {
-                        type zt:community;
-                        description "Match community";
-                    }
-
-                    leaf as-path {
-                        type string;
-                        description "Match AS path regex";
-                    }
-                }
-
-                // Set actions
-                container set {
-                    description "Set actions on matching routes";
-
-                    leaf local-pref {
-                        type uint32;
-                        description "Set LOCAL_PREF";
-                    }
-
-                    leaf med {
-                        type uint32;
-                        description "Set MED";
-                    }
-
-                    leaf community {
-                        type zt:community;
-                        description "Set community";
-                    }
-
-                    leaf next-hop {
-                        type zt:ip-address;
-                        description "Set next-hop";
-                    }
-                }
-            }
-        }
-
-        // Policy: Prefix lists
-        list prefix-list {
-            key "name";
-            description "IP prefix list";
-
-            leaf name {
-                type string {
-                    length "1..64";
-                }
-                description "Prefix list name";
-            }
-
-            list entry {
-                key "sequence";
-                description "Prefix list entry";
-
-                leaf sequence {
-                    type uint32;
-                    description "Entry sequence number";
-                }
-
-                leaf action {
-                    type enumeration {
-                        enum permit { description "Allow matching prefixes"; }
-                        enum deny { description "Reject matching prefixes"; }
-                    }
-                    mandatory true;
-                    description "Entry action";
-                }
-
-                leaf prefix {
-                    type zt:prefix-ipv4;
-                    mandatory true;
-                    description "IP prefix to match";
-                }
-
-                leaf le {
-                    type uint8 { range "0..32"; }
-                    description "Prefix length less-than-or-equal";
-                }
-
-                leaf ge {
-                    type uint8 { range "0..32"; }
-                    description "Prefix length greater-than-or-equal";
-                }
-            }
+            uses peer-fields;
         }
     }
 
-    grouping peer-config {
-        description "Common peer/peer-group configuration";
+    // Grouping for peer configuration fields
+    grouping peer-fields {
+        description "Common peer configuration fields";
+
+        // Template inheritance
+        leaf inherit {
+            type string;
+            description "Inherit from template";
+        }
+
+        // Basic peer identification
+        leaf description {
+            type string;
+            description "Peer description";
+        }
+
+        leaf router-id {
+            type zt:ipv4-address;
+            description "Override router ID for this peer";
+        }
+
+        leaf local-address {
+            type string;
+            description "Local address for connection";
+        }
+
+        leaf local-as {
+            type zt:asn;
+            description "Local AS for this peer";
+        }
+
+        leaf peer-as {
+            type zt:asn;
+            description "Peer Autonomous System Number";
+        }
+
+        leaf hold-time {
+            type uint16 {
+                range "0 | 3..65535";
+            }
+            default 90;
+            description "Hold time in seconds (RFC 4271: 0 or >= 3)";
+        }
 
         leaf passive {
             type boolean;
             default false;
-            description "Wait for peer to initiate connection";
+            description "Wait for peer to connect";
         }
 
-        leaf route-reflector-client {
+        leaf group-updates {
             type boolean;
-            default false;
-            description "Treat peer as route reflector client";
+            default true;
+            description "Group UPDATE messages";
         }
 
-        container timers {
-            description "BGP timers";
-
-            leaf hold-time {
-                type uint16 {
-                    range "0 | 3..65535";
-                }
-                description "Per-peer hold time override";
-            }
-
-            leaf keepalive {
-                type uint16;
-                description "Keepalive interval";
-            }
-
-            leaf connect-retry {
-                type uint16 {
-                    range "1..65535";
-                }
-                default 120;
-                description "Connect retry timer";
-            }
+        // Address families - special FamilyBlock syntax
+        container family {
+            ze:syntax "family-block";
+            description "Address families to negotiate";
         }
 
+        // Capabilities
         container capability {
             description "BGP capability negotiation";
 
-            leaf route-refresh {
+            leaf asn4 {
                 type boolean;
                 default true;
-                description "Enable RFC 2918 Route Refresh";
+                description "4-byte ASN support";
             }
 
-            leaf add-path {
-                type enumeration {
-                    enum disabled { description "ADD-PATH disabled"; }
-                    enum receive { description "Receive ADD-PATH"; }
-                    enum send { description "Send ADD-PATH"; }
-                    enum both { description "Send and receive ADD-PATH"; }
+            container route-refresh {
+                ze:syntax "flex";
+                description "Route Refresh capability";
+            }
+
+            container graceful-restart {
+                ze:syntax "flex";
+                description "Graceful Restart capability";
+                leaf restart-time {
+                    type uint16;
+                    default 120;
+                    description "Restart time in seconds";
                 }
-                default disabled;
-                description "RFC 7911 ADD-PATH mode";
             }
 
-            leaf extended-message {
-                type boolean;
-                default false;
-                description "RFC 8654 extended message support";
+            container add-path {
+                ze:syntax "flex";
+                description "ADD-PATH capability";
+                leaf send {
+                    type boolean;
+                    default false;
+                    description "Send ADD-PATH";
+                }
+                leaf receive {
+                    type boolean;
+                    default false;
+                    description "Receive ADD-PATH";
+                }
             }
 
-            leaf graceful-restart {
-                type boolean;
-                default false;
-                description "RFC 4724 Graceful Restart";
+            container extended-message {
+                ze:syntax "flex";
+                description "Extended Message capability";
+            }
+
+            container nexthop {
+                ze:syntax "freeform";
+                description "Extended Next Hop capability";
+            }
+
+            container multi-session {
+                ze:syntax "flex";
+                description "Multi-session capability";
+            }
+
+            container operational {
+                ze:syntax "flex";
+                description "Operational capability";
+            }
+
+            container aigp {
+                ze:syntax "flex";
+                description "AIGP capability";
+            }
+
+            container software-version {
+                ze:syntax "flex";
+                description "Software Version capability";
             }
         }
 
-        leaf route-map-in {
-            type leafref {
-                path "../../route-map/name";
-            }
-            description "Inbound route map";
+        // Additional peer settings
+        leaf host-name {
+            type string;
+            description "Host name for FQDN capability";
         }
 
-        leaf route-map-out {
-            type leafref {
-                path "../../route-map/name";
-            }
-            description "Outbound route map";
+        leaf domain-name {
+            type string;
+            description "Domain name for FQDN capability";
         }
 
-        // Address families
-        list address-family {
-            key "afi safi";
-            description "Per-family configuration";
+        leaf md5-password {
+            type string;
+            description "MD5 authentication password";
+        }
 
-            leaf afi {
-                type zt:afi;
-                description "Address Family Identifier";
-            }
+        leaf md5-ip {
+            type zt:ip-address;
+            description "MD5 authentication IP";
+        }
 
-            leaf safi {
-                type zt:safi;
-                description "Subsequent Address Family Identifier";
-            }
+        leaf ttl-security {
+            type uint16;
+            description "TTL security (GTSM)";
+        }
 
-            leaf enabled {
-                type boolean;
-                default true;
-                description "Enable this family";
-            }
+        leaf outgoing-ttl {
+            type uint16;
+            description "Outgoing TTL";
+        }
 
-            leaf route-map-in {
-                type leafref {
-                    path "../../../route-map/name";
+        leaf incoming-ttl {
+            type uint16;
+            description "Incoming TTL";
+        }
+
+        leaf multi-session {
+            type boolean;
+            default false;
+            description "Multi-session mode";
+        }
+
+        leaf manual-eor {
+            type boolean;
+            description "Manual End-of-RIB";
+        }
+
+        leaf auto-flush {
+            type boolean;
+            description "Auto-flush routes";
+        }
+
+        leaf adj-rib-out {
+            type boolean;
+            description "Maintain Adj-RIB-Out";
+        }
+
+        leaf adj-rib-in {
+            type boolean;
+            description "Maintain Adj-RIB-In";
+        }
+
+        // Announce container
+        container announce {
+            description "Routes to announce";
+
+            container ipv4 {
+                description "IPv4 announcements";
+                container unicast {
+                    ze:syntax "inline-list";
+                    ze:key-type "prefix";
+                    uses zt:route-attributes;
+                    description "IPv4 unicast";
                 }
-                description "Per-family inbound route map";
+                container multicast {
+                    ze:syntax "inline-list";
+                    ze:key-type "prefix";
+                    uses zt:route-attributes;
+                    description "IPv4 multicast";
+                }
+                container nlri-mpls {
+                    ze:syntax "inline-list";
+                    ze:key-type "prefix";
+                    uses zt:route-attributes;
+                    description "IPv4 labeled unicast";
+                }
+                container mpls-vpn {
+                    ze:syntax "inline-list";
+                    ze:key-type "prefix";
+                    uses zt:route-attributes;
+                    description "IPv4 MPLS VPN";
+                }
+                container mcast-vpn {
+                    ze:syntax "inline-list";
+                    ze:key-type "string";
+                    description "IPv4 multicast VPN";
+                    // MCAST-VPN specific attributes defined inline
+                    leaf rp { type string; }
+                    leaf group { type string; }
+                    leaf source { type string; }
+                    leaf rd { type string; }
+                    leaf source-as { type uint32; }
+                    leaf next-hop { type string; }
+                    leaf extended-community { ze:syntax "multi-leaf"; type string; }
+                    leaf community { ze:syntax "multi-leaf"; type string; }
+                    leaf origin { type string; }
+                    leaf local-preference { type uint32; }
+                    leaf med { type uint32; }
+                    leaf originator-id { type zt:ipv4-address; }
+                    leaf cluster-list { ze:syntax "multi-leaf"; type string; }
+                }
+                container mup {
+                    ze:syntax "flex";
+                    description "IPv4 MUP";
+                }
+                container flow {
+                    ze:syntax "freeform";
+                    description "IPv4 FlowSpec";
+                }
             }
 
-            leaf route-map-out {
-                type leafref {
-                    path "../../../route-map/name";
+            container ipv6 {
+                description "IPv6 announcements";
+                container unicast {
+                    ze:syntax "inline-list";
+                    ze:key-type "prefix";
+                    uses zt:route-attributes;
+                    description "IPv6 unicast";
                 }
-                description "Per-family outbound route map";
+                container multicast {
+                    ze:syntax "inline-list";
+                    ze:key-type "prefix";
+                    uses zt:route-attributes;
+                    description "IPv6 multicast";
+                }
+                container nlri-mpls {
+                    ze:syntax "inline-list";
+                    ze:key-type "prefix";
+                    uses zt:route-attributes;
+                    description "IPv6 labeled unicast";
+                }
+                container mpls-vpn {
+                    ze:syntax "inline-list";
+                    ze:key-type "prefix";
+                    uses zt:route-attributes;
+                    description "IPv6 MPLS VPN";
+                }
+                container mcast-vpn {
+                    ze:syntax "inline-list";
+                    ze:key-type "string";
+                    description "IPv6 multicast VPN";
+                }
+                container mup {
+                    ze:syntax "flex";
+                    description "IPv6 MUP";
+                }
+                container flow {
+                    ze:syntax "freeform";
+                    description "IPv6 FlowSpec";
+                }
+            }
+
+            container l2vpn {
+                description "L2VPN announcements";
+                container vpls {
+                    ze:syntax "flex";
+                    description "VPLS";
+                    leaf rd { type string; description "Route Distinguisher"; }
+                    leaf endpoint { type uint16; description "VPLS endpoint"; }
+                    leaf base { type uint32; description "Label base"; }
+                    leaf offset { type uint16; description "Label offset"; }
+                    leaf size { type uint16; description "Block size"; }
+                    leaf next-hop { type string; description "Next hop"; }
+                    leaf origin { type string; description "Origin"; }
+                    leaf local-preference { type uint32; description "Local preference"; }
+                    leaf med { type uint32; description "MED"; }
+                    leaf as-path { ze:syntax "value-or-array"; type string; description "AS path"; }
+                    leaf community { ze:syntax "value-or-array"; type string; description "Communities"; }
+                    leaf extended-community { ze:syntax "value-or-array"; type string; description "Extended communities"; }
+                    leaf originator-id { type zt:ipv4-address; description "Originator ID"; }
+                    leaf cluster-list { ze:syntax "value-or-array"; type string; description "Cluster list"; }
+                }
+                container evpn {
+                    ze:syntax "freeform";
+                    description "EVPN";
+                }
+            }
+
+            container attribute {
+                description "Announce attributes";
+                container atomic-aggregate {
+                    ze:syntax "flex";
+                    description "Atomic aggregate";
+                }
+                container withdraw {
+                    ze:syntax "flex";
+                    description "Withdraw";
+                }
+                container bgp-prefix-sid {
+                    ze:syntax "flex";
+                    description "BGP Prefix SID";
+                }
+            }
+
+            container route {
+                ze:syntax "inline-list";
+                ze:key-type "prefix";
+                uses zt:route-attributes;
+                description "Generic route announcements";
+            }
+        }
+
+        // Static routes
+        container static {
+            description "Static route configuration";
+            container route {
+                ze:syntax "inline-list";
+                ze:key-type "prefix";
+                uses zt:route-attributes;
+                description "Static routes";
+            }
+        }
+
+        // Flow routes
+        container flow {
+            description "FlowSpec routes";
+            list route {
+                key "name";
+                description "FlowSpec route";
+                leaf name { type string; }
+                leaf rd { type string; }
+                leaf next-hop { type string; }
+                leaf extended-community { type string; }
+                container match {
+                    ze:syntax "freeform";
+                    description "Match criteria";
+                }
+                container scope {
+                    ze:syntax "freeform";
+                    description "Scope criteria";
+                }
+                container then {
+                    ze:syntax "freeform";
+                    description "Actions";
+                }
+            }
+        }
+
+        // L2VPN
+        container l2vpn {
+            description "L2VPN configuration";
+            container vpls {
+                ze:syntax "flex";
+                description "VPLS";
+                leaf rd { type string; description "Route Distinguisher"; }
+                leaf endpoint { type uint16; description "VPLS endpoint"; }
+                leaf base { type uint32; description "Label base"; }
+                leaf offset { type uint16; description "Label offset"; }
+                leaf size { type uint16; description "Block size"; }
+                leaf next-hop { type string; description "Next hop"; }
+                leaf origin { type string; description "Origin"; }
+                leaf local-preference { type uint32; description "Local preference"; }
+                leaf med { type uint32; description "MED"; }
+                leaf as-path { ze:syntax "value-or-array"; type string; description "AS path"; }
+                leaf community { ze:syntax "value-or-array"; type string; description "Communities"; }
+                leaf extended-community { ze:syntax "value-or-array"; type string; description "Extended communities"; }
+                leaf originator-id { type zt:ipv4-address; description "Originator ID"; }
+                leaf cluster-list { ze:syntax "value-or-array"; type string; description "Cluster list"; }
+            }
+            container evpn {
+                ze:syntax "freeform";
+                description "EVPN";
+            }
+        }
+
+        // Withdraw
+        container withdraw {
+            description "Routes to withdraw";
+            container l2vpn {
+                description "L2VPN withdrawals";
+                container vpls {
+                    ze:syntax "flex";
+                    description "VPLS";
+                    leaf rd { type string; description "Route Distinguisher"; }
+                    leaf endpoint { type uint16; description "VPLS endpoint"; }
+                    leaf base { type uint32; description "Label base"; }
+                    leaf offset { type uint16; description "Label offset"; }
+                    leaf size { type uint16; description "Block size"; }
+                    leaf next-hop { type string; description "Next hop"; }
+                    leaf origin { type string; description "Origin"; }
+                    leaf local-preference { type uint32; description "Local preference"; }
+                    leaf med { type uint32; description "MED"; }
+                    leaf as-path { ze:syntax "value-or-array"; type string; description "AS path"; }
+                    leaf community { ze:syntax "value-or-array"; type string; description "Communities"; }
+                    leaf extended-community { ze:syntax "value-or-array"; type string; description "Extended communities"; }
+                    leaf originator-id { type zt:ipv4-address; description "Originator ID"; }
+                    leaf cluster-list { ze:syntax "value-or-array"; type string; description "Cluster list"; }
+                }
+                container evpn {
+                    ze:syntax "freeform";
+                    description "EVPN";
+                }
+            }
+        }
+
+        // Add-path configuration
+        container add-path {
+            ze:syntax "freeform";
+            description "Per-family ADD-PATH configuration";
+        }
+
+        // Process bindings
+        list process {
+            key "name";
+            description "Process binding";
+
+            leaf name {
+                type string;
+                description "Process name";
+            }
+
+            // Old syntax fields
+            leaf processes {
+                ze:syntax "array";
+                type string;
+                description "Process list";
+            }
+
+            leaf processes-match {
+                ze:syntax "array";
+                type string;
+                description "Process match patterns";
+            }
+
+            container neighbor-changes {
+                ze:syntax "flex";
+                description "Neighbor change notifications";
+            }
+
+            // New syntax fields
+            container content {
+                description "Content configuration";
+                leaf encoding { type string; }
+                leaf format { type string; }
+                leaf attribute { type string; }
+                container nlri {
+                    ze:syntax "flex";
+                    description "NLRI families";
+                }
+            }
+
+            container receive {
+                ze:syntax "freeform";
+                description "Receive configuration";
+            }
+
+            container send {
+                ze:syntax "freeform";
+                description "Send configuration";
+            }
+        }
+
+        // Operational (ExaBGP-specific, parsed but not processed)
+        container operational {
+            ze:syntax "freeform";
+            description "Operational messages";
+        }
+
+        // RIB configuration
+        container rib {
+            description "RIB configuration";
+            container out {
+                description "Outbound RIB settings";
+                leaf group-updates {
+                    type boolean;
+                    default true;
+                    description "Group updates";
+                }
+                leaf auto-commit-delay {
+                    type string;
+                    default "0";
+                    description "Auto-commit delay";
+                }
+                leaf max-batch-size {
+                    type int32;
+                    default 0;
+                    description "Max batch size";
+                }
+            }
+        }
+
+        // API block (old syntax, migrated to process)
+        container api {
+            description "API configuration (legacy)";
+            container neighbor-changes {
+                ze:syntax "flex";
+                description "Neighbor changes";
+            }
+            container negotiated {
+                description "Negotiated info";
+                container nlri {
+                    ze:syntax "flex";
+                    description "NLRI info";
+                }
+            }
+            container receive {
+                ze:syntax "freeform";
+                description "Receive config";
+            }
+            container send {
+                ze:syntax "freeform";
+                description "Send config";
+            }
+            container processes {
+                description "Processes config";
+                container operational {
+                    ze:syntax "freeform";
+                    description "Operational";
+                }
             }
         }
     }

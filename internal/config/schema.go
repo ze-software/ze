@@ -144,9 +144,14 @@ func NewSchema() *Schema {
 }
 
 // Define adds a top-level node to the schema.
+// If a node with the same name already exists, it is replaced
+// without adding a duplicate to the order.
 func (s *Schema) Define(name string, node Node) {
+	_, exists := s.root.children[name]
 	s.root.children[name] = node
-	s.root.order = append(s.root.order, name)
+	if !exists {
+		s.root.order = append(s.root.order, name)
+	}
 }
 
 // Has returns true if the schema has a top-level node with the given name.

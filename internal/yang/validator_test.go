@@ -224,7 +224,7 @@ func TestValidator_HoldTimeRange(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := validator.Validate("bgp.hold-time", tt.value)
+			err := validator.Validate("bgp.peer.hold-time", tt.value)
 			if tt.wantErr {
 				assert.Error(t, err, "expected error for value %v", tt.value)
 			} else {

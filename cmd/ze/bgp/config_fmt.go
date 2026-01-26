@@ -76,8 +76,13 @@ Examples:
 		}
 	}
 
-	// Parse with current schema
-	p := config.NewParser(config.BGPSchema())
+	// Parse with YANG-derived schema
+	schema := config.YANGSchema()
+	if schema == nil {
+		fmt.Fprintf(os.Stderr, "error: failed to load YANG schema\n")
+		return exitError
+	}
+	p := config.NewParser(schema)
 	tree, err := p.Parse(string(input))
 	if err != nil {
 		// Try legacy schema to detect old ExaBGP syntax
@@ -100,7 +105,7 @@ Examples:
 	}
 
 	// Serialize (formats the output)
-	formatted := config.Serialize(tree, config.BGPSchema())
+	formatted := config.Serialize(tree, schema)
 
 	// Compare with original
 	hasChanges := string(input) != formatted
@@ -147,8 +152,12 @@ Examples:
 // configFmtBytes formats config bytes and returns formatted output and whether changes were made.
 // Returns ErrOldConfig if the config needs migration.
 func configFmtBytes(input []byte) (string, bool, error) {
-	// Parse with current schema
-	p := config.NewParser(config.BGPSchema())
+	// Parse with YANG-derived schema
+	schema := config.YANGSchema()
+	if schema == nil {
+		return "", false, fmt.Errorf("failed to load YANG schema")
+	}
+	p := config.NewParser(schema)
 	tree, err := p.Parse(string(input))
 	if err != nil {
 		// Try legacy schema to detect old ExaBGP syntax
@@ -168,7 +177,7 @@ func configFmtBytes(input []byte) (string, bool, error) {
 	}
 
 	// Serialize (formats the output)
-	formatted := config.Serialize(tree, config.BGPSchema())
+	formatted := config.Serialize(tree, schema)
 	hasChanges := string(input) != formatted
 
 	return formatted, hasChanges, nil

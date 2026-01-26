@@ -20,7 +20,7 @@ func TestSerializeSimple(t *testing.T) {
     local-as 65000;
 }
 `
-	schema := BGPSchema()
+	schema := YANGSchema()
 	p := NewParser(schema)
 	tree, err := p.Parse(input)
 	require.NoError(t, err)
@@ -51,7 +51,7 @@ func TestSerializeNeighbor(t *testing.T) {
     }
 }
 `
-	schema := BGPSchema()
+	schema := YANGSchema()
 	p := NewParser(schema)
 	tree, err := p.Parse(input)
 	require.NoError(t, err)
@@ -82,7 +82,7 @@ func TestSerializeFamily(t *testing.T) {
     }
 }
 `
-	schema := BGPSchema()
+	schema := YANGSchema()
 	p := NewParser(schema)
 	tree, err := p.Parse(input)
 	require.NoError(t, err)
@@ -108,7 +108,7 @@ func TestSerializePlugin(t *testing.T) {
     }
 }
 `
-	schema := BGPSchema()
+	schema := YANGSchema()
 	p := NewParser(schema)
 	tree, err := p.Parse(input)
 	require.NoError(t, err)
@@ -140,7 +140,7 @@ func TestSerializeStatic(t *testing.T) {
     }
 }
 `
-	schema := BGPSchema()
+	schema := YANGSchema()
 	p := NewParser(schema)
 	tree, err := p.Parse(input)
 	require.NoError(t, err)
@@ -173,7 +173,7 @@ func TestSerializeCapability(t *testing.T) {
     }
 }
 `
-	schema := BGPSchema()
+	schema := YANGSchema()
 	p := NewParser(schema)
 	tree, err := p.Parse(input)
 	require.NoError(t, err)
@@ -196,7 +196,7 @@ func TestSerializeMultiLeaf(t *testing.T) {
     listen 0.0.0.0 179;
 }
 `
-	schema := BGPSchema()
+	schema := YANGSchema()
 	p := NewParser(schema)
 	tree, err := p.Parse(input)
 	require.NoError(t, err)
@@ -221,7 +221,7 @@ func TestRoundtripConfigFiles(t *testing.T) {
 		t.Skip("no config files found")
 	}
 
-	schema := BGPSchema()
+	schema := YANGSchema()
 	p := NewParser(schema)
 
 	var passed, failed, skipped int
@@ -382,7 +382,7 @@ func TestSerializeQuotedStrings(t *testing.T) {
     }
 }
 `
-	schema := BGPSchema()
+	schema := YANGSchema()
 	p := NewParser(schema)
 	tree, err := p.Parse(input)
 	require.NoError(t, err)

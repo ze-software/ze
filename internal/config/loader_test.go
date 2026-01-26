@@ -217,7 +217,7 @@ func TestParseAllConfigFiles(t *testing.T) {
 	require.NoError(t, err)
 	require.NotEmpty(t, files, "no config files found")
 
-	p := NewParser(BGPSchema())
+	p := NewParser(YANGSchema())
 
 	for _, file := range files {
 		t.Run(filepath.Base(file), func(t *testing.T) {
@@ -551,7 +551,7 @@ peer 192.0.2.1 {
 // VALIDATES: Schema.ExtendCapability adds new capability sub-blocks.
 // PREVENTS: Plugin-declared capabilities being rejected as unknown.
 func TestSchemaExtendCapability(t *testing.T) {
-	schema := BGPSchema()
+	schema := YANGSchema()
 
 	// Before extension, custom capability should fail
 	inputBefore := `
@@ -634,7 +634,7 @@ bgp {
     }
 }
 `
-	p := NewParser(BGPSchema())
+	p := NewParser(YANGSchema())
 	tree, err := p.Parse(input)
 	require.NoError(t, err)
 

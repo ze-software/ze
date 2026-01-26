@@ -12,7 +12,8 @@ import (
 // VALIDATES: Parser detects missing semicolons.
 // PREVENTS: Invalid config saved without warning.
 func TestValidateSyntaxMissingSemicolon(t *testing.T) {
-	v := NewConfigValidator()
+	v, err := NewConfigValidator()
+	require.NoError(t, err)
 
 	tests := []struct {
 		name    string
@@ -66,7 +67,8 @@ func TestValidateSyntaxMissingSemicolon(t *testing.T) {
 // VALIDATES: Parser detects unclosed braces.
 // PREVENTS: Malformed config structure.
 func TestValidateSyntaxUnclosedBrace(t *testing.T) {
-	v := NewConfigValidator()
+	v, err := NewConfigValidator()
+	require.NoError(t, err)
 
 	tests := []struct {
 		name    string
@@ -131,7 +133,8 @@ func TestValidateSyntaxUnclosedBrace(t *testing.T) {
 // NOTE: iBGP validation (peer-as == local-as) is deferred until
 // route-reflector-client is added to schema.
 func TestValidateSemanticPeerAsLocalAs(t *testing.T) {
-	v := NewConfigValidator()
+	v, err := NewConfigValidator()
+	require.NoError(t, err)
 
 	tests := []struct {
 		name    string
@@ -179,7 +182,8 @@ func TestValidateSemanticPeerAsLocalAs(t *testing.T) {
 // VALIDATES: Duplicate peer addresses detected.
 // PREVENTS: Configuration with conflicting peers.
 func TestValidateSemanticDuplicatePeer(t *testing.T) {
-	v := NewConfigValidator()
+	v, err := NewConfigValidator()
+	require.NoError(t, err)
 
 	tests := []struct {
 		name    string
@@ -220,7 +224,8 @@ func TestValidateSemanticDuplicatePeer(t *testing.T) {
 // VALIDATES: Invalid router-id detected.
 // PREVENTS: Invalid IPv4 as router-id.
 func TestValidateSemanticRouterID(t *testing.T) {
-	v := NewConfigValidator()
+	v, err := NewConfigValidator()
+	require.NoError(t, err)
 
 	tests := []struct {
 		name    string
@@ -262,7 +267,8 @@ func TestValidateSemanticRouterID(t *testing.T) {
 // PREVENTS: Invalid hold-time values 1 or 2.
 // BOUNDARY: 0 (valid), 1 (invalid), 2 (invalid), 3 (valid), 65535 (valid).
 func TestValidateSemanticHoldTime(t *testing.T) {
-	v := NewConfigValidator()
+	v, err := NewConfigValidator()
+	require.NoError(t, err)
 
 	tests := []struct {
 		name    string
@@ -318,7 +324,8 @@ func TestValidateSemanticHoldTime(t *testing.T) {
 // VALIDATES: All validation levels run together.
 // PREVENTS: Missing validation in commit path.
 func TestValidateAll(t *testing.T) {
-	v := NewConfigValidator()
+	v, err := NewConfigValidator()
+	require.NoError(t, err)
 
 	// Valid config
 	validConfig := `bgp {
@@ -352,7 +359,8 @@ func TestValidateAll(t *testing.T) {
 // VALIDATES: Errors include clear messages.
 // PREVENTS: Unclear error messages for users.
 func TestValidationErrorFormat(t *testing.T) {
-	v := NewConfigValidator()
+	v, err := NewConfigValidator()
+	require.NoError(t, err)
 
 	content := `bgp {
   router-id 1.2.3.4;
@@ -375,7 +383,8 @@ func TestValidationErrorFormat(t *testing.T) {
 // VALIDATES: Peer address must be valid IP.
 // PREVENTS: Invalid peer addresses in config.
 func TestValidatePeerAddress(t *testing.T) {
-	v := NewConfigValidator()
+	v, err := NewConfigValidator()
+	require.NoError(t, err)
 
 	tests := []struct {
 		name    string
@@ -419,7 +428,8 @@ func TestValidatePeerAddress(t *testing.T) {
 // VALIDATES: Unknown keywords rejected by parser.
 // PREVENTS: Typos in config silently ignored.
 func TestValidateUnknownKeyword(t *testing.T) {
-	v := NewConfigValidator()
+	v, err := NewConfigValidator()
+	require.NoError(t, err)
 
 	content := `bgp {
   unknown-keyword value;
@@ -435,7 +445,8 @@ func TestValidateUnknownKeyword(t *testing.T) {
 // VALIDATES: ASN values within valid range.
 // BOUNDARY: 1 (valid min), 4294967295 (valid max), 0 (invalid), overflow (invalid).
 func TestValidateASNBoundary(t *testing.T) {
-	v := NewConfigValidator()
+	v, err := NewConfigValidator()
+	require.NoError(t, err)
 
 	tests := []struct {
 		name    string

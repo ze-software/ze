@@ -2,6 +2,8 @@ module ze-plugin {
     namespace "urn:ze:plugin";
     prefix plug;
 
+    import ze-extensions { prefix ze; }
+
     description "Plugin configuration for ZeBGP";
 
     revision 2026-01-01 {
@@ -23,38 +25,24 @@ module ze-plugin {
             }
 
             leaf run {
+                ze:syntax "multi-leaf";
                 type string;
-                mandatory true;
-                description "Command to execute plugin";
+                description "Command to execute plugin (with args)";
             }
 
-            leaf enabled {
-                type boolean;
-                default true;
-                description "Enable this plugin";
+            leaf encoder {
+                type string;
+                description "Event encoding format (json, text)";
             }
 
             leaf respawn {
                 type boolean;
-                default false;
                 description "Respawn on exit";
             }
 
             leaf timeout {
-                type uint16 {
-                    range "1..300";
-                }
-                default 30;
-                description "Startup timeout in seconds";
-            }
-
-            leaf encoder {
-                type enumeration {
-                    enum json { description "JSON encoding"; }
-                    enum text { description "Text encoding"; }
-                }
-                default json;
-                description "Event encoding format";
+                type string;
+                description "Startup timeout (e.g., 10s, 1m)";
             }
         }
     }

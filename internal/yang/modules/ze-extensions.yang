@@ -1,0 +1,45 @@
+module ze-extensions {
+    namespace "urn:ze:extensions";
+    prefix ze;
+
+    description "YANG extensions for ZeBGP config parsing syntax modes.
+                 These extensions control how the config parser handles
+                 nodes that need special syntax beyond standard YANG.";
+
+    revision 2026-01-01 {
+        description "Initial revision";
+    }
+
+    // Extension: syntax
+    // Controls how the config parser handles this node.
+    //
+    // Values:
+    //   flex           - accepts flag (;), value (word;), or block ({...})
+    //   freeform       - accepts arbitrary words until ; or {}
+    //   inline-list    - list with key + attributes on same line
+    //   family-block   - special address family syntax (ipv4/unicast;)
+    //   multi-leaf     - multiple space-separated values on one line
+    //   array          - bracketed array syntax [ a b c ]
+    //   value-or-array - accepts either value; or [ a b c ];
+    extension syntax {
+        argument mode;
+        description "Specifies the parsing syntax mode for this node.";
+    }
+
+    // Extension: key-type
+    // For inline-list nodes, specifies the key type.
+    //
+    // Values: string, prefix, ip, uint32
+    extension key-type {
+        argument type;
+        description "Specifies the key type for inline-list nodes.";
+    }
+
+    // Extension: route-attributes
+    // Marker that this node accepts standard BGP route attributes.
+    // Used on inline-list nodes for static/announce routes.
+    extension route-attributes {
+        description "Node accepts standard route attributes
+                     (next-hop, origin, community, etc.)";
+    }
+}

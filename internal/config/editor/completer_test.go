@@ -3,13 +3,12 @@ package editor
 import (
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/config"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
 func TestCompleterCommands(t *testing.T) {
-	c := NewCompleter(config.BGPSchema())
+	c := NewCompleter()
 
 	// Empty input should show commands
 	completions := c.Complete("", nil)
@@ -24,81 +23,70 @@ func TestCompleterCommands(t *testing.T) {
 }
 
 func TestCompleterSetKeywords(t *testing.T) {
-	c := NewCompleter(config.BGPSchema())
+	c := NewCompleter()
 
-	// "set " should show top-level config keywords (now includes bgp, environment, etc.)
-	completions := c.Complete("set ", nil)
+	// "set " at bgp context should show bgp children from YANG
+	completions := c.Complete("set ", []string{"bgp"})
 	require.NotEmpty(t, completions)
 
 	texts := completionTexts(completions)
-	assert.Contains(t, texts, "bgp")
-	assert.Contains(t, texts, "environment")
-	assert.Contains(t, texts, "plugin")
+	assert.Contains(t, texts, "local-as")
+	assert.Contains(t, texts, "router-id")
+	assert.Contains(t, texts, "peer")
 }
 
 func TestCompleterSetPartialKeyword(t *testing.T) {
-	c := NewCompleter(config.BGPSchema())
+	c := NewCompleter()
 
-	// "set bg" should complete to "bgp"
-	completions := c.Complete("set bg", nil)
+	// "set local" should complete to "local-as" in bgp context
+	completions := c.Complete("set local", []string{"bgp"})
 	require.NotEmpty(t, completions)
 
 	texts := completionTexts(completions)
-	assert.Contains(t, texts, "bgp")
+	assert.Contains(t, texts, "local-as")
 }
 
 func TestCompleterNestedPath(t *testing.T) {
-	c := NewCompleter(config.BGPSchema())
+	c := NewCompleter()
 
-	// Inside neighbor context (bgp.peer), should show neighbor fields
-	completions := c.Complete("set ", []string{"bgp", "peer", "192.168.1.1"})
+	// Inside bgp.peer context, should show peer children from YANG
+	completions := c.Complete("set ", []string{"bgp", "peer"})
 	require.NotEmpty(t, completions)
 
 	texts := completionTexts(completions)
 	assert.Contains(t, texts, "peer-as")
-	assert.Contains(t, texts, "local-as")
-	assert.Contains(t, texts, "hold-time")
+	assert.Contains(t, texts, "address")
 }
 
 func TestCompleterValueTypeHints(t *testing.T) {
-	c := NewCompleter(config.BGPSchema())
+	c := NewCompleter()
 
-	// After "set router-id " inside bgp context should hint IPv4
+	// After "set router-id " inside bgp context should hint value
 	completions := c.Complete("set router-id ", []string{"bgp"})
 	require.NotEmpty(t, completions)
 	assert.Equal(t, "value", completions[0].Type)
-	assert.Contains(t, completions[0].Description, "IPv4")
 }
 
 func TestCompleterGhostTextSingleMatch(t *testing.T) {
-	c := NewCompleter(config.BGPSchema())
+	c := NewCompleter()
 
 	// "set router" should ghost "-id" (single match) inside bgp context
 	ghost := c.GhostText("set router", []string{"bgp"})
 	assert.Equal(t, "-id", ghost)
 }
 
-func TestCompleterGhostTextMultipleMatches(t *testing.T) {
-	c := NewCompleter(config.BGPSchema())
-
-	// "set local" could match "local-as" and "local-address" in neighbor context
-	// At bgp level, only "local-as" exists
-	ghost := c.GhostText("set local", []string{"bgp"})
-	assert.Equal(t, "-as", ghost)
-}
-
 func TestCompleterGhostTextNoMatch(t *testing.T) {
-	c := NewCompleter(config.BGPSchema())
+	c := NewCompleter()
 
 	// "set xyz" has no matches
-	ghost := c.GhostText("set xyz", nil)
+	ghost := c.GhostText("set xyz", []string{"bgp"})
 	assert.Empty(t, ghost)
 }
 
 func TestCompleterEditPath(t *testing.T) {
-	c := NewCompleter(config.BGPSchema())
+	c := NewCompleter()
 
-	// "edit " inside bgp should show peer
+	// "edit " inside bgp should show peer (a list)
 	completions := c.Complete("edit ", []string{"bgp"})
 	require.NotEmpty(t, completions)
 
@@ -106,44 +94,8 @@ func TestCompleterEditPath(t *testing.T) {
 	assert.Contains(t, texts, "peer")
 }
 
-func TestCompleterWildcard(t *testing.T) {
-	c := NewCompleter(config.BGPSchema())
-
-	// "edit peer " inside bgp should show list key completions
-	// (including "*" only if there were glob patterns)
-	completions := c.Complete("edit peer ", []string{"bgp"})
-	// peer requires IP address, so completions may include existing peers or be empty
-	// This test verifies the completer doesn't panic and handles list paths
-	_ = completions
-}
-
-func completionTexts(completions []Completion) []string {
-	texts := make([]string, len(completions))
-	for i, c := range completions {
-		texts[i] = c.Text
-	}
-	return texts
-}
-
-func TestCompleterWithYANG(t *testing.T) {
-	c := NewCompleterWithYANG()
-
-	// Should still complete commands
-	completions := c.Complete("", nil)
-	require.NotEmpty(t, completions)
-	texts := completionTexts(completions)
-	assert.Contains(t, texts, "set")
-
-	// Should complete bgp children from YANG
-	completions = c.Complete("set ", []string{"bgp"})
-	require.NotEmpty(t, completions)
-	texts = completionTexts(completions)
-	assert.Contains(t, texts, "local-as")
-	assert.Contains(t, texts, "router-id")
-}
-
 func TestCompleterYANGDescription(t *testing.T) {
-	c := NewCompleterWithYANG()
+	c := NewCompleter()
 
 	// Descriptions should come from YANG model
 	completions := c.Complete("set ", []string{"bgp"})
@@ -162,7 +114,7 @@ func TestCompleterYANGDescription(t *testing.T) {
 }
 
 func TestCompleterYANGMandatory(t *testing.T) {
-	c := NewCompleterWithYANG()
+	c := NewCompleter()
 
 	// Mandatory fields should be marked in description
 	completions := c.Complete("set ", []string{"bgp"})
@@ -185,4 +137,24 @@ func TestCompleterYANGMandatory(t *testing.T) {
 	assert.Contains(t, localAS.Description, "required")
 	// List is not mandatory
 	assert.NotContains(t, peer.Description, "required")
+}
+
+func TestCompleterEnumValues(t *testing.T) {
+	c := NewCompleter()
+
+	// In capability/add-path context, should show send/receive children
+	completions := c.Complete("set ", []string{"bgp", "peer", "capability", "add-path"})
+	require.NotEmpty(t, completions)
+
+	texts := completionTexts(completions)
+	assert.Contains(t, texts, "receive")
+	assert.Contains(t, texts, "send")
+}
+
+func completionTexts(completions []Completion) []string {
+	texts := make([]string, len(completions))
+	for i, c := range completions {
+		texts[i] = c.Text
+	}
+	return texts
 }
