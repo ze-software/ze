@@ -248,6 +248,62 @@ func TestINETErrors(t *testing.T) {
 	}
 }
 
+// TestINETPrefixLengthBoundary verifies prefix length boundary validation.
+//
+// RFC 4271 Section 4.3: IPv4 prefix length is 0-32 bits.
+// RFC 4760 Section 5: IPv6 prefix length is 0-128 bits.
+//
+// VALIDATES: Maximum valid prefix lengths accepted, invalid lengths rejected.
+// PREVENTS: Off-by-one errors in prefix length validation.
+// BOUNDARY: IPv4 32 (valid), 33 (invalid); IPv6 128 (valid), 129 (invalid).
+func TestINETPrefixLengthBoundary(t *testing.T) {
+	tests := []struct {
+		name    string
+		afi     AFI
+		data    []byte
+		wantErr bool
+	}{
+		// IPv4 boundaries
+		{
+			name:    "ipv4_max_valid_32",
+			afi:     AFIIPv4,
+			data:    []byte{32, 10, 1, 2, 3}, // 10.1.2.3/32
+			wantErr: false,
+		},
+		{
+			name:    "ipv4_invalid_33",
+			afi:     AFIIPv4,
+			data:    []byte{33, 10, 1, 2, 3, 0}, // 33 bits - invalid
+			wantErr: true,
+		},
+		// IPv6 boundaries
+		{
+			name:    "ipv6_max_valid_128",
+			afi:     AFIIPv6,
+			data:    []byte{128, 0x20, 0x01, 0x0d, 0xb8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1}, // 2001:db8::1/128
+			wantErr: false,
+		},
+		{
+			name:    "ipv6_invalid_129",
+			afi:     AFIIPv6,
+			data:    []byte{129, 0x20, 0x01, 0x0d, 0xb8, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0}, // 129 bits - invalid
+			wantErr: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, _, err := ParseINET(tt.afi, SAFIUnicast, tt.data, false)
+			if tt.wantErr {
+				require.Error(t, err)
+				require.ErrorIs(t, err, ErrInvalidPrefix)
+			} else {
+				require.NoError(t, err)
+			}
+		})
+	}
+}
+
 // TestINETRoundTrip verifies parse/encode round-trip.
 func TestINETRoundTrip(t *testing.T) {
 	originals := [][]byte{
