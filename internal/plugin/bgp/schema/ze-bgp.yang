@@ -541,14 +541,14 @@ module ze-bgp {
             }
 
             // Old syntax fields
-            leaf processes {
-                ze:syntax "array";
+            leaf-list processes {
+                ze:syntax "bracket";
                 type string;
                 description "Process list";
             }
 
-            leaf processes-match {
-                ze:syntax "array";
+            leaf-list processes-match {
+                ze:syntax "bracket";
                 type string;
                 description "Process match patterns";
             }

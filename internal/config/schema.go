@@ -388,16 +388,23 @@ func MultiLeaf(typ ValueType) *MultiLeafNode {
 	return &MultiLeafNode{Type: typ}
 }
 
-// ArrayLeafNode accepts [ item item ... ] syntax.
-type ArrayLeafNode struct {
+// BracketLeafListNode accepts [ item item ... ] syntax for leaf-list.
+// Maps to YANG leaf-list with ze:syntax "bracket".
+type BracketLeafListNode struct {
 	Type ValueType
 }
 
-func (n *ArrayLeafNode) Kind() NodeKind { return NodeLeaf }
+func (n *BracketLeafListNode) Kind() NodeKind { return NodeLeaf }
 
-// ArrayLeaf creates an array leaf node.
-func ArrayLeaf(typ ValueType) *ArrayLeafNode {
-	return &ArrayLeafNode{Type: typ}
+// BracketLeafList creates a bracket-syntax leaf-list node.
+func BracketLeafList(typ ValueType) *BracketLeafListNode {
+	return &BracketLeafListNode{Type: typ}
+}
+
+// ArrayLeaf is an alias for BracketLeafList, kept for legacy schema compatibility.
+// Use BracketLeafList for new code.
+func ArrayLeaf(typ ValueType) *BracketLeafListNode {
+	return BracketLeafList(typ)
 }
 
 // ValueOrArrayNode accepts either "value;" or "[ item item ... ];" syntax.

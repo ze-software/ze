@@ -5,6 +5,8 @@ import (
 	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/config"
+	hubschema "codeberg.org/thomas-mangin/ze/internal/hub/schema"
+	bgpschema "codeberg.org/thomas-mangin/ze/internal/plugin/bgp/schema"
 	"codeberg.org/thomas-mangin/ze/internal/yang"
 	gyang "github.com/openconfig/goyang/pkg/yang"
 )
@@ -26,6 +28,13 @@ type Completer struct {
 func NewCompleter() *Completer {
 	loader := yang.NewLoader()
 	if err := loader.LoadEmbedded(); err != nil {
+		return &Completer{}
+	}
+	// Load module-specific YANG from their packages
+	if err := loader.AddModuleFromText("ze-hub.yang", hubschema.ZeHubYANG); err != nil {
+		return &Completer{}
+	}
+	if err := loader.AddModuleFromText("ze-bgp.yang", bgpschema.ZeBGPYANG); err != nil {
 		return &Completer{}
 	}
 	if err := loader.Resolve(); err != nil {

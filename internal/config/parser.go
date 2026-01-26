@@ -346,8 +346,8 @@ func (p *Parser) parseNode(tree *Tree, name string, node Node) error {
 		return p.parseLeaf(tree, name, n)
 	case *MultiLeafNode:
 		return p.parseMultiLeaf(tree, name, n)
-	case *ArrayLeafNode:
-		return p.parseArrayLeaf(tree, name, n)
+	case *BracketLeafListNode:
+		return p.parseBracketLeafList(tree, name, n)
 	case *ValueOrArrayNode:
 		return p.parseValueOrArray(tree, name, n)
 	case *ContainerNode:
@@ -535,8 +535,8 @@ func (p *Parser) parseMultiLeaf(tree *Tree, name string, _ *MultiLeafNode) error
 	return nil
 }
 
-// parseArrayLeaf parses an array: `name [ item item ... ];`.
-func (p *Parser) parseArrayLeaf(tree *Tree, name string, _ *ArrayLeafNode) error {
+// parseBracketLeafList parses a bracketed leaf-list: `name [ item item ... ];`.
+func (p *Parser) parseBracketLeafList(tree *Tree, name string, _ *BracketLeafListNode) error {
 	tok := p.tok.Peek()
 	if tok.Type != TokenLBracket {
 		return p.errorf(tok, "expected '[' after %s, got %s", name, tok.Type)

@@ -14,7 +14,7 @@ import (
 // PREVENTS: Rejection of valid string values.
 func TestValidator_ValidateString(t *testing.T) {
 	loader := NewLoader()
-	err := loader.LoadEmbedded()
+	err := loader.LoadAllForTesting()
 	require.NoError(t, err)
 	err = loader.Resolve()
 	require.NoError(t, err)
@@ -49,7 +49,7 @@ func TestValidator_ValidateString(t *testing.T) {
 // PREVENTS: Silent acceptance of out-of-range values.
 func TestValidator_ValidateUint32(t *testing.T) {
 	loader := NewLoader()
-	err := loader.LoadEmbedded()
+	err := loader.LoadAllForTesting()
 	require.NoError(t, err)
 	err = loader.Resolve()
 	require.NoError(t, err)
@@ -86,7 +86,7 @@ func TestValidator_ValidateUint32(t *testing.T) {
 // BOUNDARY: ASN range 1..4294967295.
 func TestValidator_ValidateUint32Range(t *testing.T) {
 	loader := NewLoader()
-	err := loader.LoadEmbedded()
+	err := loader.LoadAllForTesting()
 	require.NoError(t, err)
 	err = loader.Resolve()
 	require.NoError(t, err)
@@ -123,7 +123,7 @@ func TestValidator_ValidateUint32Range(t *testing.T) {
 // PREVENTS: Accepting malformed IP addresses.
 func TestValidator_ValidatePattern(t *testing.T) {
 	loader := NewLoader()
-	err := loader.LoadEmbedded()
+	err := loader.LoadAllForTesting()
 	require.NoError(t, err)
 	err = loader.Resolve()
 	require.NoError(t, err)
@@ -161,7 +161,7 @@ func TestValidator_ValidatePattern(t *testing.T) {
 // PREVENTS: Cryptic error messages that don't help users.
 func TestValidator_ErrorMessages(t *testing.T) {
 	loader := NewLoader()
-	err := loader.LoadEmbedded()
+	err := loader.LoadAllForTesting()
 	require.NoError(t, err)
 	err = loader.Resolve()
 	require.NoError(t, err)
@@ -202,7 +202,7 @@ func TestValidationError(t *testing.T) {
 // BOUNDARY: 0 valid, 1-2 invalid, 3+ valid.
 func TestValidator_HoldTimeRange(t *testing.T) {
 	loader := NewLoader()
-	err := loader.LoadEmbedded()
+	err := loader.LoadAllForTesting()
 	require.NoError(t, err)
 	err = loader.Resolve()
 	require.NoError(t, err)
@@ -240,7 +240,7 @@ func TestValidator_HoldTimeRange(t *testing.T) {
 // PREVENTS: Silent acceptance of incomplete config missing required fields.
 func TestValidator_MandatoryField(t *testing.T) {
 	loader := NewLoader()
-	err := loader.LoadEmbedded()
+	err := loader.LoadAllForTesting()
 	require.NoError(t, err)
 	err = loader.Resolve()
 	require.NoError(t, err)

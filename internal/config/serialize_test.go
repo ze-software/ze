@@ -350,7 +350,7 @@ func TestTreeEqual(t *testing.T) {
 // PREVENTS: Broken array roundtrip.
 func TestSerializeArray(t *testing.T) {
 	schema := NewSchema()
-	schema.Define("items", ArrayLeaf(TypeString))
+	schema.Define("items", BracketLeafList(TypeString))
 
 	input := `items [ foo bar baz ];`
 

@@ -7,10 +7,11 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// TestLoader_EmbeddedModules verifies loading of embedded ZeBGP YANG modules.
+// TestLoader_EmbeddedModules verifies loading of embedded core YANG modules.
 //
-// VALIDATES: All embedded YANG modules load without errors.
+// VALIDATES: Core YANG modules (extensions, types, plugin) load without errors.
 // PREVENTS: Syntax errors in YANG files breaking startup.
+// NOTE: ze-bgp is in internal/plugin/bgp/schema, ze-hub is in internal/hub/schema.
 func TestLoader_EmbeddedModules(t *testing.T) {
 	loader := NewLoader()
 
@@ -20,10 +21,10 @@ func TestLoader_EmbeddedModules(t *testing.T) {
 	err = loader.Resolve()
 	require.NoError(t, err, "resolving modules should succeed")
 
-	// Verify expected modules are loaded
+	// Verify core modules are loaded (ze-bgp and ze-hub are now external)
 	names := loader.ModuleNames()
+	assert.Contains(t, names, "ze-extensions", "ze-extensions module should be loaded")
 	assert.Contains(t, names, "ze-types", "ze-types module should be loaded")
-	assert.Contains(t, names, "ze-bgp", "ze-bgp module should be loaded")
 	assert.Contains(t, names, "ze-plugin", "ze-plugin module should be loaded")
 }
 
@@ -64,10 +65,11 @@ func TestLoader_ZeTypesModule(t *testing.T) {
 //
 // VALIDATES: ze-bgp module defines expected containers and lists.
 // PREVENTS: Missing BGP configuration elements.
+// NOTE: Uses LoadAllForTesting since ze-bgp is now in internal/plugin/bgp/schema.
 func TestLoader_ZeBgpModule(t *testing.T) {
 	loader := NewLoader()
 
-	err := loader.LoadEmbedded()
+	err := loader.LoadAllForTesting()
 	require.NoError(t, err)
 	err = loader.Resolve()
 	require.NoError(t, err)
@@ -90,6 +92,36 @@ func TestLoader_ZeBgpModule(t *testing.T) {
 		}
 	}
 	assert.True(t, bgpContainer, "bgp container should exist")
+}
+
+// TestLoader_ZeHubModule verifies ze-hub.yang content.
+//
+// VALIDATES: ze-hub module defines expected containers.
+// PREVENTS: Missing hub/environment configuration elements.
+// NOTE: Uses LoadAllForTesting since ze-hub is now in internal/hub/schema.
+func TestLoader_ZeHubModule(t *testing.T) {
+	loader := NewLoader()
+
+	err := loader.LoadAllForTesting()
+	require.NoError(t, err)
+	err = loader.Resolve()
+	require.NoError(t, err)
+
+	mod := loader.GetModule("ze-hub")
+	require.NotNil(t, mod, "ze-hub module should exist")
+
+	// Check namespace
+	assert.Equal(t, "urn:ze:hub", mod.Namespace.Name)
+
+	// Find environment container
+	var envContainer bool
+	for _, c := range mod.Container {
+		if c.Name == "environment" {
+			envContainer = true
+			break
+		}
+	}
+	assert.True(t, envContainer, "environment container should exist")
 }
 
 // TestLoader_ZePluginModule verifies ze-plugin.yang content.

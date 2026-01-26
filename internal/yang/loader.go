@@ -23,13 +23,13 @@ func NewLoader() *Loader {
 	}
 }
 
-// LoadEmbedded loads the embedded ZeBGP YANG modules.
+// LoadEmbedded loads the embedded core YANG modules (extensions, types, plugin).
+// Module-specific YANG (hub, bgp) must be loaded separately via AddModuleFromText.
 func (l *Loader) LoadEmbedded() error {
+	// Core modules only - module-specific YANG lives in their respective packages
 	files := []string{
 		"modules/ze-extensions.yang", // Must be first - defines extensions used by other modules
 		"modules/ze-types.yang",
-		"modules/ze-hub.yang",
-		"modules/ze-bgp.yang",
 		"modules/ze-plugin.yang",
 	}
 

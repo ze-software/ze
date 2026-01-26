@@ -19,7 +19,7 @@ module ze-extensions {
     //   inline-list    - list with key + attributes on same line
     //   family-block   - special address family syntax (ipv4/unicast;)
     //   multi-leaf     - multiple space-separated values on one line
-    //   array          - bracketed array syntax [ a b c ]
+    //   bracket        - bracketed syntax [ a b c ] for leaf-list
     //   value-or-array - accepts either value; or [ a b c ];
     extension syntax {
         argument mode;

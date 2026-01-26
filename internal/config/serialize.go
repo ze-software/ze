@@ -93,7 +93,7 @@ func serializeNode(b *strings.Builder, tree *Tree, name string, node Node, inden
 			b.WriteString(";\n")
 		}
 
-	case *ArrayLeafNode:
+	case *BracketLeafListNode:
 		if v, ok := tree.values[name]; ok {
 			b.WriteString(prefix)
 			b.WriteString(name)

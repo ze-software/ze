@@ -5,6 +5,8 @@ import (
 	"sort"
 	"strings"
 
+	hubschema "codeberg.org/thomas-mangin/ze/internal/hub/schema"
+	bgpschema "codeberg.org/thomas-mangin/ze/internal/plugin/bgp/schema"
 	"codeberg.org/thomas-mangin/ze/internal/yang"
 	gyang "github.com/openconfig/goyang/pkg/yang"
 )
@@ -53,6 +55,13 @@ func PluginOnlySchema() *Schema {
 func YANGSchema() *Schema {
 	loader := yang.NewLoader()
 	if err := loader.LoadEmbedded(); err != nil {
+		return nil
+	}
+	// Load module-specific YANG from their packages (module-specific YANG lives with its code)
+	if err := loader.AddModuleFromText("ze-hub.yang", hubschema.ZeHubYANG); err != nil {
+		return nil
+	}
+	if err := loader.AddModuleFromText("ze-bgp.yang", bgpschema.ZeBGPYANG); err != nil {
 		return nil
 	}
 	if err := loader.Resolve(); err != nil {
@@ -121,8 +130,8 @@ func yangToNode(entry *gyang.Entry, path string) Node {
 		return yangToInlineListWithKey(entry, path, keyType)
 	case "multi-leaf":
 		return MultiLeaf(yangTypeToValueType(entry.Type))
-	case "array":
-		return ArrayLeaf(yangTypeToValueType(entry.Type))
+	case "bracket":
+		return BracketLeafList(yangTypeToValueType(entry.Type))
 	case "value-or-array":
 		return ValueOrArray(yangTypeToValueType(entry.Type))
 	}
@@ -131,6 +140,10 @@ func yangToNode(entry *gyang.Entry, path string) Node {
 	//nolint:exhaustive // Only handle types relevant to config schema
 	switch entry.Kind {
 	case gyang.LeafEntry:
+		// leaf-list without ze:syntax extension - treat as multi-leaf (space-separated)
+		if entry.IsLeafList() {
+			return MultiLeaf(yangTypeToValueType(entry.Type))
+		}
 		return yangToLeaf(entry)
 	case gyang.DirectoryEntry:
 		if entry.IsList() {

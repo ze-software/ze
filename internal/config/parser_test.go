@@ -353,7 +353,7 @@ neighbor 192.0.2.1 {
 // PREVENTS: Broken API process lists.
 func TestParserArray(t *testing.T) {
 	schema := NewSchema()
-	schema.Define("items", ArrayLeaf(TypeString))
+	schema.Define("items", BracketLeafList(TypeString))
 
 	input := `items [ foo bar baz ];`
 
@@ -373,7 +373,7 @@ func TestParserArray(t *testing.T) {
 // PREVENTS: Edge case failures.
 func TestParserArraySingle(t *testing.T) {
 	schema := NewSchema()
-	schema.Define("items", ArrayLeaf(TypeString))
+	schema.Define("items", BracketLeafList(TypeString))
 
 	input := `items [ single ];`
 

@@ -7,6 +7,8 @@ import (
 	"strings"
 
 	"codeberg.org/thomas-mangin/ze/internal/config"
+	hubschema "codeberg.org/thomas-mangin/ze/internal/hub/schema"
+	bgpschema "codeberg.org/thomas-mangin/ze/internal/plugin/bgp/schema"
 	"codeberg.org/thomas-mangin/ze/internal/yang"
 )
 
@@ -53,6 +55,13 @@ func NewConfigValidator() (*ConfigValidator, error) {
 	loader := yang.NewLoader()
 	if err := loader.LoadEmbedded(); err != nil {
 		return nil, fmt.Errorf("failed to load YANG: %w", err)
+	}
+	// Load module-specific YANG from their packages
+	if err := loader.AddModuleFromText("ze-hub.yang", hubschema.ZeHubYANG); err != nil {
+		return nil, fmt.Errorf("failed to load hub YANG: %w", err)
+	}
+	if err := loader.AddModuleFromText("ze-bgp.yang", bgpschema.ZeBGPYANG); err != nil {
+		return nil, fmt.Errorf("failed to load BGP YANG: %w", err)
 	}
 	if err := loader.Resolve(); err != nil {
 		return nil, fmt.Errorf("failed to resolve YANG: %w", err)
