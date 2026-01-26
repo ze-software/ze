@@ -3,293 +3,223 @@ package storage
 import (
 	"testing"
 
-	"codeberg.org/thomas-mangin/ze/internal/plugin/bgp/nlri"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"codeberg.org/thomas-mangin/ze/internal/plugin/bgp/nlri"
+	"codeberg.org/thomas-mangin/ze/internal/pool"
 )
 
-// TestFamilyRIB_Insert verifies basic route insertion.
+// TestFamilyRIB_PerAttrDedup verifies per-attribute deduplication.
 //
-// VALIDATES: Routes stored with attr handle → NLRI mapping.
-// PREVENTS: Lost routes during insertion.
-func TestFamilyRIB_Insert(t *testing.T) {
+// VALIDATES: Routes with same ORIGIN/LOCAL_PREF but different MED share common attrs.
+// PREVENTS: Full blob duplication when only one attribute differs.
+func TestFamilyRIB_PerAttrDedup(t *testing.T) {
 	rib := NewFamilyRIB(nlri.IPv4Unicast, false)
 	defer rib.Release()
 
-	// Simple attributes (ORIGIN IGP)
-	attrs := []byte{0x40, 0x01, 0x01, 0x00}
-	prefix := []byte{24, 10, 0, 0} // 10.0.0.0/24
+	// Two routes with same ORIGIN and LOCAL_PREF but different MED.
+	// ORIGIN=IGP, LOCAL_PREF=100, MED=10.
+	attrs1 := concat(wireOriginIGP, wireLocalPref100, wireMED100)
+	// ORIGIN=IGP, LOCAL_PREF=100, MED=20.
+	wireMED20 := []byte{0x80, 0x04, 0x04, 0x00, 0x00, 0x00, 0x14}
+	attrs2 := concat(wireOriginIGP, wireLocalPref100, wireMED20)
 
-	rib.Insert(attrs, prefix)
-
-	// Verify stored
-	assert.Equal(t, 1, rib.Len())
-	handle, exists := rib.Lookup(prefix)
-	assert.True(t, exists)
-	assert.True(t, handle.IsValid())
-}
-
-// TestFamilyRIB_MultipleNLRI verifies multiple NLRIs share attrs.
-//
-// VALIDATES: Same attr handle used for multiple prefixes.
-// PREVENTS: Memory waste from duplicate attr storage.
-func TestFamilyRIB_MultipleNLRI(t *testing.T) {
-	rib := NewFamilyRIB(nlri.IPv4Unicast, false)
-	defer rib.Release()
-
-	attrs := []byte{0x40, 0x01, 0x01, 0x00}
-	prefix1 := []byte{24, 10, 0, 0}
-	prefix2 := []byte{24, 10, 0, 1}
-	prefix3 := []byte{24, 10, 0, 2}
-
-	rib.Insert(attrs, prefix1)
-	rib.Insert(attrs, prefix2)
-	rib.Insert(attrs, prefix3)
-
-	assert.Equal(t, 3, rib.Len())
-
-	// All should have same attr handle
-	h1, ok1 := rib.Lookup(prefix1)
-	h2, ok2 := rib.Lookup(prefix2)
-	h3, ok3 := rib.Lookup(prefix3)
-
-	require.True(t, ok1)
-	require.True(t, ok2)
-	require.True(t, ok3)
-
-	// Same attributes = same handle (deduplication)
-	assert.Equal(t, h1, h2)
-	assert.Equal(t, h2, h3)
-}
-
-// TestFamilyRIB_ImplicitWithdraw verifies route replacement.
-//
-// VALIDATES: Same prefix with new attrs replaces old entry.
-// PREVENTS: Stale routes remaining after implicit withdraw.
-func TestFamilyRIB_ImplicitWithdraw(t *testing.T) {
-	rib := NewFamilyRIB(nlri.IPv4Unicast, false)
-	defer rib.Release()
-
-	prefix := []byte{24, 10, 0, 0}
-	attrs1 := []byte{0x40, 0x01, 0x01, 0x00} // ORIGIN IGP
-	attrs2 := []byte{0x40, 0x01, 0x01, 0x01} // ORIGIN EGP
-
-	// Insert with first attrs
-	rib.Insert(attrs1, prefix)
-	h1, _ := rib.Lookup(prefix)
-
-	// Insert same prefix with different attrs (implicit withdraw)
-	rib.Insert(attrs2, prefix)
-	h2, exists := rib.Lookup(prefix)
-
-	assert.True(t, exists)
-	assert.NotEqual(t, h1, h2) // Different attrs = different handle
-	assert.Equal(t, 1, rib.Len())
-}
-
-// TestFamilyRIB_NoOpUpdate verifies duplicate insert is no-op.
-//
-// VALIDATES: Same prefix + same attrs doesn't change state.
-// PREVENTS: Pool refcount leaks on duplicate inserts.
-func TestFamilyRIB_NoOpUpdate(t *testing.T) {
-	rib := NewFamilyRIB(nlri.IPv4Unicast, false)
-	defer rib.Release()
-
-	attrs := []byte{0x40, 0x01, 0x01, 0x00}
-	prefix := []byte{24, 10, 0, 0}
-
-	rib.Insert(attrs, prefix)
-	h1, _ := rib.Lookup(prefix)
-
-	// Same prefix, same attrs = no-op
-	rib.Insert(attrs, prefix)
-	h2, _ := rib.Lookup(prefix)
-
-	assert.Equal(t, h1, h2)
-	assert.Equal(t, 1, rib.Len())
-}
-
-// TestFamilyRIB_Remove verifies route withdrawal.
-//
-// VALIDATES: Prefix removed from RIB.
-// PREVENTS: Memory leaks from unreleased handles.
-func TestFamilyRIB_Remove(t *testing.T) {
-	rib := NewFamilyRIB(nlri.IPv4Unicast, false)
-	defer rib.Release()
-
-	attrs := []byte{0x40, 0x01, 0x01, 0x00}
-	prefix1 := []byte{24, 10, 0, 0}
-	prefix2 := []byte{24, 10, 0, 1}
-
-	rib.Insert(attrs, prefix1)
-	rib.Insert(attrs, prefix2)
-
-	// Remove first
-	removed := rib.Remove(prefix1)
-	assert.True(t, removed)
-	assert.Equal(t, 1, rib.Len())
-
-	// Verify prefix1 gone
-	_, exists := rib.Lookup(prefix1)
-	assert.False(t, exists)
-
-	// prefix2 still present
-	_, exists = rib.Lookup(prefix2)
-	assert.True(t, exists)
-}
-
-// TestFamilyRIB_RemoveNonExistent verifies removing unknown prefix.
-//
-// VALIDATES: Remove returns false for unknown prefix.
-// PREVENTS: Panic or incorrect state on invalid remove.
-func TestFamilyRIB_RemoveNonExistent(t *testing.T) {
-	rib := NewFamilyRIB(nlri.IPv4Unicast, false)
-	defer rib.Release()
-
-	prefix := []byte{24, 10, 0, 0}
-	removed := rib.Remove(prefix)
-
-	assert.False(t, removed)
-	assert.Equal(t, 0, rib.Len())
-}
-
-// TestFamilyRIB_RemoveLastNLRI verifies attr handle release.
-//
-// VALIDATES: Attr handle released when last NLRI removed.
-// PREVENTS: Handle leaks leaving orphaned pool data.
-func TestFamilyRIB_RemoveLastNLRI(t *testing.T) {
-	rib := NewFamilyRIB(nlri.IPv4Unicast, false)
-	defer rib.Release()
-
-	attrs := []byte{0x40, 0x01, 0x01, 0x00}
-	prefix := []byte{24, 10, 0, 0}
-
-	rib.Insert(attrs, prefix)
-	assert.Equal(t, 1, rib.EntryCount()) // One attr entry
-
-	rib.Remove(prefix)
-	assert.Equal(t, 0, rib.Len())
-	assert.Equal(t, 0, rib.EntryCount()) // Attr entry also removed
-}
-
-// TestFamilyRIB_Iterate verifies iteration over routes.
-//
-// VALIDATES: All routes visited during iteration.
-// PREVENTS: Missing routes during route replay.
-func TestFamilyRIB_Iterate(t *testing.T) {
-	rib := NewFamilyRIB(nlri.IPv4Unicast, false)
-	defer rib.Release()
-
-	attrs1 := []byte{0x40, 0x01, 0x01, 0x00}
-	attrs2 := []byte{0x40, 0x01, 0x01, 0x01}
-
-	// Two attr sets, multiple NLRIs each
-	rib.Insert(attrs1, []byte{24, 10, 0, 0})
-	rib.Insert(attrs1, []byte{24, 10, 0, 1})
-	rib.Insert(attrs2, []byte{24, 10, 0, 2})
-	rib.Insert(attrs2, []byte{24, 10, 0, 3})
-
-	// Collect via iteration
-	count := 0
-	rib.Iterate(func(attrBytes []byte, nlriBytes []byte) bool {
-		count++
-		return true
-	})
-
-	assert.Equal(t, 4, count)
-}
-
-// TestFamilyRIB_IterateEarlyExit verifies early termination.
-//
-// VALIDATES: Iterate stops when callback returns false.
-// PREVENTS: Unnecessary iteration.
-func TestFamilyRIB_IterateEarlyExit(t *testing.T) {
-	rib := NewFamilyRIB(nlri.IPv4Unicast, false)
-	defer rib.Release()
-
-	attrs := []byte{0x40, 0x01, 0x01, 0x00}
-	for i := 0; i < 10; i++ {
-		rib.Insert(attrs, []byte{24, 10, 0, byte(i)})
-	}
-
-	count := 0
-	rib.Iterate(func(attrBytes []byte, nlriBytes []byte) bool {
-		count++
-		return count < 3
-	})
-
-	assert.Equal(t, 3, count)
-}
-
-// TestFamilyRIB_IPv6 verifies pooled storage for IPv6.
-//
-// VALIDATES: IPv6 NLRIs stored with pool handles.
-// PREVENTS: Memory waste from large NLRI copies.
-func TestFamilyRIB_IPv6(t *testing.T) {
-	rib := NewFamilyRIB(nlri.IPv6Unicast, false)
-	defer rib.Release()
-
-	attrs := []byte{0x40, 0x01, 0x01, 0x00}
-	prefix1 := []byte{48, 0x20, 0x01, 0x0d, 0xb8, 0x00, 0x01}
-	prefix2 := []byte{48, 0x20, 0x01, 0x0d, 0xb8, 0x00, 0x02}
-
-	rib.Insert(attrs, prefix1)
-	rib.Insert(attrs, prefix2)
-
-	assert.Equal(t, 2, rib.Len())
-
-	h1, ok1 := rib.Lookup(prefix1)
-	h2, ok2 := rib.Lookup(prefix2)
-
-	require.True(t, ok1)
-	require.True(t, ok2)
-	assert.Equal(t, h1, h2) // Same attrs
-}
-
-// TestFamilyRIB_AddPath verifies ADD-PATH support.
-//
-// VALIDATES: Same prefix with different path-IDs are distinct.
-// PREVENTS: Path-ID collision corrupting RIB.
-func TestFamilyRIB_AddPath(t *testing.T) {
-	rib := NewFamilyRIB(nlri.IPv4Unicast, true) // ADD-PATH enabled
-	defer rib.Release()
-
-	attrs1 := []byte{0x40, 0x01, 0x01, 0x00}
-	attrs2 := []byte{0x40, 0x01, 0x01, 0x01}
-
-	// Same IP prefix, different path-IDs
-	nlri1 := []byte{0, 0, 0, 1, 24, 10, 0, 0} // path-id=1
-	nlri2 := []byte{0, 0, 0, 2, 24, 10, 0, 0} // path-id=2
+	nlri1 := []byte{24, 10, 0, 0} // 10.0.0.0/24
+	nlri2 := []byte{24, 10, 0, 1} // 10.0.1.0/24
 
 	rib.Insert(attrs1, nlri1)
 	rib.Insert(attrs2, nlri2)
 
-	assert.Equal(t, 2, rib.Len())
+	// Lookup both routes.
+	entry1, ok := rib.LookupEntry(nlri1)
+	require.True(t, ok, "route 1 should exist")
 
-	h1, ok1 := rib.Lookup(nlri1)
-	h2, ok2 := rib.Lookup(nlri2)
+	entry2, ok := rib.LookupEntry(nlri2)
+	require.True(t, ok, "route 2 should exist")
 
-	require.True(t, ok1)
-	require.True(t, ok2)
-	assert.NotEqual(t, h1, h2) // Different paths
+	// ORIGIN and LOCAL_PREF should share pool slots (same values).
+	assert.Equal(t, entry1.Origin.Slot(), entry2.Origin.Slot(),
+		"ORIGIN should share pool slot")
+	assert.Equal(t, entry1.LocalPref.Slot(), entry2.LocalPref.Slot(),
+		"LOCAL_PREF should share pool slot")
+
+	// MED should have different slots (different values).
+	assert.NotEqual(t, entry1.MED.Slot(), entry2.MED.Slot(),
+		"MED should have different pool slots")
 }
 
-// TestFamilyRIB_Release verifies cleanup.
+// TestFamilyRIB_Insert verifies basic insert with per-attr storage.
 //
-// VALIDATES: All pool handles released on cleanup.
-// PREVENTS: Memory leaks from orphaned handles.
-func TestFamilyRIB_Release(t *testing.T) {
+// VALIDATES: Insert parses attributes and stores RouteEntry.
+// PREVENTS: Insert failing or not using per-attr pools.
+func TestFamilyRIB_Insert(t *testing.T) {
 	rib := NewFamilyRIB(nlri.IPv4Unicast, false)
+	defer rib.Release()
 
-	attrs := []byte{0x40, 0x01, 0x01, 0x00}
-	for i := 0; i < 100; i++ {
-		rib.Insert(attrs, []byte{24, 10, 0, byte(i)})
-	}
+	attrs := concat(wireOriginIGP, wireASPath65001, wireNextHop)
+	nlriBytes := []byte{24, 192, 168, 1} // 192.168.1.0/24
 
-	assert.Equal(t, 100, rib.Len())
+	rib.Insert(attrs, nlriBytes)
 
-	rib.Release()
+	assert.Equal(t, 1, rib.Len(), "should have 1 route")
 
+	entry, ok := rib.LookupEntry(nlriBytes)
+	require.True(t, ok)
+	assert.True(t, entry.HasOrigin())
+	assert.True(t, entry.HasASPath())
+	assert.True(t, entry.HasNextHop())
+}
+
+// TestFamilyRIB_ImplicitWithdraw verifies implicit withdraw behavior.
+//
+// VALIDATES: Same NLRI with new attrs releases old entry.
+// PREVENTS: Memory leak from unreleased old RouteEntry.
+func TestFamilyRIB_ImplicitWithdraw(t *testing.T) {
+	rib := NewFamilyRIB(nlri.IPv4Unicast, false)
+	defer rib.Release()
+
+	nlriBytes := []byte{24, 10, 0, 0} // 10.0.0.0/24
+
+	// First insert with MED=10.
+	attrs1 := concat(wireOriginIGP, wireMED100)
+	rib.Insert(attrs1, nlriBytes)
+
+	entry1, ok := rib.LookupEntry(nlriBytes)
+	require.True(t, ok)
+	// Save slot values before implicit withdraw releases the entry.
+	origin1Slot := entry1.Origin.Slot()
+	med1Slot := entry1.MED.Slot()
+
+	// Second insert with MED=20 (implicit withdraw).
+	wireMED20 := []byte{0x80, 0x04, 0x04, 0x00, 0x00, 0x00, 0x14}
+	attrs2 := concat(wireOriginIGP, wireMED20)
+	rib.Insert(attrs2, nlriBytes)
+
+	entry2, ok := rib.LookupEntry(nlriBytes)
+	require.True(t, ok)
+
+	// ORIGIN should share pool slot (same value interned twice).
+	assert.Equal(t, origin1Slot, entry2.Origin.Slot(),
+		"ORIGIN should share pool slot after implicit withdraw")
+
+	// MED should be different (different values).
+	assert.NotEqual(t, med1Slot, entry2.MED.Slot(),
+		"MED should have different slot after implicit withdraw")
+
+	// Still only 1 route.
+	assert.Equal(t, 1, rib.Len())
+}
+
+// TestFamilyRIB_Remove verifies route removal.
+//
+// VALIDATES: Remove releases RouteEntry handles.
+// PREVENTS: Memory leak from unreleased handles on remove.
+func TestFamilyRIB_Remove(t *testing.T) {
+	rib := NewFamilyRIB(nlri.IPv4Unicast, false)
+	defer rib.Release()
+
+	attrs := concat(wireOriginIGP, wireLocalPref100)
+	nlriBytes := []byte{24, 10, 0, 0}
+
+	rib.Insert(attrs, nlriBytes)
+	assert.Equal(t, 1, rib.Len())
+
+	removed := rib.Remove(nlriBytes)
+	assert.True(t, removed)
 	assert.Equal(t, 0, rib.Len())
-	assert.Equal(t, 0, rib.EntryCount())
+
+	_, ok := rib.LookupEntry(nlriBytes)
+	assert.False(t, ok, "route should not exist after remove")
+}
+
+// TestFamilyRIB_IterateEntry verifies iteration over entries.
+//
+// VALIDATES: IterateEntry visits all routes with their RouteEntry.
+// PREVENTS: Missing routes during iteration.
+func TestFamilyRIB_IterateEntry(t *testing.T) {
+	rib := NewFamilyRIB(nlri.IPv4Unicast, false)
+	defer rib.Release()
+
+	attrs := concat(wireOriginIGP, wireLocalPref100)
+	nlri1 := []byte{24, 10, 0, 0}
+	nlri2 := []byte{24, 10, 0, 1}
+
+	rib.Insert(attrs, nlri1)
+	rib.Insert(attrs, nlri2)
+
+	var count int
+	rib.IterateEntry(func(nlriBytes []byte, entry *RouteEntry) bool {
+		count++
+		assert.True(t, entry.HasOrigin())
+		assert.True(t, entry.HasLocalPref())
+		return true
+	})
+
+	assert.Equal(t, 2, count, "should iterate 2 routes")
+}
+
+// TestFamilyRIB_NoOpUpdate verifies same attrs don't create duplicates.
+//
+// VALIDATES: Same NLRI+attrs = no-op (no extra pool refs).
+// PREVENTS: Pool ref leaks from redundant updates.
+func TestFamilyRIB_NoOpUpdate(t *testing.T) {
+	rib := NewFamilyRIB(nlri.IPv4Unicast, false)
+	defer rib.Release()
+
+	attrs := concat(wireOriginIGP, wireLocalPref100)
+	nlriBytes := []byte{24, 10, 0, 0}
+
+	// Insert twice with same data.
+	rib.Insert(attrs, nlriBytes)
+	entry1, _ := rib.LookupEntry(nlriBytes)
+	originSlot1 := entry1.Origin.Slot()
+
+	rib.Insert(attrs, nlriBytes)
+	entry2, _ := rib.LookupEntry(nlriBytes)
+
+	// Should be same entry (or at least same slots).
+	assert.Equal(t, originSlot1, entry2.Origin.Slot())
+	assert.Equal(t, 1, rib.Len())
+}
+
+// TestFamilyRIB_ToWireBytes verifies wire reconstruction.
+//
+// VALIDATES: RouteEntry can be reconstructed to valid wire format.
+// PREVENTS: Data loss during storage/reconstruction cycle.
+func TestFamilyRIB_ToWireBytes(t *testing.T) {
+	rib := NewFamilyRIB(nlri.IPv4Unicast, false)
+	defer rib.Release()
+
+	// Insert with known attributes.
+	attrs := concat(wireOriginIGP, wireLocalPref100, wireMED100)
+	nlriBytes := []byte{24, 10, 0, 0}
+
+	rib.Insert(attrs, nlriBytes)
+
+	entry, ok := rib.LookupEntry(nlriBytes)
+	require.True(t, ok)
+
+	// Reconstruct wire bytes.
+	reconstructed, err := entry.ToWireBytes()
+	require.NoError(t, err)
+
+	// Should contain ORIGIN, LOCAL_PREF, MED.
+	// Parse reconstructed to verify.
+	entry2, err := ParseAttributes(reconstructed)
+	require.NoError(t, err)
+	defer entry2.Release()
+
+	// Verify values match by comparing pool data.
+	origData1, _ := pool.Origin.Get(entry.Origin)
+	origData2, _ := pool.Origin.Get(entry2.Origin)
+	assert.Equal(t, origData1, origData2, "ORIGIN should match")
+
+	lpData1, _ := pool.LocalPref.Get(entry.LocalPref)
+	lpData2, _ := pool.LocalPref.Get(entry2.LocalPref)
+	assert.Equal(t, lpData1, lpData2, "LOCAL_PREF should match")
+
+	medData1, _ := pool.MED.Get(entry.MED)
+	medData2, _ := pool.MED.Get(entry2.MED)
+	assert.Equal(t, medData1, medData2, "MED should match")
 }

@@ -4,12 +4,11 @@ import (
 	"sync"
 
 	"codeberg.org/thomas-mangin/ze/internal/plugin/bgp/nlri"
-	"codeberg.org/thomas-mangin/ze/internal/pool"
 )
 
 // PeerRIB is the Adj-RIB-In for one peer.
-// Each peer has its own RIB, but all share the global pool.
-// Routes are stored keyed by attributes with NLRI lists as values.
+// Each peer has its own RIB with per-attribute-type deduplication.
+// Routes are stored individually with RouteEntry containing per-attr handles.
 type PeerRIB struct {
 	peerAddr string
 	mu       sync.RWMutex
@@ -57,17 +56,18 @@ func (r *PeerRIB) Remove(family nlri.Family, nlriBytes []byte) bool {
 	return rib.Remove(nlriBytes)
 }
 
-// Lookup finds the attribute handle for an NLRI.
-// Returns (handle, true) if found, (InvalidHandle, false) otherwise.
-func (r *PeerRIB) Lookup(family nlri.Family, nlriBytes []byte) (pool.Handle, bool) {
+// Lookup finds the RouteEntry for an NLRI.
+// Returns (entry, true) if found, (nil, false) otherwise.
+// The returned entry is owned by the RIB - do not call Release() on it.
+func (r *PeerRIB) Lookup(family nlri.Family, nlriBytes []byte) (*RouteEntry, bool) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
 	rib, exists := r.families[family]
 	if !exists {
-		return pool.InvalidHandle, false
+		return nil, false
 	}
-	return rib.Lookup(nlriBytes)
+	return rib.LookupEntry(nlriBytes)
 }
 
 // Len returns the total number of NLRIs across all families.
@@ -94,16 +94,16 @@ func (r *PeerRIB) FamilyLen(family nlri.Family) int {
 	return rib.Len()
 }
 
-// Iterate calls fn for each NLRI with its family and attribute bytes.
+// Iterate calls fn for each NLRI with its family and RouteEntry.
 // Stops if fn returns false.
-func (r *PeerRIB) Iterate(fn func(family nlri.Family, attrBytes []byte, nlriBytes []byte) bool) {
+func (r *PeerRIB) Iterate(fn func(family nlri.Family, nlriBytes []byte, entry *RouteEntry) bool) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
 	for family, rib := range r.families {
 		shouldContinue := true
-		rib.Iterate(func(attrBytes []byte, nlriBytes []byte) bool {
-			shouldContinue = fn(family, attrBytes, nlriBytes)
+		rib.IterateEntry(func(nlriBytes []byte, entry *RouteEntry) bool {
+			shouldContinue = fn(family, nlriBytes, entry)
 			return shouldContinue
 		})
 		if !shouldContinue {
@@ -114,7 +114,7 @@ func (r *PeerRIB) Iterate(fn func(family nlri.Family, attrBytes []byte, nlriByte
 
 // IterateFamily calls fn for each NLRI in a specific family.
 // Stops if fn returns false.
-func (r *PeerRIB) IterateFamily(family nlri.Family, fn func(attrBytes []byte, nlriBytes []byte) bool) {
+func (r *PeerRIB) IterateFamily(family nlri.Family, fn func(nlriBytes []byte, entry *RouteEntry) bool) {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
@@ -122,7 +122,7 @@ func (r *PeerRIB) IterateFamily(family nlri.Family, fn func(attrBytes []byte, nl
 	if !exists {
 		return
 	}
-	rib.Iterate(fn)
+	rib.IterateEntry(fn)
 }
 
 // Clear removes all routes from the RIB, releasing all pool handles.

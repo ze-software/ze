@@ -46,8 +46,6 @@ func TestPerAttributePools_Existence(t *testing.T) {
 // PREVENTS: Handle from one pool being used with another pool.
 func TestPerAttributePools_UniqueIndices(t *testing.T) {
 	allPools := []*Pool{
-		Attributes,       // idx=0
-		NLRI,             // idx=1
 		Origin,           // idx=2
 		ASPath,           // idx=3
 		LocalPref,        // idx=4
@@ -66,7 +64,7 @@ func TestPerAttributePools_UniqueIndices(t *testing.T) {
 	seen := make(map[uint8]string)
 	for i, p := range allPools {
 		names := []string{
-			"Attributes", "NLRI", "Origin", "ASPath", "LocalPref", "MED",
+			"Origin", "ASPath", "LocalPref", "MED",
 			"NextHop", "Communities", "LargeCommunities", "ExtCommunities",
 			"ClusterList", "OriginatorID", "AtomicAggregate", "Aggregator", "OtherAttrs",
 		}

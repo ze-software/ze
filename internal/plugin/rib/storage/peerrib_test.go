@@ -86,20 +86,21 @@ func TestPeerRIB_Lookup(t *testing.T) {
 	rib := NewPeerRIB("192.0.2.1")
 	defer rib.Release()
 
-	attrs := []byte{0x40, 0x01, 0x01, 0x00}
+	attrs := []byte{0x40, 0x01, 0x01, 0x00} // ORIGIN=IGP
 	prefix := []byte{24, 10, 0, 0}
 
 	rib.Insert(nlri.IPv4Unicast, attrs, prefix)
 
-	handle, found := rib.Lookup(nlri.IPv4Unicast, prefix)
+	entry, found := rib.Lookup(nlri.IPv4Unicast, prefix)
 	require.True(t, found)
-	assert.True(t, handle.IsValid())
+	require.NotNil(t, entry)
+	assert.True(t, entry.HasOrigin(), "should have ORIGIN attribute")
 
-	// Non-existent
+	// Non-existent.
 	_, found = rib.Lookup(nlri.IPv4Unicast, []byte{24, 10, 0, 1})
 	assert.False(t, found)
 
-	// Wrong family
+	// Wrong family.
 	_, found = rib.Lookup(nlri.IPv6Unicast, prefix)
 	assert.False(t, found)
 }
@@ -114,14 +115,15 @@ func TestPeerRIB_Iterate(t *testing.T) {
 
 	attrs := []byte{0x40, 0x01, 0x01, 0x00}
 
-	// Add routes to multiple families
+	// Add routes to multiple families.
 	rib.Insert(nlri.IPv4Unicast, attrs, []byte{24, 10, 0, 0})
 	rib.Insert(nlri.IPv4Unicast, attrs, []byte{24, 10, 0, 1})
 	rib.Insert(nlri.IPv6Unicast, attrs, []byte{48, 0x20, 0x01, 0x0d, 0xb8, 0x00, 0x01})
 
 	count := 0
-	rib.Iterate(func(family nlri.Family, attrBytes []byte, nlriBytes []byte) bool {
+	rib.Iterate(func(family nlri.Family, nlriBytes []byte, entry *RouteEntry) bool {
 		count++
+		assert.NotNil(t, entry)
 		return true
 	})
 
@@ -143,13 +145,13 @@ func TestPeerRIB_IterateFamily(t *testing.T) {
 	rib.Insert(nlri.IPv6Unicast, attrs, []byte{48, 0x20, 0x01, 0x0d, 0xb8, 0x00, 0x01})
 
 	v4count := 0
-	rib.IterateFamily(nlri.IPv4Unicast, func(attrBytes []byte, nlriBytes []byte) bool {
+	rib.IterateFamily(nlri.IPv4Unicast, func(nlriBytes []byte, entry *RouteEntry) bool {
 		v4count++
 		return true
 	})
 
 	v6count := 0
-	rib.IterateFamily(nlri.IPv6Unicast, func(attrBytes []byte, nlriBytes []byte) bool {
+	rib.IterateFamily(nlri.IPv6Unicast, func(nlriBytes []byte, entry *RouteEntry) bool {
 		v6count++
 		return true
 	})

@@ -20,6 +20,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/plugin/bgp/attribute"
 	"codeberg.org/thomas-mangin/ze/internal/plugin/bgp/nlri"
 	"codeberg.org/thomas-mangin/ze/internal/plugin/rib/storage"
+	"codeberg.org/thomas-mangin/ze/internal/pool"
 	"codeberg.org/thomas-mangin/ze/internal/slogutil"
 )
 
@@ -557,6 +558,29 @@ func formatFamily(family nlri.Family) string {
 	return afi + "/" + safi
 }
 
+// formatNextHop formats NEXT_HOP attribute bytes as an IP address string.
+func formatNextHop(data []byte) string {
+	switch len(data) {
+	case 4:
+		// IPv4.
+		return fmt.Sprintf("%d.%d.%d.%d", data[0], data[1], data[2], data[3])
+	case 16:
+		// IPv6.
+		return fmt.Sprintf("%x:%x:%x:%x:%x:%x:%x:%x",
+			uint16(data[0])<<8|uint16(data[1]),
+			uint16(data[2])<<8|uint16(data[3]),
+			uint16(data[4])<<8|uint16(data[5]),
+			uint16(data[6])<<8|uint16(data[7]),
+			uint16(data[8])<<8|uint16(data[9]),
+			uint16(data[10])<<8|uint16(data[11]),
+			uint16(data[12])<<8|uint16(data[13]),
+			uint16(data[14])<<8|uint16(data[15]))
+	default:
+		// Unknown format - return hex.
+		return fmt.Sprintf("%x", data)
+	}
+}
+
 // parseNLRIValue extracts prefix and path-id from an NLRI value.
 // Handles both new format {"prefix":"...", "path-id":N} and legacy string format.
 func parseNLRIValue(v any) (prefix string, pathID uint32) {
@@ -839,11 +863,16 @@ func (r *RIBManager) handleInboundShow(serial, selector string) {
 			continue
 		}
 		var routeList []map[string]any
-		peerRIB.Iterate(func(family nlri.Family, _ []byte, nlriBytes []byte) bool {
+		peerRIB.Iterate(func(family nlri.Family, nlriBytes []byte, entry *storage.RouteEntry) bool {
 			routeMap := map[string]any{
 				"family": formatFamily(family),
 				"prefix": formatNLRIAsPrefix(family, nlriBytes),
-				// Note: next-hop not available from pool storage (it's in attrs)
+			}
+			// Add next-hop if available from RouteEntry.
+			if entry != nil && entry.HasNextHop() {
+				if nhData, err := pool.NextHop.Get(entry.NextHop); err == nil {
+					routeMap["next-hop"] = formatNextHop(nhData)
+				}
 			}
 			routeList = append(routeList, routeMap)
 			return true
