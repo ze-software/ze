@@ -330,23 +330,24 @@ Complete:   [Buffer 0: nil]           [Buffer 1: ████████]
 
 ---
 
-### 3.5 Handle Design (MSB Buffer Bit)
+### 3.5 Handle Design (Hybrid Layout)
+
+> **Full details:** See `docs/architecture/pool-architecture.md`
 
 ```
 Handle (uint32):
-┌─────────────────────────────────────────┐
-│ Bit 31 (MSB)  │  Bits 0-30              │
-│ Buffer Bit    │  Slot Index             │
-├───────────────┼─────────────────────────┤
-│     0         │  0x00000000 - 0x7FFFFFFF│  → Buffer 0
-│     1         │  0x80000000 - 0xFFFFFFFF│  → Buffer 1
-└───────────────┴─────────────────────────┘
+┌─────────┬─────────┬───────┬────────────────────────┐
+│BufferBit│ PoolIdx │ Flags │        Slot            │
+│ (1 bit) │ (5 bits)│(2 bit)│      (24 bits)         │
+└─────────┴─────────┴───────┴────────────────────────┘
+ 31        30    26  25   24  23                    0
 ```
 
 **Benefits:**
-- Slot index preserved across buffer switches
-- Visual debugging (upper half = buffer 1)
-- Simple extraction: `slotIdx = handle & 0x7FFFFFFF`
+- Buffer bit distinguishes buffers during compaction
+- Pool index validates handle belongs to correct pool
+- Flags support ADD-PATH (bit 0 = hasPathID)
+- 24-bit slot = 16.7M entries per pool
 
 ---
 

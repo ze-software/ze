@@ -1046,44 +1046,35 @@ func DetermineMode(peers []PeerConfig) UpdateMode {
 
 **File:** `internal/pool/pool.go`
 
+> **Note:** The implementation uses a hybrid handle layout. See `docs/architecture/pool-architecture.md` for current design.
+
 ```go
 package pool
 
 type Handle uint32
 
-const (
-    InvalidHandle Handle = 0x7FFFFFFF
-    BufferBitMask Handle = 0x80000000
-    SlotIndexMask Handle = 0x7FFFFFFF
-)
+// Handle layout: bufferBit(1) | poolIdx(5) | flags(2) | slot(24)
+const InvalidHandle Handle = 0xFFFFFFFF  // poolIdx=31 (reserved)
 
-type Pool struct {
-    mu         sync.RWMutex
-    buffers    [2]buffer
-    currentBit uint32
-    slots      []Slot
-    index      map[string]Handle  // dedup index
-    // ... per POOL_ARCHITECTURE.md
-}
+// Core operations (all return errors for validation)
+func (p *Pool) Intern(data []byte) Handle
+func (p *Pool) InternWithError(data []byte) (Handle, error)
+func (p *Pool) Get(h Handle) ([]byte, error)
+func (p *Pool) AddRef(h Handle) error
+func (p *Pool) Release(h Handle) error
+func (p *Pool) Length(h Handle) (int, error)
 
-// Core operations
-func (p *Pool) Intern(data []byte) Handle  // COPIES data into pool buffer, returns handle
-func (p *Pool) Lookup(data []byte) (Handle, bool)  // Find handle without modifying refcount
-func (p *Pool) Get(h Handle) []byte        // Returns slice of pool buffer
-func (p *Pool) AddRef(h Handle)            // Increment ref count
-func (p *Pool) Release(h Handle)           // Decrement ref count
-func (p *Pool) Length(h Handle) int        // Length of interned data
+// Normalized access (by slot index)
+func (p *Pool) GetBySlot(slotIdx uint32) ([]byte, error)
+func (p *Pool) ReleaseBySlot(slotIdx uint32) error
 ```
-
-**Lookup vs Intern:**
-- `Intern()` - creates entry if missing, caller must manage refcount
-- `Lookup()` - read-only, returns (InvalidHandle, false) if not found
 
 **Tests:**
 - Intern returns same handle for identical data
 - Get returns correct bytes
 - AddRef/Release reference counting
 - Compaction preserves data integrity
+- Fuzz tests for handle encoding
 
 ### Phase 2: Global Pool
 
@@ -1221,19 +1212,16 @@ Buffer B (target):   [e1][e3][e5][e7][............]  ← compact
 
 #### Handle Design Supports This
 
-```go
-type Handle uint32
+> **Note:** Current implementation uses hybrid layout. See `docs/architecture/pool-architecture.md`.
 
-const (
-    BufferBitMask Handle = 0x80000000  // MSB = which buffer
-    SlotIndexMask Handle = 0x7FFFFFFF  // Lower 31 bits = slot index
-)
+```
+Handle layout: bufferBit(1) | poolIdx(5) | flags(2) | slot(24)
 
-// Handle 0x80000005 → buffer 1, slot 5
-// Handle 0x00000005 → buffer 0, slot 5
+Handle 0x80000005 → bufferBit=1, poolIdx=0, flags=0, slot=5
+Handle 0x00000005 → bufferBit=0, poolIdx=0, flags=0, slot=5
 ```
 
-- Handle encodes buffer bit + slot index
+- Handle encodes buffer bit + pool index + flags + slot
 - Slot stores offset in BOTH buffers
 - During compaction, slot is valid in both buffers
 - After compaction, flip the buffer bit for new allocations

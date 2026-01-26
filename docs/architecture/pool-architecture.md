@@ -654,77 +654,20 @@ func (c *PackedMessageCache) GetOrPack(
 
 ## Buffer Growth and Index Rebuild
 
-When `ensureCapacity()` reallocates a buffer, index keys pointing to that buffer become stale
-(they reference old memory, preventing GC). We rebuild affected index entries.
+When buffer capacity is exceeded, the pool must:
 
-```go
-func (p *Pool) ensureCapacity(bufIdx uint32, needed int) {
-    buf := &p.buffers[bufIdx]
-    required := buf.pos + needed
+1. Allocate larger buffer (2x growth)
+2. Copy existing data
+3. Rebuild dedup index (old keys reference deallocated memory)
 
-    if required <= cap(buf.data) {
-        if required > len(buf.data) {
-            buf.data = buf.data[:required]
-        }
-        return
-    }
-
-    // Need to grow - allocate new and copy
-    newCap := cap(buf.data) * 2
-    if newCap < required {
-        newCap = required
-    }
-
-    oldData := buf.data
-    buf.data = make([]byte, newCap)
-    copy(buf.data, oldData[:buf.pos])
-
-    // Rebuild index entries pointing to this buffer
-    p.rebuildIndexForBuffer(bufIdx)
-}
-
-func (p *Pool) rebuildIndexForBuffer(bufIdx uint32) {
-    buf := &p.buffers[bufIdx]
-
-    // Find and update all index entries pointing to this buffer
-    // We need to rebuild because old keys reference old memory
-    newIndex := make(map[string]Handle, len(p.index))
-
-    for _, h := range p.index {
-        if h.BufferBit() == bufIdx {
-            // This entry points to the reallocated buffer - recreate key
-            slot := &p.slots[h.SlotIndex()]
-            offset := slot.offsets[bufIdx]
-            newKey := bytesToString(buf.data[offset : offset+uint32(slot.length)])
-            newIndex[newKey] = h
-        } else {
-            // Entry points to other buffer - copy key as-is
-            // (we iterate values, need to get key differently)
-        }
-    }
-
-    // Alternative: iterate slots directly
-    p.index = make(map[string]Handle, len(p.slots))
-    for i := range p.slots {
-        slot := &p.slots[i]
-        if !slot.dead && slot.refCount > 0 {
-            // Determine which buffer this slot's current handle points to
-            // Use currentBit to create the handle
-            h := MakeHandle(uint32(i), p.currentBit)
-            offset := slot.offsets[p.currentBit]
-            key := bytesToString(p.buffers[p.currentBit].data[offset : offset+uint32(slot.length)])
-            p.index[key] = h
-        }
-    }
-}
-```
-
-**When rebuild occurs:**
-- `ensureCapacity()` reallocates a buffer
-- After reallocation, all index entries are recreated pointing to new memory
-- Old buffer slice becomes eligible for GC (no more references)
+**Index rebuild behavior:**
+- Iterates all live slots
+- Creates new index entries with keys pointing to new buffer memory
+- Old buffer slice becomes eligible for GC
 
 **Cost:** O(live slots) iteration, but only happens on buffer growth (rare in steady state).
+
+**Implementation:** See `internal/pool/pool.go:rebuildIndex()`
 
 ---
 
