@@ -1,4 +1,4 @@
-# Spec: config-editor-validation
+# Spec: config-editor-validation (Phases 1-2)
 
 ## Post-Compaction Recovery
 
@@ -299,12 +299,12 @@ Commit anyway? [y/N]:
 ## Checklist
 
 ### 🏗️ Design
-- [ ] No premature abstraction (3+ concrete use cases exist?)
-- [ ] No speculative features (is this needed NOW?)
-- [ ] Single responsibility (each component does ONE thing?)
-- [ ] Explicit behavior (no hidden magic or conventions?)
-- [ ] Minimal coupling (components isolated, dependencies minimal?)
-- [ ] Next-developer test (would they understand this quickly?)
+- [x] No premature abstraction (3+ concrete use cases exist?)
+- [x] No speculative features (is this needed NOW?)
+- [x] Single responsibility (each component does ONE thing?)
+- [x] Explicit behavior (no hidden magic or conventions?)
+- [x] Minimal coupling (components isolated, dependencies minimal?)
+- [x] Next-developer test (would they understand this quickly?)
 
 ### 🧪 TDD
 - [x] Tests written
@@ -320,7 +320,7 @@ Commit anyway? [y/N]:
 
 ### Documentation
 - [x] Required docs read
-- [ ] Architecture docs updated with learnings (pending - spec still in progress)
+- [x] Architecture docs updated with learnings (N/A - editor feature, no core architecture changes)
 
 ## Out of Scope (Separate Specs)
 
@@ -378,12 +378,74 @@ Applying config changes to running daemon (beyond file save):
    - `editor_test.go` - edit file persistence tests
    - `model_test.go` - commit blocking and errors command tests
 
-### Deferred to Future Phases
+**Phase 2 - Real-Time Validation (Completed):**
 
-**Phase 2 - Real-Time Validation:**
-- Debounced validation on each keystroke (100ms)
-- Status bar error indicator (`⚠️ 2 errors`)
-- Inline error highlighting
+1. **Debounced Validation** (`model.go`)
+   - `scheduleValidation()` - schedules validation after 100ms debounce
+   - `validationTickMsg` - handles debounce tick, ignores stale ticks
+   - Triggers on each keystroke via `KeyRunes` handler
+
+2. **Status Bar Error Indicator** (`model.go`)
+   - Shows `⚠️ N error(s)` in header when errors exist
+   - Shows `⚡ N warning(s)` for warnings only
+
+3. **Inline Error/Warning Highlighting** (`model.go`)
+   - `highlightValidationIssues()` - applies styling to error/warning lines
+   - `errorLineStyle` - red text on dark red background (errors)
+   - `warningLineStyle` - yellow text on dark yellow background (warnings)
+   - Errors take precedence over warnings on same line
+   - Called by `setViewportData()` before displaying config
+
+4. **Explicit Data Bundling** (`model.go`)
+   - `viewportData` struct - bundles content + lineMapping together
+   - `setViewportData(viewportData)` - displays bundled data with highlighting
+   - `setViewportText(string)` - convenience for non-config content
+   - `showConfigContent()` - handles context filtering and display
+   - `filterContentByContext()` - returns viewportData with mapping
+   - Eliminates implicit coupling between cmdShow and setViewport
+
+5. **commandResult Pattern** (`model.go`)
+   - Commands return `commandResult` struct instead of mutating model
+   - `commandResult` carries: output, configView, statusMessage, newContext, clearContext, isTemplate, showHelp, revalidate
+   - Update handler applies changes from result - fixes Bubble Tea closure capture issue
+   - `statusMessage` field for temporary notifications (cleared on next command)
+
+6. **Hierarchical Context Paths** (`model.go`)
+   - `findFullContextPath()` - finds full hierarchical path to target block (e.g., `["bgp", "peer", "1.1.1.1"]`)
+   - `filterContentByContextPath()` - extracts content for hierarchical path with exact matching
+   - `cmdEdit()` uses hierarchical paths matching actual config tree structure
+   - `cmdUp()` navigates up the hierarchy properly
+   - Exact block matching prevents false positives (e.g., `peer` won't match `peer-as`)
+
+7. **Template Mode** (`model.go`)
+   - `findParentOfKeyword()` - finds parent block where keyword blocks exist
+   - `edit peer *` enters template mode for editing defaults applying to all peers
+   - Template context: parent + keyword + "*" (e.g., `["bgp", "peer", "*"]`)
+   - `isTemplate` flag tracks template mode state
+
+8. **Tests** (`model_test.go`)
+   - `TestHighlightValidationIssues` - verifies error line styling
+   - `TestHighlightValidationIssuesEmpty` - handles empty error list
+   - `TestHighlightValidationIssuesOutOfRange` - ignores invalid line numbers
+   - `TestHighlightValidationIssuesWithMapping` - verifies line mapping works
+   - `TestHighlightValidationIssuesWarnings` - verifies warning styling
+   - `TestHighlightValidationIssuesErrorPrecedence` - errors override warnings
+   - `TestModelContextHighlighting` - integration test for filtered view
+   - `TestModelValidationDebounce` - verifies tick matching logic
+   - `TestModelStatusBarErrorIndicator` - verifies error display
+   - `TestModelKeyrunesTriggersValidation` - verifies keystroke triggers
+   - `TestModelCmdTop`, `TestModelCmdUp`, `TestModelCmdUpAtRoot` - navigation tests
+   - `TestModelCmdUpFromTemplate` - navigation from template context
+   - `TestModelCmdEditHierarchical` - hierarchical path matching
+   - `TestModelCmdEditNotFound` - error on block not found
+   - `TestModelCmdEditFromContext` - relative edit from context
+   - `TestModelCmdEditExactMatch` - exact vs prefix matching
+   - `TestModelCmdEditWildcardTemplate` - template mode entry
+   - `TestModelStatusMessageDisplay` - temporary notification display
+   - `TestModelStatusMessageClearsOnCommand` - notification clears on next command
+   - `TestModelStatusMessageClearsOnError` - notification clears on error
+
+### Deferred to Future Phases
 
 **Phase 3 - Schema Validation:**
 - Unknown keyword detection
@@ -403,12 +465,29 @@ Applying config changes to running daemon (beyond file save):
 - Validation types split clearly: ConfigValidator (not Validator) to avoid collision with yang.Validator
 - Semantic validation uses regex for simplicity - could be replaced with full parser if needed
 - Edit file is adjacent to config (foo.conf.edit) for easy discovery
+- Bubble Tea model must use immutable pattern - commands return results, Update applies changes
+- Hierarchical context paths enable proper config tree navigation (matching actual brace structure)
+- Template mode (`edit peer *`) requires separate path finding - parent of keyword, not the keyword itself
 
 ### Bugs Found/Fixed
 
 - Type name collision: `Validator` already exists in `internal/yang/validator.go`, renamed to `ConfigValidator`
+- Closure capture bug: tea.Cmd closures captured model by value, losing state changes. Fixed with `commandResult` pattern
+- `cmdCommit()` used stale validation state - fixed by validating inline
+- Prefix matching too loose (`peer` matched `peer-as`) - fixed with exact block matching
+- Brace handling order: `} foo {` processed incorrectly - fixed by processing `}` before `{`
+- Wildcard template broken by block-not-found error - added `findParentOfKeyword()` for special handling
 
 ### Deviations from Plan
 
 - Implemented semantic validation in validator.go, not separate semantic.go (simpler structure)
 - Warning prompts deferred - current implementation blocks on errors, doesn't distinguish warnings
+- Added `commandResult` pattern not in original plan - required to fix Bubble Tea closure capture issue
+- Hierarchical context paths not in original plan - emerged from need for proper tree navigation
+
+## Status
+
+**Phases 1 and 2 complete.** Remaining phases (3-5) can be separate specs if needed:
+- Phase 3: Schema validation (unknown keywords, type checking)
+- Phase 4: Entry point changes (`ze config edit`)
+- Phase 5: Hub integration (edit file detection prompt)

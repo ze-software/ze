@@ -24,7 +24,22 @@ var (
 			BorderForeground(lipgloss.Color("62")).
 			Padding(1, 2).
 			Background(lipgloss.Color("236"))
+	// errorLineStyle highlights lines with validation errors (red text on dark background).
+	errorLineStyle = lipgloss.NewStyle().
+			Foreground(lipgloss.Color("196")).
+			Background(lipgloss.Color("52"))
+	// warningLineStyle highlights lines with validation warnings (yellow text on dark background).
+	warningLineStyle = lipgloss.NewStyle().
+				Foreground(lipgloss.Color("226")).
+				Background(lipgloss.Color("58"))
 )
+
+// viewportData bundles content with its line mapping for display.
+// This ensures content and mapping always travel together, avoiding implicit coupling.
+type viewportData struct {
+	content     string      // The text content to display
+	lineMapping map[int]int // Maps displayed line (1-based) to original line (1-based), nil for full content
+}
 
 // Model is the Bubble Tea model for the editor.
 type Model struct {
@@ -51,6 +66,7 @@ type Model struct {
 	viewportContent string // Content shown in viewport
 	showViewport    bool   // Whether viewport is active (for scrolling)
 	showHelp        bool   // Whether help overlay is shown
+	statusMessage   string // Temporary status message (clears on next command)
 	err             error
 	width           int
 	height          int
@@ -60,10 +76,24 @@ type Model struct {
 // Debounce delay for validation after keystroke.
 const validationDebounce = 100 * time.Millisecond
 
+// commandResult carries state changes from a command back to Update.
+// This allows commands to run in a tea.Cmd closure without losing state changes.
+type commandResult struct {
+	output        string        // Text to display in viewport (non-config content)
+	configView    *viewportData // Config content to display with line mapping
+	statusMessage string        // Temporary status message (shown above viewport, clears on next command)
+	newContext    []string      // New context path (nil = no change)
+	clearContext  bool          // True to clear context to root
+	isTemplate    bool          // Template mode flag (used with newContext)
+	showHelp      bool          // Show help overlay
+	revalidate    bool          // Trigger re-validation after command
+}
+
 // Message types for the editor.
 type (
-	executeResultMsg struct {
-		output string
+	// commandResultMsg carries command results back to Update for application.
+	commandResultMsg struct {
+		result commandResult
 		err    error
 	}
 	contextChangedMsg struct{}
@@ -212,19 +242,48 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.viewport.Height = max(msg.Height-10, 5)
 		// Show config on first size event (startup)
 		if !m.showViewport && m.viewportContent == "" {
-			content := m.editor.WorkingContent()
-			if content != "" {
-				m.setViewportContent(content)
+			if m.editor.WorkingContent() != "" {
+				m.showConfigContent()
 			}
 		}
 		return m, nil
 
-	case executeResultMsg:
+	case commandResultMsg:
 		if msg.err != nil {
 			m.err = msg.err
-		} else if msg.output != "" {
-			m.setViewportContent(msg.output)
+			m.statusMessage = "" // Clear status on error
+			return m, nil
 		}
+		r := msg.result
+
+		// Apply context changes
+		if r.clearContext {
+			m.contextPath = nil
+			m.isTemplate = false
+		} else if r.newContext != nil {
+			m.contextPath = r.newContext
+			m.isTemplate = r.isTemplate
+		}
+
+		// Apply viewport changes
+		if r.configView != nil {
+			m.setViewportData(*r.configView)
+		} else if r.output != "" {
+			m.setViewportText(r.output)
+		}
+
+		// Status message (temporary notification)
+		m.statusMessage = r.statusMessage
+
+		// Other state
+		if r.showHelp {
+			m.showHelp = true
+		}
+		if r.revalidate {
+			m.runValidation()
+		}
+
+		m.err = nil
 		return m, nil
 
 	case successMsg:
@@ -236,7 +295,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, nil
 
 	case outputMsg:
-		m.setViewportContent(msg.text)
+		m.setViewportText(msg.text)
 		return m, nil
 
 	case contextChangedMsg:
@@ -365,13 +424,74 @@ func (m *Model) updateCompletions() {
 	}
 }
 
-// setViewportContent sets content in the viewport and shows it.
-func (m *Model) setViewportContent(content string) {
-	m.viewportContent = content
-	m.viewport.SetContent(content)
+// setViewportData sets content with line mapping in the viewport.
+// Applies error and warning highlighting based on validation state.
+func (m *Model) setViewportData(data viewportData) {
+	highlighted := highlightValidationIssues(data.content, m.validationErrors, m.validationWarnings, data.lineMapping)
+	m.viewportContent = highlighted
+	m.viewport.SetContent(highlighted)
 	m.viewport.GotoTop()
 	m.showViewport = true
 	m.err = nil
+}
+
+// setViewportText sets simple text content without line mapping.
+// Use for non-config content like diffs, history, or messages.
+func (m *Model) setViewportText(content string) {
+	m.setViewportData(viewportData{content: content, lineMapping: nil})
+}
+
+// highlightValidationIssues adds styling to lines with validation errors or warnings.
+// Errors are highlighted in red, warnings in yellow.
+// lineMapping maps filtered line numbers to original line numbers (used when showing filtered content).
+func highlightValidationIssues(content string, errors, warnings []ConfigValidationError, lineMapping map[int]int) string {
+	if len(errors) == 0 && len(warnings) == 0 {
+		return content
+	}
+
+	// Build sets of line numbers (1-based, in original content)
+	errorLines := make(map[int]bool)
+	for _, e := range errors {
+		if e.Line > 0 {
+			errorLines[e.Line] = true
+		}
+	}
+
+	warningLines := make(map[int]bool)
+	for _, w := range warnings {
+		if w.Line > 0 && !errorLines[w.Line] { // Errors take precedence over warnings
+			warningLines[w.Line] = true
+		}
+	}
+
+	if len(errorLines) == 0 && len(warningLines) == 0 {
+		return content
+	}
+
+	lines := strings.Split(content, "\n")
+	for i, line := range lines {
+		filteredLineNum := i + 1 // Convert to 1-based
+
+		// Determine the original line number to check
+		var origLineNum int
+		if lineMapping != nil {
+			// Filtered content: map to original line number
+			origLineNum = lineMapping[filteredLineNum]
+		} else {
+			// Full content: filtered line == original line
+			origLineNum = filteredLineNum
+		}
+
+		if origLineNum > 0 {
+			if errorLines[origLineNum] {
+				lines[i] = errorLineStyle.Render(line)
+			} else if warningLines[origLineNum] {
+				lines[i] = warningLineStyle.Render(line)
+			}
+		}
+	}
+
+	return strings.Join(lines, "\n")
 }
 
 // View implements tea.Model.
@@ -402,6 +522,12 @@ func (m Model) View() string {
 	}
 	lines = append(lines, dimStyle.Render(header)+statusIndicator+" "+dimStyle.Render("(Tab/?: complete, Enter: execute, Esc: quit)"))
 	lines = append(lines, "")
+
+	// Status message (temporary notification from commands)
+	if m.statusMessage != "" {
+		lines = append(lines, promptStyle.Render("► "+m.statusMessage))
+		lines = append(lines, "")
+	}
 
 	// Viewport for scrollable content (show/compare output)
 	if m.showViewport && m.viewportContent != "" {
@@ -783,21 +909,20 @@ func (m Model) renderInputWithGhost() string {
 }
 
 // executeCommand dispatches a command for execution.
+// Returns a tea.Cmd that produces a commandResultMsg for the Update handler.
 func (m Model) executeCommand(input string) tea.Cmd {
 	return func() tea.Msg {
 		result, err := m.dispatchCommand(input)
-		if err != nil {
-			return executeResultMsg{err: err}
-		}
-		return executeResultMsg{output: result}
+		return commandResultMsg{result: result, err: err}
 	}
 }
 
 // dispatchCommand parses and executes a command.
-func (m *Model) dispatchCommand(input string) (string, error) {
+// Returns commandResult with all state changes for the Update handler to apply.
+func (m *Model) dispatchCommand(input string) (commandResult, error) {
 	tokens := strings.Fields(input)
 	if len(tokens) == 0 {
-		return "", nil
+		return commandResult{}, nil
 	}
 
 	cmd := tokens[0]
@@ -805,35 +930,16 @@ func (m *Model) dispatchCommand(input string) (string, error) {
 
 	switch cmd {
 	case "exit", "quit":
-		return "", nil // Will be handled by quit logic
+		return commandResult{}, nil // Will be handled by quit logic
 
 	case "help", "?":
-		m.showHelp = true
-		return "", nil
+		return commandResult{showHelp: true}, nil
 
 	case "top":
-		m.contextPath = nil
-		m.isTemplate = false
-		// Show full config at root
-		content, _ := m.cmdShow(nil)
-		if content != "" {
-			m.setViewportContent(content)
-		}
-		return "", nil
+		return m.cmdTop()
 
 	case "up":
-		if len(m.contextPath) > 0 {
-			m.contextPath = m.contextPath[:len(m.contextPath)-1]
-		}
-		if len(m.contextPath) == 0 {
-			m.isTemplate = false
-		}
-		// Refresh display for new context
-		content, _ := m.cmdShow(nil)
-		if content != "" {
-			m.setViewportContent(content)
-		}
-		return "", nil
+		return m.cmdUp()
 
 	case "edit":
 		return m.cmdEdit(args)
@@ -842,17 +948,13 @@ func (m *Model) dispatchCommand(input string) (string, error) {
 		return m.cmdShow(args)
 
 	case "compare":
-		return m.editor.Diff(), nil
+		return commandResult{output: m.editor.Diff()}, nil
 
 	case "commit":
 		return m.cmdCommit()
 
 	case "discard":
-		if err := m.editor.Discard(); err != nil {
-			return "", err
-		}
-		m.runValidation() // Re-validate after discard
-		return "Changes discarded", nil
+		return m.cmdDiscard()
 
 	case "history":
 		return m.cmdHistory()
@@ -870,116 +972,373 @@ func (m *Model) dispatchCommand(input string) (string, error) {
 		return m.cmdErrors()
 
 	default:
-		return "", fmt.Errorf("unknown command: %s", cmd)
+		return commandResult{}, fmt.Errorf("unknown command: %s", cmd)
 	}
 }
 
 // Command implementations
 
-func (m *Model) cmdEdit(args []string) (string, error) {
-	if len(args) == 0 {
-		return "", fmt.Errorf("usage: edit <path>")
-	}
-
-	// Check for wildcard template
-	if len(args) >= 2 && args[len(args)-1] == "*" {
-		m.contextPath = args[:len(args)-1]
-		m.contextPath = append(m.contextPath, "*")
-		m.isTemplate = true
-	} else {
-		m.contextPath = args
-		m.isTemplate = false
-	}
-
-	// Automatically show the section we're editing
-	content, _ := m.cmdShow(nil)
-	if content != "" {
-		m.setViewportContent(content)
-	}
-
-	return "", nil // No separate message, viewport shows the section
-}
-
-func (m *Model) cmdShow(_ []string) (string, error) {
+func (m *Model) cmdTop() (commandResult, error) {
 	content := m.editor.WorkingContent()
 	if content == "" {
-		return "(empty configuration)", nil
+		return commandResult{clearContext: true, output: "(empty configuration)"}, nil
+	}
+	return commandResult{
+		clearContext: true,
+		configView:   &viewportData{content: content, lineMapping: nil},
+	}, nil
+}
+
+func (m *Model) cmdUp() (commandResult, error) {
+	if len(m.contextPath) == 0 {
+		return commandResult{output: "Already at top level"}, nil
+	}
+
+	content := m.editor.WorkingContent()
+
+	// Try removing elements from the end until we find a valid parent
+	// Blocks can be 1 element (e.g., "bgp") or 2 elements (e.g., "peer", "1.1.1.1")
+	// We try removing the minimum that gives us a valid parent
+	for removeCount := 1; removeCount <= 2 && removeCount < len(m.contextPath); removeCount++ {
+		newContext := m.contextPath[:len(m.contextPath)-removeCount]
+
+		if len(newContext) == 0 {
+			// Going to root
+			return commandResult{
+				clearContext: true,
+				configView:   &viewportData{content: content, lineMapping: nil},
+			}, nil
+		}
+
+		// Check if this parent context is valid (has content)
+		data := filterContentByContextPath(content, newContext)
+		if data.content != "" {
+			return commandResult{
+				newContext: newContext,
+				isTemplate: false,
+				configView: &data,
+			}, nil
+		}
+	}
+
+	// Fallback: go to root
+	return commandResult{
+		clearContext: true,
+		configView:   &viewportData{content: content, lineMapping: nil},
+	}, nil
+}
+
+func (m *Model) cmdEdit(args []string) (commandResult, error) {
+	if len(args) == 0 {
+		return commandResult{}, fmt.Errorf("usage: edit <path>")
+	}
+
+	content := m.editor.WorkingContent()
+
+	// Check for wildcard template (e.g., "edit peer *")
+	if len(args) >= 2 && args[len(args)-1] == "*" {
+		// Template mode: find parent block, not the wildcard itself
+		// For "peer *", find where "peer X" blocks exist and use that parent
+		keyword := args[0]
+		parentPath := findParentOfKeyword(content, keyword)
+
+		// Build template context: parent + keyword + "*"
+		var templatePath []string
+		if parentPath != nil {
+			templatePath = append(templatePath, parentPath...)
+		}
+		templatePath = append(templatePath, keyword, "*")
+
+		// Show parent block content (where peers are defined)
+		var data viewportData
+		if parentPath != nil {
+			data = filterContentByContextPath(content, parentPath)
+		} else {
+			data = viewportData{content: "(template: no existing " + keyword + " blocks)", lineMapping: nil}
+		}
+
+		return commandResult{
+			newContext: templatePath,
+			isTemplate: true,
+			configView: &data,
+		}, nil
+	}
+
+	// Regular edit: find the full hierarchical path to this target
+	fullPath := findFullContextPath(content, args)
+
+	if fullPath == nil {
+		return commandResult{}, fmt.Errorf("block not found: %s", strings.Join(args, " "))
+	}
+
+	// Get filtered content for this context
+	data := filterContentByContextPath(content, fullPath)
+
+	return commandResult{
+		newContext: fullPath,
+		isTemplate: false,
+		configView: &data,
+	}, nil
+}
+
+// showConfigContent displays config content in viewport with proper highlighting.
+// Handles context filtering and line mapping automatically.
+// Used only in WindowSizeMsg handler for initial display.
+func (m *Model) showConfigContent() {
+	content := m.editor.WorkingContent()
+	if content == "" {
+		m.setViewportText("(empty configuration)")
+		return
 	}
 
 	// If we have a context path, try to show only that section
 	if len(m.contextPath) > 0 {
-		filtered := m.filterContentByContext(content)
-		if filtered != "" {
-			return filtered, nil
+		data := m.filterContentByContext(content)
+		if data.content != "" {
+			m.setViewportData(data)
+			return
 		}
 	}
 
-	return content, nil
+	// Full content - no line mapping needed
+	m.setViewportData(viewportData{content: content, lineMapping: nil})
+}
+
+func (m *Model) cmdShow(_ []string) (commandResult, error) {
+	content := m.editor.WorkingContent()
+	if content == "" {
+		return commandResult{output: "(empty configuration)"}, nil
+	}
+
+	// If we have a context path, try to show only that section
+	if len(m.contextPath) > 0 {
+		data := m.filterContentByContext(content)
+		if data.content != "" {
+			return commandResult{configView: &data}, nil
+		}
+	}
+
+	// Full content - no line mapping needed
+	return commandResult{configView: &viewportData{content: content, lineMapping: nil}}, nil
 }
 
 // filterContentByContext extracts the inner content of the section matching the current context.
-func (m *Model) filterContentByContext(content string) string {
-	if len(m.contextPath) == 0 {
-		return content
-	}
+// Returns viewportData with filtered content and line mapping.
+func (m *Model) filterContentByContext(content string) viewportData {
+	return filterContentByContextPath(content, m.contextPath)
+}
 
+// findParentOfKeyword finds the parent block path where blocks of the given keyword exist.
+// For example, if keyword is "peer" and config has "bgp { peer 1.1.1.1 { } }",
+// returns ["bgp"].
+func findParentOfKeyword(content string, keyword string) []string {
 	lines := strings.Split(content, "\n")
-	var result strings.Builder
-	depth := 0
-	inSection := false
-	sectionDepth := 0
-
-	// Build the pattern to match (e.g., "neighbor 127.0.0.1 {")
-	pattern := m.contextPath[0]
-	if len(m.contextPath) > 1 && m.contextPath[1] != "*" {
-		pattern += " " + m.contextPath[1]
-	}
+	var blockStack []string
 
 	for _, line := range lines {
 		trimmed := strings.TrimSpace(line)
 
-		// Track brace depth
+		// Process closing braces first
+		if strings.Contains(trimmed, "}") {
+			beforeOpen := trimmed
+			if idx := strings.Index(trimmed, "{"); idx >= 0 {
+				beforeOpen = trimmed[:idx]
+			}
+			closeBraces := strings.Count(beforeOpen, "}")
+			for i := 0; i < closeBraces && len(blockStack) > 0; i++ {
+				blockStack = blockStack[:len(blockStack)-1]
+			}
+		}
+
+		// Check for block opening
+		if strings.Contains(trimmed, "{") {
+			blockPart := strings.TrimSuffix(trimmed, "{")
+			blockPart = strings.TrimSpace(blockPart)
+			if idx := strings.LastIndex(blockPart, "}"); idx >= 0 {
+				blockPart = strings.TrimSpace(blockPart[idx+1:])
+			}
+
+			if blockPart != "" {
+				// Check if this block starts with our keyword
+				if strings.HasPrefix(blockPart, keyword+" ") || blockPart == keyword {
+					// Found a block of this type - return the parent (current stack)
+					if len(blockStack) == 0 {
+						return nil // At root level
+					}
+					result := make([]string, len(blockStack))
+					copy(result, blockStack)
+					return result
+				}
+
+				blockStack = append(blockStack, blockPart)
+			}
+		}
+	}
+
+	return nil // Not found
+}
+
+// findFullContextPath finds the full hierarchical path to a target block.
+// For example, if target is ["peer", "1.1.1.1"] and config has:
+//
+//	bgp { peer 1.1.1.1 { ... } }
+//
+// Returns ["bgp", "peer", "1.1.1.1"], or nil if not found.
+func findFullContextPath(content string, target []string) []string {
+	if len(target) == 0 {
+		return nil
+	}
+
+	// Build the pattern to match (e.g., "peer 1.1.1.1")
+	targetPattern := target[0]
+	if len(target) > 1 && target[1] != "*" {
+		targetPattern += " " + target[1]
+	}
+
+	lines := strings.Split(content, "\n")
+	var blockStack []string // Stack of block names we're inside
+
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+
+		// Process closing braces FIRST to handle "} foo {" correctly
+		if strings.Contains(trimmed, "}") {
+			// Count closes before any opening brace
+			beforeOpen := trimmed
+			if idx := strings.Index(trimmed, "{"); idx >= 0 {
+				beforeOpen = trimmed[:idx]
+			}
+			closeBraces := strings.Count(beforeOpen, "}")
+			for i := 0; i < closeBraces && len(blockStack) > 0; i++ {
+				blockStack = blockStack[:len(blockStack)-1]
+			}
+		}
+
+		// Check for block opening: "name {" or "name value {"
+		if strings.Contains(trimmed, "{") {
+			// Extract block name (everything before the brace)
+			blockPart := strings.TrimSuffix(trimmed, "{")
+			blockPart = strings.TrimSpace(blockPart)
+			// Remove any leading } from lines like "} foo {"
+			if idx := strings.LastIndex(blockPart, "}"); idx >= 0 {
+				blockPart = strings.TrimSpace(blockPart[idx+1:])
+			}
+
+			if blockPart != "" {
+				// Check if this is our target (exact match, not prefix)
+				if blockPart == targetPattern {
+					// Found it! Return full path
+					result := make([]string, len(blockStack), len(blockStack)+len(target))
+					copy(result, blockStack)
+					// Add the target components
+					result = append(result, target...)
+					return result
+				}
+
+				// Push this block onto the stack
+				blockStack = append(blockStack, blockPart)
+			}
+		}
+	}
+
+	// Not found
+	return nil
+}
+
+// filterContentByContextPath extracts content for a given hierarchical context path.
+// Handles multi-level paths like ["bgp", "peer", "1.1.1.1"].
+func filterContentByContextPath(content string, contextPath []string) viewportData {
+	if len(contextPath) == 0 {
+		return viewportData{content: content, lineMapping: nil}
+	}
+
+	lines := strings.Split(content, "\n")
+	var result strings.Builder
+	lineMapping := make(map[int]int) // filtered line (1-based) → original line (1-based)
+
+	// We need to drill down through each level of the path
+	// Track which level we're looking for and our current depth
+	targetLevel := 0
+	inTarget := false
+	targetDepth := 0
+	currentDepth := 0
+	filteredLineNum := 0
+
+	for origIdx, line := range lines {
+		origLineNum := origIdx + 1
+		trimmed := strings.TrimSpace(line)
+
 		openBraces := strings.Count(trimmed, "{")
 		closeBraces := strings.Count(trimmed, "}")
 
-		if !inSection {
-			// Look for start of our section
-			if strings.HasPrefix(trimmed, pattern) && strings.Contains(trimmed, "{") {
-				inSection = true
-				sectionDepth = depth + openBraces
-				// Don't include the opening line
+		if !inTarget {
+			// Looking for the next level in our path
+			if targetLevel < len(contextPath) && strings.Contains(trimmed, "{") {
+				// Extract block name (everything before the brace)
+				blockPart := strings.TrimSuffix(trimmed, "{")
+				blockPart = strings.TrimSpace(blockPart)
+
+				// Build expected pattern for current target level
+				pattern := contextPath[targetLevel]
+				// Check if next element is a value (keyword + value style like "peer 1.1.1.1")
+				if targetLevel+1 < len(contextPath) && contextPath[targetLevel+1] != "*" {
+					nextPart := contextPath[targetLevel+1]
+					fullPattern := pattern + " " + nextPart
+					if blockPart == fullPattern {
+						// Exact match for multi-part (e.g., "peer 1.1.1.1")
+						targetLevel += 2
+						if targetLevel >= len(contextPath) {
+							inTarget = true
+							targetDepth = currentDepth + openBraces
+						}
+						currentDepth += openBraces - closeBraces
+						continue
+					}
+				}
+				// Try single-part exact match (e.g., "bgp")
+				if blockPart == pattern {
+					targetLevel++
+					if targetLevel >= len(contextPath) {
+						inTarget = true
+						targetDepth = currentDepth + openBraces
+					}
+				}
 			}
 		} else {
-			// Check if we've exited our section (closing brace)
-			newDepth := depth + openBraces - closeBraces
-			if newDepth < sectionDepth {
-				break // Don't include closing brace
+			// We're inside our target section
+			newDepth := currentDepth + openBraces - closeBraces
+			if newDepth < targetDepth {
+				break // Exited our section
 			}
 
-			// We're in our section - include this line (dedented)
-			// Remove one level of indentation
-			dedented := strings.TrimPrefix(line, "\t")
-			dedented = strings.TrimPrefix(dedented, "    ")
+			// Include this line (dedented by target depth)
+			dedented := line
+			for i := 0; i < targetDepth; i++ {
+				dedented = strings.TrimPrefix(dedented, "\t")
+				dedented = strings.TrimPrefix(dedented, "    ")
+			}
 			if strings.TrimSpace(dedented) != "" {
+				filteredLineNum++
+				lineMapping[filteredLineNum] = origLineNum
 				result.WriteString(dedented)
 				result.WriteString("\n")
 			}
 		}
 
-		depth += openBraces - closeBraces
+		currentDepth += openBraces - closeBraces
 	}
 
-	return result.String()
+	return viewportData{content: result.String(), lineMapping: lineMapping}
 }
 
-func (m *Model) cmdHistory() (string, error) {
+func (m *Model) cmdHistory() (commandResult, error) {
 	backups, err := m.editor.ListBackups()
 	if err != nil {
-		return "", err
+		return commandResult{}, err
 	}
 
 	if len(backups) == 0 {
-		return "No backups found", nil
+		return commandResult{output: "No backups found"}, nil
 	}
 
 	var b strings.Builder
@@ -989,38 +1348,43 @@ func (m *Model) cmdHistory() (string, error) {
 			backup.Path,
 			backup.Timestamp.Format("2006-01-02")))
 	}
-	return b.String(), nil
+	return commandResult{output: b.String()}, nil
 }
 
-func (m *Model) cmdRollback(args []string) (string, error) {
+func (m *Model) cmdRollback(args []string) (commandResult, error) {
 	if len(args) != 1 {
-		return "", fmt.Errorf("usage: rollback <number>")
+		return commandResult{}, fmt.Errorf("usage: rollback <number>")
 	}
 
 	var n int
 	if _, err := fmt.Sscanf(args[0], "%d", &n); err != nil {
-		return "", fmt.Errorf("invalid backup number: %s", args[0])
+		return commandResult{}, fmt.Errorf("invalid backup number: %s", args[0])
 	}
 
 	backups, err := m.editor.ListBackups()
 	if err != nil {
-		return "", err
+		return commandResult{}, err
 	}
 
 	if n < 1 || n > len(backups) {
-		return "", fmt.Errorf("backup %d not found (have %d backups)", n, len(backups))
+		return commandResult{}, fmt.Errorf("backup %d not found (have %d backups)", n, len(backups))
 	}
 
 	if err := m.editor.Rollback(backups[n-1].Path); err != nil {
-		return "", err
+		return commandResult{}, err
 	}
 
-	return fmt.Sprintf("Rolled back to %s", backups[n-1].Path), nil
+	content := m.editor.WorkingContent()
+	return commandResult{
+		statusMessage: fmt.Sprintf("Rolled back to %s", backups[n-1].Path),
+		configView:    &viewportData{content: content, lineMapping: nil},
+		revalidate:    true,
+	}, nil
 }
 
-func (m *Model) cmdSet(args []string) (string, error) {
+func (m *Model) cmdSet(args []string) (commandResult, error) {
 	if len(args) < 2 {
-		return "", fmt.Errorf("usage: set <path> <value>")
+		return commandResult{}, fmt.Errorf("usage: set <path> <value>")
 	}
 
 	// Build full path with context
@@ -1030,12 +1394,15 @@ func (m *Model) cmdSet(args []string) (string, error) {
 
 	// For now, just acknowledge - actual tree modification needs SetParser integration
 	m.editor.MarkDirty()
-	return fmt.Sprintf("Set %s", strings.Join(fullPath, " ")), nil
+	return commandResult{
+		statusMessage: fmt.Sprintf("Set %s", strings.Join(fullPath, " ")),
+		revalidate:    true,
+	}, nil
 }
 
-func (m *Model) cmdDelete(args []string) (string, error) {
+func (m *Model) cmdDelete(args []string) (commandResult, error) {
 	if len(args) < 1 {
-		return "", fmt.Errorf("usage: delete <path>")
+		return commandResult{}, fmt.Errorf("usage: delete <path>")
 	}
 
 	// Build full path with context
@@ -1045,7 +1412,10 @@ func (m *Model) cmdDelete(args []string) (string, error) {
 
 	// For now, just acknowledge
 	m.editor.MarkDirty()
-	return fmt.Sprintf("Deleted %s", strings.Join(fullPath, " ")), nil
+	return commandResult{
+		statusMessage: fmt.Sprintf("Deleted %s", strings.Join(fullPath, " ")),
+		revalidate:    true,
+	}, nil
 }
 
 // runValidation re-runs validation on current content.
@@ -1065,27 +1435,40 @@ func (m *Model) scheduleValidation() tea.Cmd {
 }
 
 // cmdCommit saves changes with validation check.
-func (m *Model) cmdCommit() (string, error) {
-	// Re-run validation before commit
-	m.runValidation()
-
-	// Block commit if there are errors
-	if len(m.validationErrors) > 0 {
-		return "", fmt.Errorf("cannot commit: %d validation error(s). Use 'errors' to see details", len(m.validationErrors))
+func (m *Model) cmdCommit() (commandResult, error) {
+	// Validate inline - don't rely on m.validationErrors which may be stale
+	// (m is captured by value in the tea.Cmd closure)
+	result := m.validator.Validate(m.editor.WorkingContent())
+	if len(result.Errors) > 0 {
+		return commandResult{}, fmt.Errorf("cannot commit: %d validation error(s). Use 'errors' to see details", len(result.Errors))
 	}
 
 	// Save changes
 	if err := m.editor.Save(); err != nil {
-		return "", err
+		return commandResult{}, err
 	}
 
-	return "Configuration committed", nil
+	return commandResult{statusMessage: "Configuration committed"}, nil
+}
+
+// cmdDiscard reverts all changes.
+func (m *Model) cmdDiscard() (commandResult, error) {
+	if err := m.editor.Discard(); err != nil {
+		return commandResult{}, err
+	}
+
+	content := m.editor.WorkingContent()
+	return commandResult{
+		statusMessage: "Changes discarded",
+		configView:    &viewportData{content: content, lineMapping: nil},
+		revalidate:    true,
+	}, nil
 }
 
 // cmdErrors displays validation errors.
-func (m *Model) cmdErrors() (string, error) {
+func (m *Model) cmdErrors() (commandResult, error) {
 	if len(m.validationErrors) == 0 && len(m.validationWarnings) == 0 {
-		return "No validation issues", nil
+		return commandResult{output: "No validation issues"}, nil
 	}
 
 	var b strings.Builder
@@ -1115,5 +1498,5 @@ func (m *Model) cmdErrors() (string, error) {
 		}
 	}
 
-	return b.String(), nil
+	return commandResult{output: b.String()}, nil
 }
