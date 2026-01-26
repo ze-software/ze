@@ -6,7 +6,10 @@ import (
 
 	"codeberg.org/thomas-mangin/ze/internal/plugin/bgp/nlri"
 	"codeberg.org/thomas-mangin/ze/internal/pool"
+	"codeberg.org/thomas-mangin/ze/internal/slogutil"
 )
+
+var logger = slogutil.Logger("storage")
 
 // NLRISet stores NLRIs for one attribute set.
 // Interface allows family-specific optimization.
@@ -184,14 +187,31 @@ func (s *PooledNLRISet) Remove(nlri []byte) bool {
 		return false
 	}
 
-	// Release the pool handle
-	pool.NLRI.Release(s.handles[idx])
+	// Release the pool handle (ignore error - cleanup path)
+	_ = pool.NLRI.Release(s.handles[idx])
 
 	// Swap with last and remove (O(1) removal)
 	lastIdx := len(s.handles) - 1
 	if idx != lastIdx {
 		// Get the NLRI bytes for the last element (need to update index)
-		lastData := pool.NLRI.Get(s.handles[lastIdx])
+		lastData, err := pool.NLRI.Get(s.handles[lastIdx])
+		if err != nil {
+			logger.Error("pool handle corrupted during NLRI remove",
+				"error", err,
+				"handle", s.handles[lastIdx],
+				"lastIdx", lastIdx,
+			)
+			// Handle corrupted - find and remove stale index entry
+			for k, v := range s.index {
+				if v == lastIdx {
+					delete(s.index, k)
+					break
+				}
+			}
+			s.handles = s.handles[:lastIdx]
+			delete(s.index, key)
+			return true
+		}
 		lastKey := string(lastData)
 
 		s.handles[idx] = s.handles[lastIdx]
@@ -211,8 +231,17 @@ func (s *PooledNLRISet) Contains(nlri []byte) bool {
 
 // Iterate calls fn for each NLRI (wire bytes).
 func (s *PooledNLRISet) Iterate(fn func(nlri []byte) bool) {
-	for _, h := range s.handles {
-		if !fn(pool.NLRI.Get(h)) {
+	for i, h := range s.handles {
+		data, err := pool.NLRI.Get(h)
+		if err != nil {
+			logger.Error("pool handle corrupted during NLRI iterate",
+				"error", err,
+				"handle", h,
+				"index", i,
+			)
+			continue
+		}
+		if !fn(data) {
 			return
 		}
 	}
@@ -226,7 +255,7 @@ func (s *PooledNLRISet) Len() int {
 // Release frees all pool handles.
 func (s *PooledNLRISet) Release() {
 	for _, h := range s.handles {
-		pool.NLRI.Release(h)
+		_ = pool.NLRI.Release(h) // Ignore errors on cleanup path
 	}
 	s.handles = nil
 	s.index = nil

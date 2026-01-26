@@ -19,16 +19,22 @@ type SchedulerConfig struct {
 	// DeadRatioThreshold is the minimum dead/total ratio to trigger compaction.
 	// Default: 0.25 (25%)
 	DeadRatioThreshold float64
+
+	// MigrateBatchSize is number of slots to migrate per tick.
+	// Default: 100
+	MigrateBatchSize int
 }
 
 // Scheduler manages compaction across multiple pools.
 // Only one pool compacts at a time. Uses round-robin for fairness.
+// Uses incremental MigrateBatch for non-blocking compaction.
 type Scheduler struct {
 	pools  []*Pool
 	config SchedulerConfig
 
-	mu        sync.Mutex
-	lastIndex int // round-robin cursor
+	mu         sync.Mutex
+	lastIndex  int   // round-robin cursor
+	activePool *Pool // pool currently being compacted
 }
 
 // NewScheduler creates a scheduler for the given pools.
@@ -39,6 +45,9 @@ func NewScheduler(pools []*Pool, config SchedulerConfig) *Scheduler {
 	}
 	if config.DeadRatioThreshold == 0 {
 		config.DeadRatioThreshold = 0.25
+	}
+	if config.MigrateBatchSize == 0 {
+		config.MigrateBatchSize = 100
 	}
 
 	return &Scheduler{
@@ -73,6 +82,27 @@ func (s *Scheduler) tick() {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
+	// Continue active compaction
+	if s.activePool != nil {
+		// Check if any pool has activity - pause if so
+		for _, p := range s.pools {
+			if s.config.QuietPeriod > 0 && !p.IsIdle(s.config.QuietPeriod) {
+				return // Pause compaction during activity
+			}
+		}
+
+		// Continue migration
+		done := s.activePool.MigrateBatch(s.config.MigrateBatchSize)
+		if done {
+			// Check if old buffer can be freed
+			s.activePool.CheckOldBufferRelease()
+			if s.activePool.State() == PoolNormal {
+				s.activePool = nil
+			}
+		}
+		return
+	}
+
 	// Find next pool needing compaction (round-robin)
 	n := len(s.pools)
 	for i := 0; i < n; i++ {
@@ -81,8 +111,9 @@ func (s *Scheduler) tick() {
 
 		if s.shouldCompactLocked(p) {
 			s.lastIndex = idx
-			p.Compact()
-			return // Only compact one pool per tick
+			p.StartCompaction()
+			s.activePool = p
+			return // Start compaction, will continue in subsequent ticks
 		}
 	}
 }

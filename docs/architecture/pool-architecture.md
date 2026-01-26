@@ -10,10 +10,10 @@
 | Concept | Description |
 |---------|-------------|
 | **Purpose** | Deduplicate attributes/NLRIs in API programs |
-| **Location** | API program (Go: `internal/rib/`, Python/Rust: implement equivalent) |
-| **Key Pattern** | Double-buffer with MSB handles: `Handle = (bufferBit << 31) \| slotIndex` |
-| **Core Types** | `Handle`, `Pool`, `Slot`, `CompactionScheduler` |
-| **Key Functions** | `Pool.Intern()`, `Pool.Get()`, `Pool.AddRef()`, `Pool.Release()` |
+| **Location** | API program (Go: `internal/pool/`, Python/Rust: implement equivalent) |
+| **Key Pattern** | Double-buffer with hybrid handles: `Handle = bufferBit(1) \| poolIdx(5) \| flags(2) \| slot(24)` |
+| **Core Types** | `Handle`, `Pool`, `Scheduler` |
+| **Key Functions** | `Pool.Intern()`, `Pool.Get()`, `Pool.Release()`, `Pool.MigrateBatch()` |
 | **Input** | Base64-decoded wire bytes from engine events |
 
 **When to read full doc:** Implementing RIB in Go, memory optimization, compaction.
@@ -190,58 +190,71 @@ When NLRI is released, it cascades to release its AS_PATH reference.
 
 ---
 
-## Handle Design (MSB Buffer Bit)
+## Handle Design (Hybrid Layout)
 
-Handles use the **most significant bit** to indicate which buffer contains the data.
-This creates two distinct number spaces:
+Handles encode buffer bit, pool index, flags, and slot in a 32-bit value:
+
+```
+┌─────────┬─────────┬───────┬────────────────────────┐
+│BufferBit│ PoolIdx │ Flags │        Slot            │
+│ (1 bit) │ (5 bits)│(2 bit)│      (24 bits)         │
+└─────────┴─────────┴───────┴────────────────────────┘
+ 31        30    26  25   24  23                    0
+```
+
+| Field | Bits | Range | Purpose |
+|-------|------|-------|---------|
+| BufferBit | 1 | 0-1 | Which buffer contains data |
+| PoolIdx | 5 | 0-30 (31 reserved) | Pool validation |
+| Flags | 2 | 0-3 | ADD-PATH support (bit 0 = hasPathID) |
+| Slot | 24 | 0-16M | Entry index |
+
+**Implementation** (`internal/pool/handle.go`):
 
 ```go
 type Handle uint32
 
-const (
-    InvalidHandle   Handle = 0x7FFFFFFF  // Max slot index, invalid
-    BufferBitMask   Handle = 0x80000000  // Bit 31
-    SlotIndexMask   Handle = 0x7FFFFFFF  // Bits 0-30
-)
+// InvalidHandle uses bufferBit=1, poolIdx=31, flags=3, slot=0xFFFFFF
+const InvalidHandle Handle = 0xFFFFFFFF
 
-func MakeHandle(slotIdx uint32, bufferBit uint32) Handle {
-    return Handle(slotIdx&uint32(SlotIndexMask)) | Handle(bufferBit<<31)
-}
+// NewHandle creates handle with poolIdx, flags, slot (bufferBit defaults to 0)
+func NewHandle(poolIdx uint8, flags uint8, slot uint32) Handle
 
-func (h Handle) SlotIndex() uint32 { return uint32(h & SlotIndexMask) }
-func (h Handle) BufferBit() uint32 { return uint32(h >> 31) }
+// NewHandleWithBuffer creates handle with all fields
+func NewHandleWithBuffer(bufferBit uint32, poolIdx uint8, flags uint8, slot uint32) Handle
 
-// Visual checks
-func (h Handle) IsLowerHalf() bool { return h < BufferBitMask }  // buffer 0
-func (h Handle) IsUpperHalf() bool { return h >= BufferBitMask } // buffer 1
+// Accessors
+func (h Handle) BufferBit() uint32  // Extract buffer bit (0 or 1)
+func (h Handle) PoolIdx() uint8     // Extract pool index (0-30 valid, 31 invalid)
+func (h Handle) Flags() uint8       // Extract flags (0-3)
+func (h Handle) Slot() uint32       // Extract slot index (0-0xFFFFFF)
+func (h Handle) HasPathID() bool    // True if ADD-PATH flag set
+func (h Handle) IsValid() bool      // True if poolIdx < 31
+
+// Modifiers
+func (h Handle) WithFlags(flags uint8) Handle       // Change flags only
+func (h Handle) WithBufferBit(bit uint32) Handle    // Change bufferBit only
 ```
 
 ### Handle Number Space
 
 ```
-0x00000000 ─┬─ Buffer 0 (lower half)
-            │  0x00000000 = slot 0, buffer 0
-            │  0x00000001 = slot 1, buffer 0
-            │  0x00000002 = slot 2, buffer 0
-            │  ...
-0x7FFFFFFF ─┘  (InvalidHandle)
+Buffer 0 handles: 0x00000000 - 0x7EFFFFFF (poolIdx < 31)
+Buffer 1 handles: 0x80000000 - 0xFEFFFFFF (poolIdx < 31)
 
-0x80000000 ─┬─ Buffer 1 (upper half)
-            │  0x80000000 = slot 0, buffer 1
-            │  0x80000001 = slot 1, buffer 1
-            │  0x80000002 = slot 2, buffer 1
-            │  ...
-0xFFFFFFFF ─┘
+InvalidHandle:    0xFFFFFFFF (poolIdx = 31)
 ```
 
-### Benefits of MSB Design
+### Benefits of Hybrid Design
 
 | Aspect | Benefit |
 |--------|---------|
-| Slot index preserved | Slot 5 → `0x00000005` or `0x80000005` |
-| Visual debugging | Upper half handles clearly distinct |
-| Simple extraction | `slotIdx = h & 0x7FFFFFFF` (mask, no shift) |
-| Range check | `h >= 0x80000000` means buffer 1 |
+| Pool validation | Each pool validates handles belong to it via poolIdx |
+| ADD-PATH support | Flags encode path-id presence for BGP |
+| Buffer tracking | MSB distinguishes buffers during compaction |
+| Capacity | 24-bit slot = 16.7M entries per pool |
+
+**Trade-off:** Max pools reduced from 63 to 31. Sufficient for BGP use.
 
 ---
 
@@ -251,47 +264,50 @@ func (h Handle) IsUpperHalf() bool { return h >= BufferBitMask } // buffer 1
 type Pool struct {
     mu sync.RWMutex
 
+    // Pool index for handle encoding (0-30, 31 reserved for InvalidHandle)
+    idx uint8
+
     // Double buffer - alternates between compaction cycles
-    buffers [2]struct {
-        data     []byte
-        pos      int            // write cursor
-        refCount atomic.Int32   // handles pointing here
-    }
+    buffers [2]buffer
     currentBit uint32  // 0 or 1 - which buffer is current
 
-    // Slot table - indexed by handle.SlotIndex()
-    slots []Slot
+    // Slot table - indexed by handle.Slot()
+    slots []slot
+
+    // Free list for slot reuse
+    freeSlots []uint32
 
     // Dedup index: data content → Handle (always points to current buffer)
     // Keys are unsafe.String pointing directly into buffer (zero-copy)
     index map[string]Handle
 
     // Compaction state
-    state         PoolState
-    compactCursor uint32
+    state            PoolState
+    compactCursor    uint32  // Migration progress (slot index)
+    compactSlotCount uint32  // Slot count when compaction started
 
-    // Metrics
-    liveBytes int64
-    liveCount int32
-    deadCount int32
+    // Activity tracking for scheduler
+    lastActivity atomic.Int64
 
-    // Activity tracking
-    lastActivityNano atomic.Int64
+    // Metrics counters
+    internTotal atomic.Int64  // total Intern() calls
+    internHits  atomic.Int64  // deduplication hits
 
-    // Configuration
-    config PoolConfig
+    // Shutdown state
+    shutdown atomic.Bool
 }
 
-type Slot struct {
-    // Offset in each buffer (both valid during compaction)
-    offsets [2]uint32
-    length  uint16
+type buffer struct {
+    data     []byte
+    pos      int            // write cursor
+    refCount atomic.Int32   // handles pointing here
+}
 
-    // Reference counting (per-slot, across both handles)
-    refCount int32
-
-    // GC state
-    dead bool
+type slot struct {
+    offsets  [2]uint32  // offset in EACH buffer (both valid during compaction)
+    length   uint16     // data length
+    refCount int32      // reference count
+    dead     bool       // marked for removal
 }
 
 type PoolState int
@@ -376,206 +392,91 @@ The buffer bit alternates each compaction cycle. During compaction, **both handl
 ### Intern (Deduplicate and Store)
 
 ```go
-func (p *Pool) Intern(data []byte) Handle {
-    lookupKey := bytesToString(data)
+// Intern stores data with deduplication. Returns handle to retrieve data.
+// Panics on error. Use InternWithError for error returns.
+func (p *Pool) Intern(data []byte) Handle
 
-    p.mu.Lock()
-    defer p.mu.Unlock()
-
-    p.touchActivity()
-
-    // Check for existing (deduplication)
-    // Index always contains handles with currentBit
-    if h, ok := p.index[lookupKey]; ok {
-        slot := &p.slots[h.SlotIndex()]
-        if !slot.dead && slot.refCount > 0 {
-            slot.refCount++
-            p.buffers[h.BufferBit()].refCount.Add(1)
-            return h
-        }
-    }
-
-    // Allocate new entry in current buffer
-    bufIdx := p.currentBit
-    buf := &p.buffers[bufIdx]
-
-    p.ensureCapacity(bufIdx, len(data))
-    offset := uint32(buf.pos)
-    copy(buf.data[buf.pos:], data)
-    buf.pos += len(data)
-
-    // Allocate slot
-    slotIdx := p.allocSlot()
-    slot := &p.slots[slotIdx]
-    slot.offsets[bufIdx] = offset
-    slot.length = uint16(len(data))
-    slot.refCount = 1
-    slot.dead = false
-
-    // Create handle with current buffer bit
-    h := MakeHandle(slotIdx, bufIdx)
-
-    // Track buffer reference
-    buf.refCount.Add(1)
-
-    // Index with key pointing to buffer memory
-    bufferKey := bytesToString(buf.data[offset : offset+uint32(len(data))])
-    p.index[bufferKey] = h
-
-    p.liveBytes += int64(len(data))
-    p.liveCount++
-
-    return h
-}
+// InternWithError returns error instead of panic.
+// Returns ErrPoolShutdown, ErrDataTooLarge, or ErrPoolFull.
+func (p *Pool) InternWithError(data []byte) (Handle, error)
 ```
+
+Behavior:
+1. Check dedup index for existing entry
+2. If found: increment refCount, return existing handle
+3. If new: allocate slot, copy data to current buffer, index with zero-copy key
+4. Handle encodes pool idx and current buffer bit
 
 ### Get (Read Data)
 
 ```go
-func (p *Pool) Get(h Handle) []byte {
-    p.mu.RLock()
-    defer p.mu.RUnlock()
-
-    bufIdx := h.BufferBit()
-    slot := &p.slots[h.SlotIndex()]
-
-    offset := slot.offsets[bufIdx]
-    return p.buffers[bufIdx].data[offset : offset+uint32(slot.length)]
-}
+// Get returns data for handle. Returns zero-copy slice into pool buffer.
+// Returns error if handle invalid, wrong pool, or slot dead.
+func (p *Pool) Get(h Handle) ([]byte, error)
 ```
+
+Validates handle pool idx matches, slot in bounds, not dead.
 
 ### GetBySlot (Read Data by Slot Index)
 
-Used when handles are stored normalized (buffer bit cleared) for dedup.
+Used when handles are stored normalized (slot only, no bufferBit).
 Automatically selects the correct buffer based on compaction state.
 
 ```go
-func (p *Pool) GetBySlot(slotIdx uint32) []byte {
-    p.mu.RLock()
-    defer p.mu.RUnlock()
-
-    slot := &p.slots[slotIdx]
-    bufIdx := p.currentBit
-
-    // During compaction, slot might not be migrated yet
-    if p.state == PoolCompacting && slotIdx >= p.compactCursor {
-        bufIdx = 1 - p.currentBit  // Use old buffer
-    }
-
-    offset := slot.offsets[bufIdx]
-    return p.buffers[bufIdx].data[offset : offset+uint32(slot.length)]
-}
+// GetBySlot returns data for normalized slot index.
+// Auto-selects buffer: current if migrated, old if not yet migrated.
+func (p *Pool) GetBySlot(slotIdx uint32) ([]byte, error)
 ```
 
 ### Handle Normalization
 
-When storing handles in compound structures (e.g., AttrSet), normalize
-by clearing the buffer bit. This ensures dedup works regardless of
-which compaction cycle created the handle.
+When storing handles in compound structures, you can normalize by
+extracting just the slot. Use `GetBySlot()` to retrieve data:
 
 ```go
-// Normalize: 0x80000005 → 0x00000005
-func (h Handle) SlotIndex() uint32 {
-    return uint32(h & SlotIndexMask)  // Clears MSB
-}
+// Store normalized:
+storedSlot := handle.Slot()  // Extract 24-bit slot only
 
-// Both handles reference same data:
-// Get(0x00000005) → buffer 0
-// Get(0x80000005) → buffer 1
-// GetBySlot(5)    → whichever buffer is valid
+// Retrieve later:
+data, err := pool.GetBySlot(storedSlot)  // Auto-selects correct buffer
 ```
 
-### WriteTo (Write Data to Output)
+### Length (Get Data Length)
 
 ```go
-func (p *Pool) WriteTo(h Handle, w io.Writer) (int64, error) {
-    p.mu.RLock()
-    defer p.mu.RUnlock()
-
-    bufIdx := h.BufferBit()
-    slot := &p.slots[h.SlotIndex()]
-
-    offset := slot.offsets[bufIdx]
-    data := p.buffers[bufIdx].data[offset : offset+uint32(slot.length)]
-
-    n, err := w.Write(data)
-    return int64(n), err
-}
+// Length returns data length without copying data.
+func (p *Pool) Length(h Handle) (int, error)
 ```
 
 ### AddRef (Share Reference)
 
 ```go
-func (p *Pool) AddRef(h Handle) {
-    p.mu.Lock()
-    defer p.mu.Unlock()
-
-    p.slots[h.SlotIndex()].refCount++
-    p.buffers[h.BufferBit()].refCount.Add(1)
-}
+// AddRef increments refcount for handle sharing between owners.
+// Returns error if handle invalid or wrong pool.
+func (p *Pool) AddRef(h Handle) error
 ```
 
 ### Release (Decrement Reference)
 
 ```go
-func (p *Pool) Release(h Handle) {
-    p.mu.Lock()
-    defer p.mu.Unlock()
-
-    bufIdx := h.BufferBit()
-    slotIdx := h.SlotIndex()
-    slot := &p.slots[slotIdx]
-
-    slot.refCount--
-    p.buffers[bufIdx].refCount.Add(-1)
-
-    if slot.refCount <= 0 {
-        slot.dead = true
-        p.deadCount++
-        p.liveCount--
-        p.liveBytes -= int64(slot.length)
-
-        // Remove from index if this is the current handle
-        if bufIdx == p.currentBit {
-            offset := slot.offsets[bufIdx]
-            bufferKey := bytesToString(p.buffers[bufIdx].data[offset : offset+uint32(slot.length)])
-            delete(p.index, bufferKey)
-        }
-    }
-}
+// Release decrements refcount. When refCount reaches 0, slot marked dead.
+// Returns error if handle invalid, wrong pool, or already dead.
+func (p *Pool) Release(h Handle) error
 ```
+
+When refCount reaches 0:
+- Slot marked dead
+- Entry removed from dedup index
+- Slot added to free list for reuse
 
 ### ReleaseBySlot (Release by Slot Index)
 
-Used when handles are stored normalized. Releases using current buffer.
+Used when handles are stored normalized (slot only).
 
 ```go
-func (p *Pool) ReleaseBySlot(slotIdx uint32) {
-    p.mu.Lock()
-    defer p.mu.Unlock()
-
-    slot := &p.slots[slotIdx]
-    bufIdx := p.currentBit
-
-    // During compaction, determine correct buffer
-    if p.state == PoolCompacting && slotIdx >= p.compactCursor {
-        bufIdx = 1 - p.currentBit
-    }
-
-    slot.refCount--
-    p.buffers[bufIdx].refCount.Add(-1)
-
-    if slot.refCount <= 0 {
-        slot.dead = true
-        p.deadCount++
-        p.liveCount--
-        p.liveBytes -= int64(slot.length)
-
-        offset := slot.offsets[bufIdx]
-        bufferKey := bytesToString(p.buffers[bufIdx].data[offset : offset+uint32(slot.length)])
-        delete(p.index, bufferKey)
-    }
-}
+// ReleaseBySlot decrements refcount for normalized slot.
+// Auto-selects correct buffer based on compaction state.
+func (p *Pool) ReleaseBySlot(slotIdx uint32) error
 ```
 
 ---
@@ -585,105 +486,46 @@ func (p *Pool) ReleaseBySlot(slotIdx uint32) {
 ### Start Compaction
 
 ```go
-func (p *Pool) startCompaction() {
-    p.mu.Lock()
-    defer p.mu.Unlock()
-
-    // Flip to new buffer
-    oldBit := p.currentBit
-    newBit := 1 - oldBit
-    p.currentBit = newBit
-
-    // Allocate new buffer (live data + headroom)
-    newSize := p.liveBytes + p.liveBytes/4
-    p.buffers[newBit].data = make([]byte, newSize)
-    p.buffers[newBit].pos = 0
-    p.buffers[newBit].refCount.Store(0)
-
-    p.state = PoolCompacting
-    p.compactCursor = 0
-}
+// StartCompaction begins incremental compaction.
+// Allocates new buffer, sets state to PoolCompacting.
+// Call MigrateBatch() repeatedly until it returns true.
+func (p *Pool) StartCompaction()
 ```
+
+Behavior:
+1. Flip currentBit (0→1 or 1→0)
+2. Allocate new buffer with liveBytes + 25% headroom
+3. Set state to PoolCompacting, cursor to 0
+4. Record slot count (don't migrate slots created during compaction)
 
 ### Migrate Batch
 
 ```go
-func (p *Pool) MigrateBatch(batchSize int) bool {
-    p.mu.Lock()
-    defer p.mu.Unlock()
+// MigrateBatch migrates batchSize slots to new buffer.
+// Returns true when migration complete.
+// Call repeatedly until returns true, then call CheckOldBufferRelease.
+func (p *Pool) MigrateBatch(batchSize int) bool
 
-    if p.state != PoolCompacting {
-        return true
-    }
+// CheckOldBufferRelease checks if old buffer can be freed.
+// Call periodically after MigrateBatch returns true.
+// Old buffer freed when its refCount reaches 0.
+func (p *Pool) CheckOldBufferRelease()
 
-    oldBit := 1 - p.currentBit
-    newBit := p.currentBit
-    oldBuf := &p.buffers[oldBit]
-    newBuf := &p.buffers[newBit]
+// Compact performs stop-the-world compaction (legacy).
+// No-op if incremental compaction in progress.
+// Prefer StartCompaction/MigrateBatch for non-blocking.
+func (p *Pool) Compact()
 
-    migrated := 0
-    for p.compactCursor < uint32(len(p.slots)) && migrated < batchSize {
-        slot := &p.slots[p.compactCursor]
-
-        if !slot.dead && slot.refCount > 0 {
-            // Copy data from old buffer to new buffer
-            oldOffset := slot.offsets[oldBit]
-            oldData := oldBuf.data[oldOffset : oldOffset+uint32(slot.length)]
-
-            newOffset := uint32(newBuf.pos)
-            p.ensureCapacity(newBit, int(slot.length))
-            copy(newBuf.data[newBuf.pos:], oldData)
-            newBuf.pos += int(slot.length)
-
-            slot.offsets[newBit] = newOffset
-
-            // Update index: old key → new key with new handle
-            oldKey := bytesToString(oldData)
-            delete(p.index, oldKey)
-
-            newKey := bytesToString(newBuf.data[newOffset : newOffset+uint32(slot.length)])
-            newHandle := MakeHandle(p.compactCursor, newBit)
-            p.index[newKey] = newHandle
-
-            // Note: old handle still valid (oldBuf still exists)
-            // New handle also valid (data now in newBuf)
-
-            migrated++
-        }
-
-        p.compactCursor++
-    }
-
-    // Check if migration complete
-    if p.compactCursor >= uint32(len(p.slots)) {
-        // All entries migrated, but old buffer may still have references
-        // It will be freed when buffers[oldBit].refCount == 0
-        if p.buffers[oldBit].refCount.Load() == 0 {
-            p.finishCompaction(oldBit)
-        }
-        return true
-    }
-
-    return false
-}
-
-func (p *Pool) finishCompaction(oldBit uint32) {
-    p.buffers[oldBit].data = nil
-    p.buffers[oldBit].pos = 0
-    p.deadCount = 0
-    p.state = PoolNormal
-}
-
-func (p *Pool) checkOldBufferRelease() {
-    if p.state != PoolCompacting {
-        return
-    }
-    oldBit := 1 - p.currentBit
-    if p.buffers[oldBit].refCount.Load() == 0 {
-        p.finishCompaction(oldBit)
-    }
-}
+// State returns current compaction state.
+func (p *Pool) State() PoolState
 ```
+
+Behavior:
+1. Copy live slots from old buffer to new buffer
+2. Update slot offsets and dedup index
+3. Skip slots created during compaction (compactSlotCount)
+4. When cursor reaches end, return true
+5. Old buffer freed when all handles released
 
 ---
 
@@ -692,78 +534,31 @@ func (p *Pool) checkOldBufferRelease() {
 One pool compacts at a time. Pauses when activity detected. Round-robin prevents starvation.
 
 ```go
-type CompactionScheduler struct {
-    pools     []*Pool
-    mu        sync.Mutex
-    lastIndex int  // round-robin cursor
-
-    // Current compaction
-    activePool *Pool
-    paused     bool
-
-    // Configuration
-    idleThreshold    time.Duration
-    checkInterval    time.Duration
-    migrateBatchSize int
+type Scheduler struct {
+    pools  []*Pool
+    config SchedulerConfig
+    // ... internal state
 }
 
-func (s *CompactionScheduler) Run(ctx context.Context) {
-    ticker := time.NewTicker(s.checkInterval)
-    defer ticker.Stop()
-
-    for {
-        select {
-        case <-ctx.Done():
-            return
-        case <-ticker.C:
-            s.tick()
-        }
-    }
+type SchedulerConfig struct {
+    QuietPeriod        time.Duration  // Default: 100ms
+    CheckInterval      time.Duration  // Default: 50ms
+    DeadRatioThreshold float64        // Default: 0.25 (25%)
+    MigrateBatchSize   int            // Default: 100
 }
 
-func (s *CompactionScheduler) tick() {
-    s.mu.Lock()
-    defer s.mu.Unlock()
+func NewScheduler(pools []*Pool, config SchedulerConfig) *Scheduler
 
-    // Check if any pool has activity
-    anyActive := false
-    for _, p := range s.pools {
-        if !p.isIdle(s.idleThreshold) {
-            anyActive = true
-            break
-        }
-    }
-
-    if anyActive {
-        s.paused = true
-        return
-    }
-
-    s.paused = false
-
-    // Continue or start compaction
-    if s.activePool != nil {
-        done := s.activePool.MigrateBatch(s.migrateBatchSize)
-        if done {
-            s.activePool = nil
-        }
-        return
-    }
-
-    // Find pool needing compaction (round-robin)
-    n := len(s.pools)
-    for i := 0; i < n; i++ {
-        idx := (s.lastIndex + 1 + i) % n
-        p := s.pools[idx]
-        if p.shouldCompact() {
-            s.lastIndex = idx
-            p.startCompaction()
-            s.activePool = p
-            return
-        }
-    }
-}
+// Run starts scheduler loop. Blocks until context cancelled.
+func (s *Scheduler) Run(ctx context.Context)
 ```
+
+Scheduler behavior:
+1. Check if any pool has recent activity (within QuietPeriod)
+2. If activity: pause compaction
+3. If idle: continue active compaction or find next pool
+4. Pool selected if dead ratio >= threshold
+5. Round-robin prevents any pool from starvation
 
 ---
 
@@ -959,31 +754,68 @@ type SchedulerConfig struct {
 
 | Decision | Choice | Rationale |
 |----------|--------|-----------|
-| Handle buffer bit | MSB (bit 31) | Clear separation, slot index preserved |
+| Handle layout | Hybrid: bufferBit(1) + poolIdx(5) + flags(2) + slot(24) | Pool validation, ADD-PATH flags, buffer tracking |
+| InvalidHandle | 0xFFFFFFFF (poolIdx=31) | Reserved poolIdx ensures IsValid() = false |
 | Buffer model | Alternating double-buffer | Both handles valid during compaction |
 | Buffer lifetime | Per-buffer refCount | Safe release when no handles remain |
 | Dedup index | `map[string]Handle` with `unsafe.String` | Zero-copy keys |
 | Compaction | Incremental, non-blocking | Pause when activity detected |
 | Pool coordination | Global scheduler, round-robin | Prevent starvation |
-| Slot reuse | Leave as holes | Simple, reclaim under pressure |
+| Slot reuse | Free list | O(1) allocation after release |
+| Error handling | Return errors (not panic) | Caller can handle gracefully |
 
 ---
 
 ## API Summary
 
 ```go
-// Handle operations
-func MakeHandle(slotIdx, bufferBit uint32) Handle
-func (h Handle) SlotIndex() uint32
-func (h Handle) BufferBit() uint32
+// Handle creation
+func NewHandle(poolIdx uint8, flags uint8, slot uint32) Handle
+func NewHandleWithBuffer(bufferBit uint32, poolIdx uint8, flags uint8, slot uint32) Handle
 
-// Pool operations
+// Handle accessors
+func (h Handle) BufferBit() uint32
+func (h Handle) PoolIdx() uint8
+func (h Handle) Flags() uint8
+func (h Handle) Slot() uint32
+func (h Handle) HasPathID() bool
+func (h Handle) IsValid() bool
+
+// Handle modifiers
+func (h Handle) WithFlags(flags uint8) Handle
+func (h Handle) WithBufferBit(bit uint32) Handle
+
+// Pool creation
+func New(initialCapacity int) *Pool
+func NewWithIdx(idx uint8, initialCapacity int) *Pool
+
+// Core operations
 func (p *Pool) Intern(data []byte) Handle
-func (p *Pool) Get(h Handle) []byte
-func (p *Pool) WriteTo(h Handle, w io.Writer) (int64, error)
-func (p *Pool) AddRef(h Handle)
-func (p *Pool) Release(h Handle)
-func (p *Pool) Length(h Handle) int
+func (p *Pool) InternWithError(data []byte) (Handle, error)
+func (p *Pool) Get(h Handle) ([]byte, error)
+func (p *Pool) Length(h Handle) (int, error)
+func (p *Pool) AddRef(h Handle) error
+func (p *Pool) Release(h Handle) error
+
+// Normalized access (by slot)
+func (p *Pool) GetBySlot(slotIdx uint32) ([]byte, error)
+func (p *Pool) ReleaseBySlot(slotIdx uint32) error
+
+// Compaction
+func (p *Pool) StartCompaction()
+func (p *Pool) MigrateBatch(batchSize int) bool
+func (p *Pool) CheckOldBufferRelease()
+func (p *Pool) Compact()
+func (p *Pool) State() PoolState
+
+// Lifecycle
+func (p *Pool) Shutdown()
+func (p *Pool) IsShutdown() bool
+func (p *Pool) Metrics() Metrics
+
+// Activity tracking
+func (p *Pool) Touch()
+func (p *Pool) IsIdle(d time.Duration) bool
 ```
 
 ---
@@ -991,8 +823,8 @@ func (p *Pool) Length(h Handle) int
 ## Related Docs
 
 - `docs/architecture/rib-transition.md` - Overall architecture (RIB in API)
-- `docs/plan/spec-api-rr.md` - Route Server implementation
-- `internal/rib/` - Go reference implementation
+- `internal/pool/` - Pool implementation
+- `internal/plugin/rib/storage/` - RIB storage using pool
 
 ---
 
@@ -1060,4 +892,4 @@ routes = {}  # (peer, prefix) -> {'attrs': bytes, 'nlri': bytes, 'msg_id': int}
 
 ---
 
-**Last Updated:** 2026-01-04
+**Last Updated:** 2026-01-26

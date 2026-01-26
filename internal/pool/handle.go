@@ -1,65 +1,112 @@
-// Package pool provides memory-efficient byte slice deduplication.
+// Package pool provides zero-copy byte slice deduplication for BGP attributes and NLRI.
 //
-// The pool system stores unique byte sequences and returns compact handles
-// for reference. Multiple routes sharing identical attributes will share
-// the same underlying storage, reducing memory usage by 80-90% for route
-// reflector scenarios.
-//
-// See docs/architecture/POOL_ARCHITECTURE.md for design details.
+// The pool uses reference counting and periodic compaction to efficiently store
+// deduplicated byte sequences. This is critical for memory efficiency when handling
+// large RIBs where many routes share common attributes (e.g., AS_PATH, communities).
 package pool
 
-// Handle is a compact reference to pooled data.
+import "fmt"
+
+// Handle is an opaque reference to data stored in a Pool.
+// Handles are stable across compaction operations.
 //
-// Uses MSB (bit 31) as buffer bit, bits 0-30 as slot index.
-// This creates two distinct number spaces for the double-buffer design:
-//   - Lower half (0x00000000-0x7FFFFFFE): buffer 0
-//   - Upper half (0x80000000-0xFFFFFFFF): buffer 1
+// Bit layout (32 bits total):
 //
-// During compaction, both handles remain valid until the old buffer
-// is fully drained.
+//	┌─────────┬─────────┬───────┬────────────────────────┐
+//	│BufferBit│ PoolIdx │ Flags │        Slot            │
+//	│ (1 bit) │ (5 bits)│(2 bit)│      (24 bits)         │
+//	└─────────┴─────────┴───────┴────────────────────────┘
+//	 31        30    26  25   24  23                    0
+//
+// BufferBit: 0 or 1, indicates which buffer contains the data.
+// PoolIdx: 0-30 valid, 31 reserved for InvalidHandle.
+// Flags:   Bit 0 = hasPathID (ADD-PATH present), Bit 1 = reserved.
+// Slot:    0 to 16,777,215 (0xFFFFFF). Full 24-bit range usable.
+//
+// InvalidHandle (0xFFFFFFFF) has poolIdx=31, making IsValid() return false.
+// Any handle with poolIdx < 31 is valid regardless of bufferBit/flags/slot values.
 type Handle uint32
 
-const (
-	// InvalidHandle represents an invalid or uninitialized handle.
-	// Uses max slot index in buffer 0.
-	InvalidHandle Handle = 0x7FFFFFFF
+// InvalidHandle is the sentinel value indicating no valid handle.
+// Uses bufferBit=1, poolIdx=31 (reserved), flags=3, slot=0xFFFFFF.
+const InvalidHandle Handle = 0xFFFFFFFF
 
-	// BufferBitMask extracts the buffer bit (bit 31).
-	BufferBitMask Handle = 0x80000000
-
-	// SlotIndexMask extracts the slot index (bits 0-30).
-	SlotIndexMask Handle = 0x7FFFFFFF
-)
-
-// MakeHandle creates a handle from slot index and buffer bit.
-//
-// The bufferBit should be 0 or 1. The slotIdx should be < 0x7FFFFFFF
-// (InvalidHandle's slot index is reserved).
-func MakeHandle(slotIdx uint32, bufferBit uint32) Handle {
-	return Handle(slotIdx&uint32(SlotIndexMask)) | Handle(bufferBit<<31)
+// NewHandle creates a handle with the given poolIdx, flags, and slot.
+// poolIdx must be 0-30 (31 is reserved for InvalidHandle).
+// flags must be 0-3 (2 bits).
+// slot must be 0-0xFFFFFF (24 bits).
+// BufferBit defaults to 0.
+func NewHandle(poolIdx uint8, flags uint8, slot uint32) Handle {
+	return Handle(
+		uint32(poolIdx&0x1F)<<26 |
+			uint32(flags&0x3)<<24 |
+			(slot & 0x00FFFFFF),
+	)
 }
 
-// SlotIndex returns the slot index (bits 0-30).
-func (h Handle) SlotIndex() uint32 {
-	return uint32(h & SlotIndexMask)
+// NewHandleWithBuffer creates a handle with all fields including bufferBit.
+// bufferBit must be 0 or 1.
+// poolIdx must be 0-30 (31 is reserved for InvalidHandle).
+// flags must be 0-3 (2 bits).
+// slot must be 0-0xFFFFFF (24 bits).
+func NewHandleWithBuffer(bufferBit uint32, poolIdx uint8, flags uint8, slot uint32) Handle {
+	return Handle(
+		(bufferBit&0x1)<<31 |
+			uint32(poolIdx&0x1F)<<26 |
+			uint32(flags&0x3)<<24 |
+			(slot & 0x00FFFFFF),
+	)
 }
 
 // BufferBit returns the buffer bit (0 or 1).
+// Indicates which buffer contains the data during double-buffer compaction.
 func (h Handle) BufferBit() uint32 {
 	return uint32(h >> 31)
 }
 
-// IsLowerHalf returns true if handle is in buffer 0 (lower half).
-func (h Handle) IsLowerHalf() bool {
-	return h < BufferBitMask
+// PoolIdx returns the pool index (5 bits, 0-30 valid, 31 reserved).
+func (h Handle) PoolIdx() uint8 {
+	return uint8((h >> 26) & 0x1F) //nolint:gosec // G115: Result is 5 bits max (0-31), always fits in uint8.
 }
 
-// IsUpperHalf returns true if handle is in buffer 1 (upper half).
-func (h Handle) IsUpperHalf() bool {
-	return h >= BufferBitMask
+// Flags returns the flags field (2 bits, 0-3).
+func (h Handle) Flags() uint8 {
+	return uint8((h >> 24) & 0x3) //nolint:gosec // G115: Result is 2 bits max (0-3), always fits in uint8.
 }
 
-// IsValid returns true if this is not InvalidHandle.
+// Slot returns the slot index (24 bits, 0-0xFFFFFF).
+func (h Handle) Slot() uint32 {
+	return uint32(h) & 0x00FFFFFF
+}
+
+// HasPathID returns true if the ADD-PATH path ID flag is set (bit 0 of flags).
+// RFC 7911: When ADD-PATH is negotiated, NLRI includes a path identifier.
+func (h Handle) HasPathID() bool {
+	return h.Flags()&1 != 0
+}
+
+// WithFlags returns a new handle with the given flags, preserving bufferBit, poolIdx, and slot.
+func (h Handle) WithFlags(flags uint8) Handle {
+	// Mask: keep bufferBit (bit 31), poolIdx (bits 30-26), and slot (bits 23-0), clear flags (bits 25-24)
+	return Handle((uint32(h) & 0xFCFFFFFF) | uint32(flags&0x3)<<24)
+}
+
+// WithBufferBit returns a new handle with the given bufferBit, preserving poolIdx, flags, and slot.
+func (h Handle) WithBufferBit(bit uint32) Handle {
+	// Mask: keep poolIdx (bits 30-26), flags (bits 25-24), and slot (bits 23-0), clear bufferBit (bit 31)
+	return Handle((uint32(h) & 0x7FFFFFFF) | (bit&0x1)<<31)
+}
+
+// IsValid returns true if the handle has a valid poolIdx (0-30).
+// PoolIdx=31 is reserved for InvalidHandle.
 func (h Handle) IsValid() bool {
-	return h != InvalidHandle
+	return h.PoolIdx() < 31
+}
+
+// String returns a string representation of the handle for debugging.
+func (h Handle) String() string {
+	if h == InvalidHandle {
+		return "InvalidHandle"
+	}
+	return fmt.Sprintf("Handle(%d)", h)
 }

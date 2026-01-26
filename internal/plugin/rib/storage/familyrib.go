@@ -49,7 +49,7 @@ func (r *FamilyRIB) Insert(attrBytes []byte, nlriBytes []byte) {
 			r.removeFromSet(oldHandle, nlriBytes)
 		} else {
 			// Same prefix, same attrs → no-op (route refresh)
-			pool.Attributes.Release(h) // Undo Intern's ref
+			_ = pool.Attributes.Release(h) // Undo Intern's ref (ignore error)
 			return
 		}
 	}
@@ -58,7 +58,7 @@ func (r *FamilyRIB) Insert(attrBytes []byte, nlriBytes []byte) {
 	set, exists := r.entries[h]
 	if exists {
 		// Already have an entry for this attr set
-		pool.Attributes.Release(h) // Already own a ref for this attr set
+		_ = pool.Attributes.Release(h) // Already own a ref (ignore error)
 	} else {
 		// New attr set in RIB - keep the ref from Intern()
 		set = NewNLRISet(r.family, r.addPath)
@@ -84,7 +84,7 @@ func (r *FamilyRIB) removeFromSet(h pool.Handle, nlriBytes []byte) {
 	if set.Len() == 0 {
 		set.Release() // Release NLRI handles if pooled
 		delete(r.entries, h)
-		pool.Attributes.Release(h) // Release RIB's single ref
+		_ = pool.Attributes.Release(h) // Release RIB's single ref (ignore error)
 	}
 }
 
@@ -123,7 +123,15 @@ func (r *FamilyRIB) EntryCount() int {
 // Stops if fn returns false.
 func (r *FamilyRIB) Iterate(fn func(attrBytes []byte, nlriBytes []byte) bool) {
 	for h, set := range r.entries {
-		attrBytes := pool.Attributes.Get(h)
+		attrBytes, err := pool.Attributes.Get(h)
+		if err != nil {
+			logger.Error("pool handle corrupted during FamilyRIB iterate",
+				"error", err,
+				"handle", h,
+				"family", r.family,
+			)
+			continue
+		}
 		shouldContinue := true
 		set.Iterate(func(nlriBytes []byte) bool {
 			shouldContinue = fn(attrBytes, nlriBytes)
@@ -139,7 +147,7 @@ func (r *FamilyRIB) Iterate(fn func(attrBytes []byte, nlriBytes []byte) bool) {
 func (r *FamilyRIB) Release() {
 	for h, set := range r.entries {
 		set.Release()
-		pool.Attributes.Release(h)
+		_ = pool.Attributes.Release(h) // Ignore error on cleanup path
 	}
 	r.entries = make(map[pool.Handle]NLRISet)
 	r.prefixIndex = make(map[string]pool.Handle)

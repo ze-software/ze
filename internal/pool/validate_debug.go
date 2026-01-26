@@ -7,7 +7,7 @@ import "fmt"
 // validateHandle checks handle validity in debug builds.
 // Returns error if invalid, with detailed message for debugging.
 func (p *Pool) validateHandle(h Handle) error {
-	if !h.Valid() {
+	if !h.IsValid() {
 		return fmt.Errorf("%w: handle=%d", ErrInvalidHandle, h)
 	}
 
@@ -31,7 +31,7 @@ func (p *Pool) validateHandle(h Handle) error {
 // validateHandleForRelease checks handle validity for Release.
 // Returns ErrSlotDead if already released (prevents double-release corruption).
 func (p *Pool) validateHandleForRelease(h Handle) error {
-	if !h.Valid() {
+	if !h.IsValid() {
 		return fmt.Errorf("%w: handle=%d", ErrInvalidHandle, h)
 	}
 

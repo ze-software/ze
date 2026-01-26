@@ -10,11 +10,8 @@ package pool
 //
 //	h := pool.Attributes.Intern(attrBytes)
 //	defer pool.Attributes.Release(h)
-//	data := pool.Attributes.Get(h)
-var Attributes = NewPool(PoolConfig{
-	InitialBufferSize: 1 << 20, // 1MB initial
-	ExpectedEntries:   10000,   // ~10K unique attribute sets
-})
+//	data, err := pool.Attributes.Get(h)
+var Attributes = NewWithIdx(0, 1<<20) // idx=0, 1MB initial
 
 // NLRI is the global pool for BGP NLRI (Network Layer Reachability Information).
 //
@@ -25,8 +22,5 @@ var Attributes = NewPool(PoolConfig{
 //
 //	h := pool.NLRI.Intern(nlriBytes)
 //	defer pool.NLRI.Release(h)
-//	data := pool.NLRI.Get(h)
-var NLRI = NewPool(PoolConfig{
-	InitialBufferSize: 1 << 18, // 256KB initial (NLRI typically smaller)
-	ExpectedEntries:   50000,   // More NLRI entries than attribute sets
-})
+//	data, err := pool.NLRI.Get(h)
+var NLRI = NewWithIdx(1, 1<<18) // idx=1, 256KB initial

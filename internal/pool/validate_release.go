@@ -5,7 +5,7 @@ package pool
 // validateHandle checks handle validity in release builds.
 // Returns error if invalid.
 func (p *Pool) validateHandle(h Handle) error {
-	if !h.Valid() {
+	if !h.IsValid() {
 		return ErrInvalidHandle
 	}
 
@@ -28,7 +28,7 @@ func (p *Pool) validateHandle(h Handle) error {
 // validateHandleForRelease checks handle validity for Release.
 // Returns ErrSlotDead if already released (prevents double-release corruption).
 func (p *Pool) validateHandleForRelease(h Handle) error {
-	if !h.Valid() {
+	if !h.IsValid() {
 		return ErrInvalidHandle
 	}
 
