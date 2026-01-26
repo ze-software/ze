@@ -1,0 +1,92 @@
+# Test: Successful 5-stage plugin registration protocol
+# Validates full protocol: declare, config, capability, registry, ready
+# Uses full API (not simple ready()) to test all protocol stages explicitly
+
+# ze-peer expectations
+stdin=peer:terminator=EOF_PEER
+# Plugin sends EOR after successful registration
+cmd=api:conn=1:seq=1:text=bgp peer * update text nlri ipv4/unicast eor
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF00170200000000
+EOF_PEER
+
+# Python plugin script with full 5-stage protocol
+tmpfs=registration.run:mode=755:terminator=EOF_RUN
+#!/usr/bin/env python3
+"""Full 5-stage registration protocol test.
+
+Tests the explicit 5-stage API rather than the simple ready() convenience.
+Validates each stage completes successfully before proceeding.
+"""
+
+import sys
+import time
+from ze_bgp_api import API
+
+def main() -> None:
+    api = API()
+
+    # Stage 1: Declaration
+    api.declare_rfc(4271)
+    api.declare_encoding('text')
+    api.declare_family('ipv4', 'unicast')
+    api.declare_command('rib show')
+    api.declare_done()
+
+    # Stage 2: Receive config (discard for this test)
+    api.wait_for_config(timeout=5.0)
+
+    # Stage 3: No capabilities to declare
+    api.capability_done()
+
+    # Stage 4: Receive registry
+    registry = api.wait_for_registry(timeout=5.0)
+    if registry['name'] != 'test-plugin':
+        print(f"ERROR: Expected name 'test-plugin', got '{registry['name']}'", file=sys.stderr)
+        sys.exit(1)
+
+    # Stage 5: Signal ready
+    api.ready()
+
+    # Normal operation - send EOR to verify registration worked
+    time.sleep(0.1)
+    api.send('bgp peer * update text nlri ipv4/unicast eor')
+    time.sleep(0.2)
+
+    api.wait_for_ack(expected_count=1)
+    api.wait_for_shutdown()
+
+if __name__ == '__main__':
+    main()
+EOF_RUN
+
+# ze bgp configuration
+# Note: graceful-restart NOT enabled - we send EOR manually from plugin
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+    external test-plugin {
+        run ./registration.run;
+        encoder json;
+    }
+}
+bgp {
+    peer 127.0.0.1 {
+        router-id 10.0.0.1;
+        local-address 127.0.0.1;
+        local-as 65000;
+        peer-as 65000;
+        group-updates disable;
+
+        family {
+            ipv4/unicast;
+        }
+        # No graceful-restart - prevents auto EOR
+        process test-plugin {
+            send { update; }
+        }
+    }
+}
+EOF_CONF
+
+# Process orchestration
+cmd=background:seq=1:exec=ze-peer --port $PORT:stdin=peer
+cmd=foreground:seq=2:exec=ze bgp server -:stdin=ze-bgp:timeout=15s
