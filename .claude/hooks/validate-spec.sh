@@ -100,6 +100,26 @@ if [[ -n "$RFC_REFS" ]]; then
     fi
 fi
 
+# === FEATURE INTEGRATION CHECK ===
+# Ensure Files to Modify includes actual codebase files (feature code), not just tests
+FILES_SECTION=$(sed -n '/^## Files to Modify/,/^##/p' "$FILE_PATH" | grep -E '^\s*-\s*`' || true)
+if [[ -n "$FILES_SECTION" ]]; then
+    # Check if ANY file is feature code (not _test.go, not in test/, not .ci, not qa/)
+    FEATURE_FILES=$(echo "$FILES_SECTION" | grep -vE '_test\.go|test/|\.ci`|qa/' || true)
+    if [[ -z "$FEATURE_FILES" ]]; then
+        ERRORS+=("Files to Modify contains only test files. Feature code must be integrated into the codebase (internal/*, cmd/*)")
+    fi
+fi
+
+# === FUNCTIONAL TEST CHECK ===
+# Ensure spec includes functional tests for end-user verification
+FUNC_TEST_SECTION=$(sed -n '/^### Functional Tests/,/^###\|^##/p' "$FILE_PATH" | head -20)
+if [[ -z "$FUNC_TEST_SECTION" ]]; then
+    WARNINGS+=("Missing '### Functional Tests' section. Features need functional tests to verify end-user behavior")
+elif ! echo "$FUNC_TEST_SECTION" | grep -qE '\.ci|test/data/'; then
+    WARNINGS+=("Functional Tests section should reference .ci files or test/data/ locations for end-user verification")
+fi
+
 # === NO CODE IN SPECS CHECK ===
 # Specs must NOT contain code blocks (Go, Python, etc.)
 # Exception: Markdown tables and examples of text output are allowed

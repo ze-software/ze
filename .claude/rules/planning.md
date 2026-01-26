@@ -290,6 +290,8 @@ Instead of function implementations, use prose or steps:
 [ ] 8. Tables used for Unit Tests and Functional Tests (not prose)
 [ ] 9. Implementation steps include "(paste output)" where shown
 [ ] 10. No code snippets - use tables and prose (see Spec Writing Style)
+[ ] 11. Files to Modify includes feature code (internal/*, cmd/*), not only tests
+[ ] 12. Functional Tests section includes .ci files for end-user verification
 ```
 
 **Common mistakes:**
@@ -300,6 +302,8 @@ Instead of function implementations, use prose or steps:
 - "- [description]" instead of "- [why relevant]" in Required Reading
 - Missing RFC summaries for protocol work (MUST exist before implementation)
 - Code snippets in spec → use tables and prose instead (see Spec Writing Style)
+- Files to Modify contains only test files → feature code must be integrated (`internal/*`, `cmd/*`)
+- Missing functional tests → every feature needs `.ci` tests for end-user verification
 
 ## Spec File Template
 
@@ -343,19 +347,22 @@ Write to `docs/plan/spec-<task-name>.md`:
 | [field] | [min-max] | [value] | [value or N/A] | [value or N/A] |
 
 ### Functional Tests
-| Test | Location | Scenario | Status |
-|------|----------|----------|--------|
-| `test-xxx` | `test/data/.../*.ci` | [description] | |
+<!-- REQUIRED: Verify feature works from end-user perspective -->
+| Test | Location | End-User Scenario | Status |
+|------|----------|-------------------|--------|
+| `test-xxx` | `test/data/.../*.ci` | [what user expects to happen] | |
 
 ### Future (if deferring any tests)
 - [Tests to add later and why deferred]
 
 ## Files to Modify
-- `internal/...` - [changes]
+<!-- MUST include feature code (internal/*, cmd/*), not only test files -->
+- `internal/...` - [feature changes]
 
 ## Files to Create
-- `internal/...` - [new file purpose]
-- `test/data/...` - [test files]
+<!-- Feature code for codebase integration + functional tests for end-user verification -->
+- `internal/...` - [new feature file]
+- `test/data/.../*.ci` - [functional test for end-user behavior]
 
 ## Implementation Steps
 
@@ -464,6 +471,8 @@ If you had to investigate/debug something, ask:
 - [ ] Implementation complete
 - [ ] Tests PASS (output below)
 - [ ] Boundary tests cover all numeric inputs (last valid, first invalid above/below)
+- [ ] Feature code integrated into codebase (`internal/*`, `cmd/*`)
+- [ ] Functional tests verify end-user behavior (`.ci` files)
 
 ### Verification
 - [ ] `make lint` passes (26 linters including `govet`, `staticcheck`, `gosec`, `gocritic`)
