@@ -1,4 +1,4 @@
-// Package hub provides the hub/orchestrator process for ZeBGP.
+// Package hub provides the hub/orchestrator process for ze.
 //
 // Config parsing handles 3-section config format:
 //   - env { } - global settings (handled by hub)

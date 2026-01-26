@@ -29,7 +29,7 @@ func newSyslogHandler(opts *slog.HandlerOptions) slog.Handler {
 		raddr = addr
 	}
 
-	w, err := syslog.Dial(network, raddr, syslog.LOG_INFO|syslog.LOG_DAEMON, "ze-bgp")
+	w, err := syslog.Dial(network, raddr, syslog.LOG_INFO|syslog.LOG_DAEMON, "ze")
 	if err != nil {
 		// Fall back to stderr on error
 		return slog.NewTextHandler(os.Stderr, opts)

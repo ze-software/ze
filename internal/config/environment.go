@@ -1,4 +1,4 @@
-// Package config provides configuration parsing for ZeBGP.
+// Package config provides configuration parsing for ze.
 package config
 
 import (

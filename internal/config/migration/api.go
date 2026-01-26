@@ -51,7 +51,7 @@ var ErrAPICollision = errors.New("process block collision: old syntax process co
 // State flag (neighbor-changes) → receive { state; }
 //
 // Note: Format flags in send block (parsed, packets, consolidate) are dropped
-// since ZeBGP uses a single format for both directions.
+// since ze uses a single format for both directions.
 //
 // Returns a new tree; original is not modified.
 func MigrateAPIBlocks(tree *config.Tree) (*config.Tree, error) {

@@ -1,4 +1,4 @@
-// Package yang provides YANG schema loading and validation for ZeBGP.
+// Package yang provides YANG schema loading and validation for ze.
 package yang
 
 import (

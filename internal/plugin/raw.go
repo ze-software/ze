@@ -16,7 +16,7 @@ func init() {
 
 // handleRaw sends raw bytes to a peer without validation.
 // Syntax:
-//   - bgp peer <addr> raw <type> <encoding> <data>  - message payload (ZeBGP adds header)
+//   - bgp peer <addr> raw <type> <encoding> <data>  - message payload (ze adds header)
 //   - bgp peer <addr> raw <encoding> <data>         - full packet (user provides marker+header)
 //
 // Types: open, update, notification, keepalive, route-refresh

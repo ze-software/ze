@@ -361,7 +361,7 @@ func isComment(line string) bool {
 
 // encodeAlphaSerial converts a number to alpha serial by shifting digits.
 // 0->a, 1->b, ..., 9->j. Example: 123 -> "bcd", 0 -> "a", 99 -> "jj".
-// Used for ZeBGP-initiated requests to avoid collision with numeric process serials.
+// Used for ze-initiated requests to avoid collision with numeric process serials.
 func encodeAlphaSerial(n uint64) string {
 	if n == 0 {
 		return "a"

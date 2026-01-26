@@ -1,5 +1,5 @@
-// Package selector provides peer selection patterns for ZeBGP.
-// The selector syntax is used throughout ZeBGP for targeting peers.
+// Package selector provides peer selection patterns for ze.
+// The selector syntax is used throughout ze for targeting peers.
 //
 // Syntax:
 //   - "*" - all peers

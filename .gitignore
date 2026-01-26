@@ -1,6 +1,6 @@
 # Build artifacts
 bin/
-/zebgp
+/ze
 /functional
 tmp/
 

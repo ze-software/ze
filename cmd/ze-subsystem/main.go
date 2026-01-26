@@ -1,5 +1,5 @@
 // ze-subsystem is a forked process that handles a subset of commands.
-// It communicates with the ZeBGP engine via stdin/stdout pipes using the
+// It communicates with ze engine via stdin/stdout pipes using the
 // same 5-stage protocol as external plugins.
 //
 // Bidirectional communication:

@@ -6,7 +6,7 @@ import (
 	"strings"
 )
 
-// JSONEncoder produces ZeBGP JSON output.
+// JSONEncoder produces ze-bgp JSON output.
 // Format follows docs/architecture/api/ipc_protocol.md v2.0.
 //
 // IPC Protocol 2.0 wraps all events:

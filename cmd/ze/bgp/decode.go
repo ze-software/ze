@@ -1079,7 +1079,7 @@ func parseFlowSpecRoutes(data []byte, afi nlri.AFI) []any {
 	return routes
 }
 
-// flowSpecToJSON converts a FlowSpec NLRI to ZeBGP JSON format.
+// flowSpecToJSON converts a FlowSpec NLRI to ze-bgp JSON format.
 // Uses nested arrays: outer=OR, inner=AND. Example: [[">80","<90"],["=100"]] means (>80 AND <90) OR =100.
 func flowSpecToJSON(fs *nlri.FlowSpec) map[string]any {
 	result := make(map[string]any)

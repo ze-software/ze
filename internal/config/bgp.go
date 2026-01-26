@@ -291,7 +291,7 @@ func peerFields() []FieldDef {
 			Field("send", Freeform()),    // { update; refresh; all; }
 		)),
 
-		// Operational messages (ExaBGP-specific, not supported in ZeBGP)
+		// Operational messages (ExaBGP-specific, not supported in ze)
 		// We parse it to detect and warn, but don't process it
 		Field("operational", Freeform()),
 
@@ -391,7 +391,7 @@ func environmentBlock() *ContainerNode {
 func LegacyBGPSchema() *Schema {
 	schema := NewSchema()
 
-	// Environment settings (ZeBGP-specific)
+	// Environment settings (ze-specific)
 	schema.Define("environment", environmentBlock())
 
 	// Plugin definitions (new syntax)
@@ -467,7 +467,7 @@ type BGPConfig struct {
 	Peers     []PeerConfig
 	Plugins   []PluginConfig
 	ConfigDir string                       // Directory containing config file (set by LoadReactorFile)
-	EnvValues map[string]map[string]string // Environment block values (ZeBGP-specific)
+	EnvValues map[string]map[string]string // Environment block values (ze-specific)
 }
 
 // PeerConfig holds neighbor configuration.

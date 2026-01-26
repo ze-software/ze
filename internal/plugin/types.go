@@ -1,4 +1,4 @@
-// Package api implements the ZeBGP API layer for external communication.
+// Package api implements ze API layer for external communication.
 //
 // This package provides:
 //   - Unix socket server for CLI and external tool communication
@@ -427,7 +427,7 @@ type ReactorInterface interface {
 
 	// SendRawMessage sends raw bytes to a peer.
 	// If msgType is 0, payload is a full BGP packet (user provides marker+header).
-	// If msgType is non-zero, payload is message body (ZeBGP adds header).
+	// If msgType is non-zero, payload is message body (ze adds header).
 	// No validation - bytes sent exactly as provided.
 	SendRawMessage(peerAddr netip.Addr, msgType uint8, payload []byte) error
 

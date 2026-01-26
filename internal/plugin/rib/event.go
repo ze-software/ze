@@ -23,7 +23,7 @@ var knownFields = map[string]bool{
 	"attributes": true, "nlri": true, "action": true,
 }
 
-// parseEvent parses a JSON event from ZeBGP.
+// parseEvent parses a JSON event from ze.
 // Handles both IPC 2.0 format (type/bgp or type/rib wrapper) and legacy flat format.
 // Extracts family operations (ipv4/unicast, ipv6/unicast, etc.) from dynamic keys.
 func parseEvent(data []byte) (*Event, error) {
@@ -163,7 +163,7 @@ func parseFamilyOps(event *Event, data []byte) {
 	}
 }
 
-// Event represents a JSON event from ZeBGP.
+// Event represents a JSON event from ze.
 // Handles both sent events (flat format) and received events (nested format).
 type Event struct {
 	// Sent events use top-level type
@@ -331,7 +331,7 @@ func (e *Event) GetPeerState() string {
 }
 
 // GetPeerSelector extracts peer selector string for request events.
-// For request events, ZeBGP sends peer as a JSON string (the selector).
+// For request events, ze sends peer as a JSON string (the selector).
 // Returns empty string if not a request event or no selector specified.
 func (e *Event) GetPeerSelector() string {
 	if len(e.Peer) == 0 {

@@ -1,6 +1,6 @@
-// Package plugin provides a high-level SDK for creating ZeBGP plugins.
+// Package plugin provides a high-level SDK for creating ze plugins.
 //
-// A plugin extends ZeBGP's configuration schema by declaring YANG modules,
+// A plugin extends ze's configuration schema by declaring YANG modules,
 // handling verify/apply requests for configuration changes, and optionally
 // providing additional commands.
 //
@@ -44,7 +44,7 @@ const (
 	ActionDelete = "delete"
 )
 
-// Plugin represents a ZeBGP plugin that follows the 5-stage protocol.
+// Plugin represents a ze plugin that follows the 5-stage protocol.
 type Plugin struct {
 	name      string
 	namespace string // Primary namespace (e.g., "bgp")

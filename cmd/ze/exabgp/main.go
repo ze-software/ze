@@ -47,14 +47,14 @@ func usage() {
 ExaBGP compatibility tools.
 
 Subcommands:
-  plugin <cmd>     Run ExaBGP plugin with ZeBGP (bidirectional translation)
-  migrate <file>   Convert ExaBGP config to ZeBGP format
+  plugin <cmd>     Run ExaBGP plugin with ze (bidirectional translation)
+  migrate <file>   Convert ExaBGP config to ze format
 
 Examples:
   ze exabgp plugin /path/to/exabgp-plugin.py
   ze exabgp migrate /path/to/exabgp.conf > ze-bgp.conf
 
-Use in ZeBGP config:
+Use in ze config:
   plugin exabgp-compat {
       run "ze exabgp plugin /path/to/plugin.py";
   }
@@ -70,7 +70,7 @@ func (f *familyList) Set(v string) error {
 	return nil
 }
 
-// cmdPlugin runs an ExaBGP plugin with ZeBGP.
+// cmdPlugin runs an ExaBGP plugin with ze.
 func cmdPlugin(args []string) int {
 	fs := flag.NewFlagSet("exabgp plugin", flag.ExitOnError)
 
@@ -82,9 +82,9 @@ func cmdPlugin(args []string) int {
 	fs.Usage = func() {
 		fmt.Fprintf(os.Stderr, `Usage: ze exabgp plugin [flags] <cmd> [args...]
 
-Run an ExaBGP plugin with ZeBGP by translating between formats:
-- ZeBGP JSON events -> ExaBGP JSON format (to plugin stdin)
-- ExaBGP text commands -> ZeBGP commands (from plugin stdout)
+Run an ExaBGP plugin with ze by translating between formats:
+- ze-bgp JSON events -> ExaBGP JSON format (to plugin stdin)
+- ExaBGP text commands -> ze commands (from plugin stdout)
 
 Flags:
   --family <family>     Address family to support (repeatable)
@@ -99,7 +99,7 @@ Examples:
   ze exabgp plugin --family ipv4/unicast --family ipv6/unicast /path/to/plugin.py
   ze exabgp plugin --add-path receive python3 /path/to/plugin.py
 
-Use in ZeBGP config:
+Use in ze config:
   plugin exabgp-compat {
       run "ze exabgp plugin --route-refresh /path/to/plugin.py";
   }
@@ -166,14 +166,14 @@ Use in ZeBGP config:
 	return exitOK
 }
 
-// cmdMigrate converts an ExaBGP config to ZeBGP format.
+// cmdMigrate converts an ExaBGP config to ze format.
 func cmdMigrate(args []string) int {
 	fs := flag.NewFlagSet("exabgp migrate", flag.ExitOnError)
 	dryRun := fs.Bool("dry-run", false, "Show what would be done without making changes")
 	fs.Usage = func() {
 		fmt.Fprintf(os.Stderr, `Usage: ze exabgp migrate [options] <config-file>
 
-Convert an ExaBGP configuration file to ZeBGP format.
+Convert an ExaBGP configuration file to ze format.
 
 The migrated config is written to stdout. Redirect to save:
   ze exabgp migrate exabgp.conf > ze-bgp.conf

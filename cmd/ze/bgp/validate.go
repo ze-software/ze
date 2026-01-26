@@ -18,7 +18,7 @@ func cmdValidate(args []string) int {
 	fs.Usage = func() {
 		fmt.Fprintf(os.Stderr, `Usage: ze bgp validate [options] <config-file>
 
-Validate a ZeBGP configuration file.
+Validate a ze configuration file.
 
 Options:
 `)

@@ -1046,7 +1046,7 @@ func (r *Runner) saveTestOutput(rec *Record, out *testOutput, saveDir string) er
 // validateJSON validates JSON expectations against decoded messages.
 // Returns nil if all validations pass or no JSON expectations exist.
 // Skips tests with ExaBGP envelope format JSON (contains "exabgp" key).
-// Matches by NLRI content, not position (ZeBGP may send routes in different order).
+// Matches by NLRI content, not position (ze may send routes in different order).
 func (r *Runner) validateJSON(rec *Record) error {
 	// Build cache of decoded received messages
 	type decodedMsg struct {

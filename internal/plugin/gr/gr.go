@@ -1,4 +1,4 @@
-// Package gr implements a Graceful Restart capability plugin for ZeBGP.
+// Package gr implements a Graceful Restart capability plugin for ze.
 // It receives per-peer GR config (restart-time) during Stage 2 and
 // registers GR capabilities per-peer during Stage 3.
 //
@@ -187,7 +187,7 @@ func (g *GRPlugin) waitForLine(expected string) {
 	}
 }
 
-// send sends raw output to ZeBGP.
+// send sends raw output to ze.
 func (g *GRPlugin) send(format string, args ...any) {
 	g.outputMu.Lock()
 	_, _ = fmt.Fprintf(g.output, format+"\n", args...)

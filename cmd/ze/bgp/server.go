@@ -18,7 +18,7 @@ func cmdServer(args []string) int {
 	fs.Usage = func() {
 		fmt.Fprintf(os.Stderr, `Usage: ze bgp [server] [options] <config-file>
 
-Start the ZeBGP daemon.
+Start ze BGP daemon.
 
 Options:
 `)
@@ -61,7 +61,7 @@ Examples:
 	}
 
 	// Start reactor
-	fmt.Printf("Starting ZeBGP with config: %s\n", configPath)
+	fmt.Printf("Starting ze BGP with config: %s\n", configPath)
 
 	if err := reactor.Start(); err != nil {
 		fmt.Fprintf(os.Stderr, "error starting reactor: %v\n", err)
@@ -72,7 +72,7 @@ Examples:
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, syscall.SIGTERM, syscall.SIGINT)
 
-	fmt.Println("ZeBGP running. Press Ctrl+C to stop.")
+	fmt.Println("Ze BGP running. Press Ctrl+C to stop.")
 
 	// Wait for either signal or reactor to stop itself
 	doneChan := make(chan struct{})
@@ -96,6 +96,6 @@ Examples:
 		fmt.Fprintf(os.Stderr, "warning: shutdown timeout: %v\n", err)
 	}
 
-	fmt.Println("ZeBGP stopped.")
+	fmt.Println("Ze BGP stopped.")
 	return 0
 }

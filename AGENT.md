@@ -1,4 +1,4 @@
-# ZeBGP - Agent Instructions
+# Ze - Agent Instructions
 
 ## Commands
 - `make lint` - Run golangci-lint (26 linters)

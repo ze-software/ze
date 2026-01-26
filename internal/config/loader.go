@@ -50,7 +50,7 @@ func LoadReactorWithConfig(input string) (*BGPConfig, *reactor.Reactor, error) {
 	// Log parse warnings
 	trace.ConfigParsed("(input)", 0, p.Warnings())
 
-	// Extract environment block (ZeBGP-specific, before conversion)
+	// Extract environment block (ze-specific, before conversion)
 	envValues := ExtractEnvironment(tree)
 
 	// Convert to typed config

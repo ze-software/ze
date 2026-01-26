@@ -76,14 +76,14 @@ type Process struct {
 	syncEnabled atomic.Bool // Whether to wait for wire transmission (default: false)
 
 	// Wire encoding for API messages (default: WireEncodingHex = 0)
-	wireEncodingIn  atomic.Uint32 // Inbound: events ZeBGP→Process
-	wireEncodingOut atomic.Uint32 // Outbound: commands Process→ZeBGP
+	wireEncodingIn  atomic.Uint32 // Inbound: events ze→Process
+	wireEncodingOut atomic.Uint32 // Outbound: commands Process→ze
 
 	// High-level encoding and format (bgp plugin encoding/format commands)
 	encoding atomic.Value // string: "json" or "text" (default: "json")
 	format   atomic.Value // string: "hex", "base64", "parsed", "full" (default: "hex")
 
-	// ZeBGP→Process request tracking
+	// ze→Process request tracking
 	nextSerial      atomic.Uint64          // Counter for alpha serial generation
 	pendingRequests map[string]chan string // serial -> response channel
 	pendingMu       sync.Mutex             // Protects pendingRequests
@@ -178,13 +178,13 @@ func (p *Process) SetSync(enabled bool) {
 	p.syncEnabled.Store(enabled)
 }
 
-// WireEncodingIn returns the inbound wire encoding (events ZeBGP→Process).
+// WireEncodingIn returns the inbound wire encoding (events ze→Process).
 func (p *Process) WireEncodingIn() WireEncoding {
 	// Safe: only values 0-3 are ever stored (WireEncodingHex..WireEncodingText).
 	return WireEncoding(p.wireEncodingIn.Load()) //nolint:gosec // Bounded to 0-3
 }
 
-// WireEncodingOut returns the outbound wire encoding (commands Process→ZeBGP).
+// WireEncodingOut returns the outbound wire encoding (commands Process→ze).
 func (p *Process) WireEncodingOut() WireEncoding {
 	// Safe: only values 0-3 are ever stored (WireEncodingHex..WireEncodingText).
 	return WireEncoding(p.wireEncodingOut.Load()) //nolint:gosec // Bounded to 0-3
@@ -378,7 +378,7 @@ func (p *Process) readLines() {
 			line = line[:len(line)-1]
 		}
 
-		// Check for @N response prefix (ZeBGP→Process request response)
+		// Check for @N response prefix (ze→Process request response)
 		if serial, response, ok := parseResponseSerial(line); ok {
 			p.pendingMu.Lock()
 			if ch, found := p.pendingRequests[serial]; found {

@@ -97,7 +97,7 @@ func checkEnvironment(jsonOutput bool) int {
 type checkResult struct {
 	needsMigration bool
 	deprecated     []string
-	unsupported    []string // Features ZeBGP doesn't support (e.g., multi-session, operational)
+	unsupported    []string // Features ze doesn't support (e.g., multi-session, operational)
 	err            error
 }
 
@@ -187,8 +187,8 @@ func findDeprecatedPatterns(tree *config.Tree) []string {
 	return deprecated
 }
 
-// findUnsupportedFeatures returns warnings for features ZeBGP doesn't support.
-// These are ExaBGP-specific features that won't be implemented in ZeBGP.
+// findUnsupportedFeatures returns warnings for features ze doesn't support.
+// These are ExaBGP-specific features that won't be implemented in ze.
 func findUnsupportedFeatures(tree *config.Tree) []string {
 	var warnings []string
 

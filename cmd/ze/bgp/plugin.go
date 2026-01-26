@@ -38,8 +38,8 @@ Plugin Subcommands:
   gr           Run as Graceful Restart capability plugin
   help         Show this help
 
-The plugin subcommands run as API processes that communicate with the
-ZeBGP router via stdin/stdout. They are spawned by the router based
+The plugin subcommands run as API processes that communicate with ze
+router via stdin/stdout. They are spawned by the router based
 on plugin configuration.
 
 Example config:

@@ -1,11 +1,11 @@
-// Package api implements plugin registration protocol for ZeBGP.
+// Package api implements plugin registration protocol for ze.
 //
 // This file implements the 5-stage plugin registration protocol:
-//   - Stage 1: Declaration (Plugin → ZeBGP) - declare rfc, encoding, family, conf, cmd
-//   - Stage 2: Config Delivery (ZeBGP → Plugin) - config lines
-//   - Stage 3: Capability (Plugin → ZeBGP) - capability bytes for OPEN
-//   - Stage 4: Registry Sharing (ZeBGP → Plugin) - registry name, all commands
-//   - Stage 5: Ready (Plugin → ZeBGP) - ready signal
+//   - Stage 1: Declaration (Plugin → ze) - declare rfc, encoding, family, conf, cmd
+//   - Stage 2: Config Delivery (ze → Plugin) - config lines
+//   - Stage 3: Capability (Plugin → ze) - capability bytes for OPEN
+//   - Stage 4: Registry Sharing (ze → Plugin) - registry name, all commands
+//   - Stage 5: Ready (Plugin → ze) - ready signal
 package plugin
 
 import (
@@ -24,9 +24,9 @@ type PluginStage int
 const (
 	StageInit         PluginStage = iota // Not started
 	StageRegistration                    // Stage 1: Plugin registering capabilities
-	StageConfig                          // Stage 2: ZeBGP delivering config
+	StageConfig                          // Stage 2: ze delivering config
 	StageCapability                      // Stage 3: Plugin declaring OPEN capabilities
-	StageRegistry                        // Stage 4: ZeBGP sharing command registry
+	StageRegistry                        // Stage 4: ze sharing command registry
 	StageReady                           // Stage 5: Plugin signaling ready
 	StageRunning                         // Normal operation
 )

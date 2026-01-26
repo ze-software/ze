@@ -1,4 +1,4 @@
-// Package trace provides debug tracing for ZeBGP.
+// Package trace provides debug tracing for ze.
 //
 // Enable tracing with the ze.bgp.debug.trace environment variable:
 //

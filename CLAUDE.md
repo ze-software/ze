@@ -1,4 +1,19 @@
-# ZeBGP - Claude Instructions
+# Ze - Claude Instructions
+
+## Naming Convention
+
+**"Ze" = "The" with a French accent.** It's a pun.
+
+| Context | Use | Example |
+|---------|-----|---------|
+| Application name | `ze` | "Start ze BGP daemon" |
+| CLI binary | `ze` | `ze bgp server config.conf` |
+| BGP plugin YANG | `ze-bgp` | `module ze-bgp { ... }` |
+| BGP JSON format | `ze-bgp` | `"format": "ze-bgp"` |
+| Go variables for BGP | `ZeBGP*` | `ZeBGPYANG` |
+| Prose/docs | `Ze` or `ze` | "Ze BGP running" |
+
+**Rule:** Use "ze" where "the" would work grammatically.
 
 ## ⛔ Post-Compaction Recovery (READ FIRST IF CONTEXT WAS COMPACTED)
 

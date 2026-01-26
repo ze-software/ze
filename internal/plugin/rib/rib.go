@@ -1,4 +1,4 @@
-// Package rib implements a RIB (Routing Information Base) plugin for ZeBGP.
+// Package rib implements a RIB (Routing Information Base) plugin for ze.
 // It tracks routes received from peers (Adj-RIB-In) and sent to peers (Adj-RIB-Out).
 //
 // RFC 7911: ADD-PATH path-id is included in route keys when present.
@@ -167,7 +167,7 @@ func (r *RIBManager) waitForLine(expected string) {
 	}
 }
 
-// sendCommand sends a numbered command to ZeBGP.
+// sendCommand sends a numbered command to ze.
 func (r *RIBManager) sendCommand(cmd string) {
 	r.outputMu.Lock()
 	r.serial++
@@ -175,7 +175,7 @@ func (r *RIBManager) sendCommand(cmd string) {
 	r.outputMu.Unlock()
 }
 
-// send sends raw output to ZeBGP.
+// send sends raw output to ze.
 func (r *RIBManager) send(format string, args ...any) {
 	r.outputMu.Lock()
 	_, _ = fmt.Fprintf(r.output, format+"\n", args...)
@@ -772,11 +772,11 @@ func (r *RIBManager) replayRoutes(peerAddr string, routes []*Route) {
 		}
 	}
 
-	// Signal done with peer-specific ready - ZeBGP can now send EOR for this peer
+	// Signal done with peer-specific ready - ze can now send EOR for this peer
 	r.sendCommand("bgp peer " + peerAddr + " plugin session ready")
 }
 
-// handleRequest processes command requests from ZeBGP.
+// handleRequest processes command requests from ze.
 func (r *RIBManager) handleRequest(event *Event) {
 	serial := event.Serial
 	command := event.Command

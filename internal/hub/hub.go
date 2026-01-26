@@ -1,4 +1,4 @@
-// Package hub provides the hub/orchestrator process for ZeBGP.
+// Package hub provides the hub/orchestrator process for ze.
 //
 // The hub forks and coordinates plugins (ze bgp, ze rib, ze gr) using
 // the 5-stage protocol. It routes commands and events between plugins

@@ -1,4 +1,4 @@
-// Example ZeBGP plugin that monitors an external HTTP endpoint.
+// Example ze plugin that monitors an external HTTP endpoint.
 //
 // This plugin demonstrates:
 //   - YANG schema declaration

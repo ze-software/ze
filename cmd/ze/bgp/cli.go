@@ -466,7 +466,7 @@ func (m model) View() string {
 	var b strings.Builder
 
 	// Header
-	b.WriteString(dimStyle.Render("ZeBGP CLI") + " " + dimStyle.Render("(Tab: complete, Enter: execute, Ctrl+C: quit)"))
+	b.WriteString(dimStyle.Render("Ze CLI") + " " + dimStyle.Render("(Tab: complete, Enter: execute, Ctrl+C: quit)"))
 	b.WriteString("\n\n")
 
 	// Prompt and input

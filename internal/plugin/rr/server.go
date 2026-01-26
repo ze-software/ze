@@ -70,13 +70,13 @@ func (rs *RouteServer) registerCommands() {
 	rs.sendCommand(`register command "rr peers" description "Show peer states"`)
 }
 
-// sendCommand sends a numbered command to ZeBGP.
+// sendCommand sends a numbered command to ze.
 func (rs *RouteServer) sendCommand(cmd string) {
 	rs.serial++
 	_, _ = fmt.Fprintf(rs.output, "#%d %s\n", rs.serial, cmd)
 }
 
-// send sends raw output to ZeBGP.
+// send sends raw output to ze.
 func (rs *RouteServer) send(format string, args ...any) {
 	_, _ = fmt.Fprintf(rs.output, format+"\n", args...)
 }
@@ -303,7 +303,7 @@ func (rs *RouteServer) handleRefresh(event *Event) {
 	}
 }
 
-// handleRequest processes command requests from ZeBGP.
+// handleRequest processes command requests from ze.
 func (rs *RouteServer) handleRequest(event *Event) {
 	serial := event.Serial
 	command := event.Command
@@ -346,7 +346,7 @@ func (rs *RouteServer) peersJSON() string {
 	return string(data)
 }
 
-// parseEvent parses a JSON event from ZeBGP.
+// parseEvent parses a JSON event from ze.
 func (rs *RouteServer) parseEvent(data []byte) (*Event, error) {
 	var event Event
 	if err := json.Unmarshal(data, &event); err != nil {
@@ -355,7 +355,7 @@ func (rs *RouteServer) parseEvent(data []byte) (*Event, error) {
 	return &event, nil
 }
 
-// Event represents a JSON event from ZeBGP.
+// Event represents a JSON event from ze.
 type Event struct {
 	Type    string       `json:"type"`
 	MsgID   uint64       `json:"msg-id"`

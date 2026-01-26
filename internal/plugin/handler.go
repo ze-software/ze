@@ -8,7 +8,7 @@ import (
 	"time"
 )
 
-// Version is the ZeBGP version string.
+// Version is ze application version string.
 const Version = "0.1.0"
 
 // APIVersion is the IPC protocol version.
@@ -36,7 +36,7 @@ func init() {
 
 	// System commands
 	RegisterBuiltin("system help", handleSystemHelp, "Show available commands")
-	RegisterBuiltin("system version software", handleSystemVersionSoftware, "Show ZeBGP version")
+	RegisterBuiltin("system version software", handleSystemVersionSoftware, "Show ze version")
 	RegisterBuiltin("system version api", handleSystemVersionAPI, "Show IPC protocol version")
 	RegisterBuiltin("system shutdown", handleSystemShutdown, "Graceful application shutdown")
 	RegisterBuiltin("system subsystem list", handleSystemSubsystemList, "List available subsystems")
@@ -194,7 +194,7 @@ func handleSystemHelp(ctx *CommandContext, _ []string) (*Response, error) {
 			"bgp peer <selector> list - List peer(s) (brief)",
 			"bgp peer <selector> show - Show peer(s) details",
 			"system help - Show available commands",
-			"system version software - Show ZeBGP version",
+			"system version software - Show ze version",
 			"system version api - Show IPC protocol version",
 		}
 	}
@@ -207,7 +207,7 @@ func handleSystemHelp(ctx *CommandContext, _ []string) (*Response, error) {
 	}, nil
 }
 
-// handleSystemVersionSoftware returns ZeBGP version information.
+// handleSystemVersionSoftware returns ze version information.
 func handleSystemVersionSoftware(_ *CommandContext, _ []string) (*Response, error) {
 	return &Response{
 		Status: "done",

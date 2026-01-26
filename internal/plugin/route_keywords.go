@@ -13,7 +13,7 @@ var UnicastKeywords = KeywordSet{
 	"community":          true,
 	"large-community":    true,
 	"extended-community": true, // RFC 4360 extended communities
-	"split":              true, // ZeBGP extension
+	"split":              true, // ze extension
 }
 
 // MPLSKeywords defines valid keywords for MPLS labeled unicast routes (SAFI 4).
