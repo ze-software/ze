@@ -33,18 +33,14 @@ acme-monitor {
 
 bgp {
     local-as 65001;
+    router-id 1.2.3.4;
     peer 192.0.2.1 {
         peer-as 65002;
-        group upstream;      # ← leafref validated against peer-group list
-    }
-    peer-group upstream {
-        route-map-in filter; # ← leafref validated against route-map list
     }
 }
 ```
 
 - YANG validates types, ranges, patterns
-- Leafrefs ensure cross-references exist
 - Two-phase commit: verify all → apply all
 - Hot reload: only changed blocks re-verified
 
@@ -285,7 +281,6 @@ declare schema module ze-bgp
 declare schema namespace urn:ze:bgp
 declare schema handler bgp
 declare schema handler bgp.peer
-declare schema handler bgp.peer-group
 declare schema yang <<EOF
 module ze-bgp {
   namespace "urn:ze:bgp";
@@ -428,21 +423,19 @@ Handler paths use dot-separated segments with optional key syntax for list insta
 |------|--------|---------|
 | Container | `segment.segment` | `bgp` |
 | List item | `segment[key=value]` | `bgp.peer[address=192.0.2.1]` |
-| Nested | `segment.segment[key=value]` | `bgp.peer-group[name=upstream]` |
+| Nested | `segment.segment[key=value]` | `bgp.peer[address=192.0.2.1].capability` |
 
 **Mapping from config syntax:**
 ```
-bgp {                           → handler: bgp
-    peer 192.0.2.1 { ... }      → handler: bgp.peer
-                                  path: bgp.peer[address=192.0.2.1]
-    peer-group upstream { ... } → handler: bgp.peer-group
-                                  path: bgp.peer-group[name=upstream]
+bgp {                        → handler: bgp
+    peer 192.0.2.1 { ... }   → handler: bgp.peer
+                               path: bgp.peer[address=192.0.2.1]
 }
 ```
 
 **Routing example:**
 - Request for `bgp.peer[address=192.0.2.1]`
-- Registered handlers: `bgp`, `bgp.peer`, `bgp.peer-group`
+- Registered handlers: `bgp`, `bgp.peer`
 - Longest match: `bgp.peer` → routes to BGP plugin
 
 ---
@@ -589,21 +582,16 @@ Plugins implement verify and apply handlers. They query hub for config, compute 
 leafref is a YANG type that references another leaf's value, like a foreign key in a database.
 
 ```yang
-list peer-group {
-  key "name";
-  leaf name { type string; }
-  leaf peer-as { type uint32; }
-}
-
 list peer {
   key "address";
   leaf address { type inet:ip-address; }
+  leaf peer-as { type uint32; }
+}
 
-  // Reference to peer-group - MUST exist
-  leaf group {
-    type leafref {
-      path "../../peer-group/name";
-    }
+// Third-party plugin referencing BGP peer
+leaf monitored-peer {
+  type leafref {
+    path "/bgp:bgp/bgp:peer/bgp:address";
   }
 }
 ```
@@ -612,27 +600,16 @@ list peer {
 
 ```
 bgp {
-    peer-group upstream {
+    peer 192.0.2.1 {
         peer-as 65000;
     }
+}
 
-    peer 192.0.2.1 {
-        group upstream;      # Valid - "upstream" exists
-    }
-    peer 192.0.2.2 {
-        group nonexistent;   # INVALID - leafref target not found
-    }
+acme-monitor {
+    monitored-peer 192.0.2.1;  # Valid - peer exists
+    monitored-peer 10.0.0.99;  # INVALID - leafref target not found
 }
 ```
-
-### leafref Use Cases
-
-| Reference | From | To |
-|-----------|------|-----|
-| `group` | peer | peer-group list |
-| `route-map-in` | peer | route-map list |
-| `prefix-list` | route-map | prefix-list |
-| `community-list` | route-map | community-list |
 
 ### Cross-Plugin leafref
 
@@ -665,7 +642,7 @@ transport: stdio
 
 # List registered schemas
 $ ze system schema list
-ze-bgp: bgp, bgp.peer, bgp.peer-group
+ze-bgp: bgp, bgp.peer
 ze-rib: rib
 
 # Show specific schema
@@ -814,19 +791,18 @@ On any commit trigger:
 
 ```
 Registered handlers:
-  "bgp"            → bgp plugin
-  "bgp.peer"       → bgp plugin
-  "bgp.peer-group" → bgp plugin
-  "rib"            → rib plugin
+  "bgp"      → bgp plugin
+  "bgp.peer" → bgp plugin
+  "rib"      → rib plugin
 
 FindHandler("bgp.peer[address=192.0.2.1]"):
   1. Try exact match "bgp.peer[address=192.0.2.1]" → not found
   2. Strip key: "bgp.peer" → FOUND → return "bgp" plugin
 
-FindHandler("bgp.peer-group[name=upstream].timers"):
-  1. Try "bgp.peer-group[name=upstream].timers" → not found
-  2. Strip segment: "bgp.peer-group[name=upstream]" → not found
-  3. Strip key: "bgp.peer-group" → FOUND → return "bgp" plugin
+FindHandler("bgp.peer[address=192.0.2.1].capability"):
+  1. Try "bgp.peer[address=192.0.2.1].capability" → not found
+  2. Strip segment: "bgp.peer[address=192.0.2.1]" → not found
+  3. Strip key: "bgp.peer" → FOUND → return "bgp" plugin
 
 FindHandler("unknown.path"):
   1. No matches found → return error UNKNOWN_HANDLER

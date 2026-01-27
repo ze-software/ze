@@ -21,16 +21,16 @@ func TestValidator_ValidateString(t *testing.T) {
 
 	validator := NewValidator(loader)
 
-	// Test with bgp.peer-group which has a name leaf of type string
+	// Test with bgp.peer.address which is type ip-address (string-based)
 	tests := []struct {
 		name    string
 		path    string
 		value   any
 		wantErr bool
 	}{
-		// peer-group.name is type string with length 1..64
-		{"valid_string", "bgp.peer-group.name", "upstream", false},
-		{"empty_string", "bgp.peer-group.name", "", false}, // Length validation may fail but type is string
+		// peer.address is type ip-address
+		{"valid_ip", "bgp.peer.address", "192.0.2.1", false},
+		{"empty_ip", "bgp.peer.address", "", false}, // Validation may fail but type is string
 	}
 
 	for _, tt := range tests {

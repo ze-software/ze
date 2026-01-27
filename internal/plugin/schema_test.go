@@ -19,7 +19,7 @@ func TestSchemaRegistry_Register(t *testing.T) {
 		Module:    "ze-bgp",
 		Namespace: "urn:ze:bgp",
 		Yang:      "module ze-bgp { ... }",
-		Handlers:  []string{"bgp", "bgp.peer", "bgp.peer-group"},
+		Handlers:  []string{"bgp", "bgp.peer"},
 		Plugin:    "bgp-subsystem",
 	}
 
@@ -110,7 +110,7 @@ func TestSchemaRegistry_FindHandler(t *testing.T) {
 	}
 	peerSchema := &Schema{
 		Module:   "ze-bgp-peer",
-		Handlers: []string{"bgp.peer", "bgp.peer-group"},
+		Handlers: []string{"bgp.peer"},
 		Plugin:   "peer-plugin",
 	}
 
@@ -125,7 +125,6 @@ func TestSchemaRegistry_FindHandler(t *testing.T) {
 		// Exact matches
 		{"bgp", "ze-bgp", "bgp"},
 		{"bgp.peer", "ze-bgp-peer", "bgp.peer"},
-		{"bgp.peer-group", "ze-bgp-peer", "bgp.peer-group"},
 
 		// Prefix matches
 		{"bgp.peer.timers", "ze-bgp-peer", "bgp.peer"},

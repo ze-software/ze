@@ -346,15 +346,15 @@ func TestModelCmdEditFromContext(t *testing.T) {
 
 // TestModelCmdEditExactMatch verifies edit uses exact block matching.
 //
-// VALIDATES: Edit doesn't match prefix (e.g., "peer" shouldn't match "peer-group").
+// VALIDATES: Edit doesn't match prefix (e.g., "peer" shouldn't match "peer-as").
 // PREVENTS: Wrong block selected due to prefix matching.
 func TestModelCmdEditExactMatch(t *testing.T) {
 	tmpDir := t.TempDir()
 	configPath := filepath.Join(tmpDir, "test.conf")
 
-	// Config with similar block names
+	// Config with multiple peer blocks
 	content := `bgp {
-  peer-group external {
+  peer 2.2.2.2 {
     peer-as 65001;
   }
   peer 1.1.1.1 {
@@ -371,13 +371,13 @@ func TestModelCmdEditExactMatch(t *testing.T) {
 	model, err := NewModel(ed)
 	require.NoError(t, err)
 
-	// Edit "peer 1.1.1.1" should NOT match "peer-group"
+	// Edit "peer 1.1.1.1" should find the correct peer
 	result, err := model.cmdEdit([]string{"peer", "1.1.1.1"})
 	require.NoError(t, err)
 
 	// Should find the correct peer block
 	assert.Equal(t, []string{"bgp", "peer", "1.1.1.1"}, result.newContext)
-	assert.Contains(t, result.configView.content, "65002", "should show peer content, not peer-group")
+	assert.Contains(t, result.configView.content, "65002", "should show peer 1.1.1.1 content")
 }
 
 // TestModelCmdUp verifies up command goes up one context level.

@@ -645,7 +645,6 @@ func TestParseSchemaMultipleDeclarations(t *testing.T) {
 		"declare schema namespace urn:ze:bgp",
 		"declare schema handler bgp",
 		"declare schema handler bgp.peer",
-		"declare schema handler bgp.peer-group",
 	}
 
 	for _, line := range lines {
@@ -656,10 +655,9 @@ func TestParseSchemaMultipleDeclarations(t *testing.T) {
 	require.NotNil(t, reg.PluginSchema)
 	assert.Equal(t, "ze-bgp", reg.PluginSchema.Module)
 	assert.Equal(t, "urn:ze:bgp", reg.PluginSchema.Namespace)
-	assert.Len(t, reg.PluginSchema.Handlers, 3)
+	assert.Len(t, reg.PluginSchema.Handlers, 2)
 	assert.Contains(t, reg.PluginSchema.Handlers, "bgp")
 	assert.Contains(t, reg.PluginSchema.Handlers, "bgp.peer")
-	assert.Contains(t, reg.PluginSchema.Handlers, "bgp.peer-group")
 }
 
 // TestParseSchemaYangHeredoc verifies heredoc parsing for YANG content.

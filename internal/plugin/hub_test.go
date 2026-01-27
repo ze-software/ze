@@ -207,7 +207,7 @@ func TestSplitHandler(t *testing.T) {
 		wantPath      string
 	}{
 		{"bgp.peer", "bgp", "peer"},
-		{"bgp.peer-group", "bgp", "peer-group"},
+		{"bgp.peer.timers", "bgp", "peer.timers"},
 		{"bgp", "bgp", ""},
 		{"rib.route", "rib", "route"},
 		{"acme-monitor.endpoint", "acme-monitor", "endpoint"},

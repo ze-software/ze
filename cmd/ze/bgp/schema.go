@@ -178,7 +178,7 @@ func getSchemaRegistry() *plugin.SchemaRegistry {
 	_ = registry.Register(&plugin.Schema{
 		Module:    "ze-bgp",
 		Namespace: "urn:ze:bgp",
-		Handlers:  []string{"bgp", "bgp.peer", "bgp.peer-group", "bgp.route-map", "bgp.prefix-list"},
+		Handlers:  []string{"bgp", "bgp.peer"},
 		Plugin:    "core",
 	})
 
