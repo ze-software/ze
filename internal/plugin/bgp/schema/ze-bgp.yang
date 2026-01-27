@@ -443,6 +443,43 @@ module ze-bgp {
             }
         }
 
+        // Native update syntax - Ze-native route announcements
+        // update { attribute { origin igp; next-hop 10.0.0.1; } nlri { ipv4/unicast 1.0.0.0/24; } }
+        list update {
+            description "Native Ze route announcements";
+
+            container attribute {
+                description "Path attributes for routes in this block";
+                leaf origin { type string; description "ORIGIN attribute (igp|egp|incomplete)"; }
+                leaf next-hop { type string; description "Next hop address or 'self'"; }
+                leaf med { type uint32; description "Multi-Exit Discriminator"; }
+                leaf local-preference { type uint32; description "Local preference"; }
+                leaf as-path { ze:syntax "value-or-array"; type string; description "AS path"; }
+                leaf community { ze:syntax "value-or-array"; type string; description "Communities"; }
+                leaf large-community { ze:syntax "value-or-array"; type string; description "Large communities"; }
+                leaf extended-community { ze:syntax "value-or-array"; type string; description "Extended communities"; }
+                leaf rd { type string; description "Route Distinguisher for VPN"; }
+                leaf label { type string; description "MPLS label"; }
+                leaf labels { ze:syntax "value-or-array"; type string; description "Multi-label stack (RFC 8277)"; }
+                leaf path-information { type string; description "ADD-PATH path-id"; }
+                leaf aggregator { type string; description "Aggregator AS:IP"; }
+                leaf atomic-aggregate { type boolean; description "Atomic aggregate flag"; }
+                leaf originator-id { type zt:ipv4-address; description "Originator ID"; }
+                leaf cluster-list { ze:syntax "value-or-array"; type string; description "Cluster list"; }
+                leaf attribute { type string; description "Generic hex attributes"; }
+                leaf bgp-prefix-sid { ze:syntax "flex"; type string; description "Prefix-SID (label index)"; }
+                leaf bgp-prefix-sid-srv6 { ze:syntax "flex"; type string; description "SRv6 Prefix-SID"; }
+                leaf split { type string; description "Prefix splitting"; }
+                leaf watchdog { type string; description "Route watchdog name"; }
+                leaf withdraw { type boolean; description "Withdraw flag for watchdog"; }
+            }
+
+            container nlri {
+                ze:syntax "freeform";
+                description "NLRI by family: ipv4/unicast, ipv6/unicast, etc.";
+            }
+        }
+
         // Flow routes
         container flow {
             description "FlowSpec routes";

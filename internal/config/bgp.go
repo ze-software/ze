@@ -18,6 +18,7 @@ const (
 	configEnable  = "enable"  // Config value for enabled state
 	configDisable = "disable" // Config value for disabled state
 	configRequire = "require" // Config value for required state
+	configSelf    = "self"    // Config value for next-hop self
 
 	// ADD-PATH mode strings.
 	addPathSend        = "send"
@@ -1795,7 +1796,171 @@ func extractRoutesFromTree(tree *Tree) ([]StaticRouteConfig, error) {
 		}
 	}
 
+	// Native update blocks - parse from update { attribute { ... } nlri { ... } } structure
+	for _, entry := range tree.GetListOrdered("update") {
+		updateRoutes, err := extractRoutesFromUpdateBlock(entry.Value)
+		if err != nil {
+			return nil, fmt.Errorf("update block: %w", err)
+		}
+		routes = append(routes, updateRoutes...)
+	}
+
 	return routes, nil
+}
+
+// extractRoutesFromUpdateBlock parses a single update { attribute { } nlri { } } block.
+// Returns StaticRouteConfig entries for each NLRI in the block.
+func extractRoutesFromUpdateBlock(update *Tree) ([]StaticRouteConfig, error) {
+	var routes []StaticRouteConfig
+
+	// Parse attributes from attribute { } container
+	attr := update.GetContainer("attribute")
+	if attr == nil {
+		attr = NewTree() // Empty attributes if not specified
+	}
+
+	// Parse nlri { } container - freeform content like "ipv4/unicast 1.0.0.0/24 2.0.0.0/24;"
+	nlriContainer := update.GetContainer("nlri")
+	if nlriContainer == nil {
+		return nil, fmt.Errorf("missing nlri block in update")
+	}
+
+	// Parse each family line from the freeform nlri block
+	// Freeform stores "ipv4/unicast 1.0.0.0/24 2.0.0.0/24" as key -> "true"
+	for _, line := range nlriContainer.Values() {
+		// Parse the line: first word is family, rest are prefixes
+		parts := strings.Fields(line)
+		if len(parts) == 0 {
+			continue
+		}
+		family := parts[0]
+		prefixes := parts[1:]
+
+		// Validate family
+		if _, ok := message.FamilyConfigNames[family]; !ok {
+			return nil, fmt.Errorf("invalid family: %s", family)
+		}
+
+		if len(prefixes) == 0 {
+			continue // No prefixes for this family
+		}
+		for _, prefix := range prefixes {
+			sr := StaticRouteConfig{}
+
+			// Parse prefix
+			p, err := netip.ParsePrefix(prefix)
+			if err != nil {
+				// Try as bare IP, convert to /32 or /128
+				ip, err2 := netip.ParseAddr(prefix)
+				if err2 != nil {
+					return nil, fmt.Errorf("invalid prefix %s: %w", prefix, err)
+				}
+				bits := 32
+				if ip.Is6() {
+					bits = 128
+				}
+				p = netip.PrefixFrom(ip, bits)
+			}
+			sr.Prefix = p
+
+			// Apply attributes using shared helper
+			if err := applyAttributesFromTree(attr, &sr); err != nil {
+				return nil, err
+			}
+
+			routes = append(routes, sr)
+		}
+	}
+
+	return routes, nil
+}
+
+// applyAttributesFromTree applies path attributes from a Tree to a StaticRouteConfig.
+// Used by both parseRouteConfig (announce/static syntax) and extractRoutesFromUpdateBlock (update syntax).
+func applyAttributesFromTree(tree *Tree, sr *StaticRouteConfig) error {
+	if v, ok := tree.Get("next-hop"); ok {
+		if v == configSelf {
+			sr.NextHopSelf = true
+		} else {
+			sr.NextHop = v
+		}
+	}
+	if v, ok := tree.Get("local-preference"); ok {
+		n, err := strconv.ParseUint(v, 10, 32)
+		if err != nil {
+			return fmt.Errorf("invalid local-preference %q: %w", v, err)
+		}
+		sr.LocalPreference = uint32(n)
+	}
+	if v, ok := tree.Get("med"); ok {
+		n, err := strconv.ParseUint(v, 10, 32)
+		if err != nil {
+			return fmt.Errorf("invalid med %q: %w", v, err)
+		}
+		sr.MED = uint32(n)
+	}
+	if v, ok := tree.Get("community"); ok {
+		sr.Community = v
+	}
+	if v, ok := tree.Get("extended-community"); ok {
+		sr.ExtendedCommunity = v
+	}
+	if v, ok := tree.Get("large-community"); ok {
+		sr.LargeCommunity = v
+	}
+	if v, ok := tree.Get("as-path"); ok {
+		sr.ASPath = v
+	}
+	if v, ok := tree.Get("origin"); ok {
+		sr.Origin = v
+	}
+	if v, ok := tree.Get("path-information"); ok {
+		sr.PathInformation = v
+	}
+	if v, ok := tree.Get("label"); ok {
+		sr.Label = v
+	}
+	// RFC 8277: Multi-label support via `labels [100 200 300]` syntax
+	if v, ok := tree.Get("labels"); ok {
+		sr.Labels = parseLabelsArray(v)
+	}
+	if v, ok := tree.Get("rd"); ok {
+		sr.RD = v
+	}
+	if v, ok := tree.Get("aggregator"); ok {
+		sr.Aggregator = v
+	}
+	// atomic-aggregate can be a standalone flag or have a value
+	if _, ok := tree.Get("atomic-aggregate"); ok {
+		sr.AtomicAggregate = true
+	}
+	if v, ok := tree.Get("attribute"); ok {
+		sr.Attribute = v
+	}
+	if v, ok := tree.Get("originator-id"); ok {
+		sr.OriginatorID = v
+	}
+	if v, ok := tree.Get("cluster-list"); ok {
+		sr.ClusterList = v
+	}
+	if v, ok := tree.Get("bgp-prefix-sid"); ok {
+		sr.PrefixSID = v
+	}
+	// SRv6 Prefix-SID overrides label-index Prefix-SID if both are specified
+	if v, ok := tree.Get("bgp-prefix-sid-srv6"); ok {
+		sr.PrefixSID = v
+	}
+	if v, ok := tree.Get("split"); ok {
+		sr.Split = v
+	}
+	// Watchdog support
+	if v, ok := tree.Get("watchdog"); ok {
+		sr.Watchdog = v
+	}
+	if _, ok := tree.Get("withdraw"); ok {
+		sr.WatchdogWithdraw = true
+	}
+	return nil
 }
 
 // parseRouteConfig extracts a StaticRouteConfig from a parsed route tree.
@@ -1830,82 +1995,8 @@ func parseRouteConfig(prefix string, route *Tree) (StaticRouteConfig, error) {
 	}
 	sr.Prefix = p
 
-	if v, ok := route.Get("next-hop"); ok {
-		if v == "self" {
-			sr.NextHopSelf = true
-		} else {
-			sr.NextHop = v
-		}
-	}
-	if v, ok := route.Get("local-preference"); ok {
-		n, _ := strconv.ParseUint(v, 10, 32)
-		sr.LocalPreference = uint32(n)
-	}
-	if v, ok := route.Get("med"); ok {
-		n, _ := strconv.ParseUint(v, 10, 32)
-		sr.MED = uint32(n)
-	}
-	if v, ok := route.Get("community"); ok {
-		sr.Community = v
-	}
-	if v, ok := route.Get("extended-community"); ok {
-		sr.ExtendedCommunity = v
-	}
-	if v, ok := route.Get("large-community"); ok {
-		sr.LargeCommunity = v
-	}
-	if v, ok := route.Get("as-path"); ok {
-		sr.ASPath = v
-	}
-	if v, ok := route.Get("origin"); ok {
-		sr.Origin = v
-	}
-	if v, ok := route.Get("path-information"); ok {
-		sr.PathInformation = v
-	}
-	if v, ok := route.Get("label"); ok {
-		sr.Label = v
-	}
-	// RFC 8277: Multi-label support via `labels [100 200 300]` syntax
-	if v, ok := route.Get("labels"); ok {
-		sr.Labels = parseLabelsArray(v)
-	}
-	if v, ok := route.Get("rd"); ok {
-		sr.RD = v
-	}
-	if v, ok := route.Get("aggregator"); ok {
-		sr.Aggregator = v
-	}
-	// atomic-aggregate can be a standalone flag or have a value
-	if _, ok := route.Get("atomic-aggregate"); ok {
-		sr.AtomicAggregate = true
-	}
-	if v, ok := route.Get("attribute"); ok {
-		sr.Attribute = v
-	}
-	if v, ok := route.Get("originator-id"); ok {
-		sr.OriginatorID = v
-	}
-	if v, ok := route.Get("cluster-list"); ok {
-		sr.ClusterList = v
-	}
-	if v, ok := route.Get("bgp-prefix-sid"); ok {
-		sr.PrefixSID = v
-	}
-	// SRv6 Prefix-SID overrides label-index Prefix-SID if both are specified
-	if v, ok := route.Get("bgp-prefix-sid-srv6"); ok {
-		sr.PrefixSID = v
-	}
-	if v, ok := route.Get("split"); ok {
-		sr.Split = v
-	}
-
-	// Watchdog support
-	if v, ok := route.Get("watchdog"); ok {
-		sr.Watchdog = v
-	}
-	if _, ok := route.Get("withdraw"); ok {
-		sr.WatchdogWithdraw = true
+	if err := applyAttributesFromTree(route, &sr); err != nil {
+		return sr, err
 	}
 
 	return sr, nil
