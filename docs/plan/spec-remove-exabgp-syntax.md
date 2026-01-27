@@ -27,7 +27,7 @@ This is an **umbrella spec** that coordinates two child specs.
 
 | Spec | Description | Status |
 |------|-------------|--------|
-| `spec-native-update-syntax.md` | Add native `update { attribute { } nlri { } }` config syntax | TODO |
+| `done/180-native-update-syntax.md` | Add native `update { attribute { } nlri { } }` config syntax | ✅ |
 | `spec-remove-exabgp-announce.md` | Remove ExaBGP syntax, convert tests to native | TODO |
 
 ## Design Decision: RESOLVED
