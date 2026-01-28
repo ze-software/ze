@@ -861,3 +861,41 @@ func TestLazyLoggerConfigFileIntegration(t *testing.T) {
 	// Should be debug level from config
 	assert.True(t, logger.Enabled(context.Background(), slog.LevelDebug))
 }
+
+// TestLazyLoggerConcurrentAccess verifies thread safety under contention.
+//
+// VALIDATES: Multiple goroutines calling lazy() simultaneously get same instance.
+// PREVENTS: Race conditions in lazy initialization, duplicate logger creation.
+func TestLazyLoggerConcurrentAccess(t *testing.T) {
+	t.Setenv("ze.log.concurrent", "info")
+
+	lazy := LazyLogger("concurrent")
+
+	const numGoroutines = 100
+	results := make(chan *slog.Logger, numGoroutines)
+	start := make(chan struct{})
+
+	// Launch goroutines that all wait for start signal
+	for i := 0; i < numGoroutines; i++ {
+		go func() {
+			<-start // Wait for signal
+			results <- lazy()
+		}()
+	}
+
+	// Release all goroutines simultaneously
+	close(start)
+
+	// Collect all results
+	var loggers []*slog.Logger
+	for i := 0; i < numGoroutines; i++ {
+		loggers = append(loggers, <-results)
+	}
+
+	// All goroutines must get the exact same logger instance
+	first := loggers[0]
+	require.NotNil(t, first)
+	for i, l := range loggers {
+		assert.Same(t, first, l, "goroutine %d got different logger instance", i)
+	}
+}
