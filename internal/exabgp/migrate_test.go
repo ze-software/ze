@@ -440,6 +440,53 @@ neighbor 10.0.0.1 {
 	}
 }
 
+// TestMigrateStaticPathInformation verifies path-information is preserved.
+//
+// VALIDATES: path-information from static routes is migrated to attribute block.
+// PREVENTS: ADD-PATH path-id being lost during migration.
+func TestMigrateStaticPathInformation(t *testing.T) {
+	input := `
+neighbor 127.0.0.1 {
+	local-as 1;
+	peer-as 1;
+	static {
+		route 193.0.2.1 path-information 1.2.3.4 next-hop 10.0.0.1;
+	}
+}
+`
+	tree, err := ParseExaBGPConfig(input)
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+
+	// Debug: check what's parsed
+	for _, nb := range tree.GetListOrdered("neighbor") {
+		if static := nb.Value.GetContainer("static"); static != nil {
+			for _, route := range static.GetListOrdered("route") {
+				t.Logf("Route %s values: %v", route.Key, route.Value.Values())
+				if pi, ok := route.Value.Get("path-information"); ok {
+					t.Logf("  path-information = %s", pi)
+				} else {
+					t.Logf("  path-information NOT FOUND")
+				}
+			}
+		}
+	}
+
+	result, err := MigrateFromExaBGP(tree)
+	if err != nil {
+		t.Fatalf("migrate: %v", err)
+	}
+
+	output := SerializeTree(result.Tree)
+	t.Logf("Migration output:\n%s", output)
+
+	// path-information should appear in attribute block.
+	if !strings.Contains(output, "path-information 1.2.3.4") {
+		t.Errorf("expected path-information in attribute block, got:\n%s", output)
+	}
+}
+
 // TestMigrateAnnounceBlock verifies announce block conversion to update blocks.
 //
 // VALIDATES: Announce routes converted to update { attribute {} nlri {} }.

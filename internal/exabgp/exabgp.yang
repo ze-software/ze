@@ -28,6 +28,7 @@ module exabgp {
         leaf rd { type string; }
         leaf label { type string; }
         leaf labels { ze:syntax "value-or-array"; type string; }
+        leaf path-information { type string; }
         leaf name { type string; }
         leaf watchdog { type string; }
         leaf split { type string; }

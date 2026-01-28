@@ -393,7 +393,7 @@ func convertAnnounceToUpdate(announce, dst *config.Tree) {
 				// Copy common attributes from the route's tree
 				attrFields := []string{"next-hop", "local-preference", "med", "as-path", "community",
 					"extended-community", "large-community", "aggregator", "originator-id", "cluster-list",
-					"rd", "label", "labels"}
+					"rd", "label", "labels", "path-information"}
 				for _, field := range attrFields {
 					if v, ok := attrTree.Get(field); ok {
 						attrBlock.Set(field, v)
@@ -426,7 +426,7 @@ func convertAnnounceToUpdate(announce, dst *config.Tree) {
 		attrBlock.Set("origin", "igp")
 
 		attrFields := []string{"next-hop", "local-preference", "med", "as-path", "community",
-			"extended-community", "large-community"}
+			"extended-community", "large-community", "path-information", "rd", "label"}
 		for _, field := range attrFields {
 			if v, ok := attrTree.Get(field); ok {
 				attrBlock.Set(field, v)
@@ -464,7 +464,7 @@ func convertStaticToUpdate(static, dst *config.Tree) {
 		attrBlock.Set("origin", "igp")
 
 		attrFields := []string{"next-hop", "local-preference", "med", "as-path", "community",
-			"extended-community", "large-community"}
+			"extended-community", "large-community", "path-information", "rd", "label"}
 		for _, field := range attrFields {
 			if v, ok := attrTree.Get(field); ok {
 				attrBlock.Set(field, v)
