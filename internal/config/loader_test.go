@@ -741,3 +741,118 @@ bgp {
 	require.Error(t, err)
 	assert.Contains(t, err.Error(), "pattern")
 }
+
+// TestMergeCliPlugins verifies CLI plugin merging with config plugins.
+//
+// VALIDATES: CLI plugins are correctly resolved and merged.
+// PREVENTS: Plugin duplication or incorrect resolution.
+func TestMergeCliPlugins(t *testing.T) {
+	tests := []struct {
+		name        string
+		configPlugs []PluginConfig
+		cliPlugs    []string
+		wantNames   []string // Expected plugin names in order
+		wantErr     bool
+	}{
+		{
+			name:        "cli_only_internal",
+			configPlugs: nil,
+			cliPlugs:    []string{"ze.rib"},
+			wantNames:   []string{"rib"},
+		},
+		{
+			name:        "cli_only_external",
+			configPlugs: nil,
+			cliPlugs:    []string{"./myplugin"},
+			wantNames:   []string{"myplugin"},
+		},
+		{
+			name:        "cli_multiple",
+			configPlugs: nil,
+			cliPlugs:    []string{"ze.rib", "ze.gr"},
+			wantNames:   []string{"rib", "gr"},
+		},
+		{
+			name: "cli_plus_config",
+			configPlugs: []PluginConfig{
+				{Name: "existing", Run: "some-plugin"},
+			},
+			cliPlugs:  []string{"ze.rib"},
+			wantNames: []string{"rib", "existing"}, // CLI first
+		},
+		{
+			name: "dedup_cli_matches_config",
+			configPlugs: []PluginConfig{
+				{Name: "rib", Run: "ze bgp plugin rib"},
+			},
+			cliPlugs:  []string{"ze.rib"},
+			wantNames: []string{"rib"}, // Only one rib
+		},
+		{
+			name:        "cli_command_with_args",
+			configPlugs: nil,
+			cliPlugs:    []string{"ze bgp plugin rr"},
+			wantNames:   []string{"rr"},
+		},
+		{
+			name:        "empty_cli",
+			configPlugs: []PluginConfig{{Name: "existing", Run: "x"}},
+			cliPlugs:    nil,
+			wantNames:   []string{"existing"},
+		},
+		{
+			name:        "unknown_internal_error",
+			configPlugs: nil,
+			cliPlugs:    []string{"ze.unknown"},
+			wantErr:     true,
+		},
+		{
+			name:        "auto_not_implemented",
+			configPlugs: nil,
+			cliPlugs:    []string{"auto"},
+			wantErr:     true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			cfg := &BGPConfig{
+				Plugins: tt.configPlugs,
+			}
+
+			err := mergeCliPlugins(cfg, tt.cliPlugs)
+			if tt.wantErr {
+				require.Error(t, err)
+				return
+			}
+			require.NoError(t, err)
+
+			var gotNames []string
+			for _, p := range cfg.Plugins {
+				gotNames = append(gotNames, p.Name)
+			}
+			assert.Equal(t, tt.wantNames, gotNames)
+		})
+	}
+}
+
+// TestMergeCliPluginsInternal verifies internal plugins are marked correctly.
+//
+// VALIDATES: Internal plugins have Internal=true, empty Run.
+// PREVENTS: Internal plugins being treated as external.
+func TestMergeCliPluginsInternal(t *testing.T) {
+	cfg := &BGPConfig{}
+	err := mergeCliPlugins(cfg, []string{"ze.rib"})
+	require.NoError(t, err)
+	require.Len(t, cfg.Plugins, 1)
+	assert.True(t, cfg.Plugins[0].Internal, "internal plugin should have Internal=true")
+	assert.Empty(t, cfg.Plugins[0].Run, "internal plugin should have empty Run")
+	assert.Equal(t, "rib", cfg.Plugins[0].Name)
+
+	cfg2 := &BGPConfig{}
+	err = mergeCliPlugins(cfg2, []string{"./custom-plugin"})
+	require.NoError(t, err)
+	require.Len(t, cfg2.Plugins, 1)
+	assert.False(t, cfg2.Plugins[0].Internal, "external plugin should have Internal=false")
+	assert.Equal(t, "./custom-plugin", cfg2.Plugins[0].Run)
+}

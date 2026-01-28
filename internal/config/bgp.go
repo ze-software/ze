@@ -317,10 +317,11 @@ type MUPRouteConfig struct {
 // PluginConfig holds plugin configuration.
 type PluginConfig struct {
 	Name          string
-	Run           string
+	Run           string // Command to run (empty for internal plugins)
 	Encoder       string
 	ReceiveUpdate bool          // Forward received UPDATEs to plugin stdin
 	StageTimeout  time.Duration // Per-stage timeout (0 = use default 5s)
+	Internal      bool          // If true, run in-process via goroutine (ze.X plugins)
 }
 
 // TreeToConfig converts a parsed tree to a typed BGPConfig.

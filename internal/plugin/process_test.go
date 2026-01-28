@@ -638,3 +638,70 @@ done
 	require.NoError(t, err)
 	assert.Equal(t, "got second", resp2)
 }
+
+// TestProcessInternalPlugin verifies internal plugins run in-process.
+//
+// VALIDATES: Internal plugins start via goroutine, not fork.
+// PREVENTS: Internal plugins accidentally forking.
+func TestProcessInternalPlugin(t *testing.T) {
+	proc := NewProcess(PluginConfig{
+		Name:     "rib",
+		Internal: true,
+		Encoder:  "json",
+	})
+
+	ctx, cancel := context.WithTimeout(context.Background(), 100*time.Millisecond)
+	defer cancel()
+
+	err := proc.StartWithContext(ctx)
+	require.NoError(t, err)
+	assert.True(t, proc.Running())
+	assert.Nil(t, proc.cmd, "internal plugin should not have exec.Cmd")
+
+	proc.Stop()
+}
+
+// TestProcessInternalPluginUnknown verifies error for unknown internal plugin.
+//
+// VALIDATES: Unknown internal plugin returns error.
+// PREVENTS: Silent failure for unknown internal plugins.
+func TestProcessInternalPluginUnknown(t *testing.T) {
+	proc := NewProcess(PluginConfig{
+		Name:     "nonexistent",
+		Internal: true,
+	})
+
+	err := proc.Start()
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "unknown internal plugin")
+}
+
+// TestProcessInternalPluginStop verifies internal plugins stop cleanly.
+//
+// VALIDATES: Stop() closes stdin, causing plugin to exit.
+// PREVENTS: Internal plugins hanging on Stop().
+func TestProcessInternalPluginStop(t *testing.T) {
+	proc := NewProcess(PluginConfig{
+		Name:     "rib",
+		Internal: true,
+		Encoder:  "json",
+	})
+
+	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
+	defer cancel()
+
+	err := proc.StartWithContext(ctx)
+	require.NoError(t, err)
+	assert.True(t, proc.Running())
+
+	// Stop should close stdin and cause plugin to exit
+	proc.Stop()
+
+	// Wait for plugin to exit (with timeout)
+	waitCtx, waitCancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
+	defer waitCancel()
+
+	err = proc.Wait(waitCtx)
+	require.NoError(t, err, "internal plugin should exit after Stop()")
+	assert.False(t, proc.Running())
+}

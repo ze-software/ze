@@ -10,6 +10,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/cmd/ze/config"
 	"codeberg.org/thomas-mangin/ze/cmd/ze/exabgp"
 	"codeberg.org/thomas-mangin/ze/cmd/ze/hub"
+	"codeberg.org/thomas-mangin/ze/internal/plugin"
 )
 
 const version = "0.1.0"
@@ -35,6 +36,13 @@ func main() {
 		os.Exit(0)
 	case "help", "-h", "--help":
 		usage()
+		os.Exit(0)
+	case "--plugin":
+		// Output list of available plugins (one per line)
+		// Uses internal registry as single source of truth
+		for _, name := range plugin.AvailableInternalPlugins() {
+			fmt.Printf("bgp plugin %s\n", name)
+		}
 		os.Exit(0)
 	}
 

@@ -294,12 +294,68 @@ func (p *Process) Start() error {
 }
 
 // StartWithContext spawns the process with the given context.
+// For internal plugins (config.Internal=true), runs in-process via goroutine.
+// For external plugins, forks via exec.Command.
 func (p *Process) StartWithContext(ctx context.Context) error {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
 	p.ctx, p.cancel = context.WithCancel(ctx)
 
+	// Internal plugins run in-process via goroutine
+	if p.config.Internal {
+		return p.startInternal()
+	}
+
+	return p.startExternal()
+}
+
+// startInternal starts an internal plugin as a goroutine with io.Pipe.
+func (p *Process) startInternal() error {
+	runner := GetInternalPluginRunner(p.config.Name)
+	if runner == nil {
+		return fmt.Errorf("unknown internal plugin: %s", p.config.Name)
+	}
+
+	// Create pipes for stdin/stdout
+	stdinReader, stdinWriter := io.Pipe()
+	stdoutReader, stdoutWriter := io.Pipe()
+
+	p.stdin = stdinWriter
+	p.stdout = stdoutReader
+	p.reader = bufio.NewReader(stdoutReader)
+	p.stderr = nil // Internal plugins don't have stderr
+
+	p.running.Store(true)
+
+	// Create channel for stdout lines
+	p.lines = make(chan string, 100)
+
+	// Create write queue for backpressure management
+	p.writeQueue = make(chan []byte, WriteQueueHighWater)
+
+	// Start single reader goroutine for stdout
+	go p.readLines()
+
+	// Start write loop goroutine for backpressure management
+	go p.writeLoop()
+
+	// Start the plugin in a goroutine
+	p.wg.Add(1)
+	go func() {
+		defer p.wg.Done()
+		defer p.running.Store(false)
+		defer func() { _ = stdoutWriter.Close() }()
+		defer func() { _ = stdinReader.Close() }()
+
+		_ = runner(stdinReader, stdoutWriter)
+	}()
+
+	return nil
+}
+
+// startExternal starts an external plugin via exec.Command.
+func (p *Process) startExternal() error {
 	// Create command
 	// #nosec G204 - Run command is from trusted configuration, not user input
 	p.cmd = exec.CommandContext(p.ctx, "/bin/sh", "-c", p.config.Run)
@@ -454,9 +510,21 @@ func (p *Process) relayStderr() {
 }
 
 // Stop terminates the process.
+// For external plugins, cancelling context kills the process via exec.CommandContext.
+// For internal plugins, closing stdin unblocks the plugin's read and causes it to exit.
 func (p *Process) Stop() {
 	if p.cancel != nil {
 		p.cancel()
+	}
+
+	// For internal plugins, close stdin to unblock the plugin's read.
+	// External plugins are killed by context cancellation.
+	if p.config.Internal {
+		p.mu.Lock()
+		if p.stdin != nil {
+			_ = p.stdin.Close()
+		}
+		p.mu.Unlock()
 	}
 }
 

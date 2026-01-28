@@ -6,14 +6,29 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 
 	"codeberg.org/thomas-mangin/ze/internal/config"
 )
 
+// pluginFlags collects multiple --plugin flag values.
+type pluginFlags []string
+
+func (p *pluginFlags) String() string {
+	return strings.Join(*p, ",")
+}
+
+func (p *pluginFlags) Set(value string) error {
+	*p = append(*p, value)
+	return nil
+}
+
 func cmdServer(args []string) int {
 	fs := flag.NewFlagSet("server", flag.ExitOnError)
 	dryRun := fs.Bool("n", false, "dry-run (validate only, don't start)")
+	var plugins pluginFlags
+	fs.Var(&plugins, "plugin", "plugin to load (repeatable: ze.rib, ./path, \"cmd args\", auto)")
 
 	fs.Usage = func() {
 		fmt.Fprintf(os.Stderr, `Usage: ze bgp [server] [options] <config-file>
@@ -24,6 +39,13 @@ Options:
 `)
 		fs.PrintDefaults()
 		fmt.Fprintf(os.Stderr, `
+Plugin formats:
+  ze.rib              Internal plugin (built-in)
+  ./myplugin          Fork local binary
+  /path/to/plugin     Fork absolute path
+  "ze bgp plugin rr"  Fork command with args
+  auto                Auto-discover all plugins
+
 Signals:
   SIGTERM, SIGINT   Graceful shutdown
   SIGHUP            Reload configuration
@@ -32,7 +54,9 @@ Signals:
 Examples:
   ze bgp config.conf
   ze bgp server config.conf
-  ze bgp server -n config.conf   # validate only
+  ze bgp server -n config.conf                    # validate only
+  ze bgp server --plugin ze.rib config.conf       # with RIB plugin
+  ze bgp server --plugin ze.rib --plugin ze.gr config.conf
 `)
 	}
 
@@ -48,8 +72,8 @@ Examples:
 
 	configPath := fs.Arg(0)
 
-	// Load config and create reactor
-	reactor, err := config.LoadReactorFile(configPath)
+	// Load config and create reactor (with CLI plugins if specified)
+	reactor, err := config.LoadReactorFileWithPlugins(configPath, plugins)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", err)
 		return 1

@@ -8,7 +8,7 @@ This document describes the debugging tools available in ZeBGP for troubleshooti
 |------|---------|-------|
 | `ze bgp config-dump` | Inspect parsed config | `ze bgp config-dump [--json] config.conf` |
 | `ze-peer --decode` | Decode BGP messages | `ze-peer --decode --sink` |
-| `ZEBGP_TRACE` | Pipeline tracing | `ZEBGP_TRACE=all ze bgp server config.conf` |
+| `ze.log.*` | Per-subsystem logging | `ze.log.bgp.routes=debug ze bgp server config.conf` |
 | Functional test diff | Test failure analysis | Automatic on message mismatch |
 | `--server N` / `--client N` | Interactive test debugging | `ze-test bgp encode --server 0` |
 
@@ -131,52 +131,65 @@ Differences:
 
 ---
 
-## 4. Pipeline Tracing (ZEBGP_TRACE)
+## 4. Per-Subsystem Logging (ze.log.*)
 
-**Location:** `internal/trace/trace.go`
+**Location:** `internal/slogutil/slogutil.go`
 
-Environment variable that enables debug logging at key points in the pipeline.
+Environment variables that enable structured logging at key points in the pipeline.
 
 ### Usage
 
 ```bash
-# Enable all tracing
-ZEBGP_TRACE=all ze bgp server config.conf
+# Enable all subsystems at debug level
+ze.log=debug ze bgp server config.conf
 
-# Enable specific categories
-ZEBGP_TRACE=config,routes ze bgp server config.conf
+# Enable specific subsystems
+ze.log.config=debug ze.log.bgp.routes=debug ze bgp server config.conf
 ```
 
-### Categories
+### Subsystems
 
-| Category | What it traces |
+| Variable | What it logs |
 |----------|---------------|
-| `config` | Config parsing and loading |
-| `routes` | Static route handling, UPDATE sending |
-| `session` | BGP session connect/establish/close |
-| `fsm` | FSM state transitions |
-| `all` | All categories |
+| `ze.log` | Base level for ALL subsystems |
+| `ze.log.config` | Config parsing and loading |
+| `ze.log.bgp.routes` | Static route handling, UPDATE sending |
+| `ze.log.bgp.reactor.session` | BGP session handling |
+| `ze.log.bgp.reactor.peer` | Peer FSM transitions, session events |
+| `ze.log.bgp.reactor` | Reactor operations (reload, etc.) |
+| `ze.log.server` | Plugin server |
+| `ze.log.relay` | Plugin stderr relay |
+
+Levels: `disabled`, `debug`, `info`, `warn`, `err` (case-insensitive)
 
 ### Example Output
 
 ```
-[TRACE 13:53:41.182] config: parsed (input): 0 neighbors
-[TRACE 13:53:41.183] config: loaded config with 1 neighbors
-[TRACE 13:53:41.183] routes: neighbor 127.0.0.1: 2 static routes configured
-[TRACE 13:53:41.184] fsm: neighbor 127.0.0.1: OPENSENT -> OPENCONFIRM
-[TRACE 13:53:41.184] fsm: neighbor 127.0.0.1: OPENCONFIRM -> ESTABLISHED
-[TRACE 13:53:41.184] session: session established with 127.0.0.1 (local-as=1, peer-as=1)
-[TRACE 13:53:41.184] routes: neighbor 127.0.0.1: sending 2 static routes
-[TRACE 13:53:41.184] routes: neighbor 127.0.0.1: sent route 193.0.2.1/32 via 10.0.0.1
-[TRACE 13:53:41.184] routes: neighbor 127.0.0.1: sent route 10.0.0.0/24 via 192.168.0.1
-[TRACE 13:53:41.184] routes: neighbor 127.0.0.1: sent EOR marker
+time=2024-01-15T13:53:41.182Z level=DEBUG msg="config parsed" subsystem=config warnings=0
+time=2024-01-15T13:53:41.183Z level=DEBUG msg="config loaded" subsystem=config peers=1
+time=2024-01-15T13:53:41.183Z level=DEBUG msg="peer routes configured" subsystem=config peer=127.0.0.1 routes=2
+time=2024-01-15T13:53:41.184Z level=DEBUG msg="FSM transition" subsystem=bgp.reactor.peer peer=127.0.0.1 from=OPENSENT to=OPENCONFIRM
+time=2024-01-15T13:53:41.184Z level=INFO msg="session established" subsystem=bgp.reactor.peer peer=127.0.0.1 localAS=1 peerAS=1
+time=2024-01-15T13:53:41.184Z level=DEBUG msg="route sent" subsystem=bgp.routes peer=127.0.0.1 prefix=193.0.2.1/32 nextHop=10.0.0.1
 ```
 
-### Trace Points
+### Hierarchical Priority
 
-Currently instrumented locations:
-- `internal/config/loader.go`: ConfigParsed, ConfigLoaded, NeighborRoutes
-- `internal/reactor/peer.go`: FSMTransition, SessionEstablished, SessionClosed, RouteSent
+Most specific wins:
+1. `ze.log.bgp.reactor.peer=warn` - Peer logging at WARN
+2. `ze.log.bgp.reactor=debug` - All reactor.* at DEBUG
+3. `ze.log.bgp=info` - All bgp.* at INFO
+4. `ze.log=debug` - All subsystems at DEBUG
+
+Shell-compatible: `ze_log_bgp_routes=debug` also works (dot→underscore)
+
+### Logging Locations
+
+Currently instrumented:
+- `internal/config/loader.go`: Config parsing, peer routes (configLogger)
+- `internal/plugin/bgp/reactor/peer.go`: FSM, session, route operations (peerLogger, routesLogger)
+- `internal/plugin/bgp/reactor/session.go`: RFC 7606 handling (sessionLogger)
+- `internal/plugin/bgp/reactor/reactor.go`: Reload, route operations (reactorLogger, routesLogger)
 
 ---
 
@@ -225,20 +238,19 @@ ze bgp config-dump --json config.conf | jq '.Neighbors[0].StaticRoutes'
 ### 2. Route Not Being Sent
 
 ```bash
-# Step 1: Enable route tracing
-ZEBGP_TRACE=routes ze bgp server config.conf
+# Step 1: Enable route logging
+ze.log.bgp.routes=debug ze bgp server config.conf
 
 # Expected output when working:
-# [TRACE] routes: neighbor X: 2 static routes configured
-# [TRACE] routes: neighbor X: sending 2 static routes
-# [TRACE] routes: neighbor X: sent route 10.0.0.0/24 via 192.168.0.1
+# level=DEBUG msg="peer routes configured" subsystem=config peer=X routes=2
+# level=DEBUG msg="route sent" subsystem=bgp.routes peer=X prefix=10.0.0.0/24 nextHop=192.168.0.1
 ```
 
 ### 3. Session Issues
 
 ```bash
-# Step 1: Enable session + fsm tracing
-ZEBGP_TRACE=session,fsm ze bgp server config.conf
+# Step 1: Enable session + peer logging
+ze.log.bgp.reactor.peer=debug ze.log.bgp.reactor.session=debug ze bgp server config.conf
 
 # Look for FSM transitions and session establishment
 ```
@@ -279,20 +291,23 @@ ze-test bgp encode --client 0 --port 11790
 
 ---
 
-## Adding New Trace Points
+## Adding New Logging
 
-To add tracing to new code:
+To add logging to new code:
 
 ```go
-import "codeberg.org/thomas-mangin/ze/internal/trace"
+import "codeberg.org/thomas-mangin/ze/internal/slogutil"
 
-// Use existing helpers
-trace.RouteSent(addr, prefix, nextHop)
-trace.SessionEstablished(addr, localAS, peerAS)
+// Create a subsystem logger (once per package)
+var myLogger = slogutil.Logger("my.subsystem")
 
-// Or log directly
-trace.Log(trace.Routes, "custom message: %s", value)
+// Log with structured key-value pairs
+myLogger.Debug("operation completed", "peer", addr, "count", n)
+myLogger.Info("session established", "peer", addr, "localAS", localAS)
+myLogger.Warn("unexpected state", "state", state, "expected", expected)
 ```
+
+Subsystem naming convention: `ze.log.` + simplified package path (e.g., `bgp.reactor.peer`).
 
 ---
 
@@ -302,9 +317,11 @@ trace.Log(trace.Routes, "custom message: %s", value)
 |------|---------|
 | `internal/test/peer/decode.go` | BGP message decoder |
 | `internal/test/peer/peer.go` | Test peer with decode support |
-| `internal/trace/trace.go` | Tracing infrastructure |
+| `internal/slogutil/slogutil.go` | Logging infrastructure |
 | `cmd/ze/bgp/configdump.go` | config-dump command |
 | `cmd/ze-peer/main.go` | --decode flag |
 | `internal/config/parser.go` | Parser warnings |
-| `internal/config/loader.go` | Config trace points |
-| `internal/reactor/peer.go` | Session/route trace points |
+| `internal/config/loader.go` | Config logging (configLogger) |
+| `internal/plugin/bgp/reactor/peer.go` | Peer/route logging (peerLogger, routesLogger) |
+| `internal/plugin/bgp/reactor/session.go` | Session logging (sessionLogger) |
+| `internal/plugin/bgp/reactor/reactor.go` | Reactor logging (reactorLogger, routesLogger) |

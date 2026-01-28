@@ -514,16 +514,17 @@ func NewErrorResponse(message string) *Response {
 	}
 }
 
-// PluginConfig holds external plugin configuration.
+// PluginConfig holds plugin configuration.
 type PluginConfig struct {
 	Name           string        // Plugin identifier
-	Run            string        // Command to execute
+	Run            string        // Command to execute (empty for internal plugins)
 	Encoder        string        // "json" or "text"
 	Respawn        bool          // ExaBGP compat (prefer RespawnEnabled)
 	RespawnEnabled bool          // Respawn with limit enforcement (5/60s)
 	WorkDir        string        // Working directory for plugin execution
 	ReceiveUpdate  bool          // Forward received UPDATEs to plugin stdin
 	StageTimeout   time.Duration // Per-stage timeout (0 = use default 5s)
+	Internal       bool          // If true, run in-process via goroutine (ze.X plugins)
 }
 
 // ServerConfig holds API server configuration.

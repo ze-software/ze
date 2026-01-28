@@ -98,14 +98,15 @@ type Config struct {
 	MaxSessions int
 }
 
-// PluginConfig holds external plugin configuration.
+// PluginConfig holds plugin configuration.
 type PluginConfig struct {
 	Name          string
-	Run           string
+	Run           string // Command to run (empty for internal plugins)
 	Encoder       string
 	Respawn       bool
 	ReceiveUpdate bool          // Forward received UPDATEs to plugin stdin
 	StageTimeout  time.Duration // Per-stage timeout (0 = use default 5s)
+	Internal      bool          // If true, run in-process via goroutine (ze.X plugins)
 }
 
 // ReloadFunc is called by Reload() to get the list of peers from config file.

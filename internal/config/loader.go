@@ -88,6 +88,19 @@ func LoadReactorWithConfig(input string) (*BGPConfig, *reactor.Reactor, error) {
 
 // LoadReactorFile loads config from file and creates Reactor.
 func LoadReactorFile(path string) (*reactor.Reactor, error) {
+	return LoadReactorFileWithPlugins(path, nil)
+}
+
+// LoadReactorFileWithPlugins loads config from file and creates Reactor,
+// merging CLI-specified plugins with config-declared plugins.
+//
+// CLI plugins are resolved using plugin.ResolvePlugin():
+//   - "ze.X" -> internal plugin (run "ze bgp plugin X")
+//   - "./path" -> fork local binary
+//   - "/path" -> fork absolute path binary
+//   - "cmd args..." -> fork command with args
+//   - "auto" -> auto-discover all plugins (not implemented yet)
+func LoadReactorFileWithPlugins(path string, cliPlugins []string) (*reactor.Reactor, error) {
 	data, err := os.ReadFile(path) //nolint:gosec // Config file path from user
 	if err != nil {
 		return nil, fmt.Errorf("read config: %w", err)
@@ -105,6 +118,11 @@ func LoadReactorFile(path string) (*reactor.Reactor, error) {
 	}
 	cfg.ConfigDir = filepath.Dir(absPath)
 
+	// Merge CLI plugins with config plugins
+	if err := mergeCliPlugins(cfg, cliPlugins); err != nil {
+		return nil, fmt.Errorf("resolve plugins: %w", err)
+	}
+
 	// Create reactor with config path for reload support
 	r, err := CreateReactorWithPath(cfg, absPath)
 	if err != nil {
@@ -112,6 +130,62 @@ func LoadReactorFile(path string) (*reactor.Reactor, error) {
 	}
 
 	return r, nil
+}
+
+// mergeCliPlugins resolves CLI plugin strings and merges them with config plugins.
+// CLI plugins are added first (higher priority), then config plugins.
+// Duplicate plugins (same name) are deduplicated.
+func mergeCliPlugins(cfg *BGPConfig, cliPlugins []string) error {
+	if len(cliPlugins) == 0 {
+		return nil
+	}
+
+	// Build set of existing plugin names for deduplication
+	existing := make(map[string]bool)
+	for _, p := range cfg.Plugins {
+		existing[p.Name] = true
+	}
+
+	// Resolve and prepend CLI plugins
+	var newPlugins []PluginConfig
+	for _, ps := range cliPlugins {
+		resolved, err := plugin.ResolvePlugin(ps)
+		if err != nil {
+			return fmt.Errorf("plugin %q: %w", ps, err)
+		}
+
+		// Skip auto for now (would need discovery)
+		if resolved.Type == plugin.PluginTypeAuto {
+			return fmt.Errorf("plugin 'auto' not yet implemented")
+		}
+
+		// Skip if already in config
+		if existing[resolved.Name] {
+			continue
+		}
+		existing[resolved.Name] = true
+
+		// Build plugin config based on type
+		pc := PluginConfig{
+			Name:    resolved.Name,
+			Encoder: "json", // Default encoder
+		}
+
+		if resolved.Type == plugin.PluginTypeInternal {
+			// Internal plugins run in-process via goroutine
+			pc.Internal = true
+			// Run is empty - process.go will use internal registry
+		} else {
+			// External plugins fork via exec
+			pc.Run = strings.Join(resolved.Command, " ")
+		}
+
+		newPlugins = append(newPlugins, pc)
+	}
+
+	// Prepend CLI plugins to config plugins (CLI takes priority)
+	cfg.Plugins = append(newPlugins, cfg.Plugins...)
+	return nil
 }
 
 // CreateReactor creates a Reactor from typed BGPConfig.
@@ -205,6 +279,7 @@ func CreateReactorWithDir(cfg *BGPConfig, configDir string) (*reactor.Reactor, e
 				Encoder:       pc.Encoder,
 				ReceiveUpdate: pc.ReceiveUpdate,
 				StageTimeout:  pc.StageTimeout,
+				Internal:      pc.Internal,
 			})
 		}
 	}
