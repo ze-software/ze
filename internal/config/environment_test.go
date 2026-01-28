@@ -528,7 +528,7 @@ func TestSetConfigValueErrors(t *testing.T) {
 		errMsg  string
 	}{
 		{"invalid", "foo", "bar", "unknown environment section"},
-		{"log", "invalid_option", "bar", "unknown log option"},
+		{"log", "invalid_option", "bar", "unknown option"},
 		{"tcp", "port", "abc", "invalid"},
 		{"tcp", "port", "99999", "invalid"},
 		{"tcp", "port", "0", "invalid"},

@@ -8,9 +8,9 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/slogutil"
 )
 
-// subscribeLogger is the subscription subsystem logger.
-// Controlled by ze.log.bgp.subscribe environment variable.
-var subscribeLogger = slogutil.Logger("subscribe")
+// subscribeLogger is the subscription subsystem logger (lazy initialization).
+// Controlled by ze.log.subscribe environment variable.
+var subscribeLogger = slogutil.LazyLogger("subscribe")
 
 // Event namespaces.
 const (
@@ -184,7 +184,7 @@ func (sm *SubscriptionManager) GetMatching(namespace, eventType, direction, peer
 	sm.mu.RLock()
 	defer sm.mu.RUnlock()
 
-	subscribeLogger.Debug("GetMatching", "namespace", namespace, "event", eventType, "dir", direction, "peer", peer, "totalProcs", len(sm.subscriptions))
+	subscribeLogger().Debug("GetMatching", "namespace", namespace, "event", eventType, "dir", direction, "peer", peer, "totalProcs", len(sm.subscriptions))
 
 	var result []*Process
 	for proc, subs := range sm.subscriptions {

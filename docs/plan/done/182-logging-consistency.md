@@ -7,7 +7,6 @@
 2. `.claude/rules/planning.md` - workflow rules
 3. `.claude/rules/go-standards.md` - current logging docs
 4. `internal/slogutil/slogutil.go` - logging implementation
-5. `internal/trace/trace.go` - trace system being migrated
 
 ## Task
 
@@ -17,6 +16,7 @@ Unify Ze logging system for complete consistency:
 3. New env var convention: `ze.log.<package-path>`
 4. Migrate trace system to slog (delete internal/trace/)
 5. Update documentation to reflect all subsystems
+6. **Config file support:** Allow setting log levels via `environment { }` block
 
 **Out of scope (separate specs per package):**
 - Add logging to core BGP packages (fsm, message, attribute, nlri, rib, capability, reactor, rr)
@@ -60,16 +60,88 @@ This means:
 
 Should migrate to slog for consistency and structured logging.
 
+### Inconsistency 5: Config File Cannot Set Log Levels (TODO)
+
+The `environment { }` block in config files can set various settings, but the new
+`ze.log.<subsystem>=<level>` logging cannot be configured from config files.
+
+**Current state:**
+- OS env vars work: `ze.log.bgp.routes=debug ze bgp server config.conf`
+- Config file does NOT work for new logging
+
+**Required:** Add config file support using the new hierarchical format:
+
+```
+environment {
+    log {
+        # Base level for all subsystems (default: warn)
+        level warn;
+
+        # Specific subsystem overrides
+        bgp.routes debug;
+        bgp.reactor.peer info;
+        config debug;
+
+        # Output destination
+        backend stderr;        # stderr | stdout | syslog
+        destination localhost; # syslog address (when backend=syslog)
+
+        # Plugin stderr relay level
+        relay warn;
+    }
+}
+```
+
+**Implementation approach:**
+1. Parse `environment { log { } }` block with new syntax
+2. Call `os.Setenv()` for each `ze.log.*` setting BEFORE loggers are created
+3. Priority: OS env var > config file > default (WARN)
+
+**Why os.Setenv:** Loggers are created at package init time via `var logger = slogutil.Logger("subsystem")`.
+The config file is parsed later. By setting OS env vars early in `main()`, the existing `slogutil.Logger()`
+code works unchanged - it just sees the env vars set from config.
+
+**Current environment block system:**
+
+The existing `environment { }` block is parsed into the `Environment` struct:
+- `internal/config/environment.go` - defines `Environment`, `LogEnv`, `TCPEnv`, etc.
+- `internal/config/bgp.go` - `ExtractEnvironment()` parses config tree → `map[string]map[string]string`
+- `internal/config/loader.go` - `LoadEnvironmentWithConfig()` merges: defaults → config block → OS env
+
+Flow:
+1. `LoadReactorFile()` parses config file
+2. `ExtractEnvironment(tree)` extracts `environment { }` block values
+3. `CreateReactorWithDir()` calls `LoadEnvironmentWithConfig(envValues)`
+4. `LoadEnvironmentWithConfig()` builds `Environment` struct with priority: defaults < config < OS env
+
+The `log { }` section currently uses old ExaBGP-style boolean flags:
+
+| Old Syntax | Type | Description |
+|------------|------|-------------|
+| `level DEBUG;` | string | Syslog level |
+| `routes true;` | bool | Log received routes |
+| `configuration true;` | bool | Log config parsing |
+
+**New syntax needed:**
+
+| New Syntax | Maps To |
+|------------|---------|
+| `level warn;` | `ze.log=warn` |
+| `bgp.routes debug;` | `ze.log.bgp.routes=debug` |
+| `backend syslog;` | `ze.log.backend=syslog` |
+
 ## Required Reading
 
 ### Architecture Docs
-- [ ] `.claude/rules/go-standards.md` - current logging documentation
+- [x] `.claude/rules/go-standards.md` - current logging documentation
+- [ ] `docs/architecture/config/syntax.md` - config syntax (environment block)
 
 ### Source Code
-- [ ] `internal/slogutil/slogutil.go` - Logger(), LoggerWithLevel() implementation
-- [ ] `internal/trace/trace.go` - trace system to be migrated
-- [ ] `cmd/ze/bgp/plugin_gr.go` - current plugin logging pattern
-- [ ] `cmd/ze/bgp/plugin_rib.go` - current plugin logging pattern
+- [x] `internal/slogutil/slogutil.go` - Logger(), PluginLogger() implementation
+- [x] `cmd/ze/bgp/plugin_gr.go` - plugin logging pattern
+- [x] `cmd/ze/bgp/plugin_rib.go` - plugin logging pattern
+- [ ] `internal/config/environment.go` - current environment block parsing
+- [ ] `internal/config/loader.go` - LoadEnvironmentWithConfig() flow
 
 ## Design Decisions
 
@@ -273,57 +345,102 @@ Dot notation always takes precedence over underscore at same level.
 ## Checklist
 
 ### 🏗️ Design
-- [ ] No premature abstraction (using existing slogutil pattern)
-- [ ] No speculative features (only adding what's needed)
-- [ ] Single responsibility (each logger for one subsystem)
-- [ ] Explicit behavior (env var + CLI flag priority documented)
-- [ ] Minimal coupling (loggers are package-local)
+- [x] No premature abstraction (using existing slogutil pattern)
+- [x] No speculative features (only adding what's needed)
+- [x] Single responsibility (each logger for one subsystem)
+- [x] Explicit behavior (env var + CLI flag priority documented)
+- [x] Minimal coupling (loggers are package-local)
 
 ### 🧪 TDD
-- [ ] Tests written (11 unit tests)
-- [ ] Tests FAIL (output below)
-- [ ] Implementation complete
-- [ ] Tests PASS (output below)
-- [ ] Feature code integrated
-- [ ] Functional tests N/A (internal logging)
+- [x] Tests written (15 unit tests for hierarchical/plugin/relay)
+- [x] Tests FAIL (functions didn't exist)
+- [x] Implementation complete
+- [x] Tests PASS (all 35 slogutil tests pass)
+- [x] Feature code integrated
+- [x] Functional tests N/A (internal logging)
 
 ### Verification
-- [ ] `make lint` passes
-- [ ] `make test` passes
-- [ ] `make functional` passes
+- [x] `make lint` passes
+- [x] `make test` passes
+- [x] `make functional` passes
 
 ### Existing Loggers Updated
-- [ ] All Logger() calls use new simplified subsystem names
-- [ ] plugin_gr.go uses PluginLogger()
-- [ ] plugin_rib.go uses PluginLogger()
-- [ ] IsPluginRelayEnabled() replaced with relay level check
+- [x] All Logger() calls use new subsystem names (bgp.reactor.peer, bgp.reactor.session, test.runner, test.record)
+- [x] plugin_gr.go uses PluginLogger()
+- [x] plugin_rib.go uses PluginLogger()
+- [x] IsPluginRelayEnabled() replaced with RelayLevel() check
 
 ### Trace Migration
-- [ ] config/loader.go converted
-- [ ] reactor/peer.go converted
-- [ ] reactor/session.go converted
-- [ ] reactor/reactor.go converted
-- [ ] internal/trace/ deleted
-- [ ] No trace imports remain
+- [x] config/loader.go converted (5 calls → configLogger)
+- [x] reactor/peer.go converted (~60 calls → routesLogger/peerLogger)
+- [x] reactor/session.go converted (7 calls → sessionLogger)
+- [x] reactor/reactor.go converted (7 calls → reactorLogger/routesLogger)
+- [x] internal/trace/ deleted
+- [x] No trace imports remain
 
 ### Documentation
-- [ ] go-standards.md rewritten with new convention
-- [ ] Env var table complete with all subsystems
-- [ ] Hierarchical logging documented
-- [ ] Old `ze.log.bgp.*` references removed
+- [x] go-standards.md rewritten with new ze.log.<path> convention
+- [x] Env var table complete with all subsystems
+- [x] Hierarchical logging documented (priority order)
+- [x] Old `ze.log.bgp.*` references removed
+
+### Config File Support
+- [x] ApplyLogConfig() function added to slogutil
+- [x] Unit tests for config file support (8 tests)
+- [x] Integration in LoadReactorWithConfig() after ExtractEnvironment()
+- [x] Priority: OS env var > config file > default
+- [x] LazyLogger() for deferred logger creation
+- [x] All 12 package-level loggers converted to lazy initialization
+- [x] Invalid level/backend validation with warnings
+- [x] YANG schema updated with ze:allow-unknown-fields extension
+- [x] Functional test for config file log settings
 
 ## Implementation Summary
 
-<!-- Fill after implementation -->
-
 ### What Was Implemented
--
+- Hierarchical env var lookup: ze.log.bgp.fsm → ze.log.bgp → ze.log
+- PluginLogger() for plugins (CLI flag OR env var fallback)
+- RelayLevel() replacing IsPluginRelayEnabled() for level-aware relay
+- Migrated all trace calls to slog (config, reactor, peer, session)
+- Deleted internal/trace/ package
+- Updated docs with new convention
+- **Config file support:** ApplyLogConfig() maps config `log { }` block to env vars
+- **LazyLogger():** Defers logger creation until first use, allowing config file settings to work for all loggers
+
+### Config File Syntax
+```
+environment {
+    log {
+        level warn;            # ze.log=warn (base level)
+        bgp.routes debug;      # ze.log.bgp.routes=debug
+        config info;           # ze.log.config=info
+        backend stderr;        # ze.log.backend=stderr
+        destination localhost; # ze.log.destination=localhost (syslog)
+        relay warn;            # ze.log.relay=warn
+    }
+}
+```
+
+### Lazy Loggers
+All engine loggers use `LazyLogger()` for deferred creation:
+- configLogger, logger (server), stderrLogger, filterLogger
+- coordinatorLogger, subscribeLogger, reactorLogger, routesLogger
+- peerLogger, sessionLogger, logger (test.runner), recordLogger
+
+This allows config file settings to be applied before first logger use.
 
 ### Bugs Found/Fixed
--
+- Package-level loggers ignored config file (fixed with LazyLogger)
 
 ### Design Insights
--
+- Hierarchical lookup is clean: split subsystem by ".", walk from specific to root
+- PluginLogger() enables env var control for plugins without CLI changes
+- routesLogger needed in both reactor.go and peer.go (declared in both)
+- Config file support uses os.Setenv() to integrate with existing hierarchical lookup
+- LazyLogger uses sync.Once for thread-safe deferred creation
+- applyLogConfigTo() internal function enables thread-safe testing
 
 ### Deviations from Plan
--
+- Added routesLogger to peer.go (not just reactor.go) since peer.go has many route operations
+- RelayLevel returns (slog.Level, bool) instead of just bool for level-aware filtering
+- Added LazyLogger to fix package-level logger limitation (not in original plan)

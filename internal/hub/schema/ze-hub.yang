@@ -2,6 +2,8 @@ module ze-hub {
     namespace "urn:ze:hub";
     prefix hub;
 
+    import ze-extensions { prefix ze; }
+
     description "Hub/core configuration for ZeBGP";
 
     revision 2026-01-01 {
@@ -23,9 +25,33 @@ module ze-hub {
 
         container log {
             description "Logging settings";
-            leaf level { type string; }
+
+            // Base log level for all subsystems (ze.log)
+            leaf level {
+                type string;
+                description "Base log level for all subsystems: disabled, debug, info, warn, err";
+            }
+
+            // Log output backend
+            leaf backend {
+                type string;
+                description "Log output destination: stderr (default), stdout, syslog";
+            }
+
+            // Syslog destination address
+            leaf destination {
+                type string;
+                description "Syslog address when backend=syslog";
+            }
+
+            // Plugin stderr relay level
+            leaf relay {
+                type string;
+                description "Plugin stderr relay level: disabled, debug, info, warn, err";
+            }
+
+            // Legacy ExaBGP-compatible settings (deprecated)
             leaf enable { type boolean; }
-            leaf destination { type string; }
             leaf all { type boolean; }
             leaf configuration { type boolean; }
             leaf reactor { type boolean; }
@@ -40,6 +66,12 @@ module ze-hub {
             leaf routes { type boolean; }
             leaf parser { type boolean; }
             leaf short { type boolean; }
+
+            // Subsystem-specific log levels (any key allowed)
+            // Syntax: <subsystem-path> <level>;
+            // Example: bgp.routes debug;
+            // Maps to: ze.log.bgp.routes=debug
+            ze:allow-unknown-fields;
         }
 
         container tcp {

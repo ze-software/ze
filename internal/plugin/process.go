@@ -16,9 +16,10 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/slogutil"
 )
 
-// stderrLogger is used for relaying plugin stderr to engine logs.
-// Tagged with subsystem=plugin to distinguish from engine logs.
-var stderrLogger = slogutil.Logger("plugin")
+// stderrLogger is used for relaying plugin stderr to engine logs (lazy initialization).
+// Tagged with subsystem=relay to distinguish from engine logs.
+// Level controlled by ze.log.relay env var.
+var stderrLogger = slogutil.LazyLogger("relay")
 
 // Backpressure constants matching ExaBGP behavior.
 // ExaBGP: WRITE_QUEUE_HIGH_WATER=1000, WRITE_QUEUE_LOW_WATER=100.
@@ -420,23 +421,35 @@ func parseResponseSerial(line string) (string, string, bool) {
 
 // relayStderr reads plugin stderr and relays to engine logs.
 // Plugin stderr format: time=... level=DEBUG msg="..." subsystem=gr ...
-// When ze.log.bgp.plugin=enabled, relays with subsystem=plugin and plugin=<name>.
-// When disabled, discards plugin stderr silently.
+// When ze.log.relay=<level>, relays messages at or above that level.
+// When disabled (empty/disabled), discards plugin stderr silently.
 func (p *Process) relayStderr() {
+	// Get configured relay level
+	relayLevel, enabled := slogutil.RelayLevel()
+	if !enabled {
+		// Discard all stderr when relay disabled
+		scanner := bufio.NewScanner(p.stderr)
+		for scanner.Scan() {
+			// Read but discard
+		}
+		return
+	}
+
 	scanner := bufio.NewScanner(p.stderr)
 	for scanner.Scan() {
 		line := scanner.Text()
-		if !slogutil.IsPluginRelayEnabled() {
-			continue // Discard when relay disabled
-		}
-		// Parse the slog line and relay with subsystem=plugin
+		// Parse the slog line and relay with subsystem=relay
 		level, msg, attrs := slogutil.ParseLogLine(line)
+		// Filter by configured relay level
+		if level < relayLevel {
+			continue
+		}
 		// Build args: plugin name + original attrs
 		args := []any{"plugin", p.config.Name}
 		if len(attrs) > 0 {
 			args = append(args, slog.Group("original", attrs...))
 		}
-		stderrLogger.Log(context.Background(), level, msg, args...)
+		stderrLogger().Log(context.Background(), level, msg, args...)
 	}
 }
 

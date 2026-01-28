@@ -22,7 +22,7 @@ import (
 var logger = slogutil.DiscardLogger()
 
 // SetLogger sets the package-level logger.
-// Called by cmd/ze/bgp/plugin_gr.go with slogutil.LoggerWithLevel().
+// Called by cmd/ze/bgp/plugin_gr.go with slogutil.PluginLogger().
 func SetLogger(l *slog.Logger) {
 	if l != nil {
 		logger = l

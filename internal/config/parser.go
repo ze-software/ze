@@ -437,6 +437,14 @@ func (p *Parser) parseContainer(tree *Tree, name string, node *ContainerNode) er
 
 		fieldNode := node.Get(fieldName)
 		if fieldNode == nil {
+			// Check if container allows unknown fields (ze:allow-unknown-fields)
+			if node.AllowUnknown {
+				// Parse unknown field as string leaf: "key value;"
+				if err := p.parseUnknownField(child, fieldName); err != nil {
+					return err
+				}
+				continue
+			}
 			return p.errorf(tok, "unknown field in %s: %s (line %d)", name, fieldName, tok.Line)
 		}
 
@@ -446,6 +454,30 @@ func (p *Parser) parseContainer(tree *Tree, name string, node *ContainerNode) er
 	}
 
 	tree.MergeContainer(name, child)
+	return nil
+}
+
+// parseUnknownField parses an unknown field as a string value.
+// Used for containers with ze:allow-unknown-fields extension.
+// Syntax: "key value;" where value is the next word/string token.
+func (p *Parser) parseUnknownField(tree *Tree, name string) error {
+	tok := p.tok.Peek()
+
+	// Expect a value (word or string)
+	if tok.Type != TokenWord && tok.Type != TokenString {
+		return p.errorf(tok, "expected value for %s, got %s", name, tok.Type)
+	}
+	value := tok.Value
+	p.tok.Next()
+
+	// Expect semicolon
+	tok = p.tok.Peek()
+	if tok.Type != TokenSemicolon {
+		return p.errorf(tok, "expected ';' after %s value, got %s", name, tok.Type)
+	}
+	p.tok.Next()
+
+	tree.Set(name, value)
 	return nil
 }
 

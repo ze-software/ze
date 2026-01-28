@@ -209,7 +209,22 @@ func yangToContainer(entry *gyang.Entry, path string) *ContainerNode {
 			fields = append(fields, Field(name, node))
 		}
 	}
-	return Container(fields...)
+	container := Container(fields...)
+
+	// Check for ze:allow-unknown-fields extension
+	container.AllowUnknown = hasAllowUnknownExtension(entry)
+
+	return container
+}
+
+// hasAllowUnknownExtension checks if a YANG entry has the ze:allow-unknown-fields extension.
+func hasAllowUnknownExtension(entry *gyang.Entry) bool {
+	for _, ext := range entry.Exts {
+		if ext.Keyword == "ze:allow-unknown-fields" || strings.HasSuffix(ext.Keyword, ":allow-unknown-fields") {
+			return true
+		}
+	}
+	return false
 }
 
 // yangToList converts YANG list to ListNode.

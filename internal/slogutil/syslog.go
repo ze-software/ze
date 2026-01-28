@@ -7,10 +7,10 @@ import (
 )
 
 // newSyslogHandler creates a syslog handler.
-// Reads ze.log.bgp.destination for syslog address.
+// Reads ze.log.destination for syslog address.
 // Falls back to stderr if syslog connection fails.
 func newSyslogHandler(opts *slog.HandlerOptions) slog.Handler {
-	addr := getLogEnv("destination")
+	addr := getSpecialEnv("destination")
 
 	// Determine network and address based on addr format
 	var network, raddr string

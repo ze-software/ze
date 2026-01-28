@@ -15,9 +15,9 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/slogutil"
 )
 
-// filterLogger is the filter subsystem logger.
-// Controlled by ze.log.bgp.filter environment variable.
-var filterLogger = slogutil.Logger("filter")
+// filterLogger is the filter subsystem logger (lazy initialization).
+// Controlled by ze.log.filter environment variable.
+var filterLogger = slogutil.LazyLogger("filter")
 
 // Filter keywords.
 const (
@@ -236,7 +236,7 @@ func (r FilterResult) AnnouncedByFamily(ctx *bgpctx.EncodingContext) []FamilyNLR
 		hasAddPath := ctx.AddPathFor(family)
 		nlris, err := mp.NLRIs(hasAddPath)
 		if err != nil {
-			filterLogger.Debug("NLRI parse error", "family", family, "error", err)
+			filterLogger().Debug("NLRI parse error", "family", family, "error", err)
 			continue
 		}
 		if len(nlris) == 0 {
@@ -254,7 +254,7 @@ func (r FilterResult) AnnouncedByFamily(ctx *bgpctx.EncodingContext) []FamilyNLR
 		hasAddPath := ctx.AddPathFor(nlri.IPv4Unicast)
 		nlris, err := r.IPv4Announced.NLRIs(hasAddPath)
 		if err != nil {
-			filterLogger.Debug("IPv4 NLRI parse error", "error", err)
+			filterLogger().Debug("IPv4 NLRI parse error", "error", err)
 		} else if len(nlris) > 0 {
 			result = append(result, FamilyNLRI{
 				Family:  nlri.IPv4Unicast.String(),
@@ -284,7 +284,7 @@ func (r FilterResult) WithdrawnByFamily(ctx *bgpctx.EncodingContext) []FamilyNLR
 		hasAddPath := ctx.AddPathFor(family)
 		nlris, err := mp.NLRIs(hasAddPath)
 		if err != nil {
-			filterLogger.Debug("NLRI parse error", "family", family, "error", err)
+			filterLogger().Debug("NLRI parse error", "family", family, "error", err)
 			continue
 		}
 		if len(nlris) == 0 {
@@ -301,7 +301,7 @@ func (r FilterResult) WithdrawnByFamily(ctx *bgpctx.EncodingContext) []FamilyNLR
 		hasAddPath := ctx.AddPathFor(nlri.IPv4Unicast)
 		nlris, err := r.IPv4Withdrawn.NLRIs(hasAddPath)
 		if err != nil {
-			filterLogger.Debug("IPv4 withdrawn parse error", "error", err)
+			filterLogger().Debug("IPv4 withdrawn parse error", "error", err)
 		} else if len(nlris) > 0 {
 			result = append(result, FamilyNLRI{
 				Family: nlri.IPv4Unicast.String(),

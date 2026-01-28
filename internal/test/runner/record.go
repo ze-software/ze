@@ -16,7 +16,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/tmpfs"
 )
 
-var recordLogger = slogutil.Logger("record")
+var recordLogger = slogutil.LazyLogger("test.record")
 
 // State represents a test's execution state.
 type State int
@@ -556,7 +556,7 @@ func (et *EncodingTests) parseAndAdd(ciFile string) error {
 	if len(v.StdinBlocks) > 0 {
 		r.StdinBlocks = v.StdinBlocks
 		for name, content := range v.StdinBlocks {
-			recordLogger.Debug("stdin block loaded", "name", name, "size", len(content), "preview", string(content[:min(100, len(content))]))
+			recordLogger().Debug("stdin block loaded", "name", name, "size", len(content), "preview", string(content[:min(100, len(content))]))
 		}
 	}
 

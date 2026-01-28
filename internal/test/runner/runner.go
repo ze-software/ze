@@ -19,7 +19,7 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/tmpfs"
 )
 
-var logger = slogutil.Logger("runner")
+var logger = slogutil.LazyLogger("test.runner")
 
 // syncWriter is an io.Writer that captures output and supports waiting for patterns.
 // Used to wait for ze-peer's "listening on" message before starting the client.
@@ -668,7 +668,7 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 				rec.Error = fmt.Errorf("create temp file for peer: %w", err)
 				return false
 			}
-			logger.Debug("writing peer expect file", "path", tmpFile.Name(), "size", len(stdinContent), "content", string(stdinContent))
+			logger().Debug("writing peer expect file", "path", tmpFile.Name(), "size", len(stdinContent), "content", string(stdinContent))
 			defer func(name string) { _ = os.Remove(name) }(tmpFile.Name())
 			if _, err := tmpFile.Write(stdinContent); err != nil {
 				_ = tmpFile.Close()
@@ -722,7 +722,7 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 			}
 		}
 
-		logger.Debug("executing command", "mode", cmd.Mode, "binary", binPath, "args", args)
+		logger().Debug("executing command", "mode", cmd.Mode, "binary", binPath, "args", args)
 
 		// Create command
 		proc := exec.CommandContext(testCtx, binPath, args...) //nolint:gosec // test runner
@@ -838,7 +838,7 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 	rec.PeerOutput = peerStdout.String() + peerStderr.String()
 	rec.ClientOutput = clientStdout.String() + clientStderr.String()
 	rec.Duration = time.Since(rec.StartTime)
-	logger.Debug("collected output", "peerOutput", rec.PeerOutput, "clientOutput", rec.ClientOutput)
+	logger().Debug("collected output", "peerOutput", rec.PeerOutput, "clientOutput", rec.ClientOutput)
 
 	// Parse received messages
 	rec.ReceivedRaw = extractReceivedMessages(rec.PeerOutput)

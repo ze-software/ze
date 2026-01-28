@@ -17,9 +17,9 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/slogutil"
 )
 
-// logger is the plugin server subsystem logger.
-// Controlled by ze.log.bgp.server environment variable.
-var logger = slogutil.Logger("server")
+// logger is the plugin server subsystem logger (lazy initialization).
+// Controlled by ze.log.server environment variable.
+var logger = slogutil.LazyLogger("server")
 
 // Default stage timeout for plugin registration protocol.
 // Each stage must complete within this duration.
@@ -32,10 +32,10 @@ func (s *Server) stageTransition(proc *Process, pluginName string, completeStage
 		return true
 	}
 
-	logger.Debug("server: stageTransition START", "plugin", pluginName, "complete", completeStage, "wait_for", waitStage)
-	logger.Debug("server: stageTransition calling StageComplete", "plugin", pluginName, "index", proc.Index())
+	logger().Debug("server: stageTransition START", "plugin", pluginName, "complete", completeStage, "wait_for", waitStage)
+	logger().Debug("server: stageTransition calling StageComplete", "plugin", pluginName, "index", proc.Index())
 	s.coordinator.StageComplete(proc.Index(), completeStage)
-	logger.Debug("server: stageTransition StageComplete returned", "plugin", pluginName)
+	logger().Debug("server: stageTransition StageComplete returned", "plugin", pluginName)
 
 	// Use per-plugin timeout if configured, else default
 	timeout := proc.config.StageTimeout
@@ -48,7 +48,7 @@ func (s *Server) stageTransition(proc *Process, pluginName string, completeStage
 	cancel()
 
 	if err != nil {
-		logger.Error("stage timeout", "plugin", pluginName, "waiting_for", waitStage, "error", err)
+		logger().Error("stage timeout", "plugin", pluginName, "waiting_for", waitStage, "error", err)
 		s.coordinator.PluginFailed(proc.Index(), fmt.Sprintf("stage timeout: %v", err))
 		proc.Stop()
 		return false
@@ -64,31 +64,31 @@ type stageProgression struct {
 
 // progressThroughStages handles the common pattern of two stage transitions with delivery between.
 func (s *Server) progressThroughStages(proc *Process, name string, p stageProgression) {
-	logger.Debug("server: progressThroughStages START", "plugin", name, "from", p.from, "mid", p.mid, "to", p.to)
+	logger().Debug("server: progressThroughStages START", "plugin", name, "from", p.from, "mid", p.mid, "to", p.to)
 	// First transition: from → mid
 	if !s.stageTransition(proc, name, p.from, p.mid) {
-		logger.Debug("server: progressThroughStages FAILED first transition", "plugin", name)
+		logger().Debug("server: progressThroughStages FAILED first transition", "plugin", name)
 		return
 	}
-	logger.Debug("server: progressThroughStages SetStage mid", "plugin", name, "mid", p.mid)
+	logger().Debug("server: progressThroughStages SetStage mid", "plugin", name, "mid", p.mid)
 	proc.SetStage(p.mid)
 
 	// Deliver content
 	if p.deliver != nil {
-		logger.Debug("server: progressThroughStages calling deliver", "plugin", name)
+		logger().Debug("server: progressThroughStages calling deliver", "plugin", name)
 		p.deliver(proc)
-		logger.Debug("server: progressThroughStages deliver done", "plugin", name)
+		logger().Debug("server: progressThroughStages deliver done", "plugin", name)
 	}
 
 	// Second transition: mid → to
-	logger.Debug("server: progressThroughStages second transition START", "plugin", name)
+	logger().Debug("server: progressThroughStages second transition START", "plugin", name)
 	if !s.stageTransition(proc, name, p.mid, p.to) {
-		logger.Debug("server: progressThroughStages FAILED second transition", "plugin", name)
+		logger().Debug("server: progressThroughStages FAILED second transition", "plugin", name)
 		return
 	}
-	logger.Debug("server: progressThroughStages SetStage to", "plugin", name, "to", p.to)
+	logger().Debug("server: progressThroughStages SetStage to", "plugin", name, "to", p.to)
 	proc.SetStage(p.to)
-	logger.Debug("server: progressThroughStages DONE", "plugin", name)
+	logger().Debug("server: progressThroughStages DONE", "plugin", name)
 }
 
 // handlePluginConflict logs and handles plugin registration conflicts.
@@ -96,7 +96,7 @@ func (s *Server) handlePluginConflict(proc *Process, name, msg string, err error
 	if s.coordinator != nil {
 		s.coordinator.PluginFailed(proc.Index(), err.Error())
 	}
-	logger.Error(msg, "plugin", name, "error", err)
+	logger().Error(msg, "plugin", name, "error", err)
 	proc.Stop()
 }
 
@@ -499,7 +499,7 @@ func (s *Server) handleSingleProcessCommands(proc *Process) {
 				err := s.coordinator.WaitForStage(stageCtx, StageRunning)
 				cancel()
 				if err != nil {
-					logger.Error("stage timeout waiting for running stage", "plugin", proc.Name(), "error", err)
+					logger().Error("stage timeout waiting for running stage", "plugin", proc.Name(), "error", err)
 					s.coordinator.PluginFailed(proc.Index(), fmt.Sprintf("stage timeout: %v", err))
 					return
 				}
@@ -513,9 +513,9 @@ func (s *Server) handleSingleProcessCommands(proc *Process) {
 		}
 
 		// Dispatch command
-		logger.Debug("Dispatch", "plugin", proc.Name(), "cmd", cmd)
+		logger().Debug("Dispatch", "plugin", proc.Name(), "cmd", cmd)
 		resp, err := s.dispatcher.Dispatch(cmdCtx, cmd)
-		logger.Debug("Dispatch result", "plugin", proc.Name(), "err", err, "resp", resp)
+		logger().Debug("Dispatch result", "plugin", proc.Name(), "err", err, "resp", resp)
 		if err != nil {
 			// ErrSilent means suppress response entirely
 			if errors.Is(err, ErrSilent) {
@@ -539,27 +539,27 @@ func (s *Server) handleSingleProcessCommands(proc *Process) {
 func (s *Server) handleRegistrationLine(proc *Process, line string) bool {
 	reg := proc.Registration()
 	if err := reg.ParseLine(line); err != nil {
-		logger.Debug("server: handleRegistrationLine PARSE ERROR", "plugin", proc.Name(), "line", line, "err", err)
+		logger().Debug("server: handleRegistrationLine PARSE ERROR", "plugin", proc.Name(), "line", line, "err", err)
 		return false
 	}
 	if !reg.Done {
-		logger.Debug("server: handleRegistrationLine parsed", "plugin", proc.Name(), "line", line)
+		logger().Debug("server: handleRegistrationLine parsed", "plugin", proc.Name(), "line", line)
 		return true
 	}
 
-	logger.Debug("server: handleRegistrationLine DONE", "plugin", proc.Name(), "patterns", len(reg.ConfigPatterns))
+	logger().Debug("server: handleRegistrationLine DONE", "plugin", proc.Name(), "patterns", len(reg.ConfigPatterns))
 	reg.Name = proc.config.Name
 	if err := s.registry.Register(reg); err != nil {
 		s.handlePluginConflict(proc, reg.Name, "plugin registration conflict", err)
 		return true
 	}
 
-	logger.Debug("server: handleRegistrationLine calling progressThroughStages", "plugin", proc.Name())
+	logger().Debug("server: handleRegistrationLine calling progressThroughStages", "plugin", proc.Name())
 	s.progressThroughStages(proc, reg.Name, stageProgression{
 		from: StageRegistration, mid: StageConfig, to: StageCapability,
 		deliver: s.deliverConfig,
 	})
-	logger.Debug("server: handleRegistrationLine progressThroughStages returned", "plugin", proc.Name())
+	logger().Debug("server: handleRegistrationLine progressThroughStages returned", "plugin", proc.Name())
 	return true
 }
 
@@ -625,18 +625,18 @@ func (s *Server) GetSchemaDeclarations() []SchemaDeclaration {
 // deliverConfig sends matching configuration to a plugin (Stage 2).
 // Matches registered config patterns against peer capability configs.
 func (s *Server) deliverConfig(proc *Process) {
-	logger.Debug("server: deliverConfig START", "plugin", proc.Name())
+	logger().Debug("server: deliverConfig START", "plugin", proc.Name())
 	reg := proc.Registration()
 	if len(reg.ConfigPatterns) == 0 || s.reactor == nil {
-		logger.Debug("server: deliverConfig FAST PATH", "plugin", proc.Name(), "patterns", len(reg.ConfigPatterns), "has_reactor", s.reactor != nil)
+		logger().Debug("server: deliverConfig FAST PATH", "plugin", proc.Name(), "patterns", len(reg.ConfigPatterns), "has_reactor", s.reactor != nil)
 		_ = proc.WriteEvent("config done")
 		return
 	}
 
 	// Get peer capability configs from reactor
-	logger.Debug("server: deliverConfig getting peer configs", "plugin", proc.Name())
+	logger().Debug("server: deliverConfig getting peer configs", "plugin", proc.Name())
 	peerConfigs := s.reactor.GetPeerCapabilityConfigs()
-	logger.Debug("server: deliverConfig got peer configs", "plugin", proc.Name(), "count", len(peerConfigs))
+	logger().Debug("server: deliverConfig got peer configs", "plugin", proc.Name(), "count", len(peerConfigs))
 
 	// For each peer, try to match patterns and deliver config
 	for _, peerCfg := range peerConfigs {
@@ -654,7 +654,7 @@ func (s *Server) deliverConfig(proc *Process) {
 		}
 	}
 
-	logger.Debug("server: deliverConfig DONE", "plugin", proc.Name())
+	logger().Debug("server: deliverConfig DONE", "plugin", proc.Name())
 	_ = proc.WriteEvent("config done")
 }
 
@@ -708,7 +708,7 @@ func (s *Server) handlePluginFailed(proc *Process, line string) {
 	}
 
 	// Log the failure with structured logging
-	logger.Error("plugin startup failed",
+	logger().Error("plugin startup failed",
 		"plugin", proc.Name(),
 		"stage", proc.Stage().String(),
 		"error", errMsg,
@@ -943,24 +943,24 @@ func (s *Server) removeClient(client *Client) {
 // This is called for ALL message types (UPDATE, OPEN, NOTIFICATION, KEEPALIVE).
 func (s *Server) OnMessageReceived(peer PeerInfo, msg RawMessage) {
 	if s.procManager == nil || s.subscriptions == nil {
-		logger.Debug("OnMessageReceived: no procManager or subscriptions")
+		logger().Debug("OnMessageReceived: no procManager or subscriptions")
 		return
 	}
 
 	eventType := messageTypeToEventType(msg.Type)
 	if eventType == "" {
-		logger.Debug("OnMessageReceived: unknown event type", "msgType", msg.Type)
+		logger().Debug("OnMessageReceived: unknown event type", "msgType", msg.Type)
 		return
 	}
 
-	logger.Debug("OnMessageReceived", "peer", peer.Address.String(), "event", eventType, "dir", msg.Direction)
+	logger().Debug("OnMessageReceived", "peer", peer.Address.String(), "event", eventType, "dir", msg.Direction)
 	procs := s.subscriptions.GetMatching(NamespaceBGP, eventType, msg.Direction, peer.Address.String())
-	logger.Debug("OnMessageReceived matched", "count", len(procs))
+	logger().Debug("OnMessageReceived matched", "count", len(procs))
 	for _, proc := range procs {
 		output := s.formatMessageForSubscription(peer, msg)
-		logger.Debug("OnMessageReceived writing", "proc", proc.Name(), "outputLen", len(output))
+		logger().Debug("OnMessageReceived writing", "proc", proc.Name(), "outputLen", len(output))
 		if err := proc.WriteEvent(output); err != nil {
-			logger.Warn("OnMessageReceived write failed", "proc", proc.Name(), "err", err)
+			logger().Warn("OnMessageReceived write failed", "proc", proc.Name(), "err", err)
 		}
 	}
 }
@@ -1019,19 +1019,19 @@ func (s *Server) formatMessageForSubscription(peer PeerInfo, msg RawMessage) str
 // Called by reactor when peer state changes (not a BGP message).
 // State events are separate from BGP protocol messages.
 func (s *Server) OnPeerStateChange(peer PeerInfo, state string) {
-	logger.Debug("OnPeerStateChange", "peer", peer.Address.String(), "state", state)
+	logger().Debug("OnPeerStateChange", "peer", peer.Address.String(), "state", state)
 	if s.procManager == nil || s.subscriptions == nil {
-		logger.Debug("OnPeerStateChange: no procManager or subscriptions")
+		logger().Debug("OnPeerStateChange: no procManager or subscriptions")
 		return
 	}
 
 	procs := s.subscriptions.GetMatching(NamespaceBGP, EventState, "", peer.Address.String())
-	logger.Debug("OnPeerStateChange matched", "count", len(procs))
+	logger().Debug("OnPeerStateChange matched", "count", len(procs))
 	for _, proc := range procs {
 		output := FormatStateChange(peer, state, EncodingJSON)
-		logger.Debug("OnPeerStateChange writing", "proc", proc.Name())
+		logger().Debug("OnPeerStateChange writing", "proc", proc.Name())
 		if err := proc.WriteEvent(output); err != nil {
-			logger.Warn("OnPeerStateChange write failed", "proc", proc.Name(), "err", err)
+			logger().Warn("OnPeerStateChange write failed", "proc", proc.Name(), "err", err)
 		}
 	}
 }
@@ -1048,7 +1048,7 @@ func (s *Server) OnPeerNegotiated(peer PeerInfo, neg DecodedNegotiated) {
 	for _, proc := range procs {
 		output := FormatNegotiated(peer, neg, s.encoder)
 		if err := proc.WriteEvent(output); err != nil {
-			logger.Warn("OnPeerNegotiated write failed", "proc", proc.Name(), "err", err)
+			logger().Warn("OnPeerNegotiated write failed", "proc", proc.Name(), "err", err)
 		}
 	}
 }
@@ -1058,9 +1058,9 @@ func (s *Server) OnPeerNegotiated(peer PeerInfo, neg DecodedNegotiated) {
 // Called by reactor after successfully sending UPDATE to peer.
 func (s *Server) OnMessageSent(peer PeerInfo, msg RawMessage) {
 	eventType := messageTypeToEventType(msg.Type)
-	logger.Debug("OnMessageSent", "peer", peer.Address.String(), "type", eventType)
+	logger().Debug("OnMessageSent", "peer", peer.Address.String(), "type", eventType)
 	if s.procManager == nil || s.subscriptions == nil {
-		logger.Debug("OnMessageSent: no procManager or subscriptions")
+		logger().Debug("OnMessageSent: no procManager or subscriptions")
 		return
 	}
 
@@ -1069,12 +1069,12 @@ func (s *Server) OnMessageSent(peer PeerInfo, msg RawMessage) {
 	}
 
 	procs := s.subscriptions.GetMatching(NamespaceBGP, eventType, DirectionSent, peer.Address.String())
-	logger.Debug("OnMessageSent matched", "count", len(procs))
+	logger().Debug("OnMessageSent matched", "count", len(procs))
 	for _, proc := range procs {
 		output := s.formatSentMessageForSubscription(peer, msg)
-		logger.Debug("OnMessageSent writing", "proc", proc.Name())
+		logger().Debug("OnMessageSent writing", "proc", proc.Name())
 		if err := proc.WriteEvent(output); err != nil {
-			logger.Warn("OnMessageSent write failed", "proc", proc.Name(), "err", err)
+			logger().Warn("OnMessageSent write failed", "proc", proc.Name(), "err", err)
 		}
 	}
 }

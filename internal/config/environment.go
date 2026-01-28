@@ -2,6 +2,7 @@
 package config
 
 import (
+	"errors"
 	"fmt"
 	"os"
 	"strconv"
@@ -453,8 +454,12 @@ var envOptions = map[string]map[string]envOption{
 	},
 }
 
+// ErrUnknownOption indicates an unknown option was encountered.
+// This is used to distinguish from other errors when allowing unknown log options.
+var ErrUnknownOption = fmt.Errorf("unknown option")
+
 // SetConfigValue applies a single config value from the environment block.
-// Returns error for unknown section/option, type parse failure, or validation failure.
+// Returns ErrUnknownOption for unknown options, or other errors for parse/validation failure.
 func (e *Environment) SetConfigValue(section, option, value string) error {
 	section = strings.ToLower(section)
 	option = strings.ToLower(option)
@@ -466,7 +471,7 @@ func (e *Environment) SetConfigValue(section, option, value string) error {
 
 	opt, ok := sectionOpts[option]
 	if !ok {
-		return fmt.Errorf("unknown %s option: %s", section, option)
+		return fmt.Errorf("%w: %s.%s", ErrUnknownOption, section, option)
 	}
 
 	// Validate if validator exists
@@ -499,6 +504,10 @@ func (e *Environment) loadFromEnvStrict() error {
 
 // LoadEnvironmentWithConfig loads env: defaults → config block → OS env.
 // The configValues map is section -> option -> value from parsed config.
+//
+// Unknown options in the "log" section are allowed - they're interpreted as
+// subsystem log levels (e.g., "gr debug" → ze.log.gr=debug) and handled by
+// slogutil.ApplyLogConfig() separately.
 func LoadEnvironmentWithConfig(configValues map[string]map[string]string) (*Environment, error) {
 	env := &Environment{}
 	env.loadDefaults()
@@ -507,6 +516,11 @@ func LoadEnvironmentWithConfig(configValues map[string]map[string]string) (*Envi
 	for section, options := range configValues {
 		for option, value := range options {
 			if err := env.SetConfigValue(section, option, value); err != nil {
+				// Allow unknown options in "log" section - they're subsystem log levels
+				// handled by slogutil.ApplyLogConfig() (e.g., "gr debug" → ze.log.gr=debug)
+				if errors.Is(err, ErrUnknownOption) && section == "log" {
+					continue
+				}
 				return nil, fmt.Errorf("config environment.%s.%s: %w", section, option, err)
 			}
 		}

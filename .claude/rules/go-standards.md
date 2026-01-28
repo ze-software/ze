@@ -22,19 +22,19 @@ Prefer structured key-value pairs over formatted strings.
 
 ### Per-Subsystem Logging
 
-ZeBGP uses per-subsystem logging via `internal/slogutil`. Each subsystem has independent enable/disable control.
+ZeBGP uses per-subsystem logging via `internal/slogutil`. Each subsystem has independent enable/disable control with hierarchical inheritance.
 
 **Engine subsystems** (use `slogutil.Logger()`):
 ```go
 // In internal/plugin/server.go
-var logger = slogutil.Logger("server")  // Reads ze.bgp.log.server
+var logger = slogutil.Logger("server")  // Reads ze.log.server
 
 func handleConnection() {
     logger.Debug("connection accepted", "peer", peerAddr)
 }
 ```
 
-**Plugin processes** (use `slogutil.LoggerWithLevel()`):
+**Plugin processes** (use `slogutil.PluginLogger()`):
 ```go
 // In internal/plugin/gr/gr.go
 var logger = slogutil.DiscardLogger()  // Disabled by default
@@ -45,29 +45,77 @@ func SetLogger(l *slog.Logger) {
 
 // In cmd/ze/bgp/plugin_gr.go
 logLevel := fs.String("log-level", "disabled", "Log level")
-gr.SetLogger(slogutil.LoggerWithLevel("gr", *logLevel))
+gr.SetLogger(slogutil.PluginLogger("gr", *logLevel))  // CLI flag OR env var
 ```
 
 ### Environment Variables
 
-Per-subsystem control via `ze.log.bgp.<subsystem>=<level>`:
+Hierarchical logging via `ze.log.<path>=<level>`:
 
 | Variable | Purpose |
 |----------|---------|
-| `ze.log.bgp.server` | Plugin server logging |
-| `ze.log.bgp.coordinator` | Startup coordinator |
-| `ze.log.bgp.filter` | Filter/NLRI logging |
-| `ze.log.bgp.plugin` | Relay plugin stderr (`enabled`/`disabled`) |
-| `ze.log.bgp.backend` | Output: `stderr` (default), `stdout`, `syslog` |
-| `ze.log.bgp.destination` | Syslog address (when backend=syslog) |
+| `ze.log` | Base level for ALL subsystems |
+| `ze.log.bgp` | Level for all bgp.* subsystems |
+| `ze.log.bgp.reactor` | Level for all bgp.reactor.* subsystems |
+| `ze.log.server` | Plugin server logging |
+| `ze.log.coordinator` | Startup coordinator |
+| `ze.log.filter` | Filter/NLRI logging |
+| `ze.log.config` | Config parsing/loading |
+| `ze.log.bgp.reactor.peer` | Peer FSM/session events |
+| `ze.log.bgp.reactor.session` | Session handling |
+| `ze.log.bgp.routes` | Route operations |
+| `ze.log.gr` | GR plugin |
+| `ze.log.rib` | RIB plugin |
+| `ze.log.relay` | Plugin stderr relay level |
+| `ze.log.backend` | Output: `stderr` (default), `stdout`, `syslog` |
+| `ze.log.destination` | Syslog address (when backend=syslog) |
+
+### Hierarchical Priority
+
+Most specific wins. Priority order (highest to lowest):
+1. CLI flag `--log-level` (plugin processes only)
+2. Specific env var (dot): `ze.log.bgp.fsm`
+3. Specific env var (underscore): `ze_log_bgp_fsm`
+4. Parent env var (dot): `ze.log.bgp`
+5. Parent env var (underscore): `ze_log_bgp`
+6. ... up to `ze.log` / `ze_log`
+7. Default: **WARN** (shows warnings and errors)
+
+To silence all logging: `ze.log=disabled`
 
 Levels: `disabled`, `debug`, `info`, `warn`, `err` (case-insensitive)
 
-Shell-compatible: `ze_log_bgp_server` also works (dot→underscore)
+Shell-compatible: `ze_log_server` also works (dot→underscore)
 
 ```bash
-ze.log.bgp.server=debug ze bgp server config.conf  # Enable server debug
+ze.log=info ze bgp server config.conf              # All subsystems at INFO
+ze.log.bgp=debug ze bgp server config.conf         # All bgp.* at DEBUG
+ze.log.bgp.reactor.peer=warn ze bgp server ...     # Peer at WARN only
 ```
+
+### Config File Support
+
+Log levels can also be set via the config file `environment { log { } }` block:
+
+```
+environment {
+    log {
+        level warn;            # Base level (ze.log=warn)
+        bgp.routes debug;      # Subsystem (ze.log.bgp.routes=debug)
+        config info;           # Subsystem (ze.log.config=info)
+        backend stderr;        # Output: stderr | stdout | syslog
+        destination localhost; # Syslog address (when backend=syslog)
+        relay warn;            # Plugin stderr relay level
+    }
+}
+```
+
+**Priority:** OS env var > config file > default (WARN)
+
+If an OS env var is set, config file settings for that key are ignored.
+
+Engine loggers use `LazyLogger()` for deferred creation, allowing config file settings
+to be applied before first use.
 
 ### Debug Logging is Permanent
 
@@ -82,7 +130,7 @@ Debug logging is essential for troubleshooting production issues. **If you feel 
 
 ```go
 // GOOD: Permanent debug logging with subsystem logger
-var logger = slogutil.Logger("runner")  // Create once at package level
+var logger = slogutil.Logger("test.runner")  // Create once at package level
 
 logger.Debug("executing command", "binary", binPath, "args", args)
 

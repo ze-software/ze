@@ -8,9 +8,9 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/slogutil"
 )
 
-// coordinatorLogger is the coordinator subsystem logger.
-// Controlled by ze.log.bgp.coordinator environment variable.
-var coordinatorLogger = slogutil.Logger("coordinator")
+// coordinatorLogger is the coordinator subsystem logger (lazy initialization).
+// Controlled by ze.log.coordinator environment variable.
+var coordinatorLogger = slogutil.LazyLogger("coordinator")
 
 // StartupCoordinator synchronizes plugin startup across stages.
 // All plugins must complete each stage before any can proceed to the next.
@@ -55,11 +55,11 @@ func (c *StartupCoordinator) StageComplete(pluginID int, stage PluginStage) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
-	coordinatorLogger.Debug("coordinator: StageComplete", "plugin", pluginID, "stage", stage, "current", c.currentStage)
+	coordinatorLogger().Debug("coordinator: StageComplete", "plugin", pluginID, "stage", stage, "current", c.currentStage)
 
 	// Ignore if not current stage or already failed
 	if stage != c.currentStage || c.failedPlugin >= 0 {
-		coordinatorLogger.Debug("coordinator: StageComplete IGNORED", "plugin", pluginID, "stage", stage, "current", c.currentStage, "failed", c.failedPlugin)
+		coordinatorLogger().Debug("coordinator: StageComplete IGNORED", "plugin", pluginID, "stage", stage, "current", c.currentStage, "failed", c.failedPlugin)
 		return
 	}
 
@@ -70,7 +70,7 @@ func (c *StartupCoordinator) StageComplete(pluginID int, stage PluginStage) {
 
 	// Mark complete
 	c.stageComplete[pluginID] = true
-	coordinatorLogger.Debug("coordinator: StageComplete marked", "plugin", pluginID, "complete", fmt.Sprintf("%v", c.stageComplete))
+	coordinatorLogger().Debug("coordinator: StageComplete marked", "plugin", pluginID, "complete", fmt.Sprintf("%v", c.stageComplete))
 
 	// Check if all plugins completed
 	if c.allComplete() {
@@ -81,21 +81,21 @@ func (c *StartupCoordinator) StageComplete(pluginID int, stage PluginStage) {
 // WaitForStage blocks until all plugins reach the given stage.
 // Returns error on context cancellation or if a plugin failed.
 func (c *StartupCoordinator) WaitForStage(ctx context.Context, stage PluginStage) error {
-	coordinatorLogger.Debug("coordinator: WaitForStage START", "waiting_for", stage)
+	coordinatorLogger().Debug("coordinator: WaitForStage START", "waiting_for", stage)
 	for {
 		c.mu.Lock()
 		// Check if failed
 		if c.failedPlugin >= 0 {
 			err := c.err
 			c.mu.Unlock()
-			coordinatorLogger.Debug("coordinator: WaitForStage FAILED", "waiting_for", stage, "err", err)
+			coordinatorLogger().Debug("coordinator: WaitForStage FAILED", "waiting_for", stage, "err", err)
 			return err
 		}
 
 		// Check if already at or past requested stage
 		if c.currentStage >= stage {
 			c.mu.Unlock()
-			coordinatorLogger.Debug("coordinator: WaitForStage DONE", "waiting_for", stage, "current", c.currentStage)
+			coordinatorLogger().Debug("coordinator: WaitForStage DONE", "waiting_for", stage, "current", c.currentStage)
 			return nil
 		}
 
@@ -108,15 +108,15 @@ func (c *StartupCoordinator) WaitForStage(ctx context.Context, stage PluginStage
 		ch := c.stageCh
 		c.mu.Unlock()
 
-		coordinatorLogger.Debug("coordinator: WaitForStage BLOCKING", "waiting_for", stage, "current", currentForLog, "complete", fmt.Sprintf("%v", completeForLog))
+		coordinatorLogger().Debug("coordinator: WaitForStage BLOCKING", "waiting_for", stage, "current", currentForLog, "complete", fmt.Sprintf("%v", completeForLog))
 
 		// Wait for stage advance or context cancel
 		select {
 		case <-ch:
-			coordinatorLogger.Debug("coordinator: WaitForStage UNBLOCKED", "waiting_for", stage)
+			coordinatorLogger().Debug("coordinator: WaitForStage UNBLOCKED", "waiting_for", stage)
 			// Stage advanced, loop and check again
 		case <-ctx.Done():
-			coordinatorLogger.Debug("coordinator: WaitForStage TIMEOUT", "waiting_for", stage)
+			coordinatorLogger().Debug("coordinator: WaitForStage TIMEOUT", "waiting_for", stage)
 			return ctx.Err()
 		}
 	}
@@ -194,11 +194,11 @@ func (c *StartupCoordinator) Failed() bool {
 func (c *StartupCoordinator) allComplete() bool {
 	for i, done := range c.stageComplete {
 		if !done {
-			coordinatorLogger.Debug("coordinator: allComplete FALSE", "waiting_for_plugin", i)
+			coordinatorLogger().Debug("coordinator: allComplete FALSE", "waiting_for_plugin", i)
 			return false
 		}
 	}
-	coordinatorLogger.Debug("coordinator: allComplete TRUE")
+	coordinatorLogger().Debug("coordinator: allComplete TRUE")
 	return true
 }
 
@@ -213,7 +213,7 @@ func (c *StartupCoordinator) advanceStage() {
 
 	// Advance stage
 	c.currentStage++
-	coordinatorLogger.Debug("coordinator: advanceStage", "from", oldStage, "to", c.currentStage)
+	coordinatorLogger().Debug("coordinator: advanceStage", "from", oldStage, "to", c.currentStage)
 
 	// Notify waiters by closing old channel and creating new one
 	close(c.stageCh)

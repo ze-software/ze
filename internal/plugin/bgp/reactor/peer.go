@@ -22,12 +22,11 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/plugin/bgp/rib"
 	"codeberg.org/thomas-mangin/ze/internal/slogutil"
 	"codeberg.org/thomas-mangin/ze/internal/source"
-	"codeberg.org/thomas-mangin/ze/internal/trace"
 )
 
-// peerLogger is the peer subsystem logger.
-// Controlled by ze.log.bgp.peer environment variable.
-var peerLogger = slogutil.Logger("peer")
+// peerLogger is the peer subsystem logger (lazy initialization).
+// Controlled by ze.log.bgp.reactor.peer environment variable.
+var peerLogger = slogutil.LazyLogger("bgp.reactor.peer")
 
 // safiMUP is the SAFI for Mobile User Plane (draft-mpmz-bess-mup-safi).
 // Not in capability package as it's not yet standardized (SAFI 85).
@@ -275,20 +274,20 @@ func (p *Peer) waitForAPISync(timeout time.Duration) {
 	p.mu.RUnlock()
 
 	addr := p.settings.Address.String()
-	trace.Log(trace.Routes, "peer %s: waiting for API sync (expected=%d)", addr, expected)
+	routesLogger().Debug("waiting for API sync", "peer", addr, "expected", expected)
 
 	if expected == 0 || ready == nil {
-		trace.Log(trace.Routes, "peer %s: no API sync needed", addr)
+		routesLogger().Debug("no API sync needed", "peer", addr)
 		return
 	}
 
 	select {
 	case <-ready:
-		trace.Log(trace.Routes, "peer %s: API sync complete", addr)
+		routesLogger().Debug("API sync complete", "peer", addr)
 		return
 	case <-time.After(timeout):
 		// Timeout - proceed anyway to avoid blocking forever
-		trace.Log(trace.Routes, "peer %s: API sync timeout", addr)
+		routesLogger().Debug("API sync timeout", "peer", addr)
 		return
 	}
 }
@@ -723,7 +722,7 @@ func (p *Peer) Teardown(subcode uint8) {
 		if len(p.opQueue) < MaxOpQueueSize {
 			p.opQueue = append(p.opQueue, PeerOp{Type: PeerOpTeardown, Subcode: subcode})
 		} else {
-			trace.Log(trace.Routes, "peer %s: opQueue full, dropping teardown", p.settings.Address)
+			routesLogger().Debug("opQueue full, dropping teardown", "peer", p.settings.Address)
 		}
 		p.mu.Unlock()
 		return
@@ -732,7 +731,7 @@ func (p *Peer) Teardown(subcode uint8) {
 	if session != nil {
 		p.mu.Unlock()
 		if err := session.Teardown(subcode); err != nil {
-			trace.Log(trace.Session, "peer %s: teardown error: %v", p.settings.Address, err)
+			peerLogger().Debug("teardown error", "peer", p.settings.Address, "error", err)
 		}
 		// Set state after teardown - there's a brief race window where
 		// AnnounceRoute might see ESTABLISHED, but SendUpdate will fail
@@ -743,7 +742,7 @@ func (p *Peer) Teardown(subcode uint8) {
 		if len(p.opQueue) < MaxOpQueueSize {
 			p.opQueue = append(p.opQueue, PeerOp{Type: PeerOpTeardown, Subcode: subcode})
 		} else {
-			trace.Log(trace.Routes, "peer %s: opQueue full, dropping teardown", p.settings.Address)
+			routesLogger().Debug("opQueue full, dropping teardown", "peer", p.settings.Address)
 		}
 		p.mu.Unlock()
 	}
@@ -756,8 +755,7 @@ func (p *Peer) QueueAnnounce(route *rib.Route) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	if len(p.opQueue) >= MaxOpQueueSize {
-		trace.Log(trace.Routes, "peer %s: opQueue full (%d), dropping announce for %s",
-			p.settings.Address, len(p.opQueue), route.NLRI())
+		routesLogger().Debug("opQueue full, dropping announce", "peer", p.settings.Address, "queueSize", len(p.opQueue), "nlri", route.NLRI())
 		return
 	}
 	p.opQueue = append(p.opQueue, PeerOp{Type: PeerOpAnnounce, Route: route})
@@ -770,8 +768,7 @@ func (p *Peer) QueueWithdraw(n nlri.NLRI) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	if len(p.opQueue) >= MaxOpQueueSize {
-		trace.Log(trace.Routes, "peer %s: opQueue full (%d), dropping withdraw for %s",
-			p.settings.Address, len(p.opQueue), n)
+		routesLogger().Debug("opQueue full, dropping withdraw", "peer", p.settings.Address, "queueSize", len(p.opQueue), "nlri", n)
 		return
 	}
 	p.opQueue = append(p.opQueue, PeerOp{Type: PeerOpWithdraw, NLRI: n})
@@ -896,7 +893,7 @@ func (p *Peer) runOnce() error {
 	// Monitor FSM state
 	session.fsm.SetCallback(func(from, to fsm.State) {
 		addr := p.settings.Address.String()
-		trace.FSMTransition(addr, from.String(), to.String())
+		peerLogger().Debug("FSM transition", "peer", addr, "from", from.String(), "to", to.String())
 
 		if to == fsm.StateEstablished {
 			// Pre-compute negotiated capabilities for O(1) access during route sending
@@ -904,7 +901,7 @@ func (p *Peer) runOnce() error {
 			p.negotiated.Store(NewNegotiatedCapabilities(neg))
 			p.setEncodingContexts(neg)
 			p.setState(PeerStateEstablished)
-			trace.SessionEstablished(addr, p.settings.LocalAS, p.settings.PeerAS)
+			peerLogger().Info("session established", "peer", addr, "localAS", p.settings.LocalAS, "peerAS", p.settings.PeerAS)
 
 			// Reset per-session API sync: count plugins with SendUpdate permission.
 			// They will signal "plugin session ready" after replaying routes.
@@ -926,7 +923,7 @@ func (p *Peer) runOnce() error {
 			}
 
 			// Send static routes from config.
-			peerLogger.Debug("spawning sendInitialRoutes", "peer", addr)
+			peerLogger().Debug("spawning sendInitialRoutes", "peer", addr)
 			go p.sendInitialRoutes()
 		} else if from == fsm.StateEstablished {
 			// Determine reason based on target state
@@ -947,7 +944,7 @@ func (p *Peer) runOnce() error {
 			p.negotiated.Store(nil)
 			p.clearEncodingContexts()
 			p.setState(PeerStateConnecting)
-			trace.SessionClosed(addr, reason)
+			peerLogger().Info("session closed", "peer", addr, "reason", reason)
 		}
 	})
 
@@ -1191,27 +1188,27 @@ func (p *Peer) cleanup() {
 // Uses atomic flag to prevent concurrent execution if session reconnects quickly.
 func (p *Peer) sendInitialRoutes() {
 	addr := p.settings.Address.String()
-	peerLogger.Debug("sendInitialRoutes ENTER", "peer", addr)
+	peerLogger().Debug("sendInitialRoutes ENTER", "peer", addr)
 
 	// Prevent concurrent sendInitialRoutes goroutines.
 	// If another instance is running, skip this one - the running instance
 	// will process any queued operations.
 	if !p.sendingInitialRoutes.CompareAndSwap(0, 1) {
-		peerLogger.Debug("sendInitialRoutes skipped (concurrent)", "peer", addr)
+		peerLogger().Debug("sendInitialRoutes skipped (concurrent)", "peer", addr)
 		return
 	}
 	defer p.sendingInitialRoutes.Store(0)
 
-	peerLogger.Debug("sendInitialRoutes started", "peer", addr)
+	peerLogger().Debug("sendInitialRoutes started", "peer", addr)
 
 	// Get negotiated capabilities for family checks.
 	nc := p.negotiated.Load()
 	if nc == nil {
-		peerLogger.Debug("sendInitialRoutes aborted (no negotiated caps)", "peer", addr)
+		peerLogger().Debug("sendInitialRoutes aborted (no negotiated caps)", "peer", addr)
 		return
 	}
 
-	peerLogger.Debug("sendInitialRoutes sending static routes", "peer", addr, "count", len(p.settings.StaticRoutes))
+	peerLogger().Debug("sendInitialRoutes sending static routes", "peer", addr, "count", len(p.settings.StaticRoutes))
 
 	// Calculate max message size for this peer
 	maxMsgSize := int(message.MaxMessageLength(message.TypeUPDATE, nc.ExtendedMessage))
@@ -1228,12 +1225,12 @@ func (p *Peer) sendInitialRoutes() {
 				// Resolve next-hop from RouteNextHop policy
 				nextHop, nhErr := p.resolveNextHop(routes[0].NextHop, routeFamily(routes[0]))
 				if nhErr != nil {
-					trace.Log(trace.Routes, "peer %s: next-hop resolution failed: %v", addr, nhErr)
+					routesLogger().Debug("next-hop resolution failed", "peer", addr, "error", nhErr)
 					continue
 				}
 				update := buildStaticRouteUpdateNew(routes[0], nextHop, p.settings.LocalAS, p.settings.IsIBGP(), p.asn4(), addPath, p.sendCtx)
 				if err := p.sendUpdateWithSplit(update, maxMsgSize, routeFamily(routes[0])); err != nil {
-					trace.Log(trace.Routes, "peer %s: send error: %v", addr, err)
+					routesLogger().Debug("send error", "peer", addr, "error", err)
 					break
 				}
 			} else {
@@ -1244,7 +1241,7 @@ func (p *Peer) sendInitialRoutes() {
 				for _, r := range routes {
 					nextHop, nhErr := p.resolveNextHop(r.NextHop, routeFamily(r))
 					if nhErr != nil {
-						trace.Log(trace.Routes, "peer %s: next-hop resolution failed for %s: %v", addr, r.Prefix, nhErr)
+						routesLogger().Debug("next-hop resolution failed", "peer", addr, "prefix", r.Prefix, "error", nhErr)
 						continue
 					}
 					params = append(params, toStaticRouteUnicastParams(r, nextHop, p.sendCtx))
@@ -1254,18 +1251,18 @@ func (p *Peer) sendInitialRoutes() {
 				}
 				updates, err := ub.BuildGroupedUnicastWithLimit(params, maxMsgSize)
 				if err != nil {
-					trace.Log(trace.Routes, "peer %s: build error: %v", addr, err)
+					routesLogger().Debug("build error", "peer", addr, "error", err)
 					break
 				}
 				for _, update := range updates {
 					if err := p.SendUpdate(update); err != nil {
-						trace.Log(trace.Routes, "peer %s: send error: %v", addr, err)
+						routesLogger().Debug("send error", "peer", addr, "error", err)
 						break
 					}
 				}
 			}
 			for _, route := range routes {
-				trace.RouteSent(addr, route.Prefix.String(), route.NextHop.String())
+				routesLogger().Debug("route sent", "peer", addr, "prefix", route.Prefix.String(), "nextHop", route.NextHop.String())
 			}
 		}
 	} else {
@@ -1274,16 +1271,16 @@ func (p *Peer) sendInitialRoutes() {
 			// Resolve next-hop from RouteNextHop policy
 			nextHop, nhErr := p.resolveNextHop(route.NextHop, routeFamily(route))
 			if nhErr != nil {
-				trace.Log(trace.Routes, "peer %s: next-hop resolution failed for %s: %v", addr, route.Prefix, nhErr)
+				routesLogger().Debug("next-hop resolution failed", "peer", addr, "prefix", route.Prefix, "error", nhErr)
 				continue
 			}
 			addPath := p.addPathFor(routeFamily(route))
 			update := buildStaticRouteUpdateNew(route, nextHop, p.settings.LocalAS, p.settings.IsIBGP(), p.asn4(), addPath, p.sendCtx)
 			if err := p.sendUpdateWithSplit(update, maxMsgSize, routeFamily(route)); err != nil {
-				trace.Log(trace.Routes, "peer %s: send error: %v", addr, err)
+				routesLogger().Debug("send error", "peer", addr, "error", err)
 				break
 			}
-			trace.RouteSent(addr, route.Prefix.String(), route.NextHop.String())
+			routesLogger().Debug("route sent", "peer", addr, "prefix", route.Prefix.String(), "nextHop", route.NextHop.String())
 		}
 	}
 
@@ -1301,26 +1298,26 @@ func (p *Peer) sendInitialRoutes() {
 				p.mu.RUnlock()
 
 				if !isAnnounced {
-					trace.Log(trace.Routes, "peer %s: watchdog %s: holding route %s", addr, name, routeKey)
+					routesLogger().Debug("watchdog holding route", "peer", addr, "watchdog", name, "route", routeKey)
 					continue
 				}
 
 				// Send the route - resolve next-hop from RouteNextHop policy
 				nextHop, nhErr := p.resolveNextHop(wr.NextHop, routeFamily(wr.StaticRoute))
 				if nhErr != nil {
-					trace.Log(trace.Routes, "peer %s: watchdog %s: next-hop resolution failed: %v", addr, name, nhErr)
+					routesLogger().Debug("watchdog next-hop resolution failed", "peer", addr, "watchdog", name, "error", nhErr)
 					continue
 				}
 				addPath := p.addPathFor(routeFamily(wr.StaticRoute))
 				update := buildStaticRouteUpdateNew(wr.StaticRoute, nextHop, p.settings.LocalAS, p.settings.IsIBGP(), p.asn4(), addPath, p.sendCtx)
 				if err := p.sendUpdateWithSplit(update, maxMsgSize, routeFamily(wr.StaticRoute)); err != nil {
-					trace.Log(trace.Routes, "peer %s: send error: %v", addr, err)
+					routesLogger().Debug("send error", "peer", addr, "error", err)
 					break
 				}
-				trace.RouteSent(addr, routeKey, wr.NextHop.String())
+				routesLogger().Debug("route sent", "peer", addr, "prefix", routeKey, "nextHop", wr.NextHop.String())
 			}
 		}
-		trace.Log(trace.Routes, "peer %s: sent watchdog routes from %d groups", addr, len(p.settings.WatchdogGroups))
+		routesLogger().Debug("sent watchdog routes", "peer", addr, "groups", len(p.settings.WatchdogGroups))
 	}
 
 	// Re-send global watchdog pool routes that were announced for this peer.
@@ -1344,16 +1341,16 @@ func (p *Peer) sendInitialRoutes() {
 				route := pr.StaticRoute
 				nextHop, nhErr := p.resolveNextHop(route.NextHop, routeFamily(route))
 				if nhErr != nil {
-					trace.Log(trace.Routes, "peer %s: global pool %s: next-hop resolution failed: %v", addr, poolName, nhErr)
+					routesLogger().Debug("global pool next-hop resolution failed", "peer", addr, "pool", poolName, "error", nhErr)
 					continue
 				}
 				addPath := p.addPathFor(routeFamily(route))
 				update := buildStaticRouteUpdateNew(route, nextHop, p.settings.LocalAS, p.settings.IsIBGP(), p.asn4(), addPath, p.sendCtx)
 				if err := p.sendUpdateWithSplit(update, maxMsgSize, routeFamily(route)); err != nil {
-					trace.Log(trace.Routes, "peer %s: send error: %v", addr, err)
+					routesLogger().Debug("send error", "peer", addr, "error", err)
 					break
 				}
-				trace.Log(trace.Routes, "peer %s: re-sent global pool route %s from pool %s", addr, pr.RouteKey(), poolName)
+				routesLogger().Debug("re-sent global pool route", "peer", addr, "route", pr.RouteKey(), "pool", poolName)
 			}
 		}
 	}
@@ -1365,9 +1362,9 @@ func (p *Peer) sendInitialRoutes() {
 	needsAPIWait := p.apiSyncExpected > 0
 	p.mu.RUnlock()
 	if needsAPIWait {
-		trace.Log(trace.Routes, "peer %s: sleeping 500ms for API routes", addr)
+		routesLogger().Debug("sleeping for API routes", "peer", addr, "duration", "500ms")
 		time.Sleep(500 * time.Millisecond)
-		trace.Log(trace.Routes, "peer %s: woke from sleep, processing queue", addr)
+		routesLogger().Debug("woke from sleep, processing queue", "peer", addr)
 	}
 
 	// Process operation queue in order (maintains announce/withdraw/teardown ordering).
@@ -1400,7 +1397,7 @@ func (p *Peer) sendInitialRoutes() {
 			update := buildRIBRouteUpdate(op.Route, p.settings.LocalAS, p.settings.IsIBGP(), p.asn4(), addPath)
 			p.mu.Unlock()
 			if err := p.sendUpdateWithSplit(update, opMaxMsgSize, family); err != nil {
-				trace.Log(trace.Routes, "peer %s: send error for queued route %s: %v", addr, op.Route.NLRI(), err)
+				routesLogger().Debug("send error for queued route", "peer", addr, "nlri", op.Route.NLRI(), "error", err)
 				p.mu.Lock()
 				// Split errors: skip route
 				// Connection errors: stop processing
@@ -1422,7 +1419,7 @@ func (p *Peer) sendInitialRoutes() {
 			update := buildWithdrawNLRI(op.NLRI, addPath)
 			p.mu.Unlock()
 			if err := p.sendUpdateWithSplit(update, opMaxMsgSize, family); err != nil {
-				trace.Log(trace.Routes, "peer %s: send error for withdrawal %s: %v", addr, op.NLRI, err)
+				routesLogger().Debug("send error for withdrawal", "peer", addr, "nlri", op.NLRI, "error", err)
 				p.mu.Lock()
 				// Split errors are unlikely for single withdrawals, but handle consistently
 				if errors.Is(err, message.ErrAttributesTooLarge) || errors.Is(err, message.ErrNLRITooLarge) {
@@ -1446,8 +1443,7 @@ func (p *Peer) sendInitialRoutes() {
 	p.mu.Unlock()
 
 	if queueLen > 0 {
-		trace.Log(trace.Routes, "peer %s: processed %d queue ops, %d remaining, teardown=%v",
-			addr, processed, queueLen-processed, hasTeardown)
+		routesLogger().Debug("processed queue ops", "peer", addr, "processed", processed, "remaining", queueLen-processed, "teardown", hasTeardown)
 	}
 
 	// If teardown was in queue, send EOR first, then execute teardown.
@@ -1456,10 +1452,10 @@ func (p *Peer) sendInitialRoutes() {
 		// Send EOR for ALL negotiated families before teardown
 		for _, family := range nc.Families() {
 			_ = p.SendUpdate(message.BuildEOR(family))
-			trace.Log(trace.Routes, "peer %s: sent %s EOR (before teardown)", addr, family)
+			routesLogger().Debug("sent EOR (before teardown)", "peer", addr, "family", family)
 		}
 
-		trace.Log(trace.Routes, "peer %s: executing queued teardown (subcode=%d)", addr, teardownSubcode)
+		routesLogger().Debug("executing queued teardown", "peer", addr, "subcode", teardownSubcode)
 		p.mu.RLock()
 		session := p.session
 		p.mu.RUnlock()
@@ -1470,14 +1466,14 @@ func (p *Peer) sendInitialRoutes() {
 			// The FSM callback will also set this, but may fire too late.
 			p.setState(PeerStateConnecting)
 			if err := session.Teardown(teardownSubcode); err != nil {
-				trace.Log(trace.Routes, "peer %s: teardown error: %v", addr, err)
+				routesLogger().Debug("teardown error", "peer", addr, "error", err)
 			}
 		}
 		// Clear remaining opQueue - these routes were never sent, so shouldn't
 		// be re-sent on reconnection. Persist plugin tracks actually-sent routes.
 		p.mu.Lock()
 		if len(p.opQueue) > 0 {
-			trace.Log(trace.Routes, "peer %s: clearing %d unsent queue items after teardown", addr, len(p.opQueue))
+			routesLogger().Debug("clearing unsent queue items after teardown", "peer", addr, "count", len(p.opQueue))
 			p.opQueue = p.opQueue[:0]
 		}
 		p.mu.Unlock()
@@ -1500,7 +1496,7 @@ func (p *Peer) sendInitialRoutes() {
 	// Families() returns families in deterministic order (sorted by AFI, then SAFI).
 	for _, family := range nc.Families() {
 		_ = p.SendUpdate(message.BuildEOR(family))
-		trace.Log(trace.Routes, "peer %s: sent %s EOR", addr, family)
+		routesLogger().Debug("sent EOR", "peer", addr, "family", family)
 	}
 }
 
@@ -2033,10 +2029,10 @@ func (p *Peer) sendMVPNRoutes() {
 	}
 
 	if skippedIPv4 > 0 {
-		trace.Log(trace.Routes, "peer %s: skipping %d IPv4 MVPN routes (not negotiated)", addr, skippedIPv4)
+		routesLogger().Debug("skipping IPv4 MVPN routes (not negotiated)", "peer", addr, "count", skippedIPv4)
 	}
 	if skippedIPv6 > 0 {
-		trace.Log(trace.Routes, "peer %s: skipping %d IPv6 MVPN routes (not negotiated)", addr, skippedIPv6)
+		routesLogger().Debug("skipping IPv6 MVPN routes (not negotiated)", "peer", addr, "count", skippedIPv6)
 	}
 
 	// RFC 8654: Respect peer's max message size (4096 or 65535)
@@ -2053,16 +2049,16 @@ func (p *Peer) sendMVPNRoutes() {
 			// Use size-aware builder to respect max message size
 			updates, err := ub.BuildMVPNWithLimit(toMVPNParams(routes), maxMsgSize)
 			if err != nil {
-				trace.Log(trace.Routes, "peer %s: MVPN build error: %v", addr, err)
+				routesLogger().Debug("MVPN build error", "peer", addr, "error", err)
 				continue
 			}
 			for _, update := range updates {
 				if err := p.SendUpdate(update); err != nil {
-					trace.Log(trace.Routes, "peer %s: MVPN send error: %v", addr, err)
+					routesLogger().Debug("MVPN send error", "peer", addr, "error", err)
 					break
 				}
 			}
-			trace.Log(trace.Routes, "peer %s: sent %d IPv4 MVPN routes in %d UPDATEs", addr, len(routes), len(updates))
+			routesLogger().Debug("sent IPv4 MVPN routes", "peer", addr, "routes", len(routes), "updates", len(updates))
 		}
 	}
 
@@ -2077,16 +2073,16 @@ func (p *Peer) sendMVPNRoutes() {
 			// Use size-aware builder to respect max message size
 			updates, err := ub.BuildMVPNWithLimit(toMVPNParams(routes), maxMsgSize)
 			if err != nil {
-				trace.Log(trace.Routes, "peer %s: MVPN build error: %v", addr, err)
+				routesLogger().Debug("MVPN build error", "peer", addr, "error", err)
 				continue
 			}
 			for _, update := range updates {
 				if err := p.SendUpdate(update); err != nil {
-					trace.Log(trace.Routes, "peer %s: MVPN send error: %v", addr, err)
+					routesLogger().Debug("MVPN send error", "peer", addr, "error", err)
 					break
 				}
 			}
-			trace.Log(trace.Routes, "peer %s: sent %d IPv6 MVPN routes in %d UPDATEs", addr, len(routes), len(updates))
+			routesLogger().Debug("sent IPv6 MVPN routes", "peer", addr, "routes", len(routes), "updates", len(updates))
 		}
 	}
 	// Note: EORs are sent by the generic loop in sendInitialRoutes() for ALL
@@ -2149,8 +2145,7 @@ func (p *Peer) sendVPLSRoutes() {
 	if nc == nil || !nc.Has(nlri.L2VPNVPLS) {
 		if len(p.settings.VPLSRoutes) > 0 {
 			addr := p.settings.Address.String()
-			trace.Log(trace.Routes, "peer %s: skipping %d VPLS routes (L2VPN VPLS not negotiated)",
-				addr, len(p.settings.VPLSRoutes))
+			routesLogger().Debug("skipping VPLS routes (L2VPN VPLS not negotiated)", "peer", addr, "count", len(p.settings.VPLSRoutes))
 		}
 		return
 	}
@@ -2158,7 +2153,7 @@ func (p *Peer) sendVPLSRoutes() {
 	addr := p.settings.Address.String()
 
 	if len(p.settings.VPLSRoutes) > 0 {
-		trace.Log(trace.Routes, "peer %s: sending %d VPLS routes", addr, len(p.settings.VPLSRoutes))
+		routesLogger().Debug("sending VPLS routes", "peer", addr, "count", len(p.settings.VPLSRoutes))
 		// VPLS family: AFI=25 (L2VPN), SAFI=65 (VPLS)
 		// Note: VPLS doesn't support ADD-PATH
 		vplsFamily := nlri.Family{AFI: 25, SAFI: 65}
@@ -2167,7 +2162,7 @@ func (p *Peer) sendVPLSRoutes() {
 		for _, route := range p.settings.VPLSRoutes {
 			update := ub.BuildVPLS(toVPLSParams(route))
 			if err := p.SendUpdate(update); err != nil {
-				trace.Log(trace.Routes, "peer %s: VPLS send error: %v", addr, err)
+				routesLogger().Debug("VPLS send error", "peer", addr, "error", err)
 			}
 		}
 	}
@@ -2210,7 +2205,7 @@ func (p *Peer) sendFlowSpecRoutes() {
 		}
 
 		if !nc.Has(family) {
-			trace.Log(trace.Routes, "peer %s: skipping FlowSpec route (family not negotiated)", addr)
+			routesLogger().Debug("skipping FlowSpec route (family not negotiated)", "peer", addr)
 			continue
 		}
 
@@ -2229,17 +2224,17 @@ func (p *Peer) sendFlowSpecRoutes() {
 		// Single FlowSpec rule is atomic - cannot be split across UPDATEs.
 		update, err := ub.BuildFlowSpecWithMaxSize(toFlowSpecParams(route), maxMsgSize)
 		if err != nil {
-			trace.Log(trace.Routes, "peer %s: FlowSpec build error (too large?): %v", addr, err)
+			routesLogger().Debug("FlowSpec build error (too large?)", "peer", addr, "error", err)
 			continue
 		}
 		if err := p.SendUpdate(update); err != nil {
-			trace.Log(trace.Routes, "peer %s: FlowSpec send error: %v", addr, err)
+			routesLogger().Debug("FlowSpec send error", "peer", addr, "error", err)
 			continue
 		}
 		sentCount++
 	}
 	if sentCount > 0 {
-		trace.Log(trace.Routes, "peer %s: sent %d FlowSpec routes", addr, sentCount)
+		routesLogger().Debug("sent FlowSpec routes", "peer", addr, "count", sentCount)
 	}
 
 	// Note: EOR for FlowSpec families is now sent by the main sendInitialRoutes loop
@@ -2276,36 +2271,36 @@ func (p *Peer) sendMUPRoutes() {
 	}
 
 	if skippedIPv4 > 0 {
-		trace.Log(trace.Routes, "peer %s: skipping %d IPv4 MUP routes (not negotiated)", addr, skippedIPv4)
+		routesLogger().Debug("skipping IPv4 MUP routes (not negotiated)", "peer", addr, "count", skippedIPv4)
 	}
 	if skippedIPv6 > 0 {
-		trace.Log(trace.Routes, "peer %s: skipping %d IPv6 MUP routes (not negotiated)", addr, skippedIPv6)
+		routesLogger().Debug("skipping IPv6 MUP routes (not negotiated)", "peer", addr, "count", skippedIPv6)
 	}
 
 	// Send IPv4 MUP routes
 	if len(ipv4Routes) > 0 {
-		trace.Log(trace.Routes, "peer %s: sending %d IPv4 MUP routes", addr, len(ipv4Routes))
+		routesLogger().Debug("sending IPv4 MUP routes", "peer", addr, "count", len(ipv4Routes))
 		ipv4MUPFamily := nlri.Family{AFI: 1, SAFI: 85}
 		addPath := p.addPathFor(ipv4MUPFamily)
 		ub := message.NewUpdateBuilder(p.settings.LocalAS, p.settings.IsIBGP(), p.asn4(), addPath)
 		for _, route := range ipv4Routes {
 			update := ub.BuildMUP(toMUPParams(route))
 			if err := p.SendUpdate(update); err != nil {
-				trace.Log(trace.Routes, "peer %s: MUP send error: %v", addr, err)
+				routesLogger().Debug("MUP send error", "peer", addr, "error", err)
 			}
 		}
 	}
 
 	// Send IPv6 MUP routes
 	if len(ipv6Routes) > 0 {
-		trace.Log(trace.Routes, "peer %s: sending %d IPv6 MUP routes", addr, len(ipv6Routes))
+		routesLogger().Debug("sending IPv6 MUP routes", "peer", addr, "count", len(ipv6Routes))
 		ipv6MUPFamily := nlri.Family{AFI: 2, SAFI: 85}
 		addPath := p.addPathFor(ipv6MUPFamily)
 		ub := message.NewUpdateBuilder(p.settings.LocalAS, p.settings.IsIBGP(), p.asn4(), addPath)
 		for _, route := range ipv6Routes {
 			update := ub.BuildMUP(toMUPParams(route))
 			if err := p.SendUpdate(update); err != nil {
-				trace.Log(trace.Routes, "peer %s: MUP send error: %v", addr, err)
+				routesLogger().Debug("MUP send error", "peer", addr, "error", err)
 			}
 		}
 	}
@@ -2352,8 +2347,7 @@ func (p *Peer) AnnounceWatchdog(name string) error {
 			p.watchdogState[name][wr.RouteKey()] = true
 		}
 		p.mu.Unlock()
-		trace.Log(trace.Routes, "peer %s: watchdog %s: marked %d routes for announce (disconnected)",
-			p.settings.Address, name, len(routes))
+		routesLogger().Debug("watchdog marked routes for announce (disconnected)", "peer", p.settings.Address, "watchdog", name, "count", len(routes))
 		return nil
 	}
 
@@ -2376,7 +2370,7 @@ func (p *Peer) AnnounceWatchdog(name string) error {
 		// Send the route - resolve next-hop from RouteNextHop policy
 		nextHop, nhErr := p.resolveNextHop(wr.NextHop, routeFamily(wr.StaticRoute))
 		if nhErr != nil {
-			trace.Log(trace.Routes, "peer %s: watchdog %s: next-hop resolution failed: %v", addr, name, nhErr)
+			routesLogger().Debug("watchdog next-hop resolution failed", "peer", addr, "watchdog", name, "error", nhErr)
 			continue
 		}
 		// RFC 7911: Get ADD-PATH encoding state
@@ -2391,12 +2385,12 @@ func (p *Peer) AnnounceWatchdog(name string) error {
 		p.watchdogState[name][routeKey] = true
 		p.mu.Unlock()
 
-		trace.RouteSent(addr, routeKey, wr.NextHop.String())
+		routesLogger().Debug("route sent", "peer", addr, "prefix", routeKey, "nextHop", wr.NextHop.String())
 		announced++
 	}
 
 	if announced > 0 {
-		trace.Log(trace.Routes, "peer %s: watchdog %s: announced %d routes", addr, name, announced)
+		routesLogger().Debug("watchdog announced routes", "peer", addr, "watchdog", name, "count", announced)
 	}
 	return nil
 }
@@ -2437,8 +2431,7 @@ func (p *Peer) WithdrawWatchdog(name string) error {
 			p.watchdogState[name][wr.RouteKey()] = false
 		}
 		p.mu.Unlock()
-		trace.Log(trace.Routes, "peer %s: watchdog %s: marked %d routes for withdraw (disconnected)",
-			p.settings.Address, name, len(routes))
+		routesLogger().Debug("watchdog marked routes for withdraw (disconnected)", "peer", p.settings.Address, "watchdog", name, "count", len(routes))
 		return nil
 	}
 
@@ -2471,12 +2464,12 @@ func (p *Peer) WithdrawWatchdog(name string) error {
 		p.watchdogState[name][routeKey] = false
 		p.mu.Unlock()
 
-		trace.Log(trace.Routes, "peer %s: watchdog %s: withdrew %s", addr, name, routeKey)
+		routesLogger().Debug("watchdog withdrew route", "peer", addr, "watchdog", name, "route", routeKey)
 		withdrawn++
 	}
 
 	if withdrawn > 0 {
-		trace.Log(trace.Routes, "peer %s: watchdog %s: withdrew %d routes", addr, name, withdrawn)
+		routesLogger().Debug("watchdog withdrew routes", "peer", addr, "watchdog", name, "count", withdrawn)
 	}
 	return nil
 }

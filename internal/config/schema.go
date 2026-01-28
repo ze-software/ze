@@ -82,8 +82,9 @@ func (n *LeafNode) Kind() NodeKind { return NodeLeaf }
 
 // ContainerNode represents a group of child nodes.
 type ContainerNode struct {
-	children map[string]Node
-	order    []string // preserve definition order
+	children     map[string]Node
+	order        []string // preserve definition order
+	AllowUnknown bool     // accept arbitrary key-value pairs (ze:allow-unknown-fields)
 }
 
 func (n *ContainerNode) Kind() NodeKind { return NodeContainer }

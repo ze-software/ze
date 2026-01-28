@@ -22,12 +22,11 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/plugin/bgp/wire"
 	"codeberg.org/thomas-mangin/ze/internal/slogutil"
 	"codeberg.org/thomas-mangin/ze/internal/source"
-	"codeberg.org/thomas-mangin/ze/internal/trace"
 )
 
-// sessionLogger is the session subsystem logger.
-// Controlled by ze.log.bgp.session environment variable.
-var sessionLogger = slogutil.Logger("session")
+// sessionLogger is the session subsystem logger (lazy initialization).
+// Controlled by ze.log.bgp.reactor.session environment variable.
+var sessionLogger = slogutil.LazyLogger("bgp.reactor.session")
 
 // readBufPool4K provides reusable 4K read buffers for standard messages.
 // Used before Extended Message capability is negotiated.
@@ -938,7 +937,7 @@ func (s *Session) validateUpdateRFC7606(body []byte) error {
 	if withdrawnLen > 0 {
 		withdrawn := body[2 : 2+withdrawnLen]
 		if result := message.ValidateNLRISyntax(withdrawn, false); result != nil {
-			trace.RFC7606TreatAsWithdraw(0, result.Description)
+			sessionLogger().Debug("RFC 7606 treat-as-withdraw", "attr", 0, "description", result.Description)
 			return nil // treat-as-withdraw
 		}
 	}
@@ -957,7 +956,7 @@ func (s *Session) validateUpdateRFC7606(body []byte) error {
 	if nlriLen > 0 {
 		nlri := body[offset+attrLen:]
 		if result := message.ValidateNLRISyntax(nlri, false); result != nil {
-			trace.RFC7606TreatAsWithdraw(0, result.Description)
+			sessionLogger().Debug("RFC 7606 treat-as-withdraw", "attr", 0, "description", result.Description)
 			return nil // treat-as-withdraw
 		}
 	}
@@ -979,17 +978,17 @@ func (s *Session) validateUpdateRFC7606(body []byte) error {
 
 	case message.RFC7606ActionTreatAsWithdraw:
 		// RFC 7606: Log and continue (routes treated as withdrawn)
-		trace.RFC7606TreatAsWithdraw(result.AttrCode, result.Description)
+		sessionLogger().Debug("RFC 7606 treat-as-withdraw", "attr", result.AttrCode, "description", result.Description)
 		return nil // Session stays up
 
 	case message.RFC7606ActionAttributeDiscard:
 		// RFC 7606: Log and continue (malformed attribute discarded)
-		trace.RFC7606AttributeDiscard(result.AttrCode, result.Description)
+		sessionLogger().Debug("RFC 7606 attribute-discard", "attr", result.AttrCode, "description", result.Description)
 		return nil // Session stays up
 
 	case message.RFC7606ActionSessionReset:
 		// RFC 7606: Session reset required (e.g., multiple MP_REACH)
-		trace.RFC7606SessionReset(result.Description)
+		sessionLogger().Warn("RFC 7606 session-reset", "description", result.Description)
 		return fmt.Errorf("RFC 7606 session reset: %s", result.Description)
 	}
 
@@ -1071,10 +1070,10 @@ func (s *Session) validateUpdateFamilies(body []byte) error {
 				shouldIgnore := s.settings.IgnoreFamilyMismatch || s.shouldIgnoreFamily(family)
 				if shouldIgnore {
 					// Lenient mode: log warning and skip
-					trace.UpdateFamilyMismatch(uint16(afi), uint8(safi), true)
+					sessionLogger().Debug("UPDATE family mismatch ignored", "afi", afi, "safi", safi)
 				} else {
 					// Strict mode: return error
-					trace.UpdateFamilyMismatch(uint16(afi), uint8(safi), false)
+					sessionLogger().Debug("UPDATE family mismatch rejected", "afi", afi, "safi", safi)
 					return fmt.Errorf("%w: %s", ErrFamilyNotNegotiated, family)
 				}
 			}
@@ -1130,15 +1129,13 @@ func (s *Session) handleRouteRefresh(body []byte) error {
 	// with a 'Message Subtype' field other than 0, 1, or 2, it MUST ignore
 	// the received ROUTE-REFRESH message."
 	if rr.Subtype > 2 && rr.Subtype != 255 {
-		trace.Log(trace.Session, "peer %s: ignoring unknown route-refresh subtype %d",
-			s.settings.Address, rr.Subtype)
+		sessionLogger().Debug("ignoring unknown route-refresh subtype", "peer", s.settings.Address, "subtype", rr.Subtype)
 		return nil
 	}
 
 	// Subtype 255 is reserved - also ignore
 	if rr.Subtype == 255 {
-		trace.Log(trace.Session, "peer %s: ignoring reserved route-refresh subtype 255",
-			s.settings.Address)
+		sessionLogger().Debug("ignoring reserved route-refresh subtype", "peer", s.settings.Address, "subtype", 255)
 		return nil
 	}
 
@@ -1408,10 +1405,10 @@ func (s *Session) SendUpdate(update *message.Update) error {
 	}
 
 	// Notify callback after successful send
-	sessionLogger.Debug("SendUpdate complete", "peer", s.settings.Address, "hasCallback", s.onMessageReceived != nil, "msgLen", n)
+	sessionLogger().Debug("SendUpdate complete", "peer", s.settings.Address, "hasCallback", s.onMessageReceived != nil, "msgLen", n)
 	if s.onMessageReceived != nil && n >= message.HeaderLen {
 		body := s.writeBuf.Buffer()[message.HeaderLen:n]
-		sessionLogger.Debug("SendUpdate calling onMessageReceived", "peer", s.settings.Address, "direction", "sent", "ctxID", s.sendCtxID, "bodyLen", len(body))
+		sessionLogger().Debug("SendUpdate calling onMessageReceived", "peer", s.settings.Address, "direction", "sent", "ctxID", s.sendCtxID, "bodyLen", len(body))
 		_ = s.onMessageReceived(s.settings.Address, message.TypeUPDATE, body, nil, s.sendCtxID, "sent", nil)
 	}
 

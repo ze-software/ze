@@ -12,29 +12,33 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// TestLoggerDisabledByDefault verifies no logs when env var not set.
+// TestLoggerDefaultWarn verifies WARN level when env var not set.
 //
-// VALIDATES: Subsystems are disabled by default.
-// PREVENTS: Accidental logging when not explicitly enabled.
-func TestLoggerDisabledByDefault(t *testing.T) {
+// VALIDATES: Subsystems default to WARN level (shows warnings and errors).
+// PREVENTS: Missing important warnings/errors in production.
+func TestLoggerDefaultWarn(t *testing.T) {
 	// Clear any existing env vars using t.Setenv (auto-restores on test end)
-	t.Setenv("ze.log.bgp.test", "")
-	t.Setenv("ze_log_bgp_test", "")
+	t.Setenv("ze.log.test", "")
+	t.Setenv("ze_log_test", "")
+	t.Setenv("ze.log", "")
+	t.Setenv("ze_log", "")
 
 	logger := Logger("test")
 	require.NotNil(t, logger)
 
-	// Logger should be disabled - check with Enabled()
+	// Default is WARN - warn and error enabled, info and debug disabled
+	assert.True(t, logger.Enabled(context.Background(), slog.LevelWarn))
+	assert.True(t, logger.Enabled(context.Background(), slog.LevelError))
 	assert.False(t, logger.Enabled(context.Background(), slog.LevelInfo))
 	assert.False(t, logger.Enabled(context.Background(), slog.LevelDebug))
 }
 
-// TestLoggerExplicitDisabled verifies ze.log.bgp.server=disabled explicitly disables.
+// TestLoggerExplicitDisabled verifies ze.log.server=disabled explicitly disables.
 //
 // VALIDATES: Explicit "disabled" value disables logging.
 // PREVENTS: Ambiguity between unset and explicitly disabled.
 func TestLoggerExplicitDisabled(t *testing.T) {
-	t.Setenv("ze.log.bgp.server", "disabled")
+	t.Setenv("ze.log.server", "disabled")
 
 	logger := Logger("server")
 	require.NotNil(t, logger)
@@ -42,12 +46,12 @@ func TestLoggerExplicitDisabled(t *testing.T) {
 	assert.False(t, logger.Enabled(context.Background(), slog.LevelInfo))
 }
 
-// TestLoggerEnabledDot verifies ze.log.bgp.server=debug enables logging.
+// TestLoggerEnabledDot verifies ze.log.server=debug enables logging.
 //
 // VALIDATES: Dot notation enables logging at specified level.
 // PREVENTS: Dot notation parsing failure.
 func TestLoggerEnabledDot(t *testing.T) {
-	t.Setenv("ze.log.bgp.server", "debug")
+	t.Setenv("ze.log.server", "debug")
 
 	logger := Logger("server")
 	require.NotNil(t, logger)
@@ -56,14 +60,14 @@ func TestLoggerEnabledDot(t *testing.T) {
 	assert.True(t, logger.Enabled(context.Background(), slog.LevelInfo))
 }
 
-// TestLoggerEnabledUnderscore verifies ze_log_bgp_server=debug enables logging.
+// TestLoggerEnabledUnderscore verifies ze_log_server=debug enables logging.
 //
 // VALIDATES: Underscore notation enables logging at specified level.
 // PREVENTS: Underscore notation parsing failure.
 func TestLoggerEnabledUnderscore(t *testing.T) {
 	// Ensure dot notation not set
-	t.Setenv("ze.log.bgp.server", "")
-	t.Setenv("ze_log_bgp_server", "debug")
+	t.Setenv("ze.log.server", "")
+	t.Setenv("ze_log_server", "debug")
 
 	logger := Logger("server")
 	require.NotNil(t, logger)
@@ -71,36 +75,14 @@ func TestLoggerEnabledUnderscore(t *testing.T) {
 	assert.True(t, logger.Enabled(context.Background(), slog.LevelDebug))
 }
 
-// TestLoggerWithLevel verifies LoggerWithLevel("gr", "debug") enables debug logging.
-//
-// VALIDATES: LoggerWithLevel correctly sets level from CLI flag.
-// PREVENTS: Plugin CLI flag being ignored.
-func TestLoggerWithLevel(t *testing.T) {
-	logger := LoggerWithLevel("gr", "debug")
-	require.NotNil(t, logger)
-
-	assert.True(t, logger.Enabled(context.Background(), slog.LevelDebug))
-}
-
-// TestLoggerWithLevelDisabled verifies LoggerWithLevel with "disabled" disables logging.
-//
-// VALIDATES: LoggerWithLevel respects disabled value.
-// PREVENTS: Plugin logging when explicitly disabled.
-func TestLoggerWithLevelDisabled(t *testing.T) {
-	logger := LoggerWithLevel("gr", "disabled")
-	require.NotNil(t, logger)
-
-	assert.False(t, logger.Enabled(context.Background(), slog.LevelInfo))
-}
-
 // TestLoggerPrecedence verifies dot notation takes precedence over underscore.
 //
-// VALIDATES: ze.log.bgp.x > ze_log_bgp_x > default.
+// VALIDATES: ze.log.x > ze_log_x > default.
 // PREVENTS: Wrong env var being used when both set.
 func TestLoggerPrecedence(t *testing.T) {
 	// Set both, dot should win
-	t.Setenv("ze.log.bgp.server", "info")
-	t.Setenv("ze_log_bgp_server", "debug")
+	t.Setenv("ze.log.server", "info")
+	t.Setenv("ze_log_server", "debug")
 
 	logger := Logger("server")
 	require.NotNil(t, logger)
@@ -115,7 +97,7 @@ func TestLoggerPrecedence(t *testing.T) {
 // VALIDATES: Logger adds subsystem=<name> to all log messages.
 // PREVENTS: Missing subsystem tag in output.
 func TestLoggerSubsystemAttr(t *testing.T) {
-	t.Setenv("ze.log.bgp.test", "info")
+	t.Setenv("ze.log.test", "info")
 
 	var buf bytes.Buffer
 	logger := LoggerWithOutput("test", "info", &buf)
@@ -170,7 +152,7 @@ func TestParseLevelAliases(t *testing.T) {
 // VALIDATES: Level filtering works correctly.
 // PREVENTS: Debug logs appearing at info level.
 func TestLoggerLevelFiltering(t *testing.T) {
-	t.Setenv("ze.log.bgp.server", "info")
+	t.Setenv("ze.log.server", "info")
 
 	logger := Logger("server")
 	require.NotNil(t, logger)
@@ -186,7 +168,7 @@ func TestLoggerLevelFiltering(t *testing.T) {
 // VALIDATES: Unknown level values disable logging.
 // PREVENTS: Typos silently enabling logging.
 func TestLoggerUnknownLevel(t *testing.T) {
-	t.Setenv("ze.log.bgp.server", "verbose") // not a valid level
+	t.Setenv("ze.log.server", "verbose") // not a valid level
 
 	logger := Logger("server")
 	require.NotNil(t, logger)
@@ -194,13 +176,13 @@ func TestLoggerUnknownLevel(t *testing.T) {
 	assert.False(t, logger.Enabled(context.Background(), slog.LevelInfo))
 }
 
-// TestBackendStderr verifies ze.log.bgp.backend=stderr uses stderr.
+// TestBackendStderr verifies ze.log.backend=stderr uses stderr.
 //
 // VALIDATES: Default backend is stderr.
 // PREVENTS: Wrong output destination.
 func TestBackendStderr(t *testing.T) {
-	t.Setenv("ze.log.bgp.server", "info")
-	t.Setenv("ze.log.bgp.backend", "")
+	t.Setenv("ze.log.server", "info")
+	t.Setenv("ze.log.backend", "")
 
 	// Default should be stderr - verify by checking createHandler returns stderr handler
 	handler := createHandler(slog.LevelInfo)
@@ -208,36 +190,35 @@ func TestBackendStderr(t *testing.T) {
 	// Can't easily verify it's stderr, but ensure it's not nil
 }
 
-// TestBackendStdout verifies ze.log.bgp.backend=stdout uses stdout.
+// TestBackendStdout verifies ze.log.backend=stdout uses stdout.
 //
 // VALIDATES: stdout backend option works.
 // PREVENTS: stdout option being ignored.
 func TestBackendStdout(t *testing.T) {
-	t.Setenv("ze.log.bgp.backend", "stdout")
+	t.Setenv("ze.log.backend", "stdout")
 
 	handler := createHandler(slog.LevelInfo)
 	require.NotNil(t, handler)
 }
 
-// TestBackendSyslog verifies ze.log.bgp.backend=syslog creates syslog handler.
+// TestBackendSyslog verifies ze.log.backend=syslog creates syslog handler.
 //
 // VALIDATES: Syslog backend option works.
 // PREVENTS: Syslog option being ignored.
 func TestBackendSyslog(t *testing.T) {
-	t.Setenv("ze.log.bgp.backend", "syslog")
-	t.Setenv("ze.log.bgp.destination", "localhost:514")
+	t.Setenv("ze.log.backend", "syslog")
+	t.Setenv("ze.log.destination", "localhost:514")
 
 	handler := createHandler(slog.LevelInfo)
 	require.NotNil(t, handler)
 }
 
-// TestLoggerWithLevelStderr verifies LoggerWithLevel() always uses stderr.
+// TestLoggerWithOutput verifies LoggerWithOutput() writes to provided writer.
 //
-// VALIDATES: Plugin loggers always write to stderr.
-// PREVENTS: Plugin stdout contamination (stdout = protocol messages).
-func TestLoggerWithLevelStderr(t *testing.T) {
-	// LoggerWithLevel always uses stderr regardless of backend setting
-	t.Setenv("ze.log.bgp.backend", "stdout") // Should be ignored
+// VALIDATES: Custom output destination works.
+// PREVENTS: Logs going to wrong destination.
+func TestLoggerWithOutput(t *testing.T) {
+	t.Setenv("ze.log.backend", "stdout") // Should be ignored for LoggerWithOutput
 
 	var buf bytes.Buffer
 	logger := LoggerWithOutput("gr", "info", &buf)
@@ -245,37 +226,6 @@ func TestLoggerWithLevelStderr(t *testing.T) {
 
 	logger.Info("test")
 	assert.Contains(t, buf.String(), "test")
-}
-
-// TestIsPluginRelayEnabled verifies ze.log.bgp.plugin=enabled returns true.
-//
-// VALIDATES: Plugin relay enable flag works.
-// PREVENTS: Plugin stderr being silently dropped.
-func TestIsPluginRelayEnabled(t *testing.T) {
-	t.Setenv("ze.log.bgp.plugin", "enabled")
-
-	assert.True(t, IsPluginRelayEnabled())
-}
-
-// TestIsPluginRelayDisabled verifies ze.log.bgp.plugin=disabled returns false.
-//
-// VALIDATES: Plugin relay can be explicitly disabled.
-// PREVENTS: Ambiguity in disabled state.
-func TestIsPluginRelayDisabled(t *testing.T) {
-	t.Setenv("ze.log.bgp.plugin", "disabled")
-
-	assert.False(t, IsPluginRelayEnabled())
-}
-
-// TestIsPluginRelayDefault verifies unset ze.log.bgp.plugin returns false.
-//
-// VALIDATES: Plugin relay is disabled by default.
-// PREVENTS: Unexpected plugin stderr appearing in logs.
-func TestIsPluginRelayDefault(t *testing.T) {
-	t.Setenv("ze.log.bgp.plugin", "")
-	t.Setenv("ze_log_bgp_plugin", "")
-
-	assert.False(t, IsPluginRelayEnabled())
 }
 
 // TestDiscardHandler verifies discardHandler implements slog.Handler correctly.
@@ -416,4 +366,498 @@ func TestAllLevelsParsing(t *testing.T) {
 			assert.Equal(t, tt.enabled, enabled)
 		})
 	}
+}
+
+// =============================================================================
+// Hierarchical Logging Tests (ze.log.<path> convention)
+// =============================================================================
+
+// TestLoggerHierarchicalSpecificOverridesParent verifies ze.log.bgp.fsm overrides ze.log.bgp.
+//
+// VALIDATES: Specific subsystem env var overrides parent.
+// PREVENTS: Parent level incorrectly overriding specific setting.
+func TestLoggerHierarchicalSpecificOverridesParent(t *testing.T) {
+	t.Setenv("ze.log.bgp", "debug")
+	t.Setenv("ze.log.bgp.fsm", "warn")
+
+	logger := Logger("bgp.fsm")
+	require.NotNil(t, logger)
+
+	// Should be warn level (specific), not debug (parent)
+	assert.True(t, logger.Enabled(context.Background(), slog.LevelWarn))
+	assert.False(t, logger.Enabled(context.Background(), slog.LevelInfo))
+	assert.False(t, logger.Enabled(context.Background(), slog.LevelDebug))
+}
+
+// TestLoggerHierarchicalParentLevel verifies ze.log.bgp=debug enables all bgp.* subsystems.
+//
+// VALIDATES: Parent level applies to all child subsystems.
+// PREVENTS: Missing inheritance from parent level.
+func TestLoggerHierarchicalParentLevel(t *testing.T) {
+	t.Setenv("ze.log.bgp", "debug")
+	// Ensure specific is not set
+	t.Setenv("ze.log.bgp.fsm", "")
+	t.Setenv("ze_log_bgp_fsm", "")
+
+	logger := Logger("bgp.fsm")
+	require.NotNil(t, logger)
+
+	// Should inherit debug from parent
+	assert.True(t, logger.Enabled(context.Background(), slog.LevelDebug))
+}
+
+// TestLoggerHierarchicalRootLevel verifies ze.log=debug enables all subsystems.
+//
+// VALIDATES: Root ze.log level applies to all subsystems.
+// PREVENTS: Root level being ignored.
+func TestLoggerHierarchicalRootLevel(t *testing.T) {
+	t.Setenv("ze.log", "info")
+	// Ensure specific and parent are not set
+	t.Setenv("ze.log.server", "")
+	t.Setenv("ze_log_server", "")
+
+	logger := Logger("server")
+	require.NotNil(t, logger)
+
+	// Should inherit from root
+	assert.True(t, logger.Enabled(context.Background(), slog.LevelInfo))
+	assert.False(t, logger.Enabled(context.Background(), slog.LevelDebug))
+}
+
+// TestLoggerHierarchicalDotOverridesUnderscore verifies dot notation wins over underscore.
+//
+// VALIDATES: ze.log.bgp.fsm > ze_log_bgp_fsm at same level.
+// PREVENTS: Underscore incorrectly taking precedence.
+func TestLoggerHierarchicalDotOverridesUnderscore(t *testing.T) {
+	t.Setenv("ze.log.bgp.fsm", "warn")
+	t.Setenv("ze_log_bgp_fsm", "debug")
+
+	logger := Logger("bgp.fsm")
+	require.NotNil(t, logger)
+
+	// Dot notation should win
+	assert.True(t, logger.Enabled(context.Background(), slog.LevelWarn))
+	assert.False(t, logger.Enabled(context.Background(), slog.LevelDebug))
+}
+
+// TestLoggerHierarchicalUnderscoreFallback verifies underscore works when dot not set.
+//
+// VALIDATES: ze_log_bgp_fsm works when ze.log.bgp.fsm is not set.
+// PREVENTS: Underscore notation being completely ignored.
+func TestLoggerHierarchicalUnderscoreFallback(t *testing.T) {
+	t.Setenv("ze.log.bgp.fsm", "")
+	t.Setenv("ze_log_bgp_fsm", "debug")
+
+	logger := Logger("bgp.fsm")
+	require.NotNil(t, logger)
+
+	assert.True(t, logger.Enabled(context.Background(), slog.LevelDebug))
+}
+
+// TestLoggerHierarchicalInvalidLevel verifies invalid level = disabled.
+//
+// VALIDATES: Unknown level strings disable logging.
+// PREVENTS: Typos silently enabling logging.
+func TestLoggerHierarchicalInvalidLevel(t *testing.T) {
+	t.Setenv("ze.log.bgp.fsm", "verbose") // invalid
+
+	logger := Logger("bgp.fsm")
+	require.NotNil(t, logger)
+
+	assert.False(t, logger.Enabled(context.Background(), slog.LevelInfo))
+}
+
+// TestLoggerHierarchicalEmptyEnvDefaultsWarn verifies empty env = WARN level.
+//
+// VALIDATES: No env vars set = WARN level (default).
+// PREVENTS: Missing warnings/errors when not configured.
+func TestLoggerHierarchicalEmptyEnvDefaultsWarn(t *testing.T) {
+	// Clear all possible env vars
+	t.Setenv("ze.log", "")
+	t.Setenv("ze_log", "")
+	t.Setenv("ze.log.test", "")
+	t.Setenv("ze_log_test", "")
+
+	logger := Logger("test")
+	require.NotNil(t, logger)
+
+	// Default is WARN - warn enabled, info disabled
+	assert.True(t, logger.Enabled(context.Background(), slog.LevelWarn))
+	assert.False(t, logger.Enabled(context.Background(), slog.LevelInfo))
+}
+
+// =============================================================================
+// PluginLogger Tests (CLI + Env Var)
+// =============================================================================
+
+// TestPluginLoggerCLIOverridesEnv verifies CLI flag takes precedence over env var.
+//
+// VALIDATES: --log-level=warn overrides ze.log.gr=debug.
+// PREVENTS: Env var incorrectly overriding explicit CLI flag.
+func TestPluginLoggerCLIOverridesEnv(t *testing.T) {
+	t.Setenv("ze.log.gr", "debug")
+
+	logger := PluginLogger("gr", "warn")
+	require.NotNil(t, logger)
+
+	// CLI should win
+	assert.True(t, logger.Enabled(context.Background(), slog.LevelWarn))
+	assert.False(t, logger.Enabled(context.Background(), slog.LevelInfo))
+}
+
+// TestPluginLoggerDisabledCLIFallsBackToEnv verifies CLI "disabled" uses env var.
+//
+// VALIDATES: --log-level=disabled falls back to env var.
+// PREVENTS: Plugins unable to use env var when CLI is "disabled".
+func TestPluginLoggerDisabledCLIFallsBackToEnv(t *testing.T) {
+	t.Setenv("ze.log.gr", "debug")
+
+	logger := PluginLogger("gr", "disabled")
+	require.NotNil(t, logger)
+
+	// Should use env var since CLI is "disabled"
+	assert.True(t, logger.Enabled(context.Background(), slog.LevelDebug))
+}
+
+// TestPluginLoggerEmptyCLIFallsBackToEnv verifies empty CLI uses env var.
+//
+// VALIDATES: --log-level="" falls back to env var.
+// PREVENTS: Empty CLI string breaking env var lookup.
+func TestPluginLoggerEmptyCLIFallsBackToEnv(t *testing.T) {
+	t.Setenv("ze.log.gr", "info")
+
+	logger := PluginLogger("gr", "")
+	require.NotNil(t, logger)
+
+	assert.True(t, logger.Enabled(context.Background(), slog.LevelInfo))
+}
+
+// TestPluginLoggerBothEmptyDefaultsWarn verifies both empty = WARN level.
+//
+// VALIDATES: No CLI flag and no env var = WARN level (default).
+// PREVENTS: Missing warnings/errors when not configured.
+func TestPluginLoggerBothEmptyDefaultsWarn(t *testing.T) {
+	t.Setenv("ze.log.gr", "")
+	t.Setenv("ze_log_gr", "")
+	t.Setenv("ze.log", "")
+	t.Setenv("ze_log", "")
+
+	logger := PluginLogger("gr", "")
+	require.NotNil(t, logger)
+
+	// Default is WARN - warn enabled, info disabled
+	assert.True(t, logger.Enabled(context.Background(), slog.LevelWarn))
+	assert.False(t, logger.Enabled(context.Background(), slog.LevelInfo))
+}
+
+// TestPluginLoggerHierarchicalEnv verifies plugin inherits from parent env.
+//
+// VALIDATES: PluginLogger("gr", "") uses ze.log hierarchy.
+// PREVENTS: Plugin ignoring hierarchical env vars.
+func TestPluginLoggerHierarchicalEnv(t *testing.T) {
+	t.Setenv("ze.log", "warn")
+	t.Setenv("ze.log.gr", "")
+
+	logger := PluginLogger("gr", "")
+	require.NotNil(t, logger)
+
+	// Should inherit from root
+	assert.True(t, logger.Enabled(context.Background(), slog.LevelWarn))
+	assert.False(t, logger.Enabled(context.Background(), slog.LevelInfo))
+}
+
+// =============================================================================
+// Relay Level Tests
+// =============================================================================
+
+// TestRelayLevel verifies ze.log.relay controls relay output level.
+//
+// VALIDATES: RelayLevel() returns configured level.
+// PREVENTS: Plugin stderr relay not respecting configured level.
+func TestRelayLevel(t *testing.T) {
+	t.Setenv("ze.log.relay", "debug")
+
+	level, enabled := RelayLevel()
+	assert.True(t, enabled)
+	assert.Equal(t, slog.LevelDebug, level)
+}
+
+// TestRelayLevelDisabled verifies disabled relay.
+//
+// VALIDATES: ze.log.relay=disabled returns enabled=false.
+// PREVENTS: Disabled relay still outputting.
+func TestRelayLevelDisabled(t *testing.T) {
+	t.Setenv("ze.log.relay", "disabled")
+
+	_, enabled := RelayLevel()
+	assert.False(t, enabled)
+}
+
+// TestRelayLevelDefault verifies unset relay = WARN level.
+//
+// VALIDATES: No ze.log.relay = WARN level (default).
+// PREVENTS: Missing plugin warnings/errors.
+func TestRelayLevelDefault(t *testing.T) {
+	t.Setenv("ze.log.relay", "")
+	t.Setenv("ze_log_relay", "")
+
+	level, enabled := RelayLevel()
+	assert.True(t, enabled)
+	assert.Equal(t, slog.LevelWarn, level)
+}
+
+// =============================================================================
+// ApplyLogConfig Tests (Config File Support)
+// =============================================================================
+
+// TestApplyLogConfigBaseLevel verifies "level" maps to ze.log.
+//
+// VALIDATES: Config "level" key sets ze.log env var.
+// PREVENTS: Config file base level being ignored.
+func TestApplyLogConfigBaseLevel(t *testing.T) {
+	// Clear any existing env var
+	t.Setenv("ze.log", "")
+
+	configValues := map[string]map[string]string{
+		"log": {"level": "debug"},
+	}
+
+	ApplyLogConfig(configValues)
+
+	// Check env var was set
+	assert.Equal(t, "debug", getLogEnv("anything"))
+}
+
+// TestApplyLogConfigSubsystem verifies "bgp.routes" maps to ze.log.bgp.routes.
+//
+// VALIDATES: Config subsystem key sets correct env var.
+// PREVENTS: Subsystem config not applied.
+func TestApplyLogConfigSubsystem(t *testing.T) {
+	t.Setenv("ze.log.bgp.routes", "")
+	t.Setenv("ze.log.bgp", "")
+	t.Setenv("ze.log", "")
+
+	configValues := map[string]map[string]string{
+		"log": {"bgp.routes": "debug"},
+	}
+
+	ApplyLogConfig(configValues)
+
+	// Check hierarchical lookup finds it
+	assert.Equal(t, "debug", getLogEnv("bgp.routes"))
+}
+
+// TestApplyLogConfigBackend verifies "backend" maps to ze.log.backend.
+//
+// VALIDATES: Config backend key sets correct env var.
+// PREVENTS: Backend config not applied.
+func TestApplyLogConfigBackend(t *testing.T) {
+	t.Setenv("ze.log.backend", "")
+
+	configValues := map[string]map[string]string{
+		"log": {"backend": "syslog"},
+	}
+
+	ApplyLogConfig(configValues)
+
+	// Check special env var was set
+	assert.Equal(t, "syslog", getSpecialEnv("backend"))
+}
+
+// TestApplyLogConfigDestination verifies "destination" maps to ze.log.destination.
+//
+// VALIDATES: Config destination key sets correct env var.
+// PREVENTS: Syslog destination not applied.
+func TestApplyLogConfigDestination(t *testing.T) {
+	t.Setenv("ze.log.destination", "")
+
+	configValues := map[string]map[string]string{
+		"log": {"destination": "localhost:514"},
+	}
+
+	ApplyLogConfig(configValues)
+
+	assert.Equal(t, "localhost:514", getSpecialEnv("destination"))
+}
+
+// TestApplyLogConfigRelay verifies "relay" maps to ze.log.relay.
+//
+// VALIDATES: Config relay key sets correct env var.
+// PREVENTS: Relay level config not applied.
+func TestApplyLogConfigRelay(t *testing.T) {
+	t.Setenv("ze.log.relay", "")
+
+	configValues := map[string]map[string]string{
+		"log": {"relay": "info"},
+	}
+
+	ApplyLogConfig(configValues)
+
+	assert.Equal(t, "info", getSpecialEnv("relay"))
+}
+
+// TestApplyLogConfigOSEnvOverrides verifies OS env vars take precedence.
+//
+// VALIDATES: OS env var > config file.
+// PREVENTS: Config file overriding explicit OS env var.
+func TestApplyLogConfigOSEnvOverrides(t *testing.T) {
+	// Set OS env var before ApplyLogConfig
+	t.Setenv("ze.log.bgp.routes", "warn")
+
+	configValues := map[string]map[string]string{
+		"log": {"bgp.routes": "debug"},
+	}
+
+	ApplyLogConfig(configValues)
+
+	// OS env var should still be there (not overwritten)
+	assert.Equal(t, "warn", getLogEnv("bgp.routes"))
+}
+
+// TestApplyLogConfigEmptyLog verifies no crash on empty log section.
+//
+// VALIDATES: Empty log section is handled gracefully.
+// PREVENTS: Nil map panic.
+func TestApplyLogConfigEmptyLog(t *testing.T) {
+	// Should not panic
+	ApplyLogConfig(nil)
+	ApplyLogConfig(map[string]map[string]string{})
+	ApplyLogConfig(map[string]map[string]string{"other": {"key": "value"}})
+}
+
+// TestApplyLogConfigInvalidLevelWarns verifies invalid level produces warning.
+//
+// VALIDATES: Invalid log level outputs warning to writer.
+// PREVENTS: Silent acceptance of typos in config file.
+func TestApplyLogConfigInvalidLevelWarns(t *testing.T) {
+	t.Setenv("ze.log.badlevel", "")
+
+	var buf bytes.Buffer
+	configValues := map[string]map[string]string{
+		"log": {"badlevel": "verbose"}, // invalid level
+	}
+
+	applyLogConfigTo(configValues, &buf)
+
+	output := buf.String()
+
+	// Should contain warning about invalid level
+	assert.Contains(t, output, "warning")
+	assert.Contains(t, output, "invalid log level")
+	assert.Contains(t, output, "verbose")
+}
+
+// TestApplyLogConfigInvalidBackendWarns verifies invalid backend produces warning.
+//
+// VALIDATES: Invalid backend outputs warning to writer.
+// PREVENTS: Silent acceptance of invalid backend in config file.
+func TestApplyLogConfigInvalidBackendWarns(t *testing.T) {
+	t.Setenv("ze.log.backend", "")
+
+	var buf bytes.Buffer
+	configValues := map[string]map[string]string{
+		"log": {"backend": "file"}, // invalid backend
+	}
+
+	applyLogConfigTo(configValues, &buf)
+
+	output := buf.String()
+
+	// Should contain warning about invalid backend
+	assert.Contains(t, output, "warning")
+	assert.Contains(t, output, "invalid log backend")
+	assert.Contains(t, output, "file")
+}
+
+// TestApplyLogConfigMultipleSettings verifies multiple settings work together.
+//
+// VALIDATES: Multiple log config settings are applied.
+// PREVENTS: Only first/last setting being applied.
+func TestApplyLogConfigMultipleSettings(t *testing.T) {
+	t.Setenv("ze.log", "")
+	t.Setenv("ze.log.bgp.routes", "")
+	t.Setenv("ze.log.config", "")
+	t.Setenv("ze.log.backend", "")
+
+	configValues := map[string]map[string]string{
+		"log": {
+			"level":      "warn",
+			"bgp.routes": "debug",
+			"config":     "info",
+			"backend":    "stdout",
+		},
+	}
+
+	ApplyLogConfig(configValues)
+
+	// All settings should be applied
+	assert.Equal(t, "warn", getLogEnv("unknown"))       // base level
+	assert.Equal(t, "debug", getLogEnv("bgp.routes"))   // specific
+	assert.Equal(t, "info", getLogEnv("config"))        // specific
+	assert.Equal(t, "stdout", getSpecialEnv("backend")) // special
+}
+
+// =============================================================================
+// LazyLogger Tests
+// =============================================================================
+
+// TestLazyLoggerDeferredCreation verifies logger is created on first use.
+//
+// VALIDATES: LazyLogger defers logger creation until first call.
+// PREVENTS: Package-level loggers ignoring config file settings.
+func TestLazyLoggerDeferredCreation(t *testing.T) {
+	// Set env var AFTER LazyLogger declaration but BEFORE first use
+	t.Setenv("ze.log.lazytest", "debug")
+
+	// Create lazy logger (doesn't read env var yet)
+	lazy := LazyLogger("lazytest")
+
+	// First call creates the logger and reads env var
+	logger := lazy()
+	require.NotNil(t, logger)
+
+	// Should be debug level (from env var set after declaration)
+	assert.True(t, logger.Enabled(context.Background(), slog.LevelDebug))
+}
+
+// TestLazyLoggerCachesResult verifies same logger instance returned.
+//
+// VALIDATES: LazyLogger returns same instance on subsequent calls.
+// PREVENTS: Creating new logger instances on every call.
+func TestLazyLoggerCachesResult(t *testing.T) {
+	t.Setenv("ze.log.cachetest", "info")
+
+	lazy := LazyLogger("cachetest")
+
+	// Multiple calls should return same instance
+	logger1 := lazy()
+	logger2 := lazy()
+	logger3 := lazy()
+
+	assert.Same(t, logger1, logger2)
+	assert.Same(t, logger2, logger3)
+}
+
+// TestLazyLoggerConfigFileIntegration verifies config file settings work.
+//
+// VALIDATES: LazyLogger picks up settings from ApplyLogConfig.
+// PREVENTS: Config file log settings being ignored by engine loggers.
+func TestLazyLoggerConfigFileIntegration(t *testing.T) {
+	// Clear env var
+	t.Setenv("ze.log.integrated", "")
+
+	// Simulate config loading: first declare lazy logger, then apply config
+	lazy := LazyLogger("integrated")
+
+	// Apply config (simulates config file parsing)
+	ApplyLogConfig(map[string]map[string]string{
+		"log": {"integrated": "debug"},
+	})
+
+	// Now first use of lazy logger - should pick up config setting
+	logger := lazy()
+	require.NotNil(t, logger)
+
+	// Should be debug level from config
+	assert.True(t, logger.Enabled(context.Background(), slog.LevelDebug))
 }

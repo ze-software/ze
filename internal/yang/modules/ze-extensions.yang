@@ -42,4 +42,14 @@ module ze-extensions {
         description "Node accepts standard route attributes
                      (next-hop, origin, community, etc.)";
     }
+
+    // Extension: allow-unknown-fields
+    // Container accepts arbitrary key-value pairs beyond defined leaves.
+    // Used for dynamic configuration like per-subsystem log levels.
+    // Unknown fields are stored as key-value strings.
+    extension allow-unknown-fields {
+        description "Container accepts arbitrary unknown fields as strings.
+                     Used for environment.log to allow subsystem paths
+                     like 'bgp.routes debug;' for ze.log.bgp.routes=debug.";
+    }
 }

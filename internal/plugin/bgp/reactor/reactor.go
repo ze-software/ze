@@ -24,8 +24,16 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/plugin/bgp/nlri"
 	"codeberg.org/thomas-mangin/ze/internal/plugin/bgp/rib"
 	"codeberg.org/thomas-mangin/ze/internal/selector"
-	"codeberg.org/thomas-mangin/ze/internal/trace"
+	"codeberg.org/thomas-mangin/ze/internal/slogutil"
 )
+
+// reactorLogger is the reactor subsystem logger (lazy initialization).
+// Controlled by ze.log.bgp.reactor environment variable.
+var reactorLogger = slogutil.LazyLogger("bgp.reactor")
+
+// routesLogger is the routes subsystem logger (lazy initialization).
+// Controlled by ze.log.bgp.routes environment variable.
+var routesLogger = slogutil.LazyLogger("bgp.routes")
 
 // Reactor errors.
 var (
@@ -363,7 +371,7 @@ func (a *reactorAPIAdapter) AnnounceRoute(peerSelector string, route plugin.Rout
 		nextHopAddr, nhErr := peer.resolveNextHop(route.NextHop, n.Family())
 		if nhErr != nil {
 			// Log but continue - skip this peer if next-hop can't be resolved
-			trace.Log(trace.Routes, "peer %s: next-hop resolution failed: %v", peer.Settings().Address, nhErr)
+			routesLogger().Debug("next-hop resolution failed", "peer", peer.Settings().Address, "error", nhErr)
 			continue
 		}
 
@@ -988,7 +996,7 @@ func (a *reactorAPIAdapter) Reload() error {
 			// Peer settings changed - remove and re-add.
 			toRemove = append(toRemove, addr)
 			toAdd = append(toAdd, newSettings)
-			trace.Log(trace.Config, "reload: peer %s settings changed", addr)
+			reactorLogger().Debug("reload: peer settings changed", "peer", addr)
 		}
 	}
 
@@ -1005,7 +1013,7 @@ func (a *reactorAPIAdapter) Reload() error {
 		if peer, ok := r.peers[addr]; ok {
 			peer.Stop()
 			delete(r.peers, addr)
-			trace.Log(trace.Config, "reload: removed peer %s", addr)
+			reactorLogger().Debug("reload: removed peer", "peer", addr)
 		}
 		r.mu.Unlock()
 	}
@@ -1016,7 +1024,7 @@ func (a *reactorAPIAdapter) Reload() error {
 		if err := r.AddPeer(settings); err != nil {
 			addErrors = append(addErrors, fmt.Errorf("add peer %s: %w", settings.Address, err))
 		} else {
-			trace.Log(trace.Config, "reload: added peer %s", settings.Address)
+			reactorLogger().Debug("reload: added peer", "peer", settings.Address)
 		}
 	}
 
@@ -1806,7 +1814,7 @@ func (a *reactorAPIAdapter) AnnounceNLRIBatch(peerSelector string, batch plugin.
 		nextHop, nhErr := peer.resolveNextHop(batch.NextHop, batch.Family)
 		if nhErr != nil {
 			// Log but continue - skip this peer if next-hop can't be resolved
-			trace.Log(trace.Routes, "peer %s: next-hop resolution failed: %v", peer.Settings().Address, nhErr)
+			routesLogger().Debug("next-hop resolution failed", "peer", peer.Settings().Address, "error", nhErr)
 			continue
 		}
 
@@ -3876,7 +3884,7 @@ func (r *Reactor) notifyMessageReceiver(peerAddr netip.Addr, msgType message.Mes
 		// Errors logged but not fatal - handleUpdate() validates separately
 		attrsWire, parseErr := wireUpdate.Attrs()
 		if parseErr != nil {
-			trace.Log(trace.Session, "peer %s: WireUpdate.Attrs error: %v", peerAddr, parseErr)
+			sessionLogger().Debug("WireUpdate.Attrs error", "peer", peerAddr, "error", parseErr)
 		}
 
 		// RawMessage uses zero-copy for synchronous callback processing
@@ -4170,9 +4178,9 @@ func (r *Reactor) StartWithContext(ctx context.Context) error {
 	r.signals.OnReload(func() {
 		adapter := &reactorAPIAdapter{r: r}
 		if err := adapter.Reload(); err != nil {
-			trace.ConfigReloadFailed(err)
+			reactorLogger().Error("config reload failed", "error", err)
 		} else {
-			trace.ConfigReloaded()
+			reactorLogger().Info("config reloaded")
 		}
 	})
 	r.signals.StartWithContext(r.ctx)

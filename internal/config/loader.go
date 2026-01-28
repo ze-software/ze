@@ -14,8 +14,13 @@ import (
 	"codeberg.org/thomas-mangin/ze/internal/plugin/bgp/capability"
 	"codeberg.org/thomas-mangin/ze/internal/plugin/bgp/nlri"
 	"codeberg.org/thomas-mangin/ze/internal/plugin/bgp/reactor"
-	"codeberg.org/thomas-mangin/ze/internal/trace"
+	"codeberg.org/thomas-mangin/ze/internal/slogutil"
 )
+
+// configLogger is the config subsystem logger (lazy initialization).
+// Controlled by ze.log.config environment variable.
+// Uses LazyLogger to pick up config file settings applied after init().
+var configLogger = slogutil.LazyLogger("config")
 
 // Origin attribute values.
 const (
@@ -50,10 +55,16 @@ func LoadReactorWithConfig(input string) (*BGPConfig, *reactor.Reactor, error) {
 	}
 
 	// Log parse warnings
-	trace.ConfigParsed("(input)", 0, p.Warnings())
+	if warnings := p.Warnings(); len(warnings) > 0 {
+		configLogger().Debug("config parsed", "warnings", warnings)
+	}
 
 	// Extract environment block (ze-specific, before conversion)
 	envValues := ExtractEnvironment(tree)
+
+	// Apply log config to environment variables.
+	// Lazy loggers (LazyLogger) will pick up these settings on first use.
+	slogutil.ApplyLogConfig(envValues)
 
 	// Convert to typed config
 	cfg, err := TreeToConfig(tree)
@@ -64,7 +75,7 @@ func LoadReactorWithConfig(input string) (*BGPConfig, *reactor.Reactor, error) {
 	// Store environment values for later use
 	cfg.EnvValues = envValues
 
-	trace.ConfigLoaded(len(cfg.Peers))
+	configLogger().Debug("config loaded", "peers", len(cfg.Peers))
 
 	// Create reactor
 	r, err := CreateReactor(cfg)
@@ -515,7 +526,7 @@ func configToPeer(nc *PeerConfig, global *BGPConfig) (*reactor.PeerSettings, err
 
 	// Log static routes
 	if len(n.StaticRoutes) > 0 {
-		trace.PeerRoutes(nc.Address.String(), len(n.StaticRoutes))
+		configLogger().Debug("peer routes configured", "peer", nc.Address.String(), "routes", len(n.StaticRoutes))
 	}
 
 	// Convert process bindings
@@ -1238,7 +1249,7 @@ func parseFlowICMPTypes(s string) []uint8 {
 			continue
 		}
 		// Unknown name - log warning
-		trace.Log(trace.Config, "unknown ICMP type name: %s", p)
+		configLogger().Warn("unknown ICMP type name", "name", p)
 	}
 	return result
 }
@@ -1298,7 +1309,7 @@ func parseFlowICMPCodes(s string) []uint8 {
 			continue
 		}
 		// Unknown name - log warning
-		trace.Log(trace.Config, "unknown ICMP code name: %s", p)
+		configLogger().Warn("unknown ICMP code name", "name", p)
 	}
 	return result
 }
